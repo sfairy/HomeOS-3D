@@ -6,7 +6,10 @@
  * 顶边离地 height - 0.06 米。约定：curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比；
  * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609222006";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609230040";
+// 未绑定窗帘的默认开合度：与运行时的未绑定兜底（curtain-motion）必须同值，故只定义在
+// utils/cover-features.js 一处。
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609230040";
 
 /**
  * 归一化窗帘轨道参数。
@@ -24,7 +27,14 @@ export function normalizeCurtainTrack(inputOptions = {}) {
     curtainRightLength: clampOptionalNumber(inputOptions.curtainRightLength, 0.2, 7.8, 1.2),
     // 搭接百分比限制在 5%~95%，两端留出余量避免两片帘布完全分开或完全重叠。
     curtainMeet: clampOptionalNumber(inputOptions.curtainMeet, 5, 95, 50),
-    curtainPreview: clampOptionalNumber(inputOptions.curtainPreview, 0, 100, 0),
+    // 未设置时按默认开合度展示（见 COVER_DEFAULT_PREVIEW_POSITION）：新建 / 旧模型都得到一个
+    // 明确读作「打开」的预览值，同时保留帘布的体积感。
+    curtainPreview: clampOptionalNumber(
+      inputOptions.curtainPreview,
+      0,
+      100,
+      COVER_DEFAULT_PREVIEW_POSITION
+    ),
     // 面料是可选字段：未给出时不下发该键，由上层按默认面料处理。
     ...(inputOptions.curtainFabric === "cloth" || inputOptions.curtainFabric === "sheer"
       ? {

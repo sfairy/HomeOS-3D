@@ -12,8 +12,10 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609222006"></script>
-    <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
+    <script src="/static/logging/client-log.js?v=2609230040"></script>
+    <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。
+         这个宽度有三个同源值：本行、app.css 的 --editor-design-width、home.js 的
+         EDITOR_DESIGN_WIDTH —— 都是吃不下 var() 的位置，改一处要同手改另两处。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <!-- 移动端状态栏 / 任务切换器取这一档。**刻意与全站其余 10 处不同**：
          入口页（login/setup/license/pair）、商店与工作室的底色都是夜空最深档
@@ -30,26 +32,29 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609222006" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609222006" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609222006" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609222006" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609222006" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609222006" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609230040" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609230040" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609230040" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609230040" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609230040" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609230040" />
     <!-- 全站调色板（design/scene/page.css 的分发产物）。index.html **不再自带色板**：
          app.css 的 :root 只是把它别名成 --bg / --accent 这些历史令牌名。
          必须在 app.css 之前加载：别名在解析时就要能取到 --hos-*，顺序反了第一批
          自定义属性会解析成无效值，整页回落成透明底 + 默认蓝链接。 -->
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609222006" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609230040" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=2609222006"
+      href="/static/app.css?v=2609230040"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609222006" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609222006" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609222006` 的 <link>。
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609230040" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609230040" />
+    <!-- 布局交互层（折叠把手条 / 分隔条）的共享样式，与 /3d-studio 共用。
+         必须排在 app.css 之后：它要用同一特异性覆盖面板内边距与网格轨道。 -->
+    <link rel="stylesheet" href="/static/shared/layout.css?v=2609230040" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609230040` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -57,7 +62,7 @@
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609222006" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609230040" alt="" /><strong
           >HomeOS</strong
         ><span class="version">0.6.3</span>
       </div>
@@ -74,6 +79,14 @@
     <main class="editor-shell">
       <!-- ===== 左栏：控件图层导航（仪表盘 → 页面 / 弹窗 → 控件树） ===== -->
       <aside class="panel navigator">
+        <!-- 折叠把手条：折叠后它是本面板上唯一残留的控件，所以必须排在面板内部
+             （layout.css 靠 [data-collapsed] 藏掉其余子元素）。aria-expanded / aria-label 由 layout-shell.js 维护。 -->
+        <button
+          class="layout-collapse-rail"
+          type="button"
+          data-layout-toggle="navigator"
+          data-layout-toggle-label="控件图层栏"
+        ></button>
         <div class="panel-heading navigator-heading">
           <h2>控件图层</h2>
           <button id="project-floorplan-open" class="project-floorplan-open" type="button">户型图绘制</button>
@@ -171,6 +184,17 @@
           <div id="page-component-list" class="element-list" hidden></div>
         </div>
       </aside>
+      <!-- 左栏与画布之间的分隔条：0 宽网格项，叠在画布列左边界上（见 layout.css）。
+           不是独立网格轨道，所以三条轨道之和仍是 1020px —— 整页缩放的算术不用动。 -->
+      <button
+        id="nav-resizer"
+        class="layout-separator"
+        type="button"
+        role="separator"
+        data-layout-edge="start"
+        aria-orientation="vertical"
+        aria-label="拖动调整控件图层栏宽度"
+      ></button>
       <!-- ===== 中栏：页面画布与仪表盘预览（同一文档的编辑态 / 展示态） ===== -->
       <section class="workspace-panel">
         <div class="workspace-heading">
@@ -246,8 +270,25 @@
           <div id="custom-popup-editor" class="workspace-mode-surface custom-popup-editor" hidden></div>
         </div>
       </section>
+      <!-- 画布与右栏之间的分隔条：叠在画布列右边界上（data-layout-edge="end"）。 -->
+      <button
+        id="inspector-resizer"
+        class="layout-separator"
+        type="button"
+        role="separator"
+        data-layout-edge="end"
+        aria-orientation="vertical"
+        aria-label="拖动调整属性栏宽度"
+      ></button>
       <!-- ===== 右栏：属性检查器（每个控件类型一个 form，同时只有一个可见） ===== -->
       <aside class="panel inspector">
+        <!-- 折叠把手条，与左栏同构。 -->
+        <button
+          class="layout-collapse-rail"
+          type="button"
+          data-layout-toggle="inspector"
+          data-layout-toggle-label="属性栏"
+        ></button>
         <div class="panel-heading"><h2>属性</h2></div>
         <!-- 未选中控件时的空态提示，选中后由脚本隐藏。 -->
         <div id="inspector-empty" class="property-section inspector-empty"><p>选择一个控件开始编辑。</p></div>
@@ -272,7 +313,7 @@
               >
                 不使用实体
               </button>
-              <div id="image-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="image-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="image-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="image-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -291,7 +332,7 @@
               >
                 选择图片
               </button>
-              <div id="image-asset-menu" class="inspector-picker-menu" hidden>
+              <div id="image-asset-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <div class="asset-picker-toolbar">
                   <button id="image-asset-upload" class="asset-upload-button" type="button">上传</button
                   ><input
@@ -502,7 +543,7 @@
               >
                 不使用实体
               </button>
-              <div id="ibe-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="ibe-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="ibe-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="ibe-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -582,7 +623,7 @@
                     ><span aria-hidden="true">✓</span>
                   </button>
                 </div>
-                <div id="ibe-icon-menu" class="inspector-picker-menu" hidden>
+                <div id="ibe-icon-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                   <input id="ibe-icon-search" type="search" placeholder="搜索 MDI 图标" autocomplete="off" />
                   <div id="ibe-icon-options" class="navigation-icon-options" role="listbox"></div>
                 </div>
@@ -643,7 +684,7 @@
               >
                 不使用图片
               </button>
-              <div id="ibe-asset-menu" class="inspector-picker-menu" hidden>
+              <div id="ibe-asset-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <div class="asset-picker-toolbar">
                   <button id="ibe-asset-upload" class="asset-upload-button" type="button">上传</button
                   ><input
@@ -779,7 +820,7 @@
               >
                 不使用实体
               </button>
-              <div id="title-button-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="title-button-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input
                   id="title-button-entity-search"
                   type="search"
@@ -914,7 +955,7 @@
                   ><span aria-hidden="true">✓</span>
                 </button>
               </div>
-              <div id="title-button-icon-menu" class="inspector-picker-menu" hidden>
+              <div id="title-button-icon-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="title-button-icon-search" type="search" placeholder="搜索 MDI 图标" autocomplete="off" />
                 <div id="title-button-icon-options" class="navigation-icon-options" role="listbox"></div>
               </div>
@@ -1087,7 +1128,7 @@
               >
                 选择一个实体
               </button>
-              <div id="light-statistics-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="light-statistics-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input
                   id="light-statistics-entity-search"
                   type="search"
@@ -1148,7 +1189,7 @@
                   ><span aria-hidden="true">✓</span>
                 </button>
               </div>
-              <div id="light-statistics-icon-menu" class="inspector-picker-menu" hidden>
+              <div id="light-statistics-icon-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="light-statistics-icon-search" type="search" placeholder="搜索 MDI 图标" autocomplete="off" />
                 <div id="light-statistics-icon-options" class="navigation-icon-options" role="listbox"></div>
               </div>
@@ -1252,7 +1293,7 @@
               >
                 不使用实体
               </button>
-              <div id="light-statistics-action-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="light-statistics-action-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input
                   id="light-statistics-action-entity-search"
                   type="search"
@@ -1337,7 +1378,7 @@
               >
                 不使用实体
               </button>
-              <div id="icon-button-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="icon-button-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input
                   id="icon-button-entity-search"
                   type="search"
@@ -1412,7 +1453,7 @@
                   ><span aria-hidden="true">✓</span>
                 </button>
               </div>
-              <div id="icon-button-icon-menu" class="inspector-picker-menu" hidden>
+              <div id="icon-button-icon-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="icon-button-icon-search" type="search" placeholder="搜索 MDI 图标" autocomplete="off" />
                 <div id="icon-button-icon-options" class="navigation-icon-options" role="listbox"></div>
               </div>
@@ -1826,7 +1867,7 @@
               >
                 不使用实体
               </button>
-              <div id="air-conditioner-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="air-conditioner-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input
                   id="air-conditioner-entity-search"
                   type="search"
@@ -2220,7 +2261,7 @@
               >
                 不使用实体
               </button>
-              <div id="vacuum-map-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="vacuum-map-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="vacuum-map-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="vacuum-map-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -2266,7 +2307,7 @@
               >
                 不使用实体
               </button>
-              <div id="camera-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="camera-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="camera-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="camera-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -2542,7 +2583,7 @@
               >
                 不使用实体
               </button>
-              <div id="weather-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="weather-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="weather-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="weather-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -2671,7 +2712,7 @@
               >
                 不使用实体
               </button>
-              <div id="line-chart-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="line-chart-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="line-chart-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="line-chart-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -2988,7 +3029,7 @@
               >
                 不使用实体
               </button>
-              <div id="navigation-entity-menu" class="inspector-picker-menu" hidden>
+              <div id="navigation-entity-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="navigation-entity-search" type="search" placeholder="搜索实体名称或 ID" autocomplete="off" />
                 <div id="navigation-entity-options" class="inspector-entity-options" role="listbox"></div>
               </div>
@@ -3117,7 +3158,7 @@
                   <span aria-hidden="true">✓</span>
                 </button>
               </div>
-              <div id="navigation-icon-menu" class="inspector-picker-menu" hidden>
+              <div id="navigation-icon-menu" class="inspector-picker-menu inspector-picker-menu--floating" hidden>
                 <input id="navigation-icon-search" type="search" placeholder="搜索 MDI 图标" autocomplete="off" />
                 <div id="navigation-icon-options" class="navigation-icon-options" role="listbox"></div>
               </div>
@@ -4486,14 +4527,14 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=2609222006"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=2609230040"></script>
     <!-- 站点配色面板：独立模块，顶栏「配色」按钮即它的入口。
          与 home.js 分开是因为它不依赖编辑器状态 —— 换配色是站点级设置，不是仪表盘级。 -->
-    <script type="module" src="/static/editor/appearance.js?v=2609222006"></script>
+    <script type="module" src="/static/editor/appearance.js?v=2609230040"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/editor/home.js?v=2609222006"
+      src="/static/editor/home.js?v=2609230040"
     ></script>
   </body>
 </html>

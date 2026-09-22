@@ -1,0 +1,197 @@
+/*
+ * 布局交互层的唯一样式表：面板折叠把手条与网格分隔条。
+ *
+ * 只服务两个主工作台（`/index` 与 `/3d-studio`），由各自页面在页面样式表之后加载：
+ *   page.css（全站调色板）→ app.css / studio.css → **layout.css** → {{APPEARANCE}}
+ *
+ * 这里**没有**预设 / 沉浸模式 / 布局下拉：那三样是 2026-09 那次重构里加过又撤掉的一层 chrome
+ *   （顶栏一个「布局」菜单 + 退出沉浸浮标），用户判定它对两页没有实际价值。撤掉时一并去掉了
+ *   JS 侧对应的通路（layout-shell.js 的 presets / immersive / resetToDefaults、
+ *   layout-shortcuts.js 的 bindLayoutMenu 与预设/沉浸快捷键），不是只藏了样式。
+ *   现在只保留两件与「看画布」直接相关的事：把栏收起来、把栏拖宽/拖窄。
+ *
+ * 两处刻意为之，改之前先读：
+ *
+ * 1. **本文件不声明任何 `--hos-*` / `--hb-*` 令牌。** 只消费它们。调色板的「唯一真相」是
+ *    design/scene/page.css 及其分发副本，tools/audit_colors.mjs 会逐字节校验那几份副本与 53 组
+ *    `--hb-*` 镜像；在这里再定义一枚同族令牌，等于凭空多出一份无人校验的色板。
+ *    手写的半透明派生色一律用 alpha 0.13 / 0.32（appearance.js 的 soft / line 契约）。
+ *
+ * 2. **折叠不是 `display: none`。** 折叠态保留一条 --layout-rail-w 宽的把手条：面板藏起来之后
+ *    仍要有一条可见、可聚焦、可键盘展开的路径，否则用户会在「侧栏不见了」和「刷新页面」之间
+ *    二选一。真正的隐藏只作用于 `[data-collapsed]` 面板的子元素，把手条本身不在隐藏之列。
+ *
+ * 3. **分隔条占 0 宽网格轨道。** 见下方 `.layout-separator`。这是为了让「加分隔条」不改变任何
+ *    一栏的既有宽度 —— 编辑器的画布缩放算术、工作室的百分比轨道都建立在原来的列宽上。
+ */
+
+:root {
+  /* 折叠后把手条（也就是那条轨道）的宽度。只有 CSS 读它：两页的折叠态规则都写成
+     `--layout-*-w: var(--layout-rail-w)`（app.css / studio.css），JS 侧写的是「把内联宽度移除、
+     交给 CSS 决定」，所以这里必须是一个 CSS 里可解析的长度，而不是只在某个组件的 padding 里出现。 */
+  --layout-rail-w: 36px;
+}
+
+/* ===== 折叠把手条 ===== */
+
+/* 宿主面板要能托住绝对定位的把手条。两侧面板本来没有 position，这里补上。
+   用 :where() 把特异性压到 0，任何页面样式想改这两个面板的定位都能盖过本文件。 */
+:where(.editor-shell, .studio-shell) :where(.navigator, .inspector, .library-panel, .details-panel) {
+  position: relative;
+}
+
+.layout-collapse-rail {
+  display: none;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: var(--hos-tool-muted-dim);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* 折叠态：藏掉除把手条以外的全部子元素，并去掉面板自身的内边距（两侧栏的 16px 会让 36px 的
+   把手条只剩下 4px 可用宽度）。
+   选择器逐个列出面板而不是写裸 `[data-collapsed="true"]`：这个属性名太通用，将来任何「可折叠的
+   灯组 / 楼层行」一旦用了它，裸选择器会把它们一起按 36px 把手条处理。 */
+:where(.navigator, .inspector, .library-panel, .details-panel)[data-collapsed="true"] {
+  padding: 0;
+  overflow: hidden;
+  /* 折叠后整栏只有 36px，预留的滚动条槽位会吃掉近一半（.library-panel 开了
+     scrollbar-gutter: stable）。此时内容已全部隐藏，槽位没有意义。 */
+  scrollbar-gutter: auto;
+}
+
+:where(.navigator, .inspector, .library-panel, .details-panel)[data-collapsed="true"]
+  > .layout-collapse-rail {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+:where(.navigator, .inspector, .library-panel, .details-panel)[data-collapsed="true"]
+  > *:not(.layout-collapse-rail) {
+  display: none;
+}
+
+.layout-collapse-rail:hover {
+  color: var(--hos-accent);
+  background: rgba(var(--hos-accent-rgb), 0.13);
+}
+
+.layout-collapse-rail:focus-visible {
+  outline: 2px solid var(--hos-accent);
+  outline-offset: -2px;
+}
+
+/* 把手条上的箭头图标：两页都不带图标体系，用 CSS 画一对细箭头（‹ ›），避免为一次折叠引入
+   SVG 资源与配套的静态资源路径（无打包器，路径写错只在浏览器里 404）。 */
+.layout-collapse-rail:before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-bottom: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+/* 右栏折叠时箭头指向相反方向：折叠动作的方向就是把手条上箭头的方向。 */
+.details-panel[data-collapsed="true"] > .layout-collapse-rail:before,
+.inspector[data-collapsed="true"] > .layout-collapse-rail:before {
+  transform: rotate(-135deg);
+}
+
+/* ===== 网格分隔条 ===== */
+
+/* 分隔条是**叠在中栏上的一条 0 宽网格项**，可见线与命中区都在伪元素里。
+   这样加分隔条不改变任何一条轨道、也不新增列间距 —— 这一点对本仓很关键：
+     · 编辑器的画布缩放算术建立在「三条轨道之和 = 1020px」上，多一条轨道就会动到它；
+     · 工作室的 shell 有 10px 列间距，多一条轨道会多出一格间距，中栏会凭空窄 10px。
+   分隔条贴在中栏的左边界（data-layout-edge="start"）或右边界（"end"），
+   伪元素再向两侧外扩成 14px 命中区、1px 可见线。 */
+.layout-separator {
+  position: relative;
+  z-index: 1;
+  grid-row: 1;
+  grid-column: 2;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  align-self: stretch;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.layout-separator[data-layout-edge="start"] {
+  justify-self: start;
+}
+
+.layout-separator[data-layout-edge="end"] {
+  justify-self: end;
+}
+
+/* 命中区外扩到 14px：1px 的可见线对手指和触控板都太窄，与编辑器既有按钮的做法一致
+   （见 app.css 的「关键控件的命中区兜底」：视觉尺寸不动，只外扩可点区域）。 */
+.layout-separator:before {
+  content: "";
+  position: absolute;
+  inset: 0 -7px;
+}
+
+/* 可见线：1px，正好落在中栏边界上。平时透明，悬停 / 获焦 / 拖拽中才显形 ——
+   三栏之间常年挂着两根竖线会干扰画布。 */
+.layout-separator:after {
+  content: "";
+  position: absolute;
+  inset: 0 -0.5px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background-color 0.12s ease;
+}
+
+/* 三栏与分隔条全部显式落列：分隔条是「显式定位」的网格项，而自动排布会跳过被显式定位占用的格子
+   —— 不把三栏也写死，中栏就会被自动排到别处（或撑出隐式轨道），整页布局直接散架。
+   显式落列同时也让「谁是第几栏」从 DOM 顺序变成声明，顺序变化不再静默改布局。 */
+.editor-shell > .navigator,
+.studio-shell > .library-panel {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.editor-shell > .workspace-panel,
+.studio-shell > .plan-panel {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.editor-shell > .inspector,
+.studio-shell > .details-panel {
+  grid-row: 1;
+  grid-column: 3;
+}
+
+.layout-separator:hover:after,
+.layout-separator:focus-visible:after,
+.layout-separator[data-layout-drag-axis]:after {
+  background: var(--hos-tool-line);
+}
+
+.layout-separator:focus-visible {
+  outline: 0;
+}
+
+/* 拖拽中：整页锁光标，避免指针划过画布时被画布自己的 cursor 抢走反馈。 */
+[data-layout-resizing] {
+  cursor: col-resize;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout-separator:after {
+    transition: none;
+  }
+}

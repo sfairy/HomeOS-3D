@@ -16,12 +16,12 @@ import {
   COVER_FEATURE_SET_POSITION,
   COVER_FEATURE_SET_TILT_POSITION,
   COVER_FEATURE_STOP,
-  coverFeaturesOf,
+  coverFeaturesOrInferred,
   coverReportsTilt,
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609222006";
+} from "../core/static-helpers.js?v=2609230040";
 /**
  * HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
 const STATE_LABELS = {
@@ -62,10 +62,14 @@ export function coverState(entityId, receivedState, item = {}) {
   // 梦幻帘由「整体 + 叶片」两套机构组成，整体位置的反馈往往不可信，
   // 需要单独判断，见下面的 overallFeedbackAvailable。
   const isDreamCover = item.coverKind === "dream";
-  const rawSupportedFeatures = finiteNumberOrNull(attributes.supported_features);
-  // supported_features 必须是安全范围内的非负整数，否则宁可按「无任何能力」处理；
-  // 归一与「有没有叶片证据」的判定都只有一份实现（utils/cover-features.js），与仪表盘注册表共用。
-  const supportedFeatures = coverFeaturesOf(rawSupportedFeatures);
+  // 能力位取「上报值，缺失时按已上报属性推断」的版本：一部分网关从不给 supported_features，
+  // 按 0 处理会把窗帘面板整块置灰（按钮与滑杆全禁用，用户还拿不到任何可自救的提示）。
+  // 推断规则与后端 cover.py 的 inferred_cover_features 逐条对应：开/关/停一律放行，
+  // 报过 current_position 才算支持定位，报过 current_tilt_position 才算支持叶片。
+  // 于是「报不出能力位、但报了叶片角度」的梦幻帘，下面的 set_tilt_position 位会经推断成立 ——
+  // 不必再单独认一遍属性（单独认反而会与后端分叉：设备**报了**能力位时，后端严格以位为准，
+  // 漏了 tilt 位就拒绝 tilt 服务，前端若靠属性把滑杆放开，用户只会撞上 422）。
+  const supportedFeatures = coverFeaturesOrInferred(attributes);
   // 240 = 16+32+64+128，即 HA 里全部 tilt（开合角度）相关能力位；
   // 只要有任意一位，或上报了叶片角度，就认为设备能调叶片。
   const hasTiltFeedback = coverReportsTilt(attributes, supportedFeatures);
@@ -90,6 +94,18 @@ export function coverState(entityId, receivedState, item = {}) {
     /^cover\.[a-z0-9_]+$/.test(entityId) &&
     stateObject.available !== false &&
     Object.hasOwn(STATE_LABELS, stateValue);
+  // 位置不可用时的兜底姿态：由 state 文案给出的「已停稳那一端」的位置。
+  // 不少设备只报 open / closed 而没有 current_position，梦幻帘的整体位置还会被刻意判为不可信；
+  // 缺了它，3D 帘布只能停在配置默认值上，设备关着而帘布全开（或反之）就会长期不符。
+  // 只认已停稳的两端：opening / closing 期间不猜，运动表现交给动画与乐观推算。
+  // 必须放在 available 之后：这段判定的第一项就是可用性。
+  const statePositionHint = !available
+    ? null
+    : stateValue === "open"
+      ? 100
+      : stateValue === "closed"
+        ? 0
+        : null;
   // 返回结构是窗帘动画与图标的内部契约：positionKnown 区分「位置为 0」与「位置未知」，
   // positionReported 表示位置来自 HA，closedConfirmed 要求可用 + 反馈可信 + 全关，on 未知时退回 state 判断。
   return {
@@ -103,6 +119,9 @@ export function coverState(entityId, receivedState, item = {}) {
     position: position,
     positionKnown: position !== null,
     positionReported: overallFeedbackAvailable && reportedPosition !== null,
+    // 位置缺失时的兜底姿态（0 / 100 / null），供 3D 动画在无位置反馈时摆位；
+    // null 表示状态本身也说不清，调用方应保持原姿态而不是硬摆一个值。
+    statePositionHint: statePositionHint,
     features: supportedFeatures,
     closedConfirmed:
       available && overallFeedbackAvailable && normalizedState === "closed" && position === 0,
@@ -120,7 +139,8 @@ export function coverState(entityId, receivedState, item = {}) {
     positionSupported: !!(supportedFeatures & COVER_FEATURE_SET_POSITION),
     stopSupported: !!(supportedFeatures & COVER_FEATURE_STOP),
     tiltSupported: !!(supportedFeatures & COVER_FEATURE_SET_TILT_POSITION),
-    // 叶片可调能力：显式声明了 set_tilt_position 位即可；
+    // 叶片可调能力：声明了 set_tilt_position 位即可 —— 设备不报能力位时，该位由
+    // coverFeaturesOrInferred 按「上报过 current_tilt_position」推断出来；
     // 另外，若设备没有 tilt 反馈却支持设位置，说明位置属性其实就是叶片角度。
     bladeSupported:
       !!(supportedFeatures & COVER_FEATURE_SET_TILT_POSITION) ||

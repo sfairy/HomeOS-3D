@@ -8,17 +8,17 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609222006";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609230040";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=2609222006";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609222006";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609222006";
+import { apiFetch } from "../utils/api-fetch.js?v=2609230040";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609230040";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609230040";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=2609222006";
+} from "../renderer/core/renderer.js?v=2609230040";
 
 import {
   createComponentFromTemplate,
@@ -27,15 +27,15 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=2609222006";
-import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609222006";
-import { clampNumber } from "../utils/numbers.js?v=2609222006";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609222006";
+} from "../templates/component-templates.js?v=2609230040";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609230040";
+import { clampNumber } from "../utils/numbers.js?v=2609230040";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609230040";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
 
-import { mdiIconUrl } from "../utils/icon-url.js?v=2609222006";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609222006";
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609222006";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609230040";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609230040";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609230040";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
 
@@ -43,24 +43,24 @@ import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=2609222006";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609222006";
+} from "../utils/colors.js?v=2609230040";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609230040";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=2609222006";
+} from "../shared/popup-layout.js?v=2609230040";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=2609222006";
+} from "./dashboard-resize.js?v=2609230040";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609222006";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609230040";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=2609222006";
+} from "./component-page-copy.js?v=2609230040";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -72,29 +72,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=2609222006";
+} from "../shared/related-entities.js?v=2609230040";
 
-import { createButtonSound } from "../shared/sound-effects.js?v=2609222006";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609230040";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=2609222006";
-import { confirmAction } from "../shared/ui-confirm.js?v=2609222006";
+} from "./editor-dialogs.js?v=2609230040";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609230040";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=2609222006";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609222006";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609230040";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609230040";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=2609222006";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609222006";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609222006";
+} from "./picker/editor-picker-pagination.js?v=2609230040";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609230040";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609230040";
 
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609222006";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609222006";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609230040";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609230040";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -102,13 +102,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609222006";
+} from "../shared/action-rules.js?v=2609230040";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609222006";
+} from "./component-tree.js?v=2609230040";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -118,7 +118,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609222006";
+} from "./editor-component-collections.js?v=2609230040";
 import {
   applyInspectorFields,
   applyInspectorToggles,
@@ -126,7 +126,7 @@ import {
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=2609222006";
+} from "./editor-basic-inspectors.js?v=2609230040";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -139,7 +139,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609222006";
+} from "./editor-document-management.js?v=2609230040";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -147,25 +147,32 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=2609222006";
+} from "./editor-history.js?v=2609230040";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=2609222006";
-import { createLicenseCard } from "./license-card.js?v=2609222006";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609230040";
+import { createLicenseCard } from "./license-card.js?v=2609230040";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=2609222006";
-import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609222006";
-import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609222006";
-import { createEntityOptions } from "./home/entity-options.js?v=2609222006";
-import { createPickers } from "./home/pickers.js?v=2609222006";
-import { createFormWidgets } from "./home/form-widgets.js?v=2609222006";
-import { createColorPicker } from "./home/color-picker.js?v=2609222006";
-import { createSectionRegistry } from "./home/sections.js?v=2609222006";
+} from "../bridge/editor.js?v=2609230040";
+import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609230040";
+import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609230040";
+import { createEntityOptions } from "./home/entity-options.js?v=2609230040";
+import { createPickers } from "./home/pickers.js?v=2609230040";
+import { createFormWidgets } from "./home/form-widgets.js?v=2609230040";
+import { createColorPicker } from "./home/color-picker.js?v=2609230040";
+import { createSectionRegistry } from "./home/sections.js?v=2609230040";
+// 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /3d-studio 工作室
+// 共用同一份实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
+import {
+  createLayoutController,
+  bindLayoutControls
+} from "../shared/layout-shell.js?v=2609230040";
+import { bindLayoutShortcuts } from "../shared/layout-shortcuts.js?v=2609230040";
 
 // 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
 // （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
@@ -177,6 +184,9 @@ const sections = createSectionRegistry();
  */
 const findElement = selector => document.querySelector(selector);
 installSettingsDialogBackdropGuard();
+// 编辑器按这个逻辑宽度排版，装不下时整页等比缩放（而不是重排）。它是 CSS 的
+// --editor-design-width（app.css 的 :root）与 index.html 的 <meta name="viewport"> 里
+// 那个 width 的同源值：三处都吃不下 var()，所以只能各写一份，改一处就要同手改另两处。
 const EDITOR_DESIGN_WIDTH = 1020;
 const AUTO_DIAGRAM_LAYOUT_VERSION = 2;
 const COMPONENT_DIALOG_DESIGN_WIDTH = 1920;
@@ -451,6 +461,10 @@ const undoButtonElement = findElement("#undo");
 const redoButtonElement = findElement("#redo");
 const inspectorEmptyElement = findElement("#inspector-empty");
 const inspectorElement = findElement(".inspector");
+// 布局层要量左右两栏的实际宽度来决定「另一栏还能伸多宽」，所以三栏容器都要留引用。
+const navigatorElement = findElement(".navigator");
+const navigatorResizerElement = findElement("#nav-resizer");
+const inspectorResizerElement = findElement("#inspector-resizer");
 const imageInspectorFormElement = findElement("#image-inspector");
 const imageTypeTextInputElement = findElement("#image-type");
 const imageLabelTextInputElement = findElement("#image-label");
@@ -2812,20 +2826,37 @@ function setPageControlsEnabled(controlsEnabled) {
  * 按工作区可用空间等比缩放画布容器。以「容器可用宽高比 vs 画布宽高比」判断是宽度还是高度受限，
  * 再取较小的一边，保证整块画布始终完整可见（不裁切、不出现滚动条）；宽高各自兜底 1px，
  * 避免 ResizeObserver 在容器暂时为 0 时写入非法尺寸。
+ *
+ * 画布尺寸只有这一个所有者：CSS 在 .workspace-mode-surface / .workspace-empty-state 上写的
+ * width/height: 100% 会被这里的行内值盖过，渲染器则按 clientWidth/clientHeight 缩放。
+ * 两者唯一的差是 #dashboard-preview 的 1px 描边：全局 box-sizing: border-box 下，行内 width
+ * 量的是**边框盒**，而渲染器读到的是**内容盒**，于是画布每轴比占位框小 2px、长宽比也被轻微压扁
+ * （2778×1940 的设计压出约 0.1% 的偏差）。所以这里把描边算进可用空间、写出尺寸时再补回去 ——
+ * 外壳尺寸与今天一致，内容盒则正好等于算出来的 render 尺寸，JS 与渲染器看的是同一个盒子。
  */
 function resizeWorkspaceCanvas() {
   if (!activeProject) {
     return;
   }
   const workspaceComputedStyle = getComputedStyle(workspaceElement);
+  const canvasComputedStyle = getComputedStyle(dashboardPreviewElement);
+  // border-style 为 none 时计算值是 0px，所以这两个值在空状态 / 无描边元素上天然为 0。
+  const canvasBorderWidthPx =
+    Number.parseFloat(canvasComputedStyle.borderLeftWidth) +
+    Number.parseFloat(canvasComputedStyle.borderRightWidth);
+  const canvasBorderHeightPx =
+    Number.parseFloat(canvasComputedStyle.borderTopWidth) +
+    Number.parseFloat(canvasComputedStyle.borderBottomWidth);
   const availableWidthPx =
     workspaceElement.clientWidth -
     Number.parseFloat(workspaceComputedStyle.paddingLeft) -
-    Number.parseFloat(workspaceComputedStyle.paddingRight);
+    Number.parseFloat(workspaceComputedStyle.paddingRight) -
+    canvasBorderWidthPx;
   const availableHeightPx =
     workspaceElement.clientHeight -
     Number.parseFloat(workspaceComputedStyle.paddingTop) -
-    Number.parseFloat(workspaceComputedStyle.paddingBottom);
+    Number.parseFloat(workspaceComputedStyle.paddingBottom) -
+    canvasBorderHeightPx;
   const canvasWidthPx = activeProject.document.canvas.width || 2778;
   const canvasHeightPx = activeProject.document.canvas.height || 1940;
   const canvasAspectRatio = canvasWidthPx / canvasHeightPx;
@@ -2834,8 +2865,8 @@ function resizeWorkspaceCanvas() {
   const renderHeightPx = isHeightLimited ? availableHeightPx : availableWidthPx / canvasAspectRatio;
   editorCanvasElement.style.width = Math.max(1, renderWidthPx) + "px";
   editorCanvasElement.style.height = Math.max(1, renderHeightPx) + "px";
-  dashboardPreviewElement.style.width = Math.max(1, renderWidthPx) + "px";
-  dashboardPreviewElement.style.height = Math.max(1, renderHeightPx) + "px";
+  dashboardPreviewElement.style.width = Math.max(1, renderWidthPx + canvasBorderWidthPx) + "px";
+  dashboardPreviewElement.style.height = Math.max(1, renderHeightPx + canvasBorderHeightPx) + "px";
   window.requestAnimationFrame(() => {
     editorRenderer?.resize();
     dashboardPreviewRenderer?.resize();
@@ -4596,7 +4627,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=2609222006";
+          ".jpg?v=2609230040";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -22007,6 +22038,253 @@ function bindDocumentPointerSection() {
     }
   });
 }
+
+/**
+ * 布局交互层。
+ *
+ * 编辑器是「定宽 + 整页缩放」的：`html.editor-viewport-fit` 下 body 被钉在 1020px 宽、
+ * 高度由 JS 写成 --editor-layout-height，然后整页 transform: scale() 铺满视口。
+ * 所以这里**只动 CSS 变量**（左右栏宽度），从不改网格轨道条数、也不碰 min-width。
+ * body 的宽度一旦被改，缩放算术就全错位；宽度写死在 CSS 里（html.editor-viewport-fit body），
+ * 面板再宽也只在页面内部挤中栏，中栏由 --layout-center-min-w 兜底。
+ *
+ * 状态存 localStorage：布局是纯 UI 偏好，不属于仪表盘文档。进文档会污染保存请求，
+ * 拖一下分隔条就把文档标脏、触发自动保存并可能撞上 409 —— 这是迁移前的老毛病。
+ */
+const EDITOR_LAYOUT_STORAGE_KEY = "homeos.layout.v1.index";
+
+// 布局常量（各栏上下限、列间距、把手条宽）来自 CSS 变量，拖动一帧要读一次，所以缓存。
+// 槽位是对象不是数字：一次 refresh 里要复用同一批读数，且要能整体丢弃。
+let editorLayoutMetrics = null;
+let editorLayoutController = null;
+// 共享控件句柄：快捷键入口要显式同步它的可视态（见 runEditorLayoutAction）。
+let editorLayoutControls = null;
+// 记得「本文件里已不存在预设与沉浸模式」：那一层由用户判定没有实际价值后整层删除，
+// 折叠与调宽是唯二留下的能力。再加回「整体切换布局」之前先读 shared/layout-shell.js 的文件头。
+
+/** 丢弃缓存。窗口尺寸变化、或 CSS 变量被别的代码改动后必须调用，否则上下限停在旧值。 */
+function invalidateEditorLayoutMetrics() {
+  editorLayoutMetrics = null;
+}
+
+/**
+ * 读一个布局常量。
+ *
+ * 只认 px 字面量：这几个变量都声明在 app.css 的 .editor-shell 上、且全是 px，值又是静态的，
+ * 所以 parseFloat 拿到的就是最终像素值。刻意不用「探针元素 + getBoundingClientRect」换算 ——
+ * 探针要挂进网格容器并强制一次布局，而本函数在拖拽热路径上会被反复调用。若将来真要把某个
+ * 常量改成 vw/百分比，必须同时把这里换回探针写法，否则读到的数字会是错的（而不是 0）。
+ */
+function readEditorLayoutPx(cssVarName, fallbackPx) {
+  const rawValue = getComputedStyle(editorShellElement).getPropertyValue(cssVarName).trim();
+  const numericValue = Number.parseFloat(rawValue);
+  return Number.isFinite(numericValue) ? numericValue : fallbackPx;
+}
+
+/**
+ * 整页缩放系数（`transform: scale()`），由 refreshEditorViewportFit 写在 <html> 上。
+ *
+ * 分隔条拖动要用它把「屏幕像素」换算回「逻辑像素」：外壳在缩放变换之内，拖动 100 屏幕像素
+ * 只等于 100/scale 逻辑像素。读不到（首次渲染前 / 值被写坏）时返回 1，也就是「不缩放」——
+ * 这时拖拽与光标严格同步，是最安全的退化。
+ */
+function readEditorViewportScale() {
+  const rawValue = getComputedStyle(document.documentElement)
+    .getPropertyValue("--editor-viewport-scale")
+    .trim();
+  const numericValue = Number.parseFloat(rawValue);
+  return numericValue > 0 ? numericValue : 1;
+}
+
+/**
+ * 读齐一次布局常量并缓存。缓存不随拖拽失效（这几枚变量在窗口尺寸不变时就是常量），
+ * 只在窗口 resize 与布局变更后由 invalidateEditorLayoutMetrics() 丢弃。
+ */
+function readEditorLayoutMetrics() {
+  if (editorLayoutMetrics) {
+    return editorLayoutMetrics;
+  }
+  if (!editorShellElement) {
+    return null;
+  }
+  const shellWidth = editorShellElement.getBoundingClientRect().width;
+  if (!(shellWidth > 0)) {
+    return null;
+  }
+  const columnGapWidth = readEditorLayoutPx("--layout-column-gap", 0);
+  // 「两栏共享的预算」= 外壳宽 - 中栏最小宽 - 两条列间距。左右栏的宽度之和一旦超过它，
+  // 中栏就会被压到最小宽以下；更糟的是，网格三轨之和超过外壳宽时 .editor-shell 的
+  // overflow:hidden 会把溢出的那一栏直接裁掉 —— 没有任何报错，只是「拖不动了」。
+  // 兜底 360 与 app.css 的 --layout-center-min-w 一致（两边都是吃不下 var() 的位置）。
+  const overheadWidth = readEditorLayoutPx("--layout-center-min-w", 360) + columnGapWidth * 2;
+  editorLayoutMetrics = {
+    shellWidth,
+    overheadWidth,
+    sharedBudgetWidth: Math.max(0, shellWidth - overheadWidth),
+    navigatorMinWidth: readEditorLayoutPx("--layout-nav-min-w", 180),
+    navigatorMaxWidth: readEditorLayoutPx("--layout-nav-max-w", 520),
+    inspectorMinWidth: readEditorLayoutPx("--layout-inspector-min-w", 200),
+    inspectorMaxWidth: readEditorLayoutPx("--layout-inspector-max-w", 620)
+  };
+  return editorLayoutMetrics;
+}
+
+/** 某一栏此刻实际渲染出来的宽度（含折叠态）。读不到返回 null，调用方按「最小宽」兜底。 */
+function editorRenderedPanelWidth(panelId) {
+  const panelElement = panelId === "navigator" ? navigatorElement : inspectorElement;
+  const panelWidth = panelElement?.getBoundingClientRect().width;
+  return Number.isFinite(panelWidth) && panelWidth > 0 ? panelWidth : null;
+}
+
+/**
+ * 一栏的上下限。上限随**另一栏当前的实际宽度**浮动：两栏合计不能超过共享预算。
+ *
+ * 用「另一栏此刻的渲染宽度」而不是它的状态值，是为了避免控制器里的循环依赖 ——
+ * 归一化一栏需要它的上下限，而上下限又需要另一栏归一化后的尺寸。渲染宽度没有这个问题：
+ * 它要么是初始的 CSS 默认值，要么是控制器上一次写下的值，永远是「已经生效的那个」。
+ * 副作用：视口窄于 1020px 时整页被钉在 1020px 逻辑宽，预算恒为 1020 − 中栏最小宽；
+ * 默认 250/250 占去 500px，剩下的余量（360px 下限时是 160px）才是两栏能自行长出去的空间。
+ * 余量用完后再拖，表现就是「把预算从一栏挪到另一栏」—— 这是「三轨之和必须塞进 1020px」的
+ * 必然结果，窗口更宽时预算随外壳宽增长，两栏都能明显变宽。
+ */
+function editorPanelLimits(panelId) {
+  const metrics = readEditorLayoutMetrics();
+  if (!metrics) {
+    // 拿不到常量时返回 null，控制器会退回 CSS 变量声明的静态上下限，行为与不启用本层一致。
+    return null;
+  }
+  const isNavigator = panelId === "navigator";
+  const otherPanelId = isNavigator ? "inspector" : "navigator";
+  const cssMinWidth = isNavigator ? metrics.navigatorMinWidth : metrics.inspectorMinWidth;
+  const cssMaxWidth = isNavigator ? metrics.navigatorMaxWidth : metrics.inspectorMaxWidth;
+  const otherMinWidth = isNavigator ? metrics.inspectorMinWidth : metrics.navigatorMinWidth;
+  // 另一栏还没渲染出来时按它的最小宽扣减：宁可这一栏少伸一点，也不要让网格溢出。
+  const otherWidth = editorRenderedPanelWidth(otherPanelId) ?? otherMinWidth;
+  return {
+    min: cssMinWidth,
+    max: Math.max(cssMinWidth, Math.min(cssMaxWidth, metrics.sharedBudgetWidth - otherWidth))
+  };
+}
+
+/** 中栏变化后让画布重新贴一次视口（整页缩放的换算要靠这一步）。 */
+function syncEditorLayoutChange() {
+  invalidateEditorLayoutMetrics();
+  refreshEditorViewportFit();
+}
+
+/**
+ * 接线布局层：控制器 + 把手条/分隔条/快捷键。
+ *
+ * 单独成节而不是塞进别的 bind：这里的所有元素都只服务布局，且必须一起存在或一起缺席
+ * （HTML 里少一个分隔条就会让另一条拖动失灵），拆开反而看不出这个整体约束。
+ */
+function bindLayoutSection() {
+  if (!editorShellElement) {
+    return;
+  }
+  const on = sections.section("layout");
+
+  editorLayoutController = createLayoutController({
+    storageKey: EDITOR_LAYOUT_STORAGE_KEY,
+    shell: editorShellElement,
+    panels: [
+      {
+        id: "navigator",
+        sizeVar: "--layout-nav-w",
+        // 写 <html> 而不是 .editor-shell：编辑器里有几个按列宽推导偏移量的浮层挂在 <body> 下，
+        // 变量只有落在 <html> 上它们才继承得到。.editor-shell 是 <html> 的后代，
+        // grid-template-columns 读到的仍是同一个值。
+        varTarget: document.documentElement,
+        element: navigatorElement,
+        unit: "px",
+        def: 250,
+        // 上下限只有一份来源：CSS 变量。JS 再抄一遍数字必然与 app.css 漂移。
+        // limits() 覆盖上面两个静态值，因为上限还要扣掉另一栏当前占的宽度（见 editorPanelLimits）。
+        limits: () => editorPanelLimits("navigator"),
+        collapsible: true
+      },
+      {
+        id: "inspector",
+        sizeVar: "--layout-inspector-w",
+        varTarget: document.documentElement,
+        element: inspectorElement,
+        unit: "px",
+        def: 250,
+        limits: () => editorPanelLimits("inspector"),
+        collapsible: true
+      }
+    ],
+    separators: [
+      {
+        // 左栏与画布之间：贴着中栏左边界（justify-self: start），往右拖 = 左栏变宽。
+        element: navigatorResizerElement,
+        orientation: "vertical",
+        label: "拖动调整控件图层栏宽度，双击复位",
+        axes: [
+          { panelId: "navigator", axis: "x", sign: 1, viewportScale: readEditorViewportScale }
+        ]
+      },
+      {
+        // 画布与右栏之间：贴着中栏右边界（justify-self: end），往右拖 = 右栏变窄，故 sign 取 -1。
+        element: inspectorResizerElement,
+        orientation: "vertical",
+        label: "拖动调整属性栏宽度，双击复位",
+        // viewportScale 见 readEditorViewportScale：整页缩放之下，屏幕位移要换算回逻辑像素，
+        // 否则分隔条会以 (1 − scale) 的比例落后于光标（视口 932px 时约 8.6%）。
+        axes: [
+          { panelId: "inspector", axis: "x", sign: -1, viewportScale: readEditorViewportScale }
+        ]
+      }
+    ],
+    onChange: syncEditorLayoutChange
+  });
+
+  editorLayoutControls = bindLayoutControls({
+    controller: editorLayoutController,
+    root: document
+  });
+
+  /**
+   * 执行一个布局动作并同步共享控件的可视态。快捷键入口不经过 bindLayoutControls 的点击处理，
+   * 所以每条快捷键都要显式同步一次（否则按了 ⌘B 侧栏收起了，把手条的 aria-expanded 却还停在旧值）。
+   */
+  function runEditorLayoutAction(layoutAction) {
+    layoutAction();
+    editorLayoutControls.sync();
+  }
+
+  // 键位与 /3d-studio 逐条对齐（同一套肌肉记忆），且都避开了两页既有的绑定：
+  // 编辑器的 ⌘D 复制、方向键微调、Delete、Enter、Esc 一个都不撞（见 layout-shortcuts.js 的文件头）。
+  bindLayoutShortcuts({
+    bindings: [
+      {
+        id: "toggle-navigator",
+        combo: "Mod+B",
+        run: () => runEditorLayoutAction(() => editorLayoutController.togglePanel("navigator"))
+      },
+      {
+        id: "toggle-inspector",
+        combo: "Mod+Shift+B",
+        run: () => runEditorLayoutAction(() => editorLayoutController.togglePanel("inspector"))
+      }
+    ]
+  });
+
+  // 中栏（画布）变了要重算整页缩放。控制器是在「提交」时才调 onChange 的（拖拽中的每一帧只
+  // 改 CSS 变量、不落盘也不通知），所以拖动过程中画布不会跟着逐帧重排 —— 这是有意的：
+  // refreshEditorViewportFit 会读 offsetHeight、算 scale、再写 <html> 的类与变量，
+  // 逐帧跑它比拖动本身贵得多，而拖拽结束后补一次的结果是一样的。
+  on(window, "resize", function onEditorLayoutWindowResize() {
+    invalidateEditorLayoutMetrics();
+    editorLayoutController?.refresh();
+  });
+}
+
+// 接线放在本节**末尾**，而不是上面的分节绑定调用区：本节的状态（EDITOR_LAYOUT_* / editorLayoutController）
+// 是 const / let，不像函数那样提升，调用点写在本文件靠前的调用区会在求值那一刻落进 TDZ
+// （Uncaught ReferenceError: Cannot access 'EDITOR_LAYOUT_STORAGE_KEY' before initialization）。
+// 放在这里同样是「最后接线」——全部分节绑定的调用都排在模块求值的前半段，早于本行。
+bindLayoutSection();
 
 /**
  * 检查器滚动收尾。

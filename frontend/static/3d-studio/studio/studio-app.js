@@ -14,13 +14,20 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609222006";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609222006";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609222006";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609222006";
-import { paletteColor } from "../../utils/colors.js?v=2609222006";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609222006";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609222006";
+} from "../loaders/studio-curtain-track.js?v=2609230040";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609230040";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609230040";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609230040";
+// 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
+import {
+  moveFloatingPanelIntoBounds,
+  positionPointMenu
+} from "../../shared/menu-positioning.js?v=2609230040";
+import { paletteColor } from "../../utils/colors.js?v=2609230040";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609230040";
+// 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609230040";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609230040";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -34,71 +41,71 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609222006";
+} from "./studio-item-types.js?v=2609230040";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609222006";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609230040";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=2609222006";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609222006";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609222006";
+} from "../materials/studio-surface-textures.js?v=2609230040";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609230040";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609230040";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609222006";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609222006";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609222006";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609222006";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609222006";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609222006";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609222006";
+} from "./studio-camera-constraints.js?v=2609230040";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609230040";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609230040";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609230040";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609230040";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609230040";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609230040";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609222006";
+} from "../materials/studio-wall-materials.js?v=2609230040";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609222006";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609222006";
+} from "./studio-scene-style.js?v=2609230040";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609230040";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609222006";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609222006";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609222006";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609222006";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609222006";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609222006";
+} from "../../bridge/render-cache.js?v=2609230040";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609230040";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609230040";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609230040";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609230040";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609230040";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609222006";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609230040";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609222006";
+import { debugLog } from "../../utils/debug-log.js?v=2609230040";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609222006";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609230040";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609222006";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609230040";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609222006";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609222006";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609230040";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609230040";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609222006";
+} from "../../bridge/light-motion.js?v=2609230040";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -138,7 +145,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609222006";
+} from "../plan/geometry.js?v=2609230040";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -147,7 +154,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609222006";
+} from "../export/export-utils.js?v=2609230040";
+// 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
+// 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
+import {
+  createLayoutController,
+  bindLayoutControls
+} from "../../shared/layout-shell.js?v=2609230040";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609230040";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -155,25 +169,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609222006";
-import { reorderFloors } from "../plan/floor-order.js?v=2609222006";
-import { syncControlValue } from "./ui-controls.js?v=2609222006";
+} from "../export/export-presets.js?v=2609230040";
+import { reorderFloors } from "../plan/floor-order.js?v=2609230040";
+import { syncControlValue } from "./ui-controls.js?v=2609230040";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609222006";
+} from "./studio-widgets.js?v=2609230040";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609222006";
+} from "../loaders/studio-external-models.js?v=2609230040";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609222006";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609222006";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609222006";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609222006";
+} from "../plan/studio-plan-drawing.js?v=2609230040";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609230040";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609230040";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609230040";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -186,7 +200,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609222006";
+} from "../loaders/studio-normalization.js?v=2609230040";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -517,8 +531,158 @@ const exportCompleteTitleElement = selectElement("#export-complete-title");
 const exportCompleteMessageElement = selectElement("#export-complete-message");
 const exportCompletePathElement = selectElement("#export-complete-path");
 const studioShellElement = selectElement(".studio-shell");
+const libraryPanelElement = selectElement(".library-panel");
+const libraryResizerElement = selectElement("#library-resizer");
 const detailsPanelElement = selectElement(".details-panel");
 const detailsResizerElement = selectElement("#details-resizer");
+
+/* ===== 布局层：三栏宽度、3D 预览高度、折叠态 ===== */
+
+/**
+ * 布局状态的存储键。
+ *
+ * 两个比例原先存在 activeScene.settings 里（previewPanelRatio / detailsPanelWidthRatio），但它们的
+ * 语义从来只是「右栏多宽、预览多高」：拖动分隔条会 markDocumentDirty() → 触发 650ms 防抖自动保存
+ * → 撞上并发编辑就弹 409 冲突框；而且文档换台设备打开，布局也跟着跑。两处都不对。
+ * bridge/scene-update.js 与 bridge/render-cache.js 早就把这两个键列进忽略名单（注释写明它们
+ * 「只改变编辑器的观察方式」），本次把这份既有判断落实到存储层：布局是纯 UI 偏好，存本机。
+ */
+const STUDIO_LAYOUT_STORAGE_KEY = "homeos.layout.v1.studio";
+
+// 布局常量缓存槽，含义与失效时机见下方 studioLayoutMetrics()。
+// 必须声明在 createLayoutController 之前：details / previewHeight 两栏的 limits() 在控制器**构造期**
+// 就会被调用（loadState → normalizePanelState → resolvePanelLimits），而 limits() 经 measurePanelLimits()
+// 读的就是这个槽。写成 let 却放在控制器创建之后，整个模块会在求值到第 573 行时直接落进 TDZ。
+let studioLayoutConstants = null;
+
+const studioLayout = createLayoutController({
+  storageKey: STUDIO_LAYOUT_STORAGE_KEY,
+  shell: studioShellElement,
+  panels: [
+    {
+      id: "library",
+      sizeVar: "--layout-library-w",
+      element: libraryPanelElement,
+      unit: "px",
+      def: 204,
+      // 上下限写在 studio.css 的 --layout-library-min-w / --layout-library-max-w：JS 侧再抄一份
+      // 数字就会与 CSS 漂移（原先正是如此：CSS 写库栏 204px、JS 兜底 168）。
+      minVar: "--layout-library-min-w",
+      maxVar: "--layout-library-max-w",
+      collapsible: true
+    },
+    {
+      id: "details",
+      sizeVar: "--details-panel-width",
+      element: detailsPanelElement,
+      unit: "%",
+      def: 29,
+      // 百分比栏的上下限随窗口尺寸变化，是本模块唯一必须现算的一类：窗口变窄 / 变矮之后，
+      // 上一个窗口算出的比例会把右栏压成一条缝或把库栏挤没。
+      limits: () => {
+        const panelLimits = measurePanelLimits();
+        return {
+          min: panelLimits.minimumWidthRatio * 100,
+          max: panelLimits.maximumWidthRatio * 100
+        };
+      },
+      collapsible: true
+    },
+    {
+      id: "previewHeight",
+      sizeVar: "--preview-panel-height",
+      varTarget: detailsPanelElement,
+      unit: "%",
+      def: 52,
+      limits: () => {
+        const panelLimits = measurePanelLimits();
+        return {
+          min: panelLimits.minimumHeightRatio * 100,
+          max: panelLimits.maximumHeightRatio * 100
+        };
+      }
+    }
+  ],
+  separators: [
+    {
+      // 右栏那条老分隔条：一个手柄同时管两个方向（横着拖改宽度、竖着拖改预览高度），
+      // 手柄在右栏内部，是 --layout-rail-w 之外唯一不从网格轨道切分的地方。
+      element: detailsResizerElement,
+      orientation: "both",
+      label: "拖动调整 3D 预览高度与属性栏宽度",
+      // ARIA 只报预览高度，与迁移前一致（横竖两轴没法用一对 aria-valuenow 表达）。
+      ariaPanel: "previewHeight",
+      axes: [
+        {
+          panelId: "previewHeight",
+          axis: "y",
+          sign: 1,
+          reference: () => detailsPanelElement.getBoundingClientRect().height
+        },
+        {
+          panelId: "details",
+          axis: "x",
+          sign: -1,
+          reference: () => studioShellElement.getBoundingClientRect().width
+        }
+      ]
+    },
+    {
+      element: libraryResizerElement,
+      orientation: "vertical",
+      label: "拖动调整素材栏宽度",
+      axes: [{ panelId: "library", axis: "x", sign: 1 }]
+    }
+  ]
+  // 不设 onChange：布局变化后平面画布与 3D 舞台的尺寸重算各自挂在 ResizeObserver 上
+  // （文件末尾的 resizePlanCanvas / handleStageResize），网格一变它们自己会收到通知。
+});
+
+/**
+ * 老文档里两个布局比例的暂存区，见 captureLegacyLayoutSeed。
+ */
+let pendingLegacyLayoutSeed = null;
+
+/**
+ * 暂存老草稿里的两个布局比例（previewPanelRatio / detailsPanelWidthRatio）。
+ *
+ * 这两个值描述的是「右栏多宽、3D 预览多高」，从来只是观察方式，却一直混在文档里。本次迁移到
+ * localStorage 之后，老文档里的值不能直接丢掉：用户升级后第一次打开会看到布局被重置。
+ *
+ * 之所以只「暂存」而不在这里直接播种：normalizeScene 是纯变换，读盘、导入、撤销、多楼层快照
+ * 都过它，在其中写存储 / 改 DOM 会把这层纯变换变成有副作用的操作，也会在撤销栈里被反复触发。
+ * 真正播种放在 migrateLegacyLayoutSettings()，由 UI 同步路径在文档装好之后调用一次。
+ */
+function captureLegacyLayoutSeed(rawSettings) {
+  if (!rawSettings || typeof rawSettings != "object") {
+    return;
+  }
+  const legacyPreviewHeightRatio = finite(rawSettings.previewPanelRatio, NaN);
+  const legacyDetailsWidthRatio = finite(rawSettings.detailsPanelWidthRatio, NaN);
+  if (!Number.isFinite(legacyPreviewHeightRatio) && !Number.isFinite(legacyDetailsWidthRatio)) {
+    return;
+  }
+  // 存进去的是百分比（与布局层 % 栏的量纲一致），旧文档存的是 0~1 的比例，这里换算一次。
+  pendingLegacyLayoutSeed = {
+    previewHeight: Number.isFinite(legacyPreviewHeightRatio)
+      ? legacyPreviewHeightRatio * 100
+      : undefined,
+    details: Number.isFinite(legacyDetailsWidthRatio) ? legacyDetailsWidthRatio * 100 : undefined
+  };
+}
+
+/**
+ * 把老文档里的两个布局比例搬进 localStorage。只在本地还没有任何布局记录时生效（判定在
+ * layout-shell.js 的 seedPanels 里），所以可以放心地在每次 UI 同步时调用。
+ */
+function migrateLegacyLayoutSettings() {
+  if (!pendingLegacyLayoutSeed) {
+    return;
+  }
+  const legacyLayoutSeed = pendingLegacyLayoutSeed;
+  pendingLegacyLayoutSeed = null;
+  studioLayout.seedPanels(legacyLayoutSeed);
+}
 /* 素材卡片必须先渲染：下面两行一次性抓走全部 [data-item-type] 与分组标题并据此绑事件，
    晚于这里生成的卡片会「看得见、点不动」。数据表在 studio-asset-palette.js。 */
 renderStudioAssetPalette(selectElement("#asset-grid"));
@@ -1303,7 +1467,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609222006"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609230040"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -1685,6 +1849,19 @@ const {
   }),
   getViewZoom: () => viewTransform.zoom
 });
+/**
+ * 单层场景数据的结构版本（`floor.scene.schemaVersion`）。
+ *
+ * 与文档级的 `schemaVersion`（`normalizeStudioDocument` 读写的那一个）是两套独立命名空间，
+ * 各自递增：本值由 `normalizeScene` 读取，只用于迁移「每层的绘制数据」——墙、门窗、物件。
+ * 历史：1 之前为初版；2 起修正了条灯的横竖朝向；3 起窗帘「预览打开」的默认值由关闭改为全开；
+ * 4 起该默认值从全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）。
+ *
+ * 必须声明在 createEmptyScene / normalizeScene 的**调用点之前**：`activeScene` 的初始化就在下面
+ * 几行，而它经 createEmptyScene 读本常量，放晚了会撞上 const 的暂时性死区。
+ */
+const FLOOR_SCENE_SCHEMA_VERSION = 4;
+
 // 本文件的状态集中在下面这段 let 里（没有状态容器对象）：绘制 / 预览 / 导出三处回调都要
 // 就地读写，封装成 store 反而要在热点路径上多做一次取值。
 // 约定：文档级状态由 markDocumentDirty() 落盘；纯视图状态（viewTransform、各类 snapTarget）不写盘也不进撤销栈。
@@ -1761,7 +1938,6 @@ let shouldInvalidateLightCache = false;
 let shouldPrecompileExternalModels = false;
 const pendingSceneUpdateScopes = new Set();
 let isPreviewDirty = false;
-let detailsResizeState = null;
 let activeWallSettingInput = null;
 let wallSettingCommitTimer = null;
 let overlayRedrawFrame = 0;
@@ -1847,13 +2023,43 @@ let appliedLightPrecompileSignature = "";
 const precompiledLightSignatures = new Set();
 const MAX_PRECOMPILE_PLAN_COUNT = 16;
 /**
+ * 迁移窗帘「预览打开」的历史默认值。
+ *
+ * 历史上默认值改过两次，都要在读盘时把旧默认值搬到当前值 —— 因为写进配置的值分不清
+ * 「当时的默认」与「用户主动选的」：
+ * - 版本 2 及以前：新建窗帘一律写死 `curtainPreview: 0`，与「用户主动设为关闭」共用同一个值；
+ * - 版本 3：上一次迁移把那批 0 改写成了全开的 `100`，与「用户主动选全开」同样无法区分。
+ *
+ * 两步都直接归到当前默认值（COVER_DEFAULT_PREVIEW_POSITION），不必先走一遍 100 再降一次。
+ * 只有 0（版本 2 及以前）与 100 这两个「已知默认值」会被改写，其余值原样保留；
+ * 迁移只做一次：归一化后的文档会带上当前版本号，之后用户手动改的值不会再被动到。
+ * 字段本身缺失时不在此处理 —— `normalizeCurtainTrack` 已把「未设置」按当前默认值处理。
+ */
+function migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion) {
+  if (sourceItemRecord?.type !== "curtain" || schemaVersion >= FLOOR_SCENE_SCHEMA_VERSION) {
+    return sourceItemRecord;
+  }
+  const legacyCurtainPreview = finite(sourceItemRecord.curtainPreview, NaN);
+  // 版本 2 及以前那个「等于 0 即默认」的老口径：0 与用户主动关闭不可分辨，一并抬到当前默认值。
+  const isLegacyDefault = schemaVersion < 3 && legacyCurtainPreview === 0;
+  // 版本 3 那次迁移留下的全开值。注意这一条对「版本 3 文档里用户自己设的 0 / 50」不生效 ——
+  // 只有 100 会被改写，其它值原样保留。
+  const isPreviousDefault = legacyCurtainPreview === 100;
+  return isLegacyDefault || isPreviousDefault
+    ? {
+        ...sourceItemRecord,
+        curtainPreview: COVER_DEFAULT_PREVIEW_POSITION
+      }
+    : sourceItemRecord;
+}
+/**
  * 新建一个空白场景（单层绘制数据）。默认值写死在此而非 UI 层：
  * 墙高 2.4m、墙厚 0.15m、吸附容差 13px、预览面板占比 0.52；schemaVersion 供
  * normalizeScene 做兼容迁移。默认带一个灯组，避免用户先面对空下拉框。
  */
 function createEmptyScene() {
   return {
-    schemaVersion: 2,
+    schemaVersion: FLOOR_SCENE_SCHEMA_VERSION,
     background: null,
     calibration: null,
     settings: {
@@ -1876,9 +2082,7 @@ function createEmptyScene() {
       snapOrthogonal: true,
       snapAngles: true,
       snapGrid: true,
-      snapTolerance: 13,
-      previewPanelRatio: 0.52,
-      detailsPanelWidthRatio: 0.29
+      snapTolerance: 13
     },
     walls: [],
     windows: [],
@@ -2087,17 +2291,19 @@ function closeFloorContextMenu() {
 }
 /**
  * 在鼠标位置弹出楼层右键菜单。最后一层不允许删除（按钮禁用），因为空文档会让整套
- * 绘制逻辑失去落点。位置按 116×82 的菜单尺寸估算值夹取，否则靠近右下角点开会被视口切掉一半。
+ * 绘制逻辑失去落点。落点交给 shared/menu-positioning.js 按菜单**实测尺寸**夹进视口 ——
+ * 原先这里按 116×82 的估算值裁剪，菜单项增删或文案变长后那组常量就失效了。
  */
 function openFloorContextMenu(menuFloor, contextMenuEvent) {
   floorMenuTargetId = menuFloor.id;
   const floorDeleteButton = floorContextMenuElement.querySelector('[data-floor-action="delete"]');
   floorDeleteButton.disabled = studioDocument.floors.length <= 1;
   floorContextMenuElement.hidden = false;
-  floorContextMenuElement.style.left =
-    Math.min(contextMenuEvent.clientX, window.innerWidth - 116) + "px";
-  floorContextMenuElement.style.top =
-    Math.min(contextMenuEvent.clientY, window.innerHeight - 82) + "px";
+  positionPointMenu({
+    menuElement: floorContextMenuElement,
+    clientX: contextMenuEvent.clientX,
+    clientY: contextMenuEvent.clientY
+  });
 }
 /**
  * 弹出删除楼层确认框；最后一层直接拒绝。
@@ -2721,6 +2927,9 @@ function normalizeScene(raw) {
     return emptyScene;
   }
   const schemaVersion = finite(raw.schemaVersion, 0);
+  // 老草稿把两个布局比例混在 settings 里，本次迁移到 localStorage。这里只暂存旧值，
+  // 真正播种由 migrateLegacyLayoutSettings() 在文档装好之后做（见该函数的说明）。
+  captureLegacyLayoutSeed(raw.settings);
   const calibrationPixelsPerMeter = clamp(finite(raw.calibration?.pixelsPerMeter, 0), 0, 100000);
   const calibration =
     calibrationPixelsPerMeter > 0
@@ -3034,7 +3243,10 @@ function normalizeScene(raw) {
                   )
                     ? sourceItemRecord.curtainPosition
                     : "split",
-                  ...normalizeCurtainTrack(sourceItemRecord),
+                  // 老版本的 0 是「没设置」而非「用户要关」，先过迁移再归一化。
+                  ...normalizeCurtainTrack(
+                    migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion)
+                  ),
                   depth: curtainFootprintDepth(sourceItemRecord)
                 }
               : {}),
@@ -3126,7 +3338,7 @@ function normalizeScene(raw) {
     normalizedRailings
   );
   return {
-    schemaVersion: 2,
+    schemaVersion: FLOOR_SCENE_SCHEMA_VERSION,
     background: background,
     calibration: calibration,
     settings: {
@@ -3151,9 +3363,7 @@ function normalizeScene(raw) {
       snapOrthogonal: raw.settings?.snapOrthogonal !== false,
       snapAngles: raw.settings?.snapAngles !== false,
       snapGrid: raw.settings?.snapGrid !== false,
-      snapTolerance: clamp(Math.round(finite(raw.settings?.snapTolerance, 13)), 6, 24),
-      previewPanelRatio: clamp(finite(raw.settings?.previewPanelRatio, 0.52), 0.06, 0.94),
-      detailsPanelWidthRatio: clamp(finite(raw.settings?.detailsPanelWidthRatio, 0.29), 0.08, 0.86)
+      snapTolerance: clamp(Math.round(finite(raw.settings?.snapTolerance, 13)), 6, 24)
     },
     walls: splitGeometry.walls,
     windows: splitGeometry.windows,
@@ -3455,7 +3665,7 @@ function closeLightGroupContextMenu() {
 /**
  * 在鼠标位置打开灯组右键菜单（重命名 / 复制 / 删除）。打开前先把该组设为激活并重绘列表，
  * 让「菜单作用于哪一组」视觉上唯一确定。场景只剩一个灯组时禁用删除（场景必须至少留一个）。
- * 坐标用 Math.min 夹进视口（116/108 是菜单实测宽高），否则右下角右键会把菜单顶出屏幕。
+ * 坐标由 shared/menu-positioning.js 按菜单实测尺寸夹进视口（原先用 116×108 估算）。
  */
 function openLightGroupContextMenu(menuGroup, groupContextMenuEvent) {
   lightGroupMenuTargetId = menuGroup.id;
@@ -3466,10 +3676,11 @@ function openLightGroupContextMenu(menuGroup, groupContextMenuEvent) {
   );
   groupDeleteButton.disabled = activeScene.lightGroups.length <= 1;
   lightGroupContextMenuElement.hidden = false;
-  lightGroupContextMenuElement.style.left =
-    Math.min(groupContextMenuEvent.clientX, window.innerWidth - 116) + "px";
-  lightGroupContextMenuElement.style.top =
-    Math.min(groupContextMenuEvent.clientY, window.innerHeight - 108) + "px";
+  positionPointMenu({
+    menuElement: lightGroupContextMenuElement,
+    clientX: groupContextMenuEvent.clientX,
+    clientY: groupContextMenuEvent.clientY
+  });
 }
 /**
  * 删除一个灯组，连同组内的灯。语义是「组没了，灯也不该留着」：先收集组内灯具 id 再
@@ -3950,16 +4161,17 @@ function deleteArea(removedArea) {
   showToast("已删除区域“" + removedArea.name + "”，组内灯组已移到未分类。", "success");
 }
 /**
- * 在鼠标位置打开区域右键菜单（重命名 / 删除）。与灯组菜单同理，用 Math.min 把坐标夹进
- * 视口（128 / 84 是菜单的实测宽高像素），否则贴边右键会把菜单顶到屏幕外。
+ * 在鼠标位置打开区域右键菜单（重命名 / 删除）。与灯组菜单同理，坐标交给
+ * shared/menu-positioning.js 按实测尺寸夹进视口（原先用 128×84 估算）。
  */
 function openAreaContextMenu(menuArea, areaMenuEvent) {
   areaContextMenuId = menuArea.id;
   areaContextMenuElement.hidden = false;
-  areaContextMenuElement.style.left =
-    Math.min(areaMenuEvent.clientX, window.innerWidth - 128) + "px";
-  areaContextMenuElement.style.top =
-    Math.min(areaMenuEvent.clientY, window.innerHeight - 84) + "px";
+  positionPointMenu({
+    menuElement: areaContextMenuElement,
+    clientX: areaMenuEvent.clientX,
+    clientY: areaMenuEvent.clientY
+  });
 }
 /**
  * 关闭区域右键菜单，并清掉目标区域 id。
@@ -7492,73 +7704,92 @@ function updateOnboardingSteps() {
   }
 }
 /**
- * 量出右侧属性面板与预览面板的比例上下限（拖动分隔条用）。全部用「当前实际像素 ÷ 面板像素」换算成比例，元素尚未布局
- * （宽高为 0）时用窗口尺寸兜底，避免算出 0 或 NaN。数值来历：高度下限 320px、上限预留 14px 分隔条与 170px 底部；
- * 宽度下限 360px、上限扣掉左侧库面板、20px 间隙与 320px 预览区，最后 clamp 到固定区间保证比例永不为 0 或 1。
+ * 读 studio.css 声明的一枚长度型布局变量。读不到时用兜底值 —— 这里宁可退化到「旧版本写死的那个
+ * 数字」，也不能让上下限变成 NaN：NaN 会让每一栏的尺寸都算成 0，界面直接塌掉。
+ */
+function readStudioLayoutLength(element, cssVarName, fallbackPx) {
+  const rawValue = getComputedStyle(element).getPropertyValue(cssVarName).trim();
+  const numericValue = Number.parseFloat(rawValue);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallbackPx;
+}
+
+/**
+ * 布局常量的缓存。这些值来自 studio.css，只在断点切换时变（@media (max-width: 1380px) 会同时
+ * 改库栏宽度、中栏下限与右栏下限），而 measurePanelLimits() 在拖拽的每一帧都要被调用两次。
+ * 每次现读要 6 次 getComputedStyle：拖拽时我们正在改内联自定义属性，样式本来就是脏的，
+ * 这会把强制样式重算塞进每一帧。所以在 resize 时清空一次即可（槽位本身声明在文件上方）。
+ */
+function studioLayoutMetrics() {
+  if (studioLayoutConstants) {
+    return studioLayoutConstants;
+  }
+  const shellStyle = getComputedStyle(studioShellElement);
+  const columnGapPx = Number.parseFloat(shellStyle.columnGap);
+  studioLayoutConstants = {
+    // 右栏宽度下限：CSS 用 minmax() 强制它，JS 的钳制必须与它同值，否则两套口径会在拖动到极限时
+    // 打架（网格被 minmax 顶住不再变窄，而 JS 以为还能继续拖）。
+    detailsMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-details-min-w", 420),
+    // 中栏宽度下限：拖大右栏时至少要给中间绘图台留这么多。
+    centerMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-center-min-w", 400),
+    // 库栏宽度下限：库栏量不到宽度（尚未布局）时的兜底，也是右栏上限里要扣掉的那一段。
+    libraryMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-library-min-w", 168),
+    // 列间距会随断点变，写死 20px 会在窄屏下少扣一格。
+    shellColumnGapPx: Number.isFinite(columnGapPx) ? columnGapPx : 10,
+    // 右栏三行网格的两个内容下限与分隔条高度，全部声明在 .details-panel 上。
+    previewMinHeightPx: readStudioLayoutLength(detailsPanelElement, "--layout-preview-min-h", 320),
+    inspectorMinHeightPx: readStudioLayoutLength(
+      detailsPanelElement,
+      "--layout-inspector-min-h",
+      170
+    ),
+    dividerHeightPx: readStudioLayoutLength(detailsPanelElement, "--layout-divider-h", 14)
+  };
+  return studioLayoutConstants;
+}
+
+/**
+ * 量出右栏宽度与 3D 预览高度的比例上下限（拖拽与键盘调宽共用）。全部用「当前实际像素 ÷ 参考像素」
+ * 换算成比例，元素尚未布局（宽高为 0）时用窗口尺寸兜底，避免算出 0 或 NaN。
+ *
+ * 所有常量都从 studio.css 的布局变量读（见 studioLayoutMetrics），不再在 JS 里抄第二份：
+ * 原先 CSS 写库栏 204px 而 JS 兜底 168、CSS 写中栏最小 400px 而 JS 允许压到 320，
+ * 拖到极限时三条轨道之和超过容器，网格真的会溢出并被 body{overflow:hidden} 裁掉。
+ * 最后仍 clamp 到固定区间，保证比例永不为 0 或 1。
  */
 function measurePanelLimits() {
+  const metrics = studioLayoutMetrics();
   const detailsPanelRect = detailsPanelElement.getBoundingClientRect();
   const shellRect = studioShellElement.getBoundingClientRect();
   const panelHeightPx = detailsPanelRect.height || Math.max(window.innerHeight - 90, 340);
   const shellWidthPx = shellRect.width || Math.max(window.innerWidth - 20, 860);
-  const resizerHeightPx = detailsResizerElement.parentElement?.getBoundingClientRect().height || 14;
+  const resizerHeightPx =
+    detailsResizerElement.parentElement?.getBoundingClientRect().height || metrics.dividerHeightPx;
   const libraryPanelWidthPx =
-    studioShellElement.querySelector(".library-panel")?.getBoundingClientRect().width || 168;
+    libraryPanelElement?.getBoundingClientRect().width || metrics.libraryMinWidthPx;
+  // 右栏两个下限是「绝对像素」，换算成比例才有意义；分母为 0 时上面已经兜过底。
   return {
-    minimumHeightRatio: clamp(320 / panelHeightPx, 0.08, 0.5),
-    maximumHeightRatio: clamp((panelHeightPx - resizerHeightPx - 170) / panelHeightPx, 0.5, 0.94),
-    minimumWidthRatio: clamp(360 / shellWidthPx, 0.08, 0.45),
+    minimumHeightRatio: clamp(
+      metrics.previewMinHeightPx / panelHeightPx,
+      0.08,
+      0.5
+    ),
+    maximumHeightRatio: clamp(
+      (panelHeightPx - resizerHeightPx - metrics.inspectorMinHeightPx) / panelHeightPx,
+      0.5,
+      0.94
+    ),
+    minimumWidthRatio: clamp(metrics.detailsMinWidthPx / shellWidthPx, 0.08, 0.45),
+    // 上限 = 扣掉库栏、两条列间距、中栏下限之后，剩下全给右栏。
     maximumWidthRatio: clamp(
-      (shellWidthPx - libraryPanelWidthPx - 20 - 320) / shellWidthPx,
+      (shellWidthPx -
+        libraryPanelWidthPx -
+        metrics.shellColumnGapPx * 2 -
+        metrics.centerMinWidthPx) /
+        shellWidthPx,
       0.45,
       0.86
     )
   };
-}
-/**
- * 把「预览区高度占比」写进 CSS 变量并同步分隔条的 ARIA 数值。写回 settings 的是 clamp
- * 之后的实际值：先 finite 兜底 0.52（首次导入的草稿没有该字段），再按当前窗口量出的上下限
- * 收窄 —— 窗口缩小后旧比例可能把预览区压成 0 高，这一步顺带修正回合法区间。
- */
-function applyPreviewPanelRatio() {
-  const panelLimits = measurePanelLimits();
-  const previewPanelRatio = clamp(
-    finite(activeScene.settings?.previewPanelRatio, 0.52),
-    panelLimits.minimumHeightRatio,
-    panelLimits.maximumHeightRatio
-  );
-  activeScene.settings.previewPanelRatio = previewPanelRatio;
-  detailsPanelElement.style.setProperty(
-    "--preview-panel-height",
-    (previewPanelRatio * 100).toFixed(2) + "%"
-  );
-  detailsResizerElement.setAttribute(
-    "aria-valuemin",
-    String(Math.round(panelLimits.minimumHeightRatio * 100))
-  );
-  detailsResizerElement.setAttribute(
-    "aria-valuemax",
-    String(Math.round(panelLimits.maximumHeightRatio * 100))
-  );
-  detailsResizerElement.setAttribute("aria-valuenow", String(Math.round(previewPanelRatio * 100)));
-}
-/**
- * 把「右侧属性面板宽度占比」写进 CSS 变量 --details-panel-width。与 applyPreviewPanelRatio
- * 同构：缺省 0.29，先 finite 兜底再用 measurePanelLimits() 的宽度上下限 clamp，窗口缩放后
- * 旧值会被自动修正（否则库面板会挡住属性表，或属性表被挤成一条缝）。
- */
-function applyDetailsPanelRatio() {
-  const widthPanelLimits = measurePanelLimits();
-  const detailsPanelRatio = clamp(
-    finite(activeScene.settings?.detailsPanelWidthRatio, 0.29),
-    widthPanelLimits.minimumWidthRatio,
-    widthPanelLimits.maximumWidthRatio
-  );
-  activeScene.settings.detailsPanelWidthRatio = detailsPanelRatio;
-  studioShellElement.style.setProperty(
-    "--details-panel-width",
-    (detailsPanelRatio * 100).toFixed(2) + "%"
-  );
 }
 /**
  * 吸附当前是否生效：用户没在设置里关掉吸附，且没有按住临时关闭键
@@ -7598,42 +7829,6 @@ function syncSnapControls() {
   }
 }
 /**
- * 拖动属性面板分隔条时的指针移动处理（同时改高度与宽度两个比例）。先量一次面板与外壳实际尺寸，任一维为 0（面板被折叠 /
- * 尚未布局）就直接返回，否则除零算出 Infinity。位移小于 2px 视为抖动忽略：指针按下瞬间常有几像素偏移，处理它会让
- * 分隔条「点一下自己跳一格」。高度随指针下移变大、宽度随指针右移变小，两处符号相反；结果 clamp 到 measurePanelLimits()。
- */
-function handleDetailsResize(resizePointerEvent) {
-  if (!detailsResizeState) {
-    return;
-  }
-  const detailsResizePanelRect = detailsPanelElement.getBoundingClientRect();
-  const resizeShellRect = studioShellElement.getBoundingClientRect();
-  if (detailsResizePanelRect.height <= 0 || resizeShellRect.width <= 0) {
-    return;
-  }
-  const resizeLimits = measurePanelLimits();
-  const resizeDeltaX = resizePointerEvent.clientX - detailsResizeState.startX;
-  const resizeDeltaY = resizePointerEvent.clientY - detailsResizeState.startY;
-  if (Math.hypot(resizeDeltaX, resizeDeltaY) < 2) {
-    return;
-  }
-  detailsResizerElement.dataset.resizeAxis = "both";
-  const heightDeltaRatio = resizeDeltaY / detailsResizePanelRect.height;
-  const widthDeltaRatio = resizeDeltaX / resizeShellRect.width;
-  activeScene.settings.previewPanelRatio = clamp(
-    detailsResizeState.startPreviewRatio + heightDeltaRatio,
-    resizeLimits.minimumHeightRatio,
-    resizeLimits.maximumHeightRatio
-  );
-  activeScene.settings.detailsPanelWidthRatio = clamp(
-    detailsResizeState.startWidthRatio - widthDeltaRatio,
-    resizeLimits.minimumWidthRatio,
-    resizeLimits.maximumWidthRatio
-  );
-  applyPreviewPanelRatio();
-  applyDetailsPanelRatio();
-}
-/**
  * 全量刷新工作台界面（墙面全局参数、物件计数、面板比例、相机与灯光控件）。这是「场景数据变化后把 UI
  * 重画一遍」的总入口，本身不改任何场景数据，只做单向 model → view 同步。各控件统一走 syncControlValue
  * 而非直接赋 value：该函数会跳过当前获焦控件（用户正在输入时不能把字符顶掉）且不写重复值。
@@ -7667,8 +7862,11 @@ function syncStudioUi() {
     activeScene.items.length +
     " 物件";
   renderLightGroupList();
-  applyPreviewPanelRatio();
-  applyDetailsPanelRatio();
+  // 布局比例现在归 studioLayout 管（localStorage），这里只做两件事：
+  // 把老文档里的旧值一次性播种进来（只在本机还没有布局记录时生效），
+  // 以及让布局层在窗口尺寸变化后重新钳制一次 —— 百分比栏的上下限随窗口走。
+  migrateLegacyLayoutSettings();
+  studioLayout.refresh();
   applyCameraMode(currentCameraMode());
   applyCameraView(currentCameraView());
   syncPreviewControls();
@@ -8818,8 +9016,8 @@ function applyBaseLightingSettings(lightingConfig) {
 }
 /**
  * 打开基础光设置面板（必要时先回填一次文档里的配置）。挂载点跟着导出对话框走：对话框打开时面板必须挂进
- * 对话框内部，否则会落在遮罩之下点不到。面板尺寸随内容自适应，重建后可能落到窗口外，故用
- * getBoundingClientRect 量一遍后按 8px 边距夹回可视区；先把 right 清成 auto 再写 left/top，避免两套定位打架。
+ * 对话框内部，否则会落在遮罩之下点不到。面板尺寸随内容自适应，重建后可能落到窗口外，
+ * 故按实测尺寸夹回可视区（8px 边距），与拖拽路径共用 shared/menu-positioning.js 的同一段算术。
  */
 function openBaseLightingPanel() {
   if (!studioDocument || !baseLightControlsElement) {
@@ -8840,11 +9038,11 @@ function openBaseLightingPanel() {
     panelRect.left < 8 ||
     panelRect.top < 8
   ) {
-    baseLightControlsElement.style.right = "auto";
-    baseLightControlsElement.style.left =
-      clamp(panelRect.left, 8, Math.max(8, window.innerWidth - panelRect.width - 8)) + "px";
-    baseLightControlsElement.style.top =
-      clamp(panelRect.top, 8, Math.max(8, window.innerHeight - panelRect.height - 8)) + "px";
+    moveFloatingPanelIntoBounds({
+      panelElement: baseLightControlsElement,
+      leftPx: panelRect.left,
+      topPx: panelRect.top
+    });
   }
 }
 /**
@@ -20414,7 +20612,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609230040");
       mountStage(createStageController());
       return;
     }
@@ -21909,101 +22107,10 @@ refreshPreviewButton.addEventListener("click", () =>
     force: true
   })
 );
-detailsResizerElement.addEventListener("pointerdown", detailsResizerPointerDownEvent => {
-  if (detailsResizerPointerDownEvent.button === 0) {
-    detailsResizeState = {
-      pointerId: detailsResizerPointerDownEvent.pointerId,
-      startX: detailsResizerPointerDownEvent.clientX,
-      startY: detailsResizerPointerDownEvent.clientY,
-      startPreviewRatio: activeScene.settings.previewPanelRatio,
-      startWidthRatio: activeScene.settings.detailsPanelWidthRatio
-    };
-    detailsPanelElement.classList.add("resizing");
-    studioShellElement.classList.add("resizing");
-    detailsResizerElement.dataset.resizeAxis = "pending";
-    capturePointer(detailsResizerElement, detailsResizerPointerDownEvent.pointerId);
-  }
-});
-detailsResizerElement.addEventListener("pointermove", detailsResizerPointerMoveEvent => {
-  if (detailsResizeState?.pointerId === detailsResizerPointerMoveEvent.pointerId) {
-    if ((detailsResizerPointerMoveEvent.buttons & 1) === 0) {
-      endDetailsResize(detailsResizerPointerMoveEvent);
-      return;
-    }
-    handleDetailsResize(detailsResizerPointerMoveEvent);
-  }
-});
-/**
- * 结束右侧详情面板的拖拽缩放（指针抬起 / 取消 / 失焦 / 丢失捕获都会走到）。用 pointerId 比对确认结束的是同一次拖拽；比例变化
- * 超过 1e-4 才算真的拖动过，只有真的变了才 markDocumentDirty（避免点一下手柄就触发自动保存）。shouldReleasePointer=false 用于
- * lostpointercapture 回调：此时浏览器已自动释放捕获，再释放会抛异常。没有进行中的拖拽或 pointerId 不匹配时直接返回。
- */
-const endDetailsResize = (detailsResizePointerEvent, shouldReleasePointer = true) => {
-  if (
-    !detailsResizeState ||
-    (detailsResizePointerEvent?.pointerId !== undefined &&
-      detailsResizeState.pointerId !== detailsResizePointerEvent.pointerId)
-  ) {
-    return;
-  }
-  const activeDetailsResizeState = detailsResizeState;
-  detailsResizeState = null;
-  const didPanelRatiosChange =
-    Math.abs(activeScene.settings.previewPanelRatio - activeDetailsResizeState.startPreviewRatio) >
-      0.0001 ||
-    Math.abs(
-      activeScene.settings.detailsPanelWidthRatio - activeDetailsResizeState.startWidthRatio
-    ) > 0.0001;
-  detailsPanelElement.classList.remove("resizing");
-  studioShellElement.classList.remove("resizing");
-  delete detailsResizerElement.dataset.resizeAxis;
-  if (shouldReleasePointer) {
-    releasePointer(detailsResizerElement, activeDetailsResizeState.pointerId);
-  }
-  if (didPanelRatiosChange) {
-    markDocumentDirty();
-  }
-};
-detailsResizerElement.addEventListener("pointerup", endDetailsResize);
-detailsResizerElement.addEventListener("pointercancel", endDetailsResize);
-detailsResizerElement.addEventListener("lostpointercapture", lostPointerCaptureEvent =>
-  endDetailsResize(lostPointerCaptureEvent, false)
-);
-window.addEventListener("pointerup", endDetailsResize, true);
-window.addEventListener("pointercancel", endDetailsResize, true);
-window.addEventListener("blur", () => endDetailsResize());
-detailsResizerElement.addEventListener("keydown", detailsResizerKeyDownEvent => {
-  const verticalResizeStep =
-    detailsResizerKeyDownEvent.key === "ArrowUp"
-      ? -0.03
-      : detailsResizerKeyDownEvent.key === "ArrowDown"
-        ? 0.03
-        : 0;
-  const horizontalResizeStep =
-    detailsResizerKeyDownEvent.key === "ArrowLeft"
-      ? 0.03
-      : detailsResizerKeyDownEvent.key === "ArrowRight"
-        ? -0.03
-        : 0;
-  if (!verticalResizeStep && !horizontalResizeStep) {
-    return;
-  }
-  detailsResizerKeyDownEvent.preventDefault();
-  const panelLimitRatios = measurePanelLimits();
-  activeScene.settings.previewPanelRatio = clamp(
-    activeScene.settings.previewPanelRatio + verticalResizeStep,
-    panelLimitRatios.minimumHeightRatio,
-    panelLimitRatios.maximumHeightRatio
-  );
-  activeScene.settings.detailsPanelWidthRatio = clamp(
-    activeScene.settings.detailsPanelWidthRatio + horizontalResizeStep,
-    panelLimitRatios.minimumWidthRatio,
-    panelLimitRatios.maximumWidthRatio
-  );
-  applyPreviewPanelRatio();
-  applyDetailsPanelRatio();
-  markDocumentDirty();
-});
+/* 右栏分隔条（#details-resizer）的拖拽、键盘调宽与收尾全部由 shared/layout-shell.js 接管：
+   指针捕获、2px 抖动阈值、双轴换算、方向键步长、双击复位都在那里，两页共用。原先这段是本文件里
+   唯一会「拖一下布局就把文档标脏」的地方（endDetailsResize 里的 markDocumentDirty），
+   迁移到布局层之后拖动分隔条不再产生任何文档写入。 */
 for (const cameraModeToggleButton of cameraModeButtons) {
   cameraModeToggleButton.addEventListener("click", () => {
     const requestedCameraMode =
@@ -22127,14 +22234,12 @@ baseLightControlsHeaderElement?.addEventListener("pointermove", panelDragMoveEve
   }
   panelResizeState.moved = true;
   panelDragMoveEvent.preventDefault();
-  const panelCurrentRect = baseLightControlsElement.getBoundingClientRect();
-  const maxPanelLeftPx = Math.max(8, window.innerWidth - panelCurrentRect.width - 8);
-  const maxPanelTopPx = Math.max(8, window.innerHeight - panelCurrentRect.height - 8);
-  baseLightControlsElement.style.right = "auto";
-  baseLightControlsElement.style.left =
-    clamp(panelResizeState.startLeft + panelDragDeltaX, 8, maxPanelLeftPx) + "px";
-  baseLightControlsElement.style.top =
-    clamp(panelResizeState.startTop + panelDragDeltaY, 8, maxPanelTopPx) + "px";
+  // 夹取算法与「打开时兜一遍」共用一处：8px 边距、按实测尺寸、清掉 right 只留 left/top。
+  moveFloatingPanelIntoBounds({
+    panelElement: baseLightControlsElement,
+    leftPx: panelResizeState.startLeft + panelDragDeltaX,
+    topPx: panelResizeState.startTop + panelDragDeltaY
+  });
 });
 /**
  * 结束基础灯光面板的拖拽：清空拖拽状态。指针 id 不匹配则忽略，避免多指操作时误把后来那次拖拽结束掉。该处理函数同时挂在
@@ -22553,6 +22658,42 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 new ResizeObserver(resizePlanCanvas).observe(planStageElement);
+
+/* ===== 布局层接线：把手条 / 快捷键 ===== */
+
+const studioLayoutControls = bindLayoutControls({ controller: studioLayout, root: document });
+
+/**
+ * 执行一个布局动作并同步共享控件的可视态。快捷键入口不经过 bindLayoutControls 的点击处理，
+ * 所以每条快捷键都要显式同步一次（否则按了 ⌘B 侧栏收起了，把手条的 aria-expanded 却还停在旧值）。
+ */
+function runLayoutAction(layoutAction) {
+  layoutAction();
+  studioLayoutControls.sync();
+}
+
+bindLayoutShortcuts({
+  bindings: [
+    {
+      id: "toggle-library",
+      combo: "Mod+B",
+      run: () => runLayoutAction(() => studioLayout.togglePanel("library"))
+    },
+    {
+      id: "toggle-details",
+      combo: "Mod+Shift+B",
+      run: () => runLayoutAction(() => studioLayout.togglePanel("details"))
+    }
+  ]
+});
+
+// 百分比栏的上下限与库栏宽度都会随断点 / 窗口尺寸变，所以窗口一变就要丢掉布局常量缓存再重新钳制：
+// 缓存留着会让窄屏继续按宽屏的库栏宽度扣减右栏上限。
+window.addEventListener("resize", () => {
+  studioLayoutConstants = null;
+  studioLayout.refresh();
+});
+
 initializeStudioSelects();
 initializeNumberInputs();
 syncBaseLightControlInputs();

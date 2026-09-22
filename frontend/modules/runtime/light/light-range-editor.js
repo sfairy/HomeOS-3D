@@ -17,7 +17,7 @@ import {
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609222006";
+} from "../core/static-helpers.js?v=2609230040";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
 // 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。

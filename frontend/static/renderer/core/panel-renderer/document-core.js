@@ -18,15 +18,15 @@ import {
   renderRegisteredComponent,
   setBuiltinAssetVersions,
   staticAssetImageSource
-} from "../registry.js?v=2609222006";
+} from "../registry.js?v=2609230040";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
 // （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609222006";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609230040";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "../device-profiles.js?v=2609222006";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609222006";
+} from "../device-profiles.js?v=2609230040";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609230040";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -35,9 +35,9 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../../geometry/effect-geometry.js?v=2609222006";
-import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609222006";
-import { isSupportedComponentAction } from "./primitives.js?v=2609222006";
+} from "../../geometry/effect-geometry.js?v=2609230040";
+import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609230040";
+import { isSupportedComponentAction } from "./primitives.js?v=2609230040";
 
 export const documentCoreMethods = {
   /**

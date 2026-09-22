@@ -8,91 +8,91 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609222006";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609230040";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609222006";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609230040";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609222006";
+import { sceneModelKey } from "./scene-model-key.js?v=2609230040";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609222006",
+        "../../../static/bridge/popup-placement.js?v=2609230040",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609222006"));
+  : import("/static/bridge/popup-placement.js?v=2609230040"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609222006";
-import { createSceneBackground } from "./scene-background.js?v=2609222006";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609222006";
+} from "../presence/presence-scene.js?v=2609230040";
+import { createSceneBackground } from "./scene-background.js?v=2609230040";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609230040";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609222006";
+} from "../vacuum/vacuum-motion.js?v=2609230040";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609222006";
-import { televisionState } from "../television/television-state.js?v=2609222006";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609222006";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609222006";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609222006";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609222006";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609222006";
+} from "../vacuum/vacuum-map.js?v=2609230040";
+import { televisionState } from "../television/television-state.js?v=2609230040";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609230040";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609230040";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609230040";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609230040";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609230040";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609222006";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609222006";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609222006";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609222006";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609222006";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609222006";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609222006";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609222006";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609222006";
+} from "../cover/cover-state.js?v=2609230040";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609230040";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609230040";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609230040";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609230040";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609230040";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609230040";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609230040";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609230040";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609222006";
-import { startSceneSync } from "./scene-sync.js?v=2609222006";
+} from "../environment/environment-scene.js?v=2609230040";
+import { startSceneSync } from "./scene-sync.js?v=2609230040";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609222006";
+} from "../light/light-state.js?v=2609230040";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609222006";
+} from "../camera/camera-motion.js?v=2609230040";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609222006";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609222006";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609222006";
-import { createStageGeometry } from "./stage/geometry.js?v=2609222006";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609222006";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609222006";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609222006";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609222006";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609222006";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609222006";
-import { createInputActivity } from "./stage/input-activity.js?v=2609222006";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609222006";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609222006";
+} from "./idle-rotation.js?v=2609230040";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609230040";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609230040";
+import { createStageGeometry } from "./stage/geometry.js?v=2609230040";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609230040";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609230040";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609230040";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609230040";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609230040";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609230040";
+import { createInputActivity } from "./stage/input-activity.js?v=2609230040";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609230040";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609230040";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -118,6 +118,21 @@ const LIGHT_PRESETS = [
  * 这中间的两百多毫秒相机几乎不动，让用户干等会显得按下没反应，所以按 0.999 提前放行。
  */
 const FLOOR_TAIL_DRAG_MIN_PROGRESS = 0.999;
+/**
+ * 模块页签的几何：一个页签 56×32，页签之间留 2px，轨道两端各留 3px，所以整条 = 个数 × 58 + 6。
+ * stage.css 的 .i3d-module-tabs 用的是同一组数字（那边只能写死像素，吃不到 JS 常量），
+ * 这里拿它算导航条最多能放大到几倍；只改一边，缩放判定会与实际尺寸脱钩。
+ */
+const MODULE_TAB_WIDTH = 56;
+const MODULE_TAB_HEIGHT = 32;
+const MODULE_TAB_STRIDE = MODULE_TAB_WIDTH + 2;
+const MODULE_TAB_TRACK_PADDING = 3;
+const MODULE_TAB_TRACK_HEIGHT = MODULE_TAB_HEIGHT + MODULE_TAB_TRACK_PADDING * 2 + 2;
+/**
+ * 导航位置调整态下，拖动一次至少要走这么多像素才算「用户真的想挪」，否则当作点选页签。
+ * 两条导航的基准字号是 14px 上下、又被缩放到屏幕上，按屏幕像素判 4px 比较接近手感。
+ */
+const NAVIGATION_DRAG_THRESHOLD = 4;
 /**
  * 算出当前配置下真正可用的模块页签。
  * 总览与灯光始终存在（总览聚合当前楼层所有已配置模块，灯光是默认落地页）；
@@ -210,6 +225,9 @@ export function mountStage(stageOptions) {
   // 保证 requestId 全局唯一，control-result 才能精确配对到发起的请求。
   let requestSeq = 0;
   let markerDragState = null;
+  // 导航位置调整态（仅编辑器画布）：置位后分类栏 / 楼层栏可拖动改位置，
+  // 拖动结果按「导航位置」的百分比写回控件。见 bindNavigationDrag 与 runtime.js 的 setNavigationEditing。
+  let navigationEditing = false;
   // 进入聚焦 / 切换楼层前的相机快照，退出聚焦时用它还原。
   let savedCameraPose = null;
   // 舞台画面是否已呈现（宿主确认后置位）；未呈现前不做空闲动画与定位。
@@ -779,6 +797,12 @@ export function mountStage(stageOptions) {
     get moveFocusInto() {
       return moveFocusInto;
     },
+    get navigationEditing() {
+      return navigationEditing;
+    },
+    set navigationEditing(value) {
+      navigationEditing = value;
+    },
     get nasDeviceState() {
       return nasDeviceState;
     },
@@ -1103,7 +1127,14 @@ export function mountStage(stageOptions) {
     moduleTabButton.type = "button";
     moduleTabButton.dataset.module = moduleKey;
     moduleTabButton.style.setProperty("--i3d-tab-index", String(moduleTabsByModule.size));
-    moduleTabButton.addEventListener("click", () => selectModule(moduleKey));
+    moduleTabButton.addEventListener("click", () => {
+      // 调整导航位置时拖完整条轨道会紧跟一个 click，别让它顺手切了模块（见 bindNavigationDrag）。
+      if (moduleTabsElement.dataset.dragged === "true") {
+        moduleTabsElement.dataset.dragged = "";
+        return;
+      }
+      selectModule(moduleKey);
+    });
     moduleTabsElement.append(moduleTabButton);
     moduleTabsByModule.set(moduleKey, moduleTabButton);
   }
@@ -1932,6 +1963,152 @@ export function mountStage(stageOptions) {
 
 
 
+  /**
+   * 让分类栏 / 楼层栏可以被拖动改位置 —— 只在「导航位置调整态」生效
+   * （编辑器画布里由属性面板的「调整导航位置」按钮开关，见 runtime.js 的 setNavigationEditing）。
+   *
+   * 拖动不改 style：只把 config.navigation[key] 的中心点百分比换成新值，再请布局重算。
+   * 位置计算因此始终只有 placeNavigationElement 一份 —— 安全边距、缩放、换行都不必在这里重写，
+   * 拖到边缘时条会自然停在可放置范围内，松手写回的也正是那个被夹住的值。
+   *
+   * 整段拖动只在松手时抛一条 edit 事件（拖动过程中不落库）：宿主每收到一次就要重算文档签名
+   * 并重绘组件树，逐帧改文档会直接卡到拖不动。
+   *
+   * @param {HTMLElement} dragElement 接收指针的元素：分类栏整条轨道 / 楼层栏整列。
+   * @param {"categories"|"floors"} navigationKey 写回配置里的哪一条导航。
+   * @param {[number, number]} fallbackPosition 配置缺省时的兜底中心点百分比，与布局取法一致。
+   */
+  function bindNavigationDrag(dragElement, navigationKey, fallbackPosition) {
+    // 一次拖动一个状态对象；为 null 说明当前没在拖。
+    let navigationDrag = null;
+    // 读当前生效的中心点百分比：缺省或越界回落兜底位置，夹取口径与布局一致。
+    const readOffsetPercent = axisName => {
+      const configuredPercent = config.navigation?.[navigationKey]?.[axisName];
+      return Number.isFinite(configuredPercent)
+        ? Math.max(0, Math.min(100, configuredPercent))
+        : fallbackPosition[axisName === "x" ? 0 : 1];
+    };
+    // 只覆盖这一条导航的 x / y，同级的 scale、followOffset 等字段原样保留。
+    const writeOffsetPercent = (percentX, percentY) => {
+      config = {
+        ...config,
+        navigation: {
+          ...(config.navigation || {}),
+          [navigationKey]: {
+            ...(config.navigation?.[navigationKey] || {}),
+            x: Math.round(percentX * 100) / 100,
+            y: Math.round(percentY * 100) / 100
+          }
+        }
+      };
+    };
+    const stopNavigationDrag = () => {
+      if (!navigationDrag) {
+        return;
+      }
+      navigationDrag = null;
+      dragElement.classList.remove("is-navigation-dragging");
+    };
+    dragElement.addEventListener("pointerdown", dragStartEvent => {
+      if (
+        !navigationEditing ||
+        dragStartEvent.button !== 0 ||
+        dragStartEvent.isPrimary === false
+      ) {
+        return;
+      }
+      // 同 id 的按下还在拖动中才忽略；上一次拖动的 pointerup 若没送达（元素被替换等），
+      // 状态会一直卡住让后面每次按下都失效，所以只在 id 相同时才认作「拖拽中」。
+      if (navigationDrag?.pointerId === dragStartEvent.pointerId) {
+        return;
+      }
+      const containerRect = containerElement.getBoundingClientRect();
+      if (!(containerRect.width > 0) || !(containerRect.height > 0)) {
+        return;
+      }
+      // 上一次拖动若在页签外松手，click 不会到来，标记会一直留着吃掉后面的点击：这里先清一次。
+      dragElement.dataset.dragged = "";
+      dragStartEvent.preventDefault();
+      // 拦在这里：画布自己的 pointerdown 会记下指针并驱动背景视差，拖页签时不需要它。
+      dragStartEvent.stopPropagation();
+      navigationDrag = {
+        pointerId: dragStartEvent.pointerId,
+        clientX: dragStartEvent.clientX,
+        clientY: dragStartEvent.clientY,
+        startPercentX: readOffsetPercent("x"),
+        startPercentY: readOffsetPercent("y"),
+        // 百分比与屏幕像素的换算：演示层铺满容器，所以 100% 正好是容器的宽 / 高。
+        percentPerClientPxX: 100 / containerRect.width,
+        percentPerClientPxY: 100 / containerRect.height,
+        moved: false
+      };
+      capturePointer(dragElement, dragStartEvent.pointerId);
+      dragElement.classList.add("is-navigation-dragging");
+    });
+    dragElement.addEventListener("pointermove", dragMoveEvent => {
+      if (!navigationDrag || navigationDrag.pointerId !== dragMoveEvent.pointerId) {
+        return;
+      }
+      const movedClientX = dragMoveEvent.clientX - navigationDrag.clientX;
+      const movedClientY = dragMoveEvent.clientY - navigationDrag.clientY;
+      if (!navigationDrag.moved && Math.hypot(movedClientX, movedClientY) < NAVIGATION_DRAG_THRESHOLD) {
+        return;
+      }
+      navigationDrag.moved = true;
+      // 用「按下时的中心点 + 总位移」算绝对值，而不是逐帧累加：中途被夹取后再拖回来，
+      // 位置立刻跟着指针回到位，不会越差越远。
+      const nextPercentX = Math.max(
+        0,
+        Math.min(100, navigationDrag.startPercentX + movedClientX * navigationDrag.percentPerClientPxX)
+      );
+      const nextPercentY = Math.max(
+        0,
+        Math.min(100, navigationDrag.startPercentY + movedClientY * navigationDrag.percentPerClientPxY)
+      );
+      if (nextPercentX === readOffsetPercent("x") && nextPercentY === readOffsetPercent("y")) {
+        return;
+      }
+      writeOffsetPercent(nextPercentX, nextPercentY);
+      scheduleLayoutStage();
+    });
+    dragElement.addEventListener("pointerup", dragEndEvent => {
+      if (!navigationDrag || navigationDrag.pointerId !== dragEndEvent.pointerId) {
+        return;
+      }
+      const finishedDrag = navigationDrag;
+      stopNavigationDrag();
+      if (!finishedDrag.moved) {
+        // 没超过阈值：当作点选页签，不写位置，点击仍由页签自己的 click 处理。
+        return;
+      }
+      // 这次拖拽的尾巴会紧跟一个 click，用标记吃掉它，免得顺手切了模块 / 楼层。
+      dragElement.dataset.dragged = "true";
+      postToHost({
+        type: "edit",
+        action: "navigation-position",
+        target: navigationKey,
+        x: readOffsetPercent("x"),
+        y: readOffsetPercent("y")
+      });
+    });
+    // 指针被系统收走（来电、手势接管）时的回滚：本地预览过的新位置退回按下时的值，
+    // 且不抛事件 —— 宿主那边从没收到过这次拖动，不该留下半截改动。
+    dragElement.addEventListener("pointercancel", () => {
+      if (!navigationDrag) {
+        return;
+      }
+      const cancelledDrag = navigationDrag;
+      stopNavigationDrag();
+      if (cancelledDrag.moved) {
+        writeOffsetPercent(cancelledDrag.startPercentX, cancelledDrag.startPercentY);
+        scheduleLayoutStage();
+      }
+    });
+  }
+  // 分类栏绑在内层轨道（moduleTabsElement）而不是外层 .i3d-navigation：外层是
+  // pointer-events: none（它的存在只为定位），指针捕获绑在这种元素上不该指望还能收到事件。
+  bindNavigationDrag(moduleTabsElement, "categories", [50, 94]);
+  bindNavigationDrag(floorTabsElement, "floors", [96, 50]);
   // 渲染楼层页签：编辑 / 视图编辑 / 范围编辑时整块隐藏；只有一个楼层时不显示页签。
   // 编辑器画布里导航栏按 isEditorCanvas 放行（切模块靠它），楼层页签不跟随、照旧隐藏；
   // 页签按签名比对重建，避免每帧重排 DOM。
@@ -1956,7 +2133,14 @@ export function mountStage(stageOptions) {
         floorTabButton.dataset.floor = floorTabId;
         floorTabButton.title = floorTabTitle;
         floorTabButton.setAttribute("aria-label", floorTabTitle);
-        floorTabButton.addEventListener("click", () => selectFloor(floorTabId));
+        floorTabButton.addEventListener("click", () => {
+          // 同上：拖完楼层栏紧跟的 click 只用来清标记。
+          if (floorTabsElement.dataset.dragged === "true") {
+            floorTabsElement.dataset.dragged = "";
+            return;
+          }
+          selectFloor(floorTabId);
+        });
         floorTabsElement.append(floorTabButton);
       }
     }
@@ -2576,7 +2760,9 @@ export function mountStage(stageOptions) {
       return;
     }
     presentationScaleX = containerRect.width / layoutWidth;
-    const navigationWidth = configuredModules.length * 50 + 6;
+    // 导航条按页签数估宽：与 stage.css 里 .i3d-module-tabs 的宽度公式同源（每页签 58px，两端各 3px）。
+    // 改字号/页签尺寸时两处要一起改，否则这里会误判「放得下」而把导航条顶出画面。
+    const navigationWidth = configuredModules.length * MODULE_TAB_STRIDE + MODULE_TAB_TRACK_PADDING * 2;
     const navigationSettings = config.navigation || {};
     // 宿主可给导航 / 楼层页签设缩放，允许范围 0.5~2（超出会被夹住），缺省为 1；
     // 布局时再乘 2 得到「相对基准字号」的实际放大倍数。
@@ -2587,7 +2773,7 @@ export function mountStage(stageOptions) {
     const navigationScale = Math.min(
       scaleSetting(navigationSettings.categories) * 2,
       (layoutWidth - 24) / navigationWidth,
-      (layoutHeight - 24) / (navigationElement.offsetHeight || 36)
+      (layoutHeight - 24) / (navigationElement.offsetHeight || MODULE_TAB_TRACK_HEIGHT)
     );
     const floorScale = Math.min(
       scaleSetting(navigationSettings.floors) * 2,
@@ -2755,6 +2941,10 @@ export function mountStage(stageOptions) {
       chromeElement.inert = chromeIsFocusHidden;
       chromeElement.setAttribute("aria-hidden", String(chromeIsFocusHidden));
     }
+    // 导航位置调整态：可拖标记挂在真正接收指针的两条上（分类栏内层轨道 / 楼层栏），
+    // 样式见 stage.css，拖动逻辑见 bindNavigationDrag。
+    moduleTabsElement.classList.toggle("is-navigation-draggable", navigationEditing);
+    floorTabsElement.classList.toggle("is-navigation-draggable", navigationEditing);
     const panelOpacity = Number.isFinite(config.popupOpacity)
       ? Math.max(0, Math.min(100, config.popupOpacity))
       : 74;

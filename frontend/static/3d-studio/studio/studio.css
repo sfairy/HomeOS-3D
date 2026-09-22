@@ -2,11 +2,12 @@
  * 3D 户型工作室（/3d-studio）的唯一样式表。只服务 studio.html 一个页面，页面无内联 <style>
  * （CSP 为 style-src 'self'），所有视觉规则都必须写在这里。
  *
- * 主题变量：本文件**不再自带色板**，:root 只把历史令牌名（--bg / --surface / --accent …）
+ * 主题变量：本文件**不再自带色板**，:root 只把历史令牌名（--bg / --accent / --line …）
  * 别名到 design/scene/page.css 那份全站唯一调色板（3d-studio.html 已 <link> 其分发产物）。
  * 别名而不是重命名：本文件有 51 处 var(--accent*)，改名要逐个跟。
- * 注意两档声明是**死的**（--surface / --surface-soft，本文件与 studio-app.js 都不读）——
- * 它们只为「历史名仍然可解析」而存在，改它们没有视觉效果，详见 :root 里的注释。
+ * 只保留**真有人在读的**历史名：--surface / --surface-soft 两档别名在本文件、studio-app.js
+ * 与调色板里都 0 处取用，已删除（曾试图「接到工具面」让声明成为真话，但没人读的令牌无论取什么值
+ * 都不产生效果，留着只会让人以为调它能改外观）。详见 :root 里的注释。
  * 画布（studio-app.js 的 2D planContext）读不到 CSS 变量，那边的色值由 paletteColor() 从
  * 计算样式取一次再缓存，常量名与本文件的令牌一一对应，改这里那边跟着走。
  * 它读的是 --accent / --accent-bright / --guide / --done 这四个本文件的名字，
@@ -16,7 +17,7 @@
  * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609222006
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609230040
  */
 
 /* ===== 设计令牌（主题变量） ===== */
@@ -26,12 +27,11 @@
   /* 页面底色：画布置于 #050912（sky-deep）之上，配一层顶部径向辉光。
      这一档**刻意留在场景 sky 档**而不是接工具面：这是 3D 画布的底，不是 chrome。 */
   --bg: var(--hos-sky-deep);
-  /* 下面两档目前**零取用**（本文件 0 处、studio-app.js 的 paletteColor 也 0 处，
-     全站只有 page.css + studio.css 会加载到本文件所在的页面）。既然声明了就该是
-     真话，所以接到工具面孔令组 —— 注意改它们**不会有任何视觉变化**，别指望靠调它们改外观。
-     保留而不删的理由与 app.css 同一份（缺定义对裸 var() 是静默失效，留着当兜底更安全）。 */
-  --surface: var(--hos-tool-surface);
-  --surface-soft: var(--hos-tool-surface-soft);
+  /* --surface / --surface-soft 两档别名原先声明在这里，但本文件、studio-app.js 与
+     paletteColor 都不读它们（本页只加载 page.css + studio.css + layout.css），
+     已删除。需要「面板底」时读 --hos-tool-surface，别再引入一层没有读者的别名。
+     --surface-raised 保留：它被下面的 .swatch 读到（取的是 --hos-sky-high，属场景面，
+     与 app.css 的同名档取值不同是**有意的**）。 */
   /* 点阵色板的底（只有 .swatch 那一处用）。保留 sky-high，未纳入本次统一 ——
      这一处与 app.css 的同名档**取值不同是有意的**：它压的是画布上的点阵色板底，
      属场景面；app.css 的同名档接 --hos-tool-surface-raised（工具面）。合并会串味。 */
@@ -101,6 +101,21 @@ body {
   font-size: 12px;
   background:
     radial-gradient(circle at 50% -10%, rgba(66, 93, 118, 0.16), transparent 45%), var(--bg);
+}
+/* 短视口兜底：右栏两卡的最小高度合计 504px（3D 预览 320 + 分隔条 14 + 检查器 170），
+   加上 70px 顶栏与 .studio-shell 的 20px 内边距，需要视口至少 594px 才装得下。
+   比这更矮时三轨之和超过外壳高，而 body 是 overflow: hidden —— 检查器底部既看不到、
+   也滚不到，且没有任何报错。这里只在「装不下」的高度区间放开页面级纵向滚动，
+   并把外壳高度垫到刚好容纳三轨；桌面常见高度下 min-height 不生效，行为与改前一致。
+   横向仍锁死：宽度不足由 .studio-shell 的列下限与 body 的 min-width 处理，
+   放开横向滚动会破坏画布基于 clientWidth 的尺寸测量。 */
+@media (max-height: 620px) {
+  body {
+    overflow-y: auto;
+  }
+  .studio-shell {
+    min-height: 594px;
+  }
 }
 button,
 input {
@@ -459,14 +474,45 @@ body[data-tone] .scale-dialog .dialog-index {
 
 /* ===== 三栏工作区骨架 ===== */
 
-/* 右栏宽度优先读 --details-panel-width（由 studio-app.js 拖拽写入），没有时才用 29vw；
-   而左栏是固定 204px —— 素材库内容宽度固定，不需要按比例伸缩。 */
+/* 三条轨道全部由变量表达，变量值同时也是 JS 侧钳制的**唯一来源**（studio-app.js 的
+   measurePanelLimits 用 getComputedStyle 读它们，不再在 JS 里抄第二份数字）：
+     --layout-library-w        左栏宽度，可拖拽、可折叠
+     --layout-center-min-w     中栏宽度下限
+     --layout-details-min-w    右栏宽度下限（minmax 的第一段，CSS 强制）
+     --layout-details-track    右栏整条轨道；折叠时它被换成一整条把手条宽度 —— 不能只改
+                               --details-panel-width，因为它落在 minmax() 的下限里会被顶住
+   右栏宽度优先读 --details-panel-width（由布局层拖拽写入），没有时才用 29vw。 */
 .studio-shell {
+  --layout-library-w: 204px;
+  --layout-library-min-w: 168px;
+  --layout-library-max-w: 420px;
+  --layout-center-min-w: 400px;
+  --layout-details-min-w: 420px;
+  --layout-details-track: minmax(var(--layout-details-min-w), var(--details-panel-width, 29vw));
   height: calc(100% - 70px);
   display: grid;
-  grid-template-columns: 204px minmax(400px, 1fr) minmax(420px, var(--details-panel-width, 29vw));
+  grid-template-columns:
+    var(--layout-library-w)
+    minmax(var(--layout-center-min-w), 1fr)
+    var(--layout-details-track);
   gap: 10px;
   padding: 10px;
+}
+
+/* 折叠态：把该栏的轨道压成把手条宽度（--layout-rail-w 声明在 layout.css）。 */
+.studio-shell[data-layout-library="collapsed"] {
+  --layout-library-w: var(--layout-rail-w);
+}
+
+.studio-shell[data-layout-details="collapsed"] {
+  --layout-details-track: var(--layout-rail-w);
+}
+
+/* 拖拽中：整页锁光标。右栏那条手柄同时管横竖两轴，所以是 move 而不是 col-resize
+   （layout.css 给的默认值是单轴分隔条用的 col-resize）。 */
+.studio-shell[data-layout-resizing="true"] {
+  cursor: move;
+  user-select: none;
 }
 /* ===== 面板通用外观 ===== */
 
@@ -897,10 +943,6 @@ body[data-tone] .scale-dialog .dialog-index {
   align-items: center;
   justify-content: stretch;
   gap: 6px;
-}
-.light-layer-heading strong {
-  color: #bec7cf;
-  font-size: 11px;
 }
 .light-layer-heading > div {
   display: grid;
@@ -1664,13 +1706,20 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 /* ===== 右栏：3D 预览 + 属性检查器 ===== */
 
-/* 三行网格：预览区可拖拽高度（--preview-panel-height，由 studio-app.js 写入）、
-   14px 的分隔条、属性区吃掉剩余空间。两侧都写 minmax 保证拖到极限时仍可用。 */
+/* 三行网格：预览区可拖拽高度（--preview-panel-height，由布局层写入）、分隔条、属性区吃掉剩余空间。
+   两个内容下限与分隔条高度都抽成变量：studio-app.js 的 measurePanelLimits 用它们换算比例上下限，
+   写死在两处必然漂移（原先 CSS 写 320px、JS 也写 320px，改任何一处都会让拖到极限时的钳制失准）。 */
 .details-panel {
+  --layout-preview-min-h: 320px;
+  --layout-inspector-min-h: 170px;
+  --layout-divider-h: 14px;
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(320px, var(--preview-panel-height, 52%)) 14px minmax(170px, 1fr);
+  grid-template-rows:
+    minmax(var(--layout-preview-min-h), var(--preview-panel-height, 52%))
+    var(--layout-divider-h)
+    minmax(var(--layout-inspector-min-h), 1fr);
   gap: 0;
 }
 /* 右栏上下两个卡片（3D 预览 / 属性检查器）共用同一套纵向布局：
@@ -1769,17 +1818,13 @@ body[data-tone] .scale-dialog .dialog-index {
 .details-resizer:focus-visible {
   border-color: #9aa9b4;
 }
-.details-panel.resizing .details-resizer {
+.details-panel[data-layout-resizing] .details-resizer,
+.studio-shell[data-layout-resizing="true"] .details-resizer {
   border-color: var(--accent);
   background-color: var(--accent);
 }
 .details-resizer:focus-visible {
   outline: 0;
-}
-.details-panel.resizing,
-.studio-shell.resizing {
-  cursor: move;
-  user-select: none;
 }
 /* 预览工具栏高度写死 132px 并用 grid-template-areas 排成「标题 / 操作」两行：
    这里的按钮增减很频繁，固定高度能保证下方的 3D 画布尺寸不随文案长度变化而跳动
@@ -2365,9 +2410,12 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 /* ===== 属性检查器 ===== */
 
-/* 检查器自身滚动（不撑大右栏），container-type 供内部按栏宽做降级。 */
+/* 检查器自身滚动（不撑大右栏）。
+   这里原先写着 container-type: inline-size，但没有任何 @container 查询以它为参照系 ——
+   本文件四条查询全部落在 .plan-panel（工具栏 880 / 620）与 .preview-card（预览 480 / 420）上。
+   一个没人查的包含上下文只会白付「尺寸变化时重新布局」的代价，已删除。
+   注意 .preview-card 的 container-type **必须保留**：预览区的两档降级靠它。 */
 .inspector-card {
-  container-type: inline-size;
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: #35414c transparent;
@@ -2737,6 +2785,14 @@ select option:disabled {
   box-shadow: 0 14px 36px #0000007a;
   scrollbar-color: #48535d transparent;
   scrollbar-width: thin;
+}
+/* 向上展开：下方空间不够时由 studio-widgets.js 的 placeStudioSelectMenu() 按**最近的滚动
+   容器**实测后加上 opens-up（配合内联 max-height），这里只负责把菜单翻到触发器上方。
+   之所以不改用 position: fixed + 视口坐标：工作室有 <dialog>（top layer 里的 fixed 会掉到
+   遮罩之下）与 container-type 祖先（会成为 fixed 的包含块），视口坐标在这两类场景下都算不准。 */
+.studio-select.open.opens-up .studio-select-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 .studio-select-menu[hidden] {
   display: none;
@@ -3625,19 +3681,17 @@ select option:disabled {
 }
 /* 勾选框与文件名同处 name 行：勾选框固定 13px 不参与伸缩，
    文件名所在的 span 有 min-width: 0，超长时才走省略号而不是顶宽侧栏。 */
+/* 「单独导出文件」分组的宿主行：它自己不参与上面那套「名称 / 备注」两行网格
+   （内容整体交给内层 div 排），所以把网格行为按块级收敛掉，min-height 也还给内容。 */
+.export-file-list > .export-file-group-host {
+  display: block;
+  min-height: 0;
+}
 .export-file-list input {
   width: 13px;
   height: 13px;
   flex: 0 0 auto;
   accent-color: var(--accent);
-}
-.export-file-list i {
-  grid-area: dot;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(var(--hos-accent-rgb), 0.38);
 }
 .export-file-list span {
   grid-area: name;
@@ -3893,14 +3947,18 @@ body.auto-diagram-embedded .export-preview-frame {
 }
 /* ===== 窄屏降级（≤1380px） ===== */
 
-/* 只做「整体缩小 + 收紧间距」：左栏 204→196、中栏下限 400→360、右栏比例兜底升到 31vw，
-   同时把步骤条连接线缩短、字号降一档，避免在 1280/1366 这类常见笔记本分辨下换行。 */
+/* 只做「整体缩小 + 收紧间距」：左栏 204→196、中栏下限 400→360、右栏下限 420→400，比例兜底升到
+   31vw，同时把步骤条连接线缩短、字号降一档，避免在 1280/1366 这类常见笔记本分辨下换行。
+   这里只改布局变量，轨道表达式本身在 .studio-shell 里写一次 —— 断点与折叠态才不会各维护一份
+   grid-template-columns（那正是「窄屏下折叠不生效」那类问题的来源）。 */
 @media (max-width: 1380px) {
   body {
     min-width: 1080px;
   }
   .studio-shell {
-    grid-template-columns: 196px minmax(360px, 1fr) minmax(400px, var(--details-panel-width, 31vw));
+    --layout-library-w: 196px;
+    --layout-center-min-w: 360px;
+    --layout-details-min-w: 400px;
   }
   .workflow-steps li:not(:last-child):after {
     width: 8px;
@@ -3912,14 +3970,8 @@ body.auto-diagram-embedded .export-preview-frame {
   .asset-grid {
     grid-template-columns: 1fr 1fr;
   }
-  .asset-card {
-    min-height: 40px;
-    grid-template-columns: 18px minmax(0, 1fr);
-  }
-  .asset-card i {
-    grid-row: auto;
-  }
-  .asset-card span {
-    margin: 0;
-  }
+  /* 这里原本还有一组 .asset-card / .asset-card i / .asset-card span，已删除：
+     min-height 与 grid-template-columns 与基础规则逐字相同、grid-row: auto 与 margin: 0
+     都是初始值，而 .asset-grid .asset-card i 又把图标整条 display: none 掉了 ——
+     四条声明没有一条能在窄屏上产生与宽屏不同的效果。 */
 }

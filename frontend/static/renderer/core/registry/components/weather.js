@@ -4,18 +4,18 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609222006";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609230040";
 import {
   meteoconUrl,
   weatherVisual
-} from "../../../controls/weather-chart-runtime.js?v=2609222006";
+} from "../../../controls/weather-chart-runtime.js?v=2609230040";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609222006";
+import { registerComponent } from "../registry-core.js?v=2609230040";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609222006";
+} from "../registry-visuals.js?v=2609230040";
 
 // 天气控件：图标与文案由 weatherVisual 映射，并结合太阳实体判断昼夜切换夜间图标。
 registerComponent("weather", {

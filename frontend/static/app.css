@@ -63,17 +63,13 @@
      转发而不是删除重命名：本文件与 renderer.css 里有大量 var(--bg) / var(--line)
      之类的历史名字，改名要逐个跟，别名一次到位。
      阶段 2 会把 renderer.css / studio.css 的字面量也接到同一组上。
-     三档面**只留真有人在读的**：--surface 有 6 处取用，--surface-soft /
-     --surface-raised 全库 0 处（连 JS 的 getPropertyValue 也不读，已核）。
-     零取用仍**保留**而不删：这里裸写 var(--surface-soft) 时缺定义是静默失效
-     （本仓刻意大量使用 var(--x, 兜底) 双参形态，缺令牌吃兜底、不报错），
-     留着这行当兜底比删掉安全 —— 但改它不会有任何视觉变化，别指望靠调它改外观。
+     三档面只留**真有人在读的那几枚**：--surface（本文件 6 处）与 --field（各处输入框底）。
+     --surface-soft / --surface-raised 全库 0 处取用（连 JS 的 getPropertyValue 也不读），
+     已删除：留着它们只会让「调这个令牌能改外观」变成一个不成立的假设。
      注意与 studio.css 的差异是**有意的**：那边同名档接的是 --hos-sky-high，
      因为它压的是点阵色板底（场景面），不是工具面。 */
   --bg: var(--hos-tool-bg);
   --surface: var(--hos-tool-surface);
-  --surface-soft: var(--hos-tool-surface-soft);
-  --surface-raised: var(--hos-tool-surface-raised);
   --field: var(--hos-tool-field);
   /* 描边两档。真正的细线一律写 rgba(var(--line-rgb), α) 而不是某个灰蓝字面量：
      它们原是 126/141/153 那一族的九个近似值（.12/.14/.15/.16/.18/.2/.22/.24/.28），
@@ -112,19 +108,14 @@
   --accent-text-soft: rgba(var(--hos-accent-rgb), 0.82);
   --accent-text-dim: rgba(var(--hos-accent-rgb), 0.62);
 
-  /* 语义色。编辑器原来只有 success 一个，缺 warn / danger / info，
-     于是各处自己写死十六进制。补齐后与商店 theme.css 的语义命名一一对应。 */
+  /* 语义色。原来这里只有 success 一枚，于是各处自己写死十六进制；补齐后与商店 theme.css
+     的语义命名一一对应。只留**真有人在读的**：--success（已保存态）与 --warn（待处理 / 冲突）。
+     danger / info 与本文件另一组设备读色（--device-*）经全库核对为 0 处取用（CSS 的 var()、
+     JS 的 getPropertyValue 与 paletteColor 都算过），已删除 —— 需要时直接读 --hos-alert /
+     --hos-cool / --hos-lumen / --hos-eco / --hos-sensor，不再多一层没有读者的别名。
+     设备读色真要落到界面上时，从这几个 --hos-* 现取即可，色相本来就是同一套。 */
   --success: var(--hos-eco);
   --warn: var(--hos-lumen);
-  --danger: var(--hos-alert);
-  --info: var(--hos-cool);
-
-  /* 设备读色：控件面板与运行期弹窗按设备类型取色。 */
-  --device-light: var(--hos-lumen);
-  --device-climate: var(--hos-cool);
-  --device-airflow: var(--hos-eco);
-  --device-security: var(--hos-eco);
-  --device-offline: var(--hos-sensor);
 
   background: var(--bg);
   color: var(--text);
@@ -144,10 +135,7 @@ body {
   height: 100%;
   overflow: hidden;
 }
-/* 980px 是能容纳三栏加弹窗的底线；再窄由 home.js 挂 .editor-viewport-fit 整体缩放，
-   而不是继续压缩布局。 */
 body {
-  min-width: 980px;
   margin: 0;
   background: var(--bg);
   /* 氛围层（阶段 3）：页底三束极淡的中性光。
@@ -177,8 +165,8 @@ html.editor-viewport-fit {
   overflow: hidden;
 }
 html.editor-viewport-fit body {
-  width: 1020px;
-  min-width: 1020px;
+  width: var(--editor-design-width, 1020px);
+  min-width: var(--editor-design-width, 1020px);
   height: var(--editor-layout-height, 612px);
   min-height: 0;
   overflow: visible;
@@ -231,17 +219,11 @@ html.editor-viewport-fit body {
   align-items: center;
   gap: 8px;
 }
-.save-state {
-  color: var(--hos-tool-hint-dim);
-  font-size: 10px;
-}
-/* 有未保存改动时把状态文字点亮为强调色；saving 态另用浅灰表示请求进行中。 */
-.save-state.dirty {
-  color: var(--accent-bright);
-}
-.save-state.saving {
-  color: var(--hos-tool-text);
-}
+/* 这里原本还有一组 .save-state / .save-state.dirty / .save-state.saving（顶栏「保存中」文字），
+   已删除：index.html 与 home.js 里都没有 .save-state 元素 —— 编辑器的保存态是 #save 按钮自己的
+   disabled 与文案（home.js 的 onSaveButtonClick / saveButtonElement.disabled），
+   只有 studio.css 另有一份自己用的同名规则。一条永远匹配不到元素的规则，
+   只会让人以为「改这里能改保存态文案」。 */
 .editor-save {
   min-width: 58px;
 }
@@ -466,14 +448,58 @@ button.danger-quiet {
 }
 /* ===== 三栏骨架与面板 ===== */
 
-/* 三栏骨架：导航 250px + 画布（弹性，最窄 520px）+ 检查器 250px；
-   高度减去顶栏的 52px，两处数值必须与 .editor-header 保持一致。 */
+/* 三栏骨架：导航（默认 250px，可拖拽 / 可折叠）+ 画布（弹性，最窄 520px）+ 检查器（默认 250px）；
+   高度减去顶栏的 52px，两处数值必须与 .editor-header 保持一致。
+   轨道宽度由布局层写成变量（shared/layout-shell.js 拖拽时写 --layout-*-w），默认值与原来的字面量
+   逐字一致 —— 画布的等比缩放（home.js 的 resizeWorkspaceCanvas 按 .workspace 实测尺寸算）与整页
+   缩放（refreshEditorViewportFit 里的 EDITOR_DESIGN_WIDTH = 1020）都建立在这三条轨道之和上。
+   分隔条是叠在画布列上的 0 宽网格项（见 layout.css），不占轨道、也不加列间距，
+   所以三条轨道之和仍是 1020px。 */
+/* 三栏列宽的默认值。声明在 :root 而不是 .editor-shell：编辑器里有几个浮层
+   （如 #floorplan-auto-lighting-panel、#component-context-menu）挂在 <body> 下、
+   不是 shell 的后代，按列宽推导的偏移量在它们身上只能继承到 :root 这一层。
+   拖动结果由 shared/layout-shell.js 内联写到 <html> 上，折叠态由下面的
+   .editor-shell[data-layout-*="collapsed"] 规则覆盖 —— 两者都优先于这里的默认值。
+   默认值与重构前逐字一致（250 / 250），未交互时渲染结果与今天像素相同。 */
+:root {
+  --layout-nav-w: 250px;
+  --layout-inspector-w: 250px;
+  /* 编辑器按 1020px 逻辑宽度出图，装不下时整体等比缩放。home.js 的 EDITOR_DESIGN_WIDTH
+     是同一个基准，改这里就要同步改那一处（无打包器，没法从 CSS 读到 JS）。 */
+  --editor-design-width: 1020px;
+}
+
 .editor-shell {
+  /* 三栏列宽的上下限、以及中栏最小宽（决定左右栏能被拖多宽）。
+     整页缩放的算术建立在「三栏之和 = 1020px」上，所以这里只换宽度来源、不动轨道条数，
+     也不加 gap（--layout-column-gap 显式声明为 0，供 shared/layout-shell.js 读取）。
+
+     中栏最小宽 360px 而不是重构前那个 520px：520px 是**旧固定布局的剩余宽度**（250 + 520 + 250
+     = 1020），当时两栏不能改宽，所以它从没起过「下限」的作用。现在它成了共享预算的扣减项 ——
+     1020px 宽的外壳下预算 = 1020 − 520 = 500px，恰好等于 250 + 250 两栏默认值，于是**两栏
+     都再也宽不了一像素**（视口窄于 1020px 时整页被钉在 1020px，这条对任何小窗口都成立；
+     窗口更宽时预算随宽度增长，才拖得动）。改成 360px 后钉宽场景仍留 160px 可借的余量。
+     这不动默认渲染：中栏是 1fr，默认 250/250 时它照旧是 520px —— 下限只在用户拖动时才生效。 */
+  --layout-center-min-w: 360px;
+  --layout-nav-min-w: 180px;
+  --layout-nav-max-w: 520px;
+  --layout-inspector-min-w: 200px;
+  --layout-inspector-max-w: 620px;
+  --layout-column-gap: 0px;
   display: grid;
-  grid-template-columns: 250px minmax(520px, 1fr) 250px;
+  grid-template-columns: var(--layout-nav-w) minmax(var(--layout-center-min-w), 1fr) var(--layout-inspector-w);
   height: calc(100vh - 52px);
   min-height: 560px;
   overflow: hidden;
+}
+
+/* 折叠态：把该栏的轨道压成把手条宽度（--layout-rail-w 声明在 layout.css）。 */
+.editor-shell[data-layout-navigator="collapsed"] {
+  --layout-nav-w: var(--layout-rail-w);
+}
+
+.editor-shell[data-layout-inspector="collapsed"] {
+  --layout-inspector-w: var(--layout-rail-w);
 }
 /* 左右侧栏共用的滚动容器；上下内边距刻意留成 0 / 16px，
    由 .panel-heading 的负边距把标题栏顶到侧栏边缘。 */
@@ -490,7 +516,7 @@ button.danger-quiet {
   border-left: 1px solid var(--line);
 }
 /* 视口不足 1180px 时解除整页锁死，改为允许页面级滚动（触屏开惯性滚动），
-   三栏自身保持 1020px 最小宽度；这是唯一一处让 html/body 可滚动的分支。 */
+   三栏自身保持 --editor-design-width 的最小宽度；这是唯一一处让 html/body 可滚动的分支。 */
 @media (max-width: 1180px) {
   html,
   body {
@@ -499,7 +525,7 @@ button.danger-quiet {
   }
   body,
   .editor-shell {
-    min-width: 1020px;
+    min-width: var(--editor-design-width, 1020px);
   }
   .editor-shell {
     overflow: visible;
@@ -1776,6 +1802,10 @@ h2 {
 .workspace > [hidden] {
   display: none !important;
 }
+/* 三个互斥编辑面的铺满声明。**尺寸的权威所有者是 JS**：home.js 的 resizeWorkspaceCanvas()
+   按 .workspace 的可用空间算出等比尺寸后写成行内 width/height，行内值永远盖过这里。
+   这一对 100% 只是「JS 还没跑 / 还没加载项目」时的兜底，不是为了跟 JS 抢所有权 ——
+   所以别在这里加 min-width / aspect-ratio 之类的约束，它们会在行内值之下静默失效。 */
 .workspace-mode-surface {
   width: 100%;
   height: 100%;
@@ -1893,14 +1923,18 @@ h2 {
   display: none;
 }
 /* 分割线用伪元素画在 section 内部而不是 border-bottom：
-   这样左右可以各缩进 14px，与 section 的内容对齐。 */
+   这样左右可以各缩进 14px，与 section 的内容对齐。
+   颜色原先硬编码 #7e8d9926，与隔壁 .property-section 的 rgba(var(--line-rgb), .55)
+   是两个来路 —— 但**落屏颜色几乎相同**：#7e8d99 @15% 叠在 .panel 的 #141a20 上算出 #242b32，
+   而 rgba(48,56,64,.55) 叠同一底色算出 #232a32，逐通道差 1。既然结果一致，
+   就统一到令牌上（只调 --line-rgb 时两条线一起走），视觉变化在 1/255 以内、看不出来。 */
 .inspector-section:after {
   position: absolute;
   right: 14px;
   bottom: 0;
   left: 14px;
   height: 1px;
-  background: #7e8d9926;
+  background: rgba(var(--line-rgb), 0.55);
   content: "";
 }
 .inspector-section h3 {
@@ -1922,9 +1956,11 @@ h2 {
 .navigation-property-control[hidden] {
   display: none !important;
 }
+/* 这里原本还带着 .inspector-section textarea：编辑器里没有任何常驻 <textarea>
+   （唯一的 textarea 是 home.js 的 copyTextToClipboard 临时挂在 body 上的剪贴板替身，
+   与检查器无关），已从这三条选择器里去掉。详见下面被删掉的那段多行文本框规则。 */
 .inspector-section input,
-.inspector-section select,
-.inspector-section textarea {
+.inspector-section select {
   width: 100%;
   min-width: 0;
   height: 34px;
@@ -1935,16 +1971,6 @@ h2 {
   color: var(--hos-tool-ink-dim);
   background: var(--field);
   font-size: 11px;
-}
-/* 多行文本框：高度自适应内容，min-height 52px（约三行）保证空值也有足够点击区；
-   resize: vertical 只放开纵向拉伸，避免用户横向拖拽破坏侧栏布局。 */
-.inspector-section textarea {
-  height: auto;
-  min-height: 52px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  line-height: 1.45;
-  resize: vertical;
 }
 /* 副标题的两行输入共用一个外框：内层 input 去掉边框与聚焦阴影，
    聚焦态统一由外框的 :focus-within 表现；中间的 <i> 是两行之间的细分隔线。 */
@@ -1983,8 +2009,7 @@ h2 {
   opacity: 0.72;
 }
 .inspector-section input:focus,
-.inspector-section select:focus,
-.inspector-section textarea:focus {
+.inspector-section select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
@@ -2371,27 +2396,13 @@ h2 {
   display: none;
 }
 /* 这批实体 / 素材菜单会被用在 <dialog> 里，绝对定位会被弹窗裁剪，
-   所以逐个 id 改成 fixed（由 JS 定位）；层级 580 与侧栏内联菜单区分开。 */
-#image-entity-menu,
-#weather-entity-menu,
-#line-chart-entity-menu,
-#ibe-entity-menu,
-#image-asset-menu,
-#ibe-asset-menu,
-#ibe-icon-menu,
-/* 列表尾部的这组 id 同样与各自的选择器实例一一对应；新增选择器类型时要一并补进来。 */
-#icon-button-entity-menu,
-#vacuum-map-entity-menu,
-#camera-entity-menu,
-#air-conditioner-entity-menu,
-#title-button-entity-menu,
-#light-statistics-entity-menu,
-#light-statistics-action-entity-menu,
-#navigation-entity-menu,
-#icon-button-icon-menu,
-#title-button-icon-menu,
-#light-statistics-icon-menu,
-#navigation-icon-menu {
+   所以标上 --floating 修饰类改成 fixed（由 JS 用 positionFloatingMenu 写 left/top）；
+   层级 580 与侧栏内联菜单区分开。
+
+   原先是 19 个 id 的硬编码名单 + 一句「新增选择器类型时要一并补进来」：漏补的后果不是报错，
+   而是新菜单在弹窗里被静默裁掉。改成修饰类之后，加菜单只要在 HTML 上带这个类，
+   覆盖面与规则一起走，没有第二处要记得同步。 */
+.inspector-picker-menu--floating {
   position: fixed;
   z-index: 580;
   right: auto;
@@ -4909,8 +4920,14 @@ h2 {
 .floorplan-auto-lighting-panel {
   position: fixed;
   z-index: 140;
-  top: 112px;
-  right: 292px;
+  /* 默认贴在属性栏左边、画布标题条之下。原先是硬写的 112px / 292px，而 292 = 属性栏 250px
+     + 42px（画布列相对于页面左边缘的额外偏移：中栏夹在属性栏左侧，42px 是 52px 顶栏之外
+     那一条画布标题条的高度）。属性栏现在可拖宽/可折叠，硬写就会在用户把属性栏拖宽后
+     压到它上面，所以改成按列宽变量推导 —— 属性栏收起时这个浮层会一起右移。
+     --layout-inspector-w 的默认值声明在 :root（本浮层不是 .editor-shell 的后代，
+     只有 :root 这一层它才继承得到）；兜底 250px 与那个默认值一致。 */
+  top: calc(52px + 42px + 18px);
+  right: calc(var(--layout-inspector-w, 250px) + 42px);
   width: min(320px, calc(100vw - 20px));
   border: 1px solid rgba(142, 158, 176, 0.28);
   border-radius: 9px;

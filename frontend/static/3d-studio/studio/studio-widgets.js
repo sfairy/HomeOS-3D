@@ -6,7 +6,14 @@
  * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
-import { capturePointer } from "../../utils/pointer-capture.js?v=2609222006";
+import { capturePointer } from "../../utils/pointer-capture.js?v=2609230040";
+// 下拉的展开方向与可用高度：菜单留在文档流里（absolute + inset），所以不能走
+// positionFloatingMenu 的 fixed 坐标（dialog 的 top layer 与 container-type 祖先都会让
+// 视口坐标失效），只借这里的「按最近的裁剪容器实测」来回答向上/向下与最多多高。
+import {
+  nearestScrollClip,
+  resolveDropPlacement
+} from "../../shared/menu-positioning.js?v=2609230040";
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();
@@ -18,6 +25,10 @@ let openController = null;
 function closeStudioSelect(targetController = openController) {
   if (targetController) {
     targetController.wrapper.classList.remove("open");
+    // opens-up 是展开时按实测空间算出来的，收起后清掉；max-height 同理还给 CSS 里的 240px 上限，
+    // 否则先展开一次低位下拉，之后所有下拉都会带着那次的矮高度。
+    targetController.menu.classList.remove("opens-up");
+    targetController.menu.style.maxHeight = "";
     // aria-expanded 必须与实际可见性同步，否则读屏用户会听到错误的展开状态。
     targetController.trigger.setAttribute("aria-expanded", "false");
     targetController.menu.hidden = true;
@@ -25,6 +36,24 @@ function closeStudioSelect(targetController = openController) {
       openController = null;
     }
   }
+}
+
+/**
+ * 展开前定方向：菜单向下展开会被**最近的滚动容器**裁掉时翻到触发器上方，并把高度收到可用空间内。
+ *
+ * 之前这里只有 CSS 的 `top: calc(100% + 4px)` + `max-height: 240px`，低位字段（如灯组、门类型）
+ * 的下拉会被 .inspector-card 的 overflow 切掉，且没有任何提示。参照系取滚动容器而不是视口：
+ * 菜单被谁裁就按谁算，否则卡片内部「下方空间够不够」的判断会失效。
+ */
+function placeStudioSelectMenu(controllerRecord) {
+  const { menu, trigger } = controllerRecord;
+  const dropPlacement = resolveDropPlacement({
+    anchorElement: trigger,
+    menuElement: menu,
+    clipElement: nearestScrollClip(trigger)
+  });
+  menu.classList.toggle("opens-up", dropPlacement.opensUp);
+  menu.style.maxHeight = dropPlacement.maxHeightPx + "px";
 }
 
 /**
@@ -140,6 +169,8 @@ function enhanceStudioSelect(hostSelectElement) {
       triggerElement.setAttribute("aria-expanded", "true");
       menuElement.hidden = false;
       openController = controllerRecord;
+      // 选项已重建完毕，此时量到的才是真实内容高（方向与高度都按实测算）。
+      placeStudioSelectMenu(controllerRecord);
     }
   });
   hostSelectElement.addEventListener("change", () => syncStudioSelect(hostSelectElement));

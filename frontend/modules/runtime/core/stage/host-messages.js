@@ -27,7 +27,12 @@ export function createHostMessageHandler(ctx) {
     }
     const message = messageEvent.data;
     ctx.wakeFrameLoop();
-    if (message.type === "presentation-layout") {
+    if (message.type === "navigation-editing") {
+      // 导航位置调整态走这条轻量通道，不复用 config：config 会整份替换配置、重算楼层与相机，
+      // 等于切一次模式就重放一次入场呈现，代价与观感都不可接受。
+      ctx.navigationEditing = message.active === true;
+      ctx.updatePanelChrome();
+    } else if (message.type === "presentation-layout") {
       if (
         Number.isFinite(message.width) &&
         message.width > 0 &&
@@ -141,6 +146,9 @@ export function createHostMessageHandler(ctx) {
       ctx.config = structuredClone(message.properties);
       ctx.isEditing = message.editing === true;
       ctx.isViewEditing = message.viewEditing === true;
+      // 导航位置调整态：平时由 navigation-editing 轻量消息设置，这里跟随 config 兜一次
+      // （舞台整页重载后配置会重发，新文档里的模式状态得由它对齐）。
+      ctx.navigationEditing = message.navigationEditing === true;
       ctx.selectedId = message.selectedId || "";
       // config 携带的是全量状态，直接整份替换；增量合并只发生在 states 消息。
       ctx.statesByEntityId = message.states || {};

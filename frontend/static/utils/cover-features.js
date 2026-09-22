@@ -8,13 +8,23 @@
  * 活动态）与 3D 舞台（`modules/runtime/cover/cover-state.js`，决定动画）都要这份判定，两处各写一遍
  * 时口径已经分叉（一处把 `""` 当读数、一处不当），同一台设备会被判成不同帘型。零依赖，两侧都能直接用。
  */
-import { finiteNumberOrNull } from "./numbers.js?v=2609222006";
+import { finiteNumberOrNull } from "./numbers.js?v=2609230040";
 
 export const COVER_FEATURE_OPEN = 1;
 export const COVER_FEATURE_CLOSE = 2;
 export const COVER_FEATURE_SET_POSITION = 4;
 export const COVER_FEATURE_STOP = 8;
 export const COVER_FEATURE_SET_TILT_POSITION = 128;
+
+/**
+ * 窗帘「打开」的默认开合度（%）：未绑定实体时的展示值，也是新建模型的开合预览。
+ *
+ * 75% 而不是 100%：全开时帘布收成很窄的两条，房间里几乎看不出有窗帘；75% 既明确读作「打开」，
+ * 又保留帘布的体积感。这个值跨三层（3D 工作室的模型预览、编辑器新建项的默认、运行时未绑定兜底）
+ * 都要一致，因此只在这里定义一份 —— 散落成多个字面量时，改一处忘一处会让同一扇窗在不同页面
+ * 显示成不同的开合度（本次就是这么踩到的）。
+ */
+export const COVER_DEFAULT_PREVIEW_POSITION = 75;
 
 /** 240 = 16+32+64+128：HA 里全部 tilt（开合角度）相关能力位的并集，置起任意一位即「能调叶片」。 */
 export const COVER_TILT_FEATURE_MASK = 16 | 32 | 64 | 128;
@@ -67,6 +77,38 @@ export function coverSinglePanelWidthPercent(position) {
 export function coverFeaturesOf(rawFeatures) {
   const parsedFeatures = finiteNumberOrNull(rawFeatures);
   return Number.isSafeInteger(parsedFeatures) && parsedFeatures >= 0 ? parsedFeatures : 0;
+}
+
+/**
+ * 取窗帘能力位；设备**从不**上报 `supported_features` 时，按它已经报出来的状态推断。
+ *
+ * 规则与后端 `modules/interaction3d/cover.py` 的 `inferred_cover_features` 逐条对应，两处必须同改：
+ * 开 / 关 / 停是 cover 实体天然具备，一律放行（HA 侧真不支持时会自己报错）；调位置只有上报过
+ * `current_position` 才算支持；调叶片只有上报过 `current_tilt_position` 才算支持。
+ *
+ * 为什么需要这份兜底：`supported_features` 是 HA 集成「自愿」上报的，一部分网关从不给这个字段。
+ * 后端已经改成「按推断放行」，前端若仍把缺失当成「一项能力都没有」，就会把三个按钮和滑杆全部置灰 ——
+ * 用户既控制不了，也拿不到任何能自救的提示（后端那句「请检查设备配置」根本没机会显示）。
+ *
+ * 只在**缺失**时推断：上报了但值非法（小数、负数、超范围）仍按 0 处理，那是设备配置坏了，
+ * 后端会给出可自救的 422，前端不该替设备猜测能力。边角差异一处：空串（`""`）在本仓库的
+ * numbers.js 里算「没填」，这里于是按缺失推断；后端把它当「上报了但无法识别」回 422。
+ * 结论方向一致（都不放行非法能力值），且前端放开后正好能把后端那句可自救的提示显示出来。
+ */
+export function coverFeaturesOrInferred(attributes) {
+  const reportedFeatures = finiteNumberOrNull(attributes?.supported_features);
+  if (reportedFeatures !== null) {
+    // 与 coverFeaturesOf 同一口径：只有安全范围内的非负整数才算有效能力位。
+    return Number.isSafeInteger(reportedFeatures) && reportedFeatures >= 0 ? reportedFeatures : 0;
+  }
+  let inferredFeatures = COVER_FEATURE_OPEN | COVER_FEATURE_CLOSE | COVER_FEATURE_STOP;
+  if (finiteNumberOrNull(attributes?.current_position) !== null) {
+    inferredFeatures |= COVER_FEATURE_SET_POSITION;
+  }
+  if (finiteNumberOrNull(attributes?.current_tilt_position) !== null) {
+    inferredFeatures |= COVER_FEATURE_SET_TILT_POSITION;
+  }
+  return inferredFeatures;
 }
 
 /**

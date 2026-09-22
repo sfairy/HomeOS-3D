@@ -9,7 +9,10 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609222006";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609230040";
+// 未绑定窗帘的默认开合度：唯一实现在 utils/cover-features.js，经 core/static-helpers.js 取值 ——
+// runtime 资源挂在 /api/v1/modules/interaction3d/ 下，直接写相对路径会 404（见该文件的说明）。
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../core/static-helpers.js?v=2609230040";
 
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
@@ -23,11 +26,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609222006",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609230040",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609222006"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609230040"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
@@ -49,11 +52,27 @@ const CLOTH_FOLD_SPACING_METERS = 0.15;
 /** 布料类型：sheer 为纱（更透、褶皱更密），其余一律按 cloth 处理。 */
 const resolveCurtainFabric = fabricBinding =>
   fabricBinding.curtainFabric === "sheer" ? "sheer" : "cloth";
-/** 未绑定实体时使用的固定开合位置（0–100），非法或缺失一律按 0（全关）。 */
+/**
+ * 未绑定实体时使用的固定开合位置（0–100）。
+ * 非法或缺失一律按 COVER_DEFAULT_PREVIEW_POSITION（默认「打开」）：与「窗帘默认处于打开状态」一致。
+ */
 const resolveUnboundPosition = unboundBinding =>
-  !unboundBinding.entityId && Number.isFinite(unboundBinding.unboundPosition)
+  Number.isFinite(unboundBinding.unboundPosition)
     ? Math.max(0, Math.min(100, unboundBinding.unboundPosition))
-    : 0;
+    : COVER_DEFAULT_PREVIEW_POSITION;
+/**
+ * 位置未知时骨架该摆在哪儿（0–100）。三层优先级：
+ *
+ * 1. 状态推断值（`statePositionHint`）：设备虽然没给 current_position，但明确说自己在 open / closed；
+ * 2. 已绑定实体退回 0（全关）：状态也说不清时保持原行为，不借用 unboundPosition；
+ * 3. 未绑定实体才用配置的 unboundPosition（默认 100）。
+ *
+ * 第 2 条是关键：`unboundPosition` 是为「还没绑定实体」的预览窗帘准备的展示值，
+ * 一旦套到真实设备上，帘布就会停在配置值上、与实际开合长期不符。
+ */
+const resolvePoseFallback = posedRig =>
+  posedRig.statePositionHint ??
+  (posedRig.binding.entityId ? 0 : resolveUnboundPosition(posedRig.binding));
 /**
  * 按帘宽推算褶皱数量。
  * 公式：帘宽 ÷（对开时折半）÷ 褶皱间距（纱帘 0.1 米）；结果夹在 4–96 之间 ——
@@ -86,6 +105,15 @@ const resolveCurtainDirection = directionBinding =>
 const resolveStatePosition = receivedState =>
   typeof receivedState?.position == "number" && Number.isFinite(receivedState.position)
     ? Math.max(0, Math.min(100, receivedState.position))
+    : null;
+/**
+ * 取归一化状态里的「状态推断位置」；非有限数值返回 null，表示状态也说不出该摆在哪。
+ * 只读 coverState 算好的 statePositionHint，不在这一层重新解释 state 文案。
+ */
+const resolveStatePositionHint = receivedState =>
+  typeof receivedState?.statePositionHint == "number" &&
+  Number.isFinite(receivedState.statePositionHint)
+    ? Math.max(0, Math.min(100, receivedState.statePositionHint))
     : null;
 /**
  * 读取窗帘模型的基准尺寸。
@@ -495,7 +523,9 @@ export function createCurtainMotion({
       position: null,
       target: null,
       motionFrom: null,
-      motionStart: null
+      motionStart: null,
+      // 位置缺失时的兜底姿态（0 / 100 / null）；由 setState 从设备状态写入。
+      statePositionHint: null
     };
   }
   /** 销毁一条骨架：还原原生可见性、摘除节点、释放自建资源。 */
@@ -519,14 +549,15 @@ export function createCurtainMotion({
     resetTargetRig.motionFrom = null;
     resetTargetRig.motionStart = null;
     resetTargetRig.bladePosition = null;
+    resetTargetRig.statePositionHint = null;
     applyRigPose(resetTargetRig);
   }
   /**
    * 按当前开合位置摆放骨架（即时生效，不做动画）。
    */
   function applyRigPose(posedRig) {
-    // 没有实体时的位置来自配置的固定值；有实体但位置未知时也会落到这个分支。
-    const positionRatio = posedRig.position ?? resolveUnboundPosition(posedRig.binding);
+    // 位置未知时依次回落到「状态推断值 → 已绑定的全关 → 未绑定的配置值」，见 resolvePoseFallback。
+    const positionRatio = posedRig.position ?? resolvePoseFallback(posedRig);
     if (posedRig.track) {
       // 有轨道模型：原生局部全部隐藏，改由轨道自己的采样函数给出每片帘的范围。
       for (const originalPart of posedRig.originals.keys()) {
@@ -581,6 +612,9 @@ export function createCurtainMotion({
    */
   function updateRigTarget(motionRig, receivedMotionState, immediate = false) {
     const incomingPosition = resolveStatePosition(receivedMotionState);
+    const nextStatePositionHint = resolveStatePositionHint(receivedMotionState);
+    const statePositionHintChanged = motionRig.statePositionHint !== nextStatePositionHint;
+    motionRig.statePositionHint = nextStatePositionHint;
     const bladeChanged = motionRig.bladePosition !== receivedMotionState.bladePosition;
     motionRig.bladePosition = receivedMotionState.bladePosition;
     // 叶片角度变化要立即生效（梦幻帘调叶片不该有 420ms 的滞后）。
@@ -592,6 +626,12 @@ export function createCurtainMotion({
       const hadPendingMotion = motionRig.target !== motionRig.position;
       motionRig.target = motionRig.position;
       motionRig.motionStart = null;
+      // 例外：骨架本来就没有位置、只能靠状态推断时，状态变了要按新推断重摆一次，
+      // 否则设备从 open 走到 closed 后帘布会一直停在旧姿态上。
+      if (statePositionHintChanged && motionRig.position === null) {
+        applyRigPose(motionRig);
+        return true;
+      }
       return hadPendingMotion || bladeChanged;
     }
     if (motionRig.position === null || immediate) {
@@ -834,6 +874,8 @@ export function createCurtainMotion({
     const coverBindingIdKey = String(coverBindingId);
     const nextMotionState = {
       position: resolveStatePosition(receivedCoverState),
+      // 位置缺失时的兜底姿态：由设备 state 推断，见 resolvePoseFallback。
+      statePositionHint: resolveStatePositionHint(receivedCoverState),
       // tiltPosition 非有限数时按「无叶片信息」处理，让 applyRigPose 用默认的 50。
       bladePosition: Number.isFinite(receivedCoverState?.tiltPosition)
         ? receivedCoverState.tiltPosition
@@ -917,7 +959,9 @@ export function createCurtainMotion({
             poseRig.folds,
             poseRig.bladePosition,
             poseRig.position === null
-              ? "preview-" + resolveUnboundPosition(poseRig.binding)
+              ? // 位置未知时画面由兜底姿态决定，键里必须带上它本身而不是固定前缀，
+                // 否则从「状态推断 100」变到「状态推断 0」会被判成没变化、不重绘。
+                "fallback-" + resolvePoseFallback(poseRig)
               : Math.round(poseRig.position * 100) / 100
           ])
           .sort((leftPoseEntry, rightPoseEntry) =>

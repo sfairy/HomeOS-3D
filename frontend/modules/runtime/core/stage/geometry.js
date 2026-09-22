@@ -13,6 +13,9 @@ export function createStageGeometry(ctx) {
    * 模型；unboundPosition 是未绑定实体时的预览开合度。
    */
   function resolveCurtainGeometry(sceneItemSource, itemConfig = {}) {
+    // 场景模型的开合预览：模型没写这个字段时（undefined）保持缺失，由下游定默认值；
+    // 显式写了 0 仍表示关闭，因此不能用 `|| 0` 这类会把 0 也吞掉的写法。
+    const sceneCurtainPreview = Number(sceneItemSource?.curtainPreview);
     return {
       curtainWidth: Number(sceneItemSource?.width) || 1.8,
       curtainPosition: sceneItemSource?.curtainPosition || "split",
@@ -23,9 +26,15 @@ export function createStageGeometry(ctx) {
       curtainMeet: sceneItemSource?.curtainMeet,
       curtainFabric: sceneItemSource?.curtainFabric || itemConfig.curtainFabric || "cloth",
       coverKind: itemConfig.coverKind === "dream" ? "dream" : "standard",
+      // 未绑定的预览开合度：配置优先，其次模型自带的预览值。两者都没有时**故意留空** ——
+      // 默认值（COVER_DEFAULT_PREVIEW_POSITION）的唯一归属在 curtain-motion 的
+      // resolveUnboundPosition；这里再写一份字面量，就会与「3D 工作室里看到的开合度」分叉，
+      // 同一扇窗在不同页面显示成不同值。
       unboundPosition: Number.isFinite(itemConfig.unboundPosition)
         ? itemConfig.unboundPosition
-        : Number(sceneItemSource?.curtainPreview) || 0
+        : Number.isFinite(sceneCurtainPreview)
+          ? sceneCurtainPreview
+          : undefined
     };
   }
 

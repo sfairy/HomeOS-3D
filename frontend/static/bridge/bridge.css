@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609222006";
+@import "/static/bridge/controls.css?v=2609230040";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -183,6 +183,15 @@
 .hb-renderer-canvas:has(.hb-interaction3d-runtime.is-range-editing)
   > .hb-component-selection-overlay,
 .hb-renderer-canvas:has(.hb-interaction3d-runtime.is-range-editing)
+  > .hb-component-selection-overlay
+  * {
+  pointer-events: none !important;
+}
+/* 调整导航位置期间同理：舞台 iframe 要收拖动，画布的选择层不能盖在上面吃掉指针事件。
+ * 与上面两条同源，只是状态类不同（见 runtime.js 的 setNavigationEditing）。 */
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-navigation-editing)
+  > .hb-component-selection-overlay,
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-navigation-editing)
   > .hb-component-selection-overlay
   * {
   pointer-events: none !important;
@@ -534,6 +543,42 @@
 }
 #interaction3d-inspector .i3d-finishing-row .i3d-vignette-setting {
   gap: 4px;
+}
+/* 「在画布上拖拽调整」是「导航位置」这一组的主操作，整行铺满。
+ * 它曾经挂在 .i3d-finishing-row 里 —— 那是两列等宽的取值行，单个按钮只占半行（约 105px），
+ * 「在画布上拖拽调整」八个字会被折成两行，看着像一个空框。 */
+#interaction3d-inspector .i3d-navigation-drag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+#interaction3d-inspector .i3d-navigation-drag-row > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+/* 分类栏 / 楼层栏各一组：组内「横向 / 纵向」两列 + 整行的「缩放」，组间细线分隔。
+ * 六个输入框平铺成一串时看不出哪两个属于同一条导航，而这正是拖动一次会一起改的两个值。 */
+#interaction3d-inspector .i3d-navigation-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #303840);
+}
+#interaction3d-inspector .i3d-navigation-group > h4,
+#interaction3d-inspector .i3d-navigation-group > .i3d-navigation-group-full {
+  grid-column: 1 / -1;
+}
+#interaction3d-inspector .i3d-navigation-group > h4 {
+  margin: 0;
+  color: var(--muted, #9ba8b3);
+  font-size: 11px;
+  font-weight: 500;
 }
 #interaction3d-inspector .i3d-reflection-options {
   display: grid;

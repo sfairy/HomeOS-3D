@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609222006";
-@import "../nas/nas-panel.css?v=2609222006";
-@import "../climate/climate-panel.css?v=2609222006";
-@import "../cover/cover-panel.css?v=2609222006";
+@import "/static/bridge/controls.css?v=2609230040";
+@import "../nas/nas-panel.css?v=2609230040";
+@import "../climate/climate-panel.css?v=2609230040";
+@import "../cover/cover-panel.css?v=2609230040";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -1701,14 +1701,15 @@ body.interaction3d-stage.is-background-hidden,
   flex-shrink: 0;
   position: relative;
   isolation: isolate;
-  min-width: 32px;
-  height: 28px;
-  padding: 0 7px;
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   color: #ffffff7a;
   background: transparent;
-  font: 500 12px/28px sans-serif;
+  /* 与模块页签同为 14px/32px：两者并排显示，字号或行高不一致会一眼看出错位。 */
+  font: 500 14px/32px sans-serif;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: color 0.22s ease;
@@ -1815,8 +1816,12 @@ body.interaction3d-stage.is-background-hidden,
   top: auto;
   display: block;
   box-sizing: border-box;
-  width: calc(var(--i3d-tab-count, 6) * 50px + 6px);
-  height: 36px;
+  /* 轨道宽度 = 页签数 × 58px + 6px：一个页签占 58px（宽 56 + 间隙 2），两端各留 3px。
+     这几个数字和 stage.js 的 MODULE_TAB_WIDTH / MODULE_TAB_STRIDE / MODULE_TAB_TRACK_PADDING
+     是一对 —— 那边用它算导航条的缩放上限，这里用它画实际尺寸；只改一边，导航条会在
+     缩放判定「放得下」的情况下贴边溢出。 */
+  width: calc(var(--i3d-tab-count, 6) * 58px + 6px);
+  height: 40px;
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
@@ -1830,26 +1835,26 @@ body.interaction3d-stage.is-background-hidden,
   position: absolute;
   left: 3px;
   top: 3px;
-  width: 48px;
-  height: 28px;
+  width: 56px;
+  height: 32px;
   border-radius: 8px;
   background: #ffffff21;
   pointer-events: none;
-  transform: translate(calc(var(--i3d-selected-tab, 0) * 50px));
+  transform: translate(calc(var(--i3d-selected-tab, 0) * 58px));
   transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 .interaction3d-stage .i3d-navigation .i3d-module-tabs button {
   position: absolute;
-  left: calc(3px + var(--i3d-tab-index, 0) * 50px);
+  left: calc(3px + var(--i3d-tab-index, 0) * 58px);
   top: 3px;
-  width: 48px;
-  height: 28px;
+  width: 56px;
+  height: 32px;
   padding: 0;
   border: 0;
   border-radius: 8px;
   color: #ffffff8c;
   background: transparent;
-  font: 500 12px/28px sans-serif;
+  font: 500 14px/32px sans-serif;
   transition: color 0.2s ease;
   transform: none;
 }
@@ -1874,6 +1879,26 @@ body.interaction3d-stage.is-background-hidden,
     transition: none;
     animation: none !important;
   }
+}
+/* ===== 导航位置调整态（只在编辑器画布开） ===== */
+
+/* 编辑器画布里的舞台 iframe 平时 pointer-events: none —— 点击要留给画布去选控件，
+   所以「拖动导航条改位置」必须先由宿主开一个调整态（runtime.js 的 setNavigationEditing）。
+   可拖标记（is-navigation-draggable / is-navigation-dragging）挂在 stage.js 里真正接收指针的
+   两条上：分类栏的内层轨道与楼层栏。若改成挂外层 .i3d-navigation，这里的选择器也要跟着改 ——
+   外层是 pointer-events: none，且指针捕获绑在它身上不保证收得到事件。 */
+.interaction3d-stage .i3d-module-tabs.is-navigation-draggable,
+.interaction3d-stage .i3d-floor-tabs.is-navigation-draggable {
+  cursor: grab;
+  /* 触屏拖动时不滚动页面；指针事件被 pointer capture 接管后才收得到 pointermove。 */
+  touch-action: none;
+  outline: 1px dashed rgba(255, 255, 255, 0.34);
+  outline-offset: 6px;
+}
+.interaction3d-stage .i3d-module-tabs.is-navigation-dragging,
+.interaction3d-stage .i3d-floor-tabs.is-navigation-dragging {
+  cursor: grabbing;
+  outline-color: rgba(223, 190, 120, 0.85);
 }
 .interaction3d-stage .i3d-markers {
   transform: none;

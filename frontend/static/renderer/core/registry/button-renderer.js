@@ -10,23 +10,23 @@
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../utils/numbers.js?v=2609222006";
+} from "../../../utils/numbers.js?v=2609230040";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609222006";
-import { mdiIconUrl } from "../../../utils/icon-url.js?v=2609222006";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609230040";
+import { mdiIconUrl } from "../../../utils/icon-url.js?v=2609230040";
 // 同门分片：entity-state
 import {
   formatEntityState,
   isDeviceButtonVisualActive,
   resolveStateIcon
-} from "./entity-state.js?v=2609222006";
+} from "./entity-state.js?v=2609230040";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "./registry-visuals.js?v=2609222006";
+} from "./registry-visuals.js?v=2609230040";
 
 // 图标按钮与设备按钮共用同一份渲染器：两者结构一致，差异只在 data 里带的类型，
 // 渲染时用 component.type 区分（见下面的 isDeviceButton）。

@@ -9,7 +9,12 @@
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 // 桥分成两个：显示路径那份（static-helpers）只放零依赖工具，本模块是编辑器侧，其余走 editor 那份。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609222006";
+import {
+  COVER_DEFAULT_PREVIEW_POSITION,
+  applyMdiMask,
+  capturePointer,
+  resolveStateEntry
+} from "../core/static-helpers.js?v=2609230040";
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
@@ -21,18 +26,18 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609222006";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609222006";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609222006";
-import { mountInteraction3d } from "../core/runtime.js?v=2609222006";
-import { lightState } from "../light/light-state.js?v=2609222006";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609222006";
-import { nasGroups } from "../nas/nas-panel.js?v=2609222006";
+} from "../core/static-helpers-editor.js?v=2609230040";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609230040";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609230040";
+import { mountInteraction3d } from "../core/runtime.js?v=2609230040";
+import { lightState } from "../light/light-state.js?v=2609230040";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609230040";
+import { nasGroups } from "../nas/nas-panel.js?v=2609230040";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609222006";
+} from "../core/editor-save-status.js?v=2609230040";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -188,7 +193,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609222006";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609230040";
   document.head.append(styleSheetLinkElement);
   // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent（设备名等来自
   // 用户输入），按钮一律显式 type="button"（dialog 里的按钮不写会按 submit 处理，回车即误触发）。
@@ -347,7 +352,7 @@ export async function openInteraction3dEditor({
                   curtainFabric: normalizedItem.curtainFabric === "sheer" ? "sheer" : "cloth",
                   unboundPosition: Number.isFinite(normalizedItem.unboundPosition)
                     ? Math.max(0, Math.min(100, normalizedItem.unboundPosition))
-                    : 0
+                    : COVER_DEFAULT_PREVIEW_POSITION
                 }
               : {}),
             ...(isVacuumShortcutMode
@@ -1688,7 +1693,7 @@ export async function openInteraction3dEditor({
             ? {
                 coverDirection: "auto",
                 curtainFabric: "cloth",
-                unboundPosition: 0
+                unboundPosition: COVER_DEFAULT_PREVIEW_POSITION
               }
             : {}),
           size: 44,
@@ -2621,9 +2626,13 @@ export async function openInteraction3dEditor({
             const unboundPositionOptions = [
               ["0", "关闭"],
               ["50", "半开"],
+              // 默认值也要在列表里，否则下拉框会显示成空选中（默认值不在选项里时的经典坑）。
+              [String(COVER_DEFAULT_PREVIEW_POSITION), "打开 " + COVER_DEFAULT_PREVIEW_POSITION + "%"],
               ["100", "全开"]
             ];
-            if (![0, 50, 100].includes(selectedItem.unboundPosition)) {
+            if (
+              ![0, 50, 100, COVER_DEFAULT_PREVIEW_POSITION].includes(selectedItem.unboundPosition)
+            ) {
               unboundPositionOptions.push([
                 String(selectedItem.unboundPosition),
                 "打开 " + selectedItem.unboundPosition + "%"
@@ -3624,7 +3633,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609222006";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609230040";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

@@ -8,7 +8,10 @@
  * 副作用：持有 ImageBitmap（必须显式 close 释放显存）、在途请求与上传队列；close() 会中断全部在途请求。
  */
 // 版本戳：改渲染口径（光照计算、分块策略等）时自增，用作所有 key 的一部分。
-export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
+// v7：窗帘开合预览的默认值由「关闭」改为「全开」——配置里未写 curtainPreview 的模型渲染结果变了，
+// 但配置本身没变，键不变就会一直命中旧图，故必须自增。
+// v8：该默认值再由全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）——同上，配置没变而画面变了。
+export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v8";
 /**
  * 生成「键序无关」的 JSON 文本。
  * 对象的键顺序在 JSON.stringify 里有意义，不排序时同一份逻辑内容会因键序不同

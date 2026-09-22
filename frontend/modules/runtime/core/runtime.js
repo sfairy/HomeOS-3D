@@ -13,12 +13,12 @@ import {
   entityDomainFromId,
   resolveStateEntry,
   stateTextOf
-} from "./static-helpers.js?v=2609222006";
+} from "./static-helpers.js?v=2609230040";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609222006";
-import { createLightStream } from "../light/light-stream.js?v=2609222006";
+} from "./popup-preview.js?v=2609230040";
+import { createLightStream } from "../light/light-stream.js?v=2609230040";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -130,12 +130,27 @@ export function mountInteraction3d(
   // iframe 重载代次：异步回调据此判断自己等的加载是否已被新一次重载取代。
   let reloadGeneration = 0;
   let isRangeEditing = false;
+  // 导航位置调整态：编辑器画布里专门开的一个模式 —— 只有它开着，舞台 iframe 才收指针事件，
+  // 分类栏 / 楼层栏才可拖动。见 runtimeApi.setNavigationEditing。
+  let isNavigationEditing = false;
   const pendingEditsByRequestId = new Map();
   const pendingRangeRequestsByRequestId = new Map();
   const editSubscribersSet = new Set();
   // 光照模式只有两种取值，非法值一律按 standard 处理，
   // 免得旧数据里的未知值触发一次无谓的 iframe 重载。
   const normalizeLightingMode = lightingMode => (lightingMode === "region" ? "region" : "standard");
+  // iframe 的指针事件开关：编辑器画布里默认关掉（点击要留给画布选控件 / 拖控件），
+  // 只有进入视角调整、照射范围编辑、导航位置调整这几种明确的编辑态才放行；展示页整份放行。
+  // 三种编辑态各写一遍判断很容易漂移（改一处忘一处就会出现「模式开着却拖不动」），
+  // 所以统一收在这里，任何一处状态变化都调它。
+  function refreshStageFramePointerEvents() {
+    if (!runtimeContext.editable) {
+      stageFrameElement.style.pointerEvents = "auto";
+      return;
+    }
+    stageFrameElement.style.pointerEvents =
+      isEditing || isViewEditing || isRangeEditing || isNavigationEditing ? "auto" : "none";
+  }
   // 建舞台 iframe。非编辑 / 非视角编辑 / 非范围编辑时把指针事件关掉：
   // 否则 iframe 会吃掉宿主页面的滚动与点击。
   function createStageFrameElement() {
@@ -143,12 +158,11 @@ export function mountInteraction3d(
     frameElement.title = "3D 交互户型";
     frameElement.className = "i3d-frame";
     frameElement.setAttribute("allow", "fullscreen");
-    if (runtimeContext.editable && !isEditing && !isViewEditing && !isRangeEditing) {
-      frameElement.style.pointerEvents = "none";
-    }
+    frameElement.style.pointerEvents = "none";
     return frameElement;
   }
   let stageFrameElement = createStageFrameElement();
+  refreshStageFramePointerEvents();
   const loadingElement = document.createElement("p");
   loadingElement.className = "i3d-loading";
   loadingElement.setAttribute("role", "status");
@@ -182,10 +196,7 @@ export function mountInteraction3d(
     if (isRangeEditingActive !== isRangeEditing || !!errorMessage) {
       isRangeEditing = isRangeEditingActive;
       hostElement.classList.toggle("is-range-editing", isRangeEditingActive);
-      if (runtimeContext.editable && !isEditing) {
-        stageFrameElement.style.pointerEvents =
-          isRangeEditingActive || isViewEditing ? "auto" : "none";
-      }
+      refreshStageFramePointerEvents();
       notifyEditSubscribers({
         action: "range-editor-state",
         active: isRangeEditingActive,
@@ -196,6 +207,31 @@ export function mountInteraction3d(
           : {})
       });
     }
+  }
+  /**
+   * 更新导航位置调整态：状态真的变了才广播。
+   *
+   * 只有编辑器画布（editable）里有意义：那里 iframe 默认不吃指针事件（点击要留给画布选控件），
+   * 得靠这个模式把指针放给舞台，分类栏 / 楼层栏才拖得动 —— 见 refreshStageFramePointerEvents。
+   * 模式本身不写配置，所以不重发 config（那会重放一次入场呈现）。
+   */
+  function setNavigationEditingState(requestedActive) {
+    const isNavigationEditingActive = requestedActive === true;
+    if (isNavigationEditingActive === isNavigationEditing) {
+      return;
+    }
+    isNavigationEditing = isNavigationEditingActive;
+    hostElement.classList.toggle("is-navigation-editing", isNavigationEditing);
+    refreshStageFramePointerEvents();
+    postToStageFrame({
+      type: "navigation-editing",
+      active: isNavigationEditing
+    });
+    // 广播出去：舞台可能因为换户型整块重载，模式会被重置，宿主的按钮要跟着退回去。
+    notifyEditSubscribers({
+      action: "navigation-editing-state",
+      active: isNavigationEditing
+    });
   }
   let isSceneActive = false;
   let isAwaitingPresentation = false;
@@ -711,6 +747,9 @@ export function mountInteraction3d(
       editingVacuumId: editingVacuumId,
       rangeEditorOnly: isRangeEditorOnly,
       viewEditing: isViewEditing,
+      // 模式本身另走 navigation-editing 轻量消息（不改配置、不重放呈现）；这里带上一份是为了
+      // 兜住「舞台自己整页重载」的情况 —— 那时新文档里模式是默认关的，而宿主这边还开着。
+      navigationEditing: isNavigationEditing,
       editorCanvas: !!runtimeContext.editable && !isEditing,
       allowRangeEditing: isAuthorized && (isEditing || !!runtimeContext.editable),
       interactive: !isEditing && !runtimeContext.editable,
@@ -867,8 +906,11 @@ export function mountInteraction3d(
       stageFrameElement.removeAttribute("src");
       stageFrameElement = createStageFrameElement();
       hostElement.replaceChildren(stageFrameElement, loadingElement);
+      refreshStageFramePointerEvents();
     }
     setRangeEditingState(false);
+    // 新 iframe 里没有模式状态，这里同步复位并广播，宿主的按钮才会退回「调整导航位置」。
+    setNavigationEditingState(false);
     pendingAbortControllersSet.forEach(replacementController => replacementController.abort());
     rejectPendingEdits("户型已切换，请在新户型中重新调整视角。");
     rejectPendingRangeRequests("户型已切换，请在新户型中重新调整照射范围。");
@@ -1167,7 +1209,14 @@ export function mountInteraction3d(
         cameraEditRequest.resolve(incomingMessage.camera);
       }
     }
-    if (incomingMessage.type === "edit" && isEditing && isAuthorized && isScenePresented) {
+    // 编辑态之外，导航位置调整态的拖拽结果也要转发出去（那里 isEditing 为 false，是画布视图）：
+    // 舞台只在拖完松手时抛一条 navigation-position，宿主据此写回控件的「导航位置」。
+    if (
+      incomingMessage.type === "edit" &&
+      isAuthorized &&
+      isScenePresented &&
+      (isEditing || isNavigationEditing)
+    ) {
       if (incomingMessage.action === "focus-exited") {
         disposeFocusDevicePopup();
       }
@@ -1540,7 +1589,7 @@ export function mountInteraction3d(
         componentProperties.camera ||
         defaultCamera;
       hostElement.classList.remove("is-view-editing");
-      stageFrameElement.style.pointerEvents = "none";
+      refreshStageFramePointerEvents();
     }
     if (
       previousSceneId !== componentProperties.sceneId ||
@@ -1734,6 +1783,9 @@ export function mountInteraction3d(
   Object.defineProperty(runtimeApi, "viewEditing", {
     get: () => isViewEditing
   });
+  Object.defineProperty(runtimeApi, "navigationEditing", {
+    get: () => isNavigationEditing
+  });
   Object.defineProperty(runtimeApi, "viewCamera", {
     get: () => activeCamera
   });
@@ -1755,6 +1807,10 @@ export function mountInteraction3d(
     if (viewEditingEnabled && (isRangeEditing || pendingRangeRequestsByRequestId.size)) {
       runtimeApi.closeRangeEditor();
     }
+    if (viewEditingEnabled && isNavigationEditing) {
+      // 视角调整要独占指针：两个模式同时开着，拖页签改位置会和转视角互相抢事件。
+      runtimeApi.setNavigationEditing(false);
+    }
     isViewEditing = viewEditingEnabled === true;
     if (!isViewEditing) {
       activeCamera =
@@ -1763,8 +1819,25 @@ export function mountInteraction3d(
         defaultCamera;
     }
     hostElement.classList.toggle("is-view-editing", isViewEditing);
-    stageFrameElement.style.pointerEvents = isViewEditing || isRangeEditing ? "auto" : "none";
+    refreshStageFramePointerEvents();
     sendConfigUpdate();
+  };
+  /**
+   * 进入 / 退出「导航位置调整」：编辑器画布里的专门模式（属性面板的按钮开关）。
+   * 前置条件不满足时抛中文错误，由属性面板就地展示。
+   */
+  runtimeApi.setNavigationEditing = navigationEditingEnabled => {
+    const isNavigationEditingEnabled = navigationEditingEnabled === true;
+    if (isNavigationEditingEnabled && (!runtimeContext.editable || isEditing || isDisposed)) {
+      throw new Error("请在仪表盘编辑器里调整导航位置。");
+    }
+    if (isNavigationEditingEnabled && !isScenePresented) {
+      throw new Error("3D 画面还在加载，请稍候再调整导航位置。");
+    }
+    if (isNavigationEditingEnabled && (isViewEditing || isRangeEditing)) {
+      throw new Error("请先结束视角调整或照射范围编辑，再调整导航位置。");
+    }
+    setNavigationEditingState(isNavigationEditingEnabled);
   };
   // 视角指令：发给舞台的 editor-command 并按 requestId 等回执（5 秒超时）。
   // 只有宿主页（editable）且在视角编辑中才允许，展示页调用一律拒绝。

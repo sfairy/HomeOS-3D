@@ -8,34 +8,34 @@
  * waitInteraction3dEditorView(componentId) 拿到视图句柄再下命令；sceneId 是后端签发的 32 位十六进制，
  * 面板只做格式校验。副作用：发起授权校验与户型载入、动态 import 子编辑器、直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=2609222006";
+import { resolvePageBehavior } from "./page-behavior.js?v=2609230040";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=2609222006";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=2609222006";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609222006";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609222006";
+} from "./performance-warning.js?v=2609230040";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=2609230040";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609230040";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609230040";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=2609222006";
+} from "./bridge.js?v=2609230040";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=2609222006";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609222006";
+} from "./cover.js?v=2609230040";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609230040";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
-import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609222006";
-import { createDomFactory } from "../shared/dom-factory.js?v=2609222006";
+import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609230040";
+import { createDomFactory } from "../shared/dom-factory.js?v=2609230040";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=2609222006";
+} from "./definition.js?v=2609230040";
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
@@ -205,6 +205,36 @@ export async function updateInteraction3dCard(cardButton) {
 const sceneStateByKey = new Map();
 // 每个宿主元素一份 AbortController：面板重建时会中断上一次仍在飞的校验 / 弹窗流程。
 const inspectorAbortByHost = new WeakMap();
+// 导航拖拽回写的订阅：面板每次改属性都会整块重建，而舞台视图活得更久（换户型才会换新），
+// 每次重建都 subscribeEdit 一次会在视图里堆成一串回调。所以按组件只订阅一次，
+// 重建时只把回调体换成最新那个 —— 回调体里闭着面板自己的状态（输入框引用、editorOptions）。
+// 视图被换掉（换户型）时旧订阅随旧视图一起作废，这里比对新旧视图后重新订阅。
+const navigationEditBindingByComponentId = new Map();
+/**
+ * 订阅某个 3D 视图的编辑事件，只留下一个回调，且回调体可以随面板重建而替换。
+ *
+ * @param {string} componentId 组件 ID。
+ * @param {object} editorView 运行时句柄（换户型后会换新对象）。
+ * @param {(editEvent: object) => void} handleEditEvent 最新一次渲染里的事件处理器。
+ */
+function bindNavigationEditEvents(componentId, editorView, handleEditEvent) {
+  const existingBinding = navigationEditBindingByComponentId.get(componentId);
+  if (existingBinding?.view === editorView) {
+    existingBinding.handleEditEvent = handleEditEvent;
+    return;
+  }
+  existingBinding?.unsubscribe?.();
+  const navigationEditBinding = {
+    view: editorView,
+    handleEditEvent: handleEditEvent,
+    unsubscribe: null
+  };
+  navigationEditBindingByComponentId.set(componentId, navigationEditBinding);
+  navigationEditBinding.unsubscribe = editorView?.subscribeEdit?.(editEvent => {
+    // 经 Map 再取一次：期间面板可能已重建，要用最新那个回调体。
+    navigationEditBindingByComponentId.get(componentId)?.handleEditEvent?.(editEvent);
+  });
+}
 /**
  * 向后端申请一个新的户型场景 ID。
  *
@@ -515,7 +545,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609230040");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -550,7 +580,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609230040");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -584,7 +614,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609230040");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -612,7 +642,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609230040");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -688,7 +718,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609230040");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -717,7 +747,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609222006");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609230040");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -1071,6 +1101,88 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   });
   createLabeledField(viewOptionsElement, "焦段（mm）", focalLengthInput);
   const navigationSection = createSection("导航位置");
+  /**
+   * 舞台拖完抛回的位置：写回与下面输入框同一份 navigation 配置，并把输入框同步成新值 ——
+   * 只提交不刷输入框的话，用户看到的是「拖了但数字没变」，下一次提交还会把旧值写回去。
+   */
+  function applyDraggedNavigationPosition(editEvent) {
+    if (!Number.isFinite(editEvent.x) || !Number.isFinite(editEvent.y)) {
+      return;
+    }
+    const draggedNavigationKey = editEvent.target === "floors" ? "floors" : "categories";
+    navigationSettings[draggedNavigationKey] = {
+      ...navigationSettings[draggedNavigationKey],
+      x: editEvent.x,
+      y: editEvent.y
+    };
+    for (const [positionAxisControl, positionGroupKey, positionAxisKey] of positionInputRefs) {
+      positionAxisControl.value = String(navigationSettings[positionGroupKey][positionAxisKey]);
+    }
+    commitChange({
+      properties: {
+        navigation: structuredClone(navigationSettings)
+      }
+    });
+  }
+  /**
+   * 3D 视图的编辑事件里与本面板相关的那条：拖动结束后的位置回写。
+   *
+   * 模式状态变化（navigation-editing-state）刻意不在这里处理：那个事件是广播给所有监听者的，
+   * 其中就包含「切到别的组件时顺手关掉本组件模式」这条路径 —— 在别人的渲染过程里再渲染本面板，
+   * 会把刚建好的面板顶掉。模式与本面板是否一致，改由点击按钮后自己重渲染一次保证（见下）。
+   */
+  function handleNavigationEditEvent(editEvent) {
+    if (editEvent?.action === "navigation-position") {
+      applyDraggedNavigationPosition(editEvent);
+    }
+  }
+  // 每次重建都把回调体换成最新的这一份（订阅本身复用，见 bindNavigationEditEvents）。
+  // 视图还没挂载时不订阅，等点「拖拽调整」拿到句柄时再补一次。
+  if (editorView) {
+    bindNavigationEditEvents(targetComponent.id, editorView, handleNavigationEditEvent);
+  }
+  // 编辑器画布里的舞台 iframe 平时不吃指针事件（点击要留给画布选控件），所以拖分类栏 /
+  // 楼层栏必须先由这个模式把指针放给舞台（见 runtime.js 的 setNavigationEditing）。
+  const isNavigationEditing = !!editorView?.navigationEditing;
+  const dragNavigationButton = createElement(
+    "button",
+    isNavigationEditing ? "primary" : "",
+    isNavigationEditing ? "完成调整" : "在画布上拖拽调整"
+  );
+  dragNavigationButton.type = "button";
+  // 视角调整期间数值输入是禁用的，拖拽自然也一并禁用（两者抢同一套指针事件）。
+  dragNavigationButton.disabled = !properties.sceneId || isViewEditing;
+  dragNavigationButton.setAttribute("aria-pressed", String(isNavigationEditing));
+  const dragNavigationNoteElement = createElement("p", "inspector-section-note");
+  dragNavigationNoteElement.hidden = !isNavigationEditing;
+  dragNavigationNoteElement.textContent =
+    "在画布上拖动分类栏或楼层栏即可调整位置，松手后会写进下面的横向 / 纵向百分比；" +
+    "再点一次上方按钮结束调整。";
+  // 主操作整行铺满，不并进 .i3d-finishing-row —— 那是两列等宽的取值行，
+  // 单放一个按钮会只占半行，「在画布上拖拽调整」这八个字会被折成两行（见 bridge.css）。
+  const dragNavigationRowElement = createElement("div", "i3d-navigation-drag-row");
+  dragNavigationRowElement.append(dragNavigationButton);
+  // 挂在标题之下、数值输入之上：这是「导航位置」这一组的主操作。
+  navigationSection.append(dragNavigationRowElement, dragNavigationNoteElement);
+  dragNavigationButton.addEventListener("click", async () => {
+    dragNavigationButton.disabled = true;
+    try {
+      const activeView = await ensureEditorView();
+      if (!activeView) {
+        return;
+      }
+      // 视图可能刚挂载（渲染面板时还没有句柄），这里补上拖拽回写的订阅。
+      bindNavigationEditEvents(targetComponent.id, activeView, handleNavigationEditEvent);
+      activeView.setNavigationEditing(!activeView.navigationEditing);
+      // 按钮文案、说明文字、aria-pressed 都挂在 isNavigationEditing 上，切换成功后整块重建一次最省心。
+      renderInteraction3dInspector(hostElement, targetComponent, editorOptions);
+    } catch (navigationEditingError) {
+      dragNavigationNoteElement.hidden = false;
+      dragNavigationNoteElement.textContent = navigationEditingError.message;
+    } finally {
+      dragNavigationButton.disabled = false;
+    }
+  });
   const navigationSettings = {
     categories: {
       x: 50,
@@ -1084,13 +1196,18 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     },
     followOffset: properties.navigation?.followOffset ?? 16
   };
+  // 分类栏 / 楼层栏各成一组：组内「横向 / 纵向」两列 + 整行的「缩放」，组间一条细线分开。
+  // 六个输入框平铺成一串时看不出哪两个属于同一条导航，拖动写回的也是「一组两个值」，
+  // 所以标题按导航条分组，标签里就不再重复「分类栏」这三个字（见 bridge.css 的 .i3d-navigation-group）。
   const positionInputRefs = [];
+  const scaleInputRefs = [];
   for (const [navigationGroupKey, navigationGroupLabel] of [
     ["categories", "分类栏"],
     ["floors", "楼层栏"]
   ]) {
-    const navigationGroupRowElement = createElement("div", "i3d-finishing-row");
-    navigationSection.append(navigationGroupRowElement);
+    const navigationGroupElement = createElement("div", "i3d-navigation-group");
+    navigationGroupElement.append(createElement("h4", "", navigationGroupLabel));
+    navigationSection.append(navigationGroupElement);
     for (const [axisKey, axisLabel] of [
       ["x", "横向"],
       ["y", "纵向"]
@@ -1121,35 +1238,23 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
           navigationAxisInput.value = String(navigationSettings[navigationGroupKey][axisKey]);
         }
       });
-      createLabeledField(
-        navigationGroupRowElement,
-        "" + navigationGroupLabel + axisLabel + "（%）",
-        navigationAxisInput
-      );
+      createLabeledField(navigationGroupElement, axisLabel + "（%）", navigationAxisInput);
       positionInputRefs.push([navigationAxisInput, navigationGroupKey, axisKey]);
     }
-  }
-  const navigationScaleRowElement = createElement("div", "i3d-finishing-row");
-  navigationSection.append(navigationScaleRowElement);
-  const scaleInputRefs = [];
-  for (const [scaleGroupKey, scaleGroupLabel] of [
-    ["categories", "分类栏"],
-    ["floors", "楼层栏"]
-  ]) {
     const navigationScaleInput = createElement("input");
     Object.assign(navigationScaleInput, {
-      name: "i3d-navigation-" + scaleGroupKey + "-scale",
+      name: "i3d-navigation-" + navigationGroupKey + "-scale",
       type: "number",
       min: "50",
       max: "200",
       step: "5",
-      value: String(Math.round((navigationSettings[scaleGroupKey].scale ?? 1) * 100)),
+      value: String(Math.round((navigationSettings[navigationGroupKey].scale ?? 1) * 100)),
       disabled: isViewEditing
     });
     navigationScaleInput.addEventListener("change", () => {
       if (!isViewEditing) {
         if (Number.isFinite(navigationScaleInput.valueAsNumber)) {
-          navigationSettings[scaleGroupKey].scale =
+          navigationSettings[navigationGroupKey].scale =
             Math.max(50, Math.min(200, navigationScaleInput.valueAsNumber)) / 100;
           commitChange({
             properties: {
@@ -1158,15 +1263,19 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
           });
         }
         navigationScaleInput.value = String(
-          Math.round((navigationSettings[scaleGroupKey].scale ?? 1) * 100)
+          Math.round((navigationSettings[navigationGroupKey].scale ?? 1) * 100)
         );
       }
     });
-    createLabeledField(
-      navigationScaleRowElement,
-      scaleGroupLabel + "缩放（%）",
+    // 缩放是整条导航的比例、不按轴拆分，所以跨两列独占一行。
+    // 这里手工建 label 而不用 createLabeledField：宿主随后会把数字输入包进 .inspector-number-control，
+    // 返回值就从 label 变成了那个包裹层，事后没法再给 label 自己加类。
+    const navigationScaleLabelElement = createElement("label", "i3d-navigation-group-full");
+    navigationScaleLabelElement.append(
+      createElement("span", "", "缩放（%）"),
       navigationScaleInput
     );
+    navigationGroupElement.append(navigationScaleLabelElement);
     scaleInputRefs.push(navigationScaleInput);
   }
   const resetNavigationButton = createElement("button", "secondary-button", "恢复默认位置与大小");
