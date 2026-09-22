@@ -8,7 +8,7 @@
  * 活动态）与 3D 舞台（`modules/runtime/cover/cover-state.js`，决定动画）都要这份判定，两处各写一遍
  * 时口径已经分叉（一处把 `""` 当读数、一处不当），同一台设备会被判成不同帘型。零依赖，两侧都能直接用。
  */
-import { finiteNumberOrNull } from "./numbers.js?v=2609221451";
+import { finiteNumberOrNull } from "./numbers.js?v=2609222006";
 
 export const COVER_FEATURE_OPEN = 1;
 export const COVER_FEATURE_CLOSE = 2;
@@ -28,6 +28,36 @@ export const COVER_TILT_FEATURE_MASK = 16 | 32 | 64 | 128;
  * 等值」，改一处就会悄悄分叉。
  */
 export const COVER_POSITION_EPSILON_PERCENT = 1;
+
+/**
+ * 窗帘图形（详情弹窗 / 组合弹窗右上那幅 244×154 的示意）里「帘布宽度」的几何。
+ *
+ * 帘布宽度是开合百分比的线性函数：`基准 − 位置 × 每格`。四个数以前在
+ * `entity-details.js` 与 `custom-popup.js` 里各写一份、只是「恰好等值」——
+ * 和上面 `COVER_POSITION_EPSILON_PERCENT` 当年分叉的情形一模一样，所以一并收进来。
+ *
+ * 两个基准值的来路：可视宽 244 − 左右各 10px = 224px，占容器 91.8%；两片各占一半（45.9%）
+ * 时正好在中间合拢。两式在位置 = 100 时都收敛到 12.8%（45.9 − 33.1 = 91.8 − 79），
+ * 也就是全开时帘布都收到 12.8% —— 这个巧合是两条公式必须同改同验的原因。
+ *
+ * 注意别把它和 `--hb-cover-open-position` 混起来：后者曾经由 JS 写入但样式表从不取用，
+ * 已删除。真正决定帘布宽度的是下面这两个函数算出的百分比，原始的开合百分比只留在 JS 里
+ * （用于叶片角度、晾衣杆高度与转向类名）。
+ */
+export const COVER_PANEL_WIDTH_BASE_PERCENT = 45.9;
+export const COVER_PANEL_WIDTH_PER_POSITION = 0.331;
+export const COVER_SINGLE_PANEL_WIDTH_BASE_PERCENT = 91.8;
+export const COVER_SINGLE_PANEL_WIDTH_PER_POSITION = 0.79;
+
+/** 两片对开时单片的宽度百分比（位置 0 = 合拢 = 45.9%）。 */
+export function coverPanelWidthPercent(position) {
+  return COVER_PANEL_WIDTH_BASE_PERCENT - position * COVER_PANEL_WIDTH_PER_POSITION;
+}
+
+/** 单侧梦幻帘（整幅）的宽度百分比（位置 0 = 合拢 = 91.8%）。 */
+export function coverSinglePanelWidthPercent(position) {
+  return COVER_SINGLE_PANEL_WIDTH_BASE_PERCENT - position * COVER_SINGLE_PANEL_WIDTH_PER_POSITION;
+}
 
 /**
  * 归一 `supported_features`：必须是安全范围内的非负整数，否则按「没上报任何能力」（0）处理。

@@ -106,7 +106,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（九条静默失效护栏：裸 /static、DOM id、缓存戳与模块身份、后端包级环、mdi 版本、import 解析、构建体解构、资源引用、导出名）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· audit_colors.mjs（配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇）· check_invariants.mjs（十五条静默失效护栏，见「前端结构卫生」一节）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -650,7 +650,7 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 - 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请人工核对引用与后端路径清单（没有打包器，路径写错只在浏览器里变成 404）。
 - `migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from backend.core.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
-- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐。详见 [store/README.md](store/README.md) 的「界面主题」。
+- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它**不再与 `frontend/static/app.css` 逐字对齐**（那曾是 0.5 时代的状态，`theme.css` 文件头已明确否认）：两边现在共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌（53 对，逐 token 相等并经 `tools/audit_colors.mjs` 校验）与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
 - Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
 
@@ -664,13 +664,29 @@ node tools/bump_static_cache_versions.mjs
 
 可选参数：`--dry-run` 只列出会改哪些文件与处数（不写盘）、`--version=YYMMDDHHMM` 指定戳而不取当前本地时间。
 
+> **踩过的坑：改完静态资源忘了 bump，页面「照常打开」，但改的那条规则静默不生效。**
+> `?v=` 没变时浏览器直接复用本地缓存，磁盘上的新内容根本不加载。这次的具体表现是：给色板副本
+> `auth/scene/page.css` 加了一枚新令牌 `--hos-tool-control-line`，页面看着一切正常，只是新令牌
+> 解析为**空** —— 而 `border-color: var(--未定义)` 不会「没有边框」，它会退回 `currentColor`
+> （边框变成文字的颜色）。所以**新增令牌 / 改名令牌这类改动必须在真实页面复查**：先 bump，
+> 再在页面上读 `getComputedStyle(document.documentElement).getPropertyValue("--新令牌")`，
+> 得到空字符串就是没生效。`tools/check_invariants.mjs` 钉的是「戳出现第二个值」，
+> 钉不住「戳还是唯一值、已经过期」——后者没法从文件内容静态判定，只能靠这一步人工复查。
+>
+> **同一个坑还有第二层：戳是分钟级的，同一分钟内连跑两次 bump 会算出同一个戳、静默空转**
+> （输出 `Updated 0 file(s)`），而 HTML 里正好已经是这个值 —— 于是「刚改的 CSS 」和
+> 「页面正在用的缓存键」完全撞在一起，护栏也看不见。改完静态资源后如果 bump 报 0 处，
+> 先看 `date +%y%m%d%H%M` 是不是还等于当前戳：相等就说明这一分钟的改动没被区分出来，
+> 隔一分钟再跑，或用 `--version=` 指定一个更靠后的戳。
+
 改动前/提交前跑一遍不变量护栏（**这是现在唯一的一道自动守卫**）：
 
 ```bash
 node tools/check_invariants.mjs
 ```
 
-它钉九条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
+它钉十五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
+**下文的引用一律用条目名而不是序号**（早先写「第 6 条」「第 9 条」，中间插进新条目后全指向了别处）：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
   （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
@@ -728,7 +744,29 @@ node tools/check_invariants.mjs
   `mountStage`）之后最容易漏的就是原处那个导出名。裸说明符（`three` 之类）与 `vendor/` 下的
   压缩产物不判：前者是本仓之外的约定，后者是一整行的打包结果、文本扫描读不出导出表。
   **同一条里原本还有另一半**「调用的名字在本文件没有任何绑定」（漏搬 import 的另一种症状，
-  只在执行到那一行时 `ReferenceError`）—— 实测后放弃，见脚本文件头第 9 条的说明与实测数字。
+只在执行到那一行时 `ReferenceError`）—— 实测后放弃，见脚本文件头「import 的名字不在目标模块的导出里」那条的说明与实测数字。
+
+上面九条之外，2026-09 起又补进五条**配色类**的静默失效（都是「浏览器零报错、画面上只是不太对」）：
+
+- **JS 写入的自定义属性没人读**：`style.setProperty("--x", …)` 只在有人 `var(--x)` 或
+  `getPropertyValue("--x")` 时才有效果；写错名字、或样式表里那条取用点后来被删掉，机制就整段空转，
+  页面上只是「这个功能没反应」。原列的 10 枚已逐条修完，豁免名单现在是空的 —— 新增这类写入直接报错。
+- **令牌引用后面粘着十六进制残渣**（`var(--x)d1`）：起因是「按 6 位色值做子串替换」把 8 位十六进制的
+  α 位切在了外面。浏览器判**整条声明无效**，该属性静默回落到默认值。
+  扫描按**括号配对**走 `var()` 的收尾，所以带兜底的形态（`var(--x, #5fd0a8)ad`）也能拦住 ——
+  那种写法**今天碰巧是对的**（兜底值与色板同值，替换后又拼回合法的 8 位色），
+  但色板一改就变成 9 位十六进制、整条失效。「今天不报错」正是它最难发现的地方。
+- **`var()` 兜底值与令牌 canonical 值不一致**：平时不生效（令牌在时永不落到兜底），所以既不会被评审
+  拦下、也不在浏览器里露头；一旦主题变量缺失（独立打开的 SVG、渲染容器）就渲染出另一套颜色。
+  三种写法都查：`var(--x, #…)`、`paletteColor("--x", "#…")`、以及数据形态的
+  `{ token, fallback }` 成对常量。
+- **八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 的契约不符**：契约是 0.13 / 0.32，
+  脚本按族逐条比对 —— 一个 `-soft` 写成 0.12，肉眼几乎看不出，但它决定了「灯灭时那一层光的强度」。
+- **SVG 注释里含连续两个连字符**：XML 非法，**整个文件解析失败、画面空白**（不是只丢一行）。
+
+另有一条不属于「静默失效」但同样钉住的：**`theme-color` / webmanifest 的写死色值必须等于色板里
+「页面最底层」那一档**（`--hos-sky-deep` 或 `--hos-tool-bg`）。这几个属性吃不了 CSS 变量，只能写字面量，
+所以最容易在改主题时漏掉 —— 表现是手机浏览器地址栏与新装 PWA 的启动底色与页面不是一回事。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
@@ -738,12 +776,12 @@ node tools/check_invariants.mjs
 `<img src>` / `srcset` 与 HTML 内联 `<style>`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、
 `backend/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。
 （ESM 说明符、HTML 的 `<script src>`/`<link href>`、CSS 的 `url()`，以及 interaction3d 资源白名单与
-`frontend/modules/runtime/` 的对应，已由上面第 6、8 条不变量自动核对；**不覆盖**页面路由 URL。）
+`frontend/modules/runtime/` 的对应，已由上面「import 说明符解析」「HTML 属性 / CSS url()」两条不变量自动核对；**不覆盖**页面路由 URL。）
 
 **在 `frontend/modules/runtime/` 下新增文件时**：该目录的文件全部经
 `/api/v1/modules/interaction3d/{filename:path}` 下发，白名单在 `backend/modules/interaction3d/api.py`
 的 `get_resource()` 里。**漏登记不报错，只表现为浏览器里某个模块 404、整条 import 链断掉** ——
-第 6 条不变量现在双向核对白名单与磁盘（少登记、登记了但文件已删，都会当场报出来）。
+「import 说明符解析不到真实文件 / runtime 资源没登记进白名单」那条不变量现在双向核对白名单与磁盘（少登记、登记了但文件已删，都会当场报出来）。
 
 **前端结构 / 卫生护栏已全部移除**（原先的 `check_frontend_hygiene.mjs` / `check_studio_palette.mjs` /
 `check_registry_split.mjs` / `check_esm_exports.mjs` / `check_scene_sync.mjs` / `check_entry_pages.mjs`
@@ -827,7 +865,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 九条静默失效不变量）：
+本轮补回其中价值最高的那一道 —— 十五条静默失效不变量）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
@@ -843,21 +881,21 @@ ruff check .                                      # 未使用 import / 重复定
 原先由 `check_scene_sync.mjs` 比对两份映射表，现在必须人工同步 —— 不一致不会报错，只会让同一个值
 在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」）。
 
-**ESM 导出的三类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在由第 9 条不变量接手）：
+**ESM 导出的三类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在由「import 的名字不在目标模块的导出里」那条不变量接手）：
 
 - **分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向**导入方**
-  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。→ 第 9 条直接报在导入处。
+  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。→ 该条直接报在导入处。
 - **导出方把「只在 `export {}` 里出现的名字」当本地变量读**：`export { clampNumber as clamp } from
   "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块作用域建绑定**，于是同文件里那些
   `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数（`geometry.js` 的
   `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。换成
   `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
-  两种写法都要靠人认出来。→ 第 9 条判「转出口里的名字在本文件被取用」（当前全仓 2 处纯转出口，
+  两种写法都要靠人认出来。→ 该条判「转出口里的名字在本文件被取用」（当前全仓 2 处纯转出口，
   都在 `renderer/core/`）。
 - 运行时树通往 `/static/` 的两份共享桥
   `modules/runtime/core/static-helpers.js`（显示路径）与 `static-helpers-editor.js`（编辑器路径）。
   桥写的是 `const { a, b } = await (… ? import(相对路径) : import("/static/…"))`，既不是
-  `import … from` 也不是 `export const { … }`。→ 第 9 条现在**两种朝向都看**：桥自己解构出的名字
+  `import … from` 也不是 `export const { … }`。→ 该条现在**两种朝向都看**：桥自己解构出的名字
   必须在两个分支目标的导出里（漏登记/改错目标会报），导入方从桥里引的名字也必须在桥的
   `export { … }` 里（漏转出会报）。仍然只能人工核对的只剩「两个分支必须指向同一个文件」这一条，
   加名字到桥里时请照旧核对：

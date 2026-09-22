@@ -280,13 +280,33 @@ def error_page_html() -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>服务暂时不可用</title>
 <style>
-body { margin: 0; padding: 64px 20px; background: #f4f5f7; color: #1f2430;
+/* 独立错误页调色板（**刻意不引 --hos-* / --hb-***）。
+   与全站暗色主题相反，这一页是浅色的，理由有三：
+     1. 它必须能在「任何站点 CSS 都读不到」的前提下渲染 —— 500 的常见成因之一就是
+        静态资源读不出来，所以样式内联、不引用任何外部文件、字体走系统栈；
+     2. 它不依赖操作系统的 prefers-color-scheme 判定（那条路要多写一套分支，
+        而这一页越简单越可靠）；
+     3. 浅底在整站暗色的语境里本身就是「这不是正常界面」的信号，
+        不会和正常的暗色页面混在一起、被误认为「页面只是没加载完」。
+   取值按角色命名，改的时候一眼看得出改的是哪一块 —— 原先这里是五个散落的
+   十六进制（#f4f5f7 / #1f2430 / #fff / #e3e6ec / #4b5361），看不出各是什么角色。
+   对比度：正文 #4b5361 压 #fff 8.05:1、标题 #1f2430 压 #fff 14.6:1、
+   按钮 #fff 压 #1f2430 14.6:1，均达标。 */
+:root {
+  --err-page-bg: #f4f5f7;    /* 页面底 */
+  --err-card-bg: #fff;       /* 卡片底 */
+  --err-card-line: #e3e6ec;  /* 卡片描边 */
+  --err-ink: #1f2430;        /* 标题 / 按钮实底 */
+  --err-ink-soft: #4b5361;   /* 正文 */
+  --err-on-ink: #fff;        /* 按钮上的文字 */
+}
+body { margin: 0; padding: 64px 20px; background: var(--err-page-bg); color: var(--err-ink);
        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-main { max-width: 480px; margin: 0 auto; padding: 28px 32px; background: #fff;
-       border: 1px solid #e3e6ec; border-radius: 12px; }
+main { max-width: 480px; margin: 0 auto; padding: 28px 32px; background: var(--err-card-bg);
+       border: 1px solid var(--err-card-line); border-radius: 12px; }
 h1 { margin: 0 0 12px; font-size: 19px; }
-p { margin: 0 0 20px; font-size: 14px; line-height: 1.7; color: #4b5361; }
-a { display: inline-block; padding: 9px 18px; background: #1f2430; color: #fff;
+p { margin: 0 0 20px; font-size: 14px; line-height: 1.7; color: var(--err-ink-soft); }
+a { display: inline-block; padding: 9px 18px; background: var(--err-ink); color: var(--err-on-ink);
     border-radius: 8px; font-size: 14px; text-decoration: none; }
 </style>
 </head>

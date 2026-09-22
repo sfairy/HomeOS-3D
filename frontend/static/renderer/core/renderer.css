@@ -130,8 +130,8 @@
   left: 0;
   overflow: hidden;
   transform-origin: top left;
-  color: #dce1e5;
-  background: #11151b;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface);
   font-family:
     Helvetica Neue,
     PingFang SC,
@@ -356,14 +356,14 @@
   height: 14px;
   border: 1px solid rgba(var(--hos-lumen-rgb), 0.9);
   border-radius: 50%;
-  background: #1a2025d1;
+  background: rgba(var(--hos-tool-surface-soft-rgb), 0.82);
   box-shadow: 0 1px 4px #00000061;
   transform: translate(-50%, -50%);
   content: "";
 }
 /* hover 只提亮描边与底色，不改尺寸，避免手柄在鼠标下抖动。 */
 .hb-selection-bounds > .hb-transform-handle:hover:before {
-  border-color: var(--hos-accent, #ffc14a);
+  border-color: var(--hos-accent, #ffc46a);
   background: #2c3135f0;
 }
 /* 缩放手柄挂在右下角，-3px 外扩让圆点中心压在角上；
@@ -461,9 +461,9 @@
   left: 50%;
   width: 13px;
   height: 13px;
-  border: 2px solid var(--hos-accent, #ffc14a);
+  border: 2px solid var(--hos-accent, #ffc46a);
   border-radius: 3px;
-  background: #1a2025;
+  background: var(--hos-tool-surface-soft);
   box-shadow:
     0 1px 5px #00000080,
     0 0 8px rgba(var(--hos-accent-rgb), 0.3);
@@ -472,7 +472,7 @@
 }
 .hb-door-window-perspective-handle:hover:before {
   border-color: #ffe2a6;
-  background: #2a3035;
+  background: var(--hos-tool-surface-raised);
 }
 /* 小尺寸控件（已在编辑区外 / 缩得很小）时改用手柄外置模式：由渲染器把
    --hb-handle-outset 写成 30px 乘以当前缩放，这里直接取负值推到手柄框外。 */
@@ -492,9 +492,9 @@
 .hb-unknown-component {
   display: grid;
   place-content: center;
-  border: 1px dashed #59656e;
-  color: #98a3aa;
-  background: #59656e14;
+  border: 1px dashed var(--hos-tool-control-line);
+  color: var(--hos-tool-muted-dim);
+  background: rgba(var(--hos-tool-control-line-rgb), 0.08);
   text-align: center;
 }
 .hb-unknown-component span {
@@ -1042,7 +1042,7 @@
   z-index: 0;
   inset: 0;
   border-radius: inherit;
-  background: #11151bdb;
+  background: rgba(var(--hos-tool-surface-rgb), 0.86);
   content: "";
   pointer-events: none;
 }
@@ -1079,8 +1079,8 @@
   padding: 12px;
   border-radius: inherit;
   place-items: center;
-  color: #7d898f;
-  background: #11151bf0;
+  color: var(--hos-tool-hint);
+  background: rgba(var(--hos-tool-surface-rgb), 0.94);
   font-size: 12px;
   text-align: center;
 }
@@ -1115,8 +1115,8 @@
   width: 100%;
   height: 100%;
   border: 1px dashed rgba(127, 139, 147, 0.42);
-  color: #7d898f;
-  background: #11151b29;
+  color: var(--hos-tool-hint);
+  background: rgba(var(--hos-tool-surface-rgb), 0.16);
   font-size: 12px;
   text-align: center;
   place-items: center;
@@ -1309,7 +1309,7 @@
   display: flex;
   align-items: baseline;
   justify-content: flex-end;
-  color: #dce1e5;
+  color: var(--hos-tool-ink-dim);
   font-weight: 300;
   line-height: 1;
   transform: translate(-100%);
@@ -1354,9 +1354,9 @@
   z-index: 760;
   min-width: max-content;
   padding: 5px 7px;
-  border: 1px solid rgba(126, 141, 153, 0.42);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.42);
   border-radius: 4px;
-  color: #edf1f3;
+  color: var(--hos-tool-ink);
   background: #12171bf0;
   box-shadow: 0 6px 18px #00000059;
   font:
@@ -1521,8 +1521,8 @@
   overflow: hidden;
   border: 1px solid rgba(160, 170, 178, 0.56);
   border-radius: 22px;
-  color: #dce2e6;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -1573,7 +1573,7 @@
   display: block;
   max-width: 430px;
   overflow: hidden;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -1592,7 +1592,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   box-sizing: border-box;
@@ -1607,7 +1607,7 @@
   height: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #69757c;
+  background: var(--hos-tool-mark);
   box-shadow: none;
   content: "";
 }
@@ -1617,7 +1617,7 @@
   animation: hb-camera-status-ready 0.62s ease-out 1;
 }
 .hb-camera-preview-status.is-unavailable:before {
-  background: var(--hos-alert, #d45f5f);
+  background: var(--hos-alert, #f07a7e);
   box-shadow: 0 0 10px rgba(var(--hos-alert-rgb), 0.46);
 }
 .hb-camera-preview-heading button {
@@ -1724,7 +1724,7 @@
   inset: 10px 27px 9px;
   border: 1px solid rgba(0, 0, 0, 0.62);
   border-radius: 19px;
-  background: linear-gradient(155deg, #30363a, #101518 47%, #05080a);
+  background: linear-gradient(155deg, #30363a, var(--hos-tool-surface) 47%, var(--hos-tool-bg));
   box-shadow:
     inset 0 7px 11px #ffffff14,
     inset 0 -8px 12px #00000094;
@@ -1753,7 +1753,7 @@
   left: 50%;
   width: 34px;
   height: 34px;
-  border: 5px solid #343c40;
+  border: 5px solid var(--hos-tool-line);
   border-radius: 50%;
   background: radial-gradient(
     circle at 42% 38%,
@@ -1785,7 +1785,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #667278;
+  background: var(--hos-tool-mark);
   box-shadow: none;
   transform: translate(-50%);
   transition:
@@ -1812,7 +1812,7 @@
   box-shadow: 0 0 9px rgba(var(--hos-eco-rgb), 0.82);
 }
 .hb-camera-device-visual.is-unavailable .hb-camera-device-led {
-  background: var(--hos-alert, #d45f5f);
+  background: var(--hos-alert, #f07a7e);
   box-shadow: 0 0 8px rgba(var(--hos-alert-rgb), 0.58);
 }
 .hb-camera-device-visual.is-unavailable .hb-camera-device-lens {
@@ -1829,7 +1829,7 @@
   overflow: hidden;
   border: 1px solid rgba(160, 170, 178, 0.34);
   border-radius: 16px;
-  background: #080b0e;
+  background: var(--hos-tool-bg);
   box-shadow:
     0 18px 44px #00000061,
     inset 0 1px #e2eaef0d;
@@ -1844,7 +1844,7 @@
   z-index: 0;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(circle at 50% 35%, rgba(41, 52, 61, 0.32), transparent 62%), #080b0e;
+  background: radial-gradient(circle at 50% 35%, rgba(41, 52, 61, 0.32), transparent 62%), var(--hos-tool-bg);
   content: "";
   pointer-events: none;
 }
@@ -1949,8 +1949,8 @@
   overflow: hidden;
   border-radius: inherit;
   place-items: center;
-  color: #9aa5ab;
-  background: radial-gradient(circle at 50% 44%, rgba(73, 89, 101, 0.24), transparent 58%), #0b0f13;
+  color: var(--hos-tool-label);
+  background: radial-gradient(circle at 50% 44%, rgba(73, 89, 101, 0.24), transparent 58%), var(--hos-tool-bg);
   font-size: 15px;
   letter-spacing: 0.03em;
 }
@@ -2086,21 +2086,27 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid #46515a;
+  border: 1px solid var(--hos-tool-line-strong);
   border-radius: 9px;
-  color: #dce2e6;
-  background: #1a2026;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface-soft);
   box-shadow: 0 28px 88px #000000c2;
 }
 /* 宽版弹窗（折线图 / 灯 / 空调 / 扫地机）统一 22px 圆角、渐变底与内发光，
-   只有宽度和限高按内容区分；这份渐变重复写是有意的 —— 各自独立可调，
-   也不用为此再加一个共享类到 DOM 上。 */
+   只有宽度和限高按内容区分。
+   这份渐变原先逐字重复 12 次，注释写着「重复写是有意的 —— 各自独立可调，
+   也不用为此再加一个共享类到 DOM 上」。后半句的顾虑用令牌就解决了：令牌不动 DOM。
+   前半句「独立可调」实测并没有被有意使用 —— 12 份里有 2 份已经漂成
+   `#12181d 52% / #0c1115` 和 `49% / #0c1115`，只差 1 个通道和 1–4% 停点，
+   纯属抄写噪声。所以收成 --hos-tool-panel（定义在 design/scene/page.css 的
+   --hos-tool-* 组）。真要单独调某个弹窗，覆盖 background 比改 12 处副本容易。
+   注意：令牌值取那 10 份的多数写法，另外 2 处并过来只差 1 个通道，肉眼不可辨。 */
 .hb-entity-details-dialog.line-chart-details {
   width: min(760px, calc(100% - 24px));
   max-height: min(540px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -2111,7 +2117,7 @@
   max-height: min(620px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -2122,7 +2128,7 @@
   max-height: min(540px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -2135,14 +2141,14 @@
    以后调整主色只改这两行。 */
 .hb-entity-details-dialog.vacuum-details {
   --hb-vacuum-accent: var(--hos-lumen);
-  --hb-vacuum-accent-soft: rgba(var(--hos-lumen-rgb), 0.12);
+  --hb-vacuum-accent-soft: rgba(var(--hos-lumen-rgb), 0.13);
   width: min(840px, calc(100% - 24px));
   max-height: min(458px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
   background:
     radial-gradient(circle at 18% 45%, rgba(129, 96, 42, 0.11), transparent 36%),
-    linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+    var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -2172,7 +2178,7 @@
 }
 .hb-entity-details-dialog.vacuum-details .hb-entity-details-heading strong {
   max-width: 480px;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -2183,7 +2189,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -2194,7 +2200,7 @@
   height: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #68747b;
+  background: var(--hos-tool-mark);
   content: "";
 }
 .hb-entity-details-dialog.vacuum-details .hb-entity-details-heading span.is-active {
@@ -2235,7 +2241,7 @@
   flex: 0 0 260px;
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 18px;
   background:
     radial-gradient(circle at 50% 40%, rgba(var(--hos-lumen-rgb), 0.075), transparent 48%),
@@ -2318,7 +2324,7 @@
   height: 43px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 50%;
-  background: radial-gradient(circle at 42% 34%, #657178, #30383d 48%, #151a1d);
+  background: radial-gradient(circle at 42% 34%, #657178, #30383d 48%, var(--hos-tool-surface));
   box-shadow:
     inset 0 4px 5px #ffffff24,
     0 5px 7px #00000059;
@@ -2345,7 +2351,7 @@
   width: 50px;
   height: 8px;
   border-radius: 99px;
-  background: linear-gradient(90deg, #1b2226, #435159, #1b2226);
+  background: linear-gradient(90deg, var(--hos-tool-surface-soft), #435159, var(--hos-tool-surface-soft));
   box-shadow: inset 0 1px #ffffff29;
   transform: translate(-50%);
 }
@@ -2446,7 +2452,7 @@
   box-shadow: none;
 }
 .hb-vacuum-battery strong {
-  color: #f2f3ef;
+  color: var(--hos-tool-ink);
   font-size: 24px;
   font-weight: 640;
   line-height: 1;
@@ -2466,7 +2472,7 @@
   left: 16px;
   max-width: 180px;
   overflow: hidden;
-  color: #87949a;
+  color: var(--hos-tool-muted-dim);
   font-size: 13px;
   font-weight: 580;
   text-overflow: ellipsis;
@@ -2513,7 +2519,7 @@
   justify-items: center;
   gap: 4px;
   padding: 6px 8px;
-  border: 1px solid rgba(126, 141, 153, 0.13);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.13);
   border-radius: 12px;
   background: #ffffff06;
   box-sizing: border-box;
@@ -2527,21 +2533,21 @@
   gap: 7px;
 }
 .hb-vacuum-details-stats i {
-  color: #75868a;
+  color: var(--hos-tool-hint);
   font: 15px/1 sans-serif;
   text-align: center;
 }
 /* 主数值与单位：两者都禁止换行，空间不足时统一走省略号，保证两列卡片高度一致。 */
 .hb-vacuum-details-stats strong {
   overflow: hidden;
-  color: #dfe5e6;
+  color: var(--hos-tool-ink-dim);
   font-size: 15px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-vacuum-details-stats small {
-  color: #77848a;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   font-weight: 540;
   white-space: nowrap;
@@ -2583,9 +2589,9 @@
   align-items: center;
   gap: 8px;
   padding: 12px 10px;
-  border: 1px solid rgba(126, 141, 153, 0.16);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.16);
   border-radius: 14px;
-  color: #89959c;
+  color: var(--hos-tool-muted-dim);
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow:
     0 8px 18px #00000029,
@@ -2626,7 +2632,7 @@
   display: grid;
   width: 32px;
   height: 32px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 50%;
   font: 14px/1 sans-serif;
   place-items: center;
@@ -2640,7 +2646,7 @@
 }
 /* 标题 16px 单行不折行、说明 10px 单行省略，两者都限一行，保证同一排按钮高度一致。 */
 .hb-vacuum-details-actions button strong {
-  color: #dce2e4;
+  color: var(--hos-tool-ink-dim);
   font-size: 16px;
   font-weight: 650;
   line-height: 1;
@@ -2648,7 +2654,7 @@
 }
 .hb-vacuum-details-actions button small {
   overflow: hidden;
-  color: #78858b;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   font-weight: 530;
   line-height: 1.25;
@@ -2681,7 +2687,7 @@
   align-content: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 14px;
   background: linear-gradient(145deg, #ffffff09, #ffffff03);
   box-shadow: inset 0 1px #ffffff06;
@@ -2695,13 +2701,13 @@
   gap: 12px;
 }
 .hb-vacuum-details-option-group > div:first-child strong {
-  color: #d6dcde;
+  color: var(--hos-tool-ink-dim);
   font-size: 15px;
   font-weight: 650;
 }
 .hb-vacuum-details-option-group > div:first-child small {
   overflow: hidden;
-  color: #77848a;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   font-weight: 530;
   text-overflow: ellipsis;
@@ -2721,7 +2727,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: #8e9aa0;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff05;
   font-size: 13px;
   font-weight: 600;
@@ -2735,7 +2741,7 @@
 }
 .hb-vacuum-details-options button:hover:not(:disabled) {
   border-color: #7e8d9938;
-  color: #dce2e4;
+  color: var(--hos-tool-ink-dim);
 }
 .hb-vacuum-details-options button.active {
   border-color: rgba(var(--hos-lumen-rgb), 0.42);
@@ -2889,8 +2895,8 @@
   justify-content: space-between;
   gap: 16px;
   padding: 17px 18px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.18);
-  background: #171d22;
+  border-bottom: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
+  background: var(--hos-tool-surface);
 }
 .hb-entity-details-heading > div {
   min-width: 0;
@@ -2898,7 +2904,7 @@
 .hb-entity-details-heading > div > span {
   display: block;
   overflow: hidden;
-  color: #78858d;
+  color: var(--hos-tool-hint);
   font:
     9px/1.3 Helvetica Neue,
     PingFang SC,
@@ -2911,7 +2917,7 @@
 .hb-entity-details-heading > div > strong {
   display: block;
   overflow: hidden;
-  color: #f0f3f5;
+  color: var(--hos-tool-ink);
   font:
     700 16px/1.3 Helvetica Neue,
     PingFang SC,
@@ -2926,10 +2932,10 @@
   height: 30px;
   min-height: 30px;
   padding: 0;
-  border: 1px solid #3b464e;
+  border: 1px solid var(--hos-tool-line-mid);
   border-radius: 50%;
-  color: #aeb8be;
-  background: #20272d;
+  color: var(--hos-tool-text-dim);
+  background: var(--hos-tool-surface-soft);
   font-size: 20px;
   cursor: pointer;
 }
@@ -2946,7 +2952,7 @@
   border-radius: 22px;
   background:
     radial-gradient(circle at 18% 48%, rgba(var(--hos-lumen-rgb), 0.1), transparent 35%),
-    linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+    var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -2964,13 +2970,13 @@
   gap: 4px;
 }
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
 }
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -2981,11 +2987,11 @@
   height: 8px;
   margin: 0 8px 1px 0;
   border-radius: 50%;
-  background: #68747b;
+  background: var(--hos-tool-mark);
   content: "";
 }
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:not(:empty) {
-  color: #8b969b;
+  color: var(--hos-tool-muted-dim);
 }
 /* 电动床弹窗不显示右上角关闭按钮，改由遮罩点击与返回操作关闭。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading button {
@@ -3106,7 +3112,7 @@
   min-width: 52px;
   justify-items: center;
   gap: 2px;
-  color: #e7ebeb;
+  color: var(--hos-tool-ink-dim);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
@@ -3183,7 +3189,7 @@
   display: grid;
   gap: 7px;
   padding: 10px 12px;
-  border: 1px solid rgba(126, 141, 153, 0.15);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.15);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow: inset 0 1px #ffffff06;
@@ -3191,7 +3197,7 @@
 /* 卡片小标题：13px / 650 字重，作为下面滑杆或选项组的组标题，与内容同为左对齐。 */
 .hb-electric-bed-control > strong,
 .hb-electric-bed-memory > strong {
-  color: #d6dcde;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 650;
 }
@@ -3245,9 +3251,9 @@
   width: 100%;
   min-height: 38px;
   padding: 7px 34px 7px 11px;
-  border: 1px solid rgba(126, 141, 153, 0.24);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.24);
   border-radius: 10px;
-  color: #e1e6e7;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #fff1, #ffffff05);
   font-size: 13px;
   font-weight: 620;
@@ -3265,8 +3271,8 @@
   opacity: 0.5;
 }
 .hb-electric-bed-capability .hb-capability-select option {
-  color: #e1e6e7;
-  background: #20282d;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface-soft);
 }
 /* 自绘下拉的定位容器：原生 select 无法做出弹窗内的一致外观，故部分场景改用这套。 */
 .hb-electric-bed-select {
@@ -3285,9 +3291,9 @@
   gap: 8px;
   padding: 7px 10px 7px 13px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.24);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.24);
   border-radius: 10px;
-  color: #e1e6e7;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #fff1, #ffffff05);
   font-size: 13px;
   font-weight: 620;
@@ -3321,8 +3327,8 @@
   left: 5px;
   width: 6px;
   height: 6px;
-  border-right: 1.5px solid #b8c0c4;
-  border-bottom: 1.5px solid #b8c0c4;
+  border-right: 1.5px solid var(--hos-tool-text-dim);
+  border-bottom: 1.5px solid var(--hos-tool-text-dim);
   transform: rotate(45deg);
   content: "";
   transition:
@@ -3371,8 +3377,8 @@
   overflow-y: auto;
   border: 1px solid rgba(151, 163, 171, 0.34);
   border-radius: 11px;
-  color: #d4dade;
-  background: linear-gradient(145deg, #252e34, #161d22);
+  color: var(--hos-tool-ink-dim);
+  background: linear-gradient(145deg, var(--hos-tool-surface-raised), var(--hos-tool-surface));
   box-shadow:
     0 16px 42px #000000b3,
     inset 0 1px #ffffff0d;
@@ -3398,7 +3404,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 7px;
-  color: #b8c1c6;
+  color: var(--hos-tool-text-dim);
   background: transparent;
   font-size: 13px;
   font-weight: 560;
@@ -3414,7 +3420,7 @@
 .hb-electric-bed-select-option:focus-visible {
   border-color: #96a2aa3d;
   outline: 0;
-  color: #f1f4f5;
+  color: var(--hos-tool-ink);
   background: #ffffff0e;
 }
 .hb-electric-bed-select-option.active {
@@ -3456,9 +3462,9 @@
   min-height: 42px;
   padding: 8px 10px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 10px;
-  color: #c9d2d5;
+  color: var(--hos-tool-text);
   background: #ffffff06;
   font-size: 12px;
   font-weight: 620;
@@ -3488,7 +3494,7 @@
 /* 记忆位为空时的占位文案：与记忆按钮同字号，去掉段落默认的上下外边距。 */
 .hb-electric-bed-empty {
   margin: 0;
-  color: #88959a;
+  color: var(--hos-tool-muted-dim);
   font-size: 13px;
 }
 /* 副文案为空时整行隐藏，避免标题下方留下一段无内容的空白。 */
@@ -3580,7 +3586,7 @@
   left: 7px;
   height: 8px;
   border-radius: 2px;
-  background: #333c45;
+  background: var(--hos-tool-track);
   box-shadow: inset 0 1px #ffffff14;
   transform: none;
 }
@@ -3612,7 +3618,7 @@
   font-size: 20px;
 }
 .hb-electric-bed-angle-readout small {
-  color: #a8b0b4;
+  color: var(--hos-tool-text-dim);
 }
 .hb-electric-bed-angle-readout:before {
   border-color: #d6dedea8;
@@ -3635,9 +3641,9 @@
 .hb-electric-bed-utilities .custom-select-button,
 .hb-electric-bed-utilities > .hb-electric-bed-control > .hb-capability-select {
   min-height: 44px;
-  border: 1px solid rgba(126, 141, 153, 0.24);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.24);
   border-radius: 10px;
-  color: #e1e6e7;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #fff1, #ffffff05);
   font-size: 13px;
   font-weight: 620;
@@ -3721,7 +3727,7 @@
   gap: 4px;
 }
 .hb-entity-details-dialog.line-chart-details .hb-entity-details-heading strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -3729,7 +3735,7 @@
 .hb-entity-details-dialog.line-chart-details .hb-entity-details-heading span {
   display: block;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -3772,7 +3778,7 @@
 }
 .hb-line-chart-current-visual strong,
 .hb-line-chart-current-visual small {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 37px;
   font-weight: 360;
   line-height: 0.9;
@@ -3816,7 +3822,7 @@
 }
 /* 名称 34px / 副文案 16px，与其它详情弹窗共用同一套标题字号与字距。 */
 .hb-entity-details-dialog.light-details .hb-entity-details-heading strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -3824,7 +3830,7 @@
 .hb-entity-details-dialog.light-details .hb-entity-details-heading span {
   display: block;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -3900,7 +3906,7 @@
 }
 .hb-light-details-panel .hb-light-details-slider output {
   width: 100%;
-  color: #b99264;
+  color: var(--hos-readout);
   font-size: 14px;
   font-weight: 620;
   text-align: center;
@@ -3992,14 +3998,15 @@
 .hb-light-details-panel > .hb-light-details-power strong {
   font-size: 14px;
 }
-/* 灯的可视化：颜色 / 不透明度 / 模糊 / 缩放四个变量由 JS 按亮度与色温写入，
-   下面所有光效（光晕、灯泡、色点）都从这四个变量派生，改灯效不必碰结构。 */
+/* 灯的可视化：颜色 / 不透明度 / 缩放三个变量由 JS 按亮度与色温写入，
+   下面所有光效（光晕、灯泡、色点）都从这三个变量派生，改灯效不必碰结构。
+   （曾有的第四枚 blur 从未被取用，已连同 JS 侧的写入一并删除，理由见
+   .hb-light-visual-aura 上方注释。） */
 /* 灯具图形 236×174，绝对定位到弹窗右上（top −190px 落进标题区）。
    编辑器里只作展示、不接收事件；详情弹窗里才升级为可点击的开关（见下）。 */
 .hb-light-visual {
   --hb-light-visual-color: rgb(255, 196, 112);
   --hb-light-visual-opacity: 0.8;
-  --hb-light-visual-blur: 80px;
   --hb-light-visual-scale: 1;
   position: absolute;
   z-index: 2;
@@ -4078,7 +4085,14 @@
   content: "";
 }
 /* 大范围环境光晕：四层同心 box-shadow 从 56px 扩散到 400px，
-   层数越多越接近真实灯泡的柔和衰减；整体不透明度跟随亮度变量。 */
+   层数越多越接近真实灯泡的柔和衰减；整体不透明度跟随亮度变量。
+
+   这里刻意不加 filter: blur()。上游去混淆源码曾带进来一枚 --hb-light-visual-blur
+   （JS 按亮度算 15–129px），但在本仓库任何一次提交里都没有过取用点 —— 也就是说
+   「用模糊做柔化」这套映射从来没有落地过，柔和衰减一直是靠上面这四层同心阴影叠出来的。
+   补上的代价不小：129px 的高斯模糊要对一整张近千像素的纹理逐帧重算，而亮度滑块一拖
+   就在动画（见下面的 transition），代价明显高于收益。变量本身已连同 JS 侧写入一并删除，
+   若要重新引入，连 blur 值一起在这里做视觉验证。 */
 .hb-light-visual-aura {
   position: absolute;
   z-index: 0;
@@ -4253,7 +4267,7 @@
   max-height: min(500px, calc(100% - 20px));
   border-color: #a0aab28a;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 52%, #0c1115);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -4276,19 +4290,19 @@
 }
 /* 开关弹窗标题：34px / 680 字重，与空调、窗帘共用同一套标题规格。 */
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
 }
 /* 状态副行 16px；开启时换成 --hos-eco（见下一条）。 */
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading span {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
 }
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading span.is-on {
-  color: var(--hos-eco, #9ed8bc);
+  color: var(--hos-eco, #5fd0a8);
 }
 /* 开关弹窗隐藏头部的通用按钮：交互全部交给中间的开关图形。 */
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading button {
@@ -4366,7 +4380,7 @@
   height: 220px;
   border: 1px solid rgba(190, 204, 211, 0.5);
   border-radius: 30px;
-  background: linear-gradient(145deg, #48535a, #232c32 28%, #11171b 76%, #303a40);
+  background: linear-gradient(145deg, #48535a, var(--hos-tool-surface-raised) 28%, var(--hos-tool-surface) 76%, #303a40);
   box-shadow:
     0 24px 38px #00000075,
     inset 0 2px 2px #ffffff29,
@@ -4406,7 +4420,7 @@
   justify-items: center;
   border: 1px solid rgba(194, 208, 215, 0.42);
   border-radius: 22px;
-  background: linear-gradient(180deg, #76828a, #4e5a62 44%, #283239 56%, #141b20);
+  background: linear-gradient(180deg, #76828a, #4e5a62 44%, var(--hos-tool-surface-raised) 56%, var(--hos-tool-surface));
   box-shadow:
     0 15px 22px #0000007a,
     inset 0 2px 2px #ffffff30,
@@ -4458,7 +4472,7 @@
 /* 开启：翘板反向倾斜（rotateX −9deg），渐变与阴影方向同步翻转，
    明暗关系对应「这一侧被按下去了」。 */
 .hb-switch-visual.is-on .hb-switch-visual-rocker {
-  background: linear-gradient(180deg, #242d32, #39454c 44%, #69777f 56%, #859198);
+  background: linear-gradient(180deg, var(--hos-tool-surface-raised), #39454c 44%, #69777f 56%, #859198);
   box-shadow:
     0 18px 24px #00000075,
     inset 0 5px 10px #0000005c,
@@ -4467,7 +4481,7 @@
 }
 /* 开启时 ON 字符提亮并染上同色光晕。 */
 .hb-switch-visual.is-on .hb-switch-visual-mark.on {
-  color: #e8fff3;
+  color: var(--hos-tool-ink);
   text-shadow: 0 0 10px color-mix(in srgb, var(--hb-switch-accent) 74%, transparent);
   transform: translateY(-2px);
 }
@@ -4508,7 +4522,7 @@
   gap: 10px;
   border-color: #a0aab26b;
   border-radius: 22px;
-  background: linear-gradient(145deg, #2d363db8, #161d22c2);
+  background: linear-gradient(145deg, #2d363db8, rgba(var(--hos-tool-surface-rgb), 0.76));
 }
 /* 圆图标放大到 48px、文字 18px（见下一条）。 */
 .hb-switch-details-power span {
@@ -4554,7 +4568,7 @@
   max-height: min(620px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -4581,7 +4595,7 @@
 }
 /* 标题 34px，与其它详情统一。 */
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -4590,13 +4604,13 @@
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading span {
   display: block;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
 }
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading span.is-on {
-  color: var(--hos-cool, #a8c5d3);
+  color: var(--hos-cool, #58c4ff);
 }
 /* 隐藏头部通用按钮，交互交给窗帘图形与下方动作按钮。 */
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading button {
@@ -4653,10 +4667,10 @@
   font-weight: 540;
   text-align: left;
 }
-/* 百分比数值 14px，用木质暖色 #b99264（窗帘的强调色）。 */
+/* 百分比数值 14px，用木质暖色（窗帘的强调色）—— 取值见 --hos-readout。 */
 .hb-cover-details-position output {
   width: 100%;
-  color: #b99264;
+  color: var(--hos-readout);
   font-size: 14px;
   font-weight: 620;
   text-align: center;
@@ -4743,7 +4757,7 @@
   justify-content: space-between;
 }
 .hb-cover-details-position-legend small {
-  color: #6f7980;
+  color: var(--hos-tool-disabled);
   font-size: 11px;
 }
 /* 动作按钮组：三列等宽（打开 / 暂停 / 关闭）。 */
@@ -4761,7 +4775,7 @@
   gap: 13px;
   border: 1px solid rgba(131, 151, 162, 0.36);
   border-radius: 16px;
-  color: #c4d2d9;
+  color: var(--hos-tool-text);
   background: linear-gradient(145deg, #36424ac2, #192026b8);
   box-shadow: inset 0 1px #e2eaef12;
   transition:
@@ -4774,7 +4788,7 @@
 .hb-cover-details-actions button:hover,
 .hb-cover-details-actions button.is-active {
   border-color: rgba(var(--hos-cool-rgb), 0.74);
-  color: #e7f5fb;
+  color: var(--hos-tool-ink);
   background: linear-gradient(145deg, #64899973, #202e36c7);
 }
 /* 按下缩小到 0.96。 */
@@ -4787,7 +4801,7 @@
   pointer-events: none;
 }
 .hb-cover-details-actions i {
-  color: var(--hos-cool, #a8c5d3);
+  color: var(--hos-cool, #58c4ff);
   font:
     500 29px/1 Helvetica Neue,
     PingFang SC,
@@ -4801,12 +4815,13 @@
 
 /* ===== 窗帘 / 梦幻帘图形（可点击，绝对定位在弹窗右上） ===== */
 
-/* 244×154 的窗口，三个变量由 JS 写入：--hb-cover-open-position 开合百分比、
-   --hb-cover-panel-width 单侧窗帘宽度、--hb-cover-single-panel-width 单侧开合整幅宽度。
-   默认 45.9% / 91.8% 是配套算出的：可视宽 244 − 左右各 10px = 224px 即容器的 91.8%，
-   两侧各占一半（45.9%）时刚好在中间合拢。 */
+/* 244×154 的窗口，两个变量由 JS 写入：--hb-cover-panel-width 单侧窗帘宽度、
+   --hb-cover-single-panel-width 单侧开合整幅宽度。下面两行兜底值与
+   utils/cover-features.js 的 COVER_*_WIDTH_BASE_PERCENT 同值（位置 0 = 合拢），
+   几何来路与「为什么四个数只能写一份」见该文件的注释。
+   曾有的第三枚 --hb-cover-open-position 由 JS 写入但样式表从不取用，已删除：
+   帘布宽度由上面两个派生量决定，原始百分比只留在 JS 里供叶片角度与晾衣杆使用。 */
 .hb-cover-visual {
-  --hb-cover-open-position: 0%;
   --hb-cover-panel-width: 45.9%;
   --hb-cover-single-panel-width: 91.8%;
   position: absolute;
@@ -5303,7 +5318,7 @@
 /* 比普通窗帘更冷的青灰调，标题栏状态与动作图标同步换色。 */
 .hb-entity-details-dialog.dream-cover-details {
   border-color: #8fb4c49e;
-  background: linear-gradient(145deg, #19242a, #11191e 48%, #0c1216);
+  background: linear-gradient(145deg, var(--hos-tool-surface-soft), var(--hos-tool-surface) 48%, var(--hos-tool-bg));
 }
 .hb-entity-details-dialog.dream-cover-details .hb-entity-details-heading span.is-on,
 .hb-entity-details-dialog.dream-cover-details .hb-cover-details-actions i {
@@ -5346,7 +5361,7 @@
 /* 实体名 34px / 680 字重；max-width 390px 保证不会压到右侧的机型图形。 */
 .hb-entity-details-dialog.climate-details .hb-entity-details-heading strong {
   max-width: 390px;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -5356,7 +5371,7 @@
 .hb-entity-details-dialog.climate-details .hb-entity-details-heading > div > span {
   display: block;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -5397,7 +5412,7 @@
   strong {
   width: auto;
   margin: 0;
-  color: #d9dfe3;
+  color: var(--hos-tool-ink-dim);
   font-size: 14px;
   font-weight: 620;
   letter-spacing: 0;
@@ -5589,7 +5604,7 @@
   overflow: hidden;
   border: 1px solid rgba(20, 27, 31, 0.48);
   border-radius: 3px 3px 10px 10px;
-  background: linear-gradient(#4c575d, #1d252a 68%, #0f1518);
+  background: linear-gradient(#4c575d, var(--hos-tool-surface-soft) 68%, var(--hos-tool-surface));
   box-shadow:
     inset 0 4px 7px #00000085,
     0 4px 6px #00000047;
@@ -5714,7 +5729,7 @@
   display: grid;
   height: 17px;
   color: #eef2f4b8;
-  background: linear-gradient(180deg, #3f474b, #161d21);
+  background: linear-gradient(180deg, #3f474b, var(--hos-tool-surface));
   clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%);
   font-size: 6px;
   letter-spacing: 0.14em;
@@ -5732,7 +5747,7 @@
   min-height: 38px;
   border: 0;
   border-radius: 7px 7px 2px 2px;
-  color: #c7d0d4;
+  color: var(--hos-tool-text);
   background: transparent;
   box-shadow: none;
   font-size: 21px;
@@ -5747,7 +5762,7 @@
   height: 72px;
   border: 1px solid rgba(15, 22, 26, 0.68);
   border-radius: 10px 10px 13px 13px;
-  background: linear-gradient(165deg, #687176, #252c30 58%, #171d20);
+  background: linear-gradient(165deg, #687176, #252c30 58%, var(--hos-tool-surface));
   box-shadow:
     inset 0 1px #ffffff3d,
     inset 0 -8px 14px #00000042,
@@ -5902,7 +5917,7 @@
 }
 /* 热水器运行状态用 --hos-heat，与空调的暖光区分。 */
 .hb-entity-details-dialog.water-heater-details .hb-entity-details-heading > div > span.is-on {
-  color: var(--hos-heat, #ff9a73);
+  color: var(--hos-heat, #ff8a65);
 }
 /* 模式分组绝对定位在表盘左下：宽 74%、最高 200px，超出部分滚动，
    滚动条也染成热水器的橙色系。 */
@@ -5963,7 +5978,7 @@
   padding: 7px 9px;
   overflow-x: hidden;
   overflow-y: auto;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff0a, #ffffff04);
   box-shadow: 0 7px 16px #00000021;
@@ -6104,7 +6119,7 @@
   .hb-entity-details-card
   > .hb-related-entity-extensions {
   --hb-climate-accent: var(--hos-lumen);
-  --hb-climate-accent-soft: rgba(var(--hos-lumen-rgb), 0.12);
+  --hb-climate-accent-soft: rgba(var(--hos-lumen-rgb), 0.13);
   width: auto;
   max-height: 78px;
   flex: 0 0 auto;
@@ -6222,7 +6237,7 @@
   min-height: 48px;
   border: 1px solid transparent;
   border-radius: 9px;
-  color: #929da4;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff05;
 }
 /* 开关项：20px 图标 + 文字两列。 */
@@ -6285,7 +6300,7 @@
 .hb-water-heater-extension-toggle strong {
   display: block;
   overflow: hidden;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
@@ -6305,19 +6320,19 @@
 }
 /* 暖光 --hos-lumen + 内外两层 drop-shadow，形成「已点亮」感。 */
 .hb-water-heater-extension-toggle.is-on i {
-  color: var(--hos-lumen, #ffab32);
+  color: var(--hos-lumen, #ff9d4d);
   background: transparent;
   filter: drop-shadow(0 0 3px rgba(255, 157, 38, 0.92))
     drop-shadow(0 0 8px rgba(255, 130, 24, 0.58));
 }
 .hb-water-heater-extension-toggle.is-on strong {
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
 }
 /* 开关与动作按钮共用悬停反馈；禁用态见下一条。 */
 .hb-water-heater-extension-toggle:hover:not(:disabled),
 .hb-water-heater-extension-action:hover:not(:disabled) {
   border-color: #7e8d9938;
-  color: #d8dde0;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff09;
 }
 .hb-water-heater-extension-toggle:disabled {
@@ -6341,7 +6356,7 @@
 .hb-water-heater-extension-select > span,
 .hb-water-heater-extension-number > span:first-child {
   overflow: hidden;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6359,10 +6374,10 @@
   gap: 5px;
   padding: 2px 5px 2px 7px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 7px;
-  color: #d8dde0;
-  background: #20282e;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface-soft);
   font-size: 9px;
   text-align: left;
 }
@@ -6384,15 +6399,15 @@
   left: 3px;
   width: 5px;
   height: 5px;
-  border-right: 1.5px solid #aeb8be;
-  border-bottom: 1.5px solid #aeb8be;
+  border-right: 1.5px solid var(--hos-tool-text-dim);
+  border-bottom: 1.5px solid var(--hos-tool-text-dim);
   transform: rotate(45deg);
   content: "";
 }
 /* 展开态用 --hb-climate-accent 描边：在关联扩展条里是暖黄，在热水器里是橙。 */
 .hb-related-select-trigger[aria-expanded="true"] {
   border-color: var(--hb-climate-accent);
-  color: #eef2f4;
+  color: var(--hos-tool-ink);
 }
 .hb-related-select-trigger[aria-expanded="true"] > i:after {
   top: 5px;
@@ -6416,8 +6431,8 @@
   overflow-y: auto;
   border: 1px solid rgba(145, 158, 167, 0.34);
   border-radius: 9px;
-  color: #cbd2d6;
-  background: linear-gradient(145deg, #252d33, #171e23);
+  color: var(--hos-tool-text);
+  background: linear-gradient(145deg, var(--hos-tool-surface-raised), var(--hos-tool-surface));
   box-shadow:
     0 14px 38px #000000a3,
     inset 0 1px #ffffff09;
@@ -6440,7 +6455,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 6px;
-  color: #aab4ba;
+  color: var(--hos-tool-text-dim);
   background: transparent;
   font-size: 10px;
   text-align: left;
@@ -6451,12 +6466,12 @@
 .hb-related-select-option:focus-visible {
   border-color: #7e8d9938;
   outline: 0;
-  color: #edf1f3;
+  color: var(--hos-tool-ink);
   background: #ffffff0b;
 }
 .hb-related-select-option.active {
   border-color: color-mix(in srgb, var(--hb-climate-accent) 48%, transparent);
-  color: #f3f6f7;
+  color: var(--hos-tool-ink);
   background: color-mix(in srgb, var(--hb-climate-accent) 15%, transparent);
 }
 /* 步进控件：− / 当前值 / + 三列，两侧按钮 24px。 */
@@ -6472,21 +6487,21 @@
   height: 24px;
   min-height: 24px;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 7px;
-  color: #cbd2d6;
+  color: var(--hos-tool-text);
   background: #ffffff06;
   font-size: 13px;
 }
 .hb-water-heater-extension-number output {
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 9px;
   text-align: center;
 }
 /* 动作按钮：整块可点的文字按钮。 */
 .hb-water-heater-extension-action {
   padding: 6px 9px;
-  color: #cbd2d6;
+  color: var(--hos-tool-text);
   font-size: 9px;
   cursor: pointer;
 }
@@ -6503,14 +6518,14 @@
 }
 .hb-water-heater-extension-readonly strong {
   overflow: hidden;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 9px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-water-heater-extension-readonly small {
-  color: #dce2e6;
+  color: var(--hos-tool-ink-dim);
   font-size: 10px;
 }
 /* 值不可用时整项半透明。 */
@@ -6592,10 +6607,10 @@
   justify-content: space-between;
   gap: 16px;
   padding: 15px 18px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.14);
+  border-bottom: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
 }
 .hb-entity-details-state span {
-  color: #89959c;
+  color: var(--hos-tool-muted-dim);
   font:
     10px/1.4 Helvetica Neue,
     PingFang SC,
@@ -6783,7 +6798,7 @@
   padding: 8px 10px;
   border: 1px solid rgba(160, 170, 178, 0.24);
   border-radius: 14px;
-  color: #c5cdd2;
+  color: var(--hos-tool-text);
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow:
     0 8px 18px #0003,
@@ -6800,7 +6815,7 @@
   line-height: 1;
 }
 .hb-light-details-presets button small {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 11px;
   font-weight: 540;
   line-height: 1;
@@ -6831,7 +6846,7 @@
   display: grid;
   gap: 13px;
   padding: 15px 16px 13px;
-  border: 1px solid rgba(126, 141, 153, 0.16);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.16);
   border-radius: 13px;
   background: linear-gradient(145deg, #ffffff0b, #ffffff05);
   box-shadow:
@@ -6881,7 +6896,7 @@
   place-items: center;
 }
 .hb-light-details-slider strong {
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font:
     620 14px/1.3 Helvetica Neue,
     PingFang SC,
@@ -6889,7 +6904,7 @@
     sans-serif;
 }
 .hb-light-details-slider output {
-  color: #a5afb5;
+  color: var(--hos-tool-text-dim);
   font:
     600 12px/1.3 Helvetica Neue,
     PingFang SC,
@@ -6969,8 +6984,8 @@
     90deg,
     var(--hos-lumen) 0%,
     var(--hos-lumen) var(--hb-light-slider-progress),
-    #343d44 var(--hb-light-slider-progress),
-    #343d44 100%
+    var(--hos-tool-track) var(--hb-light-slider-progress),
+    var(--hos-tool-track) 100%
   );
 }
 /* 图例两端对齐，与滑杆左右边界对齐。 */
@@ -6981,7 +6996,7 @@
   gap: 16px;
 }
 .hb-light-details-slider-legend small {
-  color: #707c84;
+  color: var(--hos-tool-hint-dim);
   font:
     10px/1.3 Helvetica Neue,
     PingFang SC,
@@ -6998,7 +7013,7 @@
   width: calc(100% - 32px);
   margin: 0 16px 16px;
   padding: 12px 15px;
-  border: 1px solid rgba(126, 141, 153, 0.16);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.16);
   border-radius: 13px;
   color: inherit;
   background: linear-gradient(145deg, #ffffff0b, #ffffff05);
@@ -7046,9 +7061,9 @@
   display: grid;
   width: 30px;
   height: 30px;
-  border: 1px solid rgba(126, 141, 153, 0.24);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.24);
   border-radius: 50%;
-  color: #7d888f;
+  color: var(--hos-tool-hint);
   background: #ffffff06;
   font-size: 17px;
   place-items: center;
@@ -7057,7 +7072,7 @@
 .hb-light-details-power strong,
 .hb-climate-details-power strong {
   margin-right: auto;
-  color: #929da4;
+  color: var(--hos-tool-muted-dim);
   font-size: 14px;
   font-weight: 620;
 }
@@ -7070,7 +7085,7 @@
 }
 .hb-light-details-power.is-on strong,
 .hb-climate-details-power.is-on strong {
-  color: #e9edef;
+  color: var(--hos-tool-ink);
 }
 
 /* ===== 空调 / 暖风机详情的主控件区 ===== */
@@ -7112,9 +7127,9 @@
   justify-items: center;
   gap: 9px;
   padding: 24px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 16px;
-  color: #8f9aa1;
+  color: var(--hos-tool-muted-dim);
   background: linear-gradient(145deg, #ffffff0a, #ffffff04);
   text-align: center;
   box-sizing: border-box;
@@ -7124,7 +7139,7 @@
   display: block;
   width: 30px;
   height: 30px;
-  border: 2px solid rgba(126, 141, 153, 0.2);
+  border: 2px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-top-color: var(--hb-climate-accent);
   border-radius: 50%;
 }
@@ -7136,13 +7151,13 @@
   border-color: #7e8d995c;
 }
 .hb-climate-details-loading strong {
-  color: #dce2e6;
+  color: var(--hos-tool-ink-dim);
   font-size: 16px;
   font-weight: 620;
 }
 .hb-climate-details-loading span {
   max-width: 360px;
-  color: #7e8991;
+  color: var(--hos-tool-hint);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -7199,7 +7214,7 @@
   background: conic-gradient(
     from 225deg,
     var(--hb-climate-accent) 0 var(--hb-climate-temperature-progress),
-    #303940 var(--hb-climate-temperature-progress) 75%,
+    var(--hos-tool-track) var(--hb-climate-temperature-progress) 75%,
     transparent 75% 100%
   );
   filter: drop-shadow(0 0 0 transparent);
@@ -7214,9 +7229,9 @@
 .hb-climate-temperature-dial:before {
   position: absolute;
   inset: 9px;
-  border: 1px solid rgba(126, 141, 153, 0.13);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.13);
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 34%, #20282e, #151b20 72%);
+  background: radial-gradient(circle at 50% 34%, #20282e, var(--hos-tool-surface) 72%);
   box-shadow: inset 0 8px 30px #00000038;
   content: "";
 }
@@ -7256,7 +7271,7 @@
 }
 .hb-climate-arc-cap.end {
   --hb-climate-cap-angle: 495deg;
-  background: #303940;
+  background: var(--hos-tool-track);
 }
 /* 可拖动的滑块：20px 白圆，位置由 --hb-climate-thumb-angle 旋转 104px 得到。 */
 .hb-climate-temperature-thumb {
@@ -7319,12 +7334,12 @@
 }
 /* 顶部小标签（如「当前温度」）。 */
 .hb-climate-temperature-content > small {
-  color: #7d8990;
+  color: var(--hos-tool-hint);
   font-size: 11px;
 }
 /* 主读数：300 字重 58px，负字距让大数字更紧凑。 */
 .hb-climate-temperature-content > strong {
-  color: #f0f3f5;
+  color: var(--hos-tool-ink);
   font:
     300 58px/1 Helvetica Neue,
     SF Pro Display,
@@ -7339,14 +7354,14 @@
 /* 单位（°C）用 14px 上标。 */
 .hb-climate-temperature-content > strong small {
   margin-left: 4px;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 14px;
   font-weight: 500;
   vertical-align: top;
 }
 /* 底部状态行（如「制冷中」）。 */
 .hb-climate-temperature-content > span {
-  color: #737f87;
+  color: var(--hos-tool-hint-dim);
   font-size: 11px;
 }
 /* 温度加减按钮：42px 见方。 */
@@ -7356,9 +7371,9 @@
   height: 42px;
   min-height: 42px;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 12px;
-  color: #d7dde1;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow: 0 7px 18px #0003;
   font-size: 22px;
@@ -7376,7 +7391,7 @@
 }
 /* 到达上下限或指令下发中：变暗 + wait 光标。 */
 .hb-climate-temperature-step:disabled {
-  color: #59646b;
+  color: var(--hos-tool-disabled);
   cursor: wait;
   opacity: 0.55;
 }
@@ -7388,7 +7403,7 @@
   display: grid;
   gap: 5px;
   padding: 7px 9px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff0a, #ffffff04);
   box-shadow: 0 7px 16px #00000021;
@@ -7421,7 +7436,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 9px;
-  color: #89949b;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff05;
   font-size: 11px;
   cursor: pointer;
@@ -7453,13 +7468,13 @@
 /* 悬停轻度提亮。 */
 .hb-climate-details-options button:hover:not(:disabled) {
   border-color: #7e8d9938;
-  color: #d8dde0;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff09;
 }
 /* 选中项：强调色描边 + 软色底 + 内发光；图标另有以纯强调色着色的规则（见下）。 */
 .hb-climate-details-options button.active {
   border-color: var(--hb-climate-accent);
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   background: var(--hb-climate-accent-soft);
   box-shadow:
     inset 0 1px #ffffff0d,
@@ -7486,7 +7501,7 @@
   height: auto;
   overflow: visible;
   clip-path: none;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 11px;
   font-weight: 620;
   line-height: 1.25;
@@ -7512,9 +7527,9 @@
   gap: 7px;
   padding: 6px 8px 6px 11px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.23);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.23);
   border-radius: 9px;
-  color: #dce2e5;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #ffffff0f, #ffffff05);
   box-shadow: inset 0 1px #ffffff06;
   font-size: 12px;
@@ -7547,8 +7562,8 @@
   left: 4px;
   width: 6px;
   height: 6px;
-  border-right: 1.5px solid #b5bec3;
-  border-bottom: 1.5px solid #b5bec3;
+  border-right: 1.5px solid var(--hos-tool-text-dim);
+  border-bottom: 1.5px solid var(--hos-tool-text-dim);
   transform: rotate(45deg);
   content: "";
   transition:
@@ -7557,13 +7572,13 @@
 }
 /* 悬停时描边与底色提亮。 */
 .hb-climate-select-trigger:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--hb-climate-accent) 58%, rgba(126, 141, 153, 0.3));
+  border-color: color-mix(in srgb, var(--hb-climate-accent) 58%, rgba(var(--hos-tool-hairline-rgb), 0.3));
   background: linear-gradient(145deg, #ffffff14, #ffffff07);
 }
 /* 展开态由 aria-expanded 驱动：强调色描边 + 2px 软色焦点环。 */
 .hb-climate-select-trigger[aria-expanded="true"] {
   border-color: var(--hb-climate-accent);
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   box-shadow:
     0 0 0 2px var(--hb-climate-accent-soft),
     0 8px 20px #00000038;
@@ -7596,8 +7611,8 @@
   overflow-y: auto;
   border: 1px solid rgba(145, 158, 167, 0.38);
   border-radius: 11px;
-  color: #cbd3d7;
-  background: linear-gradient(145deg, #263038, #171e23);
+  color: var(--hos-tool-text);
+  background: linear-gradient(145deg, var(--hos-tool-surface-raised), var(--hos-tool-surface));
   box-shadow:
     0 18px 48px #000000b8,
     inset 0 1px #ffffff0d;
@@ -7628,7 +7643,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: #aeb8bd;
+  color: var(--hos-tool-text-dim);
   background: transparent;
   font-size: 12px;
   font-weight: 560;
@@ -7643,14 +7658,14 @@
 .hb-climate-select-option:focus-visible {
   border-color: #96a3ab47;
   outline: 0;
-  color: #f0f4f5;
+  color: var(--hos-tool-ink);
   background: #ffffff0f;
 }
 /* 当前项：强调色 58% 描边 + 16% 混色底 + 内发光。 */
 .hb-climate-select-option.active {
   border-color: color-mix(in srgb, var(--hb-climate-accent, #7fc7eb) 58%, transparent);
-  color: #f5f8f9;
-  background: color-mix(in srgb, var(--hb-climate-accent, #7fc7eb) 16%, #1b242a);
+  color: var(--hos-tool-ink);
+  background: color-mix(in srgb, var(--hb-climate-accent, #7fc7eb) 16%, var(--hos-tool-surface-soft));
   box-shadow: inset 0 0 14px var(--hb-climate-accent-soft, rgba(127, 199, 235, 0.12));
 }
 /* 风速滑杆卡片：浅描边 + 极淡渐变底，与其它分组卡同一套视觉。 */
@@ -7658,7 +7673,7 @@
   display: grid;
   gap: 8px;
   padding: 8px 11px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff0a, #ffffff04);
   box-shadow: 0 7px 16px #00000021;
@@ -7690,12 +7705,12 @@
   place-items: center;
 }
 .hb-climate-fan-slider-heading strong {
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 620;
 }
 .hb-climate-fan-slider-heading output {
-  color: #a5afb5;
+  color: var(--hos-tool-text-dim);
   font-size: 11px;
   font-weight: 600;
 }
@@ -7703,16 +7718,16 @@
 .hb-climate-fan-auto {
   min-height: 27px;
   padding: 3px 10px;
-  border: 1px solid rgba(126, 141, 153, 0.2);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-radius: 99px;
-  color: #89949b;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff06;
   font-size: 10px;
   cursor: pointer;
 }
 .hb-climate-fan-auto.active {
   border-color: var(--hb-climate-accent);
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   background: var(--hb-climate-accent-soft);
 }
 /* 指令下发中禁用并换成 wait 光标。 */
@@ -7733,8 +7748,8 @@
     90deg,
     var(--hb-climate-accent) 0%,
     var(--hb-climate-accent) var(--hb-climate-fan-progress),
-    #343d44 var(--hb-climate-fan-progress),
-    #343d44 100%
+    var(--hos-tool-track) var(--hb-climate-fan-progress),
+    var(--hos-tool-track) 100%
   );
   transition: background 0.28s ease;
   appearance: none;
@@ -7787,7 +7802,7 @@
   gap: 16px;
 }
 .hb-climate-fan-slider-legend small {
-  color: #707c84;
+  color: var(--hos-tool-hint-dim);
   font-size: 10px;
 }
 /* 卫浴暖风机的灯暖控制行：最小 48px，左侧信息 + 右侧按钮两列。 */
@@ -7798,7 +7813,7 @@
   align-items: center;
   gap: 12px;
   padding: 8px 11px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff0a, #ffffff04);
   box-shadow: 0 7px 16px #00000021;
@@ -7815,32 +7830,32 @@
   display: grid;
   width: 25px;
   height: 25px;
-  border: 1px solid rgba(126, 141, 153, 0.2);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-radius: 50%;
-  color: #89949b;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff06;
   font: 13px/1 sans-serif;
   place-items: center;
 }
 .hb-bath-heater-light-control strong {
   overflow: hidden;
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-bath-heater-light-control output {
-  color: #89949b;
+  color: var(--hos-tool-muted-dim);
   font-size: 11px;
 }
 /* 开 / 关胶囊按钮 31px 高。 */
 .hb-bath-heater-light-control button {
   min-height: 31px;
   padding: 5px 12px;
-  border: 1px solid rgba(126, 141, 153, 0.2);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-radius: 99px;
-  color: #aab4ba;
+  color: var(--hos-tool-text-dim);
   background: #ffffff06;
   font-size: 11px;
   cursor: pointer;
@@ -8275,12 +8290,12 @@
   grid-template-columns: minmax(100px, 0.8fr) minmax(0, 1.2fr);
   gap: 12px;
   padding: 9px 0;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.1);
+  border-bottom: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.1);
 }
 /* 属性名 10px、单行截断；长键名宁可省略也不换行，保证行高一致。 */
 .hb-entity-details-attributes dt {
   overflow: hidden;
-  color: #7f8b93;
+  color: var(--hos-tool-hint);
   font:
     10px/1.45 Helvetica Neue,
     PingFang SC,
@@ -8293,7 +8308,7 @@
 .hb-entity-details-attributes dd {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #cbd2d6;
+  color: var(--hos-tool-text);
   font:
     11px/1.45 Helvetica Neue,
     PingFang SC,
@@ -8305,7 +8320,7 @@
 .hb-entity-details-empty {
   margin: 0;
   padding: 24px 18px;
-  color: #7e8991;
+  color: var(--hos-tool-hint);
   font:
     11px/1.5 Helvetica Neue,
     PingFang SC,
@@ -8325,7 +8340,7 @@
   display: grid;
   place-items: center;
   overflow: visible;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.14);
   border-radius: 12px;
   background: linear-gradient(145deg, #ffffff09, #ffffff03);
   box-shadow:
@@ -8344,7 +8359,7 @@
 .hb-line-chart-details > p {
   margin: 0;
   padding: 46px 18px;
-  color: #7e8991;
+  color: var(--hos-tool-hint);
   font-size: 11px;
   text-align: center;
 }
@@ -8366,7 +8381,7 @@
 }
 /* 坐标标签 20px；轴标题再亮一级并加粗（600 22px），用于区分层级。 */
 .hb-line-chart-details-axis-label {
-  fill: #7f8a92;
+  fill: var(--hos-tool-hint);
   font:
     20px Helvetica Neue,
     PingFang SC,
@@ -8506,7 +8521,7 @@
   overflow: hidden;
   border: 1px solid rgba(160, 170, 178, 0.56);
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -8538,7 +8553,7 @@
   display: block;
   width: 100%;
   overflow: hidden;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -8599,7 +8614,7 @@
 .hb-custom-popup-module-heading > strong {
   min-width: 0;
   overflow: hidden;
-  color: #f2f4f5;
+  color: var(--hos-tool-ink);
   font-size: 26px;
   font-weight: 670;
   line-height: 1.2;
@@ -8619,7 +8634,7 @@
   padding: 6px 11px;
   border: 1px solid rgba(160, 170, 178, 0.34);
   border-radius: 20px;
-  color: #b8c1c6;
+  color: var(--hos-tool-text-dim);
   background: linear-gradient(145deg, #2d363dad, #192026a8);
   box-shadow: inset 0 1px #e2eaef0d;
   font-size: 15px;
@@ -8631,7 +8646,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #69757c;
+  background: var(--hos-tool-mark);
   content: "";
 }
 /* 生效态描边用 color-mix 把主题强调色与默认灰描边按 42% 混合，
@@ -8642,17 +8657,17 @@
     var(--hb-climate-accent, var(--hos-eco, #5fd0a8)) 42%,
     rgba(160, 170, 178, 0.34)
   );
-  color: #e1e6e9;
+  color: var(--hos-tool-ink-dim);
 }
 /* 在线：绿点 + 外发光，并用一次性 0.62s 动画强调「刚刚连接上」。 */
 .hb-custom-popup-module-status.type-camera.is-live:before {
   background: var(--hos-eco, #5fd0a8);
-  box-shadow: 0 0 10px var(--hos-eco, #5fd0a8)ad;
+  box-shadow: 0 0 10px rgba(var(--hos-eco-rgb, 95, 208, 168), 0.68);
   animation: hb-camera-status-ready 0.62s ease-out 1;
 }
 /* 不可用：红点 + 较弱的外发光。 */
 .hb-custom-popup-module-status.type-camera.is-unavailable:before {
-  background: var(--hos-alert, #d45f5f);
+  background: var(--hos-alert, #f07a7e);
   box-shadow: 0 0 8px rgba(var(--hos-alert-rgb), 0.52);
 }
 /* 运行中：胶囊整体 2.4s 呼吸。 */
@@ -8662,7 +8677,7 @@
 /* 灯亮起用暖金色描边与微光，与灯控件的色调呼应。 */
 .hb-custom-popup-module-status.type-light.is-live {
   border-color: #cfa55f75;
-  color: #e9edef;
+  color: var(--hos-tool-ink);
   box-shadow:
     inset 0 1px #e2eaef0d,
     0 0 12px #b9925a1f;
@@ -8695,7 +8710,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -8812,7 +8827,7 @@
 }
 .hb-custom-popup-module--light .hb-light-details-slider output {
   width: 100%;
-  color: #b99264;
+  color: var(--hos-readout);
   font-size: 12px;
   font-weight: 620;
   text-align: center;
@@ -8954,7 +8969,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -9068,7 +9083,7 @@
   inset: 11px 17px auto 157px;
   height: 27px;
   border-radius: 5px;
-  background: linear-gradient(180deg, #465158, #182126);
+  background: linear-gradient(180deg, #465158, var(--hos-tool-surface-soft));
   box-shadow:
     inset 0 4px 8px #00000075,
     0 2px 3px #0003;
@@ -9294,7 +9309,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -9303,7 +9318,7 @@
 }
 /* 在线 / 生效状态用淡绿色。 */
 .hb-custom-popup-module--switch .hb-custom-popup-module-status.is-live {
-  color: var(--hos-eco, #9ed8bc);
+  color: var(--hos-eco, #5fd0a8);
 }
 /* 3D 弹窗里的开关按 154×198 竖版重排，而不是控件态的横版。 */
 .hb-custom-switch-visual {
@@ -9358,7 +9373,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -9469,7 +9484,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -9486,7 +9501,7 @@
   align-items: baseline;
   justify-content: flex-end;
   gap: 7px;
-  color: #eef2f3;
+  color: var(--hos-tool-ink);
   text-align: right;
   text-shadow: 0 0 22px color-mix(in srgb, var(--hb-custom-chart-accent, var(--hos-eco, #5fd0a8)) 38%, transparent);
   transform-origin: center;
@@ -9500,7 +9515,7 @@
   letter-spacing: 0.01em;
 }
 .hb-custom-line-chart-current small {
-  color: #d8dfe2;
+  color: var(--hos-tool-ink-dim);
   font-size: 30px;
   font-weight: 520;
   line-height: 1;
@@ -9567,7 +9582,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -9575,7 +9590,7 @@
   line-height: 1.2;
 }
 .hb-custom-popup-module--camera .hb-custom-popup-module-status.is-live {
-  color: #aab6bc;
+  color: var(--hos-tool-text-dim);
 }
 /* 设备模型缩到 0.62，Transform-origin 取右上角以贴合卡片边角。 */
 .hb-custom-camera-device-visual {
@@ -9596,7 +9611,7 @@
   aspect-ratio: 16 / 9;
   border: 1px solid rgba(160, 170, 178, 0.34);
   border-radius: 16px;
-  background: #080b0e;
+  background: var(--hos-tool-bg);
   box-shadow:
     0 16px 34px #00000057,
     inset 0 1px #e2eaef0b;
@@ -9618,8 +9633,8 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #9aa5ab;
-  background: #0b0f13;
+  color: var(--hos-tool-label);
+  background: var(--hos-tool-bg);
   font-size: 15px;
 }
 /* 父级是 grid，[hidden] 要显式 display: none。 */
@@ -9632,7 +9647,7 @@
   margin: 0;
   display: grid;
   place-items: center;
-  color: #aeb8bd;
+  color: var(--hos-tool-text-dim);
   font-size: 13px;
 }
 
@@ -9814,14 +9829,14 @@
 /* 曲名与艺术家名都单行截断，避免长文件名把卡片撑变形。 */
 .hb-custom-media-player-body > strong {
   overflow: hidden;
-  color: #eef3f4;
+  color: var(--hos-tool-ink);
   font-size: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-custom-media-player-body > span {
   overflow: hidden;
-  color: #87949a;
+  color: var(--hos-tool-muted-dim);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -9835,7 +9850,7 @@
   max-height: min(500px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
   box-shadow:
     0 30px 90px #000000c2,
     inset 0 1px #e2eaef13,
@@ -9854,12 +9869,12 @@
   gap: 4px;
 }
 .hb-entity-details-dialog.capability-details .hb-entity-details-heading > div > strong {
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 30px;
   font-weight: 680;
 }
 .hb-entity-details-dialog.capability-details .hb-entity-details-heading span {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 14px;
   font-weight: 540;
 }
@@ -9877,14 +9892,14 @@
   display: grid;
   gap: 9px;
   padding: 13px 15px;
-  border: 1px solid rgba(126, 141, 153, 0.15);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.15);
   border-radius: 14px;
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow: inset 0 1px #ffffff06;
 }
 .hb-capability-option-group > strong,
 .hb-capability-range-heading strong {
-  color: #d6dcde;
+  color: var(--hos-tool-ink-dim);
   font-size: 14px;
   font-weight: 650;
 }
@@ -9901,7 +9916,7 @@
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: #8e9aa0;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff05;
   font-size: 13px;
   font-weight: 600;
@@ -9947,10 +9962,10 @@
   width: 100%;
   min-height: 42px;
   padding: 0 12px;
-  border: 1px solid rgba(126, 141, 153, 0.23);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.23);
   border-radius: 10px;
-  color: #dce2e6;
-  background: #20282e;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface-soft);
   font: inherit;
 }
 
@@ -9980,7 +9995,7 @@
   align-items: center;
   gap: 11px;
   padding: 9px 10px;
-  border: 1px solid rgba(126, 141, 153, 0.15);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.15);
   border-radius: 14px;
   background:
     radial-gradient(circle at 18% 30%, rgba(var(--hos-accent-rgb), 0.12), transparent 50%), #ffffff06;
@@ -10010,14 +10025,14 @@
 }
 .hb-media-player-copy strong {
   overflow: hidden;
-  color: #f1f5f6;
+  color: var(--hos-tool-ink);
   font-size: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-media-player-copy span {
   overflow: hidden;
-  color: #8e9ba2;
+  color: var(--hos-tool-muted-dim);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10053,7 +10068,7 @@
 .hb-media-player-progress > span {
   display: flex;
   justify-content: space-between;
-  color: #74838a;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 /* 三个动作按钮等宽平分一行，最小 34px 高。 */
@@ -10065,9 +10080,9 @@
 .hb-media-player-actions button {
   min-height: 34px;
   padding: 4px 7px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 10px;
-  color: #c9d2d6;
+  color: var(--hos-tool-text);
   background: #ffffff09;
   font-size: 13px;
   cursor: pointer;
@@ -10095,9 +10110,9 @@
 .hb-media-browser-item button {
   min-height: 30px;
   padding: 4px 9px;
-  border: 1px solid rgba(126, 141, 153, 0.2);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-radius: 8px;
-  color: #c9d2d6;
+  color: var(--hos-tool-text);
   background: #ffffff09;
   font-size: 12px;
   cursor: pointer;
@@ -10112,7 +10127,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   background: transparent;
   box-shadow: none;
 }
@@ -10159,11 +10174,11 @@
   height: 0;
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 8px solid #182126;
+  border-left: 8px solid var(--hos-tool-panel-stop);
   content: "";
 }
 .hb-media-browser-trigger:hover:not(:disabled) {
-  color: #e2e7e9;
+  color: var(--hos-tool-ink-dim);
   background: transparent;
 }
 .hb-media-browser-back:hover:not(:disabled),
@@ -10190,7 +10205,7 @@
   border: 0;
   border-radius: inherit;
   box-sizing: border-box;
-  background: #111a20;
+  background: var(--hos-tool-surface);
   box-shadow:
     0 0 0 999px #04080b57,
     0 18px 44px #00000094;
@@ -10215,9 +10230,9 @@
   min-height: 28px;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.2);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.2);
   border-radius: 10px;
-  color: #aebbc1;
+  color: var(--hos-tool-text-dim);
   background: #ffffff09;
   font-size: 18px;
   line-height: 1;
@@ -10228,13 +10243,13 @@
    屏幕上看到的字号才不会跟着缩水。 */
 .hb-media-browser-location {
   overflow: hidden;
-  color: #d9e4e8;
+  color: var(--hos-tool-ink-dim);
   font-size: calc(16px / var(--hb-runtime-dialog-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .hb-media-browser-status {
-  color: #7f929a;
+  color: var(--hos-tool-hint);
   font-size: calc(14px / var(--hb-runtime-dialog-scale, 1));
   text-align: right;
 }
@@ -10261,7 +10276,7 @@
 .hb-media-browser-item-title {
   min-width: 0;
   overflow: hidden;
-  color: #c9d2d6;
+  color: var(--hos-tool-text);
   font-size: calc(16px / var(--hb-runtime-dialog-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -10269,7 +10284,7 @@
 /* 空目录提示居中。 */
 .hb-media-browser-empty {
   margin: 4px 0;
-  color: #7f929a;
+  color: var(--hos-tool-hint);
   font-size: calc(15px / var(--hb-runtime-dialog-scale, 1));
   text-align: center;
 }
@@ -10417,7 +10432,7 @@
   width: 100%;
   height: 58px;
   min-height: 58px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 14px;
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow:
@@ -10480,7 +10495,7 @@
 /* 设备名 14px 单行截断，右侧状态字固定不缩。 */
 .hb-switch-visual.is-compact .hb-switch-visual-copy-label {
   overflow: hidden;
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 14px;
   font-weight: 620;
   text-overflow: ellipsis;
@@ -10488,7 +10503,7 @@
 }
 .hb-switch-visual.is-compact .hb-switch-visual-copy-state {
   flex: 0 0 auto;
-  color: #89949b;
+  color: var(--hos-tool-muted-dim);
   font-size: 12px;
   font-weight: 600;
 }
@@ -10519,12 +10534,12 @@
   --hb-air-purifier-accent: var(--hos-eco);
   --hb-air-purifier-accent-soft: rgba(var(--hos-eco-rgb), 0.13);
   --hb-air-purifier-ui-accent: var(--hos-cool);
-  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.12);
+  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.13);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
   border-color: #a2b1b866;
   border-radius: 22px;
-  background: linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
+  background: var(--hos-tool-panel);
 }
 /* 标题区同样预留 142px 给右侧机型。 */
 .hb-custom-popup-module--air-purifier .hb-custom-popup-module-heading {
@@ -10548,7 +10563,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 15px;
@@ -10677,7 +10692,7 @@
 }
 .hb-custom-popup-module--air-purifier .hb-capability-option-group > strong,
 .hb-custom-popup-module--air-purifier .hb-capability-range-heading strong {
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 620;
 }
@@ -10697,7 +10712,7 @@
 }
 .hb-custom-popup-module--air-purifier .hb-capability-options button.active {
   border-color: var(--hb-air-purifier-ui-accent);
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   background: var(--hb-air-purifier-ui-accent-soft);
   box-shadow:
     inset 0 1px #ffffff0d,
@@ -10761,7 +10776,7 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   background: transparent;
   box-shadow: none;
   font-size: 16px;
@@ -10926,7 +10941,7 @@
   overflow: hidden;
   border: 1px solid rgba(188, 201, 207, 0.17);
   border-radius: 50%;
-  background: radial-gradient(circle at 42% 36%, #343e44, #20282d 36%, #101519 76%);
+  background: radial-gradient(circle at 42% 36%, #343e44, #20282d 36%, var(--hos-tool-surface) 76%);
   box-shadow:
     0 9px 18px #00000057,
     inset 0 1px 5px #ffffff14,
@@ -10952,7 +10967,7 @@
   inset: 19px;
   border: 1px solid rgba(190, 204, 211, 0.15);
   border-radius: 50%;
-  background: radial-gradient(circle at 42% 38%, #46535b, #252e34 60%, #151b1f);
+  background: radial-gradient(circle at 42% 38%, #46535b, var(--hos-tool-surface-raised) 60%, var(--hos-tool-surface));
   box-shadow:
     inset 0 2px 6px #ffffff0e,
     0 0 7px #00000080;
@@ -11078,7 +11093,7 @@
   --hb-air-purifier-accent: var(--hos-eco);
   --hb-air-purifier-accent-soft: rgba(var(--hos-eco-rgb), 0.13);
   --hb-air-purifier-ui-accent: var(--hos-cool);
-  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.12);
+  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.13);
   width: min(920px, calc(100% - 24px));
   max-height: min(520px, calc(100% - 20px));
   border-color: #a2b1b866;
@@ -11086,7 +11101,7 @@
   background:
     radial-gradient(ellipse at 76% 10%, rgba(128, 145, 154, 0.06), transparent 32%),
     radial-gradient(circle at 15% 84%, rgba(106, 151, 176, 0.055), transparent 35%),
-    linear-gradient(145deg, #1b2228, #12181d 49%, #0c1115);
+    var(--hos-tool-panel);
   box-shadow:
     0 34px 100px #000000c7,
     inset 0 1px #e7eff217,
@@ -11126,7 +11141,7 @@
 /* 设备名 33px，宽度收到 420px，避免文字伸到右侧机型底下。 */
 .hb-entity-details-dialog.air-purifier-details .hb-entity-details-heading > div > strong {
   max-width: 420px;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 33px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -11135,7 +11150,7 @@
 .hb-entity-details-dialog.air-purifier-details .hb-entity-details-heading > div > span {
   display: block;
   margin-top: 4px;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 16px;
   font-weight: 540;
   line-height: 1.2;
@@ -11193,7 +11208,7 @@
   background: radial-gradient(
     ellipse,
     rgba(var(--hos-cool-rgb), 0.15),
-    rgba(126, 141, 153, 0.055) 44%,
+    rgba(var(--hos-tool-hairline-rgb), 0.055) 44%,
     transparent 73%
   );
   opacity: 0.14;
@@ -11327,7 +11342,7 @@
   position: absolute;
   inset: 4px 9px 5px;
   border-radius: 3px;
-  background: linear-gradient(180deg, #58676d, #263239);
+  background: linear-gradient(180deg, #58676d, var(--hos-tool-surface-raised));
   box-shadow: inset 0 3px 5px #0f171b8a;
   content: "";
 }
@@ -11376,8 +11391,8 @@
   justify-items: center;
   border: 1px solid rgba(52, 67, 74, 0.64);
   border-radius: 10px;
-  color: #77858b;
-  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 68%, #11181c);
+  color: var(--hos-tool-hint);
+  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 68%, var(--hos-tool-surface));
   box-shadow:
     inset 0 1px 5px #ffffff14,
     0 3px 8px #00000040;
@@ -11421,7 +11436,7 @@
 /* 开机：读数换成强调色，屏底加两层同色外发光。 */
 .hb-air-purifier-visual.is-on .hb-air-purifier-visual-display {
   color: var(--hb-air-purifier-accent);
-  background: radial-gradient(circle at 50% 35%, #303e43 0 52%, #202a2f 74%, #131a1e);
+  background: radial-gradient(circle at 50% 35%, #303e43 0 52%, #202a2f 74%, var(--hos-tool-surface));
   box-shadow:
     inset 0 1px 4px #ffffff17,
     0 0 9px var(--hb-air-purifier-accent),
@@ -11569,7 +11584,7 @@
   > .hb-related-entity-extensions
   .hb-water-heater-extension-toggle.is-on
   i {
-  color: var(--hos-lumen, #ffab32);
+  color: var(--hos-lumen, #ff9d4d);
   background: transparent;
 }
 /* 下拉 / 数值型扩展的间距与内边距收紧。 */
@@ -11645,7 +11660,7 @@
   background: conic-gradient(
     from 225deg,
     var(--hb-air-purifier-accent) 0 var(--hb-air-purifier-progress),
-    #303940 var(--hb-air-purifier-progress) 75%,
+    var(--hos-tool-track) var(--hb-air-purifier-progress) 75%,
     transparent 75% 100%
   );
   filter: drop-shadow(0 0 0 transparent);
@@ -11658,9 +11673,9 @@
 .hb-air-purifier-gauge:before {
   position: absolute;
   inset: 9px;
-  border: 1px solid rgba(126, 141, 153, 0.13);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.13);
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 34%, #20282e, #151b20 72%);
+  background: radial-gradient(circle at 50% 34%, #20282e, var(--hos-tool-surface) 72%);
   box-shadow: inset 0 8px 30px #00000038;
   content: "";
 }
@@ -11710,17 +11725,17 @@
 /* 终点 495deg = 225 + 270，正好是这 270° 满弧的另一端；固定灰色。 */
 .hb-air-purifier-arc-cap.end {
   --hb-air-purifier-cap-angle: 495deg;
-  background: #303940;
+  background: var(--hos-tool-track);
 }
 /* 空气质量两档降级配色：warning 琥珀、poor 红，
    同时改写 accent-soft 让外发光跟着变色。 */
 .hb-air-purifier-gauge.is-warning {
   --hb-air-purifier-accent: var(--hos-lumen);
-  --hb-air-purifier-accent-soft: rgba(var(--hos-lumen-rgb), 0.15);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-lumen-rgb), 0.13);
 }
 .hb-air-purifier-gauge.is-poor {
   --hb-air-purifier-accent: var(--hos-alert);
-  --hb-air-purifier-accent-soft: rgba(var(--hos-alert-rgb), 0.15);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-alert-rgb), 0.13);
 }
 /* 表盘中央读数区。 */
 .hb-air-purifier-gauge-content {
@@ -11731,14 +11746,14 @@
   gap: 5px;
 }
 .hb-air-purifier-gauge-content > small {
-  color: #7d8990;
+  color: var(--hos-tool-hint);
   font-size: 11px;
 }
 /* 数值用 58px 细体（weight 300）并收紧字距，读数更「仪表」。 */
 .hb-air-purifier-gauge-content > strong {
   display: flex;
   align-items: flex-start;
-  color: #f0f3f5;
+  color: var(--hos-tool-ink);
   font:
     300 58px/1 Helvetica Neue,
     SF Pro Display,
@@ -11759,13 +11774,13 @@
 /* 单位作为上标挂在数字右上（margin 7px 0 0 5px）。 */
 .hb-air-purifier-gauge-content > strong small {
   margin: 7px 0 0 5px;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
 }
 .hb-air-purifier-gauge-content > span {
-  color: #737f87;
+  color: var(--hos-tool-hint-dim);
   font-size: 11px;
 }
 /* 次级指标固定三列。 */
@@ -11788,7 +11803,7 @@
   justify-items: center;
   gap: 4px;
   padding: 8px 9px;
-  border: 1px solid rgba(126, 141, 153, 0.16);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.16);
   border-radius: 14px;
   background:
     radial-gradient(circle at 50% 0, var(--hb-air-purifier-ui-accent-soft), transparent 68%),
@@ -11801,13 +11816,13 @@
   display: none;
 }
 .hb-air-purifier-secondary-metric small {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 .hb-air-purifier-secondary-metric strong {
   max-width: 100%;
   overflow: hidden;
-  color: #dce2e5;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -11835,7 +11850,7 @@
 }
 .air-purifier-details .hb-capability-range-heading strong,
 .air-purifier-details .hb-capability-option-group > strong {
-  color: #e2e6e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 620;
 }
@@ -11848,7 +11863,7 @@
 .air-purifier-details .hb-capability-range-group input[type="range"] {
   height: 8px;
   border-radius: 99px;
-  background: linear-gradient(90deg, var(--hb-air-purifier-ui-accent), #343d44);
+  background: linear-gradient(90deg, var(--hb-air-purifier-ui-accent), var(--hos-tool-track));
   accent-color: var(--hb-air-purifier-ui-accent);
 }
 /* 选项按钮自适应列数，单列最小 54px。 */
@@ -11875,7 +11890,7 @@
 /* 选中态：ui-accent 描边 + 同色淡底 + 外发光。 */
 .air-purifier-details .hb-capability-options button.active {
   border-color: var(--hb-air-purifier-ui-accent);
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   background: var(--hb-air-purifier-ui-accent-soft);
   box-shadow:
     inset 0 1px #ffffff0d,
@@ -11976,7 +11991,7 @@
   overflow: visible;
   border: 0;
   border-radius: 0;
-  color: #dfe5e8;
+  color: var(--hos-tool-ink-dim);
   background: transparent;
   box-shadow: none;
   isolation: isolate;
@@ -12337,13 +12352,13 @@
 }
 /* 设备名 32px：该弹窗以状态展示为主，标题刻意放大。 */
 .hb-entity-details-dialog.presence-details .hb-entity-details-heading strong {
-  color: #f2f5f6;
+  color: var(--hos-tool-ink);
   font-size: 32px;
   font-weight: 680;
   letter-spacing: 0.025em;
 }
 .hb-entity-details-dialog.presence-details .hb-entity-details-heading span {
-  color: #7f8b92;
+  color: var(--hos-tool-hint);
   font-size: 15px;
   font-weight: 550;
 }
@@ -12416,7 +12431,7 @@
 .hb-presence-details-visual > small {
   position: absolute;
   bottom: 9px;
-  color: #77838a;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 /* 详情里的无人 / 未知 / 不可用三档残影，数值与控件态一致以便对照。 */
@@ -12447,14 +12462,14 @@
   background: linear-gradient(145deg, #ffffff0a, #ffffff03);
 }
 .hb-presence-details-metrics small {
-  color: #748087;
+  color: var(--hos-tool-hint-dim);
   font-size: 10px;
   letter-spacing: 0.04em;
 }
 /* 指标值单行截断，长数值（如时间戳）不换行。 */
 .hb-presence-details-metrics strong {
   overflow: hidden;
-  color: #dfe4e7;
+  color: var(--hos-tool-ink-dim);
   font-size: 17px;
   font-weight: 620;
   text-overflow: ellipsis;
@@ -12475,13 +12490,13 @@
   justify-content: space-between;
 }
 .hb-presence-details-timeline > div:first-child strong {
-  color: #dce2e5;
+  color: var(--hos-tool-ink-dim);
   font-size: 13px;
   font-weight: 620;
 }
 .hb-presence-details-timeline > div:first-child span,
 .hb-presence-details-timeline > div:last-child span {
-  color: #68757c;
+  color: var(--hos-tool-disabled);
   font-size: 9px;
 }
 /* 时间轴固定切成 48 格（24 小时 / 半小时一格），用 2px 间隙分隔。 */
@@ -12498,7 +12513,7 @@
 .hb-presence-details-timeline > div:nth-child(2) i {
   display: block;
   min-width: 0;
-  background: #343f45;
+  background: var(--hos-tool-track);
   opacity: 0.34;
 }
 /* 有人格：青绿 + 外发光，最亮。 */
@@ -13382,7 +13397,7 @@
   .hb-electric-bed-main
   .hb-electric-bed-angle-readout
   small {
-  color: #c1c8cb;
+  color: var(--hos-tool-text);
   font-size: 15px;
   font-weight: 680;
   line-height: 1;
@@ -13499,7 +13514,7 @@
   height: 100%;
   overflow: hidden;
   border-radius: 14px;
-  background: #111a20;
+  background: var(--hos-tool-surface);
   isolation: isolate;
 }
 /* 预览默认透明，等渲染器加 is-ready 再淡入，避免白底闪一下。 */
@@ -13512,7 +13527,7 @@
   height: 100%;
   border: 0;
   opacity: 0;
-  background: #0b1116;
+  background: var(--hos-tool-bg);
   transition: opacity 0.16s ease;
 }
 /* 资源就绪后 0.16s 淡入。 */
@@ -13537,8 +13552,8 @@
   align-content: center;
   justify-items: center;
   gap: 11px;
-  color: #aebbc2;
-  background: #0b1116;
+  color: var(--hos-tool-text-dim);
+  background: var(--hos-tool-bg);
   pointer-events: none;
 }
 /* 22px 圆环，0.8s 匀速旋转，仅顶边着色成主色。 */
@@ -13636,7 +13651,7 @@
   padding: 12px 16px;
   border: 1px dashed rgba(180, 200, 210, 0.35);
   border-radius: 10px;
-  color: #aebbc2;
+  color: var(--hos-tool-text-dim);
   background: #070d11c2;
   white-space: nowrap;
 }

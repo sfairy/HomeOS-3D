@@ -10,20 +10,24 @@ import {
   formatLineChartValue,
   mountCameraMedia,
   renderLineChartDetails
-} from "../../registry.js?v=2609221451";
-import { paletteColor } from "../../../../utils/colors.js?v=2609221451";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221451";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221451";
-import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609221451";
+} from "../../registry.js?v=2609222006";
+import { paletteColor } from "../../../../utils/colors.js?v=2609222006";
+import {
+  coverPanelWidthPercent,
+  coverSinglePanelWidthPercent
+} from "../../../../utils/cover-features.js?v=2609222006";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609222006";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609222006";
+import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609222006";
 import {
   bathHeaterModeUsesAirflow,
   climateIsPoweredOn,
   climateModeLabel,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609221451";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609221451";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609221451";
+} from "../../../controls/climate.js?v=2609222006";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609222006";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609222006";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -39,15 +43,15 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609221451";
+} from "../../../controls/cover-runtime.js?v=2609222006";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609221451";
+} from "../../../controls/cover-direction.js?v=2609222006";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance
-} from "../../runtime-dialog-motion.js?v=2609221451";
-import { syncedLineChartProperties } from "../../runtime-document.js?v=2609221451";
+} from "../../runtime-dialog-motion.js?v=2609222006";
+import { syncedLineChartProperties } from "../../runtime-document.js?v=2609222006";
 import {
   airQualityAccent,
   airQualityAccentSoft,
@@ -55,7 +59,7 @@ import {
   appendAirerVisual,
   createSwitchVisual,
   popupModuleDialogTitle
-} from "../primitives.js?v=2609221451";
+} from "../primitives.js?v=2609222006";
 
 export const customPopupMethods = {
   /**
@@ -966,10 +970,6 @@ export const customPopupMethods = {
             popupLightVisualState.isOn ? String(0.08 + (lightBrightnessPercent / 100) * 0.92) : "0"
           );
           lightVisualButton.style.setProperty(
-            "--hb-light-visual-blur",
-            Math.round(15 + lightBrightnessPercent * 1.14) + "px"
-          );
-          lightVisualButton.style.setProperty(
             "--hb-light-visual-scale",
             String(0.62 + (lightBrightnessPercent / 100) * 1.05)
           );
@@ -1512,20 +1512,19 @@ export const customPopupMethods = {
           );
           const isCoverOpeningOrOpen =
             resolvedPhysicalState === "open" || resolvedPhysicalState === "opening";
-          coverPositionPercent = coverPositionValue;
-          coverVisualButton.style.setProperty("--hb-cover-open-position", coverPositionValue + "%");
-          coverVisualButton.style.setProperty(
-            "--hb-airer-drop",
-            airerVisualDrop(coverPositionValue) + "px"
-          );
-          coverVisualButton.style.setProperty(
-            "--hb-cover-panel-width",
-            45.9 - coverPositionValue * 0.331 + "%"
-          );
-          coverVisualButton.style.setProperty(
-            "--hb-cover-single-panel-width",
-            91.8 - coverPositionValue * 0.79 + "%"
-          );
+            coverPositionPercent = coverPositionValue;
+            coverVisualButton.style.setProperty(
+              "--hb-airer-drop",
+              airerVisualDrop(coverPositionValue) + "px"
+            );
+            coverVisualButton.style.setProperty(
+              "--hb-cover-panel-width",
+              coverPanelWidthPercent(coverPositionValue) + "%"
+            );
+            coverVisualButton.style.setProperty(
+              "--hb-cover-single-panel-width",
+              coverSinglePanelWidthPercent(coverPositionValue) + "%"
+            );
           coverVisualButton.style.setProperty(
             "--hb-cover-slat-angle",
             coverPositionValue * 1.8 + "deg"

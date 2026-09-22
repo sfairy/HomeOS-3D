@@ -8,91 +8,91 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609221451";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609222006";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609221451";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609222006";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609221451";
+import { sceneModelKey } from "./scene-model-key.js?v=2609222006";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609221451",
+        "../../../static/bridge/popup-placement.js?v=2609222006",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609221451"));
+  : import("/static/bridge/popup-placement.js?v=2609222006"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609221451";
-import { createSceneBackground } from "./scene-background.js?v=2609221451";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609221451";
+} from "../presence/presence-scene.js?v=2609222006";
+import { createSceneBackground } from "./scene-background.js?v=2609222006";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609222006";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609221451";
+} from "../vacuum/vacuum-motion.js?v=2609222006";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609221451";
-import { televisionState } from "../television/television-state.js?v=2609221451";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609221451";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609221451";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609221451";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609221451";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609221451";
+} from "../vacuum/vacuum-map.js?v=2609222006";
+import { televisionState } from "../television/television-state.js?v=2609222006";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609222006";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609222006";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609222006";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609222006";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609222006";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609221451";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609221451";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609221451";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609221451";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609221451";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609221451";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609221451";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609221451";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609221451";
+} from "../cover/cover-state.js?v=2609222006";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609222006";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609222006";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609222006";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609222006";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609222006";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609222006";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609222006";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609222006";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609221451";
-import { startSceneSync } from "./scene-sync.js?v=2609221451";
+} from "../environment/environment-scene.js?v=2609222006";
+import { startSceneSync } from "./scene-sync.js?v=2609222006";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609221451";
+} from "../light/light-state.js?v=2609222006";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609221451";
+} from "../camera/camera-motion.js?v=2609222006";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609221451";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609221451";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609221451";
-import { createStageGeometry } from "./stage/geometry.js?v=2609221451";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609221451";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609221451";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609221451";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609221451";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609221451";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609221451";
-import { createInputActivity } from "./stage/input-activity.js?v=2609221451";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609221451";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609221451";
+} from "./idle-rotation.js?v=2609222006";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609222006";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609222006";
+import { createStageGeometry } from "./stage/geometry.js?v=2609222006";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609222006";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609222006";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609222006";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609222006";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609222006";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609222006";
+import { createInputActivity } from "./stage/input-activity.js?v=2609222006";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609222006";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609222006";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -2596,6 +2596,13 @@ export function mountStage(stageOptions) {
     );
     presentationElement.style.setProperty("--i3d-navigation-scale", String(navigationScale));
     presentationElement.style.setProperty("--i3d-floor-scale", String(floorScale));
+    // 操作提示条的反算系数：演示层被缩小多少倍，提示条就放大多少倍，屏幕上保持设计字号
+    // （编辑器预览里画布常只占 0.36 倍，不反算的 11px 会缩成 4px）。
+    // 下限 1 是「预览比设计画布还大时不做反向缩小」，上限 4 防止预览极小时把字撑满整屏。
+    presentationElement.style.setProperty(
+      "--i3d-help-scale",
+      String(Math.min(4, Math.max(1, 1 / Math.max(presentationScaleX, 0.01))))
+    );
     // 按宿主给的偏移摆放导航元素；偏移支持百分比与像素两种写法，
     // 缺省回落到各元素自带的兜底位置。
     const placeNavigationElement = (

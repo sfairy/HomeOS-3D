@@ -9,7 +9,7 @@
  *
  * 沙发、床、床头柜、餐桌、圆桌（含转盘款）、吧台、椅子。
  */
-import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609221451";
+import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609222006";
 /**
  * 命中：itemSpec.type === "sofa"
  */

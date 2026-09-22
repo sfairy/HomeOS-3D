@@ -23,7 +23,7 @@
   --uc-surface-soft: var(--hos-sky-mid, #0d1728);
   --uc-surface-inset: var(--hos-sky-deep, #050912);
   --uc-text: var(--hos-ink, #f1f7fb);
-  --uc-text-dim: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  --uc-text-dim: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
 
   /* 调色板只提供半透明色的**通道三元组**（--hos-lumen-rgb），没有 -soft / -line 这类
      成品令牌（那是商店 theme.css 的 --hb-lumen-soft 一层的职责）。这里按本组件需要的
@@ -31,17 +31,17 @@
   --uc-line: rgba(var(--hos-sky-haze-rgb, 36, 57, 90), 0.75);
   --uc-line-strong: var(--hos-sky-haze, #24395a);
 
-  --uc-accent: var(--hos-lumen, #ffb86e);
-  --uc-accent-strong: var(--hos-lumen-bright, #ffd9a8);
+  --uc-accent: var(--hos-lumen, #ff9d4d);
+  --uc-accent-strong: var(--hos-lumen-bright, #ffba83);
   /* 面板里的次级文字（原来是 #d4b57a / #a8925f 这类压暗的暖色）：
      直接给亮色会太跳，压到 0.8 才回到与正文同一层的观感。 */
-  --uc-accent-dim: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.8);
-  --uc-accent-line: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.32);
-  --uc-accent-soft: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.13);
+  --uc-accent-dim: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.8);
+  --uc-accent-line: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.32);
+  --uc-accent-soft: rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.13);
 
   --uc-danger: var(--hos-alert, #f07a7e);
   --uc-danger-strong: var(--hos-alert-bright, #f5a3a6);
-  --uc-danger-line: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.34);
+  --uc-danger-line: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.32);
   --uc-danger-soft: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.13);
   --uc-danger-dim: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.72);
   --uc-danger-faint: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.6);
@@ -204,9 +204,9 @@
 
 /* 主操作 / 提醒操作共用暖光实底。深色字压亮底，所以字色取夜空最深一档。 */
 .ui-confirm-dialog__accept.is-primary {
-  border-color: var(--hos-lumen-deep, #d98836);
+  border-color: var(--hos-lumen-deep, #c96a1d);
   color: var(--hos-sky-deep, #050912);
-  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffd9a8, #d98836));
+  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffba83, #c96a1d));
   font-weight: 700;
 }
 
@@ -225,8 +225,8 @@
 }
 
 .ui-confirm-dialog__accept.is-warning {
-  border-color: var(--hos-lumen-deep, #d98836);
+  border-color: var(--hos-lumen-deep, #c96a1d);
   color: var(--hos-sky-deep, #050912);
-  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffd9a8, #d98836));
+  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffba83, #c96a1d));
   font-weight: 700;
 }

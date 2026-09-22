@@ -3,24 +3,24 @@
  *
  * 四个 `render*Sensor` 只被本控件使用，故与注册放在一起。
  */
-import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609221451";
+import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609222006";
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609221451";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609222006";
 import {
   presenceAnimationPhase,
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../../../controls/presence-runtime.js?v=2609221451";
+} from "../../../controls/presence-runtime.js?v=2609222006";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609221451";
+import { registerComponent } from "../registry-core.js?v=2609222006";
 // 同门分片：registry-visuals
 import {
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609221451";
+} from "../registry-visuals.js?v=2609222006";
 
 /**
  * 渲染门窗传感器。
@@ -378,15 +378,11 @@ registerComponent("presence-sensor", {
       "--hb-presence-person-height",
       presenceUnit.height * 62 + "px"
     );
-    presenceElement.style.setProperty("--hb-presence-copy-gap", presenceUnit.height * 7 + "px");
-    presenceElement.style.setProperty(
-      "--hb-presence-copy-main-size",
-      presenceUnit.height * 20 + "px"
-    );
-    presenceElement.style.setProperty(
-      "--hb-presence-copy-secondary-size",
-      presenceUnit.height * 10 + "px"
-    );
+    // 这里曾有 --hb-presence-copy-gap / -main-size / -secondary-size 三枚写入。
+    // 它们对应的「文案」层（DOM 与 .hb-presence-copy-* 的 gap / font-size 规则）已在
+    // 0.6.2 的重构里整体移除，只剩 JS 这半截还在按人物框尺寸算字号 —— 算了没人用。
+    // 三枚一并删除（tools/check_invariants.mjs 第 10 条记录了这一类「写了没人读」）。
+    // 注意上面那几枚 --hb-presence-person-* 不同：它们由 presence 的样式表取用。
     presenceElement.setAttribute("role", "img");
     presenceElement.setAttribute("aria-label", "人在传感器：" + sensorPresentationData.label);
     const presenceVisualElement = document.createElement("div");

@@ -2,7 +2,7 @@
  * 设备控件区块：灯具详情（亮度、色温、颜色、效果与灯组场景）。
  */
 
-import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609221451";
+import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609222006";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -21,7 +21,7 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../../../controls/light-runtime.js?v=2609221451";
+} from "../../../controls/light-runtime.js?v=2609222006";
 
 export const lightDetailsMethods = {
   /**

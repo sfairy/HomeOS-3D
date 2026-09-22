@@ -6,14 +6,16 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609221451";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609222006";
+// 「其它」档的中性灰：与编辑器侧共用同一枚定义，原先这里写的是 #ffffff、其余四处写 #dce2e6。
+import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609222006";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateEffectMode
-} from "./entity-state.js?v=2609221451";
+} from "./entity-state.js?v=2609222006";
 // 同门分片：registry-visuals
-import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609221451";
+import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609222006";
 
 /**
  * 生成空调 / 浴霸出风动画的 SVG（data URI）。
@@ -26,8 +28,10 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
     airflowClimateMode === "cool"
       ? resolveColor(airflowProperties.airflowCoolColor, paletteColor("--hos-cool", "#58c4ff"))
       : airflowClimateMode === "heat"
-        ? resolveColor(airflowProperties.airflowHeatColor, "#ff8a65")
-        : resolveColor(airflowProperties.airflowOtherColor, "#ffffff");
+        // 与上面 cool 分支对称：都走 paletteColor 取令牌。原先这一支只写死 #ff8a65，
+        // 于是换主控色时冷气跟、热气不跟 —— 同一个 switch 的两支行为不一致。
+        ? resolveColor(airflowProperties.airflowHeatColor, paletteColor("--hos-heat", "#ff8a65"))
+        : resolveColor(airflowProperties.airflowOtherColor, AIRFLOW_OTHER_COLOR);
   const airflowAngleDeg = clampCoercedNumber(airflowProperties.airflowAngle, -360, 360, 7);
   const airflowLengthRatio = clampCoercedNumber(airflowProperties.airflowLength, 10, 300, 200) / 100;
   const airflowFadeRatio = clampCoercedNumber(airflowProperties.airflowFadePosition, 15, 100, 50) / 100;

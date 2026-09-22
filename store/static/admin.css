@@ -104,7 +104,7 @@
   --hb-tone-rgb: var(--hb-lumen-rgb);
   --hb-tone-soft: var(--hb-lumen-soft);
   --hb-tone-line: var(--hb-lumen-line);
-  --hb-tone-text: var(--hb-lumen-text);
+  --hb-tone-text: var(--hb-lumen-bright);
   --hb-grad-tone: var(--hb-grad-lumen);
 }
 
@@ -133,7 +133,7 @@
   --hb-tone: var(--hb-sensor);
   --hb-tone-rgb: var(--hb-sensor-rgb);
   --hb-tone-soft: var(--hb-sensor-soft);
-  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
+  --hb-tone-line: var(--hb-sensor-line);
   --hb-tone-text: var(--hb-sensor);
   --hb-grad-tone: linear-gradient(180deg, var(--hb-sensor), var(--hb-muted-dim));
 }
@@ -1032,18 +1032,28 @@ body {
   transform: rotate(225deg) translateY(-1px);
 }
 
-/* 节点留在表单里（事件委托才收得到点击），但打开时切成 position: fixed：
-   .admin-main 是 overflow: auto 的滚动容器，absolute 的弹层会被它裁剪并顶出
-   滚动条——与行内「⋯」菜单同一套处理，坐标由 JS 现算。 */
+/* 节点留在表单里（事件委托才收得到点击），但打开时切成 position: fixed，
+   并借 popover 进顶层（见 features.js 的 openFeaturePicker）：.admin-main 是
+   overflow: auto 的滚动容器、编辑器卡片又挂着 backdrop-filter，两者都会裁剪/错位弹层
+   —— 与行内「⋯」菜单同一套处理，坐标由 JS 现算。
+
+   顶层 popover 的必要清账分两处：坐标用的 inset 在下面的打开态规则里清（UA 的 inset: 0
+   会让 right/bottom 把弹层从「左上角 + 内联宽高」拉成铺满视口右下），其余三条在这里 ——
+   margin: auto 会在坐标还没写进来前把它居中；overflow: auto 会与内层
+   .feature-picker__list 的滚动抢一层，高度也跟着 max-height 变；color: CanvasText
+   会把没自带颜色的文字从继承来的 --hb-ink 换掉。都清回 popover 之前的计算值。 */
 .feature-picker__pop {
   position: absolute;
   z-index: 40;
   display: grid;
   width: min(420px, calc(100vw - 32px));
   max-height: 340px;
+  margin: 0;
+  overflow: visible;
   padding: 8px;
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius-sm);
+  color: var(--hb-ink);
   background: var(--a-surface-3);
   box-shadow: var(--a-elev-2);
   gap: 6px;
@@ -1052,10 +1062,17 @@ body {
 
 .feature-picker.is-open .feature-picker__pop {
   position: fixed;
+  inset: auto;
 }
 
 .feature-picker__pop[hidden] {
   display: none;
+}
+
+/* 顶层的 popover 真的会生成 ::backdrop（默认就是透明）。写明是为了不被 UA 改成
+   半透明黑把整页压暗，与设备控制那几处下拉同一处理。 */
+.feature-picker__pop::backdrop {
+  background: transparent;
 }
 
 .admin-grid .feature-picker__search {
@@ -1264,28 +1281,70 @@ body {
   grid-column: span 2;
 }
 
-/* tab 条与 pane 落在 grid 里的样子（只有站点配置是这种结构）。
-   .admin-panel 里两者本是块级兄弟，而站点配置把它们放进了 <form class="admin-grid admin-grid--wide">（必须留在 form 内，字段列宽才按 210px 算）——在 grid 里它们就成了网格项。
-   不写下面两条的话，标签条会被压进第一列（218px，五个标签得横滑），整块表单也塞在第二列一列到底：界面上「布局乱成一团」，控制台却一句错话都没有。
-   ① 两者都必须独占整行；② pane 自己要再开一层同规格网格，列宽下限与原表单保持一致（普通 186px、--wide 210px），字段才能像以前那样按列铺开。 */
-.admin-grid > .admin-tabs,
-.admin-grid > .admin-tab-pane {
-  grid-column: 1 / -1;
-}
+/* 站点配置：六个分区的字段栅格。
+   规则挂在面板上而不是「form 里的 pane」上，因为这个面板的六个 pane 来源不同 ——
+   前五段是 <form class="admin-grid"> 的网格项，第六段（站点配色）刻意落在 form 之外
+   （它走 PUT /appearance，放进 form 里会让在十六进制输入框里敲回车顺带整表保存一次）。
+   过去列宽挂在 ``.admin-grid--wide > .admin-tab-pane`` 上，第六段拿不到，
+   于是同一个面板里前五段是三列以上的字段带、第六段是普通块级堆叠，内部节奏对不上，
+   再加上第六段的 admin-grid__full / __wide 全是空转（它压根不是网格）。
 
-/* ``:not([hidden])`` 不是修辞：下面这份 display 与本文件早先那条
+   ``:not([hidden])`` 不是修辞：下面这份 display 与本文件早先那条
    ``.admin-tab-pane[hidden] { display: none }`` **优先级完全相同**，
    胜负全看源码顺序 —— 晚出现的 ``display: grid`` 会把隐藏的 pane 一起显示出来，
-   于是五个分区的字段同时铺在一屏上。 */
-.admin-grid > .admin-tab-pane:not([hidden]) {
+   于是六个分区的字段同时铺在一屏上。
+   加了 :not([hidden]) 之后隐藏的 pane 根本不匹配这条规则，不会再有这个隐患。 */
+#panel-settings .admin-tab-pane:not([hidden]) {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(186px, 1fr));
+  /* 列数写死，不用 auto-fit。这一段有 admin-grid__wide（span 2）字段，
+     而 auto-fit 在某档宽度下会只算出 1 条轨道 —— 此时 span 2 会**凭空生成一条
+     隐式轨道**（grid-auto-columns 默认 auto），结果是三件事一起坏掉：
+     两条轨道宽度不等（340 / 200）、紧跟的 admin-grid__full 只跨「显式轨道」
+     于是拿到 340px 而不是整行 554px、整块栅格横向溢出。列数写死就没有这个自由：
+     3 条轨道配 span 2 是 2 ≤ 3，2 条轨道配 span 2 是整行，都不会溢出。
+
+     每一档都要满足 README §11.10 那条不变式：字段名在**本档最窄的一条轨道**里
+     排得下（全角 12.24px / 半角 7px / 空格 3.4px，留 8px 余量）。所以档位分界不按
+     审美取，按这个预算倒推 —— 实测这些字段名里最长的一条是「网关地址（留空跟随沙箱
+     开关 / 环境变量）」233px，要 241px 起（判据用真的量出来的字段名宽度，不是估的）。
+     卡片正文宽 ≈ 视口 − 346px（侧栏 252 + 主区内边距 40 + 卡片内边距 40 + 4），
+     于是：
+       3 列 —— content ≥ 3×241 + 2×14 = 751px，即视口 ≥ 1097px，取 1120px 留余量
+                （1121px 时轨道 248px）；
+       2 列 —— 861–1119px，content 515–773px，最窄轨道 250px；
+       1 列 —— ≤ 860px，与下面那条把 .admin-grid__wide 打回整行的全局规则同档，
+                否则单列里的 span 2 又会生成隐式轨道。
+     列数固定意味着轨道会随视口收窄（auto-fit 不会），所以约束点从「最小列宽」
+     变成了「本档最窄处」，上面的数字就是按后者算的。 */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
   gap: 14px;
 }
 
-.admin-grid--wide > .admin-tab-pane:not([hidden]) {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+@media (max-width: 1120px) {
+  #panel-settings .admin-tab-pane:not([hidden]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 两列档的收尾补丁：站点配置里有三条「三个一列字段」的带 —— 支付渠道 / 支付显示名 /
+     交易标题，AppID / 卖家 PID / 网关地址，奖励比例 / 提现手续费 / 最低提现积分。
+     三列档它们正好排满一行；到两列档就变成「2 + 1」，第三个字段自己占一行、
+     右半边整块空着（1120px 下实测空 394px，正好是行宽的一半），
+     看上去像没排完 —— 而它后面紧跟的往往是整行的东西（勾选框组、整行字段），
+     这块空位就卡在中间，比别处稀疏。
+     给这三个字段一个 admin-grid__fill-2col，在这一档占满整行：读起来的顺序不变
+     （还是第三个），行也铺满了。三列档那一带本来就满，所以规则不放进 ≥1121px；
+     一列档本来就整行，同样不需要。
+     代价是「带里字段数」与这条补丁绑定了：往这三条带里增删字段，要回来重数一遍。 */
+  #panel-settings .admin-tab-pane:not([hidden]) > .admin-grid__fill-2col {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  #panel-settings .admin-tab-pane:not([hidden]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .admin-form-actions {
@@ -1317,6 +1376,19 @@ body {
 
 .admin-hint.is-success { color: var(--hb-success-text); }
 .admin-hint.is-danger { color: var(--hb-danger-text); }
+
+/* 空着的说明文字、空的诊断清单、空的就地反馈都要整体退出布局。
+   它们都是字段栅格的网格项，而网格项「高度 0」不等于「不占位」：
+   一行 0 高的网格项照样吃掉一个 14px 的行间距。站点配置里这种空位有三处 ——
+   支付宝的 ``#alipay-effective-urls`` 与 ``#alipay-diagnostic-list``、
+   邮件预设的 ``#mail-preset-hint``、邮件的 ``#mail-diagnostic-list`` ——
+   展开前就是「测试凭据」那一行下面莫名多出 14px 空白，与旁边等距的行不成比例。
+   ``:empty`` 只匹配真的一个字符都没有的元素（模板里这四处都是 <p></p> / <ul></ul>，
+   没有换行缩进），所以不会误伤有内容的那些。 */
+.admin-hint:empty,
+.admin-diagnostic-list:empty {
+  display: none;
+}
 
 /* 逐项诊断清单（站点配置 → 支付宝凭据 / 注册邮件）。
    四个级别必须一眼可分：pass 是「真的验过了」，skip 是「压根没测」，
@@ -1436,11 +1508,16 @@ body {
   content: "";
 }
 
-/* 站点配置的五个分区各挂一个 data-tone（见 admin.html 的 data-tab-strip），
-   于是 tab 选中态与分区标题一起变色 ——「我正站在哪一段」由一个颜色回答。
+/* 站点配置的六个分区各挂一个 data-tone（见 admin.html 的 data-tab-strip），
+   于是 tab 选中态与分区内的小标题一起变色 ——「我正站在哪一段」由一个颜色回答。
    这一层与面板级的 data-domain 是两套词汇、互不冲突：面板答「这是哪个业务域」，
    分区答「这段配置在配什么」。站点配置整面板都属于 system 域（传感器灰蓝），
-   只靠域色的话五个 tab 全是同一个灰蓝，等于没分。 */
+   只靠域色的话六个 tab 全是同一个灰蓝，等于没分。
+
+   小标题只在「一段里真的还分几带」时才写（支付宝凭据 → 凭据与自检 / 回调地址，
+   注册邮件 → 邮箱预设与自检 / SMTP 参数 / 验证码策略）。以前每个 pane 都在 tab
+   正下方原样重复一遍 tab 的名字（tab「站点信息」下面紧跟标题「站点信息」），
+   同一句话在 20px 内说两遍，正是「布局零乱」里最扎眼的那一层。 */
 .admin-tab-pane[data-tone] .admin-grid__section {
   color: var(--hb-tone-text);
 }
@@ -1992,9 +2069,9 @@ body {
 
 /* 行内「⋯」菜单 */
 /* 菜单节点仍留在单元格里，这样绑定在 #xxx-rows 上的事件委托照样能收到点击；
-   但弹出层在打开时切成 position: fixed（见下面的 .menu.is-open .menu__pop），
-   因为 .table-wrap 在窄屏下就是 overflow-y: hidden 的裁剪容器，absolute 的菜单
-   会被它切掉一截，而且表格矮时上下都放不下、翻转也救不回来。 */
+   但弹出层在打开时切成 position: fixed + popover 顶层（见下面两条规则与 menus.js），
+   因为 .table-wrap 是 overflow: auto 的裁剪容器，absolute 的菜单会被它切掉一截，
+   而且表格矮时上下都放不下、翻转也救不回来。 */
 .menu {
   position: relative;
   display: inline-flex;
@@ -2014,9 +2091,16 @@ body {
   right: 0;
   display: grid;
   min-width: 158px;
+  /* 顶层 popover 的 UA 默认值要清（理由同 .feature-picker__pop）：
+     margin: auto 会在 JS 写坐标前把弹层居中，overflow: auto 与 popover 之前
+     不是同一个盒子，color: CanvasText 会顶掉继承来的 --hb-ink；
+     inset: 0 则在下面的打开态规则里清。 */
+  margin: 0;
+  overflow: visible;
   padding: 5px;
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius-sm);
+  color: var(--hb-ink);
   background: var(--a-surface-3);
   box-shadow: var(--a-elev-2);
 }
@@ -2025,10 +2109,17 @@ body {
   display: none;
 }
 
-/* 打开时把弹出层移出裁剪范围：position: fixed 的包含块是视口，不受任何祖先
-   overflow 裁剪，所以 .table-wrap 的 overflow-y: hidden 再也切不到它。
-   坐标由 JS 按「⋯」按钮的位置算好后写成内联 top/left（admin.html 的
-   placeRowMenu），这里先把绝对定位的那套值清空。 */
+/* 顶层的 popover 会生成 ::backdrop（默认透明），写明是为了不被 UA 改成半透明黑。 */
+.menu__pop::backdrop {
+  background: transparent;
+}
+
+/* 打开时把弹出层移出裁剪范围：固定定位 + popover 进顶层，节点才真的相对视口摆放。
+   只写 position: fixed 是不够的 —— .table-wrap 与 .hb-card 上的 backdrop-filter
+   （admin.css 的 --a-glass-blur）会给 fixed 后代造一个包含块，弹层于是被表格裁剪、
+   还被表格自己的内部滚动带着上下漂移，看起来像「点了没反应」。popover 属性写在
+   table.js 的 rowMenu 里，开关在 menus.js 的 openRowMenu / closeRowMenus。
+   坐标由 JS 按「⋯」按钮的位置算好后写成内联 top/left，这里先把绝对定位的那套值清空。 */
 .menu.is-open .menu__pop {
   position: fixed;
   top: auto;
@@ -2210,7 +2301,7 @@ body {
 .is-tone-amber {
   --hb-tone: var(--hb-lumen);
   --hb-tone-rgb: var(--hb-lumen-rgb);
-  --hb-tone-text: var(--hb-lumen-text);
+  --hb-tone-text: var(--hb-lumen-bright);
   --hb-tone-line: var(--hb-lumen-line);
 }
 
@@ -2244,7 +2335,7 @@ body {
   --hb-tone: var(--hb-cool);
   --hb-tone-rgb: var(--hb-cool-rgb);
   --hb-tone-text: var(--hb-cool);
-  --hb-tone-line: rgba(var(--hb-cool-rgb), 0.34);
+  --hb-tone-line: var(--hb-cool-line);
 }
 
 .is-tone-emerald {
@@ -2258,7 +2349,7 @@ body {
   --hb-tone: var(--hb-sensor);
   --hb-tone-rgb: var(--hb-sensor-rgb);
   --hb-tone-text: var(--hb-sensor);
-  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
+  --hb-tone-line: var(--hb-sensor-line);
 }
 
 /* KPI 卡：只换颜色，字号 / 降档阈值 / padding 一律不动 ——
@@ -2288,7 +2379,7 @@ body {
 
 .stat.is-alert strong,
 .stat.is-alert .stat__value {
-  color: var(--hb-lumen-text);
+  color: var(--hb-lumen-bright);
 }
 
 .stat.is-danger {
@@ -2373,9 +2464,10 @@ body {
   line-height: 1.1;
 }
 
-/* 与正上方的 .stat.is-alert 同一支笔：那块的数字用 --hb-lumen-text，
-   这里的数字也必须一样，否则同一屏里两个「待处理」计数深浅不同。
-   写 --hb-warning-text 而不是 --hb-lumen-text：它俩在 theme.css:180 是别名（等值），
+/* 与正上方的 .stat.is-alert 同一支笔：那块的数字用 --hb-lumen-bright
+   （暖光的可读档），这里的数字也必须一样，否则同一屏里两个「待处理」计数深浅不同。
+   写 --hb-warning-text 而不是 --hb-lumen-bright：它们指向同一个值
+   （theme.css 里 --hb-warning-text = var(--hb-lumen-bright)），
    但语义名说出了「为什么用这个色」，而「待处理」正是 warning 这一档。 */
 .overview-todo.is-alert .overview-todo__count {
   color: var(--hb-warning-text);

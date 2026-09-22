@@ -8,17 +8,17 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609221451";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609222006";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=2609221451";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609221451";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609221451";
+import { apiFetch } from "../utils/api-fetch.js?v=2609222006";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609222006";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609222006";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=2609221451";
+} from "../renderer/core/renderer.js?v=2609222006";
 
 import {
   createComponentFromTemplate,
@@ -27,14 +27,15 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=2609221451";
-import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609221451";
-import { clampNumber } from "../utils/numbers.js?v=2609221451";
+} from "../templates/component-templates.js?v=2609222006";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609222006";
+import { clampNumber } from "../utils/numbers.js?v=2609222006";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609222006";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
 
-import { mdiIconUrl } from "../utils/icon-url.js?v=2609221451";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609221451";
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609221451";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609222006";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609222006";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609222006";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
 
@@ -42,24 +43,24 @@ import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=2609221451";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609221451";
+} from "../utils/colors.js?v=2609222006";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609222006";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=2609221451";
+} from "../shared/popup-layout.js?v=2609222006";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=2609221451";
+} from "./dashboard-resize.js?v=2609222006";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609221451";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609222006";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=2609221451";
+} from "./component-page-copy.js?v=2609222006";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -71,29 +72,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=2609221451";
+} from "../shared/related-entities.js?v=2609222006";
 
-import { createButtonSound } from "../shared/sound-effects.js?v=2609221451";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609222006";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=2609221451";
-import { confirmAction } from "../shared/ui-confirm.js?v=2609221451";
+} from "./editor-dialogs.js?v=2609222006";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609222006";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=2609221451";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609221451";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609222006";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609222006";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=2609221451";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609221451";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609221451";
+} from "./picker/editor-picker-pagination.js?v=2609222006";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609222006";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609222006";
 
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609221451";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609221451";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609222006";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609222006";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -101,13 +102,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609221451";
+} from "../shared/action-rules.js?v=2609222006";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609221451";
+} from "./component-tree.js?v=2609222006";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -117,7 +118,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609221451";
+} from "./editor-component-collections.js?v=2609222006";
 import {
   applyInspectorFields,
   applyInspectorToggles,
@@ -125,7 +126,7 @@ import {
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=2609221451";
+} from "./editor-basic-inspectors.js?v=2609222006";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -138,7 +139,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609221451";
+} from "./editor-document-management.js?v=2609222006";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -146,25 +147,25 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=2609221451";
+} from "./editor-history.js?v=2609222006";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=2609221451";
-import { createLicenseCard } from "./license-card.js?v=2609221451";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609222006";
+import { createLicenseCard } from "./license-card.js?v=2609222006";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=2609221451";
-import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609221451";
-import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609221451";
-import { createEntityOptions } from "./home/entity-options.js?v=2609221451";
-import { createPickers } from "./home/pickers.js?v=2609221451";
-import { createFormWidgets } from "./home/form-widgets.js?v=2609221451";
-import { createColorPicker } from "./home/color-picker.js?v=2609221451";
-import { createSectionRegistry } from "./home/sections.js?v=2609221451";
+} from "../bridge/editor.js?v=2609222006";
+import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609222006";
+import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609222006";
+import { createEntityOptions } from "./home/entity-options.js?v=2609222006";
+import { createPickers } from "./home/pickers.js?v=2609222006";
+import { createFormWidgets } from "./home/form-widgets.js?v=2609222006";
+import { createColorPicker } from "./home/color-picker.js?v=2609222006";
+import { createSectionRegistry } from "./home/sections.js?v=2609222006";
 
 // 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
 // （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
@@ -4595,7 +4596,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=2609221451";
+          ".jpg?v=2609222006";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -7489,7 +7490,7 @@ function syncAirConditionerInspector(airConditionerComponent) {
   airConditionerAirflowHeatColorInputElement.value =
     airConditionerProperties.airflowHeatColor || paletteColor("--hos-heat", "#ff8a65");
   airConditionerAirflowOtherColorInputElement.value =
-    airConditionerProperties.airflowOtherColor || "#dce2e6";
+    airConditionerProperties.airflowOtherColor || AIRFLOW_OTHER_COLOR;
   airConditionerAirflowAngleInputElement.value = roundField(
     Number(airConditionerProperties.airflowAngle ?? 7)
   );
@@ -15990,6 +15991,59 @@ function bindDocumentSection() {
 }
 
 /**
+ * 找到某个户型图组件对应的预览 iframe。iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
+ * 避免 ID 里的特殊字符把选择器写坏。默认参数取当前正在编辑光照的组件。
+ */
+function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) {
+  if (lightingComponentId) {
+    return document.querySelector(
+      '.hb-component[data-component-id="' +
+        CSS.escape(lightingComponentId) +
+        '"] .hb-floorplan-auto-diagram-preview'
+    );
+  } else {
+    return null;
+  }
+}
+
+/**
+ * 把光照参数写进光照面板的各输入框并返回归一化结果。先归一化再回填，保证面板显示的值与真正下发给 iframe
+ * 的一致。整数滑块（step === "5"）显示取整值，其余通道保留两位小数 —— 浮点运算会产生 0.30000000000000004
+ * 这类尾数，直接回填会让输入框显示得很脏。
+ */
+function applyBaseLightingToPanel(baseLighting) {
+  const normalizedLighting = normalizeBaseLighting(baseLighting);
+  for (const lightInputElement of floorplanBaseLightElements) {
+    const lightChannelValue = normalizedLighting[lightInputElement.dataset.floorplanBaseLight];
+    lightInputElement.value =
+      lightInputElement.step === "5"
+        ? String(Math.round(lightChannelValue))
+        : String(Number(lightChannelValue.toFixed(2)));
+  }
+  return normalizedLighting;
+}
+
+/**
+ * 打开自动图示对话框并记录它正在编辑哪个组件。对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」
+ * 都暂存在 dataset 上，由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建就取消」
+ * 的场景，避免留下一个空组件。
+ */
+function openAutoDiagramDialog(
+  dialogComponentId,
+  { cancelRemovesComponent: cancelRemovesComponent = false } = {}
+) {
+  if (dialogComponentId) {
+    floorplanAutoDiagramDialogElement.dataset.componentId = dialogComponentId;
+    floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent =
+      String(cancelRemovesComponent);
+    floorplanAutoDiagramGuideElement.hidden = false;
+    if (!floorplanAutoDiagramDialogElement.open) {
+      floorplanAutoDiagramDialogElement.showModal();
+    }
+  }
+}
+
+/**
  * 平面图面板入口。
  *
  * pageshow 恢复、打开基础照明/工作室、视图切换等平面图侧入口。
@@ -16127,21 +16181,6 @@ function bindFloorplanSection() {
     }
   });
   /**
-   * 找到某个户型图组件对应的预览 iframe。iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
-   * 避免 ID 里的特殊字符把选择器写坏。默认参数取当前正在编辑光照的组件。
-   */
-  function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) {
-    if (lightingComponentId) {
-      return document.querySelector(
-        '.hb-component[data-component-id="' +
-          CSS.escape(lightingComponentId) +
-          '"] .hb-floorplan-auto-diagram-preview'
-      );
-    } else {
-      return null;
-    }
-  }
-  /**
    * 向户型预览 iframe 下发「基础光照」命令。命令共有 request-state / preview / reset / save / cancel 几种；
    * payload 为空时不发送 lighting 字段，让 iframe 侧区分「不改光照只下命令」与「带新光照下发」。
    */
@@ -16165,22 +16204,6 @@ function bindFloorplanSection() {
     } else {
       return false;
     }
-  }
-  /**
-   * 把光照参数写进光照面板的各输入框并返回归一化结果。先归一化再回填，保证面板显示的值与真正下发给 iframe
-   * 的一致。整数滑块（step === "5"）显示取整值，其余通道保留两位小数 —— 浮点运算会产生 0.30000000000000004
-   * 这类尾数，直接回填会让输入框显示得很脏。
-   */
-  function applyBaseLightingToPanel(baseLighting) {
-    const normalizedLighting = normalizeBaseLighting(baseLighting);
-    for (const lightInputElement of floorplanBaseLightElements) {
-      const lightChannelValue = normalizedLighting[lightInputElement.dataset.floorplanBaseLight];
-      lightInputElement.value =
-        lightInputElement.step === "5"
-          ? String(Math.round(lightChannelValue))
-          : String(Number(lightChannelValue.toFixed(2)));
-    }
-    return normalizedLighting;
   }
   /**
    * 从光照面板的各输入框读出光照参数并归一化。输入框的通道名写在 data-floorplan-base-light 上，靠它组装对象，
@@ -16350,25 +16373,6 @@ function bindFloorplanSection() {
     floorplanAutoDiagramDialogElement.dataset.componentId = "";
     floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent = "false";
     floorplanAutoDiagramGuideElement.hidden = false;
-  }
-  /**
-   * 打开自动图示对话框并记录它正在编辑哪个组件。对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」
-   * 都暂存在 dataset 上，由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建就取消」
-   * 的场景，避免留下一个空组件。
-   */
-  function openAutoDiagramDialog(
-    dialogComponentId,
-    { cancelRemovesComponent: cancelRemovesComponent = false } = {}
-  ) {
-    if (dialogComponentId) {
-      floorplanAutoDiagramDialogElement.dataset.componentId = dialogComponentId;
-      floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent =
-        String(cancelRemovesComponent);
-      floorplanAutoDiagramGuideElement.hidden = false;
-      if (!floorplanAutoDiagramDialogElement.open) {
-        floorplanAutoDiagramDialogElement.showModal();
-      }
-    }
   }
   /**
    * 收尾自动图示对话框：按需删除「新建后又被取消」的组件。先读出 dataset 再 closeAutoDiagramDialog
@@ -17611,6 +17615,74 @@ function bindIconButtonEffectSection() {
   });
 }
 
+const previewStateByInputElement = new Map([
+  [iconButtonIconOffOpacityInputElement, "off"],
+  [iconButtonMainOffOpacityInputElement, "off"],
+  [iconButtonSecondaryOffOpacityInputElement, "off"],
+  [iconButtonFrameOffOpacityInputElement, "off"],
+  [iconButtonOnFillVisibleButtonElement, "on"],
+  [iconButtonIconOnOpacityInputElement, "on"],
+  [iconButtonMainOnOpacityInputElement, "on"],
+  [iconButtonSecondaryOnOpacityInputElement, "on"],
+  [iconButtonOnFillColorInputElement, "on"],
+  [iconButtonOnFillStrengthInputElement, "on"],
+  [iconButtonFrameOnOpacityInputElement, "on"],
+  [deviceButtonIconOnColorInputElement, "on"]
+]);
+
+/**
+ * 同步图标按钮预览切换按钮的选中态。用 class 与 aria-pressed 双写：class 负责样式、aria-pressed 负责无障碍朗读，
+ * 只改 class 会让屏幕阅读器读不出当前是开还是关。
+ */
+function syncIconButtonPreviewButtons(previewStateValue) {
+  for (const previewButtonNode of iconButtonPreviewStateElement.querySelectorAll(
+    "[data-icon-button-preview]"
+  )) {
+    const isButtonActive = previewButtonNode.dataset.iconButtonPreview === previewStateValue;
+    previewButtonNode.classList.toggle("active", isButtonActive);
+    previewButtonNode.setAttribute("aria-pressed", String(isButtonActive));
+  }
+}
+
+/**
+ * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动），与空调预览同理，状态存在模块级 Map、仅用于编辑期预览。
+ * "auto" 表示解除强制预览（从 Map 里删除），以按键值不同区分是「显式置 auto」还是「保留上次的开关预览」。
+ */
+function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIcon = "auto") {
+  if (!previewComponentIdForIcon) {
+    return;
+  }
+  const resolvedIconPreviewMode = ["on", "off"].includes(previewModeForIcon)
+    ? previewModeForIcon
+    : "auto";
+  if (resolvedIconPreviewMode === "auto") {
+    iconButtonPreviewStateByComponentId.delete(previewComponentIdForIcon);
+  } else {
+    iconButtonPreviewStateByComponentId.set(previewComponentIdForIcon, resolvedIconPreviewMode);
+  }
+  editorRenderer?.setComponentPreviewState(previewComponentIdForIcon, resolvedIconPreviewMode);
+  if (previewComponentIdForIcon === selectedComponentId) {
+    syncIconButtonPreviewButtons(resolvedIconPreviewMode);
+  }
+}
+
+/**
+ * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
+ * 并限定组件类型，逻辑与 activatePreviewForInput 对称。
+ */
+function resetPreviewForInput(resetInputElement) {
+  const resetOwnerComponent = selectedComponent();
+  if (
+    !!previewStateByInputElement.has(resetInputElement) ||
+    (resetOwnerComponent?.type === "device-button" &&
+      resetInputElement === iconButtonIconColorInputElement)
+  ) {
+    if (["icon-button", "device-button", "presence-sensor"].includes(resetOwnerComponent?.type)) {
+      applyIconButtonPreviewState(resetOwnerComponent.id, "auto");
+    }
+  }
+}
+
 /**
  * 设备类控件。
  *
@@ -17961,54 +18033,6 @@ function bindDeviceSection() {
       }
     );
   }
-  const previewStateByInputElement = new Map([
-    [iconButtonIconOffOpacityInputElement, "off"],
-    [iconButtonMainOffOpacityInputElement, "off"],
-    [iconButtonSecondaryOffOpacityInputElement, "off"],
-    [iconButtonFrameOffOpacityInputElement, "off"],
-    [iconButtonOnFillVisibleButtonElement, "on"],
-    [iconButtonIconOnOpacityInputElement, "on"],
-    [iconButtonMainOnOpacityInputElement, "on"],
-    [iconButtonSecondaryOnOpacityInputElement, "on"],
-    [iconButtonOnFillColorInputElement, "on"],
-    [iconButtonOnFillStrengthInputElement, "on"],
-    [iconButtonFrameOnOpacityInputElement, "on"],
-    [deviceButtonIconOnColorInputElement, "on"]
-  ]);
-  /**
-   * 同步图标按钮预览切换按钮的选中态。用 class 与 aria-pressed 双写：class 负责样式、aria-pressed 负责无障碍朗读，
-   * 只改 class 会让屏幕阅读器读不出当前是开还是关。
-   */
-  function syncIconButtonPreviewButtons(previewStateValue) {
-    for (const previewButtonNode of iconButtonPreviewStateElement.querySelectorAll(
-      "[data-icon-button-preview]"
-    )) {
-      const isButtonActive = previewButtonNode.dataset.iconButtonPreview === previewStateValue;
-      previewButtonNode.classList.toggle("active", isButtonActive);
-      previewButtonNode.setAttribute("aria-pressed", String(isButtonActive));
-    }
-  }
-  /**
-   * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动），与空调预览同理，状态存在模块级 Map、仅用于编辑期预览。
-   * "auto" 表示解除强制预览（从 Map 里删除），以按键值不同区分是「显式置 auto」还是「保留上次的开关预览」。
-   */
-  function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIcon = "auto") {
-    if (!previewComponentIdForIcon) {
-      return;
-    }
-    const resolvedIconPreviewMode = ["on", "off"].includes(previewModeForIcon)
-      ? previewModeForIcon
-      : "auto";
-    if (resolvedIconPreviewMode === "auto") {
-      iconButtonPreviewStateByComponentId.delete(previewComponentIdForIcon);
-    } else {
-      iconButtonPreviewStateByComponentId.set(previewComponentIdForIcon, resolvedIconPreviewMode);
-    }
-    editorRenderer?.setComponentPreviewState(previewComponentIdForIcon, resolvedIconPreviewMode);
-    if (previewComponentIdForIcon === selectedComponentId) {
-      syncIconButtonPreviewButtons(resolvedIconPreviewMode);
-    }
-  }
   /**
    * 聚焦/编辑某个输入框时，把预览切到它能体现的开关态。previewStateByInputElement 只登记了「Off 类」与「On 类」输入框；
    * 特例：设备按钮的 iconColor 未登记但语义上属于「未激活」态，故单独判一次并回落到 "off"。不适用于图标按钮类组件时不做任何事。
@@ -18026,22 +18050,6 @@ function bindDeviceSection() {
       !!["icon-button", "device-button", "presence-sensor"].includes(previewOwnerComponent?.type)
     ) {
       applyIconButtonPreviewState(previewOwnerComponent.id, previewStateToApply);
-    }
-  }
-  /**
-   * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
-   * 并限定组件类型，逻辑与 activatePreviewForInput 对称。
-   */
-  function resetPreviewForInput(resetInputElement) {
-    const resetOwnerComponent = selectedComponent();
-    if (
-      !!previewStateByInputElement.has(resetInputElement) ||
-      (resetOwnerComponent?.type === "device-button" &&
-        resetInputElement === iconButtonIconColorInputElement)
-    ) {
-      if (["icon-button", "device-button", "presence-sensor"].includes(resetOwnerComponent?.type)) {
-        applyIconButtonPreviewState(resetOwnerComponent.id, "auto");
-      }
     }
   }
   for (const previewSyncEventName of ["focusin", "pointerdown", "input"]) {
@@ -18161,6 +18169,231 @@ function bindDeviceSection() {
       });
     }
   });
+}
+
+const navigationStylePropertyDefinitions = {
+  mainTextVisible: {
+    group: "文字",
+    label: "主文字显示"
+  },
+  secondaryTextVisible: {
+    group: "文字",
+    label: "副文字显示"
+  },
+  mainColor: {
+    group: "文字",
+    label: "主文字颜色"
+  },
+  secondaryColor: {
+    group: "文字",
+    label: "副文字颜色"
+  },
+  mainSize: {
+    group: "文字",
+    label: "主文字大小"
+  },
+  secondarySize: {
+    group: "文字",
+    label: "副文字大小"
+  },
+  mainWeight: {
+    group: "文字",
+    label: "主文字笔画粗细"
+  },
+  secondaryWeight: {
+    group: "文字",
+    label: "副文字笔画粗细"
+  },
+  mainSpacing: {
+    group: "文字",
+    label: "主文字字间距"
+  },
+  secondarySpacing: {
+    group: "文字",
+    label: "副文字字间距"
+  },
+  mainTextLeft: {
+    group: "文字",
+    label: "主文字左右位置"
+  },
+  mainTextTop: {
+    group: "文字",
+    label: "主文字上下位置"
+  },
+  secondaryTextLeft: {
+    group: "文字",
+    label: "副文字左右位置"
+  },
+  secondaryTextTop: {
+    group: "文字",
+    label: "副文字上下位置"
+  },
+  textIdleOpacity: {
+    group: "文字",
+    label: "文字选择前透明度"
+  },
+  textActiveOpacity: {
+    group: "文字",
+    label: "文字选择后透明度"
+  },
+  iconVisible: {
+    group: "图标",
+    label: "图标显示"
+  },
+  iconColor: {
+    group: "图标",
+    label: "图标颜色"
+  },
+  iconSize: {
+    group: "图标",
+    label: "图标大小"
+  },
+  iconLeft: {
+    group: "图标",
+    label: "图标左右位置"
+  },
+  iconTop: {
+    group: "图标",
+    label: "图标上下位置"
+  },
+  iconIdleOpacity: {
+    group: "图标",
+    label: "图标选择前透明度"
+  },
+  iconActiveOpacity: {
+    group: "图标",
+    label: "图标选择后透明度"
+  },
+  frameVisible: {
+    group: "外框",
+    label: "外框显示"
+  },
+  frameColor: {
+    group: "外框",
+    label: "外框颜色"
+  },
+  frameWidth: {
+    group: "外框",
+    label: "外框粗细"
+  },
+  frameIdleOpacity: {
+    group: "外框",
+    label: "外框选择前透明度"
+  },
+  frameActiveOpacity: {
+    group: "外框",
+    label: "外框选择后透明度"
+  },
+  radius: {
+    group: "外框",
+    label: "外框圆角"
+  },
+  frameAngle: {
+    group: "外框",
+    label: "外框渐变角度"
+  },
+  glowVisible: {
+    group: "背景光晕",
+    label: "背景光晕显示"
+  },
+  glowColor: {
+    group: "背景光晕",
+    label: "背景光晕颜色"
+  },
+  glowAngle: {
+    group: "背景光晕",
+    label: "背景光晕角度"
+  },
+  glowIdleStrength: {
+    group: "背景光晕",
+    label: "选择前光晕强度"
+  },
+  glowIdleSize: {
+    group: "背景光晕",
+    label: "选择前光晕大小"
+  },
+  glowActiveStrength: {
+    group: "背景光晕",
+    label: "选择后光晕强度"
+  },
+  glowActiveSize: {
+    group: "背景光晕",
+    label: "选择后光晕大小"
+  },
+  width: {
+    group: "尺寸与变换",
+    label: "控件宽度"
+  },
+  height: {
+    group: "尺寸与变换",
+    label: "控件高度"
+  },
+  scale: {
+    group: "尺寸与变换",
+    label: "控件缩放"
+  },
+  rotation: {
+    group: "尺寸与变换",
+    label: "控件旋转"
+  }
+};
+
+/**
+ * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
+ * 属性值体量都很小，序列化的开销可以接受。
+ */
+function areComponentValuesEqual(firstComponentValue, secondComponentValue) {
+  return JSON.stringify(firstComponentValue) === JSON.stringify(secondComponentValue);
+}
+/**
+ * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。只记第一笔：同一属性被连续改动时保留最早的那次旧值，
+ * 这样摘要里展示的是会话开始前的状态而非中间态；属性不在已知样式表内、或新旧值本就相等时直接忽略，避免把噪声写进摘要。
+ */
+function rememberNavigationStyleChange(
+  navigationComponentId,
+  navigationPropertyKey,
+  previousPropertyValue,
+  updatedPropertyValue
+) {
+  if (!navigationComponentId || !navigationStylePropertyDefinitions[navigationPropertyKey]) {
+    return;
+  }
+  let navigationSavedPropertyValues =
+    navigationButtonSavedSettingsByComponentId.get(navigationComponentId);
+  if (
+    !!navigationSavedPropertyValues ||
+    !areComponentValuesEqual(previousPropertyValue, updatedPropertyValue)
+  ) {
+    if (!navigationSavedPropertyValues) {
+      navigationSavedPropertyValues = new Map();
+      navigationButtonSavedSettingsByComponentId.set(
+        navigationComponentId,
+        navigationSavedPropertyValues
+      );
+    }
+    if (!navigationSavedPropertyValues.has(navigationPropertyKey)) {
+      navigationSavedPropertyValues.set(navigationPropertyKey, clone(previousPropertyValue));
+    }
+  }
+}
+/**
+ * 清理某导航按钮已记录变更中「属性键已废弃」的条目：旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
+ * 留着会让摘要显示不出来的属性；顺带在表为空时删掉整个 Map 项，防止泄漏。
+ */
+function pruneNavigationSavedSettings(navigationSettingsComponent) {
+  const navigationSavedSettings = navigationButtonSavedSettingsByComponentId.get(
+    navigationSettingsComponent?.id
+  );
+  if (navigationSavedSettings) {
+    for (const navigationSavedPropertyKey of navigationSavedSettings.keys()) {
+      if (!navigationStylePropertyDefinitions[navigationSavedPropertyKey]) {
+        navigationSavedSettings.delete(navigationSavedPropertyKey);
+      }
+    }
+    if (!navigationSavedSettings.size) {
+      navigationButtonSavedSettingsByComponentId.delete(navigationSettingsComponent.id);
+    }
+  }
 }
 
 /**
@@ -20332,231 +20565,6 @@ function bindInspectorSection() {
       : "auto";
     applyNavigationPreviewState(navigationPreviewClickComponentId, navigationPreviewDatasetState);
   });
-
-  const navigationStylePropertyDefinitions = {
-    mainTextVisible: {
-      group: "文字",
-      label: "主文字显示"
-    },
-    secondaryTextVisible: {
-      group: "文字",
-      label: "副文字显示"
-    },
-    mainColor: {
-      group: "文字",
-      label: "主文字颜色"
-    },
-    secondaryColor: {
-      group: "文字",
-      label: "副文字颜色"
-    },
-    mainSize: {
-      group: "文字",
-      label: "主文字大小"
-    },
-    secondarySize: {
-      group: "文字",
-      label: "副文字大小"
-    },
-    mainWeight: {
-      group: "文字",
-      label: "主文字笔画粗细"
-    },
-    secondaryWeight: {
-      group: "文字",
-      label: "副文字笔画粗细"
-    },
-    mainSpacing: {
-      group: "文字",
-      label: "主文字字间距"
-    },
-    secondarySpacing: {
-      group: "文字",
-      label: "副文字字间距"
-    },
-    mainTextLeft: {
-      group: "文字",
-      label: "主文字左右位置"
-    },
-    mainTextTop: {
-      group: "文字",
-      label: "主文字上下位置"
-    },
-    secondaryTextLeft: {
-      group: "文字",
-      label: "副文字左右位置"
-    },
-    secondaryTextTop: {
-      group: "文字",
-      label: "副文字上下位置"
-    },
-    textIdleOpacity: {
-      group: "文字",
-      label: "文字选择前透明度"
-    },
-    textActiveOpacity: {
-      group: "文字",
-      label: "文字选择后透明度"
-    },
-    iconVisible: {
-      group: "图标",
-      label: "图标显示"
-    },
-    iconColor: {
-      group: "图标",
-      label: "图标颜色"
-    },
-    iconSize: {
-      group: "图标",
-      label: "图标大小"
-    },
-    iconLeft: {
-      group: "图标",
-      label: "图标左右位置"
-    },
-    iconTop: {
-      group: "图标",
-      label: "图标上下位置"
-    },
-    iconIdleOpacity: {
-      group: "图标",
-      label: "图标选择前透明度"
-    },
-    iconActiveOpacity: {
-      group: "图标",
-      label: "图标选择后透明度"
-    },
-    frameVisible: {
-      group: "外框",
-      label: "外框显示"
-    },
-    frameColor: {
-      group: "外框",
-      label: "外框颜色"
-    },
-    frameWidth: {
-      group: "外框",
-      label: "外框粗细"
-    },
-    frameIdleOpacity: {
-      group: "外框",
-      label: "外框选择前透明度"
-    },
-    frameActiveOpacity: {
-      group: "外框",
-      label: "外框选择后透明度"
-    },
-    radius: {
-      group: "外框",
-      label: "外框圆角"
-    },
-    frameAngle: {
-      group: "外框",
-      label: "外框渐变角度"
-    },
-    glowVisible: {
-      group: "背景光晕",
-      label: "背景光晕显示"
-    },
-    glowColor: {
-      group: "背景光晕",
-      label: "背景光晕颜色"
-    },
-    glowAngle: {
-      group: "背景光晕",
-      label: "背景光晕角度"
-    },
-    glowIdleStrength: {
-      group: "背景光晕",
-      label: "选择前光晕强度"
-    },
-    glowIdleSize: {
-      group: "背景光晕",
-      label: "选择前光晕大小"
-    },
-    glowActiveStrength: {
-      group: "背景光晕",
-      label: "选择后光晕强度"
-    },
-    glowActiveSize: {
-      group: "背景光晕",
-      label: "选择后光晕大小"
-    },
-    width: {
-      group: "尺寸与变换",
-      label: "控件宽度"
-    },
-    height: {
-      group: "尺寸与变换",
-      label: "控件高度"
-    },
-    scale: {
-      group: "尺寸与变换",
-      label: "控件缩放"
-    },
-    rotation: {
-      group: "尺寸与变换",
-      label: "控件旋转"
-    }
-  };
-
-  /**
-   * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
-   * 属性值体量都很小，序列化的开销可以接受。
-   */
-  function areComponentValuesEqual(firstComponentValue, secondComponentValue) {
-    return JSON.stringify(firstComponentValue) === JSON.stringify(secondComponentValue);
-  }
-  /**
-   * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。只记第一笔：同一属性被连续改动时保留最早的那次旧值，
-   * 这样摘要里展示的是会话开始前的状态而非中间态；属性不在已知样式表内、或新旧值本就相等时直接忽略，避免把噪声写进摘要。
-   */
-  function rememberNavigationStyleChange(
-    navigationComponentId,
-    navigationPropertyKey,
-    previousPropertyValue,
-    updatedPropertyValue
-  ) {
-    if (!navigationComponentId || !navigationStylePropertyDefinitions[navigationPropertyKey]) {
-      return;
-    }
-    let navigationSavedPropertyValues =
-      navigationButtonSavedSettingsByComponentId.get(navigationComponentId);
-    if (
-      !!navigationSavedPropertyValues ||
-      !areComponentValuesEqual(previousPropertyValue, updatedPropertyValue)
-    ) {
-      if (!navigationSavedPropertyValues) {
-        navigationSavedPropertyValues = new Map();
-        navigationButtonSavedSettingsByComponentId.set(
-          navigationComponentId,
-          navigationSavedPropertyValues
-        );
-      }
-      if (!navigationSavedPropertyValues.has(navigationPropertyKey)) {
-        navigationSavedPropertyValues.set(navigationPropertyKey, clone(previousPropertyValue));
-      }
-    }
-  }
-  /**
-   * 清理某导航按钮已记录变更中「属性键已废弃」的条目：旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
-   * 留着会让摘要显示不出来的属性；顺带在表为空时删掉整个 Map 项，防止泄漏。
-   */
-  function pruneNavigationSavedSettings(navigationSettingsComponent) {
-    const navigationSavedSettings = navigationButtonSavedSettingsByComponentId.get(
-      navigationSettingsComponent?.id
-    );
-    if (navigationSavedSettings) {
-      for (const navigationSavedPropertyKey of navigationSavedSettings.keys()) {
-        if (!navigationStylePropertyDefinitions[navigationSavedPropertyKey]) {
-          navigationSavedSettings.delete(navigationSavedPropertyKey);
-        }
-      }
-      if (!navigationSavedSettings.size) {
-        navigationButtonSavedSettingsByComponentId.delete(navigationSettingsComponent.id);
-      }
-    }
-  }
 
   on(navigationApplyStyleButtonElement, "click", openNavigationStyleApplyDialog);
   on(panelFrameApplyStyleButtonElement, "click", openPanelFrameStyleApplyDialog);

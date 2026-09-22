@@ -10,13 +10,13 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=2609221451";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609221451";
+} from "../editor/picker/editor-picker-pagination.js?v=2609222006";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609222006";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=2609221451";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=2609221451";
-import { nasProfiles } from "./nas-catalog.js?v=2609221451";
+import { entityDomainOf } from "../utils/entities.js?v=2609222006";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609222006";
+import { nasProfiles } from "./nas-catalog.js?v=2609222006";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
@@ -460,6 +460,10 @@ export function createInteraction3dEditorPickers({
                   : resolvedDeviceKind === "climate"
                     ? "mdi:air-conditioner"
                     : DEFAULT_LIGHT_ICON;
+      // 图标目录条目里的 name 不带 mdi: 前缀（带前缀的是 slug），而本编辑器的图标 ID
+      // 一律带前缀（默认值、已存文档与 isValidIconId / 后端校验都是这个形式）。
+      // 展示当前选中态时要先把前缀剥掉，才能和条目的 name 相等。
+      const currentIconName = String(currentIcon || "").replace(/^mdi:/, "");
       return openPicker({
         kind: "icon",
         title:
@@ -496,8 +500,19 @@ export function createInteraction3dEditorPickers({
         renderSelectedActions: () => [
           elements.createEditorPickerCurrentIcon(currentIcon || DEFAULT_LIGHT_ICON)
         ],
-        renderItem: iconOptionId =>
-          elements.createIconPickerOption(iconOptionId, currentIcon, "editorPickerValue"),
+        renderItem(iconOption) {
+          const iconOptionElement = elements.createIconPickerOption(
+            iconOption,
+            currentIconName,
+            "editorPickerValue"
+          );
+          // 取值统一改回带 mdi: 前缀的 slug：元素工厂默认写的是不带前缀的 name，
+          // 而 onSelect 的 isValidIconId 与后端校验都要求前缀，直接用 name 会被判非法，
+          // 表现为「点了图标没反应、选择器关掉但图标没变」。
+          iconOptionElement.dataset.editorPickerValue =
+            iconOption.slug || "mdi:" + iconOption.name;
+          return iconOptionElement;
+        },
         onSelect: selectedIconId => {
           // 选择器的选中值来自服务端，但仍要复检格式：非法 ID 会让渲染阶段拿不到图标。
           if (isValidIconId(selectedIconId)) {

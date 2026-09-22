@@ -9,10 +9,14 @@ import {
   COVER_POSITION_EPSILON_PERCENT,
   formatLineChartValue,
   renderLineChartDetails
-} from "../../registry.js?v=2609221451";
-import { paletteColor } from "../../../../utils/colors.js?v=2609221451";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221451";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221451";
+} from "../../registry.js?v=2609222006";
+import { paletteColor } from "../../../../utils/colors.js?v=2609222006";
+import {
+  coverPanelWidthPercent,
+  coverSinglePanelWidthPercent
+} from "../../../../utils/cover-features.js?v=2609222006";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609222006";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609222006";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -23,10 +27,10 @@ import {
   normalizeClimateCapabilities,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../../../controls/climate.js?v=2609221451";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609221451";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609221451";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609221451";
+} from "../../../controls/climate.js?v=2609222006";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609222006";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609222006";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609222006";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -42,16 +46,16 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609221451";
+} from "../../../controls/cover-runtime.js?v=2609222006";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609221451";
+} from "../../../controls/cover-direction.js?v=2609222006";
 import {
   airerPositionLabel,
   appendAirerVisual,
   componentDialogTitle,
   createSwitchVisual
-} from "../primitives.js?v=2609221451";
+} from "../primitives.js?v=2609222006";
 
 export const entityDetailsMethods = {
   /**
@@ -557,10 +561,6 @@ export const entityDetailsMethods = {
           lightVisualSnapshot.isOn ? String(0.08 + (lightVisualBrightness / 100) * 0.92) : "0"
         );
         entityLightVisual.style.setProperty(
-          "--hb-light-visual-blur",
-          Math.round(15 + lightVisualBrightness * 1.14) + "px"
-        );
-        entityLightVisual.style.setProperty(
           "--hb-light-visual-scale",
           String(0.62 + (lightVisualBrightness / 100) * 1.05)
         );
@@ -708,20 +708,16 @@ export const entityDetailsMethods = {
         const isCoverOpen = currentPhysicalState === "open" || currentPhysicalState === "opening";
         coverOpenPosition = normalizedCoverPosition;
         entityCoverVisual.style.setProperty(
-          "--hb-cover-open-position",
-          normalizedCoverPosition + "%"
-        );
-        entityCoverVisual.style.setProperty(
           "--hb-airer-drop",
           airerVisualDrop(normalizedCoverPosition) + "px"
         );
         entityCoverVisual.style.setProperty(
           "--hb-cover-panel-width",
-          45.9 - normalizedCoverPosition * 0.331 + "%"
+          coverPanelWidthPercent(normalizedCoverPosition) + "%"
         );
         entityCoverVisual.style.setProperty(
           "--hb-cover-single-panel-width",
-          91.8 - normalizedCoverPosition * 0.79 + "%"
+          coverSinglePanelWidthPercent(normalizedCoverPosition) + "%"
         );
         entityCoverVisual.style.setProperty(
           "--hb-cover-slat-angle",

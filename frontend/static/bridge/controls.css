@@ -36,9 +36,9 @@
   min-height: 14px;
   margin: 0;
   padding: 0;
-  border: 1px solid #4b5760;
+  border: 1px solid var(--hos-tool-line-strong);
   border-radius: 99px;
-  background: #283139;
+  background: var(--hos-tool-surface-raised);
   box-shadow: none;
   appearance: none;
   -webkit-appearance: none;

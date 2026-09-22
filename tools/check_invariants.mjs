@@ -697,7 +697,44 @@ function checkModuleSpecifiers() {
             return;
           }
         } else {
-          disk = path.resolve(path.dirname(file), target);
+          // 相对说明符一律按**被引用文件自己的 URL** 解析，而不是按磁盘路径 —— 对 runtime
+          // 资源这两者**深度不同**，正是本条曾经漏检的地方。
+          //
+          // runtime 资源挂在 /api/v1/modules/interaction3d/ 下，比磁盘路径
+          // frontend/modules/runtime/ 深一层。于是磁盘上算得出来的 "../../../static/utils/colors.js"
+          // （→ frontend/static/utils/colors.js，存在）在浏览器里会解析成
+          // /api/v1/static/utils/colors.js，一次 404、整棵模块图静默掐断 —— 而这里当时
+          // 只做 `path.resolve(path.dirname(file), target)`，看到磁盘上有就放过了。
+          //
+          // 所以：runtime 文件里的相对说明符必须**仍留在 runtime 前缀内**。要取 /static 下的
+          // 东西只能经 core/static-helpers.js 的桥（桥内部用绝对路径，与层数、前缀都无关）。
+          const runtimeName = path.relative(RUNTIME_DIR, file);
+          const insideRuntime =
+            runtimeName !== "" && !runtimeName.startsWith("..") && !path.isAbsolute(runtimeName);
+          if (insideRuntime) {
+            const fromUrl = RUNTIME_RESOURCE_PREFIX + runtimeName.split(path.sep).join("/");
+            const url = resolveRelativeUrl(fromUrl, target);
+            if (!url.startsWith(RUNTIME_RESOURCE_PREFIX)) {
+              const line = lineAt(index);
+              const key = `${line}:${spec}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                problems.push({
+                  file: rel(file),
+                  line,
+                  detail:
+                    `"${spec}" 在浏览器里解析到 ${url}，越出了 ${RUNTIME_RESOURCE_PREFIX} —— ` +
+                    "runtime 的 URL 前缀比磁盘路径（frontend/modules/runtime/）深一层，" +
+                    "磁盘上算得出来 ≠ 浏览器里取得到（实测 404，且模块图会静默断掉）。" +
+                    "改为经 frontend/modules/runtime/core/static-helpers.js 的桥取用"
+                });
+              }
+              return;
+            }
+            disk = path.join(RUNTIME_DIR, url.slice(RUNTIME_RESOURCE_PREFIX.length));
+          } else {
+            disk = path.resolve(path.dirname(file), target);
+          }
         }
 
         const exists = fs.existsSync(disk);
@@ -1379,6 +1416,479 @@ function checkModuleBindings() {
 }
 
 // ---------------------------------------------------------------------------
+// 10) JS 写入的自定义属性必须有人读
+// ---------------------------------------------------------------------------
+
+/**
+ * 这一条防的是「机制没接上」：JS 侧 `style.setProperty("--x", …)` 把值算好写下去，
+ * 而样式表里**没有任何规则**用 `var(--x)` 取它。此时那行 JS 是纯粹的静默空转 ——
+ * 值算对了、也写进 DOM 了，只是没有任何东西会因此改变外观或布局。
+ *
+ * 为什么值得单独一条：这类断法在浏览器里**零报错、零警告**，DevTools 的 Elements 面板里
+ * 还能看见那个变量挂着正确的值，于是读代码的人会以为它在生效。本仓实测有 10 枚，
+ * 每一处的注释都还在描述那个「本该发生」的效果 —— 代码与注释同时撒谎，
+ * 只有把「写」与「读」两边的集合做差才看得见。
+ *
+ * 判定口径（宁漏不误）：
+ *   - 「写」只认**完整字面量**：`"--hb-bed-" + role + "-angle"` 这类拼接写法以 `-` 结尾，
+ *     不是完整令牌名，直接排除（否则会拿半个名字去比对，报出一堆假的）。
+ *   - 「读」= CSS 的 `var(--x)`、JS 的 `getPropertyValue("--x")`、以及 colors.js 的
+ *     `paletteColor("--x", …)`。三者的共同点是**名字以字面量出现在源码里**：
+ *     只要没人读它，这个名字就不会以别的形式出现，所以按名字做差是可靠的。
+ *   - 曾经列过 10 枚已知的「写下去但没人读」，**现已全部修完并清空**（见下方注释保留的
+ *     逐条结论）。清空而不是留白名单：留着等于给这 10 个名字开了永久通行证，
+ *     哪天它们被重新写回来，本条守卫会一声不响地放过 —— 那正是它要防的事。
+ */
+const PROP_WRITE_RE = /setProperty\(\s*["'](--[\w-]+)["']/g;
+
+const PROP_READ_RES = [
+  /var\(\s*(--[\w-]+)/g,
+  /getPropertyValue\(\s*["'](--[\w-]+)["']/g,
+  /paletteColor\(\s*["'](--[\w-]+)["']/g
+];
+
+const PROP_SCAN_ROOTS = [
+  path.join(ROOT, "frontend"),
+  path.join(ROOT, "store"),
+  path.join(ROOT, "design")
+];
+
+/** 全站自定义属性的读取点集合（`--x` → 首次出现的 file:line）。 */
+function collectCssPropReads() {
+  const reads = new Map();
+  for (const root of PROP_SCAN_ROOTS) {
+    for (const file of walk(root, null)) {
+      if (![".js", ".css", ".html", ".py", ".webmanifest"].includes(path.extname(file))) continue;
+      const text = fs.readFileSync(file, "utf8");
+      for (const pattern of PROP_READ_RES) {
+        for (const match of text.matchAll(pattern)) {
+          if (reads.has(match[1])) continue;
+          reads.set(match[1], `${rel(file)}:${text.slice(0, match.index).split("\n").length}`);
+        }
+      }
+    }
+  }
+  return reads;
+}
+
+/**
+ * 已知「写下去但没人读」的 10 枚令牌，共 5 套机制。每条都要写明**缺的是哪一半**，
+ * 否则下一个人无法判断该补 CSS 还是该删 JS —— 而两种修法都成立时，只有知道意图的人能选。
+ */
+/**
+ * 「写下去但没人读」的豁免名单。**当前为空** —— 修完 10 枚之后刻意不留条目，理由见上。
+ *
+ * 2026-09 的 10 枚（5 套机制）逐条结论，留作档案：
+ *
+ *   --hb-light-visual-blur        **删 JS**。上游去混淆源码带进来的，本仓库任何一次提交里
+ *                                 都没有过 var() 取用点，也就从未生效过；柔和衰减一直是靠
+ *                                 .hb-light-visual-aura 那四层同心 box-shadow 叠出来的。
+ *                                 补 blur 要对近千像素纹理逐帧重算（滑块一拖就在动画），
+ *                                 代价高于收益。变量与两处写入一并删除。
+ *   --hb-cover-open-position      **删 JS**。帘布宽度由 -panel-width / -single-panel-width
+ *                                 两个派生量决定，原始百分比样式表从不取用。顺带把那两个
+ *                                 派生量里重复写在 entity-details.js 与 custom-popup.js 的
+ *                                 四个魔数（45.9 / 0.331 / 91.8 / 0.79）收进
+ *                                 utils/cover-features.js —— 它们「只是恰好等值」，
+ *                                 和该文件里 COVER_POSITION_EPSILON_PERCENT 当年分叉的情形一样。
+ *   --hb-presence-copy-gap        **删 JS**。对应的「文案」层（DOM 与 .hb-presence-copy-*
+ *   --hb-presence-copy-main-size   的 gap / font-size 规则）已在 0.6.2 重构里整体移除，
+ *   --hb-presence-copy-secondary-size 只剩 JS 这半截还在按人物框尺寸算字号，算了没人用。
+ *   --hos-scale                   **删 JS**。缩放一直直接落成行内 transform，
+ *                                 这枚变量自始至终没接上。若要按缩放比做样式表侧补偿
+ *                                 （浮层反向缩放），需连行内 transform 一起挪进样式表，
+ *                                 因为行内样式永远压过规则、变量加了也不生效。
+ *   --title-frame-color           **删 JS**（4 枚）。外框现在是一段内联 SVG：颜色落成 path 的
+ *   --title-frame-width           stroke、宽度落成 stroke-width、两个偏移参与算出括号坐标，
+ *   --title-frame-offset-x        这四项输入在 JS 里已经消费完了。它们是早期「用 CSS 画框」
+ *   --title-frame-offset-y        方案的残壳。注意其余 --title-* 不同，那些有 var() 取用。
+ *
+ * 新增条目请务必写明**缺的是哪一半**（该补 CSS 还是该删 JS）与判断依据；两种修法都成立时，
+ * 只有知道意图的人能选。更好的做法是直接修掉。
+ */
+const UNWIRED_CSS_PROPS = new Map([]);
+
+function checkUnreadCustomProps() {
+  const reads = collectCssPropReads();
+  const problems = [];
+  for (const root of PROP_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".js"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const match of text.matchAll(PROP_WRITE_RE)) {
+        const name = match[1];
+        // 拼接写法的前缀（`"--hb-bed-" + …`）以 `-` 结尾，不是完整令牌名。
+        if (name.endsWith("-")) continue;
+        if (reads.has(name) || UNWIRED_CSS_PROPS.has(name)) continue;
+        problems.push({
+          file: rel(file),
+          line: text.slice(0, match.index).split("\n").length,
+          detail:
+            `setProperty("${name}", …) 写入了这个自定义属性，但全站没有 var(${name}) / ` +
+            `getPropertyValue("${name}") 取用它 —— 这行 JS 是静默空转`
+        });
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * 第 11 条：令牌引用被「粘」在十六进制残渣上 —— `var(--x)d1`。
+ *
+ * 这是「按 6 位色值做子串替换」的典型事故：原文是 8 位十六进制 #11171cd1
+ * （面色的半透明变体），批量替换器只认 6 位 #11171c，于是把前缀换成了令牌、
+ * 把两位 α 落在后面。浏览器对整条声明判无效，结果是**该属性静默失效**
+ * （背景没了、边框没了），控制台一声不响。
+ *
+ * 和上面十条同一类「不报错、只静默失效」，所以放进守卫：
+ * 新增一处就无法悄悄溜过。修法是补 -rgb 兄弟令牌写成
+ * `rgba(var(--x-rgb), .86)`，或把该处还原成 8 位十六进制。
+ *
+ * **不能只认裸 `var(--x)`**：残渣同样会落在带兜底的形态上 ——
+ * `var(--hos-eco, #5fd0a8)ad`（原文 #5fd0a8ad）。这种写法**碰巧能跑**，
+ * 因为有兜底值恰好同值，替换结果又拼回了合法的 8 位色；
+ * 可一旦色板把 --hos-eco 改掉，替换结果就变成 9 位十六进制、整条声明失效 ——
+ * 「今天不报错」正是它最危险的地方。所以这里按**括号配对**扫 var() 的收尾，
+ * 兜底值里再嵌 color-mix()/渐变也照样能扫到。
+ */
+const CSS_SCAN_ROOTS = [
+  path.join(ROOT, "frontend"),
+  path.join(ROOT, "store"),
+  path.join(ROOT, "design")
+];
+
+/**
+ * `theme-color` / webmanifest 里的写死色值与色板走散。
+ *
+ * meta[name=theme-color] 与 webmanifest 的 theme_color / background_color **吃不下 var()**
+ * （前者不参与 CSS 级联，后者是 JSON），所以它们只能写成十六进制 —— 这一点的结论没变，
+ * 审计脚本也在这几行上关掉了「该用令牌」的提示。
+ *
+ * 但「只能写死」不等于「可以随便写」：这 13 个 HTML/py 与 5 份 manifest 表达的是同一件事
+ * ——**页面最底层的那个颜色**。一旦有人改了 design/scene/page.css 的 --hos-sky-deep，
+ * 这些写死值不会有任何提示地停在旧色上，而症状是「手机地址栏 / 启动画面与页面底色差一点」，
+ * 是最难联想到色板的一类问题。之前没有任何守卫覆盖它：审计把它当「吃不下 var()」放行，
+ * 而放行不等于核准 —— 它只是不再投诉，值是漂还是不漂没人看。
+ *
+ * 判法：取值必须**逐字等于**色板里那两枚「页面最底层」令牌的 canonical 值。
+ * 新增页面若确实压着别的底色，把该令牌加进这份白名单 —— 加的那一步就是复核。
+ */
+const THEME_COLOR_TOKENS = ["--hos-sky-deep", "--hos-tool-bg"];
+
+function checkThemeColorLeavesPalette() {
+  const { resolve } = collectPaletteColors();
+  const allowed = new Map();
+  for (const token of THEME_COLOR_TOKENS) {
+    const color = resolve(token);
+    if (!color) continue;
+    const hex = "#" + color.slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("");
+    if (!allowed.has(hex)) allowed.set(hex, token);
+  }
+  const problems = [];
+  const complain = (file, text, index, label, value) => {
+    if (allowed.has(value.toLowerCase())) return;
+    problems.push({
+      file: rel(file),
+      line: text.slice(0, index).split("\n").length,
+      detail:
+        `${label} 是 ${value}，而色板里页面最底层的取值只有 ` +
+        `${[...allowed.keys()].join(" / ")}（${[...allowed.values()].join(" / ")}）—— ` +
+        "这几处吃不下 var()，改动色板时必须同手改这里，否则会停在旧色上"
+    });
+  };
+  for (const root of CSS_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".html", ".py", ".webmanifest"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const match of text.matchAll(/<meta\b[^>]*>/g)) {
+        const tag = match[0];
+        if (!/name\s*=\s*["']theme-color["']/.test(tag)) continue;
+        const content = /content\s*=\s*["'](#[0-9a-fA-F]{3,8})["']/.exec(tag);
+        if (content) complain(file, text, match.index, "theme-color", content[1]);
+      }
+      for (const match of text.matchAll(/"(theme_color|background_color)"\s*:\s*"(#[0-9a-fA-F]{3,8})"/g)) {
+        complain(file, text, match.index, match[1], match[2]);
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+function checkGluedTokenRefs() {
+  const problems = [];
+  for (const root of CSS_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".css", ".html"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      const opener = /var\(/g;
+      let match;
+      while ((match = opener.exec(text))) {
+        // 按括号配对找到这个 var(...) 的收尾 —— 兜底值里可能还有嵌套。
+        let cursor = match.index + 4;
+        let depth = 1;
+        while (cursor < text.length && depth > 0) {
+          if (text[cursor] === "(") depth++;
+          else if (text[cursor] === ")") depth--;
+          cursor++;
+        }
+        if (depth !== 0) continue;
+        const after = text.slice(cursor, cursor + 2);
+        // 只看「十六进制位」且后面不再接标识符字符：`var(--x)auto` 是正常写法，
+        // 而 `var(--x)ad;` / `var(--x)d1` 是 α 位被切在了括号外。
+        if (!/^[0-9a-fA-F]{1,2}(?![0-9a-zA-Z_-])/.test(after)) continue;
+        problems.push({
+          file: rel(file),
+          line: text.slice(0, match.index).split("\n").length,
+          detail:
+            `${match[0]}…${text.slice(match.index, cursor).slice(-24)} + ${JSON.stringify(after)} —— ` +
+            `var() 后面粘着十六进制位：` +
+            `多半是 8 位色值被按 6 位替换过，两位 α 留在了括号外，整条声明会失效`
+        });
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * 第 12 条：`var(--hos-x, 兜底值)` 的兜底值与令牌的 canonical 值不一致。
+ *
+ * 兜底值只在令牌**缺失**时才生效，所以平时渲染完全正常 —— 它是一类「平时看不见、
+ * 真出事时又没人会往这儿找」的潜伏值。实测修出 20 处，全是同一来路：改语义色之前
+ * 那套旧调色板的值被留在了兜底位。差异不是一点点：
+ *
+ *   --hos-cool   兜底 #a8c5d3  vs canonical #58c4ff   （青蓝 → 灰蓝，最远的一处）
+ *   --hos-eco    兜底 #9ed8bc  vs canonical #5fd0a8
+ *   --hos-alert  兜底 #d45f5f  vs canonical #f07a7e
+ *   --hos-muted  兜底 α .58    vs canonical α .64
+ *   --hos-lumen  兜底 #ffab32  vs canonical #ff9d4d    （确认弹窗主按钮整个暖色系）
+ *
+ * 判法：解析 design/scene/page.css 的 :root 取值（支持 hex / 三元组 / rgba(var(--x-rgb), α)），
+ * 再扫全站 CSS/JS 的 `var(--hos-*, <简单颜色>)`。只比「兜底值是简单颜色」的那些 ——
+ * 兜底写成 linear-gradient 之类的（如 --hos-grad-* 那几处）解析不了，不判。
+ */
+const FALLBACK_RE =
+  /var\(\s*(--hos-[\w-]+)\s*,\s*(#[0-9a-fA-F]{6}|rgba?\([^()]*\)|\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3})\s*\)/g;
+
+/**
+ * JS 侧的同一件事：`paletteColor("--hos-x", "#兜底")`。
+ *
+ * `utils/colors.js` 的 `paletteColor` 是 JS 读调色板的唯一入口（SVG 的 stroke、
+ * 2D canvas 的 fillStyle 都拿不到 CSS 变量，只能这样现取一次）。它的第二个参数
+ * 与 CSS 的 `var()` 兜底是同一种东西：只在令牌取不到时生效，因此平时渲染完全正常，
+ * 一旦运行期调色板没挂上就会静默换成另一套颜色。
+ *
+ * 单独一条正则是因为写法不同（引号包裹、逗号分隔），不能靠 FALLBACK_RE 覆盖。
+ * 修出实例：light-range-editor.js 的 `--hos-sky-haze` 兜底 `#536777`，而 canonical
+ * 是 `#24395a` —— 差得如此之远，反过来说明该处**令牌选错了**（拿夜空族的面色当描边），
+ * 而不是兜底写错，所以最终改的是令牌本身。
+ */
+const PALETTE_FALLBACK_RE =
+  /paletteColor\(\s*["'](--hos-[\w-]+)["']\s*,\s*["'](#[0-9a-fA-F]{6}|rgba?\([^()]*\)|\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3})["']/g;
+
+/**
+ * 第三种兜底写法：`{ token: "--hos-x", fallback: "#lit" }`（可带 rgbFallback）。
+ *
+ * 有些映射被写成了**数据**而不是调用 —— 面板原语把「空气质量档 → 颜色」存成
+ * `{ token, fallback, rgbFallback }`，折线图把出厂阈值存成「令牌数组 + 兜底数组」。
+ * 这种形态下 JS 侧不会出现 `paletteColor(...)`，CSS 侧也没有 `var()`，前两条正则都看不见它，
+ * 但「兜底必须等于 canonical」这条要求一字不差。真实漏网：primitives.js 的 excellent / good
+ * 两档兜底写着 #4ed6a8，而 --hos-eco 是 #5fd0a8。
+ *
+ * 两键顺序在源码里可以互换，所以双向都匹配；`rgbFallback` 与 `fallback` 都要写对，
+ * 因此同一条也覆盖三元组形态。
+ */
+const TOKEN_FALLBACK_PAIR_RE =
+  /token\s*:\s*["'](--hos-[\w-]+)["']\s*,\s*(?:rgb)?[Ff]allback\s*:\s*["']([^"']+)["']|(?:rgb)?[Ff]allback\s*:\s*["']([^"']+)["']\s*,\s*token\s*:\s*["'](--hos-[\w-]+)["']/g;
+
+function collectPaletteColors() {
+  const text = fs
+    .readFileSync(path.join(ROOT, "design", "scene", "page.css"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  const raw = new Map();
+  for (const m of text.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    if (!raw.has(m[1])) raw.set(m[1], m[2].trim());
+  }
+  const asHex = v => {
+    const m = /^#([0-9a-fA-F]{6})$/.exec(v);
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
+  };
+  const asTriplet = v => {
+    const m = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/.exec(v);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3]), 1] : null;
+  };
+  const asRgba = v => {
+    const m = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+))?\s*\)$/.exec(v);
+    return m ? [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : Number(m[4])] : null;
+  };
+  const resolve = (name, seen = new Set()) => {
+    if (seen.has(name)) return null;
+    seen.add(name);
+    const value = raw.get(name);
+    if (value === undefined) return null;
+    const simple = asHex(value) || asTriplet(value) || asRgba(value);
+    if (simple) return simple;
+    const composed = /^rgba\(\s*var\(\s*(--[\w-]+)\s*\)\s*,\s*([\d.]+)\s*\)$/.exec(value);
+    if (composed) {
+      const base = resolve(composed[1], seen);
+      return base ? [base[0], base[1], base[2], Number(composed[2])] : null;
+    }
+    return null;
+  };
+  return { resolve, asHex, asTriplet, asRgba };
+}
+
+function checkFallbackDrift() {
+  const { resolve, asHex, asTriplet, asRgba } = collectPaletteColors();
+  const problems = [];
+  const describe = (color) =>
+    `rgb(${color[0]}, ${color[1]}, ${color[2]})` + (color[3] < 1 ? ` α${color[3]}` : "");
+  for (const root of CSS_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".css", ".js"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      // 三种写法同一件事：CSS 的 var(--x, 兜底)、JS 的 paletteColor("--x", "兜底")、
+      // 以及数据形态的 { token: "--x", fallback: "兜底" }。
+      const forms = [
+        { re: FALLBACK_RE, form: "var() 兜底", tokenGroup: 1, valueGroup: 2 },
+        { re: PALETTE_FALLBACK_RE, form: "paletteColor() 兜底", tokenGroup: 1, valueGroup: 2 },
+        { re: TOKEN_FALLBACK_PAIR_RE, form: "token/fallback 成对兜底", pair: true }
+      ];
+      for (const { re, form, tokenGroup, valueGroup, pair } of forms) {
+        for (const match of text.matchAll(re)) {
+          const tokenName = pair ? match[1] || match[4] : match[tokenGroup];
+          const literal = pair ? match[2] || match[3] : match[valueGroup];
+          const canonical = resolve(tokenName);
+          if (!canonical) continue;
+          const fallback = asHex(literal) || asRgba(literal) || asTriplet(literal);
+          if (!fallback) continue;
+          const same =
+            canonical[0] === fallback[0] &&
+            canonical[1] === fallback[1] &&
+            canonical[2] === fallback[2] &&
+            Math.abs(canonical[3] - fallback[3]) < 0.005;
+          if (same) continue;
+          problems.push({
+            file: rel(file),
+            line: text.slice(0, match.index).split("\n").length,
+            detail:
+              `${tokenName} 的 ${form}值 ${literal} 与 canonical ${describe(canonical)} 不一致 —— ` +
+              "令牌一旦缺失，这里会渲染出另一套颜色。差异特别大时先怀疑**令牌选错了**" +
+              "（消费者预期的颜色与 canonical 不是一族），那就改令牌；只是旧值残留时才改兜底"
+          });
+        }
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * 第 13 条：SVG 里的注释是非法 XML —— 注释体内出现连续两个连字符。
+ *
+ * XML 规范不允许注释内含 `--`（它是注释的结束符开头），而 SVG 是 XML 而不是 HTML：
+ * HTML 里注释中间夹 `--` 多数浏览器容忍，SVG 会**整个文件解析失败**，画面上只留
+ * 白/空白，控制台给的是 `not well-formed` 而不是「颜色不对」，很难联想到注释。
+ *
+ * 这条是踩出来的：给品牌标加注说明「不要改成 var(--hos-x)」时，注释里的 `--` 让
+ * 6 个 SVG 全部失效 —— 而 SVG 本身没有 lint 会跑。写令牌名时省掉前导横线
+ * （写 hos-sky-deep 而不是双横线开头）即可绕开。
+ */
+const SVG_COMMENT_RE = /<!--([\s\S]*?)-->/g;
+
+function checkMarkupComments() {
+  const problems = [];
+  for (const root of CSS_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".svg"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const match of text.matchAll(SVG_COMMENT_RE)) {
+        // 注释体里只要还有 `--`，就是非法的（结束符已经由正则切掉）
+        if (!match[1].includes("--")) continue;
+        const inner = match[1].indexOf("--");
+        const at = match.index + 4 + inner;
+        problems.push({
+          file: rel(file),
+          line: text.slice(0, at).split("\n").length,
+          detail:
+            "SVG 注释里含连续两个连字符（如 var(--hos-x) 或 --hos-sky-deep）—— " +
+            "SVG 按 XML 解析，整个文件会 not well-formed、画面空白。写令牌名时省掉前导横线"
+        });
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * 第 14 条：八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 的契约不符。
+ *
+ * `design/scene/appearance.js:178-179` 是这两档的唯一定义处，写死了
+ * `-soft = 0.13` / `-line = 0.32`（商店侧 theme.css 与后端白名单都按这个口径）。
+ * 但各页面在给「某个设备的强调柔光 / 描边」下本地定义时，常常自己手写一份
+ * `rgba(var(--hos-x-rgb), α)`，于是同一个语义角色在全站散出 0.12 / 0.13 / 0.15 / 0.16
+ * 四种 α —— 换主控色时只有恰好写 0.13 的那一档跟着契约走，其余永远停在原地。
+ * 实测一次扫出 11 处（renderer.css 5 / admin.css 3 / app.css 1 / studio.css 1 …）。
+ *
+ * 判据不是「名字以 -soft/-line 结尾」——那样会漏掉全部真违约、只认出本来就对的
+ * canonical 令牌（`--hb-lumen-soft` 这类）。真违约的名字是 `--accent-soft` /
+ * `--hb-vacuum-accent-soft` / `--hb-tone-line`，都不以家族名命名。所以改看**取值**：
+ * 只要它是 `rgba(var(--{hos,hb}-<八族之一>-rgb), α)` 形式、且名字以 `-soft`/`-line` 结尾，
+ * 就按契约比对。这样 `--hos-atmo-soft`（取值是字面 rgb，不是派生）与
+ * `--uc-line`（引用的是 sky-haze，不属于八族）都自然落在规则之外，无需白名单。
+ *
+ * 名字里带 `-text` 的跳过：那是文字 α（如 `--accent-text-soft` 的 0.82），
+ * 与「柔光底 / 描边」不是一回事 —— 与 audit_colors.mjs 的 roleOfToken 同一口径。
+ */
+const FAMILY_SOFT_LINE_RE =
+  /(--[\w-]+-(soft|line))\s*:\s*(rgba\([^;]*?\)|#[0-9a-fA-F]{8})\s*;/g;
+const FAMILY_RGB_IN_VALUE_RE = /var\(\s*--(?:hos|hb)-(accent|lumen|heat|cool|eco|aura|sensor|alert)-rgb\s*\)/;
+const SOFT_LINE_CONTRACT = { soft: 0.13, line: 0.32 };
+
+/** 从 `rgba(a, b, c, α)` 或 8 位十六进制 `#rrggbbaa` 里取出 α。 */
+function alphaOfSoftLineValue(value) {
+  if (value.startsWith("#")) return parseInt(value.slice(-2), 16) / 255;
+  const parts = value.replace(/^rgba\(|\)$/g, "").split(",");
+  const last = parts[parts.length - 1]?.trim();
+  return last === undefined ? null : Number(last);
+}
+
+function checkSoftLineAlpha() {
+  const problems = [];
+  for (const root of CSS_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".css"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      // 先剥注释：注释里常写着「原来是 0.12」这类示例值，不该被当作定义
+      const stripped = text.replace(/\/\*[\s\S]*?\*\//g, (m) => "\n".repeat(m.split("\n").length - 1));
+      for (const match of stripped.matchAll(FAMILY_SOFT_LINE_RE)) {
+        const [full, token, kind, value] = match;
+        if (token.includes("-text")) continue; // 文字 α，不是柔光/描边
+        if (!FAMILY_RGB_IN_VALUE_RE.test(value)) continue; // 非八族派生，语义无关
+        const alpha = alphaOfSoftLineValue(value);
+        if (alpha === null || Number.isNaN(alpha)) continue;
+        const want = SOFT_LINE_CONTRACT[kind];
+        if (Math.abs(alpha - want) <= 1e-6) continue;
+        problems.push({
+          file: rel(file),
+          line: stripped.slice(0, match.index).split("\n").length,
+          detail:
+            `${token} 的 α 是 ${Number(alpha.toFixed(4))}，契约要求 ${want}（${full.trim()}）—— ` +
+            "八族柔光 / 描边的 α 只在 appearance.js:178-179 定义一次，" +
+            "各页面请引用 canonical 取值而不是手写 rgba()"
+        });
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
 
 const checks = [
   {
@@ -1408,7 +1918,7 @@ const checks = [
   },
   {
     title: "import 说明符解析不到真实文件 / runtime 资源没登记进白名单",
-    hint: "相对路径按导入方所在目录重算层数（文件深一层，`./x` 写成 `../x`、`../x` 写成 `../../x`）；绝对路径只判能算出服务端口径的（/static、/store-static、/api/v1/modules/interaction3d），后者新增文件必须同时登记进 backend/modules/interaction3d/api.py 的 get_resource() 白名单",
+      hint: "相对路径按导入方所在目录重算层数（文件深一层，`./x` 写成 `../x`、`../x` 写成 `../../x`）；**runtime 资源（frontend/modules/runtime/**）的相对说明符按 URL 语义判、且必须留在 /api/v1/modules/interaction3d/ 前缀内** —— 它的 URL 前缀比磁盘路径深一层，跨出去取 /static 只能走 core/static-helpers.js 的桥；绝对路径只判能算出服务端口径的（/static、/store-static、/api/v1/modules/interaction3d），后者新增文件必须同时登记进 backend/modules/interaction3d/api.py 的 get_resource() 白名单",
     run: checkModuleSpecifiers
   },
   {
@@ -1425,8 +1935,64 @@ const checks = [
     title: "import 的名字不在目标模块的导出里（整棵模块树起不来的解析期错误）",
     hint: "对着目标模块补导出名、或改导入名；命名空间成员 / 动态解构 / 桥文件的转出口一并判。裸说明符与 vendor 压缩产物不判，边界见文件头第 9 条",
     run: checkModuleBindings
-  }
-];
+  },
+    {
+      title: "JS 写入的自定义属性没人读（机制没接上，浏览器里零报错）",
+      hint:
+        "两种修法都成立，按意图选：样式表里补 var(--x) 的取用点，或把这行 setProperty 连同算它的那段一起删掉。" +
+        "2026-09 已把原列的 10 枚全部修完（逐条结论留在 UNWIRED_CSS_PROPS 上方的注释里），豁免名单现在是空的 ——" +
+        "新增的这类写入会**直接报错**，这正是本条想要的状态：别再往名单里加，直接修掉",
+      run: checkUnreadCustomProps
+    },
+  {
+    title: "令牌引用后面粘着十六进制残渣（var(--x)d1 —— 整条声明静默失效）",
+    hint:
+      "原文多半是 8 位十六进制（面色的 α 变体），被按 6 位色值替换了前缀。" +
+      "补该面的 -rgb 兄弟令牌写成 rgba(var(--x-rgb), .86)，或把这一处还原成 8 位十六进制",
+      run: checkGluedTokenRefs
+    },
+      {
+        title: "兜底值与令牌 canonical 值不一致（var() / paletteColor() / token-fallback 成对，三种写法）",
+        hint:
+          "把兜底值改成 design/scene/page.css 里的 canonical 值。这类漂移平时不生效" +
+          "（令牌在时永不落到兜底），所以既没被评审拦下、也不会在浏览器里露头 ——" +
+          "实测 CSS 侧修出 20 处，全是改语义色之前那套旧调色板的残留（最远的是 --hos-cool：" +
+          "兜底 #a8c5d3 而 canonical #58c4ff）。JS 侧同一件事的写法是 " +
+          "paletteColor(\"--hos-x\", \"#兜底\")，也已纳入。" +
+          "第三种是数据形态：{ token: \"--hos-x\", fallback: \"#兜底\" }（面板原语的空气质量档）" +
+          "以及并排的「令牌数组 + 兜底数组」常量（折线图出厂阈值）—— 两种都不出现 var() 或" +
+          "paletteColor()，前两条正则都看不见，但要求同样一字不差。" +
+          "实测漏网：primitives.js 的 --hos-eco 兜底写成 #4ed6a8，而 canonical 是 #5fd0a8。" +
+          "三种写法都查。" +
+          "差异特别大时先怀疑令牌选错了（如 --hos-sky-haze 当描边），那就连令牌一起改",
+        run: checkFallbackDrift
+      },
+      {
+        title: "SVG 注释里含连续两个连字符（XML 非法，整个文件解析失败、画面空白）",
+        hint:
+          "SVG 是 XML 不是 HTML：注释体内出现 `--` 就是非法的，浏览器给 not well-formed、" +
+          "只留空白，很难联想到注释。加注说明令牌时省掉前导横线（写 hos-sky-deep，" +
+          "不写双横线开头的全名），或改用 `var()` 这类不含双连字符的表述",
+        run: checkMarkupComments
+      },
+      {
+        title: "八族可配置光的 -soft / -line α 与 appearance.js 的契约不符（0.13 / 0.32）",
+        hint:
+          "把 α 改回契约值，或（更好）引用 canonical 取值而不是手写 rgba()。" +
+          "这两个数只在 design/scene/appearance.js:178-179 定义一次，各页面手写一份就会漂 ——" +
+          "实测漂出 0.12 / 0.15 / 0.16 三档，换主控色时只有写对的那一档跟着走",
+        run: checkSoftLineAlpha
+      },
+      {
+        title: "theme-color / webmanifest 的写死色值与色板里「页面最底层」的取值不同",
+        hint:
+          "这几处吃不下 var()（meta 不参与 CSS 级联、webmanifest 是 JSON），所以只能写死 ——" +
+          "但必须逐字等于 --hos-sky-deep（页面压着夜空底）或 --hos-tool-bg（压着画布底）。" +
+          "改动色板里的这两枚令牌时，同手把这 18 个文件一起改；新增页面若确实压别的底色，" +
+          "把该令牌加进 THEME_COLOR_TOKENS 白名单",
+        run: checkThemeColorLeavesPalette
+      }
+    ];
 
 let failed = false;
 for (const check of checks) {

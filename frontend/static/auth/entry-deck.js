@@ -36,15 +36,33 @@ if (decks.length) {
 
   const pad = (value) => String(value).padStart(2, '0');
 
-  /** 距某个时刻过去了多久。与后端 _elapsed_placeholder 的档位保持同一套读法。 */
+  /** 距某个时刻过去了多久。与后端 _elapsed_placeholder 的档位保持同一套读法。
+
+      措辞里**不写空格**：一格里最长的一格读数只能是本机时钟的 18:04:22（八个半角
+      字符），而「23 时 59 分」这种带空格的写法是九个半角 + 两个整宽汉字 —— 实测
+      106.8px，而四列甲板每格最宽只有 87px，于是刚好在跑到 10 小时以后被切掉半截
+      （「2 时 46 夕」）。去掉空格后同一串是 76.7px，从启动到 24 小时都在预算内。 */
   const elapsed = (seconds) => {
     const total = Math.max(0, Math.floor(seconds));
     if (total < 60) return '刚刚启动';
     const minutes = Math.floor(total / 60);
-    if (minutes < 60) return `${minutes} 分`;
+    if (minutes < 60) return `${minutes}分`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} 时 ${minutes % 60} 分`;
-    return `${Math.floor(hours / 24)} 天 ${hours % 24} 时`;
+    if (hours < 24) return `${hours}时${minutes % 60}分`;
+    return `${Math.floor(hours / 24)}天${hours % 24}时`;
+  };
+
+  /** 距某个时刻多久。到小时就不再给分：这一格比运行时长紧，「23时59分前」是七个
+      字符（95px），放不进四列的那 87px；而「3时前」已经足够回答它要回答的那件事
+      ——「同步是不是停住了」。 */
+  const ago = (seconds) => {
+    const total = Math.max(0, Math.floor(seconds));
+    if (total < 60) return '刚刚';
+    const minutes = Math.floor(total / 60);
+    if (minutes < 60) return `${minutes}分前`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}时前`;
+    return `${Math.floor(hours / 24)}天前`;
   };
 
   /** 一格读数的渲染函数；返回 null 表示这一格的 data-since 不可用，保持原样。 */
@@ -55,12 +73,7 @@ if (decks.length) {
       return calm ? stamp : `${stamp}:${pad(now.getSeconds())}`;
     },
     uptime: (since) => elapsed((Date.now() - since) / 1000),
-    since: (since) => {
-      const seconds = (Date.now() - since) / 1000;
-      // 「刚刚启动」是给运行时长用的措辞，套在「上次同步」上读起来像另一件事。
-      if (seconds < 60) return '刚刚';
-      return `${elapsed(seconds)}前`;
-    },
+    since: (since) => ago((Date.now() - since) / 1000),
   };
 
   const hooks = [];

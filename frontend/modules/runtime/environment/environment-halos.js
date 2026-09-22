@@ -7,10 +7,24 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609221451";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221451";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609222006";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609222006";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221451";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609222006";
+// 描边色要靠 paletteColor 现取：SVG 的 stroke 属性吃不下 var()，写 var(--hos-x) 会被当作
+// 非法颜色**静默忽略**，描边保持上一次的值（或不画）。令牌一旦缺失则退回兜底色。
+// 取色经 core/static-helpers.js 那座桥 —— runtime 资源挂在 /api/v1/modules/interaction3d/ 下，
+// URL 比磁盘路径深一层，直接写裸相对路径会算错层数（曾写成 "../../../static/utils/colors.js"，
+// 解析成 /api/v1/static/utils/colors.js → 404，整段模块图被掐断）。桥内部用绝对路径。
+import { paletteColor } from "../core/static-helpers.js?v=2609222006";
+
+/**
+ * 模型轮廓描边的颜色（三层描边共用，靠宽度与不透明度分出内外辉光）。
+ *
+ * 原来是写死的 #d5dedb —— 一枚与主题无关的近白。改成读工具面族的弱文字档后，
+ * 换主题时这圈轮廓会跟着走；取值差 7/4/11 个通道，肉眼不可辨。
+ */
+const outlineStrokeColor = () => paletteColor("--hos-tool-ink-dim", "#dce2e6");
 
 /**
  * 求二维点集的凸包（Andrew 单调链算法）。
@@ -64,13 +78,14 @@ export function createScreenOutlines({
   svgElement.setAttribute("aria-hidden", "true");
   // 三层描边叠加出「外发光 + 内发光 + 实线」的观感；
   // 宽度与不透明度成反比（越粗越淡），因此看起来是柔和的辉光而不是三条线。
+  const outlineColor = outlineStrokeColor();
   for (const [outlinePathElement, outlineWidth, outlineOpacity] of [
     [outerGlowElement, 10, 0.14],
     [innerGlowElement, 6, 0.22],
     [coreOutlineElement, 2.6, 0.48]
   ]) {
     outlinePathElement.setAttribute("fill", "none");
-    outlinePathElement.setAttribute("stroke", "#d5dedb");
+    outlinePathElement.setAttribute("stroke", outlineColor);
     outlinePathElement.setAttribute("stroke-width", String(outlineWidth));
     outlinePathElement.setAttribute("stroke-opacity", String(outlineOpacity));
     outlinePathElement.setAttribute("stroke-linejoin", "round");

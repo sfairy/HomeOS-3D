@@ -2,13 +2,13 @@
  * 设备控件区块：摄像头预览（取流、清晰度切换、全屏与交互式 3D 入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609221451";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609222006";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../../../bridge/camera-popup-layout.js?v=2609221451";
-import { mountCameraMedia } from "../../registry.js?v=2609221451";
-import { componentDialogTitle } from "../primitives.js?v=2609221451";
+} from "../../../../bridge/camera-popup-layout.js?v=2609222006";
+import { mountCameraMedia } from "../../registry.js?v=2609222006";
+import { componentDialogTitle } from "../primitives.js?v=2609222006";
 
 export const cameraDetailsMethods = {
   /**

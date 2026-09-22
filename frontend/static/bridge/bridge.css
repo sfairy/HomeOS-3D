@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609221451";
+@import "/static/bridge/controls.css?v=2609222006";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -35,8 +35,8 @@
 }
 /* 锁定态保留边框与深色底：让封面看起来是一张卡片，而不是组件位置空了一块。 */
 .hb-interaction3d-host[data-access="locked"] {
-  border: 1px solid #39423e;
-  background: #151c20;
+  border: 1px solid var(--hos-tool-line);
+  background: var(--hos-tool-surface);
 }
 /* 运行层是 iframe 的定位上下文（relative），并裁掉超出组件的部分。 */
 .hb-interaction3d-host .hb-interaction3d-runtime {
@@ -87,7 +87,7 @@
   place-content: center;
   padding: 16px;
   background: inherit;
-  color: #89949d;
+  color: var(--hos-tool-muted-dim);
   font-family:
     system-ui,
     sans-serif;
@@ -198,7 +198,7 @@
   overflow: hidden;
   place-items: center;
   isolation: isolate;
-  background: #141922;
+  background: var(--hos-tool-surface);
 }
 /* contain 保证缩略图完整可见（不裁切），宁可留边也不丢内容。 */
 .interaction3d-cover > img {
@@ -285,7 +285,7 @@
 }
 /* 模板卡片即使被 disabled 也要正常显示封面（购买入口），因此把全局的降透明还原回来。 */
 .component-template-preview.interaction3d-thumbnail {
-  background: #151c20;
+  background: var(--hos-tool-surface);
 }
 .component-template-card:disabled .interaction3d-thumbnail {
   opacity: 1;
@@ -660,7 +660,7 @@
   display: none;
 }
 #interaction3d-inspector .i3d-floor-number-title {
-  color: #8d989f;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
 }
 /* overflow-anchor: none 是必要的：面板会动态增删字段（切分组 / 切作用域），

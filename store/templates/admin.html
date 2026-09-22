@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#050912">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221451">
-<link rel="stylesheet" href="/store-static/theme.css?v=2609221451">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609222006">
+<link rel="stylesheet" href="/store-static/theme.css?v=2609222006">
 <!-- 场景设计系统的分发产物（源在仓库 design/scene/）：登录屏是整页场景壳，
      工作台仍走 theme.css + admin.css 的令牌。 -->
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221451">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609221451">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221451">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221451">
-<link rel="stylesheet" href="/store-static/admin.css?v=2609221451">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221451` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609222006">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609222006">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609222006">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609222006">
+<link rel="stylesheet" href="/store-static/admin.css?v=2609222006">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609222006` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -99,7 +99,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609221451" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609222006" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -479,7 +479,7 @@
                     <span class="feature-picker__caret" aria-hidden="true"></span>
                   </button>
                   <input type="hidden" name="featureCodes" data-feature-value value="">
-                  <div class="feature-picker__pop" data-feature-pop hidden>
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
                     <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
                     <div class="feature-picker__list" data-feature-list role="listbox" aria-multiselectable="true"></div>
                   </div>
@@ -501,11 +501,15 @@
                 <label class="hb-check"><input type="checkbox" name="isFullPrice"> 全价商品</label>
                 <label class="hb-check"><input type="checkbox" name="packageContentsLocked"> 锁定套餐内容</label>
               </div>
-              <label class="hb-field admin-grid__full">
+              <!-- 整块用 div 而不是 label：label 会把说明文字也变成勾选热区，
+                   点一下提示就误改了开关。裸 checkbox 也不能直接当 hb-field 的子项 ——
+                   它拿不到 .hb-check 的 16px 方块样式，会以浏览器原生的裸控件飘在
+                   字段右下角，和上面「上架开关」那一排长得完全不一样。 -->
+              <div class="hb-field admin-grid__full">
                 <span>增量包（下单时必须挂到已有授权上）</span>
+                <label class="hb-check"><input type="checkbox" name="requiresLicense"> 启用</label>
                 <span class="admin-field-hint">勾上以后客户端下单要选一张已有授权、增量包的功能码写进那张授权，而不是另发一张新码。商品类型选了 module 也等同于此。</span>
-                <input type="checkbox" name="requiresLicense">
-              </label>
+              </div>
               <h4 class="admin-grid__section">文案备注</h4>
               <label class="hb-field admin-grid__full"><span>内部备注（仅后台可见）</span><textarea class="hb-textarea" name="note" rows="2"></textarea></label>
               <label class="hb-field admin-grid__full"><span>展示描述</span><textarea class="hb-textarea" name="displayDescription" rows="2"></textarea></label>
@@ -865,8 +869,13 @@
       </header>
       <div class="hb-card">
         <div class="hb-card__body">
-          <form id="settings-form" class="admin-grid admin-grid--wide">
-            <!-- 三十来个字段铺一页要滚三屏，故按用途切五段；tab 条与 pane 必须留在同一个 form 内，否则字段列宽会按 186px 而非 210px 计算。 -->
+          <form id="settings-form">
+            <!-- 三十来个字段铺一页要滚三屏，故按用途切六段。
+                 字段列宽由下方 #panel-settings .admin-tab-pane 那条规则给（下限 340px），
+                 与 form 自己是不是网格无关 —— 所以第六段「站点配色」能安心留在 form 外
+                 （它走另一个接口，见下），不必为了让 admin-grid__full / __wide 生效
+                 而把它拖进 form 里。tab 条与 pane 也仍然是这个 form 的子元素，
+                 form.elements 才能照常拿到所有 name 字段。 -->
             <div class="admin-tabs" data-tab-strip role="tablist" aria-label="站点配置分区">
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="site" data-tone="accent">站点信息</button>
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="payment" data-tone="lumen">支付与维护</button>
@@ -875,32 +884,49 @@
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="invite" data-tone="eco">邀请与解绑</button>
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="palette" data-tone="aura">站点配色</button>
             </div>
+            <!-- 分区内不再写一个和 tab 名字一模一样的标题：tab 选中态本身就是那一行文字
+                 （还带分区色），标题再念一遍只是把同一句话堆两遍。只有「一段里真的还分几带」
+                 时才用小标题断句（支付宝凭据、注册邮件两段）。 -->
             <div class="admin-tab-pane" data-tab-pane="site" role="tabpanel" data-tone="accent">
-              <h4 class="admin-grid__section">站点信息</h4>
               <label class="hb-field"><span>站点名</span><input class="hb-input" name="siteName"></label>
               <label class="hb-field"><span>站点标题</span><input class="hb-input" name="siteTitle"></label>
               <label class="hb-field"><span>客服邮箱</span><input class="hb-input" name="supportEmail"></label>
-              <label class="hb-field admin-grid__wide"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
-              <!-- 部署地址是账号中心「一键部署」脚本的托管根地址（脚本名固定为 install.sh）。留空即整块不显示：它没有可回落的默认值，而一个猜出来的地址只会让用户 curl 到一个 404。 -->
+              <label class="hb-field"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
+              <!-- 部署地址是账号中心「一键部署」脚本的托管根地址（脚本名固定为 install.sh）。留空即整块不显示：它没有可回落的默认值，而一个猜出来的地址只会让用户 curl 到一个 404。
+                   与上一行的品牌标识 URL 配成一对（占两列）：两者都是 URL，各自单独占一整行
+                   会在右边空掉两列，整段看着像没铺满。 -->
               <label class="hb-field admin-grid__wide"><span>一键部署脚本地址（账号中心授权卡展示；留空则不显示，无结尾斜杠）</span><input class="hb-input is-mono" name="deployBaseUrl" placeholder="https://example.com/deploy"></label>
               <label class="hb-field admin-grid__full"><span>站点描述</span><input class="hb-input" name="description"></label>
               <label class="hb-field admin-grid__full"><span>公告（前台 toast 展示）</span><input class="hb-input" name="announcement"></label>
             </div>
             <div class="admin-tab-pane" data-tab-pane="payment" role="tabpanel" data-tone="lumen">
-              <h4 class="admin-grid__section">支付与维护</h4>
               <label class="hb-field"><span>支付渠道</span>
                 <select class="hb-select" name="paymentProvider"><option value="">跟随环境变量</option><option value="mock">mock（需服务端显式开启）</option><option value="alipay">alipay</option></select>
               </label>
               <label class="hb-field"><span>支付显示名</span><input class="hb-input" name="paymentDisplayName"></label>
-              <label class="hb-field admin-grid__full"><span>交易标题（出现在支付宝账单的「商品名称」里，留空跟随环境变量）</span><input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量"></label>
-              <div class="hb-check-group">
+              <!-- 交易标题的字段名只留「交易标题」。带上那段账单说明后实测 380px，
+                   而本站三列带最窄的一条轨道只有 257px（见 admin.css 里那段预算推算）——
+                   字段名会折成两行，同一带里另外两个控件的输入框就被顶下去、不在一条线上。
+                   按 README §11.10 的规矩，多列带里的长说明写在控件之后。 -->
+              <!-- 两列档的补丁见 admin.css 里那条 .admin-grid__fill-2col：这一带是三个一列字段，
+                   两列时第三个（本行）只能自己占一行、右半边空出来，所以让它在这一档撑满整行。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>交易标题</span>
+                <input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量">
+                <small class="admin-field-hint">出现在支付宝账单的「商品名称」里；留空跟随环境变量。</small>
+              </label>
+              <!-- 两个开关占满整行。以前它们是 240px 宽的一列网格项，两枚勾选框挤在
+                   左边四分之一、右边整片空白，看着像没排完；而且「维护模式」与紧跟着的
+                   「维护文案」被拆到了两行。 -->
+              <div class="hb-check-group admin-grid__full">
                 <label class="hb-check"><input type="checkbox" name="paymentEnabled" id="setting-payment-enabled"> 启用支付</label>
                 <label class="hb-check"><input type="checkbox" name="maintenanceMode" id="setting-maintenance"> 维护模式</label>
               </div>
               <label class="hb-field admin-grid__full"><span>维护文案</span><input class="hb-input" name="maintenanceMessage"></label>
             </div>
             <div class="admin-tab-pane" data-tab-pane="alipay" role="tabpanel" data-tone="cool">
-              <h4 class="admin-grid__section">支付宝凭据</h4>
+              <!-- 这一段有 11 个字段加一块自检结果，用两个小标题断成三带：
+                   先回答「这套凭据到底能不能用」，再回答「钱回得来吗」。 -->
+              <h4 class="admin-grid__section">凭据与自检</h4>
               <p class="admin-hint admin-grid__full">
                 留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
               </p>
@@ -913,13 +939,21 @@
               <ul class="admin-diagnostic-list admin-grid__full" id="alipay-diagnostic-list"></ul>
               <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
               <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
+              <!-- 网关地址从「占两列」收回一列：与 AppID / 卖家 PID 凑成整齐的三个一列，
+                   而它自己那条地址（openapi.alipay.com/gateway.do）418px 也放得下。
+                   留在两列就会独占一行、右边空掉两列。
+                   它是三个一列字段的第三个，所以两列档要靠 admin-grid__fill-2col 撑满整行（见 admin.css）。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
               <label class="hb-field admin-grid__full"><span>应用私钥（PEM，或密钥工具导出的纯 base64）</span>
                 <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayAppPrivateKey" placeholder="留空不改动">
               </label>
               <label class="hb-field admin-grid__full"><span>支付宝公钥（开放平台的「支付宝公钥」，不是应用公钥）</span>
                 <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayPublicKey" placeholder="留空不改动">
               </label>
-              <label class="hb-field admin-grid__wide"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
+              <h4 class="admin-grid__section">回调地址</h4>
+              <!-- 「当前生效地址」紧贴它描述的三个字段：它以前夹在网关地址与异步通知之间，
+                   既不属于上面那一带（凭据），也不属于下面那一带（回调），
+                   还把网关地址孤零零地隔在了自己那一行。 -->
               <p class="admin-hint admin-grid__full" id="alipay-effective-urls"></p>
               <label class="hb-field admin-grid__full"><span>异步通知地址（支付宝服务器回调的地址，必须是公网可达的 https）</span>
                 <input class="hb-input is-mono" name="alipayNotifyUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
@@ -934,7 +968,11 @@
               </div>
             </div>
             <div class="admin-tab-pane" data-tab-pane="mail" role="tabpanel" data-tone="aura">
-              <h4 class="admin-grid__section">注册邮箱验证码</h4>
+              <!-- 这一段是全面板最长的一段（17 个字段），小标题把它断成三带：
+                   先「认出邮局并当场验一遍」，再「拿这些参数去发信」，最后「验证码的有效期与频次」。
+                   没有小标题时，17 个字段从「邮箱服务商」一路排到「接口回显验证码」，
+                   中间没有任何停顿，找一项要通读一遍。 -->
+              <h4 class="admin-grid__section">邮箱预设与自检</h4>
               <p class="admin-hint admin-grid__full">
                 留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
               </p>
@@ -962,6 +1000,7 @@
               <label class="hb-field admin-grid__full"><span>测试收件邮箱（留空则只做连接诊断，不发信）</span>
                 <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com（留空 = 只诊断，不发信）">
               </label>
+              <h4 class="admin-grid__section">SMTP 参数</h4>
               <label class="hb-field"><span>投递方式</span>
                 <select class="hb-select" name="mailMode">
                   <option value="">跟随环境变量</option>
@@ -987,8 +1026,12 @@
               <label class="hb-field"><span>SMTP 用户名</span>
                 <input class="hb-input is-mono" name="smtpUsername" placeholder="跟随环境变量">
               </label>
-              <label class="hb-field admin-grid__full"><span>发件人（带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code>）</span>
+              <!-- 发件人的字段名只留「发件人」：带上那段 `HomeOS <no-reply@…>` 写法说明
+                   会把标签折成两行，这一格里旁边两个字段的输入框就会整体下沉。
+                   按本文件 README 的规矩，多列带里的长说明写在控件之后。 -->
+              <label class="hb-field"><span>发件人</span>
                 <input class="hb-input is-mono" name="mailFrom" placeholder="跟随环境变量">
+                <small class="admin-field-hint">带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code></small>
               </label>
               <label class="hb-field admin-grid__full"><span>SMTP 授权码（一般是邮箱的 SMTP 授权码，不是登录密码）</span>
                 <input class="hb-input is-mono" type="password" autocomplete="new-password" name="smtpPassword" placeholder="留空不改动">
@@ -996,13 +1039,14 @@
               <div class="hb-check-group admin-grid__full">
                 <label class="hb-check"><input type="checkbox" name="smtpClearPassword" id="setting-smtp-clear-password"> 清除已保存的 SMTP 授权码</label>
               </div>
+              <h4 class="admin-grid__section">验证码策略</h4>
               <label class="hb-field"><span>验证码有效期（秒）</span>
                 <input class="hb-input" type="number" name="verificationTtlSeconds" placeholder="跟随环境变量">
               </label>
               <label class="hb-field"><span>重发冷却（秒）</span>
                 <input class="hb-input" type="number" name="verificationCooldownSeconds" placeholder="跟随环境变量">
               </label>
-              <label class="hb-field admin-grid__wide"><span>接口回显验证码（仅本地联调）</span>
+              <label class="hb-field"><span>接口回显验证码（仅本地联调）</span>
                 <select class="hb-select" name="exposeVerificationCode">
                   <option value="">跟随环境变量</option>
                   <option value="false">关闭（生产必须）</option>
@@ -1011,15 +1055,24 @@
               </label>
             </div>
             <div class="admin-tab-pane" data-tab-pane="invite" role="tabpanel" data-tone="eco">
-              <h4 class="admin-grid__section">邀请与解绑</h4>
-              <div class="hb-check-group">
+              <!-- 邀请有礼是这一段的**总开关**：关掉它，下面三个比例字段就都没有意义了，
+                   所以让它自己占一行（以前它是一列 240px 的网格项，一枚勾选框孤零零挤在
+                   左边四分之一，「奖励比例 %」反倒紧贴在它右边，看着像同一行的第四个控件）。 -->
+              <div class="hb-check-group admin-grid__full">
                 <label class="hb-check"><input type="checkbox" name="referralEnabled" id="setting-referral"> 邀请有礼</label>
               </div>
               <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
               <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
-              <label class="hb-field"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
-              <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" min="0" name="deviceReleaseCooldownSeconds" placeholder="跟随环境变量"></label>
-              <small class="admin-field-hint">两次<b>解绑</b>之间的间隔。<b>留空 = 跟随环境变量</b>，填 0 = 不限间隔。解绑之后可以立即重新激活（同机或换机都行）；这个值只约束「下一次解绑」，不拦激活。</small>
+              <!-- 三个比例字段是一带，第三个在两列档会剩自己一行；admin-grid__fill-2col 见 admin.css。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
+              <label class="hb-field admin-grid__full"><span>解绑冷却（秒）</span>
+                <input class="hb-input" type="number" min="0" name="deviceReleaseCooldownSeconds" placeholder="跟随环境变量">
+                <!-- 这段说明必须留在字段**里面**。它以前是网格的独立一项，于是自动流到
+                     下一行的第一列 —— 屏幕上紧贴在「邀请有礼」勾选框下面、离它真正解释的
+                     「解绑冷却（秒）」隔了三个字段，读起来是在解释邀请开关。
+                     独占整行的字段没有对齐压力，说明放在控件之后即可（见 README 的字段说明两规则）。 -->
+                <small class="admin-field-hint">两次<b>解绑</b>之间的间隔。<b>留空 = 跟随环境变量</b>，填 0 = 不限间隔。解绑之后可以立即重新激活（同机或换机都行）；这个值只约束「下一次解绑」，不拦激活。</small>
+              </label>
             </div>
           </form>
           <!-- 站点配色：单独一个分页，且刻意放在 <form> **之外** ——
@@ -1027,14 +1080,17 @@
                四束光（PUT 到 /store-admin/v1/appearance）。放进表单里会让「保存配置」
                顺带把它一起提交，而两边的校验口径与失败提示完全不同。 -->
           <div class="admin-tab-pane" data-tab-pane="palette" role="tabpanel" data-tone="aura">
-            <h4 class="admin-grid__section">站点配色</h4>
-            <p class="admin-hint">
+            <!-- 这一段落在 form 之外，但栅格跟另外五段是同一条规则给的
+                 （#panel-settings .admin-tab-pane），所以里面每一块都要显式声明占满整行 ——
+                 以前它不是网格，这些 admin-grid__full 全是空转；现在缺一个就会缩成 418px 的一列。
+                 小标题也一并去掉：tab 就叫「站点配色」。 -->
+            <p class="admin-hint admin-grid__full">
               配色分两层：一个主控色决定「可进入 / 可操作」的暖金，三束居家光分别代表灯光与已激活（暖光）、
               氛围与恢复（极光紫）、在线与节能（薄荷）。温度与安防的读色不在这里 ——
               它们编码物理含义，改掉会让「热」看起来像「冷」。改动即时生效，保存后刷新依然是这套颜色。
             </p>
-            <div id="palette-preset-list" class="admin-palette-presets" role="radiogroup" aria-label="配色预设"></div>
-            <div class="admin-palette-custom">
+            <div id="palette-preset-list" class="admin-palette-presets admin-grid__full" role="radiogroup" aria-label="配色预设"></div>
+            <div class="admin-palette-custom admin-grid__full">
               <span>自定义主控色</span>
               <!-- 这两个框的初值由 palette.js 从**当前生效的 --hb-accent** 填
                    （配色样式表由服务端按已保存的配置生成）。
@@ -1045,14 +1101,14 @@
               <input id="palette-accent-hex" class="hb-input" type="text" inputmode="latin" spellcheck="false" maxlength="7" placeholder="#RRGGBB" aria-label="主控色十六进制值">
               <small>自定义只换主控色，暖光 / 极光紫 / 薄荷沿用所选预设。</small>
             </div>
-            <div class="admin-palette-preview" aria-hidden="true">
+            <div class="admin-palette-preview admin-grid__full" aria-hidden="true">
               <span data-swatch="accent"></span>
               <span data-swatch="lumen"></span>
               <span data-swatch="aura"></span>
               <span data-swatch="eco"></span>
             </div>
-            <p id="palette-message" class="admin-inline-msg" role="status" hidden></p>
-            <div class="admin-form-actions">
+            <p id="palette-message" class="admin-inline-msg admin-grid__full" role="status" hidden></p>
+            <div class="admin-form-actions admin-grid__full">
               <button class="hb-button" id="palette-reset" type="button">恢复默认</button>
               <button class="hb-button hb-button--primary" id="palette-save" type="button">保存配色</button>
             </div>
@@ -1162,7 +1218,7 @@
                     <span class="feature-picker__caret" aria-hidden="true"></span>
                   </button>
                   <input type="hidden" name="featureCode" data-feature-value value="">
-                  <div class="feature-picker__pop" data-feature-pop hidden>
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
                     <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
                     <div class="feature-picker__list" data-feature-list role="listbox"></div>
                   </div>
@@ -1207,7 +1263,7 @@
                     <span class="feature-picker__caret" aria-hidden="true"></span>
                   </button>
                   <input type="hidden" name="featureCode" data-feature-value value="">
-                  <div class="feature-picker__pop" data-feature-pop hidden>
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
                     <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
                     <div class="feature-picker__list" data-feature-list role="listbox"></div>
                   </div>
@@ -1516,20 +1572,20 @@
      普通脚本立即执行、module 默认 defer，因此这里排在入口之前即可。
      顺序与内容对齐 store.html，避免两份入口各写一套。CSP 的 script-src 含 'self'，
      同源脚本不需要 nonce，这里不带。 -->
-<script src="/store-static/htmlsafe.js?v=2609221451"></script>
-<script src="/store-static/api-error.js?v=2609221451"></script>
-<script src="/store-static/money.js?v=2609221451"></script>
+<script src="/store-static/htmlsafe.js?v=2609222006"></script>
+<script src="/store-static/api-error.js?v=2609222006"></script>
+<script src="/store-static/money.js?v=2609222006"></script>
 
 <!-- 后台入口按主题拆在 store/static/admin/ 下。CSP 的 script-src 含 'self'，同源外部脚本
      不需要 nonce；这里仍然带上，与下方 palette.js 的写法保持一致。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609221451"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609222006"></script>
 <!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
      ./scene/appearance.js（预设 / 明暗派生 / 令牌展开的唯一实现）。
      内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609221451"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609222006"></script>
 <!-- 状态甲板的自走读数（源：store/static/entry-deck.js）。它读页面里已有的时间戳，
      不发任何请求；没有 .hos-deck 时自行退出 —— 这一页只有后台登录屏有甲板，
      工作台没有。与主应用那份是两份文件、一套 data-* 契约。 -->
-<script src="/store-static/entry-deck.js?v=2609221451"></script>
+<script src="/store-static/entry-deck.js?v=2609222006"></script>
 </body>
 </html>

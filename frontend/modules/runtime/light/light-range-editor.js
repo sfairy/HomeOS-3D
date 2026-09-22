@@ -17,7 +17,7 @@ import {
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609221451";
+} from "../core/static-helpers.js?v=2609222006";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
 // 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
@@ -52,7 +52,14 @@ function rangeEditorPalette() {
     // 未选中的其它光区走传感器灰，与主控暖色分开（原来是一枚 #99afc0）。
     idleStroke: paletteColor("--hos-sensor", "#9eb0c4"),
     idleMarkerFill: paletteColor("--hos-ink", "#f1f7fb"),
-    idleMarkerStroke: paletteColor("--hos-sky-haze", "#536777"),
+    // 标记点的外圈：取传感器灰的**暗档**，与上面 idleStroke 同族但更弱，
+    // 让「未选中」这一族自成一个层次（亮档描光区、暗档描标记点）。
+    // 原来写的是 --hos-sky-haze，兜底 #536777 —— 两者差得很远，说明那个令牌是选错的：
+    // --hos-sky-haze (#24395a) 是夜空族的**面色**（彩度 54、亮度 0.040），拿来当画布上的
+    // 描边几乎是黑的，而兜底值透露的真实意图是一枚中调蓝灰（彩度 36、亮度 0.129）。
+    // --hos-sensor-deep (#77879a) 的彩度 35 与它几乎一致、色相同为蓝灰，正是这一族
+    // 早就定义好却一直没有消费者的暗档。
+    idleMarkerStroke: paletteColor("--hos-sensor-deep", "#77879a"),
     // 三种拖拽手柄与连线。
     handleFill: paletteColor("--hos-accent-bright", "#ffd9a0"),
     handleStroke: paletteColor("--hos-accent-deep", "#e09523"),

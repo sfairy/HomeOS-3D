@@ -5,7 +5,7 @@
  * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；字段名与前端 JSON 的 camelCase 对齐。
  * 纯函数，不做持久化。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609221451";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609222006";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;

@@ -6,10 +6,10 @@
  * 19 张列表共用同一套游标、分页器与筛选口径；面板只管拼表格行，不再各写一遍翻页状态。
  */
 
-import { $, $$, esc } from "./dom.js?v=2609221451";
-import { api } from "./api.js?v=2609221451";
-import { num } from "./format.js?v=2609221451";
-import { host } from "./host.js?v=2609221451";
+import { $, $$, esc } from "./dom.js?v=2609222006";
+import { api } from "./api.js?v=2609222006";
+import { num } from "./format.js?v=2609222006";
+import { host } from "./host.js?v=2609222006";
 
 // 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
 // 会把 select 静默设成空值，所以先把意图记下来，等选项填好再补一次。
@@ -22,12 +22,14 @@ export function actions(...buttons) {
 
 // 「主操作 + ⋯ 菜单」：把低频/破坏性操作收进菜单。
 // 菜单项仍是 <button data-xxx>，沿用各表已有的事件委托，处理函数一行都不用改。
+// popover="manual" 的理由见 menus.js 的 openRowMenu：打开时它把节点放进顶层，
+// 弹层才不受 .table-wrap / .hb-card 上 backdrop-filter 造出的包含块与 overflow 影响。
 export function rowMenu(title, ...items) {
   const body = items.filter(Boolean).join('');
   if (!body) return '';
   return `<div class="menu">
       <button type="button" class="hb-button hb-button--secondary hb-button--sm menu__toggle" data-menu-toggle aria-haspopup="menu" aria-label="${esc(title)}">⋯</button>
-      <div class="menu__pop" hidden>${body}</div>
+      <div class="menu__pop" popover="manual" hidden>${body}</div>
     </div>`;
 }
 

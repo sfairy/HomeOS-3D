@@ -6,6 +6,21 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+
+/* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
+ *
+ * 舞台里的 UI 字号一律按**逻辑 px** 写，再由各自的缩放变量换算进设计画布：2778×1940 是 2 倍
+ * 标称画布，所以灯光面板靠 --i3d-control-scale（×2）、导航靠 --i3d-navigation-scale（×2）把
+ * 14px 抬成 28 设计 px。标记这套只带了 markerSize/44 这个「随标记大小」的比值，缺了这一步换算，
+ * 于是同样写 12px 的标签在屏幕上只有面板文字的一半（面板 28 设计 px vs 标签 12 设计 px，恒定差
+ * 2.2 倍，与预览缩放无关）。编辑器预览里画布再被压到 0.36，12 设计 px 只剩约 4px，等于看不见。
+ *
+ * 所以标记文字、标记自身的命中框、以及标签内那枚图标都要按同一个倍数换算：整块标签放大后，
+ * 可点区域必须跟着放大，否则看得见的地方点不中；标签内的图标则要反着除回去，
+ * 免得它相对普通标记的图标变成两倍大。
+ */
+const MARKER_LABEL_SCALE = 2;
+
 export function createMarkerLayer(ctx) {
   /**
    * 重绘标记列表：按当前模块的绑定集合增删 DOM 节点并同步内容。
@@ -155,7 +170,9 @@ export function createMarkerLayer(ctx) {
           markerElement.replaceChildren(statusElement);
         }
         const vacuumStatus = ctx.vacuumStatusPresentation(renderedBinding, ctx.statesByEntityId);
-        const statusScale = markerSize / 44;
+        // 整块状态卡（名称 / 明细 / 电量 / 卡片内边距 / 箭头）一起按标记标签口径放大：
+        // 卡内字号不动，缩放交给 transform 与下面两处框尺寸，三者才不会走散。
+        const statusScale = (markerSize / 44) * MARKER_LABEL_SCALE;
         if (!renderedBinding.overviewQuip) {
           statusElement.querySelector(".i3d-vacuum-status-name").textContent =
             renderedBinding.label || "扫地机器人";
@@ -237,36 +254,35 @@ export function createMarkerLayer(ctx) {
           );
           securityLabelElement.classList.toggle("is-camera-offline", !isAvailable);
           securityLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
+          // 标签整块按标记标签口径放大：字号、内边距、圆角、图标位置都跟着 --i3d-security-scale
+          // 走，所以标签内的图标要反着除回去，才能和普通标记的图标一样大。
+          const securityLabelScale = (markerSize / 44) * MARKER_LABEL_SCALE;
           if (renderedBinding.deviceKind === "camera") {
             const securityIconElement = markerElement.querySelector(".i3d-marker-icon");
             if (securityIconElement && securityIconElement.parentNode !== securityLabelElement) {
               securityLabelElement.append(securityIconElement);
             }
-            securityLabelElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px");
+            securityLabelElement.style.setProperty(
+              "--i3d-marker-icon-size",
+              iconSize / MARKER_LABEL_SCALE + "px"
+            );
           }
-          markerElement.style.setProperty("--i3d-security-scale", String(markerSize / 44));
-          markerElement.style.width =
-            Math.max(
-              hitSize,
-              ((renderedBinding.deviceKind === "camera"
-                ? securityLabelElement.offsetWidth || 0
-                : isSensorChoice
-                  ? 120
-                  : 180) *
-                markerSize) /
-                44
-            ) + "px";
-          markerElement.style.height =
-            Math.max(
-              hitSize,
-              ((renderedBinding.deviceKind === "camera"
-                ? securityLabelElement.offsetHeight || 0
-                : isSensorChoice
-                  ? 32
-                  : 58) *
-                markerSize) /
-                44
-            ) + "px";
+          markerElement.style.setProperty("--i3d-security-scale", String(securityLabelScale));
+          // 命中框 = 标签的布局尺寸 × 缩放（offsetWidth/offsetHeight 不含 transform，乘完才是
+          // 屏幕上真正占的范围），摄像头以外的两种情况再并上原来那组估算常量（同样乘缩放），
+          // 于是命中范围只会变大不会变小 —— 常量是估的，标签宽度随文字长短浮动，取较大值最保险；
+          // 量不到时（祖先尚未布局）也正好靠这组常量兜底。hitSize 是用户设的触控范围（设计 px），
+          // 已经落在屏幕尺寸上，不参与换算。
+          const labelHitWidth = Math.max(
+            securityLabelElement.offsetWidth,
+            renderedBinding.deviceKind === "camera" ? 0 : isSensorChoice ? 120 : 180
+          );
+          const labelHitHeight = Math.max(
+            securityLabelElement.offsetHeight,
+            renderedBinding.deviceKind === "camera" ? 0 : isSensorChoice ? 32 : 58
+          );
+          markerElement.style.width = Math.max(hitSize, labelHitWidth * securityLabelScale) + "px";
+          markerElement.style.height = Math.max(hitSize, labelHitHeight * securityLabelScale) + "px";
         }
       }
       markerElement.classList.toggle("i3d-vacuum-room", isVacuumRoomMarker);
@@ -282,7 +298,10 @@ export function createMarkerLayer(ctx) {
         }
         roomLabelElement.textContent = renderedBinding.label || "清扫";
         roomLabelElement.hidden = renderedBinding.labelHidden === true;
-        roomLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
+        // 房间名是 chip 而不是整块缩放的元素，这里直接放字号；CSS 里的内边距 / 圆角已改成 em，
+        // 跟着字号一起长（见 stage.css 的 .i3d-room-label）。
+        roomLabelElement.style.fontSize =
+          (renderedBinding.fontSize || 12) * MARKER_LABEL_SCALE + "px";
       }
       markerElement.style.setProperty("--i3d-marker-size", markerSize + "px");
       markerElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px");

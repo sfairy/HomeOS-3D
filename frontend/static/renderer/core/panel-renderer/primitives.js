@@ -9,9 +9,9 @@
  * 都不属于本文件。
  */
 
-import { randomUuid } from "../../../utils/random-id.js?v=2609221451";
-import { paletteColor } from "../../../utils/colors.js?v=2609221451";
-import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609221451";
+import { randomUuid } from "../../../utils/random-id.js?v=2609222006";
+import { paletteColor } from "../../../utils/colors.js?v=2609222006";
+import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609222006";
 
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
 export const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;
@@ -28,11 +28,17 @@ export const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;
  * 别处的 var() 消费。写 var() 也成立，但取实际色值更短，也不会在两条自定义属性
  * 之间再套一层变量间接 —— 出问题时 computed 面板里直接就是最终颜色。
  * 取不到调色板（页面未加载）时回落到与调色板同值的字面量。
+ *
+ * 「同值」是硬要求，而且这里踩过：excellent / good 两档的兜底曾经是 #4ed6a8（RGB 78, 214, 168），
+ * 与 --hos-eco 的 canonical #5fd0a8（95, 208, 168）并不相等 —— 差在红通道 17 与绿通道 6。
+ * 平时看不出来（令牌在时永不落兜底），只有调色板没加载时这两档才会偏出一档绿。
+ * 三种「兜底」写法里这是第三种：var(--x, #lit)、paletteColor("--x", "#lit")、以及
+ * 这里的 { token, fallback } 成对数据。tools/check_invariants.mjs 第 12 条三种都查。
  */
 const AIR_QUALITY_TONES = {
-  excellent: { token: "--hos-eco", fallback: "#4ed6a8", rgbFallback: "78, 214, 168" },
-  good: { token: "--hos-eco", fallback: "#4ed6a8", rgbFallback: "78, 214, 168" },
-  warning: { token: "--hos-lumen", fallback: "#ffb86e", rgbFallback: "255, 184, 110" },
+  excellent: { token: "--hos-eco", fallback: "#5fd0a8", rgbFallback: "95, 208, 168" },
+  good: { token: "--hos-eco", fallback: "#5fd0a8", rgbFallback: "95, 208, 168" },
+  warning: { token: "--hos-lumen", fallback: "#ff9d4d", rgbFallback: "255, 157, 77" },
   poor: { token: "--hos-alert", fallback: "#f07a7e", rgbFallback: "240, 122, 126" },
   unknown: { token: "--hos-sensor", fallback: "#9eb0c4", rgbFallback: "158, 176, 196" }
 };

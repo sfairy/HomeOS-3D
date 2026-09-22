@@ -5,7 +5,7 @@
 思路 —— **按访问者给，不按页面给**，因为 ``/pair`` 同时服务两种人
 （管理员带着 ``?scan=1`` 来配第二块屏，与一台还没配对的墙面板）。
 
-三条硬约束，改了任一条都会让这块甲板变成负债：
+四条硬约束，改了任一条都会让这块甲板变成负债：
 
 1. **不发新请求、不新增公开接口。** 读数全部取自已有的进程内状态与本地库
    （``app.state.ha_connector`` / ``license_service`` / ``admin_account`` / 数据库），
@@ -25,6 +25,13 @@
    「每一秒都在变」的读数；把它们做成服务端轮询等于给入口页装一台每秒响一次的闹钟。
    这里只把**时间戳**注入 ``data-*``，由 ``frontend/static/auth/entry-deck.js``
    在客户端推进。
+
+4. **一格读数不许长过一格。** 甲板四等分，而坞宽封顶 ``600px``，扣掉坞内距与甲板
+   内距之后每格最宽只有 **87px**。等宽字体下那是一行约 4.8em 的预算：本机时钟的
+   ``18:04:22`` 是 80px、``23时59分`` 是 77px，都在里面；而带空格的 ``23 时 59 分``
+   （107px）与五个汉字的 ``待联网验证``（91px）都在外面 —— 后者会在格子里被切掉半截。
+   字号的下限已经由 ``.hos-deck__value`` 按格宽自动收（见 ``panel.css``），
+   所以**文案本身**要守这条预算：往这一格加字之前，先算它有多宽。
 
 为什么甲板是「四格」而不是更多：坞体宽度是 ``min(600px, 47%)``，扣掉内边距后
 一行放得下四格等宽数字；第五格会开始换行，而甲板一旦折成两行，它就从「一排仪表」
@@ -82,7 +89,10 @@ _LICENSE_READOUT = {
     'RECOVERY_RETRY': ('重连中', 'is-mid'),
     'RECOVERY_REQUIRED': ('待恢复', 'is-low'),
     'LEASE_EXPIRED': ('租约到期', 'is-low'),
-    'STARTUP_VALIDATION_REQUIRED': ('待联网验证', 'is-low'),
+    # 「待联网验证」五个汉字实测 91.4px，而四列甲板每格最宽只有 87px（坞取满 600px 时）
+    # —— 又是「一格读数永远在省略号里」。授权状态这一格的值上限是四个汉字，
+    # 加字之前先看 .hos-deck__value 的宽度预算。
+    'STARTUP_VALIDATION_REQUIRED': ('待联网', 'is-low'),
     'UNACTIVATED': ('未激活', 'is-low'),
     'DEACTIVATED': ('已停用', 'is-none'),
     'REVOKED': ('已吊销', 'is-none'),
@@ -325,7 +335,9 @@ def deck_tiles(
             return (
                 _clock_tile(),
                 _tile('服务状态', '就绪', spark = 'is-full'),
-                _tile('配对方式', '6 位固定码', spark = 'is-mid'),
+                # 「6 位固定码」实测 93.2px，比四列甲板最宽的那一格（87px）还宽 ——
+                # 见模块 docstring 第 4 条，所以这里只留「6 位码」（3.2em / 57px）。
+                _tile('配对方式', '6 位码', spark = 'is-mid'),
                 _uptime_tile(),
             )
         if page == 'license-recovery.html':

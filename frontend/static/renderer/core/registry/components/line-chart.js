@@ -4,29 +4,29 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609221451";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609222006";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../../controls/line-chart-runtime.js?v=2609221451";
+} from "../../../controls/line-chart-runtime.js?v=2609222006";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../../controls/weather-chart-runtime.js?v=2609221451";
+} from "../../../controls/weather-chart-runtime.js?v=2609222006";
 // 同门分片：history-chart
 import {
   attachChartTooltip,
   buildHistorySeries
-} from "../history-chart.js?v=2609221451";
+} from "../history-chart.js?v=2609222006";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609221451";
+import { registerComponent } from "../registry-core.js?v=2609222006";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   chartThresholdPalette,
   resolveColor
-} from "../registry-visuals.js?v=2609221451";
+} from "../registry-visuals.js?v=2609222006";
 
 // 折线图控件：序列由 buildHistorySeries 整理，几何与路径由 line-chart-runtime 计算。
 registerComponent("line-chart", {

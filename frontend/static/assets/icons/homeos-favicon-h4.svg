@@ -1,4 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="HomeOS">
+<!-- 品牌标配色：刻意硬编码，不要改成 CSS 自定义属性引用。
+     这一族 SVG 全部以 img 标签 / link rel=icon / PWA 清单图标的方式
+     作为独立文档加载，页面根元素上的自定义属性在它自己的文档里并不存在，
+     属性引用会解析为空，整个标会变成黑块或透明，而且不报错。
+     13 个色值里 9 个逐字节等于 canonical 令牌（050912 = hos-sky-deep、
+     081020 = hos-sky-low、16263C = hos-sky-high、24395A = hos-sky-haze、
+     5FD0A8 = hos-eco、C9A0FF = hos-aura、FF9D4D = hos-lumen、
+     FFC46A = hos-accent、FFD9A0 = hos-accent-bright），改令牌时这几处要跟着改；
+     另 4 个（4E6489 / D89A3C / FFE9C9 / FFF6E4）是标自身的渐变色阶中点，
+     全库仅在这里出现，不对应任何令牌，所以没有漂移可收。 -->
   <title>HomeOS</title>
   <defs>
     <linearGradient id="fvh4House" x1="12" y1="92" x2="90" y2="10" gradientUnits="userSpaceOnUse">

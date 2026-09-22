@@ -53,7 +53,7 @@
   padding: 8px 10px;
   border-radius: 9px;
   background: #ffffff08;
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
   font-size: 12px;
 }
 /* 指标区是面板里唯一可滚动的部分：flex: 1 占满剩余高度，标题与状态行保持不动。 */
@@ -127,7 +127,7 @@
 .i3d-nas-group h4 {
   margin: 0 0 5px;
   font-size: 11px;
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
   letter-spacing: 0.08em;
 }
 /* 每行两张卡片；卡片内部用 space-between 把标签与数值分居两端。 */
@@ -154,7 +154,7 @@
 }
 .i3d-nas-metric span {
   min-width: 0;
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
   font-size: 10px;
   overflow: hidden;
   text-overflow: ellipsis;

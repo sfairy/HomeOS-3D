@@ -12,35 +12,44 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609221451"></script>
+    <script src="/static/logging/client-log.js?v=2609222006"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
-    <meta name="theme-color" content="#050912" />
+    <!-- 移动端状态栏 / 任务切换器取这一档。**刻意与全站其余 10 处不同**：
+         入口页（login/setup/license/pair）、商店与工作室的底色都是夜空最深档
+         --hos-sky-deep #050912，唯独编辑器画的是中性石板 --hos-tool-bg #0b0f12
+         （决策 2：编辑器保持中性，不跟场景的夜空族）。写 #050912 会让状态栏
+         与页面本身差一档，在 iOS Safari 上是一条明显的色带。
+         注意 manifest-h5.webmanifest 的 theme_color 仍是 #050912 且**不能改**：
+         它与 login/setup/license/pair 四个入口页共用，那四页的底确实是 sky-deep。
+         代价是「安装到桌面后」的 PWA 窗口底色仍是夜空档 —— 这是已知且有意的取舍，
+         要消掉它就得给编辑器单独做一份 manifest。 -->
+    <meta name="theme-color" content="#0b0f12" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609221451" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609221451" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221451" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221451" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609221451" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609221451" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609222006" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609222006" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609222006" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609222006" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609222006" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609222006" />
     <!-- 全站调色板（design/scene/page.css 的分发产物）。index.html **不再自带色板**：
          app.css 的 :root 只是把它别名成 --bg / --accent 这些历史令牌名。
          必须在 app.css 之前加载：别名在解析时就要能取到 --hos-*，顺序反了第一批
          自定义属性会解析成无效值，整页回落成透明底 + 默认蓝链接。 -->
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609221451" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609222006" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=2609221451"
+      href="/static/app.css?v=2609222006"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609221451" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609221451" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609221451` 的 <link>。
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609222006" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609222006" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609222006` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -48,7 +57,7 @@
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609221451" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609222006" alt="" /><strong
           >HomeOS</strong
         ><span class="version">0.6.3</span>
       </div>
@@ -4477,14 +4486,14 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=2609221451"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=2609222006"></script>
     <!-- 站点配色面板：独立模块，顶栏「配色」按钮即它的入口。
          与 home.js 分开是因为它不依赖编辑器状态 —— 换配色是站点级设置，不是仪表盘级。 -->
-    <script type="module" src="/static/editor/appearance.js?v=2609221451"></script>
+    <script type="module" src="/static/editor/appearance.js?v=2609222006"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/editor/home.js?v=2609221451"
+      src="/static/editor/home.js?v=2609222006"
     ></script>
   </body>
 </html>

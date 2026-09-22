@@ -17,6 +17,18 @@
 :root {
   color-scheme: dark;
   background: var(--display-surface-background, var(--hos-sky-deep, #050912));
+  /* 氛围层（阶段 3）：展示端此前是 0 条 radial-gradient 的一块平板
+     （渲染器 renderer.css 自己那 41 条都在仪表盘控件内部，页面本身没有）。
+     这里给展示页的**底**补三束极淡的中性光：仪表盘不铺满整屏时（窄款面板、
+     留白布局）透出来的就是它，而不是一块纯色。
+     用 background-image 而不是改 background —— 底色仍由 JS 写入的
+     --display-surface-background 决定，这一层只是叠在它上面的一层极淡的光。
+     展示页的底上没有文字，所以不存在压花小字的对比度风险。 */
+  background-image:
+    radial-gradient(circle at 86% -8%, var(--hos-atmo-strong), transparent 52rem),
+    radial-gradient(circle at 6% 102%, var(--hos-atmo-soft), transparent 44rem),
+    radial-gradient(circle at 52% 30%, var(--hos-atmo-faint), transparent 38rem);
+  background-attachment: fixed;
 }
 * {
   box-sizing: border-box;
@@ -84,7 +96,7 @@ body {
 /* ===== 错误提示 ===== */
 
 .display-error {
-  color: var(--hos-alert, #f07a7e);
+  color: var(--hos-err, #f5a3a6);
   font:
     13px system-ui,
     sans-serif;

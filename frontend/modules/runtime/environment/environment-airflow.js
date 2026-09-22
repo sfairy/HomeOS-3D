@@ -8,24 +8,27 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609221451";
+// 「其它」档的中性灰（AIRFLOW_OTHER_COLOR）同样经这座桥 —— runtime 资源挂在
+// /api/v1/modules/interaction3d/ 下，URL 比磁盘路径深一层，裸相对路径会算错层数而 404。
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609222006";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609221451";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221451";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609222006";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609222006";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221451";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609222006";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
     制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
     主控色被改成极光紫那天，制冷气流不该跟着变紫。
-    「其它」留字面量：#dce2e6 是无色相中性灰，调色板里没有对应令牌，
-    硬套 --hos-sensor（离线 / 未知）会把「其它模式」误读成「设备离线」。
+    「其它」用共享常量 AIRFLOW_OTHER_COLOR（#dce2e6）：它是无色相中性灰，调色板里没有对应令牌，
+    硬套 --hos-sensor（离线 / 未知）会把「其它模式」误读成「设备离线」；定义与理由见
+    frontend/static/utils/airflow-colors.js，编辑器侧与控件渲染兜底读的是同一枚。
     三档都必须在**取用时**解析（本模块在被调用时才跑），不能提到模块顶层：
     顶层求值时样式表可能还没解析完，paletteColor 会把兜底色缓存下来、之后一直用那个。 */
 function flowStateColors() {
   return {
     cool: paletteColor("--hos-cool", "#58c4ff"),
     heat: paletteColor("--hos-heat", "#ff8a65"),
-    other: "#dce2e6"
+    other: AIRFLOW_OTHER_COLOR
   };
 }
 /** hvac_action 里表示「风机确实在吹」的取值；不在集合内则不出风。 */

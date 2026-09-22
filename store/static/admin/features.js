@@ -6,10 +6,10 @@
  * 功能码选择器是跨面板控件（商品与权益都用同一个），所以单独成模块，候选清单也只取一份。
  */
 
-import { state } from "./state.js?v=2609221451";
-import { $, $$, esc, toast } from "./dom.js?v=2609221451";
-import { MENU_GAP, MENU_MARGIN, closeRowMenus } from "./menus.js?v=2609221451";
-import { api } from "./api.js?v=2609221451";
+import { state } from "./state.js?v=2609222006";
+import { $, $$, esc, toast } from "./dom.js?v=2609222006";
+import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js?v=2609222006";
+import { api } from "./api.js?v=2609222006";
 
 // 功能码选择器（商品多选 / 权益单选共用）：目录由 /feature-codes 下发，勾选即写代码，避免手写英文码抄错后静默失效。
 // 根节点 data-* 配置：data-feature-picker（标记根）、data-feature-multiple="true"（多选，缺省单选）、data-feature-empty（空值提示）；仍提交与原 name 一致的隐藏域（多选存 CSV），单选必填需自行拦截（见 requireFeatureCode）。
@@ -159,7 +159,10 @@ export function closeFeaturePicker(root) {
   if (!root || !root.classList.contains('is-open')) return;
   root.classList.remove('is-open');
   const pop = $('[data-feature-pop]', root);
-  if (pop) pop.hidden = true;
+  if (pop) {
+    hidePopoverIfOpen(pop);
+    pop.hidden = true;
+  }
   const toggle = $('[data-feature-toggle]', root);
   if (toggle) toggle.setAttribute('aria-expanded', 'false');
 }
@@ -170,6 +173,9 @@ export function closeFeaturePickers() {
 
 // 与行内「⋯」菜单同一套坐标算法：absolute 弹出层会被 .admin-main / .table-wrap 的
 // overflow 裁掉，所以打开时切成 position: fixed，用按钮位置现算坐标。
+// 也因此和菜单一样必须借 popover 进顶层：编辑器卡片（.hb-card）挂着 --a-glass-blur，
+// backdrop-filter 会把 fixed 的包含块从视口改成那张卡片，坐标全错 —— 表现是「点开选择器
+// 什么都没出现，其实飘到卡片外面去了」。详见 menus.js 的 openRowMenu。
 function placeFeaturePicker(root) {
   const pop = $('[data-feature-pop]', root);
   const toggle = $('[data-feature-toggle]', root);
@@ -203,6 +209,7 @@ export function openFeaturePicker(root) {
   closeFeaturePickers();
   pop.hidden = false;
   root.classList.add('is-open');
+  if (typeof pop.showPopover === 'function') pop.showPopover();
   $('[data-feature-toggle]', root).setAttribute('aria-expanded', 'true');
   // 每次都从完整目录打开：残留的搜索词会让「少了几项」看起来像功能码丢了。
   const searchInput = $('[data-feature-search]', root);

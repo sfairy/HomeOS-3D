@@ -8,7 +8,7 @@
  * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
  * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609221451";
+@import "/static/bridge/controls.css?v=2609222006";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -62,7 +62,7 @@
   padding: 20px;
   place-items: center;
   background: transparent;
-  color: #a8afb7;
+  color: var(--hos-tool-text-dim);
   /* 字号跟着控件尺寸走：小挂件落到 16px 下限（与旧的 14px 观感接近），
      墙面屏 / 整屏 3D 背景能放大到 40px。min() 同时看宽和高，
      避免「很宽但很矮」的组件里字把画面撑爆。 */
@@ -248,7 +248,7 @@
   padding: 0 8px;
   color: var(--text, #e8ecef);
   background: var(--field, #171d22);
-  border: 1px solid #37414a;
+  border: 1px solid var(--hos-tool-line);
   border-radius: 4px;
   font: inherit;
   font-size: 11px;
@@ -271,7 +271,7 @@
   border-radius: 0;
 }
 .i3d-editor .inspector-number-stepper:first-child {
-  border-bottom: 1px solid #343e46;
+  border-bottom: 1px solid var(--hos-tool-line);
 }
 .i3d-editor .custom-select-button {
   min-height: 32px;
@@ -306,7 +306,7 @@
 }
 .i3d-editor .i3d-error {
   margin: 10px 0 0;
-  color: #e69c93;
+  color: var(--hos-err);
   white-space: pre-wrap;
   font-size: 11px;
 }
@@ -360,7 +360,7 @@
   text-align: left;
   color: var(--text, #e8ecef);
   background: var(--field, #171d22);
-  border: 1px solid #37414a;
+  border: 1px solid var(--hos-tool-line);
   border-radius: 4px;
 }
 .i3d-editor .i3d-picker-button span {
@@ -431,18 +431,18 @@
 .i3d-focus-actions[role="group"] {
   gap: 3px;
   padding: 3px;
-  border: 1px solid #343d45;
+  border: 1px solid var(--hos-tool-line);
   border-radius: 4px;
   background: var(--field, #171d22);
 }
 .i3d-focus-actions[role="group"] button {
   border: 0;
   border-radius: 3px;
-  color: #7f8a91;
+  color: var(--hos-tool-hint);
   background: transparent;
 }
 .i3d-focus-actions[role="group"] button:hover:not(:disabled) {
-  color: #dce2e6;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff0b;
 }
 .i3d-focus-actions button[aria-pressed="true"],
@@ -657,9 +657,9 @@
   height: 14px;
   margin: 0;
   padding: 0;
-  border: 1px solid #4b5760;
+  border: 1px solid var(--hos-tool-line-strong);
   border-radius: 99px;
-  background: #283139;
+  background: var(--hos-tool-surface-raised);
   box-shadow: none;
   appearance: none;
   -webkit-appearance: none;
@@ -744,12 +744,12 @@
   font-size: 12px;
 }
 .i3d-range-dialog .i3d-range-status.is-error {
-  color: #e69c93;
+  color: var(--hos-err);
 }
 .i3d-range-dialog > header button {
   min-height: 36px;
   padding: 6px 12px;
-  border: 1px solid #536472;
+  border: 1px solid var(--hos-tool-control-line);
   border-radius: 6px;
   background: var(--field, #24313b);
   color: var(--text, #e8ecef);
@@ -832,7 +832,7 @@
   width: 100%;
   height: 34px;
   font: inherit;
-  border: 1px solid #37414a;
+  border: 1px solid var(--hos-tool-line);
   border-radius: 4px;
   padding: 0 8px;
   color: var(--text, #e8ecef);
@@ -846,7 +846,7 @@
 }
 .i3d-add-dialog .i3d-error {
   margin: 0;
-  color: #e69c93;
+  color: var(--hos-err);
   font-size: 11px;
 }
 .i3d-add-dialog .i3d-error:empty {
@@ -923,8 +923,8 @@
   padding: 0;
   border: 1px solid #485269;
   border-radius: 16px;
-  background: #182131;
-  color: #edf1f8;
+  background: var(--hos-tool-surface-soft);
+  color: var(--hos-tool-ink);
   overflow: hidden;
 }
 .i3d-vacuum-map-editor::backdrop {
@@ -935,7 +935,7 @@
   align-items: center;
   gap: 12px;
   padding: 14px 18px;
-  border-bottom: 1px solid #394457;
+  border-bottom: 1px solid var(--hos-tool-line-mid);
 }
 .i3d-vacuum-map-editor > header strong {
   flex: 1;
@@ -952,7 +952,7 @@
 .i3d-vacuum-plan {
   min-width: 0;
   min-height: 0;
-  background: #101824;
+  background: var(--hos-tool-surface);
 }
 /* 地图 SVG 的绘制顺序与穿透规则：房间块在下、边线与手柄在上。 */
 .i3d-vacuum-plan svg {
@@ -985,7 +985,7 @@
   min-height: 32px;
   background: #263348;
   color: inherit;
-  border: 1px solid #526078;
+  border: 1px solid var(--hos-tool-control-line);
   border-radius: 7px;
   padding: 5px 9px;
   font: inherit;
@@ -1007,7 +1007,7 @@
   flex-wrap: wrap;
   gap: 6px;
   padding: 8px 0;
-  border-bottom: 1px solid #394457;
+  border-bottom: 1px solid var(--hos-tool-line-mid);
 }
 .i3d-vacuum-room-list input:not([type="checkbox"]) {
   width: 100%;
@@ -1097,7 +1097,7 @@
 .i3d-vacuum-map-editor input,
 .i3d-vacuum-map-editor select {
   background: var(--field, #171d22);
-  border-color: #37414a;
+  border-color: var(--hos-tool-line);
   border-radius: 4px;
   font-size: 12px;
 }
@@ -1129,15 +1129,15 @@
   padding: 0;
   border: 0;
   border-radius: 0;
-  background: #1b2228;
-  color: #78848c;
+  background: var(--hos-tool-surface-soft);
+  color: var(--hos-tool-hint);
 }
 .i3d-vacuum-map-editor .inspector-number-stepper:first-child {
-  border-bottom: 1px solid #343e46;
+  border-bottom: 1px solid var(--hos-tool-line);
 }
 .i3d-vacuum-map-editor .inspector-number-stepper:hover {
   color: var(--accent, var(--hos-accent, #ffc46a));
-  background: #28323a;
+  background: var(--hos-tool-surface-raised);
 }
 .i3d-vacuum-map-editor input[type="checkbox"] {
   width: 15px;
@@ -1408,7 +1408,7 @@
   border: 1px solid #53667a;
   border-radius: 14px;
   background: #19222df0;
-  color: #edf3fa;
+  color: var(--hos-tool-ink);
   box-shadow: 0 10px 36px #0005;
   font:
     13px/1.5 system-ui,
@@ -1454,7 +1454,7 @@
 }
 .i3d-popup-preview-name {
   margin: 0;
-  color: #d3deeb;
+  color: var(--hos-tool-ink-dim);
   font-size: 14px;
 }
 .i3d-popup-preview-track {

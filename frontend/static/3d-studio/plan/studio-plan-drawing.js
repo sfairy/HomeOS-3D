@@ -7,6 +7,15 @@
  * save / restore，不向外泄漏绘图状态。
  */
 
+// 2D canvas 拿不到 CSS 变量，所以这里的颜色必须取成具体值再画。
+// paletteColor 是 utils/colors.js 里的唯一实现，按令牌名缓存，逐点调用不产生额外开销。
+import { paletteColor } from "../../utils/colors.js?v=2609222006";
+
+// 端点圆点的**深色实心**：轮廓上的彩色描边要靠它压住，才能在浅色底图与深色底图上都看清。
+// 与 studio-app.js 里选择手柄的填充是同一个角色（深底 + 彩色边），所以共用同一枚工具面令牌 ——
+// 这两处以前各写各的十六进制（#0e151b 与 #111820，只差几个通道）。
+const pointFillColor = () => paletteColor("--hos-tool-surface", "#141a20");
+
 /**
  * 逐字绘制文本以支持字距：Canvas 2D 原生没有字距设置，只能累计游标逐字画。
  * 整串宽度超出 maxWidthPx 时对整体横向压缩而非截断换行，保证窄空间里仍完整可读。
@@ -175,7 +184,7 @@ export function createPlanDrawingTools({
     const screenPoint = planToScreen(planPoint);
     context.save();
     // 深色实心 + 彩色描边，保证在浅色底图与深色底图上都能看清。
-    context.fillStyle = "#0e151b";
+    context.fillStyle = pointFillColor();
     context.strokeStyle = strokeColor;
     context.lineWidth = 2;
     context.beginPath();

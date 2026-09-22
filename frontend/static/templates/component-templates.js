@@ -8,8 +8,9 @@
  * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
  * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609221451";
-import { paletteColor } from "../utils/colors.js?v=2609221451";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609222006";
+import { paletteColor } from "../utils/colors.js?v=2609222006";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609222006";
 
 /**
  * 模板里「主控色」的出厂默认值。
@@ -1655,7 +1656,7 @@ registerComponentTemplate({
         airflowMotion: "dynamic",
         airflowCoolColor: themeCoolDefault(),
         airflowHeatColor: paletteColor("--hos-heat", "#ff8a65"),
-        airflowOtherColor: "#dce2e6",
+        airflowOtherColor: AIRFLOW_OTHER_COLOR,
         airflowAngle: 7,
         airflowCurve: 20,
         airflowLength: 200,

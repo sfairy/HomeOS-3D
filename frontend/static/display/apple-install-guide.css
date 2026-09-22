@@ -70,7 +70,7 @@
   margin: 14px 0 6px;
 }
 .apple-install-intro {
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
   margin: 0 0 24px;
 }
 /* 步骤列表用 grid 排布，序号圆圈与文字两列对齐。 */
@@ -100,7 +100,7 @@
 }
 .apple-install-steps p {
   margin: 4px 0 0;
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
   font-size: 13px;
 }
 /* 折叠说明区：上边框把「更多说明」与步骤列表分隔开。 */
@@ -116,7 +116,7 @@
 .apple-install-dialog details p,
 .apple-install-footnote {
   font-size: 12px;
-  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
+  color: var(--hos-muted, rgba(var(--hos-muted-rgb), 0.64));
 }
 .apple-install-done {
   display: block;

@@ -85,10 +85,248 @@
   /* alert 的深色档。此前只有 .hos-tone--alert 里写死的一枚 #c85a5e —— 一族四枚里
      独独缺这一个，正是因为缺它，那个 tone 的渐变也只能写死字面量。 */
   --hos-alert-deep: #c85a5e;
+  /* 「安静版」危险色：给**次要**的危险文字用（安静危险按钮、下拉里的删除叉、删除确认块的正文）。
+     它靠**降饱和**而不是压亮度来收起气势 —— 色度 82 对比 --hos-alert 的 118（少 30%），
+     但亮度反而略高（压面板 6.16:1 vs 5.96:1），所以压暗并不换来"更安静"，只会先跌破 AA：
+     本族最暗那枚 #c98682 在删除确认块的红洗底上只剩 5.01:1，已经是下限。
+     取值是原先三处写死值（#c98682 / #d98c87 / #dca3a0）的中位，**最大位移最小（Δ25）**。 */
+  --hos-alert-quiet: #d98c87;
   --hos-sensor-rgb: 158, 176, 196;
   --hos-sensor: #9eb0c4;
   --hos-sensor-bright: #cfdae6;
   --hos-sensor-deep: #77879a;
+  /* 设备**读数**（与上面那组「设备读色」不是一回事）：器件详情面板里**数值本身**的颜色 ——
+     灯亮度滑块的当前值、窗帘位置百分比。5 处全是 `output` 的文字色
+     （renderer.css 的灯 / 窗帘 / 弹窗灯共 3 处，stage.css 舞台滑块 1 处，
+     cover-panel.css 窗帘面板 1 处），renderer.css 原来的注释管它叫
+     「木质暖色 #b99264（窗帘的强调色）」。
+
+     为什么不能并进已有令牌：它与每一枚暖色令牌都差 65–71 个通道（最近的 --hos-lumen-deep
+     也要 Δ71），并过去会明显变色 —— 这不是「顺手统一」的候选。
+
+     为什么不能改走 --hos-lumen / --hos-accent：它是**木器 / 窗帘的器件身份色**，
+     和 --hos-cool / --hos-heat 同类 —— 管理员把主控色改成极光紫那天，
+     窗帘的位置读数不该跟着变紫。这正是上面「设备读色」那一组存在的同一条理由。
+
+     取值取现值（Δ0，接上后像素零变化），只是把那 5 份抄写收成 1 处：
+     改一次读数色不必再赌「改了三份、漏了两份」。 */
+  --hos-readout: #b99264;
+
+  /* ── 工具面（编辑器 / 渲染器 / 工作室的 chrome）─────────────────────────────
+
+     **这一组刻意不指向 --hos-sky-*，也不跟随主控色。** 这不是漏对齐，是量出来的：
+
+     --hos-sky-* 是全站最饱和的一档（天空 0.63–0.75），用途是「天幕、玻璃面、远景」
+     这类大面积氛围色。而三个工具面的 chrome 是另一回事：实测它们的几十处中性石板
+     （#0b0f12 / #141a20 / #10171e / #1b2228 / #343e46 …）落在色相 204–220°、
+     饱和 0.22–0.43。两者放进同一屏，明度可以一模一样（--hos-sky-low 与 #141a20
+     都是 0.125），饱和却翻倍 —— 于是界面左右各浮起一条蓝带。编辑器是工具面板，
+     底色应当中性、不跟被编辑的内容抢色。
+
+     app.css 在本次整理之前已独立得出同一结论并写下了推导（见它 :root 的注释）。
+     这里的取值**逐字取自那边已经收敛好的那一套**，所以这批令牌落地时视觉零变化；
+     它们存在的意义是把那套取值从「编辑器的一个文件」提升为全站工具面共用的真值。
+
+     为什么必须提出来、而不是让各个面各留一份：审计（tools/audit_colors.mjs）
+     按色差聚类量过 —— 这批中性灰在各文件之间裂成 57 簇、1179 处。
+     同一档灰在这里是 #aeb7bc×10、在 app.css 是 #aeb7bd×5、在 studio.css 是
+     #aeb9c2×4；同一档底是 #343e46×14 / #343d44×8 / #343d45×7。
+     它们互差 1–3 个通道，肉眼分不出，所以没有任何评审会拦下，但改色时永远改不干净。
+
+     现状（即阶段 2 的待办清单）：
+       · renderer.css 的**中性结构色**全是字面量（539 处十六进制 / 334 个不同值）——
+         它 :root 里只有 z-index。注意它并非完全不取令牌：语义色早就接上了
+         （--hos-lumen-rgb ×37、--hos-eco ×22、--hos-accent ×8 …，全文共 551 处 var()），
+         所以这里缺的不是「机制没接」，而是「中性面/线/轨道还没登记成令牌」。
+         本轮已先收掉其中两段最整齐的：面板三停渐变（12 处）与进度轨（9 处）。
+       · studio.css 的 --surface / --surface-soft / --field 别名**从未被取用**，
+         :root 写着「= --hos-sky-*」而规则里用的是中性灰字面量，名实不符；
+         本轮已处理：--surface/--surface-soft 接到工具面，--line 从 sky-haze 改回中性。
+       · app.css 的 --surface-soft / --surface-raised 同样零取用。
+     三处都指向同一个动作：让它们取这里的令牌，而不是各自再抄一遍十六进制。 */
+  --hos-tool-bg: #0b0f12;
+  --hos-tool-surface: #141a20;
+  --hos-tool-surface-soft: #192128;
+  --hos-tool-surface-raised: #26313c;
+  --hos-tool-field: #0b0f12;
+  --hos-tool-line: #303840;
+  --hos-tool-line-rgb: 48, 56, 64;
+  /* 中档线。审计把工具面的描边聚成四档：#303840 / #39434c / #46515a / #4a5a62，
+     相邻间距 33 / 33 / 23 个色差单位 —— 间隔都够大，不是同一档的漂移，是四档真值。
+     其中 #39434c 一簇计 23 处、**19 处是 chrome 描边**（settings-dialog、workspace-modes、
+     settings-form input、component-template-card、component-context-actions …，
+     另 2 处 scrollbar-color），角色高度同质；余下 4 处是器件材质
+     （.hb-switch-visual-rocker / .hb-cover-details-position / .hb-air-purifier-visual-display），
+     按角色不并入。它到 --hos-tool-line 差 32、到 --hos-tool-line-strong 差 41，
+     两边都够不着，所以自成一档；名字落在既有 line / line-strong 的顺序中间。 */
+  --hos-tool-line-mid: #39434c;
+  /* 第二档线：浮层描边 / 分隔用。app.css 里同一个角色散着 #46515a(14) / #505a63 /
+     #4a545d / #48525b 四个值（最大差 10 个通道），全部落在审计的同一个簇里。 */
+  --hos-tool-line-strong: #46515a;
+  /* 控件自己的描边：按钮 / 下拉 / 开关 / 输入框 / 预览框在常态、hover、激活、禁用
+     四种状态下的框线。比 --hos-tool-line-strong 亮一档 —— 同一个组件上
+     hover 用 line-strong、激活用这一档，是刻意的两级（见 .component-action-options）。
+     审计把这一族聚成 22 处 / 17 个值、归为「chrome 角色混合 → 先拆后收」：
+     拆开后 12 处是这里的描边、8 处是「非活动文字」（归 --hos-tool-disabled）、
+     2 处是器件材质渐变（不收）。取值取那 12 处的多数票 #59656e，
+     与簇内最远处（.i3d-range-dialog 头部按钮的 #536472）差 9 个通道。
+     名字按**角色**而不按强度序（line / line-mid / line-strong / …）：审计记录的第 4 档
+     #4a5a62 在本仓里没有 chrome 消费者（只出现在器件渐变停点），若照强度序叫
+     line-bright，会让人以为存在一条四档齐全的阶梯 —— 实际并没有。 */
+  --hos-tool-control-line: #59656e;
+  /* 上一条的 -rgb 兄弟。唯一消费者是 .hb-unknown-component 的底色洗染
+     （同一只占位块「描边 = 全值、底色 = 8% 同色」，改一处即同步）。 */
+  --hos-tool-control-line-rgb: 89, 101, 110;
+  /* 中性标记：状态指示点 / 项目符号点，以及「安静按钮」hover 时那层提亮的描边。
+     它们是**同一个视觉角色**在三个界面里各写一遍 —— 审计聚成 16 处 / 12 个值
+     （簇心 #69757c），判定「chrome 只有 surface×11 → 可收为一档」；
+     其中 5 处是器件材质渐变（.hb-vacuum-robot / .hb-camera-device-body /
+     .hb-electric-bed-legs / .hb-switch-visual-rocker 的立体打光），按角色不并入。
+     这 11 处的落点高度同质：7 处是 `border-radius:50%` 的小圆点
+     （.ha-status i / .connection-state-heading > i / .hb-camera-preview-status:before /
+     .hb-camera-device-led / .hb-entity-details-dialog 两个标题的点 / 
+     .hb-custom-popup-module-status.type-camera:before），
+     2 处是 `.inspector-asset-clear:hover` / `.navigation-icon-option:hover` 的描边。
+     为什么不去靠 --hos-tool-disabled（#65717c，Δ4）：那是**文字**色（禁用态标签），
+     拿它刷圆点和描边会让审计的「同值不同角色」提示永久误报，也让名字和用途对不上。
+     与簇内最远处（.hb-vacuum-robot-lidar 的 #657178）差 11 个通道，肉眼不可辨。 */
+  --hos-tool-mark: #69757c;
+  /* 三个「面」的 -rgb 兄弟。和 --hos-tool-line-rgb 一样，给需要**半透明同色**的场景用：
+     全屏遮罩、手柄底盘、相机占位等会写成 rgba(var(--hos-tool-surface-rgb), .86)。
+     这几处原先各写自己的 8 位十六进制（#11151bdb / #1a2025d1 / #080d1275 …），
+     6 位前缀分别落在本组三个面的簇里、只差 1–6 个通道 —— 正是「同色的 α 变体」，
+     收成 rgba() 后既接上令牌、又消掉 9 个字面量。 */
+  --hos-tool-bg-rgb: 11, 15, 18;
+  --hos-tool-surface-rgb: 20, 26, 32;
+  --hos-tool-surface-soft-rgb: 25, 33, 40;
+  --hos-tool-surface-raised-rgb: 38, 49, 60;
+  /* 浅发丝（描边的高光侧）。renderer.css 43 处 + climate-panel.css 2 处都写着
+     `1px solid rgba(126, 141, 153, α)`，α 从 0.13 到 0.42 —— **同一支色的强弱档**，
+     却被抄成了 45 份字面量（也是全库最大的一支未登记 α 族）。
+     它**不是** --hos-tool-line-rgb 那支深色线（48, 56, 64，差 78 个通道），也不是
+     纯白叠加层：它偏蓝灰，是「深底上那道更亮一点的内描边」。
+     按角色自成一枚，取值取现值（Δ0，接上后像素零变化）。 */
+  --hos-tool-hairline-rgb: 126, 141, 153;
+  /* 面板表面渐变。renderer.css 里有一段三停渐变**逐字重复 12 次**
+     （linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216)，运行时弹窗/面板的底），
+     其中 10 次完全一致，另 2 次是 1 个通道 + 1–4% 停点的漂移（52%/#0c1115、49%/#0c1115）。
+     12 份抄写里没有任何一份会被评审拦下，但改一次底色要改 12 处 —— 收成一条。
+     取值取那 10 次的多数写法；另 2 处并过来只差 1 个通道，肉眼不可辨。 */
+  --hos-tool-panel-stop: #1b2228;
+  --hos-tool-panel: linear-gradient(145deg, var(--hos-tool-panel-stop), #12181d 48%, #0d1216);
+  /* 进度轨 / 未填充底色。同一个角色在 renderer.css 里有两个值：
+     线性滑杆（灯亮度、空调风速、净化器档位）用 #343d44，
+     环形弧（空调温度、净化器）的未填充段与固定端帽用 #303940 —— 两者相差 4 个通道，
+     而且**同一个空调面板上同时出现**（风速滑杆 #343d44、温度弧 #303940）。
+     注意 #343d44 在 app.css 里还兼作「禁用态描边」（3 处），那是另一个角色：
+     令牌按角色命名，同值不同角色不是问题，这里只收「轨道」这一个角色。 */
+  --hos-tool-track: #343d44;
+  /* 文字只登记两档，且都是**指向已有令牌的别名**（不是新取值）：
+     工具面的正文与次级文字本来就该是全站那两档，没有理由另有一套。
+     中间那几档（近白 #f4f5f6、#dce2e6、#aeb7bc、#8d989f 那一串）留到阶段 2 ——
+     给它们起名等于选定新取值，而那会让三个界面当场变色，必须先逐页看过图。
+     【阶段 2 实测更新】上面这条顾虑已被数据推翻：这些簇**簇内**成员彼此最大只差 7 个
+     通道（57 簇里 49 簇 ≤6，无一簇 >12），也就是说「收成一档」只动 1–7/255，
+     肉眼不可辨；真正会变色的是把它们并到**别的**令牌上（如 #f4f5f6 → --hos-ink 差 27）。
+     所以做法是：每簇自成一档、取值取簇内多数票，而不是往现有令牌上硬并。 */
+  --hos-tool-ink: var(--hos-ink);
+  --hos-tool-muted: var(--hos-muted);
+  /* 中性文字梯（7 档）。编辑器 / 显示端 / 工作室三套界面的文字色是**中性灰**，
+     而 --hos-ink / --hos-muted 是场景那套带蓝的（#f1f7fb 的蓝分量最高），
+     两者混用正是「同一屏里两档灰各走各的」的来源。
+     审计把这三套界面的文字灰聚成 13 簇、约 590 处，簇心从 L .96 到 L .49。
+     按相邻簇心的间隔找断点（最大间隔 33 / 20 / 15 / 13），可折成下面 7 档 ——
+     每档取簇内**多数票**那个值，档内最大色差 ≤11 个通道（肉眼不可辨），
+     所以「收成一档」不会让任何一处文字看起来变了颜色，只是把 13 个近似值
+     变成 7 个登记值。档名沿 ink / muted / faint 这套既有词汇，不另造词。
+
+     对照表（左侧为收敛掉的簇心，括号是处数）：
+       ink        #f4f5f6(66) #edf0f2(31)             —— 标题、最高档文字
+       ink-dim    #e2e6e8(24) #dce2e6(76) #d7dde1(25) —— 输入框文字、密集正文
+       text       #cbd2d6(29)                          —— 正文
+       text-dim   #b7c0c6(24) #aeb7bc(55)              —— 单位、小标签
+       muted-dim  #8d989f(59)                          —— 弱标签
+       hint       #7e898f(66) #78848c(46)              —— 弹窗副行、提示
+       hint-dim   #727e86(34)                          —— 最弱档（占位符等）
+     档名避开 -soft / -line / -faint / -deep / -rgb 这几个后缀：审计（tools/audit_colors.mjs）
+     的 NON_FOREGROUND_SUFFIXES 正是按这些后缀把「不是文字色」的令牌排除在对比度检查之外的，
+     若叫 --hos-tool-ink-soft / --hos-tool-faint，这几档会被判为非文字色而**漏检**。
+     没进的：#65717c(42) 彩度较高且 15 处当 background 用，属「深面」不是文字；
+     #39434c / #46515a / #4a5a62 是线，归 --hos-tool-line 那一族。
+
+     唯一一处偏离多数票：hint 取 #808b91 而不是簇心 #7e898f（+2 个通道）。
+     原因是「弹窗副行压面板」这一组实测 4.49:1 —— 而面板（--hos-tool-panel 的最亮停点
+     #1b2228）正是 hint 的主场（它 103 处里大半是弹窗/卡片的副行）。+2 个通道把这一组
+     抬到 4.52:1 达标，肉眼不可辨；没有它，这一档在它最常出现的面上差 0.01。
+     更暗的两档（muted-dim / hint）**不得**出现在最亮的 --hos-tool-surface-raised 上，
+     hint-dim 只能压在最暗的 --hos-tool-bg/--hos-tool-field 上 —— 三条上限写在
+     tools/audit_colors.mjs 的 FOREGROUND_CEILING 里并各自注明理由。 */
+  --hos-tool-ink-dim: #dce2e6;
+  --hos-tool-text: #cbd2d6;
+  --hos-tool-text-dim: #aeb7bc;
+  --hos-tool-muted-dim: #8d989f;
+  --hos-tool-hint: #808b91;
+  --hos-tool-hint-dim: #727e86;
+  /* 非活动文字（禁用态 / 空状态 / 步进与占位标签）。它比 hint-dim 还暗 36 个色差单位，
+     所以**并不进任何一档**：这不是「更弱的提示」，是另一个角色 —— 内容此刻不可用或
+     根本不存在，文字刻意退出竞争。
+     19 处 color 全部属于这一族：.editor-save:disabled、.add-element-button:disabled、
+     .element-list-empty、.popup-module-placeholder > small、.workflow-steps li、
+     .preview-control-label、select option:disabled、.hb-climate-temperature-step:disabled …
+     角色高度同质。同簇另有 6 处器件材质渐变（.hb-electric-bed-*、.hb-cover-visual-slat、
+     .hb-vacuum-robot-lidar）与 3 处 hover 描边，按角色不并入。
+     对比度：WCAG 1.4.3 明确豁免 disabled 控件，空状态标签也是刻意的低对比，
+     所以它**允许**低于 4.5:1；上限登记在 tools/audit_colors.mjs 的 FOREGROUND_CEILING
+     （并已在 roleOfToken 的工具面分支里补上 disabled 这一项，否则会像注释里警告的
+     「表里没有它，于是全绿是假的」那样静默漏检）。 */
+  --hos-tool-disabled: #65717c;
+  /* 次级按钮标签：工具栏 / 导出面板里那些「安静按钮」的文字色
+     （.toolbar-actions button、.reset-base-lighting、.export-heading > button、
+     .export-ratio-lock、.export-fixed-camera-actions button、.history-toolbar-button）
+     以及相机画面的叠加文字（.hb-camera-preview-stage span 等）。
+     审计聚成 10 处 / 7 个值（簇心 #9aa5ab），判定「chrome 只有 foreground×9 → 可收为一档」。
+     它**不是一个文字梯档位**，而是一个角色（与 --hos-tool-disabled 同理）：这些按钮既不
+     禁用也不是正文，是「可用但不想抢眼」。所以没有并进 7 档梯 —— 梯里最近的
+     --hos-tool-muted-dim（#8d989f）差 13 个通道，已超出「肉眼不可辨」的 ≤11。
+     之所以单开而不是硬并：它正好落在梯子最大的那个空档里
+     （--hos-tool-text-dim #aeb7bc → --hos-tool-muted-dim #8d989f，相邻档差 33，
+     是全梯最大间隔；本值把它对半分开，两边的差都回到 13/20）。 */
+  --hos-tool-label: #9aa5ab;
+
+  /* 氛围层：三束极淡的光。编辑器 / 展示端 / 舞台共用同一组强度与色相，
+     不再各页自己写 radial-gradient —— 此前编辑器 app.css 与展示端 display.css
+     各 0 条（商店前台有 32 条、theme.css 的 body 用三束径向光做氛围），
+     所以全站最平的就是这两端。
+
+     **中性，不接四束可配置光**（决策 2）：编辑器与展示端是内容 / 画布的底，
+     管理员把主控色改成什么色，这两处都不应该浮起一块带色的雾去和内容抢色。
+     取值因此来自工具面族自己的浅灰（与 --hos-tool-ink-dim 那几档同一个色相），
+     强度只有商店前台的量级的三分之二（0.08 vs 0.10 且半径更小）。
+
+     用在哪：**只压在页底 / 画布底这类没有小字的面**。压在承载文字的面上会抬升
+     底色亮度、把该面上最弱那一档文字的对比度吃掉 —— 实测 0.08 的强度能把
+     #141a20 的亮度抬到 0.0203（近一倍），hint-dim 压上去只剩 3.6:1。
+     所以密集文字的面板保持不透明，玻璃面只用于浮层（下面那一组）。 */
+  --hos-atmo-strong: rgba(170, 182, 190, 0.08);
+  --hos-atmo-soft: rgba(138, 152, 162, 0.06);
+  --hos-atmo-faint: rgba(120, 134, 145, 0.042);
+
+  /* 玻璃三件套：半透底 + 背板模糊 + 顶缘发丝。范式取自商店后台已验证的 --a-glass
+     （admin.css:45-52）—— 那套解决了「卡片全不透明、把氛围光整块盖住、整屏是平的」。
+     这里抽成全站可复用的一组，浮层 / 弹窗 / 下拉统一取用。
+
+     取值刻意压在 **surface-soft → surface** 之间而不是商店那种 0.58/0.66：
+     工具面的浮层底下是**密集的小字与控件**（不是黑幕），0.58 的半透会让背板透上来
+     把浮层自身的最弱文字档压花。这里取 0.92/0.96，合成后落在 #19212a 一带 ——
+     比原先各写一份的不透明 #20272d 更暗一档，所以文字对比度**只升不降**；
+     同时四个浮层从「两个底色值 + 四个描边值」收成一份，改一次全都跟着走。 */
+  --hos-glass: linear-gradient(
+    180deg,
+    rgba(var(--hos-tool-surface-soft-rgb), 0.94),
+    rgba(var(--hos-tool-surface-rgb), 0.96)
+  );
+  --hos-glass-blur: blur(10px) saturate(135%);
+  --hos-glass-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 
   /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
   --hos-grad-accent: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent-deep));
@@ -107,6 +345,9 @@
   --hos-ok: var(--hos-eco-bright);
   --hos-warn: var(--hos-lumen-bright);
   --hos-err: var(--hos-alert-bright);
+  /* 次要危险文字（安静版）。与 --hos-err 同一族、低一档气势 —— 用在哪见
+     --hos-alert-quiet 定义处。 */
+  --hos-err-quiet: var(--hos-alert-quiet);
 
   /* 页面色调开关，默认「主控暖金」。
      panel.css 通篇只认 var(--hos-tone*)，所以「换掉一整页的颜色」= 给 .hos-page

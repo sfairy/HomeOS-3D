@@ -41,15 +41,22 @@ if (decks.length) {
 
   const pad = (value) => String(value).padStart(2, '0');
 
-  /** 距某个时刻过去了多久。与后端 _elapsed_placeholder 的档位保持同一套读法。 */
+  /** 距某个时刻过去了多久。与后端 _elapsed_placeholder 的档位保持同一套读法，
+      也与主应用那份（frontend/static/auth/entry-deck.js）逐字一致 —— 两份文件，
+      一套读数。
+
+      措辞里**不写空格**：一格里最长的一格读数只能是本机时钟的 18:04:22（八个半角
+      字符），而「23 时 59 分」这种带空格的写法是九个半角 + 两个整宽汉字 —— 实测
+      106.8px，而四列甲板每格最宽只有 87px，于是刚好在跑到 10 小时以后被切掉半截。
+      去掉空格后同一串是 76.7px，从启动到 24 小时都在预算内。 */
   const elapsed = (seconds) => {
     const total = Math.max(0, Math.floor(seconds));
     if (total < 60) return '刚刚启动';
     const minutes = Math.floor(total / 60);
-    if (minutes < 60) return `${minutes} 分`;
+    if (minutes < 60) return `${minutes}分`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} 时 ${minutes % 60} 分`;
-    return `${Math.floor(hours / 24)} 天 ${hours % 24} 时`;
+    if (hours < 24) return `${hours}时${minutes % 60}分`;
+    return `${Math.floor(hours / 24)}天${hours % 24}时`;
   };
 
   /** 一格读数的渲染函数。与主应用那份逐行对应 —— 两份文件，一套行为。 */

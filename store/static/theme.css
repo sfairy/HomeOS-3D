@@ -35,8 +35,10 @@
   --hb-sky-deep-rgb: 5, 9, 18;
   --hb-sky-low-rgb: 8, 16, 32;
   --hb-sky-mid-rgb: 13, 23, 40;
+  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-sky-high-rgb: 22, 38, 60;
   --hb-sky-haze-rgb: 36, 57, 90;
+  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
 
   /* 星空与浮尘的「一点光」。与 design/scene/page.css 的 --hos-star-* 逐字相等。
      首页 hero 的星域与入口页场景是同一片天，用同一批值；过去这里是 18 处
@@ -63,8 +65,10 @@
      需要比 PWA 面板更暗一档的脚注），不是漂移，别把它也「对齐」掉。 */
   --hb-ink: #f1f7fb;
   --hb-ink-bright: #f7fcff;
+  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-ink-soft: #c8dbe8;
   --hb-ink-rgb: 241, 247, 251;
+  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-muted-rgb: 186, 214, 232;
   /* 这一档与 design/scene/page.css 的 --hos-muted **必须逐个相等**，两侧一起改。
      0.58 → 0.64 是量出来的：0.58 合成在 sky-high(#16263c) 上只有 4.41:1，略低于 AA；
@@ -74,6 +78,14 @@
      商店前台这些页面里 0.58 时的 4.41:1 恰好碰不到（那几处用的是 --hb-ink），
      但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
   --hb-muted: rgba(var(--hb-muted-rgb), 0.64);
+  /* 商店自有最暗一档。**它有使用上限**：只允许压到 surface-soft 一级为止。
+     原因是结构性的，不是取值没调好 —— 要让一个**固定字面量**在 sky-high 上也过 4.5:1，
+     它就得亮过 --hb-muted 在深底上的合成值，那一档的「最暗」语义当场失效
+     （推导见 tools/audit_colors.mjs 的 FOREGROUND_CEILING）。
+     实际后果：**别把它放进 .hb-page-head / .hb-account-heading**，那两块横幅的渐变
+     100% 停点是 surface-raised，dim 档在那里只有 4.04:1（__path / __feed small 因此
+     改用 --hb-muted）。表格脚注、档位提示、版本号这些压在 surface / surface-soft 上的
+     场景都在上限之内，照旧可用。 */
   --hb-muted-dim: #6d8797;
 
   /* 强调色：与场景同一枚暖金（design/scene/page.css 的 --hos-accent） */
@@ -85,10 +97,18 @@
      lumen / aura / eco 发的 soft / line 就是这一对，而它给 accent 发的也是同一对。
      这里若写成 0.12 / 0.42，管理员「打开配色面板 → 什么都不改 → 点保存」就会把
      全站强调描边从 0.42 悄悄改成 0.32（写回的内联变量盖过这张表），
-     而且同屏的主控色软底比居家三光淡一档 —— 四枚色只有它一个不一样。 */
+     而且同屏的主控色软底比居家三光淡一档 —— 四枚色只有它一个不一样。
+     这条契约现在有守卫：tools/audit_colors.mjs 的 checkSoftLineContract() 按
+     appearance.js 实际发出的 α 逐族比对，改单侧会被拦下。 */
   --hb-accent-soft: rgba(var(--hb-accent-rgb), 0.13);
-  --hb-accent-faint: rgba(var(--hb-accent-rgb), 0.06);
   --hb-accent-line: rgba(var(--hb-accent-rgb), 0.32);
+  --hb-accent-text: var(--hb-accent-bright);
+  /* 0.06 的极淡底：给「有琥珀光但几乎不成形」的那几处用 —— store.css 的
+     .hb-hero 光斑、激活态外圈 7px 扩散环、侧栏选中条的底，admin.css 把它转发成
+     --a-tint-faint。它与 --hb-accent-soft(0.13) 是**两档**，不是同一个东西：
+     0.13 读得出「这一块泛着琥珀」，0.06 只读得出「不是纯黑」。
+     别拿它当 --hb-accent-line + opacity 的替代（反过来也一样）—— 前者是面、后者是线。 */
+  --hb-accent-faint: rgba(var(--hb-accent-rgb), 0.06);
   --hb-accent-grad: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
   /* 悬停时的提亮版：主按钮默认就用渐变底，再叠一层 filter 会让上面的深色文字发灰，
      所以单独给一份更亮的渐变。写 var() 而不是字面量：appearance.js:186-188 的
@@ -118,19 +138,29 @@
   --hb-lumen-deep: #c96a1d;
   --hb-lumen-soft: rgba(var(--hb-lumen-rgb), 0.13);
   --hb-lumen-line: rgba(var(--hb-lumen-rgb), 0.32);
-  --hb-lumen-text: #ffba83;
+  /* `-text` = 「这个色当文字用时取哪一档」，四束光各一枚，取值一律 = `-bright`：
+     -bright 是给渐变用的亮档，恰好也是这几个色在深底上作文字时唯一够亮的档
+     （base 压 sky-low 只有 3.4–5.4:1 不等，-bright 才稳定过 4.5:1）。
+     这里**不再**自己写一遍 #ffba83：那曾让「暖光的亮档」在仓库里裂成
+     -bright 与 -text 两个值。现在二者是别名，改色只改 -bright 一处。
+     名字保留是因为 appearance.js 的 appearanceTokens() 与 palette.js 的白名单
+     都按 base / -bright / -deep / -rgb / -soft / -line / -text 这一组发令牌
+     （见 palette.js 的 applyPreview 注释），删掉它会让注入表多出一枚无人认领的名字。 */
+  --hb-lumen-text: var(--hb-lumen-bright);
   --hb-aura-rgb: 201, 160, 255;
   --hb-aura: #c9a0ff;
   --hb-aura-bright: #e7d6ff;
   --hb-aura-deep: #9253e6;
   --hb-aura-soft: rgba(var(--hb-aura-rgb), 0.13);
   --hb-aura-line: rgba(var(--hb-aura-rgb), 0.32);
+  --hb-aura-text: var(--hb-aura-bright);
   --hb-eco-rgb: 95, 208, 168;
   --hb-eco: #5fd0a8;
   --hb-eco-bright: #88dcbf;
   --hb-eco-deep: #3b8e71;
   --hb-eco-soft: rgba(var(--hb-eco-rgb), 0.13);
   --hb-eco-line: rgba(var(--hb-eco-rgb), 0.32);
+  --hb-eco-text: var(--hb-eco-bright);
 
   /* ── 设备读色 ────────────────────────────────────────────────────────────
      heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
@@ -144,16 +174,33 @@
   --hb-heat-bright: #ffb59c;
   --hb-heat-deep: #e0663c;
   --hb-heat-soft: rgba(var(--hb-heat-rgb), 0.13);
+  --hb-heat-line: rgba(var(--hb-heat-rgb), 0.32);
+  /* 设备三族（heat / cool / sensor）的 `-text` 就是 base 本身，不走 `-bright`：
+     这三色的 base 已经够亮（heat #ff8a65 压 sky-low 7.0:1、sensor #9eb0c4 7.4:1），
+     再提一档就压不住「温度偏高」这种中性读数的语气了。
+     四束光走 `-bright` 是因为它们要当**主色**用（按钮、徽标），得更醒目；
+     而这三族只需要「读得清」，族与族之间的差异是刻意的，不是漏对齐。 */
+  --hb-heat-text: var(--hb-heat);
   --hb-cool-rgb: 88, 196, 255;
   --hb-cool: #58c4ff;
   --hb-cool-bright: #b7e6ff;
   --hb-cool-deep: #2f8fd0;
   --hb-cool-soft: rgba(var(--hb-cool-rgb), 0.13);
+  --hb-cool-line: rgba(var(--hb-cool-rgb), 0.32);
+  --hb-cool-text: var(--hb-cool);
   --hb-sensor-rgb: 158, 176, 196;
   --hb-sensor: #9eb0c4;
   --hb-sensor-bright: #cfdae6;
   --hb-sensor-deep: #77879a;
-  --hb-sensor-soft: rgba(var(--hb-sensor-rgb), 0.12);
+  /* 0.12 → 0.13、并补一枚 --hb-sensor-line：设备四族里只有 sensor 的 soft 比同族
+     淡一档、且 line 完全没有令牌（[data-tone='sensor'] 里写的是内联的 0.28）。
+     两处都是同一件事的症状 —— 这一族被当成「凑数的中性色」处理，没进那对契约。
+     soft 0.13 与 heat/cool 对齐；line 0.28 → 0.32 与全族对齐。
+     离线灰本来就该比彩色族**轻**，但「轻」应当由色相与彩度表达（#9eb0c4 本就近乎中性），
+     不是靠把同族的 α 再调低一档 —— 那只会让灰色描边在深底上直接消失。 */
+  --hb-sensor-soft: rgba(var(--hb-sensor-rgb), 0.13);
+  --hb-sensor-line: rgba(var(--hb-sensor-rgb), 0.32);
+  --hb-sensor-text: var(--hb-sensor);
 
   /* 语义色：成功 = 生态薄荷、危险 = 珊瑚、提醒 = 暖光。
      三者的通道值就是上面的 eco / alert / lumen，所以 --hb-success-* 是别名而不是
@@ -162,19 +209,29 @@
   --hb-success: var(--hb-eco);
   --hb-success-soft: var(--hb-eco-soft);
   --hb-success-line: var(--hb-eco-line);
-  --hb-success-text: var(--hb-eco-bright);
+  --hb-success-text: var(--hb-eco-text);
   --hb-alert-rgb: 240, 122, 126;
   --hb-alert: #f07a7e;
   --hb-alert-bright: #f5a3a6;
   /* 与 design/scene/page.css 的 --hos-alert-deep 逐字相等。 */
   --hb-alert-deep: #c85a5e;
   --hb-alert-soft: rgba(var(--hb-alert-rgb), 0.13);
-  --hb-alert-line: rgba(var(--hb-alert-rgb), 0.34);
+  /* 0.34 → 0.32：这一枚是审计查出的一处真漂移。四束光的 soft/line 契约是
+     appearance.js 发的 0.13 / 0.32（见 --hb-accent-soft 上方注释），
+     alert 只是**一族的语义别名**（--hb-danger-* 就转发到它），没有理由自成一套。
+     单看 0.34 与 0.32 差别不可见，但它是「契约只写在别处、没有守卫时必然发生的事」
+     的样本：同屏的告警描边比暖光描边重 6%，没人会去量的那种不一致。 */
+  --hb-alert-line: rgba(var(--hb-alert-rgb), 0.32);
+  --hb-alert-text: var(--hb-alert-bright);
   --hb-danger-rgb: var(--hb-alert-rgb);
   --hb-danger: var(--hb-alert);
   --hb-danger-soft: var(--hb-alert-soft);
   --hb-danger-line: var(--hb-alert-line);
-  --hb-danger-text: var(--hb-alert-bright);
+  --hb-danger-text: var(--hb-alert-text);
+  /* 语义色族的 -rgb 通道。warning 这一枚目前**没有取用点**（success / danger 各有一处
+     box-shadow 用它），留着是为了三族对称：`--hb-{success,danger,warning}-rgb` 是一组，
+     缺掉中间一枚会让下一个人以为「warning 没有 rgb 通道」而去别处再定义一遍。
+     若确定不要，就三枚一起删并把各自的取用点改成 -soft / -line。 */
   --hb-warning-rgb: var(--hb-lumen-rgb);
   --hb-warning: var(--hb-lumen);
   --hb-warning-soft: var(--hb-lumen-soft);
@@ -192,6 +249,7 @@
   --hb-grad-cool: linear-gradient(180deg, var(--hb-cool-bright), var(--hb-cool-deep));
   --hb-grad-alert: linear-gradient(180deg, var(--hb-alert-bright), var(--hb-alert-deep));
   --hb-grad-sensor: linear-gradient(180deg, var(--hb-sensor-bright), var(--hb-sensor-deep));
+  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-grad-aurora: linear-gradient(
     100deg,
     var(--hb-accent) 0%,
@@ -204,7 +262,7 @@
   --hb-tone-rgb: var(--hb-accent-rgb);
   --hb-tone-soft: var(--hb-accent-soft);
   --hb-tone-line: var(--hb-accent-line);
-  --hb-tone-text: var(--hb-accent-bright);
+  --hb-tone-text: var(--hb-accent-text);
   --hb-grad-tone: var(--hb-accent-grad);
 
   /* 圆角：控制台风格的「小圆角」，比场景坞（20px）收一档 */
@@ -218,16 +276,36 @@
   /* 阴影：深色底靠「顶部高光 + 大范围低透明投影」营造厚度 */
   --hb-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
   --hb-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
+  /* 阴影三档里的最淡一档，目前**没有取用点**（-md 一处、-lg 五处）。留着的理由与
+     上面 --hb-warning-rgb 同类：一档尺度缺了中间那级，后来者会自己补一个近值
+     （审计量到的正是这类事 —— 中性灰裂成 57 簇）。要收就三档一起定档位，别只删这一枚。 */
   --hb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
   --hb-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --hb-shadow-lg: 0 30px 100px rgba(0, 0, 0, 0.58);
   --hb-card-bg: linear-gradient(180deg, var(--hb-surface-soft) 0%, var(--hb-surface) 100%);
 
-  /* 排版：与场景同一套本地字体（store/static/scene/fonts.css 定义 @font-face）。
-     display 给标题，mono 给数字与代码。CJK 走系统字体回退 —— 只打包了 latin 子集。 */
+  /* 排版：与场景同一套**打包字体**（store/static/scene/fonts.css 定义 @font-face，
+     四族 Exo 2 / Orbitron / JetBrains Mono / Share Tech Mono 都有）。CJK 走系统回退 ——
+     只打包了 latin 子集。
+     注意「同一套打包字体」不等于「同一套 font stack」：下面 mono 那一档是**有意不同**的，
+     理由写在那行旁边。 */
   --hb-font: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
-  --hb-font-display: 'Orbitron', 'Exo 2', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /* 品牌字：站名那一个词（.hb-brand__text strong）。这里原叫 --hb-font-display，
+     是个名实不符的名字 —— 它全站只被取用一次，就是品牌标，而这个角色在场景侧的
+     令牌叫 --hos-font-brand（见 design/scene/page.css）。场景那边 --hos-font-display
+     是「版面标题」档（Exo 2，不含 Orbitron），与品牌标是两回事。
+     改成转发 --hos-font-brand：名字对了，取值也从「商店自己抄的一份 Orbitron 栈」
+     变成引用唯一真值（原先那份的 CJK 回退比 canonical 少两族）。 */
+  --hb-font-brand: var(--hos-font-brand);
+  /* 数据字（金额 / 订单号 / 支付倒计时 / KPI / 邀请码）。**刻意不用 --hos-font-mono**：
+     那边首选 Share Tech Mono（宽、细、强风格化的显示用等宽），适合场景里的短标签，
+     但不适合要一眼读准的 commerce 数字 —— 商店这一档要读的是「¥1,299.00」与倒计时。
+     JetBrains Mono 是照代码可读性设计的，同宽度 + 更清晰的字形骨架，这里更合适。
+     代价要认：store.html 同时加载 scene/panel.css，于是同一页上 .hos-eyebrow 走
+     Share Tech Mono、商店自己的数据走 JetBrains Mono，两个等宽字体并存。
+     这是「装饰性标签 vs 数据」的分工，不是漏改；若哪天要收成一个，先确认
+     Share Tech Mono 在 ¥/小数点/倒计时上的可读性真的够。 */
   --hb-font-mono: 'JetBrains Mono', SFMono-Regular, ui-monospace, Consolas, Menlo, monospace;
 
   /* 动效 */
@@ -253,7 +331,7 @@
   --hb-tone-rgb: var(--hb-accent-rgb);
   --hb-tone-soft: var(--hb-accent-soft);
   --hb-tone-line: var(--hb-accent-line);
-  --hb-tone-text: var(--hb-accent-bright);
+  --hb-tone-text: var(--hb-accent-text);
   --hb-grad-tone: var(--hb-accent-grad);
 }
 
@@ -271,7 +349,7 @@
   --hb-tone-rgb: var(--hb-aura-rgb);
   --hb-tone-soft: var(--hb-aura-soft);
   --hb-tone-line: var(--hb-aura-line);
-  --hb-tone-text: var(--hb-aura-bright);
+  --hb-tone-text: var(--hb-aura-text);
   --hb-grad-tone: var(--hb-grad-aura);
 }
 
@@ -280,7 +358,7 @@
   --hb-tone-rgb: var(--hb-eco-rgb);
   --hb-tone-soft: var(--hb-eco-soft);
   --hb-tone-line: var(--hb-eco-line);
-  --hb-tone-text: var(--hb-eco-bright);
+  --hb-tone-text: var(--hb-eco-text);
   --hb-grad-tone: var(--hb-grad-eco);
 }
 
@@ -288,8 +366,8 @@
   --hb-tone: var(--hb-heat);
   --hb-tone-rgb: var(--hb-heat-rgb);
   --hb-tone-soft: var(--hb-heat-soft);
-  --hb-tone-line: rgba(var(--hb-heat-rgb), 0.32);
-  --hb-tone-text: var(--hb-heat);
+  --hb-tone-line: var(--hb-heat-line);
+  --hb-tone-text: var(--hb-heat-text);
   --hb-grad-tone: var(--hb-grad-heat);
 }
 
@@ -297,8 +375,8 @@
   --hb-tone: var(--hb-cool);
   --hb-tone-rgb: var(--hb-cool-rgb);
   --hb-tone-soft: var(--hb-cool-soft);
-  --hb-tone-line: rgba(var(--hb-cool-rgb), 0.32);
-  --hb-tone-text: var(--hb-cool);
+  --hb-tone-line: var(--hb-cool-line);
+  --hb-tone-text: var(--hb-cool-text);
   --hb-grad-tone: var(--hb-grad-cool);
 }
 
@@ -307,7 +385,7 @@
   --hb-tone-rgb: var(--hb-alert-rgb);
   --hb-tone-soft: var(--hb-alert-soft);
   --hb-tone-line: var(--hb-alert-line);
-  --hb-tone-text: var(--hb-alert-bright);
+  --hb-tone-text: var(--hb-alert-text);
   --hb-grad-tone: var(--hb-grad-alert);
 }
 
@@ -315,8 +393,8 @@
   --hb-tone: var(--hb-sensor);
   --hb-tone-rgb: var(--hb-sensor-rgb);
   --hb-tone-soft: var(--hb-sensor-soft);
-  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
-  --hb-tone-text: var(--hb-sensor);
+  --hb-tone-line: var(--hb-sensor-line);
+  --hb-tone-text: var(--hb-sensor-text);
   --hb-grad-tone: var(--hb-grad-sensor);
 }
 

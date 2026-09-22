@@ -81,14 +81,15 @@ body.hb-store-loading .hb-topbar::after {
   min-width: 0;
 }
 
-/* 品牌字标走 Orbitron（--hb-font-display），与入口页场景里那个 HomeOS 字标同一款：
+/* 品牌字标走 Orbitron（--hb-font-brand，= 场景的 --hos-font-brand），
+   与入口页场景里那个 HomeOS 字标同一款：
    这是整站唯一一处「品牌露出」，用显示字体把商店和激活页系在一起。
    字重提到 700（Orbitron 只打包了 700，写别的字重会被浏览器合成），
    字距放宽一点 —— Orbitron 的 O 本就很圆，再挤在一起会糊。 */
 .hb-brand__text strong {
   display: block;
   color: var(--hb-ink);
-  font-family: var(--hb-font-display);
+  font-family: var(--hb-font-brand);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -395,7 +396,16 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 .hb-account-heading__path {
   padding-left: 10px;
   border-left: 1px solid var(--hb-line-strong);
-  color: var(--hb-muted-dim);
+  /* 这一条原本用 --hb-muted-dim，而它是**全站最暗的一档**（#6d8797，为表格脚注准备的）。
+     横幅的底色是 linear-gradient(126deg, surface-soft 0%, surface 58%, surface-raised 100%)
+     —— 右下角那一端正是最亮的 surface-raised(#16263c)，dim 档压在上面只有 4.04:1，
+     低于 AA。横幅是全前台最显眼的区块、路径又是「我在哪个模块」的唯一线索，
+     属于最不该读不清的一类字。
+     改用 --hb-muted 后 5.03:1。降档的视觉层次没有丢：这一行仍是 12px 等宽大写，
+     与旁边 30px 的标题、13px 的 feed 读数本来就不在同一个层级上，靠字号已经分开了。
+     约束记在 tools/audit_colors.mjs 的 FOREGROUND_CEILING：--hb-muted-dim 只允许压到
+     surface-soft 一级为止，进横幅这类以 surface-raised 收尾的面就会在那里被列出来。 */
+  color: var(--hb-muted);
   letter-spacing: 0.08em;
   text-transform: none;
 }
@@ -447,8 +457,12 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   border-left: 1px solid var(--hb-line-strong);
 }
 
+/* feed 的小标签同样从 --hb-muted-dim 抬到 --hb-muted，理由与 __path 完全一致：
+   这块读数条位于横幅右下角，正压在渐变的 surface-raised 停点上（4.04:1 → 5.03:1）。
+   它比 __path 更小（10px 等宽大写），所以更不能靠降对比度来做层次 ——
+   小字号本身就是最弱的一档，再压暗就是「设计上刻意不让人读」。 */
 .hb-page-head__feed small {
-  color: var(--hb-muted-dim);
+  color: var(--hb-muted);
   font-family: var(--hb-font-mono);
   font-size: 10px;
   letter-spacing: 0.16em;

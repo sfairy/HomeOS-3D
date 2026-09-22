@@ -14,13 +14,13 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609221451";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609221451";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609221451";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609221451";
-import { paletteColor } from "../../utils/colors.js?v=2609221451";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609221451";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609221451";
+} from "../loaders/studio-curtain-track.js?v=2609222006";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609222006";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609222006";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609222006";
+import { paletteColor } from "../../utils/colors.js?v=2609222006";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609222006";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609222006";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -34,71 +34,71 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609221451";
+} from "./studio-item-types.js?v=2609222006";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609221451";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609222006";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=2609221451";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609221451";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609221451";
+} from "../materials/studio-surface-textures.js?v=2609222006";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609222006";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609222006";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609221451";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609221451";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609221451";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609221451";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609221451";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609221451";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609221451";
+} from "./studio-camera-constraints.js?v=2609222006";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609222006";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609222006";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609222006";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609222006";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609222006";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609222006";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609221451";
+} from "../materials/studio-wall-materials.js?v=2609222006";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609221451";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609221451";
+} from "./studio-scene-style.js?v=2609222006";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609222006";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609221451";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609221451";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609221451";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609221451";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609221451";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609221451";
+} from "../../bridge/render-cache.js?v=2609222006";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609222006";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609222006";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609222006";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609222006";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609222006";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609221451";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609222006";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609221451";
+import { debugLog } from "../../utils/debug-log.js?v=2609222006";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609221451";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609222006";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609221451";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609222006";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609221451";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609221451";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609222006";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609222006";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609221451";
+} from "../../bridge/light-motion.js?v=2609222006";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -138,7 +138,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609221451";
+} from "../plan/geometry.js?v=2609222006";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -147,7 +147,7 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609221451";
+} from "../export/export-utils.js?v=2609222006";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -155,25 +155,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609221451";
-import { reorderFloors } from "../plan/floor-order.js?v=2609221451";
-import { syncControlValue } from "./ui-controls.js?v=2609221451";
+} from "../export/export-presets.js?v=2609222006";
+import { reorderFloors } from "../plan/floor-order.js?v=2609222006";
+import { syncControlValue } from "./ui-controls.js?v=2609222006";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609221451";
+} from "./studio-widgets.js?v=2609222006";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609221451";
+} from "../loaders/studio-external-models.js?v=2609222006";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609221451";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609221451";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609221451";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609221451";
+} from "../plan/studio-plan-drawing.js?v=2609222006";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609222006";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609222006";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609222006";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -186,7 +186,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609221451";
+} from "../loaders/studio-normalization.js?v=2609222006";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -222,6 +222,23 @@ const PLAN_ACCENT_BRIGHT = () => paletteColor("--accent-bright", STUDIO_ACCENT_B
 const PLAN_GUIDE = () => paletteColor("--guide", STUDIO_AURA_FALLBACK);
 /** 闭合空间有效。 */
 const PLAN_DONE = () => paletteColor("--done", STUDIO_ECO_FALLBACK);
+
+// 上面四枚读的是 studio.css 的**别名**（--accent / --guide / --done），因为那是它自己的
+// 主题层。下面三枚没有对应的别名，直接读 canonical 的 --hos-tool-* 工具面族 ——
+// 这一族是编辑器 / 显示端 / 工作室三套界面共用的中性 chrome，工作室正是三套之一。
+//
+// 这三枚原先都是在画布上直接写十六进制。2D canvas 拿不到 CSS 变量，所以「写死」曾经是
+// 唯一的路；改成调用 paletteColor 之后，管理员换主控色 / 换主题时它们会一起走。
+// paletteColor 内部按令牌名缓存（utils/colors.js），在每帧的重绘路径上调用没有额外开销。
+const STUDIO_LABEL_FALLBACK = "#8d989f";
+const STUDIO_PAPER_FALLBACK = "#0b0f12";
+const STUDIO_HANDLE_FALLBACK = "#141a20";
+/** 户型图的标签文字（画布 2D 与标签贴图共用一枚取值）。原来是 #929baa。 */
+const PLAN_LABEL = () => paletteColor("--hos-tool-muted-dim", STUDIO_LABEL_FALLBACK);
+/** 户型画布的「纸」底色（导出与截图时先把整张画布铺满它）。原来是 #0d1319。 */
+const PLAN_PAPER = () => paletteColor("--hos-tool-bg", STUDIO_PAPER_FALLBACK);
+/** 选中框的角点手柄与旋转手柄的**填充**（外描边走 PLAN_ACCENT 的琥珀）。原来是 #111820。 */
+const PLAN_HANDLE = () => paletteColor("--hos-tool-surface", STUDIO_HANDLE_FALLBACK);
 
 const isRegionLightingEnabled =
   isStageViewerMode && new URLSearchParams(location.search).get("lighting") === "region";
@@ -1286,7 +1303,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609221451"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609222006"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -5625,7 +5642,7 @@ function drawPlanItem(itemToDraw) {
     planContext.moveTo(itemWidthPx / 2, -itemDepthPx / 2);
     planContext.lineTo(-itemWidthPx / 2, itemDepthPx / 2);
     planContext.stroke();
-    planContext.fillStyle = "#ffd39c";
+    planContext.fillStyle = PLAN_ACCENT_BRIGHT();
     planContext.font = "12px sans-serif";
     planContext.textAlign = "center";
     planContext.fillText("楼板洞口", 0, 4);
@@ -5725,7 +5742,7 @@ function drawPlanItem(itemToDraw) {
       itemDepthPx,
       itemToDraw.lineLength
     );
-    planContext.fillStyle = "#929baa";
+    planContext.fillStyle = PLAN_LABEL();
     const labelTitleFontSizePx = labelMetrics.titleFontSize;
     planContext.font = "700 " + labelTitleFontSizePx + "px sans-serif";
     drawTrackedText(
@@ -5739,7 +5756,7 @@ function drawPlanItem(itemToDraw) {
     const labelIconX = labelMetrics.iconX;
     const labelIconY = labelMetrics.iconY;
     const labelIconSizePx = labelMetrics.iconSize;
-    planContext.fillStyle = "#929baa";
+    planContext.fillStyle = PLAN_LABEL();
     planContext.beginPath();
     planContext.moveTo(labelIconX, labelIconY - labelIconSizePx * 0.58);
     planContext.lineTo(labelIconX + labelIconSizePx * 0.56, labelIconY - labelIconSizePx * 0.02);
@@ -5751,7 +5768,7 @@ function drawPlanItem(itemToDraw) {
     planContext.lineTo(labelIconX, labelIconY - labelIconSizePx * 0.52);
     planContext.closePath();
     planContext.fill();
-    planContext.fillStyle = "#929baa";
+    planContext.fillStyle = PLAN_LABEL();
     planContext.textAlign = "left";
     const labelSubtitleFontSizePx = labelMetrics.subtitleFontSize;
     planContext.font = "400 " + labelSubtitleFontSizePx + 'px "Arial Narrow", Arial, sans-serif';
@@ -6636,7 +6653,7 @@ function drawPlanItem(itemToDraw) {
     planContext.strokeRect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.setLineDash([]);
     const selectionHandleSizePx = 7;
-    planContext.fillStyle = "#111820";
+    planContext.fillStyle = PLAN_HANDLE();
     for (const [selectionHandleX, selectionHandleY] of [
       [-itemWidthPx / 2, -itemDepthPx / 2],
       [itemWidthPx / 2, -itemDepthPx / 2],
@@ -6662,7 +6679,7 @@ function drawPlanItem(itemToDraw) {
     planContext.moveTo(0, -itemDepthPx / 2);
     planContext.lineTo(0, rotationHandleTipY + 4);
     planContext.stroke();
-    planContext.fillStyle = "#111820";
+    planContext.fillStyle = PLAN_HANDLE();
     planContext.beginPath();
     planContext.arc(0, rotationHandleTipY, 4, 0, Math.PI * 2);
     planContext.fill();
@@ -7000,7 +7017,7 @@ function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffset
   const metricsScaleY = planCanvasElement.height / Math.max(viewportHeightPx, 1);
   planContext.save();
   planContext.setTransform(1, 0, 0, 1, 0, 0);
-  planContext.fillStyle = "#0d1319";
+  planContext.fillStyle = PLAN_PAPER();
   planContext.fillRect(0, 0, planCanvasElement.width, planCanvasElement.height);
   planContext.drawImage(
     metricsCanvas,
@@ -7050,7 +7067,7 @@ function drawMarqueeOverlay() {
 function renderPlanView() {
   const isLightPlanView = activeAssetTab === "light";
   planContext.clearRect(0, 0, viewportWidthPx, viewportHeightPx);
-  planContext.fillStyle = "#0d1319";
+  planContext.fillStyle = PLAN_PAPER();
   planContext.fillRect(0, 0, viewportWidthPx, viewportHeightPx);
   planContext.save();
   planContext.translate(viewportWidthPx / 2, viewportHeightPx / 2);
@@ -14586,7 +14603,7 @@ function buildPlanLabelMesh(labelSettings) {
   labelCanvasElement.height = 640;
   const labelContext = labelCanvasElement.getContext("2d");
   labelContext.clearRect(0, 0, labelCanvasElement.width, labelCanvasElement.height);
-  labelContext.fillStyle = "#929baa";
+  labelContext.fillStyle = PLAN_LABEL();
   labelContext.textAlign = "left";
   labelContext.textBaseline = "middle";
   const labelTitle = normalizeLabelText(labelSettings.title, "家庭总览", 24);
@@ -14605,7 +14622,7 @@ function buildPlanLabelMesh(labelSettings) {
   const badgeX = 1580;
   const badgeY = 130;
   const badgeSize = 170;
-  labelContext.fillStyle = "#929baa";
+  labelContext.fillStyle = PLAN_LABEL();
   labelContext.beginPath();
   labelContext.moveTo(badgeX, badgeY - badgeSize * 0.58);
   labelContext.lineTo(badgeX + badgeSize * 0.56, badgeY - badgeSize * 0.02);
@@ -14625,7 +14642,7 @@ function buildPlanLabelMesh(labelSettings) {
     badgeSize * 0.3
   );
   labelContext.restore();
-  labelContext.fillStyle = "#929baa";
+  labelContext.fillStyle = PLAN_LABEL();
   labelContext.textAlign = "left";
   const subtitleFontSize = 310;
   labelContext.font = "400 " + subtitleFontSize + 'px "Arial Narrow", Arial, sans-serif';
@@ -20397,7 +20414,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609221451");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609222006");
       mountStage(createStageController());
       return;
     }

@@ -7,20 +7,20 @@
  * 把这份判定留在叶子里，两个方向都不成环。
  */
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609221451";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609222006";
 // 窗帘能力位（含 240 = tilt 位并集）与「有没有叶片证据」的判定唯一实现在 utils/cover-features.js：
 // 3D 舞台那份窗帘状态用同一份，两处不许再各写一遍（曾因此把同一台设备判成不同帘型）。
 import {
   COVER_POSITION_EPSILON_PERCENT,
   coverFeaturesOf,
   coverReportsTilt
-} from "../../../utils/cover-features.js?v=2609221451";
+} from "../../../utils/cover-features.js?v=2609222006";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 它不 import 任何东西，避免 cover-runtime.js 与本文件反向 import 成环。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "../../controls/cover-direction.js?v=2609221451";
+} from "../../controls/cover-direction.js?v=2609222006";
 
 /**
  * 通用「活动态」判定：on / open / true / home 都算活动。

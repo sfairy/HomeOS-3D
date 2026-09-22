@@ -33,7 +33,7 @@
   width: 100%;
   height: auto;
   min-height: 0;
-  color: #dce2e6;
+  color: var(--hos-tool-ink-dim);
   font:
     12px/1.5 Helvetica Neue,
     PingFang SC,
@@ -69,7 +69,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #f0f3f5;
+  color: var(--hos-tool-ink);
   font-size: 20px;
   font-weight: 600;
   letter-spacing: 0.025em;
@@ -77,7 +77,7 @@
 }
 .i3d-climate-heading p {
   margin: 2px 0 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 11px;
   line-height: 14px;
 }
@@ -94,9 +94,9 @@
   height: 42px;
   min-height: 42px;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
   border-radius: 12px;
-  color: #d7dde1;
+  color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow: 0 7px 18px #0003;
   font-size: 22px;
@@ -114,7 +114,7 @@
 }
 /* 指令下发中禁用按钮并显示等待光标，防止连点叠加多条温控指令。 */
 .i3d-climate-panel .hb-climate-temperature-step:disabled {
-  color: #59646b;
+  color: var(--hos-tool-disabled);
   cursor: wait;
   opacity: 0.55;
 }
@@ -122,7 +122,7 @@
 .i3d-climate-temperature-interval {
   margin: 0;
   padding: 12px 0;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   text-align: center;
 }
 /* ===== 模式与选项分组 ===== */
@@ -142,7 +142,7 @@
 }
 .i3d-climate-option-group h4 {
   margin: 0;
-  color: #aeb7bc;
+  color: var(--hos-tool-text-dim);
   font-size: 11px;
   font-weight: 620;
   line-height: 14px;
@@ -154,11 +154,11 @@
   margin: 0;
   font-size: 11px;
   line-height: 14px;
-  color: #8c979e;
+  color: var(--hos-tool-muted-dim);
   overflow-wrap: anywhere;
 }
 .i3d-climate-error {
-  color: #eeb0a0;
+  color: var(--hos-err);
 }
 /* ===== 禁用态、隐藏与减少动态效果 ===== */
 
@@ -194,9 +194,9 @@
 .i3d-climate-power {
   min-height: 34px;
   padding: 6px 8px;
-  border: 1px solid rgba(126, 141, 153, 0.23);
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.23);
   border-radius: 9px;
-  color: #dce2e5;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff0a;
   font:
     580 12px/1.3 Helvetica Neue,
@@ -244,12 +244,12 @@
 }
 .i3d-climate-temperature-content small,
 .i3d-climate-temperature-content span {
-  color: #8c979e;
+  color: var(--hos-tool-muted-dim);
   font-size: 11px;
 }
 /* 设定温度：等宽数字（tabular-nums）让温度变化时数字不左右跳动。 */
 .i3d-climate-target {
-  color: #f0f3f5;
+  color: var(--hos-tool-ink);
   font-size: 34px;
   font-weight: 500;
   line-height: 1.2;

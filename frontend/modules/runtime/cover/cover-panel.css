@@ -25,7 +25,7 @@
   min-height: 0;
   /* 面板内容允许溢出到外壳之外：动作按钮的悬停放大不该被裁切。 */
   overflow: visible;
-  color: #dce2e6;
+  color: var(--hos-tool-ink-dim);
   font:
     12px/1.5 Helvetica Neue,
     PingFang SC,
@@ -43,7 +43,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 20px;
   font-weight: 680;
   letter-spacing: 0.025em;
@@ -51,7 +51,7 @@
 }
 .i3d-cover-heading p {
   margin: 2px 0 0;
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 11px;
   line-height: 14px;
 }
@@ -93,7 +93,7 @@
 }
 .i3d-cover-panel .hb-cover-details-position output {
   width: 100%;
-  color: #b99264;
+  color: var(--hos-readout);
   font-size: 20px;
   font-weight: 620;
   text-align: center;
@@ -182,7 +182,7 @@
   justify-content: space-between;
 }
 .i3d-cover-panel .hb-cover-details-position-legend small {
-  color: #6f7980;
+  color: var(--hos-tool-disabled);
   font-size: 11px;
 }
 /* 三个动作按钮（打开 / 暂停 / 关闭）等分一行。 */
@@ -199,7 +199,7 @@
   gap: 13px;
   border: 1px solid rgba(131, 151, 162, 0.36);
   border-radius: 16px;
-  color: #c4d2d9;
+  color: var(--hos-tool-text);
   background: linear-gradient(145deg, #36424ac2, #192026b8);
   box-shadow: inset 0 1px #e2eaef12;
   transition:
@@ -212,7 +212,7 @@
 .i3d-cover-panel .hb-cover-details-actions button:hover,
 .i3d-cover-panel .hb-cover-details-actions button.is-active {
   border-color: rgba(var(--hos-cool-rgb), 0.74);
-  color: #e7f5fb;
+  color: var(--hos-tool-ink);
   background: linear-gradient(145deg, #64899973, #202e36c7);
 }
 .i3d-cover-panel .hb-cover-details-actions button:active {
@@ -224,7 +224,7 @@
   box-shadow: inset 0 0 0 1px rgba(var(--hos-cool-rgb), 0.3);
 }
 .i3d-cover-panel .hb-cover-details-actions i {
-  color: var(--hos-cool, #a8c5d3);
+  color: var(--hos-cool, #58c4ff);
   font:
     500 29px/1 Helvetica Neue,
     PingFang SC,
@@ -257,12 +257,12 @@
 /* 禁用按钮上仍会命中 :hover，这里把高亮还原回默认渐变，避免"看起来可点"。 */
 .i3d-cover-panel .hb-cover-details-actions button:disabled:hover {
   border-color: #8397a25c;
-  color: #c4d2d9;
+  color: var(--hos-tool-text);
   background: linear-gradient(145deg, #36424ac2, #192026b8);
 }
 .i3d-cover-panel button:focus-visible,
 .i3d-cover-panel input:focus-visible {
-  outline: 2px solid var(--hos-cool, #a8c5d3);
+  outline: 2px solid var(--hos-cool, #58c4ff);
   outline-offset: 3px;
 }
 /* ===== 反馈文案与提示 ===== */
@@ -272,13 +272,15 @@
   flex: none;
   min-height: 28px;
   margin: 0;
-  color: #8c979e;
+  color: var(--hos-tool-muted-dim);
   font-size: 11px;
   line-height: 14px;
   overflow-wrap: anywhere;
 }
+/* 错误文案走全站语义色。原来写死 #eeb0a0 —— 与 --hos-alert-bright(#f5a3a6) 差 13 个通道，
+   属于「同一个意思、三个文件三套取值」的静默漂移（runtime.css 那三处是另一枚 #e69c93）。 */
 .i3d-cover-feedback.is-error {
-  color: #eeb0a0;
+  color: var(--hos-err);
 }
 /* ===== 隐藏与减少动态效果 ===== */
 

@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609221451";
-@import "../nas/nas-panel.css?v=2609221451";
-@import "../climate/climate-panel.css?v=2609221451";
-@import "../cover/cover-panel.css?v=2609221451";
+@import "/static/bridge/controls.css?v=2609222006";
+@import "../nas/nas-panel.css?v=2609222006";
+@import "../climate/climate-panel.css?v=2609222006";
+@import "../cover/cover-panel.css?v=2609222006";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -25,7 +25,7 @@ body.interaction3d-stage {
   min-height: 0;
   margin: 0;
   overflow: hidden;
-  background: #141a21;
+  background: var(--hos-tool-surface);
 }
 .interaction3d-stage > :not(.studio-shell) {
   display: none !important;
@@ -206,7 +206,7 @@ body.interaction3d-stage.is-background-hidden,
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-width: 0;
-  color: #f4f5f6;
+  color: var(--hos-tool-ink);
   font-size: 24px;
   font-weight: 680;
   line-height: 1.3;
@@ -214,7 +214,7 @@ body.interaction3d-stage.is-background-hidden,
   overflow-wrap: anywhere;
 }
 .interaction3d-stage .i3d-device-status {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   margin: 8px 0 0;
   font-size: 14px;
   font-weight: 540;
@@ -447,7 +447,7 @@ body.interaction3d-stage.is-background-hidden,
   text-align: center;
 }
 .interaction3d-stage .i3d-slider output {
-  color: #b99264;
+  color: var(--hos-readout);
   font-size: 12px;
   font-weight: 540;
   font-variant-numeric: tabular-nums;
@@ -525,7 +525,7 @@ body.interaction3d-stage.is-background-hidden,
   padding: 10px 6px;
   border: 1px solid rgba(160, 170, 178, 0.24);
   border-radius: 14px;
-  color: #c5cdd2;
+  color: var(--hos-tool-text);
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow:
     0 8px 18px #0003,
@@ -541,7 +541,7 @@ body.interaction3d-stage.is-background-hidden,
   line-height: 1.2;
 }
 .interaction3d-stage .i3d-light-preset small {
-  color: #7e898f;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   font-weight: 500;
   line-height: 1.2;
@@ -570,7 +570,7 @@ body.interaction3d-stage.is-background-hidden,
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  color: #eeb0a0;
+  color: var(--hos-err);
   font-size: 12px;
   line-height: 1.5;
   margin: 8px 0 0;
@@ -680,24 +680,29 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-markers.is-view-editing .i3d-marker {
   pointer-events: none;
 }
-/* 视图编辑时显示的鼠标操作提示条。 */
+/* 视图编辑时显示的鼠标操作提示条。
+   它是给「正在编辑的人」看的说明，不跟着演示层的缩放一起变小：--i3d-help-scale 由
+   stage.js 的 layoutStage 按演示层缩放反算（缺省 1 = 设计字号）。编辑器预览里设计画布
+   常被压到 0.36 倍，不反算的话 11px 只剩 4px，等于看不见。
+   因此三处都要跟着反算：自身缩放、与底边的距离（乘），以及宽度上限（除，避免放大后越界）。 */
 .interaction3d-stage .i3d-view-help {
   position: absolute;
   z-index: 10;
-  bottom: 14px;
+  bottom: calc(14px * var(--i3d-help-scale, 1));
   left: 50%;
-  max-width: calc(100% - 28px);
+  max-width: calc(100% / var(--i3d-help-scale, 1) - 28px);
   margin: 0;
   padding: 7px 12px;
-  border: 1px solid #39424a;
+  border: 1px solid var(--hos-tool-line-mid);
   border-radius: 6px;
-  background: #171d22e8;
-  color: #c6cdd2;
+  background: rgba(var(--hos-tool-surface-rgb), 0.91);
+  color: var(--hos-tool-text);
   font:
     11px/1.6 system-ui,
     sans-serif;
   text-align: center;
-  transform: translate(-50%);
+  transform: translate(-50%) scale(var(--i3d-help-scale, 1));
+  transform-origin: 50% 100%;
   pointer-events: none;
 }
 .interaction3d-stage .i3d-marker {
@@ -713,7 +718,7 @@ body.interaction3d-stage.is-background-hidden,
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #a0a3aa;
+  color: var(--hos-tool-label);
   box-shadow: none;
   overflow: visible;
   pointer-events: auto;
@@ -852,7 +857,7 @@ body.interaction3d-stage.is-background-hidden,
   position: absolute;
   inset: 0;
   z-index: 30;
-  color: #e7edf5;
+  color: var(--hos-tool-ink);
   font:
     12px/1.45 -apple-system,
     BlinkMacSystemFont,
@@ -878,7 +883,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor input[type="number"] {
   border: 1px solid #3a4658;
   border-radius: 7px;
-  background: #182230;
+  background: var(--hos-tool-surface-soft);
   min-height: 32px;
   min-width: 0;
   padding: 5px 8px;
@@ -888,7 +893,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor button:hover {
   border-color: #e4ac64;
-  background: #27303d;
+  background: var(--hos-tool-surface-raised);
 }
 .plan2-range-editor :focus-visible {
   outline: 2px solid #f5bd73;
@@ -916,7 +921,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor .p2r-title {
   padding: 6px 10px;
   background: #101925ec;
-  border: 1px solid #344155;
+  border: 1px solid var(--hos-tool-line-mid);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -959,7 +964,7 @@ body.interaction3d-stage.is-background-hidden,
 .plan2-range-editor .p2r-field select,
 .plan2-range-editor .p2r-field input {
   width: 100%;
-  color: #eef2f8;
+  color: var(--hos-tool-ink);
 }
 .plan2-range-editor .p2r-grid {
   display: grid;
@@ -972,7 +977,7 @@ body.interaction3d-stage.is-background-hidden,
   gap: 6px;
   min-height: 31px;
   margin: 0;
-  color: #d9e3ee;
+  color: var(--hos-tool-ink-dim);
 }
 .plan2-range-editor input[type="checkbox"] {
   accent-color: #e5ad63;
@@ -1028,7 +1033,7 @@ body.interaction3d-stage.is-background-hidden,
   bottom: 12px;
   left: 12px;
   right: 270px;
-  color: #dae0e9;
+  color: var(--hos-tool-ink-dim);
   background: #101925d9;
   border-radius: 7px;
   padding: 5px 9px;
@@ -1169,8 +1174,8 @@ body.interaction3d-stage.is-background-hidden,
   min-height: 34px;
   padding: 6px 30px 6px 9px;
   overflow: hidden;
-  border-color: #343d45;
-  color: #e5e9ec;
+  border-color: var(--hos-tool-line);
+  color: var(--hos-tool-ink-dim);
   background: var(--field);
   text-align: left;
   text-overflow: ellipsis;
@@ -1188,14 +1193,14 @@ body.interaction3d-stage.is-background-hidden,
   width: 6px;
   height: 6px;
   margin-top: -5px;
-  border-right: 1.5px solid #aeb6bc;
-  border-bottom: 1.5px solid #aeb6bc;
+  border-right: 1.5px solid var(--hos-tool-text-dim);
+  border-bottom: 1.5px solid var(--hos-tool-text-dim);
   transform: rotate(45deg);
   content: "";
 }
 .plan2-range-editor .custom-select-button:hover:not(:disabled) {
-  border-color: #46515b;
-  background: #1b2228;
+  border-color: var(--hos-tool-line-strong);
+  background: var(--hos-tool-surface-soft);
 }
 .plan2-range-editor .custom-select-button[aria-expanded="true"] {
   border-color: var(--accent);
@@ -1206,12 +1211,12 @@ body.interaction3d-stage.is-background-hidden,
   transform: rotate(225deg);
 }
 .plan2-range-editor .custom-select-button:disabled {
-  color: #727e86;
+  color: var(--hos-tool-hint-dim);
   background: var(--field);
   cursor: default;
 }
 .plan2-range-editor .custom-select-button:disabled:after {
-  border-color: #59646c;
+  border-color: var(--hos-tool-control-line);
 }
 .plan2-range-editor .custom-select-menu {
   position: fixed;
@@ -1221,9 +1226,9 @@ body.interaction3d-stage.is-background-hidden,
   max-height: min(320px, calc(100vh - 16px));
   padding: 6px;
   overflow: auto;
-  border: 1px solid #505a63;
+  border: 1px solid var(--hos-tool-line-strong);
   border-radius: 6px;
-  background: #22292f;
+  background: var(--hos-tool-surface-soft);
   box-shadow: 0 18px 42px #000000ad;
 }
 .plan2-range-editor .custom-select-menu[hidden] {
@@ -1237,7 +1242,7 @@ body.interaction3d-stage.is-background-hidden,
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 3px;
-  color: #d7dde1;
+  color: var(--hos-tool-ink-dim);
   background: transparent;
   text-align: left;
   text-overflow: ellipsis;
@@ -1245,21 +1250,21 @@ body.interaction3d-stage.is-background-hidden,
   font-size: 12px;
 }
 .plan2-range-editor .custom-select-option.active {
-  color: #f3f5f6;
+  color: var(--hos-tool-ink);
   border-color: var(--accent);
-  background: #252c32;
+  background: var(--hos-tool-surface-raised);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.18);
   font-weight: 680;
 }
 .plan2-range-editor .custom-select-option:hover:not(:disabled) {
-  color: #f1f4f6;
-  border-color: #4a5660;
+  color: var(--hos-tool-ink);
+  border-color: var(--hos-tool-line-strong);
   background: #fff1;
   box-shadow: none;
   font-weight: 620;
 }
 .plan2-range-editor .custom-select-option:disabled {
-  color: #66727a;
+  color: var(--hos-tool-disabled);
   cursor: default;
 }
 /* 数字步进控件：输入框两侧的上下箭头按钮，与数字输入共用一套宽度节奏。 */
@@ -1278,7 +1283,7 @@ body.interaction3d-stage.is-background-hidden,
   width: 22px;
   grid-template-rows: 1fr 1fr;
   overflow: hidden;
-  border-left: 1px solid #343e46;
+  border-left: 1px solid var(--hos-tool-line);
   border-radius: 0 3px 3px 0;
 }
 .plan2-range-editor .inspector-number-stepper {
@@ -1290,17 +1295,17 @@ body.interaction3d-stage.is-background-hidden,
   border: 0;
   border-radius: 0;
   place-items: center;
-  color: #78848c;
-  background: #1b2228;
+  color: var(--hos-tool-hint);
+  background: var(--hos-tool-surface-soft);
   touch-action: none;
 }
 .plan2-range-editor .inspector-number-stepper:first-child {
-  border-bottom: 1px solid #343e46;
+  border-bottom: 1px solid var(--hos-tool-line);
 }
 .plan2-range-editor .inspector-number-stepper:hover {
   border-color: transparent;
   color: var(--accent, var(--hos-accent, #ffc46a));
-  background: #252d33;
+  background: var(--hos-tool-surface-raised);
 }
 .plan2-range-editor .inspector-number-stepper:active {
   color: #171006;
@@ -1378,7 +1383,7 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-status {
   margin-left: auto;
   font-size: 11px;
-  color: #aab9c7;
+  color: var(--hos-tool-text-dim);
   text-align: right;
   white-space: nowrap;
 }
@@ -1442,7 +1447,7 @@ body.interaction3d-stage.is-background-hidden,
   object-fit: contain;
   flex: 0 0 auto;
   border-radius: 5px;
-  background: #080d12;
+  background: var(--hos-tool-bg);
 }
 .i3d-tv-details {
   display: flex;
@@ -1507,11 +1512,14 @@ body.interaction3d-stage.is-background-hidden,
   left: 50%;
   transform: translate(-50%);
   white-space: nowrap;
+  /* 字号由 marker-layer.js 的行内样式按标记标签口径写入（见那边的 MARKER_LABEL_SCALE），
+     这里的 12px 只是脚本没跑时的兜底。内边距与圆角用 em 跟着字号走：写成 px 的话标签会
+     变成「大字号挤在小框里」。这组值在原 12px 字号下正好等于 3px / 6px / 5px，与旧观感一致。 */
   font-size: 12px;
-  color: #f7fbff;
+  color: var(--hos-tool-ink);
   background: #172230bc;
-  border-radius: 5px;
-  padding: 3px 6px;
+  border-radius: 0.4167em;
+  padding: 0.25em 0.5em;
   pointer-events: none;
 }
 .interaction3d-stage .i3d-marker.is-vacuum-status {
@@ -1536,9 +1544,9 @@ body.interaction3d-stage.is-background-hidden,
   box-sizing: border-box;
   border: 1px solid #78848d75;
   border-radius: 10px;
-  background: #1b222aee;
+  background: rgba(var(--hos-tool-surface-soft-rgb), 0.93);
   box-shadow: 0 4px 12px #0004;
-  color: #dce3e9;
+  color: var(--hos-tool-ink-dim);
   line-height: 1.35;
   font-family:
     PingFang SC,
@@ -1555,7 +1563,7 @@ body.interaction3d-stage.is-background-hidden,
   width: 8px;
   height: 8px;
   transform: rotate(45deg);
-  background: #1b222a;
+  background: var(--hos-tool-surface-soft);
   border-right: 1px solid #78848d75;
   border-bottom: 1px solid #78848d75;
 }
@@ -1572,7 +1580,7 @@ body.interaction3d-stage.is-background-hidden,
   justify-content: space-between;
   gap: 6px;
   font-size: 0.85em;
-  color: #aab7bf;
+  color: var(--hos-tool-text-dim);
 }
 .i3d-vacuum-status-text {
   overflow: hidden;
@@ -1584,7 +1592,7 @@ body.interaction3d-stage.is-background-hidden,
   font-variant-numeric: tabular-nums;
 }
 .is-on .i3d-vacuum-status-text {
-  color: #8edab7;
+  color: var(--hos-ok);
 }
 .is-on .i3d-vacuum-status {
   border-color: #6da88b99;

@@ -4,26 +4,49 @@
  *
  * 主题变量：本文件**不再自带色板**，:root 只把历史令牌名（--bg / --surface / --accent …）
  * 别名到 design/scene/page.css 那份全站唯一调色板（3d-studio.html 已 <link> 其分发产物）。
- * 别名而不是重命名：本文件有 33 处 var(--accent*) 与多条 var(--surface*)，改名要逐个跟。
+ * 别名而不是重命名：本文件有 51 处 var(--accent*)，改名要逐个跟。
+ * 注意两档声明是**死的**（--surface / --surface-soft，本文件与 studio-app.js 都不读）——
+ * 它们只为「历史名仍然可解析」而存在，改它们没有视觉效果，详见 :root 里的注释。
  * 画布（studio-app.js 的 2D planContext）读不到 CSS 变量，那边的色值由 paletteColor() 从
  * 计算样式取一次再缓存，常量名与本文件的令牌一一对应，改这里那边跟着走。
+ * 它读的是 --accent / --accent-bright / --guide / --done 这四个本文件的名字，
+ * 外加 --hos-* 原名（--hos-accent-bright / --hos-accent-deep / --hos-sky-haze / --hos-ink /
+ * --hos-sensor / --hos-heat / --hos-cool / --hos-accent-rgb）。改 :root 前先确认不在这个名单里。
  *
  * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609221451
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609222006
  */
 
 /* ===== 设计令牌（主题变量） ===== */
 
 :root {
   color-scheme: dark;
+  /* 页面底色：画布置于 #050912（sky-deep）之上，配一层顶部径向辉光。
+     这一档**刻意留在场景 sky 档**而不是接工具面：这是 3D 画布的底，不是 chrome。 */
   --bg: var(--hos-sky-deep);
-  --surface: var(--hos-sky-low);
+  /* 下面两档目前**零取用**（本文件 0 处、studio-app.js 的 paletteColor 也 0 处，
+     全站只有 page.css + studio.css 会加载到本文件所在的页面）。既然声明了就该是
+     真话，所以接到工具面孔令组 —— 注意改它们**不会有任何视觉变化**，别指望靠调它们改外观。
+     保留而不删的理由与 app.css 同一份（缺定义对裸 var() 是静默失效，留着当兜底更安全）。 */
+  --surface: var(--hos-tool-surface);
+  --surface-soft: var(--hos-tool-surface-soft);
+  /* 点阵色板的底（只有 .swatch 那一处用）。保留 sky-high，未纳入本次统一 ——
+     这一处与 app.css 的同名档**取值不同是有意的**：它压的是画布上的点阵色板底，
+     属场景面；app.css 的同名档接 --hos-tool-surface-raised（工具面）。合并会串味。 */
   --surface-raised: var(--hos-sky-high);
-  --surface-soft: var(--hos-sky-mid);
-  --line: var(--hos-sky-haze);
-  --line-strong: rgba(var(--hos-sky-haze-rgb), 0.6);
+  /* 描边：原先指 --hos-sky-haze（#24395a，HSV s 0.60 —— 全色板最饱和的一档）。
+     这与 app.css 已经修过的是**同一个问题**：sky-haze 是给天幕、玻璃面、远景用的，
+     不是给 chrome 描边用的。旁证同样成立 —— bridge.css 至今写着 var(--line, #303840)，
+     兜底值就是中性石板，说明 --line 本来就该是中性。
+     实测影响：改前全页有 1130 条边框取到这个蓝（966 条不透明 + 164 条 0.6α），
+     改后像素差 2.25%、单通道最大 25/255 —— 是一次可感的色调收敛，不是重绘。
+     studio 底子是偏蓝的（body #050912、面板 #10171e 一带），所以蓝边框不刺眼，
+     但它比周围所有面都更饱和，且与编辑器的同名令牌语义相左 —— 两个同类工具面
+     不该对「--line 是什么颜色」有两种答案。 */
+  --line: var(--hos-tool-line);
+  --line-strong: rgba(var(--hos-tool-line-rgb), 0.6);
   --text: var(--hos-ink);
   --muted: var(--hos-muted);
 
@@ -32,7 +55,7 @@
   --accent: var(--hos-accent);
   --accent-bright: var(--hos-accent-bright);
   --accent-deep: var(--hos-accent-deep);
-  --accent-soft: rgba(var(--hos-accent-rgb), 0.16);
+  --accent-soft: rgba(var(--hos-accent-rgb), 0.13);
 
   /* 已完成阶段。原来借用 --cyan，可 --cyan 同时还是画布上的吸附 / 量测色 ——
      一个令牌背两种语义，改色时必然误伤另一半。拆开：完成态属于「正常」，走生态薄荷。 */
@@ -131,7 +154,7 @@ input[type="number"]::-webkit-outer-spin-button {
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  color: #aeb9c2;
+  color: var(--hos-tool-text-dim);
   background: #ffffff0b;
   font-size: 0;
   line-height: 1;
@@ -333,7 +356,7 @@ body[data-tone] .scale-dialog .dialog-index {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #65717d;
+  color: var(--hos-tool-disabled);
   font-size: 11px;
   white-space: nowrap;
 }
@@ -379,7 +402,7 @@ body[data-tone] .scale-dialog .dialog-index {
   height: 34px;
   padding: 0 13px;
   border-radius: 9px;
-  color: #c8d0d8;
+  color: var(--hos-tool-text);
   font-size: 11px;
 }
 /* 保存状态：小圆点 + 文案三段式（saved 绿 / saving 橙且呼吸 / error 红）。
@@ -400,7 +423,7 @@ body[data-tone] .scale-dialog .dialog-index {
   background: #697581;
 }
 .save-state.saved i {
-  background: #5fd69a;
+  background: var(--hos-eco);
 }
 .save-state.saving i {
   background: var(--accent);
@@ -535,7 +558,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-height: 30px;
   padding: 0 8px;
   border-radius: 7px;
-  color: #8f9ba6;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .floor-manager-card .start-card-row h2 {
@@ -556,7 +579,7 @@ body[data-tone] .scale-dialog .dialog-index {
   gap: 4px;
 }
 .floor-heading-actions #align-floor {
-  color: #b7c2ca;
+  color: var(--hos-tool-text-dim);
 }
 .floor-list {
   display: grid;
@@ -619,7 +642,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 0;
   border: 0;
   border-radius: 5px;
-  color: #8f9ba6;
+  color: var(--hos-tool-muted-dim);
   background: transparent;
   font-size: 11px;
 }
@@ -630,7 +653,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .floor-row > span {
   min-width: 0;
   overflow: hidden;
-  color: #dce3e9;
+  color: var(--hos-tool-ink-dim);
   font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -639,7 +662,7 @@ body[data-tone] .scale-dialog .dialog-index {
 /* 楼层标高读数：等宽字体 + 不换行，数字变化时不会挤动左侧楼名。 */
 .floor-row > small {
   padding-right: 4px;
-  color: #71808b;
+  color: var(--hos-tool-hint-dim);
   font:
     9px ui-monospace,
     monospace;
@@ -662,7 +685,7 @@ body[data-tone] .scale-dialog .dialog-index {
   font-size: 11px;
 }
 .section-heading > small {
-  color: #75828d;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 /* 模型标定参数行（楼层高、网格尺寸等）：左侧 22px 放名称，右侧两列等宽放数值。
@@ -686,7 +709,7 @@ body[data-tone] .scale-dialog .dialog-index {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 2px;
-  color: #8f9ba5;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .model-settings-row label > span {
@@ -701,7 +724,7 @@ body[data-tone] .scale-dialog .dialog-index {
   border-radius: 6px;
   outline: 0;
   background: #00000038;
-  color: #e7edf2;
+  color: var(--hos-tool-ink);
   font-size: 11px;
   text-align: center;
 }
@@ -736,7 +759,7 @@ body[data-tone] .scale-dialog .dialog-index {
   align-items: center;
   gap: 4px;
   border-top: 1px solid rgba(124, 140, 151, 0.12);
-  color: #8f9ba5;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .model-settings-option-row label {
@@ -758,7 +781,7 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 1px solid var(--line);
   border-radius: 6px;
   outline: 0;
-  color: #e7edf2;
+  color: var(--hos-tool-ink);
   background: #00000038;
   font-size: 11px;
   text-align: center;
@@ -780,7 +803,7 @@ body[data-tone] .scale-dialog .dialog-index {
    样式与可访问性（朗读「已按下/未按下」）自动保持一致。 */
 .model-settings-option-row button[aria-pressed="false"] {
   border-color: var(--line);
-  color: #7f8b95;
+  color: var(--hos-tool-hint);
   background: #00000029;
 }
 /* 素材库分类页签（灯光 / 家具 / 其它）：三列等宽，选中页由 .active 打底，
@@ -801,12 +824,12 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #8a96a0;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
   font-weight: 700;
 }
 .asset-category-tabs button.active {
-  color: #f0f3f6;
+  color: var(--hos-tool-ink);
   background: #869ece33;
   box-shadow: inset 0 0 0 1px #c2d3f421;
 }
@@ -825,7 +848,7 @@ body[data-tone] .scale-dialog .dialog-index {
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
-  color: #aab5bf;
+  color: var(--hos-tool-text-dim);
   text-align: center;
 }
 .light-asset-card:hover {
@@ -897,7 +920,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 0 4px;
   overflow: hidden;
   border-radius: 5px;
-  color: #909da7;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -956,7 +979,7 @@ body[data-tone] .scale-dialog .dialog-index {
   height: 28px;
   padding: 0;
   border-radius: 5px;
-  color: #76838e;
+  color: var(--hos-tool-hint);
   font-size: 12px;
 }
 .light-group-row > button.on {
@@ -990,13 +1013,13 @@ body[data-tone] .scale-dialog .dialog-index {
   min-width: 0;
   overflow: hidden;
   padding: 0 5px;
-  color: #d2d9df;
+  color: var(--hos-tool-ink-dim);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .light-group-row small {
-  color: #71808b;
+  color: var(--hos-tool-hint-dim);
   font:
     10px ui-monospace,
     monospace;
@@ -1038,7 +1061,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 0;
   border: 0;
   border-radius: 4px;
-  color: #8b98a3;
+  color: var(--hos-tool-muted-dim);
   background: transparent;
   font-size: 9px;
   line-height: 1;
@@ -1052,7 +1075,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-width: 0;
   overflow: hidden;
   padding: 0 3px;
-  color: #e3e9ee;
+  color: var(--hos-tool-ink-dim);
   font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
@@ -1072,7 +1095,7 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 .light-area-empty {
   padding: 4px 8px 5px 14px;
-  color: #6f7d88;
+  color: var(--hos-tool-hint-dim);
   font-size: 9px;
 }
 /* 区域展开后的分组容器：左侧 8px 内边距 + 1px 竖线画出层级缩进，
@@ -1140,7 +1163,7 @@ body[data-tone] .scale-dialog .dialog-index {
   font-size: 10px;
 }
 .light-group-context-menu button:hover {
-  color: #f0f3f6;
+  color: var(--hos-tool-ink);
   background: #ffffff0f;
 }
 /* 删除项统一染成警示红，data-* 选择器列出菜单里三种可删除对象
@@ -1166,7 +1189,7 @@ body[data-tone] .scale-dialog .dialog-index {
   margin: 5px 1px 0;
   padding: 6px 2px 3px;
   border-bottom: 1px solid rgba(124, 140, 151, 0.14);
-  color: #8f9ba5;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1213,7 +1236,7 @@ body[data-tone] .scale-dialog .dialog-index {
   height: 18px;
   display: grid;
   place-items: center;
-  color: #aab5bf;
+  color: var(--hos-tool-text-dim);
   font-style: normal;
   font-size: 14px;
 }
@@ -1223,7 +1246,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .asset-card span {
   min-width: 0;
   overflow: hidden;
-  color: #e8edf0;
+  color: var(--hos-tool-ink);
   font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -1284,12 +1307,12 @@ body[data-tone] .scale-dialog .dialog-index {
   white-space: nowrap;
   border-color: transparent;
   border-radius: 9px;
-  color: #8e9aa5;
+  color: var(--hos-tool-muted-dim);
   background: transparent;
   font-size: 11px;
 }
 .tool-button i {
-  color: #b4bec7;
+  color: var(--hos-tool-text-dim);
   font-style: normal;
   font-size: 15px;
 }
@@ -1308,7 +1331,7 @@ body[data-tone] .scale-dialog .dialog-index {
   height: 34px;
   padding: 0 9px;
   border-radius: 8px;
-  color: #9aa6b0;
+  color: var(--hos-tool-label);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -1333,7 +1356,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-width: 18px;
   padding: 1px 4px;
   border-radius: 999px;
-  color: #84919d;
+  color: var(--hos-tool-muted-dim);
   background: #ffffff0f;
   font-size: 9px;
   text-align: center;
@@ -1342,7 +1365,7 @@ body[data-tone] .scale-dialog .dialog-index {
    扫一眼就能确认吸附是否生效、当前抓住了几个点。 */
 .toolbar-actions .snap-toggle.active {
   border-color: rgba(var(--hos-accent-rgb), 0.32);
-  color: #f4f6f8;
+  color: var(--hos-tool-ink);
   background: var(--accent-soft);
 }
 .toolbar-actions .snap-toggle.active small {
@@ -1408,7 +1431,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  color: #b7c0c8;
+  color: var(--hos-tool-text-dim);
   background: #ffffff06;
   cursor: pointer;
 }
@@ -1432,7 +1455,7 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 .snap-distance output {
   min-width: 34px;
-  color: #d8dee3;
+  color: var(--hos-tool-ink-dim);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -1476,7 +1499,7 @@ body[data-tone] .scale-dialog .dialog-index {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background-color: #0d1319;
+  background-color: var(--hos-tool-surface);
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
@@ -1555,7 +1578,7 @@ body[data-tone] .scale-dialog .dialog-index {
   align-items: center;
   pointer-events: none;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #080d12c2;
+  background: rgba(var(--hos-tool-bg-rgb), 0.76);
   box-shadow: 0 8px 24px #0000002e;
   backdrop-filter: blur(12px);
 }
@@ -1568,13 +1591,13 @@ body[data-tone] .scale-dialog .dialog-index {
   border-radius: 8px;
 }
 .canvas-hud.top-left span {
-  color: #e5eaee;
+  color: var(--hos-tool-ink-dim);
   font-size: 12px;
   font-weight: 650;
 }
 .canvas-hud.top-left small {
   margin-top: 4px;
-  color: #8a96a0;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 /* 底部左侧 HUD：光标坐标（等宽字体防抖动）+ 吸附开关状态，
@@ -1585,7 +1608,7 @@ body[data-tone] .scale-dialog .dialog-index {
   gap: 12px;
   padding: 8px 10px;
   border-radius: 7px;
-  color: #919da7;
+  color: var(--hos-tool-muted-dim);
   font:
     10px ui-monospace,
     SFMono-Regular,
@@ -1609,11 +1632,11 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: #aeb7bf;
+  color: var(--hos-tool-text-dim);
 }
 .canvas-hud.bottom-right span {
   min-width: 48px;
-  color: #939fa8;
+  color: var(--hos-tool-muted-dim);
   text-align: center;
   font:
     10px ui-monospace,
@@ -1677,7 +1700,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 14px 20px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  color: #dce5ed;
+  color: var(--hos-tool-ink-dim);
   background: #0a1016c7;
   box-shadow: 0 10px 28px #00000042;
   backdrop-filter: blur(10px);
@@ -1812,7 +1835,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-width: 0;
   display: block;
   overflow: hidden;
-  color: #7f8c97;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   line-height: 1.25;
   text-align: right;
@@ -1821,7 +1844,7 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 .preview-heading-tip .open-base-lighting {
   flex: 0 0 auto;
-  color: #aeb9c3;
+  color: var(--hos-tool-text-dim);
 }
 .preview-heading button {
   min-height: 28px;
@@ -1859,7 +1882,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .preview-control-label {
   width: 28px;
   flex: 0 0 28px;
-  color: #66737e;
+  color: var(--hos-tool-disabled);
   font-size: 9px;
   font-weight: 750;
   letter-spacing: 0.08em;
@@ -1886,7 +1909,7 @@ body[data-tone] .scale-dialog .dialog-index {
   background: rgba(var(--hos-accent-rgb), 0.15);
 }
 .preview-secondary-controls #reset-camera {
-  color: #8996a1;
+  color: var(--hos-tool-muted-dim);
 }
 /* 切换开关组（同步 / 楼层 / 视角 / 相机 / 固定机位）共用同一套外观：
    外层描边容器 + 内部透明按钮，选中项由 .active 打上蓝底。 */
@@ -1916,7 +1939,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .preview-floor-switch button.active,
 .preview-view-switch button.active,
 .preview-camera-switch button.active {
-  color: #eef4ff;
+  color: var(--hos-tool-ink);
   background: #869ece3d;
   box-shadow: inset 0 0 0 1px #c2d3f426;
 }
@@ -1930,7 +1953,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 2px 6px 2px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  color: #8996a1;
+  color: var(--hos-tool-muted-dim);
   background: #00000029;
   font-size: 10px;
   white-space: nowrap;
@@ -1953,7 +1976,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 1px 5px;
   border: 0;
   border-radius: 4px;
-  color: #dce4ec;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff0e;
   font: inherit;
   text-align: center;
@@ -1962,11 +1985,11 @@ body[data-tone] .scale-dialog .dialog-index {
   outline: 1px solid rgba(var(--hos-accent-rgb), 0.55);
 }
 .camera-focal-control input:disabled {
-  color: #5d6872;
+  color: var(--hos-tool-disabled);
   background: transparent;
 }
 .camera-focal-control i {
-  color: #596570;
+  color: var(--hos-tool-disabled);
   font-style: normal;
 }
 .camera-focal-control.is-disabled {
@@ -1994,7 +2017,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .export-floor-select-control {
   min-width: 0;
   display: block;
-  color: #8996a1;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
 }
 .export-floor-select-control select {
@@ -2007,7 +2030,7 @@ body[data-tone] .scale-dialog .dialog-index {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 5px;
-  color: #8996a1;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
 }
 .export-floor-gap-control[hidden] {
@@ -2024,21 +2047,21 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 1px solid var(--line);
   border-radius: 7px;
   outline: 0;
-  color: #e5ebef;
+  color: var(--hos-tool-ink-dim);
   background: #0003;
   font:
     10px ui-monospace,
     monospace;
 }
 .export-floor-gap-control i {
-  color: #64717b;
+  color: var(--hos-tool-disabled);
   font-style: normal;
 }
 /* 刷新预览按钮的三种抢占关系（写在后面才能生效）：
    .is-dirty 表示参数已改但预览未刷新，需要橙色高亮提醒用户点一下；
    灯光预览按钮在同一位置复用同一套高亮，故用 :not(:disabled) 单独声明。 */
 .preview-heading .refresh-preview {
-  color: #71808d;
+  color: var(--hos-tool-hint-dim);
 }
 .preview-heading .refresh-preview:disabled {
   opacity: 0.72;
@@ -2064,7 +2087,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 2px 6px 2px 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  color: #8996a1;
+  color: var(--hos-tool-muted-dim);
   background: #00000029;
   font-size: 9px;
   white-space: nowrap;
@@ -2079,13 +2102,13 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 0;
   border-radius: 4px;
   outline: 0;
-  color: #dce4ec;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff0e;
   font: inherit;
   text-align: center;
 }
 .floor-gap-control i {
-  color: #596570;
+  color: var(--hos-tool-disabled);
   font-style: normal;
 }
 /* 勾选框单独压到 14px 与行内文字等高，避免系统默认尺寸把「各层统一」这一行撑高。 */
@@ -2103,7 +2126,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-height: 0;
   flex: 1;
   position: relative;
-  background: radial-gradient(ellipse at 54% 48%, #19202794, #0f141af7 72%), #11171d;
+  background: radial-gradient(ellipse at 54% 48%, #19202794, #0f141af7 72%), var(--hos-tool-surface);
 }
 .preview-3d canvas {
   width: 100%;
@@ -2122,7 +2145,7 @@ body[data-tone] .scale-dialog .dialog-index {
   width: min(330px, calc(100vw - 20px));
   border: 1px solid rgba(142, 158, 176, 0.26);
   border-radius: 9px;
-  color: #c8d1da;
+  color: var(--hos-tool-text);
   background: #0d1218e6;
   box-shadow: 0 12px 30px #00000052;
   backdrop-filter: blur(12px);
@@ -2136,7 +2159,7 @@ body[data-tone] .scale-dialog .dialog-index {
   gap: 8px;
   padding: 5px 9px;
   cursor: move;
-  color: #e1e8ef;
+  color: var(--hos-tool-ink-dim);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2150,7 +2173,7 @@ body[data-tone] .scale-dialog .dialog-index {
    了标题栏的 0.04em 字距，小号提示文字带字距会显得松散。 */
 .base-light-drag-hint {
   margin-left: auto;
-  color: #596673;
+  color: var(--hos-tool-disabled);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0;
@@ -2159,7 +2182,7 @@ body[data-tone] .scale-dialog .dialog-index {
   min-height: 22px;
   padding: 2px 6px;
   border: 0;
-  color: #7f8b96;
+  color: var(--hos-tool-hint);
   background: transparent;
   font-size: 9px;
 }
@@ -2178,7 +2201,7 @@ body[data-tone] .scale-dialog .dialog-index {
 }
 .base-light-controls h3 {
   margin: 0 0 6px;
-  color: #8996a2;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2196,7 +2219,7 @@ body[data-tone] .scale-dialog .dialog-index {
   grid-template-columns: 52px minmax(0, 1fr);
   align-items: center;
   gap: 5px;
-  color: #8d99a4;
+  color: var(--hos-tool-muted-dim);
   font-size: 9px;
 }
 .base-light-control-grid label > span {
@@ -2210,7 +2233,7 @@ body[data-tone] .scale-dialog .dialog-index {
   border: 1px solid rgba(126, 143, 159, 0.2);
   border-radius: 5px;
   outline: 0;
-  color: #e1e8ef;
+  color: var(--hos-tool-ink-dim);
   background: #ffffff0e;
   font:
     9px ui-monospace,
@@ -2245,7 +2268,7 @@ body[data-tone] .scale-dialog .dialog-index {
   font-size: 9px;
 }
 .reset-base-lighting {
-  color: #9aa6b0;
+  color: var(--hos-tool-label);
 }
 .save-base-lighting {
   border-color: rgba(var(--hos-accent-rgb), 0.32);
@@ -2357,7 +2380,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .scene-counts {
   min-width: 0;
   overflow: hidden;
-  color: #84919c;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2380,7 +2403,7 @@ body[data-tone] .scale-dialog .dialog-index {
   margin-bottom: 12px;
   border: 1px solid var(--line);
   border-radius: 50%;
-  color: #5d6974;
+  color: var(--hos-tool-disabled);
   font-size: 20px;
 }
 .inspector-empty strong {
@@ -2415,7 +2438,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .selection-heading > span {
   max-width: 140px;
   overflow: hidden;
-  color: #6f7d88;
+  color: var(--hos-tool-hint-dim);
   font:
     10px ui-monospace,
     monospace;
@@ -2433,7 +2456,7 @@ body[data-tone] .scale-dialog .dialog-index {
 .light-fields label {
   display: grid;
   gap: 6px;
-  color: #919da7;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .field-grid {
@@ -2497,7 +2520,7 @@ body[data-tone] .scale-dialog .dialog-index {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  color: #919da7;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .light-batch-control label {
@@ -2534,12 +2557,12 @@ body[data-tone] .scale-dialog .dialog-index {
   border-top: 1px solid rgba(148, 163, 184, 0.13);
 }
 .strip-orientation-heading strong {
-  color: #c7d0d8;
+  color: var(--hos-tool-text);
   font-size: 10px;
   font-weight: 600;
 }
 .strip-orientation-heading small {
-  color: #74818c;
+  color: var(--hos-tool-hint);
   font-size: 9px;
 }
 /* 该开关只在选中「灯带」（striplight）时放出（脚本按 inspectedEntity.type 切 hidden）：
@@ -2550,7 +2573,7 @@ body[data-tone] .scale-dialog .dialog-index {
   align-items: center;
   gap: 6px;
   margin-left: 12px;
-  color: #aeb9c2;
+  color: var(--hos-tool-text-dim);
   font-size: 10px;
   cursor: pointer;
 }
@@ -2570,7 +2593,7 @@ body[data-tone] .scale-dialog .dialog-index {
   padding: 0 9px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  color: #d9e0e5;
+  color: var(--hos-tool-ink-dim);
   background: #0003;
   font-size: 11px;
 }
@@ -2580,19 +2603,19 @@ select {
   color-scheme: dark;
 }
 select option {
-  color: #d9e0e5;
-  background: #10171e;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface);
 }
 select option:checked {
-  color: #f3f7fb;
-  background: #29445f;
+  color: var(--hos-tool-ink);
+  background: var(--hos-sky-haze);
 }
 select option:disabled {
-  color: #65717c;
+  color: var(--hos-tool-disabled);
 }
 .field-section select {
   appearance: none;
-  background-color: #10171e;
+  background-color: var(--hos-tool-surface);
   background-image:
     linear-gradient(45deg, transparent 50%, #73808b 50%),
     linear-gradient(135deg, #73808b 50%, transparent 50%);
@@ -2643,8 +2666,8 @@ select option:disabled {
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 7px;
-  color: #d9e0e5;
-  background: #10171e;
+  color: var(--hos-tool-ink-dim);
+  background: var(--hos-tool-surface);
   font-size: 11px;
   line-height: 34px;
   text-align: left;
@@ -2694,8 +2717,8 @@ select option:disabled {
   outline-offset: 1px;
 }
 .studio-select-trigger:disabled {
-  color: #65717c;
-  background: #0d1319;
+  color: var(--hos-tool-disabled);
+  background: var(--hos-tool-surface);
 }
 /* 下拉面板：absolute 挂在 .studio-select 上（父级 position: relative），
    max-height 240px + 内部滚动，防止灯具组/楼层这类长列表把所在对话框顶出视口。 */
@@ -2710,7 +2733,7 @@ select option:disabled {
   overflow: auto;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  background: #10171e;
+  background: var(--hos-tool-surface);
   box-shadow: 0 14px 36px #0000007a;
   scrollbar-color: #48535d transparent;
   scrollbar-width: thin;
@@ -2724,7 +2747,7 @@ select option:disabled {
   padding: 6px 9px;
   border: 0;
   border-radius: 5px;
-  color: #c8d0d6;
+  color: var(--hos-tool-text);
   background: transparent;
   font-size: 10px;
   line-height: 1.35;
@@ -2735,7 +2758,7 @@ select option:disabled {
    同步原生 <option disabled>（见 studio-widgets.js），灰字表示该项当前不可选。 */
 .studio-select-option:hover,
 .studio-select-option:focus-visible {
-  color: #eef3f6;
+  color: var(--hos-tool-ink);
   background: #ffffff0f;
   outline: 0;
 }
@@ -2744,7 +2767,7 @@ select option:disabled {
   background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .studio-select-option:disabled {
-  color: #65717c;
+  color: var(--hos-tool-disabled);
   background: transparent;
 }
 .export-floor-select-control .studio-select-trigger {
@@ -2765,13 +2788,13 @@ select option:disabled {
   line-height: 36px;
 }
 .field-section input[readonly] {
-  color: #7d8993;
+  color: var(--hos-tool-hint);
 }
 .field-section input[type="number"] {
   padding-right: 9px;
 }
 .wall-opacity-fields input:disabled {
-  color: #687580;
+  color: var(--hos-tool-disabled);
   background: #0000001a;
   cursor: not-allowed;
 }
@@ -2830,7 +2853,7 @@ select option:disabled {
   border: 1px solid var(--line-strong);
   border-radius: 16px;
   color: var(--text);
-  background: #151e27;
+  background: var(--hos-tool-surface-soft);
   box-shadow: 0 30px 90px #0000008f;
 }
 .scale-dialog::backdrop {
@@ -2860,7 +2883,7 @@ select option:disabled {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #78848e;
+  color: var(--hos-tool-hint);
   font-size: 18px;
 }
 /* 标定比例的预览行：三列排成「图上长度 → 实际尺寸」的换算表达式，
@@ -2879,7 +2902,7 @@ select option:disabled {
 /* 换算表达式两端的文字与中间的箭头：左读数右对齐贴近箭头，
    等宽字体保证它与输入框里的数值视觉对齐；箭头用 --accent 点出「等于」这一步。 */
 .measurement-preview > span {
-  color: #92a0aa;
+  color: var(--hos-tool-muted-dim);
   text-align: right;
   font:
     12px ui-monospace,
@@ -2893,7 +2916,7 @@ select option:disabled {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #cbd3da;
+  color: var(--hos-tool-text);
   font-size: 11px;
 }
 .measurement-preview .number-stepper {
@@ -2945,13 +2968,13 @@ select option:disabled {
 /* 摘要条的左右两段：左侧标签小号灰字，右侧数值等宽字且单行省略 ——
    数值往往是文件路径或尺寸这类长文本，宁可截断也不能把条撑破。 */
 .export-notice-summary span {
-  color: #7f8c96;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 .export-notice-summary strong {
   min-width: 0;
   overflow: hidden;
-  color: #dce4e9;
+  color: var(--hos-tool-ink-dim);
   font:
     11px ui-monospace,
     monospace;
@@ -2961,7 +2984,7 @@ select option:disabled {
 /* 复用摘要条的三个对话框各自只改差异：导出完成把数值染绿（成功）、
    保存冲突染琥珀（需用户决策）、楼层删除整体收窄到 440px。 */
 .export-complete-dialog .export-notice-summary strong {
-  color: #91ddb5;
+  color: var(--hos-ok);
 }
 .export-complete-dialog .dialog-actions button {
   min-width: 120px;
@@ -2973,7 +2996,7 @@ select option:disabled {
   margin-bottom: 24px;
 }
 .floor-delete-dialog p strong {
-  color: #ff9ca0;
+  color: var(--hos-err);
   font-weight: 750;
 }
 /* 删除楼层是不可逆操作：确认键改用实心红底，并给出独立的 hover / focus 加深态，
@@ -3006,7 +3029,7 @@ select option:disabled {
   margin: 22px 0;
   display: grid;
   gap: 8px;
-  color: #b9c3cb;
+  color: var(--hos-tool-text-dim);
   font-size: 11px;
 }
 /* 改名对话框里的文本框与分组下拉共用同一套外观：38px 高、橙色描边 + 淡橙底，
@@ -3078,12 +3101,12 @@ select option:disabled {
 }
 .light-property-targets-heading > strong {
   margin-right: auto;
-  color: #dce3e8;
+  color: var(--hos-tool-ink-dim);
   font-size: 11px;
 }
 .light-property-targets-heading > span,
 .light-property-target-group > header span {
-  color: #82909b;
+  color: var(--hos-tool-hint);
   font:
     10px ui-monospace,
     monospace;
@@ -3121,7 +3144,7 @@ select option:disabled {
 }
 .light-property-target-group > header strong {
   margin-right: auto;
-  color: #d0d8de;
+  color: var(--hos-tool-text);
   font-size: 11px;
 }
 /* 目标三列排布：灯具名 + 类型两行信息，一屏尽可能多勾几个；窄屏降到单列。 */
@@ -3139,7 +3162,7 @@ select option:disabled {
   align-items: start;
   gap: 7px;
   border-radius: 6px;
-  color: #aeb8c1;
+  color: var(--hos-tool-text-dim);
   cursor: pointer;
 }
 /* 单个目标项：整个 label 可点（所以 cursor 是 pointer），左列 15px 勾选框、
@@ -3166,17 +3189,17 @@ select option:disabled {
 /* 两行文字都单行省略：灯具名可能很长，类型 / 区域信息放第二行小字；
    三列并排时任何一行超宽都会把列宽顶乱，所以必须 overflow: hidden。 */
 .light-property-target-item strong {
-  color: #cbd3d9;
+  color: var(--hos-tool-text);
   font-size: 11px;
 }
 .light-property-target-item small {
   margin-top: 3px;
-  color: #72808b;
+  color: var(--hos-tool-hint-dim);
   font-size: 10px;
 }
 .light-property-target-empty {
   padding: 24px;
-  color: #82909b;
+  color: var(--hos-tool-hint);
   text-align: center;
   font-size: 11px;
 }
@@ -3200,7 +3223,7 @@ select option:disabled {
   border: 1px solid var(--line-strong);
   border-radius: 16px;
   color: var(--text);
-  background: #111920;
+  background: var(--hos-tool-surface);
   box-shadow: 0 32px 100px #000000ad;
 }
 /* 导出对话框的遮罩比其它对话框更深并加 8px 模糊：它几乎铺满全屏，
@@ -3233,7 +3256,7 @@ select option:disabled {
 }
 .export-heading p {
   margin: 0;
-  color: #87949f;
+  color: var(--hos-tool-muted-dim);
   font-size: 11px;
 }
 .export-heading > button {
@@ -3241,7 +3264,7 @@ select option:disabled {
   height: 34px;
   padding: 0;
   border-radius: 50%;
-  color: #9aa5ae;
+  color: var(--hos-tool-label);
   font-size: 20px;
 }
 .export-controls {
@@ -3252,7 +3275,7 @@ select option:disabled {
   gap: 10px;
   overflow: auto;
   border-right: 1px solid var(--line);
-  background: #080d1275;
+  background: rgba(var(--hos-tool-bg-rgb), 0.46);
 }
 /* 导出进行中禁止关闭对话框的提示条：用琥珀底 + 内阴影做成「警告牌」质感，
    与成功/错误 toast 区分开（这里是提示而非结果）。 */
@@ -3300,7 +3323,7 @@ select option:disabled {
   gap: 8px;
 }
 .export-preset-heading strong {
-  color: #e0e6ea;
+  color: var(--hos-tool-ink-dim);
   font-size: 12px;
 }
 .export-preset-actions {
@@ -3339,7 +3362,7 @@ select option:disabled {
   gap: 3px;
   border: 1px solid rgba(124, 140, 151, 0.16);
   border-radius: 8px;
-  color: #87949f;
+  color: var(--hos-tool-muted-dim);
   background: #00000029;
   text-align: left;
 }
@@ -3363,17 +3386,17 @@ select option:disabled {
   box-shadow: none;
 }
 .export-preset-slots button.active:not(.has-value) > strong {
-  color: #aeb9c2;
+  color: var(--hos-tool-text-dim);
 }
 .export-preset-slots button.active:not(.has-value) > small {
-  color: #aeb9c2;
+  color: var(--hos-tool-text-dim);
 }
 /* 槽位内两行文本：上行是预设名（主），下行是分辨率摘要（次）。
    两者都强制单行省略号，否则不同长度的预设名会让 8 个槽位高低不齐。 */
 .export-preset-slots button > strong {
   min-width: 0;
   overflow: hidden;
-  color: #cbd3d9;
+  color: var(--hos-tool-text);
   font-size: 9px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -3382,7 +3405,7 @@ select option:disabled {
 .export-preset-slots button > small {
   min-width: 0;
   overflow: hidden;
-  color: #6f7d88;
+  color: var(--hos-tool-hint-dim);
   font-size: 7px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -3427,12 +3450,12 @@ select option:disabled {
   display: block;
 }
 .export-section-heading strong {
-  color: #e0e6ea;
+  color: var(--hos-tool-ink-dim);
   font-size: 12px;
 }
 .export-section-heading small {
   margin-top: 3px;
-  color: #71808b;
+  color: var(--hos-tool-hint-dim);
   font-size: 10px;
 }
 /* 尺寸行：宽度 / × 号 / 高度 / 单位按钮 四列。
@@ -3451,7 +3474,7 @@ select option:disabled {
 .export-size-fields label {
   display: grid;
   gap: 5px;
-  color: #8b98a3;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 /* 等宽字体让宽高两个数字逐位对齐，改数值时不会左右跳动。 */
@@ -3461,7 +3484,7 @@ select option:disabled {
   padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  color: #edf2f5;
+  color: var(--hos-tool-ink);
   background: #00000038;
   font:
     11px ui-monospace,
@@ -3475,7 +3498,7 @@ select option:disabled {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 9px;
-  color: #8b98a3;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .export-folder-field input {
@@ -3486,7 +3509,7 @@ select option:disabled {
   border: 1px solid var(--line);
   border-radius: 7px;
   outline: 0;
-  color: #edf2f5;
+  color: var(--hos-tool-ink);
   background: #00000038;
   font-size: 11px;
 }
@@ -3511,7 +3534,7 @@ select option:disabled {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #9aa6af;
+  color: var(--hos-tool-label);
   font-size: 8px;
   white-space: nowrap;
 }
@@ -3544,7 +3567,7 @@ select option:disabled {
 .export-camera-row > span {
   width: 26px;
   flex: 0 0 26px;
-  color: #74818c;
+  color: var(--hos-tool-hint);
   font-size: 9px;
 }
 /* 这里直接复用预览区的开关组件（.preview-view-switch / .preview-camera-switch /
@@ -3571,7 +3594,7 @@ select option:disabled {
   height: 30px;
   flex: 1 1 0;
   padding: 4px 7px;
-  color: #9aa6af;
+  color: var(--hos-tool-label);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -3619,7 +3642,7 @@ select option:disabled {
 .export-file-list span {
   grid-area: name;
   overflow: hidden;
-  color: #d2d9df;
+  color: var(--hos-tool-ink-dim);
   font:
     11px ui-monospace,
     monospace;
@@ -3628,7 +3651,7 @@ select option:disabled {
 }
 .export-file-list small {
   grid-area: note;
-  color: #7f8c96;
+  color: var(--hos-tool-hint);
   font-size: 10px;
   line-height: 1.3;
 }
@@ -3641,7 +3664,7 @@ select option:disabled {
 .export-footer p {
   min-height: 18px;
   margin: 0 0 8px;
-  color: #87949f;
+  color: var(--hos-tool-muted-dim);
   font-size: 10px;
 }
 .export-footer button:disabled {
@@ -3681,7 +3704,7 @@ select option:disabled {
   overflow: hidden;
   border: 1px solid rgba(139, 154, 166, 0.26);
   border-radius: 6px;
-  background: #11171d;
+  background: var(--hos-tool-surface);
   box-shadow: 0 20px 70px #0000006b;
 }
 .export-preview-stage {
@@ -3727,7 +3750,7 @@ select option:disabled {
   place-items: center;
   border: 1px dashed rgba(155, 169, 179, 0.5);
   border-radius: 50%;
-  color: #a9b5be;
+  color: var(--hos-tool-text-dim);
   font:
     300 25px/1 ui-monospace,
     monospace;
@@ -3736,20 +3759,20 @@ select option:disabled {
    说明段；整块居中且 pointer-events: none，不挡住下面画幅的交互。 */
 .export-preset-empty-state > span {
   margin-bottom: 8px;
-  color: #788691;
+  color: var(--hos-tool-hint);
   font:
     9px/1 ui-monospace,
     monospace;
   letter-spacing: 0.18em;
 }
 .export-preset-empty-state > strong {
-  color: #e0e6ea;
+  color: var(--hos-tool-ink-dim);
   font-size: 16px;
   font-weight: 600;
 }
 .export-preset-empty-state > p {
   margin: 8px 0 0;
-  color: #8d9aa4;
+  color: var(--hos-tool-muted-dim);
   font-size: 11px;
 }
 /* 画幅下方的元信息条：左右两端对齐（左侧分辨率、右侧文件大小/比例），
@@ -3760,7 +3783,7 @@ select option:disabled {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #7b8893;
+  color: var(--hos-tool-hint);
   font-size: 10px;
 }
 .export-preview-meta span:first-child {
@@ -3775,7 +3798,7 @@ select option:disabled {
    触发条件见 studio-app.js 的 isAutoDiagramEmbed（URL 参数 auto-diagram-embed=1）。 */
 body.auto-diagram-embedded {
   overflow: hidden;
-  background: #0b1116;
+  background: var(--hos-tool-bg);
 }
 /* 内嵌模式下列出的白名单：只有这三个对话框与 toast 允许显示，
    新增浮层（例如新的提示条）时必须同步加进 :not(...) 列表，否则会被整页隐藏。 */
@@ -3794,10 +3817,10 @@ body.auto-diagram-embedded #export-dialog {
   margin: 0;
   border: 0;
   border-radius: 0;
-  background: #0b1116;
+  background: var(--hos-tool-bg);
 }
 body.auto-diagram-embedded #export-dialog::backdrop {
-  background: #0b1116;
+  background: var(--hos-tool-bg);
 }
 /* 内嵌模式把导出对话框摊平成整页：去圆角 / 去边框 / 去阴影，隐藏标题栏、参数区、
    安全框与调光入口，只留画幅铺满全屏；::backdrop 也刷成同一底色，
@@ -3844,7 +3867,7 @@ body.auto-diagram-embedded .export-preview-frame {
   opacity: 0;
   transform: translate(-50%, 14px);
   pointer-events: none;
-  color: #dce2e7;
+  color: var(--hos-tool-ink-dim);
   background: #161f28f5;
   box-shadow: 0 16px 44px #00000059;
   font-size: 10px;
