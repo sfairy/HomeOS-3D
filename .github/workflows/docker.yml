@@ -263,6 +263,9 @@ jobs:
             export HOMEOS_IMAGE="${{ needs.meta.outputs.image }}:${{ needs.meta.outputs.version }}"
             export HOMEOS_STORE_IMAGE="${{ needs.meta.outputs.store_image }}:${{ needs.meta.outputs.version }}"
             echo "Pulling ${HOMEOS_IMAGE} and ${HOMEOS_STORE_IMAGE}"
-            docker compose pull
-            docker compose up -d
+            # 先商店（它创建共享网络与公钥卷），再主应用
+            docker compose -f docker-compose.store.yml pull
+            docker compose -f docker-compose.store.yml up -d
+            docker compose -f docker-compose.app.yml pull
+            docker compose -f docker-compose.app.yml up -d
             docker image prune -f

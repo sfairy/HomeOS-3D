@@ -81,8 +81,17 @@ def initialize_permissions(
             chown_tree_if_needed(directory, account.pw_uid, account.pw_gid)
             os.chmod(directory, 0o700)
         except OSError as error:
-            # 只读挂载（例如主应用以 :ro 挂载的公钥卷）跳过属主校正。
+            # 只读挂载（例如主应用以 :ro 挂载的公钥卷）无法校正属主，这里出声而不是
+            # 静默跳过：属主不对 + 只读 = 容器里的非 root 用户读不到这些文件，症状会
+            # 出现在很久之后的「授权公钥读不了」，而不是这里。跨机器拷入的卷最容易踩。
             if error.errno in {errno.EROFS, errno.EACCES, errno.EPERM}:
+                print(
+                    f'警告：无法校正 {directory} 的属主（{error.strerror}）。'
+                    f'该目录若是跨机器拷入的，请确认 uid {account.pw_uid} 可读'
+                    '（文件 644、目录 755）。',
+                    file=sys.stderr,
+                    flush=True,
+                )
                 continue
             raise
 

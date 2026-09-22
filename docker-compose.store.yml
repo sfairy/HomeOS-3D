@@ -1,0 +1,63 @@
+# HomeOS 授权商店 —— 独立 compose 项目
+#
+# 与主应用（docker-compose.app.yml）各自独立启停：本文件只包含 homeos-3d-store。
+# 商店是授权密钥的「源头」：生成/复用授权私钥，并把公钥镜像写进共享卷
+# homeos-3d-client-keys，主应用以只读方式挂载同一卷。所以**先起商店，再起主应用**。
+#
+# 用法：
+#   cp .env.example .env      # 需要时只填 STORE_* 相关项
+#   docker compose -f docker-compose.store.yml pull
+#   docker compose -f docker-compose.store.yml up -d
+#   # 首次部署后浏览器打开 http://<商店地址>:18082/setup 设置管理员
+#
+# 本文件创建并持有两个共享资源（主应用直接复用，不要删除、不要 down -v）：
+#   network homeos-3d-net          主应用加入同一网络后才能解析 homeos-3d-store 这个名字
+#   volume  homeos-3d-client-keys  授权公钥镜像（商店写 /data/keys，主应用只读挂载）
+#
+# 项目名固定为 homeos-3d-store，卷名与旧的一体化 docker-compose.yml（项目名 homeos-3d）
+# 不同。若已用旧文件跑过生产，请继续用旧文件或先迁移这几个卷，不要两头混用。
+
+name: homeos-3d-store
+
+services:
+  homeos-3d-store:
+    image: ${HOMEOS_STORE_IMAGE:-ghcr.io/sfairy/homeos-3d-store:latest}
+    container_name: homeos-3d-store
+    restart: unless-stopped
+    ports:
+      - "${STORE_PUBLISH_PORT:-18082}:18082"
+    environment:
+      STORE_DATA_DIR: /data
+      STORE_LICENSE_KEYS_DIR: /data/license-keys
+      APP_CLIENT_KEYS_DIR: /data/keys
+      STORE_HOST: 0.0.0.0
+      STORE_PORT: "18082"
+      STORE_BASE_URL: ${STORE_BASE_URL:-}
+      STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-}
+      STORE_ALLOW_MOCK_PAYMENTS: ${STORE_ALLOW_MOCK_PAYMENTS:-0}
+      # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
+    volumes:
+      - homeos-3d-store-data:/data
+      - homeos-3d-license-keys:/data/license-keys
+      - homeos-3d-client-keys:/data/keys
+    networks:
+      - homeos-3d-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18082/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  # 固定名字、由本项目创建；主应用以 external 方式加入同一网络。
+  homeos-3d-net:
+    name: homeos-3d-net
+
+volumes:
+  homeos-3d-store-data:
+  homeos-3d-license-keys:
+  # 固定名字、由本项目创建；主应用以 external 方式只读挂载。
+  homeos-3d-client-keys:
+    name: homeos-3d-client-keys

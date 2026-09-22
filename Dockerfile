@@ -6,7 +6,7 @@
 # 构建：
 #   docker build --target app   -t homeos-3d:local .
 #   docker build --target store -t homeos-3d-store:local .
-# 或 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# 或直接用 GHCR 预构建镜像：docker-compose.store.yml + docker-compose.app.yml（先起商店）
 
 # Cython 必须钉死版本：3.3.0 的 AnalyseExpressionsTransform 在本项目的
 # backend/observability/global_log.py 上会崩溃（`(value or {}).items()` 触发类型推断

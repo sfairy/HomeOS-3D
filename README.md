@@ -112,8 +112,8 @@ HomeOS/
 ├── data/                   # 主应用运行时数据（不入库）
 ├── .env.example            # 环境变量模板（复制为 .env；A 区为部署常改项）
 ├── Dockerfile              # 多目标：app（主应用）与 store（商店）
-├── docker-compose.yml      # 双容器自托管（默认拉 GHCR）
-├── docker-compose.build.yml # 本地构建覆盖
+├── docker-compose.store.yml # 授权商店独立项目（创建共享网络与公钥卷）
+├── docker-compose.app.yml   # 主应用独立项目（加入共享网络，只读挂公钥卷）
 └── alembic.ini  VERSION  start.py  container_entrypoint.py
 ```
 
@@ -513,6 +513,7 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住 keyId；默认派生，轮换密钥后自动改变 |
 | `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名公钥 |
 | `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥 |
+| `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` | 留空（由宿主标识派生） | 显式钉住授权实例指纹：宿主机拿不到稳定标识、或跨服务器迁移时沿用旧身份用（改动等于换设备，商店侧 1 授权 : 1 绑定会拒绝，须先解绑） |
 | `APP_HA_CREDENTIAL_FILE` 等 | 数据目录内默认路径 | HA / 中控 / 授权凭据密钥文件 |
 
 授权校验始终开启（`license_required=True`），不能通过环境变量关闭。激活只连接自建授权服务器。
@@ -573,12 +574,15 @@ cp .env.example .env
 # 多数部署不用改；生产填 APP_BASE_URL / STORE_BASE_URL / *_TRUSTED_PROXIES / *_COOKIE_SECURE
 # 管理员账号首次部署时在浏览器打开 :18082/setup 创建，不走环境变量
 
-docker compose pull
-docker compose up -d
+# 两个 compose 项目各自独立：必须先起商店（它创建共享网络与公钥卷）
+docker compose -f docker-compose.store.yml pull
+docker compose -f docker-compose.store.yml up -d
 
-# 或本地构建（Python 编译成 .so，需要 gcc 与几分钟编译时间）
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+docker compose -f docker-compose.app.yml pull
+docker compose -f docker-compose.app.yml up -d
 ```
+
+不需要构建镜像：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 默认拉 GHCR 预构建镜像。要自己出包见 [Dockerfile](Dockerfile) 的 `--target app` / `--target store`。
 
 容器启动后：**先 `docker logs homeos-3d` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问 `http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是 `172.17.0.1` 这类网关地址），因此这一步不能省。
 
@@ -605,13 +609,27 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true` / `STORE_COOKIE_SECURE=true`，并配置 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES`。
 
-升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
+主应用还会读**宿主**的机器标识来做授权实例指纹，`docker-compose.app.yml` 挂了 `/host/etc/machine-id` 与 `/host/sys/class/dmi/id` 两个只读入口，宿主上准备一次即可（不准备也能启动，指纹退到 `data/` 下的兜底 ID）：
+
+```bash
+sudo mkdir -p /host/etc /host/sys/class/dmi
+sudo ln -sfn /etc/machine-id /host/etc/machine-id
+sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
+```
+
+### 两台服务器分开部署
+
+商店与主应用可以放在不同服务器上，但要人工补三件事：共享网络与公钥卷需要 `docker network create` / `docker volume create`，两个 PEM 需要手工搬过去并 `chmod 644`，`APP_LICENSE_SERVER_URL` 要改成商店的公网地址。授权实例指纹派生自宿主硬件，换机器会被商店判成「换设备」（心跳按已吊销处理），想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。
+
+完整清单、拆开后的反代示例（两台各一份 nginx / Caddy）与限流注意事项见 [deploy/SPLIT-DEPLOY.md](deploy/SPLIT-DEPLOY.md)。
+
+升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。注意前四个带 compose 项目名前缀：主应用的仍是 `homeos-3d_*`（项目名沿用 `homeos-3d`），商店的变成 `homeos-3d-store_*`；只有共享公钥卷用了固定名 `homeos-3d-client-keys`。从旧的单文件 `docker-compose.yml`（项目名 `homeos-3d`）迁过来的部署需要先改名或重建商店那两个卷，否则会各读各的空卷。
 
 ### GitHub Actions
 
 [`.github/workflows/docker.yml`](.github/workflows/docker.yml) **仅手动触发**，多架构构建推送 GHCR。
 
-可选远端部署：在仓库 Secrets 配置 `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` / `DEPLOY_PATH`（可选 `DEPLOY_PORT`），然后在 Actions 里手动运行 **Docker** workflow 并勾选「构建推送后 SSH 拉取并重启远端 compose」。远端目录需已放好本仓库的 `docker-compose.yml`（可用 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 覆盖镜像名）。
+可选远端部署：在仓库 Secrets 配置 `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` / `DEPLOY_PATH`（可选 `DEPLOY_PORT`），然后在 Actions 里手动运行 **Docker** workflow 并勾选「构建推送后 SSH 拉取并重启远端 compose」。远端目录需已放好本仓库的 `docker-compose.store.yml` 与 `docker-compose.app.yml`（以及 `.env`；镜像名已由 workflow 通过 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 覆盖）。
 
 从运行中的主应用容器导出应用目录：
 

@@ -1,0 +1,122 @@
+# HomeOS 主应用 —— 独立 compose 项目
+#
+# 与授权商店（docker-compose.store.yml）各自独立启停：本文件只包含 homeos-3d。
+# 主应用依赖商店提供的两样东西：
+#   1) 共享网络 homeos-3d-net  —— 默认用 http://homeos-3d-store:18082 直连商店；
+#   2) 共享卷 homeos-3d-client-keys —— 商店写入的授权公钥镜像（本服务只读挂载）。
+# 两者都由商店的 compose 文件创建，所以**先起商店，再起本服务**。启动时
+# docker/start_app.py 最多等 120s 让公钥就绪，商店稍慢一点启动也不会失败。
+#
+# 商店在另一台主机时：
+#   docker network create homeos-3d-net
+#   docker volume create homeos-3d-client-keys
+#   把商店的公钥文件（license-public.pem / license-transport-public.pem）放进该卷，
+#   并 chmod 644（跨机器拷贝常留下 root:600，容器里的非 root 用户读不了，
+#   症状是启动即退出或反复重启），最后在 .env 里把 APP_LICENSE_SERVER_URL
+#   指向商店的公网地址。完整清单见 deploy/SPLIT-DEPLOY.md。
+#
+# 用法：
+#   cp .env.example .env      # 需要时只填 APP_* 相关项
+#   docker compose -f docker-compose.app.yml pull
+#   docker compose -f docker-compose.app.yml up -d
+#   # 容器启动后：docker logs homeos-3d 取首次设置引导密钥（容器内 /data/setup-token），
+#   # 再访问 http://<主机>:18081/setup 填入
+#
+# 项目名固定为 homeos-3d（与旧的 docker-compose.yml 一致），homeos-3d-data 与
+# homeos-3d-secrets 沿用旧数据；只有共享的公钥卷改成了固定的 homeos-3d-client-keys。
+#
+# ⚠ 实例指纹：本文件固定了 hostname 并挂了宿主的 machine-id / DMI（原因见下面两处
+# 注释）。**已经在跑的旧部署**升级到这份文件后，实例指纹可能变一次 —— 商店侧对实例
+# 不匹配的处理是按已吊销（403 revoked），客户端会清空本地授权，需要在商店后台解绑
+# 后重新激活一次。
+# 想免掉重新激活，得让新指纹与旧指纹一致，而这取决于旧指纹当初走的是哪条路径
+# （见 backend/license/hardware.py）：
+#   - 旧容器里 /etc/machine-id 与主板标识都读到了（走 v1 路径）：把这两个原始值
+#     填进 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID 即可复现（主板值 =
+#     DMI 那几个字段去空、小写、去重、排序后用 “|” 拼接）；
+#   - 走的是 data/ 兜底路径（v2，材料里混了旧 hostname 与宿主封印）：无法精确复现，
+#     认一次重新激活最省事。
+# 全新部署没有这个代价。
+
+name: homeos-3d
+
+services:
+  homeos-3d:
+    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos-3d:latest}
+    container_name: homeos-3d
+    # 固定 hostname：授权实例指纹在缺少机器/主板标识时，会把容器 hostname 编进
+    # 「本机封印」（见 backend/license/hardware.py 的 _host_binding_seal）。默认
+    # hostname 是容器 ID，重建容器就会换封印、换实例 ID，而商店侧对实例不匹配的
+    # 处理是**按已吊销**（403 revoked），客户端会清空本地授权。固定它即可避免
+    # 「升级重启 = 重新激活」。
+    hostname: homeos-3d
+    restart: unless-stopped
+    ports:
+      - "${APP_PUBLISH_PORT:-18081}:18081"
+    environment:
+      APP_DATA_DIR: /data
+      APP_PORT: "18081"
+      APP_BASE_URL: ${APP_BASE_URL:-}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-}
+      APP_UPDATE_CHANNEL: docker
+      APP_CLIENT_KEYS_DIR: /data/keys
+      # 授权实例指纹的显式覆盖（见 backend/license/hardware.py）。留空 = 由本机
+      # 机器 / 主板标识派生。显式填一组值就等于**钉住**这台设备的身份：
+      #   - 跨服务器迁移时，填成旧机器的同一组值，商店侧就不会判成「换设备」，
+      #     免去后台解绑 + 重新激活；
+      #   - 改动这两项等价于换设备，一定触发重新激活。
+      APP_HARDWARE_MACHINE_ID: ${APP_HARDWARE_MACHINE_ID:-}
+      APP_HARDWARE_BOARD_ID: ${APP_HARDWARE_BOARD_ID:-}
+      # 默认走「商店创建的共享网络」；商店在别处时在 .env 覆盖成公网地址
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
+      # uvicorn 的转发头信任范围。默认只信回环：本服务把 18081 发布到宿主机，任何
+      # 直连的客户端都能自己写 X-Forwarded-For，一旦放开成 *，登录限流、配对码枚举
+      # 预算与审计来源 IP 就都成了「客户端自己说了算」。前面有反代时填代理地址/网段
+      # （例如宿主机的 172.17.0.1，或反代容器所在网段），不要用 *。
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
+    volumes:
+      - homeos-3d-data:/data
+      - homeos-3d-client-keys:/data/keys:ro
+      - homeos-3d-secrets:/run/secrets
+      # 宿主标识：授权实例指纹的来源（见 backend/license/hardware.py）。代码里
+      # 「容器内优先读 /host/...」这条路径要靠这两个挂载才成立 —— 容器内的
+      # /etc/machine-id 会随镜像重建而变，宿主那份才是稳定来源；DMI 目录在容器里
+      # 本来就能通过 /sys 读到同样的值，挂进来只是让代码的首选路径真正可用。
+      # 宿主上先准备一次（没有 machine-id 的宿主可以只留 DMI 那行）：
+      #   sudo mkdir -p /host/etc /host/sys/class/dmi
+      #   sudo ln -sfn /etc/machine-id /host/etc/machine-id
+      #   sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
+      # 没准备也不会启动失败：Docker 会在宿主上建出空目录，指纹读取退到 data/ 下的
+      # 兜底 ID（功能正常，只是失去「宿主信号绑定」这层）。若之后补建链接，请先删掉
+      # Docker 建出的空目录，否则 ln 会把链接塞进那个目录里。
+      - type: bind
+        source: /host/etc/machine-id
+        target: /host/etc/machine-id
+        read_only: true
+      - type: bind
+        source: /host/sys/class/dmi/id
+        target: /host/sys/class/dmi/id
+        read_only: true
+    networks:
+      - homeos-3d-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18081/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  # 由商店那份 compose 文件创建；这里只加入，不持有。
+  homeos-3d-net:
+    name: homeos-3d-net
+    external: true
+
+volumes:
+  homeos-3d-data:
+  # 由商店那份 compose 文件创建；这里只读挂载，不持有。
+  homeos-3d-client-keys:
+    name: homeos-3d-client-keys
+    external: true
+  homeos-3d-secrets:

@@ -186,9 +186,11 @@ class Settings:
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
     license_transport_key_id_override: str = ''
-    # 硬件指纹覆盖项。**没有环境变量入口**，只能由直接构造 Settings 的调用方（测试、嵌入式
-    # 调用）设置 —— 生产环境不需要它：容器里拿不到真实机器信息时，hardware_identity 会退到
-    # data_dir 下的持久化兜底 ID（hardware-fallback-id），那才是线上的答案。
+    # 硬件指纹覆盖项。默认留空 = 由本机机器 / 主板标识派生（见
+    # ``backend/license/hardware.py``）。显式设置会**钉住**实例身份，用于两件事：
+    # 容器里拿不到稳定标识，以及跨服务器迁移时沿用旧身份 —— 商店侧是「1 授权 :
+    # 1 绑定」，换了实例会以 409「已绑定其他设备」拒绝，需要先解绑并等冷却。
+    # 改动这两项等价于换设备。
     hardware_machine_id_override: str = ''
     hardware_board_id_override: str = ''
     # 三个密钥文件的路径覆盖项；为空时统一落在 data_dir/secrets/ 下。
@@ -439,6 +441,10 @@ def load_settings() -> Settings:
         'license_required': True,
         'license_server_url': custom_license_url or SELF_HOSTED_LICENSE_SERVER_URL,
         'license_server_batches': license_batches,
+        # 硬件指纹覆盖：留空 = 本机派生（默认）。设了就钉住实例身份 —— 跨服务器
+        # 迁移时两边填同一组值即可免重新激活；改动它等于换设备。
+        'hardware_machine_id_override': os.getenv('APP_HARDWARE_MACHINE_ID', '').strip(),
+        'hardware_board_id_override': os.getenv('APP_HARDWARE_BOARD_ID', '').strip(),
         'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', _env_default('license_request_timeout_seconds'))),
         'license_public_key_path_override': _environment_path('APP_LICENSE_PUBLIC_KEY_FILE'),
         'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
