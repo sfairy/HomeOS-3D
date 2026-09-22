@@ -64,7 +64,6 @@ from store.security.security import (
     hash_password,
     is_valid_email,
     iso,
-    iso_z,
     new_order_no,
     new_token,
     new_verification_code,
@@ -77,6 +76,7 @@ from store.core.serializers import (
     account_center_payload,
     account_state_payload,
     binding_version,
+    device_release_policy,
     is_sold_out,
     json_list,
     order_payload,
@@ -1496,12 +1496,14 @@ def release_device(
     return {
         "activationCodeId": license.id,
         "released": True,
-        "deviceReleasePolicy": {
-            "cooldownSeconds": cooldown,
-            "lastReleasedAt": iso_z(moment),
-            "nextAllowedAt": iso_z(moment + timedelta(seconds=cooldown)),
-            "remainingSeconds": cooldown,
-        },
+        # 复用账号中心那一份构造：同一个字段在两处各拼一次，迟早有一处漏改
+        # （这里原先自己在响应里拼了 ``nextAllowedAt`` / ``remainingSeconds``，且
+        # ``cooldown == 0`` 时给的是 ``moment`` 而共享函数给 ``None``）。
+        "deviceReleasePolicy": device_release_policy(
+            cooldown_seconds=cooldown,
+            last_released_at=moment,
+            now=moment,
+        ),
     }
 
 
