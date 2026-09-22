@@ -594,6 +594,29 @@ class DeviceBinding(Base):
         """
         return and_(cls.active.is_(True), cls.released_at.is_(None))
 
+    @classmethod
+    def liveness_order(cls):
+        """从多行绑定里**挑「当前那行」**的 ``ORDER BY`` 口径，按优先级从高到低。
+
+        同一张授权可能留下多行绑定（``release`` 只把 ``active`` 置 False，行留作历史），
+        所以「哪一行代表这台授权的现状」必须由排序定死 —— 不带 ``ORDER BY`` 的
+        ``.first()`` 挑哪一行取决于引擎返回顺序，同一个库换个版本就可能换一行。
+        排序规则收在这里而不是在每个查询里各写一遍：三个调用点
+        （``licensing.ensure_binding``、``api.store.release_device``、
+        ``api.store._license_meta``）必须挑中同一行，各写一遍就等于留了三条会走散的
+        口径 —— 而「挑错行」的症状正是「解绑成功但设备还绑着」。
+
+        第一关键字是 ``is_live`` 而不是 ``active``：一行 ``active`` 但已 ``released``
+        的绑定（判据见 ``is_live``）不算「现在绑着」，把它排在存活行前面会让上面三个
+        调用点一起挑中一行已经失效的记录。SQLite 里 ``x IS NULL`` 求值为 1/0，
+        ``.desc()`` 即「非 NULL 的排后面」。
+        """
+        return (
+            cls.released_at.is_(None).desc(),
+            cls.active.desc(),
+            cls.activated_at.desc(),
+        )
+
     __table_args__ = (
         # 用 unique Index 而不是 UniqueConstraint：表级约束在存量库上补不了
         # （SQLite 不支持 ALTER 追加），而 ``CREATE UNIQUE INDEX IF NOT EXISTS``

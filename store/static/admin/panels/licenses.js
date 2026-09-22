@@ -4,14 +4,14 @@
  * 激活码列表与签发/补发/升级，以及设备绑定的解绑与查看。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609221236";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221236";
-import { state } from "../state.js?v=2609221236";
-import { d, dt, pill, utcInput } from "../format.js?v=2609221236";
-import { LICENSE_SOURCE } from "../vocab.js?v=2609221236";
-import { api, withBusy } from "../api.js?v=2609221236";
-import { askConfirm } from "../dialogs.js?v=2609221236";
-import { host } from "../host.js?v=2609221236";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609221415";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221415";
+import { state } from "../state.js?v=2609221415";
+import { d, dt, pill, utcInput } from "../format.js?v=2609221415";
+import { LICENSE_SOURCE } from "../vocab.js?v=2609221415";
+import { api, withBusy } from "../api.js?v=2609221415";
+import { askConfirm } from "../dialogs.js?v=2609221415";
+import { host } from "../host.js?v=2609221415";
 
 // --------------------------------------------------------------------------- //
 // 激活码
@@ -197,9 +197,9 @@ export async function loadBindings() {
       <td class="mono">${cell(binding.activationCodeHint)}</td>
       <td class="nowrap">${esc(binding.clientVersion || '—')}</td>
       <td class="nowrap">${dt(binding.lastHeartbeatAt)}</td>
-      <td class="nowrap">${binding.active ? pill('绑定中', 'success') : pill('已解绑', 'muted')}</td>
+      <td class="nowrap">${binding.bound ? pill('绑定中', 'success') : pill('已解绑', 'muted')}</td>
       <td class="nowrap">${actions(
-        binding.active
+        binding.bound
           ? `<button class="hb-button hb-button--danger hb-button--sm" data-binding-release="${esc(binding.bindingId)}">强制解绑</button>`
           : '',
         rowMenu('更多操作',
@@ -212,11 +212,13 @@ export async function loadBindings() {
 
 $('#binding-refresh').addEventListener('click', () => { resetPage('bindings'); loadBindings(); });
 
-// 与「强制解绑」的区别：释放只是置为失效、保留历史（解绑事件仍留在冷却判定里）；
-// 删除会把记录整条抹掉（会话与找回令牌级联清理）。
+// 与「强制解绑」的区别：释放只是置为失效、保留历史；删除会把整行抹掉（会话与找回
+// 令牌挂在 binding_id 上，随之级联清理）。
+// **解绑事件不会跟着删**（它挂在 license_id 上，不在这行绑定上），所以解绑冷却照旧
+// —— 需要连冷却一起复位时不要指望「彻底删除」。
 // **两者都不影响重新激活** —— 解绑之后本来就能立刻激活（冷却约束的是「下一次解绑」，
 // 见 store.api.store.release_device）。所以这里不该再拿「能不能马上激活」当卖点，
-// 差别只剩「留不留历史 / 要不要顺手清掉这个实例的会话与找回令牌」。
+// 差别只剩「留不留绑定行 / 要不要顺手清掉这个实例的会话与找回令牌」。
 $('#binding-rows').addEventListener('click', async (event) => {
   const bindingId = event.target.dataset.bindingDelete;
   if (!bindingId) return;
@@ -224,7 +226,7 @@ $('#binding-rows').addEventListener('click', async (event) => {
   const ok = await askConfirm({
     title: '彻底删除绑定记录',
     message: `将永久删除实例 ${instanceId} 的绑定记录。`,
-    impact: '与「强制解绑」的差别是<b>不留历史</b>：记录整条删除，该实例的会话与找回令牌一并清掉，解绑事件也不再留下。<br>重新激活不受影响 —— 解绑后本来就能立刻激活，冷却约束的是下一次解绑。<br>仅用于清理测试机、重复绑定这类脏数据。',
+    impact: '与「强制解绑」的差别是<b>不留绑定行</b>：记录整条删除，该实例的会话与找回令牌一并清掉。<br><b>解绑事件与解绑冷却不受影响</b> —— 事件挂在授权上，不在这行绑定上，所以别指望这一步能顺带解除冷却。<br>重新激活不受影响 —— 解绑后本来就能立刻激活，冷却约束的是下一次解绑。<br>仅用于清理测试机、重复绑定这类脏数据。',
     okText: '永久删除',
   });
   if (!ok) return;

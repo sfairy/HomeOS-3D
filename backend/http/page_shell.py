@@ -26,7 +26,7 @@
 等于给主应用多开一条「模板里的表达式会被求值」的路径，而它现在完全没有模板层。
 
 站点配色（``<!--{{APPEARANCE}}-->``）走同一条路：它是一个 ``<link>``，指向
-``/appearance.css?v=<revision>`` —— 由 ``backend/api/appearance`` 生成的服务端样式表。
+``/appearance.css?v=2609221415`` —— 由 ``backend/api/appearance`` 生成的服务端样式表。
 主应用的 CSP 是 ``style-src 'self'``，所以配色只能这么注入；同时这也解释了为什么
 这个占位符**必须**在每个页面里：CSP 不会报「你少了一个 <link>」，页面只是安静地
 保持默认配色，而管理员会以为保存没生效。

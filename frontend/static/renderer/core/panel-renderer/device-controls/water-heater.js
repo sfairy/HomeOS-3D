@@ -2,8 +2,8 @@
  * 设备控件区块：热水器详情扩展（模式、目标温度与保温设置在 climate 之外的补充控件）。
  */
 
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221226";
-import { climateModeLabel } from "../../../controls/climate.js?v=2609221226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221415";
+import { climateModeLabel } from "../../../controls/climate.js?v=2609221415";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -11,12 +11,12 @@ import {
   relatedEntitySelectService,
   relatedPopupContext,
   selectedRelatedEntities
-} from "../../../../shared/related-entities.js?v=2609221226";
-import { confirmAction } from "../../../../shared/ui-confirm.js?v=2609221226";
+} from "../../../../shared/related-entities.js?v=2609221415";
+import { confirmAction } from "../../../../shared/ui-confirm.js?v=2609221415";
 import {
   relatedWaterHeaterEntities,
   waterHeaterRelatedEntityLabel
-} from "../../../controls/cover-runtime.js?v=2609221226";
+} from "../../../controls/cover-runtime.js?v=2609221415";
 
 export const waterHeaterDetailsMethods = {
   /**

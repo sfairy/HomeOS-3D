@@ -193,15 +193,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         for table in migration.tables:
             for problem in table.problems:
                 logger.error("积分迁移问题 %s：%s", table.table, problem)
-
-    # 解绑冷却的「没配过」原来是写死的 28800（NOT NULL 且无 DDL 默认值），导致
-    # STORE_DEVICE_RELEASE_COOLDOWN_SECONDS 永远不生效；这里把它搬进可空的新列。
-    # 同样必须排在 ensure_schema 之后（新列由它补出来），理由与上面一致。
-    cooldown = migrate_device_release_cooldown(database.engine)
-    if cooldown.changed:
-        logger.warning("解绑冷却配置迁移完成：%s", cooldown.summary())
-    for problem in cooldown.problems:
-        logger.error("解绑冷却配置迁移问题：%s", problem)
         # 「启动成功」不等于「迁移成功」：对账不通过的表会整表跳过删列，旧列仍是
         # NOT NULL 且无 DDL 默认值，ORM 又已不映射它，之后每一次插入都会
         # NOT NULL constraint failed。上面逐条 error 很容易淹在启动日志里，
@@ -210,6 +201,31 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "邀请积分口径迁移未通过：%d 张表有未决问题，旧列未退役，"
             "之后的新写入会以 NOT NULL 失败；详见 /healthz 的 pointsMigration。",
             sum(1 for table in migration.tables if table.problems),
+        )
+
+    # 解绑冷却的「没配过」原来是写死的 28800（NOT NULL 且无 DDL 默认值），导致
+    # STORE_DEVICE_RELEASE_COOLDOWN_SECONDS 永远不生效；这里把它搬进可空的新列。
+    # 同样必须排在 ensure_schema 之后（新列由它补出来），理由与上面一致。
+    #
+    # 这一段**必须与积分迁移平级**：它曾经被插进上面那个 ``if not migration.ok:``
+    # 的循环体里（连缩进一起带进去），于是积分迁移的汇总告警在积分真出问题时反而不
+    # 打印、却在冷却出问题时打印一条指向积分与 ``/healthz`` 的错话。两段互不相干，
+    # 不要再嵌套回去。
+    cooldown = migrate_device_release_cooldown(database.engine)
+    if cooldown.changed:
+        logger.warning("解绑冷却配置迁移完成：%s", cooldown.summary())
+    if not cooldown.ok:
+        for problem in cooldown.problems:
+            logger.error("解绑冷却配置迁移问题：%s", problem)
+        # 汇总的理由与积分那条相同（逐条 error 会淹在启动日志里），但失败面小得多：
+        # 没有任何金额，对账只针对一列配置，回填没做成的后果只是「冷却值仍是旧列的
+        # 值」。唯一的连带故障是删列失败 —— 旧列是 NOT NULL 又无 DDL 默认值、ORM 已
+        # 不映射它，``store_settings`` 的新建行会以 NOT NULL constraint failed 失败。
+        # 这里刻意不新增 /healthz 健康位（见 ops.cooldown_migration 的 docstring）。
+        logger.warning(
+            "解绑冷却配置迁移未通过：%d 处未决问题，旧列未退役，"
+            "它会让 store_settings 的新建行以 NOT NULL 失败；详见上面逐条 error。",
+            len(cooldown.problems),
         )
 
     # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。

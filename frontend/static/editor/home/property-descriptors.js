@@ -7,13 +7,13 @@
  * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import { clone, roundField } from "../editor-utils.js?v=2609221226";
-import { findComponent } from "../component-tree.js?v=2609221226";
+import { clone, roundField } from "../editor-utils.js?v=2609221415";
+import { findComponent } from "../component-tree.js?v=2609221415";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609221226";
+} from "../../utils/colors.js?v=2609221415";
 
 export function createPropertyDescriptors(ctx) {
 

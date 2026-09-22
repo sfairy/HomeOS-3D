@@ -8,12 +8,12 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609221226";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609221415";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609221226";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609221415";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221415";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221226";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221415";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
     制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
     主控色被改成极光紫那天，制冷气流不该跟着变紫。

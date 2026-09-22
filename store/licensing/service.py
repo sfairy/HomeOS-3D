@@ -376,11 +376,12 @@ class LicenseAuthority:
         now: datetime,
     ) -> DeviceBinding:
         # 无 ORDER BY 的 .first() 挑行取决于引擎返回顺序，而同一张授权可能留下多行绑定
-        # （解绑只是 active=False）。优先活跃、其次最近激活，否则 409 判定会随机。
+        # （解绑只是 active=False）。挑行口径收在 ``DeviceBinding.liveness_order()``：
+        # 这里与 ``api.store.release_device`` / ``_license_meta`` 必须挑中同一行。
         binding = session.scalars(
             select(DeviceBinding)
             .where(DeviceBinding.license_id == license.id)
-            .order_by(DeviceBinding.active.desc(), DeviceBinding.activated_at.desc())
+            .order_by(*DeviceBinding.liveness_order())
         ).first()
 
         if binding is None:
@@ -397,7 +398,11 @@ class LicenseAuthority:
             session.flush()
             return binding
 
-        already_bound_here = binding.active and binding.instance_id == instance_id
+        # 判据一律是 ``DeviceBinding.is_live``（active 且未 released），不是裸 ``active``：
+        # 两者只在「active 但已 released」这种行上分叉，而那种行按 ``is_live`` 已经
+        # 不是「现在绑着」。用裸 ``active`` 接住它，这里会走 early-return，于是既不复位
+        # ``released_at``、又给客户端发一份会话，下一次心跳立刻以「实例绑定已停用」403。
+        already_bound_here = binding.is_live and binding.instance_id == instance_id
         if already_bound_here:
             binding.client_version = client_version or binding.client_version
             binding.last_ip = ip
@@ -410,7 +415,7 @@ class LicenseAuthority:
         # 自己那台机器重新激活，同机重绑也一并被拦。同机重绑既不是换机也不构成绕过：
         # 反复解绑/重绑同一台机器拿不到任何额外好处，而自助解绑本身受冷却与口令两道
         # 限制（见 store.api.store.release_device），换机则下面这道判定独立负责。
-        if binding.active and binding.instance_id != instance_id:
+        if binding.is_live and binding.instance_id != instance_id:
             raise LicenseServerError(
                 "该授权已绑定其他设备，请先在账号中心解除绑定。", status_code=409
             )

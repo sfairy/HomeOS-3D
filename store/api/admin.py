@@ -459,7 +459,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         "revenueCents": total_gross - total_refunded,
         "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
         "deviceBindings": count(
-            select(func.count(DeviceBinding.id)).where(DeviceBinding.active.is_(True))
+            select(func.count(DeviceBinding.id)).where(DeviceBinding.live_clause())
         ),
         "serverTime": iso_z(moment),
         "maintenanceMode": bool(setting.maintenance_mode),
@@ -1954,10 +1954,14 @@ def admin_list_bindings(
     ``keyword`` 命中实例号 / 客户端版本 / IP / 激活码提示，排障时按客户端上报的
     实例号或 IP 直接搜比翻页快得多。``serializers`` 里没有绑定载荷，所以这里的
     render 自己拼；激活码提示走本页预取的 License 映射，避免逐行 session.get。
+
+    **本接口里的「绑定中」一律指 ``DeviceBinding.is_live``（active 且未 released）**，
+    不是裸 ``active``：``active_only`` 这个入参与返回行的 ``bound`` 字段都按它判。
+    两者只在「active 但已 released」的行上分叉，那时按存活判据它已经不算绑着。
     """
     base = select(DeviceBinding)
     if active_only:
-        base = base.where(DeviceBinding.active.is_(True))
+        base = base.where(DeviceBinding.live_clause())
     if keyword:
         like = f"%{keyword.strip()}%"
         # 激活码提示也要能搜到：docstring 与后台搜索框都承诺了这一点，但这里的
@@ -1995,7 +1999,10 @@ def admin_list_bindings(
             "instanceId": binding.instance_id,
             "clientVersion": binding.client_version,
             "lastIp": binding.last_ip,
-            "active": bool(binding.active),
+            #: 名字是 ``bound`` 而不是 ``active``：字段名一旦叫 ``active``，读的人会
+            #: 以为它等于那一列，于是判据再收紧时这里就成了第二套口径。它答的是
+            #: 「这台设备现在绑着吗」，即 ``DeviceBinding.is_live``。
+            "bound": bool(binding.is_live),
             "activatedAt": iso_z(binding.activated_at),
             "lastHeartbeatAt": iso_z(binding.last_heartbeat_at),
             "releasedAt": iso_z(binding.released_at),
@@ -3520,12 +3527,17 @@ def admin_delete_product_image(
 def admin_delete_binding(binding_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """物理删除设备绑定记录。
 
-    与「释放绑定」的区别：释放只是把绑定置为失效、保留历史（解绑事件仍留在冷却判定
-    里），删除会把记录整条抹掉（会话与找回令牌按外键级联清理）。
+    与「释放绑定」的区别：释放只是把绑定置为失效、保留历史，删除会把记录整条抹掉
+    （会话与找回令牌挂在 ``binding_id`` 上，按外键级联清理）。
 
-    **两者都不改变「能否重新激活」** —— 解绑之后本来就能立刻激活（冷却约束的是
-    「下一次解绑」，见 ``store.api.store.release_device``），所以这里不能再用
-    「删了就能立刻重绑」当理由。只用于清理测试机、重复绑定这类脏数据，故强制审计。
+    **解绑事件不跟着走。** ``DeviceReleaseEvent`` 的外键是 ``license_id``（不是
+    ``binding_id``），所以这里删掉绑定行之后，该授权的解绑历史与**解绑冷却都原样
+    保留** —— 别拿「删了就没冷却了」当这个操作的理由（上一版文案就是这么写的，
+    是错的；再上一版写「删了可以立刻重新激活」也不对，因为解绑之后本来就能立刻激活）。
+
+    **两者都不改变「能否重新激活」** —— 冷却约束的是「下一次解绑」，见
+    ``store.api.store.release_device``。所以差别只剩：留不留绑定行、要不要顺手清掉
+    这个实例的会话与找回令牌。只用于清理测试机、重复绑定这类脏数据，故强制审计。
     """
     binding = session.get(DeviceBinding, binding_id)
     if binding is None:
@@ -4251,7 +4263,8 @@ def admin_list_license_sessions(
                 "instanceId": bindings[record.binding_id].instance_id
                 if record.binding_id in bindings
                 else None,
-                "bindingActive": bool(bindings[record.binding_id].active)
+                #: 判据同 ``/bindings`` 的 ``bound``：``is_live``，不是裸 ``active``。
+                "bindingActive": bindings[record.binding_id].is_live
                 if record.binding_id in bindings
                 else False,
                 "createdAt": iso(record.created_at),

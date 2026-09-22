@@ -15,7 +15,7 @@
 评审 CSP 改动时得连着跳过一段 SVG。
 
 配色（``<!--{{APPEARANCE}}-->``）走同一条路：它是一个 ``<link>``，指向
-``/store-appearance.css?v=<revision>`` —— 由 ``store/api/appearance`` 生成的服务端
+``/store-appearance.css?v=2609221415`` —— 由 ``store/api/appearance`` 生成的服务端
 样式表。商店的 CSP 对 ``style-src`` 允许 ``'unsafe-inline'``，但配色仍然走服务端样式表：
 一是与主应用同一套做法，二是「配色由 URL 版本戳决定」比「靠内联脚本写一串令牌」更容易
 缓存与排查。

@@ -10,13 +10,13 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609221226";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609221415";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
 // 定位必须带上楼层；两侧缺字段 / 空串必须是同一个键，否则指示灯挂不上。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609221226";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609221415";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221415";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221415";
 /**
  * 归一化单个 NAS 开关实体。
  */

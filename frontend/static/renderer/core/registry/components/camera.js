@@ -2,16 +2,16 @@
  * `camera` 控件：注册 `registry/camera.js` 的挂载函数。
  */
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609221415";
 // 同门分片：camera
 import {
   appendCameraFrame,
   cameraRadiusRatio,
   mountCameraMedia,
   mountCameraSnapshot
-} from "../camera.js?v=2609221226";
+} from "../camera.js?v=2609221415";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609221226";
+import { registerComponent } from "../registry-core.js?v=2609221415";
 
 // 摄像头控件：运行时优先播放实时视频，不可用时退回定时刷新的快照。
 registerComponent("camera", {

@@ -16,26 +16,26 @@ import {
   presenceMotionEventConfig,
   renderAirConditionerAirflowLayer,
   renderRegisteredComponent
-} from "../registry.js?v=2609221226";
-import { apiErrorMessage } from "../../../utils/api-error.js?v=2609221226";
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609221226";
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609221226";
-import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609221226";
+} from "../registry.js?v=2609221415";
+import { apiErrorMessage } from "../../../utils/api-error.js?v=2609221415";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609221415";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609221415";
+import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609221415";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "../entity-power.js?v=2609221226";
+} from "../entity-power.js?v=2609221415";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../../shared/virtual-entities.js?v=2609221226";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609221226";
-import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609221226";
-import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609221226";
-import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609221226";
+} from "../../../shared/virtual-entities.js?v=2609221415";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609221415";
+import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609221415";
+import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609221415";
+import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609221415";
 import {
   coverToggleServiceForComponent,
   relatedAirerCurrentPositionSensor,
@@ -49,29 +49,29 @@ import {
   relatedWaterHeaterEntities,
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive
-} from "../../controls/cover-runtime.js?v=2609221226";
+} from "../../controls/cover-runtime.js?v=2609221415";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609221226";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609221415";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "../runtime-caches.js?v=2609221226";
+} from "../runtime-caches.js?v=2609221415";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "../runtime-document.js?v=2609221226";
+} from "../runtime-document.js?v=2609221415";
 import {
   OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS,
   RUNTIME_SUBSCRIPTION_ENTITY_LIMIT,
   componentDialogTitle,
   createOptimisticToggleTimeoutError,
   isSupportedComponentAction
-} from "./primitives.js?v=2609221226";
+} from "./primitives.js?v=2609221415";
 
 export const runtimeBridgeMethods = {
   /**

@@ -641,7 +641,7 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
+- 静态资源缓存标记统一为 `?v=2609221415`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609221415`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
   这条约定只针对**前端之间互相引用**的资源（同值是为了不让同一模块被当成两份）。**后端渲染页面时拼出来的**静态链接（舞台页注入的 `stage.css`、模拟收银台与支付宝回跳页里的 `scene/*.css`、配色样式表）改用文件 mtime 现算版本号，见 `backend/core/static_revision.py` 与 `store/core/static_revision.py`：那些 URL 之间没有同值要求，用 mtime 就不必再让任何人记得同步字面量（也少一个「忘了跑 bump」的静默失效点）。`tools/bump_static_cache_versions.mjs` 的 `EXTRA_FILES` 仍保留这几个 Python 文件，是为了万一有人把字面量写回去时仍能发现。
 - mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次：图标地址（含舞台标记与编辑器图标按钮的遮罩）一律经 `mdiIconUrl` / `applyMdiMask` 取用，后端 `api/icons.py` 从 `static/vendor/mdi/` 目录里扫出版本。升级图标库 = 把新版本目录放进 `vendor/mdi/` + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址，`check_invariants.mjs` 会核对全站只有一个版本值且目录存在。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
@@ -684,7 +684,7 @@ node tools/check_invariants.mjs
 - **缓存戳出现第二个值，或同一模块被「带戳 / 不带戳」两种写法引用**：无打包器，`?v=` 是唯一的缓存
   失效手段；同模块一处带戳一处不带会被当成两个模块、各留一份模块级状态（两份控件注册表就是这么来的）。
   后半句是**模块身份**问题：模块表以解析后的 URL 为键，查询串参与其中，所以 `./host.js` 与
-  `./host.js?v=…` 是两份实例 —— `store/static/admin/app.js` 就漏过一次，它往自己那份
+  `./host.js?v=2609221415` 是两份实例 —— `store/static/admin/app.js` 就漏过一次，它往自己那份
   `Object.assign(host, …)` 装配方法，其余 11 个面板拿到的那份始终是空对象，84 处 `host.xxx()`
   全在调用时抛 `TypeError`。判定同时覆盖静态 import、re-export、动态 import 与入口 HTML 的
   `type="module"` 脚本；开发态旁路 `new URL("./x.js", import.meta.url)` 与生产分支互斥，不算。

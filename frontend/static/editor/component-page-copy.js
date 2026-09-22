@@ -5,7 +5,7 @@
  * 的副本名、校验导航与弹窗引用，必要时按画布比例缩放，最后插入目标集合。复制到共享区时所有
  * 页面都要引用这批新共享组件；副作用是就地修改 targetDocument，调用方负责进历史栈。
  */
-import { positiveNumberOr } from "../utils/numbers.js?v=2609221226";
+import { positiveNumberOr } from "../utils/numbers.js?v=2609221415";
 
 function findComponentInTree(componentTree, targetComponentId) {
   for (const childComponent of componentTree || []) {

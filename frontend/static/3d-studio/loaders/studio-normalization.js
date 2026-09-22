@@ -6,9 +6,9 @@
  * 是纯函数，不持有状态、不写回入参。夹取统一用 utils/numbers.js 的 clampNumber，区间上下
  * 限与其余各处相反时结果会静默不同，故按同一份口径。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609221226";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609221415";
 // 色温换算（含唯一的公式与单通道夹取）共用 utils/colors.js：studio 侧与灯光侧的系数不许各写一份。
-import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609221226";
+import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609221415";
 
 /**
  * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。

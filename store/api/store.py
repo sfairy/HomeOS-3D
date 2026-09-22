@@ -515,24 +515,21 @@ def _license_meta(session, licenses: list[License]) -> dict[str, dict]:
     }
     # 同一张授权可能留下多行绑定（解绑只是 ``active = False``，行留作历史），所以这里
     # 有两件事都要做对：
-    #   1. **挑行要确定。** 口径与 ``licensing.service.ensure_binding`` 保持一致
-    #      （优先活跃、其次最近激活）—— 不带 ORDER BY 的取法取决于引擎返回顺序，
-    #      同一个库换个版本就可能换一行。
+    #   1. **挑行要确定。** 口径与 ``licensing.service.ensure_binding`` /
+    #      ``release_device`` 完全一致 —— 共用 ``DeviceBinding.liveness_order()``，
+    #      不带 ORDER BY 的取法取决于引擎返回顺序，同一个库换个版本就可能换一行。
     #   2. **已解绑的行不能报成「已绑定」。** 载荷里的 ``device``（见
     #      ``serializers.license_payload``）语义是「当前绑着谁」：前台 store.js 据此
-    #      渲染「已绑定本机 · <instanceId>」并给出「解除设备绑定」按钮。把
-    #      ``active = False`` 的行也递进去，刚自助解绑的用户就会继续看到自己还绑着，
-    #      而后台的 ``/bindings`` 列表按 ``active`` 渲染成「已解绑」—— 两边对不上。
+    #      渲染「已绑定本机 · <instanceId>」并给出「解除设备绑定」按钮。把非存活的
+    #      行也递进去，刚自助解绑的用户就会继续看到自己还绑着，而后台的 ``/bindings``
+    #      列表按存活判据渲染成「已解绑」—— 两边对不上。
     #      「最近一次解绑」另由下面的 ``releases`` 给出（deviceReleasePolicy 的冷却），
     #      不靠这一行。
     bindings: dict[str, DeviceBinding] = {}
     for binding in session.scalars(
         select(DeviceBinding)
         .where(DeviceBinding.license_id.in_(license_ids))
-        .order_by(
-            DeviceBinding.active.desc(),
-            DeviceBinding.activated_at.desc(),
-        )
+        .order_by(*DeviceBinding.liveness_order())
     ):
         # 有序之后，先到的那一行就是该授权最该显示的一行；非「存活」的一律跳过 ——
         # 判据是 ``DeviceBinding.is_live``（active 且未 released），与心跳/恢复、
@@ -1460,15 +1457,13 @@ def release_device(
     # 与 ``licensing.ensure_binding`` 同一口径：同一张授权可能留下多行绑定（解绑只是
     # ``active = False``，行不删），而**不带 ORDER BY 的 ``.first()`` 挑哪一行取决于
     # 引擎返回顺序**。挑错行会把一条早就解绑的历史行再置一次 False，真正活跃的那行原样
-    # 留着 —— 用户看到「解绑成功」，设备却还绑着。仍然允许「当前没有绑定设备也允许解绑」
-    # （见 ``_release_snapshot_conflict``）：那时取到的是最近激活的那行历史绑定。
+    # 留着 —— 用户看到「解绑成功」，设备却还绑着。挑行口径收在
+    # ``DeviceBinding.liveness_order()``，与激活路径共用同一条。仍然允许「当前没有绑定
+    # 设备也允许解绑」（见 ``_release_snapshot_conflict``）：那时取到的是最近激活的那行历史绑定。
     binding = session.scalars(
         select(DeviceBinding)
         .where(DeviceBinding.license_id == license.id)
-        .order_by(
-            DeviceBinding.active.desc(),
-            DeviceBinding.activated_at.desc(),
-        )
+        .order_by(*DeviceBinding.liveness_order())
     ).first()
 
     # 乐观锁：前端在弹窗里看到的绑定快照必须仍然有效。用户输密码的这段时间里
