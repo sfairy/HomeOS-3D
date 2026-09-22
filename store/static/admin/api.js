@@ -6,8 +6,8 @@
  * 后台接口出口：后台与前台两个 fetch（前台接口在商店域）、错误归一、提交忙态。
  */
 
-import { $$ } from "./dom.js?v=2609221053";
-import { host } from "./host.js?v=2609221053";
+import { $$ } from "./dom.js?v=2609221226";
+import { host } from "./host.js?v=2609221226";
 
 // 把接口返回的 ``detail`` 归一化成人话，实现只有 store/static/api-error.js 的 ``ApiError.describe``。
 // 建带状态码的错误：401 是未登录访客打开 /admin 的正常状态，不能当故障；其余失败必须原样报出，故带上状态码本身。

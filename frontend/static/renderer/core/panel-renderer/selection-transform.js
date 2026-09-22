@@ -8,23 +8,23 @@
  * 这些方法只读写 DOM 与自己的手势状态，不发请求、不碰运行期缓存。
  */
 
-import { capturePointer } from "../../../utils/pointer-capture.js?v=2609221053";
+import { capturePointer } from "../../../utils/pointer-capture.js?v=2609221226";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
   renderRegisteredComponent
-} from "../registry.js?v=2609221053";
+} from "../registry.js?v=2609221226";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../../geometry/transform-geometry.js?v=2609221053";
+} from "../../geometry/transform-geometry.js?v=2609221226";
 import {
   assignComponentIds,
   componentDialogTitle,
   isModifierKeyPressed
-} from "./primitives.js?v=2609221053";
+} from "./primitives.js?v=2609221226";
 
 export const selectionTransformMethods = {
   /**

@@ -21,9 +21,14 @@
  * 长度与稠密感全部在 CSS 里按类名给（见 design/scene/panel.css 的 .hos-deck 段）。
  */
 
-const deck = document.querySelector('.hos-deck');
+const decks = document.querySelectorAll('.hos-deck');
 // 没有甲板就直接退出：这几个脚本同时被五个页面引用，缺一块不该在控制台留下一串 null 异常。
-if (deck) {
+//
+// 遍历**所有**甲板而不是只取第一个：同一份模板里可以有多块（/setup 的「表单 / 已初始化」
+// 两屏各一块，商店的 store.html 更是认证三屏各一块）。只取第一个的写法在单屏页面上看不出
+// 问题，却会让后面那几块永远停在服务端注入的破折号上 —— 而它们中有的是**唯一可见**的那块
+// （按路径切屏时先出现在 DOM 里的那屏往往是隐藏的）。
+if (decks.length) {
   // 降低动效偏好：秒级跳动的数字也是一种「持续动效」。这里改成每 30 秒一跳、
   // 并且时钟只到分钟 —— 读数仍然是活的，但不再一秒一闪。
   const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -59,14 +64,16 @@ if (deck) {
   };
 
   const hooks = [];
-  for (const node of deck.querySelectorAll('[data-deck]')) {
-    const render = renderers[node.dataset.deck];
-    if (!render) continue;
-    // 缺时间戳的格子（服务端没给起点）保持原样：宁可显示一条静态读数，
-    // 也不要让它变成 NaN 或「1970 年至今」。
-    const since = node.dataset.since ? Date.parse(node.dataset.since) : Number.NaN;
-    if (node.dataset.deck !== 'clock' && Number.isNaN(since)) continue;
-    hooks.push({ node, render, since });
+  for (const deck of decks) {
+    for (const node of deck.querySelectorAll('[data-deck]')) {
+      const render = renderers[node.dataset.deck];
+      if (!render) continue;
+      // 缺时间戳的格子（服务端没给起点）保持原样：宁可显示一条静态读数，
+      // 也不要让它变成 NaN 或「1970 年至今」。
+      const since = node.dataset.since ? Date.parse(node.dataset.since) : Number.NaN;
+      if (node.dataset.deck !== 'clock' && Number.isNaN(since)) continue;
+      hooks.push({ node, render, since });
+    }
   }
 
   const paint = () => {

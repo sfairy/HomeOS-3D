@@ -4,12 +4,12 @@
  * 没有专门详情页的设备靠它兜底：把实体属性翻译成开关、滑杆、下拉与只读读数。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221053";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221226";
 import {
   climateModeLabel,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609221053";
-import { createSwitchVisual } from "../primitives.js?v=2609221053";
+} from "../../../controls/climate.js?v=2609221226";
+import { createSwitchVisual } from "../primitives.js?v=2609221226";
 
 export const capabilityDetailsMethods = {
   /**

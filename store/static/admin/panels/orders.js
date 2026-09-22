@@ -6,13 +6,13 @@
  * 订单列表与逐行动作。状态词表由服务端下发（服务端是权威），这里只做展示映射与缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609221053";
-import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609221053";
-import { api } from "../api.js?v=2609221053";
-import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609221053";
-import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609221053";
-import { askConfirm } from "../dialogs.js?v=2609221053";
-import { host } from "../host.js?v=2609221053";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609221226";
+import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609221226";
+import { api } from "../api.js?v=2609221226";
+import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609221226";
+import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609221226";
+import { askConfirm } from "../dialogs.js?v=2609221226";
+import { host } from "../host.js?v=2609221226";
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
 // store/commerce/order_status.py）。手写这两样的代价是静默的：动作数组漏掉

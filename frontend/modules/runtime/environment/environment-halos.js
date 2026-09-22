@@ -7,10 +7,10 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609221053";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221053";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609221226";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609221226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221053";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609221226";
 
 /**
  * 求二维点集的凸包（Andrew 单调链算法）。

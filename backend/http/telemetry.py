@@ -12,11 +12,14 @@
    在渲染这一页时就地算完。入口页在未登录时就能打开，多一个匿名可读的接口就多一处
    需要审的攻击面，而甲板要的只是几个本地计数。
 
-2. **不向匿名访问者暴露家的规模。** ``/login`` 与 ``/setup`` 落在匿名档：只给
-   「机制读数」（数据自持、无需公网、服务就绪、运行时长），不给实体数、设备数、项目数。
-   口径与 ``/api/v1/setup/status`` 只回 ``initialized`` / ``version`` 一致 ——
-   一台还没登录的机器上写着「纳管 87 个实体」，等于把这家有几盏灯告诉了每一个能
-   打开登录页的人。
+2. **不向匿名访问者暴露家的规模。** 档位按**访问者**判，不按页面判：有管理员会话或
+   已配对设备 Cookie 的人拿真读数；两者都没有的人只拿「机制读数」（数据自持、无需公网、
+   服务就绪、运行时长），不给实体数、设备数、项目数。口径与 ``/api/v1/setup/status``
+   只回 ``initialized`` / ``version`` 一致 —— 一台还没登录的机器上写着「纳管 87 个实体」，
+   等于把这家有几盏灯告诉了每一个能打开登录页的人。
+   **为什么必须按访问者判**：``/login``、``/setup`` 天生只有匿名访客，但 ``/pair`` 与
+   恢复页也在 ``main.public_page_paths`` 里（任何浏览器输地址就能打开），而它们落到的
+   分支与墙面板相同 —— 按页面判会让未登录的人在 /pair 上读到实体数。
 
 3. **时间类的读数在客户端自走。** 时钟、运行时长、距上次 HA 同步多久，三格都是
    「每一秒都在变」的读数；把它们做成服务端轮询等于给入口页装一台每秒响一次的闹钟。
@@ -304,11 +307,48 @@ def deck_tiles(
             _uptime_tile(),
         )
 
+    #: 真正匿名：既没有管理员会话，也没有已配对设备 Cookie。
+    #:
+    #: 档位必须按**访问者**判，不能按页面判 —— ``/login`` 与 ``/setup`` 天生只有匿名访客，
+    #: 但 ``/pair`` 与恢复页也在 ``main.public_page_paths`` 里，任何浏览器直接输地址就能打开，
+    #: 而它落到的分支与墙面板完全相同。按页面判的那一版正是让**未登录的访客**在 /pair 上
+    #: 读到「纳管实体 1,646 个 · 上次同步 3 分钟前」的原因 —— 与 /login 刻意藏起来的是同一批
+    #: 数字，等于把模块 docstring 第 2 条只执行了一半。
+    #:
+    #: 这一段放在 ``_database_readout`` **之前**：匿名档一格都不查库，
+    #: 否则每次匿名渲染都要白开一次会话、白查五张表。
+    anonymous = not admin_session and not device
+    if anonymous:
+        if page == 'pair.html':
+            # 未配对的面板、或任何直接打开 /pair 的人。这一档要回答的是
+            # 「我现在能不能配」，而不是「这个家有多大」。
+            return (
+                _clock_tile(),
+                _tile('服务状态', '就绪', spark = 'is-full'),
+                _tile('配对方式', '6 位固定码', spark = 'is-mid'),
+                _uptime_tile(),
+            )
+        if page == 'license-recovery.html':
+            # 恢复页会就地渲染在 /pair 与 /display/* 上，/pair 那一处同样公开可达。
+            return (
+                _clock_tile(),
+                _tile('服务状态', '待恢复', spark = 'is-low'),
+                _tile('本地数据', '不清除', spark = 'is-full'),
+                _uptime_tile(),
+            )
+        # 剩下的页面都不该由匿名访客看到：/license 未登录时路由就 303 去 /login
+        # （见 ``main.license_page``），/setup 与 /login 在上面已经返回。
+        # 走到这里说明档位判断本身有漏洞，抛出来比泄一份读数安全。
+        raise RuntimeError(
+            f'{page} 落到了匿名档；这一页应由路由挡在门外，请检查门禁与档位判断'
+        )
+
     readout = _database_readout(request)
     license_service = getattr(request.app.state, 'license_service', None)
 
     if page == 'license.html':
-        # 只在已登录时渲染：四格全部给「这台机器接了什么、被授权到什么程度」。
+        # 只在已登录时渲染（路由未登录会 303 去 /login）：四格全部给
+        # 「这台机器接了什么、被授权到什么程度」。
         return (
             *_ha_tiles(readout),
             _license_tile(license_service),
@@ -333,15 +373,20 @@ def deck_tiles(
                 ),
                 _license_tile(license_service),
             )
-        # 墙面板自己来看这一页（没有会话）：它读不懂「已配对几台」，而「上次同步多久之前」
-        # 正是它最该看见的一格 —— 同步停住是这块屏最先会表现出的故障。
-        return (
-            *_ha_tiles(readout),
-            _sync_tile(readout),
-            _uptime_tile(),
-        )
+        if device:
+            # 已配对的面板回来重配（?scan=1）：它本来就在这个家里，读数不是新信息。
+            # 「上次同步多久之前」它最该看见 —— 同步停住是这块屏最先会表现出的故障。
+            return (
+                *_ha_tiles(readout),
+                _sync_tile(readout),
+                _uptime_tile(),
+            )
+        # 走到这里说明既无会话也无设备 Cookie —— 而那一档上面已经拦掉了。
+        # 这里只剩「不该到达」，抛出来比返回一份设计外的读数更安全。
+        raise RuntimeError('pair.html 的匿名档没有在 _database_readout 之前拦下；档位判断有漏洞')
 
     if page == 'license-recovery.html':
+        # 匿名档同样已在上面拦掉；能到这里的一定带着会话或设备 Cookie。
         # 卡在激活这道门上：授权状态与「上次同步」是这一页最要紧的两格，
         # 另外两格回答「我的东西还在不在」（设备与项目都留着）。
         return (

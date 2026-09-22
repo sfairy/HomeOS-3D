@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#050912">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221053">
-<link rel="stylesheet" href="/store-static/theme.css?v=2609221053">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221226">
+<link rel="stylesheet" href="/store-static/theme.css?v=2609221226">
 <!-- 场景设计系统的分发产物（源在仓库 design/scene/）：登录屏是整页场景壳，
      工作台仍走 theme.css + admin.css 的令牌。 -->
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221053">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609221053">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221053">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221053">
-<link rel="stylesheet" href="/store-static/admin.css?v=2609221053">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221053` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221226">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609221226">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221226">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221226">
+<link rel="stylesheet" href="/store-static/admin.css?v=2609221226">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221226` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -99,7 +99,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609221053" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609221226" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -1513,20 +1513,20 @@
      普通脚本立即执行、module 默认 defer，因此这里排在入口之前即可。
      顺序与内容对齐 store.html，避免两份入口各写一套。CSP 的 script-src 含 'self'，
      同源脚本不需要 nonce，这里不带。 -->
-<script src="/store-static/htmlsafe.js?v=2609221053"></script>
-<script src="/store-static/api-error.js?v=2609221053"></script>
-<script src="/store-static/money.js?v=2609221053"></script>
+<script src="/store-static/htmlsafe.js?v=2609221226"></script>
+<script src="/store-static/api-error.js?v=2609221226"></script>
+<script src="/store-static/money.js?v=2609221226"></script>
 
 <!-- 后台入口按主题拆在 store/static/admin/ 下。CSP 的 script-src 含 'self'，同源外部脚本
      不需要 nonce；这里仍然带上，与下方 palette.js 的写法保持一致。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609221053"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609221226"></script>
 <!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
      ./scene/appearance.js（预设 / 明暗派生 / 令牌展开的唯一实现）。
      内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609221053"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609221226"></script>
 <!-- 状态甲板的自走读数（源：store/static/entry-deck.js）。它读页面里已有的时间戳，
      不发任何请求；没有 .hos-deck 时自行退出 —— 这一页只有后台登录屏有甲板，
      工作台没有。与主应用那份是两份文件、一套 data-* 契约。 -->
-<script src="/store-static/entry-deck.js?v=2609221053"></script>
+<script src="/store-static/entry-deck.js?v=2609221226"></script>
 </body>
 </html>

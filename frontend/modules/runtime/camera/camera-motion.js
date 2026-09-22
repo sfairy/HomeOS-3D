@@ -9,7 +9,7 @@
 // 夹取与换算统一走 utils/numbers.js（唯一实现，经 static-helpers 桥取用）：clampNumber 保证写进
 // 渲染层的值落在合法区间；finiteNumberOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开
 // （0 往往有语义，不能被当成缺失）。
-import { clampNumber, finiteNumberOr } from "../core/static-helpers.js?v=2609221053";
+import { clampNumber, finiteNumberOr } from "../core/static-helpers.js?v=2609221226";
 /**
  * 浅拷贝一份姿势，数组字段单独复制。
  *
