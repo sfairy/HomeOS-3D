@@ -29,7 +29,7 @@ export function buildTrackCurtainItem(context) {
     dark: furnitureDarkColor,
     light: furnitureLightColor
   });
-  if (itemPalette.warmWood) {
+  if (itemPalette.warmFurniture) {
     // 暖阳原木：轨道帘的布帘统一换成暖米白并整体补一点自发光 ——
     // 主题下各面料贴图原本的色差会被冲淡，颜色对齐后整幅帘子才像同一套色系。
     itemGroup.traverse(curtainPartNode => {

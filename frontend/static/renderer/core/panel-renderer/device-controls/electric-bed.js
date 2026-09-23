@@ -5,10 +5,10 @@
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
 // `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
 // 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609230040";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609230040";
-import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609230040";
-import { componentDialogTitle } from "../primitives.js?v=2609230040";
+import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609231046";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609231046";
+import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609231046";
+import { componentDialogTitle } from "../primitives.js?v=2609231046";
 
 export const electricBedDetailsMethods = {
   /**

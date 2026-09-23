@@ -15,7 +15,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609230040"></script>
+    <script src="/static/logging/client-log.js?v=2609231046"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,16 +23,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>激活授权 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609230040" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609230040" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609230040" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609230040" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609230040" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609230040" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609230040" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609230040" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609230040" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609230040` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609231046" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609231046" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609231046" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609231046" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609231046" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609231046" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609231046" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609231046" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609231046" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609231046` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -136,10 +136,10 @@
 
     <!-- 场景视差相机（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：
          它不导出任何东西，越早跑越好 —— 一进场（含那 0.75s 的入场动画）画面就是活的。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609230040"></script>
-    <script type="module" src="/static/auth/license.js?v=2609230040"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609231046"></script>
+    <script type="module" src="/static/auth/license.js?v=2609231046"></script>
     <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
          时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
-    <script type="module" src="/static/auth/entry-deck.js?v=2609230040"></script>
+    <script type="module" src="/static/auth/entry-deck.js?v=2609231046"></script>
   </body>
 </html>

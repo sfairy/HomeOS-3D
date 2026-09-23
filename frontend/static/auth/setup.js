@@ -7,8 +7,8 @@
  * 没有超时就没有结论，没有 finally 就没有下一次点击。
  * 跳转：设置成功即已下发登录 Cookie，先打开 /license —— 授权有效时该页 303 回首页，失效 / 未激活则留下完成激活。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=2609230040";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609230040";
+import { apiFetch } from "../utils/api-fetch.js?v=2609231046";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609231046";
 
 const form = document.querySelector("#setup-form"),
   message = document.querySelector("#message"),

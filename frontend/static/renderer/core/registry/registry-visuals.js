@@ -9,18 +9,18 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609230040";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609231046";
 import {
   CHART_THRESHOLD_FALLBACK_COLOR,
   CHART_THRESHOLD_FALLBACK_COLORS
-} from "../../controls/weather-chart-runtime.js?v=2609230040";
+} from "../../controls/weather-chart-runtime.js?v=2609231046";
 // 必须 import 出一份本地绑定再用 export { … } 转出，不能写 `export { … } from "…"`：
 // 那种写法只转发、不在本模块建绑定，下面 chartThresholdPalette() 里取 paletteColor 会 ReferenceError
 // （不报错、只在渲染图表时整块挂掉 —— 这条已由 tools/check_invariants.mjs 拦下）。
 import {
   paletteColor,
   resolveColor
-} from "../../../utils/colors.js?v=2609230040";
+} from "../../../utils/colors.js?v=2609231046";
 
 export { paletteColor, resolveColor };
 

@@ -7,8 +7,8 @@
  * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import { clone } from "../editor-utils.js?v=2609230040";
-import { componentLabel } from "../editor-component-collections.js?v=2609230040";
+import { clone } from "../editor-utils.js?v=2609231046";
+import { componentLabel } from "../editor-component-collections.js?v=2609231046";
 
 export function createStyleApplyDialogs(ctx) {
 

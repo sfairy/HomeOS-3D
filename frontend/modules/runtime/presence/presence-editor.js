@@ -8,22 +8,22 @@
  * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
  * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609230040";
-import { mountInteraction3d } from "../core/runtime.js?v=2609230040";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609231046";
+import { mountInteraction3d } from "../core/runtime.js?v=2609231046";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=2609230040";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609230040";
-import { capturePointer } from "../core/static-helpers.js?v=2609230040";
+} from "./presence-motion.js?v=2609231046";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609231046";
+import { capturePointer } from "../core/static-helpers.js?v=2609231046";
 import {
   createDomFactory,
   randomUuid,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609230040";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609230040";
+} from "../core/static-helpers-editor.js?v=2609231046";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609231046";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -76,7 +76,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609230040";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609231046";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
@@ -1301,7 +1301,7 @@ export async function openPresenceEditor({
   try {
     // three 走动态 import：只在真正打开编辑器时才下载（约 600KB），
     // 下载失败只影响小预览，不影响路线编辑，所以整个初始化包在 try 里。
-    const threeModule = await import("/static/vendor/three/0.182.0/three.module.min.js");
+    const threeModule = await import("/static/vendor/three/0.186.0/three.module.min.js");
     if (isClosed) {
       return;
     }

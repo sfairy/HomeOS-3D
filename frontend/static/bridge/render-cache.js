@@ -11,7 +11,10 @@
 // v7：窗帘开合预览的默认值由「关闭」改为「全开」——配置里未写 curtainPreview 的模型渲染结果变了，
 // 但配置本身没变，键不变就会一直命中旧图，故必须自增。
 // v8：该默认值再由全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）——同上，配置没变而画面变了。
-export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v8";
+// v9：three.js 由 r182 升到 r186 —— 光照与阴影的着色器、直接光计算都变了，同一份配置渲染出的像素
+// 与旧版不同，而缓存键只认场景与灯光参数，不自增就会一直取回用旧版 three 渲的图。
+// 另外 studio-app.js 的指纹已补入 threeModuleMin.REVISION，日后升级 three 会自动作废，不必只靠这一行。
+export const RENDER_CACHE_VERSION = "i3d-light-delta-20260923-three-r186-v9";
 /**
  * 生成「键序无关」的 JSON 文本。
  * 对象的键顺序在 JSON.stringify 里有意义，不排序时同一份逻辑内容会因键序不同

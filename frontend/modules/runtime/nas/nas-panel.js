@@ -14,9 +14,9 @@ import {
   readFromMapOrRecord,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609230040";
+} from "../core/static-helpers.js?v=2609231046";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现同样经桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609230040";
+import { createDomFactory } from "../core/static-helpers.js?v=2609231046";
 /**
  * 计算要展示的分组及其中文名。
  */

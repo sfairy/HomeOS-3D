@@ -9,11 +9,11 @@
  * 整块图集只在一次完整烘焙成功后才替换旧图集，中途失败保留旧图集避免闪黑。
  */
 
-import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=2609230040";
+import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=2609231046";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609230040";
+import { debugLog } from "../../utils/debug-log.js?v=2609231046";
 // 让出主线程（烘焙多盏灯之间必须让路）的实现只有一份：studio/studio-yield.js。
-import { yieldToScheduler } from "./studio-yield.js?v=2609230040";
+import { yieldToScheduler } from "./studio-yield.js?v=2609231046";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 
@@ -197,18 +197,47 @@ function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
 }
 /**
+ * 定位灯光着色器里「聚光灯直接光」那一段分支，返回 [start, end) 半开区间。
+ *
+ * 结尾不能取下一个 `#if ( NUM_DIR_LIGHTS > 0 )`：three r186 在 SPOT 与 DIR 之间插了一段
+ * `#if ( NUM_SUN_LIGHTS > 0 )`，按 DIR 切会把太阳光块一起带进来（RE_Direct 从 1 处变 2 处，
+ * 下面的结构校验就会直接判定为「不兼容」）。改为顺着本分支自己的 `#pragma unroll_loop_end`
+ * 找到配对的 `#endif` 收尾。
+ * @returns {{start: number, end: number} | null} 结构不匹配时返回 null，由调用方决定如何报错。
+ */
+function spotLightBlockRange(lightsShader) {
+  const spotBlockStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
+  if (spotBlockStart < 0) {
+    return null;
+  }
+  const loopEnd = lightsShader.indexOf("#pragma unroll_loop_end", spotBlockStart);
+  if (loopEnd < 0) {
+    return null;
+  }
+  const spotEndif = lightsShader.indexOf("#endif", loopEnd);
+  if (spotEndif < 0) {
+    return null;
+  }
+  // 收尾优先取同级的下一个灯光块（r186 里是 NUM_SUN_LIGHTS），没有就退到自己的 #endif 之后。
+  const nextLightBlock = lightsShader.indexOf("#if ( NUM_", spotEndif + "#endif".length);
+  const spotBlockEnd = nextLightBlock >= 0 ? nextLightBlock : spotEndif + "#endif".length;
+  return {
+    start: spotBlockStart,
+    end: spotBlockEnd
+  };
+}
+/**
  * 给 three.js 的灯光着色器打补丁：跳过颜色为零的聚光灯。场景里常见十几盏灯但多数亮度为 0，
  * 它们仍会走完整段直接光计算，这里在 RE_Direct 调用外裹一层 uniform 分支整段跳过。
  * @throws {Error} three.js 版本变化导致聚光灯分支结构不再匹配时抛出，宁可失败也不要静默出错图。
  */
 function guardZeroContributionSpotLights(lightsShader) {
-  const spotLightBranchStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
-  const dirLightBranchStart = lightsShader.indexOf("#if ( NUM_DIR_LIGHTS > 0 )", spotLightBranchStart);
+  const range = spotLightBlockRange(lightsShader);
   const directLightCall =
     "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );";
   // 用「该调用在聚光灯分支里恰好出现一次」来确认结构，多一次或零次都说明 three.js 改版了。
-  const spotLightBranch = lightsShader.slice(spotLightBranchStart, dirLightBranchStart);
-  if (spotLightBranchStart < 0 || dirLightBranchStart < 0 || spotLightBranch.split(directLightCall).length !== 2) {
+  const spotLightBranch = range ? lightsShader.slice(range.start, range.end) : "";
+  if (!range || spotLightBranch.split(directLightCall).length !== 2) {
     throw new Error("当前 Three.js 聚光灯反射 Shader 与零贡献优化不兼容。");
   }
   // HB_SKIP_ZERO_SPOT_LIGHT 只在开启逐帧同步渲染灯光的模式下由材质 defines 打开。
@@ -216,7 +245,7 @@ function guardZeroContributionSpotLights(lightsShader) {
     "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      if ( any( notEqual( directLight.color, vec3( 0.0 ) ) ) ) {\n    #endif\n      " +
     directLightCall +
     "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      }\n    #endif";
-  return lightsShader.slice(0, spotLightBranchStart) + spotLightBranch.replace(directLightCall, guardedCall) + lightsShader.slice(dirLightBranchStart);
+  return lightsShader.slice(0, range.start) + spotLightBranch.replace(directLightCall, guardedCall) + lightsShader.slice(range.end);
 }
 /**
  * 在图集采样点处把 three.js 自带的单灯阴影代码换成图集采样：在 USE_SHADOWMAP 的聚光灯循环

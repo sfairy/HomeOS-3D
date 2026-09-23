@@ -78,6 +78,86 @@ export const APPLIANCE_ITEM_TYPES = new Set([
 /** 灯具类型：走灯光支路（可调光/调色温），不是普通网格。 */
 export const LIGHT_ITEM_TYPES = new Set(["downlight", "ceilinglight", "striplight"]);
 
+/**
+ * 「家居」类型：家具、软装、家电、洁具。这几类在「默认风格」下也采用暖阳原木的家居配色
+ * （见 studio-app.js 的 paletteForItemType() → homePalette()），而场景与建筑本体不变。
+ *
+ * 排除两类：
+ *   - 建筑本体与墙面造型 —— stairs / steelstairs / glassstairs / pillar / smallcar / elevator /
+ *     flooropening / planlabel / featurewall。它们的颜色表达的是房子本身（楼梯、柱、门洞、洞口、
+ *     平面图符号、造型墙），暖化会违反「其它保持现状」。
+ *   - LIGHT_ITEM_TYPES —— 它们走灯光支路，根本不经过网格材质换色。
+ *
+ * 取舍存疑的一处：壁画（mural）按「软装」收录，造型墙（featurewall）按「建筑」排除。
+ */
+export const HOME_ITEM_TYPES = new Set([
+  // 家具
+  "sofa",
+  "coffeetable",
+  "squarecoffeetable",
+  "tvstand",
+  "bed",
+  "nightstand",
+  "table",
+  "rounddiningtable",
+  "rounddiningtableturntable",
+  "desk",
+  "chair",
+  "bar",
+  "sideboard",
+  "shoecabinet",
+  "cabinet",
+  "glasscabinet",
+  "bookcase",
+  "shelf",
+  "wallcabinet",
+  "kitchenbase",
+  "kitchensink",
+  "kitchencooktop",
+  "vanity",
+  "piano",
+  "aquarium",
+  // 软装
+  "curtain",
+  "rug",
+  "plant",
+  "mural",
+  "floorlamp",
+  "walllamp",
+  // 家电
+  "fridge",
+  "washer",
+  "dryer",
+  "dishwasher",
+  "steamoven",
+  "microwave",
+  "ricecooker",
+  "rangehood",
+  "storagewaterheater",
+  "gaswaterheater",
+  "pipelinewaterpurifier",
+  "tea_bar_machine",
+  "airoutlet",
+  "airpurifier",
+  "robotvacuum",
+  "wallac",
+  "floorac",
+  "tv",
+  "desktop",
+  "laptop",
+  "nas",
+  "camera",
+  "presence",
+  // 洁具
+  "basin",
+  "toilet",
+  "squattoilet",
+  "urinal",
+  "shower",
+  "bathtub",
+  "glasspartition"
+]);
+
 export const STAIR_ITEM_TYPES = new Set(["stairs", "steelstairs", "glassstairs"]);
 export const STAIR_DIRECTION_ITEM_TYPES = new Set(["steelstairs", "glassstairs"]);
 export const ROUND_TABLE_TURNTABLE_ITEM_TYPES = new Set([

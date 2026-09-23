@@ -29,7 +29,7 @@ WORKDIR /work
 COPY frontend ./frontend
 RUN node /opt/obfuscate/obfuscate_javascript.mjs frontend \
     && ! grep -q '全局日志上报的启动引导' frontend/static/logging/global-log-boot.js \
-    && grep -q . frontend/static/vendor/three/0.182.0/three.module.min.js
+    && grep -q . frontend/static/vendor/three/0.186.0/three.module.min.js
 
 
 FROM js-tools AS store-static-protected

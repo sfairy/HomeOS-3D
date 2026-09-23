@@ -9,9 +9,9 @@
  * 按需驱动，每帧最多每 50ms 请求一次重绘，返回 Infinity 时舞台退出循环；主题名不下发后端、不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=2609230040";
+import { createBackgroundTheme } from "./background-theme.js?v=2609231046";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609230040";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609231046";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
  * 平面中心取该层所有墙端点的包围盒中心，无墙或坐标非有限时退化为原点；结果按 scene 对象缓存。

@@ -1,18 +1,21 @@
 /**
- * 「暖阳原木」主题的调色板与地板材质增强：studioPalette() 把 WARM_WOOD_STYLE 合并到
- * STUDIO_PALETTE 之上（地板另需 decorateWarmFloor 做橡木拼板接缝与木纹，仅换基色做不出来）。
+ * 「暖阳原木」主题的调色板与地板材质增强。
+ *
+ * 色卡拆成两张，供两类调用方各取所需：
+ *   - WARM_SCENE_STYLE：场景与建筑本体 —— 背景、地面、地板、网格、墙、门窗框与门扇。
+ *     只有「暖阳原木」这一档会叠加（studio-app.js 的 studioPalette()），默认风格下不动，
+ *     这样墙、地板、灯光、背景、门窗在任何风格里都维持原观感。
+ *   - WARM_HOME_STYLE：家居 —— 家具、软装、家电、洁具。默认风格也叠加这一张
+ *     （homePalette()），所以默认风格下的家居配色与「暖阳原木」一致。
+ * WARM_WOOD_STYLE 是两张合并的结果（外加总开关 warmWood: true），暖阳原木那一档逐值不变。
+ *
+ * 地板另需 decorateWarmFloor 做橡木拼板接缝与木纹，仅换基色做不出来。
  *
  * 约定：色值用 0xRRGGBB 十进制，与 three 的 Color 直接互通。本表不含 accent / accentIntensity /
  * exposure / wallOpacity —— 这四项仍取 STUDIO_PALETTE 的原值，合并时不要补上，否则会偏离原设计。
  */
-export const WARM_WOOD_STYLE = Object.freeze({
-  // 总开关：材质层大量分支都以它为准，取色表本身也带这一位。
-  warmWood: true,
-  // 门窗框与帘轨：暖白到浅木色的一族。
-  windowFrame: 10726055,
-  doorFrame: 10725279,
-  entryDoorFrame: 6843753,
-  solidDoorFrame: 15327699,
+export const WARM_HOME_STYLE = Object.freeze({
+  // 帘轨、灯体与五金：暖白到浅木色的一族。
   rollerCurtain: 15327699,
   rollerSlat: 13748409,
   floorLampBody: 7830133,
@@ -30,15 +33,6 @@ export const WARM_WOOD_STYLE = Object.freeze({
   joineryAccent: 14278595,
   decorAccent: 13142117,
   leafColor: 6131544,
-  // 场景底色：背景、地面、地板、地板描边与网格。
-  background: 15329247,
-  ground: 15658212,
-  floor: 15919321,
-  floorEdge: 16314851,
-  grid: 14012611,
-  // 墙体：墙身偏暖白、墙顶几乎纯白，形成柔和的顶光观感。
-  wall: 16776436,
-  wallTop: 16777215,
   // 家具四档 + 家电三档。
   furniture: 12158296,
   furnitureSoft: 11914636,
@@ -48,8 +42,30 @@ export const WARM_WOOD_STYLE = Object.freeze({
   applianceSoft: 16776693,
   applianceDark: 4936789,
   glass: 9226677,
-  frame: 10257502,
-  doorLeaf: 15327699
+  frame: 10257502
+});
+export const WARM_SCENE_STYLE = Object.freeze({
+  // 门窗框与门扇：暖白到浅木色的一族。
+  windowFrame: 10726055,
+  doorFrame: 10725279,
+  entryDoorFrame: 6843753,
+  solidDoorFrame: 15327699,
+  doorLeaf: 15327699,
+  // 场景底色：背景、地面、地板、地板描边与网格。
+  background: 15329247,
+  ground: 15658212,
+  floor: 15919321,
+  floorEdge: 16314851,
+  grid: 14012611,
+  // 墙体：墙身偏暖白、墙顶几乎纯白，形成柔和的顶光观感。
+  wall: 16776436,
+  wallTop: 16777215
+});
+export const WARM_WOOD_STYLE = Object.freeze({
+  // 总开关：材质层大量分支都以它为准，取色表本身也带这一位。
+  warmWood: true,
+  ...WARM_HOME_STYLE,
+  ...WARM_SCENE_STYLE
 });
 /**
  * 给地板材质注入「泛白橡木」的程序化拼板与木纹。

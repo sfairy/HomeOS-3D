@@ -521,7 +521,7 @@ export function buildPlantItem(context) {
       );
       // 暖阳原木：叶片放大到 1.85 倍，同株植物的体量更饱满，
       // 不必新增模型资源就能让绿植在暖色背景里站得住。
-      const plantLeafScale = itemPalette.warmWood ? 1.85 : 1;
+      const plantLeafScale = itemPalette.warmFurniture ? 1.85 : 1;
       plantLeafMesh.scale.set(
         itemWidth * 0.045 * plantLeafScale,
         itemHeight * 0.085 * plantLeafScale,
