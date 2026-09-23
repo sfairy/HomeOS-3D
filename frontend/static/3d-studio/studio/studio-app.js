@@ -14,20 +14,20 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609231046";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609231046";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609231046";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609231046";
+} from "../loaders/studio-curtain-track.js?v=2609231402";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609231402";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609231402";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609231402";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609231046";
-import { paletteColor } from "../../utils/colors.js?v=2609231046";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609231046";
+} from "../../shared/menu-positioning.js?v=2609231402";
+import { paletteColor } from "../../utils/colors.js?v=2609231402";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609231402";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609231046";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609231046";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609231402";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609231402";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -36,78 +36,80 @@ import {
   BATCH_OPTIMIZED_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES,
+  JOINERY_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   SQUARE_EDGE_ITEM_TYPES,
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609231046";
+} from "./studio-item-types.js?v=2609231402";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609231046";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609231402";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=2609231046";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609231046";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609231046";
+} from "../materials/studio-surface-textures.js?v=2609231402";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609231402";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609231402";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609231046";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609231046";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609231046";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609231046";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609231046";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609231046";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609231046";
+} from "./studio-camera-constraints.js?v=2609231402";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609231402";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609231402";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609231402";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609231402";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609231402";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609231402";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609231046";
+} from "../materials/studio-wall-materials.js?v=2609231402";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
+  applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609231046";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609231046";
+} from "./studio-scene-style.js?v=2609231402";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609231402";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609231046";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609231046";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609231046";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609231046";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609231046";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609231046";
+} from "../../bridge/render-cache.js?v=2609231402";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609231402";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609231402";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609231402";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609231402";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609231402";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609231046";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609231402";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609231046";
+import { debugLog } from "../../utils/debug-log.js?v=2609231402";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609231046";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609231402";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609231046";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609231402";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609231046";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609231046";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609231402";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609231402";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609231046";
+} from "../../bridge/light-motion.js?v=2609231402";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -147,7 +149,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609231046";
+} from "../plan/geometry.js?v=2609231402";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -156,14 +158,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609231046";
+} from "../export/export-utils.js?v=2609231402";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 // 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609231046";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609231046";
+} from "../../shared/layout-shell.js?v=2609231402";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609231402";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -171,25 +173,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609231046";
-import { reorderFloors } from "../plan/floor-order.js?v=2609231046";
-import { syncControlValue } from "./ui-controls.js?v=2609231046";
+} from "../export/export-presets.js?v=2609231402";
+import { reorderFloors } from "../plan/floor-order.js?v=2609231402";
+import { syncControlValue } from "./ui-controls.js?v=2609231402";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609231046";
+} from "./studio-widgets.js?v=2609231402";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609231046";
+} from "../loaders/studio-external-models.js?v=2609231402";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609231046";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609231046";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609231046";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609231046";
+} from "../plan/studio-plan-drawing.js?v=2609231402";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609231402";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609231402";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609231402";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -202,7 +204,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609231046";
+} from "../loaders/studio-normalization.js?v=2609231402";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -719,12 +721,16 @@ const lightGroupAreaNewNameElement = selectElement("#light-group-area-new-name")
 const PREVIEW_OBJECT_LAYER = 2;
 const STUDIO_PALETTE = {
   background: 1120029,
-  ground: 1382690,
-  floor: 5792116,
+  // 地面 / 地板 / 网格：原先是近乎黑的一组石板色（地面 #151922、楼板 #586174），
+  // 而一个户型出图时近七成面积都落在这两块上，整幅预览因此压得很暗。
+  // 这里整体提到浅石板，冷调保留，只把明度抬上去（色相不动，和深色背景仍是同一族）。
+  ground: 7239559,
+  floor: 12568532,
   floorEdge: 16163146,
-  grid: 5331300,
-  wall: 9476522,
-  wallTop: 13095134,
+  grid: 10002864,
+  // 墙体：墙身提到近白的浅灰，墙顶更白一档，让「墙比地板亮」的层次保持住。
+  wall: 14475754,
+  wallTop: 16119803,
   wallOpacity: 0.25,
   furniture: 8226713,
   furnitureSoft: 10332346,
@@ -735,7 +741,8 @@ const STUDIO_PALETTE = {
   applianceDark: 6845576,
   glass: 11126227,
   frame: 12172999,
-  doorLeaf: 10988725,
+  // 门扇棕黑：默认风格下门窗框仍取 frame，只有门扇换成棕黑（与柜体同色）。
+  doorLeaf: 4007960,
   accent: 16758886,
   accentIntensity: 3.8,
   exposure: 1.05
@@ -1475,7 +1482,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609231046"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609231402"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -8881,9 +8888,13 @@ function homePalette() {
 /**
  * 按物件类型挑调色板：家居类（HOME_ITEM_TYPES）走 homePalette()，默认风格即暖阳家居配色；
  * 其余类型（墙、门窗、楼梯、柱、小汽车、楼板洞口…）走 studioPalette()，保持各风格的场景观感。
+ * 最后再套一层逐类型的成品外观（applyItemFinish）：柜类的柜体色、不锈钢家电的银灰 / 银黑。
+ * 这一层对「程序化兜底几何」与「外部模型」是同一份结果 —— 前者读 furniture*、后者读
+ * appliance*，applyItemFinish 把两组键指到同一族色，模型到位前后不会突然换色。
  */
 function paletteForItemType(itemType) {
-  return HOME_ITEM_TYPES.has(itemType) ? homePalette() : studioPalette();
+  const basePalette = HOME_ITEM_TYPES.has(itemType) ? homePalette() : studioPalette();
+  return applyItemFinish(basePalette, itemType, JOINERY_ITEM_TYPES);
 }
 /**
  * 按方位角 / 仰角把平行光摆到球面位置上。极坐标转直角坐标：水平距离 = cos(仰角) × 距离，
@@ -13933,6 +13944,8 @@ function addBoxMesh(
 ) {
   const boxMaterial = new threeModuleMin.MeshStandardMaterial({
     color: boxColor,
+    // 显式贴图（如大理石台面）优先：有 map 时基色多作为乘色用，调用方一般传白。
+    map: boxOptions.map ?? null,
     roughness: boxOptions.roughness ?? 0.8,
     metalness: boxOptions.metalness ?? 0.01,
     transparent: !!boxOptions.transparent,
@@ -14461,6 +14474,8 @@ function addCylinderMesh(
 ) {
   const cylinderMaterial = new threeModuleMin.MeshStandardMaterial({
     color: cylinderColor,
+    // 显式贴图（如大理石台面）优先，语义同 addBoxMesh。
+    map: cylinderOptions.map ?? null,
     roughness: cylinderOptions.roughness ?? 0.62,
     metalness: cylinderOptions.metalness ?? 0.03,
     transparent: !!cylinderOptions.transparent,
@@ -16091,8 +16106,25 @@ const ITEM_BUILDER_DEPS = {
   isSelected,
   isStageViewerMode,
   shareGeometryAndMaterials,
-  threeModuleMin
+  threeModuleMin,
+  marbleTopTexture: getMarbleTableTopTexture
 };
+/**
+ * 餐桌大理石台面贴图：与背景墙「大理石」饰面共用同一张程序贴图。程序化台面
+ * （BoxGeometry / CylinderGeometry）自带 UV，直接当 map 用即可，不必像外部模型那样补平面 UV。
+ * 缓存一份是为了所有台面共享同一张贴图，避免每次构建都重新生成一张 1024×768 画布。
+ */
+let marbleTableTopTextureCache = null;
+function getMarbleTableTopTexture() {
+  if (!marbleTableTopTextureCache) {
+    marbleTableTopTextureCache = createFeatureWallTexture(
+      threeModuleMin,
+      "marble",
+      studioMaxTextureAnisotropy()
+    );
+  }
+  return marbleTableTopTextureCache;
+}
 /**
  * 把一个平面条目构建成三维模型组 —— 全工程「条目数据 → three.js 对象」的唯一入口。
  * 这里只做四件事：建组打类型标记 → 拼构建上下文 → 按分派表构建 → 收尾。
@@ -20687,7 +20719,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609231046");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609231402");
       mountStage(createStageController());
       return;
     }

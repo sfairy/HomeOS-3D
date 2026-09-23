@@ -9,7 +9,7 @@
  *
  * 沙发、床、床头柜、餐桌、圆桌（含转盘款）、吧台、椅子。
  */
-import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609231046";
+import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609231402";
 /**
  * 命中：itemSpec.type === "sofa"
  */
@@ -262,13 +262,13 @@ export function buildTableItem(context) {
   const {
     addBoxMesh,
     addChairModel,
-    furnitureColor,
     furnitureDarkColor,
     furnitureSoftColor,
     itemDepth,
     itemGroup,
     itemHeight,
     itemWidth,
+    marbleTopTexture,
   } = context;
   const tableTopWidth = itemWidth * 0.64;
   const tableTopDepth = itemDepth * 0.48;
@@ -280,7 +280,13 @@ export function buildTableItem(context) {
     0,
     itemHeight * 0.93,
     0,
-    furnitureColor
+    16777215,
+    {
+      // 餐桌桌面：大理石 —— 基色取白，让程序大理石贴图原样显色。
+      map: marbleTopTexture(),
+      roughness: 0.34,
+      metalness: 0.03
+    }
   );
   for (const tableLegX of [-0.43, 0.43]) {
     for (const tableLegZ of [-0.38, 0.38]) {
@@ -354,13 +360,13 @@ export function buildRoundTableTurntableItem(context) {
     addCylinderMesh,
     furnitureColor,
     furnitureDarkColor,
-    furnitureLightColor,
     furnitureSoftColor,
     itemDepth,
     itemGroup,
     itemHeight,
     itemSpec,
     itemWidth,
+    marbleTopTexture,
   } = context;
   const roundTableRadius = Math.min(itemWidth, itemDepth) * 0.32;
   const roundTableTopThickness = Math.max(itemHeight * 0.07, 0.045);
@@ -373,11 +379,13 @@ export function buildRoundTableTurntableItem(context) {
     0,
     roundTableTopCenterY,
     0,
-    furnitureLightColor,
+    16777215,
     {
+      // 桌面：大理石（与方形餐桌同一张贴图，圆台面用自带 UV 直接贴）。
       segments: 48,
-      roughness: 0.5,
-      metalness: 0.08
+      map: marbleTopTexture(),
+      roughness: 0.34,
+      metalness: 0.03
     }
   );
   addCylinderMesh(
@@ -419,11 +427,13 @@ export function buildRoundTableTurntableItem(context) {
       0,
       roundTableTopCenterY + roundTableTopThickness * 0.58,
       0,
-      furnitureSoftColor,
+      16777215,
       {
+        // 转盘面同桌面，也取大理石。
         segments: 48,
-        roughness: 0.48,
-        metalness: 0.08
+        map: marbleTopTexture(),
+        roughness: 0.34,
+        metalness: 0.03
       }
     );
     addCylinderMesh(
@@ -434,11 +444,13 @@ export function buildRoundTableTurntableItem(context) {
       0,
       roundTableTopCenterY + roundTableTopThickness * 0.58 + 0.036,
       0,
-      furnitureDarkColor,
+      16777215,
       {
+        // 转盘中心盖同样取石材，整块台面才统一。
         segments: 48,
-        roughness: 0.32,
-        metalness: 0.12
+        map: marbleTopTexture(),
+        roughness: 0.34,
+        metalness: 0.03
       }
     );
   }

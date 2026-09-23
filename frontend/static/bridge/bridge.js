@@ -8,9 +8,9 @@
  * 更新；错误对象上挂 status 以区分「明确拒绝（403）」「登录失效（401）」与「暂时不可用」。
  * 副作用：模块级持有单个授权监视器与两张按组件 ID 索引的 Map，挂载时插入 link / div / iframe，卸载时移除。
  */
-import { createAccessMonitor } from "./access-monitor.js?v=2609231046";
-import { createInteraction3dCover } from "./cover.js?v=2609231046";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609231046";
+import { createAccessMonitor } from "./access-monitor.js?v=2609231402";
+import { createInteraction3dCover } from "./cover.js?v=2609231402";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609231402";
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
  *
@@ -323,7 +323,7 @@ export function renderInteraction3d(component, context = {}) {
     try {
       // 动态 import 带 ?v= 缓存戳，必须与后端静态资源戳同步，否则会加载到旧运行时。
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609231046");
+        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609231402");
       // 三个丢弃条件：组件已销毁、已有更新的一轮加载、页面已切走（回来时会重新走一遍）。
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
@@ -332,7 +332,7 @@ export function renderInteraction3d(component, context = {}) {
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/core/runtime.css?v=2609231046";
+        "/api/v1/modules/interaction3d/core/runtime.css?v=2609231402";
       // 先单独 append 让浏览器尽早开始下载，等运行时容器建好后再一次性替换成最终结构。
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");

@@ -21,7 +21,7 @@
  * @type {{ category: string, label: string, note: string, items: { type: string, sub: string, icon: string, name: string, size: string }[] }[]}
  */
 // 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
-import { escapeHtml } from "../../utils/html-escape.js?v=2609231046";
+import { escapeHtml } from "../../utils/html-escape.js?v=2609231402";
 
 export const STUDIO_ASSET_PALETTE = [
   {

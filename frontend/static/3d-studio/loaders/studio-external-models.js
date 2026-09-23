@@ -11,20 +11,29 @@
 import {
   applyCarFinish,
   smoothCarSurfaceNormals
-} from "../materials/studio-car-finish.js?v=2609231046";
+} from "../materials/studio-car-finish.js?v=2609231402";
 import {
   repairGlassCabinetBack,
   repairWallCabinetSides
-} from "../materials/studio-cabinet-back.js?v=2609231046";
-import { finite } from "./studio-normalization.js?v=2609231046";
+} from "../materials/studio-cabinet-back.js?v=2609231402";
+import { finite } from "./studio-normalization.js?v=2609231402";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609231046";
+import { debugLog } from "../../utils/debug-log.js?v=2609231402";
 // 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
 // （家居，看 palette.warmFurniture）。两者都只在对应开关为真时被调用，其它情况下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609231046";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609231046";
-const HOME_LITE_MODEL_VERSION = "2609231046";
-const APPLIANCE_LITE_MODEL_VERSION = "2609231046";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609231402";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609231402";
+// 大理石台面直接复用背景墙的「大理石」程序贴图（本模块与背景墙共用同一张缓存贴图，不另起一套绘制）。
+import { createFeatureWallTexture } from "../materials/studio-surface-textures.js?v=2609231402";
+// 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
+// 名单一旦两处各写一份，模型加载中的占位几何与到位后的成品就会是两个颜色。
+// 不锈钢家电的名单同理：材质替换要知道哪些类型该保留红蓝水管的原色。
+import {
+  APPLIANCE_FINISH_BY_ITEM_TYPE,
+  JOINERY_ITEM_TYPES
+} from "../studio/studio-item-types.js?v=2609231402";
+const HOME_LITE_MODEL_VERSION = "2609231402";
+const APPLIANCE_LITE_MODEL_VERSION = "2609231402";
 /**
  * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
  * "pillar" 模型上，物件本身的行为保持不变。
@@ -64,6 +73,49 @@ function insetBedBaseGeometry(bedBaseGeometry) {
   return insetGeometry;
 }
 /**
+ * 给一块「水平台面」几何补一份平面 UV：这些导出的餐桌模型只有 POSITION / NORMAL，
+ * 直接贴大理石会采到 (0,0) 一个点。台面近似水平，所以取几何的水平包围盒做正交投影 ——
+ * 把较长的一边归一化到 0~1，让整张大理石纹完整落在台面上，而不是被拉伸成条纹。
+ * 已有 UV 或没有顶点属性时原样返回。
+ */
+function ensureTableTopPlanarUv(threeLib, tableTopGeometry) {
+  if (!tableTopGeometry?.attributes?.position || tableTopGeometry.attributes.uv) {
+    return;
+  }
+  tableTopGeometry.computeBoundingBox();
+  const geometryBounds = tableTopGeometry.boundingBox;
+  const centerX = (geometryBounds.min.x + geometryBounds.max.x) / 2;
+  const centerZ = (geometryBounds.min.z + geometryBounds.max.z) / 2;
+  const horizontalSpan = Math.max(
+    geometryBounds.max.x - geometryBounds.min.x,
+    geometryBounds.max.z - geometryBounds.min.z,
+    0.001
+  );
+  const tableTopPosition = tableTopGeometry.attributes.position;
+  const planarUv = new Float32Array(tableTopPosition.count * 2);
+  for (let vertexIndex = 0; vertexIndex < tableTopPosition.count; vertexIndex += 1) {
+    planarUv[vertexIndex * 2] = (tableTopPosition.getX(vertexIndex) - centerX) / horizontalSpan + 0.5;
+    planarUv[vertexIndex * 2 + 1] =
+      (tableTopPosition.getZ(vertexIndex) - centerZ) / horizontalSpan + 0.5;
+  }
+  tableTopGeometry.setAttribute("uv", new threeLib.BufferAttribute(planarUv, 2));
+}
+/**
+ * 按模型类型给台面部件补平面 UV。判据与材质替换期共用 isMarbleTableTopMaterial（材质名是
+ * 建模约定，不能凭外观猜）；多材质网格与找不到台面的部件一律跳过。
+ */
+function applyTableTopPlanarUv(threeLib, modelRoot, modelType) {
+  modelRoot.traverse(modelMesh => {
+    if (!modelMesh.isMesh || Array.isArray(modelMesh.material)) {
+      return;
+    }
+    if (!isMarbleTableTopMaterial(modelType, modelMesh.material?.name)) {
+      return;
+    }
+    ensureTableTopPlanarUv(threeLib, modelMesh.geometry);
+  });
+}
+/**
  * 生成「家居类」模型定义：主资源用 -lite 轻量版，回退到完整版。
  * 两个 URL 都带 ?v= 版本戳（破缓存），版本号由调用方按发布时间传入，换模型必须同步更新，否则浏览器会继续
  * 用旧资源。返回前 Object.freeze 冻结：这张表是模块级常量、被多处按类型查表，冻结可避免意外改写。
@@ -91,262 +143,262 @@ function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
     fallbackUrl:
       "/static/3d-studio/models/" +
       applianceModelKey +
-      ".glb?v=2609231046",
+      ".glb?v=2609231402",
     ...applianceModelOverrides
   });
 }
 const EXTERNAL_ITEM_MODELS = Object.freeze({
   sofa: {
-    url: "/static/3d-studio/models/sofa-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=2609231046",
+    url: "/static/3d-studio/models/sofa-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=2609231402",
     scaleBasis: [2.2, 0.82, 0.9],
     preserveOrigin: true,
     groundAlign: true,
     groundOffset: -0.008
   },
-  coffeetable: defineHomeItemModel("coffeetable", "2609231046", {
+  coffeetable: defineHomeItemModel("coffeetable", "2609231402", {
     scaleBasis: [1.7, 0.5, 1.25],
     preserveOrigin: true
   }),
-  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "2609231046", {
-    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=2609231046",
+  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "2609231402", {
+    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=2609231402",
     fallbackUrl:
-      "/static/3d-studio/models/squarecoffeetable.glb?v=2609231046",
+      "/static/3d-studio/models/squarecoffeetable.glb?v=2609231402",
     scaleBasis: [1.4, 0.46, 0.7],
     preserveOrigin: true
   }),
-  tvstand: defineHomeItemModel("tvstand", "2609231046", {
-    url: "/static/3d-studio/models/tvstand-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=2609231046",
+  tvstand: defineHomeItemModel("tvstand", "2609231402", {
+    url: "/static/3d-studio/models/tvstand-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=2609231402",
     scaleBasis: [1.8, 0.48, 0.42],
     preserveOrigin: true
   }),
-  rug: defineHomeItemModel("rug", "2609231046", {
+  rug: defineHomeItemModel("rug", "2609231402", {
     scaleBasis: [2, 0.012, 1.4],
     preserveOrigin: true
   }),
-  plant: defineHomeItemModel("plant", "2609231046", {
+  plant: defineHomeItemModel("plant", "2609231402", {
     scaleBasis: [0.75, 1.6, 0.75],
     preserveOrigin: true
   }),
-  bed: defineHomeItemModel("bed", "2609231046", {
+  bed: defineHomeItemModel("bed", "2609231402", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "2609231046", {
+  nightstand: defineHomeItemModel("nightstand", "2609231402", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "2609231046", {
+  vanity: defineHomeItemModel("vanity", "2609231402", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "2609231046", {
+  desk: defineHomeItemModel("desk", "2609231402", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "2609231046", {
+  bookcase: defineHomeItemModel("bookcase", "2609231402", {
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
   smallcar: {
-    url: "/static/3d-studio/models/car-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/car.glb?v=2609231046"
+    url: "/static/3d-studio/models/car-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/car.glb?v=2609231402"
   },
   airoutlet: {
-    url: "/static/3d-studio/models/air-outlet-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=2609231046"
+    url: "/static/3d-studio/models/air-outlet-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=2609231402"
   },
   pipelinewaterpurifier: {
-    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=2609231046",
+    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=2609231402",
     fallbackUrl:
-      "/static/3d-studio/models/pipeline-water-purifier.glb?v=2609231046"
+      "/static/3d-studio/models/pipeline-water-purifier.glb?v=2609231402"
   },
   tea_bar_machine: {
-    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=2609231046"
+    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=2609231402"
   },
   elevator: {
-    url: "/static/3d-studio/models/elevator-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=2609231046"
+    url: "/static/3d-studio/models/elevator-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=2609231402"
   },
   steelstairs: {
-    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=2609231046"
+    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=2609231402"
   },
   glassstairs: {
-    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=2609231046"
+    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=2609231402"
   },
   piano: {
-    url: "/static/3d-studio/models/piano-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/piano.glb?v=2609231046",
+    url: "/static/3d-studio/models/piano-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/piano.glb?v=2609231402",
     materialRevision: "20260914-piano-surface-shadow-v1",
     preserveAspect: true
   }
 });
 export const ALL_ITEM_MODELS = Object.freeze({
   ...EXTERNAL_ITEM_MODELS,
-  bed: defineHomeItemModel("bed", "2609231046", {
+  bed: defineHomeItemModel("bed", "2609231402", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "2609231046", {
+  nightstand: defineHomeItemModel("nightstand", "2609231402", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "2609231046", {
+  vanity: defineHomeItemModel("vanity", "2609231402", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "2609231046", {
+  desk: defineHomeItemModel("desk", "2609231402", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "2609231046", {
-    url: "/static/3d-studio/models/bookcase-lite.glb?v=2609231046",
+  bookcase: defineHomeItemModel("bookcase", "2609231402", {
+    url: "/static/3d-studio/models/bookcase-lite.glb?v=2609231402",
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
-  aquarium: defineHomeItemModel("aquarium", "2609231046", {
+  aquarium: defineHomeItemModel("aquarium", "2609231402", {
     scaleBasis: [1.5, 1.4, 0.55],
     preserveOrigin: true
   }),
-  table: defineHomeItemModel("table", "2609231046", {
+  table: defineHomeItemModel("table", "2609231402", {
     scaleBasis: [2.4, 0.82, 1.8],
     preserveOrigin: true
   }),
-  rounddiningtable: defineHomeItemModel("rounddiningtable", "2609231046", {
+  rounddiningtable: defineHomeItemModel("rounddiningtable", "2609231402", {
     scaleBasis: [2.2, 0.78, 2.2],
     preserveOrigin: true
   }),
-  chair: defineHomeItemModel("chair", "2609231046", {
+  chair: defineHomeItemModel("chair", "2609231402", {
     scaleBasis: [0.5, 0.86, 0.5],
     preserveOrigin: true
   }),
-  bar: defineHomeItemModel("bar", "2609231046", {
+  bar: defineHomeItemModel("bar", "2609231402", {
     scaleBasis: [2.2, 1.05, 0.65],
     preserveOrigin: true
   }),
-  sideboard: defineHomeItemModel("sideboard", "2609231046", {
+  sideboard: defineHomeItemModel("sideboard", "2609231402", {
     scaleBasis: [1.6, 2.2, 0.45],
     preserveOrigin: true
   }),
-  shoecabinet: defineHomeItemModel("shoecabinet", "2609231046", {
+  shoecabinet: defineHomeItemModel("shoecabinet", "2609231402", {
     scaleBasis: [1.8, 2.25, 0.42],
     preserveOrigin: true
   }),
-  cabinet: defineHomeItemModel("cabinet", "2609231046", {
+  cabinet: defineHomeItemModel("cabinet", "2609231402", {
     scaleBasis: [1.6, 1.9, 0.45],
     preserveOrigin: true
   }),
-  glasscabinet: defineHomeItemModel("glasscabinet", "2609231046", {
-    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=2609231046",
+  glasscabinet: defineHomeItemModel("glasscabinet", "2609231402", {
+    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=2609231402",
     scaleBasis: [1.2, 1.9, 0.4],
     preserveOrigin: true
   }),
-  shelf: defineHomeItemModel("shelf", "2609231046", {
+  shelf: defineHomeItemModel("shelf", "2609231402", {
     scaleBasis: [1.2, 1.8, 0.45],
     preserveOrigin: true
   }),
-  wallcabinet: defineHomeItemModel("wallcabinet", "2609231046", {
-    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=2609231046",
+  wallcabinet: defineHomeItemModel("wallcabinet", "2609231402", {
+    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=2609231402",
     scaleBasis: [1.5, 0.82, 0.35],
     preserveOrigin: true
   }),
-  kitchenbase: defineHomeItemModel("kitchenbase", "2609231046", {
+  kitchenbase: defineHomeItemModel("kitchenbase", "2609231402", {
     scaleBasis: [2.4, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchensink: defineHomeItemModel("kitchensink", "2609231046", {
+  kitchensink: defineHomeItemModel("kitchensink", "2609231402", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchencooktop: defineHomeItemModel("kitchencooktop", "2609231046", {
+  kitchencooktop: defineHomeItemModel("kitchencooktop", "2609231402", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  basin: defineHomeItemModel("basin", "2609231046", {
+  basin: defineHomeItemModel("basin", "2609231402", {
     scaleBasis: [0.9, 0.88, 0.5],
     preserveOrigin: true
   }),
-  toilet: defineHomeItemModel("toilet", "2609231046", {
+  toilet: defineHomeItemModel("toilet", "2609231402", {
     scaleBasis: [0.42, 0.52, 0.7],
     preserveOrigin: true
   }),
-  squattoilet: defineHomeItemModel("squattoilet", "2609231046", {
+  squattoilet: defineHomeItemModel("squattoilet", "2609231402", {
     scaleBasis: [0.45, 0.18, 0.65],
     preserveOrigin: true
   }),
-  urinal: defineHomeItemModel("urinal", "2609231046", {
+  urinal: defineHomeItemModel("urinal", "2609231402", {
     scaleBasis: [0.38, 0.72, 0.34],
     preserveOrigin: true
   }),
-  shower: defineHomeItemModel("shower", "2609231046", {
+  shower: defineHomeItemModel("shower", "2609231402", {
     scaleBasis: [0.9, 2.1, 0.9],
     preserveOrigin: true
   }),
-  bathtub: defineHomeItemModel("bathtub", "2609231046", {
+  bathtub: defineHomeItemModel("bathtub", "2609231402", {
     scaleBasis: [1.7, 0.58, 0.78],
     preserveOrigin: true
   }),
-  glasspartition: defineHomeItemModel("glasspartition", "2609231046", {
+  glasspartition: defineHomeItemModel("glasspartition", "2609231402", {
     scaleBasis: [1.2, 2, 0.08],
     preserveOrigin: true
   }),
-  stairs: defineHomeItemModel("stairs", "2609231046", {
+  stairs: defineHomeItemModel("stairs", "2609231402", {
     scaleBasis: [1, 1.65, 2.8],
     preserveOrigin: true
   }),
-  pillar: defineHomeItemModel("pillar", "2609231046", {
+  pillar: defineHomeItemModel("pillar", "2609231402", {
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   }),
   // 异形柱必须有真实资源：替换外部模型时，程序化生成的柱体会被加载进来的 GLB 顶掉，而一个烘焙成方盒的模型会悄悄把所有非方形柱形都变成方形。
   // 这些网格与 studio-app.js 构建出的几何同源（见 gen-pillars.mjs），并共用柱体的 scaleBasis，因此物件仍保持 0.45 × 2.8 × 0.45 的占地与「底面在原点」的摆放约定。
   pillar_round: {
-    url: "/static/3d-studio/models/pillar-round-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=2609231046",
+    url: "/static/3d-studio/models/pillar-round-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=2609231402",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_semicircle: {
-    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=2609231046",
+    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=2609231402",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-semicircle.glb?v=2609231046",
+      "/static/3d-studio/models/pillar-semicircle.glb?v=2609231402",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarter: {
-    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=2609231046",
-    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=2609231046",
+    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=2609231402",
+    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=2609231402",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarterinner: {
-    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=2609231046",
+    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=2609231402",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-quarterinner.glb?v=2609231046",
+      "/static/3d-studio/models/pillar-quarterinner.glb?v=2609231402",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
-  curtain_left: defineHomeItemModel("curtain_left", "2609231046", {
+  curtain_left: defineHomeItemModel("curtain_left", "2609231402", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_right: defineHomeItemModel("curtain_right", "2609231046", {
+  curtain_right: defineHomeItemModel("curtain_right", "2609231402", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_split: defineHomeItemModel("curtain_split", "2609231046", {
+  curtain_split: defineHomeItemModel("curtain_split", "2609231402", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
   rounddiningtable_turntable: defineHomeItemModel(
     "rounddiningtable_turntable",
-    "2609231046",
+    "2609231402",
     {
       scaleBasis: [2.2, 0.78, 2.2],
       preserveOrigin: true
@@ -580,25 +632,6 @@ const CUSTOM_MATERIAL_ITEM_TYPES = new Set([
   "piano"
 ]);
 /**
- * 「暖阳原木」主题下按整块木料重做的柜类（含吊柜 / 鞋柜 / 书柜等）。
- * 这些类型的中 / 柔 / 深三档家具色会一起收敛到木色：一件柜子上出现三种明度的木色会显得像拼接，收敛后整体才像同一块木料。
- * 清单同时决定台面、门板回边等部件是否走木色分支，因此单独提出来共用，而不是在各个分支里各写一份。
- */
-const WARM_JOINERY_ITEM_TYPES = new Set([
-  "cabinet",
-  "wallcabinet",
-  "shoecabinet",
-  "sideboard",
-  "bookcase",
-  "shelf",
-  "nightstand",
-  "tvstand",
-  "kitchenbase",
-  "kitchensink",
-  "kitchencooktop",
-  "glasscabinet"
-]);
-/**
  * 「暖阳原木」主题下餐桌 / 餐椅的材质槽位表：键是家具类型，值是按 material-N 下标排列的材质语义。
  * 餐桌是一进门的视觉中心，只有木色 + 亚麻 + 鼠尾草绿（wood / linen / sage / ceramic）才像一套成品的原木
  * 餐桌，所以按槽位逐一指定而不是沿用家具调色板的三档灰；下标越界取到 undefined，调用方按没有专门语义处理。
@@ -609,6 +642,48 @@ const WARM_DINING_MATERIAL_TABLE = Object.freeze({
   rounddiningtable_turntable: ["wood", "wood", "wood", "wood", "ceramic", "linen", "wood"],
   chair: ["sage", "wood"]
 });
+/**
+ * 餐桌「大理石台面」所在的材质槽位：键是家具类型，值是台面部件的 material-N 下标。
+ * 这些模型没有 UV（只有 POSITION / NORMAL），所以装载时给台面几何补一份水平面 UV
+ * （见 applyTableTopPlanarUv），材质侧再换成大理石程序贴图；转盘款有台面、转盘面、
+ * 转盘心三块，一并覆盖，整块台面才统一。
+ */
+const MARBLE_TABLE_TOP_SLOTS = Object.freeze({
+  table: ["0"],
+  rounddiningtable: ["0"],
+  rounddiningtable_turntable: ["0", "3", "4"],
+  desk: ["1"]
+});
+/**
+ * 材质名不以 material-N 结尾的台面，按整名匹配。
+ * 茶几走的是另一条命名法（ha-coffeetable-furniture / -dark / -light / -soft），
+ * 浅色那块是台面，另三块是腿与下层搁板 —— 只有台面换大理石。
+ */
+const MARBLE_TABLE_TOP_MATERIAL_NAMES = Object.freeze({
+  coffeetable: ["ha-coffeetable-light"]
+});
+/**
+ * 某个模型是否有关键部件要走大理石台面。装载期与材质替换期都先问这里，
+ * 免得「补 UV 的类型」与「换材质的类型」两张表各写一份而慢慢对不上。
+ */
+function hasMarbleTableTop(modelType) {
+  return (
+    MARBLE_TABLE_TOP_SLOTS[modelType] !== undefined ||
+    MARBLE_TABLE_TOP_MATERIAL_NAMES[modelType] !== undefined
+  );
+}
+/**
+ * 判断一个材质是不是要贴大理石的台面。装载期补 UV 与材质替换期换材质必须走同一判据：
+ * 两边一旦不一致，台面就会拿到一份没补 UV 的几何，整块采样到 (0,0) 变成一坨。
+ */
+function isMarbleTableTopMaterial(modelType, materialName) {
+  const normalizedName = String(materialName || "").toLowerCase();
+  const materialSlot = normalizedName.match(/material-(\d+)$/)?.[1];
+  if (materialSlot && MARBLE_TABLE_TOP_SLOTS[modelType]?.includes(materialSlot)) {
+    return true;
+  }
+  return MARBLE_TABLE_TOP_MATERIAL_NAMES[modelType]?.includes(normalizedName) ?? false;
+}
 /**
  * 「暖阳原木」主题下各柜类「台面」所在的材质槽位。
  * 台面要单独压平粗糙度并换成石材色（countertop），否则会和柜门一起被染成木色、整件柜子看上去像一整块木头；槽位值来自建模约定，不能凭外观猜。
@@ -632,6 +707,46 @@ const WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
   kitchensink: "7",
   kitchencooktop: "4"
 });
+/**
+ * 各柜类「门板 / 抽屉面板」所在的材质槽位，一个柜子可能有多扇门，所以值是数组。
+ *
+ * 门板在建模时就是独立材质 —— 它是一层贴在正面的薄板（厚 1~3cm、位于模型 +z 最外沿），
+ * 与柜体那只大箱体分开，所以只换门板的色就能得到「木柜体 + 白门」，不必动柜体。
+ * 槽位是材质名后缀（material-N），不是材质数组下标：kitchensink 的数组第 6 项名字就叫
+ * material-7（建模流水线跳了一个号），按数组下标取会拿错部件。
+ *
+ * 几个刻意不在表里的类型：
+ *   - cabinet（衣柜）是一整块木色箱体、没有独立门板几何，走 resolveSharedMaterial 里的正面着色器；
+ *   - shelf（货架）是敞开层架，本来就没有门；
+ *   - nightstand / tvstand / vanity 的抽屉面板与柜体共用同一块材质（vanity 的 2 号薄板整块陷在
+ *     1 号箱体里，正面根本看不到），改色会把整件柜体一起变白，只能连柜体一起白，
+ *     因此留给着色器方案，不在这里。
+ */
+const CABINET_DOOR_MATERIAL_INDEXES_BY_ITEM_TYPE = Object.freeze({
+  sideboard: ["3"],
+  shoecabinet: ["4"],
+  wallcabinet: ["3"],
+  kitchenbase: ["3"],
+  kitchensink: ["7"],
+  kitchencooktop: ["4"],
+  // 玻璃柜：1 / 2 号是下柜的两扇门，12 号是玻璃门的门框（上柜那几块透明玻璃不在此列）。
+  glasscabinet: ["1", "2", "12"],
+  // 书柜：9 / 10 号是底柜的两扇门，2 号是上部的一块小门板。
+  bookcase: ["2", "9", "10"]
+});
+/**
+ * 判断一个材质是不是「柜门」。与上面的大理石台面同理：判据只写一处，
+ * 装载期与材质替换期不会各写一份而慢慢对不上。
+ */
+function isCabinetDoorMaterial(modelType, materialName) {
+  const materialSlot = String(materialName || "")
+    .toLowerCase()
+    .match(/material-(\d+)$/)?.[1];
+  return (
+    materialSlot !== undefined &&
+    (CABINET_DOOR_MATERIAL_INDEXES_BY_ITEM_TYPE[modelType]?.includes(materialSlot) ?? false)
+  );
+}
 /**
  * 创建外部模型管理器：负责按需加载、并发排队、材质复用与实例落地。
  * 依赖注入的用意：THREE 必须用主模块命名空间（否则出现两份 three），loader 必须是已挂 DRACO 解码器的 GLTFLoader；isModelInUse 与 requestRender 让管理器在装载完成 / 失败时主动触发一次重绘，无需轮询。
@@ -843,6 +958,11 @@ export function createExternalModelManager({
             }
           });
         }
+        if (hasMarbleTableTop(modelType)) {
+          // 台面要贴大理石，而这些模型没有 UV：装载时按水平面补一份平面 UV，
+          // 材质替换阶段（createMarbleTableTopMaterial）才用得上 map。
+          applyTableTopPlanarUv(THREE, loadedScene, modelType);
+        }
         loadedScene.updateMatrixWorld(true);
         const modelSize = new THREE.Box3().setFromObject(loadedScene).getSize(new THREE.Vector3());
         // 尺寸无效（NaN / 0 / 负值）说明模型是空壳或缩放为 0，按加载失败处理：
@@ -961,6 +1081,32 @@ export function createExternalModelManager({
     furnitureMaterial.polygonOffsetUnits = materialOptions.polygonOffsetUnits ?? 0;
     return furnitureMaterial;
   }
+  // 大理石台面贴图只在第一次用到时克隆一份并缓存：clone 出独立的一份是为了单独设
+  // wrap/repeat（不能改背景墙那张共享贴图的平铺方式），缓存则是为了所有餐桌共用同一份
+  // 材质键里的 texture.uuid —— 否则每张桌子都会生成一份等价材质，材质缓存直接失效。
+  let marbleTableTopTexture = null;
+  /**
+   * 生成（或复用）餐桌台面的大理石材质：白底 + 程序大理石贴图，粗糙度按石材取 0.34。
+   * 台面几何的 UV 已在装载时补好（applyTableTopPlanarUv），因此这里可以直接用 map。
+   */
+  function createMarbleTableTopMaterial(templateMaterial) {
+    const marbleMaterial = createFurnitureMaterial(templateMaterial, 16777215, {
+      roughness: 0.34,
+      metalness: 0.03
+    });
+    if (!marbleTableTopTexture) {
+      marbleTableTopTexture = createFeatureWallTexture(THREE, "marble", 8)?.clone?.() ?? null;
+      if (marbleTableTopTexture) {
+        marbleTableTopTexture.wrapS = THREE.RepeatWrapping;
+        marbleTableTopTexture.wrapT = THREE.RepeatWrapping;
+        marbleTableTopTexture.needsUpdate = true;
+      }
+    }
+    if (marbleTableTopTexture) {
+      marbleMaterial.map = marbleTableTopTexture;
+    }
+    return marbleMaterial;
+  }
 /**
  * 给家具类材质挑调色板颜色：依据「材质名 + 类型 + 原色亮度」三路信息决定。
  * 材质名编码了部件语义（material-N、-dark / -soft / -light、foliage 等），是与建模流水线约定死的字段，因此 命名是最主要的分支依据，不能凭外观猜；亮度只在没有命名线索时兜底。细节：窗帘 / 桌 / 橱柜按 material-N
@@ -972,7 +1118,7 @@ export function createExternalModelManager({
     // paletteColors 与入参是同一个对象，下游分支的取值完全不变。
     let paletteColors = inputPalette;
     const isWarmJoinery =
-      paletteColors.warmFurniture && WARM_JOINERY_ITEM_TYPES.has(furnitureItemType);
+      paletteColors.warmFurniture && JOINERY_ITEM_TYPES.has(furnitureItemType);
     if (isWarmJoinery) {
       paletteColors = {
         ...paletteColors,
@@ -1027,6 +1173,13 @@ export function createExternalModelManager({
         roughness: 0.48,
         metalness: 0.3
       });
+    }
+    // 台面为白色大理石：整个台面部件换成石材，其余部件（桌腿 / 椅面）照旧走下面的
+    // 木色 / 亚麻语义。判断放在木色槽位表之前，转盘款第 4 号槽位才能从「陶面」改判成石材。
+    const isMarbleTableTop =
+      paletteColors.warmFurniture && isMarbleTableTopMaterial(furnitureItemType, materialName);
+    if (isMarbleTableTop) {
+      return createMarbleTableTopMaterial(meshMaterial);
     }
     // 暖阳原木：餐桌 / 餐椅按槽位换成木色、亚麻、鼠尾草绿或陶面，而不是沿用家具三档灰。
     // 命中后直接返回：这类物件的槽位语义已被表完全决定，不需要再走下面的兜底分支。
@@ -1162,7 +1315,12 @@ export function createExternalModelManager({
           : paletteColors.wood;
       }
       if (furnitureItemType === "cabinet") {
-        chosenColor = warmOverrideMaterialIndex === "2" ? 5462356 : paletteColors.wood;
+        // 2 号是五金拉手；其余是柜体（含中缝），取棕褐柜体色 —— 正面白门由
+        // resolveSharedMaterial 的着色器切出（模型里没有独立门板几何）。
+        chosenColor =
+          warmOverrideMaterialIndex === "2"
+            ? 5462356
+            : paletteColors.cabinetBody ?? paletteColors.wood;
       }
       if (furnitureItemType === "nightstand") {
         chosenColor = warmOverrideMaterialIndex === "2" ? 5462356 : paletteColors.wood;
@@ -1221,6 +1379,7 @@ export function createExternalModelManager({
     // 只有暖色主题的柜类才走这一块，其它情况下两个标记恒为 false。
     let isWarmCountertop = false;
     let isWarmMetalSink = false;
+    let isWarmSteelPanel = false;
     if (isWarmJoinery) {
       const joineryMaterialIndex = materialName.match(/material-(\d+)$/)?.[1];
       isWarmCountertop =
@@ -1253,7 +1412,14 @@ export function createExternalModelManager({
         furnitureItemType === "kitchencooktop" &&
         ["3", "6", "7"].includes(joineryMaterialIndex)
       ) {
-        chosenColor = 4212549;
+        // 燃气灶的灶面与炉架统一走「银黑」族：3 号是整块灶面玻璃，压到近黑；
+        // 6 / 7 号是叠在上面的炉盘与炉架，用银黑提亮一档，几层叠起来才有不锈钢灶具的层次。
+        chosenColor =
+          joineryMaterialIndex === "3"
+            ? paletteColors.steelBlackDark ?? 2501424
+            : paletteColors.steelBlackBright ?? 6976381;
+        // 灶面按金属渲染（原来的 isWarmJoinery 会把金属度归零，变成一块哑光深灰）。
+        isWarmSteelPanel = true;
       }
       if (
         (furnitureItemType === "kitchenbase" && joineryMaterialIndex === "4") ||
@@ -1263,11 +1429,20 @@ export function createExternalModelManager({
         chosenColor = 7830384;
       }
       if (furnitureItemType === "cabinet" && joineryMaterialIndex === "1") {
-        chosenColor = 9794135;
+        // 中缝是柜体的一部分，跟着柜体色走，两扇白门之间才露出一条木质缝。
+        chosenColor = paletteColors.cabinetBody ?? 9794135;
       }
       if (isWarmCountertop) {
         chosenColor = paletteColors.countertop ?? 16117989;
       }
+    }
+    // 柜门统一刷白：门板是独立材质，单独取白色，柜体仍是木料，「木柜体 + 白门」才成立。
+    // 放在 isWarmJoinery 之后：厨房几件在地面按槽位定过木色，门板要能盖回来。
+    // 衣柜（cabinet）没有独立门板几何，走 resolveSharedMaterial 里的正面着色器，不在此列。
+    const isCabinetDoor =
+      paletteColors.warmFurniture && isCabinetDoorMaterial(furnitureItemType, materialName);
+    if (isCabinetDoor) {
+      chosenColor = paletteColors.cabinetDoor ?? 16777215;
     }
     const isSoftRug = furnitureItemType === "rug" && materialName.endsWith("-soft");
     const isTransparentMaterial =
@@ -1283,16 +1458,20 @@ export function createExternalModelManager({
         ? 0.65
         : isWarmMetalSink
           ? 0.36
-          : paletteColors.warmFurniture && isTransparentMaterial
-            ? 0.18
-            : materialName.includes("foliage") || furnitureItemType === "rug"
-              ? 0.9
-              : 0.72,
+          : isWarmSteelPanel
+            ? 0.26
+            : paletteColors.warmFurniture && isTransparentMaterial
+              ? 0.18
+              : materialName.includes("foliage") || furnitureItemType === "rug"
+                ? 0.9
+                : 0.72,
       metalness: isWarmMetalSink
         ? 0.55
-        : isWarmJoinery || materialName.includes("foliage") || furnitureItemType === "rug"
-          ? 0
-          : 0.02,
+        : isWarmSteelPanel
+          ? 0.62
+          : isWarmJoinery || materialName.includes("foliage") || furnitureItemType === "rug"
+            ? 0
+            : 0.02,
       polygonOffset: isSoftRug,
       polygonOffsetFactor: isSoftRug ? -2 : 0,
       polygonOffsetUnits: isSoftRug ? -4 : 0,
@@ -1415,6 +1594,14 @@ export function createExternalModelManager({
       const applianceColor = appliancePalette.appliance ?? appliancePalette.furniture;
       const applianceSoftColor = appliancePalette.applianceSoft ?? appliancePalette.furnitureSoft;
       const applianceDarkColor = appliancePalette.applianceDark ?? appliancePalette.furnitureDark;
+      // 不锈钢家电里有色彩语义的小件不刷成钢色：热水器的红 / 蓝进出水管、显示屏 ——
+      // 全刷成银黑就读不出冷热水了。判据是原色的彩度，彩度高的原样留下。
+      // 分档用的亮度也是同一套线性分量，与下面的 applianceLuminance 取自同一个 clone。
+      const applianceChroma =
+        Math.max(applianceBaseColor.r, applianceBaseColor.g, applianceBaseColor.b) -
+        Math.min(applianceBaseColor.r, applianceBaseColor.g, applianceBaseColor.b);
+      const keepsOriginalColor =
+        APPLIANCE_FINISH_BY_ITEM_TYPE[applianceItemType] !== undefined && applianceChroma > 0.2;
       const isDarkDeviceMaterial =
         ["desktop", "laptop", "nas"].includes(applianceItemType) && applianceMaterialIndex === "0";
       const selectedColor =
@@ -1441,19 +1628,28 @@ export function createExternalModelManager({
                   ? applianceSoftColor
                   : applianceItemType.startsWith("tv_")
                     ? applianceDarkColor
-                    : applianceItemType === "pipelinewaterpurifier" ||
-                        applianceItemType === "tea_bar_machine"
-                      ? applianceLuminance < 0.16
+                    : applianceItemType === "tea_bar_machine"
+                      ? // 茶几机只有「深 / 浅」两档，没有专门的深色件。
+                        applianceLuminance < 0.16
                         ? applianceColor
                         : applianceSoftColor
-                      : applianceMaterialName.endsWith("-dark") || applianceLuminance < 0.16
+                      : // 其余家电按原材质亮度分三档归位：亮档是箱体、中档是次要面板、
+                        // 暗档是滤网 / 控制面板。不锈钢家电的三档由 applyItemFinish 换成
+                        // 同一族色的明度变体，这里不必知道具体是什么颜色。
+                        applianceMaterialName.endsWith("-dark") || applianceLuminance < 0.16
                         ? applianceDarkColor
                         : applianceMaterialName.endsWith("-soft") || applianceLuminance < 0.45
                           ? applianceSoftColor
                           : applianceColor;
-      const applianceMaterial = createFurnitureMaterial(baseMaterial, selectedColor, {
-        roughness: 0.82,
-        metalness: 0,
+      // 彩度高的小件（红蓝水管 / 显示屏）保留原色，其余按上面的分档取钢色。
+      const finalColor = keepsOriginalColor ? applianceBaseColor : selectedColor;
+      // 不锈钢家电不能沿用那套 0.82 / 0 的哑光参数（那是给暖米白家电的），否则银灰 / 银黑
+      // 会渲染成一块塑料：压低粗糙度、给一点金属度，靠三盏灯的镜面高光读出不锈钢。
+      // 金属度刻意不超过 0.35 —— 场景没有环境贴图，金属度一高漫反射就没了，反而发黑。
+      const isSteelFinish = APPLIANCE_FINISH_BY_ITEM_TYPE[applianceItemType] !== undefined;
+      const applianceMaterial = createFurnitureMaterial(baseMaterial, finalColor, {
+        roughness: isSteelFinish ? (keepsOriginalColor ? 0.3 : 0.34) : 0.82,
+        metalness: isSteelFinish ? (keepsOriginalColor ? 0.45 : 0.3) : 0,
         flatShading: false
       });
       if (applianceItemType === "tea_bar_machine") {
@@ -2000,6 +2196,44 @@ export function createExternalModelManager({
       };
       preparedMaterial.customProgramCacheKey = () =>
         "warm-shoe-countertop-v1-" + warmShoeTopColor.getHexString();
+    }
+    if (
+      materialPalette.warmFurniture &&
+      modelTypeName === "cabinet" &&
+      /material-0$/.test(inputMaterial.name || "")
+    ) {
+      // 衣柜：cabinet.glb 是一整块木色箱体，没有独立门板几何 —— 用一段着色器把正面
+      // 切成两扇白门：四周留约 6cm 木质回边、中间留 2.8cm 缝，配合柜体棕褐读成「木柜体 + 白门」。
+      // 背面（法线朝 -z）不参与，避免从柜子背后看也是白的。
+      const cabinetDoorColor = new THREE.Color(materialPalette.cabinetDoor ?? 16777215);
+      preparedMaterial.onBeforeCompile = warmCabinetDoorShader => {
+        warmCabinetDoorShader.uniforms.warmCabinetDoorColor = {
+          value: cabinetDoorColor
+        };
+        warmCabinetDoorShader.vertexShader = warmCabinetDoorShader.vertexShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying vec3 warmCabinetLocal;\nvarying float warmCabinetFaceZ;"
+          )
+          .replace(
+            "#include <begin_vertex>",
+            "#include <begin_vertex>\nwarmCabinetLocal = position;\nwarmCabinetFaceZ = normalize(normal).z;"
+          );
+        warmCabinetDoorShader.fragmentShader = warmCabinetDoorShader.fragmentShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying vec3 warmCabinetLocal;\nvarying float warmCabinetFaceZ;\nuniform vec3 warmCabinetDoorColor;"
+          )
+          .replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\nfloat warmCabinetFront = step(0.85, warmCabinetFaceZ);\nfloat warmCabinetDoorX = step(0.014, abs(warmCabinetLocal.x)) * (1.0 - step(0.744, abs(warmCabinetLocal.x)));\nfloat warmCabinetDoorY = step(0.06, warmCabinetLocal.y) * (1.0 - step(1.845, warmCabinetLocal.y));\nfloat warmCabinetDoorMask = warmCabinetFront * warmCabinetDoorX * warmCabinetDoorY;\ndiffuseColor.rgb = mix(diffuseColor.rgb, warmCabinetDoorColor, warmCabinetDoorMask);"
+          )
+          .replace(
+            "#include <emissivemap_fragment>",
+            "#include <emissivemap_fragment>\ntotalEmissiveRadiance = mix(totalEmissiveRadiance, warmCabinetDoorColor * 0.065, warmCabinetDoorMask);"
+          );
+      };
+      preparedMaterial.customProgramCacheKey = () => "homeos-cabinet-doors-v1";
     }
     if (
       materialPalette.warmFurniture &&

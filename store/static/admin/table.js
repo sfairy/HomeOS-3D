@@ -6,10 +6,10 @@
  * 19 张列表共用同一套游标、分页器与筛选口径；面板只管拼表格行，不再各写一遍翻页状态。
  */
 
-import { $, $$, esc } from "./dom.js?v=2609231046";
-import { api } from "./api.js?v=2609231046";
-import { num } from "./format.js?v=2609231046";
-import { host } from "./host.js?v=2609231046";
+import { $, $$, esc } from "./dom.js?v=2609231402";
+import { api } from "./api.js?v=2609231402";
+import { num } from "./format.js?v=2609231402";
+import { host } from "./host.js?v=2609231402";
 
 // 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
 // 会把 select 静默设成空值，所以先把意图记下来，等选项填好再补一次。

@@ -321,19 +321,34 @@ export function buildShoecabinetItem(context) {
 
 /**
  * 命中：itemSpec.type === "cabinet"
+ *
+ * 衣柜：柜体取棕褐（cabinetBody），正面再盖两扇白色门板（cabinetDoor）。
+ * 外部模型那条路径同样跑这个外观（见 studio-external-models.js 的 cabinet 分支），
+ * 这里是模型未就绪 / 离线导出时的兜底，两者观感要一致。
  */
 export function buildCabinetItem(context) {
   const {
     addBoxMesh,
-    furnitureColor,
-    furnitureDarkColor,
     furnitureLightColor,
     itemDepth,
     itemGroup,
     itemHeight,
+    itemPalette,
     itemWidth,
   } = context;
-  addBoxMesh(itemGroup, itemWidth, itemHeight, itemDepth, 0, itemHeight / 2, 0, furnitureColor);
+  const cabinetBodyColor = itemPalette.cabinetBody ?? itemPalette.furniture;
+  const cabinetDoorColor = itemPalette.cabinetDoor ?? 16777215;
+  addBoxMesh(
+    itemGroup,
+    itemWidth,
+    itemHeight,
+    itemDepth,
+    0,
+    itemHeight / 2,
+    0,
+    cabinetBodyColor
+  );
+  // 中缝：两扇门之间的木质缝，宽度略小于门板间隙，保证从正面能看见一条柜体色。
   addBoxMesh(
     itemGroup,
     0.018,
@@ -342,34 +357,49 @@ export function buildCabinetItem(context) {
     0,
     itemHeight * 0.52,
     itemDepth * 0.01,
-    furnitureDarkColor
+    cabinetBodyColor
   );
-  addBoxMesh(
-    itemGroup,
-    0.025,
-    0.16,
-    0.035,
-    -0.08,
-    itemHeight * 0.55,
-    itemDepth * 0.515,
-    furnitureLightColor,
-    {
-      metalness: 0.55
-    }
+  // 门板：四周留 4% 宽（上限 6cm）的木质回边，中间留 2cm 缝，两扇门对称。
+  const cabinetDoorBorder = Math.min(itemWidth * 0.04, 0.06);
+  const cabinetDoorGap = 0.02;
+  const cabinetDoorDepth = 0.018;
+  const cabinetDoorWidth = Math.max(
+    (itemWidth - cabinetDoorBorder * 2 - cabinetDoorGap) / 2,
+    0.05
   );
-  addBoxMesh(
-    itemGroup,
-    0.025,
-    0.16,
-    0.035,
-    0.08,
-    itemHeight * 0.55,
-    itemDepth * 0.515,
-    furnitureLightColor,
-    {
-      metalness: 0.55
-    }
-  );
+  const cabinetDoorHeight = Math.max(itemHeight - cabinetDoorBorder * 2, 0.1);
+  for (const cabinetDoorSign of [-1, 1]) {
+    addBoxMesh(
+      itemGroup,
+      cabinetDoorWidth,
+      cabinetDoorHeight,
+      cabinetDoorDepth,
+      cabinetDoorSign * (cabinetDoorGap / 2 + cabinetDoorWidth / 2),
+      itemHeight / 2,
+      itemDepth / 2 + cabinetDoorDepth / 2,
+      cabinetDoorColor,
+      {
+        rounded: false,
+        roughness: 0.5
+      }
+    );
+  }
+  // 拉手：挂在门板前面（门板已从柜体表面外凸，拉手必须再往外一档，否则会被门板吃掉）。
+  for (const cabinetHandleOffset of [-0.08, 0.08]) {
+    addBoxMesh(
+      itemGroup,
+      0.025,
+      0.16,
+      0.035,
+      cabinetHandleOffset,
+      itemHeight * 0.55,
+      itemDepth / 2 + cabinetDoorDepth + 0.006,
+      furnitureLightColor,
+      {
+        metalness: 0.55
+      }
+    );
+  }
 }
 
 /**

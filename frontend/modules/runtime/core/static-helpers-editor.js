@@ -23,20 +23,20 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { randomUuid } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/random-id.js", import.meta.url))
-  : import("/static/utils/random-id.js?v=2609231046"));
+  : import("/static/utils/random-id.js?v=2609231402"));
 const { interaction3dPreviewSize } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/preview-layout.js", import.meta.url))
-  : import("/static/bridge/preview-layout.js?v=2609231046"));
+  : import("/static/bridge/preview-layout.js?v=2609231402"));
 const { normalizeInteraction3dLightingMode } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/definition.js", import.meta.url))
-  : import("/static/bridge/definition.js?v=2609231046"));
+  : import("/static/bridge/definition.js?v=2609231402"));
 const { confirmAction } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/ui-confirm.js", import.meta.url))
-  : import("/static/shared/ui-confirm.js?v=2609231046"));
+  : import("/static/shared/ui-confirm.js?v=2609231402"));
 // DOM 工厂：编辑器侧的配置编辑器 / 量程对话框 / 三个设备编辑器都要造元素、按钮与 SVG。
 const { createDomFactory } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/dom-factory.js", import.meta.url))
-  : import("/static/shared/dom-factory.js?v=2609231046"));
+  : import("/static/shared/dom-factory.js?v=2609231402"));
 // 授权 / 编辑器视图登记：这是本文件与 static-helpers.js 分家的原因，见文件头。
 const {
   requestInteraction3dAccess,
@@ -44,13 +44,13 @@ const {
   subscribeInteraction3dAccess
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/bridge.js", import.meta.url))
-  : import("/static/bridge/bridge.js?v=2609231046"));
+  : import("/static/bridge/bridge.js?v=2609231402"));
 const { DEFAULT_BASE_LIGHTING, normalizeBaseLighting } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/3d-studio/loaders/studio-normalization.js", import.meta.url))
-  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609231046"));
+  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609231402"));
 const { toSvgPoint } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/svg-point.js", import.meta.url))
-  : import("/static/shared/svg-point.js?v=2609231046"));
+  : import("/static/shared/svg-point.js?v=2609231402"));
 
 export {
   DEFAULT_BASE_LIGHTING,

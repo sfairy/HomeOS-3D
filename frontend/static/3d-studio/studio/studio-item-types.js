@@ -158,6 +158,52 @@ export const HOME_ITEM_TYPES = new Set([
   "glasspartition"
 ]);
 
+/**
+ * 柜类：柜体是一整个箱体木作，配色上与「家具三档灰」分开单算。
+ *
+ * 这份名单决定三件事，所以只能有一份：
+ *   - 外部模型的柜体色（studio-external-models.js 的 isWarmJoinery 与台面 / 回边槽位）；
+ *   - 程序化兜底几何的取色（studio-app.js 的 paletteForItemType，见 applyItemFinish）；
+ *   - 「柜门刷白」的作用范围 —— 名单里并不是每一件都有独立门板几何：衣柜（cabinet）与
+ *     床头柜 / 电视柜 / 梳妆台的抽屉面跟柜体共用一块材质，走正面着色器；真正能只换门板的
+ *     那几种列在 studio-external-models.js 的门板槽位表里。
+ * 一旦各写一份，模型加载中的占位几何与模型到位后的成品就会是两个颜色。
+ *
+ * 取舍：梳妆台（vanity）按「带抽屉的柜体」收录；桌子（desk）与吧台（bar）排除 ——
+ * 它们是带腿的台面，柜体色套上去不成立。灶台 / 水槽（kitchencooktop / kitchensink）
+ * 收录，但它们的台面与灶面另有专用色板，见各自的槽位表。
+ */
+export const JOINERY_ITEM_TYPES = new Set([
+  "cabinet",
+  "wallcabinet",
+  "shoecabinet",
+  "sideboard",
+  "bookcase",
+  "shelf",
+  "nightstand",
+  "tvstand",
+  "kitchenbase",
+  "kitchensink",
+  "kitchencooktop",
+  "glasscabinet",
+  "vanity"
+]);
+
+/**
+ * 不锈钢家电的「外观族」：冰箱银灰，管线机 / 热水器 / 油烟机 / 燃气灶银黑。
+ *
+ * 值是族名，具体颜色在 studio-scene-style.js 的 APPLIANCE_FINISH_FAMILIES 里 —— 类型词表
+ * 不该知道 #454C54 这种取值，色卡也不该知道有哪些物件类型。两处合起来由 applyItemFinish 使用。
+ * 不在这张表里的家电（洗碗机 / 蒸箱 / 微波炉 / 洗衣机 / 烘干机…）保持原来的暖米白。
+ */
+export const APPLIANCE_FINISH_BY_ITEM_TYPE = Object.freeze({
+  fridge: "silver",
+  pipelinewaterpurifier: "steelBlack",
+  storagewaterheater: "steelBlack",
+  gaswaterheater: "steelBlack",
+  rangehood: "steelBlack"
+});
+
 export const STAIR_ITEM_TYPES = new Set(["stairs", "steelstairs", "glassstairs"]);
 export const STAIR_DIRECTION_ITEM_TYPES = new Set(["steelstairs", "glassstairs"]);
 export const ROUND_TABLE_TURNTABLE_ITEM_TYPES = new Set([

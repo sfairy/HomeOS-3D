@@ -23,9 +23,14 @@ export function buildKitchenBaseItem(context) {
     itemDepth,
     itemGroup,
     itemHeight,
+    itemPalette,
     itemSpec,
     itemWidth,
   } = context;
+  // 柜门白与灶面银黑走的是调色板上那两个专用键，不在家具四档别名里，所以要整份调色板。
+  const cabinetDoorColor = itemPalette.cabinetDoor ?? furnitureLightColor;
+  const steelBlackBrightColor = itemPalette.steelBlackBright ?? furnitureSoftColor;
+  const steelBlackDarkColor = itemPalette.steelBlackDark ?? furnitureDarkColor;
   const kitchenBasePlinthHeight = itemHeight * 0.1;
   const kitchenBaseCounterThickness = itemHeight * 0.07;
   const kitchenBaseBodyHeight =
@@ -90,7 +95,7 @@ export function buildKitchenBaseItem(context) {
       kitchenBasePanelCenterX,
       kitchenBaseBodyCenterY,
       itemDepth * 0.515,
-      furnitureSoftColor,
+      cabinetDoorColor,
       {
         rounded: false,
         roughness: 0.46
@@ -182,11 +187,11 @@ export function buildKitchenBaseItem(context) {
       0,
       itemHeight + 0.008,
       0,
-      furnitureDarkColor,
+      steelBlackDarkColor,
       {
         rounded: false,
-        metalness: 0.32,
-        roughness: 0.25
+        metalness: 0.62,
+        roughness: 0.26
       }
     );
     for (const cooktopBurnerOffsetX of [-itemWidth * 0.13, itemWidth * 0.13]) {
@@ -199,10 +204,10 @@ export function buildKitchenBaseItem(context) {
           cooktopBurnerOffsetX,
           itemHeight + 0.028,
           cooktopBurnerOffsetZ,
-          furnitureSoftColor,
+          steelBlackBrightColor,
           {
             segments: 28,
-            metalness: 0.42,
+            metalness: 0.62,
             roughness: 0.26
           }
         );
@@ -214,11 +219,11 @@ export function buildKitchenBaseItem(context) {
           cooktopBurnerOffsetX,
           itemHeight + 0.045,
           cooktopBurnerOffsetZ,
-          furnitureDarkColor,
+          steelBlackDarkColor,
           {
             segments: 24,
-            metalness: 0.5,
-            roughness: 0.22
+            metalness: 0.62,
+            roughness: 0.24
           }
         );
       }
