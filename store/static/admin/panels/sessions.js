@@ -7,10 +7,10 @@
  * 记录），都只是「取一页、渲染一页」，聚在一起省得散落。
  */
 
-import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609252210";
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609252210";
-import { dt, money, num, pill } from "../format.js?v=2609252210";
-import { state } from "../state.js?v=2609252210";
+import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609252218";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609252218";
+import { dt, money, num, pill } from "../format.js?v=2609252218";
+import { state } from "../state.js?v=2609252218";
 
 export async function loadSessions() {
   const cursor = pageState('sessions');

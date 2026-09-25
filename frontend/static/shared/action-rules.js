@@ -5,9 +5,9 @@
  * 允许取值，并校验动作配置与组件绑定是否匹配。不碰 DOM 也不请求后端；校验所需的页面路径集合、
  * 弹窗 ID 集合由调用方传入，传入 null 表示「暂不校验该维度」。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=2609252210";
+import { isVirtualEntityId } from "./virtual-entities.js?v=2609252218";
 // 「按 ID 切域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../utils/entities.js?v=2609252210";
+import { entityDomainFromId } from "../utils/entities.js?v=2609252218";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);

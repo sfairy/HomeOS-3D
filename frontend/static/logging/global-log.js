@@ -6,8 +6,8 @@
  * 清空，并在打开期间自动刷新。接口路径由注入的 api 拼接；每页 200 条，翻到「查看历史」时暂停
  * 自动刷新，避免覆盖用户正在看的内容。
  */
-import { confirmAction } from "../shared/ui-confirm.js?v=2609252210";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609252210";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609252218";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609252218";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {

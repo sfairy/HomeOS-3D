@@ -31,8 +31,8 @@
  * 存储不可用（无痕模式 / 配额满）时全线静默降级为「仅内存」：布局是纯偏好，读不到就用默认值，
  * 写失败也不该打断用户。这一点与 `shared/sound-effects.js` 的处理一致。
  */
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609252210";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609252210";
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609252218";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609252218";
 
 /** 存储结构的版本号。字段语义变了就加一：旧值会被当作无效而回落到默认，不做迁移。 */
 const SCHEMA_VERSION = 1;

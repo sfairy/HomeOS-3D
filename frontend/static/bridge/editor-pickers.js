@@ -10,15 +10,15 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=2609252210";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609252210";
+} from "../editor/picker/editor-picker-pagination.js?v=2609252218";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609252218";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=2609252210";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=2609252210";
-import { nasProfiles } from "./nas-catalog.js?v=2609252210";
+import { entityDomainOf } from "../utils/entities.js?v=2609252218";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609252218";
+import { nasProfiles } from "./nas-catalog.js?v=2609252218";
 // 温湿度计的传感器判定与运行侧、后端同一份实现（static 共享层，零依赖）。
-import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609252210";
+import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609252218";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
