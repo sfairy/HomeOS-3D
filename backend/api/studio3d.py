@@ -26,7 +26,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from PIL import Image, UnidentifiedImageError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from starlette.concurrency import run_in_threadpool
 
 from .assets import MAX_UPLOAD_DIMENSION, MAX_UPLOAD_PIXELS
@@ -34,7 +34,8 @@ from ..core.body_limits import MAX_SCENE_DOCUMENT_BYTES
 from ..core.canonical_json import canonical_json, canonical_json_bytes
 from ..security.dependencies import DatabaseSession, LicensedUser
 from ..panel.global_popups import global_popups
-from ..core.models import Project, ProjectDraft
+from ..core.models import Project, ProjectDraft, StudioInteractionSync
+from ..modules.interaction3d.studio_cleanup import confirmation_token, plan_cleanup
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_mentions
 from ..core.schemas import Studio3DDraftUpdate
@@ -302,14 +303,53 @@ def get_studio3d_draft(request: Request, _user: LicensedUser) -> dict:
         return payload or {'revision': 0, 'scene': None, 'updatedAt': None}
 
 
+def _interaction_archive(state: StudioInteractionSync | None) -> list:
+    """从单行同步状态里取出上一次留下的撤销记录列表。
+
+    状态可能不存在（全新库）或内容被外部改坏：这两种情况都按「没有撤销记录」处理 ——
+    辅助数据不该让保存户型图失败，更不该让一次正常的清理把整次保存带崩。
+    """
+    if state is None:
+        return []
+    try:
+        payload = json.loads(state.document_json)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    archive = payload.get('archive')
+    return archive if isinstance(archive, list) else []
+
+
+def _interaction_project_labels(database: DatabaseSession, impacts: list[dict]) -> list[str]:
+    """把影响记录里的 projectId 换成人看得懂的项目名，供确认弹窗直接展示。
+
+    项目可能在两次请求之间被删掉，这时退回显示 id —— 宁可名字难看，也好过弹窗里少一项。
+    """
+    names = {project.id: project.name for project in database.scalars(select(Project)).all()}
+    seen = dict.fromkeys(impact['projectId'] for impact in impacts)
+    return [names.get(project_id, project_id) for project_id in seen]
+
+
 @router.put('')
-def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, _user: LicensedUser) -> dict:
+def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
     """保存 3D 户型图草稿（需已登录且授权允许 api）。
 
     请求体: scene（场景数据）与 revision（客户端持有的版本号）；成功返回新的
     {revision, scene, updatedAt}。
-    异常: HTTPException 409 —— 版本号不一致，detail 为 {code: 'STUDIO3D_REVISION_CONFLICT',
-    message, currentRevision}，前端应提示「已在其他页面更新」并让用户重新拉取。
+
+    保存时顺带清理「引用了已被删掉的场景模型」的 3D 控件绑定：删模型删的只是家具/门窗，
+    可仪表盘上那些绑定（灯、锁、窗帘……）还指着一个不存在的模型，点开就是空壳。
+    清理计划由纯函数 `plan_cleanup` 算出，本路由只负责取数据、落库、写盘；被剪掉的条目
+    连同身份键存进 `studio_interaction_sync`，等模型被重新画回场景时原样放回去。
+
+    异常:
+    - HTTPException 409 —— 版本号不一致，detail 为 {code: 'STUDIO3D_REVISION_CONFLICT',
+      message, currentRevision}，前端应提示「已在其他页面更新」并让用户重新拉取。
+    - HTTPException 428 —— 本次删除会让控件绑定悬空且未获确认，detail 为
+      {code: 'STUDIO3D_INTERACTION_CONFIRMATION', token, message, impacts, projects}：
+      前端弹确认框，用户同意后带同一个 token 重发即可；未确认时草稿、项目文档、撤销记录
+      一律未改动，撤销/取消直接丢弃本次请求即可。
     """
     with _storage_lock:
         current = _read_draft(request.app.state.settings.studio3d_draft_path)
@@ -326,7 +366,59 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, _user:
             'revision': current_revision + 1,
             'scene': payload.scene,
             'updatedAt': utc_iso_now()}
+        # ---- 模型删除的级联清理 ------------------------------------------------
+        # 先把所有项目文档读成内存快照：plan_cleanup 只读它，改的是自己 deepcopy 出来的副本。
+        drafts = database.scalars(select(ProjectDraft)).all()
+        documents = {}
+        for draft in drafts:
+            # 单份文档损坏就跳过（与 migrate_legacy_scene 同一策略）：清理不该因一份坏文档整体失败。
+            document = parse_document(draft.document_json)
+            if document is not None:
+                documents[draft.project_id] = document
+        state = database.get(StudioInteractionSync, 1)
+        changed, archive, impacts = plan_cleanup(
+            documents,
+            (current or {}).get('scene') or {},
+            payload.scene,
+            _interaction_archive(state),
+            request.app.state.settings)
+        if impacts:
+            # 令牌绑定「当前 revision + 新场景 + 现有文档 + 本次影响」：任何一项变了令牌就变，
+            # 用户确认的永远是它当时看到的那份计划。计划为空时不计算（省掉一次全库 JSON 序列化）。
+            token = confirmation_token([current_revision, payload.scene, documents, impacts])
+            if payload.interaction_confirmation != token:
+                # 确认之前什么都不写：草稿、项目文档、撤销记录保持原样。
+                database.rollback()
+                raise HTTPException(status_code=status.HTTP_428_PRECONDITION_REQUIRED, detail={
+                    'code': 'STUDIO3D_INTERACTION_CONFIRMATION',
+                    'token': token,
+                    'message': '删除的模型被 3D 控件引用，保存将一并移除这些绑定。',
+                    'impacts': impacts,
+                    'projects': _interaction_project_labels(database, impacts)})
+        # 逐份写回被清理过的文档；带 revision 条件，避免覆盖并发写入。
+        for draft in drafts:
+            cleaned = changed.get(draft.project_id)
+            if cleaned is None:
+                continue
+            result = database.execute(
+                update(ProjectDraft)
+                .where(ProjectDraft.project_id == draft.project_id, ProjectDraft.revision == draft.revision)
+                .values(document_json=canonical_json(cleaned), revision=ProjectDraft.revision + 1, updated_by=_user.id)
+                .execution_options(synchronize_session=False))
+            if result.rowcount != 1:
+                # 期间有人改了这份仪表盘：整批回滚，让用户重试，绝不用旧快照做部分覆盖。
+                database.rollback()
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+                    'code': 'PROJECT_REVISION_CONFLICT',
+                    'message': '关联仪表盘已在其他页面更新，本次 3D 交互配置清理未保存，请重试。'})
+        if state is None:
+            state = StudioInteractionSync(id=1)
+            database.add(state)
+        state.document_json = canonical_json({'archive': archive})
+        # 先把草稿原子落盘再提交数据库：写盘失败会抛出，未提交的库改动随会话关闭一起回滚，
+        # 两边不会各写一半。反过来「先提交再写盘」则可能在写盘失败后留下已清理的库。
         _atomic_json_write(request.app.state.settings.studio3d_draft_path, updated)
+        database.commit()
         request.app.state.global_log.append('success', '3D户型图编辑器', '配置', f"3D 户型图草稿已保存（修订 {updated['revision']}）")
         return updated
 

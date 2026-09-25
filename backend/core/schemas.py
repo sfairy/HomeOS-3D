@@ -340,12 +340,17 @@ class Studio3DDraftUpdate(BaseModel):
 
     revision 从 0 起（与项目草稿不同），同样用于冲突检测；
     scene 是完整的场景 JSON 快照，服务端不解析其内部结构。
+
+    interactionConfirmation 是模型删除级联清理的确认令牌：服务端发现本次删除会让某些 3D 控件
+    的绑定悬空时，不落盘、改回 428 并带上令牌；前端确认后把同一个令牌原样回传，才真正保存。
+    缺省（或显式 null）都表示「未确认」，保持旧客户端不传该字段时的行为不变。
     """
 
     model_config = ConfigDict(extra='forbid')
 
     revision: int = Field(ge=0)
     scene: dict[str, Any]
+    interaction_confirmation: str | None = Field(default=None, alias='interactionConfirmation', max_length=128)
 
     @field_validator('scene')
     @classmethod

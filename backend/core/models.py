@@ -298,6 +298,25 @@ class GlobalCustomPopupState(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
 
+class StudioInteractionSync(Base):
+    """3D 户型图与仪表盘之间的关联清理状态（单行，固定 id=1）。
+
+    保存户型图时如果删掉了被 3D 控件绑定的模型，``interaction3d`` 会把这些悬空绑定从各项目
+    文档里剪掉。被剪掉的条目连同它的身份键存进这里的 ``document_json``（形如
+    ``{'archive': [...]}``）：模型日后被加回场景时，据此把绑定放回原位。
+
+    为什么不存进草稿文件：草稿是「当前户型的快照」，而这批撤销记录属于 3D 控件配置这一侧，
+    生命周期与草稿不一致（换一份户型也该保留，模型加回来要能还原）。为什么不逐条建表：
+    撤销记录只在保存路径整体读写、从不按单条查询，一行 JSON 更贴近它的使用方式。
+    """
+
+    __tablename__ = 'studio_interaction_sync'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    document_json: Mapped[str] = mapped_column(Text, nullable=False, default='{}')
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+
 class LicenseState(Base):
     """本机授权状态（单行，固定 id=1）。
 
