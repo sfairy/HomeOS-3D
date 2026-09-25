@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609251910";
-@import "../nas/nas-panel.css?v=2609251910";
-@import "../climate/climate-panel.css?v=2609251910";
-@import "../cover/cover-panel.css?v=2609251910";
+@import "/static/bridge/controls.css?v=2609251920";
+@import "../nas/nas-panel.css?v=2609251920";
+@import "../climate/climate-panel.css?v=2609251920";
+@import "../cover/cover-panel.css?v=2609251920";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -2073,6 +2073,52 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-security-label.is-camera-status > .i3d-marker-icon:before {
   content: none;
 }
+/* 门牌：门锁标记上那块「门名 + 开合状态（· 电量）」的标签。
+   与摄像头标签同样是「图标在左、两行文字在右」的两列栅格，但配色走暖木调（门牌是一块木牌），
+   所以图标是描边金棕色、正文是暖褐，而不是摄像头那套偏冷的墨蓝底。 */
+.interaction3d-stage .i3d-security-label.is-lock-status {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 10px;
+  min-width: 118px;
+  padding: 10px 14px;
+  gap: 3px;
+  border-color: #c9a76c99;
+  background: #fbf7ef;
+  color: #40372e;
+  box-shadow: 0 5px 16px #3b2c1a26;
+}
+.interaction3d-stage .i3d-security-label.is-lock-status > strong {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.interaction3d-stage .i3d-security-label.is-lock-status > span:not(.i3d-marker-icon) {
+  grid-column: 2;
+  grid-row: 2;
+  color: #756552;
+  font-size: 0.9em;
+}
+/* 摄像头标签那个「在线圆点」在门牌上不要：门牌的第二行已经是「已打开 · 92%」，
+   再顶一颗圆点会把文字挤窄。 */
+.interaction3d-stage .i3d-security-label.is-lock-status > span:before {
+  content: none;
+}
+.interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon {
+  position: static;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: center;
+  transform: none;
+  width: max(28px, 1.5em);
+  height: max(28px, 1.5em);
+  color: #86652d;
+}
+.interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon:before {
+  content: none;
+}
 /* 模型描边层：由 three.js 侧算好的屏幕轮廓画在这里（SVG），
    让被遮挡的模型在当前视图下仍能被认出来。 */
 .interaction3d-stage .i3d-model-outlines {
@@ -2501,6 +2547,10 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-offline>span:before {
   background: #948c7e;
 }
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status {
+  background: #fffaf1;
+  border-color: #b9873eaa;
+}
 .interaction3d-stage[data-scene-style="warm-wood"] .is-sensor-choice.is-selected .i3d-security-label {
   color: #815827;
   background: #ead5aff5;
@@ -2528,6 +2578,75 @@ body.interaction3d-stage.is-background-hidden,
   padding: 0;
   background: transparent;
   color: #7e898f;
+}
+/* ===== 门锁面板（.i3d-lock-panel） ===== */
+
+/* 门锁面板复用 NAS 面板的外观类（标题 / 状态 / 操作行），这里只补它与 NAS 不同的几处：
+   一块纵向排布的「状态 → 详情 → 密码 → 操作」列，且密码框与按钮要够大够好按。 */
+.interaction3d-stage .i3d-lock-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding-top: 4px;
+  color: #e8dfd2;
+}
+.interaction3d-stage .i3d-lock-panel h3 {
+  margin: 0;
+  color: #f5f1eb;
+  font-size: 21px;
+  line-height: 1.25;
+}
+/* 门名与状态都可能很长（「入户门 · 已打开 · 92%」），必须允许换行，
+   否则窄弹窗里会把面板撑宽、把操作按钮挤出去。 */
+.interaction3d-stage .i3d-lock-panel p {
+  margin: 0;
+  color: #c9bda9;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-nas-status {
+  min-height: 18px;
+}
+/* 详情行（电量等）：横向小胶囊，未来加更多字段也不换行撑高。 */
+.interaction3d-stage .i3d-lock-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.interaction3d-stage .i3d-lock-detail {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid #ffffff10;
+  border-radius: 8px;
+  background: #ffffff04;
+  color: #9eaba5;
+  font-size: 10px;
+}
+.interaction3d-stage .i3d-lock-panel input {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid #72624c;
+  border-radius: 8px;
+  color: #f5eee4;
+  background: #17191ce8;
+  font: 12px inherit;
+  box-sizing: border-box;
+}
+.interaction3d-stage .i3d-lock-panel .i3d-focus-actions {
+  margin: 0;
+}
+.interaction3d-stage .i3d-lock-panel button {
+  min-height: 34px;
+  border: 1px solid #866c46;
+  border-radius: 8px;
+  color: #f1dfbf;
+  background: #463925cc;
+  cursor: pointer;
 }
 /* ===== 暖阳原木主题：通用设备面板与附加卡片 ===== */
 
@@ -2712,15 +2831,53 @@ body.interaction3d-stage.is-background-hidden,
     0 2px 7px #614c2810;
 }
 .interaction3d-stage[data-scene-style="warm-wood"]
-  :is(
-    .i3d-nas-metric,
-    .i3d-nas-status,
-    .i3d-lock-detail,
-    .i3d-device-panel .i3d-extra-card,
-    .i3d-climate-panel .i3d-extra-card
-  ) {
+  :is(.i3d-nas-metric, .i3d-nas-status, .i3d-lock-detail, .i3d-device-panel .i3d-extra-card, .i3d-climate-panel .i3d-extra-card) {
   background: rgba(241, 234, 223, var(--i3d-warm-card-opacity, var(--i3d-panel-opacity, 0.74)));
   border-color: #c4b59e;
+}
+/* 门锁面板在暖木下的几处收尾：状态行不复用 NAS 那套胶囊（它在这条纵向列里会显得过重），
+   电量胶囊与按钮则换成暖木的浅木色，与面板底板拉开一档。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail {
+  color: #716657;
+  background: #ede4d580;
+  border-color: #bca98c66;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-meta {
+  color: #716657;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-nas-status {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--i3d-popup-muted);
+  font-size: 11px;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-details {
+  gap: 6px;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel .i3d-lock-detail {
+  min-height: 28px;
+  border-color: #bca98c66;
+  border-radius: 8px;
+  background: #ede4d580;
+  color: var(--i3d-popup-muted);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button {
+  border-color: var(--i3d-popup-border);
+  border-radius: 9px;
+  background: #f6f0e5;
+  color: var(--i3d-popup-ink);
+  box-shadow:
+    inset 0 1px #fffb,
+    0 3px 9px #614c2810;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-lock-panel button:hover:not(:disabled) {
+  border-color: #a48351;
+  background: #e6d5b8;
+  color: #67471e;
 }
 /* 暖木弹窗的通用外壳：所有暖木面板（NAS/空调/电视/门锁）共用的磨砂底板与不透明度。 */
 .interaction3d-stage[data-scene-style="warm-wood"]

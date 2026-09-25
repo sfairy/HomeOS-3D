@@ -8,10 +8,10 @@
  * 约定：文档模型沿用 components / sharedComponents / sharedComponentIds，与 /api/projects 下发的 JSON 一致。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609251851";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609251851";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609251920";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609251920";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609251851";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609251920";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，需要触发一次补数据

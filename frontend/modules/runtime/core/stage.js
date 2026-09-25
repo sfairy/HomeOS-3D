@@ -8,93 +8,99 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251910";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251920";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251910";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251920";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609251910";
+import { sceneModelKey } from "./scene-model-key.js?v=2609251920";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609251910",
+        "../../../static/bridge/popup-placement.js?v=2609251920",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609251910"));
+  : import("/static/bridge/popup-placement.js?v=2609251920"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609251910";
-import { createSceneBackground } from "./scene-background.js?v=2609251910";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609251910";
+} from "../presence/presence-scene.js?v=2609251920";
+import { createSceneBackground } from "./scene-background.js?v=2609251920";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609251920";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609251910";
+} from "../vacuum/vacuum-motion.js?v=2609251920";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609251910";
-import { televisionState } from "../television/television-state.js?v=2609251910";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609251910";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609251910";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609251910";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251910";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251910";
+} from "../vacuum/vacuum-map.js?v=2609251920";
+import { televisionState } from "../television/television-state.js?v=2609251920";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609251920";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609251920";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609251920";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251920";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251920";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609251910";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251910";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609251910";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251910";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251910";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251910";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251910";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251910";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609251910";
-import { createDevicePanel } from "../device/device-panel.js?v=2609251910";
-import { isGenericDeviceKind, genericDeviceProfile } from "../device/device-profiles.js?v=2609251910";
+} from "../cover/cover-state.js?v=2609251920";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251920";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609251920";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251920";
+// 门锁：面板（状态 + 电量 + 密码 + 上锁/解锁/释放锁舌）、门外动画（把 doorOpen 翻成门的姿态）、
+// 以及门模型的展开口径（把配置里的 modelId 对到楼层场景里那扇门）。
+// 后两者与编辑器的安防配置页共用同一份实现，见 security/lock-state.js。
+import { createLockPanel } from "../security/lock-panel.js?v=2609251920";
+import { createLockMotion } from "../security/lock-motion.js?v=2609251920";
+import { doorModels, lockState } from "../security/lock-state.js?v=2609251920";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251920";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251920";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251920";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251920";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609251920";
+import { createDevicePanel } from "../device/device-panel.js?v=2609251920";
+import { isGenericDeviceKind, genericDeviceProfile } from "../device/device-profiles.js?v=2609251920";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609251910";
-import { startSceneSync } from "./scene-sync.js?v=2609251910";
+} from "../environment/environment-scene.js?v=2609251920";
+import { startSceneSync } from "./scene-sync.js?v=2609251920";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609251910";
+} from "../light/light-state.js?v=2609251920";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609251910";
+} from "../camera/camera-motion.js?v=2609251920";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609251910";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609251910";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251910";
-import { createStageGeometry } from "./stage/geometry.js?v=2609251910";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251910";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609251910";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251910";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251910";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251910";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251910";
-import { createInputActivity } from "./stage/input-activity.js?v=2609251910";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609251910";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251910";
+} from "./idle-rotation.js?v=2609251920";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609251920";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251920";
+import { createStageGeometry } from "./stage/geometry.js?v=2609251920";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251920";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609251920";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251920";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251920";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251920";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251920";
+import { createInputActivity } from "./stage/input-activity.js?v=2609251920";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609251920";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251920";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -507,6 +513,18 @@ export function mountStage(stageOptions) {
     },
     get coverState() {
       return coverState;
+    },
+    get createLockMotion() {
+      return createLockMotion;
+    },
+    get createLockPanel() {
+      return createLockPanel;
+    },
+    get doorModels() {
+      return doorModels;
+    },
+    get lockState() {
+      return lockState;
     },
     get createDampedCameraMotion() {
       return createDampedCameraMotion;
@@ -1549,6 +1567,46 @@ export function mountStage(stageOptions) {
       })
   });
 
+  // 门锁弹窗：门锁本体状态 + 门磁开合 + 电量 + 密码 + 上锁 / 解锁 / 释放锁舌。
+  //
+  // 与通用设备共用 deviceRequestsById 那张在途表：两者都是「一次实体命令换一次状态回包」，
+  // 只是请求 id 前缀不同（lock- / device-），共用一张表可以让超时、失败与页面关闭的结算
+  // 走同一条路径，不必再多一套「哪张表该清」的记账。
+  const lockPanel = createLockPanel({
+    onControl: lockCommand =>
+      new Promise((resolveLock, rejectLock) => {
+        const lockBinding = findFocusedBinding();
+        if (
+          !isInteractive ||
+          isEditing ||
+          isDisposed ||
+          activeModule !== "security" ||
+          lockBinding?.deviceKind !== "lock" ||
+          !lockBinding.modelAvailable ||
+          // 只接受「当前这把锁」的命令：否则一个构造出来的 entityId 会打穿到任意锁实体。
+          lockCommand.entityId !== lockBinding.entityId
+        ) {
+          rejectLock(new Error("当前门锁不可控制。"));
+          return;
+        }
+        const lockRequestId = "lock-" + ++requestSeq;
+        const lockTimeoutId = setTimeout(
+          () => settleDeviceRequest(lockRequestId, "请求超时，请检查门锁状态。"),
+          14000
+        );
+        deviceRequestsById.set(lockRequestId, {
+          resolve: resolveLock,
+          reject: rejectLock,
+          timeout: lockTimeoutId
+        });
+        postToHost({
+          type: "control",
+          requestId: lockRequestId,
+          command: lockCommand
+        });
+      })
+  });
+
   lightPanelElement.append(
     lightPanelHeader,
     lightControlsElement,
@@ -1557,7 +1615,8 @@ export function mountStage(stageOptions) {
     coverPanel.root,
     nasPanel.root,
     televisionPanel.root,
-    devicePanel.root
+    devicePanel.root,
+    lockPanel.root
   );
 
   /**
@@ -1578,6 +1637,7 @@ export function mountStage(stageOptions) {
    *   label              —— 面板打开时给容器设的 aria-label，可以是函数（按绑定取）
    *   hostClass          —— 打开时挂在容器上的类名（样式按它分流）
    *   deferWhenFocusOnly —— 「点击只聚焦」的绑定是否不自动展开
+   *   hide()             —— 可选；让位时的额外收尾（隐藏本身仍由派发循环统一负责）
    *   show(binding)      —— 接管后的内容刷新；需要可见时自己设 root.hidden = false
    *
    * 「show 里必须自己打开 root」这条看似别扭，但它是刻意的：面板可以合法地「被匹配到
@@ -1644,6 +1704,23 @@ export function mountStage(stageOptions) {
       }
     },
     {
+      match: binding => binding.deviceKind === "lock",
+      root: lockPanel.root,
+      label: binding => binding.label || "门锁控制",
+      hostClass: "is-lock-panel",
+      deferWhenFocusOnly: true,
+      // 让位时作废本地状态：门密码只允许用于一次操作，不能留在输入框里等下一次打开。
+      hide: () => lockPanel.hide(),
+      show: binding => {
+        lockPanel.root.hidden = false;
+        lockPanel.update({
+          item: binding,
+          states: statesByEntityId,
+          editing: isEditing
+        });
+      }
+    },
+    {
       match: binding => binding.deviceKind === "cover",
       root: coverPanel.root,
       label: "窗帘控制",
@@ -1699,6 +1776,25 @@ export function mountStage(stageOptions) {
   });
   let curtainFloorIds = [];
   let coverBindings = [];
+  // 门动画：与窗帘动画同源的一类「把状态翻成网格姿态」的东西，但门的可动骨架来自
+  // 场景里带门枢轴的 grid（平开 / 推拉 / 卷帘三种 rig），所以匹配键是「门模型 + 楼层」。
+  // 门姿态变化会影响倒影，故 requestRender 里同样要失效倒影缓存。
+  const lockMotion = createLockMotion({
+    modelRoot: stageOptions.modelRoot,
+    requestRender: () => {
+      stageOptions.requestRender?.();
+      wakeFrameLoop();
+    },
+    invalidateReflections: invalidatedModelIds =>
+      stageOptions.invalidateReflections?.(invalidatedModelIds)
+  });
+  // 所有已绑定的门模型（配置里的锁 × 它所在楼层的门）。逐帧 tick 只读这份缓存：
+  // doorModels 要遍历楼层与场景，放在 60fps 的路径上不合适；配置或场景一改，
+  // 下面的 syncLocks 快照就会重算，动画自然跟上。
+  let lockDoorModelsList = [];
+  // 上一帧门是否还在动。tick 的返回值在 renderFrame 中段产生，而「下一帧要不要立刻排」
+  // 在函数末尾才拼出来，所以要用一个跨帧变量把它带过去。
+  let lockMotionActive = false;
 
 
   /**
@@ -1766,6 +1862,37 @@ export function mountStage(stageOptions) {
     }
   );
   stageOptions.setCurtainSync?.(syncCurtains);
+
+  /**
+   * 重算「配置里绑定的门 × 所在楼层的门模型」清单，供门动画逐帧使用。
+   *
+   * 快照键与 syncCurtains 同构：配置 / 场景根 / revision / 文档 任一变化才重算。
+   * 状态表刻意不进快照 —— 门模型清单只由配置与场景决定，状态每变一次就重扫一遍楼层
+   * 是纯浪费；状态是由 tick 的第二个参数直接读的。
+   */
+  const syncLocks = createSnapshotSyncer(
+    () => ({
+      config,
+      root: stageOptions.modelRoot,
+      revision: stageOptions.sceneRevision,
+      source: stageOptions.document
+    }),
+    () => {
+      // 同一楼层被多把锁引用时只展开一次：doorModels 要遍历该楼的墙与门，
+      // 门多的时候重复展开是平方级的。
+      const lockFloorIds = [
+        ...new Set(
+          (config.security?.locks || []).map(securityLockEntry => securityLockEntry.floorId)
+        )
+      ];
+      lockDoorModelsList = lockFloorIds.flatMap(lockFloorId => {
+        const lockFloor = stageOptions.document.floors.find(
+          lockFloorCandidate => lockFloorCandidate.id === lockFloorId
+        );
+        return lockFloor ? doorModels(lockFloor) : [];
+      });
+    }
+  );
   const nasStatus = createNasStatus({
     THREE: THREE,
     requestFrame: () => {
@@ -2527,10 +2654,14 @@ export function mountStage(stageOptions) {
 
 
 
-  // 按标记 ID 反查绑定：先查当前模块的集合，再兜底查摄像头与人体传感器 ——
-  // 这两类在安防模块之外（如总览联动的命令行）也可能被点中。
+  // 按标记 ID 反查绑定：先查当前模块的集合，再兜底查门锁、摄像头与人体传感器 ——
+  // 这几类在安防模块之外（如总览联动的命令行）也可能被点中。
+  //
+  // 顺序与 collectAllDeviceBindings 的拼接顺序无关：ID 前缀（lock: / camera: / presence:）
+  // 本身就把三者区分开了，不会撞车。
   const findBinding = lookupId =>
     collectModuleBindings().find(bindingMatch => bindingMatch.id === lookupId) ||
+    collectLockBindings().find(lockMatch => lockMatch.id === lookupId) ||
     collectCameraBindings().find(cameraMatch => cameraMatch.id === lookupId) ||
     collectPresenceBindings().find(presenceMatch => presenceMatch.id === lookupId);
   /**
@@ -3413,6 +3544,10 @@ export function mountStage(stageOptions) {
         entry.show(panelBinding);
       } else {
         // 让位：一定要真正藏起来，否则上一次打开的面板会留在下面那层。
+        // 有些面板在隐藏时还要顺手作废本地状态（门锁要清掉已输入的密码与待确认动作），
+        // 所以这里先给它们一次机会，再统一置 hidden —— 置 hidden 放在后面，
+        // 免得某个 hide() 忘了写这一行就漏藏一个面板。
+        entry.hide?.();
         entry.root.hidden = true;
       }
     }
@@ -4026,6 +4161,7 @@ export function mountStage(stageOptions) {
       stageOptions.floorTransitionActive || cameraTransition?.owner === "floor";
     if (!isFloorTransitionActive) {
       syncCurtains();
+      syncLocks();
       syncNasStatus();
       syncCameraStatus();
       syncTelevisionScreens();
@@ -4039,6 +4175,10 @@ export function mountStage(stageOptions) {
         }
       }
       curtainMotion.update(timestamp);
+      // 门动画逐帧推进。门模型清单走 syncLocks 的快照缓存（见下），
+      // 状态表直接复用舞台那份，与门锁面板读的是同一个来源。
+      // tick 的返回值就是「本帧还有门在动」，直接用来决定下一帧的间隔。
+      lockMotionActive = lockMotion.tick(timestamp, lockDoorModelsList, statesByEntityId);
     }
     syncVacuumMaps();
     stageOptions.curtainFrame?.({
@@ -4135,6 +4275,7 @@ export function mountStage(stageOptions) {
       hasActiveVacuum ? 7000 - (timestamp % 7000) : Infinity,
       cameraTransition || environmentSceneDelay || vacuumMapDelay ? 0 : Infinity,
       curtainMotion.isMoving() ? 1000 / 30 : Infinity,
+      lockMotionActive ? 1000 / 30 : Infinity,
       Math.min(coverFeedback.nextDelay(timestamp), dreamCoverFeedback.nextDelay(timestamp)),
       environmentAirflow.nextDelay(),
       nasStatus.nextDelay(),
@@ -4245,6 +4386,8 @@ export function mountStage(stageOptions) {
       environmentScene.dispose();
       climatePanel.dispose();
       devicePanel.dispose();
+      lockPanel.dispose();
+      lockMotion.dispose();
       stageOptions.finishFloorTransition?.();
       idleRotation.dispose();
       idleIconVisibility.dispose();

@@ -4,15 +4,15 @@
  * 商品列表与编辑器（定价、有效期、库存、功能码），以及商品目录缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609251851";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609251851";
-import { api, withBusy } from "../api.js?v=2609251851";
-import { state } from "../state.js?v=2609251851";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609251851";
-import { money, num, pill } from "../format.js?v=2609251851";
-import { PRODUCT_TYPE } from "../vocab.js?v=2609251851";
-import { askConfirm } from "../dialogs.js?v=2609251851";
-import { host } from "../host.js?v=2609251851";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609251920";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609251920";
+import { api, withBusy } from "../api.js?v=2609251920";
+import { state } from "../state.js?v=2609251920";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609251920";
+import { money, num, pill } from "../format.js?v=2609251920";
+import { PRODUCT_TYPE } from "../vocab.js?v=2609251920";
+import { askConfirm } from "../dialogs.js?v=2609251920";
+import { host } from "../host.js?v=2609251920";
 
 // --------------------------------------------------------------------------- //
 // 商品

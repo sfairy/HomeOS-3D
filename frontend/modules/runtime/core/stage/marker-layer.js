@@ -21,6 +21,30 @@
  */
 const MARKER_LABEL_SCALE = 2;
 
+/**
+ * 门牌（门锁标记上那块标签）该不该贴。
+ *
+ * labelMode 的三个取值各有用途：always 常显（让用户一眼看见有哪些门）、open 只在门开着时显
+ * （平时不挡场景，开门才提醒）、hidden 不显。表外的值不回落到 hidden 而是回落到 always ——
+ * 配错不显示属于「静默少东西」，比多显示一块标签难排查得多。
+ *
+ * labelHidden 是 labelMode 之前的旧字段，只为兼容还在用它的老配置：它只能表达「显 / 不显」
+ * 两态，所以只在 labelMode 没写时才生效。
+ *
+ * 非门锁的绑定一律返回 true（本函数只管门牌，摄像头与人体传感器的标签显隐另有规则）。
+ */
+const doorLabelVisibility = binding =>
+  binding.labelMode === "hidden" || binding.labelMode === "open" || binding.labelMode === "always"
+    ? binding.labelMode
+    : binding.labelHidden === true
+      ? "hidden"
+      : "always";
+
+const doorLabelVisible = (binding, lockStateValue) =>
+  binding.deviceKind !== "lock" ||
+  doorLabelVisibility(binding) === "always" ||
+  (doorLabelVisibility(binding) === "open" && lockStateValue?.doorOpen === true);
+
 export function createMarkerLayer(ctx) {
   /**
    * 重绘标记列表：按当前模块的绑定集合增删 DOM 节点并同步内容。
@@ -108,9 +132,20 @@ export function createMarkerLayer(ctx) {
                   ctx.statesByEntityId[renderedBinding.entityId],
                   renderedBinding
                 )
-              : renderedBinding.modelId
-                ? ctx.climateState(renderedBinding.entityId, ctx.statesByEntityId[renderedBinding.entityId])
-                : ctx.resolveLightState(renderedBinding.entityId);
+              : renderedBinding.deviceKind === "lock"
+                ? (() => {
+                    const lockStateValue = ctx.lockState(renderedBinding, ctx.statesByEntityId);
+                    return {
+                      available: lockStateValue.available,
+                      on:
+                        lockStateValue.state === "unlocked" || lockStateValue.state === "open",
+                      name: renderedBinding.label || "门",
+                      lock: lockStateValue
+                    };
+                  })()
+                : renderedBinding.modelId
+                  ? ctx.climateState(renderedBinding.entityId, ctx.statesByEntityId[renderedBinding.entityId])
+                  : ctx.resolveLightState(renderedBinding.entityId);
       const markerSize =
         Number.isFinite(renderedBinding.size) && renderedBinding.size > 0
           ? renderedBinding.size
@@ -133,7 +168,8 @@ export function createMarkerLayer(ctx) {
       markerElement.classList.toggle("is-presence-wave", renderedBinding.passiveSensor === true);
       markerElement.classList.toggle(
         "is-security-label",
-        renderedBinding.deviceKind === "camera" ||
+        renderedBinding.deviceKind === "lock" ||
+          renderedBinding.deviceKind === "camera" ||
           (renderedBinding.deviceKind === "presence" && ctx.isEditing)
       );
       if (isVacuumMarker) {
@@ -203,19 +239,34 @@ export function createMarkerLayer(ctx) {
         deviceState.on = vacuumStatus.active;
         deviceState.available = vacuumStatus.available;
       }
-      if (renderedBinding.deviceKind === "camera" || renderedBinding.deviceKind === "presence") {
+      if (
+        renderedBinding.deviceKind === "lock" ||
+        renderedBinding.deviceKind === "camera" ||
+        renderedBinding.deviceKind === "presence"
+      ) {
         const entityState = ctx.resolveStateEntry(ctx.statesByEntityId[renderedBinding.entityId]);
+        // 门锁的「在线」由 lockState 综合判定：锁本体 / 门磁 / 电量任一条在线即算在线，
+        // 所以这里直接用它算好的 available，不能只看 entityId 那一条实体的状态
+        // —— 门磁掉了但锁本体还在时，门依然是可用的。
+        const lockStateValue =
+          renderedBinding.deviceKind === "lock" ? deviceState.lock : null;
         const isAvailable =
-          renderedBinding.deviceKind === "camera"
-            ? ctx.cameraOnline(entityState)
-            : entityState?.available !== false &&
-              !!entityState?.state &&
-              !["unknown", "unavailable"].includes(entityState.state);
+          renderedBinding.deviceKind === "lock"
+            ? lockStateValue.available
+            : renderedBinding.deviceKind === "camera"
+              ? ctx.cameraOnline(entityState)
+              : entityState?.available !== false &&
+                !!entityState?.state &&
+                !["unknown", "unavailable"].includes(entityState.state);
         deviceState.available = isAvailable;
+        // 「亮起」的口径：门锁是「已解锁或锁舌已释放」（这两种状态才需要用户注意），
+        // 摄像头是正在录像，其余（人体传感器）是 on。
         deviceState.on =
-          renderedBinding.deviceKind === "camera"
-            ? entityState?.state === "recording"
-            : entityState?.state === "on";
+          renderedBinding.deviceKind === "lock"
+            ? lockStateValue.state === "unlocked" || lockStateValue.state === "open"
+            : renderedBinding.deviceKind === "camera"
+              ? entityState?.state === "recording"
+              : entityState?.state === "on";
         if (renderedBinding.passiveSensor) {
           if (!markerElement.querySelector(".i3d-sensor-wave")) {
             markerElement.replaceChildren(
@@ -227,6 +278,7 @@ export function createMarkerLayer(ctx) {
           markerElement.classList.toggle("is-inactive", !isAvailable);
         } else {
           const isSensorChoice = renderedBinding.deviceKind === "presence" && ctx.isEditing;
+          const isLockMarker = renderedBinding.deviceKind === "lock";
           markerElement.classList.toggle("is-sensor-choice", isSensorChoice);
           let securityLabelElement = markerElement.querySelector(".i3d-security-label");
           if (!securityLabelElement) {
@@ -236,28 +288,51 @@ export function createMarkerLayer(ctx) {
           }
           securityLabelElement.children[0].textContent =
             renderedBinding.label ||
-            (renderedBinding.deviceKind === "camera" ? "摄像头" : "人体传感器");
+            (isLockMarker ? "门" : renderedBinding.deviceKind === "camera" ? "摄像头" : "人体传感器");
+          // 「这条锁配没配实体」与其它两类不同：锁的实体散在五个槽位里，任何一个非空都算配过，
+          // 只看 entityId（锁本体）会把「只绑了门磁」的门误报成未绑定。
+          const lockBoundEntityId =
+            isLockMarker &&
+            (renderedBinding.doorEntityId ||
+              renderedBinding.doorEventEntityId ||
+              renderedBinding.doorOpenEntityId ||
+              renderedBinding.doorCloseEntityId ||
+              renderedBinding.batteryEntityId ||
+              renderedBinding.entityId);
           securityLabelElement.children[1].textContent =
-            ctx.isEditing && !renderedBinding.entityId
+            ctx.isEditing && !(isLockMarker ? lockBoundEntityId : renderedBinding.entityId)
               ? "未绑定实体"
               : isAvailable
-                ? renderedBinding.deviceKind === "presence"
-                  ? entityState.state === "on"
-                    ? "有人"
-                    : "检测中"
-                  : "在线"
+                ? isLockMarker
+                  ? (deviceState.lock.doorOpen === true
+                      ? "已打开"
+                      : deviceState.lock.doorOpen === false
+                        ? "已关闭"
+                        : "状态未知") +
+                    (renderedBinding.batteryEntityId && deviceState.lock.battery !== "—"
+                      ? " · " + deviceState.lock.battery
+                      : "")
+                  : renderedBinding.deviceKind === "presence"
+                    ? entityState.state === "on"
+                      ? "有人"
+                      : "检测中"
+                    : "在线"
                 : "离线";
           securityLabelElement.children[1].hidden = isSensorChoice;
           securityLabelElement.classList.toggle(
             "is-camera-status",
             renderedBinding.deviceKind === "camera"
           );
+          securityLabelElement.classList.toggle("is-lock-status", isLockMarker);
           securityLabelElement.classList.toggle("is-camera-offline", !isAvailable);
+          // 门牌贴不贴由 labelMode 决定：always 常显；open 只在门开着时显；hidden 不显。
+          // 缺省口径是「常显」（labelHidden: true 的老配置折算成 hidden）。
+          securityLabelElement.hidden = !doorLabelVisible(renderedBinding, deviceState.lock);
           securityLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
           // 标签整块按标记标签口径放大：字号、内边距、圆角、图标位置都跟着 --i3d-security-scale
           // 走，所以标签内的图标要反着除回去，才能和普通标记的图标一样大。
           const securityLabelScale = (markerSize / 44) * MARKER_LABEL_SCALE;
-          if (renderedBinding.deviceKind === "camera") {
+          if (renderedBinding.deviceKind === "camera" || isLockMarker) {
             const securityIconElement = markerElement.querySelector(".i3d-marker-icon");
             if (securityIconElement && securityIconElement.parentNode !== securityLabelElement) {
               securityLabelElement.append(securityIconElement);

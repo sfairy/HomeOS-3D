@@ -12,7 +12,10 @@
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile
-} from "../../device/device-profiles.js?v=2609251910";
+} from "../../device/device-profiles.js?v=2609251920";
+// 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
+// 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
+import { doorModels } from "../../security/lock-state.js?v=2609251920";
 
 export function createBindingCollectors(ctx) {
   /**
@@ -270,6 +273,59 @@ export function createBindingCollectors(ctx) {
       );
   }
 
+  // 收集门锁绑定（安防模块的「门」）。
+  //
+  // 一条锁配置本身不是控件，它指向「一扇门」：门模型来自楼层的 scene.doors（要么是工作室导出的
+  // 门模型，要么是画在墙上的户型门由 doorModels 插值出坐标）。这里把配置项与门模型合并成绑定，
+  // 门轴方向、门型、缺省坐标都从门模型补 —— 舞台上的门动画要按门型选 rig、按门轴定旋转中心。
+  const collectLockBindings = () =>
+    (ctx.config.security?.locks || [])
+      .map(securityLockEntry => {
+        const securityLockFloor = ctx.stageOptions.document.floors.find(
+          securityLockFloorCandidate => securityLockFloorCandidate.id === securityLockEntry.floorId
+        );
+        const securityLockDoorModel =
+          securityLockFloor &&
+          doorModels(securityLockFloor).find(
+            securityLockDoorModelCandidate =>
+              securityLockDoorModelCandidate.modelId === securityLockEntry.modelId
+          );
+        return {
+          ...securityLockEntry,
+          // 门轴方向：配置显式值 → 门模型自带 → 缺省左开。三级兜底是为了让旧配置
+          // （没写 hinge）也能拿到一扇能正常旋转的门，而不是绕错边甩出去。
+          hinge: securityLockEntry.hinge || securityLockDoorModel?.hinge || "left",
+          id: "lock:" + securityLockEntry.id,
+          deviceKind: "lock",
+          clickAction: "focus-panel",
+          icon: securityLockEntry.icon || "mdi:door-closed",
+          modelAvailable: !!securityLockDoorModel,
+          x: Number.isFinite(securityLockEntry.x)
+            ? securityLockEntry.x
+            : (securityLockDoorModel?.x ?? 0),
+          y: Number.isFinite(securityLockEntry.y)
+            ? securityLockEntry.y
+            : (securityLockDoorModel?.y ?? 0),
+          // 门是立在地上的薄片：标记高度取门高的一半（即门的几何中心），而不是底面。
+          // 2.2 米是标准门高，门模型没给高度时用它兜底。
+          height: Number.isFinite(securityLockEntry.height)
+            ? securityLockEntry.height
+            : (securityLockDoorModel?.height ?? 2.2) * 0.5
+        };
+      })
+      // 展示态把「一个实体都没绑」的门丢掉：这种门点了也没有任何可看内容，
+      // 留在舞台上只会挡住场景。编辑态必须全部保留，否则用户没法把新门拖到舞台上配置。
+      .filter(
+        securityLockFilterEntry =>
+          ctx.isEditing ||
+          securityLockFilterEntry.doorEntityId ||
+          securityLockFilterEntry.doorEventEntityId ||
+          securityLockFilterEntry.doorOpenEntityId ||
+          securityLockFilterEntry.doorCloseEntityId ||
+          securityLockFilterEntry.batteryEntityId ||
+          securityLockFilterEntry.entityId
+      );
+
   // 收集「场景里有窗帘模型但配置未绑定实体」的预览窗帘：按 楼层 + 模型 去重，
   // 让编辑器在未绑定状态下也能看到窗帘。
   // 去重键走 core/scene-model-key.js：两侧都必须归一（配置侧可能没写楼层、场景项一侧可能缺字段），
@@ -351,10 +407,13 @@ export function createBindingCollectors(ctx) {
       ...collectVacuumBindings(),
       ...collectCameraBindings(),
       ...collectPresenceBindings(),
+      ...collectLockBindings(),
       ...GENERIC_DEVICE_KINDS.flatMap(collectGenericDeviceBindings)
     ].map(bindingEntry => ({
       ...bindingEntry,
-      id: ["camera", "presence"].includes(bindingEntry.deviceKind)
+      // 这三类在收集时就带了带前缀的 id（lock: / camera: / presence:），再拼一次会变成
+      // "lock:lock:xxx"；其余设备类型的 id 是裸 id，需要在这里补前缀。
+      id: ["camera", "presence", "lock"].includes(bindingEntry.deviceKind)
         ? bindingEntry.id
         : bindingEntry.deviceKind + ":" + bindingEntry.id
     }));
@@ -371,6 +430,7 @@ export function createBindingCollectors(ctx) {
     let moduleBindings =
       ctx.activeModule === "security"
         ? [
+            ...collectLockBindings(),
             ...collectCameraBindings(),
             ...collectPresenceBindings().filter(
               securitySensorEntry => ctx.isEditing && securitySensorEntry.modelId
@@ -414,7 +474,7 @@ export function createBindingCollectors(ctx) {
     } else if (ctx.activeModule === "overview") {
       return collectOverviewBindings();
     } else if (ctx.activeModule === "security") {
-      return [...collectCameraBindings(), ...collectPresenceBindings()];
+      return [...collectLockBindings(), ...collectCameraBindings(), ...collectPresenceBindings()];
     } else if (ctx.activeModule === "vacuum-shortcut") {
       return collectVacuumRoomShortcuts().filter(
         shortcutFilterEntry => shortcutFilterEntry.vacuumId === ctx.editingVacuumId
@@ -448,5 +508,5 @@ export function createBindingCollectors(ctx) {
       );
     }
   }
-  return { collectAllDeviceBindings, collectCameraBindings, collectClimateBindings, collectCurtainBindings, collectModuleBindings, collectNasBindings, collectOverviewBindings, collectPresenceBindings, collectPreviewCovers, collectTelevisionBindings, collectVacuumBindings, collectVacuumRoomShortcuts, resolveModuleBindings };
+  return { collectAllDeviceBindings, collectCameraBindings, collectClimateBindings, collectCurtainBindings, collectLockBindings, collectModuleBindings, collectNasBindings, collectOverviewBindings, collectPresenceBindings, collectPreviewCovers, collectTelevisionBindings, collectVacuumBindings, collectVacuumRoomShortcuts, resolveModuleBindings };
 }
