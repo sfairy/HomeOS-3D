@@ -8,34 +8,34 @@
  * waitInteraction3dEditorView(componentId) 拿到视图句柄再下命令；sceneId 是后端签发的 32 位十六进制，
  * 面板只做格式校验。副作用：发起授权校验与户型载入、动态 import 子编辑器、直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=2609252210";
+import { resolvePageBehavior } from "./page-behavior.js?v=2609252218";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=2609252210";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=2609252210";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609252210";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609252210";
+} from "./performance-warning.js?v=2609252218";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=2609252218";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609252218";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609252218";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=2609252210";
+} from "./bridge.js?v=2609252218";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=2609252210";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609252210";
+} from "./cover.js?v=2609252218";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609252218";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
-import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609252210";
-import { createDomFactory } from "../shared/dom-factory.js?v=2609252210";
+import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609252218";
+import { createDomFactory } from "../shared/dom-factory.js?v=2609252218";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=2609252210";
+} from "./definition.js?v=2609252218";
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
@@ -305,11 +305,15 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     return;
   }
   inspectorElement.dataset.componentId = targetComponent.id;
-  // 折叠状态按 group 名记忆：重建后同名的分组保持原来的展开 / 收起。
+  // 折叠状态按 group 名记忆，但只在**同一个 3D 控件重新渲染**时才继承：改一个字段就会整份重建
+  // 面板，不记的话展开的分组会在用户眼皮底下收回去。换成另一个 3D 控件时不继承 —— 对新控件而言
+  // 那是「第一次打开」，应当走默认的全收起（见 appendInspectorGroup）。
   const openStateByGroup = new Map(
-    [...inspectorElement.querySelectorAll("details")]
-      .filter(detailsElement => detailsElement.dataset.inspectorGroup)
-      .map(detailsEntry => [detailsEntry.dataset.inspectorGroup, detailsEntry.open])
+    isSameComponentOpen
+      ? [...inspectorElement.querySelectorAll("details")]
+          .filter(detailsElement => detailsElement.dataset.inspectorGroup)
+          .map(detailsEntry => [detailsEntry.dataset.inspectorGroup, detailsEntry.open])
+      : []
   );
   inspectorElement.replaceChildren();
   // 面板重建时的统一元素工厂：唯一实现见 shared/dom-factory.js（文本一律 textContent，
@@ -545,7 +549,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252218");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -580,7 +584,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252218");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -614,7 +618,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609252218");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -646,7 +650,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252218");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -722,7 +726,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252218");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -751,7 +755,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252210");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252218");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -2540,6 +2544,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   houseSection.classList.add("i3d-house-section");
   layoutSection.classList.add("i3d-placement-section");
   lightEffectsSection.classList.add("i3d-light-effects-row");
+  // 不显示「灯光模式」这行文字：这一节的标题已经是「灯光效果」，再挂一行说明纯属重复，
+  // 而且会把下拉挤到第二行。只隐藏 label 里的那个 span（不删 label 本身）—— label 留着，
+  // 点标题仍能聚焦下拉；读屏器那边由 select 自带的 aria-label="灯光模式" 兜住。
+  lightingModeSelect.parentElement.children[0].hidden = true;
   for (const inspectorSubsection of [autoRotateSection, idleExitSection, iconVisibilitySection]) {
     inspectorSubsection.classList.add("i3d-inspector-subsection");
   }
@@ -2561,15 +2569,18 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const rememberedOpenGroupKey =
     [...openStateByGroup.entries()].find(([, groupOpen]) => groupOpen)?.[0] ?? null;
   const hasRenderedGroups = openStateByGroup.size > 0;
-  const defaultOpenGroupKey = isViewEditing ? "view" : "layout";
   // 追加一个可折叠分组。手风琴语义（同时只展开一组）与「弹窗分组被收起时撤回预览」
-  // 都在 toggle 监听里处理；重建面板时按 groupKey 恢复上次展开的那一组。
+  // 都在 toggle 监听里处理。
+  //
+  // 展开态分两种来源，别混为一谈：
+  //   - 默认（首次渲染，openStateByGroup 为空）：**全收起**，用户想看哪一组就点哪一组；
+  //   - 记忆（面板重建，例如刚改了一个字段）：恢复用户当前展开的那一组。
+  // 记忆这一路必须保留 —— 面板每次改字段都会整份重建，去掉它就会在用户眼皮底下把展开的分组
+  // 收回去。而默认展开某组（旧行为是「视角与导航」/「户型与布局」）会让首屏顶着一大片展开内容。
   const appendInspectorGroup = (groupKey, groupTitle, groupChildren) => {
     const detailsGroupElement = createElement("details", "i3d-inspector-group");
     detailsGroupElement.dataset.inspectorGroup = groupKey;
-    detailsGroupElement.open = hasRenderedGroups
-      ? groupKey === rememberedOpenGroupKey
-      : groupKey === defaultOpenGroupKey;
+    detailsGroupElement.open = hasRenderedGroups && groupKey === rememberedOpenGroupKey;
     detailsGroupElement.append(createElement("summary", "", groupTitle), ...groupChildren);
     inspectorElement.append(detailsGroupElement);
     detailsGroupElement.addEventListener("toggle", () => {
