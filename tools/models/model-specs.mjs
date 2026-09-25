@@ -4930,6 +4930,72 @@ export const MODEL_SPECS = Object.freeze({
       landingInset: 0.06
     })
   },
+  // 悬空楼梯（1 字型直跑）：10 级**只有踏步、没有斜梁也没有立柱**的悬挑梯 —— 实物的支承藏在
+  // 墙里，模型只烘踏步本身，把「悬空」这件事读出来。这也是它上面三件楼梯的根本区别：实心
+  // stairs 有混凝土梯身、钢 / 玻璃楼梯有斜梁与平台梁，这一件刻意一根可见的承重构件都不做。
+  //
+  // 尺寸照搬既有参考资产的包围盒（0.9725 × 2.5901 × 2.2483）：进深 2.2483 只够一跑，10 级
+  // 均分出 0.2248 的踏面；第一级落在 y=0（生成器要求底面贴地、preserveOrigin 直接贴地），
+  // 其余九级的顶面均分到 2.5901 —— 踢面因此是 (层高 − 踏板厚) / 9 ≈ 0.278、坡度约 51°。
+  // 这个比值由参考包围盒定死，是「2.25m 进深爬 2.59m」的唯一解，不是笔误。
+  floatingstairs: {
+    note: "悬空楼梯（1 字型直跑）：10 级实木悬挑踏步 + 前缘防滑凹槽；无斜梁、无立柱。",
+    size: [0.97254264, 2.59010673, 2.2483418],
+    slots: [
+      { role: "top", color: 0xb08a5e, roughness: 0.62, metalness: 0.02 }, // 0 悬挑踏步（木）
+      { role: "trim", color: 0x8a6a45, roughness: 0.7, metalness: 0.04 } // 1 防滑条
+    ],
+    parts: (() => {
+      const floatingStairRiserCount = 10;
+      // 踏板做厚（9cm）而不是像 stairs 那样 3cm：悬挑踏步的断面本身就是它的全部结构，
+      // 太薄会在 3D 里读成一片纸；厚度也不参与定高（顶面均分到层高，厚度只改踢面）。
+      const floatingStairTreadThickness = 0.09;
+      const floatingStairGoing = 2.2483418 / floatingStairRiserCount;
+      const floatingStairRise =
+        (2.59010673 - floatingStairTreadThickness) / (floatingStairRiserCount - 1);
+      const floatingStairTreadWidth = 0.97254264;
+      const floatingStairParts = [];
+      for (
+        let floatingStairStep = 0;
+        floatingStairStep < floatingStairRiserCount;
+        floatingStairStep += 1
+      ) {
+        // 沿 -z 方向逐级抬升：第一级贴在 +z 端（起步端），顶级落在 -z 端 —— 与上面 stairs 的
+        // 「从 +z 往 -z 升」同向，平面符号那支上箭头才不用另判方向。
+        const floatingStairTreadTopY =
+          floatingStairTreadThickness + floatingStairStep * floatingStairRise;
+        const floatingStairTreadCenterZ =
+          2.2483418 / 2 - floatingStairGoing * (floatingStairStep + 0.5);
+        // 每级一块**独立**的踏板，彼此之间没有任何东西相连 —— 这正是「悬空」的画法。
+        // 踏板宽度就是整件宽度（±0.4863），占地的左右两条极值边界都由它撑住。
+        // 注意 cbox 的 at[1] 是**底面对齐**（不是中心），踏板底面 = 顶面高 − 板厚。
+        floatingStairParts.push(
+          cbox(0, [floatingStairTreadWidth, floatingStairTreadThickness, floatingStairGoing], [
+            0,
+            floatingStairTreadTopY - floatingStairTreadThickness,
+            floatingStairTreadCenterZ
+          ])
+        );
+        // 前缘防滑凹槽：压在踏面前缘往里 3cm 处，整条嵌在踏板体内（顶面比踏面低 5mm、两侧各
+        // 收 9mm）。做成嵌入而不是凸棱，是因为外表面撑住包围盒（生成器有 1mm 校验），任何凸出
+        // 都会把整件顶高 / 顶宽。与上面 stairs 的防滑条同一套做法。
+        // 全件只有这一处 fullOnly：把十条凹槽整条丢掉，lite 版正好省掉一半顶点。
+        floatingStairParts.push(
+          cbox(
+            1,
+            [0.96, 0.008, 0.02],
+            [
+              0,
+              floatingStairTreadTopY - 0.013,
+              floatingStairTreadCenterZ + floatingStairGoing / 2 - 0.03
+            ],
+            { fullOnly: true }
+          )
+        );
+      }
+      return floatingStairParts;
+    })()
+  },
   // 家用电梯的轿厢。旧资产是厘米单位、原点漂着、材质名是一串 `[Color_003]`，运行侧只能靠
   // 「名字里有没有 Color_003 / Color_004」认件（见 studio-external-models.js 的电梯分支）——
   // 换成任何一份新资产都会静默失配（整件同色）。这里按角色分件，认件从此看语义。
@@ -5050,7 +5116,8 @@ export const MODEL_FILE_KEY_BY_SPEC = Object.freeze({
   pillar_quarterinner: "pillar-quarterinner",
   smallcar: "car",
   steelstairs: "steel-stairs",
-  glassstairs: "glass-stairs"
+  glassstairs: "glass-stairs",
+  floatingstairs: "floating-stairs"
 });
 
 /** 规格键 → 分类子目录。与 studio-external-models.js 的 modelAssetUrl 第一参保持一致。 */
@@ -5199,6 +5266,7 @@ export const MODEL_DIR_BY_SPEC = Object.freeze({
   stairs: "structure",
   steelstairs: "structure",
   glassstairs: "structure",
+  floatingstairs: "structure",
   elevator: "structure",
   // 车辆（第七批）：最后一件既有二进制资产。
   smallcar: "vehicle"

@@ -242,8 +242,10 @@ export function buildFridgeItem(context) {
     itemDepth,
     itemGroup,
     itemHeight,
+    itemSpec,
     itemWidth,
   } = context;
+  // 箱体上下通体：原款与左右双开门共用同一块箱体，款式只改正面门扇的排布。
   addBoxMesh(
     itemGroup,
     itemWidth,
@@ -258,32 +260,84 @@ export function buildFridgeItem(context) {
       roughness: 0.5
     }
   );
-  addBoxMesh(
-    itemGroup,
-    itemWidth * 0.88,
-    0.018,
-    itemDepth * 1.01,
-    0,
-    itemHeight * 0.42,
-    itemDepth * 0.01,
-    furnitureDarkColor,
-    {
-      metalness: 0.5
+  if (itemSpec?.fridgeStyle === "double") {
+    // 左右双开门：两扇等宽通高竖门并排，门缝落在正中线，每扇门靠中线一侧各一只竖向长把手。
+    // 门扇是一层贴在前脸的薄板（厚度取进深的 4%，上限 25mm），门缝与四周透出后面的深色衬板。
+    const fridgeDoorPanelDepth = Math.min(0.025, itemDepth * 0.04);
+    const fridgeDoorFrontZ = itemDepth * 0.5;
+    addBoxMesh(
+      itemGroup,
+      itemWidth * 0.96,
+      itemHeight * 0.96,
+      fridgeDoorPanelDepth,
+      0,
+      itemHeight * 0.5,
+      fridgeDoorFrontZ,
+      furnitureDarkColor,
+      {
+        rounded: false,
+        roughness: 0.65
+      }
+    );
+    for (const fridgeDoorSign of [-1, 1]) {
+      addBoxMesh(
+        itemGroup,
+        itemWidth * 0.466,
+        itemHeight * 0.945,
+        fridgeDoorPanelDepth,
+        fridgeDoorSign * itemWidth * 0.239,
+        itemHeight * 0.5,
+        fridgeDoorFrontZ + fridgeDoorPanelDepth * 0.65,
+        furnitureLightColor,
+        {
+          metalness: 0.22,
+          roughness: 0.42
+        }
+      );
+      addBoxMesh(
+        itemGroup,
+        Math.min(0.018, itemWidth * 0.024),
+        itemHeight * 0.3,
+        0.028,
+        fridgeDoorSign * itemWidth * 0.055,
+        itemHeight * 0.56,
+        fridgeDoorFrontZ + fridgeDoorPanelDepth * 1.3,
+        furnitureDarkColor,
+        {
+          metalness: 0.65,
+          roughness: 0.3
+        }
+      );
     }
-  );
-  addBoxMesh(
-    itemGroup,
-    0.025,
-    itemHeight * 0.27,
-    0.035,
-    itemWidth * 0.35,
-    itemHeight * 0.65,
-    itemDepth * 0.515,
-    furnitureDarkColor,
-    {
-      metalness: 0.7
-    }
-  );
+  } else {
+    // 原款：单门冰箱，用一道横向门缝（冷藏 / 冷冻分界）与一只竖向把手表示。
+    addBoxMesh(
+      itemGroup,
+      itemWidth * 0.88,
+      0.018,
+      itemDepth * 1.01,
+      0,
+      itemHeight * 0.42,
+      itemDepth * 0.01,
+      furnitureDarkColor,
+      {
+        metalness: 0.5
+      }
+    );
+    addBoxMesh(
+      itemGroup,
+      0.025,
+      itemHeight * 0.27,
+      0.035,
+      itemWidth * 0.35,
+      itemHeight * 0.65,
+      itemDepth * 0.515,
+      furnitureDarkColor,
+      {
+        metalness: 0.7
+      }
+    );
+  }
 }
 
 /**

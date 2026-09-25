@@ -13,21 +13,22 @@ import {
   curtainFootprintDepth,
   createCurtainTrack,
   curtainPanelRanges,
+  addRollerCurtain,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609251920";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609251920";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609251920";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609251920";
+} from "../loaders/studio-curtain-track.js?v=2609252203";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609252203";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609252203";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609252203";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609251920";
-import { paletteColor } from "../../utils/colors.js?v=2609251920";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609251920";
+} from "../../shared/menu-positioning.js?v=2609252203";
+import { paletteColor } from "../../utils/colors.js?v=2609252203";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609252203";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251920";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609251920";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609252203";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609252203";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -44,10 +45,10 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609251920";
+} from "./studio-item-types.js?v=2609252203";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609251920";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609252203";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
@@ -55,31 +56,31 @@ import {
   createMuralArtTexture,
   createFeatureWallTexture,
   createStoneSlabTexture
-} from "../materials/studio-surface-textures.js?v=2609251920";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609251920";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609251920";
+} from "../materials/studio-surface-textures.js?v=2609252203";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609252203";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609252203";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609251920";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609251920";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609251920";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609251920";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609251920";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609251920";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609251920";
+} from "./studio-camera-constraints.js?v=2609252203";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609252203";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609252203";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609252203";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609252203";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609252203";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609252203";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609251920";
+} from "../materials/studio-wall-materials.js?v=2609252203";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
   applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609251920";
+} from "./studio-scene-style.js?v=2609252203";
 // 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
 // 因此逐物件选择优先于全局风格（见 studio-material-styles.js 的模块头）。
 import {
@@ -89,39 +90,46 @@ import {
   materialStyleOptionsFor,
   normalizeMaterialStyle,
   applyMaterialStyle
-} from "./studio-material-styles.js?v=2609251920";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609251920";
+} from "./studio-material-styles.js?v=2609252203";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609252203";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609251920";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609251920";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609251920";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609251920";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609251920";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609251920";
+} from "../../bridge/render-cache.js?v=2609252203";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609252203";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609252203";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609252203";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609252203";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609252203";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609251920";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609252203";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609251920";
+import { debugLog } from "../../utils/debug-log.js?v=2609252203";
+// 首屏分段埋点（`[3D-load]`）：开关与出口都在 utils/debug-log.js，本文件只负责在链上打点。
+import { createLoadTiming } from "../../bridge/load-timing.js?v=2609252203";
+// 舞台页的提前起跑（舞台页里非 null）：它已经替我们读过场景持久缓存、发过场景接口请求、
+// 开始下载 stage 模块 —— 三件事都直接复用，绝不再做第二遍。
+import { stageStartup } from "../stage-startup.js?v=2609252203";
+// 场景持久缓存：把「归一后的场景文档」跨会话存起来，舞台页二次打开时跳过整段逐层归一。
+import { prepareSceneDocument } from "../scene-persistent-cache.js?v=2609252203";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609251920";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609252203";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609251920";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609252203";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609251920";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609251920";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609252203";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609252203";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609251920";
+} from "../../bridge/light-motion.js?v=2609252203";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -161,7 +169,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609251920";
+} from "../plan/geometry.js?v=2609252203";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -170,14 +178,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609251920";
+} from "../export/export-utils.js?v=2609252203";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 // 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609251920";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609251920";
+} from "../../shared/layout-shell.js?v=2609252203";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609252203";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -185,25 +193,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609251920";
-import { reorderFloors } from "../plan/floor-order.js?v=2609251920";
-import { syncControlValue } from "./ui-controls.js?v=2609251920";
+} from "../export/export-presets.js?v=2609252203";
+import { reorderFloors } from "../plan/floor-order.js?v=2609252203";
+import { syncControlValue } from "./ui-controls.js?v=2609252203";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609251920";
+} from "./studio-widgets.js?v=2609252203";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609251920";
+} from "../loaders/studio-external-models.js?v=2609252203";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609251920";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609251920";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609251920";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609251920";
+} from "../plan/studio-plan-drawing.js?v=2609252203";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609252203";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609252203";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609252203";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -216,7 +224,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609251920";
+} from "../loaders/studio-normalization.js?v=2609252203";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -224,6 +232,15 @@ import {
  */
 const selectElement = selector => document.querySelector(selector);
 const isStageViewerMode = window.location.pathname === "/api/v1/modules/interaction3d/stage.html";
+/**
+ * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
+ *
+ * 舞台页的加载链最长，也就是它最需要分段：`draft-fetched` / `scene-preparation-*` / `draft-loaded` /
+ * `stage-mounted` 四五个点连起来，就能看出「偶发变慢」到底卡在接口、归一还是 stage 模块。
+ */
+const loadTiming = createLoadTiming("studio");
+// 模块求值本身也是一个可观测的节点：它与进口的下载 / 解析是一体的，出现异常长间隔说明模块树变重了。
+loadTiming("module-evaluated");
 
 /**
  * 平面画布（2D planContext）取色。
@@ -408,6 +425,13 @@ const saveConflictLoadButton = selectElement("#save-conflict-load");
 const saveConflictOverwriteButton = selectElement("#save-conflict-overwrite");
 const saveConflictLaterButton = selectElement("#save-conflict-later");
 const saveConflictReopenButton = selectElement("#save-conflict-reopen");
+const saveInteractionDialogElement = selectElement("#save-interaction-dialog");
+const saveInteractionMessageElement = selectElement("#save-interaction-message");
+const saveInteractionProjectsElement = selectElement("#save-interaction-projects");
+const saveInteractionImpactsElement = selectElement("#save-interaction-impacts");
+const saveInteractionConfirmButton = selectElement("#save-interaction-confirm");
+const saveInteractionKeepButton = selectElement("#save-interaction-keep");
+const saveInteractionReopenButton = selectElement("#save-interaction-reopen");
 const globalWallHeightInput = selectElement("#global-wall-height");
 const globalWallThicknessInput = selectElement("#global-wall-thickness");
 const globalWallOpacityInput = selectElement("#global-wall-opacity");
@@ -473,6 +497,8 @@ const tvMountStyleFieldElement = selectElement("#tv-mount-style-field");
 const muralStyleFieldElement = selectElement("#mural-style-field");
 const featureWallStyleFieldElement = selectElement("#feature-wall-style-field");
 const materialStyleFieldElement = selectElement("#material-style-field");
+const fridgeStyleFieldElement = selectElement("#fridge-style-fields");
+const fridgeStyleRadioInputs = [...document.querySelectorAll('input[name="fridge-style"]')];
 const pillarShapeFieldElement = selectElement("#pillar-shape-field");
 const stripAxisFieldElement = selectElement("#strip-axis-field");
 const pillarAxisFieldElement = selectElement("#pillar-axis-field");
@@ -915,6 +941,17 @@ const ITEM_TYPE_DEFINITIONS = {
     depth: 2.84,
     height: 3.41,
     color: "#a9c5d3"
+  },
+  // 悬空楼梯（1 字型直跑）：占地 0.97 × 2.25、层高 2.59，逐值等于流水线规格 size 与
+  // studio-external-models.js 的 scaleBasis（三处必须一致，否则运行侧分轴缩放会拉变形）。
+  // 取色沿用木踏面，兜底盒体 / 缩略图至少是木头色而不是楼梯族的冷灰。
+  floatingstairs: {
+    name: "悬空楼梯",
+    glyph: "⇧",
+    width: 0.97254264,
+    depth: 2.2483418,
+    height: 2.59010673,
+    color: "#b08a5e"
   },
   chair: {
     name: "椅子",
@@ -2080,7 +2117,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609251920"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609252203"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -2548,6 +2585,13 @@ let saveConflict = null;
 // 但它不再停掉自动保存 —— 停掉之后界面一切正常，用户会一直以为在存，
 // 直到刷新页面才发现这一段的改动没了。
 let saveConflictDeferred = false;
+// 428「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、改回 428
+// 并附上绑定到「当前 revision + 新场景 + 现有文档 + 本次影响」的令牌。这里存下待确认的计划与
+// **当时**的 revision / 场景快照 —— 确认重发必须原样带回去，令牌才对得上。
+let saveInteractionConfirmation = null;
+// 「保留模型」：收起对话框但记录留着（本地删除与撤销栈一点不动、也绝不按未确认的计划清理）。
+// 与 409 的「稍后处理」同义，是这条流程里唯一不丢东西的出口。
+let saveInteractionDeferred = false;
 let toastTimer = null;
 let isSceneUpdateQueued = false;
 let isForcedSceneUpdate = false;
@@ -3861,6 +3905,12 @@ function normalizeScene(raw) {
                     "汽车充电 " + carLayerIndex,
                     24
                   )
+                }
+              : {}),
+            // 冰箱款式：只有 double 落键，其余（含老数据、脏值）一律归一为 standard。
+            ...(sourceItemRecord?.type === "fridge"
+              ? {
+                  fridgeStyle: sourceItemRecord.fridgeStyle === "double" ? "double" : "standard"
                 }
               : {}),
             ...(sourceItemRecord?.type === "curtain"
@@ -5331,20 +5381,26 @@ function currentPixelsPerMeter() {
  * 判定口径与错误形态见 utils/api-request.js（五处请求入口共用一份）；
  * 超时交给 apiFetch（20s / 3 分钟）—— 自动保存悬挂必须抛错，否则 isSaving 永不复位。
  */
-async function requestStudioApi(requestPath, requestOptions = {}) {
+async function requestStudioApi(requestPath, requestOptions = {}, prewarmedResponse = null) {
   if (isStageViewerMode && requestOptions.method && requestOptions.method !== "GET") {
     throw new Error("交互户型为只读视图。");
   }
-  const apiResponse = await apiFetch("/api/v1" + requestPath, {
-    cache: "no-store",
-    ...requestOptions,
-    headers: requestOptions.body
-      ? {
-          "Content-Type": "application/json",
-          ...(requestOptions.headers || {})
-        }
-      : requestOptions.headers
-  });
+  // 舞台页的场景请求可能已经被 stage-startup.js 提前发出（同一个 URL、同一份头，见其文件头）：
+  // 收下那一份就不必再传一次整份户型。预热失败 / 超时 / 已被取消时 `catch` 成 null，照旧自行请求，
+  // 所以「预热有没有成功」对上层是不可见的，唯一的差别只是快或没那么快。
+  const prewarmedApiResponse = prewarmedResponse ? await prewarmedResponse.catch(() => null) : null;
+  const apiResponse =
+    prewarmedApiResponse ||
+    (await apiFetch("/api/v1" + requestPath, {
+      cache: "no-store",
+      ...requestOptions,
+      headers: requestOptions.body
+        ? {
+            "Content-Type": "application/json",
+            ...(requestOptions.headers || {})
+          }
+        : requestOptions.headers
+    }));
   const apiResponseText = apiResponse.status === 204 ? "" : await apiResponse.text();
   let responsePayload = null;
   if (apiResponseText) {
@@ -5525,7 +5581,21 @@ async function loadStudioRecord(record) {
   deferredModelTypes = [];
   areExternalModelsDeferred = false;
   savedSceneRecord = record;
-  studioDocument = normalizeStudioDocument(record.scene);
+  // 场景持久缓存只在舞台页生效（只有那里有灯光历史作用域，缓存键才拼得出来；编辑器页
+  // `stageStartup` 为 null，整个分支不参与）。命中的是「归一后的场景文档」，于是这一段
+  // 逐层归一被整段跳过 —— 但前提是记录与缓存里的 syncKey 一致且未过 7 天 TTL，
+  // 否则 prepareSceneDocument 会照常调用归一（见 scene-persistent-cache.js 的三重校验）。
+  const preparedScene = stageStartup
+    ? prepareSceneDocument(record, stageStartup.cache.peek(stageStartup.key), normalizeStudioDocument)
+    : null;
+  studioDocument = preparedScene ? preparedScene.document : normalizeStudioDocument(record.scene);
+  if (preparedScene) {
+    loadTiming(preparedScene.reused ? "scene-preparation-reused" : "scene-preparation-built");
+    if (!preparedScene.reused) {
+      // 写回缓存：下一次打开就能命中。异步、静默，写不进去只是下次还要重新归一。
+      stageStartup.cache.schedule(stageStartup.key, record, studioDocument);
+    }
+  }
   if (isStageViewerMode) {
     for (const livePreviewFloor of studioDocument.floors) {
       livePreviewFloor.scene.settings.livePreviewEnabled = true;
@@ -5684,9 +5754,207 @@ function resolveSaveConflict() {
   saveConflictDialogElement.close();
 }
 /**
+ * 提交一次场景快照到 PUT /api/v1/studio3d，返回服务器回写的最新草稿记录（含新 revision）。
+ * 非 2xx 抛带 status / code 的接口错误（见 utils/api-request.js），409 / 428 从中读 payload。
+ *
+ * 抽成模块级函数而不是 saveStudioDraft 的局部函数，是因为「确认删除影响」的重发也要走同一条
+ * 请求路径，并且必须能覆写 revision 与场景快照：令牌绑定的是 428 当时那一份，见 confirmSaveInteraction。
+ *
+ * @param {{revision: number}} sceneRecord 服务器草稿记录，取它的 revision 做乐观并发。
+ * @param {object|null} [sceneSnapshot] 覆写要提交的场景，null 表示现取当前文档快照。
+ * @param {string|null} [interactionConfirmation] 删除影响确认令牌，非空时一并提交。
+ */
+async function putStudioScene(sceneRecord, sceneSnapshot = null, interactionConfirmation = null) {
+  return requestStudioApi("/studio3d", {
+    method: "PUT",
+    hbLogContext: {
+      phase: "studio-save"
+    },
+    body: JSON.stringify({
+      revision: sceneRecord.revision,
+      scene: sceneSnapshot || snapshotDocumentForSave(),
+      ...(interactionConfirmation ? {
+        interactionConfirmation
+      } : {})
+    })
+  });
+}
+/**
+ * 打开「本次删除影响」对话框（幂等：已经开着时不再 showModal()，重复调用会抛异常）。
+ */
+function openSaveInteractionDialog() {
+  if (!saveInteractionDialogElement.open) {
+    saveInteractionDialogElement.showModal();
+  }
+}
+/**
+ * 把「有未确认的删除影响」挂在界面上：状态栏文案 + 一颗常驻入口。与 409 的「处理保存冲突」
+ * 同一逻辑 —— 用户点了「保留模型」后对话框就收起来了，没有第二条入口的话就再也回不去确认。
+ */
+function setSaveInteractionPendingUi(hasPendingInteraction) {
+  saveInteractionReopenButton.hidden = !hasPendingInteraction;
+}
+/**
+ * 渲染对话框内容：服务端 message + 受影响的仪表盘名 + 每条绑定所在项目 / 控件的 label。
+ * 全部走 textContent：label 与仪表盘名都是用户数据，绝不能用 innerHTML 拼。
+ */
+function renderSaveInteractionDialog(confirmation) {
+  saveInteractionMessageElement.textContent =
+    confirmation.message || "删除的模型被 3D 控件引用，保存将一并移除这些绑定。";
+  saveInteractionProjectsElement.textContent =
+    [...new Set(confirmation.projects)].join("、") || "—";
+  saveInteractionImpactsElement.replaceChildren(
+    ...confirmation.impacts.map(impact => {
+      const impactItem = document.createElement("li");
+      impactItem.textContent = impact.label || impact.componentId || impact.projectId || "";
+      return impactItem;
+    })
+  );
+}
+/**
+ * 记录 428「删除影响未确认」，并按需弹确认对话框。record 里存的是服务端令牌与**发起这次保存时**
+ * 捕获的 revision / 场景快照：确认重发必须原样复用它俩（令牌是它们算出来的哈希），任何一处换了
+ * 都落不到同一份计划。scene 必须是那次请求体里**原样发出去的那个对象**，不能在 catch 里重取快照。
+ * 未确认期间（且用户没选「保留模型」）saveStudioDraft 会跳过自动保存，避免每 500ms 撞一次 428 的
+ * 空转；「处理删除影响」按钮始终可见，所以跳过不是用户看不见的状态。
+ * @param {object} payload 428 的 detail。
+ * @param {number} revision 服务器草稿版本（乐观并发用）。
+ * @param {object} scene 那次请求发出的场景快照。
+ * @param {number} localRevision 该快照对应的本地 changeRevision，确认时据此判断场景是否已过期。
+ */
+function handleSaveInteractionConfirmation(payload, revision, scene, localRevision, { reopenDialog = true } = {}) {
+  saveInteractionConfirmation = {
+    token: payload?.token || "",
+    message: payload?.message || "",
+    impacts: Array.isArray(payload?.impacts) ? payload.impacts : [],
+    projects: Array.isArray(payload?.projects) ? payload.projects : [],
+    revision: revision,
+    scene: scene,
+    localRevision: localRevision
+  };
+  renderSaveInteractionDialog(saveInteractionConfirmation);
+  setSaveState("等待处理删除影响", "error");
+  setSaveInteractionPendingUi(true);
+  if (reopenDialog) {
+    openSaveInteractionDialog();
+  }
+}
+/**
+ * 「保留模型」：收起对话框，但确认记录留着、本地删除与撤销栈一点不动 —— 用户随时可以 Ctrl/Cmd+Z
+ * 撤销这次删除（模型回来后保存自然通过），也可以点常驻入口回来确认。这是这条流程里唯一不丢东西的
+ * 出口，与 409 的「稍后处理」同义。
+ */
+function deferSaveInteraction() {
+  if (!saveInteractionConfirmation) {
+    saveInteractionDialogElement.close();
+    return;
+  }
+  saveInteractionDeferred = true;
+  setSaveState("等待处理删除影响", "error");
+  setSaveInteractionPendingUi(true);
+  saveInteractionDialogElement.close();
+}
+/**
+ * 删除影响已按用户选择处理掉（确认保存成功）：清记录、撤掉常驻入口、关对话框。
+ */
+function resolveSaveInteraction() {
+  saveInteractionConfirmation = null;
+  saveInteractionDeferred = false;
+  setSaveInteractionPendingUi(false);
+  saveInteractionDialogElement.close();
+}
+/**
+ * 「确认删除并保存」：带令牌、连同 428 当时捕获的**同一个 revision 与场景快照**重发，服务端才会
+ * 按用户确认的那份计划清理并落盘。三种岔路都刻意不静默：
+ *
+ * - 用户在 428 与确认之间又编辑过（changeRevision 与捕获值不同）：拿旧快照落盘会悄悄丢掉这段改动，
+ *   于是丢弃旧令牌、重新走一次保存，让服务端按当前内容重新算影响并弹框。
+ * - 重发又 428：期间场景 / 关联仪表盘变了，服务端回了新令牌，重新弹框让用户重新确认。
+ * - 重发撞 409 户型版本冲突：这次确认作废，转交既有的 handleSaveConflict 让用户选版本。
+ * 其余失败（含 PROJECT_REVISION_CONFLICT 这类可重试冲突）保留对话框并提示服务端文案，
+ * 用户再点一次即可重试 —— 不会退回每 500ms 撞一次请求的空转。
+ */
+async function confirmSaveInteraction() {
+  const confirmation = saveInteractionConfirmation;
+  if (!confirmation) {
+    saveInteractionDialogElement.close();
+    return;
+  }
+  if (isSaving) {
+    return;
+  }
+  if (confirmation.localRevision !== changeRevision) {
+    resolveSaveInteraction();
+    saveStudioDraft();
+    return;
+  }
+  // 用户这次是主动确认，不再处于「保留模型」的挂起态：失败时保持对话框与挂起记录（不放行自动保存），
+  // 让他能再点一次重试。
+  saveInteractionDeferred = false;
+  isSaving = true;
+  setSaveState("正在保存…", "saving");
+  try {
+    // 关键：revision 与 scene 都用 428 当时捕获的那一份，令牌是它们的哈希，换了就落不到同一份计划。
+    savedSceneRecord = await putStudioScene(
+      { revision: confirmation.revision },
+      confirmation.scene,
+      confirmation.token
+    );
+    resolveSaveInteraction();
+    savedRevision = confirmation.localRevision;
+    if (changeRevision === savedRevision) {
+      setSaveState("已自动保存", "saved");
+      showToast("已删除模型并同步清理交互配置。", "success");
+    }
+  } catch (saveRequestError) {
+    if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
+      // 期间场景或关联仪表盘变了：服务端回了新令牌，重新弹框（更新令牌），绝不静默重试。
+      // revision / scene / localRevision 都沿用同一份捕获值：我们重发的仍是那一份内容。
+      handleSaveInteractionConfirmation(
+        saveRequestError.payload,
+        confirmation.revision,
+        confirmation.scene,
+        confirmation.localRevision,
+        {
+          reopenDialog: true
+        }
+      );
+      return;
+    }
+    if (saveRequestError.status === 409 && saveRequestError.code === "STUDIO3D_REVISION_CONFLICT") {
+      // 重发期间草稿被别处更新：这次确认已作废，转交 409 冲突流程让用户选版本。
+      resolveSaveInteraction();
+      try {
+        const remoteScene = await requestStudioApi("/studio3d");
+        handleSaveConflict(remoteScene, snapshotDocumentForSave(), confirmation.localRevision, {
+          reopenDialog: true
+        });
+      } catch (conflictLoadError) {
+        setSaveState("保存失败", "error");
+        showToast(conflictLoadError.message || "3D 草稿保存失败。", "error");
+      }
+      return;
+    }
+    window.HABridgeLog?.error(saveRequestError, {
+      phase: "studio-save"
+    });
+    setSaveState("保存失败", "error");
+    showToast(saveRequestError.message || "3D 草稿保存失败。", "error");
+  } finally {
+    isSaving = false;
+    // 与 saveStudioDraft 同一口径：重发期间又落了新编辑（changeRevision 前进）且没有挂着的
+    // 冲突 / 未确认记录时，补排一次自动保存，别让那笔改动等到下一次编辑才落盘。
+    if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
+      window.clearTimeout(autosaveTimer);
+      autosaveTimer = window.setTimeout(saveStudioDraft, 500);
+    }
+  }
+}
+/**
  * 自动 / 手动保存草稿到 PUT /api/v1/studio3d（携带 revision 做乐观并发）。前置：非只读、已读到过记录、不在保存中、
- * 无未处理冲突、changeRevision ≠ savedRevision。进入时固化本次 revision，请求期间的新编辑不算进来；409 拉服务器
- * 版本交给 handleSaveConflict，绝不静默覆盖。返回 saved/no-changes/skipped/blocked-by-conflict/failed 供调用点判断。
+ * 无未处理冲突 / 未确认的删除影响、changeRevision ≠ savedRevision。进入时固化本次 revision，请求期间的新编辑不算进来；
+ * 409 拉服务器版本交给 handleSaveConflict，428 交给 handleSaveInteractionConfirmation，两者都绝不静默覆盖。
+ * 返回 saved/no-changes/skipped/blocked-by-conflict/blocked-by-interaction-confirmation/failed 供调用点判断。
  */
 async function saveStudioDraft() {
   if (isStageViewerMode || !savedSceneRecord) {
@@ -5700,33 +5968,43 @@ async function saveStudioDraft() {
   if (saveConflict && !saveConflictDeferred) {
     return "blocked-by-conflict";
   }
+  // 428「本次删除影响」未确认期间同样跳过（否则就是每 500ms 撞一次 428 的空转）；
+  // 「保留模型」之后放行 —— 与 409 的「稍后处理」同义，那时再停掉用户就看不见异样了。
+  if (saveInteractionConfirmation && !saveInteractionDeferred) {
+    return "blocked-by-interaction-confirmation";
+  }
   if (changeRevision === savedRevision) {
     return "no-changes";
   }
   isSaving = true;
   const revision = changeRevision;
+  // 本次要提交的场景快照只取一次：428 的令牌是服务端对**这份请求体**算的哈希，确认重发必须原样
+  // 带回去。若在 catch 里重取快照，请求往返期间的新编辑会让旧令牌对不上、永远停在 428。
+  const sceneSnapshot = snapshotDocumentForSave();
   setSaveState("正在保存…", "saving");
-  /**
-   * 提交一次场景快照，返回服务器回写的最新草稿记录（含新 revision）。抽成局部函数让「提交 → 处理 409」主流程
-   * 读起来是一条直线；捕获外层 revision 常量，保证同一次保存里提交与冲突比对用同一个版本号。非 2xx 抛
-   * 带 status 的接口错误（见 utils/api-request.js），409 冲突从中读 payload。
-   */
-  const putScene = async sceneRecord =>
-    requestStudioApi("/studio3d", {
-      method: "PUT",
-      hbLogContext: {
-        phase: "studio-save"
-      },
-      body: JSON.stringify({
-        revision: sceneRecord.revision,
-        scene: snapshotDocumentForSave()
-      })
-    });
   try {
     try {
-      savedSceneRecord = await putScene(savedSceneRecord);
+      savedSceneRecord = await putStudioScene(savedSceneRecord, sceneSnapshot);
     } catch (saveRequestError) {
-      if (saveRequestError.status !== 409) {
+      // 428：本次删除会让控件绑定悬空，服务端什么都没写、只回了令牌与影响清单。把「当时」的
+      // revision 与**同一个**场景快照（sceneSnapshot）连同本地版本号存进确认记录 ——
+      // 用户确认后必须原样重发，令牌才对得上，也才能判断场景有没有过期。
+      if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
+        handleSaveInteractionConfirmation(
+          saveRequestError.payload,
+          savedSceneRecord.revision,
+          sceneSnapshot,
+          revision,
+          {
+            reopenDialog: !saveInteractionDeferred
+          }
+        );
+        return "blocked-by-interaction-confirmation";
+      }
+      // 409 只处理户型草稿版本冲突（STUDIO3D_REVISION_CONFLICT）。PROJECT_REVISION_CONFLICT 是关联
+      // 仪表盘被并发写入引起的**可重试**冲突，没有「加载 / 覆盖」二选一可言，抛给外层 catch 走普通
+      // 失败分支：提示服务端文案，并按自动保存节奏重试。
+      if (saveRequestError.status !== 409 || saveRequestError.code === "PROJECT_REVISION_CONFLICT") {
         throw saveRequestError;
       }
       const remoteScene = await requestStudioApi("/studio3d");
@@ -5738,6 +6016,11 @@ async function saveStudioDraft() {
       return "blocked-by-conflict";
     }
     savedRevision = revision;
+    // 这次能保存成功就说明服务端已找不到悬空引用：之前挂着的「删除影响」确认已经过时，
+    // 清掉记录与常驻入口（典型路径是用户先撤销了删除、再保存）。
+    if (saveInteractionConfirmation) {
+      resolveSaveInteraction();
+    }
     if (changeRevision === savedRevision) {
       setSaveState("已自动保存", "saved");
     }
@@ -5751,9 +6034,9 @@ async function saveStudioDraft() {
     return "failed";
   } finally {
     isSaving = false;
-    // 冲突挂着时不再重排：等用户处理完（或者他改了下一笔，由 markDocumentDirty 触发），
-    // 否则就是一个每 500ms 撞一次 409 的空转循环。
-    if (!saveConflict && changeRevision !== savedRevision) {
+    // 冲突或未确认的删除影响挂着时不再重排：等用户处理完（或者他改了下一笔，由 markDocumentDirty
+    // 触发），否则就是一个每 500ms 撞一次 409 / 428 的空转循环。
+    if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
       window.clearTimeout(autosaveTimer);
       autosaveTimer = window.setTimeout(saveStudioDraft, 500);
     }
@@ -5799,6 +6082,19 @@ saveConflictOverwriteButton.addEventListener("click", () => {
     autosaveTimer = window.setTimeout(saveStudioDraft, 0);
   }
 });
+saveInteractionDialogElement.addEventListener("cancel", dialogCancelEvent => {
+  // ESC 与「保留模型」同义：收起对话框，本地删除与撤销栈一点不动，
+  // 用户还能撤销这次删除，或从顶栏「处理删除影响」入口回来确认。
+  dialogCancelEvent.preventDefault();
+  deferSaveInteraction();
+});
+saveInteractionKeepButton.addEventListener("click", deferSaveInteraction);
+saveInteractionReopenButton.addEventListener("click", () => {
+  if (saveInteractionConfirmation) {
+    openSaveInteractionDialog();
+  }
+});
+saveInteractionConfirmButton.addEventListener("click", confirmSaveInteraction);
 /**
  * 平面坐标 → 画布坐标：先缩放再平移（此处不做视图旋转）。旋转拆到 rotateScreenPoint
  * 单独负责：旋转要绕视口中心进行，而平移偏移量定义在未旋转的画布坐标系里，
@@ -6818,6 +7114,30 @@ function drawPlanItem(itemToDraw) {
     planContext.lineTo(itemWidthPx * (0.645 / 1.4), elevatorCarInnerHalfDepthPx);
     planContext.stroke();
     planContext.lineWidth = 1;
+  } else if (
+    itemToDraw.type === "curtain" &&
+    normalizeCurtainTrack(itemToDraw).curtainStyle === "roller"
+  ) {
+    // 卷帘：一整片帘布 + 一条卷管，没有轨道、没有左右两片，也不画褶皱线。
+    // 必须在下面那条「有 curtainTrack 就画轨道」的分支之前 —— 卷帘归一化后也带
+    // curtainTrack: "straight"，否则会被误判成轨道帘。平面始终画满主边长度，
+    // 预览开合只影响立体高度，不改变平面足迹。
+    planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(234, 240, 244, .72)";
+    planContext.lineWidth = isItemSelected ? 2 : 1.5;
+    planContext.beginPath();
+    planContext.moveTo(-itemWidthPx * 0.5, 0);
+    planContext.lineTo(itemWidthPx * 0.5, 0);
+    planContext.stroke();
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx * 0.5,
+      -itemDepthPx * 0.42,
+      itemWidthPx,
+      itemDepthPx * 0.84,
+      Math.min(itemDepthPx * 0.32, itemWidthPx * 0.06)
+    );
+    planContext.fill();
+    planContext.stroke();
   } else if (itemToDraw.type === "curtain" && itemToDraw.curtainTrack) {
     const curtainTrack = createCurtainTrack(itemToDraw);
     const planPixelsPerUnit = itemWidthPx / itemToDraw.width;
@@ -7722,10 +8042,22 @@ function drawPlanItem(itemToDraw) {
     planContext.arc(0, 0, Math.min(itemWidthPx, itemDepthPx) * 0.17, 0, Math.PI * 2);
     planContext.stroke();
   } else if (itemToDraw.type === "fridge") {
-    planContext.beginPath();
-    planContext.moveTo(-itemWidthPx / 2, -itemDepthPx * 0.12);
-    planContext.lineTo(itemWidthPx / 2, -itemDepthPx * 0.12);
-    planContext.stroke();
+    if (itemToDraw.fridgeStyle === "double") {
+      // 左右双开门：俯视读「两扇竖门的中缝」。中缝从正面（+y 为物件正面，与鞋柜同一约定）
+      // 往内画 45% 进深，两条平行竖线分别代表左右门扇的内侧边。0.02 是按门扇内沿
+      // (±0.006 × 宽) 放大到平面上可辨的推断值；dist 平面原本不区分冰箱款式，此处为双开门新增。
+      for (const fridgeSeamSign of [-1, 1]) {
+        planContext.beginPath();
+        planContext.moveTo(fridgeSeamSign * itemWidthPx * 0.02, itemDepthPx * 0.5);
+        planContext.lineTo(fridgeSeamSign * itemWidthPx * 0.02, itemDepthPx * 0.05);
+        planContext.stroke();
+      }
+    } else {
+      planContext.beginPath();
+      planContext.moveTo(-itemWidthPx / 2, -itemDepthPx * 0.12);
+      planContext.lineTo(itemWidthPx / 2, -itemDepthPx * 0.12);
+      planContext.stroke();
+    }
   } else if (itemToDraw.type === "storagewaterheater") {
     planContext.beginPath();
     planContext.arc(0, 0, Math.min(itemWidthPx, itemDepthPx) * 0.26, 0, Math.PI * 2);
@@ -7884,8 +8216,10 @@ function drawPlanItem(itemToDraw) {
     planContext.arc(0, 0, plantSaucerRadiusPx, 0, Math.PI * 2);
     planContext.stroke();
   } else if (STAIR_ITEM_TYPES.has(itemToDraw.type)) {
-    if (itemToDraw.type === "stairs") {
-      // 直行楼梯：10 级踏面线 + 一条指向上行的箭头。
+    if (itemToDraw.type === "stairs" || itemToDraw.type === "floatingstairs") {
+      // 直行楼梯（stairs 混凝土实心 / floatingstairs 悬空踏板）：10 级踏面线 + 一条指向上行的箭头。
+      // 两件的上行方向同向（几何都从 +z 端往 -z 升），踏面数也都是 10，所以共用这一支；
+      // 悬空梯没有斜梁、平面符号上本来就不该多画任何边线。
       for (let stairTreadIndex = 1; stairTreadIndex < 10; stairTreadIndex += 1) {
         const stairTreadY = -itemDepthPx / 2 + (itemDepthPx * stairTreadIndex) / 10;
         planContext.beginPath();
@@ -9081,7 +9415,9 @@ function renderInspector() {
       selectionHeadingElement.classList.toggle("light-selected", isLightItem);
       labelTextFieldsElement.hidden = !isLabelItem;
       lightFieldsElement.hidden = !isLightItem;
-      curtainPositionFieldElement.hidden = inspectedEntity.type !== "curtain";
+      curtainPositionFieldElement.hidden =
+        inspectedEntity.type !== "curtain" ||
+        normalizeCurtainTrack(inspectedEntity).curtainStyle === "roller";
       selectElement("#curtain-track-fields").hidden = inspectedEntity.type !== "curtain";
       itemHeightFieldElement.hidden =
         isLabelItem || isLightItem || inspectedEntity.type === "flooropening";
@@ -9106,6 +9442,15 @@ function renderInspector() {
       tvMountStyleFieldElement.hidden = inspectedEntity.type !== "tv";
       muralStyleFieldElement.hidden = inspectedEntity.type !== "mural";
       featureWallStyleFieldElement.hidden = inspectedEntity.type !== "featurewall";
+      // 冰箱款式只对冰箱显示；回填时非 double 一律归一为 standard（与读取口径一致）。
+      fridgeStyleFieldElement.hidden = inspectedEntity.type !== "fridge";
+      if (inspectedEntity.type === "fridge") {
+        for (const fridgeStyleRadioInput of fridgeStyleRadioInputs) {
+          fridgeStyleRadioInput.checked =
+            fridgeStyleRadioInput.value ===
+            (inspectedEntity.fridgeStyle === "double" ? "double" : "standard");
+        }
+      }
       // 材质风格是**通用**属性：所有家居家电类型都显示，因此按「类型是否支持」而不是枚举来判断。
       materialStyleFieldElement.hidden = !isMaterialStyleCapable(inspectedEntity.type);
       pillarShapeFieldElement.hidden = inspectedEntity.type !== "pillar";
@@ -9245,6 +9590,11 @@ function renderInspector() {
           : "split";
         syncStudioSelect(selectElement("#curtain-position"));
         const curtainSettings = normalizeCurtainTrack(inspectedEntity);
+        // 形态（普通窗帘 / 卷帘）：卷帘下「轨道 + 布面」那一整组字段都不适用，统一隐藏，
+        // 只保留预览开合 —— 卷帘的 0% 放下、100% 卷起仍然要能预览。
+        const curtainIsRoller = curtainSettings.curtainStyle === "roller";
+        selectElement("#curtain-style").value = curtainIsRoller ? "roller" : "cloth";
+        syncStudioSelect(selectElement("#curtain-style"));
         for (const [curtainSelectId, curtainSelectValue] of [
           ["curtain-track", curtainSettings.curtainTrack],
           ["curtain-corner", curtainSettings.curtainCorner],
@@ -9261,14 +9611,27 @@ function renderInspector() {
         ]) {
           syncControlValue(selectElement("#" + curtainNumberId), curtainNumberValue);
         }
-        selectElement("#curtain-corner-field").hidden = curtainSettings.curtainTrack !== "l";
+        selectElement("#curtain-track-field").hidden = curtainIsRoller;
+        selectElement("#curtain-fabric-field").hidden = curtainIsRoller;
+        selectElement("#curtain-corner-field").hidden =
+          curtainIsRoller || curtainSettings.curtainTrack !== "l";
         selectElement("#curtain-left-length-field").hidden =
+          curtainIsRoller ||
           curtainSettings.curtainTrack === "straight" ||
           (curtainSettings.curtainTrack === "l" && curtainSettings.curtainCorner !== "left");
         selectElement("#curtain-right-length-field").hidden =
+          curtainIsRoller ||
           curtainSettings.curtainTrack === "straight" ||
           (curtainSettings.curtainTrack === "l" && curtainSettings.curtainCorner !== "right");
-        selectElement("#curtain-meet-field").hidden = inspectedEntity.curtainPosition !== "split";
+        selectElement("#curtain-meet-field").hidden =
+          curtainIsRoller || inspectedEntity.curtainPosition !== "split";
+        // 卷帘的说明文字要讲清「0% 放下 / 100% 卷起」这一套与轨道帘不同的方向语义。
+        selectElement("#curtain-note").textContent = curtainIsRoller
+          ? "卷帘垂直升降，0% 完全放下、100% 完全卷起；控制沿用普通窗帘。"
+          : "预览打开：0% 为关闭，100% 为完全收拢。主边长度在下方调整，旋转可改变开口朝向；合拢位置沿整条轨道计算。";
+        selectElement("#curtain-preview").title = curtainIsRoller
+          ? "0% 完全放下，100% 完全卷起；仅调整模型预览，不控制设备"
+          : "0为关闭，100为全开；仅调整模型预览，不控制设备";
       }
       if (ROUND_TABLE_TURNTABLE_ITEM_TYPES.has(inspectedEntity.type)) {
         selectElement("#round-table-turntable").value = isRoundTableTurntableItem(inspectedEntity)
@@ -10282,8 +10645,11 @@ function saveBaseLighting() {
   saveStudioDraft().then(baseLightingSaveOutcome => {
     if (baseLightingSaveOutcome === "saved") {
       showToast("基础光设置已保存，导图和自动化控件已同步。", "success");
-    } else if (baseLightingSaveOutcome === "blocked-by-conflict") {
-      showToast("基础光设置已记录，但户型草稿还在等保存冲突处理。", "error");
+    } else if (
+      baseLightingSaveOutcome === "blocked-by-conflict" ||
+      baseLightingSaveOutcome === "blocked-by-interaction-confirmation"
+    ) {
+      showToast("基础光设置已记录，但户型草稿还没保存，请先处理顶栏的保存提示。", "error");
     }
   });
 }
@@ -12121,7 +12487,7 @@ async function saveCurrentCameraView() {
     showToast(
       exportViewSaveOutcome === "saved" || exportViewSaveOutcome === "no-changes"
         ? viewLabel + "已保存。"
-        : viewLabel + "已记录，等保存冲突处理后再落盘。"
+        : viewLabel + "已记录，待顶栏保存提示处理后再落盘。"
     );
     return;
   }
@@ -12129,9 +12495,13 @@ async function saveCurrentCameraView() {
   window.clearTimeout(autosaveTimer);
   autosaveTimer = null;
   const cameraViewSaveOutcome = await saveStudioDraft();
-  // 冲突 / 失败时不能说「已保存」：那正是用户以为改动落盘了、实际没有的那种情况。
-  if (cameraViewSaveOutcome === "blocked-by-conflict" || cameraViewSaveOutcome === "failed") {
-    showToast(viewLabel + "已记录，等保存冲突处理后再落盘。", "error");
+  // 冲突 / 未确认的删除影响 / 失败时不能说「已保存」：那正是用户以为改动落盘了、实际没有的那种情况。
+  if (
+    cameraViewSaveOutcome === "blocked-by-conflict" ||
+    cameraViewSaveOutcome === "blocked-by-interaction-confirmation" ||
+    cameraViewSaveOutcome === "failed"
+  ) {
+    showToast(viewLabel + "已记录，待顶栏保存提示处理后再落盘。", "error");
   } else if (changeRevision === savedRevision) {
     showToast(viewLabel + "已保存。");
   } else {
@@ -17342,6 +17712,7 @@ const ITEM_BUILDER_DEPS = {
   addStripLightPreview,
   addTelevisionScreenMeshes,
   addTrackCurtain,
+  addRollerCurtain,
   addVehicleChargingEffect,
   applyItemPosture,
   bakeMergedItemMeshes,
@@ -17534,6 +17905,7 @@ function batchRepeatedItemMeshes(instanceRoot, instanceItemEntries) {
           "wallac",
           "floorac",
           "airoutlet",
+          "airpurifier",
           "curtain",
           "freshair",
           "thermostat",
@@ -17693,6 +18065,7 @@ function mergeStaticItemMeshes(staticBatchRoot, staticItemEntries) {
           "wallac",
           "floorac",
           "airoutlet",
+          "airpurifier",
           "curtain",
           "freshair",
           "thermostat",
@@ -19492,6 +19865,22 @@ function buildArchitectureLayer({
       const doorHeight = Math.min(loopedDoorSpec.height, openingHostWall.height);
       const isHostDoorSelected = isSelected("door", loopedDoorSpec.id);
       const hostDoorType = loopedDoorSpec.doorType || "solid";
+      // 舞台模式：给门模型根打上环境模型标识与开合类型，运行时锁动画（lock-motion）靠这组
+      // userData 找到门并决定怎么动。只有推拉 / 卷帘 / 仅门框需要单独归类，其余（实木 / 玻璃 /
+      // 双开 / 入户）都走「绕 y 轴旋转的平开」这一套。编辑态一律不打标，渲染与从前逐字节一致。
+      if (isStageViewerMode) {
+        doorGroup.userData.environmentModelId = "door:" + loopedDoorSpec.id;
+        doorGroup.userData.environmentModelType = "door";
+        doorGroup.userData.environmentFloorId = activeFloorId;
+        doorGroup.userData.doorAnimationType =
+          hostDoorType === "sliding-glass"
+            ? "sliding"
+            : hostDoorType === "roller-shutter"
+              ? "roller"
+              : hostDoorType === "frame-only"
+                ? "static"
+                : "entry";
+      }
       const doorFrameColor = isHostDoorSelected
         ? architecturePalette.accent
         : architecturePalette.frame;
@@ -19541,40 +19930,97 @@ function buildArchitectureLayer({
         // 内外翻转：两扇推拉门整体镜像到墙的另一面。
         const slidingPanelFlipSign = loopedDoorSpec.swing === -1 ? -1 : 1;
         const slidingPanelPositions = slidingDoorPanelCenters(doorWidth, doorHinge);
-        addWindowFrameMeshes(
-          doorGroup,
-          [
+        if (isStageViewerMode) {
+          // 舞台模式：两扇门各放进一个枢轴 Group，运行时只平移「活动扇」。活动扇的关门位
+          // 取固定扇的镜像位（±0.23 门宽），开门行程正好落回固定扇身上，与转轴同侧一致。
+          const slidingFixedClosedX = slidingPanelPositions.fixed;
+          const slidingMovingClosedX = -slidingPanelPositions.fixed;
+          const slidingFixedPanelGroup = new threeModuleMin.Group();
+          doorGroup.add(slidingFixedPanelGroup);
+          addWindowFrameMeshes(
+            slidingFixedPanelGroup,
+            [
+              {
+                width: slidingPanelWidth,
+                height: shutterHeight,
+                centerX: slidingFixedClosedX,
+                centerZ: -0.024 * slidingPanelFlipSign
+              }
+            ],
+            doorFrameColor,
+            architecturePalette.glass
+          );
+          const slidingMovingPanelGroup = new threeModuleMin.Group();
+          slidingMovingPanelGroup.userData.doorSlidePivot = true;
+          slidingMovingPanelGroup.userData.doorRestTranslation = 0;
+          doorGroup.add(slidingMovingPanelGroup);
+          addWindowFrameMeshes(
+            slidingMovingPanelGroup,
+            [
+              {
+                width: slidingPanelWidth,
+                height: shutterHeight,
+                centerX: slidingMovingClosedX,
+                centerZ: 0.024 * slidingPanelFlipSign
+              }
+            ],
+            doorFrameColor,
+            architecturePalette.glass
+          );
+          const slidingHandleX = slidingMovingClosedX - doorHinge * slidingPanelWidth * 0.36;
+          addWallBandMesh(
+            slidingMovingPanelGroup,
+            [
+              [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, -0.052],
+              [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, 0.052]
+            ],
+            architecturePalette.furnitureDark,
             {
-              width: slidingPanelWidth,
-              height: shutterHeight,
-              centerX: slidingPanelPositions.fixed,
-              centerZ: -0.024 * slidingPanelFlipSign
-            },
-            {
-              width: slidingPanelWidth,
-              height: shutterHeight,
-              centerX: slidingPanelPositions.moving,
-              centerZ: 0.024 * slidingPanelFlipSign
+              rounded: false,
+              metalness: 0.5,
+              castShadow: false,
+              receiveShadow: false
             }
-          ],
-          doorFrameColor,
-          architecturePalette.glass
-        );
-        const slidingHandleX = slidingPanelPositions.moving - doorHinge * slidingPanelWidth * 0.36;
-        addWallBandMesh(
-          doorGroup,
-          [
-            [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, -0.052],
-            [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, 0.052]
-          ],
-          architecturePalette.furnitureDark,
-          {
-            rounded: false,
-            metalness: 0.5,
-            castShadow: false,
-            receiveShadow: false
-          }
-        );
+          );
+          // 活动扇沿门宽 0.46 倍滑出：铰链居右向 +x、居左向 -x（与两扇的镜像摆位一致）。
+          doorGroup.userData.doorSlideOpenTranslation = doorHinge * doorWidth * 0.46;
+          doorGroup.userData.doorSlideClosedTranslation = 0;
+        } else {
+          addWindowFrameMeshes(
+            doorGroup,
+            [
+              {
+                width: slidingPanelWidth,
+                height: shutterHeight,
+                centerX: slidingPanelPositions.fixed,
+                centerZ: -0.024 * slidingPanelFlipSign
+              },
+              {
+                width: slidingPanelWidth,
+                height: shutterHeight,
+                centerX: slidingPanelPositions.moving,
+                centerZ: 0.024 * slidingPanelFlipSign
+              }
+            ],
+            doorFrameColor,
+            architecturePalette.glass
+          );
+          const slidingHandleX = slidingPanelPositions.moving - doorHinge * slidingPanelWidth * 0.36;
+          addWallBandMesh(
+            doorGroup,
+            [
+              [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, -0.052],
+              [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, 0.052]
+            ],
+            architecturePalette.furnitureDark,
+            {
+              rounded: false,
+              metalness: 0.5,
+              castShadow: false,
+              receiveShadow: false
+            }
+          );
+        }
         doorGroup.userData.optimizationStats = {
           type: "door-sliding-glass",
           before: 15,
@@ -19587,8 +20033,21 @@ function buildArchitectureLayer({
         const panelOnlyWidth = Math.max(doorWidth - doorFrameThickness * 1.3, 0.4);
         const panelOnlyHeight = Math.max(doorHeight - doorFrameThickness * 0.85, 0.8);
         const panelSwing = loopedDoorSpec.swing === -1 ? -1 : 1;
+        // 舞台模式：门帘（面板 + 叶片）挂到独立的「卷帘枢轴」Group 上，枢轴原点落在门帘底边。
+        // 运行时抬高 position.y 再压缩 scale.y，视觉上就是门帘向上卷起；编辑态沿用旧层级。
+        let rollerLeafParent = doorGroup;
+        if (isStageViewerMode) {
+          const rollerPanelPivot = new threeModuleMin.Group();
+          rollerPanelPivot.userData.doorRollerPivot = true;
+          rollerPanelPivot.userData.doorRestTranslation = 0;
+          doorGroup.add(rollerPanelPivot);
+          // 行程记在门模型根上：运行时先读根、再读枢轴，关门位移只认根。
+          doorGroup.userData.doorRollerOpenTranslation = panelOnlyHeight;
+          doorGroup.userData.doorRollerClosedTranslation = 0;
+          rollerLeafParent = rollerPanelPivot;
+        }
         addWallBandMesh(
-          doorGroup,
+          rollerLeafParent,
           [[panelOnlyWidth, panelOnlyHeight, 0.045, 0, panelOnlyHeight * 0.5, panelSwing * 0.04]],
           isHostDoorSelected ? architecturePalette.accent : architecturePalette.furnitureSoft,
           {
@@ -19607,7 +20066,7 @@ function buildArchitectureLayer({
           const slatY = (panelOnlyHeight * shutterSlatIndex) / shutterSlatCount;
           shutterSlats.push([panelOnlyWidth * 0.98, 0.012, 0.052, 0, slatY, panelSwing * 0.052]);
         }
-        addWallBandMesh(doorGroup, shutterSlats, architecturePalette.furnitureDark, {
+        addWallBandMesh(rollerLeafParent, shutterSlats, architecturePalette.furnitureDark, {
           ...warmDoorLeafOptions,
           rounded: false,
           metalness: architecturePalette.warmWood ? 0.08 : 0.42,
@@ -19632,9 +20091,25 @@ function buildArchitectureLayer({
         const entryDoorColor = isHostDoorSelected
           ? architecturePalette.accent
           : architecturePalette.furnitureDark;
+        // 舞台模式：门扇挂到「合页枢轴」Group 上，枢轴摆在铰链那一侧的门边，扇体几何整体
+        // 反向平移同样的距离，旋转才会绕门边转而不是绕门中心转。运行时按 doorLeafWidth
+        // 自行把枢轴摆回同一位置（门扇宽 = 门洞宽 - 1.5 倍门套厚）。
+        let entryLeafParent = doorGroup;
+        let entryLeafShiftX = 0;
+        if (isStageViewerMode) {
+          const entryHingePivot = new threeModuleMin.Group();
+          entryHingePivot.position.x =
+            (loopedDoorSpec.hinge === "right" ? 1 : -1) * entryDoorWidth * 0.5;
+          entryHingePivot.userData.doorHingePivot = true;
+          entryHingePivot.userData.entryDoorPivot = true;
+          entryHingePivot.userData.doorRestRotation = 0;
+          doorGroup.add(entryHingePivot);
+          entryLeafParent = entryHingePivot;
+          entryLeafShiftX = -entryHingePivot.position.x;
+        }
         addWallBandMesh(
-          doorGroup,
-          [[entryDoorWidth, entryDoorHeight, 0.065, 0, entryDoorHeight * 0.5, 0]],
+          entryLeafParent,
+          [[entryDoorWidth, entryDoorHeight, 0.065, entryLeafShiftX, entryDoorHeight * 0.5, 0]],
           entryDoorColor,
           {
             rounded: false,
@@ -19645,10 +20120,10 @@ function buildArchitectureLayer({
           }
         );
         addWallBandMesh(
-          doorGroup,
+          entryLeafParent,
           [
-            [entryDoorWidth * 0.76, 0.022, 0.078, 0, doorHeight * 0.68, 0.012 * entryFlipSign],
-            [entryDoorWidth * 0.76, 0.022, 0.078, 0, doorHeight * 0.34, 0.012 * entryFlipSign]
+            [entryDoorWidth * 0.76, 0.022, 0.078, entryLeafShiftX, doorHeight * 0.68, 0.012 * entryFlipSign],
+            [entryDoorWidth * 0.76, 0.022, 0.078, entryLeafShiftX, doorHeight * 0.34, 0.012 * entryFlipSign]
           ],
           architecturePalette.furnitureSoft,
           {
@@ -19659,9 +20134,10 @@ function buildArchitectureLayer({
           }
         );
         const entryHandleX =
-          loopedDoorSpec.hinge === "right" ? -entryDoorWidth * 0.34 : entryDoorWidth * 0.34;
+          (loopedDoorSpec.hinge === "right" ? -entryDoorWidth * 0.34 : entryDoorWidth * 0.34) +
+          entryLeafShiftX;
         addWallBandMesh(
-          doorGroup,
+          entryLeafParent,
           [[0.035, 0.18, 0.085, entryHandleX, doorHeight * 0.5, 0.055 * entryFlipSign]],
           architecturePalette.furnitureLight,
           {
@@ -19672,6 +20148,11 @@ function buildArchitectureLayer({
             receiveShadow: false
           }
         );
+        if (isStageViewerMode) {
+          doorGroup.userData.doorLeafWidth = entryDoorWidth;
+          doorGroup.userData.entryDoorLeafWidth = entryDoorWidth;
+          doorGroup.userData.doorClosedRotation = 0;
+        }
         doorGroup.userData.optimizationStats = {
           type: "door-entry",
           before: 7,
@@ -19686,54 +20167,106 @@ function buildArchitectureLayer({
         // 双开门的开启角度固定为 0.42π（约 75.6°）：既明显敞开，又不会
         // 让门扇与门套穿插；swing 为 -1 时整体镜像到墙的另一面。
         const doublePanelAngle = (loopedDoorSpec.swing === -1 ? 1 : -1) * Math.PI * 0.42;
-        const doublePanelLeaves = [];
-        const doublePanelHandles = [];
-        for (const leafSign of [-1, 1]) {
-          const leafX = leafSign * (doorWidth / 2 - doorFrameThickness * 0.5);
-          const leafRotationY = leafSign < 0 ? doublePanelAngle : -doublePanelAngle;
-          const leafOffsetX = leafSign < 0 ? doublePanelWidth / 2 : -doublePanelWidth / 2;
-          const leafPosition = {
-            x: leafX + leafOffsetX * Math.cos(leafRotationY),
-            z: -leafOffsetX * Math.sin(leafRotationY)
-          };
-          doublePanelLeaves.push({
-            width: doublePanelWidth,
-            height: doublePanelHeight,
-            depth: 0.04,
-            x: leafPosition.x,
-            y: doublePanelHeight / 2,
-            z: leafPosition.z,
-            rotationY: leafRotationY
-          });
-          const leafHandleOffsetX =
-            leafSign < 0 ? doublePanelWidth * 0.42 : -doublePanelWidth * 0.42;
-          doublePanelHandles.push({
-            width: 0.035,
-            height: 0.055,
-            depth: 0.065,
-            x: leafX + leafHandleOffsetX * Math.cos(leafRotationY) + Math.sin(leafRotationY) * 0.04,
-            y: doorHeight * 0.5,
-            z: -leafHandleOffsetX * Math.sin(leafRotationY) + Math.cos(leafRotationY) * 0.04,
-            rotationY: leafRotationY
-          });
-        }
-        addWallBandMesh(
-          doorGroup,
-          doublePanelLeaves,
-          isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
-          {
+        if (isStageViewerMode) {
+          // 舞台模式：两扇各挂一个「合页枢轴」Group，枢轴就地摆在各自门边，开启角 baked 成
+          // 枢轴自身旋转（doorFixedHinge 让运行时别按门宽挪枢轴）。扇体在枢轴局部坐标里朝门
+          // 中心偏 leafOffsetX，绕门边转出来的摆位与编辑态那套预烘焙坐标等价。
+          for (const leafSign of [-1, 1]) {
+            const leafRotationY = leafSign < 0 ? doublePanelAngle : -doublePanelAngle;
+            const leafOffsetX = leafSign < 0 ? doublePanelWidth / 2 : -doublePanelWidth / 2;
+            const leafHandleOffsetX =
+              leafSign < 0 ? doublePanelWidth * 0.42 : -doublePanelWidth * 0.42;
+            const doubleLeafPivot = new threeModuleMin.Group();
+            doubleLeafPivot.position.x = leafSign * (doorWidth / 2 - doorFrameThickness * 0.5);
+            doubleLeafPivot.rotation.y = leafRotationY;
+            doubleLeafPivot.userData.doorHingePivot = true;
+            doubleLeafPivot.userData.doorFixedHinge = true;
+            doubleLeafPivot.userData.doorRestRotation = leafRotationY;
+            doubleLeafPivot.userData.doorOpenRotation = leafRotationY;
+            doorGroup.add(doubleLeafPivot);
+            addWallBandMesh(
+              doubleLeafPivot,
+              [
+                {
+                  width: doublePanelWidth,
+                  height: doublePanelHeight,
+                  depth: 0.04,
+                  x: leafOffsetX,
+                  y: doublePanelHeight / 2,
+                  z: 0
+                }
+              ],
+              isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
+              {
+                rounded: false,
+                roughness: 0.66,
+                castShadow: false,
+                receiveShadow: false
+              }
+            );
+            addWallBandMesh(
+              doubleLeafPivot,
+              [[0.035, 0.055, 0.065, leafHandleOffsetX, doorHeight * 0.5, 0.04]],
+              architecturePalette.furnitureDark,
+              {
+                rounded: false,
+                metalness: 0.45,
+                castShadow: false,
+                receiveShadow: false
+              }
+            );
+          }
+          doorGroup.userData.doorClosedRotation = 0;
+        } else {
+          const doublePanelLeaves = [];
+          const doublePanelHandles = [];
+          for (const leafSign of [-1, 1]) {
+            const leafX = leafSign * (doorWidth / 2 - doorFrameThickness * 0.5);
+            const leafRotationY = leafSign < 0 ? doublePanelAngle : -doublePanelAngle;
+            const leafOffsetX = leafSign < 0 ? doublePanelWidth / 2 : -doublePanelWidth / 2;
+            const leafPosition = {
+              x: leafX + leafOffsetX * Math.cos(leafRotationY),
+              z: -leafOffsetX * Math.sin(leafRotationY)
+            };
+            doublePanelLeaves.push({
+              width: doublePanelWidth,
+              height: doublePanelHeight,
+              depth: 0.04,
+              x: leafPosition.x,
+              y: doublePanelHeight / 2,
+              z: leafPosition.z,
+              rotationY: leafRotationY
+            });
+            const leafHandleOffsetX =
+              leafSign < 0 ? doublePanelWidth * 0.42 : -doublePanelWidth * 0.42;
+            doublePanelHandles.push({
+              width: 0.035,
+              height: 0.055,
+              depth: 0.065,
+              x: leafX + leafHandleOffsetX * Math.cos(leafRotationY) + Math.sin(leafRotationY) * 0.04,
+              y: doorHeight * 0.5,
+              z: -leafHandleOffsetX * Math.sin(leafRotationY) + Math.cos(leafRotationY) * 0.04,
+              rotationY: leafRotationY
+            });
+          }
+          addWallBandMesh(
+            doorGroup,
+            doublePanelLeaves,
+            isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
+            {
+              rounded: false,
+              roughness: 0.66,
+              castShadow: false,
+              receiveShadow: false
+            }
+          );
+          addWallBandMesh(doorGroup, doublePanelHandles, architecturePalette.furnitureDark, {
             rounded: false,
-            roughness: 0.66,
+            metalness: 0.45,
             castShadow: false,
             receiveShadow: false
-          }
-        );
-        addWallBandMesh(doorGroup, doublePanelHandles, architecturePalette.furnitureDark, {
-          rounded: false,
-          metalness: 0.45,
-          castShadow: false,
-          receiveShadow: false
-        });
+          });
+        }
         doorGroup.userData.optimizationStats = {
           type: "door-double",
           before: 7,
@@ -19751,6 +20284,13 @@ function buildArchitectureLayer({
         : -doorWidth / 2 + doorFrameThickness * 0.5;
       glassLeafGroup.rotation.y = doorLeafRotation(loopedDoorSpec, Math.PI * 0.42);
       doorGroup.add(glassLeafGroup);
+      if (isStageViewerMode) {
+        // 舞台模式：这个 leaf Group 本身就是合页枢轴（枢轴位在门边），运行时按根上的
+        // doorLeafWidth 重摆枢轴、绕它转；开启角 doorOpenRotation 与关门角 doorClosedRotation
+        // 记在根上，方向由编辑态那套 doorLeafRotation 烘焙出的符号决定。
+        glassLeafGroup.userData.doorHingePivot = true;
+        glassLeafGroup.userData.doorRestRotation = glassLeafGroup.rotation.y;
+      }
       const glassLeafCenterX = isHingeRight ? -glassLeafWidth / 2 : glassLeafWidth / 2;
       if (hostDoorType === "glass") {
         addWindowFrameMeshes(
@@ -19791,6 +20331,11 @@ function buildArchitectureLayer({
           receiveShadow: false
         }
       );
+      if (isStageViewerMode) {
+        doorGroup.userData.doorLeafWidth = glassLeafWidth;
+        doorGroup.userData.doorClosedRotation = 0;
+        doorGroup.userData.doorOpenRotation = glassLeafGroup.rotation.y;
+      }
       doorGroup.userData.optimizationStats = {
         type: hostDoorType === "glass" ? "door-glass" : "door-solid",
         before: hostDoorType === "glass" ? 9 : 5,
@@ -20047,6 +20592,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
         "wallac",
         "floorac",
         "airoutlet",
+        "airpurifier",
         "curtain",
         "freshair",
         "thermostat",
@@ -20393,6 +20939,7 @@ function rebuildModelLayer(
         "wallac",
         "floorac",
         "airoutlet",
+        "airpurifier",
         "curtain",
         "freshair",
         "thermostat",
@@ -21846,6 +22393,8 @@ function applyInspectorChanges(entityKind) {
       Object.assign(
         editingEntity,
         normalizeCurtainTrack({
+          // 形态先于轨道：卷帘会把下面的 curtainTrack 收敛成直线型（归一化里处理）。
+          curtainStyle: selectElement("#curtain-style").value,
           curtainTrack: selectElement("#curtain-track").value,
           curtainCorner: selectElement("#curtain-corner").value,
           curtainLeftLength: selectElement("#curtain-left-length").value,
@@ -21862,6 +22411,13 @@ function applyInspectorChanges(entityKind) {
     }
     if (ROUND_TABLE_TURNTABLE_ITEM_TYPES.has(editingEntity.type)) {
       editingEntity.roundTableTurntable = selectElement("#round-table-turntable").value === "with";
+    }
+    if (editingEntity.type === "fridge") {
+      // 只有 double 落键，其余（含未选、脏值）一律归一为 standard —— 与回填口径一致。
+      editingEntity.fridgeStyle =
+        document.querySelector('input[name="fridge-style"]:checked')?.value === "double"
+          ? "double"
+          : "standard";
     }
     if (STAIR_DIRECTION_ITEM_TYPES.has(editingEntity.type)) {
       editingEntity.stairDirection = ["left", "right"].includes(
@@ -22017,22 +22573,32 @@ async function initializeStudio() {
     await initializeStudioStage();
     resizePlanCanvas();
     const pageSearchParams = new URLSearchParams(window.location.search);
+    loadTiming("draft-requested");
     const studioRecord = await requestStudioApi(
       isStageViewerMode
         ? "/modules/interaction3d/scenes/" +
             encodeURIComponent(pageSearchParams.get("sceneId") || "") +
             "/current?projectId=" +
             encodeURIComponent(pageSearchParams.get("projectId") || "")
-        : "/studio3d"
+        : "/studio3d",
+      {},
+      // 舞台页的预热响应（stage-startup.js 已经发过同一个 URL）；非舞台页为 null，
+      // 走 requestStudioApi 里的常规 fetch。
+      stageStartup?.response
     );
     projectNameElement.textContent = "户型图绘制";
     document.title = "户型图绘制";
+    loadTiming("draft-fetched");
     await loadStudioRecord(studioRecord);
+    loadTiming("draft-loaded");
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
-      const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609251920");
+      // 舞台模块的下载在 stage-startup.js 里就已经开始（`stageStartup.module`），这里等的是
+      // 同一份模块 —— 拿预热的那份，省掉一次「现在才开始下载」。没有预热时退回动态 import。
+      const { mountStage: mountStage } = await (stageStartup?.module ||
+        import("/api/v1/modules/interaction3d/core/stage.js?v=2609252203"));
       mountStage(createStageController());
+      loadTiming("stage-mounted");
       return;
     }
     setSaveState("已自动保存", "saved");
@@ -23834,6 +24400,7 @@ for (const lightInspectorInput of [
 }
 selectElement("#curtain-position").addEventListener("change", () => applyInspectorChanges("item"));
 for (const curtainInspectorInput of [
+  "curtain-style",
   "curtain-track",
   "curtain-corner",
   "curtain-left-length",
@@ -23856,6 +24423,9 @@ selectElement("#feature-wall-style").addEventListener("change", () =>
   applyInspectorChanges("item")
 );
 selectElement("#material-style").addEventListener("change", () => applyInspectorChanges("item"));
+for (const fridgeStyleRadioInput of fridgeStyleRadioInputs) {
+  fridgeStyleRadioInput.addEventListener("change", () => applyInspectorChanges("item"));
+}
 selectElement("#pillar-shape").addEventListener("change", () => applyInspectorChanges("item"));
 selectElement("#pillar-axis").addEventListener("change", () => applyInspectorChanges("item"));
 selectElement("#strip-axis").addEventListener("change", () => applyInspectorChanges("item"));

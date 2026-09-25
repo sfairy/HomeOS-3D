@@ -8,21 +8,22 @@
  * 谓词改动必须和原链同序：几个排除性条件（外部模型兜底要求「不是 smallcar / 不是 sofa」）
  * 依赖前面的专有分支先命中，顺序一动就换分支。
  */
-import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609251920";
+import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609252203";
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   STAIR_ITEM_TYPES
-} from "../studio-item-types.js?v=2609251920";
+} from "../studio-item-types.js?v=2609252203";
 import {
   buildCurtainItem,
   buildFloorlampItem,
   buildLightItem,
+  buildRollerCurtainItem,
   buildTrackCurtainItem,
   buildWalllampItem
-} from "./curtain-lighting.js?v=2609251920";
+} from "./curtain-lighting.js?v=2609252203";
 import {
   buildCabinetItem,
   buildFeaturewallItem,
@@ -33,17 +34,17 @@ import {
   buildShoecabinetItem,
   buildSideboardItem,
   buildWallcabinetItem
-} from "./storage-cabinets.js?v=2609251920";
+} from "./storage-cabinets.js?v=2609252203";
 import {
   buildExternalModelFallbackItem
-} from "./external-fallback.js?v=2609251920";
+} from "./external-fallback.js?v=2609252203";
 import {
   buildGlasspartitionItem,
   buildPlantItem,
   buildSmallcarItem,
   buildStairItem,
   buildTvItem
-} from "./media-structure.js?v=2609251920";
+} from "./media-structure.js?v=2609252203";
 import {
   buildBarItem,
   buildBedItem,
@@ -52,7 +53,7 @@ import {
   buildRoundTableTurntableItem,
   buildSofaItem,
   buildTableItem
-} from "./seating.js?v=2609251920";
+} from "./seating.js?v=2609252203";
 import {
   buildAquariumItem,
   buildGaswaterheaterItem,
@@ -60,7 +61,7 @@ import {
   buildStoragewaterheaterItem,
   buildTeaBarMachineItem,
   buildWasherDryerItem
-} from "./water-appliances.js?v=2609251920";
+} from "./water-appliances.js?v=2609252203";
 import {
   buildCoffeetableItem,
   buildDeskItem,
@@ -69,11 +70,11 @@ import {
   buildRugItem,
   buildSquarecoffeetableItem,
   buildTvstandItem
-} from "./tables-desks.js?v=2609251920";
+} from "./tables-desks.js?v=2609252203";
 import {
   buildBookcaseItem,
   buildGlasscabinetItem
-} from "./tall-cabinets.js?v=2609251920";
+} from "./tall-cabinets.js?v=2609252203";
 import {
   buildDishwasherItem,
   buildFridgeItem,
@@ -82,7 +83,7 @@ import {
   buildRangehoodItem,
   buildRicecookerItem,
   buildSteamovenItem
-} from "./kitchen.js?v=2609251920";
+} from "./kitchen.js?v=2609252203";
 import {
   buildAirpurifierItem,
   buildCameraPresenceItem,
@@ -90,7 +91,7 @@ import {
   buildNasItem,
   buildRobotvacuumItem,
   buildWallacItem
-} from "./climate-devices.js?v=2609251920";
+} from "./climate-devices.js?v=2609252203";
 import {
   buildBasinItem,
   buildBathtubItem,
@@ -99,13 +100,23 @@ import {
   buildToiletItem,
   buildUrinalItem,
   buildVanityItem
-} from "./bathroom.js?v=2609251920";
+} from "./bathroom.js?v=2609252203";
 
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。
  * terminal 为真表示该类型自带收尾（轨道帘构建完直接返回模型组），调用方跳过 finishItemModel。
  */
 export const ITEM_MODEL_BUILDERS = [
+  {
+    // itemSpec.type === "curtain" && offlineModelExport !== true && itemSpec.curtainStyle === "roller"
+    // 卷帘排在轨道帘之前：两者都命中 type === "curtain"，先到的分支胜出，
+    // 卷帘必须在这里被截住，否则会落进轨道帘那条（生成轨道 + 左右两片）。
+    match: ({ itemSpec }) => itemSpec.type === "curtain" &&
+      itemSpec.offlineModelExport !== true &&
+      itemSpec.curtainStyle === "roller",
+    build: buildRollerCurtainItem,
+    terminal: true
+  },
   {
     // itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true
     match: ({ itemSpec }) => itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true,
@@ -123,9 +134,11 @@ export const ITEM_MODEL_BUILDERS = [
     build: buildPlanlabelItem
   },
   {
-    // itemSpec.offlineModelExport !== true && ALL_ITEM_MODELS[itemSpec.type] && itemSpec.type !== "smallcar" && itemSpec.type !== "sofa"
+    // itemSpec.offlineModelExport !== true && ALL_ITEM_MODELS[itemSpec.type] && !(itemSpec.type === "fridge" && itemSpec.fridgeStyle === "double") && itemSpec.type !== "smallcar" && itemSpec.type !== "sofa"
+    // 左右双开门冰箱没有对应 GLB，必须落到下面的程序化 buildFridgeItem；其余冰箱仍走外部模型。
     match: ({ itemSpec }) => itemSpec.offlineModelExport !== true &&
     ALL_ITEM_MODELS[itemSpec.type] &&
+    !(itemSpec.type === "fridge" && itemSpec.fridgeStyle === "double") &&
     itemSpec.type !== "smallcar" &&
     itemSpec.type !== "sofa",
     build: buildExternalModelFallbackItem

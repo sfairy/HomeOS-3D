@@ -26,7 +26,7 @@ import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
-} from "./studio-item-types.js?v=2609251920";
+} from "./studio-item-types.js?v=2609252203";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
@@ -34,10 +34,10 @@ export const MATERIAL_STYLE_AUTO = "auto";
 /**
  * 不参与「材质风格」的类型：
  *   - mural / featurewall：已有 muralStyle / wallStyle，语义重叠（见模块头）；
- *   - stairs / steelstairs / glassstairs / pillar / smallcar / elevator：**建筑构件与车辆，不是家居家电**。
- *     它们走的是「克隆原始材质」的路径，调色板根本不参与（studio-app.js 的 paletteForItemType 刻意把
- *     它们排除在 HOME_PALETTE_ITEM_TYPES 之外），颜色表达的是房子本体而不是装修风格。收进来的话
- *     下拉能选、选了没反应 —— 宁可不要这个控件。
+ *   - stairs / steelstairs / glassstairs / floatingstairs / pillar / smallcar / elevator：**建筑构件与车辆，
+ *     不是家居家电**。它们走的是「克隆原始材质」的路径，调色板根本不参与（studio-app.js 的
+ *     paletteForItemType 刻意把它们排除在 HOME_PALETTE_ITEM_TYPES 之外），颜色表达的是房子本体
+ *     而不是装修风格。收进来的话下拉能选、选了没反应 —— 宁可不要这个控件。
  *
  * 后一组里除 stairs / pillar 外的四个是**隐式**落在能力集之外的（它们本来就不在 HOME / EXTERNAL /
  * APPLIANCE 三张词表里），这里仍逐个列进 EXCLUDED：语义靠「恰好没被收录」来表达太脆，将来谁把
@@ -50,6 +50,7 @@ export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
     "stairs",
     "steelstairs",
     "glassstairs",
+    "floatingstairs",
     "pillar",
     "smallcar",
     "elevator"

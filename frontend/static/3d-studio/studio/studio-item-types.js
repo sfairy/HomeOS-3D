@@ -18,6 +18,7 @@ export const SQUARE_EDGE_ITEM_TYPES = new Set([
   "stairs",
   "steelstairs",
   "glassstairs",
+  "floatingstairs",
   "smallcar",
   "cabinet",
   "glasscabinet",
@@ -361,7 +362,11 @@ export const APPLIANCE_FINISH_BY_ITEM_TYPE = Object.freeze({
   rangehood: "steelBlack"
 });
 
-export const STAIR_ITEM_TYPES = new Set(["stairs", "steelstairs", "glassstairs"]);
+export const STAIR_ITEM_TYPES = new Set(["stairs", "steelstairs", "glassstairs", "floatingstairs"]);
+// 「楼梯方向」只对**两跑、左右不对称**的楼梯有意义：钢 / 玻璃楼梯是 U 形双跑，镜像之后
+// 上行的那一跑会换到另一侧，平面符号与实体都得跟着翻。直行的 stairs 与 floatingstairs 的
+// 几何关于 x=0 天然对称 —— 镜像前后是同一件东西，方向控件给了也是「选了没反应」（
+// applyItemOrientation 只用它做 scale.x = -1），所以两者都不进这一份。
 export const STAIR_DIRECTION_ITEM_TYPES = new Set(["steelstairs", "glassstairs"]);
 export const ROUND_TABLE_TURNTABLE_ITEM_TYPES = new Set([
   "rounddiningtable",
@@ -477,6 +482,7 @@ export const EXTERNAL_MODEL_ITEM_TYPES = new Set([
   //   - smallcar：有专用构建体（含充电特效），它自己会先试外部模型。
   "steelstairs",
   "glassstairs",
+  "floatingstairs",
   "elevator",
   "smallcar"
 ]);

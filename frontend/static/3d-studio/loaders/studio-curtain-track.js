@@ -1,25 +1,50 @@
 /**
- * 窗帘轨道与帘布的生成（含梦幻帘）：3D 工作室生成窗帘（直轨 / L 型 / U 型）时的几何构造模块，
- * 由物件生成流程调用，产出轨道杆与两片帘布。
+ * 窗帘轨道与帘布的生成（含轨道帘、卷帘、梦幻帘）：3D 工作室生成窗帘时的几何构造模块，
+ * 由物件生成流程调用，产出轨道杆与两片帘布（轨道帘）或卷管与一整片帘布（卷帘）。
  *
  * 坐标与单位：长度一律米；轨道在水平面上用 x / z 描述（y 为竖直方向），帘布底边离地 0.06 米、
- * 顶边离地 height - 0.06 米。约定：curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比；
+ * 顶边离地 height - 0.06 米（卷帘为底边 0.035 米、顶边见 createRollerCurtain）。约定：
+ * curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比，curtainStyle 为形态；
  * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609251920";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609252203";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底（curtain-motion）必须同值，故只定义在
 // utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251920";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609252203";
+
+/**
+ * 窗帘形态（curtainStyle）取值。
+ *
+ * cloth：布艺垂帘，也就是本模块一直以来的轨道帘，默认值，行为与新增这个字段之前逐值相同；
+ * roller：卷帘，顶部一根卷管 + 一整片平帘布，无轨道、无左右两片、无褶皱。
+ *
+ * 为什么另起一轴而不是复用 curtainFabric：后者描述的是**布面材质**（布 / 纱），
+ * 卷帘与轨道帘都可能用布面；两者正交，合成一个字段会让「卷帘 + 纱」这类组合无处安放。
+ * 命名沿用本项目 `<东西>Style` 的既有写法（wallStyle / muralStyle / materialStyle）。
+ */
+export const CURTAIN_STYLE_CLOTH = "cloth";
+export const CURTAIN_STYLE_ROLLER = "roller";
 
 /**
  * 归一化窗帘轨道参数。
  */
 export function normalizeCurtainTrack(inputOptions = {}) {
+  // 卷帘没有轨道形态可言：没有回折段、没有拐角，帘布也不会分成左右两片。
+  // 这里把 curtainTrack 收敛成直线型，调用方的进深计算（curtainFootprintDepth）
+  // 与平面绘制才会走「单轨」这一支，不会去算 L / U 型的回折长度。
+  const curtainIsRoller = inputOptions.curtainStyle === CURTAIN_STYLE_ROLLER;
   return {
-    // 只有直轨 / L 型 / U 型三种形态，其余一律回落到直轨（未知值会让几何生成出错）。
-    curtainTrack: ["straight", "l", "u"].includes(inputOptions.curtainTrack)
-      ? inputOptions.curtainTrack
-      : "straight",
+    // 形态字段**始终落键**（非法值回落 cloth）。若像 curtainFabric 那样「有值才写」，
+    // 用户把卷帘改回普通帘时旧的 "roller" 键会残留在文档里 —— 这正是本项目最在意的
+    // 「静默残留」那一类 bug，所以这里宁可让每个窗帘都带一个明确的形态值。
+    curtainStyle: curtainIsRoller ? CURTAIN_STYLE_ROLLER : CURTAIN_STYLE_CLOTH,
+    // 只有直轨 / L 型 / U 型三种形态，其余一律回落到直轨（未知值会让几何生成出错）；
+    // 卷帘强制直线型（见上）。
+    curtainTrack: curtainIsRoller
+      ? "straight"
+      : ["straight", "l", "u"].includes(inputOptions.curtainTrack)
+        ? inputOptions.curtainTrack
+        : "straight",
     // 拐角方向默认朝右，与常见户型主窗的布置一致。
     curtainCorner: inputOptions.curtainCorner === "left" ? "left" : "right",
     // 回折段限制在 0.2~7.8 米：太短看不出拐角，太长会超出常见的房间进深。
@@ -416,6 +441,193 @@ export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides =
       rigRoot.add(clothMesh);
     }
   );
+  return rigRoot;
+}
+
+/**
+ * 创建一套卷帘几何：一根顶部卷管 + 一整片平帘布 + 底杆 + 两端支架。
+ *
+ * 与轨道帘的区别（也就是「卷帘」这个形态的定义）：没有轨道、没有左右两片、没有褶皱，
+ * 帘布是一整片平面，靠顶部卷管垂直升降 —— 0% 完全放下（盖住窗口），100% 完全卷起。
+ *
+ * 坐标与单位沿用本模块的约定：长度米、y 竖直、x 为帘布宽度方向、z 为出墙进深方向。
+ * 帘布底边离地 0.035 米，卷管轴心（帘布顶边）离地
+ * `height - sqrt(卷管半径² + height × 布厚 / π)`：这样「放下的布 + 卷在管上的布」总面积
+ * 恒定，卷起时管半径按面积守恒增大，不会出现卷到一半布面长度对不上的跳变。
+ *
+ * 返回值里的 pose(curtainPreview) 负责按开合百分比摆姿势，供工作台预览与后续运行时复用。
+ *
+ * @param {object} three three.js 命名空间（由调用方注入，构建体不直接 import）。
+ * @param {object} rollerOptions 物件参数：width / height / curtainFabric / curtainPreview。
+ * @param {object} colorOverrides 配色覆盖：light = 帘布色，dark = 卷管 / 底杆 / 支架等五金色。
+ */
+export function createRollerCurtain(three, rollerOptions = {}, colorOverrides = {}) {
+  const rollerWidth = clampOptionalNumber(
+    rollerOptions.width ?? rollerOptions.curtainWidth,
+    0.2,
+    8,
+    1.8
+  );
+  const rollerHeight = clampOptionalNumber(rollerOptions.height, 0.2, 6, 2.4);
+  // 卷管半径：封顶 4.5 厘米（再粗就不像家用卷帘），且不超过总高的 12%。
+  const rollerTubeRadius = Math.min(0.045, rollerHeight * 0.12);
+  // 布厚 1.6 毫米：只参与「卷起后管半径」的面积守恒反算，不参与渲染。
+  const rollerFabricThickness = 0.0016;
+  // 卷管轴心高度 = 总高 − 收卷所需的那一小段；帘布顶边因此略低于吊顶，卷得下最后一点布。
+  const rollerTopY =
+    rollerHeight - Math.sqrt(rollerTubeRadius ** 2 + (rollerHeight * rollerFabricThickness) / Math.PI);
+  // 帘布平铺高度 = 顶边到离地 3.5 厘米（留一点缝，帘布不会插进地面）。
+  const rollerPanelHeight = Math.max(0.04, rollerTopY - 0.035);
+  // 两端支架的截面边长：原本是卷管直径的 2.5 倍，但矮窗上卷管轴心离顶很近，
+  // 这个尺寸会让支架戳出物件高度（包围盒超出 height），所以再按「到顶的余量」夹一次。
+  const rollerCapSpan = Math.min(rollerTubeRadius * 2.5, (rollerHeight - rollerTopY) * 2);
+  const rollerIsSheer = rollerOptions.curtainFabric === "sheer";
+  const rollerGroup = new three.Group();
+  const rollerParts = [];
+  // 帘布材质：与轨道帘同一族参数（受光织物、粗糙度接近 1、双面），但**不开顶点色** ——
+  // 卷帘没有褶皱，不需要逐顶点明暗。纱帘半透明、强制单遍，避免双面各画一次叠色。
+  const rollerClothMaterial = new three.MeshStandardMaterial({
+    color: colorOverrides.light ?? 13094354,
+    roughness: 0.94,
+    side: three.DoubleSide,
+    transparent: rollerIsSheer,
+    opacity: rollerIsSheer ? 0.48 : 1,
+    depthWrite: !rollerIsSheer
+  });
+  rollerClothMaterial.forceSinglePass = true;
+  // 卷管两端支架与底杆是金属件：与轨道帘的轨道杆取同一档五金色。
+  const rollerMetalMaterial = new three.MeshStandardMaterial({
+    color: colorOverrides.dark ?? 6647932,
+    roughness: 0.4,
+    metalness: 0.45
+  });
+  /**
+   * 挂一个部件到卷帘组上：统一打 userData.curtainPart（上层按它做暖阳换色与特效标记）、
+   * 按面料决定投影（纱帘不投影，半透明阴影会显脏），并登记进 rollerParts 便于整组释放。
+   */
+  const addRollerPart = (rollerGeometry, rollerMaterial, rollerPartName) => {
+    const rollerMesh = new three.Mesh(rollerGeometry, rollerMaterial);
+    rollerMesh.userData.curtainPart = rollerPartName;
+    rollerMesh.castShadow = !rollerIsSheer;
+    rollerMesh.receiveShadow = true;
+    rollerParts.push(rollerMesh);
+    rollerGroup.add(rollerMesh);
+    return rollerMesh;
+  };
+  // 帘布：一整片平面（1×1 段 = 4 个顶点），顶点在 pose 里逐点改写，不在这里定形。
+  const rollerPanelMesh = addRollerPart(
+    new three.PlaneGeometry(rollerWidth, rollerPanelHeight),
+    rollerClothMaterial,
+    "cloth"
+  );
+  // 卷管：单位圆柱 + 姿态里按当前卷起半径缩放；rotation.z = 90° 让它横躺在窗口上方。
+  // 材质用帘布那一份 —— 卷起来的就是布本身，不该是另一根金属杆。
+  const rollerTubeMesh = addRollerPart(
+    new three.CylinderGeometry(1, 1, rollerWidth, 32),
+    rollerClothMaterial,
+    "cloth"
+  );
+  rollerTubeMesh.rotation.z = Math.PI / 2;
+  rollerTubeMesh.position.y = rollerTopY;
+  // 底杆（配重条）：压住帘布下沿，让它垂得平直；位置随开合在 pose 里上下走。
+  const rollerBottomBarMesh = addRollerPart(
+    new three.BoxGeometry(rollerWidth + 0.018, 0.025, 0.028),
+    rollerMetalMaterial,
+    "band"
+  );
+  // 两端支架：比卷管略高一点的方墩，夹住卷管两头，贴在窗口两侧。
+  for (const rollerEndX of [-rollerWidth / 2 - 0.018, rollerWidth / 2 + 0.018]) {
+    addRollerPart(
+      new three.BoxGeometry(0.025, rollerCapSpan, rollerCapSpan),
+      rollerMetalMaterial,
+      "cap"
+    ).position.set(rollerEndX, rollerTopY, 0);
+  }
+  /**
+   * 按开合百分比摆姿势：curtainPreview ∈ [0, 100]，0 = 完全放下、100 = 完全卷起。
+   * 放下的布越长，卷在管上的布越多，管半径按面积守恒反算；帘布顶点始终落在卷管外侧
+   * （z = 当前管半径），所以布面看起来是从管子上垂下来的，而不是从轴心穿过去。
+   *
+   * @param {number} previewPercent 开合预览百分比（0~100）。
+   * @returns {{top:number, bottom:number, radius:number, hanging:number}} 供调试 / 断言。
+   */
+  const poseRollerCurtain = (previewPercent = 0) => {
+    const rolledFraction = clampOptionalNumber(previewPercent, 0, 100, 0) / 100;
+    const rolledLength = rollerPanelHeight * rolledFraction;
+    const hangingLength = rollerPanelHeight - rolledLength;
+    const currentTubeRadius = Math.sqrt(
+      rollerTubeRadius ** 2 + (rolledLength * rollerFabricThickness) / Math.PI
+    );
+    const rollerPositionAttribute = rollerPanelMesh.geometry.attributes.position;
+    const rollerUvAttribute = rollerPanelMesh.geometry.attributes.uv;
+    // PlaneGeometry 的 4 个顶点顺序是「左上、右上、左下、右下」：前两个是顶边。
+    for (let rollerVertexIndex = 0; rollerVertexIndex < 4; rollerVertexIndex++) {
+      const rollerVertexIsTop = rollerVertexIndex < 2;
+      rollerPositionAttribute.setXYZ(
+        rollerVertexIndex,
+        rollerVertexIndex % 2 ? rollerWidth / 2 : -rollerWidth / 2,
+        rollerVertexIsTop ? rollerTopY : rollerTopY - hangingLength,
+        currentTubeRadius
+      );
+      // 卷起的部分不显示，用 UV 的纵向取值把有花纹的贴图也一起收上去。
+      rollerUvAttribute.setY(rollerVertexIndex, rollerVertexIsTop ? 1 - rolledFraction : 0);
+    }
+    rollerPositionAttribute.needsUpdate = true;
+    rollerUvAttribute.needsUpdate = true;
+    rollerPanelMesh.geometry.computeBoundingBox();
+    rollerPanelMesh.geometry.computeBoundingSphere();
+    // 完全卷起时平面退化成一条线，直接隐藏，免得留下一条零宽的面。
+    rollerPanelMesh.visible = hangingLength > 0.0001;
+    // 卷管按当前卷起半径缩放（圆柱轴向已被 rotation.z 转到 x，径向是 y / z 两个轴）。
+    rollerTubeMesh.scale.set(currentTubeRadius, 1, currentTubeRadius);
+    // 卷起多少就转多少：转过的周长等于卷上来的布长，视觉上布是「卷进去」的。
+    rollerTubeMesh.rotation.x =
+      (-2 * Math.PI * (currentTubeRadius - rollerTubeRadius)) / rollerFabricThickness;
+    rollerBottomBarMesh.position.set(0, rollerTopY - hangingLength, currentTubeRadius);
+    return {
+      top: rollerTopY,
+      bottom: rollerTopY - hangingLength,
+      radius: currentTubeRadius,
+      hanging: hangingLength
+    };
+  };
+  poseRollerCurtain(rollerOptions.curtainPreview);
+  return {
+    group: rollerGroup,
+    meshes: rollerParts,
+    material: rollerClothMaterial,
+    width: rollerWidth,
+    height: rollerHeight,
+    pose: poseRollerCurtain,
+    dispose({ keepMaterial = false } = {}) {
+      for (const rollerPart of rollerParts) {
+        rollerPart.geometry.dispose();
+      }
+      rollerMetalMaterial.dispose();
+      if (!keepMaterial) {
+        rollerClothMaterial.dispose();
+      }
+    }
+  };
+}
+
+/**
+ * 生成一套卷帘（卷管 + 平帘布 + 底杆 + 支架）并挂到给定节点上。
+ * 与 addTrackCurtain 同签名、同约定：上层建立模型组后直接调用，自带 userData 标记与基准尺寸。
+ */
+export function addRollerCurtain(three, rigRoot, rollerOptions = {}, colorOverrides = {}) {
+  const rollerRig = createRollerCurtain(three, rollerOptions, colorOverrides);
+  // 标记与基准尺寸：上层用它判断该节点的类型并做归一化缩放；
+  // curtainRollerModel 与轨道帘的 curtainTrackModel 并列，互不误判。
+  rigRoot.userData.curtainRigRoot = true;
+  rigRoot.userData.curtainRollerModel = true;
+  rigRoot.userData.curtainRigBasis = [
+    rollerRig.width,
+    rollerRig.height,
+    curtainFootprintDepth(rollerOptions)
+  ];
+  rigRoot.add(rollerRig.group);
+  rollerRig.pose(rollerOptions.curtainPreview);
   return rigRoot;
 }
 

@@ -21,7 +21,7 @@
  * @type {{ category: string, label: string, note: string, items: { type: string, sub: string, icon: string, name: string, size: string }[] }[]}
  */
 // 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
-import { escapeHtml } from "../../utils/html-escape.js?v=2609251920";
+import { escapeHtml } from "../../utils/html-escape.js?v=2609252203";
 
 export const STUDIO_ASSET_PALETTE = [
   {
@@ -133,6 +133,7 @@ export const STUDIO_ASSET_PALETTE = [
       { type: "stairs", sub: "structure", icon: "⇧", name: "楼梯", size: "1.00 × 2.80m" },
       { type: "steelstairs", sub: "structure", icon: "⇧", name: "钢楼梯", size: "1.86 × 2.93m" },
       { type: "glassstairs", sub: "structure", icon: "⇧", name: "玻璃楼梯", size: "2.51 × 2.84m" },
+      { type: "floatingstairs", sub: "structure", icon: "⇧", name: "悬空楼梯", size: "0.97 × 2.25m" },
       { type: "pillar", sub: "structure", icon: "▣", name: "柱子", size: "0.45 × 0.45m" },
       { type: "smallcar", sub: "structure", icon: "◆", name: "小汽车", size: "2.19 × 5.01m" },
       { type: "elevator", sub: "structure", icon: "⇧", name: "电梯", size: "1.40 × 1.52m" },

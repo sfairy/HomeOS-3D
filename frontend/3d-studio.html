@@ -9,30 +9,30 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609251920"></script>
+    <script src="/static/logging/client-log.js?v=2609252203"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609251920" type="image/svg+xml" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609252203" type="image/svg+xml" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <!-- 全站调色板（design/scene/page.css 的分发产物）。studio.css 的 :root 只是把它
          别名成 --bg / --accent / --guide 这些历史令牌名；画布色值由 studio-app.js 的
          paletteColor() 从计算样式里读同一批变量。必须在 studio.css 之前加载。 -->
     <link
       rel="stylesheet"
-      href="/static/auth/scene/page.css?v=2609251920"
+      href="/static/auth/scene/page.css?v=2609252203"
     />
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio/studio.css?v=2609251920"
+      href="/static/3d-studio/studio/studio.css?v=2609252203"
     />
     <!-- 布局交互层（折叠把手条 / 分隔条）的共享样式，两页共用。
          必须排在 studio.css 之后：它要用同一特异性覆盖面板内边距与网格轨道。 -->
     <link
       rel="stylesheet"
-      href="/static/shared/layout.css?v=2609251920"
+      href="/static/shared/layout.css?v=2609252203"
     />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609251920` 的 <link>。
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609252203` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -40,7 +40,7 @@
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609251920" alt="HomeOS" />
+        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609252203" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -66,6 +66,11 @@
              只能刷新页面重来（保存也会一直撞 409）。默认隐藏，有未处理冲突时才出现。 -->
         <button id="save-conflict-reopen" class="save-conflict-reopen" type="button" hidden>
           处理保存冲突
+        </button>
+        <!-- 「本次删除影响」的常驻入口：与上面那颗同理 —— 点了「保留模型」后对话框收起，
+             没有第二条入口就再也回不去确认（保存会一直等这份影响处理）。默认隐藏。 -->
+        <button id="save-interaction-reopen" class="save-conflict-reopen" type="button" hidden>
+          处理删除影响
         </button>
       </div>
     </header>
@@ -878,9 +883,27 @@
                   </div>
                 </div>
               </div>
-              <!-- 窗帘轨道：L / U 型才有转角与左右两段长度，直线型下这些字段保持 hidden。 -->
+              <!-- 冰箱款式：仅冰箱显示。左右双开门是两扇竖向门扇并排，门缝落在正中线。 -->
+              <fieldset id="fridge-style-fields" class="fridge-style-fields" hidden>
+                <legend>冰箱款式</legend>
+                <label
+                  ><input type="radio" name="fridge-style" value="standard" checked /><span>原款</span></label
+                >
+                <label
+                  ><input type="radio" name="fridge-style" value="double" /><span>左右双开门</span></label
+                >
+              </fieldset>
+              <!-- 窗帘形态：普通窗帘（轨道帘，默认）与卷帘。卷帘没有轨道、没有左右两片、没有褶皱，
+                   选中后轨道形状 / 转角 / 左右长度 / 合拢位置 / 帘布类型全部隐藏，只保留预览开合。 -->
               <div id="curtain-track-fields" hidden>
                 <label class="door-type-field"
+                  ><span>窗帘形态</span
+                  ><select id="curtain-style">
+                    <option value="cloth">普通窗帘</option>
+                    <option value="roller">卷帘</option>
+                  </select></label
+                >
+                <label id="curtain-track-field" class="door-type-field"
                   ><span>轨道形状</span
                   ><select id="curtain-track">
                     <option value="straight">直线型</option>
@@ -921,14 +944,14 @@
                       title="0为关闭，100为全开；仅调整模型预览，不控制设备"
                   /></label>
                 </div>
-                <label class="door-type-field"
+                <label id="curtain-fabric-field" class="door-type-field"
                   ><span>帘布类型</span
                   ><select id="curtain-fabric">
                     <option value="cloth">布帘</option>
                     <option value="sheer">纱帘</option>
                   </select></label
                 >
-                <p class="inspector-note">
+                <p class="inspector-note" id="curtain-note">
                   预览打开：0% 为关闭，100% 为完全收拢。主边长度在下方调整，旋转可改变开口朝向；合拢位置沿整条轨道计算。
                 </p>
               </div>
@@ -1238,6 +1261,26 @@
         </div>
       </form>
     </dialog>
+    <!-- 本次删除影响：保存时（PUT /api/v1/studio3d）发现被删的模型仍被 3D 控件绑定引用，
+         服务端按 428 回传确认令牌且**什么都没写**。只有用户明确「确认删除并保存」，才会带着
+         令牌、连同 428 当时的 revision 与场景快照重发，服务端据此同步清理那些绑定。
+         「保留模型」是唯一不丢东西的出口：收起对话框，本地删除与撤销栈一点不动，用户可撤销
+         这次删除（模型回来后保存自然通过），也可从顶栏「处理删除影响」入口回来确认。 -->
+    <dialog id="save-interaction-dialog" class="scale-dialog export-notice-dialog save-interaction-dialog">
+      <form method="dialog">
+        <span class="dialog-index">REMOVE MODEL</span>
+        <h2>本次删除影响</h2>
+        <p id="save-interaction-message">删除的模型被 3D 控件引用，保存将一并移除这些绑定。</p>
+        <div class="export-notice-summary"><span>受影响仪表盘</span><strong id="save-interaction-projects">—</strong></div>
+        <ul id="save-interaction-impacts" class="save-interaction-impacts"></ul>
+        <p class="save-interaction-note">确认删除后才会同步清理交互配置。不会删除模型或设备，也不会移动模型或发送设备命令；
+          撤销删除会恢复刚才移除的模型或灯组。</p>
+        <div class="dialog-actions">
+          <button id="save-interaction-keep" type="button">保留模型</button
+          ><button id="save-interaction-confirm" class="primary-action" type="button">确认删除并保存</button>
+        </div>
+      </form>
+    </dialog>
     <!-- 批量应用：先记录要改的值与文案，再把候选对象列出来让用户勾选；
          两个对话框结构相同，只是候选集一个是灯具一个是墙体。 -->
     <!-- 灯具属性批量应用：候选集是所有灯具。 -->
@@ -1529,11 +1572,17 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
-    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=2609251920
-         否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
+    <!-- 入口脚本：本页两个 module，顺序有意义 —— stage-startup.js 先执行，把「读场景持久缓存 /
+         提前发场景接口 / 提前下 stage 模块」这三件事发出去（只在舞台页生效：它按路径判断，编辑器页
+         整体返回 null），studio-app.js 随后直接收下这三样。三条 src 与 studio.css 必须共用同一条
+         ?v=2609252203 -->
     <script
       type="module"
-      src="/static/3d-studio/studio/studio-app.js?v=2609251920"
+      src="/static/3d-studio/stage-startup.js?v=2609252203"
+    ></script>
+    <script
+      type="module"
+      src="/static/3d-studio/studio/studio-app.js?v=2609252203"
     ></script>
   </body>
 </html>

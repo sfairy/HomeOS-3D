@@ -17,7 +17,7 @@
  * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609251920
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609252203
  */
 
 /* ===== 设计令牌（主题变量） ===== */
@@ -3078,6 +3078,48 @@ select option:disabled {
 .save-conflict-dialog .dialog-actions {
   margin-top: 20px;
 }
+/* 「本次删除影响」确认：与保存冲突同类（需要用户决策），但要多列几行明细 ——
+   受影响仪表盘与每条绑定的 label。摘要值同样用琥珀色；列表是可滚动的等宽小字，
+   项目名超长时换行而不是把对话框撑破（导出摘要条的 strong 默认 nowrap）。 */
+.save-interaction-dialog {
+  width: min(540px, calc(100vw - 40px));
+}
+.save-interaction-dialog .export-notice-summary strong {
+  color: #f5c46b;
+  white-space: normal;
+}
+.save-interaction-impacts {
+  margin: 0 0 18px;
+  padding: 12px 15px;
+  display: grid;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #00000029;
+}
+.save-interaction-impacts li {
+  display: flex;
+  gap: 8px;
+  color: var(--hos-tool-text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.save-interaction-impacts li::before {
+  content: "·";
+  color: var(--accent-bright);
+}
+.save-interaction-note {
+  margin: 0 0 4px;
+  color: var(--hos-tool-hint);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.save-interaction-dialog .dialog-actions {
+  margin-top: 20px;
+}
 .light-group-rename-dialog {
   width: min(390px, calc(100vw - 40px));
 }
@@ -3974,4 +4016,32 @@ body.auto-diagram-embedded .export-preview-frame {
      min-height 与 grid-template-columns 与基础规则逐字相同、grid-row: auto 与 margin: 0
      都是初始值，而 .asset-grid .asset-card i 又把图标整条 display: none 掉了 ——
      四条声明没有一条能在窄屏上产生与宽屏不同的效果。 */
+}
+
+/* ===== 冰箱款式（原款 / 左右双开门）===== */
+.fridge-style-fields {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d6dce2);
+  border-radius: 10px;
+}
+.fridge-style-fields legend {
+  padding: 0 4px;
+  font-size: 12px;
+}
+.fridge-style-fields label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  cursor: pointer;
+}
+.fridge-style-fields input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+}
+.fridge-style-fields[hidden] {
+  display: none;
 }

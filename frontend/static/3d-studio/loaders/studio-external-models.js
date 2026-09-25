@@ -11,30 +11,35 @@
  * 生命周期：模型按类型缓存、克隆体共享几何与贴图，等价材质收敛成一份并缓存，重复副本立即 dispose，
  * 避免显存随物件数量线性增长（销毁逻辑靠实例上的 externalModelShared* 标记判断）。
  */
-import { finite } from "./studio-normalization.js?v=2609251920";
+import { finite } from "./studio-normalization.js?v=2609252203";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609251920";
+import { debugLog } from "../../utils/debug-log.js?v=2609252203";
+// 模型模板的跨会话持久缓存与它的信封编解码：同一份 -lite.glb 在同一个浏览器里会被反复解析
+// （每次进编辑器 / 舞台都要重来一遍下载 + GLTF 解析 + 材质构建），命中缓存就直接还原上一会话
+// 准备好的模板。两个模块必须同一条戳 —— 缓存键里带着编解码版本，两者错开就是「存得进、读不出」。
+import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609252203";
+import { modelTemplateKey } from "../model-template-codec.js?v=2609252203";
 // 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
 // （家居，看 palette.warmFurniture）。两者都只在对应开关为真时被调用，其它情况下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609251920";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609251920";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609252203";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609252203";
 // 石材板整图（茶几的两块石板、餐桌台面）：与背景墙的「大理石」共用白色色号那张缓存贴图，
 // 另加一个黑金大理石色号（背景墙没有这一档，见 createStoneSlabTexture 的注释）。
-import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609251920";
+import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609252203";
 // 逐物件「材质风格」的质感贴图（均值≈1 的细节图）：走调色板上的 materialSurface 键。
 import {
   createMaterialSurfaceTexture,
   hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js?v=2609251920";
+} from "../materials/studio-surface-fabrics.js?v=2609252203";
 // 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
 // 名单一旦两处各写一份，模型加载中的占位几何与到位后的成品就会是两个颜色。
 // 不锈钢家电的名单同理：材质替换要知道哪些类型该保留红蓝水管的原色。
 import {
   APPLIANCE_FINISH_BY_ITEM_TYPE,
   JOINERY_ITEM_TYPES
-} from "../studio/studio-item-types.js?v=2609251920";
-const HOME_LITE_MODEL_VERSION = "2609251920";
-const APPLIANCE_LITE_MODEL_VERSION = "2609251920";
+} from "../studio/studio-item-types.js?v=2609252203";
+const HOME_LITE_MODEL_VERSION = "2609252203";
+const APPLIANCE_LITE_MODEL_VERSION = "2609252203";
 /**
  * 模型素材按类型分目录存放（models/ 下：furniture / appliance / bath / electronics / decor /
  * structure / vehicle）。分类目录只是收纳手段，对加载与缓存都不透明：后端缓存白名单用的是
@@ -256,6 +261,14 @@ const EXTERNAL_ITEM_MODELS = Object.freeze({
   }),
   glassstairs: defineHomeItemModel("structure", "glass-stairs", {
     scaleBasis: [2.51, 3.41, 2.84],
+    preserveOrigin: true
+  }),
+  // 悬空楼梯（1 字型直跑）：流水线产物（tools/models/model-specs.mjs 的 floatingstairs）。
+  // 与上面三件不同，它**只有 10 级悬挑踏板**，没有斜梁 / 立柱 / 平台 —— 支承在实物里藏在
+  // 墙内，模型刻意一根可见的承重件都不做。scaleBasis 逐值等于规格 size，否则运行侧按
+  // 非等比缩放会把这 0.97 × 2.25 的窄梯拉扁。
+  floatingstairs: defineHomeItemModel("structure", "floating-stairs", {
+    scaleBasis: [0.97254264, 2.59010673, 2.2483418],
     preserveOrigin: true
   }),
   piano: defineHomeItemModel("furniture", "piano", {
@@ -827,6 +840,9 @@ const FURNITURE_PALETTE_ITEM_TYPES = new Set([
   "bathtub",
   "glasspartition",
   "stairs",
+  // 悬空楼梯与直行 stairs 同族（建筑本体、木质踏面），调色板归属也照它走：进 FURNITURE_PALETTE
+  // 但被下面 HOME_PALETTE 的过滤排除，颜色表达的是房子本身而不是家居风格。
+  "floatingstairs",
   "pillar",
   "curtain_left",
   "curtain_right",
@@ -886,13 +902,17 @@ const FURNITURE_PALETTE_ITEM_TYPES = new Set([
   "booktower",
 ]);
 /**
- * 「家居」类型的调色板门槛：与 FURNITURE_PALETTE_ITEM_TYPES 同源，去掉建筑本体 stairs / pillar ——
- * 它们虽然也有自己的木色分支，但颜色表达的是房子本身，默认风格下不该跟着家居一起变暖。
+ * 「家居」类型的调色板门槛：与 FURNITURE_PALETTE_ITEM_TYPES 同源，去掉建筑本体
+ * stairs / floatingstairs / pillar —— 它们虽然也有自己的木色分支，但颜色表达的是房子本身，
+ * 默认风格下不该跟着家居一起变暖。
  * 家居换色分支统一改认这个集合 + palette.warmFurniture，场景与建筑本体仍看 palette.warmWood。
  */
 const HOME_PALETTE_ITEM_TYPES = new Set(
   [...FURNITURE_PALETTE_ITEM_TYPES].filter(
-    furnitureItemType => furnitureItemType !== "stairs" && furnitureItemType !== "pillar"
+    furnitureItemType =>
+      furnitureItemType !== "stairs" &&
+      furnitureItemType !== "floatingstairs" &&
+      furnitureItemType !== "pillar"
   )
 );
 const LUMINANCE_BANDED_ITEM_TYPES = new Set([
@@ -1354,6 +1374,7 @@ function materialRoleRecipe(materialPalette, materialName) {
  * 创建外部模型管理器：负责按需加载、并发排队、材质复用与实例落地。
  * 依赖注入的用意：THREE 必须用主模块命名空间（否则出现两份 three），loader 必须是已挂 DRACO 解码器的 GLTFLoader；isModelInUse 与 requestRender 让管理器在装载完成 / 失败时主动触发一次重绘，无需轮询。
  * @param {number} [managerOptions.maxConcurrentLoads] 并发加载上限（默认 2，解压占 Worker 与带宽）。@param {number} [managerOptions.loadTimeoutMs] 单次加载超时（默认 12s，弱网下 1MB 级模型的容忍上限）。
+ * @param {object} [managerOptions.persistentCache] 模型模板持久缓存（默认自建；测试可注入替身）。
  */
 export function createExternalModelManager({
   THREE: THREE,
@@ -1364,19 +1385,28 @@ export function createExternalModelManager({
   onLoadStateChange: onLoadStateChange = () => {},
   maxConcurrentLoads: maxConcurrentLoads = 2,
   loadTimeoutMs: loadTimeoutMs = 12000,
-  deferralHost: deferralHost = null
+  deferralHost: deferralHost = null,
+  persistentCache: persistentCache = createModelPersistentCache({
+    THREE: THREE
+  })
 }) {
-  // 四个缓存各司其职：已加载（类型 → {source, size}）、在飞（类型 → Promise，
-  // 用来合并同一类型的并发请求）、待加载队列、以及「字段完全等价的材质」缓存 ——
+  // 五个缓存各司其职：已加载（类型 → {source, size}）、GLTF 在飞（类型 → Promise，
+  // 用来合并同一类型的并发请求）、持久缓存在飞（类型 → Promise，避免同一类型读两遍 IndexedDB）、
+  // 待加载队列、以及「字段完全等价的材质」缓存 ——
   // 最后这个把大量外观相同的部件收敛成同一份材质，直接减少 GPU program 数量。
   const loadedModelByType = new Map();
   const pendingLoadByType = new Map();
+  const preparedRestoreByType = new Map();
   const loadQueue = [];
   const materialCacheByKey = new Map();
   // 并发至少为 1（否则队列永远不会被泵动），超时至少 50ms（防止误传 0 时每次加载
   // 都立刻超时失败）；finite() 负责把 NaN / undefined 换成默认值。
   const concurrencyLimit = Math.max(1, Math.floor(finite(maxConcurrentLoads, 2)));
   const effectiveTimeoutMs = Math.max(50, Math.floor(finite(loadTimeoutMs, 12000)));
+  // 持久缓存最多等这么久（毫秒）：命中就省掉一次下载 + 解析，读不出来也必须立刻转回真实加载器 ——
+  // 缓存是加分项，不能让首屏为了它多等。取 160ms 是因为 IndexedDB 的本地读通常在 10ms 量级，
+  // 超过这个数多半说明库被占住或磁盘忙，再等下去只会拖慢首屏。
+  const preparedRestoreTimeoutMs = 160;
   let activeLoadCount = 0;
   let materialReuseCount = 0;
   /**
@@ -1436,9 +1466,22 @@ export function createExternalModelManager({
   /**
    * 按「主资源 → 回退资源」的顺序加载一个模型，并给每次加载加上超时。
    * 两层兜底：Promise.race + 计时器保证弱网下不会永久挂住（超时文案带模型类型，便于定位哪张资源慢）；主资源 (-lite) 失败时静默回退完整版，因为轻量版是构建产物，缺失或损坏不该让家具整个消失。不做自动重试：失败
-   * 通常是资源缺失或格式问题，重试只会拖慢队列。finally 里清掉计时器，否则超时后即便加载成功也会留下定时器。@throws 两个地址都失败或定义里没有可用资源时抛出（中文文案）。
+   * 通常是资源缺失或格式问题，重试只会拖慢队列。finally 里清掉计时器，否则超时后即便加载成功也会留下定时器。
+   *
+   * 持久缓存先行：命中就干脆不碰网络，直接返回 `{preparedTemplate}`（形状与 `{scene}` 分支不同，
+   * 由 loadExternalModel 分辨）。`skipPersistentRestore` 供调用方在「已经自己读过一遍、确定未命中」
+   * 时跳过这次重复读（IndexedDB 的读也要排队，同一类型读两遍纯属浪费）。返回的 GLTF 结果上会挂
+   * `preparedCacheKey`：装载完成后的写入用的是**同一个键**，键只算一次，避免两处各算一份、悄悄错开。
+   * @throws 两个地址都失败或定义里没有可用资源时抛出（中文文案）。
    */
-  function loadModelWithFallback(modelDefinition, modelTypeLabel) {
+  async function loadModelWithFallback(modelDefinition, modelTypeLabel, { skipPersistentRestore = false } = {}) {
+    const preparedCacheKey = modelTemplateKey(THREE, modelTypeLabel, modelDefinition);
+    if (!skipPersistentRestore) {
+      const cachedTemplate = await persistentCache.restore(preparedCacheKey);
+      if (cachedTemplate) {
+        return { preparedTemplate: cachedTemplate };
+      }
+    }
     let timeoutId = null;
     // 发起一次带超时的加载：与 loadAsync 赛跑的计时器写入外层的 timeoutId 变量，
     // 让 loadModelWithFallback 的 finally 能统一清除（闭包共享同一个变量，只留一个定时器）。
@@ -1453,16 +1496,18 @@ export function createExternalModelManager({
           );
         })
       ]).finally(() => clearTimeout(timeoutId));
-    if (modelDefinition?.url) {
-      return loadFromUrl(modelDefinition.url).catch(loadError => {
+    if (!modelDefinition?.url) {
+      throw new Error("模型 " + modelTypeLabel + " 没有可用资源");
+    }
+    // 只在这里展开一次结果对象（GLTF 结果是普通对象字面量），把键带出去给写入方用。
+    return loadFromUrl(modelDefinition.url)
+      .catch(loadError => {
         if (!modelDefinition.fallbackUrl) {
           throw loadError;
         }
         return loadFromUrl(modelDefinition.fallbackUrl);
-      });
-    } else {
-      return Promise.reject(new Error("模型 " + modelTypeLabel + " 没有可用资源"));
-    }
+      })
+      .then(gltfResult => ({ ...gltfResult, preparedCacheKey: preparedCacheKey }));
   }
   /**
    * 把场景物件映射成具体的模型类型键。
@@ -1494,9 +1539,12 @@ export function createExternalModelManager({
     }
   }
   /**
-   * 加载（或复用）指定类型的模型，包含延迟放行、请求去重与按类型的几何修订。
+   * 加载（或复用）指定类型的模型，包含延迟放行、请求去重、持久缓存命中与按类型的几何修订。
    * 延迟加载声明生效且非用户主动要模型时只登记需求并同步返回 null，让本次先用过程几何顶上；已加载直接返回 缓存，正在加载则复用同一个 Promise；解析成功后按类型做几何修订（玻璃柜背板、吊柜侧板、车漆法线、床底内缩，
    * 车漆按源几何缓存并 dispose 旧几何以免泄漏），只缓存 scene 与实测尺寸；失败时记日志并返回 null（不抛错），调用方继续用过程几何 —— 这是降级而非中断。
+   *
+   * 持久缓存与真实加载是**赛跑**关系（见 pendingRestore）：命中就完全跳过网络，未命中或读得太慢
+   * 就走原来的管线，两条路的产物形状完全相同（都是 `{source, size}`），上层分辨不出差别。
    */
   function loadExternalModel(modelType) {
     if (deferralHost?.isDeferred() && !deferralHost.isReleasing()) {
@@ -1516,9 +1564,71 @@ export function createExternalModelManager({
     if (!definition) {
       return Promise.resolve(null);
     }
-    const loadPromise = enqueueLoadTask(() => loadModelWithFallback(definition, modelType))
-      .then(gltf => {
-        const loadedScene = gltf.scene || gltf.scenes?.[0];
+    // 持久缓存键：类型 + 定义（URL / 尺寸 / 覆盖项）+ 编解码版本 + three 版本
+    // （见 model-template-codec.js 的 modelTemplateKey）。同一类型并发请求共用同一次读取。
+    const preparedCacheKey = modelTemplateKey(THREE, modelType, definition);
+    let pendingRestore = preparedRestoreByType.get(modelType);
+    if (!pendingRestore) {
+      pendingRestore = Promise.resolve()
+        .then(() => persistentCache.restore(preparedCacheKey))
+        .catch(() => null);
+      preparedRestoreByType.set(modelType, pendingRestore);
+      // 「在飞」只活到读完为止：结果本身由每次调用的 preparedPromise 各自处理，这里只负责合并并发读。
+      pendingRestore.then(() => {
+        if (preparedRestoreByType.get(modelType) === pendingRestore) {
+          preparedRestoreByType.delete(modelType);
+        }
+      });
+    }
+    // 等缓存的同时把网络那一路准备好：一旦超时就立刻开跑，让磁盘与网络并行，而不是串行。
+    let loaderLoadPromise = null;
+    const startLoaderLoad = () => {
+      if (!loaderLoadPromise) {
+        loaderLoadPromise = enqueueLoadTask(() =>
+          loadModelWithFallback(definition, modelType, { skipPersistentRestore: true })
+        );
+      }
+      return loaderLoadPromise;
+    };
+    const preparedPromise = new Promise((resolvePrepared, rejectPrepared) => {
+      let settled = false;
+      let restoreTimer = null;
+      const fallBackToLoader = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(restoreTimer);
+        startLoaderLoad().then(resolvePrepared, rejectPrepared);
+      };
+      // 缓存是加分项：读得慢就先去加载，不能让它成为新的等待点。
+      restoreTimer = setTimeout(fallBackToLoader, preparedRestoreTimeoutMs);
+      pendingRestore.then(cachedTemplate => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(restoreTimer);
+        if (!cachedTemplate) {
+          fallBackToLoader();
+          return;
+        }
+        settled = true;
+        resolvePrepared({ preparedTemplate: cachedTemplate });
+      }, fallBackToLoader);
+    });
+    const loadPromise = preparedPromise
+      .then(loaded => {
+        // 命中持久缓存：模板就是上一会话准备好的完整结果（含实测尺寸），直接落进缓存表。
+        if (loaded.preparedTemplate) {
+          loadedModelByType.set(modelType, loaded.preparedTemplate);
+          if (isModelInUse(modelType)) {
+            requestRender({
+              force: true
+            });
+          }
+          return loaded.preparedTemplate;
+        }
+        const loadedScene = loaded.scene || loaded.scenes?.[0];
         if (!loadedScene) {
           throw new Error("模型 " + modelType + " 没有可显示的场景");
         }
@@ -1552,6 +1662,9 @@ export function createExternalModelManager({
           size: modelSize
         };
         loadedModelByType.set(modelType, modelCacheEntry);
+        // 写回持久缓存：下一次打开就不必再下载与解析这份几何。空闲时执行、失败静默，
+        // 写不进去只表现为「下次还要重新加载」，不影响本次渲染。
+        persistentCache.schedule(loaded.preparedCacheKey, modelCacheEntry);
         if (isModelInUse(modelType)) {
           requestRender({
             force: true
@@ -1883,7 +1996,10 @@ export function createExternalModelManager({
             : kitchenRole === "sink" || kitchenRole === "cooktop" || kitchenRole === "metal"
               ? (paletteColors.appliance ?? paletteColors.furniture)
               : paletteColors.furniture;
-    } else if (furnitureItemType === "stairs") {
+    } else if (furnitureItemType === "stairs" || furnitureItemType === "floatingstairs") {
+      // 建筑本体的楼梯族（含悬空楼梯）：不吃家居档位，整件回主料色。实际路径由上面的
+      // HOME_PALETTE 过滤挡掉，这一支是给「日后谁把它们收进家居」留的安全网 —— 没有它，
+      // 这两位会落进末尾的亮度兜底，整段楼梯按踏板亮度分档变色。
       chosenColor = paletteColors.furniture;
     } else if (
       furnitureItemType === "plant" &&
@@ -2691,9 +2807,13 @@ export function createExternalModelManager({
             ? 0.12
             : 0.065;
     }
-    if (materialPalette.warmWood && modelTypeName === "stairs") {
+    if (
+      materialPalette.warmWood &&
+      (modelTypeName === "stairs" || modelTypeName === "floatingstairs")
+    ) {
       // 暖阳原木：楼梯的木质件换成地板 / 地板描边色，踏面还要自带地板拼板纹理 ——
-      // 否则楼梯会是整个场景里唯一一块「没铺地板」的地面。
+      // 否则楼梯会是整个场景里唯一一块「没铺地板」的地面。悬空楼梯与直行 stairs 同族，
+      // 一并处理，免得它成了画面里唯一一件不跟木色的木质构件。
       // 判据是**角色**：踏面是 top。这里原先按槽位号判（`material-1` 或 `-soft` 后缀），
       // 那是既有资产的偶然编号 —— 楼梯 2026-09 分件重建后踏面仍在 1 号槽位，但那只是巧合，
       // 改一次分件顺序就会把防滑条认成踏面（地板纹理贴到那 2cm 的窄条上）。
