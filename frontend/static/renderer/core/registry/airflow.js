@@ -6,16 +6,16 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609251754";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609251801";
 // 「其它」档的中性灰：与编辑器侧共用同一枚定义，原先这里写的是 #ffffff、其余四处写 #dce2e6。
-import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609251754";
+import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609251801";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateEffectMode
-} from "./entity-state.js?v=2609251754";
+} from "./entity-state.js?v=2609251801";
 // 同门分片：registry-visuals
-import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609251754";
+import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609251801";
 
 /**
  * 生成空调 / 浴霸出风动画的 SVG（data URI）。

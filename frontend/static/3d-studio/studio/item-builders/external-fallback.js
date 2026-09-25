@@ -10,7 +10,7 @@
  * 外部模型兜底：不在上面任何专有分支、但 ALL_ITEM_MODELS 里登记过模型的类型 —— 先试外部模型，
  * 取不到再退回盒体（或立柱的专用几何）。
  */
-import { APPLIANCE_ITEM_TYPES } from "../studio-item-types.js?v=2609251754";
+import { APPLIANCE_ITEM_TYPES } from "../studio-item-types.js?v=2609251801";
 /**
  * 命中：itemSpec.offlineModelExport !== true && ALL_ITEM_MODELS[itemSpec.type] && itemSpec.type !== "smallcar" && itemSpec.type !== "sofa"
  */

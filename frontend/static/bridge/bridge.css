@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609251754";
+@import "/static/bridge/controls.css?v=2609251801";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;

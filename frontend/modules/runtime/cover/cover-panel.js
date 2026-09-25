@@ -12,10 +12,10 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609251754";
+} from "./cover-state.js?v=2609251801";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
 // `/static/...` 的静态 import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609251754";
+import { createDomFactory } from "../core/static-helpers.js?v=2609251801";
 /**
  * 创建窗帘面板。
  */

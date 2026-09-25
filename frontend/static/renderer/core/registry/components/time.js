@@ -4,15 +4,15 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609251754";
-import { formatLocalTime } from "../../../controls/date-time-runtime.js?v=2609251754";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609251801";
+import { formatLocalTime } from "../../../controls/date-time-runtime.js?v=2609251801";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609251754";
+import { registerComponent } from "../registry-core.js?v=2609251801";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609251754";
+} from "../registry-visuals.js?v=2609251801";
 
 // 时间控件：文案由 date-time-runtime 格式化，运行时由 home.js 定时触发重绘。
 registerComponent("time", {

@@ -11,7 +11,7 @@
 import {
   withFixedLightEffects,
   withPageAppearancePreset
-} from "../static-helpers.js?v=2609251754";
+} from "../static-helpers.js?v=2609251801";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。

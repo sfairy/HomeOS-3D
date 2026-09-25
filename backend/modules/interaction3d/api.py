@@ -34,6 +34,9 @@ from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
 from .access import access_grant, module_components, require_access
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
+from .device import DEVICE_PROFILES, require_device_model
+from .lock import require_lock_model, validate_lock_command
+from .purifier import validate_extra_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from .scene_store import scenes_dir, sweep_scenes_for_app
 from starlette.concurrency import run_in_threadpool
@@ -171,6 +174,56 @@ def control_component(database, project_id: str, component_id: str) -> dict:
         ),
         {},
     ) or {}
+
+
+def _active_entity(database, connection, entity_id: str, domain: str):
+    """取活跃连接下这台「同步正常且未被用户禁用」的实体记录，取不到回 None。
+
+    只信数据库里的实体记录，不接受前端声明的 domain：前端能改 URL，数据库不能。
+    """
+    return database.scalar(
+        select(HAEntity).where(
+            HAEntity.connection_id == connection.id,
+            HAEntity.entity_id == entity_id,
+            HAEntity.domain == domain,
+            HAEntity.sync_status == 'active',
+            HAEntity.disabled_by.is_(None),
+        )
+    )
+
+
+def _find_device_extra(properties: dict, entity_id: str, *, purifier: bool):
+    """在设备宿主里找出配了这个附加实体的那台设备。
+
+    返回 ``(宿主, 模型类型, 附加项)``；这台控件上没有任何设备配到这个实体时三项都是 ``None``。
+
+    通用设备按 ``DEVICE_PROFILES`` 逐集合扫描并带上各自的模型类型；空气净化器单列
+    （它的模型类型是 ``airpurifier``，与通用设备不是同一套外观）。``purifier`` 决定这次
+    只认空气净化器还是只认通用设备，防止拿通用设备的附加实体去走净化器的文案。
+    """
+    if purifier:
+        hosts = [
+            ('airpurifier', host)
+            for host in properties.get('environment', {}).get('airPurifiers', [])
+        ]
+    else:
+        hosts = [
+            (profile['model_type'], host)
+            for profile in DEVICE_PROFILES.values()
+            for host in properties.get('devices', {}).get(profile['collection'], [])
+        ]
+    for model_type, host in hosts:
+        extra = next(
+            (
+                candidate
+                for candidate in host.get('extraControls', [])
+                if isinstance(candidate, dict) and candidate.get('entityId') == entity_id
+            ),
+            None,
+        )
+        if extra is not None:
+            return host, model_type, extra
+    return None, None, None
 
 
 def _background_asset_ids(scene: object) -> set[str]:
@@ -444,6 +497,84 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                 'off',
                 'standby'}:
                 raise HTTPException(409, detail='请先开启电视。')
+        return await call_service(payload, request, viewer)
+    elif payload.domain == 'lock' or payload.device_kind == 'lock':
+        # 门锁：先证明这把锁真的配在当前控件上，再证明它绑定的门模型还在场景里。
+        if not (payload.project_id and payload.component_id):
+            raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
+        require_viewer_project(viewer, payload.project_id)
+        component = control_component(database, payload.project_id, payload.component_id)
+        properties = component.get('properties', {})
+        bindings = properties.get('security', {}).get('locks', [])
+        matches = [item for item in bindings if item.get('entityId') == payload.entity_id]
+        if not matches:
+            raise HTTPException(403, detail='此门锁未绑定到当前控件。')
+        reference = scene_path(request, properties.get('sceneId', ''))
+        source = request.app.state.settings.studio3d_draft_path
+        try:
+            scene = json.loads((source if source.is_file() else reference).read_text(encoding='utf-8'))['scene']
+            # 门模型被删掉或改类型后不应还能控制，判据见 require_lock_model。
+            require_lock_model(matches[0], scene)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+        connection = active_connection(database)
+        if connection is None:
+            raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+        # 实体必须属于活跃连接、域正确、同步正常且未被禁用。
+        entity = database.scalar(
+            select(HAEntity).where(
+                HAEntity.connection_id == connection.id,
+                HAEntity.entity_id == payload.entity_id,
+                HAEntity.domain == 'lock',
+                HAEntity.sync_status == 'active',
+                HAEntity.disabled_by.is_(None),
+            )
+        )
+        if entity is None:
+            raise HTTPException(404, detail='门锁实体不存在、已禁用或已失联。')
+        # 门锁实体在 HA 里可能被换到别的设备名下，此时控件上的绑定已经过期。
+        binding = matches[0]
+        if binding.get('deviceId') and entity.device_id and binding['deviceId'] != entity.device_id:
+            raise HTTPException(409, detail='门锁实体已不属于所选设备，请重新绑定。')
+        states = await request.app.state.ha_connector.state_hub.snapshot({payload.entity_id})
+        validate_lock_command(payload.service, payload.data, states[0] if states else None)
+        return await call_service(payload, request, viewer)
+    elif payload.device_kind in {
+        'device-extra',
+        'purifier-extra'}:
+        # 设备附加实体（开关 / 下拉 / 数值 / 按钮）：这些实体不属于控件的绑定表本身，
+        # 而是挂在某台设备（通用设备或空气净化器）的 extraControls 下，因此要先按
+        # deviceId 找到那台设备，再确认这个实体确实在它的附加功能列表里。
+        is_purifier = payload.device_kind == 'purifier-extra'
+        name = '附加实体'
+        if not (payload.project_id and payload.component_id):
+            raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
+        require_viewer_project(viewer, payload.project_id)
+        component = control_component(database, payload.project_id, payload.component_id)
+        properties = component.get('properties', {})
+        host, model_type, extra = _find_device_extra(properties, payload.entity_id, purifier=is_purifier)
+        if extra is None:
+            detail = '附加实体已不属于当前空气净化器，请重新绑定。' if is_purifier else '此实体不属于当前绑定设备，请重新选择。'
+            raise HTTPException(403, detail=detail)
+        reference = scene_path(request, properties.get('sceneId', ''))
+        source = request.app.state.settings.studio3d_draft_path
+        try:
+            scene = json.loads((source if source.is_file() else reference).read_text(encoding='utf-8'))['scene']
+            if is_purifier:
+                # 净化器自己的实体挂在宿主绑定上，能力校验与空调同一套（entityId 是 fan.*）。
+                require_air_conditioner_model([host], host.get('entityId', ''), scene)
+            else:
+                require_device_model(host, scene, model_type)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+        connection = active_connection(database)
+        if connection is None:
+            raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+        entity = _active_entity(database, connection, payload.entity_id, payload.domain)
+        if entity is None:
+            raise HTTPException(404, detail='实体不存在、已禁用或已失联。')
+        states = await request.app.state.ha_connector.state_hub.snapshot({payload.entity_id})
+        validate_extra_command(extra, payload.domain, payload.service, payload.data, states[0] if states else None)
         return await call_service(payload, request, viewer)
     elif payload.domain in {
         'cover',

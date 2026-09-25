@@ -9,14 +9,14 @@ import {
   COVER_POSITION_EPSILON_PERCENT,
   formatLineChartValue,
   renderLineChartDetails
-} from "../../registry.js?v=2609251754";
-import { paletteColor } from "../../../../utils/colors.js?v=2609251754";
+} from "../../registry.js?v=2609251801";
+import { paletteColor } from "../../../../utils/colors.js?v=2609251801";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609251754";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609251754";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609251754";
+} from "../../../../utils/cover-features.js?v=2609251801";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609251801";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609251801";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -27,10 +27,10 @@ import {
   normalizeClimateCapabilities,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../../../controls/climate.js?v=2609251754";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609251754";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609251754";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609251754";
+} from "../../../controls/climate.js?v=2609251801";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609251801";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609251801";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609251801";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -46,16 +46,16 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609251754";
+} from "../../../controls/cover-runtime.js?v=2609251801";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609251754";
+} from "../../../controls/cover-direction.js?v=2609251801";
 import {
   airerPositionLabel,
   appendAirerVisual,
   componentDialogTitle,
   createSwitchVisual
-} from "../primitives.js?v=2609251754";
+} from "../primitives.js?v=2609251801";
 
 export const entityDetailsMethods = {
   /**
