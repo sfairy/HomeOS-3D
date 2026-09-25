@@ -13,12 +13,12 @@ import {
   finiteNumberOrNull,
   normalizedTextOf,
   resolveStateEntry
-} from "../core/static-helpers.js?v=2609251920";
+} from "../core/static-helpers.js?v=2609252203";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=2609251920"));
+  : import("/static/renderer/controls/climate.js?v=2609252203"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -47,11 +47,35 @@ export function climateState(entityId, receivedState) {
   const maximum = finiteNumberOrNull(attributes.max_temp);
   const temperature = finiteNumberOrNull(attributes.temperature);
   const supportedFeatures = finiteNumberOrNull(attributes.supported_features) || 0;
+  // supported_features 的位含义随实体域而变：climate 的 bit 0 是「支持目标温度」，
+  // fan（空气净化器）的 bit 0 是「支持风速百分比」。因此下面一律先判域再解释位，不混用。
+  const isFanDomain = /^fan\.[a-z0-9_]+$/.test(entityId);
+  // 与后端同一个口径：属性**是否存在**决定走不走能力位。只看「能不能解析成数字」会把
+  // 「键在、值是字符串」误当成「键不在」，从而错误放行那条后备分支（见 purifier.py）。
+  const hasSupportedFeaturesAttribute = Object.prototype.hasOwnProperty.call(
+    attributes,
+    "supported_features"
+  );
+  // 净化器的能力位比 climate 严一档，口径直接抄 purifier.py：
+  // `features = features if isinstance(features, int) else 0` —— 字符串一律当 0。
+  // 若沿用上面的 finiteNumberOrNull，"15" 会被解析成 15，面板于是渲染出摆头 / 方向 /
+  // 风速三组控件，而后端对同一份状态必然回 422：本地预检形同虚设，用户看到的是
+  // 「按钮在、点了报错」。Python 里 bool 是 int 的子类，JSON 的 true 到后端就是 1，
+  // 这里连这个边界一起照抄（true → 1，即只认第 0 位）。
+  const rawPurifierFeatures = attributes.supported_features;
+  const purifierFeatures = Number.isInteger(rawPurifierFeatures)
+    ? rawPurifierFeatures
+    : rawPurifierFeatures === true
+      ? 1
+      : 0;
+  const percentage = finiteNumberOrNull(attributes.percentage);
+  const parsedPercentageStep = finiteNumberOrNull(attributes.percentage_step);
   const targetLow = finiteNumberOrNull(attributes.target_temp_low);
   const targetHigh = finiteNumberOrNull(attributes.target_temp_high);
-  // 三重判定：实体 ID 必须是原生 climate 域、HA 未标记不可用、state 不是未知态。
+  // 三重判定：实体 ID 必须是 climate（空调）或 fan（空气净化器）域、HA 未标记不可用、
+  // state 不是未知态。净化器在 HA 里就是 fan 域，放开它才能让同一个面板同时服务两类设备。
   const available =
-    /^climate\.[a-z0-9_]+$/.test(entityId) &&
+    /^(?:climate|fan)\.[a-z0-9_]+$/.test(entityId) &&
     stateObject.available !== false &&
     !!stateValue &&
     !["unknown", "unavailable"].includes(stateValue);
@@ -88,26 +112,59 @@ export function climateState(entityId, receivedState) {
     step: capabilities.temperatureStep,
     // supported_features 第 0 位（值 1）表示 HA 支持目标温度；
     // 有些实体没有 temperature 属性但仍支持设置，所以要允许这个后备判断。
+    // 只对 climate 域成立 —— fan 域同一位是风速百分比，判域防止净化器冒出一块温控区。
     temperatureSupported:
+      !isFanDomain &&
       minimum !== null &&
       maximum !== null &&
       maximum > minimum &&
       (temperature !== null || !!(supportedFeatures & 1)),
     // 第 1 位（值 2）表示支持温度区间（target_temp_low/high）；
     // 部分实体只给了区间属性却没置位，因此也接受属性存在这一条件。
-    rangeSupported: !!(supportedFeatures & 2) || targetLow !== null || targetHigh !== null,
+    // fan 域的 bit 1 含义是 OSCILLATE，必须先判域再解释，否则净化器会多出一行温区提示。
+    rangeSupported:
+      !isFanDomain && (!!(supportedFeatures & 2) || targetLow !== null || targetHigh !== null),
     modes: capabilities.hvacModes,
     fanModes: capabilities.fanModes,
     // supported_features 第 7 位（值 128）是 ClimateEntityFeature.TURN_ON；
     // 支持它的实体可以只发 turn_on 而不必指定 hvac_mode。
-    turnOnSupported: !!(supportedFeatures & 128),
+    // fan 域的开关机不设能力位门槛（后端 validate_purifier_command 直接放行），故净化器恒为 true。
+    turnOnSupported: isFanDomain || !!(supportedFeatures & 128),
     swingModes: capabilities.swingModes,
     horizontalSwingModes: capabilities.horizontalSwingModes,
     presetModes: capabilities.presetModes,
     fanMode: attributes.fan_mode || "",
     swingMode: attributes.swing_mode || "",
     horizontalSwingMode: attributes.swing_horizontal_mode || "",
-    presetMode: attributes.preset_mode || ""
+    presetMode: attributes.preset_mode || "",
+    // ===== 空气净化器（HA 的 fan 域）专属状态位 =====
+    // 空调实体上这些字段恒为「不支持 / 空」，面板据此决定要不要渲染净化器那几组控件。
+    purifier: isFanDomain,
+    // 摆动：bit 1（值 2，FanEntityFeature.OSCILLATE）。能力位取 purifierFeatures（严格整数口径），
+    // 不用 supportedFeatures —— 后者会把字符串掩码当数字解释，与后端判定不一致。
+    oscillating: isFanDomain && attributes.oscillating === true,
+    oscillatingSupported: isFanDomain && !!(purifierFeatures & 2),
+    // 风向前后吹：bit 2（值 4，DIRECTION），取值只有 forward / reverse。
+    direction:
+      isFanDomain && ["forward", "reverse"].includes(attributes.direction)
+        ? attributes.direction
+        : "",
+    directionSupported: isFanDomain && !!(purifierFeatures & 4),
+    // 风速百分比：bit 0（值 1，SET_SPEED）。与后端一致：上报了 supported_features 就必须置位；
+    // 完全没上报该属性时，退化为「设备给过 percentage 就认为能设」。
+    percentage: percentage,
+    percentageStep:
+      parsedPercentageStep !== null && parsedPercentageStep > 0 ? parsedPercentageStep : 1,
+    percentageSupported:
+      isFanDomain &&
+      (hasSupportedFeaturesAttribute ? !!(purifierFeatures & 1) : percentage !== null),
+    // 预设模式来自 capabilities.presetModes（即 HA 属性 preset_modes，能力解析口径只在
+    // renderer/controls/climate.js 维护一份）。bit 3（值 8，FanEntityFeature.PRESET_MODE）；
+    // 与后端一致：没上报 supported_features 时，只要设备给了 preset_modes 列表就放行。
+    presetModeSupported:
+      isFanDomain &&
+      (!hasSupportedFeaturesAttribute || !!(purifierFeatures & 8)) &&
+      capabilities.presetModes.length > 0
   };
 }
 /**
@@ -288,6 +345,75 @@ export function climateControl(deviceState, service, value) {
   return {
     entityId: deviceState.entityId,
     domain: "climate",
+    service: service,
+    data: serviceData
+  };
+}
+/**
+ * 构造空气净化器（HA 的 fan 域）的单项控制命令。
+ *
+ * 与 climateControl 分开是因为域不同：空调走 climate.*，净化器走 fan.*。域名不是猜的 ——
+ * 后端 /control 最终落到 api/ha.py 的 ALLOWED_SERVICES，那里登记的是 ('fan', 'set_percentage')
+ * 等组合；purifier.py 的 validate_purifier_command 就按这些裸服务名复核。
+ *
+ * 本地先按同一张能力表拦一道，把注定失败的请求变成立即的中文提示；文案与后端逐字一致，
+ * 用户无论在哪一层被挡都看到同一句话。
+ *
+ * @throws {Error} 设备不可用、不支持该项，或取值越界。
+ */
+export function purifierControl(deviceState, service, value) {
+  if (!deviceState.available) {
+    throw new Error("空气净化器当前不可用。");
+  }
+  let serviceData = {};
+  if (service === "turn_on" || service === "turn_off") {
+    // 开关机不带参数：后端对 fan 的这两条不设能力位门槛。
+  } else if (service === "oscillate") {
+    // 摆动：bit 1（值 2，FanEntityFeature.OSCILLATE），参数必须是布尔。
+    if (!deviceState.oscillatingSupported || typeof value !== "boolean") {
+      throw new Error("空气净化器不支持此操作或参数。");
+    }
+    serviceData = {
+      oscillating: value
+    };
+  } else if (service === "set_direction") {
+    // 前后吹风：bit 2（值 4，DIRECTION），取值只有 forward / reverse 两种。
+    if (!deviceState.directionSupported || !["forward", "reverse"].includes(value)) {
+      throw new Error("空气净化器不支持此操作或参数。");
+    }
+    serviceData = {
+      direction: value
+    };
+  } else if (service === "set_percentage") {
+    // 风速百分比：bit 0（值 1，SET_SPEED）。后端只要求 0~100 的有限实数，不比步长，
+    // 这里也不比 —— 多挡一道会让设备端本可接受的取值在本地被误拒。
+    const requestedPercentage = finiteNumberOrNull(value);
+    if (
+      !deviceState.percentageSupported ||
+      requestedPercentage === null ||
+      requestedPercentage < 0 ||
+      requestedPercentage > 100
+    ) {
+      throw new Error("空气净化器不支持此操作或参数。");
+    }
+    serviceData = {
+      percentage: requestedPercentage
+    };
+  } else if (service === "set_preset_mode") {
+    // 预设模式：bit 3（值 8，PRESET_MODE）。候选表来自设备上报的 preset_modes，
+    // 白名单校验挡住面板传来的过期 / 伪造值。
+    if (!deviceState.presetModeSupported || !deviceState.presetModes.includes(value)) {
+      throw new Error("空气净化器不支持此操作或参数。");
+    }
+    serviceData = {
+      preset_mode: value
+    };
+  } else {
+    throw new Error("空气净化器不支持此操作或参数。");
+  }
+  return {
+    entityId: deviceState.entityId,
+    domain: "fan",
     service: service,
     data: serviceData
   };

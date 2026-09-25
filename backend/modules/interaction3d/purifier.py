@@ -3,6 +3,9 @@
 两类调用共用一张域→能力表：净化器本身的 supported_features 决定它支持哪些动作
 （oscillate / direction / preset_mode / percentage），附加实体则按域决定能下什么命令。
 前端的按钮就是照这张表渲染的，后端在这里复核一次 —— 前端可以骗人，HA 不会。
+
+另有 require_purifier_model：配置侧确认控件绑定的净化器模型此刻仍在场景中，
+与 climate.py 的 require_air_conditioner_model 同一职责。
 """
 from __future__ import annotations
 
@@ -73,6 +76,31 @@ def validate_extra_command(extra: dict, domain: str, service: str, data, state) 
     raise HTTPException(422, detail="附加实体不支持此操作或参数。")
 
 
+def require_purifier_model(bindings: list, entity_id: str, scene: dict) -> None:
+    """确认实体绑定的空气净化器模型仍唯一存在于场景中。
+
+    与空调的 ``require_air_conditioner_model`` 同形（楼层存在、模型 ID 在该楼层唯一、
+    类型正确），只有可接受的类型不同：净化器在场景里的 ``type`` 是 ``airpurifier``，
+    **不是**空调的 wallac / floorac / airoutlet。这两者绝不能互相借用 —— 拿空调那一套
+    来查净化器，每一台净化器都会被判成「模型已失联」，附加功能整个不可用且浏览器里不报错。
+
+    异常:
+        HTTPException: 409，找不到合法绑定（模型被删或类型变了）。
+    """
+    floors = scene.get('floors', [])
+    for binding in bindings:
+        if binding.get('entityId') != entity_id:
+            continue
+        floor = next((item for item in floors if item.get('id') == binding.get('floorId')), None)
+        if floor is None:
+            continue
+        # 同 ID 的模型必须恰好一个：出现重复时无法确定控制哪一台，宁可不放行。
+        models = [item for item in floor.get('scene', {}).get('items', []) if item.get('id') == binding.get('modelId')]
+        if len(models) == 1 and models[0].get('type') == 'airpurifier':
+            return None
+    raise HTTPException(409, detail='空气净化器模型已失联，请在环境配置中重新选择模型。')
+
+
 def validate_purifier_command(service: str, data, state) -> None:
     """复核发往空气净化器本身的命令。
 
@@ -88,7 +116,7 @@ def validate_purifier_command(service: str, data, state) -> None:
     # 位掩码必须是真正的整数：上报成字符串时按 0 处理，让「不确定」表现为「不支持」，
     # 而不是让 & 在字符串上抛 TypeError。
     features = features if isinstance(features, int) else 0
-    # 摆动：bit 2（OSCILLATE）。
+    # 摆动：bit 1（OSCILLATE）。
     if (
         service == "oscillate"
         and set(data) == {"oscillating"}
@@ -96,7 +124,7 @@ def validate_purifier_command(service: str, data, state) -> None:
         and features & 2
     ):
         return
-    # 风向前后吹：bit 4（DIRECTION）。
+    # 风向前后吹：bit 2（DIRECTION）。
     if (
         service == "set_direction"
         and set(data) == {"direction"}
@@ -106,7 +134,7 @@ def validate_purifier_command(service: str, data, state) -> None:
         return
     if service in ("turn_on", "turn_off") and not data:
         return
-    # 预设模式：bit 8（PRESET_MODE）；没上报 supported_features 时退化为「选项表里有就放行」。
+    # 预设模式：bit 3（PRESET_MODE）；没上报 supported_features 时退化为「选项表里有就放行」。
     if (
         service == "set_preset_mode"
         and ("supported_features" not in attrs or features & 8)
@@ -114,7 +142,7 @@ def validate_purifier_command(service: str, data, state) -> None:
         and data["preset_mode"] in (attrs.get("preset_modes") or [])
     ):
         return
-    # 风速百分比：bit 1（PERCENTAGE）；没上报能力位时看设备是否给过 percentage 属性。
+    # 风速百分比：bit 0（PERCENTAGE）；没上报能力位时看设备是否给过 percentage 属性。
     if service == "set_percentage" and set(data) == {"percentage"}:
         value = data["percentage"]
         if _finite_number(value) and 0 <= value <= 100:

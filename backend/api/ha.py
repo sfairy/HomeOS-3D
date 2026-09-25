@@ -79,6 +79,9 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('water_heater', 'set_operation_mode'): {'operation_mode'},
     ('fan', 'set_percentage'): {'percentage'},
     ('fan', 'set_preset_mode'): {'preset_mode'},
+    # 净化器面板的摆头与前后吹向：参数名与 purifier.py 的 validate_purifier_command 一一对应。
+    ('fan', 'oscillate'): {'oscillating'},
+    ('fan', 'set_direction'): {'direction'},
     ('fan', 'turn_on'): set(),
     ('fan', 'turn_off'): set(),
     ('number', 'set_value'): {'value'},

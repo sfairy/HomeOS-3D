@@ -10,12 +10,12 @@
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 // 「其它」档的中性灰（AIRFLOW_OTHER_COLOR）同样经这座桥 —— runtime 资源挂在
 // /api/v1/modules/interaction3d/ 下，URL 比磁盘路径深一层，裸相对路径会算错层数而 404。
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609251920";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609252203";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609251920";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609251920";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609252203";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609252203";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609251920";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609252203";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
     制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
     主控色被改成极光紫那天，制冷气流不该跟着变紫。
@@ -95,6 +95,26 @@ export function createEnvironmentAirflow({
     const modelType =
       model.userData.environmentModelType ||
       (modelSize.y > modelSize.x * 1.5 && modelSize.y > modelSize.z * 1.5 ? "floorac" : "wallac");
+    // 空气净化器：气流从顶盖**向上**吹，不是空调那种贴墙/落地的水平风道 —— 因此 fall 为 0，
+    // 并绕 X 轴倒转 -90° 把风道竖起；宽度取水平面较长边（圆筒机身 x/z 一般相等），
+    // 长度随机身高度（越高的塔机吹得越远）。
+    // 少了这一支，它会落进下面的挂机/柜机分支，在净化器身上画出一条横向空调风道。
+    if (modelType === "airpurifier") {
+      return {
+        type: modelType,
+        width: Math.max(modelSize.x, modelSize.z) * 0.8,
+        length: Math.max(0.5, modelSize.y * 1.4),
+        fall: 0,
+        rotationX: -Math.PI / 2,
+        spread: 0.3,
+        // 出口取顶盖中心 + 5mm：抬离顶面，避免与顶盖共面闪烁。
+        outlet: [
+          (modelBox.min.x + modelBox.max.x) / 2,
+          modelBox.max.y + 0.005,
+          (modelBox.min.z + modelBox.max.z) / 2
+        ]
+      };
+    }
     if (modelType === "airoutlet") {
       // 风口：口长沿 Z 轴，因此整体绕 Y 旋转 90°；口长夹在 0.6–2.4 米之间。
       const mouthLength = Math.min(2.4, Math.max(0.6, modelSize.z * 0.9));
@@ -228,7 +248,7 @@ export function createEnvironmentAirflow({
       effectEntry.mesh.geometry.dispose();
       effectEntry.mesh.geometry = buildFlowGeometry(nextLayout);
       effectEntry.mesh.position.fromArray(nextLayout.outlet);
-      effectEntry.mesh.rotation.y = nextLayout.rotationY || 0;
+      effectEntry.mesh.rotation.set(nextLayout.rotationX || 0, nextLayout.rotationY || 0, 0);
       effectEntry.mesh.updateMatrix();
       effectEntry.layoutSignature = layoutSignature;
       effectEntry.mesh.userData.outletLayout = nextLayout;
@@ -279,7 +299,8 @@ export function createEnvironmentAirflow({
     mesh.userData.environmentEffect = true;
     mesh.userData.outletLayout = outletLayout;
     mesh.position.fromArray(outletLayout.outlet);
-    mesh.rotation.y = outletLayout.rotationY || 0;
+    // rotationX 是净化器专用的：把风道从水平转到垂直（顶盖向上出风），其余类型为 0。
+    mesh.rotation.set(outletLayout.rotationX || 0, outletLayout.rotationY || 0, 0);
     mesh.updateMatrix();
     // 位置固定不变，关掉自动矩阵更新（只在版式变化时手动 updateMatrix）。
     mesh.matrixAutoUpdate = false;

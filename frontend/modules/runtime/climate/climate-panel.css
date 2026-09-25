@@ -771,3 +771,32 @@
 .i3d-extra-select-menu[data-theme="warm-wood"] > button[aria-selected="true"]:focus-visible {
   box-shadow: inset 0 0 0 1px #8a5c23;
 }
+/* ===== 空气净化器（fan 域）控件 ===== */
+
+/* 风速行：滑杆占满剩余宽度，右侧等宽数字显示当前百分比，拖动时读数不会左右跳动。
+   选择器比 .i3d-climate-choices 多一层 .i3d-climate-panel，靠特异性覆盖它的 flex 换行布局。 */
+.i3d-climate-panel .i3d-climate-purifier-speed {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.i3d-climate-panel .i3d-climate-purifier-range {
+  width: 100%;
+  min-width: 0;
+  margin: 2px 0;
+  accent-color: var(--i3d-climate-accent);
+  cursor: pointer;
+}
+/* 指令下发中与其它控件同一口径：压暗并给出等待光标。 */
+.i3d-climate-panel .i3d-climate-purifier-range:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.i3d-climate-panel .i3d-climate-purifier-output {
+  min-width: 40px;
+  color: var(--hos-tool-ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

@@ -8,13 +8,13 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609251920";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609252203";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
 // 现已提为共享实现，其余模块不再各写一份。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609251920";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609252203";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609251920";
-import { createEnvironmentHalos } from "./environment-halos.js?v=2609251920";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609252203";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609252203";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
@@ -87,6 +87,9 @@ const MODEL_TYPE_TO_PAGE = {
   wallac: "environment",
   floorac: "environment",
   airoutlet: "environment",
+  // 空气净化器：参考实现里它就是 environment 页 + climate 种类（与空调同一套面板，
+  // 靠实体域 fan 决定渲染净化器控件），不是独立种类。
+  airpurifier: "environment",
   curtain: "environment",
   freshair: "environment",
   thermostat: "environment",
@@ -109,6 +112,8 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
   wallac: "climate",
   floorac: "climate",
   airoutlet: "climate",
+  // 与 MODEL_TYPE_TO_PAGE 成对：少了任一边，这台模型都会被映射到 undefined 而静默失去状态。
+  airpurifier: "climate",
   curtain: "cover",
   freshair: "climate",
   thermostat: "climate",
