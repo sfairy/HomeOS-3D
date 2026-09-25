@@ -7,16 +7,16 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609231402";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609231402";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609251458";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609251458";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609231402";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609251458";
 // 描边色要靠 paletteColor 现取：SVG 的 stroke 属性吃不下 var()，写 var(--hos-x) 会被当作
 // 非法颜色**静默忽略**，描边保持上一次的值（或不画）。令牌一旦缺失则退回兜底色。
 // 取色经 core/static-helpers.js 那座桥 —— runtime 资源挂在 /api/v1/modules/interaction3d/ 下，
 // URL 比磁盘路径深一层，直接写裸相对路径会算错层数（曾写成 "../../../static/utils/colors.js"，
 // 解析成 /api/v1/static/utils/colors.js → 404，整段模块图被掐断）。桥内部用绝对路径。
-import { paletteColor } from "../core/static-helpers.js?v=2609231402";
+import { paletteColor } from "../core/static-helpers.js?v=2609251458";
 
 /**
  * 模型轮廓描边的颜色（三层描边共用，靠宽度与不透明度分出内外辉光）。
@@ -253,17 +253,29 @@ export function createScreenOutlines({
     const modelsByKey = new Map();
     cachedModelRoot?.traverse(traversedObject => {
       // 只有这些类型的环境模型支持描边（灯具等其它模型没有意义，也会拖慢遍历）。
+      // 这份清单与 environment-scene.js 的两张表、studio-app.js 的四处内联清单同属「环境模型类型」
+      // 七处同步点之一（见 tools/check_invariants.mjs 对应判据）；漏写只会让该设备不高亮。
       if (
         ![
           "wallac",
           "floorac",
           "airoutlet",
           "curtain",
+          "freshair",
+          "thermostat",
+          "humidifier",
+          "dehumidifier",
           "nas",
           "tv",
           "robotvacuum",
           "camera",
-          "presence"
+          "presence",
+          "doorbell",
+          "heater",
+          "ceilingac",
+          "ceilingfan",
+          "vacuumcleaner",
+          "floorwasher"
         ].includes(traversedObject.userData?.environmentModelType)
       ) {
         return;

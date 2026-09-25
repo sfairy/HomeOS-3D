@@ -14,20 +14,20 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609231402";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609231402";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609231402";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609231402";
+} from "../loaders/studio-curtain-track.js?v=2609251458";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609251458";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609251458";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609251458";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609231402";
-import { paletteColor } from "../../utils/colors.js?v=2609231402";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609231402";
+} from "../../shared/menu-positioning.js?v=2609251458";
+import { paletteColor } from "../../utils/colors.js?v=2609251458";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609251458";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609231402";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609231402";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251458";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609251458";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -38,78 +38,90 @@ import {
   HOME_ITEM_TYPES,
   JOINERY_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
+  ROUND_FOOTPRINT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   SQUARE_EDGE_ITEM_TYPES,
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609231402";
+} from "./studio-item-types.js?v=2609251458";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609231402";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609251458";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
-  createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=2609231402";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609231402";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609231402";
+  createFeatureWallTexture,
+  createStoneSlabTexture
+} from "../materials/studio-surface-textures.js?v=2609251458";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609251458";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609251458";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609231402";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609231402";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609231402";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609231402";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609231402";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609231402";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609231402";
+} from "./studio-camera-constraints.js?v=2609251458";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609251458";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609251458";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609251458";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609251458";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609251458";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609251458";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609231402";
+} from "../materials/studio-wall-materials.js?v=2609251458";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
   applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609231402";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609231402";
+} from "./studio-scene-style.js?v=2609251458";
+// 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
+// 因此逐物件选择优先于全局风格（见 studio-material-styles.js 的模块头）。
+import {
+  MATERIAL_STYLE_AUTO,
+  MATERIAL_STYLE_ITEM_TYPES,
+  isMaterialStyleCapable,
+  materialStyleOptionsFor,
+  normalizeMaterialStyle,
+  applyMaterialStyle
+} from "./studio-material-styles.js?v=2609251458";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609251458";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609231402";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609231402";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609231402";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609231402";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609231402";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609231402";
+} from "../../bridge/render-cache.js?v=2609251458";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609251458";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609251458";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609251458";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609251458";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609251458";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609231402";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609251458";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609231402";
+import { debugLog } from "../../utils/debug-log.js?v=2609251458";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609231402";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609251458";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609231402";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609251458";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609231402";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609231402";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609251458";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609251458";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609231402";
+} from "../../bridge/light-motion.js?v=2609251458";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -149,7 +161,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609231402";
+} from "../plan/geometry.js?v=2609251458";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -158,14 +170,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609231402";
+} from "../export/export-utils.js?v=2609251458";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 // 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609231402";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609231402";
+} from "../../shared/layout-shell.js?v=2609251458";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609251458";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -173,25 +185,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609231402";
-import { reorderFloors } from "../plan/floor-order.js?v=2609231402";
-import { syncControlValue } from "./ui-controls.js?v=2609231402";
+} from "../export/export-presets.js?v=2609251458";
+import { reorderFloors } from "../plan/floor-order.js?v=2609251458";
+import { syncControlValue } from "./ui-controls.js?v=2609251458";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609231402";
+} from "./studio-widgets.js?v=2609251458";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609231402";
+} from "../loaders/studio-external-models.js?v=2609251458";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609231402";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609231402";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609231402";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609231402";
+} from "../plan/studio-plan-drawing.js?v=2609251458";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609251458";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609251458";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609251458";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -204,7 +216,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609231402";
+} from "../loaders/studio-normalization.js?v=2609251458";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -460,6 +472,7 @@ const stairDirectionFieldElement = selectElement("#stair-direction-field");
 const tvMountStyleFieldElement = selectElement("#tv-mount-style-field");
 const muralStyleFieldElement = selectElement("#mural-style-field");
 const featureWallStyleFieldElement = selectElement("#feature-wall-style-field");
+const materialStyleFieldElement = selectElement("#material-style-field");
 const pillarShapeFieldElement = selectElement("#pillar-shape-field");
 const stripAxisFieldElement = selectElement("#strip-axis-field");
 const pillarAxisFieldElement = selectElement("#pillar-axis-field");
@@ -785,7 +798,9 @@ const ITEM_TYPE_DEFINITIONS = {
     glyph: "▤",
     width: 1.8,
     depth: 2,
-    height: 0.62,
+    // 整件高度 = 床头板顶面（软包床头实物就在 1.0~1.1m）。占位几何、规格表与 scaleBasis
+    // 三处都以 1.05 为基准，改一处要一起改。
+    height: 1.05,
     color: "#d8d4c9"
   },
   curtain: {
@@ -854,9 +869,10 @@ const ITEM_TYPE_DEFINITIONS = {
   },
   coffeetable: {
     name: "组合茶几",
-    glyph: "◉",
-    width: 1.7,
-    depth: 1.25,
+    // 平面符号已改成两块叠合的石板（见 drawPlanItem），字形也跟着从圆点换成条状。
+    glyph: "▭",
+    width: 1.9,
+    depth: 1.05,
     height: 0.5,
     color: "#8d96aa"
   },
@@ -976,6 +992,10 @@ const ITEM_TYPE_DEFINITIONS = {
     width: 1.5,
     depth: 0.35,
     height: 0.82,
+    // 离地 1.6m：吊柜是挂墙件，几何从 y = 0 起、整件靠 elevation 抬起。1.6 是这件的**默认挂高**
+    // （柜底离地），也是「吊柜下面正好放得下台面 + 常用操作空间」的那条常用位置；
+    // 占位几何与流水线模型都不含这个高度，只由这里给 —— 两边各写一份就会抬两次。
+    elevation: 1.6,
     color: "#9a806c"
   },
   kitchenbase: {
@@ -1042,7 +1062,7 @@ const ITEM_TYPE_DEFINITIONS = {
     glyph: "▤",
     width: 0.62,
     depth: 0.48,
-    height: 1.8,
+    height: 1.32,
     color: "#b8b5ac"
   },
   elevator: {
@@ -1225,9 +1245,12 @@ const ITEM_TYPE_DEFINITIONS = {
   piano: {
     name: "钢琴",
     glyph: "▰",
-    width: 1.8,
-    depth: 1.8,
-    height: 1.35,
+    // 三角钢琴的实物尺寸（Yamaha GB1 这类小型三角琴 1.46 × 1.48 × 0.99，键盘面高 0.72）：
+    // 1.5m 宽（键盘那一侧最宽）× 1.5m 长 × 0.99m 高。原先的 1.8 × 1.8 × 1.35 是照那件
+    // 第三方素材「等比缩放到合适大小」凑出来的三个数，与实物对不上。
+    width: 1.5,
+    depth: 1.5,
+    height: 0.99,
     color: "#4b5361"
   },
   desktop: {
@@ -1357,13 +1380,588 @@ const ITEM_TYPE_DEFINITIONS = {
     elevation: 2.7,
     color: "#d4dbe2",
     stripAxis: "horizontal"
-  }
+  },
+  armchair: {
+    name: "单人沙发椅",
+    glyph: "▮",
+    width: 0.85,
+    depth: 0.8,
+    height: 0.75,
+    color: "#c9a884"
+  },
+  loungechair: {
+    name: "休闲躺椅",
+    glyph: "▬",
+    width: 0.7,
+    depth: 1.6,
+    height: 0.85,
+    color: "#b0703c"
+  },
+  ottoman: {
+    name: "脚凳",
+    glyph: "◾",
+    width: 0.6,
+    depth: 0.45,
+    height: 0.4,
+    color: "#d8c8b4"
+  },
+  bench: {
+    name: "长凳",
+    glyph: "▭",
+    width: 1.4,
+    depth: 0.42,
+    height: 0.45,
+    color: "#c49a6c"
+  },
+  barstool: {
+    name: "吧凳",
+    glyph: "◍",
+    width: 0.42,
+    depth: 0.42,
+    height: 0.95,
+    color: "#8d8f92"
+  },
+  sidetable: {
+    name: "边几",
+    glyph: "▪",
+    width: 0.45,
+    depth: 0.45,
+    height: 0.55,
+    color: "#c49a6c"
+  },
+  console: {
+    name: "玄关台",
+    glyph: "▤",
+    width: 1.2,
+    depth: 0.35,
+    height: 0.8,
+    color: "#c49a6c"
+  },
+  chestdrawer: {
+    name: "斗柜",
+    glyph: "▥",
+    width: 1.0,
+    depth: 0.45,
+    height: 1.1,
+    color: "#8a6b4a"
+  },
+  entrycabinet: {
+    name: "玄关柜",
+    glyph: "▦",
+    width: 1.0,
+    depth: 0.38,
+    height: 1.1,
+    color: "#9a806c"
+  },
+  displaycabinet: {
+    name: "展示柜",
+    glyph: "▧",
+    width: 0.9,
+    depth: 0.4,
+    height: 1.8,
+    color: "#7d6a52"
+  },
+  bunkbed: {
+    name: "上下床",
+    glyph: "▤",
+    width: 1.0,
+    depth: 1.95,
+    height: 1.7,
+    color: "#c49a6c"
+  },
+  kidsbed: {
+    name: "儿童床",
+    glyph: "▤",
+    width: 0.95,
+    depth: 1.6,
+    height: 0.65,
+    color: "#d8b98f"
+  },
+  soundbar: {
+    name: "回音壁",
+    glyph: "▬",
+    width: 0.95,
+    depth: 0.12,
+    height: 0.08,
+    color: "#3a3d42"
+  },
+  speaker: {
+    name: "落地音箱",
+    glyph: "◉",
+    width: 0.28,
+    depth: 0.28,
+    height: 1.05,
+    color: "#4a4e54"
+  },
+  projector: {
+    name: "投影仪",
+    glyph: "▭",
+    width: 0.3,
+    depth: 0.24,
+    height: 0.1,
+    color: "#dcdcd8"
+  },
+  fan: {
+    name: "落地风扇",
+    glyph: "✦",
+    width: 0.4,
+    depth: 0.4,
+    height: 1.15,
+    color: "#e4e6e8"
+  },
+  humidifier: {
+    name: "加湿器",
+    glyph: "◌",
+    width: 0.3,
+    depth: 0.3,
+    height: 0.55,
+    color: "#eceff0"
+  },
+  dehumidifier: {
+    name: "除湿机",
+    glyph: "▯",
+    width: 0.35,
+    depth: 0.28,
+    height: 0.6,
+    color: "#e8ecee"
+  },
+  freshair: {
+    name: "新风机",
+    glyph: "▥",
+    width: 0.6,
+    depth: 0.3,
+    height: 0.3,
+    elevation: 2.2,
+    color: "#dfe4e6"
+  },
+  thermostat: {
+    name: "温控面板",
+    glyph: "▫",
+    width: 0.1,
+    depth: 0.02,
+    height: 0.1,
+    elevation: 1.4,
+    color: "#cfd6da"
+  },
+  smartpanel: {
+    name: "智能面板",
+    glyph: "▪",
+    width: 0.12,
+    depth: 0.02,
+    height: 0.12,
+    elevation: 1.4,
+    color: "#c8cfd4"
+  },
+  smartlock: {
+    name: "智能门锁",
+    glyph: "▮",
+    width: 0.08,
+    depth: 0.05,
+    height: 0.28,
+    elevation: 1.0,
+    color: "#3c4148"
+  },
+  doorbell: {
+    name: "可视门铃",
+    glyph: "▫",
+    width: 0.06,
+    depth: 0.03,
+    height: 0.13,
+    elevation: 1.35,
+    color: "#4a5058"
+  },
+  gateway: {
+    name: "智能网关",
+    glyph: "◈",
+    width: 0.12,
+    depth: 0.12,
+    height: 0.05,
+    color: "#e8ecee"
+  },
+  chaise: {
+    name: "贵妃榻",
+    glyph: "▤",
+    width: 0.75,
+    depth: 1.65,
+    height: 0.72,
+    color: "#d8c8b4"
+  },
+  nestingtable: {
+    name: "套几",
+    glyph: "▦",
+    width: 0.55,
+    depth: 0.55,
+    height: 0.5,
+    color: "#b98c5f"
+  },
+  roundcoffeetable: {
+    name: "圆茶几",
+    glyph: "◉",
+    width: 0.9,
+    depth: 0.9,
+    height: 0.42,
+    color: "#b0703c"
+  },
+  screenspan: {
+    name: "屏风",
+    glyph: "▥",
+    width: 1.6,
+    depth: 0.35,
+    height: 1.75,
+    color: "#b08a63"
+  },
+  coatrail: {
+    name: "衣帽架",
+    glyph: "✚",
+    width: 0.45,
+    depth: 0.45,
+    height: 1.75,
+    color: "#9c6b3f"
+  },
+  stool: {
+    name: "圆凳",
+    glyph: "◌",
+    width: 0.36,
+    depth: 0.36,
+    height: 0.45,
+    color: "#c49a6c"
+  },
+  locker: {
+    name: "储物柜",
+    glyph: "▦",
+    width: 0.9,
+    depth: 0.4,
+    height: 1.8,
+    color: "#8a705a"
+  },
+  laundrycabinet: {
+    name: "洗衣柜",
+    glyph: "▥",
+    width: 0.65,
+    depth: 0.6,
+    height: 0.85,
+    color: "#cfd6da"
+  },
+  balconycabinet: {
+    name: "阳台柜",
+    glyph: "▥",
+    width: 0.8,
+    depth: 0.4,
+    height: 1.2,
+    color: "#a08a72"
+  },
+  winecabinet: {
+    name: "酒柜",
+    glyph: "▧",
+    width: 0.6,
+    depth: 0.45,
+    height: 1.6,
+    color: "#7d6a52"
+  },
+  kitchenisland: {
+    name: "岛台",
+    glyph: "▭",
+    width: 1.6,
+    depth: 0.8,
+    height: 0.9,
+    color: "#cdd2d6"
+  },
+  pantry: {
+    name: "餐边高柜",
+    glyph: "▥",
+    width: 0.9,
+    depth: 0.42,
+    height: 1.9,
+    color: "#8f7a63"
+  },
+  daybed: {
+    name: "榻榻米床",
+    glyph: "▤",
+    width: 1.2,
+    depth: 2,
+    height: 0.55,
+    color: "#e6d9c6"
+  },
+  cot: {
+    name: "婴儿床",
+    glyph: "▤",
+    width: 0.7,
+    depth: 1.35,
+    height: 0.95,
+    color: "#e0c9a6"
+  },
+  computertable: {
+    name: "电脑桌",
+    glyph: "▤",
+    width: 1.2,
+    depth: 0.6,
+    height: 0.75,
+    color: "#c49a6c"
+  },
+  officestool: {
+    name: "办公椅",
+    glyph: "◍",
+    width: 0.6,
+    depth: 0.6,
+    height: 1,
+    color: "#4a4e54"
+  },
+  filecabinet: {
+    name: "文件柜",
+    glyph: "▥",
+    width: 0.8,
+    depth: 0.45,
+    height: 1.3,
+    color: "#c9cdd2"
+  },
+  booktower: {
+    name: "简易书架",
+    glyph: "▤",
+    width: 0.5,
+    depth: 0.3,
+    height: 1.6,
+    color: "#c49a6c"
+  },
+  gameconsole: {
+    name: "游戏主机",
+    glyph: "▬",
+    width: 0.3,
+    depth: 0.24,
+    height: 0.08,
+    color: "#f2f4f5"
+  },
+  avreceiver: {
+    name: "功放",
+    glyph: "▬",
+    width: 0.44,
+    depth: 0.35,
+    height: 0.16,
+    color: "#2b2f34"
+  },
+  screenpanel: {
+    name: "投影幕",
+    glyph: "▭",
+    width: 2.2,
+    depth: 0.08,
+    height: 1.25,
+    elevation: 1.4,
+    color: "#eceff1"
+  },
+  smartspeaker: {
+    name: "智能音箱",
+    glyph: "◉",
+    width: 0.12,
+    depth: 0.12,
+    height: 0.18,
+    color: "#dfeaec"
+  },
+  router: {
+    name: "路由器",
+    glyph: "◈",
+    width: 0.22,
+    depth: 0.16,
+    height: 0.15,
+    color: "#2b2f34"
+  },
+  printer: {
+    name: "打印机",
+    glyph: "▭",
+    width: 0.4,
+    depth: 0.35,
+    height: 0.3,
+    color: "#eef0f1"
+  },
+  ceilingfan: {
+    name: "吊扇",
+    glyph: "✦",
+    width: 1.1,
+    depth: 1.1,
+    height: 0.4,
+    elevation: 2.25,
+    color: "#e8ebed"
+  },
+  heater: {
+    name: "取暖器",
+    glyph: "▯",
+    width: 0.6,
+    depth: 0.25,
+    height: 0.55,
+    color: "#f2f4f5"
+  },
+  ceilingac: {
+    name: "嵌入式空调",
+    glyph: "▣",
+    width: 0.9,
+    depth: 0.9,
+    height: 0.3,
+    elevation: 2.35,
+    color: "#f2f4f5"
+  },
+  vacuumcleaner: {
+    name: "吸尘器",
+    glyph: "▮",
+    width: 0.28,
+    depth: 0.3,
+    height: 1.15,
+    color: "#9aa1a8"
+  },
+  floorwasher: {
+    name: "洗地机",
+    glyph: "▮",
+    width: 0.3,
+    depth: 0.3,
+    height: 1.1,
+    color: "#f2f4f5"
+  },
+  dryingrack: {
+    name: "电动晾衣架",
+    glyph: "▬",
+    width: 1.8,
+    depth: 0.35,
+    height: 0.5,
+    elevation: 2.15,
+    color: "#f2f4f5"
+  },
+  garmentcare: {
+    name: "衣物护理机",
+    glyph: "▥",
+    width: 0.6,
+    depth: 0.6,
+    height: 1.85,
+    color: "#f2f4f5"
+  },
+  airer: {
+    name: "晾衣杆",
+    glyph: "▬",
+    width: 1.2,
+    depth: 0.3,
+    height: 0.3,
+    color: "#b4babf"
+  },
+  integratedstove: {
+    name: "集成灶",
+    glyph: "▣",
+    width: 0.9,
+    depth: 0.6,
+    height: 1.35,
+    color: "#2b2f34"
+  },
+  sterilizer: {
+    name: "消毒柜",
+    glyph: "▥",
+    width: 0.6,
+    depth: 0.5,
+    height: 0.65,
+    color: "#f2f4f5"
+  },
+  oven: {
+    name: "嵌入式烤箱",
+    glyph: "▥",
+    width: 0.6,
+    depth: 0.55,
+    height: 0.6,
+    color: "#2b2f34"
+  },
+  coffeemaker: {
+    name: "咖啡机",
+    glyph: "▯",
+    width: 0.28,
+    depth: 0.35,
+    height: 0.38,
+    color: "#2b2f34"
+  },
+  kettle: {
+    name: "电水壶",
+    glyph: "◌",
+    width: 0.2,
+    depth: 0.2,
+    height: 0.26,
+    color: "#f2f4f5"
+  },
+  airfryer: {
+    name: "空气炸锅",
+    glyph: "◫",
+    width: 0.3,
+    depth: 0.34,
+    height: 0.34,
+    color: "#2b2f34"
+  },
+  blender: {
+    name: "破壁机",
+    glyph: "◫",
+    width: 0.22,
+    depth: 0.24,
+    height: 0.45,
+    color: "#2b2f34"
+  },
+  waterpurifier: {
+    name: "净水器",
+    glyph: "▮",
+    width: 0.3,
+    depth: 0.3,
+    height: 1.2,
+    color: "#f2f4f5"
+  },
+  trashbin: {
+    name: "智能垃圾桶",
+    glyph: "◌",
+    width: 0.28,
+    depth: 0.28,
+    height: 0.45,
+    color: "#f2f4f5"
+  },
 };
 const TV_MOUNT_STYLES = new Set(["standard", "tabletop", "mobile"]);
+/** 移动支架的整件高度：落地件，比壁挂 / 座装高出一截（进深与离地高度见 TELEVISION_MOUNT_DEPTHS）。 */
 const MOBILE_TV_MOUNT_DIMENSIONS = Object.freeze({
-  depth: 0.55,
   height: 1.55
 });
+/**
+ * 电视进深由挂装方式决定，不是用户拉出来的：壁挂只有机身 60mm、座装含底板 180mm、移动支架含脚架
+ * 550mm —— 三份规格 tv_standard / tv_tabletop / tv_mobile 的 depth 就是这套值，机身高度带的比例
+ * 也照这套形态写死（见 computeTelevisionBodyMetrics）。模型按 item 的 width/height/depth 做非等比
+ * 拉伸，进深档位对不上就会被拉厚（或者把该有脚架的支架压扁），所以两处必须一起拨：新建的电视、
+ * 以及改挂装方式的时候。
+ */
+const TELEVISION_MOUNT_DEPTHS = Object.freeze({
+  standard: 0.06,
+  tabletop: 0.18,
+  mobile: 0.55
+});
+/** 平面符号的进深下限：壁挂电视真身只有 60mm，1:100 画出来 6px，符号和缩放手柄都抓不住。 */
+const TELEVISION_PLAN_MIN_DEPTH = 0.12;
+/**
+ * 电视离地高度同样由挂装方式决定：壁挂要挂到「看着舒服」的高度（面板下沿 0.70m，0.92m 的面板
+ * 中心正好落在 1.16m），座装 / 移动支架都落在地面上。
+ */
+const TELEVISION_MOUNT_ELEVATIONS = Object.freeze({
+  standard: 0.7,
+  tabletop: 0,
+  mobile: 0
+});
+/**
+ * 改挂装方式时把进深与离地高度拨到对应档。两样都只在「当前值恰好等于某一种挂装的标称值」
+ * （容差 1mm）时才拨 —— 用户在平面 / 属性面板里手工改过的物件保留他改的值，不吃这一拨；
+ * 标称值之间互相切换（座装 180mm ⇄ 移动 550mm、地面 ⇄ 0.70m）因此照样能拨过去。
+ */
+function snapTelevisionMountDimensions(televisionItem, nextMountStyle) {
+  const televisionDepth = finite(televisionItem.depth, 0);
+  if (
+    Object.values(TELEVISION_MOUNT_DEPTHS).some(
+      nominalDepth => Math.abs(televisionDepth - nominalDepth) < 0.001
+    )
+  ) {
+    televisionItem.depth = TELEVISION_MOUNT_DEPTHS[nextMountStyle];
+  }
+  const televisionElevation = finite(televisionItem.elevation, 0);
+  if (
+    Object.values(TELEVISION_MOUNT_ELEVATIONS).some(
+      nominalElevation => Math.abs(televisionElevation - nominalElevation) < 0.001
+    )
+  ) {
+    televisionItem.elevation = TELEVISION_MOUNT_ELEVATIONS[nextMountStyle];
+  }
+}
 const DEFAULT_LIGHT_SETTINGS = {
   downlight: {
     temperature: 3000,
@@ -1482,7 +2080,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609231402"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609251458"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -1746,7 +2344,11 @@ const INSTANCE_MERGE_ITEM_TYPES = new Set();
  * 往父分组里挂一个外部 glTF 物件，并刷新「模型加载中」提示。只是
  * externalModelManager 的一层薄封装：把选中态翻译成管理器需要的选项。
  */
-function addExternalItemModel(parentGroup, itemDefinition, scene = paletteForItemType(itemDefinition.type)) {
+function addExternalItemModel(
+  parentGroup,
+  itemDefinition,
+  scene = paletteForItemType(itemDefinition.type, itemDefinition.materialStyle)
+) {
   const modelObject = externalModelManager.addExternalItemModel(
     parentGroup,
     itemDefinition,
@@ -3140,6 +3742,14 @@ function normalizeScene(raw) {
             Math.abs(depth - 0.45) < 0.01 &&
             Math.abs(height - 1.8) < 0.01;
           const isRugLegacyHeight = sourceItemRecord?.type === "rug" && height >= 0.045;
+          // 吊柜：旧档里的「离地 0」是**旧默认值**，不是用户意图 —— 那时的 1.4 挂在占位几何的
+          // 构造器里（`wallCabinetShelfY = 1.4 + …`），物件的 elevation 字段始终存 0，检查器上
+          // 那一格填多少都会叠加在 1.4 上（填 1.6 得到 3.0）。构造器改成 0 基之后，这些旧档会
+          // 整件落到地上；而吊柜无腿、只靠挂墙件悬空，「离地 0」在实物上不成立，所以照旧档里
+          // 其他「旧尺寸 / 旧高度」的做法，把这一格换成类型默认的 1.6。用户在检查器里改过的
+          // 非零值一律原样保留（那一格现在就是真离地高度）。
+          const isWallCabinetLegacyElevation =
+            sourceItemRecord?.type === "wallcabinet" && !(Number(sourceItemRecord?.elevation) > 0);
           const isSmallDownlight =
             sourceItemRecord?.type === "downlight" && width < 0.3 && depth < 0.3;
           const isNarrowPiano = sourceItemRecord?.type === "piano" && depth < 1;
@@ -3198,7 +3808,9 @@ function normalizeScene(raw) {
                 ? typeDefaults.height
                 : height,
             elevation: clamp(
-              finite(sourceItemRecord?.elevation, typeDefaults.elevation || 0),
+              isWallCabinetLegacyElevation
+                ? typeDefaults.elevation || 0
+                : finite(sourceItemRecord?.elevation, typeDefaults.elevation || 0),
               0,
               6
             ),
@@ -3275,6 +3887,8 @@ function normalizeScene(raw) {
                   wallStyle: normalizeFeatureWallStyle(sourceItemRecord?.wallStyle)
                 }
               : {}),
+            // 逐物件「材质风格」：所有受支持类型统一归一，非法 / 陈旧取值落回 auto（= 不落键）。
+            ...materialStyleSnapshotFields(sourceItemRecord),
             ...(STAIR_DIRECTION_ITEM_TYPES.has(sourceItemRecord?.type)
               ? {
                   stairDirection: ["left", "right"].includes(sourceItemRecord?.stairDirection)
@@ -5841,6 +6455,28 @@ function drawPlanDoor(door, doorOptions = {}) {
   }
 }
 /**
+ * 圆形占地物件在平面图上那一两个**同心圈**的半径比（圈半径 / 占地半径）。
+ *
+ * 每个比值都是从 `tools/models/model-specs.mjs` 的实际半径除出来的，注释里写出是哪个部件 ——
+ * 改规格时这里要一起改。不变量只钉得住「该不该画圆」（名单 + 实测轮廓），钉不住
+ * 「圈画在哪个半径上」，所以保持成除式便于与规格逐条对照。
+ * 空数组是允许的：kettle 这类俯视只有一层的物件就没有内圈。
+ */
+const ROUND_PLAN_RING_RATIOS_BY_TYPE = Object.freeze({
+  fan: [0.144 / 0.2], // 网罩 r 0.144 / 底座 r 0.20（俯视看到网罩落在底座圆里）
+  floorac: [0.19 / 0.21], // 顶盖 r 0.19 / 机身 r 0.21
+  humidifier: [0.045 / 0.15], // 顶部出雾口 r 0.045 / 机身 r 0.15
+  airpurifier: [0.12 / 0.17], // 顶盖出风格栅 r 0.12 / 塔身 r 0.17
+  trashbin: [0.135 / 0.14], // 盖沿 r 0.135 / 桶身 r 0.14
+  kettle: [0.07 / 0.095], // 壶盖 r 0.07 / 底座 r 0.095
+  stool: [0.133 / 0.18], // 环状踏脚 r 0.133 / 座面 r 0.18
+  barstool: [0.148 / 0.21], // 环状踏脚 r 0.148 / 座面 r 0.21
+  // 两层：台面收边 r 0.432 / 台面 r 0.45；中心柱底座 r 0.22 / 台面 r 0.45
+  roundcoffeetable: [0.432 / 0.45, 0.22 / 0.45],
+  coatrail: [0.075 / 0.225] // 中部挂圈 r 0.075 / 底盘 r 0.225
+});
+
+/**
  * 在平面图上绘制一个物件（家具 / 灯具 / 洞口 / 窗帘 / 柱子 / 平面标签的总入口）。绘制前统一把画布平移到物件中心并按
  * rotation 旋转，此后各分支用「以中心为原点、宽度沿 ±X、深度沿 ±Y」的局部坐标，同一份形状对任何朝向都成立。按 type
  * 分派：flooropening 画洞口提示；灯具按色温着色；planlabel 反推字号；薄板 / 小车 / 窗帘 / 柱子等各有可辨识符号。
@@ -6116,23 +6752,29 @@ function drawPlanItem(itemToDraw) {
     );
     planContext.fill();
     planContext.stroke();
+    // 座舱：比例取自 3D 规格（tools/models/model-specs.mjs 的 smallcar —— 座舱 1.86 × 2.30，
+    // 中心在 z = −0.35，即整车 5.01 的 −0.07 处）。改规格必须同时改这里。
     planContext.fillStyle = "rgba(38, 48, 57, .72)";
     planContext.beginPath();
     planContext.roundRect(
-      -itemWidthPx * 0.38,
-      -itemDepthPx * 0.2,
-      itemWidthPx * 0.76,
-      itemDepthPx * 0.42,
+      -itemWidthPx * 0.425,
+      -itemDepthPx * 0.299,
+      itemWidthPx * 0.85,
+      itemDepthPx * 0.459,
       carCornerRadiusPx * 0.7
     );
     planContext.fill();
-    for (const carBodyOffsetX of [-0.5, 0.5]) {
-      for (const carBodyOffsetY of [-0.3, 0.3]) {
+    // 四个车轮：轮胎中心 x = ±0.95（= 车宽的 0.434）、轴距 ±1.55（= 车长的 0.309），
+    // 平面足迹就是轮胎自己那圈投影 0.16 × 0.68m（0.073 / 0.136 的比值）。
+    // 原先写的是 0.09 × 0.17 的方块 —— 0.17 × 5.01 = 0.85m 的「车轮」比实物大了三成，
+    // 而且横向摆到 ±0.5（超出车宽）把车画成了一辆履带车。
+    for (const carBodyOffsetX of [-0.434, 0.434]) {
+      for (const carBodyOffsetY of [-0.309, 0.309]) {
         planContext.fillRect(
-          carBodyOffsetX * itemWidthPx - itemWidthPx * 0.045,
-          carBodyOffsetY * itemDepthPx - itemDepthPx * 0.085,
-          itemWidthPx * 0.09,
-          itemDepthPx * 0.17
+          carBodyOffsetX * itemWidthPx - itemWidthPx * 0.0365,
+          carBodyOffsetY * itemDepthPx - itemDepthPx * 0.068,
+          itemWidthPx * 0.073,
+          itemDepthPx * 0.136
         );
       }
     }
@@ -6148,6 +6790,34 @@ function drawPlanItem(itemToDraw) {
       planContext.closePath();
       planContext.fill();
     }
+  } else if (itemToDraw.type === "elevator") {
+    // 电梯：井道框 + 轿厢内框 + 前侧两扇轿门。原先没有这一支，符号落进兜底的圆角矩形 ——
+    // 一个电梯井在户型图上读成一块圆角地毯。三层的比例都按 3D 规格的米制值换算
+    // （tools/models/model-specs.mjs 的 elevator：两侧壁板内面 x = ±0.65、后壁内面 z = −0.71、
+    // 门面 z = 0.71，占地的半宽 0.70 / 半深 0.76）—— 改规格必须同时改这里。
+    planContext.beginPath();
+    planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
+    planContext.fill();
+    planContext.stroke();
+    const elevatorCarHalfWidthPx = itemWidthPx * (0.65 / 1.4);
+    // 轿厢内框：后壁内面 z = −0.71 到门面 z = 0.71，即深度的 0.934、居中。
+    const elevatorCarInnerHalfDepthPx = itemDepthPx * (0.71 / 1.52);
+    planContext.strokeRect(
+      -elevatorCarHalfWidthPx,
+      -elevatorCarInnerHalfDepthPx,
+      elevatorCarHalfWidthPx * 2,
+      elevatorCarInnerHalfDepthPx * 2
+    );
+    // 轿门：门面（平面 +y = 模型 +z，与楼梯那支的上行箭头同一套朝向）上那两扇，
+    // 各 0.645 宽、中间留 1cm 缝，画成两条粗线。
+    planContext.lineWidth = Math.max(1.5, itemWidthPx * 0.035);
+    planContext.beginPath();
+    planContext.moveTo(-itemWidthPx * 0.0035, elevatorCarInnerHalfDepthPx);
+    planContext.lineTo(-itemWidthPx * (0.645 / 1.4), elevatorCarInnerHalfDepthPx);
+    planContext.moveTo(itemWidthPx * 0.0035, elevatorCarInnerHalfDepthPx);
+    planContext.lineTo(itemWidthPx * (0.645 / 1.4), elevatorCarInnerHalfDepthPx);
+    planContext.stroke();
+    planContext.lineWidth = 1;
   } else if (itemToDraw.type === "curtain" && itemToDraw.curtainTrack) {
     const curtainTrack = createCurtainTrack(itemToDraw);
     const planPixelsPerUnit = itemWidthPx / itemToDraw.width;
@@ -6291,20 +6961,91 @@ function drawPlanItem(itemToDraw) {
     );
     planContext.fill();
     planContext.stroke();
+    // 柜体前缘：吧台柜靠后（z 从 −0.325 到 −0.03），前面那 0.295 是留给吧凳的容腿空间。
+    // 这条线原来画在 −0.18 处（旧资产的柜体前沿），按新规格应当是 −0.03 / 0.65 ≈ −0.046。
     planContext.beginPath();
-    planContext.moveTo(-itemWidthPx * 0.44, -itemDepthPx * 0.18);
-    planContext.lineTo(itemWidthPx * 0.44, -itemDepthPx * 0.18);
+    planContext.moveTo(-itemWidthPx * 0.45, -itemDepthPx * 0.046);
+    planContext.lineTo(itemWidthPx * 0.45, -itemDepthPx * 0.046);
     planContext.stroke();
-    for (const barStoolOffset of [-0.28, 0, 0.28]) {
+    // 三张吧凳：座面 0.3（= 0.46 进深）坐在容腿空间里，凳心 x = ±0.7 / 0、z = +0.13。
+    for (const barStoolOffset of [-0.318, 0, 0.318]) {
       planContext.beginPath();
       planContext.arc(
         itemWidthPx * barStoolOffset,
-        itemDepthPx * 0.38,
-        Math.max(2, itemDepthPx * 0.12),
+        itemDepthPx * 0.2,
+        Math.max(2, itemDepthPx * 0.23),
         0,
         Math.PI * 2
       );
       planContext.stroke();
+    }
+  } else if (itemToDraw.type === "table") {
+    // 餐桌组合：一张台面 + 六张椅子。原先这一支不存在，符号直接落进兜底的圆角矩形，
+    // 整件被填成一整块 2.4 × 1.8 的实心块 —— 看不出「桌 + 椅」这个构造。
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx * 0.3125,
+      -itemDepthPx * 0.25,
+      itemWidthPx * 0.625,
+      itemDepthPx * 0.5,
+      Math.min(itemWidthPx, itemDepthPx) * 0.03
+    );
+    planContext.fill();
+    planContext.stroke();
+    // 六张椅子：两侧各两张、两端各一张 —— 占地 2.4 × 1.8 的外沿就是它们撑出来的。
+    // 椅面约 0.44 见方，于是六个小矩形同尺寸（0.44 / 2.4 × 0.44 / 1.8）。
+    for (const [tableChairOffsetX, tableChairOffsetY] of [
+      [-0.175, 0.378],
+      [0.175, 0.378],
+      [-0.175, -0.378],
+      [0.175, -0.378],
+      [0.408, 0],
+      [-0.408, 0]
+    ]) {
+      planContext.beginPath();
+      planContext.roundRect(
+        itemWidthPx * tableChairOffsetX - itemWidthPx * 0.0915,
+        itemDepthPx * tableChairOffsetY - itemDepthPx * 0.122,
+        itemWidthPx * 0.183,
+        itemDepthPx * 0.244,
+        Math.min(itemWidthPx, itemDepthPx) * 0.025
+      );
+      planContext.fill();
+      planContext.stroke();
+    }
+  } else if (
+    ["kitchenbase", "kitchensink", "kitchencooktop"].includes(itemToDraw.type)
+  ) {
+    // 厨房地柜三件：平面符号就是那条柜体线加一件「台面上的东西」——
+    // 地柜只有柜体；水盆柜画出台面开孔里那只盆；灶柜画四个灶眼（户型图的常规画法）。
+    // 用直角矩形而不是兜底的圆角矩形：柜体落地就是方角。
+    planContext.beginPath();
+    planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
+    planContext.fill();
+    planContext.stroke();
+    if (itemToDraw.type === "kitchensink") {
+      // 台下盆：盆口 0.56 × 0.34 落在 1.2 × 0.6 的台面里，就是那个内圈开孔。
+      planContext.strokeRect(
+        -itemWidthPx * 0.233,
+        -itemDepthPx * 0.283,
+        itemWidthPx * 0.467,
+        itemDepthPx * 0.567
+      );
+    } else if (itemToDraw.type === "kitchencooktop") {
+      // 四个灶眼：灶心 x = ±0.165 / z = ±0.115，圈半径 0.075。
+      for (const cooktopBurnerOffsetX of [-0.1375, 0.1375]) {
+        for (const cooktopBurnerOffsetY of [-0.19, 0.19]) {
+          planContext.beginPath();
+          planContext.arc(
+            itemWidthPx * cooktopBurnerOffsetX,
+            itemDepthPx * cooktopBurnerOffsetY,
+            Math.max(1.5, itemWidthPx * 0.0625),
+            0,
+            Math.PI * 2
+          );
+          planContext.stroke();
+        }
+      }
     }
   } else if (itemToDraw.type === "aquarium") {
     planContext.fillStyle = "rgba(92, 174, 202, .25)";
@@ -6313,11 +7054,17 @@ function drawPlanItem(itemToDraw) {
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
     planContext.stroke();
+    // 内圈 = 缸体（上下口框外沿 1.46 × 0.51），外圈 = 底柜台面（1.5 × 0.55），两圈之比直接
+    // 取自 tools/models/model-specs.mjs 的 aquarium 规格。原先写死 0.86 / 0.68，那是照旧资产
+    // （一个没有底柜、没有缸壁的空心方箱）手绘的比例；新缸体几乎占满台面（97% × 93%），
+    // 照旧画会让平面图上的缸比 3D 小一大圈。**改缸体宽度必须同时改这里。**
+    const aquariumTankWidthRatio = 1.46 / 1.5;
+    const aquariumTankDepthRatio = 0.51 / 0.55;
     planContext.strokeRect(
-      -itemWidthPx * 0.43,
-      -itemDepthPx * 0.34,
-      itemWidthPx * 0.86,
-      itemDepthPx * 0.68
+      (-aquariumTankWidthRatio / 2) * itemWidthPx,
+      (-aquariumTankDepthRatio / 2) * itemDepthPx,
+      aquariumTankWidthRatio * itemWidthPx,
+      aquariumTankDepthRatio * itemDepthPx
     );
     for (const fishOffset of [-0.25, 0.18]) {
       planContext.beginPath();
@@ -6331,19 +7078,40 @@ function drawPlanItem(itemToDraw) {
       planContext.stroke();
     }
   } else if (itemToDraw.type === "coffeetable") {
-    const coffeeTableRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.32;
-    const coffeeTableSecondRadiusPx = coffeeTableRadiusPx * 0.7;
+    // 组合茶几：两块叠合错位的石材 —— 下方是通体黑石座，上方是向左悬挑的白石板。
+    //
+    // 这不是「两个圆墩子」，是**手绘符号照抄旧资产**留下的后果：早先的组合茶几资产是
+    // 两个圆柱墩子加一块方台面，符号就画成了两个圆（下面还各带一个小圆当墩心）。
+    // 资产换成两块石板之后，符号不会自己跟着变 —— 平面图与 3D 就对不上了。
+    //
+    // 比例直接取自 tools/models/model-specs.mjs 的 coffeetable 规格（石座 1.72 × 1.05、
+    // 石板 1.00 × 0.85，整件 1.90 × 1.05）。**改 3D 尺寸必须同时改这里**，否则这次修的
+    // 就是这个毛病的复发。三个比例都以整件 footprint 为 1，除式留在代码里便于对照规格。
+    const coffeeTableBaseLengthRatio = 1.72 / 1.9;
+    const coffeeTableBaseOffsetRatio = 0.09 / 1.9;
+    const coffeeTableTopLengthRatio = 1.0 / 1.9;
+    const coffeeTableTopOffsetRatio = -0.45 / 1.9;
+    const coffeeTableTopDepthRatio = 0.85 / 1.05;
+    const coffeeTableCornerRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.02;
+    // 先画石座（它在下面、也是外轮廓那一件），再画石板压上去；两层同一枚填充色带透明度，
+    // 叠合处自然深一档，俯视就能读出「大石台上压着一块小石板」。
     planContext.beginPath();
-    planContext.arc(-itemWidthPx * 0.16, itemDepthPx * 0.08, coffeeTableRadiusPx, 0, Math.PI * 2);
+    planContext.roundRect(
+      (-coffeeTableBaseLengthRatio / 2 + coffeeTableBaseOffsetRatio) * itemWidthPx,
+      -itemDepthPx / 2,
+      coffeeTableBaseLengthRatio * itemWidthPx,
+      itemDepthPx,
+      coffeeTableCornerRadiusPx
+    );
     planContext.fill();
     planContext.stroke();
     planContext.beginPath();
-    planContext.arc(
-      itemWidthPx * 0.24,
-      -itemDepthPx * 0.2,
-      coffeeTableSecondRadiusPx,
-      0,
-      Math.PI * 2
+    planContext.roundRect(
+      (-coffeeTableTopLengthRatio / 2 + coffeeTableTopOffsetRatio) * itemWidthPx,
+      (-coffeeTableTopDepthRatio / 2) * itemDepthPx,
+      coffeeTableTopLengthRatio * itemWidthPx,
+      coffeeTableTopDepthRatio * itemDepthPx,
+      coffeeTableCornerRadiusPx
     );
     planContext.fill();
     planContext.stroke();
@@ -6370,8 +7138,10 @@ function drawPlanItem(itemToDraw) {
       planContext.stroke();
     }
     if (isRoundTableTurntableItem(itemToDraw)) {
+      // 转盘面直径 0.8 落在 2.2 的占地里 —— 半径比 0.18（原先是 0.27，那是旧资产的转盘尺寸，
+      // 画出来比新规格的转盘大一倍）。
       planContext.beginPath();
-      planContext.ellipse(0, 0, itemWidthPx * 0.27, itemDepthPx * 0.27, 0, 0, Math.PI * 2);
+      planContext.ellipse(0, 0, itemWidthPx * 0.18, itemDepthPx * 0.18, 0, 0, Math.PI * 2);
       planContext.fill();
       planContext.stroke();
     }
@@ -6393,14 +7163,16 @@ function drawPlanItem(itemToDraw) {
       itemDepthPx * 0.76
     );
     planContext.beginPath();
-    planContext.moveTo(-itemWidthPx * 0.08, -itemDepthPx * 0.38);
-    planContext.lineTo(-itemWidthPx * 0.08, itemDepthPx * 0.38);
-    planContext.moveTo(itemWidthPx * 0.08, -itemDepthPx * 0.38);
-    planContext.lineTo(itemWidthPx * 0.08, itemDepthPx * 0.38);
+    planContext.moveTo(-itemWidthPx * 0.11, -itemDepthPx * 0.38);
+    planContext.lineTo(-itemWidthPx * 0.11, itemDepthPx * 0.38);
+    planContext.moveTo(itemWidthPx * 0.11, -itemDepthPx * 0.38);
+    planContext.lineTo(itemWidthPx * 0.11, itemDepthPx * 0.38);
     planContext.stroke();
     planContext.fillStyle = "rgba(25, 34, 43, .58)";
-    for (const screwOffsetX of [-0.39, 0.39]) {
-      for (const screwOffsetY of [-0.34, 0.34]) {
+    // 四条方腿在四角：x = ±0.66 / 1.4、z = ±0.32 / 0.7（原先取 ±0.39 / ±0.34，
+    // 那是旧资产四条腿的位置，新规格的腿更靠外）。
+    for (const screwOffsetX of [-0.47, 0.47]) {
+      for (const screwOffsetY of [-0.45, 0.45]) {
         planContext.beginPath();
         planContext.arc(
           itemWidthPx * screwOffsetX,
@@ -6412,6 +7184,57 @@ function drawPlanItem(itemToDraw) {
         planContext.fill();
       }
     }
+  } else if (itemToDraw.type === "piano") {
+    // 三角钢琴：与 3D 用**同一份翼形轮廓**（tools/models/model-specs.mjs 的 pianoPlan）。
+    // 规格文件是 Node 侧的模块，前端拿不到它，所以这条轮廓在两边各写一份 —— 改一处必须改另一处，
+    // 否则就会出现「3D 换了琴、平面图上还是旧轮廓」那类脱钩（组合茶几已经踩过一次）。
+    //
+    // 归一化坐标 u ∈ [-1, 1] 是低音侧 → 高音侧、v ∈ [0, 1] 是尾端 → 键盘侧；琴身只占
+    // u = ±0.96（0.72 / 0.75）—— 整件最宽的那 1.50m 在键盘那一侧，由键床定。
+    const pianoPlanShape = {
+      start: [1, 1],
+      path: [
+        { lineTo: [-1, 1] },
+        { lineTo: [-0.972, 0.72] },
+        { curveTo: [[-0.944, 0.3], [-0.806, 0.12]] },
+        { curveTo: [[-0.722, 0.02], [-0.42, 0]] },
+        { curveTo: [[-0.14, 0.03], [0.06, 0.16]] },
+        { curveTo: [[0.44, 0.34], [0.64, 0.6]] },
+        { curveTo: [[0.86, 0.8], [1, 0.94]] },
+        { lineTo: [1, 1] }
+      ]
+    };
+    const pianoPlanPoint = ([u, v]) => [
+      u * 0.96 * (itemWidthPx / 2),
+      (v * 1.29 - 0.74) * (itemDepthPx / 1.5)
+    ];
+    const pianoPlanStart = pianoPlanPoint(pianoPlanShape.start);
+    planContext.beginPath();
+    planContext.moveTo(pianoPlanStart[0], pianoPlanStart[1]);
+    for (const pianoPlanSegment of pianoPlanShape.path) {
+      if (pianoPlanSegment.lineTo) {
+        const [segmentX, segmentY] = pianoPlanPoint(pianoPlanSegment.lineTo);
+        planContext.lineTo(segmentX, segmentY);
+      } else {
+        const [controlPoint, endPoint] = pianoPlanSegment.curveTo;
+        const [controlX, controlY] = pianoPlanPoint(controlPoint);
+        const [endX, endY] = pianoPlanPoint(endPoint);
+        planContext.quadraticCurveTo(controlX, controlY, endX, endY);
+      }
+    }
+    planContext.closePath();
+    planContext.fill();
+    planContext.stroke();
+    // 键盘条：琴身前方那 20cm 的实体（键床 + 键侧木），0.55 → 0.75 —— 整件最宽的一段。
+    planContext.beginPath();
+    planContext.rect(
+      -itemWidthPx / 2,
+      (0.55 * (itemDepthPx / 1.5)),
+      itemWidthPx,
+      0.2 * (itemDepthPx / 1.5)
+    );
+    planContext.fill();
+    planContext.stroke();
   } else if (itemToDraw.type === "floorlamp") {
     const floorLampLeftX = -itemWidthPx * 0.34;
     const floorLampRightX = itemWidthPx * 0.31;
@@ -6455,6 +7278,10 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
   } else if (itemToDraw.type === "squattoilet") {
+    // 蹲便器俯视：外面一圈是便槽边沿，中间那道圆角矩形是**槽口**（宽 0.33m / 进深 0.43m，
+    // 中心比整件中心偏前 0.05m —— 因为靠墙那侧还有一道 0.16m 深的存水弯高台）。
+    // 原先画的是「外框 + 一圈椭圆 + 两侧两块小方」，那两块小方是照旧资产的两只脚踏位置画的，
+    // 新规格里没有脚踏，已去掉；椭圆也换成了与槽口同宽的圆角矩形。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx / 2,
@@ -6465,48 +7292,61 @@ function drawPlanItem(itemToDraw) {
     );
     planContext.fill();
     planContext.stroke();
-    planContext.beginPath();
-    planContext.ellipse(
-      0,
-      itemDepthPx * 0.04,
-      itemWidthPx * 0.18,
-      itemDepthPx * 0.31,
-      0,
-      0,
-      Math.PI * 2
-    );
-    planContext.stroke();
-    for (const squatToiletSideSign of [-1, 1]) {
-      planContext.strokeRect(
-        squatToiletSideSign * itemWidthPx * 0.38 - itemWidthPx * 0.07,
-        -itemDepthPx * 0.25,
-        itemWidthPx * 0.14,
-        itemDepthPx * 0.5
-      );
-    }
-  } else if (itemToDraw.type === "urinal") {
+    const squatToiletBowlWidthRatio = 0.33 / 0.45;
+    const squatToiletBowlDepthRatio = 0.43 / 0.65;
+    const squatToiletBowlCenterRatio = 0.05 / 0.65;
     planContext.beginPath();
     planContext.roundRect(
-      -itemWidthPx * 0.38,
-      -itemDepthPx * 0.42,
-      itemWidthPx * 0.76,
-      itemDepthPx * 0.84,
-      Math.min(itemWidthPx, itemDepthPx) * 0.28
+      (-squatToiletBowlWidthRatio / 2) * itemWidthPx,
+      (-squatToiletBowlDepthRatio / 2 + squatToiletBowlCenterRatio) * itemDepthPx,
+      squatToiletBowlWidthRatio * itemWidthPx,
+      squatToiletBowlDepthRatio * itemDepthPx,
+      Math.min(itemWidthPx, itemDepthPx) * 0.08
+    );
+    planContext.stroke();
+  } else if (itemToDraw.type === "urinal") {
+    // 小便斗俯视：外框就是壳体（0.38 × 0.34 全都用上），里面那块圆角矩形是**腔口**
+    // （宽 0.28m，从靠墙的壳体背壁一直开到前方那圈边圈的内沿），腔口前沿一条横线是边圈的内沿。
+    // 原先画的内圈椭圆只有 0.15m 宽，比实物腔口小一半，读起来像只趴着的小盆。
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx / 2,
+      -itemDepthPx / 2,
+      itemWidthPx,
+      itemDepthPx,
+      Math.min(itemWidthPx, itemDepthPx) * 0.147
     );
     planContext.fill();
     planContext.stroke();
+    const urinalCavityWidthRatio = 0.28 / 0.38;
+    const urinalCavityFrontRatio = 0.10 / 0.34;
     planContext.beginPath();
-    planContext.ellipse(
+    planContext.roundRect(
+      (-urinalCavityWidthRatio / 2) * itemWidthPx,
+      -itemDepthPx / 2,
+      urinalCavityWidthRatio * itemWidthPx,
+      (urinalCavityFrontRatio + 0.5) * itemDepthPx,
+      Math.min(itemWidthPx, itemDepthPx) * 0.1
+    );
+    planContext.stroke();
+    planContext.beginPath();
+    planContext.moveTo(-itemWidthPx * 0.42, urinalCavityFrontRatio * itemDepthPx);
+    planContext.lineTo(itemWidthPx * 0.42, urinalCavityFrontRatio * itemDepthPx);
+    planContext.stroke();
+    // 顶部进水帽的落点（0.065m 直径，压在靠墙那侧）。
+    planContext.beginPath();
+    planContext.arc(
       0,
-      itemDepthPx * 0.04,
-      itemWidthPx * 0.2,
-      itemDepthPx * 0.28,
-      0,
+      -itemDepthPx * 0.265,
+      Math.max(1.5, Math.min(itemWidthPx, itemDepthPx) * 0.09),
       0,
       Math.PI * 2
     );
     planContext.stroke();
   } else if (itemToDraw.type === "bathtub") {
+    // 浴缸俯视：外框是缸壁外沿（1.70 × 0.78，四角与规格同半径），里面那圈是**缸口内沿**
+    // （缸壁 0.08m 厚 → 内沿退到 ±0.765m / ±0.31m）。原先内圈画到 0.58 × 0.45，
+    // 比真缸口小了一圈，读起来像只大托盘里放了个盆。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx * 0.48,
@@ -6518,7 +7358,40 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     planContext.beginPath();
-    planContext.ellipse(0, 0, itemWidthPx * 0.34, itemDepthPx * 0.29, 0, 0, Math.PI * 2);
+    planContext.roundRect(
+      -itemWidthPx * 0.45,
+      -itemDepthPx * 0.397,
+      itemWidthPx * 0.9,
+      itemDepthPx * 0.794,
+      Math.min(itemWidthPx, itemDepthPx) * 0.24
+    );
+    planContext.stroke();
+  } else if (itemToDraw.type === "basin") {
+    // 台盆柜俯视：整件就是石材台面（0.90 × 0.50），台面上一个台上盆 + 盆后一支龙头。
+    // 这一支原先没有，落到兜底那只圆角矩形上，与「台面 + 台上盆 + 龙头」完全对不上。
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx / 2,
+      -itemDepthPx / 2,
+      itemWidthPx,
+      itemDepthPx,
+      Math.min(itemWidthPx, itemDepthPx) * 0.05
+    );
+    planContext.fill();
+    planContext.stroke();
+    // 台上盆：Ø0.37m 的圆 —— 宽里占 0.411、深里占 0.74，两个方向比例不同，用椭圆。
+    planContext.beginPath();
+    planContext.ellipse(0, 0, itemWidthPx * 0.205, itemDepthPx * 0.37, 0, 0, Math.PI * 2);
+    planContext.stroke();
+    // 龙头立柱落在靠墙那侧（缸后 0.155m）。
+    planContext.beginPath();
+    planContext.arc(
+      0,
+      -itemDepthPx * 0.31,
+      Math.max(1.5, Math.min(itemWidthPx, itemDepthPx) * 0.045),
+      0,
+      Math.PI * 2
+    );
     planContext.stroke();
   } else if (itemToDraw.type === "walllamp") {
     planContext.beginPath();
@@ -6530,11 +7403,64 @@ function drawPlanItem(itemToDraw) {
     planContext.lineTo(itemWidthPx * 0.42, itemDepthPx * 0.38);
     planContext.stroke();
   } else if (itemToDraw.type === "glasspartition") {
+    // 玻璃隔断俯视：中间那片半透明是玻璃（1.20 × 0.012，实际只有一条缝），两端 0.05m 宽的
+    // 立柱才是整件在平面上真正占的地方（立柱与横梁 0.08m 厚，正好是整件的进深）。
+    // 玻璃中线由第二段绘制链补（见下），这里只负责面板、两根立柱与拉手落点。
     planContext.fillStyle = "rgba(169, 197, 211, .2)";
     planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(183, 218, 231, .82)";
     planContext.beginPath();
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
+    planContext.stroke();
+    planContext.fillStyle = "rgba(120, 132, 141, .5)";
+    planContext.fillRect(itemWidthPx * 0.4583, -itemDepthPx / 2, itemWidthPx * 0.0417, itemDepthPx);
+    planContext.fillRect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx * 0.0417, itemDepthPx);
+    // 竖向拉手（整件里唯一凸出玻璃面的东西，位置上必须留个记号）。
+    planContext.beginPath();
+    planContext.arc(
+      itemWidthPx * 0.35,
+      itemDepthPx * 0.25,
+      Math.max(1.5, Math.min(itemWidthPx, itemDepthPx) * 0.3),
+      0,
+      Math.PI * 2
+    );
+    planContext.stroke();
+  } else if (itemToDraw.type === "shower") {
+    // 淋浴房俯视：外框是 0.90 × 0.90 的底盘，内圈是底盘的内凹面，靠墙（-y）那侧有立柱落点，
+    // 内凹面里偏后一块地漏篦子。这一支原先也没有，落到兜底矩形上。
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx / 2,
+      -itemDepthPx / 2,
+      itemWidthPx,
+      itemDepthPx,
+      Math.min(itemWidthPx, itemDepthPx) * 0.033
+    );
+    planContext.fill();
+    planContext.stroke();
+    planContext.beginPath();
+    planContext.roundRect(
+      -itemWidthPx * 0.411,
+      -itemDepthPx * 0.411,
+      itemWidthPx * 0.822,
+      itemDepthPx * 0.822,
+      Math.min(itemWidthPx, itemDepthPx) * 0.044
+    );
+    planContext.stroke();
+    planContext.strokeRect(
+      -itemWidthPx * 0.078,
+      -itemDepthPx * 0.367,
+      itemWidthPx * 0.156,
+      itemDepthPx * 0.156
+    );
+    planContext.beginPath();
+    planContext.arc(
+      0,
+      -itemDepthPx * 0.467,
+      Math.max(1.5, Math.min(itemWidthPx, itemDepthPx) * 0.024),
+      0,
+      Math.PI * 2
+    );
     planContext.stroke();
   } else if (itemToDraw.type === "storagewaterheater") {
     planContext.beginPath();
@@ -6664,6 +7590,16 @@ function drawPlanItem(itemToDraw) {
     planContext.ellipse(0, 0, itemWidthPx * 0.46, itemDepthPx * 0.46, 0, 0, Math.PI * 2);
     planContext.fill();
     planContext.stroke();
+  } else if (ROUND_FOOTPRINT_ITEM_TYPES.has(itemToDraw.type)) {
+    // 圆形占地的物件（落地扇 / 圆凳 / 圆茶几 / 圆桶类家电……）画圆而不是兜底的圆角矩形。
+    // 这一支不写死类型名单，判据在 studio-item-types.js 的 ROUND_FOOTPRINT_ITEM_TYPES ——
+    // 那张名单由 `node tools/audit_plan_symbols.mjs` 实测流水线 GLB 的俯视轮廓得出，
+    // 「实测是圆却没按圆画」与「名单里有但实测不是圆」都会被不变量当场拦下。
+    // 用椭圆而不是 arc：非等比摆放（用户把圆锥形物件拉扁）时轮廓要跟着占地方向走。
+    planContext.beginPath();
+    planContext.ellipse(0, 0, itemWidthPx / 2, itemDepthPx / 2, 0, 0, Math.PI * 2);
+    planContext.fill();
+    planContext.stroke();
   } else {
     planContext.beginPath();
     planContext.roundRect(
@@ -6678,32 +7614,61 @@ function drawPlanItem(itemToDraw) {
   }
   planContext.strokeStyle = "rgba(17, 24, 31, .5)";
   planContext.lineWidth = 1;
-  if (itemToDraw.type === "coffeetable") {
-    const tableInnerRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.32;
-    planContext.beginPath();
-    planContext.arc(
-      -itemWidthPx * 0.16,
-      itemDepthPx * 0.08,
-      tableInnerRadiusPx * 0.32,
-      0,
-      Math.PI * 2
+  if (ROUND_FOOTPRINT_ITEM_TYPES.has(itemToDraw.type)) {
+    for (const ringRatio of ROUND_PLAN_RING_RATIOS_BY_TYPE[itemToDraw.type] ?? []) {
+      planContext.beginPath();
+      planContext.ellipse(
+        0,
+        0,
+        (itemWidthPx * ringRatio) / 2,
+        (itemDepthPx * ringRatio) / 2,
+        0,
+        0,
+        Math.PI * 2
+      );
+      planContext.stroke();
+    }
+  } else if (itemToDraw.type === "piano") {
+    // 钢琴这一层画两处：黑键带 + 三条琴腿（脚轮位置）。坐标全部按 3D 规格的米制值换算：
+    // 规格里键床 z 0.55→0.75、三条腿在 (±0.6, 0.6) 与 (-0.02, -0.18)。
+    const pianoDepthScale = itemDepthPx / 1.5;
+    const pianoKeyBedTopPx = 0.55 * pianoDepthScale;
+    const pianoKeyBedHeightPx = 0.2 * pianoDepthScale;
+    // 黑键：88 键的标准布局是 7 组「2 + 3」共 35 个黑键，投影到平面上是一条断续的窄带 ——
+    // 画成整条实心黑带在 1:50 的户型图上看不出差别，这里就画整条。
+    planContext.fillStyle = "rgba(17, 24, 31, .55)";
+    planContext.fillRect(
+      -itemWidthPx * 0.384,
+      pianoKeyBedTopPx + pianoKeyBedHeightPx * 0.08,
+      itemWidthPx * 0.768,
+      pianoKeyBedHeightPx * 0.45
     );
-    planContext.stroke();
-    planContext.beginPath();
-    planContext.arc(
-      itemWidthPx * 0.24,
-      -itemDepthPx * 0.2,
-      tableInnerRadiusPx * 0.23,
-      0,
-      Math.PI * 2
-    );
-    planContext.stroke();
-  } else if (itemToDraw.type === "squarecoffeetable") {
+    // 琴腿：低音侧前腿、高音侧前腿（都在键盘侧 z=0.6）、尾端一条（z=-0.18，约在琴身 43% 处）。
+    planContext.fillStyle = "rgba(17, 24, 31, .35)";
+    const pianoLegRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.03;
+    const pianoLegPoints = [
+      [-0.384 * itemWidthPx, 0.6 * pianoDepthScale],
+      [0.384 * itemWidthPx, 0.6 * pianoDepthScale],
+      [-0.0128 * itemWidthPx, -0.18 * pianoDepthScale]
+    ];
+    for (const [pianoLegX, pianoLegY] of pianoLegPoints) {
+      planContext.beginPath();
+      planContext.arc(pianoLegX, pianoLegY, pianoLegRadiusPx, 0, Math.PI * 2);
+      planContext.fill();
+    }
+  } else if (itemToDraw.type === "coffeetable") {
+    // 组合茶几在这一层只画**石板的收边**：沿白石板内侧退一圈的细线，表示石板有厚度、不是一张纸。
+    // 原先这里画的是两个墩心小圆（旧资产的两个圆柱墩子），已随符号一起换成石板。
+    // 比例与上面 drawPlanItem 里的那组同源，改 3D 规格时一起改。
+    const coffeeTableTopLengthRatio = 1.0 / 1.9;
+    const coffeeTableTopOffsetRatio = -0.45 / 1.9;
+    const coffeeTableTopDepthRatio = 0.85 / 1.05;
+    const coffeeTableEdgeInsetPx = Math.min(itemWidthPx, itemDepthPx) * 0.035;
     planContext.strokeRect(
-      -itemWidthPx * 0.35,
-      -itemDepthPx * 0.35,
-      itemWidthPx * 0.7,
-      itemDepthPx * 0.7
+      (-coffeeTableTopLengthRatio / 2 + coffeeTableTopOffsetRatio) * itemWidthPx + coffeeTableEdgeInsetPx,
+      (-coffeeTableTopDepthRatio / 2) * itemDepthPx + coffeeTableEdgeInsetPx,
+      coffeeTableTopLengthRatio * itemWidthPx - coffeeTableEdgeInsetPx * 2,
+      coffeeTableTopDepthRatio * itemDepthPx - coffeeTableEdgeInsetPx * 2
     );
   } else if (itemToDraw.type === "bed") {
     planContext.strokeRect(
@@ -6728,8 +7693,16 @@ function drawPlanItem(itemToDraw) {
       itemDepthPx * 0.43
     );
   } else if (itemToDraw.type === "table") {
-    for (const tableLegOffsetX of [-0.38, 0.38]) {
-      for (const tableLegOffsetY of [-0.32, 0.32]) {
+    // 桌面轮廓：1.5 × 0.9 的台面落在 2.4 × 1.8 的占地里（外沿那一圈是椅子）。
+    planContext.strokeRect(
+      -itemWidthPx * 0.3125,
+      -itemDepthPx * 0.25,
+      itemWidthPx * 0.625,
+      itemDepthPx * 0.5
+    );
+    // 四条桌腿：x = ±0.68 / 2.4、z = ±0.38 / 1.8（旧符号取的 ±0.38 / ±0.32 是旧资产的腿位）。
+    for (const tableLegOffsetX of [-0.283, 0.283]) {
+      for (const tableLegOffsetY of [-0.211, 0.211]) {
         planContext.beginPath();
         planContext.arc(
           itemWidthPx * tableLegOffsetX,
@@ -6784,6 +7757,25 @@ function drawPlanItem(itemToDraw) {
       Math.PI * 2
     );
     planContext.stroke();
+  } else if (itemToDraw.type === "shoecabinet") {
+    // 中竖板 + 两列柜门的中缝：俯视把占地分成「左列换鞋凳 / 敞开鞋格」与「右列柜门」两段，
+    // 比一块实心矩形多出的信息就这一点（鞋柜在平面上本来就是个方盒子）。
+    // 门缝只从**正面**往里画 45% 进深 —— 画满进深会读成一块隔板，而它其实是正面的事。
+    // 平面里 +y 是物件的 +z（正面），与上面 basin 的正面画法同一个约定。
+    // 0.455 是规格里两列门缝的 x（整宽 1.8 的对折再让 0.445 中缝）；改宽度必须同时改这个比值。
+    const shoecabinetSeamRatio = 0.455 / 1.8;
+    const shoecabinetSeamInsetPx = itemDepthPx * 0.45;
+    planContext.beginPath();
+    planContext.moveTo(0, -itemDepthPx / 2);
+    planContext.lineTo(0, itemDepthPx / 2);
+    for (const shoecabinetSeamSign of [-1, 1]) {
+      planContext.moveTo(shoecabinetSeamSign * shoecabinetSeamRatio * itemWidthPx, itemDepthPx / 2);
+      planContext.lineTo(
+        shoecabinetSeamSign * shoecabinetSeamRatio * itemWidthPx,
+        itemDepthPx / 2 - shoecabinetSeamInsetPx
+      );
+    }
+    planContext.stroke();
   } else if (itemToDraw.type === "tea_bar_machine") {
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.38, -itemDepthPx * 0.02);
@@ -6791,6 +7783,32 @@ function drawPlanItem(itemToDraw) {
     planContext.moveTo(-itemWidthPx * 0.42, itemDepthPx * 0.2);
     planContext.lineTo(itemWidthPx * 0.42, itemDepthPx * 0.2);
     planContext.stroke();
+  } else if (itemToDraw.type === "squattoilet") {
+    // 槽底的排水篦子（0.14 × 0.10，压在靠墙那侧）—— 链 1 已经画出槽口，这里只补这一块。
+    planContext.strokeRect(
+      -itemWidthPx * 0.156,
+      -itemDepthPx * 0.231,
+      itemWidthPx * 0.311,
+      itemDepthPx * 0.154
+    );
+  } else if (itemToDraw.type === "basin") {
+    // 台面下柜体的前脸：双门的门缝（在正中）与两只拉手落点。俯视看不到门，但按既有符号的
+    // 惯例（冰箱的门缝、洗碗机的门线）都要留一道记号，否则整件在平面图上只是一块板。
+    planContext.beginPath();
+    planContext.moveTo(0, itemDepthPx * 0.4);
+    planContext.lineTo(0, itemDepthPx * 0.5);
+    planContext.stroke();
+    for (const basinHandleSign of [-1, 1]) {
+      planContext.beginPath();
+      planContext.arc(
+        basinHandleSign * itemWidthPx * 0.056,
+        itemDepthPx * 0.44,
+        Math.max(1.5, Math.min(itemWidthPx, itemDepthPx) * 0.05),
+        0,
+        Math.PI * 2
+      );
+      planContext.stroke();
+    }
   } else if (["dishwasher", "steamoven", "microwave"].includes(itemToDraw.type)) {
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.42, itemDepthPx * 0.3);
@@ -6853,24 +7871,90 @@ function drawPlanItem(itemToDraw) {
       );
     }
   } else if (itemToDraw.type === "plant") {
+    // 冠幅 + 盆托两圈。模型重建后冠叶真的铺满整件 0.75 × 0.75（见 tools/models/model-specs.mjs
+    // 的 plant），旧符号只画一圈 0.31 的圆 —— 那是照旧资产的冠幅（那时冠叶只伸到 0.647 宽）
+    // 手绘的，摆到新模型旁边平面图上的绿植会小一圈。
+    // 外圈取冠幅的 0.46 倍（0.69 / 0.75，留一点叶尖不压线），内圈取盆托口径 0.38。
+    const plantCanopyRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.46;
+    const plantSaucerRadiusPx = Math.min(itemWidthPx, itemDepthPx) * (0.38 / 0.75);
     planContext.beginPath();
-    planContext.arc(0, 0, Math.min(itemWidthPx, itemDepthPx) * 0.31, 0, Math.PI * 2);
+    planContext.arc(0, 0, plantCanopyRadiusPx, 0, Math.PI * 2);
+    planContext.stroke();
+    planContext.beginPath();
+    planContext.arc(0, 0, plantSaucerRadiusPx, 0, Math.PI * 2);
     planContext.stroke();
   } else if (STAIR_ITEM_TYPES.has(itemToDraw.type)) {
-    for (let stairTreadIndex = 1; stairTreadIndex < 10; stairTreadIndex += 1) {
-      const stairTreadY = -itemDepthPx / 2 + (itemDepthPx * stairTreadIndex) / 10;
+    if (itemToDraw.type === "stairs") {
+      // 直行楼梯：10 级踏面线 + 一条指向上行的箭头。
+      for (let stairTreadIndex = 1; stairTreadIndex < 10; stairTreadIndex += 1) {
+        const stairTreadY = -itemDepthPx / 2 + (itemDepthPx * stairTreadIndex) / 10;
+        planContext.beginPath();
+        planContext.moveTo(-itemWidthPx / 2, stairTreadY);
+        planContext.lineTo(itemWidthPx / 2, stairTreadY);
+        planContext.stroke();
+      }
       planContext.beginPath();
-      planContext.moveTo(-itemWidthPx / 2, stairTreadY);
-      planContext.lineTo(itemWidthPx / 2, stairTreadY);
+      planContext.moveTo(0, itemDepthPx * 0.34);
+      planContext.lineTo(0, -itemDepthPx * 0.3);
+      planContext.lineTo(-Math.min(itemWidthPx, itemDepthPx) * 0.08, -itemDepthPx * 0.2);
+      planContext.moveTo(0, -itemDepthPx * 0.3);
+      planContext.lineTo(Math.min(itemWidthPx, itemDepthPx) * 0.08, -itemDepthPx * 0.2);
+      planContext.stroke();
+    } else {
+      // 钢 / 玻璃楼梯是 **U 形双跑**（见 model-specs.mjs 的 uStairLayout）：两跑并行、
+      // 平台贴 -z 端，各 10 级爬完层高。平面符号必须跟着改成两跑 + 平台 ——
+      // 画成单跑不只是「少一条线」：在 1:50 的户型图上，它会把梯段的起步位置指错半跨。
+      const stairFlightWidth = itemToDraw.type === "steelstairs" ? 0.9 : 1.225;
+      const stairLandingDepth = 0.5;
+      const stairRiserCount = 10;
+      const stairPlanScaleX = itemWidthPx / itemWidth;
+      const stairPlanScaleZ = itemDepthPx / itemDepth;
+      const stairFlightWidthPx = stairFlightWidth * stairPlanScaleX;
+      const stairGapPx = itemWidthPx - stairFlightWidthPx * 2;
+      const stairLandingDepthPx = stairLandingDepth * stairPlanScaleZ;
+      const stairRunPx = itemDepthPx - stairLandingDepthPx;
+      const stairTreadDepthPx = stairRunPx / stairRiserCount;
+      const stairLandingFrontY = -itemDepthPx / 2 + stairLandingDepthPx;
+      // 两跑的横向分界与平台前沿：这三条线是「这是双跑楼梯」在平面上唯一的读法。
+      for (const stairGapSign of [-1, 1]) {
+        planContext.beginPath();
+        planContext.moveTo((stairGapSign * stairGapPx) / 2, -itemDepthPx / 2);
+        planContext.lineTo((stairGapSign * stairGapPx) / 2, itemDepthPx / 2);
+        planContext.stroke();
+      }
+      planContext.beginPath();
+      planContext.moveTo(-itemWidthPx / 2, stairLandingFrontY);
+      planContext.lineTo(itemWidthPx / 2, stairLandingFrontY);
+      planContext.stroke();
+      for (const stairFlightSign of [-1, 1]) {
+        const stairFlightCenterX =
+          stairFlightSign * (stairGapPx / 2 + stairFlightWidthPx / 2);
+        for (let stairTreadIndex = 1; stairTreadIndex < stairRiserCount; stairTreadIndex += 1) {
+          // 第一跑从 +z（画布下方）往平台升，第二跑从平台往 +z 升 —— 踏面线的起点因此相反。
+          const stairTreadY =
+            stairFlightSign < 0
+              ? itemDepthPx / 2 - stairTreadDepthPx * stairTreadIndex
+              : stairLandingFrontY + stairTreadDepthPx * stairTreadIndex;
+          planContext.beginPath();
+          planContext.moveTo(stairFlightCenterX - stairFlightWidthPx / 2, stairTreadY);
+          planContext.lineTo(stairFlightCenterX + stairFlightWidthPx / 2, stairTreadY);
+          planContext.stroke();
+        }
+      }
+      // 上行箭头：沿第一跑指向平台，折到第二跑，再指回 +z 端（终点在第二跑的顶端）。
+      const stairArrowSize = Math.min(itemWidthPx, itemDepthPx) * 0.08;
+      const stairFirstFlightX = -(stairGapPx / 2 + stairFlightWidthPx / 2);
+      const stairSecondFlightX = stairGapPx / 2 + stairFlightWidthPx / 2;
+      planContext.beginPath();
+      planContext.moveTo(stairFirstFlightX, itemDepthPx / 2 - stairTreadDepthPx * 0.4);
+      planContext.lineTo(stairFirstFlightX, stairLandingFrontY + stairLandingDepthPx * 0.5);
+      planContext.lineTo(stairSecondFlightX, stairLandingFrontY + stairLandingDepthPx * 0.5);
+      planContext.lineTo(stairSecondFlightX, itemDepthPx / 2 - stairArrowSize);
+      planContext.lineTo(stairSecondFlightX - stairArrowSize * 0.5, itemDepthPx / 2 - stairArrowSize * 1.7);
+      planContext.moveTo(stairSecondFlightX, itemDepthPx / 2 - stairArrowSize);
+      planContext.lineTo(stairSecondFlightX + stairArrowSize * 0.5, itemDepthPx / 2 - stairArrowSize * 1.7);
       planContext.stroke();
     }
-    planContext.beginPath();
-    planContext.moveTo(0, itemDepthPx * 0.34);
-    planContext.lineTo(0, -itemDepthPx * 0.3);
-    planContext.lineTo(-Math.min(itemWidthPx, itemDepthPx) * 0.08, -itemDepthPx * 0.2);
-    planContext.moveTo(0, -itemDepthPx * 0.3);
-    planContext.lineTo(Math.min(itemWidthPx, itemDepthPx) * 0.08, -itemDepthPx * 0.2);
-    planContext.stroke();
   }
   if (isItemSelected) {
     // 选中框：与其余选中态同一枚令牌，不再写死「旧橙的 90%」。
@@ -8022,6 +9106,8 @@ function renderInspector() {
       tvMountStyleFieldElement.hidden = inspectedEntity.type !== "tv";
       muralStyleFieldElement.hidden = inspectedEntity.type !== "mural";
       featureWallStyleFieldElement.hidden = inspectedEntity.type !== "featurewall";
+      // 材质风格是**通用**属性：所有家居家电类型都显示，因此按「类型是否支持」而不是枚举来判断。
+      materialStyleFieldElement.hidden = !isMaterialStyleCapable(inspectedEntity.type);
       pillarShapeFieldElement.hidden = inspectedEntity.type !== "pillar";
       stripAxisFieldElement.hidden = inspectedEntity.type !== "striplight";
       pillarAxisFieldElement.hidden = inspectedEntity.type !== "pillar";
@@ -8213,6 +9299,9 @@ function renderInspector() {
           inspectedEntity.wallStyle
         );
         syncStudioSelect(selectElement("#feature-wall-style"));
+      }
+      if (isMaterialStyleCapable(inspectedEntity.type)) {
+        syncMaterialStyleOptions(inspectedEntity.type, inspectedEntity.materialStyle);
       }
       if (inspectedEntity.type === "pillar") {
         selectElement("#pillar-shape").value = normalizePillarShape(inspectedEntity.pillarShape);
@@ -8485,7 +9574,11 @@ function createSceneItem(newItemType, itemPosition, overrides = {}) {
       ? {
           screenEnabled: true,
           screenLayerName: "电视画面 " + (televisionItems().length + 1),
-          tvMountStyle: "standard"
+          tvMountStyle: "standard",
+          // 新电视默认壁挂：进深与离地高度都按挂装档位给（壁挂 60mm / 面板下沿 0.70m），
+          // 不是类型定义里那个「老默认」（0.18m / 落地）。
+          depth: TELEVISION_MOUNT_DEPTHS.standard,
+          elevation: TELEVISION_MOUNT_ELEVATIONS.standard
         }
       : {}),
     ...(newItemType === "smallcar"
@@ -8886,15 +9979,76 @@ function homePalette() {
   };
 }
 /**
+ * 重建「材质风格」下拉的档位。档位随物件类型变化（沙发是布艺组、柜类是木作组、洁具是陶瓷组…），
+ * 因此不能像 muralStyle 那样把 <option> 写死在标记里，得按当前类型重来一遍。
+ * 只在类型与档位数真的变了时才重写 DOM：填充检查器会在拖拽 / 缩放 / 改尺寸时被反复调用，
+ * 每次都重建一遍选项会白白掉帧。
+ */
+function syncMaterialStyleOptions(itemType, selectedStyle) {
+  const selectControl = selectElement("#material-style");
+  const optionSignature = itemType + ":" + materialStyleOptionsFor(itemType).length;
+  if (selectControl.dataset.optionSignature !== optionSignature) {
+    selectControl.textContent = "";
+    // 「跟随全局风格」永远排最前：它是默认值，也是「这块我不管」的出口。
+    const autoOption = document.createElement("option");
+    autoOption.value = MATERIAL_STYLE_AUTO;
+    autoOption.textContent = "跟随全局风格";
+    selectControl.append(autoOption);
+    for (const styleOption of materialStyleOptionsFor(itemType)) {
+      const optionElement = document.createElement("option");
+      optionElement.value = styleOption.id;
+      optionElement.textContent = styleOption.label;
+      selectControl.append(optionElement);
+    }
+    selectControl.dataset.optionSignature = optionSignature;
+  }
+  selectControl.value = normalizeMaterialStyle(itemType, selectedStyle);
+  syncStudioSelect(selectControl);
+}
+
+/**
+ * 快照 / 草稿里的 materialStyle 字段。只有真正选了风格时才写键：
+ * 未选（auto）时**不写**，字段集合与加这个属性之前完全一致，老快照重存也不会凭空长出一个键。
+ * 与调色板侧「auto 不加 materialSurface 键」是同一套契约。
+ */
+function materialStyleSnapshotFields(itemRecord) {
+  const itemType = itemRecord?.type;
+  if (!isMaterialStyleCapable(itemType)) {
+    return {};
+  }
+  const materialStyle = normalizeMaterialStyle(itemType, itemRecord?.materialStyle);
+  return materialStyle === MATERIAL_STYLE_AUTO ? {} : { materialStyle };
+}
+
+/**
  * 按物件类型挑调色板：家居类（HOME_ITEM_TYPES）走 homePalette()，默认风格即暖阳家居配色；
  * 其余类型（墙、门窗、楼梯、柱、小汽车、楼板洞口…）走 studioPalette()，保持各风格的场景观感。
  * 最后再套一层逐类型的成品外观（applyItemFinish）：柜类的柜体色、不锈钢家电的银灰 / 银黑。
  * 这一层对「程序化兜底几何」与「外部模型」是同一份结果 —— 前者读 furniture*、后者读
  * appliance*，applyItemFinish 把两组键指到同一族色，模型到位前后不会突然换色。
+ * 最后一道是逐物件的「材质风格」（applyMaterialStyle）：它优先于全局风格，且只覆盖自己声明的键。
  */
-function paletteForItemType(itemType) {
+function paletteForItemType(itemType, materialStyle = MATERIAL_STYLE_AUTO) {
   const basePalette = HOME_ITEM_TYPES.has(itemType) ? homePalette() : studioPalette();
-  return applyItemFinish(basePalette, itemType, JOINERY_ITEM_TYPES);
+  const finishedPalette = applyItemFinish(basePalette, itemType, JOINERY_ITEM_TYPES);
+  // 逐物件「材质风格」：auto（未选）时 applyMaterialStyle 原样返回入参，这里直接返回 finishedPalette，
+  // 不复制对象也不加任何键 —— 这是老草稿 / 老快照不需要数据迁移的技术原因。
+  const styledPalette = applyMaterialStyle(finishedPalette, itemType, materialStyle);
+  if (styledPalette.surface === null) {
+    return finishedPalette;
+  }
+  // 质感信息随调色板一起走：与既有的 warmWood / warmFurniture 标记同一套做法，
+  // 材质替换阶段（studio-external-models.js 的 resolveSharedMaterial）据此套贴图与粗糙度 / 金属度。
+  // materialSurface 是**整件**兜底（只对没有角色的网格生效）；materialRoles 是「档位即组合」，
+  // 按材质角色逐块给配方 —— 流水线模型（材质名 material-<槽位>-<角色>）走的是后者，
+  // 于是柜体、柜面、台面、拉手各拿各的一份，不再整件一个颜色。
+  return {
+    ...styledPalette.palette,
+    materialSurface: styledPalette.surface,
+    materialRoughness: styledPalette.roughness,
+    materialMetalness: styledPalette.metalness,
+    materialRoles: styledPalette.roles ?? null
+  };
 }
 /**
  * 按方位角 / 仰角把平行光摆到球面位置上。极坐标转直角坐标：水平距离 = cos(仰角) × 距离，
@@ -15383,22 +16537,86 @@ function createTelevisionPosterTexture() {
   return posterTexture;
 }
 /**
- * 按安装方式算出电视机身高度与垂直中心相对总高的比例。移动支架机身最小、悬得最高（0.43/0.76），壁挂居中
- * （0.62/0.62），桌面底座介于两者之间（0.56/0.67）—— 三个比例来自实际支架形态的观感调校。
+ * 按安装方式算出电视机身高度与垂直中心相对总高的比例。
+ *
+ * 三条比例都让**机身顶到整件高度**，机身下缘以下才是支架该占的地方 —— 这样 item 的高度就是
+ * 「这台电视从落脚面到顶边有多高」，而规格里的模型尺寸也跟着有确切含义（机身带 = 机身高度，
+ * 底盘 / 立杆只填带外那一段），运行侧的非等比缩放才能把机身带与屏幕位置一起按 item 尺寸比例拉开。
+ *
+ *   挂装（1.00 / 0.50）—— 没有落地件，机身即整件（机身下缘就在 y=0，抬多高由物件的 elevation 决定）；
+ *   座装（0.56 / 0.72）—— 底板 + 立杆占下面 44%，机身从 0.44 撑到顶；
+ *   移动支架（0.43 / 0.76）—— 机身最窄、悬得最高，顶上再留一条推手横杆。
+ *
  * @returns {{bodyHeight: number, centerY: number}} 机身高度与中心高度（米）。
  */
 function computeTelevisionBodyMetrics(televisionMetricsItem, televisionBodyHeight) {
   const isMobileMount = televisionMetricsItem.tvMountStyle === "mobile";
   const isTabletopMount = televisionMetricsItem.tvMountStyle === "tabletop";
   return {
-    bodyHeight: televisionBodyHeight * (isMobileMount ? 0.43 : isTabletopMount ? 0.56 : 0.62),
-    centerY: televisionBodyHeight * (isMobileMount ? 0.76 : isTabletopMount ? 0.67 : 0.62)
+    bodyHeight: televisionBodyHeight * (isMobileMount ? 0.43 : isTabletopMount ? 0.56 : 1),
+    centerY: televisionBodyHeight * (isMobileMount ? 0.76 : isTabletopMount ? 0.72 : 0.5)
   };
 }
 /**
- * 给电视装上屏幕：关屏时是一块深色面板，开屏时有海报画面加一层外发光。屏幕比机身略小（宽 0.965、高 0.94）并贴在正面，深度
- * 偏移取 max(机身深 × 0.28, 0.05) × 0.5 + 6mm，保证不与机身共面。开屏时用六面材质数组只把正面换成海报贴图；另叠一张略大的
- * 加色发光面（opacity 0.09）模拟溢光，它关掉 depthTest、renderOrder 提前，避免被机身挡住。
+ * 量出「机身高度带」里最靠前的那个面，屏幕贴它往前 3mm。
+ *
+ * 为什么不能按经验公式（机身深 × 0.28）算固定偏移：三份挂装模型的机身进深并不一样
+ * （挂装只有机身那 60mm、座装 / 移动支架的进深主要是底盘），固定偏移会让屏幕浮在机身之前
+ * 或陷进机身里。所以直接量：只认落在机身高度带内的网格 —— 底盘、底板、脚轮都在带外，
+ * 立杆与推手横杆在带内但排在机身之后，量出来的就是机身前脸。
+ *
+ * 量不到（占位几何 / 机型不认识）时返回 null，由调用方退回经验公式。坐标一律换算到
+ * parentObject 的局部系再比，物件在场景里被转过角度也不影响判定。
+ */
+function measureTelevisionBodyFrontZ(parentObject, bodyMinY, bodyMaxY) {
+  const externalModelRoot = parentObject.children.find(
+    modelChild => modelChild.userData.externalModelRoot === true
+  );
+  if (!externalModelRoot) {
+    // 顶上还是占位几何：它的机身厚度与偏移是照经验公式画的，交给调用方走同一条公式。
+    return null;
+  }
+  parentObject.updateMatrixWorld(true);
+  const parentInverse = new threeModuleMin.Matrix4().copy(parentObject.matrixWorld).invert();
+  const meshMatrix = new threeModuleMin.Matrix4();
+  const corner = new threeModuleMin.Vector3();
+  const meshBounds = new threeModuleMin.Box3();
+  let frontZ = -Infinity;
+  externalModelRoot.traverse(televisionChild => {
+    if (!televisionChild.isMesh || !televisionChild.geometry) {
+      return;
+    }
+    if (televisionChild.userData.televisionScreen || televisionChild.userData.televisionGlow) {
+      return;
+    }
+    if (!televisionChild.geometry.boundingBox) {
+      televisionChild.geometry.computeBoundingBox();
+    }
+    const geometryBounds = televisionChild.geometry.boundingBox;
+    meshMatrix.multiplyMatrices(parentInverse, televisionChild.matrixWorld);
+    meshBounds.makeEmpty();
+    for (let cornerIndex = 0; cornerIndex < 8; cornerIndex += 1) {
+      corner
+        .set(
+          cornerIndex & 1 ? geometryBounds.max.x : geometryBounds.min.x,
+          cornerIndex & 2 ? geometryBounds.max.y : geometryBounds.min.y,
+          cornerIndex & 4 ? geometryBounds.max.z : geometryBounds.min.z
+        )
+        .applyMatrix4(meshMatrix);
+      meshBounds.expandByPoint(corner);
+    }
+    if (meshBounds.max.y < bodyMinY || meshBounds.min.y > bodyMaxY) {
+      return;
+    }
+    frontZ = Math.max(frontZ, meshBounds.max.z);
+  });
+  return Number.isFinite(frontZ) ? frontZ : null;
+}
+/**
+ * 给电视装上屏幕：关屏时是一块深色面板，开屏时有海报画面加一层外发光。屏幕比机身略小（宽 0.965、高 0.94）并贴在机身前脸上，
+ * 前脸位置**量出来**（见 measureTelevisionBodyFrontZ）：有外挂模型时贴机身实测的前脸，占位几何时退回「机身深 × 0.28 的一半 + 6mm」
+ * 那条经验公式 —— 占位机身是按这个偏移画的，两者一致。开屏时用六面材质数组只把正面换成海报贴图；另叠一张略大的加色发光面
+ * （opacity 0.09）模拟溢光，它关掉 depthTest、renderOrder 提前，避免被机身挡住。
  */
 function addTelevisionScreenMeshes(
   televisionParent,
@@ -15414,7 +16632,16 @@ function addTelevisionScreenMeshes(
   const screenWidth = tvScreenWidth * 0.965;
   const screenHeight = bodyHeight * 0.94;
   const screenDepth = 0.012;
-  const screenOffsetZ = Math.max(tvBodyDepth * 0.28, 0.05) * 0.5 + 0.006;
+  // 屏幕前脸：贴机身前脸再往前 3mm，于是屏幕后 3mm 埋进机身、前 3mm 露在外面（贴平会闪烁）。
+  const measuredBodyFrontZ = measureTelevisionBodyFrontZ(
+    televisionParent,
+    screenCenterY - bodyHeight * 0.5,
+    screenCenterY + bodyHeight * 0.5
+  );
+  const screenOffsetZ =
+    measuredBodyFrontZ === null
+      ? Math.max(tvBodyDepth * 0.28, 0.05) * 0.5 + 0.006
+      : measuredBodyFrontZ + 0.003;
   const screenCenterZ = screenOffsetZ - screenDepth * 0.5;
   if (televisionScreenItem.screenEnabled === false) {
     const screenOffMesh = addBoxMesh(
@@ -15579,6 +16806,10 @@ function addVehicleChargingEffect(
   chargingGlowMesh.renderOrder = 2;
   chargingGlowMesh.castShadow = false;
   chargingGlowMesh.receiveShadow = false;
+  // 特效叠层，不是占位几何：小车模型加载完成时，finishItemModel 会把「此刻挂在模型组上的
+  // 几何」整批换掉（那些是加载中的代餐盒体），这一块必须跟着活下来 —— 不标记的话，
+  // 充电特效会在车模到位的一瞬间凭空消失。
+  chargingGlowMesh.userData.homeosModelOverlay = true;
   chargingParent.add(chargingGlowMesh);
   const boltShape = new threeModuleMin.Shape();
   boltShape.moveTo(0.08, 0.5);
@@ -15607,6 +16838,8 @@ function addVehicleChargingEffect(
   chargingBoltMesh.renderOrder = 9;
   chargingBoltMesh.castShadow = false;
   chargingBoltMesh.receiveShadow = false;
+  // 与光晕同理：闪电也是特效叠层，换模型时要留下（见上面 chargingGlowMesh 的说明）。
+  chargingBoltMesh.userData.homeosModelOverlay = true;
   chargingParent.add(chargingBoltMesh);
 }
 /**
@@ -15856,6 +17089,14 @@ function itemPlanFootprint(item) {
       depth: finite(item?.depth, 0)
     };
   }
+  if (item?.type === "tv") {
+    // 壁挂电视的进深是真身 60mm，直接画会细成一条线；平面符号与缩放手柄都按下限兜一下，
+    // 3D 那边仍按真实进深（60mm）立起来。
+    return {
+      width: finite(item?.width, 0),
+      depth: Math.max(finite(item?.depth, 0), TELEVISION_PLAN_MIN_DEPTH)
+    };
+  }
   return {
     width: finite(item?.width, 0),
     depth: finite(item?.depth, 0)
@@ -15892,6 +17133,16 @@ function itemFromPlanFootprintResize(item, resized) {
       ...resized,
       width: finite(item?.width, 0),
       height: finite(item?.height, 0)
+    };
+  }
+  if (item?.type === "tv") {
+    // 电视进深是「挂装方式 + 真身」决定的物理量（壁挂 60mm / 座装 180mm / 移动支架 550mm），
+    // 变更它的唯一入口是切换挂装方式（snapTelevisionMountDimensions）。平面上为了符号与手柄
+    // 抓得住，itemPlanFootprint 给进深兜了个下限，于是拖拽结果里的 depth 一律丢掉 ——
+    // 与立姿灯带的厚度同样处理；不丢的话「拉一下宽度」会把壁挂机身顺手加厚一倍。
+    return {
+      ...resized,
+      depth: finite(item?.depth, finite(resized?.depth, 0.1))
     };
   }
   return resized;
@@ -16107,23 +17358,30 @@ const ITEM_BUILDER_DEPS = {
   isStageViewerMode,
   shareGeometryAndMaterials,
   threeModuleMin,
-  marbleTopTexture: getMarbleTableTopTexture
+  marbleTopTexture: getMarbleTableTopTexture,
+  stoneSlabTexture: getStoneSlabTexture
 };
 /**
- * 餐桌大理石台面贴图：与背景墙「大理石」饰面共用同一张程序贴图。程序化台面
- * （BoxGeometry / CylinderGeometry）自带 UV，直接当 map 用即可，不必像外部模型那样补平面 UV。
- * 缓存一份是为了所有台面共享同一张贴图，避免每次构建都重新生成一张 1024×768 画布。
+ * 石材板整图，按色号取：程序化几何（茶几的两块石板、餐桌台面）用它贴图，与外部模型走
+ * **同一份缓存贴图** —— 否则「加载中的占位几何」与「到位后的成品」会是两种石头，
+ * 加载完成的一瞬间纹路会跳一下。缓存按色号分，同一色号所有构件共享一张。
  */
-let marbleTableTopTextureCache = null;
-function getMarbleTableTopTexture() {
-  if (!marbleTableTopTextureCache) {
-    marbleTableTopTextureCache = createFeatureWallTexture(
-      threeModuleMin,
-      "marble",
-      studioMaxTextureAnisotropy()
+const stoneSlabTextureByFlavor = new Map();
+function getStoneSlabTexture(flavor) {
+  if (!stoneSlabTextureByFlavor.has(flavor)) {
+    stoneSlabTextureByFlavor.set(
+      flavor,
+      createStoneSlabTexture(threeModuleMin, flavor, studioMaxTextureAnisotropy())
     );
   }
-  return marbleTableTopTextureCache;
+  return stoneSlabTextureByFlavor.get(flavor) ?? null;
+}
+/**
+ * 餐桌大理石台面贴图：即石材板的白色色号（见 getStoneSlabTexture），保留这个入口是因为
+ * 餐桌 / 圆餐桌的构建体按「大理石台面」的语义在用它。
+ */
+function getMarbleTableTopTexture() {
+  return getStoneSlabTexture("marble");
 }
 /**
  * 把一个平面条目构建成三维模型组 —— 全工程「条目数据 → three.js 对象」的唯一入口。
@@ -16137,8 +17395,9 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
   if (BATCH_OPTIMIZED_ITEM_TYPES.has(itemSpec.type)) {
     itemGroup.userData.optimizationBatch = "v1-next-ten";
   }
-  // 家居类走暖阳家居色卡（默认风格也生效），建筑 / 结构件仍取场景色卡。
-  const itemPalette = paletteForItemType(itemSpec.type);
+  // 家居类走暖阳家居色卡（默认风格也生效），建筑 / 结构件仍取场景色卡；
+  // 逐物件的 materialStyle 在此并入 —— 兜底几何与外部模型因此拿到同一份（含质感的）调色板。
+  const itemPalette = paletteForItemType(itemSpec.type, itemSpec.materialStyle);
   // 构建上下文 = 模块私有依赖 + 本次调用的入参与配色别名。
   // 每个构建体只解构自己用到的键，因此这里的键即全部构建体的外部依赖总和。
   const itemBuilderContext = {
@@ -16276,11 +17535,21 @@ function batchRepeatedItemMeshes(instanceRoot, instanceItemEntries) {
           "floorac",
           "airoutlet",
           "curtain",
+          "freshair",
+          "thermostat",
+          "humidifier",
+          "dehumidifier",
           "nas",
           "camera",
           "presence",
           "tv",
-          "robotvacuum"
+          "robotvacuum",
+          "doorbell",
+          "heater",
+          "ceilingac",
+          "ceilingfan",
+          "vacuumcleaner",
+          "floorwasher"
         ].includes(instanceItemSpec.type)) ||
       isSelected("item", instanceItemSpec.id)
     ) {
@@ -16425,11 +17694,21 @@ function mergeStaticItemMeshes(staticBatchRoot, staticItemEntries) {
           "floorac",
           "airoutlet",
           "curtain",
+          "freshair",
+          "thermostat",
+          "humidifier",
+          "dehumidifier",
           "nas",
           "camera",
           "presence",
           "tv",
-          "robotvacuum"
+          "robotvacuum",
+          "doorbell",
+          "heater",
+          "ceilingac",
+          "ceilingfan",
+          "vacuumcleaner",
+          "floorwasher"
         ].includes(staticItemSpec.type)) &&
       !isSelected("item", staticItemSpec.id)
     ) {
@@ -18769,11 +20048,21 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
         "floorac",
         "airoutlet",
         "curtain",
+        "freshair",
+        "thermostat",
+        "humidifier",
+        "dehumidifier",
         "nas",
         "camera",
         "presence",
         "tv",
-        "robotvacuum"
+        "robotvacuum",
+        "doorbell",
+        "heater",
+        "ceilingac",
+        "ceilingfan",
+        "vacuumcleaner",
+        "floorwasher"
       ].includes(placedItemSpec.type)
     ) {
       placedItemModel.userData.environmentModelId = placedItemSpec.id;
@@ -19105,11 +20394,21 @@ function rebuildModelLayer(
         "floorac",
         "airoutlet",
         "curtain",
+        "freshair",
+        "thermostat",
+        "humidifier",
+        "dehumidifier",
         "nas",
         "camera",
         "presence",
         "tv",
-        "robotvacuum"
+        "robotvacuum",
+        "doorbell",
+        "heater",
+        "ceilingac",
+        "ceilingfan",
+        "vacuumcleaner",
+        "floorwasher"
       ].includes(layerItemSpec.type)
     ) {
       layerItemModel.userData.environmentModelId = layerItemSpec.id;
@@ -20580,17 +21879,17 @@ function applyInspectorChanges(entityKind) {
         : "standard";
       if (previousMountStyle !== nextMountStyle && nextMountStyle === "mobile") {
         editingEntity.height = Math.max(editingEntity.height, MOBILE_TV_MOUNT_DIMENSIONS.height);
-        editingEntity.depth = Math.max(editingEntity.depth, MOBILE_TV_MOUNT_DIMENSIONS.depth);
         editingEntity.elevation = 0;
       } else if (
         previousMountStyle === "mobile" &&
         nextMountStyle !== "mobile" &&
-        Math.abs(editingEntity.height - MOBILE_TV_MOUNT_DIMENSIONS.height) < 0.001 &&
-        Math.abs(editingEntity.depth - MOBILE_TV_MOUNT_DIMENSIONS.depth) < 0.001
+        Math.abs(editingEntity.height - MOBILE_TV_MOUNT_DIMENSIONS.height) < 0.001
       ) {
         editingEntity.height = ITEM_TYPE_DEFINITIONS.tv.height;
-        editingEntity.depth = ITEM_TYPE_DEFINITIONS.tv.depth;
       }
+      // 进深与离地高度跟着挂装方式走（壁挂 60mm / 0.70m，座装 180mm / 落地，移动 550mm / 落地）：
+      // 不拨的话壁挂机身会被座装留下的 180mm 进深拉厚三倍、还杵在地上。手工改过的物件不受影响。
+      snapTelevisionMountDimensions(editingEntity, nextMountStyle);
       editingEntity.tvMountStyle = nextMountStyle;
     }
     if (editingEntity.type === "mural") {
@@ -20600,6 +21899,19 @@ function applyInspectorChanges(entityKind) {
       editingEntity.wallStyle = normalizeFeatureWallStyle(
         selectElement("#feature-wall-style").value
       );
+    }
+    if (isMaterialStyleCapable(editingEntity.type)) {
+      const nextMaterialStyle = normalizeMaterialStyle(
+        editingEntity.type,
+        selectElement("#material-style").value
+      );
+      // auto 不落键：草稿 / 快照里只有真正选过风格才留下 materialStyle，
+      // 因此「选回跟随全局」等于把物件还原成加了属性之前的状态。
+      if (nextMaterialStyle === MATERIAL_STYLE_AUTO) {
+        delete editingEntity.materialStyle;
+      } else {
+        editingEntity.materialStyle = nextMaterialStyle;
+      }
     }
     if (editingEntity.type === "pillar") {
       editingEntity.pillarShape = normalizePillarShape(selectElement("#pillar-shape").value);
@@ -20719,7 +22031,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609231402");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609251458");
       mountStage(createStageController());
       return;
     }
@@ -22543,6 +23855,7 @@ selectElement("#mural-style").addEventListener("change", () => applyInspectorCha
 selectElement("#feature-wall-style").addEventListener("change", () =>
   applyInspectorChanges("item")
 );
+selectElement("#material-style").addEventListener("change", () => applyInspectorChanges("item"));
 selectElement("#pillar-shape").addEventListener("change", () => applyInspectorChanges("item"));
 selectElement("#pillar-axis").addEventListener("change", () => applyInspectorChanges("item"));
 selectElement("#strip-axis").addEventListener("change", () => applyInspectorChanges("item"));

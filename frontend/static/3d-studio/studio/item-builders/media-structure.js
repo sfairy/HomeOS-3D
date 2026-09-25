@@ -147,67 +147,58 @@ export function buildTvItem(context) {
     computeTelevisionBodyMetrics(itemSpec, itemHeight);
   const televisionBodyBottomY = televisionBodyCenterY - televisionScreenHeight * 0.5;
   if (itemSpec.tvMountStyle === "mobile") {
-    const televisionNeckHeight = Math.max(itemHeight * 0.045, 0.055);
-    const televisionNeckWidth = itemWidth * 0.7;
-    const televisionNeckDepth = Math.max(itemDepth * 0.78, 0.3);
+    // 与 tv_mobile 规格同构：四只脚轮 + 落地底盘 + 立杆（顶上收一条推手横杆）+ 机身。占位几何只在
+    // 模型到位前露脸（离线导出里则一直顶替模型），轮廓同形才不会「加载完成前后跳一下」；原来那块
+    // 底座画在 televisionBodyBottomY * 0.76 —— 一块悬在 0.64m 半空的板。
+    const televisionCasterRadius = Math.max(Math.min(itemWidth, itemDepth) * 0.05, 0.026);
+    const televisionBaseHeight = Math.max(itemHeight * 0.032, 0.04);
+    const televisionBaseWidth = Math.max(itemWidth * 0.4, televisionCasterRadius * 4);
+    const televisionBaseDepth = Math.max(itemDepth * 0.85, televisionCasterRadius * 4);
+    const televisionStandWidth = Math.max(itemWidth * 0.06, 0.07);
+    const televisionStandDepth = Math.max(itemDepth * 0.12, 0.05);
+    const televisionStandZ = -itemDepth * 0.22;
+    const televisionStandBottomY = televisionCasterRadius * 2 + televisionBaseHeight;
+    // 立杆一直升到整件高度（与 tv_mobile 规格一致：它从底盘穿到顶、推手横杆收在顶端），
+    // 机身高度带里的那段落在机身之后，不会顶到屏幕。
     const televisionStandHeight = Math.max(
-      televisionBodyBottomY - televisionNeckHeight * 0.7,
-      itemHeight * 0.22
+      itemHeight - televisionStandBottomY,
+      itemHeight * 0.2
     );
-    const televisionStandCenterY = televisionNeckHeight * 0.7 + televisionStandHeight * 0.5;
-    addBoxMesh(
-      itemGroup,
-      televisionNeckWidth,
-      televisionNeckHeight,
-      televisionNeckDepth,
-      0,
-      televisionNeckHeight * 0.72,
-      0,
-      furnitureDarkColor,
-      {
-        radius: Math.min(televisionNeckHeight, televisionNeckDepth) * 0.22,
-        metalness: 0.18,
-        roughness: 0.32
+    const televisionStandCenterY = televisionStandBottomY + televisionStandHeight * 0.5;
+    for (const televisionCasterOffsetX of [
+      -televisionBaseWidth * 0.4,
+      televisionBaseWidth * 0.4
+    ]) {
+      for (const televisionCasterOffsetZ of [
+        -televisionBaseDepth * 0.4,
+        televisionBaseDepth * 0.4
+      ]) {
+        addCylinderMesh(
+          itemGroup,
+          televisionCasterRadius,
+          televisionCasterRadius,
+          Math.max(televisionCasterRadius * 0.8, 0.018),
+          televisionCasterOffsetX,
+          televisionCasterRadius,
+          televisionCasterOffsetZ,
+          1448479,
+          {
+            segments: 20,
+            rotationZ: Math.PI / 2,
+            roughness: 0.4,
+            metalness: 0.1
+          }
+        );
       }
-    );
+    }
     addBoxMesh(
       itemGroup,
-      itemWidth * 0.075,
-      televisionStandHeight,
-      Math.max(itemDepth * 0.2, 0.06),
-      -itemWidth * 0.035,
-      televisionStandCenterY,
-      -itemDepth * 0.03,
-      furnitureDarkColor,
-      {
-        rounded: false,
-        metalness: 0.2,
-        roughness: 0.3
-      }
-    );
-    addBoxMesh(
-      itemGroup,
-      itemWidth * 0.105,
-      televisionStandHeight * 0.86,
-      Math.max(itemDepth * 0.12, 0.04),
-      itemWidth * 0.025,
-      televisionStandCenterY + televisionStandHeight * 0.02,
-      itemDepth * 0.015,
-      furnitureSoftColor,
-      {
-        rounded: false,
-        metalness: 0.35,
-        roughness: 0.28
-      }
-    );
-    addBoxMesh(
-      itemGroup,
-      itemWidth * 0.34,
-      Math.max(itemHeight * 0.018, 0.025),
-      Math.max(itemDepth * 0.5, 0.2),
+      televisionBaseWidth,
+      televisionBaseHeight,
+      televisionBaseDepth,
       0,
-      televisionBodyBottomY * 0.76,
-      itemDepth * 0.04,
+      televisionCasterRadius * 2 + televisionBaseHeight * 0.5,
+      0,
       furnitureDarkColor,
       {
         radius: 0.012,
@@ -215,33 +206,37 @@ export function buildTvItem(context) {
         roughness: 0.3
       }
     );
-    const televisionButtonRadius = Math.max(Math.min(itemWidth, itemDepth) * 0.045, 0.025);
-    for (const televisionButtonOffsetX of [
-      -televisionNeckWidth * 0.42,
-      televisionNeckWidth * 0.42
-    ]) {
-      for (const televisionButtonOffsetZ of [
-        -televisionNeckDepth * 0.34,
-        televisionNeckDepth * 0.34
-      ]) {
-        addCylinderMesh(
-          itemGroup,
-          televisionButtonRadius,
-          televisionButtonRadius,
-          Math.max(televisionButtonRadius * 0.56, 0.018),
-          televisionButtonOffsetX,
-          televisionButtonRadius,
-          televisionButtonOffsetZ,
-          1448479,
-          {
-            segments: 20,
-            rotationZ: Math.PI / 2,
-            roughness: 0.38,
-            metalness: 0.1
-          }
-        );
+    addBoxMesh(
+      itemGroup,
+      televisionStandWidth,
+      televisionStandHeight,
+      televisionStandDepth,
+      0,
+      televisionStandCenterY,
+      televisionStandZ,
+      furnitureDarkColor,
+      {
+        rounded: false,
+        metalness: 0.2,
+        roughness: 0.3
       }
-    }
+    );
+    const televisionHandleHeight = Math.max(itemHeight * 0.026, 0.03);
+    addBoxMesh(
+      itemGroup,
+      Math.max(itemWidth * 0.34, televisionStandWidth * 2),
+      televisionHandleHeight,
+      televisionStandDepth,
+      0,
+      itemHeight - televisionHandleHeight * 0.5,
+      televisionStandZ,
+      furnitureSoftColor,
+      {
+        rounded: false,
+        metalness: 0.3,
+        roughness: 0.28
+      }
+    );
   } else if (itemSpec.tvMountStyle === "tabletop") {
     const televisionBaseHeight = Math.max(itemHeight * 0.035, 0.028);
     const televisionBaseWidth = itemWidth * 0.34;

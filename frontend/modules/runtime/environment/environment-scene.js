@@ -8,13 +8,13 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609231402";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609251458";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
 // 现已提为共享实现，其余模块不再各写一份。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609231402";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609251458";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609231402";
-import { createEnvironmentHalos } from "./environment-halos.js?v=2609231402";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609251458";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609251458";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
@@ -67,16 +67,42 @@ export function pageDimming(config, activeModule, isFocusMode = false) {
   };
 }
 // 模型类型 → 所属页面的映射，用于把静态模型也纳入页面绑定（见 pageModelBindings）。
+/**
+ * 「环境模型类型」这组清单在仓库里重复了七处（这里是两张表，另有 environment-halos.js 的描边资格
+ * 清单与 studio-app.js 的四处内联清单），逐处漏写都不报错、只静默少特效或少绑定。改动请成组进行，
+ * 由 tools/check_invariants.mjs 的「环境模型类型七处清单不一致」逐字把关。
+ *
+ * 新风机 / 温控面板 / 加湿器 / 除湿器按 climate 收（HA 里都是温湿度与新风一类可调控对象），
+ * 可视门铃按 camera 收（它本身就是一路摄像头）。
+ *
+ * 以下新家电**刻意不登记**（不是遗漏），原因都是「没有对得上的 deviceKind」，登记了只会借错渲染：
+ *   - soundbar / speaker / projector：唯一的媒体种类是 television，而 television 那条支路会往模型上
+ *     画**屏幕画面**（television-state.js）。回音壁没有屏，接上去等于给它贴一张不该存在的画面；
+ *   - gateway：网络类只有 nas，而 nas 那条支路挂的是**硬盘状态灯**（nas-status.js），语义不对；
+ *   - smartlock / smartpanel：HA 里的 lock / 面板类在本项目没有对应种类，硬套 presence（人体感应）
+ *     会把门锁显示成「有人在」。
+ * 这些类型在工作室里照常摆放、照常套材质风格；要走 HA，得先补出对应的 deviceKind。
+ */
 const MODEL_TYPE_TO_PAGE = {
   wallac: "environment",
   floorac: "environment",
   airoutlet: "environment",
   curtain: "environment",
+  freshair: "environment",
+  thermostat: "environment",
+  humidifier: "environment",
+  dehumidifier: "environment",
   nas: "devices",
   tv: "devices",
   robotvacuum: "vacuum",
   camera: "security",
-  presence: "security"
+  presence: "security",
+  doorbell: "security",
+  heater: "environment",
+  ceilingac: "environment",
+  ceilingfan: "environment",
+  vacuumcleaner: "vacuum",
+  floorwasher: "vacuum",
 };
 // 模型类型 → 设备种类；驱动发光参数（lift）与状态取值的差异。
 const MODEL_TYPE_TO_DEVICE_KIND = {
@@ -84,11 +110,21 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
   floorac: "climate",
   airoutlet: "climate",
   curtain: "cover",
+  freshair: "climate",
+  thermostat: "climate",
+  humidifier: "climate",
+  dehumidifier: "climate",
   nas: "nas",
   tv: "television",
   robotvacuum: "vacuum",
   camera: "camera",
-  presence: "presence"
+  presence: "presence",
+  doorbell: "camera",
+  heater: "climate",
+  ceilingac: "climate",
+  ceilingfan: "climate",
+  vacuumcleaner: "vacuum",
+  floorwasher: "vacuum",
 };
 /**
  * 把「楼层场景里的静态模型」合成为页面绑定列表。

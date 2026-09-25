@@ -442,14 +442,75 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
 }
 
 /**
- * 大理石饰面：白底 + 柔和的云斑 + 9 条粗黑纹 + 46 条细纹 + 明暗噪点。
+ * 大理石的两个色号。**画法只有一套**（同一个随机结构、同一组云斑与纹路数量），色号只换调色：
+ * 底色渐变、云斑明暗、主纹 / 细纹的颜色与透明度、噪点色，以及随机种子。
+ *
+ * 为什么做成「色号」而不是两份画法：白石与黑石在实物上是同一种石头（都是抛光大理岩），
+ * 差别只在底色与纹路反差 —— 若各写一套，两边的纹路风格、疏密必然慢慢跑偏，
+ * 同一件家具上的上下两块石板会像两种完全不同的材料。
+ *
+ * ⚠️ 白色色号（`white`）的每一项都必须是**原值**：背景墙的大理石饰面与餐桌台面用的是同一张图，
+ * 动这里的数字会连带改掉背景墙。加色号请只加新对象，不要改 white。
  */
-function paintFeatureWallMarble(canvasCtx, width, height) {
-  const marbleRandom = seededRandomSource(88117);
+const MARBLE_TONES = Object.freeze({
+  white: Object.freeze({
+    seed: 88117,
+    baseStops: Object.freeze([
+      [0, "#ffffff"],
+      [0.5, "#fbfbfa"],
+      [1, "#f2f2f0"]
+    ]),
+    cloudLightTone: "255, 255, 255",
+    cloudLightAlpha: Object.freeze([0.08, 0.18]),
+    cloudDarkTone: "214, 216, 220",
+    cloudDarkAlpha: Object.freeze([0.03, 0.08]),
+    mainVeinTone: "16, 17, 20",
+    mainVeinAlpha: Object.freeze([0.34, 0.42]),
+    mainVeinWidth: Object.freeze([1.6, 5.2]),
+    fineVeinTone: "38, 40, 45",
+    fineVeinAlpha: Object.freeze([0.14, 0.3]),
+    fineVeinWidth: Object.freeze([0.7, 1.9]),
+    speckLightTone: "255, 255, 255",
+    speckLightAlpha: ".5",
+    speckDarkTone: "24, 25, 28",
+    speckDarkAlpha: ".3"
+  }),
+  // 黑金大理石（黑底白纹）：实物参考里黑石座就是这一支 —— 近黑的底上飘着灰白纹路，
+  // 纹路比白石那支更细更亮（黑底上只有亮纹才看得见，暗纹等于没有）。
+  dark: Object.freeze({
+    seed: 20260924,
+    baseStops: Object.freeze([
+      [0, "#14161a"],
+      [0.5, "#1b1e23"],
+      [1, "#0d0f12"]
+    ]),
+    cloudLightTone: "122, 130, 142",
+    cloudLightAlpha: Object.freeze([0.05, 0.1]),
+    cloudDarkTone: "4, 5, 7",
+    cloudDarkAlpha: Object.freeze([0.05, 0.12]),
+    mainVeinTone: "236, 239, 244",
+    mainVeinAlpha: Object.freeze([0.34, 0.42]),
+    mainVeinWidth: Object.freeze([1.4, 4.0]),
+    fineVeinTone: "176, 186, 198",
+    fineVeinAlpha: Object.freeze([0.12, 0.26]),
+    fineVeinWidth: Object.freeze([0.6, 1.6]),
+    speckLightTone: "235, 240, 246",
+    speckLightAlpha: ".34",
+    speckDarkTone: "6, 7, 9",
+    speckDarkAlpha: ".42"
+  })
+});
+
+/**
+ * 抛光大理岩：底色渐变 + 柔和的云斑 + 9 条粗主纹 + 46 条细纹 + 明暗噪点。
+ * @param {object} tone MARBLE_TONES 里的一档。
+ */
+function paintMarbleSlab(canvasCtx, width, height, tone) {
+  const marbleRandom = seededRandomSource(tone.seed);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
-  surfaceBase.addColorStop(0, "#ffffff");
-  surfaceBase.addColorStop(0.5, "#fbfbfa");
-  surfaceBase.addColorStop(1, "#f2f2f0");
+  for (const [stopOffset, stopColor] of tone.baseStops) {
+    surfaceBase.addColorStop(stopOffset, stopColor);
+  }
   canvasCtx.fillStyle = surfaceBase;
   canvasCtx.fillRect(0, 0, width, height);
   for (let cloud = 0; cloud < 24; cloud += 1) {
@@ -457,8 +518,10 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
     const cloudY = marbleRandom() * height;
     const cloudRadius = Math.min(width, height) * (0.08 + marbleRandom() * 0.32);
     const cloudLighter = marbleRandom() > 0.35;
-    const cloudTone = cloudLighter ? "255, 255, 255" : "214, 216, 220";
-    const cloudAlpha = cloudLighter ? 0.08 + marbleRandom() * 0.18 : 0.03 + marbleRandom() * 0.08;
+    const cloudTone = cloudLighter ? tone.cloudLightTone : tone.cloudDarkTone;
+    // 偏亮 / 偏暗两路各自一对「基准 + 浮动」，与 tone 里的两对区间一一对应。
+    const cloudAlphaRange = cloudLighter ? tone.cloudLightAlpha : tone.cloudDarkAlpha;
+    const cloudAlpha = cloudAlphaRange[0] + marbleRandom() * cloudAlphaRange[1];
     const cloudGradient = canvasCtx.createRadialGradient(
       cloudX,
       cloudY,
@@ -478,7 +541,7 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
     );
   }
   canvasCtx.lineCap = "round";
-  // 粗黑主纹是白色大理石最典型的对比特征，宽度与透明度随随机数变化。
+  // 粗主纹是抛光大理石最典型的对比特征，宽度与透明度随随机数变化。
   for (let vein = 0; vein < 9; vein += 1) {
     const veinPoints = [];
     let veinX = width * (-0.04 + marbleRandom() * 1.08);
@@ -489,8 +552,13 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
       veinY += height * (0.07 + marbleRandom() * 0.13);
       veinPoints.push({ x: veinX, y: veinY });
     }
-    canvasCtx.strokeStyle = "rgba(16, 17, 20, " + (0.34 + marbleRandom() * 0.42).toFixed(2) + ")";
-    canvasCtx.lineWidth = 1.6 + marbleRandom() * 5.2;
+    canvasCtx.strokeStyle =
+      "rgba(" +
+      tone.mainVeinTone +
+      ", " +
+      (tone.mainVeinAlpha[0] + marbleRandom() * tone.mainVeinAlpha[1]).toFixed(2) +
+      ")";
+    canvasCtx.lineWidth = tone.mainVeinWidth[0] + marbleRandom() * tone.mainVeinWidth[1];
     strokeSmoothPath(canvasCtx, veinPoints);
   }
   // 再补一层更细、更淡的分支纹：只有主纹的话会像印刷的条纹而不像石材。
@@ -505,18 +573,30 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
       fineY += height * (0.05 + marbleRandom() * 0.1);
       finePoints.push({ x: fineX, y: fineY });
     }
-    canvasCtx.strokeStyle = "rgba(38, 40, 45, " + (0.14 + marbleRandom() * 0.3).toFixed(2) + ")";
-    canvasCtx.lineWidth = 0.7 + marbleRandom() * 1.9;
+    canvasCtx.strokeStyle =
+      "rgba(" +
+      tone.fineVeinTone +
+      ", " +
+      (tone.fineVeinAlpha[0] + marbleRandom() * tone.fineVeinAlpha[1]).toFixed(2) +
+      ")";
+    canvasCtx.lineWidth = tone.fineVeinWidth[0] + marbleRandom() * tone.fineVeinWidth[1];
     strokeSmoothPath(canvasCtx, finePoints);
   }
-  canvasCtx.fillStyle = "rgba(255, 255, 255, .5)";
+  canvasCtx.fillStyle = "rgba(" + tone.speckLightTone + ", " + tone.speckLightAlpha + ")";
   for (let speck = 0; speck < 700; speck += 1) {
     canvasCtx.fillRect(marbleRandom() * width, marbleRandom() * height, 1.2, 1.2);
   }
-  canvasCtx.fillStyle = "rgba(24, 25, 28, .3)";
+  canvasCtx.fillStyle = "rgba(" + tone.speckDarkTone + ", " + tone.speckDarkAlpha + ")";
   for (let speck = 0; speck < 260; speck += 1) {
     canvasCtx.fillRect(marbleRandom() * width, marbleRandom() * height, 1.3, 1.3);
   }
+}
+
+/**
+ * 大理石饰面：白色色号（与石材板共用同一套画法，见 MARBLE_TONES）。
+ */
+function paintFeatureWallMarble(canvasCtx, width, height) {
+  paintMarbleSlab(canvasCtx, width, height, MARBLE_TONES.white);
 }
 
 /**
@@ -898,5 +978,59 @@ export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1
   texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
   texture.needsUpdate = true;
   featureWallTextures.set(wallStyle, texture);
+  return texture;
+}
+
+/**
+ * 石材板整图的色号表：**整块石材**（茶几的上下两块石板、餐桌台面）走这里，
+ * 与「细节层」（studio-surface-fabrics.js 的 SURFACE_TEXTURE_ALIAS）不是一回事 ——
+ * 细节层是均值≈1 的中性灰图，只能压暗、不能提亮，所以黑底白纹的石材**做不出来**
+ * （近黑底上再乘什么都还是黑的）。石材板要的是自带颜色的整图，因此单独走一条路。
+ *
+ * 白色色号直接复用背景墙那张大理石图：同一种石材在背景墙与茶几上必须是同一张，
+ * 否则近看会发现两种纹路（与 studio-surface-fabrics.js 的分工注释同一条约定）。
+ * 黑色色号不登记进 FEATURE_WALL_STYLES —— 它不是背景墙的饰面选项，加了会平白多出一个
+ * 用户可见的墙面色号，而这里要的只是家具上的一块灰石。
+ */
+const STONE_SLAB_TONES = Object.freeze({
+  marble: MARBLE_TONES.white,
+  "marble-dark": MARBLE_TONES.dark
+});
+
+const stoneSlabTextures = new Map();
+
+/**
+ * 生成（或取回缓存的）石材板整图。
+ * @param {object} threeApi THREE 命名空间（必须与场景同一份）。
+ * @param {string} flavor 色号：marble（白）/ marble-dark（黑金）。
+ * @param {number} [maxAnisotropy] 各向异性上限。
+ * @returns {object|null} 取不到时返回 null（调用方退化成纯色，不影响其余部件）。
+ */
+export function createStoneSlabTexture(threeApi, flavor, maxAnisotropy = 1) {
+  if (flavor === "marble") {
+    // 与背景墙共用同一份缓存实例；调用方负责 clone 后再改平铺方式。
+    return createFeatureWallTexture(threeApi, "marble", maxAnisotropy);
+  }
+  const tone = STONE_SLAB_TONES[flavor];
+  if (!tone || typeof document === "undefined" || typeof threeApi?.CanvasTexture !== "function") {
+    return null;
+  }
+  if (stoneSlabTextures.has(flavor)) {
+    return stoneSlabTextures.get(flavor);
+  }
+  // 与背景墙同尺寸：石材近看的纹路要经得起贴到 1.7m 长的板面上。
+  const canvasElement = document.createElement("canvas");
+  canvasElement.width = 1024;
+  canvasElement.height = 768;
+  const canvasCtx = canvasElement.getContext("2d");
+  if (!canvasCtx) {
+    return null;
+  }
+  paintMarbleSlab(canvasCtx, canvasElement.width, canvasElement.height, tone);
+  const texture = new threeApi.CanvasTexture(canvasElement);
+  texture.colorSpace = threeApi.sRGBColorSpace ?? threeApi.SRGBColorSpace;
+  texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
+  texture.needsUpdate = true;
+  stoneSlabTextures.set(flavor, texture);
   return texture;
 }

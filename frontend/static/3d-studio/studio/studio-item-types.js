@@ -43,36 +43,117 @@ export const SQUARE_EDGE_ITEM_TYPES = new Set([
   "rangehood",
   "nas",
   "pipelinewaterpurifier",
-  "tea_bar_machine"
+  "tea_bar_machine",
+  "chestdrawer",
+  "entrycabinet",
+  "displaycabinet",
+  "console",
+  "sidetable",
+  "bench",
+  "soundbar",
+  "dehumidifier",
+  "freshair",
+  "thermostat",
+  "smartpanel",
+  "smartlock",
+  "doorbell",
+  "gateway",
+  "locker",
+  "laundrycabinet",
+  "balconycabinet",
+  "winecabinet",
+  "kitchenisland",
+  "pantry",
+  "computertable",
+  "filecabinet",
+  "booktower",
+  "nestingtable",
+  "screenspan",
+  "cot",
+  "gameconsole",
+  "avreceiver",
+  "screenpanel",
+  "heater",
+  "ceilingac",
+  "dryingrack",
+  "garmentcare",
+  "integratedstove",
+  "sterilizer",
+  "oven",
+  "waterpurifier",
+  "trashbin",
+  "router",
+  "printer"
 ]);
 
 /** 家电配色（与家具色区分）的类型。 */
 export const APPLIANCE_ITEM_TYPES = new Set([
+  // 客厅与环境：影音 + 环境设备（含清洁机器与装饰灯具）
+  "tv",
+  "camera",
+  "presence",
+  "soundbar",
+  "speaker",
+  "projector",
+  "screenpanel",
+  "gameconsole",
+  "avreceiver",
+  "wallac",
+  "floorac",
+  "ceilingac",
+  "ceilingfan",
+  "airpurifier",
+  "airoutlet",
+  "robotvacuum",
+  "vacuumcleaner",
+  "floorwasher",
+  "fan",
+  "humidifier",
+  "dehumidifier",
+  "freshair",
+  "heater",
+  "floorlamp",
+  "walllamp",
+  // 厨房电器
   "fridge",
+  "rangehood",
+  "dishwasher",
+  "steamoven",
+  "microwave",
+  "integratedstove",
+  "oven",
+  "sterilizer",
+  "ricecooker",
+  "coffeemaker",
+  "kettle",
+  "airfryer",
+  "blender",
+  // 洗护
+  "washer",
+  "dryer",
+  "garmentcare",
+  "airer",
+  "dryingrack",
+  // 热水与饮水
   "storagewaterheater",
   "gaswaterheater",
   "pipelinewaterpurifier",
   "tea_bar_machine",
-  "washer",
-  "airoutlet",
-  "dryer",
-  "dishwasher",
-  "steamoven",
-  "microwave",
-  "ricecooker",
-  "rangehood",
-  "wallac",
-  "floorac",
-  "robotvacuum",
-  "nas",
-  "camera",
-  "presence",
-  "airpurifier",
-  "tv",
+  "waterpurifier",
+  // 办公与设备
   "desktop",
   "laptop",
-  "floorlamp",
-  "walllamp"
+  "nas",
+  "router",
+  "printer",
+  // 智能家居
+  "thermostat",
+  "smartpanel",
+  "smartlock",
+  "doorbell",
+  "gateway",
+  "smartspeaker",
+  "trashbin"
 ]);
 
 /** 灯具类型：走灯光支路（可调光/调色温），不是普通网格。 */
@@ -117,6 +198,18 @@ export const HOME_ITEM_TYPES = new Set([
   "vanity",
   "piano",
   "aquarium",
+  "armchair",
+  "loungechair",
+  "ottoman",
+  "bench",
+  "barstool",
+  "sidetable",
+  "console",
+  "chestdrawer",
+  "entrycabinet",
+  "displaycabinet",
+  "bunkbed",
+  "kidsbed",
   // 软装
   "curtain",
   "rug",
@@ -148,6 +241,18 @@ export const HOME_ITEM_TYPES = new Set([
   "nas",
   "camera",
   "presence",
+  "soundbar",
+  "speaker",
+  "projector",
+  "fan",
+  "humidifier",
+  "dehumidifier",
+  "freshair",
+  "thermostat",
+  "smartpanel",
+  "smartlock",
+  "doorbell",
+  "gateway",
   // 洁具
   "basin",
   "toilet",
@@ -155,7 +260,48 @@ export const HOME_ITEM_TYPES = new Set([
   "urinal",
   "shower",
   "bathtub",
-  "glasspartition"
+  "glasspartition",
+  "chaise",
+  "nestingtable",
+  "roundcoffeetable",
+  "screenspan",
+  "coatrail",
+  "stool",
+  "locker",
+  "laundrycabinet",
+  "balconycabinet",
+  "winecabinet",
+  "kitchenisland",
+  "pantry",
+  "daybed",
+  "cot",
+  "computertable",
+  "officestool",
+  "filecabinet",
+  "booktower",
+  "gameconsole",
+  "avreceiver",
+  "screenpanel",
+  "smartspeaker",
+  "router",
+  "printer",
+  "ceilingfan",
+  "heater",
+  "ceilingac",
+  "vacuumcleaner",
+  "floorwasher",
+  "dryingrack",
+  "garmentcare",
+  "airer",
+  "integratedstove",
+  "sterilizer",
+  "oven",
+  "coffeemaker",
+  "kettle",
+  "airfryer",
+  "blender",
+  "waterpurifier",
+  "trashbin"
 ]);
 
 /**
@@ -186,7 +332,18 @@ export const JOINERY_ITEM_TYPES = new Set([
   "kitchensink",
   "kitchencooktop",
   "glasscabinet",
-  "vanity"
+  "vanity",
+  "chestdrawer",
+  "entrycabinet",
+  "displaycabinet",
+  "locker",
+  "laundrycabinet",
+  "balconycabinet",
+  "winecabinet",
+  "kitchenisland",
+  "pantry",
+  "filecabinet",
+  "booktower"
 ]);
 
 /**
@@ -211,11 +368,44 @@ export const ROUND_TABLE_TURNTABLE_ITEM_TYPES = new Set([
   "rounddiningtableturntable"
 ]);
 
+/**
+ * 俯视占地是**圆**的物件：平面图符号照它画圆，而不是兜底的圆角矩形。
+ *
+ * 判据不是照外观估的，而是实测流水线 GLB 的俯视轮廓（`node tools/audit_plan_symbols.mjs`）：
+ * **格数比 ≈ π/4（0.785）** 且**各向半径等长（径向变异系数 < 0.06）**。
+ * 两条一起看才准 —— 单看格数比会把「中间挖空」的方框误判成圆。
+ *
+ * 由 `check_invariants.mjs` 的「圆形占地的物件没有按圆画」一条兜底：实测是圆却不在名单里、
+ * 或名单里有但实测不是圆，都会当场报错。**图纸上要看起来对，就必须两边一起改** ——
+ * 这份名单管的是「画不画圆」，`studio-app.js` 里的分支管「圆里那点细节」。
+ */
+export const ROUND_FOOTPRINT_ITEM_TYPES = new Set([
+  "fan", // 落地扇：圆底座 + 圆网罩，俯视只有圆
+  "floorac", // 立式空调：圆筒机身
+  "humidifier", // 立式加湿器：圆桶
+  "airpurifier", // 空气净化器：圆筒
+  "trashbin", // 圆桶垃圾桶
+  "kettle", // 电热水壶：圆壶身
+  "stool", // 圆凳
+  "barstool", // 圆面吧凳
+  "roundcoffeetable", // 圆茶几（旧符号是方角矩形，与「圆」这个类型名都不符）
+  "coatrail" // 落地衣帽架：圆底盘
+]);
+
 /** 既有外部模型可以加载的类型：加载成功后叠加外观，加载不到再走程序化兜底。 */
 export const EXTERNAL_MODEL_ITEM_TYPES = new Set([
+  // 沙发在这里是必须的：EXTERNAL_ITEM_MODELS 里一直登记着 sofa 的 GLB，但这份名单漏了它，
+  // 于是 registry.js 那条判据（EXTERNAL_MODEL_ITEM_TYPES ∪ APPLIANCE_MODEL_ITEM_TYPES）
+  // 从不命中，资源静默变成死文件、画面上一直是 seating.js 那版程序化方块。
+  // 「注册表 ↔ 目录」的那条护栏查不出这种「注册了但没人会加载」，所以只能靠人记住：
+  // **往 EXTERNAL_ITEM_MODELS 加一条，就必须同时把类型加进这份名单。**
+  "sofa",
   "coffeetable",
   "squarecoffeetable",
   "tvstand",
+  // 钢琴：2026-09 按流水线规格重建（旧的那件是第三方素材，注册了却从没被加载过），
+  // 重建后与其它物件一样走外部模型，于是这里也必须补上 —— 否则它照旧只剩兜底那个方块。
+  "piano",
   "rug",
   "plant",
   "bed",
@@ -246,8 +436,49 @@ export const EXTERNAL_MODEL_ITEM_TYPES = new Set([
   "shower",
   "bathtub",
   "glasspartition",
+  "armchair",
+  "loungechair",
+  "ottoman",
+  "bench",
+  "barstool",
+  "sidetable",
+  "console",
+  "chestdrawer",
+  "entrycabinet",
+  "displaycabinet",
+  "bunkbed",
+  "kidsbed",
   "stairs",
-  "pillar"
+  "pillar",
+  "chaise",
+  "nestingtable",
+  "roundcoffeetable",
+  "screenspan",
+  "coatrail",
+  "stool",
+  "locker",
+  "laundrycabinet",
+  "balconycabinet",
+  "winecabinet",
+  "kitchenisland",
+  "pantry",
+  "daybed",
+  "cot",
+  "computertable",
+  "officestool",
+  "filecabinet",
+  "booktower",
+  // 建筑本体与车辆里的四件（2026-09 迁进流水线后补上）。它们**不在 HOME_ITEM_TYPES 里**
+  // （建筑本体不进暖阳家居配色，见那份名单的注释），但「不参与家居配色」与「不加载模型」是两件事：
+  // 早先这四件被顺带着漏掉了，注册条目与 GLB 一起空转（画面上一直是程序化兜底几何）。
+  // 柱族与直行楼梯当初没漏（stairs / pillar 就在本名单上），漏的是：
+  //   - steelstairs / glassstairs：兜底构建体先试外部模型，取不到才画过程几何；
+  //   - elevator：没有专用构建体，直接落进外部模型兜底；
+  //   - smallcar：有专用构建体（含充电特效），它自己会先试外部模型。
+  "steelstairs",
+  "glassstairs",
+  "elevator",
+  "smallcar"
 ]);
 
 /** 走新版合批构建路径的类型（构建时打 optimizationBatch 标记，便于统计）。 */
@@ -288,7 +519,47 @@ export const APPLIANCE_MODEL_ITEM_TYPES = new Set([
   "gaswaterheater",
   "desktop",
   "laptop",
-  "nas"
+  "nas",
+  "soundbar",
+  "speaker",
+  "projector",
+  "fan",
+  "humidifier",
+  "dehumidifier",
+  "freshair",
+  "thermostat",
+  "smartpanel",
+  "smartlock",
+  "doorbell",
+  "gateway",
+  "gameconsole",
+  "avreceiver",
+  "screenpanel",
+  "smartspeaker",
+  "router",
+  "printer",
+  "ceilingfan",
+  "heater",
+  "ceilingac",
+  "vacuumcleaner",
+  "floorwasher",
+  "dryingrack",
+  "garmentcare",
+  "airer",
+  "integratedstove",
+  "sterilizer",
+  "oven",
+  "coffeemaker",
+  "kettle",
+  "airfryer",
+  "blender",
+  "waterpurifier",
+  "trashbin",
+  // 以下三件 2026-09 已按流水线规格重建（新 GLB 带 scaleBasis 与角色槽位），原先挂在
+  // KNOWN_UNREACHABLE_MODEL_TYPES 上的「注册了却永不加载」债务随之收清。
+  "airoutlet",
+  "pipelinewaterpurifier",
+  "tea_bar_machine"
 ]);
 
 /**

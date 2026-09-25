@@ -414,6 +414,16 @@ export function buildGlasscabinetItem(context) {
 
 /**
  * 命中：itemSpec.type === "bookcase"
+ *
+ * 与 `tools/models/model-specs.mjs` 的 bookcase **逐件同构**：落地踢脚 + 双侧板 + 中竖板（分左右两列）
+ * + 下柜底板 + 四层层板 + 背板 + 顶板 + 下柜双门与竖条拉手，格口里两列摆满书、最上层右格留给摆件。
+ *
+ * 为什么连「书的排布」都要跟着对：占位只活到 GLB 落地那一帧。如果占位是几块空板、成品是满架书，
+ * 加载完成的一瞬间整件会从空架子涨出一堆书 —— 那一下比占位本身粗糙得多。这里只求**看起来等价**：
+ * 书脊宽度 / 高度按固定比值错落、整排占格口 86%、尾巴两本斜靠、旁边一摞平放，全部用同一组常量推。
+ * 精确到毫米的排布归规格一份，不必在运行侧再写一遍（两份真值必然走散）。
+ *
+ * y 一律给**底面**高度（与规格同语义）。吊柜把离地高度写进构造器的教训见 `buildWallcabinetItem`。
  */
 export function buildBookcaseItem(context) {
   const {
@@ -425,364 +435,241 @@ export function buildBookcaseItem(context) {
     itemDepth,
     itemGroup,
     itemHeight,
-    itemWidth,
+    itemWidth
   } = context;
-  const bookcaseSideThickness = Math.min(
-    Math.max(Math.min(itemWidth, itemDepth) * 0.11, 0.032),
-    0.062
-  );
-  const bookcaseBackThickness = Math.min(Math.max(itemDepth * 0.075, 0.018), 0.032);
-  const bookcaseInnerWidth = Math.max(itemWidth - bookcaseSideThickness * 2, itemWidth * 0.72);
-  const bookcaseShelfRatio = 0.255;
-  const bookcaseShelfRatios = [bookcaseShelfRatio, 0.47, 0.59, 0.79];
-  const bookcaseTopY = itemHeight - bookcaseSideThickness * 0.5;
-  const bookcaseSideBayWidth = bookcaseInnerWidth * 0.27;
-  const bookcaseSideBayX = itemWidth * 0.5 - bookcaseSideThickness * 1.5 - bookcaseSideBayWidth;
-  const bookcaseMainBayWidth = bookcaseInnerWidth - bookcaseSideBayWidth - bookcaseSideThickness;
-  const bookcaseMainBayCenterX = -bookcaseInnerWidth * 0.5 + bookcaseMainBayWidth * 0.5;
-  const bookcaseSideBayCenterX = bookcaseInnerWidth * 0.5 - bookcaseSideBayWidth * 0.5;
-  const bookcasePanelOptions = {
-    rounded: false,
-    roughness: 0.62,
-    metalness: 0.015
-  };
-  const bookcaseFrontZ = itemDepth * 0.5 + 0.013;
-  addBoxMesh(
-    itemGroup,
-    bookcaseSideThickness,
-    itemHeight,
-    itemDepth,
-    -itemWidth * 0.5 + bookcaseSideThickness * 0.5,
-    itemHeight * 0.5,
-    0,
-    furnitureColor,
-    bookcasePanelOptions
-  );
-  addBoxMesh(
-    itemGroup,
-    bookcaseSideThickness,
-    itemHeight,
-    itemDepth,
-    itemWidth * 0.5 - bookcaseSideThickness * 0.5,
-    itemHeight * 0.5,
-    0,
-    furnitureColor,
-    bookcasePanelOptions
-  );
-  addBoxMesh(
-    itemGroup,
-    itemWidth,
-    itemHeight,
-    bookcaseBackThickness + 0.004,
-    0,
-    itemHeight * 0.5,
-    -itemDepth * 0.5 + bookcaseBackThickness * 0.5 - 0.002,
-    furnitureColor,
-    bookcasePanelOptions
-  );
-  addBoxMesh(
-    itemGroup,
-    bookcaseInnerWidth,
-    itemHeight * bookcaseShelfRatio - bookcaseSideThickness * 0.5,
-    itemDepth * 0.9,
-    0,
-    itemHeight * bookcaseShelfRatio * 0.5,
-    -itemDepth * 0.025,
-    furnitureSoftColor,
-    {
-      ...bookcasePanelOptions,
-      roughness: 0.66
-    }
-  );
-  for (const shelfSlotRatio of bookcaseShelfRatios) {
-    addBoxMesh(
-      itemGroup,
-      bookcaseInnerWidth,
-      bookcaseSideThickness,
-      itemDepth,
-      0,
-      itemHeight * shelfSlotRatio,
-      0,
-      furnitureSoftColor,
-      bookcasePanelOptions
-    );
-  }
-  addBoxMesh(
-    itemGroup,
-    itemWidth,
-    bookcaseSideThickness,
-    itemDepth,
-    0,
-    bookcaseTopY,
-    0,
-    furnitureColor,
-    bookcasePanelOptions
-  );
-  const lowerCompartmentTopY = itemHeight * bookcaseShelfRatios[1] + bookcaseSideThickness * 0.5;
-  const bookcaseInnerHeight = itemHeight - bookcaseSideThickness;
-  addBoxMesh(
-    itemGroup,
-    bookcaseSideThickness,
-    bookcaseInnerHeight - lowerCompartmentTopY,
-    itemDepth,
-    bookcaseSideBayX,
-    (bookcaseInnerHeight + lowerCompartmentTopY) * 0.5,
-    0,
-    furnitureColor,
-    bookcasePanelOptions
-  );
-  const bookcaseDrawerCount = 3;
-  const bookcaseDrawerGap = bookcaseSideThickness * 0.72;
-  const bookcaseLowerTopY = itemHeight * bookcaseShelfRatio - bookcaseSideThickness * 0.5;
-  const bookcaseDrawerHeight = Math.max(bookcaseLowerTopY - bookcaseDrawerGap, itemHeight * 0.16);
-  const bookcaseDrawerSpacing = Math.max(itemWidth * 0.008, 0.008);
-  const bookcaseLowerStartX = -bookcaseInnerWidth * 0.18;
-  const bookcaseDrawerWidth =
-    bookcaseLowerStartX + bookcaseInnerWidth * 0.5 - bookcaseDrawerSpacing * 0.5;
-  const bookcaseDrawerRemainingWidth =
-    bookcaseInnerWidth - bookcaseDrawerWidth - bookcaseDrawerSpacing;
-  const bookcaseDrawerFrontHeight =
-    (bookcaseDrawerHeight - bookcaseDrawerSpacing * (bookcaseDrawerCount - 1)) /
-    bookcaseDrawerCount;
-  for (let drawerSlotIndex = 0; drawerSlotIndex < bookcaseDrawerCount; drawerSlotIndex += 1) {
-    const drawerCenterY =
-      bookcaseDrawerGap +
-      bookcaseDrawerFrontHeight * 0.5 +
-      drawerSlotIndex * (bookcaseDrawerFrontHeight + bookcaseDrawerSpacing);
-    addBoxMesh(
-      itemGroup,
-      bookcaseDrawerWidth,
-      bookcaseDrawerFrontHeight,
-      0.026,
-      -bookcaseInnerWidth * 0.5 + bookcaseDrawerWidth * 0.5,
-      drawerCenterY,
-      bookcaseFrontZ,
-      furnitureColor,
-      {
-        ...bookcasePanelOptions,
-        roughness: 0.55
-      }
-    );
-    addBoxMesh(
-      itemGroup,
-      bookcaseDrawerRemainingWidth,
-      bookcaseDrawerFrontHeight,
-      0.026,
-      bookcaseLowerStartX + bookcaseDrawerSpacing * 0.5 + bookcaseDrawerRemainingWidth * 0.5,
-      drawerCenterY,
-      bookcaseFrontZ,
-      furnitureSoftColor,
-      {
-        ...bookcasePanelOptions,
-        roughness: 0.55
-      }
-    );
-  }
-  const bookcaseBackPanelHeight =
-    itemHeight * (bookcaseShelfRatios[2] - bookcaseShelfRatios[1]) - bookcaseSideThickness * 1.15;
-  addBoxMesh(
-    itemGroup,
-    bookcaseMainBayWidth * 0.97,
-    bookcaseBackPanelHeight,
-    0.028,
-    bookcaseMainBayCenterX,
-    itemHeight * (bookcaseShelfRatios[1] + bookcaseShelfRatios[2]) * 0.5,
-    bookcaseFrontZ,
-    furnitureColor,
-    {
-      ...bookcasePanelOptions,
-      roughness: 0.54
-    }
-  );
-  const bookSpineColors = [
-    14276045,
-    12499117,
-    10459536,
-    7828334,
-    furnitureLightColor,
-    furnitureSoftColor
-  ];
+  // 三轴的「规格米 → 实际米」倍率。规格基准：宽 1.2 / 高 1.9 / 深 0.32。
+  const scaleX = itemWidth / 1.2;
+  const scaleY = itemHeight / 1.9;
+  const scaleZ = itemDepth / 0.32;
   /**
-   * 按可用宽度往一层书架上排满书脊，排不下就提前收尾。书脊宽 = (可用宽 − 间隙) / count，并保底 26mm（再窄就看不出是书）；
-   * 每本再乘 0.68~1.04 的宽系数与 0.68~0.94 的高系数错开尺寸；种子为奇数时最后一本倾斜 0.07 弧度，模拟真书架里那本歪着的书。
-   * @param {object} shelfSpec 本层规格（startX / maxWidth / shelfY / availableHeight / count / seed）。
+   * 按「规格里的米」摆一个方块（y 给**底面**高度，与规格一致）。
    */
-  const fillBookShelf = ({
-    startX: shelfStartX,
-    maxWidth: shelfMaxWidth,
-    shelfY: shelfY,
-    availableHeight: shelfAvailableHeight,
-    count: shelfBookCount = 6,
-    seed: shelfSeed = 0
-  }) => {
-    const bookSpineGap = Math.max(shelfMaxWidth * 0.018, 0.006);
-    const bookSpineWidth = Math.max(
-      (shelfMaxWidth - bookSpineGap * (shelfBookCount + 1)) / shelfBookCount,
-      0.026
+  const addBookcaseBlock = (
+    specWidth,
+    specHeight,
+    specDepth,
+    specX,
+    specBottomY,
+    specZ,
+    color,
+    options
+  ) =>
+    addBoxMesh(
+      itemGroup,
+      specWidth * scaleX,
+      specHeight * scaleY,
+      specDepth * scaleZ,
+      specX * scaleX,
+      (specBottomY + specHeight / 2) * scaleY,
+      specZ * scaleZ,
+      color,
+      options
     );
-    let bookSpineCursorX = shelfStartX + bookSpineGap;
-    for (let bookSpineIndex = 0; bookSpineIndex < shelfBookCount; bookSpineIndex += 1) {
-      const bookWidthRatio = [0.72, 0.9, 0.78, 1.04, 0.82, 0.68][
-        (bookSpineIndex + shelfSeed) % 6
-      ];
-      const bookActualWidth = bookSpineWidth * bookWidthRatio;
-      const bookHeightRatio = [0.72, 0.88, 0.78, 0.94, 0.82, 0.68][
-        (bookSpineIndex * 2 + shelfSeed) % 6
-      ];
-      const bookSpineHeight = shelfAvailableHeight * bookHeightRatio;
-      if (bookSpineCursorX + bookActualWidth > shelfStartX + shelfMaxWidth - bookSpineGap) {
+  const CARCASS = { rounded: false, roughness: 0.62, metalness: 0.015 };
+  const PANEL = { rounded: false, roughness: 0.55, metalness: 0.015 };
+  const SHELF = { rounded: false, roughness: 0.6, metalness: 0.015 };
+  // ── 柜体 ──
+  // 踢脚（正面让开 4cm）· 双侧板（咬进顶板 1cm、比顶板窄 2mm）· 中竖板 · 背板。
+  addBookcaseBlock(1.12, 0.06, 0.24, 0, 0, -0.02, furnitureColor, CARCASS);
+  addBookcaseBlock(0.02, 1.8, 0.29, -0.588, 0.06, -0.005, furnitureColor, CARCASS);
+  addBookcaseBlock(0.02, 1.8, 0.29, 0.588, 0.06, -0.005, furnitureColor, CARCASS);
+  addBookcaseBlock(0.016, 1.34, 0.29, 0, 0.52, -0.005, furnitureColor, CARCASS);
+  addBookcaseBlock(1.146, 1.765, 0.014, 0, 0.08, -0.141, furnitureColor, {
+    rounded: false,
+    roughness: 0.68,
+    metalness: 0.015
+  });
+  // 下柜底板 + 四层层板（0.51 那块同时是下柜顶面）。
+  const bookcaseShelfBottoms = [0.51, 0.852, 1.192, 1.532];
+  addBookcaseBlock(1.15, 0.018, 0.25, 0, 0.062, -0.005, furnitureSoftColor, SHELF);
+  for (const shelfBottomY of bookcaseShelfBottoms) {
+    addBookcaseBlock(1.15, 0.018, 0.25, 0, shelfBottomY, -0.005, furnitureSoftColor, SHELF);
+  }
+  // ── 下柜双门 + 竖条拉手（门面到 0.146、拉手到 0.16，与顶板前缘齐平）──
+  for (const doorSide of [-1, 1]) {
+    addBookcaseBlock(0.556, 0.426, 0.016, doorSide * 0.29, 0.072, 0.138, furnitureSoftColor, {
+      ...PANEL,
+      radius: 0.003
+    });
+    addBookcaseBlock(0.014, 0.14, 0.016, doorSide * 0.045, 0.32, 0.152, furnitureSoftColor, PANEL);
+  }
+  // ── 顶板：占地 1.2 × 0.32 由它定 ──
+  addBookcaseBlock(1.2, 0.05, 0.32, 0, 1.85, 0, furnitureSoftColor, {
+    rounded: false,
+    roughness: 0.5,
+    metalness: 0.015
+  });
+  // ── 格口里的书 ──
+  // 与规格 `bookcaseShelfContents` 同一张表：每格地板 = 层板底面 + 板厚 − 4mm（书底咬进层板，
+  // 免得书底与层板面严格贴合），净高打 88 折；左右两列的取色序不同，两柜书才不会撞成一排同色。
+  const BOOK_DEPTH_BY_ROW = [0.13, 0.153, 0.176];
+  const bookcaseBookPalettes = [
+    [furnitureLightColor, 0xa9563f, furnitureSoftColor, 0xcbb289],
+    [0xa9563f, furnitureLightColor, 0xcbb289, furnitureSoftColor]
+  ];
+  const BOOK_WIDTH_RATIOS = [0.72, 0.95, 0.8, 1.06, 0.86, 0.68];
+  const BOOK_HEIGHT_RATIOS = [0.72, 0.94, 0.8, 1.0, 0.86, 0.62];
+  const BOOK_BOOK_OPTIONS = { rounded: false, roughness: 0.82, metalness: 0, radius: 0.002 };
+  /**
+   * 一排书 + 尾巴两本斜靠 +（可选）旁边一摞平放。
+   * @param {object} rowSpec fromX / toX / bottomY / maxHeight / palette / seed / withStack。
+   */
+  const fillBookcaseRow = ({
+    fromX,
+    toX,
+    bottomY,
+    maxHeight,
+    palette,
+    seed,
+    withStack = false
+  }) => {
+    const totalWidth = toX - fromX;
+    // 平放那一摞先占位（与规格同理：先摆满整排再拿摞去挤，末尾几本会戳进侧板）。
+    const stackWidth = withStack ? 0.19 : 0;
+    const rowWidth = totalWidth - (withStack ? stackWidth + 0.025 : 0);
+    const fillWidth = rowWidth * 0.86;
+    const bookGap = 0.0015;
+    const rowBookCount = 16;
+    const bookWidth = Math.max((fillWidth - bookGap * rowBookCount) / rowBookCount, 0.02);
+    let cursorX = fromX;
+    for (let bookIndex = 0; bookIndex < rowBookCount; bookIndex += 1) {
+      const width = bookWidth * BOOK_WIDTH_RATIOS[(bookIndex + seed) % BOOK_WIDTH_RATIOS.length];
+      if (cursorX + width - fromX > fillWidth) {
         break;
       }
-      const bookSpineMesh = addBoxMesh(
-        itemGroup,
-        bookActualWidth,
-        bookSpineHeight,
-        itemDepth * (0.47 + ((bookSpineIndex + shelfSeed) % 3) * 0.045),
-        bookSpineCursorX + bookActualWidth * 0.5,
-        shelfY + bookSpineHeight * 0.5,
-        itemDepth * 0.15,
-        bookSpineColors[(bookSpineIndex + shelfSeed) % bookSpineColors.length],
-        {
-          radius: Math.min(bookActualWidth * 0.14, 0.012),
-          roughness: 0.78,
-          metalness: 0
-        }
+      const height = maxHeight * BOOK_HEIGHT_RATIOS[(bookIndex * 2 + seed) % BOOK_HEIGHT_RATIOS.length];
+      addBookcaseBlock(
+        width,
+        height,
+        BOOK_DEPTH_BY_ROW[(bookIndex + seed) % BOOK_DEPTH_BY_ROW.length],
+        cursorX + width / 2,
+        bottomY,
+        0.01,
+        palette[(bookIndex + seed) % palette.length],
+        BOOK_BOOK_OPTIONS
       );
-      if (bookSpineIndex === shelfBookCount - 1 && shelfSeed % 2 === 1) {
-        bookSpineMesh.rotation.z = -0.07;
+      cursorX += width + bookGap;
+    }
+    // 收口：两本斜靠（第二本更斜，也只在完整版里保留 —— 与规格的 fullOnly 分档一致）。
+    if (rowWidth - fillWidth >= 0.055) {
+      const leanHeight = maxHeight * 0.86;
+      const leanFirst = addBookcaseBlock(
+        0.024,
+        leanHeight,
+        0.15,
+        cursorX + 0.016,
+        bottomY,
+        0.01,
+        palette[(seed + 1) % palette.length],
+        BOOK_BOOK_OPTIONS
+      );
+      leanFirst.rotation.z = -0.19;
+      const leanSecond = addBookcaseBlock(
+        0.022,
+        leanHeight * 0.94,
+        0.145,
+        cursorX + 0.042,
+        bottomY,
+        0.01,
+        palette[(seed + 2) % palette.length],
+        BOOK_BOOK_OPTIONS
+      );
+      leanSecond.rotation.z = -0.38;
+    }
+    // 一摞平放的书（2~3 本，每高一层往里错 6mm）：格口里的层次感大半来自它。
+    if (!withStack) {
+      return;
+    }
+    let stackBottomY = bottomY;
+    for (let stackIndex = 0; stackIndex < 3; stackIndex += 1) {
+      const stackThickness = 0.034;
+      if (stackBottomY + stackThickness - bottomY > maxHeight) {
+        break;
       }
-      bookSpineCursorX += bookActualWidth + bookSpineGap;
-    }
-  };
-  /**
-   * 平叠一小摞书，用于书柜主格里的点缀。stackX / stackY 是叠放中心与底层台面高度（米），stackWidth 为书宽，stackBookCount
-   * 为叠放本数（默认 3），stackColorSeed 为取色种子。
-   */
-  const addFlatBookStack = (
-    stackX,
-    stackY,
-    stackWidth,
-    stackBookCount = 3,
-    stackColorSeed = 0
-  ) => {
-    for (let stackBookIndex = 0; stackBookIndex < stackBookCount; stackBookIndex += 1) {
-      addBoxMesh(
-        itemGroup,
-        stackWidth,
-        bookcaseSideThickness * 0.54,
-        itemDepth * 0.48,
-        stackX,
-        stackY + bookcaseSideThickness * (0.38 + stackBookIndex * 0.56),
-        itemDepth * 0.15,
-        bookSpineColors[(stackBookIndex + stackColorSeed) % bookSpineColors.length],
-        {
-          radius: 0.007,
-          roughness: 0.78,
-          metalness: 0
-        }
+      addBookcaseBlock(
+        stackWidth - stackIndex * 0.012,
+        stackThickness,
+        0.2,
+        fromX + totalWidth - stackWidth / 2 + stackIndex * 0.006,
+        stackBottomY,
+        0.01,
+        palette[stackIndex % palette.length],
+        BOOK_BOOK_OPTIONS
       );
+      stackBottomY += stackThickness + 0.001;
     }
   };
-  const firstShelfY = itemHeight * bookcaseShelfRatios[0] + bookcaseSideThickness * 0.5;
-  fillBookShelf({
-    startX: -bookcaseInnerWidth * 0.47,
-    maxWidth: bookcaseInnerWidth * 0.29,
-    shelfY: firstShelfY,
-    availableHeight: itemHeight * 0.15,
-    count: 5,
-    seed: 2
-  });
-  fillBookShelf({
-    startX: bookcaseInnerWidth * 0.04,
-    maxWidth: bookcaseInnerWidth * 0.38,
-    shelfY: firstShelfY,
-    availableHeight: itemHeight * 0.16,
-    count: 7,
-    seed: 4
-  });
-  const secondShelfY = itemHeight * bookcaseShelfRatios[1] + bookcaseSideThickness * 0.5;
-  fillBookShelf({
-    startX: bookcaseSideBayX + bookcaseSideThickness * 0.6,
-    maxWidth: bookcaseSideBayWidth * 0.82,
-    shelfY: secondShelfY,
-    availableHeight: itemHeight * 0.075,
-    count: 4,
-    seed: 1
-  });
-  const thirdShelfY = itemHeight * bookcaseShelfRatios[2] + bookcaseSideThickness * 0.5;
-  fillBookShelf({
-    startX: -bookcaseInnerWidth * 0.47,
-    maxWidth: bookcaseMainBayWidth * 0.42,
-    shelfY: thirdShelfY,
-    availableHeight: itemHeight * 0.14,
-    count: 6,
-    seed: 0
-  });
-  addBoxMesh(
-    itemGroup,
-    bookcaseMainBayWidth * 0.17,
-    itemHeight * 0.12,
-    0.022,
-    bookcaseMainBayCenterX + bookcaseMainBayWidth * 0.27,
-    thirdShelfY + itemHeight * 0.065,
-    itemDepth * 0.22,
-    11972517,
-    {
-      rounded: false,
-      roughness: 0.5
+  const BOOKCASE_TOP_BOARD_BOTTOM_Y = 1.85;
+  const bookcaseColumnRight = { fromX: 0.035, toX: 0.55 };
+  const bookcaseColumnLeft = { fromX: -0.55, toX: -0.035 };
+  bookcaseShelfBottoms.forEach((shelfBottomY, shelfLevel) => {
+    const floorY = shelfBottomY + 0.018 - 0.004;
+    const ceilingY =
+      shelfLevel === bookcaseShelfBottoms.length - 1
+        ? BOOKCASE_TOP_BOARD_BOTTOM_Y
+        : bookcaseShelfBottoms[shelfLevel + 1];
+    const maxHeight = (ceilingY - floorY) * 0.88;
+    // 最上层右列让给摆件（花瓶 + 相框），左列照旧摆书。
+    if (shelfLevel === 3) {
+      fillBookcaseRow({
+        ...bookcaseColumnLeft,
+        bottomY: floorY,
+        maxHeight,
+        palette: bookcaseBookPalettes[0],
+        seed: shelfLevel + 2
+      });
+      return;
     }
-  );
-  addBoxMesh(
+    fillBookcaseRow({
+      ...bookcaseColumnRight,
+      bottomY: floorY,
+      maxHeight,
+      palette: bookcaseBookPalettes[0],
+      seed: shelfLevel + 2,
+      withStack: shelfLevel % 2 === 0
+    });
+    fillBookcaseRow({
+      ...bookcaseColumnLeft,
+      bottomY: floorY,
+      maxHeight,
+      palette: bookcaseBookPalettes[1],
+      seed: shelfLevel + 5,
+      withStack: shelfLevel % 2 === 1
+    });
+  });
+  // ── 最上层右列的摆件：一只收口花瓶 + 一个相框 ──
+  addBookcaseBlock(0.18, 0.158, 0.02, 0.42, 1.546, 0.01, furnitureSoftColor, {
+    rounded: false,
+    roughness: 0.5,
+    metalness: 0.015
+  });
+  addBookcaseBlock(0.148, 0.057, 0.03, 0.42, 1.704, 0.005, furnitureSoftColor, {
+    rounded: false,
+    roughness: 0.5,
+    metalness: 0.015
+  });
+  // 花瓶用两段圆柱近似规格里的回转体（底径 0.05 → 收口 0.024，高 0.24）。
+  addCylinderMesh(
     itemGroup,
-    bookcaseMainBayWidth * 0.125,
-    itemHeight * 0.085,
-    0.026,
-    bookcaseMainBayCenterX + bookcaseMainBayWidth * 0.27,
-    thirdShelfY + itemHeight * 0.065,
-    itemDepth * 0.235,
-    7762283,
-    {
-      rounded: false,
-      roughness: 0.42
-    }
-  );
-  addFlatBookStack(bookcaseSideBayCenterX, thirdShelfY, bookcaseSideBayWidth * 0.48, 3, 3);
-  const fourthShelfY = itemHeight * bookcaseShelfRatios[3] + bookcaseSideThickness * 0.5;
-  addFlatBookStack(
-    bookcaseMainBayCenterX - bookcaseMainBayWidth * 0.22,
-    fourthShelfY,
-    bookcaseMainBayWidth * 0.24,
-    2,
-    1
+    0.05 * scaleX,
+    0.05 * scaleX,
+    0.082 * scaleY,
+    0.16 * scaleX,
+    (1.546 + 0.041) * scaleY,
+    0.02 * scaleZ,
+    furnitureSoftColor,
+    { segments: 18, roughness: 0.66, metalness: 0.02 }
   );
   addCylinderMesh(
     itemGroup,
-    bookcaseMainBayWidth * 0.055,
-    bookcaseMainBayWidth * 0.075,
-    itemHeight * 0.12,
-    bookcaseMainBayCenterX - bookcaseMainBayWidth * 0.08,
-    fourthShelfY + itemHeight * 0.06,
-    itemDepth * 0.12,
-    5196615,
-    {
-      segments: 22,
-      roughness: 0.66
-    }
+    0.024 * scaleX,
+    0.045 * scaleX,
+    0.158 * scaleY,
+    0.16 * scaleX,
+    (1.628 + 0.079) * scaleY,
+    0.02 * scaleZ,
+    furnitureSoftColor,
+    { segments: 18, roughness: 0.66, metalness: 0.02 }
   );
-  addCylinderMesh(
-    itemGroup,
-    bookcaseMainBayWidth * 0.045,
-    bookcaseMainBayWidth * 0.064,
-    itemHeight * 0.15,
-    bookcaseMainBayCenterX + bookcaseMainBayWidth * 0.08,
-    fourthShelfY + itemHeight * 0.075,
-    itemDepth * 0.12,
-    6643802,
-    {
-      segments: 22,
-      roughness: 0.66
-    }
-  );
-  addFlatBookStack(bookcaseSideBayCenterX, fourthShelfY, bookcaseSideBayWidth * 0.5, 2, 4);
 }
 

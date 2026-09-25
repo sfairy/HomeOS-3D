@@ -10,7 +10,7 @@
  * 目录（`setDecoderPath` 时从基类解析结果反推），并在发 init 时补上。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609231402";
+import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609251458";
 
 /**
  * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。

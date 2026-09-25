@@ -60,13 +60,12 @@ const QUERY_V_RE = /\?v=[^"'`\s)]+/g;
 const MODEL_VERSION_CONST_RE =
   /\b(HOME_LITE_MODEL_VERSION|APPLIANCE_LITE_MODEL_VERSION)\s*=\s*"[^"]*"/g;
 
-/**
- * Second arg to defineHomeItemModel is a fallback version string used as
- * `?v=` + homeFallbackVersion (no `?v=` literal in source).
+/*
+ * 这里原本还有一条 DEFINE_HOME_FALLBACK_RE：那时 defineHomeItemModel 的第二参是「回退版版本号」，
+ * 脚本把它整段替换成新戳。现在第二参改成了**模型文件基名**（第一参变成存放子目录），同样的正则
+ * 会把基名改写成版本戳 —— 每个模型的 URL 都指向不存在的文件，全站静默 404、物件集体退回过程几何。
+ * 模型资源的破缓存已由下面的 MODEL_VERSION_CONST_RE 覆盖两个版本常量完成，故这条规则连同正则一并删除。
  */
-const DEFINE_HOME_FALLBACK_RE =
-  /(defineHomeItemModel\(\s*"[^"]*"\s*,\s*)"[^"]*"/g;
-
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
@@ -166,12 +165,6 @@ function rewriteContent(source, stamp) {
   next = next.replace(MODEL_VERSION_CONST_RE, (_match, name) => {
     replacements += 1;
     return `${name} = "${stamp}"`;
-  });
-
-  next = next.replace(DEFINE_HOME_FALLBACK_RE, (match, prefix) => {
-    const replacement = `${prefix}"${stamp}"`;
-    if (match !== replacement) replacements += 1;
-    return replacement;
   });
 
   return { next, replacements };

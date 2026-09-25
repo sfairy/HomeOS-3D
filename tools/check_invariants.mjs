@@ -1,9 +1,18 @@
 /**
- * 九条「不报错、只静默失效」的不变量守卫。
+ * 二十四条「不报错、只静默失效」的不变量守卫。
  *
- * 为什么只留九条：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
- * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面九条对应的失效方式恰好相反 ——
- * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类：
+ * 为什么只留这一类：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
+ * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面这些对应的失效方式恰好相反 ——
+ * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类。
+ *
+ * 本条目的展开范围是 1–9（结构类）；10 起是后续按同一取舍补进的 —— 10–15 配色类（含 theme-color /
+ * webmanifest 的写死色值）、16–24 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
+ * 环境模型类型七处、材质风格档位覆盖、「档位即组合」的角色覆盖、素材库页签与类型词表两端、
+ * 默认档位的角色出口、平面符号该不该画圆）。
+ * 这些条目的踩坑背景写在各自 `checks` 条目的 title 与代码注释里，完整清单另见 README「前端结构卫生」一节。
+ *
+ * 三段共用同一条底线：**判不出真假就不判** —— 宁可漏报，也不让这里退化成
+ * 「把误报一条条塞进去」的垃圾桶。下面 1–9 逐条如下：
  *
  *   1. `frontend/modules/runtime/**` 里出现裸 `/static/...` 静态 import。
  *      运行侧（舞台页以 `file:` 打开）解析不了绝对路径，表现为**整个模块树加载失败**，
@@ -83,10 +92,13 @@
  * 退出码 1 表示有违规；输出每条都带 file:line，能直接跳转。
  */
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { MODEL_SLOT_ROLES, MODEL_SLOT_ROLE_SUFFIX_RE } from "./models/model-roles.mjs";
+import { measureFootprints } from "./audit_plan_symbols.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -766,6 +778,22 @@ function checkModuleSpecifiers() {
 
 const STUDIO_APP = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
 const ITEM_BUILDERS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "item-builders");
+const MATERIAL_STYLES_JS = path.join(
+  ROOT,
+  "frontend",
+  "static",
+  "3d-studio",
+  "studio",
+  "studio-material-styles.js"
+);
+const ITEM_TYPES_JS = path.join(
+  ROOT,
+  "frontend",
+  "static",
+  "3d-studio",
+  "studio",
+  "studio-item-types.js"
+);
 
 /**
  * 抹掉注释与字符串/模板，保留长度与换行 —— 这样按偏移算出的行号与原文一致。
@@ -1890,6 +1918,1469 @@ function checkSoftLineAlpha() {
 
 // ---------------------------------------------------------------------------
 
+const EXTERNAL_MODELS_JS = path.join(
+  ROOT,
+  "frontend",
+  "static",
+  "3d-studio",
+  "loaders",
+  "studio-external-models.js"
+);
+const MODELS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "models");
+/**
+ * 注册表条目：`类型: defineHomeItemModel("子目录", "文件基名", {`。
+ * 允许换行写法 —— rounddiningtable_turntable 就是拆成三行的，只认单行会漏掉它。
+ */
+const MODEL_ENTRY_RE =
+  /^[ \t]*([a-z_0-9]+):\s*define(?:Home|Appliance)ItemModel\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,/gm;
+/** 换戳脚本的版本戳形状（yymmddHHMM）。模型文件基名绝不该长这样。 */
+const MODEL_VERSION_STAMP_RE = /^\d{10}$/;
+
+/** models/ 下的全部 GLB，相对 models/ 的路径。 */
+function collectModelFiles() {
+  const found = [];
+  const walk = directory => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const full = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.name.endsWith(".glb")) {
+        found.push(path.relative(MODELS_DIR, full).split(path.sep).join("/"));
+      }
+    }
+  };
+  if (fs.existsSync(MODELS_DIR)) {
+    walk(MODELS_DIR);
+  }
+  return found;
+}
+
+/**
+ * 读一个 GLB 的包围盒与材质名。只用 Node 内置能力解析容器（magic / chunk / JSON），
+ * 不引入 three —— 护栏要能在 CI 的裸 Node 里跑，而判据本身只需要 POSITION 访问器的 min/max。
+ */
+function readGlbSummary(file) {
+  const buffer = fs.readFileSync(file);
+  if (buffer.length < 12 || buffer.readUInt32LE(0) !== 0x46546c67) {
+    return { error: "magic 不是 glTF（不是 GLB 文件）" };
+  }
+  const declaredLength = buffer.readUInt32LE(8);
+  if (declaredLength !== buffer.length) {
+    return { error: `头部声明 ${declaredLength} 字节、实际 ${buffer.length} 字节（文件被截断）` };
+  }
+  let offset = 12;
+  let json = null;
+  while (offset + 8 <= buffer.length) {
+    const chunkLength = buffer.readUInt32LE(offset);
+    const chunkType = buffer.readUInt32LE(offset + 4);
+    const body = buffer.subarray(offset + 8, offset + 8 + chunkLength);
+    if (chunkType === 0x4e4f534a) {
+      try {
+        json = JSON.parse(body.toString("utf8"));
+      } catch (error) {
+        return { error: `JSON chunk 解析失败：${error.message}` };
+      }
+    }
+    offset += 8 + chunkLength + ((4 - (chunkLength % 4)) % 4);
+  }
+  if (!json) {
+    return { error: "缺 JSON chunk" };
+  }
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  let vertices = 0;
+  for (const mesh of json.meshes || []) {
+    for (const primitive of mesh.primitives || []) {
+      const accessor = json.accessors?.[primitive.attributes?.POSITION];
+      if (!accessor) {
+        return { error: "网格缺 POSITION 访问器" };
+      }
+      vertices += accessor.count;
+      if (accessor.min && accessor.max) {
+        for (let axis = 0; axis < 3; axis += 1) {
+          min[axis] = Math.min(min[axis], accessor.min[axis]);
+          max[axis] = Math.max(max[axis], accessor.max[axis]);
+        }
+      }
+    }
+  }
+  if (!Number.isFinite(min[0])) {
+    return { error: "所有 POSITION 访问器都没有 min/max，取不到包围盒" };
+  }
+  return { min, max, vertices, materials: (json.materials || []).map(material => material.name) };
+}
+
+/**
+ * 流水线生成的模型规格（tools/models/model-specs.mjs）。
+ *
+ * 这条判据**只对这批模型**生效，不覆盖 models/ 下的外部既有资产 —— 两边的契约本就不同：
+ *   - 流水线产物按约定「变换烘进几何、包围盒逐值等于 scaleBasis、材质名 material-<槽位号>」，
+ *     因为 generate-models.mjs 就是按这套约定导出的；
+ *   - 外部既有资产是别人按自己的工具链导出的，材质名走的是另一套**同样被运行侧支持**的
+ *     子串约定（重音在 `cushion` / `foliage` / `-soft` / `-light` / `-dark` 上），把它们按
+ *     `material-<槽位号>` 判就是纯误报。
+ * 取不到规格表（模块解析失败等）就整体跳过，宁可漏报。
+ */
+const PIPELINE_MODEL_SPECS = await (async () => {
+  try {
+    const module = await import(path.join(ROOT, "tools", "models", "model-specs.mjs"));
+    return module.MODEL_SPECS;
+  } catch {
+    return null;
+  }
+})();
+
+/** 包围盒容差：1.5mm。生成器的规格校验是 1mm，这里多留 0.5mm 给导出往返的浮点误差。 */
+const GLB_SIZE_TOLERANCE_METERS = 0.0015;
+
+/**
+ * 磁盘 GLB 的内容必须与注册表 `scaleBasis` 自洽。
+ *
+ * 与上一条（checkModelAssetUrls）的分工：那条只管「文件在不在、有没有被引用」，
+ * 这条管「文件内容对不对」。两者都不管的话会出现这些**只在画面上表现为「有点歪」**的失效：
+ *
+ *   1. **改了规格没重新导出** —— 磁盘上还是旧尺寸，而运行侧按 scaleBasis 做非等比缩放，
+ *      成品被整体拉伸。实测发生过：smartlock 宽少 5mm（0.075 vs 0.08）被拉宽 6.7%。
+ *   2. **底面不在 y=0** —— preserveOrigin 直接拿原点贴地，偏了就是半埋进地板或浮空。
+ *   3. **占地中心不在原点** —— 摆放时按占地居中计算，偏心会让物件视觉上偏出包围盒。
+ *   4. **材质名不是 `material-<槽位号>`** —— 运行侧按槽位号与后缀（-soft / -dark / cushion）
+ *      查色卡，名字对不上就是「模型到位后颜色不跟风格走」，而这条连 fallback 都没有。
+ *   5. **lite 不比完整版轻** —— 首屏加载的那一份没起到作用，等于白做一条产线。
+ *
+ * 判不出真假就不判：解析失败只报告「读不了」，不去猜内容；作用域限于流水线产物。
+ */
+function checkModelGlbIntegrity() {
+  const problems = [];
+  if (!PIPELINE_MODEL_SPECS) {
+    return problems; // 规格表读不到就不判，避免退化成纯误报
+  }
+  const text = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+  MODEL_ENTRY_RE.lastIndex = 0;
+  const entries = [];
+  let match;
+  while ((match = MODEL_ENTRY_RE.exec(text))) {
+    entries.push({ itemType: match[1], modelDir: match[2], fileKey: match[3], index: match.index });
+  }
+  const slotNamePattern = /^material-(\d+)(?:-[a-z][a-z0-9]*)?$/;
+  const axisNames = ["宽", "高", "深"];
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    // 条目文本 = 本条起点到下一条起点；末条到文件尾。scaleBasis 就在这段里。
+    if (!PIPELINE_MODEL_SPECS[entry.itemType]) {
+      continue; // 外部既有资产走自己的命名 / 比例约定，不按流水线判据判
+    }
+    const blockEnd = index + 1 < entries.length ? entries[index + 1].index : text.length;
+    const block = text.slice(entry.index, blockEnd);
+    const relative = `${entry.modelDir}/${entry.fileKey}`;
+    const fullPath = path.join(MODELS_DIR, `${relative}.glb`);
+    if (!fs.existsSync(fullPath)) {
+      continue; // 存在性归 checkModelAssetUrls 管，这里不重复报
+    }
+    const full = readGlbSummary(fullPath);
+    if (full.error) {
+      problems.push({ file: rel(fullPath), line: 0, detail: `${entry.itemType} 的完整版读不了：${full.error}` });
+      continue;
+    }
+    // 材质名契约：一槽一材质，名字必须是 material-<槽位号>，且槽位号不重复。
+    const slotNumbers = [];
+    for (const materialName of full.materials) {
+      const slotMatch = slotNamePattern.exec(materialName || "");
+      if (!slotMatch) {
+        problems.push({
+          file: rel(fullPath),
+          line: 0,
+          detail:
+            `${entry.itemType}：材质名「${materialName}」不是 material-<槽位号> 形状。` +
+            "运行侧按槽位号与后缀查色卡，名字对不上等于「模型到位后颜色不跟着风格走」，且没有兜底"
+        });
+      } else {
+        slotNumbers.push(Number(slotMatch[1]));
+      }
+    }
+    if (new Set(slotNumbers).size !== slotNumbers.length) {
+      problems.push({
+        file: rel(fullPath),
+        line: 0,
+        detail: `${entry.itemType}：同一槽位出了多块材质（${slotNumbers.join(",")}），应一槽一网格`
+      });
+    }
+    // 包围盒与 scaleBasis 逐轴比对。
+    const basisMatch = /scaleBasis:\s*\[([^\]]+)\]/.exec(block);
+    if (basisMatch) {
+      const wanted = basisMatch[1].split(",").map(value => Number(value.trim()));
+      if (wanted.length === 3 && wanted.every(value => Number.isFinite(value))) {
+        const actual = [full.max[0] - full.min[0], full.max[1] - full.min[1], full.max[2] - full.min[2]];
+        // 高度按规格里的 `authoredHeight` 判（缺省等于 scaleBasis 的高）。有些物件的几何**刻意
+        // 伸出声明箱体之外**（台盆的镜柜烘在台面以上），声明高度只描述落地柜体，作者实际烘出的
+        // 总高另记在 authoredHeight —— 不认这个键，这条守卫会对这一类物件稳定误报。
+        const wantedWithExtent = [
+          wanted[0],
+          PIPELINE_MODEL_SPECS[entry.itemType].authoredHeight ?? wanted[1],
+          wanted[2]
+        ];
+        for (let axis = 0; axis < 3; axis += 1) {
+          if (Math.abs(actual[axis] - wantedWithExtent[axis]) > GLB_SIZE_TOLERANCE_METERS) {
+            problems.push({
+              file: rel(fullPath),
+              line: 0,
+              detail:
+                `${entry.itemType}：磁盘文件${axisNames[axis]} ${actual[axis].toFixed(3)}m、` +
+                `声明 ${wantedWithExtent[axis].toFixed(3)}m（差 ${Math.abs(actual[axis] - wantedWithExtent[axis]).toFixed(3)}m）。` +
+                "运行侧按 scaleBasis 非等比缩放，不一致就会被拉变形；多半是改了规格没重新导出"
+            });
+          }
+        }
+        if (Math.abs(full.min[1]) > GLB_SIZE_TOLERANCE_METERS) {
+          problems.push({
+            file: rel(fullPath),
+            line: 0,
+            detail:
+              `${entry.itemType}：底面 min.y = ${full.min[1].toFixed(3)}m 不在 y=0。` +
+              "运行侧把原点直接贴地，偏了会埋进地板或浮空"
+          });
+        }
+        for (const axis of [0, 2]) {
+          const center = (full.min[axis] + full.max[axis]) / 2;
+          if (Math.abs(center) > GLB_SIZE_TOLERANCE_METERS) {
+            problems.push({
+              file: rel(fullPath),
+              line: 0,
+              detail:
+                `${entry.itemType}：${axis === 0 ? "x" : "z"} 方向占地中心 ${center.toFixed(3)}m 不在原点` +
+                "（摆放按占地居中算，偏心会视觉偏出包围盒）"
+            });
+          }
+        }
+      }
+    }
+    // lite 版必须真的更轻。
+    const litePath = path.join(MODELS_DIR, `${relative}-lite.glb`);
+    if (fs.existsSync(litePath)) {
+      const lite = readGlbSummary(litePath);
+      if (lite.error) {
+        problems.push({ file: rel(litePath), line: 0, detail: `${entry.itemType} 的 lite 版读不了：${lite.error}` });
+      } else if (lite.vertices >= full.vertices) {
+        problems.push({
+          file: rel(litePath),
+          line: 0,
+          detail: `${entry.itemType}：lite ${lite.vertices} 顶点未低于完整版 ${full.vertices}（首屏那份没省下东西）`
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * 流水线 GLB 里不得有**会闪的**共面重叠（z-fighting）。
+ *
+ * 为什么单列一条：两块不同槽位的面落在同一平面、而且在平面上有重叠时，GPU 按图元顺序
+ * 抢同一像素、逐帧抖动 —— 画面上是一片闪动的条纹。它**不报错、不崩、不进控制台**，
+ * 单张截图也看不出来（触发条件与相机距离、浮点精度有关），只有在真正转起来时才显形。
+ * 已实际发生过的一批：面板贴在机身前脸上、顶盖与机身一起顶到同一个标高、玻璃门与柜体
+ * 同宽同面、踏板的两条长边与斜梁逐面齐平 —— 全库 87 处。
+ *
+ * 判据与修法这类工具同源，直接复用 tools/audit_coplanar_faces.mjs（同一份 GLB 读取与
+ * 法向分类），避免「守卫一套口径、审计另一套口径」：
+ *   - 只报**同向**（两块面朝向同一侧）与**背靠背但两侧沾到玻璃**（glass 是 DoubleSide +
+ *     depthWrite:false，背面剔不掉）的；
+ *   - 背靠背且两件都是单面材质的（顶盖坐在箱体上、层板贴在背板前）不计 —— 那类是正常叠放，
+ *     从外侧看朝内那块被背面剔除丢掉，不闪；要做到 0 得把每个接触面都改成互嵌或留缝，
+ *     代价高而画面零变化。
+ *
+ * 修法不是「把面推开」：包围盒受 1mm 的规格校验约束，外表面不能动。正确做法是让**非极值的那一件**
+ * 退让 2~5mm（嵌进母体、或收到相邻件的内表面之内），外观不变而两个面不再共面。
+ * 本环境无法目视（零 WebGL 绘制），这条守卫是这批缺陷唯一的发现路径。
+ */
+function checkCoplanarOverlaps() {
+  const problems = [];
+  let payload;
+  try {
+    payload = JSON.parse(
+      execFileSync(process.execPath, [path.join(ROOT, "tools", "audit_coplanar_faces.mjs"), "--json"], {
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024
+      })
+    );
+  } catch (error) {
+    // 审计脚本自身跑不起来时**必须报错**：静默返回「通过」会让这条守卫在无人察觉的情况下失效，
+    // 而它又是这类缺陷唯一的发现路径（本环境零 WebGL 绘制，目视不了）。
+    problems.push({
+      file: "tools/audit_coplanar_faces.mjs",
+      line: 0,
+      detail: `共面审计跑不起来，全库一件都没判：${error.message.split("\n")[0]}`
+    });
+    return problems;
+  }
+  for (const entry of payload.unreadable || []) {
+    // 作用域与标题一致：这条判据管的是**流水线产物**的几何。既有资产（第三方导出，
+    // 用 Draco / sparse 访问器 / 外部 .bin）本来就读不动，也不在生成器的覆盖范围内 ——
+    // 报出来只会让这条守卫永远红着而没有任何人能修，与其它几条「外部既有资产走自己的
+    // 约定、不按流水线判据判」的判据同一个口径。真正读不动的流水线产物仍然照报
+    //（那一定是生成器或导出坏了）。整批读不动的清单在 `--json` 的 unreadable 字段里，
+    // 手跑 node tools/audit_coplanar_faces.mjs 也会逐件点出来。
+    if (!PIPELINE_MODEL_SPECS[entry.type.replace(/-lite$/, "")]) {
+      continue;
+    }
+    problems.push({
+      file: entry.file,
+      line: 0,
+      detail: `${entry.type}：${entry.skipped.join("；")} —— 这件的共面重叠没判到（不是没问题）`
+    });
+  }
+  for (const entry of payload.files || []) {
+    for (const row of entry.rows || []) {
+      problems.push({
+        file: entry.file,
+        line: 0,
+        detail:
+          `${entry.type}：${row.axis}=${row.coordinate}m 处 ${row.materials} 有 ${row.areaCm2}cm² 的` +
+          `${row.sameFacing ? "同向" : "玻璃双面"}共面重叠（相机一动就闪）`
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 模型资源的两端对齐：注册表写出的路径必须真有文件，磁盘上的 GLB 也必须被注册表引用。
+ *
+ * 为什么单列一条：这一路**没有任何运行时报错**。加载失败会静默退回过程几何（studio-external-models.js
+ * 的 fallback 路径），物件照样出现、只是糊一点，肉眼极难判定「模型没到位」还是「模型就长这样」。
+ * 已实际发生过的失效：换戳脚本按旧签名把 defineHomeItemModel 的第二参（当时是回退版本号）整段换成
+ * 新戳；第二参改成文件基名后，同一段正则把**基名**换成了版本戳，全站模型 URL 变成
+ * `/models/furniture/2609240238.glb`，192 个文件一个都取不到。基名形状那条判据就是这次事故的指纹。
+ */
+/**
+ * `modelTypeForItem`（studio-external-models.js）派生出来的模型类型：由基础类型带出来，
+ * 本来就不该出现在「可加载类型」那两张名单里，因此不参与下面那条可达性判据。
+ */
+const DERIVED_MODEL_TYPE_RE =
+  /^(curtain_(left|right|split)|pillar_(round|semicircle|quarter|quarterinner)|tv_(standard|tabletop|mobile)|rounddiningtable_turntable)$/;
+/**
+ * 已知「注册了模型但没有任何一条路会加载它」的存量条目。**现已清空** —— 这份名单是
+ * 债务清单、不是白名单：它让下面那条判据只拦新增的孤儿条目，不把存量一次性炸出来。
+ *
+ * 最后四笔（`smallcar` / `elevator` / `steelstairs` / `glassstairs`）的来龙去脉值得留一笔：
+ * 它们**有意不在 HOME_ITEM_TYPES** 里（建筑本体与车辆不进暖阳家居配色，见 studio-item-types.js
+ * 那段注释），而「不参与家居配色」被顺带读成了「不加载模型」—— 于是注册条目与被它引用的 GLB
+ * 一起空转。2026-09 这四件按流水线规格重建（见 model-specs.mjs 的 elevator / smallcar /
+ * uStairLayout），重建的同时把它们加进 EXTERNAL_MODEL_ITEM_TYPES，这条判据从此对它们生效：
+ * 再被漏掉就直接报错，不再靠人记得。
+ *
+ * 空白名单仍留着而不是删掉机制：判据本身要一直在，下一条孤儿条目才拦得住
+ * （`sofa` 当初就是这么挂了一版 —— GLB 一直在，画面上却是没有腿的程序化方块）。
+ *
+ * 更早收清的几笔：airoutlet / pipelinewaterpurifier / tea_bar_machine 三件接 HA 的家电在
+ * 流水线重建那一轮拿到了带 scaleBasis 与角色槽位的新 GLB，于是划掉并加进
+ * APPLIANCE_MODEL_ITEM_TYPES；`piano` 同理 —— 旧的那份是原样搬进来的第三方素材（单位厘米、
+ * 底面在 y=−0.502、材质名是 `金色金属材料` / `[Color_009]1` 这种、注册条目连 scaleBasis 都给不
+ * 出来，于是写不了角色、也就永远不会跟着材质风格换色），重建后它是 1.5 × 0.99 × 1.5 的三角钢琴、
+ * 八个角色槽位，于是划掉并加进 EXTERNAL_MODEL_ITEM_TYPES。
+ */
+const KNOWN_UNREACHABLE_MODEL_TYPES = new Set([]);
+
+function checkModelAssetUrls() {
+  const problems = [];
+  const text = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+  const referenced = new Set();
+  MODEL_ENTRY_RE.lastIndex = 0;
+  let match;
+  while ((match = MODEL_ENTRY_RE.exec(text))) {
+    const [, itemType, modelDir, fileKey] = match;
+    const line = text.slice(0, match.index).split("\n").length;
+    if (MODEL_VERSION_STAMP_RE.test(fileKey)) {
+      problems.push({
+        file: rel(EXTERNAL_MODELS_JS),
+        line,
+        detail:
+          `${itemType} 的模型文件基名是版本戳「${fileKey}」——` +
+          "这形状来自换戳脚本改写第二个参数（见本函数注释），不是真实文件名"
+      });
+      continue;
+    }
+    for (const suffix of ["", "-lite"]) {
+      const relative = `${modelDir}/${fileKey}${suffix}.glb`;
+      referenced.add(relative);
+      if (!fs.existsSync(path.join(MODELS_DIR, relative))) {
+        problems.push({
+          file: rel(EXTERNAL_MODELS_JS),
+          line,
+          detail: `${itemType} 引用的 ${relative} 在磁盘上不存在（加载会静默退回过程几何）`
+        });
+      }
+    }
+  }
+  for (const relative of collectModelFiles()) {
+    if (!referenced.has(relative)) {
+      problems.push({
+        file: rel(path.join(MODELS_DIR, relative)),
+        line: 0,
+        detail: "这个 GLB 没有任何注册表条目引用它（生成完忘了接线，等于白做一份产线）"
+      });
+    }
+  }
+  // ── 反向的一条：注册了、但没有任何一条路会去加载它 ────────────────────────
+  // 上面两条查「文件在不在、有没有被引用」，这一条查「引用它的那条路有没有人会走」。
+  // registry.js 的收尾判据是 EXTERNAL_MODEL_ITEM_TYPES ∪ APPLIANCE_MODEL_ITEM_TYPES，
+  // 不在这两张名单里的类型**永远**退回过程几何，而两头对账照样全绿 —— 于是这条注册
+  // 连同它的 GLB 一起空转，零报错。sofa 就是这么挂着的：GLB 一直有，画面上却是那版
+  // 「抬离地面却没有腿」的程序化方块，两个缺陷互相掩护，谁也没被发现。
+  const itemTypesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
+  const loadableTypes = new Set([
+    ...readLiteralSet(itemTypesText, "EXTERNAL_MODEL_ITEM_TYPES"),
+    ...readLiteralSet(itemTypesText, "APPLIANCE_MODEL_ITEM_TYPES")
+  ]);
+  if (loadableTypes.size) {
+    MODEL_ENTRY_RE.lastIndex = 0;
+    while ((match = MODEL_ENTRY_RE.exec(text))) {
+      const [, itemType] = match;
+      if (
+        loadableTypes.has(itemType) ||
+        DERIVED_MODEL_TYPE_RE.test(itemType) ||
+        KNOWN_UNREACHABLE_MODEL_TYPES.has(itemType)
+      ) {
+        continue;
+      }
+      const line = text.slice(0, match.index).split("\n").length;
+      problems.push({
+        file: rel(EXTERNAL_MODELS_JS),
+        line,
+        detail:
+          `${itemType} 注册了模型，但类型不在 EXTERNAL_MODEL_ITEM_TYPES / APPLIANCE_MODEL_ITEM_TYPES 里 ——` +
+          "registry.js 的收尾判据从不命中，这份 GLB 永远不会被加载（画面上一直是程序化兜底几何，零报错）。" +
+          "要么把类型加进对应的那张名单，要么把这条注册与被它引用的 GLB 一起删掉"
+      });
+    }
+  }
+  return problems;
+}
+
+const ENVIRONMENT_SCENE_JS = path.join(
+  ROOT,
+  "frontend",
+  "modules",
+  "runtime",
+  "environment",
+  "environment-scene.js"
+);
+const ENVIRONMENT_HALOS_JS = path.join(
+  ROOT,
+  "frontend",
+  "modules",
+  "runtime",
+  "environment",
+  "environment-halos.js"
+);
+/**
+ * 「环境模型类型」这组清单在仓库里重复了 7 处，且**每一处漏写都不报错**：
+ *   - environment-scene.js 的 MODEL_TYPE_TO_PAGE / MODEL_TYPE_TO_DEVICE_KIND（两张表，按类型反推页面与设备种类）；
+ *   - environment-halos.js 的描边资格清单（少了 → 该设备永远不高亮，看着像「没绑上」）；
+ *   - studio-app.js 的四处等价清单（合批排除 + 打 environmentModelType 标记，少了 → 预览里拿不到状态）。
+ * 所以这里把它们取出来两两比对。取值靠「找到 wallac 再向外扩到最近的 [ ]」，不依赖变量名 ——
+ * 那四处是内联数组字面量，本来就没有名字。
+ */
+function readBracketLists(text) {
+  // 认列表靠**连续三连**「wallac → floorac → airoutlet」：studio-app.js 里还有一组含 wallac 的
+  // 大集合（家具 + 家电 + 洁具几十项），只看单个 wallac 会把它整段吞进来。这三连只有环境模型
+  // 清单才满足（那组大集合里 wallac 后面跟的是 floorac、再后面是 nas）。
+  const lists = [];
+  const signature = /"wallac",\s*"floorac",\s*"airoutlet",/g;
+  let match;
+  while ((match = signature.exec(text))) {
+    const open = text.lastIndexOf("[", match.index);
+    const close = text.indexOf("]", match.index);
+    if (open === -1 || close === -1) {
+      continue;
+    }
+    const names = [...text.slice(open + 1, close).matchAll(/"([a-z_0-9]+)"/g)].map(item => item[1]);
+    lists.push(names);
+  }
+  return lists;
+}
+
+/** 取 `const NAME = { ... };` 字面量的顶层键。 */
+function readObjectKeys(text, declaration) {
+  const start = text.indexOf(declaration);
+  if (start === -1) {
+    return [];
+  }
+  const open = text.indexOf("{", start);
+  const close = text.indexOf("};", open);
+  return [...text.slice(open, close).matchAll(/^\s*([a-z_0-9]+):/gm)].map(item => item[1]);
+}
+
+function checkEnvironmentModelTypes() {
+  const problems = [];
+  const sceneText = fs.readFileSync(ENVIRONMENT_SCENE_JS, "utf8");
+  const halosText = fs.readFileSync(ENVIRONMENT_HALOS_JS, "utf8");
+  const appText = fs.readFileSync(STUDIO_APP, "utf8");
+
+  const pageTypes = readObjectKeys(sceneText, "const MODEL_TYPE_TO_PAGE = {");
+  const kindTypes = readObjectKeys(sceneText, "const MODEL_TYPE_TO_DEVICE_KIND = {");
+  const groups = [
+    { file: rel(ENVIRONMENT_SCENE_JS), line: 0, label: "MODEL_TYPE_TO_PAGE", types: pageTypes },
+    { file: rel(ENVIRONMENT_SCENE_JS), line: 0, label: "MODEL_TYPE_TO_DEVICE_KIND", types: kindTypes },
+    ...readBracketLists(halosText).map(types => ({
+      file: rel(ENVIRONMENT_HALOS_JS),
+      line: 0,
+      label: "描边资格清单",
+      types
+    })),
+    ...readBracketLists(appText).map(types => ({
+      file: rel(STUDIO_APP),
+      line: 0,
+      label: "studio 环境模型清单",
+      types
+    }))
+  ];
+
+  // 页面表与设备种类表必须逐类型成对（少一边等于映射到 undefined）。
+  for (const type of pageTypes) {
+    if (!kindTypes.includes(type)) {
+      problems.push({
+        file: rel(ENVIRONMENT_SCENE_JS),
+        line: 0,
+        detail: `${type} 在 MODEL_TYPE_TO_PAGE 里，却没有对应的 MODEL_TYPE_TO_DEVICE_KIND`
+      });
+    }
+  }
+
+  const reference = [...pageTypes].sort().join(",");
+  const referenceLabel = "MODEL_TYPE_TO_PAGE";
+  for (const group of groups.slice(1)) {
+    const actual = [...group.types].sort().join(",");
+    if (actual !== reference) {
+      const missing = group.types.filter(type => !pageTypes.includes(type));
+      const extra = pageTypes.filter(type => !group.types.includes(type));
+      problems.push({
+        file: group.file,
+        line: group.line,
+        detail:
+          `${group.label} 与 ${referenceLabel} 不一致` +
+          (missing.length ? `：多出 ${missing.join("、")}` : "") +
+          (extra.length ? `：缺少 ${extra.join("、")}` : "")
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 取对象字面量里**第一层**的键名与值表达式（嵌套对象里的键不算 —— 角色配方的值是 `{ surface, color }`，
+ * 内层键不能当成角色名）。`defaulted` 表示该键的值带 `??` 兜底。
+ */
+function readTopLevelObjectEntries(objectText) {
+  const entries = [];
+  // 先去掉行尾注释：本文件里带默认值的角色（`accent: accent ?? upholstery`）前面正好是一行说明注释，
+  // 不剥注释的话「上一个非空字符」会是句号而不是逗号，那个角色就会被漏掉。
+  const source = objectText.replace(/\/\/[^\n]*/g, "");
+  let depth = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    const character = source[i];
+    if (character === "{" || character === "[" || character === "(") {
+      depth += 1;
+      continue;
+    }
+    if (character === "}" || character === "]" || character === ")") {
+      depth -= 1;
+      continue;
+    }
+    if (depth !== 1) {
+      continue;
+    }
+    const keyMatch = /^([A-Za-z_][A-Za-z_0-9]*)\s*:\s*([^,]*)/.exec(source.slice(i));
+    if (!keyMatch) {
+      continue;
+    }
+    const previousCharacter = source.slice(0, i).replace(/\s+$/, "").slice(-1);
+    if (previousCharacter === "{" || previousCharacter === ",") {
+      entries.push({ key: keyMatch[1], defaulted: keyMatch[2].includes("??") });
+      i += keyMatch[0].length - 1;
+    }
+  }
+  return entries;
+}
+
+/** 只要键名（见 readTopLevelObjectEntries）。 */
+function readTopLevelObjectKeys(objectText) {
+  return readTopLevelObjectEntries(objectText).map(entry => entry.key);
+}
+
+/**
+ * 解析组合构造器（joineryCombo / fabricCombo …）能为哪些角色提供配方。
+ *
+ * 返回每个构造器的两类角色：
+ *   - `all`：它返回的全部角色（能表达的角色）；
+ *   - `defaulted`：返回时带 `??` 兜底的角色 —— 调用处不写也算数（柜类的 trim / base 默认跟随柜体、
+ *     软包的 accent / cushion 默认跟随主体、frame 默认跟随腿）。
+ *
+ * 为什么要把「兜底」单独拎出来：调用处**没传**、构造器也**没有兜底**的角色，配方里的 color 会是
+ * undefined，运行侧 `Number.isFinite(color)` 判定不过 → 那块网格静默保留基础色。这跟「写了配方
+ * 但值为空」是同一种失效，必须判出来。所以覆盖判据是「调用处显式传入 ∪ 构造器兜底」。
+ */
+function readComboRoleSupport(text) {
+  const supportByName = new Map();
+  const declRe = /function ([A-Za-z_][A-Za-z_0-9]*Combo)\(\s*\{/g;
+  let match;
+  while ((match = declRe.exec(text))) {
+    const returnIndex = text.indexOf("return {", match.index);
+    if (returnIndex === -1) {
+      continue;
+    }
+    const open = text.indexOf("{", returnIndex);
+    let depth = 0;
+    let end = open;
+    for (let i = open; i < text.length; i += 1) {
+      if (text[i] === "{") depth += 1;
+      else if (text[i] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    const entries = readTopLevelObjectEntries(text.slice(open, end + 1));
+    supportByName.set(match[1], {
+      all: entries.map(entry => entry.key),
+      defaulted: entries.filter(entry => entry.defaulted).map(entry => entry.key)
+    });
+  }
+  return supportByName;
+}
+
+/**
+ * 解析 studio-material-styles.js 里的风格组：`const X_STYLES = Object.freeze([ defineStyle(...) ])`。
+ * 颜色对象是扁平的，因此按大括号配对取出每个档位的键名就够了，不需要真解析 JS。
+ *
+ * 同时取出「档位即组合」那部分的角色名：颜色对象之后如果跟着 `xxxCombo({ ... })`，
+ * 该档位按角色给出的配方就是这个构造器**返回**的那些角色（不是调用处字面写出的那几个，
+ * 见 readComboOutputRoles）。取角色名的目的是护栏要能回答「这个类型的这个角色，
+ * 在这个档位里到底有没有配方」—— 缺一个就会静默退回基础色。
+ */
+function collectMaterialStyleGroups(text) {
+  const groups = [];
+  const comboRoleSupport = readComboRoleSupport(text);
+  const declRe = /const ([A-Z_0-9]+_STYLES) = Object\.freeze\(\[/g;
+  let match;
+  while ((match = declRe.exec(text))) {
+    const bodyStart = match.index + match[0].length;
+    let depth = 1;
+    let bodyEnd = bodyStart;
+    for (let i = bodyStart; i < text.length; i += 1) {
+      if (text[i] === "[" || text[i] === "{" || text[i] === "(") depth += 1;
+      else if (text[i] === "]" || text[i] === "}" || text[i] === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          bodyEnd = i;
+          break;
+        }
+      }
+    }
+    const body = text.slice(bodyStart, bodyEnd);
+    const entries = [];
+    const styleRe = /defineStyle\(\s*"([^"]+)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*,/g;
+    let styleMatch;
+    while ((styleMatch = styleRe.exec(body))) {
+      const objectStart = body.indexOf("{", styleMatch.index + styleMatch[0].length);
+      if (objectStart === -1) break;
+      let objectDepth = 0;
+      let objectEnd = objectStart;
+      for (let i = objectStart; i < body.length; i += 1) {
+        if (body[i] === "{") objectDepth += 1;
+        else if (body[i] === "}") {
+          objectDepth -= 1;
+          if (objectDepth === 0) {
+            objectEnd = i;
+            break;
+          }
+        }
+      }
+      const objectText = body.slice(objectStart, objectEnd);
+      const keys = [...objectText.matchAll(/(?:^|[{,]\s*)([A-Za-z_][A-Za-z_0-9]*)\s*:/gm)].map(
+        item => item[1]
+      );
+      // 颜色对象之后可能跟一个组合构造器调用（joineryCombo / fabricCombo …）：
+      // 该档位**真正覆盖到**的角色 = 调用处显式传入的 ∪ 构造器用 `??` 兜底的。
+      // 只写对象字面量（没有构造器）时，覆盖到的就是字面量里第一层的键。
+      const comboCallMatch = /([A-Za-z_][A-Za-z_0-9]*Combo)\(\s*\{/.exec(body.slice(objectEnd + 1));
+      let roleNames = null;
+      if (comboCallMatch) {
+        const comboStart = objectEnd + 1 + comboCallMatch.index + comboCallMatch[0].length - 1;
+        let comboDepth = 0;
+        let comboEnd = comboStart;
+        for (let i = comboStart; i < body.length; i += 1) {
+          if (body[i] === "{") comboDepth += 1;
+          else if (body[i] === "}") {
+            comboDepth -= 1;
+            if (comboDepth === 0) {
+              comboEnd = i;
+              break;
+            }
+          }
+        }
+        const support = comboRoleSupport.get(comboCallMatch[1]);
+        const callSiteRoles = readTopLevelObjectKeys(body.slice(comboStart, comboEnd + 1));
+        roleNames = support
+          ? [...new Set([...callSiteRoles, ...support.defaulted])]
+          : callSiteRoles;
+      }
+      const absoluteIndex = bodyStart + objectStart;
+      entries.push({
+        id: styleMatch[1],
+        surface: styleMatch[3],
+        keys,
+        roles: roleNames,
+        line: text.slice(0, absoluteIndex).split("\n").length
+      });
+    }
+    groups.push({ name: match[1], entries });
+  }
+  return groups;
+}
+
+/** 取 `const NAME = new Set([ "a", "b" ])` 里的字符串成员（含 Object.freeze(new Set([...])) 形式）。 */
+function readLiteralSet(text, name) {
+  const start = text.indexOf(`const ${name} = `);
+  if (start === -1) {
+    return new Set();
+  }
+  const open = text.indexOf("[", start);
+  const close = text.indexOf("]", open);
+  if (open === -1 || close === -1) {
+    return new Set();
+  }
+  const body = text.slice(open, close);
+  return new Set([...body.matchAll(/"([^"]+)"/g)].map(item => item[1]));
+}
+
+/**
+ * 「材质风格」可选项的覆盖率守卫。
+ *
+ * 这个功能的失效方式是**纯静默**的：下拉照常渲染、值照常落盘、控制台零报错，只是选了之后
+ * 3D 里什么都没变 —— 因为调色板的某个键压根没被任何换色分支读，或者读的键风格没覆盖。
+ * 单看代码极难发现（要同时读完 applyFurniturePalette 的几十个分支和十几组风格定义），
+ * 因此把四条约束固化成校验：
+ *
+ *   1. 每个档位至少要覆盖一个「基准键」（completeFurnitureRamp 的候选键，从源码里读，
+ *      不在此处复制一份）。缺了它，completeFurnitureRamp 不会补齐四档 —— 一旦物件的零件
+ *      落在 furniture* 档，风格就完全不起作用。
+ *   2. 服务了「家电调色板」类型（APPLIANCE_PALETTE_ITEM_TYPES）的风格组必须写全
+ *      appliance / applianceSoft / applianceDark —— 家电分支只认这三键，只写 furniture*
+ *      同样是「选了没反应」（电视的 SCREEN_STYLES 就踩过这个坑，见 studio-material-styles.js）。
+ *   3. 每个「支持材质风格」的类型都必须能查到档位（逐类型表或材质族兜底），
+ *      否则下拉里只有「跟随全局风格」，属性面板上等于没有这个功能。
+ *   4. 档位表 / 族表里不许出现不属于该类型的键 —— 类型改名或删类型后残留的键是死代码，
+ *      而它对应的新类型会因此落到第 3 条上。
+ *
+ * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
+ */
+function checkMaterialStyleCoverage() {
+  const problems = [];
+  const stylesText = fs.readFileSync(MATERIAL_STYLES_JS, "utf8");
+  const itemTypesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
+  const externalModelsText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+
+  const rampFunction = stylesText.match(/function completeFurnitureRamp\(colors\)\s*\{([\s\S]*?)\n\}/);
+  if (!rampFunction) {
+    problems.push({
+      file: rel(MATERIAL_STYLES_JS),
+      line: 0,
+      detail: "找不到 completeFurnitureRamp —— 它被改名或删掉了，本条校验的前提失效"
+    });
+    return problems;
+  }
+  // 从源码里读基准键与四档键名，避免这里再抄一份、两边各自漂移。
+  const rampBaseKeys = [
+    ...rampFunction[1].matchAll(/colors\.([A-Za-z_][A-Za-z_0-9]*)\s*\?\?/g)
+  ].map(item => item[1]);
+  const rampOutputKeys = [
+    ...rampFunction[1].matchAll(/^\s+(furniture[A-Za-z]*)\s*:/gm)
+  ].map(item => item[1]);
+  if (rampBaseKeys.length === 0 || rampOutputKeys.length === 0) {
+    problems.push({
+      file: rel(MATERIAL_STYLES_JS),
+      line: 0,
+      detail: "completeFurnitureRamp 里读不出基准键 / 输出键，本条校验无法进行"
+    });
+    return problems;
+  }
+
+  const groups = collectMaterialStyleGroups(stylesText);
+  const groupByName = new Map(groups.map(group => [group.name, group]));
+
+  // 逐类型档位表：type → 风格组名。
+  const explicitText = stylesText.slice(
+    stylesText.indexOf("const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = Object.freeze({"),
+    stylesText.indexOf("const MATERIAL_FAMILY_BY_ITEM_TYPE = Object.freeze({")
+  );
+  const styleGroupByItemType = new Map();
+  for (const item of explicitText.matchAll(/^\s*([a-z_0-9]+):\s*([A-Z_0-9]+_STYLES)\s*,?\s*$/gm)) {
+    styleGroupByItemType.set(item[1], item[2]);
+  }
+  // 材质族兜底表：type → 族名，族名 → 风格组名。
+  const familyText = stylesText.slice(
+    stylesText.indexOf("const MATERIAL_FAMILY_BY_ITEM_TYPE = Object.freeze({"),
+    stylesText.indexOf("const MATERIAL_STYLES_BY_FAMILY = Object.freeze({")
+  );
+  const familyByItemType = new Map();
+  for (const item of familyText.matchAll(/^\s*([a-z_0-9]+):\s*"([a-zA-Z_0-9]+)"\s*,/gm)) {
+    familyByItemType.set(item[1], item[2]);
+  }
+  const familyStylesText = stylesText.slice(
+    stylesText.indexOf("const MATERIAL_STYLES_BY_FAMILY = Object.freeze({")
+  );
+  const groupByFamily = new Map();
+  for (const item of familyStylesText.matchAll(/^\s*([a-zA-Z_0-9]+):\s*([A-Z_0-9]+_STYLES)\s*,?\s*$/gm)) {
+    groupByFamily.set(item[1], item[2]);
+  }
+
+  const excludedTypes = readLiteralSet(stylesText, "MATERIAL_STYLE_EXCLUDED_ITEM_TYPES");
+  const capableTypes = new Set();
+  for (const setNames of [
+    ["HOME_ITEM_TYPES"],
+    ["EXTERNAL_MODEL_ITEM_TYPES"],
+    ["APPLIANCE_MODEL_ITEM_TYPES"]
+  ]) {
+    for (const value of readLiteralSet(itemTypesText, setNames[0])) {
+      if (!excludedTypes.has(value)) {
+        capableTypes.add(value);
+      }
+    }
+  }
+
+  // 1) 每个档位都要有一个基准键。
+  for (const group of groups) {
+    for (const entry of group.entries) {
+      if (!entry.keys.some(key => rampBaseKeys.includes(key))) {
+        problems.push({
+          file: rel(MATERIAL_STYLES_JS),
+          line: entry.line,
+          detail:
+            `${group.name} 的「${entry.id}」没有任何基准键（${rampBaseKeys.join(" / ")} 一个都没有）：` +
+            "completeFurnitureRamp 不会补齐 furniture* 四档，零件落在这些档位时风格完全不起作用"
+        });
+      }
+    }
+  }
+
+  // 2) 服务家电类型的风格组必须写全 appliance 三键。
+  const appliancePaletteTypes = readLiteralSet(externalModelsText, "APPLIANCE_PALETTE_ITEM_TYPES");
+  const groupsNeedingApplianceKeys = new Set();
+  for (const [itemType, groupName] of styleGroupByItemType) {
+    if (appliancePaletteTypes.has(itemType)) {
+      groupsNeedingApplianceKeys.add(groupName);
+    }
+  }
+  for (const groupName of groupsNeedingApplianceKeys) {
+    const group = groupByName.get(groupName);
+    if (!group) continue;
+    for (const entry of group.entries) {
+      const missing = ["appliance", "applianceSoft", "applianceDark"].filter(
+        key => !entry.keys.includes(key)
+      );
+      if (missing.length > 0) {
+        problems.push({
+          file: rel(MATERIAL_STYLES_JS),
+          line: entry.line,
+          detail:
+            `${groupName} 的「${entry.id}」服务了家电调色板类型，却缺少 ${missing.join(" / ")}：` +
+            "家电换色分支只认这三键，缺了就是「下拉能选、选了没反应」"
+        });
+      }
+    }
+  }
+
+  // 3) 每个支持材质风格的类型都必须能查到档位。
+  for (const itemType of capableTypes) {
+    if (!styleGroupByItemType.has(itemType) && !familyByItemType.has(itemType)) {
+      problems.push({
+        file: rel(MATERIAL_STYLES_JS),
+        line: 0,
+        detail:
+          `${itemType} 支持材质风格，却在逐类型表与材质族表里都查不到档位：` +
+          "下拉只剩「跟随全局风格」，等于这个类型没有该功能"
+      });
+    }
+  }
+
+  // 4) 两张表里不许留下不属于该类型的键。
+  for (const [itemType, groupName] of styleGroupByItemType) {
+    if (!capableTypes.has(itemType)) {
+      problems.push({
+        file: rel(MATERIAL_STYLES_JS),
+        line: 0,
+        detail:
+          `逐类型档位表里的 ${itemType} 不是「支持材质风格」的类型（多半是类型改名 / 删除后的残留），` +
+          `它的档位 ${groupName} 永远不会被用到`
+      });
+    }
+  }
+  for (const [itemType, familyName] of familyByItemType) {
+    if (!capableTypes.has(itemType)) {
+      problems.push({
+        file: rel(MATERIAL_STYLES_JS),
+        line: 0,
+        detail: `材质族表里的 ${itemType} 不是「支持材质风格」的类型（改名 / 删除后的残留）`
+      });
+    }
+    if (!groupByFamily.has(familyName)) {
+      problems.push({
+        file: rel(MATERIAL_STYLES_JS),
+        line: 0,
+        detail: `材质族表里的 ${itemType} 指向了不存在的族「${familyName}」（族名拼错就是「选了没反应」）`
+      });
+    }
+  }
+
+  return problems;
+}
+
+/**
+ * 「档位即组合」的角色覆盖守卫。
+ *
+ * 这一条的失效方式和上一条同源、但更隐蔽：**风格档位为该类型的每个材质角色都要有配方**，
+ * 缺一个角色，那一块网格就静默退回基础色 —— 现象是「这个风格下别的地方都变了，就是某一块没变」，
+ * 与旧行为（整件单色）混在一起几乎无法判定。角色名写错（`leg` 写成 `legg`）也是同一个下场。
+ *
+ * 判据（两端都从源码取，不在这里抄一份）：
+ *   1. 规格里声明的角色必须在 MODEL_SLOT_ROLES 词表内，且不以 -soft / -dark / -light 结尾
+ *      （那三个后缀是既有资产的亮度分档约定，撞上会被运行侧当成亮度分档取色）；
+ *   2. 对每个带角色的流水线类型，它**能选到的每个档位**都必须给出该类型用到的全部角色的配方。
+ *
+ * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
+ */
+function checkMaterialRoleCoverage() {
+  const problems = [];
+  if (!PIPELINE_MODEL_SPECS) {
+    return problems; // 规格表读不到就不判
+  }
+  const stylesText = fs.readFileSync(MATERIAL_STYLES_JS, "utf8");
+  const groups = collectMaterialStyleGroups(stylesText);
+  const roleNamesByStyleId = new Map();
+  for (const group of groups) {
+    for (const entry of group.entries) {
+      roleNamesByStyleId.set(entry.id, entry.roles);
+    }
+  }
+  // 类型 → 它能选到的风格组名：逐类型表优先，其次是材质族兜底（与 materialStyleOptionsFor 同序）。
+  const explicitGroupByType = new Map();
+  const explicitStart = stylesText.indexOf("const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = ");
+  if (explicitStart !== -1) {
+    const body = stylesText.slice(
+      stylesText.indexOf("{", explicitStart),
+      stylesText.indexOf("\n});", explicitStart)
+    );
+    for (const item of body.matchAll(/^\s*([a-z_0-9]+):\s*([A-Z_0-9]+_STYLES)/gm)) {
+      explicitGroupByType.set(item[1], item[2]);
+    }
+  }
+  const familyGroupByType = new Map();
+  const familyStart = stylesText.indexOf("const MATERIAL_FAMILY_BY_ITEM_TYPE = ");
+  if (familyStart !== -1) {
+    const body = stylesText.slice(
+      stylesText.indexOf("{", familyStart),
+      stylesText.indexOf("\n});", familyStart)
+    );
+    for (const item of body.matchAll(/^\s*([a-z_0-9]+):\s*"([a-zA-Z]+)"/gm)) {
+      familyGroupByType.set(item[1], item[2]);
+    }
+  }
+  const groupNameByFamily = new Map();
+  const familyStylesStart = stylesText.indexOf("const MATERIAL_STYLES_BY_FAMILY = ");
+  if (familyStylesStart !== -1) {
+    const body = stylesText.slice(
+      stylesText.indexOf("{", familyStylesStart),
+      stylesText.indexOf("\n});", familyStylesStart)
+    );
+    for (const item of body.matchAll(/^\s*([a-zA-Z]+):\s*([A-Z_0-9]+_STYLES)/gm)) {
+      groupNameByFamily.set(item[1], item[2]);
+    }
+  }
+  const rolesByGroupName = new Map(groups.map(group => [group.name, group]));
+
+  /**
+   * 流水线规格键 → 取档位时该查哪个**物件类型**。绝大多数规格与物件类型 1:1，只有电视是三对一：
+   * 它按挂装方式拆成 tv_standard / tv_tabletop / tv_mobile 三份模型，但物件类型始终是 tv
+   * （运行侧 modelTypeForItem 由 item.tvMountStyle 现算模型键），逐类型档位表里也只有 tv 一条。
+   * 折算回 tv 之后，这三份模型用到的角色就能被它真正会走的档位（SCREEN_STYLES）验到；
+   * 不折算的话它们查不到档位、这一条会直接跳过 —— 恰恰是最需要验的三份（角色最多）。
+   */
+  const styleLookupTypeBySpec = new Map([
+    ["tv_standard", "tv"],
+    ["tv_tabletop", "tv"],
+    ["tv_mobile", "tv"],
+    // 窗帘同样是「一个物件类型对多份模型」：按开合方式拆成三段（左 / 右 / 对开），
+    // 但物件类型始终是 curtain，逐类型档位表里也只有 curtain 一条。不折算的话这三份
+    // 会查不到档位、整条跳过 —— 而它们正是本轮新增角色的三份。
+    ["curtain_left", "curtain"],
+    ["curtain_right", "curtain"],
+    ["curtain_split", "curtain"]
+  ]);
+
+  for (const [itemType, spec] of Object.entries(PIPELINE_MODEL_SPECS)) {
+    const declaredRoles = [...new Set((spec.slots || []).map(slot => slot.role).filter(Boolean))];
+    if (declaredRoles.length === 0) {
+      continue; // 还没补角色的类型不判 —— 它们本来就走整件配色那条路
+    }
+    for (const role of declaredRoles) {
+      if (!MODEL_SLOT_ROLES.includes(role) || MODEL_SLOT_ROLE_SUFFIX_RE.test(role)) {
+        problems.push({
+          file: "tools/models/model-specs.mjs",
+          line: 0,
+          detail:
+            `${itemType} 的角色「${role}」非法：` +
+            (MODEL_SLOT_ROLE_SUFFIX_RE.test(role)
+              ? "以 -soft / -dark / -light 结尾，会被运行侧当成亮度分档"
+              : "不在 MODEL_SLOT_ROLES 词表里（多半是拼错了）")
+        });
+      }
+    }
+    const styleLookupType = styleLookupTypeBySpec.get(itemType) || itemType;
+    const groupName =
+      explicitGroupByType.get(styleLookupType) ||
+      groupNameByFamily.get(familyGroupByType.get(styleLookupType));
+    const group = groupName ? rolesByGroupName.get(groupName) : null;
+    if (!group) {
+      continue; // 「这个类型查不到档位」由上一条（材质风格覆盖）负责报
+    }
+    for (const entry of group.entries) {
+      if (!entry.roles) {
+        // 该档位没按角色给组合：对这个类型而言，所有角色都会退回基础色。
+        problems.push({
+          file: rel(MATERIAL_STYLES_JS),
+          line: entry.line,
+          detail:
+            `${itemType} 能选到档位「${entry.id}」，但它没有按角色给出组合 —— ` +
+            `${declaredRoles.join(" / ")} 会整片退回基础色（看着就像这个档位没生效）`
+        });
+        continue;
+      }
+      const missing = declaredRoles.filter(role => !entry.roles.includes(role));
+      if (missing.length) {
+        problems.push({
+          file: rel(MATERIAL_STYLES_JS),
+          line: entry.line,
+          detail:
+            `${itemType} 用到的角色 ${missing.join(" / ")} 在档位「${entry.id}」里没有配方 —— ` +
+            "这几块会静默退回基础色，别人都变了就它没变"
+        });
+      }
+    }
+  }
+
+  // 石材色号（`slab`）也要对账：色号写错时 createStoneSlabTexture 返回 null，
+  // 运行侧退化成「一个纯色 + 没纹路」，正是本条守卫要防的「选了没反应」。
+  const implementedFlavors = readStoneSlabFlavors();
+  if (implementedFlavors) {
+    const externalText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+    const flavorReads = [
+      // 档位里写的色号。
+      ...[...stylesText.matchAll(/\bslab:\s*"([a-zA-Z][a-zA-Z0-9_-]*)"/g)].map(item => ({
+        flavor: item[1],
+        file: rel(MATERIAL_STYLES_JS),
+        where: "档位的角色配方"
+      })),
+      // 自动档（未选风格）时运行侧读的默认色号表。
+      ...[
+        ...readObjectLiteralStrings(externalText, "STONE_SLAB_FLAVOR_BY_MODEL_SLOT")
+      ].map(flavor => ({
+        flavor,
+        file: rel(EXTERNAL_MODELS_JS),
+        where: "默认色号表"
+      }))
+    ];
+    // 每个色号只报一次：同一处写错会在这张表的多个槽位上重复出现。
+    const seenFlavorProblem = new Set();
+    for (const { flavor, file, where } of flavorReads) {
+      if (implementedFlavors.has(flavor) || seenFlavorProblem.has(flavor)) {
+        continue;
+      }
+      seenFlavorProblem.add(flavor);
+      problems.push({
+        file,
+        line: 0,
+        detail:
+          `${where}用了石材色号「${flavor}」，但 studio-surface-textures.js 里没有它的画法 —— ` +
+          `运行侧会退化成一块没纹路的纯色。已实现的色号：${[...implementedFlavors].join(" / ")}`
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 「调色板路径」的角色出口守卫。
+ *
+ * 失效方式：默认档位（「跟随全局风格」）走的不是 `joineryCombo` 那套按角色的配方，而是
+ * studio-external-models.js 的 `applyFurniturePalette`；它末尾有一条「按烘焙亮度分三档」的
+ * 兜底，本意是给**整件同一种主料**的家具分层次。内容物与五金落进那条兜底会被刷成主料色 ——
+ * 书柜里的书与柜体同色、鞋柜敞开格里的鞋读成一堆木方块、梳妆台的镜面是一块木头。这三条
+ * 症状都不报错，只能靠眼睛发现（而且要先知道自己在看什么）：它们各自被「不跟木色走」的
+ * 配方挡过一次，但那只在**手动选了材质档位**时才生效。
+ *
+ * 判据：规格里出现过的**每一个角色**都必须在运行侧的出口登记表里登记，且三份名单互不重叠：
+ *   - `CARCASS_MATERIAL_ROLE_SET`：本来就是主料，跟着调色板三档走；
+ *   - `AUTHORED_COLOR_MATERIAL_ROLE_RECIPES`：内容物 / 撞色陈设件 / 镜面，取规格里烘焙的原色；
+ *   - `NON_CARCASS_MATERIAL_ROLE_SET`：另有专管（五金 / 玻璃 / 布艺 / 琴键 / 绿植 / 水槽灶面 / 屏面）。
+ * 反向也判：登记了却没有任何规格在用（改名之后的残渣）、或不在角色词表里（拼错），都会报出来。
+ *
+ * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
+ */
+function checkMaterialRolePaletteOutlets() {
+  const problems = [];
+  if (!PIPELINE_MODEL_SPECS) {
+    return problems; // 规格表读不到就不判
+  }
+  const loaderText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+  /** 取 `const NAME = new Set([ ... ])` 里的字符串成员；读不到返回 null（改名即整条失效）。 */
+  const readRoleSet = name => {
+    const start = loaderText.indexOf(`const ${name} = new Set([`);
+    if (start === -1) {
+      return null;
+    }
+    const end = loaderText.indexOf("]);", start);
+    return new Set([...loaderText.slice(start, end).matchAll(/"([a-z_0-9]+)"/g)].map(item => item[1]));
+  };
+  const carcassRoles = readRoleSet("CARCASS_MATERIAL_ROLE_SET");
+  const nonCarcassRoles = readRoleSet("NON_CARCASS_MATERIAL_ROLE_SET");
+  const authoredStart = loaderText.indexOf("const AUTHORED_COLOR_MATERIAL_ROLE_RECIPES = Object.freeze({");
+  const authoredRoles =
+    authoredStart === -1
+      ? null
+      : new Set(
+          readTopLevelObjectKeys(
+            loaderText.slice(loaderText.indexOf("{", authoredStart), loaderText.indexOf("\n});", authoredStart))
+          )
+        );
+  if (!carcassRoles || !nonCarcassRoles || !authoredRoles) {
+    return [
+      {
+        file: rel(EXTERNAL_MODELS_JS),
+        line: 0,
+        detail:
+          "读不到角色出口登记表（CARCASS_MATERIAL_ROLE_SET / NON_CARCASS_MATERIAL_ROLE_SET / " +
+          "AUTHORED_COLOR_MATERIAL_ROLE_RECIPES）—— 改名或换写法会让这一条整体失去判据，宁可报出来"
+      }
+    ];
+  }
+  // 三份名单两两不重叠：重复登记意味着「这个角色到底跟不跟主料走」没定下来。
+  const outletByRole = new Map();
+  for (const [outletName, roles] of [
+    ["CARCASS_MATERIAL_ROLE_SET（跟主料三档）", carcassRoles],
+    ["AUTHORED_COLOR_MATERIAL_ROLE_RECIPES（取规格原色）", authoredRoles],
+    ["NON_CARCASS_MATERIAL_ROLE_SET（另有专管）", nonCarcassRoles]
+  ]) {
+    for (const role of roles) {
+      const previousOutlet = outletByRole.get(role);
+      if (previousOutlet) {
+        problems.push({
+          file: rel(EXTERNAL_MODELS_JS),
+          line: 0,
+          detail: `角色「${role}」登记了两次（${previousOutlet} / ${outletName}）—— 出口只能有一个`
+        });
+        continue;
+      }
+      outletByRole.set(role, outletName);
+    }
+  }
+  const declaredRoles = new Set();
+  for (const spec of Object.values(PIPELINE_MODEL_SPECS)) {
+    for (const slot of spec.slots || []) {
+      if (slot.role) {
+        declaredRoles.add(slot.role);
+      }
+    }
+  }
+  for (const role of [...declaredRoles].sort()) {
+    if (outletByRole.has(role)) {
+      continue;
+    }
+    problems.push({
+      file: rel(EXTERNAL_MODELS_JS),
+      line: 0,
+      detail:
+        `角色「${role}」没有登记默认档位的出口 —— 它会落进按亮度分三档的兜底、被刷成主料色` +
+        "（书与柜体同色、鞋是一堆木方块、镜面是一块木头都出自这一步）。按它的实际归属写进三份名单之一"
+    });
+  }
+  for (const [role, outletName] of outletByRole) {
+    if (!MODEL_SLOT_ROLES.includes(role)) {
+      problems.push({
+        file: rel(EXTERNAL_MODELS_JS),
+        line: 0,
+        detail: `${outletName}里的「${role}」不在 tools/models/model-roles.mjs 的角色词表里（多半是拼错了）`
+      });
+      continue;
+    }
+    if (!declaredRoles.has(role)) {
+      problems.push({
+        file: rel(EXTERNAL_MODELS_JS),
+        line: 0,
+        detail: `${outletName}里的「${role}」没有任何规格在用 —— 角色已删或改名，登记表没跟着收`
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 圆形占地的物件在平面图上没有按圆画（或名单里塞了不是圆的）。
+ *
+ * 平面图符号是手绘的（studio-app.js 的 drawPlanItem），3D 早已换成流水线规格，两者不会互相
+ * 牵引 —— 0.9 × 0.9 的圆茶几画成方角矩形、圆桶加湿器画成方块，画面上「对不上」但浏览器零报错。
+ * 这一条把「该不该画圆」变成可判的：
+ *
+ *   实测（判据见 tools/lib/glb-footprint.mjs：格数比 ≈ π/4 且各向半径等长）
+ *     ↔ studio-item-types.js 的 ROUND_FOOTPRINT_ITEM_TYPES（运行侧照它画圆）
+ *
+ * 双向都判：实测是圆却没进名单 → 那一件在户型图上是个方角矩形；名单里有但实测不是圆 →
+ * 名单该收，否则圆的符号会盖在一个方方正正的物件上。
+ * 另加一道「名单有没有真的接上」：只导出名单、不去用（少写 `.has(itemToDraw.type)` 分支）
+ * 是这类改动最典型的半成品状态，两个方向都正常、画面上一点变化都没有。
+ *
+ * 判不出真假就不判：读不到 GLB、几何太简单（径向样本不够）的条目一律跳过，只报「读不了」。
+ *
+ * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
+ */
+function checkRoundFootprintPlanSymbols() {
+  const problems = [];
+  const typesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
+  const declaredStart = typesText.indexOf("export const ROUND_FOOTPRINT_ITEM_TYPES = new Set([");
+  if (declaredStart === -1) {
+    return [
+      {
+        file: rel(ITEM_TYPES_JS),
+        line: 0,
+        detail:
+          "读不到 ROUND_FOOTPRINT_ITEM_TYPES —— 改名或换写法会让这一条整体失去判据，宁可报出来"
+      }
+    ];
+  }
+  const declaredEnd = typesText.indexOf("]);", declaredStart);
+  const declared = new Set(
+    [...typesText.slice(declaredStart, declaredEnd).matchAll(/"([a-z_0-9]+)"/g)].map(item => item[1])
+  );
+  // 名单必须真的接上**外轮廓那一支**：只有名单没有分支 = 改动做了一半，画面上一模一样。
+  // 判据要精确到「那一支里有 fill()」—— 圆里的同心圈（ROUND_PLAN_RING_RATIOS_BY_TYPE 那一段）
+  // 也带 ellipse()，只看 ellipse 会被它蒙混过去（实测过：把外轮廓那一支停掉，判据照样通过）。
+  const appText = fs.readFileSync(STUDIO_APP, "utf8");
+  if (
+    !/ROUND_FOOTPRINT_ITEM_TYPES\.has\(itemToDraw\.type\)[\s\S]{0,500}?ellipse\([\s\S]{0,240}?\.fill\(/.test(
+      appText
+    )
+  ) {
+    problems.push({
+      file: rel(STUDIO_APP),
+      line: 0,
+      detail:
+        "ROUND_FOOTPRINT_ITEM_TYPES 没有接上外轮廓的绘制分支 —— 名单进了 studio-item-types.js，" +
+        "但 studio-app.js 里没有「命中它就画椭圆并填充」的那一支，平面图上一点变化都没有"
+    });
+  }
+  let measured = null;
+  try {
+    measured = measureFootprints();
+  } catch {
+    measured = null; // 读不出就不判，避免退化成纯误报
+  }
+  if (!measured) {
+    return problems;
+  }
+  const unreadable = measured.filter(entry => !entry.stats).map(entry => entry.type);
+  if (unreadable.length > 0) {
+    problems.push({
+      file: rel(MODELS_DIR),
+      line: 0,
+      detail: `${unreadable.join(" / ")} 的俯视轮廓读不出来（GLB 缺失或解析失败），本条对这些类型失去判据`
+    });
+  }
+  const measuredRound = new Set(measured.filter(entry => entry.isRound).map(entry => entry.type));
+  for (const type of [...measuredRound].sort()) {
+    if (!declared.has(type)) {
+      problems.push({
+        file: rel(ITEM_TYPES_JS),
+        line: 0,
+        detail:
+          `「${type}」实测俯视占地是圆，却没进 ROUND_FOOTPRINT_ITEM_TYPES —— ` +
+          "它会在户型图上被画成方角矩形。清单由 tools/audit_plan_symbols.mjs 实测得出，直接补进去"
+      });
+    }
+  }
+  for (const type of [...declared].sort()) {
+    if (!measuredRound.has(type)) {
+      problems.push({
+        file: rel(ITEM_TYPES_JS),
+        line: 0,
+        detail:
+          `ROUND_FOOTPRINT_ITEM_TYPES 里的「${type}」实测不是圆（占地比例与各向半径对不上）—— ` +
+          "要么规格改成了方料、要么类型名拼错，两种都该把它从名单里收掉"
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 取某个 `const NAME = Object.freeze({` 对象字面量里的全部字符串值（只取这一层。
+ * 用户是「色号表」这类扁平结构 —— 槽位表里嵌了一层 Object.freeze，所以按括号配对切到对象结束为止）。
+ */
+function readObjectLiteralStrings(sourceText, name) {
+  const declarationIndex = sourceText.indexOf(`const ${name} = Object.freeze({`);
+  if (declarationIndex === -1) {
+    return [];
+  }
+  let depth = 0;
+  let opened = false;
+  let end = sourceText.length;
+  for (let index = sourceText.indexOf("{", declarationIndex); index < sourceText.length; index += 1) {
+    if (sourceText[index] === "{") {
+      depth += 1;
+      opened = true;
+    } else if (sourceText[index] === "}") {
+      depth -= 1;
+      if (opened && depth === 0) {
+        end = index;
+        break;
+      }
+    }
+  }
+  const body = sourceText.slice(declarationIndex, end);
+  // 只认「值」：形如 `0: "marble-dark"` 或 `"marble": ...`。
+  return [...new Set([...body.matchAll(/:\s*"([a-zA-Z][a-zA-Z0-9_-]*)"/g)].map(item => item[1]))];
+}
+
+/**
+ * 从 studio-surface-textures.js 里读出**已实现**的石材整图色号。
+ * 来源两处：STONE_SLAB_TONES 的键，以及 createStoneSlabTexture 里特判复用背景墙贴图的那个 `marble`。
+ * 读不到（改名 / 结构变化）时返回 null，本条子校验整体跳过 —— 不误报比多报一条更重要。
+ */
+function readStoneSlabFlavors() {
+  const surfaceTexturesPath = path.join(
+    ROOT,
+    "frontend",
+    "static",
+    "3d-studio",
+    "materials",
+    "studio-surface-textures.js"
+  );
+  if (!fs.existsSync(surfaceTexturesPath)) {
+    return null;
+  }
+  const textureText = fs.readFileSync(surfaceTexturesPath, "utf8");
+  const tonesStart = textureText.indexOf("const STONE_SLAB_TONES = Object.freeze({");
+  if (tonesStart === -1) {
+    return null;
+  }
+  const tonesBody = textureText.slice(tonesStart, textureText.indexOf("});", tonesStart));
+  const flavors = new Set(
+    [...tonesBody.matchAll(/^\s*"?([a-zA-Z][a-zA-Z0-9_-]*)"?:\s*MARBLE_TONES\./gm)].map(
+      item => item[1]
+    )
+  );
+  // 特判分支：`if (flavor === "marble")` 直接复用背景墙那张图，不在 STONE_SLAB_TONES 里出现。
+  for (const item of textureText.matchAll(/flavor === "([a-zA-Z][a-zA-Z0-9_-]*)"/g)) {
+    flavors.add(item[1]);
+  }
+  return flavors.size ? flavors : null;
+}
+
+const ASSET_PALETTE_JS = path.join(
+  ROOT,
+  "frontend",
+  "static",
+  "3d-studio",
+  "studio",
+  "studio-asset-palette.js"
+);
+
+/**
+ * 素材库页签与类型词表两端对账。
+ *
+ * 素材库的分组显隐走两条**互不知情**的数据：卡片自己的 `data-asset-category`（来自
+ * STUDIO_ASSET_PALETTE 里那一组的 `category`，在 studio-asset-palette.js）决定分组标题是否可见，
+ * 而 studio-app.js 的 syncAssetTabVisibility 用 APPLIANCE_ITEM_TYPES 决定**卡片**是否可见。
+ * 两条数据一旦错开，症状是卡片挂在上一个仍可见的家居标题下面 —— 也就是「家电跑进了
+ * 结构与特殊物件 / 卫浴那一组」。它不报错，只有人盯着素材栏才发现，所以在这里双向对账：
+ *   - 「电器」组的卡片必须都在 APPLIANCE_ITEM_TYPES 里（少了就是漏到家居页签）；
+ *   - 「家居」组的卡片必须都不在 APPLIANCE_ITEM_TYPES 里（多了就是家居卡片跑进电器页签）。
+ * 同一份名单还决定兜底盒体的取色（external-fallback.js：家电取电器色、其余取家具色），
+ * 所以漏一个会连带让加载中的占位几何变成另一个颜色。
+ */
+function checkAssetPaletteTypeSets() {
+  const problems = [];
+  if (!fs.existsSync(ASSET_PALETTE_JS) || !fs.existsSync(ITEM_TYPES_JS)) {
+    return problems;
+  }
+  const paletteText = fs.readFileSync(ASSET_PALETTE_JS, "utf8");
+  const itemTypesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
+
+  // 卡片按所属分组的 category 归堆。分组对象形如
+  // `{ category: "appliance", label: …, note: …, items: [ { type: "fridge", … }, … ] }`，
+  // 所以从 `category:` 起配到该组 `items: [` 的收尾 `]` 为止。
+  const cardsByCategory = new Map();
+  const groupRe = /category:\s*"(home|appliance)"[\s\S]*?items:\s*\[([\s\S]*?)\n {4}\]/g;
+  let groupMatch;
+  while ((groupMatch = groupRe.exec(paletteText))) {
+    const bucket = cardsByCategory.get(groupMatch[1]) ?? new Set();
+    for (const card of groupMatch[2].matchAll(/type:\s*"([^"]+)"/g)) {
+      bucket.add(card[1]);
+    }
+    cardsByCategory.set(groupMatch[1], bucket);
+  }
+  if (cardsByCategory.size === 0) {
+    return problems;
+  }
+
+  const applianceTypes = readExportedSetMembers(itemTypesText, "APPLIANCE_ITEM_TYPES");
+  if (applianceTypes.size === 0) {
+    return problems;
+  }
+
+  /** 该片段在原文里的行号（找不到就返回 0，表示「报在文件级」）。 */
+  const lineOfFirst = (sourceText, needle) => {
+    const index = sourceText.indexOf(needle);
+    return index === -1 ? 0 : sourceText.slice(0, index).split("\n").length;
+  };
+
+  const paletteLine = lineOfFirst(paletteText, 'category: "appliance"');
+  for (const type of cardsByCategory.get("appliance") ?? []) {
+    if (!applianceTypes.has(type)) {
+      problems.push({
+        file: rel(ASSET_PALETTE_JS),
+        line: paletteLine,
+        detail:
+          `「电器」页签的卡片 ${type} 不在 APPLIANCE_ITEM_TYPES 里 —— 它会漏到「家居」页签，` +
+          `而家居页签只隐藏分组标题、不隐藏卡片，于是它挂在上一个家居标题（结构与特殊物件 / 卫浴）下面，` +
+          `看上去就是「家电跑进了家居结构」；兜底盒体也会取家具色而不是电器色`
+      });
+    }
+  }
+  for (const type of cardsByCategory.get("home") ?? []) {
+    if (applianceTypes.has(type)) {
+      problems.push({
+        file: rel(ITEM_TYPES_JS),
+        line: lineOfFirst(itemTypesText, `"${type}"`),
+        detail:
+          `家居卡片 ${type} 被判成了家电（APPLIANCE_ITEM_TYPES 里多它）—— ` +
+          `它会从「家居」页签消失、跑到「电器」页签去`
+      });
+    }
+  }
+  return problems;
+}
+
+/** 取 `export const NAME = new Set([ … ])` 里的字符串成员。 */
+function readExportedSetMembers(sourceText, name) {
+  const start = sourceText.indexOf(`export const ${name} = new Set([`);
+  if (start === -1) {
+    return new Set();
+  }
+  const body = sourceText.slice(start, sourceText.indexOf("]", start));
+  return new Set([...body.matchAll(/"([^"]+)"/g)].map(item => item[1]));
+}
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -1991,6 +3482,97 @@ const checks = [
           "改动色板里的这两枚令牌时，同手把这 18 个文件一起改；新增页面若确实压别的底色，" +
           "把该令牌加进 THEME_COLOR_TOKENS 白名单",
         run: checkThemeColorLeavesPalette
+      },
+      {
+        title: "模型注册表与 models/ 目录两端不对齐（加载失败只退回过程几何，浏览器里零报错）",
+        hint:
+          "改 frontend/static/3d-studio/loaders/studio-external-models.js：每条 define*ItemModel 的" +
+          "「子目录 + 文件基名」都要指向真实文件；反过来，models/ 下每个 .glb 也都要有条目引用" +
+          "（含 -lite 与完整版两份）。文件基名写成 10 位版本戳是换戳脚本改写第二个参数的指纹，" +
+          "见 checkModelAssetUrls 的注释",
+        run: checkModelAssetUrls
+      },
+      {
+        title: "流水线 GLB 内容与规格 / scaleBasis 不自洽（多半是改了规格没重新导出）",
+        hint:
+          "改 tools/models/model-specs.mjs 里的 size 后**必须重跑** node tools/models/generate-models.mjs 导出，" +
+          "并把 studio-external-models.js 的 scaleBasis 一起对齐 —— 运行侧按 scaleBasis 非等比缩放，" +
+          "两者不一致就会被拉变形，而浏览器里只表现为「看着有点歪」。底面必须落在 y=0（preserveOrigin 直接贴地）、" +
+          "占地中心必须在原点；材质名必须是 material-<槽位号>，否则颜色不跟风格走（这条没有 fallback）。" +
+          "lite 版必须真的比完整版轻。" +
+          "判据只覆盖 tools/models/model-specs.mjs 里登记的流水线产物；models/ 下的外部既有资产" +
+          "走另一套命名与比例约定，不在此列",
+        run: checkModelGlbIntegrity
+      },
+      {
+        title: "流水线 GLB 之间存在会闪的共面重叠（z-fighting：不报错、单张截图也看不出）",
+        hint:
+          "两块不同槽位的面落在同一平面且有重叠时会在同一像素上抢深度、逐帧抖动，表现为一片闪动的条纹；" +
+          "它不进控制台、不动相机看不出来，所以只能靠这条守卫。跑 node tools/audit_coplanar_faces.mjs " +
+          "看逐件清单（--model=<类型> 单件、--all-faces 连无害的背靠背一起列）。修法**不是把面推开** —— " +
+          "外表面撑住包围盒，生成器有 1mm 的规格校验；要让**非极值的那一件**退让：嵌进母体、或收到" +
+          "相邻件的内表面之内（例如 «面板贴在机身前脸上» 改成面板凸出 1.5mm、玻璃门与柜体同宽改成收 4mm、" +
+          "踏板与斜梁逐面齐平改成踏板收 2mm/边）。改完必须重跑 node tools/models/generate-models.mjs",
+        run: checkCoplanarOverlaps
+      },
+      {
+        title: "「环境模型类型」七处清单不一致（漏一处就静默少特效 / 少绑定）",
+        hint:
+          "以 environment-scene.js 的 MODEL_TYPE_TO_PAGE 为准，把 environment-scene.js 的 " +
+          "MODEL_TYPE_TO_DEVICE_KIND、environment-halos.js 的描边资格清单、studio-app.js 的四处内联清单" +
+          "一起补齐；两张表必须逐类型成对，删类型同理",
+        run: checkEnvironmentModelTypes
+      },
+      {
+        title: "「材质风格」选了没反应（档位没覆盖换色分支真正读的调色板键）",
+        hint:
+          "改 frontend/static/3d-studio/studio/studio-material-styles.js：每个 defineStyle 至少要有" +
+          "一个基准键（furniture / furnitureSoft / furnitureLight / furnitureDark / wood / cabinetBody /" +
+          "applianceSoft / countertop / glass / leafColor），缺失的 furniture* 四档由 completeFurnitureRamp" +
+          "派生补齐；服务家电类型的风格组必须写全 appliance / applianceSoft / applianceDark；" +
+          "每个支持材质风格的类型都要在逐类型表或材质族表里查得到档位",
+        run: checkMaterialStyleCoverage
+      },
+      {
+        title: "「档位即组合」的角色没覆盖（该角色的那一块会静默退回基础色）",
+        hint:
+          "改 frontend/static/3d-studio/studio/studio-material-styles.js：某个类型用到的每个角色，" +
+          "在它**能选到的每个档位**里都要有配方（用 joineryCombo / fabricCombo 这类构造器写，" +
+          "从属关系由构造器补默认值）。角色词表与命名硬约束见 tools/models/model-roles.mjs —— " +
+          "角色名不得以 -soft / -dark / -light 结尾，那三个后缀是既有资产的亮度分档约定。" +
+          "配方里用 slab 指石材整图色号时，色号必须是 studio-surface-textures.js 里真画出来的那几种" +
+          "（现在有 marble / marble-dark）；写错的色号不会报错，只会让那块网格退化成没纹路的纯色",
+        run: checkMaterialRoleCoverage
+      },
+      {
+        title: "素材库页签与类型词表两端错位（家电卡片漏进「家居」页签，视觉上落进结构与特殊物件那一组）",
+        hint:
+          "改 frontend/static/3d-studio/studio/studio-item-types.js 的 APPLIANCE_ITEM_TYPES：它必须" +
+          "恰好等于 studio-asset-palette.js 里 category 为 \"appliance\" 的卡片集合。少了 → 那张卡" +
+          "漏到家居页签（家居页签只隐藏分组标题、不隐藏卡片，于是挂到上一个可见的家居标题下），" +
+          "并且兜底盒体取家具色；多了 → 家居卡片跑进电器页签。加电器卡片时同手补这份名单",
+        run: checkAssetPaletteTypeSets
+      },
+      {
+        title: "默认档位的角色没有出口（内容物 / 五金会静默被刷成主料色）",
+        hint:
+          "改 frontend/static/3d-studio/loaders/studio-external-models.js：规格里出现的每个角色都要" +
+          "登记在 CARCASS_MATERIAL_ROLE_SET（跟主料三档）/ AUTHORED_COLOR_MATERIAL_ROLE_RECIPES" +
+          "（内容物与镜面取规格原色）/ NON_CARCASS_MATERIAL_ROLE_SET（另有专管）之一，三份名单不得重叠。" +
+          "新加角色时先想清楚它属于哪一类：跟着柜体木色走看着对不对？不对的话它就该在第二类里 —— " +
+          "「不跟木色走」的配方在 studio-material-styles.js 的 joineryCombo 里也各要有一条，两处成对",
+        run: checkMaterialRolePaletteOutlets
+      },
+      {
+        title: "圆形占地的物件没有按圆画（户型图上成了方角矩形）",
+        hint:
+          "平面符号是手绘的（studio-app.js 的 drawPlanItem），与 3D 规格不会互相牵引，所以" +
+          "「这一件该画圆还是画方」只能靠实测：跑 node tools/audit_plan_symbols.mjs，把实测是圆的类型" +
+          "补进 frontend/static/3d-studio/studio/studio-item-types.js 的 ROUND_FOOTPRINT_ITEM_TYPES，" +
+          "再到 studio-app.js 的 ROUND_PLAN_RING_RATIOS_BY_TYPE 里补它那一两个同心圈的半径比" +
+          "（比值从 tools/models/model-specs.mjs 的实际半径除出来）。反过来，名单里有但实测不是圆的" +
+          "（规格改成了方料）要从名单里收掉",
+        run: checkRoundFootprintPlanSymbols
       }
     ];
 

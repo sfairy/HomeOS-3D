@@ -42,7 +42,7 @@ jobs:
   #
   # 曾经常驻在这里的是七道 Node 守卫（结构引用 / ESM 导出 / 注册表分片 / 素材卡 / 前端卫生 /
   # 场景同步 / 入口页）加三项运行时冒烟（smoke_registry / smoke_state_entry / smoke_backend），
-  # 本轮清理中已整体移除；随后补回这一类里价值最高的一道 —— tools/check_invariants.mjs 钉九条
+  # 本轮清理中已整体移除；随后补回这一类里价值最高的一道 —— tools/check_invariants.mjs 钉二十一条
   # 每次编辑都可能踩到、且踩到时浏览器/解释器不报错的不变量（见脚本文件头与 README「开发工具」）。
   # 其余结构 / 卫生类不变量仍由人工 review 兜住。
   # 两份工作流**共用同一份清单**，改时两边一起改。
@@ -65,7 +65,8 @@ jobs:
         run: pip install ruff
 
       # 与 guards.yml 共用同一份清单（README 明确要求两边一起改）：
-      # 九条「不报错、只静默失效」的不变量，见 tools/check_invariants.mjs 文件头。
+      # 「不报错、只静默失效」的不变量：二十一条，逐条清单与背景见 README「前端结构卫生」一节，
+      # 边界写在 tools/check_invariants.mjs 文件头。
       # ubuntu-latest 自带 node。
       - name: Invariants (tools/check_invariants.mjs)
         run: node tools/check_invariants.mjs

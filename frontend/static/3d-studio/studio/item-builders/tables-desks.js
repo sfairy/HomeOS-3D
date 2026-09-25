@@ -11,119 +11,70 @@
  */
 /**
  * 命中：itemSpec.type === "coffeetable"
+ *
+ * 「组合茶几」= 两块石材叠合错位：白石板压在黑石座上。这里是**加载中的占位几何** ——
+ * 外部 GLB 还没到位时先顶上，到位后整组被换掉（见 registry.js 的 finishItemModel）。
+ *
+ * 因此它的比例必须跟着 model-specs.mjs 的 coffeetable 一起改：占位几何与成品长得不一样，
+ * 加载完成的一瞬间就会有「先是一对圆墩、再变成两块石板」的跳变。所有比例都写成对
+ * itemWidth / itemDepth / itemHeight 的定比，那三处尺寸改动后这边自动跟着走。
+ *
+ * 石材整图与外部模型共用同一份缓存贴图（context.stoneSlabTexture），
+ * 所以占位时看到的纹路就是成品那块石头的纹路。
  */
 export function buildCoffeetableItem(context) {
   const {
-    addCylinderMesh,
-    furnitureColor,
+    addBoxMesh,
     furnitureDarkColor,
-    furnitureLightColor,
-    furnitureSoftColor,
     itemDepth,
     itemGroup,
     itemHeight,
     itemWidth,
+    stoneSlabTexture
   } = context;
-  const coffeeTableLegRadius = Math.min(itemWidth * 0.34, itemDepth * 0.42);
-  const coffeeTableSmallLegRadius = Math.min(itemWidth * 0.23, itemDepth * 0.29);
-  const coffeeTableLegX = -itemWidth * 0.16;
-  const coffeeTableLegZ = itemDepth * 0.08;
-  const coffeeTableSmallLegX = itemWidth * 0.24;
-  const coffeeTableSmallLegZ = -itemDepth * 0.2;
-  const coffeeTableLegHeight = itemHeight * 0.58;
-  const coffeeTableSmallLegHeight = itemHeight * 0.76;
-  addCylinderMesh(
+  // 石座：长度 1.72 / 1.90、整高 0.30 / 0.50、进深占满、右端顶到 +0.95 → 中心偏 +0.09 / 1.90。
+  const coffeetableBaseWidth = itemWidth * (1.72 / 1.9);
+  const coffeetableBaseHeight = itemHeight * (0.3 / 0.5);
+  const coffeetableBaseCenterX = itemWidth * (0.09 / 1.9);
+  // 白石板：长 1.0 / 1.90、厚 0.20 / 0.50、进深 0.85 / 1.05，坐在石座上、向左错位悬挑。
+  const coffeetableTopWidth = itemWidth * (1.0 / 1.9);
+  const coffeetableTopHeight = itemHeight * (0.2 / 0.5);
+  const coffeetableTopDepth = itemDepth * (0.85 / 1.05);
+  const coffeetableTopCenterX = itemWidth * (-0.45 / 1.9);
+  const coffeetableTopCenterY = coffeetableBaseHeight + coffeetableTopHeight * 0.5;
+  // 两块石板各自的石材色号；贴图取不到（极端降级）时退回原来的家具深色 / 浅色。
+  const coffeetableBaseTexture = stoneSlabTexture("marble-dark");
+  const coffeetableTopTexture = stoneSlabTexture("marble");
+  addBoxMesh(
     itemGroup,
-    coffeeTableLegRadius * 0.3,
-    coffeeTableLegRadius * 0.5,
-    coffeeTableLegHeight,
-    coffeeTableLegX,
-    coffeeTableLegHeight * 0.5,
-    coffeeTableLegZ,
-    furnitureColor,
+    coffeetableBaseWidth,
+    coffeetableBaseHeight,
+    itemDepth,
+    coffeetableBaseCenterX,
+    coffeetableBaseHeight * 0.5,
+    0,
+    coffeetableBaseTexture ? 0xffffff : furnitureDarkColor,
     {
-      segments: 40,
-      roughness: 0.82
+      map: coffeetableBaseTexture,
+      radius: 0.01,
+      roughness: 0.18,
+      metalness: 0.04
     }
   );
-  const coffeeTableTopThickness = itemHeight * 0.07;
-  const coffeeTableInsetThickness = itemHeight * 0.055;
-  const coffeeTableTopCenterY = coffeeTableLegHeight + coffeeTableTopThickness * 0.5 + 0.001;
-  const coffeeTableInsetCenterY =
-    coffeeTableTopCenterY + (coffeeTableTopThickness + coffeeTableInsetThickness) * 0.5 + 0.001;
-  addCylinderMesh(
+  addBoxMesh(
     itemGroup,
-    coffeeTableLegRadius * 1.02,
-    coffeeTableLegRadius * 1.02,
-    coffeeTableTopThickness,
-    coffeeTableLegX,
-    coffeeTableTopCenterY,
-    coffeeTableLegZ,
-    furnitureDarkColor,
+    coffeetableTopWidth,
+    coffeetableTopHeight,
+    coffeetableTopDepth,
+    coffeetableTopCenterX,
+    coffeetableTopCenterY,
+    0,
+    coffeetableTopTexture ? 0xffffff : furnitureDarkColor,
     {
-      segments: 48,
-      roughness: 0.72
-    }
-  );
-  addCylinderMesh(
-    itemGroup,
-    coffeeTableLegRadius,
-    coffeeTableLegRadius,
-    coffeeTableInsetThickness,
-    coffeeTableLegX,
-    coffeeTableInsetCenterY,
-    coffeeTableLegZ,
-    furnitureLightColor,
-    {
-      segments: 48,
-      roughness: 0.9
-    }
-  );
-  addCylinderMesh(
-    itemGroup,
-    coffeeTableSmallLegRadius * 0.32,
-    coffeeTableSmallLegRadius * 0.52,
-    coffeeTableSmallLegHeight,
-    coffeeTableSmallLegX,
-    coffeeTableSmallLegHeight * 0.5,
-    coffeeTableSmallLegZ,
-    furnitureSoftColor,
-    {
-      segments: 40,
-      roughness: 0.82
-    }
-  );
-  const smallTableTopThickness = itemHeight * 0.07;
-  const smallTableInsetThickness = itemHeight * 0.055;
-  const smallTableTopCenterY = coffeeTableSmallLegHeight + smallTableTopThickness * 0.5 + 0.001;
-  const smallTableInsetCenterY =
-    smallTableTopCenterY + (smallTableTopThickness + smallTableInsetThickness) * 0.5 + 0.001;
-  addCylinderMesh(
-    itemGroup,
-    coffeeTableSmallLegRadius * 1.02,
-    coffeeTableSmallLegRadius * 1.02,
-    smallTableTopThickness,
-    coffeeTableSmallLegX,
-    smallTableTopCenterY,
-    coffeeTableSmallLegZ,
-    furnitureDarkColor,
-    {
-      segments: 48,
-      roughness: 0.72
-    }
-  );
-  addCylinderMesh(
-    itemGroup,
-    coffeeTableSmallLegRadius,
-    coffeeTableSmallLegRadius,
-    smallTableInsetThickness,
-    coffeeTableSmallLegX,
-    smallTableInsetCenterY,
-    coffeeTableSmallLegZ,
-    furnitureLightColor,
-    {
-      segments: 48,
-      roughness: 0.9
+      map: coffeetableTopTexture,
+      radius: 0.01,
+      roughness: 0.24,
+      metalness: 0.03
     }
   );
 }

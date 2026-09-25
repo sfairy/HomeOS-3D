@@ -5,9 +5,9 @@
  * --display-surface-background 与 meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出
  * 黑边。只有「已添加到主屏并以 standalone 运行」的设备才处理。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=2609231402";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609251458";
 // 兜底色改成从令牌现取：这里取不到就用同值字面量，正是 paletteColor 的语义。
-import { paletteColor } from "../utils/colors.js?v=2609231402";
+import { paletteColor } from "../utils/colors.js?v=2609251458";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。

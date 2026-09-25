@@ -8,21 +8,21 @@
  * 谓词改动必须和原链同序：几个排除性条件（外部模型兜底要求「不是 smallcar / 不是 sofa」）
  * 依赖前面的专有分支先命中，顺序一动就换分支。
  */
-import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609231402";
+import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609251458";
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   STAIR_ITEM_TYPES
-} from "../studio-item-types.js?v=2609231402";
+} from "../studio-item-types.js?v=2609251458";
 import {
   buildCurtainItem,
   buildFloorlampItem,
   buildLightItem,
   buildTrackCurtainItem,
   buildWalllampItem
-} from "./curtain-lighting.js?v=2609231402";
+} from "./curtain-lighting.js?v=2609251458";
 import {
   buildCabinetItem,
   buildFeaturewallItem,
@@ -33,17 +33,17 @@ import {
   buildShoecabinetItem,
   buildSideboardItem,
   buildWallcabinetItem
-} from "./storage-cabinets.js?v=2609231402";
+} from "./storage-cabinets.js?v=2609251458";
 import {
   buildExternalModelFallbackItem
-} from "./external-fallback.js?v=2609231402";
+} from "./external-fallback.js?v=2609251458";
 import {
   buildGlasspartitionItem,
   buildPlantItem,
   buildSmallcarItem,
   buildStairItem,
   buildTvItem
-} from "./media-structure.js?v=2609231402";
+} from "./media-structure.js?v=2609251458";
 import {
   buildBarItem,
   buildBedItem,
@@ -52,7 +52,7 @@ import {
   buildRoundTableTurntableItem,
   buildSofaItem,
   buildTableItem
-} from "./seating.js?v=2609231402";
+} from "./seating.js?v=2609251458";
 import {
   buildAquariumItem,
   buildGaswaterheaterItem,
@@ -60,7 +60,7 @@ import {
   buildStoragewaterheaterItem,
   buildTeaBarMachineItem,
   buildWasherDryerItem
-} from "./water-appliances.js?v=2609231402";
+} from "./water-appliances.js?v=2609251458";
 import {
   buildCoffeetableItem,
   buildDeskItem,
@@ -69,11 +69,11 @@ import {
   buildRugItem,
   buildSquarecoffeetableItem,
   buildTvstandItem
-} from "./tables-desks.js?v=2609231402";
+} from "./tables-desks.js?v=2609251458";
 import {
   buildBookcaseItem,
   buildGlasscabinetItem
-} from "./tall-cabinets.js?v=2609231402";
+} from "./tall-cabinets.js?v=2609251458";
 import {
   buildDishwasherItem,
   buildFridgeItem,
@@ -82,7 +82,7 @@ import {
   buildRangehoodItem,
   buildRicecookerItem,
   buildSteamovenItem
-} from "./kitchen.js?v=2609231402";
+} from "./kitchen.js?v=2609251458";
 import {
   buildAirpurifierItem,
   buildCameraPresenceItem,
@@ -90,7 +90,7 @@ import {
   buildNasItem,
   buildRobotvacuumItem,
   buildWallacItem
-} from "./climate-devices.js?v=2609231402";
+} from "./climate-devices.js?v=2609251458";
 import {
   buildBasinItem,
   buildBathtubItem,
@@ -99,7 +99,7 @@ import {
   buildToiletItem,
   buildUrinalItem,
   buildVanityItem
-} from "./bathroom.js?v=2609231402";
+} from "./bathroom.js?v=2609251458";
 
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。
@@ -459,7 +459,12 @@ export function finishItemModel(context) {
       APPLIANCE_MODEL_ITEM_TYPES.has(itemSpec.type)) &&
     itemSpec.offlineModelExport !== true
   ) {
-    const externalModelChildren = [...itemGroup.children];
+    // 占位件 = 此刻挂在模型组上的**几何**。例外是「不是占位件、而是独立叠层」的那几块
+    // （小车的充电光晕与闪电）：它们是特效，不是「模型到位前的代餐」，一起清掉会让
+    // 车模加载完成的一瞬间充电特效凭空消失。
+    const externalModelChildren = [...itemGroup.children].filter(
+      placeholderChild => placeholderChild.userData?.homeosModelOverlay !== true
+    );
     if (addExternalItemModel(itemGroup, itemSpec)) {
       externalModelChildren.forEach(removedChildObject => {
         itemGroup.remove(removedChildObject);

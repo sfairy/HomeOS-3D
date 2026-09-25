@@ -84,7 +84,7 @@ HomeOS/
 │       │   ├── studio/     # 编排层、相机/过渡/呈现、场景样式、控件、studio.css
 │       │   ├── plan/       # 底图与户型几何：比例、开洞、窗洞、平面绘制与光影
 │       │   ├── reflection/ # 地面反射：细节层 Worker、剔除、反射体
-│       │   ├── materials/  # 程序化材质：墙面/地面/柜体/车漆/电视玻璃与海报/暖阳植被
+│       │   ├── materials/  # 程序化材质：墙面/石材与布艺贴图/电视玻璃与海报/暖阳植被
 │       │   ├── loaders/    # 外部模型装载、规范化、运行时家具、安防模型、窗帘轨道
 │       │   └── export/     # 出图与导出：预设、工具、Draco 解码器与同源 Worker
 │       ├── templates/      # 控件模板
@@ -106,7 +106,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· audit_colors.mjs（配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇）· check_invariants.mjs（十五条静默失效护栏，见「前端结构卫生」一节）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· audit_plan_symbols.mjs（平面符号形状对账：实测 GLB 俯视轮廓的圆度，钉住「圆形占地的物件被画成方角矩形」）· audit_colors.mjs（配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇）· audit_model_glb.mjs（模型 GLB 内容审计：流水线产物真值校验 + 既有资产尺寸债务探测）· check_invariants.mjs（二十四条静默失效护栏，见「前端结构卫生」一节）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -685,7 +685,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它钉十五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
+它钉二十四条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
 **下文的引用一律用条目名而不是序号**（早先写「第 6 条」「第 9 条」，中间插进新条目后全指向了别处）：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
@@ -767,6 +767,92 @@ node tools/check_invariants.mjs
 另有一条不属于「静默失效」但同样钉住的：**`theme-color` / webmanifest 的写死色值必须等于色板里
 「页面最底层」那一档**（`--hos-sky-deep` 或 `--hos-tool-bg`）。这几个属性吃不了 CSS 变量，只能写字面量，
 所以最容易在改主题时漏掉 —— 表现是手机浏览器地址栏与新装 PWA 的启动底色与页面不是一回事。
+
+2026-09 又补进一批**清单一致性**类、**产物内容**类与**图纸形状**类。前者治的是同一个病根：**同一份清单被抄在多处，漏改一处就静默少效果**。
+
+- **模型注册表与 `models/` 目录两端不对齐**：`loaders/studio-external-models.js` 里 `defineHomeItemModel` /
+  `defineApplianceItemModel` 的第一参是**文件名键**、第二参是兜底版本号（旧版签名里第二参才是版本戳，
+  换戳脚本曾按老签名改写，把 `furniture/armchair.glb` 改成了 `furniture/2609240238.glb`，全站模型 404）。
+  这条双向核对：注册表引用的 GLB 必须在磁盘上（含 `-lite` 简化版）、磁盘上的 GLB 必须被引用
+  （多出来是白占体积、少一个则加载失败）、文件键不许是纯数字戳。表现面是**加载失败只退回过程几何盒体**，
+  浏览器零报错，只有服务器日志里那一行 404 能看出来。
+  同一条里还查一个反方向：**注册了模型、类型却不在 `EXTERNAL_MODEL_ITEM_TYPES` /
+  `APPLIANCE_MODEL_ITEM_TYPES` 里**。模型加载的收尾判据就是这两张名单，落在名单外的类型永远走过程几何
+  ——注册条目和它的 GLB 一起空转，两头对账照样全绿（`sofa` 就这么挂了一版，画面上一直是那版没有腿的
+  程序化方块）。`curtain_*` / `pillar_*` / `tv_*` / `rounddiningtable_turntable` 是 `modelTypeForItem`
+  派生出来的键，不参与这条判据。存量里原本还有一批**有意不加载**的（建筑本体的 `smallcar` / `elevator` /
+  楼梯，以及原样搬进来的第三方 `piano`），逐个记在脚本的 `KNOWN_UNREACHABLE_MODEL_TYPES` 里；
+  **2026-09 这批已全部迁进流水线并接上加载路径，那份名单现在是空的** —— 保留它是为了新出现的孤儿
+  条目仍会被拦下（清单为空时，任何「注册了却没人加载」的类型都会当场报错，不再有地方挂账）。
+- **「环境模型类型」七处清单不一致**：新风机 / 温控面板这类环境设备同时出现在 `environment-scene.js` 的
+  `MODEL_TYPE_TO_PAGE`、`MODEL_TYPE_TO_DEVICE_KIND`、`environment-halos.js` 的描边清单，以及
+  `studio-app.js` 里四处内联清单，合计七处。漏一处 = 该设备没有 HA 绑定、或缺描边高亮、或不被批处理，
+  全都不报错；`DOORBELL` 这类「有模型但不进环境描边」的类型要显式写在豁免说明里。
+- **「材质风格」下拉能选、选了没反应**：档位表声明了颜色，却没有覆盖换色分支真正读的键。家具按明度分档读
+  `furniture` / `furnitureLight` / `furnitureSoft` / `furnitureDark`（即 `LUMINANCE_BANDED_ITEM_TYPES`
+  那一批），家电走 `appliance` / `applianceSoft` / `applianceDark`；档位只写了其中一两档时，落进其余档位的
+  部件仍取基础调色板，「跟随全局风格」与选中档位只差一小块（甚至完全相同）。四档的补齐统一由
+  `completeFurnitureRamp` 派生，所以**写档位时只需要给一个基准色**，别自己只补一半。
+- **流水线 GLB 的内容与规格 / `scaleBasis` 不自洽**：`tools/models/generate-models.mjs` 只在校验通过时写盘，
+  但**改了 `model-specs.mjs` 的 `size` 后忘了重跑导出**，磁盘上留下的还是旧尺寸。运行侧按
+  `scale = 物件尺寸 / scaleBasis` 分轴缩放，两边不一致就会把成品拉扁或拔高 —— 浏览器里只表现为
+  「看着有点歪」，零报错。这条直接解析 GLB 容器（只用 Node 内置能力，不引 three），逐件核对包围盒 /
+  底面 `y = 0` / 占地居中 / 材质名（`material-<槽位号>`，带角色时为 `material-<槽位号>-<角色>`）/ lite 是否真的更轻。**作用域限于
+  `model-specs.mjs` 登记的流水线产物**：外部既有资产是别的工具链导出的，材质名走的是另一套
+  **同样被运行侧支持**的子串约定（`cushion` / `foliage` / `-soft` / `-light` / `-dark`），
+  按流水线判据判就是纯误报。
+- **流水线 GLB 之间存在会闪的共面重叠**（z-fighting）：两块**不同槽位**的面落在同一平面、而且在
+  平面上有重叠时，GPU 按图元顺序抢同一像素、逐帧抖动，画面上是一片闪动的条纹。它不报错、不崩、
+  不进控制台，连单张截图都看不出来（触发条件与相机距离、浮点精度有关），只有真正转起来才显形 ——
+  2026-09 全库清出 87 处（面板贴在机身前脸上、顶盖与机身一起顶到同一标高、玻璃门与柜体同宽同面、
+  踏板两条长边与斜梁逐面齐平）。守卫复用 `tools/audit_coplanar_faces.mjs`（同一份 GLB 读取与法向
+  分类，避免两套口径）：只报**同向**与**背靠背但两侧沾到玻璃**的（`glass` 角色是
+  `DoubleSide + depthWrite:false`，背面剔不掉）；背靠背且两件都是单面材质的不计 —— 那是正常叠放
+  （顶盖坐在箱体上、层板贴在背板前），从外侧看朝内那块被背面剔除丢掉，不闪。
+  **修法不是把面推开**：外表面撑住包围盒，生成器的规格校验只给 1mm 余量；要让**非极值的那一件**
+  退让 2~5mm（嵌进母体、或收到相邻件的内表面之内）。改完必须重跑 `generate-models.mjs` 导出，
+  否则守卫判的还是磁盘上的旧几何。逐件看清用 `node tools/audit_coplanar_faces.mjs`
+  （`--model=<类型>` 单件、`--all-faces` 连无害的背靠背一起列）。
+- **既有资产的尺寸债务**（不设护栏，只探测）：外部既有 GLB 的可见包围盒与声明的 `scaleBasis`
+  大多不一致，而平面图画占地框用的是声明值 —— 2026-09 实测曾到过 69 个里 44 个占地方向偏差 >5%，
+  `tv_standard` 深 72%、`plant` 深 50%、`shower` 宽 49%。修它要先决定方向 —— 改 `scaleBasis` 会把
+  物件拉到声明尺寸、重新生成会换掉现有外观 —— 属于产品决策，所以不设成护栏，只用
+  `node tools/audit_model_glb.mjs` 列明细（只报告、不进 CI）。
+  **这条债的下坡路就是「把资产逐件迁进建模流水线」，而 2026-09 已经走完**：迁一件，它就从
+  「债务探测」进到「真值校验」（衣柜 → 床 → 洁具 → 家电 → 构件 → 车辆，一路 69 → 0）。
+  现在那一节的外部件数是 0，它退化成探测器 —— 谁再往注册表里放回一件自有产线的 GLB，明细会重新出现。
+- **「档位即组合」漏了角色**：风格档位（`JOINERY_STYLES` 之类）要为该类型**用到的每个材质角色**
+  都给出配方（`joineryCombo` / `fabricCombo` 这类构造器会把「扶手跟随主体、封边跟随柜体」这层
+  从属关系补成默认值，所以只需写要区分的那几个）。缺一个角色，那一块网格就退回基础色 ——
+  现象是「这个档位下别的地方都变了，就某一块没变」，混在旧行为里几乎判不出来；角色名拼错
+  （`leg` 写成 `legg`）是同一个下场，所以角色名必须落在 `tools/models/model-roles.mjs` 的词表里，
+  且**不得以 `-soft` / `-dark` / `-light` 结尾**（那三个后缀是既有资产的亮度分档约定，撞上会被
+  运行侧当成亮度分档去取色）。配方里还可以用 `slab` 指**石材整图**的色号（`marble` / `marble-dark`），
+  色号写错也不会报错，只会让那块网格退化成一块没纹路的纯色，所以色号同样要在这条守卫里对账。
+  判据同样从两端源码里取（规格里声明的角色、档位里构造器的返回值），不在这里再抄一份。
+- **默认档位的角色没有出口**（`MATERIAL_STYLE_AUTO`，「跟随全局风格」）：与上一条同源，但换在另一头 ——
+  非 `auto` 档位由 `studio-material-styles.js` 的构造器按角色给配方，`auto` 档位则要落到
+  `loaders/studio-external-models.js` 的 `applyFurniturePalette` 里由角色分流。缺了出口的角色会掉进
+  最早的「按明度分档」兜底，静默染上柜体木色：书柜里的书、鞋柜里的鞋、镜子、拉手都成了同色木块
+  （现象是「换了风格也一样、就是某几块不对」，浏览器零报错）。规格里出现的每个角色必须**恰好**登记在
+  `CARCASS_MATERIAL_ROLE_SET`（跟主料三档）/ `AUTHORED_COLOR_MATERIAL_ROLE_RECIPES`（内容物与镜面
+  保留规格原色）/ `NON_CARCASS_MATERIAL_ROLE_SET`（五金 / 玻璃 / 软包等另有专管）之一，三份名单
+  不得重叠。新加角色时先想清楚它属于哪一类：「不跟木色走」的角色在 `studio-material-styles.js` 的
+  `joineryCombo` 里也要各有一条配方，两处成对。
+- **圆形占地的物件在户型图上被画成方角矩形**：平面符号是手绘的（`studio-app.js` 的 `drawPlanItem`），
+  3D 早已换成流水线规格，两者不会互相牵引 —— 0.9 × 0.9 的圆茶几、圆桶加湿器、圆面吧凳画成兜底的
+  圆角矩形，画面上「对不上」但浏览器零报错，只能逐件用眼睛过。这条把它变成可测的：
+  `tools/lib/glb-footprint.mjs` 把 GLB 的俯视轮廓栅格化，**格数比 ≈ π/4 且各向半径等长**即判为圆
+  （两条必须一起看：单看格数比会把中间挖空的方框误判成圆）；判出来是圆的类型必须进
+  `studio-item-types.js` 的 `ROUND_FOOTPRINT_ITEM_TYPES`，由运行侧那个分支画椭圆，圆里的一两个
+  **同心圈**（网罩圈 / 踏脚圈 / 台面收边）的半径比写在 `ROUND_PLAN_RING_RATIOS_BY_TYPE` 里，
+  逐条注明取自规格的哪个半径。**两个方向都判**：实测是圆却没进名单（那一件在图上是个方块）、
+  名单里有但实测不是圆（规格改成方料了，名单该收）；另加一道「名单有没有真的接上外轮廓那一支」——
+  只导出名单不去用是这类改动最典型的半成品状态，画面上一点变化都没有，而两个方向的判据全绿
+  （这条判据要精确到「那一支里调了 `fill()`」：圆里那一圈同心圈同样带 `ellipse()`，只看 `ellipse`
+  会被它蒙混过去，实测过）。阈值取在「圆」与「方」实测间隔的中间（0.7 < 格数比 < 0.86 且
+  径向变异 < 0.05，源自 126 件的实测分布），贴着任一侧都会让判据在规格微调后反复跳。
+  逐件明细用 `node tools/audit_plan_symbols.mjs`（`--only=round` 只看圆的那一批、`--regress` 只对账）。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
@@ -865,7 +951,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 十五条静默失效不变量）：
+本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条，现已二十四条）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有

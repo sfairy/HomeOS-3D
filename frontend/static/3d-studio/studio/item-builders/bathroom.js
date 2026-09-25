@@ -759,6 +759,11 @@ export function buildShowerItem(context) {
 
 /**
  * 命中：itemSpec.type === "basin"
+ *
+ * 加载中的占位几何，与 tools/models/model-specs.mjs 的 basin 一一对应（外部 GLB 到位后整组被换掉）。
+ * 规格基准：宽 0.9 / 高 0.88 / 深 0.5；**镜柜烘在 0.88 之上**（柜底 1.15、顶面 1.81），
+ * 所以下面一律按「规格里的米 × 三轴倍率」摆件，而不是按 itemHeight 的百分比掰 ——
+ * 百分比写法在「整件被拉高拉矮」时会把镜柜也一起拉高，与模型的等比缩放对不上。
  */
 export function buildBasinItem(context) {
   const {
@@ -772,52 +777,65 @@ export function buildBasinItem(context) {
     itemGroup,
     itemHeight,
     itemPalette,
-    itemWidth,
+    itemWidth
   } = context;
-  addBoxMesh(
-    itemGroup,
-    itemWidth * 0.92,
-    itemHeight * 0.72,
-    itemDepth * 0.9,
-    0,
-    itemHeight * 0.36,
-    0,
-    furnitureColor
-  );
-  addBoxMesh(
-    itemGroup,
-    itemWidth,
-    0.065,
-    itemDepth,
-    0,
-    itemHeight * 0.75,
-    0,
-    furnitureLightColor,
-    {
-      roughness: 0.3
-    }
-  );
+  const scaleX = itemWidth / 0.9;
+  const scaleY = itemHeight / 0.88;
+  const scaleZ = itemDepth / 0.5;
+  /** 按「规格里的米」摆一个方块（y 给**底面**高度，与规格一致）。 */
+  const addBasinBlock = (
+    specWidth,
+    specHeight,
+    specDepth,
+    specX,
+    specBottomY,
+    specZ,
+    color,
+    options
+  ) => {
+    addBoxMesh(
+      itemGroup,
+      specWidth * scaleX,
+      specHeight * scaleY,
+      specDepth * scaleZ,
+      specX * scaleX,
+      (specBottomY + specHeight / 2) * scaleY,
+      specZ * scaleZ,
+      color,
+      options
+    );
+  };
+  // 落地部分：踢脚 + 柜体 + 双门 + 拉手 + 石材台面。
+  addBasinBlock(0.8, 0.06, 0.42, 0, 0, -0.001, furnitureDarkColor);
+  addBasinBlock(0.86, 0.66, 0.458, 0, 0.045, -0.001, furnitureColor, { roughness: 0.62 });
+  addBasinBlock(0.4, 0.56, 0.016, -0.215, 0.08, 0.237, furnitureSoftColor, { roughness: 0.45 });
+  addBasinBlock(0.4, 0.56, 0.016, 0.215, 0.08, 0.237, furnitureSoftColor, { roughness: 0.45 });
+  addBasinBlock(0.014, 0.18, 0.024, -0.05, 0.34, 0.238, furnitureDarkColor, { rounded: false });
+  addBasinBlock(0.014, 0.18, 0.024, 0.05, 0.34, 0.238, furnitureDarkColor, { rounded: false });
+  addBasinBlock(0.9, 0.04, 0.5, 0, 0.7, 0, furnitureLightColor, { rounded: false, roughness: 0.3 });
+  // 台上陶瓷盆：下窄上宽的圆台（半径给的是「规格米」的一半）。
   addCylinderMesh(
     itemGroup,
-    itemWidth * 0.25,
-    itemWidth * 0.21,
-    0.08,
+    0.0925 * scaleX,
+    0.075 * scaleX,
+    0.14 * scaleY,
     0,
-    itemHeight * 0.8,
-    itemDepth * 0.02,
+    0.8 * scaleY,
+    0,
     furnitureSoftColor,
     {
       roughness: 0.28
     }
   );
+  // 龙头：立柱 + 横出的出水嘴（与整件顶面齐平的那一件）。
   addCylinderMesh(
     itemGroup,
-    0.018,
-    0.018,
-    itemHeight * 0.2,
+    0.015 * scaleX,
+    0.015 * scaleX,
+    0.145 * scaleY,
     0,
-    itemHeight * 0.9,
-    -itemDepth * 0.2,
+    0.8075 * scaleY,
+    -0.155 * scaleZ,
     furnitureDarkColor,
     {
       metalness: 0.78,
@@ -826,12 +844,12 @@ export function buildBasinItem(context) {
   );
   addCylinderMesh(
     itemGroup,
-    0.018,
-    0.018,
-    itemDepth * 0.2,
+    0.013 * scaleX,
+    0.013 * scaleX,
+    0.12 * scaleZ,
     0,
-    itemHeight * 0.99,
-    -itemDepth * 0.11,
+    0.855 * scaleY,
+    -0.095 * scaleZ,
     furnitureDarkColor,
     {
       rotationX: Math.PI / 2,
@@ -839,93 +857,56 @@ export function buildBasinItem(context) {
       roughness: 0.18
     }
   );
-  addBoxMesh(
+  // 壁挂镜柜：柜体 + 两扇镜门 + 两片镜面 + 两枚圆钮。整段与规格同高（1.15 → 1.81）。
+  addBasinBlock(0.72, 0.66, 0.15, 0, 1.15, -0.175, furnitureColor, { roughness: 0.62 });
+  addBasinBlock(0.345, 0.65, 0.02, -0.1775, 1.155, -0.092, furnitureSoftColor, { roughness: 0.45 });
+  addBasinBlock(0.345, 0.65, 0.02, 0.1775, 1.155, -0.092, furnitureSoftColor, { roughness: 0.45 });
+  // 镜面：不借用「玻璃」参数（那个在模型侧是透明的），与镜面角色的配方一致 —— 浅蓝灰、亮而不透。
+  for (const mirrorDoorX of [-0.1775, 0.1775]) {
+    addBasinBlock(
+      0.285,
+      0.565,
+      0.008,
+      mirrorDoorX,
+      1.21,
+      -0.082,
+      itemPalette.glass,
+      {
+        rounded: false,
+        transparent: false,
+        metalness: 0.35,
+        roughness: 0.08
+      }
+    );
+  }
+  addCylinderMesh(
     itemGroup,
-    0.012,
-    itemHeight * 0.62,
-    itemDepth * 0.02,
-    0,
-    itemHeight * 0.34,
-    itemDepth * 0.46,
+    0.011,
+    0.011,
+    0.02,
+    -0.03 * scaleX,
+    1.33 * scaleY,
+    -0.078 * scaleZ,
     furnitureDarkColor,
     {
-      rounded: false
+      rotationX: Math.PI / 2,
+      metalness: 0.7,
+      roughness: 0.2
     }
   );
-  const basinCounterY = itemHeight * 1.05;
-  const basinWidth = itemWidth * 0.72;
-  const basinHeight = 0.72;
-  const basinZ = -itemDepth * 0.46;
-  addBoxMesh(
+  addCylinderMesh(
     itemGroup,
-    basinWidth,
-    basinHeight,
-    0.018,
-    0,
-    basinCounterY + basinHeight * 0.5,
-    basinZ,
-    itemPalette.glass,
-    {
-      rounded: false,
-      transparent: true,
-      opacity: 0.46,
-      depthWrite: false,
-      metalness: 0.26,
-      roughness: 0.12,
-      castShadow: false,
-      renderOrder: 6
-    }
-  );
-  addBoxMesh(
-    itemGroup,
-    basinWidth + 0.055,
-    0.035,
-    0.045,
-    0,
-    basinCounterY,
-    basinZ,
+    0.011,
+    0.011,
+    0.02,
+    0.03 * scaleX,
+    1.33 * scaleY,
+    -0.078 * scaleZ,
     furnitureDarkColor,
     {
-      metalness: 0.35
-    }
-  );
-  addBoxMesh(
-    itemGroup,
-    basinWidth + 0.055,
-    0.035,
-    0.045,
-    0,
-    basinCounterY + basinHeight,
-    basinZ,
-    furnitureDarkColor,
-    {
-      metalness: 0.35
-    }
-  );
-  addBoxMesh(
-    itemGroup,
-    0.035,
-    basinHeight,
-    0.045,
-    -basinWidth * 0.5,
-    basinCounterY + basinHeight * 0.5,
-    basinZ,
-    furnitureDarkColor,
-    {
-      metalness: 0.35
-    }
-  );
-  addBoxMesh(
-    itemGroup,
-    0.035,
-    basinHeight,
-    0.045,
-    basinWidth * 0.5,
-    basinCounterY + basinHeight * 0.5,
-    basinZ,
-    furnitureDarkColor,
-    {
-      metalness: 0.35
+      rotationX: Math.PI / 2,
+      metalness: 0.7,
+      roughness: 0.2
     }
   );
 }
