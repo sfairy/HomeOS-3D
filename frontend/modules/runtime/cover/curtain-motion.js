@@ -9,10 +9,13 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609251920";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609252210";
 // 未绑定窗帘的默认开合度：唯一实现在 utils/cover-features.js，经 core/static-helpers.js 取值 ——
 // runtime 资源挂在 /api/v1/modules/interaction3d/ 下，直接写相对路径会 404（见该文件的说明）。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../core/static-helpers.js?v=2609251920";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../core/static-helpers.js?v=2609252210";
+// 系统「减少动态效果」偏好的唯一判定（实现见 core/motion-preference.js）：命中时姿态直接到位、
+// 不做 420ms 插值。垂帘与卷帘共用同一个判定，保证两种帘型在无障碍设置下表现一致。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609252210";
 
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
@@ -26,11 +29,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609251920",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609252210",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609251920"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609252210"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
@@ -49,9 +52,35 @@ const MOTION_DURATION_MS = 420;
 const MIN_PANEL_SCALE = 0.12;
 /** 布面褶皱间距（米）：普通布帘每 15cm 一道褶。 */
 const CLOTH_FOLD_SPACING_METERS = 0.15;
+/**
+ * 卷帘（roller）形态令牌。与 3d-studio/loaders/studio-curtain-track.js 的 CURTAIN_STYLE_ROLLER
+ * 同值：帘型是模型属性（curtainStyle），不是交互配置，后端 coverKind 不认它。
+ */
+const CURTAIN_STYLE_ROLLER = "roller";
+/**
+ * 卷帘几何常量：全部与工作室 createRollerCurtain 逐值一致，
+ * 否则「3D 工作室里看到的卷帘」与「运行时的卷帘」会停在不同的半径 / 高度上。
+ */
+/** 布厚（米）：只参与面积守恒反算卷管半径，不参与渲染。 */
+const ROLLER_FABRIC_THICKNESS_METERS = 0.0016;
+/** 卷管基准半径（米）：min(0.045, 帘高 × 0.12) —— 上限与占比两处都与工作室一致。 */
+const ROLLER_TUBE_RADIUS_MAX_METERS = 0.045;
+const ROLLER_TUBE_RADIUS_HEIGHT_RATIO = 0.12;
+/** 帘布底边离地（米）：留一点缝，帘布不会插进地面。 */
+const ROLLER_PANEL_BOTTOM_METERS = 0.035;
+/** 帘布平铺高度的下限（米）：与工作室的 max(0.04, ...) 一致，矮窗也不会退化成零高。 */
+const ROLLER_PANEL_MIN_HEIGHT_METERS = 0.04;
+/** 卷帘「已完全卷起」的高度阈值（米）：低于它就把帘布藏掉，避免留一条零宽的面。 */
+const ROLLER_HIDDEN_HEIGHT_METERS = 0.0001;
 /** 布料类型：sheer 为纱（更透、褶皱更密），其余一律按 cloth 处理。 */
 const resolveCurtainFabric = fabricBinding =>
   fabricBinding.curtainFabric === "sheer" ? "sheer" : "cloth";
+/**
+ * 归一帘型：只有显式的 "roller" 才算卷帘，其余（含缺失 / 非法值）一律按垂帘 cloth 处理。
+ * 与工作室 normalizeCurtainTrack 的兜底一致 —— 老模型没有这个字段时行为与新增之前逐值相同。
+ */
+const resolveCurtainStyle = styleBinding =>
+  styleBinding.curtainStyle === CURTAIN_STYLE_ROLLER ? CURTAIN_STYLE_ROLLER : "cloth";
 /**
  * 未绑定实体时使用的固定开合位置（0–100）。
  * 非法或缺失一律按 COVER_DEFAULT_PREVIEW_POSITION（默认「打开」）：与「窗帘默认处于打开状态」一致。
@@ -129,6 +158,69 @@ const resolveRigBasis = rigAnchor =>
   )
     ? [...rigAnchor.userData.curtainRigBasis]
     : [1.8, 2.4, 0.18];
+/**
+ * 卷帘的几何常量解算（纯函数，导出以便姿态自检脚本直接量数）。
+ *
+ * 卷管轴心高度 = 帘高 − sqrt(基准半径² + 帘高 × 布厚 / π)：这样「放下的布 + 卷在管上的布」
+ * 总面积恒定，卷起时管半径按面积守恒增大，不会出现卷到一半布面长度对不上的跳变。
+ * 公式与工作室 createRollerCurtain 逐值一致。
+ */
+export function resolveRollerRigMetrics(rigBasis) {
+  // 帘高为 0 或非法时给一个正值兜底，避免除零 / NaN 传进几何。
+  const rollerHeight =
+    Number.isFinite(rigBasis?.[1]) && rigBasis[1] > 0 ? rigBasis[1] : 2.4;
+  const rollerWidth = Number.isFinite(rigBasis?.[0]) && rigBasis[0] > 0 ? rigBasis[0] : 1.8;
+  const tubeBaseRadius = Math.min(
+    ROLLER_TUBE_RADIUS_MAX_METERS,
+    rollerHeight * ROLLER_TUBE_RADIUS_HEIGHT_RATIO
+  );
+  const rollerTopY =
+    rollerHeight -
+    Math.sqrt(tubeBaseRadius ** 2 + (rollerHeight * ROLLER_FABRIC_THICKNESS_METERS) / Math.PI);
+  const panelHeight = Math.max(
+    ROLLER_PANEL_MIN_HEIGHT_METERS,
+    rollerTopY - ROLLER_PANEL_BOTTOM_METERS
+  );
+  return {
+    rollerWidth: rollerWidth,
+    rollerHeight: rollerHeight,
+    tubeBaseRadius: tubeBaseRadius,
+    rollerTopY: rollerTopY,
+    panelHeight: panelHeight
+  };
+}
+/**
+ * 卷帘在给定开合百分比下的姿态解算（纯函数）。
+ *
+ * 百分比口径：0 = 完全放下（盖住窗口），100 = 完全卷起，与 HA 的 current_position 一致，
+ * 也与普通窗帘「位置越大越打开」的语义一致 —— 因此直接沿用同一份 position。
+ * 面积守恒：卷起的布长按布厚摊到卷管截面上，半径 r = sqrt(r0² + 卷起长度 × 布厚 / π)。
+ */
+export function resolveRollerPose(rollerMetrics, positionRatio) {
+  const clampedRatio = Math.max(
+    0,
+    Math.min(100, Number.isFinite(positionRatio) ? positionRatio : 0)
+  );
+  const rolledFraction = clampedRatio / 100;
+  const rolledLength = rollerMetrics.panelHeight * rolledFraction;
+  const hangingLength = rollerMetrics.panelHeight - rolledLength;
+  return {
+    rolledFraction: rolledFraction,
+    rolledLength: rolledLength,
+    hangingLength: hangingLength,
+    // 卷管轴心（帘布顶边）高度：恒定不动，支架也跟着固定。
+    top: rollerMetrics.rollerTopY,
+    // 帘布下沿 = 底杆中心；完全卷起时与 top 重合。
+    bottom: rollerMetrics.rollerTopY - hangingLength,
+    // 当前卷径：随卷起长度单调增大。帘布面始终贴在这个半径外侧。
+    tubeRadius: Math.sqrt(
+      rollerMetrics.tubeBaseRadius ** 2 +
+        (rolledLength * ROLLER_FABRIC_THICKNESS_METERS) / Math.PI
+    ),
+    // 完全卷起时平面退化成一条线，直接隐藏，免得留下一条零宽的面。
+    visible: hangingLength > ROLLER_HIDDEN_HEIGHT_METERS
+  };
+}
 /**
  * 程序化生成布料网格（正弦褶皱的薄壳）。
  * 不用模型平板是因为它表现不出「收拢时褶皱变密变深」；这里沿帘宽铺 N 个正弦褶皱，
@@ -399,9 +491,85 @@ export function createCurtainMotion({
     requestRender();
   }
   /**
+   * 为卷帘模型创建骨架。
+   *
+   * 与垂帘不同：卷帘是一整片**平面**，运行时不需要生成褶皱几何，而是直接驱动模型自身的部件
+   * —— 帘布平面、顶部卷管、底杆；支架保持不动。这样既不重复工作室的 createRollerCurtain，
+   * 也不新增任何几何体（缓存的布面几何对卷帘完全用不上）。
+   *
+   * 部件角色从模型自带的 userData.curtainPart 推：工作室给帘布平面与卷管都打了 "cloth"
+   * （两者用的是同一份帘布材质），底杆是 "band"，支架是 "cap"。帘布与卷管的区分靠**顶点数**：
+   * 帘布是 1×1 段的 PlaneGeometry（固定 4 个顶点），卷管是 32 边圆柱（远多于 4 个）。之所以
+   * 不用 geometry.type，是因为该字段只在本页现场构建时是 PlaneGeometry / CylinderGeometry，
+   * 一旦经外部流水线导出就统一变成 BufferGeometry，顶点数在两种来源下都稳定。
+   */
+  function createRollerRig(model, binding, located) {
+    const clothParts = located.parts.filter(
+      locatedPart => locatedPart.userData?.curtainPart === "cloth"
+    );
+    // 帘布平面取顶点最少的那件；卷管是其它的（正常只有一件）。
+    const panelPart = clothParts.reduce(
+      (fewestVertexPart, candidatePart) =>
+        !fewestVertexPart ||
+        (candidatePart.geometry?.attributes?.position?.count ?? Infinity) <
+          (fewestVertexPart.geometry?.attributes?.position?.count ?? Infinity)
+          ? candidatePart
+          : fewestVertexPart,
+      null
+    );
+    const tubePart = clothParts.find(clothPart => clothPart !== panelPart) || null;
+    // 没有可驱动的帘布（模型结构异常）时返回 null，由 createRig 退回垂帘路径，避免整扇帘子消失。
+    if (!panelPart) {
+      return null;
+    }
+    const rigBasis = resolveRigBasis(located.anchor);
+    return {
+      model: model,
+      binding: binding,
+      // 帘型进骨架：它同时是「复用旧骨架」判据的一部分（见 setBindings 的复用条件）。
+      rollerStyle: true,
+      roller: {
+        panel: panelPart,
+        tube: tubePart,
+        // 底杆骑在帘布下沿，随开合上下走；找不到时不驱动，不影响帘布本身。
+        bottomBar:
+          located.parts.find(locatedPart => locatedPart.userData?.curtainPart === "band") || null,
+        metrics: resolveRollerRigMetrics(rigBasis)
+      },
+      dream: false,
+      fabric: resolveCurtainFabric(binding),
+      // 卷帘没有褶皱几何，也没有自制轨道；folds / track 显式留空，让各处的垂帘分支自动跳过。
+      folds: null,
+      track: null,
+      anchor: located.anchor,
+      parts: located.parts,
+      // 不新建节点：rig 留空，disposeRig 与缩放逻辑据 rollerStyle 跳过。
+      rig: null,
+      basis: rigBasis,
+      generation: generationCounter++,
+      panels: [],
+      // 卷帘不隐藏任何原生局部（面板 / 卷管 / 底杆都要留着驱动），originals 为空。
+      originals: new Map(),
+      direction: resolveCurtainDirection(binding),
+      position: null,
+      target: null,
+      motionFrom: null,
+      motionStart: null,
+      bladePosition: null,
+      statePositionHint: null
+    };
+  }
+  /**
    * 为一条绑定创建自制骨架。
    */
   function createRig(model, binding, located) {
+    // 卷帘走单独的骨架：驱动模型自身的帘布 / 卷管 / 底杆，不生成褶皱几何。
+    if (binding.curtainStyle === CURTAIN_STYLE_ROLLER) {
+      const rollerRig = createRollerRig(model, binding, located);
+      if (rollerRig) {
+        return rollerRig;
+      }
+    }
     const coveredParts = located.parts.filter(coveredPart =>
       CLOTH_PART_SET.has(coveredPart.userData.curtainPart)
     );
@@ -506,6 +674,9 @@ export function createCurtainMotion({
       model: model,
       binding: binding,
       dream: isDream,
+      // 非卷帘骨架：rollerStyle / roller 显式落空，复用判据与各分支据此区分两种形态。
+      rollerStyle: false,
+      roller: null,
       fabric: fabricKind,
       folds: rigFolds,
       track: trackModel,
@@ -533,6 +704,10 @@ export function createCurtainMotion({
     for (const [restoredPart, wasVisible] of discardedRig.originals) {
       restoredPart.visible = wasVisible;
     }
+    if (discardedRig.rollerStyle) {
+      // 卷帘骨架只驱动模型自身的部件：没有自制节点要摘除，也没有自建几何 / 材质要释放。
+      return;
+    }
     discardedRig.rig.removeFromParent();
     // 只有自建的轨道几何需要销毁；共享几何体由缓存统一管理。
     if (discardedRig.track) {
@@ -553,11 +728,67 @@ export function createCurtainMotion({
     applyRigPose(resetTargetRig);
   }
   /**
+   * 按开合位置摆放卷帘骨架。
+   *
+   * 1. 帘布平面：逐顶点改写 4 个角（顶边钉在卷管轴心，底边随开合上下）。不缩放整片，是因为
+   *    模型里帘布的顶点已被工作室按「导出时的预览开合度」摆好，直接缩放会把那段预览误差一并
+   *    继承下来；改写顶点既精确又零分配（固定 4 个顶点）。
+   * 2. 卷管：几何是半径 1 的单位圆柱（轴向已被 rotation.z 转到 x），径向缩放 = 当前卷径。
+   * 3. 底杆：骑在帘布下沿，与帘布同一深度（贴着卷管外侧）。
+   */
+  function poseRollerRig(posedRig, positionRatio) {
+    const rollerRig = posedRig.roller;
+    const rollerPose = resolveRollerPose(rollerRig.metrics, positionRatio);
+    const panelMesh = rollerRig.panel;
+    const panelGeometry = panelMesh?.geometry;
+    const panelPositionAttribute = panelGeometry?.attributes?.position;
+    // PlaneGeometry 的 4 个顶点顺序是「左上、右上、左下、右下」：前两个是顶边。
+    if (panelPositionAttribute && panelPositionAttribute.count >= 4) {
+      const halfWidth = rollerRig.metrics.rollerWidth / 2;
+      for (let panelVertexIndex = 0; panelVertexIndex < 4; panelVertexIndex++) {
+        panelPositionAttribute.setXYZ(
+          panelVertexIndex,
+          panelVertexIndex % 2 ? halfWidth : -halfWidth,
+          panelVertexIndex < 2 ? rollerPose.top : rollerPose.bottom,
+          // 帘布面始终落在卷管外侧，看起来是从卷管上垂下来而不是从轴心穿过。
+          rollerPose.tubeRadius
+        );
+      }
+      panelPositionAttribute.needsUpdate = true;
+      // 卷起的部分不显示：用 UV 的纵向取值把有花纹的贴图也一起收上去。
+      const panelUvAttribute = panelGeometry.attributes.uv;
+      if (panelUvAttribute && panelUvAttribute.count >= 4) {
+        for (let panelUvIndex = 0; panelUvIndex < 4; panelUvIndex++) {
+          panelUvAttribute.setY(
+            panelUvIndex,
+            panelUvIndex < 2 ? 1 - rollerPose.rolledFraction : 0
+          );
+        }
+        panelUvAttribute.needsUpdate = true;
+      }
+      // 顶点整体挪过位置，包围体要重算，否则视锥剔除与射线拾取都会出错。
+      panelGeometry.computeBoundingBox();
+      panelGeometry.computeBoundingSphere();
+    }
+    panelMesh.visible = rollerPose.visible;
+    if (rollerRig.tube) {
+      rollerRig.tube.scale.set(rollerPose.tubeRadius, 1, rollerPose.tubeRadius);
+    }
+    if (rollerRig.bottomBar) {
+      rollerRig.bottomBar.position.set(0, rollerPose.bottom, rollerPose.tubeRadius);
+    }
+    isPoseKeyDirty = true;
+  }
+  /**
    * 按当前开合位置摆放骨架（即时生效，不做动画）。
    */
   function applyRigPose(posedRig) {
     // 位置未知时依次回落到「状态推断值 → 已绑定的全关 → 未绑定的配置值」，见 resolvePoseFallback。
     const positionRatio = posedRig.position ?? resolvePoseFallback(posedRig);
+    if (posedRig.rollerStyle) {
+      poseRollerRig(posedRig, positionRatio);
+      return;
+    }
     if (posedRig.track) {
       // 有轨道模型：原生局部全部隐藏，改由轨道自己的采样函数给出每片帘的范围。
       for (const originalPart of posedRig.originals.keys()) {
@@ -694,6 +925,9 @@ export function createCurtainMotion({
         curtainPosition: rawBinding.curtainPosition || "split",
         coverKind: rawBinding.coverKind === "dream" ? "dream" : "standard",
         ...normalizeTrack(rawBinding),
+        // 帘型是模型属性（见 core/stage/geometry.js 的 resolveCurtainGeometry），这里与 curtainFabric
+        // 同一层显式落键：缺失 / 非法一律归一成 cloth，卷帘才进 roller。
+        curtainStyle: resolveCurtainStyle(rawBinding),
         curtainFabric: resolveCurtainFabric(rawBinding),
         unboundPosition: resolveUnboundPosition(rawBinding)
       }));
@@ -775,6 +1009,9 @@ export function createCurtainMotion({
       if (
         existingRig &&
         existingRig.dream === (entry.binding.coverKind === "dream") &&
+        // 帘型必须一致：cloth 与 roller 的骨架结构完全不同（一个是自建褶皱布面，
+        // 一个是模型自带平面 / 卷管 / 底杆），漏了这一项就会把旧骨架张冠李戴地复用。
+        existingRig.rollerStyle === (entry.binding.curtainStyle === CURTAIN_STYLE_ROLLER) &&
         (!existingRig.track ||
           JSON.stringify([
             normalizeTrack(existingRig.binding),
@@ -830,20 +1067,25 @@ export function createCurtainMotion({
       }
       nextRig.binding = entryBinding;
       const nextFolds = resolveFoldCount(entryBinding);
-      if (!nextRig.track && nextRig.folds !== nextFolds) {
+      if (!nextRig.track && !nextRig.rollerStyle && nextRig.folds !== nextFolds) {
         // 褶皱数变了：换成缓存里的另一份几何体（不销毁旧的，缓存还要复用）。
         nextRig.folds = nextFolds;
         for (const panelToRefold of nextRig.panels) {
           panelToRefold.geometry = getClothGeometry(nextFolds, nextRig.fabric);
         }
       }
-      // 模型尺寸或配置可能已变，重新读取基准并重算缩放。
+      // 模型尺寸或配置可能已变，重新读取基准。
       nextRig.basis = resolveRigBasis(nextRig.anchor);
-      nextRig.rig.scale.set(
-        ...(nextRig.track
-          ? [1, 1, 1]
-          : [nextRig.basis[0] / 1.8, nextRig.basis[1] / 2.4, nextRig.basis[2] / 0.18])
-      );
+      if (nextRig.rollerStyle) {
+        // 卷帘没有自制节点可缩放；按最新基准重算几何常量，后续姿态才用得上新尺寸。
+        nextRig.roller.metrics = resolveRollerRigMetrics(nextRig.basis);
+      } else {
+        nextRig.rig.scale.set(
+          ...(nextRig.track
+            ? [1, 1, 1]
+            : [nextRig.basis[0] / 1.8, nextRig.basis[1] / 2.4, nextRig.basis[2] / 0.18])
+        );
+      }
       if (nextRig.direction !== nextDirection) {
         nextRig.direction = nextDirection;
         applyRigPose(nextRig);
@@ -908,6 +1150,9 @@ export function createCurtainMotion({
     ) {
       return false;
     }
+    // 「减少动态效果」命中时不做插值：位置直接落到目标（与 applyRigPose 的即时路径同一口径）。
+    // 每次 update 只读一次系统偏好（判定与理由见 core/motion-preference.js），不逐骨架重读。
+    const prefersReducedMotion = prefersReducedMotionNow();
     // 把「上次更新时刻」吸附到帧网格上（减去余数），避免每帧都少算一点导致的累计漂移，
     // 让 30fps 的节流长期稳定在 30fps 而不是慢慢掉到 25fps。
     lastUpdateMs =
@@ -928,7 +1173,7 @@ export function createCurtainMotion({
       const easingFactor = progressRatio * progressRatio * (3 - progressRatio * 2);
       // 进度满时直接用目标值：避免浮点误差残留一个极小的差值，导致动画永不结束。
       const nextPosition =
-        progressRatio === 1
+        progressRatio === 1 || prefersReducedMotion
           ? movingRig.target
           : movingRig.motionFrom + (movingRig.target - movingRig.motionFrom) * easingFactor;
       if (nextPosition !== movingRig.position) {
@@ -987,6 +1232,8 @@ export function createCurtainMotion({
             structureRig.binding.modelId,
             structureRig.generation,
             structureRig.direction,
+            // 帘型参与结构键：渲染层据此判断「只是位置变了」与「形态变了需要重建资源」。
+            structureRig.rollerStyle,
             structureRig.basis,
             structureRig.folds
           ])
