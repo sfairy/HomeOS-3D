@@ -1,17 +1,20 @@
 /**
- * 场景背景：在「经典网格 / 微光星尘」之上叠加「暖阳微光」，包住 background-theme.js 并对外
+ * 场景背景：在「经典网格 / 微光星尘」之上叠加暖阳背景，包住 background-theme.js 并对外
  * 提供完全相同的接口（theme / active / configure / sync / interact / tick / suspend / dispose）。
  *
  * 暖阳原木主题不再给地面注入着色器，而是往 overlayScene 挂一块全屏四边形，用屏幕空间片元
  * 着色器画「暖色底 + 尘埃 + 一束阳光」，并替掉导出的 background / grid 这两个角色对象。
+ * 暖阳背景本身有两档配色：默认「暖阳微光」偏亮暖白，`warmBackgroundTheme` 打开后切到
+ * 「暖阳暮色」——底色压成灰褐、光色转暖黄、点缀加深为陶土色；两档共用同一份着色器，只差三支
+ * uniform 颜色，因此切档不需要重编程序，theme 会如实报出当前生效的那一档。
  *
  * 约定：全屏四边形直接写裁剪空间坐标铺满屏幕（renderOrder 取 -10000 保证最先绘制）；帧循环
  * 按需驱动，每帧最多每 50ms 请求一次重绘，返回 Infinity 时舞台退出循环；主题名不下发后端、不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=2609251920";
+import { createBackgroundTheme } from "./background-theme.js?v=2609252203";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251920";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609252203";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
  * 平面中心取该层所有墙端点的包围盒中心，无墙或坐标非有限时退化为原点；结果按 scene 对象缓存。
@@ -112,6 +115,9 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   };
   let warmBackdrop = null;
   let isWarmWood = false;
+  // 暖阳背景的两档配色：默认「暖阳微光」，暖阳原木主题下可再叠一层「暖阳暮色」。
+  // 两档只差下面三支颜色，着色器源码完全共用，因此切换配色不需要重编程序。
+  let isWarmDusk = false;
   let isBackgroundEnabled = true;
   let isMotionEnabled = true;
   let isWarmAnimating = false;
@@ -177,6 +183,18 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
       stageOptions.backgroundFrame?.(false);
     }
   }
+  /**
+   * 写入暖阳背景的配色。
+   *
+   * 「暖阳微光」（默认）是偏亮的暖白，接近日照充足的室内；「暖阳暮色」把底色压成灰褐、
+   * 光色转暖黄、点缀加深为陶土色，得到日落时分的观感。三支颜色都按主题整体替换，
+   * 不做插值渐变 —— 配置切换本就该是一个瞬时动作，渐变反而会让人以为画面在卡顿。
+   */
+  function applyWarmPalette(useDuskPalette) {
+    warmUniforms.warmDeep.value.set(useDuskPalette ? "#746c67" : "#d9d6cc");
+    warmUniforms.warmInk.value.set(useDuskPalette ? "#f4dfb6" : "#fff6dd");
+    warmUniforms.warmAccent.value.set(useDuskPalette ? "#9c765a" : "#b59b72");
+  }
   /** 按当前主题与开关，同步地面主题控制器、全屏背景的可见性与导出对象的隐藏标记。 */
   function applyBackgroundVisibility() {
     // 暖阳下不给地面主题传对象：那块全屏背景会顶替地面，地面主题也就无需生效。
@@ -201,11 +219,12 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   }
   return {
     get theme() {
-      if (isWarmWood) {
-        return "warm-sunlight";
-      } else {
+      if (!isWarmWood) {
         return themeController.theme;
       }
+      // 对外暴露的是「当前真正生效的配色档」，而不是配置里的原始值：调用方据此判断
+      // 是否需要重绘，也便于调试时一眼看出暖阳下到底是微光还是暮色。
+      return isWarmDusk ? "warm-dusk" : "warm-sunlight";
     },
     get active() {
       if (isWarmWood) {
@@ -219,14 +238,27 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
      */
     configure(configuredTheme, config = {}) {
       const nextWarmWood = config.sceneStyle === "warm-wood";
+      // 暮色只在暖阳原木主题下成立：其余主题连暖阳背景都不显示，更谈不上哪一档配色。
+      // 判定顺序与参考实现一致：先看 warmBackgroundTheme，再回落到 backgroundTheme 这个主题名；
+      // 另外额外接受布尔 true，因为后端把 warmBackgroundTheme 定义成布尔开关。
+      const warmThemeChoice = config.warmBackgroundTheme || config.backgroundTheme;
+      const nextWarmDusk =
+        nextWarmWood &&
+        (warmThemeChoice === true || warmThemeChoice === "warm-dusk");
       const didChange =
-        nextWarmWood !== isWarmWood || isMotionEnabled !== (config.backgroundMotion !== false);
+        nextWarmWood !== isWarmWood ||
+        nextWarmDusk !== isWarmDusk ||
+        isMotionEnabled !== (config.backgroundMotion !== false);
       if (didChange) {
-        // 主题或动态开关变了：先停掉当前帧循环，避免残留的时间基准把新主题算歪。
+        // 主题、配色档或动态开关变了：先停掉当前帧循环，避免残留的时间基准把新主题算歪。
         stopWarmFrames();
       }
       isWarmWood = nextWarmWood;
+      isWarmDusk = nextWarmDusk;
       isMotionEnabled = config.backgroundMotion !== false;
+      // 三支颜色每次都重写：本函数的调用频率是「宿主发来整份配置时」，写颜色可忽略不计，
+      // 换掉的是「配色是否已同步」这个本可写错的状态位。
+      applyWarmPalette(nextWarmDusk);
       themeController.configure(configuredTheme);
       if (isWarmWood) {
         // 暖阳下地面主题整体让位：suspend 清掉它的交互状态，且不再参与 tick。

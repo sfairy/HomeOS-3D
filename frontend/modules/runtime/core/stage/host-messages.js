@@ -168,10 +168,11 @@ export function createHostMessageHandler(ctx) {
       ctx.editingVacuumId = message.editingVacuumId || "";
       ctx.configuredModules = ctx.configuredModuleKinds(ctx.config);
       let nextModule = ctx.isEditing
-        ? [
+        ?           [
             "security",
             "climate",
             "cover",
+            "temperature-humidity",
             "nas",
             "television",
             "vacuum",
@@ -179,7 +180,14 @@ export function createHostMessageHandler(ctx) {
           ].includes(message.editingModule)
           ? message.editingModule
           : "light"
-        : ["overview", "security", "light", "devices", "vacuum"].includes(ctx.activeModule)
+        : [
+            "overview",
+            "security",
+            "light",
+            "devices",
+            "vacuum",
+            "temperature-humidity"
+          ].includes(ctx.activeModule)
           ? ctx.activeModule
           : ["nas", "television"].includes(ctx.activeModule)
             ? "devices"
@@ -502,7 +510,9 @@ export function createHostMessageHandler(ctx) {
                   ? "请先调整这幅窗帘的聚焦视角。"
                   : ctx.activeModule === "climate"
                     ? "请先调整这台空调的聚焦视角。"
-                    : "请先调整这盏灯的聚焦视角。"
+                    : ctx.activeModule === "temperature-humidity"
+                      ? "请先调整这个温湿度计的聚焦视角。"
+                      : "请先调整这盏灯的聚焦视角。"
             );
           }
           if (message.command === "focus-projection") {

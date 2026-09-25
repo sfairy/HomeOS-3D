@@ -10,13 +10,15 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=2609251920";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609251920";
+} from "../editor/picker/editor-picker-pagination.js?v=2609252203";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609252203";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=2609251920";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=2609251920";
-import { nasProfiles } from "./nas-catalog.js?v=2609251920";
+import { entityDomainOf } from "../utils/entities.js?v=2609252203";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609252203";
+import { nasProfiles } from "./nas-catalog.js?v=2609252203";
+// 温湿度计的传感器判定与运行侧、后端同一份实现（static 共享层，零依赖）。
+import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609252203";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
@@ -459,7 +461,9 @@ export function createInteraction3dEditorPickers({
                   ? "mdi:curtains"
                   : resolvedDeviceKind === "climate"
                     ? "mdi:air-conditioner"
-                    : DEFAULT_LIGHT_ICON;
+                    : resolvedDeviceKind === "lock"
+                      ? "mdi:door-closed"
+                      : DEFAULT_LIGHT_ICON;
       // 图标目录条目里的 name 不带 mdi: 前缀（带前缀的是 slug），而本编辑器的图标 ID
       // 一律带前缀（默认值、已存文档与 isValidIconId / 后端校验都是这个形式）。
       // 展示当前选中态时要先把前缀剥掉，才能和条目的 name 相等。
@@ -479,7 +483,9 @@ export function createInteraction3dEditorPickers({
                     ? "选择窗帘按钮图标"
                     : resolvedDeviceKind === "climate"
                       ? "选择空调按钮图标"
-                      : "选择灯光按钮图标",
+                      : resolvedDeviceKind === "lock"
+                        ? "选择门锁按钮图标"
+                        : "选择灯光按钮图标",
         searchPlaceholder: "搜索图标名称",
         triggerButton: iconTrigger,
         pageSize: EDITOR_PICKER_PAGE_SIZES.icon,
@@ -537,12 +543,26 @@ export function createInteraction3dEditorPickers({
       const isClimateEntity =
         !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate");
       const isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity;
+      // 温湿度计：同一套实体选择器服务两路，deviceKind 上带出「哪一路」，
+      // 候选与排序都交给 bridge 的 matchesTemperatureHumidityEntity（唯一判定口径）。
+      const isTemperatureHumidityEntity =
+        entityDeviceKind === "temperature-humidity-temperature" ||
+        entityDeviceKind === "temperature-humidity-humidity";
+      const meterKind = entityDeviceKind === "temperature-humidity-humidity" ? "humidity" : "temperature";
+      const matchesMeterEntity = candidateEntity =>
+        matchesTemperatureHumidityEntity(
+          candidateEntity,
+          meterKind,
+          getState(candidateEntity.entityId)
+        );
       // 实体域白名单：决定「哪些实体有资格出现」。灯光 / 电视电源 / 人在允许任意域，
       // 因为这类功能真正绑定的是「任意可控实体」或某域下由 device_class 判定的实体。
       const entityIdPattern =
         isLightEntity || isTelevisionPowerEntity || entityDeviceKind === "presence"
           ? /^[a-z_]+\.[a-z0-9_]+$/
-          : entityDeviceKind === "camera"
+          : isTemperatureHumidityEntity
+            ? /^sensor\.[a-z0-9_]+$/
+            : entityDeviceKind === "camera"
             ? /^camera\.[a-z0-9_]+$/
             : entityDeviceKind === "vacuum"
               ? /^vacuum\.[a-z0-9_]+$/
@@ -583,23 +603,32 @@ export function createInteraction3dEditorPickers({
                         candidateEntity.attributes?.device_class ||
                         getState(candidateEntity.entityId)?.attributes?.device_class
                     )
-                  : candidateEntity.entityId.startsWith(
-                      isTelevisionEntity || isTelevisionPowerEntity
-                        ? "media_player."
-                        : isNasEntity || entityDeviceKind === "presence"
-                          ? "binary_sensor."
-                          : isCoverEntity
-                            ? "cover."
-                            : isClimateEntity
-                              ? "climate."
-                              : entityDeviceKind === "camera"
-                                ? "camera."
-                                : "light."
-                    )
+                  : isTemperatureHumidityEntity
+                    ? matchesMeterEntity(candidateEntity)
+                      ? 1
+                      : 0
+                    : candidateEntity.entityId.startsWith(
+                        isTelevisionEntity || isTelevisionPowerEntity
+                          ? "media_player."
+                          : isNasEntity || entityDeviceKind === "presence"
+                            ? "binary_sensor."
+                            : isCoverEntity
+                              ? "cover."
+                              : isClimateEntity
+                                ? "climate."
+                                : entityDeviceKind === "camera"
+                                  ? "camera."
+                                  : "light."
+                      )
         }),
         // 候选来源在这里过滤：域不匹配的实体根本不进入选择器，避免用户绑上不可能生效的实体。
+        // 温湿度计再叠一层语义判定（device_class / 单位 / 名称），只留温度或湿度传感器。
         pickerEntitiesForComponentType: () =>
-          getEntities().filter(filteredEntity => entityIdPattern.test(filteredEntity.entityId)),
+          getEntities().filter(filteredEntity =>
+            isTemperatureHumidityEntity
+              ? matchesMeterEntity(filteredEntity)
+              : entityIdPattern.test(filteredEntity.entityId)
+          ),
         entityPickerText: entityPickerText,
         entityDomainResolver: entityDomainOf
       });
@@ -641,8 +670,11 @@ export function createInteraction3dEditorPickers({
         allMatches.find(matchedEntity => matchedEntity.entityId === currentEntityId) || null;
       return openPicker({
         kind: "entity",
-        title:
-          entityDeviceKind === "camera"
+        title: isTemperatureHumidityEntity
+          ? meterKind === "humidity"
+            ? "选择湿度传感器"
+            : "选择温度传感器"
+          : entityDeviceKind === "camera"
             ? "选择摄像头实体"
             : entityDeviceKind === "presence"
               ? "选择人在传感器"
@@ -672,8 +704,11 @@ export function createInteraction3dEditorPickers({
           null
         ),
         selectedText: currentEntityId || "不使用实体",
-        emptyText:
-          entityDeviceKind === "camera"
+        emptyText: isTemperatureHumidityEntity
+          ? "没有匹配的" +
+            (meterKind === "humidity" ? "湿度" : "温度") +
+            "传感器，可先在 Home Assistant 为其设置 device_class 或单位"
+          : entityDeviceKind === "camera"
             ? "没有匹配的摄像头实体，请先在 Home Assistant 接入设备"
             : entityDeviceKind === "presence"
               ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
