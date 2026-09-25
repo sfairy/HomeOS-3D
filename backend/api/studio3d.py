@@ -415,6 +415,15 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
             state = StudioInteractionSync(id=1)
             database.add(state)
         state.document_json = canonical_json({'archive': archive})
+        # 撤销记录与草稿共用同一条体积上限：archive 存的是历次被剪掉的控件条目，反复增删模型
+        # 会让它越滚越大，一次保存就可能把库里这一行写成超大 JSON。超限时整批回滚（含上面
+        # 逐份文档的清理），并明确告知「关联清理未执行」—— 否则用户会以为清理成功、实际整份
+        # 保存都没落库。与草稿那条 413 是两条独立入口，故文案也不同。
+        if len(state.document_json.encode('utf-8')) > MAX_DRAFT_BYTES:
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail='户型及撤销记录过大，未执行关联清理。')
         # 先把草稿原子落盘再提交数据库：写盘失败会抛出，未提交的库改动随会话关闭一起回滚，
         # 两边不会各写一半。反过来「先提交再写盘」则可能在写盘失败后留下已清理的库。
         _atomic_json_write(request.app.state.settings.studio3d_draft_path, updated)
