@@ -8,34 +8,34 @@
  * waitInteraction3dEditorView(componentId) 拿到视图句柄再下命令；sceneId 是后端签发的 32 位十六进制，
  * 面板只做格式校验。副作用：发起授权校验与户型载入、动态 import 子编辑器、直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=2609251920";
+import { resolvePageBehavior } from "./page-behavior.js?v=2609252203";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=2609251920";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=2609251920";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609251920";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609251920";
+} from "./performance-warning.js?v=2609252203";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=2609252203";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609252203";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609252203";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=2609251920";
+} from "./bridge.js?v=2609252203";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=2609251920";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609251920";
+} from "./cover.js?v=2609252203";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609252203";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
-import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609251920";
-import { createDomFactory } from "../shared/dom-factory.js?v=2609251920";
+import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609252203";
+import { createDomFactory } from "../shared/dom-factory.js?v=2609252203";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=2609251920";
+} from "./definition.js?v=2609252203";
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
@@ -545,7 +545,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252203");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -580,7 +580,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252203");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -614,11 +614,15 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609252203");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
         entities: editorOptions.entities,
+        // 门锁编辑器要按实时状态读 device_class，才能在候选实体里挑对域；不给状态表它只能
+        // 退回域白名单，门锁的「电量低 / 被拆动」那几行也就永远取不到值。其余编辑器（扫地机等）
+        // 一直在传，这里先前漏了。
+        states: editorOptions.states,
         pickers: editorOptions.pickers,
         onSave: async savedSecurityConfig => {
           await editorOptions.onChange({
@@ -642,7 +646,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252203");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -718,7 +722,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252203");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -747,7 +751,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251920");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609252203");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -1764,7 +1768,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const displaySection = createSection("画面显示");
   // 供 bridge.css 定位这一节的专属布局（墙体透明度那一行需要更紧凑的排布）。
   displaySection.classList.add("i3d-picture-settings");
-  const lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode);
+  let lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode);
   const lightingModeSelect = createElement("select");
   lightingModeSelect.name = "i3d-lighting-mode";
   lightingModeSelect.setAttribute("aria-label", "灯光模式");
@@ -1774,14 +1778,44 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     lightingModeSelect.append(lightingModeOptionElement);
   }
   lightingModeSelect.value = lightingMode;
-  // 只读展示：只剩轻量柔光一档，模式不可切换，故不挂 change 监听并恒置 disabled。
-  // 之所以保留这个下拉而不是整块删掉，是为了让用户看得到「当前是什么模式」，
-  // 直接删会让「灯光效果」这一节只剩一个孤零零的按钮、没有任何解释。
-  lightingModeSelect.disabled = true;
   createLabeledField(lightEffectsSection, "灯光模式", lightingModeSelect);
-  // 「户型渲染」（整体外观 / baseLighting 手动调参）仅在非 region 模式下才有意义：
-  // region 的光照参数已由 region-lighting-presets.js 固定，编辑器不再提供入口。
-  // 条件判断保留，是为了兼容历史配置里可能残留的非 region 取值。
+  // 两档可选（见 definition.js 的 INTERACTION3D_LIGHTING_MODES）：standard 走原生灯光 + 实时
+  // 阴影，region 走二维光照图 + 接触阴影，切换等于换渲染管线，运行侧据此重建舞台
+  // （见 panel-renderer/document-core.js），故提交前要过确认流程。
+  lightingModeSelect.addEventListener("change", async () => {
+    if (programmaticControls.has(lightingModeSelect)) {
+      return;
+    }
+    const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value);
+    setControlValue(lightingModeSelect, lightingMode);
+    lightingModeSelect.disabled = true;
+    try {
+      await requestInteraction3dAccess();
+      if (
+        inspectorElement.hidden ||
+        inspectorElement.dataset.componentId !== targetComponent.id ||
+        !(await confirmChangeWithWarning({
+          lightingMode: nextLightingMode
+        }))
+      ) {
+        return;
+      }
+      await editorOptions.onChange({
+        properties: {
+          lightingMode: nextLightingMode
+        }
+      });
+      lightingMode = nextLightingMode;
+      setControlValue(lightingModeSelect, nextLightingMode);
+    } catch (lightingModeError) {
+      lightingModeSelect.value = lightingMode;
+      editorOptions.onError?.(lightingModeError);
+    } finally {
+      lightingModeSelect.disabled = isViewEditing;
+    }
+  });
+  // 「户型渲染」（整体外观 / baseLighting 手动调参）只在标准光影下提供：region 的光照参数
+  // 由 region-lighting-presets.js 整体覆盖，手工调参不会生效，故那一档不显示入口。
   lightingMode !== "region" && lightEffectsSection.append(planRenderButton);
   const backgroundVisibilityControlElement = createElement("div", "navigation-property-control");
   const backgroundVisibilityOptionsElement = createElement("div", "navigation-segmented-options");
@@ -1841,28 +1875,42 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const backgroundThemeSelect = createElement("select");
   backgroundThemeSelect.name = "i3d-background-theme";
   backgroundThemeSelect.setAttribute("aria-label", "背景主题");
-  // 暖阳下背景主题由材质风格接管：下拉只剩「暖阳微光」一项且禁用，
-  // 让用户看到当前生效的是什么，但不会误以为自己能改。
+  // 暖阳下背景主题由材质风格接管：下拉改成暖阳自己的两档配色（微光 / 暮色），
+  // 写回 warmBackgroundTheme；其余主题保持「经典网格 / 微光星尘」并写回 backgroundTheme。
   for (const [themeValue, themeLabel] of isWarmWood
-    ? [["warm-sunlight", "暖阳微光"]]
+    ? [
+        ["warm-sunlight", "暖阳微光"],
+        ["warm-dusk", "暖阳暮色"]
+      ]
     : BACKGROUND_THEMES) {
     const themeOptionElement = createElement("option", "", themeLabel);
     themeOptionElement.value = themeValue;
     backgroundThemeSelect.append(themeOptionElement);
   }
-  backgroundThemeSelect.value = isWarmWood
-    ? "warm-sunlight"
-    : normalizeBackgroundTheme(properties.backgroundTheme);
-  backgroundThemeSelect.disabled = isWarmWood;
+  // 暖阳下读已存的档位；布尔 true 是后端早先把该键当开关的写法，语义等同「暮色」。
+  // 认不出的值一律回落到微光，而不是留空 —— 空值会让下拉显示成第一项，与配置不一致。
+  backgroundThemeSelect.value = !isWarmWood
+    ? normalizeBackgroundTheme(properties.backgroundTheme)
+    : properties.warmBackgroundTheme === true ||
+        properties.warmBackgroundTheme === "warm-dusk"
+      ? "warm-dusk"
+      : "warm-sunlight";
+  backgroundThemeSelect.disabled = false;
   backgroundThemeSelect.addEventListener("change", () => {
-    // 暖阳下的 change 只可能来自程序性写值，不需要（也不该）提交。
-    if (!isWarmWood && !programmaticControls.has(backgroundThemeSelect)) {
-      commitChange({
-        properties: {
-          backgroundTheme: normalizeBackgroundTheme(backgroundThemeSelect.value)
-        }
-      });
+    // 程序性写值（宿主回推配置）不产生提交，否则会形成「改一下、回推一次」的循环。
+    if (programmaticControls.has(backgroundThemeSelect)) {
+      return;
     }
+    // 同一个控件在两种主题下写的是两个不同的键：暖阳写配色档位，其余写地面主题。
+    commitChange({
+      properties: isWarmWood
+        ? {
+            warmBackgroundTheme: backgroundThemeSelect.value
+          }
+        : {
+            backgroundTheme: normalizeBackgroundTheme(backgroundThemeSelect.value)
+          }
+    });
   });
   createLabeledField(displaySection, "背景主题", backgroundThemeSelect);
   // 动态背景开关只在暖阳下出现：默认主题的星尘由交互驱动，没有「一直飘」的选项。
@@ -1886,7 +1934,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   }
   // 说明文字挪进 title：暖阳与默认主题的文案不同，静态段落无法兼顾，且占高度。
   backgroundThemeSelect.title = isWarmWood
-    ? "随材质风格切换，亮区跟随当前楼层底部；ALL 时跟随最底层。"
+    ? "暖阳环境下可选两档配色：微光为偏亮的暖白日光，暮色为日落时分的暖黄。亮区跟随当前楼层底部；ALL 时跟随最底层。"
     : "微光围绕户型中心渐隐，随视角呈现远近层次。";
   // 墙体透明度：diy 表示沿用户型自带材质（wallOpacity 存 null），
   // custom 表示本控件统一覆盖，具体比例存在 wallOpacity（0~1）。
@@ -2458,7 +2506,6 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       displaySection,
       renderScaleSection,
       groundReflectionSection,
-      dimmingSection,
       popupAppearanceSection
     ]) {
       for (const disabledControl of disabledSection.querySelectorAll("input, select, button")) {
@@ -2493,7 +2540,6 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   houseSection.classList.add("i3d-house-section");
   layoutSection.classList.add("i3d-placement-section");
   lightEffectsSection.classList.add("i3d-light-effects-row");
-  lightingModeSelect.parentElement.children[0].hidden = true;
   for (const inspectorSubsection of [autoRotateSection, idleExitSection, iconVisibilitySection]) {
     inspectorSubsection.classList.add("i3d-inspector-subsection");
   }
@@ -2552,7 +2598,6 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     renderScaleSection,
     motionResolutionSection,
     groundReflectionSection,
-    dimmingSection,
     popupAppearanceSection
   ]);
   appendInspectorGroup("view", "视角与导航", [viewSection, navigationSection]);

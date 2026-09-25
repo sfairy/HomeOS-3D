@@ -10,8 +10,12 @@
 // 保证「新老草稿」在舞台上呈现一致（这正是「观感收敛」的落点）。见各模块头部的沿革说明。
 import {
   withFixedLightEffects,
-  withPageAppearancePreset
-} from "../static-helpers.js?v=2609251920";
+  withPageAppearancePreset,
+  withRegionLightingPreset
+} from "../static-helpers.js?v=2609252203";
+// 门模型展开的唯一实现在 lock-state.js（舞台收集门锁绑定、门动画找模型共用同一份）：
+// 这份快照多带一个 doors 清单给门锁编辑器，靠的就是它，别在这里另写一套门 → 坐标的口径。
+import { doorModels } from "../../security/lock-state.js?v=2609252203";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。
@@ -196,7 +200,13 @@ export function createStageMetadata(ctx) {
                 ? groupPoints.reduce((sumY, pointY) => sumY + pointY.y, 0) / groupPoints.length
                 : 0
             };
-          })
+          }),
+          // 门模型：门锁编辑器要靠它列出「这层有哪些门可以配锁」。门只存在于 scene.doors 里
+          // （工作室导出的门模型，或画在墙上的户型门 —— 后者还要按 wallId + t 插值出平面坐标），
+          // 而把这批门展开成「与 3D 模型一一对应、带 modelId 与平面坐标」的正是 lock-state.js 的
+          // doorModels：舞台收集门锁绑定、门动画找模型都走它。这里只把同一份结果透传给宿主，
+          // 绝不在快照里另算一遍坐标口径（两套算法一旦漂移，就是「编辑器里选得到、舞台上找不到」）。
+          doors: doorModels(metadataFloor.scene)
         };
       })
     };
@@ -208,7 +218,11 @@ export function createStageMetadata(ctx) {
    * devices.*，都可能 undefined 故逐个可选补齐；只补坐标、不新增配置项，结构原样透传。
    */
   function normalizeSceneConfig(sourceConfig) {
-    const normalizedConfig = withPageAppearancePreset(structuredClone(sourceConfig));
+    // 轻量柔光（region）下用固定光照参数整体覆盖 baseLighting（见 region-lighting-presets.js）：
+    // region 的逐区域布光只在固定参数下成立，非 region 时该函数原样返回、不写入 baseLighting。
+    const normalizedConfig = withRegionLightingPreset(
+      withPageAppearancePreset(structuredClone(sourceConfig))
+    );
     normalizedConfig.camera = ctx.transformCameraPose(
       normalizedConfig.floorCameras?.[normalizedConfig.floorSelection] || normalizedConfig.camera,
       normalizedConfig.floorSelection
@@ -254,7 +268,16 @@ export function createStageMetadata(ctx) {
       );
     }
     if (normalizedConfig.environment) {
-      for (const environmentKey of ["airConditioners", "curtains"]) {
+      // curtainGroups 的 focusCamera 与 curtains 同一口径，也要跟着楼层坐标系变换；
+      // 它的其余字段（memberIds / panelLayout 等）原样保留。
+      // airPurifiers 与空调同一口径：净化器的 focusCamera 也要跟着楼层坐标系变换，
+      // 漏一个键的后果是「换楼层后净化器聚焦视角还停在旧坐标系」。
+      for (const environmentKey of [
+        "airConditioners",
+        "airPurifiers",
+        "curtains",
+        "curtainGroups"
+      ]) {
         normalizedConfig.environment[environmentKey] = (
           normalizedConfig.environment[environmentKey] || []
         ).map(environmentItem => ({

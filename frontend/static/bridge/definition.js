@@ -3,23 +3,26 @@
  *
  * 前端唯一的初始值来源：后端只校验与存储、不补默认值，故这里的字段名与取值必须与渲染层、
  * 设置面板的读取口径一致。`module.3d_interaction` 是与授权服务约定死的能力名，改名会让已购用户失去权限。
- * lightingMode 只认 region（0.6.3 起移除 standard，旧配置经 normalize 自动回落）；
+ * lightingMode 只认 standard / region（缺省与非法值折算成 standard），
  * backgroundTheme 只认 grid / dots（历史别名 contours 折算成 dots），读入时统一经 normalize* 归一；
  * sceneStyle 只认 default / warm-wood，wallOpacity 为 null（跟随主题）或 0~1。
  * 分页观感（pageDimStrength / pageSaturation / focusDim*）不在本文件写死，统一取自
  * page-appearance-presets.js 的预设，保证「模板新建」与「旧草稿读入」两路观感一致。
  * create 按画布 56% 居中放置。
  */
-import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609251920";
+import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609252203";
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
 const INTERACTION3D_TYPE = "interaction3d",
   INTERACTION3D_FEATURE = "module.3d_interaction",
-  // 只剩轻量柔光一档。保留数组结构（而非删掉常量）是因为检查器仍按表渲染那个只读下拉项，
-  // 删掉会让下拉变空、用户看不到当前模式。
-  INTERACTION3D_LIGHTING_MODES = [["region", "轻量柔光"]],
-  // 恒返回 region：旧草稿里存的 "standard" 由此静默回落到轻量柔光，无需数据迁移。
-  normalizeInteraction3dLightingMode = () => "region",
+  INTERACTION3D_LIGHTING_MODES = [
+    ["standard", "标准光影"],
+    ["region", "轻量柔光"]
+  ],
+  // 两档并存，standard 为默认：只有显式写了 "region" 才走轻量柔光（二维光照图 + 接触阴影），
+  // 其余（缺省、历史值、非法值）一律折算成 standard（原生灯光 + 实时阴影）。
+  normalizeInteraction3dLightingMode = lightingMode =>
+    lightingMode === "region" ? "region" : "standard",
   BACKGROUND_THEMES = [
     ["grid", "经典网格"],
     ["dots", "微光星尘"]
@@ -69,7 +72,7 @@ const INTERACTION3D_TYPE = "interaction3d",
           wallOpacity: null,
           backgroundMotion: !0,
           renderScale: 0.8,
-          lightingMode: "region",
+          lightingMode: "standard",
           groundReflection: { mode: "off", resolution: 512, strength: 0.18 },
           // 分页观感预设：展开后得到 pageDimStrength / pageSaturation / focusDimStrength /
           // focusVignetteStrength 四个键。传空对象是因为模板不需要覆盖预设里的任何一项。
@@ -84,7 +87,16 @@ const INTERACTION3D_TYPE = "interaction3d",
           hideIconsWhileRotating: !1,
           lights: [],
           devices: { nas: [] },
-          environment: { dimStrength: 70, airConditioners: [], curtains: [] }
+          environment: {
+            dimStrength: 70,
+            airConditioners: [],
+            // 空气净化器与温湿度计都是 0.6.5 新增的环境集合：模板里显式给出空数组，
+            // 编辑器第一次打开这两个配置节时才不会读到 undefined 而渲染失败。
+            // 顺序与参考实现的模板默认值一致（airConditioners → airPurifiers → curtains → temperatureHumidity）。
+            airPurifiers: [],
+            curtains: [],
+            temperatureHumidity: []
+          }
         },
         bindings: {},
         actions: {},

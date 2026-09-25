@@ -12,13 +12,17 @@ import {
   apiErrorMessage,
   entityDomainFromId,
   resolveStateEntry,
-  stateTextOf
-} from "./static-helpers.js?v=2609251920";
+  stateTextOf,
+  temperatureHumidityEntities
+} from "./static-helpers.js?v=2609252203";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609251920";
-import { createLightStream } from "../light/light-stream.js?v=2609251920";
+} from "./popup-preview.js?v=2609252203";
+import { createLightStream } from "../light/light-stream.js?v=2609252203";
+// 窗帘组合的条目 id 口径与归一（cover-groups.js）：焦点态判定要认组合 id，否则展示态点击
+// 组合标记时宿主不会把它当成一次有效聚焦（面板在 iframe 里能开，但宿主的聚焦态接不上）。
+import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609252203";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -136,9 +140,11 @@ export function mountInteraction3d(
   const pendingEditsByRequestId = new Map();
   const pendingRangeRequestsByRequestId = new Map();
   const editSubscribersSet = new Set();
-  // 光照模式已收敛为轻量柔光一档：非法值与历史遗留的 standard 一律回落到 region，
-  // 免得旧数据里的未知值触发一次无谓的 iframe 重载。
-  const normalizeLightingMode = () => "region";
+  // 光照模式两档并存、standard 为默认：只有显式 "region" 才走轻量柔光，其余（缺省、历史值、
+  // 未知值）一律折算成 standard（与 bridge/definition.js 的 normalizeInteraction3dLightingMode 同口径）。
+  // 下面那些 `=== "region"` 判断（是否启用区域布光、照射范围编辑、是否重建舞台）都读它。
+  const normalizeLightingMode = lightingMode =>
+    lightingMode === "region" ? "region" : "standard";
   // iframe 的指针事件开关：编辑器画布里默认关掉（点击要留给画布选控件 / 拖控件），
   // 只有进入视角调整、照射范围编辑、导航位置调整这几种明确的编辑态才放行；展示页整份放行。
   // 三种编辑态各写一遍判断很容易漂移（改一处忘一处就会出现「模式开着却拖不动」），
@@ -612,7 +618,13 @@ export function mountInteraction3d(
     ),
     ...(componentProperties.lights || []),
     ...(componentProperties.environment?.airConditioners || []),
+    // 空气净化器：多订阅一个 fan 实体，换来净化器面板的开关 / 风速 / 模式 / 摆头都有实时状态。
+    // 漏掉这一行时面板仍能渲染，但读数永远停在首次快照，按钮点了也不回弹。
+    ...(componentProperties.environment?.airPurifiers || []),
     ...(componentProperties.environment?.curtains || []),
+    // 温湿度计：每个配置项贡献温度 / 湿度两路实体，抽取口径与前端卡片同一份实现
+    // （bridge/temperature-humidity.js 的 temperatureHumidityEntities）。
+    ...temperatureHumidityEntities(componentProperties.environment?.temperatureHumidity || []),
     ...(componentProperties.devices?.nas || []),
     ...(componentProperties.devices?.televisions || []),
     ...(componentProperties.devices?.televisions || [])
@@ -642,12 +654,23 @@ export function mountInteraction3d(
       ) ||
       (componentProperties.security?.presenceSensors || []).some(
         presenceSensorDevice => selectionId === "presence:" + presenceSensorDevice.id
+      ) ||
+      // 窗帘组合在展示态的条目 id 是 "cover:curtain-group:<group.id>"。组合存在 curtainGroups
+      // 里、不在 curtains 数组里，所以要在下面那张「模块 + 条目」通用表之外单独认一次。
+      validCurtainGroups(componentProperties.environment).some(
+        curtainGroupEntry =>
+          selectionId === "cover:" + curtainGroupEntryId(curtainGroupEntry)
       )
     ) {
       return true;
     } else {
       return [
-        ["climate", componentProperties.environment?.airConditioners],
+        ["climate", [
+          ...(componentProperties.environment?.airConditioners || []),
+          // 净化器与空调同属 climate 模块，选中态判定也要认它，否则在展示端选中净化器
+          // 会被当成「不属于本控件」而被清掉。
+          ...(componentProperties.environment?.airPurifiers || [])
+        ]],
         ["cover", componentProperties.environment?.curtains],
         ["nas", componentProperties.devices?.nas],
         ["television", componentProperties.devices?.televisions],
@@ -1261,6 +1284,8 @@ export function mountInteraction3d(
         ![
           ...(componentProperties.lights || []),
           ...(componentProperties.environment?.airConditioners || []),
+          // 净化器：面板发出的实体也必须在这张表里，否则命令会被当成「未绑定到本控件」拒绝。
+          ...(componentProperties.environment?.airPurifiers || []),
           ...(componentProperties.environment?.curtains || []),
           ...(componentProperties.devices?.televisions || []),
           ...(componentProperties.devices?.televisions || []).map(televisionItem => ({
@@ -1535,9 +1560,16 @@ export function mountInteraction3d(
     if (
       isEditing &&
       editContext &&
-      ["light", "climate", "cover", "nas", "television", "vacuum", "vacuum-shortcut"].includes(
-        editContext.module
-      )
+      [
+        "light",
+        "climate",
+        "cover",
+        "temperature-humidity",
+        "nas",
+        "television",
+        "vacuum",
+        "vacuum-shortcut"
+      ].includes(editContext.module)
     ) {
       editingModuleKind = editContext.module;
       editingVacuumId =
