@@ -8,99 +8,113 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251920";
+import {
+  applyMdiMask,
+  capturePointer,
+  resolveStateEntry,
+  temperatureHumidityReading
+} from "./static-helpers.js?v=2609252203";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251920";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609252203";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609251920";
+import { sceneModelKey } from "./scene-model-key.js?v=2609252203";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609251920",
+        "../../../static/bridge/popup-placement.js?v=2609252203",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609251920"));
+  : import("/static/bridge/popup-placement.js?v=2609252203"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609251920";
-import { createSceneBackground } from "./scene-background.js?v=2609251920";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609251920";
+} from "../presence/presence-scene.js?v=2609252203";
+import { createSceneBackground } from "./scene-background.js?v=2609252203";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609252203";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609251920";
+} from "../vacuum/vacuum-motion.js?v=2609252203";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609251920";
-import { televisionState } from "../television/television-state.js?v=2609251920";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609251920";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609251920";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609251920";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251920";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251920";
+} from "../vacuum/vacuum-map.js?v=2609252203";
+import { televisionState } from "../television/television-state.js?v=2609252203";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609252203";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609252203";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609252203";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609252203";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609252203";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609251920";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251920";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609251920";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251920";
+} from "../cover/cover-state.js?v=2609252203";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609252203";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609252203";
+// 窗帘组合（一拖多）：组面板把成员各自转发成一块普通窗帘子面板，与单副帘面板同一套外观。
+import { createCoverGroupPanel } from "../cover/cover-group-panel.js?v=2609252203";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609252203";
 // 门锁：面板（状态 + 电量 + 密码 + 上锁/解锁/释放锁舌）、门外动画（把 doorOpen 翻成门的姿态）、
 // 以及门模型的展开口径（把配置里的 modelId 对到楼层场景里那扇门）。
 // 后两者与编辑器的安防配置页共用同一份实现，见 security/lock-state.js。
-import { createLockPanel } from "../security/lock-panel.js?v=2609251920";
-import { createLockMotion } from "../security/lock-motion.js?v=2609251920";
-import { doorModels, lockState } from "../security/lock-state.js?v=2609251920";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251920";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251920";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251920";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251920";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609251920";
-import { createDevicePanel } from "../device/device-panel.js?v=2609251920";
-import { isGenericDeviceKind, genericDeviceProfile } from "../device/device-profiles.js?v=2609251920";
+import { createLockPanel } from "../security/lock-panel.js?v=2609252203";
+import { createLockMotion } from "../security/lock-motion.js?v=2609252203";
+import { doorModels, lockState } from "../security/lock-state.js?v=2609252203";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609252203";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609252203";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609252203";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609252203";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609252203";
+import { createDevicePanel } from "../device/device-panel.js?v=2609252203";
+// 通用设备状态灯的状态口径：statusRules 折算成四态与配色，与设备弹窗 / 编辑器同源
+// （device/device-status.js 里只有这一份实现，舞台不再自带第二套判据）。
+import { deviceStatus } from "../device/device-status.js?v=2609252203";
+import {
+  GENERIC_DEVICE_KINDS,
+  isGenericDeviceKind,
+  genericDeviceProfile
+} from "../device/device-profiles.js?v=2609252203";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609251920";
-import { startSceneSync } from "./scene-sync.js?v=2609251920";
+} from "../environment/environment-scene.js?v=2609252203";
+import { startSceneSync } from "./scene-sync.js?v=2609252203";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609251920";
+} from "../light/light-state.js?v=2609252203";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609251920";
+} from "../camera/camera-motion.js?v=2609252203";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609251920";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609251920";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251920";
-import { createStageGeometry } from "./stage/geometry.js?v=2609251920";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251920";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609251920";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251920";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251920";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251920";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251920";
-import { createInputActivity } from "./stage/input-activity.js?v=2609251920";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609251920";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251920";
+} from "./idle-rotation.js?v=2609252203";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609252203";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609252203";
+import { createStageGeometry } from "./stage/geometry.js?v=2609252203";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609252203";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609252203";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609252203";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609252203";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609252203";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609252203";
+import { createInputActivity } from "./stage/input-activity.js?v=2609252203";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609252203";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609252203";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -152,9 +166,12 @@ function configuredModuleKinds(rawConfig = {}) {
     // 因此哪怕只有一个模块配了设备，它依然有意义。
     "overview",
     "light",
-    ...(rawConfig.environment?.airConditioners?.length || rawConfig.environment?.curtains?.length
+    ...(rawConfig.environment?.airConditioners?.length ||
+    rawConfig.environment?.airPurifiers?.length ||
+    rawConfig.environment?.curtains?.length
       ? ["environment"]
       : []),
+    ...(rawConfig.environment?.temperatureHumidity?.length ? ["temperature-humidity"] : []),
     ...(rawConfig.devices?.nas?.length || rawConfig.devices?.televisions?.length
       ? ["devices"]
       : []),
@@ -525,6 +542,9 @@ export function mountStage(stageOptions) {
     },
     get lockState() {
       return lockState;
+    },
+    get temperatureHumidityReading() {
+      return temperatureHumidityReading;
     },
     get createDampedCameraMotion() {
       return createDampedCameraMotion;
@@ -1052,6 +1072,7 @@ export function mountStage(stageOptions) {
     collectCameraBindings,
     collectClimateBindings,
     collectCurtainBindings,
+    collectLockBindings,
     collectModuleBindings,
     collectNasBindings,
     collectOverviewBindings,
@@ -1146,6 +1167,7 @@ export function mountStage(stageOptions) {
     ["overview", "总览"],
     ["light", "灯光"],
     ["environment", "环境"],
+    ["temperature-humidity", "温湿度计"],
     ["devices", "设备"],
     ["vacuum", "扫地机"],
     ["security", "安防"]
@@ -1168,6 +1190,11 @@ export function mountStage(stageOptions) {
   const moduleEmptyElement = makeElement("p", "i3d-module-empty");
   moduleEmptyElement.setAttribute("role", "status");
   moduleEmptyElement.hidden = true;
+  // 编辑态的「正在配置：…」提示条。画布上的轮廓只圈得出位置、圈不出名字：同一柜面上并排
+  // 两个插座、同层挂两层窗帘时，光看描边认不出选中的是哪一个。文案见 renderEditorSelection。
+  const editorSelectionElement = makeElement("p", "i3d-editor-selection");
+  editorSelectionElement.setAttribute("role", "status");
+  editorSelectionElement.hidden = true;
   const resetViewButton = makeElement("button", "", "恢复视角");
   resetViewButton.type = "button";
   resetViewButton.hidden = true;
@@ -1275,8 +1302,17 @@ export function mountStage(stageOptions) {
         const climateBinding = collectClimateBindings().find(
           climateDevice =>
             isOnActiveFloor(climateDevice) &&
-            climateDevice.entityId === climateCommand.entityId &&
-            climateDevice.modelAvailable
+            climateDevice.modelAvailable &&
+            // 净化器的「附加功能」实体（开关 / 模式 / 滤芯寿命…）不属于控件的绑定实体本身，
+            // 而是挂在宿主净化器的 extraControls 下。命令带 deviceKind=purifier-extra 时改按
+            // 「实体真的在这台净化器的 extraControls 里」认领，其余命令仍按绑定 entityId 精确
+            // 匹配。少了这个分支，卡片发出的命令会因为 entityId 与净化器本体不一致而被误判成
+            // 「当前空调不可控制」，表现为卡片能点、但永远收不到状态回执。
+            (climateCommand.deviceKind === "purifier-extra"
+              ? (climateDevice.extraControls || []).some(
+                  extraControl => extraControl.entityId === climateCommand.entityId
+                )
+              : climateDevice.entityId === climateCommand.entityId)
         );
         if (
           !isInteractive ||
@@ -1284,7 +1320,6 @@ export function mountStage(stageOptions) {
           isDisposed ||
           activeModule !== "environment" ||
           !climateBinding?.modelId ||
-          climateBinding.entityId !== climateCommand.entityId ||
           !climateBinding.modelAvailable
         ) {
           rejectClimate(new Error("当前空调不可控制。"));
@@ -1336,8 +1371,9 @@ export function mountStage(stageOptions) {
 
 
 
-  const coverPanel = createCoverPanel({
-    onPreview: (coverEntityId, bladePosition) => {
+  // 窗帘面板的预览 / 控制回调只按 entityId 反查普通窗帘绑定，与「是不是组合」无关：
+  // 组内成员的子面板同样以成员 entityId 发命令，故组合面板复用同一对回调，命令形状只有一份。
+  const coverPanelPreview = (coverEntityId, bladePosition) => {
       const panelCoverBinding = collectCurtainBindings().find(
         panelDevice => panelDevice.entityId === coverEntityId
       );
@@ -1372,9 +1408,9 @@ export function mountStage(stageOptions) {
           return coverFeedback.read(coverEntityId);
         }
       }
-    },
-    onControl: coverCommand =>
-      new Promise((resolveCover, rejectCover) => {
+  };
+  const coverPanelControl = coverCommand =>
+    new Promise((resolveCover, rejectCover) => {
         const controlCoverBinding = collectCurtainBindings().find(
           controlDevice =>
             isOnActiveFloor(controlDevice) &&
@@ -1480,7 +1516,15 @@ export function mountStage(stageOptions) {
         });
         renderMarkers();
         wakeFrameLoop();
-      })
+      });
+  const coverPanel = createCoverPanel({
+    onPreview: coverPanelPreview,
+    onControl: coverPanelControl
+  });
+  // 窗帘组合面板：把每名成员转发成一块普通窗帘子面板，命令 / 预览沿用上面同一对回调。
+  const coverGroupPanel = createCoverGroupPanel({
+    onPreview: coverPanelPreview,
+    onControl: coverPanelControl
   });
 
 
@@ -1613,6 +1657,7 @@ export function mountStage(stageOptions) {
     controlErrorElement,
     climatePanel.root,
     coverPanel.root,
+    coverGroupPanel.root,
     nasPanel.root,
     televisionPanel.root,
     devicePanel.root,
@@ -1721,7 +1766,53 @@ export function mountStage(stageOptions) {
       }
     },
     {
-      match: binding => binding.deviceKind === "cover",
+      // 窗帘组合条目：deviceKind 也是 "cover"，所以必须排在普通窗帘之前，并且普通窗帘那条
+      // 明确排除 isCurtainGroup，双保险避免组合落到单副帘面板上（那会只画一名成员）。
+      match: binding => binding.isCurtainGroup === true,
+      root: coverGroupPanel.root,
+      label: binding => binding.label || "双层窗帘",
+      hostClass: "is-cover-group-panel",
+      // 竖排 / 并排由组合的 panelLayout 决定：类名挂在容器上（不是面板根），与 hostClass 同一层，
+      // 让样式表既能改容器也能改内部两块子面板。让位时必须撤掉，否则下一个面板会继承竖排。
+      hide: () => lightPanelElement.classList.remove("is-cover-group-vertical"),
+      show: binding => {
+        coverGroupPanel.root.hidden = false;
+        lightPanelElement.classList.toggle(
+          "is-cover-group-vertical",
+          binding.panelLayout === "vertical"
+        );
+        // 组合的视图模型按**成员 id**（普通窗帘的裸 id）分发状态 / 展示态 / 错误：
+        // 组面板据此把每个成员转发成一块独立子面板，各自显示各的目标位置与反馈。
+        const memberStates = {};
+        const memberPresentations = {};
+        const memberErrors = {};
+        for (const memberItem of binding.memberItems || []) {
+          const memberState = coverState(
+            memberItem.entityId,
+            statesByEntityId[memberItem.entityId],
+            memberItem
+          );
+          if (!memberItem.modelAvailable) {
+            memberState.available = false;
+          }
+          const memberPresentation = resolveCoverPresentation(memberItem, memberState);
+          memberStates[memberItem.id] = memberState;
+          memberPresentations[memberItem.id] = memberPresentation;
+          memberErrors[memberItem.id] = memberItem.modelAvailable
+            ? memberPresentation.error || ""
+            : "窗帘模型已移除，请重新配置。";
+        }
+        coverGroupPanel.update({
+          item: binding,
+          states: memberStates,
+          presentations: memberPresentations,
+          editing: isEditing,
+          errors: memberErrors
+        });
+      }
+    },
+    {
+      match: binding => binding.deviceKind === "cover" && binding.isCurtainGroup !== true,
       root: coverPanel.root,
       label: "窗帘控制",
       hostClass: "is-cover-panel",
@@ -1764,6 +1855,9 @@ export function mountStage(stageOptions) {
         climatePanel.update({
           item: binding,
           state: climateStateValue,
+          // 附加功能卡片要读实时状态（开关态、下拉候选、数值范围），而 climateState 只覆盖
+          // 净化器本体那一个实体，兄弟实体只存在于整张状态表里，故整表透传。
+          states: statesByEntityId,
           editing: isEditing,
           error: binding.modelAvailable ? "" : "空调模型已移除，请重新配置。"
         });
@@ -1788,9 +1882,8 @@ export function mountStage(stageOptions) {
     invalidateReflections: invalidatedModelIds =>
       stageOptions.invalidateReflections?.(invalidatedModelIds)
   });
-  // 所有已绑定的门模型（配置里的锁 × 它所在楼层的门）。逐帧 tick 只读这份缓存：
-  // doorModels 要遍历楼层与场景，放在 60fps 的路径上不合适；配置或场景一改，
-  // 下面的 syncLocks 快照就会重算，动画自然跟上。
+  // 参与门动画的门锁绑定（含实体、开角、时长、开向）。逐帧 tick 只读这份缓存：绑定归一其实
+  // 很便宜，但没必要在 60fps 路径上白扫一遍数组；配置变化时下面的 syncLocks 快照会重算。
   let lockDoorModelsList = [];
   // 上一帧门是否还在动。tick 的返回值在 renderFrame 中段产生，而「下一帧要不要立刻排」
   // 在函数末尾才拼出来，所以要用一个跨帧变量把它带过去。
@@ -1864,11 +1957,16 @@ export function mountStage(stageOptions) {
   stageOptions.setCurtainSync?.(syncCurtains);
 
   /**
-   * 重算「配置里绑定的门 × 所在楼层的门模型」清单，供门动画逐帧使用。
+   * 重算「参与门动画的门锁绑定」清单，供门动画逐帧使用。
+   *
+   * 这里传的是**绑定本身**，不是场景里的门。动画一路要从绑定上读两样东西：实体
+   * （entityId / doorEntityId / doorEventEntityId …）用来判断门开着还是关着，开角、时长与
+   * 开向用来算目标姿态。场景门只有几何，拿它当模型表会让门磁状态永远读不到 —— 结果是
+   * 面板上状态正常显示，门却一扇都不动。绑定与场景门之间靠 modelId（door:<id>）+ floorId 对上。
    *
    * 快照键与 syncCurtains 同构：配置 / 场景根 / revision / 文档 任一变化才重算。
-   * 状态表刻意不进快照 —— 门模型清单只由配置与场景决定，状态每变一次就重扫一遍楼层
-   * 是纯浪费；状态是由 tick 的第二个参数直接读的。
+   * 状态表刻意不进快照 —— 绑定清单只由配置决定，状态每变一次就重扫一遍是纯浪费；
+   * 状态由 tick 的第二个参数直接读。
    */
   const syncLocks = createSnapshotSyncer(
     () => ({
@@ -1878,18 +1976,14 @@ export function mountStage(stageOptions) {
       source: stageOptions.document
     }),
     () => {
-      // 同一楼层被多把锁引用时只展开一次：doorModels 要遍历该楼的墙与门，
-      // 门多的时候重复展开是平方级的。
-      const lockFloorIds = [
-        ...new Set(
-          (config.security?.locks || []).map(securityLockEntry => securityLockEntry.floorId)
-        )
-      ];
-      lockDoorModelsList = lockFloorIds.flatMap(lockFloorId => {
-        const lockFloor = stageOptions.document.floors.find(
-          lockFloorCandidate => lockFloorCandidate.id === lockFloorId
-        );
-        return lockFloor ? doorModels(lockFloor) : [];
+      // modelId 统一成 door:<id>：场景侧一律按这个前缀打标，而老配置可能没写前缀、
+      // 甚至写成 door:door:<id>，这里就地归一，免得动画侧再做多路兜底。
+      lockDoorModelsList = (config.security?.locks || []).map(securityLockEntry => {
+        const rawModelId = String(securityLockEntry.modelId || "").replace(/^(?:door:)+/, "");
+        return {
+          ...securityLockEntry,
+          modelId: rawModelId ? "door:" + rawModelId : ""
+        };
       });
     }
   );
@@ -1900,6 +1994,27 @@ export function mountStage(stageOptions) {
       wakeFrameLoop();
     }
   });
+  // 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）状态灯：每个品类一盏，复用 NAS 那套平面灯，
+  // 只把 modelType 与 readState 换成各品类自己的。这类设备没有专属状态模块，状态全部来自配置里的
+  // statusRules —— 由 device/device-status.js 的 deviceStatus 折算成 normal / warning / unknown /
+  // off 四态与配色，再经模式的 customColor / breathing 通道画出来。这正是「配了提醒条件却看不到
+  // 任何反应」缺的那一步：deviceStatus 早就算好了，只是没人把结果挂到模型上。
+  const genericDeviceStatusLights = new Map(
+    GENERIC_DEVICE_KINDS.map(deviceKind => [
+      deviceKind,
+      createNasStatus({
+        THREE: THREE,
+        // 按品类传各自的 modelType：平面灯据此在场景里认领同类型模型，并决定走四态还是 NAS 内置绿。
+        modelType: genericDeviceProfile(deviceKind).modelType,
+        // 与设备弹窗读同一份 deviceStatus，两处显示不会各说各话。
+        readState: deviceStatus,
+        requestFrame: () => {
+          stageOptions.requestRender?.();
+          wakeFrameLoop();
+        }
+      })
+    ])
+  );
   const cameraStatus = createCameraStatus({
     THREE: THREE,
     requestFrame: () => stageOptions.requestRender?.()
@@ -1973,6 +2088,51 @@ export function mountStage(stageOptions) {
       });
     }
   );
+  // 通用设备状态灯同步：快照口径与 syncNasStatus 对齐（全部楼层缩到 0.75，非当前楼层压暗到 0.6），
+  // 只是「哪些模块下算聚焦」多算了通用设备自己的页签 —— 品类名就是 activeModule 时把它当主视角。
+  // 绑定一次收全再按品类分组：collectGenericDeviceBindings 没有单独导出，而 collectAllDeviceBindings
+  // 已经把它按 GENERIC_DEVICE_KINDS 合流进来，这里只做过滤与分桶即可。
+  const syncGenericDeviceStatus = createSnapshotSyncer(
+    () => ({
+      config,
+      states: statesByEntityId,
+      root: stageOptions.modelRoot,
+      revision: stageOptions.sceneRevision,
+      enabled: !isViewEditing && !isRangeEditorOpen,
+      sizeScale: currentFloorId === "all" ? 0.75 : 1,
+      brightness:
+        currentFloorId !== "all" &&
+        (["devices", "nas", "television"].includes(activeModule) ||
+          isGenericDeviceKind(activeModule))
+          ? 1
+          : 0.6
+    }),
+    ({ root, revision, states, enabled, sizeScale, brightness }) => {
+      const genericDeviceBindingsByKind = new Map(
+        GENERIC_DEVICE_KINDS.map(deviceKind => [deviceKind, []])
+      );
+      for (const genericDeviceBinding of collectAllDeviceBindings()) {
+        // 只有 deviceKind 本身就是品类名（fridge / washer…）的才是通用设备；
+        // 其余设备的 deviceKind 是 vacuum / cover 这类模块名，交给各自的同步器。
+        if (isGenericDeviceKind(genericDeviceBinding.deviceKind)) {
+          genericDeviceBindingsByKind
+            .get(genericDeviceBinding.deviceKind)
+            .push(genericDeviceBinding);
+        }
+      }
+      for (const [deviceKind, genericDeviceStatusLight] of genericDeviceStatusLights) {
+        genericDeviceStatusLight.sync({
+          root,
+          revision,
+          bindings: genericDeviceBindingsByKind.get(deviceKind),
+          states,
+          enabled,
+          sizeScale,
+          brightness
+        });
+      }
+    }
+  );
   const televisionScreens = createTelevisionScreens({
     THREE: THREE,
     requestFrame: invalidatedModelIds => {
@@ -2040,6 +2200,7 @@ export function mountStage(stageOptions) {
     navigationElement,
     floorTabsElement,
     moduleEmptyElement,
+    editorSelectionElement,
     lightPanelElement,
     viewHelpElement
   );
@@ -2664,6 +2825,53 @@ export function mountStage(stageOptions) {
     collectLockBindings().find(lockMatch => lockMatch.id === lookupId) ||
     collectCameraBindings().find(cameraMatch => cameraMatch.id === lookupId) ||
     collectPresenceBindings().find(presenceMatch => presenceMatch.id === lookupId);
+  // 「正在配置：」提示条里那半句品类名。键是 deviceKind；通用设备的 deviceKind 直接就是
+  // 品类名（见 device/device-profiles.js），所以这里查不到的再交给 genericDeviceProfile。
+  const EDITOR_SELECTION_KIND_LABELS = {
+    light: "灯光",
+    climate: "空调",
+    cover: "窗帘",
+    nas: "NAS",
+    television: "电视",
+    vacuum: "扫地机",
+    "vacuum-room": "快捷按钮",
+    "temperature-humidity": "温湿度计",
+    lock: "门",
+    camera: "摄像头",
+    presence: "人体传感器"
+  };
+  /**
+   * 编辑态提示条文案。没选中时说「请选择要配置的对象」而不是整条藏起来 —— 空着比消失更能
+   * 说清「这里还差一步」。高亮模型多于一个时补一句「N 个模型」：灯光是按灯组展开的，选中
+   * 一个灯组会圈出好几个模型，不写明的话用户会以为自己手滑多选了。
+   */
+  function renderEditorSelection(selectedBinding, highlightedModelCount) {
+    editorSelectionElement.hidden = !isEditing;
+    if (!isEditing) {
+      editorSelectionElement.textContent = "";
+      return;
+    }
+    if (!selectedBinding) {
+      editorSelectionElement.textContent = "请选择要配置的对象";
+      return;
+    }
+    const kindLabel =
+      EDITOR_SELECTION_KIND_LABELS[selectedBinding.deviceKind] ||
+      genericDeviceProfile(selectedBinding.deviceKind)?.label ||
+      "设备";
+    const nameLabel =
+      selectedBinding.label || selectedBinding.deviceLabel || selectedBinding.entityId || "未命名";
+    const selectedFloorName = stageOptions.document.floors.find(
+      floorEntry => floorEntry.id === selectedBinding.floorId
+    )?.name;
+    editorSelectionElement.textContent =
+      "正在配置：" +
+      kindLabel +
+      " · " +
+      nameLabel +
+      (selectedFloorName ? " · " + selectedFloorName : "") +
+      (highlightedModelCount > 1 ? " · " + highlightedModelCount + " 个模型" : "");
+  }
   /**
    * 舞台的总重绘入口：把当前配置、状态与交互态一次性铺到 DOM 与 3D 上。
    * 调用点很多（切模块、切楼层、聚焦、状态更新），这里不做增量优化，
@@ -2715,6 +2923,7 @@ export function mountStage(stageOptions) {
       if (!isFloorTransitioning) {
         syncCurtains();
         syncNasStatus();
+        syncGenericDeviceStatus();
         syncCameraStatus();
         syncTelevisionScreens();
         syncVacuumMap();
@@ -2745,15 +2954,24 @@ export function mountStage(stageOptions) {
         pageDimmingState.page,
         currentFloorId
       );
+      // 编辑态被高亮的模型集合：屏幕轮廓圈的是它，提示条的「N 个模型」数的也是它 ——
+      // 共用一份，免得出现「圈了三个却写着选中一个」。
+      const highlightedBindings = pageBindings.filter(
+        pageBinding => !selectedId || pageBinding.id === selectedId
+      );
       screenOutlines.sync(
         stageOptions.modelRoot,
         stageOptions.environmentRevision ?? stageOptions.sceneRevision,
-        pageBindings.filter(pageBinding => !selectedId || pageBinding.id === selectedId),
+        highlightedBindings,
         !focusedId &&
           !isViewEditing &&
           !isRangeEditorOpen &&
           currentFloorId !== "all" &&
           ["environment", "devices", "vacuum", "security"].includes(pageDimmingState.page)
+      );
+      renderEditorSelection(
+        isEditing && selectedId ? findBinding(selectedId) : null,
+        highlightedBindings.length
       );
       environmentAirflow.setRoot(stageOptions.modelRoot, stageOptions.sceneRevision);
       environmentScene.setMode({
@@ -3298,7 +3516,9 @@ export function mountStage(stageOptions) {
                       ? "窗帘"
                       : activeModule === "climate"
                         ? "空调"
-                        : "此灯") +
+                        : activeModule === "temperature-humidity"
+                          ? "温湿度计"
+                          : "此灯") +
           "视角。"
         : isEditing && !isViewEditing
           ? "拖动空白处旋转 · 右键平移 · 滚轮缩放。临时查看不改变已保存视角。"
@@ -3865,6 +4085,8 @@ export function mountStage(stageOptions) {
             activationBinding.entityId,
             statesByEntityId[activationBinding.entityId]
           ),
+          // 与面板登记表里的分支一致：附加功能卡片需要整张状态表才能显示兄弟实体。
+          states: statesByEntityId,
           editing: isEditing
         });
         climatePanel.power?.({
@@ -4163,10 +4385,14 @@ export function mountStage(stageOptions) {
       syncCurtains();
       syncLocks();
       syncNasStatus();
+      syncGenericDeviceStatus();
       syncCameraStatus();
       syncTelevisionScreens();
       syncVacuumMap();
       nasStatus.tick(timestamp);
+      for (const genericDeviceStatusLight of genericDeviceStatusLights.values()) {
+        genericDeviceStatusLight.tick(timestamp);
+      }
       if ([coverFeedback.tick(timestamp), dreamCoverFeedback.tick(timestamp)].some(Boolean)) {
         pruneBladePreviews();
         syncCoverFeedback();
@@ -4279,6 +4505,7 @@ export function mountStage(stageOptions) {
       Math.min(coverFeedback.nextDelay(timestamp), dreamCoverFeedback.nextDelay(timestamp)),
       environmentAirflow.nextDelay(),
       nasStatus.nextDelay(),
+      ...Array.from(genericDeviceStatusLights.values(), statusLight => statusLight.nextDelay()),
       idleFocusExit.nextDelay(timestamp),
       idleRotation.nextDelay(timestamp),
       idleIconVisibility.nextDelay(timestamp),
@@ -4372,6 +4599,7 @@ export function mountStage(stageOptions) {
       stageOptions.setCurtainSync?.(null);
       stageOptions.setTelevisionSync?.(null);
       coverPanel.dispose();
+      coverGroupPanel.dispose();
       curtainMotion.dispose();
       coverFeedback.clear();
       dreamCoverFeedback.clear();
@@ -4379,6 +4607,9 @@ export function mountStage(stageOptions) {
       screenOutlines.dispose();
       nasPanel.dispose();
       nasStatus.dispose();
+      for (const genericDeviceStatusLight of genericDeviceStatusLights.values()) {
+        genericDeviceStatusLight.dispose();
+      }
       cameraStatus.dispose();
       televisionPanel.dispose();
       televisionScreens.dispose();

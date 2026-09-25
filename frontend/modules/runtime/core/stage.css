@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609251920";
-@import "../nas/nas-panel.css?v=2609251920";
-@import "../climate/climate-panel.css?v=2609251920";
-@import "../cover/cover-panel.css?v=2609251920";
+@import "/static/bridge/controls.css?v=2609252203";
+@import "../nas/nas-panel.css?v=2609252203";
+@import "../climate/climate-panel.css?v=2609252203";
+@import "../cover/cover-panel.css?v=2609252203";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -705,6 +705,31 @@ body.interaction3d-stage.is-background-hidden,
   transform-origin: 50% 100%;
   pointer-events: none;
 }
+/* 编辑态的「正在配置：…」提示条。和操作提示条一样是给「正在编辑的人」看的，所以用同一套
+   反算口径 —— 自身缩放、与上/左边的距离（乘）、宽度上限（除）；三处少一处就会在编辑器
+   预览（画布常压到 0.36 倍）里错位或越界，见上面 .i3d-view-help 的说明。
+   它不属于任何控制面板，只是给选中态补一个名字，因此不吃指针事件、压在最上层。 */
+.interaction3d-stage .i3d-editor-selection {
+  position: absolute;
+  top: calc(14px * var(--i3d-help-scale, 1));
+  left: calc(14px * var(--i3d-help-scale, 1));
+  z-index: 30;
+  max-width: calc(100% / var(--i3d-help-scale, 1) - 28px);
+  margin: 0;
+  padding: 10px 14px;
+  border: 2px solid var(--hos-accent, #ffc46a);
+  border-radius: 10px;
+  background: rgba(var(--hos-tool-surface-rgb), 0.96);
+  color: var(--hos-accent-bright, #ffd9a0);
+  font:
+    600 14px/1.5 system-ui,
+    sans-serif;
+  box-shadow: 0 18px 42px #000000ad;
+  transform: scale(var(--i3d-help-scale, 1));
+  transform-origin: 0 0;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
 .interaction3d-stage .i3d-marker {
   opacity: 1;
   position: absolute;
@@ -1367,6 +1392,71 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor svg [data-range-handle="move"] {
   cursor: move;
+}
+/* ===== 窗帘组合面板（一拖多 / 双层帘） ===== */
+
+/* 组合外壳：比单副帘面板更高（要放下两块子面板），高度按内容自适应。 */
+.interaction3d-stage .i3d-light-panel.is-cover-group-panel {
+  height: auto;
+  min-height: 232px;
+}
+/* 组合容器：默认并排两块子面板，标题跨满整行；竖排变体只留一列。
+   子面板一律复用 .i3d-cover-panel 的规则，这里只负责「怎么摆」。 */
+.i3d-cover-group-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  color: var(--hos-tool-ink-dim);
+  font:
+    12px/1.5 Helvetica Neue,
+    PingFang SC,
+    sans-serif;
+}
+.i3d-cover-group-panel.is-vertical {
+  grid-template-columns: minmax(0, 1fr);
+}
+.i3d-cover-group-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hos-tool-ink);
+  font-size: 20px;
+  font-weight: 680;
+  letter-spacing: 0.025em;
+  line-height: 22px;
+}
+/* 子面板各自收缩到列宽内，避免长标题把并排布局撑破（并排只有约半幅宽）。 */
+.i3d-cover-group-panel > .i3d-cover-panel {
+  min-width: 0;
+}
+/* 组合标记：标记层会在里面塞两枚成员图标（典型是纱帘 + 布帘）。默认的 .i3d-marker-icon
+   是「绝对定位 + 居中」，两枚会叠在一起，所以这里改成横向排列，底色也从圆改成胶囊 ——
+   宽度由 marker-layer 按「两枚图标 + 间隙」写在内联样式上，这里只负责怎么排。 */
+.interaction3d-stage .i3d-marker.is-curtain-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 999px;
+}
+.interaction3d-stage .i3d-marker.is-curtain-group:before {
+  /* 胶囊底色跟着组合标记自己的尺寸走（不是单枚图标的 --i3d-marker-size）。 */
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+}
+.interaction3d-stage .i3d-marker.is-curtain-group > .i3d-marker-icon {
+  position: static;
+  flex: none;
+  transform: none;
+}
+/* 选中 / 聚焦的外圈同样按胶囊描边，不然圆环会切掉两侧的图标。 */
+.interaction3d-stage .i3d-marker.is-curtain-group.is-selected:after,
+.interaction3d-stage .i3d-marker.is-curtain-group:focus-visible:after {
+  border-radius: 999px;
 }
 .interaction3d-stage .i3d-light-panel.is-television-panel {
   height: auto;
@@ -2119,6 +2209,109 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon:before {
   content: none;
 }
+/* ===== 温湿度计：悬浮信息卡标记 ===== */
+/* 卡片自身就是标记，不需要普通标记的圆形底座（:before 即那圈圆底）。 */
+.interaction3d-stage .i3d-marker.is-temperature-humidity:before {
+  display: none;
+}
+.interaction3d-stage .i3d-marker.is-temperature-humidity {
+  border-radius: 14px;
+}
+.interaction3d-stage .i3d-marker.is-temperature-humidity:after {
+  border-radius: 14px;
+}
+/* 读不到数时不要跟着普通标记一起半透明：卡片里已经有「—」在表达不可用，
+   整块再压暗会让「没绑实体」和「离线」两种状态看起来一样。 */
+.interaction3d-stage
+  .i3d-marker.is-temperature-humidity.is-offline:not(.is-idle-hidden):not(.is-hidden-clickable) {
+  opacity: 1;
+}
+/* 编辑态才可拖：覆盖卡片上的 pointer-events:none，并给一个可移动光标。 */
+.interaction3d-stage .i3d-marker.is-editable-temperature-humidity {
+  pointer-events: auto;
+  cursor: move;
+}
+.interaction3d-stage .i3d-temperature-humidity-card {
+  --meter-bottom: #222d38;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--i3d-meter-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid #697581;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #303d4b, var(--meter-bottom));
+  box-shadow:
+    0 8px 22px #0006,
+    inset 0 1px #ffffff20;
+  color: #f4f7f8;
+  text-align: left;
+  pointer-events: none;
+  font: 12px/1.4 Helvetica Neue, sans-serif;
+}
+/* 卡片下方的小三角「指针」，颜色与卡片底部一致，让它在场景里有一个落点感。 */
+.interaction3d-stage .i3d-temperature-humidity-card:after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  background: var(--meter-bottom);
+  border-right: 1px solid #697581;
+  border-bottom: 1px solid #697581;
+  transform: rotate(45deg);
+}
+.interaction3d-stage .i3d-temperature-humidity-title {
+  font-size: 1em;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.interaction3d-stage .i3d-temperature-humidity-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding-top: 8px;
+  border-top: 1px solid #536171;
+  color: #e0eaf0;
+  font-size: 1.1em;
+  font-variant-numeric: tabular-nums;
+}
+.interaction3d-stage .i3d-meter-reading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+/* 遮罩图标：背景色跟着 currentColor 走，尺寸用 em 随卡片字号缩放。 */
+.interaction3d-stage .i3d-meter-reading i {
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+  display: inline-block;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  color: #91c4e2;
+}
+.interaction3d-stage .i3d-meter-reading.is-temperature i {
+  color: #eab58a;
+}
+.interaction3d-stage .i3d-meter-reading.is-unavailable {
+  color: #aab6bf;
+}
+.interaction3d-stage .i3d-meter-number {
+  min-width: 1.5em;
+}
 /* 模型描边层：由 three.js 侧算好的屏幕轮廓画在这里（SVG），
    让被遮挡的模型在当前视图下仍能被认出来。 */
 .interaction3d-stage .i3d-model-outlines {
@@ -2303,6 +2496,7 @@ body.interaction3d-stage.is-background-hidden,
   :is(
     .i3d-light-panel header strong,
     .i3d-cover-heading h3,
+    .i3d-cover-group-title,
     .i3d-climate-heading h3,
     .i3d-climate-target,
     .i3d-nas-heading h3,
@@ -2315,6 +2509,7 @@ body.interaction3d-stage.is-background-hidden,
     .i3d-device-status,
     .i3d-slider-heading,
     .i3d-cover-panel,
+    .i3d-cover-group-panel,
     .i3d-climate-panel,
     .i3d-nas-panel
   ) {
@@ -2550,6 +2745,29 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status {
   background: #fffaf1;
   border-color: #b9873eaa;
+}
+/* 温湿度计卡片：暖阳原木下的米白纸卡与暖褐文字。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card {
+  --meter-bottom: #eee7db;
+  background: linear-gradient(145deg, #fcf8f0, var(--meter-bottom));
+  color: #4e4438;
+  border-color: #b7a489;
+  box-shadow:
+    0 8px 20px #59492940,
+    inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card:after {
+  border-color: #b7a489;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-values {
+  border-top-color: #cbbb9f;
+  color: #51483a;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-meter-reading i {
+  color: #467482;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-meter-reading.is-temperature i {
+  color: #9c683b;
 }
 .interaction3d-stage[data-scene-style="warm-wood"] .is-sensor-choice.is-selected .i3d-security-label {
   color: #815827;

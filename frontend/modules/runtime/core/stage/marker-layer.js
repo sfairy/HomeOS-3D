@@ -6,6 +6,8 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+// 组合条目的 id 口径只有一份实现（cover-groups.js）：拖拽回写要靠它把舞台 id 反查回配置组。
+import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609252203";
 
 /* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
  *
@@ -69,10 +71,22 @@ export function createMarkerLayer(ctx) {
     for (const renderedBinding of ctx.collectModuleBindings()) {
       let markerElement = ctx.markersById.get(renderedBinding.id);
       if (!markerElement) {
-        markerElement = ctx.makeElement(renderedBinding.passiveSensor ? "div" : "button", "i3d-marker");
+        // 温湿度计是一块只读信息卡（卡片本身就是标记），与展示态的人体传感器一样用 div
+        // 而不是 button，避免键盘 / 表单语义把一张只读卡片当成开关。
+        const isTemperatureHumidityMarker =
+          renderedBinding.deviceKind === "temperature-humidity";
+        markerElement = ctx.makeElement(
+          renderedBinding.passiveSensor || isTemperatureHumidityMarker ? "div" : "button",
+          "i3d-marker"
+        );
         markerElement.type = "button";
         markerElement.addEventListener("click", markerClickEvent => {
           markerClickEvent.stopPropagation();
+          // 温湿度计没有对应面板：展示态点它只会落进灯光面板那条兜底分支，
+          // 因此在非编辑态直接吞掉这次点击；编辑态继续往下走，交给选中 / 拖拽。
+          if (!ctx.isEditing && renderedBinding.deviceKind === "temperature-humidity") {
+            return;
+          }
           if (
             !ctx.findBinding(renderedBinding.id)?.passiveSensor &&
             !ctx.isSceneUpdating &&
@@ -99,9 +113,37 @@ export function createMarkerLayer(ctx) {
       const iconName = /^mdi:[a-z0-9-]+$/.test(renderedBinding.icon || "")
         ? renderedBinding.icon
         : "";
+      const isCurtainGroupMarker = renderedBinding.isCurtainGroup === true;
       const isVacuumMarker = renderedBinding.deviceKind === "vacuum";
       const isVacuumRoomMarker = renderedBinding.deviceKind === "vacuum-room";
-      if (!isVacuumMarker && markerElement.dataset.icon !== iconName) {
+      const isTemperatureHumidityMarker = renderedBinding.deviceKind === "temperature-humidity";
+      if (isCurtainGroupMarker) {
+        // 组合标记要并排显示两名成员的图标（典型是纱帘 + 布帘），并按图标组合做重建签名：
+        // 只有成员图标真的变了才动 DOM，否则每帧 replaceChildren 会打断正在播放的过渡。
+        // 成员图标缺省回落到与普通窗帘同一个默认图标（mdi:curtains），不另造一枚。
+        const curtainGroupMemberIcons = (renderedBinding.memberItems || []).map(memberItem =>
+          /^mdi:[a-z0-9-]+$/.test(memberItem.icon || "") ? memberItem.icon : "mdi:curtains"
+        );
+        const curtainGroupIconKey = curtainGroupMemberIcons.join("|");
+        if (markerElement.dataset.groupIcons !== curtainGroupIconKey) {
+          markerElement.dataset.groupIcons = curtainGroupIconKey;
+          markerElement.replaceChildren(
+            ...curtainGroupMemberIcons.map(memberIconName => {
+              const memberIconElement = ctx.makeElement("span", "i3d-marker-icon");
+              memberIconElement.setAttribute("aria-hidden", "true");
+              // 遮罩地址与图标名白名单统一在 utils/icon-url.js（版本号只此一份）。
+              ctx.applyMdiMask(memberIconElement, memberIconName);
+              return memberIconElement;
+            })
+          );
+        }
+      } else if (
+        // 温湿度计的卡片自带两枚遮罩图标，不能走「普通标记的一枚图标」这条支路 ——
+        // 否则会先被塞进默认图标 SVG，再把卡片 replaceChildren 掉，白白做一次无效渲染。
+        !isVacuumMarker &&
+        !isTemperatureHumidityMarker &&
+        markerElement.dataset.icon !== iconName
+      ) {
         markerElement.dataset.icon = iconName;
         if (iconName) {
           const iconElement = ctx.makeElement("span", "i3d-marker-icon");
@@ -126,13 +168,35 @@ export function createMarkerLayer(ctx) {
           ? ctx.televisionState(renderedBinding, ctx.statesByEntityId)
           : renderedBinding.deviceKind === "nas"
             ? ctx.nasDeviceState(renderedBinding, ctx.statesByEntityId)
-            : renderedBinding.deviceKind === "cover"
-              ? ctx.coverState(
-                  renderedBinding.entityId,
-                  ctx.statesByEntityId[renderedBinding.entityId],
-                  renderedBinding
-                )
-              : renderedBinding.deviceKind === "lock"
+            : isCurtainGroupMarker
+              ? {
+                  // 组合没有自己的实体：任一成员在线就算在线、任一成员「开着」就点亮，
+                  // 与单副帘的 coverIconIsOn 口径一致（成员状态逐个归一化后再判）。
+                  available: (renderedBinding.memberItems || []).some(memberItem =>
+                    ctx.coverState(
+                      memberItem.entityId,
+                      ctx.statesByEntityId[memberItem.entityId],
+                      memberItem
+                    ).available
+                  ),
+                  on: (renderedBinding.memberItems || []).some(memberItem =>
+                    ctx.coverIconIsOn(
+                      memberItem,
+                      ctx.coverState(
+                        memberItem.entityId,
+                        ctx.statesByEntityId[memberItem.entityId],
+                        memberItem
+                      )
+                    )
+                  )
+                }
+              : renderedBinding.deviceKind === "cover"
+                ? ctx.coverState(
+                    renderedBinding.entityId,
+                    ctx.statesByEntityId[renderedBinding.entityId],
+                    renderedBinding
+                  )
+                : renderedBinding.deviceKind === "lock"
                 ? (() => {
                     const lockStateValue = ctx.lockState(renderedBinding, ctx.statesByEntityId);
                     return {
@@ -141,6 +205,25 @@ export function createMarkerLayer(ctx) {
                         lockStateValue.state === "unlocked" || lockStateValue.state === "open",
                       name: renderedBinding.label || "门",
                       lock: lockStateValue
+                    };
+                  })()
+              : renderedBinding.deviceKind === "temperature-humidity"
+                ? (() => {
+                    // 只要有任意一路读到数就算在线：温湿度计允许只绑温度或只绑湿度。
+                    const temperatureHumidityDeviceReadings = [
+                      ctx.temperatureHumidityReading(
+                        ctx.statesByEntityId[renderedBinding.temperatureEntityId]
+                      ),
+                      ctx.temperatureHumidityReading(
+                        ctx.statesByEntityId[renderedBinding.humidityEntityId]
+                      )
+                    ];
+                    return {
+                      available: temperatureHumidityDeviceReadings.some(
+                        temperatureHumidityDeviceReading => temperatureHumidityDeviceReading.available
+                      ),
+                      on: false,
+                      name: renderedBinding.label || "温湿度计"
                     };
                   })()
                 : renderedBinding.modelId
@@ -161,7 +244,14 @@ export function createMarkerLayer(ctx) {
           ? renderedBinding.hitSize
           : Math.max(44, markerSize);
       markerElement.style.width = markerElement.style.height = hitSize + "px";
+      // 组合标记要横排两枚图标：命中框至少容得下「两枚图标 + 间隙」，否则两枚图标会互相挤压。
+      // 只放大这个标记自己，普通窗帘仍按 hitSize 走。
+      if (isCurtainGroupMarker) {
+        markerElement.style.width = Math.max(hitSize, iconSize * 2 + 8) + "px";
+        markerElement.style.height = Math.max(hitSize, iconSize + 8) + "px";
+      }
       markerElement.classList.toggle("is-vacuum-status", isVacuumMarker);
+      markerElement.classList.toggle("is-curtain-group", isCurtainGroupMarker);
       markerElement.classList.toggle("is-overview-quip", renderedBinding.overviewQuip === true);
       markerElement.style.pointerEvents =
         renderedBinding.overviewQuip || renderedBinding.passiveSensor ? "none" : "";
@@ -172,6 +262,105 @@ export function createMarkerLayer(ctx) {
           renderedBinding.deviceKind === "camera" ||
           (renderedBinding.deviceKind === "presence" && ctx.isEditing)
       );
+      // 温湿度计：卡片自带底色与圆角，不是圆形按钮，故单独一类；
+      // 编辑态再挂一个可拖拽类（覆盖卡片上的 pointer-events:none 与光标）。
+      markerElement.classList.toggle("is-temperature-humidity", isTemperatureHumidityMarker);
+      markerElement.classList.toggle(
+        "is-editable-temperature-humidity",
+        isTemperatureHumidityMarker && ctx.isEditing
+      );
+      if (isTemperatureHumidityMarker) {
+        let temperatureHumidityCard = markerElement.querySelector(
+          ".i3d-temperature-humidity-card"
+        );
+        // 卡片只建一次，之后每帧只更新文案与读数 —— 重建会打断 CSS 过渡，也浪费节点。
+        if (!temperatureHumidityCard) {
+          temperatureHumidityCard = ctx.makeElement("span", "i3d-temperature-humidity-card");
+          temperatureHumidityCard.append(
+            ctx.makeElement("strong", "i3d-temperature-humidity-title"),
+            ctx.makeElement("span", "i3d-temperature-humidity-values")
+          );
+          const temperatureHumidityValuesElement = temperatureHumidityCard.lastElementChild;
+          for (const [
+            temperatureHumidityKind,
+            temperatureHumidityAriaLabel,
+            temperatureHumidityIconName
+          ] of [
+            ["temperature", "温度", "thermometer"],
+            ["humidity", "湿度", "water-percent"]
+          ]) {
+            const meterReadingElement = ctx.makeElement(
+              "span",
+              "i3d-meter-reading is-" + temperatureHumidityKind
+            );
+            const meterIconElement = ctx.makeElement("i");
+            meterIconElement.setAttribute("aria-hidden", "true");
+            // 遮罩地址与图标白名单统一走 utils/icon-url.js（applyMdiMask 只在名字合法时才写）。
+            ctx.applyMdiMask(meterIconElement, "mdi:" + temperatureHumidityIconName);
+            meterReadingElement.setAttribute("aria-label", temperatureHumidityAriaLabel);
+            meterReadingElement.append(
+              meterIconElement,
+              ctx.makeElement("span", "i3d-meter-number")
+            );
+            temperatureHumidityValuesElement.append(meterReadingElement);
+          }
+          markerElement.replaceChildren(temperatureHumidityCard);
+        }
+        temperatureHumidityCard.querySelector(".i3d-temperature-humidity-title").textContent =
+          renderedBinding.label ?? "温湿度计";
+        // 「这条温湿度计配没配实体」是两路实体任一非空；用于决定未绑定的那一行
+        // 是藏起来（另一路有绑定）还是留一行空读数（两路都没绑，卡片仍要有个样子）。
+        const isTemperatureHumidityBound = !!(
+          renderedBinding.temperatureEntityId || renderedBinding.humidityEntityId
+        );
+        for (const temperatureHumidityKind of ["temperature", "humidity"]) {
+          const temperatureHumidityEntityId =
+            renderedBinding[temperatureHumidityKind + "EntityId"];
+          const temperatureHumidityMeterReading = ctx.temperatureHumidityReading(
+            ctx.statesByEntityId[temperatureHumidityEntityId]
+          );
+          const meterReadingElement = temperatureHumidityCard.querySelector(
+            ".i3d-meter-reading.is-" + temperatureHumidityKind
+          );
+          meterReadingElement.hidden =
+            !temperatureHumidityEntityId && isTemperatureHumidityBound;
+          meterReadingElement.classList.toggle(
+            "is-unavailable",
+            !temperatureHumidityMeterReading.available
+          );
+          // 没绑实体就写空串（不要拿 bridge 的破折号占位）；绑了但读不到数才用 bridge 的「—」。
+          meterReadingElement.querySelector(".i3d-meter-number").textContent =
+            temperatureHumidityEntityId
+              ? temperatureHumidityMeterReading.value +
+                (temperatureHumidityMeterReading.unit
+                  ? " " + temperatureHumidityMeterReading.unit
+                  : "")
+              : "";
+        }
+        // 卡片宽度由配置的 size 决定（缺省 180 逻辑 px）；整块按标记标签倍数放大，
+        // 命中框再跟着卡片量出来的尺寸走，与门牌同一套口径（offsetWidth 不含 transform）。
+        temperatureHumidityCard.style.width =
+          Math.min(600, Math.max(100, Number(renderedBinding.size) || 180)) + "px";
+        temperatureHumidityCard.style.setProperty(
+          "--i3d-meter-scale",
+          String(MARKER_LABEL_SCALE)
+        );
+        const temperatureHumidityCardRect = {
+          width: temperatureHumidityCard.offsetWidth || 180,
+          height: temperatureHumidityCard.offsetHeight || 96
+        };
+        markerElement.style.width =
+          Math.max(hitSize, temperatureHumidityCardRect.width * MARKER_LABEL_SCALE) + "px";
+        markerElement.style.height =
+          Math.max(hitSize, temperatureHumidityCardRect.height * MARKER_LABEL_SCALE) + "px";
+        // 卡片是只读信息块：编辑态才可聚焦选中，展示态交给屏幕阅读器当一组读数。
+        markerElement.setAttribute("role", ctx.isEditing ? "button" : "group");
+        if (ctx.isEditing) {
+          markerElement.setAttribute("tabindex", "0");
+        } else {
+          markerElement.removeAttribute("tabindex");
+        }
+      }
       if (isVacuumMarker) {
         let statusElement = markerElement.querySelector(".i3d-vacuum-status");
         if (
@@ -391,7 +580,7 @@ export function createMarkerLayer(ctx) {
       }
       markerElement.classList.toggle(
         "is-on",
-        renderedBinding.deviceKind === "cover"
+        renderedBinding.deviceKind === "cover" && !isCurtainGroupMarker
           ? ctx.coverIconIsOn(renderedBinding, deviceState)
           : deviceState.on
       );
@@ -746,7 +935,18 @@ export function createMarkerLayer(ctx) {
                     draggedShortcutEntry =>
                       draggedShortcutEntry.id === draggedBindingEntry.shortcutId
                   )
-              : ctx.activeModule === "light"
+            : draggedBindingEntry.deviceKind === "temperature-humidity"
+              ? ctx.config.environment?.temperatureHumidity?.find(
+                  draggedMeterEntry => draggedMeterEntry.id === draggedBindingEntry.id
+                )
+              : draggedBindingEntry.isCurtainGroup
+                ? // 组合条目的 id 带 "curtain-group:" 前缀，不能按裸 id 去 curtains 里找；
+                  // 反查到的组合才是要写回 x / y 的那条配置。
+                  ctx.config.environment?.curtainGroups?.find(
+                    draggedGroupEntry =>
+                      curtainGroupEntryId(draggedGroupEntry) === draggedBindingEntry.id
+                  )
+                : ctx.activeModule === "light"
                 ? draggedBindingEntry
                 : (["nas", "television", "vacuum"].includes(ctx.activeModule)
                     ? ctx.config.devices?.[
@@ -756,9 +956,14 @@ export function createMarkerLayer(ctx) {
                             ? "televisions"
                             : "nas"
                       ] || []
-                    : ctx.config.environment?.[
-                        ctx.activeModule === "cover" ? "curtains" : "airConditioners"
-                      ] || []
+                    : ctx.activeModule === "cover"
+                      ? ctx.config.environment?.curtains || []
+                      : // 净化器与空调同属 climate 模块，但配置分属两个集合：拖拽写回必须两个都找，
+                        // 否则净化器标记拖完落不回配置（位置弹回原处，且浏览器里不报错）。
+                        [
+                          ...(ctx.config.environment?.airConditioners || []),
+                          ...(ctx.config.environment?.airPurifiers || [])
+                        ]
                   ).find(deviceEntry => deviceEntry.id === ctx.markerDragState.id);
         if (draggedModel) {
           Object.assign(draggedModel, ctx.markerDragState.point);

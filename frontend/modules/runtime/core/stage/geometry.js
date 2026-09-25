@@ -8,23 +8,39 @@
  */
 export function createStageGeometry(ctx) {
   /**
-   * 归一化窗帘几何参数：宽度、开合方式、轨道形状、布料与梦幻帘标记。
-   * 轨道相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖
+   * 归一化窗帘几何参数：宽度、开合方式、帘型、轨道形状、布料与梦幻帘标记。
+   * 轨道 / 帘型相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖
    * 模型；unboundPosition 是未绑定实体时的预览开合度。
    */
   function resolveCurtainGeometry(sceneItemSource, itemConfig = {}) {
     // 场景模型的开合预览：模型没写这个字段时（undefined）保持缺失，由下游定默认值；
     // 显式写了 0 仍表示关闭，因此不能用 `|| 0` 这类会把 0 也吞掉的写法。
     const sceneCurtainPreview = Number(sceneItemSource?.curtainPreview);
+    // 帘型（cloth 垂帘 / roller 卷帘）是**模型**的属性，与 curtainTrack 同一来源：后端交互配置
+    // 不认 roller（coverKind 的取值是 standard / dream），写进配置会被拒，所以只能从模型读。
+    // 非法或缺失一律归一成 cloth —— 与工作室 normalizeCurtainTrack 的兜底逐值一致。
+    const sceneCurtainStyle = sceneItemSource?.curtainStyle === "roller" ? "roller" : "cloth";
     return {
       curtainWidth: Number(sceneItemSource?.width) || 1.8,
       curtainPosition: sceneItemSource?.curtainPosition || "split",
-      curtainTrack: sceneItemSource?.curtainTrack || "straight",
+      curtainStyle: sceneCurtainStyle,
+      // 卷帘没有轨道形态：强制直线型，与工作室的 normalizeCurtainTrack 收敛口径一致，
+      // 下游的进深计算与平面绘制才不会去算 L / U 型回折（卷帘模型本来也没有回折段）。
+      curtainTrack:
+        sceneCurtainStyle === "roller" ? "straight" : sceneItemSource?.curtainTrack || "straight",
       curtainCorner: sceneItemSource?.curtainCorner,
       curtainLeftLength: sceneItemSource?.curtainLeftLength,
       curtainRightLength: sceneItemSource?.curtainRightLength,
       curtainMeet: sceneItemSource?.curtainMeet,
-      curtainFabric: sceneItemSource?.curtainFabric || itemConfig.curtainFabric || "cloth",
+      // 帘布：默认以**户型模型**为准（同一副帘在户型里画的是什么布就是什么布）；
+      // 用户在编辑器里显式改过（curtainFabricOverride）才让配置胜出 —— 这与
+      // 「仅修改当前 3D 交互的帘布，不改变户型模型或 2D 导图」的说明一致。
+      curtainFabric:
+        itemConfig.curtainFabricOverride === true
+          ? itemConfig.curtainFabric === "sheer"
+            ? "sheer"
+            : "cloth"
+          : sceneItemSource?.curtainFabric || itemConfig.curtainFabric || "cloth",
       coverKind: itemConfig.coverKind === "dream" ? "dream" : "standard",
       // 未绑定的预览开合度：配置优先，其次模型自带的预览值。两者都没有时**故意留空** ——
       // 默认值（COVER_DEFAULT_PREVIEW_POSITION）的唯一归属在 curtain-motion 的

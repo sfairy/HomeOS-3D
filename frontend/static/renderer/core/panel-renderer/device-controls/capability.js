@@ -4,12 +4,12 @@
  * 没有专门详情页的设备靠它兜底：把实体属性翻译成开关、滑杆、下拉与只读读数。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609251920";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609252203";
 import {
   climateModeLabel,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609251920";
-import { createSwitchVisual } from "../primitives.js?v=2609251920";
+} from "../../../controls/climate.js?v=2609252203";
+import { createSwitchVisual } from "../primitives.js?v=2609252203";
 
 export const capabilityDetailsMethods = {
   /**
@@ -375,13 +375,24 @@ export const capabilityDetailsMethods = {
       for (const presetModeValue of normalizedGroupOptions) {
         const modeOptionButton = document.createElement("button");
         modeOptionButton.type = "button";
+        // HA 各厂商的 preset_mode 写法不一（favorite / favorite_level 同义，low/medium/high
+        // 与 strong/normal 也是常见档位），常见写法都列上；未收录的原样显示。
         const airPurifierModeLabels = {
           auto: "自动",
           sleep: "睡眠",
-          favorite: "喜爱",
+          favorite: "最爱",
+          favorite_level: "最爱",
           none: "标准",
+          normal: "标准",
           manual: "手动",
-          silent: "静音"
+          low: "低",
+          medium: "中",
+          middle: "中",
+          high: "高",
+          strong: "强劲",
+          turbo: "强劲",
+          silent: "静音",
+          quiet: "静音"
         };
         modeOptionButton.textContent =
           capabilityVariant === "air-purifier" && optionGroupLabel === "运行模式"

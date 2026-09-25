@@ -12,10 +12,19 @@
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile
-} from "../../device/device-profiles.js?v=2609251920";
+} from "../../device/device-profiles.js?v=2609252203";
 // 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
 // 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
-import { doorModels } from "../../security/lock-state.js?v=2609251920";
+import { doorModels } from "../../security/lock-state.js?v=2609252203";
+// 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
+// （实现在 static/bridge/temperature-humidity.js，经运行侧薄桥转出）。
+import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609252203";
+// 窗帘组合（一拖多）的归一与舞台条目 id 口径：编辑器的配对候选、组合面板与舞台绑定必须
+// 共用同一份判据，否则会出现「编辑器认的组合舞台不认」这类静默的两套逻辑。
+import {
+  curtainGroupEntryId,
+  validCurtainGroups
+} from "../../cover/cover-groups.js?v=2609252203";
 
 export function createBindingCollectors(ctx) {
   /**
@@ -93,37 +102,64 @@ export function createBindingCollectors(ctx) {
     });
 
   /**
-   * 收集空调绑定：把配置项与场景模型（挂机 / 柜机 / 出风口）合并。
+   * 收集「环境」里成对的空调 / 净化器绑定：把配置项与场景模型合并。
    * 坐标优先用配置里的显式值（编辑器拖拽过），缺省回落到模型坐标与几何中心高度。
+   *
+   * 净化器与空调共用这一份，而不是各写一套：运行时它同属 `climate` 模块，面板按实体域
+   * （fan → `deviceState.purifier`）决定渲染净化器控件，所以绑定的形状必须逐字一致。
+   * 两者只有三处不同：配置集合名、场景模型的 type 白名单、兜底图标与兜底高度
+   * （兜底高度取各自模型的真实高度，见 tools/models/model-specs.mjs）。
    */
-  function collectClimateBindings() {
-    return (ctx.config.environment?.airConditioners || []).map(airConditionerEntry => {
+  function collectEnvironmentClimateEntries(entries, modelTypes, fallbackIcon, fallbackHeight) {
+    return (entries || []).map(climateEntry => {
       const climateSceneItem = ctx.stageOptions.document.floors
-        .find(floorCandidate => floorCandidate.id === airConditionerEntry.floorId)
+        .find(floorCandidate => floorCandidate.id === climateEntry.floorId)
         ?.scene.items.find(
           sceneItemCandidate =>
-            sceneItemCandidate.id === airConditionerEntry.modelId &&
-            ["wallac", "floorac", "airoutlet"].includes(sceneItemCandidate.type)
+            sceneItemCandidate.id === climateEntry.modelId &&
+            modelTypes.includes(sceneItemCandidate.type)
         );
       return {
-        ...airConditionerEntry,
+        ...climateEntry,
         deviceKind: "climate",
-        x: Number.isFinite(airConditionerEntry.x)
-          ? airConditionerEntry.x
-          : (climateSceneItem?.x ?? 0),
-        y: Number.isFinite(airConditionerEntry.y)
-          ? airConditionerEntry.y
-          : (climateSceneItem?.y ?? 0),
-        height: Number.isFinite(airConditionerEntry.height)
-          ? airConditionerEntry.height
+        x: Number.isFinite(climateEntry.x) ? climateEntry.x : (climateSceneItem?.x ?? 0),
+        y: Number.isFinite(climateEntry.y) ? climateEntry.y : (climateSceneItem?.y ?? 0),
+        height: Number.isFinite(climateEntry.height)
+          ? climateEntry.height
           : climateSceneItem
             ? (Number(climateSceneItem.elevation) || 0) +
-              (Number(climateSceneItem.height) || 0.28) / 2
+              (Number(climateSceneItem.height) || fallbackHeight) / 2
             : 0,
         modelAvailable: !!climateSceneItem,
-        icon: airConditionerEntry.icon || "mdi:air-conditioner"
+        icon: climateEntry.icon || fallbackIcon
       };
     });
+  }
+  /**
+   * 空调（挂机 / 柜机 / 出风口）+ 空气净化器的绑定。
+   *
+   * 净化器必须在这里一起收集：它的配置项存在 `environment.airPurifiers` 里，漏了这一步
+   * 场景里就不会生成它的绑定，模型不渲染、点不开面板、控制直接失效 —— 而配置与后端校验
+   * 都是通过的，浏览器里一点报错都没有。
+   */
+  function collectClimateBindings() {
+    return [
+      ...collectEnvironmentClimateEntries(
+        ctx.config.environment?.airConditioners,
+        ["wallac", "floorac", "airoutlet"],
+        "mdi:air-conditioner",
+        0.28
+      ),
+      // 净化器在场景里是独立外观（type === "airpurifier"，studio 有专用构建器），
+      // 后端 purifier.py 的 require_purifier_model 也只认它 —— 借用空调那套白名单
+      // 会让每一台净化器都绑不上模型（modelAvailable 恒为 false）。
+      ...collectEnvironmentClimateEntries(
+        ctx.config.environment?.airPurifiers,
+        ["airpurifier"],
+        "mdi:air-purifier",
+        0.7
+      )
+    ];
   }
 
   // 收集人体传感器绑定，供存在场景与点击热区布局共用。
@@ -241,6 +277,70 @@ export function createBindingCollectors(ctx) {
     });
   }
 
+  /**
+   * 收集窗帘组合绑定（一拖多 / 双层帘）。
+   *
+   * 一个组合在舞台上只呈现为**一个**条目，替换掉它的两名成员（否则两副帘会冒出三个图标）。
+   * 组合本身不带状态：memberItems 是两名成员各自的**普通窗帘绑定**（与 collectCurtainBindings
+   * 同一口径的字段名），组面板据此为每个成员各渲染一块子面板、各自开合。
+   * id 走 curtainGroupEntryId（"curtain-group:" 前缀），与普通窗帘的裸 id 不会撞车，拖拽 /
+   * 选中回写时也能靠前缀反查到配置里的组合。
+   */
+  function collectCurtainGroupBindings() {
+    const curtainBindingById = new Map(
+      collectCurtainBindings().map(curtainBinding => [curtainBinding.id, curtainBinding])
+    );
+    return validCurtainGroups(ctx.config.environment)
+      .map(curtainGroupEntry => {
+        const memberItems = curtainGroupEntry.memberIds
+          .map(memberId => curtainBindingById.get(memberId))
+          .filter(Boolean);
+        // validCurtainGroups 已保证配置侧两名成员都存在；这里防的是绑定收集侧缺项（场景 / 状态
+        // 尚未就绪时）。成员凑不齐就整条不渲染，避免面板为半条组合空出一块。
+        if (memberItems.length !== 2) {
+          return null;
+        }
+        const anchorMember = memberItems[0];
+        return {
+          ...curtainGroupEntry,
+          id: curtainGroupEntryId(curtainGroupEntry),
+          isCurtainGroup: true,
+          deviceKind: "cover",
+          // 组合没有自己的图标：标记层按 memberItems 的两枚图标合成，这里显式留空，
+          // 免得下游的 `icon || 默认图标` 把组合画成单枚窗帘。
+          icon: "",
+          clickAction: curtainGroupEntry.clickAction || "focus",
+          modelAvailable: true,
+          // 组合未显式给坐标 / 高度时沿用第一副帘的落点，让新建组合与它替换掉的那副帘重合。
+          x: Number.isFinite(curtainGroupEntry.x) ? curtainGroupEntry.x : anchorMember.x,
+          y: Number.isFinite(curtainGroupEntry.y) ? curtainGroupEntry.y : anchorMember.y,
+          height: Number.isFinite(curtainGroupEntry.height)
+            ? curtainGroupEntry.height
+            : anchorMember.height,
+          memberItems
+        };
+      })
+      .filter(Boolean);
+  }
+
+  /**
+   * 舞台**渲染**用的窗帘绑定集合，与 collectCurtainBindings（控制 / 动画 / 反查用）区分开：
+   * 这里把已被组合收录的成员滤掉，换成对应的组合条目。
+   *
+   * 不做这层过滤，一名成员会同时以「组合的一部分」和「独立窗帘」两种身份出现，画面上就是
+   * 两副帘三个图标。控制路径刻意仍走 collectCurtainBindings：组内成员的子面板命令要通过
+   * entityId 反查到成员绑定，滤掉就控不了。
+   */
+  function collectCurtainDisplayBindings() {
+    const groupedMemberIds = new Set(
+      validCurtainGroups(ctx.config.environment).flatMap(group => group.memberIds)
+    );
+    return [
+      ...collectCurtainGroupBindings(),
+      ...collectCurtainBindings().filter(curtainBinding => !groupedMemberIds.has(curtainBinding.id))
+    ];
+  }
+
   // 收集扫地机房间快捷入口：visible === false 的扫地机不生成入口，
   // 避免出现看得见却点不到的按钮。
   function collectVacuumRoomShortcuts() {
@@ -326,6 +426,39 @@ export function createBindingCollectors(ctx) {
           securityLockFilterEntry.entityId
       );
 
+  // 收集温湿度计绑定（环境模块的「温湿度计」）。
+  //
+  // 与门锁不同，温湿度计不指向任何场景模型：它是一块悬在楼层上方的信息卡，位置完全由配置
+  // 给出（编辑器拖拽写回 x / y）。缺省落点取楼层几何中心 —— 与工作室放置新标记的口径同源
+  // （bridge 的 temperatureHumidityFloorCenter）。因此这里不做模型匹配，只补设备种类与缺省坐标。
+  const collectTemperatureHumidityBindings = () =>
+    (ctx.config.environment?.temperatureHumidity || []).map(temperatureHumidityEntry => {
+      const temperatureHumidityFloor = ctx.stageOptions.document.floors.find(
+        temperatureHumidityFloorCandidate =>
+          temperatureHumidityFloorCandidate.id === temperatureHumidityEntry.floorId
+      );
+      const temperatureHumidityCenter = temperatureHumidityFloorCenter(temperatureHumidityFloor);
+      return {
+        ...temperatureHumidityEntry,
+        deviceKind: "temperature-humidity",
+        clickAction: "focus",
+        icon: "",
+        // 信息卡不依赖场景模型，标记永远可定位；缺省 `modelAvailable !== false` 同理，
+        // 这里显式写成 true，免得下游把「没配模型」误读成「模型被移除」。
+        modelAvailable: true,
+        x: Number.isFinite(temperatureHumidityEntry.x)
+          ? temperatureHumidityEntry.x
+          : temperatureHumidityCenter.x,
+        y: Number.isFinite(temperatureHumidityEntry.y)
+          ? temperatureHumidityEntry.y
+          : temperatureHumidityCenter.y,
+        // 1.8 米是人眼平视高度（参考实现给新建温湿度计的缺省值）。
+        height: Number.isFinite(temperatureHumidityEntry.height)
+          ? temperatureHumidityEntry.height
+          : 1.8
+      };
+    });
+
   // 收集「场景里有窗帘模型但配置未绑定实体」的预览窗帘：按 楼层 + 模型 去重，
   // 让编辑器在未绑定状态下也能看到窗帘。
   // 去重键走 core/scene-model-key.js：两侧都必须归一（配置侧可能没写楼层、场景项一侧可能缺字段），
@@ -401,13 +534,14 @@ export function createBindingCollectors(ctx) {
   function collectAllDeviceBindings() {
     return [
       ...collectClimateBindings(),
-      ...collectCurtainBindings(),
+      ...collectCurtainDisplayBindings(),
       ...collectNasBindings(),
       ...collectTelevisionBindings(),
       ...collectVacuumBindings(),
       ...collectCameraBindings(),
       ...collectPresenceBindings(),
       ...collectLockBindings(),
+      ...collectTemperatureHumidityBindings(),
       ...GENERIC_DEVICE_KINDS.flatMap(collectGenericDeviceBindings)
     ].map(bindingEntry => ({
       ...bindingEntry,
@@ -496,11 +630,16 @@ export function createBindingCollectors(ctx) {
         id: deviceBinding.deviceKind + ":" + deviceBinding.id
       }));
     } else if (ctx.activeModule === "cover") {
-      return collectCurtainBindings();
+      // 编辑态下 activeModule 就是 "cover"：标记 id 保持裸 id（组合是 "curtain-group:" 前缀），
+      // 编辑器的选中 / 拖拽回写才能直接对上配置项。
+      return collectCurtainDisplayBindings();
     } else if (ctx.activeModule === "climate") {
       return collectClimateBindings();
+    } else if (ctx.activeModule === "temperature-humidity") {
+      // 温湿度计是独立页签：标记 id 保持裸 id，编辑器的选中 / 拖拽回写才能直接对上配置项。
+      return collectTemperatureHumidityBindings();
     } else {
-      return [...collectClimateBindings(), ...collectCurtainBindings()].map(
+      return [...collectClimateBindings(), ...collectCurtainDisplayBindings()].map(
         environmentDeviceBinding => ({
           ...environmentDeviceBinding,
           id: environmentDeviceBinding.deviceKind + ":" + environmentDeviceBinding.id
@@ -508,5 +647,5 @@ export function createBindingCollectors(ctx) {
       );
     }
   }
-  return { collectAllDeviceBindings, collectCameraBindings, collectClimateBindings, collectCurtainBindings, collectLockBindings, collectModuleBindings, collectNasBindings, collectOverviewBindings, collectPresenceBindings, collectPreviewCovers, collectTelevisionBindings, collectVacuumBindings, collectVacuumRoomShortcuts, resolveModuleBindings };
+  return { collectAllDeviceBindings, collectCameraBindings, collectClimateBindings, collectCurtainBindings, collectCurtainDisplayBindings, collectCurtainGroupBindings, collectLockBindings, collectModuleBindings, collectNasBindings, collectOverviewBindings, collectPresenceBindings, collectPreviewCovers, collectTelevisionBindings, collectTemperatureHumidityBindings, collectVacuumBindings, collectVacuumRoomShortcuts, resolveModuleBindings };
 }
