@@ -8,34 +8,34 @@
  * waitInteraction3dEditorView(componentId) 拿到视图句柄再下命令；sceneId 是后端签发的 32 位十六进制，
  * 面板只做格式校验。副作用：发起授权校验与户型载入、动态 import 子编辑器、直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=2609251458";
+import { resolvePageBehavior } from "./page-behavior.js?v=2609251754";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=2609251458";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=2609251458";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609251458";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609251458";
+} from "./performance-warning.js?v=2609251754";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=2609251754";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609251754";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609251754";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=2609251458";
+} from "./bridge.js?v=2609251754";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=2609251458";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609251458";
+} from "./cover.js?v=2609251754";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609251754";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
-import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609251458";
-import { createDomFactory } from "../shared/dom-factory.js?v=2609251458";
+import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609251754";
+import { createDomFactory } from "../shared/dom-factory.js?v=2609251754";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=2609251458";
+} from "./definition.js?v=2609251754";
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
@@ -545,7 +545,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251754");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -580,7 +580,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251754");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -614,7 +614,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=2609251754");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -642,7 +642,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251754");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -718,7 +718,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251754");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -747,7 +747,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251458");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=2609251754");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -1764,7 +1764,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const displaySection = createSection("画面显示");
   // 供 bridge.css 定位这一节的专属布局（墙体透明度那一行需要更紧凑的排布）。
   displaySection.classList.add("i3d-picture-settings");
-  let lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode);
+  const lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode);
   const lightingModeSelect = createElement("select");
   lightingModeSelect.name = "i3d-lighting-mode";
   lightingModeSelect.setAttribute("aria-label", "灯光模式");
@@ -1774,40 +1774,15 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     lightingModeSelect.append(lightingModeOptionElement);
   }
   lightingModeSelect.value = lightingMode;
+  // 只读展示：只剩轻量柔光一档，模式不可切换，故不挂 change 监听并恒置 disabled。
+  // 之所以保留这个下拉而不是整块删掉，是为了让用户看得到「当前是什么模式」，
+  // 直接删会让「灯光效果」这一节只剩一个孤零零的按钮、没有任何解释。
+  lightingModeSelect.disabled = true;
   createLabeledField(lightEffectsSection, "灯光模式", lightingModeSelect);
-  lightingModeSelect.addEventListener("change", async () => {
-    if (programmaticControls.has(lightingModeSelect)) {
-      return;
-    }
-    const nextLightingMode = normalizeInteraction3dLightingMode(lightingModeSelect.value);
-    setControlValue(lightingModeSelect, lightingMode);
-    lightingModeSelect.disabled = true;
-    try {
-      await requestInteraction3dAccess();
-      if (
-        inspectorElement.hidden ||
-        inspectorElement.dataset.componentId !== targetComponent.id ||
-        !(await confirmChangeWithWarning({
-          lightingMode: nextLightingMode
-        }))
-      ) {
-        return;
-      }
-      await editorOptions.onChange({
-        properties: {
-          lightingMode: nextLightingMode
-        }
-      });
-      lightingMode = nextLightingMode;
-      setControlValue(lightingModeSelect, nextLightingMode);
-    } catch (lightingModeError) {
-      lightingModeSelect.value = lightingMode;
-      editorOptions.onError?.(lightingModeError);
-    } finally {
-      lightingModeSelect.disabled = isViewEditing;
-    }
-  });
-  lightEffectsSection.append(planRenderButton);
+  // 「户型渲染」（整体外观 / baseLighting 手动调参）仅在非 region 模式下才有意义：
+  // region 的光照参数已由 region-lighting-presets.js 固定，编辑器不再提供入口。
+  // 条件判断保留，是为了兼容历史配置里可能残留的非 region 取值。
+  lightingMode !== "region" && lightEffectsSection.append(planRenderButton);
   const backgroundVisibilityControlElement = createElement("div", "navigation-property-control");
   const backgroundVisibilityOptionsElement = createElement("div", "navigation-segmented-options");
   backgroundVisibilityOptionsElement.setAttribute("role", "group");
@@ -2222,128 +2197,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   });
   reflectionStrengthInput.addEventListener("change", commitGroundReflection);
   syncReflectionControls();
-  const dimmingSection = createElement("section", "inspector-section i3d-page-dimming");
-  dimmingSection.append(createElement("h3", "", "画面压暗"));
-  const dimmingPageSelect = createElement("select");
-  const dimStrengthInput = createElement("input");
-  const dimStrengthOutput = createElement("output");
-  dimmingPageSelect.name = "i3d-dim-page";
-  dimmingPageSelect.setAttribute("aria-label", "压暗页面");
-  for (const [dimmingPageValue, dimmingPageLabel] of INTERACTION_PAGE_OPTIONS) {
-    const dimmingPageOptionElement = createElement("option", "", dimmingPageLabel);
-    dimmingPageOptionElement.value = dimmingPageValue;
-    dimmingPageSelect.append(dimmingPageOptionElement);
-  }
-  dimmingPageSelect.value = hostElement.dataset.dimmingPage || "light";
-  let pageDimStrengthByPage = {
-    ...properties.pageDimStrength
-  };
-  let pageSaturationByPage = {
-    ...properties.pageSaturation
-  };
-  const saturationInput = createElement("input");
-  const saturationOutput = createElement("output");
-  const saturationSettingElement = createElement("div", "i3d-vignette-setting");
-  // 饱和度按页面分别存储；缺省值区分「ALL（全部楼层，100% 即不降饱和）」与单页（75%）。
-  const readPageSaturation = () =>
-    pageSaturationByPage[dimmingPageSelect.value] ??
-    (dimmingPageSelect.value === "overview" ? 100 : 75);
-  Object.assign(saturationInput, {
-    name: "i3d-page-saturation",
-    type: "range",
-    min: "0",
-    max: "100",
-    step: "1",
-    value: String(readPageSaturation())
-  });
-  saturationInput.setAttribute("aria-label", "页面饱和度");
-  saturationOutput.textContent = saturationInput.value + "%";
-  saturationInput.addEventListener("input", () => {
-    saturationOutput.textContent = saturationInput.value + "%";
-  });
-  saturationInput.addEventListener("change", async () => {
-    const nextSaturationByPage = {
-      ...pageSaturationByPage,
-      [dimmingPageSelect.value]: Number(saturationInput.value)
-    };
-    await commitChange({
-      properties: {
-        pageSaturation: nextSaturationByPage
-      }
-    });
-    pageSaturationByPage = nextSaturationByPage;
-  });
-  saturationSettingElement.append(saturationInput, saturationOutput);
-  // 压暗强度同样按页面存储：ALL 默认不压暗（0），单页回退到组件里的 environment.dimStrength。
-  const readPageDimStrength = () =>
-    pageDimStrengthByPage[dimmingPageSelect.value] ??
-    (dimmingPageSelect.value === "overview" ? 0 : (properties.environment?.dimStrength ?? 70));
-  Object.assign(dimStrengthInput, {
-    name: "i3d-page-dim-strength",
-    type: "range",
-    min: "0",
-    max: "100",
-    step: "1",
-    value: String(readPageDimStrength())
-  });
-  dimStrengthInput.setAttribute("aria-label", "页面压暗强度");
-  dimStrengthOutput.textContent = dimStrengthInput.value + "%";
-  dimmingPageSelect.addEventListener("change", () => {
-    hostElement.dataset.dimmingPage = dimmingPageSelect.value;
-    dimStrengthInput.value = String(readPageDimStrength());
-    dimStrengthOutput.textContent = dimStrengthInput.value + "%";
-    saturationInput.value = String(readPageSaturation());
-    saturationOutput.textContent = saturationInput.value + "%";
-  });
-  dimStrengthInput.addEventListener("input", () => {
-    dimStrengthOutput.textContent = dimStrengthInput.value + "%";
-  });
-  dimStrengthInput.addEventListener("change", async () => {
-    const nextDimStrengthByPage = {
-      ...pageDimStrengthByPage,
-      [dimmingPageSelect.value]: Number(dimStrengthInput.value)
-    };
-    await commitChange({
-      properties: {
-        pageDimStrength: nextDimStrengthByPage
-      }
-    });
-    pageDimStrengthByPage = nextDimStrengthByPage;
-  });
-  const dimmingRowElement = createElement("div", "i3d-page-dim-row");
-  const dimStrengthSettingElement = createElement("div", "i3d-vignette-setting");
-  dimStrengthSettingElement.append(dimStrengthInput, dimStrengthOutput);
-  dimmingRowElement.append(dimmingPageSelect);
-  dimmingSection.append(dimmingRowElement);
-  createLabeledField(dimmingSection, "整体压暗", dimStrengthSettingElement);
-  createLabeledField(dimmingSection, "饱和度", saturationSettingElement);
-  const focusDimInput = createElement("input");
-  const focusDimOutput = createElement("output");
-  const focusDimSettingElement = createElement("div", "i3d-vignette-setting");
-  Object.assign(focusDimInput, {
-    name: "i3d-focus-dim-strength",
-    type: "range",
-    min: "0",
-    max: "100",
-    step: "1",
-    value: String(properties.focusDimStrength ?? 15)
-  });
-  focusDimInput.setAttribute("aria-label", "聚焦加深");
-  focusDimOutput.textContent = focusDimInput.value + "%";
-  focusDimInput.addEventListener("input", () => {
-    focusDimOutput.textContent = focusDimInput.value + "%";
-  });
-  focusDimInput.addEventListener(
-    "change",
-    () =>
-      void commitChange({
-        properties: {
-          focusDimStrength: Number(focusDimInput.value)
-        }
-      })
-  );
-  focusDimSettingElement.append(focusDimInput, focusDimOutput);
-  createLabeledField(dimmingSection, "聚焦加深", focusDimSettingElement);
+  // 「画面压暗 / 饱和度 / 聚焦加深」这组编辑控件已随观感收敛一并移除：
+  // 四个观感参数（pageDimStrength / pageSaturation / focusDimStrength / focusVignetteStrength）
+  // 改由 page-appearance-presets.js 固定，逐页手调不再有意义。
+  // 舞台侧按 config 的这四个键取用（stage.js / environment-scene.js），不受这里影响。
   const popupSettingsSection = createElement("section", "inspector-section i3d-popup-settings");
   const popupLayout = structuredClone(properties.popupLayout || {});
   popupSettingsSection.append(
@@ -2587,36 +2444,9 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   });
   popupTransparencySettingElement.append(popupTransparencyInput, popupTransparencyOutput);
   createLabeledField(popupAppearanceSection, "弹窗透明度", popupTransparencySettingElement);
-  const focusVignetteSettingElement = createElement("div", "i3d-vignette-setting");
-  const focusVignetteInput = createElement("input");
-  const focusVignetteOutput = createElement("output");
-  const focusVignetteStrength = Number.isFinite(properties.focusVignetteStrength)
-    ? Math.max(0, Math.min(60, properties.focusVignetteStrength))
-    : 14;
-  Object.assign(focusVignetteInput, {
-    name: "i3d-focus-vignette",
-    type: "range",
-    min: "0",
-    max: "60",
-    step: "1",
-    value: String(focusVignetteStrength)
-  });
-  focusVignetteInput.setAttribute("aria-label", "聚焦暗角强度");
-  focusVignetteOutput.textContent = focusVignetteStrength + "%";
-  focusVignetteInput.addEventListener("input", () => {
-    focusVignetteOutput.textContent = focusVignetteInput.value + "%";
-  });
-  focusVignetteInput.addEventListener(
-    "change",
-    () =>
-      void commitChange({
-        properties: {
-          focusVignetteStrength: Number(focusVignetteInput.value)
-        }
-      })
-  );
-  focusVignetteSettingElement.append(focusVignetteInput, focusVignetteOutput);
-  createLabeledField(popupAppearanceSection, "聚焦暗角", focusVignetteSettingElement);
+  // 「聚焦暗角」控件已随观感收敛移除：focusVignetteStrength 由 page-appearance-presets.js 固定为 0，
+  // 聚焦时不再叠暗角，手调已无意义。舞台仍会读 config.focusVignetteStrength（stage.js），
+  // 故这里只是撤掉编辑入口，不动渲染侧的读取逻辑。
   if (isViewEditing) {
     for (const disabledSection of [
       layoutSection,

@@ -8,7 +8,7 @@
  * 活动态）与 3D 舞台（`modules/runtime/cover/cover-state.js`，决定动画）都要这份判定，两处各写一遍
  * 时口径已经分叉（一处把 `""` 当读数、一处不当），同一台设备会被判成不同帘型。零依赖，两侧都能直接用。
  */
-import { finiteNumberOrNull } from "./numbers.js?v=2609251458";
+import { finiteNumberOrNull } from "./numbers.js?v=2609251754";
 
 export const COVER_FEATURE_OPEN = 1;
 export const COVER_FEATURE_CLOSE = 2;

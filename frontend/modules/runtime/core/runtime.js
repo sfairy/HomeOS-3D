@@ -13,12 +13,12 @@ import {
   entityDomainFromId,
   resolveStateEntry,
   stateTextOf
-} from "./static-helpers.js?v=2609251458";
+} from "./static-helpers.js?v=2609251754";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609251458";
-import { createLightStream } from "../light/light-stream.js?v=2609251458";
+} from "./popup-preview.js?v=2609251754";
+import { createLightStream } from "../light/light-stream.js?v=2609251754";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -136,9 +136,9 @@ export function mountInteraction3d(
   const pendingEditsByRequestId = new Map();
   const pendingRangeRequestsByRequestId = new Map();
   const editSubscribersSet = new Set();
-  // 光照模式只有两种取值，非法值一律按 standard 处理，
+  // 光照模式已收敛为轻量柔光一档：非法值与历史遗留的 standard 一律回落到 region，
   // 免得旧数据里的未知值触发一次无谓的 iframe 重载。
-  const normalizeLightingMode = lightingMode => (lightingMode === "region" ? "region" : "standard");
+  const normalizeLightingMode = () => "region";
   // iframe 的指针事件开关：编辑器画布里默认关掉（点击要留给画布选控件 / 拖控件），
   // 只有进入视角调整、照射范围编辑、导航位置调整这几种明确的编辑态才放行；展示页整份放行。
   // 三种编辑态各写一遍判断很容易漂移（改一处忘一处就会出现「模式开着却拖不动」），

@@ -13,8 +13,9 @@ import {
   COVER_DEFAULT_PREVIEW_POSITION,
   applyMdiMask,
   capturePointer,
-  resolveStateEntry
-} from "../core/static-helpers.js?v=2609251458";
+  resolveStateEntry,
+  withFixedLightEffects
+} from "../core/static-helpers.js?v=2609251754";
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
@@ -26,18 +27,18 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609251458";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609251458";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609251458";
-import { mountInteraction3d } from "../core/runtime.js?v=2609251458";
-import { lightState } from "../light/light-state.js?v=2609251458";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609251458";
-import { nasGroups } from "../nas/nas-panel.js?v=2609251458";
+} from "../core/static-helpers-editor.js?v=2609251754";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609251754";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609251754";
+import { mountInteraction3d } from "../core/runtime.js?v=2609251754";
+import { lightState } from "../light/light-state.js?v=2609251754";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609251754";
+import { nasGroups } from "../nas/nas-panel.js?v=2609251754";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609251458";
+} from "../core/editor-save-status.js?v=2609251754";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -193,7 +194,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251458";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251754";
   document.head.append(styleSheetLinkElement);
   // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent（设备名等来自
   // 用户输入），按钮一律显式 type="button"（dialog 里的按钮不写会按 submit 处理，回车即误触发）。
@@ -246,7 +247,6 @@ export async function openInteraction3dEditor({
   let pickerHandle = null;
   // 选择器代次：选择器关闭 / 重开时自增，用于丢弃过期选择回调。
   let pickerGeneration = 0;
-  let isEffectDetailsOpen = false;
   // 保存中：防重复提交，也让状态文案不被其它流程覆盖。
   let isSaving = false;
   // 是否有未保存改动；退出确认与保存按钮可用性都看它。
@@ -393,14 +393,11 @@ export async function openInteraction3dEditor({
           ["size", "按钮大小", "px"],
           ["iconSize", "图标大小", "px"],
           ["hitSize", "点击范围", "px"],
-          ["fadeDuration", "缓开缓灭", "秒"],
-          ["effectDefaults.brightness", "默认亮度", "%"],
-          ["effectDefaults.kelvin", "默认色温", "K"],
-          ["effectRange.brightnessMin", "最暗亮度", "%"],
-          ["effectRange.brightnessMax", "最亮亮度", "%"],
-          ["effectRange.temperatureMin", "最低色温", "K"],
-          ["effectRange.temperatureMax", "最高色温", "K"]
+          ["fadeDuration", "缓开缓灭", "秒"]
         ];
+  // 注意：灯光的 effectRange / effectDefaults 刻意不在上表里。它们由
+  // static/bridge/light-effect-policy.js 固定，各灯恒等，列进「可批量套用的字段」
+  // 只会让「改了哪些字段」显示一批永远相同的伪差异。
   let fieldDefs = buildEditableFieldList();
   // 基线快照：批量套用与「相对基线改了哪些字段」的提示都以它为参照，
   // 切换编辑类型或重新打开时会重建。
@@ -413,7 +410,7 @@ export async function openInteraction3dEditor({
   let refreshBatchButtons = () => {};
   // 把配置项归一化成可比较的字段快照：缺省值都在这里补齐
   // （例如点击范围默认不小于按钮大小 44px），批量套用与脏字段比较都以这份快照为准。
-  function buildItemPayload(item, lightStatus = getLightStatus(item)) {
+  function buildItemPayload(item) {
     if (usesModelBinding) {
       return {
         icon: item.icon || defaultIcon,
@@ -435,19 +432,16 @@ export async function openInteraction3dEditor({
               : "显示"
       };
     } else {
+      // 灯光分支：effectRange / effectDefaults 取固定策略的值（恒等），
+      // 这样批量套用与脏字段比较仍然能用同一份快照，不需要为它们开特例。
+      const fixedLightItem = withFixedLightEffects(item);
       return {
-        size: item.size ?? 44,
-        iconSize: item.iconSize ?? 26,
-        hitSize: item.hitSize ?? Math.max(44, item.size ?? 44),
-        fadeDuration: item.fadeDuration ?? 0.3,
-        effectDefaults: item.effectDefaults || {},
-        effectRange: {
-          brightnessMin: 1,
-          brightnessMax: 100,
-          temperatureMin: lightStatus.minimum,
-          temperatureMax: lightStatus.maximum,
-          ...item.effectRange
-        }
+        size: fixedLightItem.size ?? 44,
+        iconSize: fixedLightItem.iconSize ?? 26,
+        hitSize: fixedLightItem.hitSize ?? Math.max(44, fixedLightItem.size ?? 44),
+        fadeDuration: fixedLightItem.fadeDuration ?? 0.3,
+        effectDefaults: fixedLightItem.effectDefaults,
+        effectRange: fixedLightItem.effectRange
       };
     }
   }
@@ -462,9 +456,8 @@ export async function openInteraction3dEditor({
     if (!baselineItemsById.has(changedItem.id)) {
       baselineItemsById.set(changedItem.id, structuredClone(changedItem));
     }
-    const changedStatus = getLightStatus(changedItem);
-    const baselinePayload = buildItemPayload(baselineItemsById.get(changedItem.id), changedStatus);
-    const currentPayload = buildItemPayload(changedItem, changedStatus);
+    const baselinePayload = buildItemPayload(baselineItemsById.get(changedItem.id));
+    const currentPayload = buildItemPayload(changedItem);
     return fieldDefs.filter(
       ([payloadFieldName]) =>
         readNestedPath(baselinePayload, payloadFieldName) !==
@@ -1322,165 +1315,13 @@ export async function openInteraction3dEditor({
     }
     return resolvedLightStatus;
   }
-  // 渲染「灯光效果」设置：默认亮度 / 色温、缓开缓灭时长与亮度、色温范围。
-  // 校验口径是「上下限不能交叉」：交叉时给提示且不写回草稿。
-  function renderEffectSettings(containerElement, lightItem, lightCapabilities) {
-    containerElement.replaceChildren();
-    if (lightItem.entityId && !lightCapabilities.known) {
-      const probingNoteElement = createElement("p", "i3d-note", "正在识别灯具能力…");
-      probingNoteElement.setAttribute("role", "status");
-      containerElement.append(probingNoteElement);
-    }
-    if (
-      lightItem.entityId &&
-      lightCapabilities.known &&
-      (!lightCapabilities.brightnessSupported || !lightCapabilities.temperatureSupported)
-    ) {
-      const defaultsSectionElement = createElement("section", "i3d-focus-settings");
-      defaultsSectionElement.append(createElement("h4", "", "默认效果"));
-      const defaultsGridElement = createElement("div", "i3d-coordinate-grid");
-      defaultsSectionElement.append(defaultsGridElement);
-      for (const [
-        defaultSettingLabel,
-        defaultSettingKey,
-        isUnsupportedSetting,
-        settingMin,
-        settingMax,
-        settingStep
-      ] of [
-        ["默认亮度（%）", "brightness", lightCapabilities.brightnessSupported, 0, 150, 1],
-        ["默认色温（K）", "kelvin", lightCapabilities.temperatureSupported, 1000, 20000, 100]
-      ]) {
-        if (isUnsupportedSetting) {
-          continue;
-        }
-        const defaultSettingInput = createElement("input");
-        Object.assign(defaultSettingInput, {
-          type: "number",
-          min: String(settingMin),
-          max: String(settingMax),
-          step: String(settingStep),
-          value: Number.isFinite(lightItem.effectDefaults?.[defaultSettingKey])
-            ? String(lightItem.effectDefaults[defaultSettingKey])
-            : "",
-          placeholder: "跟随模型"
-        });
-        defaultSettingInput.addEventListener("change", () => {
-          const rawDefaultText = defaultSettingInput.value.trim();
-          const parsedDefaultValue = Number(rawDefaultText);
-          const nextEffectDefaults = {
-            ...lightItem.effectDefaults
-          };
-          if (rawDefaultText) {
-            if (Number.isFinite(parsedDefaultValue)) {
-              nextEffectDefaults[defaultSettingKey] = Math.max(
-                settingMin,
-                Math.min(settingMax, parsedDefaultValue)
-              );
-            }
-          } else {
-            delete nextEffectDefaults[defaultSettingKey];
-          }
-          defaultSettingInput.value = Number.isFinite(nextEffectDefaults[defaultSettingKey])
-            ? String(nextEffectDefaults[defaultSettingKey])
-            : "";
-          if (Object.keys(nextEffectDefaults).length) {
-            lightItem.effectDefaults = nextEffectDefaults;
-          } else {
-            delete lightItem.effectDefaults;
-          }
-          refreshEditorPreview();
-        });
-        createSettingRow(defaultsGridElement, defaultSettingLabel, defaultSettingInput);
-      }
-      const defaultsPreviewActions = createElement("div", "i3d-focus-actions");
-      defaultsSectionElement.append(defaultsPreviewActions);
-      defaultsPreviewActions.append(
-        createButton("预览默认效果", async () => {
-          try {
-            await editorRuntime.focusCommand("preview-light-effect", lightItem.id, "defaults");
-          } catch (previewDefaultsError) {
-            errorMessageElement.textContent = previewDefaultsError.message;
-          }
-        }),
-        createButton("跟随模型", () => {
-          delete lightItem.effectDefaults;
-          refreshEditorPreview();
-          renderPanel();
-        })
-      );
-      containerElement.append(defaultsSectionElement);
-    }
-    const effectRangeDetailsElement = createElement("details", "i3d-effect-settings");
-    effectRangeDetailsElement.open = isEffectDetailsOpen;
-    effectRangeDetailsElement.addEventListener("toggle", () => {
-      isEffectDetailsOpen = effectRangeDetailsElement.open;
-    });
-    effectRangeDetailsElement.append(createElement("summary", "", "效果范围"));
-    const effectRangeDraft = {
-      brightnessMin: 1,
-      brightnessMax: 100,
-      temperatureMin: lightCapabilities.minimum,
-      temperatureMax: lightCapabilities.maximum,
-      ...lightItem.effectRange
-    };
-    const effectRangeGridElement = createElement("div", "i3d-effect-grid");
-    effectRangeDetailsElement.append(effectRangeGridElement);
-    for (const [
-      rangeSettingLabel,
-      rangeSettingKey,
-      rangeCounterKey,
-      rangeSettingMin,
-      rangeSettingMax,
-      rangeSettingStep
-    ] of [
-      ["最暗亮度（%）", "brightnessMin", "brightnessMax", 0, 150, 1],
-      ["最亮亮度（%）", "brightnessMax", "brightnessMin", 0, 150, 1],
-      ["最低色温（K）", "temperatureMin", "temperatureMax", 1000, 20000, 100],
-      ["最高色温（K）", "temperatureMax", "temperatureMin", 1000, 20000, 100]
-    ]) {
-      const rangeOptionElement = createElement("div", "i3d-effect-option");
-      effectRangeGridElement.append(rangeOptionElement);
-      const rangeInputElement = createNumberRow(
-        rangeOptionElement,
-        rangeSettingLabel,
-        effectRangeDraft[rangeSettingKey],
-        rangeSettingMin,
-        rangeSettingMax,
-        rangeSettingStep,
-        rangeSettingValue => {
-          effectRangeDraft[rangeSettingKey] = rangeSettingKey.endsWith("Min")
-            ? Math.min(rangeSettingValue, effectRangeDraft[rangeCounterKey])
-            : Math.max(rangeSettingValue, effectRangeDraft[rangeCounterKey]);
-          rangeInputElement.value = String(effectRangeDraft[rangeSettingKey]);
-          lightItem.effectRange = {
-            ...effectRangeDraft
-          };
-          refreshEditorPreview();
-        }
-      );
-      const previewEffectButton = createButton("预览", async () => {
-        try {
-          await editorRuntime.focusCommand("preview-light-effect", lightItem.id, rangeSettingKey);
-        } catch (previewEffectError) {
-          errorMessageElement.textContent = previewEffectError.message;
-        }
-      });
-      previewEffectButton.disabled = !lightItem.entityId;
-      if (!lightItem.entityId) {
-        previewEffectButton.title = "绑定实体后预览效果";
-      }
-      previewEffectButton.setAttribute("aria-label", "预览" + rangeSettingLabel);
-      rangeOptionElement.append(previewEffectButton);
-    }
-    effectRangeDetailsElement.append(
-      createButton("恢复默认效果", () => {
-        delete lightItem.effectRange;
-        refreshEditorPreview();
-        renderPanel();
-      })
-    );
-    containerElement.append(effectRangeDetailsElement);
+  // 固定灯光效果区间：亮度 / 色温的量程与默认值不再逐实体推算，也不再允许手调，
+  // 统一取 static/bridge/light-effect-policy.js 的常量（「光影收敛」的一部分）。
+  // 历史上这里有「默认效果」与「效果范围」两组输入控件，已随收敛一并移除：
+  // 留着它们也只是改完就被下一次归一化覆盖，看起来像「保存失败」，比没有更糟。
+  // 现在只负责把策略落到草稿项上（不产出任何 DOM）。
+  function applyFixedLightEffects(lightItem) {
+    Object.assign(lightItem, withFixedLightEffects(lightItem));
   }
   // 列出还可添加的模型：已被绑定的模型不再出现，避免同一模型重复绑定。
   function listAddableModels() {
@@ -1702,6 +1543,9 @@ export async function openInteraction3dEditor({
           icon: defaultIcon,
           clickAction: usesStatusPanel ? "focus-panel" : "focus"
         };
+        // 新建的灯光项同样落到固定效果区间上（与 buildItemPayload / 归一化路径同一份策略），
+        // 否则新建后的首帧会拿不到 effectRange/effectDefaults，滑杆量程要等一次归一化才对。
+        usesModelBinding || applyFixedLightEffects(newItem);
         getItemList().push(newItem);
         selectedItemId = newItem.id;
         closeAddDialog();
@@ -3126,41 +2970,9 @@ export async function openInteraction3dEditor({
             }
           );
           currentContainer = createConfigSection("灯光效果");
-          const lightEffectContainerElement = createElement("div");
-          currentContainer.append(lightEffectContainerElement);
-          // 把影响效果面板渲染的字段压成一个签名（JSON 字符串）：这些值没变就整体跳过重绘，
-          // 免得状态每上报一次就把用户正在操作的控件重建一遍。
-          const lightStatusSignature = statusSnapshot =>
-            JSON.stringify([
-              statusSnapshot.known,
-              statusSnapshot.brightnessSupported,
-              statusSnapshot.temperatureSupported,
-              statusSnapshot.minimum,
-              statusSnapshot.maximum
-            ]);
-          const initialLightStatus = getLightStatus(selectedItem);
-          let initialStatusSignature = lightStatusSignature(initialLightStatus);
-          refreshEffectSettings = () => {
-            if (
-              isDisposed ||
-              !isAccessAllowed ||
-              isCameraEditing ||
-              isCameraCommandPending ||
-              lightEffectContainerElement.contains?.(document.activeElement)
-            ) {
-              return;
-            }
-            const refreshedLightStatus = getLightStatus(selectedItem);
-            const refreshedStatusSignature = lightStatusSignature(refreshedLightStatus);
-            if (refreshedStatusSignature !== initialStatusSignature) {
-              initialStatusSignature = refreshedStatusSignature;
-              renderEffectSettings(lightEffectContainerElement, selectedItem, refreshedLightStatus);
-            }
-          };
-          lightEffectContainerElement.addEventListener("focusout", () =>
-            queueMicrotask(refreshEffectSettings)
-          );
-          renderEffectSettings(lightEffectContainerElement, selectedItem, initialLightStatus);
+          // 效果区间已固定、不随实体能力变化，故没有需要跟随状态重绘的控件：
+          // 一次性把策略落到草稿项上即可（「正在识别灯具能力」那类提示也不再需要）。
+          applyFixedLightEffects(selectedItem);
           const lightEffectBatchSectionElement = createElement(
             "section",
             "navigation-batch-section i3d-light-batch"
@@ -3633,7 +3445,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251458";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251754";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

@@ -19,34 +19,34 @@
  * 对外形态不变：仍然只导出 PanelRenderer 这一个类，页面依旧 `new PanelRenderer(hostElement, options)`。
  */
 
-import { setBuiltinAssetVersions } from "./registry.js?v=2609251458";
-import { randomUuid } from "../../utils/random-id.js?v=2609251458";
-import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609251458";
+import { setBuiltinAssetVersions } from "./registry.js?v=2609251754";
+import { randomUuid } from "../../utils/random-id.js?v=2609251754";
+import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609251754";
 import {
   HistoryRefreshCoordinator,
   RuntimeEffectImageLoader,
   RuntimeStaticImageCache,
   RuntimeVacuumMapImagePreloader
-} from "./runtime-caches.js?v=2609251458";
-import { syncedLineChartProperties } from "./runtime-document.js?v=2609251458";
+} from "./runtime-caches.js?v=2609251754";
+import { syncedLineChartProperties } from "./runtime-document.js?v=2609251754";
 
-import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609251458";
-import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609251458";
-import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609251458";
-import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609251458";
-import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609251458";
-import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609251458";
-import { capabilityDetailsMethods } from "./panel-renderer/device-controls/capability.js?v=2609251458";
-import { airPurifierDetailsMethods } from "./panel-renderer/device-controls/air-purifier.js?v=2609251458";
-import { mediaPlayerDetailsMethods } from "./panel-renderer/device-controls/media-player.js?v=2609251458";
-import { lightDetailsMethods } from "./panel-renderer/device-controls/light.js?v=2609251458";
-import { coverDetailsMethods } from "./panel-renderer/device-controls/cover.js?v=2609251458";
-import { climateDetailsMethods } from "./panel-renderer/device-controls/climate.js?v=2609251458";
-import { waterHeaterDetailsMethods } from "./panel-renderer/device-controls/water-heater.js?v=2609251458";
-import { electricBedDetailsMethods } from "./panel-renderer/device-controls/electric-bed.js?v=2609251458";
-import { vacuumDetailsMethods } from "./panel-renderer/device-controls/vacuum.js?v=2609251458";
-import { presenceDetailsMethods } from "./panel-renderer/device-controls/presence.js?v=2609251458";
-import { cameraDetailsMethods } from "./panel-renderer/device-controls/camera.js?v=2609251458";
+import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609251754";
+import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609251754";
+import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609251754";
+import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609251754";
+import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609251754";
+import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609251754";
+import { capabilityDetailsMethods } from "./panel-renderer/device-controls/capability.js?v=2609251754";
+import { airPurifierDetailsMethods } from "./panel-renderer/device-controls/air-purifier.js?v=2609251754";
+import { mediaPlayerDetailsMethods } from "./panel-renderer/device-controls/media-player.js?v=2609251754";
+import { lightDetailsMethods } from "./panel-renderer/device-controls/light.js?v=2609251754";
+import { coverDetailsMethods } from "./panel-renderer/device-controls/cover.js?v=2609251754";
+import { climateDetailsMethods } from "./panel-renderer/device-controls/climate.js?v=2609251754";
+import { waterHeaterDetailsMethods } from "./panel-renderer/device-controls/water-heater.js?v=2609251754";
+import { electricBedDetailsMethods } from "./panel-renderer/device-controls/electric-bed.js?v=2609251754";
+import { vacuumDetailsMethods } from "./panel-renderer/device-controls/vacuum.js?v=2609251754";
+import { presenceDetailsMethods } from "./panel-renderer/device-controls/presence.js?v=2609251754";
+import { cameraDetailsMethods } from "./panel-renderer/device-controls/camera.js?v=2609251754";
 
 // 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
 // （transform-geometry.js / asset-version.js 等），这里继续原路径转出，调用方无需改动，
@@ -200,6 +200,15 @@ export class PanelRenderer {
           });
         }
         this.refreshHistorySeries();
+        return;
+      }
+      // 隐藏时必须摘掉在途的重试定时器：隐藏态下 refreshHistorySeries 会被直接跳过，
+      // 让退避计时器继续排下去只是空跑，回到前台时还会与上面的 refreshHistorySeries
+      // 撞成两份同键请求。只清定时器、不动 historyRetryAttempt —— 保留已累计的退避次数，
+      // 回前台后按原进度继续退避，避免隐藏一次就把退避重置成 1 秒起。
+      if (this.historyRetryTimer) {
+        window.clearTimeout(this.historyRetryTimer);
+        this.historyRetryTimer = 0;
       }
     };
     this.historyPollTimer = window.setInterval(() => this.refreshHistorySeries(), 30000);

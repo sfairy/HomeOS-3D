@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609251458";
+@import "/static/bridge/controls.css?v=2609251754";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -738,17 +738,6 @@
   font-size: 9px;
   gap: 4px;
   white-space: nowrap;
-}
-/* 每个页面各一条调暗强度，因此整行占满宽度。 */
-.i3d-page-dim-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.i3d-page-dim-row > * {
-  min-width: 0;
 }
 /* 行为作用域（全局 / 按页）的选择行，两列等宽。 */
 #interaction3d-inspector .i3d-behavior-scope-row {

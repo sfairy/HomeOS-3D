@@ -6,6 +6,12 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+// 分页观感与固定灯光效果两组预设：宿主下发的旧草稿里存的是历史值，这里统一按当前预设归一，
+// 保证「新老草稿」在舞台上呈现一致（这正是「观感收敛」的落点）。见各模块头部的沿革说明。
+import {
+  withFixedLightEffects,
+  withPageAppearancePreset
+} from "../static-helpers.js?v=2609251754";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。
@@ -202,13 +208,15 @@ export function createStageMetadata(ctx) {
    * devices.*，都可能 undefined 故逐个可选补齐；只补坐标、不新增配置项，结构原样透传。
    */
   function normalizeSceneConfig(sourceConfig) {
-    const normalizedConfig = structuredClone(sourceConfig);
+    const normalizedConfig = withPageAppearancePreset(structuredClone(sourceConfig));
     normalizedConfig.camera = ctx.transformCameraPose(
       normalizedConfig.floorCameras?.[normalizedConfig.floorSelection] || normalizedConfig.camera,
       normalizedConfig.floorSelection
     );
+    // 灯光项一律套上固定效果区间：区间/默认值不再随实体能力漂移，只影响「能调到哪」，
+    // 不改实体上报的状态本身（映射逻辑见 static/bridge/light-motion.js）。
     normalizedConfig.lights = (normalizedConfig.lights || []).map(lightItem => ({
-      ...lightItem,
+      ...withFixedLightEffects(lightItem),
       ...(lightItem.focusCamera
         ? {
             focusCamera: ctx.transformCameraPose(lightItem.focusCamera, normalizedConfig.floorSelection)

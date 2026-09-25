@@ -6,19 +6,19 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609251458";
-import { formatZhDateTime } from "../../../utils/datetime.js?v=2609251458";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609251754";
+import { formatZhDateTime } from "../../../utils/datetime.js?v=2609251754";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../controls/line-chart-runtime.js?v=2609251458";
+} from "../../controls/line-chart-runtime.js?v=2609251754";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../controls/weather-chart-runtime.js?v=2609251458";
+} from "../../controls/weather-chart-runtime.js?v=2609251754";
 // 同门分片：registry-visuals
-import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609251458";
+import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609251754";
 
 /**
  * 把历史点整理成等间隔的折线序列：丢掉时间戳或数值非法的点，追加当前值作为最新一点，

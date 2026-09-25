@@ -6,10 +6,10 @@
  * 顶边离地 height - 0.06 米。约定：curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比；
  * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609251458";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609251754";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底（curtain-motion）必须同值，故只定义在
 // utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251458";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251754";
 
 /**
  * 归一化窗帘轨道参数。

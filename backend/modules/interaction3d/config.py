@@ -16,6 +16,8 @@ import re
 from fastapi import HTTPException, status
 
 from ...core.canonical_json import canonical_json
+from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
+from .lock import validate_lock_bindings
 from .numbers import as_finite_number
 
 
@@ -124,19 +126,32 @@ def validate_config(properties: dict) -> None:
         'backgroundMotion',
         'focusDimStrength',
         'groundReflection',
+        'templateReadonly',
         'backgroundVisible',
         'motionRenderScale',
+        # 暖阳原木主题的「背景暖阳暮色」开关：控件由前端渲染，这里只放行存取，
+        # 老版本读到该键也不会 422（升级路径上的前向兼容）。
+        'warmBackgroundTheme',
         'lightRegionOverrides',
         'uniformOverviewStack',
         'focusVignetteStrength',
         'hideIconsWhileRotating'}:
         fail()
-    # 安防：摄像头与人形传感器两张表，各自的字段与范围都在下面单独校验。
+    # templateReadonly 标记「该控件来自模板、字段不可编辑」，只校验类型；
+    # 它不参与本层的引用校验，前端也不读它，因此只放行不解释。
+    if 'templateReadonly' in properties and not isinstance(properties['templateReadonly'], bool):
+        fail()
+    # warmBackgroundTheme 是布尔开关：主题为暖阳原木时叠加暮色背景。
+    if 'warmBackgroundTheme' in properties and not isinstance(properties['warmBackgroundTheme'], bool):
+        fail()
+    # 安防：门锁、摄像头与人形传感器三张表，各自的字段与范围都在下面单独校验。
     security = properties.get('security', {})
     if not isinstance(security, dict) or set(security) - {
         'presenceSensors',
-        'cameras'}:
+        'cameras',
+        'locks'}:
         fail()
+    validate_lock_bindings(security.get('locks', []), validate_camera)
     cameras = security.get('cameras', [])
     if not isinstance(cameras, list):
         fail()
@@ -171,7 +186,8 @@ def validate_config(properties: dict) -> None:
         if item['floorId'] == 'all':
             fail()
         # 只接受 camera.* 域的实体：别的域放进来会渲染出取不到流的状态。
-        if not isinstance(item.get('entityId', ''), str) or not item.get('entityId') or not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId']):
+        # 没绑定（空串或字段缺省）是合法状态：控件可以先落位，实体稍后再选。
+        if not isinstance(item.get('entityId', ''), str) or item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId']):
             fail()
         if not text(item.get('label', '')) or not text(item.get('icon', '')):
             fail()
@@ -236,7 +252,9 @@ def validate_config(properties: dict) -> None:
             if model_key in presence_models:
                 fail()
             presence_models.add(model_key)
-        if not isinstance(person.get('entityId'), str) or not person['entityId'] or not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId']):
+        # 允许空串：人形可以先把位置摆好，实体稍后再绑；
+        # 一旦填了就必须是 「域.实体名」 形式，避免存入取不到状态的垃圾值。
+        if not isinstance(person.get('entityId'), str) or person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId']):
             fail()
         if person.get('character', 'traveler') not in ('traveler', 'bean', 'glow') or person.get('color', 'cyan') not in ('cyan', 'orange'):
             fail()
@@ -767,13 +785,20 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
-    # 设备三张表：NAS、扫地机与电视，各自的字段结构都不相同。
+    # 设备表：NAS、扫地机、电视，再加上五类「通用设备」（冰箱 / 洗碗机 / 洗衣机 /
+    # 烘干机 / 绿植）—— 后者的校验方式完全一致，只是模型类型不同，因此按 DEVICE_PROFILES
+    # 派发，新增设备类型时只需改那张表。
     devices = properties.get('devices', {})
     if not isinstance(devices, dict) or set(devices) - {
         'nas',
         'vacuums',
-        'televisions'}:
+        'televisions'} - set(GENERIC_DEVICE_COLLECTIONS):
         fail()
+    for profile in DEVICE_PROFILES.values():
+        validate_device_bindings(
+            devices.get(profile['collection'], []),
+            validate_camera,
+            model_type=profile['model_type'])
     # 电视：entityId 是 media_player.*，电源实体另存 powerEntityId（允许 switch 等其它域）。
     televisions = devices.get('televisions', [])
     if not isinstance(televisions, list):
