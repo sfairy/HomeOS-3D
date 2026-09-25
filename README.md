@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.3**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.5**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -1016,6 +1016,54 @@ ruff check .                                      # 未使用 import / 重复定
 ## 更新日志
 
 更早的版本记录已随文档精简移除；项目按**首个发布版本**维护，不再保留历史版本的数据迁移说明。
+
+### v0.6.5
+
+本版对齐上游 0.6.5 的业务能力：**交互对象从 8 类扩到 16 类**（新增冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植 / 空气净化器 / 门锁含门磁 / 温湿度计），动画体系补上卷帘与全类型门。落地方式遵循本仓既有目录约定，不是路径级照搬（见文末「与上游的结构差异」）。
+
+**新增设备品类**
+
+- **通用设备弹窗（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）**：后端新模块 `device.py`（`DEVICE_PROFILES`、`GENERIC_DEVICE_COLLECTIONS`、`validate_device_bindings()`、`require_device_model()`）；前端 `device-profiles.js`（`GENERIC_DEVICE_KINDS` / `genericDeviceProfile`）、`device-status.js`、`device-panel.js`、`device-entity-config.js`。五类设备不推断主实体 —— 绑定必须写 `deviceId` / `deviceName`，实体由设备归属反查，因此配置里不允许出现 `entityId`。弹窗内容由 `statusRules`（状态灯规则）与 `extraControls`（附加功能）两块配置决定，绿植的 `statusIndicator` 为 false，编辑器不再提供状态规则。
+- **空气净化器**：后端 `purifier.py`（`EXTRA_TYPES`、`validate_purifier_command()`、`validate_extra_command()`），支持 `switch / input_boolean / light / select / input_select / number / input_number / button / input_button / sensor / binary_sensor`。前端 `purifier-extras.js` 渲染附加功能卡片；`climate-state.js` 扩展风机与净化器能力位（`oscillating` / `oscillatingSupported` / `directionSupported` / `percentageStep` / `preset_modes` 等 10 项），命令域走 `fan`。运行时净化器与空调**同属 climate 模块**（`deviceKind: "climate"`），靠实体域 `fan` 决定渲染净化器控件；场景里它是独立外观 `airpurifier`，模型类型清单七处同步点已一并登记，气流从顶盖向上吹（与空调的水平风道不同）。模板默认值新增 `environment.airPurifiers: []`。
+- **门锁与门磁**：后端 `lock.py`（`validate_lock_bindings()` / `require_lock_model()` / `validate_lock_command()`），按 `supported_features` / `code` / `code_format` 能力位校验 `lock` / `unlock` / `open`。前端 `lock-panel.js`、`lock-state.js`、`lock-motion.js`、`lock-state-runtime.js`。门扇动画按 rig 分支：平开（铰链轴 + 开合角）、推拉（滑移轴 + 行程）、卷帘门（上下卷收）、入户门；门事件源支持 `sensor` / `always` / `single-event` / `dual-event` 四种。
+- **温湿度计卡片**：`temperature-humidity.js` 由 `environment-scene.js` 接入，按实体名（`/温湿度(?:计|传感器)?/`、`/温度/`、`/湿度/`）、`thermometer`、`relative_humidity` 与 `device_class` 识别温度 / 湿度两路实体。模板默认值新增 `environment.temperatureHumidity: []`。
+- **窗帘组合控制**：`cover-groups.js`（`createCurtainGroup` / `validCurtainGroups` / `curtainGroupEntryId` / `isCurtainGroup` / `curtainGroupCandidates`）与 `cover-group-panel.js`；后端新增 `curtainGroups` 字段与 `curtain-group:` 前缀。组合入口统一管理隐藏方式与聚焦视角，成员各自保留目标位置与反馈。
+- **卷帘**：窗帘类型新增 `roller`。`curtain-motion.js` 按 `coverKind === 'roller'` 分支返回卷收 rig（0% 完全放下、100% 完全卷起），控制沿用普通窗帘。
+- **模型库新增「1 字型悬空楼梯」**：`floating-stairs.glb` 与 `floating-stairs-lite.glb`，10 级悬臂踏步确定性生成；素材库条目数随之 +1（按调色板动态推导，未硬编码计数）。
+
+**光影：两档并存，灯效量程固定**
+
+- `definition.js` 的 `INTERACTION3D_LIGHTING_MODES` 保留 `standard`（标准光影，原生灯光 + 实时阴影）与 `region`（轻量柔光，二维光照图 + 接触阴影）两档，**默认 standard**，非法值与缺省一律折算成 standard；切档等于换渲染管线，提交前过确认流程（`performance-warning.js` 在 region → standard 时提示绘制开销）。
+- 灯效量程不再随布光算法逐灯推算，改为固定档：新增 `light-effect-policy.js`（`LIGHT_EFFECT_RANGE` / `LIGHT_EFFECT_DEFAULTS` / `withFixedLightEffects()`）、`region-lighting-presets.js`、`page-appearance-presets.js`。**亮度区间固定为 1~100%**：渲染层把这个值直接当百分比乘进光强，允许到 150% 会把满亮度的灯抬到 1.5 倍而集体过曝，故上限锁在 100。
+- 与上游的差异（有意为之）：上游 0.6.5 把光影收敛为「轻量柔光」单档并允许亮度预设到 150%；本仓为保住标准光影的自然观感与不过曝的默认亮度，保留两档且把量程收回 1~100%。
+
+**3D 模型缓存与首次加载**
+
+- 新增 `model-persistent-cache.js`（IndexedDB `ha-bridge-3d-templates`）、`scene-persistent-cache.js`（`ha-bridge-3d-scenes`，`SCENE_PREPARATION_VERSION` + 7 天 TTL）、`model-template-codec.js`（three.js 模板序列化）、`stage-startup.js`（预热舞台、接管 studio 入口）。三者均带三重校验（版本 + `syncKey` + TTL），任一不符即回落为正常生成，命中时避免首次进入编辑器后户型偶发重新生成。
+
+**删除模型后的级联清理（含提醒与撤销）**
+
+- 后端新模块 `studio_cleanup.py`（`plan_cleanup()` / `identities()` / `confirmation_token()`）——**只清理 3D 交互绑定，不删除任何 HA 实体**。覆盖 `lights`、`environment.*`、`devices.*`、`security.*`、`floors[].items` / `lightGroups`。
+- 迁移 `0004_studio_interaction_sync` 建表 `studio_interaction_sync(document_json)`，模型 `StudioInteractionSync` 承载「待下发交付 + 可撤销删除记录」；`Studio3DDraftUpdate` 新增 `interactionConfirmation`（最长 64）；`studio3d.py` 增 `_deliver_pending()` 与存储锁。前端先弹「本次删除影响」确认（展示受影响仪表盘），凭 `confirmation_token` 才同步清理，撤销可恢复刚移除的模型或灯组。
+
+**修复**
+
+- **折线图状态重试定时器**：切到隐藏页时除短路外还 `clearTimeout` 并把 `historyRetryTimer` 置 0，可见后重建 —— 此前隐藏期间排定的重试不会被取消，恢复可见后可能与新建定时器叠加。
+- **未绑定实体的灯光在仪表盘中错误点亮**：`entity-power.js` 的判定补入显式 `'true'` 判据。
+- **2D 热水器弹窗空数据**：实体目录未就绪时不再直接弹窗，改为 `deferEntityDetailsUntilReady()` 挂起，待目录就绪后重试渲染。
+- **未配置实体时无法保存 3D 控件**：放宽保存校验并给出显式报错文案。
+- **实时连接恢复后状态无法及时补齐**：订阅队列满时由 `state_hub.py` 压入 `resync_required`，前端丢弃增量并重建/重拉全量快照，另配 `runtimeHydrationRetryTimer` 补齐折线图状态；断线重连走指数退避。
+
+**编辑器**
+
+- 编辑器模型选中态更明显：新增 `.i3d-editor-selection` 与 `.i3d-focus-actions`。
+- 设备编辑器补齐状态灯规则、附加功能与净化器实体选择三节，并新增跨域批量应用（可一键应用到其他同类设备 / 温湿度计）。
+
+**与上游的结构差异（有意为之）**
+
+- 上游的运行期前端在 `frontend/modules/interaction3d/`、编辑器前端在 `frontend/static/modules/interaction3d/`；本仓按自身既有约定落位：运行期模块进 `frontend/modules/runtime/<域>/`，跨端小模块进 `frontend/static/bridge/`（如 `temperature-humidity.js`、`lock-state-runtime.js`、`load-timing.js`）。业务语义与上游一致，路径不同、也不新增「上游式」的目录。
+- 摄像头生命周期与鉴权文案未照搬上游字符串：本仓在 `visibilitychange` + `pause` + 监听回收处收口，401 / 403 集中由 `utils/api-request.js` 处置（跳 `/login` / `/license`），属等价实现。
+- 净化器气流未取上游的专用调色板令牌（本仓调色板只有 cool / heat / other），回落为中性灰，避免为单个特效新增设计令牌。
 
 ### v0.6.3
 
