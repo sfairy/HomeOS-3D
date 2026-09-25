@@ -1,32 +1,141 @@
 /**
- * 3D 安防配置编辑器（摄像头与人体传感器共用一个弹窗）：与 config-editor.js 同构 —— 弹窗 +
+ * 3D 安防配置编辑器（摄像头、人体传感器与门锁共用一个弹窗）：与 config-editor.js 同构 —— 弹窗 +
  * 预览舞台（mountInteraction3d，editing=true）+ 草稿。
  *
- * 两种编辑对象共用同一面板，只靠 getCollectionKey / getKindLabel 区分：摄像头（位置、朝向、焦距、
- * 点击行为等）与人体传感器（触发模式与探测路线；路线编辑会打开 presence-editor.js 子编辑器，
- * 期间本编辑器主动卸载预览运行时，一个容器只挂一个）。
+ * 三种编辑对象共用同一面板，只靠 getCollectionKey / getKindLabel 区分：摄像头（位置、朝向、焦距、
+ * 点击行为等）、人体传感器（触发模式与探测路线；路线编辑会打开 presence-editor.js 子编辑器，
+ * 期间本编辑器主动卸载预览运行时，一个容器只挂一个）与门锁（把 HA 的门锁 / 门磁实体绑到场景里
+ * 一扇已经画好的门上，再调门扇开合与标签）。
  * 约定：保存通过 onSave 交给宿主落库（本模块不发保存请求），脏标记沿用 editor-save-status 的签名
  * 比较口径，退出前用同一套文案确认。对外只导出 openSecurityEditor。
+ *
+ * 门锁的字段口径一律不自造：五个实体槽位（锁 / 门磁 / 电量 / 低电量 / 防拆）、三种门磁来源
+ * （sensor / single-event / dual-event）与开合折算全部来自 lock-state.js（实现只有 bridge 那一份），
+ * 后端再按 lock.py 复核。三处必须逐字一致，否则会出现「编辑器能填、保存被拒」或「配好了、舞台不动」。
+ * 可选的门模型同样不自造：舞台快照的 doors 就是 lock-state.js 的 doorModels 展开的清单（与舞台
+ * 收集门锁绑定同一份），本文件只过滤掉不能承载动画的 frame-only 门。
+ * 注意 lock.py 会把门型（doorType）等已挪到户型图模型上的字段从绑定里丢弃，所以门型只从选中的
+ * 门模型读取，绝不写回绑定。
  */
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=2609251920";
-import { mountInteraction3d } from "../core/runtime.js?v=2609251920";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=2609251920";
+} from "../presence/presence-motion.js?v=2609252203";
+import { mountInteraction3d } from "../core/runtime.js?v=2609252203";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=2609252203";
+// 人物方案表（traveler / bean / glow）与 3D 侧 createWalker 用的是同一份：批量设置里的
+// 「人物方案」选项与展示文案都从这里取，绝不另抄一份。
+import { DESIGNS } from "../presence/presence-character.js?v=2609252203";
+// 跨域批量应用对话框：config-editor 与本编辑器共用同一实现（本文件只提供字段描述表与目标集合）。
+import { copyBatchFields, openBatchApply } from "../editor/batch-apply.js?v=2609252203";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609251920";
-import { applyMdiMask } from "../core/static-helpers.js?v=2609251920";
+} from "../core/editor-save-status.js?v=2609252203";
+import { applyMdiMask } from "../core/static-helpers.js?v=2609252203";
+// 门锁状态与槽位顺序从 lock-state.js 取（它本身只是运行侧的薄转出口）：面板上的「当前状态」
+// 与舞台动画必须同一口径，所以绝不在本文件里重写状态映射。
+import { LOCK_ENTITY_FIELDS, lockState } from "./lock-state.js?v=2609252203";
 import {
   confirmAction,
   createDomFactory,
+  identifyLockEntities,
   interaction3dPreviewSize,
+  lockEntityRole,
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609251920";
+} from "../core/static-helpers-editor.js?v=2609252203";
+
+// doorSource 的取值与中文名，逐字对照 lock.py 的 `("sensor", "single-event", "dual-event")`。
+// 参考实现里的 `always` 在本项目后端会被判非法，故不提供。面板选项与打开时的归一都用这一份表。
+const LOCK_DOOR_SOURCE_OPTIONS = [
+  ["sensor", "门磁传感器"],
+  ["single-event", "单事件门磁"],
+  ["dual-event", "双事件门磁"]
+];
+const LOCK_DOOR_SOURCE_VALUES = LOCK_DOOR_SOURCE_OPTIONS.map(([doorSourceValue]) => doorSourceValue);
+// 绑定里的门模型 ID 一律写成 door:<id>：后端 lock.py 会剥掉前缀再写回，舞台也按这个前缀把绑定
+// 匹配回门模型。lock-state.js 的 doorModels 给出的 modelId 理论上已经是这个形式（早期配置可能
+// 写成 door:door:x），这里统一兜一次前缀 —— 少了它就会出现「编辑器里选得中、保存被判非法」。
+const normalizeDoorModelId = modelId => {
+  const rawModelId = String(modelId || "").replace(/^(?:door:)+/, "");
+  return rawModelId ? "door:" + rawModelId : "";
+};
+// 各实体槽位在「device_class 未知」时的兜底域白名单：HA 目录条目本身不带 device_class
+// （要实时状态才有），没有状态时至少按域把候选框到可能的范围。
+const LOCK_FIELD_DOMAINS = {
+  entityId: ["lock"],
+  doorEntityId: ["binary_sensor"],
+  batteryEntityId: ["sensor"],
+  lowBatteryEntityId: ["binary_sensor"],
+  tamperEntityId: ["binary_sensor"],
+  doorEventEntityId: ["event"],
+  doorOpenEntityId: ["event"],
+  doorCloseEntityId: ["event"]
+};
+// 门型 → 用哪套「动作」控件（与 lock-motion.js 的 rig 划分一致）：
+// 平开门用铰链 + 内外开 / 开角；双开门用开合方向 + 开角；推拉门用滑动方向；
+// 卷帘门按上下卷收，不用左右铰链或内外开方向；frame-only 不能承载门锁动画（后端也拒绝）。
+const LOCK_HINGE_DOOR_TYPES = ["entry", "solid", "glass"];
+// 「批量设置」的字段描述表：与 0.6.5 参考实现同一张表 —— 摄像头走图标 / 尺寸组，
+// 人体传感器（存在感应）走感应光圈 + 人物外观组。key 一律用本仓运行时既有字段名
+// （presence-scene.js / presence-editor.js 的读法），值交给 batch-apply 的 copyBatchFields 原样写入。
+const CAMERA_BATCH_FIELDS = [
+  ["icon", "图标", "mdi:cctv"],
+  ["size", "标签大小", 44],
+  ["iconSize", "图标大小", 26],
+  ["fontSize", "文字大小", 12],
+  ["hitSize", "触控范围", 44]
+].map(([fieldKey, fieldLabel, fallbackValue]) => ({
+  key: fieldKey,
+  label: fieldLabel,
+  fallback: fallbackValue
+}));
+// 门锁的批量外观字段：与门锁面板实际渲染的四个外观项一一对应（图标 / 卡片大小 / 文字大小 /
+// 标签显示），labelMode 沿用面板的写入口径 —— 写三态的 labelMode 同时清掉旧的 labelHidden。
+const LOCK_BATCH_APPEARANCE_FIELDS = [
+  { key: "icon", label: "图标", fallback: "mdi:door-closed" },
+  { key: "size", label: "卡片大小", fallback: 44 },
+  { key: "fontSize", label: "文字大小", fallback: 12 },
+  {
+    key: "labelMode",
+    label: "标签显示",
+    fallback: "always",
+    write: (targetItem, labelModeValue) => {
+      targetItem.labelMode = labelModeValue;
+      delete targetItem.labelHidden;
+    }
+  }
+];
+// 「兼容门型」= 门型逐字相等：参考实现里动作字段的 compatible 是
+// doorTypeOf(target) === doorTypeOf(source)，不是「同族」—— 平开门（solid/entry/glass）只与
+// 同一种平开门兼容，双开门 / 推拉门 / 卷帘门 / 仅门框同理；跨门型时动作参数没有对应关系，
+// compatible 一律返回 false，绝不无条件写入。哪些动作字段出现则由源门型决定（见 openBatchApplyDialog）。
+// optional 的三项（行走速度 / 点击人物聚焦 / 触控范围扩展）在批量弹窗里默认不勾选，
+// 避免把某台传感器个性化的行走参数误套到其它传感器上。
+const PRESENCE_BATCH_FIELDS = [
+  ["waveEnabled", "显示感应光圈", true],
+  ["waveScale", "光圈缩放", 1],
+  ["waveOpacity", "光圈不透明度（%）", 68],
+  ["character", "人物方案", "traveler"],
+  ["color", "人物颜色", "cyan"],
+  ["size", "人物缩放", 1],
+  ["speed", "行走速度（米/秒）", 0.45],
+  ["clickToFocus", "点击人物聚焦", false],
+  ["hitPadding", "触控范围扩展（px）", 8]
+].map(([fieldKey, fieldLabel, fallbackValue]) => ({
+  key: fieldKey,
+  label: fieldLabel,
+  fallback: fallbackValue,
+  optional: ["speed", "clickToFocus", "hitPadding"].includes(fieldKey),
+  format:
+    fieldKey === "character"
+      ? characterKey => DESIGNS[characterKey]?.name || characterKey
+      : fieldKey === "color"
+        ? colorKey => (colorKey === "orange" ? "橙色" : colorKey === "cyan" ? "青色" : colorKey)
+        : undefined
+}));
 /**
  * 打开 3D 安防配置编辑器。
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
@@ -36,6 +145,10 @@ export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
   entities: entities = [],
+  // 实时状态：门锁面板的「门锁状态」要用它折算。宿主不一定传（传了才有实时读数；没传时
+  // lockState 会按「一条可用实体都没有」折算成未知态，绝不编造读数）。运行时状态表允许 Map
+  // 或普通对象，lockState 两种都收。
+  states: states = {},
   pickers: pickers,
   onSave: onSaveConfig
 }) {
@@ -44,9 +157,35 @@ export async function openSecurityEditor({
   // 补齐 security 结构：旧配置可能整个缺失，面板各处都直接按下标取，先兜住。
   draftProperties.security = {
     ...draftProperties.security,
+    locks: draftProperties.security?.locks || [],
     cameras: draftProperties.security?.cameras || [],
     presenceSensors: draftProperties.security?.presenceSensors || []
   };
+  // 门锁字段归一：门型（doorType）/ 门牌 / 墙体这些字段现在已经属于户型图模型，
+  // 后端 lock.py 保存时也会直接丢弃；这里打开就清掉，免得它们跟着草稿签名反复「变脏」。
+  // labelHidden 是旧字段，新配置统一写三态的 labelMode。modelId 统一成 door:<id>
+  // （舞台按这个前缀把绑定匹配回门模型，老配置可能没写前缀，甚至写成 door:door:<id>）。
+  for (const lockItem of draftProperties.security.locks) {
+    for (const legacyKey of ["doorType", "doorLabel", "wallId", "t"]) {
+      delete lockItem[legacyKey];
+    }
+    if (lockItem.doorSource != null && !LOCK_DOOR_SOURCE_VALUES.includes(lockItem.doorSource)) {
+      delete lockItem.doorSource;
+    }
+    lockItem.labelMode =
+      lockItem.labelMode === "hidden" ||
+      lockItem.labelMode === "open" ||
+      lockItem.labelMode === "always"
+        ? lockItem.labelMode
+        : lockItem.labelHidden === true
+          ? "hidden"
+          : "always";
+    delete lockItem.labelHidden;
+    const normalizedLockModelId = normalizeDoorModelId(lockItem.modelId);
+    if (normalizedLockModelId) {
+      lockItem.modelId = normalizedLockModelId;
+    }
+  }
   for (const cameraItem of draftProperties.security.cameras) {
     // 摄像头没有「按钮」的概念：历史配置里可能残留按钮相关字段，
     // 打开时顺手清掉，免得保存后又把无效字段写回后端。
@@ -64,7 +203,13 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251920";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609252203";
+  // 门锁编辑面板的专属样式（实体选择器行、动作 / 外观栅格）单独一张表：它只服务本编辑器，
+  // 不进 stage.css —— 那是舞台的样式，展示页与工作室都会加载，编辑器专属规则混进去会外溢。
+  const securityStyleLinkElement = createElement("link");
+  securityStyleLinkElement.rel = "stylesheet";
+  securityStyleLinkElement.href =
+    "/api/v1/modules/interaction3d/security/security-editor.css?v=2609252203";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，
@@ -92,7 +237,7 @@ export async function openSecurityEditor({
   let sceneMetadata = null;
   let selectedFloorId =
     draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || "";
-  // 当前编辑的安防类型：摄像头或人体传感器，两者共用同一套面板逻辑。
+  // 当前编辑的安防类型：摄像头 / 人体传感器 / 门锁，三者共用同一套面板逻辑。
   let securityKind = "camera";
   let selectedItemId = "";
   let editorRuntime = null;
@@ -108,17 +253,21 @@ export async function openSecurityEditor({
   // 选择器代次：关闭选择器时自增，作废它尚未返回的异步回调。
   let pickerGeneration = 0;
   let presenceEditorHandle = null;
+  // 「批量设置」弹窗句柄：编辑器关闭时要一并摘掉，否则会留下一个脱离弹窗的模态层。
+  let batchDialogHandle = null;
   // 人体传感器子编辑器是否打开：打开期间本编辑器不占用预览运行时，也禁止保存。
   let isPresenceEditorOpen = false;
   // 记下打开编辑器前的焦点：关闭时还回去，键盘用户不会被丢回页面开头。
   const previouslyFocusedElement = document.activeElement;
   // 配置项 → 同设备实体列表：实体选择框要按「这台设备上有哪些可用实体」给候选。
   const deviceEntitiesByItemId = new Map();
-  // 两种类型的取值口径集中在这两个小函数上：面板、脏标记、预览都靠它们区分对象。
-  const getCollectionKey = () => (securityKind === "camera" ? "cameras" : "presenceSensors");
-  // 两类安防设备在界面上的中文名，面板标题与提示统一从这里取，不散落字符串。
-  const getKindLabel = () => (securityKind === "camera" ? "摄像头" : "人体传感器");
-  // 当前编辑类型对应的配置数组（摄像头 / 人体传感器二选一）。
+  // 三种类型的取值口径集中在这两个小函数上：面板、脏标记、预览都靠它们区分对象。
+  const getCollectionKey = () =>
+    securityKind === "camera" ? "cameras" : securityKind === "lock" ? "locks" : "presenceSensors";
+  // 三类安防设备在界面上的中文名，面板标题与提示统一从这里取，不散落字符串。
+  const getKindLabel = () =>
+    securityKind === "camera" ? "摄像头" : securityKind === "lock" ? "门锁" : "人体传感器";
+  // 当前编辑类型对应的配置数组（摄像头 / 人体传感器 / 门锁三选一）。
   const getItemList = () => draftProperties.security[getCollectionKey()];
   // 选中项必须同时匹配 ID 与楼层：同一个模型在不同楼层可能有不同配置项。
   const findSelectedItem = () =>
@@ -129,9 +278,30 @@ export async function openSecurityEditor({
   // 当前编辑楼层在场景元数据里的记录；楼层已被删除时返回 undefined。
   const findSelectedFloor = () =>
     sceneMetadata?.floors.find(candidateFloor => candidateFloor.id === selectedFloorId);
+  // 本层可选的门模型：舞台快照里的 doors 已经是 doorModels 展开后的清单（带 modelId 与平面坐标，
+  // 与舞台收集门锁绑定用的是同一份），这里只做一次「frame-only 不能承载门锁动画」的过滤
+  // （后端 require_lock_model 也会拒绝这种门）。快照没带 doors 时退化成空清单，不会误报可选门。
+  const getFloorDoorModels = () =>
+    (findSelectedFloor()?.doors || []).filter(doorModel => doorModel.doorType !== "frame-only");
   // 该楼层上可用的同类型场景模型（映射用的候选）；找不到楼层时给空数组。
-  const getFloorModelList = () => findSelectedFloor()?.[getCollectionKey()] || [];
-  // 配置项的稳定标识：两类设备的 id 可能重名，拼上类型前缀后作为 3D 侧命令的目标 ID。
+  // 门锁的候选不是 scene.items，而是上面的门模型清单，故单独走一条。
+  const getFloorModelList = () =>
+    securityKind === "lock" ? getFloorDoorModels() : findSelectedFloor()?.[getCollectionKey()] || [];
+  // 模型候选的稳定 ID：摄像头 / 传感器用场景项 id，门模型用 doorModels 给的 modelId。
+  // 绑定里 `modelId` 一律存这个值，与后端 lock.py 要求的 `door:` 前缀口径一致。
+  const getCandidateModelId = candidateModel =>
+    securityKind === "lock"
+      ? normalizeDoorModelId(candidateModel?.modelId)
+      : candidateModel?.id || "";
+  // 按 modelId 回查本层的门模型：门型（用哪套动画控件）与缺省坐标都从它取。
+  // 两边都过一遍 normalizeDoorModelId：绑定里存的是带前缀的形式，快照给的门模型 ID 理论上
+  // 也是，但老场景可能少了前缀 —— 少这一步就会把「门模型还在」误判成「已移除」。
+  const findDoorModelForItem = item =>
+    getFloorDoorModels().find(
+      doorModel => normalizeDoorModelId(doorModel.modelId) === item?.modelId
+    );
+  // 配置项的稳定标识：三类设备的 id 可能重名，拼上类型前缀后作为 3D 侧命令的目标 ID
+  // （门锁与 binding-collectors.js 的 "lock:" + id 逐字一致）。
   const toItemKey = item => securityKind + ":" + item.id;
   // 预览用属性：楼层固定为当前编辑楼层，相机取该楼层已保存的视角，
   // 这样编辑器里的取景与展示页一致，拖出来的位置才有可比性。
@@ -283,6 +453,144 @@ export async function openSecurityEditor({
     fieldLabelElement.append(createElement("span", "", fieldLabel), inputElement);
     currentContainerElement.append(fieldLabelElement);
   }
+  // 布尔开关行（存在感应外观的「点击人物聚焦」）：与 presence-editor.js 的开关同构 ——
+  // label 内放「文字 + checkbox」，改动即写回草稿并标脏。
+  function createToggleField(fieldLabel, currentValue, onValueCommit) {
+    const toggleInputElement = createElement("input");
+    toggleInputElement.type = "checkbox";
+    toggleInputElement.checked = currentValue === true;
+    toggleInputElement.setAttribute("aria-label", fieldLabel);
+    toggleInputElement.addEventListener("change", () => {
+      onValueCommit(toggleInputElement.checked);
+      markPropertiesDirty();
+    });
+    const toggleFieldElement = createElement("label", "i3d-setting-toggle");
+    toggleFieldElement.append(createElement("span", "", fieldLabel), toggleInputElement);
+    currentContainerElement.append(toggleFieldElement);
+    return toggleInputElement;
+  }
+  /**
+   * 打开「批量设置」弹窗：把当前项的外观字段套用到同楼层的其他同类项。
+   * 字段描述表按安防类别取（摄像头 / 人体传感器 / 门锁各一组）；目标集合 = 当前楼层、同集合里的
+   * 其他项，只覆盖勾选的字段 —— 实体 / 模型 / 名称 / 路线 / 坐标（门锁另加视角 focusCamera）
+   * 一律保留（batch-apply 只写描述表里列出的 key）。门锁的动作类字段另带 compatible 谓词，
+   * 仅在目标门与源门「门型逐字相等」时写入（doorTypeOf(target) === doorTypeOf(source)；按目标判定）。
+   */
+  function openBatchApplyDialog(sourceItem) {
+    if (isDisposed || !isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen) {
+      return;
+    }
+    // 源快照：把「高度」这类未显式落库的字段先按各自面板的默认值补齐，
+    // 批量弹窗展示的当前值才与面板所见一致（摄像头 0.15 米；门锁 = 门高的一半）。
+    const sourceModelEntry = getFloorModelList().find(
+      modelMatch => getCandidateModelId(modelMatch) === sourceItem.modelId
+    );
+    const sourceDefaultHeight =
+      securityKind === "lock"
+        ? (sourceModelEntry?.height ?? 2.2) * 0.5
+        : securityKind === "camera"
+          ? (sourceModelEntry?.height ?? 0.15)
+          : 1.1;
+    const batchSource = {
+      ...sourceItem,
+      height: sourceItem.height ?? sourceDefaultHeight
+    };
+    let batchFields;
+    if (securityKind === "lock") {
+      // 门锁：外观 + 高度无条件复制；动作类字段按「兼容门型」出现并过滤。
+      // 门型逐字读取（读不到门模型时按平开门 "solid" 处理，与门锁面板同一缺省）。
+      const doorTypeOf = candidateItem =>
+        findDoorModelForItem(candidateItem)?.doorType || "solid";
+      const sourceDoorType = doorTypeOf(sourceItem);
+      // 字段是否出现由源门型决定（逐条硬条件）：
+      //   平开门 solid / entry / glass → 开门角度 + 开门方向 + 铰链方向
+      //   双开门 double               → 开门角度 + 开门方向
+      //   玻璃推拉门 sliding-glass     → 开门方向
+      //   卷帘门 roller-shutter / 仅门框 frame-only → 三个动作字段都不出现
+      const isHingeDoorType = LOCK_HINGE_DOOR_TYPES.includes(sourceDoorType);
+      const isDoubleDoorType = sourceDoorType === "double";
+      const isSlidingDoorType = sourceDoorType === "sliding-glass";
+      // compatible 谓词：目标门与源门门型逐字相等才允许写入动作类字段（跨门型没有对应参数语义）。
+      const sameDoorType = candidateItem => doorTypeOf(candidateItem) === sourceDoorType;
+      batchFields = LOCK_BATCH_APPEARANCE_FIELDS.map(fieldEntry => ({ ...fieldEntry }));
+      // 动画时长与门型无关，属于通用动作项。
+      batchFields.push({ key: "duration", label: "动画时长", unit: " 秒", optional: true });
+      if (isHingeDoorType || isDoubleDoorType) {
+        batchFields.push({
+          key: "openAngle",
+          label: "开门角度",
+          optional: true,
+          compatible: sameDoorType
+        });
+      }
+      if (isHingeDoorType || isDoubleDoorType || isSlidingDoorType) {
+        batchFields.push({
+          key: "openDirection",
+          label: "开门方向",
+          optional: true,
+          compatible: sameDoorType
+        });
+      }
+      if (isHingeDoorType) {
+        batchFields.push({
+          key: "hinge",
+          label: "铰链方向",
+          optional: true,
+          compatible: sameDoorType
+        });
+      }
+      batchFields.push({
+        key: "height",
+        label: "高度",
+        unit: " 米",
+        optional: true,
+        format: heightValue => Number(heightValue).toFixed(1)
+      });
+    } else if (securityKind === "camera") {
+      batchFields = CAMERA_BATCH_FIELDS.map(fieldEntry => ({ ...fieldEntry }));
+      // 摄像头额外提供「高度」：可选字段，展示成一位小数（米）。
+      batchFields.push({
+        key: "height",
+        label: "高度",
+        unit: " 米",
+        optional: true,
+        format: heightValue => Number(heightValue).toFixed(1)
+      });
+    } else {
+      batchFields = PRESENCE_BATCH_FIELDS.map(fieldEntry => ({ ...fieldEntry }));
+    }
+    batchDialogHandle = openBatchApply({
+      title: "应用" + getKindLabel() + "设置",
+      source: batchSource,
+      fields: batchFields,
+      targets: getItemList().filter(
+        candidateItem => candidateItem !== sourceItem && candidateItem.floorId === selectedFloorId
+      ),
+      onClose: () => {
+        batchDialogHandle = null;
+      },
+      onApply: async (selectedTargetItems, selectedFieldDefs) => {
+        await requestInteraction3dAccess();
+        if (isDisposed || !isAccessAllowed) {
+          throw new Error("配置已关闭或授权不可用。");
+        }
+        for (const targetItem of selectedTargetItems) {
+          // 「兼容门型」必须在**目标**上判定：batch-apply.js 的 copyBatchFields 本身已按目标求值
+          // compatible（`field.compatible(target)`），这里再按目标筛一遍是幂等的（无 compatible 的
+          // 摄像头 / 人体传感器字段表筛完仍是原表，行为不变），只为把「逐目标过滤」的语义写在明面上。
+          const applicableFields = selectedFieldDefs.filter(
+            fieldEntry => !fieldEntry.compatible || fieldEntry.compatible(targetItem)
+          );
+          copyBatchFields(targetItem, batchSource, applicableFields);
+        }
+        markPropertiesDirty();
+        renderPanel();
+        setSaveResultMessage(
+          "已应用到 " + selectedTargetItems.length + " 个目标，请保存配置。"
+        );
+      }
+    });
+  }
   const saveButtonElement = createButton("保存配置", async () => {
     if (isSaving || !isDirty || !isAccessAllowed || isCameraEditing || isPresenceEditorOpen) {
       if (!isAccessAllowed && !isDisposed) {
@@ -350,12 +658,15 @@ export async function openSecurityEditor({
       isDisposed = true;
       closeActivePicker();
       presenceEditorHandle?.close();
+      batchDialogHandle?.remove();
+      batchDialogHandle = null;
       editorRuntime?.();
       previewResizeObserver.disconnect();
       unsubscribeAccessChange();
       editorDialogElement.close();
       editorDialogElement.remove();
       styleSheetLinkElement.remove();
+      securityStyleLinkElement.remove();
       document.dispatchEvent(new Event("hb-i3d-preview-scope"));
       previouslyFocusedElement?.focus?.();
     }
@@ -394,6 +705,8 @@ export async function openSecurityEditor({
         isCameraEditing = false;
         closeActivePicker();
         presenceEditorHandle?.close();
+        batchDialogHandle?.remove();
+        batchDialogHandle = null;
         editorRuntime?.();
         editorRuntime = null;
         setSaveResultMessage(accessState.message || "3D 使用权限已失效。", {
@@ -544,6 +857,448 @@ export async function openSecurityEditor({
     hostElement.append(detailsElement);
     return disclosureBodyElement;
   }
+  // ---------------------------------------------------------------------------
+  // 门锁编辑：实体槽位、门磁来源、门扇动作与标签。字段口径全部来自 lock-state.js / lock.py，
+  // 本段只负责把它们摆成控件，不新增语义。
+  // ---------------------------------------------------------------------------
+
+  // 从运行时状态表里取一条状态：states 允许 Map（运行时下发）或普通对象（编辑器直接注入）。
+  const readLockStateEntry = entityId =>
+    entityId ? (states instanceof Map ? states.get(entityId) : states?.[entityId]) : null;
+  // 目录条目自带 device_class 时优先用它，没有就看实时状态的 attributes ——
+  // 与 lockEntityRole 读取这三个字段的顺序保持一致。
+  const lockEntityDeviceClass = entity =>
+    entity?.deviceClass ||
+    entity?.device_class ||
+    entity?.attributes?.device_class ||
+    readLockStateEntry(entity?.entityId)?.attributes?.device_class ||
+    "";
+  // 与 lockEntityRole 相同的「不可用」判定：禁用 / 缺失的实体不进候选。
+  const isLockEntityDisabled = entity =>
+    entity?.disabledBy != null ||
+    entity?.disabled_by != null ||
+    entity?.enabled === false ||
+    ["missing", "disabled"].includes(entity?.status);
+  // 某个槽位的候选实体：device_class 已知时交给 lockEntityRole（唯一权威口径）；
+  // 未知时退回域白名单，至少不把完全无关的实体塞进下拉。
+  const lockFieldCandidates = field =>
+    entities.filter(entity => {
+      if (isLockEntityDisabled(entity)) {
+        return false;
+      }
+      return lockEntityDeviceClass(entity)
+        ? lockEntityRole(entity, field)
+        : (LOCK_FIELD_DOMAINS[field] || []).includes(String(entity.entityId || "").split(".")[0]);
+    });
+  // 把实体清单补成 lockEntityRole 能吃的形状，供「自动识别」一键回填五个槽位。
+  const lockCandidateEntities = () =>
+    entities.map(entity => ({ ...entity, deviceClass: lockEntityDeviceClass(entity) }));
+  // 实体下拉：候选 + 当前绑定（当前值已失效时也要能看见，否则用户以为配置丢了）。
+  function createLockEntitySelect(labelText, field, item) {
+    const optionEntries = lockFieldCandidates(field).map(entity => [
+      entity.entityId,
+      entity.name || entity.entityId
+    ]);
+    const currentValue = item[field] || "";
+    if (currentValue && !optionEntries.some(([optionEntityId]) => optionEntityId === currentValue)) {
+      optionEntries.unshift([currentValue, currentValue + "（当前绑定）"]);
+    }
+    const entitySelectElement = createSelectField(
+      labelText,
+      [["", "未绑定"], ...optionEntries],
+      currentValue,
+      nextEntityId => {
+        if (nextEntityId) {
+          item[field] = nextEntityId;
+        } else {
+          delete item[field];
+        }
+        markPropertiesDirty();
+        renderPanel();
+      }
+    );
+    // 门锁槽位下拉在窄栏里要占满一整行（标签 + 长实体名），单独打个类给 CSS 定位。
+    entitySelectElement.parentElement?.classList.add("i3d-lock-entity-picker");
+  }
+  // 纯文本字段（事件属性 / 开合读数）：空值即删除，后端把缺省按空串处理。
+  function createLockTextField(labelText, field, item, placeholderText) {
+    const inputElement = createElement("input");
+    inputElement.value = item[field] ?? "";
+    inputElement.maxLength = 128;
+    inputElement.placeholder = placeholderText || "";
+    inputElement.setAttribute("aria-label", labelText);
+    inputElement.addEventListener("input", () => {
+      if (inputElement.value.trim()) {
+        item[field] = inputElement.value.trim().slice(0, 128);
+      } else {
+        delete item[field];
+      }
+      markPropertiesDirty();
+    });
+    const fieldElement = createElement("label", "i3d-lock-text-field");
+    fieldElement.append(createElement("span", "", labelText), inputElement);
+    currentContainerElement.append(fieldElement);
+  }
+  // 切换门磁来源时清掉不属于该来源的字段：lock.py 对事件实体的域、双事件的两实体不同、
+  // 单事件的两读数不同都有复核，残留字段会直接导致保存被拒。
+  function applyLockDoorSource(item, nextSource) {
+    const clearFields = fieldNames => fieldNames.forEach(fieldName => delete item[fieldName]);
+    if (!nextSource) {
+      clearFields([
+        "doorSource",
+        "doorEntityId",
+        "doorEventEntityId",
+        "doorEventAttribute",
+        "doorOpenValue",
+        "doorCloseValue",
+        "doorOpenEntityId",
+        "doorCloseEntityId"
+      ]);
+      return;
+    }
+    item.doorSource = nextSource;
+    if (nextSource === "sensor") {
+      clearFields([
+        "doorEventEntityId",
+        "doorEventAttribute",
+        "doorOpenValue",
+        "doorCloseValue",
+        "doorOpenEntityId",
+        "doorCloseEntityId"
+      ]);
+    } else if (nextSource === "single-event") {
+      clearFields(["doorEntityId", "doorOpenEntityId", "doorCloseEntityId"]);
+      if (!item.doorEventAttribute) {
+        item.doorEventAttribute = "event_type";
+      }
+    } else if (nextSource === "dual-event") {
+      clearFields([
+        "doorEntityId",
+        "doorEventEntityId",
+        "doorEventAttribute",
+        "doorOpenValue",
+        "doorCloseValue"
+      ]);
+    }
+  }
+  // 实时状态行：与舞台动画共用 lockState（同一个 doorOpen 口径），不在这里重算文案。
+  function renderLockStatus(item) {
+    const viewState = lockState(item, states);
+    const statusParts = ["门锁状态：" + viewState.label + " · " + viewState.doorLabel];
+    if (item.batteryEntityId) {
+      statusParts.push("电量 " + viewState.battery);
+    }
+    if (item.lowBatteryEntityId) {
+      statusParts.push(viewState.lowBattery ? "电量低" : "电量正常");
+    }
+    if (item.tamperEntityId && viewState.tamper) {
+      statusParts.push("被拆动");
+    }
+    currentContainerElement.append(
+      createElement("p", "i3d-note i3d-lock-editor-status", statusParts.join(" · "))
+    );
+  }
+  // 门锁的面板主体：实体 → 门扇动作 → 标签外观 / 位置。门型只从选中的门模型读，
+  // 不写回绑定（lock.py 会把绑定里的 doorType 丢弃）。
+  function renderLockBindingPanel(item) {
+    const doorModel = findDoorModelForItem(item);
+    const doorType = doorModel?.doorType || "solid";
+    renderLockStatus(item);
+    createLockEntitySelect("选择门锁实体", "entityId", item);
+    currentContainerElement.append(
+      createElement("p", "i3d-note", "锁实体须为 lock.* 域；门磁、电量、防拆都可选。")
+    );
+    // 自动识别：identifyLockEntities 只在「每个槽位恰好命中一个」时回填，命中多个宁可留空，
+    // 避免把实体错绑到不确定的槽位。
+    currentContainerElement.append(
+      createButton("自动识别实体", () => {
+        const detectedRoles = identifyLockEntities(lockCandidateEntities());
+        let filledCount = 0;
+        for (const entityField of LOCK_ENTITY_FIELDS) {
+          if (detectedRoles[entityField]) {
+            item[entityField] = detectedRoles[entityField];
+            filledCount += 1;
+          }
+        }
+        if (!filledCount) {
+          errorMessageElement.textContent =
+            "未识别到可用实体，请确认设备已上报 device_class，或手动选择。";
+          return;
+        }
+        markPropertiesDirty();
+        renderPanel();
+      })
+    );
+    // 门磁来源：选项就是 LOCK_DOOR_SOURCE_OPTIONS（后端 lock.py 的合法取值）；
+    // 「不绑定门磁」= 删除 doorSource，后端按缺省 sensor 处理，但门磁实体为空时门开合就是未知。
+    createSelectField(
+      "门磁来源",
+      [["", "不绑定门磁"], ...LOCK_DOOR_SOURCE_OPTIONS],
+      item.doorSource || "",
+      nextDoorSource => {
+        applyLockDoorSource(item, nextDoorSource);
+        markPropertiesDirty();
+        renderPanel();
+      }
+    );
+    const doorSource = item.doorSource || "";
+    if (doorSource === "sensor") {
+      createLockEntitySelect("门磁实体", "doorEntityId", item);
+    } else if (doorSource === "single-event") {
+      createLockEntitySelect("事件实体", "doorEventEntityId", item);
+      createLockTextField("事件属性", "doorEventAttribute", item, "event_type");
+      createLockTextField("开门读数", "doorOpenValue", item, "open");
+      createLockTextField("关门读数", "doorCloseValue", item, "closed");
+      currentContainerElement.append(
+        createElement("p", "i3d-note", "单事件需同时填写开门 / 关门读数且两者不同，否则无法保存。")
+      );
+    } else if (doorSource === "dual-event") {
+      createLockEntitySelect("开门事件实体", "doorOpenEntityId", item);
+      createLockEntitySelect("关门事件实体", "doorCloseEntityId", item);
+      currentContainerElement.append(
+        createElement("p", "i3d-note", "双事件需绑定两个不同的事件实体，否则无法保存。")
+      );
+    }
+    // 辅助实体收进折叠块：不绑也能用，绑了面板更完整。
+    const auxiliaryBodyElement = createDisclosure(
+      "辅助实体（电量 / 防拆）",
+      "lock-aux:" + item.id
+    );
+    const previousContainerElement = currentContainerElement;
+    currentContainerElement = auxiliaryBodyElement;
+    createLockEntitySelect("电量实体", "batteryEntityId", item);
+    createLockEntitySelect("低电量实体", "lowBatteryEntityId", item);
+    createLockEntitySelect("防拆实体", "tamperEntityId", item);
+    currentContainerElement = previousContainerElement;
+    // 门扇动作：按门型选 rig，与 lock-motion.js 的三类骨架一一对应。
+    createSectionHeading("门扇动作");
+    const motionGridElement = createElement("div", "i3d-security-grid i3d-lock-motion-grid");
+    currentContainerElement.append(motionGridElement);
+    currentContainerElement = motionGridElement;
+    const isHingeDoor = LOCK_HINGE_DOOR_TYPES.includes(doorType);
+    const isDoubleDoor = doorType === "double";
+    const isSlidingDoor = doorType === "sliding-glass";
+    if (isHingeDoor) {
+      createSelectField(
+        "铰链方向",
+        [
+          ["left", "左开"],
+          ["right", "右开"]
+        ],
+        // 没写过 hinge 时显示门模型的设置（舞台就是按「绑定值 → 门模型 → 左开」三级兜底的），
+        // 用户不动它就不落进绑定，门模型改了也跟着改。
+        item.hinge || doorModel?.hinge || "left",
+        nextHinge => {
+          item.hinge = nextHinge;
+          markPropertiesDirty();
+        }
+      );
+    }
+    if (isHingeDoor || isDoubleDoor) {
+      createSelectField(
+        isDoubleDoor ? "双扇开启方向" : "开门方向",
+        [
+          ["1", "内开"],
+          ["-1", "外开"]
+        ],
+        String(item.openDirection ?? 1),
+        nextDirection => {
+          item.openDirection = Number(nextDirection);
+          markPropertiesDirty();
+        }
+      );
+    }
+    if (isSlidingDoor) {
+      createSelectField(
+        "滑动方向",
+        [
+          ["1", "向右收起"],
+          ["-1", "向左收起"]
+        ],
+        String(item.openDirection ?? 1),
+        nextDirection => {
+          item.openDirection = Number(nextDirection);
+          markPropertiesDirty();
+        }
+      );
+    }
+    if (isHingeDoor || isDoubleDoor) {
+      createNumberField(
+        "开门角度",
+        item.openAngle ?? 80,
+        10,
+        110,
+        nextAngle => {
+          item.openAngle = nextAngle;
+        },
+        1
+      );
+    }
+    if (doorType === "roller-shutter") {
+      currentContainerElement.append(
+        createElement("p", "i3d-note", "卷帘门按上下卷收，不使用左右铰链或内外开方向。")
+      );
+    }
+    createNumberField(
+      "动画时长（秒）",
+      item.duration ?? 0.7,
+      0.2,
+      3,
+      nextDuration => {
+        item.duration = nextDuration;
+      },
+      0.1
+    );
+    // 标签外观：图标 / 标签显示为一行，尺寸另起。
+    const appearanceSectionElement = createSectionHeading("标签外观");
+    const appearanceGridElement = createElement(
+      "div",
+      "i3d-security-grid i3d-lock-appearance-grid"
+    );
+    appearanceSectionElement.append(appearanceGridElement);
+    const appearanceRowElement = createElement("div", "i3d-lock-appearance-row");
+    appearanceGridElement.append(appearanceRowElement);
+    currentContainerElement = appearanceRowElement;
+    const iconPickerButtonElement = createButton(item.icon || "mdi:door-closed", async () => {
+      const iconPickerGeneration = ++pickerGeneration;
+      activePickerHandle?.close();
+      try {
+        const iconPickerHandle = await pickers.icon({
+          trigger: iconPickerButtonElement,
+          current: item.icon || "mdi:door-closed",
+          deviceKind: "lock",
+          onSelect(pickedIconId) {
+            if (
+              !isDisposed &&
+              !!isAccessAllowed &&
+              iconPickerGeneration === pickerGeneration &&
+              findSelectedItem() === item
+            ) {
+              item.icon = pickedIconId || "mdi:door-closed";
+              markPropertiesDirty();
+              renderPanel();
+            }
+          }
+        });
+        if (isDisposed || iconPickerGeneration !== pickerGeneration) {
+          iconPickerHandle?.close();
+        } else {
+          activePickerHandle = iconPickerHandle;
+        }
+      } catch (iconPickerError) {
+        showError(iconPickerError);
+      }
+    });
+    iconPickerButtonElement.className = "i3d-picker-button i3d-icon-picker-button";
+    const iconMaskElement = createElement("i");
+    // 遮罩地址与 mdi 版本号只此一份（utils/icon-url.js）。
+    applyMdiMask(iconMaskElement, item.icon || "mdi:door-closed");
+    iconPickerButtonElement.textContent = "";
+    iconPickerButtonElement.append(
+      iconMaskElement,
+      createElement("span", "", item.icon || "mdi:door-closed")
+    );
+    iconPickerButtonElement.setAttribute("aria-label", "门图标");
+    const iconFieldElement = createElement("label");
+    iconFieldElement.append(createElement("span", "", "图标"), iconPickerButtonElement);
+    currentContainerElement.append(iconFieldElement);
+    const labelModeFieldElement = createSelectField(
+      "标签显示",
+      [
+        ["hidden", "隐藏标签"],
+        ["always", "常驻显示"],
+        ["open", "打开时显示"]
+      ],
+      item.labelMode || "always",
+      nextLabelMode => {
+        item.labelMode = nextLabelMode;
+        delete item.labelHidden;
+        markPropertiesDirty();
+        renderPanel();
+      }
+    ).parentElement;
+    labelModeFieldElement?.classList.add("i3d-lock-label-toggle");
+    currentContainerElement = appearanceGridElement;
+    createNumberField(
+      "卡片大小（px）",
+      item.size ?? 44,
+      20,
+      500,
+      nextSize => {
+        item.size = nextSize;
+      },
+      1
+    );
+    createNumberField(
+      "文字大小（px）",
+      item.fontSize ?? 12,
+      8,
+      100,
+      nextFontSize => {
+        item.fontSize = nextFontSize;
+      },
+      1
+    );
+    // 标签位置：缺省跟随门模型，数值一旦写入就覆盖模型坐标。
+    const labelPositionSectionElement = createSectionHeading("标签位置");
+    const labelPositionGridElement = createElement("div", "i3d-coordinate-grid");
+    labelPositionSectionElement.append(labelPositionGridElement);
+    currentContainerElement = labelPositionGridElement;
+    for (const axisName of ["x", "y"]) {
+      createNumberField(
+        "位置 " + axisName.toUpperCase(),
+        item[axisName] ?? doorModel?.[axisName] ?? 0,
+        -1000000,
+        1000000,
+        nextAxisValue => {
+          item[axisName] = nextAxisValue;
+        }
+      );
+    }
+    createNumberField(
+      "离地高度（米）",
+      item.height ?? (doorModel?.height ?? 2.2) * 0.5,
+      -1000,
+      1000,
+      nextHeight => {
+        item.height = nextHeight;
+      }
+    );
+    currentContainerElement = labelPositionSectionElement;
+    const resetToModelButtonElement = createButton("恢复跟随模型", () => {
+      delete item.x;
+      delete item.y;
+      delete item.height;
+      markPropertiesDirty();
+      renderPanel();
+    });
+    resetToModelButtonElement.disabled = !["x", "y", "height"].some(axisKey =>
+      Number.isFinite(item[axisKey])
+    );
+    resetToModelButtonElement.className = "i3d-focus-reset";
+    currentContainerElement.append(resetToModelButtonElement);
+    currentContainerElement.append(
+      createElement("p", "i3d-note", "仅调整门锁标记，不移动门模型。也可在预览中拖动标记。")
+    );
+    // 批量设置（门锁）：把外观 / 高度 / 同门型的动作设置套用到同楼层的其他门；
+    // 没有其他门时禁用，避免点开一个必然为空的弹窗。
+    const doorBatchSectionElement = createSectionHeading("批量设置");
+    const doorBatchApplyButtonElement = createButton("一键应用到其他门", () =>
+      openBatchApplyDialog(item)
+    );
+    doorBatchApplyButtonElement.className = "i3d-batch-apply-button";
+    doorBatchApplyButtonElement.disabled = !getItemList().filter(
+      otherItem => otherItem !== item && otherItem.floorId === selectedFloorId
+    ).length;
+    doorBatchSectionElement.append(
+      doorBatchApplyButtonElement,
+      createElement(
+        "p",
+        "i3d-note",
+        "选择外观、高度或兼容门型的动作设置；保留模型、实体、坐标和视角。"
+      )
+    );
+  }
   // 面板总渲染：整块替换子节点。选中项、折叠状态等界面状态都存在闭包变量里，
   // 所以这里不能把状态寄存在 DOM 节点上，否则每次重绘都会丢。
   function renderPanel() {
@@ -569,7 +1324,8 @@ export async function openSecurityEditor({
       "安防类别",
       [
         ["camera", "摄像头"],
-        ["presence", "人体传感器"]
+        ["presence", "人体传感器"],
+        ["lock", "门锁"]
       ],
       securityKind,
       nextSecurityKind => {
@@ -612,25 +1368,29 @@ export async function openSecurityEditor({
       modelProbe =>
         !getItemList().some(
           boundItemProbe =>
-            boundItemProbe.floorId === selectedFloorId && boundItemProbe.modelId === modelProbe.id
+            boundItemProbe.floorId === selectedFloorId &&
+            boundItemProbe.modelId === getCandidateModelId(modelProbe)
         )
     );
     const addModelSelectElement = createSelectField(
       "待添加" + getKindLabel() + "模型",
-      addableModelList.map(modelOption => [modelOption.id, modelOption.name]),
-      addableModelList[0]?.id || "",
+      addableModelList.map(modelOption => [
+        getCandidateModelId(modelOption),
+        modelOption.name
+      ]),
+      getCandidateModelId(addableModelList[0]),
       () => {}
     );
     const addItemButtonElement = createButton("添加" + getKindLabel(), () => {
       const addableModel = getFloorModelList().find(
-        candidateModel => candidateModel.id === addModelSelectElement.value
+        candidateModel => getCandidateModelId(candidateModel) === addModelSelectElement.value
       );
       if (
         !addableModel ||
         getItemList().some(
           existingItemProbe =>
             existingItemProbe.floorId === selectedFloorId &&
-            existingItemProbe.modelId === addableModel.id
+            existingItemProbe.modelId === getCandidateModelId(addableModel)
         )
       ) {
         return;
@@ -638,7 +1398,7 @@ export async function openSecurityEditor({
       const newItem = {
         id: randomUuid(),
         floorId: selectedFloorId,
-        modelId: addableModel.id,
+        modelId: getCandidateModelId(addableModel),
         entityId: "",
         label: addableModel.name || getKindLabel(),
         ...(securityKind === "camera"
@@ -647,17 +1407,33 @@ export async function openSecurityEditor({
               visible: true,
               icon: "mdi:cctv"
             }
-          : {
-              route: [],
-              routeClosed: false,
-              size: 1,
-              speed: 0.45,
-              displayDuration: 0,
-              character: "traveler",
-              color: "cyan",
-              clickToFocus: false,
-              hitPadding: 8
-            })
+          : securityKind === "lock"
+            ? {
+                // 门锁默认给一套「平开门」的合法动作参数（都在 lock.py 的区间内），
+                // 用户随后可按实际门型调整；门型本身不写进绑定。
+                doorSource: "sensor",
+                // 不写 hinge：舞台取门轴是「绑定值 → 门模型自带 → 缺省左开」三级兜底
+                // （binding-collectors.js），门模型的 hinge 才是真正的来源。写死一个值
+                // 反而会把户型图上的设置盖掉，用户只在面板里改过才该落进绑定。
+                openDirection: 1,
+                openAngle: 80,
+                duration: 0.7,
+                size: 44,
+                fontSize: 12,
+                labelMode: "always",
+                icon: "mdi:door-closed"
+              }
+            : {
+                route: [],
+                routeClosed: false,
+                size: 1,
+                speed: 0.45,
+                displayDuration: 0,
+                character: "traveler",
+                color: "cyan",
+                clickToFocus: false,
+                hitPadding: 8
+              })
       };
       getItemList().push(newItem);
       selectedItemId = newItem.id;
@@ -672,7 +1448,9 @@ export async function openSecurityEditor({
         createElement(
           "p",
           "i3d-note",
-          "本层没有" + getKindLabel() + "模型，请先在 3D 户型图绘制中增加模型。"
+          securityKind === "lock"
+            ? "本层没有可用的门模型，请先在 3D 户型图绘制中画门，或放置非「门框」的门模型。"
+            : "本层没有" + getKindLabel() + "模型，请先在 3D 户型图绘制中增加模型。"
         )
       );
     }
@@ -700,17 +1478,27 @@ export async function openSecurityEditor({
             otherBoundItem =>
               otherBoundItem !== selectedItem &&
               otherBoundItem.floorId === selectedFloorId &&
-              otherBoundItem.modelId === modelCandidate.id
+              otherBoundItem.modelId === getCandidateModelId(modelCandidate)
           )
       );
       const modelOptionList = modelChoices.map(availableModel => [
-        availableModel.id,
+        getCandidateModelId(availableModel),
         availableModel.name
       ]);
-      if (!modelChoices.some(matchedModel => matchedModel.id === selectedItem.modelId)) {
+      if (
+        !modelChoices.some(
+          matchedModel => getCandidateModelId(matchedModel) === selectedItem.modelId
+        )
+      ) {
         modelOptionList.unshift([
           selectedItem.modelId || "",
-          selectedItem.modelId ? "原模型已移除，请重新选择" : "未关联模型（保留原人在路线）"
+          selectedItem.modelId
+            ? securityKind === "lock"
+              ? "门模型已移除，请重新配置。"
+              : "原模型已移除，请重新选择"
+            : securityKind === "lock"
+              ? "未关联门模型"
+              : "未关联模型（保留原人在路线）"
         ]);
       }
       createSelectField(
@@ -723,7 +1511,8 @@ export async function openSecurityEditor({
           } else {
             delete selectedItem.modelId;
           }
-          if (securityKind === "camera") {
+          // 换模型后原聚焦视角多半已失效：摄像头与门锁都一并清掉，等用户重新设置。
+          if (securityKind === "camera" || securityKind === "lock") {
             delete selectedItem.focusCamera;
           }
           markPropertiesDirty();
@@ -999,8 +1788,15 @@ export async function openSecurityEditor({
         currentContainerElement.append(
           createElement("p", "i3d-note", "配置时点击标签选择传感器；正式页面仅展示模型和感应效果。")
         );
-      } else {
+      } else if (securityKind !== "lock") {
+        // 门锁不用单实体选择器：它有一整套槽位（锁 / 门磁 / 电量 / 低电量 / 防拆）与三种
+        // 门磁来源，且本项目的实体选择器不认 lock 域。门锁面板在下面单独渲染。
         currentContainerElement.append(entityPickerButtonElement);
+      }
+      if (securityKind === "lock") {
+        // 门锁没有 pickers 的 lock 分支可用：槽位候选由域过滤 + lockEntityRole 构造，
+        // 因此这里调自成一体的门锁面板（实体来源 → 门扇动作 → 标签）。
+        renderLockBindingPanel(selectedItem);
       }
       if (securityKind === "camera") {
         currentContainerElement.append(
@@ -1241,9 +2037,12 @@ export async function openSecurityEditor({
       }
       if (securityKind === "presence") {
         if (selectedItem.modelId) {
-          const waveSectionElement = createSectionHeading("感应光圈");
+          // 存在感应外观：wave* 三项控制舞台地面感应光圈（presence-scene.js 的
+          // createPresenceWaves 直接读 waveEnabled / waveScale / waveOpacity），其余五项与
+          // presence-editor.js 共用 character / color / size / speed / clickToFocus / hitPadding。
+          const waveSectionElement = createSectionHeading("存在感应外观");
           createSelectField(
-            "显示光圈",
+            "显示感应光圈",
             [
               ["on", "开启"],
               ["off", "关闭"]
@@ -1259,25 +2058,100 @@ export async function openSecurityEditor({
           waveSectionElement.append(waveGridElement);
           currentContainerElement = waveGridElement;
           createNumberField(
-            "光圈大小（%）",
-            Math.round((selectedItem.waveScale ?? 1) * 100),
-            25,
-            300,
-            nextWaveScalePercent => {
-              selectedItem.waveScale = nextWaveScalePercent / 100;
+            "光圈缩放",
+            selectedItem.waveScale ?? 1,
+            0.25,
+            3,
+            nextWaveScale => {
+              selectedItem.waveScale = nextWaveScale;
             },
-            1
+            0.05,
+            true
           );
           createNumberField(
-            "光圈透明度（%）",
-            100 - (selectedItem.waveOpacity ?? 68),
+            "光圈不透明度（%）",
+            selectedItem.waveOpacity ?? 68,
             0,
             100,
-            nextWaveOpacityPercent => {
-              selectedItem.waveOpacity = 100 - nextWaveOpacityPercent;
+            nextWaveOpacity => {
+              selectedItem.waveOpacity = nextWaveOpacity;
             },
-            1
+            1,
+            true
           );
+          createSelectField(
+            "人物方案",
+            Object.entries(DESIGNS).map(([designKey, design]) => [designKey, design.name]),
+            selectedItem.character || "traveler",
+            nextCharacter => {
+              selectedItem.character = nextCharacter;
+              markPropertiesDirty();
+              renderPanel();
+            }
+          );
+          createSelectField(
+            "人物颜色",
+            [
+              ["cyan", "青色"],
+              ["orange", "橙色"]
+            ],
+            selectedItem.color || "cyan",
+            nextColor => {
+              selectedItem.color = nextColor;
+              markPropertiesDirty();
+              renderPanel();
+            }
+          );
+          createNumberField(
+            "人物缩放",
+            selectedItem.size ?? 1,
+            0.25,
+            3,
+            nextSize => {
+              selectedItem.size = nextSize;
+            },
+            0.05,
+            true
+          );
+          // 行走速度 / 点击聚焦 / 触控范围扩展归入「更多设置」折叠块：这三项属于可选参数，
+          // 与批量弹窗里的 optional 字段一一对应。
+          const advancedSettingsBodyElement = createDisclosure(
+            "更多设置",
+            "presence-extra:" + selectedItem.id,
+            waveSectionElement
+          );
+          const appearanceContainerElement = currentContainerElement;
+          currentContainerElement = advancedSettingsBodyElement;
+          createNumberField(
+            "行走速度（米/秒）",
+            selectedItem.speed ?? 0.45,
+            0.1,
+            2,
+            nextSpeed => {
+              selectedItem.speed = nextSpeed;
+            },
+            0.05,
+            true
+          );
+          createToggleField(
+            "点击人物聚焦",
+            selectedItem.clickToFocus === true,
+            nextClickToFocus => {
+              selectedItem.clickToFocus = nextClickToFocus;
+            }
+          );
+          createNumberField(
+            "触控范围扩展（px）",
+            selectedItem.hitPadding ?? 8,
+            0,
+            80,
+            nextHitPadding => {
+              selectedItem.hitPadding = nextHitPadding;
+            },
+            1,
+            true
+          );
+          currentContainerElement = appearanceContainerElement;
           if (selectedItem.waveEnabled === false) {
             for (const waveInputElement of waveGridElement.querySelectorAll("input")) {
               waveInputElement.disabled = true;
@@ -1291,6 +2165,28 @@ export async function openSecurityEditor({
             "p",
             "i3d-note",
             "按需设置人物、显示时长与行走路线。设备绑定在上方统一管理。"
+          )
+        );
+      }
+      // 批量设置：与参考实现同一入口 —— 摄像头 / 人体传感器把当前项的外观字段套用到同楼层的
+      // 其他同类项。门锁不走这里（其绑定字段与门模型强相关，无法脱离门型复制），面板保持原样。
+      if (securityKind !== "lock") {
+        const batchSectionElement = createSectionHeading("批量设置");
+        const batchTargetItemCount = getItemList().filter(
+          candidateItem =>
+            candidateItem !== selectedItem && candidateItem.floorId === selectedFloorId
+        ).length;
+        const batchApplyButtonElement = createButton("一键应用到其他" + getKindLabel(), () =>
+          openBatchApplyDialog(selectedItem)
+        );
+        batchApplyButtonElement.className = "i3d-batch-apply-button";
+        batchApplyButtonElement.disabled = !batchTargetItemCount;
+        batchSectionElement.append(batchApplyButtonElement);
+        batchSectionElement.append(
+          createElement(
+            "p",
+            "i3d-note",
+            "把当前" + getKindLabel() + "的外观设置套用到同楼层的其他" + getKindLabel() + "。"
           )
         );
       }
@@ -1329,7 +2225,7 @@ export async function openSecurityEditor({
     }
   }
   // 挂载安防编辑器的预览运行时：editing=true 且模块固定为 security，
-  // 因此舞台上只有摄像头与人体传感器可交互。
+  // 因此舞台上只有摄像头、人体传感器与门锁可交互（门锁标记可拖动，拖完写回绑定坐标）。
   function mountEditorRuntime() {
     if (!isDisposed && !!isAccessAllowed && !editorRuntime && !isPresenceEditorOpen) {
       editorRuntime = mountInteraction3d(stageHostElement, {
@@ -1353,17 +2249,26 @@ export async function openSecurityEditor({
         },
         onEdit(editEvent) {
           if (!isDisposed && !!isAccessAllowed) {
-            if (editEvent.action === "position" && editEvent.id?.startsWith("camera:")) {
-              const editedCameraItem = draftProperties.security.cameras.find(
-                cameraMatch => "camera:" + cameraMatch.id === editEvent.id
-              );
+            // 舞台上拖动标记写回坐标：摄像头的 "camera:<id>" 与门锁的 "lock:<id>"
+            // （与 binding-collectors.js 的 id 口径一致）都落在同一处理里。
+            if (editEvent.action === "position") {
+              const positionTargetMatch = /^(camera|lock):(.+)$/.exec(editEvent.id || "");
+              const positionTargetList =
+                positionTargetMatch?.[1] === "lock"
+                  ? draftProperties.security.locks
+                  : draftProperties.security.cameras;
+              const editedPositionItem = positionTargetMatch
+                ? positionTargetList.find(
+                    positionMatch => positionMatch.id === positionTargetMatch[2]
+                  )
+                : null;
               if (
-                editedCameraItem &&
+                editedPositionItem &&
                 Number.isFinite(editEvent.x) &&
                 Number.isFinite(editEvent.y)
               ) {
-                editedCameraItem.x = editEvent.x;
-                editedCameraItem.y = editEvent.y;
+                editedPositionItem.x = editEvent.x;
+                editedPositionItem.y = editEvent.y;
                 markPropertiesDirty();
               }
             }
@@ -1371,7 +2276,10 @@ export async function openSecurityEditor({
               isCameraEditing = false;
               renderPanel();
             }
-            if (editEvent.action === "select" && /^(camera|presence):/.test(editEvent.id || "")) {
+            if (
+              editEvent.action === "select" &&
+              /^(camera|presence|lock):/.test(editEvent.id || "")
+            ) {
               const separatorIndex = editEvent.id.indexOf(":");
               securityKind = editEvent.id.slice(0, separatorIndex);
               selectedItemId = editEvent.id.slice(separatorIndex + 1);
@@ -1384,7 +2292,7 @@ export async function openSecurityEditor({
       document.dispatchEvent(new Event("hb-i3d-preview-scope"));
     }
   }
-  document.head.append(styleSheetLinkElement);
+  document.head.append(styleSheetLinkElement, securityStyleLinkElement);
   document.body.append(editorDialogElement);
   editorDialogElement.showModal();
   renderPanel();

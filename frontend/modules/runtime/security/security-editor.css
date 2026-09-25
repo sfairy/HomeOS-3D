@@ -1,0 +1,117 @@
+/*
+ * 3D 安防配置弹窗里「门锁」面板的专属样式。
+ *
+ * 为什么单独一张表：security-editor.js 的弹窗共用一套骨架（弹窗 + 预览舞台 + 草稿），三种编辑
+ * 对象里只有门锁多了「槽位实体下拉 + 门扇动作栅格 + 标签外观栅格 + 实时状态行」这组控件。
+ * core/runtime.css 是所有交互编辑器共用的骨架、core/stage.css 是舞台样式（展示页与 3D 工作室
+ * 都会加载），把编辑器专属规则塞进这两处会外溢到别的页面 —— 所以照 presence/presence-editor.css
+ * 的先例单开一份，由 security-editor.js 打开弹窗时注入、关闭时移除。
+ *
+ * 与 presence-editor.css 的差别：那份 CSS 自己 @import runtime.css（它的 JS 不注入骨架），
+ * 本文件不重复 import —— security-editor.js 已经把 core/runtime.css 挂进 <head> 了，
+ * 再来一次只会让同一份样式表被解析两遍、且改了版本号两边容易漏同步。
+ *
+ * 主题变量来自宿主页 :root 的 --surface / --field / --line / --muted / --hos-accent-rgb
+ * （编辑页来自 app.css，3D 工作室来自 studio.css），一律写成 var(--名, 兜底色)，
+ * 保证弹窗被单独打开也不丢样式。
+ */
+
+/* ===== 实时状态行 ===== */
+
+/* 与舞台上的门锁标签同一份口径（lock-state.js 的 lockState），只是这里用文字呈现。
+   左侧竖条借用主控色，和舞台里门锁标记的高亮色系对得上。 */
+.i3d-lock-editor-status {
+  margin: 0 0 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--line, #303840);
+  border-left: 3px solid rgba(var(--hos-accent-rgb, 255, 196, 106), 0.55);
+  border-radius: 4px;
+  background: var(--field, #171d22);
+  color: var(--text, #e8ecef);
+  font-size: 11px;
+  /* 数字用等宽字形：状态在「正在上锁 / 已上锁」之间切换时，行宽不会来回抖。 */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 实体槽位 ===== */
+
+/* 槽位下拉是整行控件（标签在上、下拉在下），与面板里其余字段同一节奏。
+   实体 ID 可能很长，min-width: 0 让下拉跟着栅格列收窄，而不是把列撑破。 */
+.i3d-lock-entity-picker,
+.i3d-lock-text-field {
+  min-width: 0;
+}
+
+/* 事件属性 / 开合读数这类纯文本槽位：与下拉同宽，输入框自带省略。 */
+.i3d-lock-text-field > input {
+  min-width: 0;
+}
+
+/* ===== 门扇动作与标签外观 ===== */
+
+/* 门锁面板里的两列栅格：动作组（铰链 / 方向 / 滑动方向 / 开角 / 时长）与外观组
+   （图标 + 标签显示 / 尺寸 / 字号）共用同一套列宽与间距。都是「短标签 + 窄控件」，
+   两列比一列省一半高度；align-items: end 让标签长短不一时控件底边对齐。 */
+.i3d-security-grid,
+.i3d-lock-motion-grid,
+.i3d-lock-appearance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+}
+
+/* 卷帘门那条「不使用左右铰链或内外开方向」的说明独占一行，不占半列。 */
+.i3d-lock-motion-grid > .i3d-note {
+  grid-column: 1 / -1;
+}
+
+/* ===== 标签外观 ===== */
+
+/* 图标选择与标签显示并排：两者都是「按钮 / 下拉」型的短控件，一行放得下。
+   这一行占满外观栅格的两列，尺寸与字号再各自占一格。 */
+.i3d-lock-appearance-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+/* 标签显示的三态文案（隐藏标签 / 常驻显示 / 打开时显示）不折行，免得下拉被压成两行高。 */
+.i3d-lock-label-toggle > span {
+  white-space: nowrap;
+}
+
+/* ===== 与面板其余部分的衔接 ===== */
+
+/* 模型列表是两列栅格（标题 + 控件）；「本层没有可用的门模型」这类整句提示要横跨两列，
+   否则会被塞进窄列里折成一列一字。 */
+.i3d-editor .i3d-security-model-list > .i3d-note {
+  grid-column: 1 / -1;
+}
+
+/* ===== 存在感应外观与批量设置 ===== */
+
+/* 布尔开关行（存在感应外观的「点击人物聚焦」）：文字在左、勾选在右。
+   i3d-setting-toggle 在 presence-editor 里由面板骨架兜底，本编辑器只注入 runtime.css，
+   所以这里补一份，保证开关在窄栏里不会挤成两行。 */
+.i3d-security-settings .i3d-setting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 「更多设置」折叠块里的栅格字段与上方外观栅格同一节奏，单独占满整行。 */
+.i3d-security-disclosure-body .i3d-setting-toggle,
+.i3d-security-disclosure-body > label {
+  grid-column: 1 / -1;
+}
+
+/* 批量设置入口：与「恢复跟随模型」同宽，占满所在分区，方便一眼看到。 */
+.i3d-batch-apply-button {
+  width: 100%;
+  min-width: 0;
+}
