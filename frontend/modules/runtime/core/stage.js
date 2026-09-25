@@ -8,91 +8,91 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251801";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251851";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251801";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251851";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609251801";
+import { sceneModelKey } from "./scene-model-key.js?v=2609251851";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609251801",
+        "../../../static/bridge/popup-placement.js?v=2609251851",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609251801"));
+  : import("/static/bridge/popup-placement.js?v=2609251851"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609251801";
-import { createSceneBackground } from "./scene-background.js?v=2609251801";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609251801";
+} from "../presence/presence-scene.js?v=2609251851";
+import { createSceneBackground } from "./scene-background.js?v=2609251851";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609251851";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609251801";
+} from "../vacuum/vacuum-motion.js?v=2609251851";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609251801";
-import { televisionState } from "../television/television-state.js?v=2609251801";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609251801";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609251801";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609251801";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251801";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251801";
+} from "../vacuum/vacuum-map.js?v=2609251851";
+import { televisionState } from "../television/television-state.js?v=2609251851";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609251851";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609251851";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609251851";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251851";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251851";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609251801";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251801";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609251801";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251801";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251801";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251801";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251801";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251801";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609251801";
+} from "../cover/cover-state.js?v=2609251851";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251851";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609251851";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251851";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251851";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251851";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251851";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251851";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609251851";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609251801";
-import { startSceneSync } from "./scene-sync.js?v=2609251801";
+} from "../environment/environment-scene.js?v=2609251851";
+import { startSceneSync } from "./scene-sync.js?v=2609251851";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609251801";
+} from "../light/light-state.js?v=2609251851";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609251801";
+} from "../camera/camera-motion.js?v=2609251851";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609251801";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609251801";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251801";
-import { createStageGeometry } from "./stage/geometry.js?v=2609251801";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251801";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609251801";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251801";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251801";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251801";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251801";
-import { createInputActivity } from "./stage/input-activity.js?v=2609251801";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609251801";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251801";
+} from "./idle-rotation.js?v=2609251851";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609251851";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251851";
+import { createStageGeometry } from "./stage/geometry.js?v=2609251851";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251851";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609251851";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251851";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251851";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251851";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251851";
+import { createInputActivity } from "./stage/input-activity.js?v=2609251851";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609251851";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251851";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -1505,6 +1505,121 @@ export function mountStage(stageOptions) {
     nasPanel.root,
     televisionPanel.root
   );
+
+  /**
+   * 非灯光面板的登记表。
+   *
+   * 面板种类每加一种，以前要在 renderLightPanel 里多写一处 if、多改一次那串
+   * `root.hidden = ...` 与 class 清理，几处漏掉一处就表现为「面板再也打不开」。
+   * 现在统一按这张表派发：**匹配顺序即优先级**，先命中先接管。
+   *
+   * 顺序不是随意的，它定死了各类绑定的优先级，且必须与各面板的匹配宽度相容：
+   * 越靠后的匹配条件越宽，最后一条（空调的 `!!modelId`）是刻意写宽的 ——
+   * 它承接所有前面没人认领的「有模型」绑定，因此**新面板一律加在它前面**。
+   *
+   * 每条表项：
+   *   match(binding)        —— 这条面板是否接管当前聚焦的绑定
+   *   label                 —— 面板打开时给这一块容器设的 aria-label
+   *   hostClass             —— 打开时挂在容器上的类名（样式按它分流）
+   *   deferWhenFocusOnly    —— 「点击只聚焦」的绑定是否不自动展开
+   *   show(binding) / hide()—— 接管与让位；hide 必须真正把 root 藏起来，
+   *                            否则上一次打开的面板会留在下面那层
+   */
+  const panelRegistry = [
+    {
+      match: binding => binding.deviceKind === "nas",
+      label: "NAS 状态",
+      hostClass: "is-nas-panel",
+      // NAS 绑定的 clickAction 缺省就是 focus（见 binding-collectors），
+      // 所以它同样属于「点击只聚焦、不自动展开」的一类。
+      deferWhenFocusOnly: true,
+      show: binding => {
+        nasPanel.update({
+          item: binding,
+          states: statesByEntityId
+        });
+      },
+      hide: () => {
+        nasPanel.root.hidden = true;
+      }
+    },
+    {
+      match: binding => binding.deviceKind === "television",
+      label: "电视状态",
+      hostClass: "is-television-panel",
+      deferWhenFocusOnly: true,
+      show: binding => {
+        // update() 要重算每一路信号源，面板没打开时不画：这时候没人看得见这份内容。
+        if (!lightPanelElement.classList.contains("is-open")) {
+          televisionPanel.hide();
+          return;
+        }
+        // root.hidden 必须显式打开 —— 面板自己的 update() 不会清它（构造时置 true）。
+        televisionPanel.root.hidden = false;
+        if (isEditing || binding.clickAction !== "focus") {
+          televisionPanel.update({
+            item: binding,
+            states: statesByEntityId,
+            editing: isEditing || !isInteractive
+          });
+        }
+      },
+      hide: () => {
+        televisionPanel.hide();
+      }
+    },
+    {
+      match: binding => binding.deviceKind === "cover",
+      label: "窗帘控制",
+      hostClass: "is-cover-panel",
+      show: binding => {
+        const coverStateValue = coverState(
+          binding.entityId,
+          statesByEntityId[binding.entityId],
+          binding
+        );
+        if (!binding.modelAvailable) {
+          coverStateValue.available = false;
+        }
+        const coverPanelPresentation = resolveCoverPresentation(binding, coverStateValue);
+        coverPanel.update({
+          item: binding,
+          state: coverStateValue,
+          presentation: coverPanelPresentation,
+          editing: isEditing,
+          error: binding.modelAvailable
+            ? coverPanelPresentation.error || ""
+            : "窗帘模型已移除，请重新配置。"
+        });
+      },
+      hide: () => {
+        coverPanel.root.hidden = true;
+      }
+    },
+    {
+      match: binding => !!binding.modelId,
+      label: "空调控制",
+      hostClass: "is-climate-panel",
+      show: binding => {
+        const climateStateValue = climateState(
+          binding.entityId,
+          statesByEntityId[binding.entityId]
+        );
+        if (!binding.modelAvailable) {
+          climateStateValue.available = false;
+        }
+        climatePanel.update({
+          item: binding,
+          state: climateStateValue,
+          editing: isEditing,
+          error: binding.modelAvailable ? "" : "空调模型已移除，请重新配置。"
+        });
+      },
+      hide: () => {
+        climatePanel.root.hidden = true;
+      }
+    }
+  ];
   const curtainMotion = createCurtainMotion({
     THREE: THREE,
     requestRender: () => wakeFrameLoop()
@@ -3215,108 +3330,35 @@ export function mountStage(stageOptions) {
       lightPanelElement.setAttribute("inert", "");
       return;
     }
-    const isNasPanel = panelBinding?.deviceKind === "nas";
-    const isTelevisionPanel = panelBinding?.deviceKind === "television";
-    if (!isTelevisionPanel || !lightPanelElement.classList.contains("is-open")) {
-      televisionPanel.hide();
-    } else {
-      televisionPanel.root.hidden = false;
-    }
-    nasPanel.root.hidden = !isNasPanel;
-    lightPanelElement.classList.toggle("is-nas-panel", isNasPanel);
-    lightPanelElement.classList.toggle("is-television-panel", isTelevisionPanel);
-    if (isNasPanel || isTelevisionPanel) {
-      lightPanelElement.classList.remove(
-        "is-cover-panel",
-        "is-climate-panel",
-        "has-light-controls",
-        "has-error"
-      );
-      lightPanelElement.setAttribute("aria-label", isTelevisionPanel ? "电视状态" : "NAS 状态");
-      if (panelBinding.clickAction === "focus" && !isEditing) {
-        lightPanelElement.classList.remove("is-open");
-        lightPanelElement.setAttribute("inert", "");
-      }
-      climatePanel.root.hidden =
-        coverPanel.root.hidden =
-        lightPanelHeader.hidden =
-        lightControlsElement.hidden =
-        controlErrorElement.hidden =
-          true;
-      if (isTelevisionPanel) {
-        if (
-          (isEditing || panelBinding.clickAction !== "focus") &&
-          lightPanelElement.classList.contains("is-open")
-        ) {
-          televisionPanel.update({
-            item: panelBinding,
-            states: statesByEntityId,
-            editing: isEditing || !isInteractive
-          });
-        }
+    const panelEntry = panelBinding
+      ? panelRegistry.find(entry => entry.match(panelBinding))
+      : null;
+    for (const entry of panelRegistry) {
+      lightPanelElement.classList.toggle(entry.hostClass, entry === panelEntry);
+      if (entry === panelEntry) {
+        entry.show(panelBinding);
       } else {
-        nasPanel.update({
-          item: panelBinding,
-          states: statesByEntityId
-        });
+        entry.hide();
       }
-      return;
     }
-    const isCoverPanel = panelBinding?.deviceKind === "cover";
-    const isClimatePanel = !!panelBinding?.modelId && !isCoverPanel;
-    climatePanel.root.hidden = !isClimatePanel;
-    coverPanel.root.hidden = !isCoverPanel;
+    // 非灯光面板接管这一块：标题栏、灯光控件与错误行都收起来；灯光面板反之。
+    // 三个 hidden 两侧都要写 —— 只写「收起」会在看过一次面板之后再也放不出来。
     lightPanelHeader.hidden =
       lightControlsElement.hidden =
       controlErrorElement.hidden =
-        isClimatePanel || isCoverPanel;
-    lightPanelElement.classList.toggle("is-cover-panel", isCoverPanel);
-    lightPanelElement.classList.toggle("is-climate-panel", isClimatePanel);
-    lightPanelElement.setAttribute(
-      "aria-label",
-      isCoverPanel ? "窗帘控制" : isClimatePanel ? "空调控制" : "灯光控制"
-    );
+        Boolean(panelEntry);
+    lightPanelElement.setAttribute("aria-label", panelEntry ? panelEntry.label : "灯光控制");
+    if (panelEntry) {
+      lightPanelElement.classList.remove("has-light-controls", "has-error");
+      // 「点击只聚焦」的绑定不自动展开：用户点它只是为了对焦视角。
+      if (panelEntry.deferWhenFocusOnly && panelBinding.clickAction === "focus" && !isEditing) {
+        lightPanelElement.classList.remove("is-open");
+        lightPanelElement.setAttribute("inert", "");
+      }
+      return;
+    }
     if (!panelBinding) {
       return exitFocus();
-    }
-    if (isCoverPanel) {
-      lightPanelElement.classList.remove("has-light-controls", "has-error");
-      const coverStateValue = coverState(
-        panelBinding.entityId,
-        statesByEntityId[panelBinding.entityId],
-        panelBinding
-      );
-      if (!panelBinding.modelAvailable) {
-        coverStateValue.available = false;
-      }
-      const coverPanelPresentation = resolveCoverPresentation(panelBinding, coverStateValue);
-      coverPanel.update({
-        item: panelBinding,
-        state: coverStateValue,
-        presentation: coverPanelPresentation,
-        editing: isEditing,
-        error: panelBinding.modelAvailable
-          ? coverPanelPresentation.error || ""
-          : "窗帘模型已移除，请重新配置。"
-      });
-      return;
-    }
-    if (isClimatePanel) {
-      lightPanelElement.classList.remove("has-light-controls", "has-error");
-      const climateStateValue = climateState(
-        panelBinding.entityId,
-        statesByEntityId[panelBinding.entityId]
-      );
-      if (!panelBinding.modelAvailable) {
-        climateStateValue.available = false;
-      }
-      climatePanel.update({
-        item: panelBinding,
-        state: climateStateValue,
-        editing: isEditing,
-        error: panelBinding.modelAvailable ? "" : "空调模型已移除，请重新配置。"
-      });
-      return;
     }
     const panelLightState = resolveLightState(panelBinding.entityId);
     lightHeadingLabel.textContent = panelBinding.label || panelLightState.name;

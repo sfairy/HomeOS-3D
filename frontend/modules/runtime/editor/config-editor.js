@@ -15,7 +15,7 @@ import {
   capturePointer,
   resolveStateEntry,
   withFixedLightEffects
-} from "../core/static-helpers.js?v=2609251801";
+} from "../core/static-helpers.js?v=2609251851";
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
@@ -27,18 +27,18 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609251801";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609251801";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609251801";
-import { mountInteraction3d } from "../core/runtime.js?v=2609251801";
-import { lightState } from "../light/light-state.js?v=2609251801";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609251801";
-import { nasGroups } from "../nas/nas-panel.js?v=2609251801";
+} from "../core/static-helpers-editor.js?v=2609251851";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609251851";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609251851";
+import { mountInteraction3d } from "../core/runtime.js?v=2609251851";
+import { lightState } from "../light/light-state.js?v=2609251851";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609251851";
+import { nasGroups } from "../nas/nas-panel.js?v=2609251851";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609251801";
+} from "../core/editor-save-status.js?v=2609251851";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -194,7 +194,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251801";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251851";
   document.head.append(styleSheetLinkElement);
   // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent（设备名等来自
   // 用户输入），按钮一律显式 type="button"（dialog 里的按钮不写会按 submit 处理，回车即误触发）。
@@ -3445,7 +3445,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251801";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609251851";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

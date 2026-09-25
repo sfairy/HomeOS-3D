@@ -3,20 +3,20 @@
  *
  * `components/icon-button-effect.js` 只负责注册，实际绘制在这里。
  */
-import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=2609251801";
+import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=2609251851";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609251801";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609251851";
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber, isUsableNumber } from "../../../utils/numbers.js?v=2609251801";
+import { clampCoercedNumber, isUsableNumber } from "../../../utils/numbers.js?v=2609251851";
 // 同门分片：builtin-assets
 import {
   effectVariantByAssetId,
   resolveAssetUrl
-} from "./builtin-assets.js?v=2609251801";
+} from "./builtin-assets.js?v=2609251851";
 // 同门分片：entity-state
-import { isLightVisualActive } from "./entity-state.js?v=2609251801";
+import { isLightVisualActive } from "./entity-state.js?v=2609251851";
 
 /**
  * 判断灯光特效是否在「等待实时视觉参数」：刚开灯时 brightness / color_temp 常晚一拍才上报，

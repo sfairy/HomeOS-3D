@@ -8,8 +8,8 @@
  * 反射通道与主渲染共用同一个 renderer，因此本模块必须「先于主渲染」执行（studio-app 里在 renderer.getRenderTarget() 为空时才调 render，正是这个顺序约束）；硬性节流默认 30fps（settings.fps），相机没动、光照没变时直接跳过整次捕获。
  */
 
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609251801";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609251801";
+import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609251851";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609251851";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  * @param {function(object): void} options.syncLighting 用给定相机同步区域灯 —— 反射通道需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致。 @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），变化即视为需要重拍。

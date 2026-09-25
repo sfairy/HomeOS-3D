@@ -8,7 +8,7 @@
  * 所有模式文案（关闭 / 制冷 / 取暖 / 换气…）都会直接上屏，是与界面约定死的字符串，改动需同步设计稿。
  */
 // 传 null / 0 / false 时按「取不到域」返回空串，不拼出以 "null" / "0" / "false" 为域的翻译键。
-import { entityDomainFromId } from "../../utils/entities.js?v=2609251801";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609251851";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);

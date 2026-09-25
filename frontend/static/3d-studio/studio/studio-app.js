@@ -14,20 +14,20 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609251801";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609251801";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609251801";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609251801";
+} from "../loaders/studio-curtain-track.js?v=2609251851";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609251851";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609251851";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609251851";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609251801";
-import { paletteColor } from "../../utils/colors.js?v=2609251801";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609251801";
+} from "../../shared/menu-positioning.js?v=2609251851";
+import { paletteColor } from "../../utils/colors.js?v=2609251851";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609251851";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251801";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609251801";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609251851";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609251851";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -44,10 +44,10 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609251801";
+} from "./studio-item-types.js?v=2609251851";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609251801";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609251851";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
@@ -55,31 +55,31 @@ import {
   createMuralArtTexture,
   createFeatureWallTexture,
   createStoneSlabTexture
-} from "../materials/studio-surface-textures.js?v=2609251801";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609251801";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609251801";
+} from "../materials/studio-surface-textures.js?v=2609251851";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609251851";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609251851";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609251801";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609251801";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609251801";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609251801";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609251801";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609251801";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609251801";
+} from "./studio-camera-constraints.js?v=2609251851";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609251851";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609251851";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609251851";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609251851";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609251851";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609251851";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609251801";
+} from "../materials/studio-wall-materials.js?v=2609251851";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
   applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609251801";
+} from "./studio-scene-style.js?v=2609251851";
 // 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
 // 因此逐物件选择优先于全局风格（见 studio-material-styles.js 的模块头）。
 import {
@@ -89,39 +89,39 @@ import {
   materialStyleOptionsFor,
   normalizeMaterialStyle,
   applyMaterialStyle
-} from "./studio-material-styles.js?v=2609251801";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609251801";
+} from "./studio-material-styles.js?v=2609251851";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609251851";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609251801";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609251801";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609251801";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609251801";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609251801";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609251801";
+} from "../../bridge/render-cache.js?v=2609251851";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609251851";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609251851";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609251851";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609251851";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609251851";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609251801";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609251851";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609251801";
+import { debugLog } from "../../utils/debug-log.js?v=2609251851";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609251801";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609251851";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609251801";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609251851";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609251801";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609251801";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609251851";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609251851";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609251801";
+} from "../../bridge/light-motion.js?v=2609251851";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -161,7 +161,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609251801";
+} from "../plan/geometry.js?v=2609251851";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -170,14 +170,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609251801";
+} from "../export/export-utils.js?v=2609251851";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 // 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609251801";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609251801";
+} from "../../shared/layout-shell.js?v=2609251851";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609251851";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -185,25 +185,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609251801";
-import { reorderFloors } from "../plan/floor-order.js?v=2609251801";
-import { syncControlValue } from "./ui-controls.js?v=2609251801";
+} from "../export/export-presets.js?v=2609251851";
+import { reorderFloors } from "../plan/floor-order.js?v=2609251851";
+import { syncControlValue } from "./ui-controls.js?v=2609251851";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609251801";
+} from "./studio-widgets.js?v=2609251851";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609251801";
+} from "../loaders/studio-external-models.js?v=2609251851";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609251801";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609251801";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609251801";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609251801";
+} from "../plan/studio-plan-drawing.js?v=2609251851";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609251851";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609251851";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609251851";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -216,7 +216,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609251801";
+} from "../loaders/studio-normalization.js?v=2609251851";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -2080,7 +2080,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609251801"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609251851"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -22031,7 +22031,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609251801");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609251851");
       mountStage(createStageController());
       return;
     }
