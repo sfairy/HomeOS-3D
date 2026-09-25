@@ -10,7 +10,7 @@
  * 视口默认取顶层 window；编辑器被嵌进 iframe 时传 `viewportWindow`，否则算出来的是外层窗口的
  * 尺寸，菜单会跑到屏幕外。
  */
-import { clampNumber } from "../utils/numbers.js?v=2609251920";
+import { clampNumber } from "../utils/numbers.js?v=2609252210";
 
 /**
  * 摆一个浮动菜单，返回解出的几何量（调用方与测试可据此再定位）。

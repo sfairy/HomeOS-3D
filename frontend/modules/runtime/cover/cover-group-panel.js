@@ -8,7 +8,7 @@
  * 约定：根元素上的 is-vertical 由组合配置的 panelLayout 决定；子面板复用 .i3d-cover-panel 的
  * 全部样式，因此本模块不再引入静态资源。
  */
-import { createCoverPanel } from "./cover-panel.js?v=2609252203";
+import { createCoverPanel } from "./cover-panel.js?v=2609252210";
 
 /**
  * 创建窗帘组合面板。

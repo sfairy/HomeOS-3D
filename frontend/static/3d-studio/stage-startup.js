@@ -20,18 +20,18 @@
  * 吞掉自己的错误：缓存读不出来就当作未命中、接口预热失败就由 studio-app 重新请求、模块预热失败就
  * 由 studio-app 自己 import —— 「没有提前」永远不等于「不能加载」。
  */
-import { createScenePersistentCache, scenePreparationKey } from "./scene-persistent-cache.js?v=2609252203";
+import { createScenePersistentCache, scenePreparationKey } from "./scene-persistent-cache.js?v=2609252210";
 // 场景接口的超时预算与 studio-app 同源：预热的这一份也必须是有界的，否则 studio-app 等它时
 // 会失去「20 秒就报错」这条底线（预热 Promise 挂在网络层，apiFetch 的计时器覆盖不到它）。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609252203";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609252203";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609252210";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609252210";
 
 /** 舞台页的服务端路径：只有它挂载了 body 上的灯光历史作用域，其它地址一律不预热。 */
 const STAGE_PAGE_PATH = "/api/v1/modules/interaction3d/stage.html";
 /** 场景接口前缀（与 studio-app 里 requestStudioApi 的路径拼接保持一致）。 */
 const SCENE_API_PREFIX = "/modules/interaction3d/scenes/";
 /** 舞台模块地址：与 studio-app 中那次动态 import 用同一条戳，命中同一份模块实例。 */
-const STAGE_MODULE_URL = "/api/v1/modules/interaction3d/core/stage.js?v=2609252203";
+const STAGE_MODULE_URL = "/api/v1/modules/interaction3d/core/stage.js?v=2609252210";
 
 /**
  * 在舞台页发起提前加载。

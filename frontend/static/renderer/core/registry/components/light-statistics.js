@@ -4,19 +4,19 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609251920";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609251920";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609252210";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609252210";
 // 「点亮数量」的激活色默认取全站主控色（见 design/scene/page.css）。
-import { paletteColor } from "../../../../utils/colors.js?v=2609251920";
-import { lightStatisticsSummary } from "../../../controls/light-statistics-runtime.js?v=2609251920";
+import { paletteColor } from "../../../../utils/colors.js?v=2609252210";
+import { lightStatisticsSummary } from "../../../controls/light-statistics-runtime.js?v=2609252210";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609251920";
+import { registerComponent } from "../registry-core.js?v=2609252210";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609251920";
+} from "../registry-visuals.js?v=2609252210";
 
 // 灯光统计控件：把实体列表交给 lightStatisticsSummary 汇总后渲染，
 // 统计口径（哪些实体能统计、异常怎么算）全部在 light-statistics-runtime.js 里。

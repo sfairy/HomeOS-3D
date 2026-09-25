@@ -26,7 +26,7 @@ import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
-} from "./studio-item-types.js?v=2609252203";
+} from "./studio-item-types.js?v=2609252210";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";

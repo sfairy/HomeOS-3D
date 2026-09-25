@@ -20,4 +20,4 @@ export {
   identifyLockEntities,
   lockEntityRole,
   lockState
-} from "../core/static-helpers.js?v=2609251920";
+} from "../core/static-helpers.js?v=2609252210";
