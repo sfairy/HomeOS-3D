@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609251851";
-@import "../nas/nas-panel.css?v=2609251851";
-@import "../climate/climate-panel.css?v=2609251851";
-@import "../cover/cover-panel.css?v=2609251851";
+@import "/static/bridge/controls.css?v=2609251910";
+@import "../nas/nas-panel.css?v=2609251910";
+@import "../climate/climate-panel.css?v=2609251910";
+@import "../cover/cover-panel.css?v=2609251910";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -2505,4 +2505,241 @@ body.interaction3d-stage.is-background-hidden,
   color: #815827;
   background: #ead5aff5;
   border-color: #ad8752b3;
+}
+/* ===== 通用设备面板（.i3d-device-panel） ===== */
+
+/* 通用设备面板 = 空调面板排版 + nas 面板变量：这里只覆盖它与 nas 面板不同的几处。 */
+.interaction3d-stage .i3d-device-panel .i3d-nas-meta {
+  margin-left: auto;
+  color: #7f9187;
+  font-size: 10px;
+  white-space: nowrap;
+}
+/* 附加卡片网格在设备面板里要吃掉剩余高度并独立滚动，而不是把面板撑高。 */
+.interaction3d-stage .i3d-device-panel .i3d-extra-grid {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+.interaction3d-stage .i3d-device-panel .i3d-nas-status {
+  padding: 0;
+  background: transparent;
+  color: #7e898f;
+}
+/* ===== 暖阳原木主题：通用设备面板与附加卡片 ===== */
+
+/* 暖木主题色板：卡片、面板标题与设备状态行都从这里取值。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-light-panel,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
+  --i3d-wood-ink: #493f34;
+  --i3d-wood-heading: #3f382e;
+  --i3d-wood-muted: #716657;
+  --i3d-wood-border: #bca98c;
+  --i3d-wood-field: #f6f0e5;
+  --i3d-wood-field-hover: #eee3d0;
+  --i3d-device-status-normal: #386b43;
+  --i3d-device-status-warning: #8b5518;
+  --i3d-device-status-unknown: #716657;
+  --i3d-device-status-off: #716657;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-meta {
+  color: #716657;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-nas-status {
+  background: transparent;
+  color: #716657;
+}
+/* 卡片在暖木主题下换成暖米底 + 暖褐文字，设备面板与空调面板共用同一批值。 */
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card {
+  color: var(--i3d-wood-ink, #554632);
+  border-color: #c9b99e;
+  background: #f8f2e8;
+  box-shadow:
+    inset 0 1px #fffdf8,
+    0 2px 7px #614c2810;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card h4,
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card p,
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card strong {
+  color: var(--i3d-wood-ink, #554632);
+  opacity: 1;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card .i3d-extra-description p {
+  color: #716657;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card select,
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card input,
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-select-trigger {
+  color: #554632;
+  border-color: #bca98c;
+  background: #f6f0e5;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card .i3d-extra-switch > button[role="switch"] {
+  color: #766b5e;
+  background: #e1d8ca;
+  border-color: #bca98c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-device-panel, .i3d-climate-panel) .i3d-extra-card .i3d-extra-switch > button[role="switch"][aria-checked="true"] {
+  color: #fffaf0;
+  background: #a4773f;
+  border-color: #8a5c23;
+}
+/* 空调面板侧的卡片文字与下拉：单独一组，值同样取自暖木色板。 */
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-climate-heading p,
+    .i3d-climate-option-group h4,
+    .i3d-climate-temperature-content small,
+    .i3d-climate-temperature-content span,
+    .i3d-climate-temperature-interval,
+    .i3d-climate-empty,
+    .i3d-extra-description p,
+    .i3d-extra-state .i3d-extra-description p
+  ) {
+  color: var(--i3d-wood-muted);
+  opacity: 1;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-climate-option-group h4,
+    .i3d-extra-description h4,
+    .i3d-extra-state .i3d-extra-description h4
+  ) {
+  color: var(--i3d-wood-heading);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card {
+  color: var(--i3d-wood-ink);
+  border-color: #c9b99e;
+  background: #f8f2e8;
+  box-shadow:
+    inset 0 1px #fffdf8,
+    0 2px 7px #614c2810;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-climate-panel .i3d-extra-card select,
+    .i3d-climate-panel .i3d-extra-card input,
+    .i3d-climate-panel .i3d-extra-select-trigger,
+    .i3d-climate-panel .i3d-climate-choice
+  ) {
+  color: var(--i3d-wood-ink);
+  border-color: var(--i3d-wood-border);
+  background: var(--i3d-wood-field);
+  text-shadow: none;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-climate-panel .i3d-extra-card select:hover,
+    .i3d-climate-panel .i3d-extra-card input:hover,
+    .i3d-climate-panel .i3d-extra-select-trigger:hover,
+    .i3d-climate-panel .i3d-climate-choice:hover:not(:disabled)
+  ) {
+  background: var(--i3d-wood-field-hover);
+  border-color: #a48351;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-switch > button[role="switch"] {
+  color: #766b5e;
+  background: #e1d8ca;
+  border-color: #bca98c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-switch > button[role="switch"][aria-checked="true"] {
+  color: #fffaf0;
+  background: #a4773f;
+  border-color: #8a5c23;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-switch > button[role="switch"]:disabled {
+  opacity: 0.7;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-card.is-dragging {
+  background: var(--hb-climate-accent-soft);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel .i3d-extra-resize:after {
+  border-color: #8a6b3e;
+}
+/* 面板标题在暖木下压成一行：标题 + 状态行并排，卡片网格的可用高度才够。 */
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-nas-panel, .i3d-device-panel, .i3d-lock-panel) {
+  --i3d-popup-ink: #554632;
+  --i3d-popup-heading: #3f382e;
+  --i3d-popup-muted: #716657;
+  --i3d-popup-border: #bca98c;
+  color: var(--i3d-popup-ink);
+  gap: 10px;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-nas-heading, .i3d-device-panel .i3d-climate-heading) {
+  min-height: 0;
+  margin: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-climate-heading-text {
+  display: contents;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-nas-heading h3, .i3d-device-panel .i3d-climate-heading h3, .i3d-lock-panel h3) {
+  color: var(--i3d-popup-heading);
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.025em;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-device-status {
+  flex: none;
+  margin: 0 0 0 auto;
+  color: var(--i3d-popup-muted) !important;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(.i3d-nas-metric, .i3d-lock-detail, .i3d-device-panel .i3d-extra-card) {
+  box-shadow:
+    inset 0 1px #fffdf8,
+    0 2px 7px #614c2810;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-nas-metric,
+    .i3d-nas-status,
+    .i3d-lock-detail,
+    .i3d-device-panel .i3d-extra-card,
+    .i3d-climate-panel .i3d-extra-card
+  ) {
+  background: rgba(241, 234, 223, var(--i3d-warm-card-opacity, var(--i3d-panel-opacity, 0.74)));
+  border-color: #c4b59e;
+}
+/* 暖木弹窗的通用外壳：所有暖木面板（NAS/空调/电视/门锁）共用的磨砂底板与不透明度。 */
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-light-panel:has(
+    .i3d-nas-panel,
+    .i3d-climate-panel,
+    .i3d-television-panel,
+    .i3d-lock-panel
+  ) {
+  --i3d-warm-popup-opacity: var(--i3d-panel-opacity, 0.74);
+  --i3d-warm-card-opacity: min(1, calc(var(--i3d-warm-popup-opacity) + 0.12));
+  background: linear-gradient(
+    145deg,
+    rgba(255, 253, 247, var(--i3d-warm-popup-opacity)),
+    rgba(243, 237, 225, var(--i3d-warm-popup-opacity))
+  );
+  border-color: #89745661;
+  box-shadow:
+    0 12px 32px #43342133,
+    inset 0 1px #fff9;
+  backdrop-filter: blur(18px);
 }

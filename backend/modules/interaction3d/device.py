@@ -84,10 +84,11 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
         if not isinstance(item, dict) or set(item) - fields:
             fail()
         # 设备名与设备 ID 都要有：前者是面板标题，后者是取实体的唯一线索。
-        if any(not text(item.get(key, "")) for key in ("id", "floorId", "modelId", "deviceId", "deviceName", "label")):
-            fail()
         # 控件自己不许存主实体 —— 见模块文档：主实体由设备归属反查。
-        if any(not text(item.get(key, "")) for key in ("id", "floorId", "modelId")) or item.get("entityId"):
+        if any(
+            not text(item.get(key, ""))
+            for key in ("id", "floorId", "modelId", "deviceId", "deviceName", "label")
+        ) or item.get("entityId"):
             fail()
         model = (item["floorId"], item["modelId"])
         if item["id"] in ids or model in models:

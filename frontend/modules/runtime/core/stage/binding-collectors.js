@@ -6,6 +6,14 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+
+// 通用设备的品类表：品类名 → { collection, modelType, label, icon, height }。
+// 五个品类共用同一段收集逻辑，靠这张表把「集合名 / 模型类型 / 缺省高度」参数化。
+import {
+  GENERIC_DEVICE_KINDS,
+  genericDeviceProfile
+} from "../../device/device-profiles.js?v=2609251910";
+
 export function createBindingCollectors(ctx) {
   /**
    * 收集扫地机绑定：合并配置项、场景模型与运行期偏移（拖拽 / 动画位置）。
@@ -292,6 +300,46 @@ export function createBindingCollectors(ctx) {
     );
   }
 
+  // 收集通用设备绑定（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
+  //
+  // 五个品类只有「集合名、模型类型、缺省图标与高度」三处差异，全部走 device-profiles 表，
+  // 这样后面再加品类时这里一行不用改。`deviceKind` 直接就是品类名 —— stage.js 的
+  // isGenericDeviceKind(deviceKind) 靠它判是不是通用设备弹窗。
+  function collectGenericDeviceBindings(deviceKind) {
+    const genericProfile = genericDeviceProfile(deviceKind);
+    return genericProfile
+      ? (ctx.config.devices?.[genericProfile.collection] || []).map(genericDeviceEntry => {
+          // 按「模型 id + 品类对应的模型类型」配对：同一楼层里可能有同名 id 的别的模型，
+          // 只看 id 会把冰箱认成旁边的柜子，于是 modelAvailable 与坐标一起错。
+          const genericSceneItem = ctx.stageOptions.document.floors
+            .find(genericFloor => genericFloor.id === genericDeviceEntry.floorId)
+            ?.scene.items.find(
+              genericSceneItemCandidate =>
+                genericSceneItemCandidate.id === genericDeviceEntry.modelId &&
+                genericSceneItemCandidate.type === genericProfile.modelType
+            );
+          return {
+            ...genericDeviceEntry,
+            clickAction: genericDeviceEntry.clickAction || "focus-panel",
+            deviceKind,
+            deviceLabel: genericProfile.label,
+            x: Number.isFinite(genericDeviceEntry.x)
+              ? genericDeviceEntry.x
+              : genericSceneItem?.x ?? 0,
+            y: Number.isFinite(genericDeviceEntry.y)
+              ? genericDeviceEntry.y
+              : genericSceneItem?.y ?? 0,
+            height: Number.isFinite(genericDeviceEntry.height)
+              ? genericDeviceEntry.height
+              : (Number(genericSceneItem?.elevation) || 0) +
+                (Number(genericSceneItem?.height) || genericProfile.height) / 2,
+            modelAvailable: !!genericSceneItem,
+            icon: genericDeviceEntry.icon || genericProfile.icon
+          };
+        })
+      : [];
+  }
+
   // 所有已配置设备，不分它属于哪个模块。ID 约定与各模块保持一致，
   // 这样总览页可以直接复用 findBinding / activateBinding。
   function collectAllDeviceBindings() {
@@ -302,7 +350,8 @@ export function createBindingCollectors(ctx) {
       ...collectTelevisionBindings(),
       ...collectVacuumBindings(),
       ...collectCameraBindings(),
-      ...collectPresenceBindings()
+      ...collectPresenceBindings(),
+      ...GENERIC_DEVICE_KINDS.flatMap(collectGenericDeviceBindings)
     ].map(bindingEntry => ({
       ...bindingEntry,
       id: ["camera", "presence"].includes(bindingEntry.deviceKind)

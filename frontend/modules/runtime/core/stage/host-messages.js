@@ -377,6 +377,8 @@ export function createHostMessageHandler(ctx) {
         ctx.settleCoverRequest(message.requestId, message.error);
       } else if (ctx.climateRequestsById.has(message.requestId)) {
         ctx.settleClimateRequest(message.requestId, message.error);
+      } else if (ctx.deviceRequestsById.has(message.requestId)) {
+        ctx.settleDeviceRequest(message.requestId, message.error);
       } else {
         ctx.settleLightCommand(message.requestId, message.error || "", message.timedOut === true);
       }

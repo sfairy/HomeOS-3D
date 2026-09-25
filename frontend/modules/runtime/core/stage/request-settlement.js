@@ -70,6 +70,23 @@ export function createRequestSettlement(ctx) {
     }
   }
 
+  /**
+   * 结清通用设备附加实体的控制请求（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植的卡片操作）。
+   * 与空调、电视一样只做「清超时 + 出表 + resolve / reject」三件事。
+   */
+  function settleDeviceRequest(pendingDeviceKey, deviceError) {
+    const pendingDeviceRequest = ctx.deviceRequestsById.get(pendingDeviceKey);
+    if (pendingDeviceRequest) {
+      clearTimeout(pendingDeviceRequest.timeout);
+      ctx.deviceRequestsById.delete(pendingDeviceKey);
+      if (deviceError) {
+        pendingDeviceRequest.reject(new Error(deviceError));
+      } else {
+        pendingDeviceRequest.resolve();
+      }
+    }
+  }
+
   // 结清灯光命令：清超时、按需下发排队中的下一条、回滚或确认本地预览，
   // 最后把错误写进面板提示。超时时不下发排队命令，避免超时后还继续往设备灌命令。
   function settleLightCommand(lightRequestKey, lightError = "", isTimedOut = false) {
@@ -109,5 +126,11 @@ export function createRequestSettlement(ctx) {
     }
     ctx.renderMarkers();
   }
-  return { settleClimateRequest, settleCoverRequest, settleLightCommand, settleTelevisionRequest };
+  return {
+    settleClimateRequest,
+    settleCoverRequest,
+    settleDeviceRequest,
+    settleLightCommand,
+    settleTelevisionRequest
+  };
 }

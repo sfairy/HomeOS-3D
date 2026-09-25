@@ -830,11 +830,21 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             # climate/
             'climate/climate-state.js',
             'climate/climate-panel.js',
+            # climate/purifier-extras：附加功能卡片网格（开关/选项/数值/按钮/状态显示），
+            # 空调面板与通用设备弹窗（device/device-panel）共用同一份实现。
+            'climate/purifier-extras.js',
+            # device/：通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）
+            'device/device-profiles.js',
+            'device/device-status.js',
+            'device/device-panel.js',
             # cover/
             'cover/cover-state.js',
             'cover/cover-panel.js',
             'cover/cover-feedback.js',
             'cover/curtain-motion.js',
+            # cover/ 组合控制：一拖多的窗帘组（validCurtainGroups 归一 + 组合面板）
+            'cover/cover-groups.js',
+            'cover/cover-group-panel.js',
             # presence/
             'presence/presence-scene.js',
             'presence/presence-motion.js',
@@ -860,11 +870,16 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             'environment/environment-scene.js',
             'environment/environment-halos.js',
             'environment/environment-airflow.js',
-            # security/：设备域编辑器（与 presence/ 同构）
+            # security/：设备域编辑器（与 presence/ 同构）+ 门锁状态 / 面板 / 门动画
             'security/security-editor.js',
+            'security/lock-state.js',
+            'security/lock-panel.js',
+            'security/lock-motion.js',
             # editor/：配置编辑器与量程对话框
             'editor/config-editor.js',
-            'editor/range-dialog.js')
+            'editor/range-dialog.js',
+            # editor/device-entity-config：通用设备的实体目录与能力位适配层
+            'editor/device-entity-config.js')
     }
     # CSS 单独登记：两类白名单合并后就是本模块可下发的全部资源。
     media_types.update({

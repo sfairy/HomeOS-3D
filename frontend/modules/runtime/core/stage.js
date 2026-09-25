@@ -8,91 +8,93 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251851";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609251910";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251851";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609251910";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609251851";
+import { sceneModelKey } from "./scene-model-key.js?v=2609251910";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609251851",
+        "../../../static/bridge/popup-placement.js?v=2609251910",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609251851"));
+  : import("/static/bridge/popup-placement.js?v=2609251910"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609251851";
-import { createSceneBackground } from "./scene-background.js?v=2609251851";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609251851";
+} from "../presence/presence-scene.js?v=2609251910";
+import { createSceneBackground } from "./scene-background.js?v=2609251910";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609251910";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609251851";
+} from "../vacuum/vacuum-motion.js?v=2609251910";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609251851";
-import { televisionState } from "../television/television-state.js?v=2609251851";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609251851";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609251851";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609251851";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251851";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251851";
+} from "../vacuum/vacuum-map.js?v=2609251910";
+import { televisionState } from "../television/television-state.js?v=2609251910";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609251910";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609251910";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609251910";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609251910";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609251910";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609251851";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251851";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609251851";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251851";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251851";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251851";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251851";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251851";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609251851";
+} from "../cover/cover-state.js?v=2609251910";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609251910";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609251910";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609251910";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609251910";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609251910";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609251910";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609251910";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609251910";
+import { createDevicePanel } from "../device/device-panel.js?v=2609251910";
+import { isGenericDeviceKind, genericDeviceProfile } from "../device/device-profiles.js?v=2609251910";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609251851";
-import { startSceneSync } from "./scene-sync.js?v=2609251851";
+} from "../environment/environment-scene.js?v=2609251910";
+import { startSceneSync } from "./scene-sync.js?v=2609251910";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609251851";
+} from "../light/light-state.js?v=2609251910";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609251851";
+} from "../camera/camera-motion.js?v=2609251910";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609251851";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609251851";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251851";
-import { createStageGeometry } from "./stage/geometry.js?v=2609251851";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251851";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609251851";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251851";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251851";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251851";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251851";
-import { createInputActivity } from "./stage/input-activity.js?v=2609251851";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609251851";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251851";
+} from "./idle-rotation.js?v=2609251910";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609251910";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609251910";
+import { createStageGeometry } from "./stage/geometry.js?v=2609251910";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609251910";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609251910";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609251910";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609251910";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609251910";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609251910";
+import { createInputActivity } from "./stage/input-activity.js?v=2609251910";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609251910";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609251910";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -499,6 +501,9 @@ export function mountStage(stageOptions) {
     },
     get coverRequestsById() {
       return coverRequestsById;
+    },
+    get deviceRequestsById() {
+      return deviceRequestsById;
     },
     get coverState() {
       return coverState;
@@ -932,6 +937,9 @@ export function mountStage(stageOptions) {
     get settleCoverRequest() {
       return settleCoverRequest;
     },
+    get settleDeviceRequest() {
+      return settleDeviceRequest;
+    },
     get settleLightCommand() {
       return settleLightCommand;
     },
@@ -1050,6 +1058,7 @@ export function mountStage(stageOptions) {
   const {
     settleClimateRequest,
     settleCoverRequest,
+    settleDeviceRequest,
     settleLightCommand,
     settleTelevisionRequest
   } = createRequestSettlement(ctx);
@@ -1458,6 +1467,8 @@ export function mountStage(stageOptions) {
 
 
   const televisionRequestsById = new Map();
+  // 通用设备附加实体的在途请求：与电视 / 空调各自一张表，超时与失败互不牵连。
+  const deviceRequestsById = new Map();
   const nasPanel = createNasPanel();
   const televisionPanel = createTelevisionPanel({
     onControl: televisionCommand =>
@@ -1496,6 +1507,48 @@ export function mountStage(stageOptions) {
   });
 
 
+  // 通用设备弹窗（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）：与空气净化器共用「附加功能卡片网格」。
+  //
+  // 不做 onLayout：卡片拖动 / 改尺寸要回写配置，而这一步要等编辑器侧的 device-layout
+  // 落盘通道（renderer 的 custom-popup + studio 的 edit action）一起接上；先不下发一个
+  // 没人处理的 edit 消息，免得编辑器收到未知动作。
+  const devicePanel = createDevicePanel({
+    onControl: deviceCommand =>
+      new Promise((resolveDevice, rejectDevice) => {
+        const deviceBinding = findFocusedBinding();
+        if (
+          !isInteractive ||
+          isEditing ||
+          isDisposed ||
+          activeModule !== "devices" ||
+          !isGenericDeviceKind(deviceBinding?.deviceKind) ||
+          !deviceBinding.modelAvailable ||
+          // 只接受「这台设备真的配了这张卡」的命令：否则一个构造出来的实体会打穿到任意实体。
+          !(deviceBinding.extraControls || []).some(
+            deviceExtra => deviceExtra.entityId === deviceCommand.entityId
+          )
+        ) {
+          rejectDevice(new Error("当前设备不可控制。"));
+          return;
+        }
+        const deviceRequestId = "device-" + ++requestSeq;
+        const deviceTimeoutId = setTimeout(
+          () => settleDeviceRequest(deviceRequestId, "请求超时，请检查设备状态。"),
+          14000
+        );
+        deviceRequestsById.set(deviceRequestId, {
+          resolve: resolveDevice,
+          reject: rejectDevice,
+          timeout: deviceTimeoutId
+        });
+        postToHost({
+          type: "control",
+          requestId: deviceRequestId,
+          command: deviceCommand
+        });
+      })
+  });
+
   lightPanelElement.append(
     lightPanelHeader,
     lightControlsElement,
@@ -1503,7 +1556,8 @@ export function mountStage(stageOptions) {
     climatePanel.root,
     coverPanel.root,
     nasPanel.root,
-    televisionPanel.root
+    televisionPanel.root,
+    devicePanel.root
   );
 
   /**
@@ -1518,43 +1572,67 @@ export function mountStage(stageOptions) {
    * 它承接所有前面没人认领的「有模型」绑定，因此**新面板一律加在它前面**。
    *
    * 每条表项：
-   *   match(binding)        —— 这条面板是否接管当前聚焦的绑定
-   *   label                 —— 面板打开时给这一块容器设的 aria-label
-   *   hostClass             —— 打开时挂在容器上的类名（样式按它分流）
-   *   deferWhenFocusOnly    —— 「点击只聚焦」的绑定是否不自动展开
-   *   show(binding) / hide()—— 接管与让位；hide 必须真正把 root 藏起来，
-   *                            否则上一次打开的面板会留在下面那层
+   *   match(binding)     —— 这条面板是否接管当前聚焦的绑定
+   *   root               —— 面板根节点；**让位时的隐藏由派发循环统一负责**，
+   *                         各面板的 update() 都不会自己清 hidden（构造时一律置 true）
+   *   label              —— 面板打开时给容器设的 aria-label，可以是函数（按绑定取）
+   *   hostClass          —— 打开时挂在容器上的类名（样式按它分流）
+   *   deferWhenFocusOnly —— 「点击只聚焦」的绑定是否不自动展开
+   *   show(binding)      —— 接管后的内容刷新；需要可见时自己设 root.hidden = false
+   *
+   * 「show 里必须自己打开 root」这条看似别扭，但它是刻意的：面板可以合法地「被匹配到
+   * 却选择不显示」（比如面板没打开时不必重算电视信号源），把可见性判断留在各自手里，
+   * 派发循环只保证**没人接管的面板一定被藏起来**。
    */
   const panelRegistry = [
     {
+      match: binding => isGenericDeviceKind(binding.deviceKind),
+      root: devicePanel.root,
+      // 标签按品类走：「冰箱控制」「洗衣机控制」…，比统一的「设备控制」好认。
+      label: binding =>
+        (binding.deviceLabel || genericDeviceProfile(binding.deviceKind)?.label || "设备") +
+        "控制",
+      hostClass: "is-climate-panel",
+      deferWhenFocusOnly: true,
+      show: binding => {
+        // 面板没打开时不画：附加功能卡片的 update() 要重建整片网格。
+        if (!lightPanelElement.classList.contains("is-open")) {
+          return;
+        }
+        devicePanel.root.hidden = false;
+        devicePanel.update({
+          item: binding,
+          states: statesByEntityId
+        });
+      }
+    },
+    {
       match: binding => binding.deviceKind === "nas",
+      root: nasPanel.root,
       label: "NAS 状态",
       hostClass: "is-nas-panel",
       // NAS 绑定的 clickAction 缺省就是 focus（见 binding-collectors），
       // 所以它同样属于「点击只聚焦、不自动展开」的一类。
       deferWhenFocusOnly: true,
       show: binding => {
+        nasPanel.root.hidden = false;
         nasPanel.update({
           item: binding,
           states: statesByEntityId
         });
-      },
-      hide: () => {
-        nasPanel.root.hidden = true;
       }
     },
     {
       match: binding => binding.deviceKind === "television",
+      root: televisionPanel.root,
       label: "电视状态",
       hostClass: "is-television-panel",
       deferWhenFocusOnly: true,
       show: binding => {
         // update() 要重算每一路信号源，面板没打开时不画：这时候没人看得见这份内容。
         if (!lightPanelElement.classList.contains("is-open")) {
-          televisionPanel.hide();
           return;
         }
-        // root.hidden 必须显式打开 —— 面板自己的 update() 不会清它（构造时置 true）。
         televisionPanel.root.hidden = false;
         if (isEditing || binding.clickAction !== "focus") {
           televisionPanel.update({
@@ -1563,16 +1641,15 @@ export function mountStage(stageOptions) {
             editing: isEditing || !isInteractive
           });
         }
-      },
-      hide: () => {
-        televisionPanel.hide();
       }
     },
     {
       match: binding => binding.deviceKind === "cover",
+      root: coverPanel.root,
       label: "窗帘控制",
       hostClass: "is-cover-panel",
       show: binding => {
+        coverPanel.root.hidden = false;
         const coverStateValue = coverState(
           binding.entityId,
           statesByEntityId[binding.entityId],
@@ -1591,16 +1668,15 @@ export function mountStage(stageOptions) {
             ? coverPanelPresentation.error || ""
             : "窗帘模型已移除，请重新配置。"
         });
-      },
-      hide: () => {
-        coverPanel.root.hidden = true;
       }
     },
     {
       match: binding => !!binding.modelId,
+      root: climatePanel.root,
       label: "空调控制",
       hostClass: "is-climate-panel",
       show: binding => {
+        climatePanel.root.hidden = false;
         const climateStateValue = climateState(
           binding.entityId,
           statesByEntityId[binding.entityId]
@@ -1614,9 +1690,6 @@ export function mountStage(stageOptions) {
           editing: isEditing,
           error: binding.modelAvailable ? "" : "空调模型已移除，请重新配置。"
         });
-      },
-      hide: () => {
-        climatePanel.root.hidden = true;
       }
     }
   ];
@@ -3334,11 +3407,13 @@ export function mountStage(stageOptions) {
       ? panelRegistry.find(entry => entry.match(panelBinding))
       : null;
     for (const entry of panelRegistry) {
-      lightPanelElement.classList.toggle(entry.hostClass, entry === panelEntry);
-      if (entry === panelEntry) {
+      const isActivePanel = entry === panelEntry;
+      lightPanelElement.classList.toggle(entry.hostClass, isActivePanel);
+      if (isActivePanel) {
         entry.show(panelBinding);
       } else {
-        entry.hide();
+        // 让位：一定要真正藏起来，否则上一次打开的面板会留在下面那层。
+        entry.root.hidden = true;
       }
     }
     // 非灯光面板接管这一块：标题栏、灯光控件与错误行都收起来；灯光面板反之。
@@ -3347,7 +3422,12 @@ export function mountStage(stageOptions) {
       lightControlsElement.hidden =
       controlErrorElement.hidden =
         Boolean(panelEntry);
-    lightPanelElement.setAttribute("aria-label", panelEntry ? panelEntry.label : "灯光控制");
+    const panelLabel = panelEntry
+      ? typeof panelEntry.label === "function"
+        ? panelEntry.label(panelBinding)
+        : panelEntry.label
+      : "灯光控制";
+    lightPanelElement.setAttribute("aria-label", panelLabel);
     if (panelEntry) {
       lightPanelElement.classList.remove("has-light-controls", "has-error");
       // 「点击只聚焦」的绑定不自动展开：用户点它只是为了对焦视角。
@@ -3920,6 +4000,7 @@ export function mountStage(stageOptions) {
           !climateRequestsById.size &&
           !coverRequestsById.size &&
           !televisionRequestsById.size &&
+          !deviceRequestsById.size &&
           !curtainMotion.isMoving() &&
           nextCoverDelayMs() === Infinity &&
           !isActivityHeld &&
@@ -4117,6 +4198,9 @@ export function mountStage(stageOptions) {
     for (const climateRequestKey of climateRequestsById.keys()) {
       settleClimateRequest(climateRequestKey, "页面已关闭。");
     }
+    for (const deviceRequestKey of deviceRequestsById.keys()) {
+      settleDeviceRequest(deviceRequestKey, "页面已关闭。");
+    }
     postToHost({
       type: "focus-state",
       active: false
@@ -4160,6 +4244,7 @@ export function mountStage(stageOptions) {
       environmentAirflow.dispose();
       environmentScene.dispose();
       climatePanel.dispose();
+      devicePanel.dispose();
       stageOptions.finishFloorTransition?.();
       idleRotation.dispose();
       idleIconVisibility.dispose();

@@ -255,3 +255,519 @@
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
+/* ===== 原生控件补漏（下拉 / 数字输入 / 滑杆与预览态） ===== */
+
+/* color-scheme 让原生下拉与数字输入的 UA 绘制跟随面板明暗；warm-wood 下切回浅色。 */
+.i3d-climate-panel {
+  color-scheme: dark;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
+  color-scheme: light;
+}
+/* 预览态下的禁用控件保持原色、不压暗，方便编辑者看清排布。 */
+.i3d-climate-panel.is-preview button:disabled,
+.i3d-climate-panel.is-preview select:disabled {
+  opacity: 1;
+  color: inherit;
+}
+/* 面板内的原生 select / number 输入统一成控件底色，宽度跟随栅格而不是内容。 */
+.i3d-climate-panel select.i3d-climate-choice,
+.i3d-climate-panel input.i3d-climate-choice {
+  width: 100%;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  color: inherit;
+  background: #8080801f;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 8px;
+  font: inherit;
+}
+/* 原生下拉展开后的选项用不透明底色，否则半透明面板会让选项叠字看不清。 */
+.i3d-climate-panel select.i3d-climate-choice option {
+  color: #20272b;
+  background: #f5f6f7;
+}
+.i3d-climate-panel input[type="range"] {
+  width: 100%;
+  accent-color: var(--i3d-climate-accent);
+}
+/* 分组内的说明文字与滑杆：紧贴 h4 下方的补充信息。 */
+.i3d-climate-option-group > p {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+.i3d-climate-option-group > input[type="range"] {
+  width: 100%;
+  margin: 14px 0;
+  accent-color: var(--i3d-climate-accent);
+  cursor: pointer;
+}
+/* ===== 附加功能卡片网格 ===== */
+
+/* 网格：一行固定切 6 份，卡片按 --extra-columns / --extra-rows 跨列跨行；
+   container-type: inline-size 让下面两条 @container 能按网格自身宽度收紧列宽。 */
+.i3d-climate-panel .i3d-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 36px;
+  align-items: start;
+  gap: 8px;
+  width: calc(100% + 8px);
+  margin-top: 9px;
+  margin-right: -8px;
+  container-type: inline-size;
+}
+/* 卡片外壳：默认只在内容宽度内撑开；真正落进网格（.i3d-extra-grid > .i3d-extra-card）后才铺满栅格。 */
+.i3d-climate-panel .i3d-extra-card {
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  border-radius: 10px;
+  background: #8080800f;
+}
+/* 选项 / 数值卡是「标题 + 控件」竖排，其余形态标题与控件并排。 */
+.i3d-climate-panel .i3d-extra-select,
+.i3d-climate-panel .i3d-extra-number {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+}
+.i3d-climate-panel .i3d-extra-select select.i3d-climate-choice {
+  justify-self: start;
+  width: auto;
+  min-width: min(112px, 100%);
+  max-width: 100%;
+  padding-right: 28px;
+}
+.i3d-climate-panel .i3d-extra-number input.i3d-climate-choice {
+  justify-self: start;
+  width: 120px;
+  max-width: 100%;
+}
+.i3d-extra-description {
+  min-width: 0;
+}
+.i3d-extra-description h4 {
+  overflow-wrap: anywhere;
+}
+.i3d-extra-description p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.7;
+  overflow-wrap: anywhere;
+}
+/* 只读状态卡只有描述块，标题与状态挤在一行两端。 */
+.i3d-climate-panel .i3d-extra-state {
+  grid-template-columns: minmax(0, 1fr);
+}
+.i3d-extra-state .i3d-extra-description {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+/* 状态卡字号压到 10px，并用负字距让长实体名尽量不换行。 */
+.i3d-extra-state .i3d-extra-description {
+  font-size: 10px;
+  letter-spacing: -0.015em;
+  gap: 2px;
+}
+.i3d-extra-state .i3d-extra-description h4 {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  font-size: inherit;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.i3d-extra-state .i3d-extra-description p {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0 0 0 auto;
+  font-size: inherit;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: normal;
+}
+/* 卡片内的错误行独占整行；空错误行隐藏，不占高度。 */
+.i3d-extra-card > .i3d-climate-error {
+  grid-column: 1 / -1;
+}
+.i3d-extra-card > .i3d-climate-error:empty {
+  display: none;
+}
+/* 开关卡：按钮本身画成滑块，滑块位移由 aria-checked 驱动。 */
+.i3d-climate-panel .i3d-extra-switch > button[role="switch"] {
+  position: relative;
+  justify-self: end;
+  width: 42px;
+  min-height: 24px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 15px;
+  font-size: 0;
+}
+.i3d-extra-switch > button[role="switch"]:after {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translate(0);
+  transition: transform 0.15s ease;
+}
+.i3d-extra-switch > button[role="switch"][aria-checked="true"]:after {
+  transform: translate(18px);
+}
+/* 卡片内的原生下拉：跟随卡片明暗，展开后的选项底色同样要覆盖。 */
+.i3d-climate-panel .i3d-extra-card select {
+  color-scheme: dark;
+  cursor: pointer;
+}
+.i3d-climate-panel .i3d-extra-card select option {
+  color: #dce2e5;
+  background: #242b30;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-card select {
+  color-scheme: light;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-card select option {
+  color: #554632;
+  background: #f6f0e5;
+}
+.i3d-climate-panel .i3d-extra-card select,
+.i3d-climate-panel .i3d-extra-card input {
+  min-width: 0;
+}
+/* 落进网格后的卡片：按 --extra-columns / --extra-rows 跨列跨行，高度由行高换算。 */
+.i3d-climate-panel .i3d-extra-grid > .i3d-extra-card {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  height: calc(44px * var(--extra-rows, 1) - 8px);
+  padding: 3px 6px;
+  gap: 4px 6px;
+  grid-column: span var(--extra-columns, 2);
+  grid-row: span var(--extra-rows, 1);
+  overflow: hidden;
+  overflow: clip;
+  align-content: center;
+}
+.i3d-climate-panel .i3d-extra-card > .i3d-climate-choice {
+  max-width: 100%;
+}
+.i3d-climate-panel .i3d-extra-card button:focus-visible {
+  outline-offset: -3px;
+}
+/* 编辑态：整张卡片可拿起换位，触屏只允许纵向平移以免和面板滚动打架。 */
+.i3d-climate-panel .i3d-extra-grid > .i3d-extra-card.is-layout-editing {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+}
+.i3d-extra-card.is-layout-editing > .i3d-climate-choice {
+  pointer-events: none;
+}
+.i3d-climate-panel .i3d-extra-grid > .i3d-extra-card.is-layout-editing.is-dragging {
+  cursor: grabbing;
+}
+/* 开关卡的状态行并进开关按钮，不再单独显示。 */
+.i3d-extra-switch .i3d-extra-description p {
+  display: none;
+}
+.i3d-extra-card.is-layout-editing > .i3d-extra-drag {
+  opacity: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.i3d-extra-card.is-layout-editing > .i3d-extra-resize {
+  opacity: 0;
+  z-index: 2;
+}
+.i3d-extra-card.is-layout-editing:focus-within > .i3d-extra-resize {
+  opacity: 1;
+}
+/* 标题最多两行，超出省略，避免长实体名把卡片撑爆。 */
+.i3d-extra-description h4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 拖拽把手与缩放手柄：默认不可见，只在选中 / 聚焦卡片时露出来。 */
+.i3d-extra-card .i3d-extra-drag,
+.i3d-extra-card .i3d-extra-resize {
+  position: absolute;
+  display: grid;
+  place-items: end;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+  font-size: 12px;
+  line-height: 1;
+  font-family: inherit;
+  padding: 2px;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.i3d-extra-card .i3d-extra-drag {
+  font-size: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.i3d-extra-card .i3d-extra-resize {
+  font-size: 0;
+}
+.i3d-extra-card .i3d-extra-drag:focus,
+.i3d-extra-card .i3d-extra-resize:focus {
+  outline: none !important;
+  box-shadow: none;
+}
+.i3d-extra-card .i3d-extra-drag {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  cursor: grab;
+  padding: 0;
+}
+.i3d-extra-card .i3d-extra-resize {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+  touch-action: none;
+  width: 44px;
+  height: 44px;
+  max-width: 100%;
+  max-height: 100%;
+  pointer-events: auto;
+}
+.i3d-extra-card .i3d-extra-resize:after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  opacity: 0;
+}
+.i3d-extra-card.is-selected > .i3d-extra-resize,
+.i3d-extra-card:focus-within > .i3d-extra-resize {
+  pointer-events: auto;
+}
+.i3d-extra-card.is-selected > .i3d-extra-resize:after,
+.i3d-extra-card:focus-within > .i3d-extra-resize:after {
+  opacity: 0.72;
+}
+/* 窄网格下收紧跨列：360px 以下按计算列数铺开，240px 以下至少两列，
+   否则 1/3 行宽会窄到放不下内容。 */
+@container (max-width:360px) {
+  .i3d-climate-panel .i3d-extra-grid > .i3d-extra-card {
+    grid-column: span var(--extra-columns, 2);
+  }
+}
+@container (max-width:240px) {
+  .i3d-climate-panel .i3d-extra-grid > .i3d-extra-card {
+    grid-column: span max(2, var(--extra-columns, 2));
+  }
+}
+/* 选中 / 拖拽 / 落点三种编辑反馈：全部用轮廓表达，不改盒模型以免卡片跳动。 */
+.i3d-climate-panel .i3d-extra-card.is-selected {
+  outline: 1px solid var(--i3d-climate-accent);
+  outline-offset: -1px;
+}
+.i3d-climate-panel .i3d-extra-card.is-dragging {
+  outline: 2px dashed var(--i3d-climate-accent);
+  outline-offset: -2px;
+  background: var(--hb-climate-accent-soft);
+}
+.i3d-extra-card.is-selected > .i3d-extra-drag {
+  opacity: 0;
+}
+.i3d-extra-card.is-selected > .i3d-extra-resize {
+  opacity: 1;
+  z-index: 3;
+}
+.i3d-extra-card.is-drop-target {
+  outline: 2px solid var(--i3d-climate-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--hb-climate-accent-soft);
+}
+.i3d-extra-card .i3d-extra-drag,
+.i3d-extra-card .i3d-extra-resize {
+  touch-action: none;
+  user-select: none;
+}
+/* 拖拽 / 缩放时跟随指针的提示气泡；改尺寸时画成卡片将占据的轮廓。 */
+.i3d-extra-gesture-hint {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: #202932;
+  color: #fff;
+  font-size: 12px;
+  box-shadow: 0 2px 10px #0006;
+}
+.i3d-extra-gesture-hint.is-size-outline {
+  box-sizing: border-box;
+  border: 2px dashed #b99d69;
+  background: #b99d6930;
+  color: #745a30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+/* 自定义下拉：触发按钮负责显示当前值，菜单固定在视口里，箭头用伪元素画。 */
+.i3d-climate-panel .i3d-extra-select-trigger {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 28px 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 30px;
+  line-height: 18px;
+}
+.i3d-extra-select-trigger:after {
+  content: "";
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  opacity: 0.7;
+}
+.i3d-extra-select-trigger[aria-expanded="true"]:after {
+  transform: translateY(-20%) rotate(225deg);
+}
+.i3d-extra-select-menu {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  color-scheme: dark;
+  border: 1px solid #59636f;
+  border-radius: 10px;
+  background: #252d36;
+  color: #e5ebef;
+  box-shadow: 0 8px 24px #0006;
+  font:
+    13px/1.45 Helvetica Neue,
+    PingFang SC,
+    sans-serif;
+}
+.i3d-extra-select-menu {
+  z-index: 10010;
+}
+.i3d-extra-select-menu[hidden] {
+  display: none !important;
+}
+/* 菜单被 portal 到 body 时脱离卡片色上下文，靠 data-theme 找回当前主题。 */
+.i3d-extra-select-menu[data-theme="warm-wood"] {
+  color-scheme: light;
+  background: #f6f0e5;
+  color: #554632;
+  border-color: #bca98c;
+}
+.i3d-extra-select-menu[data-theme="warm-wood"] > button[aria-selected="true"] {
+  background: #65594718;
+  color: #554632;
+}
+/* 二次确认条：button 类卡片发出不可逆指令前先问一句。 */
+.i3d-extra-confirm {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.i3d-extra-confirm button {
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  padding: 4px 8px;
+}
+.i3d-extra-select-menu > button {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  margin: 0;
+  border: 0;
+  border-radius: 7px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.i3d-extra-select-menu > button[aria-selected="true"] {
+  background: #ffffff18;
+  color: #fff;
+  font-weight: 600;
+}
+.i3d-extra-select-menu > button[aria-selected="true"]:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 1px var(--i3d-climate-accent);
+}
+.i3d-extra-select-menu > button:hover,
+.i3d-extra-select-menu > button:focus-visible {
+  outline: 1px solid #aab8c5;
+  outline-offset: -1px;
+  background: #ffffff12;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-select-menu {
+  color-scheme: light;
+  background: #f6f0e5;
+  color: #554632;
+  border-color: #bca98c;
+  box-shadow: 0 8px 24px #614c2833;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-select-menu > button[aria-selected="true"] {
+  background: #65594718;
+  color: #554632;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-select-menu > button:hover,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-extra-select-menu > button:focus-visible {
+  background: #65594712;
+  outline-color: #9b8666;
+}
+.i3d-extra-select-menu[data-theme="warm-wood"] > button:hover,
+.i3d-extra-select-menu[data-theme="warm-wood"] > button:focus-visible {
+  background: #eee3d0;
+  outline-color: #9b8666;
+}
+.i3d-extra-select-menu[data-theme="warm-wood"] > button[aria-selected="true"]:focus-visible {
+  box-shadow: inset 0 0 0 1px #8a5c23;
+}
