@@ -115,6 +115,9 @@ export function createCurtainGroup(config, firstCurtainId, secondCurtainId, grou
     iconSize: template.iconSize ?? 26,
     hitSize: template.hitSize ?? Math.max(44, template.size ?? 44),
     clickAction: template.clickAction === "panel" ? "panel" : "focus",
+    // 新组合显式带上排布方式：后端会校验 panelLayout 的取值，缺省（undefined）虽能过校验，
+    // 但显式写 "horizontal" 让配置自描述，也让编辑器下拉框有确定的初始值。
+    panelLayout: "horizontal",
     visible: template.visible !== false,
     hiddenClickable: template.hiddenClickable === true,
     buttonHidden: template.buttonHidden === true

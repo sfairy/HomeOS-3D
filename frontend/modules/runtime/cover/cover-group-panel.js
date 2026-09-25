@@ -8,7 +8,7 @@
  * 约定：根元素上的 is-vertical 由组合配置的 panelLayout 决定；子面板复用 .i3d-cover-panel 的
  * 全部样式，因此本模块不再引入静态资源。
  */
-import { createCoverPanel } from "./cover-panel.js?v=2609251920";
+import { createCoverPanel } from "./cover-panel.js?v=2609252203";
 
 /**
  * 创建窗帘组合面板。
@@ -26,6 +26,9 @@ export function createCoverGroupPanel({
   const ownerDocument = hostElement?.ownerDocument || globalThis.document;
   const rootElement = hostElement || ownerDocument.createElement("section");
   rootElement.classList.add("i3d-cover-group-panel");
+  // 与登记表里「面板构造时一律 hidden」的约定一致：首帧 renderLightPanel 之前这块面板还没被
+  // 派发过，不预先藏起来就会在灯光面板里闪出两块空白子面板。
+  rootElement.hidden = true;
   const titleElement = ownerDocument.createElement("h3");
   titleElement.className = "i3d-cover-group-title";
   rootElement.append(titleElement);
@@ -37,6 +40,11 @@ export function createCoverGroupPanel({
       onPreview: onPreview
     })
   );
+  // 子面板同样先藏起来：第一次 update() 才按 memberItems 决定显不显示，
+  // 否则「组面板被藏起来」的窗口期内两名成员仍是可见的。
+  memberPanels.forEach(panel => {
+    panel.root.hidden = true;
+  });
   memberPanels.forEach(panel => rootElement.append(panel.root));
   return {
     root: rootElement,

@@ -36,7 +36,7 @@ from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .device import DEVICE_PROFILES, require_device_model
 from .lock import require_lock_model, validate_lock_command
-from .purifier import validate_extra_command
+from .purifier import require_purifier_model, validate_extra_command, validate_purifier_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
 from .scene_store import scenes_dir, sweep_scenes_for_app
 from starlette.concurrency import run_in_threadpool
@@ -418,11 +418,13 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
 
 @router.post('/control')
 async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
-    """3D 舞台页的设备控制入口，按 domain 走三条不同的校验路径。
+    """3D 舞台页的设备控制入口，按 domain 走四条不同的校验路径。
 
     - media_player / 前端声明为 television：确认实体确实配在该控件的电视列表里，且对应电视模型仍在
       场景中，再按 supported_features 位掩码核对能力；
     - cover / climate：确认环境配置里的绑定与场景中的窗帘 / 空调模型，再取 HA 实时状态做能力校验；
+    - fan：确认净化器配在该控件的 environment.airPurifiers 里、对应模型仍在场景中，
+      再取 HA 实时状态做能力校验；
     - 其余（light / switch）：只允许 turn_on / turn_off，直接转发 HA 服务调用。
 
     ``payload`` 含 domain / service / entity_id / data 与定位字段，``viewer`` 是已认证且通过 api
@@ -561,8 +563,10 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         try:
             scene = json.loads((source if source.is_file() else reference).read_text(encoding='utf-8'))['scene']
             if is_purifier:
-                # 净化器自己的实体挂在宿主绑定上，能力校验与空调同一套（entityId 是 fan.*）。
-                require_air_conditioner_model([host], host.get('entityId', ''), scene)
+                # 净化器自己的实体挂在宿主绑定上。模型存活必须用净化器自己的判据：
+                # 场景里它的 type 是 airpurifier，借空调那套（wallac/floorac/airoutlet）
+                # 会把每一台净化器都判成「模型已失联」，附加功能整个不可用。
+                require_purifier_model([host], host.get('entityId', ''), scene)
             else:
                 require_device_model(host, scene, model_type)
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
@@ -625,6 +629,45 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             validate_cover_command(payload.service, payload.data, states[0] if states else None, dream=dream)
         else:
             validate_climate_command(payload.service, payload.data, states[0] if states else None)
+        return await call_service(payload, request, viewer)
+    elif payload.domain == 'fan':
+        # 空气净化器本体（校验见 purifier.py）：实体配在 environment.airPurifiers 下，
+        # 顺序与空调 / 窗帘一致 —— 先证明绑定在当前控件上，再证明模型还在场景里。
+        # 附加实体不走这条：那些挂在宿主设备的 extraControls 下，见上面的 device-extra 分支。
+        if not (payload.project_id and payload.component_id):
+            raise HTTPException(422, detail='空气净化器控制缺少仪表盘或控件信息。')
+        require_viewer_project(viewer, payload.project_id)
+        component = control_component(database, payload.project_id, payload.component_id)
+        properties = component.get('properties', {})
+        bindings = properties.get('environment', {}).get('airPurifiers', [])
+        # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
+        if not any(item.get('entityId') == payload.entity_id for item in bindings):
+            raise HTTPException(403, detail='此空气净化器未配置到当前 3D 交互控件。')
+        reference = scene_path(request, properties.get('sceneId', ''))
+        source = request.app.state.settings.studio3d_draft_path
+        try:
+            scene = json.loads((source if source.is_file() else reference).read_text(encoding='utf-8'))['scene']
+            # 模型被删掉或改类型后不该还能控制，判据见 require_purifier_model。
+            require_purifier_model(bindings, payload.entity_id, scene)
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
+        connection = active_connection(database)
+        if connection is None:
+            raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
+        # 实体必须属于活跃连接、域为 fan、同步正常且未被禁用。
+        entity = database.scalar(
+            select(HAEntity).where(
+                HAEntity.connection_id == connection.id,
+                HAEntity.entity_id == payload.entity_id,
+                HAEntity.domain == 'fan',
+                HAEntity.sync_status == 'active',
+                HAEntity.disabled_by.is_(None),
+            )
+        )
+        if entity is None:
+            raise HTTPException(404, detail='空气净化器实体不存在、已禁用或已失联。')
+        states = await request.app.state.ha_connector.state_hub.snapshot({payload.entity_id})
+        validate_purifier_command(payload.service, payload.data, states[0] if states else None)
         return await call_service(payload, request, viewer)
     else:
         # 兜底分支只放行灯光与开关的开关动作；其余域（含未声明的）一律拒绝。
@@ -878,6 +921,8 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             # editor/：配置编辑器与量程对话框
             'editor/config-editor.js',
             'editor/range-dialog.js',
+            # editor/batch-apply：跨域批量应用对话框（配置编辑器与安防编辑器共用）
+            'editor/batch-apply.js',
             # editor/device-entity-config：通用设备的实体目录与能力位适配层
             'editor/device-entity-config.js')
     }
@@ -886,8 +931,14 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
         'core/runtime.css': 'text/css',
         'core/stage.css': 'text/css',
         'presence/presence-editor.css': 'text/css',
+        # 安防编辑器（security-editor.js）打开门锁面板时注入的专属样式：
+        # 同 presence-editor.css，只服务编辑器弹窗，不进 stage.css。
+        'security/security-editor.css': 'text/css',
         'climate/climate-panel.css': 'text/css',
         'nas/nas-panel.css': 'text/css',
+        # 设备编辑器（config-editor.js 的通用设备 / 净化器三节）注入的专属样式：
+        # 同 presence-editor.css，只服务编辑器弹窗，不进 stage.css。
+        'editor/device-editor.css': 'text/css',
         'cover/cover-panel.css': 'text/css'})
     # 先按白名单拒绝，再落盘检查，避免无权限的探测走到文件系统。
     if filename not in media_types:

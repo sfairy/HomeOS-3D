@@ -19,6 +19,7 @@ from ...core.canonical_json import canonical_json
 from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
 from .lock import validate_lock_bindings
 from .numbers import as_finite_number
+from .purifier import EXTRA_TYPES
 
 
 def validate_config(properties: dict) -> None:
@@ -141,8 +142,16 @@ def validate_config(properties: dict) -> None:
     # 它不参与本层的引用校验，前端也不读它，因此只放行不解释。
     if 'templateReadonly' in properties and not isinstance(properties['templateReadonly'], bool):
         fail()
-    # warmBackgroundTheme 是布尔开关：主题为暖阳原木时叠加暮色背景。
-    if 'warmBackgroundTheme' in properties and not isinstance(properties['warmBackgroundTheme'], bool):
+    # 暖阳原木主题下的背景配色：布尔 true 等价于「暖阳暮色」，字符串则显式给出档位
+    # （'warm-sunlight' 微光 / 'warm-dusk' 暮色，与参考实现的下拉框取值一致）。
+    # 两种写法都放行：后端早先把该键定义成布尔开关，前端下拉框写的是字符串，
+    # 收紧任何一种都会让另一侧的合法配置在保存时被 422。
+    if 'warmBackgroundTheme' in properties and properties['warmBackgroundTheme'] not in (
+        True,
+        False,
+        'warm-sunlight',
+        'warm-dusk',
+    ):
         fail()
     # 安防：门锁、摄像头与人形传感器三张表，各自的字段与范围都在下面单独校验。
     security = properties.get('security', {})
@@ -403,8 +412,9 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'scale' in placement and not number(placement['scale'], 0.5, 2):
             fail()
-    # standard = 全屋统一灯光；region = 按光区分区，后者才用得上 lightRegionOverrides。
-    if properties.get('lightingMode', 'standard') not in ('standard', 'region'):
+    # 光影已收敛为 region（轻量柔光 / 按光区分区）单一档位，前端恒按 region 归一。
+    # 这里仍放行历史草稿里的 standard，避免旧配置保存时整份 422（读入侧会折算成 region）。
+    if properties.get('lightingMode', 'region') not in ('standard', 'region'):
         fail()
     # 地面反射：resolution 只允许 256 / 512 / 768 三档渲染目标，strength 上限 0.45 防止过曝。
     reflection = properties.get('groundReflection', {})
@@ -637,7 +647,8 @@ def validate_config(properties: dict) -> None:
         if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
             fail()
         # 默认灯光效果：亮度百分比与色温（K），不填表示不做预设。
-        # 亮度上限 150% 与前端编辑器一致，两端必须同步放宽，否则前端填的值会被这里拒掉。
+        # 前端的固定效果区间是 1~100%；这里仍放宽到 150% 只为兼容历史草稿（早期版本存过 150），
+        # 收紧会让那些控件在保存时整份 422 —— 读入侧不放大、渲染侧自然按 100 封顶。
         if 'effectDefaults' in light:
             defaults = light['effectDefaults']
             bounds = {
@@ -659,12 +670,18 @@ def validate_config(properties: dict) -> None:
                 if not number(effect_range[minimum], low, high) or not number(effect_range[maximum], low, high) or effect_range[minimum] > effect_range[maximum]:
                     fail()
         validate_camera(light.get('focusCamera'))
-    # 环境设备：窗帘与空调两张表，各自绑定到场景里的 3D 模型。
+    # 环境设备：窗帘（含窗帘组合）、空调、空气净化器与温湿度计五张表。窗帘 / 空调 / 净化器
+    # 各自绑定到场景里的 3D 模型，温湿度计是不绑模型的只读信息卡；窗帘组合只引用 curtains
+    # 里的成员，没有自己的实体。airPurifiers 必须在这里登记：模板默认值（definition.js）里就有
+    # 这个空数组，漏登记的后果不是「净化器存不上」，而是**任何**一次 3D 配置保存都整份 422。
     environment = properties.get('environment', {})
     if not isinstance(environment, dict) or set(environment) - {
         'curtains',
         'dimStrength',
-        'airConditioners'}:
+        'airConditioners',
+        'airPurifiers',
+        'curtainGroups',
+        'temperatureHumidity'}:
         fail()
     # dimStrength 是环境设备通用的压暗强度（百分比），默认 70。
     if not number(environment.get('dimStrength', 70), 0, 100):
@@ -719,6 +736,109 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
+    # 空气净化器：与空调同住 environment、同样绑定场景模型，但 entityId 只允许 fan.* 域，
+    # 且比空调多了两块弹窗内容 —— 附加功能（extraControls）与状态灯规则（statusRules）。
+    # 净化器在 HA 里会拆成一堆兄弟实体（开关 / 模式 / 滤芯寿命…），这两块决定弹窗显示什么，
+    # 校验口径与通用设备（device.py 的 validate_device_bindings）逐字一致。
+    air_purifiers = environment.get('airPurifiers', [])
+    if not isinstance(air_purifiers, list):
+        fail()
+    ids = set()
+    models = set()
+    for item in air_purifiers:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'icon',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'modelId',
+            'visible',
+            'entityId',
+            'iconSize',
+            'clickAction',
+            'focusCamera',
+            'buttonHidden',
+            'hiddenClickable',
+            'extraControls',
+            'statusRules'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'modelId', 'entityId', 'label')):
+            fail()
+        if any(not item.get(key) for key in ('id', 'floorId', 'modelId')):
+            fail()
+        model = (item['floorId'], item['modelId'])
+        if item['id'] in ids or model in models:
+            fail()
+        ids.add(item['id'])
+        models.add(model)
+        entity = item.get('entityId', '')
+        # 只接受 fan.* 域：净化器在 HA 里是 fan 实体，别的域放进来会渲染出控制不了的状态。
+        if entity and not re.fullmatch('fan\\.[a-z0-9_]+', entity):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden', 'motionEnabled', 'funMessages')):
+            fail()
+        if item.get('clickAction', 'focus') not in ('focus', 'turn-on-focus', 'turn-on', 'turn-on-panel'):
+            fail()
+        if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+            fail()
+        validate_camera(item.get('focusCamera'))
+        # 附加功能：每项 {entityId, type, label?, columns?, rows?}，type 必须等于该域的默认能力
+        # （purifier.py 的 EXTRA_TYPES），同一实体只能出现一次，与 device.py 的上限一致为 12 项。
+        extras = item.get('extraControls', [])
+        if not isinstance(extras, list) or len(extras) > 12:
+            fail()
+        selected = set()
+        for extra in extras:
+            if (
+                not isinstance(extra, dict)
+                or set(extra) - {'rows', 'type', 'label', 'columns', 'entityId'}
+                or not isinstance(extra.get('entityId'), str)
+                or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', extra['entityId'])
+            ):
+                fail()
+            selected_entity = extra['entityId']
+            if (
+                selected_entity in selected
+                or extra.get('type') != EXTRA_TYPES.get(selected_entity.split('.')[0], 'state')
+                or not text(extra.get('label', ''), 120)
+            ):
+                fail()
+            selected.add(selected_entity)
+            for key, allowed in (('columns', (1, 2, 3, 4)), ('rows', (1, 2))):
+                if key not in extra:
+                    continue
+                if type(extra[key]) is not int or extra[key] not in allowed:
+                    fail()
+        # 状态灯规则：power 是单个规则，health 是同形状的单个或数组；两端状态值都要有且不同。
+        rules = item.get('statusRules', {})
+        if not isinstance(rules, dict) or set(rules) - {'power', 'health'}:
+            fail()
+        rule_values = []
+        for rule_key, rule_value in rules.items():
+            if rule_key == 'health' and isinstance(rule_value, list):
+                rule_values.extend(rule_value)
+                continue
+            rule_values.append(rule_value)
+        for rule in rule_values:
+            if (
+                not isinstance(rule, dict)
+                or set(rule) != {'active', 'entityId', 'inactive'}
+                or not isinstance(rule.get('entityId'), str)
+                or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', rule['entityId'])
+            ):
+                fail()
+            if any(not text(rule.get(key, '')) for key in ('active', 'inactive')) or rule['active'] == rule['inactive']:
+                fail()
     # 窗帘：entityId 只允许 cover.* 域；coverKind 区分普通帘与梦幻帘（可控时机不同）。
     curtains = environment.get('curtains', [])
     if not isinstance(curtains, list):
@@ -745,6 +865,9 @@ def validate_config(properties: dict) -> None:
             'focusCamera',
             'buttonHidden',
             'curtainFabric',
+            # 帘布覆写：户型模型自带帘布时默认以模型为准，用户显式改过才置 true，
+            # 之后该控件的帘布不再被模型覆盖（见 runtime/core/stage/geometry.js）。
+            'curtainFabricOverride',
             'coverDirection',
             'hiddenClickable',
             'unboundPosition',
@@ -778,11 +901,128 @@ def validate_config(properties: dict) -> None:
             fail()
         if item.get('curtainFabric', 'cloth') not in ('cloth', 'sheer'):
             fail()
+        if 'curtainFabricOverride' in item and not isinstance(item['curtainFabricOverride'], bool):
+            fail()
         if 'unboundPosition' in item and not number(item['unboundPosition'], 0, 100):
             fail()
         if 'iconStateReversed' in item and not isinstance(item['iconStateReversed'], bool):
             fail()
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
+            fail()
+        validate_camera(item.get('focusCamera'))
+    # 温湿度计：一块不绑定场景模型的信息卡，用 x / y 定位，两路实体分别指向温度与湿度传感器。
+    # 字段与前端 normalizeTemperatureHumidity 的白名单逐字对应，新增字段要两端同步。
+    meters = environment.get('temperatureHumidity', [])
+    if not isinstance(meters, list):
+        fail()
+    ids = set()
+    for item in meters:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'label',
+            'floorId',
+            'height',
+            'size',
+            'visible',
+            'iconSize',
+            'hitSize',
+            'temperatureEntityId',
+            'humidityEntityId'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
+            fail()
+        # 'all' 是「全部楼层」的伪楼层：信息卡必须落在具体楼层上才能投影定位。
+        if not item.get('id') or not item.get('floorId') or item['floorId'] == 'all' or item['id'] in ids:
+            fail()
+        ids.add(item['id'])
+        # 两路实体都允许先留空（先把卡片摆好，实体稍后再绑）；一旦填了就必须是 sensor.* 域，
+        # 否则前端状态订阅拿不到值，卡片会永远显示破折号。
+        for key in ('temperatureEntityId', 'humidityEntityId'):
+            entity = item.get(key, '')
+            if not isinstance(entity, str) or entity and not re.fullmatch('sensor\\.[a-z0-9_]+', entity):
+                fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000))):
+            fail()
+        if 'height' in item and not number(item['height'], 0, 20):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if 'visible' in item and not isinstance(item['visible'], bool):
+            fail()
+    # 窗帘组合（一拖多）：同一楼层两副普通窗帘并成一个整体控制，典型场景是双层帘。
+    # 组合自己不新增控制逻辑，只把成员各自的子面板拼起来，因此这里没有实体字段 ——
+    # 成员实体在 curtains 表里各自校验，组合只保证「成员引用」这一层自洽。
+    curtain_groups = environment.get('curtainGroups', [])
+    if not isinstance(curtain_groups, list):
+        fail()
+    curtain_by_id = {item.get('id'): item for item in curtains if isinstance(item, dict)}
+    group_ids = set()
+    # 已被前面组合占用的成员：后面的组合再引用到就判为非法，否则同一副帘会被两处驱动。
+    grouped_member_ids = set()
+    for item in curtain_groups:
+        fields = {
+            'x',
+            'y',
+            'id',
+            'size',
+            'label',
+            'height',
+            'floorId',
+            'hitSize',
+            'iconSize',
+            'memberIds',
+            'visible',
+            'clickAction',
+            'focusCamera',
+            'panelLayout',
+            'buttonHidden',
+            'hiddenClickable'}
+        if not isinstance(item, dict) or set(item) - fields:
+            fail()
+        if any(not text(item.get(key, '')) for key in ('id', 'floorId', 'label')):
+            fail()
+        if not item.get('id') or item['id'] in group_ids:
+            fail()
+        group_ids.add(item['id'])
+        # 组合必须落在具体楼层上：成员要求同楼层，'all' 这种伪楼层无法与任何成员对齐。
+        if not item.get('floorId') or item['floorId'] == 'all':
+            fail()
+        member_ids = item.get('memberIds')
+        # 恰好两名成员，且不能是同一张配置项 —— 一拖一的「组合」没有存在意义。
+        if (
+            not isinstance(member_ids, list)
+            or len(member_ids) != 2
+            or not all(isinstance(member_id, str) and member_id for member_id in member_ids)
+            or member_ids[0] == member_ids[1]
+        ):
+            fail()
+        members = [curtain_by_id.get(member_id) for member_id in member_ids]
+        # 成员必须存在、同楼层、非梦幻帘、未被别的组合占用，且两副帘不是同一个实体。
+        # 与前端 validCurtainGroups 的条件逐条对应：两端判定不一致时，编辑器能建出舞台拒收的组合。
+        if any(
+            member is None
+            or member.get('floorId') != item['floorId']
+            or member.get('coverKind') == 'dream'
+            or member.get('id') in grouped_member_ids
+            for member in members
+        ):
+            fail()
+        if members[0].get('entityId') and members[0].get('entityId') == members[1].get('entityId'):
+            fail()
+        grouped_member_ids.update(member_ids)
+        if item.get('clickAction', 'focus') not in ('focus', 'panel'):
+            fail()
+        # 弹窗布局：左右并排是缺省，上下布局用于成员面板较高的场景（组合面板据此加高）。
+        if item.get('panelLayout', 'horizontal') not in ('horizontal', 'vertical'):
+            fail()
+        if any(key in item and not isinstance(item[key], bool) for key in ('visible', 'hiddenClickable', 'buttonHidden')):
+            fail()
+        if any(key in item and not positive_number(item[key]) for key in ('size', 'iconSize', 'hitSize')):
+            fail()
+        if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
             fail()
         validate_camera(item.get('focusCamera'))
     # 设备表：NAS、扫地机、电视，再加上五类「通用设备」（冰箱 / 洗碗机 / 洗衣机 /
