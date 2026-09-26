@@ -12,10 +12,10 @@ import {
   withFixedLightEffects,
   withPageAppearancePreset,
   withRegionLightingPreset
-} from "../static-helpers.js?v=2609260842";
+} from "../static-helpers.js?v=2609260900";
 // 门模型展开的唯一实现在 lock-state.js（舞台收集门锁绑定、门动画找模型共用同一份）：
 // 这份快照多带一个 doors 清单给门锁编辑器，靠的就是它，别在这里另写一套门 → 坐标的口径。
-import { doorModels } from "../../security/lock-state.js?v=2609260842";
+import { doorModels } from "../../security/lock-state.js?v=2609260900";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。

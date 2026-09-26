@@ -14,18 +14,18 @@ import {
   resolveStateEntry,
   stateTextOf,
   temperatureHumidityEntities
-} from "./static-helpers.js?v=2609260842";
+} from "./static-helpers.js?v=2609260900";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609260842";
-import { createLightStream } from "../light/light-stream.js?v=2609260842";
+} from "./popup-preview.js?v=2609260900";
+import { createLightStream } from "../light/light-stream.js?v=2609260900";
 // 窗帘组合的条目 id 口径与归一（cover-groups.js）：焦点态判定要认组合 id，否则展示态点击
 // 组合标记时宿主不会把它当成一次有效聚焦（面板在 iframe 里能开，但宿主的聚焦态接不上）。
-import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609260842";
+import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609260900";
 // 通用设备的品类表：命令闸门要按这张表展开各品类集合下的附加实体。集合名只此一份，
 // 舞台侧收集绑定（core/stage/binding-collectors.js）用的是同一个实现。
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609260842";
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609260900";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**

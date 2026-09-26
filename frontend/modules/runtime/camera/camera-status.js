@@ -9,10 +9,10 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609260842";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609260900";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
 // 所以定位必须带上楼层，同一模型 ID 在不同楼层可以重复。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260842";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609260900";
 /**
  * 判断摄像头实体是否在线。
  */

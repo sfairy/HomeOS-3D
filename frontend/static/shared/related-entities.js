@@ -6,8 +6,8 @@
  * null 表示「未配置过」，与「配置为空」区分。候选排序稳定：不可用项最后、再按域优先级、
  * 最后按实体 ID 字典序。
  */
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609260842";
-import { entityDomainOf } from "../utils/entities.js?v=2609260842";
+import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609260900";
+import { entityDomainOf } from "../utils/entities.js?v=2609260900";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 const RELATED_ENTITY_MODE_SELECTED = "selected";

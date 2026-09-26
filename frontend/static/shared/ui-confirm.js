@@ -7,7 +7,7 @@
  * 只有点确认才 true；同一时刻只开一个，重复调用先关掉上一个并以 false 结束它。
  */
 
-const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609260842";
+const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609260900";
 const DIALOG_ID = "homeos-ui-confirm-dialog";
 
 let stylePromise = null;

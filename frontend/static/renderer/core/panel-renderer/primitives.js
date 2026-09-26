@@ -9,9 +9,9 @@
  * 都不属于本文件。
  */
 
-import { randomUuid } from "../../../utils/random-id.js?v=2609260842";
-import { paletteColor } from "../../../utils/colors.js?v=2609260842";
-import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609260842";
+import { randomUuid } from "../../../utils/random-id.js?v=2609260900";
+import { paletteColor } from "../../../utils/colors.js?v=2609260900";
+import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609260900";
 
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
 export const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;

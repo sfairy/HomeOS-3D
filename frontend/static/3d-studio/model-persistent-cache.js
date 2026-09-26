@@ -16,9 +16,9 @@
  * 调用方照常走真实加载器，不抛错、不产生未处理的 Promise 拒绝。任何一次打开失败都会把实例
  * 标记为 disabled，后续调用直接短路，不再反复敲一个已经打不开的库。
  */
-import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609260842";
+import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609260900";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=2609260842";
+import { debugLog } from "../utils/debug-log.js?v=2609260900";
 
 /** 缓存库名。 */
 const MODEL_CACHE_DB_NAME = "ha-bridge-3d-templates";
