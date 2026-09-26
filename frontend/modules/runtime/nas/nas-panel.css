@@ -16,9 +16,17 @@
  * 不承载色相，也不该随主控色变化（--hos-* 里没有对应的「白」令牌）。
  */
 
-/* 面板外壳：固定 400px，与灯光面板展开后的高度一致，指标区内部滚动。 */
+/* 面板外壳：外层高度仍然是**固定**的（不是 auto）——指标区是内部滚动
+   （.i3d-nas-metrics 靠 flex:1 + min-height:0 撑起来），要有一个确定高度才滚得动，
+   标题与图形也才能始终留在原位；换成 auto 会让整块面板一起滚，标题会被指标顶出视野，
+   正是那段注释明确要避免的。
+   上限从 400px 提到 460px：面板顶部多了 NAS 图形（约 86px），不抬高就只剩一行指标可看。
+   算式也改成直接拿 --i3d-control-top 算「剩下多少竖直空间」，与 device-panel.css 里
+   通用设备那条同源 —— climate-panel.css 的 max(12px, min(56% - 400px, 100% - 812px))
+   早被 stage.css 的 top: var(--i3d-control-top) 取代，跟着它算会让面板越过下沿。
+   下限 300px 防止极矮视口算出负值。 */
 .interaction3d-stage .i3d-light-panel.is-nas-panel {
-  height: 400px;
+  height: min(460px, max(300px, calc(100% - var(--i3d-control-top, 24px) - 24px)));
 }
 /* ===== 面板容器与标题 ===== */
 
@@ -46,6 +54,133 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ===== NAS 图形 ===== */
+
+/* 与通用设备弹窗里那台机器同一套视觉语言：底盘（金属材质 / 落地影 / 上下留白）在 device-panel.css
+   的 `.i3d-device-visual, .i3d-nas-visual` 公共块里，这里只画这台 NAS 的几何体：
+   双盘位 + 面板格栅 + 状态灯。
+   150×76 是「一眼认得出是台 NAS」与「不吃掉指标区」之间的折中 —— 竖直方向每多 10px，
+   指标区就少一行。 */
+.i3d-nas-visual {
+  width: 150px;
+  height: 76px;
+}
+/* 落地阴影：与设备图形同一配方（同一份 radial-gradient、模糊半径与偏移），两台机器才像站在同一块地上。 */
+.i3d-nas-visual > .i3d-nas-visual-ground {
+  display: block;
+  left: 50%;
+  bottom: -7px;
+  width: 78%;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #0d121666, transparent 70%);
+  filter: blur(3px);
+  transform: translate(-50%);
+}
+/* 机身：深色金属。NAS 摆在书桌 / 机柜里，比浅色的厨房家电暗一档才像同一间屋子里的东西。 */
+.i3d-nas-visual > .i3d-nas-visual-body {
+  display: block;
+  inset: 0;
+  border-radius: 10px;
+  background: var(
+    --i3d-appliance-dark,
+    linear-gradient(168deg, #7c878d, #5a656c 54%, #363f45)
+  );
+  box-shadow: var(--i3d-appliance-shadow);
+}
+/* 机身上沿的一道高光缝，与家电同一手法。 */
+.i3d-nas-visual > .i3d-nas-visual-body::before {
+  content: "";
+  position: absolute;
+  inset: 1px 6px auto;
+  height: 1px;
+  border-radius: 99px;
+  background: var(--i3d-appliance-edge, rgba(255, 255, 255, 0.62));
+  opacity: 0.5;
+}
+/* 两个硬盘位：左右各一，各带一条把手凹槽（::before）与一颗盘位灯（::after）。
+   盘位灯常亮绿、不跟面板状态走 —— 它表达的是「这个盘位认到了盘」，不是「系统健康」。 */
+.i3d-nas-visual > .i3d-nas-visual-bay {
+  display: block;
+  top: 10px;
+  width: 60px;
+  height: 44px;
+  border-radius: 6px;
+  background: linear-gradient(170deg, #4f5a61, #2f383e);
+  box-shadow:
+    inset 0 1px 0 #ffffff2b,
+    inset 0 -1px 2px #00000059;
+}
+.i3d-nas-visual > .i3d-nas-visual-bay.is-bay-left {
+  left: 10px;
+}
+.i3d-nas-visual > .i3d-nas-visual-bay.is-bay-right {
+  left: 80px;
+}
+.i3d-nas-visual > .i3d-nas-visual-bay::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #ffffff2e, #0000004d);
+}
+.i3d-nas-visual > .i3d-nas-visual-bay::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #43ce82;
+  box-shadow: 0 0 5px #43ce8299;
+}
+/* 面板格栅：一排通风细线，落在两个盘位下方的空档里。 */
+.i3d-nas-visual > .i3d-nas-visual-grill {
+  display: block;
+  left: 10px;
+  top: 61px;
+  width: 104px;
+  height: 5px;
+  border-radius: 99px;
+  background: repeating-linear-gradient(90deg, #ffffff26 0 3px, transparent 3px 7px);
+  opacity: 0.7;
+}
+/* 整机状态灯：四态配色与设备图形同源（绿 / 琥珀 / 压暗的未知），
+   具体由 nas-panel.js 的 visual.update 决定挂哪个类。 */
+.i3d-nas-visual > .i3d-nas-visual-light {
+  display: block;
+  right: 12px;
+  top: 60px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b767d;
+  box-shadow: 0 0 0 1px #00000059;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.i3d-nas-visual.is-status-normal > .i3d-nas-visual-light {
+  background: #43ce82;
+  box-shadow:
+    0 0 7px #43ce8299,
+    0 0 0 1px #00000059;
+}
+.i3d-nas-visual.is-status-warning > .i3d-nas-visual-light {
+  background: #efa33d;
+  box-shadow:
+    0 0 7px #efa33d99,
+    0 0 0 1px #00000059;
+}
+/* 读不到数据：比中性灰再暗一档，和告警的琥珀明确分开 —— 数据没来不是机器出事。 */
+.i3d-nas-visual.is-status-unknown > .i3d-nas-visual-light {
+  background: #4d565c;
+}
+
 /* ===== 状态行与指标滚动区 ===== */
 
 .i3d-nas-status {

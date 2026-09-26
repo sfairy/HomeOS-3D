@@ -21,7 +21,7 @@ from .numbers import as_finite_number
 # ``turn_on`` 必须留在表里，这不是预留：空调关机时 HA 上报的 state 就是 ``off``，
 # 用户最后选的 cool / heat 不再上报，于是 3D 面板在「没有可恢复模式」时（全新浏览器、
 # 清过存储、首次使用这台空调）会发 ``turn_on`` 让设备自己回到默认模式 —— 这正是
-# ``supported_features`` 第 7 位（ClimateEntityFeature.TURN_ON）的语义，前端也有对应的
+# ``supported_features`` 第 8 位（ClimateEntityFeature.TURN_ON = 256）的语义，前端也有对应的
 # ``turnOnSupported`` 分支。少了这一条，这条路会在两层白名单上各撞一次（本表 422、
 # ``ha.ALLOWED_SERVICES`` 403），用户看到的是「按了开启没反应」，而唯一出路是先让这台
 # 空调在别处开过一次，好让模式历史被记下来。
@@ -94,8 +94,22 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     # 这一层对开关机同样适用：设备失联时「开启」也不该假装成功。
     if not state or state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调状态暂不可用，请等待设备重新连接。')
-    # 开关机是无参数服务，也不需要读 attributes：回到哪个模式由设备自己决定。
+    # 无参数服务（当前只有 turn_on）：上游要求设备自己声明开机能力 ——
+    # supported_features 的第 8 位（TURN_ON = 256）。不校验的话，一台没有开机能力的
+    # 空调也会在面板上给出一颗按不动的「开启」，失败发生在调用之后而不是之前。
     if parameter is None:
+        attributes = state.get('attributes')
+        if not isinstance(attributes, dict):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调能力尚未载入，请稍后重试。')
+        features = attributes.get('supported_features', 0)
+        # bool 是 int 的子类，要挡掉：True 会被当成 features = 1。
+        has_turn_on = (
+            isinstance(features, int) and not isinstance(features, bool) and bool(features & 256)
+        )
+        if not has_turn_on:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='空调未提供有效的开机能力。'
+            )
         return None
     attributes = state.get('attributes')
     if not isinstance(attributes, dict):

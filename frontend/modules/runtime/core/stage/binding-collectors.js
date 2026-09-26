@@ -8,23 +8,24 @@
  */
 
 // 通用设备的品类表：品类名 → { collection, modelType, label, icon, height }。
-// 五个品类共用同一段收集逻辑，靠这张表把「集合名 / 模型类型 / 缺省高度」参数化。
+// 六个品类共用同一段收集逻辑，靠这张表把「集合名 / 模型类型 / 缺省高度」参数化。
 import {
   GENERIC_DEVICE_KINDS,
-  genericDeviceProfile
-} from "../../device/device-profiles.js?v=2609260946";
+  genericDeviceProfile,
+  isGenericDeviceKind
+} from "../../device/device-profiles.js?v=2609262221";
 // 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
 // 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
-import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609260946";
+import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609262221";
 // 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
 // （实现在 static/bridge/temperature-humidity.js，经运行侧薄桥转出）。
-import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609260946";
+import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609262221";
 // 窗帘组合（一拖多）的归一与舞台条目 id 口径：编辑器的配对候选、组合面板与舞台绑定必须
 // 共用同一份判据，否则会出现「编辑器认的组合舞台不认」这类静默的两套逻辑。
 import {
   curtainGroupEntryId,
   validCurtainGroups
-} from "../../cover/cover-groups.js?v=2609260946";
+} from "../../cover/cover-groups.js?v=2609262221";
 
 export function createBindingCollectors(ctx) {
   /**
@@ -150,12 +151,13 @@ export function createBindingCollectors(ctx) {
         "mdi:air-conditioner",
         0.28
       ),
-      // 净化器在场景里是独立外观（type === "airpurifier"，studio 有专用构建器），
-      // 后端 purifier.py 的 require_purifier_model 也只认它 —— 借用空调那套白名单
-      // 会让每一台净化器都绑不上模型（modelAvailable 恒为 false）。
+      // 净化器在场景里有两副外观：空气净化器（type === "airpurifier"，studio 有专用构建器）
+      // 与新风机（type === "freshair"，算作净化器的一种 —— 两者在 HA 里都是 fan 域，面板
+      // 与能力位同形）。借用空调那套白名单会让它们全都绑不上模型（modelAvailable 恒为
+      // false）；后端 purifier.py 的 require_purifier_model 认的是同一份类型表。
       ...collectEnvironmentClimateEntries(
         ctx.config.environment?.airPurifiers,
-        ["airpurifier"],
+        ["airpurifier", "freshair"],
         "mdi:air-purifier",
         0.7
       )
@@ -493,9 +495,9 @@ export function createBindingCollectors(ctx) {
     );
   }
 
-  // 收集通用设备绑定（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
+  // 收集通用设备绑定（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
   //
-  // 五个品类只有「集合名、模型类型、缺省图标与高度」三处差异，全部走 device-profiles 表，
+  // 六个品类只有「集合名、模型类型、缺省图标与高度」三处差异，全部走 device-profiles 表，
   // 这样后面再加品类时这里一行不用改。`deviceKind` 直接就是品类名 —— stage.js 的
   // isGenericDeviceKind(deviceKind) 靠它判是不是通用设备弹窗。
   function collectGenericDeviceBindings(deviceKind) {
@@ -628,8 +630,20 @@ export function createBindingCollectors(ctx) {
         }));
     } else if (ctx.activeModule === "television") {
       return collectTelevisionBindings();
+    } else if (isGenericDeviceKind(ctx.activeModule)) {
+      // 编辑某一品类（冰箱 / 绿植 / …）时 activeModule 就是品类名：标记 id 保持裸 id，
+      // 编辑器的选中 / 拖拽回写才能直接对上配置项（与 cover / climate 同口径）。
+      // 上游 0.6.5 的同一分支：isGenericDeviceKind(text4) ? collectGenericDeviceBindings(text4)。
+      return collectGenericDeviceBindings(ctx.activeModule);
     } else if (ctx.activeModule === "devices") {
-      return [...collectNasBindings(), ...collectTelevisionBindings()].map(deviceBinding => ({
+      // 「设备」是 NAS / 电视 / 五个通用设备品类的聚合页签：三者的绑定在同一份配置里，
+      // 只是集合名不同。漏掉通用设备那一段，「模型选好了但场景里不出现按钮」——
+      // 上游 0.6.5 同一分支为 [...NAS, ...电视, ...GENERIC_DEVICE_KINDS.flatMap(...)]。
+      return [
+        ...collectNasBindings(),
+        ...collectTelevisionBindings(),
+        ...GENERIC_DEVICE_KINDS.flatMap(collectGenericDeviceBindings)
+      ].map(deviceBinding => ({
         ...deviceBinding,
         id: deviceBinding.deviceKind + ":" + deviceBinding.id
       }));

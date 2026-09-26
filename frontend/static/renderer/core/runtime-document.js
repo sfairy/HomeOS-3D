@@ -8,10 +8,10 @@
  * 约定：文档模型沿用 components / sharedComponents / sharedComponentIds，与 /api/projects 下发的 JSON 一致。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609260946";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609260946";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609262221";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609262221";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609260946";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609262221";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，需要触发一次补数据
@@ -57,6 +57,30 @@ export function collectEntityIds(components, entityIdSet = new Set()) {
       for (const presenceSensor of component.properties?.security?.presenceSensors || []) {
         if (presenceSensor.entityId && !isVirtualEntityId(presenceSensor.entityId)) {
           entityIdSet.add(presenceSensor.entityId);
+        }
+      }
+    }
+    if (component.type === "interaction3d") {
+      // 门锁绑定和「人体感应的分区传感器」是同一类：实体不在 `bindings` 里，而在
+      // properties.security.locks[] 的五个槽位 + 三种门磁来源字段上。清单与运行侧
+      // core/runtime.js 的 collectLockEntities 逐字一致：那边喂的是舞台动画，
+      // 这边喂的是编辑器里的安防面板（状态行读数、device_class 判定、候选排序都要实时状态）。
+      // 漏掉这一块时的症状很安静：门能绑、能存，面板上的「电量 / 门状态」永远是「—」。
+      for (const lockEntry of component.properties?.security?.locks || []) {
+        for (const lockEntityField of [
+          "entityId",
+          "doorEntityId",
+          "doorEventEntityId",
+          "doorOpenEntityId",
+          "doorCloseEntityId",
+          "batteryEntityId",
+          "lowBatteryEntityId",
+          "tamperEntityId"
+        ]) {
+          const lockEntityId = lockEntry?.[lockEntityField];
+          if (lockEntityId && !isVirtualEntityId(lockEntityId)) {
+            entityIdSet.add(lockEntityId);
+          }
         }
       }
     }

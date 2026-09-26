@@ -7,6 +7,12 @@
  * 产出；无订阅者或 suspended 时停止定时器与请求。
  */
 
+// 授权放行的时间窗与轮询节奏（毫秒）：放行窗 60 秒、续期与失败重试各 30 秒。
+// 与上游 0.6.5 同口径 —— 窗口过短只是把「撤销延迟」换成高频请求，过长则撤销生效太慢。
+const ACCESS_GRANT_LIFETIME_MS = 60000;
+const ACCESS_GRANT_REFRESH_MS = 30000;
+const ACCESS_GRANT_RETRY_MS = 30000;
+
 /**
  * 创建授权状态监视器。
  * now / setTimer / clearTimer 可注入，便于测试用假时钟推进「到期 / 续期 / 过期响应」等与真实
@@ -63,8 +69,8 @@ export function createAccessMonitor({
       if (requestEpoch !== epoch || !subscribers.size || isSuspended) {
         return;
       }
-      // 上限 15 秒是刻意的：授权可能被后端随时撤销，本地放行的时间窗不能太长。
-      const lifetimeMs = Math.min(15000, Number(grant?.validForSeconds) * 1000);
+      // 放行窗最多 60 秒：既不让本地状态长期脱离后端，也不因窗口太短把轮询打成高频请求。
+      const lifetimeMs = Math.min(ACCESS_GRANT_LIFETIME_MS, Number(grant?.validForSeconds) * 1000);
       // allowed 必须严格为 true；寿命非法同样按拒绝处理，并补一个 403
       // 让它落进下面的「明确拒绝」分支，避免出现「放行但有效期未知」的中间态。
       if (grant?.allowed !== true || !Number.isFinite(lifetimeMs) || lifetimeMs <= 0) {
@@ -95,8 +101,11 @@ export function createAccessMonitor({
         deadline: now() + remainingMs
       });
       // 在寿命过半时提前续期；下限 100ms 防止后端给出极小有效期时打爆请求，
-      // 上限 5000ms 保证最长 5 秒一定会和后端核对一次授权（撤销能及时生效）。
-      refreshTimerId = setTimer(refreshGrant, Math.min(5000, Math.max(100, remainingMs / 2)));
+      // 上限 30 秒（与上游同口径）保证撤销能在可接受的延迟内生效。
+      refreshTimerId = setTimer(
+        refreshGrant,
+        Math.min(ACCESS_GRANT_REFRESH_MS, Math.max(100, remainingMs / 2))
+      );
     } catch (error) {
       // 失败同样要按 epoch 判定：晚到的错误若照单全收，会把已恢复的放行状态改回不可用。
       if (requestEpoch !== epoch || !subscribers.size || isSuspended) {
@@ -120,9 +129,9 @@ export function createAccessMonitor({
                   : "连接暂时中断，正在重新验证…"
             }
       );
-      // 失败固定 5 秒后重试，不做指数退避：授权是页面可用性的硬前提，
+      // 失败固定 30 秒后重试（与上游同口径），不做指数退避：授权是页面可用性的硬前提，
       // 短暂抖动时宁可多试几次，也不让用户看到长期不可用。
-      refreshTimerId = setTimer(refreshGrant, 5000);
+      refreshTimerId = setTimer(refreshGrant, ACCESS_GRANT_RETRY_MS);
     }
   }
   return {

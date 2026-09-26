@@ -14,21 +14,21 @@ import {
   resolveStateEntry,
   stateTextOf,
   temperatureHumidityEntities
-} from "./static-helpers.js?v=2609260946";
+} from "./static-helpers.js?v=2609262221";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609260946";
-import { createLightStream } from "../light/light-stream.js?v=2609260946";
+} from "./popup-preview.js?v=2609262221";
+import { createLightStream } from "../light/light-stream.js?v=2609262221";
 // 窗帘组合的条目 id 口径与归一（cover-groups.js）：焦点态判定要认组合 id，否则展示态点击
 // 组合标记时宿主不会把它当成一次有效聚焦（面板在 iframe 里能开，但宿主的聚焦态接不上）。
-import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609260946";
+import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609262221";
 // 通用设备的品类表：命令闸门要按这张表展开各品类集合下的附加实体。集合名只此一份，
 // 舞台侧收集绑定（core/stage/binding-collectors.js）用的是同一个实现。
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609260946";
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609262221";
 // 通用设备「牵扯到哪些实体」的口径（附加控件 + 电源 + 健康规则）只此一份实现。订阅侧要用它，
 // 舞台侧的 deviceStatus 也用它 —— 两侧各写一份就会一边订阅、一边判定，对不上时状态灯停在旧值。
-import { deviceEntityIds } from "../device/device-status.js?v=2609260946";
+import { deviceEntityIds } from "../device/device-status.js?v=2609262221";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -606,7 +606,7 @@ export function mountInteraction3d(
     }
     return mergedStates;
   }
-  // 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）与净化器的附加实体：挂在宿主的
+  // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）与净化器的附加实体：挂在宿主的
   // extraControls 下，entityId 与宿主本身不同。舞台侧只接受「本机 extraControls 里的实体」
   // （stage.js 的 devicePanel / climatePanel），这里必须同口径展开，否则命令在宿主就被判成
   // 「未绑定到当前控件」，表现为卡片能点、每次都收到同一句配置错误。
@@ -788,8 +788,8 @@ export function mountInteraction3d(
         {
           additionalEntityIds: [
             // 门锁、通用设备（附加实体 / 电源 / 健康）、净化器附加实体、窗帘反向开关这几个
-            // 的域不在 lightStream 主白名单正则里（lock / select / number / input_* 都不在），
-            // 必须走这条补充通道才能订上；只放进主清单会被白名单静默过滤掉。
+            // 的域不在 lightStream 主白名单正则里（lock / select / number / input_* / fan
+            // 都不在），必须走这条补充通道才能订上；只放进主清单会被白名单静默过滤掉。
             ...collectLockEntities().map(lockEntityRef => lockEntityRef.entityId),
             ...collectGenericDeviceEntities().map(genericEntityRef => genericEntityRef.entityId),
             ...collectPurifierExtraEntities().map(purifierExtraEntity => purifierExtraEntity.entityId),
@@ -806,7 +806,15 @@ export function mountInteraction3d(
             ...(componentProperties.devices?.vacuums || []).flatMap(vacuumEntity => [
               ...(vacuumEntity.relatedEntityIds || []),
               ...(vacuumEntity.shortcuts || []).map(vacuumShortcut => vacuumShortcut.entityId)
-            ])
+            ]),
+            // 空气净化器的主实体是 fan.*，而 fan 不在上面那条主白名单正则里：它虽然也进了
+            // collectTrackedEntities（主清单），却会在 lightStream 里被静默滤掉。漏掉这一行的
+            // 表现不是「读数偏旧」，而是净化器弹窗整个塌成一行「正在等待设备状态」—— 风速档位、
+            // 运行模式、摆动一个都渲染不出来（面板要靠状态里的 supported_features 才知道有哪几组），
+            // 编辑器「实时预览弹窗」里看着就像布局和上游不一样。上游同一位置的清单末尾也有这一项。
+            ...(componentProperties.environment?.airPurifiers || []).map(
+              purifierEntity => purifierEntity.entityId
+            )
           ]
         }
       );
@@ -1637,7 +1645,11 @@ export function mountInteraction3d(
         "nas",
         "television",
         "vacuum",
-        "vacuum-shortcut"
+        "vacuum-shortcut",
+        // 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的编辑器把 module 设成品类名。
+        // 漏掉它们，editingModuleKind 就停在上一轮的值（通常 "light"），舞台不会把
+        // activeModule 切到该品类，编辑中的冰箱 / 绿植也就不会在 3D 里长出按钮。
+        ...GENERIC_DEVICE_KINDS
       ].includes(editContext.module)
     ) {
       editingModuleKind = editContext.module;

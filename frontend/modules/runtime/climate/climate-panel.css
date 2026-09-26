@@ -12,11 +12,14 @@
 /* 面板起始位置与外层 .i3d-light-panel 共用同一个 top 公式，
    因此这里的高度上限也把那段 max(12px, min(56% - 400px, 100% - 812px)) 算进去：
    减去起始偏移与上下各 12px 间距后再取剩余空间的一半，展开时不会越过视口下沿；
-   内容超出时由 overflow: auto 兜底滚动。 */
+   只有纵向滚动条：卡片网格是刻意比面板宽 8px 再右移 8px 的（.i3d-extra-grid 的
+   width: calc(100% + 8px) / margin-right: -8px），横向一旦允许滚动就会多出一条横条，
+   面板看上去比原版胖一圈 —— 上游同样是 overflow-x: hidden + overflow-y: auto。 */
 .interaction3d-stage .i3d-light-panel.is-climate-panel {
   height: auto;
   max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   scrollbar-width: thin;
 }
 /* ===== 面板容器与模式强调色 ===== */
@@ -47,6 +50,25 @@
 .i3d-climate-panel[data-climate-mode="heat"] {
   --i3d-climate-accent: var(--hos-heat);
 }
+/**
+ * 净化器的强调色随风速走。
+ *
+ * `--i3d-purifier-level` 是归一化后的风速（0–1），由 climate-panel.js 每次渲染写入。
+ * 低风偏冷蓝、高风偏薄荷青 —— 两枚都是既有的「空气」族令牌（cool / eco-bright），
+ * 不新增色板令牌，也不碰全站调色板（page.css 的三份分发副本必须逐字节一致，
+ * 往那里加颜色会打破 tools/audit_colors.mjs 的第一条真值校验）。
+ *
+ * 为什么用颜色表达风速：空调靠 cool / heat 两个模式天然有颜色，净化器只有快慢，
+ * 于是落在 other 桶里、整块面板是中性灰 —— 同一个弹窗，一个有颜色一个没有。
+ * 风速是净化器唯一的「档位」语义，把它做成色调梯度，两种设备才有对等的信息密度。
+ */
+.i3d-climate-panel[data-climate-mode="purify"] {
+  --i3d-climate-accent: color-mix(
+    in srgb,
+    var(--hos-eco-bright) calc(var(--i3d-purifier-level, 0.5) * 100%),
+    var(--hos-cool)
+  );
+}
 .i3d-climate-panel[data-climate-mode="off"] {
   --i3d-climate-accent: var(--hos-sensor);
 }
@@ -64,6 +86,7 @@
   flex: 1;
   min-width: 0;
 }
+/* 标题区。 */
 .i3d-climate-heading h3 {
   margin: 0;
   overflow: hidden;
@@ -95,7 +118,8 @@
   min-height: 42px;
   padding: 0;
   border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.18);
-  border-radius: 12px;
+  /* 圆形：与温控区的环形表盘同形（见 climate-panel.css 里温控区那一节）。 */
+  border-radius: 50%;
   color: var(--hos-tool-ink-dim);
   background: linear-gradient(145deg, #ffffff0d, #ffffff05);
   box-shadow: 0 7px 18px #0003;
@@ -190,6 +214,24 @@
   box-sizing: border-box;
   overflow-wrap: anywhere;
 }
+/* 风速档位：按钮外观沿用 .i3d-climate-choice，但排布不走 flex 换行。
+   flex 会「按 48px 基准尽量多塞」，7 档就排成「第一行 6 个 + 第二行 1 个」，而那个落单的
+   还会被 flex: 1 1 48px 拉满整行宽 —— 看着像破版。改成等宽网格：列数由 JS 按档数算好
+   （speedLevelColumnCount）写进行内 grid-template-columns，一行几个就等分几列，
+   末行不足也不拉伸。 */
+.i3d-climate-panel .i3d-climate-speed-levels {
+  display: grid;
+  align-items: stretch;
+}
+/* 风速读数兼标题（「风速 · 中风」「风速 40%」「风速 · 由模式控制」）。
+   上游没给它任何样式，于是它按 12px 正文色渲染，比旁边 11px 灰色的分组标题（h4）还显眼，
+   视觉层级是反的。这里对齐 h4 的口径，让它退回「小标题」的位置。 */
+.i3d-climate-option-group > .i3d-climate-speed-title {
+  color: var(--hos-tool-text-dim);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 14px;
+}
 .i3d-climate-choice,
 .i3d-climate-power {
   min-height: 34px;
@@ -229,30 +271,81 @@
   flex: none;
   padding: 12px 0 18px;
 }
-/* 三列栅格：减号 / 温度内容 / 加号，与步进按钮的 42px 宽度对齐。 */
+/* 三列栅格：减号 / 表盘 / 加号，与步进按钮的 42px 宽度对齐。 */
 .i3d-climate-panel .hb-climate-thermostat {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 42px;
   gap: 12px;
   align-items: center;
+  /* 表盘是固定直径的圆，别被 1fr 那一列拉成方框。 */
+  justify-items: center;
+}
+/* 环形表盘：外圈是「设定值在量程里的位置」，圆心放读数，整块同时是拖动调温的交互面。 */
+.i3d-climate-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+  --i3d-dial-progress: 0;
+  /* 绕圈拖动在触屏上会被当成滚动 / 缩放，必须显式交给我们处理；
+     面板本身是 overflow-y:auto，少了这条一拖就变成滚面板。 */
+  touch-action: none;
+  cursor: grab;
+}
+.i3d-climate-dial:active {
+  cursor: grabbing;
+}
+.i3d-climate-dial[aria-disabled="true"] {
+  cursor: default;
+}
+/* 量程弧画在伪元素上，而不是表盘自身的 background —— 表盘自身挂 mask 会把圆心里的
+   读数一起裁掉。`from 225deg` 是左下，顺时针扫 270deg 到右下，正下方留 90° 缺口，
+   像一块仪表；两段色标就是「已走过 / 未走过」。 */
+.i3d-climate-dial::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 225deg,
+    var(--i3d-climate-accent) 0 calc(var(--i3d-dial-progress) * 270deg),
+    rgba(var(--hos-tool-hairline-rgb), 0.3) calc(var(--i3d-dial-progress) * 270deg) 270deg,
+    transparent 270deg
+  );
+  /* 挖空圆心成环：环宽 = 68 - 54 = 14px。 */
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 54px, #000 54px);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 54px, #000 54px);
+  pointer-events: none;
+  transition: background 0.2s ease;
+}
+/* 键盘聚焦要有可见落点：表盘不是 button，拿不到上面那条 button:focus-visible。 */
+.i3d-climate-dial:focus-visible {
+  outline: 2px solid var(--i3d-climate-accent);
+  border-radius: 50%;
+  outline-offset: 3px;
 }
 .i3d-climate-temperature-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  /* 圆心可用宽度 = 直径 - 环宽 × 2，读数得留出余量，否则会压到环上。 */
+  width: 104px;
+  text-align: center;
 }
 .i3d-climate-temperature-content small,
 .i3d-climate-temperature-content span {
   color: var(--hos-tool-muted-dim);
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.3;
 }
 /* 设定温度：等宽数字（tabular-nums）让温度变化时数字不左右跳动。 */
 .i3d-climate-target {
   color: var(--hos-tool-ink);
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 /* ===== 原生控件补漏（下拉 / 数字输入 / 滑杆与预览态） ===== */
@@ -303,6 +396,704 @@
   accent-color: var(--i3d-climate-accent);
   cursor: pointer;
 }
+/* ===== 面板视觉增强：分组图标 / 分组卡片 / 风速滑杆刻度 / 电源图标按钮 =====
+   这一节集中放「让面板不再是一堆等宽文字按钮」的样式，全部只做视觉、不碰状态语义：
+   选中态仍然只认 aria-pressed，禁用态仍然只认 :disabled。
+   放在这里（而不是就近插进上面各块）是为了整节可读可回滚 —— 下面的附加卡片样式
+   是按 6 列网格另算的，不受影响。 */
+
+/* 分组名前的几何符号。字符从 data-glyph 取而不是写进 DOM：它是纯装饰，不该进无障碍树
+   （h4 的文字本身就是分组名）。选择器带 [data-glyph]，将来新加的分组没配符号时
+   不会留下 5px 空档。
+   净化器的风速组是例外，不挂 data-glyph，改用下面那片会转的扇叶。 */
+.i3d-climate-option-group h4[data-glyph]::before {
+  content: attr(data-glyph);
+  margin-right: 5px;
+  color: var(--i3d-climate-accent);
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.9;
+}
+/* 净化器风速组的分组图标 = 一片扇叶，设备开着就转。
+   分组图标本来只是静态几何符号，而风速这组恰好有一个可以表达的东西 —— 有没有在送风。
+   转速刻意不跟档位联动：档位一改就变速会显得抽搐，稳定转动已经足够说明「正在送风」。
+   只挂 .is-on（净化器开机即送风），不挂 .is-running —— 后者只由空调分支写入，
+   净化器的状态对象里没有这个字段（见 climate-state.js）。 */
+@keyframes i3d-climate-fan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.i3d-climate-option-group > .i3d-climate-speed-title::before {
+  content: "";
+  display: inline-block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 50%;
+  /* 三段扇叶：42deg 实色 + 78deg 透明，绕一圈共三片。 */
+  background: conic-gradient(
+    currentColor 0deg 42deg,
+    transparent 42deg 120deg,
+    currentColor 120deg 162deg,
+    transparent 162deg 240deg,
+    currentColor 240deg 282deg,
+    transparent 282deg 360deg
+  );
+  /* 挖掉圆心留出转轴，否则中间糊成一坨看不出是扇叶。 */
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 2.4px, #000 2.4px);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 2.4px, #000 2.4px);
+  vertical-align: -2px;
+  opacity: 0.9;
+}
+.i3d-climate-panel.is-on .i3d-climate-option-group > .i3d-climate-speed-title::before {
+  animation: i3d-climate-fan-spin 1.5s linear infinite;
+}
+/* 每组包一张浅卡片：分组之间靠底色与圆角分开，而不是只靠 11px 灰字标题。
+   间距同时从 12px 收到 8px，抵消卡片自身高度，整块不会明显变长。 */
+.i3d-climate-option-group {
+  padding: 8px 10px 9px;
+  border: 1px solid rgba(var(--hos-tool-hairline-rgb), 0.1);
+  border-radius: 12px;
+  background: #ffffff08;
+}
+.i3d-climate-groups {
+  gap: 8px;
+}
+/* 浅色场景（warm-wood）下白色半透明底等于看不见，卡片会整块消失；换成同色系的暖色半透明
+   —— 与文件里其它 warm-wood 覆盖（#65594718 一类）保持同一套取色。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-option-group {
+  background: #6559470f;
+  border-color: #65594726;
+}
+/* 风速组：标题与读数在同一行两端对齐，滑杆 / 刻度 / 档位各占满一行。
+   用 grid-area 排而不是再套一层容器 —— 面板的 DOM 结构（标题 span、滑杆 input、
+   档位容器互为兄弟）与无障碍树保持不变，读屏与测试都不用跟着改。 */
+.i3d-climate-option-group.i3d-climate-speed {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title value"
+    "range range"
+    "ticks ticks"
+    "levels levels";
+  align-items: center;
+  column-gap: 8px;
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-title {
+  grid-area: title;
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-value {
+  grid-area: value;
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-range {
+  grid-area: range;
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-ticks {
+  grid-area: ticks;
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-levels {
+  grid-area: levels;
+}
+/* 读数 chip（「中风 · 57%」）：给当前档位一个视觉锚点。数字走等宽字形，
+   拖动滑杆时 chip 宽度不跳。 */
+.i3d-climate-option-group > .i3d-climate-speed-value {
+  justify-self: end;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--i3d-climate-accent);
+  background: color-mix(in srgb, var(--i3d-climate-accent) 15%, transparent);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 15px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* 滑杆保留原生绘制：Chrome 会按 accent-color 画出「已走过」的填充段，这正是「当前风速」
+   最直观的可视化。刻意不做 appearance: none 自绘 —— 自绘就拿不到那条随值填充的轨道，
+   得再写一层 JS 同步渐变，不划算。这里只放大尺寸与触控目标。 */
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-range {
+  width: 100%;
+  height: 18px;
+  margin: 6px 0 0;
+  accent-color: var(--i3d-climate-accent);
+  cursor: pointer;
+}
+/* 刻度条：等分标记每个档位落在滑轨的哪一处。左右各内缩半个滑块宽 —— 滑块圆心只能
+   在 [半宽, 100% - 半宽] 之间走，内缩后 left: <档位百分比>% 才正好落在圆心上，
+   否则档位越高偏得越多。内缩量按原生滑块的半径取 8px。 */
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-ticks {
+  position: relative;
+  height: 10px;
+  margin: -3px 8px 0;
+}
+.i3d-climate-speed-tick {
+  position: absolute;
+  top: 2px;
+  width: 2px;
+  height: 6px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: rgba(var(--hos-tool-hairline-rgb), 0.42);
+  transition:
+    height 0.16s ease,
+    top 0.16s ease,
+    background 0.16s ease;
+}
+/* 刻度是 aria-hidden 的装饰，没有 aria 状态可用，所以这里才需要 .is-active
+   （档位按钮那边一律走 aria-pressed，见上文选项按钮的约定）。 */
+.i3d-climate-speed-tick.is-active {
+  top: 0;
+  height: 10px;
+  background: var(--i3d-climate-accent);
+}
+.i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-levels {
+  margin-top: 7px;
+}
+/* 档位按钮各自带上自己那一档的色调，整排从低到高连成一条色阶 —— 一眼能看出档位分布，
+   而不是七个长得一样的文字块。色阶位置由 climate-panel.js 写在按钮的 --i3d-level 上
+   （0–1，取该档自身的百分比，与面板强调色同源，所以被点亮那一档的颜色与读数 chip 一致）。
+   做法是就地覆盖 --i3d-climate-accent：下面那条通用的 [aria-pressed="true"] 规则
+   本来就写的是 var(--i3d-climate-accent)，正好自动吃到这一档的颜色，不必再打架比优先级。
+   只对净化器生效 —— 空调的风速组是另一个容器，没有 i3d-climate-speed-levels 这个类。 */
+.i3d-climate-panel[data-climate-mode="purify"] .i3d-climate-speed-levels > .i3d-climate-choice {
+  --i3d-climate-accent: color-mix(
+    in srgb,
+    var(--hos-eco-bright) calc(var(--i3d-level, 0) * 100%),
+    var(--hos-cool)
+  );
+  /* 底色也掺一点自己那一档的颜色：只画底部一条 3px 色条太暗，在深色按钮上几乎看不出
+     「一条色阶」，整排还是七个一样的块。混进中性白填充（#ffffff0a）而不是直接替换它，
+     按钮的「实体感」不会丢。 */
+  background: #ffffff0a;
+  /* 未选中的档位也要看得见自己的颜色，否则「一条色阶」只在选中的那一格成立。
+     用 inset 阴影画底部色条：它同样会被 border-radius 裁切，不必额外包一层容器。
+     色条取满色（不加透明度）—— 掺过透明度的色条在深色按钮上会被压成一层灰，看不出色阶。 */
+  box-shadow: inset 0 -4px 0 var(--i3d-climate-accent);
+}
+/* 选中档：同色但明显更重，并在按钮外沿带一圈同色柔光，把「当前在哪一档」顶出来。
+   必须显式写这条而不是复用通用的 [aria-pressed="true"] —— 那条只有 12% 底色，
+   与上面未选中态的 11% 几乎分不出来。 */
+.i3d-climate-panel[data-climate-mode="purify"]
+  .i3d-climate-speed-levels
+  > .i3d-climate-choice[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--i3d-climate-accent) 26%, transparent);
+  box-shadow:
+    inset 0 -4px 0 var(--i3d-climate-accent),
+    0 0 12px color-mix(in srgb, var(--i3d-climate-accent) 34%, transparent);
+}
+/* 电源按钮改成圆形图标按钮：头部原本是「设备名 + 状态」两行字，再挂一个「关闭 / 开启」
+   文字块，最上面三行全是文字。图标用 CSS 画（圆环留缺口 + 一根竖线）而不是字形或图标字体
+   —— ⏻ 这类符号在 Windows / Android 上掉字体的概率不低，自绘没有字体依赖。 */
+.i3d-climate-power {
+  position: relative;
+  flex: none;
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0;
+  line-height: 0;
+}
+.i3d-climate-power::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 1.8px solid currentColor;
+  /* 顶部留出缺口，再叠一根竖线，拼出标准的电源符号。 */
+  border-top-color: transparent;
+  border-radius: 50%;
+}
+.i3d-climate-power::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 1.8px;
+  height: 8px;
+  margin-left: -0.9px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* ===== 设备图形：净化器（照 2D 的 .hb-air-purifier-visual 移植）=====
+   部件与 2D 一一对应：落地光晕 + 出风弧 + 金属机身 + 顶部格栅 + 蜂窝出风口 + 显示屏。
+   材质配方（多段金属渐变、内外阴影、7px 网点、perspective 顶盖）全部照搬 2D，
+   只把整体尺寸按 0.72 倍缩放 —— 2D 是 400×194 绝对定位浮在标题右侧的，这里要独占一行居中。
+   机身 2D 是 326×84，缩到 235×60；比例全部保留，所以看上去仍是同一台机器。
+
+   尺寸与位置的取舍：这一块 288×140，摆在标题行下方、控件之上，居中。
+   净增约 140px 高度，真实视口下面板会超出高度上限而出现纵向滚动条
+   （上限是 (100% - 起始偏移 - 12) / 2，见上文 .i3d-light-panel.is-climate-panel 的注释）。
+   要缩小就把 .i3d-climate-purifier 的 width/height 调小，内部全是绝对定位，
+   改容器尺寸不会散架，但内部尺寸要同比例跟着改。
+
+   配色：机身用 2D 那套写死的银灰（它是「实物配色」，与主题无关），
+   强调色只出现在三处 —— 出风弧、底部光晕、开机时的描边混色。 */
+.i3d-climate-purifier {
+  position: relative;
+  flex: none;
+  /* 居中：面板是 flex-column，图形比内容窄，靠 align-self 摆到行中央。 */
+  align-self: center;
+  width: 288px;
+  height: 140px;
+  margin: 2px 0 10px;
+  /* 装饰性插画：不吃指针事件，点击穿透到面板本身（否则会挡住它覆盖的区域）。 */
+  pointer-events: none;
+}
+.i3d-climate-purifier[hidden] {
+  display: none;
+}
+/* 落地光晕：默认只 14% 不透明度，开机后放大提亮 —— 与 2D 同一套数值。 */
+.i3d-climate-purifier-aura {
+  position: absolute;
+  top: 66%;
+  left: 50%;
+  width: 252px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in srgb, var(--i3d-climate-accent) 26%, transparent),
+    rgba(var(--hos-tool-hairline-rgb), 0.055) 44%,
+    transparent 73%
+  );
+  opacity: 0.14;
+  filter: blur(10px);
+  transform: translate(-50%, -50%) scale(0.76);
+  transition:
+    opacity 0.35s ease,
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.24, 1);
+}
+/* 出风弧：4 个只留上边框的圆，用 space-between 均分。开机才出现。 */
+.i3d-climate-purifier-airflow {
+  position: absolute;
+  z-index: 1;
+  top: 3px;
+  left: 50%;
+  display: flex;
+  width: 200px;
+  height: 52px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 7px;
+  overflow: visible;
+  opacity: 0;
+  transform: translate(-50%);
+}
+.i3d-climate-purifier-airflow i {
+  display: block;
+  flex: 0 1 40px;
+  width: 40px;
+  height: 40px;
+  border-top: 2px solid var(--i3d-climate-accent);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px var(--i3d-climate-accent));
+  opacity: 0;
+  transform: translateY(11px) scaleX(0.65);
+}
+/* 机身：多段线性渐变造金属丝纹，内外阴影压出上下圆角的体积。 */
+.i3d-climate-purifier-body {
+  position: absolute;
+  z-index: 2;
+  top: 53px;
+  left: 50%;
+  width: 235px;
+  height: 60px;
+  border: 1px solid rgba(237, 241, 242, 0.82);
+  border-radius: 14px 14px 9px 9px;
+  background:
+    linear-gradient(
+      101deg,
+      rgba(104, 116, 121, 0.2),
+      rgba(255, 255, 255, 0.52) 10%,
+      transparent 29% 76%,
+      rgba(66, 78, 84, 0.13)
+    ),
+    linear-gradient(180deg, #f9fbfa, #e8eded 34%, #c5ced0 70%, #8c979c);
+  box-shadow:
+    0 15px 24px #0006,
+    0 4px 8px #0003,
+    inset 0 6px 9px #fff9,
+    inset 0 -5px 9px #27313629;
+  transform: translate(-50%);
+  transition:
+    border-color 0.32s ease,
+    box-shadow 0.32s ease,
+    filter 0.3s ease;
+}
+/* 机身上沿的横向高光，对应实体机的一条棱线。 */
+.i3d-climate-purifier-body::before {
+  position: absolute;
+  z-index: 1;
+  top: 9px;
+  right: 13px;
+  left: 13px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7) 18% 82%, transparent);
+  content: "";
+  opacity: 0.86;
+}
+/* 机身下方的椭圆投影，落地感来自这层模糊。 */
+.i3d-climate-purifier-body::after {
+  position: absolute;
+  right: 6px;
+  bottom: -7px;
+  left: 6px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(15, 22, 26, 0.52), transparent 69%);
+  content: "";
+  filter: blur(2px);
+}
+/* 顶部格栅：perspective + rotateX 造出俯视斜角，变换原点压在底边，倾斜后仍与机身贴合。 */
+.i3d-climate-purifier-top {
+  position: absolute;
+  z-index: 4;
+  top: -6px;
+  left: 16px;
+  width: 202px;
+  height: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(137, 151, 157, 0.86);
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, #e8eded, #a9b4b8 54%, #7f8d92);
+  box-shadow:
+    inset 0 2px 4px #ffffff8f,
+    0 2px 4px #00000038;
+  transform: perspective(79px) rotateX(17deg);
+  transform-origin: bottom;
+}
+/* 顶盖凹槽：深色渐变 + 内阴影。 */
+.i3d-climate-purifier-top::before {
+  position: absolute;
+  inset: 3px 6px 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #58676d, var(--hos-tool-surface-raised));
+  box-shadow: inset 0 2px 4px #0f171b8a;
+  content: "";
+}
+/* 格栅条纹：1px 亮线 / 4px 间隔的重复渐变。 */
+.i3d-climate-purifier-top::after {
+  position: absolute;
+  inset: 4px 9px 4px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(183, 195, 200, 0.55) 0 1px,
+    transparent 1px 4px
+  );
+  content: "";
+  opacity: 0.82;
+}
+/* 出风口：5px 网格圆点叠渐变底，模拟实体机的蜂窝网。 */
+.i3d-climate-purifier-vent {
+  position: absolute;
+  z-index: 2;
+  top: 21px;
+  right: 57px;
+  left: 13px;
+  height: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(73, 88, 94, 0.24);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle, rgba(55, 70, 76, 0.54) 0 1px, transparent 1.25px) 0 0 / 5px 5px,
+    linear-gradient(180deg, #ffffff40, #49595f0f);
+  box-shadow:
+    inset 0 2px 4px #ffffff40,
+    inset 0 -4px 6px #2c383d21;
+  opacity: 0.78;
+}
+/* 显示屏：实体机那块小 LCD，报当前档位。 */
+.i3d-climate-purifier-display {
+  position: absolute;
+  z-index: 5;
+  top: 19px;
+  right: 12px;
+  display: grid;
+  width: 34px;
+  height: 27px;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid rgba(52, 67, 74, 0.64);
+  border-radius: 7px;
+  color: var(--hos-tool-hint);
+  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 68%, var(--hos-tool-surface));
+  box-shadow:
+    inset 0 1px 4px #ffffff14,
+    0 2px 6px #00000040;
+}
+.i3d-climate-purifier-display strong {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+/* 出风弧的上升动画：每片错开 0.24s，看起来是连续的一股气流。 */
+@keyframes i3d-climate-updraft {
+  0% {
+    opacity: 0;
+    transform: translateY(11px) scaleX(0.65);
+  }
+  38% {
+    opacity: 0.9;
+    transform: translateY(2px) scaleX(0.96);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-13px) scaleX(1.16);
+  }
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-aura {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-airflow {
+  opacity: 0.78;
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-airflow i {
+  animation: i3d-climate-updraft 2.35s ease-in-out infinite;
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-airflow i:nth-child(2) {
+  animation-delay: 0.24s;
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-airflow i:nth-child(3) {
+  animation-delay: 0.48s;
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-airflow i:nth-child(4) {
+  animation-delay: 0.72s;
+}
+/* 开机：机身描边染上模式色、机身略微提亮、显示屏亮起。 */
+.i3d-climate-purifier.is-on .i3d-climate-purifier-body {
+  border-color: color-mix(in srgb, var(--i3d-climate-accent) 40%, rgba(237, 241, 242, 0.82));
+  box-shadow:
+    0 15px 24px #0006,
+    0 4px 8px #0003,
+    inset 0 6px 9px #fff9,
+    inset 0 -5px 9px #27313629,
+    0 0 18px color-mix(in srgb, var(--i3d-climate-accent) 24%, transparent);
+  filter: brightness(1.03);
+}
+.i3d-climate-purifier.is-on .i3d-climate-purifier-display {
+  color: var(--i3d-climate-accent);
+  border-color: color-mix(in srgb, var(--i3d-climate-accent) 55%, transparent);
+  box-shadow:
+    inset 0 1px 4px #ffffff14,
+    0 0 10px color-mix(in srgb, var(--i3d-climate-accent) 30%, transparent);
+}
+.i3d-climate-purifier.is-unavailable {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+
+/* ===== 设备图形：空调（照 2D 的 .hb-climate-visual 移植）=====
+   部件与 2D 一一对应：挂壁机身 + 左上品牌字 + 右上温度数码 + 下沿导风格栅 + 下方气流。
+   同上按 0.72 倍缩放（2D：整体 406×126、机身 350×76 → 这里 292×91 / 252×55）。
+   与净化器那台的关键差别都照 2D 的语义：气流在**下方**吹（挂机装在墙上，风往下走），
+   净化器是向上出风；并且多一档 is-running —— 开机但 hvac_action 是 idle（压缩机没转）时
+   导风格栅不该翻出来吹。净化器没有这个中间态，所以那边只判 is-on。 */
+.i3d-climate-aircon {
+  position: relative;
+  flex: none;
+  /* 居中：同净化器，靠 align-self 摆到行中央。 */
+  align-self: center;
+  width: 292px;
+  height: 91px;
+  margin: 2px 0 10px;
+  /* 装饰性插画：不吃指针事件，点击穿透到面板本身（否则会挡住它覆盖的区域）。 */
+  pointer-events: none;
+}
+.i3d-climate-aircon[hidden] {
+  display: none;
+}
+/* 机身：上圆下略方，多层内外阴影做出塑料外壳的厚度。 */
+.i3d-climate-aircon-unit {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  left: 50%;
+  width: 252px;
+  height: 55px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 14px 14px 9px 9px;
+  background: linear-gradient(172deg, #f0f3f4, #c7ced2 46%, #89949a);
+  box-shadow:
+    inset 0 5px 9px #ffffffa6,
+    inset 0 -6px 11px #2b353b3d,
+    0 9px 18px #00000057;
+  transform: translate(-50%);
+  transition:
+    border-color 0.32s ease,
+    box-shadow 0.32s ease,
+    filter 0.32s ease;
+}
+/* 顶部一条白色高光缝。 */
+.i3d-climate-aircon-unit::before {
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.76), transparent);
+  content: "";
+}
+/* 底部指示灯带：使用机型色，默认只留 16% 亮度，开机提到 72%。 */
+.i3d-climate-aircon-unit::after {
+  position: absolute;
+  right: 9px;
+  bottom: 6px;
+  left: 9px;
+  height: 1.5px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, transparent, var(--i3d-climate-accent), transparent);
+  opacity: 0.16;
+  filter: blur(1px);
+  transition: opacity 0.32s ease;
+  content: "";
+}
+/* 左上品牌字：小号、0.22em 大字距、低对比，只作装饰。 */
+.i3d-climate-aircon-brand {
+  position: absolute;
+  top: 19px;
+  left: 20px;
+  color: #222b307a;
+  font:
+    650 6.5px/1 Helvetica Neue,
+    Arial,
+    sans-serif;
+  letter-spacing: 0.22em;
+}
+/* 右上温度数码：右对齐，靠 1px 白色描边阴影模拟 LCD 压印。 */
+.i3d-climate-aircon-display {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  min-width: 35px;
+  color: #48545a;
+  font:
+    500 12px/1 Helvetica Neue,
+    SF Pro Display,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-align: right;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.32);
+  transition:
+    color 0.32s ease,
+    text-shadow 0.32s ease;
+}
+/* 导风格栅：挂在机身下沿并向外突出 8px 的格栅。
+   transform-origin: top 让它能绕上沿翻转（见 .is-running）。 */
+.i3d-climate-aircon-vent {
+  position: absolute;
+  z-index: 3;
+  right: 16px;
+  bottom: -8px;
+  left: 16px;
+  display: flex;
+  height: 13px;
+  align-items: center;
+  justify-content: space-evenly;
+  overflow: hidden;
+  border: 1px solid rgba(20, 27, 31, 0.48);
+  border-radius: 2px 2px 7px 7px;
+  background: linear-gradient(#4c575d, var(--hos-tool-surface-soft) 68%, var(--hos-tool-surface));
+  box-shadow:
+    inset 0 3px 5px #00000085,
+    0 3px 4px #00000047;
+  transform-origin: top;
+  transition: transform 0.38s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* 格栅叶片：1px 斜线。 */
+.i3d-climate-aircon-vent i {
+  display: block;
+  width: 1px;
+  height: 9px;
+  background: #b7c3c938;
+  transform: rotate(7deg);
+}
+/* 气流层：默认透明，且不裁剪，让气流能画到机身之外。挂在机身下方。 */
+.i3d-climate-aircon-airflow {
+  position: absolute;
+  z-index: 1;
+  top: 59px;
+  right: 42px;
+  left: 42px;
+  display: flex;
+  height: 30px;
+  justify-content: space-around;
+  overflow: visible;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+/* 单条气流：半圆描边 + 同色发光。 */
+.i3d-climate-aircon-airflow i {
+  display: block;
+  width: 55px;
+  height: 26px;
+  border-top: 2px solid var(--i3d-climate-accent);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px var(--i3d-climate-accent));
+  opacity: 0;
+  transform: translateY(-4px) scaleX(0.75);
+}
+/* 开机：整体提亮，机身描边与底部灯带染上机型色，数码屏也带上同色光晕。 */
+.i3d-climate-aircon.is-on .i3d-climate-aircon-unit {
+  border-color: color-mix(in srgb, var(--i3d-climate-accent) 40%, rgba(255, 255, 255, 0.6));
+  box-shadow:
+    inset 0 5px 9px #ffffffad,
+    inset 0 -6px 11px #2b353b33,
+    0 9px 18px #00000057,
+    0 0 18px color-mix(in srgb, var(--i3d-climate-accent) 28%, transparent);
+}
+.i3d-climate-aircon.is-on .i3d-climate-aircon-unit::after {
+  opacity: 0.72;
+}
+.i3d-climate-aircon.is-on .i3d-climate-aircon-display {
+  color: color-mix(in srgb, var(--i3d-climate-accent) 68%, #354047);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--i3d-climate-accent) 48%, transparent);
+}
+/* 运行中：出风口绕上沿往外翻 34°，用 perspective 制造纵深；气流层随后显形并循环播放。 */
+.i3d-climate-aircon.is-running .i3d-climate-aircon-vent {
+  transform: perspective(65px) rotateX(-34deg) translateY(2px);
+}
+.i3d-climate-aircon.is-running .i3d-climate-aircon-airflow {
+  opacity: 0.72;
+}
+.i3d-climate-aircon.is-running .i3d-climate-aircon-airflow i {
+  animation: i3d-climate-aircon-airflow 2.1s ease-in-out infinite;
+}
+/* 首尾不透明度为 0，循环时看不见接缝。 */
+@keyframes i3d-climate-aircon-airflow {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scaleX(0.72);
+  }
+  30% {
+    opacity: 0.72;
+  }
+  72% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(13px) scaleX(1.08);
+  }
+}
+.i3d-climate-aircon.is-unavailable {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+
 /* ===== 附加功能卡片网格 ===== */
 
 /* 网格：一行固定切 6 份，卡片按 --extra-columns / --extra-rows 跨列跨行；
@@ -310,8 +1101,13 @@
 .i3d-climate-panel .i3d-extra-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-auto-rows: 36px;
-  align-items: start;
+  /* 行高是「下限」而不是定值：卡片内容放得下时仍是原来那 36px，
+     放不下（长实体名换到第三行、开关按钮自带高度）时整行随之长高，不再裁内容。
+     与下面卡片的 min-height 配对 —— 两者一起保证「自适应但不塌陷」。 */
+  grid-auto-rows: minmax(36px, auto);
+  /* 同一行的卡片拉平到该行最高的那张：高度自适应之后如果还顶对齐，
+     长名字的卡片会比邻卡高出一截，看上去像错位。 */
+  align-items: stretch;
   gap: 8px;
   width: calc(100% + 8px);
   margin-top: 9px;
@@ -365,38 +1161,33 @@
   opacity: 0.7;
   overflow-wrap: anywhere;
 }
-/* 只读状态卡只有描述块，标题与状态挤在一行两端。 */
+/* 只读状态卡只有描述块，标题在左、状态值在右。 */
 .i3d-climate-panel .i3d-extra-state {
   grid-template-columns: minmax(0, 1fr);
 }
+/* 描述块固定两列（标题 | 状态值），而不是 flex-wrap。
+   长实体名（HA 的 friendly_name 会把设备名拼在前面，「冰箱 冷藏室门2开关状态」这种）在
+   flex-wrap 下会把状态值挤到第二行 —— 卡片本来就只有一行高（44px×rows−8px，内容区 30px），
+   被挤下去的那行会被 overflow 裁掉，看到的就是「标题两行 + 右下角一个半截的已关闭」。
+   换成两列栅格后标题自己换行、状态值始终贴右并垂直居中，行高由两者较高的那个决定，
+   不再有第三个行框被裁。 */
 .i3d-extra-state .i3d-extra-description {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-}
-/* 状态卡字号压到 10px，并用负字距让长实体名尽量不换行。 */
-.i3d-extra-state .i3d-extra-description {
   font-size: 10px;
   letter-spacing: -0.015em;
-  gap: 2px;
+  column-gap: 6px;
 }
+/* 标题沿用通用的两行截断（.i3d-extra-description h4），这里只补栅格项需要的收缩能力。 */
 .i3d-extra-state .i3d-extra-description h4 {
-  display: block;
-  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  font-size: inherit;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
 }
 .i3d-extra-state .i3d-extra-description p {
-  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
-  margin: 0 0 0 auto;
+  margin: 0;
   font-size: inherit;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -453,12 +1244,15 @@
 .i3d-climate-panel .i3d-extra-card input {
   min-width: 0;
 }
-/* 落进网格后的卡片：按 --extra-columns / --extra-rows 跨列跨行，高度由行高换算。 */
+/* 落进网格后的卡片：按 --extra-columns / --extra-rows 跨列跨行。
+   高度是**自适应**的：--extra-rows 只作为下限（44px 行高 − 8px 行距的换算），
+   内容真的更高时卡片跟着长高。写死高度会让换到第三行的长实体名被 overflow 裁掉 ——
+   这正是「标题占两行 + 右下角一个半截状态值」的来源。 */
 .i3d-climate-panel .i3d-extra-grid > .i3d-extra-card {
   position: relative;
   width: 100%;
-  min-height: 0;
-  height: calc(44px * var(--extra-rows, 1) - 8px);
+  height: auto;
+  min-height: calc(44px * var(--extra-rows, 1) - 8px);
   padding: 3px 6px;
   gap: 4px 6px;
   grid-column: span var(--extra-columns, 2);
@@ -501,10 +1295,12 @@
 .i3d-extra-card.is-layout-editing:focus-within > .i3d-extra-resize {
   opacity: 1;
 }
-/* 标题最多两行，超出省略，避免长实体名把卡片撑爆。 */
+/* 标题最多三行，超出省略。上限保留是为了防病态输入（几百字的实体名）把卡片撑成一块板，
+   但不再压在两行：卡片高度改自适应之后，三行是放得下的 —— 两行会把
+   「厨房冰箱 冷藏室门2开关状态」这类真实名字裁掉最后一行。 */
 .i3d-extra-description h4 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -770,33 +1566,4 @@
 }
 .i3d-extra-select-menu[data-theme="warm-wood"] > button[aria-selected="true"]:focus-visible {
   box-shadow: inset 0 0 0 1px #8a5c23;
-}
-/* ===== 空气净化器（fan 域）控件 ===== */
-
-/* 风速行：滑杆占满剩余宽度，右侧等宽数字显示当前百分比，拖动时读数不会左右跳动。
-   选择器比 .i3d-climate-choices 多一层 .i3d-climate-panel，靠特异性覆盖它的 flex 换行布局。 */
-.i3d-climate-panel .i3d-climate-purifier-speed {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-.i3d-climate-panel .i3d-climate-purifier-range {
-  width: 100%;
-  min-width: 0;
-  margin: 2px 0;
-  accent-color: var(--i3d-climate-accent);
-  cursor: pointer;
-}
-/* 指令下发中与其它控件同一口径：压暗并给出等待光标。 */
-.i3d-climate-panel .i3d-climate-purifier-range:disabled {
-  cursor: wait;
-  opacity: 0.55;
-}
-.i3d-climate-panel .i3d-climate-purifier-output {
-  min-width: 40px;
-  color: var(--hos-tool-ink);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
 }

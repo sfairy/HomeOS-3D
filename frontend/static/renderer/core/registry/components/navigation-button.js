@@ -7,22 +7,22 @@
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=2609260946";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609260946";
+} from "../../../../utils/numbers.js?v=2609262221";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609262221";
 // 同门分片：entity-state
-import { isComponentEntityActive } from "../entity-state.js?v=2609260946";
+import { isComponentEntityActive } from "../entity-state.js?v=2609262221";
 // 同门分片：navigation-effects
 import {
   buildNavigationEffects,
   navigationButtonIsActive
-} from "../navigation-effects.js?v=2609260946";
+} from "../navigation-effects.js?v=2609262221";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609260946";
+import { registerComponent } from "../registry-core.js?v=2609262221";
 // 同门分片：registry-visuals
 import {
   navigationContentUnitPx,
   resolveColor
-} from "../registry-visuals.js?v=2609260946";
+} from "../registry-visuals.js?v=2609262221";
 
 // 导航按钮控件：目标页取自三个点击动作里的 navigate，其次才是 properties.targetPage；
 // 高亮状态由 navigationButtonIsActive 统一判定。

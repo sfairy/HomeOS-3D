@@ -77,10 +77,13 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
     # 缺项目、缺主体身份或缺连接都退化到空作用域：宁可前端不缓存，也不共用错的分桶。
     if not project_id or principal is None or not principal.id or connection is None:
         return ''
-    base_url = (connection.base_url or '').strip().rstrip('/')
+    # 两个地址都进摘要：这段摘要的语义是「换连接 / 换地址即视为新作用域」，而**当前在用哪一路
+    # 不进摘要** —— 内外网切换只是同一台 HA 的两种走法，数据相同，不该让所有屏的历史缓存作废。
+    internal_url = (connection.base_url or '').strip().rstrip('/')
+    external_url = (connection.external_base_url or '').strip().rstrip('/')
     encrypted_token = connection.encrypted_access_token or ''
     # 连接必须处于活跃状态且要素齐全，否则同样返回空作用域。
-    if not (connection.is_active and connection.id and base_url and encrypted_token):
+    if not (connection.is_active and connection.id and (internal_url or external_url) and encrypted_token):
         return ''
     # 固定顺序的列表而不是集合：摘要必须稳定可复现，顺序一变所有屏都会重新分桶。
     identity = [
@@ -90,7 +93,8 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
         principal.id,
         project_id,
         connection.id,
-        base_url,
+        internal_url,
+        external_url,
         hashlib.sha256(encrypted_token.encode('utf-8')).hexdigest(),
     ]
     # 规范序列化去掉多余空格并保持键序稳定，保证同一份输入在任何 Python 版本下摘要一致；
@@ -198,8 +202,12 @@ def _find_device_extra(properties: dict, entity_id: str, *, purifier: bool):
     返回 ``(宿主, 模型类型, 附加项)``；这台控件上没有任何设备配到这个实体时三项都是 ``None``。
 
     通用设备按 ``DEVICE_PROFILES`` 逐集合扫描并带上各自的模型类型；空气净化器单列
-    （它的模型类型是 ``airpurifier``，与通用设备不是同一套外观）。``purifier`` 决定这次
-    只认空气净化器还是只认通用设备，防止拿通用设备的附加实体去走净化器的文案。
+    （它的外观族是 ``airpurifier`` / ``freshair``，与通用设备不是同一套）。``purifier``
+    决定这次只认空气净化器还是只认通用设备，防止拿通用设备的附加实体去走净化器的文案。
+
+    注意净化器那一支的「模型类型」**不被调用方消费** —— 它的存活校验走
+    ``purifier.require_purifier_model``（那里认的是两个类型的集合），这里带上只是为了与
+    通用设备分支同形。
     """
     if purifier:
         hosts = [
@@ -564,8 +572,9 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             scene = json.loads((source if source.is_file() else reference).read_text(encoding='utf-8'))['scene']
             if is_purifier:
                 # 净化器自己的实体挂在宿主绑定上。模型存活必须用净化器自己的判据：
-                # 场景里它的 type 是 airpurifier，借空调那套（wallac/floorac/airoutlet）
-                # 会把每一台净化器都判成「模型已失联」，附加功能整个不可用。
+                # 场景里它的 type 是 airpurifier 或 freshair（新风机），借空调那套
+                # （wallac/floorac/airoutlet）会把每一台净化器都判成「模型已失联」，
+                # 附加功能整个不可用。
                 require_purifier_model([host], host.get('entityId', ''), scene)
             else:
                 require_device_model(host, scene, model_type)
@@ -577,6 +586,21 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         entity = _active_entity(database, connection, payload.entity_id, payload.domain)
         if entity is None:
             raise HTTPException(404, detail='实体不存在、已禁用或已失联。')
+        if is_purifier:
+            # 净化器的附加实体必须与净化器本体挂在同一台 HA 设备下：宿主实体换绑到别的
+            # 设备后，附加功能会控制到不属于这台净化器的东西上。
+            primary_id = host.get('entityId', '') if host is not None else ''
+            primary = database.scalar(
+                select(HAEntity).where(
+                    HAEntity.connection_id == connection.id,
+                    HAEntity.entity_id == primary_id,
+                    HAEntity.domain == 'fan',
+                    HAEntity.sync_status == 'active',
+                    HAEntity.disabled_by.is_(None),
+                )
+            ) if primary_id else None
+            if primary is None or not primary.device_id or entity.device_id != primary.device_id:
+                raise HTTPException(403, detail='附加实体已不属于当前空气净化器，请重新绑定。')
         states = await request.app.state.ha_connector.state_hub.snapshot({payload.entity_id})
         validate_extra_command(extra, payload.domain, payload.service, payload.data, states[0] if states else None)
         return await call_service(payload, request, viewer)
@@ -876,7 +900,7 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             # climate/purifier-extras：附加功能卡片网格（开关/选项/数值/按钮/状态显示），
             # 空调面板与通用设备弹窗（device/device-panel）共用同一份实现。
             'climate/purifier-extras.js',
-            # device/：通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）
+            # device/：通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）
             'device/device-profiles.js',
             'device/device-status.js',
             'device/device-panel.js',
@@ -935,6 +959,8 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
         # 同 presence-editor.css，只服务编辑器弹窗，不进 stage.css。
         'security/security-editor.css': 'text/css',
         'climate/climate-panel.css': 'text/css',
+        # 通用设备弹窗的图形与排版：由 core/stage.css @import，与 climate-panel.css 同一口径。
+        'device/device-panel.css': 'text/css',
         'nas/nas-panel.css': 'text/css',
         # 设备编辑器（config-editor.js 的通用设备 / 净化器三节）注入的专属样式：
         # 同 presence-editor.css，只服务编辑器弹窗，不进 stage.css。

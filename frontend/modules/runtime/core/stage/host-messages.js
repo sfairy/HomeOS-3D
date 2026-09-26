@@ -6,6 +6,12 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+// 通用设备的六个品类（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）在运行侧也是**合法的模块名**：
+// 编辑器打开某一品类的配置时会把 `editingModule` 设成品类名（见 config-editor 的
+// mountEditorRuntime），舞台要靠它把 activeModule 切到该品类，通用设备的标记才会被收集、
+// 被渲染成 3D 里的按钮。漏掉这张表，品类名会被下面的兜底判成 "light"，
+// 于是「模型选好了但场景里没有按钮」—— 与上游 0.6.5 的同一段（含 ...GENERIC_DEVICE_KINDS）对齐。
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609262221";
 export function createHostMessageHandler(ctx) {
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
@@ -176,7 +182,10 @@ export function createHostMessageHandler(ctx) {
             "nas",
             "television",
             "vacuum",
-            "vacuum-shortcut"
+            "vacuum-shortcut",
+            // 通用设备：编辑器把 editingModule 设成品类名（fridge / plant / …），
+            // 这里必须原样放行，否则会被兜底成 "light"，品类标记整批不渲染。
+            ...GENERIC_DEVICE_KINDS
           ].includes(message.editingModule)
           ? message.editingModule
           : "light"
@@ -189,7 +198,9 @@ export function createHostMessageHandler(ctx) {
             "temperature-humidity"
           ].includes(ctx.activeModule)
           ? ctx.activeModule
-          : ["nas", "television"].includes(ctx.activeModule)
+          : // 展示态下没有单独的品类页签：冰箱 / 绿植都归「设备」这一类，
+            // 与上游 0.6.5 的同一映射一致（["nas","television",...GENERIC_DEVICE_KINDS] → "devices"）。
+            ["nas", "television", ...GENERIC_DEVICE_KINDS].includes(ctx.activeModule)
             ? "devices"
             : "environment";
       if (!ctx.isEditing && nextModule !== "overview" && !ctx.configuredModules.includes(nextModule)) {
@@ -470,6 +481,10 @@ export function createHostMessageHandler(ctx) {
           ctx.focusBinding(message.id, "edit", true);
         } else if (message.command === "preview-light-camera") {
           ctx.focusBinding(message.id, "preview");
+        } else if (message.command === "preview-device-panel") {
+          // 编辑器「实时预览弹窗」：只按面板模式打开该绑定的弹窗，不动相机、不发设备指令。
+          // 编辑态下 focusBinding 同样放行 panel —— 这一条正是为编辑态准备的（与 0.6.5 同口径）。
+          ctx.focusBinding(message.id, "panel");
         } else if (message.command === "preview-light-effect") {
           if (
             ![

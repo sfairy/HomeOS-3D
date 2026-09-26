@@ -34,8 +34,8 @@ _OPTIONAL_FIELDS = frozenset(
 
 
 def _text(value) -> bool:
-    """字符串且不超过 128 字符；空串合法（缺省字段按空串处理）。"""
-    return isinstance(value, str) and len(value) <= 128
+    """字符串且不超过 255 字符；空串合法（缺省字段按空串处理）。"""
+    return isinstance(value, str) and len(value) <= 255
 
 
 def validate_lock_bindings(items, validate_camera) -> None:

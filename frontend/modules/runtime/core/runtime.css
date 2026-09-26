@@ -8,7 +8,7 @@
  * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
  * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609260946";
+@import "/static/bridge/controls.css?v=2609262221";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -1339,6 +1339,19 @@
   cursor: pointer;
   padding: 9px 0;
   font-weight: 600;
+}
+/* 组合成员操作（「组合另一扇窗帘」「解除组合」这类）：纵向铺满，
+   按钮文案较长时允许折行，不用省撑破面板宽度。 */
+.i3d-unified-settings .i3d-group-member-actions {
+  display: grid;
+  gap: 8px;
+}
+.i3d-unified-settings .i3d-group-member-actions > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .i3d-unified-settings .i3d-config-section,
 .i3d-unified-settings .i3d-config-section label,

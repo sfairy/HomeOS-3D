@@ -13,108 +13,108 @@ import {
   capturePointer,
   resolveStateEntry,
   temperatureHumidityReading
-} from "./static-helpers.js?v=2609260946";
+} from "./static-helpers.js?v=2609262221";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609260946";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609262221";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609260946";
+import { sceneModelKey } from "./scene-model-key.js?v=2609262221";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609260946",
+        "../../../static/bridge/popup-placement.js?v=2609262221",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609260946"));
+  : import("/static/bridge/popup-placement.js?v=2609262221"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609260946";
-import { createSceneBackground } from "./scene-background.js?v=2609260946";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609260946";
+} from "../presence/presence-scene.js?v=2609262221";
+import { createSceneBackground } from "./scene-background.js?v=2609262221";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609262221";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609260946";
+} from "../vacuum/vacuum-motion.js?v=2609262221";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609260946";
-import { televisionState } from "../television/television-state.js?v=2609260946";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609260946";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609260946";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609260946";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609260946";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609260946";
+} from "../vacuum/vacuum-map.js?v=2609262221";
+import { televisionState } from "../television/television-state.js?v=2609262221";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609262221";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609262221";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609262221";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609262221";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609262221";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609260946";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609260946";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609260946";
+} from "../cover/cover-state.js?v=2609262221";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609262221";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609262221";
 // 窗帘组合（一拖多）：组面板把成员各自转发成一块普通窗帘子面板，与单副帘面板同一套外观。
-import { createCoverGroupPanel } from "../cover/cover-group-panel.js?v=2609260946";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609260946";
+import { createCoverGroupPanel } from "../cover/cover-group-panel.js?v=2609262221";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609262221";
 // 门锁：面板（状态 + 电量 + 密码 + 上锁/解锁/释放锁舌）、门外动画（把 doorOpen 翻成门的姿态）、
 // 以及门模型的展开口径（把配置里的 modelId 对到楼层场景里那扇门）。
 // 后两者与编辑器的安防配置页共用同一份实现，见 security/lock-state.js。
-import { createLockPanel } from "../security/lock-panel.js?v=2609260946";
-import { createLockMotion } from "../security/lock-motion.js?v=2609260946";
-import { doorModels, lockHinge, lockState } from "../security/lock-state.js?v=2609260946";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609260946";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609260946";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609260946";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609260946";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609260946";
-import { createDevicePanel } from "../device/device-panel.js?v=2609260946";
+import { createLockPanel } from "../security/lock-panel.js?v=2609262221";
+import { createLockMotion } from "../security/lock-motion.js?v=2609262221";
+import { doorModels, lockHinge, lockState } from "../security/lock-state.js?v=2609262221";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609262221";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609262221";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609262221";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609262221";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609262221";
+import { createDevicePanel } from "../device/device-panel.js?v=2609262221";
 // 通用设备状态灯的状态口径：statusRules 折算成四态与配色，与设备弹窗 / 编辑器同源
 // （device/device-status.js 里只有这一份实现，舞台不再自带第二套判据）。
-import { deviceStatus } from "../device/device-status.js?v=2609260946";
+import { deviceStatus } from "../device/device-status.js?v=2609262221";
 import {
   GENERIC_DEVICE_KINDS,
   isGenericDeviceKind,
   genericDeviceProfile
-} from "../device/device-profiles.js?v=2609260946";
+} from "../device/device-profiles.js?v=2609262221";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609260946";
-import { startSceneSync } from "./scene-sync.js?v=2609260946";
+} from "../environment/environment-scene.js?v=2609262221";
+import { startSceneSync } from "./scene-sync.js?v=2609262221";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609260946";
+} from "../light/light-state.js?v=2609262221";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609260946";
+} from "../camera/camera-motion.js?v=2609262221";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609260946";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609260946";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609260946";
-import { createStageGeometry } from "./stage/geometry.js?v=2609260946";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609260946";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609260946";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609260946";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609260946";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609260946";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609260946";
-import { createInputActivity } from "./stage/input-activity.js?v=2609260946";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609260946";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609260946";
+} from "./idle-rotation.js?v=2609262221";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609262221";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609262221";
+import { createStageGeometry } from "./stage/geometry.js?v=2609262221";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609262221";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609262221";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609262221";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609262221";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609262221";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609262221";
+import { createInputActivity } from "./stage/input-activity.js?v=2609262221";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609262221";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609262221";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -172,7 +172,14 @@ function configuredModuleKinds(rawConfig = {}) {
       ? ["environment"]
       : []),
     ...(rawConfig.environment?.temperatureHumidity?.length ? ["temperature-humidity"] : []),
-    ...(rawConfig.devices?.nas?.length || rawConfig.devices?.televisions?.length
+    ...(rawConfig.devices?.nas?.length ||
+    rawConfig.devices?.televisions?.length ||
+    // 通用设备也住在「设备」页签下：只配了一台冰箱、没配 NAS / 电视时，
+    // 少了这一项「设备」就不算已配置模块，冰箱的标记同样渲染不出来。
+    // 上游 0.6.5 的同一段即 GENERIC_DEVICE_KINDS.some(...) 参与判断。
+    GENERIC_DEVICE_KINDS.some(
+      genericKind => rawConfig.devices?.[genericDeviceProfile(genericKind)?.collection]?.length
+    )
       ? ["devices"]
       : []),
     ...(rawConfig.devices?.vacuums?.length ? ["vacuum"] : []),
@@ -1167,7 +1174,7 @@ export function mountStage(stageOptions) {
     ["overview", "总览"],
     ["light", "灯光"],
     ["environment", "环境"],
-    ["temperature-humidity", "温湿度计"],
+    ["temperature-humidity", "温湿度"],
     ["devices", "设备"],
     ["vacuum", "扫地机"],
     ["security", "安防"]
@@ -1297,6 +1304,24 @@ export function mountStage(stageOptions) {
   const climatePanel = createClimatePanel({
     // 面板开关机时用它换回「上次使用的模式」（HA 关机后不再上报原模式）。
     modeHistory: climateModeHistory,
+    // 净化器「附加功能」卡片拖动排序 / 改尺寸后的布局回传。上游同口径：只有编辑态才回报
+    // 给宿主（非编辑态卡片根本拿不到拖拽手势，这里再守一道），由编辑器写进草稿的
+    // extraControls —— 面板本身不碰配置。
+    onLayout: extraControls => {
+      const layoutBinding = findFocusedBinding();
+      // 编辑态下 activeModule 只可能是编辑器送来的模块名（白名单见 runtime.js / host-messages.js），
+      // 净化器归 climate —— 写 "environment" 这个值在编辑态永远不成立，整段回传成了死代码：
+      // 拖动排序 / 改尺寸后草稿不更新、脏标记不亮、保存即丢失，且没有任何报错。
+      if (!isEditing || activeModule !== "climate" || !layoutBinding) {
+        return;
+      }
+      postToHost({
+        type: "edit",
+        action: "purifier-layout",
+        id: layoutBinding.id,
+        extraControls
+      });
+    },
     onControl: climateCommand =>
       new Promise((resolveClimate, rejectClimate) => {
         const climateBinding = collectClimateBindings().find(
@@ -1569,12 +1594,29 @@ export function mountStage(stageOptions) {
   });
 
 
-  // 通用设备弹窗（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）：与空气净化器共用「附加功能卡片网格」。
+  // 通用设备弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）：与空气净化器共用「附加功能卡片网格」。
   //
-  // 不做 onLayout：卡片拖动 / 改尺寸要回写配置，而这一步要等编辑器侧的 device-layout
-  // 落盘通道（renderer 的 custom-popup + studio 的 edit action）一起接上；先不下发一个
-  // 没人处理的 edit 消息，免得编辑器收到未知动作。
+  // onLayout 是卡片拖动排序 / 改尺寸后的布局回传：与净化器走同一条链路，只是 action 换成
+  // device-layout。只在编辑态下发，编辑器收到后把它写进草稿的 extraControls 并刷新预览。
   const devicePanel = createDevicePanel({
+    onLayout: extraControls => {
+      const layoutBinding = findFocusedBinding();
+      // 同净化器那处：编辑通用设备时 activeModule 是品类名（fridge / plant / …），
+      // "devices" 只在展示态出现，编辑态永远不成立 —— 回传同样是死代码。
+      if (
+        !isEditing ||
+        !(activeModule === "devices" || isGenericDeviceKind(activeModule)) ||
+        !layoutBinding
+      ) {
+        return;
+      }
+      postToHost({
+        type: "edit",
+        action: "device-layout",
+        id: layoutBinding.id,
+        extraControls
+      });
+    },
     onControl: deviceCommand =>
       new Promise((resolveDevice, rejectDevice) => {
         const deviceBinding = findFocusedBinding();
@@ -1697,7 +1739,12 @@ export function mountStage(stageOptions) {
       label: binding =>
         (binding.deviceLabel || genericDeviceProfile(binding.deviceKind)?.label || "设备") +
         "控制",
-      hostClass: "is-climate-panel",
+      // 通用设备有自己的一套竖直上限（见 device-panel.css）：面板里那台机器（冰箱 190px）
+      // 比空调 / 净化器的插画高得多，沿用空调「可用空间一半」的上限会把标题以下的卡片
+      // 整个挤出可视区。专属 hostClass 与 NAS / 电视 / 门锁同一套路数，比在外壳上写
+      // `:has(> .i3d-device-panel)` 判品类稳 —— 那条依赖「面板根节点恰好是外壳的直接子节点」
+      // 这一结构细节，改动 append 列表就会静默失效。
+      hostClass: "is-device-panel",
       deferWhenFocusOnly: true,
       show: binding => {
         // 面板没打开时不画：附加功能卡片的 update() 要重建整片网格。
@@ -1707,7 +1754,13 @@ export function mountStage(stageOptions) {
         devicePanel.root.hidden = false;
         devicePanel.update({
           item: binding,
-          states: statesByEntityId
+          states: statesByEntityId,
+          // 与 climatePanel 同口径：编辑预览态要一并传下去，卡片网格靠它切到
+          //「拖拽 / 改尺寸 + 禁用控件」那一态（上游 device-panel 是把整个 viewModel 转交）。
+          editing: isEditing,
+          // 户型图里把那台设备的模型删掉后，卡片不能停在上一次的状态上装没事：
+          // 与 0.6.5 一致，整张卡改成一句「设备模型已移除，请重新配置。」。
+          error: binding.modelAvailable ? "" : "设备模型已移除，请重新配置。"
         });
       }
     },
@@ -2003,7 +2056,7 @@ export function mountStage(stageOptions) {
       wakeFrameLoop();
     }
   });
-  // 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）状态灯：每个品类一盏，复用 NAS 那套平面灯，
+  // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）状态灯：每个品类一盏，复用 NAS 那套平面灯，
   // 只把 modelType 与 readState 换成各品类自己的。这类设备没有专属状态模块，状态全部来自配置里的
   // statusRules —— 由 device/device-status.js 的 deviceStatus 折算成 normal / warning / unknown /
   // off 四态与配色，再经模式的 customColor / breathing 通道画出来。这正是「配了提醒条件却看不到

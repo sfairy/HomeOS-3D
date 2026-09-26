@@ -8,23 +8,32 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609260946";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609262221";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
 // 现已提为共享实现，其余模块不再各写一份。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260946";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609262221";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260946";
-import { createEnvironmentHalos } from "./environment-halos.js?v=2609260946";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609262221";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609262221";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
 export function pageDimming(config, activeModule, isFocusMode = false) {
-  // 模块 ID → 页面 ID 的归一：气候 / 窗帘都算「环境」页，NAS / 电视算「设备」页，
+  // 模块 ID → 页面 ID 的归一：气候 / 窗帘 / 温湿度计都算「环境」页，NAS / 电视算「设备」页，
   // 扫地机快捷入口算「扫地机」页。查不到就用模块名本身当页面。
+  //
+  // 温湿度计必须在这里归到「环境」页：它和空调 / 窗帘 / 净化器共用同一套环境压暗与模型高亮，
+  // 漏掉这一条时 `moduleKey` 会是 "temperature-humidity"，既不在下面的页面白名单里（于是
+  // 压暗 / 降饱和整段不生效），又会把 pageModelBindings 的页面筛成同名（于是环境模型既不描边
+  // 也不合成展示绑定）—— 症状是「切到温湿度计页，环境设备全部失去高亮」，浏览器不报任何错。
+  // 上游 0.6.5 的 pageDimming 同样把 temperature-humidity 归入 environment（另有 purifier，
+  // 本仓净化器并入环境页、没有独立模块，故不登记）。
+  // tools/check_invariants.mjs 的「环境页面归一表」一条把这个映射钉死。
   const moduleKey =
     {
       climate: "environment",
       cover: "environment",
+      "temperature-humidity": "environment",
       nas: "devices",
       television: "devices",
       "vacuum-shortcut": "vacuum"

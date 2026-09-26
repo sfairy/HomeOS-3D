@@ -8,18 +8,20 @@
  * 滚轮在地图上缩放地图（1.08 步进）、否则缩放视图（1.12 步进）；双指捏合缩放地图。重绘无脏标记与 rAF，
  * 改动同步调用 renderEditor()（节点极少、交互低频，异步批处理只会增加不一致风险）。
  */
-import { mapCorners, mapSource } from "./vacuum-map.js?v=2609260946";
-import { capturePointer } from "../core/static-helpers.js?v=2609260946";
+import { mapCorners, mapSource } from "./vacuum-map.js?v=2609262221";
+import { capturePointer } from "../core/static-helpers.js?v=2609262221";
 import {
   createDomFactory,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609260946";
+} from "../core/static-helpers-editor.js?v=2609262221";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
  * 地面开洞、文字标签一律排除（不在落地层或只是标注），缺合法坐标或宽高非正的也丢掉。
  * 尺寸乘以 plan.pixelsPerMeter，非法时退化为 1，避免整块平面被乘成 0 而看不见。
+ *
+ * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
-function planFurniture(plan = {}) {
+export function planFurniture(plan = {}) {
   // pixelsPerMeter 缺失或非正时退化为 1：宁可比例不准，也不能让整张平面缩成 0。
   const pixelsPerMeter = Number(plan.pixelsPerMeter) > 0 ? Number(plan.pixelsPerMeter) : 1;
   // 这些类型不落地或本身就是开洞/标注，不能当参照物。

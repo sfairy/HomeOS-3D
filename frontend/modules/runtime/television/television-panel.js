@@ -11,10 +11,10 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=2609260946";
+} from "./television-state.js?v=2609262221";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的静态
 // import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609260946";
+import { createDomFactory } from "../core/static-helpers.js?v=2609262221";
 /**
  * 创建电视面板。
  *
@@ -33,6 +33,21 @@ export function createTelevisionPanel({
   const titleElement = createElement("h3", "");
   const statusElement = createElement("span", "i3d-tv-status");
   const contentElement = createElement("div", "i3d-tv-content");
+  // 设备图形：照 2D 的 .hb-media-speaker-visual 移植材质配方（机身渐变、交叉网罩、
+  // 状态光圈），形态改按电视屏框来画。
+  //
+  // 为什么换形态：2D 那个域画的是 88px 的圆形音箱，而本仓这一页是电视 / 媒体播放器弹窗，
+  // 圆球摆在标题下会被读成音箱；但两者的「材质语言」是同一套，所以沿用 2D 的
+  // 受光面径向渐变、±42° 两组重复渐变叠出的网罩、以及随状态呼吸的强调色光圈。
+  //
+  // 结构：屏框（机身）→ 屏面（封面 / 占位）→ 底部网罩条（2D 的网罩配方用在这里）→ 状态灯。
+  // 封面仍是同一个 <img>（i3d-tv-artwork），继续走原有的加载 / 失败隐藏逻辑，不另起一套。
+  const visualElement = createElement("div", "i3d-tv-visual");
+  visualElement.setAttribute("aria-hidden", "true");
+  const visualBezelElement = createElement("div", "i3d-tv-visual-bezel");
+  const visualScreenElement = createElement("div", "i3d-tv-visual-screen");
+  const visualGrilleElement = createElement("div", "i3d-tv-visual-grille");
+  const visualLightElement = createElement("span", "i3d-tv-visual-light");
   const artworkElement = createElement("img", "i3d-tv-artwork");
   const detailsElement = createElement("div", "i3d-tv-details");
   const mediaTitleElement = createElement("strong", "");
@@ -93,8 +108,12 @@ export function createTelevisionPanel({
   });
   headingElement.append(titleElement, statusElement, powerOnButton, powerOffButton);
   detailsElement.append(mediaTitleElement, mediaMetaElement, progressElement, timeElement);
-  contentElement.append(artworkElement, detailsElement);
-  rootElement.append(headingElement, contentElement, actionsElement, errorElement);
+  visualScreenElement.append(artworkElement);
+  visualBezelElement.append(visualScreenElement, visualGrilleElement, visualLightElement);
+  visualElement.append(visualBezelElement);
+  contentElement.append(detailsElement);
+  // 图形单独占一行（居中），与净化器 / 窗帘 / 灯面板同一套节奏：标题 → 设备图形 → 详情与控件。
+  rootElement.append(headingElement, visualElement, contentElement, actionsElement, errorElement);
   // 由外部控制显隐，创建时先隐藏以免闪出空面板。
   rootElement.hidden = true;
   let viewModel;
@@ -222,6 +241,14 @@ export function createTelevisionPanel({
     }
     titleElement.textContent = state.name;
     statusElement.textContent = state.status;
+    // 设备图形的四种态：开机 / 播放中 / 已暂停 / 关机。与 2D 音箱那三态
+    // （is-playing / is-paused / is-off）对齐，另加 is-on 用来点亮状态灯 ——
+    // 电视「开着但没在播」时也该有活的指示灯，而 2D 的音箱没有这一档。
+    const isPaused = state.on && state.state === "paused";
+    visualElement.classList.toggle("is-on", state.on);
+    visualElement.classList.toggle("is-playing", state.playing);
+    visualElement.classList.toggle("is-paused", isPaused);
+    visualElement.classList.toggle("is-off", !state.on);
     // 关机时曲目信息位置显示状态文案（如「电视已关闭」），保持版面不塌陷。
     mediaTitleElement.textContent = state.on ? state.title : state.status;
     mediaMetaElement.textContent = [state.app, state.artist].filter(Boolean).join(" · ") || "—";

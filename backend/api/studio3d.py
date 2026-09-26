@@ -24,7 +24,7 @@ from threading import RLock
 from urllib.parse import unquote
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select, update
 from starlette.concurrency import run_in_threadpool
@@ -49,6 +49,9 @@ MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512
+# 「本次删除影响」的确认文案。真保存的 428 与预检（dryRun）的 200 回的是同一件事，
+# 文案必须同源，否则两条路径会在弹窗里显示两种说法。
+INTERACTION_CONFIRMATION_MESSAGE = '删除的模型被 3D 控件引用，保存将一并移除这些绑定。'
 # 导出目录的互斥锁：上传、覆盖、删除都会做「先落临时目录再 rename」的多步操作，
 # 不加锁时两个并发请求的中间目录可能互相覆盖。
 _storage_lock = RLock()
@@ -288,17 +291,21 @@ def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
 
 
 @router.get('')
-def get_studio3d_draft(request: Request, _user: LicensedUser) -> dict:
+def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
     """读取 3D 户型图草稿（需已登录且授权允许 api）。
 
     返回 {revision, scene, updatedAt}；草稿文件不存在时返回 revision=0 的空草稿，
     前端据此进入新建流程。
 
     旧版仪表盘文档里的 studio3d 字段由启动期的 `migrate_legacy_scene` 一次性迁出
-    （见 backend/main.py 的 lifespan）。这里刻意不做迁移：读接口不该写文件改库。
+    （见 backend/main.py 的 lifespan）。这里刻意不把迁移挂在读路径上；但上一次保存若在
+    「库已提交、文件还没落盘」之间中断，本接口会补写草稿并清掉 pending ——
+    那是修复半状态，不是迁移。
     """
     # 读操作同样加锁：必须与写入串行。
     with _storage_lock:
+        # 先补完上一次可能中断的落盘，再读文件，保证读到的 revision 与库一致。
+        _deliver_pending(request, database)
         payload = _read_draft(request.app.state.settings.studio3d_draft_path)
         return payload or {'revision': 0, 'scene': None, 'updatedAt': None}
 
@@ -332,7 +339,13 @@ def _interaction_project_labels(database: DatabaseSession, impacts: list[dict]) 
 
 
 @router.put('')
-def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
+def update_studio3d_draft(
+    payload: Studio3DDraftUpdate,
+    request: Request,
+    database: DatabaseSession,
+    _user: LicensedUser,
+    dry_run: bool = Query(False, alias='dryRun'),
+) -> dict:
     """保存 3D 户型图草稿（需已登录且授权允许 api）。
 
     请求体: scene（场景数据）与 revision（客户端持有的版本号）；成功返回新的
@@ -343,15 +356,23 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
     清理计划由纯函数 `plan_cleanup` 算出，本路由只负责取数据、落库、写盘；被剪掉的条目
     连同身份键存进 `studio_interaction_sync`，等模型被重新画回场景时原样放回去。
 
+    dryRun=true 是同一套计算的**只读预检**：照样算影响清单，但一律不落盘，并把
+    「需不需要确认」用 200 回给客户端（{confirmationRequired, token, message, impacts,
+    projects, revision}）。客户端据此在真正提交之前就把确认框弹出来，正常删除路径于是不必
+    先撞一次 428 —— 那是预期内的业务控制流，却会让浏览器控制台为每次删除留一条清不掉的红字。
+    预检与真保存共用同一条计算，令牌在两步之间一致，确认时原样回传即可命中同一份计划。
+
     异常:
     - HTTPException 409 —— 版本号不一致，detail 为 {code: 'STUDIO3D_REVISION_CONFLICT',
       message, currentRevision}，前端应提示「已在其他页面更新」并让用户重新拉取。
     - HTTPException 428 —— 本次删除会让控件绑定悬空且未获确认，detail 为
       {code: 'STUDIO3D_INTERACTION_CONFIRMATION', token, message, impacts, projects}：
       前端弹确认框，用户同意后带同一个 token 重发即可；未确认时草稿、项目文档、撤销记录
-      一律未改动，撤销/取消直接丢弃本次请求即可。
+      一律未改动，撤销/取消直接丢弃本次请求即可。dryRun 时不走这条，改回 200（见上）。
     """
     with _storage_lock:
+        # 先补完上一次可能中断的落盘，否则下面读到的是旧 revision，客户端会被 409 卡住。
+        _deliver_pending(request, database)
         current = _read_draft(request.app.state.settings.studio3d_draft_path)
         current_revision = current['revision'] if current else 0
         # 乐观并发控制（If-Match 语义）：客户端必须回传自己读到的版本号，
@@ -387,14 +408,28 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
             # 用户确认的永远是它当时看到的那份计划。计划为空时不计算（省掉一次全库 JSON 序列化）。
             token = confirmation_token([current_revision, payload.scene, documents, impacts])
             if payload.interaction_confirmation != token:
+                projects = _interaction_project_labels(database, impacts)
+                if dry_run:
+                    # 预检命中：只回「要确认什么」，草稿、项目文档、撤销记录一律未改动。
+                    return {
+                        'confirmationRequired': True,
+                        'token': token,
+                        'message': INTERACTION_CONFIRMATION_MESSAGE,
+                        'impacts': impacts,
+                        'projects': projects,
+                        'revision': current_revision}
                 # 确认之前什么都不写：草稿、项目文档、撤销记录保持原样。
                 database.rollback()
                 raise HTTPException(status_code=status.HTTP_428_PRECONDITION_REQUIRED, detail={
                     'code': 'STUDIO3D_INTERACTION_CONFIRMATION',
                     'token': token,
-                    'message': '删除的模型被 3D 控件引用，保存将一并移除这些绑定。',
+                    'message': INTERACTION_CONFIRMATION_MESSAGE,
                     'impacts': impacts,
-                    'projects': _interaction_project_labels(database, impacts)})
+                    'projects': projects})
+        if dry_run:
+            # 预检未命中（本次没有会让绑定悬空的删除）：同样不落盘，只回「无需确认」。
+            # 放在写回文档之前，保证 dryRun 在任何分支下都不会写库。
+            return {'confirmationRequired': False, 'revision': current_revision}
         # 逐份写回被清理过的文档；带 revision 条件，避免覆盖并发写入。
         for draft in drafts:
             cleaned = changed.get(draft.project_id)
@@ -414,7 +449,9 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
         if state is None:
             state = StudioInteractionSync(id=1)
             database.add(state)
-        state.document_json = canonical_json({'archive': archive})
+        # 草稿先记进同步行的 pending 字段，等提交成功后再由 _deliver_pending 落到磁盘文件：
+        # 这样「库改了但文件没写」可以被下一次读取补上，而不会出现半份草稿。
+        state.document_json = canonical_json({'archive': archive, 'pending': updated})
         # 撤销记录与草稿共用同一条体积上限：archive 存的是历次被剪掉的控件条目，反复增删模型
         # 会让它越滚越大，一次保存就可能把库里这一行写成超大 JSON。超限时整批回滚（含上面
         # 逐份文档的清理），并明确告知「关联清理未执行」—— 否则用户会以为清理成功、实际整份
@@ -424,12 +461,34 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail='户型及撤销记录过大，未执行关联清理。')
-        # 先把草稿原子落盘再提交数据库：写盘失败会抛出，未提交的库改动随会话关闭一起回滚，
-        # 两边不会各写一半。反过来「先提交再写盘」则可能在写盘失败后留下已清理的库。
-        _atomic_json_write(request.app.state.settings.studio3d_draft_path, updated)
+        # 先提交库、再落盘：两步之间中断时，下一次读/写草稿会用 pending 补写完成，
+        # 库与文件最终一致（反过来「先写盘再提交」则可能在提交失败后留下已落盘的半份草稿）。
         database.commit()
+        _deliver_pending(request, database)
         request.app.state.global_log.append('success', '3D户型图编辑器', '配置', f"3D 户型图草稿已保存（修订 {updated['revision']}）")
         return updated
+
+
+def _deliver_pending(request, database) -> None:
+    """把同步行里 pending 的草稿补写到磁盘，成功后就地清掉 pending。
+
+    保存路径先提交库、再调本函数写文件；两步之间进程被杀时，下一次读草稿会再次调用它，
+    于是补写完成 —— 库与文件最终一致。
+    """
+    state = database.get(StudioInteractionSync, 1)
+    if state is None:
+        return
+    try:
+        value = json.loads(state.document_json)
+    except (TypeError, json.JSONDecodeError):
+        # 内容被外部改坏：没有可补写的 pending，保持原样（与 _interaction_archive 同一策略）。
+        return
+    if not isinstance(value, dict) or value.get('pending') is None:
+        return
+    _atomic_json_write(request.app.state.settings.studio3d_draft_path, value['pending'])
+    value.pop('pending')
+    state.document_json = canonical_json(value)
+    database.commit()
 
 
 @router.get('/exports/check')

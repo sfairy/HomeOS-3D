@@ -1,8 +1,8 @@
 /*
  * 3D 配置弹窗里「通用设备 / 空气净化器」两块专属内容的样式。
  *
- * 为什么单独一张表：这两块（状态灯规则、附加功能）只有通用设备（冰箱 / 洗碗机 / 洗衣机 /
- * 烘干机 / 绿植）与空气净化器才有，其余编辑对象（灯光 / 空调 / 窗帘 / 扫地机 / NAS / 电视 /
+ * 为什么单独一张表：这两块（状态灯规则、附加功能）只有通用设备（冰箱 / 冰柜 / 洗碗机 /
+ * 洗衣机 / 烘干机 / 绿植）与空气净化器才有，其余编辑对象（灯光 / 空调 / 窗帘 / 扫地机 / NAS / 电视 /
  * 温湿度计 / 门锁）都不显示。core/runtime.css 是所有交互编辑器共用的骨架、core/stage.css
  * 是舞台样式（展示页与 3D 工作室都会加载），把编辑器专属规则塞进这两处会外溢到别的页面
  * —— 所以照 presence/presence-editor.css 的先例单开一份，由 config-editor.js 打开弹窗时
@@ -12,55 +12,63 @@
  * 本文件不重复 import —— config-editor.js 已经把 core/runtime.css 挂进 <head> 了，再来一次
  * 只会让同一份样式表被解析两遍、且改了版本号两边容易漏同步。
  *
- * 附加功能卡片的网格契约不在这里：卡片由运行时的 climate/purifier-extras.js 渲染，
- * 样式在 climate/climate-panel.css 里（编辑器会把那张表也挂上，见 ensureExtraStyles）。
- * 本文件只补编辑器自己造的那几个节点 —— 规则行、选择器行的尺寸，以及取值下拉的排布。
+ * 附加功能不再自带卡片网格预览：卡片由「实时预览弹窗」交给舞台渲染（样式在
+ * climate/climate-panel.css 里，由舞台自己的 stage.css @import）。
+ * 本文件只管编辑器自己造的那几个节点 —— 规则行、内联附加功能选择器的尺寸与排布。
  *
  * 主题变量来自宿主页 :root 的 --surface / --field / --line / --muted / --text /
  * --hos-accent-rgb（编辑页来自 app.css，3D 工作室来自 studio.css），一律写成
  * var(--名, 兜底色)，保证弹窗被单独打开也不丢样式。
  */
 
-/* ===== 状态灯规则 ===== */
+/* ===== 状态灯（可选） ===== */
 
-/* 一组规则（主状态 / 提醒条件）内部：标题 + 若干条规则行。
-   上下留白靠这里给，规则行本身不再各写一份 margin。 */
-.i3d-status-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
+/* 整块是「标签 + 规则行 + 添加按钮」的纵向流；间距由这里统一给，
+   规则行 / 标签不再各自写 margin（与 0.6.5 的 .i3d-status-settings 同口径）。 */
+.i3d-status-settings {
+  display: grid;
+  gap: 8px;
 }
 
-.i3d-status-group h5 {
-  margin: 0;
-  color: var(--muted, #8b959c);
+.i3d-status-settings > .i3d-note {
+  margin: 0 0 2px;
+}
+
+/* 「电源状态（可选）」「提醒条件」这类分组标题：比 note 强一档，用正文色 + 半粗。 */
+.i3d-status-label {
+  margin: 4px 0 0;
+  color: var(--text, #e8ecef);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
 }
 
-/* 一条规则：实体下拉 | 两个取值下拉 | 移除。
-   栅格而不是 flex：三行规则之间的列宽必须对齐，否则「实体 / 点亮 / 熄灭」三列会各自为政。
-   窄屏（面板本身就只有 ~320px）时实体列吃剩下的空间，两个取值列按内容宽度固定。 */
+/* 一条规则：实体选择按钮 | 取值下拉（或「设置匹配条件」） | 移除。
+   栅格而不是 flex：多行规则之间的列宽必须对齐，否则「实体 / 条件 / 移除」三列会各自为政。
+   未选实体时只有实体按钮一列（is-empty），标题列因此不会留出空槽。 */
 .i3d-status-rule {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
   align-items: center;
   gap: 6px;
 }
 
-/* 实体 ID 可能很长，min-width: 0 让下拉跟着栅格列收窄而不是把列撑破。 */
-.i3d-status-entity,
-.i3d-status-state {
+.i3d-status-rule.is-empty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* 实体 ID / 取值文案可能很长，min-width: 0 让控件跟着栅格列收窄而不是把列撑破。 */
+.i3d-status-rule > .i3d-picker-button,
+.i3d-status-rule > select {
   min-width: 0;
 }
 
-.i3d-status-state {
-  max-width: 96px;
+/* 「设置匹配条件」是规则行里唯一的普通按钮：压到和下拉同一档高度。 */
+.i3d-status-rule > button:not(.i3d-picker-button) {
+  min-height: 32px;
+  padding: 0 6px;
 }
 
-/* 取值下拉（激活 / 熄灭）用面板里的原生 select 口径：底、边、字号与 config-editor 的
+/* 取值下拉（「开启时亮灯」）用面板里的原生 select 口径：底、边、字号与 config-editor 的
    其余下拉一致。这里不引 climate-panel.css 的 .i3d-climate-choice（那是面板控件的类名，
    编辑器下拉没有那个类），所以补一份同样的观感。 */
 .i3d-status-rule select {
@@ -81,15 +89,14 @@
   color: inherit;
 }
 
-/* 「移除」放进栅格里当第四列：危险动作用次级按钮，不抢主控色的注意力。
-   字号与 h5 同档（11px），一行规则高度才不会比下面的下拉高出一截。 */
+/* 「移除」是规则行里第三列的 30px 方按钮，用危险色（上游口径）。 */
 .i3d-status-remove {
   height: 28px;
   padding: 0 8px;
-  border: 1px solid var(--line, #303840);
+  border: 1px solid #e69c9355;
   border-radius: 4px;
   background: transparent;
-  color: var(--muted, #8b959c);
+  color: #e69c93;
   font-size: 11px;
   cursor: pointer;
 }
@@ -105,10 +112,10 @@
   cursor: default;
 }
 
-/* 「添加主状态规则 / 添加提醒条件」：与「移除」同宽同高，视觉上是同一层级的次级操作。
-   虚线边是「这里还能加一条」的通用暗示，与 .i3d-picker-button 的实边区分开。 */
+/* 「＋ 添加提醒」：占满整行，虚线边是「这里还能加一条」的通用暗示，
+   与 .i3d-picker-button 的实边区分开。 */
 .i3d-status-add {
-  align-self: flex-start;
+  width: 100%;
   height: 28px;
   padding: 0 10px;
   border: 1px dashed var(--line, #303840);
@@ -131,70 +138,87 @@
   cursor: default;
 }
 
-/* ===== 附加功能（编辑器外壳） ===== */
+/* ===== 附加功能 ===== */
 
-/* 卡片网格本身（.i3d-extra-grid / .i3d-extra-card）由 climate-panel.css 提供，编辑器
-   只是把宿主类名挂上（见 renderExtraControlsSection：外层 i3d-climate-panel，内层
-   i3d-extra-grid，与 device-panel.js 的弹窗结构同一个口径）。这里只补预览块与
-   「选择附加实体」按钮之间的间距 —— 网格自己带 margin-top，预览块只负责下沿。 */
-.i3d-extra-preview {
-  margin-bottom: 8px;
-}
-
-/* ===== 附加实体选择弹窗 ===== */
-
-/* 搜索框：铺满弹窗宽度的单行输入。用面板的原生 input 口径，与 status 行同一套颜色。 */
-.i3d-extra-search {
-  width: 100%;
-  height: 32px;
-  margin-bottom: 8px;
-  padding: 0 8px;
-  border: 1px solid var(--line, #303840);
-  border-radius: 4px;
-  background: var(--field, #171d22);
-  color: var(--text, #e8ecef);
-  font-size: 12px;
-  color-scheme: dark;
-}
-
-/* 候选清单：等高行 + 自身滚动，弹窗高度不随实体数量变化。
-   上限与 i3d-add-dialog 里其余列表（模型 / 实体选择器）取同一量级。 */
-.i3d-extra-entity-list {
-  display: flex;
-  flex-direction: column;
-  max-height: 280px;
-  overflow-y: auto;
-  border: 1px solid var(--line, #303840);
-  border-radius: 4px;
-}
-
-/* 一行候选：勾选框 + 「名称（实体 ID）· 形态 · 角色」。
-   用 label 包住勾选框，整行可点，触控目标高度撑到 34px。 */
-.i3d-extra-entity-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 7px 9px;
-  border-bottom: 1px solid var(--line, #303840);
-  color: var(--text, #e8ecef);
-  font-size: 11px;
+/* 「实时预览弹窗」按钮 + 说明 + 内联 details 选择器，三段与 0.6.5 同序。
+   details 的外观（描边 + 内缩、加粗 summary）由 runtime.css 的
+   .i3d-unified-settings .i3d-config-section details 提供 —— 与 0.6.5 同一个选择器，
+   这里只补选择器内部那张实体清单。类名与上游同名（.i3d-extra-chooser /
+   .i3d-extra-entity-list / .i3d-extra-entity-row），既方便对照，
+   也不会和状态灯规则的 .i3d-status-* 混在一起。
+   卡片网格本身不在这里：它随「实时预览弹窗」交给舞台渲染，样式在 climate-panel.css。 */
+.i3d-extra-chooser summary {
+  padding: 8px 0;
   cursor: pointer;
 }
 
-.i3d-extra-entity-row:last-child {
-  border-bottom: 0;
+/* 候选清单：等高行 + 自身滚动（上限与 0.6.5 一致），
+   面板高度不随实体数量变化，搜索时也不会把整页顶下去。 */
+.i3d-extra-entity-list {
+  max-height: 320px;
+  margin-top: 8px;
+  overflow: auto;
+}
+
+/* 一行候选：勾选框 + 三行文本（名称 / 实体 ID / 形态 · 状态）。
+   label 包住勾选框，整行可点；已勾选的行用强调色淡底标出来。 */
+.i3d-extra-chooser .i3d-extra-entity-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--line, #303840);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .i3d-extra-entity-row:hover {
   background: var(--field, #171d22);
 }
 
-/* 实体 ID 里有下划线，长 ID 必须能换行显示完整，否则用户分不清同名前缀的两台设备。
-   min-width: 0 让文本列跟着弹窗宽度收窄。 */
-.i3d-extra-entity-row > span {
+.i3d-extra-entity-row:has(input:checked) {
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.09);
+}
+
+/* 实体已禁用 / 已移除：勾选框置灰，整行也压暗一档。 */
+.i3d-extra-entity-row:has(input:disabled) {
+  opacity: 0.55;
+}
+
+.i3d-extra-entity-row input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--hos-accent, #ffc46a);
+}
+
+.i3d-extra-entity-row span {
   min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+}
+
+/* 三行文本都单行省略：实体 ID 里带下划线，长 ID 不能把整行撑破。 */
+.i3d-extra-entity-row strong,
+.i3d-extra-entity-row small {
+  display: block;
+  overflow: hidden;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.i3d-extra-entity-row strong {
+  color: var(--text, #e8ecef);
+  font-weight: 500;
+}
+
+.i3d-extra-entity-row small {
+  color: var(--muted, #9ba8b3);
 }
 
 /* ===== 复用骨架里的空态提示 ===== */

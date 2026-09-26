@@ -6,9 +6,19 @@
  * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
+
+// 通用设备品类清单只此一处（device-profiles.js 零依赖）：别在这里再抄一遍品类名。
+import { isGenericDeviceKind } from "../../device/device-profiles.js?v=2609262221";
+
+/**
+ * 窗帘帘型取值，与上游 0.6.5 同集合：standard 普通窗帘 / roller 卷帘 / dream 梦幻帘。
+ * 交互配置的 `coverKind` 与舞台解析后的 `coverKind` 都是这三选一。
+ */
+const CURTAIN_COVER_KINDS = ["standard", "roller", "dream"];
+
 export function createStageGeometry(ctx) {
   /**
-   * 归一化窗帘几何参数：宽度、开合方式、帘型、轨道形状、布料与梦幻帘标记。
+   * 归一化窗帘几何参数：宽度、开合方式、帘型、轨道形状、布料与未绑定预览开合度。
    * 轨道 / 帘型相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖
    * 模型；unboundPosition 是未绑定实体时的预览开合度。
    */
@@ -16,18 +26,37 @@ export function createStageGeometry(ctx) {
     // 场景模型的开合预览：模型没写这个字段时（undefined）保持缺失，由下游定默认值；
     // 显式写了 0 仍表示关闭，因此不能用 `|| 0` 这类会把 0 也吞掉的写法。
     const sceneCurtainPreview = Number(sceneItemSource?.curtainPreview);
-    // 帘型（cloth 垂帘 / roller 卷帘）是**模型**的属性，与 curtainTrack 同一来源：后端交互配置
-    // 不认 roller（coverKind 的取值是 standard / dream），写进配置会被拒，所以只能从模型读。
-    // 非法或缺失一律归一成 cloth —— 与工作室 normalizeCurtainTrack 的兜底逐值一致。
-    const sceneCurtainStyle = sceneItemSource?.curtainStyle === "roller" ? "roller" : "cloth";
+    // 帘型（standard 普通窗帘 / roller 卷帘 / dream 梦幻帘）默认是**模型**的属性（与
+    // curtainTrack 同一来源，字段名照搬上游的 curtainForm，兼容历史 curtainStyle）。
+    // 用户在编辑器里显式改过（coverKindOverride）才让交互配置胜出 —— 与上游 0.6.5 的
+    // coverKindOverride / curtainForm 派生逐值一致：覆写时看配置，否则模型是卷帘就卷帘、
+    // 不是卷帘时再看配置（配置也可能是 dream / roller）。非法或缺失一律归一成 standard ——
+    // 与工作室 normalizeCurtainTrack 的兜底逐值一致。
+    const modelCurtainForm =
+      (sceneItemSource?.curtainForm ?? sceneItemSource?.curtainStyle) === "roller"
+        ? "roller"
+        : "standard";
+    const coverKind =
+      itemConfig.coverKindOverride === true
+        ? CURTAIN_COVER_KINDS.includes(itemConfig.coverKind)
+          ? itemConfig.coverKind
+          : "standard"
+        : modelCurtainForm === "roller"
+          ? "roller"
+          : CURTAIN_COVER_KINDS.includes(itemConfig.coverKind)
+            ? itemConfig.coverKind
+            : "standard";
     return {
       curtainWidth: Number(sceneItemSource?.width) || 1.8,
       curtainPosition: sceneItemSource?.curtainPosition || "split",
-      curtainStyle: sceneCurtainStyle,
+      // 帘型是**唯一**的一个字段，不再另起 curtainStyle 副本：舞台把这份结果直接当窗帘绑定
+      // 往后传（cover-panel / cover-groups / curtain-motion 都只认 coverKind），两个字段
+      // 各写一份迟早会「面板说卷帘、几何画垂帘」。
+      coverKind,
       // 卷帘没有轨道形态：强制直线型，与工作室的 normalizeCurtainTrack 收敛口径一致，
       // 下游的进深计算与平面绘制才不会去算 L / U 型回折（卷帘模型本来也没有回折段）。
       curtainTrack:
-        sceneCurtainStyle === "roller" ? "straight" : sceneItemSource?.curtainTrack || "straight",
+        coverKind === "roller" ? "straight" : sceneItemSource?.curtainTrack || "straight",
       curtainCorner: sceneItemSource?.curtainCorner,
       curtainLeftLength: sceneItemSource?.curtainLeftLength,
       curtainRightLength: sceneItemSource?.curtainRightLength,
@@ -41,7 +70,6 @@ export function createStageGeometry(ctx) {
             ? "sheer"
             : "cloth"
           : sceneItemSource?.curtainFabric || itemConfig.curtainFabric || "cloth",
-      coverKind: itemConfig.coverKind === "dream" ? "dream" : "standard",
       // 未绑定的预览开合度：配置优先，其次模型自带的预览值。两者都没有时**故意留空** ——
       // 默认值（COVER_DEFAULT_PREVIEW_POSITION）的唯一归属在 curtain-motion 的
       // resolveUnboundPosition；这里再写一份字面量，就会与「3D 工作室里看到的开合度」分叉，
@@ -150,9 +178,12 @@ export function createStageGeometry(ctx) {
     };
   }
 
-  // 只有这几类设备点标记后会弹出面板（聚焦流程）；其余绑定点一下就是就地执行，
-  // 不进聚焦态。用于决定标记是否需要「选中」视觉与是否接管指针。
+  // 这几类设备点标记后会弹出面板（聚焦流程）；其余绑定点一下就是就地执行，不进聚焦态。
+  // 用于决定标记是否需要「选中」视觉、是否接管指针，也是 stage.js 点击分发的第一道分流
+  // （见 activateBinding）。清单必须与上游 0.6.5 同集合：漏掉 lock 或通用设备品类，它们
+  // 会继续往下落到「有 modelId → 空调」那一支，点一次门锁就会把上次看过的那台空调打开。
   const isFocusableDevice = device =>
-    ["nas", "television", "vacuum", "presence", "camera"].includes(device?.deviceKind);
+    ["lock", "nas", "television", "vacuum", "presence", "camera"].includes(device?.deviceKind) ||
+    isGenericDeviceKind(device?.deviceKind);
   return { cameraPosesEqual, constrainCameraPose, currentCameraSnapshot, isFocusableDevice, pointerToFloorPoint, resolveCurtainGeometry, transformCameraPose };
 }

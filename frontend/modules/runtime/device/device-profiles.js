@@ -1,5 +1,5 @@
 /**
- * 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的品类登记表。
+ * 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的品类登记表。
  *
  * 「通用设备」这一类的共同点是：它们没有专属的交互模块（不像电视有信号源、空调有模式
  * 历史），场景里只需要一个模型 + 一个状态灯 + 一张由后端枚举出的实体控制卡片。所以
@@ -24,6 +24,13 @@ export const GENERIC_DEVICE_PROFILES = Object.freeze({
     label: "冰箱",
     icon: "mdi:fridge-outline",
     height: 1.85
+  }),
+  freezer: Object.freeze({
+    collection: "freezers",
+    modelType: "freezer",
+    label: "冰柜",
+    icon: "mdi:fridge-bottom",
+    height: 0.85
   }),
   dishwasher: Object.freeze({
     collection: "dishwashers",

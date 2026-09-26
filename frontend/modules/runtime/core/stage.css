@@ -8,10 +8,11 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609260946";
-@import "../nas/nas-panel.css?v=2609260946";
-@import "../climate/climate-panel.css?v=2609260946";
-@import "../cover/cover-panel.css?v=2609260946";
+@import "/static/bridge/controls.css?v=2609262221";
+@import "../nas/nas-panel.css?v=2609262221";
+@import "../climate/climate-panel.css?v=2609262221";
+@import "../cover/cover-panel.css?v=2609262221";
+@import "../device/device-panel.css?v=2609262221";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -1395,10 +1396,15 @@ body.interaction3d-stage.is-background-hidden,
 }
 /* ===== 窗帘组合面板（一拖多 / 双层帘） ===== */
 
-/* 组合外壳：比单副帘面板更高（要放下两块子面板），高度按内容自适应。 */
+/* 组合外壳：比单副帘面板更高（要放下两块子面板），高度按内容自适应。
+   子面板自带示意图，竖排时两幅叠起来会超过单副的高度，故与单副面板同一套上限 + 纵向滚动。 */
 .interaction3d-stage .i3d-light-panel.is-cover-group-panel {
   height: auto;
   min-height: 232px;
+  max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 /* 组合容器：默认并排两块子面板，标题跨满整行；竖排变体只留一列。
    子面板一律复用 .i3d-cover-panel 的规则，这里只负责「怎么摆」。 */
@@ -1431,6 +1437,13 @@ body.interaction3d-stage.is-background-hidden,
 /* 子面板各自收缩到列宽内，避免长标题把并排布局撑破（并排只有约半幅宽）。 */
 .i3d-cover-group-panel > .i3d-cover-panel {
   min-width: 0;
+  /* 并排时每列只剩约 154px，2D 原尺寸的 244px 示意图放不下（还要留出内边距）；
+     按 0.6 缩到约 146px —— 再小叶片会糊成一片，反而看不出是窗帘。
+     竖排（.is-vertical，单列 320px）时恢复原尺寸，见下一条。 */
+  --i3d-cover-visual-scale: 0.6;
+}
+.i3d-cover-group-panel.is-vertical > .i3d-cover-panel {
+  --i3d-cover-visual-scale: 1;
 }
 /* 组合标记：标记层会在里面塞两枚成员图标（典型是纱帘 + 布帘）。默认的 .i3d-marker-icon
    是「绝对定位 + 居中」，两枚会叠在一起，所以这里改成横向排列，底色也从圆改成胶囊 ——
@@ -1458,9 +1471,15 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-marker.is-curtain-group:focus-visible:after {
   border-radius: 999px;
 }
+/* 电视面板外壳：加了 166px 的屏框后按内容自适应，小视口下给上限 + 纵向滚动
+   （算式与窗帘 / 气候面板同源，见 climate-panel.css 的 is-climate-panel）。 */
 .interaction3d-stage .i3d-light-panel.is-television-panel {
   height: auto;
   min-height: 210px;
+  max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 /* ===== 设备状态面板（电视 / NAS / 扫地机） ===== */
 
@@ -1476,6 +1495,133 @@ body.interaction3d-stage.is-background-hidden,
   color: var(--hos-tool-text-dim);
   text-align: right;
   white-space: nowrap;
+}
+/* ===== 电视设备图形（材质照 2D 的 .hb-media-speaker-visual 移植，形态改成屏框） =====
+
+   2D 那个域画的是 88px 圆形音箱，本仓这一页是电视 / 媒体播放器弹窗 —— 圆球摆在标题下
+   会被读成音箱。所以形态按电视重画（屏框 + 屏面 + 底部网罩条 + 状态灯 + 底座），
+   但材质配方逐条沿用 2D：
+
+   - 机身：以左上偏中为受光点的径向渐变（2D 是 circle at 42% 36%，这里因为屏框是横构图
+     把受光点移到 30% 22%），加内高光 + 外投影；
+   - 网罩：±42° 两组重复线性渐变交叉叠出织网，透明度 0.62 —— 与 2D 完全同值；
+   - 状态灯：强调色圆点，播放中提亮并做 2.2s 呼吸（2D 的光圈是同一个节奏）。
+
+   配色一律硬编（不取主题令牌）：这是一台实体电视的金属与玻璃，主题翻成暖色浅底时
+   跟着变米白会立刻读成「一块塑料板」——与净化器 / 空调 / 灯具那几台图形同一口径。 */
+.i3d-tv-visual {
+  --i3d-tv-accent: #97bfdf;
+  position: relative;
+  flex: none;
+  /* 单独占一行、居中，与净化器 / 窗帘 / 灯具面板同一套节奏。
+     居中用 `margin: … auto` 而不是只靠 align-self：电视面板根（.i3d-television-panel）
+     不是 flex 容器（它只是外壳里的一个 flex 项），此时 align-self 完全不生效，图形会被
+     甩到左边 —— auto 水平外边距在 block 与 flex 两种父级下都能居中，故两层都留着。 */
+  align-self: center;
+  width: 240px;
+  /* 154px 屏框 + 12px 底座，底座由 :after 画。 */
+  height: 166px;
+  margin: 6px auto 4px;
+  pointer-events: none;
+}
+/* 机身：圆角矩形，受光面在左上偏中。 */
+.i3d-tv-visual-bezel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 154px;
+  overflow: hidden;
+  border: 1px solid rgba(188, 201, 207, 0.17);
+  border-radius: 10px;
+  background: radial-gradient(circle at 30% 22%, #343e44, #20282d 46%, #141a1e 100%);
+  box-shadow:
+    0 9px 18px #00000057,
+    inset 0 1px 5px #ffffff14,
+    inset 0 0 17px #0000007a;
+}
+/* 屏面：内缩 9px、底部留出网罩条的位置；222×123 正好是 16:9。 */
+.i3d-tv-visual-screen {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  bottom: 22px;
+  left: 9px;
+  overflow: hidden;
+  border: 1px solid rgba(190, 204, 211, 0.13);
+  border-radius: 4px;
+  /* 无封面 / 封面未加载完时是一块暗色玻璃，而不是白板。 */
+  background: radial-gradient(circle at 46% 34%, #1b2226, #0b0f12 78%);
+  box-shadow:
+    inset 0 2px 9px #000000b8,
+    inset 0 0 26px #00000073;
+}
+/* 底部网罩条：2D 音箱网罩的 ±42° 交叉织纹，透明度同 0.62。 */
+.i3d-tv-visual-grille {
+  position: absolute;
+  right: 33px;
+  bottom: 6px;
+  left: 9px;
+  height: 10px;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(42deg, rgba(214, 225, 230, 0.105) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-42deg, rgba(0, 0, 0, 0.32) 0 1px, transparent 1px 3px);
+  opacity: 0.62;
+}
+/* 状态灯：关机时压暗，开机常亮，播放中呼吸。 */
+.i3d-tv-visual-light {
+  position: absolute;
+  right: 15px;
+  bottom: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--i3d-tv-accent) 34%, #0d1114);
+  box-shadow: 0 0 0 1px #00000059;
+  transition:
+    background 0.18s linear,
+    box-shadow 0.18s linear;
+}
+.i3d-tv-visual.is-on .i3d-tv-visual-light {
+  background: var(--i3d-tv-accent);
+  box-shadow:
+    0 0 7px color-mix(in srgb, var(--i3d-tv-accent) 72%, transparent),
+    0 0 0 1px #00000059;
+}
+.i3d-tv-visual.is-playing .i3d-tv-visual-light {
+  animation: i3d-tv-light-breathe 2.2s ease-in-out infinite;
+}
+/* 已暂停：灯回落到常亮（不呼吸），一眼能看出「开着但没在播」。 */
+.i3d-tv-visual.is-paused .i3d-tv-visual-light {
+  animation: none;
+}
+/* 关机：整台去色并压暗，与 2D 音箱 is-off 同为 grayscale(1) + 0.42。 */
+.i3d-tv-visual.is-off {
+  filter: grayscale(1);
+  opacity: 0.42;
+}
+/* 底座：屏框正中的一条梯形支脚，加投影把电视「落」在面板上。 */
+.i3d-tv-visual:after {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 74px;
+  height: 12px;
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(180deg, #5c646a, #2b3136 62%, #14181b);
+  box-shadow: 0 4px 9px #0000006e;
+  transform: translate(-50%);
+  content: "";
+}
+@keyframes i3d-tv-light-breathe {
+  0%,
+  to {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 .i3d-television-panel .i3d-nas-heading h3 {
   flex: 1;
@@ -1531,12 +1677,14 @@ body.interaction3d-stage.is-background-hidden,
   padding-top: 10px;
   min-width: 0;
 }
+/* 封面铺满屏面：电视播的是满屏画面，所以用 cover 而不是 contain（2D 音箱的圆封面同为 cover）。
+   封面未加载 / 失败时由 [hidden] 隐藏，露出下面那块暗色玻璃。 */
 .i3d-tv-artwork {
-  width: 112px;
-  height: 72px;
-  object-fit: contain;
-  flex: 0 0 auto;
-  border-radius: 5px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   background: var(--hos-tool-bg);
 }
 .i3d-tv-details {
@@ -1565,7 +1713,8 @@ body.interaction3d-stage.is-background-hidden,
   font-variant-numeric: tabular-nums;
 }
 .i3d-tv-content [hidden],
-.i3d-tv-details [hidden] {
+.i3d-tv-details [hidden],
+.i3d-tv-visual [hidden] {
   display: none;
 }
 /* NAS 在线时的标记配色，与灯光 / 窗帘的「开」色区分开。 */
@@ -2164,8 +2313,12 @@ body.interaction3d-stage.is-background-hidden,
   content: none;
 }
 /* 门牌：门锁标记上那块「门名 + 开合状态（· 电量）」的标签。
-   与摄像头标签同样是「图标在左、两行文字在右」的两列栅格，但配色走暖木调（门牌是一块木牌），
-   所以图标是描边金棕色、正文是暖褐，而不是摄像头那套偏冷的墨蓝底。 */
+   与摄像头标签同样是「图标在左、两行文字在右」的两列栅格。配色走**与其它标记同一套深色玻璃**：
+   底 #1b2029dc、正文 #f2eee7，与标记底座 / 摄像头 / 传感器标签共用一层皮，只在两个地方留暖金
+   （描边 + 门图标）作「这是一块门牌」的识别色 —— 整块奶油色纸卡在暗场里是场景里唯一一块亮色，
+   与旁边深色的摄像头 / 传感器标签摆在一起就是「不协调」本体。
+   米色纸卡不是删掉而是挪到暖阳原木主题下（见文末 data-scene-style="warm-wood" 覆盖）——
+   那一套主题里全场标签本来就是米白（.i3d-vacuum-status / .i3d-room-label 同色），纸卡在那里才成立。 */
 .interaction3d-stage .i3d-security-label.is-lock-status {
   display: grid;
   grid-template-columns: auto auto;
@@ -2173,10 +2326,11 @@ body.interaction3d-stage.is-background-hidden,
   min-width: 118px;
   padding: 10px 14px;
   gap: 3px;
-  border-color: #c9a76c99;
-  background: #fbf7ef;
-  color: #40372e;
-  box-shadow: 0 5px 16px #3b2c1a26;
+  /* 描边取比标记底座（#aa967455）更金一点的一档：够看出「门牌」，又不至于在暗场里跳出来。 */
+  border-color: #c9a76c66;
+  background: #1b2029dc;
+  color: #f2eee7;
+  box-shadow: 0 4px 14px #0005;
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > strong {
   grid-column: 2;
@@ -2185,10 +2339,12 @@ body.interaction3d-stage.is-background-hidden,
   font-weight: 700;
   letter-spacing: 0.01em;
 }
+/* 第二行（门开合 · 电量）用暖灰而不是摄像头那枚偏绿的 #b5c9bc：同一块暖金门牌里，
+   文字也跟着往暖里偏一度，整块标签才是「一套暖色」而不是「暖金描边配冷灰字」。 */
 .interaction3d-stage .i3d-security-label.is-lock-status > span:not(.i3d-marker-icon) {
   grid-column: 2;
   grid-row: 2;
-  color: #756552;
+  color: #c0b199;
   font-size: 0.9em;
 }
 /* 摄像头标签那个「在线圆点」在门牌上不要：门牌的第二行已经是「已打开 · 92%」，
@@ -2196,6 +2352,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-security-label.is-lock-status > span:before {
   content: none;
 }
+/* 门图标取主题主控暖金（--hos-accent，暗场里就是那枚「能点 / 可操作」的金），
+   比正文亮一档，让「一块门牌」的识别色落在图标上而不是整块底色上。 */
 .interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon {
   position: static;
   grid-column: 1;
@@ -2204,7 +2362,7 @@ body.interaction3d-stage.is-background-hidden,
   transform: none;
   width: max(28px, 1.5em);
   height: max(28px, 1.5em);
-  color: #86652d;
+  color: var(--hos-accent, #ffc46a);
 }
 .interaction3d-stage .i3d-security-label.is-lock-status > .i3d-marker-icon:before {
   content: none;
@@ -2251,6 +2409,8 @@ body.interaction3d-stage.is-background-hidden,
   color: #f4f7f8;
   text-align: left;
   pointer-events: none;
+  /* 字号兜底 12px：运行时由 marker-layer.js 按配置的 iconSize（9~24）写成内联
+     font-size 覆盖这里；卡片内各字号都是相对单位，会跟着一起缩放。 */
   font: 12px/1.4 Helvetica Neue, sans-serif;
 }
 /* 卡片下方的小三角「指针」，颜色与卡片底部一致，让它在场景里有一个落点感。 */
@@ -2603,6 +2763,29 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
   --i3d-climate-accent: #a4472a;
 }
+/* 净化器在暖木浅底上同样要走「低风偏蓝 → 高风偏绿」的渐变，但得换成深色档：
+   #58c4ff / #88dcbf 在 #fff9ed 上对比度只有 1.7:1 左右，等于看不见。
+   低端直接沿用上面 cool 那枚 #28677f（同一枚字面量，不新增），高端取深绿 #2f7355
+   —— 在 #fff9ed 上约 5.4:1，过 AA。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="purify"] {
+  --i3d-climate-accent: color-mix(
+    in srgb,
+    #2f7355 calc(var(--i3d-purifier-level, 0.5) * 100%),
+    #28677f
+  );
+}
+/* 档位按钮的色阶也要跟着换成深色档。这条必须比模块里那条更高优先级：模块用的是
+   --hos-cool / --hos-eco-bright（浅色档，在 #fff9ed 上几乎看不见），这里要压过去。
+   同时它也得压过下面那条 warm-wood 的 :is(...)[aria-pressed="true"]，否则选中态会
+   退回成整块面板一个颜色，「色阶」在浅色主题下就失效了。 */
+.interaction3d-stage[data-scene-style="warm-wood"]
+  .i3d-climate-panel[data-climate-mode="purify"] .i3d-climate-speed-levels > .i3d-climate-choice {
+  --i3d-climate-accent: color-mix(
+    in srgb,
+    #2f7355 calc(var(--i3d-level, 0) * 100%),
+    #28677f
+  );
+}
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="off"] {
   --i3d-climate-accent: #70685d;
 }
@@ -2742,9 +2925,21 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-offline>span:before {
   background: #948c7e;
 }
+/* 暖阳原木主题下的门牌：这里才是那块「米白纸卡 + 暖褐字」的木牌 —— 同一主题里
+   .i3d-vacuum-status / .i3d-room-label / 温湿度计卡片都是米白，门牌纸卡在暖阳背景下才成立。
+   三条覆盖缺一不可：底 / 标题走纸卡暖褐、第二行走更浅的暖灰褐、门图标回金棕（暗场里那枚
+   --hos-accent 的亮金落在米白底上会糊）。特异性都压过上面的暗场规则（属性选择器 + 同串类名多一段）。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status {
   background: #fffaf1;
   border-color: #b9873eaa;
+  color: #40372e;
+  box-shadow: 0 5px 16px #3b2c1a26;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status>span:not(.i3d-marker-icon) {
+  color: #756552;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status>.i3d-marker-icon {
+  color: #86652d;
 }
 /* 温湿度计卡片：暖阳原木下的米白纸卡与暖褐文字。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature-humidity-card {
@@ -2798,6 +2993,21 @@ body.interaction3d-stage.is-background-hidden,
   color: #7e898f;
 }
 /* ===== 门锁面板（.i3d-lock-panel） ===== */
+
+/* 面板外壳：宿主类 is-lock-panel 此前全仓没有对应规则（只有 stage.js 挂类名），
+   于是门锁面板掉回 .i3d-light-panel 的默认外壳 160px + overflow:hidden ——
+   而它的内容是「标题 + 状态 + 详情胶囊 + 密码框 + 操作按钮 + 反馈」，
+   实测约 250–300px，底部的操作按钮会被直接裁掉（不是视觉瑕疵，是够不着按钮）。
+   这里补齐与其它设备面板同一套「按内容自适应 + 上限 + 纵向滚动」；
+   240px 只作下限，高度仍由内容决定。 */
+.interaction3d-stage .i3d-light-panel.is-lock-panel {
+  height: auto;
+  min-height: 240px;
+  max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 
 /* 门锁面板复用 NAS 面板的外观类（标题 / 状态 / 操作行），这里只补它与 NAS 不同的几处：
    一块纵向排布的「状态 → 详情 → 密码 → 操作」列，且密码框与按钮要够大够好按。 */
@@ -3034,10 +3244,15 @@ body.interaction3d-stage.is-background-hidden,
   line-height: 1.25;
   letter-spacing: 0.025em;
 }
-.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-device-status {
+/* 通用设备面板的状态行：暖木下与标题并排、靠右对齐。
+   注意它**不是** `i3d-device-status` —— 那个类只有灯光面板在用（stage.js），
+   通用设备面板的状态行是个裸 `<p>`（与上游 0.6.5 的 device-panel 一致，不挂类名），
+   所以这里按结构选中 heading-text 里的那个 p（error 是 heading-text 的兄弟节点，不会被误伤）。
+   颜色刻意不写 !important：JS 会把 --i3d-device-status-*（正常 / 异常 / 已关闭 / 未知）
+   写成内联 style.color，那条四态语义必须盖得住主题色。 */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-climate-heading-text p {
   flex: none;
   margin: 0 0 0 auto;
-  color: var(--i3d-popup-muted) !important;
   font-size: 10px;
   line-height: 1.4;
   white-space: nowrap;

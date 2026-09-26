@@ -6,6 +6,10 @@
  * /api/v1/logs/events。登录 / 初始化 / 配对这类公开页面只允许上报 warning 与 error，并改
  * 发 /api/v1/logs/public-events。队列存 sessionStorage，上限 50 条 / 约 120KB / 15 分钟，
  * 超限丢最旧；失败按指数退避重试（1 秒起，上限 60 秒）；上报路径本身不记录。
+ *
+ * 顺带收口一类「非业务的控制台噪音」：已知第三方浏览器扩展挂钩主世界的 XHR 后，会对
+ * HLS 分片这类二进制响应反复打 console.error。它不属于本应用、也无法上报，只在这里按前缀
+ * 精确丢弃（``?debug=1`` 时保留，见 ``suppressThirdPartyConsoleNoise``）。
  */
 (function (bridgeWindow) {
   "use strict";
@@ -42,6 +46,10 @@
     ]),
     // ResizeObserver 布局循环保护提示：没有堆栈也不代表业务出错，却会随布局抖动重复上报，统一识别后丢弃。
     RESIZE_OBSERVER_LOOP_ERROR = /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/,
+    // 已知第三方浏览器扩展的控制台噪音前缀（详见 suppressThirdPartyConsoleNoise）。
+    EXTENSION_CONSOLE_NOISE_PREFIX = "Error processing XMLHttpRequest response:",
+    // 开发开关取值：与 utils/debug-log.js 同一口径，只认显式的 1 / true。
+    FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]),
     isPublicPage = /^\/(?:login|setup|pair|license)(?:\/|$)/.test(bridgeWindow.location.pathname);
   // publicMode 可在收到 401 后动态切到 true（会话过期降级为公开上报）。
   let publicMode = isPublicPage,
@@ -52,6 +60,50 @@
     retryDelayMs = 1e3,
     nextRetryAt = 0,
     logContext = {};
+
+  /**
+   * 判断当前是否打开了开发开关。
+   *
+   * 与 utils/debug-log.js 的 `isFrontendDebugMode` 同一口径（只认 `?debug=1` / `true`）。
+   * 这里不能 import 那个模块：本文件是经典脚本，且要在页面最早期生效，只能就地复制这段判断。
+   */
+  function isDebugModeEnabled() {
+    try {
+      return FRONTEND_DEBUG_QUERY_VALUES.has(
+        new URLSearchParams(String(bridgeWindow.location?.search || "")).get("debug") || ""
+      );
+    } catch {
+      // 开关自己不该成为故障源：畸形输入按「没打开」处理。
+      return false;
+    }
+  }
+
+  /**
+   * 丢弃已知第三方浏览器扩展在主世界打的 console.error 噪音。
+   *
+   * `ImageAssistant` 这类扩展会把 `XMLHttpRequest.prototype.send` 包一层，在 load 回调里
+   * **无条件**读 `responseText`（实参先求值，早于它判断 content-type）；而 hls.js 拉 HLS 分片
+   * 用的是 `responseType='arraybuffer'`，于是每个分片都抛一次 `InvalidStateError`，被扩展自己
+   * catch 后 `console.error` 一句。异常、响应与画面都不受影响，纯粹是控制台噪音。
+   *
+   * 只按前缀精确丢弃这一条：其余 console.error 原样透传，业务错误照常可读；`?debug=1` 时不过滤。
+   */
+  function suppressThirdPartyConsoleNoise() {
+    const consoleObject = bridgeWindow.console;
+    if (!consoleObject || typeof consoleObject.error != "function") return;
+    const originalConsoleError = consoleObject.error;
+    consoleObject.error = function (...consoleArguments) {
+      if (
+        typeof consoleArguments[0] == "string" &&
+        consoleArguments[0].startsWith(EXTENSION_CONSOLE_NOISE_PREFIX)
+      ) {
+        return;
+      }
+      return originalConsoleError.apply(consoleObject, consoleArguments);
+    };
+  }
+
+  isDebugModeEnabled() || suppressThirdPartyConsoleNoise();
 
   /**
    * 归一化并脱敏请求路径。
@@ -360,14 +412,19 @@
     try {
       const fetchResponse = await originalFetch(requestInput, fetchOptions),
         durationMs = Date.now() - startedAt;
-      // 失败记 error；成功但超过 5 秒记 warning，用于发现性能退化。
+      // 定级按响应类别，与后端诊断中间件同一口径（见 backend/main.py：5xx 记 error，4xx 记 warning）：
+      // 4xx 是「这次请求被拒」，其中 409 / 428 更是本应用**预期内**的业务控制流（乐观并发冲突、
+      // 删除影响待确认），调用方都会自己处理并重发。把 4xx 一律记成 error，会把预期流程渲染成故障，
+      // 还把真正的服务端故障（5xx）淹没在同一片红里；进页面时那次「先撞 4xx 再走确认」的保存
+      // 就是最典型的受害者。
       // 成功时把响应标记为「已上报」，随后抛错时 linkErrorToResponse 不会重复记录。
+      // 慢请求（≥5 秒）无论成败都记 warning，用于发现性能退化。
       return (
         (!fetchResponse.ok || durationMs >= 5e3) &&
           (reportEvent(
-            fetchResponse.ok ? "warning" : "error",
+            fetchResponse.ok || fetchResponse.status < 500 ? "warning" : "error",
             "网络请求",
-            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
+   370|            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
             {
               ...requestInfo,
               status: fetchResponse.status,

@@ -11,8 +11,8 @@
  * 每帧有位移或复位时回调 requestRender / invalidateReflections，避免不必要的重绘。
  * 系统「减少动态效果」偏好开启时，位移一步到位（跳过插值），但最终姿态与正常动画一致。
  */
-import { lockState } from "./lock-state.js?v=2609260946";
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260946";
+import { lockState } from "./lock-state.js?v=2609262221";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609262221";
 
 /**
  * 创建门锁动画控制器。

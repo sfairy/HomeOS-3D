@@ -7,7 +7,7 @@
  * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 // 组合条目的 id 口径只有一份实现（cover-groups.js）：拖拽回写要靠它把舞台 id 反查回配置组。
-import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609260946";
+import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609262221";
 
 /* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
  *
@@ -306,8 +306,13 @@ export function createMarkerLayer(ctx) {
           }
           markerElement.replaceChildren(temperatureHumidityCard);
         }
-        temperatureHumidityCard.querySelector(".i3d-temperature-humidity-title").textContent =
-          renderedBinding.label ?? "温湿度计";
+        const temperatureHumidityTitleElement = temperatureHumidityCard.querySelector(
+          ".i3d-temperature-humidity-title"
+        );
+        temperatureHumidityTitleElement.textContent = renderedBinding.label ?? "温湿度计";
+        // 标题「留空隐藏」：卡片是 display:flex + gap:8px，只清空 textContent 仍会占一行
+        // 并留下 8px 间隙，所以必须显式 hidden（与上游同一判据）。
+        temperatureHumidityTitleElement.hidden = !temperatureHumidityTitleElement.textContent;
         // 「这条温湿度计配没配实体」是两路实体任一非空；用于决定未绑定的那一行
         // 是藏起来（另一路有绑定）还是留一行空读数（两路都没绑，卡片仍要有个样子）。
         const isTemperatureHumidityBound = !!(
@@ -341,6 +346,16 @@ export function createMarkerLayer(ctx) {
         // 命中框再跟着卡片量出来的尺寸走，与门牌同一套口径（offsetWidth 不含 transform）。
         temperatureHumidityCard.style.width =
           Math.min(600, Math.max(100, Number(renderedBinding.size) || 180)) + "px";
+        // 文字大小：卡片内所有字号（标题 1em、读数 1.5em/1.2em）都是相对单位，
+        // 所以在卡片上设 font-size 即可整块缩放。
+        // 只认编辑器写得出的区间（9~24，与上游同口径）；区间外的存量值一律当作「从未配置」
+        // 回落到 12 —— 本仓曾把 26 当缺省写进所有存量卡片，若按上游那样夹到上限，
+        // 这些卡片会比原来大一圈（12 正是卡片此前的固定字号，也就是「以前的样子」）。
+        const meterConfiguredFontSize = Number(renderedBinding.iconSize);
+        temperatureHumidityCard.style.fontSize =
+          (meterConfiguredFontSize >= 9 && meterConfiguredFontSize <= 24
+            ? meterConfiguredFontSize
+            : 12) + "px";
         temperatureHumidityCard.style.setProperty(
           "--i3d-meter-scale",
           String(MARKER_LABEL_SCALE)

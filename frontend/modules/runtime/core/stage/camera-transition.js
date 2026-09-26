@@ -156,7 +156,13 @@ export function createCameraTransition(ctx) {
       ctx.exitFocus();
       return;
     }
-    if (["runtime", "panel"].includes(focusModeName) && (!ctx.isInteractive || ctx.isOverviewMode())) {
+    // 「runtime / panel」两种模式在展示场景里要用户可交互才生效；编辑态是例外 ——
+    // 编辑器要靠 panel 模式做「实时预览弹窗」（preview-device-panel），0.6.5 同口径。
+    if (
+      !ctx.isEditing &&
+      ["runtime", "panel"].includes(focusModeName) &&
+      (!ctx.isInteractive || ctx.isOverviewMode())
+    ) {
       return;
     }
     ctx.idleFocusExit.activity();

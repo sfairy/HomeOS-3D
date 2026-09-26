@@ -75,6 +75,23 @@ export function extraTypes(entityId) {
   return mapped ? [mapped, "state"] : ["state"];
 }
 
+/**
+ * 去掉卡片标题开头的「设备名 + 分隔符」冗余前缀，其余原样返回。
+ *
+ * 只在「标题确实以该前缀开头、且去掉后还剩内容」时才动它：设备名与实体名对不上、或者
+ * 前缀等于整条标题（实体名恰好就是设备名）时，去掉只会得到空标题，那是比冗余更糟的结果。
+ * 分隔符按 HA 与中文命名的常见写法收：空格 / 中点 / 括号 / 横线 / 下划线 / 冒号 / 顿号 / 斜杠。
+ */
+export function extraTitle(rawTitle, prefix) {
+  const text = String(rawTitle ?? "").trim();
+  const deviceName = String(prefix ?? "").trim();
+  if (!deviceName || !text.startsWith(deviceName)) {
+    return text;
+  }
+  const rest = text.slice(deviceName.length).replace(/^[\s·・:：\-—_()（）[\]【】/、]+/, "").trim();
+  return rest || text;
+}
+
 /** 形态 → 中文名的唯一词表：卡片标题、编辑器选项都读它，避免各处自己再写一遍文案。 */
 export const extraLabels = {
   switch: "开关",
@@ -236,7 +253,12 @@ export function moveExtra(controls, entityId, targetEntityId) {
 export function createPurifierExtras({
   element: hostElement,
   onControl,
-  onLayout = () => {}
+  onLayout = () => {},
+  // 可选的「冗余前缀」提供者：返回一段设备名（如「冰箱」）时，卡片标题开头的它连同分隔符
+  // 会被去掉。HA 的 friendly_name 惯例是「设备名 + 实体名」，而卡片网格的宿主面板标题已经
+  // 写着同一个设备名，再带一遍只会让长实体名更快换行。默认不提供即完全不改标题。
+  // 传函数而不是字符串：绑定可能在同一个面板里换设备，前缀要跟着 update 一起变。
+  titlePrefixProvider = () => ""
 }) {
   // 刻意用宿主的 ownerDocument：卡片可能被放进弹窗 / 预览 iframe，用全局 document 会造出属于
   // 外部文档的孤儿节点，事件与样式都对不上。
@@ -702,6 +724,8 @@ export function createPurifierExtras({
    * 下拉选项只在 options 真的变了（JSON 比较）时才重建按钮。
    */
   function refreshRows() {
+    // 每轮只问一次前缀：它是面板级属性（设备名），不必每张卡各问一次。
+    const titlePrefix = titlePrefixProvider() || "";
     for (const row of cards) {
       const state = readState(row.item.entityId);
       const attributes = state?.attributes || {};
@@ -720,8 +744,11 @@ export function createPurifierExtras({
         row.expected = null;
         row.error.textContent = "实体已离线，操作结果未确认";
       }
-      row.title.textContent = row.item.label || attributes.friendly_name || row.item.entityId;
-      row.title.title = row.title.textContent;
+      // 标题取配置里的 label（会被 extraLayout 有意剔除，故通常落到 friendly_name），
+      // 再过一道「去设备名前缀」；tooltip 保留完整原名，悬停仍能看到全称。
+      const rawTitle = row.item.label || attributes.friendly_name || row.item.entityId;
+      row.title.textContent = extraTitle(rawTitle, titlePrefix);
+      row.title.title = rawTitle;
       row.status.textContent = available
         ? ({ on: "已开启", off: "已关闭" }[state.state] || state.state) +
           (attributes.unit_of_measurement ? " " + attributes.unit_of_measurement : "")

@@ -8,7 +8,7 @@
  * 所有模式文案（关闭 / 制冷 / 取暖 / 换气…）都会直接上屏，是与界面约定死的字符串，改动需同步设计稿。
  */
 // 传 null / 0 / false 时按「取不到域」返回空串，不拼出以 "null" / "0" / "false" 为域的翻译键。
-import { entityDomainFromId } from "../../utils/entities.js?v=2609260946";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609262221";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
@@ -346,6 +346,9 @@ const WATER_HEATER_MODE_LABELS = {
 // 上下摆风的档位文案；fixed_* 是固定风向，swing_* 是在该区间内摆动。
 const VERTICAL_SWING_LABELS = {
   off: "关闭",
+  // on / off：只有「摆 or 不摆」两种状态的机型（`swing_modes: ["on", "off"]`）直接上报这两个键。
+  // 缺了 on 会退回原样显示，面板上就冒出一个英文「on」（而 off 却是「关闭」），中英混排很奇怪。
+  on: "开启",
   auto: "自动",
   default: "默认",
   full_swing: "全范围摆动",
@@ -366,6 +369,8 @@ const VERTICAL_SWING_LABELS = {
 // 左右摆风的档位文案；语义与上下摆风对称。
 const HORIZONTAL_SWING_LABELS = {
   off: "关闭",
+  // 与上下摆风表对称：只有 on / off 两态的机型也要能正确显示。
+  on: "开启",
   auto: "自动",
   default: "默认",
   full_swing: "全范围摆动",

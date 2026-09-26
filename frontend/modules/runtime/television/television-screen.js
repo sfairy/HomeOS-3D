@@ -6,28 +6,28 @@
  * 3d-studio/materials/studio-television-poster.js 生成程序化海报，保证离线 / 未播放时屏幕不纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=2609260946";
+import { televisionState } from "./television-state.js?v=2609262221";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：这里原先建键用裸值、
 // 查表也用裸值，一旦某一侧缺字段就成 `null` 而另一侧是 `""`，屏幕永远挂不上。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260946";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609262221";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609260946",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609262221",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609260946"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609262221"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609260946",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609262221",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609260946"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609262221"));
 /**
  * 创建电视屏幕控制器。
  */

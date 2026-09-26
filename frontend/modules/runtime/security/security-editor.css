@@ -2,7 +2,7 @@
  * 3D 安防配置弹窗里「门锁」面板的专属样式。
  *
  * 为什么单独一张表：security-editor.js 的弹窗共用一套骨架（弹窗 + 预览舞台 + 草稿），三种编辑
- * 对象里只有门锁多了「槽位实体下拉 + 门扇动作栅格 + 标签外观栅格 + 实时状态行」这组控件。
+ * 对象里只有门锁多了「槽位实体按钮 + 门扇动作栅格 + 标签外观栅格 + 实时状态行」这组控件。
  * core/runtime.css 是所有交互编辑器共用的骨架、core/stage.css 是舞台样式（展示页与 3D 工作室
  * 都会加载），把编辑器专属规则塞进这两处会外溢到别的页面 —— 所以照 presence/presence-editor.css
  * 的先例单开一份，由 security-editor.js 打开弹窗时注入、关闭时移除。
@@ -35,8 +35,25 @@
 
 /* ===== 实体槽位 ===== */
 
-/* 槽位下拉是整行控件（标签在上、下拉在下），与面板里其余字段同一节奏。
-   实体 ID 可能很长，min-width: 0 让下拉跟着栅格列收窄，而不是把列撑破。 */
+/* 槽位按钮的外观逐字照抄上游 0.6.5 runtime.css 的 `.i3d-editor aside .i3d-lock-entity-picker`：
+   比通用选择器按钮高 6px（38 vs 32）、内边距更宽、圆角更大，描边换成更淡的半透明白 ——
+   为的是与「选择设备」那行按钮一眼区分开：上面选整台设备，下面选单个实体。
+   选择器按钮的类名（含 :after 箭头）与 .i3d-picker-button 无关的部分不在这里重复。 */
+.i3d-editor aside .i3d-lock-entity-picker {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 2px;
+  padding: 8px 12px;
+  border: 1px solid #ffffff18;
+  border-radius: 8px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 实体 ID 可能很长：min-width: 0 让按钮跟着栅格列收缩，而不是把列撑破。
+   按钮文字由 .i3d-security-entity-label（runtime.css）负责省略号，完整值挂在 title 上。 */
 .i3d-lock-entity-picker,
 .i3d-lock-text-field {
   min-width: 0;

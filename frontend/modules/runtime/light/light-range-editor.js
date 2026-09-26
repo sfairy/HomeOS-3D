@@ -17,7 +17,7 @@ import {
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609260946";
+} from "../core/static-helpers.js?v=2609262221";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
 // 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
@@ -78,8 +78,9 @@ const toRegionKey = (areaIdPart, lightIdPart) =>
  * 按拖拽的手柄计算光区的新宽高（纯函数，便于单测）。
  * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式取变化更大的那一轴作为缩放系数，
  * 并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
+ * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
-function resizeRegionDimensions(
+export function resizeRegionDimensions(
   sourceRegion,
   requestedWidth,
   requestedDepth,
@@ -121,8 +122,9 @@ function resizeRegionDimensions(
  * 生成离地高度的补丁，并保证下限不高于上限。
  * 用户把下限调到上限之上时直接把另一端改成同一个值（而非拒绝输入），拖到边界时手感是「推着另一端走」；
  * heightAbove / heightBelow 是旧的自动推算字段，这里显式置 undefined，由调用方删除，避免两套字段同时存在。
+ * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
-function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
+export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
     heightAbove: undefined,
     heightBelow: undefined,
@@ -1641,8 +1643,9 @@ export function mountRegionRangeEditor(
  * 增强编辑器表单控件：原生 select 包成自定义下拉、数字输入加步进按钮与键盘支持。
  * 自己做下拉是因为原生 select 的弹出层在弹窗里样式与层级都不可控；
  * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器反复开关，漏一个就会累积。
+ * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
-function mountRangeFormControls(editorRootElement) {
+export function mountRangeFormControls(editorRootElement) {
   const formDocument = editorRootElement.ownerDocument;
   const formWindow = formDocument.defaultView;
   const customSelects = [];

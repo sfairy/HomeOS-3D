@@ -2,18 +2,18 @@
  * 设备控件区块：扫地机详情（地图、清洁模式、耗材与交互式 3D 地图入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609260946";
-import { vacuumMapImageSource } from "../../registry.js?v=2609260946";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609260946";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609260946";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609262221";
+import { vacuumMapImageSource } from "../../registry.js?v=2609262221";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609262221";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609262221";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../../../controls/vacuum-runtime.js?v=2609260946";
-import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609260946";
-import { componentDialogTitle } from "../primitives.js?v=2609260946";
+} from "../../../controls/vacuum-runtime.js?v=2609262221";
+import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609262221";
+import { componentDialogTitle } from "../primitives.js?v=2609262221";
 
 export const vacuumDetailsMethods = {
   /**
@@ -123,10 +123,11 @@ export const vacuumDetailsMethods = {
     };
     const vacuumAreaValue = createVacuumStat("本次面积", "◇");
     const vacuumDurationValue = createVacuumStat("清扫时长", "◷");
-    if (!interaction3dOptions) {
-      vacuumOverviewElement.append(vacuumVisualElement);
-    }
-    vacuumOverviewElement.append(vacuumStatsElement);
+    // 机器图形两处都画，只是排法不同：2D 详情弹窗里它与统计并排（左机器、右读数），
+    // 3D 面板里它单独占一行、压在统计之上 —— 与冰箱 / 冰柜 / NAS 那批
+    // 「标题 + 状态 → 机器 → 卡片」的节奏对齐。3D 下的去卡片化与尺寸在
+    // renderer.css 的 .i3d-vacuum-details 段里覆盖（2D 那一套 260px 台面不动）。
+    vacuumOverviewElement.append(vacuumVisualElement, vacuumStatsElement);
     const vacuumControlsElement = document.createElement("section");
     vacuumControlsElement.className = "hb-vacuum-details-controls";
     const vacuumActionsElement = document.createElement("div");

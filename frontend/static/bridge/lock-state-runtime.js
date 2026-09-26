@@ -84,14 +84,67 @@ const entityStateSignature = entry => {
 };
 
 /**
+ * 门磁读数 → 开合的词表（唯一权威口径）：key 是状态文本小写归一后的**全等**值。
+ *
+ * 为什么必须全等而不是包含：门锁的状态词里有一批「看着像开合、其实说的是锁舌或模式」的枚举值
+ * （`开启童锁` / `开启反锁`）。用 `includes("开启")` 会把「开启童锁」读成「门打开了」，
+ * 门扇就会在设置童锁时自己转一圈。
+ *
+ * 后四条是小米 S2 这类门锁的门状态枚举（`sensor.*_door_state`，device_class 是 enum）：
+ * `已上锁` / `已开锁` 描述的是锁舌，此时门扇是关着的；`门未关` / `门虚掩` 才是门扇真的没关。
+ * 只认这四个值 + 通用的 on/off、open/closed 一族：英文的 locked / unlocked 刻意不收 ——
+ * 它们的门扇含义在设备间不一致（有的报锁舌、有的报门扇），猜错会让门动画自己乱动。
+ */
+const DOOR_STATE_TEXTS = new Map([
+  ["on", true],
+  ["open", true],
+  ["opened", true],
+  ["opening", true],
+  ["door_open", true],
+  ["opened_door", true],
+  ["打开", true],
+  ["已打开", true],
+  ["开启", true],
+  ["开门", true],
+  ["门未关", true],
+  ["门虚掩", true],
+  ["off", false],
+  ["closed", false],
+  ["close", false],
+  ["closing", false],
+  ["door_close", false],
+  ["closed_door", false],
+  ["关闭", false],
+  ["已关闭", false],
+  ["关门", false],
+  ["已上锁", false],
+  ["已开锁", false]
+]);
+
+/**
+ * 状态文本 → 门磁开合：true 打开 / false 关闭 / null 未知（含空值、unknown、unavailable）。
+ * 门锁面板与门外动画都走这一条，别再各自维护词表。
+ */
+export function doorOpenFromText(stateText) {
+  const text = String(stateText ?? "").trim().toLowerCase();
+  return text && DOOR_STATE_TEXTS.has(text) ? DOOR_STATE_TEXTS.get(text) : null;
+}
+
+/**
  * 从单个实体状态推断门磁开合：true 打开 / false 关闭 / null 未知。
  *
- * 用带边界的中英文词表匹配（open / 开门 / 打开…），必须在词与词的分隔处才算命中，
- * 否则 "unopened" 这类词也会被误判成「打开」。实体不可用时一律返回 null。
+ * 先按 `doorOpenFromText` 认状态文本（覆盖 binary_sensor 的 on/off、枚举型门状态）；
+ * 认不出再退回属性里的带边界词表匹配（event_type / action 这类不含在 state 里的读数），
+ * 必须在词与词的分隔处才算命中，否则 "unopened" 这类词也会被误判成「打开」。
+ * 实体不可用时一律返回 null。
  */
 export function doorOpenState(entry) {
   if (!isEntityUsable(entry)) {
     return null;
+  }
+  const directRead = doorOpenFromText(entry.state);
+  if (directRead !== null) {
+    return directRead;
   }
   const signature = entityStateSignature(entry);
   return /(^|[\s_.-])(open|opened|opening|door_open|opened_door|开门|打开|开启)(?=$|[\s_.-])/.test(
@@ -236,9 +289,8 @@ const LOCK_STATE_LABELS = {
   unavailable: "门锁状态不可用"
 };
 
-// 门磁状态文本的可读白名单：true 侧与 false 侧分开写，两边都不命中才算「未知」。
-const DOOR_OPEN_STATES = ["on", "open", "opened", "打开", "已打开", "开启"];
-const DOOR_CLOSED_STATES = ["off", "closed", "close", "关闭", "已关闭"];
+// 门磁状态文本的可读白名单已上移成 DOOR_STATE_TEXTS（词表即唯一口径）：true 侧与 false 侧
+// 分开写在那个 Map 里，两边都没命中才算「未知」。这里不再保留第二份数组。
 
 /**
  * 把一条安防「锁」配置折算成完整状态。
@@ -266,16 +318,13 @@ export function lockState(item, states = {}) {
     isEntityUsable(batteryEntry)
   );
   const state = isEntityUsable(lockEntry) ? lockEntry.state : "unavailable";
-  const doorStateText = isEntityUsable(doorEntry)
-    ? String(doorEntry.state).trim().toLowerCase()
-    : "";
+  // 门磁读数与门外动画共用 DOOR_STATE_TEXTS 那一份词表（含小米 S2 这类枚举型门状态）；
+  // 实体不在线时是「未知」而不是「关着」—— 掉线的门磁不能把门钉在关闭姿态上。
   const doorOpen = isEventSource
     ? eventState
-    : DOOR_OPEN_STATES.includes(doorStateText)
-      ? true
-      : DOOR_CLOSED_STATES.includes(doorStateText)
-        ? false
-        : null;
+    : isEntityUsable(doorEntry)
+      ? doorOpenFromText(doorEntry.state)
+      : null;
   const isOn = entityId => {
     const entry = readState(entityId);
     return isEntityUsable(entry) && entry.state === "on";

@@ -5562,6 +5562,13 @@ h2 {
   color: var(--hos-err);
   background: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.07);
 }
+/* 「成功但有一处要注意」：例如内外网两个地址只有一个连得上。用强调色而不是错误色 ——
+   配置是可用的（备用地址正是为此存在），只是有一路当前不通，需要用户知道。 */
+.settings-message.warning {
+  border-color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.36);
+  color: var(--hos-accent);
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.07);
+}
 .recovery-message {
   padding: 13px 14px;
   border: 1px solid rgba(var(--hos-accent-rgb), 0.32);

@@ -12,9 +12,9 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609260946";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609262221";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260946";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609262221";
 /**
  * 计算「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
  * 取值优先级：saved_map_id / selected_map_id → "saved:<id>"，退化为 map_index → "index:<n>"，
@@ -559,7 +559,8 @@ export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
   // unknown/unavailable 都当作「拿不到状态」：不给电量，也不算运行中（避免底图空转轮询）。
   const isAvailable = !["unknown", "unavailable"].includes(stateText);
   // 优先用厂商扩展字段 vacuum_state 做细分，没有该字段时退回实体自身的 state。
-  const vacuumRawState = String(vacuumAttributes.vacuum_state || stateText);
+  // 查表前先归一化（去空白 + 小写）：上报 "Cleaning" / 带空白的取值必须先归一，否则会漏表。
+  const vacuumRawState = String(vacuumAttributes.vacuum_state || stateText).trim();
   let statusLabel =
     {
       cleaning: "清扫中",
@@ -573,20 +574,34 @@ export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
       auto_cleaning: "自动清扫中",
       paused: "已暂停",
       returning: "回充中",
+      // 回充 / 待机 / 已停止 / 清洗拖布 / 烘干拖布 各有多个厂商写法，
+      // 与 0.6.5 的状态表逐条对齐：同一个语义的别名必须都登记，
+      // 漏登的状态会掉进下面的兜底（显示「状态更新中」），用户看不到真实状态。
+      returning_to_base: "回充中",
+      returning_home: "回充中",
       docked: "已回充",
       charging: "充电中",
       charging_completed: "充电完成",
       idle: "待机",
+      standby: "待机",
+      ready: "待机",
+      stopped: "已停止",
+      off: "已停止",
       error: "设备异常",
       unavailable: "设备离线",
       unknown: "等待状态",
       washing: "清洗拖布",
+      mop_washing: "清洗拖布",
+      self_washing: "清洗拖布",
+      cleaning_mop: "清洗拖布",
       drying: "烘干拖布",
+      mop_drying: "烘干拖布",
+      drying_mop: "烘干拖布",
       mapping: "建图中"
-    }[vacuumRawState] ||
+    }[vacuumRawState.toLowerCase()] ||
     // 表里没有的取值：本身已是中文（厂商自定义状态）就原样显示，否则给一句中文兜底 ——
     // 不把英文状态码直接摊到界面上（与 0.6.5 的「状态更新中」口径一致）。
-    (/[\u4e00-\u9fa5]/.test(vacuumRawState) ? vacuumRawState : "状态更新中");
+    (/[\u3400-\u9fff]/.test(vacuumRawState) ? vacuumRawState : "状态更新中");
   // 布尔子状态优先级更高：清洗/烘干/回充/建图会覆盖上面的通用文案。
   if (isAvailable) {
     if (vacuumAttributes.washing) {

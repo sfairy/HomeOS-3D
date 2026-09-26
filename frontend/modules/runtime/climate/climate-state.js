@@ -13,12 +13,12 @@ import {
   finiteNumberOrNull,
   normalizedTextOf,
   resolveStateEntry
-} from "../core/static-helpers.js?v=2609260946";
+} from "../core/static-helpers.js?v=2609262221";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=2609260946"));
+  : import("/static/renderer/controls/climate.js?v=2609262221"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -32,6 +32,45 @@ export const {
 // 温度 / 能力位等属性一律转成「有限数或 null」，实现与理由统一在 utils/numbers.js 的
 // finiteNumberOrNull（经 static-helpers 桥取用）：布尔与空白串都视为「没上报」，
 // 否则 Number(true) 是 1、Number("") 是 0，脏数据会被当成合法温度。
+/**
+ * 档位名表：键是档数，值是从最低档到最高档的名字。
+ *
+ * 市面上净化器 / 新风系统的档位名基本固定成这么几套，报「40%」或「3 档」对用户没有意义：
+ *   · 7 档（percentage_step ≈ 14.29）—— 最常见的档数，命名一路从「自动」到「超高」；
+ *   · 3 档（percentage_step ≈ 33.33）—— 低 / 中 / 高。
+ * 其余档数（1 / 2 / 4 / 5 / 6 / 8 / 9 / 10）没有通用叫法，沿用「N 档」，
+ * 不硬编一套用户不认识的命名 —— 编错了比「4 档」更难懂。
+ */
+const PURIFIER_SPEED_LEVEL_LABELS = {
+  3: ["低档", "中档", "高档"],
+  7: ["自动", "微风", "超低", "低风", "中风", "高风", "超高"]
+};
+/**
+ * 把 HA 上报的 `percentage_step` 摊成离散风速档位（上游 0.6.5 `purifierSpeedLevels` 同口径）。
+ *
+ * 只有「步长能整除成 1–10 档」时才返回档位，否则返回空数组、面板退回连续滑杆：
+ *   · 步长为空 / 非正 / > 100        → 无档位；
+ *   · 100 / 步长 四舍五入后不在 1–10 → 档位太多或太少，按钮比滑杆更难用；
+ *   · 步长与 100 / 档数 相差 > 0.02  → 除不尽（如 30 → 3.33 档），按档位切会漏掉真实取值。
+ * 档位名按档数查 PURIFIER_SPEED_LEVEL_LABELS，没有约定的档数一律「N 档」；
+ * 百分比按档位均分后向下取整，与 HA 的 0–100 步进语义一致（第 i 档 = floor(100 × (i+1) / 档数)）。
+ */
+export function purifierSpeedLevels(percentageStep) {
+  const step = finiteNumberOrNull(percentageStep);
+  if (step === null || step <= 0 || step > 100) {
+    return [];
+  }
+  const levelCount = Math.round(100 / step);
+  if (levelCount < 1 || levelCount > 10 || Math.abs(step - 100 / levelCount) > 0.02) {
+    return [];
+  }
+  const levelLabels = PURIFIER_SPEED_LEVEL_LABELS[levelCount];
+  return Array.from({ length: levelCount }, (levelUnused, levelIndex) => ({
+    label: levelLabels ? levelLabels[levelIndex] : levelIndex + 1 + " 档",
+    percentage: Math.floor((100 * (levelIndex + 1)) / levelCount)
+  }));
+}
+
 /**
  * 把 HA 的空调实体状态归一化成 3D 面板使用的状态对象。
  * 字段名与 HA 属性严格对应（min_temp / max_temp / fan_mode 等），面板与动画按这些名字取值，改名需同步使用方。
@@ -58,7 +97,7 @@ export function climateState(entityId, receivedState) {
   );
   // 净化器的能力位比 climate 严一档，口径直接抄 purifier.py：
   // `features = features if isinstance(features, int) else 0` —— 字符串一律当 0。
-  // 若沿用上面的 finiteNumberOrNull，"15" 会被解析成 15，面板于是渲染出摆头 / 方向 /
+  // 若沿用上面的 finiteNumberOrNull，"15" 会被解析成 15，面板于是渲染出摆动 / 方向 /
   // 风速三组控件，而后端对同一份状态必然回 422：本地预检形同虚设，用户看到的是
   // 「按钮在、点了报错」。Python 里 bool 是 int 的子类，JSON 的 true 到后端就是 1，
   // 这里连这个边界一起照抄（true → 1，即只认第 0 位）。
@@ -72,6 +111,12 @@ export function climateState(entityId, receivedState) {
   const parsedPercentageStep = finiteNumberOrNull(attributes.percentage_step);
   const targetLow = finiteNumberOrNull(attributes.target_temp_low);
   const targetHigh = finiteNumberOrNull(attributes.target_temp_high);
+  // 风速百分比：bit 0（值 1，SET_SPEED）。与后端一致：上报了 supported_features 就必须置位；
+  // 完全没上报该属性时，退化为「HA 给过 percentage 就认为能设」。
+  const percentageStep = parsedPercentageStep !== null && parsedPercentageStep > 0 ? parsedPercentageStep : 1;
+  const percentageSupported =
+    isFanDomain &&
+    (hasSupportedFeaturesAttribute ? !!(purifierFeatures & 1) : percentage !== null);
   // 三重判定：实体 ID 必须是 climate（空调）或 fan（空气净化器）域、HA 未标记不可用、
   // state 不是未知态。净化器在 HA 里就是 fan 域，放开它才能让同一个面板同时服务两类设备。
   const available =
@@ -93,16 +138,21 @@ export function climateState(entityId, receivedState) {
       climateIsRunning(stateObject, "air-conditioner"),
     name: String(attributes.friendly_name || entityId || "空调"),
     mode: stateValue,
-    // visualMode 只分三档：关机、制冷、制热，其余模式统一归入 other。
-    // 3D 动画据此选择对应的气流 / 颜色表现，因此不能直接把 mode 透传过去。
+    // visualMode 是给样式用的模式桶：关机 / 制冷 / 制热 / 净化 / 其它。
+    // 3D 动画与面板强调色据此选择气流与配色，因此不能直接把 mode 透传过去
+    // ——「烘干」「送风」这些模式没有对应的视觉表现，统一归入 other。
+    // fan 域（净化器）单独成一桶：它没有冷热之分，但开着就该有自己的配色，
+    // 否则会和 other 一起落到中性灰，整块面板没有颜色（见 climate-panel.css）。
     visualMode:
       !available || !climateIsPoweredOn(stateObject, "air-conditioner")
         ? "off"
-        : stateValue === "cool"
-          ? "cool"
-          : stateValue === "heat"
-            ? "heat"
-            : "other",
+        : isFanDomain
+          ? "purify"
+          : stateValue === "cool"
+            ? "cool"
+            : stateValue === "heat"
+              ? "heat"
+              : "other",
     temperature: temperature,
     currentTemperature: finiteNumberOrNull(attributes.current_temperature),
     targetLow: targetLow,
@@ -126,10 +176,11 @@ export function climateState(entityId, receivedState) {
       !isFanDomain && (!!(supportedFeatures & 2) || targetLow !== null || targetHigh !== null),
     modes: capabilities.hvacModes,
     fanModes: capabilities.fanModes,
-    // supported_features 第 7 位（值 128）是 ClimateEntityFeature.TURN_ON；
-    // 支持它的实体可以只发 turn_on 而不必指定 hvac_mode。
+    // supported_features 第 8 位（值 256）才是 ClimateEntityFeature.TURN_ON；第 7 位（值 128）
+    // 是 TURN_OFF —— 拿 TURN_OFF 当开机能力，会让「只支持关机」的实体被误判成「能开机」，
+    // 按钮亮着、命令却在 HA 侧被拒。支持 TURN_ON 的实体可以只发 turn_on 而不必指定 hvac_mode。
     // fan 域的开关机不设能力位门槛（后端 validate_purifier_command 直接放行），故净化器恒为 true。
-    turnOnSupported: isFanDomain || !!(supportedFeatures & 128),
+    turnOnSupported: isFanDomain || !!(supportedFeatures & 256),
     swingModes: capabilities.swingModes,
     horizontalSwingModes: capabilities.horizontalSwingModes,
     presetModes: capabilities.presetModes,
@@ -153,11 +204,12 @@ export function climateState(entityId, receivedState) {
     // 风速百分比：bit 0（值 1，SET_SPEED）。与后端一致：上报了 supported_features 就必须置位；
     // 完全没上报该属性时，退化为「设备给过 percentage 就认为能设」。
     percentage: percentage,
-    percentageStep:
-      parsedPercentageStep !== null && parsedPercentageStep > 0 ? parsedPercentageStep : 1,
-    percentageSupported:
-      isFanDomain &&
-      (hasSupportedFeaturesAttribute ? !!(purifierFeatures & 1) : percentage !== null),
+    percentageStep: percentageStep,
+    percentageSupported: percentageSupported,
+    // 离散风速档位：步长能整除成 1–10 档时给按钮，否则空数组（面板退回连续滑杆）。
+    // 判定用**原始** percentage_step 而不是上面兜底过的 percentageStep —— 上游同口径：
+    // 步长缺失 / 非法时没有档位可言，不能拿兜底的 1 去铺出 100 个档。
+    speedLevels: percentageSupported ? purifierSpeedLevels(parsedPercentageStep) : [],
     // 预设模式来自 capabilities.presetModes（即 HA 属性 preset_modes，能力解析口径只在
     // renderer/controls/climate.js 维护一份）。bit 3（值 8，FanEntityFeature.PRESET_MODE）；
     // 与后端一致：没上报 supported_features 时，只要设备给了 preset_modes 列表就放行。
@@ -175,6 +227,20 @@ export function climateState(entityId, receivedState) {
 export function climatePowerControl(state, desiredOn = !state.on, lastMode = "") {
   if (!state.available) {
     throw new Error("设备当前不可用。");
+  }
+  // 净化器是 fan 域实体，开关必须发 fan.turn_on / fan.turn_off，且不带参数。
+  // 必须在下面那套 climate 的「恢复上次模式」逻辑之前返回：净化器没有 hvac_mode，
+  // 落到 set_hvac_mode 分支只会得到一条注定被 HA 拒绝的命令。
+  // 面板自己虽然先判了 deviceState.purifier 再分支，但这层判断不该是唯一防线 ——
+  // 一旦有第二个调用方（主播的电源路径等），climate.turn_on 打到 fan 实体上是静默失败。
+  // 与 0.6.5 逐字同口径：这里直接给命令，不绕 purifierControl（它带面板级的报错文案）。
+  if (state.purifier) {
+    return {
+      entityId: state.entityId,
+      domain: "fan",
+      service: desiredOn ? "turn_on" : "turn_off",
+      data: {}
+    };
   }
   // 开机：优先显式恢复「上次使用的模式」（面板从模式历史里取），
   // 退而求其次沿用实体当前模式（HA 关机时上报 off，所以这里必须先排除 off）。

@@ -76,11 +76,23 @@ def validate_extra_command(extra: dict, domain: str, service: str, data, state) 
     raise HTTPException(422, detail="附加实体不支持此操作或参数。")
 
 
+#: 可作为「空气净化器」绑定的场景模型类型。
+#:
+#: 素材库里净化器有两副外观，HA 侧都是 fan 域（能力位与面板完全同形），因此两者都可绑：
+#:   - ``airpurifier``：空气净化器本体；
+#:   - ``freshair``：新风机，按需求算作净化器的一种。
+#: 前端有三处同源白名单 —— ``config-editor.js`` 的 ``sceneModelTypes()``（模型选择器）、
+#: ``binding-collectors.js`` 的 ``collectClimateBindings()``（运行时绑定）与本表。三者必须
+#: 一起改：选择器漏一个 → 配不上；绑定漏一个 → 配得上但 modelAvailable 恒为 false（不报错）；
+#: 本表漏一个 → 配置与画面都对，命令却 409「模型已失联」。
+PURIFIER_MODEL_TYPES = frozenset({'airpurifier', 'freshair'})
+
+
 def require_purifier_model(bindings: list, entity_id: str, scene: dict) -> None:
     """确认实体绑定的空气净化器模型仍唯一存在于场景中。
 
     与空调的 ``require_air_conditioner_model`` 同形（楼层存在、模型 ID 在该楼层唯一、
-    类型正确），只有可接受的类型不同：净化器在场景里的 ``type`` 是 ``airpurifier``，
+    类型正确），只有可接受的类型不同：净化器在场景里是 ``airpurifier`` 或 ``freshair``，
     **不是**空调的 wallac / floorac / airoutlet。这两者绝不能互相借用 —— 拿空调那一套
     来查净化器，每一台净化器都会被判成「模型已失联」，附加功能整个不可用且浏览器里不报错。
 
@@ -96,7 +108,7 @@ def require_purifier_model(bindings: list, entity_id: str, scene: dict) -> None:
             continue
         # 同 ID 的模型必须恰好一个：出现重复时无法确定控制哪一台，宁可不放行。
         models = [item for item in floor.get('scene', {}).get('items', []) if item.get('id') == binding.get('modelId')]
-        if len(models) == 1 and models[0].get('type') == 'airpurifier':
+        if len(models) == 1 and models[0].get('type') in PURIFIER_MODEL_TYPES:
             return None
     raise HTTPException(409, detail='空气净化器模型已失联，请在环境配置中重新选择模型。')
 

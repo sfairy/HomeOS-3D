@@ -1,6 +1,6 @@
-"""通用设备的弹窗配置契约：冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植。
+"""通用设备的弹窗配置契约：冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植。
 
-这五类设备的共同点是「实体不由控件自己推导」：控件只记录它绑定到哪台设备
+这六类设备的共同点是「实体不由控件自己推导」：控件只记录它绑定到哪台设备
 （deviceId / deviceName），弹窗要显示什么由那台设备名下有哪些实体决定。
 因此校验里最硬的一条是 **不接受 entityId** —— 一旦控件自己存了主实体，
 就又回到了「按实体推导设备」的老路，取不到设备的其它实体。
@@ -20,6 +20,7 @@ from .purifier import EXTRA_TYPES
 # 设备类型 -> 它在 properties 里的集合名、在户型图里的模型类型、以及给用户看的名字。
 DEVICE_PROFILES: dict[str, dict[str, str]] = {
     "fridge": {"collection": "fridges", "model_type": "fridge", "label": "冰箱"},
+    "freezer": {"collection": "freezers", "model_type": "freezer", "label": "冰柜"},
     "dishwasher": {"collection": "dishwashers", "model_type": "dishwasher", "label": "洗碗机"},
     "washer": {"collection": "washers", "model_type": "washer", "label": "洗衣机"},
     "dryer": {"collection": "dryers", "model_type": "dryer", "label": "烘干机"},
@@ -90,6 +91,11 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
             for key in ("id", "floorId", "modelId", "deviceId", "deviceName", "label")
         ) or item.get("entityId"):
             fail()
+        # id / floorId / modelId 还要求非空：上面那条只看「是字符串且在长度内」，空串也能过，
+        # 而下面 `item["floorId"]` 是直接下标取用 —— 缺键会在这里抛 KeyError，冒泡成 500
+        # 而不是 422。上游把这条与上面那条分开写，此处补齐。
+        if any(not item.get(key) for key in ("id", "floorId", "modelId")):
+            fail()
         model = (item["floorId"], item["modelId"])
         if item["id"] in ids or model in models:
             fail()
@@ -136,11 +142,17 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
             ):
                 fail()
             eid = extra["entityId"]
-            # 同一个实体只能配一次；type 必须与域的默认能力一致（前端下拉里也是这么限定的），
+            # 同一个实体只能配一次；type 只认这五种能力，允许把 select / number / switch / button
+            # 实体配成 'state' 只读渲染（上游口径），其余情况必须与所在域的默认能力一致，
             # 否则会出现「按钮渲染成开关」这类前后端不一致。
+            # 这几条与 config.py 里空气净化器那一节必须**逐字一致**：要改两边一起改。
             if (
                 eid in selected
-                or extra.get("type") != EXTRA_TYPES.get(eid.split(".")[0], "state")
+                or extra.get("type") not in {"state", "button", "number", "select", "switch"}
+                or (
+                    extra.get("type") != "state"
+                    and extra.get("type") != EXTRA_TYPES.get(eid.split(".")[0])
+                )
                 or not text(extra.get("label", ""), 120)
             ):
                 fail()
@@ -166,7 +178,15 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
             ):
                 fail()
             # 两端状态值都要有且不同：相同的两个值永远匹配不上，属于配置错误。
-            if any(not text(rule.get(key, "")) for key in ("active", "inactive")) or rule["active"] == rule["inactive"]:
+            # 上限 120（与上游一致，比通用 text 的 128 更紧），且 strip 后不得为空 ——
+            # 纯空白值能让「亮灯条件」永远匹配不上，属于配置错误。
+            if (
+                any(
+                    not text(rule[key], 120) or not rule[key].strip()
+                    for key in ("active", "inactive")
+                )
+                or rule["active"] == rule["inactive"]
+            ):
                 fail()
 
 

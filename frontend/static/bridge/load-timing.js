@@ -8,7 +8,7 @@
  * 出口只有一个：`utils/debug-log.js` 是本站诊断输出的统一出口，本模块不再自己判断
  * `location`、也不再自己 `console.*` —— 开关语义收在一处，才不会有第二个「关不掉的日志」。
  */
-import { debugLog, isFrontendPerformanceDiagnosticsEnabled } from "../utils/debug-log.js?v=2609260946";
+import { debugLog, isFrontendPerformanceDiagnosticsEnabled } from "../utils/debug-log.js?v=2609262221";
 
 /**
  * 创建一个埋点函数。

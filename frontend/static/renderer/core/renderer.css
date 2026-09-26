@@ -13743,6 +13743,39 @@
   display: block;
   min-height: 0;
 }
+/* 机器图形：与 3D 舞台里那批设备插画同一口径 —— 2D 那张 260px 高的「台面卡片」
+   （描边 + 渐变底 + 投影）是给详情页用的，弹窗里只留机器本身和地面投影，
+   整块压到 190px 一档（冰箱 190 / 洗衣机 188 同一档），把高度让给下面的统计与动作。
+   尺寸不变形：机器人的内部坐标全是 px，缩放交给电池环上的 transform，
+   几何关系（雷达凸起、边刷、抹布）因此保持原比例。 */
+.i3d-vacuum-details .hb-vacuum-visual {
+  width: 100%;
+  height: 190px;
+  min-height: 0;
+  flex: none;
+  margin: 0 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  /* 2D 规则里的 overflow: hidden 会把缩放后的电池环切掉一圈。 */
+  overflow: visible;
+}
+.i3d-vacuum-details .hb-vacuum-battery-ring {
+  transform: scale(0.8);
+}
+/* 地面投影跟着缩一圈，别比机身还宽。 */
+.i3d-vacuum-details .hb-vacuum-visual:before {
+  bottom: 28px;
+  width: 150px;
+  height: 26px;
+  filter: blur(12px);
+}
+/* 状态文案只留标题那一处：图形左下的那行与标题下的副标题是同一句，
+   3D 面板里重复出现会把「标题 → 机器」的层次读乱（与通用设备面板一致）。 */
+.i3d-vacuum-details .hb-vacuum-visual-status {
+  display: none;
+}
 /* 统计格压到 42px 高、5px 内边距。 */
 .i3d-vacuum-details .hb-vacuum-details-stats > div {
   min-height: 42px;

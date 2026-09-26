@@ -71,7 +71,7 @@ export function createRequestSettlement(ctx) {
   }
 
   /**
-   * 结清通用设备附加实体的控制请求（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植的卡片操作）。
+   * 结清通用设备附加实体的控制请求（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植的卡片操作）。
    * 与空调、电视一样只做「清超时 + 出表 + resolve / reject」三件事。
    */
   function settleDeviceRequest(pendingDeviceKey, deviceError) {

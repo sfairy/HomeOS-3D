@@ -1,0 +1,573 @@
+/*
+ * 通用设备面板（.i3d-device-panel）的设备图形与排版。
+ *
+ * 由 stage.css @import 引入，作用对象是 device-panel.js 渲染的通用设备弹窗（冰箱 / 冰柜 /
+ * 洗碗机 / 洗衣机 / 烘干机 / 绿植）：标题行、设备图形、附加功能卡片网格。
+ *
+ * 设备图形与空调 / 净化器（climate-panel.css）、电视（stage.css）、窗帘（cover-panel.css）
+ * 是同一套做法：纯 CSS 画的实物插画，单独占一行居中，插在标题行与内容之间，不吃指针事件、
+ * 不进无障碍树。六个品类共用一棵部件树（见 device-panel.js 的 createDeviceVisual），
+ * 形状差异全部落在下面的 `.is-<品类>` 上，换品类只换一个类名。
+ *
+ * 配色一律硬编，不取主题令牌：这是实体家电的银灰 / 陶土与绿植，主题翻成暖色浅底时跟着
+ * 变米白会立刻读成「一块塑料板」——与净化器 / 空调 / 电视那几台图形同一口径。
+ * 状态色是唯一的例外：状态灯按 deviceStatus 的四态上色，走的仍是下面那组硬编色，
+ * 因为「正常 / 异常 / 已关闭 / 未知」是跨主题一致的语义色。
+ */
+
+/* ===== 面板的竖直空间上限 ===== */
+
+/* 为什么不沿用空调那条（climate-panel.css 的 is-climate-panel）：
+   空调的上限是「可用空间的一半」，因为它面板里塞着模式 / 风速 / 温区一大堆控件，
+   不限住就会糊满整个场景。通用设备没有这个问题 —— 一台机器的插画 + 两三张卡就是全部内容，
+   而它的插画比空调的（净化器 140px）高得多：冰箱 190px、洗衣机 / 烘干机 188px。
+   用一半的上限时，光「标题 + 插画」就已经超过上限，卡片被顶到滚动区外，
+   打开面板只看到标题和一台被裁掉下半截的冰箱。这里改成「可用空间全给，上下各留 12px」，
+   另设 620px 绝对上限兜住「配了十几张卡」的情况；下限 200px 防止极矮视口算出零或负值。
+
+   上沿取**面板实际用的那个偏移量** --i3d-control-top（stage.js 的 layoutStage 写在面板的
+   行内样式上，stage.css 的 top 读的就是它），而不是 climate-panel.css 里那个
+   max(12px, min(56% - 400px, 100% - 812px)) —— 后者早被 top: var(--i3d-control-top)
+   取代，跟着它算会让面板越过下沿。
+
+   类名由 stage.js 的面板登记表挂上（hostClass: "is-device-panel"），与 NAS / 电视 / 门锁
+   同一套路数。早先这里写的是 `:has(> .i3d-device-panel:not([hidden]))`，靠结构反推品类 ——
+   只要面板根节点不再是外壳的直接子节点，整条规则就静默失效，而且浏览器里零报错。 */
+.interaction3d-stage .i3d-light-panel.is-device-panel {
+  height: auto;
+  max-height: min(
+    620px,
+    max(200px, calc(100% - var(--i3d-control-top, 24px) - 12px))
+  );
+  /* 与空调同口径：横向不滚，纵向超出时滚动而不是裁掉。 */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* ===== 图形底盘：所有品类共用的金属材质与投影 ===== */
+
+/* 两类图形的公共底盘：通用设备的 `.i3d-device-visual` 与 NAS 的 `.i3d-nas-visual`。
+   NAS 的几何体画在 nas-panel.css（硬盘位 / 面板格栅放进不通用设备那棵「机身 / 门盖 / 把手」树里），
+   但**材质与留白只在这一处定义** —— 同一份金属配方散进两份文件，换色时必然只改一处。 */
+.i3d-device-visual,
+.i3d-nas-visual {
+  position: relative;
+  flex: none;
+  /* 单独占一行、居中：面板根是 flex 容器，align-self 即可；margin 的水平 auto 兜住
+     「换个宿主不是 flex」的情况（与电视图形同一处教训）。 */
+  align-self: center;
+  /* 与空调 / 净化器图形的上下留白取同一组数值（2 / 10），三块内容的节奏才对得上。 */
+  margin: 2px auto 10px;
+  /* 装饰性插画：点击穿透到面板本身，否则会挡住它覆盖的那片区域。 */
+  pointer-events: none;
+  /* 两台「金属家电」的公共配方：受光面亮、下沿暗，加一条顶部高光缝与落地外投影。
+     冰柜 / 洗碗机 / 洗衣机 / 烘干机这四台直接用这两个变量，冰箱单独补一段丝纹高光；
+     NAS 底盘同属金属家电，同样取这两个变量。 */
+  --i3d-appliance-light: linear-gradient(168deg, #f4f7f8, #d0d7da 46%, #9aa4a9);
+  --i3d-appliance-dark: linear-gradient(168deg, #7c878d, #5a656c 54%, #363f45);
+  --i3d-appliance-edge: rgba(255, 255, 255, 0.62);
+  --i3d-appliance-shadow:
+    0 10px 20px #00000059,
+    inset 0 2px 6px #ffffff8f,
+    inset 0 -5px 10px #2b353b33;
+}
+.i3d-device-visual[hidden],
+.i3d-nas-visual[hidden] {
+  display: none;
+}
+/* 所有部件默认隐藏、绝对定位；各品类显式打开要用的那几个。 */
+.i3d-device-visual > i,
+.i3d-nas-visual > i {
+  position: absolute;
+  display: none;
+}
+
+/* 高个机型整体缩一档。
+   冰箱 190px、洗衣机 / 烘干机 188px、绿植 182px、洗碗机 176px —— 这是四个最高的插画，
+   而冰柜只有 108px、NAS 只有 76px。差别不是审美问题：面板的竖直预算是
+   「舞台高 − 上沿偏移 − 12px」，在 366px 高的舞台上（实测用户那台就是这个量级）
+   只有 334px，而「内边距 40 + 标题 38 + 插画 190 + 间距 + 一行卡片」要 341px —— 
+   插画原尺寸时最后一行卡片必然被顶进滚动区，也就是「标题 + 半台冰箱」那一眼。
+
+   为什么用 zoom 而不是 transform: scale()：
+   图形内部全是绝对定位的 px 坐标（门缝 63px、把手 82px…），要等比缩小必须让
+   盒子尺寸与内部坐标一起缩。transform 只缩放绘制、不改盒子，父容器仍按 190px 占位，
+   等于白缩 —— 除非把每个品类的自然宽高抄成变量再逐个写 calc()，那样
+   七个品类各多一份像素值，改尺寸时必然漏改。zoom 同时缩放盒子与内部坐标，
+   每个品类一行就够，也不影响父容器的测量（stage.js 读的 offsetHeight 会跟着变小）。 */
+.i3d-device-visual.is-fridge,
+.i3d-device-visual.is-dishwasher,
+.i3d-device-visual.is-washer,
+.i3d-device-visual.is-dryer,
+.i3d-device-visual.is-plant {
+  zoom: 0.85;
+}
+
+/* 落地阴影：哪个品类都要，故默认常显。 */
+.i3d-device-visual > .i3d-device-visual-ground {
+  display: block;
+  left: 50%;
+  bottom: -7px;
+  width: 74%;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #0d121666, transparent 70%);
+  filter: blur(3px);
+  transform: translate(-50%);
+}
+
+/* 状态灯：四态配色与舞台标记 / 设备状态灯同源。开机常亮，异常琥珀，关闭最暗，未知居中。
+   没配任何规则（none）时退回上面那条中性灰 —— 那盏灯不该替用户表态。 */
+.i3d-device-visual > .i3d-device-visual-light {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6b767d;
+  box-shadow: 0 0 0 1px #00000059;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.i3d-device-visual.is-status-normal > .i3d-device-visual-light {
+  background: #43ce82;
+  box-shadow:
+    0 0 7px #43ce8299,
+    0 0 0 1px #00000059;
+}
+.i3d-device-visual.is-status-warning > .i3d-device-visual-light {
+  background: #efa33d;
+  box-shadow:
+    0 0 7px #efa33d99,
+    0 0 0 1px #00000059;
+}
+/* 已关闭：比中性灰再暗一档，一眼能区分「确定关着」与「没配规则 / 读不到」。 */
+.i3d-device-visual.is-status-off > .i3d-device-visual-light {
+  background: #4d565c;
+}
+/* 状态未知：比中性灰浅一档。它与上面的 off 拉开差距，才撑得起四态。 */
+.i3d-device-visual.is-status-unknown > .i3d-device-visual-light {
+  background: #89929b;
+}
+/* 开机：显示屏亮起来（与净化器开机后光晕提亮同一口径）。
+   只给真的有暗屏的三个品类 —— 洗碗机 / 洗衣机的控制条是浅色面板，加发光只会读成「面板漏光」。 */
+.i3d-device-visual.is-fridge.is-on > .i3d-device-visual-console,
+.i3d-device-visual.is-freezer.is-on > .i3d-device-visual-console,
+.i3d-device-visual.is-dryer.is-on > .i3d-device-visual-console::before {
+  border-color: rgba(126, 208, 168, 0.55);
+  box-shadow:
+    inset 0 0 6px rgba(95, 211, 154, 0.26),
+    0 0 8px rgba(95, 211, 154, 0.3);
+}
+/* 实体离线：整台去色压暗，与电视 / 空调图形的 is-unavailable 同一口径。 */
+.i3d-device-visual.is-unavailable {
+  filter: grayscale(0.75);
+  opacity: 0.5;
+}
+
+/* ===== 冰箱：双开门，上冷冻下冷藏 ===== */
+
+.i3d-device-visual.is-fridge {
+  width: 122px;
+  height: 190px;
+}
+/* 机身：上圆下略方，左侧一条丝纹高光条压出金属感。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-body {
+  display: block;
+  inset: 0;
+  border: 1px solid var(--i3d-appliance-edge);
+  border-radius: 13px 13px 10px 10px;
+  background:
+    linear-gradient(101deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.5) 11%, transparent 33% 75%, rgba(63, 75, 82, 0.09)),
+    var(--i3d-appliance-light);
+  box-shadow: var(--i3d-appliance-shadow);
+}
+/* 上下两扇门的门缝画在机身伪元素上：一条 1px 暗线 + 一条 1px 亮线，读起来才像一道缝。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-body::before {
+  position: absolute;
+  top: 63px;
+  right: 6px;
+  left: 6px;
+  height: 1px;
+  background: rgba(43, 53, 59, 0.42);
+  box-shadow: 0 1px rgba(255, 255, 255, 0.65);
+  content: "";
+}
+/* 冷藏室门（下半扇）与机身拉开极小一档，门板才有厚度。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-door {
+  display: block;
+  top: 66px;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  border-radius: 3px 3px 8px 8px;
+  background: linear-gradient(172deg, #eef1f2, #c6cdd1 62%, #a7b1b6);
+  box-shadow:
+    inset 0 1px 3px #ffffffb3,
+    inset 0 -3px 7px #2b353b1f;
+}
+/* 冷藏室门把手：右侧竖条。冷冻室那把由它的 ::before 画（同一根把手，只是换了个位置）。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-handle {
+  display: block;
+  top: 82px;
+  right: 12px;
+  width: 6px;
+  height: 48px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #f4f7f8, #98a2a7);
+  box-shadow: 0 1px 3px #00000059;
+}
+.i3d-device-visual.is-fridge > .i3d-device-visual-handle::before {
+  position: absolute;
+  top: -68px;
+  left: 0;
+  width: 6px;
+  height: 34px;
+  border-radius: 3px;
+  background: inherit;
+  box-shadow: inherit;
+  content: "";
+}
+/* 冷冻室门上的小显示屏。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-console {
+  display: block;
+  top: 13px;
+  left: 14px;
+  width: 36px;
+  height: 19px;
+  border: 1px solid rgba(52, 67, 74, 0.68);
+  border-radius: 5px;
+  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 70%, #171e22);
+  box-shadow: inset 0 1px 3px #ffffff14;
+}
+/* 状态灯嵌在显示屏右端。 */
+.i3d-device-visual.is-fridge > .i3d-device-visual-light {
+  top: 20px;
+  left: 40px;
+}
+
+/* ===== 冰柜：顶开盖卧式 ===== */
+
+.i3d-device-visual.is-freezer {
+  width: 210px;
+  height: 108px;
+}
+.i3d-device-visual.is-freezer > .i3d-device-visual-body {
+  display: block;
+  top: 16px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border: 1px solid var(--i3d-appliance-edge);
+  border-radius: 9px 9px 8px 8px;
+  background: var(--i3d-appliance-light);
+  box-shadow: var(--i3d-appliance-shadow);
+}
+/* 顶盖：比机身宽出去一点，向前的透视靠上亮下暗的两段渐变暗示。 */
+.i3d-device-visual.is-freezer > .i3d-device-visual-door {
+  display: block;
+  top: 6px;
+  right: 6px;
+  left: 6px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #f7f9fa, #ced5d9 62%, #aab4b9);
+  box-shadow:
+    0 4px 7px #00000038,
+    inset 0 1px #ffffffb3;
+}
+/* 顶盖前缘的长条把手。 */
+.i3d-device-visual.is-freezer > .i3d-device-visual-handle {
+  display: block;
+  top: 24px;
+  left: 26px;
+  width: 108px;
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f4f7f8, #98a2a7);
+  box-shadow: 0 2px 3px #00000059;
+}
+.i3d-device-visual.is-freezer > .i3d-device-visual-console {
+  display: block;
+  top: 12px;
+  right: 18px;
+  width: 34px;
+  height: 17px;
+  border: 1px solid rgba(52, 67, 74, 0.68);
+  border-radius: 5px;
+  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 70%, #171e22);
+}
+.i3d-device-visual.is-freezer > .i3d-device-visual-light {
+  top: 18px;
+  right: 30px;
+}
+
+/* ===== 洗碗机：上控制条 + 下门板 ===== */
+
+.i3d-device-visual.is-dishwasher {
+  width: 168px;
+  height: 176px;
+}
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-body {
+  display: block;
+  inset: 0;
+  border: 1px solid var(--i3d-appliance-edge);
+  border-radius: 10px;
+  background: var(--i3d-appliance-light);
+  box-shadow: var(--i3d-appliance-shadow);
+}
+/* 顶部控制条：比机身暗一档，与门板分开。 */
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-console {
+  display: block;
+  top: 4px;
+  right: 4px;
+  left: 4px;
+  height: 38px;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, #e6eaec, #c1c9cd);
+  box-shadow: inset 0 1px #ffffffb3;
+}
+/* 控制条上的一排按钮：等距小圆点。 */
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-console::before {
+  position: absolute;
+  top: 15px;
+  right: 14px;
+  width: 44px;
+  height: 8px;
+  background: radial-gradient(circle, #5c676d 0 2px, transparent 2.4px) 0 0 / 11px 8px;
+  content: "";
+}
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-door {
+  display: block;
+  top: 46px;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  border-radius: 6px;
+  background: linear-gradient(172deg, #eef1f2, #c8d0d4 60%, #a6b0b5);
+  box-shadow:
+    inset 0 1px 3px #ffffffb3,
+    inset 0 -3px 8px #2b353b1f;
+}
+/* 横跨门顶的长把手。 */
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-handle {
+  display: block;
+  top: 52px;
+  right: 18px;
+  left: 18px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f4f7f8, #98a2a7);
+  box-shadow: 0 2px 3px #00000059;
+}
+.i3d-device-visual.is-dishwasher > .i3d-device-visual-light {
+  top: 20px;
+  left: 18px;
+}
+
+/* ===== 洗衣机：上控制条 + 圆形滚筒门 ===== */
+
+/* 洗衣机与烘干机共用机身 / 控制条 / 滚筒门的骨架，只在控制条细节与门下半部区分。 */
+.i3d-device-visual.is-washer,
+.i3d-device-visual.is-dryer {
+  width: 158px;
+  height: 188px;
+}
+.i3d-device-visual.is-washer > .i3d-device-visual-body,
+.i3d-device-visual.is-dryer > .i3d-device-visual-body {
+  display: block;
+  inset: 0;
+  border: 1px solid var(--i3d-appliance-edge);
+  border-radius: 12px;
+  background: var(--i3d-appliance-light);
+  box-shadow: var(--i3d-appliance-shadow);
+}
+.i3d-device-visual.is-washer > .i3d-device-visual-console,
+.i3d-device-visual.is-dryer > .i3d-device-visual-console {
+  display: block;
+  top: 5px;
+  right: 5px;
+  left: 5px;
+  height: 40px;
+  border-radius: 9px 9px 3px 3px;
+  background: linear-gradient(180deg, #e7ebed, #c3cbd0);
+  box-shadow: inset 0 1px #ffffffb3;
+}
+/* 洗衣机控制条左侧是一个圆形旋钮。 */
+.i3d-device-visual.is-washer > .i3d-device-visual-console::before {
+  position: absolute;
+  top: 9px;
+  left: 17px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #f8fafb, #b6bfc4 62%, #8d979c);
+  box-shadow:
+    0 1px 4px #0000004d,
+    inset 0 1px #ffffffd9;
+  content: "";
+}
+/* 洗衣机控制条右侧是几枚状态小灯。 */
+.i3d-device-visual.is-washer > .i3d-device-visual-console::after {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 34px;
+  height: 7px;
+  background: radial-gradient(circle, #6d787e 0 2px, transparent 2.4px) 0 0 / 11px 7px;
+  content: "";
+}
+/* 滚筒门：金属外圈 + 暗玻璃，高光落在左上。 */
+.i3d-device-visual.is-washer > .i3d-device-visual-window,
+.i3d-device-visual.is-dryer > .i3d-device-visual-window {
+  display: block;
+  top: 58px;
+  left: 50%;
+  border: 7px solid #c2cace;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 33%, #55646b, #232d33 58%, #0e1418);
+  box-shadow:
+    0 8px 16px #00000059,
+    inset 0 0 18px #000000b3;
+  transform: translate(-50%);
+}
+.i3d-device-visual.is-washer > .i3d-device-visual-window {
+  width: 104px;
+  height: 104px;
+}
+/* 玻璃上的一道弧形高光。 */
+.i3d-device-visual.is-washer > .i3d-device-visual-window::before,
+.i3d-device-visual.is-dryer > .i3d-device-visual-window::before {
+  position: absolute;
+  top: 12%;
+  left: 14%;
+  width: 46%;
+  height: 30%;
+  border-radius: 50%;
+  background: linear-gradient(140deg, #ffffff40, transparent 72%);
+  content: "";
+}
+.i3d-device-visual.is-washer > .i3d-device-visual-light {
+  top: 19px;
+  right: 18px;
+}
+/* 烘干机：控制条改成一块数码屏，滚筒门小一档，门下方补一排烘干格栅。 */
+.i3d-device-visual.is-dryer > .i3d-device-visual-console::before {
+  position: absolute;
+  top: 9px;
+  left: 17px;
+  width: 40px;
+  height: 22px;
+  border: 1px solid rgba(52, 67, 74, 0.6);
+  border-radius: 5px;
+  background: radial-gradient(circle at 45% 32%, #39464c, #20292e 72%);
+  content: "";
+}
+.i3d-device-visual.is-dryer > .i3d-device-visual-window {
+  top: 62px;
+  width: 92px;
+  height: 92px;
+}
+.i3d-device-visual.is-dryer > .i3d-device-visual-door {
+  display: block;
+  right: 22px;
+  bottom: 12px;
+  left: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(20, 27, 31, 0.34) 0 2px,
+    transparent 2px 7px
+  );
+}
+.i3d-device-visual.is-dryer > .i3d-device-visual-light {
+  top: 19px;
+  right: 18px;
+}
+
+/* ===== 绿植：陶盆 + 五片叶子 ===== */
+
+.i3d-device-visual.is-plant {
+  width: 148px;
+  height: 182px;
+}
+/* 盆身：clip-path 切出上宽下窄的梯形。 */
+.i3d-device-visual.is-plant > .i3d-device-visual-pot {
+  display: block;
+  bottom: 6px;
+  left: 50%;
+  width: 86px;
+  height: 66px;
+  background: linear-gradient(172deg, #d9a07c, #b9744c 58%, #8d5133);
+  box-shadow:
+    inset 0 3px 8px #ffffff2e,
+    0 8px 16px #0000004d;
+  clip-path: polygon(6% 0, 94% 0, 79% 100%, 21% 100%);
+  transform: translate(-50%);
+}
+/* 盆口一圈厚边。 */
+.i3d-device-visual.is-plant > .i3d-device-visual-pot::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 11px;
+  background: linear-gradient(180deg, #eab895, #c08159);
+  box-shadow: inset 0 1px #ffffff59;
+  content: "";
+}
+/* 叶丛：五片叶从盆口一点向上扇形展开，绕叶柄（底边中点）旋转。 */
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage {
+  display: block;
+  bottom: 62px;
+  left: 50%;
+  width: 132px;
+  height: 116px;
+  transform: translate(-50%);
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  display: block;
+  border-radius: 50% 50% 46% 46% / 68% 68% 32% 32%;
+  background: linear-gradient(158deg, #86cf90, #3f8a52 72%);
+  box-shadow: inset -2px -3px 6px #1f4a2b4d;
+  transform-origin: 50% 100%;
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i:nth-child(1) {
+  width: 26px;
+  height: 78px;
+  margin-left: -13px;
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i:nth-child(2) {
+  width: 24px;
+  height: 66px;
+  margin-left: -12px;
+  transform: rotate(-30deg);
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i:nth-child(3) {
+  width: 24px;
+  height: 66px;
+  margin-left: -12px;
+  transform: rotate(30deg);
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i:nth-child(4) {
+  width: 22px;
+  height: 54px;
+  margin-left: -11px;
+  transform: rotate(-54deg);
+}
+.i3d-device-visual.is-plant > .i3d-device-visual-foliage > i:nth-child(5) {
+  width: 22px;
+  height: 54px;
+  margin-left: -11px;
+  transform: rotate(54deg);
+}
+/* 绿植没有开关语义，不画状态灯（与 device-profiles 里 statusIndicator:false 同一口径）。 */
+.i3d-device-visual.is-plant > .i3d-device-visual-light {
+  display: none;
+}

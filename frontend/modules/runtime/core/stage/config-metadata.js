@@ -12,10 +12,14 @@ import {
   withFixedLightEffects,
   withPageAppearancePreset,
   withRegionLightingPreset
-} from "../static-helpers.js?v=2609260946";
+} from "../static-helpers.js?v=2609262221";
 // 门模型展开的唯一实现在 lock-state.js（舞台收集门锁绑定、门动画找模型共用同一份）：
 // 这份快照多带一个 doors 清单给门锁编辑器，靠的就是它，别在这里另写一套门 → 坐标的口径。
-import { doorModels } from "../../security/lock-state.js?v=2609260946";
+import { doorModels } from "../../security/lock-state.js?v=2609262221";
+// 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的集合名。它们与 NAS / 电视 / 扫地机
+// 同住 properties.devices，换楼层坐标系时 focusCamera 必须一起变换 —— 见下面那个设备循环，
+// 上游 0.6.5 也是用 GENERIC_DEVICE_KINDS 把五个集合展开进去的。
+import { GENERIC_DEVICE_COLLECTIONS } from "../../device/device-profiles.js?v=2609262221";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。
@@ -83,6 +87,8 @@ export function createStageMetadata(ctx) {
                 y: itemY,
                 width: itemWidth,
                 depth: itemDepth,
+                height: itemHeight,
+                elevation: itemElevation,
                 rotation: itemRotation,
                 color: itemColor
               }) => ({
@@ -93,6 +99,12 @@ export function createStageMetadata(ctx) {
                 y: itemY,
                 width: itemWidth,
                 depth: itemDepth,
+                // 这两项是**机体原值**（离地高度与机身高度），不是「标记锚点高度」——
+                // 上面几张集合表（airConditioners / curtains / televisions / nas / vacuums）
+                // 里的 height 才是算好的锚点高度。plan.items 是通用设备与净化器的候选来源，
+                // 那两支的锚点高度由编辑器按同一公式现推（见 config-editor.js 的 floorSceneModels）。
+                height: itemHeight,
+                elevation: itemElevation,
                 rotation: itemRotation,
                 color: itemColor
               })
@@ -158,6 +170,13 @@ export function createStageMetadata(ctx) {
                 (Number(curtainItem.elevation) || 0) + (Number(curtainItem.height) || 2.4) / 2,
               curtainPosition: curtainItem.curtainPosition || "split",
               curtainTrack: curtainItem.curtainTrack || "straight",
+              // 帘型（standard 普通窗帘 / roller 卷帘 / dream 梦幻帘）默认取户型模型的形态，
+              // 字段名与取值照搬上游 0.6.5：模型侧是 `curtainForm`（standard / roller）。
+              // 历史草稿里这个字段叫 `curtainStyle`（取值 cloth / roller），读取时兼容。
+              // 编辑器据此把「窗帘类型」显示成卷帘，运行时也据此判定卷收 rig
+              // （见 core/stage/geometry.js 的 resolveCurtainGeometry）。
+              // 原样透传，缺省 / 非法值由下游各自归一成 standard。
+              curtainForm: curtainItem.curtainForm ?? curtainItem.curtainStyle,
               curtainFabric: curtainItem.curtainFabric
             })),
           airConditioners: metadataFloor.scene.items
@@ -206,7 +225,13 @@ export function createStageMetadata(ctx) {
           // 而把这批门展开成「与 3D 模型一一对应、带 modelId 与平面坐标」的正是 lock-state.js 的
           // doorModels：舞台收集门锁绑定、门动画找模型都走它。这里只把同一份结果透传给宿主，
           // 绝不在快照里另算一遍坐标口径（两套算法一旦漂移，就是「编辑器里选得到、舞台上找不到」）。
-          doors: doorModels(metadataFloor.scene)
+          //
+          // 必须传**楼层**而不是 `metadataFloor.scene`：doorModels 取门列表时两种形态都收
+          // （`config.scene.doors` 不然就 `config.doors`），但查墙只认 `config.scene.walls`。
+          // 传 scene 时门列表兜得住、墙列表却变成 `scene.scene.walls` = undefined，于是每一扇
+          // 画在墙上的门都因为「找不到它挂靠的墙」被丢掉 —— 快照里 doors 恒为空数组，安防面板
+          // 的门锁列表永远是空的（工作室导出的独立门模型没有 wallId，才会侥幸留下来）。
+          doors: doorModels(metadataFloor)
         };
       })
     };
@@ -272,11 +297,14 @@ export function createStageMetadata(ctx) {
       // 它的其余字段（memberIds / panelLayout 等）原样保留。
       // airPurifiers 与空调同一口径：净化器的 focusCamera 也要跟着楼层坐标系变换，
       // 漏一个键的后果是「换楼层后净化器聚焦视角还停在旧坐标系」。
+      // 温湿度计同理：它也是「绑在楼层的锚点」，漏掉它换楼层后聚焦视角同样停在旧坐标系
+      // （上游 0.6.5 的同一列表里含此项）。
       for (const environmentKey of [
         "airConditioners",
         "airPurifiers",
         "curtains",
-        "curtainGroups"
+        "curtainGroups",
+        "temperatureHumidity"
       ]) {
         normalizedConfig.environment[environmentKey] = (
           normalizedConfig.environment[environmentKey] || []
@@ -293,7 +321,16 @@ export function createStageMetadata(ctx) {
         }));
       }
     }
-    for (const deviceKey of ["nas", "televisions", "vacuums"]) {
+    // 六个通用设备品类（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）与上面三类同住 devices：
+    // 它们也各有一份 focusCamera（编辑器里的「聚焦视角」），漏掉它们的后果就是「换楼层后
+    // 冰箱 / 绿植的聚焦视角还停在旧坐标系」，点开按钮时视角对不上模型。上游 0.6.5 的同一
+    // 循环用的正是这张品类表，所以这里也从 device-profiles.js 派生，不再手抄集合名。
+    for (const deviceKey of [
+      "nas",
+      "televisions",
+      "vacuums",
+      ...GENERIC_DEVICE_COLLECTIONS
+    ]) {
       if (normalizedConfig.devices?.[deviceKey]) {
         normalizedConfig.devices[deviceKey] = normalizedConfig.devices[deviceKey].map(
           deviceItem => ({

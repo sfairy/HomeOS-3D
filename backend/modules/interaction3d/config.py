@@ -808,8 +808,16 @@ def validate_config(properties: dict) -> None:
                 fail()
             selected_entity = extra['entityId']
             if (
-                selected_entity in selected
-                or extra.get('type') != EXTRA_TYPES.get(selected_entity.split('.')[0], 'state')
+                # type 只认这五种能力；允许把 select / number / switch / button 实体配成
+                # 'state' 只读渲染（上游口径），其余情况必须与所在域的默认能力一致。
+                extra.get('type') not in {'state', 'button', 'number', 'select', 'switch'}
+                or (
+                    extra.get('type') != 'state'
+                    and extra.get('type') != EXTRA_TYPES.get(selected_entity.split('.')[0])
+                )
+                or selected_entity in selected
+                # 附加实体不能就是设备本体：弹窗会把同一个实体渲染两遍（一遍主状态、一遍附加卡片）。
+                or selected_entity == entity
                 or not text(extra.get('label', ''), 120)
             ):
                 fail()
@@ -837,9 +845,20 @@ def validate_config(properties: dict) -> None:
                 or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', rule['entityId'])
             ):
                 fail()
-            if any(not text(rule.get(key, '')) for key in ('active', 'inactive')) or rule['active'] == rule['inactive']:
+            # 两端状态值都要有且不同：相同的两个值永远匹配不上，属于配置错误。
+            # 上限 120（与前端输入框 maxLength 一致，比通用 text 的 128 更紧），且 strip 后不得为空
+            # —— 纯空白值能让「亮灯条件」永远匹配不上，属于配置错误。
+            # 与 device.py 的通用设备校验（validate_device_bindings）同一口径，要改两边一起改。
+            if (
+                any(
+                    not text(rule.get(key, ''), 120) or not rule.get(key, '').strip()
+                    for key in ('active', 'inactive')
+                )
+                or rule['active'] == rule['inactive']
+            ):
                 fail()
-    # 窗帘：entityId 只允许 cover.* 域；coverKind 区分普通帘与梦幻帘（可控时机不同）。
+    # 窗帘：entityId 只允许 cover.* 域；coverKind 区分普通帘 / 卷帘 / 梦幻帘
+    # （卷帘与普通帘可控时机相同但帘型不同，梦幻帘额外限制叶片的可控时机）。
     curtains = environment.get('curtains', [])
     if not isinstance(curtains, list):
         fail()
@@ -865,6 +884,10 @@ def validate_config(properties: dict) -> None:
             'focusCamera',
             'buttonHidden',
             'curtainFabric',
+            # 帘型覆写：户型模型自带帘型（模型侧 curtainForm，历史字段 curtainStyle）时
+            # 默认以模型为准，用户显式在编辑器里改过才置 true，之后该控件的帘型不再被模型覆盖
+            # （见 runtime/core/stage/geometry.js 的覆写分支）。
+            'coverKindOverride',
             # 帘布覆写：户型模型自带帘布时默认以模型为准，用户显式改过才置 true，
             # 之后该控件的帘布不再被模型覆盖（见 runtime/core/stage/geometry.js）。
             'curtainFabricOverride',
@@ -897,9 +920,11 @@ def validate_config(properties: dict) -> None:
             fail()
         if item.get('coverDirection', 'auto') not in ('auto', 'left', 'right', 'split'):
             fail()
-        if item.get('coverKind', 'standard') not in ('standard', 'dream'):
+        if item.get('coverKind', 'standard') not in ('standard', 'dream', 'roller'):
             fail()
         if item.get('curtainFabric', 'cloth') not in ('cloth', 'sheer'):
+            fail()
+        if 'coverKindOverride' in item and not isinstance(item['coverKindOverride'], bool):
             fail()
         if 'curtainFabricOverride' in item and not isinstance(item['curtainFabricOverride'], bool):
             fail()
@@ -1012,6 +1037,9 @@ def validate_config(properties: dict) -> None:
             fail()
         if members[0].get('entityId') and members[0].get('entityId') == members[1].get('entityId'):
             fail()
+        # 组合的合成 id（curtain-group:<id>）不能撞上已有的窗帘卡 id，否则前端解析到错误的卡片。
+        if f'curtain-group:{item["id"]}' in curtain_by_id:
+            fail()
         grouped_member_ids.update(member_ids)
         if item.get('clickAction', 'focus') not in ('focus', 'panel'):
             fail()
@@ -1025,7 +1053,7 @@ def validate_config(properties: dict) -> None:
         if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000), ('height', 0, 20))):
             fail()
         validate_camera(item.get('focusCamera'))
-    # 设备表：NAS、扫地机、电视，再加上五类「通用设备」（冰箱 / 洗碗机 / 洗衣机 /
+    # 设备表：NAS、扫地机、电视，再加上通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 /
     # 烘干机 / 绿植）—— 后者的校验方式完全一致，只是模型类型不同，因此按 DEVICE_PROFILES
     # 派发，新增设备类型时只需改那张表。
     devices = properties.get('devices', {})

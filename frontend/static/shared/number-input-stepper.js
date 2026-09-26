@@ -1,5 +1,5 @@
 // 夹取统一走 utils/numbers.js（唯一实现）。
-import { clampNumber } from "../utils/numbers.js?v=2609260946";
+import { clampNumber } from "../utils/numbers.js?v=2609262221";
 
 /**
  * 数字输入框的「上 / 下一步进」唯一实现：原生 `stepUp()` / `stepDown()` 会连带触发浏览器的
