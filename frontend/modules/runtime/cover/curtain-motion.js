@@ -9,13 +9,17 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260946";
-// 未绑定窗帘的默认开合度：唯一实现在 utils/cover-features.js，经 core/static-helpers.js 取值 ——
-// runtime 资源挂在 /api/v1/modules/interaction3d/ 下，直接写相对路径会 404（见该文件的说明）。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../core/static-helpers.js?v=2609260946";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609262221";
+// 未绑定窗帘的默认开合度、开合方向解析：唯一实现在 utils/cover-features.js，经
+// core/static-helpers.js 取值 —— runtime 资源挂在 /api/v1/modules/interaction3d/ 下，
+// 直接写相对路径会 404（见该文件的说明）。方向解析面板示意图也要用，故不能留在这里私藏。
+import {
+  COVER_DEFAULT_PREVIEW_POSITION,
+  resolveCoverDirection
+} from "../core/static-helpers.js?v=2609262221";
 // 系统「减少动态效果」偏好的唯一判定（实现见 core/motion-preference.js）：命中时姿态直接到位、
 // 不做 420ms 插值。垂帘与卷帘共用同一个判定，保证两种帘型在无障碍设置下表现一致。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260946";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609262221";
 
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
@@ -29,13 +33,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609260946",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609262221",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609260946"));
-/** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
-const DIRECTION_SET = new Set(["left", "right", "split"]);
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609262221"));
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
 const CLOTH_PART_SET = new Set(["cloth", "band"]);
 /** 组成一整套窗帘骨架的局部类型：轨道、端盖，以及上面的布面与帘头。 */
@@ -53,10 +55,13 @@ const MIN_PANEL_SCALE = 0.12;
 /** 布面褶皱间距（米）：普通布帘每 15cm 一道褶。 */
 const CLOTH_FOLD_SPACING_METERS = 0.15;
 /**
- * 卷帘（roller）形态令牌。与 3d-studio/loaders/studio-curtain-track.js 的 CURTAIN_STYLE_ROLLER
- * 同值：帘型是模型属性（curtainStyle），不是交互配置，后端 coverKind 不认它。
+ * 卷帘（coverKind=roller）令牌。与 3d-studio/loaders/studio-curtain-track.js 的
+ * CURTAIN_FORM_ROLLER 同值：帘型默认取户型模型属性（curtainForm，兼容历史 curtainStyle），
+ * 编辑器里显式覆写（coverKindOverride）后由交互配置的 coverKind 胜出 ——
+ * 后端 coverKind 现在也接受 roller；解析在 core/stage/geometry.js 里一次做完，
+ * 本模块只认绑定上的 coverKind 三选一（standard / roller / dream）。
  */
-const CURTAIN_STYLE_ROLLER = "roller";
+const COVER_KIND_ROLLER = "roller";
 /**
  * 卷帘几何常量：全部与工作室 createRollerCurtain 逐值一致，
  * 否则「3D 工作室里看到的卷帘」与「运行时的卷帘」会停在不同的半径 / 高度上。
@@ -75,12 +80,6 @@ const ROLLER_HIDDEN_HEIGHT_METERS = 0.0001;
 /** 布料类型：sheer 为纱（更透、褶皱更密），其余一律按 cloth 处理。 */
 const resolveCurtainFabric = fabricBinding =>
   fabricBinding.curtainFabric === "sheer" ? "sheer" : "cloth";
-/**
- * 归一帘型：只有显式的 "roller" 才算卷帘，其余（含缺失 / 非法值）一律按垂帘 cloth 处理。
- * 与工作室 normalizeCurtainTrack 的兜底一致 —— 老模型没有这个字段时行为与新增之前逐值相同。
- */
-const resolveCurtainStyle = styleBinding =>
-  styleBinding.curtainStyle === CURTAIN_STYLE_ROLLER ? CURTAIN_STYLE_ROLLER : "cloth";
 /**
  * 未绑定实体时使用的固定开合位置（0–100）。
  * 非法或缺失一律按 COVER_DEFAULT_PREVIEW_POSITION（默认「打开」）：与「窗帘默认处于打开状态」一致。
@@ -114,22 +113,11 @@ const resolveFoldCount = widthBinding =>
       96,
       Math.round(
         (Number(widthBinding.curtainWidth) || 1.8) /
-          (resolveCurtainDirection(widthBinding) === "split" ? 2 : 1) /
+          (resolveCoverDirection(widthBinding) === "split" ? 2 : 1) /
           (resolveCurtainFabric(widthBinding) === "sheer" ? 0.1 : CLOTH_FOLD_SPACING_METERS)
       )
     )
   );
-/**
- * 取开合方向。
- *
- * coverDirection 是新字段，curtainPosition 是历史字段，两者都不合法时按对开处理。
- */
-const resolveCurtainDirection = directionBinding =>
-  DIRECTION_SET.has(directionBinding.coverDirection)
-    ? directionBinding.coverDirection
-    : DIRECTION_SET.has(directionBinding.curtainPosition)
-      ? directionBinding.curtainPosition
-      : "split";
 /** 取归一化状态里的位置；非有限数值返回 null，表示「位置未知」。 */
 const resolveStatePosition = receivedState =>
   typeof receivedState?.position == "number" && Number.isFinite(receivedState.position)
@@ -550,7 +538,7 @@ export function createCurtainMotion({
       panels: [],
       // 卷帘不隐藏任何原生局部（面板 / 卷管 / 底杆都要留着驱动），originals 为空。
       originals: new Map(),
-      direction: resolveCurtainDirection(binding),
+      direction: resolveCoverDirection(binding),
       position: null,
       target: null,
       motionFrom: null,
@@ -564,7 +552,7 @@ export function createCurtainMotion({
    */
   function createRig(model, binding, located) {
     // 卷帘走单独的骨架：驱动模型自身的帘布 / 卷管 / 底杆，不生成褶皱几何。
-    if (binding.curtainStyle === CURTAIN_STYLE_ROLLER) {
+    if (binding.coverKind === COVER_KIND_ROLLER) {
       const rollerRig = createRollerRig(model, binding, located);
       if (rollerRig) {
         return rollerRig;
@@ -690,7 +678,7 @@ export function createCurtainMotion({
       material: panelMaterial,
       // 记录被隐藏的原生局部的原始可见性，便于销毁时精确还原。
       originals: new Map(coveredParts.map(sourcePart => [sourcePart, sourcePart.visible])),
-      direction: resolveCurtainDirection(binding),
+      direction: resolveCoverDirection(binding),
       position: null,
       target: null,
       motionFrom: null,
@@ -920,14 +908,15 @@ export function createCurtainMotion({
         modelId: String(rawBinding.modelId),
         // 帘宽默认 1.8 米，用于推算褶皱数。
         curtainWidth: Number(rawBinding.curtainWidth) > 0 ? Number(rawBinding.curtainWidth) : 1.8,
-        // coverDirection 默认 "auto"：不在 DIRECTION_SET 里，因此会继续回落到 curtainPosition。
+        // coverDirection 默认 "auto"：不在合法方向集合里，因此会继续回落到 curtainPosition。
         coverDirection: rawBinding.coverDirection || "auto",
         curtainPosition: rawBinding.curtainPosition || "split",
-        coverKind: rawBinding.coverKind === "dream" ? "dream" : "standard",
+        coverKind: ["dream", "roller"].includes(rawBinding.coverKind)
+          ? rawBinding.coverKind
+          : "standard",
         ...normalizeTrack(rawBinding),
-        // 帘型是模型属性（见 core/stage/geometry.js 的 resolveCurtainGeometry），这里与 curtainFabric
-        // 同一层显式落键：缺失 / 非法一律归一成 cloth，卷帘才进 roller。
-        curtainStyle: resolveCurtainStyle(rawBinding),
+        // 帘型不再另起字段：绑定上的 coverKind 就是唯一答案（判定已在 core/stage/geometry.js
+        // 的 resolveCurtainGeometry 里做完，覆写优先级也在那里），这里只保证三选一。
         curtainFabric: resolveCurtainFabric(rawBinding),
         unboundPosition: resolveUnboundPosition(rawBinding)
       }));
@@ -1009,9 +998,9 @@ export function createCurtainMotion({
       if (
         existingRig &&
         existingRig.dream === (entry.binding.coverKind === "dream") &&
-        // 帘型必须一致：cloth 与 roller 的骨架结构完全不同（一个是自建褶皱布面，
+        // 帘型必须一致：standard 与 roller 的骨架结构完全不同（一个是自建褶皱布面，
         // 一个是模型自带平面 / 卷管 / 底杆），漏了这一项就会把旧骨架张冠李戴地复用。
-        existingRig.rollerStyle === (entry.binding.curtainStyle === CURTAIN_STYLE_ROLLER) &&
+        existingRig.rollerStyle === (entry.binding.coverKind === COVER_KIND_ROLLER) &&
         (!existingRig.track ||
           JSON.stringify([
             normalizeTrack(existingRig.binding),
@@ -1061,7 +1050,7 @@ export function createCurtainMotion({
         }
         applyRigPose(nextRig);
       }
-      const nextDirection = resolveCurtainDirection(entryBinding);
+      const nextDirection = resolveCoverDirection(entryBinding);
       if (nextRig.binding.entityId !== entryBinding.entityId) {
         resetRigMotion(nextRig);
       }

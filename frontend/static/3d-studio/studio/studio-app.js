@@ -2,7 +2,9 @@
  * 3D 户型工作室主脚本，全工作室唯一的编排层：平面绘制、three.js 三维呈现、
  * 文档持久化（650ms 防抖自动保存 + revision 乐观并发）与多楼层导出。
  * 后端契约：GET/PUT /api/v1/studio3d 以 revision 做乐观并发，不一致返回 409
- * （body 带 currentRevision），前端弹冲突框让用户选，绝不静默覆盖；导出走
+ * （body 带 currentRevision），前端弹冲突框让用户选，绝不静默覆盖；删除仍被 3D 控件绑定的
+ * 模型时服务端要求先确认影响，前端用 PUT /studio3d?dryRun=1 预检（只算不写、回 200）把确认框
+ * 提前弹出来，避免正常路径先去撞一次 428；导出走
  * /studio3d/exports，目标文件夹由 x-export-folder 头指定；只读模式下
  * requestStudioApi 直接拒绝写请求。
  * 平面坐标是底图像素（pixelsPerMeter 唯一换算系数，未标定取 0 并处处兜底），
@@ -15,20 +17,20 @@ import {
   curtainPanelRanges,
   addRollerCurtain,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609260946";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609260946";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609260946";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609260946";
+} from "../loaders/studio-curtain-track.js?v=2609262221";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609262221";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609262221";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609262221";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609260946";
-import { paletteColor } from "../../utils/colors.js?v=2609260946";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609260946";
+} from "../../shared/menu-positioning.js?v=2609262221";
+import { paletteColor } from "../../utils/colors.js?v=2609262221";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609262221";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609260946";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609260946";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609262221";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609262221";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -45,10 +47,10 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609260946";
+} from "./studio-item-types.js?v=2609262221";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609260946";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609262221";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
@@ -56,31 +58,38 @@ import {
   createMuralArtTexture,
   createFeatureWallTexture,
   createStoneSlabTexture
-} from "../materials/studio-surface-textures.js?v=2609260946";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609260946";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609260946";
+} from "../materials/studio-surface-textures.js?v=2609262221";
+// 逐物件「材质风格」的质感层：与外部模型那一路（studio-external-models.js 的 resolveSharedMaterial）
+// 共用同一份取图函数，占位几何与加载后的成品才是同一种纹路。柱体的饰面档位（大理石 / 木饰面 /
+// 木格栅…）在两条路上都要能看出来，否则模型到位的一瞬间纹路会整片消失。
+import {
+  createMaterialSurfaceTexture,
+  hasMaterialSurfaceTexture
+} from "../materials/studio-surface-fabrics.js?v=2609262221";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609262221";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609262221";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609260946";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609260946";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609260946";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609260946";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609260946";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609260946";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609260946";
+} from "./studio-camera-constraints.js?v=2609262221";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609262221";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609262221";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609262221";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609262221";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609262221";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609262221";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609260946";
+} from "../materials/studio-wall-materials.js?v=2609262221";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
   applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609260946";
+} from "./studio-scene-style.js?v=2609262221";
 // 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
 // 因此逐物件选择优先于全局风格（见 studio-material-styles.js 的模块头）。
 import {
@@ -88,48 +97,58 @@ import {
   MATERIAL_STYLE_ITEM_TYPES,
   isMaterialStyleCapable,
   materialStyleOptionsFor,
+  materialStyleAutoLabel,
   normalizeMaterialStyle,
   applyMaterialStyle
-} from "./studio-material-styles.js?v=2609260946";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609260946";
+} from "./studio-material-styles.js?v=2609262221";
+// 逐「门」的材质档位：门不是物件（scene.doors 里的建筑附件），所以不放上面那张按物件类型对账的
+// 表里，单独一份数据 + 纯函数（见 studio-door-materials.js 的模块头）。
+import {
+  DOOR_MATERIAL_AUTO,
+  doorMaterialAutoLabel,
+  doorMaterialOptionsFor,
+  findDoorMaterial,
+  normalizeDoorMaterial
+} from "./studio-door-materials.js?v=2609262221";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609262221";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609260946";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609260946";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609260946";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609260946";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609260946";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609260946";
+} from "../../bridge/render-cache.js?v=2609262221";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609262221";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609262221";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609262221";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609262221";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609262221";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609260946";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609262221";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609260946";
+import { debugLog } from "../../utils/debug-log.js?v=2609262221";
 // 首屏分段埋点（`[3D-load]`）：开关与出口都在 utils/debug-log.js，本文件只负责在链上打点。
-import { createLoadTiming } from "../../bridge/load-timing.js?v=2609260946";
+import { createLoadTiming } from "../../bridge/load-timing.js?v=2609262221";
 // 舞台页的提前起跑（舞台页里非 null）：它已经替我们读过场景持久缓存、发过场景接口请求、
 // 开始下载 stage 模块 —— 三件事都直接复用，绝不再做第二遍。
-import { stageStartup } from "../stage-startup.js?v=2609260946";
+import { stageStartup } from "../stage-startup.js?v=2609262221";
 // 场景持久缓存：把「归一后的场景文档」跨会话存起来，舞台页二次打开时跳过整段逐层归一。
-import { prepareSceneDocument } from "../scene-persistent-cache.js?v=2609260946";
+import { prepareSceneDocument } from "../scene-persistent-cache.js?v=2609262221";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609260946";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609262221";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609260946";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609262221";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609260946";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609260946";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609262221";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609262221";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609260946";
+} from "../../bridge/light-motion.js?v=2609262221";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -169,7 +188,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609260946";
+} from "../plan/geometry.js?v=2609262221";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -178,14 +197,14 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609260946";
+} from "../export/export-utils.js?v=2609262221";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 // 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609260946";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609260946";
+} from "../../shared/layout-shell.js?v=2609262221";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609262221";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -193,25 +212,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609260946";
-import { reorderFloors } from "../plan/floor-order.js?v=2609260946";
-import { syncControlValue } from "./ui-controls.js?v=2609260946";
+} from "../export/export-presets.js?v=2609262221";
+import { reorderFloors } from "../plan/floor-order.js?v=2609262221";
+import { syncControlValue } from "./ui-controls.js?v=2609262221";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609260946";
+} from "./studio-widgets.js?v=2609262221";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609260946";
+} from "../loaders/studio-external-models.js?v=2609262221";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609260946";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609260946";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609260946";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609260946";
+} from "../plan/studio-plan-drawing.js?v=2609262221";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609262221";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609262221";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609262221";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -224,7 +243,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609260946";
+} from "../loaders/studio-normalization.js?v=2609262221";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -277,11 +296,12 @@ const PLAN_DONE = () => paletteColor("--done", STUDIO_ECO_FALLBACK);
 // 这三枚原先都是在画布上直接写十六进制。2D canvas 拿不到 CSS 变量，所以「写死」曾经是
 // 唯一的路；改成调用 paletteColor 之后，管理员换主控色 / 换主题时它们会一起走。
 // paletteColor 内部按令牌名缓存（utils/colors.js），在每帧的重绘路径上调用没有额外开销。
-const STUDIO_LABEL_FALLBACK = "#8d989f";
+const STUDIO_LABEL_FALLBACK = "#f1f7fb";
 const STUDIO_PAPER_FALLBACK = "#0b0f12";
 const STUDIO_HANDLE_FALLBACK = "#141a20";
-/** 户型图的标签文字（画布 2D 与标签贴图共用一枚取值）。原来是 #929baa。 */
-const PLAN_LABEL = () => paletteColor("--hos-tool-muted-dim", STUDIO_LABEL_FALLBACK);
+/** 户型图铭牌的文字（画布 2D 与标签贴图共用一枚取值）。原先取 --hos-tool-muted-dim（#8d989f），
+    压在深色楼板上太灰；改取工具面最亮一档文字色 --hos-tool-ink（#f1f7fb，近白），与主题一致。 */
+const PLAN_LABEL = () => paletteColor("--hos-tool-ink", STUDIO_LABEL_FALLBACK);
 /** 户型画布的「纸」底色（导出与截图时先把整张画布铺满它）。原来是 #0d1319。 */
 const PLAN_PAPER = () => paletteColor("--hos-tool-bg", STUDIO_PAPER_FALLBACK);
 /** 选中框的角点手柄与旋转手柄的**填充**（外描边走 PLAN_ACCENT 的琥珀）。原来是 #111820。 */
@@ -429,6 +449,7 @@ const saveInteractionDialogElement = selectElement("#save-interaction-dialog");
 const saveInteractionMessageElement = selectElement("#save-interaction-message");
 const saveInteractionProjectsElement = selectElement("#save-interaction-projects");
 const saveInteractionImpactsElement = selectElement("#save-interaction-impacts");
+const saveInteractionSummaryElement = selectElement("#save-interaction-summary");
 const saveInteractionConfirmButton = selectElement("#save-interaction-confirm");
 const saveInteractionKeepButton = selectElement("#save-interaction-keep");
 const saveInteractionReopenButton = selectElement("#save-interaction-reopen");
@@ -1029,10 +1050,13 @@ const ITEM_TYPE_DEFINITIONS = {
     width: 1.5,
     depth: 0.35,
     height: 0.82,
-    // 离地 1.6m：吊柜是挂墙件，几何从 y = 0 起、整件靠 elevation 抬起。1.6 是这件的**默认挂高**
-    // （柜底离地），也是「吊柜下面正好放得下台面 + 常用操作空间」的那条常用位置；
-    // 占位几何与流水线模型都不含这个高度，只由这里给 —— 两边各写一份就会抬两次。
-    elevation: 1.6,
+    // **这里没有 elevation**：吊柜的挂高（柜底离地 1.4m）烘在几何里 —— 流水线规格的 mountHeight
+    // （导出时整件抬起 1.4，成品几何 y ∈ [1.4, 2.22]）与占位几何的 `wallCabinetMountHeight` 同值。
+    // 物件自己的 elevation 是**在这之上再加的偏移**（默认 0），与**原版**同一个口径：原版那台吊柜
+    // 资产的柜底也在 1.378m，而它的 ITEM_TYPE_DEFINITIONS.wallcabinet 里同样没有 elevation。
+    // 两边必须一致，否则同一个草稿在另一个程序里会被抬两次 —— 本仓把挂高留在这一格的那一版
+    // （037cd779 写 1.6，后来回调到 1.4）就是这样：草稿在原版里比本仓高出一个挂高。
+    // 老草稿的这一格由 normalizeScene 换算（见那里的 wallCabinet 迁移）。
     color: "#9a806c"
   },
   kitchenbase: {
@@ -1066,6 +1090,17 @@ const ITEM_TYPE_DEFINITIONS = {
     depth: 0.72,
     height: 1.85,
     color: "#b8c3c8"
+  },
+  freezer: {
+    // 卧式冰柜：占地方向是「宽 × 深」的长边在前，与它顶开盖的造型一致。
+    // 三轴必须与 tools/models/model-specs.mjs 的 size 及 studio-external-models.js 的
+    // scaleBasis 逐值相等 —— 运行侧按 scaleBasis 非等比缩放，这里少一条就会「加了但点不出来」。
+    name: "冰柜",
+    glyph: "▭",
+    width: 1.05,
+    depth: 0.6,
+    height: 0.85,
+    color: "#454c54"
   },
   storagewaterheater: {
     name: "储水式热水器",
@@ -1698,7 +1733,8 @@ const ITEM_TYPE_DEFINITIONS = {
   kitchenisland: {
     name: "岛台",
     glyph: "▭",
-    width: 1.6,
+    // 宽 2.4 与 studio-external-models.js 的 scaleBasis 逐值相等：高台 0.8 + 低台（伸缩餐台）1.6。
+    width: 2.4,
     depth: 0.8,
     height: 0.9,
     color: "#cdd2d6"
@@ -2117,7 +2153,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609260946"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609262221"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -2348,6 +2384,7 @@ const BATCH_MERGE_ITEM_TYPES = new Set([
   "kitchensink",
   "kitchencooktop",
   "fridge",
+  "freezer",
   "washer",
   "dryer",
   "dishwasher",
@@ -2509,12 +2546,27 @@ const {
  * 与文档级的 `schemaVersion`（`normalizeStudioDocument` 读写的那一个）是两套独立命名空间，
  * 各自递增：本值由 `normalizeScene` 读取，只用于迁移「每层的绘制数据」——墙、门窗、物件。
  * 历史：1 之前为初版；2 起修正了条灯的横竖朝向；3 起窗帘「预览打开」的默认值由关闭改为全开；
- * 4 起该默认值从全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）。
+ * 4 起该默认值从全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）；5 起吊柜默认挂高从 1.6 回调到
+ * 1.4；6 起吊柜的挂高**退回原版口径**——1.4 改回烘进几何（类型定义里不再有 elevation），老草稿
+ * 那一格里的「柜底离地绝对值」换算成「额外偏移」（见 normalizeScene 里的 wallCabinet 迁移）。
+ *
+ * **每次加一条迁移就必须 +1**：下面的迁移判据都是 `schemaVersion < 本值`，不涨的话新迁移会
+ * 在老档上反复生效（用户手改的值第二天又被改回去）。反过来，**已经定稿的迁移不能再跟着本值涨**
+ * —— 见 CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION 的说明。
  *
  * 必须声明在 createEmptyScene / normalizeScene 的**调用点之前**：`activeScene` 的初始化就在下面
  * 几行，而它经 createEmptyScene 读本常量，放晚了会撞上 const 的暂时性死区。
  */
-const FLOOR_SCENE_SCHEMA_VERSION = 4;
+const FLOOR_SCENE_SCHEMA_VERSION = 6;
+
+/**
+ * 窗帘「预览打开」默认值定稿的那一版（= 第 4 版）。
+ *
+ * 这条迁移不跟 `FLOOR_SCENE_SCHEMA_VERSION`：它的判据是「文档写在默认值定稿之前」，而定稿之后
+ * 存进去的 `100` 是**用户主动选的**。跟本值涨的写法在只加一条新迁移时就会把那些 100 当成旧默认
+ * 再改一遍（静默抹掉用户选择），所以阈值钉死在定稿那一版上。
+ */
+const CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION = 4;
 
 // 本文件的状态集中在下面这段 let 里（没有状态容器对象）：绘制 / 预览 / 导出三处回调都要
 // 就地读写，封装成 store 反而要在热点路径上多做一次取值。
@@ -2585,9 +2637,10 @@ let saveConflict = null;
 // 但它不再停掉自动保存 —— 停掉之后界面一切正常，用户会一直以为在存，
 // 直到刷新页面才发现这一段的改动没了。
 let saveConflictDeferred = false;
-// 428「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、改回 428
-// 并附上绑定到「当前 revision + 新场景 + 现有文档 + 本次影响」的令牌。这里存下待确认的计划与
-// **当时**的 revision / 场景快照 —— 确认重发必须原样带回去，令牌才对得上。
+// 「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、先要一次确认
+// （编辑器用 PUT ?dryRun=1 预检，428 为兜底），并附上绑定到「当前 revision + 新场景 + 现有文档 +
+// 本次影响」的令牌。这里存下待确认的计划与**当时**的 revision / 场景快照 —— 确认重发必须原样带
+// 回去，令牌才对得上。
 let saveInteractionConfirmation = null;
 // 「保留模型」：收起对话框但记录留着（本地删除与撤销栈一点不动、也绝不按未确认的计划清理）。
 // 与 409 的「稍后处理」同义，是这条流程里唯一不丢东西的出口。
@@ -2694,10 +2747,17 @@ const MAX_PRECOMPILE_PLAN_COUNT = 16;
  * 两步都直接归到当前默认值（COVER_DEFAULT_PREVIEW_POSITION），不必先走一遍 100 再降一次。
  * 只有 0（版本 2 及以前）与 100 这两个「已知默认值」会被改写，其余值原样保留；
  * 迁移只做一次：归一化后的文档会带上当前版本号，之后用户手动改的值不会再被动到。
+ *
+ * 阈值取 `CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION`（定稿那一版）而**不是**活的
+ * `FLOOR_SCENE_SCHEMA_VERSION` —— 后者每加一条新迁移就 +1，跟着它涨会把定稿之后存进去的
+ * `100`（那是用户主动选的）再当成旧默认改一遍。见该常量的说明。
  * 字段本身缺失时不在此处理 —— `normalizeCurtainTrack` 已把「未设置」按当前默认值处理。
  */
 function migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion) {
-  if (sourceItemRecord?.type !== "curtain" || schemaVersion >= FLOOR_SCENE_SCHEMA_VERSION) {
+  if (
+    sourceItemRecord?.type !== "curtain" ||
+    schemaVersion >= CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION
+  ) {
     return sourceItemRecord;
   }
   const legacyCurtainPreview = finite(sourceItemRecord.curtainPreview, NaN);
@@ -3645,19 +3705,26 @@ function normalizeScene(raw) {
     : [];
   const normalizedDoors = Array.isArray(raw.doors)
     ? raw.doors
-        .map(rawDoor => ({
-          id: String(rawDoor?.id || createId("door")),
-          wallId: String(rawDoor?.wallId || ""),
-          t: clamp(finite(rawDoor?.t, 0.5), 0, 1),
-          width: clamp(finite(rawDoor?.width, 0.9), 0.55, 20),
-          height: clamp(finite(rawDoor?.height, 2.1), 1.8, 20),
-          sill: 0,
-          doorType: Object.hasOwn(DOOR_TYPE_DIMENSIONS, rawDoor?.doorType)
+        .map(rawDoor => {
+          // 门型要先定下来：材质档位的合法性按门型判（玻璃档位只在玻璃门型上算数），
+          // 门型从玻璃门改成实心门时，存着的那一格玻璃档位会在这一步被归一到 auto。
+          const doorType = Object.hasOwn(DOOR_TYPE_DIMENSIONS, rawDoor?.doorType)
             ? rawDoor.doorType
-            : "solid",
-          hinge: rawDoor?.hinge === "right" ? "right" : "left",
-          swing: rawDoor?.swing === -1 ? -1 : 1
-        }))
+            : "solid";
+          const normalizedDoor = {
+            id: String(rawDoor?.id || createId("door")),
+            wallId: String(rawDoor?.wallId || ""),
+            t: clamp(finite(rawDoor?.t, 0.5), 0, 1),
+            width: clamp(finite(rawDoor?.width, 0.9), 0.55, 20),
+            height: clamp(finite(rawDoor?.height, 2.1), 1.8, 20),
+            sill: 0,
+            doorType: doorType,
+            hinge: rawDoor?.hinge === "right" ? "right" : "left",
+            swing: rawDoor?.swing === -1 ? -1 : 1
+          };
+          applyDoorMaterialStyle(normalizedDoor, doorType, rawDoor?.materialStyle);
+          return normalizedDoor;
+        })
         .filter(validDoor => wallIds.has(validDoor.wallId))
     : [];
   const normalizedRailings = Array.isArray(raw.railings)
@@ -3786,14 +3853,31 @@ function normalizeScene(raw) {
             Math.abs(depth - 0.45) < 0.01 &&
             Math.abs(height - 1.8) < 0.01;
           const isRugLegacyHeight = sourceItemRecord?.type === "rug" && height >= 0.045;
-          // 吊柜：旧档里的「离地 0」是**旧默认值**，不是用户意图 —— 那时的 1.4 挂在占位几何的
-          // 构造器里（`wallCabinetShelfY = 1.4 + …`），物件的 elevation 字段始终存 0，检查器上
-          // 那一格填多少都会叠加在 1.4 上（填 1.6 得到 3.0）。构造器改成 0 基之后，这些旧档会
-          // 整件落到地上；而吊柜无腿、只靠挂墙件悬空，「离地 0」在实物上不成立，所以照旧档里
-          // 其他「旧尺寸 / 旧高度」的做法，把这一格换成类型默认的 1.6。用户在检查器里改过的
-          // 非零值一律原样保留（那一格现在就是真离地高度）。
-          const isWallCabinetLegacyElevation =
-            sourceItemRecord?.type === "wallcabinet" && !(Number(sourceItemRecord?.elevation) > 0);
+          // 吊柜的挂高在 037cd779 之后被搬进过 elevation（那一版的默认值 1.6，后来回调成 1.4），
+          // 现在又退回**原版口径**：挂高（柜底 1.4m）烘在几何里，elevation 只存「在这之上再加的
+          // 偏移」（默认 0，见 ITEM_TYPE_DEFINITIONS.wallcabinet）。于是老档（没带过当前版本号的）
+          // 要换一次单位 —— 那一格存的本来是**柜底离地**的绝对值：
+          //   1.4 / 1.6 = 那两版自动写进去的默认值，不带用户意图 → 归 0（= 原版默认挂高）；
+          //   < 0.5     = 吊柜贴着地放不成立，只可能是更早那一版的「额外偏移」→ 原样保留；
+          //   其余      = 0 基时代的柜底离地绝对值 → 减去烘进几何的那一段。
+          // 那一段随物件高度等比缩放（scaleBasis 的高 0.82），所以按 height / 0.82 折算 ——
+          // 不折算的话把 1.0m 高的吊柜（底 1.7）搬到新口径会整件再顶高 30cm、顶到天花板上。
+          // 与窗帘那条一样有取舍：写进配置的值分不清「当时的默认」与「用户主动选的」，所以
+          // 「手改过 1.4 / 1.6」也会被归位 —— 判据只认这两个确切的旧默认值。
+          const isLegacyWallCabinetElevation =
+            sourceItemRecord?.type === "wallcabinet" &&
+            schemaVersion < FLOOR_SCENE_SCHEMA_VERSION;
+          let wallCabinetElevation = finite(sourceItemRecord?.elevation, 0);
+          if (isLegacyWallCabinetElevation) {
+            if (
+              Math.abs(wallCabinetElevation - 1.4) < 0.005 ||
+              Math.abs(wallCabinetElevation - 1.6) < 0.005
+            ) {
+              wallCabinetElevation = 0;
+            } else if (wallCabinetElevation >= 0.5) {
+              wallCabinetElevation -= 1.4 * (height / 0.82);
+            }
+          }
           const isSmallDownlight =
             sourceItemRecord?.type === "downlight" && width < 0.3 && depth < 0.3;
           const isNarrowPiano = sourceItemRecord?.type === "piano" && depth < 1;
@@ -3852,8 +3936,8 @@ function normalizeScene(raw) {
                 ? typeDefaults.height
                 : height,
             elevation: clamp(
-              isWallCabinetLegacyElevation
-                ? typeDefaults.elevation || 0
+              isLegacyWallCabinetElevation
+                ? wallCabinetElevation
                 : finite(sourceItemRecord?.elevation, typeDefaults.elevation || 0),
               0,
               6
@@ -5795,16 +5879,25 @@ function setSaveInteractionPendingUi(hasPendingInteraction) {
   saveInteractionReopenButton.hidden = !hasPendingInteraction;
 }
 /**
- * 渲染对话框内容：服务端 message + 受影响的仪表盘名 + 每条绑定所在项目 / 控件的 label。
+ * 渲染对话框内容：服务端 message + 本次影响规模 + 受影响的仪表盘名 + 每条绑定所在项目 / 控件的 label。
  * 全部走 textContent：label 与仪表盘名都是用户数据，绝不能用 innerHTML 拼。
+ * projects / impacts 都按「可能缺失或不是数组」处理：428 的明细来自服务端，缺一项也只该少显示一行，
+ * 不该让渲染抛错把整个确认流程卡死（那正是「弹窗内容不全」最坏的形态）。
  */
 function renderSaveInteractionDialog(confirmation) {
+  const impactedProjects = Array.isArray(confirmation.projects)
+    ? [...new Set(confirmation.projects)]
+    : [];
+  const impactedBindings = Array.isArray(confirmation.impacts) ? confirmation.impacts : [];
   saveInteractionMessageElement.textContent =
     confirmation.message || "删除的模型被 3D 控件引用，保存将一并移除这些绑定。";
-  saveInteractionProjectsElement.textContent =
-    [...new Set(confirmation.projects)].join("、") || "—";
+  saveInteractionSummaryElement.textContent =
+    "共影响 " + impactedProjects.length + " 个仪表盘、" + impactedBindings.length + " 项交互绑定。";
+  saveInteractionProjectsElement.textContent = impactedProjects.join("、") || "—";
+  // 没有明细时收起列表，别在弹窗里留一个空边框盒子。
+  saveInteractionImpactsElement.hidden = !impactedBindings.length;
   saveInteractionImpactsElement.replaceChildren(
-    ...confirmation.impacts.map(impact => {
+    ...impactedBindings.map(impact => {
       const impactItem = document.createElement("li");
       impactItem.textContent = impact.label || impact.componentId || impact.projectId || "";
       return impactItem;
@@ -5812,22 +5905,26 @@ function renderSaveInteractionDialog(confirmation) {
   );
 }
 /**
- * 记录 428「删除影响未确认」，并按需弹确认对话框。record 里存的是服务端令牌与**发起这次保存时**
+ * 记录「删除影响未确认」，并按需弹确认对话框。record 里存的是服务端令牌与**发起这次保存时**
  * 捕获的 revision / 场景快照：确认重发必须原样复用它俩（令牌是它们算出来的哈希），任何一处换了
  * 都落不到同一份计划。scene 必须是那次请求体里**原样发出去的那个对象**，不能在 catch 里重取快照。
- * 未确认期间（且用户没选「保留模型」）saveStudioDraft 会跳过自动保存，避免每 500ms 撞一次 428 的
- * 空转；「处理删除影响」按钮始终可见，所以跳过不是用户看不见的状态。
- * @param {object} payload 428 的 detail。
+ * 未确认期间（且用户没选「保留模型」）saveStudioDraft 会跳过自动保存，避免反复撞同一份未确认计划；
+ * 「处理删除影响」按钮始终可见，所以跳过不是用户看不见的状态。
+ * @param {object} payload 预检（PUT ?dryRun=1 的 200 响应体）或 428 的 detail（服务端 428
+ *   响应体 {"detail": {...}} 里的那一层）。两条路径字段同构，故共用这一处处理。
  * @param {number} revision 服务器草稿版本（乐观并发用）。
  * @param {object} scene 那次请求发出的场景快照。
  * @param {number} localRevision 该快照对应的本地 changeRevision，确认时据此判断场景是否已过期。
  */
 function handleSaveInteractionConfirmation(payload, revision, scene, localRevision, { reopenDialog = true } = {}) {
+  // 容一次「调用方误传整包响应体」：真传错时 token 会被读成空串，确认重发永远撞回 428 —— 正是
+  // 用户侧表现为「弹窗项目名是 —、明细空白，点确认也存不进去」的那个故障。这里兜底以免再犯。
+  const detail = payload?.detail && typeof payload.detail === "object" ? payload.detail : payload;
   saveInteractionConfirmation = {
-    token: payload?.token || "",
-    message: payload?.message || "",
-    impacts: Array.isArray(payload?.impacts) ? payload.impacts : [],
-    projects: Array.isArray(payload?.projects) ? payload.projects : [],
+    token: detail?.token || "",
+    message: detail?.message || "",
+    impacts: Array.isArray(detail?.impacts) ? detail.impacts : [],
+    projects: Array.isArray(detail?.projects) ? detail.projects : [],
     revision: revision,
     scene: scene,
     localRevision: localRevision
@@ -5840,7 +5937,26 @@ function handleSaveInteractionConfirmation(payload, revision, scene, localRevisi
   }
 }
 /**
- * 「保留模型」：收起对话框，但确认记录留着、本地删除与撤销栈一点不动 —— 用户随时可以 Ctrl/Cmd+Z
+ * 「保留模型」：撤销这次删除，把模型放回原位 —— 模型回来后那几条绑定重新成立，保存自然通过。
+ * 与参考实现的「撤销删除」同义。对话框是模态的，弹出期间用户改不了场景，所以撤销栈顶就是
+ * 删除前那一刻的快照，undo() 恰好只回退这次删除；若栈已空（删除被后续编辑挤出栈）则没有
+ * 「放回去」可言，退回与「稍后处理」同义的挂起态：只收起对话框，内容一点不丢，常驻入口仍在。
+ */
+async function keepModelForInteraction() {
+  if (!saveInteractionConfirmation) {
+    saveInteractionDialogElement.close();
+    return;
+  }
+  if (!undoStack.length || historyBusy) {
+    deferSaveInteraction();
+    return;
+  }
+  // 先清记录再撤销：撤销末尾会 markDocumentDirty 触发保存，那时不该再被判成「未确认」而跳过。
+  resolveSaveInteraction();
+  await undo();
+}
+/**
+ * 「稍后处理」：收起对话框，但确认记录留着、本地删除与撤销栈一点不动 —— 用户随时可以 Ctrl/Cmd+Z
  * 撤销这次删除（模型回来后保存自然通过），也可以点常驻入口回来确认。这是这条流程里唯一不丢东西的
  * 出口，与 409 的「稍后处理」同义。
  */
@@ -5911,7 +6027,7 @@ async function confirmSaveInteraction() {
       // 期间场景或关联仪表盘变了：服务端回了新令牌，重新弹框（更新令牌），绝不静默重试。
       // revision / scene / localRevision 都沿用同一份捕获值：我们重发的仍是那一份内容。
       handleSaveInteractionConfirmation(
-        saveRequestError.payload,
+        saveRequestError.payload?.detail,
         confirmation.revision,
         confirmation.scene,
         confirmation.localRevision,
@@ -5951,6 +6067,84 @@ async function confirmSaveInteraction() {
   }
 }
 /**
+ * 取出一份文档快照里「可能被 3D 控件绑定指向」的物件身份集合。口径与服务端
+ * backend/modules/interaction3d/studio_cleanup.py 的 identities() 一致：楼层场景的
+ * items（kind=model）、lightGroups（kind=light），以及 doors（ID 带 `door:` 前缀）。
+ *
+ * 这里只用来回答「这次保存是不是删掉了物件」，据此决定要不要先向服务端要一份影响清单
+ * （见 requestInteractionConfirmationIfNeeded）。判错不会出错：多判只是多一次预检；漏判
+ * 时那条路会落回服务端 428 的既有分支，确认框照样会弹。
+ */
+function documentBindingIdentities(documentSnapshot) {
+  const identities = new Set();
+  for (const floorRecord of documentSnapshot?.floors || []) {
+    const floorId = floorRecord?.id;
+    const floorScene = floorRecord?.scene;
+    if (!floorId || !floorScene) {
+      continue;
+    }
+    for (const [identityKind, collectionField] of [["model", "items"], ["light", "lightGroups"]]) {
+      for (const listedItem of floorScene[collectionField] || []) {
+        if (listedItem?.id) {
+          identities.add(floorId + "|" + identityKind + "|" + listedItem.id);
+        }
+      }
+    }
+    for (const listedDoor of floorScene.doors || []) {
+      if (listedDoor?.id) {
+        identities.add(floorId + "|door|door:" + listedDoor.id);
+      }
+    }
+  }
+  return identities;
+}
+/**
+ * 这次保存相对上一次成功保存的场景，是否删掉了物件。只有删过才可能撞上「删除影响确认」，
+ * 也才值得多做一次预检；没删过就直接保存，一分额外开销都不加。
+ */
+function sceneRemovedBindingTargets(previousSnapshot, nextSnapshot) {
+  const nextIdentities = documentBindingIdentities(nextSnapshot);
+  for (const previousIdentity of documentBindingIdentities(previousSnapshot)) {
+    if (!nextIdentities.has(previousIdentity)) {
+      return true;
+    }
+  }
+  return false;
+}
+/**
+ * 删除影响预检：先问出「这次保存会撞哪些绑定」（PUT ?dryRun=1，服务端只算不写），有影响就直接
+ * 把确认框弹出来并返回 true —— 正常删除路径因此不再先撞一次 428。428 本身没错，但它是预期内的
+ * 业务控制流，浏览器控制台却会为每次删除留一条没法从 JS 侧清掉的红字，那才是用户看得见的那条。
+ *
+ * 预检与真保存共用同一条计算，令牌绑定 revision / 场景 / 项目文档 / 影响四样，用户在预检后点
+ * 「确认删除并保存」时原样重发即可命中同一份计划。漏判（例如日后新增一类可绑定物件而这里没跟上）
+ * 也不会漏掉确认：那次 PUT 仍会收到 428，走 saveStudioDraft 里既有的兜底分支。
+ *
+ * @returns {Promise<boolean>} true 表示确认框已挂上、本次不应再提交。
+ */
+async function requestInteractionConfirmationIfNeeded(sceneRecord, sceneSnapshot, localRevision) {
+  if (!sceneRecord?.scene || !sceneRemovedBindingTargets(sceneRecord.scene, sceneSnapshot)) {
+    return false;
+  }
+  const interactionPlan = await requestStudioApi("/studio3d?dryRun=1", {
+    method: "PUT",
+    hbLogContext: {
+      phase: "studio-save"
+    },
+    body: JSON.stringify({
+      revision: sceneRecord.revision,
+      scene: sceneSnapshot
+    })
+  });
+  if (!interactionPlan?.confirmationRequired) {
+    return false;
+  }
+  handleSaveInteractionConfirmation(interactionPlan, sceneRecord.revision, sceneSnapshot, localRevision, {
+    reopenDialog: !saveInteractionDeferred
+  });
+  return true;
+}
+/**
  * 自动 / 手动保存草稿到 PUT /api/v1/studio3d（携带 revision 做乐观并发）。前置：非只读、已读到过记录、不在保存中、
  * 无未处理冲突 / 未确认的删除影响、changeRevision ≠ savedRevision。进入时固化本次 revision，请求期间的新编辑不算进来；
  * 409 拉服务器版本交给 handleSaveConflict，428 交给 handleSaveInteractionConfirmation，两者都绝不静默覆盖。
@@ -5968,7 +6162,7 @@ async function saveStudioDraft() {
   if (saveConflict && !saveConflictDeferred) {
     return "blocked-by-conflict";
   }
-  // 428「本次删除影响」未确认期间同样跳过（否则就是每 500ms 撞一次 428 的空转）；
+  // 「本次删除影响」未确认期间同样跳过（否则就是每 500ms 反复预检出同一份未确认计划）；
   // 「保留模型」之后放行 —— 与 409 的「稍后处理」同义，那时再停掉用户就看不见异样了。
   if (saveInteractionConfirmation && !saveInteractionDeferred) {
     return "blocked-by-interaction-confirmation";
@@ -5984,6 +6178,11 @@ async function saveStudioDraft() {
   setSaveState("正在保存…", "saving");
   try {
     try {
+      // 先做删除影响预检：命中就把确认框挂上、本次不再提交（服务端不落盘）。
+      // 这一步让正常删除路径不再先撞一次 428；漏判时下面的 428 分支照旧兜底。
+      if (await requestInteractionConfirmationIfNeeded(savedSceneRecord, sceneSnapshot, revision)) {
+        return "blocked-by-interaction-confirmation";
+      }
       savedSceneRecord = await putStudioScene(savedSceneRecord, sceneSnapshot);
     } catch (saveRequestError) {
       // 428：本次删除会让控件绑定悬空，服务端什么都没写、只回了令牌与影响清单。把「当时」的
@@ -5991,7 +6190,7 @@ async function saveStudioDraft() {
       // 用户确认后必须原样重发，令牌才对得上，也才能判断场景有没有过期。
       if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
         handleSaveInteractionConfirmation(
-          saveRequestError.payload,
+          saveRequestError.payload?.detail,
           savedSceneRecord.revision,
           sceneSnapshot,
           revision,
@@ -6088,7 +6287,7 @@ saveInteractionDialogElement.addEventListener("cancel", dialogCancelEvent => {
   dialogCancelEvent.preventDefault();
   deferSaveInteraction();
 });
-saveInteractionKeepButton.addEventListener("click", deferSaveInteraction);
+saveInteractionKeepButton.addEventListener("click", keepModelForInteraction);
 saveInteractionReopenButton.addEventListener("click", () => {
   if (saveInteractionConfirmation) {
     openSaveInteractionDialog();
@@ -7048,8 +7247,11 @@ function drawPlanItem(itemToDraw) {
     );
     planContext.fill();
     planContext.stroke();
-    // 座舱：比例取自 3D 规格（tools/models/model-specs.mjs 的 smallcar —— 座舱 1.86 × 2.30，
-    // 中心在 z = −0.35，即整车 5.01 的 −0.07 处）。改规格必须同时改这里。
+    // 座舱：比例沿用自建车那套（座舱 0.85 × 0.459 的整车、中心略偏后）—— 整车那头 2.19 × 5.01
+    // 与改资产前逐值相同（上游车模实测 2.192 × 5.012），所以外轮廓不用动；座舱内部的界线是
+    // 示意图层面的近似（上游车模的座舱实际位置略靠前一点），不参与任何对账判据。
+    // 这里原先写着「比例取自 tools/models/model-specs.mjs 的 smallcar」—— 那份规格 2026-09-26 已撤
+    // （小车换回上游第三方车模，见 materials/studio-car-finish.js），现在这几个数就是本绘制分支自己的契约。
     planContext.fillStyle = "rgba(38, 48, 57, .72)";
     planContext.beginPath();
     planContext.roundRect(
@@ -7116,7 +7318,7 @@ function drawPlanItem(itemToDraw) {
     planContext.lineWidth = 1;
   } else if (
     itemToDraw.type === "curtain" &&
-    normalizeCurtainTrack(itemToDraw).curtainStyle === "roller"
+    normalizeCurtainTrack(itemToDraw).curtainForm === "roller"
   ) {
     // 卷帘：一整片帘布 + 一条卷管，没有轨道、没有左右两片，也不画褶皱线。
     // 必须在下面那条「有 curtainTrack 就画轨道」的分支之前 —— 卷帘归一化后也带
@@ -7920,6 +8122,50 @@ function drawPlanItem(itemToDraw) {
     planContext.ellipse(0, 0, itemWidthPx / 2, itemDepthPx / 2, 0, 0, Math.PI * 2);
     planContext.fill();
     planContext.stroke();
+  } else if (itemToDraw.type === "kitchenisland") {
+    // 岛台兼餐桌（见 model-specs.mjs 的 kitchenisland）：兜底那支「整块圆角矩形」把 2.4 × 0.8
+    // 全画成了一块实心柜体，而实物只有 +x 端那 0.8 × 0.8 是落地柜体（台面高 0.9），另外 1.6m
+    // 长的一截是 0.75m 高的伸缩餐台板、外端一条板式支腿落地。俯视看，前者是**体**、后者只是一块
+    // **面** —— 这是这两件在平面上唯一的差别，也正是这个符号要画出来的东西。画成实心尤其错在
+    // 悬挑那一侧：平面图上会读成「整件都是落地柜」，摆吧凳的位置就没了。
+    //
+    // 下面五个比值全部来自 3D 规格的米制值（整宽 2.4、进深 0.8 是分母）：改 model-specs.mjs 的
+    // kitchenisland 尺寸必须同手改这五个数，否则平面符号会开始说谎。
+    const islandBlockRatio = 0.8 / 2.4; // 高台（含台面）沿长度占的比例
+    const islandTableDepthRatio = 0.72 / 0.8; // 伸缩餐台板的进深（比台面每侧窄 4cm）
+    const islandLegThicknessRatio = 0.03 / 2.4; // 支腿厚 30mm
+    const islandLegDepthRatio = 0.6 / 0.8; // 支腿进深 0.6（餐台板 0.72 每侧再收 6cm）
+    const islandLegCenterRatio = 0.02 / 2.4; // 支腿中心离板尖 20mm
+    const islandBlockWidthPx = itemWidthPx * islandBlockRatio;
+    // 高台：实心一块，贴 +x 端、进深占满（台面四周各出柜体 5cm，俯视就是占地那一圈边缘）。
+    planContext.beginPath();
+    planContext.roundRect(
+      itemWidthPx / 2 - islandBlockWidthPx,
+      -itemDepthPx / 2,
+      islandBlockWidthPx,
+      itemDepthPx,
+      Math.min(6, islandBlockWidthPx / 5, itemDepthPx / 5)
+    );
+    planContext.fill();
+    planContext.stroke();
+    // 伸缩餐台：只描边。它是一块 0.75m 高的板，俯视没有「体」可填 —— 填了就又回到那个
+    // 「整件都是柜子」的误读上，而它恰恰是这件物件里唯一能坐人的地方。
+    planContext.strokeRect(
+      -itemWidthPx / 2,
+      (-itemDepthPx * islandTableDepthRatio) / 2,
+      itemWidthPx - islandBlockWidthPx,
+      itemDepthPx * islandTableDepthRatio
+    );
+    // 板式支腿：外端那条真正落地的东西（窄板一块）。不画它，1.6m 的悬挑在平面上没有支撑点，
+    // 读起来像一张悬空的板。
+    planContext.fillRect(
+      -itemWidthPx / 2 +
+        itemWidthPx * islandLegCenterRatio -
+        (itemWidthPx * islandLegThicknessRatio) / 2,
+      (-itemDepthPx * islandLegDepthRatio) / 2,
+      itemWidthPx * islandLegThicknessRatio,
+      itemDepthPx * islandLegDepthRatio
+    );
   } else {
     planContext.beginPath();
     planContext.roundRect(
@@ -8058,6 +8304,22 @@ function drawPlanItem(itemToDraw) {
       planContext.lineTo(itemWidthPx / 2, -itemDepthPx * 0.12);
       planContext.stroke();
     }
+  } else if (itemToDraw.type === "freezer") {
+    // 顶开式冰柜：俯视最可读的信息是「顶盖分缝」——沿正面往内约 18% 进深画一条横线，
+    // 再在右前角点一个小圆代表模型上的指示面板。+y 为物件正面，与上面冰箱同一约定。
+    planContext.beginPath();
+    planContext.moveTo(-itemWidthPx * 0.46, itemDepthPx * 0.3);
+    planContext.lineTo(itemWidthPx * 0.46, itemDepthPx * 0.3);
+    planContext.stroke();
+    planContext.beginPath();
+    planContext.arc(
+      itemWidthPx * 0.34,
+      itemDepthPx * 0.06,
+      Math.min(itemWidthPx, itemDepthPx) * 0.07,
+      0,
+      Math.PI * 2
+    );
+    planContext.stroke();
   } else if (itemToDraw.type === "storagewaterheater") {
     planContext.beginPath();
     planContext.arc(0, 0, Math.min(itemWidthPx, itemDepthPx) * 0.26, 0, Math.PI * 2);
@@ -8241,8 +8503,12 @@ function drawPlanItem(itemToDraw) {
       const stairFlightWidth = itemToDraw.type === "steelstairs" ? 0.9 : 1.225;
       const stairLandingDepth = 0.5;
       const stairRiserCount = 10;
-      const stairPlanScaleX = itemWidthPx / itemWidth;
-      const stairPlanScaleZ = itemDepthPx / itemDepth;
+      // 米 → 像素的换算率：本函数的像素尺寸来自 planFootprint（不是 itemToDraw.width），
+      // 所以这里必须除以 planFootprint 的米制边长，别再写回 itemWidth / itemDepth ——
+      // 那两个名字在本函数不存在（只有像素版 itemWidthPx / itemDepthPx），
+      // 引用即 ReferenceError：钢梯 / 玻璃梯一画到户型图上就整张图不刷新。
+      const stairPlanScaleX = itemWidthPx / planFootprint.width;
+      const stairPlanScaleZ = itemDepthPx / planFootprint.depth;
       const stairFlightWidthPx = stairFlightWidth * stairPlanScaleX;
       const stairGapPx = itemWidthPx - stairFlightWidthPx * 2;
       const stairLandingDepthPx = stairLandingDepth * stairPlanScaleZ;
@@ -9398,6 +9664,8 @@ function renderInspector() {
         inspectedEntity.doorType
       );
       selectElement("#door-swing").hidden = false;
+      // 门材质档位按门型重建：玻璃门型才多出清玻 / 茶玻，其余门型那一格会被归一到 auto。
+      syncDoorMaterialOptions(inspectedEntity.doorType, inspectedEntity.materialStyle);
     } else if (primarySelection.kind === "railing") {
       selectElement("#selection-title").textContent = "玻璃栏杆";
       syncControlValue(selectElement("#railing-width"), inspectedEntity.width.toFixed(2));
@@ -9417,7 +9685,7 @@ function renderInspector() {
       lightFieldsElement.hidden = !isLightItem;
       curtainPositionFieldElement.hidden =
         inspectedEntity.type !== "curtain" ||
-        normalizeCurtainTrack(inspectedEntity).curtainStyle === "roller";
+        normalizeCurtainTrack(inspectedEntity).curtainForm === "roller";
       selectElement("#curtain-track-fields").hidden = inspectedEntity.type !== "curtain";
       itemHeightFieldElement.hidden =
         isLabelItem || isLightItem || inspectedEntity.type === "flooropening";
@@ -9592,9 +9860,9 @@ function renderInspector() {
         const curtainSettings = normalizeCurtainTrack(inspectedEntity);
         // 形态（普通窗帘 / 卷帘）：卷帘下「轨道 + 布面」那一整组字段都不适用，统一隐藏，
         // 只保留预览开合 —— 卷帘的 0% 放下、100% 卷起仍然要能预览。
-        const curtainIsRoller = curtainSettings.curtainStyle === "roller";
-        selectElement("#curtain-style").value = curtainIsRoller ? "roller" : "cloth";
-        syncStudioSelect(selectElement("#curtain-style"));
+        const curtainIsRoller = curtainSettings.curtainForm === "roller";
+        selectElement("#curtain-form").value = curtainIsRoller ? "roller" : "standard";
+        syncStudioSelect(selectElement("#curtain-form"));
         for (const [curtainSelectId, curtainSelectValue] of [
           ["curtain-track", curtainSettings.curtainTrack],
           ["curtain-corner", curtainSettings.curtainCorner],
@@ -10353,9 +10621,11 @@ function syncMaterialStyleOptions(itemType, selectedStyle) {
   if (selectControl.dataset.optionSignature !== optionSignature) {
     selectControl.textContent = "";
     // 「跟随全局风格」永远排最前：它是默认值，也是「这块我不管」的出口。
+    // 显示名逐类型取（materialStyleAutoLabel）：柱体上这一档叫「配墙（跟随墙体）」，因为对柱子来说
+    // 它不是「不管」，而是「跟墙一样」—— 柱体的另一组档位只剩「与柜同料」那四档。
     const autoOption = document.createElement("option");
     autoOption.value = MATERIAL_STYLE_AUTO;
-    autoOption.textContent = "跟随全局风格";
+    autoOption.textContent = materialStyleAutoLabel(itemType);
     selectControl.append(autoOption);
     for (const styleOption of materialStyleOptionsFor(itemType)) {
       const optionElement = document.createElement("option");
@@ -10366,6 +10636,34 @@ function syncMaterialStyleOptions(itemType, selectedStyle) {
     selectControl.dataset.optionSignature = optionSignature;
   }
   selectControl.value = normalizeMaterialStyle(itemType, selectedStyle);
+  syncStudioSelect(selectControl);
+}
+
+/**
+ * 重建「门材质」下拉的档位。档位随门型变化（玻璃门多出清玻 / 茶玻两档，实心门没有），
+ * 因此与物件的材质风格一样按当前门型重建，不把 <option> 写死进标记。
+ * 与 syncMaterialStyleOptions 同一条省帧契约：只在门型与档位数真的变了时才重写 DOM ——
+ * 填充检查器会在拖拽 / 缩放 / 改尺寸时被反复调用。
+ */
+function syncDoorMaterialOptions(doorType, selectedStyle) {
+  const selectControl = selectElement("#door-material");
+  const optionSignature = doorType + ":" + doorMaterialOptionsFor(doorType).length;
+  if (selectControl.dataset.optionSignature !== optionSignature) {
+    selectControl.textContent = "";
+    // 「跟随全局风格」永远排最前：它是默认值，也是「这扇门我不管」的出口。
+    const autoOption = document.createElement("option");
+    autoOption.value = DOOR_MATERIAL_AUTO;
+    autoOption.textContent = doorMaterialAutoLabel();
+    selectControl.append(autoOption);
+    for (const styleOption of doorMaterialOptionsFor(doorType)) {
+      const optionElement = document.createElement("option");
+      optionElement.value = styleOption.id;
+      optionElement.textContent = styleOption.label;
+      selectControl.append(optionElement);
+    }
+    selectControl.dataset.optionSignature = optionSignature;
+  }
+  selectControl.value = normalizeDoorMaterial(doorType, selectedStyle);
   syncStudioSelect(selectControl);
 }
 
@@ -15591,26 +15889,86 @@ function resolveSharedWallMaterial(wallColor, wallMaterialOptions = {}) {
     wallMaterialOptions.depthFunc ?? threeModuleMin.LessEqualDepth,
     wallMaterialOptions.side ?? threeModuleMin.FrontSide,
     wallMaterialOptions.emissive ?? 0,
-    wallMaterialOptions.emissiveIntensity ?? 0
+    wallMaterialOptions.emissiveIntensity ?? 0,
+    // 质感贴图与它的平铺密度：贴图按 surface 全局缓存，这里只需把「取哪张、铺几次」记进键，
+    // 同色的木门扇与漆门扇才会各自命中正确的材质，不会互相串味。
+    wallMaterialOptions.surface ?? null,
+    wallMaterialOptions.surfaceRepeat ?? null
   ]);
   if (!materialByRenderKey.has(wallMaterialCacheKey)) {
-    materialByRenderKey.set(
-      wallMaterialCacheKey,
-      new threeModuleMin.MeshStandardMaterial({
-        color: wallColorHex,
-        roughness: wallMaterialOptions.roughness ?? 0.8,
-        metalness: wallMaterialOptions.metalness ?? 0.01,
-        transparent: !!wallMaterialOptions.transparent,
-        opacity: wallMaterialOptions.opacity ?? 1,
-        depthWrite: wallMaterialOptions.depthWrite ?? true,
-        depthFunc: wallMaterialOptions.depthFunc ?? threeModuleMin.LessEqualDepth,
-        side: wallMaterialOptions.side ?? threeModuleMin.FrontSide,
-        emissive: wallMaterialOptions.emissive ?? 0,
-        emissiveIntensity: wallMaterialOptions.emissiveIntensity ?? 0
-      })
-    );
+    const wallMaterial = new threeModuleMin.MeshStandardMaterial({
+      color: wallColorHex,
+      roughness: wallMaterialOptions.roughness ?? 0.8,
+      metalness: wallMaterialOptions.metalness ?? 0.01,
+      transparent: !!wallMaterialOptions.transparent,
+      opacity: wallMaterialOptions.opacity ?? 1,
+      depthWrite: wallMaterialOptions.depthWrite ?? true,
+      depthFunc: wallMaterialOptions.depthFunc ?? threeModuleMin.LessEqualDepth,
+      side: wallMaterialOptions.side ?? threeModuleMin.FrontSide,
+      emissive: wallMaterialOptions.emissive ?? 0,
+      emissiveIntensity: wallMaterialOptions.emissiveIntensity ?? 0
+    });
+    // 只有声明了质感族、且该族确实有画法时才挂贴图（漆面 / 陶瓷 / 玻璃都没有，硬塞一张噪点图
+    // 只会让表面显脏）。贴图是均值≈1 的亮度细节图，只贡献纹理、不贡献色相，色相仍由 color 给。
+    if (wallMaterialOptions.surface && hasMaterialSurfaceTexture(wallMaterialOptions.surface)) {
+      const wallSurfaceTexture = createMaterialSurfaceTexture(
+        threeModuleMin,
+        wallMaterialOptions.surface,
+        {
+          maxAnisotropy: studioMaxTextureAnisotropy(),
+          repeat: wallMaterialOptions.surfaceRepeat ?? 2
+        }
+      );
+      if (wallSurfaceTexture) {
+        wallMaterial.map = wallSurfaceTexture;
+      }
+    }
+    materialByRenderKey.set(wallMaterialCacheKey, wallMaterial);
   }
   return materialByRenderKey.get(wallMaterialCacheKey);
+}
+/**
+ * 把门材质档位的配方并入墙带材质参数：配方只声明它要覆盖的那几项（质感族 / 粗糙度 / 金属度 /
+ * 贴图平铺次数），其余沿用调用处给的基参 —— 门扇与门套各自的投影开关、透明设置不会被档位打乱。
+ */
+function doorMaterialRecipeOptions(baseOptions, materialRecipe) {
+  if (!materialRecipe) {
+    return baseOptions;
+  }
+  const mergedOptions = { ...baseOptions };
+  if (Number.isFinite(materialRecipe.roughness)) {
+    mergedOptions.roughness = materialRecipe.roughness;
+  }
+  if (Number.isFinite(materialRecipe.metalness)) {
+    mergedOptions.metalness = materialRecipe.metalness;
+  }
+  if (materialRecipe.surface) {
+    mergedOptions.surface = materialRecipe.surface;
+    mergedOptions.surfaceRepeat = materialRecipe.repeat ?? null;
+  }
+  return mergedOptions;
+}
+/** 门部件取色：档位给了色号就用它，否则回落场景调色板的那一支。 */
+function doorMaterialRecipeColor(baseColor, materialRecipe) {
+  return materialRecipe && Number.isFinite(materialRecipe.color)
+    ? materialRecipe.color
+    : baseColor;
+}
+/**
+ * 把门材质档位写进那条门记录。`auto`（跟随全局风格）**不落键** —— 与物件侧的 materialStyle
+ * 同一约定（见 materialStyleSnapshotFields）：归一化、检查器改动两处都走这里，因此「选回跟随
+ * 全局风格」等于把这扇门还原成加这个属性之前的样子，草稿 / 快照里也不会凭空多出一格默认值。
+ * 档位合法性按门型判：玻璃档位落到实心门上会被归一到 auto（见 normalizeDoorMaterial）。
+ * @returns {string} 归一后的档位 id。
+ */
+function applyDoorMaterialStyle(doorRecord, doorType, styleValue) {
+  const materialStyle = normalizeDoorMaterial(doorType, styleValue);
+  if (materialStyle === DOOR_MATERIAL_AUTO) {
+    delete doorRecord.materialStyle;
+    return DOOR_MATERIAL_AUTO;
+  }
+  doorRecord.materialStyle = materialStyle;
+  return materialStyle;
 }
 /**
  * 把墙带几何与共享材质组装成一个 mesh，挂到建筑根节点上。在 userData 打 architectureSharedGeometry / Material 标记，供
@@ -16309,14 +16667,26 @@ function addChairModel(
  * 给窗框留压边。玻璃半透明（0.24）且 depthWrite:false、renderOrder 7，保证室内外都能看透且不遮挡后面的物体；
  * 框条不投影，因为薄条投影会出现难看的细黑线。
  */
-function addWindowFrameMeshes(frameParent, windowPanes, frameColor, glassColor) {
-  const frameOptions = {
-    rounded: false,
-    metalness: 0.18,
-    roughness: 0.36,
-    castShadow: false,
-    receiveShadow: false
-  };
+function addWindowFrameMeshes(
+  frameParent,
+  windowPanes,
+  frameColor,
+  glassColor,
+  frameRecipe = null,
+  glassRecipe = null
+) {
+  // frameRecipe / glassRecipe 是门材质档位给的配方（窗调用不传，行为与从前逐值相同）：
+  // 门套的料、玻璃的通透度与色相因此能逐门不同，而不是全网一套固定值。
+  const frameOptions = doorMaterialRecipeOptions(
+    {
+      rounded: false,
+      metalness: 0.18,
+      roughness: 0.36,
+      castShadow: false,
+      receiveShadow: false
+    },
+    frameRecipe
+  );
   const glassPaneBoxes = [];
   const frameBarBoxes = [];
   for (const windowPane of windowPanes) {
@@ -16362,8 +16732,8 @@ function addWindowFrameMeshes(frameParent, windowPanes, frameColor, glassColor) 
   // 暖阳原木：窗玻璃略降不透明度、略提金属度，让室内暖光在玻璃上留一层散射感，
   // 否则纯白背景透过去会显得玻璃「发灰」。
   const isWarmWoodGlass = !!studioPalette().warmWood;
-  for (const glassPaneBox of glassPaneBoxes) {
-    addWallBandMesh(frameParent, [glassPaneBox], glassColor, {
+  const glassPaneOptions = doorMaterialRecipeOptions(
+    {
       rounded: false,
       transparent: true,
       opacity: isWarmWoodGlass ? 0.2 : 0.24,
@@ -16374,7 +16744,15 @@ function addWindowFrameMeshes(frameParent, windowPanes, frameColor, glassColor) 
       castShadow: false,
       receiveShadow: false,
       renderOrder: 7
-    });
+    },
+    glassRecipe
+  );
+  // 玻璃档位可用 opacity 覆盖通透度（茶玻比清玻更实）；不写时沿用上面的暖阳 / 默认值。
+  if (glassRecipe && Number.isFinite(glassRecipe.opacity)) {
+    glassPaneOptions.opacity = glassRecipe.opacity;
+  }
+  for (const glassPaneBox of glassPaneBoxes) {
+    addWallBandMesh(frameParent, [glassPaneBox], glassColor, glassPaneOptions);
   }
   addWallBandMesh(frameParent, frameBarBoxes, frameColor, frameOptions);
 }
@@ -17671,16 +18049,71 @@ function tracePillarPlanPath(plan2dContext, shape, widthPx, depthPx) {
  * 构建柱体：方柱直接用 BoxGeometry，其余造型用 buildPillarSolidGeometry 造截面。所有造型共用同一份材质 —— 内置资产
  * 本身就是各面同色的方盒，单材质能让异形柱与方柱观感一致。setWallGradientHeight 仍要调：墙面试色着色器模式会读这个
  * 属性做渐变压暗。柱体归入墙的反射角色（reflectionRole: "wall"）以参与地面反射。
+ *
+ * 取料与外部模型那一路**同一口径**（否则模型加载到位的一瞬间柱子会换一次料）：
+ *   1. 选了「与柜同料」的档位时有按角色的配方（palette.materialRoles.body），取它的颜色 / 粗糙度 /
+ *      金属度 / 质感贴图 —— 柱体只有一份材质，所以取柱身（body）那一档；柱脚柱帽的分色由
+ *      外部模型的三段几何表达，占位几何这一段本来就只有一个盒子；
+ *   2. 没选档位（柱体上这一档叫「配墙（跟随墙体）」）时回落到墙体自身的材质 —— 柱体是墙的一部分，
+ *      与 applyAppliancePalette 的柱分支同值，也与旁边的墙同值。
+ * 此前这里**只**取墙色、而外部模型取的是家具色，于是「加载前后本来就是两种颜色」。
  */
+/**
+ * 柱体占位几何的材质：选了「与柜同料」的档位时按角色配方造一份标准材质，与外部模型到位后用
+ * createFurnitureMaterial 生成的那份**同型**（不透明 + 同一张质感贴图 + 同一组粗糙度 / 金属度），
+ * 于是模型加载前后只有几何精度在变、料不变。
+ *
+ * 为什么这一路不能沿用 `makeWallSideMaterial`：「配墙」那一档要的正是墙体材质本身（连分区光照的
+ * 明暗都该一致，所以那一档就该走 makeWallSideMaterial，见下）；而选了木作档位时，柱子表面是一层
+ * 家具木料 + 木纹贴图，墙体那支专用 ShaderMaterial 既不读 `map` 也不读 roughness / metalness，
+ * 柱子会照样是一块纯色，正是「下拉能选、选了没反应」。两条路的取舍就是这么分的：
+ * 「配墙」要的是「跟墙同一种观感」，选了柜体系档位要的是「这种木料本身」。
+ */
+function createStyledPillarMaterial(palette) {
+  const pillarBodyRecipe = palette.materialRoles.body;
+  const pillarMaterial = new threeModuleMin.MeshStandardMaterial({
+    color: pillarBodyRecipe.color,
+    roughness: Number.isFinite(pillarBodyRecipe.roughness) ? pillarBodyRecipe.roughness : 0.66,
+    metalness: Number.isFinite(pillarBodyRecipe.metalness) ? pillarBodyRecipe.metalness : 0.02,
+    side: threeModuleMin.FrontSide,
+    transparent: false,
+    opacity: 1,
+    depthWrite: true,
+    toneMapped: true
+  });
+  const pillarSurface = pillarBodyRecipe.surface;
+  if (pillarSurface && hasMaterialSurfaceTexture(pillarSurface)) {
+    const pillarSurfaceTexture = createMaterialSurfaceTexture(threeModuleMin, pillarSurface, {
+      maxAnisotropy: studioMaxTextureAnisotropy(),
+      // 平铺密度取配方里那一位，不写就是默认的 2 次（与外部模型那一路同一个默认值）。
+      repeat: pillarBodyRecipe.repeat ?? 2
+    });
+    if (pillarSurfaceTexture) {
+      pillarMaterial.map = pillarSurfaceTexture;
+    }
+  }
+  if (palette.warmFurniture) {
+    // 与 resolveSharedMaterial 给不透明件补的那层自发光同一值（柱体不在 sofa / bed / rug / chair
+    // 那几个类型里，取的就是兜底档），暖色主题下占位几何才不会比成品暗一档。
+    pillarMaterial.emissive = new threeModuleMin.Color(pillarBodyRecipe.color);
+    pillarMaterial.emissiveIntensity = 0.065;
+  }
+  pillarMaterial.name = "pillar · HomeOS material style";
+  return pillarMaterial;
+}
 function buildPillarItemMeshGroup(group, item, itemWidth, itemDepth, itemHeight, palette) {
   const pillarWallOpacity = Math.min((palette.wallOpacity || 0) * 1.75, 0.55);
   // 烘焙好的立柱素材本身就是各面同色材质的方盒，所以异形柱也统一只用一份材质，
   // 让异形实体与方柱在观感上保持一致。
   // 下面仍保留 setWallGradientHeight：墙面试色着色器模式会读取该属性做渐变。
-  const pillarMaterial = makeWallSideMaterial(palette.wall, pillarWallOpacity, {
-    depthWrite: false,
-    depthFunc: threeModuleMin.LessDepth
-  });
+  const pillarBodyRecipe = palette?.materialRoles?.body ?? null;
+  const pillarIsStyled = Number.isFinite(pillarBodyRecipe?.color);
+  const pillarMaterial = pillarIsStyled
+    ? createStyledPillarMaterial(palette)
+    : makeWallSideMaterial(palette.wall, pillarWallOpacity, {
+        depthWrite: false,
+        depthFunc: threeModuleMin.LessDepth
+      });
   const pillarShape = normalizePillarShape(item.pillarShape);
   const pillarGeometry =
     pillarShape === "square"
@@ -19865,6 +20298,13 @@ function buildArchitectureLayer({
       const doorHeight = Math.min(loopedDoorSpec.height, openingHostWall.height);
       const isHostDoorSelected = isSelected("door", loopedDoorSpec.id);
       const hostDoorType = loopedDoorSpec.doorType || "solid";
+      // 逐门「材质」档位：auto（未选）时每一处都回落到原来的 architecturePalette，渲染与加这个
+      // 属性之前逐字节一致；选了档位时按配方覆盖门扇 / 门套 / 五金 / 玻璃各自那一份。
+      const doorMaterialStyle = findDoorMaterial(hostDoorType, loopedDoorSpec.materialStyle);
+      const doorLeafRecipe = doorMaterialStyle?.leaf ?? null;
+      const doorFrameRecipe = doorMaterialStyle?.frame ?? null;
+      const doorHandleRecipe = doorMaterialStyle?.handle ?? null;
+      const doorGlassRecipe = doorMaterialStyle?.glass ?? null;
       // 舞台模式：给门模型根打上环境模型标识与开合类型，运行时锁动画（lock-motion）靠这组
       // userData 找到门并决定怎么动。只有推拉 / 卷帘 / 仅门框需要单独归类，其余（实木 / 玻璃 /
       // 双开 / 入户）都走「绕 y 轴旋转的平开」这一套。编辑态一律不打标，渲染与从前逐字节一致。
@@ -19883,20 +20323,24 @@ function buildArchitectureLayer({
       }
       const doorFrameColor = isHostDoorSelected
         ? architecturePalette.accent
-        : architecturePalette.frame;
+        : doorMaterialRecipeColor(architecturePalette.frame, doorFrameRecipe);
       const doorFrameThickness = 0.065;
       // 暖阳原木：给实心门扇与卷帘补一层暖色自发光（doorLeaf），让木面在低照度下
-      // 仍有可见亮部；玻璃门不加 —— 自发光会把玻璃糊成一片。
-      const warmDoorLeafOptions = architecturePalette.warmWood
+      // 仍有可见亮部；玻璃门不加 —— 自发光会把玻璃糊成一片。选了材质档位时也不加：
+      // 档位的色号是设计好的成品色，再叠一层自发光会把浅色门扇（白漆）糊掉。
+      const warmDoorLeafOptions = architecturePalette.warmWood && !doorMaterialStyle
         ? { emissive: architecturePalette.doorLeaf, emissiveIntensity: 0.4 }
         : {};
-      const doorFrameOptions = {
-        rounded: false,
-        metalness: 0.08,
-        castShadow: false,
-        receiveShadow: false,
-        ...(hostDoorType === "solid" || hostDoorType === "frame-only" ? warmDoorLeafOptions : {})
-      };
+      const doorFrameOptions = doorMaterialRecipeOptions(
+        {
+          rounded: false,
+          metalness: 0.08,
+          castShadow: false,
+          receiveShadow: false,
+          ...(hostDoorType === "solid" || hostDoorType === "frame-only" ? warmDoorLeafOptions : {})
+        },
+        doorFrameRecipe
+      );
       const doorFrameBands = [
         [doorFrameThickness, doorHeight, 0.09, -doorWidth / 2, doorHeight / 2, 0],
         [doorFrameThickness, doorHeight, 0.09, doorWidth / 2, doorHeight / 2, 0],
@@ -19948,7 +20392,9 @@ function buildArchitectureLayer({
               }
             ],
             doorFrameColor,
-            architecturePalette.glass
+            doorMaterialRecipeColor(architecturePalette.glass, doorGlassRecipe),
+            doorFrameRecipe,
+            doorGlassRecipe
           );
           const slidingMovingPanelGroup = new threeModuleMin.Group();
           slidingMovingPanelGroup.userData.doorSlidePivot = true;
@@ -19965,7 +20411,9 @@ function buildArchitectureLayer({
               }
             ],
             doorFrameColor,
-            architecturePalette.glass
+            doorMaterialRecipeColor(architecturePalette.glass, doorGlassRecipe),
+            doorFrameRecipe,
+            doorGlassRecipe
           );
           const slidingHandleX = slidingMovingClosedX - doorHinge * slidingPanelWidth * 0.36;
           addWallBandMesh(
@@ -19974,13 +20422,16 @@ function buildArchitectureLayer({
               [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, -0.052],
               [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, 0.052]
             ],
-            architecturePalette.furnitureDark,
-            {
-              rounded: false,
-              metalness: 0.5,
-              castShadow: false,
-              receiveShadow: false
-            }
+            doorMaterialRecipeColor(architecturePalette.furnitureDark, doorHandleRecipe),
+            doorMaterialRecipeOptions(
+              {
+                rounded: false,
+                metalness: 0.5,
+                castShadow: false,
+                receiveShadow: false
+              },
+              doorHandleRecipe
+            )
           );
           // 活动扇沿门宽 0.46 倍滑出：铰链居右向 +x、居左向 -x（与两扇的镜像摆位一致）。
           doorGroup.userData.doorSlideOpenTranslation = doorHinge * doorWidth * 0.46;
@@ -20003,7 +20454,9 @@ function buildArchitectureLayer({
               }
             ],
             doorFrameColor,
-            architecturePalette.glass
+            doorMaterialRecipeColor(architecturePalette.glass, doorGlassRecipe),
+            doorFrameRecipe,
+            doorGlassRecipe
           );
           const slidingHandleX = slidingPanelPositions.moving - doorHinge * slidingPanelWidth * 0.36;
           addWallBandMesh(
@@ -20012,13 +20465,16 @@ function buildArchitectureLayer({
               [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, -0.052],
               [0.026, 0.15, 0.055, slidingHandleX, doorHeight * 0.52, 0.052]
             ],
-            architecturePalette.furnitureDark,
-            {
-              rounded: false,
-              metalness: 0.5,
-              castShadow: false,
-              receiveShadow: false
-            }
+            doorMaterialRecipeColor(architecturePalette.furnitureDark, doorHandleRecipe),
+            doorMaterialRecipeOptions(
+              {
+                rounded: false,
+                metalness: 0.5,
+                castShadow: false,
+                receiveShadow: false
+              },
+              doorHandleRecipe
+            )
           );
         }
         doorGroup.userData.optimizationStats = {
@@ -20049,15 +20505,20 @@ function buildArchitectureLayer({
         addWallBandMesh(
           rollerLeafParent,
           [[panelOnlyWidth, panelOnlyHeight, 0.045, 0, panelOnlyHeight * 0.5, panelSwing * 0.04]],
-          isHostDoorSelected ? architecturePalette.accent : architecturePalette.furnitureSoft,
-          {
-            ...warmDoorLeafOptions,
-            rounded: false,
-            metalness: architecturePalette.warmWood ? 0.08 : 0.36,
-            roughness: 0.42,
-            castShadow: false,
-            receiveShadow: false
-          }
+          isHostDoorSelected
+            ? architecturePalette.accent
+            : doorMaterialRecipeColor(architecturePalette.furnitureSoft, doorLeafRecipe),
+          doorMaterialRecipeOptions(
+            {
+              ...warmDoorLeafOptions,
+              rounded: false,
+              metalness: architecturePalette.warmWood ? 0.08 : 0.36,
+              roughness: 0.42,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorLeafRecipe
+          )
         );
         const shutterSlatCount = Math.max(5, Math.min(36, Math.round(panelOnlyHeight / 0.12)));
         const shutterSlats = [];
@@ -20066,14 +20527,24 @@ function buildArchitectureLayer({
           const slatY = (panelOnlyHeight * shutterSlatIndex) / shutterSlatCount;
           shutterSlats.push([panelOnlyWidth * 0.98, 0.012, 0.052, 0, slatY, panelSwing * 0.052]);
         }
-        addWallBandMesh(rollerLeafParent, shutterSlats, architecturePalette.furnitureDark, {
-          ...warmDoorLeafOptions,
-          rounded: false,
-          metalness: architecturePalette.warmWood ? 0.08 : 0.42,
-          roughness: 0.34,
-          castShadow: false,
-          receiveShadow: false
-        });
+        // 叶片取门套那一档的料：与门帘面板同档会让叶片分不出层次（卷帘最怕读成一块整板），
+        // 档位的门套色恰是同族里更深的一档。
+        addWallBandMesh(
+          rollerLeafParent,
+          shutterSlats,
+          doorMaterialRecipeColor(architecturePalette.furnitureDark, doorFrameRecipe),
+          doorMaterialRecipeOptions(
+            {
+              ...warmDoorLeafOptions,
+              rounded: false,
+              metalness: architecturePalette.warmWood ? 0.08 : 0.42,
+              roughness: 0.34,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorFrameRecipe
+          )
+        );
         doorGroup.userData.optimizationStats = {
           type: "door-roller-shutter",
           before: 5 + shutterSlatCount,
@@ -20090,7 +20561,7 @@ function buildArchitectureLayer({
         const entryFlipSign = loopedDoorSpec.swing === -1 ? -1 : 1;
         const entryDoorColor = isHostDoorSelected
           ? architecturePalette.accent
-          : architecturePalette.furnitureDark;
+          : doorMaterialRecipeColor(architecturePalette.furnitureDark, doorLeafRecipe);
         // 舞台模式：门扇挂到「合页枢轴」Group 上，枢轴摆在铰链那一侧的门边，扇体几何整体
         // 反向平移同样的距离，旋转才会绕门边转而不是绕门中心转。运行时按 doorLeafWidth
         // 自行把枢轴摆回同一位置（门扇宽 = 门洞宽 - 1.5 倍门套厚）。
@@ -20111,13 +20582,16 @@ function buildArchitectureLayer({
           entryLeafParent,
           [[entryDoorWidth, entryDoorHeight, 0.065, entryLeafShiftX, entryDoorHeight * 0.5, 0]],
           entryDoorColor,
-          {
-            rounded: false,
-            roughness: 0.58,
-            metalness: 0.1,
-            castShadow: false,
-            receiveShadow: false
-          }
+          doorMaterialRecipeOptions(
+            {
+              rounded: false,
+              roughness: 0.58,
+              metalness: 0.1,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorLeafRecipe
+          )
         );
         addWallBandMesh(
           entryLeafParent,
@@ -20125,13 +20599,16 @@ function buildArchitectureLayer({
             [entryDoorWidth * 0.76, 0.022, 0.078, entryLeafShiftX, doorHeight * 0.68, 0.012 * entryFlipSign],
             [entryDoorWidth * 0.76, 0.022, 0.078, entryLeafShiftX, doorHeight * 0.34, 0.012 * entryFlipSign]
           ],
-          architecturePalette.furnitureSoft,
-          {
-            rounded: false,
-            roughness: 0.5,
-            castShadow: false,
-            receiveShadow: false
-          }
+          doorMaterialRecipeColor(architecturePalette.furnitureSoft, doorFrameRecipe),
+          doorMaterialRecipeOptions(
+            {
+              rounded: false,
+              roughness: 0.5,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorFrameRecipe
+          )
         );
         const entryHandleX =
           (loopedDoorSpec.hinge === "right" ? -entryDoorWidth * 0.34 : entryDoorWidth * 0.34) +
@@ -20139,14 +20616,17 @@ function buildArchitectureLayer({
         addWallBandMesh(
           entryLeafParent,
           [[0.035, 0.18, 0.085, entryHandleX, doorHeight * 0.5, 0.055 * entryFlipSign]],
-          architecturePalette.furnitureLight,
-          {
-            rounded: false,
-            metalness: 0.58,
-            roughness: 0.24,
-            castShadow: false,
-            receiveShadow: false
-          }
+          doorMaterialRecipeColor(architecturePalette.furnitureLight, doorHandleRecipe),
+          doorMaterialRecipeOptions(
+            {
+              rounded: false,
+              metalness: 0.58,
+              roughness: 0.24,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorHandleRecipe
+          )
         );
         if (isStageViewerMode) {
           doorGroup.userData.doorLeafWidth = entryDoorWidth;
@@ -20196,24 +20676,32 @@ function buildArchitectureLayer({
                   z: 0
                 }
               ],
-              isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
-              {
-                rounded: false,
-                roughness: 0.66,
-                castShadow: false,
-                receiveShadow: false
-              }
+              isHostDoorSelected
+                ? architecturePalette.accent
+                : doorMaterialRecipeColor(architecturePalette.doorLeaf, doorLeafRecipe),
+              doorMaterialRecipeOptions(
+                {
+                  rounded: false,
+                  roughness: 0.66,
+                  castShadow: false,
+                  receiveShadow: false
+                },
+                doorLeafRecipe
+              )
             );
             addWallBandMesh(
               doubleLeafPivot,
               [[0.035, 0.055, 0.065, leafHandleOffsetX, doorHeight * 0.5, 0.04]],
-              architecturePalette.furnitureDark,
-              {
-                rounded: false,
-                metalness: 0.45,
-                castShadow: false,
-                receiveShadow: false
-              }
+              doorMaterialRecipeColor(architecturePalette.furnitureDark, doorHandleRecipe),
+              doorMaterialRecipeOptions(
+                {
+                  rounded: false,
+                  metalness: 0.45,
+                  castShadow: false,
+                  receiveShadow: false
+                },
+                doorHandleRecipe
+              )
             );
           }
           doorGroup.userData.doorClosedRotation = 0;
@@ -20252,20 +20740,33 @@ function buildArchitectureLayer({
           addWallBandMesh(
             doorGroup,
             doublePanelLeaves,
-            isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
-            {
-              rounded: false,
-              roughness: 0.66,
-              castShadow: false,
-              receiveShadow: false
-            }
+            isHostDoorSelected
+              ? architecturePalette.accent
+              : doorMaterialRecipeColor(architecturePalette.doorLeaf, doorLeafRecipe),
+            doorMaterialRecipeOptions(
+              {
+                rounded: false,
+                roughness: 0.66,
+                castShadow: false,
+                receiveShadow: false
+              },
+              doorLeafRecipe
+            )
           );
-          addWallBandMesh(doorGroup, doublePanelHandles, architecturePalette.furnitureDark, {
-            rounded: false,
-            metalness: 0.45,
-            castShadow: false,
-            receiveShadow: false
-          });
+          addWallBandMesh(
+            doorGroup,
+            doublePanelHandles,
+            doorMaterialRecipeColor(architecturePalette.furnitureDark, doorHandleRecipe),
+            doorMaterialRecipeOptions(
+              {
+                rounded: false,
+                metalness: 0.45,
+                castShadow: false,
+                receiveShadow: false
+              },
+              doorHandleRecipe
+            )
+          );
         }
         doorGroup.userData.optimizationStats = {
           type: "door-double",
@@ -20304,32 +20805,42 @@ function buildArchitectureLayer({
             }
           ],
           doorFrameColor,
-          architecturePalette.glass
+          doorMaterialRecipeColor(architecturePalette.glass, doorGlassRecipe),
+          doorFrameRecipe,
+          doorGlassRecipe
         );
       } else {
         addWallBandMesh(
           glassLeafGroup,
           [[glassLeafWidth, glassLeafHeight, 0.04, glassLeafCenterX, glassLeafHeight / 2, 0]],
-          isHostDoorSelected ? architecturePalette.accent : architecturePalette.doorLeaf,
-          {
-            rounded: false,
-            roughness: 0.66,
-            castShadow: false,
-            receiveShadow: false
-          }
+          isHostDoorSelected
+            ? architecturePalette.accent
+            : doorMaterialRecipeColor(architecturePalette.doorLeaf, doorLeafRecipe),
+          doorMaterialRecipeOptions(
+            {
+              rounded: false,
+              roughness: 0.66,
+              castShadow: false,
+              receiveShadow: false
+            },
+            doorLeafRecipe
+          )
         );
       }
       const glassHandleX = isHingeRight ? -glassLeafWidth * 0.42 : glassLeafWidth * 0.42;
       addWallBandMesh(
         glassLeafGroup,
         [[0.035, 0.055, 0.065, glassHandleX, doorHeight * 0.5, 0.04]],
-        architecturePalette.furnitureDark,
-        {
-          rounded: false,
-          metalness: 0.45,
-          castShadow: false,
-          receiveShadow: false
-        }
+        doorMaterialRecipeColor(architecturePalette.furnitureDark, doorHandleRecipe),
+        doorMaterialRecipeOptions(
+          {
+            rounded: false,
+            metalness: 0.45,
+            castShadow: false,
+            receiveShadow: false
+          },
+          doorHandleRecipe
+        )
       );
       if (isStageViewerMode) {
         doorGroup.userData.doorLeafWidth = glassLeafWidth;
@@ -22293,6 +22804,11 @@ function applyInspectorChanges(entityKind) {
     editingEntity.doorType = Object.hasOwn(DOOR_TYPE_DIMENSIONS, selectElement("#door-type").value)
       ? selectElement("#door-type").value
       : "solid";
+    applyDoorMaterialStyle(
+      editingEntity,
+      editingEntity.doorType,
+      selectElement("#door-material").value
+    );
     editingEntity.width = clamp(
       finite(selectElement("#door-width").value, editingEntity.width),
       0.55,
@@ -22394,7 +22910,7 @@ function applyInspectorChanges(entityKind) {
         editingEntity,
         normalizeCurtainTrack({
           // 形态先于轨道：卷帘会把下面的 curtainTrack 收敛成直线型（归一化里处理）。
-          curtainStyle: selectElement("#curtain-style").value,
+          curtainForm: selectElement("#curtain-form").value,
           curtainTrack: selectElement("#curtain-track").value,
           curtainCorner: selectElement("#curtain-corner").value,
           curtainLeftLength: selectElement("#curtain-left-length").value,
@@ -22404,6 +22920,9 @@ function applyInspectorChanges(entityKind) {
           curtainFabric: selectElement("#curtain-fabric").value
         })
       );
+      // 形态字段已改名上游的 curtainForm：把历史草稿里的 curtainStyle 就地删掉，
+      // 否则一副帘会同时带两个形态键 —— 归一化只写新键、不删旧键，旧值会静默残留。
+      delete editingEntity.curtainStyle;
       if (editedCurtainTrack !== "straight" && editingEntity.curtainTrack === "straight") {
         editingEntity.depth = 0.18;
       }
@@ -22596,7 +23115,7 @@ async function initializeStudio() {
       // 舞台模块的下载在 stage-startup.js 里就已经开始（`stageStartup.module`），这里等的是
       // 同一份模块 —— 拿预热的那份，省掉一次「现在才开始下载」。没有预热时退回动态 import。
       const { mountStage: mountStage } = await (stageStartup?.module ||
-        import("/api/v1/modules/interaction3d/core/stage.js?v=2609260946"));
+        import("/api/v1/modules/interaction3d/core/stage.js?v=2609262221"));
       mountStage(createStageController());
       loadTiming("stage-mounted");
       return;
@@ -24355,6 +24874,7 @@ for (const windowInspectorInput of [
 }
 for (const doorInspectorInput of [
   selectElement("#door-type"),
+  selectElement("#door-material"),
   selectElement("#door-width"),
   selectElement("#door-height")
 ]) {
@@ -24400,7 +24920,7 @@ for (const lightInspectorInput of [
 }
 selectElement("#curtain-position").addEventListener("change", () => applyInspectorChanges("item"));
 for (const curtainInspectorInput of [
-  "curtain-style",
+  "curtain-form",
   "curtain-track",
   "curtain-corner",
   "curtain-left-length",

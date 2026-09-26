@@ -40,7 +40,7 @@ _FLOOR_COLLECTIONS: tuple[tuple[str, str], ...] = (
 )
 
 #: 一个绑定集合在 ``properties`` 里的路径。顺序无关紧要，但这是遍历与撤销记录 path 的唯一来源。
-#: 通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）从 DEVICE_PROFILES 派生，新增设备类型时
+#: 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）从 DEVICE_PROFILES 派生，新增设备类型时
 #: 不必在这里再抄一遍。
 COLLECTIONS: tuple[tuple[str, ...], ...] = (
     ('lights',),
@@ -288,6 +288,10 @@ def plan_cleanup(
                 valid = all(
                     item.get('floorId') == group.get('floorId') and item.get('coverKind') != 'dream'
                     for item in selected
+                ) and not (
+                    # 两个成员指向同一个实体时，组合本身就是错的配置，不放回去。
+                    selected[0].get('entityId')
+                    and selected[0].get('entityId') == selected[1].get('entityId')
                 )
                 if valid and not conflict:
                     environment['curtainGroups'] = [*groups, deepcopy(group)]

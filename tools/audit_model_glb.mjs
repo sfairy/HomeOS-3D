@@ -20,9 +20,10 @@
  *
  * 它做两件事，第一件是**真值校验**（应当是绿的），第二件是**债务度量**（用来定优先级）：
  *
- *   1. 流水线产物：逐件核对包围盒 / 底面 `y = 0` / 占地居中 / 材质名 `material-<槽位号>` /
- *      lite 是否真的比完整版轻。这一件与 `check_invariants.mjs` 的第 19 条同源 ——
- *      护栏负责在 CI 里挡住回归，这里负责给人看细节。
+ *   1. 流水线产物：逐件核对包围盒 / 底面高度（`y = 0`，把挂高烘进几何的挂墙件按规格的
+ *      `mountHeight` 判）/ 占地居中 / 材质名 `material-<槽位号>` /
+ *      lite 是否真的比完整版轻 / **lite 与完整版是否逐值同包围盒**。这一件与 `check_invariants.mjs`
+ *      的第 19 条同源 —— 护栏负责在 CI 里挡住回归，这里负责给人看细节。
  *
  *   2. 外部既有资产：度量「可见尺寸（= 文件包围盒）」与「声明占地（= `scaleBasis`，也是平面图
  *      画占地框用的那个数）」的偏差。**这一节 2026-09 已清零**：注册表里的模型全部迁进了流水线，
@@ -36,7 +37,9 @@
  *   - **底面不在 `y = 0`**：壁挂 / 吊装件（壁柜、壁挂电视、窗帘、壁灯、小便器、淋浴）的原点
  *     本来就不在底面，它们靠 `elevation` 摆位。自动贴地（`groundAlign`）那条路现已无物件使用：
  *     唯一用过它的 `sofa` 已改成流水线产物（底面本就精确落在 y=0），
- *     所以下面不再有「自动贴地」这一类。
+ *     所以下面不再有「自动贴地」这一类。**流水线产物里只有吊柜走这条路**，而且是刻意的：
+ *     它的挂高烘在几何里（规格的 `mountHeight`，与原版既有资产同一个口径 —— 那台的柜底也在
+ *     1.378m、类型定义里没有 elevation），判据按那个值比。
  *   - **材质名不是 `material-<槽位号>`**：外部既有资产走上面那套子串约定。
  *     按流水线判据判就是纯误报。
  *
@@ -207,9 +210,12 @@ function auditPipeline(specs) {
           );
         }
       }
-      if (Math.abs(full.min[1]) > SIZE_TOLERANCE_METERS) {
+      // 底面高度按规格里的 `mountHeight` 判（缺省 0）：挂墙件（吊柜）把挂高烘在几何里，柜底本来
+      // 就在 1.4m 那一档 —— 与 check_invariants.mjs 第 19 条、生成器同源。
+      const wantedMinY = specs[entry.itemType].mountHeight ?? 0;
+      if (Math.abs(full.min[1] - wantedMinY) > SIZE_TOLERANCE_METERS) {
         problems.push(
-          `${rel(fullPath)}  ${entry.itemType}：底面 min.y = ${full.min[1].toFixed(3)}m 不在 y=0`
+          `${rel(fullPath)}  ${entry.itemType}：底面 min.y = ${full.min[1].toFixed(3)}m 不在 y=${wantedMinY}`
         );
       }
       for (const axis of [0, 2]) {
@@ -224,12 +230,35 @@ function auditPipeline(specs) {
     const litePath = path.join(MODELS_DIR, `${relative}-lite.glb`);
     if (fs.existsSync(litePath)) {
       const lite = readGlbSummary(litePath);
+      // 上限比例跟着规格走（缺省与生成器同源）：方柱这类零件一件都丢不得、分段一处都降不了的类型
+      // 显式声明 1 —— lite 与完整版同形是有意为之，不是回归。
+      const budgetRatio =
+        specs[entry.itemType].liteVertexBudgetRatio ?? DEFAULT_LITE_VERTEX_BUDGET_RATIO;
       if (lite.error) {
         problems.push(`${rel(litePath)}  ${entry.itemType}：lite 读不了 —— ${lite.error}`);
-      } else if (lite.vertices >= full.vertices) {
-        problems.push(
-          `${rel(litePath)}  ${entry.itemType}：lite ${lite.vertices} 顶点未低于完整版 ${full.vertices}`
-        );
+      } else {
+        // lite 与完整版逐值同包围盒：lite 是运行侧的主资源，少一块撑轮廓的零件就是物件小一圈。
+        // 与 check_invariants.mjs 第 19 条的同一件事，这里给出具体差了多少毫米。
+        for (let axis = 0; axis < 3; axis += 1) {
+          const drift = Math.max(
+            Math.abs(lite.min[axis] - full.min[axis]),
+            Math.abs(lite.max[axis] - full.max[axis])
+          );
+          if (drift > SIZE_TOLERANCE_METERS) {
+            problems.push(
+              `${rel(litePath)}  ${entry.itemType}：lite 与完整版的包围盒不一致 —— ` +
+                `${axisNames[axis]}向差 ${(drift * 1000).toFixed(1)}mm（完整版 ${(
+                  full.max[axis] - full.min[axis]
+                ).toFixed(3)}m / lite ${(lite.max[axis] - lite.min[axis]).toFixed(3)}m）`
+            );
+          }
+        }
+        if (lite.vertices > full.vertices * budgetRatio) {
+          problems.push(
+            `${rel(litePath)}  ${entry.itemType}：lite ${lite.vertices} 顶点未低于完整版 ` +
+              `${full.vertices} 的 ${budgetRatio} 倍`
+          );
+        }
       }
     }
   }
@@ -268,12 +297,44 @@ function auditLegacyDebt(specs) {
   return rows.sort((a, b) => b.worst - a.worst);
 }
 
-const { MODEL_SPECS } = await import(path.join(ROOT, "tools", "models", "model-specs.mjs"));
+/**
+ * 注册表里既不是流水线产物、也**没有声明 scaleBasis** 的条目（目前只有小汽车）。
+ *
+ * 这一档是正常存在的：上游第三方资产按自己的作者原点与实测尺寸摆放，运行侧拿模型量出来的
+ * 尺寸当基准，多写一份 scaleBasis 只会多出第二处漂移源（而且它对不上流水线那套对账判据）。
+ * 但不能因为「没有基准可比」就当作不存在 —— 上面那节在 0 个时会打「注册表里的模型全部是
+ * 流水线产物」，而事实是这台车就在表里。所以单列一节：只报名字与「为什么没有基准」，
+ * 不打偏差（没有声明值就没有偏差可言）。
+ */
+function auditExternalAssetsWithoutBasis(specs) {
+  const rows = [];
+  for (const entry of readRegistryEntries()) {
+    if (specs[entry.itemType] || entry.basis) {
+      continue;
+    }
+    const fullPath = path.join(MODELS_DIR, entry.modelDir, `${entry.fileKey}.glb`);
+    if (!fs.existsSync(fullPath)) {
+      continue;
+    }
+    // 不在这里报尺寸：这里的包围盒读的是**访问器**包围盒（不套节点变换），而第三方资产的朝向
+    // 往往由节点旋转给出 —— 报出来的数会被当成「物件的真实占地」，比不报更糟。
+    const full = readGlbSummary(fullPath);
+    rows.push({
+      itemType: entry.itemType,
+      note: full.error ? "图元读不动（压缩 / 稀疏）" : "按模型实测尺寸摆放"
+    });
+  }
+  return rows.sort((a, b) => a.itemType.localeCompare(b.itemType));
+}
+
+const { MODEL_SPECS, DEFAULT_LITE_VERTEX_BUDGET_RATIO } = await import(
+  path.join(ROOT, "tools", "models", "model-specs.mjs")
+);
 
 const pipeline = auditPipeline(MODEL_SPECS);
 console.log(`\n真值校验 · 流水线产物（${pipeline.checked.length} 个，与 check_invariants.mjs 第 19 条同源）`);
 if (pipeline.problems.length === 0) {
-  console.log("  [ok] 包围盒 / 底面 / 占地居中 / 槽位命名 / lite 精简率 全部与规格一致");
+  console.log("  [ok] 包围盒 / 底面 / 占地居中 / 槽位命名 / lite 精简率 / lite 同包围盒 全部与规格一致");
 } else {
   console.log(`  [fail] ${pipeline.problems.length} 处：`);
   for (const problem of pipeline.problems) {
@@ -282,11 +343,12 @@ if (pipeline.problems.length === 0) {
 }
 
 const debt = auditLegacyDebt(MODEL_SPECS);
+const externalWithoutBasis = auditExternalAssetsWithoutBasis(MODEL_SPECS);
 const drifting = debt.filter(row => row.worst > FOOTPRINT_DEBT_RATIO);
-console.log(`\n债务度量 · 外部既有资产（${debt.length} 个）`);
+console.log(`\n债务度量 · 外部既有资产（${debt.length} 个，均有声明基准）`);
 if (debt.length === 0) {
   // 0 个时不再打百分比 —— 分母为 0 会打出 NaN%，而那不是「偏差很小」，是「已经没有这一节」。
-  console.log("  [ok] 注册表里的模型全部是流水线产物（这一节只在有人塞回自有产线资产时有明细）");
+  console.log("  [ok] 注册表里带 scaleBasis 的条目全部是流水线产物（这一节只在有人塞回自有产线资产时有明细）");
 } else {
   console.log(
     `  占地方向（可见尺寸 vs 声明 scaleBasis）偏差 >${FOOTPRINT_DEBT_RATIO * 100}%：` +
@@ -316,6 +378,16 @@ if (drifting.length) {
 }
 
 console.log("");
+if (externalWithoutBasis.length) {
+  console.log(
+    `另有 ${externalWithoutBasis.length} 个**未声明基准**的外部既有资产（运行侧按模型实测尺寸摆放，` +
+      "占地方向无从比对）："
+  );
+  for (const row of externalWithoutBasis) {
+    console.log(`  ${row.itemType.padEnd(18)} ${row.note}`);
+  }
+  console.log("");
+}
 if (pipeline.problems.length) {
   console.error("流水线产物有问题（这一部分应当是全绿的）。\n");
   process.exit(1);

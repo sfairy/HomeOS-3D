@@ -338,7 +338,9 @@ if (asJson) {
       `\n${path.relative(MODELS_DIR, entry.file)}  ${entry.type}（${entry.triangleCount} 三角）`
     );
     for (const row of entry.rows.slice(0, 8)) {
-      const kind = row.sameFacing ? "同向" : "玻璃双面";
+      // 三种关系分开写：`--all-faces` 会连背靠背一起列出来，若统一写成「玻璃双面」，
+      // 就会把「顶盖坐在箱体上」这种无害贴面读成玻璃双面闪烁（第一眼很容易看错）。
+      const kind = row.sameFacing ? "同向" : row.throughGlass ? "玻璃双面" : "背靠背";
       console.log(
         `  ${row.axis}=${row.coordinate.toFixed(3)}m  ${row.materials.padEnd(44)} 重叠 ${(row.area * 10000)
           .toFixed(1)

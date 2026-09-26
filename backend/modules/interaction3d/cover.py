@@ -136,10 +136,11 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         # 是否真有叶片能力：要么上报了 current_tilt_position，要么 240（16+32+64+128）
         # 中任意一个能力位被置起。
         has_tilt = as_finite_number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
-        # 没有叶片能力时只需不打断正在运行的帘：位置指令照常放行。
+        # 没有独立叶片通道时，这台风帘只有一个可控轴（位置），整体状态门禁一律不设：
+        # HA 的 state 可能是长期不刷新的陈旧值（实测客厅那台停在 closing + position 50 数十分钟），
+        # 拿它挡在这里会让叶片滑杆被永久禁用（前端同样口径，见 cover-state.js 的 coverCanAdjustBlades）。
+        # 命令是否被设备接受由 HA 自己裁决，不在这一层预先否决。
         if not has_tilt:
-            if state.get('state') in ('opening', 'closing'):
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘正在运行，请停止后再调整叶片。')
             return None
         # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
         # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。

@@ -12,14 +12,20 @@
  * 两道校验都对着运行侧的约定，任何一条不过就退出码非零、**不写任何文件**：
  *   1. 实际包围盒与规格里的 size 逐轴比对（容差 1cm）。运行侧按 scaleBasis 做非等比缩放，
  *      包围盒不一致 = 成品被拉扁/拔高，而这种事在浏览器里只能靠肉眼发现。
- *   2. lite 版顶点数必须显著小于完整版。lite 是首屏加载的那一份，不达标等于白做这份产线。
+ *   2. lite 版顶点数必须低于完整版的 `liteVertexBudgetRatio` 倍（缺省 0.9；方柱这类一件都丢不得、
+ *      也没有分段落可降的类型在规格里写 1）。lite 是首屏加载的那一份，不达标等于白做这份产线。
  * 两道校验都在写盘之前跑完：宁可一个文件都不出，也不要出一半好一半坏的版本。
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildModelGroup, exportGlb, measureModelGroup } from "./model-library.mjs";
-import { MODEL_DIR_BY_SPEC, MODEL_FILE_KEY_BY_SPEC, MODEL_SPECS } from "./model-specs.mjs";
+import {
+  DEFAULT_LITE_VERTEX_BUDGET_RATIO,
+  MODEL_DIR_BY_SPEC,
+  MODEL_FILE_KEY_BY_SPEC,
+  MODEL_SPECS
+} from "./model-specs.mjs";
 import { isValidSlotRole, MODEL_SLOT_ROLE_SUFFIX_RE } from "./model-roles.mjs";
 
 const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -34,15 +40,6 @@ const MODELS_ROOT = resolve(REPOSITORY_ROOT, "frontend/static/3d-studio/models")
  * 按 scaleBasis 非等比缩放会把它拉宽 6.7% —— 校验的意义就是不让这种误差悄悄过去。
  */
 const FOOTPRINT_TOLERANCE_METERS = 0.001;
-
-/**
- * lite 版顶点数上限（相对完整版的比例）。
- * 定在 0.9 而不是更低：纯方盒构成的小件没有「降段数」这条杠杆 —— 一个 BoxGeometry 已经是最小的
- * 12 个三角形，lite 想更轻只能整件丢掉零件，而丢多了会改掉轮廓。0.9 这条线的真实作用是
- * 「保证 lite 确实更轻，且拦下『忘了给任何零件打 fullOnly』」，而不是追求一个好看的压缩比；
- * 真正省下的量在控制台逐件打印出来，看得到。
- */
-const LITE_VERTEX_BUDGET_RATIO = 0.9;
 
 const requestedSpecKeys = process.argv.slice(2).filter(argument => !argument.startsWith("--"));
 const isCheckOnly = process.argv.includes("--check");
@@ -102,6 +99,7 @@ for (const specKey of specKeys) {
   const fullGroup = await buildModelGroup(modelSpec, "full");
   const liteGroup = await buildModelGroup(modelSpec, "lite");
   const fullBounds = measureBounds(fullGroup);
+  const liteBounds = measureBounds(liteGroup);
   const actualSize = [
     fullBounds.max.x - fullBounds.min.x,
     fullBounds.max.y - fullBounds.min.y,
@@ -135,16 +133,55 @@ for (const specKey of specKeys) {
     }
   }
   // 原点必须落在占地底面中心：运行侧的 preserveOrigin 直接把这个原点贴地。
-  if (Math.abs(fullBounds.min.y) > FOOTPRINT_TOLERANCE_METERS) {
+  // 底面高度按规格里的 `mountHeight` 判（缺省 0）：挂墙件（吊柜）把挂高烘在几何里，柜底本来就在
+  // 1.4m 那一档 —— 见 model-specs.mjs 的 wallcabinet 与 model-library.mjs 的 buildModelGroup。
+  const expectedMinY = modelSpec.mountHeight ?? 0;
+  if (modelSpec.mountHeight !== undefined && !(modelSpec.mountHeight > 0)) {
     failures.push(
-      `${specKey}：底面不在 y=0（min.y = ${fullBounds.min.y.toFixed(3)}m），模型会被埋进地板或浮空`
+      `${specKey}：mountHeight（${modelSpec.mountHeight}）必须为正 —— 写 0（或负数）与不写等价，` +
+        "只会让下面那条底面校验失去意义"
     );
+  }
+  if (Math.abs(fullBounds.min.y - expectedMinY) > FOOTPRINT_TOLERANCE_METERS) {
+    failures.push(
+      `${specKey}：底面不在 y=${expectedMinY}（min.y = ${fullBounds.min.y.toFixed(3)}m），模型会被埋进地板或浮空`
+    );
+  }
+  // lite 与完整版必须**逐值同包围盒**（六个面全部对齐）。
+  //
+  // 为什么单列一条：lite 是运行侧的主资源（完整版只是加载失败时的回退，见 studio-external-models.js），
+  // 所以「lite 少了一块撑轮廓的零件」在浏览器里就是**物件本身小了** —— 抬高压根不报错，只表现为
+  // 模型一到位就轻轻缩一圈。而这类错的来源很集中：给一件撑着外轮廓的零件打了 `fullOnly`
+  // （历史上 31 件这么踩过：柜门把手、音箱接线盒、壁挂件挂板、地毯流苏、楼梯斜裙板……），
+  // 或者 lite 的降段数没踩在极值角上（圆截面的极值只落在 4 的倍数段上，见 model-library.mjs）。
+  //
+  // 容差比尺寸校验紧：两版是同一份规格的两条分支，除了分段数以外没有别的自由度，
+  // 差到 0.5mm 就说明轮廓真的变了，而不是浮点噪声。
+  const LITE_PARITY_TOLERANCE_METERS = 0.0005;
+  for (const axis of ["x", "y", "z"]) {
+    for (const end of ["min", "max"]) {
+      const deviation = Math.abs(liteBounds[end][axis] - fullBounds[end][axis]);
+      if (deviation > LITE_PARITY_TOLERANCE_METERS) {
+        failures.push(
+          `${specKey}：lite 与完整版的包围盒不一致 —— ${end}.${axis} 完整 ${fullBounds[end][
+            axis
+          ].toFixed(4)}m、lite ${liteBounds[end][axis].toFixed(4)}m（差 ${deviation.toFixed(4)}m）。` +
+            "多半是某件撑着外轮廓的零件打了 fullOnly，或 lite 降段数时没踩到极值角"
+        );
+      }
+    }
   }
   const fullMeasure = measureModelGroup(fullGroup);
   const liteMeasure = measureModelGroup(liteGroup);
-  if (liteMeasure.vertices > fullMeasure.vertices * LITE_VERTEX_BUDGET_RATIO) {
+  const liteBudgetRatio = modelSpec.liteVertexBudgetRatio ?? DEFAULT_LITE_VERTEX_BUDGET_RATIO;
+  if (!(liteBudgetRatio > 0 && liteBudgetRatio <= 1)) {
     failures.push(
-      `${specKey}：lite 版顶点数 ${liteMeasure.vertices} 未明显低于完整版 ${fullMeasure.vertices}（上限比例 ${LITE_VERTEX_BUDGET_RATIO}）`
+      `${specKey}：liteVertexBudgetRatio 必须落在 (0, 1]，实际 ${liteBudgetRatio}（写错一位就会让守卫彻底失效）`
+    );
+  }
+  if (liteMeasure.vertices > fullMeasure.vertices * liteBudgetRatio) {
+    failures.push(
+      `${specKey}：lite 版顶点数 ${liteMeasure.vertices} 未明显低于完整版 ${fullMeasure.vertices}（上限比例 ${liteBudgetRatio}）`
     );
   }
   summaries.push({

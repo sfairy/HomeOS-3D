@@ -17,7 +17,7 @@
  * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609260946
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=2609262221
  */
 
 /* ===== 设计令牌（主题变量） ===== */
@@ -3099,6 +3099,16 @@ select option:disabled {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #00000029;
+}
+/* 空列表不再留一个空边框盒子：作者样式里的 display 会盖掉 [hidden] 的 UA 规则，故显式声明。 */
+.save-interaction-impacts[hidden] {
+  display: none;
+}
+.save-interaction-summary {
+  margin: 0 0 14px;
+  color: var(--hos-tool-text-dim);
+  font-size: 11px;
+  line-height: 1.7;
 }
 .save-interaction-impacts li {
   display: flex;

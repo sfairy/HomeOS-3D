@@ -423,7 +423,7 @@ export function buildGlasscabinetItem(context) {
  * 书脊宽度 / 高度按固定比值错落、整排占格口 86%、尾巴两本斜靠、旁边一摞平放，全部用同一组常量推。
  * 精确到毫米的排布归规格一份，不必在运行侧再写一遍（两份真值必然走散）。
  *
- * y 一律给**底面**高度（与规格同语义）。吊柜把离地高度写进构造器的教训见 `buildWallcabinetItem`。
+ * y 一律给**底面**高度（与规格同语义）。挂墙件把挂高烘进几何的那一处例外见 `buildWallcabinetItem`。
  */
 export function buildBookcaseItem(context) {
   const {

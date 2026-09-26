@@ -21,7 +21,7 @@
  * @type {{ category: string, label: string, note: string, items: { type: string, sub: string, icon: string, name: string, size: string }[] }[]}
  */
 // 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
-import { escapeHtml } from "../../utils/html-escape.js?v=2609260946";
+import { escapeHtml } from "../../utils/html-escape.js?v=2609262221";
 
 export const STUDIO_ASSET_PALETTE = [
   {
@@ -108,7 +108,7 @@ export const STUDIO_ASSET_PALETTE = [
       { type: "kitchenbase", sub: "kitchen-bath", icon: "▤", name: "厨房地柜", size: "2.40 × 0.60m" },
       { type: "kitchensink", sub: "kitchen-bath", icon: "▣", name: "地柜带水盆", size: "1.20 × 0.60m" },
       { type: "kitchencooktop", sub: "kitchen-bath", icon: "▦", name: "地柜带燃气灶", size: "1.20 × 0.60m" },
-      { type: "kitchenisland", sub: "kitchen-bath", icon: "▭", name: "岛台", size: "1.6 × 0.8m" },
+      { type: "kitchenisland", sub: "kitchen-bath", icon: "▭", name: "岛台", size: "2.4 × 0.8m" },
     ]
   },
   {
@@ -175,9 +175,10 @@ export const STUDIO_ASSET_PALETTE = [
   {
     category: "appliance",
     label: "厨房电器",
-    note: "厨房电器：冰箱、洗碗机、电饭煲等（与上面「厨房固定家具」分开，这类是可挪动的电器）。",
+    note: "厨房电器：冰箱、冰柜、洗碗机、电饭煲等（与上面「厨房固定家具」分开，这类是可挪动的电器）。",
     items: [
       { type: "fridge", sub: "kitchen", icon: "▯", name: "冰箱", size: "0.75 × 0.72m" },
+      { type: "freezer", sub: "kitchen", icon: "▭", name: "冰柜", size: "1.05 × 0.60m" },
       { type: "rangehood", sub: "kitchen", icon: "◢", name: "油烟机", size: "0.90 × 0.45m" },
       { type: "dishwasher", sub: "kitchen", icon: "▤", name: "洗碗机", size: "0.60 × 0.60m" },
       { type: "steamoven", sub: "kitchen", icon: "▣", name: "蒸烤箱", size: "0.60 × 0.55m" },

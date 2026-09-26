@@ -12,7 +12,16 @@
  * 3. `slots` 下标即 `material-<n>`，顺序一旦发布就不能改（改了等于换掉已有草稿的取色语义）。
  *    槽位色只是「未套用任何风格时的底色」，真正的颜色由 studio-scene-style.js 的色卡决定。
  * 4. 大件几何不要写 `fullOnly`，小件（旋钮、显示屏、把手细节）才写 —— lite 版靠丢掉这些控制顶点数。
- *    纯方盒构成的小件若一件 fullOnly 都没有，lite 与完整版会一模一样，尺寸校验后的预算校验会拦下。
+ *    **撑住外轮廓的零件一律不能写 `fullOnly`**：lite 才是运行侧的主资源（完整版只在 lite 加载
+ *    失败时回退），把它丢掉等于物件本身少了一块 —— 生成器会逐值比对两版的包围盒，差过 0.5mm
+ *    直接报错（守卫见 `generate-models.mjs` 与 `check_invariants.mjs` 第 19 条）。
+ *    典型踩过的：柜门把手是最前缘、壁挂件挂板是最靠墙那一层、地毯流苏收着整宽、楼梯斜裙板
+ *    收着整宽、音箱接线盒与散热格栅撑进深、柱帽撑高度。判据很简单：**问它是不是某一轴的极值**。
+ * 5. 纯方盒构成的小件若一件 fullOnly 都没有，lite 与完整版会一模一样，尺寸校验后的预算校验会拦下。
+ *    确实一件都丢不得的类型（方柱：柱帽撑着声明的 2.8m，三件又都是纯方盒；地毯：流苏收着整宽，
+ *    四类零件又都是方盒；tv_standard / cabinet / locker / pantry / filecabinet：把手或挂架撑着
+ *    进深，全身也是方盒），在规格里显式写 `liteVertexBudgetRatio: 1` 声明「lite 与完整版同形」，
+ *    而不是绕过那条校验 —— 丢一件撑着轮廓的东西去换那个比例，是这条规则唯一会反噬的走法。
  */
 import {
   box,
@@ -34,6 +43,21 @@ import {
   taper,
   torus
 } from "./model-library.mjs";
+
+/**
+ * lite 版顶点数上限（相对完整版的比例）的缺省值。
+ *
+ * 定在 0.9 而不是更低：纯方盒构成的小件没有「降段数」这条杠杆 —— 一个 BoxGeometry 已经是最小的
+ * 12 个三角形，lite 想更轻只能整件丢掉零件，而丢多了会改掉轮廓。0.9 这条线的真实作用是
+ * 「保证 lite 确实更轻，且拦下『忘了给任何零件打 fullOnly』」，而不是追求一个好看的压缩比；
+ * 真正省下的量由生成器逐件打印出来，看得到。
+ *
+ * 规格里的 `liteVertexBudgetRatio` 可按类型抬高它：目前是方柱（`pillarSpec` 的 square 分支）、
+ * 地毯、壁挂电视，以及 cabinet / locker / pantry / filecabinet —— 都是「零件全是方盒 + 撑着轮廓的
+ * 那件又不能让」，理由各自写在规格里。生成器与 check_invariants 都从这里取这个数 —— 两端各抄一份，
+ * 改了一边就会变成「生成器放行、守卫报红」的分裂口径。
+ */
+export const DEFAULT_LITE_VERTEX_BUDGET_RATIO = 0.9;
 
 /**
  * 四腿家具的通用腿：`legSpanX` / `legSpanZ` 是**腿心到中心的距离**（米）。
@@ -299,47 +323,79 @@ function pianoPlan({ halfWidth, tailZ, frontZ }) {
  * 这里用**折线**而不是 extrude 的 `arcTo`：`arcTo` 只有一个半径，而半圆 / 四分之一圆的弧都是
  * **拉伸到占满占地的椭圆弧**（半轴取的是整宽 / 整深，不是半宽 / 半深）。换成圆弧，异形柱在
  * 默认占地下就短一截、包围盒凑不满 `size`，生成器当场报错。
- * 代价是折线的顶点数不随 lite 变化，所以柱族的 lite 减重全部落在 fullOnly 的柱帽上。
+ *
+ * 折线的顶点数不受 `curveSegments` 影响（它只对 arcTo / curveTo 生效），于是弧的采样密度就是
+ * lite 版唯一的减重杠杆 —— 所以这里一次给两条折线：完整版按 `ARC_SEGMENTS_PER_RADIAN` 采样，
+ * lite 版按 `LITE_ARC_SEGMENTS_PER_RADIAN` 采得稀一些（同一条曲线、同一组端点，占地与高度逐值
+ * 不变，只有弧上的中间点少几个）。**不能再走 fullOnly 那条路**：柱族当初靠丢掉柱帽减重，而柱帽
+ * 撑着整件的高度 —— lite 版因此只有 2.68m 高，运行侧却按 scaleBasis 的 2.8m 缩放，于是所有非
+ * 方形柱子默认都矮 12cm（方形柱子更是连柱帽都没有）。
+ *
+ * 这条契约的机器版本**现在有两处**，两处分工与「完整版包围盒」那条一样：生成器 `generate-models.mjs`
+ * 在导出前比 lite 与完整版的包围盒（0.5mm，管「规格里写错了」），`check_invariants.mjs` 第 19 条比
+ * 磁盘上的 `-lite.glb`（1.5mm，管「规格改了但没重新导出」）。柱族当初那个 2.68m 的 bug 能溜到画面上，
+ * 是因为那时这条判据还不存在 —— 现在 lite 少一块撑着外轮廓的零件、或降段数没踩在圆截面的极值角上，
+ * 都会当场报错。当年为此清掉了一批同类偏差（31 件：把手 / 挂板 / 流苏 / 斜裙板被误打 `fullOnly`，
+ * 圆柱与球的段数收成奇数），`liteVertexBudgetRatio: 1` 那几件也在其中。
  */
+const ARC_SEGMENTS_PER_RADIAN = 10;
+const LITE_ARC_SEGMENTS_PER_RADIAN = 6;
+
 function pillarOutline(shape, width, depth) {
   const halfWidth = width / 2;
   const halfDepth = depth / 2;
-  const points = [];
-  const pushEllipseArc = (centerX, centerY, radiusX, radiusY, startRadians, endRadians) => {
-    const segments = Math.max(8, Math.round(Math.abs(endRadians - startRadians) * 10));
-    for (let arcStep = 1; arcStep <= segments; arcStep += 1) {
-      const arcAngle = startRadians + ((endRadians - startRadians) * arcStep) / segments;
-      points.push([
-        centerX + Math.cos(arcAngle) * radiusX,
-        centerY + Math.sin(arcAngle) * radiusY
-      ]);
+  const outlinePoints = segmentsPerRadian => {
+    const points = [];
+    const pushEllipseArc = (centerX, centerY, radiusX, radiusY, startRadians, endRadians) => {
+      // 段数取偶数：半圆的弧跨 π，最深处（z = -半深）正好落在弧的**中点**上，只有偶数段才采得到
+      // 那个点 —— 奇数段会让整件深度短 1 - cos(π/2n)。实测 10 段/弧度时差 0.6mm（压着生成器 1mm
+      // 的容差过线），lite 的 6 段/弧度时差 1.5mm（与完整版不等），所以这里向上取到偶数。
+      const rounded = Math.max(
+        5,
+        Math.round(Math.abs(endRadians - startRadians) * segmentsPerRadian)
+      );
+      const segments = rounded % 2 === 0 ? rounded : rounded + 1;
+      for (let arcStep = 1; arcStep <= segments; arcStep += 1) {
+        const arcAngle = startRadians + ((endRadians - startRadians) * arcStep) / segments;
+        points.push([
+          centerX + Math.cos(arcAngle) * radiusX,
+          centerY + Math.sin(arcAngle) * radiusY
+        ]);
+      }
+    };
+    if (shape === "round") {
+      points.push([halfWidth, 0]);
+      pushEllipseArc(0, 0, halfWidth, halfDepth, 0, Math.PI * 2);
+    } else if (shape === "semicircle") {
+      // 平直面在 +y（立正之后就是 -z，靠墙那一侧），弧从 +x 端扫到 -x 端。
+      points.push([-halfWidth, halfDepth], [halfWidth, halfDepth]);
+      pushEllipseArc(0, halfDepth, halfWidth, depth, 0, -Math.PI);
+    } else if (shape === "quarter") {
+      points.push([-halfWidth, halfDepth], [halfWidth, halfDepth]);
+      pushEllipseArc(-halfWidth, halfDepth, width, depth, 0, -Math.PI / 2);
+    } else {
+      // quarterinner：与 quarter 在同一占位内互补，两根叠在一起正好拼满一个方柱。
+      points.push([halfWidth, halfDepth], [halfWidth, -halfDepth], [-halfWidth, -halfDepth]);
+      pushEllipseArc(-halfWidth, halfDepth, width, depth, -Math.PI / 2, 0);
     }
+    // 显式闭合：`quarter` 的弧扫到 (-半宽, -半深) 就停了，回不到起点，而 extrude 要求末点
+    // 与首点重合（不闭合的轮廓拉出来是一张侧壁缺失的壳，单面渲染下整块从背面消失）。
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
+    if (
+      Math.abs(firstPoint[0] - lastPoint[0]) > 1e-6 ||
+      Math.abs(firstPoint[1] - lastPoint[1]) > 1e-6
+    ) {
+      points.push([firstPoint[0], firstPoint[1]]);
+    }
+    return points;
   };
-  if (shape === "round") {
-    points.push([halfWidth, 0]);
-    pushEllipseArc(0, 0, halfWidth, halfDepth, 0, Math.PI * 2);
-  } else if (shape === "semicircle") {
-    // 平直面在 +y（立正之后就是 -z，靠墙那一侧），弧从 +x 端扫到 -x 端。
-    points.push([-halfWidth, halfDepth], [halfWidth, halfDepth]);
-    pushEllipseArc(0, halfDepth, halfWidth, depth, 0, -Math.PI);
-  } else if (shape === "quarter") {
-    points.push([-halfWidth, halfDepth], [halfWidth, halfDepth]);
-    pushEllipseArc(-halfWidth, halfDepth, width, depth, 0, -Math.PI / 2);
-  } else {
-    // quarterinner：与 quarter 在同一占位内互补，两根叠在一起正好拼满一个方柱。
-    points.push([halfWidth, halfDepth], [halfWidth, -halfDepth], [-halfWidth, -halfDepth]);
-    pushEllipseArc(-halfWidth, halfDepth, width, depth, -Math.PI / 2, 0);
-  }
-  // 显式闭合：`quarter` 的弧扫到 (-半宽, -半深) 就停了，回不到起点，而 extrude 要求末点
-  // 与首点重合（不闭合的轮廓拉出来是一张侧壁缺失的壳，单面渲染下整块从背面消失）。
-  const firstPoint = points[0];
-  const lastPoint = points[points.length - 1];
-  if (Math.abs(firstPoint[0] - lastPoint[0]) > 1e-6 || Math.abs(firstPoint[1] - lastPoint[1]) > 1e-6) {
-    points.push([firstPoint[0], firstPoint[1]]);
-  }
+  const detailedPoints = outlinePoints(ARC_SEGMENTS_PER_RADIAN);
+  const litePoints = outlinePoints(LITE_ARC_SEGMENTS_PER_RADIAN);
   return {
-    start: points[0],
-    path: points.slice(1).map(point => ({ lineTo: point }))
+    start: detailedPoints[0],
+    path: detailedPoints.slice(1).map(point => ({ lineTo: point })),
+    litePath: litePoints.slice(1).map(point => ({ lineTo: point }))
   };
 }
 
@@ -855,6 +911,20 @@ function shoecabinetBayShoes() {
  * 命中检测、贴墙摆放都按这个来），任何外扩的线脚都会让包围盒超过 scaleBasis —— 而运行侧是按
  * scaleBasis 非等比缩放的，多出来的那一圈会被缩回去，柱子反而与邻近的墙穿插。
  * 所以这里只做内收 2mm 的分色缝：远看是柱脚 / 柱帽的两段分色，近看是一条浅浅的阴角线。
+ *
+ * **柱帽必须留在两个版本里**：它是整件最高的那一段，撑着我们声明的 2.8m。以前它打着 `fullOnly`
+ * （柱族唯一的减重手段），于是 lite 版只有 2.68m 高 —— 而运行侧只看 `scaleBasis`（2.8m）这一个数
+ * 分轴缩放，成品就实打实地矮 12cm：占位几何是 2.8m，模型一到位整根柱子往下缩一截，方形柱还连带
+ * 丢掉柱帽那条分色。现在柱族的 lite 减重改走「降采样 / 降分段」这条正路（见下），柱帽两版都在。
+ *
+ * lite 的减重落点按截面分两种：
+ *   - 圆截面用圆柱，lite 会把 40 段降到 20 段（段数必须是 4 的倍数，见 model-library.mjs 的
+ *     `liteRadialSegments`：极值只落在采样到的角度上，否则两版的直径会差 5%）；
+ *   - 椭圆截面的四种用轮廓拉体，lite 用 `pillarOutline` 的粗档折线（`litePath`）。
+ * 方柱是纯方盒，两条杠杆都没有：柱脚 / 柱帽本身就只有 12 个三角形，再减只能整段丢掉，
+ * 而丢柱帽就是上面那个 2.68m 的老 bug。所以方柱的 lite 与完整版同形，规格里显式声明
+ * `liteVertexBudgetRatio: 1`。同类的声明还有几处（全是方盒、撑着轮廓的那件又不能让：
+ * 地毯 / 壁挂电视 / cabinet / locker / pantry / filecabinet），理由各自写在那一件的规格里。
  */
 function pillarSpec(shape) {
   const pillarWidth = 0.45;
@@ -873,15 +943,18 @@ function pillarSpec(shape) {
   }[shape];
   const parts = [];
   if (shape === "square") {
+    // 纯方盒：柱脚 / 柱身 / 柱帽三段各 12 个三角形，没有任何分段落可降。
+    // 柱帽又必须撑住 2.8m（见上），于是方柱的 lite 只能与完整版同形 —— 规格里用
+    // `liteVertexBudgetRatio: 1` 把这件事写明，免得顶点预算那条守卫把「没有杠杆可拉」
+    // 误报成「作者忘了给零件打 fullOnly」。
     parts.push(
       cbox(1, [pillarWidth - bandInset, baseHeight, pillarDepth - bandInset], [0, 0, 0]),
       cbox(0, [pillarWidth, shaftHeight, pillarDepth], [0, baseHeight, 0]),
-      cbox(
-        2,
-        [pillarWidth - bandInset, capHeight, pillarDepth - bandInset],
-        [0, baseHeight + shaftHeight, 0],
-        { fullOnly: true }
-      )
+      cbox(2, [pillarWidth - bandInset, capHeight, pillarDepth - bandInset], [
+        0,
+        baseHeight + shaftHeight,
+        0
+      ])
     );
   } else {
     // 圆截面走圆柱（lite 会把 40 段降到 20 段），椭圆截面的四种走轮廓拉体。
@@ -897,14 +970,11 @@ function pillarSpec(shape) {
       shape === "round"
         ? [
             ccyl(1, (pillarWidth - bandInset) / 2, baseHeight, 40, [0, 0, 0]),
-            ccyl(
-              2,
-              (pillarWidth - bandInset) / 2,
-              capHeight,
-              40,
-              [0, baseHeight + shaftHeight, 0],
-              { fullOnly: true }
-            )
+            ccyl(2, (pillarWidth - bandInset) / 2, capHeight, 40, [
+              0,
+              baseHeight + shaftHeight,
+              0
+            ])
           ]
         : [
             extrude(
@@ -919,7 +989,7 @@ function pillarSpec(shape) {
               pillarOutline(shape, pillarWidth - bandInset, pillarDepth - bandInset),
               capHeight,
               [0, baseHeight + shaftHeight, 0],
-              { centered: true, rot: [-90, 0, 0], fullOnly: true }
+              { centered: true, rot: [-90, 0, 0] }
             )
           ];
     parts.push(bandParts[0], shaftPart, bandParts[1]);
@@ -927,6 +997,9 @@ function pillarSpec(shape) {
   return {
     note: `${shapeLabel}：柱脚 + 柱身 + 柱帽三段（同截面叠起，靠材质分色读线脚，不外扩占地）。`,
     size: [pillarWidth, pillarHeight, pillarDepth],
+    // 方柱的 lite 与完整版同形（纯方盒没有可降的分段，而柱帽必须撑高度），
+    // 预算上限显式抬到 1；其余柱形靠降采样减重，走默认的 0.9。理由见本函数上方的长注释。
+    ...(shape === "square" ? { liteVertexBudgetRatio: 1 } : {}),
     slots: [
       { role: "body", color: 0xefede8, roughness: 0.66, metalness: 0.02 }, // 0 柱身
       { role: "base", color: 0xdcd7cd, roughness: 0.7, metalness: 0.02 }, // 1 柱脚
@@ -1127,6 +1200,9 @@ export const MODEL_SPECS = Object.freeze({
   cabinet: {
     note: "衣柜 / 储物柜：柜体 + 双侧框架 + 对开门 + 踢脚 + 竖条拉手。门板前留 5.6cm 侧回边与 2.8cm 中缝，读成成品柜。",
     size: [1.6, 1.9, 0.45],
+    // 八件全是方盒：没有分段可降，而**拉手是最前缘**（撑住 0.45 的进深），一件都丢不得 ——
+    // lite 与完整版同形，显式声明 1。理由与方柱那一段同源（见文件头第 4 条）。
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "body", color: 0x5a3a22, roughness: 0.66, metalness: 0 }, // 0 柜体箱体
       { role: "door", color: 0xf5f3ef, roughness: 0.24, metalness: 0.08 }, // 1 门板
@@ -1145,9 +1221,11 @@ export const MODEL_SPECS = Object.freeze({
       // 对开门：各 0.73 宽，中缝 2.8cm，上端留 5.5cm 顶回边、下端与踢脚平齐。
       cbox(1, [0.73, 1.785, 0.02], [-0.379, 0.06, 0.195]),
       cbox(1, [0.73, 1.785, 0.02], [0.379, 0.06, 0.195]),
-      // 竖条拉手：贴在中缝两侧，凸出门板 2cm（占地深度仍未超 0.45 —— 它是最前缘）。
-      cbox(2, [0.02, 0.28, 0.02], [-0.036, 1, 0.215], { fullOnly: true }),
-      cbox(2, [0.02, 0.28, 0.02], [0.036, 1, 0.215], { fullOnly: true })
+      // 竖条拉手：贴在中缝两侧，凸出门板 2cm。**它是最前缘（-0.225…0.225 就是这 0.45）**，
+      // 所以不能打 fullOnly —— 丢掉之后 lite 只剩 0.43 进深，柜子会整体缩进 2cm；
+      // 何况拉手是正面的东西，丢了就是「这柜子没有拉手」。两件一对，要么都留要么都不留。
+      cbox(2, [0.02, 0.28, 0.02], [-0.036, 1, 0.215]),
+      cbox(2, [0.02, 0.28, 0.02], [0.036, 1, 0.215])
     ]
   },
   // ── 组合茶几（两件式石材件）──────────────────────────────────────────────
@@ -1640,8 +1718,16 @@ export const MODEL_SPECS = Object.freeze({
     ]
   },
   wallcabinet: {
-    note: "吊柜：柜体（顶底板 / 双侧板 / 背板 / 中竖板 + 层板）+ 双开门 + 竖条拉手；无腿，靠挂墙件悬空。",
+    note:
+      "吊柜：柜体（顶底板 / 双侧板 / 背板 / 中竖板 + 层板）+ 双开门 + 竖条拉手；无腿，靠挂墙件悬空。" +
+      "挂高（柜底 1.4m）烘在几何里，见 mountHeight —— 与**原版既有资产同一个口径**：那台吊柜的柜底" +
+      "也在 1.378m，而原版的 ITEM_TYPE_DEFINITIONS.wallcabinet 里没有 elevation，摆位只把 elevation" +
+      "当「在这一段之上再加的偏移」。本仓把挂高留在 elevation 里的话，同一个草稿在原版打开就会抬两次。",
     size: [1.5, 0.82, 0.35],
+    // 挂高烘进几何：导出时整件抬起 1.4m（成品几何 y ∈ [1.4, 2.22]，声明高度仍是 0.82 的柜体）。
+    // 规格里的零件坐标一律写成 **0 基**（地面在 y = 0），抬升由 model-library 的 buildModelGroup
+    // 统一做 —— 逐件手加 1.4 的话，下面那些为了躲共面而写死的绝对值（背板顶面 0.777 之类）会全部漂掉。
+    mountHeight: 1.4,
     slots: [
       { role: "body", color: 0x5a3a22, roughness: 0.64, metalness: 0 }, // 0 柜体围板
       { role: "door", color: 0xf5f3ef, roughness: 0.42, metalness: 0.06 }, // 1 双开门
@@ -1651,7 +1737,7 @@ export const MODEL_SPECS = Object.freeze({
       { role: "metal", color: 0x9aa1a8, roughness: 0.3, metalness: 0.42 } // 5 拉手
     ],
     parts: [
-      // 围板厚 2cm：吊柜没有踢脚，底板就是整件的地面（底面 y = 0）。
+      // 围板厚 2cm：吊柜没有踢脚，底板就是整件（0 基）的地面 —— 底面 y = 0，挂高由 mountHeight 抬。
       cbox(0, [1.46, 0.02, 0.3], [0, 0, -0.02]),
       cbox(0, [0.02, 0.76, 0.3], [-0.73, 0.02, -0.02]),
       cbox(0, [0.02, 0.76, 0.3], [0.73, 0.02, -0.02]),
@@ -2004,7 +2090,12 @@ export const MODEL_SPECS = Object.freeze({
     ],
     parts: [
       // 踢脚内缩 5cm：落地那 6cm 因此是踢脚而不是柜体正面。
-      cbox(2, [2.06, 0.06, 0.55], [0, 0, -0.045]),
+      //
+      // 底面从 2mm 起（不是 0）：吧凳的四条腿也落在 y=0，而且**站在踢脚的占地之内**（凳子塞在
+      // 台面下面）。两块朝下的面同处一个平面、投影还相交，从地板下面看就是一片抖动的条纹；
+      // 落地的那 2mm 由吧凳腿接着（整件 min.y 仍是 0），正面看不出这 2mm 的缝。
+      // 与地毯包边同一条修法（那件的做法在 rug 的注释里）：让**非极值的那一件**退让，外观不变。
+      cbox(2, [2.06, 0.058, 0.55], [0, 0.002, -0.045]),
       // 吧台柜体靠后：z 从 −0.325 到 −0.03，前侧留出 0.295 的容腿空间给吧凳。
       cbox(1, [2.1, 0.88, 0.295], [0, 0.06, -0.1775]),
       // 正面三格敞开酒格：三块隔板 + 一层底板，格子背板即柜体正面。
@@ -2502,7 +2593,9 @@ export const MODEL_SPECS = Object.freeze({
       ccyl(1, 0.072, 0.005, 24, [0, 0.648, 0.1375], { rot: [90, 0, 0] }),
       ccyl(1, 0.048, 0.005, 20, [0, 0.392, 0.1375], { rot: [90, 0, 0] }),
       ccyl(1, 0.032, 0.005, 16, [0, 0.208, 0.1375], { rot: [90, 0, 0], fullOnly: true }),
-      cbox(1, [0.16, 0.16, 0.008], [0, 0.12, -0.136], { fullOnly: true }),
+      // 背面接线盒**不能打 fullOnly**：它比箱体背面（−0.132）再往后 8mm，是这件最深的极值面，
+      // 丢掉之后音箱的进深就只剩 0.264 —— 而它是背面唯一有形的构件，侧看 / 斜看都在。
+      cbox(1, [0.16, 0.16, 0.008], [0, 0.12, -0.136]),
       cbox(3, [0.26, 0.03, 0.24], [0, 1.02, 0])
     ]
   },
@@ -2882,6 +2975,8 @@ export const MODEL_SPECS = Object.freeze({
   locker: {
     note: "储物柜：双开门 + 中部隔板，阳台与过道的通用收纳。",
     size: [0.9, 1.8, 0.4],
+    // 五件全是方盒，两把手又是最前缘（撑住 0.4 的进深）：没有可降的分段，也没有能丢的件。
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "body", color: 0x3d2818, roughness: 0.6, metalness: 0 }, // 0 柜体
       { role: "door", color: 0xffffff, roughness: 0.42, metalness: 0.06 }, // 1 柜门
@@ -2891,8 +2986,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(0, [0.9, 1.8, 0.36], [0, 0, -0.02]),
       cbox(1, [0.44, 1.6, 0.03], [-0.225, 0.1, 0.175]),
       cbox(1, [0.44, 1.6, 0.03], [0.225, 0.1, 0.175]),
-      cbox(2, [0.02, 0.16, 0.01], [-0.03, 0.8, 0.195], { fullOnly: true }),
-      cbox(2, [0.02, 0.16, 0.01], [0.03, 0.8, 0.195], { fullOnly: true })
+      // 把手凸出门板 1cm，正好顶到 -0.2…0.2 这条进深线上（门板只到 0.19）：丢了就是 0.38 深。
+      cbox(2, [0.02, 0.16, 0.01], [-0.03, 0.8, 0.195]),
+      cbox(2, [0.02, 0.16, 0.01], [0.03, 0.8, 0.195])
     ]
   },
   laundrycabinet: {
@@ -2908,7 +3004,8 @@ export const MODEL_SPECS = Object.freeze({
       cbox(0, [0.65, 0.8, 0.56], [0, 0, -0.02]),
       ccyl(3, 0.17, 0.05, 24, [0, 0.8, 0]),
       cbox(1, [0.58, 0.62, 0.03], [0, 0.08, 0.275]),
-      cbox(2, [0.02, 0.14, 0.01], [0.22, 0.35, 0.295], { fullOnly: true })
+      // 单只把手同样是最前缘（门板到 0.29、它到 0.30）：留着，不减它。
+      cbox(2, [0.02, 0.14, 0.01], [0.22, 0.35, 0.295])
     ]
   },
   balconycabinet: {
@@ -2922,8 +3019,10 @@ export const MODEL_SPECS = Object.freeze({
     parts: [
       cbox(0, [0.8, 1.2, 0.36], [0, 0, -0.02]),
       cbox(1, [0.72, 0.64, 0.03], [0, 0.5, 0.175]),
+      // 上柜内的层板：四面都藏在柜门之后，是真正的「近看才成立」——留着 fullOnly。
       cbox(0, [0.74, 0.025, 0.34], [0, 0.44, -0.02], { fullOnly: true }),
-      cbox(2, [0.02, 0.16, 0.01], [0.28, 0.75, 0.195], { fullOnly: true })
+      // 把手凸出门板 1cm，撑住 0.4 的进深（门板只到 0.19）：必须两版都在。
+      cbox(2, [0.02, 0.16, 0.01], [0.28, 0.75, 0.195])
     ]
   },
   winecabinet: {
@@ -2941,28 +3040,159 @@ export const MODEL_SPECS = Object.freeze({
       // DoubleSide，背面剔不掉，两块面会一起抢同一片像素（0.62m² 的整扇门在闪）。
       // 正面也收进去 4mm，把手（0.215 起）因此是插在玻璃里、而不是与玻璃正面齐平。
       cbox(1, [0.48, 1.3, 0.02], [0, 0.2, 0.211]),
+      // 内置层板：藏在玻璃门之后，是真正的「近看才成立」—— 留着 fullOnly。
       cbox(0, [0.52, 0.02, 0.36], [0, 0.55, -0.02], { fullOnly: true }),
-      cbox(2, [0.02, 0.2, 0.01], [-0.16, 0.75, 0.22], { fullOnly: true })
+      // 把手顶到 0.225，是整件最前缘（玻璃门到 0.221）—— 不能打 fullOnly，
+      // 否则 lite 的进深只剩 0.441。它是正面看得见的东西，本来也不该只在完整版里出现。
+      cbox(2, [0.02, 0.2, 0.01], [-0.16, 0.75, 0.22])
     ]
   },
-  kitchenisland: {
-    note: "岛台：独立操作台 + 石台面，开放式厨房的中心。",
-    size: [1.6, 0.9, 0.8],
-    slots: [
-      { role: "body", color: 0x3d2818, roughness: 0.6, metalness: 0 }, // 0 柜体
-      { role: "top", color: 0xd8d6d0, roughness: 0.28, metalness: 0.08 }, // 1 石台面
-      { role: "door", color: 0xffffff, roughness: 0.42, metalness: 0.06 } // 2 门板
-    ],
-    parts: [
-      cbox(0, [1.5, 0.86, 0.7], [0, 0, 0]),
-      cbox(1, [1.6, 0.04, 0.8], [0, 0.86, 0]),
-      cbox(2, [0.44, 0.6, 0.02], [-0.5, 0.06, 0.36], { fullOnly: true }),
-      cbox(2, [0.44, 0.6, 0.02], [0.06, 0.06, 0.36], { fullOnly: true })
-    ]
-  },
+  // 岛台兼餐桌（2026-09 重做）：按实物参考图（智能电动伸缩岛台餐桌）定形，比例是两条硬口径：
+  //   **高台 : 低台 = 1 : 2**（岛台台面沿伸缩方向 0.8，伸缩餐台 1.6），
+  //   **高台台面 1 : 1**（岛台台面 0.8 × 0.8 —— 于是整件进深 0.8 也由它定死，不再独立取值）。
+  // 总长因此是 2.4 = 0.8 + 1.6，落在参考图 B 款的 2.15~2.70 区间里（A 款上限 2.30 装不下）。
+  //
+  // 高台（岛台，台面高 0.9 = 参考图 89cm）：
+  //   正立面照参考图分三段 —— 台面下沿一圈**控制条**（参考图里那条带数码显示的深色带）、
+  //   一片**大面积平板门**、右端一条**窄的深色竖面板**（参考图里那扇深色玻璃/电器面），
+  //   最下一圈内缩的**踢脚**；柜体四周各收 5cm，让出一圈台面边。
+  // 低台（伸缩餐台，板面高 0.75 = 参考图 75cm，正是餐桌高）：
+  //   一块从岛台侧面伸出的薄板，外端一条**板式支腿**落地；板比台面略窄（0.72），
+  //   一眼看得出是从高台底下抽出来的一块。
+  //
+  // 四条口径写清楚，免得后来人按「看着差不多」改坏：
+  //   - **占地 2.4 × 0.8 是「拉出到位」这一个状态**，不是可动范围；物件不做动画，拉出量
+  //     就是建模时烘死的那一段。要改状态得同时改 size / scaleBasis / 兜底几何 / 素材卡尺寸
+  //     四处（它们必须逐值相等，check_invariants 会比对磁盘 GLB 与 scaleBasis）。
+  //   - 六个极值各有其主：**x+ / z± / y+ 归高台台面**（1.2 / ±0.4 / 0.9），
+  //     **x− 归低台板尖**（−1.2），**y− 由踢脚与支腿两处落地**。撑极值的零件一律不能打
+  //     fullOnly（丢了 lite 就缩一圈，而这在浏览器里零报错）。
+  //   - 低台板尾与柜体侧面**背靠背**（同在 x = 0.4）而不是互相咬：板面那一层 0.715~0.75
+  //     落在柜体 0.06~0.862 的高度区间里，咬进去就是**真的穿模**（两件实体相交），
+  //     与「两块面共面会闪」不是一回事。
+  //   - 柜体与台面 / 踢脚**互相咬进 2mm**；门板与深色面板的背面则正落在柜体正面（z = 0.35）：
+  //     后两者是单面材质且门板整块盖住那片柜体正面，属背靠背，被背面剔除、不闪。
+  //
+  // 槽位只用了六个**现有角色**（body / top / door / metal / base / leg），一个都不新增：
+  // 新角色要同时进 model-roles 词表、三张出口登记表、以及每个柜类档位的组合配方，
+  // 而参考图里那点内容（深色面、控制条、显示屏）用 `metal` 一个深色角色的分量已经够读。
+  kitchenisland: (() => {
+    const height = 0.9; // 高台台面高
+    const counterThickness = 0.04;
+    const counterBottomY = height - counterThickness;
+    // 高台台面 1 : 1 —— 这两个数绑在一起，改一个必须改另一个。
+    const islandLength = 0.8;
+    const depth = 0.8;
+    const islandMinX = 0.4; // 高台占 x 0.4 ~ 1.2
+    const islandMaxX = islandMinX + islandLength;
+    const islandCenterX = (islandMinX + islandMaxX) / 2;
+    // 低台长度 = 高台的 2 倍，占 x −1.2 ~ 0.4。
+    const tableLength = islandLength * 2;
+    const tableMinX = islandMinX - tableLength;
+    // 柜体：四周各收 5cm（宽 0.7、深 0.7），顶面咬进台面 2mm。
+    const carcassWidth = islandLength - 0.1;
+    const carcassDepth = depth - 0.1;
+    const carcassTopY = counterBottomY + 0.002;
+    const plinthTopY = 0.062; // 咬进柜体底面 2mm（柜体自 0.06 起）
+    // 正立面：一片 0.48 宽的平板门 + 右端一条 0.176 宽的深色竖面板，两侧各留 2cm 立边
+    // 露着柜体本身，就是参考图里那圈窄框。
+    const bodyFrontMinX = islandMinX + 0.05;
+    const bodyFrontMaxX = islandMaxX - 0.05;
+    const frontReveal = 0.02;
+    const runMinX = bodyFrontMinX + frontReveal;
+    const runMaxX = bodyFrontMaxX - frontReveal;
+    const doorGap = 0.004;
+    const doorWidth = 0.48;
+    const darkPanelMinX = runMinX + doorWidth + doorGap;
+    const doorBottomY = 0.1;
+    const doorTopY = 0.78;
+    // 门板 / 深色面板的背面正好落在柜体正面（z = 0.35）上：这是**背靠背**的一对，
+    // 两块都是单面材质、且门板整块盖住那片柜体正面，因此不闪（守卫也只报同向与沾玻璃的背靠背）。
+    const frontFaceZ = carcassDepth / 2;
+    const doorThickness = 0.022;
+    const panelThickness = 0.018;
+    // 控制条：填住台面下沿那圈悬挑，正面收在台面前缘（0.40）之内 6mm。
+    const apronBottomY = 0.79;
+    const apronFrontZ = depth / 2 - 0.006;
+    // 低台：板顶 0.75（餐桌高），进深 0.72（比高台台面窄一圈，读得出是抽出来的一块）。
+    const tableTopY = 0.75;
+    const tableThickness = 0.035;
+    const tableDepth = 0.72;
+    const legThickness = 0.03;
+    const tableLegX = tableMinX + 0.02; // 腿心离板尖 2cm：板尖挑出腿外 5mm，像折板腿
+    return {
+      note: "岛台兼餐桌：高台（0.8 × 0.8 台面、高 0.9）正立面是控制条 + 平板门 + 右端窄深色面板，侧面伸出两倍长的低台（1.6 × 0.72、板高 0.75，外端板式支腿落地）。",
+      size: [2.4, 0.9, 0.8],
+      // 九个方盒零件，**每一块都是能认出来的特征**（高台台面 / 控制条 / 门板 / 深色竖面板 /
+      // 显示屏边框 / 踢脚 / 柜体 / 低台板 / 支腿），没有能丢的件；分段数也无处可降
+      // （方盒没有径向分段）。
+      // 因此按「一件都丢不得」的既有口径显式声明 lite 与完整版同形 —— 不写这个 1，生成器与
+      // check_invariants 都会按缺省 0.9 报「lite 没省下东西」，而那是一条没人能修的警报。
+      liteVertexBudgetRatio: 1,
+      slots: [
+        { role: "body", color: 0x3d2818, roughness: 0.6, metalness: 0 }, // 0 柜体
+        { role: "top", color: 0xd8d6d0, roughness: 0.28, metalness: 0.08 }, // 1 高台台面 / 低台伸缩餐台板
+        { role: "door", color: 0xffffff, roughness: 0.42, metalness: 0.06 }, // 2 平板门
+        // 深色面那一族（控制条 + 显示屏边框 + 竖面板）共用一个槽位：参考图里它们就是同一种
+        // 「黑色面板」，而运行侧的 `metal` 角色给的正是柜体五金那一档深色 —— 分三个槽位只会
+        // 多两张材质、颜色还是同一个（角色取色只看角色，不看槽位号）。
+        { role: "metal", color: 0x2f3336, roughness: 0.34, metalness: 0.28 }, // 3 控制条 / 显示屏边框 / 深色竖面板
+        { role: "base", color: 0x3f2916, roughness: 0.66, metalness: 0 }, // 4 踢脚
+        { role: "leg", color: 0x3f2916, roughness: 0.66, metalness: 0 } // 5 伸缩餐台支腿
+      ],
+      parts: [
+        // 踢脚：四周内缩，顶面咬进柜体底面 2mm（柜体自 0.06 起）。
+        cbox(4, [carcassWidth - 0.1, plinthTopY, carcassDepth - 0.1], [
+          islandCenterX,
+          0,
+          0
+        ]),
+        // 柜体：顶面 0.862，埋进台面底 0.86 共 2mm。
+        cbox(0, [carcassWidth, carcassTopY - 0.06, carcassDepth], [islandCenterX, 0.06, 0]),
+        // 高台台面：0.8 × 0.8（1:1），整件 x+ / z± / 高度三项极值都由它定。
+        cbox(1, [islandLength, counterThickness, depth], [islandCenterX, counterBottomY, 0]),
+        // 控制条：正面 0.394，比台面前缘（0.40）缩进 6mm；顶面 0.864 埋进台面里 4mm。
+        cbox(3, [carcassWidth - 0.1, 0.074, apronFrontZ - frontFaceZ], [
+          islandCenterX,
+          apronBottomY,
+          (frontFaceZ + apronFrontZ) / 2
+        ]),
+        // 显示屏边框：从控制条里凸出 1.5mm（背面埋进控制条 4.5mm），因此离台面前缘还剩 4.5mm ——
+        // **不能**齐平到 0.40，同向共面的两块面会一起抢同一片像素。
+        cbox(3, [0.16, 0.05, 0.006], [islandCenterX, 0.8, apronFrontZ - 0.0015]),
+        // 右端深色竖面板：窄条（0.176 宽 × 0.68 高），比门板略薄。
+        cbox(3, [runMaxX - darkPanelMinX, doorTopY - doorBottomY, panelThickness], [
+          (darkPanelMinX + runMaxX) / 2,
+          doorBottomY,
+          frontFaceZ + panelThickness / 2
+        ]),
+        // 平板门：一片吃到 0.48 宽（参考图里深色面板只占右侧一小条）。
+        cbox(2, [doorWidth, doorTopY - doorBottomY, doorThickness], [
+          runMinX + doorWidth / 2,
+          doorBottomY,
+          frontFaceZ + doorThickness / 2
+        ]),
+        // 低台（伸缩餐台）板：板尾顶在柜体侧面上（x = 0.4），板尖到 x = −1.2，板长 1.6 ——
+        // 正好是高台台面 0.8 的两倍。板顶 0.75 是餐桌高。
+        cbox(1, [tableLength, tableThickness, tableDepth], [
+          (tableMinX + islandMinX) / 2,
+          tableTopY - tableThickness,
+          0
+        ]),
+        // 板式支腿：底面落在 y=0（与踢脚同为整件最低处的两处之一），顶面咬进餐台板 2mm。
+        cbox(5, [legThickness, tableTopY - tableThickness + 0.002, tableDepth - 0.12], [
+          tableLegX,
+          0,
+          0
+        ])
+      ]
+    };
+  })(),
   pantry: {
     note: "餐边高柜：通高双门 + 中部开放格，餐厅收纳主力。",
     size: [0.9, 1.9, 0.42],
+    // 同 locker：五件全是方盒，把手是最前缘，没有能丢的件也没有可降的分段。
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "body", color: 0x3d2818, roughness: 0.6, metalness: 0 }, // 0 柜体
       { role: "door", color: 0xffffff, roughness: 0.42, metalness: 0.06 }, // 1 柜门
@@ -2972,8 +3202,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(0, [0.9, 1.9, 0.38], [0, 0, -0.02]),
       cbox(1, [0.43, 1.5, 0.025], [-0.225, 0.25, 0.1825]),
       cbox(1, [0.43, 1.5, 0.025], [0.225, 0.25, 0.1825]),
-      cbox(2, [0.02, 0.14, 0.015], [-0.04, 1.0, 0.2025], { fullOnly: true }),
-      cbox(2, [0.02, 0.14, 0.015], [0.04, 1.0, 0.2025], { fullOnly: true })
+      // 把手凸出门板 1cm，顶到 ±0.21 那条进深线上（门板只到 0.20）。
+      cbox(2, [0.02, 0.14, 0.015], [-0.04, 1.0, 0.2025]),
+      cbox(2, [0.02, 0.14, 0.015], [0.04, 1.0, 0.2025])
     ]
   },
   // ── 餐边柜（玻璃门）──────────────────────────────────────────────────────
@@ -3125,13 +3356,19 @@ export const MODEL_SPECS = Object.freeze({
       croundedBox(2, [0.46, 0.56, 0.09], [0, 0.44, -0.2], { radius: 0.04 }),
       // 扶手：外缘正好 0.30（0.275 + 0.025）、前后各到 ±0.30，这件家具的宽 / 深都由它定
       // （扶手通长的做法在人体工学上也对：手肘前后都要有落点）。
-      ...mirrorPair(cbox(1, [0.05, 0.18, 0.6], [0.275, 0.44, 0], { fullOnly: true })),
+      // 正因为宽与深都压在扶手上，它不能打 fullOnly —— 丢了之后 lite 只剩五星脚那 0.56 的兜圈，
+      // 整把椅子会缩一圈。它是扶手，正面、侧面都看得见。
+      ...mirrorPair(cbox(1, [0.05, 0.18, 0.6], [0.275, 0.44, 0])),
+      // 靠背上的头枕垫：整块都在靠背的轮廓之内（z −0.24…−0.16 落在靠背 −0.245…−0.155 里），
+      // 露不出来，是真正的近看（其实是看不见）细节 —— 这件留着 fullOnly 才有意义。
       croundedBox(2, [0.3, 0.12, 0.08], [0, 0.86, -0.2], { radius: 0.04, fullOnly: true })
     ]
   },
   filecabinet: {
     note: "文件柜：四层抽屉 + 台面，书房与办公室的纸质收纳。",
     size: [0.8, 1.3, 0.45],
+    // 七件全是方盒，抽屉拉手牌是最前缘（抽屉面到 0.21、它到 0.225）：没有可降的分段、没有能丢的件。
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "body", color: 0x3d2818, roughness: 0.6, metalness: 0 }, // 0 柜体
       { role: "drawer", color: 0xd8d6d0, roughness: 0.45, metalness: 0.12 }, // 1 抽屉面
@@ -3143,8 +3380,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(1, [0.72, 0.24, 0.025], [0, 0.4, 0.1975]),
       cbox(1, [0.72, 0.24, 0.025], [0, 0.72, 0.1975]),
       cbox(1, [0.72, 0.24, 0.025], [0, 1.04, 0.1975]),
-      cbox(2, [0.2, 0.02, 0.015], [0, 0.3, 0.2175], { fullOnly: true }),
-      cbox(2, [0.2, 0.02, 0.015], [0, 0.62, 0.2175], { fullOnly: true })
+      // 抽屉拉手牌：贴在抽屉面之前 1.5cm，是整件最前缘（撑住 0.45 的进深）。
+      cbox(2, [0.2, 0.02, 0.015], [0, 0.3, 0.2175]),
+      cbox(2, [0.2, 0.02, 0.015], [0, 0.62, 0.2175])
     ]
   },
   booktower: {
@@ -3239,6 +3477,9 @@ export const MODEL_SPECS = Object.freeze({
   tv_standard: {
     note: "壁挂电视：60mm 机身背板 + 一圈回边（屏幕嵌在其中）+ 背面挂架方板。没有落地件，抬高由物件的离地高度给。",
     size: [1.5, 0.92, 0.06],
+    // 三块都是纯方盒：没有分段可降，挂架又撑着 0.06 的进深（见零件注释），
+    // 于是 lite 与完整版同形 —— 显式声明 1，而不是靠丢掉挂架去凑那 10%。
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "body", color: 0x2a2c30, roughness: 0.46, metalness: 0.1 }, // 0 机身背板
       { role: "trim", color: 0x3f4247, roughness: 0.34, metalness: 0.18 }, // 1 回边（屏幕外框）
@@ -3255,7 +3496,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(1, [1.5, 0.0276, 0.007], [0, 0, 0.0265]),
       cbox(1, [1.5, 0.0276, 0.007], [0, 0.8924, 0.0265]),
       ...mirrorPair(cbox(1, [0.02625, 0.8648, 0.007], [0.736875, 0.0276, 0.0265])),
-      cbox(2, [0.5, 0.4, 0.011], [0, 0.26, -0.0245], { fullOnly: true })
+      // 挂架**不能打 fullOnly**：它是六面里最深的那一层（-0.030），丢掉之后 lite 只剩 0.05 进深，
+      // 整机贴墙时就少了 1cm —— 而且挂架本来就在背面，看得见（侧看 / 斜看），不是「近看才成立」的细节。
+      cbox(2, [0.5, 0.4, 0.011], [0, 0.26, -0.0245])
     ]
   },
   tv_tabletop: {
@@ -3481,7 +3724,9 @@ export const MODEL_SPECS = Object.freeze({
       // 后移 2mm（前面 0.123）—— 后移是为了避开显示区的前表面 0.125：下沉之后两者的 y 区间
       // 交叠了 3mm，若前面仍同在 0.125 就会换一处继续闪。前极值 0.125 由旋钮与显示区撑住。
       cbox(5, [0.16, 0.03, 0.02], [0, 0.477, 0.113]),
-      cbox(3, [0.3, 0.3, 0.02], [0, 0.15, -0.115], { fullOnly: true })
+      // 背挂架：贴机身背面再往后 5mm（机身到 −0.11、它到 −0.125），撑住 0.25 的进深 ——
+      // 不能打 fullOnly（丢了 lite 只剩 0.24）。它也是这台机器背面唯一的构件。
+      cbox(3, [0.3, 0.3, 0.02], [0, 0.15, -0.115])
     ]
   },
   ceilingac: {
@@ -3526,7 +3771,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(1, [0.84, 0.02, 0.14], [0, 0.26, -0.01]),
       croundedBox(3, [0.88, 0.16, 0.04], [0, 0.06, 0.07], { radius: 0.008 }),
       cbox(4, [0.12, 0.05, 0.012], [0.28, 0.12, 0.104]),
-      cbox(5, [0.7, 0.18, 0.02], [0, 0.06, -0.1], { fullOnly: true })
+      // 背部挂板：比机身再往后 1cm（机身到 −0.10、它到 −0.11），前极值那边由显示区顶住 ——
+      // 两端各一件撑满 0.22 的进深，所以挂板不能打 fullOnly（丢了 lite 只剩 0.21）。
+      cbox(5, [0.7, 0.18, 0.02], [0, 0.06, -0.1])
     ]
   },
   floorac: {
@@ -3699,35 +3946,92 @@ export const MODEL_SPECS = Object.freeze({
   // 分件摆放上有一条反复出现的坑：**两块相邻零件的面不要落在同一个坐标上**。踢脚顶面与箱体底面
   // 都写 0.03 会得到一对共面三角形，渲染出来是一片随机闪烁的接缝；写成「箱体从 0.02 起」让交界
   // 落在箱体内部就干净了。同理，台面比箱体略宽一点点（箱体 0.596、台面 0.600），避免侧面共面。
+  // 2026-09 按实物照改成「十字对开门」：上半两扇对开、下半两层抽屉。占地与既有资产逐值不变
+  // （0.75×1.85×0.72），槽位号与角色沿用上一版，老草稿的取色语义不用迁移。
   fridge: {
-    note: "上下双门冰箱：箱体 + 冷藏门 + 冷冻门 + 中缝压条 + 两支横拉手 + 门内显示区 + 底部通风格栅。",
+    note: "十字对开门冰箱：箱体 + 上两扇高对开门 + 下两层抽屉 + 门缝蓝光灯带 + 深色隐藏拉手槽 + 四周深色门框 + 底踢脚与散热格栅。",
     size: [0.75, 1.85, 0.72],
     slots: [
       { role: "body", color: 0xc6cbd1, roughness: 0.34, metalness: 0.24 }, // 0 箱体
-      { role: "door", color: 0xc6cbd1, roughness: 0.3, metalness: 0.22 }, // 1 冷藏门 / 冷冻门
+      { role: "door", color: 0xc6cbd1, roughness: 0.3, metalness: 0.22 }, // 1 门板（两扇上开门 + 两层抽屉面）
       { role: "base", color: 0x3c3f44, roughness: 0.5, metalness: 0.14 }, // 2 踢脚
-      { role: "handle", color: 0x8c8f94, roughness: 0.26, metalness: 0.5 }, // 3 横拉手
+      { role: "handle", color: 0x2f3338, roughness: 0.34, metalness: 0.2 }, // 3 隐藏拉手槽
       { role: "screen", color: 0x1b1d20, roughness: 0.22, metalness: 0.1 }, // 4 门内显示区
-      { role: "metal", color: 0x6d747b, roughness: 0.3, metalness: 0.4 }, // 5 中缝压条
-      { role: "grating", color: 0x5b6167, roughness: 0.45, metalness: 0.3 } // 6 底部通风格栅
+      { role: "metal", color: 0x2b2f34, roughness: 0.3, metalness: 0.35 }, // 5 门框与门缝压条
+      { role: "grating", color: 0x5b6167, roughness: 0.45, metalness: 0.3 }, // 6 底部通风格栅
+      { role: "lit", color: 0x2f7bff, roughness: 0.3, metalness: 0.1 } // 7 蓝色保鲜灯带（彩度高，运行侧保留原色）
     ],
     parts: [
-      // 箱体进深 0.62（z 从 −0.36 到 +0.26），前面 0.06 让给门板、0.04 让给拉手 —— 三件加起来
-      // 正好是 scaleBasis 的 0.72，没有一件是「先画大再压回去」。
-      // 机身从 0.005 起（高度相应 1.85 → 1.845，顶面仍在 1.85）：原来机身与底座的下表面
-      // 都在 y = 0 上，两块朝下的面同向共面 0.17m² —— 冰箱从低角度看底盘那一圈在闪。
-      croundedBox(0, [0.75, 1.845, 0.62], [0, 0.005, -0.05], { radius: 0.02 }),
-      // 冷藏门 / 冷冻门：两门之间留 0.05 的缝（0.80 → 0.85），中缝压条填在缝里。
-      croundedBox(1, [0.735, 0.95, 0.06], [0, 0.85, 0.29], { radius: 0.014 }),
-      croundedBox(1, [0.735, 0.75, 0.06], [0, 0.05, 0.29], { radius: 0.014 }),
-      cbox(5, [0.735, 0.012, 0.03], [0, 0.819, 0.3]),
-      // 拉手贴着各自门板的中缝侧边沿：冷藏门在下沿、冷冻门在上沿，两根合起来才读得出「上下双门」。
-      // 这两件是旋转过的圆柱（轴沿 x），y 用 align:"center" 写在轴心高度上。
-      ccyl(3, 0.013, 0.4, 14, [0, 0.87, 0.347], { rot: [0, 0, 90], align: "center" }),
-      ccyl(3, 0.013, 0.4, 14, [0, 0.77, 0.347], { rot: [0, 0, 90], align: "center" }),
-      croundedBox(4, [0.16, 0.05, 0.014], [0.24, 1.695, 0.325], { radius: 0.006 }),
-      cbox(2, [0.7, 0.05, 0.5], [0, 0, -0.06]),
-      cbox(6, [0.4, 0.03, 0.02], [0, 0.01, 0.265], { fullOnly: true })
+      // 进深三段：箱体 z −0.36…0.28，门板 0.27…0.354（门板背面埋进箱体 1cm，避免共面），
+      // 门框/压条 0.28…0.34（比门板正面退 1.4cm，读成「门嵌在黑色门框里」）。
+      // 整机最前面留给显示区（正好 0.36），灯带则凸出门面 2mm —— 门板是实心块，
+      // 贴在门面之内的面板会被门板整个挡住，凡要看得见的都要凸出来。
+      // 机身从 0.005 起（高度 1.845、顶面仍在 1.85）：与踢脚的下表面错开，避免底盘一圈共面闪烁。
+      croundedBox(0, [0.75, 1.845, 0.64], [0, 0.005, -0.04], { radius: 0.02 }),
+      // 分缝按参考图量得：踢脚到 0.055，下抽屉 0.055–0.475，拉手槽 0.475–0.505，
+      // 中抽屉 0.505–0.82，灯带槽 0.82–0.85，上门 0.85–1.825（顶沿留 0.025）。
+      // 上门各 0.352 宽、中缝 0.017、两侧各留 0.0145 的门框；门面比箱体窄 0.029。
+      croundedBox(1, [0.352, 0.975, 0.084], [-0.1845, 0.85, 0.312], { radius: 0.012 }),
+      croundedBox(1, [0.352, 0.975, 0.084], [0.1845, 0.85, 0.312], { radius: 0.012 }),
+      croundedBox(1, [0.721, 0.315, 0.084], [0, 0.505, 0.312], { radius: 0.014 }),
+      croundedBox(1, [0.721, 0.42, 0.084], [0, 0.055, 0.312], { radius: 0.014 }),
+      // 门缝压条：上门中缝一条（宽度正好等于缝宽，与门侧壁背靠背）、灯带槽一条。
+      cbox(5, [0.017, 0.975, 0.06], [0, 0.85, 0.31]),
+      cbox(5, [0.721, 0.03, 0.06], [0, 0.82, 0.31]),
+      // 隐藏拉手槽：两层抽屉之间那道 3cm 的深色横槽，比抽屉面退 1.4cm。
+      cbox(3, [0.721, 0.03, 0.06], [0, 0.475, 0.31]),
+      // 蓝色保鲜灯带：落在上门与中抽屉之间那道槽里，正面凸到整机最前面 0.36 —— 它也是
+      // lite 版撑着「最前极值」的那一件（显示区打了 fullOnly，不能让它独自撑极值）。
+      cbox(7, [0.7, 0.014, 0.02], [0, 0.828, 0.35]),
+      // 四周深色门框：左右两条竖框 + 顶沿一条横框，各比箱体窄 1mm 免得侧面共面。
+      cbox(5, [0.0135, 1.77, 0.06], [-0.3673, 0.055, 0.31]),
+      cbox(5, [0.0135, 1.77, 0.06], [0.3673, 0.055, 0.31]),
+      cbox(5, [0.748, 0.025, 0.06], [0, 1.825, 0.31]),
+      // 门内显示区：贴在中抽屉右上角（参考图里蓝灯带正下方那块小面板），凸出门面 6mm。
+      croundedBox(4, [0.15, 0.05, 0.014], [0.26, 0.67, 0.353], { radius: 0.005, fullOnly: true }),
+      // 踢脚：正面比箱体前脸凸 2cm，读成缩进的踢脚板；散热格栅凸在它正面上。
+      cbox(2, [0.7, 0.055, 0.61], [0, 0, -0.005]),
+      cbox(6, [0.4, 0.026, 0.02], [0, 0.012, 0.3], { fullOnly: true })
+    ]
+  },
+  // 2026-09 新增：卧式冰柜（顶开盖）。顶盖是俯视能看到的唯一大面，因此盖沿与箱体各留一道缝，
+  // 前沿把手与「顶盖 / 箱体」交界处就是实物上最容易被一眼认出来的两处特征。
+  freezer: {
+    note: "卧式冰柜：箱体 + 顶盖 + 前沿把手 + 右下控制面板（显示区 + 指示点）+ 铰链包边 + 底部散热格栅。",
+    size: [1.05, 0.85, 0.6],
+    slots: [
+      { role: "body", color: 0x4a4f55, roughness: 0.34, metalness: 0.24 }, // 0 箱体
+      { role: "door", color: 0x4a4f55, roughness: 0.3, metalness: 0.22 }, // 1 顶盖
+      { role: "base", color: 0x2b2f34, roughness: 0.5, metalness: 0.14 }, // 2 底脚
+      { role: "handle", color: 0x8c8f94, roughness: 0.26, metalness: 0.5 }, // 3 盖前沿把手
+      { role: "panel", color: 0x2b2f34, roughness: 0.36, metalness: 0.16 }, // 4 控制面板
+      { role: "screen", color: 0x1b1d20, roughness: 0.2, metalness: 0.1 }, // 5 显示区
+      { role: "metal", color: 0x6d747b, roughness: 0.3, metalness: 0.4 }, // 6 铰链包边
+      { role: "grating", color: 0x5b6167, roughness: 0.45, metalness: 0.3 }, // 7 底部散热格栅
+      { role: "lit", color: 0xd23b2f, roughness: 0.3, metalness: 0.1 } // 8 电源指示点（彩度高，保留原色）
+    ],
+    parts: [
+      // 箱体背后比顶盖收进 5mm：两者背面都写 −0.30 会得到一对共面的背面，从背后看会闪烁。
+      // 顶盖同时撑着宽 / 高 / 进深三个极值，因此它不能打 fullOnly。
+      croundedBox(0, [1.01, 0.68, 0.55], [0, 0.05, -0.02], { radius: 0.018 }),
+      croundedBox(1, [1.05, 0.13, 0.585], [0, 0.72, -0.0075], { radius: 0.02 }),
+      // 四只底脚：箱体底面离地 5cm，脚把整机落到 y = 0。
+      cbox(2, [0.07, 0.05, 0.07], [-0.44, 0, -0.22]),
+      cbox(2, [0.07, 0.05, 0.07], [0.44, 0, -0.22]),
+      cbox(2, [0.07, 0.05, 0.07], [-0.44, 0, 0.18]),
+      cbox(2, [0.07, 0.05, 0.07], [0.44, 0, 0.18]),
+      // 盖前沿把手：一条横贯的凹槽把手，伸出盖沿前方 15mm —— 进深极值件，不能 fullOnly。
+      cbox(3, [0.55, 0.032, 0.03], [0, 0.745, 0.285]),
+      // 控制面板（右下）：面板板固定进深，显示区与指示点都落在面板正面之内、不吃进深极值。
+      cbox(4, [0.13, 0.22, 0.02], [0.4, 0.13, 0.25]),
+      cbox(5, [0.07, 0.04, 0.008], [0.4, 0.3, 0.258], { fullOnly: true }),
+      cbox(8, [0.016, 0.016, 0.008], [0.4, 0.22, 0.258], { fullOnly: true }),
+      // 铰链包边：压在箱体与顶盖之间那道缝上，把两者读成「一个盖 + 一个箱」。
+      // 必须凸到 z 0.29（顶盖前脸 0.285、箱体前脸 0.255 都在它后面），否则整件被顶盖包住、
+      // 从任何角度看都是一块死几何（正视可见性采样里它一个像素都不占）。
+      cbox(6, [1.015, 0.014, 0.045], [0, 0.719, 0.2675]),
+      // 散热格栅：左下角一条横格栅。
+      cbox(7, [0.45, 0.035, 0.02], [-0.2, 0.1, 0.262], { fullOnly: true })
     ]
   },
   washer: {
@@ -3906,11 +4210,14 @@ export const MODEL_SPECS = Object.freeze({
     ],
     parts: [
       // 机身离地 0.02 让给四个小脚，于是 y 的极值分工是「脚占 0、机身顶占 0.32」。
+      // 小脚因此**不能打 fullOnly**：lite 版把它们丢掉之后，整件会矮 2cm（0.30 而不是 0.32）
+      // 并且底面抬到 y = 0.02 —— 运行侧只按 scaleBasis（0.32）缩放、把原点直接贴地，成品于是
+      // 比参数矮一截还悬空 2cm。lite 的减重由三个圆角盒的降段数（3 → 2）承担。
       croundedBox(0, [0.52, 0.3, 0.4], [0, 0.02, -0.01], { radius: 0.01 }),
-      ccyl(5, 0.012, 0.02, 10, [-0.22, 0, -0.17], { fullOnly: true }),
-      ccyl(5, 0.012, 0.02, 10, [0.22, 0, -0.17], { fullOnly: true }),
-      ccyl(5, 0.012, 0.02, 10, [-0.22, 0, 0.17], { fullOnly: true }),
-      ccyl(5, 0.012, 0.02, 10, [0.22, 0, 0.17], { fullOnly: true }),
+      ccyl(5, 0.012, 0.02, 10, [-0.22, 0, -0.17]),
+      ccyl(5, 0.012, 0.02, 10, [0.22, 0, -0.17]),
+      ccyl(5, 0.012, 0.02, 10, [-0.22, 0, 0.17]),
+      ccyl(5, 0.012, 0.02, 10, [0.22, 0, 0.17]),
       // 门、控制板、拉手三件的前表面都在 z = 0.21，它们在 x 上互不重叠（门 ≤ 0.11、
       // 拉手贴门右缘、控制板 ≥ 0.12）—— 但**拉手与门是重叠的**：拉手右缘 0.11 正是门的右缘，
       // 底边 0.04 正是门的底边，前表面又同在 0.21，三对同向共面（30.6 + 12.5 + 2.6cm²）。
@@ -4084,7 +4391,9 @@ export const MODEL_SPECS = Object.freeze({
       ccyl(2, 0.016, 0.13, 12, [0.084, 0.085, 0]),
       cbox(2, [0.03, 0.02, 0.03], [0.075, 0.205, 0]),
       cbox(4, [0.05, 0.05, 0.008], [0, 0.005, 0.096]),
-      cbox(4, [0.04, 0.04, 0.008], [0, 0.005, -0.096], { fullOnly: true })
+      // 底座后面的电源线口：与前一块同层（±0.10 就是底座撑住的 0.20 进深），
+      // 丢掉之后 lite 只剩 0.192，而它就在底座边上，低头就看得见 —— 不能打 fullOnly。
+      cbox(4, [0.04, 0.04, 0.008], [0, 0.005, -0.096])
     ]
   },
   airfryer: {
@@ -4112,7 +4421,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(5, [0.12, 0.03, 0.02], [0, 0.1, 0.16]),
       ccyl(6, 0.022, 0.02, 16, [-0.09, 0.3, 0.1], { rot: [90, 0, 0], align: "center" }),
       cbox(7, [0.09, 0.045, 0.01], [0.05, 0.285, 0.095]),
-      cbox(2, [0.2, 0.06, 0.01], [0, 0.06, -0.165], { fullOnly: true })
+      // 后散热格栅：如上所述，进深 0.34 的后极值就在它身上 —— 不能打 fullOnly
+      // （丢了 lite 只剩 0.33）。它也是这台机器背面唯一有形的一块。
+      cbox(2, [0.2, 0.06, 0.01], [0, 0.06, -0.165])
     ]
   },
   blender: {
@@ -4140,7 +4451,9 @@ export const MODEL_SPECS = Object.freeze({
       cbox(6, [0.02, 0.2, 0.03], [0.1, 0.19, 0]),
       cbox(3, [0.16, 0.05, 0.015], [0, 0.06, 0.1075]),
       cbox(4, [0.1, 0.028, 0.005], [0, 0.07, 0.1175]),
-      cbox(5, [0.14, 0.08, 0.01], [0, 0.05, -0.115], { fullOnly: true })
+      // 后散热格栅：底座背面 −0.1、它到 −0.12，撑住 0.24 的进深 —— 不能打 fullOnly
+      // （丢了 lite 只剩 0.22）。它与前面的控制面板一前一后把这 0.24 夹出来。
+      cbox(5, [0.14, 0.08, 0.01], [0, 0.05, -0.115])
     ]
   },
   // ── 卫浴热水与净水：储水式 / 燃气热水器 / 净水器 ───────────────────────────
@@ -4172,7 +4485,10 @@ export const MODEL_SPECS = Object.freeze({
       // 接管坐在桶顶（y = 0.44）上，顶到 0.48 —— 高度极值在这里。
       ccyl(5, 0.018, 0.04, 12, [-0.2, 0.44, 0]),
       ccyl(5, 0.018, 0.04, 12, [0.2, 0.44, 0]),
-      cbox(5, [0.5, 0.05, 0.035], [0, 0.235, -0.2125], { fullOnly: true }),
+      // 背面挂架：压着桶身背面（−0.205）再往后 25mm，是这件进深 0.46 的后极值 ——
+      // 不能打 fullOnly（丢了 lite 只剩 0.43）。壁挂热水器的挂架本来是看得见的一件。
+      cbox(5, [0.5, 0.05, 0.035], [0, 0.235, -0.2125]),
+      // 侧面泄压阀：整个落在前极值（显示区 0.23）与桶身之间，不影响包围盒 —— 留着 fullOnly。
       ccyl(5, 0.012, 0.02, 12, [0.3, 0.235, 0.212], { rot: [90, 0, 0], align: "center", fullOnly: true })
     ]
   },
@@ -4264,7 +4580,9 @@ export const MODEL_SPECS = Object.freeze({
       ccyl(4, 0.011, 0.04, 16, [0.09, 0.252, 0.09], { align: "center" }),
       croundedBox(4, [0.32, 0.012, 0.1], [0, 0.1, 0.07], { radius: 0.004 }),
       cbox(5, [0.28, 0.008, 0.08], [0, 0.111, 0.07]),
-      cbox(4, [0.3, 0.44, 0.02], [0, 0.1, -0.11], { fullOnly: true })
+      // 挂板就是上面那段注释里「贴墙的 −0.12」：它撑住 0.24 的后极值，**不能打 fullOnly**
+      // （丢了 lite 只剩 0.23），而且它是这台机器背后唯一有形的一件（挂墙件的挂板）。
+      cbox(4, [0.3, 0.44, 0.02], [0, 0.1, -0.11])
     ]
   },
   tea_bar_machine: {
@@ -4574,18 +4892,26 @@ export const MODEL_SPECS = Object.freeze({
   // 底下的防滑层。厚度只有 13mm，所以「包边比毯面高 1.5mm」就是它读起来像地毯而不是一块板
   // 的全部依据 —— 这一点差不能被四舍五入掉。
   // 两端各排一列**流苏**：它落在整宽 2.0m 之内（毯体 1.90 宽 + 两侧各 0.05 的流苏），
-  // 不是伸出占地之外的装饰，所以不会把包围盒撑大。流苏打 fullOnly —— 它是这件上唯一
-  // 纯装饰、丢了也不改轮廓的部分，正好给 lite 版一个能省的地方（56 个小方盒）。
+  // 不是伸出占地之外的装饰，所以不会把包围盒撑大。
+  //
+  // 流苏**不能打 fullOnly**（原来打了，是这件唯一的一处错误）：0.05 的绒体只到 ±0.95，
+  // 整宽 2.0m 是**流苏自己收的口**（伸到 ±1.00）—— 丢掉它 lite 就只剩 1.90 宽，
+  // 地毯整体窄 5%。流苏还是一眼能认出来的东西（平铺时它就在毯子两端），不是「近看才成立」的细节。
+  //
+  // 于是这件没有任何减重落点：毯面 / 包边 / 防滑底 / 流苏全是方盒（没有分段落可降），
+  // 而四类零件各自撑着高度（包边）、进深（包边）、宽度（流苏）与落地（防滑底）。
+  // 用 `liteVertexBudgetRatio: 1` 把「lite 与完整版同形」写明 —— 与方柱那一类同理。
   rug: {
     note: "地毯：绒面毯体 + 四周高出 1.5mm 的织带包边 + 内缩的防滑底 + 两端各 28 缕平铺流苏。",
     size: [2, 0.013, 1.4],
+    liteVertexBudgetRatio: 1,
     slots: [
       { role: "fabric", color: 0xb9a894, roughness: 0.96, metalness: 0 }, // 0 绒面毯体
       { role: "trim", color: 0x8c7a66, roughness: 0.94, metalness: 0 }, // 1 包边 / 流苏
       { role: "base", color: 0x3f3a34, roughness: 0.98, metalness: 0 } // 2 防滑底
     ],
     parts: [
-      // 防滑底：内缩 4cm，四面都藏在毯体之下，只在被掀起来时才看得到。
+      // 防滑底：内缩 4cm，四面都藏在毯体之下，只在被掀起来时才看得到。它是落地（y=0）那一件。
       cbox(2, [1.84, 0.005, 1.3], [0, 0, 0]),
       // 绒面毯体：底边压在防滑底上（2.5mm），顶面到 11.5mm —— 留下 1.5mm 给包边。
       cbox(0, [1.8, 0.009, 1.34], [0, 0.0025, 0]),
@@ -4601,12 +4927,8 @@ export const MODEL_SPECS = Object.freeze({
       cbox(1, [0.06, 0.011, 1.28], [-0.92, 0.002, 0]),
       // 流苏：两端各一排，平铺在地面上（高 4mm）向两侧伸到 ±1.00 —— 整宽 2.0m 由它收口。
       // span 取 1.4（整进深）而不是毯体的 1.34：流苏在实物上比毯体略宽，铺开才自然。
-      ...rowAlongZ(1, { size: [0.05, 0.004, 0.032], count: 28, span: 1.4, x: 0.975, y: 0 }).map(
-        part => ({ ...part, fullOnly: true })
-      ),
-      ...rowAlongZ(1, { size: [0.05, 0.004, 0.032], count: 28, span: 1.4, x: -0.975, y: 0 }).map(
-        part => ({ ...part, fullOnly: true })
-      )
+      ...rowAlongZ(1, { size: [0.05, 0.004, 0.032], count: 28, span: 1.4, x: 0.975, y: 0 }),
+      ...rowAlongZ(1, { size: [0.05, 0.004, 0.032], count: 28, span: 1.4, x: -0.975, y: 0 })
     ]
   },
 
@@ -4875,6 +5197,10 @@ export const MODEL_SPECS = Object.freeze({
       // 角度就是楼梯的坡度，长度略短于对角线 —— 斜梁的两端本来也不会伸到最角上，
       // 而多出来的那点斜角会把包围盒顶出 size。裙板压在踏步实体**里面** 1cm，
       // 不共面（共面会闪烁），外侧正好落在 ±0.5，整件 1m 的宽度由它定。
+      //
+      // 正因为宽度由它定，裙板**不能打 fullOnly**：踏步实体只有 0.976 宽（两侧各留 1cm
+      // 给裙板），丢掉裙板 lite 就只剩 0.976 宽 —— 楼梯整体瘦 2.4%，而且丢了斜裙板
+      // 就是一台暴露着混凝土踏步侧面的楼梯。lite 的减重交给防滑条（十级十条）那条路。
       const stairSlopeDegrees = (Math.atan2(1.65, 2.8) * 180) / Math.PI;
       // 裙板的竖直范围：包住 0.028 → 1.621（斜板长 2.9、截面高 0.14 时的实测外框）。
       // `at[1]` 是**底面对齐**（不是中心），写错会让整件高出 0.77m —— 规格校验会当场拦下。
@@ -4882,8 +5208,7 @@ export const MODEL_SPECS = Object.freeze({
         ...mirrorPair(
           cbox(3, [0.022, 0.14, 2.9], [0.489, 0.028, 0], {
             centered: true,
-            rot: [stairSlopeDegrees, 0, 0],
-            fullOnly: true
+            rot: [stairSlopeDegrees, 0, 0]
           })
         )
       );
@@ -5042,67 +5367,14 @@ export const MODEL_SPECS = Object.freeze({
       )
     ]
   },
-  // 小汽车。旧资产是第三方车模：Z 朝上、车漆效果整段挂在**贴图集**上（着色器拿贴图里的
-  // 玻璃岛与灯位分区，见 materials/studio-car-finish.js），正常化的法线还要靠
-  // smoothCarSurfaceNormals 现算一遍。这里按角色分件之后，车漆 / 玻璃 / 轮毂 / 轮胎 /
-  // 灯 / 格栅各是一块网格，运行侧不必再猜「这一块是不是玻璃」。
+  // 小汽车**不在这张表里**：2026-09-26 起它换回上游第三方车模（贴图集 + lite 走 Draco），
+  // 不再由本流水线产出。表里的判据对它不成立 —— 材质名没有角色、方向靠节点层级里的旋转实现
+  // （下面这段判据读的是 POSITION 访问器包围盒，读出来是「Z 朝上、车高 5.01」），留着只会每次
+  // 导出都报一处红。资产与观感分别见 frontend/static/3d-studio/loaders/studio-external-models.js
+  // 的 smallcar 条目、frontend/static/3d-studio/materials/studio-car-finish.js。
   //
-  // 六个极值全部由轴对齐的零件定下（宽 ← 车身、高 ← 座舱、深 ← 前后保险杠、底面 ← 轮胎），
-  // 斜置的风挡与旋转的轮胎都留在内部 —— 旋转件的包围盒会随角度膨胀，让它去顶极值是自找麻烦。
-  smallcar: {
-    note: "小汽车：下车身 + 座舱 + 前后风挡与侧窗 + 保险杠 + 灯组 + 格栅 + 轮胎轮毂 + 后视镜。",
-    size: [2.19, 1.43, 5.01],
-    slots: [
-      { role: "body", color: 0xd8dade, roughness: 0.3, metalness: 0.32 }, // 0 车身 / 保险杠 / 后视镜
-      { role: "glass", color: 0x9fc4d2, roughness: 0.12, metalness: 0.04 }, // 1 风挡 / 侧窗
-      { role: "metal", color: 0xb7bdc3, roughness: 0.26, metalness: 0.6 }, // 2 轮毂 / 格栅饰条
-      { role: "trim", color: 0x22262b, roughness: 0.86, metalness: 0.02 }, // 3 轮胎（橡胶）
-      { role: "lit", color: 0xfff0d0, roughness: 0.2, metalness: 0 }, // 4 前大灯 / 尾灯
-      { role: "grating", color: 0x363b40, roughness: 0.5, metalness: 0.3 } // 5 前格栅
-    ],
-    parts: [
-      // 车身主体：整件的宽度由它定（±1.095 = 2.19）。底边抬到 0.50 正好压在轮胎上半部，
-      // 「轮胎从翼子板下面露出来」这条读法就成立了 —— 车身不抬高的话，轮子会整只埋在箱体里。
-      croundedBox(0, [2.19, 0.42, 4.86], [0, 0.5, 0]),
-      // 座舱：整件的高度由它定（顶面 1.43），前后位置略偏后。
-      croundedBox(0, [1.86, 0.51, 2.3], [0, 0.92, -0.35]),
-      // 前后保险杠：整件的长度由它们定（±2.505）。
-      cbox(0, [2.1, 0.36, 0.15], [0, 0.22, 2.43]),
-      cbox(0, [2.1, 0.36, 0.15], [0, 0.22, -2.43]),
-      // 底盘裙边：两轴之间那段（x 只到 ±0.87，正好接上轮胎内壁），再往外就是轮子 ——
-      // 这一块同时把「前后轴之间是空的」这条读法补上，车身不会看着像浮在半空的一整块。
-      cbox(0, [1.74, 0.3, 2.42], [0, 0.2, 0]),
-      // 后视镜（支杆 + 镜壳）：贴在座舱前角两侧，凸出但不越出 2.19 的宽度。
-      ...mirrorPair(cbox(2, [0.07, 0.03, 0.03], [0.9, 1.005, 0.9])),
-      ...mirrorPair(cbox(0, [0.15, 0.075, 0.1], [1.01, 1.0, 0.9])),
-      // 前风挡：从机盖（z≈1.31 / y≈0.93）斜到车顶前缘（z≈0.79 / y≈1.39），绕 X 转 -48°；
-      // 后风挡同法反向（+50°）。两块都是斜置件，包围盒都留在 1.43 / ±2.505 之内。
-      //
-      // `align: "center"` 不能省：cbox 的 centered 只管 x / z，y 默认是**底面对齐** ——
-      // 斜置件的「底面」是旋转后包围盒的最低点，按中心理解会让整块往上飘半个高度（实测高 1.641）。
-      cbox(1, [1.72, 0.68, 0.035], [0, 1.16, 1.05], { rot: [-48, 0, 0], align: "center" }),
-      cbox(1, [1.72, 0.7, 0.035], [0, 1.16, -1.76], { rot: [50, 0, 0], align: "center" }),
-      // 侧窗：贴在座舱两侧，各凸出 1.75cm（凸出才看得见 —— 平齐会被座舱的圆角吞掉）。
-      ...mirrorPair(cbox(1, [0.045, 0.32, 1.66], [0.925, 1.03, -0.38])),
-      // 轮胎：底面落在 y=0（整件的底面由它定），轴距 ±1.55。
-      ...[1.55, -1.55].flatMap(carAxleZ =>
-        mirrorPair(ccyl(3, 0.34, 0.16, 26, [0.95, 0, carAxleZ], { rot: [0, 0, 90] }))
-      ),
-      // 轮毂：比轮胎外沿再凸 5cm 才看得见（轮胎是实心圆柱，轮毂缩在里面就整只被挡住），
-      // 但仍留在 ±1.095 之内，不参与定宽。
-      ...[1.55, -1.55].flatMap(carAxleZ =>
-        mirrorPair(ccyl(2, 0.23, 0.24, 22, [0.965, 0.11, carAxleZ], { rot: [0, 0, 90] }))
-      ),
-      // 前大灯 / 尾灯：从车头、车尾的立面各凸出 5cm，不碰前后保险杠（灯在杠上沿之上）。
-      ...mirrorPair(cbox(4, [0.44, 0.13, 0.08], [0.64, 0.62, 2.44])),
-      ...mirrorPair(cbox(4, [0.4, 0.11, 0.07], [0.64, 0.64, -2.46])),
-      // 前格栅：占车头正中央（x ±0.36），两侧正好让给大灯；三道横向饰条只在完整版保留。
-      cbox(5, [0.72, 0.2, 0.05], [0, 0.62, 2.44]),
-      ...[0.66, 0.72, 0.78].map(carGrilleSlatY =>
-        cbox(2, [0.7, 0.02, 0.04], [0, carGrilleSlatY, 2.46], { fullOnly: true })
-      )
-    ]
-  }
+  // 它的规格（2.19 × 1.43 × 5.01、六个角色）也没有丢：物件尺寸在 studio-app.js 的物件表里，
+  // 平面符号的画法在那里的 drawPlanItem 小车一支。
 });
 
 /** 规格键 → 文件基名。多数同名，留这张表是为了将来出现「类型名 ≠ 文件基名」时有地方写。 */
@@ -5114,7 +5386,8 @@ export const MODEL_FILE_KEY_BY_SPEC = Object.freeze({
   pillar_semicircle: "pillar-semicircle",
   pillar_quarter: "pillar-quarter",
   pillar_quarterinner: "pillar-quarterinner",
-  smallcar: "car",
+  // 小汽车的 `smallcar → car` 曾在这里：它现在不是流水线产物（见上），磁盘上的
+  // vehicle/car.glb 仍由注册表那头按「子目录 + 文件基名」拼 URL（studio-external-models.js）。
   steelstairs: "steel-stairs",
   glassstairs: "glass-stairs",
   floatingstairs: "floating-stairs"
@@ -5244,6 +5517,7 @@ export const MODEL_DIR_BY_SPEC = Object.freeze({
   microwave: "appliance",
   rangehood: "appliance",
   fridge: "appliance",
+  freezer: "appliance",
   washer: "appliance",
   dryer: "appliance",
   dishwasher: "appliance",
@@ -5268,6 +5542,8 @@ export const MODEL_DIR_BY_SPEC = Object.freeze({
   glassstairs: "structure",
   floatingstairs: "structure",
   elevator: "structure",
-  // 车辆（第七批）：最后一件既有二进制资产。
-  smallcar: "vehicle"
+  // 小汽车（vehicle）不在这里：它不是流水线产物，磁盘位置由注册表的 smallcar 条目给出
+  // （models/vehicle/car.glb，见 frontend/static/3d-studio/loaders/studio-external-models.js）。
+  // 表里留着它只有一种后果 —— 审计工具会去流水线的目录里找一个不该由流水线管的文件。
+  glassstairs: "structure"
 });

@@ -39,6 +39,7 @@ export const SQUARE_EDGE_ITEM_TYPES = new Set([
   "airoutlet",
   "dryer",
   "dishwasher",
+  "freezer",
   "steamoven",
   "microwave",
   "rangehood",
@@ -117,6 +118,7 @@ export const APPLIANCE_ITEM_TYPES = new Set([
   "walllamp",
   // 厨房电器
   "fridge",
+  "freezer",
   "rangehood",
   "dishwasher",
   "steamoven",
@@ -220,6 +222,7 @@ export const HOME_ITEM_TYPES = new Set([
   "walllamp",
   // 家电
   "fridge",
+  "freezer",
   "washer",
   "dryer",
   "dishwasher",
@@ -356,6 +359,7 @@ export const JOINERY_ITEM_TYPES = new Set([
  */
 export const APPLIANCE_FINISH_BY_ITEM_TYPE = Object.freeze({
   fridge: "silver",
+  freezer: "steelBlack",
   pipelinewaterpurifier: "steelBlack",
   storagewaterheater: "steelBlack",
   gaswaterheater: "steelBlack",
@@ -514,6 +518,7 @@ export const APPLIANCE_MODEL_ITEM_TYPES = new Set([
   "floorlamp",
   "walllamp",
   "fridge",
+  "freezer",
   "rangehood",
   "dishwasher",
   "steamoven",

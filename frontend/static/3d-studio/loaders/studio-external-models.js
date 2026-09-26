@@ -11,35 +11,45 @@
  * 生命周期：模型按类型缓存、克隆体共享几何与贴图，等价材质收敛成一份并缓存，重复副本立即 dispose，
  * 避免显存随物件数量线性增长（销毁逻辑靠实例上的 externalModelShared* 标记判断）。
  */
-import { finite } from "./studio-normalization.js?v=2609260946";
+import { finite } from "./studio-normalization.js?v=2609262221";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609260946";
+import { debugLog } from "../../utils/debug-log.js?v=2609262221";
 // 模型模板的跨会话持久缓存与它的信封编解码：同一份 -lite.glb 在同一个浏览器里会被反复解析
 // （每次进编辑器 / 舞台都要重来一遍下载 + GLTF 解析 + 材质构建），命中缓存就直接还原上一会话
 // 准备好的模板。两个模块必须同一条戳 —— 缓存键里带着编解码版本，两者错开就是「存得进、读不出」。
-import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609260946";
-import { modelTemplateKey } from "../model-template-codec.js?v=2609260946";
+import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609262221";
+import { modelTemplateKey } from "../model-template-codec.js?v=2609262221";
 // 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
 // （家居，看 palette.warmFurniture）。两者都只在对应开关为真时被调用，其它情况下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609260946";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609260946";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609262221";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609262221";
+// 小汽车（上游第三方车模）的整件车漆着色器与法线修订：这台车只有一块网格、一个贴图集材质
+// （`car_tms`），「哪一块是玻璃 / 车灯 / 车漆」在几何上读不出来，只能按贴图 UV 里的区域认 ——
+// 所以它不走「按角色取料」那条路。两个函数的用法与坐标口径见该模块的文件头。
+import {
+  applyCarFinish,
+  smoothCarSceneSurface
+} from "../materials/studio-car-finish.js?v=2609262221";
 // 石材板整图（茶几的两块石板、餐桌台面）：与背景墙的「大理石」共用白色色号那张缓存贴图，
 // 另加一个黑金大理石色号（背景墙没有这一档，见 createStoneSlabTexture 的注释）。
-import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609260946";
+import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609262221";
 // 逐物件「材质风格」的质感贴图（均值≈1 的细节图）：走调色板上的 materialSurface 键。
 import {
   createMaterialSurfaceTexture,
   hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js?v=2609260946";
+} from "../materials/studio-surface-fabrics.js?v=2609262221";
 // 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
 // 名单一旦两处各写一份，模型加载中的占位几何与到位后的成品就会是两个颜色。
 // 不锈钢家电的名单同理：材质替换要知道哪些类型该保留红蓝水管的原色。
 import {
   APPLIANCE_FINISH_BY_ITEM_TYPE,
   JOINERY_ITEM_TYPES
-} from "../studio/studio-item-types.js?v=2609260946";
-const HOME_LITE_MODEL_VERSION = "2609260946";
-const APPLIANCE_LITE_MODEL_VERSION = "2609260946";
+} from "../studio/studio-item-types.js?v=2609262221";
+// 破缓存只认 URL：模型文件换了内容而**文件名不变**时（重建某个物件就是这么改的），
+// 必须让这两个常量前进一格 —— 否则浏览器 HTTP 缓存与 model-persistent-cache.js 的
+// IndexedDB 都会继续把旧几何喂给场景，画面上「改了没反应」，控制台零报错。
+const HOME_LITE_MODEL_VERSION = "2609262221";
+const APPLIANCE_LITE_MODEL_VERSION = "2609262221";
 /**
  * 模型素材按类型分目录存放（models/ 下：furniture / appliance / bath / electronics / decor /
  * structure / vehicle）。分类目录只是收纳手段，对加载与缓存都不透明：后端缓存白名单用的是
@@ -220,11 +230,16 @@ const EXTERNAL_ITEM_MODELS = Object.freeze({
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
+  // 小车：**上游第三方车模**（贴图集 + lite 走 Draco），不是流水线产物 —— 它既没有
+  // `material-<槽位号>` 角色（几何只有一块网格、材质名 `car_tms`），外观也整张挂在贴图集上
+  // （车漆 / 车窗 / 车灯 / 轮毂 / 格栅全在那张 PNG 里，运行侧只能按 UV 区域认件，见
+  // materials/studio-car-finish.js）。
+  //
+  // 不给 scaleBasis 是刻意的：运行侧会退回拿模型自己的**实测尺寸**当基准，而这台车
+  // （节点层级里带一次旋转，摆成 Y 朝上、底面 y≈0、占地居中、+Z 车头）实测正是
+  // 2.192 × 1.434 × 5.012 —— 与先前那台自建车逐值同尺寸。再写一份基准只是多一处漂移源：
+  // 它进不了流水线的「规格 ↔ 磁盘文件」对账（那份判据只覆盖自建产物），写错了没人拦。
   smallcar: defineHomeItemModel("vehicle", "car", {
-    // 流水线产物（tools/models/model-specs.mjs 的 smallcar）：+z 是车头、底面精确落在 y=0、
-    // 六个极值全由轴对齐零件定下。重建前那件是第三方车模（Z 朝上、车漆效果整段挂在贴图集上），
-    // 注册条目给不出 scaleBasis，运行侧只能拿实测包围盒当基准 —— 车长 5.01m 也就无从校准。
-    scaleBasis: [2.19, 1.43, 5.01],
     preserveOrigin: true
   }),
   // 线性出风口：口长沿 Z（environment-airflow.js 按 modelBox.max.x 出风、绕 Y 转 90°），
@@ -367,8 +382,12 @@ const EXTERNAL_ITEM_MODELS = Object.freeze({
     scaleBasis: [0.6, 1.6, 0.45],
     preserveOrigin: true
   }),
+  // 2.4 = 高台（岛台，台面 0.8 × 0.8 正方形、高 0.9）+ 侧面伸出的低台（伸缩餐台 1.6、板高 0.75），
+  // 高台 : 低台 = 1 : 2。拉出到位的那一个状态烘死在几何里，不是可动范围。改这一个数必须同时改
+  // model-specs 的 size、studio-app 的兜底几何与素材卡尺寸 —— model-specs 那边写了完整口径，
+  // check_invariants 会逐轴比对磁盘 GLB。
   kitchenisland: defineHomeItemModel("furniture", "kitchenisland", {
-    scaleBasis: [1.6, 0.9, 0.8],
+    scaleBasis: [2.4, 0.9, 0.8],
     preserveOrigin: true
   }),
   pantry: defineHomeItemModel("furniture", "pantry", {
@@ -471,6 +490,9 @@ export const ALL_ITEM_MODELS = Object.freeze({
   }),
   wallcabinet: defineHomeItemModel("furniture", "wallcabinet", {
     // 流水线产物（tools/models/model-specs.mjs 的 wallcabinet）。重建前实测 1.53 × 0.38，深 8%。
+    // 几何**含挂高**：柜底在 y = 1.4m（规格的 mountHeight，与原版既有资产同口径 —— 那台在 1.378m），
+    // preserveOrigin 直接把它留在半空；物件的 elevation 在这之上**再加**一段偏移。三处必须一致：
+    // 这里的 scaleBasis、规格的 size / mountHeight、占位几何的 wallCabinetMountHeight。
     scaleBasis: [1.5, 0.82, 0.35],
     preserveOrigin: true
   }),
@@ -611,6 +633,10 @@ export const ALL_ITEM_MODELS = Object.freeze({
   }),
   fridge: defineApplianceItemModel("appliance", "fridge", {
     scaleBasis: [0.75, 1.85, 0.72],
+    preserveOrigin: true
+  }),
+  freezer: defineApplianceItemModel("appliance", "freezer", {
+    scaleBasis: [1.05, 0.85, 0.6],
     preserveOrigin: true
   }),
   rangehood: defineApplianceItemModel("appliance", "rangehood", {
@@ -843,7 +869,10 @@ const FURNITURE_PALETTE_ITEM_TYPES = new Set([
   // 悬空楼梯与直行 stairs 同族（建筑本体、木质踏面），调色板归属也照它走：进 FURNITURE_PALETTE
   // 但被下面 HOME_PALETTE 的过滤排除，颜色表达的是房子本身而不是家居风格。
   "floatingstairs",
-  "pillar",
+  // 柱体（pillar）刻意**不在这张表里**：它有自己的一支（见 applyAppliancePalette 的柱分支），
+  // 按「墙的一部分」取墙色族。列进来的话会先命中下面那条 `FURNITURE_PALETTE_ITEM_TYPES` 的
+  // return，柱族永远走不到自己的分支 —— 那正是它此前一直用家具灰 / 暖木色、而占位几何
+  // （buildPillarItemMeshGroup，按墙色画）与加载后的模型对不上的原因。
   "curtain_left",
   "curtain_right",
   "curtain_split",
@@ -858,6 +887,7 @@ const FURNITURE_PALETTE_ITEM_TYPES = new Set([
   "floorlamp",
   "walllamp",
   "fridge",
+  "freezer",
   "rangehood",
   "dishwasher",
   "steamoven",
@@ -1043,6 +1073,7 @@ const APPLIANCE_PALETTE_ITEM_TYPES = new Set([
   "floorlamp",
   "walllamp",
   "fridge",
+  "freezer",
   "rangehood",
   "dishwasher",
   "steamoven",
@@ -1156,9 +1187,10 @@ const CUSTOM_MATERIAL_ITEM_TYPES = new Set([
   "elevator",
   "steelstairs",
   "glassstairs",
-  // 小车：2026-09 按流水线规格重建后加进来。它的车漆 / 轮毂 / 轮胎 / 灯 / 格栅要按**角色**
-  // 取料（见 applyAppliancePalette 的 smallcar 分支），不进这一支的话整件只会保持 GLB 自带的
-  // 灰白，换主题时全屋只有车不变色 —— 与柱族当初漏掉时是同一个病。
+  // 小车：进这一支是为了让 `applyAppliancePalette` 的 smallcar 分支有机会表态（见那里的两条路）。
+  // 当前资产是**上游第三方车模**，那一支做的是「贴图集原样放行」；而真正的车漆 / 玻璃 / 车灯在
+  // resolveSharedMaterial 末尾另有整件一层着色器（materials/studio-car-finish.js）。留在这一支里的
+  // 意义是：哪天换回按角色分件的自建车，这里就是它的入口，不必再回来改名单。
   "smallcar",
   "piano",
   // 柱族五件：材质要跟着**墙色**走（见 applyAppliancePalette 的柱分支）。它们原先不进
@@ -1643,6 +1675,12 @@ export function createExternalModelManager({
           // 石材板要贴整块石材整图，而这些模型要么没有 UV、要么带的是「每面各贴一遍」的立方体 UV：
           // 装载时统一改写成水平面投影（applyStoneSlabPlanarUv），材质侧才谈得上用 map。
           applyStoneSlabPlanarUv(THREE, loadedScene, modelType);
+        }
+        if (modelType === "smallcar") {
+          // 小车：上游第三方车模的法线按**平面**烘焙，车顶与翼子板直接渲染会出现一圈圈硬棱线，
+          // 按位置合并重合顶点后重算一次（只改法线、不动顶点位置，包围盒逐值不变）。
+          // 做在模板这一层是刻意的：实例之间共享几何，逐实例平滑等于按物件数量克隆几何 —— 显存线性膨胀。
+          smoothCarSceneSurface(THREE, loadedScene);
         }
         loadedScene.updateMatrixWorld(true);
         const modelSize = new THREE.Box3().setFromObject(loadedScene).getSize(new THREE.Vector3());
@@ -2351,7 +2389,10 @@ export function createExternalModelManager({
   }
 /**
  * 家电 / 家具材质的统一分发入口：按类型挑这条链上最合适的替换策略。
- * 分发顺序不可调换，原则是「先专门、后通用」：纯色家电 → 家具（含 sofa）→ 电梯 → 楼梯 → 其余按亮度分档兜底。三处特殊处理：拿不到 MeshStandardMaterial 构造器（精简版 three 或测试替身）时直接克隆原材质放行，
+ * 分发顺序不可调换，原则是「先专门、后通用」：纯色家电 → 家具（含 sofa）→ 柱族 → 电梯 → 楼梯 →
+ * 其余按亮度分档兜底。柱族必须落在「家具」**之后**且不在 `FURNITURE_PALETTE_ITEM_TYPES` 名单里 ——
+ * 它取的是墙色而不是家具色，两条一起才走得通（见那张名单上柱体的说明）。
+ * 三处特殊处理：拿不到 MeshStandardMaterial 构造器（精简版 three 或测试替身）时直接克隆原材质放行，
  * 宁可保真也不报错；茶几机的自发光被显式清零，否则替换后再叠场景灯光会明显发白；
  * 钢琴原先在这条链上有两支「按第三方素材的材质名（Color_009 / 金色）认部件」的分流，
  * 2026-09 它按流水线规格重建、槽位改成角色之后这两支一并删掉 —— 它现在与其它家居一样走家具那一支。
@@ -2468,6 +2509,11 @@ export function createExternalModelManager({
       // 柱帽提亮一档（柱帽在实物上正好接天花板，比墙身更吃顶光）。
       // 判据是角色而不是槽位号：柱族的槽位号换了形状就会变（异形柱多一道轮廓拉体），
       // 而「柱脚 / 柱身 / 柱帽」这套语义是建模时死的。
+      //
+      // 这一支只负责**没选材质风格**的柱体（下拉里那一档叫「配墙（跟随墙体）」）。选了「与柜同料」
+      // 的四档之一时，三段的外观由 studio-material-styles.js 的 PILLAR_STYLES 按角色给出，
+      // 并在 resolveSharedMaterial 里**晚于这里**套用，颜色 / 粗糙度 / 金属度 / 贴图整块覆盖 ——
+      // 所以这里的三段分色与「配墙」档的墙色是一套，换档位不会和它打架。
       const { role: pillarRole } = parseMaterialSlotAndRole(baseMaterial?.name);
       const pillarWallColor = new THREE.Color(appliancePalette.wall);
       const pillarColor =
@@ -2513,14 +2559,20 @@ export function createExternalModelManager({
       });
     }
     if (applianceItemType === "smallcar") {
-      // 小车按角色分件（2026-09 迁进流水线，见 model-specs.mjs 的 smallcar 规格）。
+      // 小车。两条互斥的路：
       //
-      // 原先这一支是**整件**套一层车漆着色器（materials/studio-car-finish.js）：那段着色器
-      // 是为第三方车模的**贴图集**写的 —— 拿贴图里的玻璃岛、灯位、漆面亮度来分区，而着色器里
-      // 所有分区判断都包在 `#ifdef USE_MAP` 里，程序化车没有贴图，于是整段退化成「按 z 分前后
-      // 半」的一层蓝反光（更糟的是它还拿 position.z 当高度用，那是旧资产 Z 朝上的后遗症）。
-      // 分件之后车漆 / 玻璃 / 轮毂 / 轮胎 / 灯 / 格栅各拿各的那份，运行侧不必再猜。
+      // 1. **上游第三方车模**（当前资产，材质名 `car_tms`，取不到角色）：整张贴图集就是它的外观，
+      //    必须原样放行 —— 下面那条「重建材质」的路会把 map 丢掉（createFurnitureMaterial 只
+      //    复制颜色与质感参数、从不复制贴图），车窗 / 车灯 / 轮毂 / 格栅整张图一起消失，
+      //    整车变成一块白塑料。车漆 / 玻璃 / 车灯由 materials/studio-car-finish.js 那层着色器
+      //    负责（见 resolveSharedMaterial 末尾的小车分支），这里只做「别动它」这一件事。
+      // 2. **流水线自建车**（按角色分件）：车漆 / 玻璃 / 轮毂 / 轮胎 / 灯 / 格栅各拿各的那份。
+      //    这段判据在资产换回上游车模后不会命中，但留着 —— 它是「以后再自建一台车」时唯一需要
+      //    对上的口径，删掉等于把角色的语义一起丢了。
       const { role: carRole } = parseMaterialSlotAndRole(baseMaterial?.name);
+      if (!carRole) {
+        return baseMaterial.clone?.() || baseMaterial;
+      }
       if (carRole === "glass") {
         // 玻璃的透明与颜色由 resolveSharedMaterial 的玻璃分支统一收口（这一支只负责透明标记），
         // 这里先按原色放行，不要在调色板里给它一个不透明的家具色。
@@ -2540,8 +2592,11 @@ export function createExternalModelManager({
       const carColor =
         carRole === "body"
           ? // 车漆：暖阳原木下走珍珠白（与原先那层着色器同色），默认风格走冷调银。
+            // 调色板参数名是 appliancePalette（全文件唯一调用点传的就是 materialPalette，
+            // 见 resolveSharedMaterial）—— 这里曾误写成 materialPalette，函数里没有那个绑定，
+            // 小车一走这一支就 ReferenceError。
             new THREE.Color(
-              materialPalette.warmWood === true ? 16776696 : appliancePalette.applianceSoft
+              appliancePalette.warmWood === true ? 16776696 : appliancePalette.applianceSoft
             )
           : carRole === "metal"
             ? new THREE.Color(appliancePalette.appliance)
@@ -2557,7 +2612,7 @@ export function createExternalModelManager({
         // 车漆的高光靠「低粗糙度 + 中金属度 + 一点与基色同色的自发光」在无环境贴图的场景里
         // 读出来（与车漆着色器当初想做的事同一件，只是不再依赖贴图）。
         carMaterial.emissive = carMaterial.color.clone();
-        carMaterial.emissiveIntensity = materialPalette.warmWood === true ? 0.1 : 0.06;
+        carMaterial.emissiveIntensity = appliancePalette.warmWood === true ? 0.1 : 0.06;
       }
       return carMaterial;
     }
@@ -2872,13 +2927,9 @@ export function createExternalModelManager({
     // 以及玻璃柜 / 书柜背板的槽位判据（见下面那条，已改成按角色）。
     // 它们的共同点：判据按旧资产的槽位号认件，而重建后的材质名一律带角色后缀
     // —— 判据永不命中、静默失效，注释却还在描述旧资产的结构。
-    // 原先这里有一段 `modelTypeName === "smallcar"` 的整件车漆分支：暖色主题换暖白漆、
-    // 其余情况套 materials/studio-car-finish.js 那层「车漆 / 玻璃 / 车灯」着色器。
-    // 那段着色器是为**第三方车模的贴图集**写的（拿贴图里的玻璃岛、灯位、漆面亮度分区，
-    // 而且用 position.z 当高度 —— 旧资产 Z 朝上的后遗症），2026-09 小车按流水线规格重建后
-    // 既没有贴图、坐标也回到了 Y 朝上，整段判断全部失效：只剩「按 z 分前后半」一层蓝反光。
-    // 现在车漆 / 玻璃 / 轮毂 / 轮胎 / 灯 / 格栅各按**角色**取料（见 applyAppliancePalette
-    // 的 smallcar 分支），着色器模块与它的法线修订一并删除。
+    // 小车那层整件车漆着色器**不在这里**：它挪到了本函数末尾（见「小车（上游第三方车模
+    // `car_tms`）」那一段）。位置很要紧 —— 它必须晚于下面这些按角色 / 按类型的覆盖，
+    // 否则先被刷上的角色色会被后到的车漆整件覆盖掉（而这台车压根没有角色，走不到那些分支）。
     if (
       (modelTypeName === "glasscabinet" || modelTypeName === "bookcase") &&
       parseMaterialSlotAndRole(inputMaterial.name).role === "interior"
@@ -3000,6 +3051,35 @@ export function createExternalModelManager({
               })
             : null;
       }
+      preparedMaterial.needsUpdate = true;
+    }
+    // 小车（上游第三方车模 `car_tms`）：整件套一层车漆 / 玻璃 / 车灯着色器。
+    //
+    // 判据取「材质名里没有角色」，与上面 applyAppliancePalette 里那条「贴图集原样放行」是同一个
+    // 口径：只有这台贴图集车模走得进来。将来若换回按角色分件的自建车，这里不会命中（它的车漆由
+    // 角色配方负责），两条路互不干扰 —— 这也是不把这段写进那个函数的原因。
+    //
+    // 位置放在最后是刻意的：它要覆盖掉上面几层（「不透明件补同色自发光」「整件质感贴图」对一台
+    // 整张外观挂贴在贴图集上的车都不成立），而且 customProgramCacheKey 是在它之后才被
+    // buildMaterialCacheKey 读到的 —— 珍珠白与默认档因此是两个材质键，不会互相复用。
+    if (modelTypeName === "smallcar" && !parseMaterialSlotAndRole(inputMaterial?.name).role) {
+      if (materialPalette.warmWood) {
+        // 暖阳原木：车漆换暖白（0xfffdf8 = 255/253/248），并把贴图兼作自发光 —— 让车在暖色场景
+        // 里保持干净的浅色亮点，而不是跟着环境光一起变黄；粗糙度 / 金属度压低是为了暖色环境下
+        // 的漆面不发灰。（原先那层车漆着色器里的「珍珠白」，就是这两个值。）
+        preparedMaterial.color?.set?.(0xfffdf8);
+        preparedMaterial.roughness = 0.38;
+        preparedMaterial.metalness = 0.02;
+        preparedMaterial.emissiveMap = preparedMaterial.map;
+        preparedMaterial.emissiveIntensity = 0.08;
+        // 上面「不透明件补同色自发光」是按换色**之前**的基色（白）写的，换了漆色必须跟着换 ——
+        // 否则暖白漆上盖着一层冷白自发光，正是「暖色调里车显灰」的来路，与本文件换角色配方时
+        // 同步自发光的口径一致。
+        if (preparedMaterial.emissive?.copy && preparedMaterial.color) {
+          preparedMaterial.emissive.copy(preparedMaterial.color);
+        }
+      }
+      applyCarFinish(preparedMaterial, { pearlWhite: materialPalette.warmWood === true });
       preparedMaterial.needsUpdate = true;
     }
     const materialCacheKey = buildMaterialCacheKey(preparedMaterial);

@@ -45,7 +45,7 @@ export function buildTrackCurtainItem(context) {
 }
 
 /**
- * 命中：itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true && itemSpec.curtainStyle === "roller"
+ * 命中：itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true && resolveCurtainForm(itemSpec) === "roller"
  *
  * 卷帘走专用支路，而不是塞进轨道帘：两者几何完全不同（卷帘无轨道、无左右分片、无褶皱），
  * 放在同一条 if 里只会让 addTrackCurtain 里到处是「如果是卷帘就跳过」。

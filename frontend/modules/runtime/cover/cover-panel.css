@@ -9,14 +9,25 @@
  * 滑杆的 WebKit 与 Firefox 伪元素必须分别写（两条链路盒模型不同）。
  */
 
-/* 面板外壳：高度自适应并给出 232px 下限，保证位置滑杆与动作按钮不会挤在一起。 */
+/* 面板外壳：高度自适应并给出 232px 下限，保证位置滑杆与动作按钮不会挤在一起。
+   加上限与纵向滚动：示意图占 154px，小视口下整块会超出可用的竖直空间
+   （上限算式与气候面板同源，见 climate-panel.css 里 is-climate-panel 那段注释）。
+   只有纵向滚动条：示意图居中、宽度 244px 不超内容区，横向一旦允许滚动会多出一条无用的横条。 */
 .interaction3d-stage .i3d-light-panel.is-cover-panel {
   height: auto;
   min-height: 232px;
+  max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 /* ===== 面板容器 ===== */
 
 .i3d-cover-panel {
+  /* 示意图的缩放系数：并排的帘组（约半幅宽）放不下 244px 原尺寸，由组外壳下调本值；
+     单副帘面板与竖排帘组都是 1（320px 内容区放得下 2D 原尺寸，不必缩）。
+     声明在面板这一层而不是示意图上：自定义属性写在元素自身会盖掉继承值，那样组外壳就改不动了。 */
+  --i3d-cover-visual-scale: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -54,6 +65,280 @@
   color: var(--hos-tool-hint);
   font-size: 11px;
   line-height: 14px;
+}
+/* ===== 设备示意图：窗帘（照 2D 的 .hb-cover-visual 移植）=====
+   部件与 2D 一一对应：窗洞 + 顶轨 + 左右帘布 + 梦幻帘叶片层 + 窗台压条。
+   材质配方（玻璃斜向渐变、顶轨四段金属、帘布 13% 宽褶纹平铺、叶片 rotateY）逐条照搬。
+
+   与 2D 的三处必要差异：
+   1. 2D 那幅是 244×154 的绝对定位浮层（top:-164px right:32px，飘在标题右侧），
+      这里原尺寸居中、单独占一行 —— 尺寸够了就不缩放；空调那台是因为 2D 画到 406px
+      宽、超出 320px 的内容区才缩到 0.72。
+   2. 2D 的示意图本身就是按钮（点击切换开合），故有 hover/active/cursor/tap-highlight。
+      这里滑杆与三个动作按钮都已各有一套，图再挂一次点击等于给同一动作开第二条无标签路径，
+      故去掉了这套交互（DOM 侧是 aria-hidden + pointer-events: none）。
+   3. 晾衣机分支（.is-airer）不移植：3D 运行期的 coverKind 只有 standard / roller / dream
+      （见 core/stage/geometry.js 的 COVER_KIND_SET），没有晾衣架这个概念。
+
+   两个宽度变量由 cover-panel.js 写入，都是开合百分比的线性函数（见 utils/cover-features.js）；
+   叶片角度同样是线性式（1.8°/格，50% 正好 90°）。 */
+.i3d-cover-visual {
+  --i3d-cover-panel-width: 45.9%;
+  --i3d-cover-single-panel-width: 91.8%;
+  position: relative;
+  flex: none;
+  /* 居中：面板是 flex-column，示意图比内容窄，靠 align-self 摆到行中央。 */
+  align-self: center;
+  /* 尺寸固定为 2D 原尺寸（244×154），缩放只走 scale：里面的部件都是按 px 定位的，
+     缩容器宽度只会把帘布裁掉而不是等比缩小。 */
+  width: 244px;
+  height: 154px;
+  /* scale 不改布局盒，两侧各让出 (1 - scale) 的一半，免得小尺寸实例白占一行空间；
+     再叠上原本的 4 / 6px 上下留白。 */
+  margin-block: calc(154px * (var(--i3d-cover-visual-scale) - 1) / 2 + 4px)
+    calc(154px * (var(--i3d-cover-visual-scale) - 1) / 2 + 6px);
+  margin-inline: calc(244px * (var(--i3d-cover-visual-scale) - 1) / 2);
+  padding: 0;
+  /* 帘布超出窗洞的部分要裁掉，故容器与 2D 同为 hidden。 */
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  /* 装饰性插画：不吃指针事件，点击穿透到面板本身。 */
+  pointer-events: none;
+  background: transparent;
+  /* 用独立的 scale 属性而不是并进 transform：留出 transform 给将来的位移动画，
+     两者落在同一个属性上会互相覆盖。 */
+  scale: var(--i3d-cover-visual-scale);
+}
+
+/* 刻意不做入场动画。
+   2D 那幅有 hb-cover-visual-drop（从 −150px 落下 + 过冲回弹），但它的宿主是「每次打开
+   都重建的详情弹窗」，动画天然只在打开时跑一次；本仓的窗帘面板是舞台挂载时构造一次、
+   之后只靠 is-open 显隐，照搬过来会在页面加载时就把动画跑完，用户真正打开面板时什么也看不到。
+   要修得给动画挂上 is-open（或每次打开重建面板），而净化器 / 空调那两台已经验收的图形
+   都只做状态驱动动画（is-on / is-running 的呼吸与吹风），不做入场——
+   这里跟随同一口径，宁可少一个花活也不要一条「永远在加载时自娱自乐」的规则。 */
+/* 窗台：底部一条金属压条，把窗洞「托」住。 */
+.i3d-cover-visual:after {
+  position: absolute;
+  z-index: 6;
+  right: 10px;
+  bottom: 7px;
+  left: 10px;
+  height: 5px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f3f1eb, #aaa9a5 58%, #5a6062);
+  box-shadow:
+    0 2px 4px #0000006b,
+    inset 0 1px #ffffffb8;
+  content: "";
+}
+/* 窗洞：内凹的浅蓝玻璃渐变 + 内侧投影。 */
+.i3d-cover-visual-window {
+  position: absolute;
+  z-index: 2;
+  inset: 15px 10px 10px;
+  display: block;
+  overflow: hidden;
+  border: 2px solid rgba(202, 216, 222, 0.68);
+  border-radius: 2px;
+  background: linear-gradient(
+    132deg,
+    #d7eff66b,
+    #6991a04d 34%,
+    #e2f4f780 48%,
+    #496c794d 72%,
+    #b5dae566
+  );
+  box-shadow:
+    inset 0 0 22px #d8f2f947,
+    inset 0 -14px 20px #2039442e,
+    0 0 12px #81b5c71a;
+}
+/* 顶部轨道：9px 高的金属条。 */
+.i3d-cover-visual-rail {
+  position: absolute;
+  z-index: 5;
+  top: 8px;
+  right: 8px;
+  left: 8px;
+  height: 9px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #f8f6f0, #c6c5c0 48%, #777e80 76%, #424a4d);
+  box-shadow:
+    0 3px 5px #00000085,
+    inset 0 1px #ffffffe0;
+}
+/* 窗帘布：宽度由 --i3d-cover-panel-width 控制，过渡 0.38s 与实体窗帘的开合速度对齐。
+   背景是一段 13% 宽的横向渐变重复平铺，模拟布褶。 */
+.i3d-cover-visual-panel {
+  position: absolute;
+  z-index: 4;
+  top: 17px;
+  bottom: 10px;
+  width: var(--i3d-cover-panel-width);
+  background: linear-gradient(90deg, #777a7b, #f4f2ed 38%, #fff 50%, #c8c7c3 76%, #65696b) 0 0 / 13%
+    100% repeat-x;
+  box-shadow:
+    inset 0 1px #fffc,
+    inset 0 -8px 12px #3034353b,
+    0 4px 9px #00000040;
+  transition:
+    width 0.38s cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 0.22s ease;
+}
+/* 两片窗帘分别贴住窗洞左右两侧，靠内侧各留一条暗缝。 */
+.i3d-cover-visual-panel.left {
+  left: 10px;
+  border-right: 1px solid rgba(63, 66, 66, 0.5);
+}
+.i3d-cover-visual-panel.right {
+  right: 10px;
+  border-left: 1px solid rgba(63, 66, 66, 0.5);
+}
+/* 单侧开合（direction-left / direction-right）时只保留一片，
+   宽度换成 --i3d-cover-single-panel-width（整幅 91.8%），另一片隐藏。 */
+.i3d-cover-visual.direction-left .i3d-cover-visual-panel.left,
+.i3d-cover-visual.direction-right .i3d-cover-visual-panel.right {
+  width: var(--i3d-cover-single-panel-width);
+}
+.i3d-cover-visual.direction-left .i3d-cover-visual-panel.right,
+.i3d-cover-visual.direction-right .i3d-cover-visual-panel.left {
+  display: none;
+}
+/* 运行中的帘布亮度呼吸；用 alternate 让它来回，而不是每轮跳回最暗。 */
+.i3d-cover-visual.is-moving .i3d-cover-visual-panel {
+  animation: i3d-cover-panel-shift 0.84s ease-in-out infinite alternate;
+}
+/* 梦幻帘的叶片层：默认隐藏，只有 .is-dream 才启用。 */
+.i3d-cover-visual-slats {
+  position: absolute;
+  z-index: 4;
+  inset: 15px 13px 10px;
+  display: none;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 2px;
+}
+/* 叶片等宽平分。 */
+.i3d-cover-visual-slat {
+  position: relative;
+  display: block;
+  min-width: 0;
+  flex: 1 1 0;
+}
+/* 叶片顶部的挂钩。 */
+.i3d-cover-visual-slat:before {
+  position: absolute;
+  z-index: 2;
+  top: -3px;
+  left: 50%;
+  width: 4px;
+  height: 6px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #687176, #e2e5e5 52%, #60696d);
+  box-shadow: 0 1px 2px #00000061;
+  transform: translate(-50%);
+  content: "";
+}
+/* 叶片侧面的暗边（阴影面），默认在左；翻转方向时换到右侧（见 .is-tilt-reversed）。 */
+.i3d-cover-visual-slat:after {
+  position: absolute;
+  z-index: 3;
+  top: 2px;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: linear-gradient(90deg, #31383bd1, #60686b4d);
+  opacity: 0.82;
+  transition:
+    right 0.16s ease,
+    left 0.16s ease,
+    opacity 0.2s ease;
+  content: "";
+  pointer-events: none;
+}
+/* 叶片本体：rotateY(--i3d-cover-slat-angle) 表示翻转角度，
+   默认 −72deg 是「半开」的侧视角度；transform-origin: center 让它绕自身中轴翻转。 */
+.i3d-cover-visual-slat > i {
+  position: absolute;
+  inset: 2px 0 0;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 2px 2px 5px 5px;
+  background: linear-gradient(90deg, #5f6468, #d8d5ce 42%, #f0eee8 55%, #777b7e);
+  box-shadow:
+    inset 1px 0 #ffffff4d,
+    0 5px 8px #0000003d;
+  transform: rotateY(var(--i3d-cover-slat-angle, -72deg));
+  transform-origin: center;
+  transition:
+    transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1),
+    filter 0.22s ease;
+}
+/* 梦幻帘：去掉窗台与窗帘布，只留窗洞与叶片层。 */
+.i3d-cover-visual.is-dream:after,
+.i3d-cover-visual.is-dream .i3d-cover-visual-panel {
+  display: none;
+}
+/* 改用叶片层（flex 排布，由上面的 .i3d-cover-visual-slats 定义间距）。 */
+.i3d-cover-visual.is-dream .i3d-cover-visual-slats {
+  display: flex;
+}
+/* 梦幻帘叶片更薄：银灰渐变 + 1px 圆角。 */
+.i3d-cover-visual.is-dream .i3d-cover-visual-slat > i {
+  border-color: #ffffff2e;
+  border-radius: 1px 1px 2px 2px;
+  background: linear-gradient(90deg, #6f7477 0 8%, #c8c7c2 9% 17%, #e7e4de 18% 100%);
+  box-shadow:
+    inset 1px 0 #ffffff2e,
+    0 4px 6px #0000002e;
+}
+/* 翻转方向取反：暗边换到右侧，渐变明暗也随之镜像。 */
+.i3d-cover-visual.is-dream.is-tilt-reversed .i3d-cover-visual-slat:after {
+  right: 0;
+  left: auto;
+  background: linear-gradient(90deg, #60686b4d, #31383bd1);
+}
+/* 中间停位（叶片接近垂直）时，侧边暗影几乎看不见。 */
+.i3d-cover-visual.is-dream.is-tilt-center .i3d-cover-visual-slat:after {
+  opacity: 0.22;
+}
+/* 转到 82deg（几乎正对视线）时改用纯色填充，避免渐变在极窄的面上出现条纹。 */
+.i3d-cover-visual.is-dream.is-tilt-center .i3d-cover-visual-slat > i {
+  background: #ddd9d1;
+  transform: rotateY(82deg);
+}
+/* 运行中的叶片高光：按 --i3d-cover-slat-delay-index（回退到 --i3d-cover-slat-index）
+   逐片延迟 34ms，形成自收拢侧扫过的波纹。 */
+.i3d-cover-visual.is-dream.is-moving .i3d-cover-visual-slats i {
+  animation: i3d-cover-slat-shimmer 0.72s ease-in-out infinite alternate;
+  animation-delay: calc(var(--i3d-cover-slat-delay-index, var(--i3d-cover-slat-index)) * 34ms);
+}
+/* 窗帘开合过程中的帘布明暗往返。 */
+@keyframes i3d-cover-panel-shift {
+  0% {
+    filter: brightness(0.96);
+  }
+  to {
+    filter: brightness(1.07);
+  }
+}
+/* 梦幻帘叶片的高光往返（由 is-dream.is-moving 触发）。 */
+@keyframes i3d-cover-slat-shimmer {
+  0% {
+    filter: brightness(0.9);
+  }
+  to {
+    filter: brightness(1.16);
+  }
+}
+/* 减动效：去掉运行态动画，静态位置与明暗仍按上面各条正常渲染。 */
+@media (prefers-reduced-motion: reduce) {
+  .i3d-cover-visual.is-moving .i3d-cover-visual-panel,
+  .i3d-cover-visual.is-dream.is-moving .i3d-cover-visual-slats i {
+    animation: none;
+  }
 }
 /* ===== 控件槽位与共享窗帘控件 ===== */
 

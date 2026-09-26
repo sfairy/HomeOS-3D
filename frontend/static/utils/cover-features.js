@@ -8,7 +8,7 @@
  * 活动态）与 3D 舞台（`modules/runtime/cover/cover-state.js`，决定动画）都要这份判定，两处各写一遍
  * 时口径已经分叉（一处把 `""` 当读数、一处不当），同一台设备会被判成不同帘型。零依赖，两侧都能直接用。
  */
-import { finiteNumberOrNull } from "./numbers.js?v=2609260946";
+import { finiteNumberOrNull } from "./numbers.js?v=2609262221";
 
 export const COVER_FEATURE_OPEN = 1;
 export const COVER_FEATURE_CLOSE = 2;
@@ -67,6 +67,28 @@ export function coverPanelWidthPercent(position) {
 /** 单侧梦幻帘（整幅）的宽度百分比（位置 0 = 合拢 = 91.8%）。 */
 export function coverSinglePanelWidthPercent(position) {
   return COVER_SINGLE_PANEL_WIDTH_BASE_PERCENT - position * COVER_SINGLE_PANEL_WIDTH_PER_POSITION;
+}
+
+/** 开合方向：向左收拢 / 向右收拢 / 双向收拢。 */
+const COVER_DIRECTION_SET = new Set(["left", "right", "split"]);
+
+/**
+ * 取窗帘的开合方向。
+ *
+ * `coverDirection` 是新字段，`curtainPosition` 是历史字段（老配置里存的是它），两者都不合法
+ * （含新字段的 `"auto"` = 继承模型）时按双向收拢处理。
+ *
+ * 放在这里的理由与上面两个宽度公式相同：3D 窗帘动画（`curtain-motion.js` 决定两片帘布的收拢
+ * 行程）与面板示意图（`cover-panel.js` 决定哪一片帘布可见）必须读出同一个方向，各写一份
+ * 只在「恰好等值」时成立 —— 老配置的 `curtainPosition` 回退一旦有一边漏掉，同一扇窗就会
+ * 在场景里向左收、在面板上向左显示，用户无从判断哪个是真的。
+ */
+export function resolveCoverDirection(directionBinding) {
+  return COVER_DIRECTION_SET.has(directionBinding?.coverDirection)
+    ? directionBinding.coverDirection
+    : COVER_DIRECTION_SET.has(directionBinding?.curtainPosition)
+      ? directionBinding.curtainPosition
+      : "split";
 }
 
 /**

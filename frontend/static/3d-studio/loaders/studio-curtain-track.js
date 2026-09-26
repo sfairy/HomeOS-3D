@@ -4,26 +4,40 @@
  *
  * 坐标与单位：长度一律米；轨道在水平面上用 x / z 描述（y 为竖直方向），帘布底边离地 0.06 米、
  * 顶边离地 height - 0.06 米（卷帘为底边 0.035 米、顶边见 createRollerCurtain）。约定：
- * curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比，curtainStyle 为形态；
+ * curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比，curtainForm 为形态；
  * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609260946";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609262221";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底（curtain-motion）必须同值，故只定义在
 // utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609260946";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609262221";
 
 /**
- * 窗帘形态（curtainStyle）取值。
+ * 窗帘形态（curtainForm）取值。
  *
- * cloth：布艺垂帘，也就是本模块一直以来的轨道帘，默认值，行为与新增这个字段之前逐值相同；
+ * standard：普通窗帘，也就是本模块一直以来的布艺轨道帘，默认值，行为与新增这个字段之前逐值相同；
  * roller：卷帘，顶部一根卷管 + 一整片平帘布，无轨道、无左右两片、无褶皱。
+ *
+ * 字段名与取值照搬上游 0.6.5（上游 `curtainForm: "standard" | "roller"`，工作室下拉框
+ * `#curtain-form` 同值）。本项目历史字段名是 `curtainStyle`（取值 `cloth` / `roller`），
+ * 读取时一律经 resolveCurtainForm 兼容 —— 已存草稿（`data/studio3d/draft.json` 里存的是
+ * `curtainStyle: "cloth"`）不改一个字节也能读对。
  *
  * 为什么另起一轴而不是复用 curtainFabric：后者描述的是**布面材质**（布 / 纱），
  * 卷帘与轨道帘都可能用布面；两者正交，合成一个字段会让「卷帘 + 纱」这类组合无处安放。
- * 命名沿用本项目 `<东西>Style` 的既有写法（wallStyle / muralStyle / materialStyle）。
  */
-export const CURTAIN_STYLE_CLOTH = "cloth";
-export const CURTAIN_STYLE_ROLLER = "roller";
+export const CURTAIN_FORM_STANDARD = "standard";
+export const CURTAIN_FORM_ROLLER = "roller";
+
+/**
+ * 读出窗帘形态：新字段 curtainForm 优先，回落历史字段 curtainStyle。
+ * 只有显式 roller 才算卷帘 —— `curtainStyle: "cloth"` 与任何非法值都归一成 standard，
+ * 与 `resolveCurtainGeometry` / `curtain-motion.js` 的兜底同口径。
+ */
+export function resolveCurtainForm(inputOptions = {}) {
+  const rawCurtainForm = inputOptions.curtainForm ?? inputOptions.curtainStyle;
+  return rawCurtainForm === CURTAIN_FORM_ROLLER ? CURTAIN_FORM_ROLLER : CURTAIN_FORM_STANDARD;
+}
 
 /**
  * 归一化窗帘轨道参数。
@@ -32,12 +46,12 @@ export function normalizeCurtainTrack(inputOptions = {}) {
   // 卷帘没有轨道形态可言：没有回折段、没有拐角，帘布也不会分成左右两片。
   // 这里把 curtainTrack 收敛成直线型，调用方的进深计算（curtainFootprintDepth）
   // 与平面绘制才会走「单轨」这一支，不会去算 L / U 型的回折长度。
-  const curtainIsRoller = inputOptions.curtainStyle === CURTAIN_STYLE_ROLLER;
+  const curtainIsRoller = resolveCurtainForm(inputOptions) === CURTAIN_FORM_ROLLER;
   return {
-    // 形态字段**始终落键**（非法值回落 cloth）。若像 curtainFabric 那样「有值才写」，
+    // 形态字段**始终落键**（非法值回落 standard）。若像 curtainFabric 那样「有值才写」，
     // 用户把卷帘改回普通帘时旧的 "roller" 键会残留在文档里 —— 这正是本项目最在意的
     // 「静默残留」那一类 bug，所以这里宁可让每个窗帘都带一个明确的形态值。
-    curtainStyle: curtainIsRoller ? CURTAIN_STYLE_ROLLER : CURTAIN_STYLE_CLOTH,
+    curtainForm: curtainIsRoller ? CURTAIN_FORM_ROLLER : CURTAIN_FORM_STANDARD,
     // 只有直轨 / L 型 / U 型三种形态，其余一律回落到直轨（未知值会让几何生成出错）；
     // 卷帘强制直线型（见上）。
     curtainTrack: curtainIsRoller

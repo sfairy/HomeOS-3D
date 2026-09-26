@@ -97,7 +97,7 @@ export function curtainGroupCandidates(config, curtainId) {
  * 它替换掉的那副帘一致；x / y / height / focusCamera 用 structuredClone 深拷贝，避免组合与
  * 成员共享引用后互相改坏。配对不合法时抛出与编辑器提示一致的中文错误。
  */
-export function createCurtainGroup(config, firstCurtainId, secondCurtainId, groupId) {
+export function createCurtainGroup(config, firstCurtainId, secondCurtainId, groupId, groupLabel) {
   const template = config.curtains.find(curtain => curtain.id === firstCurtainId);
   if (
     !curtainGroupCandidates(config, firstCurtainId).some(
@@ -108,7 +108,7 @@ export function createCurtainGroup(config, firstCurtainId, secondCurtainId, grou
   }
   const group = {
     id: groupId,
-    label: "双层窗帘",
+    label: groupLabel || "双层窗帘",
     floorId: template.floorId,
     memberIds: [firstCurtainId, secondCurtainId],
     size: template.size ?? 44,

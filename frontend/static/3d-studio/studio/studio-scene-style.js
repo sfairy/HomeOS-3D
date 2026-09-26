@@ -17,7 +17,7 @@
  * 除两张色卡外，这里还提供 applyItemFinish()：把「某类物件长什么样」这道加工做完再交给调用方，
  * 柜体色与不锈钢家电都靠它落地。类型名单来自 studio-item-types.js，颜色留在本文件。
  */
-import { APPLIANCE_FINISH_BY_ITEM_TYPE } from "./studio-item-types.js?v=2609260946";
+import { APPLIANCE_FINISH_BY_ITEM_TYPE } from "./studio-item-types.js?v=2609262221";
 
 export const WARM_HOME_STYLE = Object.freeze({
   // 帘轨、灯体与五金：暖白到浅木色的一族。

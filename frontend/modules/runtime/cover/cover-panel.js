@@ -12,10 +12,17 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609260946";
+} from "./cover-state.js?v=2609262221";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
 // `/static/...` 的静态 import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609260946";
+// 另外三个是示意图要用的窗帘几何：帘布宽度（两片对开 / 单侧整幅）与开合方向 ——
+// 与 3D 窗帘动画同一份口径，避免面板与场景对同一扇窗给出两种画法。
+import {
+  coverPanelWidthPercent,
+  coverSinglePanelWidthPercent,
+  createDomFactory,
+  resolveCoverDirection
+} from "../core/static-helpers.js?v=2609262221";
 /**
  * 创建窗帘面板。
  */
@@ -37,6 +44,38 @@ export function createCoverPanel({
   headingElement.append(titleElement, statusElement);
   const bladeHintElement = createElement("p", "i3d-cover-blade-hint", "叶片角度 · 50% 为 90°打开");
   bladeHintElement.hidden = true;
+  // 设备示意图：照 2D 弹窗的 .hb-cover-visual 一比一移植（窗洞 / 顶轨 / 左右帘布 / 梦幻帘叶片），
+  // 单独占一行、居中，摆在标题与控件之间 —— 与净化器面板同一套摆法。
+  //
+  // 为什么用 i3d- 前缀而不是直接复用 .hb-cover-visual：3D 舞台页在弹窗预览（core/popup-preview.js）
+  // 里会把真正的 2D 面板渲染进同一个文档，renderer.css 也就一并加载。沿用同名类会让 2D 那条
+  // `position: absolute; top: -164px` 反过来盖到面板里的示意图上；前缀隔开，两套样式表互不打扰。
+  //
+  // 纯插画：aria-hidden + 不吃指针事件。开合动作一律由下面的滑杆与按钮发起，示意图不承担点击
+  //（2D 里那幅图本身就是电源式开关，那是因为它没有别的控件；这里滑动与开关都已各有一套）。
+  const visualElement = createElement("div", "i3d-cover-visual");
+  visualElement.setAttribute("aria-hidden", "true");
+  const visualWindowElement = createElement("i", "i3d-cover-visual-window");
+  const visualRailElement = createElement("i", "i3d-cover-visual-rail");
+  const visualLeftPanelElement = createElement("i", "i3d-cover-visual-panel left");
+  const visualRightPanelElement = createElement("i", "i3d-cover-visual-panel right");
+  const visualSlatsElement = createElement("span", "i3d-cover-visual-slats");
+  // 叶片数固定 13，与 2D 一致：再密会在 244px 宽的窗洞里糊成一片，再疏则看不出「帘」。
+  const visualSlatCount = 13;
+  for (let slatIndex = 0; slatIndex < visualSlatCount; slatIndex += 1) {
+    const slatElement = createElement("span", "i3d-cover-visual-slat");
+    slatElement.append(createElement("i", ""));
+    // 序号只作动画延迟的兜底（见 syncVisual 里的 delay index），与 2D 同口径。
+    slatElement.style.setProperty("--i3d-cover-slat-index", String(slatIndex));
+    visualSlatsElement.append(slatElement);
+  }
+  visualElement.append(
+    visualWindowElement,
+    visualRailElement,
+    visualLeftPanelElement,
+    visualRightPanelElement,
+    visualSlatsElement
+  );
   const controlsSlotElement = createElement("div", "i3d-cover-controls-slot");
   const controlsElement = createElement("section", "hb-cover-details-controls");
   const positionLabelElement = createElement("label", "hb-cover-details-position");
@@ -90,6 +129,7 @@ export function createCoverPanel({
     rootElement,
     headingElement,
     bladeHintElement,
+    visualElement,
     controlsSlotElement,
     feedbackElement
   );
@@ -355,6 +395,54 @@ export function createCoverPanel({
       cancelPreview();
     }
   });
+  /**
+   * 同步设备示意图。
+   *
+   * 开合百分比 → 帘布宽度 / 叶片角度的映射与 2D 弹窗逐条相同（宽度用 utils/cover-features.js 的
+   * 线性式，叶片角度固定 1.8°/格，50% 正好是 90°）；数据源复用面板已经算好的 displayPosition，
+   * 不另起一套状态 —— 滑杆拖动时草稿位置会立刻反映到示意图上，场景预览、滑杆、读数是同一份值。
+   *
+   * 方向类只在方向真的变了才写叶片延迟序号：13 个子节点 × 每次状态推送都写一遍样式，
+   * 在拖动滑杆（每帧一次 render）时是白白的布局开销。
+   */
+  let visualDirection = "";
+  function syncVisual(displayPosition, isDreamCover) {
+    const visualPosition = Math.max(0, Math.min(100, displayPosition ?? 0));
+    visualElement.classList.toggle("is-dream", isDreamCover);
+    visualElement.classList.toggle("is-tilt-reversed", visualPosition > 50);
+    // 与 2D 同容差：±2% 内视为「叶片正对视线」，此时走纯色填充避免窄面上的渐变条纹。
+    visualElement.classList.toggle("is-tilt-center", Math.abs(visualPosition - 50) <= 2);
+    // moving 已含「可用」判定（cover-state.js 里就是 available && opening/closing），不必再叠一层。
+    visualElement.classList.toggle("is-moving", deviceState.moving);
+    const nextDirection = resolveCoverDirection(viewModel.item);
+    if (nextDirection !== visualDirection) {
+      visualDirection = nextDirection;
+      visualElement.classList.remove("direction-left", "direction-right", "direction-split");
+      visualElement.classList.add("direction-" + nextDirection);
+      for (let slatIndex = 0; slatIndex < visualSlatCount; slatIndex += 1) {
+        // 波纹从收拢侧往另一侧扫：左收从左起、右收从右起、对开从中间往两边。
+        const slatDelayIndex =
+          nextDirection === "right"
+            ? visualSlatCount - 1 - slatIndex
+            : nextDirection === "split"
+              ? Math.abs((visualSlatCount - 1) / 2 - slatIndex)
+              : slatIndex;
+        visualSlatsElement.children[slatIndex].style.setProperty(
+          "--i3d-cover-slat-delay-index",
+          String(slatDelayIndex)
+        );
+      }
+    }
+    visualElement.style.setProperty(
+      "--i3d-cover-panel-width",
+      coverPanelWidthPercent(visualPosition) + "%"
+    );
+    visualElement.style.setProperty(
+      "--i3d-cover-single-panel-width",
+      coverSinglePanelWidthPercent(visualPosition) + "%"
+    );
+    visualElement.style.setProperty("--i3d-cover-slat-angle", visualPosition * 1.8 + "deg");
+  }
   /** 按当前 viewModel 与 deviceState 重绘面板。 */
   function render() {
     if (isDisposed) {
@@ -497,6 +585,7 @@ export function createCoverPanel({
           : pendingIntent && !pendingIntent.confirmed)
       )
     );
+    syncVisual(displayPosition, isDreamCover);
     syncSlider();
   }
   /**
@@ -636,6 +725,15 @@ export function createCoverPanel({
   return {
     root: rootElement,
     update: update,
+    // 停用：把面板从「正在被操作」的状态里摘出来（拖动进行中时撤回预览与草稿）。
+    // 帘组面板在成员被换掉 / 整组收起时会调它 —— 与 dispose 的区别是面板还要继续用，
+    // 所以这里走完整的 cancelPreview（含 render），而不是 dispose 里那条不重绘的简化路径。
+    // 与 0.6.5 同口径：只在真的处于拖动中才动手，没有草稿就不必惊动场景。
+    deactivate() {
+      if (isDragging) {
+        cancelPreview();
+      }
+    },
     dispose: dispose
   };
 }

@@ -9,30 +9,30 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609260946"></script>
+    <script src="/static/logging/client-log.js?v=2609262221"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609260946" type="image/svg+xml" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609262221" type="image/svg+xml" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <!-- 全站调色板（design/scene/page.css 的分发产物）。studio.css 的 :root 只是把它
          别名成 --bg / --accent / --guide 这些历史令牌名；画布色值由 studio-app.js 的
          paletteColor() 从计算样式里读同一批变量。必须在 studio.css 之前加载。 -->
     <link
       rel="stylesheet"
-      href="/static/auth/scene/page.css?v=2609260946"
+      href="/static/auth/scene/page.css?v=2609262221"
     />
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio/studio.css?v=2609260946"
+      href="/static/3d-studio/studio/studio.css?v=2609262221"
     />
     <!-- 布局交互层（折叠把手条 / 分隔条）的共享样式，两页共用。
          必须排在 studio.css 之后：它要用同一特异性覆盖面板内边距与网格轨道。 -->
     <link
       rel="stylesheet"
-      href="/static/shared/layout.css?v=2609260946"
+      href="/static/shared/layout.css?v=2609262221"
     />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609260946` 的 <link>。
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609262221` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -40,7 +40,7 @@
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609260946" alt="HomeOS" />
+        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609262221" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -812,6 +812,12 @@
                   <option value="frame-only">仅门框</option>
                 </select></label
               >
+              <!-- 门材质：紧跟在门型下面 —— 选完是哪一扇门，下一个问题就是「什么料做」。
+                   档位随门型变化（玻璃门多两档玻璃，实心门没有），因此 <option> 不写死在标记里，
+                   由 studio-app.js 在填充检查器时按门型重建。 -->
+              <label class="door-type-field"
+                >门材质<select id="door-material"></select></label
+              >
               <div class="field-grid">
                 <label>门宽（m）<input id="door-width" type="number" min="0.55" max="20" step="0.05" /></label
                 ><label>门高（m）<input id="door-height" type="number" min="1.8" max="20" step="0.05" /></label
@@ -894,12 +900,13 @@
                 >
               </fieldset>
               <!-- 窗帘形态：普通窗帘（轨道帘，默认）与卷帘。卷帘没有轨道、没有左右两片、没有褶皱，
-                   选中后轨道形状 / 转角 / 左右长度 / 合拢位置 / 帘布类型全部隐藏，只保留预览开合。 -->
+                   选中后轨道形状 / 转角 / 左右长度 / 合拢位置 / 帘布类型全部隐藏，只保留预览开合。
+                   字段名与取值照搬上游 0.6.5：`curtainForm` 的 `standard` / `roller`。 -->
               <div id="curtain-track-fields" hidden>
                 <label class="door-type-field"
                   ><span>窗帘形态</span
-                  ><select id="curtain-style">
-                    <option value="cloth">普通窗帘</option>
+                  ><select id="curtain-form">
+                    <option value="standard">普通窗帘</option>
                     <option value="roller">卷帘</option>
                   </select></label
                 >
@@ -1261,16 +1268,19 @@
         </div>
       </form>
     </dialog>
-    <!-- 本次删除影响：保存时（PUT /api/v1/studio3d）发现被删的模型仍被 3D 控件绑定引用，
-         服务端按 428 回传确认令牌且**什么都没写**。只有用户明确「确认删除并保存」，才会带着
-         令牌、连同 428 当时的 revision 与场景快照重发，服务端据此同步清理那些绑定。
-         「保留模型」是唯一不丢东西的出口：收起对话框，本地删除与撤销栈一点不动，用户可撤销
-         这次删除（模型回来后保存自然通过），也可从顶栏「处理删除影响」入口回来确认。 -->
+    <!-- 本次删除影响：保存时发现被删的模型仍被 3D 控件绑定引用，服务端会要求先确认。
+         编辑器先用 PUT /studio3d?dryRun=1 预检（服务端只算不写、回 200）拿到确认令牌与影响
+         清单，把确认框提前弹出来，因此正常删除路径不会再先去撞一次 428（428 仍保留为兜底：
+         预检漏判、或确认期间关联仪表盘又变了时会走到它）。只有用户明确「确认删除并保存」，
+         才会带着令牌、连同当时的 revision 与场景快照重发，服务端据此同步清理那些绑定。
+         「保留模型」是唯一不丢东西的出口：撤销这次删除把模型放回原位，绑定随即重新成立、
+         保存自然通过；也可从顶栏「处理删除影响」入口回来确认删除。 -->
     <dialog id="save-interaction-dialog" class="scale-dialog export-notice-dialog save-interaction-dialog">
       <form method="dialog">
         <span class="dialog-index">REMOVE MODEL</span>
         <h2>本次删除影响</h2>
         <p id="save-interaction-message">删除的模型被 3D 控件引用，保存将一并移除这些绑定。</p>
+        <p id="save-interaction-summary" class="save-interaction-summary"></p>
         <div class="export-notice-summary"><span>受影响仪表盘</span><strong id="save-interaction-projects">—</strong></div>
         <ul id="save-interaction-impacts" class="save-interaction-impacts"></ul>
         <p class="save-interaction-note">确认删除后才会同步清理交互配置。不会删除模型或设备，也不会移动模型或发送设备命令；
@@ -1575,14 +1585,14 @@
     <!-- 入口脚本：本页两个 module，顺序有意义 —— stage-startup.js 先执行，把「读场景持久缓存 /
          提前发场景接口 / 提前下 stage 模块」这三件事发出去（只在舞台页生效：它按路径判断，编辑器页
          整体返回 null），studio-app.js 随后直接收下这三样。三条 src 与 studio.css 必须共用同一条
-         ?v=2609260946 -->
+         ?v=2609262221 -->
     <script
       type="module"
-      src="/static/3d-studio/stage-startup.js?v=2609260946"
+      src="/static/3d-studio/stage-startup.js?v=2609262221"
     ></script>
     <script
       type="module"
-      src="/static/3d-studio/studio/studio-app.js?v=2609260946"
+      src="/static/3d-studio/studio/studio-app.js?v=2609262221"
     ></script>
   </body>
 </html>

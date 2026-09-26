@@ -8,7 +8,7 @@
  * 约定：根元素上的 is-vertical 由组合配置的 panelLayout 决定；子面板复用 .i3d-cover-panel 的
  * 全部样式，因此本模块不再引入静态资源。
  */
-import { createCoverPanel } from "./cover-panel.js?v=2609260946";
+import { createCoverPanel } from "./cover-panel.js?v=2609262221";
 
 /**
  * 创建窗帘组合面板。
@@ -72,14 +72,13 @@ export function createCoverGroupPanel({
             error: nextViewModel.errors?.[memberItem.id] || ""
           });
         } else {
-          // 0.6.5 的 cover-panel 导出 deactivate；本项目的 cover-panel.js 暂无该方法，
-          // 故用可选调用兜底 —— 成员缺失时面板本就隐藏，没有需要撤销的拖动预览。
-          panel.deactivate?.();
+          // 成员缺失时直接把子面板停用，撤销可能进行中的拖动预览。
+          panel.deactivate();
         }
       });
     },
     deactivate() {
-      memberPanels.forEach(panel => panel.deactivate?.());
+      memberPanels.forEach(panel => panel.deactivate());
     },
     dispose() {
       memberPanels.forEach(panel => panel.dispose());

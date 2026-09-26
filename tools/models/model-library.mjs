@@ -17,8 +17,15 @@
  * 3. **同一槽位只出一块材质、一个网格节点。** 槽位是运行侧唯一的语义单位；按材质拆网格只增加
  *    draw call，反正整件物件的颜色最终都会被色卡重刷。
  *
- * 顶点预算是第二条硬指标：lite 版是首屏加载的那一份。做法不是简化算法，而是「完整版多段数 +
+ * 顶点预算是第二条硬指标：lite 版是**首屏加载的那一份**。做法不是简化算法，而是「完整版多段数 +
  * 保留装饰件，lite 版降段数 + 丢掉只在近看时才成立的小件」。
+ *
+ * 但要注意 lite 在运行侧是**主资源**（studio-external-models.js 的 url 取 -lite，完整版只是加载
+ * 失败时的回退），所以 lite 上丢掉的零件在成品里就是根本没有 —— 任何「肉眼能认出来」的东西都不该
+ * 借 fullOnly 减掉，撑住外轮廓的零件更是碰不得：lite 少了它，物件一到位就会缩一圈（零报错）。
+ * 两版**逐值同包围盒**是硬契约，生成器与 check_invariants 都盯着（差过 0.5mm 就拦）。
+ * 降段数同样受这条约束：圆截面的极值只落在采样到的角度上，所以 `liteRadialSegments` 把段数
+ * 对齐到 4 的倍数（10 段的圆柱比声明的直径细 4.9%，而完整版与 lite 段数不同，一换就「胖瘦变一圈」）。
  */
 import { installGltfNodeShims, toArrayBuffer } from "./gltf-node-runtime.mjs";
 import { materialNameForSlot } from "./model-roles.mjs";
@@ -86,14 +93,16 @@ async function loadGltfExporter() {
  *   - lathe：[母线点集, 段数]，母线是 `[半径, 高度]` 数组且**必须闭合**；
  *   - torus：[环半径, 管半径]；
  *   - capsule：[半径, 直段长]；
- *   - extrude：[平面轮廓, 拉伸厚度]（轮廓形状见 extrude 助手）。
+ *   - extrude：[平面轮廓, 拉伸厚度]（轮廓形状见 extrude 助手；轮廓可另带 `litePath`，
+ *     见下）；
  * @param {number[]} at 位置 [x, y, z]（米）。y 的含义由 align 决定，见下。
  * @param {object} [options]
  *   - align："bottom"（默认，y 是零件底面）/ "center" / "top"；
  *   - rot：[rx, ry, rz] 角度制，绕零件自身中心旋转；
  *   - fullOnly：true 表示「只在完整版保留」（近看才成立的小件，如旋钮、把手细节）；
  *   - segments：圆角盒的圆角分段覆盖；radius：圆角盒的圆角半径覆盖；radiusTop：圆柱上半径；
- *   - curveSegments：extrude 轮廓的曲线分段覆盖（只对 arcTo / curveTo 生效）。
+ *   - curveSegments：extrude 轮廓的曲线分段覆盖（只对 arcTo / curveTo 生效）；
+ *   - litePath（写在 extrude 的轮廓对象里，不是这里）：该轮廓在 lite 版用的粗档折线。
  *   - axis：torus 的轴（默认 "y"，即平放的环；"z" 是立起来朝向观察者的环）；
  *   - mirrorX：把这块零件沿 x = 0 镜像（对称家具成对零件用，见 mirrorPair 助手）。
  *
@@ -271,6 +280,32 @@ function toRadians(degrees) {
 }
 
 /**
+ * lite 版的径向段数：少画几段，但**不能把包围盒缩小**。
+ *
+ * 多边形逼近圆时，最外那一点只落在采样到的角度上：圆柱的顶点在 `theta = 2πk/N`，
+ * 而 x 极值要 90°/270°、z 极值要 0°/180° —— 于是段数必须是 4 的倍数，尺寸才等于声明的半径。
+ * 实测 r=0.5 的圆柱：12 段量出 1.0000，10 段只有 0.9511（缩 4.9%）。
+ *
+ * 这件事只在「完整版与 lite 段数不同」时才显形，表现是物件加载完成后轻轻一缩 / 一鼓，
+ * 零报错、零日志。所以 lite 的段数一律取「完整版的一半向上取到 4 的倍数」：
+ * 该省的段数照省，极值点必须踩到（守卫见 check_invariants.mjs 的「lite 同包围盒」那条）。
+ * 规格自己写小段数（< 8）的场合不动 —— 两版同段数，包围盒当然一致。
+ */
+function liteRadialSegments(fullSegments, floor) {
+  const halved = Math.max(floor, Math.round(fullSegments * 0.5));
+  return Math.min(fullSegments, Math.ceil(halved / 4) * 4);
+}
+
+/**
+ * 球纬段专用的那一档：极值落在**赤道环**上，而赤道环只在纬段为偶数时才被采样到
+ * （实测纬 7 段时球宽缩 2.5%）。floor 取偶数，向上取偶。
+ */
+function liteEvenSegments(fullSegments, floor) {
+  const halved = Math.max(floor, Math.round(fullSegments * 0.5));
+  return Math.min(fullSegments, halved % 2 === 0 ? halved : halved + 1);
+}
+
+/**
  * 生成单个零件的几何（已烘入自身旋转与位置）。
  *
  * 旋转烘进几何而不是写在网格节点上：同一槽位常有多个朝向不同的零件（四条腿、两个把手），
@@ -297,7 +332,7 @@ async function createPartGeometry(threeApi, partDefinition, variant) {
     geometry = new threeApi.RoundedBoxGeometry(sizeX, sizeY, sizeZ, segments, radius);
   } else if (partDefinition.kind === "cyl") {
     const [radius, height, segments] = partDefinition.size;
-    const radialSegments = isLite ? Math.max(10, Math.round(segments * 0.5)) : segments;
+    const radialSegments = isLite ? liteRadialSegments(segments, 8) : segments;
     geometry = new threeApi.CylinderGeometry(
       partDefinition.radiusTop ?? radius,
       radius,
@@ -309,8 +344,8 @@ async function createPartGeometry(threeApi, partDefinition, variant) {
     const [radius, widthSegments, heightSegments] = partDefinition.size;
     geometry = new threeApi.SphereGeometry(
       radius,
-      isLite ? Math.max(10, Math.round(widthSegments * 0.5)) : widthSegments,
-      isLite ? Math.max(8, Math.round(heightSegments * 0.5)) : heightSegments
+      isLite ? liteRadialSegments(widthSegments, 8) : widthSegments,
+      isLite ? liteEvenSegments(heightSegments, 8) : heightSegments
     );
   } else if (partDefinition.kind === "lathe") {
     const [profile, segments] = partDefinition.size;
@@ -330,11 +365,13 @@ async function createPartGeometry(threeApi, partDefinition, variant) {
     }
     geometry = new threeApi.LatheGeometry(
       profile.map(([profileRadius, profileHeight]) => new threeApi.Vector2(profileRadius, profileHeight)),
-      isLite ? Math.max(12, Math.round(segments * 0.5)) : segments
+      isLite ? liteRadialSegments(segments, 12) : segments
     );
   } else if (partDefinition.kind === "torus") {
     const [ringRadius, tubeRadius] = partDefinition.size;
-    const radialSegments = isLite ? 6 : 10;
+    // 管的截面是**径向的**最小圆：它的上下极值要 90°/270°，同样只能落在 4 的倍数上
+    // （实测管 10 段时环面高只有 0.1902 / 0.20，缩 4.9%；6 段时缩 13%）。
+    const radialSegments = isLite ? 8 : 12;
     const tubularSegments = isLite ? 16 : 32;
     geometry = new threeApi.TorusGeometry(ringRadius, tubeRadius, radialSegments, tubularSegments);
     // TorusGeometry 的轴是 +z（环睡在 xy 平面上）；家具里的环几乎都是平放的，
@@ -344,19 +381,24 @@ async function createPartGeometry(threeApi, partDefinition, variant) {
     }
   } else if (partDefinition.kind === "capsule") {
     const [radius, length] = partDefinition.size;
-    geometry = new threeApi.CapsuleGeometry(
-      radius,
-      length,
-      isLite ? 6 : 12,
-      isLite ? 10 : 20
-    );
+    // 径向分段撑住 x/z 的极值（与圆柱同理，必须 4 的倍数）；帽分段只管轮廓圆滑度。
+    geometry = new threeApi.CapsuleGeometry(radius, length, isLite ? 6 : 12, isLite ? 12 : 20);
   } else if (partDefinition.kind === "extrude") {
-    const [outline, depth] = partDefinition.size;
-    if (!outline || !Array.isArray(outline.start)) {
+    const [rawOutline, depth] = partDefinition.size;
+    if (!rawOutline || !Array.isArray(rawOutline.start)) {
       throw new Error(
-        `extrude 的轮廓缺少 start（应为 [x, y]）：${JSON.stringify(outline).slice(0, 120)}`
+        `extrude 的轮廓缺少 start（应为 [x, y]）：${JSON.stringify(rawOutline).slice(0, 120)}`
       );
     }
+    // 折线轮廓的采样密度**烘在规格里**，`curveSegments` 只对 arcTo / curveTo 生效、管不着它 ——
+    // 一条 31 点的椭圆弧在 lite 版里一个顶点都省不下来，而柱族整件就是这条轮廓拉出来的。
+    // 所以轮廓可以另带一条粗档折线 `litePath`：同一条曲线、同一组端点（占地与高度逐值不变），
+    // 只是中间的点稀一些。这是「按变体给值」，与零件级的 `fullOnly` 同属一类，区别是它省的是
+    // 采样密度、不动外轮廓 —— 柱帽那种整件丢掉的 `fullOnly` 会改包围盒，见 pillarSpec 的注释。
+    const outline =
+      isLite && Array.isArray(rawOutline.litePath)
+        ? { start: rawOutline.start, path: rawOutline.litePath }
+        : rawOutline;
     const shape = new threeApi.Shape();
     shape.moveTo(outline.start[0], outline.start[1]);
     for (const segment of outline.path ?? []) {
@@ -499,6 +541,7 @@ export async function buildModelGroup(modelSpec, variant) {
   // 所以横纵必须关于原点对称。放在这里统一做而不是让每条规格自己算 —— 规格只需要写「各零件
   // 相对彼此的尺寸」，不必同时心算一个全局偏移，也就不会再出现「腿在一处、座面在另一处」。
   // 只动 x / z：y 的零点是有语义的（地面），必须由规格自己写对，写错要报错而不是被悄悄抹平。
+  // 唯一的例外是挂墙件的 `mountHeight`（见下），那是规格**显式声明**「这一段烘在几何里」的。
   if (builtParts.length) {
     let minX = Infinity;
     let maxX = -Infinity;
@@ -517,6 +560,15 @@ export async function buildModelGroup(modelSpec, variant) {
       for (const built of builtParts) {
         built.geometry.translate(centerOffsetX, 0, centerOffsetZ);
       }
+    }
+  }
+  // 挂墙件的**烘高**（`mountHeight`）：规格也只写 0 基的零件，导出时整件抬起这一个值。
+  // 目前只有吊柜用得上，理由在规格那一侧（见 model-specs.mjs 的 wallcabinet）：原版把吊柜的挂高
+  // 烘在几何里、类型定义里没有 elevation，本仓要跟同一个口径，草稿才能在两个程序之间双向打开。
+  // 放在这里统一抬、而不是让规格自己加：规格那一堆坐标与注释都写在 0 基这一套里。
+  if (modelSpec.mountHeight) {
+    for (const built of builtParts) {
+      built.geometry.translate(0, modelSpec.mountHeight, 0);
     }
   }
   const geometriesBySlot = new Map();

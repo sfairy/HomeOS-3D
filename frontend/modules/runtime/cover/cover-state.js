@@ -21,7 +21,7 @@ import {
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609260946";
+} from "../core/static-helpers.js?v=2609262221";
 /**
  * HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
 const STATE_LABELS = {
@@ -148,7 +148,17 @@ export function coverState(entityId, receivedState, item = {}) {
   };
 }
 /**
- * 判断当前是否允许调整叶片角度：梦幻帘的叶片机构依赖整体完全关闭才安全，这里是一道门禁。
+ * 判断当前是否允许调整叶片角度。
+ *
+ * 分两种情况：
+ * ① 设备真的有独立叶片反馈（梦幻帘 + tilt 通道）：叶片机构依赖整体完全关闭才安全，只认「确认全关」；
+ * ② 设备没有独立叶片反馈（整体/叶片都拿不到可信读数）：位置就是唯一可调轴，**不再设门禁**。
+ *
+ * 为什么第 ② 种要彻底放开：这一支只对「没有 tilt 通道」的梦幻帘成立，此时 HA 根本不会回报
+ * 「整体已关停」，而 `opening` / `closing` 又可能是长期不刷新的陈旧值（实测：客厅那台
+ * `cover.novo_…_curtain` 停在 closing + current_position 50 长达数十分钟）。只要拿这个陈旧状态
+ * 当门禁，滑杆就会被永久禁用（提示「暂不可调节叶片」），用户再也调不动叶片 —— 命令能不能落地
+ * 交给设备 / HA 自己裁决，比前端拿一个本就不可信的读数挡死更合理。
  */
 export function coverCanAdjustBlades(state, presentation = state) {
   if (!state.available || !state.bladeSupported) {
@@ -156,12 +166,9 @@ export function coverCanAdjustBlades(state, presentation = state) {
   } else if (state.overallFeedbackAvailable) {
     // 有可信反馈时只认「确认全关」；用户手动拖到 0 但尚未停止不算。
     return presentation.closedConfirmed === true;
-  } else if (presentation.moving || ["opening", "closing"].includes(state.raw?.state)) {
-    // 反馈不可信时，运动过程中一律禁止，防止叶片命令与整体运动打架。
-    return false;
   } else {
-    // 完全无反馈的最后兜底：位置是估算的且大于 0，就认为没关严，禁止调叶片。
-    return !presentation.estimated || !(presentation.position > 0);
+    // 没有独立叶片反馈：位置就是唯一可调轴，不再用整体状态设门禁。
+    return true;
   }
 }
 /**

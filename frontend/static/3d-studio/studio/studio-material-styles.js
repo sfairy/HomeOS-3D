@@ -20,28 +20,62 @@
  *     再叠一层只会让同一件东西有两个风格字段、互相打架；
  *   - planlabel / flooropening / 墙体 / LIGHT_ITEM_TYPES 不是家居家电模型，不参与。
  *
+ * 唯一的例外是**柱体（pillar）**：它不是家居，但「这根柱子表面做什么料」是设计上真实的诉求，
+ * 而且有明确的两端可配 —— 与现有墙体一致，或与柜体同料（走柜类那套木作）。
+ *
+ * 与墙体一致的那一端**只留一档**（不是七档饰面各列一项）：柱子是建筑本体，它的「配墙」只有一种
+ * 正确解 —— 和它所在的那道墙一样。所以这一端不另立色号，直接复用墙体自己的取料路径，档位的名字
+ * 在柱体上就叫「配墙（跟随墙体）」，即 `auto` 在柱体上的显示名（见 materialStyleAutoLabel）：选了
+ * 它就不覆盖任何键，柱体照常走 makeWallSideMaterial / 墙色调色板，与旁边的墙逐值相同。
+ * 若把七种背景墙饰面列成七档，柱子会变成「一块贴着大理石贴图的独立板」——那是背景墙的做法，
+ * 不是墙体的做法，而且选完还得自己保证和真墙一致。
+ *
  * 纯数据 + 纯函数：不引入 THREE、不碰 DOM，因此工作台与舞台两侧都能安全 import。
  */
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
-} from "./studio-item-types.js?v=2609260946";
+} from "./studio-item-types.js?v=2609262221";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
 
 /**
+ * `auto` 档在下拉里的显示名：多数类型是「跟随全局风格」，但**柱体**不是。
+ *
+ * 柱体的 `auto` 语义比一般类型强：它不是「这块我不管」，而是「跟墙一样」—— 选中后不覆盖任何键，
+ * 柱体照常走墙体自己的取料路径（占位几何 makeWallSideMaterial、外部模型用墙色调色板），与旁边的
+ * 墙逐值相同。所以这一档在柱体上直接叫「配墙（跟随墙体）」，让「与墙一致」这件事在下拉里有一个
+ * 说得清的出口（PILLAR_STYLES 里只剩「与柜同料」四档，见那里的说明）。
+ *
+ * 只改显示名、不改取值：草稿里存的仍是 "auto"，老数据不需要迁移。
+ */
+const MATERIAL_STYLE_AUTO_LABEL_BY_ITEM_TYPE = Object.freeze({
+  pillar: "配墙（跟随墙体）"
+});
+
+/** 取某类型 `auto` 档的显示名（未登记的类型回落到通用说法）。 */
+export function materialStyleAutoLabel(itemType) {
+  return MATERIAL_STYLE_AUTO_LABEL_BY_ITEM_TYPE[itemType] || "跟随全局风格";
+}
+
+/**
  * 不参与「材质风格」的类型：
  *   - mural / featurewall：已有 muralStyle / wallStyle，语义重叠（见模块头）；
- *   - stairs / steelstairs / glassstairs / floatingstairs / pillar / smallcar / elevator：**建筑构件与车辆，
+ *   - stairs / steelstairs / glassstairs / floatingstairs / smallcar / elevator：**建筑构件与车辆，
  *     不是家居家电**。它们走的是「克隆原始材质」的路径，调色板根本不参与（studio-app.js 的
  *     paletteForItemType 刻意把它们排除在 HOME_PALETTE_ITEM_TYPES 之外），颜色表达的是房子本体
  *     而不是装修风格。收进来的话下拉能选、选了没反应 —— 宁可不要这个控件。
  *
- * 后一组里除 stairs / pillar 外的四个是**隐式**落在能力集之外的（它们本来就不在 HOME / EXTERNAL /
- * APPLIANCE 三张词表里），这里仍逐个列进 EXCLUDED：语义靠「恰好没被收录」来表达太脆，将来谁把
- * smallcar 收进 EXTERNAL_MODEL_ITEM_TYPES，这份排除表就是唯一的护栏。
+ * 柱体（pillar）**不在**这张表里：它是唯一一件「表面做什么料由人来定」的建筑构件 —— 一根独立柱
+ * 要么是墙体的一部分（**跟随墙体**，见 materialStyleAutoLabel 里柱体那一档），要么是木作包柱
+ * （与柜子同料，见 PILLAR_STYLES）。两端各有各的权威来源，不在这里另起一套。
+ *
+ * 未被收录的四个（steelstairs / glassstairs / floatingstairs / smallcar / elevator）是**隐式**落在
+ * 能力集之外的（它们本来就不在 HOME / EXTERNAL / APPLIANCE 三张词表里），这里仍逐个列进 EXCLUDED：
+ * 语义靠「恰好没被收录」来表达太脆，将来谁把 smallcar 收进 EXTERNAL_MODEL_ITEM_TYPES，这份排除表
+ * 就是唯一的护栏。
  */
 export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
   new Set([
@@ -51,7 +85,6 @@ export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
     "steelstairs",
     "glassstairs",
     "floatingstairs",
-    "pillar",
     "smallcar",
     "elevator"
   ])
@@ -183,7 +216,12 @@ function compileRoleRecipes(byRole) {
       surface: roleSurface,
       color: recipe.color,
       roughness: recipe.roughness ?? SURFACE_ROUGHNESS[roleSurface] ?? null,
-      metalness: recipe.metalness ?? SURFACE_METALNESS[roleSurface] ?? null
+      metalness: recipe.metalness ?? SURFACE_METALNESS[roleSurface] ?? null,
+      // 质感贴图在 UV 上的平铺次数。运行侧读的是 `roleRecipe.repeat ?? 2`
+      // （见 studio-external-models.js 的 resolveSharedMaterial）：不写就是默认的 2 次，
+      // 需要按构件尺度加密 / 放稀贴图的那一档才在这里给值（同一支料贴到 0.45m 的立柱与
+      // 3m 的背景墙上，间距本来就不该一样）。
+      repeat: recipe.repeat ?? null
     });
   }
   return Object.freeze(compiled);
@@ -468,6 +506,31 @@ const LEATHER_STYLES = Object.freeze([
 ]);
 
 // ── 木作柜体 ──────────────────────────────────────────────────────────────
+/**
+ * 柜类四档的「柜体 / 柜面」两支料。
+ *
+ * 抽成常量而不是留在 JOINERY_STYLES 的调用处，是因为**柱体的「柜体系」档位要和柜子配对**：
+ * 两处各写一遍色号，改一处就会出现「明明选的是同一个档位，柱子却比柜子深一档」——
+ * 「配对」这件事最容易被这一种改动悄悄破坏。
+ */
+const JOINERY_TONE_BY_STYLE = Object.freeze({
+  "joinery-wood-white": Object.freeze({
+    body: Object.freeze({ surface: "wood", color: 0x5a3a22 }),
+    door: Object.freeze({ surface: "lacquer", color: 0xf5f3ef })
+  }),
+  "joinery-oak": Object.freeze({
+    body: Object.freeze({ surface: "wood", color: 0xc49a6c }),
+    door: Object.freeze({ surface: "wood", color: 0xd8b98f })
+  }),
+  "joinery-walnut": Object.freeze({
+    body: Object.freeze({ surface: "wood", color: 0x5a3a22 }),
+    door: Object.freeze({ surface: "wood", color: 0x6b4526 })
+  }),
+  "joinery-lacquer": Object.freeze({
+    body: Object.freeze({ surface: "lacquer", color: 0x2e2a28 }),
+    door: Object.freeze({ surface: "lacquer", color: 0x3a3a3c })
+  })
+});
 // 「档位即组合」的样板族：每个档位一次说清柜体、柜面、台面、五金。
 // 柜体是木料还是烤漆、柜面是白门还是同色木门、台面是石还是木 —— 这几件事的组合关系才决定
 // 一个柜子像不像成品，而不在于「柜子整体是什么颜色」。
@@ -486,8 +549,8 @@ const JOINERY_STYLES = Object.freeze([
       countertop: 0xf2f1ed
     },
     joineryCombo({
-      body: { surface: "wood", color: 0x5a3a22 },
-      door: { surface: "lacquer", color: 0xf5f3ef },
+      body: JOINERY_TONE_BY_STYLE["joinery-wood-white"].body,
+      door: JOINERY_TONE_BY_STYLE["joinery-wood-white"].door,
       top: { surface: "stone", color: 0xf2f1ed },
       metal: { surface: "metal", color: 0x9aa1a8 }
     })
@@ -506,8 +569,8 @@ const JOINERY_STYLES = Object.freeze([
       countertop: 0xede7db
     },
     joineryCombo({
-      body: { surface: "wood", color: 0xc49a6c },
-      door: { surface: "wood", color: 0xd8b98f },
+      body: JOINERY_TONE_BY_STYLE["joinery-oak"].body,
+      door: JOINERY_TONE_BY_STYLE["joinery-oak"].door,
       top: { surface: "stone", color: 0xede7db },
       metal: { surface: "metal", color: 0x8c8f94 }
     })
@@ -526,8 +589,8 @@ const JOINERY_STYLES = Object.freeze([
       countertop: 0x2b2b2e
     },
     joineryCombo({
-      body: { surface: "wood", color: 0x5a3a22 },
-      door: { surface: "wood", color: 0x6b4526 },
+      body: JOINERY_TONE_BY_STYLE["joinery-walnut"].body,
+      door: JOINERY_TONE_BY_STYLE["joinery-walnut"].door,
       top: { surface: "stone", color: 0x2b2b2e },
       metal: { surface: "metal", color: 0x2e2e30 }
     })
@@ -546,10 +609,111 @@ const JOINERY_STYLES = Object.freeze([
       countertop: 0x2b2b2e
     },
     joineryCombo({
-      body: { surface: "lacquer", color: 0x2e2a28 },
-      door: { surface: "lacquer", color: 0x3a3a3c },
+      body: JOINERY_TONE_BY_STYLE["joinery-lacquer"].body,
+      door: JOINERY_TONE_BY_STYLE["joinery-lacquer"].door,
       top: { surface: "stone", color: 0x2b2b2e },
       metal: { surface: "metal", color: 0x44484d }
+    })
+  )
+]);
+
+// ── 柱体：与墙一致（auto 档）+ 与柜同料（本表四档）─────────────────────────
+/**
+ * 柱体的角色组合：柱身 / 柱脚 / 柱帽三段。
+ *
+ * 与柜类的 joineryCombo 是同一副骨架（把实物常识补成默认值）：**柱脚压深、柱帽提亮**，
+ * 与程序化占位几何（studio-app.js 的 buildPillarItemMeshGroup）和 auto 档的墙色三段分色
+ * 完全同构 —— 这样「选了档位」与「没选档位」之间差的只是料，不是分色方式。
+ *
+ * 注意 base / trim 必须写成 `base ?? body` 这种**带 `??` 的兜底**形式：护栏
+ * （tools/check_invariants.mjs 的 readComboRoleSupport）就是靠值的文本里有没有 `??` 来判断
+ * 「调用处不写也算数」的，写成中转变量会被判成「这个角色没有配方」。
+ */
+function pillarCombo({ body, base, trim }) {
+  return {
+    body: body,
+    base: base ?? body,
+    trim: trim ?? body
+  };
+}
+/**
+ * 柱体的「材质风格」只列**与柜同料**那四档，因为柱子只有两种做法：
+ *
+ *   1. **与墙一致** —— 柱子是墙体的一部分，外观应当和它所在的那道墙逐值相同。这一端**不在这里
+ *      列档位**：它没有「七种饰面可选」这回事，正确的解只有一个（跟墙一样）。因此它由 `auto`
+ *      承担，在柱体上的显示名是「配墙（跟随墙体）」（见 materialStyleAutoLabel），选中后不覆盖
+ *      任何键，柱体照常走墙体自己的取料路径（占位几何用 makeWallSideMaterial、外部模型用
+ *      墙色调色板的三段分色）—— 于是柱子和墙永远同色，也不会出现「背景墙改了、柱子还是旧的」。
+ *
+ *      为什么不把背景墙那七种饰面（大理石 / 木格栅 / …）列成七档：那七种是**背景墙这件装饰板**
+ *      的画法，不是墙体的画法。列成档位会把柱子变成「一块贴着贴图的独立板」，还得靠人手动保证
+ *      与真墙一致 —— 与「和现有墙体保持一致」正好相反。
+ *
+ *   2. **与柜同料**（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）—— 柱子是木作包柱，与柜子同料。
+ *      四档的 id 与柜类档位相同（joinery-oak…），色号取同一份 `JOINERY_TONE_BY_STYLE`。
+ *
+ * 柜体系里柱身取**柜面**、柱脚与柱帽取**柜体**：一根包柱上面积最大的是门板那一面，收边跟箱体走。
+ * 于是「木柜白门」这一档的柱子是白柱身 + 深木色两道线脚，正是柜子的读法。
+ *
+ * `colors` 里的键只服务于两条路：completeFurnitureRamp 的基准键（护栏第 20 条）与「拿不到角色
+ * 配方时」的兜底取色。真正的外观由 byRole 的三段配方决定。
+ */
+const PILLAR_STYLES = Object.freeze([
+  // ── 柜体系：与柜类「材质风格」下拉同名同料（柱身取柜面、柱脚柱帽取柜体）──
+  defineStyle(
+    "joinery-wood-white",
+    "木柜白门（配柜）",
+    "wood",
+    {
+      cabinetBody: JOINERY_TONE_BY_STYLE["joinery-wood-white"].body.color,
+      cabinetDoor: JOINERY_TONE_BY_STYLE["joinery-wood-white"].door.color
+    },
+    pillarCombo({
+      body: JOINERY_TONE_BY_STYLE["joinery-wood-white"].door,
+      base: JOINERY_TONE_BY_STYLE["joinery-wood-white"].body,
+      trim: JOINERY_TONE_BY_STYLE["joinery-wood-white"].body
+    })
+  ),
+  defineStyle(
+    "joinery-oak",
+    "浅橡木（配柜）",
+    "wood",
+    {
+      cabinetBody: JOINERY_TONE_BY_STYLE["joinery-oak"].body.color,
+      cabinetDoor: JOINERY_TONE_BY_STYLE["joinery-oak"].door.color
+    },
+    pillarCombo({
+      body: JOINERY_TONE_BY_STYLE["joinery-oak"].door,
+      base: JOINERY_TONE_BY_STYLE["joinery-oak"].body,
+      trim: JOINERY_TONE_BY_STYLE["joinery-oak"].body
+    })
+  ),
+  defineStyle(
+    "joinery-walnut",
+    "胡桃木（配柜）",
+    "wood",
+    {
+      cabinetBody: JOINERY_TONE_BY_STYLE["joinery-walnut"].body.color,
+      cabinetDoor: JOINERY_TONE_BY_STYLE["joinery-walnut"].door.color
+    },
+    pillarCombo({
+      body: JOINERY_TONE_BY_STYLE["joinery-walnut"].door,
+      base: JOINERY_TONE_BY_STYLE["joinery-walnut"].body,
+      trim: JOINERY_TONE_BY_STYLE["joinery-walnut"].body
+    })
+  ),
+  defineStyle(
+    "joinery-lacquer",
+    "深色烤漆（配柜）",
+    "lacquer",
+    {
+      cabinetBody: JOINERY_TONE_BY_STYLE["joinery-lacquer"].body.color,
+      cabinetDoor: JOINERY_TONE_BY_STYLE["joinery-lacquer"].door.color
+    },
+    pillarCombo({
+      body: JOINERY_TONE_BY_STYLE["joinery-lacquer"].door,
+      base: JOINERY_TONE_BY_STYLE["joinery-lacquer"].body,
+      trim: JOINERY_TONE_BY_STYLE["joinery-lacquer"].body
     })
   )
 ]);
@@ -1628,6 +1792,7 @@ const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = Object.freeze({
   vanity: JOINERY_STYLES,
   // 家电
   fridge: STEEL_APPLIANCE_STYLES,
+  freezer: STEEL_APPLIANCE_STYLES,
   rangehood: STEEL_APPLIANCE_STYLES,
   dishwasher: STEEL_APPLIANCE_STYLES,
   steamoven: STEEL_APPLIANCE_STYLES,
@@ -1743,6 +1908,9 @@ const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = Object.freeze({
   trashbin: DEVICE_STYLES,
   // 影音屏幕（新增）
   screenpanel: SCREEN_STYLES,
+  // 结构构件（唯一一件可换表面料的）：柱体的档位是「墙体系 + 柜体系」两套配对，
+  // 见 PILLAR_STYLES 的说明。走逐类型表而不是材质族 —— 它不是家具，没有可归的族。
+  pillar: PILLAR_STYLES
 });
 
 /**
@@ -1776,6 +1944,7 @@ const MATERIAL_FAMILY_BY_ITEM_TYPE = Object.freeze({
   coffeetable: "woodFurniture",
   squarecoffeetable: "woodFurniture",
   fridge: "steelAppliance",
+  freezer: "steelAppliance",
   rangehood: "steelAppliance",
   dishwasher: "steelAppliance",
   steamoven: "steelAppliance",
@@ -1863,12 +2032,12 @@ export function normalizeMaterialStyle(itemType, styleValue) {
   return findMaterialStyle(itemType, styleValue) ? styleValue : MATERIAL_STYLE_AUTO;
 }
 
-/** 风格档位的中文名，供提示与调试使用；找不到时回退「跟随全局风格」。 */
+/** 风格档位的中文名，供提示与调试使用；`auto` 与找不到时回退到该类型的 auto 显示名。 */
 export function materialStyleLabel(itemType, styleValue) {
   if (styleValue === MATERIAL_STYLE_AUTO) {
-    return "跟随全局风格";
+    return materialStyleAutoLabel(itemType);
   }
-  return findMaterialStyle(itemType, styleValue)?.label || "跟随全局风格";
+  return findMaterialStyle(itemType, styleValue)?.label || materialStyleAutoLabel(itemType);
 }
 
 /**

@@ -318,8 +318,8 @@ export function buildSideboardItem(context) {
  * 占位几何**必须与规格逐段对齐**（tools/models/model-specs.mjs 的 shoecabinet）：这一件是
  * 「左半一张换鞋凳、右半一列柜门」这种非骨架造型，占位的分段一旦与成品不同，GLB 落地那一帧
  * 整件会跳一次形。规格里的米值在这里按 `addShoeBlock` 逐件搬过来，y 一律给**底面**高度
- * （与规格同语义）—— 吊柜当年把离地高度写进构造器、规格里却是 0 基，两套坐标对不上，
- * 加载完成时整件会从地上弹到墙上，这个坑就踩过一次。
+ * （与规格同语义）—— 两套坐标的 y 零点必须对齐：吊柜的挂高（1.4m）是与规格**一起**烘进几何的
+ * （见 `buildWallcabinetItem`），只在一处加挂高，加载完成那一帧整件就会跳 1.4m。
  */
 export function buildShoecabinetItem(context) {
   const {
@@ -656,12 +656,15 @@ export function buildPillarItem(context) {
 /**
  * 命中：itemSpec.type === "wallcabinet"
  *
- * 加载中的占位几何，与 tools/models/model-specs.mjs 的 wallcabinet 一一对应（外部 GLB 到位后整组被换掉）。
+ * 加载中的占位几何，与 tools/models/model-specs.mjs 的 wallcabinet 逐值对应（外部 GLB 到位后整组被换掉）。
+ * 规格里那块中竖板是 `fullOnly`，lite 版不产，占位件也不画；其余零件的位置 / 尺寸都照规格抄。
+ * 抄漏一处（层板底面 0.4、背板 1.44 × 0.757）不会报错，只是模型到位那一帧柜内会轻轻跳一下。
  *
- * **几何一律从 y = 0 起**：吊柜是挂墙件，离地高度归物件自己的 `elevation`（类型默认 1.6m，
- * 见 studio-app.js 的 ITEM_TYPE_DEFINITIONS），运行侧把整组抬起来。这里若把 1.6 写进构造器，
- * 模型到位之后就会被抬两次 —— 以前写的 1.4 正是这个毛病：占位在 1.4，成品在 0，
- * 「模型加载完成的那一帧」柜子会往下掉 1.4m。
+ * **挂高（柜底离地 1.4m）烘在几何里**：规格用 mountHeight 声明、导出时整件抬起，占位件照同一口径
+ * 加在每一块的底面上（`wallCabinetMountHeight`）—— 两边必须都含这一段。以前占位件含 1.4、规格是 0 基，
+ * 「模型加载完成的那一帧」柜子会往下掉 1.4m；反过来（占位 0 基、成品含 1.4）则会往上跳。
+ * 物件的 `elevation` 在这之上**再加**一段偏移（类型定义里没有默认值，与**原版**同一个口径：原版那台
+ * 吊柜资产的柜底也在 1.378m 处，两个程序才能打开同一个草稿）。
  */
 export function buildWallcabinetItem(context) {
   const {
@@ -673,12 +676,15 @@ export function buildWallcabinetItem(context) {
     itemHeight,
     itemWidth
   } = context;
+  // 烘进几何的挂高（米）：与规格的 wallcabinet.mountHeight 同值。它同样吃 scaleY —— 成品是
+  // 「几何抬 1.4 之后整件按高度缩放」，占位件不跟着缩就会在物件被改高时与成品错开。
+  const wallCabinetMountHeight = 1.4;
   // 三轴的「规格米 → 实际米」倍率。规格基准：宽 1.5 / 高 0.82 / 深 0.35。
   const scaleX = itemWidth / 1.5;
   const scaleY = itemHeight / 0.82;
   const scaleZ = itemDepth / 0.35;
   /**
-   * 按「规格里的米」摆一个方块（y 给**底面**高度，与规格一致）。
+   * 按「规格里的米」摆一个方块（y 给**底面**高度，与规格一致；挂高统一加在这里）。
    */
   const addWallCabinetBlock = (
     specWidth,
@@ -696,7 +702,7 @@ export function buildWallcabinetItem(context) {
       specHeight * scaleY,
       specDepth * scaleZ,
       specX * scaleX,
-      (specBottomY + specHeight / 2) * scaleY,
+      (wallCabinetMountHeight + specBottomY + specHeight / 2) * scaleY,
       specZ * scaleZ,
       color,
       options
@@ -706,9 +712,12 @@ export function buildWallcabinetItem(context) {
   addWallCabinetBlock(1.46, 0.02, 0.3, 0, 0, -0.02, furnitureColor);
   addWallCabinetBlock(0.02, 0.76, 0.3, -0.73, 0.02, -0.02, furnitureColor);
   addWallCabinetBlock(0.02, 0.76, 0.3, 0.73, 0.02, -0.02, furnitureColor);
-  addWallCabinetBlock(1.46, 0.76, 0.014, 0, 0.02, -0.163, furnitureSoftColor, { roughness: 0.68 });
-  // 层板：柜内一块可调层板，把格口分成上下两层。
-  addWallCabinetBlock(1.46, 0.018, 0.28, 0, 0.391, -0.03, furnitureSoftColor, { roughness: 0.6 });
+  // 背板：宽 1.44 / 顶面 0.777 —— 与规格逐值相等（规格那道「背板顶面压到 0.777、宽度收到 1.44」
+  // 是躲共面用的，占位件照抄同一组数；写成 1.46 / 0.76 会让模型到位那一帧柜内两侧与顶缝跳一下）。
+  addWallCabinetBlock(1.44, 0.757, 0.014, 0, 0.02, -0.163, furnitureSoftColor, { roughness: 0.68 });
+  // 层板：柜内一块可调层板，把格口分成上下两层。底面 0.4 / 背面让到 −0.153 同样照规格 ——
+  // 规格里那块层板还是 fullOnly（lite 不产），占位件按完整版画，形状与坐标都必须一致。
+  addWallCabinetBlock(1.44, 0.018, 0.28, 0, 0.4, -0.013, furnitureSoftColor, { roughness: 0.6 });
   // 顶板：占地 1.5 × 0.35 由它定，也是整件最高的一件（顶面 = 0.82 = 声明高度）。
   addWallCabinetBlock(1.5, 0.04, 0.35, 0, 0.78, 0, furnitureSoftColor, { roughness: 0.5 });
   // 双开门：各 0.72 宽、中缝 1cm，门面到 0.145（柜体正面 0.13 + 门板 1.5cm）。
