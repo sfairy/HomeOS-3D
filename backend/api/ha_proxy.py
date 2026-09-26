@@ -11,6 +11,7 @@ camera_proxy_stream / image_proxy / media_player_proxy / hls 几类路径中转�
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
@@ -19,8 +20,10 @@ from urllib.parse import parse_qs, unquote, urlparse
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from sqlalchemy import select
 
 from ..core.database import Database
+from ..core.models import ProjectDraft
 from ..security.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
@@ -99,6 +102,26 @@ HLS_STREAM_SCOPE_MAX_ENTRIES = 128
 #: 同一个项目对同一个 HLS 令牌的归属结论，多久之内不必重查数据库。
 #: HLS 分片是几秒一个，逐次查库开销不相称；窗口取 60 秒，改绑后漏放不超过一分钟。
 HLS_SCOPE_RECHECK_SECONDS = 60
+
+# —— 摄像头流保温 ——
+#: 保温池的消费间隔（秒）。go2rtc 在没有消费者时约 10 秒就回收整条 RTSP→HLS 管道（实测），
+#: 而下一次播放要为「连摄像头 + 起转码 + 生成初始分片」重新买单：冷流上第一个清单请求
+#: 实测要 **9.2 秒**才返回，热的只要 6–16 毫秒。1 秒一次的节奏既远快于回收窗口，
+#: 也正好是 LL-HLS 的 PART 节奏。
+CAMERA_WARM_POLL_INTERVAL_SECONDS = 1.0
+#: 保温任务重建流的间隔（秒）：流被回收、HA 暂时不可达、摄像头掉线都靠它重试。
+CAMERA_WARM_RESTART_SECONDS = 3.0
+#: 单个实体的连续失败上限。到顶就放弃它 —— 实体可能已被删除或根本不支持 HLS，
+#: 留着任务只会每秒刷一次日志。
+CAMERA_WARM_MAX_FAILURES = 3
+#: 从仪表盘文档里认摄像头实体的模式。文档结构由前端 PanelRenderer 定义且会演进，这里刻意
+#: 只做字符串扫描而不解析结构：多抓一个不存在的实体会在起流时被跳掉（见 _warm_once），
+#: 漏抓才会让用户又撞上冷启动，两相权衡宁可多抓。
+CAMERA_ENTITY_PATTERN = re.compile(r'camera\.[a-z0-9_]+')
+#: LL-HLS 清单里的 PART URI；取最后一个（最新的）当本次要消费的分片。
+HLS_PART_URI_PATTERN = re.compile(r'#EXT-X-PART:[^\n]*?URI="\.?/([^"]+)"')
+#: 非低延迟清单里的完整分片行，同样是「取最后一个」。
+HLS_SEGMENT_URI_PATTERN = re.compile(r'^\.?/(segment/[^\s]+\.m4s)$', re.MULTILINE)
 
 
 @dataclass
@@ -284,6 +307,173 @@ class MediaProxyCaches:
         # 命中即续期（滑动窗口）：正常播放期间不会中途被判成「未登记」而断流。
         scope.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
         return scope.entity_id
+
+
+def _latest_hls_consume_target(playlist: str) -> str | None:
+    """从清单里挑一个本次要消费的分片（相对清单目录）。
+
+    优先最新的 PART：它是 LL-HLS 的实时节奏（约 1 秒一个），消费它既最省流量，也最贴近
+    真实播放器的行为；不是低延迟模式时退回最新的完整分片。
+    """
+    parts = HLS_PART_URI_PATTERN.findall(playlist)
+    if parts:
+        return parts[-1]
+    segments = HLS_SEGMENT_URI_PATTERN.findall(playlist)
+    return segments[-1] if segments else None
+
+
+def dashboard_camera_entity_ids(database: Database) -> set[str]:
+    """扫全部项目草稿，取出仪表盘文档里出现过的摄像头实体 ID（供开机预热）。
+
+    只做字符串扫描、不解析文档结构，理由见 ``CAMERA_ENTITY_PATTERN`` 的注释。
+    """
+    with database.session_factory() as session:
+        documents = session.execute(select(ProjectDraft.document_json)).scalars().all()
+    found: set[str] = set()
+    for document in documents:
+        found.update(CAMERA_ENTITY_PATTERN.findall(document or ''))
+    return found
+
+
+class CameraStreamWarmer:
+    """常驻保温池：让摄像头在 go2rtc 侧一直有活着的 HLS 流。
+
+    为什么需要它：go2rtc 在**没有消费者**时约 10 秒就回收整条 RTSP→HLS 管道，下一次播放要为
+    「连摄像头 + 起转码 + 生成初始分片」重新买单 —— 实测冷流上第一个清单请求要 **9.2 秒**
+    才返回，而热的清单只要 6–16 毫秒。「首次加载慢、第二次就正常」的全部原因就在这里：
+    第二次只是碰巧还落在那个约 10 秒的回收窗口内。
+
+    保温方式就是当一个最小消费者：每 ``CAMERA_WARM_POLL_INTERVAL_SECONDS`` 拉一次清单，
+    再取一次最新的分片。**必须真的取到分片**：实测只标记「在用」、或只拉清单不取分片，
+    流照样在约 10 秒后变 404。
+
+    ``camera/stream`` 在同一条流存活期间返回**同一个** HLS 地址（实测两次调用令牌完全一致），
+    所以保温期间 ``/api/camera_hls`` 发给播放器的就是那条已经跑了几十秒的活流 —— hls.js
+    挂上即播，不必等首帧。
+
+    保温集合来自两处：``/api/camera_hls`` 每发放一次地址就 ``want`` 一次（精确，用户确实在看
+    它），以及开机时扫仪表盘文档得到的 ``want_all``（让重启后的第一次打开也是热的）。
+    """
+
+    def __init__(self, database: Database, connector, caches: MediaProxyCaches) -> None:
+        self.database = database
+        self.connector = connector
+        self.caches = caches
+        #: 实体 ID → 它的保温任务。集合本身就是「当前在保温谁」的唯一事实来源。
+        self.tasks: dict[str, asyncio.Task[None]] = {}
+        self.stopped = False
+
+    def want(self, entity_id: str) -> None:
+        """登记一个要保温的摄像头；重复登记无副作用。"""
+        entity_id = (entity_id or '').strip()
+        if not entity_id or entity_id in self.tasks or self.stopped:
+            return
+        self.tasks[entity_id] = asyncio.create_task(self._warm_forever(entity_id))
+
+    def want_all(self, entity_ids) -> None:
+        for entity_id in entity_ids:
+            self.want(entity_id)
+
+    def forget_all(self) -> None:
+        """HA 连接被重建 / 删除：全部保温作废 —— 流地址与令牌都跟着那一台 HA 走。"""
+        self._cancel_all()
+
+    def stop(self) -> None:
+        self.stopped = True
+        self._cancel_all()
+
+    def _cancel_all(self) -> None:
+        for task in self.tasks.values():
+            task.cancel()
+        self.tasks.clear()
+
+    async def _warm_forever(self, entity_id: str) -> None:
+        """起流 → 消费到流消亡 → 退避 → 再起流。
+
+        只有**连续**失败才计数：一轮成功保温（哪怕只撑了几十秒）就清零 —— 「没人看时 go2rtc
+        回收流」是预期行为，不是错误。连续失败到上限说明这个实体保不住（已被删除、不支持
+        HLS、或摄像头一直不响应），此时放弃它，并把最后一次的错误抛出去，让它在服务端日志里
+        留下痕迹而不是悄悄永远失败。
+        """
+        failures = 0
+        last_error: BaseException | None = None
+        try:
+            while not self.stopped:
+                try:
+                    warmed = await self._warm_once(entity_id)
+                    last_error = None
+                except asyncio.CancelledError:
+                    raise
+                except Exception as error:  # noqa: BLE001 - 保温尽力而为，只影响这一个实体
+                    warmed = False
+                    last_error = error
+                failures = 0 if warmed else failures + 1
+                if failures >= CAMERA_WARM_MAX_FAILURES:
+                    if last_error is not None:
+                        raise last_error
+                    return
+                await asyncio.sleep(CAMERA_WARM_RESTART_SECONDS)
+        finally:
+            # 任务自己退出（放弃 / 被取消）时把登记一起撤掉，外面看到的始终是当前有效的集合。
+            self.tasks.pop(entity_id, None)
+
+    async def _warm_once(self, entity_id: str) -> bool:
+        """起一条流并消费到它消亡。返回 False 表示这条流没能起来。"""
+        connection = await asyncio.to_thread(load_active_connection_snapshot, self.database)
+        if connection is None:
+            return False
+        client = await self.connector.client_for(connection)
+        entity_states = await client.fetch_states({entity_id})
+        # 与 /api/camera_hls 同一口径：只有明确不支持才放弃，状态未知时先试着起流。
+        if camera_supports_hls(entity_states[0] if entity_states else None) is False:
+            return False
+        websocket = await client.connect_websocket()
+        try:
+            result = await client.command(
+                websocket, 1, 'camera/stream', entity_id=entity_id, format='hls'
+            )
+        finally:
+            # camera/stream 是一次性命令，拿到结果就关掉 WebSocket。
+            await websocket.close()
+        # HA 各版本返回结构不一致，这里兼容 dict 与裸字符串两种形态（同 /api/camera_hls）。
+        stream_url = rewrite_location(
+            str(result.get('url') if isinstance(result, dict) else result or '').strip(),
+            client.base_url,
+        )
+        stream_path = stream_url.split('?', 1)[0]
+        if not stream_path or not allowed_media_proxy_path(stream_path):
+            return False
+        # 记账归属：保温期间播放器请求的分片也要过 /api/hls/ 的归属校验，而这份记账的唯一
+        # 来源就是「发放地址时记下令牌」。这里提前记上，播放器接手时校验已经就绪。
+        self.caches.remember_hls_stream(stream_url, entity_id)
+        await self._consume_until_gone(client, stream_path)
+        return True
+
+    async def _consume_until_gone(self, client, stream_path: str) -> None:
+        """当一个最小消费者：拉清单 + 取最新分片，直到 go2rtc 把这条流回收。
+
+        清单返回非 200、或内容不再是 m3u8，就说明流已经没了（实测约 10 秒不消费即 404），
+        这里直接返回，由 ``_warm_forever`` 重建。
+        """
+        playlist_dir = stream_path.rsplit('/', 1)[0]
+        playlist_path = f'{playlist_dir}/playlist.m3u8'
+        headers = {
+            'Authorization': f'Bearer {client.access_token}',
+            # 与 /api/hls 的转发同口径：拿原始字节，不让中间层压缩。
+            'accept-encoding': 'identity',
+        }
+        async with httpx.AsyncClient(
+            verify=client.verify_tls, timeout=client.timeout, follow_redirects=False
+        ) as http:
+            while not self.stopped:
+                response = await http.get(f'{client.base_url}{playlist_path}', headers=headers)
+                if response.status_code != 200 or '#EXTM3U' not in response.text:
+                    return
+                target = _latest_hls_consume_target(response.text)
+                if target:
+                    # 必须真的取一个分片，管道才会被 go2rtc 认定为「有人在看」。
+                    await http.get(f'{client.base_url}{playlist_dir}/{target}', headers=headers)
+                await asyncio.sleep(CAMERA_WARM_POLL_INTERVAL_SECONDS)
 
 
 def upstream_path(request: Request) -> str:
@@ -503,7 +693,7 @@ async def proxy_http(request: Request) -> Response:
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     try:
-        client_config = request.app.state.ha_connector.client_for(connection)
+        client_config = await request.app.state.ha_connector.client_for(connection)
     except CredentialCipherError as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)
@@ -607,11 +797,16 @@ async def proxy_http(request: Request) -> Response:
 
         不能写 ``upstream.content``（上游给多大就占多大内存）；只有快照请求才攒，
         超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 就丢弃已攒部分并停止累积。
+
+        必须用 ``aiter_bytes()`` 而不是 ``aiter_raw()``：响应头里会删掉
+        ``content-encoding``（见 RESPONSE_HEADERS_TO_DROP），因此这里发出的字节必须是**已解码**的。
+        HA 即使在 ``accept-encoding: identity`` 下也会 gzip HLS 播放列表，用 ``aiter_raw()``
+        会把裸 gzip 当成明文下发 —— hls.js 解不开清单，直接报 manifestParsingError。
         """
         buffered = bytearray()
         cacheable = snapshot_request
         try:
-            async for chunk in upstream.aiter_raw():
+            async for chunk in upstream.aiter_bytes():
                 if not chunk:
                     continue
                 if cacheable:
@@ -655,7 +850,7 @@ async def camera_hls_stream(
     # 回落响应复用同一个对象：两条路径语义完全相同。
     mjpeg_fallback = JSONResponse({'url': None, 'fallback': 'mjpeg'})
     try:
-        client = request.app.state.ha_connector.client_for(connection)
+        client = await request.app.state.ha_connector.client_for(connection)
         entity_states = await client.fetch_states({entity_id})
         # 只有明确不支持才回落；状态未知时继续尝试启动流。
         if camera_supports_hls(entity_states[0] if entity_states else None) is False:
@@ -698,6 +893,10 @@ async def camera_hls_stream(
         return mjpeg_fallback
     # 记账归属：HLS 令牌里没有实体信息，片段请求的校验只能靠这里记下的「令牌 → 实体」。
     request.app.state.media_proxy.remember_hls_stream(stream_url, entity_id)
+    # 登记保温：go2rtc 在没人消费时约 10 秒就回收整条管道，下一次播放要为「连摄像头 +
+    # 起转码 + 生成初始分片」重新买单（实测首个清单 9.2 秒）。登记后由保温池持续消费，
+    # 后续每次打开（含刷新、切页、离开一会儿再回来）拿到的都是那条活流，挂上即播。
+    request.app.state.camera_warmer.want(entity_id)
     return JSONResponse({'url': stream_url})
 
 

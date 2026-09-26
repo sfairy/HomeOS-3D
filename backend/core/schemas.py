@@ -208,13 +208,25 @@ class LoginSessionListResponse(BaseModel):
 
 
 class HAConnectionInput(BaseModel):
-    """HA 连接配置；测试连接与保存连接共用这一套字段。"""
+    """HA 连接配置；测试连接与保存连接共用这一套字段。
+
+    地址分内网与外网两套，**内网优先**：内网可达就一直走内网，不通才自动退到外网。
+    两套地址各有自己的证书校验开关 —— 内网默认不校验（多是 http 或自签名证书），
+    外网默认校验（公网地址应当有受信任证书）。
+    """
 
     model_config = ConfigDict(populate_by_name=True)
 
+    #: 内网（优先）地址，必填：HomeOS 平时就装在家里，这一路是常态。
     base_url: str = Field(alias='baseUrl', min_length=8, max_length=512)
+    #: 外网（备用）地址，选填。留空表示内网不通就直接报错。
+    external_base_url: str | None = Field(default=None, alias='externalBaseUrl', max_length=512)
     access_token: str | None = Field(default=None, alias='accessToken', max_length=4096)
-    verify_tls: bool = Field(default=True, alias='verifyTls')
+    #: 内网地址是否校验 HTTPS 证书。默认 False：内网部署基本是 http（该校验对 http 无效）
+    #: 或自签名证书（校验会直接失败）。
+    verify_tls: bool = Field(default=False, alias='verifyTls')
+    #: 外网地址是否校验 HTTPS 证书。默认 True。
+    external_verify_tls: bool = Field(default=True, alias='externalVerifyTls')
     name: str = Field(default='Home Assistant', min_length=1, max_length=128)
     #: 换地址时是否确认「继续复用已保存的令牌」。默认 False：把 HA 地址换成另一个
     #: 主机（哪怕是攻击者搭的同名服务）时，旧的长期令牌不能被静默送到新地址去。
@@ -232,6 +244,19 @@ class HAConnectionInput(BaseModel):
         if not value or CONTROL_CHARACTERS.search(value):
             raise ValueError('连接名称无效。')
         return value
+
+    @field_validator('external_base_url')
+    @classmethod
+    def normalize_external_url(cls, value: str | None) -> str | None:
+        """外网地址去空白；空串一律归一成 None。
+
+        表单里把备用地址清空提交的是空串，不是缺省 —— 若原样入库，后续「是否有备用地址」
+        的判断（以及地址比对）就要处处区分 ``''`` 与 ``None`` 两种「没有」。
+        """
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
 
     @field_validator('base_url')
     @classmethod
@@ -350,7 +375,7 @@ class Studio3DDraftUpdate(BaseModel):
 
     revision: int = Field(ge=0)
     scene: dict[str, Any]
-    interaction_confirmation: str | None = Field(default=None, alias='interactionConfirmation', max_length=128)
+    interaction_confirmation: str | None = Field(default=None, alias='interactionConfirmation', max_length=64)
 
     @field_validator('scene')
     @classmethod

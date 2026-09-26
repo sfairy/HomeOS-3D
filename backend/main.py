@@ -48,12 +48,18 @@ from .api.displays import (
     router as displays_router,
 )
 from .api.ha import (
+    EntityTranslationCache,
     HA_TEST_KEYS,
     HA_TEST_LIMIT,
     router as ha_router,
     runtime_router,
 )
-from .api.ha_proxy import MediaProxyCaches, router as ha_proxy_router
+from .api.ha_proxy import (
+    CameraStreamWarmer,
+    MediaProxyCaches,
+    dashboard_camera_entity_ids,
+    router as ha_proxy_router,
+)
 from .api.global_logs import router as global_logs_router
 from .api.license import (
     LICENSE_ACTIVATION_KEYS,
@@ -75,6 +81,7 @@ from .config import Settings, load_settings
 from .core.database import Database
 from .ha.service import HAConnectorService
 from .security.http_security import (
+    configured_base_origin,
     forwarded_allow_ips_warning,
     forwarded_headers_present,
     is_direct_local,
@@ -231,6 +238,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     sys.stderr.write(f'{allow_ips_warning}\n')
                 except OSError:
                     pass
+            if app_settings.app_base_url and not configured_base_origin(app_settings):
+                # APP_BASE_URL 写错（最常见的是漏了协议头）时，Origin 校验会静默退回
+                # 「只比较 Host」：运维以为对外地址已钉死，实际没有。提醒一句，不阻断启动。
+                app.state.global_log.append(
+                    'warning', '系统后台', '配置',
+                    'APP_BASE_URL 解析不出 http(s)://主机 形态的来源（检查是否漏了协议头）：'
+                    'Origin 校验将退回只比较请求的 Host。',
+                )
             if not trusted_proxies and (app_settings.app_base_url.startswith('https://')):
                 # 最常见的错配：HTTPS 反代后面却没配可信代理 —— 于是限流、审计里的
                 # 客户端 IP 全是代理地址，且带转发头的请求还会被当成「本机直连」之外的
@@ -337,17 +352,46 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 except Exception as error:  # noqa: BLE001 - 迁移是附加工作，失败不阻断启动
                     app.state.global_log.append(
                         'warning', '系统后台', '存储', f'3D 户型图旧数据迁移失败：{error}')
+            def _clear_connection_derived_caches() -> None:
+                """连接被重建 / 删除时，作废全部「跟着那一台 HA 走」的进程内缓存。
+
+                媒体代理的两份记账（快照缓存里是上一台 HA 的画面，HLS 归属记的是上一台 HA
+                发的令牌）与实体翻译表都要清：地址可以不变而实例已经换了一台，缓存自身发现不了。
+                """
+                app.state.media_proxy.clear()
+                app.state.entity_translations.clear()
+                # 保温池排在连接器之后创建，理论上这时一定已经就绪；真没有就跳过。
+                warmer = getattr(app.state, 'camera_warmer', None)
+                if warmer is not None:
+                    warmer.forget_all()
+
             app.state.ha_connector = HAConnectorService(
                 app_settings,
                 app.state.database,
                 event_log = app.state.global_log,
-                # 连接被重建 / 删除时作废媒体代理的两份记账：快照缓存里是上一台 HA 的
-                # 画面，HLS 归属记的是上一台 HA 发的令牌。地址可以不变而实例已经换了一台，
-                # 所以这件事只能由「连接被重建」这个事件告诉它。
-                on_reconnect = app.state.media_proxy.clear,
+                # 重建 / 删除连接时作废从连接派生的进程内缓存，这件事只能由
+                # 「连接被重建」这个事件告诉它。
+                on_reconnect = _clear_connection_derived_caches,
+                # 内外网端点切换同理：HLS 令牌与快照都来自旧那一路，缓存必须作废。
+                # 这里只清媒体代理，**不动保温池** —— 它会自己按新端点重新起流，
+                # 停了就再没人把它叫回来（详见 service.py 的参数说明）。
+                on_endpoint_switch = app.state.media_proxy.clear,
             )
             # HA 同步是同步方法，内部自己起线程 / 任务，因此这里不 await。
             app.state.ha_connector.start()
+            # 摄像头流保温池：go2rtc 在没有消费者时约 10 秒就回收整条 RTSP→HLS 管道，
+            # 冷启动的第一个清单请求实测要 9.2 秒。先把仪表盘文档里引用到的摄像头登记上，
+            # 让「重启后的第一次打开」也是热的；此后每次播放还会由 /api/camera_hls 追加登记。
+            app.state.camera_warmer = CameraStreamWarmer(
+                app.state.database, app.state.ha_connector, app.state.media_proxy
+            )
+            try:
+                app.state.camera_warmer.want_all(
+                    await asyncio.to_thread(dashboard_camera_entity_ids, app.state.database)
+                )
+            except Exception as error:  # noqa: BLE001 - 预热登记是附加工作，失败不阻断启动
+                app.state.global_log.append(
+                    'warning', '系统后台', '存储', f'摄像头流预热登记失败：{error}')
             app.state.update_checker = UpdateChecker(
                 app_settings.data_dir,
                 app_settings.version,
@@ -396,6 +440,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         finally:
             # 正常停止也要逐个关闭，并把第一个失败留到最后抛出，
             # 保证其余服务仍然被尝试关闭。
+            # 保温池先停：它只是后台任务，同步 cancel 即可，不必挤进下面那串 await 的循环。
+            app.state.camera_warmer.stop()
             shutdown_error = None
             for service in (app.state.update_checker, app.state.ha_connector, app.state.license_service):
                 try:
@@ -425,6 +471,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     # create_app() 调两次时模块级的那一份会被两个应用共享（缓存串台、刷新任务绑在
     # 另一个事件循环上），而进程内单实例只是习惯，不是保证。
     app.state.media_proxy = MediaProxyCaches()
+    # 实体翻译表的进程内缓存：与媒体代理同理挂在应用上（create_app() 调两次不能串台）。
+    app.state.entity_translations = EntityTranslationCache()
 
     @app.exception_handler(Exception)
     async def unhandled_error_response(request: Request, _error: Exception):
@@ -739,10 +787,16 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         path = request.url.path
         if premium_asset(path):
             # 数据库查询是同步的，丢到线程池避免阻塞事件循环。
+            # 拒绝响应也打 no-store：虽然 401 / 403 本就不在可缓存之列，但中间层与浏览器
+            # 对「凭据失败」的处理各不相同，把「不缓存」写死，避免拒绝页被留在缓存里。
             if not await asyncio.to_thread(browser_authorized, request):
-                return Response('请先登录或完成中控设备配对。', status_code = 401, media_type = 'text/plain')
+                denial = Response('请先登录或完成中控设备配对。', status_code = 401, media_type = 'text/plain')
+                set_no_store_with_revalidation(denial)
+                return denial
             if not await asyncio.to_thread(request.app.state.license_service.allows, 'assets'):
-                return Response('当前授权状态不允许读取该资源。', status_code = 403, media_type = 'text/plain')
+                denial = Response('当前授权状态不允许读取该资源。', status_code = 403, media_type = 'text/plain')
+                set_no_store_with_revalidation(denial)
+                return denial
         response = await call_next(request)
         # 需要加安全头的页面与接口集合（静态资源与展示页也包含在内）。
         app_surface = (
@@ -765,7 +819,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
             else:
                 frame_ancestors = "'self'" if same_origin_frame else "'none'"
-                response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-src 'self'; frame-ancestors {frame_ancestors}; base-uri 'none'; form-action 'self'"
+                # connect-src 里的 blob:/data: 是给 GLTFLoader 用的：模型贴图内嵌在 .glb/.gltf
+                # 里时，它会把图片数据转成 blob:（或 data:）URL 再交给 ImageBitmapLoader，
+                # 而后者走 fetch()，受 connect-src 管辖。漏掉这两个用户会看到贴图加载失败。
+                response.headers['Content-Security-Policy'] = f"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' blob: data: ws: wss:; worker-src 'self' blob:; frame-src 'self'; frame-ancestors {frame_ancestors}; base-uri 'none'; form-action 'self'"
             response.headers['Referrer-Policy'] = 'no-referrer'
             response.headers['X-Content-Type-Options'] = 'nosniff'
             response.headers['X-Frame-Options'] = 'SAMEORIGIN' if same_origin_frame else 'DENY'

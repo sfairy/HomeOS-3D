@@ -44,6 +44,38 @@ def websocket_url(base_url: str) -> str:
     return urlunparse((scheme, parsed.netloc, path, '', '', ''))
 
 
+def is_message_too_large(error: BaseException) -> bool:
+    """判断这个 ``websockets`` 异常是不是「单条消息过大」（关闭码 1009）。
+
+    有的实现只给 ``message too big`` 文本、不带关闭码，所以三种特征都判。REST 与 WS 多处
+    都要认这个错误，判据只留这一份，免得几处写法各自漂移。
+    """
+    return (
+        getattr(error, 'code', None) == 1009
+        or 'message too big' in str(error).lower()
+        or '1009' in str(error)
+    )
+
+
+#: 翻译表分批并发时每批的命令数。太大不够礼貌（同时在途几十条命令），太小又会退化回串行。
+TRANSLATION_FETCH_BATCH_SIZE = 8
+
+
+def _merge_translation_payload(resources: dict[str, str], payload: Any) -> None:
+    """把一条 ``frontend/get_translations`` 的结果并进 ``resources``。
+
+    不同 HA 版本一个返回 ``{resources: {...}}``，另一个直接返回扁平字典；空结果、非字典、
+    非字符串值一律跳过 —— 缺翻译是常态（自定义组件、未翻译的第三方集成），不是错误。
+    """
+    if isinstance(payload, dict) and 'resources' in payload:
+        payload = payload['resources']
+    if not isinstance(payload, dict):
+        return
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, str):
+            resources[key] = value
+
+
 def is_ipv6_literal(base_url: str) -> bool:
     """判断地址是否直接指向 IPv6 字面量。
 
@@ -287,12 +319,7 @@ class HAClient:
         except HAClientError:
             raise
         except (OSError, TimeoutError, websockets.WebSocketException) as error:
-            # 1009 是「消息过大」的关闭码；有些实现只给 message too big 文本，所以三种特征都判。
-            if (
-                getattr(error, 'code', None) == 1009
-                or 'message too big' in str(error).lower()
-                or '1009' in str(error)
-            ):
+            if is_message_too_large(error):
                 maximum_mb = self.websocket_max_size_bytes // 1048576
                 raise HAClientError(
                     f'Home Assistant 返回的单条数据超过 {maximum_mb} MB，'
@@ -311,11 +338,7 @@ class HAClient:
             try:
                 message = json.loads(await websocket.recv())
             except websockets.WebSocketException as error:
-                if (
-                    getattr(error, 'code', None) == 1009
-                    or 'message too big' in str(error).lower()
-                    or '1009' in str(error)
-                ):
+                if is_message_too_large(error):
                     maximum_mb = self.websocket_max_size_bytes // 1048576
                     raise HAClientError(
                         f'Home Assistant 命令 {command_type} 返回的单条数据超过 {maximum_mb} MB，'
@@ -332,6 +355,55 @@ class HAClient:
                 # 优先用 HA 自己给的中文/英文错误描述，没有才用兜底文案。
                 raise HAClientError(str(error.get('message') or f'HA 命令 {command_type} 执行失败。'))
             return message.get('result')
+
+    async def _collect_commands(
+        self,
+        websocket,
+        requests: list[tuple[int, str, dict[str, Any]]],
+    ) -> tuple[dict[int, Any], dict[int, HAClientError]]:
+        """并发发出多条命令并收齐结果（HA WebSocket 单连接多路复用，返回顺序不保证）。
+
+        与 :meth:`command` 的区别是「一条一条等」还是「一起发、按 id 认领」：N 条命令的往返
+        耗时从 ``N × RTT`` 降到约一个 RTT。翻译表要按集成逐个请求（典型安装几十个），逐个等
+        实测中位 2.9 秒、最坏 23 秒，这里就是压它的地方。
+
+        返回 ``(id → result, id → 错误)``。单条失败只影响它自己 —— 翻译表缺一个集成是常态
+        （自定义组件、未翻译的第三方集成），调用方跳过即可，不该拖垮整批；只有连接层面的故障
+        （WS 断开、单条消息超限）才抛 HAClientError。
+        """
+        pending = {
+            message_id: command_type for message_id, command_type, _ in requests
+        }
+        await asyncio.gather(*(
+            websocket.send(json.dumps({'id': message_id, 'type': command_type, **payload}))
+            for message_id, command_type, payload in requests
+        ))
+        results: dict[int, Any] = {}
+        errors: dict[int, HAClientError] = {}
+        while pending:
+            try:
+                message = json.loads(await websocket.recv())
+            except websockets.WebSocketException as error:
+                if is_message_too_large(error):
+                    maximum_mb = self.websocket_max_size_bytes // 1048576
+                    raise HAClientError(
+                        f'Home Assistant 批量命令返回的单条数据超过 {maximum_mb} MB，'
+                        '请提高 APP_HA_WEBSOCKET_MAX_SIZE_BYTES 或减少异常庞大的实体属性。'
+                    ) from error
+                raise HAClientError(f'Home Assistant 批量命令连接中断：{error}') from error
+            message_id = message.get('id')
+            # 不是本批次的回复（订阅推送或其它命令的返回），跳过继续等。
+            if message_id not in pending:
+                continue
+            command_type = pending.pop(message_id)
+            if message.get('type') != 'result' or not message.get('success'):
+                error_payload = message.get('error') or {}
+                errors[message_id] = HAClientError(
+                    str(error_payload.get('message') or f'HA 命令 {command_type} 执行失败。')
+                )
+                continue
+            results[message_id] = message.get('result')
+        return results, errors
 
     @staticmethod
     async def subscribe_events(
@@ -455,10 +527,10 @@ class HAClient:
         默认 ``zh-Hans``；``integrations`` 来自实体注册表的 platform。任何一步失败只表示少
         一部分翻译，不会抛异常（界面回落到 HA 原始名称）。
         """
-        # 去重排序后逐个请求：每个集成一次往返，顺序稳定便于排查，也避免重复请求。
+        # 去重排序后请求：顺序稳定便于排查，也避免重复请求。
         requested = sorted({str(item).strip() for item in integrations if str(item).strip()})
         websocket = await self.connect_websocket()
-        resources = {}
+        resources: dict[str, str] = {}
         try:
             try:
                 component_result = await self.command(
@@ -467,29 +539,32 @@ class HAClient:
                 )
             except HAClientError:
                 component_result = {}
-            # 不同 HA 版本一个返回 {resources: {...}}，另一个直接返回扁平字典，两者都兼容。
-            component_payload = (
-                component_result.get('resources', component_result)
-                if isinstance(component_result, dict)
-                else {}
-            )
-            for key, value in component_payload.items():
-                if isinstance(key, str) and isinstance(value, str):
-                    resources[key] = value
-            # id 从 2 开始，1 已经被 entity_component 用掉了。
-            for message_id, integration in enumerate(requested, start=2):
-                try:
-                    result = await self.command(
-                        websocket, message_id, 'frontend/get_translations',
-                        language=language, category='entity', integration=integration,
-                    )
-                except HAClientError:
-                    # 单个集成缺翻译是常态（自定义组件、未翻译的第三方集成），直接跳过。
-                    continue
-                payload = result.get('resources', result) if isinstance(result, dict) else {}
-                for key, value in payload.items():
-                    if isinstance(key, str) and isinstance(value, str):
-                        resources[key] = value
+            _merge_translation_payload(resources, component_result)
+            # id 从 2 开始：1 已经被 entity_component 用掉了。
+            # 分批并发而不是逐个等：每批只花一个往返。逐个等时这里是「集成数 × RTT」，
+            # 典型安装几十个集成就是数秒 —— 实测中位 2.9 秒、最坏 23 秒。
+            next_message_id = 2
+            for batch_start in range(0, len(requested), TRANSLATION_FETCH_BATCH_SIZE):
+                batch = requested[batch_start:batch_start + TRANSLATION_FETCH_BATCH_SIZE]
+                batch_results, _batch_errors = await self._collect_commands(
+                    websocket,
+                    [
+                        (
+                            next_message_id + offset,
+                            'frontend/get_translations',
+                            {
+                                'language': language,
+                                'category': 'entity',
+                                'integration': integration,
+                            },
+                        )
+                        for offset, integration in enumerate(batch)
+                    ],
+                )
+                next_message_id += len(batch)
+                # 本批里失败的那几个没有结果，直接体现成「少一部分翻译」。
+                for result in batch_results.values():
+                    _merge_translation_payload(resources, result)
         finally:
             await websocket.close()
         return resources

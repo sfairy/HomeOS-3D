@@ -27,6 +27,7 @@ from ..security.display_access import active_display_device
 from ..security.http_security import origin_allowed
 from ..observability.global_log import event_context
 from ..ha.client import HAClient, HAClientError, link_local_address
+from ..ha.endpoints import HAEndpoint, endpoint_candidates
 from ..ha.crypto import CredentialCipherError
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, User
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
@@ -68,7 +69,7 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('input_boolean', 'turn_off'): set(),
     ('input_select', 'select_option'): {'option'},
     ('script', 'turn_on'): set(),
-    ('light', 'turn_on'): {'rgb_color', 'brightness', 'transition', 'brightness_pct', 'color_temp_kelvin'},
+    ('light', 'turn_on'): {'rgb_color', 'hs_color', 'brightness', 'transition', 'brightness_pct', 'color_temp_kelvin'},
     ('light', 'turn_off'): {'transition'},
     ('switch', 'turn_on'): set(),
     ('switch', 'turn_off'): set(),
@@ -84,6 +85,11 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('climate', 'set_hvac_mode'): {'hvac_mode'},
     ('climate', 'set_fan_mode'): {'fan_mode'},
     ('climate', 'set_swing_mode'): {'swing_mode'},
+    # 上下摆风与左右摆风是两条独立服务，不是同一件事的别名。2D 空调面板在实体上报
+    # swing_horizontal_modes 时会渲染「水平摆风」一组（见
+    # renderer/core/panel-renderer/device-controls/climate.js），参数名是
+    # swing_horizontal_mode。漏这一条 → 该组每次点都是 403，面板只回显一句笼统的失败。
+    ('climate', 'set_swing_horizontal_mode'): {'swing_horizontal_mode'},
     ('climate', 'set_preset_mode'): {'preset_mode'},
     # 3D 面板在「没有可恢复模式」时发它，让设备自己回到默认模式（见
     # modules/interaction3d/climate.py 的 CLIMATE_SERVICES 说明）。参数为空集。
@@ -117,7 +123,17 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('media_player', 'turn_off'): set(),
         ('vacuum', 'start'): set(),
         ('vacuum', 'pause'): set(),
+        # 停止 / 定位 / 局部清扫：2D 扫地机面板按 supported_features 决定是否显示这几枚
+        # 按钮（renderer/controls/vacuum-runtime.js 的 vacuumSupportedActions），参数为空集。
+        # 漏掉时「开始清扫」点得动、却永远停不下来 —— 正是本项目最忌讳的静默失效。
+        ('vacuum', 'stop'): set(),
+        ('vacuum', 'locate'): set(),
+        ('vacuum', 'clean_spot'): set(),
         ('vacuum', 'return_to_base'): set(),
+        # 老固件只有 turn_on / turn_off，没有 start / stop；vacuumActionService 会把
+        # start / stop 映射成这两个服务名，域仍是 vacuum（不是 homeassistant）。
+        ('vacuum', 'turn_on'): set(),
+        ('vacuum', 'turn_off'): set(),
         ('vacuum', 'set_fan_speed'): {'fan_speed'},
         ('select', 'select_option'): {'option'},
     },
@@ -217,6 +233,7 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
 
     永不回传 Token 本体，只回 hasToken 布尔值；未配置时给一份带默认值的空壳。
     lastError 优先用连接器的运行时错误，连接正常时强制为 None，避免展示过期错误。
+    activeEndpoint 优先取连接器内存里的值（权威），库里那份只是刷新页面时的兜底。
     """
     connector = request.app.state.ha_connector
     # 连接正常就不存在「运行时错误」，这里主动抹掉，防止旧错误一直挂在界面上。
@@ -227,8 +244,12 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
             'hasToken': False,
             'connected': False,
             'baseUrl': '',
+            'externalBaseUrl': None,
+            'activeEndpoint': None,
+            'activeBaseUrl': None,
             'name': 'Home Assistant',
-            'verifyTls': True,
+            'verifyTls': False,
+            'externalVerifyTls': True,
             'version': None,
             'lastConnectedAt': None,
             'lastError': live_error,
@@ -239,8 +260,13 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
         'hasToken': bool(connection.encrypted_access_token),
         'connected': connector.connected,
         'baseUrl': connection.base_url,
+        'externalBaseUrl': connection.external_base_url,
+        'activeEndpoint': connector.endpoint_kind or connection.active_endpoint,
+        # 当前在用端点的实际地址：界面直接展示它，不必自己按 activeEndpoint 拼一次。
+        'activeBaseUrl': connector.active_base_url or connection.base_url,
         'name': connection.name,
         'verifyTls': connection.verify_tls,
+        'externalVerifyTls': connection.external_verify_tls,
         'version': connection.ha_version,
         'lastConnectedAt': connection.last_connected_at,
         # 运行时错误优先于库里的历史错误。
@@ -295,12 +321,62 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
     return None
 
 
+async def probe_endpoints(
+    endpoints: tuple[HAEndpoint, ...], token: str, timeout: float
+) -> list[dict[str, Any]]:
+    """逐个试连端点，返回每个端点的结果（成功带版本与位置名，失败带原因）。
+
+    与连接器的端点解析刻意不同：这里**不短路**。配置界面要同时告诉用户两路各自通不通，
+    只报第一个成功的话，备用地址填错了在界面上也看不出来 —— 而备用地址恰恰是平时不用的
+    那一路，等到内网断了才暴露问题就太晚了。
+    """
+    results: list[dict[str, Any]] = []
+    for endpoint in endpoints:
+        try:
+            tested = await HAClient(
+                endpoint.base_url,
+                token,
+                verify_tls=endpoint.verify_tls,
+                timeout=timeout,
+            ).test_connection()
+        except (HAClientError, CredentialCipherError) as error:
+            results.append({
+                'kind': endpoint.kind,
+                'label': endpoint.label,
+                'baseUrl': endpoint.base_url,
+                'ok': False,
+                'error': str(error),
+            })
+            continue
+        results.append({
+            'kind': endpoint.kind,
+            'label': endpoint.label,
+            'baseUrl': endpoint.base_url,
+            'ok': True,
+            'version': tested.get('version'),
+            'locationName': tested.get('locationName'),
+        })
+    return results
+
+
+def failed_endpoint_summary(results: list[dict[str, Any]]) -> str:
+    """把失败的端点拼成一句可读的原因，用于 422 的 detail。"""
+    return '；'.join(f"{item['label']}（{item['baseUrl']}）：{item['error']}" for item in results if not item['ok'])
+
+
+def addresses_label(internal_url: str, external_url: str | None) -> str:
+    """两端地址的可读表示，用于审计日志。"""
+    text = f'内网 {internal_url}'
+    return f'{text} · 外网 {external_url}' if external_url else text
+
+
 @router.post('/test')
 async def test_connection(payload: HATestRequest, request: Request, user: LicensedUser) -> dict[str, Any]:
     """用请求里给的地址与 Token 试连 HA（需管理员 + 授权允许 api）。
 
-    请求体 base_url / access_token / verify_tls。成功返回 {'ok': True, **HA 探测结果}；
-    422 表示 HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
+    请求体 base_url（内网，必填）/ external_base_url（外网，选填）/ access_token / verify_tls。
+    两个地址都会试一遍，成功返回 ``{'ok': True, 'endpoints': [...]}``（顶层 version /
+    locationName 取自第一个成功的地址，兼容旧前端）；两路全不通时 422，detail 是中文文案。
     """
     require_admin_for_ha(user)
     # 限流键用账号 id：本端点要求管理员，而它唯一能被滥用的方式就是「同一个管理员反复点」——
@@ -314,18 +390,24 @@ async def test_connection(payload: HATestRequest, request: Request, user: Licens
             detail = f'试连过于频繁，请 {remaining} 秒后再试。',
             headers = {'Retry-After': str(remaining)})
     limiter.record_failure(user.id)
-    client = HAClient(
-        payload.base_url,
-        payload.access_token,
-        verify_tls=payload.verify_tls,
-        # 试连也走统一的 HA 超时配置，避免前端按钮一直转圈。
-        timeout=request.app.state.settings.ha_request_timeout_seconds,
+    endpoints = endpoint_candidates(
+        payload.base_url, payload.verify_tls, payload.external_base_url, payload.external_verify_tls
     )
-    try:
-        result = await client.test_connection()
-    except HAClientError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-    return {'ok': True, **result}
+    # 试连是用户主动点的一次诊断，用常规超时耐心等结果，而不是端点解析那种「快点判死好回落」。
+    results = await probe_endpoints(
+        endpoints, payload.access_token, request.app.state.settings.ha_request_timeout_seconds
+    )
+    reachable = [item for item in results if item['ok']]
+    if not reachable:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(results))
+    primary = reachable[0]
+    return {
+        'ok': True,
+        'endpoints': results,
+        'version': primary.get('version'),
+        'locationName': primary.get('locationName'),
+    }
 
 
 @router.put('/connection')
@@ -338,7 +420,8 @@ async def save_connection(
     """保存 HA 连接配置（需管理员 + 授权允许 api 与 ha.configure）。
 
     门禁刻意先查能力码再校验管理员身份，避免把「授权不足」与「权限不足」弄反。
-    未填 access_token 时沿用已保存的 Token（首次必须填）；保存前先试连，不过则不落库。
+    未填 access_token 时沿用已保存的 Token（首次必须填）；保存前先试连两个地址，
+    **至少要有一路通**才落库 —— 两路全不通则整份配置都不写，绝不让打不通的地址沉到库里。
     """
     # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
     # 同步查库的门禁：async 路由里一律转线程池，别在事件循环上开连接。
@@ -347,20 +430,29 @@ async def save_connection(
     require_admin_for_ha(user)
     connector = request.app.state.ha_connector
     connection = active_connection(database)
+    endpoints = endpoint_candidates(
+        payload.base_url, payload.verify_tls, payload.external_base_url, payload.external_verify_tls
+    )
     # 链路本地地址（169.254.x.x / fe80::）只在 APIPA 场景才指向真实主机，否则多半是误填，提示一句。
-    link_local = link_local_address(payload.base_url)
-    if link_local:
-        request.app.state.global_log.append(
-            'warning', 'Home Assistant', '连接',
-            f'Home Assistant 地址使用了链路本地地址（{link_local}），请确认这是你家里的主机。',
-        )
+    for endpoint in endpoints:
+        link_local = link_local_address(endpoint.base_url)
+        if link_local:
+            request.app.state.global_log.append(
+                'warning', 'Home Assistant', '连接',
+                f'Home Assistant {endpoint.label}地址使用了链路本地地址（{link_local}），请确认这是你家里的主机。',
+            )
+    new_addresses = (payload.base_url, payload.external_base_url)
+    previous_addresses = (
+        (connection.base_url, connection.external_base_url) if connection is not None else None
+    )
     try:
         if payload.access_token:
             token = payload.access_token
         elif connection is not None:
             # 换到另一个地址时必须显式确认复用旧令牌：地址可以被改（改完就会把旧令牌发给
             # 新主机试连），而长期令牌权限远大于一次试连；不确认时要求重新输入。
-            if payload.base_url != connection.base_url and not payload.reuse_token_for_new_url:
+            # 内外网任一路变了都算「地址变更」—— 两路都会被试连，也就都会收到旧令牌。
+            if new_addresses != previous_addresses and not payload.reuse_token_for_new_url:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail={
@@ -375,23 +467,29 @@ async def save_connection(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail='首次连接必须输入 Home Assistant Token。',
             )
-        tested = await HAClient(
-            payload.base_url,
-            token,
-            verify_tls=payload.verify_tls,
-            timeout=request.app.state.settings.ha_request_timeout_seconds,
-        ).test_connection()
+        # 保存前把两路都试一遍：内网现在不通（人在外面）也要能存下配置，那是备用地址存在的
+        # 全部意义，所以只要求「至少一路通」。两路各自的结果照旧逐个报出来。
+        test_results = await probe_endpoints(
+            endpoints, token, request.app.state.settings.ha_request_timeout_seconds
+        )
     except (HAClientError, CredentialCipherError) as error:
-        # 试连失败整份配置都不写库：绝不让打不通的地址沉到库里。
+        # 令牌解不出来之类的前置失败：整份配置都不写库。
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-    previous_base_url = connection.base_url if connection is not None else None
+    reachable = [item for item in test_results if item['ok']]
+    if not reachable:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=failed_endpoint_summary(test_results))
+    tested = {'version': reachable[0].get('version'), 'locationName': reachable[0].get('locationName')}
+    disconnected = [item for item in test_results if not item['ok']]
     if connection is None:
         connection = HAConnection(
             # name 的去空白与下限校验在 schema 里做完，这里不再补一次 strip。
             name=payload.name,
             base_url=payload.base_url,
+            external_base_url=payload.external_base_url,
             encrypted_access_token=connector.cipher.encrypt(token),
             verify_tls=payload.verify_tls,
+            external_verify_tls=payload.external_verify_tls,
             # 顺手把实测到的版本号记下来，界面展示不必依赖上一次的值。
             ha_version=tested.get('version'),
         )
@@ -399,25 +497,40 @@ async def save_connection(
     else:
         connection.name = payload.name
         connection.base_url = payload.base_url
+        connection.external_base_url = payload.external_base_url
         connection.verify_tls = payload.verify_tls
+        connection.external_verify_tls = payload.external_verify_tls
         connection.ha_version = tested.get('version')
         connection.last_error = None
+        # 地址可能变了，缓存里「在用哪一路」的结论随之失效：下次取端点时重新探。
+        connection.active_endpoint = None
         # 只在真的传了新 Token 时才改写密文，避免用「解密再加密」的结果覆盖原值。
         if payload.access_token:
             connection.encrypted_access_token = connector.cipher.encrypt(token)
     database.commit()
     database.refresh(connection)
-    # 配置变了，连接器需要按新地址与 Token 重新连一遍。
+    # 配置变了，连接器需要按新地址与 Token 重新连一遍（同时作废端点缓存）。
     await connector.restart()
     # 地址变更单独记一条：审计要能看出「令牌被发到了哪个地址」以及是什么时候换的。
-    if previous_base_url and previous_base_url != connection.base_url:
+    if previous_addresses is not None and previous_addresses != new_addresses:
+        previous_label = addresses_label(*previous_addresses)
+        current_label = addresses_label(connection.base_url, connection.external_base_url)
         request.app.state.global_log.append(
             'warning',
             'Home Assistant',
             '连接',
-            f'Home Assistant 地址已变更：{previous_base_url} → {connection.base_url}（令牌已复用，请确认新地址可信）'
+            f'Home Assistant 地址已变更：{previous_label} → {current_label}（令牌已复用，请确认新地址可信）'
             if not payload.access_token
-            else f'Home Assistant 地址已变更：{previous_base_url} → {connection.base_url}（同时更新了令牌）',
+            else f'Home Assistant 地址已变更：{previous_label} → {current_label}（同时更新了令牌）',
+        )
+    if disconnected:
+        # 有一路没通仍允许保存（可能只是暂时不在那个网络里），但必须留痕：
+        # 否则等到内网断了才发现备用地址一直是错的。
+        request.app.state.global_log.append(
+            'warning',
+            'Home Assistant',
+            '连接',
+            f'Home Assistant 连接已保存，但以下地址当前不通（将作为备用，不通时自动跳过）：{failed_endpoint_summary(test_results)}',
         )
     request.app.state.global_log.append(
         'success',
@@ -425,7 +538,7 @@ async def save_connection(
         '连接',
         f'Home Assistant 连接配置已保存（{connection.name}，版本 {connection.ha_version or "未知"}）',
     )
-    return {**connection_payload(connection, request), 'test': tested}
+    return {**connection_payload(connection, request), 'test': tested, 'endpoints': test_results}
 
 
 @router.get('/entities')
@@ -506,6 +619,50 @@ def list_entities(
     }
 
 
+#: 实体翻译表的进程内缓存时长（秒）。翻译内容由 HA 的集成版本决定，进程生命周期内几乎不变，
+#: 而重取一次要按集成逐个往返（实测中位 2.9 秒、最坏 23 秒）。不缓存就等于每个打开编辑器 /
+#: 展示页的客户端都重付一次。
+TRANSLATION_CACHE_TTL_SECONDS = 3600
+
+
+class EntityTranslationCache:
+    """实体翻译表的进程内缓存，按「连接 + 语言 + 集成集合」分桶。
+
+    键里带集成集合：目录里新增平台时会自动落到新键上重取，不必等 TTL 到期。``clear`` 挂在
+    HA 连接被重建 / 删除时 —— 翻译内容跟着那一台 HA 走，地址可以不变而实例已经换了一台。
+    """
+
+    def __init__(self, ttl_seconds: float = TRANSLATION_CACHE_TTL_SECONDS) -> None:
+        self.ttl_seconds = ttl_seconds
+        self.entries: dict[tuple[str, str, tuple[str, ...]], tuple[float, dict[str, str]]] = {}
+
+    @staticmethod
+    def key(
+        connection_id: str, language: str, integrations: set[str]
+    ) -> tuple[str, str, tuple[str, ...]]:
+        """拼缓存键；集成集合排序后入键，集合顺序不同不该另算一份。"""
+        return (connection_id, language, tuple(sorted(integrations)))
+
+    def get(self, cache_key: tuple[str, str, tuple[str, ...]]) -> dict[str, str] | None:
+        """取一份还在有效期内的翻译表；过期即丢弃并返回 None。"""
+        entry = self.entries.get(cache_key)
+        if entry is None:
+            return None
+        created_at, resources = entry
+        if time.monotonic() - created_at >= self.ttl_seconds:
+            self.entries.pop(cache_key, None)
+            return None
+        return resources
+
+    def remember(
+        self, cache_key: tuple[str, str, tuple[str, ...]], resources: dict[str, str]
+    ) -> None:
+        self.entries[cache_key] = (time.monotonic(), resources)
+
+    def clear(self) -> None:
+        self.entries.clear()
+
+
 @router.get('/translations')
 async def entity_translations(
     request: Request,
@@ -514,7 +671,7 @@ async def entity_translations(
     """拉取实体枚举值的简体中文翻译（需已认证 + 授权允许 api）。
 
     返回 {'language': 'zh-Hans', 'resources': {...}}；未配置 HA 时 resources 为空字典，
-    前端保持集成自带的英文原值即可。
+    前端保持集成自带的英文原值即可。命中进程内缓存时直接返回，不再回源。
     异常:
         HTTPException 502: HA 不可达或凭证解密失败。
     """
@@ -522,13 +679,20 @@ async def entity_translations(
     connection, integrations = await asyncio.to_thread(load_translation_context, request.app.state.database)
     if connection is None:
         return {'language': 'zh-Hans', 'resources': {}}
+    translation_cache = request.app.state.entity_translations
+    cache_key = translation_cache.key(connection.id, 'zh-Hans', integrations)
+    cached_resources = translation_cache.get(cache_key)
+    if cached_resources is not None:
+        return {'language': 'zh-Hans', 'resources': cached_resources}
     try:
-        resources = await request.app.state.ha_connector.client_for(connection).fetch_entity_translations(
+        client = await request.app.state.ha_connector.client_for(connection)
+        resources = await client.fetch_entity_translations(
             integrations,
             language='zh-Hans',
         )
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+    translation_cache.remember(cache_key, resources)
     return {'language': 'zh-Hans', 'resources': resources}
 
 
@@ -789,7 +953,8 @@ async def call_service(
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
     try:
-        result = await request.app.state.ha_connector.client_for(connection).call_service(
+        client = await request.app.state.ha_connector.client_for(connection)
+        result = await client.call_service(
             payload.domain,
             payload.service,
             payload.entity_id,
@@ -858,7 +1023,8 @@ async def browse_media(
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
     try:
-        result = await request.app.state.ha_connector.client_for(connection).browse_media(
+        client = await request.app.state.ha_connector.client_for(connection)
+        result = await client.browse_media(
             payload.entity_id,
             payload.media_content_id,
             payload.media_content_type or None,
@@ -954,7 +1120,8 @@ async def run_tasks_until_first_completes(*operations) -> None:
                 await operation()
             except Exception as error:  # noqa: BLE001 - 要按类型分流，不能直接往外抛
                 # 真正的异常要保留，先到的优先（后到的那一路此刻已被取消）。
-                if failure is None:
+                # WebSocketDisconnect 是「客户端主动断开」的常规信号，不让它盖住真正的异常。
+                if failure is None or not isinstance(error, WebSocketDisconnect):
                     failure = error
             finally:
                 tasks.cancel_scope.cancel()

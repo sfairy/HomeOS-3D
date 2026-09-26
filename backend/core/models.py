@@ -109,15 +109,28 @@ class HAConnection(Base):
 
     长期访问令牌以密文存放；`is_active` 用来标记当前生效的那一条，
     新同步写入实体时只认活跃连接。
+
+    地址分内网与外网两套，**内网优先**：只要内网可达就一直走内网，内网不通才自动切到外网
+    （见 ha/service.py 的端点解析）。两套地址各有自己的证书校验开关 —— 内网多是 http 或
+    自签名证书，默认不校验；外网走公网，默认校验。
     """
 
     __tablename__ = 'ha_connections'
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     name: Mapped[str] = mapped_column(String(128), nullable=False, default='Home Assistant')
+    #: 内网（优先）地址。字段名沿用 base_url，但语义是「内网优先的那一个」。
     base_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    #: 外网（备用）地址；为空表示没配备用地址，内网不通就直接报错。
+    external_base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     encrypted_access_token: Mapped[str] = mapped_column(Text, nullable=False)
-    verify_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: 内网地址是否校验 HTTPS 证书。默认 False：内网部署基本是 http 或自签名证书。
+    verify_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: 外网地址是否校验 HTTPS 证书。默认 True：公网地址应当有受信任证书。
+    external_verify_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    #: 最近一次探到在用的端点：'internal' / 'external'；NULL 表示还没探过。
+    #: 落库只是为了刷新页面后能立刻显示「当前在用哪一个」，权威值始终在内存里。
+    active_endpoint: Mapped[str | None] = mapped_column(String(16), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     ha_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_connected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

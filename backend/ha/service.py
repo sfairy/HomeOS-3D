@@ -28,10 +28,18 @@ from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids
 from .client import HAClient, HAClientError, HASnapshot
 from .crypto import CredentialCipher
+from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .state_hub import StateHub
 LOGGER = logging.getLogger(__name__)
 # 需要订阅的实时事件；三个 *_registry_updated 用于增量维护元数据（改名、换区、禁用）。
 LIVE_EVENT_TYPES = ('state_changed', 'entity_registry_updated', 'device_registry_updated', 'area_registry_updated')
+# 端点探测的单独超时（秒）。比常规 REST 超时短得多：探测要回答的是「这一路现在能不能用」，
+# 内网不通时用户正等着切到外网，等满一个常规超时（10 秒）才回落是不可接受的。
+# 局域网里连 /api/config 都答不上来的地址本来也用不了，快速判死好过让每个请求都卡住。
+HA_ENDPOINT_PROBE_TIMEOUT_SECONDS = 2.5
+# 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
+# 连回 Wi-Fi），外网也可能已经失效。代价是一次 /api/config，换来 60 秒内自动归位。
+HA_ENDPOINT_RECHECK_SECONDS = 60
 # 已知实体的状态事件在这段时间内不写库：功率/温度类实体可能每秒多条，逐条落库会打爆数据库。
 INCREMENTAL_FLUSH_SECONDS = 10
 # 注册表变更事件的防抖窗口：一次改名/换区往往连发多条事件，合并成一次全量注册表刷新。
@@ -82,16 +90,21 @@ class HAConnectorService:
         database: Database,
         event_log: GlobalLogStore | None = None,
         on_reconnect: Callable[[], None] | None = None,
+        on_endpoint_switch: Callable[[], None] | None = None,
     ) -> None:
         """参数：
 
         on_reconnect: 连接被重建 / 删除时的回调，用于作废从连接派生的进程内状态
             （媒体代理快照缓存与 HLS 归属记账）；用回调避免连接器与派生状态互相依赖。
+        on_endpoint_switch: 内网 / 外网端点发生切换时的回调。与 on_reconnect 分开：
+            切换端点时从连接派生的缓存要作废（HLS 令牌是旧端点发的），但**保温池不能一起
+            停掉** —— 它会自己按新端点重新起流，停了就再也没人把它叫回来。
         """
         self.settings = settings
         self.database = database
         self.event_log = event_log
         self._on_reconnect = on_reconnect
+        self._on_endpoint_switch = on_endpoint_switch
         # 令牌加解密器：数据库里存的是密文，密钥文件由 crypto 自行管理。
         self.cipher = CredentialCipher(settings.credential_key_path)
         self.state_hub = StateHub()
@@ -123,6 +136,13 @@ class HAConnectorService:
         self._history_cache_lock = asyncio.Lock()
         # 首次同步成功只在日志里记一次，避免每次重连都刷屏。
         self._initial_sync_logged = False
+        # 当前可用端点（内网优先）：所有出网调用都从它取地址与证书校验开关。
+        # 缓存窗口内共用同一个结果，避免每个媒体请求都探一次。
+        self._endpoint: HAEndpoint | None = None
+        self._endpoint_signature: tuple | None = None
+        self._endpoint_probed_at = 0.0
+        # 单飞：并发请求同时发现缓存过期时只探一轮，不叠加成 N 轮探测。
+        self._endpoint_lock = asyncio.Lock()
 
     def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None:
         """写一条事件日志；event_log 缺失时静默跳过。"""
@@ -138,6 +158,19 @@ class HAConnectorService:
     def runtime_error(self) -> str | None:
         """最近一次连接失败的原因，成功后清空。"""
         return self._runtime_error
+
+    @property
+    def endpoint_kind(self) -> str | None:
+        """当前在用的端点类型（'internal' / 'external'）；还没探过时为 None。
+
+        内存里的值才是权威的（库里那份只是上一次的快照），界面优先拿这个。
+        """
+        return self._endpoint.kind if self._endpoint is not None else None
+
+    @property
+    def active_base_url(self) -> str | None:
+        """当前在用端点的地址；还没探过时为 None。"""
+        return self._endpoint.base_url if self._endpoint is not None else None
 
     def start(self) -> None:
         """启动后台主循环（幂等：已在运行时不重复创建任务）。"""
@@ -183,6 +216,8 @@ class HAConnectorService:
         """按新配置重建连接；清掉上一次的错误状态与从连接派生的进程内状态。"""
         await self.stop()
         self._runtime_error = None
+        # 地址可能被改过（甚至换了内外网其中一路），端点缓存必须作废后重探。
+        self.invalidate_endpoint()
         # 连接换了，媒体代理的两份记账就都作废了：快照缓存里是上一台 HA 的画面，
         # HLS 归属记的是上一台 HA 的令牌。同一地址也可能换了另一套系统，缓存无法自行发现。
         if self._on_reconnect is not None:
@@ -294,7 +329,7 @@ class HAConnectorService:
         if connection is None:
             # 还没配置 HA 连接：静默返回，状态等首次同步后会补齐。
             return
-        client = self.client_for(connection)
+        client = await self.client_for(connection)
         # 共 3 轮（首轮立即 + 两次退避），覆盖「HA 刚启动、状态暂时不完整」的窗口。
         for delay in (0, *STATE_FETCH_RETRY_DELAYS):
             if delay:
@@ -315,10 +350,111 @@ class HAConnectorService:
             if not pending:
                 break
 
-    def client_for(self, connection: HAConnection) -> HAClient:
-        """按连接记录构造 HA 客户端（每次解密令牌，不缓存明文）。"""
+    def invalidate_endpoint(self) -> None:
+        """作废当前端点的缓存，下次取用时重新探测（内网优先）。
+
+        调用点有两处，理由相同 —— 「现在用的这一路已经不通了」：连接主循环失败（多半是
+        离开家 / 回到家的那一刻），以及连接配置被改写（地址换了，缓存的端点已经不对）。
+        """
+        self._endpoint = None
+        self._endpoint_signature = None
+        self._endpoint_probed_at = 0.0
+
+    async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
+        """探一次端点是否可用（REST /api/config，带令牌）。不可用则抛 HAClientError。
+
+        用 REST 而不是 WebSocket：探测只回答「这一路能不能连上、令牌认不认」，一次普通请求
+        最便宜。真正的长连由主循环的 _live_connection 负责。
+        """
+        await HAClient(
+            endpoint.base_url,
+            token,
+            verify_tls = endpoint.verify_tls,
+            timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS,
+            websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes,
+        ).test_connection()
+
+    async def active_endpoint(self, connection: HAConnection) -> HAEndpoint:
+        """取这条连接**当前可用**的端点，内网优先。
+
+        只要内网连得上就一直用内网，内网不通才退到外网；内网恢复后（下一次复探）自动切回。
+        结果按 ``HA_ENDPOINT_RECHECK_SECONDS`` 缓存：窗口内所有调用（同步、媒体代理、服务
+        调用、历史查询）共用同一个端点，不会每个请求都探一次。
+
+        异常: HAClientError —— 两路都连不上，错误里带上两路各自的原因。
+        """
+        signature = endpoint_signature(connection)
+        switched_from: HAEndpoint | None = None
+        async with self._endpoint_lock:
+            if (
+                self._endpoint is not None
+                and self._endpoint_signature == signature
+                and time.monotonic() - self._endpoint_probed_at < HA_ENDPOINT_RECHECK_SECONDS
+            ):
+                return self._endpoint
+            token = self.cipher.decrypt(connection.encrypted_access_token)
+            failures: list[str] = []
+            reachable: HAEndpoint | None = None
+            for endpoint in connection_endpoints(connection):
+                try:
+                    await self._probe_endpoint(connection, endpoint, token)
+                except HAClientError as error:
+                    failures.append(f'{endpoint.label}（{endpoint.base_url}）：{error}')
+                    continue
+                reachable = endpoint
+                break
+            if reachable is None:
+                # 不缓存失败结论：下一批请求应当立即重探，而不是在窗口内一直拿旧结论。
+                self._endpoint = None
+                self._endpoint_signature = signature
+                raise HAClientError('Home Assistant 的内网与外网地址都连不上。' + '；'.join(failures))
+            previous = self._endpoint
+            self._endpoint = reachable
+            self._endpoint_signature = signature
+            self._endpoint_probed_at = time.monotonic()
+            if previous is not None and previous.kind != reachable.kind:
+                switched_from = previous
+        if switched_from is not None:
+            self._log_event(
+                'warning', '连接',
+                f'Home Assistant 已从{switched_from.label}切到{reachable.label}（{reachable.base_url}）',
+            )
+            if self._on_endpoint_switch is not None:
+                self._on_endpoint_switch()
+        if str(connection.active_endpoint or '') != reachable.kind:
+            # 只为了让界面刷新后能显示「当前在用哪一路」，权威值始终是内存里的 _endpoint。
+            await self._run_database(self._store_active_endpoint, connection.id, reachable.kind)
+        return reachable
+
+    def _store_active_endpoint(self, connection_id: str, kind: str) -> None:
+        """把「当前在用哪一路」记进连接（展示用，失败不影响连接本身）。"""
+        with self.database.session_factory() as database:
+            connection = database.get(HAConnection, connection_id)
+            if connection is None:
+                return
+            connection.active_endpoint = kind
+            database.commit()
+
+    @staticmethod
+    def _client_for_endpoint(connection: HAConnection, endpoint: HAEndpoint, token: str, settings: Settings) -> HAClient:
+        """用给定端点构造客户端（不发起请求）。"""
+        return HAClient(
+            endpoint.base_url,
+            token,
+            verify_tls = endpoint.verify_tls,
+            timeout = settings.ha_request_timeout_seconds,
+            websocket_max_size_bytes = settings.ha_websocket_max_size_bytes,
+        )
+
+    async def client_for(self, connection: HAConnection) -> HAClient:
+        """按连接记录构造 HA 客户端（每次解密令牌，不缓存明文）。
+
+        地址取 ``active_endpoint`` 的解析结果而不是连接上的某一个字段 —— 内网与外网两套
+        地址由它决定用哪一套，调用方不必关心。
+        """
+        endpoint = await self.active_endpoint(connection)
         token = self.cipher.decrypt(connection.encrypted_access_token)
-        return HAClient(connection.base_url, token, verify_tls = connection.verify_tls, timeout = self.settings.ha_request_timeout_seconds, websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes)
+        return self._client_for_endpoint(connection, endpoint, token, self.settings)
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
         '''限制并发并做短缓存的历史读取，避免图表请求把 HA 打爆。
@@ -351,7 +487,7 @@ class HAConnectorService:
     async def _fetch_and_cache_history(self, connection: HAConnection, entity_id: str, start_time: str, cache_key: tuple[str, str, int]) -> list[dict[str, Any]]:
         """真正执行历史查询并写入缓存（由 fetch_history 的单飞任务调用）。"""
         async with self._history_semaphore:
-            history = await self.client_for(connection).fetch_history(entity_id, start_time)
+            history = await (await self.client_for(connection)).fetch_history(entity_id, start_time)
         async with self._history_cache_lock:
             self._history_cache[cache_key] = (time.monotonic(), list(history))
             # 上限 256 条，超出就淘汰最旧的那条：缓存只是抗抖，不做长期存储。
@@ -389,6 +525,9 @@ class HAConnectorService:
             except Exception as error:
                 self._connected = False
                 self._runtime_error = str(error)
+                # 失败就丢掉端点结论：内网不通要能退到外网、外网不通要能回到内网，
+                # 全靠这里让下一次循环重新按「内网优先」探一遍。
+                self.invalidate_endpoint()
                 self._log_event('error', '连接', f'Home Assistant 连接异常：{error}', details = traceback.format_exc())
                 LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
                 if connection_id:
@@ -423,7 +562,7 @@ class HAConnectorService:
                 raise HAClientError('请先配置 Home Assistant 连接。')
             await self._run_database(self._mark_sync_started, connection.id)
             try:
-                snapshot = await self.client_for(connection).fetch_snapshot()
+                snapshot = await (await self.client_for(connection)).fetch_snapshot()
                 counts = await self._run_database(self._apply_snapshot, connection.id, snapshot, reconciled = reconciled)
                 # 草稿可能在运行期间被改过，先刷新关注集合再决定哪些状态进内存。
                 await self.refresh_persistent_entity_ids(ensure_states = False)
@@ -454,7 +593,7 @@ class HAConnectorService:
         然后循环 recv；recv 以「距下次对账的剩余时间」为超时，空闲到点就主动全量对账。
         """
         connection = await self._run_database(self._load_connection, connection_id)
-        client = self.client_for(connection)
+        client = await self.client_for(connection)
         websocket = await client.connect_websocket()
         try:
             # 只有 state_changed 必需；注册表事件订阅失败不应因此断掉整条实时链路。
@@ -572,7 +711,7 @@ class HAConnectorService:
             # 与 sync_once 共用同一把锁：注册表快照和全量快照不能交叉写库。
             async with self._sync_lock:
                 connection = await self._run_database(self._load_connection, connection_id)
-                entities, devices, areas = await self.client_for(connection).fetch_registries()
+                entities, devices, areas = await (await self.client_for(connection)).fetch_registries()
                 counts = await self._run_database(self._apply_registry_snapshot, connection_id, entities, devices, areas)
             # counts 为 None 表示三份注册表一个都没取到，这种「无信息」结果不通知前端。
             if counts is not None:

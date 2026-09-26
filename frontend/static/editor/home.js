@@ -8,17 +8,17 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609260946";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609262221";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=2609260946";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609260946";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609260946";
+import { apiFetch } from "../utils/api-fetch.js?v=2609262221";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609262221";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609262221";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=2609260946";
+} from "../renderer/core/renderer.js?v=2609262221";
 
 import {
   createComponentFromTemplate,
@@ -27,15 +27,15 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=2609260946";
-import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609260946";
-import { clampNumber } from "../utils/numbers.js?v=2609260946";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609260946";
+} from "../templates/component-templates.js?v=2609262221";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609262221";
+import { clampNumber } from "../utils/numbers.js?v=2609262221";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609262221";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
 
-import { mdiIconUrl } from "../utils/icon-url.js?v=2609260946";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609260946";
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609260946";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609262221";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609262221";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609262221";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
 
@@ -43,24 +43,24 @@ import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=2609260946";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609260946";
+} from "../utils/colors.js?v=2609262221";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609262221";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=2609260946";
+} from "../shared/popup-layout.js?v=2609262221";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=2609260946";
+} from "./dashboard-resize.js?v=2609262221";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609260946";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609262221";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=2609260946";
+} from "./component-page-copy.js?v=2609262221";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -72,29 +72,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=2609260946";
+} from "../shared/related-entities.js?v=2609262221";
 
-import { createButtonSound } from "../shared/sound-effects.js?v=2609260946";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609262221";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=2609260946";
-import { confirmAction } from "../shared/ui-confirm.js?v=2609260946";
+} from "./editor-dialogs.js?v=2609262221";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609262221";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=2609260946";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609260946";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609262221";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609262221";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=2609260946";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609260946";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609260946";
+} from "./picker/editor-picker-pagination.js?v=2609262221";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609262221";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609262221";
 
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609260946";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609260946";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609262221";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609262221";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -102,13 +102,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609260946";
+} from "../shared/action-rules.js?v=2609262221";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609260946";
+} from "./component-tree.js?v=2609262221";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -118,7 +118,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609260946";
+} from "./editor-component-collections.js?v=2609262221";
 import {
   applyInspectorFields,
   applyInspectorToggles,
@@ -126,7 +126,7 @@ import {
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=2609260946";
+} from "./editor-basic-inspectors.js?v=2609262221";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -139,7 +139,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609260946";
+} from "./editor-document-management.js?v=2609262221";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -147,32 +147,32 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=2609260946";
+} from "./editor-history.js?v=2609262221";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=2609260946";
-import { createLicenseCard } from "./license-card.js?v=2609260946";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609262221";
+import { createLicenseCard } from "./license-card.js?v=2609262221";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=2609260946";
-import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609260946";
-import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609260946";
-import { createEntityOptions } from "./home/entity-options.js?v=2609260946";
-import { createPickers } from "./home/pickers.js?v=2609260946";
-import { createFormWidgets } from "./home/form-widgets.js?v=2609260946";
-import { createColorPicker } from "./home/color-picker.js?v=2609260946";
-import { createSectionRegistry } from "./home/sections.js?v=2609260946";
+} from "../bridge/editor.js?v=2609262221";
+import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609262221";
+import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609262221";
+import { createEntityOptions } from "./home/entity-options.js?v=2609262221";
+import { createPickers } from "./home/pickers.js?v=2609262221";
+import { createFormWidgets } from "./home/form-widgets.js?v=2609262221";
+import { createColorPicker } from "./home/color-picker.js?v=2609262221";
+import { createSectionRegistry } from "./home/sections.js?v=2609262221";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /3d-studio 工作室
 // 共用同一份实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../shared/layout-shell.js?v=2609260946";
-import { bindLayoutShortcuts } from "../shared/layout-shortcuts.js?v=2609260946";
+} from "../shared/layout-shell.js?v=2609262221";
+import { bindLayoutShortcuts } from "../shared/layout-shortcuts.js?v=2609262221";
 
 // 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
 // （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
@@ -263,9 +263,12 @@ const haDetailIndicatorElement = findElement("#ha-detail-indicator");
 const haDetailNameElement = findElement("#ha-detail-name");
 const haDetailStatusElement = findElement("#ha-detail-status");
 const haDetailUrlElement = findElement("#ha-detail-url");
+const haDetailExternalElement = findElement("#ha-detail-external");
+const haDetailActiveElement = findElement("#ha-detail-active");
 const haDetailVersionElement = findElement("#ha-detail-version");
 const haDetailCountsElement = findElement("#ha-detail-counts");
 const haDetailErrorElement = findElement("#ha-detail-error");
+const haDetailWarningElement = findElement("#ha-detail-warning");
 const haEditButtonElement = findElement("#ha-edit");
 const haDeleteButtonElement = findElement("#ha-delete");
 const haEditCancelButtonElement = findElement("#ha-edit-cancel");
@@ -1217,6 +1220,13 @@ const deleteAssetFolderCountElement = findElement("#delete-asset-folder-count");
 
 // HA 连接信息与状态缓存，仅用于设置弹窗展示，缺失时按「未配置」处理。
 let haConnectionInfo = null;
+/**
+ * 上次保存 / 试连时发现的「某一端地址不通」提示（空串表示没有）。
+ *
+ * 必须有独立状态：这类提示出现在保存**之后**，而保存成功会立刻切到只读视图，表单里的
+ * #ha-message 连同表单一起隐藏，写进去也看不见。它一直留到用户重新配置且两路都通为止。
+ */
+let haSavedEndpointWarning = "";
 let haConnectionStatus = null;
 // 编辑画布与预览画布各持一个渲染器实例：两者必须分开，
 // 否则预览里的运行态（开关、图表历史）会污染编辑视图。
@@ -4627,7 +4637,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=2609260946";
+          ".jpg?v=2609262221";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -10575,11 +10585,13 @@ async function loadHaConnection({ preserveForm: keepHaForm = false } = {}) {
   if (!keepHaForm || (!isEditingHaConnection && !haFormVisible)) {
     haFormElement.elements.name.value = haConnectionInfo.name || "Home Assistant";
     haFormElement.elements.baseUrl.value = haConnectionInfo.baseUrl || "";
+    haFormElement.elements.externalBaseUrl.value = haConnectionInfo.externalBaseUrl || "";
     haFormElement.elements.accessToken.value = "";
     haFormElement.elements.accessToken.placeholder = haConnectionInfo.hasToken
       ? "已加密保存，留空则保留原 Token"
       : "输入 Long-Lived Access Token";
-    haFormElement.elements.verifyTls.checked = haConnectionInfo.verifyTls !== false;
+    haFormElement.elements.verifyTls.checked = haConnectionInfo.verifyTls === true;
+    haFormElement.elements.externalVerifyTls.checked = haConnectionInfo.externalVerifyTls !== false;
   }
   const haConnectionHasError = !haConnectionInfo.connected && !!haConnectionInfo.lastError;
   haOpenButtonElement.classList.toggle("connected", haConnectionInfo.connected);
@@ -10695,6 +10707,15 @@ function syncHaConnectionUi() {
       : "正在重连";
   haDetailUrlElement.textContent = haConnectionInfo.baseUrl || "—";
   haDetailUrlElement.title = haConnectionInfo.baseUrl || "";
+  haDetailExternalElement.textContent = haConnectionInfo.externalBaseUrl || "未配置";
+  haDetailExternalElement.title = haConnectionInfo.externalBaseUrl || "";
+  // 「当前在用」由后端给出：内网优先，内网不通时它会是外网那一个。
+  const haActiveEndpoint = haConnectionInfo.activeEndpoint;
+  const haActiveUrl = haConnectionInfo.activeBaseUrl || haConnectionInfo.baseUrl || "";
+  haDetailActiveElement.textContent = haActiveUrl
+    ? (haActiveEndpoint === "external" ? "外网 · " : haActiveEndpoint === "internal" ? "内网 · " : "") + haActiveUrl
+    : "—";
+  haDetailActiveElement.title = haDetailActiveElement.textContent;
   haDetailVersionElement.textContent = haConnectionInfo.version || "未知";
   haDetailCountsElement.textContent =
     "实体 " +
@@ -10706,6 +10727,15 @@ function syncHaConnectionUi() {
   haDetailErrorElement.hidden = !haDetailHasError;
   haDetailErrorElement.textContent =
     (haDetailHasError && (haConnectionInfo.lastError || haConnectionStatus?.lastError)) || "";
+  // 只读视图里的「提醒」有两个来源，前者（保存时发现某一路不通）优先：它是一条关于**配置**
+  // 的结论，而后者只是当下的连通状态。用户改好并保存成功后前者会被清掉。
+  const haDetailWarning =
+    haSavedEndpointWarning ||
+    (haConnectionInfo.activeEndpoint === "external" && haConnectionInfo.baseUrl
+      ? "内网地址当前不通，正在使用外网地址。"
+      : "");
+  haDetailWarningElement.hidden = !haDetailWarning;
+  haDetailWarningElement.textContent = haDetailWarning;
 }
 /**
  * 进入 Home Assistant 连接信息的编辑态。用独立布尔量而不是直接看表单可见性：表单可见但处于只读展示时
@@ -10783,8 +10813,10 @@ function collectHaConnectionInput(requireToken = false, reuseTokenForNewUrl = fa
   return {
     name: String(haFormData.get("name") || "").trim(),
     baseUrl: String(haFormData.get("baseUrl") || "").trim(),
+    externalBaseUrl: String(haFormData.get("externalBaseUrl") || "").trim() || null,
     accessToken: accessTokenInput || null,
     verifyTls: haFormData.get("verifyTls") === "on",
+    externalVerifyTls: haFormData.get("externalVerifyTls") === "on",
     /**
      * 换地址时是否确认「继续复用已保存的令牌」。
      * 后端默认拒绝：地址可以被随手改掉，而旧令牌会被发到新地址去试连，
@@ -11002,6 +11034,9 @@ function renderLicenseStatus(licenseState) {
     ACTIVE: "授权有效",
     CONNECTION_WARNING: "授权连接异常",
     STARTUP_VALIDATION_REQUIRED: "等待启动校验",
+    RECOVERY_RETRY: "正在恢复会话",
+    RECOVERY_REQUIRED: "授权会话失效",
+    REMOTE_REJECTED: "授权请求被拒绝",
     LEASE_EXPIRED: "租约已到期",
     INSTANCE_MISMATCH: "硬件绑定不匹配",
     INVALID: "租约无效",
@@ -11024,6 +11059,7 @@ function renderLicenseStatus(licenseState) {
   ].includes(licenseStatusCode);
   const hideReactivate = [
     "UNACTIVATED",
+    "INVALID",
     "INSTANCE_MISMATCH",
     "REVOKED",
     "DEACTIVATED"
@@ -14661,21 +14697,46 @@ function bindLicenseSection() {
     }
   });
   on(haTestButtonElement, "click", async function onHaTestButtonClick() {
-    setSettingsMessage(haMessageElement, "正在测试地址、Token 和版本…");
+    setSettingsMessage(haMessageElement, "正在测试内网与外网地址、Token 和版本…");
     haTestButtonElement.disabled = true;
     try {
       const haTestResult = await requestJson("/ha/test", {
         method: "POST",
         body: JSON.stringify(collectHaConnectionInput(true))
       });
-      setSettingsMessage(
-        haMessageElement,
-        "连接成功：" +
-          (haTestResult.locationName || "Home Assistant") +
-          " · " +
-          (haTestResult.version || "未知版本"),
-        "success"
-      );
+      // 后端会逐个试两个地址，这里逐个报出来：只报第一个成功的话，备用地址填错了在界面上
+      // 是看不出来的 —— 而备用地址恰恰平时不用，等内网断了才发现问题就太晚了。
+      const haTestEndpoints = Array.isArray(haTestResult.endpoints) ? haTestResult.endpoints : [];
+      if (!haTestEndpoints.length) {
+        setSettingsMessage(
+          haMessageElement,
+          "连接成功：" +
+            (haTestResult.locationName || "Home Assistant") +
+            " · " +
+            (haTestResult.version || "未知版本"),
+          "success"
+        );
+      } else {
+        const haTestSummary = haTestEndpoints
+          .map(endpointItem =>
+            endpointItem.ok
+              ? endpointItem.label +
+                " 连接成功" +
+                (endpointItem.version ? "（" + endpointItem.version + "）" : "")
+              : endpointItem.label + " 连不上：" + (endpointItem.error || "未知原因")
+          )
+          .join("；");
+        // 至少一路通就算成功（这正是备用地址存在的意义），但把不通的那一路如实写出来。
+        setSettingsMessage(
+          haMessageElement,
+          haTestSummary,
+          haTestEndpoints.every(endpointItem => endpointItem.ok) ? "success" : "warning"
+        );
+        // 两路都通了：撤下只读视图上那条「某一路不通」的旧提示（用户刚把它修好）。
+        if (haTestEndpoints.every(endpointItem => endpointItem.ok)) {
+          haSavedEndpointWarning = "";
+        }
+      }
     } catch (haTestError) {
       setSettingsMessage(haMessageElement, haTestError.message, "error");
     } finally {
@@ -14717,6 +14778,16 @@ function bindLicenseSection() {
         });
       }
       isEditingHaConnection = false;
+      // 保存时后端会逐个试两个地址，只要求至少一路通。有一路不通就记住并显示在只读视图上 ——
+      // 那多半是备用地址，等内网真断了才发现填错就太晚了。
+      const haSavedBadEndpoints = (Array.isArray(haConnectionInfo.endpoints) ? haConnectionInfo.endpoints : [])
+        .filter(endpointItem => !endpointItem.ok);
+      haSavedEndpointWarning = haSavedBadEndpoints.length
+        ? "已保存，但以下地址当前不通：" +
+          haSavedBadEndpoints
+            .map(endpointItem => endpointItem.label + "（" + (endpointItem.error || "未知原因") + "）")
+            .join("；")
+        : "";
       syncHaConnectionUi();
       if (
         !(await waitForHaConnection()) &&
