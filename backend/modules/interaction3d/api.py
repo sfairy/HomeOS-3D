@@ -875,6 +875,9 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             'core/stage/input-activity.js',
             'core/stage/light-state.js',
             'core/stage/marker-layer.js',
+            # module-tabs：页签清单与「模块 → 所属页签」归一的唯一出处，stage.js 与
+            # core/stage/host-messages.js 两处都从它取（原先各抄一份，漂移过一次）。
+            'core/stage/module-tabs.js',
             'core/stage/presence-hitboxes.js',
             'core/stage/request-settlement.js',
             'core/static-helpers.js',

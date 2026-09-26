@@ -11,7 +11,9 @@
 // mountEditorRuntime），舞台要靠它把 activeModule 切到该品类，通用设备的标记才会被收集、
 // 被渲染成 3D 里的按钮。漏掉这张表，品类名会被下面的兜底判成 "light"，
 // 于是「模型选好了但场景里没有按钮」—— 与上游 0.6.5 的同一段（含 ...GENERIC_DEVICE_KINDS）对齐。
-import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609262221";
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609262312";
+// 展示态的「模块 / 品类 → 所属页签」归一：与页签清单同一份实现，别在下面再抄一张表。
+import { moduleTabOf } from "./module-tabs.js?v=2609262312";
 export function createHostMessageHandler(ctx) {
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
@@ -189,20 +191,10 @@ export function createHostMessageHandler(ctx) {
           ].includes(message.editingModule)
           ? message.editingModule
           : "light"
-        : [
-            "overview",
-            "security",
-            "light",
-            "devices",
-            "vacuum",
-            "temperature-humidity"
-          ].includes(ctx.activeModule)
-          ? ctx.activeModule
-          : // 展示态下没有单独的品类页签：冰箱 / 绿植都归「设备」这一类，
-            // 与上游 0.6.5 的同一映射一致（["nas","television",...GENERIC_DEVICE_KINDS] → "devices"）。
-            ["nas", "television", ...GENERIC_DEVICE_KINDS].includes(ctx.activeModule)
-            ? "devices"
-            : "environment";
+        : // 展示态：模块 / 品类 → 它所属的页签。这份映射与页签清单同源
+          // （core/stage/module-tabs.js），别再就地抄一份 —— 两份漂移时症状同样是
+          // 「页面切过去了、页签看着没选中」，且浏览器零报错。
+          moduleTabOf(ctx.activeModule);
       if (!ctx.isEditing && nextModule !== "overview" && !ctx.configuredModules.includes(nextModule)) {
         nextModule = "light";
       }
