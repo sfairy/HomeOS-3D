@@ -50,8 +50,23 @@ HA_TEST_KEYS = 1024
 # 服务调用白名单：键为 (domain, service)，值为允许透传的参数名（空集表示不接受参数）。
 # 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 —— 前端被篡改也无法把 HA 任意服务当远程执行入口。
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
+    # 门锁：modules/interaction3d/api.py 的 lock 分支放行这三个服务（另有一道
+    # lock.py 的 validate_lock_command 复核能力位与密码），参数只有 code。
+    # 这三条必须在这里也登记 —— 那条分支最后同样落到本函数，漏一条门锁面板就是每次
+    # 上锁 / 解锁 / 释放锁舌都 403，而前端只显示一句笼统的失败。
+    ('lock', 'lock'): {'code'},
+    ('lock', 'unlock'): {'code'},
+    ('lock', 'open'): {'code'},
     ('homeassistant', 'toggle'): set(),
     ('button', 'press'): set(),
+    # 附加实体的 input_* 变体：purifier.py 的 EXTRA_TYPES 把 input_button / input_boolean /
+    # input_select 分别映射成 button / switch / select 并放行命令，通用设备与净化器的附加
+    # 功能卡片也照这张表渲染。它们的域与 button / switch / select 不同，必须逐条登记，
+    # 否则卡片可点、命令却卡在这里。
+    ('input_button', 'press'): set(),
+    ('input_boolean', 'turn_on'): set(),
+    ('input_boolean', 'turn_off'): set(),
+    ('input_select', 'select_option'): {'option'},
     ('script', 'turn_on'): set(),
     ('light', 'turn_on'): {'rgb_color', 'brightness', 'transition', 'brightness_pct', 'color_temp_kelvin'},
     ('light', 'turn_off'): {'transition'},
