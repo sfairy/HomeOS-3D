@@ -12,14 +12,14 @@
 import {
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "../runtime-dialog-motion.js?v=2609260900";
+} from "../runtime-dialog-motion.js?v=2609260929";
 import {
   COMPACT_DIALOG_TARGET_OCCUPANCY,
   DEFAULT_DIALOG_TARGET_OCCUPANCY,
   RUNTIME_DIALOG_FOCUSABLE_SELECTOR,
   runtimeDialogLayout,
   runtimeDialogViewport
-} from "./primitives.js?v=2609260900";
+} from "./primitives.js?v=2609260929";
 
 // 弹窗标题 id 的自增序号 —— aria-labelledby 要的是一个稳定且唯一的 id，
 // 十个弹窗共用同一段代码，用序号区分比让每个调用点自己起名可靠。

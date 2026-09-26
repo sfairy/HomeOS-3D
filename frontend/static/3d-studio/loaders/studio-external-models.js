@@ -11,35 +11,35 @@
  * 生命周期：模型按类型缓存、克隆体共享几何与贴图，等价材质收敛成一份并缓存，重复副本立即 dispose，
  * 避免显存随物件数量线性增长（销毁逻辑靠实例上的 externalModelShared* 标记判断）。
  */
-import { finite } from "./studio-normalization.js?v=2609260900";
+import { finite } from "./studio-normalization.js?v=2609260929";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609260900";
+import { debugLog } from "../../utils/debug-log.js?v=2609260929";
 // 模型模板的跨会话持久缓存与它的信封编解码：同一份 -lite.glb 在同一个浏览器里会被反复解析
 // （每次进编辑器 / 舞台都要重来一遍下载 + GLTF 解析 + 材质构建），命中缓存就直接还原上一会话
 // 准备好的模板。两个模块必须同一条戳 —— 缓存键里带着编解码版本，两者错开就是「存得进、读不出」。
-import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609260900";
-import { modelTemplateKey } from "../model-template-codec.js?v=2609260900";
+import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609260929";
+import { modelTemplateKey } from "../model-template-codec.js?v=2609260929";
 // 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
 // （家居，看 palette.warmFurniture）。两者都只在对应开关为真时被调用，其它情况下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609260900";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609260900";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609260929";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609260929";
 // 石材板整图（茶几的两块石板、餐桌台面）：与背景墙的「大理石」共用白色色号那张缓存贴图，
 // 另加一个黑金大理石色号（背景墙没有这一档，见 createStoneSlabTexture 的注释）。
-import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609260900";
+import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609260929";
 // 逐物件「材质风格」的质感贴图（均值≈1 的细节图）：走调色板上的 materialSurface 键。
 import {
   createMaterialSurfaceTexture,
   hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js?v=2609260900";
+} from "../materials/studio-surface-fabrics.js?v=2609260929";
 // 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
 // 名单一旦两处各写一份，模型加载中的占位几何与到位后的成品就会是两个颜色。
 // 不锈钢家电的名单同理：材质替换要知道哪些类型该保留红蓝水管的原色。
 import {
   APPLIANCE_FINISH_BY_ITEM_TYPE,
   JOINERY_ITEM_TYPES
-} from "../studio/studio-item-types.js?v=2609260900";
-const HOME_LITE_MODEL_VERSION = "2609260900";
-const APPLIANCE_LITE_MODEL_VERSION = "2609260900";
+} from "../studio/studio-item-types.js?v=2609260929";
+const HOME_LITE_MODEL_VERSION = "2609260929";
+const APPLIANCE_LITE_MODEL_VERSION = "2609260929";
 /**
  * 模型素材按类型分目录存放（models/ 下：furniture / appliance / bath / electronics / decor /
  * structure / vehicle）。分类目录只是收纳手段，对加载与缓存都不透明：后端缓存白名单用的是

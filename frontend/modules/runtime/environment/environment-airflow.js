@@ -10,12 +10,12 @@
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 // 「其它」档的中性灰（AIRFLOW_OTHER_COLOR）同样经这座桥 —— runtime 资源挂在
 // /api/v1/modules/interaction3d/ 下，URL 比磁盘路径深一层，裸相对路径会算错层数而 404。
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609260900";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609260929";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260900";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609260900";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609260929";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609260929";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260900";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609260929";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
     制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
     主控色被改成极光紫那天，制冷气流不该跟着变紫。

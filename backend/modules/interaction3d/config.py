@@ -412,9 +412,9 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'scale' in placement and not number(placement['scale'], 0.5, 2):
             fail()
-    # 光影已收敛为 region（轻量柔光 / 按光区分区）单一档位，前端恒按 region 归一。
-    # 这里仍放行历史草稿里的 standard，避免旧配置保存时整份 422（读入侧会折算成 region）。
-    if properties.get('lightingMode', 'region') not in ('standard', 'region'):
+    # 光影两档并存：standard（标准光影，原生灯光 + 实时阴影）与 region（轻量柔光，按光区分区），
+    # 缺省按 standard 归一（与前端 definition.js 的 normalizeInteraction3dLightingMode 同口径）。
+    if properties.get('lightingMode', 'standard') not in ('standard', 'region'):
         fail()
     # 地面反射：resolution 只允许 256 / 512 / 768 三档渲染目标，strength 上限 0.45 防止过曝。
     reflection = properties.get('groundReflection', {})

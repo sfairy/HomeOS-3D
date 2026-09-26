@@ -8,14 +8,14 @@
  * 谓词改动必须和原链同序：几个排除性条件（外部模型兜底要求「不是 smallcar / 不是 sofa」）
  * 依赖前面的专有分支先命中，顺序一动就换分支。
  */
-import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609260900";
+import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609260929";
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   STAIR_ITEM_TYPES
-} from "../studio-item-types.js?v=2609260900";
+} from "../studio-item-types.js?v=2609260929";
 import {
   buildCurtainItem,
   buildFloorlampItem,
@@ -23,7 +23,7 @@ import {
   buildRollerCurtainItem,
   buildTrackCurtainItem,
   buildWalllampItem
-} from "./curtain-lighting.js?v=2609260900";
+} from "./curtain-lighting.js?v=2609260929";
 import {
   buildCabinetItem,
   buildFeaturewallItem,
@@ -34,17 +34,17 @@ import {
   buildShoecabinetItem,
   buildSideboardItem,
   buildWallcabinetItem
-} from "./storage-cabinets.js?v=2609260900";
+} from "./storage-cabinets.js?v=2609260929";
 import {
   buildExternalModelFallbackItem
-} from "./external-fallback.js?v=2609260900";
+} from "./external-fallback.js?v=2609260929";
 import {
   buildGlasspartitionItem,
   buildPlantItem,
   buildSmallcarItem,
   buildStairItem,
   buildTvItem
-} from "./media-structure.js?v=2609260900";
+} from "./media-structure.js?v=2609260929";
 import {
   buildBarItem,
   buildBedItem,
@@ -53,7 +53,7 @@ import {
   buildRoundTableTurntableItem,
   buildSofaItem,
   buildTableItem
-} from "./seating.js?v=2609260900";
+} from "./seating.js?v=2609260929";
 import {
   buildAquariumItem,
   buildGaswaterheaterItem,
@@ -61,7 +61,7 @@ import {
   buildStoragewaterheaterItem,
   buildTeaBarMachineItem,
   buildWasherDryerItem
-} from "./water-appliances.js?v=2609260900";
+} from "./water-appliances.js?v=2609260929";
 import {
   buildCoffeetableItem,
   buildDeskItem,
@@ -70,11 +70,11 @@ import {
   buildRugItem,
   buildSquarecoffeetableItem,
   buildTvstandItem
-} from "./tables-desks.js?v=2609260900";
+} from "./tables-desks.js?v=2609260929";
 import {
   buildBookcaseItem,
   buildGlasscabinetItem
-} from "./tall-cabinets.js?v=2609260900";
+} from "./tall-cabinets.js?v=2609260929";
 import {
   buildDishwasherItem,
   buildFridgeItem,
@@ -83,7 +83,7 @@ import {
   buildRangehoodItem,
   buildRicecookerItem,
   buildSteamovenItem
-} from "./kitchen.js?v=2609260900";
+} from "./kitchen.js?v=2609260929";
 import {
   buildAirpurifierItem,
   buildCameraPresenceItem,
@@ -91,7 +91,7 @@ import {
   buildNasItem,
   buildRobotvacuumItem,
   buildWallacItem
-} from "./climate-devices.js?v=2609260900";
+} from "./climate-devices.js?v=2609260929";
 import {
   buildBasinItem,
   buildBathtubItem,
@@ -100,7 +100,7 @@ import {
   buildToiletItem,
   buildUrinalItem,
   buildVanityItem
-} from "./bathroom.js?v=2609260900";
+} from "./bathroom.js?v=2609260929";
 
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。

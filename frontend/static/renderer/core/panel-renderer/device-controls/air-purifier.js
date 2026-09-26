@@ -2,14 +2,14 @@
  * 设备控件区块：空气净化器详情（含空气质量四档读色与滤芯读数）。
  */
 
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609260900";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609260900";
-import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609260900";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609260929";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609260929";
+import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609260929";
 import {
   airQualityAccent,
   airQualityAccentSoft,
   componentDialogTitle
-} from "../primitives.js?v=2609260900";
+} from "../primitives.js?v=2609260929";
 
 export const airPurifierDetailsMethods = {
   /**

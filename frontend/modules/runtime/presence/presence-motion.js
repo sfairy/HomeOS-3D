@@ -14,7 +14,7 @@ import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609260900";
+} from "../core/static-helpers.js?v=2609260929";
 /** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。

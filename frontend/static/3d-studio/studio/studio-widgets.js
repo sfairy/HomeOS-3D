@@ -6,14 +6,14 @@
  * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
-import { capturePointer } from "../../utils/pointer-capture.js?v=2609260900";
+import { capturePointer } from "../../utils/pointer-capture.js?v=2609260929";
 // 下拉的展开方向与可用高度：菜单留在文档流里（absolute + inset），所以不能走
 // positionFloatingMenu 的 fixed 坐标（dialog 的 top layer 与 container-type 祖先都会让
 // 视口坐标失效），只借这里的「按最近的裁剪容器实测」来回答向上/向下与最多多高。
 import {
   nearestScrollClip,
   resolveDropPlacement
-} from "../../shared/menu-positioning.js?v=2609260900";
+} from "../../shared/menu-positioning.js?v=2609260929";
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();

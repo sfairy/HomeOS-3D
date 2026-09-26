@@ -10,7 +10,7 @@
  * page-appearance-presets.js 的预设，保证「模板新建」与「旧草稿读入」两路观感一致。
  * create 按画布 56% 居中放置。
  */
-import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609260900";
+import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609260929";
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
 const INTERACTION3D_TYPE = "interaction3d",

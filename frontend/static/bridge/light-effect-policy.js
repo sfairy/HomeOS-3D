@@ -6,26 +6,28 @@
  * 所有灯共用同一段区间，滑杆手感一致，实体能力只决定「能不能调」而不再决定「能调到哪」。
  *
  * 与 light-motion.js 的约定：effectRange 是**效果的绝对值区间**，不是百分比。
- * 亮度按 1~100% 的百分比线性铺到 [brightnessMin, brightnessMax]（150 表示允许把效果预设到 150%），
+ * 亮度按 1~100% 的百分比线性铺到 [brightnessMin, brightnessMax]。**上限必须是 100**：
+ * 渲染层把这个值直接当百分比乘进光强，一旦允许到 150，100% 亮度的灯就会被抬到 1.5 倍
+ * （调光曲线对 >100% 还有额外提亮因子），整屋灯光集体过曝发白 —— 这是踩过的坑。
  * 色温直接是开尔文。实体自身量程与效果区间是两个独立概念，映射逻辑仍在 light-motion.js。
  *
  * 因此本模块的两个常量必须成套使用：只改区间不改默认值会让不支持调光/调色的灯停在区间外。
  */
-// 效果区间：亮度 50~150（百分比），色温 2700~6500K（覆盖常见家用灯具的暖白到冷白）。
+// 效果区间：亮度 1~100（百分比，与实体上报的百分比 1:1），色温 2700~6500K（覆盖常见家用灯具的暖白到冷白）。
 export const LIGHT_EFFECT_RANGE = Object.freeze({
-  brightnessMin: 50,
-  brightnessMax: 150,
+  brightnessMin: 1,
+  brightnessMax: 100,
   temperatureMin: 2700,
   temperatureMax: 6500
 });
 /**
  * 效果默认值：实体不上报 brightness / kelvin 时展示的兜底。
  *
- * 亮度取区间上限 150%（「效果全开」），色温取 3500K（中性偏暖，最接近常见默认观感）。
+ * 亮度取区间上限 100%（满亮，但不放大），色温取 3500K（中性偏暖，最接近常见默认观感）。
  * 这两个值必须落在 LIGHT_EFFECT_RANGE 内，否则滑杆会停在端点之外。
  */
 export const LIGHT_EFFECT_DEFAULTS = Object.freeze({
-  brightness: 150,
+  brightness: 100,
   kelvin: 3500
 });
 /**

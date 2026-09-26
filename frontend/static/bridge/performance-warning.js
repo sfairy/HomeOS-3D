@@ -5,17 +5,22 @@
  * 本身合法，只是可能让低端设备掉帧。导出 performanceWarnings、confirmPerformanceWarning。告警
  * 文案由本文件统一产出（未做 i18n），调用方不要改写。
  */
-import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609260900";
+import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609260929";
 /**
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
  * 只提示「变贵」的方向（如分辨率调高、开启反射），调低画质不产生告警。
  */
 export function performanceWarnings(currentProperties, pendingProperties) {
   const warningList = [];
-  // 代价阈值自上而下检查：renderScale 超过 1 属超采样、motionRenderScale 达到 0.8 会让转动与
-  // 聚焦过渡期间的绘制量显著上升。灯光模式已收敛为轻量柔光一档、不可切换，故不再有相关告警。
+  // 代价阈值自上而下检查：标准光影比轻量柔光贵、renderScale 超过 1 属超采样、
+  // motionRenderScale 达到 0.8 会让转动与聚焦过渡期间的绘制量显著上升。
   if (
-    (pendingProperties.renderScale > 1 &&
+    (currentProperties.lightingMode === "region" &&
+      pendingProperties.lightingMode === "standard" &&
+      warningList.push(
+        "标准光影需要计算更多实时光照与阴影。"
+      ),
+    pendingProperties.renderScale > 1 &&
       pendingProperties.renderScale > (currentProperties.renderScale ?? 1) &&
       warningList.push(
         "高清渲染需要处理更多画面像素。"

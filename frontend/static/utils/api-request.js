@@ -13,7 +13,7 @@
  * 根本不跳转，只把状态码翻成人话。把这些差异参数化进一个公共函数，只会得到一个每个调用点都在
  * 用不同开关组合的壳子 —— 那比重复更难读。
  */
-import { apiErrorMessage } from "./api-error.js?v=2609260900";
+import { apiErrorMessage } from "./api-error.js?v=2609260929";
 
 /**
  * 后端在 403 `detail.code` 里回的授权受限码。
