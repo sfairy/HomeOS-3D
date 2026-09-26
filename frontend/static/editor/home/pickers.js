@@ -14,17 +14,17 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../../shared/action-rules.js?v=2609260946";
+} from "../../shared/action-rules.js?v=2609262221";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../picker/editor-picker-pagination.js?v=2609260946";
-import { clampNumber } from "../../utils/numbers.js?v=2609260946";
-import { createEditorPickerLifecycle } from "../picker/editor-picker-lifecycle.js?v=2609260946";
-import { entityDomainOf } from "../../utils/entities.js?v=2609260946";
-import { findComponent } from "../component-tree.js?v=2609260946";
-import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609260946";
+} from "../picker/editor-picker-pagination.js?v=2609262221";
+import { clampNumber } from "../../utils/numbers.js?v=2609262221";
+import { createEditorPickerLifecycle } from "../picker/editor-picker-lifecycle.js?v=2609262221";
+import { entityDomainOf } from "../../utils/entities.js?v=2609262221";
+import { findComponent } from "../component-tree.js?v=2609262221";
+import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609262221";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -36,8 +36,8 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../../shared/related-entities.js?v=2609260946";
-import { popupModuleEntityRecommended } from "../editor-document-management.js?v=2609260946";
+} from "../../shared/related-entities.js?v=2609262221";
+import { popupModuleEntityRecommended } from "../editor-document-management.js?v=2609262221";
 
 export function createPickers(ctx) {
 

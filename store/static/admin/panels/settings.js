@@ -7,12 +7,12 @@
  * 清理。配置项多、互相牵扯，所以整块一个模块。
  */
 
-import { $, $$, toast } from "../dom.js?v=2609260946";
-import { state } from "../state.js?v=2609260946";
-import { api, withBusy } from "../api.js?v=2609260946";
-import { askConfirm, askPurge } from "../dialogs.js?v=2609260946";
-import { pageState } from "../table.js?v=2609260946";
-import { host } from "../host.js?v=2609260946";
+import { $, $$, toast } from "../dom.js?v=2609262221";
+import { state } from "../state.js?v=2609262221";
+import { api, withBusy } from "../api.js?v=2609262221";
+import { askConfirm, askPurge } from "../dialogs.js?v=2609262221";
+import { pageState } from "../table.js?v=2609262221";
+import { host } from "../host.js?v=2609262221";
 
 /**
  * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等

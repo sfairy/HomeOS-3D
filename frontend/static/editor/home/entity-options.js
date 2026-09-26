@@ -14,20 +14,20 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../../shared/action-rules.js?v=2609260946";
-import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609260946";
-import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609260946";
-import { findComponent } from "../component-tree.js?v=2609260946";
+} from "../../shared/action-rules.js?v=2609262221";
+import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609262221";
+import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609262221";
+import { findComponent } from "../component-tree.js?v=2609262221";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js?v=2609260946";
+} from "../../renderer/core/registry.js?v=2609262221";
 import {
   normalizedPopupClimateDeviceType,
   popupModuleEntityRecommended
-} from "../editor-document-management.js?v=2609260946";
-import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609260946";
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609260946";
+} from "../editor-document-management.js?v=2609262221";
+import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609262221";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609262221";
 
 export function createEntityOptions(ctx) {
 
