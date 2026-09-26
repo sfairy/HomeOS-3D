@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import os
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -28,7 +29,22 @@ IS_WINDOWS = sys.platform == 'win32'
 # 端口
 APP_PORT = '18081'
 STORE_PORT = '18082'
+#: 本脚本要拉起的两个服务端口及其中文名：预检报错与启动提示共用同一份，
+#: 将来多一个服务时只改这里，不会出现「预检漏查一个端口」。
+SERVICE_PORTS = ((APP_PORT, '主应用'), (STORE_PORT, '授权商店'))
+#: 默认只绑回环。这是**本地开发**脚本，而它默认打开的两个联调后门（见下方 LOOPBACK 说明）
+#: 一旦连同网卡一起暴露，就等于把「点一下直接签发真实授权」交给同网段的每台设备。
+#: 要用局域网访问请显式加 ``--lan``。
 HOST = '127.0.0.1'
+#: ``--lan`` 时绑到所有网卡，让同网段的平板 / 墙面板 / 另一台机器都能访问。
+LAN_HOST = '0.0.0.0'
+#: 命令行开关。
+LAN_FLAG = '--lan'
+#: ``--lan`` 下仍要保留模拟收银台的**危险**开关：默认拒绝，必须显式写出来。
+ALLOW_MOCK_ON_LAN_FLAG = '--allow-mock-payments'
+#: 绑定到这些地址时才算「只有本机能访问」，联调后门才会默认打开。
+#: 与 ``store/config.py`` 的 ``_LOOPBACK_BIND_HOSTS`` 同一套口径。
+LOOPBACK_BIND_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
 # 共享虚拟环境（缺失时自动创建并按商店依赖安装）
 VENV_DIR = ROOT / '.venv-store'
@@ -99,7 +115,91 @@ def terminate(process: subprocess.Popen) -> None:
     process.send_signal(signal.SIGTERM)
 
 
+def primary_lan_address() -> str:
+    """探出本机对外的局域网 IPv4 地址；拿不到时返回空串。
+
+    用 UDP socket 的「连接」让内核选一条默认路由：它只查路由表、**不发任何数据包**，
+    因此不需要网络可达、也不会因为目标不可达而失败。``--lan`` 时把结果打出来，
+    省得用户自己翻系统设置找 IP 再手打给另一台设备。
+    """
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # TEST-NET-1（192.0.2.0/24，RFC 5737）保留给文档示例，不会指向真实主机；
+        # 这里只用它选路，永远不会真的发包。
+        probe.connect(('192.0.2.1', 9))
+        address = probe.getsockname()[0]
+    except OSError:
+        return ''
+    finally:
+        probe.close()
+    return '' if address in LOOPBACK_BIND_HOSTS else address
+
+
+def resolve_run_options(arguments: list[str]) -> tuple[str, bool]:
+    """把命令行参数解析成「绑哪个地址 + 是否开模拟支付」。
+
+    抽成纯函数是为了能单独验证这套判断，而不必真的把服务拉起来：它决定了「联调后门会
+    不会连同网卡一起暴露」，是本次改动里唯一有安全后果的一行逻辑。
+
+    模拟收银台是「点一下就直接签发一张真实授权」（见 ``store/payments/mock.py`` 与
+    ``store/config.py`` 的 ``payment_provider`` 注释）—— 它只在服务**仅绑本机**时算联调
+    后门。一旦绑到局域网，同网段任何设备（访客手机、被入侵的智能家居设备）都能白拿授权，
+    因此 ``--lan`` 下默认关掉它，要开必须再显式加 ``--allow-mock-payments``。
+    """
+    unknown = [item for item in arguments if item not in {LAN_FLAG, ALLOW_MOCK_ON_LAN_FLAG}]
+    if unknown:
+        # 必须喊出来：把 ``--lan`` 打成 ``--Lang`` 会被静默忽略，结果退回只绑回环，
+        # 而用户以为已经暴露到局域网了 —— 排查这种「明明加了参数却访问不到」最费时间。
+        print(f'⚠ 忽略了无法识别的参数：{" ".join(unknown)}')
+        print(f'  本脚本只认 {LAN_FLAG} 和 {ALLOW_MOCK_ON_LAN_FLAG}。')
+    host = LAN_HOST if LAN_FLAG in arguments else HOST
+    mock_payments = host in LOOPBACK_BIND_HOSTS or ALLOW_MOCK_ON_LAN_FLAG in arguments
+    return host, mock_payments
+
+
+def is_port_listening(port: str) -> bool:
+    """探测本机回环地址上 ``port`` 是否已有服务在监听。
+
+    用「连得上」而不是「绑不上」判断，是因为绑定探测在这里会说谎：macOS 允许
+    ``0.0.0.0:P`` 与 ``127.0.0.1:P`` 同时存在，第二个实例的商店能成功绑上
+    ``127.0.0.1:18082``，随后主应用才在 ``data/.license-process.lock`` 上抢锁失败退出
+    （见 ``backend/license/process_lock.py``）—— 于是「端口已被占用」被误判成「空闲」。
+    只有真正发起一次 TCP 连接才能区分这两种状态。
+    """
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.settimeout(0.5)
+    try:
+        # connect_ex 返回 0 表示对端接受了连接（即该端口有人在监听），非 0 表示没有服务。
+        return probe.connect_ex(('127.0.0.1', int(port))) == 0
+    finally:
+        probe.close()
+
+
+def ensure_ports_available() -> None:
+    """启动前预检两个服务端口；已被占用时立刻中止，不拉起任何子进程。
+
+    没有这道预检时，端口被旧实例占用的表现是「商店起来了、主应用在 lifespan 里抢授权锁
+    失败退出」的半启动状态：两个商店同时对外服务，而客户端在重启窗口里全是
+    ``TypeError: Failed to fetch``（见 ``data/logs/global-events.jsonl``）——现象与
+    「后端崩了」无异，却没有一句日志指向「你启动了第二个实例」。所以拦在 fork 之前：
+    一旦端口被占，宁可什么都不起，也不留一个更难排查的半启动进程树。
+    """
+    occupied = [(port, name) for port, name in SERVICE_PORTS if is_port_listening(port)]
+    if not occupied:
+        return
+    print('⚠ 检测到服务端口已被占用，本次启动已中止（未拉起任何进程）：', flush=True)
+    for port, name in occupied:
+        print(f'  - {port}（{name}）已有服务在监听', flush=True)
+    print('  最常见的原因是上一份 start.py 还没退出，或已在另一个终端里运行。', flush=True)
+    print('  请先停掉已有实例再启动：关闭它所在的终端，或执行 `pkill -f start.py`。', flush=True)
+    # 非零退出码：让调用方（shell 脚本 / CI）也能区分「拒绝启动」与正常结束。
+    raise SystemExit(1)
+
+
 def main() -> None:
+    host, mock_payments = resolve_run_options(sys.argv[1:])
+    # 预检必须在拉起任何子进程之前（见 ensure_ports_available 的说明）。
+    ensure_ports_available()
     python = ensure_venv()
     # 本地密钥指纹覆盖：把主应用的指纹校验对准本地生成的密钥，
     # 而不是 config.py 里钉死的正式发布版指纹。
@@ -126,7 +226,7 @@ def main() -> None:
 
     store_environment = base_environment.copy()
     store_environment['STORE_DATA_DIR'] = str(ROOT / 'store' / 'data')
-    store_environment['STORE_HOST'] = HOST
+    store_environment['STORE_HOST'] = host
     store_environment['STORE_PORT'] = STORE_PORT
     store_environment['PYTHONPATH'] = str(ROOT)
     # 本地联调打开热重载：主应用用 --reload，商店也要跟着重载，否则改了 store/ 下的
@@ -134,13 +234,17 @@ def main() -> None:
     store_environment.setdefault('STORE_RELOAD', '1')
     # 本地联调：验证码回显到接口响应（并同步写入日志），否则默认 log 模式会让注册流程
     # 卡在「收不到验证码」。.env 里写了 STORE_MAIL_MODE=smtp 就会走真实发信。
+    # 回显本身是安全的：商店对**所有** mail_mode 都只对可确认来自本机的请求回显，
+    # 局域网客户端只会让验证码进服务端日志、不出现在跨网络的响应里（见 store/api/store.py
+    # 的 echo_allowed），所以这一项与绑定地址无关，不必跟着收紧。
     store_environment.setdefault('STORE_MAIL_MODE', 'echo')
-    # 本地联调：模拟收银台（点一下就发码）需要**两个**变量同时显式打开 ——
-    # 光选渠道不够，服务端还必须允许 mock。这个「双开关」是刻意的：默认配置下
-    # 未配置渠道或配成 mock 都无法建单，避免照文档部署就等于白送授权。
+    # 本地联调：模拟收银台（点一下就发码）。它是**双开关**：光选渠道不够，服务端还必须允许
+    # mock —— 这个刻意设计就是为了「照文档部署 ≠ 白送授权」。这里再叠一道：绑到局域网时
+    # 默认根本不打开它们，除非用户显式写了 --allow-mock-payments。
     # 生产部署绝不要设置这两个变量（该用 STORE_PAYMENT_PROVIDER=alipay）。
-    store_environment.setdefault('STORE_PAYMENT_PROVIDER', 'mock')
-    store_environment.setdefault('STORE_ALLOW_MOCK_PAYMENTS', '1')
+    if mock_payments:
+        store_environment.setdefault('STORE_PAYMENT_PROVIDER', 'mock')
+        store_environment.setdefault('STORE_ALLOW_MOCK_PAYMENTS', '1')
 
     # 主应用的重载范围必须收窄到 backend/：不给 --reload-dir 时 uvicorn 会监听整个
     # 仓库根目录，前端 JS / 样式与 store/ 只要落盘就会重启主应用；重启窗口里在途请求
@@ -157,7 +261,7 @@ def main() -> None:
                 'uvicorn',
                 'backend.main:app',
                 '--host',
-                HOST,
+                host,
                 '--port',
                 APP_PORT,
                 '--reload',
@@ -177,8 +281,27 @@ def main() -> None:
     if hasattr(signal, 'SIGTERM') and not IS_WINDOWS:
         signal.signal(signal.SIGTERM, stop)
 
-    print(f'主应用  http://{HOST}:{APP_PORT}/setup')
-    print(f'授权商店  http://{HOST}:{STORE_PORT}/')
+    # 全部 flush=True：这几行是「复制哪个地址去别的设备」的唯一出处，而后台运行时 stdout 是
+    # 块缓冲的重定向文件 —— 不显式 flush 就会卡在缓冲区里，服务正常跑着却看不到地址，
+    # 恰恰在最需要它的「nohup 起好了但不知道访问什么」场景下消失。
+    print(f'本机访问  主应用 http://{HOST}:{APP_PORT}/setup', flush=True)
+    print(f'          授权商店 http://{HOST}:{STORE_PORT}/', flush=True)
+    if host not in LOOPBACK_BIND_HOSTS:
+        # 不要在这条分支里再重复打印回环地址：--lan 下运维要复制给对方设备的是局域网地址，
+        # 上面那两行只说明「本机怎么访问」，混在一起最容易贴错一个连不上的链接。
+        lan_address = primary_lan_address()
+        print('', flush=True)
+        print(f'已绑定 {host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：', flush=True)
+        if lan_address:
+            print(f'局域网访问  主应用   http://{lan_address}:{APP_PORT}/', flush=True)
+            print(f'            授权商店 http://{lan_address}:{STORE_PORT}/', flush=True)
+        else:
+            print(f'  （没探到局域网地址，请自行查看本机 IP，端口 {APP_PORT} / {STORE_PORT}）', flush=True)
+        if mock_payments:
+            print('  ⚠ 模拟支付已开启：同网段任何设备都能点「模拟收银台」直接拿到真实授权。', flush=True)
+            print('    仅在你完全信任当前网络、且确认只是联调时保留；否则去掉 --allow-mock-payments 重启。', flush=True)
+        else:
+            print('  模拟支付已关闭（--lan 下的默认）：要联调模拟收银台请加 --allow-mock-payments。', flush=True)
     try:
         while all(process.poll() is None for process in processes):
             time.sleep(0.4)

@@ -20,6 +20,11 @@ docker/node_modules/
 # 一次性验证脚本的落盘痕迹（跑起来的临时 APP_DATA_DIR / 截图 / cookie）。可随时删。
 .tmp-verify/
 
+# 上游 0.6.5 业务逻辑对照审计的一次性脚手架（反混淆切片、桩测、截图、像素量尺）。
+# 与 .tmp-verify/ 同类：只用于对照，不随仓库分发；ruff 也按 .gitignore 跳过。
+.audit-scratch/
+.audit2/
+
 # 已迁走的独立前端项目：HomeOS-Activate 有自己的仓库、锁文件与 keys/，不再属于本构建，
 # 留在这里只是就地对照用。任何 git add -A 都不该把它带进来。
 /HomeOS-Activate/
