@@ -113,11 +113,36 @@ export function createModelPersistentCache({
         settle => {
           const request = env.indexedDB.open(MODEL_CACHE_DB_NAME, MODEL_CACHE_DB_VERSION);
           request.onupgradeneeded = () => {
-            if (!request.result.objectStoreNames.contains(TEMPLATE_STORE)) {
+            const upgradeTransaction = request.transaction;
+            const freshTemplateStore = !request.result.objectStoreNames.contains(TEMPLATE_STORE);
+            if (freshTemplateStore) {
               request.result.createObjectStore(TEMPLATE_STORE, { keyPath: "key" });
             }
-            if (!request.result.objectStoreNames.contains(METADATA_STORE)) {
+            const freshMetadataStore = !request.result.objectStoreNames.contains(METADATA_STORE);
+            if (freshMetadataStore) {
               request.result.createObjectStore(METADATA_STORE, { keyPath: "key" });
+            }
+            // v1 只有 templates：升级到 v2 时把旧条目的体积 / 时间补进 metadata。不补的话这些
+            // 条目既不计入配额、也永远不会被剪枝（剪枝只遍历 metadata），等于旧缓存永久驻留 ——
+            // 文件头的注释承诺了「升级路径里按需补建」，这里兑现它。
+            if (freshMetadataStore && !freshTemplateStore) {
+              const legacyTemplateStore = upgradeTransaction.objectStore(TEMPLATE_STORE);
+              const freshMetadata = upgradeTransaction.objectStore(METADATA_STORE);
+              legacyTemplateStore.openCursor().onsuccess = event => {
+                const cursor = event.target.result;
+                if (!cursor) {
+                  return;
+                }
+                const legacyRecord = cursor.value;
+                if (legacyRecord?.key) {
+                  freshMetadata.put({
+                    key: legacyRecord.key,
+                    bytes: Number(legacyRecord.bytes) || 0,
+                    created: Number(legacyRecord.created) || Date.now()
+                  });
+                }
+                cursor.continue();
+              };
             }
           };
           request.onerror = request.onblocked = () => {
@@ -198,7 +223,10 @@ export function createModelPersistentCache({
 
   /** 写入一份模板并做 LRU 剪枝（条数 80 / 总量 64MB，按 created 从旧到新删）。 */
   async function saveTemplate(key, modelDefinition) {
-    const handle = await openDatabase();
+    // 与 restore 同口径：优先用已经拿到的连接。openDatabase() 的 Promise 只结算一次，首次
+    // open 一旦超时就被永久定格成 null，此后即使连接已成功（database 已赋值）也拿不到 ——
+    // 只 await 它会让整个会话的写入静默失效（读还有 database 这条兜底，写没有）。
+    const handle = database || (await openDatabase());
     if (!handle || disabled) {
       return;
     }

@@ -142,7 +142,13 @@ export function createScenePersistentCache({
   // 内存层：preload 读到的条目在这里等 peek，避免同一份文档在一次加载里读两遍 IDB。
   const entryByKey = new Map();
   const preloadByKey = new Map();
-  const stats = { hits: 0, writes: 0, fallbacks: 0 };
+  // 统计口径（只在 ?debug=1 的诊断日志里输出，没有其它消费方）：
+  //   hits      预读到「版本 + TTL 都合格」的条目 —— 这不等于最终复用，复用还要过
+  //             reusableScenePreparation 的 syncKey 校验（键里刻意不含 syncKey）。
+  //   misses    预读正常完成但没拿到合格条目（不存在 / 版本不符 / 过期）。
+  //   writes    成功写入。
+  //   fallbacks 任何一次超时 / 异常（含写入失败）；与上面几项可能重叠，单独看。
+  const stats = { hits: 0, misses: 0, writes: 0, fallbacks: 0 };
 
   const log = event => {
     debugLog("info", "[3D-scene-cache]", JSON.stringify({ event, ...stats }));
@@ -164,7 +170,7 @@ export function createScenePersistentCache({
    * 把一次 IDB 操作包进超时：超时或抛错都解析为 null。只降级这一次调用，不把实例标记成
    * disabled —— 库「暂时慢」与「打不开」是两回事，后者由 open 的 onerror / onblocked 明确标记。
    */
-  function runWithTimeout(run, duration = timeoutMs) {
+  function runWithTimeout(run, duration = timeoutMs, state = null) {
     return new Promise(resolve => {
       let settled = false;
       const settle = value => {
@@ -176,6 +182,10 @@ export function createScenePersistentCache({
         resolve(value);
       };
       const timerId = env.setTimeout(() => {
+        // state 由调用方传入时用来标记「这次是超时」：迟到的成功结果据此不再重复记一次命中。
+        if (state) {
+          state.timedOut = true;
+        }
         noteFallback();
         settle(null);
       }, duration);
@@ -244,6 +254,7 @@ export function createScenePersistentCache({
     if (preloadByKey.has(key)) {
       return preloadByKey.get(key);
     }
+    const readState = { timedOut: false };
     const pending = runWithTimeout(settle => {
       openDatabase().then(opened => {
         if (!opened || disabled) {
@@ -256,24 +267,31 @@ export function createScenePersistentCache({
           request.onerror = transaction.onabort = () => settle(null);
           request.onsuccess = () => {
             const entry = request.result;
-            if (
+            const usable =
               !disabled &&
               entry?.version === SCENE_PREPARATION_VERSION &&
-              Date.now() - entry.created < SCENE_CACHE_TTL_MS
-            ) {
-              entryByKey.set(key, entry);
-              stats.hits += 1;
-              log("restored");
-              settle(entry);
-            } else {
+              Date.now() - entry.created < SCENE_CACHE_TTL_MS;
+            if (!usable) {
+              stats.misses += 1;
               settle(null);
+              return;
             }
+            // 条目本身合格，无论这次 preload 有没有超时都放进内存层：peek() 是同步的，只有
+            // 放进来才可能被本会话取用。超时的那次不再记命中（那一刻已经记过 fallback）。
+            entryByKey.set(key, entry);
+            if (readState.timedOut) {
+              settle(null);
+              return;
+            }
+            stats.hits += 1;
+            log("loaded");
+            settle(entry);
           };
         } catch {
           settle(null);
         }
       });
-    });
+    }, timeoutMs, readState);
     preloadByKey.set(key, pending);
     return pending;
   }
@@ -341,8 +359,15 @@ export function createScenePersistentCache({
                 };
               }, SCENE_WRITE_TIMEOUT_MS);
               if (stored) {
+                // 同步内存层：否则本会话再读同一个键只会拿回那份旧条目（或 preloadByKey 里
+                // 已 resolve 的 null —— 它从不清理），刚写进去的条目永远读不回来。
+                entryByKey.set(key, entry);
+                preloadByKey.delete(key);
                 stats.writes += 1;
                 log("stored");
+              } else {
+                // 配额满 / 事务被中止：这是真实的写入失败，过去完全静默、连 fallback 都不记。
+                noteFallback();
               }
             } catch {
               noteFallback();

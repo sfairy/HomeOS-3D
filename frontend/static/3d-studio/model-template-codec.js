@@ -147,6 +147,16 @@ export function packModelTemplate(THREE, { source, size }) {
   if (Object.keys(serializationMeta.textures).length || Object.keys(serializationMeta.animations).length) {
     throw Error("Non-static template");
   }
+  // 配额计量：顶点属性只占真实占用的一部分 —— 节点树 / 材质 / 颜色的 JSON 同样进 IndexedDB。
+  // 只算属性字节会让 64MB 上限被严重低估（写满配额时才暴露），这里把信封的其余部分也计入。
+  // 刻意不含 geometries：它们的属性数组已单独累加，JSON 化会翻十几倍，重复计反而失真。
+  const envelopeText = JSON.stringify({
+    object: serializedObject,
+    materials: Object.values(serializationMeta.materials),
+    materialColors: packedMaterialColors
+  });
+  const envelopeBytes =
+    typeof TextEncoder === "function" ? new TextEncoder().encode(envelopeText).length : envelopeText.length;
   return {
     revision: MODEL_TEMPLATE_REVISION,
     three: THREE.REVISION,
@@ -155,7 +165,7 @@ export function packModelTemplate(THREE, { source, size }) {
     materials: Object.values(serializationMeta.materials),
     materialColors: packedMaterialColors,
     geometries: packedGeometries,
-    bytes: totalAttributeBytes
+    bytes: totalAttributeBytes + envelopeBytes
   };
 }
 

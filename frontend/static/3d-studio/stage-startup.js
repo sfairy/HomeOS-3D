@@ -58,8 +58,8 @@ export function beginStageStartup({
   // ?v= 戳），取不到（本脚本排在它前面、标签还没被解析）时退回本脚本自己的地址 —— 两者同目录、
   // 同一条全局戳，换成哪一条都能在代码更新后让旧缓存自动失配。
   const source =
-    env.document.querySelector('script[src*="/3d-studio/studio-app.js"]')?.src ||
-    env.document.querySelector('script[src*="/3d-studio/stage-startup.js"]')?.src ||
+    env.document.querySelector('script[src*="studio-app.js"]')?.src ||
+    env.document.querySelector('script[src*="stage-startup.js"]')?.src ||
     "";
   const key = scenePreparationKey(env.document.body?.dataset.i3dLightHistoryScope, projectId, sceneId, source);
   cache.preload(key);
