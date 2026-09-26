@@ -8,7 +8,7 @@
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
   // 改名前的旧键：升级上来的用户此前存的是这个键，不回读会让他们的静音设置静默失效。
   LEGACY_SOUND_ENABLED_STORAGE_KEY = "ha-bridge-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609262221";
+  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609262312";
 
 // 读取音效开关：新键缺失时回读改名前的旧键（升级用户的静音设置存在那里）；
 // 两者都缺失视为开启；隐私模式禁读 localStorage 时同样兜底为开启。

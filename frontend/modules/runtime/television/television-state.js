@@ -14,7 +14,7 @@ import {
   readFromMapOrRecord,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609262221";
+} from "../core/static-helpers.js?v=2609262312";
 /**
  * 从媒体实体属性里挑出可用的封面地址。
  */

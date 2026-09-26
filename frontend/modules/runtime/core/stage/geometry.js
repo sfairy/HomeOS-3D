@@ -8,7 +8,7 @@
  */
 
 // 通用设备品类清单只此一处（device-profiles.js 零依赖）：别在这里再抄一遍品类名。
-import { isGenericDeviceKind } from "../../device/device-profiles.js?v=2609262221";
+import { isGenericDeviceKind } from "../../device/device-profiles.js?v=2609262312";
 
 /**
  * 窗帘帘型取值，与上游 0.6.5 同集合：standard 普通窗帘 / roller 卷帘 / dream 梦幻帘。

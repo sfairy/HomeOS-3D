@@ -18,9 +18,9 @@
  * 「品类 → 部件」表。
  */
 
-import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609262221";
-import { deviceStatus } from "./device-status.js?v=2609262221";
-import { genericDeviceProfile } from "./device-profiles.js?v=2609262221";
+import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609262312";
+import { deviceStatus } from "./device-status.js?v=2609262312";
+import { genericDeviceProfile } from "./device-profiles.js?v=2609262312";
 
 // 状态灯四态的中文说法。status 为 "none"（没配任何规则）时查不到，落到空串。
 const STATUS_LABELS = {

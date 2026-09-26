@@ -17,14 +17,14 @@ import {
   climateSwingModeLabel,
   createClimateModeHistory,
   purifierControl
-} from "./climate-state.js?v=2609262221";
+} from "./climate-state.js?v=2609262312";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的
 // 静态 import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609262221";
+import { createDomFactory } from "../core/static-helpers.js?v=2609262312";
 // 「附加功能」卡片网格：与通用设备弹窗（device/device-panel.js）共用同一份渲染器。
 // 净化器与那 5 类通用设备只是宿主面板不同，卡片的行为（开关 / 选项 / 数值 / 按钮 / 状态显示）
 // 必须只有一份实现，否则同一张卡在两处会长出两种交互。
-import { createPurifierExtras } from "./purifier-extras.js?v=2609262221";
+import { createPurifierExtras } from "./purifier-extras.js?v=2609262312";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  * 各厂商写法不一（medium/middle 都是中风），故常见写法都列上；未收录的原样显示。

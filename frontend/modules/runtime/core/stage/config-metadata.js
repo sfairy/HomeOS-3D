@@ -12,14 +12,14 @@ import {
   withFixedLightEffects,
   withPageAppearancePreset,
   withRegionLightingPreset
-} from "../static-helpers.js?v=2609262221";
+} from "../static-helpers.js?v=2609262312";
 // 门模型展开的唯一实现在 lock-state.js（舞台收集门锁绑定、门动画找模型共用同一份）：
 // 这份快照多带一个 doors 清单给门锁编辑器，靠的就是它，别在这里另写一套门 → 坐标的口径。
-import { doorModels } from "../../security/lock-state.js?v=2609262221";
+import { doorModels } from "../../security/lock-state.js?v=2609262312";
 // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的集合名。它们与 NAS / 电视 / 扫地机
 // 同住 properties.devices，换楼层坐标系时 focusCamera 必须一起变换 —— 见下面那个设备循环，
 // 上游 0.6.5 也是用 GENERIC_DEVICE_KINDS 把五个集合展开进去的。
-import { GENERIC_DEVICE_COLLECTIONS } from "../../device/device-profiles.js?v=2609262221";
+import { GENERIC_DEVICE_COLLECTIONS } from "../../device/device-profiles.js?v=2609262312";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。

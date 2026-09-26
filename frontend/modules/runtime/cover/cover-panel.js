@@ -12,7 +12,7 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609262221";
+} from "./cover-state.js?v=2609262312";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
 // `/static/...` 的静态 import，故经 static-helpers 桥取用。
 // 另外三个是示意图要用的窗帘几何：帘布宽度（两片对开 / 单侧整幅）与开合方向 ——
@@ -22,7 +22,7 @@ import {
   coverSinglePanelWidthPercent,
   createDomFactory,
   resolveCoverDirection
-} from "../core/static-helpers.js?v=2609262221";
+} from "../core/static-helpers.js?v=2609262312";
 /**
  * 创建窗帘面板。
  */

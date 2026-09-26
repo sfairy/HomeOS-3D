@@ -60,9 +60,9 @@ export function weatherVisual(condition, sunState = "") {
  * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这份知识，
  * 共用同一条白名单）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=2609262221";
+export { meteoconUrl } from "../../utils/icon-url.js?v=2609262312";
 // 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
-import { resolveColor } from "../../utils/colors.js?v=2609262221";
+import { resolveColor } from "../../utils/colors.js?v=2609262312";
 // 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
 //
 // 这是一条**连续色带**，不是四个独立的语义色：它要能按顺序读出「安全 → 正常 → 偏高 → 危险」，

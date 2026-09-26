@@ -18,7 +18,7 @@
  * 与模型缓存同一条底线：IndexedDB 不可用（隐私模式 / 禁用 / 配额满）时所有接口都退化成空操作，
  * 调用方走原本的非缓存路径，不抛错、不产生未处理的 Promise 拒绝。
  */
-import { debugLog } from "../utils/debug-log.js?v=2609262221";
+import { debugLog } from "../utils/debug-log.js?v=2609262312";
 
 /** 场景准备格式版本。归一逻辑或缓存信封一改就动它，旧条目会自动因版本不符而失效。 */
 export const SCENE_PREPARATION_VERSION = "20260923-v1";

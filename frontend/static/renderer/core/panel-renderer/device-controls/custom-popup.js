@@ -10,24 +10,24 @@ import {
   formatLineChartValue,
   mountCameraMedia,
   renderLineChartDetails
-} from "../../registry.js?v=2609262221";
-import { paletteColor } from "../../../../utils/colors.js?v=2609262221";
+} from "../../registry.js?v=2609262312";
+import { paletteColor } from "../../../../utils/colors.js?v=2609262312";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609262221";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609262221";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609262221";
-import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609262221";
+} from "../../../../utils/cover-features.js?v=2609262312";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609262312";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609262312";
+import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609262312";
 import {
   bathHeaterModeUsesAirflow,
   climateIsPoweredOn,
   climateModeLabel,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609262221";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609262221";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609262221";
+} from "../../../controls/climate.js?v=2609262312";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609262312";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609262312";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -43,15 +43,15 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609262221";
+} from "../../../controls/cover-runtime.js?v=2609262312";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609262221";
+} from "../../../controls/cover-direction.js?v=2609262312";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance
-} from "../../runtime-dialog-motion.js?v=2609262221";
-import { syncedLineChartProperties } from "../../runtime-document.js?v=2609262221";
+} from "../../runtime-dialog-motion.js?v=2609262312";
+import { syncedLineChartProperties } from "../../runtime-document.js?v=2609262312";
 import {
   airQualityAccent,
   airQualityAccentSoft,
@@ -59,7 +59,7 @@ import {
   appendAirerVisual,
   createSwitchVisual,
   popupModuleDialogTitle
-} from "../primitives.js?v=2609262221";
+} from "../primitives.js?v=2609262312";
 
 export const customPopupMethods = {
   /**
