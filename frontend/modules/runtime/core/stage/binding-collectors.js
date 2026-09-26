@@ -12,19 +12,19 @@
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile
-} from "../../device/device-profiles.js?v=2609260929";
+} from "../../device/device-profiles.js?v=2609260946";
 // 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
 // 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
-import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609260929";
+import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609260946";
 // 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
 // （实现在 static/bridge/temperature-humidity.js，经运行侧薄桥转出）。
-import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609260929";
+import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609260946";
 // 窗帘组合（一拖多）的归一与舞台条目 id 口径：编辑器的配对候选、组合面板与舞台绑定必须
 // 共用同一份判据，否则会出现「编辑器认的组合舞台不认」这类静默的两套逻辑。
 import {
   curtainGroupEntryId,
   validCurtainGroups
-} from "../../cover/cover-groups.js?v=2609260929";
+} from "../../cover/cover-groups.js?v=2609260946";
 
 export function createBindingCollectors(ctx) {
   /**

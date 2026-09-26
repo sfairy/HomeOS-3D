@@ -4,19 +4,19 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609260929";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609260929";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609260946";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609260946";
 // 标记点默认色取全站主控色（见 design/scene/page.css）。
-import { paletteColor } from "../../../../utils/colors.js?v=2609260929";
+import { paletteColor } from "../../../../utils/colors.js?v=2609260946";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609260929";
+import { registerComponent } from "../registry-core.js?v=2609260946";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609260929";
+} from "../registry-visuals.js?v=2609260946";
 
 // 标题按钮控件：纯展示 + 外框装饰，尺寸单位统一由 componentContentUnitsPx 换算。
 registerComponent("title-button", {

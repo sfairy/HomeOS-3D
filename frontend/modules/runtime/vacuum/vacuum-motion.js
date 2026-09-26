@@ -7,14 +7,14 @@
  * heading 角度存在 a 字段（度）。地图地址由 vacuum-map.js 解析。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609260929";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609260946";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609260929";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609260946";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=2609260929";
+} from "./vacuum-map.js?v=2609260946";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);

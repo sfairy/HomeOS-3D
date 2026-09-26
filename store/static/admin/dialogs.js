@@ -7,9 +7,9 @@
  * 面板列表，这类跨面板的引用走 host。
  */
 
-import { $, toast } from "./dom.js?v=2609260929";
-import { api, storeApi } from "./api.js?v=2609260929";
-import { host } from "./host.js?v=2609260929";
+import { $, toast } from "./dom.js?v=2609260946";
+import { api, storeApi } from "./api.js?v=2609260946";
+import { host } from "./host.js?v=2609260946";
 
 // --------------------------------------------------------------------------- //
 // 确认弹窗（替代原生 confirm，可展示影响面）

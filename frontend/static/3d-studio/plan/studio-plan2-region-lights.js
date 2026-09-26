@@ -10,7 +10,7 @@
  */
 
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）。
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609260929";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609260946";
 
 // 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
 // 着色器内建函数** clamp(...)（那些必须逐字保留）—— 把 JS 侧改名只会让 diff 变大、并让后来者

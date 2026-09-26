@@ -23,20 +23,20 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { randomUuid } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/random-id.js", import.meta.url))
-  : import("/static/utils/random-id.js?v=2609260929"));
+  : import("/static/utils/random-id.js?v=2609260946"));
 const { interaction3dPreviewSize } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/preview-layout.js", import.meta.url))
-  : import("/static/bridge/preview-layout.js?v=2609260929"));
+  : import("/static/bridge/preview-layout.js?v=2609260946"));
 const { normalizeInteraction3dLightingMode } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/definition.js", import.meta.url))
-  : import("/static/bridge/definition.js?v=2609260929"));
+  : import("/static/bridge/definition.js?v=2609260946"));
 const { confirmAction } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/ui-confirm.js", import.meta.url))
-  : import("/static/shared/ui-confirm.js?v=2609260929"));
+  : import("/static/shared/ui-confirm.js?v=2609260946"));
 // DOM 工厂：编辑器侧的配置编辑器 / 量程对话框 / 三个设备编辑器都要造元素、按钮与 SVG。
 const { createDomFactory } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/dom-factory.js", import.meta.url))
-  : import("/static/shared/dom-factory.js?v=2609260929"));
+  : import("/static/shared/dom-factory.js?v=2609260946"));
 // 授权 / 编辑器视图登记：这是本文件与 static-helpers.js 分家的原因，见文件头。
 const {
   requestInteraction3dAccess,
@@ -44,13 +44,13 @@ const {
   subscribeInteraction3dAccess
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/bridge.js", import.meta.url))
-  : import("/static/bridge/bridge.js?v=2609260929"));
+  : import("/static/bridge/bridge.js?v=2609260946"));
 const { DEFAULT_BASE_LIGHTING, normalizeBaseLighting } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/3d-studio/loaders/studio-normalization.js", import.meta.url))
-  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609260929"));
+  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609260946"));
 const { toSvgPoint } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/svg-point.js", import.meta.url))
-  : import("/static/shared/svg-point.js?v=2609260929"));
+  : import("/static/shared/svg-point.js?v=2609260946"));
 // 门锁口径的编辑侧入口：安防配置页要「列出场景里所有的门」来给用户挑（doorModels）、
 // 要「把从 HA 拉回来的实体清单归到五个槽位」来显示已绑定 / 可绑定（identifyLockEntities）、
 // 还要「逐个实体问它能不能填这个槽位」来做候选过滤与灰显（lockEntityRole）。
@@ -58,13 +58,13 @@ const { toSvgPoint } = await (import.meta.url.startsWith("file:")
 // 两侧指向同一个文件 —— 这里只取编辑侧真正用到的三个名字，不多转。
 const { doorModels, identifyLockEntities, lockEntityRole } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/lock-state-runtime.js", import.meta.url))
-  : import("/static/bridge/lock-state-runtime.js?v=2609260929"));
+  : import("/static/bridge/lock-state-runtime.js?v=2609260946"));
 // 温湿度计配置页：新增条目要按楼层几何中心落点（temperatureHumidityFloorCenter），
 // 落库前要过一遍白名单归一（normalizeTemperatureHumidity）。实现在 bridge/temperature-humidity.js，
 // 显示侧另有 static-helpers.js 那一层桥，两侧指向同一个文件。
 const { normalizeTemperatureHumidity, temperatureHumidityFloorCenter } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/temperature-humidity.js", import.meta.url))
-  : import("/static/bridge/temperature-humidity.js?v=2609260929"));
+  : import("/static/bridge/temperature-humidity.js?v=2609260946"));
 
 export {
   DEFAULT_BASE_LIGHTING,

@@ -9,7 +9,7 @@
 
 // 2D canvas 拿不到 CSS 变量，所以这里的颜色必须取成具体值再画。
 // paletteColor 是 utils/colors.js 里的唯一实现，按令牌名缓存，逐点调用不产生额外开销。
-import { paletteColor } from "../../utils/colors.js?v=2609260929";
+import { paletteColor } from "../../utils/colors.js?v=2609260946";
 
 // 端点圆点的**深色实心**：轮廓上的彩色描边要靠它压住，才能在浅色底图与深色底图上都看清。
 // 与 studio-app.js 里选择手柄的填充是同一个角色（深底 + 彩色边），所以共用同一枚工具面令牌 ——

@@ -187,15 +187,22 @@ export function doorEventState(item, readState) {
     }
     const openTime = eventTimestamp(item.doorOpenEntityId);
     const closeTime = eventTimestamp(item.doorCloseEntityId);
-    // 任一条读不出时间就返回 null（宁可知不道，也不猜）。事件型实体在首次触发前 state 是
-    // unknown，此时「另一条更晚」并不成立。早期实现对单边缺失给了确定的 true/false，会把门
-    // 永久钉在开或关，直到那条事件真正发生 —— 与上面注释的契约正好相反。
-    // eventTimestamp 内部已用 isEntityUsable 判过一次可用性，这里不必再按另一套判据重判
-    // （过去那套只看 available === false / state === "unavailable"，恰好漏掉 unknown）。
-    if (openTime === null || closeTime === null || openTime === closeTime) {
-      return null;
-    }
-    return openTime > closeTime;
+    // 单边读不出时间**不等于**未知：那条事件只是还没发生过，此时「发生过的那条」就是门的
+    // 当前状态 —— 首次开门（只有开门事件有时间戳）必须显示为「门已打开」并驱动门扇动画。
+    // 两处 null 分支不是冗余判断，删掉任一都会让第一次开合不被识别（双事件门磁最常见的
+    // 首个动作恰好就是单边缺失）。这段与上游逐字一致，改动前请三思。
+    return (
+      openTime === closeTime ||
+      [readState(item.doorOpenEntityId), readState(item.doorCloseEntityId)].some(
+        entry => !entry || entry.available === false || entry.state === "unavailable"
+      )
+        ? null
+        : openTime === null
+          ? false
+          : closeTime === null
+            ? true
+            : openTime > closeTime
+    );
   }
   if (eventTimestamp(item.doorEventEntityId) === null) {
     return null;

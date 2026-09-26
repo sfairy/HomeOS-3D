@@ -18,7 +18,7 @@
  * 贴图一律 clone 底图后再处理：createFeatureWallTexture 返回的是跨调用共享的缓存实例，直接改它的
  * 平铺方式会顺带改掉背景墙。
  */
-import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609260929";
+import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609260946";
 
 /** 质感族 → 背景墙贴图名。只列有底图的族；不在此表内且没有专属画法的族一律返回 null。 */
 const SURFACE_TEXTURE_ALIAS = Object.freeze({
