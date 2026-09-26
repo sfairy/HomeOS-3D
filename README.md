@@ -12,7 +12,7 @@
 - 正式展示：`/display/{项目名称}` 打开全屏中控页
 - 中控配对：6 位配对码，适合墙面平板或独立浏览器
 - 3D 户型：建模、导入、按楼层或全楼自动导图并回写到仪表盘；灯光按「区域」归类，墙体与灯光属性可批量应用
-- 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里控制已绑定的灯、开关、窗帘（含卷帘与一拖多组合）、空调、空气净化器（本体与附加功能）、电视、门锁（门磁与电量只读）与通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的附加功能等；温湿度计、扫地机、NAS、摄像头与人体传感器在舞台里只作状态展示与标记；展示页用 iframe 打开同一舞台
+- 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里控制已绑定的灯、开关、窗帘（含卷帘与一拖多组合）、空调、空气净化器与新风机（本体与附加功能）、电视、门锁（门磁与电量只读）与通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的附加功能等；温湿度计、扫地机、NAS、摄像头与人体传感器在舞台里只作状态展示与标记；展示页用 iframe 打开同一舞台
 - Home Assistant：HTTP / WebSocket 同步实体与状态，代理摄像头和媒体
 - 全局日志：按级别、分类和关键词筛选，导出时遮盖敏感信息
 - 授权商店：账号注册 / 登录、邮箱验证码、商品与优惠码、邀请返利与提现、订单查询、设备自助解绑
@@ -108,7 +108,7 @@ HomeOS/
 ├── image/                  # 可选的自定义内置素材目录（默认空）
 ├── tools/                  # 静态守卫与审计（只用 Node 内置模块，无 npm 依赖）
 │   ├── bump_static_cache_versions.mjs  # 缓存戳同戳刷新
-│   ├── check_invariants.mjs            # 二十五条静默失效护栏，见「前端结构卫生」一节
+│   ├── check_invariants.mjs            # 静默失效不变量护栏，见「前端结构卫生」一节
 │   ├── audit_plan_symbols.mjs          # 平面符号形状对账：实测 GLB 俯视轮廓的圆度，钉住「圆形占地的物件被画成方角矩形」
 │   ├── audit_colors.mjs                # 配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇
 │   ├── audit_model_glb.mjs             # 模型 GLB 内容审计：流水线产物真值校验 + 既有资产尺寸债务探测
@@ -511,13 +511,16 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | --- | --- | --- |
 | `APP_DATA_DIR` | `<仓库>/data`（容器 `/data`） | 运行时数据目录 |
 | `APP_PORT` | `18081` | 容器监听端口 |
-| `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话滑动时长（8 小时） |
-| `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天） |
+| `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话滑动时长（8 小时）；必须为正整数，配成 0 / 负数启动即报错 |
+| `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天）；`0` = 不设绝对上限 |
 | `APP_SETUP_TOKEN` | 空 | 首次引导密钥；留空则首次启动自动生成（见「首次设置窗口」） |
 | `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` | `15552000` | 中控 Cookie 浏览器侧有效期（180 天） |
 | `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌滑动有效期（活跃即续期） |
 | `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` = 不设 |
 | `APP_UPDATE_CHANNEL` | `docker` | 更新检查渠道 |
+| `APP_UPDATE_CHECKS` | `0`（关闭） | 打开版本更新检查（`1`/`true`）；开启后每 6 小时向发布端点外发一次本机版本与渠道 |
+| `APP_UPDATE_ENDPOINTS` | 留空（内置厂商端点） | 逗号分隔的发布端点；自建部署应指向自建商店的 `/store/v1/updates/latest` |
+| `APP_UPDATE_WIKI_URL` | 留空（内置厂商说明页） | 更新说明页地址 |
 | `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住 keyId；默认派生，轮换密钥后自动改变 |
 | `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名公钥 |
 | `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥 |
@@ -693,7 +696,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它钉二十五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
+它钉住一组「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
 **下文的引用一律用条目名而不是序号**（早先写「第 6 条」「第 9 条」，中间插进新条目后全指向了别处）：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
@@ -868,6 +871,47 @@ node tools/check_invariants.mjs
   会被它蒙混过去，实测过）。阈值取在「圆」与「方」实测间隔的中间（0.7 < 格数比 < 0.86 且
   径向变异 < 0.05，源自 126 件的实测分布），贴着任一侧都会让判据在规格微调后反复跳。
   逐件明细用 `node tools/audit_plan_symbols.mjs`（`--only=round` 只看圆的那一批、`--regress` 只对账）。
+- **引用了本文件解析不出绑定的名字**：判定在 `tools/lib/free-variables.mjs`（`tools/vendor/acorn`
+  建真语法树 + 作用域链，零 npm 依赖），护栏只多一层浏览器 / Worker 宿主全局白名单。这类引用
+  **没有任何静态报错**，只有执行到那一行才 `ReferenceError` —— 两处真实案例都是「把一段代码搬进
+  另一个函数」时漏掉参数或改错名字留下的：`studio-app.js` 的 `drawPlanItem` 画钢 / 玻璃楼梯时写
+  `itemWidth` / `itemDepth`（本函数只有像素版 `itemWidthPx` / `itemDepthPx` 与米制 `planFootprint`，
+  症状是「户型图上放钢梯 / 玻璃梯就整张图不刷新」），`studio-external-models.js` 的
+  `applyAppliancePalette` 里写 `materialPalette`（函数内的绑定叫 `appliancePalette`，那个名字只在
+  唯一调用点的**实参**位置存在，症状是「小车一走家电调色板就炸」）。修法只有两种：补上它该来自的
+  绑定（形参 / 解构 / import），或改用同作用域里已有的名字 —— **不要**往白名单里加业务名字，
+  那张表只收宿主自带全局，否则这条会退化成「把误报一条条塞进去」的垃圾桶。上游同一件事按行级
+  正则试过、跑出 7996 条 GLSL 误报后被放弃，所以这里必须靠语法树；判据边界（`typeof 裸名字`
+  不报、`with` 体内不报、只认取用不认对象字面量的键与成员名）写在 `free-variables.mjs` 的注释里。
+- **净化器模型类型三处白名单不同源**：`airpurifier` / `freshair` 这份类型表同时出现在
+  `config-editor.js` 的 `sceneModelTypes()`、`binding-collectors.js` 的 `collectClimateBindings()`
+  与 `purifier.py` 的 `PURIFIER_MODEL_TYPES`。借空调那套（`wallac` / `floorac` / `airoutlet`）
+  会让每一台净化器都绑不上模型（`modelAvailable` 恒为 false），而配置校验与浏览器控制台都不报错。
+  三处必须逐类型成对，删类型同理。
+- **窗帘面板返回对象少了 `deactivate`**：漏了它，`cover-group-panel.js` 只能写 `panel.deactivate?.()`
+  兜底 —— 方法名写错也没人知道（代价只是静默少清一次场）。语义是「仅在拖动预览生效时才撤回」，
+  调用侧不许再用 `?.()`。
+- **扫地机状态字典缺上游别名**：`vacuum-map.js` 的 `vacuumRawState` 文案字典要含上游全部别名
+  （`returning_to_base` / `returning_home` / `standby` / `ready` / `stopped` / `off` / `mop_washing` /
+  `self_washing` / `cleaning_mop` / `mop_drying` / `drying_mop`）。漏一条不会报错，那个状态直接掉进
+  兜底文案「状态更新中」；同义别名的文案还必须逐字相同。
+- **吊柜挂高三处不同源**：`model-specs.mjs` 的 `wallcabinet.mountHeight`、
+  `item-builders/storage-cabinets.js` 的 `wallCabinetMountHeight`、以及
+  `ITEM_TYPE_DEFINITIONS.wallcabinet`（**不能**有 `elevation`，原版那一格是 0）。改一处必须三处一起改，
+  并让 `HOME_LITE_MODEL_VERSION` 前进一格 —— 模型文件名没变，不换戳浏览器与持久缓存会继续喂旧几何。
+- **聚焦可用设备清单与上游不同集合**：`geometry.js` 的 `isFocusableDevice` 漏一类，那类绑定就会落到
+  「有 `modelId` → 空调」那一支，点一下门锁 / 冰箱就给上次看过的那台空调发 `turn_on`（命令照发、零报错）。
+- **授权状态文案三处不同源**：后端 `license/service.py` 的 `labels` 是状态枚举的唯一出处，
+  `auth/license-recovery.js` 的 `STATUS_MESSAGES` 与 `editor/home.js` 的 `licenseStatusLabelByCode`
+  各是它的一份展示文案，三处键集必须逐码相同（漏一条该状态就原样显示英文码或空白）。
+- **前端可派发的 HA 服务没登记进后端 `ALLOWED_SERVICES`**：`backend/api/ha.py` 的 `ALLOWED_SERVICES`
+  是 `ha/services/call` 的唯一准入表。本仓已因此连踩三次：`vacuum.stop` / `vacuum.locate` /
+  `vacuum.clean_spot`（扫地机开得动、停不下来）与 `climate.set_swing_horizontal_mode`（空调
+  「水平摆风」整组每次点都 403）。前端按 `supported_features` 把按钮渲染出来、后端却没登记那条服务，
+  失败只回显一句笼统提示、控制台零报错。守卫扫前端的分发位置（`service: "x"`、
+  `callEntityService("d", "x")`、`invoke*Service("d", "x")`、媒体动作按钮、扫地机动作定义表），
+  **只核对服务名是否存在**（前端域名常是变量），不核对「域 + 服务」的确切组合 —— 这能挡住整条服务名
+  缺失（三次踩坑都是这种），挡不住「域写错」。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
@@ -966,7 +1010,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条，现已二十五条）：
+本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
@@ -1038,12 +1082,12 @@ ruff check .                                      # 未使用 import / 重复定
 
 **新增设备品类**
 
-- **通用设备弹窗（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）**：后端新模块 `device.py`（`DEVICE_PROFILES`、`GENERIC_DEVICE_COLLECTIONS`、`validate_device_bindings()`、`require_device_model()`）；前端 `device-profiles.js`（`GENERIC_DEVICE_KINDS` / `genericDeviceProfile`）、`device-status.js`、`device-panel.js`、`device-entity-config.js`。五类设备不推断主实体 —— 绑定必须写 `deviceId` / `deviceName`，实体由设备归属反查，因此配置里不允许出现 `entityId`。弹窗内容由 `statusRules`（状态灯规则）与 `extraControls`（附加功能）两块配置决定，绿植的 `statusIndicator` 为 false，编辑器不再提供状态规则。
-- **空气净化器**：后端 `purifier.py`（`EXTRA_TYPES`、`validate_purifier_command()`、`validate_extra_command()`），支持 `switch / input_boolean / light / select / input_select / number / input_number / button / input_button / sensor / binary_sensor`。前端 `purifier-extras.js` 渲染附加功能卡片；`climate-state.js` 扩展风机与净化器能力位（`oscillating` / `oscillatingSupported` / `directionSupported` / `percentageStep` / `preset_modes` 等 10 项），命令域走 `fan`。运行时净化器与空调**同属 climate 模块**（`deviceKind: "climate"`），靠实体域 `fan` 决定渲染净化器控件；场景里它是独立外观 `airpurifier`，模型类型清单七处同步点已一并登记，气流从顶盖向上吹（与空调的水平风道不同）。模板默认值新增 `environment.airPurifiers: []`。
-- **门锁与门磁**：后端 `lock.py`（`validate_lock_bindings()` / `require_lock_model()` / `validate_lock_command()`），按 `supported_features` / `code` / `code_format` 能力位校验 `lock` / `unlock` / `open`。前端 `lock-panel.js`、`lock-state.js`、`lock-motion.js`、`lock-state-runtime.js`。门扇动画按 rig 分支：平开（铰链轴 + 开合角）、推拉（滑移轴 + 行程）、卷帘门（上下卷收）、入户门；门事件源支持 `sensor` / `always` / `single-event` / `dual-event` 四种。
+- **通用设备弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）**：后端新模块 `device.py`（`DEVICE_PROFILES`、`GENERIC_DEVICE_COLLECTIONS`、`validate_device_bindings()`、`require_device_model()`）；前端 `device-profiles.js`（`GENERIC_DEVICE_KINDS` / `genericDeviceProfile`）、`device-status.js`、`device-panel.js`、`device-entity-config.js`。六类设备不推断主实体 —— 绑定必须写 `deviceId` / `deviceName`，实体由设备归属反查，因此配置里不允许出现 `entityId`。弹窗内容由 `statusRules`（状态灯规则）与 `extraControls`（附加功能）两块配置决定，绿植的 `statusIndicator` 为 false，编辑器不再提供状态规则。
+- **空气净化器**：后端 `purifier.py`（`EXTRA_TYPES`、`validate_purifier_command()`、`validate_extra_command()`），支持 `switch / input_boolean / light / select / input_select / number / input_number / button / input_button / sensor / binary_sensor`。前端 `purifier-extras.js` 渲染附加功能卡片；`climate-state.js` 扩展风机与净化器能力位（`oscillating` / `oscillatingSupported` / `directionSupported` / `percentageStep` / `preset_modes` 等 10 项），命令域走 `fan`。运行时净化器与空调**同属 climate 模块**（`deviceKind: "climate"`），靠实体域 `fan` 决定渲染净化器控件；场景里它是独立外观 `airpurifier`，模型类型清单七处同步点已一并登记，气流从顶盖向上吹（与空调的水平风道不同）。模板默认值新增 `environment.airPurifiers: []`。**新风机（`freshair`）按需求算作净化器的一种**：HA 里两者都是 `fan` 域，面板与能力位同形，所以「可绑定的场景模型类型」这份白名单三处同源 —— `config-editor.js` 的 `sceneModelTypes()`（模型选择器的候选）、`binding-collectors.js` 的 `collectClimateBindings()`（运行时绑定）、`purifier.py` 的 `PURIFIER_MODEL_TYPES`（命令侧的模型存在性复核）；借空调那套白名单（`wallac` / `floorac` / `airoutlet`）会让每一台净化器都绑不上模型，而配置校验与浏览器控制台都不报错。新风机是壁挂机型（离地 2.2m），编辑器「按钮位置」里「高度（米）」的缺省值必须与运行时绑定同一口径（`离地 + 机身高度 / 2`）：`config-metadata.js` 的 `plan.items` 给的是机体原值，缺省高度由 `config-editor.js` 的 `floorSceneModels()` 现推（`airConditioners` / `curtains` / `televisions` / `nas` / `vacuums` 那几张元数据集合早就把结果算进了 `height`）；不补这一步，缺省落点会恒为 0，新风机这类高离地机型偏得最明显。新增不变量第 30 条把三处白名单钉死。
+- **门锁与门磁**：后端 `lock.py`（`validate_lock_bindings()` / `require_lock_model()` / `validate_lock_command()`），按 `supported_features` / `code` / `code_format` 能力位校验 `lock` / `unlock` / `open`。前端 `lock-panel.js`、`lock-state.js`、`lock-motion.js`、`lock-state-runtime.js`。门扇动画按 rig 分支：平开（铰链轴 + 开合角）、推拉（滑移轴 + 行程）、卷帘门（上下卷收）、入户门；门事件源支持 `sensor` / `single-event` / `dual-event` 三种（参考实现里的 `always` 在本项目后端会被判非法，编辑器亦不提供，故不实现）。
 - **温湿度计卡片**：`temperature-humidity.js` 由 `environment-scene.js` 接入，按实体名（`/温湿度(?:计|传感器)?/`、`/温度/`、`/湿度/`）、`thermometer`、`relative_humidity` 与 `device_class` 识别温度 / 湿度两路实体。模板默认值新增 `environment.temperatureHumidity: []`。
 - **窗帘组合控制**：`cover-groups.js`（`createCurtainGroup` / `validCurtainGroups` / `curtainGroupEntryId` / `isCurtainGroup` / `curtainGroupCandidates`）与 `cover-group-panel.js`；后端新增 `curtainGroups` 字段与 `curtain-group:` 前缀。组合入口统一管理隐藏方式与聚焦视角，成员各自保留目标位置与反馈。
-- **卷帘**：窗帘类型新增 `roller`。`curtain-motion.js` 按 `coverKind === 'roller'` 分支返回卷收 rig（0% 完全放下、100% 完全卷起），控制沿用普通窗帘。
+- **卷帘**：窗帘类型新增 `roller`。帘型默认取户型模型属性 `curtainForm`（工作室的「窗帘形态」写入，`config-metadata.js` 原样透传给编辑器与运行时；历史草稿里的字段名 `curtainStyle` 仍兼容读取）；在编辑器里显式改过则置 `coverKindOverride`，让交互配置的 `coverKind` 胜出 —— 与上游 0.6.5 的 `coverKindOverride` / `curtainForm` 派生同一口径。`coverKind` 取值随之放开为 `standard / roller / dream`，后端 `config.py` 的字段白名单与取值枚举同步。`curtain-motion.js` 按解析后的 `binding.coverKind === 'roller'` 分支返回卷收 rig（0% 完全放下、100% 完全卷起），控制沿用普通窗帘。
 - **模型库新增「1 字型悬空楼梯」**：`floating-stairs.glb` 与 `floating-stairs-lite.glb`，10 级悬臂踏步确定性生成；素材库条目数随之 +1（按调色板动态推导，未硬编码计数）。
 
 **光影：两档并存，灯效量程固定**
@@ -1084,7 +1128,28 @@ ruff check .                                      # 未使用 import / 重复定
 - **宿主命令闸门补齐 3 类实体**：`runtime.js` 的 `control` 闸门只列绑定实体的顶层清单，`security.locks`、净化器 `environment.airPurifiers[].extraControls`、通用设备 `devices[<品类>][].extraControls` 三类不在内，命令在到达后端之前就被判成「此实体未绑定到当前 3D 控件」（门锁因此完全点不动）。舞台侧本就要求命令实体必须在本机 `extraControls` / 本控件绑定表里，闸门与之同口径，判定并未放松，后端仍是权威校验。
 - **状态订阅补齐同一批实体（闸门的另一半）**：上一条只修了闸门，订阅侧的钱包并没有跟着补。宿主对同一批「非顶层绑定」实体有两处展开——命令闸门（决定 `control` 能否下发）与状态订阅（`collectTrackedEntities` / `additionalEntityIds`，决定舞台收不收得到读数），上游两处都列了门锁与附加实体，本仓两处都漏了。`lightStream` 只推订阅集内的实体（服务端按订阅报文过滤），没订上的实体读数是**永久空值**：门锁面板恒显「门锁状态不可用」、门磁 `doorOpen` 恒为 `null`（门保持原姿态、不报错），附加功能卡片恒显「该实体当前不可用」且命令永远发不出去。修复按上游 `_0x56df7e` 主清单与 `_0x2c712f` 补充清单的口径补入门锁 8 个字段（锁本体 / 门磁实体型与事件型 / 开合两事件 / 电量 / 低电量 / 防拆）、通用设备（附加控件 + `statusRules.power` + 健康规则，直接复用舞台侧 `device-status.js` 的 `deviceEntityIds` 以免再分叉）、净化器附加控件；`lock` / `select` / `number` / `input_*` 不在 `lightStream` 主白名单正则内，必须同时进 `additionalEntityIds` 才能订上。同时新增不变量第 25 条把两端口径钉死（见下）。
 
+- **门锁槽位的候选口径回归上游 + 枚举型门状态（「找不到实体」）**：症状是小米 S2 这类门锁在安防面板里**一条「开关门检测」候选都选不上**（面板上只剩一个空选择器，点开就是空列表）。三处成因：① `lockEntityMatchesField` 写成「device_class 已知就只信 `lockEntityRole`」——这类门锁的门状态是 `sensor.*_door_state`（device_class `enum`，值 `已上锁 / 已开锁 / 门未关 / 门虚掩`），而角色判定只认 `binary_sensor` 的 door / opening，于是候选恒为空；上游的 `entityFilter` 是「角色命中就收，认不出才退回域白名单」，且门磁槽位的白名单**刻意包含 `sensor` 域**（反汇编原文即 `['binary_sensor','sensor']`），本仓现按上游逐条对齐（`LOCK_FIELD_DOMAINS.doorEntityId` 同补 `sensor`）。② 门磁读数词表原先只有 `on/off`、`open/closed` 与中英文口语，`已上锁 / 门未关` 这类枚举值一个都不认 —— 绑上了也是 `doorOpen: null`（门扇保持原姿态、零报错）。词表收进 `DOOR_STATE_TEXTS`（`doorOpenFromText`）成为唯一口径，`doorOpenState` 与 `lockState` 共用：`已上锁 / 已开锁` 说的是锁舌、门扇当时是关着的（判 `false`），`门未关 / 门虚掩` 判 `true`，英文 `locked / unlocked` 刻意不收（含义在设备间不一致，猜错会让门自己乱动）。③ 本仓多出的那一档（自动识别 / 选设备回填）补认这类枚举门状态，判据是「域是 `sensor` + 名字含「门」+ 当前读数落在词表里」，且只在设备名下**恰好一支**时才回填（与 `identifyLockEntities` 同一条纪律）；两个槽位的候选另加推荐分（标准门磁 → 枚举门状态 / `binary_sensor` → 其余 `sensor`），否则六支 `sensor` 里得挨个读名字。同时补上**编辑侧**的状态订阅：`collectEntityIds` 此前只展开 `security.presenceSensors`，门锁那 8 个字段不在内 —— `editorRenderer.states` 里没有门锁读数，编辑器状态行恒显「电量 —」、device_class 与推荐分也只能退回目录字段（舞台侧那半边见上文「状态订阅补齐同一批实体」）。验证：`security-lock.mjs` 新增 5 组断言（枚举词表 / 候选的域兜底 / 排序 / 小米型门锁的回填 / 订阅清单），不变量照过。
+- **门牌（门锁标记标签）配色回归场景皮肤**：「门名 + 开合状态 · 电量」那块标签此前是**不透明的米白纸卡**（`#fbf7ef` 底 + 暖金描边 + 暖褐字），而它周围的一切 —— 标记底座、摄像头 / 人体传感器标签、温湿度计卡片 —— 都是深色玻璃（`#1b2029dc` 底 + 浅色字）。暗场里门牌成了画面里唯一一块亮色，与旁边深色标签摆在一起就是「卡片配色和整体不协调」。现在底 / 正文改回与标记底座、安防标签**逐字同值**（`#1b2029dc` / `#f2eee7`，靠「同源」而非硬编码来防止日后再落单），暖金只保留在两处识别位上：比底座更金一档的描边（`#c9a76c66`，底座是 `#aa967455`）与门图标（`var(--hos-accent, #ffc46a)`，即主题主控金）；第二行门开合 / 电量用暖灰 `#c0b199` 而不是摄像头那枚偏绿的 `#b5c9bc`，让整块标签偏暖一度。米白纸卡没删，移到**暖阳原木主题**下（那里全场标签本来就是米白），并且补齐了「底 / 第二行 / 图标」三件套 —— 原先只覆盖了底与描边，正文与图标会继承暗场规则，纸卡上是浅色字，等于没写完。验证：`security-lock.mjs` 新增配色契约（底色 / 正文与标记底座、安防标签同值 + 暖阳三件套齐全 + 底色必须是带透明度的 8 位色，防止纸卡回潮）。
+- **环境页面归一表补登温湿度计**：`environment-scene.js` 的 `pageDimming` 把「模块 ID」归一成「页面 ID」，本仓 0.6.5 新加的「温湿度计」页签漏登 —— 归不出来时该页签既不在页面白名单里（压暗 / 降饱和整段不生效），又会把 `pageModelBindings` 的页面筛成 `"temperature-humidity"`（环境模型既不描边、也不合成展示绑定），症状是「切到温湿度计页，环境设备全部失去高亮」且浏览器零报错。按上游 `pageDimming` 反混淆口径补上 `"temperature-humidity": "environment"`；同时新增不变量第 27 条把这个别名表钉死（上游同表还有 `purifier` 与通用设备品类，本仓因净化器并入环境页、通用设备不是独立模块而**故意不登记**）。注意上游的 `resolvePageBehavior`（`static/bridge/page-behavior.js`）别名表**不含** `temperature-humidity`，两处故意不一致，别顺手对齐。
+
+- **运行期面板行为层补三处（P1）+ 补齐被收窄的导出面**：① `cover-panel.js` 的返回对象补上游 0.6.5 的 `deactivate()`（语义是「仅在拖动预览生效时才撤回」，面板继续用），`cover-group-panel.js` 里两处 `panel.deactivate?.()` 与那段「本项目暂无该方法」的注释一并清掉 —— 兜底写法的代价是「方法在不在」永远没人知道，漏了只是静默少清一次场；② `vacuum-map.js` 状态字典补上游 11 条别名（`returning_to_base` / `returning_home` → 回充中、`standby` / `ready` → 待机、`stopped` / `off` → 已停止、`mop_washing` / `self_washing` / `cleaning_mop` → 清洗拖布、`mop_drying` / `drying_mop` → 烘干拖布），别名漏登的读数是恒显「状态更新中」，零报错；③ `climate-state.js` 的 `climatePowerControl` 补净化器 `fan` 域早返回，与已有的 `purifierControl` 同口径 —— 本仓此前对净化器恒返回 `domain:"climate"`，只因调用方自己先分支才没炸，属潜伏陷阱。另补 5 个被收窄成私有的导出（`nasMetricValue` / `planFurniture` / `resizeRegionDimensions` / `regionHeightPatch` / `mountRangeFormControls`），目前无消费者，纯 API 面对齐。新增不变量第 31 条钉住窗帘面板的返回键集合（含 `deactivate` 与「仅在拖动中才动手」的守卫、调用侧不许再出现 `?.()`）、第 32 条钉住扫地机状态字典与文案同源。
+- **3D 面板设备图形与外壳精修**：把 2D 弹窗里的设备插画按净化器 / 空调已验证的口径移植进运行期面板 —— 从 `renderer.css` 一比一取材质配方、类名换 `i3d-` 前缀、**居中独占一行**插在标题行之后、控件之前，外壳从固定高度改为同一套 `max-height`（`calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2)`）+ `overflow-y: auto` + 细滚动条（灯光弹窗除外，它随后整体回退，见下）。本轮补的是有 2D 插画可移植的那几类：窗帘（含梦幻帘的 `.is-dream` 叶片角度变体）、电视（材质配方沿用 2D 音箱的机身渐变 / 网罩交叉重复渐变 / 呼吸指示灯，形态按电视屏框重画，封面继续走既有 `i3d-tv-artwork` 的加载与失败逻辑）。**灯（灯光弹窗）本轮先照 2D 口径提到 1.0、居中独占一行，随后按用户要求整体回退到原样**：`.i3d-lamp-drawing` 恢复 `scale(0.64)` 的右上角标版式、`.i3d-power` 回到 144×128 绝对定位、`header` 回到 `flex: 0 0 112px` 的固定两栏（右侧留 132px 给图形），外壳也回退到固定高度（`.i3d-light-panel.has-light-controls { height: 400px }` / `.i3d-light-panel.has-error:not(.has-light-controls) { height: 210px }`），不再走内容自适应 + 滚动；回退时同步删掉了只在那一版用到的 `.i3d-light-panel.is-light-panel` 宿主类与其 `stage.js` 挂类。尺寸口径沿用「2D 图形超出面板内容区（360px 面板 − 40px padding = 320px）才等比缩小」：只有空调（2D 406px）需要缩放，窗帘 244px / 电视 240px 直接用 2D 原尺寸（灯本轮已回退，不在此口径内）。**居中必须用 `margin: … auto` 而不是只写 `align-self: center`**：电视面板根不是 flex 容器（它只是外壳里的一个 flex 项），父级是 block 时 `align-self` 完全不生效，实测图形偏左 39px。
+  外壳侧另修三处：**门锁**的宿主类 `is-lock-panel` 此前全仓没有任何对应 CSS 规则，面板掉回默认外壳 `height:160px; overflow:hidden`，密码框与动作按钮有被裁切的风险，现补 `.i3d-light-panel.is-lock-panel { height:auto; min-height:240px; … }` 与同一套上限 + 滚动；**NAS** 从固定 `400px` 改成 `min(400px, 同一套上限)` —— 它的指标网格是内部滚动区（`min-height:0; overflow:auto`）且标题要始终留在原位，若照搬别的面板改成 `auto` 会让整块一起滚、标题被指标顶出视野，`min()` 在高视口下取到的仍是原来的 400px，行为不变、只在放不下时收缩；**通用设备**把标题 / 状态行的节奏对齐气候面板（2D 里 fridge / washer / dryer / plant 零命中，故不加图形）。扫地机与摄像头本就委托宿主 2D 渲染器出图，本轮只核对委托口径与上游一致，不动。
+
 复核中另有三项**判定为误报、故未改动**（依据是「与上游同款行为不擅自加严或放宽」）：`lock.py` 不拒绝未知字段、净化器附加卡片的 pending / 定时器写法、number 卡用字符串精确比较确认 —— 三者上游皆同源，其中后两者的上游反混淆原文与本仓逐字一致。
+
+**再一轮后端业务逻辑对齐（授权 / 校验 / 草稿，同为静默失效）**
+
+- **净化器附加实体补「与本体同一台 HA 设备」守卫**：`interaction3d/api.py` 的 `purifier-extra` 分支在上游是「校验通过后再查主实体 `device_id`，不同即 403」。缺这一查，宿主实体换绑到别的设备后命令仍照发到旧设备上的实体 —— 界面照常、零报错，只是打到了别的房间。失败文案与上游一致（「附加实体已不属于当前空气净化器，请重新绑定。」）。
+- **授权错误码不再被 `getattr(error,'code',None)` 抹平**：`license/service.py` 的心跳与恢复两处重抛改用 `code=self._error_code` —— `_mark_failure` 归一化出的 `NETWORK_UNAVAILABLE` / `RECOVERY_TOKEN_INVALID` 原本会在这里退化成通用码，`api/license.py` 的「可重试」判定随之失效（终态被报成 503）。
+- **无恢复凭证改判终态**：`_recover_unlocked` 在凭证缺失时补 `code='CREDENTIAL_MISSING'`。此前全仓无任何路径产出这个码，`_mark_failure` 里读它的分支成了死代码、落入「网络失败」的无限重试，本该是 `RECOVERY_REQUIRED` 的终态永远等不到。
+- **`_mark_failure` 释放启动校验门禁**：补 `self._startup_validation_pending = False` 并统一走 `_record_status(state.status)`。少这一步，持有有效租约的离线用户会被钉在 `STARTUP_VALIDATION_REQUIRED` 宽限态。同处补状态报文 `errorCode` 的按状态兜底表（上游 `:1231`），避免前端拿到 `null`。
+- **`extraControls.type` 允许只读覆盖**：`interaction3d/config.py` 改回上游口径「`type` 须是五种之一，非 `state` 时才须等于域默认」。此前把 `select/number/switch/button` 实体配成 `type:"state"` 只读渲染会 422 ——「只想显示、不想给按钮」这个正当用法被挡下。
+- **组合窗帘补合成 id 撞名检查**：`curtainGroups` 校验并入 `f'curtain-group:{id}' in curtain_ids`（与 `floorId == 'all'` 那条分开计）。
+- **另四处取值收窄回上游**：门锁 `_text` 上限 128 → 255；`studio_cleanup.py` 还原路径补「两成员不得同实体」；`api/ha.py` WebSocket 异常优先级改为「常规断开不覆盖真实异常」；匿名客户端日志配额 10 → 30（`api/global_logs.py`）。契约侧 `interactionConfirmation` 128 → 64、`lease_sequence` 补 `server_default='0'`。
+- **前端三处**：扫地机状态词典先 `trim()` + `toLowerCase()` 再查表（`"Cleaning"` / 带空白原会静默落「状态更新中」）、中文判定收窄为 `[\u3400-\u9fff]`；授权卡「生效」白名单补 `STARTUP_VALIDATION_REQUIRED`（否则宽限态下卡片详情整块隐藏）；编辑器顶栏补 `RECOVERY_RETRY` / `RECOVERY_REQUIRED` / `REMOTE_REJECTED` 三条文案并把 `INVALID` 并入 `hideReactivate`；音效开关回读旧键 `ha-bridge-dashboard-sound-enabled`（升级后静音失效）。
+- **`studio3d` 草稿恢复上游完整顺序**：写 `{'archive','pending'}` → 先 `commit()` → 再由 `_deliver_pending()` 落盘，`GET /studio3d` 与 `PUT /studio3d` 入口各补一次自愈。此前先落盘再提交，进程在中间被杀会留下「磁盘已换、库里还是旧档」的分叉。
+- **新增两条不变量**：第 33 条钉住「聚焦可用设备清单」与上游同集合（`isFocusableDevice` 少一类会让点击穿透到气候兜底分支，误开上一台空调 / 净化器）；第 34 条钉住授权状态文案在「后端 labels / `license-recovery.js` / 编辑器顶栏」三处逐字同源。
 
 **与上游的结构差异（有意为之）**
 
@@ -1092,6 +1157,13 @@ ruff check .                                      # 未使用 import / 重复定
 - 摄像头生命周期与鉴权文案未照搬上游字符串：本仓在 `visibilitychange` + `pause` + 监听回收处收口，401 / 403 集中由 `utils/api-request.js` 处置（跳 `/login` / `/license`），属等价实现。
 - 净化器气流未取上游的专用调色板令牌（本仓调色板只有 cool / heat / other），回落为中性灰，避免为单个特效新增设计令牌。
 - **未移植上游两个性能模块**：反射通道的几何 LOD（上游 `studio-reflection-detail.js` + `-worker.js` + `vendor/meshoptimizer` 的 `meshopt_simplifier`，把网格简化到 45% 三角形）与运行时家具合批（上游 `studio-runtime-furniture.js`，按材质合并几何以减 draw call）。两者在上游 0.6.3 与 0.6.5 均存在、不属 0.6.5 业务功能，故按「对齐业务能力」的范围落在外面；本仓对应能力由「可配置分辨率渲染目标 + 逐房间裁剪」（`reflection/studio-ground-reflections.js` + `studio-reflection-culling.js`）与 `mergeGeometries` 静态批处理（`studio-app.js`：墙带 / 静态批次 / 阴影 / 轮廓）覆盖。移植需引入含 WebAssembly 的 meshopt 与新增 Worker、控制器约 400 行并接入反射捕获路径，属渲染性能优化而非功能缺口。
+- **「环境模型类型」七处清单以本仓素材库为准，不与上游逐项相同**：本仓素材库比上游多出新风机 / 温控面板 / 加湿器 / 除湿器 / 门铃 / 取暖器 / 天花机 / 吊扇 / 吸尘器 / 洗地机等环境家电模型，七处清单（`environment-scene.js` 两张表、`environment-halos.js` 描边资格、`studio-app.js` 四处内联清单）相应多出这 10 类；反过来，上游把冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植这 6 个「通用设备」品类也算作环境模型类型（其注册表按 `genericDeviceProfile(kind).modelType` 展开进类型表与描边清单），本仓这些通用设备走 `devices` 模块的实体绑定与状态灯（`device-status.js`），不进环境描边清单。两套清单因此不逐项相同 —— 判定基准是本仓素材库与模块划分，不是上游的类型表；谁要改动都请连带跑 `check_invariants.mjs` 的「环境模型类型七处」一条。
+- **净化器模型有效性校验为本仓加严**：`purifier.py` 的 `require_purifier_model`（对应 `climate.py` 的 `require_air_conditioner_model`）在上游没有同款 —— 上游只在校验阶段检查净化器绑定，本仓额外拒绝「模型已被移除」的净化器命令，失败文案「空气净化器模型已失联，请在环境配置中重新选择模型。」。属安全加固、不放宽既有行为。
+- **3D 配置编辑器（设备 / 环境 / 安防）的弹窗形态与文案按 0.6.5 逐字对齐**：换设备 / 换净化器 / 组合窗帘三处子弹窗沿用上游的 `settings-dialog i3d-add-dialog`（组合窗帘没有标题栏与右上「×」，退出走底部「取消」或 Esc）；「绑定设备」与净化器主实体走 `.i3d-picker-button` 的设备 / 实体选择器；「退出」与 Esc 一律直接释放编辑器，不再弹「配置尚未保存，确定退出？」（该确认与 `EDITOR_SAVE_STATUS.dirtyExitConfirm` 一并删除，上游同口径）。判定为有意保留、与上游仍不同的只有三处：① **实体选择器的空态文案** —— 温湿度计与状态灯选择器各有一条更准确的空态（上游没有这两个分支，无候选时统一落到「没有匹配的灯光或开关」）；② **门锁槽位比上游多，但默认视图与上游逐行一致** —— 「实体来源」分区整段照上游：分区标题「实体来源」→ 未绑定时按钮作「选择设备」（绑过作设备名，纯按钮、居中、无箭头，选中后按同一份 `identifyLockEntities` 回填槽位）→ `开关门检测：<实体>` 与 `电量：<实体>` 两个弹窗选择器按钮（`pickers.entity` 的 `lock-door` / `lock-battery`，未选设备时禁用，槽位外观照抄上游 `.i3d-lock-entity-picker`；候选收口也与上游逐字同序 —— 当前值恒可见 → 只留本设备名下的实体 → 角色命中即收、认不出才退回域白名单，其中门磁槽位的白名单含 `sensor` 域，正是「门状态做成枚举传感器」的门锁唯一进得来的入口。与上游的差别只有两处，都写在上面那条修复里：**没绑设备时**上游一律拒绝，本仓为多出的三个槽位放行；候选的**排序推荐分**是本仓加的，只改顺序不改范围）。本仓多出来的能力（实时状态行、锁实体直选、低电量 / 防拆槽位、三种门磁来源、自动识别）收进紧随其后的折叠块「更多槽位与门磁来源」，默认折叠；门锁的按钮图标选择器标题仍按上游作「选择门按钮图标」；③ **电视待机说明的品牌**写作 HOMEOS 海报（上游为 HA BRIDGE 海报）。
+- **梦幻帘无独立叶片反馈时不设整体状态门禁**：`cover-state.js` 的 `coverCanAdjustBlades` 第 ② 支与后端 `cover.py` 的 `validate_cover_command` 都不再用 `opening` / `closing` / `estimate>0` 挡下调整（上游此处理论上 409 / 返回 `false`）—— HA 的 state 可能是长期不刷新的陈旧值（实测客厅那台停在 `closing` + `current_position: 50` 数十分钟），拿它当门禁会把叶片滑杆永久禁用、提示「暂不可调节叶片」。命令能否落地交给设备与 HA 裁决，属有意放宽。
+- **新建 3D 交互控件的画布默认透明**：`bridge/definition.js` 的 `backgroundVisible` 为 `false`（上游 `true`），新控件不画背景平面与网格，3D 户型直接浮在宿主卡片上；存量控件按各自存下的值渲染，不受影响。
+- **不恢复上游的旧展示地址**：上游还有 `/display/{project_id}` 与 `/habridge/{项目名}` 两个入口，本仓只保留 `/display/{项目名}`（`backend/api/displays.py` 下发的 `targetUrl` 同口径）。本仓是首次发布、不维护从上游数据库升级的路径（见 `migrations/versions/0001_initial_schema.py` 的说明），旧地址不会指向任何本仓数据。
+- **更新检查的产品标识放行两种写法**：`observability/updates.py` 的 `release_value` 接受 `product` 为 `homeos` 或 `ha-bridge` —— 自建商店返回前者，内置厂商端点目前仍返回后者；只认一种会让默认端点永远校验失败（开关打开却永远查不到更新、且零报错）。开关默认关闭（`APP_UPDATE_CHECKS=0`），端点与说明页可用 `APP_UPDATE_ENDPOINTS` / `APP_UPDATE_WIKI_URL` 指向自建。
 
 **数据库**
 

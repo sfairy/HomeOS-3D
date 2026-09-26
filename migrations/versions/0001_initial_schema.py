@@ -40,7 +40,7 @@ def upgrade() -> None:
     sa.Column('license_id', sa.String(length=64), nullable=True),
     sa.Column('lease_id', sa.String(length=64), nullable=True),
     sa.Column('session_id', sa.String(length=64), nullable=True),
-    sa.Column('lease_sequence', sa.Integer(), nullable=False),
+    sa.Column('lease_sequence', sa.Integer(), nullable=False, server_default='0'),
     sa.Column('activation_code_hint', sa.String(length=16), nullable=True),
     sa.Column('signed_lease', sa.Text(), nullable=True),
     sa.Column('encrypted_session_token', sa.Text(), nullable=True),

@@ -61,9 +61,12 @@ def release_value(payload: dict, channel: str) -> dict | None:
     product / channel 不匹配或 release 结构非法时抛 ``ValueError`` —— 这类响应说明端点被换掉了
     或返回了错误页面，宁可丢弃也不污染缓存。
     """
+    # 产品标识按「同一产品线」放行两种写法：自建商店返回 "homeos"，而内置厂商端点
+    # （见 RELEASE_ENDPOINTS）目前仍返回改名前的 "ha-bridge"。只认一种会让默认端点
+    # 永远校验失败 —— 打开了开关却永远查不到更新，且没有任何报错。
     if (
         not isinstance(payload, dict)
-        or payload.get("product") != "homeos"
+        or payload.get("product") not in {"homeos", "ha-bridge"}
         or payload.get("channel") != channel
         or "release" not in payload
     ):

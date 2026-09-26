@@ -81,9 +81,9 @@ PUBLIC_EVENT_MESSAGE_LIMIT = 300
 PUBLIC_EVENT_DETAILS_LIMIT = 1200
 
 #: 客户端日志上报的配额表。三个数各自防的是不同的事，改动前先看 ClientLogLimiter 的类说明：
-#: 匿名通道每分钟 10 条（异常上报纸，正常页面的窗口里到不了这个数）、已认证 120 条、
+#: 匿名通道每分钟 30 条（异常上报纸，正常页面的窗口里到不了这个数）、已认证 120 条、
 #: 全局 600 条（兜住「不停换 IP 上报」）；窗口固定 60 秒，peer 表上限防止伪造 IP 撑爆内存。
-ANONYMOUS_CLIENT_LOG_PER_MINUTE = 10
+ANONYMOUS_CLIENT_LOG_PER_MINUTE = 30
 AUTHENTICATED_CLIENT_LOG_PER_MINUTE = 120
 CLIENT_LOG_GLOBAL_PER_MINUTE = 600
 CLIENT_LOG_WINDOW_SECONDS = 60

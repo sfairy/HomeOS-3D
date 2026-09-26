@@ -267,6 +267,15 @@ def _origin_from_referer(referer: str) -> str:
     return f'{parsed.scheme}://{parsed.netloc}'
 
 
+def configured_base_origin(settings) -> str:
+    """``APP_BASE_URL`` 归一化出的 ``scheme://host``；未配置或写错时返回空串。
+
+    写错（例如漏了 ``https://`` 只写主机名）时返回空串，调用方据此**必须**显式提醒 ——
+    Origin 校验会静默退回「只比较 Host」，运维却以为对外地址已经被钉死。
+    """
+    return _origin_from_referer(str(getattr(settings, 'app_base_url', '') or '').strip())
+
+
 def expected_request_scheme(request: Request) -> str:
     """本应用**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
 
@@ -331,8 +340,7 @@ def origin_allowed(request: Request, origin: str) -> bool:
         # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据。
         # scheme 则取自部署形态，不能取 Origin 自己声明的那个。
         allowed.add(f'{expected_request_scheme(request)}://{host}')
-    settings = _settings(request)
-    base_origin = _origin_from_referer(str(getattr(settings, 'app_base_url', '') or '').strip())
+    base_origin = configured_base_origin(_settings(request))
     if base_origin:
         # 反代部署下 Host 可能是内网地址，显式配置的基址同样算合法来源。
         allowed.add(base_origin.lower())

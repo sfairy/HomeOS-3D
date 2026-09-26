@@ -972,7 +972,9 @@ class LicenseService:
                 ) from error
             # 其它失败按租约剩余有效期降级为 CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮重试。
             await asyncio.to_thread(self._mark_failure, error)
-            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
+            # 错误码必须取 _mark_failure 归一化后的值：直接透传异常自身的 code 会丢掉
+            # NETWORK_UNAVAILABLE / RECOVERY_TOKEN_INVALID 等判定，前端据此把终态当成可重试。
+            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=self._error_code) from error
 
     async def recover(self) -> dict:
         """对外恢复入口：串行化，与心跳共用同一把锁。"""
@@ -1044,7 +1046,7 @@ class LicenseService:
         if not encrypted:
             # 连恢复令牌都没有：本地已无任何可用凭证，只能让用户重新激活。
             self._record_failure('租约恢复', '没有可用的租约恢复凭证，请重新激活。')
-            raise LicenseClientError('没有可用的租约恢复凭证，请重新激活。')
+            raise LicenseClientError('没有可用的租约恢复凭证，请重新激活。', code='CREDENTIAL_MISSING')
         # 同心跳：保证异常路径能安全引用它做敏感值抹除。
         recovery_token = ''
         try:
@@ -1074,7 +1076,9 @@ class LicenseService:
                     retry_after_seconds=error.retry_after_seconds,
                 ) from error
             await asyncio.to_thread(self._mark_failure, error)
-            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
+            # 错误码必须取 _mark_failure 归一化后的值：直接透传异常自身的 code 会丢掉
+            # NETWORK_UNAVAILABLE / RECOVERY_TOKEN_INVALID 等判定，前端据此把终态当成可重试。
+            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=self._error_code) from error
 
     def _mark_revoked(self, message: str) -> None:
         """确认吊销后的清理：清空所有本地凭证并把状态置为 REVOKED。
@@ -1172,9 +1176,12 @@ class LicenseService:
             # 同样截断，避免超长错误进库。
             state.last_error = message[:1000]
             database.commit()
-            # 启动确认未完成时对外仍显示「等待启动联网验证」，不因一次失败改变门禁语义。
-            self._record_status('STARTUP_VALIDATION_REQUIRED' if self._startup_validation_pending else state.status)
+            self._record_status(state.status)
         self._error_code = code
+        # 一次失败就交回离线验签判定：联网确认不成功不等于授权无效，把门禁锁在
+        # 「等待启动联网验证」会让持有有效租约的离线用户永远进不去（放行与否仍由
+        # _verified_access 按签名租约现算）。
+        self._startup_validation_pending = False
         # 只有「可重试」才排计划时刻；终态排了会让后台对着一个注定失败的状态无限重试。
         self._next_attempt = time.monotonic() + self._next_retry_delay(http_status) if retry else None
         # 计划可能变了，唤醒心跳循环立刻重算等待时间（否则要等当前这一觉睡完）。
@@ -1382,7 +1389,16 @@ class LicenseService:
             'lastHeartbeatAt': ensure_aware(state.last_heartbeat_at),
             'lastVerifiedAt': ensure_aware(state.last_verified_at),
             # 重试相关字段：前端据此决定提示文案、按钮可见性与倒计时。
-            'errorCode': self._error_code,
+            # 没有显式错误码时按状态补一个：前端只认 errorCode，缺码会让提示退化成空白。
+            'errorCode': self._error_code or {
+                'RECOVERY_RETRY': 'RECOVERY_TOKEN_INVALID',
+                'RECOVERY_REQUIRED': 'LICENSE_REMOTE_REJECTED',
+                'REMOTE_REJECTED': 'LICENSE_REMOTE_REJECTED',
+                'REVOKED': 'LICENSE_REVOKED',
+                'INVALID': 'CREDENTIAL_INVALID',
+                'CLOCK_ROLLBACK': 'CLOCK_INVALID',
+                'INSTANCE_MISMATCH': 'INSTANCE_MISMATCH',
+                'LEASE_EXPIRED': 'LEASE_EXPIRED'}.get(effective_status),
             'retryable': self._retry_scheduled(),
             'canRetry': self._can_retry(effective_status),
             'retrying': self._retry_in_flight(),

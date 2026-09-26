@@ -70,6 +70,39 @@ def _environment_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in frozenset({'1', 'on', 'yes', 'true'})
 
 
+def _environment_int(
+    name: str,
+    default: int,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """读一个整数环境变量；解析失败或越界一律抛错，不回退默认值。
+
+    环境变量是部署时的输入，写错一个字符过去静默变成「按默认值跑」，正是「改了配置
+    但行为没变」且日志一字不提的事故来源；只有「未设置」与「空串」才用默认值。范围校验
+    同理放在这里，否则调用方各自 ``max(1, ...)`` 兜底会把「配错了」悄悄变成按别的值跑
+    （与 ``store/config.py`` 的 ``_env_int`` 同一口径）。
+
+    本模块此前直接 ``int(os.getenv(...))``：非数字尚能报错，但 0 / 负数会一路带进运行期 ——
+    例如 ``APP_SESSION_MAX_AGE_SECONDS=0`` 会让会话的滑动有效期被写成「当前时刻」，
+    管理员每请求一次就被登出、会话行还被顺手删掉，而日志一字不提（见 security/access.py）。
+    """
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    text = raw.strip()
+    try:
+        value = int(text)
+    except ValueError as exc:
+        raise ValueError(f"环境变量 {name} 需要整数，实际是 {raw!r}") from exc
+    if minimum is not None and value < minimum:
+        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
+    return value
+
+
 def _environment_path(name: str) -> Path | None:
     """把环境变量解析成绝对路径，未设置或为空时返回 None。
 
@@ -419,8 +452,19 @@ def load_settings() -> Settings:
     return Settings(**{
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
-        'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', _env_default('session_max_age_seconds'))),
-        'session_hard_max_age_seconds': int(os.getenv('APP_SESSION_HARD_MAX_AGE_SECONDS', _env_default('session_hard_max_age_seconds'))),
+        # 会话时长：滑动有效期必须为正 —— 0 / 负数会让 expires_at 被写成「当前时刻」，
+        # 管理员每请求一次就被登出并删掉会话行（见 security/access.py）。绝对寿命允许 0
+        # （= 不设绝对上限）。两者都走 _environment_int，配错在启动时就报错，而不是静默坏掉。
+        'session_max_age_seconds': _environment_int(
+            'APP_SESSION_MAX_AGE_SECONDS',
+            int(_env_default('session_max_age_seconds')),
+            minimum=1
+        ),
+        'session_hard_max_age_seconds': _environment_int(
+            'APP_SESSION_HARD_MAX_AGE_SECONDS',
+            int(_env_default('session_hard_max_age_seconds')),
+            minimum=0
+        ),
         'cookie_secure': _environment_bool('APP_COOKIE_SECURE'),
         'trusted_proxies': trusted_proxies,
         'display_cookie_max_age_seconds': int(os.getenv('APP_DISPLAY_COOKIE_MAX_AGE_SECONDS', _env_default('display_cookie_max_age_seconds'))),
