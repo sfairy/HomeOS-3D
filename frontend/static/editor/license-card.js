@@ -39,11 +39,12 @@ function licenseCardData(licenseData = {}) {
           product => product && typeof product.name == "string" && product.type !== "template"
         )
       : [],
-    // 只有已激活、未被禁用且状态为 ACTIVE / CONNECTION_WARNING 才算真正生效。
+    // 已激活、未被禁用且状态属于「可用」三档才算真正生效：
+    // STARTUP_VALIDATION_REQUIRED 是联网确认前的宽限态，租约实际有效，编辑器顶栏也按警告档处理。
     isActive =
       isLicensed &&
       licenseData.allowed !== !1 &&
-      ["ACTIVE", "CONNECTION_WARNING"].includes(licenseData.status),
+      ["ACTIVE", "CONNECTION_WARNING", "STARTUP_VALIDATION_REQUIRED"].includes(licenseData.status),
     featureAccess =
       licenseData.featureAccess && typeof licenseData.featureAccess == "object"
         ? licenseData.featureAccess
