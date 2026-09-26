@@ -14,15 +14,15 @@ import {
   resolveStateEntry,
   stateTextOf,
   temperatureHumidityEntities
-} from "./static-helpers.js?v=2609252218";
+} from "./static-helpers.js?v=2609260842";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609252218";
-import { createLightStream } from "../light/light-stream.js?v=2609252218";
+} from "./popup-preview.js?v=2609260842";
+import { createLightStream } from "../light/light-stream.js?v=2609260842";
 // 窗帘组合的条目 id 口径与归一（cover-groups.js）：焦点态判定要认组合 id，否则展示态点击
 // 组合标记时宿主不会把它当成一次有效聚焦（面板在 iframe 里能开，但宿主的聚焦态接不上）。
-import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609252218";
+import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609260842";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**

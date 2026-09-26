@@ -14,9 +14,9 @@
  * `purifier-extra`，两者在 /control 上走不同的校验分支，这个标记就是分流依据，不能省。
  */
 
-import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609252218";
-import { deviceStatus } from "./device-status.js?v=2609252218";
-import { genericDeviceProfile } from "./device-profiles.js?v=2609252218";
+import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609260842";
+import { deviceStatus } from "./device-status.js?v=2609260842";
+import { genericDeviceProfile } from "./device-profiles.js?v=2609260842";
 
 // 状态灯四态的中文说法。status 为 "none"（没配任何规则）时查不到，落到空串。
 const STATUS_LABELS = {

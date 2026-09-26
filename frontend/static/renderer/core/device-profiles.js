@@ -5,9 +5,9 @@
  * 档案 roles 的键名与各控件 runtime 读取的字段名一一对应，改键名会同时改到多个控件。
  */
 // 取域走 `utils/entities.js` 的 `entityDomainOf`。
-import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609252218";
+import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609260842";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609252218";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609260842";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);

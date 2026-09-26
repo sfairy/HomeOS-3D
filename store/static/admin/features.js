@@ -6,10 +6,10 @@
  * 功能码选择器是跨面板控件（商品与权益都用同一个），所以单独成模块，候选清单也只取一份。
  */
 
-import { state } from "./state.js?v=2609252218";
-import { $, $$, esc, toast } from "./dom.js?v=2609252218";
-import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js?v=2609252218";
-import { api } from "./api.js?v=2609252218";
+import { state } from "./state.js?v=2609260842";
+import { $, $$, esc, toast } from "./dom.js?v=2609260842";
+import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js?v=2609260842";
+import { api } from "./api.js?v=2609260842";
 
 // 功能码选择器（商品多选 / 权益单选共用）：目录由 /feature-codes 下发，勾选即写代码，避免手写英文码抄错后静默失效。
 // 根节点 data-* 配置：data-feature-picker（标记根）、data-feature-multiple="true"（多选，缺省单选）、data-feature-empty（空值提示）；仍提交与原 name 一致的隐藏域（多选存 CSV），单选必填需自行拦截（见 requireFeatureCode）。

@@ -13,108 +13,108 @@ import {
   capturePointer,
   resolveStateEntry,
   temperatureHumidityReading
-} from "./static-helpers.js?v=2609252218";
+} from "./static-helpers.js?v=2609260842";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609252218";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609260842";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609252218";
+import { sceneModelKey } from "./scene-model-key.js?v=2609260842";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609252218",
+        "../../../static/bridge/popup-placement.js?v=2609260842",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609252218"));
+  : import("/static/bridge/popup-placement.js?v=2609260842"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609252218";
-import { createSceneBackground } from "./scene-background.js?v=2609252218";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609252218";
+} from "../presence/presence-scene.js?v=2609260842";
+import { createSceneBackground } from "./scene-background.js?v=2609260842";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609260842";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609252218";
+} from "../vacuum/vacuum-motion.js?v=2609260842";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609252218";
-import { televisionState } from "../television/television-state.js?v=2609252218";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609252218";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609252218";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609252218";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609252218";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609252218";
+} from "../vacuum/vacuum-map.js?v=2609260842";
+import { televisionState } from "../television/television-state.js?v=2609260842";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609260842";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609260842";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609260842";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609260842";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609260842";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609252218";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609252218";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609252218";
+} from "../cover/cover-state.js?v=2609260842";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609260842";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609260842";
 // 窗帘组合（一拖多）：组面板把成员各自转发成一块普通窗帘子面板，与单副帘面板同一套外观。
-import { createCoverGroupPanel } from "../cover/cover-group-panel.js?v=2609252218";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609252218";
+import { createCoverGroupPanel } from "../cover/cover-group-panel.js?v=2609260842";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609260842";
 // 门锁：面板（状态 + 电量 + 密码 + 上锁/解锁/释放锁舌）、门外动画（把 doorOpen 翻成门的姿态）、
 // 以及门模型的展开口径（把配置里的 modelId 对到楼层场景里那扇门）。
 // 后两者与编辑器的安防配置页共用同一份实现，见 security/lock-state.js。
-import { createLockPanel } from "../security/lock-panel.js?v=2609252218";
-import { createLockMotion } from "../security/lock-motion.js?v=2609252218";
-import { doorModels, lockHinge, lockState } from "../security/lock-state.js?v=2609252218";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609252218";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609252218";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609252218";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609252218";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609252218";
-import { createDevicePanel } from "../device/device-panel.js?v=2609252218";
+import { createLockPanel } from "../security/lock-panel.js?v=2609260842";
+import { createLockMotion } from "../security/lock-motion.js?v=2609260842";
+import { doorModels, lockHinge, lockState } from "../security/lock-state.js?v=2609260842";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609260842";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609260842";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609260842";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609260842";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609260842";
+import { createDevicePanel } from "../device/device-panel.js?v=2609260842";
 // 通用设备状态灯的状态口径：statusRules 折算成四态与配色，与设备弹窗 / 编辑器同源
 // （device/device-status.js 里只有这一份实现，舞台不再自带第二套判据）。
-import { deviceStatus } from "../device/device-status.js?v=2609252218";
+import { deviceStatus } from "../device/device-status.js?v=2609260842";
 import {
   GENERIC_DEVICE_KINDS,
   isGenericDeviceKind,
   genericDeviceProfile
-} from "../device/device-profiles.js?v=2609252218";
+} from "../device/device-profiles.js?v=2609260842";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609252218";
-import { startSceneSync } from "./scene-sync.js?v=2609252218";
+} from "../environment/environment-scene.js?v=2609260842";
+import { startSceneSync } from "./scene-sync.js?v=2609260842";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609252218";
+} from "../light/light-state.js?v=2609260842";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609252218";
+} from "../camera/camera-motion.js?v=2609260842";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609252218";
-import { createStageMetadata } from "./stage/config-metadata.js?v=2609252218";
-import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609252218";
-import { createStageGeometry } from "./stage/geometry.js?v=2609252218";
-import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609252218";
-import { createLightStateReaders } from "./stage/light-state.js?v=2609252218";
-import { createRequestSettlement } from "./stage/request-settlement.js?v=2609252218";
-import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609252218";
-import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609252218";
-import { createMarkerLayer } from "./stage/marker-layer.js?v=2609252218";
-import { createInputActivity } from "./stage/input-activity.js?v=2609252218";
-import { createCameraTransition } from "./stage/camera-transition.js?v=2609252218";
-import { createHostMessageHandler } from "./stage/host-messages.js?v=2609252218";
+} from "./idle-rotation.js?v=2609260842";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609260842";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609260842";
+import { createStageGeometry } from "./stage/geometry.js?v=2609260842";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609260842";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609260842";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609260842";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609260842";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609260842";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609260842";
+import { createInputActivity } from "./stage/input-activity.js?v=2609260842";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609260842";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609260842";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [

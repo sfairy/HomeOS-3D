@@ -10,11 +10,11 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609252218"></script>
+    <script src="/static/logging/client-log.js?v=2609260842"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <!-- display-boot.js 刻意放在 head 且不加 defer：它要在首帧之前读画布背景算出明暗主题并写到 <html> 上，
          早了才能避免启动图先闪一次错误配色，晚了用户会看到明显的主题跳变。 -->
-    <script src="/static/display/display-boot.js?v=2609252218"></script>
+    <script src="/static/display/display-boot.js?v=2609260842"></script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -27,13 +27,13 @@
     <meta name="theme-color" content="#050912" />
     <title>HomeOS Display</title>
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一页面里所有静态资源必须共用同一枚时间戳。 -->
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609252218" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609252218" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609252218" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609252218" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=2609252218" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609260842" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609260842" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609260842" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609260842" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=2609260842" />
     <!--
-      renderer.css 与 display.js 内部 import 的 renderer 模块必须用同一个 ?v=2609252218
+      renderer.css 与 display.js 内部 import 的 renderer 模块必须用同一个 ?v=2609260842
       两者共用同一份运行时样式与控件注册表，戳不一致会同时加载两套实现。
     -->
     <!-- 全站调色板（design/scene/page.css 的分发产物）。display.html 同时加载 renderer.css，
@@ -43,17 +43,17 @@
          放在 renderer.css 之前，令牌在解析时就要可用。 -->
     <link
       rel="stylesheet"
-      href="/static/auth/scene/page.css?v=2609252218"
+      href="/static/auth/scene/page.css?v=2609260842"
     />
     <link
       rel="stylesheet"
-      href="/static/renderer/core/renderer.css?v=2609252218"
+      href="/static/renderer/core/renderer.css?v=2609260842"
     />
-    <link rel="stylesheet" href="/static/display/display.css?v=2609252218" />
-    <link rel="stylesheet" href="/static/display/display-boot.css?v=2609252218" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609252218" />
-    <link rel="stylesheet" href="/static/display/apple-install-guide.css?v=2609252218" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609252218` 的 <link>。
+    <link rel="stylesheet" href="/static/display/display.css?v=2609260842" />
+    <link rel="stylesheet" href="/static/display/display-boot.css?v=2609260842" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609260842" />
+    <link rel="stylesheet" href="/static/display/apple-install-guide.css?v=2609260842" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609260842` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -186,14 +186,14 @@
          可用；display-boot.js 用这条横幅告知「画面可能不是最新的」，而不是安静地
          显示冻结的旧值。横幅不吃指针事件（见 display-boot.css），不挡控件操作。 -->
     <div id="display-notice" role="status" aria-live="polite" hidden></div>
-    <!-- hls.js 走 vendor 目录、版本写在路径里，因此不需要 ?v=2609252218 也被 bump 脚本显式跳过。 -->
+    <!-- hls.js 走 vendor 目录、版本写在路径里，因此不需要 ?v=2609260842 也被 bump 脚本显式跳过。 -->
     <script src="/static/vendor/hls.js/1.7.3/hls.min.js"></script>
-    <!-- display.js 是 module：它的 import 图里带着同一枚 ?v=2609252218 URL 不同来强制刷新整张依赖图。 -->
+    <!-- display.js 是 module：它的 import 图里带着同一枚 ?v=2609260842 URL 不同来强制刷新整张依赖图。 -->
     <script
       type="module"
-      src="/static/display/display.js?v=2609252218"
+      src="/static/display/display.js?v=2609260842"
     ></script>
     <!-- 安装引导是独立模块：只在 iOS Safari 且未加入主屏幕时才有可见效果，失败也不影响仪表盘。 -->
-    <script type="module" src="/static/display/apple-install-guide.js?v=2609252218"></script>
+    <script type="module" src="/static/display/apple-install-guide.js?v=2609260842"></script>
   </body>
 </html>

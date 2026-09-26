@@ -8,17 +8,17 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609252218";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609260842";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=2609252218";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609252218";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609252218";
+import { apiFetch } from "../utils/api-fetch.js?v=2609260842";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609260842";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609260842";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=2609252218";
+} from "../renderer/core/renderer.js?v=2609260842";
 
 import {
   createComponentFromTemplate,
@@ -27,15 +27,15 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=2609252218";
-import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609252218";
-import { clampNumber } from "../utils/numbers.js?v=2609252218";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609252218";
+} from "../templates/component-templates.js?v=2609260842";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609260842";
+import { clampNumber } from "../utils/numbers.js?v=2609260842";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609260842";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
 
-import { mdiIconUrl } from "../utils/icon-url.js?v=2609252218";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609252218";
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609252218";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609260842";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609260842";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609260842";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
 
@@ -43,24 +43,24 @@ import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=2609252218";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609252218";
+} from "../utils/colors.js?v=2609260842";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609260842";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=2609252218";
+} from "../shared/popup-layout.js?v=2609260842";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=2609252218";
+} from "./dashboard-resize.js?v=2609260842";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609252218";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609260842";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=2609252218";
+} from "./component-page-copy.js?v=2609260842";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -72,29 +72,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=2609252218";
+} from "../shared/related-entities.js?v=2609260842";
 
-import { createButtonSound } from "../shared/sound-effects.js?v=2609252218";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609260842";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=2609252218";
-import { confirmAction } from "../shared/ui-confirm.js?v=2609252218";
+} from "./editor-dialogs.js?v=2609260842";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609260842";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=2609252218";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609252218";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609260842";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609260842";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=2609252218";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609252218";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609252218";
+} from "./picker/editor-picker-pagination.js?v=2609260842";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609260842";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609260842";
 
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609252218";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609252218";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609260842";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609260842";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -102,13 +102,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609252218";
+} from "../shared/action-rules.js?v=2609260842";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609252218";
+} from "./component-tree.js?v=2609260842";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -118,7 +118,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609252218";
+} from "./editor-component-collections.js?v=2609260842";
 import {
   applyInspectorFields,
   applyInspectorToggles,
@@ -126,7 +126,7 @@ import {
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=2609252218";
+} from "./editor-basic-inspectors.js?v=2609260842";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -139,7 +139,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609252218";
+} from "./editor-document-management.js?v=2609260842";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -147,32 +147,32 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=2609252218";
+} from "./editor-history.js?v=2609260842";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=2609252218";
-import { createLicenseCard } from "./license-card.js?v=2609252218";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609260842";
+import { createLicenseCard } from "./license-card.js?v=2609260842";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=2609252218";
-import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609252218";
-import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609252218";
-import { createEntityOptions } from "./home/entity-options.js?v=2609252218";
-import { createPickers } from "./home/pickers.js?v=2609252218";
-import { createFormWidgets } from "./home/form-widgets.js?v=2609252218";
-import { createColorPicker } from "./home/color-picker.js?v=2609252218";
-import { createSectionRegistry } from "./home/sections.js?v=2609252218";
+} from "../bridge/editor.js?v=2609260842";
+import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609260842";
+import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609260842";
+import { createEntityOptions } from "./home/entity-options.js?v=2609260842";
+import { createPickers } from "./home/pickers.js?v=2609260842";
+import { createFormWidgets } from "./home/form-widgets.js?v=2609260842";
+import { createColorPicker } from "./home/color-picker.js?v=2609260842";
+import { createSectionRegistry } from "./home/sections.js?v=2609260842";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /3d-studio 工作室
 // 共用同一份实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../shared/layout-shell.js?v=2609252218";
-import { bindLayoutShortcuts } from "../shared/layout-shortcuts.js?v=2609252218";
+} from "../shared/layout-shell.js?v=2609260842";
+import { bindLayoutShortcuts } from "../shared/layout-shortcuts.js?v=2609260842";
 
 // 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
 // （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
@@ -4627,7 +4627,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=2609252218";
+          ".jpg?v=2609260842";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
