@@ -1,15 +1,26 @@
 /**
- * 二十五条「不报错、只静默失效」的不变量守卫。
+ * 「不报错、只静默失效」的不变量守卫（逐条清单见文件末尾的 `checks` 数组）。
  *
  * 为什么只留这一类：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
  * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面这些对应的失效方式恰好相反 ——
  * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类。
  *
  * 本条目的展开范围是 1–9（结构类）；10 起是后续按同一取舍补进的 —— 10–15 配色类（含 theme-color /
- * webmanifest 的写死色值）、16–25 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
+ * webmanifest 的写死色值）、16–28 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
  * 环境模型类型七处、材质风格档位覆盖、「档位即组合」的角色覆盖、素材库页签与类型词表两端、
- * 默认档位的角色出口、平面符号该不该画圆、命令闸门与状态订阅两端口径）。
- * 这些条目的踩坑背景写在各自 `checks` 条目的 title 与代码注释里，完整清单另见 README「前端结构卫生」一节。
+ * 默认档位的角色出口、平面符号该不该画圆、命令闸门与状态订阅两端口径、环境页面归一表
+ * （pageDimming 的模块→页面别名）、doorModels 的楼层入参、卷帘契约的五处出口）、
+ * 之后按补入顺序分别是：引用了本文件解析不出绑定的名字（真语法树 + 作用域链，见第 9 条尾部）、
+ * 净化器模型类型三处白名单同源（净化器与新风机在三处消费者之间的口径）、窗帘面板的返回键集合
+ * （0.6.5 的 deactivate，漏了会让帘组面板退化成 ?.() 兜底）、扫地机状态别名与文案同源（别名漏登
+ * 即静默显示成「状态更新中」）、吊柜挂高的三处同源（规格 mountHeight / 占位几何 / 类型定义里不能
+ * 再有 elevation —— 2026-09 的「同一个草稿放到原版里，吊柜高出一个挂高」就是这么来的）、
+ * 聚焦可用设备清单与上游同集合、授权状态文案三处同源、前端可派发的 HA 服务必须登记进后端
+ * ALLOWED_SERVICES（按钮可点、命令必被拒）。
+ *
+ * 本文件有意不再写「共 N 条」：序号与总数在历次补条后已经对不上（README 同一处曾同时出现
+ * 32 / 33 / 34 三个说法），而 README 早就定了「引用一律用条目名而不是序号」的口径 —— 这里照办。
+ * 这些条目的踩坑背景写在各自 `checks` 条目的 title 与代码注释里。
  *
  * 三段共用同一条底线：**判不出真假就不判** —— 宁可漏报，也不让这里退化成
  * 「把误报一条条塞进去」的垃圾桶。下面 1–9 逐条如下：
@@ -67,12 +78,14 @@
  *      与第 6 条并列而不是合并：第 6 条只问「文件在不在」，这一条问「名字在不在」。
  *
  *      本条原本还想判另一半 ——「调用的名字在本文件没有任何绑定」（少搬一个 import 的另一种
- *      症状：只在**执行到那一行**时才 ReferenceError，与第 7 条同类）。实测后放弃：没有语法树
- *      就分不清对象字面量的键、成员名、解构键与真正的取用，按行级口径在全仓 298 个模块上跑出
- *      7996 条，绝大多数是模板字符串里的 GLSL（`vec2` / `mix` / `smoothstep` / `texture2D`）与
- *      平台内置（`Number` / `Map` / `Set`）。要判准必须引入真正的 JS 解析器，而本仓的 Node
- *      工具链刻意保持零依赖（AI 侧用 acorn 独立核过：当时的真自由变量只有 25 处，全是浏览器
- *      宿主全局）。宁可漏报，也不让这里变成「把误报一条条塞进去」的垃圾桶。
+ *      症状：只在**执行到那一行**时才 ReferenceError，与第 7 条同类）。当年按行级口径试过并放弃：
+ *      没有语法树就分不清对象字面量的键、成员名、解构键与真正的取用，全仓 298 个模块上跑出 7996 条，
+ *      绝大多数是模板字符串里的 GLSL（`vec2` / `mix` / `smoothstep` / `texture2D`）与平台内置
+ *      （`Number` / `Map` / `Set`）。**这一半现在由第 29 条接手**：判定改用真正的语法树 + 作用域链
+ *      （`tools/lib/free-variables.mjs`，解析器是仓库已有的 `tools/vendor/acorn`，仍然零 npm 依赖）——
+ *      实测全仓真自由标识符只剩宿主全局 + 那两处真 bug（itemWidth / itemDepth / materialPalette）。
+ *      宁可漏报，也不让这里变成「把误报一条条塞进去」的垃圾桶 —— 所以第 29 条的宿主白名单里
+ *      只收浏览器 / Worker 自带的名字。
  *
  * 明确不做的事：不检查注册表分片是否齐全 —— 那类需要「允许新文件先落地再接线」的宽容度，
  * 硬拦会把正常改动挡死。
@@ -2021,12 +2034,17 @@ function readGlbSummary(file) {
  *     `material-<槽位号>` 判就是纯误报。
  * 取不到规格表（模块解析失败等）就整体跳过，宁可漏报。
  */
-const PIPELINE_MODEL_SPECS = await (async () => {
+const { PIPELINE_MODEL_SPECS, PIPELINE_LITE_VERTEX_BUDGET_RATIO } = await (async () => {
   try {
     const module = await import(path.join(ROOT, "tools", "models", "model-specs.mjs"));
-    return module.MODEL_SPECS;
+    return {
+      PIPELINE_MODEL_SPECS: module.MODEL_SPECS,
+      // lite 顶点预算的缺省上限比例与生成器取同一个来源；这里不抄一个 0.9，两端各写一份
+      // 就会出现「生成器放行、守卫报红」的分裂口径。
+      PIPELINE_LITE_VERTEX_BUDGET_RATIO: module.DEFAULT_LITE_VERTEX_BUDGET_RATIO ?? 0.9
+    };
   } catch {
-    return null;
+    return { PIPELINE_MODEL_SPECS: null, PIPELINE_LITE_VERTEX_BUDGET_RATIO: 0.9 };
   }
 })();
 
@@ -2046,6 +2064,8 @@ const GLB_SIZE_TOLERANCE_METERS = 0.0015;
  *   4. **材质名不是 `material-<槽位号>`** —— 运行侧按槽位号与后缀（-soft / -dark / cushion）
  *      查色卡，名字对不上就是「模型到位后颜色不跟风格走」，而这条连 fallback 都没有。
  *   5. **lite 不比完整版轻** —— 首屏加载的那一份没起到作用，等于白做一条产线。
+ *   6. **lite 与完整版的包围盒不一致** —— lite 才是主资源（完整版是加载失败时的回退），
+ *      少一块撑轮廓的零件就是物件本身小了一圈：零报错，只是模型一到位轻轻缩一下。
  *
  * 判不出真假就不判：解析失败只报告「读不了」，不去猜内容；作用域限于流水线产物。
  */
@@ -2130,13 +2150,16 @@ function checkModelGlbIntegrity() {
             });
           }
         }
-        if (Math.abs(full.min[1]) > GLB_SIZE_TOLERANCE_METERS) {
+        // 底面高度按规格里的 `mountHeight` 判（缺省 0）：挂墙件（吊柜）把挂高烘在几何里，柜底本来
+        // 就在 1.4m 那一档 —— 与生成器的同源校验一致，见 model-specs.mjs 的 wallcabinet。
+        const wantedMinY = PIPELINE_MODEL_SPECS[entry.itemType].mountHeight ?? 0;
+        if (Math.abs(full.min[1] - wantedMinY) > GLB_SIZE_TOLERANCE_METERS) {
           problems.push({
             file: rel(fullPath),
             line: 0,
             detail:
-              `${entry.itemType}：底面 min.y = ${full.min[1].toFixed(3)}m 不在 y=0。` +
-              "运行侧把原点直接贴地，偏了会埋进地板或浮空"
+              `${entry.itemType}：底面 min.y = ${full.min[1].toFixed(3)}m 不在 y=${wantedMinY}。` +
+              "运行侧把原点直接贴地（挂墙件则按烘好的挂高悬空），偏了会埋进地板或浮空"
           });
         }
         for (const axis of [0, 2]) {
@@ -2159,14 +2182,153 @@ function checkModelGlbIntegrity() {
       const lite = readGlbSummary(litePath);
       if (lite.error) {
         problems.push({ file: rel(litePath), line: 0, detail: `${entry.itemType} 的 lite 版读不了：${lite.error}` });
-      } else if (lite.vertices >= full.vertices) {
-        problems.push({
-          file: rel(litePath),
-          line: 0,
-          detail: `${entry.itemType}：lite ${lite.vertices} 顶点未低于完整版 ${full.vertices}（首屏那份没省下东西）`
-        });
+      } else {
+        // lite 与完整版必须**逐值同包围盒**：lite 是运行侧的主资源（完整版只是加载失败时的回退），
+        // 少一块撑轮廓的零件就是「物件本身小了一圈」，零报错。历史上 31 件这么踩过 ——
+        // 撑住进深 / 宽度 / 高度的零件（柜门把手、壁挂件挂板、地毯流苏、楼梯斜裙板……）被打了
+        // `fullOnly`，或者 lite 的降段数没踩在圆截面的极值角上。生成器那一侧有同源的 0.5mm 校验，
+        // 这里判磁盘文件（1.5mm）：它拦的是「规格改了但没重新导出」，与包围盒那条同一个分工。
+        for (const axis of [0, 1, 2]) {
+          const drift = Math.max(
+            Math.abs(lite.min[axis] - full.min[axis]),
+            Math.abs(lite.max[axis] - full.max[axis])
+          );
+          if (drift > GLB_SIZE_TOLERANCE_METERS) {
+            problems.push({
+              file: rel(litePath),
+              line: 0,
+              detail:
+                `${entry.itemType}：lite 的包围盒与完整版不一致（${axisNames[axis]}向差 ${drift.toFixed(3)}m）。` +
+                "lite 是运行侧的主资源，撑轮廓的零件被丢在完整版里，物件一到位就会缩一圈；" +
+                "多半是某件撑着外轮廓的零件打了 fullOnly，或改了规格没重新导出"
+            });
+          }
+        }
+        // 上限比例跟着规格走（缺省取生成器同源的 DEFAULT_LITE_VERTEX_BUDGET_RATIO）。方柱这类
+        // 「零件一件都丢不得、分段一处都降不了」的类型显式声明 1：它的 lite 与完整版同形是
+        // 有意为之，不该在这里被反复报一条没人能修的警报。
+        const budgetRatio =
+          PIPELINE_MODEL_SPECS[entry.itemType].liteVertexBudgetRatio ?? PIPELINE_LITE_VERTEX_BUDGET_RATIO;
+        if (lite.vertices > full.vertices * budgetRatio) {
+          problems.push({
+            file: rel(litePath),
+            line: 0,
+            detail:
+              `${entry.itemType}：lite ${lite.vertices} 顶点未低于完整版 ${full.vertices} 的 ${budgetRatio} 倍` +
+              "（首屏那份没省下东西）"
+          });
+        }
       }
     }
+  }
+  return problems;
+}
+
+const STUDIO_APP_JS = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
+const STORAGE_CABINETS_BUILDER_JS = path.join(
+  ROOT,
+  "frontend",
+  "static",
+  "3d-studio",
+  "studio",
+  "item-builders",
+  "storage-cabinets.js"
+);
+
+/**
+ * 吊柜的挂高（柜底离地）必须三处同源。
+ *
+ * 为什么单列一条：吊柜的挂高是**烘进几何**的（规格的 `mountHeight`，导出时整件抬起 1.4m）——
+ * 这是照**原版既有资产**的口径定的：那台资产的柜底也在 1.378m，而它的
+ * `ITEM_TYPE_DEFINITIONS.wallcabinet` 里没有 elevation，摆位只把 elevation 当偏移。
+ * 于是这一个高度在三个地方各写了一份，漂掉任何一处都不报错：
+ *   1. `tools/models/model-specs.mjs` 的 `wallcabinet.mountHeight` —— 生成器按它抬整件；
+ *   2. `item-builders/storage-cabinets.js` 的 `wallCabinetMountHeight` —— 占位几何照同一个口径加；
+ *   3. `studio-app.js` 的 `ITEM_TYPE_DEFINITIONS.wallcabinet` —— **不能再有 `elevation`**。
+ * 1 与 2 不同 →「模型加载完成的那一帧」柜子往下一掉或往上一跳（占位只活到那一帧，不报错）；
+ * 3 多出一格 → 本仓新放一件吊柜的默认落点与原版差一个挂高（原版那一格是 0），而这一格的值
+ * 还会跟着草稿写出去 —— 2026-09 的「草稿放到原版里，吊柜的高度还是不对」就是这么来的：
+ * 那一版把 1.6 写进这一格，几何又是 0 基，于是同一个草稿在原版里从 1.4m 悬到 3.1m。
+ * 判据只覆盖这一件（全库只有它烘了挂高），读不到规格 / 源码就不判。
+ */
+function checkWallCabinetMountHeightParity() {
+  const problems = [];
+  const spec = PIPELINE_MODEL_SPECS?.wallcabinet;
+  if (!spec) {
+    return problems; // 规格表读不到（这一件没在流水线里）就不判
+  }
+  const declaredMountHeight = spec.mountHeight ?? 0;
+
+  const builderText = fs.readFileSync(STORAGE_CABINETS_BUILDER_JS, "utf8");
+  const builderMatch = /const wallCabinetMountHeight = ([0-9.]+)/.exec(builderText);
+  const builderMountHeight = builderMatch ? Number(builderMatch[1]) : 0;
+  const builderLine = builderMatch
+    ? builderText.slice(0, builderMatch.index).split("\n").length
+    : 0;
+  if (Math.abs(builderMountHeight - declaredMountHeight) > 0.001) {
+    problems.push({
+      file: rel(STORAGE_CABINETS_BUILDER_JS),
+      line: builderLine,
+      detail:
+        `占位几何的挂高 ${builderMountHeight}m 与规格 wallcabinet.mountHeight（${declaredMountHeight}m）不一致。` +
+        "占位件只活到 GLB 落地那一帧，两边不同就是「加载完成时整件跳一下」"
+    });
+  } else if (
+    declaredMountHeight > 0 &&
+    // 只在**摘掉注释**的源码里数：文档注释里也会写到这个名字，直接数全文会把它当成一次使用。
+    stripComments(builderText).split("wallCabinetMountHeight").length - 1 < 2
+  ) {
+    problems.push({
+      file: rel(STORAGE_CABINETS_BUILDER_JS),
+      line: builderLine,
+      detail:
+        `wallCabinetMountHeight 只声明了、没有加进摆放坐标（占位件仍是 0 基），` +
+        `而规格把整件抬了 ${declaredMountHeight}m —— 两边差一个挂高`
+    });
+  }
+
+  const appText = fs.readFileSync(STUDIO_APP_JS, "utf8");
+  const definitionStart = appText.indexOf("\n  wallcabinet: {");
+  if (definitionStart === -1) {
+    problems.push({
+      file: rel(STUDIO_APP_JS),
+      line: 0,
+      detail:
+        "ITEM_TYPE_DEFINITIONS 里找不到 `wallcabinet: {`（改名或挪了位置？）—— " +
+        "本判据读的是这一段的源码文本，读不到就整条失效"
+    });
+    return problems;
+  }
+  const definitionText = stripComments(appText.slice(definitionStart));
+  let depth = 0;
+  let definitionEnd = 0;
+  for (let index = 0; index < definitionText.length; index += 1) {
+    const ch = definitionText[index];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        definitionEnd = index;
+        break;
+      }
+    }
+  }
+  const definitionBody = definitionText.slice(0, definitionEnd);
+  const elevationMatch = /^[ \t]*elevation\s*:/m.exec(definitionBody);
+  if (declaredMountHeight > 0 && elevationMatch) {
+    // 两段的行数各自都算了「份数」（含换行数 +1），交界处的那个换行被数了两次 —— 减 1。
+    const lineOf = (upTo) =>
+      appText.slice(0, definitionStart).split("\n").length +
+      definitionBody.slice(0, upTo).split("\n").length -
+      1;
+    problems.push({
+      file: rel(STUDIO_APP_JS),
+      line: lineOf(elevationMatch.index),
+      detail:
+        `挂高已经烘进几何（规格 mountHeight = ${declaredMountHeight}m），类型定义里不能再有 elevation。` +
+        "原版那一格是 0，留着它 → 草稿里没写这一格的吊柜，本仓按这个默认值抬、原版按 0 抬，" +
+        "两个默认落点差一个挂高"
+    });
   }
   return problems;
 }
@@ -2264,9 +2426,13 @@ const DERIVED_MODEL_TYPE_RE =
  * 最后四笔（`smallcar` / `elevator` / `steelstairs` / `glassstairs`）的来龙去脉值得留一笔：
  * 它们**有意不在 HOME_ITEM_TYPES** 里（建筑本体与车辆不进暖阳家居配色，见 studio-item-types.js
  * 那段注释），而「不参与家居配色」被顺带读成了「不加载模型」—— 于是注册条目与被它引用的 GLB
- * 一起空转。2026-09 这四件按流水线规格重建（见 model-specs.mjs 的 elevator / smallcar /
- * uStairLayout），重建的同时把它们加进 EXTERNAL_MODEL_ITEM_TYPES，这条判据从此对它们生效：
+ * 一起空转。2026-09 这四件按流水线规格重建（见 model-specs.mjs 的 elevator / uStairLayout），
+ * 重建的同时把它们加进 EXTERNAL_MODEL_ITEM_TYPES，这条判据从此对它们生效：
  * 再被漏掉就直接报错，不再靠人记得。
+ *
+ * 其中小汽车 2026-09-26 又换回了上游第三方车模（贴图集 + Draco），因此它**不再是**流水线产物、
+ * 也从 model-specs.mjs 里撤掉了；但这条判据对它照旧成立 —— 资产仍在注册表里、仍由
+ * media-structure.js 的小车构建体加载，撤掉规格不等于可以少一处加载路径。
  *
  * 空白名单仍留着而不是删掉机制：判据本身要一直在，下一条孤儿条目才拦得住
  * （`sofa` 当初就是这么挂了一版 —— GLB 一直在，画面上却是没有腿的程序化方块）。
@@ -2460,6 +2626,80 @@ function checkEnvironmentModelTypes() {
           `${group.label} 与 ${referenceLabel} 不一致` +
           (missing.length ? `：多出 ${missing.join("、")}` : "") +
           (extra.length ? `：缺少 ${extra.join("、")}` : "")
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 「环境页面归一表」不能漏登页签别名。
+ *
+ * environment-scene.js 的 pageDimming 先把「模块 ID」归一成「页面 ID」，随后 pageModelBindings
+ * 与 screenOutlines 都按这个页面取值。漏登一个别名时该页签会同时掉进两个坑：既不在页面白名单里
+ * （压暗 / 降饱和整段不生效），又把页面筛成别名本身（环境模型既不描边、也不合成展示绑定）。
+ * 症状是「切到该页签，环境设备全部失去高亮」，浏览器不报任何错。
+ *
+ * 期望值对着上游 0.6.5 的 pageDimming 反混淆结果钉死：上游把 `purifier` / `temperature-humidity`
+ * 归入 environment、通用设备品类归入 devices（本仓净化器并入环境页、通用设备也不是独立模块，
+ * 故这两类不登记）。本仓已踩过一次 —— temperature-humidity 页签漏登，切过去环境设备全不高亮。
+ */
+function checkEnvironmentPageNormalization() {
+  const text = fs.readFileSync(ENVIRONMENT_SCENE_JS, "utf8");
+  const anchor = text.indexOf("const moduleKey =");
+  if (anchor === -1) {
+    return [
+      { file: rel(ENVIRONMENT_SCENE_JS), line: 0, detail: "找不到 pageDimming 的 moduleKey 归一表" }
+    ];
+  }
+  const open = text.indexOf("{", anchor);
+  const close = text.indexOf("}[", open);
+  if (open === -1 || close === -1) {
+    return [
+      {
+        file: rel(ENVIRONMENT_SCENE_JS),
+        line: 0,
+        detail: "moduleKey 归一表不是预期的对象字面量（`{ ... }[activeModule]`）"
+      }
+    ];
+  }
+  const body = text.slice(open + 1, close);
+  const actual = new Map();
+  for (const match of body.matchAll(/(?:"([a-z0-9_-]+)"|([a-z0-9_-]+))\s*:\s*["']([a-z0-9_-]+)["']/g)) {
+    actual.set(match[1] || match[2], match[3]);
+  }
+  // 上游 0.6.5 pageDimming 反混淆出的别名表，按本仓的模块词表过滤后的期望值。
+  const expected = new Map([
+    ["climate", "environment"],
+    ["cover", "environment"],
+    ["temperature-humidity", "environment"],
+    ["nas", "devices"],
+    ["television", "devices"],
+    ["vacuum-shortcut", "vacuum"]
+  ]);
+  const problems = [];
+  for (const [key, page] of expected) {
+    if (!actual.has(key)) {
+      problems.push({
+        file: rel(ENVIRONMENT_SCENE_JS),
+        line: 0,
+        detail: `pageDimming 的 moduleKey 缺 "${key}" → "${page}"（该页签会静默失去环境压暗与模型高亮）`
+      });
+    } else if (actual.get(key) !== page) {
+      problems.push({
+        file: rel(ENVIRONMENT_SCENE_JS),
+        line: 0,
+        detail: `"${key}" 归一到了 "${actual.get(key)}"，上游 0.6.5 是 "${page}"`
+      });
+    }
+  }
+  const validPages = new Set(["overview", "light", "environment", "devices", "vacuum", "security"]);
+  for (const [key, page] of actual) {
+    if (!validPages.has(page)) {
+      problems.push({
+        file: rel(ENVIRONMENT_SCENE_JS),
+        line: 0,
+        detail: `"${key}" 归一到了非页面值 "${page}"，会落进 pageDimming 白名单外的「不压暗」分支`
       });
     }
   }
@@ -3371,6 +3611,150 @@ function checkAssetPaletteTypeSets() {
   return problems;
 }
 
+/**
+ * 有外部模型的类型里，占地尺寸**允许**与 scaleBasis 不一致的那些（当前只有一件）。
+ *
+ * `smallcar`：2026-09-26 换回上游第三方车模（贴图集 + Draco）后不再是流水线产物，
+ * 也从 `model-specs.mjs` 撤掉了；它是**按模型实测尺寸摆放**的（运行侧量完直接缩放，
+ * 不用 scaleBasis 语义），因此 `ITEM_TYPE_DEFINITIONS` 那一格只是拖拽落点用的经验值，
+ * 与注册表条目的 scaleBasis 本来就不是同一件事。判据对其它类型照旧生效。
+ */
+const ITEM_SIZE_PARITY_EXEMPT_TYPES = new Set(["smallcar"]);
+
+/** 占地尺寸与 scaleBasis 的允许偏差（米）：5mm 以内肉眼不可辨，不报。 */
+const ITEM_SIZE_PARITY_TOLERANCE = 0.005;
+
+/**
+ * 素材库卡片与「类型定义」两端对账。
+ *
+ * 素材库卡片只声明一个 `type` 字符串，能不能真正**放下**一件东西却完全取决于 studio-app.js 的
+ * `ITEM_TYPE_DEFINITIONS`：`createSceneItem()` 的头两行就是
+ * `const typeDefinition = ITEM_TYPE_DEFINITIONS[newItemType]; if (!typeDefinition || !ensureCalibration()) return;`
+ * 于是「卡片在、定义不在」的表现是**点一下什么也不发生** —— 不报错、不弹提示、草稿不变，
+ * 连拖拽落点也被同一处拦下（palette drop 与点击走的是同一个入口）。
+ *
+ * 这正是加一件新物件时最容易漏的一格：模型注册表、类型词表、材质风格、平面符号四处都补了，
+ * 唯独忘了这一格 —— 而且漏掉之后其余四处全都在「等待被调用」，谁也报不出错。
+ * 判据：素材库里出现的每个 type 都要有一条 `ITEM_TYPE_DEFINITIONS.<type>: { … }`。
+ *
+ * 顺带对账三个数的来源：定义里的 width / depth / height 是该类型的默认占地方向，
+ * 有外部模型时必须与注册表 scaleBasis 逐值相等，否则新放下的一件会先按定义里的尺寸
+ * 建占位几何、模型落地那一帧再被缩到另一个尺寸（肉眼是「加进去时跳一下」）。
+ */
+function checkAssetPaletteItemTypeDefinitions() {
+  const problems = [];
+  if (!fs.existsSync(ASSET_PALETTE_JS) || !fs.existsSync(STUDIO_APP_JS)) {
+    return problems;
+  }
+  const paletteText = fs.readFileSync(ASSET_PALETTE_JS, "utf8");
+  const appText = fs.readFileSync(STUDIO_APP_JS, "utf8");
+
+  const definitionKeys = new Set();
+  const definitionBodyByType = new Map();
+  const stripped = stripComments(appText);
+  const definitionsStart = stripped.indexOf("const ITEM_TYPE_DEFINITIONS = {");
+  if (definitionsStart === -1) {
+    return problems; // 改名或挪了位置：这条判据读的是源码文本，读不到就不判
+  }
+  const definitionsText = stripped.slice(stripped.indexOf("{", definitionsStart));
+  let depth = 0;
+  let definitionsEnd = 0;
+  for (let index = 0; index < definitionsText.length; index += 1) {
+    const ch = definitionsText[index];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        definitionsEnd = index;
+        break;
+      }
+    }
+  }
+  const definitionsBody = definitionsText.slice(0, definitionsEnd);
+  // 每个键的值对象各自配对取出来，供后面比尺寸用。
+  const keyRe = /^ {2}([a-z_0-9]+): \{/gm;
+  let keyMatch;
+  while ((keyMatch = keyRe.exec(definitionsBody))) {
+    definitionKeys.add(keyMatch[1]);
+    const valueText = definitionsBody.slice(definitionsBody.indexOf("{", keyMatch.index));
+    let valueDepth = 0;
+    let valueEnd = 0;
+    for (let index = 0; index < valueText.length; index += 1) {
+      const ch = valueText[index];
+      if (ch === "{") valueDepth += 1;
+      else if (ch === "}") {
+        valueDepth -= 1;
+        if (valueDepth === 0) {
+          valueEnd = index;
+          break;
+        }
+      }
+    }
+    definitionBodyByType.set(keyMatch[1], valueText.slice(0, valueEnd));
+  }
+  if (definitionKeys.size === 0) {
+    return problems;
+  }
+
+  /** 该卡片在素材库源码里的行号（找不到就返回 0，表示「报在文件级」）。 */
+  const paletteLineOf = needle => {
+    const index = paletteText.indexOf(needle);
+    return index === -1 ? 0 : paletteText.slice(0, index).split("\n").length;
+  };
+
+  const cardTypes = new Set();
+  for (const card of paletteText.matchAll(/type:\s*"([^"]+)"/g)) {
+    cardTypes.add(card[1]);
+  }
+  for (const type of cardTypes) {
+    if (!definitionKeys.has(type)) {
+      problems.push({
+        file: rel(ASSET_PALETTE_JS),
+        line: paletteLineOf(`type: "${type}"`),
+        detail:
+          `素材库卡片 ${type} 在 studio-app.js 的 ITEM_TYPE_DEFINITIONS 里没有定义 —— ` +
+          "createSceneItem 取不到定义时直接 return，" +
+          "症状是「点了卡片 / 拖到户型图上什么也不发生」，不报错也不进草稿"
+      });
+    }
+  }
+
+  // 有外部模型的类型：定义里的占地方向必须与注册表 scaleBasis 同值（顺序是 宽 / 高 / 深）。
+  const externalText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
+  for (const type of cardTypes) {
+    const body = definitionBodyByType.get(type);
+    if (!body) continue;
+    if (ITEM_SIZE_PARITY_EXEMPT_TYPES.has(type)) continue;
+    // 该类型在注册表里的 scaleBasis（注册表条目形如 `fridge: defineApplianceItemModel("appliance", "fridge", {`）
+    const registryRe = new RegExp(`\\n  ${type}: define[A-Za-z]*ItemModel\\([\\s\\S]*?scaleBasis:\\s*\\[([^\\]]+)\\]`);
+    const registryMatch = registryRe.exec(externalText);
+    if (!registryMatch) continue;
+    const basis = registryMatch[1].split(",").map(value => Number(value.trim()));
+    const readNumber = key => {
+      const match = new RegExp(`^[ \\t]*${key}:\\s*([0-9.]+)`, "m").exec(body);
+      return match ? Number(match[1]) : null;
+    };
+    const defined = [readNumber("width"), readNumber("height"), readNumber("depth")];
+    // scaleBasis 的顺序是 [宽, 高, 深]，与定义里的字段顺序不同，逐轴按语义比。
+    const expected = [basis[0], basis[1], basis[2]];
+    const mismatch = defined.some(
+      (value, index) => value === null || Math.abs(value - expected[index]) > ITEM_SIZE_PARITY_TOLERANCE
+    );
+    if (mismatch) {
+      problems.push({
+        file: rel(STUDIO_APP_JS),
+        line: 0,
+        detail:
+          `${type} 的 ITEM_TYPE_DEFINITIONS 占地（宽 ${defined[0]} / 高 ${defined[1]} / 深 ${defined[2]}）` +
+          `与注册表 scaleBasis（${basis.join(" × ")}）不一致 —— 新放下的一件会先按定义建占位几何、` +
+          "模型落地那一帧再缩到 scaleBasis，肉眼是「加进去时尺寸跳一下」"
+      });
+    }
+  }
+
+  return problems;
+}
+
 /** 取 `export const NAME = new Set([ … ])` 里的字符串成员。 */
 function readExportedSetMembers(sourceText, name) {
   const start = sourceText.indexOf(`export const ${name} = new Set([`);
@@ -3526,6 +3910,839 @@ function checkControlGateWithinSubscription() {
   return problems;
 }
 
+/**
+ * `doorModels` 的入参必须是**楼层对象**，不能是 `floor.scene`。
+ *
+ * 这个函数对两种形态的容错是**不对称**的：取门列表时 `config.scene.doors` 不成还有
+ * `config.doors` 兜底，查墙却只认 `config.scene.walls`。于是传 `floor.scene` 时门列表
+ * 兜得住、墙列表变成 `scene.scene.walls` = undefined，画在墙上的门（`scene.doors` 里绝大多数）
+ * 全部因为「找不到挂靠的墙」被丢掉；只有工作室导出的、没有 `wallId` 的独立门模型才会侥幸留下。
+ *
+ * 症状是静默的：快照里 `floors[].doors` 成了空数组，安防面板的门锁列表恒为空（提示「本层没有
+ * 可用的门模型」、添加按钮 disabled），门锁**一条也建不出来**，保存后的配置里连 `locks` 键都没有；
+ * 而同一份元数据的摄像头 / 传感器清单正常，所以看起来像「只有门不对」。浏览器不报任何错。
+ */
+function checkDoorModelsFloorArgument() {
+  const problems = [];
+  // 定义处也要看一眼：容错一旦改成对称的，这条守卫的前提就没了，得连注释一起更新。
+  const definitionPath = path.join(ROOT, "frontend/static/bridge/lock-state-runtime.js");
+  let definitionText = "";
+  try {
+    definitionText = fs.readFileSync(definitionPath, "utf8");
+  } catch {
+    return [
+      {
+        file: rel(definitionPath),
+        line: 0,
+        detail: "读不到 doorModels 的定义，守卫无法判定"
+      }
+    ];
+  }
+  const tolerantDoors = /config\?\.scene\?\.doors\?\.length\s*\?\s*config\.scene\.doors\s*:\s*config\?\.doors/.test(
+    definitionText
+  );
+  const strictWalls = /config\.scene\?\.walls/.test(definitionText);
+  if (!tolerantDoors || !strictWalls) {
+    problems.push({
+      file: rel(definitionPath),
+      line: 0,
+      detail:
+        "doorModels 的两处取数口径变了（门列表 / 墙列表不再是「一个宽一个窄」）—— " +
+        "若已改成两种形态都认，请连同本守卫与 config-metadata.js 的注释一起改掉"
+    });
+  }
+  const callRe = /\b(?:entry)?doorModels\s*\(([^()]*)\)/g;
+  for (const file of moduleSourceFiles()) {
+    let text;
+    try {
+      text = fs.readFileSync(file, "utf8");
+    } catch {
+      continue;
+    }
+    const lineOf = makeLineCounter(text);
+    for (const match of text.matchAll(callRe)) {
+      const arg = match[1].trim();
+      // 定义本身（`function doorModels(config)` / `export const entryDoorModels = doorModels;`）跳过。
+      if (arg === "" || arg === "config" || !arg.includes(".")) continue;
+      if (!/\.scene\b/.test(arg) && !/\.scene$/.test(arg)) continue;
+      if (/\bsome\s*\(/.test(arg)) continue;
+      problems.push({
+        file: rel(file),
+        line: lineOf(match.index),
+        detail: `${match[0].trim()} 传的是 scene —— 画在墙上的门会全部被丢弃，改传楼层对象`
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 卷帘（coverKind=roller）契约：帘型默认取户型模型形态，模型侧字段名与取值照搬上游 0.6.5
+ * （`curtainForm: "standard" | "roller"`，工作室下拉框 `#curtain-form`），编辑器里显式改过时
+ * 置 coverKindOverride 让交互配置的 coverKind 胜出（与上游 0.6.5 同口径）。
+ *
+ * 这几处任一漏掉都是「不报错、只静默失效」：
+ *   · 后端取值枚举漏 roller  → 编辑器一选卷帘，整份配置保存时 422；
+ *   · 后端字段白名单漏 coverKindOverride → 覆写标记被当成未知字段，整份 422；
+ *   · 编辑器归一 / 下拉漏 roller → 下拉框里没有卷帘，选不出来；
+ *   · config-metadata.js 漏透传 curtainForm → 模型明明是卷帘，编辑器仍显示普通窗帘；
+ *   · geometry.js 漏读 coverKindOverride → 覆写选了卷帘，舞台照旧按垂帘渲染；
+ *   · 工作室漏写 curtainForm（写成历史字段名或漏掉状态）→ 画出来的卷帘存不下来、老草稿读不出。
+ * 这些是同一份契约的各个出口，改任一处都要同手改这里。
+ */
+function checkCurtainKindContract() {
+  const problems = [];
+  const cases = [
+    {
+      file: "backend/modules/interaction3d/config.py",
+      tests: [
+        [
+          /not in \('standard', 'dream', 'roller'\)/,
+          "coverKind 取值枚举缺 roller（编辑器选卷帘会整份 422）"
+        ],
+        [/'coverKindOverride'/, "窗帘字段白名单缺 coverKindOverride"],
+        [
+          /if 'coverKindOverride' in item and not isinstance\(item\['coverKindOverride'\], bool\)/,
+          "coverKindOverride 缺少与 curtainFabricOverride 同形的布尔校验"
+        ]
+      ]
+    },
+    {
+      file: "frontend/modules/runtime/editor/config-editor.js",
+      tests: [
+        [/\["roller", "卷帘"\]/, "「窗帘类型」下拉缺卷帘选项"],
+        [/\["dream", "roller"\]\.includes\(pickedCurtainKind\)/, "窗帘类型选择回调未放行 roller"],
+        [/selectedItem\.coverKindOverride = true/, "窗帘类型选择回调未置 coverKindOverride"],
+        [
+          /\["standard", "dream", "roller"\]\.includes\(normalizedItem\.coverKind\)/,
+          "草稿归一白名单缺 roller（存过的卷帘会被折算成普通窗帘）"
+        ],
+        [
+          /floorCurtainModel\?\.curtainForm \?\? floorCurtainModel\?\.curtainStyle/,
+          "编辑器未按 curtainForm 读模型帘型（历史 curtainStyle 也要能读出来）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/modules/runtime/core/stage/config-metadata.js",
+      tests: [
+        [
+          /curtainForm: curtainItem\.curtainForm \?\? curtainItem\.curtainStyle/,
+          "舞台元数据未透传 curtainForm（编辑器看不到模型帘型，卷帘恒显示普通窗帘）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/modules/runtime/core/stage/geometry.js",
+      tests: [
+        [
+          /itemConfig\.coverKindOverride === true/,
+          "resolveCurtainGeometry 未按 coverKindOverride 解析帘型（覆写选了卷帘仍按垂帘渲染）"
+        ],
+        [
+          /\(sceneItemSource\?\.curtainForm \?\? sceneItemSource\?\.curtainStyle\) === "roller"/,
+          "resolveCurtainGeometry 未按 curtainForm 读模型帘型（兼容读的 curtainStyle 也丢了）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/modules/runtime/cover/curtain-motion.js",
+      tests: [
+        [/COVER_KIND_ROLLER = "roller"/, "卷帘令牌 COVER_KIND_ROLLER 不见了"],
+        [
+          /binding\.coverKind === COVER_KIND_ROLLER/,
+          "卷帘骨架分支未按绑定上的 coverKind 判定（单调字段名就会静默退回垂帘）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/3d-studio.html",
+      tests: [
+        [
+          /<select id="curtain-form">[\s\S]*?<option value="standard">普通窗帘<\/option>/,
+          "工作室下拉框不是上游的 #curtain-form / standard（存下来的帘型对不上运行时）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/static/3d-studio/loaders/studio-curtain-track.js",
+      tests: [
+        [
+          /inputOptions\.curtainForm \?\? inputOptions\.curtainStyle/,
+          "工作室归一化未读上游字段 curtainForm（也没有兼容历史 curtainStyle）"
+        ],
+        [
+          /curtainForm: curtainIsRoller \? CURTAIN_FORM_ROLLER : CURTAIN_FORM_STANDARD/,
+          "工作室归一化未把形态写回 curtainForm（存进草稿的是别的字段名）"
+        ]
+      ]
+    },
+    {
+      file: "frontend/static/3d-studio/studio/studio-app.js",
+      tests: [
+        [
+          /selectElement\("#curtain-form"\)\.value/,
+          "工作室保存窗帘时未从 #curtain-form 取形态（改了名字却没接上）"
+        ],
+        [
+          /delete editingEntity\.curtainStyle/,
+          "工作室保存窗帘时未清掉历史 curtainStyle 键（一副帘会同时带两个形态键）"
+        ]
+      ]
+    }
+  ];
+  for (const testCase of cases) {
+    const full = path.join(ROOT, testCase.file);
+    let text = "";
+    try {
+      text = fs.readFileSync(full, "utf8");
+    } catch {
+      problems.push({ file: rel(full), line: 0, detail: "读不到文件，守卫无法判定" });
+      continue;
+    }
+    for (const [pattern, detail] of testCase.tests) {
+      if (!pattern.test(text)) {
+        problems.push({ file: rel(full), line: 0, detail });
+      }
+    }
+  }
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// 29) 模块里出现「本文件解析不出绑定」的标识符取用（真正的语法树 + 作用域链）
+// ---------------------------------------------------------------------------
+
+/**
+ * 这条原本被称为「明确不做」的一半（见文件头第 9 条）：「调用的名字在本文件没有任何绑定」
+ * 曾在无语法树的前提下按行级正则试过，全仓跑出 7996 条、绝大多数是模板字符串里的 GLSL，
+ * 只好放弃。现在判定交给 tools/lib/free-variables.mjs（用 tools/vendor/acorn 建真语法树 +
+ * 作用域链），实测全仓真自由标识符只剩浏览器宿主全局，因此这条可以立起来了。
+ *
+ * 为什么它值得一条守卫：这类引用**没有任何静态报错**，只有真的执行到那一行才 ReferenceError。
+ * 两处真实案例都是在「把一段代码搬进另一个函数」时漏掉参数/改错名字留下的 ——
+ *   · studio-app.js 的 drawPlanItem 里画钢 / 玻璃楼梯时写了 itemWidth / itemDepth，
+ *     而本函数只有像素版 itemWidthPx / itemDepthPx 与米制 planFootprint；
+ *   · studio-external-models.js 的 applyAppliancePalette 里写 materialPalette，
+ *     而那个名字只在唯一调用点的实参位置存在，函数内的绑定叫 appliancePalette。
+ * 症状分别是「户型图上放钢梯 / 玻璃梯就整张图不刷新」与「小车一走家电调色板就炸」，
+ * 且都要用户正好碰到那一件才看得见。
+ *
+ * 判据边界（与 tools/lib/free-variables.mjs 的注释一致，这里只补一层宿主白名单）：
+ *   - 只认**取用**，不认对象字面量的键、成员名（a.b 的 b）、import/export 说明符、标签；
+ *   - `typeof 裸名字` 不报（特征探测的常规写法）、`with` 体内不报（作用域运行期才定）；
+ *   - 宿主全局由 HOST_GLOBALS 兜底 —— 这张表的**唯一**增补理由是「浏览器 / Worker 宿主自带」。
+ *     凡是要往这里加业务名字，先问一句「它为什么在文件里没有绑定」，多半是真 bug。
+ */
+const HOST_GLOBALS = new Set([
+  // 语言内置
+  "undefined", "Infinity", "NaN", "globalThis", "Object", "Function", "Boolean", "Symbol",
+  "Error", "AggregateError", "EvalError", "RangeError", "ReferenceError", "SyntaxError",
+  "TypeError", "URIError", "Number", "BigInt", "Math", "Date", "String", "RegExp", "Array",
+  "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array", "Int32Array",
+  "Uint32Array", "Float32Array", "Float64Array", "BigInt64Array", "BigUint64Array",
+  "Map", "Set", "WeakMap", "WeakSet", "WeakRef", "ArrayBuffer", "SharedArrayBuffer", "DataView",
+  "Atomics", "JSON", "Promise", "Proxy", "Reflect", "Intl", "FinalizationRegistry",
+  "structuredClone", "queueMicrotask", "parseInt", "parseFloat", "isNaN", "isFinite",
+  "encodeURIComponent", "decodeURIComponent", "encodeURI", "decodeURI", "escape", "unescape",
+  // 定时器
+  "setTimeout", "clearTimeout", "setInterval", "clearInterval", "requestAnimationFrame",
+  "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback",
+  // DOM / 宿主
+  "window", "document", "navigator", "location", "history", "screen", "performance", "console",
+  "devicePixelRatio", "innerWidth", "innerHeight", "outerWidth", "outerHeight", "scrollX",
+  "scrollY", "matchMedia", "getComputedStyle", "getSelection", "localStorage", "sessionStorage",
+  "indexedDB", "crypto", "trustedTypes", "visualViewport", "customElements", "structuredClone",
+  "atob", "btoa", "alert", "confirm", "prompt", "print", "reportError", "fetch", "postMessage",
+  "addEventListener", "removeEventListener", "dispatchEvent", "queueMicrotask", "self", "top",
+  "parent", "frames", "opener", "closed", "isSecureContext", "crossOriginIsolated",
+  // DOM 构造器与接口
+  "Event", "EventTarget", "CustomEvent", "MouseEvent", "PointerEvent", "KeyboardEvent",
+  "WheelEvent", "TouchEvent", "DragEvent", "FocusEvent", "InputEvent", "CompositionEvent",
+  "ClipboardEvent", "MessageEvent", "ErrorEvent", "PromiseRejectionEvent", "MutationObserver",
+  "ResizeObserver", "IntersectionObserver", "AbortController", "AbortSignal", "DOMParser",
+  "XMLSerializer", "Image", "Audio", "Option", "Blob", "File", "FileReader", "FileList",
+  "FormData", "Headers", "Request", "Response", "URL", "URLSearchParams", "TextEncoder",
+  "TextDecoder", "WebSocket", "Worker", "SharedWorker", "BroadcastChannel", "MessageChannel",
+  "MessagePort", "OffscreenCanvas", "Path2D", "ImageData", "ImageBitmap", "createImageBitmap",
+  "WebAssembly", "Notification", "AudioContext", "OfflineAudioContext", "MediaQueryList",
+  "speechSynthesis", "SpeechSynthesisUtterance", "CSS", "Range", "Selection", "DOMRect",
+  "DOMRectReadOnly", "DOMMatrix", "DOMException", "DOMTokenList", "NamedNodeMap", "Attr",
+  "Node", "Element", "Text", "Comment", "DocumentType", "CharacterData", "ProcessingInstruction",
+  "CDATASection", "DocumentFragment", "ShadowRoot", "NodeList", "HTMLCollection", "StyleSheetList",
+  "CSSStyleSheet", "CSSRule", "CSSStyleRule", "CSSStyleDeclaration", "MediaList", "HTMLElement",
+  "HTMLDialogElement", "HTMLInputElement", "HTMLButtonElement", "HTMLSelectElement",
+  "HTMLCanvasElement", "HTMLVideoElement", "HTMLImageElement", "HTMLLabelElement",
+  "HTMLDivElement", "HTMLSpanElement", "HTMLAnchorElement", "HTMLFormElement",
+  "HTMLTextAreaElement", "HTMLSlotElement", "HTMLTemplateElement", "HTMLIFrameElement",
+  "HTMLScriptElement", "HTMLLinkElement", "HTMLStyleElement", "HTMLHeadElement",
+  "HTMLBodyElement", "HTMLHtmlElement", "HTMLMetaElement", "CustomElementRegistry",
+  "Audio", "CanvasRenderingContext2D", "WebGLRenderingContext", "WebGL2RenderingContext"
+]);
+
+/**
+ * 「净化器可绑定的场景模型类型」三处白名单必须同源。
+ *
+ * 净化器（`airpurifier`）与按净化器接入的新风机（`freshair`）在 HA 里都是 `fan` 域，
+ * 前端靠实体域渲染净化器面板，因此「哪些场景模型能绑到一条 `environment.airPurifiers` 配置上」
+ * 这份类型表有三处消费者：
+ *
+ *   - `config-editor.js` 的 `sceneModelTypes()`：模型选择器的候选；
+ *   - `binding-collectors.js` 的 `collectClimateBindings()`：运行时的场景绑定；
+ *   - `purifier.py` 的 `PURIFIER_MODEL_TYPES`：命令侧「模型是否还在场景里」的复核。
+ *
+ * 任一处漏改的失效方式都**不报错**：选择器漏 → 该外观根本配不上；绑定漏 → 配上了但
+ * `modelAvailable` 恒为 false（模型不渲染、点不开面板、控制静默失效）；后端漏 → 配置与画面
+ * 都对，命令却 409「空气净化器模型已失联」。三类症状互不覆盖，所以只能靠这条守卫钉住口径。
+ *
+ * 判定只比「集合是否相同」，不比书写格式：空格、引号（JS 双引号 / Python 单引号）都不参与
+ * 比较；但写法一变到解析不出（例如类型表改成变量拼接）就当场报出来 —— 宁可报「守卫失效」，
+ * 也不要它悄悄退化成永远通过。
+ */
+function checkPurifierModelTypes() {
+  const problems = [];
+  // 类型名统一是小写字母 / 数字 / 下划线，两侧引号都收，因此 JS 与 Python 两边的字面量共用一段提取。
+  const quotedTypes = source =>
+    [...source.matchAll(/["']([a-z][a-z0-9_]*)["']/g)].map(match => match[1]).sort();
+
+  const sources = [
+    {
+      file: "frontend/modules/runtime/editor/config-editor.js",
+      where: "sceneModelTypes() 的 isAirPurifierMode 分支",
+      read: text => {
+        const functionAt = text.indexOf("function sceneModelTypes()");
+        if (functionAt === -1) return null;
+        const branchAt = text.indexOf("isAirPurifierMode", functionAt);
+        if (branchAt === -1) return null;
+        // 该分支里第一个 `return [ ... ]` 就是类型白名单。
+        return /return\s*\[([^\]]*)\]/.exec(text.slice(branchAt))?.[1] ?? null;
+      }
+    },
+    {
+      file: "frontend/modules/runtime/core/stage/binding-collectors.js",
+      where: "collectClimateBindings() 里 airPurifiers 那一支的类型实参",
+      read: text => {
+        const callAt = text.indexOf("ctx.config.environment?.airPurifiers,");
+        if (callAt === -1) return null;
+        // 紧跟在配置实参后的第一个数组字面量就是类型白名单。
+        const openAt = text.indexOf("[", callAt);
+        const closeAt = text.indexOf("]", openAt);
+        return openAt === -1 || closeAt === -1 ? null : text.slice(openAt + 1, closeAt);
+      }
+    },
+    {
+      file: "backend/modules/interaction3d/purifier.py",
+      where: "PURIFIER_MODEL_TYPES",
+      read: text => /PURIFIER_MODEL_TYPES\s*=\s*frozenset\(\{([^}]*)\}\)/s.exec(text)?.[1] ?? null
+    }
+  ];
+
+  const readTypes = [];
+  for (const source of sources) {
+    let text;
+    try {
+      text = fs.readFileSync(path.join(ROOT, source.file), "utf8");
+    } catch {
+      problems.push({
+        file: source.file,
+        line: 0,
+        detail: `读不到文件，${source.where} 的白名单无从核对`
+      });
+      continue;
+    }
+    const types = quotedTypes(source.read(text) ?? "");
+    if (types.length === 0) {
+      problems.push({
+        file: source.file,
+        line: 0,
+        detail:
+          `解析不出 ${source.where} 里的类型白名单 —— 写法改了就得连这条守卫一起改，` +
+          "别让它退化成永远通过"
+      });
+      continue;
+    }
+    readTypes.push({ ...source, types });
+  }
+
+  // 三处都解析不出时上面已经逐条报过；只剩一处时没有可比对象，说明守卫本身已经失效。
+  if (readTypes.length < 2) {
+    if (readTypes.length === 1) {
+      problems.push({
+        file: readTypes[0].file,
+        line: 0,
+        detail: "另外两处都解析不出白名单，无法核对三者是否同源"
+      });
+    }
+    return problems;
+  }
+
+  const reference = readTypes[0];
+  for (const candidate of readTypes.slice(1)) {
+    if (candidate.types.join(",") !== reference.types.join(",")) {
+      problems.push({
+        file: candidate.file,
+        line: 0,
+        detail:
+          `${candidate.where} 是 [${candidate.types.join(", ")}]，与 ${reference.file} 的 ` +
+          `[${reference.types.join(", ")}] 不一致（配对失败的那一类外观会静默绑不上或控不了）`
+      });
+    }
+  }
+  // 三处同时删掉净化器本体也是一种「一致」，但那等于把整类交互关掉，单独钉一句。
+  if (!reference.types.includes("airpurifier")) {
+    problems.push({
+      file: reference.file,
+      line: 0,
+      detail: `白名单里没有 airpurifier 本体（当前只剩 [${reference.types.join(", ")}]）`
+    });
+  }
+  return problems;
+}
+
+/**
+ * 窗帘面板的返回键集合（上游 0.6.5 的 `deactivate`）。
+ *
+ * 0.6.5 的 cover-panel 返回 `{ root, update, deactivate, dispose }`，其中 deactivate 的语义是
+ * 「把面板从正在被操作的状态里摘出来」（拖动进行中时撤回预览与草稿，但面板还要继续用）。
+ * 帘组面板在成员被换掉 / 整组收起时必须调它，否则那一次拖动留下的预览会挂在场景里，
+ * 直到用户碰下一个控件才消失 —— 全程零报错。
+ *
+ * 本仓曾漏登这个方法，于是 cover-group-panel.js 只能写 `panel.deactivate?.()` 兜底：
+ * 兜底写法的代价是「方法在不在」这件事永远没人知道，漏了也只是静默少清一次场。
+ * 所以这里同时钉三件事：返回键里有 deactivate、它的实现仍带「仅在拖动中才动手」的守卫、
+ * 以及调用侧不许再出现 `?.()`。
+ */
+function checkCoverPanelDeactivate() {
+  const problems = [];
+  const panelPath = path.join(ROOT, "frontend/modules/runtime/cover/cover-panel.js");
+  const groupPath = path.join(ROOT, "frontend/modules/runtime/cover/cover-group-panel.js");
+  let panelText = "";
+  try {
+    panelText = fs.readFileSync(panelPath, "utf8");
+  } catch {
+    return [{ file: rel(panelPath), line: 0, detail: "读不到 cover-panel.js，守卫无法判定" }];
+  }
+
+  const returnAt = panelText.indexOf("\n  return {\n");
+  const returnedBlock =
+    returnAt === -1 ? "" : panelText.slice(returnAt, panelText.indexOf("\n  };", returnAt));
+  if (!returnedBlock) {
+    problems.push({
+      file: rel(panelPath),
+      line: 0,
+      detail: "找不到 createCoverPanel 的返回对象字面量（守卫按 2 空格缩进的 return { 定位）"
+    });
+  }
+  // 返回对象的顶层键：4 空格缩进，后跟 `:`（普通键）或 `(`（方法简写）。
+  const returnedKeys = [...returnedBlock.matchAll(/^ {4}([A-Za-z_$][\w$]*)\s*[:(]/gm)].map(
+    match => match[1]
+  );
+  for (const expected of ["root", "update", "deactivate", "dispose"]) {
+    if (!returnedKeys.includes(expected)) {
+      problems.push({
+        file: rel(panelPath),
+        line: 0,
+        detail:
+          `返回对象缺 ${expected}（当前只有 [${returnedKeys.join(", ")}]）—— ` +
+          (expected === "deactivate"
+            ? "帘组面板会退化成 ?.() 兜底，拖动预览撤不回"
+            : "调用侧会解析期报错")
+      });
+    }
+  }
+  const deactivateBody = returnedBlock.match(/^ {4}deactivate\(\)\s*\{([\s\S]*?)^ {4}\}/m);
+  if (!deactivateBody || !/if \(isDragging\)/.test(deactivateBody[1])) {
+    problems.push({
+      file: rel(panelPath),
+      line: 0,
+      detail:
+        "deactivate 少了「仅在拖动中才动手」的守卫（与 0.6.5 同口径：没有草稿就不必惊动场景）"
+    });
+  } else if (!/cancelPreview\(\)/.test(deactivateBody[1])) {
+    problems.push({
+      file: rel(panelPath),
+      line: 0,
+      detail: "deactivate 没有走 cancelPreview()（它才有完整的「撤预览 + 重绘」路径）"
+    });
+  }
+
+  let groupText = "";
+  try {
+    groupText = fs.readFileSync(groupPath, "utf8");
+  } catch {
+    problems.push({ file: rel(groupPath), line: 0, detail: "读不到 cover-group-panel.js" });
+  }
+  const lineOf = makeLineCounter(groupText);
+  for (const match of groupText.matchAll(/\bdeactivate\?\./g)) {
+    problems.push({
+      file: rel(groupPath),
+      line: lineOf(match.index),
+      detail: "又出现了 deactivate?.() 兜底 —— 方法名写错了也不会有人知道，直接调用"
+    });
+  }
+  return problems;
+}
+
+/**
+ * 扫地机状态别名词表（与上游 0.6.5 逐条对齐）。
+ *
+ * 同一个语义在厂商侧有多个写法（回充有 returning / returning_to_base / returning_home，
+ * 清洗拖布有 washing / mop_washing / self_washing / cleaning_mop……）。漏登的别名不会报错，
+ * 它会掉进字典后面的兜底分支，界面上显示成「状态更新中」—— 用户看到的是「这台机器不知道自己
+ * 在干什么」，而代码里一切正常。所以这里既钉「别名必须在表里」，也钉「同一语义的别名必须同文案」：
+ * 后一条能挡住「新加了别名但文案抄错」的那类漂移。
+ */
+function checkVacuumStateAliases() {
+  const problems = [];
+  const mapPath = path.join(ROOT, "frontend/modules/runtime/vacuum/vacuum-map.js");
+  let text = "";
+  try {
+    text = fs.readFileSync(mapPath, "utf8");
+  } catch {
+    return [{ file: rel(mapPath), line: 0, detail: "读不到 vacuum-map.js，守卫无法判定" }];
+  }
+  // 查表点写作 `{...}[vacuumRawState.toLowerCase()]`（查表前要先归一化大小写，
+  // 见 vacuum-map.js 里那段注释），所以这里只匹配到 `[vacuumRawState` 为止 ——
+  // 带上完整的 `]` 会在归一化写法改动时静默失配，守卫变成一条永远报「找不到字典」的假警报。
+  const at = text.indexOf("[vacuumRawState");
+  const tableAt = text.lastIndexOf("{", at);
+  const tableBody = at === -1 || tableAt === -1 ? "" : text.slice(tableAt, at);
+  if (!tableBody) {
+    problems.push({
+      file: rel(mapPath),
+      line: 0,
+      detail: "找不到 vacuumRawState 的文案字典（守卫按 `[vacuumRawState]` 反查）"
+    });
+    return problems;
+  }
+  const labels = new Map(
+    [...tableBody.matchAll(/([a-z_][a-z0-9_]*)\s*:\s*"([^"]*)"/g)].map(match => [
+      match[1],
+      match[2]
+    ])
+  );
+  // 分组即「同一语义」：组内任一别名缺失都会静默退回兜底文案。
+  const aliasGroups = {
+    回充中: ["returning", "returning_to_base", "returning_home"],
+    待机: ["idle", "standby", "ready"],
+    已停止: ["stopped", "off"],
+    清洗拖布: ["washing", "mop_washing", "self_washing", "cleaning_mop"],
+    烘干拖布: ["drying", "mop_drying", "drying_mop"]
+  };
+  for (const [label, aliases] of Object.entries(aliasGroups)) {
+    for (const alias of aliases) {
+      if (!labels.has(alias)) {
+        problems.push({
+          file: rel(mapPath),
+          line: 0,
+          detail: `状态字典缺别名 ${alias}（该状态会静默显示成「状态更新中」）`
+        });
+        continue;
+      }
+      if (labels.get(alias) !== label) {
+        problems.push({
+          file: rel(mapPath),
+          line: 0,
+          detail: `${alias} 的文案是「${labels.get(alias)}」，与同义别名不一致（应为「${label}」）`
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+const FREE_IDENTIFIER_SCAN_ROOTS = [
+  path.join(ROOT, "frontend", "modules"),
+  path.join(ROOT, "frontend", "static")
+];
+
+const freeIdentifiers = await import("./lib/free-variables.mjs");
+
+function checkFreeIdentifiers() {
+  const problems = [];
+  for (const root of FREE_IDENTIFIER_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".js"]))) {
+      // vendor 已经由 walk 的 SKIP_DIRS 挡掉；这里再挡一次是为了任何路径写法下都安全。
+      if (rel(file).includes("vendor/")) continue;
+      const source = fs.readFileSync(file, "utf8");
+      let result;
+      try {
+        result = freeIdentifiers.collectFreeIdentifiers(source, { filename: rel(file) });
+      } catch (error) {
+        problems.push({
+          file: rel(file),
+          line: 0,
+          detail: `解析失败，守卫无法判定：${error.message}`
+        });
+        continue;
+      }
+      if (result.unhandledTypes.size) {
+        problems.push({
+          file: rel(file),
+          line: 0,
+          detail:
+            "分析器遇到没显式处理的语法节点（多半是 acorn 升级带来的新语法），" +
+            `请补进 tools/lib/free-variables.mjs 的 dispatch 再决定怎么算：` +
+            [...result.unhandledTypes].join("、")
+        });
+      }
+      for (const reference of result.references) {
+        if (HOST_GLOBALS.has(reference.name)) continue;
+        problems.push({
+          file: rel(file),
+          line: reference.line,
+          detail:
+            `引用了本文件解析不出绑定的名字 \`${reference.name}\` —— ` +
+            "这类写法没有任何静态报错，只有执行到这一行才 ReferenceError。" +
+            "按它该来自哪里补上：形参 / 解构 / import，或改用同作用域里已有的那个名字"
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * 取 `marker` 之后第一个 `{ ... }` 的配对内容；括号不配对时返回空串。
+ * 用它而不是正则截到第一个 `}`：对象里嵌套数组 / 对象（本文件的两处标签表都没有，
+ * 但守卫不该依赖这一点）时截断点会落在内层。
+ */
+function objectLiteralBody(text, marker) {
+  const markerAt = text.indexOf(marker);
+  if (markerAt === -1) return "";
+  const start = text.indexOf("{", markerAt);
+  if (start === -1) return "";
+  let depth = 0;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === "{") depth += 1;
+    else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start + 1, index);
+    }
+  }
+  return "";
+}
+
+function checkFocusableDeviceKinds() {
+  const problems = [];
+  const geometryPath = path.join(ROOT, "frontend/modules/runtime/core/stage/geometry.js");
+  let text = "";
+  try {
+    text = fs.readFileSync(geometryPath, "utf8");
+  } catch {
+    return [{ file: rel(geometryPath), line: 0, detail: "读不到 geometry.js，守卫无法判定" }];
+  }
+  const at = text.indexOf("const isFocusableDevice");
+  const body = at === -1 ? "" : text.slice(at, text.indexOf(";", at) === -1 ? undefined : text.indexOf(";", at));
+  if (!body) {
+    problems.push({
+      file: rel(geometryPath),
+      line: 0,
+      detail: "找不到 isFocusableDevice（守卫靠这个名字反查）"
+    });
+    return problems;
+  }
+  // 与上游 0.6.5 同集合：漏掉 lock 或通用设备品类，那类绑定会继续落到「有 modelId → 空调」
+  // 那一支，点一次门锁就会把上次看过的那台空调打开（命令照发、浏览器零报错）。
+  for (const kind of ["lock", "nas", "television", "vacuum", "presence", "camera"]) {
+    if (!body.includes(`"${kind}"`)) {
+      problems.push({
+        file: rel(geometryPath),
+        line: 0,
+        detail: `聚焦可用清单缺 "${kind}"（该设备点一下不再弹面板，还会误触空调开关）`
+      });
+    }
+  }
+  if (!body.includes("isGenericDeviceKind(")) {
+    problems.push({
+      file: rel(geometryPath),
+      line: 0,
+      detail: "聚焦可用清单没用 isGenericDeviceKind 覆盖通用设备品类（冰箱等点一下会误触空调开关）"
+    });
+  }
+  return problems;
+}
+
+function checkLicenseStatusLabelSets() {
+  const problems = [];
+  const readText = relativePath => {
+    try {
+      return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+    } catch {
+      return null;
+    }
+  };
+  // 三处同源：后端是状态枚举的唯一出处，恢复页与编辑器顶栏各有一份展示文案。
+  // 任一处的键集落后，就会在该状态上原样显示英文码 / 显示空白提示。
+  const sources = [
+    {
+      file: "backend/license/service.py",
+      marker: "labels = {",
+      pattern: /'([A-Z][A-Z0-9_]+)'\s*:/g
+    },
+    {
+      file: "frontend/static/auth/license-recovery.js",
+      marker: "const STATUS_MESSAGES = {",
+      pattern: /([A-Z][A-Z0-9_]+)\s*:/g
+    },
+    {
+      file: "frontend/static/editor/home.js",
+      marker: "const licenseStatusLabelByCode = {",
+      pattern: /([A-Z][A-Z0-9_]+)\s*:/g
+    }
+  ];
+  const sets = [];
+  for (const source of sources) {
+    const text = readText(source.file);
+    if (text === null) {
+      problems.push({ file: source.file, line: 0, detail: "读不到文件，守卫无法判定" });
+      continue;
+    }
+    const body = objectLiteralBody(text, source.marker);
+    if (!body) {
+      problems.push({
+        file: source.file,
+        line: 0,
+        detail: `找不到 ${source.marker} 对应的对象字面量`
+      });
+      continue;
+    }
+    sets.push({
+      file: source.file,
+      keys: new Set([...body.matchAll(source.pattern)].map(match => match[1]))
+    });
+  }
+  if (sets.length !== sources.length) return problems;
+  const canonical = sets[0];
+  for (const other of sets.slice(1)) {
+    for (const key of canonical.keys) {
+      if (!other.keys.has(key)) {
+        problems.push({
+          file: other.file,
+          line: 0,
+          detail: `缺状态码 ${key}（该状态的文案会原样落成英文码或空白）`
+        });
+      }
+    }
+    for (const key of other.keys) {
+      if (!canonical.keys.has(key)) {
+        problems.push({
+          file: other.file,
+          line: 0,
+          detail: `多出状态码 ${key}（后端 service.py 已不产出该状态，文案成了死条目）`
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 35 条：前端能派发的 HA 服务必须登记进后端 ALLOWED_SERVICES。
+ *
+ * 起因是同一类真实踩坑连出三次：`vacuum.stop` / `vacuum.locate` / `vacuum.clean_spot`
+ * （2D 扫地机面板「开得动、停不下来」）与 `climate.set_swing_horizontal_mode`
+ * （2D 空调「水平摆风」整组每次点都 403）。前端按 supported_features 把按钮渲染出来，
+ * 后端白名单却没登记那条服务 —— 于是按钮可点、命令必被拒，面板只回显一句笼统的失败，
+ * 浏览器零报错。正是本项目最忌讳的「不报错、只静默失效」。
+ *
+ * 判据：收集前端分发位置里出现的服务名 —— `service: "x"`、`callEntityService("d", "x")`、
+ * `invoke*Service("d", "x")`、媒体动作按钮、扫地机动作定义表 —— 逐个核对 ALLOWED_SERVICES。
+ * 域名与服务名都是字面量时按**确切组合**核对，其余只核对服务名是否存在于任一域。
+ *
+ * 局限（刻意保留）：前端域名常是变量（`domain: command.domain`），因此这里不做
+ * 「域 + 服务」的组合核对，只挡「服务名整条缺失」—— 三次踩坑都属后者。
+ *
+ * 误报出口：某条字面量确非 HA 服务时，登记进 NON_HA_SERVICE_LITERALS 并写明理由。
+ * 不要放宽匹配式来消误报，那会把这条守卫一并弄死。
+ */
+const NON_HA_SERVICE_LITERALS = new Set([]);
+
+function checkFrontendHaServicesAllowed() {
+  const problems = [];
+  const lineOf = (text, index) => text.slice(0, index).split("\n").length;
+  const haFile = path.join(ROOT, "backend", "api", "ha.py");
+  let haText;
+  try {
+    haText = fs.readFileSync(haFile, "utf8");
+  } catch {
+    return [{ file: rel(haFile), line: 0, detail: "读不到 ha.py，守卫无法判定" }];
+  }
+  // 只截 ALLOWED_SERVICES 那一段：文件别处也有 ('x', 'y') 形状的元组。
+  const block = haText.match(/ALLOWED_SERVICES[^{]*\{([\s\S]*?)\n\}/);
+  if (!block) {
+    return [{ file: rel(haFile), line: 0, detail: "找不到 ALLOWED_SERVICES 字面量" }];
+  }
+  const allowedPairs = new Set(
+    [...block[1].matchAll(/\(\s*'([a-z_]+)'\s*,\s*'([a-z_]+)'\s*\)/g)].map(
+      match => `${match[1]}.${match[2]}`
+    )
+  );
+  const allowedServiceNames = new Set(
+    [...allowedPairs].map(pair => pair.slice(pair.indexOf(".") + 1))
+  );
+  if (allowedPairs.size === 0) {
+    return [{ file: rel(haFile), line: 0, detail: "ALLOWED_SERVICES 一条都没解析出来，匹配式可能失效" }];
+  }
+
+  // 分发位置。带 domain 的按确切组合核对，否则只核对服务名。
+  const positions = [
+    { re: /\bservice\s*:\s*"([a-z_]+)"/g, service: 1 },
+    { re: /\bcallEntityService\(\s*"([a-z_]+)"\s*,\s*"([a-z_]+)"/g, domain: 1, service: 2 },
+    { re: /\binvoke\w*Service\(\s*"([a-z_]+)"\s*,\s*"([a-z_]+)"/g, domain: 1, service: 2 },
+    {
+      re: /\bcreateMediaActionButton\(\s*"[^"]*"\s*,\s*"([a-z_]+)"/g,
+      service: 1,
+      domainText: "media_player"
+    }
+  ];
+
+  const report = (file, service, line, domain) => {
+    if (NON_HA_SERVICE_LITERALS.has(service)) return;
+    if (domain) {
+      if (allowedPairs.has(`${domain}.${service}`)) return;
+      problems.push({
+        file: rel(file),
+        line,
+        detail: `${domain}.${service} 不在 ALLOWED_SERVICES 里（按钮可点、命令必被后端 403，面板只回显笼统失败）`
+      });
+      return;
+    }
+    if (allowedServiceNames.has(service)) return;
+    problems.push({
+      file: rel(file),
+      line,
+      detail: `${service} 不在 ALLOWED_SERVICES 的任一域里（该控件可点、命令必被拒）`
+    });
+  };
+
+  for (const dir of ["frontend/static", "frontend/modules"]) {
+    for (const file of walk(path.join(ROOT, dir), new Set([".js"]))) {
+      let text;
+      try {
+        text = fs.readFileSync(file, "utf8");
+      } catch {
+        continue;
+      }
+      for (const position of positions) {
+        for (const match of text.matchAll(position.re)) {
+          const domain = position.domain ? match[position.domain] : position.domainText;
+          report(file, match[position.service], lineOf(text, match.index), domain);
+        }
+      }
+      // 扫地机动作定义表：行首是动作名，运行侧可能原样派发，也可能映射成 turn_on / turn_off。
+      for (const table of text.matchAll(/vacuumActionDefinitions\s*=\s*\[([\s\S]*?)\n\s*\];/g)) {
+        for (const row of table[1].matchAll(/\[\s*"([a-z_]+)"\s*,/g)) {
+          const rowOffset = table[0].indexOf(row[0]);
+          report(file, row[1], lineOf(text, table.index + Math.max(rowOffset, 0)), "");
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -3643,7 +4860,8 @@ const checks = [
           "改 tools/models/model-specs.mjs 里的 size 后**必须重跑** node tools/models/generate-models.mjs 导出，" +
           "并把 studio-external-models.js 的 scaleBasis 一起对齐 —— 运行侧按 scaleBasis 非等比缩放，" +
           "两者不一致就会被拉变形，而浏览器里只表现为「看着有点歪」。底面必须落在 y=0（preserveOrigin 直接贴地）、" +
-          "占地中心必须在原点；材质名必须是 material-<槽位号>，否则颜色不跟风格走（这条没有 fallback）。" +
+          "占地中心必须在原点；挂墙件把挂高烘进几何时（规格里的 mountHeight，现在只有吊柜）底面按那个值判。" +
+          "材质名必须是 material-<槽位号>，否则颜色不跟风格走（这条没有 fallback）。" +
           "lite 版必须真的比完整版轻。" +
           "判据只覆盖 tools/models/model-specs.mjs 里登记的流水线产物；models/ 下的外部既有资产" +
           "走另一套命名与比例约定，不在此列",
@@ -3699,6 +4917,17 @@ const checks = [
         run: checkAssetPaletteTypeSets
       },
       {
+        title: "素材库卡片没有对应的类型定义（点了 / 拖到户型图上什么也不发生）",
+        hint:
+          "改 frontend/static/3d-studio/studio/studio-app.js 的 ITEM_TYPE_DEFINITIONS：素材库里每张" +
+          "卡片（studio-asset-palette.js 的 STUDIO_ASSET_PALETTE）都要有一条同名定义 —— " +
+          "createSceneItem() 取不到定义就 `return`，点卡片与拖拽落点都走这一处，于是" +
+          "「点了没反应、也不报错」；这一格最容易被漏，因为素材库、模型注册表、类型词表、" +
+          "材质风格、平面符号四处都补好之后，其余四处都只是在「等被调用」。定义里的 width / depth /" +
+          "height 还必须与注册表 scaleBasis 逐值相等，否则新放下的一件会在模型落地那一帧跳一下尺寸",
+        run: checkAssetPaletteItemTypeDefinitions
+      },
+      {
         title: "默认档位的角色没有出口（内容物 / 五金会静默被刷成主料色）",
         hint:
           "改 frontend/static/3d-studio/loaders/studio-external-models.js：规格里出现的每个角色都要" +
@@ -3728,6 +4957,130 @@ const checks = [
           "加一个新设备品类时漏订阅，症状是「卡片能点、点了永远不可用」。另注意 lock / select /" +
           " number / input_* 这些域不在 lightStream 的主白名单正则里，非走 additionalEntityIds 不可",
         run: checkControlGateWithinSubscription
+      },
+      {
+        title: "doorModels 传了 scene 而不是楼层（画在墙上的门被全数丢弃，门锁一条也建不出来）",
+        hint:
+          "doorModels 取门列表时容错两种形态（config.scene.doors → config.doors），查墙却只认" +
+          " config.scene.walls。传 floor.scene 时墙列表解析成 scene.scene.walls = undefined，" +
+          "每一扇画在墙上的门都因找不到挂靠的墙被丢掉 —— 元数据 floors[].doors 变空数组，安防" +
+          "门锁列表恒为空且不报错。凡取门模型一律传**楼层对象**（stage 的 binding-collectors、" +
+          "lock-state-runtime 里都是这么传的），只有确实手里是 scene 且墙信息也来自 scene 时才例外",
+        run: checkDoorModelsFloorArgument
+      },
+      {
+        title: "环境页面归一表漏登页签别名（该页签静默失去环境压暗与模型高亮）",
+        hint:
+          "environment-scene.js 的 pageDimming 把模块 ID 归一成页面 ID，pageModelBindings 与" +
+          " screenOutlines 都按这个页面取值。漏登的页签既不在页面白名单里（压暗 / 降饱和不生效），" +
+          "又把页面筛成别名本身（环境模型不描边、不合成展示绑定）—— 切过去一片「设备都没绑上」的" +
+          "观感，浏览器零报错。对着上游 0.6.5 的 pageDimming 反混淆结果补 key；本仓另两类上游别名" +
+          "（purifier、通用设备品类）因为并入环境页 / 不是独立模块而**故意不登记**，别顺手补上",
+        run: checkEnvironmentPageNormalization
+      },
+      {
+        title: "卷帘契约出口不一致（漏一处就静默失效：选不出 / 存不上 / 显示成垂帘）",
+        hint:
+          "帘型默认取户型模型的形态（模型侧字段名与取值照搬上游 0.6.5：curtainForm " +
+          "standard / roller，历史草稿里的 curtainStyle / cloth 仍要读得出），编辑器显式改过时置 " +
+          "coverKindOverride 让交互配置的 coverKind 胜出（上游 0.6.5 同口径）。各出口必须同时在场：" +
+          "后端 config.py 的 coverKind 取值枚举要含 'roller'、字段白名单要含 'coverKindOverride' 并做" +
+          "布尔校验；config-editor.js 的「窗帘类型」下拉要含 [\"roller\", \"卷帘\"]、选择回调要放行 " +
+          "roller 且置 coverKindOverride、归一白名单要含 roller、模型帘型要按 curtainForm 读（兼容 " +
+          "curtainStyle）；config-metadata.js 要透传 curtainForm；geometry.js 的 resolveCurtainGeometry " +
+          "要读 itemConfig.coverKindOverride 与模型的 curtainForm；curtain-motion.js 的 " +
+          "COVER_KIND_ROLLER 令牌要在且按 binding.coverKind 判分支；工作室侧 3d-studio.html 的下拉框" +
+          "要是 #curtain-form（standard / roller）、studio-curtain-track.js 要读写 curtainForm 并兼容" +
+          "curtainStyle、studio-app.js 要从 #curtain-form 取值并清掉历史 curtainStyle 键。" +
+          "删类型或换机制时连本守卫一起改",
+        run: checkCurtainKindContract
+      },
+      {
+        title: "引用了本文件解析不出绑定的名字（只有执行到那一行才 ReferenceError）",
+        hint:
+          "判定在 tools/lib/free-variables.mjs（真语法树 + 作用域链），这里只多一层宿主全局白名单。" +
+          "真命中的两处都是「把一段代码搬进另一个函数」时留下的：studio-app.js 的 drawPlanItem 画" +
+          "钢 / 玻璃楼梯时写 itemWidth / itemDepth（本函数只有 itemWidthPx / itemDepthPx 与" +
+          " planFootprint），studio-external-models.js 的 applyAppliancePalette 里写 materialPalette" +
+          "（函数内的绑定叫 appliancePalette，那个名字只在唯一调用点的实参位置存在）。修法只有两种：" +
+          "补上它该来自的绑定（形参 / 解构 / import），或改用同作用域已有的名字 —— " +
+          "**不要**往 HOST_GLOBALS 里加业务名字：那张表只收浏览器 / Worker 宿主自带的全局",
+        run: checkFreeIdentifiers
+      },
+      {
+        title: "「净化器模型类型」三处白名单不同源（选择器漏配不上 / 绑定漏控不了 / 后端漏 409）",
+        hint:
+          "净化器与新风机在 HA 里都是 fan 域，这份类型表要同时改三处：" +
+          "config-editor.js 的 sceneModelTypes()（模型选择器的候选）、" +
+          "binding-collectors.js 的 collectClimateBindings()（运行时绑定）、" +
+          "purifier.py 的 PURIFIER_MODEL_TYPES（命令侧的模型存在性复核）。" +
+          "**不要**借用空调那套白名单（wallac / floorac / airoutlet）：借了每一台净化器都绑不上模型，" +
+          "而配置校验与浏览器控制台都不会报错。三者必须逐类型成对，删类型同理",
+        run: checkPurifierModelTypes
+      },
+      {
+        title: "窗帘面板返回对象少了 deactivate（帘组面板只能 ?.() 兜底，拖动预览撤不回）",
+        hint:
+          "上游 0.6.5 的 cover-panel 返回 { root, update, deactivate, dispose }，deactivate 的语义是" +
+          "「拖动进行中时撤回预览与草稿，但面板继续用」（内部走 cancelPreview，带 `if (isDragging)`" +
+          " 守卫）。本仓曾漏登这个方法，cover-group-panel.js 只能写 panel.deactivate?.() 兜底 ——" +
+          "方法名写错也不会有人知道。补回该键并让调用侧直接调用；若将来 deactivate 的语义改成" +
+          "「无论有没有草稿都清场」，连本守卫与两处注释一起改掉",
+        run: checkCoverPanelDeactivate
+      },
+      {
+        title: "扫地机状态字典缺上游别名 / 同义别名文案不一致（状态静默显示成「状态更新中」）",
+        hint:
+          "vacuumStatusPresentation 的 vacuumRawState 文案字典必须含上游 0.6.5 的全部别名：" +
+          "回充 returning / returning_to_base / returning_home、待机 idle / standby / ready、" +
+          "已停止 stopped / off、清洗拖布 washing / mop_washing / self_washing / cleaning_mop、" +
+          "烘干拖布 drying / mop_drying / drying_mop。别名是厂商写法差异，漏一条不会报错 ——" +
+          "那个状态直接掉进兜底文案。新增别名时文案必须与同义别名逐字相同（本守卫两组都查）",
+        run: checkVacuumStateAliases
+      },
+      {
+        title: "吊柜的挂高三处不同源（规格一项、占位几何一项、类型定义里还留着 elevation）",
+        hint:
+          "吊柜的挂高（柜底 1.4m）烘在几何里、与原版既有资产同一个口径，这一个数在三处各写了一份：" +
+          "tools/models/model-specs.mjs 的 wallcabinet.mountHeight（生成器按它抬整件）、" +
+          "item-builders/storage-cabinets.js 的 wallCabinetMountHeight（占位几何照同一个口径加）、" +
+          "studio-app.js 的 ITEM_TYPE_DEFINITIONS.wallcabinet（**不能**有 elevation：原版那一格是 0）。" +
+          "改挂高就三处一起改，改完重跑 node tools/models/generate-models.mjs wallcabinet 导出、" +
+          "并让 studio-external-models.js 的 HOME_LITE_MODEL_VERSION 前进一格（模型文件名没变，" +
+          "不换戳浏览器会继续喂旧几何）",
+        run: checkWallCabinetMountHeightParity
+      },
+      {
+        title: "聚焦可用设备清单与上游不同集合（漏品类会误触空调开关，且点不出面板）",
+        hint:
+          "geometry.js 的 isFocusableDevice 必须与上游 0.6.5 同集合：lock / nas / television /" +
+          " vacuum / presence / camera，外加 isGenericDeviceKind 覆盖的通用设备品类。stage.js 的" +
+          " activateBinding 用它做第一道分流 —— 漏掉任一类，那类绑定都会继续落到「有 modelId →" +
+          " 空调」那一支，点一下门锁/冰箱就会给上次看过的那台空调发 turn_on（命令照发、浏览器零报错）；" +
+          "camera-transition 的跳转与焦点保持也读同一份清单，三处必须一起生效",
+        run: checkFocusableDeviceKinds
+      },
+      {
+        title: "授权状态文案三处不同源（该状态静默显示成英文码 / 空白）",
+        hint:
+          "后端 license/service.py 的 _record_status `labels` 是状态枚举的唯一出处；" +
+          "frontend/static/auth/license-recovery.js 的 STATUS_MESSAGES 与" +
+          " frontend/static/editor/home.js 的 licenseStatusLabelByCode 各是它的一份展示文案。" +
+          "三处键集必须逐码相同：漏一条 → 那个状态在页面上原样显示英文码或空白；" +
+          "多一条 → 后端已不产出的死条目。新增状态码时三处一起加",
+        run: checkLicenseStatusLabelSets
+      },
+      {
+        title: "前端可派发的 HA 服务没登记进后端 ALLOWED_SERVICES（按钮可点、命令必被拒）",
+        hint:
+          "后端 api/ha.py 的 ALLOWED_SERVICES 是 ha/services/call 的唯一准入表，前端每个能派发的" +
+          "服务都必须在场。本仓已因此连踩三次：vacuum.stop / locate / clean_spot（扫地机开得动、" +
+          "停不下来）与 climate.set_swing_horizontal_mode（空调「水平摆风」整组每次点都 403）——" +
+          "前端按 supported_features 渲染按钮、后端没登记，失败只回显一句笼统提示，控制台零报错。" +
+          "补法是往 ALLOWED_SERVICES 加一条 (domain, service) 并写清参数名；确非 HA 服务的字面量" +
+          "登记进 NON_HA_SERVICE_LITERALS 并写明理由，别放宽匹配式。本守卫只核对服务名存在性" +
+          "（前端域名常是变量），不核对「域 + 服务」组合",
+        run: checkFrontendHaServicesAllowed
       }
     ];
 
