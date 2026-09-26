@@ -109,8 +109,9 @@ const { withPageAppearancePreset } = await (import.meta.url.startsWith("file:")
 // （传感器 / 单事件 / 双事件）折算成的开合、以及把场景配置里的门展开成门模型清单。
 // 显示路径（lock-panel 的文案、lock-motion 的门动画）要它，编辑器的安防配置页也要它 ——
 // 两侧共用同一份实现才是重点，实现在 bridge/lock-state-runtime.js，这里是运行侧那层薄桥。
-// 导出的是七个名字（不含 doorEventState）：单 / 双事件的细节由 lockState 内部消化，
-// 消费方只看 doorOpen，所以不必把事件语义漏到桥上。
+// 导出的是八个名字（不含 doorEventState）：单 / 双事件的细节由 lockState 内部消化，
+// 消费方只看 doorOpen，所以不必把事件语义漏到桥上。lockHinge 是「取门轴」的唯一口径，
+// 舞台动画与绑定收集共用它，避免两侧各写一份兜底后悄悄漂移。
 const {
   LOCK_ENTITY_FIELDS,
   doorModels,
@@ -118,6 +119,7 @@ const {
   entryDoorModels,
   identifyLockEntities,
   lockEntityRole,
+  lockHinge,
   lockState
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/lock-state-runtime.js", import.meta.url))
@@ -161,6 +163,7 @@ export {
   finiteNumberOrNull,
   identifyLockEntities,
   lockEntityRole,
+  lockHinge,
   lockState,
   matchesTemperatureHumidityEntity,
   mdiIconUrl,

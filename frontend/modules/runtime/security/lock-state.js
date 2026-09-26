@@ -19,5 +19,6 @@ export {
   entryDoorModels,
   identifyLockEntities,
   lockEntityRole,
+  lockHinge,
   lockState
 } from "../core/static-helpers.js?v=2609252218";

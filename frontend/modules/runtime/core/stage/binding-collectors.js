@@ -15,7 +15,7 @@ import {
 } from "../../device/device-profiles.js?v=2609252218";
 // 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
 // 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
-import { doorModels } from "../../security/lock-state.js?v=2609252218";
+import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609252218";
 // 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
 // （实现在 static/bridge/temperature-humidity.js，经运行侧薄桥转出）。
 import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609252218";
@@ -384,17 +384,21 @@ export function createBindingCollectors(ctx) {
         const securityLockFloor = ctx.stageOptions.document.floors.find(
           securityLockFloorCandidate => securityLockFloorCandidate.id === securityLockEntry.floorId
         );
+        // 与 stage.js 的动画清单、lock.py 同口径：先剥净 door: 前缀再补一次，裸门 ID 与
+        // door:<id> 两种写法都要能对上门场景里的门。
+        const lockDoorRawModelId = String(securityLockEntry.modelId || "").replace(/^(?:door:)+/, "");
+        const lockDoorModelId = lockDoorRawModelId ? "door:" + lockDoorRawModelId : "";
         const securityLockDoorModel =
           securityLockFloor &&
           doorModels(securityLockFloor).find(
             securityLockDoorModelCandidate =>
-              securityLockDoorModelCandidate.modelId === securityLockEntry.modelId
+              securityLockDoorModelCandidate.modelId === lockDoorModelId
           );
         return {
           ...securityLockEntry,
-          // 门轴方向：配置显式值 → 门模型自带 → 缺省左开。三级兜底是为了让旧配置
-          // （没写 hinge）也能拿到一扇能正常旋转的门，而不是绕错边甩出去。
-          hinge: securityLockEntry.hinge || securityLockDoorModel?.hinge || "left",
+          // 门轴方向：配置显式值 → 门模型自带 → 缺省左开。与舞台动画共用 lockHinge：两侧各写
+          // 一份兜底的话，右开门会出现「面板显示右开、门却绕左边转」。
+          hinge: lockHinge(securityLockEntry, securityLockFloor),
           id: "lock:" + securityLockEntry.id,
           deviceKind: "lock",
           clickAction: "focus-panel",

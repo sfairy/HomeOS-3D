@@ -65,7 +65,7 @@ import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609252218";
 // 后两者与编辑器的安防配置页共用同一份实现，见 security/lock-state.js。
 import { createLockPanel } from "../security/lock-panel.js?v=2609252218";
 import { createLockMotion } from "../security/lock-motion.js?v=2609252218";
-import { doorModels, lockState } from "../security/lock-state.js?v=2609252218";
+import { doorModels, lockHinge, lockState } from "../security/lock-state.js?v=2609252218";
 import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609252218";
 import { createScreenOutlines } from "../environment/environment-halos.js?v=2609252218";
 import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609252218";
@@ -1978,11 +1978,20 @@ export function mountStage(stageOptions) {
     () => {
       // modelId 统一成 door:<id>：场景侧一律按这个前缀打标，而老配置可能没写前缀、
       // 甚至写成 door:door:<id>，这里就地归一，免得动画侧再做多路兜底。
+      //
+      // hinge 必须在此补齐（与 binding-collectors 共用 lockHinge）：编辑器新建绑定时刻意
+      // 不写它，让户型图里的门模型当唯一来源。动画若只读配置，就会把 undefined 当「左开」，
+      // 右开门被整体平移一个门宽并绕错边转 —— 而面板文案仍显示右开。
+      const lockFloors = stageOptions.document?.floors || [];
       lockDoorModelsList = (config.security?.locks || []).map(securityLockEntry => {
         const rawModelId = String(securityLockEntry.modelId || "").replace(/^(?:door:)+/, "");
+        const lockFloor = lockFloors.find(
+          floorCandidate => floorCandidate.id === securityLockEntry.floorId
+        );
         return {
           ...securityLockEntry,
-          modelId: rawModelId ? "door:" + rawModelId : ""
+          modelId: rawModelId ? "door:" + rawModelId : "",
+          hinge: lockHinge(securityLockEntry, lockFloor)
         };
       });
     }

@@ -187,29 +187,27 @@ export function doorEventState(item, readState) {
     }
     const openTime = eventTimestamp(item.doorOpenEntityId);
     const closeTime = eventTimestamp(item.doorCloseEntityId);
-    // 时间完全相同说明两条事件指向同一次触发，无法判断先后；任一实体不可用同理。
-    return (
-      openTime === closeTime ||
-      [readState(item.doorOpenEntityId), readState(item.doorCloseEntityId)].some(
-        entry => !entry || entry.available === false || entry.state === "unavailable"
-      )
-        ? null
-        : openTime === null
-          ? false
-          : closeTime === null
-            ? true
-            : openTime > closeTime
-    );
+    // 任一条读不出时间就返回 null（宁可知不道，也不猜）。事件型实体在首次触发前 state 是
+    // unknown，此时「另一条更晚」并不成立。早期实现对单边缺失给了确定的 true/false，会把门
+    // 永久钉在开或关，直到那条事件真正发生 —— 与上面注释的契约正好相反。
+    // eventTimestamp 内部已用 isEntityUsable 判过一次可用性，这里不必再按另一套判据重判
+    // （过去那套只看 available === false / state === "unavailable"，恰好漏掉 unknown）。
+    if (openTime === null || closeTime === null || openTime === closeTime) {
+      return null;
+    }
+    return openTime > closeTime;
   }
   if (eventTimestamp(item.doorEventEntityId) === null) {
     return null;
   }
   const entry = readState(item.doorEventEntityId);
+  // 事件值一律小写归一后比较：设备上报 "Open" / 布尔 true / 数字 1，而配置里填的多半是
+  // "open" / "true" / "1"，逐字比较会把这一类全部落成「未知」。
   const eventValue = String(
     entry.attributes?.[item.doorEventAttribute || "event_type"] ?? ""
-  ).trim();
-  const openValue = (item.doorOpenValue || "").trim();
-  const closeValue = (item.doorCloseValue || "").trim();
+  ).trim().toLowerCase();
+  const openValue = String(item.doorOpenValue ?? "").trim().toLowerCase();
+  const closeValue = String(item.doorCloseValue ?? "").trim().toLowerCase();
   return !openValue || !closeValue || openValue === closeValue
     ? null
     : eventValue === openValue
@@ -275,6 +273,13 @@ export function lockState(item, states = {}) {
     const entry = readState(entityId);
     return isEntityUsable(entry) && entry.state === "on";
   };
+  // 事件型门磁没有独立的门磁实体（doorEntityId 被清空），「有没有绑门磁」要看它那一套事件
+  // 字段配齐没有；只看 doorEntityId 会把已绑定的事件门磁一律显示成「未绑定门磁」。
+  const doorBound = isEventSource
+    ? item.doorSource === "single-event"
+      ? !!item.doorEventEntityId
+      : !!(item.doorOpenEntityId && item.doorCloseEntityId)
+    : !!item.doorEntityId;
   // 文案优先级：锁本体在 → 锁状态文案；否则看门磁；再否则只剩电量这一条线索。
   const label = lockEntry
     ? LOCK_STATE_LABELS[state] || "门锁状态未知"
@@ -282,7 +287,7 @@ export function lockState(item, states = {}) {
       ? "门已打开"
       : doorOpen === false
         ? "门已关闭"
-        : item.doorEntityId
+        : doorBound
           ? "门状态未知"
           : "仅电量";
   return {
@@ -290,7 +295,7 @@ export function lockState(item, states = {}) {
     available,
     label,
     doorOpen,
-    doorLabel: item.doorEntityId
+    doorLabel: doorBound
       ? doorOpen === null
         ? "门状态未知"
         : doorOpen
@@ -383,3 +388,28 @@ export function doorModels(config) {
 
 // 入户门模型与全部门模型同源：早期版本只渲染入户门，别名保留下来给旧调用点使用。
 export const entryDoorModels = doorModels;
+
+/**
+ * 一条门锁绑定最终生效的门轴方向：配置显式值 → 门模型自带 → 缺省左开。
+ *
+ * 编辑器新建门锁绑定时刻意**不写** `hinge`，让户型图上的门模型当唯一来源（免得把用户在
+ * 户型里设的开门方向盖掉）。于是「取门轴」这件事有两级兜底，舞台动画（lock-motion）与绑定
+ * 收集（binding-collectors）**必须走同一个口径**：漏掉兜底的那一侧会把 undefined 当成
+ * 「左开」，右开门就被整体平移一个门宽并绕错边转，而面板文案仍显示右开。
+ *
+ * @param {object} lockEntry 门锁绑定（``config.security.locks`` 的一项）。
+ * @param {object} floor 该绑定所在楼层（用来取 ``scene.doors`` / ``doors``）。
+ * @returns {"left"|"right"}
+ */
+export function lockHinge(lockEntry, floor) {
+  if (lockEntry?.hinge === "right" || lockEntry?.hinge === "left") {
+    return lockEntry.hinge;
+  }
+  // 与 lock.py 同口径地剥净前缀再补一次：配置侧存的可能是裸门 ID，也可能是 door:<id>。
+  const rawModelId = String(lockEntry?.modelId || "").replace(/^(?:door:)+/, "");
+  const modelId = rawModelId ? "door:" + rawModelId : "";
+  const model = modelId
+    ? doorModels(floor).find(candidate => candidate.modelId === modelId)
+    : null;
+  return model?.hinge === "right" ? "right" : "left";
+}

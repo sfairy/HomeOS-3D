@@ -198,7 +198,15 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
                 ? Number(mesh.userData?.doorRestTranslation ?? mesh.position.x) || 0
                 : kind === "roller"
                   ? Number(mesh.userData?.doorRestTranslation ?? mesh.position.y) || 0
-                  : Number(mesh.userData?.doorRestRotation ?? mesh.rotation.y) || 0,
+                  : // 平开门的休息位取「关门位」：studio 给双开 / 玻璃门烘焙的 doorRestRotation
+                    // 是半开姿态（0.42π，纯为编辑态好看），拿它当复位位会让门模型被移除时整层
+                    // 门齐刷刷弹开。关门角记在门组上（doorClosedRotation），缺省 0 与
+                    // resolveTarget 的关门目标同口径。
+                    Number(
+                      mesh.userData?.doorClosedRotation ??
+                        parent.userData?.doorClosedRotation ??
+                        0
+                    ) || 0,
             target:
               target?.value ??
               (kind === "slide"
