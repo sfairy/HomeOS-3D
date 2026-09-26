@@ -1,14 +1,14 @@
 /**
- * 二十四条「不报错、只静默失效」的不变量守卫。
+ * 二十五条「不报错、只静默失效」的不变量守卫。
  *
  * 为什么只留这一类：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
  * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面这些对应的失效方式恰好相反 ——
  * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类。
  *
  * 本条目的展开范围是 1–9（结构类）；10 起是后续按同一取舍补进的 —— 10–15 配色类（含 theme-color /
- * webmanifest 的写死色值）、16–24 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
+ * webmanifest 的写死色值）、16–25 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
  * 环境模型类型七处、材质风格档位覆盖、「档位即组合」的角色覆盖、素材库页签与类型词表两端、
- * 默认档位的角色出口、平面符号该不该画圆）。
+ * 默认档位的角色出口、平面符号该不该画圆、命令闸门与状态订阅两端口径）。
  * 这些条目的踩坑背景写在各自 `checks` 条目的 title 与代码注释里，完整清单另见 README「前端结构卫生」一节。
  *
  * 三段共用同一条底线：**判不出真假就不判** —— 宁可漏报，也不让这里退化成
@@ -3381,6 +3381,151 @@ function readExportedSetMembers(sourceText, name) {
   return new Set([...body.matchAll(/"([^"]+)"/g)].map(item => item[1]));
 }
 
+// ---------------------------------------------------------------------------
+// 25) 命令闸门放行的实体，必须落在状态订阅口径内
+// ---------------------------------------------------------------------------
+// 宿主对同一批「非顶层绑定」的实体有两处展开：命令闸门（决定这条 control 能否下发）与
+// 状态订阅（决定舞台收不收得到它的读数）。两处同源，必须一起改 —— 补门锁与附加实体那次
+// 只补了闸门、订阅侧漏了，症状是「命令发得出去、面板恒显不可用」：lightStream 只推订阅集
+// 内的实体（服务端按订阅报文过滤），没订上的实体读数是永久空值，而整条链路没有任何报错。
+//
+// 判定用「配置读取路径」而不是函数名：两处对同一批配置的取用路径必然一致（都是
+// componentProperties.security.locks / .devices / .environment.airPurifiers 这些），
+// 而函数名可以为了「闸门只要附加控件、订阅还要电源与健康规则」这类差异而合理地不同。
+const RUNTIME_JS_PATH = path.join(ROOT, "frontend/modules/runtime/core/runtime.js");
+
+/** 归一 `componentProperties` 之后的属性链；动态下标（`?.[…]`）到此为止，只记到哪一层。 */
+function configReadPaths(sourceText) {
+  const paths = new Set();
+  for (const found of sourceText.matchAll(/componentProperties((?:\??\.\s*[A-Za-z_$][\w$]*)*)/g)) {
+    const chain = found[1].replace(/\?\./g, ".").replace(/\.\s+/g, ".").replace(/^\./, "");
+    if (chain) {
+      paths.add(chain);
+    }
+  }
+  return paths;
+}
+
+/**
+ * 取「本文件里以两空格缩进定义的某个辅助函数」的整段正文；找不到返回 null。
+ *
+ * 这些辅助函数都定义在 `mountInteraction3d` 的函数体顶层（两空格缩进），所以按
+ * 「下一条同样缩进的声明 / 语句」切边界是可靠的；边界含 `if` / `for` / `}` 是防止
+ * 辅助函数紧跟着一段控制流时把后面整段都吃进来（多吃只会放松判定，少吃才是误报）。
+ */
+function helperBody(sourceText, name) {
+  const declaration = new RegExp(`^  (?:const|let|function|async function)\\s+${name}\\b`, "gm");
+  const found = declaration.exec(sourceText);
+  if (!found) {
+    return null;
+  }
+  const boundary = /^  (?:const |let |function |async function |if |for |while |switch |return |throw |\})/gm;
+  boundary.lastIndex = found.index + found[0].length;
+  const next = boundary.exec(sourceText);
+  return sourceText.slice(found.index, next ? next.index : sourceText.length);
+}
+
+/** 展开区域里调用到的辅助函数（最多三轮），把它们读到的配置路径一并纳入判定。 */
+function expandConfigReaders(sourceText, regionText) {
+  let expanded = regionText;
+  const expandedNames = new Set();
+  for (let round = 0; round < 3; round += 1) {
+    let grew = false;
+    for (const call of expanded.matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)) {
+      const name = call[1];
+      if (expandedNames.has(name)) {
+        continue;
+      }
+      const body = helperBody(sourceText, name);
+      if (!body) {
+        continue;
+      }
+      expandedNames.add(name);
+      expanded += "\n" + body;
+      grew = true;
+    }
+    if (!grew) {
+      break;
+    }
+  }
+  return expanded;
+}
+
+/** 定位某条配置读取路径首次出现的行号（用于把问题指到点上）。 */
+function lineOfConfigRead(sourceText, configPath) {
+  const lastSegment = configPath.split(".").pop();
+  const lines = sourceText.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].includes("componentProperties") && lines[index].includes(lastSegment)) {
+      return index + 1;
+    }
+  }
+  return 0;
+}
+
+function checkControlGateWithinSubscription() {
+  let sourceText;
+  try {
+    sourceText = fs.readFileSync(RUNTIME_JS_PATH, "utf8");
+  } catch {
+    return [
+      {
+        file: rel(RUNTIME_JS_PATH),
+        line: 0,
+        detail: "读不到 runtime.js，守卫无法判定"
+      }
+    ];
+  }
+  // 两处锚点都取「一旦被改写就要让守卫失败」而不是静默跳过：判定依据消失时报错好过放行。
+  const gateAnchorStart = "const controlEntityId = incomingMessage.command?.entityId;";
+  const gateAnchorEnd = "].some(controlTarget => controlTarget.entityId === controlEntityId)";
+  const gateStart = sourceText.indexOf(gateAnchorStart);
+  const gateEnd = sourceText.indexOf(gateAnchorEnd, gateStart);
+  const subscriptionAnchorStart = "const collectTrackedEntities = () => [";
+  const subscriptionAnchorEnd = "function sendConfigUpdate()";
+  const subscriptionStart = sourceText.indexOf(subscriptionAnchorStart);
+  const subscriptionEnd = sourceText.indexOf(subscriptionAnchorEnd, subscriptionStart);
+  const missingAnchors = [];
+  if (gateStart < 0 || gateEnd < 0) {
+    missingAnchors.push("命令闸门（control 准入）");
+  }
+  if (subscriptionStart < 0 || subscriptionEnd < 0) {
+    missingAnchors.push("状态订阅（collectTrackedEntities / additionalEntityIds）");
+  }
+  if (missingAnchors.length > 0) {
+    return [
+      {
+        file: rel(RUNTIME_JS_PATH),
+        line: 0,
+        detail:
+          `找不到${missingAnchors.join(" 与 ")}的锚点，守卫无法判定 —— ` +
+          "这两处的锚点（" +
+          `"${gateAnchorStart}"、"${gateAnchorEnd}"、"${subscriptionAnchorStart}"、"${subscriptionAnchorEnd}"）不要删改`
+      }
+    ];
+  }
+  const gatePaths = configReadPaths(
+    expandConfigReaders(sourceText, sourceText.slice(gateStart, gateEnd + gateAnchorEnd.length))
+  );
+  const subscriptionPaths = configReadPaths(
+    expandConfigReaders(sourceText, sourceText.slice(subscriptionStart, subscriptionEnd))
+  );
+  const problems = [];
+  for (const gatePath of gatePaths) {
+    if (subscriptionPaths.has(gatePath)) {
+      continue;
+    }
+    problems.push({
+      file: rel(RUNTIME_JS_PATH),
+      line: lineOfConfigRead(sourceText, gatePath),
+      detail:
+        `命令闸门读了 componentProperties.${gatePath}，状态订阅侧没读 —— ` +
+        "这条链上的实体命令发得出去、读数永远为空（面板恒显不可用）。订阅侧要用同一批配置展开它"
+    });
+  }
+  return problems;
+}
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -3573,6 +3718,16 @@ const checks = [
           "（比值从 tools/models/model-specs.mjs 的实际半径除出来）。反过来，名单里有但实测不是圆的" +
           "（规格改成了方料）要从名单里收掉",
         run: checkRoundFootprintPlanSymbols
+      },
+      {
+        title: "命令闸门放行的实体没进入状态订阅（命令发得出去，面板读数永远为空）",
+        hint:
+          "runtime.js 的 control 准入与状态订阅（collectTrackedEntities / additionalEntityIds）" +
+          "必须读同一批配置。漏了哪一类，就在订阅侧用同一批配置展开它 —— lightStream 只推订阅集" +
+          "内的实体（服务端按订阅报文过滤），没订上的实体读数是永久空值，而且整条链路不报错：" +
+          "加一个新设备品类时漏订阅，症状是「卡片能点、点了永远不可用」。另注意 lock / select /" +
+          " number / input_* 这些域不在 lightStream 的主白名单正则里，非走 additionalEntityIds 不可",
+        run: checkControlGateWithinSubscription
       }
     ];
 

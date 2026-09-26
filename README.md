@@ -12,7 +12,7 @@
 - 正式展示：`/display/{项目名称}` 打开全屏中控页
 - 中控配对：6 位配对码，适合墙面平板或独立浏览器
 - 3D 户型：建模、导入、按楼层或全楼自动导图并回写到仪表盘；灯光按「区域」归类，墙体与灯光属性可批量应用
-- 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里开关已绑定的灯、开关、窗帘、空调、电视等；展示页用 iframe 打开同一舞台
+- 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里控制已绑定的灯、开关、窗帘（含卷帘与一拖多组合）、空调、空气净化器（本体与附加功能）、电视、门锁（门磁与电量只读）与通用设备（冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的附加功能等；温湿度计、扫地机、NAS、摄像头与人体传感器在舞台里只作状态展示与标记；展示页用 iframe 打开同一舞台
 - Home Assistant：HTTP / WebSocket 同步实体与状态，代理摄像头和媒体
 - 全局日志：按级别、分类和关键词筛选，导出时遮盖敏感信息
 - 授权商店：账号注册 / 登录、邮箱验证码、商品与优惠码、邀请返利与提现、订单查询、设备自助解绑
@@ -83,9 +83,9 @@ HomeOS/
 │       ├── 3d-studio/      # 户型工作室（入口 studio/studio-app.js，models/ 为模型素材）
 │       │   ├── studio/     # 编排层、相机/过渡/呈现、场景样式、控件、studio.css
 │       │   ├── plan/       # 底图与户型几何：比例、开洞、窗洞、平面绘制与光影
-│       │   ├── reflection/ # 地面反射：细节层 Worker、剔除、反射体
+│       │   ├── reflection/ # 地面反射与剔除：渲染目标分辨率、逐房间裁剪、反射体
 │       │   ├── materials/  # 程序化材质：墙面/石材与布艺贴图/电视玻璃与海报/暖阳植被
-│       │   ├── loaders/    # 外部模型装载、规范化、运行时家具、安防模型、窗帘轨道
+│       │   ├── loaders/    # 外部模型装载、规范化、安防模型、窗帘轨道
 │       │   └── export/     # 出图与导出：预设、工具、Draco 解码器与同源 Worker
 │       ├── templates/      # 控件模板
 │       └── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
@@ -104,9 +104,17 @@ HomeOS/
 │   ├── keys/local/         # 授权私钥（不入库）
 │   └── data/               # 商店 SQLite 与商品图（不入库）
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
-├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
+├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）/ 0004（3D 交互同步）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· audit_plan_symbols.mjs（平面符号形状对账：实测 GLB 俯视轮廓的圆度，钉住「圆形占地的物件被画成方角矩形」）· audit_colors.mjs（配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇）· audit_model_glb.mjs（模型 GLB 内容审计：流水线产物真值校验 + 既有资产尺寸债务探测）· check_invariants.mjs（二十四条静默失效护栏，见「前端结构卫生」一节）
+├── tools/                  # 静态守卫与审计（只用 Node 内置模块，无 npm 依赖）
+│   ├── bump_static_cache_versions.mjs  # 缓存戳同戳刷新
+│   ├── check_invariants.mjs            # 二十五条静默失效护栏，见「前端结构卫生」一节
+│   ├── audit_plan_symbols.mjs          # 平面符号形状对账：实测 GLB 俯视轮廓的圆度，钉住「圆形占地的物件被画成方角矩形」
+│   ├── audit_colors.mjs                # 配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇
+│   ├── audit_model_glb.mjs             # 模型 GLB 内容审计：流水线产物真值校验 + 既有资产尺寸债务探测
+│   ├── audit_coplanar_faces.mjs        # 流水线 GLB 的共面重叠探测（z-fighting，单张截图看不出）
+│   ├── models/                         # 建模流水线：generate-models.mjs + 规格 / 材质角色 / 素材库
+│   └── lib/  vendor/                   # 守卫共用（glb-footprint.mjs 俯视轮廓栅格化等）· acorn
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -153,7 +161,7 @@ python3 start.py
 
 主应用打开 <http://127.0.0.1:18081/setup>，商店打开 <http://127.0.0.1:18082/>。
 
-数据库结构由基线 `0001` 加增量 `0002` / `0003` 在主应用启动时自动建立（迁移串行化，动结构前留一份可还原快照）。需要手工执行时：
+数据库结构由基线 `0001` 加增量 `0002` / `0003` / `0004` 在主应用启动时自动建立（迁移串行化，动结构前留一份可还原快照）。需要手工执行时：
 
 ```bash
 APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
@@ -459,7 +467,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 ### 升级与迁移
 
-- 数据库结构由基线 `0001` 加增量 `0002`（项目名唯一）/ `0003`（展示地址别名）建立，主应用启动时自动执行并在动结构前留一份可还原快照。若库内记录的是更早构建的 revision，会先认领基线再升级（不改动任何业务数据）。
+- 数据库结构由基线 `0001` 加增量 `0002`（项目名唯一）/ `0003`（展示地址别名）/ `0004`（3D 交互同步）建立，主应用启动时自动执行并在动结构前留一份可还原快照。若库内记录的是更早构建的 revision，会先认领基线再升级（不改动任何业务数据）。
 - 邀请积分从 `FLOAT`（积分）改为 `INTEGER` **厘**（1 积分 = 100 厘）：原先靠 `round(x, 2)` 维持两位小数，而 SQLite 的 `round()` 是 half-away、Python 的是 half-even，落在 `.xx5` 上时两侧给出不同分币值。**升级不需要手工执行任何命令**，商店启动时自动按「补列 → 回填 + 逐行对账 → 退役旧列」完成，动手前先备份一份 `store.db.pre-centi-<时间戳>.bak`；对账有任何一行不一致就保留新旧列并存并打印差异，不会丢数据。对外 JSON 契约没变（仍是 `"10.05"` 这样的两位小数字符串）。
 
 详见 [store/README.md](store/README.md) 的「升级与迁移」。
@@ -685,7 +693,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它钉二十四条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
+它钉二十五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
 **下文的引用一律用条目名而不是序号**（早先写「第 6 条」「第 9 条」，中间插进新条目后全指向了别处）：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
@@ -830,6 +838,13 @@ node tools/check_invariants.mjs
   运行侧当成亮度分档去取色）。配方里还可以用 `slab` 指**石材整图**的色号（`marble` / `marble-dark`），
   色号写错也不会报错，只会让那块网格退化成一块没纹路的纯色，所以色号同样要在这条守卫里对账。
   判据同样从两端源码里取（规格里声明的角色、档位里构造器的返回值），不在这里再抄一份。
+- **素材库页签与类型词表两端错位**：素材库的分组显隐走两条**互不知情**的数据 —— 卡片自己的
+  `data-asset-category`（来自 `studio-asset-palette.js` 里那一组的 `category`）决定分组标题是否可见，
+  而 `studio-app.js` 的 `syncAssetTabVisibility` 用 `APPLIANCE_ITEM_TYPES` 决定**卡片**是否可见。
+  两条数据一错开，卡片就挂在上一个仍可见的家居标题下面（即「家电跑进了结构与特殊物件 / 卫浴那一组」），
+  不报错，只有人盯着素材栏才发现。同一份名单还决定兜底盒体的取色（`external-fallback.js`：家电取电器色、
+  其余取家具色），所以漏一个会连带让加载中的占位几何变成另一个颜色。脚本**双向对账**：「电器」组的卡片
+  必须都在名单里（少了就是漏到家居页签）、「家居」组的必须都不在（多了就是家居卡片跑进电器页签）。
 - **默认档位的角色没有出口**（`MATERIAL_STYLE_AUTO`，「跟随全局风格」）：与上一条同源，但换在另一头 ——
   非 `auto` 档位由 `studio-material-styles.js` 的构造器按角色给配方，`auto` 档位则要落到
   `loaders/studio-external-models.js` 的 `applyFurniturePalette` 里由角色分流。缺了出口的角色会掉进
@@ -951,7 +966,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条，现已二十四条）：
+本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条，现已二十五条）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
@@ -1059,11 +1074,28 @@ ruff check .                                      # 未使用 import / 重复定
 - 编辑器模型选中态更明显：新增 `.i3d-editor-selection` 与 `.i3d-focus-actions`。
 - 设备编辑器补齐状态灯规则、附加功能与净化器实体选择三节，并新增跨域批量应用（可一键应用到其他同类设备 / 温湿度计）。
 
+**对齐复核修正（后续轮次）**
+
+对上游 0.6.5 做了一轮全量复核：文件级差分 + 中文串差分 + 分域业务逻辑审读，结论逐条回源（含反汇编上游产物）后才采纳。修掉以下几类「不报错、只静默失效」的缺陷：
+
+- **门锁与门磁 4 处**：① 门扇动画补 `hinge` 三级兜底（配置显式值 → 门模型 → 左开），与 `binding-collectors` 同口径 —— 编辑器刻意不写 `hinge` 并断言兜底在收集侧，而动画路径没合并门模型 hinge，于是入户口 / 玻璃门拿不到门轴，右开门整体平移一个门宽、入户口还反向开启；② 双事件门磁单边缺失或未知改为一律返回 `null`（与自身契约一致）—— 此前返回确定值会把门永久钉死，且判据与 `eventTimestamp` 的可用性判定不同源，`unknown` 会漏过；③ 事件型门磁的 `doorLabel` 不再恒为「未绑定门磁」（事件源会清空 `doorEntityId`，旧判据只看它）；④ 门复位改取关闭姿态 —— 此前取烘焙的半开**编辑**姿态（双开 / 玻璃门 `0.42π`），移除门模型时整层门会齐刷刷弹开。
+- **3D 持久缓存 4 处**：⑤ `saveTemplate` 改为复用 `database || await openDatabase()` —— `openDatabase()` 一旦超时，其 Promise 永久定格为 `null`，读路径有 `database` 兜底而写路径没有，表现为本会话「读得到、写不进」且完全静默；⑥ `v1→v2` 升级时回填 `metadata`（注释早已承诺）—— 否则旧条目既不计配额也永不被 LRU 剪枝；⑦ 场景缓存在 `schedule()` 写入后同步内存层（`entryByKey` 此前只在 `preload` 写、`preloadByKey` 从不清理）—— 否则刚写入的条目本会话读不回来；⑧ 统计口径补 `misses`、超时后迟到结果不再重复记命中、写事务失败上报 `noteFallback()`；`packModelTemplate` 的 `bytes` 计入序列化信封，否则 64MB 配额被低估。
+- **服务白名单补齐 7 条**：`ha.ALLOWED_SERVICES` 漏登记 `lock.lock` / `lock.unlock` / `lock.open`（门锁面板三个动作全部 403）与 `input_button` / `input_boolean` / `input_select`（附加功能卡片里 `input_*` 域的命令必然 403）。机理是 `interaction3d/api.py` 的 lock 与 device-extra 分支校验通过后仍要落到 `ha.call_service`，而两条白名单不同源；`switch` / `light` / `number` / `select` 另有同名条目，所以缺口只在 `input_*` 与 `lock` 上显形，长期没被发现。补齐后该表与上游反汇编出的版本逐条一致（58 条）。
+- **宿主命令闸门补齐 3 类实体**：`runtime.js` 的 `control` 闸门只列绑定实体的顶层清单，`security.locks`、净化器 `environment.airPurifiers[].extraControls`、通用设备 `devices[<品类>][].extraControls` 三类不在内，命令在到达后端之前就被判成「此实体未绑定到当前 3D 控件」（门锁因此完全点不动）。舞台侧本就要求命令实体必须在本机 `extraControls` / 本控件绑定表里，闸门与之同口径，判定并未放松，后端仍是权威校验。
+- **状态订阅补齐同一批实体（闸门的另一半）**：上一条只修了闸门，订阅侧的钱包并没有跟着补。宿主对同一批「非顶层绑定」实体有两处展开——命令闸门（决定 `control` 能否下发）与状态订阅（`collectTrackedEntities` / `additionalEntityIds`，决定舞台收不收得到读数），上游两处都列了门锁与附加实体，本仓两处都漏了。`lightStream` 只推订阅集内的实体（服务端按订阅报文过滤），没订上的实体读数是**永久空值**：门锁面板恒显「门锁状态不可用」、门磁 `doorOpen` 恒为 `null`（门保持原姿态、不报错），附加功能卡片恒显「该实体当前不可用」且命令永远发不出去。修复按上游 `_0x56df7e` 主清单与 `_0x2c712f` 补充清单的口径补入门锁 8 个字段（锁本体 / 门磁实体型与事件型 / 开合两事件 / 电量 / 低电量 / 防拆）、通用设备（附加控件 + `statusRules.power` + 健康规则，直接复用舞台侧 `device-status.js` 的 `deviceEntityIds` 以免再分叉）、净化器附加控件；`lock` / `select` / `number` / `input_*` 不在 `lightStream` 主白名单正则内，必须同时进 `additionalEntityIds` 才能订上。同时新增不变量第 25 条把两端口径钉死（见下）。
+
+复核中另有三项**判定为误报、故未改动**（依据是「与上游同款行为不擅自加严或放宽」）：`lock.py` 不拒绝未知字段、净化器附加卡片的 pending / 定时器写法、number 卡用字符串精确比较确认 —— 三者上游皆同源，其中后两者的上游反混淆原文与本仓逐字一致。
+
 **与上游的结构差异（有意为之）**
 
 - 上游的运行期前端在 `frontend/modules/interaction3d/`、编辑器前端在 `frontend/static/modules/interaction3d/`；本仓按自身既有约定落位：运行期模块进 `frontend/modules/runtime/<域>/`，跨端小模块进 `frontend/static/bridge/`（如 `temperature-humidity.js`、`lock-state-runtime.js`、`load-timing.js`）。业务语义与上游一致，路径不同、也不新增「上游式」的目录。
 - 摄像头生命周期与鉴权文案未照搬上游字符串：本仓在 `visibilitychange` + `pause` + 监听回收处收口，401 / 403 集中由 `utils/api-request.js` 处置（跳 `/login` / `/license`），属等价实现。
 - 净化器气流未取上游的专用调色板令牌（本仓调色板只有 cool / heat / other），回落为中性灰，避免为单个特效新增设计令牌。
+- **未移植上游两个性能模块**：反射通道的几何 LOD（上游 `studio-reflection-detail.js` + `-worker.js` + `vendor/meshoptimizer` 的 `meshopt_simplifier`，把网格简化到 45% 三角形）与运行时家具合批（上游 `studio-runtime-furniture.js`，按材质合并几何以减 draw call）。两者在上游 0.6.3 与 0.6.5 均存在、不属 0.6.5 业务功能，故按「对齐业务能力」的范围落在外面；本仓对应能力由「可配置分辨率渲染目标 + 逐房间裁剪」（`reflection/studio-ground-reflections.js` + `studio-reflection-culling.js`）与 `mergeGeometries` 静态批处理（`studio-app.js`：墙带 / 静态批次 / 阴影 / 轮廓）覆盖。移植需引入含 WebAssembly 的 meshopt 与新增 Worker、控制器约 400 行并接入反射捕获路径，属渲染性能优化而非功能缺口。
+
+**数据库**
+
+- 新增迁移 `0004_studio_interaction_sync`：建表 `studio_interaction_sync(document_json, updated_at)`，配合模型 `StudioInteractionSync` 承载「待下发交付 + 可撤销删除记录」两件事（删除模型后的同步清理见上文）。请求模型 `Studio3DDraftUpdate` 新增 `interactionConfirmation`（最长 64），是级联清理的确认令牌 —— 它只是请求字段，不落库，因此不在本迁移里。
 
 ### v0.6.3
 
