@@ -18,101 +18,43 @@
   /* 这里刻意**没有** perspective。它此前只服务一件事：三个轨道环的 3D 倾角。
      倾角已被拿掉（理由写在下面「轨道环」那段），透视跟着一起去 —— 留着它不会让画面
      更好，只会给整层挂上一个 3D 渲染上下文，让发丝线（1px 的环、山脊、星点）多经过
-     一次带透视的重新栅格化。景深不做 Z 位移的理由写在下面「景深」那段的 ①②③。 */
+     一次带透视的重新栅格化。（曾经还有一条「Z 位移所以不能有透视」的理由，随指针视差
+     一起退役，见下面那段。） */
 }
 
-/* ===== 景深 =====
-   场景是十几张按远近排好的平面。平面的前后关系只有「层与层之间产生相对位移」时才会
-   被眼睛读成深度 —— 一张再细的插画，只要各层同步移动，看着仍然是一张图。
-   这里给每层一个 --hos-depth，它就是位移倍率：指针偏移 × 倍率（近层走得多，远层几乎不动）。
-   层的前后关系交给 DOM 顺序，不重复声明。
+/* ===== 指针视差（已退役） =====
+   这一段原来是场景的「景深」：每层一个 --hos-depth 倍率，.hos-scene__stage > * 用
+   translate: calc(var(--hos-px) * var(--hos-depth)) 把指针位置换算成层间位移 ——
+   远层几乎不动、近层走得多，十几张平面就读出前后关系。
 
-   --hos-px / --hos-py 由 scene-depth.js 写入（指针 + 空闲漂移）。脚本不在时取 0，
-   画面与从前完全一致 —— 这份片段同时喂三个入口页、商店入口页和 Activate，不能因为
-   少了一个脚本就变样。
+   2026-09 按需求整体退役。指针一动，倍率最高的那一组（三个轨道环 + 圆心光斑，0.86）
+   就跟着漂，而它们是细线、大面积虚线弧与发光节点：这套图形里位移最不像深度，最像
+   「页面在动」。只留圆环不动也不成立 —— 地平线 0.9、雾带 0.8 比圆环动得更多，把它们
+   一并停掉之后，剩下的就只有雷达 0.62 以下那几层几乎看不出幅度的位移：换不回层次感，
+   只是让一张静帧不再安静。
 
-   只有 X/Y，**没有 Z**。曾经用「倍率 × 140px 的 Z 位移 + 透视」做近大远小，三种代价
-   一起判死了这条路：
-     ① Z 与指针无关，是常量 —— 于是每层被**永久**放大。实测 scan 层 1060.9px 对
-        978px（+8.48%），静止时构图就已经不是设计稿那一张；
-     ② 放大倍率几乎都是非整数，而 hex 层是 56×100 的 SVG 平铺、星层是 1px 点阵：
-        平铺花纹被非整数放大后，再逐帧亚像素平移，就爬出摩尔纹 —— 表现就是「画面在闪」；
-     ③ 带 Z 的子元素落进 3D 渲染上下文，极光的 mix-blend-mode: screen 会被丢掉，
-        空气感没了（这正是上面 .hos-scene__stage 那段注释警告过的事）。
-   不到 9% 的放大换不来这些，深度交给倍率差读就够了。
+   所以两侧一起摘干净：脚本不再写 --hos-px / --hos-py，这里也不留任何取用点。必须成对
+   —— tools/check_invariants.mjs 有一条正是「JS 写入的自定义属性没人读」。
+   入口场景现在在**所有设备**上都是一张静帧；「会自己动」的那些装饰另由下面的静止档
+   在触摸设备上关掉，那是另一件事（闪烁，不是位移）。
 
-   为什么用独立的 translate 属性而不是 transform：极光、星层、轨道环的 transform
-   已经被各自的动画占着，再写 transform 会互相覆盖；translate 与 transform 是两个
-   属性，会叠加。
+   要找回这份设计：git log 搜「指针视差」—— 本段与 scene-depth.js 是配对的，
+   CSS 侧还原那条 translate 声明与每层的 --hos-depth 倍率即可。 */
 
-   谁可以动：只有「自带定位尺寸」的装饰层（极光、晨光、暖光、雷达、轨道环、雾带、
-   地平线）。inset: 0 的满屏层一律 --hos-depth: 0，见下面那段 —— 它们没有位移余量，
-   一动就在边缘露出底下的天幕。 */
-.hos-scene__stage > * {
-  translate: calc(var(--hos-px, 0px) * var(--hos-depth, 0))
-    calc(var(--hos-py, 0px) * var(--hos-depth, 0));
-}
+/* 随取用点一起删掉的两条明细 —— 值抄在这里，将来想恢复时有据可查：
 
-/* 镜头本身不该跟着动：暗角与压边是「画面之外」的东西，一动就露馅。 */
-.hos-scene__vignette,
-.hos-scene__shade {
-  --hos-depth: 0;
-}
+   ① 「不许动」的 10 个选择器：暗角 .hos-scene__vignette、压边 .hos-scene__shade，
+      加上 8 张 inset: 0 的满屏层（天幕 / 星场远 / 星场近 / hex / 山脊 / 扫描 / 浮尘 / 霾）。
+      当年它们要显式写出来，是因为满屏层一移就在对侧露出底下的天幕；现在连 translate
+      取用点都没有了，这份名单也就只剩注释价值 —— 真正的约束是「没有取用点就谁都不会动」。
+   ② 按远近给过的倍率：晨光 0.2 / 暖光 0.24 / 极光 0.3 / 雷达 0.62 / 雾带 0.8 /
+      地平线 0.9，三个轨道环与圆心光斑同给 0.86。最后这组刻意同值（曾经是
+      0.72 / 0.86 / 1.0 / 1.12 四档）：四个同心件的倍率只要不同，指针一动就各自漂开
+      几个像素，同心性被破坏 —— 而「它们是一件仪器」正是靠同心读出来的。
 
-/* 满屏层一律 0。它们是 inset: 0，边框就贴在视口边上，没有位移余量 —— 一动就在对侧
-   露出底下的天幕，成了一条会呼吸的暗缝。默认值本来就是 0，这里显式列出来，是为了让
-   「哪些层不许动」在代码里可读：少写一行，下一个改动就可能把它挪到别处。
-   其中星层与 hex 还有第二个理由 —— 见上面「景深」那段 ②，平铺花纹一移动就爬摩尔纹。 */
-.hos-scene__sky,
-.hos-scene__stars--far,
-.hos-scene__stars--near,
-.hos-scene__hex,
-.hos-scene__mountains,
-.hos-scene__scan,
-.hos-scene__motes,
-.hos-scene__haze {
-  --hos-depth: 0;
-}
+   还有一条 reduced-motion 的兜底（把 .hos-scene__stage > * 的 translate 置 none）：
+   它兜的就是上面那条声明，声明没了，它也没有对象。 */
 
-/* 有自己定位尺寸的装饰层：按远近给倍率。它们移的是自己，不会带出画布边缘。 */
-.hos-scene__dawn {
-  --hos-depth: 0.2;
-}
-.hos-scene__ambient {
-  --hos-depth: 0.24;
-}
-.hos-scene__aurora {
-  --hos-depth: 0.3;
-}
-.hos-scene__radar {
-  --hos-depth: 0.62;
-}
-.hos-scene__mist {
-  --hos-depth: 0.8;
-}
-.hos-scene__horizon {
-  --hos-depth: 0.9;
-}
-/* 三个环与圆心光斑是**一件仪器**，给同一个倍率。
-   此前是 0.72 / 0.86 / 1.0 / 1.12 一档一档分开的：指针一动，四个同心件各自漂开几个
-   像素，同心性被破坏 —— 散得不多，但「它们属于同一个东西」这件事正是靠同心读出来的。
-   一件刚体就该一起动；远近由大气透视（外环更暗更细、内环更亮更粗）交代，
-   不靠把一台仪器拆成四层。 */
-.hos-scene__orbit--outer,
-.hos-scene__orbit--mid,
-.hos-scene__orbit--inner,
-.hos-scene__orbit-core {
-  --hos-depth: 0.86;
-}
-
-/* page.css 那条 reduced-motion 只把 animation/transition 的时长压到 0，管不到这里的
-   translate —— 它是由 scene-depth.js 逐帧写进来的，不归动画系统管。手动关掉。
-   （脚本自己也判断了 reduced-motion，这里是兜底：用户中途改系统设置时不用重载。） */
-@media (prefers-reduced-motion: reduce) {
-  .hos-scene__stage > * {
-    translate: none;
-  }
-}
 
 /* 天幕。四团氛围光按「家的四个方向」铺开：左上是页面色调（山背后的信号），
    右上是极光紫（夜里的天色），左下是暖光（屋里漏出来的灯），右下一点薄荷（新风外机）。
@@ -2208,4 +2150,200 @@
   .hos-scene__beacon-ring {
     opacity: 0;
   }
+}
+
+/* ===== 静止档（触摸设备） =====
+   主指针不是鼠标时，场景不再有持续动画 —— 它在手机与平板上读到的不是「家在呼吸」，
+   而是「画面在闪」。上面 ≤900px 那段逐条关掉的多是轨道环、山脊、小屋这类**小面积**
+   装饰，恰好漏掉了最贵的几个：星场（满屏、各 8–10 枚径向渐变）、hex（满屏平铺 +
+   mask，且动画改的是 background-position）、晨光、暖光 blur(12px)、雾带 blur(18px) ——
+   全是满屏或多像素模糊层，在 3x DPR 上每帧重绘一次、每帧跑一次模糊核。
+   这些层与**窗口有多宽无关**，所以它们在手机、iPad 竖屏、iPad 横屏上一个都没少。
+
+   为什么用 pointer/hover 而不是宽度：iPad 横屏（1024–1366px）走的是**桌面分支**，
+   上面那张 ≤900px 的清单根本碰不到它 —— 而它正是闪得最重的一档：45 条无限动画全在跑，
+   还要额外叠一层 .hos-panel 的 backdrop-filter: blur(22px)，背板每帧重新采样一次
+   逐帧变化的场景。触摸设备的 GPU 档位与「坞体玻璃压在动效上」这两件事，与宽度无关。
+
+   为什么 stage 用兜底选择器：stage 是 aria-hidden 的纯装饰层，将来往里加新的装饰层时
+   不会像 ≤900px 那张逐条清单一样漏掉最贵的那几个 —— 星场 / hex / 晨光 / 暖光 / 雾带
+   就是这么漏掉的。**不要**把这条兜底推广到 .hos-scene 或整页：那会关掉提交转圈
+   （.hos-btn-primary.is-loading::after）这类功能性动效。 */
+
+/* 冻结帧读数。有些层的可见性完全来自动画，停掉动画就得把读数补回来 ——
+   否则不是「静止」而是「消失」：
+     · .hos-scene__home —— 入场关键帧带 fill: both，基础 opacity 就是 0；
+     · .hos-scene__motes i —— 基础 opacity 也是 0（浮尘只在动画里出现）；
+     · 其余那些基础 opacity 为 1、动画只把它压到 0.35–0.95 的层（暖光、晨光、地平线、
+       屋里的四束光、窗光、轨道的呼吸），停掉动画后会自动顶到 1 —— 比动画里任何一帧都亮。
+   取值优先沿用 ≤900px 段已经替这三页选定的那一套（0.9 / 0.85 / 0 / 1），其余取各自
+   关键帧的中点：冻的是「动画里的一帧」，不是一个比动画更亮的新配色。 */
+@media (pointer: coarse), (hover: none) {
+  .hos-scene__stage,
+  .hos-scene__stage * {
+    animation: none !important;
+  }
+
+  /* stage 之外的装饰要逐个点名：它们与标题、徽标、档案表同处一层，吃不到上面那条兜底。 */
+  .hos-scene__brand,
+  .hos-scene__dossier,
+  .hos-scene__dossier-dot,
+  .hos-scene__live-dot,
+  .hos-scene__mark-wrap,
+  .hos-scene__mark-sheen,
+  .hos-scene__accent::after,
+  .hos-scene__nodes i {
+    animation: none !important;
+  }
+
+  .hos-scene__home {
+    opacity: 1 !important;
+  }
+
+  .hos-scene__motes i {
+    opacity: 0.5 !important;
+  }
+
+  .hos-scene__home-pad,
+  .hos-scene__home-spill,
+  .hos-scene__home-beam,
+  .hos-scene__home-aura,
+  .hos-scene__win-bloom,
+  .hos-scene__win {
+    opacity: 0.9 !important;
+  }
+
+  .hos-scene__uplink,
+  .hos-scene__uplink-node {
+    opacity: 0.85 !important;
+  }
+
+  /* 这两件只在「路上」才有意义（滑过光柱的数据包、一圈圈扩散的信标环），静止即隐藏。 */
+  .hos-scene__uplink-packet,
+  .hos-scene__beacon-ring {
+    opacity: 0 !important;
+  }
+
+  .hos-scene__dawn {
+    opacity: 0.85 !important;
+  }
+
+  .hos-scene__ambient {
+    opacity: 0.7 !important;
+  }
+
+  .hos-scene__mist--a {
+    opacity: 0.65 !important;
+  }
+
+  .hos-scene__horizon {
+    opacity: 0.75 !important;
+  }
+
+  .hos-scene__stars--near {
+    opacity: 0.85 !important;
+  }
+
+  .hos-scene__orbit--outer,
+  .hos-scene__orbit--mid,
+  .hos-scene__orbit--inner {
+    opacity: 0.9 !important;
+  }
+
+  .hos-scene__orbit-core {
+    opacity: 0.7 !important;
+  }
+
+  .hos-scene__orbit-node {
+    opacity: 0.85 !important;
+  }
+
+  .hos-scene__orbit-tick {
+    opacity: 0.7 !important;
+  }
+}
+
+/* 上面那一组的第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备：
+   此时 (pointer: coarse) / (hover: none) 可能不再匹配，而它的 GPU 档位与坞体玻璃
+   压在动效上这两件事一点没变。scene-depth.js 另外给 <html> 挂 .hos-touch，
+   这里用**同一套声明**兜住那条路径。两组必须逐字一致 —— 改一组就改另一组。 */
+html.hos-touch .hos-scene__stage,
+html.hos-touch .hos-scene__stage * {
+  animation: none !important;
+}
+
+html.hos-touch .hos-scene__brand,
+html.hos-touch .hos-scene__dossier,
+html.hos-touch .hos-scene__dossier-dot,
+html.hos-touch .hos-scene__live-dot,
+html.hos-touch .hos-scene__mark-wrap,
+html.hos-touch .hos-scene__mark-sheen,
+html.hos-touch .hos-scene__accent::after,
+html.hos-touch .hos-scene__nodes i {
+  animation: none !important;
+}
+
+html.hos-touch .hos-scene__home {
+  opacity: 1 !important;
+}
+
+html.hos-touch .hos-scene__motes i {
+  opacity: 0.5 !important;
+}
+
+html.hos-touch .hos-scene__home-pad,
+html.hos-touch .hos-scene__home-spill,
+html.hos-touch .hos-scene__home-beam,
+html.hos-touch .hos-scene__home-aura,
+html.hos-touch .hos-scene__win-bloom,
+html.hos-touch .hos-scene__win {
+  opacity: 0.9 !important;
+}
+
+html.hos-touch .hos-scene__uplink,
+html.hos-touch .hos-scene__uplink-node {
+  opacity: 0.85 !important;
+}
+
+html.hos-touch .hos-scene__uplink-packet,
+html.hos-touch .hos-scene__beacon-ring {
+  opacity: 0 !important;
+}
+
+html.hos-touch .hos-scene__dawn {
+  opacity: 0.85 !important;
+}
+
+html.hos-touch .hos-scene__ambient {
+  opacity: 0.7 !important;
+}
+
+html.hos-touch .hos-scene__mist--a {
+  opacity: 0.65 !important;
+}
+
+html.hos-touch .hos-scene__horizon {
+  opacity: 0.75 !important;
+}
+
+html.hos-touch .hos-scene__stars--near {
+  opacity: 0.85 !important;
+}
+
+html.hos-touch .hos-scene__orbit--outer,
+html.hos-touch .hos-scene__orbit--mid,
+html.hos-touch .hos-scene__orbit--inner {
+  opacity: 0.9 !important;
+}
+
+html.hos-touch .hos-scene__orbit-core {
+  opacity: 0.7 !important;
+}
+
+html.hos-touch .hos-scene__orbit-node {
+  opacity: 0.85 !important;
+}
+
+html.hos-touch .hos-scene__orbit-tick {
+  opacity: 0.7 !important;
 }

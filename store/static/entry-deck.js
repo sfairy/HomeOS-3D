@@ -34,9 +34,17 @@ const decks = document.querySelectorAll('.hos-deck');
 // 找回三屏各一块），而按路径切屏时先出现在 DOM 里的那屏往往正是隐藏的那屏 ——
 // 只取第一个会让用户真正看到的那一块永远停在服务端注入的破折号上。
 if (decks.length) {
-  // 降低动效偏好：秒级跳动的数字也是一种「持续动效」。这里改成每 30 秒一跳、
-  // 并且时钟只到分钟 —— 读数仍然是活的，但不再一秒一闪。
-  const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 降低动效偏好、以及触摸设备：秒级跳动的数字也是一种「持续动效」。这里改成每 30 秒
+  // 一跳、并且时钟只到分钟 —— 读数仍然是活的，但不再一秒一闪。
+  //
+  // 触摸设备这一档与 scene.css 的「静止档」用同一条判据（pointer: coarse / hover: none），
+  // 也与主应用那份逐字一致 —— 两份文件，一套行为：每秒写一次 .hos-deck 的文本，会让坞体
+  // （含 backdrop-filter 的玻璃面）跟着重绘一次，在手机上它与场景那些持续动画叠在一起，
+  // 被一起读成「画面在闪」。判据点名的是「主指针不是鼠标」，与窗口宽度无关 ——
+  // iPad 横屏走的是桌面布局，同样要收。
+  const calm = window.matchMedia(
+    '(prefers-reduced-motion: reduce), (pointer: coarse), (hover: none)'
+  ).matches;
   const tick = calm ? 30_000 : 1_000;
 
   const pad = (value) => String(value).padStart(2, '0');

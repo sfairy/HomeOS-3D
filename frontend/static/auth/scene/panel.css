@@ -1932,6 +1932,13 @@
        只会让恢复页这种短面板凭空多出一段空白，再把滚动条撑出来。 */
     min-height: 0;
     padding: 30px 22px 18px;
+    /* 滚动统一交给 .hos-page（同一件事的另一半在 page.css 的窄屏段：那边把 dock 的
+       padding 收掉、整页 overflow: auto）。坞体自己不再当第二个滚动容器 ——
+       「backdrop-filter 的玻璃面同时又是滚动容器」是移动端滚动时闪动的常见来源：
+       每滚一帧，这层玻璃都要重新采样一次它背后的场景，而它自己的内容也在动。
+       overflow: visible 是安全的：窄屏 max-height 已放开、min-height 归零，
+       坞体高度由内容决定，本来就没有可滚动的溢出。 */
+    overflow: visible;
   }
 
   .hos-panel h1,
@@ -1943,6 +1950,42 @@
   .hos-row-2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== 静止档（触摸设备）：坞体玻璃降级为实底 =====
+   场景侧已经静止（见 scene.css 的「静止档」），这一条收的是**唯一还压在实时画面上的东西**：
+   坞体的 backdrop-filter: blur(22px)。
+
+   为什么冻住动画之后它还能闪：背板模糊不是「画一次就完」的静态效果，它是**每帧重新采样
+   一次它背后的画面**。而它背后的画面里有三处 mix-blend-mode: screen（极光那条还叠了
+   blur(28px)、扫描带、色调层），加上 `.hos-scene` 的 isolation: isolate 组成的混合上下文 ——
+   「backdrop-filter 的背板里含 mix-blend-mode 图层」是 WebKit / Chromium 上都有案的
+   合成抖动来源：混合层一旦被重新栅格化，背板就得跟着重算，表现出来就是整块坞体连它背后
+   的山脊一起发亮发暗。滚动时最重（每帧一次），静止时也可能被合成器周期性触发。
+
+   降级方式与 page.css 里 --hos-glass 那段已有的决策同源（「浮层底下是实时场景时保持
+   不透明」）：把 α 0.82/0.92 的半透玻璃换成同一族令牌的实底 —— **只去模糊、不动构图**。
+   取值必须用现有令牌（--hos-sky-mid / --hos-sky-low），不要新写十六进制：
+   tools/check_invariants.mjs 会校验 design/scene/page.css 的 canonical 取值。
+
+   只想保留原配色、不要实底的话，把两处 background 删掉即可 ——
+   `backdrop-filter: none` 本身就是止闪的那一半，剩下 8–18% 的透光只会让背后的场景变清晰。
+
+   只作用于触摸设备：桌面浏览器实测不闪，玻璃是这套页面的质感，不该白扣。 */
+@media (pointer: coarse), (hover: none) {
+  .hos-panel {
+    background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* 第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备（与 scene.css 的
+   html.hos-touch 那一组同源）。两份必须逐字一致 —— 改一组就改另一组。 */
+html.hos-touch .hos-panel {
+  background: linear-gradient(165deg, var(--hos-sky-mid) 0%, var(--hos-sky-low) 100%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1965,4 +2008,35 @@
   .hos-btn-ghost.is-loading::after {
     animation-duration: 1.6s;
   }
+}
+
+/* ===== 静止档（触摸设备）：坞体自己身上那几件持续动效 =====
+   场景已经静止（见 scene.css 的「静止档」），这里收的是坞体内部的装饰 —— 甲板上的扫描光带、
+   开通轨「当前这一格」的呼吸环、主按钮的扫光。三件都是 transform / box-shadow 逐帧变化的
+   小面积动效，代价本身不大，但它们都在**带 backdrop-filter 的玻璃层内部**：层里每有一处
+   逐帧重绘，这类图层的合成就得整体重来一次，而移动端最怕的正是这种「玻璃层内部一直在动」。
+
+   这份名单与上面 prefers-reduced-motion 那张**刻意同源**（同样三件 + 呼吸环），因为两者的
+   判断是同一件事：这些动效不承载信息，只是「活着」的证据。日期选择器的入场、表单的入场
+   这些一次性的不在名单里。
+
+   这里**不能**用 !important：!important 会连带把提交中的转圈（.hos-btn-primary.is-loading::after）
+   一起停掉 —— 上面 reduced-motion 那段正是靠「不写 !important、让 .is-loading 那条更高的
+   特异性赢」来保住它的，这份沿用同一手法。 */
+@media (pointer: coarse), (hover: none) {
+  .hos-btn-primary::after,
+  .hos-hub__scan,
+  .hos-deck__scan,
+  .hos-steps__item.is-current .hos-steps__dot {
+    animation: none;
+  }
+}
+
+/* 第二份，供 iPad 这类「接了妙控键盘 / 触控板之后媒体查询改口」的设备（与 scene.css 的
+   html.hos-touch 那一组同源）。两份必须逐字一致 —— 改一组就改另一组。 */
+html.hos-touch .hos-btn-primary::after,
+html.hos-touch .hos-hub__scan,
+html.hos-touch .hos-deck__scan,
+html.hos-touch .hos-steps__item.is-current .hos-steps__dot {
+  animation: none;
 }
