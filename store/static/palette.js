@@ -26,7 +26,7 @@ import {
   PRESETS,
   normalizeHex,
   resolveTokens,
-} from "./scene/appearance.js?v=2609262312";
+} from "./scene/appearance.js?v=2609270001";
 
 const dialogPane = document.querySelector('[data-tab-pane="palette"]');
 const presetList = document.getElementById("palette-preset-list");
@@ -216,23 +216,40 @@ if (dialogPane) {
     if (accentInput) accentInput.value = initialAccent;
     if (accentHexInput) accentHexInput.placeholder = initialAccent;
   }
-  // 首次进入分页才读服务端：配色面板不是默认打开的分页，开局就多发一个请求不值。
+  // 「配色面板此刻真的可见」要同时满足三个条件：外层 #admin-app 已经显形（登录看它）、
+  // 所在的 .admin-panel 是 .active（切侧栏看它）、分页自己不是 hidden（切分页看它）。
+  // 只看 dialogPane.hidden 是不够的 —— 页面刚加载时 app.js 还没调过 setTab，所有分页都
+  // 没有 hidden 属性，于是**登录屏**上也会被当成「可见」，往 /store-admin/v1/appearance
+  // 打一个必然 401 的请求（配色接口要管理员身份，而这一页首先是登录屏）。
+  const settingsPanel = dialogPane.closest(".admin-panel");
+  const appShell = document.getElementById("admin-app");
+  const isVisible = () =>
+    (!appShell || !appShell.hidden) &&
+    !dialogPane.hidden &&
+    (!settingsPanel || settingsPanel.classList.contains("active"));
+
+  // 首次真正看到分页才读服务端：配色面板不是默认打开的分页，开局就多发一个请求不值。
   let loaded = false;
   const ensureLoaded = () => {
-    if (loaded) return;
+    if (loaded || !isVisible()) return;
     loaded = true;
     loadSaved().then(repaint);
   };
-  // 分页切换靠 hidden 属性（见 admin.html 里的 tabs 逻辑），所以用 MutationObserver
-  // 盯它 —— 比在后台脚本里加一个「切到配色分页了」的自定义事件更少耦合：
-  // 那个事件一旦被改名或漏派发，面板会安静地显示默认色而不是当前配色。
-  new MutationObserver(() => {
-    if (!dialogPane.hidden) {
-      setMessage("");
-      ensureLoaded();
-    }
-  }).observe(dialogPane, { attributes: true, attributeFilter: ["hidden", "class"] });
-  if (!dialogPane.hidden) ensureLoaded();
+  // 三个节点的属性变化都会改变可见性结论，所以都盯上；回调里重新判一次而不是各自
+  // 写一份条件 —— 分页切换靠 hidden（见 admin.html 里的 tabs 逻辑）、侧栏切换靠
+  // .active、登录态靠 #admin-app 的 hidden。比在后台脚本里加一个「切到配色分页了」
+  // 的自定义事件更少耦合：那个事件一旦被改名或漏派发，面板会安静地显示默认色。
+  const observer = new MutationObserver(() => {
+    if (!isVisible()) return;
+    setMessage("");
+    ensureLoaded();
+  });
+  observer.observe(dialogPane, { attributes: true, attributeFilter: ["hidden", "class"] });
+  if (settingsPanel) {
+    observer.observe(settingsPanel, { attributes: true, attributeFilter: ["hidden", "class"] });
+  }
+  if (appShell) observer.observe(appShell, { attributes: true, attributeFilter: ["hidden"] });
+  ensureLoaded();
 
   accentInput?.addEventListener("input", () => {
     draft.accent = accentInput.value;

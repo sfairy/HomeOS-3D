@@ -4,14 +4,14 @@
  * 激活码列表与签发/补发/升级，以及设备绑定的解绑与查看。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609262312";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609262312";
-import { state } from "../state.js?v=2609262312";
-import { d, dt, pill, utcInput } from "../format.js?v=2609262312";
-import { LICENSE_SOURCE } from "../vocab.js?v=2609262312";
-import { api, withBusy } from "../api.js?v=2609262312";
-import { askConfirm } from "../dialogs.js?v=2609262312";
-import { host } from "../host.js?v=2609262312";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609270001";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609270001";
+import { state } from "../state.js?v=2609270001";
+import { d, dt, pill, utcInput } from "../format.js?v=2609270001";
+import { LICENSE_SOURCE } from "../vocab.js?v=2609270001";
+import { api, withBusy } from "../api.js?v=2609270001";
+import { askConfirm } from "../dialogs.js?v=2609270001";
+import { host } from "../host.js?v=2609270001";
 
 // --------------------------------------------------------------------------- //
 // 激活码
@@ -24,7 +24,16 @@ export async function loadLicenses() {
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
   if (expiring) params.set('expiring_days', expiring);
-  const data = await pagedFetch('licenses', '/licenses', Object.fromEntries(params));
+  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
+  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
+  let data;
+  try {
+    data = await pagedFetch('licenses', '/licenses', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   state.licenses = data.items;
   $('#license-rows').innerHTML = data.items.length ? data.items.map(license => `
     <tr>
@@ -190,7 +199,14 @@ export async function loadBindings() {
   if ($('#binding-active-only').checked) params.set('active_only', 'true');
   const keyword = $('#binding-keyword').value.trim();
   if (keyword) params.set('keyword', keyword);
-  const data = await pagedFetch('bindings', '/bindings', Object.fromEntries(params));
+  // 同 loadLicenses：刷新 / 筛选 / 分页都直接调它，失败要在这里收口，别把 Promise 漏出去。
+  let data;
+  try {
+    data = await pagedFetch('bindings', '/bindings', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   $('#binding-rows').innerHTML = data.items.length ? data.items.map(binding => `
     <tr>
       <td class="mono">${cell(binding.instanceId)}</td>

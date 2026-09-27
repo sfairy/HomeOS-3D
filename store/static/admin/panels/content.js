@@ -6,14 +6,14 @@
  * 两块内容管理的列表与编辑器：后台审计日志、账号权益。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609262312";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609262312";
-import { state } from "../state.js?v=2609262312";
-import { askConfirm } from "../dialogs.js?v=2609262312";
-import { api, withBusy } from "../api.js?v=2609262312";
-import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609262312";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609262312";
-import { host } from "../host.js?v=2609262312";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609270001";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609270001";
+import { state } from "../state.js?v=2609270001";
+import { askConfirm } from "../dialogs.js?v=2609270001";
+import { api, withBusy } from "../api.js?v=2609270001";
+import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609270001";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609270001";
+import { host } from "../host.js?v=2609270001";
 
 // --------------------------------------------------------------------------- //
 // 审计日志
@@ -93,7 +93,17 @@ export async function loadEntitlements() {
   const status = $('#entitlement-status').value;
   if (feature) params.set('keyword', feature);
   if (status) params.set('status_filter', status);
-  const data = await pagedFetch('entitlements', '/entitlements', Object.fromEntries(params));
+  // 与同文件的 loadAudits 一样在这里收口：这个 loader 不只被 activate() 调用（那里有 catch），
+  // 「刷新 / 查询」按钮与分页器、筛选框都直接调它，失败时没人接那个 Promise，会在控制台留一条
+  // Uncaught (in promise)；401/403 时 api() 已经切回登录屏，列表里也由 pagedFetch 渲染了「读取出错」，
+  // 这里再补一句提示即可。
+  let data;
+  try {
+    data = await pagedFetch('entitlements', '/entitlements', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   state.entitlements = data.items;
   $('#entitlement-rows').innerHTML = data.items.length ? data.items.map(entry => `
     <tr>

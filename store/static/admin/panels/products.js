@@ -4,15 +4,15 @@
  * 商品列表与编辑器（定价、有效期、库存、功能码），以及商品目录缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609262312";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609262312";
-import { api, withBusy } from "../api.js?v=2609262312";
-import { state } from "../state.js?v=2609262312";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609262312";
-import { money, num, pill } from "../format.js?v=2609262312";
-import { PRODUCT_TYPE } from "../vocab.js?v=2609262312";
-import { askConfirm } from "../dialogs.js?v=2609262312";
-import { host } from "../host.js?v=2609262312";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609270001";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609270001";
+import { api, withBusy } from "../api.js?v=2609270001";
+import { state } from "../state.js?v=2609270001";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609270001";
+import { money, num, pill } from "../format.js?v=2609270001";
+import { PRODUCT_TYPE } from "../vocab.js?v=2609270001";
+import { askConfirm } from "../dialogs.js?v=2609270001";
+import { host } from "../host.js?v=2609270001";
 
 // --------------------------------------------------------------------------- //
 // 商品
@@ -98,7 +98,16 @@ export async function loadProducts() {
   const status = $('#product-status').value;
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
-  const data = await pagedFetch('products', '/products', Object.fromEntries(params));
+  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
+  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
+  let data;
+  try {
+    data = await pagedFetch('products', '/products', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   state.productPage = data.items;
   $('#product-rows').innerHTML = data.items.length ? data.items.map(product => `
     <tr>

@@ -4,13 +4,13 @@
  * 优惠码列表、编辑器与核销记录跳转。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609262312";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609262312";
-import { state } from "../state.js?v=2609262312";
-import { localInput, money, num, pill, utcInput } from "../format.js?v=2609262312";
-import { api, withBusy } from "../api.js?v=2609262312";
-import { askConfirm } from "../dialogs.js?v=2609262312";
-import { host } from "../host.js?v=2609262312";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609270001";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609270001";
+import { state } from "../state.js?v=2609270001";
+import { localInput, money, num, pill, utcInput } from "../format.js?v=2609270001";
+import { api, withBusy } from "../api.js?v=2609270001";
+import { askConfirm } from "../dialogs.js?v=2609270001";
+import { host } from "../host.js?v=2609270001";
 
 // --------------------------------------------------------------------------- //
 // 优惠码
@@ -21,7 +21,16 @@ export async function loadCoupons() {
   const status = $('#coupon-status').value;
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
-  const data = await pagedFetch('coupons', '/coupons', Object.fromEntries(params));
+  // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
+  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
+  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
+  let data;
+  try {
+    data = await pagedFetch('coupons', '/coupons', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   state.coupons = data.items;
   $('#coupon-rows').innerHTML = data.items.length ? data.items.map(coupon => `
     <tr>

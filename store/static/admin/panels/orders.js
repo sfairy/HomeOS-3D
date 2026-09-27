@@ -6,13 +6,13 @@
  * 订单列表与逐行动作。状态词表由服务端下发（服务端是权威），这里只做展示映射与缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609262312";
-import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609262312";
-import { api } from "../api.js?v=2609262312";
-import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609262312";
-import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609262312";
-import { askConfirm } from "../dialogs.js?v=2609262312";
-import { host } from "../host.js?v=2609262312";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609270001";
+import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609270001";
+import { api } from "../api.js?v=2609270001";
+import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609270001";
+import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609270001";
+import { askConfirm } from "../dialogs.js?v=2609270001";
+import { host } from "../host.js?v=2609270001";
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
 // store/commerce/order_status.py）。手写这两样的代价是静默的：动作数组漏掉
@@ -57,18 +57,27 @@ function orderStatusMeta() {
 // --------------------------------------------------------------------------- //
 export async function loadOrders() {
   // 词表先到位：下面要用它填筛选下拉并给按钮做门禁，缺了它会渲染出一排没有操作的订单。
-  const orderStatus = await orderStatusMeta();
-  const params = new URLSearchParams();
-  const status = $('#order-status').value;
-  const keyword = $('#order-keyword').value.trim();
-  const from = dayStartUtc($('#order-date-from').value);
-  const to = dayEndUtc($('#order-date-to').value);
-  if (status) params.set('status_filter', status);
-  if (keyword) params.set('keyword', keyword);
-  if (from) params.set('date_from', from);
-  if (to) params.set('date_to', to);
-  if ($('#order-review').checked) params.set('needs_review', 'true');
-  const data = await pagedFetch('orders', '/orders', Object.fromEntries(params));
+  // 词表与列表两张请求都在这里收口：刷新按钮、筛选框与分页器都直接调这个 loader，
+  // 失败时没人接那个 Promise，会在控制台留一条 Uncaught (in promise)。
+  let orderStatus;
+  let data;
+  try {
+    orderStatus = await orderStatusMeta();
+    const params = new URLSearchParams();
+    const status = $('#order-status').value;
+    const keyword = $('#order-keyword').value.trim();
+    const from = dayStartUtc($('#order-date-from').value);
+    const to = dayEndUtc($('#order-date-to').value);
+    if (status) params.set('status_filter', status);
+    if (keyword) params.set('keyword', keyword);
+    if (from) params.set('date_from', from);
+    if (to) params.set('date_to', to);
+    if ($('#order-review').checked) params.set('needs_review', 'true');
+    data = await pagedFetch('orders', '/orders', Object.fromEntries(params));
+  } catch (error) {
+    toast(error.message, 'danger');
+    return;
+  }
   $('#order-rows').innerHTML = data.items.length ? data.items.map(order => {
     // 与后端 admin.py 的 _FULFILLABLE_STATUSES 一致：只有仍持有库存预留、未进终态的
     // 订单显示「标记支付 / 履约」。终态订单放行会凭空发码并重复扣预留造成超卖
