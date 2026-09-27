@@ -1,12 +1,12 @@
 /**
  * 扫地机底图对齐编辑器（模态弹窗，纯手写 SVG），让用户把底图摆到户型平面图正确位置，
  */
-import { mapCorners, mapSource } from "./vacuum-map.js?v=2609271226";
-import { capturePointer } from "../core/static-helpers.js?v=2609271226";
+import { mapCorners, mapSource } from "./vacuum-map.js?v=2609271411";
+import { capturePointer } from "../core/static-helpers.js?v=2609271411";
 import {
   createDomFactory,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609271226";
+} from "../core/static-helpers-editor.js?v=2609271411";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
  */

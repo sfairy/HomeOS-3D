@@ -1,21 +1,21 @@
 /**
  * `presence-sensor` 控件：人体感应，附带门磁 / 水浸 / 烟感 / 燃气四种传感器专题绘制。
  */
-import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609271226";
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
+import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
 import {
   presenceAnimationPhase,
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../../../controls/presence-runtime.js?v=2609271226";
+} from "../../../controls/presence-runtime.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271226";
+} from "../registry-visuals.js?v=2609271411";
 
 /**
  * 渲染门窗传感器。

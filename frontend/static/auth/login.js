@@ -2,7 +2,7 @@
  * 登录页表单脚本。
  */
 
-import { apiFetch } from "../utils/api-fetch.js?v=2609271226";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
 
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),

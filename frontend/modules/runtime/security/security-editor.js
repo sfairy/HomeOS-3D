@@ -4,19 +4,19 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=2609271226";
-import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=2609271226";
-import { DESIGNS } from "../presence/presence-character.js?v=2609271226";
+} from "../presence/presence-motion.js?v=2609271411";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271411";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=2609271411";
+import { DESIGNS } from "../presence/presence-character.js?v=2609271411";
 // 跨域批量应用对话框：config-editor 与本编辑器共用同一实现（本文件只提供字段描述表与目标集合）。
-import { copyBatchFields, openBatchApply } from "../editor/batch-apply.js?v=2609271226";
+import { copyBatchFields, openBatchApply } from "../editor/batch-apply.js?v=2609271411";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609271226";
-import { applyMdiMask } from "../core/static-helpers.js?v=2609271226";
+} from "../core/editor-save-status.js?v=2609271411";
+import { applyMdiMask } from "../core/static-helpers.js?v=2609271411";
 // 门锁状态与槽位顺序从 lock-state.js 取（它本身只是运行侧的薄转出口）：面板上的「当前状态」
-import { LOCK_ENTITY_FIELDS, lockState } from "./lock-state.js?v=2609271226";
+import { LOCK_ENTITY_FIELDS, lockState } from "./lock-state.js?v=2609271411";
 import {
   createDomFactory,
   doorOpenFromText,
@@ -26,7 +26,7 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609271226";
+} from "../core/static-helpers-editor.js?v=2609271411";
 
 const LOCK_DOOR_SOURCE_OPTIONS = [
   ["sensor", "门磁传感器"],
@@ -157,12 +157,12 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271226";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271411";
   // 门锁编辑面板的专属样式（实体选择器行、动作 / 外观栅格）单独一张表：它只服务本编辑器，
   const securityStyleLinkElement = createElement("link");
   securityStyleLinkElement.rel = "stylesheet";
   securityStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/security/security-editor.css?v=2609271226";
+    "/api/v1/modules/interaction3d/security/security-editor.css?v=2609271411";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，

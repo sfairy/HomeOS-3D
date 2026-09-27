@@ -1,8 +1,8 @@
 /**
  * 全局日志查看器（后端日志 + 客户端上报日志的统一界面）。
  */
-import { confirmAction } from "../shared/ui-confirm.js?v=2609271226";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609271226";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609271411";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609271411";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {

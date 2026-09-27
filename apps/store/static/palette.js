@@ -2,14 +2,14 @@
  * 商店后台的「站点配色」面板（系统配置 → 站点配色）。
  */
 
-import { describe } from "./api-error.js?v=2609271226";
+import { describe } from "./api-error.js?v=2609271411";
 import {
   CONFIGURABLE,
   DEFAULT_PRESET,
   PRESETS,
   normalizeHex,
   resolveTokens,
-} from "./scene/appearance.js?v=2609271226";
+} from "./scene/appearance.js?v=2609271411";
 
 const dialogPane = document.querySelector('[data-tab-pane="palette"]');
 const presetList = document.getElementById("palette-preset-list");

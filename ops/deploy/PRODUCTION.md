@@ -5,7 +5,7 @@
 #       - APP_BASE_URL / STORE_BASE_URL（https 公网域名）
 #       - APP_TRUSTED_PROXIES / STORE_TRUSTED_PROXIES（反代网段）
 #       - APP_COOKIE_SECURE=true / STORE_COOKIE_SECURE=true
-#       - APP_LICENSE_SERVER_URL 默认 http://homeos-3d-store:18082（compose 内网，通常不用改）
+#       - APP_LICENSE_SERVER_URL：同机 --role all 可由 shared overlay 注入内网；分拆 --role app 必须设公网商店 URL
 #       管理员不走环境变量：两个 /setup 页面创建（见第 6、7 步）。
 #
 # [ ] 2. 宿主准备（授权实例指纹读的是宿主标识；一次即可）
@@ -15,9 +15,7 @@
 #       sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 #       顺序要紧：docker 启动时宿主路径不存在会被建成目录，之后再建符号链接就失败。
 #       跳过也能启动，只是指纹退到 data/ 下的兜底 ID。
-#       注意：已在跑的旧部署升级到这份 compose 后指纹可能变一次，商店侧对实例不匹配
-#       是按已吊销处理（客户端清空本地授权），需要在后台解绑后重新激活；想避免就先
-#       把旧值写进 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID。
+#       换主机名 / 改 /host 挂载会改变指纹；跨机迁移用 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID 钉住身份。
 #
 # [ ] 3. 拉起（一条命令；脚本按角色拉镜像、等健康、打印地址）
 #       同机：       ./ops/deploy/deploy.sh
@@ -46,7 +44,7 @@
 # [ ] 6. 商店后台
 #       打开 https://pay.example.com/admin
 #       配置邮件 SMTP、支付渠道（支付宝）、站点文案
-#       确认 STORE_ALLOW_MOCK_PAYMENTS 未开启
+#       确认支付渠道是 alipay 且填了真实 APPID / 密钥（模拟收银台已删除）
 #
 # [ ] 7. 主应用
 #       https://homeos.example.com/setup → 建管理员

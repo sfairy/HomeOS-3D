@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from apps.store.commerce import coupons, fulfill
 from apps.store.ops import incidents
 from apps.store.core.models import Order, StoreSetting
-from apps.store.commerce.order_status import RESERVING_STATUSES, order_status_label
+from apps.store.commerce.order_status import (
+    FAILURE_MARKABLE_STATUSES,
+    RESERVING_STATUSES,
+    order_status_label,
+)
 from apps.store.security.security import utcnow
 
 logger = logging.getLogger("apps.store.payments.settlement")
@@ -25,8 +29,6 @@ _SETTLEABLE_STATUSES = (
     "payment_failed",
     "fulfillment_failed",
 )
-
-_FAILURE_MARKABLE_STATUSES = ("paid", "fulfillment_failed")
 
 
 def settle_paid_order(
@@ -130,17 +132,31 @@ def settle_paid_order(
 
 def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exception) -> None:
     """把订单标记为发货失败并请求人工介入（独立事务段，不再受失败的履约影响）。
+
+    **复核备注是追加而不是覆盖**：复活单（订单过期后才收到支付）在入账那一步已经写过
+    一条「库存预留此前已释放，请核对是否需要补货或退款」的警示。如果这里直接用一句
+    「履约失败」盖掉它，运营就再也看不到「这一单可能超卖」这个事实 —— 而它比履约失败
+    更需要人看一眼。
     """
+    previous = (
+        session.execute(select(Order.review_note).where(Order.id == order_id)).scalar_one_or_none()
+        or ""
+    )
+    note = f"履约失败：{_short_error(error)}"
+    if previous and note not in previous:
+        # 既要留下旧警示，又要给新原因留位置：总长受 ReviewNote 列宽（255）约束。
+        keep = max(0, 255 - len(note) - 1)
+        note = f"{previous[:keep]}｜{note}"
     session.execute(
         update(Order)
         .where(Order.id == order_id)
-        .where(Order.status.in_(_FAILURE_MARKABLE_STATUSES))
+        .where(Order.status.in_(FAILURE_MARKABLE_STATUSES))
         .values(
             status="fulfillment_failed",
             # 履约中途抛异常时 fulfilled_at 可能已被抢单语句写上，必须清掉，
             fulfilled_at=None,
             needs_review=True,
-            review_note=f"履约失败：{_short_error(error)}",
+            review_note=note[:255],
         )
         .execution_options(synchronize_session=False)
     )

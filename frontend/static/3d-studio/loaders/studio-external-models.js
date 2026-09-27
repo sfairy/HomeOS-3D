@@ -1,35 +1,35 @@
 /**
  * 外部模型（家具 / 家电）的资产表，以及加载、材质替换与落地管线。
  */
-import { finite } from "./studio-normalization.js?v=2609271226";
+import { finite } from "./studio-normalization.js?v=2609271411";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609271226";
+import { debugLog } from "../../utils/debug-log.js?v=2609271411";
 // 模型模板的跨会话持久缓存与它的信封编解码：同一份 -lite.glb 在同一个浏览器里会被反复解析
-import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609271226";
-import { modelTemplateKey } from "../model-template-codec.js?v=2609271226";
+import { createModelPersistentCache } from "../model-persistent-cache.js?v=2609271411";
+import { modelTemplateKey } from "../model-template-codec.js?v=2609271411";
 // 主题专用的两个模块：地板材质着色器增强（场景，看 palette.warmWood）与树叶几何放大
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609271226";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609271226";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=2609271411";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=2609271411";
 // 小汽车（上游第三方车模）的整件车漆着色器与法线修订：这台车只有一块网格、一个贴图集材质
 import {
   applyCarFinish,
   smoothCarSceneSurface
-} from "../materials/studio-car-finish.js?v=2609271226";
+} from "../materials/studio-car-finish.js?v=2609271411";
 // 石材板整图（茶几的两块石板、餐桌台面）：与背景墙的「大理石」共用白色色号那张缓存贴图，
-import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609271226";
+import { createStoneSlabTexture } from "../materials/studio-surface-textures.js?v=2609271411";
 // 逐物件「材质风格」的质感贴图（均值≈1 的细节图）：走调色板上的 materialSurface 键。
 import {
   createMaterialSurfaceTexture,
   hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js?v=2609271226";
+} from "../materials/studio-surface-fabrics.js?v=2609271411";
 // 柜类名单与「取色」共用一份（studio-app.js 的 paletteForItemType 也读它）：
 import {
   APPLIANCE_FINISH_BY_ITEM_TYPE,
   JOINERY_ITEM_TYPES
-} from "../studio/studio-item-types.js?v=2609271226";
+} from "../studio/studio-item-types.js?v=2609271411";
 // 破缓存只认 URL：模型文件换了内容而**文件名不变**时（重建某个物件就是这么改的），
-const HOME_LITE_MODEL_VERSION = "2609271226";
-const APPLIANCE_LITE_MODEL_VERSION = "2609271226";
+const HOME_LITE_MODEL_VERSION = "2609271411";
+const APPLIANCE_LITE_MODEL_VERSION = "2609271411";
 function modelAssetUrl(modelDir, fileKey, version, variant) {
   return (
     "/static/3d-studio/models/" +

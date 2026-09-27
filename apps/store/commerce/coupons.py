@@ -3,16 +3,26 @@
 
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from apps.store.core.models import Account, Coupon, CouponRedemption, Order
+from apps.store.security.security import utcnow
+
+logger = logging.getLogger("apps.store.commerce.coupons")
 
 #: 合法的折扣类型白名单。结算逻辑（``apps.store.api.store``）只区分 ``fixed``
 DISCOUNT_TYPES = frozenset({"percent", "fixed"})
 
 #: 「名额已归还」的订单状态：这些路径都调用 :func:`release_coupon`，核销记录不再占名额，
-RELEASED_STATUSES = frozenset({"cancelled", "expired", "payment_failed"})
+#: 全额退款也归还名额：钱已经退回去了，这笔单不该再占着一个折扣额度。
+#: 库存预留的归还在退款路径里本来就会做（admin_orders 的 _release_...），唯独
+#: 优惠码名额过去没有跟着走，于是「退了款的名额」会一直被锁着。
+RELEASED_STATUSES = frozenset(
+    {"cancelled", "expired", "payment_failed", "refunded"}
+)
 
 
 class CouponUnavailable(RuntimeError):
@@ -102,29 +112,61 @@ def redeem_coupon(
     session.flush()
 
 
-def release_coupon(session: Session, order: Order) -> None:
-    """订单未成交时归还名额（取消 / 超时 / 支付失败）。
+def recount_coupon_slots(session: Session, coupon_id: str) -> int:
+    """按核销表重算 redeemed_count，返回重算后的占用名额数。
+
+    计数列是反规范化的快照，**真相在 coupon_redemptions**（判据见
+    holds_slot_conditions）。所有增删占用名额的路径都收口到这里，
+    这样「两个入口口径不一致」与「计数漂移」是同一类问题，只需要修一次。
+    """
+    coupon = session.get(Coupon, coupon_id)
+    if coupon is None:
+        return 0
+    used = int(
+        session.execute(
+            select(func.count(CouponRedemption.id))
+            .select_from(CouponRedemption)
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
+            .where(CouponRedemption.coupon_id == coupon_id)
+            .where(*holds_slot_conditions())
+        ).scalar_one()
+        or 0
+    )
+    coupon.redeemed_count = used
+    session.flush()
+    return used
+
+
+def release_coupon(session: Session, order: Order) -> bool:
+    """订单未成交时归还名额（取消 / 超时 / 支付失败）。返回本次是否真的归还过。
+
+    **幂等**，而且判据落在核销行上而不是「这个码被用过没有」：重复调用（重复的
+    取消 / 超时批扫 / 后台动作撞在一起）只归还一次，不会把计数越减越少 ——
+    旧实现按码字符串无条件自减，一旦被调用两次，占用数就永久性地少了。
     """
     if not order.coupon_code:
-        return
-    coupon = session.scalars(
-        select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
+        return False
+    record = session.scalars(
+        select(CouponRedemption)
+        .where(CouponRedemption.order_id == order.id)
+        .where(CouponRedemption.voided_at.is_(None))
     ).first()
-    if coupon is None:
-        return
-    session.execute(
-        update(Coupon)
-        .where(Coupon.id == coupon.id)
-        .where(func.coalesce(Coupon.redeemed_count, 0) > 0)
-        .values(redeemed_count=Coupon.redeemed_count - 1)
-        .execution_options(synchronize_session=False)
-    )
-    session.expire(coupon, ["redeemed_count"])
+    if record is None:
+        # 从未占用过，或已经被归还：两种都是「无需再归还」。
+        return False
+    record.voided_at = utcnow()
+    record.void_reason = "订单未成交，自动归还名额"
     session.flush()
+    recount_coupon_slots(session, record.coupon_id)
+    return True
 
 
 def reoccupy_coupon(session: Session, order: Order) -> bool:
     """订单「复活」成交时把名额重新占回来，返回是否真的占回。
+
+    守卫必须与下单时的 redeem_coupon 一致：旧实现只重查 max_redemptions，
+    于是「超时关闭期间码被后台停用」「该账号本已用满 per_account_limit」这两种
+    情况下的后到账会被照常放行，等于绕过运营刚设下的限制。
     """
     if not order.coupon_code:
         return True
@@ -132,18 +174,41 @@ def reoccupy_coupon(session: Session, order: Order) -> bool:
         select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
     ).first()
     if coupon is None:
+        # 码已经被删除：历史行为是放行（钱已经收了，不能因为码没了就不入账）。
         return True
-    statement = (
-        update(Coupon)
-        .where(Coupon.id == coupon.id)
-        .values(redeemed_count=func.coalesce(Coupon.redeemed_count, 0) + 1)
-        .execution_options(synchronize_session=False)
-    )
-    if coupon.max_redemptions is not None:
-        statement = statement.where(
-            func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
+
+    record = session.scalars(
+        select(CouponRedemption).where(CouponRedemption.order_id == order.id)
+    ).first()
+    if record is not None and record.voided_at is None:
+        # 这一单本来就还占着名额（没有走过归还路径），不必再占用。
+        return True
+
+    if not coupon.active:
+        return False
+    if coupon.max_redemptions is not None and int(
+        coupon.redeemed_count or 0
+    ) >= int(coupon.max_redemptions):
+        return False
+    if order.account_id and coupon.per_account_limit:
+        used = active_redemption_count(
+            session, coupon_id=coupon.id, account_id=order.account_id
         )
-    result = session.execute(statement)
-    session.expire(coupon, ["redeemed_count"])
+        if used >= int(coupon.per_account_limit):
+            return False
+
+    if record is None:
+        # 没有核销行可复活（例如订单建单时就失败了）。不能凭这一条凭空造一行：
+        # 那需要折扣额等建单时才有的信息。记账按现状重算，并留下痕迹。
+        logger.warning(
+            "复活单找不到核销记录，名额未重新占用 order=%s code=%s",
+            order.order_no,
+            order.coupon_code,
+        )
+        return True
+
+    record.voided_at = None
+    record.void_reason = ""
     session.flush()
-    return result.rowcount > 0
+    recount_coupon_slots(session, coupon.id)
+    return True

@@ -2,9 +2,9 @@
  * 通用设备详情弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
  */
 
-import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609271226";
-import { deviceStatus } from "./device-status.js?v=2609271226";
-import { genericDeviceProfile } from "./device-profiles.js?v=2609271226";
+import { createPurifierExtras } from "../climate/purifier-extras.js?v=2609271411";
+import { deviceStatus } from "./device-status.js?v=2609271411";
+import { genericDeviceProfile } from "./device-profiles.js?v=2609271411";
 
 // 状态灯四态的中文说法。status 为 "none"（没配任何规则）时查不到，落到空串。
 const STATUS_LABELS = {

@@ -2,10 +2,10 @@
  * 设备控件区块：空调/地暖/浴霸详情（模式、目标温度、风速、摆风与联动灯）。
  */
 
-import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271226";
-import { randomUuid } from "../../../../utils/random-id.js?v=2609271226";
-import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609271226";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
+import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271411";
+import { randomUuid } from "../../../../utils/random-id.js?v=2609271411";
+import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609271411";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271411";
 import {
   climateControlStructureKey,
   climateEffectMode,
@@ -20,9 +20,9 @@ import {
   climateSwingModeLabel,
   normalizeClimateCapabilities,
   reconcileClimateTargetTemperature
-} from "../../../controls/climate.js?v=2609271226";
+} from "../../../controls/climate.js?v=2609271411";
 
-import { createClimateOptionGroup } from "./climate-option-group.js?v=2609271226";
+import { createClimateOptionGroup } from "./climate-option-group.js?v=2609271411";
 
 export const climateDetailsMethods = {
   /**

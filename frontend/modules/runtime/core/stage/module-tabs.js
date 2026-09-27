@@ -3,7 +3,7 @@
  */
 
 // 展示态下没有单独的品类页签：冰箱 / 绿植都归「设备」这一类，与上游 0.6.5 的同一映射
-import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271226";
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271411";
 
 /**
  * 页签的唯一清单：顺序即轨道上从左到右的顺序。

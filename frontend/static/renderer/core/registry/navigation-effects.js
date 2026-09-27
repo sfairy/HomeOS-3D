@@ -1,10 +1,10 @@
 /**
  * 导航按钮的特效层与高亮判定。
  */
-import { randomUuid } from "../../../utils/random-id.js?v=2609271226";
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
+import { randomUuid } from "../../../utils/random-id.js?v=2609271411";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271411";
 // 同门分片：registry-visuals
-import { resolveColor } from "./registry-visuals.js?v=2609271226";
+import { resolveColor } from "./registry-visuals.js?v=2609271411";
 
 /**
  * 生成导航按钮的边框与光晕 SVG：viewBox 宽度固定 236，高度按控件实际宽高比换算，配合

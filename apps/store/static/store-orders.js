@@ -2,9 +2,20 @@
  * 商店前台的订单与支付流程：下单确认、支付面板、待支付提示、轮询与取消/归档。
  */
 
-import { loadAccount } from "./store.js?v=2609271226";
-import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271226";
-import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271226";
+import { loadAccount } from "./store.js?v=2609271411";
+import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271411";
+import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271411";
+
+//: 渠道名 → 弹窗标题上那两个字/四个字。取不到就退回渠道自己的显示名。
+const CHANNEL_KICKERS = { alipay: 'Alipay', wechat: 'WeChat Pay' };
+
+//: 渠道名 → 标题。**必须**按渠道区分：顶着「支付宝扫码支付」展示微信二维码，
+//: 是所有收银台事故里最容易被用户当成「网站坏了」的一种。
+const CHANNEL_TITLES = { alipay: '支付宝扫码支付', wechat: '微信扫码支付' };
+
+function channelOf(order) {
+  return String(order.payment?.provider || order.payment?.type || '').toLowerCase();
+}
 
 export function showPayment(order) {
   if (!order.payment?.qrCode) { toast('该订单暂无可用付款二维码。'); return; }
@@ -12,10 +23,16 @@ export function showPayment(order) {
   state.currentOrder = order;
   // 上一张订单如果超时关闭过，弹窗上会留着「已结束」的压暗状态，重开前先清掉
   dialog.classList.remove('is-closed');
+  const channel = channelOf(order);
+  const channelName = order.payment.displayName || '';
+  $('#payment-kicker').textContent = CHANNEL_KICKERS[channel] || 'Payment';
+  $('#payment-title').textContent = CHANNEL_TITLES[channel] || (channelName ? `${channelName}扫码支付` : '扫码支付');
   $('#payment-product').textContent = order.productName;
   $('#payment-price').textContent = moneyAmount(order.amountCents);
+  // 提示语由**服务端**下发（每个渠道在 create_payment 里各写各的措辞）：让用户拿微信
+  // 扫支付宝的码是同一个事故，所以这句不能在前端按渠道名拼。
   $('#payment-hint').textContent = order.payment.note
-    || `打开${order.payment.displayName || '支付宝'}「扫一扫」完成付款，付款后本页会自动确认。`;
+    || `打开${channelName || '支付宝'}「扫一扫」完成付款，付款后本页会自动确认。`;
   $('#payment-order').textContent = order.orderNo;
   $('#payment-status').textContent = '等待支付';
   $('#payment-status').classList.remove('done');

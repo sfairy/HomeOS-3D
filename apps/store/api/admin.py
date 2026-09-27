@@ -24,7 +24,6 @@ from apps.store.commerce.order_status import (
 from apps.store.commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from apps.store.commerce.points_migration import migration_status
 from apps.store.payments.sweeper import sweep_status
 from apps.store.core.models import (
     Account,
@@ -226,8 +225,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
         "paymentSweep": sweep_status(),
         "incidents": incidents.status(),
-        # 启动期积分口径迁移的结果。对账不通过时旧列会被保留，而旧列是 NOT NULL
-        "pointsMigration": migration_status(),
         # —— 营收（含时间窗）——
         "revenue": revenue,
         # —— 订单漏斗 ——

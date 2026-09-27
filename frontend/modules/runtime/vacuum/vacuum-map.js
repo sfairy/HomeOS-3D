@@ -3,9 +3,9 @@
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609271226";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609271411";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
 /**
  * 计算「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
  */

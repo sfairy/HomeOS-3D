@@ -6,8 +6,8 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=2609271226";
-import { createDomFactory } from "../core/static-helpers.js?v=2609271226";
+} from "./television-state.js?v=2609271411";
+import { createDomFactory } from "../core/static-helpers.js?v=2609271411";
 /**
  * 创建电视面板。
  */

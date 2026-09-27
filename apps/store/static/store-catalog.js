@@ -2,14 +2,14 @@
  * 商店前台的商品目录：卡片/详情渲染、筛选与增购项分组。
  */
 
-import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271226";
-import { $ as $ } from "./store-shared.js?v=2609271226";
-import { $$ as $$ } from "./store-shared.js?v=2609271226";
-import { currentPage as currentPage } from "./store-shared.js?v=2609271226";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271226";
-import { formatCents as money } from "./money.js?v=2609271226";
-import { state as state } from "./store-shared.js?v=2609271226";
-import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271226";
+import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271411";
+import { $ as $ } from "./store-shared.js?v=2609271411";
+import { $$ as $$ } from "./store-shared.js?v=2609271411";
+import { currentPage as currentPage } from "./store-shared.js?v=2609271411";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271411";
+import { formatCents as money } from "./money.js?v=2609271411";
+import { state as state } from "./store-shared.js?v=2609271411";
+import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271411";
 
 export function chooseProduct() {
   if (currentPage() !== 'item') { state.product = null; return; }
@@ -148,6 +148,67 @@ export function packageContentsText(product) {
   return ['主授权', ...(product.packageItems || []).map(item => item.name)].join(' + ');
 }
 
+/**
+ * 渲染「选择支付方式」的按钮。
+ *
+ * 住在 catalog 而不是 store.js：它依赖 ``renderProduct`` 算出的 ``state.purchaseBlock``，
+ * 而依赖方向是 store.js → store-catalog.js，放反了就成了循环导入。
+ *
+ * 四条规则：
+ *   1. **只渲染 available 的渠道** —— 凭据不全的渠道画出来就是个点下去 503 的按钮；
+ *   2. 商品不可买（售罄/试用已用过）时给一个禁用的按钮，文案说清原因；
+ *   3. 一个可用渠道都没有时给一个禁用的提示按钮，而不是整块空白（用户会以为页面坏了）；
+ *   4. 每个按钮都是 submit，点哪个就把哪个渠道写进隐藏字段 —— 单渠道时与从前完全一样。
+ */
+export function renderPaymentMethods() {
+  const box = $('#payment-methods');
+  const form = $('#purchase-form');
+  if (!box || !form) return;
+  const channels = (state.configuration?.payment?.channels || []).filter(item => item.available);
+  const blocked = state.purchaseBlock?.label || '';
+  box.replaceChildren();
+  form.elements.paymentChannel.value = (
+    !blocked && channels.length === 1 ? channels[0].provider : ''
+  );
+
+  const makeButton = (className) => {
+    const button = document.createElement('button');
+    button.className = `hb-button hb-button--${className} hb-button--lg hb-pay-submit`;
+    return button;
+  };
+
+  if (blocked) {
+    const disabled = makeButton('primary');
+    disabled.type = 'button';
+    disabled.disabled = true;
+    disabled.textContent = blocked;
+    box.append(disabled);
+    return;
+  }
+
+  if (!channels.length) {
+    const disabled = makeButton('primary');
+    disabled.type = 'button';
+    disabled.disabled = true;
+    disabled.textContent = '支付渠道暂不可用';
+    box.append(disabled);
+    return;
+  }
+
+  for (const channel of channels) {
+    const button = makeButton(channel.isDefault ? 'primary' : 'secondary');
+    button.type = 'submit';
+    button.dataset.channel = channel.provider;
+    const icon = document.createElement('i');
+    icon.className = 'fa-duotone fa-regular fa-qrcode';
+    // 显示名是运营可控的文本 —— 必须用 textContent 拼，不能进 innerHTML。
+    button.append(icon, document.createTextNode(` ${channel.displayName}付款`));
+    button.addEventListener('click', () => {
+      form.elements.paymentChannel.value = channel.provider;
+    });
+    box.append(button);
+  }
+}
 export function renderProduct() {
   const product = state.product;
   const empty = !product;
@@ -180,12 +241,19 @@ export function renderProduct() {
   image.src = versionedStoreAsset(product.imageUrl || '/store-static/homeos-mark.svg');
   image.alt = product.name;
   image.closest('.hb-product-cover')?.classList.toggle('has-product-image', Boolean(product.imageUrl));
-  const submit = $('#purchase-form').querySelector('[type="submit"]');
-  submit.disabled = Boolean(product.soldOut || unavailable);
-  submit.innerHTML = product.soldOut
-    ? '已售罄'
+  // 付款按钮**不能**在这里抓：渠道是动态的（见 renderPaymentMethods），而
+  // ``querySelector('[type="submit"]')`` 在多个渠道下只会抓到第一个，然后把它
+  // 覆写成「支付宝付款」—— 微信那个按钮就永远显示不出来，售罄时也只禁用其中一个。
+  // 所以这里只记录「商品层面能不能买」，按钮的渲染与禁用统一交给 renderPaymentMethods。
+  state.purchaseBlock = product.soldOut
+    ? { label: '已售罄' }
     : unavailable
-      ? (state.hasPermanentLicense ? '已有永久授权，不可购买试用' : '每个账号只能购买一次试用')
-      : '<i class="fa-duotone fa-regular fa-qrcode"></i> 支付宝付款';
+      ? {
+          label: state.hasPermanentLicense
+            ? '已有永久授权，不可购买试用'
+            : '每个账号只能购买一次试用',
+        }
+      : null;
+  renderPaymentMethods();
 }
 

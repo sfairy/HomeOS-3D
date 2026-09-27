@@ -21,7 +21,14 @@ from apps.store.ops.net_probe import (
     host_from_url,
     probe_tls,
 )
-from apps.store.payments.base import PaymentError, PaymentIntent, RefundResult
+# CloseResult 曾定义在本模块里；现在住在 base.py（微信支付用同一套关单语义）。
+from apps.store.payments import channels
+from apps.store.payments.base import (
+    CloseResult,
+    PaymentError,
+    PaymentIntent,
+    RefundResult,
+)
 
 # 凭据与签名层在 alipay_signing.py；这里再导入一次，
 
@@ -29,8 +36,11 @@ from apps.store.payments.base import PaymentError, PaymentIntent, RefundResult
 
 logger = logging.getLogger("apps.store.payments.alipay")
 
-#: 沙箱网关。是**新版**域名：与旧域名 ``openapi.alipaydev.com`` 是两套完全独立的
-SANDBOX_GATEWAY_URL = "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
+#: 沙箱（openapi-sandbox.dl.alipaydev.com）与它的开关已**整块删除**。理由与模拟收银台同源：
+#: 它是一个「能在生产上被单点打开、而且打开后看不出来」的通道 —— 沙箱下订单能建、二维码
+#: 能出，只是那张码只有沙箱买家账号付得了，真钱一分进不来（表现为静默停收）。
+#: 联调改用生产环境的 0.01 元小额自测：把某个商品临时改成 0.01，自己扫码付一笔，
+#: 走完「下单 → 出码 → 通知/查单 → 入账 → 发码 → 邮件」再把价格改回来。
 
 
 #: 支付成功的两种交易状态
@@ -77,15 +87,29 @@ class AlipayNotification:
         return self.trade_status in SUCCESS_TRADE_STATUSES
 
 
-@dataclass(frozen=True)
-class CloseResult:
-    """关单结果。
+
+
+#: 「网关不认识这个 APPID」这类子错误码。
+_APP_ID_SUB_CODES = frozenset({"isv.invalid-app-id", "isv.app-not-exist"})
+
+#: 支付宝生产网关域名。自检用它回答「网关是不是被指到别处了」——
+#: 不 import credentials 的常量是为了避免循环依赖（credentials 反过来 import 本模块）。
+PRODUCTION_GATEWAY_HOST = "openapi.alipay.com"
+
+
+def _gateway_hint(settings: StoreSettings, sub_code: str) -> str:
+    """给「网关不认识这个 APPID」补一句最可能的解释。
+
+    这条错误和「密钥填错」的现象一模一样（都只回「应用不存在 / APPID 无效」），
+    但处置方式完全不同：一个要去查签约状态与 APPID，一个要去换公钥。自检的价值
+    就在区分它们，所以这里必须把话说出来。
     """
-
-    closed: bool
-    already_paid: bool = False
-    reason: str = ""
-
+    if sub_code not in _APP_ID_SUB_CODES:
+        return ""
+    return (
+        "。请确认 APPID 就是开放平台里那个应用的应用 ID，且该应用**已签约「当面付」**——"
+        "未签约时生产网关同样回「应用不存在」，那是签约问题而不是密钥问题。"
+    )
 
 class AlipayProvider:
     name = "alipay"
@@ -233,10 +257,7 @@ class AlipayProvider:
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
-        pay_token: str | None = None,
     ) -> PaymentIntent:
-        # ``pay_token`` 是给「页面凭证必须跟着 URL 走」的渠道用的：真实渠道的支付页
-        del pay_token
         settings = self._resolve(settings)
         self._assert_configured(settings)
 
@@ -263,7 +284,9 @@ class AlipayProvider:
         if not qr_code:
             raise PaymentError("支付宝下单成功但没有返回二维码。")
 
-        display_name = setting.payment_display_name or "支付宝"
+        # 显示名走统一口径（见 payments/channels.py）：单渠道时代它是无条件的，
+        # 两个渠道并存后必须只在「支付宝是默认渠道」时才用它。
+        display_name = channels.display_name_for("alipay", setting, settings)
         logger.info(
             "支付宝下单成功 order=%s amount=%s", order.order_no, biz_content["total_amount"]
         )
@@ -397,7 +420,7 @@ class AlipayProvider:
         if sub_code in TRADE_NOT_EXIST_SUB_CODES:
             return True, "凭据可用：网关已完成验签（探测单号不存在属于预期结果）。"
         if sub_code in CREDENTIAL_ERROR_SUB_CODES:
-            return False, f"凭据不可用（{code}）：{detail or sub_code}"
+            return False, f"凭据不可用（{code}）：{detail or sub_code}{_gateway_hint(settings, sub_code)}"
         return False, f"网关返回了预期外的错误（{code}）：{detail or '无详细说明'}"
 
     def diagnose_credentials(
@@ -584,20 +607,24 @@ class AlipayProvider:
             ]
         )
 
-        # ---- 沙箱 ---- #
-        if bool(getattr(settings, "alipay_sandbox", False)) or gateway_host == host_from_url(
-            SANDBOX_GATEWAY_URL
-        ):
+        # ---- 运行环境 ---- #
+        #: 沙箱已删除，所以这里只剩一件事可报：网关指向的**不是**支付宝生产域名。
+        #: 这不是「不允许」的配置（网关迁移、代理都可能改它），但它一定值得看一眼 ——
+        #: 指到别人家的地址上，钱和通知都会去别处。
+        production_host = PRODUCTION_GATEWAY_HOST
+        if gateway_host and gateway_host != production_host:
             checks.append(
                 check_result(
-                    "sandbox",
+                    "gateway-environment",
                     "运行环境",
                     LEVEL_WARN,
-                    "当前指向沙箱网关：不会产生真实资金，也不能用于正式收款。上线前请关闭沙箱并换成正式凭据。",
+                    f"网关域名 {gateway_host} 不是支付宝生产域名（{production_host}）：确认这是有意的。",
                 )
             )
         else:
-            checks.append(check_result("sandbox", "运行环境", LEVEL_PASS, "正式环境网关。"))
+            checks.append(
+                check_result("gateway-environment", "运行环境", LEVEL_PASS, "支付宝生产网关。")
+            )
 
         passed = all(item["level"] == LEVEL_PASS for item in checks)
         failures = [item for item in checks if item["level"] == LEVEL_FAIL]
@@ -634,6 +661,25 @@ class AlipayProvider:
         raise PaymentError(f"支付宝查单失败（{code}）：{detail}")
 
         # 关单
+
+    # ---- 查单响应的解读 ---- #
+    #
+    # 对账层（payments/reconcile.py）只认下面这四个方法，不认任何渠道特有的字段名：
+    # 支付宝的钱在 ``total_amount``（元/字符串），微信的在 ``amount.total``（分/整数），
+    # 把这些差异留在各自的 provider 里，「两个渠道各写一套 if」才不会长到对账层去。
+
+    def is_success_node(self, node: dict) -> bool:
+        return str(node.get("trade_status") or "") in SUCCESS_TRADE_STATUSES
+
+    def trade_state_of(self, node: dict) -> str:
+        return str(node.get("trade_status") or "")
+
+    def trade_no_of(self, node: dict) -> str:
+        return str(node.get("trade_no") or "")
+
+    def paid_cents_of(self, node: dict) -> int | None:
+        return cents_from_yuan(node.get("total_amount"))
+
     def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult:
         """关闭渠道侧的预下单交易（``alipay.trade.close``）。
         """
@@ -695,7 +741,7 @@ __all__ = [
     'CloseResult',
     'ResponseSignatureInvalid',
     'ResponseSignatureMissing',
-    'SANDBOX_GATEWAY_URL',
+    'PRODUCTION_GATEWAY_HOST',
     'SUCCESS_TRADE_STATUSES',
     'TRADE_NOT_EXIST_SUB_CODES',
     '_callback_check',

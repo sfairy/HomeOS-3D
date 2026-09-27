@@ -1,15 +1,15 @@
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271226";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271411";
 import {
   COVER_POSITION_EPSILON_PERCENT,
   coverFeaturesOf,
   coverReportsTilt
-} from "../../../utils/cover-features.js?v=2609271226";
+} from "../../../utils/cover-features.js?v=2609271411";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "../../controls/cover-direction.js?v=2609271226";
+} from "../../controls/cover-direction.js?v=2609271411";
 
 /**
  * 通用「活动态」判定：on / open / true / home 都算活动。

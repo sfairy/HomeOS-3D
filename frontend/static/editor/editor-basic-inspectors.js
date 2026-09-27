@@ -1,8 +1,8 @@
 /**
  * 编辑器基础检查器（Inspector）的通用计算。
  */
-import { roundField } from "./editor-utils.js?v=2609271226";
-import { clampNumber } from "../utils/numbers.js?v=2609271226";
+import { roundField } from "./editor-utils.js?v=2609271411";
+import { clampNumber } from "../utils/numbers.js?v=2609271411";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

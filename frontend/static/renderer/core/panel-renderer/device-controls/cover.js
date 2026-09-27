@@ -11,7 +11,7 @@ import {
   dreamCurtainIsRetracted,
   learnAirerPositionCalibration,
   physicalCoverState
-} from "../../../controls/cover-runtime.js?v=2609271226";
+} from "../../../controls/cover-runtime.js?v=2609271411";
 
 export const coverDetailsMethods = {
   /**

@@ -2,7 +2,7 @@
  * 平面图叠加层的绘制工具。
  */
 
-import { paletteColor } from "../../utils/colors.js?v=2609271226";
+import { paletteColor } from "../../utils/colors.js?v=2609271411";
 
 // 端点圆点的**深色实心**：轮廓上的彩色描边要靠它压住，才能在浅色底图与深色底图上都看清。
 const pointFillColor = () => paletteColor("--hos-tool-surface", "#141a20");

@@ -62,7 +62,7 @@ def main() -> None:
             flush=True,
         )
         print(
-            "  通过页面设置管理员账号（不再支持 STORE_ADMIN_EMAIL/PASSWORD 环境变量）",
+            "  通过页面设置管理员账号",
             flush=True,
         )
         print(

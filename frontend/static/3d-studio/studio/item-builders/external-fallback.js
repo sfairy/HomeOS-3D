@@ -1,7 +1,7 @@
 /*
  * 物件构建器：外部模型兜底
  */
-import { APPLIANCE_ITEM_TYPES } from "../studio-item-types.js?v=2609271226";
+import { APPLIANCE_ITEM_TYPES } from "../studio-item-types.js?v=2609271411";
 export function buildExternalModelFallbackItem(context) {
   const {
     addBoxMesh,

@@ -1,16 +1,16 @@
 /**
  * 窗帘域的运行时映射：普通帘、晾衣机、梦幻帘，以及帘子背后的电机状态。
  */
-import { coverComponentIsDream } from "../core/registry/cover-state.js?v=2609271226";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271226";
+import { coverComponentIsDream } from "../core/registry/cover-state.js?v=2609271411";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271411";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271226";
-import { COVER_POSITION_EPSILON_PERCENT } from "../../utils/cover-features.js?v=2609271226";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271411";
+import { COVER_POSITION_EPSILON_PERCENT } from "../../utils/cover-features.js?v=2609271411";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=2609271226";
+} from "./cover-direction.js?v=2609271411";
 /**
  * 通用「实体是否处于活动态」判定。
  */

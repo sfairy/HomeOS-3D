@@ -2,7 +2,7 @@
  * 接口请求的超时预算与统一入口：编辑器、舞台页与日志引导的唯一接口出入口。
  */
 
-import { withRequestTimeout } from "./request-timeout.js?v=2609271226";
+import { withRequestTimeout } from "./request-timeout.js?v=2609271411";
 
 /**
  * 普通 JSON 接口的超时预算（毫秒）。

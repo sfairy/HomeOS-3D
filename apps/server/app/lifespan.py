@@ -34,7 +34,6 @@ from ..api.license import (
     LICENSE_ACTIVATION_LIMIT,
 )
 from ..core.appearance import AppearanceStore
-from ..api.studio3d import migrate_legacy_scene
 from ..security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
 from ..http.access_log import install_access_log_noise_filter
 from ..config import Settings
@@ -181,16 +180,6 @@ def build_lifespan(settings: Settings, license_transport = None, license_endpoin
             app.state.user_asset_sweep_task = asyncio.create_task(
                 _sweep_user_assets(), name='user-asset-sweep'
             )
-            # 3D 户型图的旧数据迁移：把旧版仪表盘文档里的 studio3d 字段搬成独立草稿文件。
-            if not settings.studio3d_draft_path.is_file():
-                def _migrate_studio3d_draft() -> None:
-                    with app.state.database.session_factory() as session:
-                        migrate_legacy_scene(session, settings.studio3d_draft_path)
-                try:
-                    await asyncio.to_thread(_migrate_studio3d_draft)
-                except Exception as error:  # noqa: BLE001 - 迁移是附加工作，失败不阻断启动
-                    app.state.global_log.append(
-                        'warning', '系统后台', '存储', f'3D 户型图旧数据迁移失败：{error}')
             def _clear_connection_derived_caches() -> None:
                 """连接被重建 / 删除时，作废全部「跟着那一台 HA 走」的进程内缓存。
                 """

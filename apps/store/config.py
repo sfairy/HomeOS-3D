@@ -19,8 +19,13 @@ PROJECT_ROOT = STORE_ROOT.parents[1]
 DEFAULT_PORT = 18082
 DEFAULT_HOST = "0.0.0.0"
 
-#: 待支付订单有效期（与参考站一致：2 分钟）
-DEFAULT_ORDER_TTL_SECONDS = 120
+#: 待支付订单有效期（秒）。
+#:
+#: **不是 120 秒。** 那个值来自「参考站一致」，但它只在模拟收银台上说得通：真实支付宝的
+#: 二维码在渠道侧能活约 2 小时，本地订单 2 分钟就过期的话，顾客扫码稍慢就会变成
+#: 「订单过期后才到账」的复活单 —— 每一笔都要人工核对库存与优惠码，而这本该是极少见的
+#: 例外。默认取 900（15 分钟）：够顾客从容付款，又不会让库存被长期占着。
+DEFAULT_ORDER_TTL_SECONDS = 900
 #: 解除设备绑定冷却（与参考站一致：28800 秒 = 8 小时）
 DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
 #: 签发租约的有效期；客户端默认 300 秒心跳一次。
@@ -160,14 +165,14 @@ class StoreSettings:
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
     #: 全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
     verification_global_hourly_limit: int = 500
-    #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
-    expose_verification_code: bool = False
-    #: 是否公开 ``/store-api-docs``。默认**关闭**：那两个页面会把全部商店与
-    expose_api_docs: bool = False
+    #: 验证码**不再有任何回显通道**：STORE_EXPOSE_VERIFICATION_CODE 与 mail_mode=echo
+    #: 都已删除。它们只在「本机访问」时可读，但那道判定依赖对端 IP 与转发头 ——
+    #: 部署形态一变（同机反代未配可信代理、容器网络）就可能失效，而失效的后果是
+    #: 任何人都能读到别人的验证码。投递只走 SMTP；发不出去就如实报失败。
+    #: 文档页 /store-api-docs 也一并删除：它会一次列出全部端点与参数结构。
 
     # 支付
     payment_provider: str = ""
-    allow_mock_payments: bool = False
     alipay_app_id: str = ""
     alipay_gateway_url: str = "https://openapi.alipay.com/gateway.do"
     alipay_app_private_key: str = ""
@@ -184,6 +189,28 @@ class StoreSettings:
     alipay_sign_type: str = "RSA2"
     #: 是否校验收到的支付宝响应签名（关掉等于放弃对响应真实性的校验，不建议）
     alipay_verify_response_sign: bool = True
+
+    # 微信支付（Native 扫码）
+    wechat_mch_id: str = ""
+    wechat_app_id: str = ""
+    #: APIv3 密钥：**恰好 32 个字符**，用来解密回调资源（AES-256-GCM）。
+    #: 它不是 API 证书、也不是商户号，而是在商户平台「API 安全」里自己设的那串。
+    wechat_api_v3_key: str = ""
+    #: 商户 API 私钥（apiclient_key.pem 的内容）：签名每个请求都用它。
+    wechat_merchant_private_key: str = ""
+    wechat_merchant_private_key_path: str = ""
+    #: 商户 API 证书序列号：必须放进 Authorization 头。可从 apiclient_cert.pem 算出。
+    wechat_merchant_serial_no: str = ""
+    #: 微信支付公钥（或平台证书）：验回调签名用。
+    wechat_platform_public_key: str = ""
+    wechat_platform_public_key_path: str = ""
+    #: 公钥 ID（用「微信支付公钥」模式时微信会回这个头，留空则不校验）。
+    wechat_platform_public_key_id: str = ""
+    #: 网关。一般不要改。
+    wechat_gateway_url: str = "https://api.mch.weixin.qq.com"
+    wechat_transaction_description: str = "HomeOS 授权"
+    #: 可选：覆盖回调地址（内网穿透时它和 STORE_BASE_URL 往往不是同一个域名）。
+    wechat_notify_url: str = ""
 
     # 授权签发
     license_keys_dir: Path = STORE_ROOT / "keys" / "local"
@@ -311,6 +338,22 @@ class StoreSettings:
         return _read_secret_file(self.alipay_app_private_key_path) or self.alipay_app_private_key
 
     @property
+    def wechat_merchant_private_key_text(self) -> str:
+        """商户 API 私钥：文件优先于内联值（PEM 是多行的，文件更不容易错）。"""
+        return (
+            _read_secret_file(self.wechat_merchant_private_key_path)
+            or self.wechat_merchant_private_key
+        )
+
+    @property
+    def wechat_platform_public_key_text(self) -> str:
+        """微信支付公钥（或平台证书）：同样是文件优先。"""
+        return (
+            _read_secret_file(self.wechat_platform_public_key_path)
+            or self.wechat_platform_public_key
+        )
+
+    @property
     def alipay_public_key_text(self) -> str:
         return _read_secret_file(self.alipay_public_key_path) or self.alipay_public_key
 
@@ -368,10 +411,8 @@ def load_settings(**overrides) -> StoreSettings:
         "verification_global_hourly_limit": _env_int(
             "STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT", 500, minimum=1, maximum=100_000
         ),
-        "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
-        "expose_api_docs": _env_bool("STORE_EXPOSE_API_DOCS"),
+
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
-        "allow_mock_payments": _env_bool("STORE_ALLOW_MOCK_PAYMENTS"),
         "alipay_app_id": _env_str("STORE_ALIPAY_APP_ID"),
         "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do") or "https://openapi.alipay.com/gateway.do",
         "alipay_app_private_key": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY"),
@@ -413,15 +454,18 @@ def load_settings(**overrides) -> StoreSettings:
             maximum=30 * 24 * 3600,
         ),
         "payment_sweep_interval_seconds": _env_int(
-            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=0, maximum=3600
+            # 环境变量**不允许**把它设成 0：巡检是「通知丢了、钱却收了」那条链路唯一
+            # 的兜底，关掉它的表现是服务一切正常、只是永远不再对账。代码内显式覆盖
+            # （测试用）仍可传 0，见 _RANGED_FIELDS。
+            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=5, maximum=3600
         ),
         "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
     }
     values.update(overrides)
     settings = StoreSettings(**values)
     _validate_settings(settings)
-    _warn_insecure_verification_exposure(settings)
     _warn_lease_revocation_bound(settings)
+    _warn_order_ttl_against_qr(settings)
     return settings
 
 
@@ -467,7 +511,21 @@ def _validate_settings(settings: StoreSettings) -> None:
             f"（≥{floor} 秒）：否则租约会在下一次心跳之前过期，客户端会反复进入"
             "「租约已过期」，看起来像网络正常但功能时有时无。"
         )
+    _validate_verification_window_config(settings)
     _validate_rotation(settings)
+
+
+def _validate_verification_window_config(settings: StoreSettings) -> None:
+    """交叉校验验证码「有效期 / 重发冷却」。
+    """
+    ttl = int(settings.verification_ttl_seconds or 0)
+    cooldown = int(settings.verification_cooldown_seconds or 0)
+    if cooldown >= ttl:
+        raise ValueError(
+            f"verification_cooldown_seconds={cooldown} 必须小于"
+            f" verification_ttl_seconds={ttl}：否则验证码过期后用户仍被冷却挡住，"
+            "永远拿不到新码，注册与找回密码会被**永久**卡死（两个配置项单独看都合法）。"
+        )
 
 
 def _validate_rotation(settings: StoreSettings) -> None:
@@ -495,21 +553,29 @@ def _validate_rotation(settings: StoreSettings) -> None:
     )
 
 
-def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
-    """验证码回显 + 非本机绑定 → 大声告警。
+
+#: 支付宝二维码的渠道侧有效期是 2 小时（见 README「接入支付宝」）。本地订单 TTL
+#: 远短于它时，用户完全可能「订单已过期才扫码付款」，于是每笔正常支付都要走一遍
+#: 「复活单 → needs_review」的人工核对流程。低于这个值就在启动日志里点名。
+ALIPAY_ORDER_TTL_FLOOR_SECONDS = 300
+
+
+def _warn_order_ttl_against_qr(settings: StoreSettings) -> None:
+    """支付宝收款下，订单 TTL 太短会给每一笔支付制造人工复核。
     """
-    exposure_on = bool(settings.expose_verification_code) or settings.mail_mode == "echo"
-    bind_host = (settings.host or "").strip().lower()
-    if not exposure_on or bind_host in _LOOPBACK_BIND_HOSTS:
+    if (settings.payment_provider or "").strip().lower() != "alipay":
+        return
+    ttl = int(settings.order_ttl_seconds or 0)
+    if ttl >= ALIPAY_ORDER_TTL_FLOOR_SECONDS:
         return
     logger.warning(
-        "验证码回显已开启（mail_mode=%s, expose_verification_code=%s），但服务监听 %s"
-        "（非本机网卡）。回显只对可确认来自本机的请求生效；若前置了**同机**反向代理"
-        "又未配置 STORE_TRUSTED_PROXIES，外部请求的对端会被误认成本机 —— 请改为"
-        " mail_mode=smtp 并关闭 STORE_EXPOSE_VERIFICATION_CODE，或把服务绑到 127.0.0.1。",
-        settings.mail_mode,
-        settings.expose_verification_code,
-        settings.host,
+        "STORE_PAYMENT_PROVIDER=alipay 但 STORE_ORDER_TTL_SECONDS=%d（%d 秒）："
+        "支付宝二维码在渠道侧可存活约 2 小时，而本地订单 %d 秒就过期 —— "
+        "用户扫码稍慢就会变成「订单已过期后才到账」的复活单，"
+        "每笔都要人工核对。建议设成 600~900 秒。",
+        ttl,
+        ttl,
+        ttl,
     )
 
 

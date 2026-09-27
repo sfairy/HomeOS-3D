@@ -1,16 +1,16 @@
 /**
  * 空调气流层：按模式与风速画出可动的气流示意。
  */
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271411";
 // 「其它」档的中性灰：与编辑器侧共用同一枚定义，原先这里写的是 #ffffff、其余四处写 #dce2e6。
-import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609271226";
+import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609271411";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateEffectMode
-} from "./entity-state.js?v=2609271226";
+} from "./entity-state.js?v=2609271411";
 // 同门分片：registry-visuals
-import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609271226";
+import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609271411";
 
 /**
  * 生成空调 / 浴霸出风动画的 SVG（data URI）。

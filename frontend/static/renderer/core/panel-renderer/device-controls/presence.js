@@ -1,5 +1,5 @@
 
-import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271226";
+import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271411";
 import {
   formatPresenceDuration,
   presenceHistoryBuckets,
@@ -7,10 +7,10 @@ import {
   presenceSensorPresentation,
   presenceStateTimestamp,
   renderRegisteredComponent
-} from "../../registry.js?v=2609271226";
-import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
-import { componentDialogTitle } from "../primitives.js?v=2609271226";
+} from "../../registry.js?v=2609271411";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271411";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
+import { componentDialogTitle } from "../primitives.js?v=2609271411";
 
 export const presenceDetailsMethods = {
   /**

@@ -16,8 +16,7 @@ from apps.store.commerce import fulfill
 from apps.store.config import StoreSettings
 from apps.store.commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from apps.store.core.models import Order, Product, StoreSetting, utcnow
-from apps.store.payments import resolve_provider
-from apps.store.payments.alipay import SUCCESS_TRADE_STATUSES, cents_from_yuan
+from apps.store.payments import PROVIDER_NAMES, normalize_provider_name, resolve_provider
 from apps.store.payments.base import PaymentError
 from apps.store.payments.settlement import settle_paid_order
 
@@ -45,7 +44,10 @@ _lock = threading.Lock()
 def channel_still_payable(order: Order, *, now: datetime | None = None) -> bool:
     """这笔订单的渠道交易是否**仍可能被付款**。
     """
-    if order.payment_provider != "alipay" or order.channel_closed_at is not None:
+    if (
+        normalize_provider_name(order.payment_provider) not in PROVIDER_NAMES
+        or order.channel_closed_at is not None
+    ):
         return False
     created = order.created_at
     if created is None:
@@ -68,15 +70,19 @@ def _allow_query(order_no: str) -> bool:
         return True
 
 
-def _reconcile_alipay_provider(settings: StoreSettings, setting: StoreSetting):
-    """按渠道名强制解析出支付宝渠道，**绕过当前的渠道开关**（含后台配置的凭据）。
+def _reconcile_provider(settings: StoreSettings, setting: StoreSetting, name: str):
+    """按**订单上冻结的渠道名**解析 provider，绕过「现在默认收款的是哪个渠道」。
+
+    运营把默认渠道从支付宝换成微信（或临时清空）之后，在途的那批支付宝订单仍然必须
+    能被对账 —— 所以回调与巡检一律按订单自己的渠道名解析，而不是看当前配置。
     """
-    return resolve_provider(settings, setting, name_override="alipay")
+    return resolve_provider(settings, setting, name_override=name)
 
 
-def _amount_matches(order: Order, node: dict) -> bool:
+def _amount_matches(order: Order, node: dict, provider) -> bool:
     expected = int(order.amount_cents or 0)
-    actual = cents_from_yuan(node.get("total_amount"))
+    # 单位换算留在各渠道自己的 provider 里（支付宝是元、微信是分）。
+    actual = provider.paid_cents_of(node)
     if actual is None or actual != expected:
         logger.error(
             "查单金额不符，拒绝入账 order=%s 期望=%s 实际=%s",
@@ -88,7 +94,7 @@ def _amount_matches(order: Order, node: dict) -> bool:
     return True
 
 
-def reconcile_alipay_order(
+def reconcile_channel_order(
     session: Session,
     *,
     order: Order,
@@ -96,15 +102,20 @@ def reconcile_alipay_order(
     setting: StoreSetting,
     force: bool = False,
 ) -> bool:
-    """若订单待支付且走支付宝，则查单确认；已确认到账返回 True。"""
+    """若订单待支付且走某个真实渠道，则查单确认；已确认到账返回 True。
+
+    渠道由**订单自己**的 ``payment_provider`` 决定，不看当前默认渠道 —— 运营切换渠道
+    不该让在途订单失去对账能力。
+    """
     if order.status != "pending":
         return False
-    if (order.payment_provider or "").lower() != "alipay":
+    channel = normalize_provider_name(order.payment_provider)
+    if channel not in PROVIDER_NAMES:
         return False
     if not force and not _allow_query(order.order_no):
         return False
 
-    provider = _reconcile_alipay_provider(settings, setting)
+    provider = _reconcile_provider(settings, setting, channel)
     if not provider.is_configured(settings):
         return False
 
@@ -118,19 +129,18 @@ def reconcile_alipay_order(
     if not node:
         return False
 
-    trade_status = str(node.get("trade_status", ""))
-    if trade_status not in SUCCESS_TRADE_STATUSES:
+    if not provider.is_success_node(node):
         return False
 
-    if not _amount_matches(order, node):
+    if not _amount_matches(order, node, provider):
         return False
 
     settle_paid_order(
         session,
         order=order,
         setting=setting,
-        trade_no=str(node.get("trade_no") or ""),
-        source="alipay.query",
+        trade_no=provider.trade_no_of(node),
+        source=f"{channel}.query",
     )
     return True
 
@@ -185,20 +195,19 @@ def _confirm_paid_after_close(
         result.failed += 1
         logger.error("关单接口称已付款，但查单查不到该交易 order=%s", order.order_no)
         return False
-    trade_status = str(node.get("trade_status", ""))
-    if trade_status not in SUCCESS_TRADE_STATUSES:
+    if not provider.is_success_node(node):
         result.failed += 1
         logger.error(
             "关单接口称已付款，但查单状态为 %s，已跳过 order=%s",
-            trade_status or "（空）",
+            provider.trade_state_of(node) or "（空）",
             order.order_no,
         )
         return False
-    if not _amount_matches(order, node):
+    if not _amount_matches(order, node, provider):
         result.failed += 1
         return False
     actions.append(
-        _Action(order=order, kind="settle", trade_no=str(node.get("trade_no") or ""))
+        _Action(order=order, kind="settle", trade_no=provider.trade_no_of(node))
     )
     return True
 
@@ -248,8 +257,17 @@ def _sweep_channel_orders(
     """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
     """
     result = SweepResult()
-    provider = _reconcile_alipay_provider(settings, setting)
-    if not provider.is_configured(settings):
+    #: 每个渠道一个 provider，按需构造 —— 一个渠道没配不该让另一个渠道整轮跳过。
+    providers: dict = {}
+
+    def provider_for(name: str):
+        if name not in providers:
+            providers[name] = _reconcile_provider(settings, setting, name)
+        return providers[name]
+
+    active = [name for name in PROVIDER_NAMES if provider_for(name).is_configured(settings)]
+    if not active:
+        # 一个渠道都没配：与「没有可用渠道」等价，渠道部分不做任何事（本地过期收尾照旧）。
         return result
 
     moment = utcnow()
@@ -259,7 +277,7 @@ def _sweep_channel_orders(
     pending = session.scalars(
         select(Order)
         .where(Order.status == "pending")
-        .where(Order.payment_provider == "alipay")
+        .where(Order.payment_provider.in_(active))
         .where(Order.created_at >= moment - timedelta(hours=SWEEP_LOOKBACK_HOURS))
         .order_by(Order.created_at.desc())
         .limit(limit)
@@ -269,6 +287,7 @@ def _sweep_channel_orders(
         is_expired = order.expires_at is not None and order.expires_at <= moment
         if not _allow_query(order.order_no):
             continue
+        provider = provider_for(normalize_provider_name(order.payment_provider))
         result.queried += 1
         try:
             node = provider.query_payment(settings, order)
@@ -277,12 +296,12 @@ def _sweep_channel_orders(
             logger.warning("巡检查单失败 order=%s error=%s", order.order_no, error)
             continue
 
-        if node is not None and str(node.get("trade_status", "")) in SUCCESS_TRADE_STATUSES:
-            if not _amount_matches(order, node):
+        if node is not None and provider.is_success_node(node):
+            if not _amount_matches(order, node, provider):
                 result.failed += 1
                 continue
             actions.append(
-                _Action(order=order, kind="settle", trade_no=str(node.get("trade_no") or ""))
+                _Action(order=order, kind="settle", trade_no=provider.trade_no_of(node))
             )
             continue
 
@@ -333,7 +352,7 @@ def _sweep_channel_orders(
     closing = session.scalars(
         select(Order)
         .where(Order.status.in_(("expired", "cancelled")))
-        .where(Order.payment_provider == "alipay")
+        .where(Order.payment_provider.in_(active))
         .where(Order.channel_closed_at.is_(None))
         .where(Order.created_at >= moment - timedelta(hours=CLOSE_LOOKBACK_HOURS))
         .order_by(Order.created_at.desc())
@@ -343,6 +362,7 @@ def _sweep_channel_orders(
     for order in closing:
         if not _allow_query(order.order_no):
             continue
+        provider = provider_for(normalize_provider_name(order.payment_provider))
         result.queried += 1
         try:
             node = provider.query_payment(settings, order)
@@ -358,16 +378,13 @@ def _sweep_channel_orders(
             )
             continue
 
-        if (
-            str(node.get("trade_status", "")) in SUCCESS_TRADE_STATUSES
-            and _amount_matches(order, node)
-        ):
+        if provider.is_success_node(node) and _amount_matches(order, node, provider):
             # 钱其实已经付了（用户扫的还是那个旧码）。不能关单，要把它认回来。
             actions.append(
                 _Action(
                     order=order,
                     kind="settle",
-                    trade_no=str(node.get("trade_no") or ""),
+                    trade_no=provider.trade_no_of(node),
                 )
             )
             continue
@@ -400,7 +417,7 @@ def _sweep_channel_orders(
                 order=action.order,
                 setting=setting,
                 trade_no=action.trade_no,
-                source="alipay.sweep",
+                source=f"{normalize_provider_name(action.order.payment_provider)}.sweep",
             )
             # 只有真的改动了才记数：``settle_paid_order`` 在已被其它路径入账时返回
             if outcome.get("changed"):

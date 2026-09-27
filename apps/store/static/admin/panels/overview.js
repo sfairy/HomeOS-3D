@@ -2,12 +2,12 @@
  * 概览面板。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
-import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271226";
-import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271226";
-import { api } from "../api.js?v=2609271226";
-import { askConfirm } from "../dialogs.js?v=2609271226";
-import { host } from "../host.js?v=2609271226";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271411";
+import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271411";
+import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271411";
+import { api } from "../api.js?v=2609271411";
+import { askConfirm } from "../dialogs.js?v=2609271411";
+import { host } from "../host.js?v=2609271411";
 
 const REVENUE_WINDOW_LABELS = {
   last24h: '近 24 小时',
@@ -185,25 +185,6 @@ export function renderIncidents(incidents) {
     + '但发码 / 查单没有走完。请到「订单」里按状态 fulfillment_failed 处理（重试履约或退款）。';
 }
 
-// 启动期积分口径迁移（FLOAT 积分 → INTEGER 厘）的对账结果。整块只在未通过时出现：
-function renderPointsMigration(migration) {
-  const card = $('#overview-points-migration');
-  const detail = $('#overview-points-migration-detail');
-  if (!card || !detail) return;
-  if (!migration || migration.health !== 'degraded') {
-    card.hidden = true;
-    return;
-  }
-  card.hidden = false;
-  const count = Number(migration.problemCount || 0);
-  const problems = (migration.problems || []).join('；');
-  detail.textContent = `本次启动的积分口径迁移有 ${num(count)} 处对账不通过`
-    + `${problems ? `（${problems}）` : ''}。`
-    + '失败的表会保留旧的小数列，而旧列是 NOT NULL 且没有默认值，'
-    + '后续对这张表的每次写入都会以 NOT NULL constraint 报错——'
-    + '请先修好对账差异再让服务继续接单，详细原因见启动日志。';
-}
-
 export async function loadOverview() {
   const data = await api('/overview');
   const revenue = data.revenue || {};
@@ -211,8 +192,6 @@ export async function loadOverview() {
 
   renderPaymentSweep(data.paymentSweep);
   renderIncidents(data.incidents);
-  renderPointsMigration(data.pointsMigration);
-
   // —— 营收 ——
   const manualNote = revenue.totalManualCents
     ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`

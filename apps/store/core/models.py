@@ -24,7 +24,6 @@ from apps.store.security.security import utcnow
 from .models_engagement import (
     AccountSession,
     AuditLog,
-    CashierTicket,
     Coupon,
     CouponRedemption,
     DEFAULT_SUPPORT_EMAIL,
@@ -188,7 +187,7 @@ class Order(Base):
     coupon_code: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     fulfillment_mode: Mapped[str] = mapped_column(String(32), default="automatic")
-    #: 下单时**冻结**在本行上的支付渠道名。默认值必须是「没有渠道」而不是 ``"mock"``：
+    #: 下单时**冻结**在本行上的支付渠道名。默认值必须是「没有渠道」而不是某个具体渠道：
     payment_provider: Mapped[str] = mapped_column(String(32), default="", server_default="")
     payment_payload_json: Mapped[str] = mapped_column(Text, default="{}")
     payment_trade_no: Mapped[str | None] = mapped_column(String(128))
@@ -202,6 +201,20 @@ class Order(Base):
     manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘），与钱包/流水同一口径。
     referral_reward_points_centi: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    #: 发码邮件的投递标记。``license_email_sent_at`` 非空 = 激活码已经发到买家邮箱；
+    #: 领取标记靠 attempts 的条件自增实现（见 commerce/delivery.py），所以异步通知、
+    #: 前端轮询、后台巡检同时触发时也只会真发一封。
+    license_email_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
+    license_email_error: Mapped[str] = mapped_column(
+        String(255), default="", server_default=text("''")
+    )
+    license_email_attempts: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    #: 履约失败后被巡检自动重试的次数（见 payments/reconcile.py）。
+    fulfillment_attempts: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
@@ -284,6 +297,11 @@ class Entitlement(Base):
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="module")
     feature_code: Mapped[str] = mapped_column(String(64), index=True)
+    #: 授予这条权益的那张订单。退款按它精确撤销：只看 (product_id, license_id) 的话，
+    #: 同一主授权上重复购买同一增量包时，退第二单会误杀第一单（仍然有效）的权益。
+    source_order_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="SET NULL")
+    )
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     starts_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -358,7 +376,6 @@ __all__ = [
     'Account',
     'AccountSession',
     'AuditLog',
-    'CashierTicket',
     'Coupon',
     'CouponRedemption',
     'Customer',

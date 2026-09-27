@@ -1,11 +1,11 @@
 /**
  * 环境氛围（页面压暗、降饱和、状态发光与光晕）：把「聚焦观感」注入户型已有材质，
  */
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271226";
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271411";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
-import { createEnvironmentHalos } from "./environment-halos.js?v=2609271226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609271411";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */

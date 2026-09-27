@@ -18,7 +18,6 @@ services:
       STORE_BASE_URL: ${STORE_BASE_URL:-}
       STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
       STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-}
-      STORE_ALLOW_MOCK_PAYMENTS: ${STORE_ALLOW_MOCK_PAYMENTS:-0}
       # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
     volumes:
       - homeos-3d-store-data:/data

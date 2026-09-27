@@ -1,8 +1,8 @@
 /**
  * 布局交互层：面板折叠 / 拖拽调宽 / 状态记忆。
  */
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271226";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609271226";
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271411";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609271411";
 
 /** 存储结构的版本号。字段语义变了就加一：旧值会被当作无效而回落到默认，不做迁移。 */
 const SCHEMA_VERSION = 1;
@@ -183,7 +183,7 @@ export function createLayoutController(options) {
     for (const panel of panels) {
       panelStates[panel.id] = normalizeAndApplyPanelState(panel, storedState.panels?.[panel.id]);
     }
-    // 旧记录里可能还留着 preset / immersive 两个字段（预设与沉浸模式已删）：这里只挑 panels 读，
+    // 只读 panels：其余历史布局键忽略。
     return { version: SCHEMA_VERSION, panels: panelStates };
   }
 

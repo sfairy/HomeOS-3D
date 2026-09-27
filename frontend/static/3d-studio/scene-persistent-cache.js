@@ -1,14 +1,14 @@
 /**
  * 3D 户型「已准备场景」的 IndexedDB 持久缓存。
  */
-import { createIdbStore } from "./idb-store.js?v=2609271226";
-import { debugLog } from "../utils/debug-log.js?v=2609271226";
+import { createIdbStore } from "./idb-store.js?v=2609271411";
+import { debugLog } from "../utils/debug-log.js?v=2609271411";
 
 /** 场景准备格式版本。归一逻辑或缓存信封一改就动它，旧条目会自动因版本不符而失效。 */
 export const SCENE_PREPARATION_VERSION = "20260923-v1";
 
 /** 缓存库名。 */
-const SCENE_CACHE_DB_NAME = "ha-bridge-3d-scenes";
+const SCENE_CACHE_DB_NAME = "homeos-3d-scenes";
 /** 库版本：初版即 v1。 */
 const SCENE_CACHE_DB_VERSION = 1;
 /** 场景仓库：主键 key。 */

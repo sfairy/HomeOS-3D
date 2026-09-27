@@ -26,11 +26,12 @@ python -m venv .venv-store
 
 浏览器打开 <http://127.0.0.1:18082/>，首次部署会引导到 `/setup` 页面创建管理员账号。早期版本在缺省时会用代码里写死的默认管理员（口令还公开在本文件里）建号 —— 那等于给每个照文档部署的实例装一个公开后门，现已移除。本地非 Docker 也可直接运行仓库根 `ops/start.py`，它会一并起主应用与商店。
 
-验证码投递由 `STORE_MAIL_MODE` 决定，三种取值：
+验证码投递由 `STORE_MAIL_MODE` 决定，两种取值：
 
-- `log`（代码默认值）—— 只写进服务日志，接口不回显。**用它跑注册流程时用户收不到码，会卡在注册页**，只适合有日志查看权的调试。
-- `echo` —— 验证码在 `POST /store/v1/verifications` 响应里回显，注册页会**自动填入并提示**。`ops/start.py` 启动时默认用它（可被环境变量覆盖），本地联调走这条路。
-- `smtp` —— 真实发信，需要配 `STORE_SMTP_*`；发信失败会自动回退到日志模式，不会阻断注册。
+- `smtp` —— **生产唯一的合法取值**：真实发信，需要配 `STORE_SMTP_*`。发信失败不会阻断流程，但接口会如实回 `delivered: false` 与 `deliveryError`（注册页据此提示失败，而不是让用户对着收件箱干等）。
+- `log`（代码默认值）—— 只写进服务日志，接口不回显。**用它跑注册流程时用户收不到码，会卡在注册页**，只适合有日志查看权的调试（`ops/start.py` 本地就是这条，验证码会打印在它的终端里）。
+
+> **`echo` 与 `STORE_EXPOSE_VERIFICATION_CODE` 都已删除。** 它们会把验证码明文放进 `POST /store/v1/verifications` 的响应里，只对「可判定来自本机」的请求生效 —— 而那道判定依赖对端 IP 与转发头，部署形态一变（同机反代未配可信代理、容器网络）就可能失效，失效的后果是**任何人都能读到别人的验证码**。一个「只在某些拓扑下安全」的凭据回显通道，不该存在于生产代码里。
 
 投递方式、SMTP 主机 / 端口 / 加密方式 / 授权码 / 发件人、验证码有效期与重发冷却，**都能在 `/admin` 的「站点配置 → 注册邮件」里改，保存即生效、免重启**。口径与支付渠道一致：后台留空 / 填 `0` 表示跟随 `.env`，填了值就以后台为准（授权码只显示打码值，留空不改动、勾「清除已保存的授权码」才回到环境变量）。区块顶部会直接显示**当前生效的配置**与「SMTP 是否就绪」，避免「填了 SMTP 但漏了授权码」这种安静退化成写日志、用户在注册页等一封永远不来的邮件的情况。
 
@@ -56,13 +57,20 @@ STORE_SMTP_PASSWORD=<QQ 邮箱设置里生成的授权码>
 STORE_SMTP_USE_SSL=true
 ```
 
-163 邮箱同理（`smtp.163.com`）。配好后启动日志里不再出现 `[验证码]` 明文，接口返回 `delivered: true`；若想在本机也能同时看到码，可临时加 `STORE_EXPOSE_VERIFICATION_CODE=true`（**生产必须保持 false**）。
+163 邮箱同理（`smtp.163.com`）。配好后启动日志里不再出现 `[验证码]` 明文，接口返回 `delivered: true`。若在本机也想看到码，把 `STORE_MAIL_MODE` 设成 `log` 即可（验证码打印在服务日志里，接口不回显 —— 回显通道已删除）。
 
 ---
 
 ## 二、本地联调与部署
 
-仓库不再内置自动化自检 / 端到端脚本（原 `apps/store/tools/` 下的 `smoke.py`、`e2e.py`、`seed.py`、`gen_keys.py`、`migrate_points.py` 已随本次清理移除）。本地非 Docker 直接用仓库根 `ops/start.py` 一键起主应用与商店：
+自动化回归测试收在 `apps/store/tests/`（pytest，依赖见 `apps/store/requirements-dev.txt`，**不进运行时镜像**）。它替掉的只是原来那批一次性脚本（原 `apps/store/tools/` 下的 `smoke.py`、`e2e.py`、`seed.py`、`gen_keys.py`、`migrate_points.py` 已移除）：支付与发码是「收真钱、发真东西」的链路，README 里的口径靠人工走一遍是守不住的。
+
+```bash
+.venv-store/bin/pip install -r apps/store/requirements-dev.txt
+.venv-store/bin/python -m pytest apps/store/tests -q
+```
+
+测试用**临时数据目录与临时密钥目录**，不会碰 `apps/store/data/` 与 `apps/store/keys/local/`；支付宝那几条用真 RSA2 密钥签名（验签、金额比对、幂等只有走完整路径才有意义），发信则把 SMTP 发送换成捕获器。本地非 Docker 直接用仓库根 `ops/start.py` 一键起主应用与商店：
 
 ```bash
 .venv-store/bin/python ops/start.py
@@ -77,8 +85,8 @@ Docker / Compose 部署见仓库根 `README.md`。改动前后请人工走一遍
 | 进程内状态 | 多 worker 下会怎样 |
 | --- | --- |
 | 站点配色快照（`ops/appearance.py` 启动时 `load()` 一次，保存只刷新处理该请求的那个进程） | 后台改完配色只有一个 worker 立刻生效，其余继续发旧配色，直到重启 |
-| 进程内滑动窗口限流（`security/limiter.py`：初始化守卫、支付跳转页查单） | 每个 worker 各算一份预算，实际额度被放大成 N 倍 |
-| 巡检 / 入账异常 / 迁移结果（`payments/sweeper.py`、`ops/incidents.py`、`commerce/points_migration.py`） | `/healthz` 与后台卡片只反映**收到这次请求的那个进程**，「本进程没跑过」是设计如此（见「六、巡检与入账异常」），前提就是「进程即实例」 |
+| 进程内滑动窗口限流（`security/limiter.py`：初始化守卫、支付跳转页查单、发信配额、账号中心「重发激活码邮件」） | 每个 worker 各算一份预算，实际额度被放大成 N 倍 |
+| 巡检 / 入账异常（`payments/sweeper.py`、`ops/incidents.py`） | `/healthz` 与后台卡片只反映**收到这次请求的那个进程**，「本进程没跑过」是设计如此（见「六、巡检与入账异常」），前提就是「进程即实例」 |
 
 跨进程一致的那几件（登录与验证码失败限流 `security/password_gate.py`、初始化胜负判定）走的是数据库，不受这条约束。
 
@@ -142,15 +150,20 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `STORE_BASE_URL` | 由请求推导 | 生成支付二维码、回调链接用的外部基址 |
 | `STORE_DATA_DIR` | `apps/store/data` | SQLite 与商品图目录 |
 | `STORE_LICENSE_KEYS_DIR` | `apps/store/keys/local` | 授权密钥目录（私钥留服务端） |
-| `STORE_MAIL_MODE` | `log`（`ops/start.py` 下为 `echo`） | `log` \| `echo` \| `smtp` |
-| `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 是否在接口响应里回显验证码（仅本地，**生产必须 false**） |
+| `STORE_MAIL_MODE` | `log`（`ops/start.py` 下同为 `log`） | `log` \| `smtp`。**生产必须 `smtp`**；`echo` 与回显开关已删除 |
 | `STORE_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_USE_SSL` / `_STARTTLS` | — | SMTP 发信（`_PASSWORD` 填授权码，不是登录密码） |
-| `STORE_PAYMENT_PROVIDER` | 空（未配置渠道 → 拒绝建单） | `mock` \| `alipay`（也可在 `/admin` 站点配置里改，DB 值优先） |
-| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 是否允许模拟收银台。**默认关闭**；必须与 `STORE_PAYMENT_PROVIDER=mock` 同时设置才能用，仅供本地联调 |
+| `STORE_PAYMENT_PROVIDER` | 空（未配置渠道 → 拒绝建单） | 目前只有 `alipay`（也可在 `/admin` 站点配置里改，DB 值优先） |
 | `STORE_ALIPAY_APP_ID` | — | 开放平台应用 APPID |
 | `STORE_ALIPAY_APP_PRIVATE_KEY_PATH` / `STORE_ALIPAY_PUBLIC_KEY_PATH` | — | **推荐**：应用私钥 / 支付宝公钥的 PEM 文件路径 |
 | `STORE_ALIPAY_APP_PRIVATE_KEY` / `STORE_ALIPAY_PUBLIC_KEY` | — | 等价的内联写法（单行裸 base64） |
-| `STORE_ALIPAY_GATEWAY_URL` | 生产网关 | 沙箱填 `https://openapi.alipaydev.com/gateway.do` |
+| `STORE_ALIPAY_GATEWAY_URL` | 支付宝生产网关 | 一般不要改（沙箱网关与开关已删除；自检会在它不等于生产域名时提示一句） |
+| `STORE_WECHAT_MCH_ID` / `_APP_ID` | 空 | 微信支付商户号与公众号/应用 appid |
+| `STORE_WECHAT_MERCHANT_PRIVATE_KEY(_PATH)` | 空 | 商户 API 私钥（apiclient_key.pem）：签每个请求 |
+| `STORE_WECHAT_MERCHANT_SERIAL_NO` | 空 | 商户证书序列号，放进 Authorization 头 |
+| `STORE_WECHAT_PLATFORM_PUBLIC_KEY(_PATH)` | 空 | 微信支付公钥（或平台证书）：验回调签名 |
+| `STORE_WECHAT_API_V3_KEY` | 空 | **恰好 32 字符**：解密回调资源（AES-256-GCM）。不是证书 |
+| `STORE_WECHAT_NOTIFY_URL` | 按 `STORE_BASE_URL` 推导 | 微信回调地址，必须公网可达 |
+| `STORE_WECHAT_GATEWAY_URL` | 微信支付生产网关 | 一般不要改 |
 | `STORE_ALIPAY_SELLER_ID` | — | 可选：核验通知里的卖家号 |
 | `STORE_ALIPAY_NOTIFY_URL` / `STORE_ALIPAY_RETURN_URL` | 由 `STORE_BASE_URL` 推导 | 可选：用内网穿透时指向穿透域名 |
 | `STORE_ALIPAY_TRANSACTION_DESCRIPTION` | `HomeOS 授权` | 交易标题（出现在支付宝账单里） |
@@ -158,7 +171,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时），心跳 300s 续租。⚠ 该值同时是「离线可用时长」与「吊销生效上界」—— 对持续离线的客户端，停用授权 / 解绑设备最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
 | `STORE_LICENSE_SESSION_IP_HOURLY_LIMIT` | `3600` | `/v2/heartbeat` 与 `/v2/recover` 的**来源 IP** 小时配额。比 `/v2/activate` 固定的 60/小时宽得多：这两个端点收的是高熵令牌（不可枚举），却承载后台心跳与「授权页开着时的状态轮询」。额度**按出口地址**算，多台设备共用同一 NAT 出口时会叠加 —— 授权页卡住且日志里一片 `429` 时调大它 |
-| `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期。**真实收款必须调大**，见下节 |
+| `STORE_ORDER_TTL_SECONDS` | `900` | 订单有效期（秒）。真实收款的二维码在渠道侧能活约 2 小时，这个值太短会让每笔支付都变成「过期后才到账」的复活单。低于 300 且渠道是支付宝时启动会告警；建议 600~1800 |
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | **两次解绑之间**的冷却（8 小时）。解绑之后可以**立即**重新激活（同机或换机都行）；这个间隔只约束「下一次解绑」，用来给换机减速。后台「解绑冷却（秒）」可覆盖它：**留空 = 跟随本变量**，填 `0` = 不限间隔（两者是不同状态，所以库里用 `NULL` 而不是 `0` 表示「没配过」） |
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
 | `STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT` | `500` | 验证码发信的**全站**小时上限（所有来源合计）。防「拿商店当发信机轰炸第三方」的兜底闸门；额度之内还按来源 IP（20/小时）、单邮箱（10/小时）各限一层。触顶时日志打 ERROR，并按正常业务量调高 |
@@ -169,7 +182,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 静默回退的后果大多不表现为「少了个功能」：例如 `STORE_COOKIE_SECURE` 拼错恰好等于「显式关闭」，HTTPS 部署上的会话 Cookie 会丢掉 `Secure` 标记，而服务照常运行、日志里一个字都没有。另有几条跨字段校验，例如 `STORE_LEASE_TTL_SECONDS` 必须 ≥ 2× `STORE_HEARTBEAT_INTERVAL_SECONDS`，否则健康客户端会在两次心跳之间把租约耗到过期（表现为「网络正常但功能一阵阵消失」，两个配置项单独看都合法）。
 
-站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。邮件与验证码那几项（`STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_MAIL_FROM` / `STORE_VERIFICATION_*` / `STORE_EXPOSE_VERIFICATION_CODE`）和支付宝的 `STORE_ALIPAY_*` 也搬进了「站点配置」，同样是 DB 值优先、留空跟随 `.env`，改完免重启。
+站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。邮件与验证码那几项（`STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_MAIL_FROM` / `STORE_VERIFICATION_*`）和支付宝的 `STORE_ALIPAY_*` 也搬进了「站点配置」，同样是 DB 值优先、留空跟随 `.env`，改完免重启。
 
 账号中心每张**有效**授权卡上的「一键部署」指令也在这里配：填「站点配置 → 站点信息 → 一键部署脚本地址」即可（脚本路径固定为 `install.sh`，完整命令由服务端拼好下发）。留空则整块不显示 —— 它没有可回落的默认地址，而一个猜出来的地址只会让用户 `curl` 到一个 404。
 
@@ -182,9 +195,13 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 ## 五、接入支付宝（真实收款）
 
-**默认不配置任何渠道**：未配置渠道时商店会拒绝建单（下单 503），而不是回落到模拟收银台 —— 这是刻意的 fail-closed，因为模拟收银台点一下就「已支付」并签发真实授权，**收不到真钱**。本地联调要同时设 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`（`ops/start.py` 会自动带上这两个变量）；正式收款请按下面的步骤切到支付宝。
+**只有支付宝一种渠道，且默认不配置**：未配置时商店会拒绝建单（下单 503），而不是回落到任何「点一下就通过」的收银台 —— 这是刻意的 fail-closed。
 
-模拟收银台页面地址形如 `/store/mock/pay/{order_no}?t=<短时票据>`：票据与订单绑定、30 分钟有效、只能打开这笔订单的收银台，页面加载后立刻把查询串从地址栏与历史里抹掉（`history.replaceState`）。**这里不放订单的 `lookupToken`** —— 那是长期有效、还能查订单详情的 bearer 凭据，写在 URL 里会进访问日志、`Referer` 与浏览器历史，漏出一次等于交出订单查询入口（详见审计记录 S53）。因此升级后**旧的 `?token=` 链接一律 404**，在账号中心点「继续支付」（走登录态）或重新下单即可。
+> **模拟收银台已删除。** 它曾经是一个「不需要真实付款就能把订单标成已支付并签发真实授权」的本地联调通道（双开关：`STORE_PAYMENT_PROVIDER=mock` + `STORE_ALLOW_MOCK_PAYMENTS=1`）。它的问题不是配置错，而是**只要存在就有被误开到线上的可能** —— 收不到真钱却发得出真授权。本地联调现在只有一条路：配真实的支付宝生产凭据，用 **0.01 元小额自测**（见 5.5）。沙箱环境也删掉了 —— 它和模拟收银台一样，是一个「在生产上被打开后看不出来」的通道。
+
+模拟收银台连同它的页面、路由与短时票据（`commerce/cashier.py`、`CashierTicket`）一起删除，`/store/mock/*` 全部 404。它留下的两条经验仍然有效，别在新代码里重犯：**订单查询凭据永远不进 URL**（那是长期有效、还能查订单详情的 bearer 凭据；URL 会进访问日志、`Referer` 与浏览器历史，详见审计记录 S53），以及**页面凭证要用与订单绑定的一次性票据，而不是长期令牌**。存量库里的 `cashier_tickets` 表会作为孤儿留下，没有任何代码再读写它。
+
+同一条规则也适用于公开 API：`GET /store/v1/orders/lookup/{orderNo}?token=` **已移除** —— 它是唯一一处把 `lookupToken` 从 URL 里收下、再换出订单详情的接口。取单请用 `GET /store/v1/orders/{orderNo}` + `X-Order-Token` 头（账号中心与收银台走的都是这条）；外部集成若还在用旧路径，会拿到 404，改成请求头即可。
 
 ### 5.1 先决条件
 
@@ -211,7 +228,7 @@ STORE_ALIPAY_APP_ID=202100xxxxxxxxxxxx
 STORE_ALIPAY_APP_PRIVATE_KEY_PATH=keys/alipay/app_private.pem
 STORE_ALIPAY_PUBLIC_KEY_PATH=keys/alipay/alipay_public.pem
 
-# 真实收款必须调大订单有效期：默认 120 秒扫码根本来不及（二维码本身能活 2 小时）
+# 订单有效期（默认已是 900）。确认与二维码寿命（约 2 小时）别差太多即可
 STORE_ORDER_TTL_SECONDS=900
 
 # 内网穿透时指向穿透域名（必须公网 HTTPS 可达）
@@ -219,14 +236,16 @@ STORE_ALIPAY_NOTIFY_URL=https://xxx.ngrok-free.app/store/v1/payments/alipay/noti
 STORE_ALIPAY_RETURN_URL=https://xxx.ngrok-free.app/store/payment/return
 ```
 
-沙箱联调时把 `STORE_ALIPAY_GATEWAY_URL` 换成 `https://openapi.alipaydev.com/gateway.do`，APPID 和密钥都换成沙箱的。
+网关**一般不要改**：默认就是支付宝生产网关。沙箱网关与后台的「沙箱」开关都已删除（见 5.5 的说明），所以这里不存在「换一套地址先联调」这条路。
 
-> ⚠️ **支付渠道是「/admin 站点配置」优先于 `.env` 的。** 如果你之前 seed 过站点配置，数据库里存着 `mock`，那么只改 `.env` 是**不生效**的（表现就是「照教程改了却还是模拟支付」）。两种改法二选一：
+> ⚠️ 老教程（以及本文件的历史版本）会教你指向 `openapi-sandbox.dl.alipaydev.com`：那个环境已经不再被本商店支持，指过去只会得到一个「谁都付不了」的收银台。
+
+> ⚠️ **支付渠道是「/admin 站点配置」优先于 `.env` 的。** 数据库里存着的值会盖住 `.env`：如果你之前把渠道存成 `mock`（模拟收银台时代留下的），那个值现在**已经不是一个受支持的渠道**，表现是「照教程改了却还是下单失败」。两种改法二选一：
 >
 > - 到 `/admin` → 站点配置 → 支付渠道，选 **alipay**；或选「**跟随环境变量**」后交给 `.env`
 > - 或者把数据库里那行清空：`UPDATE store_settings SET payment_provider='' WHERE id=1;`
 >
-> 另外，**支付显示名**留空即可（会用「支付宝」）；如果它还是 `模拟支付`，切换渠道后二维码弹窗上的名字也会跟着显示成「模拟支付」。
+> 另外，**支付显示名**留空即可（会用「支付宝」）。历史数据里残留的「模拟支付」不会再被当成显示名（读取时自动回落到「支付宝」），后台保存时也会拒绝再写回这个值 —— 否则顾客会在二维码弹窗上看到「模拟支付」而实际要付真钱。
 
 改完**重启 `ops/start.py`**（商店进程没有 `--reload`，不重启就等于没改）。
 
@@ -254,6 +273,85 @@ STORE_ALIPAY_RETURN_URL=https://xxx.ngrok-free.app/store/payment/return
 
 ---
 
+### 5.5 真实收款验收清单（0.01 元小额自测）
+
+**没有沙箱了。** 沙箱环境（网关常量、后台「沙箱」开关、店面提示）已整块删除：它是一个
+「能在生产上被单点打开、打开后还看不出来」的通道 —— 沙箱下订单能建、二维码能出，只是那张码
+只有沙箱买家账号付得了，真钱一分进不来，表现为**静默停收**。
+
+代价是第一次联调就必须用真钱。做法是标准商户套路：把一个商品临时改成 **0.01 元**，自己扫码付一笔，
+走完链路再把价格改回来。这笔钱会真的进你的商户账户，0.01 元的手续费可以忽略。
+
+前置条件（见 5.1）：企业或个体工商户主体、已签约**当面付**、生产 APPID + 应用私钥 + 支付宝公钥。
+
+| # | 动作 | 判定 |
+| --- | --- | --- |
+| 1 | 后台「站点配置 → 支付渠道」选 `alipay`，填 APPID / 应用私钥 / 支付宝公钥 | 保存后在字段右侧看到「已配置 · 后台配置」（或「环境变量」） |
+| 2 | 点「**测试凭据**」 | 结论为「凭据可用：网关已完成验签（探测单号不存在属于预期结果）」 |
+| 3 | 确认订单有效期（默认 900 秒） | 支付页没有 TTL 不匹配提示 |
+| 4 | 把某个商品价格临时改成 0.01 元 | 商品列表显示 ¥0.01 |
+| 5 | 用普通浏览器注册买家账号、下单 | 页面出现二维码 |
+| 6 | 用**你自己的真实支付宝**扫码付款 0.01 元 | 订单变「已完成」；支付宝账单里能看到这笔 |
+| 7 | 看买家账号中心 | 授权卡上出现激活码 |
+| 8 | 看下单用的邮箱 | 收到**同一个**激活码（个人中心与邮件逐字符相同） |
+| 9 | 客户端 `/license` 用「激活码 + 购买邮箱」激活 | 激活成功、心跳续租正常 |
+| 10 | 把商品价格改回来 | —— |
+
+**没有公网回调也能走完 6→8**：前端每 3 秒轮询会主动查单，30 秒巡检兜底（见十四.3）。有隧道（ngrok/frp）时把 `STORE_ALIPAY_NOTIFY_URL` 指过去，入账会更快。
+
+第 2 步失败时先看它给的解释：
+
+- 「凭据不可用（isv.invalid-app-id / isv.app-not-exist）」→ APPID 不对，或这个应用**没签约当面付**（未签约时网关同样回「应用不存在」，那是签约问题而不是密钥问题 —— 结论里会直接写出来）。
+- 「验签失败」/「无法解析支付宝公钥」→ 公钥填错（最常见的是填成了**应用公钥**）。
+- 「异步通知地址不可达」→ 回调地址不是公网可达（没有回调也能收款，但建议修好）。
+
+> **已删除的测试通道**（不要再找它们）：模拟收银台（`mock` 渠道与 `/store/mock/*`）、沙箱环境、
+> 验证码回显（`mail_mode=echo` 与 `STORE_EXPOSE_VERIFICATION_CODE`）、`/store-api-docs` 文档页、
+> 以及「用环境变量关掉支付巡检」（`STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0` 现在会被拒绝，最小 5 秒）。
+> 它们的共同点：都能在生产上被单点打开，而打开后的表现是**静默失效**而不是报错。
+
+
+---
+
+### 5.6 微信支付（Native 扫码）
+
+与支付宝是**并列**的两个渠道。两者可以在后台同时启用，前台会让顾客自己选，订单会把顾客
+选的渠道**冻结**下来 —— 之后的异步通知、查单、对账都按订单自己的渠道走，所以运营中途
+切换默认渠道不会让在途订单失去对账能力。
+
+**前置条件与支付宝同级**：企业或个体工商户主体 + 商户平台开通「Native 支付」权限。
+个人收款码没有 API，接不进来。
+
+**五件套缺一不可**（缺哪个都会在顾客付款那一刻才炸，而且报的是「签名错误」）：
+
+| # | 字段 | 用途 | 最容易错在哪 |
+| --- | --- | --- | --- |
+| 1 | `mchid` + `appid` | 商户身份 + 应用身份 | 填成了公众号后台的 appid |
+| 2 | 商户 API 私钥 | 签**我们发出**的每个请求 | 填成了「APIv3 密钥」 |
+| 3 | 商户证书序列号 | 放进 Authorization 头 | 抄错/带了冒号（保存时会拒掉） |
+| 4 | 微信支付公钥 | 验**微信推来**的回调 | 填成了自己的应用公钥 |
+| 5 | APIv3 密钥（32 字符） | 解密回调资源（AES-256-GCM） | 填成了证书内容（保存时会拒掉） |
+
+第 4 与第 5 项常被混为一谈，但它们管的是两件事：**公钥验签、密钥解密**。回调必须两步都
+成功才算一条可信通知 —— 验签只证明「这条消息来自微信」，内容还在密文里。
+
+验收顺序：
+
+| # | 动作 | 判定 |
+| --- | --- | --- |
+| 1 | 后台「站点配置 → 微信支付凭据」填五件套 | 徽标变「已配置 · 后台配置」 |
+| 2 | 点「**测试凭据**」 | 「凭据可用：网关接受了本次签名」 |
+| 3 | 「站点配置 → 支付渠道」勾上「微信支付」 | 保存后前台支付页出现两个选项 |
+| 4 | 把某个商品临时改成 0.01 元，用**微信**扫一扫付一笔 | 订单变「已完成」；微信账单可见 |
+| 5 | 看账号中心与邮箱 | 同一个激活码（个人中心与邮件逐字符相同） |
+| 6 | 把价格改回来 | —— |
+
+第 2 步的原理与支付宝那条一样：拿一笔**不存在**的交易去查单，网关回 `ORDER_NOT_EXIST`
+恰好证明它接受了我们的签名（签名不对时回的是 `SIGN_ERROR`）。
+
+> **回调地址**：不配就按 `STORE_BASE_URL` 推导成 `/store/v1/payments/wechat/notify`。
+> 没有公网回调也能收款（前台每 3 秒轮询 + 30 秒巡检兜底），但有回调会快很多。
+---
 ## 六、巡检与入账异常（可观测性）
 
 ### 6.1 支付巡检状态
@@ -299,19 +397,6 @@ STORE_ALIPAY_RETURN_URL=https://xxx.ngrok-free.app/store/payment/return
 
 三条要点：**只在内存里**（同巡检，落库会让刚起来就出问题的进程看起来像「历史遗留」）；`note()` **绝不抛异常**（它唯一的调用场合就是 `except` 块内部，那里再抛等于把刻意吞下的失败重新变成 500，甚至盖掉原始错误）；**有「确认」按钮**（一次抖动会把灯永久点亮，而它是进程内的，按不灭的灯等于没有灯 —— 后台「确认已处理」会清零计数并记审计，卡片上仍能看到「上次确认在 xx 前」；清零**不修复任何订单**，所以确认框里写明了要先处理完 `fulfillment_failed` 的单）。
 
-### 6.3 积分口径迁移结果
-
-邀请积分从 `FLOAT`（积分）迁到 `INTEGER`（厘）的那套流程（`commerce/points_migration.py`，规则见「十三、升级与迁移」）是**先验证后销毁**：任何一行对账不通过就整表跳过删列。跳过是安全的，但**不删旧列会留下一个定时炸弹** —— 旧列是 `NOT NULL` 且没有 DDL 默认值，ORM 已不再映射它，于是之后对这张表的**每一次插入**（也就是每一笔新订单）都会以 `NOT NULL constraint failed` 失败。也就是说「服务启动成功」不等于「迁移成功」，而那个报错出现时，早已看不出根因在启动期的迁移。
-
-所以迁移结果会被记下来（进程内，`migration_status()`），三处都能读到：
-
-| 读法 | 位置 |
-| --- | --- |
-| 人看 | 后台**运营概览**的「积分迁移」卡片（**只在未通过时出现**：通过时没有任何可操作内容，常驻只会变成噪音） |
-| 机器看 | `GET /healthz` → `pointsMigration`（`status` 仍只表示进程活着：对账没过是数据问题，重启进程解决不了，也不该被反复重启） |
-| 日志 | 启动期逐条 `error` 列出问题，外加一条汇总 `warning` 指明「旧列未退役，之后的新写入会失败」 |
-
-字段：`health`（`ok` / `degraded` / `pending` —— `pending` 表示本进程没跑过迁移）、`ok`、`changed`、`summary`、`backupPath`、`problemCount`、`problems[]`（最多 10 条）、`tables[]`（每张表的 `state` / 回填与对账行数 / 已退役的列）。登记动作放在 `migrate_points()` 内部而不是调用方：漏登记会让 `/healthz` 永远显示 `pending`，而「迁移失败了」正是这个字段存在的理由。
 
 ---
 
@@ -515,7 +600,7 @@ body            { overflow: hidden; }
 - **`auto-fit` 配 `span 2` 会生成隐式轨道。** `auto-fit` 条数是算出来的：内容宽 554px、下限 340px 时它只给 1 条轨道，此时 `admin-grid__wide`（`grid-column: span 2`）会让浏览器**凭空补一条 `grid-auto-columns: auto` 的轨道** —— 两条轨道一宽一窄（340 / 200），紧跟其后的 `admin-grid__full` 因为 `1 / -1` 只跨「显式轨道」而拿到 340px 而不是整行 554px，整块栅格还会横向溢出。列数写死就没有这个自由度：3 条配 `span 2` 是 2 ≤ 3，2 条配 `span 2` 是整行，都不会溢出。低于 861px 时 `span 2` 由那条全局的 `@media (max-width: 860px) { .admin-grid__wide { grid-column: 1 / -1 } }` 打回整行，正好和单列档同宽，所以不需要第三条规则。
 - **站点配置的字段名比别处长**，因为它全是站点名、URL、密钥、回调地址。原来它跟着普通表单用 210px 下限，列宽只有 240px 出头，长文本字段只能靠 `admin-grid__full` 躲折行 —— 结果是整整一行只有一两个字段、右边空掉三列。改成写死三列（每列 409px）后，那些长字段才敢放进多列带，行也就铺满了。
 
-**代价是档位分界不能凭审美取，得按字段名预算倒推。** 判据从「最小列宽」（`auto-fit` 下轨道只会变宽，是恒定的下限）变成「本档最窄处」，因为列数固定时轨道会随视口一起收窄。实测站点配置里最长的单列字段名是「网关地址（留空跟随沙箱开关 / 环境变量）」233px，要 241px 起；卡片正文宽 ≈ 视口 − 346px（侧栏 252 + 主区内边距 40 + 卡片内边距 40 + 4），于是三列档要 content ≥ 3×241 + 2×14 = 751px、即视口 ≥ 1097px，取 1120px 留余量（1121px 时轨道 249px）。**改档位或改字段名都要重算这一串**，别只改一半。另外「交易标题」（原 380px）和「发件人」（原 358px）就是这条预算逼出来的两次收窄：字段名只留主词，账单口径与显示名写法挪进 `.admin-field-hint`。
+**代价是档位分界不能凭审美取，得按字段名预算倒推。** 判据从「最小列宽」（`auto-fit` 下轨道只会变宽，是恒定的下限）变成「本档最窄处」，因为列数固定时轨道会随视口一起收窄。实测站点配置里最长的单列字段名「网关地址（留空跟随沙箱开关 / 环境变量）」是 233px（该字段名后来缩短为「网关地址（留空即支付宝生产网关）」，所以这条预算现在更宽裕），要 241px 起；卡片正文宽 ≈ 视口 − 346px（侧栏 252 + 主区内边距 40 + 卡片内边距 40 + 4），于是三列档要 content ≥ 3×241 + 2×14 = 751px、即视口 ≥ 1097px，取 1120px 留余量（1121px 时轨道 249px）。**改档位或改字段名都要重算这一串**，别只改一半。另外「交易标题」（原 380px）和「发件人」（原 358px）就是这条预算逼出来的两次收窄：字段名只留主词，账单口径与显示名写法挪进 `.admin-field-hint`。
 
 **两列档还要单独收一次尾：三字段一带会剩半行。** 站点配置里有三条「三个一列字段」的带 —— 支付渠道 / 支付显示名 / 交易标题，AppID / 卖家 PID / 网关地址，奖励比例 / 提现手续费 / 最低提现积分。三列档它们正好排满一行，两列档就成了「2 + 1」：第三个字段自己占一行、右半边整块空着（1120px 下实测空 394px，正好是行宽的一半），而它后面紧跟的往往是整行的东西（勾选框组、整行字段），这块空位就卡在中间，比别处稀疏 —— 行有没有铺满这件事，上一段刚在三列档上解决过，两列档会原样复发。修法是给这三个字段加 `admin-grid__fill-2col`，在 `@media (max-width: 1120px)` 里给 `grid-column: 1 / -1`：读起来的顺序不变（还是第三个），行也铺满了。三列档那一带本来就满、一列档本来就整行，所以这条规则只写进两列档那一个 media query，别提到外面去。**代价是这条补丁与「带里有几个字段」绑死了**：往这三条带里增删字段要回来重数一遍 —— 它不会自己失效，只会静默地少铺或多铺一格（栅格不会报错，只有量 `getBoundingClientRect().right` 才看得出来）。
 
@@ -567,7 +652,7 @@ apps/store/
   security/limiter.py          # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
   security/setup_guard.py      # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）
   security/secret_fields.py    # 后台「密钥类字段」的打码、识别与归一化
-  security/schema_guard.py     # 启动时把存量库对齐到 ORM（补缺列 / 补缺索引 / 删退役列）
+  security/schema_guard.py     # 启动时把存量库对齐到 ORM（补缺列 / 补缺索引）
   commerce/            # 交易与账务：商品、订单、履约、优惠码、邀请与积分
   commerce/money.py          # ★ 积分/金额的分币运算唯一口径（Decimal，整数厘）
   commerce/catalog.py        # 商品类型 / 履约方式的合法取值（服务端唯一来源）
@@ -577,16 +662,15 @@ apps/store/
   commerce/cashier.py        # 模拟收银台的短时票据：签发、查询、清理（S53）
   commerce/expiry.py         # 待支付订单过期处理 + 过期登录会话清理
   commerce/referrals.py      # 邀请钱包与积分账本、提现
-  commerce/points_migration.py  # 邀请积分 FLOAT→整数厘 的回填/对账/退役/回滚
   ops/                 # 运营支撑：站点配置、邮件、发布信息、能力码目录、自检原语
   ops/site_settings.py       # 站点/支付/邀请 运行时配置
-  ops/mailer.py              # 验证码投递：log | echo | smtp
+  ops/mailer.py              # 验证码投递：log | smtp
   ops/mail_settings.py       # 注册邮箱验证码配置解析（站点配置优先，环境变量兜底）
   ops/release_info.py        # 当前版本的发布记录常量与兜底写入
   ops/features.py            # 客户端能力码目录（★唯一出处：与主项目 BASE_FEATURES 同集）
   ops/net_probe.py           # 网络可达性探测（后台「站点配置」自检按钮用）
   ops/incidents.py           # 资金与履约路径上「吞掉异常」的计数（S36）
-  payments/            # base 接口 + mock 收银台 + 支付宝（签名/下单/验签/查单）+ 统一入账
+  payments/            # base 接口 + 支付宝（签名/下单/验签/查单）+ 统一入账
   payments/sweeper.py  # 后台巡检：认领「已付款但通知丢了」的单、关闭过期渠道交易 + 状态登记
   licensing/           # 服务端 TransportCipher + LeaseSigner + 三端点业务
   api/store.py         # /store/v1/*
@@ -664,19 +748,65 @@ success / warning / danger / muted 四种，所以漏斗最多四种色相。`.i
 另外两处**内联** HTML 也走同一套令牌，改配色时别漏：`api/pages.py` 的模拟收银台（`_cashier_html`）和 `api/alipay.py` 的同步跳转页（`_RETURN_PAGE`）。
 
 自查手法：换布局最容易出的是「类名写出来了但没有对应样式」—— 节点照样渲染，只是没有边框和内边距，控制台一声不响。核对时把 `store.js` / `referrals.js` / 模板 `class=` 字面量里的类名逐个到三份样式表里比对，或直接用浏览器 DevTools 遍历 `document.querySelectorAll('*')`，把没有生效样式的节点打出来。
-
 ---
 
-## 十三、升级与迁移：积分口径 FLOAT → 整数厘
+## 十四、支付后自动发码与投递契约
 
-邀请积分原先以 `FLOAT` 存「积分」、靠 `round(x, 2)` 维持两位小数。正确性建立在「SQL 侧 `round()` 与 Python 侧 `round()` 结果一致」这个**不成立**的前提上：SQLite 是 half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分币值（`0.125` → SQLite `0.13` / Python `0.12`）。后果是提现那条「用 round 后的值比对冻结额有没有被并发改过」的条件 UPDATE 会把**没有并发**的情况判成冲突，以及余额与流水之和能差 1 厘。
+「付款 → 发码」这条链路有两个**必须同时成立**的交付面，它们互为兜底：
 
-现已全部改为 `INTEGER` **厘**（1 积分 = 100 厘），运算集中在 `apps/store/commerce/money.py`。**升级不需要手工执行任何命令**：`app.py` 启动时按 `ensure_schema`（补新列）→ `migrate_points`（回填 + 逐行对账 → 退役旧列）自动完成，迁移前会先做一次数据库文件级备份（`VACUUM INTO` 一致快照）。
+| 交付面 | 实现位置 | 要求 |
+| --- | --- | --- |
+| **个人中心可见** | `core/serializers.py` 的 `license_payload`（下发 `activationCode`）+ `static/store.js` 渲染授权卡 + `commerce/fulfill.py` 签发时写入 `account_id=order.account_id` | 支付入账并履约后，买家**立刻**能在账号中心看到这张授权的激活码。`account_id` 是「按账号查得到」的唯一依据，**不要改** |
+| **邮件送达** | `commerce/delivery.py` + `ops/mailer.send_license_email` | 同一个激活码发到**下单时冻结的** `order.email`（不是「当前账号邮箱」：账号后来改邮箱时，历史订单的投递去向仍要可追溯） |
 
-**三条要知道的规则**：
+两条通道的内容必须**同源**：发送前按 `license.id` 从数据库回读激活码，不用内存里的对象 —— 否则「邮件里的码」与「个人中心的码」可能出现一次小偏差，而那种偏差用户只会当成「邮箱收到的是错的」。
+增量包（`patch`）与升级（`upgrade`）**不签发新码**，但邮件照发：正文重复展示**既有**激活码并说明本次变更，否则买家只会觉得「付了钱什么也没收到」。
+回归测试：`apps/store/tests/test_license_delivery.py`（断言邮件正文里的码与个人中心下发的码逐字符相同）。
 
-1. **对账基准是「用户看到的数字」** —— `format_centi(新值) == f"{旧值:.2f}"`。任何一行不符就**整表跳过删列**并打印前 10 处差异，此时库是「新旧并存」的安全状态。**这次失败会被记下来并摆到明面上**（`/healthz` 的 `pointsMigration`、后台概览的「积分迁移」卡片、启动日志的一条汇总 warning），因为它的后果要到下一次下单失败时才爆出来（见「6.3 积分口径迁移结果」）。
-2. **旧列必须删掉，不能留着不管。** 旧列是 `NOT NULL` 且没有 DDL 默认值，ORM 已不再映射它，于是新的 `INSERT` 会以 `NOT NULL constraint failed` 失败 —— **且只在存量库上失败**（全新库本就没有这一列）。
-3. 对外 JSON 契约**没变**：仍是 `"10.05"` 这样的两位小数字符串（厘正好是 1/100，无损），所以前端与客户端都不需要跟着改。
+### 14.1 发送时机、幂等与失败隔离
 
-备份文件按 `store.db.pre-centi-<时间戳>.bak` 命名（同一秒内的第二次备份会追加 `-1`、`-2` 序号：`VACUUM INTO` 撞名是直接报错，那样这次就真的一份快照都没有）。用 WAL 模式时不要用文件复制取备份（见仓库根 `README.md` 的「商店侧」）。
+- **发送必须发生在入账事务提交之后。** HTTP 路径用 FastAPI 的 `BackgroundTasks`：`DbSession` 的提交发生在响应发出之前、后台任务在响应之后运行，于是发信看到的一定是已经落库的授权，同时不拖慢给支付宝的 ack（支付宝有超时重推，ack 越慢越容易重复通知）。后台履约、模拟收银台同理。
+- **不在请求事务里发信**还有第二个理由：SMTP 是几秒到二十秒的网络等待，而 `busy_timeout` 只有 5 秒 —— 持着 SQLite 写锁等 SMTP，并发的下单 / 心跳会直接报 `database is locked`。
+- **幂等靠条件自增领取**：`orders.license_email_attempts` 用「未发送且未达上限」的 `UPDATE` 抢标记，抢不到的调用方直接退出。异步通知、前端轮询、后台巡检同时触发也只会真发一封。
+- **失败绝不回滚授权**：结果写进 `orders.license_email_error` 并记一条 `incidents`（`delivery`）。邮件失败时授权与个人中心显示都不受影响。
+- **巡检兜底**：`payments/sweeper.py` 每轮调用 `delivery.sweep_undelivered`（上限 `STORE_PAYMENT_SWEEP_BATCH`），把「已履约但邮件没发出去」的订单补发一遍。进程重启、后台任务丢失、当时 SMTP 抖动都靠它收尾。自动重试上限 `MAX_AUTO_DELIVERY_ATTEMPTS = 3`。
+- **买家的自助入口**：账号中心每张授权卡上的「重发激活码邮件」→ `POST /store/v1/account/licenses/{licenseId}/email`。它跳过「已经发过」与「重试次数用尽」两道闸门（`force=True`），但仍走同一个领取标记，并按**账号**限流 5 次/小时（进程内限流器，见「二、必须单进程」）。
+- **总开关**：站点配置「注册邮件 → 发货邮件」（`store_settings.delivery_email_enabled`）。库里的 `NULL` 与 `1` 都算**开** —— 一个空值不该静默关掉这条通道。
+
+### 14.2 履约失败会自动重试
+
+入账时履约失败会被**刻意吞掉**（抛给支付宝会让它无限重推），订单被推到 `fulfillment_failed`。过去这条状态的结局是「钱收了、码没发、没有任何东西会再碰它」，只能等运营偶然看到。现在巡检会捞它：
+
+- 条件：状态为 `fulfillment_failed`、`fulfillment_attempts` 未达 `MAX_FULFILLMENT_RETRIES`（5）、创建时间在 `FULFILLMENT_RETRY_LOOKBACK_HOURS`（24）小时内。
+- 每次尝试先自增计数（用尽上限的单自然退出候选集），成功即清 `needs_review` 并触发发码邮件；仍失败则记 `incidents`（`fulfillment.retry`）。
+- 手动发卡（`fulfillment_mode` 为 `manual`）的商品不在此列：它本来就该等人来点，不是失败。
+
+### 14.3 支付宝侧的四个口径
+
+1. **公钥填错回 `failure`，不回 500。** `verify_content` 只回答是非问题，任何失败（含「公钥不是合法 PEM」这种 `PaymentError`）都返回 `False`。以前这个异常会逃到端点层变成 HTTP 500 JSON —— 支付宝看到的是「商户故障」，于是重推数小时，而订单永远停在待支付。同时会在通知路径上记一条 `incidents`（`alipay.config`），让这类配置故障在后台概览可见（验签失败本身**不**记账，否则任何人往回调地址 POST 垃圾都会刷爆告警）。
+2. **非成功交易状态要分两种处理。** `WAIT_BUYER_PAY` 是「还没付」，本地保持待支付；`TRADE_CLOSED` 是「这笔交易已经死了」，本地同步收尾（归还库存预留与优惠码名额并写 `channel_closed_at`），否则它会一直占着资源直到本地 TTL 或巡检。
+3. **渠道被切走不再搁置在途通知。** 回调与查单按**渠道名**解析支付宝（与巡检同口径的 `name_override`），只在这笔订单确实不是支付宝时才拒收。运营把站点渠道临时清空（或改成别的值）时，在途的那批订单仍然能被对账。
+4. **订单 TTL 必须与二维码寿命对齐。** 支付宝二维码在渠道侧可存活约 2 小时，而本地订单默认 120 秒就过期 —— 用户扫码稍慢就会变成「订单已过期后才到账」的复活单，每笔都要人工核对。`payment_provider=alipay` 且 `STORE_ORDER_TTL_SECONDS < 300` 时启动日志会点名告警；建议 600~900 秒。
+
+另外两条与「自动发码」直接相关的顺序约定：**先对账、后过期**。`GET /store/v1/orders/{no}` 与订单列表都先向渠道查单再跑本地过期收尾（与巡检 `reconcile_due_orders` 同一顺序）。反过来的话，一笔刚跨过 TTL 的订单会先被本地置为 `expired`（顺带归还预留），而查单只处理待支付 —— 那次本可以确认收款的主动对账就这样被跳过。没有公网回调时，这条顺序 + 30 秒巡检就是「付了钱也能收到码」的全部保证。
+
+### 14.4 邮箱验证码的三个口径
+
+1. **先提交、再发信。** `POST /store/v1/verifications` 把验证码行提交后才调用 SMTP：发信期间不持有任何写事务，且进程在「已发信」与「已提交」之间崩溃不会留下一个用户手里有、服务端却没有的码。投递结果在第二个短事务里落库，**它失败不会让验证码失效**（只记 `incidents`）。
+2. **没发出去必须如实说。** 响应里的 `delivered` / `deliveryMode` / `deliveryError` 是唯一口径，前端照着它说话：`delivered` 为假且带 `deliveryError` 时提示失败且**不**谎报「已发送」。SMTP 未配置完整这条以前连 `deliveryError` 都不返回，用户对着收件箱干等 —— 那是注册彻底走不下去。
+3. **配额可运营。** 全站小时发信上限（`verification_global_hourly_limit`，库内 0 = 跟随环境变量）在后台「注册邮件」里直接改：触顶时**所有人**都收不到验证码，运营必须能在这一页把它调大。配额校验排在参数校验**之后**，写错邮箱的请求不会白扣额度。
+
+单条验证码的尝试上限（8 次）落在**独立提交的事务**里：错码路径紧接着就 `raise`，而请求作用域的会话会整体回滚 —— 写在同一事务里的自增会连同失败一起消失，上限就永远不会生效。
+「更换邮箱」的发码阶段**不再**回答「这个邮箱注册过没有」（那是个对任何登录用户开放的枚举探针），占用校验放在验证码消费之后。
+
+### 14.5 排障表
+
+| 现象 | 先看哪里 |
+| --- | --- |
+| 付了钱、账号中心没有码 | `orders.status`。`fulfillment_failed` 说明履约失败（看 `review_note` 与 `incidents` 的 `fulfillment`），巡检会重试最多 5 次；`pending` 说明还没入账，看巡检状态与通知记录 |
+| 有码但没收到邮件 | `orders.license_email_sent_at` / `license_email_error`；后台概览的「入账异常」；再到「注册邮件 → 发送测试邮件」区分「我们发不出去」与「对方网关拒收」 |
+| 买家说邮箱丢了这封信 | 让他到账号中心的授权卡上点「重发激活码邮件」（5 次/小时/账号） |
+| 注册页一直收不到验证码 | 后台「注册邮件」顶部的「SMTP 是否就绪」；全站小时上限是否触顶；再确认没有把 `mail_mode` 留在 `log` |
+| 日志刷「通知验签未通过」 | 大概率是 `STORE_ALIPAY_PUBLIC_KEY` 填成了**应用公钥**。填错时通知会回纯文本 `failure`（不再是 500），并在「入账异常」里记 `alipay.config` |
+
+

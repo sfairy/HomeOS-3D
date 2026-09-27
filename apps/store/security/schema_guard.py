@@ -1,4 +1,4 @@
-"""启动时把存量库对齐到 ORM：补缺列、补缺索引、按白名单删退役列（幂等）。
+"""启动时把存量库对齐到 ORM：补缺列、补缺索引（幂等）。
 """
 
 from __future__ import annotations
@@ -18,23 +18,6 @@ from apps.store.core.database import Base
 import apps.store.core.models  # noqa: F401  仅为注册全部模型元数据
 
 logger = logging.getLogger("apps.store.schema")
-
-#: 已从 ORM 退役、需从存量库**物理删除**的列：``{表名: (列名, ...)}``。
-_RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
-    # 提现不再收集联系 QQ，改为让用户凭申请编号联系客服。
-    "referral_withdrawals": ("qq",),
-    # 提现引导从「加入 QQ 群」改为「联系客服」，QQ 群配置随之退役。
-    "store_settings": (
-        "referral_qq_group",
-        "referral_qq_url",
-        # 该模板从未被任何下单路径读取（订单号统一由 `security.new_order_no` 生成），且默认值
-        "payment_merchant_order_template",
-    ),
-    # 账号级的「最近一次解绑设备」。
-    "accounts": ("last_device_release_at",),
-}
-
-_MIN_SQLITE_DROP_COLUMN = (3, 35, 0)
 
 
 @dataclass(frozen=True)
@@ -254,7 +237,14 @@ def _default_clause(column: Column) -> str | None:
     if column.server_default is not None:
         argument = getattr(column.server_default, "arg", None)
         if argument is not None:
-            return str(argument)
+            rendered = str(argument).strip()
+            # server_default="" 是完全合法的 SQLAlchemy 写法（文本列用空串做默认值），
+            # 但它渲染进 DDL 就是「DEFAULT 」——后面什么都没有。那是一条语法错误的
+            # ALTER TABLE：补列当场失败，服务在下一次启动时直接起不来，而错误信息
+            # （incomplete input）完全指不到真正的根因。空渲染一律按「没有默认值」处理，
+            # 于是非空列会按可空列补齐并留下一条 warning。
+            if rendered:
+                return rendered
 
     default = column.default
     if default is not None and not getattr(default, "is_callable", False):
@@ -312,70 +302,9 @@ def _index_ddl(table_name: str, index, dialect=None) -> str:
     return clause
 
 
-def drop_column_ddl(table_name: str, column_name: str) -> str:
-    return f'ALTER TABLE "{table_name}" DROP COLUMN "{column_name}"'
-
-
-def _drop_column_ddl(table_name: str, column_name: str) -> str:
-    return drop_column_ddl(table_name, column_name)
-
-
-def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -> list[str]:
-    """把登记过的退役列从存量库里真正删掉，返回本次变更清单。
-    """
-    if engine.dialect.name != "sqlite":
-        logger.warning(
-            "表 %s 有已退役列 %s，但方言 %s 不支持自动删列，请人工处理。",
-            table_name,
-            "、".join(columns),
-            engine.dialect.name,
-        )
-        return []
-
-    version = tuple(getattr(engine.dialect, "sqlite_version_info", ()) or ())
-    if version and version < _MIN_SQLITE_DROP_COLUMN:
-        logger.warning(
-            "SQLite %s 不支持 DROP COLUMN（需要 3.35+），表 %s 的退役列 %s 未删除，请人工处理。",
-            ".".join(str(part) for part in version),
-            table_name,
-            "、".join(columns),
-        )
-        return []
-
-    dropped: list[str] = []
-    deleted: list[str] = []
-    #: 备份必须在删列之前：删列是整列消失（SQLite 的 DROP COLUMN 会重建整张表，数据不再
-    backup = backup_database(engine, label=f"drop-{table_name}")
-    for column in columns:
-        try:
-            with engine.begin() as connection:
-                connection.exec_driver_sql(_drop_column_ddl(table_name, column))
-        except Exception as error:  # noqa: BLE001
-            # DROP COLUMN 不是万能的：列被索引、带 UNIQUE、或出现在 CHECK/部分索引
-            # 里时 SQLite 会直接拒绝。这种情况只报警不抛出 —— 结构清理失败不该让
-            # 整个服务起不来，但必须让运维在日志里看到并人工处理。
-            logger.warning(
-                "删除退役列 %s.%s 失败（%s），该列仍留在库中，请人工处理。",
-                table_name,
-                column,
-                error,
-            )
-            continue
-        dropped.append(f"{table_name}.{column}（已删除）")
-        deleted.append(column)
-    if deleted:
-        logger.warning(
-            "表 %s 的退役列 %s 已从库中删除（删除前备份：%s）。这是不可逆操作，"
-            "确认服务一切正常后可以自行删除该备份。",
-            table_name,
-            "、".join(deleted),
-            backup if backup is not None else "内存库/非文件库，无文件级备份",
-        )
-    return dropped
-
 
 def ensure_schema(engine: Engine) -> list[str]:
-    """把存量库对齐到元数据：删退役列、补缺列、补缺索引，返回本次变更的清单。
+    """把存量库对齐到元数据：补缺列、补缺索引，返回本次变更的清单。
     """
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
@@ -389,18 +318,6 @@ def ensure_schema(engine: Engine) -> list[str]:
             continue
 
         existing_columns = {column["name"] for column in inspector.get_columns(table.name)}
-
-        # 删列必须排在最前：删列在 SQLite 上等于重建整张表，重建后的表是按当前
-        retired = [
-            name for name in _RETIRED_COLUMNS.get(table.name, ()) if name in existing_columns
-        ]
-        if retired:
-            applied.extend(_drop_retired_columns(engine, table.name, retired))
-            # 表结构变了，inspector 的缓存里还是旧快照。不清掉的话，下面会拿着
-            inspector.clear_cache()
-            existing_columns = {
-                column["name"] for column in inspector.get_columns(table.name)
-            }
 
         missing_columns = [
             column for column in table.columns if column.name not in existing_columns

@@ -1,8 +1,8 @@
 /**
  * 弹窗「关联功能」实体：候选筛选、默认勾选、名称清洗与操作确认。
  */
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609271226";
-import { entityDomainOf } from "../utils/entities.js?v=2609271226";
+import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609271411";
+import { entityDomainOf } from "../utils/entities.js?v=2609271411";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 const RELATED_ENTITY_MODE_SELECTED = "selected";

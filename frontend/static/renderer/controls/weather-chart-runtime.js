@@ -49,9 +49,9 @@ export function weatherVisual(condition, sunState = "") {
 /**
  * 拼 meteocons 图标地址。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=2609271226";
+export { meteoconUrl } from "../../utils/icon-url.js?v=2609271411";
 // 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
-import { resolveColor } from "../../utils/colors.js?v=2609271226";
+import { resolveColor } from "../../utils/colors.js?v=2609271411";
 // 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
 export const CHART_THRESHOLD_FALLBACK_COLORS = ["#88dcbf", "#5fd0a8", "#ff8a65", "#f07a7e"];
 // 单色兜底（「取不到任何阈值」时的那一格）。与 --hos-eco 同值。

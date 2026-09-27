@@ -1,22 +1,22 @@
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=2609271226";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271226";
+} from "../../../../utils/numbers.js?v=2609271411";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
 // 同门分片：entity-state
-import { isComponentEntityActive } from "../entity-state.js?v=2609271226";
+import { isComponentEntityActive } from "../entity-state.js?v=2609271411";
 // 同门分片：navigation-effects
 import {
   buildNavigationEffects,
   navigationButtonIsActive
-} from "../navigation-effects.js?v=2609271226";
+} from "../navigation-effects.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   navigationContentUnitPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271226";
+} from "../registry-visuals.js?v=2609271411";
 
 // 导航按钮控件：目标页取自三个点击动作里的 navigate，其次才是 properties.targetPage；
 registerComponent("navigation-button", {
@@ -51,16 +51,16 @@ registerComponent("navigation-button", {
     });
     const navigationTextOpacity = clampCoercedNumber(
       isNavigationButtonActive
-        ? (navigationProperties.textActiveOpacity ?? navigationProperties.activeOpacity)
-        : (navigationProperties.textIdleOpacity ?? navigationProperties.idleOpacity),
+        ? navigationProperties.textActiveOpacity
+        : navigationProperties.textIdleOpacity,
       0,
       1,
       isNavigationButtonActive ? 0.96 : 0.3
     );
     const navigationIconOpacity = clampCoercedNumber(
       isNavigationButtonActive
-        ? (navigationProperties.iconActiveOpacity ?? navigationProperties.activeOpacity)
-        : (navigationProperties.iconIdleOpacity ?? navigationProperties.idleOpacity),
+        ? navigationProperties.iconActiveOpacity
+        : navigationProperties.iconIdleOpacity,
       0,
       1,
       isNavigationButtonActive ? 0.96 : 0.3

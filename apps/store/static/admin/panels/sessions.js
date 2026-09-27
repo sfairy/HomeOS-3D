@@ -2,10 +2,10 @@
  * 会话与令牌类诊断表。
  */
 
-import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609271226";
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
-import { dt, money, num, pill } from "../format.js?v=2609271226";
-import { state } from "../state.js?v=2609271226";
+import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609271411";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271411";
+import { dt, money, num, pill } from "../format.js?v=2609271411";
+import { state } from "../state.js?v=2609271411";
 
 export async function loadSessions() {
   const cursor = pageState('sessions');

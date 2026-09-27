@@ -5,14 +5,14 @@
 import {
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "../runtime-dialog-motion.js?v=2609271226";
+} from "../runtime-dialog-motion.js?v=2609271411";
 import {
   COMPACT_DIALOG_TARGET_OCCUPANCY,
   DEFAULT_DIALOG_TARGET_OCCUPANCY,
   RUNTIME_DIALOG_FOCUSABLE_SELECTOR,
   runtimeDialogLayout,
   runtimeDialogViewport
-} from "./primitives.js?v=2609271226";
+} from "./primitives.js?v=2609271411";
 
 // 弹窗标题 id 的自增序号 —— aria-labelledby 要的是一个稳定且唯一的 id，
 let runtimeDialogTitleSerial = 0;

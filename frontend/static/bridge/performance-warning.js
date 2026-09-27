@@ -1,7 +1,7 @@
 /**
  * 画质设置的性能告警。
  */
-import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609271226";
+import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609271411";
 /**
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
  */

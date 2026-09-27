@@ -1,7 +1,7 @@
 /**
  * 门锁详情面板（3D 详情弹窗 / 配置预览共用）。
  */
-import { lockState } from "./lock-state.js?v=2609271226";
+import { lockState } from "./lock-state.js?v=2609271411";
 
 /**
  * 创建门锁面板。

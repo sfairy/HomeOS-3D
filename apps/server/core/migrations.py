@@ -14,7 +14,7 @@ from alembic.script import ScriptDirectory
 from ..config import Settings
 from .file_lock import locked_file
 
-#: 唯一的基线迁移。更早的 0001-0015 已合并到它，项目按首个发布版本维护，
+#: 唯一基线迁移（= head）。项目按首个发布版本维护，不兼容更早 revision。
 BASE_REVISION = '0001'
 #: 迁移锁文件名（与库文件同目录）。内核在进程结束时自动释放，因此进程被 kill 之后
 MIGRATION_LOCK_SUFFIX = '.migrate.lock'
@@ -28,6 +28,10 @@ _logger = logging.getLogger(__name__)
 
 class MigrationBackupError(RuntimeError):
     """迁移前的快照写不出来，因此拒绝继续迁移。"""
+
+
+class UnknownRevisionError(RuntimeError):
+    """库内 revision 不在当前脚本目录中（需删库重建）。"""
 
 
 def _migration_config(settings: Settings) -> Config:
@@ -119,8 +123,10 @@ def run_migrations(settings: Settings) -> None:
         )
         known = _known_revisions(config)
         if recorded is not None and recorded not in known:
-            command.stamp(config, BASE_REVISION, purge=True)
-            recorded = BASE_REVISION
+            raise UnknownRevisionError(
+                f'数据库 revision「{recorded}」不在当前迁移脚本中（已知：{sorted(known)}）。'
+                '本项目仅支持从空库建立唯一基线；请备份后删除数据库文件再启动。'
+            )
         # 只有真的要动结构才备份：每次启动都复制一份库，很快就变成一个没人清理的
         if recorded != _head_revision(config):
             backup_database(database_path)

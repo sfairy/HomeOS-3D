@@ -1,7 +1,7 @@
 /**
  * 3D 首屏的分段耗时埋点。
  */
-import { debugLog, isFrontendPerformanceDiagnosticsEnabled } from "../utils/debug-log.js?v=2609271226";
+import { debugLog, isFrontendPerformanceDiagnosticsEnabled } from "../utils/debug-log.js?v=2609271411";
 
 /**
  * 创建一个埋点函数。

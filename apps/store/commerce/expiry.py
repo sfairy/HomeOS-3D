@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
-
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from apps.store.commerce import fulfill
@@ -38,17 +36,10 @@ def expire_stale_orders(
     """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。
     """
     moment = utcnow()
-    ttl = timedelta(seconds=max(0, int(settings.order_ttl_seconds or 0)))
-    legacy_before = moment - ttl
     query = (
         select(Order)
         .where(Order.status == "pending")
-        .where(
-            or_(
-                Order.expires_at <= moment,
-                and_(Order.expires_at.is_(None), Order.created_at <= legacy_before),
-            )
-        )
+        .where(Order.expires_at <= moment)
         #: 按过期时间正序 + 批内主键定序有两个作用：每轮都从最老的开始，有上限也不会让老单
         .order_by(Order.expires_at.asc(), Order.id.asc())
         .limit(max(0, int(limit)))

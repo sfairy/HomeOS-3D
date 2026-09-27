@@ -9,10 +9,10 @@ import {
   climateSwingModeLabel,
   createClimateModeHistory,
   purifierControl
-} from "./climate-state.js?v=2609271226";
-import { createDomFactory } from "../core/static-helpers.js?v=2609271226";
+} from "./climate-state.js?v=2609271411";
+import { createDomFactory } from "../core/static-helpers.js?v=2609271411";
 // 「附加功能」卡片网格：与通用设备弹窗（device/device-panel.js）共用同一份渲染器。
-import { createPurifierExtras } from "./purifier-extras.js?v=2609271226";
+import { createPurifierExtras } from "./purifier-extras.js?v=2609271411";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  */

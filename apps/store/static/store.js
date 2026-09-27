@@ -1,9 +1,9 @@
-import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271226";
-import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271226";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271226";
-import { fromResponse } from "./api-error.js?v=2609271226";
-import { HBReferrals } from "./referrals.js?v=2609271226";
-import { addonProducts, addonTypeLabel, applyProductFilter, availableAddonProducts, chooseProduct, isAddonProduct, isTrialProduct, primaryProductUnavailable, primaryProducts, renderAddons, renderProduct, renderProducts, requestedUpgradeLicenseId } from "./store-catalog.js";
+import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271411";
+import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271411";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271411";
+import { fromResponse } from "./api-error.js?v=2609271411";
+import { HBReferrals } from "./referrals.js?v=2609271411";
+import { addonProducts, addonTypeLabel, applyProductFilter, availableAddonProducts, chooseProduct, isAddonProduct, isTrialProduct, primaryProductUnavailable, primaryProducts, renderAddons, renderPaymentMethods, renderProduct, renderProducts, requestedUpgradeLicenseId } from "./store-catalog.js";
 import { archiveOrder, cancelPendingOrderFrom, confirmAction, orderCountdownText, orderRemainingSeconds, pollOrder, showPayment, showPendingOrderNotice, stopPaymentTimers } from "./store-orders.js";
 
 
@@ -137,6 +137,7 @@ function applyConfiguration() {
   $('#footer-site-name').textContent = store.siteName;
   $$('.hb-store-brand-mark').forEach(image => { image.src = versionedStoreAsset(store.logoUrl); });
   if (store.announcement) toast(store.announcement);
+  renderPaymentMethods();
 }
 
 function applyMaintenanceMode() {
@@ -283,6 +284,11 @@ async function createOrder(event) {
       showPendingOrderNotice(pendingOrder);
       return;
     }
+    // 渠道由购买页上那个按钮决定（见 renderPaymentMethods）：点哪个就把哪个写进
+    // 隐藏字段。下单接口会把渠道**冻结在订单上**，之后的回调与对账都按订单自己
+    // 的渠道走，所以运营中途换默认渠道不影响在途订单。
+    const channel = form.elements.paymentChannel.value;
+    if (channel) payload.paymentChannel = channel;
     const order = await api('/orders', { method: 'POST', body: JSON.stringify(payload) });
     localStorage.setItem(`hb-order-${order.orderNo}`, order.lookupToken);
     showPayment(order);
@@ -299,6 +305,7 @@ async function createOrder(event) {
   }
   finally { submit.disabled = false; }
 }
+
 
 function applyAccountUi() {
   const form = $('#purchase-form');
@@ -397,6 +404,26 @@ function startEmailCooldown(button, seconds) {
   state.emailCooldownTimers.set(button, setInterval(update, 1000));
 }
 
+// 服务端现在如实回报投递结果（delivered / deliveryMode / deliveryError）。这里必须照着
+// 它说话：以前无论信发没发出去都提示「验证码已发送」，用户对着收件箱干等，而服务端
+// 其实根本没发出那封信 —— 注册就这样彻底卡死。
+// 这里的 `form` 参数仍然保留：将来若加「把码写进某个隐藏域」也走同一条路径。
+function applyVerificationResponse(form, button, result) {
+  startEmailCooldown(button, result.resendAfter || 120);
+  // 回显通道（mail_mode=echo / STORE_EXPOSE_VERIFICATION_CODE）已整块删除，
+  // 所以响应里**不可能**再出现验证码 —— 只有「发出去了」与「没发出去」两种结论。
+  if (result.delivered === true) {
+    toast('验证码已发送，请检查邮箱。');
+    return;
+  }
+  if (result.deliveryError) {
+    toast(result.deliveryError, 'err');
+    return;
+  }
+  // 没回显、没投递、也没给原因：只能说「没发出去」，绝不能报「已发送」。
+  toast(`验证码未能通过邮件发出（当前投递方式：${result.deliveryMode || '未知'}），请联系客服。`, 'err');
+}
+
 async function sendRegisterCode() {
   const form = $('#store-register-form');
   const email = form.elements.email.value.trim();
@@ -405,15 +432,7 @@ async function sendRegisterCode() {
   button.disabled = true;
   try {
     const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'register' }) });
-    form.dataset.verificationId = result.verificationId;
-    startEmailCooldown(button, result.resendAfter || 120);
-    if (result.code) {
-      // 本地联调（mail_mode=echo）：服务端把验证码回显在响应里，自动填入并明确提示，
-      form.elements.code.value = result.code;
-      toast(`本地联调验证码 ${result.code}，已自动填入。`);
-    } else {
-      toast('验证码已发送，请检查邮箱。');
-    }
+    applyVerificationResponse(form, button, result);
   } catch (error) {
     if (error.retryAfter) startEmailCooldown(button, error.retryAfter);
     else button.disabled = false;
@@ -425,7 +444,7 @@ async function register(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const result = await api('/auth/register', { method: 'POST', body: JSON.stringify({
-    email: form.elements.email.value.trim(), verificationId: form.dataset.verificationId,
+    email: form.elements.email.value.trim(),
     code: form.elements.code.value.trim(), password: form.elements.password.value,
     confirmPassword: form.elements.confirmPassword.value, referralCode: form.elements.referralCode.value.trim() || null,
   }) });
@@ -466,14 +485,7 @@ async function sendResetCode() {
   if (!email || !form.elements.email.reportValidity()) return;
   try {
     const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'reset' }) });
-    form.dataset.verificationId = result.verificationId;
-    startEmailCooldown(button, result.resendAfter);
-    if (result.code) {
-      form.elements.code.value = result.code;
-      toast(`本地联调验证码 ${result.code}，已自动填入。`);
-    } else {
-      toast('验证码已发送，请检查邮箱。');
-    }
+    applyVerificationResponse(form, button, result);
   } catch (error) {
     if (error.retryAfter) startEmailCooldown(button, error.retryAfter);
     throw error;
@@ -484,7 +496,7 @@ async function resetPassword(event) {
   event.preventDefault();
   const form = event.currentTarget;
   await api('/auth/password/reset', { method: 'POST', body: JSON.stringify({
-    email: form.elements.email.value.trim(), verificationId: form.dataset.verificationId,
+    email: form.elements.email.value.trim(),
     code: form.elements.code.value.trim(), password: form.elements.password.value,
     confirmPassword: form.elements.confirmPassword.value,
   }) });
@@ -630,10 +642,14 @@ function renderAccount(payload) {
     const releaseAction = item.device ? `<button class="hb-button hb-button--secondary" data-release-license="${escapeHtml(item.activationCodeId)}">解除设备绑定</button>` : '';
     const releasePolicyState = `<p class="hb-release-policy-state" data-release-policy-license="${escapeHtml(item.activationCodeId)}"></p>`;
     const labelAction = `<button class="hb-button hb-button--secondary" data-label-license="${escapeHtml(item.activationCodeId)}" data-current-label="${escapeHtml(item.userLabel || '')}">修改备注</button>`;
+    // 重发激活码邮件：买家邮箱收不到时的自助入口（服务端按账号限流）。
+    const emailAction = item.activationCode
+      ? `<button class="hb-button hb-button--secondary" data-email-license="${escapeHtml(item.activationCodeId)}">重发激活码邮件</button>`
+      : '';
     const upgradeAction = item.validityDays && permanentProducts.length
       ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
       : '';
-    const actions = `<div class="hb-account-actions">${upgradeAction}${labelAction}${releaseAction}</div>`;
+    const actions = `<div class="hb-account-actions">${upgradeAction}${emailAction}${labelAction}${releaseAction}</div>`;
     // 来源与「是否手动发放」都由服务端下发（apps/store/core/serializers.py 的
     const source = item.issuanceSourceLabel || '后台发放';
     const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
@@ -724,6 +740,24 @@ async function accountAction(event) {
     } catch (_) {
       // 非安全上下文（http 局域网）里 navigator.clipboard 不存在，只能让用户手动选。
       toast('复制失败，请手动选中命令复制。', 'err');
+    }
+    return;
+  }
+  const resend = event.target.closest('[data-email-license]');
+  if (resend) {
+    const licenseId = resend.dataset.emailLicense;
+    const original = resend.textContent;
+    resend.disabled = true;
+    resend.textContent = '发送中…';
+    try {
+      const result = await api(`/account/licenses/${licenseId}/email`, { method: 'POST' });
+      if (result.sent) toast(`激活码已发往 ${result.email}。`);
+      else toast(result.deliveryError || '邮件未能发出，请稍后再试或联系客服。', 'err');
+    } catch (error) {
+      toast(error.message || '重发失败，请稍后再试。', 'err');
+    } finally {
+      resend.disabled = false;
+      resend.textContent = original;
     }
     return;
   }

@@ -1,7 +1,7 @@
 /**
  * 3D 相机运动的姿态解算、缓动与采样：相机镜头移动（聚焦设备、切楼层、灯光视角）都经过这里。
  */
-import { clampNumber, finiteNumberOr } from "../core/static-helpers.js?v=2609271226";
+import { clampNumber, finiteNumberOr } from "../core/static-helpers.js?v=2609271411";
 /**
  * 浅拷贝一份姿势，数组字段单独复制。
  */

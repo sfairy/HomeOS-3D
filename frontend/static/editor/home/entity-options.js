@@ -9,21 +9,21 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../../shared/action-rules.js?v=2609271226";
-import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609271226";
-import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js?v=2609271226";
-import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609271226";
-import { findComponent } from "../component-tree.js?v=2609271226";
+} from "../../shared/action-rules.js?v=2609271411";
+import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609271411";
+import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js?v=2609271411";
+import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609271411";
+import { findComponent } from "../component-tree.js?v=2609271411";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js?v=2609271226";
+} from "../../renderer/core/registry.js?v=2609271411";
 import {
   normalizedPopupClimateDeviceType,
   popupModuleEntityRecommended
-} from "../editor-document-management.js?v=2609271226";
-import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609271226";
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271226";
+} from "../editor-document-management.js?v=2609271411";
+import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609271411";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271411";
 
 export function createEntityOptions(ctx) {
   // 被外提到同目录的新模块（见其文件头）：惰性上下文，调用点传 entityOptionsContext()。

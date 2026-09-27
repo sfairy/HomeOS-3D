@@ -90,36 +90,6 @@ def _read_draft(path: Path) -> dict | None:
     return payload
 
 
-def migrate_legacy_scene(database: DatabaseSession, draft_path: Path) -> dict | None:
-    """把旧版仪表盘文档里的 studio3d 字段迁出成独立草稿文件。
-    """
-    selected_scene = None
-    changed = False
-    # 按更新时间倒序：优先采用最近编辑过的那份场景。
-    drafts = database.scalars(select(ProjectDraft).order_by(ProjectDraft.updated_at.desc())).all()
-    for draft in drafts:
-        document = parse_document(draft.document_json)
-        if document is None:
-            continue
-        missing = object()
-        scene = document.pop('studio3d', missing)
-        if scene is missing:
-            continue
-        # 只采用第一份有效场景；后续文档里的字段照删，但内容不再覆盖。
-        if selected_scene is None and isinstance(scene, dict):
-            selected_scene = scene
-        draft.document_json = canonical_json(document)
-        changed = True
-    if changed:
-        database.commit()
-    if selected_scene is None:
-        return None
-    # 迁移产物从 revision 1 起步，让客户端拿到的初始版本号与新建草稿一致。
-    payload = {'revision': 1, 'scene': selected_scene, 'updatedAt': utc_iso_now()}
-    _atomic_json_write(draft_path, payload)
-    return payload
-
-
 def _folder_name(request: Request) -> str:
     """从 x-export-folder 请求头解析并校验导出文件夹名。
     """
@@ -299,7 +269,7 @@ def update_studio3d_draft(
         drafts = database.scalars(select(ProjectDraft)).all()
         documents = {}
         for draft in drafts:
-            # 单份文档损坏就跳过（与 migrate_legacy_scene 同一策略）：清理不该因一份坏文档整体失败。
+            # 单份文档损坏就跳过：清理不该因一份坏文档整体失败。
             document = parse_document(draft.document_json)
             if document is not None:
                 documents[draft.project_id] = document

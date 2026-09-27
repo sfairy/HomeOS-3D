@@ -3,16 +3,16 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
 // 未绑定窗帘的默认开合度、开合方向解析：唯一实现在 utils/cover-features.js，经
 import {
   COVER_DEFAULT_PREVIEW_POSITION,
   resolveCoverDirection
-} from "../core/static-helpers.js?v=2609271226";
+} from "../core/static-helpers.js?v=2609271411";
 // 系统「减少动态效果」偏好的唯一判定（实现见 core/motion-preference.js）：命中时姿态直接到位、
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
 
-import { createClothGeometry } from "./cloth-geometry.js?v=2609271226";
+import { createClothGeometry } from "./cloth-geometry.js?v=2609271411";
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
   normalizeCurtainTrack: normalizeTrack,
@@ -25,11 +25,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609271226",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609271411",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609271226"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609271411"));
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
 const CLOTH_PART_SET = new Set(["cloth", "band"]);
 /** 组成一整套窗帘骨架的局部类型：轨道、端盖，以及上面的布面与帘头。 */

@@ -7,22 +7,23 @@ import html
 import logging
 from urllib.parse import parse_qsl
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 
+from apps.store.commerce import delivery, fulfill
 from apps.store.ops import incidents, site_settings as site_config
 from apps.store.api.page_shell import APPEARANCE_PLACEHOLDER, inject_scene
 from apps.store.core.deps import DbSession
 from apps.store.security.limiter import SlidingWindowLimiter
-from apps.store.core.models import Order
+from apps.store.core.models import Order, Product
 from apps.store.core.static_revision import file_revision
-from apps.store.payments.alipay import cents_from_yuan
+from apps.store.payments.alipay import cents_from_yuan, public_key_error
 from apps.store.payments.base import PaymentError
-from apps.store.payments.reconcile import reconcile_alipay_order
+from apps.store.payments.reconcile import reconcile_channel_order
 from apps.store.payments.settlement import settle_paid_order
 from apps.store.security.request_security import resolve_client_ip
-from apps.store.security.security import token_matches
+from apps.store.security.security import token_matches, utcnow
 
 logger = logging.getLogger("apps.store.api.alipay")
 
@@ -34,23 +35,57 @@ router = APIRouter(tags=["alipay"])
 NOTIFY_PATH = "/store/v1/payments/alipay/notify"
 
 
-def _active_alipay_provider(request: Request, session=None):
-    """返回**当前站点配置下真正在收款**的支付宝渠道；不是支付宝（或渠道不可用）就返回 None。
+def _alipay_provider_for_callback(request: Request, session=None):
+    """按**渠道名**解析支付宝渠道，而不是看「当前在收款的是哪个渠道」。
+
+    回调与查单服务的是**已经存在的订单**：运营把站点渠道临时清空（或换成别的
+    留空）时，在途的那批订单还必须能被对账。按当前渠道判断会让这些通知一律回 failure，
+    支付宝于是重推数小时，钱到了却没人入账。巡检早就是这么做的（见 reconcile.py 的
+    name_override），这里与它对齐。
     """
     setting = site_config.get_setting(session) if session is not None else None
     try:
-        provider = request.app.state.resolve_payment_provider(setting)
+        return request.app.state.resolve_payment_provider(setting, name="alipay")
     except PaymentError as error:
-        logger.warning("支付渠道当前不可用，按「非支付宝通知」处理：%s", error)
+        logger.warning("按渠道名解析支付宝失败，按「非支付宝通知」处理：%s", error)
         return None
-    if getattr(provider, "name", "") != "alipay":
-        return None
-    return provider
+
+
+#: 兼容旧名（同步跳转页仍在用）。语义已从「当前在收款的渠道」改为「按名字取支付宝」。
+_active_alipay_provider = _alipay_provider_for_callback
+
+
+def _close_pending_after_channel_close(session, *, order: Order) -> bool:
+    """渠道已明确关单（TRADE_CLOSED）时，把本地待支付订单推进终态。
+
+    不这么做的话订单会一直停在 pending：库存预留与优惠码名额继续被占着，直到本地
+    TTL 或巡检才回收 —— 而生产环境建议的订单 TTL 是十几分钟到几十分钟，那段时间里
+    这些名额对别的买家是不可见的。
+    """
+    product = session.get(Product, order.product_id) if order.product_id else None
+    closed = fulfill.close_pending_order(
+        session, order=order, product=product, status="expired"
+    )
+    if not closed:
+        # 已被其它路径（支付成功 / 用户取消 / 巡检）处理，副作用由它负责。
+        return False
+    session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .values(channel_closed_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    session.flush()
+    logger.warning("渠道已关单，本地订单同步过期 order=%s", order.order_no)
+    return True
 
 
 @router.post(NOTIFY_PATH, include_in_schema=False)
 def alipay_notify(
-    request: Request, session: DbSession, body: bytes = Body(b"")
+    request: Request,
+    session: DbSession,
+    background: BackgroundTasks,
+    body: bytes = Body(b""),
 ) -> PlainTextResponse:
     """支付宝异步通知（同步端点，跑在线程池里）。
     """
@@ -78,6 +113,15 @@ def alipay_notify(
         logger.error("收到支付宝异步通知，但收款凭据未配置，无法验签")
         return PlainTextResponse("failure")
 
+    # 公钥解析不出来是**配置故障**，不是攻击：它会让所有通知与查单一起失败，而 /healthz
+    # 的巡检仍报健康。这里明确记一笔，让后台概览看得见（验签失败本身不记账，否则任何人
+    # 往这个地址 POST 垃圾都会刷爆告警）。
+    key_problem = public_key_error(provider.resolve_settings(settings).alipay_public_key_text)
+    if key_problem:
+        logger.error("支付宝公钥无法解析，通知与查单都会失败：%s", key_problem)
+        incidents.note("alipay.config", error=key_problem)
+        return PlainTextResponse("failure")
+
     notification = provider.verify_notification(settings, form_fields)
     if not notification.ok:
         # 验签失败意味着来源不可信，绝不能入账
@@ -87,23 +131,25 @@ def alipay_notify(
     # app_id / seller_id 必须拿**验签用的那份**凭据来比：provider 内部已合并后台站点配置，
     effective = provider.resolve_settings(settings)
 
-    if notification.app_id and effective.alipay_app_id:
-        if notification.app_id != effective.alipay_app_id:
-            logger.error(
-                "支付宝异步通知 app_id 不匹配：收到 %s，期望 %s",
-                notification.app_id,
-                effective.alipay_app_id,
-            )
-            return PlainTextResponse("failure")
+    # 配了期望值就必须**逐字相等**。旧写法是「通知里有这个字段才校验」，于是通知一旦
+    # 缺字段就整条跳过校验，只剩签名与金额 —— 而这两条正是「别的商户往本回调地址推
+    # 消息」这个场景下**仍然成立**的部分。支付宝的通知始终带这两个字段，所以收紧不会
+    # 误伤正常通知。
+    if effective.alipay_app_id and notification.app_id != effective.alipay_app_id:
+        logger.error(
+            "支付宝异步通知 app_id 不匹配：收到 %r，期望 %s",
+            notification.app_id,
+            effective.alipay_app_id,
+        )
+        return PlainTextResponse("failure")
 
-    if effective.alipay_seller_id and notification.seller_id:
-        if notification.seller_id != effective.alipay_seller_id:
-            logger.error(
-                "支付宝异步通知 seller_id 不匹配：收到 %s，期望 %s",
-                notification.seller_id,
-                effective.alipay_seller_id,
-            )
-            return PlainTextResponse("failure")
+    if effective.alipay_seller_id and notification.seller_id != effective.alipay_seller_id:
+        logger.error(
+            "支付宝异步通知 seller_id 不匹配：收到 %r，期望 %s",
+            notification.seller_id,
+            effective.alipay_seller_id,
+        )
+        return PlainTextResponse("failure")
 
     order = session.scalars(
         select(Order).where(Order.order_no == notification.out_trade_no)
@@ -112,8 +158,27 @@ def alipay_notify(
         logger.error("支付宝异步通知找不到订单 out_trade_no=%s", notification.out_trade_no)
         return PlainTextResponse("failure")
 
+    if (order.payment_provider or "").lower() != "alipay":
+        # 这笔单不是走支付宝建的。一条验签通过的通知指向它，只可能是订单号被复用或
+        # 渠道配置被改过 —— 绝不能拿支付宝的钱去结一笔别的渠道的订单。
+        logger.error(
+            "支付宝异步通知指向非支付宝订单，拒绝入账 order=%s provider=%r",
+            order.order_no,
+            order.payment_provider,
+        )
+        incidents.note(
+            "alipay.foreign_order",
+            order_no=order.order_no,
+            error=f"order.payment_provider={order.payment_provider!r}",
+        )
+        return PlainTextResponse("failure")
+
     if not notification.is_success:
-        # TRADE_CLOSED 等未成功状态：不改成已支付，但回 success 停止重推
+        # 未成功状态分两种，处理必须分开：WAIT_BUYER_PAY 是「还没付」，本地保持待支付；
+        # TRADE_CLOSED 是「这笔交易已经死了」，本地再留着 pending 只会继续占着库存预留
+        # 与优惠码名额，直到本地 TTL 或巡检才收尾（生产 TTL 下可能是几小时的空占）。
+        if notification.trade_status == "TRADE_CLOSED":
+            _close_pending_after_channel_close(session, order=order)
         logger.info(
             "支付宝异步通知交易未成功 order=%s trade_status=%s",
             order.order_no,
@@ -140,6 +205,14 @@ def alipay_notify(
         setting=setting,
         trade_no=notification.trade_no,
         source="alipay.notify",
+    )
+    # 发码邮件排在**响应之后**：DbSession 的提交发生在响应发出之前，而后台任务在
+    # 响应之后运行 —— 于是发信必然看到已经提交的授权，同时不拖慢给支付宝的 ack
+    # （支付宝有超时重推，ack 越慢越容易重复通知）。
+    background.add_task(
+        delivery.notify_license_issued,
+        request.app.state.database,
+        order_id=order.id,
     )
     return PlainTextResponse("success")
 
@@ -236,7 +309,7 @@ def alipay_return(
         source_ip = resolve_client_ip(request).ip or "unknown"
         if _RETURN_QUERY_LIMITER.allow(f"payment-return:{source_ip}"):
             try:
-                reconcile_alipay_order(
+                reconcile_channel_order(
                     session,
                     order=order,
                     settings=settings,

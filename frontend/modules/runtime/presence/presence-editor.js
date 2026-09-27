@@ -1,22 +1,22 @@
 /**
  * 「配置安防 / 人物与行走路线」编辑对话框，是 presence 的配置入口：三栏布局（绑定列表 /
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609271226";
-import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609271411";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271411";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=2609271226";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271226";
-import { capturePointer } from "../core/static-helpers.js?v=2609271226";
+} from "./presence-motion.js?v=2609271411";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271411";
+import { capturePointer } from "../core/static-helpers.js?v=2609271411";
 import {
   createDomFactory,
   randomUuid,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609271226";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609271226";
+} from "../core/static-helpers-editor.js?v=2609271411";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609271411";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -65,7 +65,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609271226";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609271411";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。

@@ -9,8 +9,11 @@ from apps.store.config import StoreSettings
 from apps.store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from apps.store.security.secret_fields import mask_secret
 
-#: 后台可选的邮件投递方式。``""`` 表示跟随环境变量，不是投递方式。
-MAIL_MODES = ("log", "echo", "smtp")
+#: 后台可选的邮件投递方式。"" 表示跟随环境变量，不是投递方式。
+#: **没有 echo**：那个模式会把验证码明文回给调用方，而它只在「请求来自本机」时才生效 ——
+#: 一道依赖对端 IP 与转发头的判定，部署形态一变就可能失效，失效的后果是任何人都能读到
+#: 别人的验证码。本地联调请用 log（写服务端日志）或直接配 SMTP。
+MAIL_MODES = ("log", "smtp")
 
 SMTP_SECURITY_MODES = ("ssl", "starttls", "plain")
 
@@ -147,7 +150,7 @@ def merge_mail_settings(
 
     ttl = int(getattr(setting, "verification_ttl_seconds", 0) or 0)
     cooldown = int(getattr(setting, "verification_cooldown_seconds", 0) or 0)
-    expose = getattr(setting, "expose_verification_code", None)
+    global_limit = int(getattr(setting, "verification_global_hourly_limit", 0) or 0)
 
     return replace(
         settings,
@@ -167,9 +170,10 @@ def merge_mail_settings(
         verification_cooldown_seconds=(
             cooldown or settings.verification_cooldown_seconds
         ),
-        expose_verification_code=(
-            settings.expose_verification_code if expose is None else bool(expose)
+        verification_global_hourly_limit=(
+            global_limit or settings.verification_global_hourly_limit
         ),
+
     )
 
 
@@ -206,6 +210,11 @@ def validate_verification_window(ttl_seconds: int, cooldown_seconds: int) -> Non
         )
 
 
+def _enabled_flag(value: object) -> bool:
+    """三态布尔的口径：``None``（库里的 NULL / 未落库的默认）按**开**处理。"""
+    return True if value is None else bool(value)
+
+
 def mail_delivery_summary(
     settings: StoreSettings, setting: StoreSetting | None
 ) -> dict:
@@ -213,7 +222,6 @@ def mail_delivery_summary(
     merged = merge_mail_settings(settings, setting)
     ttl, cooldown = effective_verification_window(settings, setting)
     database_password = _text(getattr(setting, "smtp_password", ""))
-    expose_override = getattr(setting, "expose_verification_code", None)
 
     return {
         "mode": merged.mail_mode,
@@ -243,10 +251,20 @@ def mail_delivery_summary(
         "verificationCooldownFromDatabase": bool(
             int(getattr(setting, "verification_cooldown_seconds", 0) or 0)
         ),
-        #: 回显开关是三态：None=跟随环境变量。前端据此把下拉框停在「跟随环境变量」。
-        "exposeVerificationCode": bool(merged.expose_verification_code),
-        "exposeVerificationCodeFromDatabase": expose_override is not None,
+        #: 全站小时上限：触顶时**所有**用户都收不到码，所以后台必须能看到当前值。
+        "verificationGlobalHourlyLimit": int(merged.verification_global_hourly_limit or 0),
+        "verificationGlobalHourlyLimitFromDatabase": bool(
+            int(getattr(setting, "verification_global_hourly_limit", 0) or 0)
+        ),
+        #: 回显通道已删除，不再下发任何开关 —— 前端也就不可能把它画出来。
         #: 当前配置下验证码邮件到底能不能真的发出去。这是整个区块最该一眼看到的信息：
+        #: 发货邮件（支付成功后把激活码发到买家邮箱）开关本身也归到这一块：
+        #: 它与验证码共用同一份 SMTP 配置，运营在一个页面上就能看全。
+        #: NULL 也当作「开」：这一项默认必须是开，否则一个空值会静默地把发码邮件
+        #: 关掉 —— 而这条通道的存在意义正是「买家不回站点也能拿到码」。
+        "deliveryEmailEnabled": _enabled_flag(
+            getattr(setting, "delivery_email_enabled", None)
+        ),
         "smtpReady": bool(merged.smtp_ready),
         "smtpMisconfigured": bool(merged.smtp_misconfigured),
         "deliveryEnabled": bool(merged.mail_delivery_enabled),

@@ -32,6 +32,12 @@ ORDER_STATUS_LABELS: dict[str, str] = {
 #: 可在后台筛选器里选择的状态（保持与状态机的展示顺序一致）。
 ORDER_STATUS_CHOICES: tuple[str, ...] = tuple(ORDER_STATUS_LABELS)
 
+#: 允许被**标记为**「发货失败」的状态。退款 / 部分退款与各种终态一律拒绝：
+#: 它们是可运营的状态，不能被一次履约异常改写成另一条业务线。
+#: 入账路径（payments/settlement.py）与后台路径（api/admin_orders.py）必须共用它 ——
+#: 两套口径会让「同一件事从一个入口点进去行为不同」。
+FAILURE_MARKABLE_STATUSES: tuple[str, ...] = ("paid", "fulfillment_failed")
+
 #: 需要人工介入的状态 —— 「必须有人看一眼」的唯一定义。
 ORDER_ATTENTION_STATUSES: tuple[str, ...] = ("payment_failed", "fulfillment_failed")
 

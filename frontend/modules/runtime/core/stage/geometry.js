@@ -3,7 +3,7 @@
  */
 
 // 通用设备品类清单只此一处（device-profiles.js 零依赖）：别在这里再抄一遍品类名。
-import { isGenericDeviceKind } from "../../device/device-profiles.js?v=2609271226";
+import { isGenericDeviceKind } from "../../device/device-profiles.js?v=2609271411";
 
 /**
  * 窗帘帘型取值，与上游 0.6.5 同集合：standard 普通窗帘 / roller 卷帘 / dream 梦幻帘。
@@ -19,7 +19,7 @@ export function createStageGeometry(ctx) {
     const sceneCurtainPreview = Number(sceneItemSource?.curtainPreview);
     // 帘型（standard 普通窗帘 / roller 卷帘 / dream 梦幻帘）默认是**模型**的属性（与
     const modelCurtainForm =
-      (sceneItemSource?.curtainForm ?? sceneItemSource?.curtainStyle) === "roller"
+      sceneItemSource?.curtainForm === "roller"
         ? "roller"
         : "standard";
     const coverKind =
@@ -35,7 +35,7 @@ export function createStageGeometry(ctx) {
     return {
       curtainWidth: Number(sceneItemSource?.width) || 1.8,
       curtainPosition: sceneItemSource?.curtainPosition || "split",
-      // 帘型是**唯一**的一个字段，不再另起 curtainStyle 副本：舞台把这份结果直接当窗帘绑定
+      // 帘型只认 curtainForm：舞台把这份结果直接当窗帘绑定
       coverKind,
       // 卷帘没有轨道形态：强制直线型，与工作室的 normalizeCurtainTrack 收敛口径一致，
       curtainTrack:

@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from apps.store.commerce import cashier, coupons, fulfill
+from apps.store.commerce import coupons, fulfill
 from apps.store.core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
 from apps.store.commerce.expiry import expire_stale_orders
 from apps.store.core.models import (
@@ -33,6 +33,12 @@ from apps.store.core.serializers import (
     order_payload,
 )
 from apps.store.ops import site_settings as site_config
+from apps.store.payments import (
+    channel_label,
+    enabled_channel_names,
+    is_known_provider,
+    normalize_provider_name,
+)
 from apps.store.payments.base import PaymentError
 
 
@@ -60,8 +66,38 @@ from .store_catalog import (
 router = APIRouter()
 
 
+def _resolve_requested_channel(setting, payload, request) -> str:
+    """顾客在收银台选的渠道 → 渠道名；留空返回空串（表示「用默认渠道」）。
+
+    这里**必须**校验：一个请求字段不能让顾客自己决定走哪个商户号收款。校验三件事 ——
+    渠道受支持、运营启用了它、它的凭据齐备（不齐的话建单必然失败，不如现在就报清楚）。
+    """
+    requested = normalize_provider_name(getattr(payload, "payment_channel", None))
+    if not requested:
+        return ""
+    if not is_known_provider(requested):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"不支持的支付渠道「{requested}」。",
+        )
+    settings = request.app.state.settings
+    if requested not in enabled_channel_names(setting, settings):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"支付渠道「{channel_label(requested)}」未启用，请换一个渠道。",
+        )
+    provider = request.app.state.resolve_payment_provider(setting, name=requested)
+    if not provider.is_configured(settings) or not bool(setting.payment_enabled):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(f"支付渠道「{channel_label(requested)}」当前不可用，请换一个渠道或稍后再试。"),
+        )
+    return requested
+
+
 @router.get("/orders")
 def list_orders(
+    request: Request,
     session: DbSession,
     account: AuthedAccount,
     settings: SettingsDep,
@@ -71,10 +107,18 @@ def list_orders(
     """账号中心的订单列表（分页）。
     """
     _require_verified(account)
-    expire_stale_orders(session, settings)
     size = max(1, min(int(limit or ACCOUNT_ORDER_PAGE_SIZE), 100))
     skip = max(0, int(offset or 0))
     orders = _account_orders(session, account, limit=size, offset=skip)
+    # 与 get_order 同一顺序：先对账，再过期。账号中心是买家最可能先看到结果的地方，
+    # 顺序反了会让「刚过期但钱已到账」的单在这一屏显示成已过期。每个账号最多一笔待
+    # 支付订单（数据库唯一索引），所以这里的对账最多一次查单请求。
+    pending = [item for item in orders if item.status == "pending"]
+    for item in pending:
+        _reconcile_payment(session, request, item)
+    expire_stale_orders(session, settings)
+    for item in pending:
+        session.refresh(item)
     return {
         "items": [order_payload(order) for order in orders],
         "ordersTotal": _account_orders_total(session, account),
@@ -203,7 +247,13 @@ def create_order(
         coupon_code=coupon.code if coupon is not None else None,
         status="pending",
         fulfillment_mode=product.fulfillment_mode,
-        payment_provider=(setting.payment_provider or request.app.state.settings.payment_provider),
+        #: 订单冻结**顾客实际要用的渠道**：之后运营改默认渠道也不影响在途订单
+        #: 的回调与对账（它们都按订单自己的 payment_provider 解析 provider）。
+        payment_provider=(
+            _resolve_requested_channel(setting, payload, request)
+            or setting.payment_provider
+            or request.app.state.settings.payment_provider
+        ),
         expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
     )
     session.add(order)
@@ -255,8 +305,9 @@ def create_order(
         logger.info("0 元订单直接开通 order=%s", order.order_no)
         return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 
+    chosen = _resolve_requested_channel(setting, payload, request)
     try:
-        provider = request.app.state.resolve_payment_provider(setting)
+        provider = request.app.state.resolve_payment_provider(setting, name=chosen)
     except PaymentError as error:
         # 渠道配置非法（例如后台把 payment_provider 写成了未知值）：此时绝不能
         order.status = "payment_failed"
@@ -268,14 +319,14 @@ def create_order(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
         ) from error
 
+    # 真实渠道的支付页由渠道自己承载（当面付只回一个二维码），没有「页面凭证」这回事 ——
+    # 那个参数是模拟收银台为了把票据写进 URL 才存在的。
     try:
-        pay_token = cashier.issue_ticket(session, order) if provider.name == "mock" else None
         intent = provider.create_payment(
             order=order,
             settings=request.app.state.settings,
             setting=setting,
             base_url=_base_url(request),
-            pay_token=pay_token,
         )
     except PaymentError as error:
         order.status = "payment_failed"
@@ -293,14 +344,11 @@ def create_order(
 
 
 
-@router.get("/orders/lookup/{order_no}")
-def lookup_order(
-    order_no: str, session: DbSession, token: str | None = None
-) -> dict:
-    order = order_or_404(session, order_no)
-    if not token_matches(token, order.lookup_token):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="查询凭证不正确。")
-    return order_payload(order)
+#: 这里曾经有一个 `GET /orders/lookup/{order_no}?token=` —— 它把**长期有效、还能查
+#: 订单详情**的 lookupToken 从 URL 里收下来。同一个理由已经让收银台与同步跳转页
+#: 放弃了「token 进 URL」（见 apps/store/README.md 第五节 / 审计记录 S53）：URL 会进
+#: 访问日志、Referer 与浏览器历史，漏出一次等于交出订单查询入口。
+#: 取单请用下面这个端点 + `X-Order-Token` 头（账号中心与收银台走的都是它）。
 
 
 @router.get("/orders/{order_no}")
@@ -317,10 +365,15 @@ def get_order(
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
 
+    # 顺序不能反：先查单，再过期。
+    #
+    # 反过来的话，一笔刚跨过 TTL 的订单会先被本地置为 expired（顺带归还库存预留与
+    # 优惠码名额），而查单只处理 pending —— 那次本可以确认收款的主动对账就这样被跳过，
+    # 用户付了钱却只看到「已过期，请到账号中心刷新」。巡检用的是同一个顺序
+    # （见 payments/reconcile.py：先渠道对账，再做本地过期收尾），这里与它对齐。
+    _reconcile_payment(session, request, order)
     expire_stale_orders(session, request.app.state.settings)
     session.refresh(order)
-    # 前端每 3 秒轮询一次；顺带向支付宝查单对账，兜住「异步通知没收到」的情况
-    _reconcile_payment(session, request, order)
     response = JSONResponse(order_payload(order))
     response.headers["Cache-Control"] = "no-store"
     return response

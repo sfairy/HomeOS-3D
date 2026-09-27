@@ -15,6 +15,7 @@ from apps.store import __version__
 from apps.store.ops import incidents
 from apps.store.api import admin as admin_api
 from apps.store.api import alipay as alipay_api
+from apps.store.api import wechat as wechat_api
 from apps.store.api import appearance as appearance_api
 from apps.store.api import license as license_api
 from apps.store.api import pages as pages_api
@@ -53,8 +54,6 @@ from apps.store.security.request_security import (
     security_headers,
 )
 from apps.store.security.schema_guard import ensure_schema
-from apps.store.commerce.points_migration import migrate_points, migration_status
-from apps.store.ops.cooldown_migration import migrate_device_release_cooldown
 from apps.store.security.setup_guard import SetupGuard, announce_setup_window
 from apps.store.ops.site_settings import get_setting
 
@@ -177,35 +176,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     if applied:
         logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
 
-    # 邀请积分从 FLOAT（积分）迁到 INTEGER（厘）。必须排在 ensure_schema 之后：
-    migration = migrate_points(database.engine)
-    if migration.changed:
-        logger.warning("邀请积分口径迁移完成：%s", migration.summary())
-    if not migration.ok:
-        for table in migration.tables:
-            for problem in table.problems:
-                logger.error("积分迁移问题 %s：%s", table.table, problem)
-        # 「启动成功」不等于「迁移成功」：对账不通过的表会整表跳过删列，旧列仍是
-        logger.warning(
-            "邀请积分口径迁移未通过：%d 张表有未决问题，旧列未退役，"
-            "之后的新写入会以 NOT NULL 失败；详见 /healthz 的 pointsMigration。",
-            sum(1 for table in migration.tables if table.problems),
-        )
-
-    # 解绑冷却的「没配过」原来是写死的 28800（NOT NULL 且无 DDL 默认值），导致
-    cooldown = migrate_device_release_cooldown(database.engine)
-    if cooldown.changed:
-        logger.warning("解绑冷却配置迁移完成：%s", cooldown.summary())
-    if not cooldown.ok:
-        for problem in cooldown.problems:
-            logger.error("解绑冷却配置迁移问题：%s", problem)
-        # 汇总的理由与积分那条相同（逐条 error 会淹在启动日志里），但失败面小得多：
-        logger.warning(
-            "解绑冷却配置迁移未通过：%d 处未决问题，旧列未退役，"
-            "它会让 store_settings 的新建行以 NOT NULL 失败；详见上面逐条 error。",
-            len(cooldown.problems),
-        )
-
     # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。
     with database.session() as session:
         released = ensure_current_release(session)
@@ -263,14 +233,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
-    #: 文档页默认关闭：它会把全部商店与后台端点、参数结构、鉴权方式一次性列给任何人
-    _docs_enabled = bool(settings.expose_api_docs)
+    #: 文档页**永远关闭**：/store-api-docs 会把全部商店与后台端点、参数结构、鉴权方式
+    #: 一次性列给任何人。这里曾经有一个 STORE_EXPOSE_API_DOCS 开关，已删除 —— 一个
+    #: 「本地联调用」的端点清单开关，没有任何理由出现在生产配置里。
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
         version=__version__,
-        docs_url="/store-api-docs" if _docs_enabled else None,
+        docs_url=None,
         redoc_url=None,
-        openapi_url="/store-api-docs/openapi.json" if _docs_enabled else None,
+        openapi_url=None,
         lifespan=lifespan,
     )
 
@@ -295,9 +266,13 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                     "检测到请求带反向代理转发头，但未配置 STORE_TRUSTED_PROXIES："
                     "限流与授权记录会按代理地址统计。请按实际部署配置可信代理的 IP 或网段。"
                 )
+        #: 渠道回调必须豁免来源校验：它们是**服务器到服务器**的请求，既没有 Origin
+        #: 也没有 Referer（若有代理补了一个，反而会被这道闸门拒掉）。
+        #: 安全性由各渠道自己的验签负责 —— 那才是回调的信任根。
+        callback_paths = frozenset({alipay_api.NOTIFY_PATH, wechat_api.NOTIFY_PATH})
         guarded = (
             path.startswith("/store/v1/") or path.startswith("/store-admin/v1/")
-        ) and path != alipay_api.NOTIFY_PATH
+        ) and path not in callback_paths
         if (
             guarded
             and request.method not in {"GET", "HEAD", "OPTIONS"}
@@ -357,6 +332,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.include_router(license_api.router)
     app.include_router(store_api.router)
     app.include_router(alipay_api.router)
+    app.include_router(wechat_api.router)
     app.include_router(admin_api.router)
     app.include_router(appearance_api.router)
     app.include_router(setup_api.router)
@@ -386,7 +362,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "version": __version__,
             "port": settings.port,
             "paymentSweep": sweep_status(),
-            "pointsMigration": migration_status(),
             "incidents": incidents.status(),
         }
 

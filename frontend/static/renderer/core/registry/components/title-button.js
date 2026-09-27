@@ -1,19 +1,19 @@
 /**
  * `title-button` 控件：标题 / 副标题 / 图标与字号，支持模板变量替换。
  */
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271226";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
 // 标记点默认色取全站主控色（见 design/scene/page.css）。
-import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271226";
+} from "../registry-visuals.js?v=2609271411";
 
 // 标题按钮控件：纯展示 + 外框装饰，尺寸单位统一由 componentContentUnitsPx 换算。
 registerComponent("title-button", {

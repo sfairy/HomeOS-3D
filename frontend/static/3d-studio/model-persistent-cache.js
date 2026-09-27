@@ -1,13 +1,13 @@
 /**
  * 3D 模型模板的 IndexedDB 持久缓存。
  */
-import { createIdbStore } from "./idb-store.js?v=2609271226";
-import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609271226";
+import { createIdbStore } from "./idb-store.js?v=2609271411";
+import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609271411";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=2609271226";
+import { debugLog } from "../utils/debug-log.js?v=2609271411";
 
 /** 缓存库名。 */
-const MODEL_CACHE_DB_NAME = "ha-bridge-3d-templates";
+const MODEL_CACHE_DB_NAME = "homeos-3d-templates";
 /** 库版本：v2 起含 metadata 仓库。 */
 const MODEL_CACHE_DB_VERSION = 2;
 /** 主数据仓库。 */
@@ -61,34 +61,11 @@ export function createModelPersistentCache({
     extraAvailable: () => !!THREE.ObjectLoader,
     onFallback: noteFallback,
     upgrade: request => {
-      const upgradeTransaction = request.transaction;
-      const freshTemplateStore = !request.result.objectStoreNames.contains(TEMPLATE_STORE);
-      if (freshTemplateStore) {
+      if (!request.result.objectStoreNames.contains(TEMPLATE_STORE)) {
         request.result.createObjectStore(TEMPLATE_STORE, { keyPath: "key" });
       }
-      const freshMetadataStore = !request.result.objectStoreNames.contains(METADATA_STORE);
-      if (freshMetadataStore) {
+      if (!request.result.objectStoreNames.contains(METADATA_STORE)) {
         request.result.createObjectStore(METADATA_STORE, { keyPath: "key" });
-      }
-      // v1 只有 templates：升级到 v2 时把旧条目的体积 / 时间补进 metadata。不补的话这些
-      if (freshMetadataStore && !freshTemplateStore) {
-        const legacyTemplateStore = upgradeTransaction.objectStore(TEMPLATE_STORE);
-        const freshMetadata = upgradeTransaction.objectStore(METADATA_STORE);
-        legacyTemplateStore.openCursor().onsuccess = event => {
-          const cursor = event.target.result;
-          if (!cursor) {
-            return;
-          }
-          const legacyRecord = cursor.value;
-          if (legacyRecord?.key) {
-            freshMetadata.put({
-              key: legacyRecord.key,
-              bytes: Number(legacyRecord.bytes) || 0,
-              created: Number(legacyRecord.created) || Date.now()
-            });
-          }
-          cursor.continue();
-        };
       }
     }
   });

@@ -113,8 +113,13 @@ def _assert_product_configuration(
     fulfillment_mode: str,
     feature_codes: list,
     included_product_ids: list,
+    *,
+    active: bool = True,
 ) -> None:
-    """校验商品的可枚举字段，并拦下「什么都不会发放」的套餐配置。
+    """校验商品的可枚举字段，并拦下「卖得出去但激活不了」的配置。
+
+    ``active`` 为假（草稿 / 已下架）时放行：运营可以先建一个还没配好功能码的商品，
+    只要不把它上架。
     """
     try:
         catalog.validate_product_type(product_type)
@@ -136,15 +141,23 @@ def _assert_product_configuration(
             ),
         )
 
-    if str(product_type or "").strip() != "package":
+    if not active:
+        # 草稿/下架商品不拦：运营有权先把商品建出来，再慢慢配功能码。
         return
     if codes:
         return
     if [str(item).strip() for item in (included_product_ids or []) if str(item).strip()]:
         return
+    # 这条**不再只针对套餐**：授权在激活时是 fail-closed 的（features_for 没有功能码
+    # 就 422），而这条检查原先只覆盖 product_type=package —— 于是基础版/增量包漏配
+    # 功能码时可以照常上架、照常卖出、照常签出授权，买家到最后一步才发现激活不了。
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        detail="套餐必须填写功能码，或指定「套餐包含商品 ID」，否则发货后客户端拿不到任何能力。",
+        detail=(
+            "上架商品必须至少有一个功能码，或指定「套餐包含商品 ID」："
+            "授权在激活时没有功能码会被直接拒绝，漏配的商品会让买家付款后拿到一张"
+            "激活不了的码。"
+        ),
     )
 
 
@@ -157,6 +170,7 @@ def admin_create_product(
         payload.fulfillment_mode,
         payload.feature_codes,
         payload.included_product_ids,
+        active=bool(payload.active),
     )
     product = Product(
         name=payload.name,
@@ -225,6 +239,7 @@ def admin_update_product(
         product.fulfillment_mode,
         json_list(product.feature_codes_json),
         json_list(product.included_product_ids_json),
+        active=bool(product.active),
     )
     session.flush()
     _audit(session, _admin_actor(admin), "product.update", product.id)

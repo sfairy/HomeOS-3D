@@ -2,8 +2,8 @@
  * 样式批量应用对话框。
  */
 
-import { clone } from "../editor-utils.js?v=2609271226";
-import { componentLabel } from "../editor-component-collections.js?v=2609271226";
+import { clone } from "../editor-utils.js?v=2609271411";
+import { componentLabel } from "../editor-component-collections.js?v=2609271411";
 
 export function createStyleApplyDialogs(ctx) {
 

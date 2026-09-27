@@ -1,61 +1,68 @@
-"""支付渠道实现。"""
+"""支付渠道实现与注册表。
+
+渠道名、启用集合与显示名的口径在 ``channels.py``（这里重新导出，调用点不用改）。
+"""
 
 from __future__ import annotations
 
 from apps.store.config import StoreSettings
 from apps.store.payments.alipay import AlipayProvider
 from apps.store.payments.base import PaymentError, PaymentIntent, PaymentProvider
+from apps.store.payments.channels import (
+    CHANNEL_LABELS,
+    PROVIDER_NAMES,
+    channel_label,
+    default_channel_name,
+    display_name_for,
+    enabled_channel_names,
+    is_known_provider,
+    normalize_provider_name,
+)
 from apps.store.payments.credentials import (
     alipay_credentials_summary,
     merge_alipay_settings,
+    merge_wechat_settings,
+    wechat_credentials_summary,
 )
-from apps.store.payments.mock import MockPaymentProvider
+from apps.store.payments.wechat import WeChatPayProvider
 
 __all__ = [
     "AlipayProvider",
-    "MockPaymentProvider",
+    "CHANNEL_LABELS",
     "PaymentError",
     "PaymentIntent",
     "PaymentProvider",
     "PROVIDER_NAMES",
+    "WeChatPayProvider",
     "alipay_credentials_summary",
+    "channel_label",
+    "default_channel_name",
+    "display_name_for",
+    "enabled_channel_names",
     "is_known_provider",
     "merge_alipay_settings",
+    "merge_wechat_settings",
     "normalize_provider_name",
     "resolve_provider",
+    "wechat_credentials_summary",
 ]
-
-#: 站点配置 / 环境变量里合法（且明确支持）的支付渠道名。
-PROVIDER_NAMES = ("mock", "alipay")
-
-#: 空值表示「跟随环境变量」，不是渠道名。
-_FOLLOW_ENV = ""
-
-
-def normalize_provider_name(name: str | None) -> str:
-    return (name or "").strip().lower()
-
-
-def is_known_provider(name: str | None) -> bool:
-    """``None`` / 空串表示「跟随环境变量」，同样算合法配置值。"""
-    normalized = normalize_provider_name(name)
-    return normalized == _FOLLOW_ENV or normalized in PROVIDER_NAMES
 
 
 def resolve_provider(
     settings: StoreSettings, setting=None, *, name_override: str | None = None
 ) -> PaymentProvider:
-    """按站点配置选择支付渠道（站点配置优先于环境变量）。
+    """按渠道名构造 provider（站点配置优先于环境变量）。
+
+    ``name_override`` 供回调/查单使用：那两条服务的是**已经存在的订单**，
+    必须按订单上冻结的渠道名解析，而不是看「现在默认收款的是哪个渠道」。
     """
     if name_override is not None:
         name = normalize_provider_name(name_override)
-        allow_mock = True
     else:
-        # 这里**没有** ``or "mock"`` 兜底：静默落到模拟收银台等于默认免费送授权。
+        # 这里**没有**任何兜底渠道：静默落到某个渠道等于在运营没选的情况下开始收款。
         name = normalize_provider_name(
             getattr(setting, "payment_provider", None) or settings.payment_provider
         )
-        allow_mock = bool(getattr(settings, "allow_mock_payments", False))
     if not name:
         raise PaymentError(
             "尚未配置支付渠道，无法创建订单。请在后台「站点配置 → 支付渠道」选择渠道，"
@@ -64,14 +71,8 @@ def resolve_provider(
     if name == "alipay":
         # 站点配置（后台可改）优先于环境变量；合并后注入 provider，让它每个方法都用同一份
         return AlipayProvider(merge_alipay_settings(settings, setting))
-    if name == "mock":
-        if not allow_mock:
-            raise PaymentError(
-                "模拟收银台（mock）当前未启用：它不需要真实付款即可把订单标成已支付并签发授权，"
-                "因此默认关闭。本地联调请显式设置 STORE_ALLOW_MOCK_PAYMENTS=1；"
-                "正式收款请改用支付宝。"
-            )
-        return MockPaymentProvider()
+    if name == "wechat":
+        return WeChatPayProvider(merge_wechat_settings(settings, setting))
     raise PaymentError(
         f"支付渠道配置为「{name}」，不是受支持的渠道（可选：{'、'.join(PROVIDER_NAMES)}）。"
         "请到后台「站点配置 → 支付渠道」修正后重启服务。"

@@ -1,9 +1,9 @@
 /**
  * 苹果设备全屏展示页的背景色同步。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=2609271226";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609271411";
 // 兜底色改成从令牌现取：这里取不到就用同值字面量，正是 paletteColor 的语义。
-import { paletteColor } from "../utils/colors.js?v=2609271226";
+import { paletteColor } from "../utils/colors.js?v=2609271411";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。

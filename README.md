@@ -27,7 +27,7 @@ HomeOS/
 ```
 
 - **主应用**：`apps/server/`（FastAPI）+ `frontend/`（HTML / 原生 JS），负责仪表盘编辑、展示、中控配对、HA 连接、3D 工作室与 3D 交互舞台。启动时自动执行 Alembic 迁移。
-- **授权商店与授权服务器**（`apps/store/`）：独立 FastAPI 应用，在 **18082** 同时提供 ① 授权商店（账号 / 商品 / 订单 / 优惠码 / 邀请，`/store/v1/*`）② 授权服务器（`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，Ed25519 签发租约 + X25519 加密）③ 运营后台（`/admin` + `/store-admin/v1/*`）。三者共用同一个 SQLite 库，所以「支付后自动发码并可立即激活」。支付渠道**默认不配置**（未配置时拒绝建单，刻意 fail-closed；模拟收银台需同时 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），正式收款切换支付宝当面付。完整说明见 [apps/store/README.md](apps/store/README.md)。
+- **授权商店与授权服务器**（`apps/store/`）：独立 FastAPI 应用，在 **18082** 同时提供 ① 授权商店（账号 / 商品 / 订单 / 优惠码 / 邀请，`/store/v1/*`）② 授权服务器（`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，Ed25519 签发租约 + X25519 加密）③ 运营后台（`/admin` + `/store-admin/v1/*`）。三者共用同一个 SQLite 库，所以「支付后自动发码并可立即激活」。支付渠道**默认不配置，且只有支付宝一种**（未配置时拒绝建单，刻意 fail-closed；模拟收银台与沙箱环境都已删除，联调靠 0.01 元真实小额自测）。完整说明见 [apps/store/README.md](apps/store/README.md)。
 
 ## 仓库结构
 
@@ -72,7 +72,7 @@ HomeOS/
 │       ├── assets/         # icons/ manifest/ component-thumbnails/
 │       └── vendor/         # three.js、hls.js、MDI
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时自动同步）
-├── db/migrations/          # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）/ 0004（3D 交互同步）
+├── db/migrations/          # Alembic 唯一基线 0001（含 HA 双端点 / 项目名唯一 / 路径别名 / 交互同步）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
 ├── tools/                  # 静态守卫与建模流水线（只用 Node 内置模块，无 npm 依赖）
 │   ├── paths.mjs           # 仓库路径的**唯一事实来源**：脚本不许自己拼路径（有守卫强制）
@@ -84,7 +84,8 @@ HomeOS/
 │   ├── ops/docker/             # 容器启动器与构建期保护（Cython 编译 py / 混淆 js）
 │   └── ops/deploy/             # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
-├── .env.example Dockerfile docker-compose.app.yml docker-compose.store.yml
+├── .env.example Dockerfile docker-compose.app.yml docker-compose.app.shared.yml docker-compose.store.yml
+│                         ops/deploy/deploy.sh
 └── alembic.ini VERSION
 ```
 
@@ -118,7 +119,7 @@ python3 ops/start.py
 
 主应用打开 <http://127.0.0.1:18081/setup>，商店打开 <http://127.0.0.1:18082/>。
 
-数据库结构由基线 `0001` 加增量 `0002` / `0003` / `0004` 在主应用启动时自动建立（迁移串行化，动结构前留一份可还原快照）。需要手工执行时：
+数据库结构由唯一基线 `0001` 在主应用启动时自动建立（迁移串行化，动结构前留一份可还原快照）。需要手工执行时：
 
 ```bash
 APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
@@ -127,7 +128,7 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 ## 首次使用
 
 1. 打开 `/setup` 创建管理员（用户名 3–64 个字符，密码至少 8 位）。从**本机**（`localhost` / `127.0.0.1`）打开时直接填账号密码；从其它地址打开时页面多出「引导密钥」一栏，需填服务启动日志里打印的那一串 —— 见下方[首次设置窗口](#首次设置窗口)。
-2. 打开 <http://127.0.0.1:18082/>：首次部署会先经 `/admin` 跳到 `/setup` 创建**商店管理员**；随后注册商店账号（本地联调默认 `STORE_MAIL_MODE=echo`，验证码直接回显），选择商品并用模拟收银台完成支付（`ops/start.py` 已自动带上 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），账号中心会发放激活码。
+2. 打开 <http://127.0.0.1:18082/>：首次部署会先经 `/admin` 跳到 `/setup` 创建**商店管理员**；随后注册商店账号（本地 `STORE_MAIL_MODE=log`，验证码打印在 `ops/start.py` 的终端里），配置真实的支付宝生产凭据并做一次 **0.01 元小额自测**后即可收款（见 `apps/store/README.md` 5.5），账号中心会发放激活码、并把同一个码邮件发给买家。
 3. 回到主应用登录后进入 `/license`，用「激活码 + 购买邮箱」激活。未激活时编辑器会跳到 `/license`，展示页和受保护静态资源返回 401 / 403。
 4. 在编辑器里配置 Home Assistant 的地址和长期访问令牌，然后创建空白仪表盘。
 5. 使用 3D 交互：先在 `/3d-studio` 保存户型，再在编辑器添加「3D 交互」控件并载入户型快照，绑定 `light.*` / `switch.*` 等实体后即可在舞台里控制。
@@ -324,7 +325,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 ### 升级与迁移
 
-- 数据库结构由基线 `0001` 加增量 `0002`（项目名唯一）/ `0003`（展示地址别名）/ `0004`（3D 交互同步）建立，主应用启动时自动执行并在动结构前留一份可还原快照。若库内记录的是更早构建的 revision，会先认领基线再升级（不改动任何业务数据）。
+- 数据库结构由唯一基线 `0001` 建立，主应用启动时自动执行并在动结构前留一份可还原快照。库内未知 revision 会直接失败并提示删库重建（首发不兼容更早构建）。
 - 邀请积分从 `FLOAT`（积分）改为 `INTEGER` **厘**（1 积分 = 100 厘）：原先靠 `round(x, 2)` 维持两位小数，而 SQLite 的 `round()` 是 half-away、Python 的是 half-even，落在 `.xx5` 上两侧会给出不同分币值。**升级不需要手工执行任何命令**：商店启动时自动按「补列 → 回填 + 逐行对账 → 退役旧列」完成，动手前先备份 `store.db.pre-centi-<时间戳>.bak`；对账有任何一行不一致就保留新旧列并存并打印差异，不会丢数据。对外 JSON 契约没变（仍是 `"10.05"` 这样的两位小数字符串）。详见 [apps/store/README.md](apps/store/README.md)。
 
 ## 环境变量
@@ -347,12 +348,11 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `APP_BASE_URL` | 空 | 主应用对外根地址；反代时建议设置，供 WebSocket 校验 Origin |
-| `APP_LICENSE_SERVER_URL` | 本地 `http://127.0.0.1:18082`；Compose 默认 `http://homeos-3d-store:18082` | 授权服务器地址；同 Compose 网络通常不用改 |
+| `APP_LICENSE_SERVER_URL` | 本地 `http://127.0.0.1:18082`；分拆部署必填公网商店 URL；同机 `--role all` 可由 shared overlay 注入内网 | 授权服务器地址 |
 | `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
 | `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1`（Compose 与容器启动器） | uvicorn 允许改写对端地址的来源范围。**不要填 `*`**，否则限流与审计来源 IP 由客户端自己决定；前面有反代时填代理自身地址 / 网段 |
 | `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` | `false` | 强制会话 Cookie 加 `Secure`；不设时按请求自动判定 https |
 | `STORE_BASE_URL` | 由请求推导 | 商店对外基址（支付二维码 / 回调链接） |
-| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 模拟收银台总闸；**仅本地联调**，生产保持关闭 |
 
 ### 主应用常用（B 区摘要）
 
@@ -385,9 +385,8 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款须调大） |
 | `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 支付巡检间隔与每轮上限 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
-| `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 接口是否回显验证码（生产必须 false） |
 
-商店这一节的数值 / 布尔变量在启动时**严格解析**：写错（如 `STORE_ORDER_TTL_SECONDS=12o`）会让进程带着一条点名变量的错误拒绝启动，只有「不写 / 留空」才用默认值。本地 `ops/start.py` 会临时打开 `STORE_PAYMENT_PROVIDER=mock`、`STORE_ALLOW_MOCK_PAYMENTS=1` 与 `STORE_MAIL_MODE=echo`；Docker 生产路径不会自动打开。后台「站点配置」口径：留空 / 填 `0` 表示跟随环境变量，填了值就以后台为准。完整变量、支付宝接入与排障见 [apps/store/README.md](apps/store/README.md)。
+商店这一节的数值 / 布尔变量在启动时**严格解析**：写错（如 `STORE_ORDER_TTL_SECONDS=12o`）会让进程带着一条点名变量的错误拒绝启动，只有「不写 / 留空」才用默认值。本地 `ops/start.py` 会把 `STORE_MAIL_MODE` 设为 `log`（验证码打印在它的终端里；回显通道已删除）。它**不注入任何支付渠道** —— 模拟收银台与沙箱环境都已删除，本地要下单必须配置真实的支付宝生产凭据（0.01 元小额自测）。后台「站点配置」口径：留空 / 填 `0` 表示跟随环境变量，填了值就以后台为准。完整变量、支付宝接入与排障见 [apps/store/README.md](apps/store/README.md)。
 
 ## Docker
 
@@ -449,8 +448,6 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 **两台服务器分开部署**：两侧各跑一次脚本 —— `--role store`（厂商机）、`--role app --license-server https://pay.example.com`（客户机）。主应用侧**不再需要**共享网络与共享卷：`docker-compose.app.yml` 自带 `./keys` 公钥挂载，脚本按 tag 从仓库 `keys/` 取两个 PEM（与 `apps/server/config.py` 钉死的指纹一致）；要手工搬时把它们放进 `./keys` 并 `chmod 644`。同机部署用 `--role all`，脚本会叠加 `docker-compose.app.shared.yml` 让主应用加入商店的网络与公钥卷。授权实例指纹派生自宿主硬件，换机器会被判成「换设备」，想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。完整清单与反代示例见 [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md) 与 [ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)。
 
-原先那份单文件 `docker-compose.yml` **已删除**：它的商店数据卷与授权私钥卷名与这里不同（`homeos-3d_homeos-3d-*` vs `homeos-3d-store_homeos-3d-*`），混用会以空库启动、让已激活客户端全部失效。若曾用它跑过，先 `docker compose -f docker-compose.yml down` 再按上面的命令迁移。
-
 ## 开发注意
 
 - 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），改 JS / CSS / HTML 后按「开发工具」一节的换戳命令全站同戳更新。同一次改动的资源务必用同一个时间戳；`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。**后端渲染页面时拼出来的**静态链接（舞台页 `stage.css`、模拟收银台与支付宝回跳页样式等）改用文件 mtime 现算版本号，见 `apps/server/core/static_revision.py` 与 `apps/store/core/static_revision.py`。
@@ -459,7 +456,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 - 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请人工核对引用与后端路径清单（没有打包器，路径写错只在浏览器里变成 404）。
 - `db/migrations/env.py` 必须从 `apps.server.core` 导入 `database` 和 `models`（`from apps.server.core.database import Base`），不要写成相对导入，否则会重复注册表。
 - **Cython 必须钉死 `3.1.6`**：`3.3.0` 的 `AnalyseExpressionsTransform` 在本项目的 `apps/server/observability/global_log.py` 上会崩（`(value or {}).items()` 触发类型推断回归），`3.1.x` / `3.2.x` 正常。升级 Dockerfile 的 `CYTHON_VERSION` 前先用两个 target 各跑一次构建验证。
-- **compose 部署顺序**：先起商店（`docker-compose.store.yml`，它创建共享网络与公钥卷），再起主应用（`docker-compose.app.yml`）。
+- **compose 部署**：同机用 `./ops/deploy/deploy.sh`（`--role all`，叠加 `docker-compose.app.shared.yml`）；分拆两侧各跑 `--role store` / `--role app --license-server …`（客户机公钥落在 `./keys`）。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它与 `frontend/static/app.css` 共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌（53 对，逐 token 相等，由 `tools/check_invariants.mjs` 的「商店 theme.css 的 `--hb-*` 与 `design/scene/page.css` 的 `--hos-*` 逐 token 相等」一条守着）与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [apps/store/README.md](apps/store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。

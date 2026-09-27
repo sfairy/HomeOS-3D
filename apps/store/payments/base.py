@@ -31,7 +31,6 @@ class PaymentProvider(Protocol):
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
-        pay_token: str | None = None,
     ) -> PaymentIntent: ...
 
     def refund_payment(
@@ -44,6 +43,20 @@ class PaymentProvider(Protocol):
         settings: StoreSettings,
         setting: StoreSetting,
     ) -> "RefundResult": ...
+
+
+@dataclass(frozen=True)
+class CloseResult:
+    """关单结果。两个渠道共用一套语义：
+
+    * ``closed`` —— 这笔渠道交易现在肯定不可能再被支付了；
+    * ``already_paid`` —— 关单时发现**钱已经进来了**，这不是关单失败：
+      调用方必须立刻去查单入账，而不是把订单当过期处理。
+    """
+
+    closed: bool
+    already_paid: bool = False
+    reason: str = ""
 
 
 @dataclass(frozen=True)

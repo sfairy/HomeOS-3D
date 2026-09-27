@@ -2,13 +2,13 @@
  * 订单面板。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
-import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271226";
-import { api } from "../api.js?v=2609271226";
-import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271226";
-import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271226";
-import { askConfirm } from "../dialogs.js?v=2609271226";
-import { host } from "../host.js?v=2609271226";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271411";
+import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271411";
+import { api } from "../api.js?v=2609271411";
+import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271411";
+import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271411";
+import { askConfirm } from "../dialogs.js?v=2609271411";
+import { host } from "../host.js?v=2609271411";
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
 let orderStatusMetaPromise = null;
@@ -26,6 +26,31 @@ function applyOrderStatusOptions(meta) {
     PENDING_FILTER_VALUES.delete('#order-status');
     select.value = pendingValue;
   }
+}
+
+/**
+ * 支付渠道单元格。
+ *
+ * 中文名**由服务端给**（``paymentProviderLabel``，口径见 payments/channels.py）：
+ * 前端再写一份映射的话，加渠道时就会出现「订单表显示 alipay、报错文案显示支付宝」。
+ *
+ * 存量订单里的值可能是历史渠道名（已删除的 mock）或 ``manual``（人工/线下入账）——
+ * 两者都如实显示：运营需要看出这笔钱是怎么进来的。
+ */
+function providerCell(order) {
+  const raw = String(order.paymentProvider || '').trim();
+  if (!raw) {
+    // 空值 = 还没走到「选渠道」这一步就被关掉了（下单前失败 / 未支付就取消）。
+    // 基类 .hb-meta-chip 本身就是中性灰，没有 --muted 变体（见 theme.css）。
+    return '<span class="hb-meta-chip" title="这笔订单没有渠道信息">—</span>';
+  }
+  const label = order.paymentProviderLabel || raw;
+  const known = ['alipay', 'wechat'].includes(raw.toLowerCase());
+  // 认不出来的（历史渠道名，如已删除的 mock）用警示色而不是中性色：它意味着这笔
+  // 订单的渠道今天**收不到钱**，是排障时要一眼看见的事实，不该和 alipay 长一样。
+  return known
+    ? `<span class="hb-meta-chip" title="${esc(raw)}">${esc(label)}</span>`
+    : `<span class="hb-meta-chip hb-meta-chip--warning" title="不是当前受支持的渠道：${esc(raw)}">${esc(label)}</span>`;
 }
 
 function orderStatusMeta() {
@@ -99,6 +124,7 @@ export async function loadOrders() {
       <td>${cell(order.productName)}</td>
       <td class="nowrap">${esc(ORDER_TYPE[order.orderType] || order.orderType)} · ${esc(LICENSE_ACTION[order.licenseAction] || order.licenseAction)}</td>
       <td class="nowrap">${money(order.amountCents)}</td>
+      <td class="nowrap">${providerCell(order)}</td>
       <td class="nowrap">${statusBadge(order.status, order.statusLabel)}${manualBadge}</td>
       <td class="nowrap">${dt(order.createdAt)}</td>
       <td class="nowrap">${actions(
@@ -123,7 +149,7 @@ export async function loadOrders() {
         ),
       )}</td>
     </tr>`;
-  }).join('') : emptyRow(8, pageState('orders').offset > 0 ? '本页无数据' : '没有符合条件的订单');
+  }).join('') : emptyRow(9, pageState('orders').offset > 0 ? '本页无数据' : '没有符合条件的订单');
   renderPager('orders');
 }
 
@@ -226,7 +252,8 @@ $('#order-rows').addEventListener('click', async (event) => {
   if (action === 'refund') {
     // 人工标记支付的订单在渠道侧没有交易，服务端按**线下退款**记账；必须把话说全，
     const provider = String(orderProvider || '').toLowerCase();
-    offlineRefund = !['', 'mock', 'alipay'].includes(provider);
+    // 只认「已知的真实渠道」：其余（空、manual，以及历史数据里遗留的 mock）都按线下退款处理。
+  offlineRefund = !['', 'alipay'].includes(provider);
     const ok = await askConfirm({
       title: offlineRefund ? '订单退款（线下）' : '订单退款',
       message: `确认对订单 ${orderNo} 退款？`,

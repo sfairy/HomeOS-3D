@@ -32,9 +32,7 @@ HOST = '127.0.0.1'
 LAN_HOST = '0.0.0.0'
 #: 命令行开关。
 LAN_FLAG = '--lan'
-#: ``--lan`` 下仍要保留模拟收银台的**危险**开关：默认拒绝，必须显式写出来。
-ALLOW_MOCK_ON_LAN_FLAG = '--allow-mock-payments'
-#: 绑定到这些地址时才算「只有本机能访问」，联调后门才会默认打开。
+#: 绑定到这些地址时才算「只有本机能访问」。
 LOOPBACK_BIND_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
 # 共享虚拟环境（缺失时自动创建并按商店依赖安装）
@@ -113,17 +111,15 @@ def primary_lan_address() -> str:
     return '' if address in LOOPBACK_BIND_HOSTS else address
 
 
-def resolve_run_options(arguments: list[str]) -> tuple[str, bool]:
-    """把命令行参数解析成「绑哪个地址 + 是否开模拟支付」。
+def resolve_run_options(arguments: list[str]) -> str:
+    """把命令行参数解析成「绑哪个地址」。
     """
-    unknown = [item for item in arguments if item not in {LAN_FLAG, ALLOW_MOCK_ON_LAN_FLAG}]
+    unknown = [item for item in arguments if item != LAN_FLAG]
     if unknown:
         # 必须喊出来：把 ``--lan`` 打成 ``--Lang`` 会被静默忽略，结果退回只绑回环，
         print(f'⚠ 忽略了无法识别的参数：{" ".join(unknown)}')
-        print(f'  本脚本只认 {LAN_FLAG} 和 {ALLOW_MOCK_ON_LAN_FLAG}。')
-    host = LAN_HOST if LAN_FLAG in arguments else HOST
-    mock_payments = host in LOOPBACK_BIND_HOSTS or ALLOW_MOCK_ON_LAN_FLAG in arguments
-    return host, mock_payments
+        print(f'  本脚本只认 {LAN_FLAG}。')
+    return LAN_HOST if LAN_FLAG in arguments else HOST
 
 
 def is_port_listening(port: str) -> bool:
@@ -154,7 +150,7 @@ def ensure_ports_available() -> None:
 
 
 def main() -> None:
-    host, mock_payments = resolve_run_options(sys.argv[1:])
+    host = resolve_run_options(sys.argv[1:])
     # 预检必须在拉起任何子进程之前（见 ensure_ports_available 的说明）。
     ensure_ports_available()
     python = ensure_venv()
@@ -184,11 +180,12 @@ def main() -> None:
     store_environment['STORE_PORT'] = STORE_PORT
     store_environment['PYTHONPATH'] = str(ROOT)
     store_environment.setdefault('STORE_RELOAD', '1')
-    store_environment.setdefault('STORE_MAIL_MODE', 'echo')
-    # 本地联调：模拟收银台（点一下就发码）。它是**双开关**：光选渠道不够，服务端还必须允许
-    if mock_payments:
-        store_environment.setdefault('STORE_PAYMENT_PROVIDER', 'mock')
-        store_environment.setdefault('STORE_ALLOW_MOCK_PAYMENTS', '1')
+    # 本地默认走「只写日志」：验证码会打印在这个终端里。echo / 回显通道已删除 ——
+    # 它依赖「请求来自本机」这道判定，部署形态一变就可能失效。
+    store_environment.setdefault('STORE_MAIL_MODE', 'log')
+    # 这里**不再**注入任何支付渠道：模拟收银台已删除，本地联调需要真实的支付宝沙箱凭据
+    # （后台「站点配置 → 支付渠道」填沙箱 APPID / 密钥，或写进 .env）。
+    # 未配置渠道时下单会 503 —— 这是刻意的：宁可下不了单，也不要「点一下就发码」。
 
     # 主应用的重载范围必须收窄到 apps/server/：不给 --reload-dir 时 uvicorn 会监听整个
     processes = [
@@ -233,11 +230,10 @@ def main() -> None:
             print(f'            授权商店 http://{lan_address}:{STORE_PORT}/', flush=True)
         else:
             print(f'  （没探到局域网地址，请自行查看本机 IP，端口 {APP_PORT} / {STORE_PORT}）', flush=True)
-        if mock_payments:
-            print('  ⚠ 模拟支付已开启：同网段任何设备都能点「模拟收银台」直接拿到真实授权。', flush=True)
-            print('    仅在你完全信任当前网络、且确认只是联调时保留；否则去掉 --allow-mock-payments 重启。', flush=True)
-        else:
-            print('  模拟支付已关闭（--lan 下的默认）：要联调模拟收银台请加 --allow-mock-payments。', flush=True)
+        # 这里曾经提醒「模拟支付已开启：同网段任何设备都能直接拿到真实授权」。
+        # 那条通道（模拟收银台）已经删除，商店只支持支付宝 —— 下单要能成功就必须
+        # 配置真实的沙箱/生产凭据，所以不再需要这条警告。
+        print('  支付渠道需要真实凭据（支付宝沙箱见 apps/store/README.md 5.5）；未配置时下单会 503。', flush=True)
     try:
         while all(process.poll() is None for process in processes):
             time.sleep(0.4)

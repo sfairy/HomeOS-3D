@@ -2,12 +2,12 @@
  * 站点配置与诊断。
  */
 
-import { $, $$, toast } from "../dom.js?v=2609271226";
-import { state } from "../state.js?v=2609271226";
-import { api, withBusy } from "../api.js?v=2609271226";
-import { askConfirm, askPurge } from "../dialogs.js?v=2609271226";
-import { pageState } from "../table.js?v=2609271226";
-import { host } from "../host.js?v=2609271226";
+import { $, $$, toast } from "../dom.js?v=2609271411";
+import { state } from "../state.js?v=2609271411";
+import { api, withBusy } from "../api.js?v=2609271411";
+import { askConfirm, askPurge } from "../dialogs.js?v=2609271411";
+import { pageState } from "../table.js?v=2609271411";
+import { host } from "../host.js?v=2609271411";
 
 /**
  * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
@@ -65,7 +65,7 @@ export async function loadSettings() {
   form.elements.deployBaseUrl.value = store.deployBaseUrl || '';
   form.elements.description.value = store.description || '';
   form.elements.announcement.value = data.announcement || '';
-  // 不再回填成 'mock'：空串是「跟随环境变量」，把它写成 mock 等于运营随手保存一次
+  // 空串必须保持空串（= 跟随环境变量）：随手保存一次就把它写成一个具体渠道，
   form.elements.paymentProvider.value = payment.provider || '';
   form.elements.paymentDisplayName.value = payment.displayName || '';
   // 交易标题只在「来源是后台」时回填：留空即跟随环境变量（与支付宝凭据同款口径）。
@@ -85,6 +85,7 @@ export async function loadSettings() {
     `跟随环境变量（当前 ${data.deviceReleaseCooldownEffectiveSeconds ?? 0}）`;
   loadAlipayCredentials(data.alipay || {});
   loadMailSettings(data.mail || {});
+  renderOrderTtlWarning(data);
   setSettingsLoadState('ready');
 }
 
@@ -129,7 +130,6 @@ function loadAlipayCredentials(alipay) {
   form.elements.alipayGatewayUrl.value = alipay.gatewayUrlFromDatabase ? alipay.gatewayUrl || '' : '';
   form.elements.alipayNotifyUrl.value = alipay.notifyUrlFromDatabase ? alipay.notifyUrl || '' : '';
   form.elements.alipayReturnUrl.value = alipay.returnUrlFromDatabase ? alipay.returnUrl || '' : '';
-  form.elements.alipaySandbox.checked = Boolean(alipay.sandbox);
   form.elements.alipayClearPrivateKey.checked = false;
   form.elements.alipayClearPublicKey.checked = false;
   form.elements.alipayAppPrivateKey.value = '';
@@ -143,10 +143,39 @@ function loadAlipayCredentials(alipay) {
   syncAlipaySecretInputs();
   renderAlipayBadge(alipay);
   renderAlipayEffectiveUrls(alipay);
+  loadWechatCredentials((state.settings || {}).wechat || {});
+  loadPaymentChannels((state.settings || {}).channels || []);
+  updateChannelSummary();
   $('#alipay-test-result').textContent = '';
   $('#alipay-test-result').className = 'admin-hint';
   clearDiagnostics('#alipay-diagnostic-list');
 }
+
+/**
+ * 订单有效期与支付宝二维码寿命不匹配时的常驻提示。
+ *
+ * 二维码在渠道侧约两小时有效；本地订单 TTL 短于它时，用户扫码稍慢就会变成
+ * 「订单已过期后才到账」的复活单 —— 每笔都要人工核对库存。这条提示常驻，
+ * 不用一闪而过的 toast：运营是在事后改配置时才需要看到它。
+ */
+function renderOrderTtlWarning(payload) {
+  const node = $('#order-ttl-warning');
+  if (!node) return;
+  const ttl = Number(payload.orderTtlSeconds || 0);
+  const floor = Number(payload.orderTtlRecommendedSeconds || 300);
+  // 这条约束对**所有扫码渠道**都成立：支付宝与微信的付款码在渠道侧都活约两小时。
+  // 从前它只判 'alipay'，两个渠道并存后会漏报（微信渠道下 TTL 太短同样是复活单）。
+  const qrChannels = (payload.payment?.channels || []).map(item => item.provider);
+  const hasQrChannel = qrChannels.length > 0 || Boolean(payload.payment?.provider);
+  const mismatch = hasQrChannel && ttl > 0 && ttl < floor;
+  node.hidden = !mismatch;
+  if (!mismatch) return;
+  node.textContent =
+    `当前订单有效期 ${ttl} 秒，短于付款码在渠道侧的有效期（约 2 小时）：` +
+    '用户扫码稍慢就会在订单过期后才付款，变成需要人工核对的复活单。' +
+    `建议把 STORE_ORDER_TTL_SECONDS 调到 ${floor}~900 秒。`;
+}
+
 
 /**
  * 把「当前实际生效」的回调地址与签名配置念出来。
@@ -194,9 +223,14 @@ function loadMailSettings(mail) {
     : '';
   form.elements.verificationCooldownSeconds.placeholder =
     `跟随环境变量（当前 ${mail.verificationCooldownSeconds}）`;
-  form.elements.exposeVerificationCode.value = mail.exposeVerificationCodeFromDatabase
-    ? String(Boolean(mail.exposeVerificationCode))
-    : '';
+  form.elements.verificationGlobalHourlyLimit.value =
+    mail.verificationGlobalHourlyLimitFromDatabase
+      ? mail.verificationGlobalHourlyLimit
+      : '';
+  form.elements.verificationGlobalHourlyLimit.placeholder =
+    `跟随环境变量（当前 ${mail.verificationGlobalHourlyLimit}）`;
+  form.elements.deliveryEmailEnabled.checked = mail.deliveryEmailEnabled !== false;
+  // 验证码回显开关已整块删除（见 config.py），这里不再有可回填的控件。
   syncMailSecretInput();
   if (!form.elements.mailTestEmail.value.trim()) {
     form.elements.mailTestEmail.value = defaultEmail;
@@ -228,9 +262,6 @@ function renderMailBadge(mail, unsaved = false) {
   } else if (mode === 'smtp') {
     text = 'smtp 模式但缺少服务器地址，验证码只会写日志';
     tone = 'is-danger';
-  } else if (mode === 'echo') {
-    text = 'echo 模式 · 验证码在接口响应里回显，仅限本地';
-    tone = 'is-warning';
   } else {
     text = 'log 模式 · 验证码不会真正发出（生产请切到 smtp）';
     tone = 'is-muted';
@@ -426,36 +457,183 @@ export function mailPasswordPayload(form) {
 /**
  * 渲染「凭据是否可用」的结论徽标。
  */
-export function renderAlipayBadge(alipay) {
+/**
+ * 渠道徽标：**每个渠道各报各的**。
+ *
+ * 从前这个徽标只看「当前选中的渠道是不是 alipay」，非 alipay 一律报红「不再受支持」——
+ * 两个渠道并存后，这句话会把好好的微信支付说成「下单会失败」。现在它只回答一个
+ * 问题：**这个**渠道有没有被启用、凭据齐不齐。
+ */
+function renderChannelBadge({ selector, channel, configured, fromDatabase }) {
+  const badge = $(selector);
+  if (!badge) return;
   const form = $('#settings-form');
-  const badge = $('#alipay-credential-status');
-  // 下拉框为空表示「跟随环境变量」，此时以后端回报的**实际生效**渠道为准。
-  const effective = form.elements.paymentProvider.value || alipay.provider || '';
-  const mockAllowed = Boolean(alipay.mockPaymentsAllowed);
-
-  // 模拟收银台单独判：它的问题从来不是「凭据没配」，而是「服务端有没有显式打开」。
-  if (effective === 'mock') {
-    badge.textContent = mockAllowed
-      ? '模拟收银台已启用 · 无需真实付款即发码，切勿用于生产收款'
-      : '模拟收银台已被服务端禁用 · 下单会失败（需 STORE_ALLOW_MOCK_PAYMENTS=1）';
-    badge.className = `admin-status-chip${mockAllowed ? ' is-warning' : ' is-danger'}`;
+  const enabled = paymentChannelsPayload(form).includes(channel);
+  if (!enabled) {
+    badge.textContent = '未启用（前台不会显示）';
+    badge.className = 'admin-status-chip is-muted';
     return;
   }
-
-  if (!effective) {
-    badge.textContent = '未配置支付渠道 · 下单会失败';
+  if (!configured) {
+    badge.textContent = '未配置凭据 · 下单会失败';
     badge.className = 'admin-status-chip is-danger';
     return;
   }
+  badge.textContent = `已配置 · ${fromDatabase ? '后台配置' : '环境变量'}`;
+  badge.className = 'admin-status-chip';
+}
 
-  if (!alipay.configured) {
-    badge.textContent = effective === 'alipay' ? '未配置 · 渠道选了 alipay，下单会失败' : '未配置';
-    badge.className = `admin-status-chip${effective === 'alipay' ? ' is-danger' : ' is-muted'}`;
+export function renderAlipayBadge(alipay) {
+  renderChannelBadge({
+    selector: '#alipay-credential-status',
+    channel: 'alipay',
+    configured: Boolean(alipay.configured),
+    fromDatabase: Boolean(alipay.appIdFromDatabase),
+  });
+}
+
+/**
+ * 回填微信支付凭据区块。与支付宝同一套铁律：密钥输入框永不回填（只把打码值放进
+ * placeholder），且**只回填来源为后台的字段** —— 把环境变量的值回填进来，保存时就会
+ * 把它当成后台值写回数据库，等于把环境变量抄进库。
+ */
+function loadWechatCredentials(wechat) {
+  const form = $('#settings-form');
+  const envHint = (configured) => (configured ? '跟随环境变量（已配置）' : '跟随环境变量');
+  form.elements.wechatMchId.value = wechat.mchIdFromDatabase ? wechat.mchId || '' : '';
+  form.elements.wechatAppId.value = wechat.appIdFromDatabase ? wechat.appId || '' : '';
+  form.elements.wechatMerchantSerialNo.value = wechat.merchantSerialNoFromDatabase
+    ? wechat.merchantSerialNo || ''
+    : '';
+  form.elements.wechatGatewayUrl.value = wechat.gatewayUrlFromDatabase
+    ? wechat.gatewayUrl || ''
+    : '';
+  form.elements.wechatNotifyUrl.value = wechat.notifyUrlFromDatabase ? wechat.notifyUrl || '' : '';
+  form.elements.wechatPlatformPublicKeyId.value = wechat.platformPublicKeyIdFromDatabase
+    ? wechat.platformPublicKeyId || ''
+    : '';
+  ['wechatClearApiV3Key', 'wechatClearMerchantPrivateKey', 'wechatClearPlatformPublicKey']
+    .forEach((name) => { form.elements[name].checked = false; });
+  form.elements.wechatApiV3Key.value = '';
+  form.elements.wechatMerchantPrivateKey.value = '';
+  form.elements.wechatPlatformPublicKey.value = '';
+  form.elements.wechatApiV3Key.placeholder = wechat.apiV3KeyFromDatabase
+    ? `已保存 ${wechat.apiV3KeyMasked || '••••'}（留空不改动）`
+    : envHint(wechat.apiV3KeyConfigured);
+  form.elements.wechatMerchantPrivateKey.placeholder = wechat.merchantPrivateKeyFromDatabase
+    ? `已保存 ${wechat.merchantPrivateKeyMasked || '••••'}（留空不改动）`
+    : envHint(wechat.merchantPrivateKeyConfigured);
+  form.elements.wechatPlatformPublicKey.placeholder = wechat.platformPublicKeyFromDatabase
+    ? `已保存 ${wechat.platformPublicKeyMasked || '••••'}（留空不改动）`
+    : envHint(wechat.platformPublicKeyConfigured);
+  syncWechatSecretInputs();
+  renderWechatBadge(wechat);
+  $('#wechat-effective-urls').textContent = wechat.notifyUrl
+    ? `当前生效的异步通知地址：${wechat.notifyUrl}`
+    : '异步通知地址未配置，将按 STORE_BASE_URL 推导。没有它也能收款（轮询 + 巡检兜底），但会慢一些。';
+  $('#wechat-test-result').textContent = '';
+  $('#wechat-test-result').className = 'admin-hint';
+  clearDiagnostics('#wechat-diagnostic-list');
+}
+
+function renderWechatBadge(wechat) {
+  renderChannelBadge({
+    selector: '#wechat-credential-status',
+    channel: 'wechat',
+    configured: Boolean(wechat.configured),
+    fromDatabase: Boolean(wechat.mchIdFromDatabase),
+  });
+}
+
+/**
+ * 「顾客会看到几个支付方式」的实时摘要。
+ *
+ * 存在的理由很实在：启用集合是**复选框**、默认渠道是**下拉框**，只动下拉框的人会
+ * 以为已经支持了那个渠道，实际只启用了它一个（另几个仍是未勾选）。这句话把
+ * 服务端的口径原样说出来，让「同时支持支付宝和微信」变成一件看得见的事。
+ */
+function updateChannelSummary() {
+  const node = $('#payment-channel-summary');
+  if (!node) return;
+  const form = $('#settings-form');
+  const checked = paymentChannelsPayload(form);
+  const fallback = form.elements.paymentProvider.value;
+  const labels = { alipay: '支付宝', wechat: '微信支付' };
+
+  if (!checked.length && fallback) {
+    node.textContent =
+      `未勾选任何渠道：当前只启用默认渠道「${labels[fallback] || fallback}」，`
+      + '顾客在支付页只会看到一个付款按钮。要同时支持两个渠道，请把两个都勾上。';
     return;
   }
-  const source = alipay.appIdFromDatabase ? '后台配置' : '环境变量';
-  badge.textContent = `已配置 · ${source}${alipay.sandbox ? ' · 沙箱' : ''}`;
-  badge.className = `admin-status-chip${alipay.sandbox ? ' is-warning' : ''}`;
+  if (!checked.length) {
+    node.textContent = '未勾选任何渠道，也没有默认渠道：前台会收起支付入口，顾客无法下单。';
+    return;
+  }
+  const names = checked.map(name => labels[name] || name).join('、');
+  node.textContent = checked.length === 1
+    ? `顾客在支付页会看到 1 个付款按钮：${names}。要同时支持支付宝和微信，把两个都勾上。`
+    : `顾客在支付页会看到 ${checked.length} 个付款按钮，可以自己选：${names}。`;
+}
+
+/** 渠道相关的所有界面（两个徽标 + 摘要）一起刷新，避免只更新一半。 */
+function refreshChannelUi() {
+  const settings = state.settings || {};
+  renderAlipayBadge(settings.alipay || {});
+  renderWechatBadge(settings.wechat || {});
+  updateChannelSummary();
+}
+
+export function syncWechatSecretInputs() {
+  const form = $('#settings-form');
+  const pairs = [
+    ['wechatClearApiV3Key', 'wechatApiV3Key'],
+    ['wechatClearMerchantPrivateKey', 'wechatMerchantPrivateKey'],
+    ['wechatClearPlatformPublicKey', 'wechatPlatformPublicKey'],
+  ];
+  pairs.forEach(([clearName, inputName]) => {
+    const clear = form.elements[clearName];
+    const input = form.elements[inputName];
+    input.disabled = clear.checked;
+    if (clear.checked) input.value = '';
+  });
+}
+
+['wechatClearApiV3Key', 'wechatClearMerchantPrivateKey', 'wechatClearPlatformPublicKey']
+  .forEach((name) => {
+    $('#settings-form').elements[name].addEventListener('change', syncWechatSecretInputs);
+  });
+
+/** 组装微信支付的密钥字段（口径与支付宝一致：空 = 不改动，勾清除 = 显式传空串）。 */
+export function wechatSecretPayload(form) {
+  const payload = {};
+  const pairs = [
+    ['wechatClearApiV3Key', 'wechatApiV3Key'],
+    ['wechatClearMerchantPrivateKey', 'wechatMerchantPrivateKey'],
+    ['wechatClearPlatformPublicKey', 'wechatPlatformPublicKey'],
+  ];
+  pairs.forEach(([clearName, inputName]) => {
+    if (form.elements[clearName].checked) payload[inputName] = '';
+    else if (form.elements[inputName].value.trim()) {
+      payload[inputName] = form.elements[inputName].value.trim();
+    }
+  });
+  return payload;
+}
+
+/** 启用的渠道 ↔ 两个复选框。只认受支持的两个名字，别的忽略。 */
+function loadPaymentChannels(channels) {
+  const form = $('#settings-form');
+  const enabled = new Set(Array.isArray(channels) ? channels : []);
+  form.elements.paymentChannelAlipay.checked = enabled.has('alipay');
+  form.elements.paymentChannelWechat.checked = enabled.has('wechat');
+}
+
+export function paymentChannelsPayload(form) {
+  const channels = [];
+  if (form.elements.paymentChannelAlipay.checked) channels.push('alipay');
+  if (form.elements.paymentChannelWechat.checked) channels.push('wechat');
+  return channels;
 }
 
 export function syncAlipaySecretInputs() {
@@ -476,9 +654,18 @@ export function syncAlipaySecretInputs() {
   $(`#settings-form`).elements[name].addEventListener('change', syncAlipaySecretInputs);
 });
 
-// 渠道下拉框一变就重算徽标：切到 alipay 但凭据不全是最常见的误配置。
+// 渠道下拉框一变：① 自动把该渠道的复选框勾上（选了默认渠道却忘了勾，是最常见的
+// 误配置 —— 表现就是「明明选了微信，前台还是只有支付宝」）；② 重算全部渠道界面。
 $('#settings-form').elements.paymentProvider.addEventListener('change', () => {
-  renderAlipayBadge((state.settings || {}).alipay || {});
+  const form = $('#settings-form');
+  const chosen = form.elements.paymentProvider.value;
+  if (chosen === 'alipay') form.elements.paymentChannelAlipay.checked = true;
+  if (chosen === 'wechat') form.elements.paymentChannelWechat.checked = true;
+  refreshChannelUi();
+});
+
+['paymentChannelAlipay', 'paymentChannelWechat'].forEach((name) => {
+  $('#settings-form').elements[name].addEventListener('change', refreshChannelUi);
 });
 
 /** 组装密钥字段：只有「确实要改」时才把字段放进请求体。
@@ -535,8 +722,18 @@ $('#settings-form').addEventListener('submit', async (event) => {
         alipayGatewayUrl: form.elements.alipayGatewayUrl.value.trim(),
         alipayNotifyUrl: form.elements.alipayNotifyUrl.value.trim(),
         alipayReturnUrl: form.elements.alipayReturnUrl.value.trim(),
-        alipaySandbox: form.elements.alipaySandbox.checked,
         ...alipaySecretPayload(form),
+        // 微信支付的**文本**字段必须逐个列出：只有密钥那几个是条件提交的
+        // （空 = 不改动），其余字段留空就表示「清回跟随环境变量」，必须原样发出去。
+        wechatMchId: form.elements.wechatMchId.value.trim(),
+        wechatAppId: form.elements.wechatAppId.value.trim(),
+        wechatMerchantSerialNo: form.elements.wechatMerchantSerialNo.value.trim(),
+        wechatPlatformPublicKeyId: form.elements.wechatPlatformPublicKeyId.value.trim(),
+        wechatGatewayUrl: form.elements.wechatGatewayUrl.value.trim(),
+        wechatNotifyUrl: form.elements.wechatNotifyUrl.value.trim(),
+        ...wechatSecretPayload(form),
+        // 启用的渠道清单：复选框的勾选状态就是运营的意图，直接提交。
+        paymentChannels: paymentChannelsPayload(form),
         // 邮件 / 验证码：留空或 0 表示「跟随环境变量」，原样提交即可 ——
         mailMode: form.elements.mailMode.value,
         smtpSecurity: form.elements.smtpSecurity.value,
@@ -546,11 +743,13 @@ $('#settings-form').addEventListener('submit', async (event) => {
         smtpPort: Number(form.elements.smtpPort.value || 0),
         verificationTtlSeconds: Number(form.elements.verificationTtlSeconds.value || 0),
         verificationCooldownSeconds: Number(form.elements.verificationCooldownSeconds.value || 0),
+        verificationGlobalHourlyLimit: Number(
+          form.elements.verificationGlobalHourlyLimit.value || 0
+        ),
+        // 发货邮件是纯布尔（没有「跟随环境变量」这一态），直接提交勾选状态。
+        deliveryEmailEnabled: form.elements.deliveryEmailEnabled.checked,
         ...mailPasswordPayload(form),
-        // 三态：null = 清回「跟随环境变量」。必须显式发 null 而不是「不发这个键」，
-        exposeVerificationCode: form.elements.exposeVerificationCode.value === ''
-          ? null
-          : form.elements.exposeVerificationCode.value === 'true',
+        // 验证码回显开关已删除，不再提交这个字段。
       }),
       });
       toast('站点配置已保存');
@@ -563,22 +762,24 @@ $('#settings-form').addEventListener('submit', async (event) => {
   }
 });
 
-$('#alipay-test-button').addEventListener('click', async (event) => {
+/** 渠道自检按钮的公共实现：只有测试目标、结果节点与诊断列表不同。 */
+async function runChannelProbe(event, { channel, resultId, listId }) {
   const button = event.currentTarget;
-  const output = $('#alipay-test-result');
+  const output = $(resultId);
   const label = button.textContent;
   output.textContent = '';
   output.className = 'admin-hint';
-  clearDiagnostics('#alipay-diagnostic-list');
-  // 这个按钮不是 submit，withBusy 抓不到它（它只会找表单里的 submit 按钮），
+  clearDiagnostics(listId);
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   button.textContent = '测试中…';
   try {
-    const result = await api('/settings/alipay/test', { method: 'POST' });
+    const result = await api(`/settings/alipay/test?channel=${encodeURIComponent(channel)}`, {
+      method: 'POST',
+    });
     output.textContent = result.message;
     output.className = `admin-hint ${result.ok ? 'is-success' : 'is-danger'}`;
-    renderDiagnostics('#alipay-diagnostic-list', result.checks);
+    renderDiagnostics(listId, result.checks);
     toast(result.ok ? '凭据可用' : '凭据不可用', result.ok ? 'success' : 'danger');
   } catch (error) {
     output.textContent = error.message;
@@ -589,7 +790,23 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
     button.removeAttribute('aria-busy');
     button.textContent = label;
   }
-});
+}
+
+$('#wechat-test-button').addEventListener('click', (event) =>
+  runChannelProbe(event, {
+    channel: 'wechat',
+    resultId: '#wechat-test-result',
+    listId: '#wechat-diagnostic-list',
+  })
+);
+
+$('#alipay-test-button').addEventListener('click', (event) =>
+  runChannelProbe(event, {
+    channel: 'alipay',
+    resultId: '#alipay-test-result',
+    listId: '#alipay-diagnostic-list',
+  })
+);
 
 /**
  * 邮件诊断 / 发送测试邮件：按**已保存**的配置先做连接诊断，给了收件人再真发一封（先保存、再测试）。

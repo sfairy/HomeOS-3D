@@ -1,7 +1,7 @@
 // 同门分片：button-renderer
-import { buttonRenderer } from "../button-renderer.js?v=2609271226";
+import { buttonRenderer } from "../button-renderer.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 
 // 两个类型名注册到同一份渲染器实例上，改一处即同时生效。
 registerComponent("icon-button", buttonRenderer);

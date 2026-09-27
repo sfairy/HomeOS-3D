@@ -1,7 +1,7 @@
 /**
  * 颜色工具：归一、校验、插值。三份「归一」契约各自服务一种用途，名字即契约：
  */
-import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609271226";
+import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609271411";
 
 /**
  * 读取全站调色板（design/scene/page.css）里某个自定义属性的**实际色值**。

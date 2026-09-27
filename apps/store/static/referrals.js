@@ -1,5 +1,5 @@
-import { esc } from "./htmlsafe.js?v=2609271226";
-import { formatPoints, formatCentsPlain } from "./money.js?v=2609271226";
+import { esc } from "./htmlsafe.js?v=2609271411";
+import { formatPoints, formatCentsPlain } from "./money.js?v=2609271411";
 
 const $ = s => document.querySelector(s);
 const storageKey = 'hb_invite_v1';

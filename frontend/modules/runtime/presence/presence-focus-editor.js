@@ -1,11 +1,11 @@
 /**
  * 「人在传感器 · 聚焦视角」配置弹窗：左侧内嵌 3D 预览（mountInteraction3d），右侧是投影方式
  */
-import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271411";
 import {
   createDomFactory,
   interaction3dPreviewSize
-} from "../core/static-helpers-editor.js?v=2609271226";
+} from "../core/static-helpers-editor.js?v=2609271411";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */

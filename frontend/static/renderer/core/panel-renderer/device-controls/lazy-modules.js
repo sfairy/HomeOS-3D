@@ -2,21 +2,21 @@
  * 设备详情模块的按需加载表。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271411";
 
 /** 设备种类 -> 加载器。键同时是调用方要声明的「我需要哪几类」。 */
 export const DEVICE_CONTROL_LOADERS = {
-  capability: () => import("./capability.js?v=2609271226"),
-  "air-purifier": () => import("./air-purifier.js?v=2609271226"),
-  "media-player": () => import("./media-player.js?v=2609271226"),
-  light: () => import("./light.js?v=2609271226"),
-  cover: () => import("./cover.js?v=2609271226"),
-  climate: () => import("./climate.js?v=2609271226"),
-  "water-heater": () => import("./water-heater.js?v=2609271226"),
-  "electric-bed": () => import("./electric-bed.js?v=2609271226"),
-  vacuum: () => import("./vacuum.js?v=2609271226"),
-  presence: () => import("./presence.js?v=2609271226"),
-  camera: () => import("./camera.js?v=2609271226")
+  capability: () => import("./capability.js?v=2609271411"),
+  "air-purifier": () => import("./air-purifier.js?v=2609271411"),
+  "media-player": () => import("./media-player.js?v=2609271411"),
+  light: () => import("./light.js?v=2609271411"),
+  cover: () => import("./cover.js?v=2609271411"),
+  climate: () => import("./climate.js?v=2609271411"),
+  "water-heater": () => import("./water-heater.js?v=2609271411"),
+  "electric-bed": () => import("./electric-bed.js?v=2609271411"),
+  vacuum: () => import("./vacuum.js?v=2609271411"),
+  presence: () => import("./presence.js?v=2609271411"),
+  camera: () => import("./camera.js?v=2609271411")
 };
 
 /** 每个种类导出哪张方法表。名字写错会在加载完成时抛错，不会静默少挂几个方法。 */

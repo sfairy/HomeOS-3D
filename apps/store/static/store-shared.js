@@ -1,7 +1,7 @@
 /** 见文件头（store-shared 的说明）。这里补上「页面链接拼接」与两个被商品目录/订单两块共用的渲染片段。 */
 
-import { formatCents as money } from "./money.js?v=2609271226";
-import { fromResponse } from "./api-error.js?v=2609271226";
+import { formatCents as money } from "./money.js?v=2609271411";
+import { fromResponse } from "./api-error.js?v=2609271411";
 
 export const STORE_PAGE_REVISION = '20260909-referrals-v1';
 

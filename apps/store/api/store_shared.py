@@ -6,7 +6,7 @@ import logging
 from datetime import timedelta
 
 from fastapi import HTTPException, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
@@ -25,6 +25,7 @@ from apps.store.security.security import (
     code_hash,
     new_token,
     token_hash,
+    token_matches,
     utcnow,
 )
 
@@ -158,20 +159,9 @@ def _customer_for(session, account: Account) -> Customer:
 # 账号
 
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
-_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
-def _client_host(request: Request) -> str:
-    client = getattr(request, "client", None)
-    return str(getattr(client, "host", "") or "").strip().lower()
-def _is_loopback_client(request: Request) -> bool:
-    """请求的**真实来源**是否在本机。
-    """
-    try:
-        address = resolve_client_ip(request)
-    except Exception:  # noqa: BLE001 - 解析异常时按更严格的「非本机」处理
-        return False
-    if not getattr(address, "per_client", False):
-        return _client_host(request) in _LOOPBACK_HOSTS
-    return str(getattr(address, "ip", "") or "").strip().lower() in _LOOPBACK_HOSTS
+#: 这里曾经有 _client_host / _is_loopback_client / _LOOPBACK_HOSTS —— 它们只为「验证码
+#: 只对本机回显」那一条通道存在。回显通道连同这两个助手一并删除：判定依赖对端 IP 与
+#: 转发头，部署形态一变就可能失效。
 def _assert_purpose_allowed(
     session, *, purpose: str, email: str, account: Account | None
 ) -> None:
@@ -182,9 +172,9 @@ def _assert_purpose_allowed(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后再获取该验证码。"
         )
 
-    existing = session.scalars(
-        select(Account).where(func.lower(Account.email) == email)
-    ).first()
+    # 这里**不查**「这个邮箱有没有账号」：注册/找回密码要按正常流程发码并返回同样的 200
+    # （已注册不报 409、未注册不报 404），而更换邮箱的占用校验必须放到验证码消费之后 ——
+    # 详见下面 change_email 分支的说明。查了也没人用，只会让下一个人以为它是判据。
 
     # register / reset 一律按正常流程发码并返回同样的 200（已注册不报 409、未注册不报 404），
     if purpose in {"register", "reset"}:
@@ -203,10 +193,10 @@ def _assert_purpose_allowed(
         return
 
     if purpose == "change_email":
-        if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其它账号使用。"
-            )
+        # 这里**故意不查**「该邮箱是否已被占用」：发码接口不需要登录态之外的信息，
+        # 而在发码阶段回 409 就等于给任何注册用户一个「这个邮箱注册过没有」的探针。
+        # 占用校验放在验证码消费之后（见 api/store.py 的 change_account_email）——
+        # 拿到验证码就意味着对方并不掌握那个邮箱，此时再回 409 不再泄露任何信息。
         if account is not None and (account.email or "").strip().lower() == email:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。"
@@ -234,11 +224,14 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
     if int(record.attempts or 0) >= MAX_VERIFICATION_CODE_ATTEMPTS:
         _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="尝试次数过多，请重新获取验证码。")
-    if record.code_hash != code_hash(code.strip(), record.code_salt or ""):
-        # 先记账再从 ORM 改 attempts：此时本事务还只有 SELECT，没有持有 SQLite
+    # 常量时间比较：与登录令牌同一口径（security.token_matches 内部用 compare_digest）。
+    provided = code_hash(code.strip(), record.code_salt or "")
+    if not token_matches(provided, record.code_hash):
+        # 两次记账都必须在**独立事务**里完成。raise 会让请求作用域的会话整体回滚
+        # （见 core/database.py 的 session 上下文），写在请求事务里的 attempts 自增
+        # 会被一起丢掉 —— 那正是「单码尝试上限 8」形同虚设的原因。
         _record_verify_failure(session, scope)
-        record.attempts = int(record.attempts or 0) + 1
-        session.flush()
+        _bump_verification_attempts(session, record_id=record.id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码不正确。")
     record.consumed_at = utcnow()
     password_gate.clear(session, scope)
@@ -246,9 +239,31 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
 #: 单封验证码最多可以被尝试几次（按验证码记录计）。
 MAX_VERIFICATION_CODE_ATTEMPTS = 8
 def _record_verify_failure(session, scope: str) -> None:
-    """记录一次验证码失败，作为 ``verify:<email>`` 的限流依据。
+    """记录一次验证码失败，作为 verify:<email> 的限流依据。
     """
     record_attempt_in_new_session(session, scope)
+
+
+def _bump_verification_attempts(session, *, record_id: str) -> None:
+    """把某条验证码记录的尝试次数 +1，并在**独立事务**里提交。
+
+    必须独立提交：调用方紧接着就会 raise，请求作用域的会话会整体回滚，
+    写在同一事务里的自增会连同失败一起消失（单码尝试上限就永远不会生效）。
+    """
+    factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
+    try:
+        with factory() as probe:
+            probe.execute(
+                update(EmailVerification)
+                .where(EmailVerification.id == record_id)
+                .values(attempts=EmailVerification.attempts + 1)
+                .execution_options(synchronize_session=False)
+            )
+            probe.commit()
+    except SQLAlchemyError:
+        # 与 record_attempt_in_new_session 同一口径：限流记录写不进去也不能反过来
+        # 让「验证码不正确」变成 500。
+        logger.warning("验证码尝试次数写入失败 record=%s", record_id, exc_info=True)
 def record_attempt_in_new_session(session, scope: str) -> None:
     """在一个独立事务里记录失败尝试，确保外层请求回滚不会把它抹掉。
     """

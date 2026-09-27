@@ -2,9 +2,9 @@
  * PanelRenderer 各区块共用的小工具与阈值：调色、弹窗尺寸、乐观开关超时、控件视觉等。
  */
 
-import { randomUuid } from "../../../utils/random-id.js?v=2609271226";
-import { paletteColor } from "../../../utils/colors.js?v=2609271226";
-import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609271226";
+import { randomUuid } from "../../../utils/random-id.js?v=2609271411";
+import { paletteColor } from "../../../utils/colors.js?v=2609271411";
+import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609271411";
 
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
 export const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;

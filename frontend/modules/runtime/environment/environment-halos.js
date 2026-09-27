@@ -3,11 +3,11 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271411";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
-import { paletteColor } from "../core/static-helpers.js?v=2609271226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { paletteColor } from "../core/static-helpers.js?v=2609271411";
 
 /**
  * 模型轮廓描边的颜色（三层描边共用，靠宽度与不透明度分出内外辉光）。

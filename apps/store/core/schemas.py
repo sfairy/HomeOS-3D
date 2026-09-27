@@ -65,6 +65,7 @@ class PasswordResetRequest(_Camel):
     confirm_password: str = Field(default="", alias="confirmPassword", max_length=128)
 
 
+# 站点配置里的「发货邮件」开关由 admin_settings 的字段映射直接写入，无需单独模型。
 class LabelRequest(_Camel):
     label: str | None = Field(default=None, max_length=50)
 
@@ -92,6 +93,11 @@ class CreateOrderRequest(_Camel):
     #: 「试用授权升级为永久」的既有授权：命中时不再另发新码，而是就地升级这张授权。
     upgrade_license_id: str | None = Field(
         default=None, alias="upgradeLicenseId", max_length=64
+    )
+    #: 顾客在收银台选的支付渠道（``alipay`` / ``wechat``）。留空＝用默认渠道。
+    #: 服务端会校验它确实在**已启用**清单里 —— 不能凭这个字段绕开运营的开关。
+    payment_channel: str | None = Field(
+        default=None, alias="paymentChannel", max_length=32
     )
 
 
@@ -237,7 +243,40 @@ class AdminSettingsRequest(_AdminBase):
     alipay_return_url: str | None = Field(
         default=None, alias="alipayReturnUrl", max_length=512
     )
-    alipay_sandbox: bool | None = Field(default=None, alias="alipaySandbox")
+
+    # ---- 启用的支付渠道（后台可改） --------------------------------------- #
+    #: 数组，如 ["alipay", "wechat"]。空数组 = 跟随单渠道时代的 payment_provider。
+    #: 服务端逐个核对是受支持的渠道 —— 一个请求字段不能让运营启用一个不存在的渠道。
+    payment_channels: list[str] | None = Field(default=None, alias="paymentChannels")
+
+    # ---- 微信支付凭据（后台可改，免重启） -------------------------------- #
+    #: 与支付宝同一套「留空即跟随环境变量」口径。
+    wechat_mch_id: str | None = Field(default=None, alias="wechatMchId", max_length=64)
+    wechat_app_id: str | None = Field(default=None, alias="wechatAppId", max_length=64)
+    wechat_merchant_serial_no: str | None = Field(
+        default=None, alias="wechatMerchantSerialNo", max_length=64
+    )
+    #: APIv3 密钥：恰好 32 字符。长度**不**在 schema 上限制，好让保存时的报错
+    #: 说清「必须是 32 个字符」，而不是一句「长度不符」。
+    wechat_api_v3_key: str | None = Field(
+        default=None, alias="wechatApiV3Key", max_length=128
+    )
+    #: PEM 最长，给足 8192（与支付宝那两个密钥一致）。
+    wechat_merchant_private_key: str | None = Field(
+        default=None, alias="wechatMerchantPrivateKey", max_length=8192
+    )
+    wechat_platform_public_key: str | None = Field(
+        default=None, alias="wechatPlatformPublicKey", max_length=8192
+    )
+    wechat_platform_public_key_id: str | None = Field(
+        default=None, alias="wechatPlatformPublicKeyId", max_length=64
+    )
+    wechat_gateway_url: str | None = Field(
+        default=None, alias="wechatGatewayUrl", max_length=255
+    )
+    wechat_notify_url: str | None = Field(
+        default=None, alias="wechatNotifyUrl", max_length=512
+    )
 
     # ---- 注册邮箱验证码（后台可改，免重启） ------------------------------ #
     #: 与支付宝凭据同一套「留空即跟随环境变量」口径。
@@ -257,10 +296,6 @@ class AdminSettingsRequest(_AdminBase):
     )
     verification_cooldown_seconds: int | None = Field(
         default=None, alias="verificationCooldownSeconds", ge=0, le=3600
-    )
-    #: 三态：不传 / null = 跟随环境变量，true / false = 显式覆盖
-    expose_verification_code: bool | None = Field(
-        default=None, alias="exposeVerificationCode"
     )
     smtp_clear_password: bool | None = Field(default=None, alias="smtpClearPassword")
 

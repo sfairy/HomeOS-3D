@@ -2,29 +2,19 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import base64
 import json
 import re
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
-from urllib.parse import urlsplit
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-from apps.store.ops.net_probe import (
-    LEVEL_FAIL,
-    LEVEL_PASS,
-    LEVEL_WARN,
-    check_result,
-    host_from_url,
-    is_private_host,
-    probe_http,
-)
+# 地址校验与诊断的**规则本体**在 payments/urls.py（渠道无关）；这里只固定渠道名。
+from apps.store.payments import urls as payment_urls
 from apps.store.payments.base import PaymentError
 
 
@@ -188,63 +178,24 @@ def validate_gateway_url(text: str) -> None:
 
 def validate_callback_url(text: str, *, label: str) -> None:
     """回调地址必须是带主机名的绝对 http(s) URL，且不能指向本机/内网。
+
+    规则本体在 ``payments/urls.py``（渠道无关）；这里只把渠道名固定成「支付宝」，
+    让错误文案说的是运营正在配的那个渠道。
     """
-    if not text:
-        return
-    lowered = text.lower()
-    if not (lowered.startswith("http://") or lowered.startswith("https://")):
-        raise PaymentError(
-            f"{label}必须以 http:// 或 https:// 开头（要填完整的外部可达地址，"
-            "不能只填路径）。"
-        )
-    host = host_from_url(text)
-    if not host:
-        raise PaymentError(f"{label}缺少主机名。")
-    if is_private_host(host):
-        raise PaymentError(
-            f"{label}不能填本机或内网地址：支付宝的服务器访问不到 {host}，"
-            "异步通知会永远收不到（订单停在待支付）。请填公网可达的域名，"
-            "或用内网穿透工具提供的地址。"
-        )
+    payment_urls.validate_callback_url(text, label=label, channel="支付宝")
 
 
 def _url_port(url: str, *, default: int) -> int:
-    """从 URL 里取端口；没写就按协议默认（http 80，其余用 ``default``）。"""
-    try:
-        parsed = urlsplit((url or "").strip())
-    except ValueError:
-        return default
-    if parsed.port:
-        return int(parsed.port)
-    return 80 if parsed.scheme == "http" else default
+    """从 URL 里取端口（规则本体在 payments/urls.py）。"""
+    return payment_urls.url_port(url, default=default)
 
 
 def _callback_check(
     check_id: str, label: str, url_value: str, *, reachable_hint: str
 ) -> dict:
-    """回调地址的单项诊断：格式 → 是否内网 → 本机可达性。
-    """
-    text = (url_value or "").strip()
-    if not text:
-        return check_result(
-            check_id,
-            label,
-            LEVEL_FAIL,
-            f"未配置，且无法按 STORE_BASE_URL 推导出有效地址。{reachable_hint}",
-        )
-    try:
-        validate_callback_url(text, label=label)
-    except PaymentError as error:
-        return check_result(check_id, label, LEVEL_FAIL, str(error))
-
-    reachable, detail = probe_http(text)
-    if reachable:
-        return check_result(check_id, label, LEVEL_PASS, f"{text} — {detail}")
-    return check_result(
-        check_id,
-        label,
-        LEVEL_WARN,
-        f"{text} — {detail}。{reachable_hint}",
+    """回调地址的单项诊断（规则本体在 payments/urls.py，渠道名固定为支付宝）。"""
+    return payment_urls.callback_url_check(
+        check_id, label, url_value, channel="支付宝", reachable_hint=reachable_hint
     )
 
 
@@ -269,6 +220,14 @@ def sign_params(params: dict[str, object], private_key_text: str) -> str:
 
 
 def verify_content(content: str, signature: str, public_key_text: str) -> bool:
+    """验签。**任何**失败都返回 False，绝不向上抛。
+
+    这个函数只回答一个是非问题，调用方（异步通知端点）据此回纯文本 failure。
+    它自己的密钥加载器在公钥不是合法 PEM 时抛的是 PaymentError（RuntimeError 子类），
+    以前漏在外面：公钥填错时异步通知返回的是 HTTP 500 JSON，而不是支付宝约定要的
+    failure 文本 —— 支付宝会当成「商户故障」继续重推，而订单永远停在待支付；
+    主动查单同样失败，可 /healthz 的巡检状态还是 HEALTH_OK。
+    """
     try:
         key = _load_public_key(public_key_text)
         key.verify(
@@ -278,7 +237,7 @@ def verify_content(content: str, signature: str, public_key_text: str) -> bool:
             hashes.SHA256(),
         )
         return True
-    except (InvalidSignature, ValueError, TypeError):
+    except (InvalidSignature, ValueError, TypeError, PaymentError):
         return False
 
 

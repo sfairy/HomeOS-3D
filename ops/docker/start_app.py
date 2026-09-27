@@ -42,7 +42,7 @@ def _inspect_client_key(path: Path) -> tuple[bool, str]:
 
 
 def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) -> None:
-    """等待商店把公钥写到共享目录。
+    """等待 APP_CLIENT_KEYS_DIR 里出现可读的授权公钥。
     """
     paths = (
         client_keys_dir / 'license-public.pem',
@@ -65,8 +65,9 @@ def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) 
             detail = '；'.join(f'{name}：{reason}' for name, reason in reasons.items())
             raise SystemExit(
                 f'等待授权公钥超时（{timeout_seconds:.0f}s）：{client_keys_dir}（{detail}）。'
-                '请确认 homeos-3d-store 已启动；跨服务器部署需要手工把两个 PEM 放进'
-                'APP_CLIENT_KEYS_DIR 对应的卷，并 chmod 644。'
+                '分拆部署请确认 deploy.sh 已把 PEM 落到 ./keys（或 APP_CLIENT_KEYS_DIR）；'
+                '同机部署请确认商店已启动且 docker-compose.app.shared.yml 挂载了共享公钥卷；'
+                '权限须为 644（chmod 644 <两个 pem>）。'
             )
         time.sleep(0.5)
 
@@ -77,7 +78,12 @@ def main() -> None:
     environment.setdefault("APP_DATA_DIR", "/data")
     environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/keys")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
-    environment.setdefault("APP_LICENSE_SERVER_URL", "http://homeos-3d-store:18082")
+    if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
+        raise SystemExit(
+            '未设置 APP_LICENSE_SERVER_URL。'
+            '分拆部署请传 --license-server https://pay.example.com；'
+            '同机部署请用 --role all（会叠加 docker-compose.app.shared.yml 注入商店内网地址）。'
+        )
 
     app_port = environment.get("APP_PORT", "18081").strip() or "18081"
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()

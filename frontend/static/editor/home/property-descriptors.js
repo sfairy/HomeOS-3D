@@ -2,14 +2,14 @@
  * 组件属性描述符。
  */
 
-import { clone, roundField } from "../editor-utils.js?v=2609271226";
-import { findComponent } from "../component-tree.js?v=2609271226";
+import { clone, roundField } from "../editor-utils.js?v=2609271411";
+import { findComponent } from "../component-tree.js?v=2609271411";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609271226";
-import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271226";
+} from "../../utils/colors.js?v=2609271411";
+import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271411";
 
 export function createPropertyDescriptors(ctx) {
 
@@ -850,29 +850,14 @@ export function createPropertyDescriptors(ctx) {
     }
     const navigationStyleProperties = navigationStyleSourceComponent.properties || {};
     const navigationStyleDefaultValue = navigationStyleDefaults[navigationStylePropertyKey];
-    if (navigationStylePropertyKey === "textIdleOpacity") {
+    if (
+      navigationStylePropertyKey === "textIdleOpacity" ||
+      navigationStylePropertyKey === "textActiveOpacity" ||
+      navigationStylePropertyKey === "iconIdleOpacity" ||
+      navigationStylePropertyKey === "iconActiveOpacity"
+    ) {
       return (
-        navigationStyleProperties[navigationStylePropertyKey] ??
-        navigationStyleProperties.idleOpacity ??
-        navigationStyleDefaultValue
-      );
-    } else if (navigationStylePropertyKey === "textActiveOpacity") {
-      return (
-        navigationStyleProperties[navigationStylePropertyKey] ??
-        navigationStyleProperties.activeOpacity ??
-        navigationStyleDefaultValue
-      );
-    } else if (navigationStylePropertyKey === "iconIdleOpacity") {
-      return (
-        navigationStyleProperties[navigationStylePropertyKey] ??
-        navigationStyleProperties.idleOpacity ??
-        navigationStyleDefaultValue
-      );
-    } else if (navigationStylePropertyKey === "iconActiveOpacity") {
-      return (
-        navigationStyleProperties[navigationStylePropertyKey] ??
-        navigationStyleProperties.activeOpacity ??
-        navigationStyleDefaultValue
+        navigationStyleProperties[navigationStylePropertyKey] ?? navigationStyleDefaultValue
       );
     } else if (
       navigationStylePropertyKey === "mainTextLeft" ||

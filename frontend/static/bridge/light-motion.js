@@ -3,9 +3,9 @@
  */
 
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）：clampNumber 保证写进渲染层的值永远在
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271226";
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271411";
 // 色温换算（含唯一的公式与单通道夹取）也共用 utils/colors.js，别在这里再写一份系数。
-import { kelvinToRgbHex } from "../utils/colors.js?v=2609271226";
+import { kelvinToRgbHex } from "../utils/colors.js?v=2609271411";
 const normalizeLightState = lightState => ({
   intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
   color: [0, 1, 2].map(channelIndex => clampNumber(finiteNumberOr(lightState?.color?.[channelIndex], 1), 0, 1))

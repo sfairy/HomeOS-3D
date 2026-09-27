@@ -1,9 +1,9 @@
 /**
  * 渲染器 ↔ 3D 交互舞台的桥接层：渲染器只认识组件控制器（renderInteraction3d 返回宿主元素），
  */
-import { createAccessMonitor } from "./access-monitor.js?v=2609271226";
-import { createInteraction3dCover } from "./cover.js?v=2609271226";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609271226";
+import { createAccessMonitor } from "./access-monitor.js?v=2609271411";
+import { createInteraction3dCover } from "./cover.js?v=2609271411";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609271411";
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
  */
@@ -284,7 +284,7 @@ export function renderInteraction3d(component, context = {}) {
     const currentLoadToken = ++loadToken;
     try {
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609271226");
+        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609271411");
       // 三个丢弃条件：组件已销毁、已有更新的一轮加载、页面已切走（回来时会重新走一遍）。
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
@@ -293,7 +293,7 @@ export function renderInteraction3d(component, context = {}) {
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/core/runtime.css?v=2609271226";
+        "/api/v1/modules/interaction3d/core/runtime.css?v=2609271411";
       // 先单独 append 让浏览器尽早开始下载，等运行时容器建好后再一次性替换成最终结构。
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");

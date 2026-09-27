@@ -8,11 +8,14 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 
-from apps.store.ops import mail_settings, mailer
+from apps.store.ops import incidents, mail_settings, mailer
 from apps.store.security import password_gate
+from apps.store.security.limiter import SlidingWindowLimiter
 from apps.store.config import StoreSettings
 from apps.store.core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
+from apps.store.commerce import delivery
 from apps.store.core.models import (
     Account,
     AccountSession,
@@ -21,6 +24,7 @@ from apps.store.core.models import (
     DeviceReleaseEvent,
     EmailVerification,
     License,
+    Order,
     Product,
     Release,
 )
@@ -51,12 +55,11 @@ from apps.store.ops import site_settings as site_config
 from .store_shared import (
     MAX_VERIFICATION_SENDS_PER_HOUR,
     _assert_purpose_allowed,
-    _client_host,
     _consume_verification,
     _enforce_password_confirmation_gate,
     _enforce_verification_send_quota,
-    _is_loopback_client,
     _note_password_confirmation_failure,
+    _require_verified,
     logger,
 )
 from .store_catalog import (
@@ -224,10 +227,12 @@ def send_verification(
     )
     purpose = payload.purpose
 
+    # 先把请求本身校验完，**再**消耗发信配额：反过来会让一个写错邮箱的请求也扣掉
+    # 来源 IP 与全站的小时额度，把真正的用户挤在 429 外面。
+    _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
+
     # ---- 按来源 IP 与全站的发信配额 ---- #
     _enforce_verification_send_quota(request, settings, email=email)
-
-    _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
 
     cooldown_scope = f"verify:{email}"
     remaining = password_gate.retry_after_seconds(session, cooldown_scope)
@@ -271,20 +276,31 @@ def send_verification(
         expires_at=utcnow() + timedelta(seconds=settings.verification_ttl_seconds),
     )
     session.add(record)
-    session.flush()
     password_gate.clear(session, f"verify:{email}")
+    # 事务一：先把验证码提交落库。发信是几秒到十几秒的网络等待，绝不能发生在持有
+    # SQLite 写锁的时候 —— busy_timeout 只有 5 秒，并发的下单 / 心跳 / 保存配置会
+    # 直接报 database is locked。先提交也让「信已发出、进程随后崩了」不会留下一个
+    # 用户手里有、服务端却没有的验证码。
+    session.commit()
 
     result = mailer.send_verification_email(
         settings, setting, email=email, code=code, purpose=purpose
     )
 
     # 投递结果必须落库：只回给前端就丢了，事后无法回答「用户说没收到，那封信到底发出去没有」——只能翻日志，而日志会轮转。
-    record.delivery_mode = result.mode
-    record.delivery_attempts = result.attempts
-    record.delivery_error = result.error
-    record.delivered = result.delivered if result.mode == "smtp" else None
-    record.delivered_at = utcnow()
-    session.flush()
+    # 事务二（短）：单独落投递结果。它失败**不能**让验证码失效 —— 码已经提交了，
+    # 用户手上那串仍然有效；后台只是少了「这封信到底发出去没有」的答案。
+    try:
+        record.delivery_mode = result.mode
+        record.delivery_attempts = result.attempts
+        record.delivery_error = result.error
+        record.delivered = result.delivered if result.mode == "smtp" else None
+        record.delivered_at = utcnow()
+        session.commit()
+    except SQLAlchemyError as error:
+        session.rollback()
+        incidents.note("verification.delivery_record", email=email, error=error)
+        logger.exception("验证码投递结果落库失败，验证码本身仍然有效 email=%s", email)
 
     body = {
         "email": email,
@@ -296,39 +312,17 @@ def send_verification(
         "deliveryMode": result.mode,
         "deliveryAttempts": result.attempts,
     }
-    if result.error:
-        # 发信失败要如实告诉用户「可能收不到」，而不是让他对着收件箱干等
-        body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
-    #: 任何把验证码写进 HTTP 响应的路径都只认**本机**客户端：判定必须覆盖所有 mail_mode，
-    echo_allowed = _is_loopback_client(request)
-    if result.exposed_code is not None and not echo_allowed:
-        logger.warning(
-            "本次验证码本可在响应中回显（mail_mode=%s，expose_verification_code=%s），"
-            "但请求来自 %s（非本机），已按 log 处理：验证码只写服务端日志、不回显。",
-            settings.mail_mode,
-            settings.expose_verification_code,
-            _client_host(request) or "未知地址",
-        )
-    if result.exposed_code is not None and echo_allowed:
-        body["code"] = result.exposed_code
-        if settings.mail_mode == "echo":
-            body["devNotice"] = "mail_mode=echo，验证码直接在响应中回显，仅供本地联调。"
-        else:
-            body["devNotice"] = (
-                "验证码在响应中回显（mail_mode="
-                f"{settings.mail_mode}，由 STORE_EXPOSE_VERIFICATION_CODE 决定）；"
-                "仅本机访问才会回显，生产请关闭该开关。"
-            )
-    elif result.exposed_code is not None:
-        body["devNotice"] = (
-            "验证码未在响应中回显：只有本机访问才允许回显。"
-            "验证码已写入服务端日志，请查阅日志获取。"
-        )
-    elif settings.mail_mode == "echo":
-        body["devNotice"] = (
-            "mail_mode=echo 仅在本机访问时回显验证码；本次请求来自其它地址，"
-            "验证码已写入服务端日志。请把投递方式改为 smtp。"
-        )
+    if not result.delivered:
+        # 没发出去就必须如实说。SMTP 真失败时给一句用户能照做的文案，技术细节
+        # （result.error）留在日志与后台审计表里；「配置不全」那条自带友好文案。
+        if result.mode == "smtp":
+            body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
+        elif result.error:
+            body["deliveryError"] = result.error
+    # 这里曾经有一整套「回显」分支：mail_mode=echo 或 STORE_EXPOSE_VERIFICATION_CODE 时，
+    # 把验证码明文放进这个响应里（仅限本机访问）。整条通道已删除 —— 那个「仅限本机」的
+    # 判定依赖对端 IP 与转发头，部署形态一变就可能失效，而失效的后果是任何人都能读到
+    # 别人的验证码。现在验证码只可能出现在收件人的邮箱与（显式 log 模式下的）服务端日志里。
     return body
 
 
@@ -427,6 +421,58 @@ def change_account_email(
     logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)
     return {"email": email, "previousEmail": previous, "verified": True}
 
+
+#: 个人中心「重发激活码邮件」的按账号预算。与其它限流器同一口径：进程内计数，
+#: 所以本部署必须单进程运行（见 apps/store/README.md「必须单进程」一节）。
+_LICENSE_EMAIL_LIMITER = SlidingWindowLimiter(limit=5, window_seconds=3600.0)
+
+
+@router.post("/account/licenses/{license_id}/email")
+def resend_license_email(
+    license_id: str, request: Request, session: DbSession, account: AuthedAccount
+) -> dict:
+    """把这张授权的激活码重新发到购买邮箱。
+
+    自动发码邮件已经在履约后发过一次；这个入口是给「邮箱已满 / 误删 / 当时 SMTP 抖了」
+    的买家用的 —— 没有它，那些人只能靠客服人工重发。
+    """
+    _require_verified(account)
+    license_row = session.get(License, license_id)
+    if license_row is None or license_row.account_id != account.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
+    order = session.scalars(
+        select(Order)
+        .where(Order.license_id == license_row.id)
+        .order_by(Order.created_at.desc())
+    ).first()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="找不到这张授权对应的订单，无法发信，请联系客服。",
+        )
+
+    scope = f"license-email:{account.id}"
+    if not _LICENSE_EMAIL_LIMITER.allow(scope):
+        retry_after = max(1, int(_LICENSE_EMAIL_LIMITER.retry_after(scope)) or 1)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"重发过于频繁，请 {retry_after} 秒后再试。",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    # 显式重发**不受**「已经发过」与「自动重试次数用尽」两道闸门阻挡（force=True），
+    # 但仍走同一个领取标记，所以并发重发也只会发出去一封。
+    result = delivery.notify_license_issued(
+        request.app.state.database, order_id=order.id, force=True
+    )
+    sent = bool(result.get("sent"))
+    return {
+        "email": order.email,
+        "sent": sent,
+        "deliveryError": "" if sent else (
+            result.get("error") or "邮件未能发出，请稍后再试或联系客服。"
+        ),
+    }
 
 @router.patch("/account/licenses/{license_id}/label")
 def update_license_label(

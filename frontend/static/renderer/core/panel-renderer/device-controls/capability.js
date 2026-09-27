@@ -2,12 +2,12 @@
  * 设备控件区块：按 HA 能力（supported_features / attribute）自动生成的详情感。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271411";
 import {
   climateModeLabel,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609271226";
-import { createSwitchVisual } from "../primitives.js?v=2609271226";
+} from "../../../controls/climate.js?v=2609271411";
+import { createSwitchVisual } from "../primitives.js?v=2609271411";
 
 export const capabilityDetailsMethods = {
   /**

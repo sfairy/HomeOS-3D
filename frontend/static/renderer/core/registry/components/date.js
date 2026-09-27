@@ -1,18 +1,18 @@
 /**
  * `date` 控件：本地日期与农历。
  */
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
 import {
   formatLocalDate,
   formatLunarDate
-} from "../../../controls/date-time-runtime.js?v=2609271226";
+} from "../../../controls/date-time-runtime.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609271226";
+} from "../registry-visuals.js?v=2609271411";
 
 // 日期控件：主行日期 + 可选星期 / 农历，同样由运行时定时刷新。
 registerComponent("date", {

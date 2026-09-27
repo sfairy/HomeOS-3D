@@ -124,7 +124,7 @@ FROM base AS app
 ENV APP_DATA_DIR=/data \
     APP_PORT=18081 \
     APP_CLIENT_KEYS_DIR=/data/keys \
-    APP_LICENSE_SERVER_URL=http://homeos-3d-store:18082 \
+    APP_LICENSE_SERVER_URL= \
     APP_UPDATE_CHANNEL=docker \
     PYTHONPATH=/app
 

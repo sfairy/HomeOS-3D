@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from apps.store.commerce import coupons, referrals
 from apps.store.config import StoreSettings
+from apps.store.ops import incidents
 from apps.store.core.models import (
     Customer,
     Entitlement,
@@ -76,6 +77,30 @@ def _parse_moment(value: object) -> datetime | None:
         return None
 
 
+def has_other_live_grant(
+    session: Session, *, order: Order, license_id: str, product_id: str | None
+) -> bool:
+    """除了这张订单，还有别的**仍然有效**的订单也在给同一个商品付款吗？
+
+    权益行按 (license_id, feature_code) 唯一，所以「谁拥有它」这类归属字段天然只能存
+    一个 —— 同一主授权上重复购买同一增量包时，后一次购买会把归属改写成自己。因此
+    退款时不能只看归属或只看 (product_id, license_id)：那张行仍然在被另一笔依然有效
+    的订单付款。判据只能是「还有没有别的活着的授予订单」。
+    """
+    if not product_id:
+        return False
+    return (
+        session.scalars(
+            select(Order.id)
+            .where(Order.id != order.id)
+            .where(Order.license_id == license_id)
+            .where(Order.product_id == product_id)
+            .where(Order.status == "fulfilled")
+            .limit(1)
+        ).first()
+        is not None
+    )
+
 def revert_license_change(session: Session, *, order: Order, license: License) -> bool:
     """把升级 / 增量包改过的授权还原成快照里的样子。返回是否真的还原过。
     """
@@ -86,8 +111,16 @@ def revert_license_change(session: Session, *, order: Order, license: License) -
     for entitlement in session.scalars(
         select(Entitlement).where(Entitlement.license_id == license.id)
     ):
-        if entitlement.product_id == order.product_id:
-            entitlement.active = False
+        if entitlement.product_id != order.product_id:
+            # 这张权益不是本商品开的，退款不该碰它。
+            continue
+        if has_other_live_grant(
+            session, order=order, license_id=license.id, product_id=order.product_id
+        ):
+            # 另有一笔仍然有效的订单在给同一个商品付款（重复购买同一增量包），
+            # 关掉它等于把别人已经付过钱的东西收回。
+            continue
+        entitlement.active = False
 
     for field in (*_LICENSE_SNAPSHOT_FIELDS, "access_expires_at"):
         if field not in snapshot:
@@ -131,11 +164,25 @@ def _unique_activation_code(session: Session) -> str:
     raise RuntimeError("无法生成唯一激活码。")
 
 
-def _is_activation_code_collision(error: IntegrityError) -> bool:
-    """这个 ``IntegrityError`` 是不是「激活码撞了唯一约束」。
+def _is_activation_code_collision(
+    session: Session, *, code: str, error: IntegrityError
+) -> bool:
+    """这个 IntegrityError 是不是「激活码撞了唯一约束」。
+
+    先认驱动文案（便宜且足够准），认不出来就**回查**这个码是不是已经存在。
+    只嗅探文案是脆的：约束被改名、换了方言、或驱动换了措辞，一次本该重试的碰撞就会
+    变成一次 fulfillment_failed —— 钱收了、码没发、等人工。而 96 位随机码撞车本身
+    几乎不可能，所以这条路径平时根本不跑，坏了也没人会立刻发现。
     """
     text = str(getattr(error, "orig", error)).upper()
-    return "UNIQUE" in text and "ACTIVATION_CODE" in text
+    if "ACTIVATION_CODE" in text:
+        return True
+    return (
+        session.scalars(
+            select(License.id).where(License.activation_code == code)
+        ).first()
+        is not None
+    )
 
 
 def insert_license_with_unique_code(
@@ -152,7 +199,7 @@ def insert_license_with_unique_code(
             session.flush()
         except IntegrityError as error:
             savepoint.rollback()
-            if not _is_activation_code_collision(error):
+            if not _is_activation_code_collision(session, code=code, error=error):
                 raise
             # 96 位随机码撞车几乎不可能，真撞上了就重试，而不是变成一次人工工单。
             logger.warning(
@@ -183,6 +230,17 @@ def bundled_feature_codes(session: Session, product: Product) -> list[str]:
     return codes
 
 
+def _product_grants_features(session: Session, product: Product) -> bool:
+    """这个商品签出来的授权，激活时能不能拿到至少一个能力码。
+
+    判据必须与 licensing/service.py 的 features_for 一致：能力来自**商品自己的**
+    feature_codes，加上「套餐包含商品」展开出的功能码（bundled_feature_codes 只算后者，
+    这正是不能直接拿它当判据的原因）。
+    """
+    if json_list(product.feature_codes_json):
+        return True
+    return bool(bundled_feature_codes(session, product))
+
 def _entitlement_for(
     session: Session, license_id: str, feature_code: str
 ) -> Entitlement | None:
@@ -200,6 +258,7 @@ def _apply_grant(
     product: Product,
     starts_at: datetime,
     expires_at: datetime | None,
+    source_order_id: str | None = None,
 ) -> None:
     """刷新一条既有权益：重新点亮并指向本次发放的商品与有效期。"""
     entry.active = True
@@ -208,6 +267,9 @@ def _apply_grant(
     entry.product_type = product.product_type
     entry.starts_at = starts_at
     entry.expires_at = expires_at
+    if source_order_id is not None:
+        # 记下「是谁把这条权益点亮的」：退款要按它精确撤销。
+        entry.source_order_id = source_order_id
 
 
 def _upsert_entitlement(
@@ -219,12 +281,19 @@ def _upsert_entitlement(
     feature_code: str,
     starts_at: datetime,
     expires_at: datetime | None,
+    source_order_id: str | None = None,
 ) -> bool:
     """确保该授权上存在 ``feature_code`` 的权益并刷新有效期；返回是否**新建**。
     """
     existing = _entitlement_for(session, license.id, feature_code)
     if existing is not None:
-        _apply_grant(existing, product=product, starts_at=starts_at, expires_at=expires_at)
+        _apply_grant(
+            existing,
+            product=product,
+            starts_at=starts_at,
+            expires_at=expires_at,
+            source_order_id=source_order_id,
+        )
         return False
 
     entry = Entitlement(
@@ -234,6 +303,7 @@ def _upsert_entitlement(
         product_name=product.name,
         product_type=product.product_type,
         feature_code=feature_code,
+        source_order_id=source_order_id,
         active=True,
         starts_at=starts_at,
         expires_at=expires_at,
@@ -304,7 +374,14 @@ def upgrade_license_in_place(
     license.access_expires_at = (
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
-    if license.issuance_source == "payment_manual":
+    # 这张授权原本可能是后台手动发的（issuance_source="manual"）：用户这次**付费**升级
+    # 之后，它的来源就该变成「支付自动」—— 否则前台继续显示「该授权由后台手动发放，
+    # 因此没有支付订单」，而订单就摆在那里。
+    #
+    # 判据必须用库里真实存在的取值：只有 "manual" 与 "payment_automatic" 两种
+    # （见 api/admin_licenses.py 的手动签发与 api/store_orders.py 的下单路径）。
+    # 这里曾经写的是 "payment_manual" —— 一个没有任何写入方会产生的值，整段是空转。
+    if (license.issuance_source or "") == "manual":
         license.issuance_source = "payment_automatic"
     order.license_id = license.id
     grant_bundled_entitlements(
@@ -383,9 +460,15 @@ def apply_addon_to_license(
             feature_code=feature_code,
             starts_at=moment,
             expires_at=expires_at,
+            source_order_id=order.id,
         )
         created += 1
-    # 追加购买视为续期：若授权本身有时限，一并延后
+    # 追加购买视为续期：若授权本身有时限，一并延后。
+    #
+    # 注意：**当前从商店下单走不到这里** —— 下单时会拒绝「把增量包加到有时限的授权上」
+    # （api/store_orders.py：「增量包只能添加到永不过期的主授权上」），所以
+    # access_expires_at 必然是 None。保留它是因为这条限制一旦放宽，续期就是唯一
+    # 说得通的语义；把它删掉会让那次放宽变成「买了增量包，主授权却不顺延」。
     if validity_days and license.access_expires_at is not None:
         license.access_expires_at = license.access_expires_at + timedelta(
             days=int(validity_days)
@@ -572,7 +655,6 @@ def fulfill_order(
     setting: StoreSetting,
     settings: StoreSettings | None = None,
     now: datetime | None = None,
-    release_stock: bool | None = None,
 ) -> dict:
     """履约。幂等：已履约的订单直接返回。
     """
@@ -607,6 +689,18 @@ def fulfill_order(
     if customer is None:
         raise RuntimeError(f"订单 {order.order_no} 对应的客户不存在。")
 
+    # 新增授权的商品必须真的能开出功能码。licensing/service.py 的 features_for 是
+    # fail-closed 的（没有功能码就 422），但那是**激活**时才发生的检查：一个漏配的
+    # 商品会先卖出去、先签出授权，买家在最后一步才发现自己拿到的是一张激活不了的码。
+    # 拦住发码换成「发货失败 + 待人工复核」是可运营的状态：修好商品再点履约即可。
+    #    能开出的能力 = 商品自己的 feature_codes ∪ 它包含商品的功能码。
+    #    两者都空才叫「签出去也激活不了」。
+    if order.license_action == "issue" and not _product_grants_features(session, product):
+        raise RuntimeError(
+            f"商品「{product.name}」没有配置任何功能码，签发出去也无法激活。"
+            "请先在后台给商品勾选功能码（或把它下架）后再履约。"
+        )
+
     if order.license_action == "patch":
         license = session.get(License, order.target_license_id) if order.target_license_id else None
         if license is None:
@@ -628,23 +722,30 @@ def fulfill_order(
 
     order.status = "fulfilled"
     order.fulfilled_at = moment
-    #: 默认按「这一单还占不占预留」的真实来源推导，而不是让调用方按状态猜。
-    should_release = (
-        release_stock
-        if release_stock is not None
-        else order.stock_reservation_released_at is None
-    )
-    if should_release:
+    #: 「这一单还占不占预留」的真实来源就是订单行本身（CAS 标记），不靠调用方按状态猜。
+    #: 这里曾经有一个 release_stock 参数供调用方覆盖，但没有任何调用方传过它 ——
+    #: 一个永远为 None 的旁路比没有更糟：读代码的人会以为存在第二种语义。
+    if order.stock_reservation_released_at is None:
         release_order_reservation(session, order=order, product=product, quantity=1)
     # 发码即售出：哪条路径（正常支付 / 关单后复活补发）都要把这一件从
     consume_stock(session, product, 1)
 
-    reward = referrals.grant_order_reward(
-        session,
-        order=order,
-        rate_percent=float(setting.referral_rate_percent or 0.0),
-        enabled=bool(setting.referral_enabled),
-    )
+    # 邀请奖励是**可选的营销副作用**，绝不能让它的失败回滚刚签发的授权。
+    # 以前它直接跑在调用方（入账）的 SAVEPOINT 里：钱包取用-创建连续失败 8 次、
+    # 或一次数据库锁冲突，就会把订单打成 fulfillment_failed —— 钱收了、码没了，
+    # 而原因只是「积分没记上」。这里用内层 SAVEPOINT 把它隔离成独立事务段。
+    try:
+        with session.begin_nested():
+            reward = referrals.grant_order_reward(
+                session,
+                order=order,
+                rate_percent=float(setting.referral_rate_percent or 0.0),
+                enabled=bool(setting.referral_enabled),
+            )
+    except Exception as error:  # noqa: BLE001 - 奖励失败不能拖垮发码
+        incidents.note("referral.reward", order_no=order.order_no, error=error)
+        logger.exception("邀请奖励发放失败（不影响已签发的授权）order=%s", order.order_no)
+        reward = 0
     session.flush()
 
     logger.info(

@@ -2,11 +2,11 @@
  * 共享聚光灯阴影图集（Spot Shadow Atlas）：把每盏灯的单灯阴影图拼进一张大图，
  */
 
-import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=2609271226";
+import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=2609271411";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609271226";
+import { debugLog } from "../../utils/debug-log.js?v=2609271411";
 // 让出主线程（烘焙多盏灯之间必须让路）的实现只有一份：studio/studio-yield.js。
-import { yieldToScheduler } from "./studio-yield.js?v=2609271226";
+import { yieldToScheduler } from "./studio-yield.js?v=2609271411";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 

@@ -32,16 +32,16 @@ A → B：APP_LICENSE_SERVER_URL（HTTPS，走公网）
 ```
 
 - 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `apps/store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
-- 公钥会被同步到共享卷 `homeos-3d-client-keys`，等着被搬到服务器 A（下一步）。
+- 公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 用）；分拆部署时服务器 A 由 `deploy.sh` 写入 `./keys`。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
-## 2. 服务器 A 的公钥（通常不用手工搬）
+## 2. 服务器 A 的公钥
 
 主应用启动时要读两个公钥，**独立部署时由脚本自动解决**：`deploy.sh --role app` 会把
 `keys/license-public.pem` 与 `keys/license-transport-public.pem` 落到服务器 A 的 `./keys/`
 （优先用本地已有的；没有就按 `--version` 对应的 tag 从仓库取，并打印 sha256 供与商店侧核对）。
 
-只有「商店自己轮换过密钥」或「服务器 A 没有仓库检出」这类情况才需要手工搬：
+附录——仅密钥轮换或无仓库检出时才需要手工灌卷：
 
 ```bash
 # —— 服务器 B：打包
@@ -56,7 +56,7 @@ docker run --rm -v homeos-3d-client-keys:/keys alpine ls -l /keys
 ```
 
 - 两个文件缺一不可：`license-public.pem`（Ed25519，验签租约）、`license-transport-public.pem`（X25519，加密请求体）。
-- **权限是最常见的坑。** 容器里跑的是 uid 1000（`homeos`），而 `scp` / `docker cp` 常见结果是 `root:600`。旧版启动器只检查「存在且非空」，会让你等满 120 秒再报一条指错方向的超时；现在会直接退出并说明原因。
+- **权限是最常见的坑。** 容器里跑的是 uid 1000（`homeos`），而 `scp` / `docker cp` 常见结果是 `root:600`；公钥须 `chmod 644`，否则启动器会直接退出并说明原因。
 - **密钥轮换**：商店侧的 `license-*.previous.pem` 是旧客户端的宽限窗口，轮换期间要一起搬，漏搬会让旧客户端验签失败。
 
 ## 3. 服务器 A：再起主应用
@@ -77,7 +77,7 @@ docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data
 `docker network create` / `docker volume create`；只有同机部署（`--role all`）才通过
 `docker-compose.app.shared.yml` 加入商店的网络与公钥卷。
 
-- **`APP_LICENSE_SERVER_URL` 不设是静默故障。** 镜像 ENV 默认写死了 `http://homeos-3d-store:18082`，跨机器解析不了；因为离线租约默认 72h，表现是「启动只有一条 CONNECTION_WARNING，三天后才拦截」。
+- **`APP_LICENSE_SERVER_URL` 必须显式设置**（`deploy.sh --license-server` 或 `.env`）。未设置时启动器直接退出；同机 `--role all` 由 `docker-compose.app.shared.yml` 注入内网地址。
 - **宿主标识准备一次**（`docker-compose.app.yml` 里的两个 `/host/...` 挂载靠它生效）：
 
 ```bash
@@ -97,7 +97,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 - **拷贝 `data/` 没用。** `data/hardware-fallback-id` 里带宿主封印，换机器时封印比对失败会主动轮换秘密，指纹必然改变——这是刻意设计的防克隆。
 - 想平滑迁移，就在两台机器上**钉住同一组身份**：把 `.env` 的 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 填成旧机器那一组值（取值方式见 `.env.example`）。做不到就按「商店后台解绑 → 在新机器上重新激活」准备，并选在维护窗口做。
   - 解绑之后**可以立即重新激活**（同机换机都行），不需要等冷却：`STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` 约束的是**两次解绑之间**的间隔（默认 8 小时），用来给「反复换机」减速，不是激活的前置条件。所以维护窗口要留的时间是「后台解绑 + 新机激活」，不是「解绑 + 等 8 小时」。
-- 反向注意：`docker-compose.app.yml` 固定了 `hostname` 并挂了 `/host/...`，**已在运行的旧部署**升级到这份文件时指纹可能变一次，同样需要重新激活。
+- `docker-compose.app.yml` 固定了 `hostname` 并挂了 `/host/...`；改这些或换机器会改变指纹，需解绑后重新激活。
 
 ## 5. 反向代理：两台各一份
 

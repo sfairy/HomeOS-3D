@@ -6,8 +6,19 @@ from sqlalchemy.orm import Session
 
 from apps.store.config import StoreSettings
 from apps.store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
-from apps.store.payments.credentials import merge_alipay_settings
+from apps.store.payments.channels import (
+    RETIRED_DISPLAY_NAMES,
+    default_channel_name,
+    display_name_for,
+    enabled_channel_names,
+)
+from apps.store.payments.credentials import merge_alipay_settings, merge_wechat_settings
+from apps.store.payments.wechat import WeChatPayProvider
 from apps.store.security.security import iso, utcnow
+
+#: 已删除渠道留下的显示名规则住在 payments/channels.py（显示名在那儿解析）；
+#: 这里重新导出，让 api/admin_settings.py 的保存时校验继续从同一处拿。
+
 
 #: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：该字段留空时
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
@@ -87,66 +98,135 @@ def _mask_secret(configured: bool) -> bool:
     return bool(configured)
 
 
+def _display_name(setting: StoreSetting, *, fallback: str) -> str:
+    """支付显示名。已删除渠道留下的名字（「模拟支付」）不再生效，回落到渠道默认名。"""
+    name = (setting.payment_display_name or "").strip()
+    if name and name not in RETIRED_DISPLAY_NAMES:
+        return name
+    return fallback
+
+def _channel_credentials(
+    name: str, setting: StoreSetting, settings: StoreSettings
+) -> StoreSettings:
+    """某个渠道**合并站点配置后**的凭据集合（与 ``resolve_provider`` 注入的是同一份）。
+
+    只读启动时的环境变量合并进来，否则自检会报「未配置」而实际能收款。
+    """
+    if name == "wechat":
+        return merge_wechat_settings(settings, setting)
+    return merge_alipay_settings(settings, setting)
+
+
+def _channel_ready(name: str, merged: StoreSettings) -> bool:
+    """这个渠道的凭据是否齐全（齐全 = 能真的收到钱）。"""
+    if name == "wechat":
+        return not WeChatPayProvider.missing_credentials(merged)
+    return bool(merged.alipay_app_id) and bool(merged.alipay_private_key_text) and bool(
+        merged.alipay_public_key_text
+    )
+
+
+def _channel_note(name: str) -> str:
+    """付款页给顾客的一句话。措辞必须与渠道一致 —— 让用户拿微信扫支付宝的码是
+    最常见的收银台事故。"""
+    if name == "wechat":
+        return "请用微信扫一扫支付，付款后本页会自动确认。"
+    return "打开支付宝「扫一扫」完成付款，付款后本页会自动确认。"
+
+
+def payment_channels_payload(
+    setting: StoreSetting, settings: StoreSettings
+) -> list[dict]:
+    """**已启用**的渠道清单（含各自的可用性）。前台据此决定「直接出码」还是「先让顾客选」。
+
+    每个渠道各报各的 ``available``：一个渠道凭据不齐不该把另一个也藏起来。
+    """
+    enabled = enabled_channel_names(setting, settings)
+    default_name = default_channel_name(setting, settings)
+    channels: list[dict] = []
+    for name in enabled:
+        merged = _channel_credentials(name, setting, settings)
+        ready = _channel_ready(name, merged)
+        channels.append(
+            {
+                "provider": name,
+                "displayName": display_name_for(name, setting, settings),
+                "icon": name,
+                "note": _channel_note(name),
+                #: 凭据齐全 **且** 运营开了收款开关，才允许顾客选它。
+                "configured": ready,
+                "available": bool(setting.payment_enabled) and ready,
+                "isDefault": name == default_name,
+            }
+        )
+    return channels
+
+
 def payment_configuration_payload(
     setting: StoreSetting, settings: StoreSettings, *, include_credentials: bool
 ) -> dict:
     """支付配置的序列化。
-    """
-    # 空串 = 尚未配置渠道，**不是** mock：把「没配渠道」当成模拟收银台会让前台报
-    provider = (setting.payment_provider or settings.payment_provider or "").lower()
-    if provider == "alipay":
-        # 必须用**合并站点配置后**的凭据（与 ``resolve_provider`` 注入的同一份）。只读启动时
-        merged = merge_alipay_settings(settings, setting)
-        app_id = merged.alipay_app_id
-        # 密钥可能来自文件而不是内联环境变量，这里必须用解析后的值
-        private_configured = bool(merged.alipay_private_key_text)
-        public_configured = bool(merged.alipay_public_key_text)
-        gateway = merged.alipay_gateway_url
-        display_name = setting.payment_display_name or "支付宝"
-        icon = "alipay"
-        channel_ready = bool(app_id) and private_configured and public_configured
-    elif provider == "mock":
-        app_id = ""
-        private_configured = True
-        public_configured = True
-        gateway = ""
-        display_name = setting.payment_display_name or "模拟支付"
-        icon = "mock"
-        channel_ready = bool(getattr(settings, "allow_mock_payments", False))
-    else:
-        # 没配渠道：如实报「不可用」，让前台收起支付入口，而不是给一个点了会失败的按钮。
-        app_id = ""
-        private_configured = False
-        public_configured = False
-        gateway = ""
-        display_name = setting.payment_display_name or "未配置支付渠道"
-        icon = "mock"
-        channel_ready = False
 
-    configured = bool(setting.payment_enabled) and channel_ready
+    顶层字段（provider / displayName / available / configured）保持单渠道时代的语义，
+    取**默认渠道**的值 —— 老前台JS与后台都不必改就能继续工作；新增的 ``channels``
+    数组才是多渠道的信息来源。
+    """
+    channels = payment_channels_payload(setting, settings)
+    default_name = default_channel_name(setting, settings)
+    chosen = next(
+        (item for item in channels if item["provider"] == default_name),
+        channels[0] if channels else None,
+    )
+
+    # 一个可用渠道都没有：如实报「不可用」，让前台收起支付入口，而不是给一个点了会
+    # 失败的按钮。这里的 displayName 是给**后台**看的诊断文案（前台不会显示它）。
+    if chosen is None:
+        provider = ""
+        display_name = _display_name(setting, fallback="未配置支付渠道")
+        icon = "alipay"
+        available = False
+        configured = False
+    else:
+        provider = chosen["provider"]
+        display_name = chosen["displayName"]
+        icon = chosen["icon"]
+        available = chosen["available"]
+        configured = bool(setting.payment_enabled) and chosen["configured"]
+
+    transaction_description = (
+        setting.payment_transaction_description
+        or settings.alipay_transaction_description
+        or settings.wechat_transaction_description
+    )
     payload = {
         "provider": provider,
         "enabled": bool(setting.payment_enabled),
         "displayName": display_name,
         "icon": icon,
-        "transactionDescription": setting.payment_transaction_description
-        or settings.alipay_transaction_description,
+        "transactionDescription": transaction_description,
         "configured": configured,
-        "available": configured,
+        "available": available,
+        #: 多渠道清单。单个渠道时前台不显示选择器，行为与从前完全一致。
+        "channels": channels,
+        #: 这里曾经下发 sandbox 标记，供前台提示「这只是沙箱」。沙箱已整块删除，
+        #: 所以不再需要它 —— 现在**不存在**能在页面上被打开、又看不出来的测试环境。
         "updatedAt": iso(setting.updated_at),
     }
     if include_credentials:
+        alipay_merged = merge_alipay_settings(settings, setting)
         payload |= {
-            "appId": app_id,
-            "applicationPrivateKeyConfigured": _mask_secret(private_configured),
-            "alipayPublicKeyConfigured": _mask_secret(public_configured),
-            "gatewayUrl": gateway,
+            "appId": alipay_merged.alipay_app_id,
+            "applicationPrivateKeyConfigured": _mask_secret(
+                bool(alipay_merged.alipay_private_key_text)
+            ),
+            "alipayPublicKeyConfigured": _mask_secret(
+                bool(alipay_merged.alipay_public_key_text)
+            ),
+            "gatewayUrl": alipay_merged.alipay_gateway_url,
             #: 交易标题的「来源」标记：留空即跟随环境变量，前端只回填来源为后台的值
             "transactionDescriptionFromDatabase": bool(
                 (setting.payment_transaction_description or "").strip()
             ),
-            #: 模拟收银台在服务端是否被显式开启（STORE_ALLOW_MOCK_PAYMENTS）。后台要据此
-            "mockPaymentsAllowed": bool(getattr(settings, "allow_mock_payments", False)),
         }
     return payload
 

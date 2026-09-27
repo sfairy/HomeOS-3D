@@ -12,8 +12,11 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=False),
     sa.Column('base_url', sa.String(length=512), nullable=False),
+    sa.Column('external_base_url', sa.String(length=512), nullable=True),
     sa.Column('encrypted_access_token', sa.Text(), nullable=False),
     sa.Column('verify_tls', sa.Boolean(), nullable=False),
+    sa.Column('external_verify_tls', sa.Boolean(), nullable=False),
+    sa.Column('active_endpoint', sa.String(length=16), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('ha_version', sa.String(length=64), nullable=True),
     sa.Column('last_connected_at', sa.DateTime(timezone=True), nullable=True),
@@ -174,7 +177,24 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_projects_created_by'), 'projects', ['created_by'], unique=False)
+    op.create_index(op.f('ix_projects_name'), 'projects', ['name'], unique=True)
     op.create_index(op.f('ix_projects_slug'), 'projects', ['slug'], unique=True)
+    op.create_table('project_path_aliases',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('name', sa.String(length=128), nullable=False),
+    sa.Column('project_id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_project_path_aliases_name'), 'project_path_aliases', ['name'], unique=True)
+    op.create_index(op.f('ix_project_path_aliases_project_id'), 'project_path_aliases', ['project_id'], unique=False)
+    op.create_table('studio_interaction_sync',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('document_json', sa.Text(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('sessions',
     sa.Column('id_hash', sa.String(length=64), nullable=False),
     sa.Column('user_id', sa.String(length=36), nullable=False),
@@ -260,7 +280,12 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sessions_user_id'), table_name='sessions')
     op.drop_index(op.f('ix_sessions_expires_at'), table_name='sessions')
     op.drop_table('sessions')
+    op.drop_table('studio_interaction_sync')
+    op.drop_index(op.f('ix_project_path_aliases_project_id'), table_name='project_path_aliases')
+    op.drop_index(op.f('ix_project_path_aliases_name'), table_name='project_path_aliases')
+    op.drop_table('project_path_aliases')
     op.drop_index(op.f('ix_projects_slug'), table_name='projects')
+    op.drop_index(op.f('ix_projects_name'), table_name='projects')
     op.drop_index(op.f('ix_projects_created_by'), table_name='projects')
     op.drop_table('projects')
     op.drop_table('ha_sync_state')

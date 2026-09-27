@@ -3,7 +3,7 @@
  */
 
 // 文档里的数值可能以字符串形式存于 JSON，这里统一转换；非有限数或非正数一律回落，
-import { positiveNumberOr } from "../utils/numbers.js?v=2609271226";
+import { positiveNumberOr } from "../utils/numbers.js?v=2609271411";
 /**
  * 计算预览区应占据的像素尺寸与宽高比。
  */

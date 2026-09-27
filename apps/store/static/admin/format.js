@@ -2,10 +2,10 @@
  * 展示格式化。
  */
 
-import { esc } from "./dom.js?v=2609271226";
+import { esc } from "./dom.js?v=2609271411";
 
 // 金额格式化的唯一实现在 apps/store/static/money.js（前台同源）：千分位 + 两位小数。
-import { formatCents } from "../money.js?v=2609271226";
+import { formatCents } from "../money.js?v=2609271411";
 
 export const money = formatCents;
 

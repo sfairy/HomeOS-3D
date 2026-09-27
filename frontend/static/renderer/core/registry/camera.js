@@ -1,16 +1,16 @@
 /**
  * 摄像头控件的取流与挂载：快照静态图、HLS 视频、预热门禁。
  */
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271411";
 // hls.js 按需加载：它只在真正要播 HLS 时才被拉进来（见 hls-loader.js 的说明）。
-import { loadHls } from "./hls-loader.js?v=2609271226";
+import { loadHls } from "./hls-loader.js?v=2609271411";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../../utils/debug-log.js?v=2609271226";
+import { debugLog } from "../../../utils/debug-log.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   resolveColor
-} from "./registry-visuals.js?v=2609271226";
+} from "./registry-visuals.js?v=2609271411";
 
 /**
  * 取摄像头圆形裁剪的半径比例。

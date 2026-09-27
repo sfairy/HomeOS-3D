@@ -3358,8 +3358,8 @@ function checkCurtainKindContract() {
           "草稿归一白名单缺 roller（存过的卷帘会被折算成普通窗帘）"
         ],
         [
-          /floorCurtainModel\?\.curtainForm \?\? floorCurtainModel\?\.curtainStyle/,
-          "编辑器未按 curtainForm 读模型帘型（历史 curtainStyle 也要能读出来）"
+          /floorCurtainModel\?\.curtainForm === "roller"/,
+          "编辑器未按 curtainForm 读模型帘型"
         ]
       ]
     },
@@ -3367,7 +3367,7 @@ function checkCurtainKindContract() {
       file: "frontend/modules/runtime/core/stage/config-metadata.js",
       tests: [
         [
-          /curtainForm: curtainItem\.curtainForm \?\? curtainItem\.curtainStyle/,
+          /curtainForm: curtainItem\.curtainForm,/,
           "舞台元数据未透传 curtainForm（编辑器看不到模型帘型，卷帘恒显示普通窗帘）"
         ]
       ]
@@ -3380,8 +3380,8 @@ function checkCurtainKindContract() {
           "resolveCurtainGeometry 未按 coverKindOverride 解析帘型（覆写选了卷帘仍按垂帘渲染）"
         ],
         [
-          /\(sceneItemSource\?\.curtainForm \?\? sceneItemSource\?\.curtainStyle\) === "roller"/,
-          "resolveCurtainGeometry 未按 curtainForm 读模型帘型（兼容读的 curtainStyle 也丢了）"
+          /sceneItemSource\?\.curtainForm === "roller"/,
+          "resolveCurtainGeometry 未按 curtainForm 读模型帘型"
         ]
       ]
     },
@@ -3408,8 +3408,8 @@ function checkCurtainKindContract() {
       file: "frontend/static/3d-studio/loaders/studio-curtain-track.js",
       tests: [
         [
-          /inputOptions\.curtainForm \?\? inputOptions\.curtainStyle/,
-          "工作室归一化未读上游字段 curtainForm（也没有兼容历史 curtainStyle）"
+          /inputOptions\.curtainForm/,
+          "工作室归一化未读上游字段 curtainForm"
         ],
         [
           /curtainForm: curtainIsRoller \? CURTAIN_FORM_ROLLER : CURTAIN_FORM_STANDARD/,
@@ -3423,10 +3423,6 @@ function checkCurtainKindContract() {
         [
           /selectElement\("#curtain-form"\)\.value/,
           "工作室保存窗帘时未从 #curtain-form 取形态（改了名字却没接上）"
-        ],
-        [
-          /delete editingEntity\.curtainStyle/,
-          "工作室保存窗帘时未清掉历史 curtainStyle 键（一副帘会同时带两个形态键）"
         ]
       ]
     }
@@ -5023,18 +5019,17 @@ const checks = [
       {
         title: "卷帘契约出口不一致（漏一处就静默失效：选不出 / 存不上 / 显示成垂帘）",
         hint:
-          "帘型默认取户型模型的形态（模型侧字段名与取值照搬上游 0.6.5：curtainForm " +
-          "standard / roller，历史草稿里的 curtainStyle / cloth 仍要读得出），编辑器显式改过时置 " +
-          "coverKindOverride 让交互配置的 coverKind 胜出（上游 0.6.5 同口径）。各出口必须同时在场：" +
+          "帘型默认取户型模型的形态（模型侧字段 curtainForm：standard / roller），编辑器显式改过时置 " +
+          "coverKindOverride 让交互配置的 coverKind 胜出。各出口必须同时在场：" +
           "后端（config.py 及其 config_domains.py 域校验段）的 coverKind 取值枚举要含 'roller'、" +
-    "字段白名单要含 'coverKindOverride' 并做" +
+          "字段白名单要含 'coverKindOverride' 并做" +
           "布尔校验；config-editor.js 的「窗帘类型」下拉要含 [\"roller\", \"卷帘\"]、选择回调要放行 " +
-          "roller 且置 coverKindOverride、归一白名单要含 roller、模型帘型要按 curtainForm 读（兼容 " +
-          "curtainStyle）；config-metadata.js 要透传 curtainForm；geometry.js 的 resolveCurtainGeometry " +
+          "roller 且置 coverKindOverride、归一白名单要含 roller、模型帘型要按 curtainForm 读；" +
+          "config-metadata.js 要透传 curtainForm；geometry.js 的 resolveCurtainGeometry " +
           "要读 itemConfig.coverKindOverride 与模型的 curtainForm；curtain-motion.js 的 " +
           "COVER_KIND_ROLLER 令牌要在且按 binding.coverKind 判分支；工作室侧 3d-studio.html 的下拉框" +
-          "要是 #curtain-form（standard / roller）、studio-curtain-track.js 要读写 curtainForm 并兼容" +
-          "curtainStyle、studio-app.js 要从 #curtain-form 取值并清掉历史 curtainStyle 键。" +
+          "要是 #curtain-form（standard / roller）、studio-curtain-track.js 要读写 curtainForm、" +
+          "studio-app.js 要从 #curtain-form 取值。" +
           "删类型或换机制时连本守卫一起改",
         run: checkCurtainKindContract
       },

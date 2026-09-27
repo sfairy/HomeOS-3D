@@ -42,8 +42,12 @@ class StoreSetting(Base):
     #: 「一键部署」指令的脚本托管地址（基础 URL，无结尾斜杠）。空串 = 未配置，
     deploy_base_url: Mapped[str] = mapped_column(String(512), default="")
 
-    #: 空字符串 = 跟随 STORE_PAYMENT_PROVIDER；非空 = 在 /admin 里显式指定，优先级更高
+    #: 空字符串 = 跟随 STORE_PAYMENT_PROVIDER；非空 = 在 /admin 里显式指定，优先级更高。
+    #: 多渠道并存后，它是**默认渠道**（顾客没选时用它），而启用集合见 payment_channels_json。
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
+    #: 已启用的支付渠道（JSON 数组，如 ["alipay","wechat"]）。
+    #: 空数组 = 跟随 payment_provider（老部署的语义，保持不变）。
+    payment_channels_json: Mapped[str] = mapped_column(Text, default="[]")
     payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     payment_transaction_description: Mapped[str] = mapped_column(String(128), default="")
@@ -55,12 +59,30 @@ class StoreSetting(Base):
     alipay_app_private_key: Mapped[str] = mapped_column(Text, default="")
     #: 支付宝公钥（验签用）。注意不是应用公钥，两者填反是最高频的配置错误。
     alipay_public_key: Mapped[str] = mapped_column(Text, default="")
-    #: 自定义网关；留空时按 alipay_sandbox 在正式/沙箱网关之间选
+    #: 自定义网关。留空即生产网关。
+    #: 这里曾经有 alipay_sandbox —— 沙箱开关连同沙箱网关一起删除：它能下单、能出码，
+    #: 只是钱进不来，而这一点在页面上看不出来。联调改用生产环境的 0.01 元小额自测。
     alipay_gateway_url: Mapped[str] = mapped_column(String(255), default="")
-    #: 沙箱开关。为真时强制使用沙箱网关，联调完把开关关掉即可回到生产
-    alipay_sandbox: Mapped[bool] = mapped_column(Boolean, default=False)
     alipay_notify_url: Mapped[str] = mapped_column(String(512), default="")
     alipay_return_url: Mapped[str] = mapped_column(String(512), default="")
+
+    # ---- 微信支付凭据（可选） ----
+    #: 商户号。微信的「商户身份」，与 appid（应用身份）不是一回事。
+    wechat_mch_id: Mapped[str] = mapped_column(String(64), default="")
+    #: 公众号/应用 appid（Native 支付要在下单时一起提交）。
+    wechat_app_id: Mapped[str] = mapped_column(String(64), default="")
+    #: APIv3 密钥（恰好 32 字符）：解密回调资源用。**明文入库**的理由与支付宝私钥相同：
+    #: 回调解密必须拿到原文；它只用于本地加解密，不外发。
+    wechat_api_v3_key: Mapped[str] = mapped_column(String(64), default="")
+    #: 商户 API 私钥（apiclient_key.pem 内容）：签名每个请求。
+    wechat_merchant_private_key: Mapped[str] = mapped_column(Text, default="")
+    #: 商户 API 证书序列号：放进 Authorization 头，可从 apiclient_cert.pem 算出。
+    wechat_merchant_serial_no: Mapped[str] = mapped_column(String(64), default="")
+    #: 微信支付公钥（或平台证书）：验回调签名。
+    wechat_platform_public_key: Mapped[str] = mapped_column(Text, default="")
+    #: 公钥 ID（用「微信支付公钥」模式时微信会在回调头里回它）。
+    wechat_platform_public_key_id: Mapped[str] = mapped_column(String(64), default="")
+    wechat_notify_url: Mapped[str] = mapped_column(String(512), default="")
 
     referral_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     referral_rate_percent: Mapped[float] = mapped_column(default=10.0)
@@ -84,8 +106,14 @@ class StoreSetting(Base):
     #: 验证码有效期 / 重发冷却（秒）。0 = 跟随环境变量。
     verification_ttl_seconds: Mapped[int] = mapped_column(Integer, default=0)
     verification_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=0)
-    #: 是否在接口响应里回显验证码（仅本地联调）。NULL = 跟随环境变量，
-    expose_verification_code: Mapped[bool | None] = mapped_column(Boolean)
+    #: 全站每小时的发信上限。0 = 跟随环境变量。触顶时所有用户都收不到验证码，
+    #: 所以它必须能在后台调 —— 不然运营只能改环境变量并重启。
+    verification_global_hourly_limit: Mapped[int] = mapped_column(Integer, default=0)
+    #: 验证码回显开关（expose_verification_code）随回显通道一并删除，见 config.py。
+    #: 发货邮件（支付成功后把激活码发到买家邮箱）总开关。默认开：
+    delivery_email_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="1"
+    )
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 class AccountSession(Base):
@@ -223,20 +251,8 @@ class RecoveryToken(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-class CashierTicket(Base):
-    """模拟收银台的短时票据。
-    """
-
-    __tablename__ = "cashier_tickets"
-
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    order_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True
-    )
-    #: 票据本身的 SHA-256（库里不留明文：日志/备份漏出也换不回票据）
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+#: 这里曾经有 CashierTicket —— 模拟收银台的短时票据。随模拟收银台一并删除；
+#: 存量库里的 cashier_tickets 表会作为孤儿留下（没有任何代码再读写它，无副作用）。
 class DeviceReleaseEvent(Base):
     __tablename__ = "device_release_events"
 

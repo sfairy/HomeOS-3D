@@ -1,17 +1,17 @@
 /**
  * 图标按钮特效的视觉知识：色温基准、亮度到透明度、特效层的绘制。
  */
-import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=2609271226";
+import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=2609271411";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271226";
-import { clampCoercedNumber, isUsableNumber } from "../../../utils/numbers.js?v=2609271226";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271411";
+import { clampCoercedNumber, isUsableNumber } from "../../../utils/numbers.js?v=2609271411";
 // 同门分片：builtin-assets
 import {
   effectVariantByAssetId,
   resolveAssetUrl
-} from "./builtin-assets.js?v=2609271226";
+} from "./builtin-assets.js?v=2609271411";
 // 同门分片：entity-state
-import { isLightVisualActive } from "./entity-state.js?v=2609271226";
+import { isLightVisualActive } from "./entity-state.js?v=2609271411";
 
 /**
  * 判断灯光特效是否在「等待实时视觉参数」：刚开灯时 brightness / color_temp 常晚一拍才上报，

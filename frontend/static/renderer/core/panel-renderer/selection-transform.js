@@ -2,23 +2,23 @@
  * 区块二：选中、多选与变换手势。
  */
 
-import { capturePointer } from "../../../utils/pointer-capture.js?v=2609271226";
+import { capturePointer } from "../../../utils/pointer-capture.js?v=2609271411";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
   renderRegisteredComponent
-} from "../registry.js?v=2609271226";
+} from "../registry.js?v=2609271411";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../../geometry/transform-geometry.js?v=2609271226";
+} from "../../geometry/transform-geometry.js?v=2609271411";
 import {
   assignComponentIds,
   componentDialogTitle,
   isModifierKeyPressed
-} from "./primitives.js?v=2609271226";
+} from "./primitives.js?v=2609271411";
 
 export const selectionTransformMethods = {
   /**

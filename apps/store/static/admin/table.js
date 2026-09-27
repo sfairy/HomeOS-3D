@@ -2,10 +2,10 @@
  * 表格与分页。
  */
 
-import { $, $$, esc } from "./dom.js?v=2609271226";
-import { api } from "./api.js?v=2609271226";
-import { num } from "./format.js?v=2609271226";
-import { host } from "./host.js?v=2609271226";
+import { $, $$, esc } from "./dom.js?v=2609271411";
+import { api } from "./api.js?v=2609271411";
+import { num } from "./format.js?v=2609271411";
+import { host } from "./host.js?v=2609271411";
 
 // 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
 export const PENDING_FILTER_VALUES = new Map();

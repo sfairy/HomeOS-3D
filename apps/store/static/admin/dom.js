@@ -15,7 +15,7 @@ export function toast(message, kind = 'success') {
 }
 
 // HTML 转义。实现在 apps/store/static/htmlsafe.js（唯一一份）：
-import { esc } from "../htmlsafe.js?v=2609271226";
+import { esc } from "../htmlsafe.js?v=2609271411";
 
 export { esc };
 

@@ -6,12 +6,15 @@ from __future__ import annotations
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from apps.store.ops import site_settings as site_config
+from sqlalchemy import select, update
+
+from apps.store.commerce import fulfill
+from apps.store.ops import incidents, site_settings as site_config
 from apps.store.config import StoreSettings
 from apps.store.core.database import Database
-from apps.store.core.models import utcnow
+from apps.store.core.models import Order, utcnow
 from apps.store.payments.reconcile import SweepResult, reconcile_due_orders
 from apps.store.security.security import iso_z
 
@@ -201,6 +204,70 @@ def sweep_status() -> dict:
     }
 
 
+#: 履约失败的单自动重试上限。用尽后停下来等人工：无限重试既刷日志，也会掩盖
+#: 「这个商品配置本身有问题」这类必须有人看的事实。
+MAX_FULFILLMENT_RETRIES = 5
+
+#: 只自动重试最近这段时间内失败的单。更老的单人工早已处理或不再处理。
+FULFILLMENT_RETRY_LOOKBACK_HOURS = 24
+
+
+def _retry_failed_fulfillments(
+    database: Database, settings: StoreSettings, *, limit: int = 10
+) -> int:
+    """自动重试「已收款但发码失败」的订单，返回本轮成功的笔数。
+
+    没有这一段时，履约失败就是一个死胡同：入账时异常被刻意吞掉（对，不然支付宝会
+    无限重推），订单被推到 fulfillment_failed，然后**没有任何东西会再碰它** ——
+    钱收了、码没发、买家只在页面上看到一句「已支付，正在人工处理」，而唯一知道
+    这件事的人只有恰好在看后台的运营。
+    """
+    recovered = 0
+    with database.session() as session:
+        setting = site_config.get_setting(session)
+        moment = utcnow()
+        order_ids = list(
+            session.scalars(
+                select(Order.id)
+                .where(Order.status == "fulfillment_failed")
+                .where(Order.fulfillment_attempts < MAX_FULFILLMENT_RETRIES)
+                .where(
+                    Order.created_at
+                    >= moment - timedelta(hours=FULFILLMENT_RETRY_LOOKBACK_HOURS)
+                )
+                .order_by(Order.paid_at.asc())
+                .limit(max(1, int(limit)))
+            )
+        )
+        for order_id in order_ids:
+            order = session.get(Order, order_id)
+            if order is None or order.fulfillment_mode == "manual":
+                # 手动发卡的商品本来就该等人来点，不是失败。
+                continue
+            # 先记一次尝试：用尽上限的单自然退出候选集，避免每轮都重试同一笔。
+            session.execute(
+                update(Order)
+                .where(Order.id == order.id)
+                .values(fulfillment_attempts=Order.fulfillment_attempts + 1)
+                .execution_options(synchronize_session=False)
+            )
+            session.flush()
+            try:
+                with session.begin_nested():
+                    fulfill.fulfill_order(session, order=order, setting=setting)
+            except Exception as error:  # noqa: BLE001 - 单笔失败不能让整轮巡检退出
+                incidents.note("fulfillment.retry", order_no=order.order_no, error=error)
+                logger.warning("履约重试仍失败 order=%s：%s", order.order_no, error)
+                session.refresh(order)
+                continue
+            session.refresh(order)
+            recovered += 1
+            logger.warning(
+                "履约失败订单已自动补发 order=%s status=%s", order.order_no, order.status
+            )
+    return recovered
+
+
 def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | None:
     with database.session() as session:
         setting = site_config.get_setting(session)
@@ -210,6 +277,21 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
             setting=setting,
             limit=max(1, int(settings.payment_sweep_batch or 25)),
         )
+    # 履约失败的单自动补发：入账事务里那次失败被刻意吞掉了（否则支付宝会无限重推），
+    # 没有这一段就再没有任何东西会碰它。放在入账之后，新失败的单当轮就能被捞到。
+    recovered = _retry_failed_fulfillments(
+        database, settings, limit=max(1, int(settings.payment_sweep_batch or 25))
+    )
+    if recovered:
+        logger.warning("支付巡检：履约失败订单已自动补发 %d 笔", recovered)
+
+    # 发码邮件的兜底补发：即时发送跑在响应之后的后台任务里，进程重启或当时 SMTP
+    # 抖动都会让它没发生。这里放在入账与补发之后 —— 本轮刚入账 / 刚补发的单也能捞到。
+    from apps.store.commerce import delivery
+
+    delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))
+    if delivered:
+        logger.info("支付巡检：补发激活码邮件 %d 封", delivered)
     if result.queried or result.expired:
         logger.info(
             "支付巡检：查单 %d 笔，入账 %d 笔，关单 %d 笔，本地过期 %d 笔，失败 %d 笔",

@@ -1,7 +1,7 @@
 /**
  * 「暖阳原木」主题的调色板与地板材质增强。
  */
-import { APPLIANCE_FINISH_BY_ITEM_TYPE } from "./studio-item-types.js?v=2609271226";
+import { APPLIANCE_FINISH_BY_ITEM_TYPE } from "./studio-item-types.js?v=2609271411";
 
 export const WARM_HOME_STYLE = Object.freeze({
   // 帘轨、灯体与五金：暖白到浅木色的一族。

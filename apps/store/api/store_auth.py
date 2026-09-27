@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from __future__ import annotations
 
+import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -56,6 +57,18 @@ from .store_catalog import (
 
 
 router = APIRouter()
+
+#: 未知账号时用来空跑一次口令校验的哈希。与真实哈希**同一套参数**（同一个 PBKDF2
+#: 迭代次数），否则「空跑」本身又是另一种耗时。惰性计算：一次 PBKDF2 是几十毫秒，
+#: 不该加在进程启动（以及每次跑测试建 app）的路径上。
+_dummy_hash: str | None = None
+
+
+def _dummy_password_hash() -> str:
+    global _dummy_hash
+    if _dummy_hash is None:
+        _dummy_hash = hash_password(secrets.token_urlsafe(32))
+    return _dummy_hash
 
 
 @router.post("/auth/register")
@@ -162,7 +175,15 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         )
 
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
-    if account is None or not account.is_active or not verify_password(payload.password, account.password_hash):
+    # 未知 / 已停用的账号也要**空跑**一次等价的口令校验。短路掉 PBKDF2 会让
+    # 「账号不存在」明显快于「密码错」，那本身就是一个可被利用的账号枚举侧信道：
+    # 攻击者不需要读响应，只要量时间就能筛出哪些邮箱注册过。
+    if account is None or not account.is_active:
+        verify_password(payload.password, _dummy_password_hash())
+        ok = False
+    else:
+        ok = verify_password(payload.password, account.password_hash)
+    if not ok:
         _note_login_failure(session, _login_scopes(request, email))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
 

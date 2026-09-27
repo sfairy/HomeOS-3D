@@ -10,4 +10,4 @@ export {
   lockEntityRole,
   lockHinge,
   lockState
-} from "../core/static-helpers.js?v=2609271226";
+} from "../core/static-helpers.js?v=2609271411";

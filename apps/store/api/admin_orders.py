@@ -5,21 +5,22 @@ from __future__ import annotations
 from __future__ import annotations
 
 import logging
-import threading
-from contextlib import contextmanager
 from datetime import datetime
-from typing import Iterator
+from typing import Callable
 
-from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import func, or_, select, update
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from apps.store.commerce import fulfill, referrals
+from apps.store.commerce import delivery, fulfill, referrals
 from apps.store.ops import site_settings as site_config
 from apps.store.core.deps import AdminAccount, DbSession, SettingsDep, order_or_404
 from apps.store.commerce.expiry import expire_stale_orders
 from apps.store.commerce.order_status import (
     order_status_label,
+)
+from apps.store.commerce.order_status import (
+    FAILURE_MARKABLE_STATUSES as ORDER_FAILURE_MARKABLE_STATUSES,
 )
 from apps.store.commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
@@ -29,9 +30,17 @@ from apps.store.commerce.order_status import (
 )
 from apps.store.commerce.order_status import refundable_cents
 from apps.store.payments import PROVIDER_NAMES, normalize_provider_name
+from apps.store.payments.channels import provider_label
 from apps.store.payments.base import PaymentError
 from apps.store.payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
-from apps.store.payments.refunds import record_refund_in_new_session
+#: 退款的三个助手（锁 / 额度 CAS / 流水留痕）住在 payments/refunds.py：它们是
+#: 「渠道侧真的动过钱」之后的记账口径，与本文件的接口层职责不同，也该能单独被
+#: 回调与巡检路径复用。
+from apps.store.payments.refunds import (
+    claim_refund_amount,
+    record_refund_audit,
+    refund_lock,
+)
 from apps.store.core.models import (
     DeviceBinding,
     Entitlement,
@@ -114,30 +123,54 @@ def admin_list_orders(
             **order_payload(row),
             "channelPayable": channel_still_payable(row),
             "paymentProvider": row.payment_provider or "",
+            #: 中文名由服务端给（口径与报错文案共用 channels.provider_label），
+            #: 前端只负责显示 —— 两个地方各写一份映射迟早会走散。
+            "paymentProviderLabel": provider_label(row.payment_provider),
         },
     )
 
 
 def _fulfill_with_failure_state(
-    session: Session, *, order: Order, setting: StoreSetting, actor: str
+    session: Session,
+    *,
+    order: Order,
+    setting: StoreSetting,
+    actor: str,
+    on_fulfilled: Callable[[str], None] | None = None,
 ) -> dict:
-    """履约并处理失败：抛异常时把订单标记为 ``fulfillment_failed`` 而不是 500。
+    """履约并处理失败：抛异常时把订单标记为 fulfillment_failed 而不是 500。
+
+    ``on_fulfilled`` 在**履约成功**时被调用，用来把发码邮件排到响应之后。
+    失败的路径不调用它：那种情况下本来就没有码可发。
     """
     try:
         with session.begin_nested():
             fulfill.fulfill_order(session, order=order, setting=setting)
     except Exception as error:  # noqa: BLE001 - 兜底转成可运营的状态
         reason = str(error).strip() or error.__class__.__name__
+        # 守卫**必须**与入账路径同一口径（payments/settlement.py 的 _mark_fulfillment_failed）：
+        # 两套判据会让「同一张单从哪个入口点进去行为不同」，而这里过去只排除 refunded。
+        previous = (
+            session.execute(
+                select(Order.review_note).where(Order.id == order.id)
+            ).scalar_one_or_none()
+            or ""
+        )
+        note = f"履约失败：{reason[:230]}"
+        if previous and note not in previous:
+            # 与结算路径同理：复活单的「可能超卖」警示不能被这一句盖掉。
+            keep = max(0, 255 - len(note) - 1)
+            note = f"{previous[:keep]}｜{note}"
         session.execute(
             update(Order)
             .where(Order.id == order.id)
-            .where(Order.status != "refunded")
+            .where(Order.status.in_(ORDER_FAILURE_MARKABLE_STATUSES))
             .values(
                 status="fulfillment_failed",
                 # 履约入口会把 fulfilled_at 抢先写上做幂等闸门，SAVEPOINT 回滚后
                 fulfilled_at=None,
                 needs_review=True,
-                review_note=f"履约失败：{reason[:230]}",
+                review_note=note[:255],
             )
             .execution_options(synchronize_session=False)
         )
@@ -148,29 +181,72 @@ def _fulfill_with_failure_state(
         return order_payload(order)
     session.refresh(order)
     _audit(session, actor, "order.fulfill", order.order_no)
+    if on_fulfilled is not None:
+        on_fulfilled(order.id)
     return order_payload(order)
+
+
+def _delivery_scheduler(request: Request, background: BackgroundTasks):
+    """把「发码邮件」排到响应之后执行。
+
+    必须等到响应之后：DbSession 的提交发生在响应发出之前，而后台任务在响应之后运行，
+    这样发信看到的一定是已经落库的授权；反过来（在请求里直接发）会让邮件与授权共用
+    同一个未提交事务，既可能发出一个「还不存在」的授权，也会把 SMTP 的秒级等待塞进
+    持锁的写事务里。
+    """
+    database = request.app.state.database
+
+    def schedule(order_id: str) -> None:
+        background.add_task(delivery.notify_license_issued, database, order_id=order_id)
+
+    return schedule
 
 
 @router.post("/orders/{order_no}/mark-paid")
 def admin_mark_paid(
-    order_no: str, session: DbSession, admin: AdminAccount
+    order_no: str,
+    request: Request,
+    session: DbSession,
+    background: BackgroundTasks,
+    admin: AdminAccount,
 ) -> dict:
     """人工补记：把订单放行（发码），但**不计入营收**。
     """
-    return _manual_payment(session, order_no, admin=admin, manual_settlement=True)
+    return _manual_payment(
+        session,
+        order_no,
+        admin=admin,
+        manual_settlement=True,
+        on_fulfilled=_delivery_scheduler(request, background),
+    )
 
 
 @router.post("/orders/{order_no}/settle-offline")
 def admin_settle_offline(
-    order_no: str, session: DbSession, admin: AdminAccount
+    order_no: str,
+    request: Request,
+    session: DbSession,
+    background: BackgroundTasks,
+    admin: AdminAccount,
 ) -> dict:
     """线下收款入账：人工确认这笔钱**已经收到**（转账/现金），计入营收。
     """
-    return _manual_payment(session, order_no, admin=admin, manual_settlement=False)
+    return _manual_payment(
+        session,
+        order_no,
+        admin=admin,
+        manual_settlement=False,
+        on_fulfilled=_delivery_scheduler(request, background),
+    )
 
 
 def _manual_payment(
-    session: Session, order_no: str, *, admin: AdminAccount, manual_settlement: bool
+    session: Session,
+    order_no: str,
+    *,
+    admin: AdminAccount,
+    manual_settlement: bool,
+    on_fulfilled: Callable[[str], None] | None = None,
 ) -> dict:
     """``mark-paid`` / ``settle-offline`` 的共用实现。
     """
@@ -215,14 +291,24 @@ def _manual_payment(
     # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）；手动发卡商品只标记已支付，
     if order.fulfillment_mode != "manual":
         return _fulfill_with_failure_state(
-            session, order=order, setting=setting, actor=_admin_actor(admin)
+            session,
+            order=order,
+            setting=setting,
+            actor=_admin_actor(admin),
+            on_fulfilled=on_fulfilled,
         )
     session.refresh(order)
     return order_payload(order)
 
 
 @router.post("/orders/{order_no}/fulfill")
-def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
+def admin_fulfill(
+    order_no: str,
+    request: Request,
+    session: DbSession,
+    background: BackgroundTasks,
+    admin: AdminAccount,
+) -> dict:
     setting = site_config.get_setting(session)
     order = order_or_404(session, order_no)
     if order.status == "fulfilled":
@@ -247,7 +333,11 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         )
         session.refresh(order)
     return _fulfill_with_failure_state(
-        session, order=order, setting=setting, actor=_admin_actor(admin)
+        session,
+        order=order,
+        setting=setting,
+        actor=_admin_actor(admin),
+        on_fulfilled=_delivery_scheduler(request, background),
     )
 
 
@@ -287,50 +377,6 @@ def admin_review_order(
 
 
 #: 同一订单的退款必须串行：渠道退款不可逆，而退款接口是「读累计值 → 调渠道 → 写累计值」的形状，
-_refund_locks: dict[str, list] = {}
-_refund_locks_guard = threading.Lock()
-
-
-@contextmanager
-def _refund_lock(order_no: str) -> Iterator[None]:
-    """按订单号取一把进程内互斥锁，保证同一订单的退款不会交叠。"""
-    with _refund_locks_guard:
-        entry = _refund_locks.get(order_no)
-        if entry is None:
-            entry = [threading.Lock(), 0]
-            _refund_locks[order_no] = entry
-        lock, holders = entry[0], entry[1]
-        entry[1] = holders + 1
-    lock.acquire()
-    try:
-        yield
-    finally:
-        lock.release()
-        with _refund_locks_guard:
-            entry = _refund_locks.get(order_no)
-            #: 只在「还是同一把锁」时才动计数：期间可能有人把表项删掉重建了。
-            if entry is not None and entry[0] is lock:
-                if entry[1] <= 1:
-                    del _refund_locks[order_no]
-                else:
-                    entry[1] -= 1
-
-
-def _claim_refund_amount(
-    session: Session, order: Order, *, seen_cents: int, add_cents: int
-) -> bool:
-    """把本次退款金额并进累计值，条件是「累计值仍是本次读到的那个」。
-    """
-    claimed = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(func.coalesce(Order.refund_amount_cents, 0) == seen_cents)
-        .values(refund_amount_cents=seen_cents + add_cents)
-        .execution_options(synchronize_session=False)
-    )
-    return claimed.rowcount == 1
-
-
 @router.post("/orders/{order_no}/refund")
 def admin_refund(
     order_no: str,
@@ -340,7 +386,7 @@ def admin_refund(
     admin: AdminAccount,
 ) -> dict:
     """后台退款。真正的逻辑在 ``_refund_order``，这里只负责把同一订单的退款串行化。"""
-    with _refund_lock(order_no):
+    with refund_lock(order_no):
         result = _refund_order(order_no, payload, request, session, admin)
         # 必须在本进程锁**之内**把抢单结果与流水落库：请求会话的 commit 发生在依赖
         session.commit()
@@ -428,12 +474,12 @@ def _refund_order(
             )
         except PaymentError as error:
             refund.detail = str(error)[:255]
-            record_refund_in_new_session(session, refund)
+            record_refund_audit(session, refund)
             logger.warning("退款被渠道拒绝 order=%s: %s", order.order_no, error)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
         if not result.ok:
             refund.detail = (result.detail or "支付渠道未确认退款成功。")[:255]
-            record_refund_in_new_session(session, refund)
+            record_refund_audit(session, refund)
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=result.detail or "支付渠道未确认退款成功。",
@@ -465,7 +511,7 @@ def _refund_order(
 
     # 走到这里渠道已经确认退款（或本来就是线下退款），可以安全地并入请求事务。
     cumulative_cents = refunded_cents + settled_cents
-    if not _claim_refund_amount(
+    if not claim_refund_amount(
         session, order, seen_cents=refunded_cents, add_cents=settled_cents
     ):
         # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值被另一笔退款改动过（进程内锁
@@ -477,18 +523,24 @@ def _refund_order(
             f"{refund_detail} 本地记账冲突：累计值已不是 ¥{refunded_cents / 100:.2f}，"
             f"本次渠道退款 ¥{settled_cents / 100:.2f} 待人工核对。"
         )[:255]
-        record_refund_in_new_session(session, refund)
+        ledger_recorded = record_refund_audit(session, refund)
         logger.error(
             "退款记账抢单失败（渠道已退款）order=%s out_request_no=%s settled=%s",
             order.order_no,
             out_request_no,
             settled_cents,
         )
+        ledger_note = (
+            ""
+            if ledger_recorded
+            else "（退款流水行也没能写入，已计入「入账异常」，请优先处理）"
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"渠道已退出 ¥{settled_cents / 100:.2f}，但本地退款累计值被并发改动，"
-                "为避免重复记账已中止。请到「退款流水」核对这笔后手工处理。"
+                "为避免重复记账已中止。"
+                f"{ledger_note}请到「退款流水」核对这笔后手工处理。"
             ),
         )
 
@@ -561,10 +613,20 @@ def _revoke_order_entitlements(session, order: Order) -> None:
             binding.active = False
             binding.released_at = utcnow()
     for entitlement in session.scalars(
-        select(Entitlement).where(Entitlement.product_id == order.product_id)
+        select(Entitlement).where(Entitlement.license_id == order.license_id)
     ):
-        if entitlement.license_id and entitlement.license_id == order.license_id:
-            entitlement.active = False
+        # 与 fulfill.revert_license_change 同一口径：只有「没有别的有效订单在给它付款」
+        # 时才收回。详见 fulfill.has_other_live_grant 的说明。
+        if entitlement.product_id != order.product_id:
+            continue
+        if fulfill.has_other_live_grant(
+            session,
+            order=order,
+            license_id=order.license_id,
+            product_id=order.product_id,
+        ):
+            continue
+        entitlement.active = False
 
 
 def _offline_refund_reason(order: Order) -> str:

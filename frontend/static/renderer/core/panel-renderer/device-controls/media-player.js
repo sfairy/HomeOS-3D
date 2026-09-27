@@ -2,10 +2,10 @@
  * 设备控件区块：媒体播放器详情与媒体库浏览。
  */
 
-import { apiErrorMessage } from "../../../../utils/api-error.js?v=2609271226";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
-import { playMediaSpeakerEntrance } from "../../runtime-dialog-motion.js?v=2609271226";
-import { componentDialogTitle } from "../primitives.js?v=2609271226";
+import { apiErrorMessage } from "../../../../utils/api-error.js?v=2609271411";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
+import { playMediaSpeakerEntrance } from "../../runtime-dialog-motion.js?v=2609271411";
+import { componentDialogTitle } from "../primitives.js?v=2609271411";
 
 export const mediaPlayerDetailsMethods = {
   /**

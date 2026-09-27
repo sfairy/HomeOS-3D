@@ -6,7 +6,7 @@
 #
 # 对应 .env：
 #   APP_BASE_URL=https://homeos.example.com
-#   APP_LICENSE_SERVER_URL=http://homeos-3d-store:18082   # 容器内网即可
+#   APP_LICENSE_SERVER_URL=https://pay.example.com       # 分拆必填；同机可用 homeos-3d-store:18082
 #   APP_TRUSTED_PROXIES=<caddy 所在网段或 docker bridge>
 #   APP_COOKIE_SECURE=true
 #   STORE_BASE_URL=https://pay.example.com

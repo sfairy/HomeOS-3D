@@ -7,8 +7,8 @@ from dataclasses import replace
 
 from apps.store.config import StoreSettings
 from apps.store.core.models import StoreSetting
+from apps.store.payments import wechat_signing as signing
 from apps.store.payments.alipay import (
-    SANDBOX_GATEWAY_URL,
     PaymentError,
     public_key_error,
     private_key_error,
@@ -16,6 +16,8 @@ from apps.store.payments.alipay import (
     validate_gateway_url,
 )
 #: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
+from apps.store.payments.wechat import WeChatPayProvider
+#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，见上面的支付宝分支。
 from apps.store.security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,
@@ -29,6 +31,8 @@ __all__ = [
     "is_masked_secret",
     "mask_secret",
     "merge_alipay_settings",
+    "merge_wechat_settings",
+    "wechat_credentials_summary",
     "resolve_secret_input",
     "validate_callback_url",
     "validate_gateway_url",
@@ -55,11 +59,8 @@ def merge_alipay_settings(
     database_notify_url = (setting.alipay_notify_url or "").strip()
     database_return_url = (setting.alipay_return_url or "").strip()
 
-    if bool(setting.alipay_sandbox):
-        # 沙箱开关是显式选择，压过手填的网关地址（联调时最怕忘了改回来）
-        gateway = SANDBOX_GATEWAY_URL
-    else:
-        gateway = database_gateway or settings.alipay_gateway_url or PRODUCTION_GATEWAY_URL
+    # 沙箱开关与沙箱网关已删除：这里只有生产网关。留空即用支付宝生产地址。
+    gateway = database_gateway or settings.alipay_gateway_url or PRODUCTION_GATEWAY_URL
 
     return replace(
         settings,
@@ -92,7 +93,6 @@ def alipay_credentials_summary(
         "appId": app_id,
         "sellerId": merged.alipay_seller_id,
         "gatewayUrl": merged.alipay_gateway_url,
-        "sandbox": bool(getattr(setting, "alipay_sandbox", False)),
         #: 当前**实际生效**的异步通知/同步跳转地址（可能来自后台、环境变量或按
         "notifyUrl": merged.alipay_notify_url,
         "returnUrl": merged.alipay_return_url,
@@ -127,6 +127,105 @@ def alipay_credentials_summary(
             (getattr(setting, "alipay_public_key", "") or "").strip()
         ),
         "configured": bool(app_id and private_key and public_key),
+    }
+
+
+#: 微信支付的字段名 → StoreSettings 字段名。合并与概览都按这张表走，
+#: 避免「加了一个字段、某一个地方忘了带上」这种最难发现的走散。
+_WECHAT_TEXT_FIELDS: tuple[tuple[str, str], ...] = (
+    ("wechat_mch_id", "wechat_mch_id"),
+    ("wechat_app_id", "wechat_app_id"),
+    ("wechat_api_v3_key", "wechat_api_v3_key"),
+    ("wechat_merchant_private_key", "wechat_merchant_private_key"),
+    ("wechat_merchant_serial_no", "wechat_merchant_serial_no"),
+    ("wechat_platform_public_key", "wechat_platform_public_key"),
+    ("wechat_platform_public_key_id", "wechat_platform_public_key_id"),
+    ("wechat_notify_url", "wechat_notify_url"),
+    ("wechat_transaction_description", "wechat_transaction_description"),
+)
+
+
+def merge_wechat_settings(
+    settings: StoreSettings, setting: StoreSetting | None
+) -> StoreSettings:
+    """把站点配置里的微信支付字段合并进 settings（站点配置优先，环境变量兜底）。
+
+    密钥有个额外规则：后台一旦填了**内联**密钥，就必须把环境变量里的**文件路径**让位，
+    否则 `_text` 属性会优先读文件、把后台刚填的值悄悄忽略掉。
+    """
+    if setting is None:
+        return settings
+
+    updates: dict[str, str] = {}
+    for column, attribute in _WECHAT_TEXT_FIELDS:
+        value = (getattr(setting, column, "") or "").strip()
+        if value:
+            updates[attribute] = value
+
+    if updates.get("wechat_merchant_private_key"):
+        updates["wechat_merchant_private_key_path"] = ""
+    if updates.get("wechat_platform_public_key"):
+        updates["wechat_platform_public_key_path"] = ""
+
+    if not updates:
+        return settings
+    return replace(settings, **updates)
+
+
+def wechat_credentials_summary(
+    settings: StoreSettings, setting: StoreSetting | None
+) -> dict:
+    """给后台用的微信支付凭据概览。**绝不包含密钥明文**，只报是否已配置。"""
+    merged = merge_wechat_settings(settings, setting)
+    private_key = merged.wechat_merchant_private_key_text
+    public_key = merged.wechat_platform_public_key_text
+    return {
+        "mchId": merged.wechat_mch_id,
+        "appId": merged.wechat_app_id,
+        "merchantSerialNo": merged.wechat_merchant_serial_no,
+        "gatewayUrl": merged.wechat_gateway_url,
+        "notifyUrl": merged.wechat_notify_url,
+        "platformPublicKeyId": merged.wechat_platform_public_key_id,
+        "transactionDescription": merged.wechat_transaction_description,
+        "apiV3KeyConfigured": not signing.api_v3_key_error(merged.wechat_api_v3_key),
+        "merchantPrivateKeyConfigured": bool(private_key),
+        "platformPublicKeyConfigured": bool(public_key),
+        #: 打码后的值，只为让运营确认「填的是哪一个」，不能反推出明文。
+        "apiV3KeyMasked": mask_secret(
+            (getattr(setting, "wechat_api_v3_key", "") or "").strip()
+        ),
+        "merchantPrivateKeyMasked": mask_secret(
+            (getattr(setting, "wechat_merchant_private_key", "") or "").strip()
+        ),
+        "platformPublicKeyMasked": mask_secret(
+            (getattr(setting, "wechat_platform_public_key", "") or "").strip()
+        ),
+        #: 各字段各报各的来源：前端只回填来源为后台的字段，否则会把环境变量的值
+        #: 当成后台值再提交回去，等于把环境变量抄进数据库。
+        "mchIdFromDatabase": bool((getattr(setting, "wechat_mch_id", "") or "").strip()),
+        "appIdFromDatabase": bool((getattr(setting, "wechat_app_id", "") or "").strip()),
+        "merchantSerialNoFromDatabase": bool(
+            (getattr(setting, "wechat_merchant_serial_no", "") or "").strip()
+        ),
+        "gatewayUrlFromDatabase": bool(
+            (getattr(setting, "wechat_gateway_url", "") or "").strip()
+        ),
+        "notifyUrlFromDatabase": bool(
+            (getattr(setting, "wechat_notify_url", "") or "").strip()
+        ),
+        "platformPublicKeyIdFromDatabase": bool(
+            (getattr(setting, "wechat_platform_public_key_id", "") or "").strip()
+        ),
+        "apiV3KeyFromDatabase": bool(
+            (getattr(setting, "wechat_api_v3_key", "") or "").strip()
+        ),
+        "merchantPrivateKeyFromDatabase": bool(
+            (getattr(setting, "wechat_merchant_private_key", "") or "").strip()
+        ),
+        "platformPublicKeyFromDatabase": bool(
+            (getattr(setting, "wechat_platform_public_key", "") or "").strip()
+        ),
+        "configured": not WeChatPayProvider.missing_credentials(merged),
     }
 
 

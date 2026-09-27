@@ -1,12 +1,12 @@
 /**
  * 展示页主脚本（/display/<项目名>）。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=2609271226";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271226";
-import { apiFetch } from "../utils/api-fetch.js?v=2609271226";
-import { createButtonSound } from "../shared/sound-effects.js?v=2609271226";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=2609271226";
-import { isAppleMobile } from "../utils/apple-device.js?v=2609271226";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=2609271411";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271411";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609271411";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=2609271411";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609271411";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");

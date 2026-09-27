@@ -1,9 +1,9 @@
 /**
  * 编辑器「组件模板」内置模板库：registerComponentTemplate 注册、按作用域列举、
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609271226";
-import { paletteColor } from "../utils/colors.js?v=2609271226";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271226";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609271411";
+import { paletteColor } from "../utils/colors.js?v=2609271411";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271411";
 
 /**
  * 模板里「主控色」的出厂默认值。
@@ -568,9 +568,7 @@ const componentDefaultsByType = {
       textGlowIdleStrength: 1.5,
       textGlowActiveStrength: 1.5,
       textGlowIdleSize: 3,
-      radius: 0.5,
-      idleOpacity: 0.3,
-      activeOpacity: 0.96
+      radius: 0.5
     },
     style: {
       scale: 0.8533204506895217,

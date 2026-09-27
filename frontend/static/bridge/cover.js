@@ -33,7 +33,7 @@ export function createInteraction3dCover({ showTitle: isTitleVisible = !0 } = {}
   const coverImageElement = document.createElement("img");
   // 缩略图 URL 上的版本戳与后端静态资源缓存戳机制一致；
   ((coverImageElement.src =
-    "/static/component-thumbnails/interaction3d.png?v=2609271226"),
+    "/static/component-thumbnails/interaction3d.png?v=2609271411"),
     (coverImageElement.alt = ""),
     (coverImageElement.decoding = "async"));
   const titleElement = document.createElement("span");

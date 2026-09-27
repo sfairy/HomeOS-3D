@@ -1,28 +1,28 @@
 /**
  * `air-conditioner` 控件：温控主体，气流层在 `airflow.js`。
  */
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
 import {
   climateDefaultIcon,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609271226";
+} from "../../../controls/climate.js?v=2609271411";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateLabel
-} from "../entity-state.js?v=2609271226";
+} from "../entity-state.js?v=2609271411";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271226";
+import { registerComponent } from "../registry-core.js?v=2609271411";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   componentContentUnitsPx,
   paletteColor,
   resolveColor
-} from "../registry-visuals.js?v=2609271226";
+} from "../registry-visuals.js?v=2609271411";
 
 // 空调 / 浴霸控件：本体内绘制出风图层，弹窗里再展开完整控制面板。
 registerComponent("air-conditioner", {

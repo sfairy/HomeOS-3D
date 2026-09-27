@@ -41,8 +41,7 @@ from apps.store.core.serializers import (
     product_payload,
 )
 from apps.store.ops import site_settings as site_config
-from apps.store.payments.base import PaymentError
-from apps.store.payments.reconcile import reconcile_alipay_order
+from apps.store.payments.reconcile import reconcile_channel_order
 
 
 HISTORY_PAGE_SIZE = 20
@@ -357,15 +356,11 @@ ACCOUNT_ORDER_PAGE_SIZE = 20
 def _reconcile_payment(session, request: Request, order: Order) -> None:
     if order.status != "pending":
         return
+    # 不在这里判渠道：``reconcile_channel_order`` 按**订单自己的** provider 决定能不能
+    # 查单（运营把默认渠道换掉之后，在途的老订单仍然必须能被对账）。
     setting = site_config.get_setting(session)
     try:
-        provider = request.app.state.resolve_payment_provider(setting)
-    except PaymentError:
-        return
-    if getattr(provider, "name", "") != "alipay":
-        return
-    try:
-        reconcile_alipay_order(
+        reconcile_channel_order(
             session,
             order=order,
             settings=request.app.state.settings,

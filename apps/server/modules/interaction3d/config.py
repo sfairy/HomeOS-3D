@@ -39,7 +39,7 @@ def validate_config(properties: dict) -> None:
         """是否为长度不超过 length 的字符串（默认上限与前端输入框一致）。"""
         return isinstance(value, str) and len(value) <= length
 
-    def validate_camera(camera, *, allow_legacy_interaction=False):
+    def validate_camera(camera):
         """校验相机参数对象；None 表示未配置，直接放行。
         """
         if camera is None:
@@ -47,8 +47,6 @@ def validate_config(properties: dict) -> None:
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
-        if allow_legacy_interaction:
-            optional.update({'panEnabled', 'zoomEnabled', 'rotationMode'})
         # 必填齐备且没有未登记的键：多余键一律拒绝，防止前端悄悄塞字段。
         if not isinstance(camera, dict) or not required.issubset(camera) or set(camera) - required - optional:
             fail()
@@ -67,11 +65,6 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        if allow_legacy_interaction:
-            if camera.get('rotationMode', 'free') not in ('free', 'horizontal', 'vertical'):
-                fail()
-            if any(not isinstance(camera.get(key, True), bool) for key in ('panEnabled', 'zoomEnabled')):
-                fail()
         return None
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
@@ -703,5 +696,5 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
-    validate_camera(properties.get('camera'), allow_legacy_interaction=True)
+    validate_camera(properties.get('camera'))
     return None

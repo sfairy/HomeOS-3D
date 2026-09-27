@@ -5,8 +5,8 @@
 import {
   readFromMapOrRecord,
   resolveStateEntryIn
-} from "../../utils/state-entry.js?v=2609271226";
-import { entityDomainFromId } from "../../utils/entities.js?v=2609271226";
+} from "../../utils/state-entry.js?v=2609271411";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609271411";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([

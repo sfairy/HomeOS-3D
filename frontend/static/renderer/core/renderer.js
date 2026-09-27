@@ -2,28 +2,28 @@
  * 控件渲染层主体：把仪表盘文档里的控件描述渲成真实 DOM，并在运行期跟随实体状态增量刷新。
  */
 
-import { setBuiltinAssetVersions } from "./registry.js?v=2609271226";
-import { randomUuid } from "../../utils/random-id.js?v=2609271226";
-import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609271226";
+import { setBuiltinAssetVersions } from "./registry.js?v=2609271411";
+import { randomUuid } from "../../utils/random-id.js?v=2609271411";
+import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609271411";
 import {
   HistoryRefreshCoordinator,
   RuntimeEffectImageLoader,
   RuntimeStaticImageCache,
   RuntimeVacuumMapImagePreloader
-} from "./runtime-caches.js?v=2609271226";
-import { syncedLineChartProperties } from "./runtime-document.js?v=2609271226";
+} from "./runtime-caches.js?v=2609271411";
+import { syncedLineChartProperties } from "./runtime-document.js?v=2609271411";
 
-import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609271226";
-import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609271226";
-import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609271226";
-import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609271226";
+import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609271411";
+import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609271411";
+import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609271411";
+import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609271411";
 import {
   attachDeviceControlPreparers,
   installDeviceControlMounter,
   runDeviceControlMethod
-} from "./panel-renderer/device-controls/lazy-modules.js?v=2609271226";
-import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609271226";
-import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609271226";
+} from "./panel-renderer/device-controls/lazy-modules.js?v=2609271411";
+import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609271411";
+import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609271411";
 
 // 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
 export {

@@ -71,13 +71,11 @@ class MailResult:
 
     #: 是否真的通过 SMTP 投递成功
     delivered: bool
-    #: 实际生效的投递方式：smtp / log / echo
+    #: 实际生效的投递方式：smtp / log
     mode: str
     #: SMTP 实际尝试次数（含首次）；未走 SMTP 时为 0
     attempts: int = 0
     error: str = ""
-    #: 仅本地联调：把验证码明文回给接口调用方
-    exposed_code: str | None = None
 
 
 def _code_fingerprint(code: str) -> str:
@@ -99,6 +97,49 @@ def _copy_for(purpose: str) -> _Copy:
             ignore_hint="如果这不是您本人的操作，请忽略本邮件。",
         ),
     )
+
+
+#: 邮件头（发件人 / 主题）里的字段上限。超过就拒收 —— 让配错的值在保存时被发现，
+#: 而不是等到用户点「获取验证码」时炸在构造阶段。
+MAX_HEADER_CHARS = 200
+
+
+def header_text_error(value: str, *, label: str, allow_empty: bool = False) -> str:
+    """校验一个会进邮件头的文本；返回错误文案，空串表示合法。
+    """
+    raw = value or ""
+    # 换行必须在 strip **之前**判："\n".strip() 是空串，会被当成「没填」放行。
+    # 这不是注入问题（email 库本身会拒绝），而是可用性问题 —— 它会让每一封验证码
+    # 邮件在构造阶段抛 ValueError，整条注册链路 500。
+    if any(char in raw for char in "\r\n"):
+        return f"{label}不能包含换行符。"
+    text = raw.strip()
+    if not text:
+        return "" if allow_empty else f"{label}不能为空。"
+    if len(text) > MAX_HEADER_CHARS:
+        return f"{label}过长（最多 {MAX_HEADER_CHARS} 个字符）。"
+    return ""
+
+
+def mail_from_error(value: str) -> str:
+    """校验发件人写法：邮箱地址，或「显示名 <邮箱地址>」。空串表示合法（回落默认值）。
+    """
+    # 走 allow_empty：空值合法（回落到 STORE_MAIL_FROM），但换行 / 超长仍要拦。
+    problem = header_text_error(value, label="发件人", allow_empty=True)
+    if problem:
+        return problem
+    text = (value or "").strip()
+    if not text:
+        return ""
+    _display, address = parseaddr(text)
+    if not is_valid_email(address):
+        return "发件人必须是 邮箱地址，或 显示名 <邮箱地址> 的形式（例如 HomeOS <no-reply@example.com>）。"
+    return ""
+
+
+def site_name_error(value: str) -> str:
+    """站点名会进邮件主题，校验口径与其它邮件头字段一致。"""
+    return header_text_error(value, label="站点名称")
 
 
 def _render_plain(code: str, copy: _Copy, site: str, ttl_minutes: int) -> str:
@@ -228,13 +269,19 @@ def _send_smtp(
 ) -> tuple[bool, int, str]:
     """带重试的投递，返回 ``(是否成功, 尝试次数, 错误文本)``。
     """
-    message = _build_message(
-        mail_from=settings.mail_from,
-        email=email,
-        subject=subject,
-        plain=plain,
-        rich=rich,
-    )
+    try:
+        message = _build_message(
+            mail_from=settings.mail_from,
+            email=email,
+            subject=subject,
+            plain=plain,
+            rich=rich,
+        )
+    except Exception as error:  # noqa: BLE001 - email 库对非法邮件头抛 ValueError
+        # 构造失败是**配置错误**（例如发件人里混进了换行）。它以前会冒到路由层变成
+        # 500，而那是最坏的形态：信没发出去，也没告诉任何人为什么。这里如实报告未投递。
+        logger.error("验证码邮件构造失败（多半是发件人配置不合法）：%s", error)
+        return False, 0, f"{error.__class__.__name__}: {error}"[:250]
     max_attempts = max(1, int(settings.smtp_max_attempts or 1))
     backoff = max(0.0, float(settings.smtp_retry_backoff_seconds or 0.0))
     last_error = ""
@@ -296,9 +343,6 @@ def send_verification_email(
     plain = _render_plain(code, copy, site, ttl_minutes)
     rich = _render_html(code, copy, site, ttl_minutes)
 
-    #: 是否允许在响应里回显验证码（本地联调）。smtp 模式下由独立开关控制，
-    expose = settings.expose_verification_code or mode == "echo"
-
     if settings.smtp_misconfigured:
         logger.error(
             "STORE_MAIL_MODE=smtp 但凭据不全（host=%r username=%r password=%s），"
@@ -313,25 +357,26 @@ def send_verification_email(
             settings, email=email, subject=subject, plain=plain, rich=rich
         )
         if ok:
-            return MailResult(
-                delivered=True,
-                mode="smtp",
-                attempts=attempts,
-                exposed_code=code if expose else None,
-            )
+            return MailResult(delivered=True, mode="smtp", attempts=attempts)
         logger.error(
-            "验证码邮件重试 %d 次后仍失败，回退为日志模式：%s", attempts, email
+            "验证码邮件重试 %d 次后仍失败（收件人=%s）：%s。"
+            "mail_mode=smtp 时不会把验证码写进日志，用户这次收不到码。",
+            attempts,
+            email,
+            error,
         )
         return MailResult(
             delivered=False,
-            mode=mode if mode in {"log", "echo"} else "log",
+            # 必须如实记成 smtp：记成 log 会让后台审计表把「尝试过 SMTP 但失败」
+            # 显示成「本来就走日志通道」，两种结论指向完全不同的处置动作。
+            mode="smtp",
             attempts=attempts,
             error=error,
-            exposed_code=code if expose else None,
         )
 
-    # 写不写明文验证码必须区分来由：**显式**选 log/echo 时日志就是投递通道，写明文是设计意图；
-    log_plaintext_code = mode in {"log", "echo"} or settings.expose_verification_code
+    # 只有**显式**选 log 时才把明文写进日志（那时日志就是投递通道）；smtp 下永远不写，
+    # 否则一次失败就把可用验证码泄进日志。回显（echo / expose）通道已删除。
+    log_plaintext_code = mode == "log"
     if log_plaintext_code:
         logger.warning(
             "[验证码] 收件人=%s 用途=%s 验证码=%s（mail_mode=%s）",
@@ -350,12 +395,152 @@ def send_verification_email(
             email,
             purpose,
         )
-    return MailResult(
-        delivered=False,
-        mode="echo" if mode == "echo" else "log",
-        exposed_code=code if expose else None,
+    #: SMTP 未就绪时用户**以为**会收到信，实际只会写日志。必须带上 error，
+    #: 否则接口与前端都会报「已发送」，用户对着收件箱干等（注册彻底走不下去）。
+    delivery_error = ""
+    if mode == "smtp":
+        delivery_error = (
+            "验证码邮件未发出：SMTP 配置不完整（缺少服务器地址，或填了用户名但没填授权码）。"
+            "请联系管理员在后台「站点配置 → 注册邮件」补全，或改用其它邮箱重试。"
+        )
+    return MailResult(delivered=False, mode="log", error=delivery_error)
+
+
+def _render_license_plain(
+    *,
+    activation_code: str,
+    product_name: str,
+    order_no: str,
+    expires_text: str,
+    site: str,
+    action: str,
+) -> str:
+    headline = "增量包已开通，您的激活码不变" if action == "patch" else (
+        "授权已升级，您的激活码不变" if action == "upgrade" else "您的激活码如下"
+    )
+    return (
+        "您好，\n\n"
+        f"感谢购买 {product_name}。{headline}：\n\n"
+        f"    激活码：{activation_code}\n"
+        f"    有效期：{expires_text}\n"
+        f"    订单号：{order_no}\n\n"
+        "激活方式：打开客户端 → 授权页 → 填入上面的激活码与购买邮箱。\n"
+        f"也可以随时登录 {site} 的个人中心查看这张授权。\n\n"
+        "本邮件由系统自动发送，请勿直接回复。\n"
     )
 
+
+def _render_license_html(
+    *,
+    activation_code: str,
+    product_name: str,
+    order_no: str,
+    expires_text: str,
+    site: str,
+    action: str,
+) -> str:
+    site_escaped = html.escape(site)
+    code_escaped = html.escape(activation_code)
+    product_escaped = html.escape(product_name)
+    order_escaped = html.escape(order_no)
+    expires_escaped = html.escape(expires_text)
+    headline = "增量包已开通，您的激活码不变" if action == "patch" else (
+        "授权已升级，您的激活码不变" if action == "upgrade" else "您的激活码如下"
+    )
+    return f"""<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:24px 12px;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1f2430;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;border-collapse:collapse;background:#ffffff;border:1px solid #e3e6ec;border-radius:12px;">
+        <tr><td style="padding:28px 32px 8px;">
+          <div style="font-size:17px;font-weight:600;letter-spacing:.02em;">{site_escaped}</div>
+        </td></tr>
+        <tr><td style="padding:8px 32px 0;">
+          <p style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#4b5361;">感谢购买 <strong style="color:#1f2430;">{product_escaped}</strong>。{headline}：</p>
+        </td></tr>
+        <tr><td style="padding:0 32px;">
+          <div style="background:#fff8ec;border:1px solid #f0d9b5;border-radius:10px;padding:16px 18px;text-align:center;word-break:break-all;">
+            <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:18px;font-weight:700;letter-spacing:.08em;color:#b46a12;">{code_escaped}</span>
+          </div>
+        </td></tr>
+        <tr><td style="padding:16px 32px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;color:#4b5361;">
+            <tr><td style="padding:3px 0;color:#6b7280;width:88px;">有效期</td><td style="padding:3px 0;">{expires_escaped}</td></tr>
+            <tr><td style="padding:3px 0;color:#6b7280;">订单号</td><td style="padding:3px 0;word-break:break-all;">{order_escaped}</td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:16px 32px 0;">
+          <p style="margin:0;font-size:13px;line-height:1.7;color:#6b7280;">
+            激活方式：打开客户端 → 授权页 → 填入上面的激活码与购买邮箱。<br>
+            也可以随时登录本站的个人中心查看这张授权。
+          </p>
+        </td></tr>
+        <tr><td style="padding:22px 32px 26px;">
+          <div style="border-top:1px solid #eef0f4;padding-top:14px;font-size:12px;color:#9aa1ad;">本邮件由系统自动发送，请勿直接回复。</div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+"""
+
+
+def send_license_email(
+    settings: StoreSettings,
+    setting: StoreSetting,
+    *,
+    email: str,
+    activation_code: str,
+    product_name: str,
+    order_no: str,
+    expires_text: str,
+    action: str = "issue",
+) -> MailResult:
+    """把**激活码**发给买家。
+
+    与验证码邮件共用同一条 SMTP 路径与站点配置；区别是它没有「回显」概念 ——
+    激活码本来就写在个人中心里，邮件只是让买家不必回站点也能拿到。
+    """
+    settings = mail_settings.merge_mail_settings(settings, setting)
+    site = setting.site_name or "HomeOS 授权中心"
+    subject = f"{site} - 您的激活码" if action == "issue" else f"{site} - 授权已更新"
+    plain = _render_license_plain(
+        activation_code=activation_code,
+        product_name=product_name,
+        order_no=order_no,
+        expires_text=expires_text,
+        site=site,
+        action=action,
+    )
+    rich = _render_license_html(
+        activation_code=activation_code,
+        product_name=product_name,
+        order_no=order_no,
+        expires_text=expires_text,
+        site=site,
+        action=action,
+    )
+    if not settings.smtp_ready:
+        logger.error(
+            "发货邮件未发出：mail_mode=%s 且 SMTP 未就绪（收件人=%s 订单=%s）",
+            settings.mail_mode,
+            email,
+            order_no,
+        )
+        return MailResult(
+            delivered=False,
+            mode="log",
+            error="发货邮件未发出：SMTP 未配置完整（缺少服务器地址，或填了用户名但没填授权码）。",
+        )
+    ok, attempts, error = _send_smtp(
+        settings, email=email, subject=subject, plain=plain, rich=rich
+    )
+    if not ok:
+        logger.error("发货邮件发送失败（收件人=%s 订单=%s）：%s", email, order_no, error)
+    return MailResult(delivered=ok, mode="smtp", attempts=attempts, error=error)
 
 def send_test_email(
     settings: StoreSettings,
@@ -422,13 +607,13 @@ def diagnose_mail(
             check_result("mode", "投递方式", net_probe.LEVEL_PASS, "smtp：验证码会真正投递到收件人邮箱。")
         )
     else:
-        hint = "（echo 会回显明文，仅供本地联调）" if mode == "echo" else ""
         checks.append(
             check_result(
                 "mode",
                 "投递方式",
                 net_probe.LEVEL_SKIP,
-                f"当前为 {mode}{hint}：验证码不会离开服务器，真实投递链路无法验证。",
+                f"当前为 {mode}：验证码不会离开服务器，真实投递链路无法验证。"
+                "生产必须是 smtp，否则用户收不到验证码、也就无法注册。",
             )
         )
 

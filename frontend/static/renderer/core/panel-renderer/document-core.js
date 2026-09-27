@@ -10,13 +10,13 @@ import {
   renderRegisteredComponent,
   setBuiltinAssetVersions,
   staticAssetImageSource
-} from "../registry.js?v=2609271226";
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271226";
+} from "../registry.js?v=2609271411";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271411";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "../device-profiles.js?v=2609271226";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271226";
+} from "../device-profiles.js?v=2609271411";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271411";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -25,9 +25,9 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../../geometry/effect-geometry.js?v=2609271226";
-import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271226";
-import { isSupportedComponentAction } from "./primitives.js?v=2609271226";
+} from "../../geometry/effect-geometry.js?v=2609271411";
+import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271411";
+import { isSupportedComponentAction } from "./primitives.js?v=2609271411";
 
 export const documentCoreMethods = {
   /**
