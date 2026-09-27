@@ -260,6 +260,40 @@ import {
   rugMaterialByColorKey,
   shareGeometryAndMaterials
 } from "./studio-mesh-geometry.js";
+import {
+  ITEM_AXES,
+  appendPillarOutlineArc,
+  applyItemOrientation,
+  applyItemPosture,
+  buildPillarOutline,
+  buildPolygonShapes,
+  buildWallFootprint,
+  createId,
+  itemAxisSet,
+  itemFromPlanFootprintResize,
+  itemPlanFootprint,
+  normalizePillarAxis,
+  normalizeStripAxis,
+  offsetPolygonOutward,
+  pillarIsLying,
+  pointInBounds,
+  polygonLoopToPath,
+  scenePointToFloorPoint,
+  segmentIntersectsBounds,
+  splitWallsWithOpenings,
+  stripIsStanding,
+  tracePillarPlanPath
+} from "./studio-plan-geometry.js";
+import {
+  LIGHT_PRECOMPILE_TIMEOUT_MS,
+  addChairModel,
+  addVehicleChargingEffect,
+  buildCurtainGeometry,
+  computeTelevisionBodyMetrics,
+  countMaterialTextures,
+  measureTelevisionBodyFrontZ,
+  waitForShaderCompilation
+} from "./studio-mesh-variants.js";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * @returns {Element|null} 未命中返回 null，调用方需自行判空。
@@ -1821,29 +1855,6 @@ function floorPointToScenePoint(sourceFloorRef: any, pointToConvert: any) {
   };
 }
 /**
- * 世界坐标（米）→ 平面像素点，是 floorPointToScenePoint 的逆运算：先减楼层偏移
- */
-function scenePointToFloorPoint(scenePointToConvert: any, scenePoint: any) {
-  const floorPixelsPerMeter = scenePointToConvert?.scene?.calibration?.pixelsPerMeter || 1;
-  const targetFloorRotationRad = -threeModuleMin.MathUtils.degToRad(
-    finite(scenePointToConvert?.rotation, 0)
-  );
-  const offsetSceneX = scenePoint.x - finite(scenePointToConvert?.offsetX, 0);
-  const offsetSceneZ = scenePoint.z - finite(scenePointToConvert?.offsetZ, 0);
-  return {
-    x:
-      finite(scenePointToConvert?.originX, 0) +
-      (Math.cos(targetFloorRotationRad) * offsetSceneX -
-        Math.sin(targetFloorRotationRad) * offsetSceneZ) *
-        floorPixelsPerMeter,
-    y:
-      finite(scenePointToConvert?.originY, 0) +
-      (Math.sin(targetFloorRotationRad) * offsetSceneX +
-        Math.cos(targetFloorRotationRad) * offsetSceneZ) *
-        floorPixelsPerMeter
-  };
-}
-/**
  * 把平面像素点从一层楼层的坐标系换算到另一层。实现是「先转到世界、再转回平面」两步
  */
 function convertBetweenFloors(planPoint: any, fromFloor: any, toFloor: any) {
@@ -2009,57 +2020,6 @@ function commitExportFloorGap() {
     exportStatusElement.textContent = "全楼层间距已设为 " + exportGap.toFixed(1) + " m";
     markDocumentDirty();
   }
-}
-/**
- * 按几何交点切分墙体，并把门窗栏杆重新挂到切分后的墙上。墙体必须在相交处断开，
- */
-function splitWallsWithOpenings(walls: any, windows: any, doors: any, planPixelsPerMeter: any, railings: any = []) {
-  const wallPieces = splitWallSegments(walls);
-  const piecesByWallId = new Map();
-  const splitWalls = [];
-  for (const piece of wallPieces) {
-    const splitWall = {
-      ...piece.sourceWall,
-      id: piece.pieceIndex === 0 ? piece.sourceWall.id : createId("wall"),
-      start: piece.start,
-      end: piece.end
-    };
-    const attachmentReference = {
-      ...piece,
-      wall: splitWall
-    };
-    if (!piecesByWallId.has(piece.sourceWall.id)) {
-      piecesByWallId.set(piece.sourceWall.id, []);
-    }
-    piecesByWallId.get(piece.sourceWall.id).push(attachmentReference);
-    splitWalls.push(splitWall);
-  }
-  const remapAttachment = (attachmentRef: any) => {
-    const pieces = piecesByWallId.get(attachmentRef.wallId);
-    if (!pieces?.length) {
-      return attachmentRef;
-    }
-    const wallT = clamp(finite(attachmentRef.t, 0.5), 0, 1);
-    const targetPiece =
-      pieces.find(
-        (candidatePiece: any) =>
-          wallT >= candidatePiece.startT - 1e-7 && wallT <= candidatePiece.endT + 1e-7
-      ) || pieces.at(-1);
-    const pieceSpan = Math.max(targetPiece.endT - targetPiece.startT, 1e-7);
-    const remapped = {
-      ...attachmentRef,
-      wallId: targetPiece.wall.id,
-      t: clamp((wallT - targetPiece.startT) / pieceSpan, 0, 1)
-    };
-    remapped.t = clampWindowT(targetPiece.wall, remapped, planPixelsPerMeter || 1);
-    return remapped;
-  };
-  return {
-    walls: splitWalls,
-    windows: windows.map(remapAttachment),
-    doors: doors.map(remapAttachment),
-    railings: railings.map(remapAttachment)
-  };
 }
 /**
  * 把任意来源的场景 JSON 归一成当前版本可用对象（读盘、导入、外层 API 都过这里）：
@@ -2543,15 +2503,6 @@ function normalizeScene(raw: any) {
     areas: normalizedAreas,
     items: rawItems
   };
-}
-/**
- * 生成带类型前缀的唯一 ID。优先 crypto.randomUUID；非安全上下文（http 局域网、老浏览器）
- */
-function createId(prefix: any) {
-  const uniquePart =
-    globalThis.crypto?.randomUUID?.() ||
-    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-  return prefix + "-" + uniquePart;
 }
 function cloneSceneForHistory(sourceScene = activeScene) {
   return structuredClone(sourceScene);
@@ -6739,59 +6690,6 @@ function boundsFromPoints(firstPoint: any, secondPoint: any) {
     maxX: Math.max(firstPoint.x, secondPoint.x),
     maxY: Math.max(firstPoint.y, secondPoint.y)
   };
-}
-/**
- * 判断点是否落在轴对齐包围盒内（含边界）。
- */
-function pointInBounds(point: any, pointBounds: any) {
-  return (
-    point.x >= pointBounds.minX &&
-    point.x <= pointBounds.maxX &&
-    point.y >= pointBounds.minY &&
-    point.y <= pointBounds.maxY
-  );
-}
-/**
- * 判断线段是否与轴对齐包围盒相交（框选墙体等线性实体用）。先做一次端点快速包含判定
- */
-function segmentIntersectsBounds(segmentStartPoint: any, segmentEndPoint: any, segmentBounds: any) {
-  if (
-    pointInBounds(segmentStartPoint, segmentBounds) ||
-    pointInBounds(segmentEndPoint, segmentBounds)
-  ) {
-    return true;
-  }
-  const boundsCorners = [
-    {
-      x: segmentBounds.minX,
-      y: segmentBounds.minY
-    },
-    {
-      x: segmentBounds.maxX,
-      y: segmentBounds.minY
-    },
-    {
-      x: segmentBounds.maxX,
-      y: segmentBounds.maxY
-    },
-    {
-      x: segmentBounds.minX,
-      y: segmentBounds.maxY
-    }
-  ];
-  for (let cornerIndex = 0; cornerIndex < boundsCorners.length; cornerIndex += 1) {
-    if (
-      segmentIntersection(
-        segmentStartPoint,
-        segmentEndPoint,
-        boundsCorners[cornerIndex],
-        boundsCorners[(cornerIndex + 1) % boundsCorners.length]
-      )
-    ) {
-      return true;
-    }
-  }
-  return false;
 }
 /**
  * 框选命中测试：列出与矩形框相交 / 落入框内的所有实体。线性实体（墙、门窗、栏杆）用
@@ -13456,174 +13354,6 @@ function addStripLightPreview(previewParent: any, stripLightItem: any) {
   previewGroup.add(yawGroup);
   previewParent.add(previewGroup);
 }
-/**
- * 构建窗帘曲面几何：三条宽度不同的水平圈（导轨）沿高度张开成裙摆状。每条圈自后向前分三段：背面直线 → 侧面 →
- */
-function buildCurtainGeometry(curtainWidth: any, curtainDepth: any, curtainHeight: any) {
-  const curtainRails = [
-    {
-      y: 0,
-      halfWidth: curtainWidth * 0.31,
-      backZ: -curtainDepth * 0.16,
-      sideZ: curtainDepth * 0.08,
-      frontZ: curtainDepth * 0.46
-    },
-    {
-      y: curtainHeight * 0.42,
-      halfWidth: curtainWidth * 0.43,
-      backZ: -curtainDepth * 0.34,
-      sideZ: curtainDepth * 0.08,
-      frontZ: curtainDepth * 0.47
-    },
-    {
-      y: curtainHeight * 0.72,
-      halfWidth: curtainWidth * 0.49,
-      backZ: -curtainDepth * 0.47,
-      sideZ: curtainDepth * 0.08,
-      frontZ: curtainDepth * 0.47
-    }
-  ];
-  /**
-   * @returns {Array<THREE.Vector3>} 该圈的顶点列表。
-   */
-  const buildRailPoints = (railSpec: any) => {
-    const railPoints = [
-      new threeModuleMin.Vector3(-railSpec.halfWidth, railSpec.y, railSpec.backZ),
-      new threeModuleMin.Vector3(railSpec.halfWidth, railSpec.y, railSpec.backZ),
-      new threeModuleMin.Vector3(railSpec.halfWidth, railSpec.y, railSpec.sideZ)
-    ];
-    for (let arcStep = 1; arcStep <= 18; arcStep += 1) {
-      const arcAngleRad = (arcStep / 18) * Math.PI;
-      railPoints.push(
-        new threeModuleMin.Vector3(
-          Math.cos(arcAngleRad) * railSpec.halfWidth,
-          railSpec.y,
-          railSpec.sideZ + Math.sin(arcAngleRad) * (railSpec.frontZ - railSpec.sideZ)
-        )
-      );
-    }
-    return railPoints;
-  };
-  const railPointLists = curtainRails.map(buildRailPoints);
-  const railPointCount = railPointLists[0].length;
-  const curtainPositions = railPointLists.flatMap(railPointsList =>
-    railPointsList.flatMap(railPoint => [railPoint.x, railPoint.y, railPoint.z])
-  );
-  const curtainIndices = [];
-  for (let railIndex = 0; railIndex < railPointLists.length - 1; railIndex += 1) {
-    const lowerRingStart = railIndex * railPointCount;
-    const upperRingStart = (railIndex + 1) * railPointCount;
-    for (let pointIndex = 0; pointIndex < railPointCount; pointIndex += 1) {
-      const nextPointIndex = (pointIndex + 1) % railPointCount;
-      const lowerCurrentIndex = lowerRingStart + pointIndex;
-      const lowerNextIndex = lowerRingStart + nextPointIndex;
-      const upperCurrentIndex = upperRingStart + pointIndex;
-      const upperNextIndex = upperRingStart + nextPointIndex;
-      curtainIndices.push(
-        lowerCurrentIndex,
-        upperNextIndex,
-        lowerNextIndex,
-        lowerCurrentIndex,
-        upperCurrentIndex,
-        upperNextIndex
-      );
-    }
-  }
-  const centerBottomIndex = curtainPositions.length / 3;
-  curtainPositions.push(0, curtainRails[0].y, curtainDepth * 0.08);
-  const centerTopIndex = curtainPositions.length / 3;
-  curtainPositions.push(0, curtainRails.at(-1)!.y, curtainDepth * 0.08);
-  const topRingStart = (railPointLists.length - 1) * railPointCount;
-  for (let capPointIndex = 0; capPointIndex < railPointCount; capPointIndex += 1) {
-    const capNextIndex = (capPointIndex + 1) % railPointCount;
-    curtainIndices.push(centerBottomIndex, capPointIndex, capNextIndex);
-    curtainIndices.push(centerTopIndex, topRingStart + capNextIndex, topRingStart + capPointIndex);
-  }
-  const curtainGeometry = new threeModuleMin.BufferGeometry();
-  curtainGeometry.setAttribute(
-    "position",
-    new threeModuleMin.Float32BufferAttribute(curtainPositions, 3)
-  );
-  curtainGeometry.setIndex(curtainIndices);
-  curtainGeometry.computeVertexNormals();
-  curtainGeometry.computeBoundingSphere();
-  return curtainGeometry;
-}
-function addChairModel(
-  chairParent: any,
-  chairWidth: any,
-  chairDepth: any,
-  chairHeight: any,
-  chairX: any,
-  chairZ: any,
-  chairRotation: any,
-  chairSeatColor: any,
-  chairLegColor: any
-) {
-  const chairGroup = new threeModuleMin.Group();
-  const seatCenterY = chairHeight * 0.49;
-  const seatThickness = chairHeight * 0.12;
-  const backOffsetZ = -chairDepth * 0.39;
-  addBoxMesh(
-    chairGroup,
-    chairWidth * 0.9,
-    seatThickness,
-    chairDepth * 0.82,
-    0,
-    seatCenterY,
-    chairDepth * 0.02,
-    chairSeatColor,
-    {
-      radius: Math.min(chairWidth, chairDepth) * 0.06,
-      roughness: 0.72
-    }
-  );
-  addBoxMesh(
-    chairGroup,
-    chairWidth * 0.78,
-    chairHeight * 0.34,
-    chairDepth * 0.09,
-    0,
-    chairHeight * 0.78,
-    backOffsetZ,
-    chairSeatColor,
-    {
-      radius: Math.min(chairWidth, chairDepth) * 0.045,
-      roughness: 0.72
-    }
-  );
-  for (const legOffsetRatio of [-0.38, 0.38]) {
-    addBoxMesh(
-      chairGroup,
-      0.05,
-      chairHeight * 0.47,
-      0.05,
-      chairWidth * legOffsetRatio,
-      chairHeight * 0.235,
-      chairDepth * 0.34,
-      chairLegColor,
-      {
-        rounded: false
-      }
-    );
-    addBoxMesh(
-      chairGroup,
-      0.05,
-      chairHeight * 0.94,
-      0.05,
-      chairWidth * legOffsetRatio,
-      chairHeight * 0.47,
-      backOffsetZ,
-      chairLegColor,
-      {
-        rounded: false
-      }
-    );
-  }
-  chairGroup.position.set(chairX, 0, chairZ);
-  chairGroup.rotation.y = chairRotation;
-  chairParent.add(chairGroup);
-}
 function addWindowFrameMeshes(
   frameParent: any,
   windowPanes: any,
@@ -13838,21 +13568,6 @@ function collectShadowCastingLightIds() {
       MAX_SPOT_SHADOW_TEXTURE_UNITS
     )
   );
-}
-/**
- * @returns {number} 纹理单元数量。
- */
-function countMaterialTextures(countedMaterial: any) {
-  if (!countedMaterial || countedMaterial.isMeshBasicMaterial || countedMaterial.isShadowMaterial) {
-    return 0;
-  }
-  let textureCount = Object.values(countedMaterial).filter(
-    (materialTexture: any) => materialTexture?.isTexture === true
-  ).length;
-  if (countedMaterial.isMeshPhysicalMaterial && finite(countedMaterial.transmission, 0) > 0) {
-    textureCount += 1;
-  }
-  return textureCount;
 }
 /**
  * @returns {number} 单 mesh 最大纹理单元数。
@@ -14205,65 +13920,6 @@ function createTelevisionPosterTexture() {
   posterTexture.needsUpdate = true;
   return posterTexture;
 }
-/**
- * 按安装方式算出电视机身高度与垂直中心相对总高的比例。
- * @returns {{bodyHeight: number, centerY: number}} 机身高度与中心高度（米）。
- */
-function computeTelevisionBodyMetrics(televisionMetricsItem: any, televisionBodyHeight: any) {
-  const isMobileMount = televisionMetricsItem.tvMountStyle === "mobile";
-  const isTabletopMount = televisionMetricsItem.tvMountStyle === "tabletop";
-  return {
-    bodyHeight: televisionBodyHeight * (isMobileMount ? 0.43 : isTabletopMount ? 0.56 : 1),
-    centerY: televisionBodyHeight * (isMobileMount ? 0.76 : isTabletopMount ? 0.72 : 0.5)
-  };
-}
-/**
- * 量出「机身高度带」里最靠前的那个面，屏幕贴它往前 3mm。
- */
-function measureTelevisionBodyFrontZ(parentObject: any, bodyMinY: any, bodyMaxY: any) {
-  const externalModelRoot = parentObject.children.find(
-    (modelChild: any) => modelChild.userData.externalModelRoot === true
-  );
-  if (!externalModelRoot) {
-    // 顶上还是占位几何：它的机身厚度与偏移是照经验公式画的，交给调用方走同一条公式。
-    return null;
-  }
-  parentObject.updateMatrixWorld(true);
-  const parentInverse = new threeModuleMin.Matrix4().copy(parentObject.matrixWorld).invert();
-  const meshMatrix = new threeModuleMin.Matrix4();
-  const corner = new threeModuleMin.Vector3();
-  const meshBounds = new threeModuleMin.Box3();
-  let frontZ = -Infinity;
-  externalModelRoot.traverse((televisionChild: any) => {
-    if (!televisionChild.isMesh || !televisionChild.geometry) {
-      return;
-    }
-    if (televisionChild.userData.televisionScreen || televisionChild.userData.televisionGlow) {
-      return;
-    }
-    if (!televisionChild.geometry.boundingBox) {
-      televisionChild.geometry.computeBoundingBox();
-    }
-    const geometryBounds = televisionChild.geometry.boundingBox;
-    meshMatrix.multiplyMatrices(parentInverse, televisionChild.matrixWorld);
-    meshBounds.makeEmpty();
-    for (let cornerIndex = 0; cornerIndex < 8; cornerIndex += 1) {
-      corner
-        .set(
-          cornerIndex & 1 ? geometryBounds.max.x : geometryBounds.min.x,
-          cornerIndex & 2 ? geometryBounds.max.y : geometryBounds.min.y,
-          cornerIndex & 4 ? geometryBounds.max.z : geometryBounds.min.z
-        )
-        .applyMatrix4(meshMatrix);
-      meshBounds.expandByPoint(corner);
-    }
-    if (meshBounds.max.y < bodyMinY || meshBounds.min.y > bodyMaxY) {
-      return;
-    }
-    frontZ = Math.max(frontZ, meshBounds.max.z);
-  });
-  return Number.isFinite(frontZ) ? frontZ : null;
-}
 function addTelevisionScreenMeshes(
   televisionParent: any,
   televisionScreenItem: any,
@@ -14381,103 +14037,6 @@ function addTelevisionScreenMeshes(
   tvScreenMesh.castShadow = false;
   tvScreenMesh.receiveShadow = false;
   televisionParent.add(tvScreenMesh);
-}
-function addVehicleChargingEffect(
-  chargingParent: any,
-  chargingItem: any,
-  chargingWidth: any,
-  chargingDepth: any,
-  chargingY: any
-) {
-  if (chargingItem.chargingEnabled !== true) {
-    return;
-  }
-  const chargingCanvasElement = document.createElement("canvas");
-  chargingCanvasElement.width = 256;
-  chargingCanvasElement.height = 256;
-  const chargingContext: any = chargingCanvasElement.getContext("2d");
-  const glowCenter = chargingCanvasElement.width / 2;
-  const glowGradient = chargingContext.createRadialGradient(
-    glowCenter,
-    glowCenter,
-    0,
-    glowCenter,
-    glowCenter,
-    glowCenter
-  );
-  glowGradient.addColorStop(0, "rgba(79, 239, 183, .48)");
-  glowGradient.addColorStop(0.46, "rgba(79, 239, 183, .23)");
-  glowGradient.addColorStop(1, "rgba(79, 239, 183, 0)");
-  chargingContext.fillStyle = glowGradient;
-  chargingContext.fillRect(0, 0, chargingCanvasElement.width, chargingCanvasElement.height);
-  for (let glowPixelY = 18; glowPixelY < chargingCanvasElement.height - 18; glowPixelY += 10) {
-    for (let glowPixelX = 18; glowPixelX < chargingCanvasElement.width - 18; glowPixelX += 10) {
-      const glowDistanceRatio =
-        Math.hypot(glowPixelX - glowCenter, glowPixelY - glowCenter) / glowCenter;
-      const glowAlpha = Math.max(0, 1 - glowDistanceRatio) * 0.32;
-      if (!(glowAlpha <= 0.01)) {
-        chargingContext.fillStyle = "rgba(116, 255, 202, " + glowAlpha + ")";
-        chargingContext.beginPath();
-        chargingContext.arc(glowPixelX, glowPixelY, 1.45, 0, Math.PI * 2);
-        chargingContext.fill();
-      }
-    }
-  }
-  const glowTexture = new threeModuleMin.CanvasTexture(chargingCanvasElement);
-  glowTexture.colorSpace = threeModuleMin.SRGBColorSpace;
-  glowTexture.needsUpdate = true;
-  const chargingGlowMesh = new threeModuleMin.Mesh(
-    new threeModuleMin.PlaneGeometry(chargingWidth * 1.72, chargingDepth * 1.42),
-    new threeModuleMin.MeshBasicMaterial({
-      map: glowTexture,
-      transparent: true,
-      opacity: 0.82,
-      depthWrite: false,
-      toneMapped: false,
-      side: threeModuleMin.DoubleSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -3
-    })
-  );
-  chargingGlowMesh.rotation.x = -Math.PI / 2;
-  chargingGlowMesh.position.y = 0.014;
-  chargingGlowMesh.renderOrder = 2;
-  chargingGlowMesh.castShadow = false;
-  chargingGlowMesh.receiveShadow = false;
-  // 特效叠层，不是占位几何：小车模型加载完成时，finishItemModel 会把「此刻挂在模型组上的
-  chargingGlowMesh.userData.homeosModelOverlay = true;
-  chargingParent.add(chargingGlowMesh);
-  const boltShape = new threeModuleMin.Shape();
-  boltShape.moveTo(0.08, 0.5);
-  boltShape.lineTo(-0.22, 0.04);
-  boltShape.lineTo(-0.03, 0.04);
-  boltShape.lineTo(-0.13, -0.5);
-  boltShape.lineTo(0.25, -0.02);
-  boltShape.lineTo(0.05, -0.02);
-  boltShape.closePath();
-  const chargingBoltMesh = new threeModuleMin.Mesh(
-    new threeModuleMin.ShapeGeometry(boltShape),
-    new threeModuleMin.MeshBasicMaterial({
-      color: 8257488,
-      transparent: true,
-      opacity: 0.88,
-      depthWrite: false,
-      blending: threeModuleMin.AdditiveBlending,
-      toneMapped: false,
-      side: threeModuleMin.DoubleSide
-    })
-  );
-  const boltScale = Math.max(Math.min(chargingWidth, chargingDepth) * 0.22, 0.18);
-  chargingBoltMesh.scale.setScalar(boltScale);
-  chargingBoltMesh.rotation.x = -Math.PI / 2;
-  chargingBoltMesh.position.set(0, chargingY + 0.04, 0);
-  chargingBoltMesh.renderOrder = 9;
-  chargingBoltMesh.castShadow = false;
-  chargingBoltMesh.receiveShadow = false;
-  // 与光晕同理：闪电也是特效叠层，换模型时要留下（见上面 chargingGlowMesh 的说明）。
-  chargingBoltMesh.userData.homeosModelOverlay = true;
-  chargingParent.add(chargingBoltMesh);
 }
 /**
  * 取渲染器支持的最大各向异性过滤倍数，取不到时按 1 处理（即不做各向异性过滤）。
@@ -14669,58 +14228,9 @@ const pillarShapeSet = new Set(PILLAR_SHAPES);
 function normalizePillarShape(value: any) {
   return pillarShapeSet.has(value) ? value : PILLAR_SHAPES[0];
 }
-/**
- * 物件的姿态是「立起来」还是「沿平面躺下」。轴线指的是物件的长度方向：
- */
-const ITEM_AXES = Object.freeze(["vertical", "horizontal"]);
-const itemAxisSet = new Set(ITEM_AXES);
-/** 立柱出厂即立姿，缺省轴线按 "vertical" 处理。 */
-function normalizePillarAxis(value: any) {
-  return itemAxisSet.has(value) ? value : "vertical";
-}
-/** 灯带出厂即平躺，缺省轴线按 "horizontal" 处理。 */
-function normalizeStripAxis(value: any) {
-  return itemAxisSet.has(value) ? value : "horizontal";
-}
-/** 立柱是否处于躺姿（而非立姿）。 */
-function pillarIsLying(item: any) {
-  return item?.type === "pillar" && normalizePillarAxis(item.pillarAxis) === "horizontal";
-}
-/** 灯带是否处于立姿（而非平躺）。 */
-function stripIsStanding(item: any) {
-  return item?.type === "striplight" && normalizeStripAxis(item.stripAxis) === "vertical";
-}
 /** 平面占位是否无法直接用「宽 x 深」表示、必须另行推导。 */
 function itemFootprintSwapped(item: any) {
   return pillarIsLying(item) || stripIsStanding(item);
-}
-/**
- * 平面占位（单位：米）。姿态会让物件的长度轴与房间换位，故平面占位不能一律直接取 width/depth：立姿立柱取横截面
- */
-function itemPlanFootprint(item: any) {
-  if (pillarIsLying(item)) {
-    return {
-      width: finite(item?.width, 0),
-      depth: finite(item?.height, 0)
-    };
-  }
-  if (stripIsStanding(item)) {
-    return {
-      width: finite(item?.height, 0),
-      depth: finite(item?.depth, 0)
-    };
-  }
-  if (item?.type === "tv") {
-    // 壁挂电视的进深是真身 60mm，直接画会细成一条线；平面符号与缩放手柄都按下限兜一下，
-    return {
-      width: finite(item?.width, 0),
-      depth: Math.max(finite(item?.depth, 0), TELEVISION_PLAN_MIN_DEPTH)
-    };
-  }
-  return {
-    width: finite(item?.width, 0),
-    depth: finite(item?.depth, 0)
-  };
 }
 /** 返回同一个物件，但把平面占位写进 width/depth，供整件级别的辅助函数使用。 */
 function itemWithPlanFootprint(item: any) {
@@ -14733,117 +14243,6 @@ function itemWithPlanFootprint(item: any) {
     width: footprint.width,
     depth: footprint.depth
   };
-}
-/** 把「按平面占位缩放」的结果换算回物件在当前姿态下的标准字段。 */
-function itemFromPlanFootprintResize(item: any, resized: any) {
-  if (pillarIsLying(item)) {
-    // resized.depth 才是新的长度；resized.height 仍是拖拽前的旧长度，必须丢弃。
-    const { height: ignoredHeight, ...rest } = resized;
-    return {
-      ...rest,
-      height: finite(resized?.depth, finite(item?.height, 0)),
-      depth: finite(item?.depth, finite(resized?.depth, 0.1))
-    };
-  }
-  if (stripIsStanding(item)) {
-    return {
-      ...resized,
-      width: finite(item?.width, 0),
-      height: finite(item?.height, 0)
-    };
-  }
-  if (item?.type === "tv") {
-    // 电视进深是「挂装方式 + 真身」决定的物理量（壁挂 60mm / 座装 180mm / 移动支架 550mm），
-    return {
-      ...resized,
-      depth: finite(item?.depth, finite(resized?.depth, 0.1))
-    };
-  }
-  return resized;
-}
-function applyItemPosture(group: any, item: any) {
-  const lyingPillar = pillarIsLying(item);
-  const standingStrip = stripIsStanding(item);
-  if ((!lyingPillar && !standingStrip) || !group.children.length) {
-    return;
-  }
-  const posturePivot = new threeModuleMin.Group();
-  for (const postureChild of [...group.children]) {
-    posturePivot.add(postureChild);
-  }
-  posturePivot.rotation[lyingPillar ? "x" : "z"] = lyingPillar ? -Math.PI / 2 : Math.PI / 2;
-  posturePivot.updateMatrixWorld(true);
-  const pivotContent = new threeModuleMin.Box3().setFromObject(posturePivot);
-  /**
-   * @returns {number} 需要的位移量；包围盒无效时为 0。
-   */
-  const pivotCenterOf = (minValue: any, maxValue: any) =>
-    Number.isFinite(minValue) && Number.isFinite(maxValue) ? -(minValue + maxValue) / 2 : 0;
-  if (lyingPillar) {
-    posturePivot.position.set(
-      0,
-      Number.isFinite(pivotContent.min.y) ? -pivotContent.min.y : 0,
-      pivotCenterOf(pivotContent.min.z, pivotContent.max.z)
-    );
-  } else {
-    posturePivot.position.set(
-      pivotCenterOf(pivotContent.min.x, pivotContent.max.x),
-      Number.isFinite(pivotContent.max.y) ? -pivotContent.max.y : 0,
-      pivotCenterOf(pivotContent.min.z, pivotContent.max.z)
-    );
-  }
-  group.add(posturePivot);
-}
-/** 为立柱轮廓描一段弧。调用方需已把画笔移到弧的起点。 */
-function appendPillarOutlineArc(
-  path: any,
-  centerX: any,
-  centerY: any,
-  radiusX: any,
-  radiusY: any,
-  startAngle: any,
-  endAngle: any,
-  segments: any
-) {
-  for (let arcStep = 1; arcStep <= segments; arcStep += 1) {
-    const arcAngle = startAngle + ((endAngle - startAngle) * arcStep) / segments;
-    path.lineTo(centerX + Math.cos(arcAngle) * radiusX, centerY + Math.sin(arcAngle) * radiusY);
-  }
-}
-function buildPillarOutline(shape: any, width: any, depth: any) {
-  const path = new threeModuleMin.Shape();
-  const halfWidth = width / 2;
-  const halfDepth = depth / 2;
-  if (shape === "round") {
-    path.moveTo(halfWidth, 0);
-    appendPillarOutlineArc(path, 0, 0, halfWidth, halfDepth, 0, Math.PI * 2, 64);
-    return path;
-  }
-  if (shape === "semicircle") {
-    path.moveTo(-halfWidth, halfDepth);
-    path.lineTo(halfWidth, halfDepth);
-    appendPillarOutlineArc(path, 0, halfDepth, halfWidth, depth, 0, -Math.PI, 32);
-    return path;
-  }
-  if (shape === "quarter") {
-    path.moveTo(-halfWidth, halfDepth);
-    path.lineTo(halfWidth, halfDepth);
-    appendPillarOutlineArc(path, -halfWidth, halfDepth, width, depth, 0, -Math.PI / 2, 32);
-    return path;
-  }
-  if (shape === "quarterinner") {
-    // 在同一占位内与 "quarter" 互补：凹弧从远端角切进来，
-    path.moveTo(halfWidth, halfDepth);
-    path.lineTo(halfWidth, -halfDepth);
-    path.lineTo(-halfWidth, -halfDepth);
-    appendPillarOutlineArc(path, -halfWidth, halfDepth, width, depth, -Math.PI / 2, 0, 32);
-    return path;
-  }
-  path.moveTo(-halfWidth, -halfDepth);
-  path.lineTo(halfWidth, -halfDepth);
-  path.lineTo(halfWidth, halfDepth);
-  path.lineTo(-halfWidth, halfDepth);
-  return path;
 }
 /**
  * 为非方形造型生成封闭无缝隙的立柱实体。结果与方盒采用同一套约定：
@@ -14862,39 +14261,6 @@ function buildPillarSolidGeometry(shape: any, width: any, depth: any, height: an
   solidGeometry.translate(0, -height / 2, 0);
   solidGeometry.computeVertexNormals();
   return solidGeometry;
-}
-/** 平面画布版的 buildPillarOutline：平面 +y 对应世界 +z，因此平直面始终留在背面。 */
-function tracePillarPlanPath(plan2dContext: any, shape: any, widthPx: any, depthPx: any) {
-  const halfWidth = widthPx / 2;
-  const halfDepth = depthPx / 2;
-  plan2dContext.beginPath();
-  if (shape === "round") {
-    plan2dContext.ellipse(0, 0, halfWidth, halfDepth, 0, 0, Math.PI * 2);
-    return;
-  }
-  if (shape === "semicircle") {
-    // 平直边落在背面（-y），且弧的起点正好接在直线终点上。
-    plan2dContext.moveTo(-halfWidth, -halfDepth);
-    plan2dContext.lineTo(halfWidth, -halfDepth);
-    plan2dContext.ellipse(0, -halfDepth, halfWidth, depthPx, 0, 0, Math.PI, false);
-    return;
-  }
-  if (shape === "quarter") {
-    plan2dContext.moveTo(-halfWidth, -halfDepth);
-    plan2dContext.lineTo(halfWidth, -halfDepth);
-    plan2dContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, 0, Math.PI / 2, false);
-    plan2dContext.closePath();
-    return;
-  }
-  if (shape === "quarterinner") {
-    // quarter 的镜像：顶点相同，但弧朝回收，使符号成为其互补形。
-    plan2dContext.moveTo(halfWidth, -halfDepth);
-    plan2dContext.lineTo(halfWidth, halfDepth);
-    plan2dContext.lineTo(-halfWidth, halfDepth);
-    plan2dContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, Math.PI / 2, 0, true);
-    return;
-  }
-  plan2dContext.rect(-halfWidth, -halfDepth, widthPx, depthPx);
 }
 /**
  * 柱体占位几何的材质：选了「与柜同料」的档位时按角色配方造一份标准材质，与外部模型到位后用
@@ -15037,37 +14403,6 @@ function buildItemModel(itemSpec: any, prewarmLightIdSet: any = null) {
   }
   finishItemModel(itemBuilderContext);
   return itemGroup;
-}
-function applyItemOrientation(itemGroupObject: any, orientedItemSpec: any) {
-  itemGroupObject.rotation.y = -threeModuleMin.MathUtils.degToRad(
-    finite(orientedItemSpec.rotation, 0)
-  );
-  if (STAIR_DIRECTION_ITEM_TYPES.has(orientedItemSpec.type)) {
-    itemGroupObject.scale.x = orientedItemSpec.stairDirection === "left" ? -1 : 1;
-  }
-  if (orientedItemSpec.type === "shoecabinet" && orientedItemSpec.shoeCabinetMirrored === true) {
-    itemGroupObject.scale.x = -1;
-  }
-  if (["camera", "presence"].includes(orientedItemSpec.type)) {
-    itemGroupObject.rotation.order = "YXZ";
-    itemGroupObject.rotation.x = threeModuleMin.MathUtils.degToRad(
-      clamp(finite(orientedItemSpec.verticalRotation, 0), -180, 180)
-    );
-    return;
-  }
-  if (LIGHT_ITEM_TYPES.has(orientedItemSpec.type)) {
-    if (orientedItemSpec.type === "striplight") {
-      itemGroupObject.rotation.order = "YXZ";
-      itemGroupObject.rotation.x = 0;
-      itemGroupObject.rotation.z = 0;
-    } else {
-      const striplightTiltRad = threeModuleMin.MathUtils.degToRad(
-        clamp(finite(orientedItemSpec.verticalRotation, 0), -90, 90)
-      );
-      itemGroupObject.rotation.order = "YXZ";
-      itemGroupObject.rotation.x = striplightTiltRad;
-    }
-  }
 }
 function batchRepeatedItemMeshes(instanceRoot: any, instanceItemEntries: any) {
   const descriptorsBySignature = new Map();
@@ -15603,95 +14938,6 @@ function buildLightPrecompilePlan() {
   }
   return builtPrecompilePlan;
 }
-const LIGHT_PRECOMPILE_TIMEOUT_MS = 4500;
-function waitForShaderCompilation(targetRenderer: any, sceneToCompile: any, cameraToCompile: any, isStillCurrent: any) {
-  const rendererGlContext = targetRenderer.getContext();
-  if (
-    !isStillCurrent() ||
-    rendererGlContext.isContextLost() ||
-    targetRenderer.extensions?.has("KHR_parallel_shader_compile") === false
-  ) {
-    return Promise.resolve(false);
-  }
-  targetRenderer.compile(sceneToCompile, cameraToCompile);
-  let hasTransmission = false;
-  sceneToCompile.traverse?.((compiledNode: any) => {
-    if (
-      (Array.isArray(compiledNode.material) ? compiledNode.material : [compiledNode.material]).some(
-        (transmissiveMaterial: any) => transmissiveMaterial?.transmission > 0
-      )
-    ) {
-      hasTransmission = true;
-    }
-  });
-  if (hasTransmission) {
-    const previousRenderTarget = targetRenderer.getRenderTarget();
-    const previousActiveCubeFace = targetRenderer.getActiveCubeFace();
-    const previousActiveMipmapLevel = targetRenderer.getActiveMipmapLevel();
-    const compileRenderTarget = new threeModuleMin.WebGLRenderTarget(1, 1);
-    try {
-      targetRenderer.setRenderTarget(compileRenderTarget);
-      targetRenderer.compile(sceneToCompile, cameraToCompile);
-    } finally {
-      targetRenderer.setRenderTarget(
-        previousRenderTarget,
-        previousActiveCubeFace,
-        previousActiveMipmapLevel
-      );
-      compileRenderTarget.dispose();
-    }
-  }
-  const shaderPrograms = [...targetRenderer.info.programs];
-  const compileDeadline = performance.now() + LIGHT_PRECOMPILE_TIMEOUT_MS;
-  return new Promise((resolveCompile, rejectCompile) => {
-    const scheduleCompilePoll = () => {
-      try {
-        if (
-          !isStillCurrent() ||
-          targetRenderer.getContext() !== rendererGlContext ||
-          rendererGlContext.isContextLost()
-        ) {
-          resolveCompile(false);
-          return;
-        }
-        const compiledPrograms = new Set(targetRenderer.info.programs);
-        /**
-         * @returns {boolean} 是否有效。
-         */
-        const isProgramCompiled = (trackedProgram: any) =>
-          compiledPrograms.has(trackedProgram) &&
-          trackedProgram.program &&
-          rendererGlContext.isProgram(trackedProgram.program);
-        if (shaderPrograms.some(checkedProgram => !isProgramCompiled(checkedProgram))) {
-          resolveCompile(false);
-          return;
-        }
-        if (shaderPrograms.every(readyProgram => readyProgram.isReady())) {
-          for (const waitingProgram of shaderPrograms) {
-            if (!isProgramCompiled(waitingProgram)) {
-              resolveCompile(false);
-              return;
-            }
-            waitingProgram.getUniforms();
-            if (!isProgramCompiled(waitingProgram)) {
-              resolveCompile(false);
-              return;
-            }
-            waitingProgram.getAttributes();
-          }
-          resolveCompile(true);
-        } else if (performance.now() >= compileDeadline) {
-          resolveCompile(false);
-        } else {
-          window.setTimeout(scheduleCompilePoll, 32);
-        }
-      } catch (compileError) {
-        rejectCompile(compileError);
-      }
-    };
-    window.setTimeout(scheduleCompilePoll, 0);
-  });
-}
 /**
  * 判断此刻是否应当暂停灯光预编译。页面正在卸载或标签页不可见时暂停；舞台（viewer）模式下还要求帧循环可用且渲染缓存
  * @returns {boolean} true 表示应暂停 / 推迟预编译。
@@ -15993,128 +15239,6 @@ function computeFloorBounds() {
     return modelBounds(activeScene);
   }
 }
-/**
- * 由一段墙实体算出它在世界坐标（米）下的矩形足迹（四个角点）。墙体挤出与地面接触阴影都靠它：先求墙两端的方向向量与其法线，
- */
-function buildWallFootprint(
-  footprintWall: any,
-  wallSolidPiece: any,
-  footprintPixelsPerMeter: any,
-  footprintToWorld: any,
-  extensions: any = {}
-) {
-  const footprintStart = footprintToWorld(footprintWall.start);
-  const footprintEnd = footprintToWorld(footprintWall.end);
-  const footprintDeltaX = footprintEnd.x - footprintStart.x;
-  const footprintDeltaZ = footprintEnd.z - footprintStart.z;
-  const footprintLength = Math.hypot(footprintDeltaX, footprintDeltaZ);
-  if (footprintLength <= 1e-7) {
-    return null;
-  }
-  const footprintDirection = {
-    x: footprintDeltaX / footprintLength,
-    y: footprintDeltaZ / footprintLength
-  };
-  const wallNormal = {
-    x: -footprintDirection.y,
-    y: footprintDirection.x
-  };
-  const halfThickness = footprintWall.thickness / 2;
-  const startExtension =
-    wallSolidPiece.start <= 0.000001
-      ? wallSolidPiece.start - Math.max(Number(extensions.start) || 0, 0)
-      : wallSolidPiece.start;
-  const endExtension =
-    wallSolidPiece.end >= footprintLength - 0.000001
-      ? wallSolidPiece.end + Math.max(Number(extensions.end) || 0, 0)
-      : wallSolidPiece.end;
-  const startCenter = {
-    x: footprintStart.x + footprintDirection.x * startExtension,
-    y: footprintStart.z + footprintDirection.y * startExtension
-  };
-  const endCenter = {
-    x: footprintStart.x + footprintDirection.x * endExtension,
-    y: footprintStart.z + footprintDirection.y * endExtension
-  };
-  return [
-    {
-      x: startCenter.x + wallNormal.x * halfThickness,
-      y: startCenter.y + wallNormal.y * halfThickness
-    },
-    {
-      x: startCenter.x - wallNormal.x * halfThickness,
-      y: startCenter.y - wallNormal.y * halfThickness
-    },
-    {
-      x: endCenter.x - wallNormal.x * halfThickness,
-      y: endCenter.y - wallNormal.y * halfThickness
-    },
-    {
-      x: endCenter.x + wallNormal.x * halfThickness,
-      y: endCenter.y + wallNormal.y * halfThickness
-    }
-  ];
-}
-/**
- * 把一个平面闭环点集写进 three.js 的 Shape / Path。
- * @param {Function} PathConstructor Shape 或 Path 构造器（两者接口一致，区别只在 Shape 可作为几何体外轮廓）。
- * @returns {object} 配置好的路径对象（已 closePath）。
- */
-function polygonLoopToPath(PathConstructor: any, loopPoints: any) {
-  const path = new PathConstructor();
-  loopPoints.forEach((loopPoint: any, loopPointIndex: any) => {
-    if (loopPointIndex === 0) {
-      path.moveTo(loopPoint.x, loopPoint.y);
-    } else {
-      path.lineTo(loopPoint.x, loopPoint.y);
-    }
-  });
-  path.closePath();
-  return path;
-}
-function buildPolygonShapes(polygonLoops: any) {
-  const outerLoopEntries = [];
-  const holeLoops = [];
-  for (const loop of polygonLoops) {
-    const loopArea = polygonArea(loop);
-    if (loopArea > 0) {
-      outerLoopEntries.push({
-        loop: loop,
-        area: loopArea,
-        holes: []
-      });
-    } else if (loopArea < 0) {
-      holeLoops.push(loop);
-    }
-  }
-  if (!outerLoopEntries.length) {
-    for (const pendingHoleLoop of holeLoops.splice(0)) {
-      const reversedHoleLoop = [...pendingHoleLoop].reverse();
-      outerLoopEntries.push({
-        loop: reversedHoleLoop,
-        area: Math.abs(polygonArea(reversedHoleLoop)),
-        holes: []
-      });
-    }
-  }
-  for (const containedHoleLoop of holeLoops) {
-    const parentLoop = outerLoopEntries
-      .filter(parentOuterEntry =>
-        pointInPolygon(containedHoleLoop[0], parentOuterEntry.loop, 0.000001)
-      )
-      .sort((firstEntry, secondEntry) => firstEntry.area - secondEntry.area)[0];
-    if (parentLoop) {
-      (parentLoop.holes as any[]).push(containedHoleLoop);
-    }
-  }
-  return outerLoopEntries.map(mappedOuterEntry => {
-    const outerShape = polygonLoopToPath(threeModuleMin.Shape, mappedOuterEntry.loop);
-    for (const hole of mappedOuterEntry.holes) {
-      outerShape.holes.push(polygonLoopToPath(threeModuleMin.Path, hole));
-    }
-    return outerShape;
-  });
-}
 function makeWallSideMaterial(sideColor: any, sideOpacity: any, wallSideMaterialOptions: any = {}) {
   const isSideOpaque = sideOpacity >= 0.999;
   const isAlphaBand = isRegionLightingEnabled && !isSideOpaque;
@@ -16374,27 +15498,6 @@ function addFloorEdgeOutline(edgeLoop: any, outlineColor: any, edgeSurfaceY: any
     capMesh.userData.batchedFloorEdgeCount = edgeLoop.length;
     previewModelRoot.add(capMesh);
   }
-}
-function offsetPolygonOutward(polygonOffsetPoints: any, offset: any) {
-  const centroid = polygonOffsetPoints.reduce(
-    (accumulator: any, accumulatedPoint: any) => ({
-      x: accumulator.x + accumulatedPoint.x / polygonOffsetPoints.length,
-      y: accumulator.y + accumulatedPoint.y / polygonOffsetPoints.length
-    }),
-    {
-      x: 0,
-      y: 0
-    }
-  );
-  return polygonOffsetPoints.map((offsetSourcePoint: any) => {
-    const radialDeltaX = offsetSourcePoint.x - centroid.x;
-    const radialDeltaY = offsetSourcePoint.y - centroid.y;
-    const distanceValue = Math.max(Math.hypot(radialDeltaX, radialDeltaY), 0.000001);
-    return {
-      x: offsetSourcePoint.x + (radialDeltaX / distanceValue) * offset,
-      y: offsetSourcePoint.y + (radialDeltaY / distanceValue) * offset
-    };
-  });
 }
 function addFloorContactShadow(shadowPolygons: any, shadowSurfaceY: any) {
   if (!shadowPolygons.length || isWallShaderTrialEnabled()) {
