@@ -8,8 +8,8 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from src.core.models import utcnow
-from src.security.security import iso_z
+from ..core.models import utcnow
+from ..security.security import iso_z
 
 logger = logging.getLogger("src.ops.incidents")
 

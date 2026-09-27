@@ -12,8 +12,8 @@ from sqlalchemy import func, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.core.models import Order, OrderRefund
-from src.ops import incidents
+from ..core.models import Order, OrderRefund
+from ..ops import incidents
 
 logger = logging.getLogger("src.payments.refunds")
 

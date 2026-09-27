@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from src.ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url, is_private_host, probe_http
-from src.payments.base import PaymentError
+from ..ops.net_probe import LEVEL_FAIL, LEVEL_PASS, LEVEL_WARN, check_result, host_from_url, is_private_host, probe_http
+from ..payments.base import PaymentError
 
 
 def callback_url_error(text: str, *, label: str, channel: str) -> str:

@@ -11,40 +11,40 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from src import __version__
-from src.ops import incidents
-from src.api import admin as admin_api
-from src.api import alipay as alipay_api
-from src.api import wechat as wechat_api
-from src.api import appearance as appearance_api
-from src.api import license as license_api
-from src.api import pages as pages_api
-from src.api import setup as setup_api
-from src.api import store as store_api
-from src.config import PROJECT_ROOT, StoreSettings, load_settings
-from src.core.database import Database
-from src.licensing import keys
-from src.licensing.crypto import (
+from . import __version__
+from .ops import incidents
+from .api import admin as admin_api
+from .api import alipay as alipay_api
+from .api import wechat as wechat_api
+from .api import appearance as appearance_api
+from .api import license as license_api
+from .api import pages as pages_api
+from .api import setup as setup_api
+from .api import store as store_api
+from .config import PROJECT_ROOT, StoreSettings, load_settings
+from .core.database import Database
+from .licensing import keys
+from .licensing.crypto import (
     KeyGeneration,
     KeyRegistry,
     LeaseSigner,
     TransportCipher,
 )
-from src.licensing.service import LicenseAuthority
-from src.payments import resolve_provider
-from src.payments.sweeper import (
+from .licensing.service import LicenseAuthority
+from .payments import resolve_provider
+from .payments.sweeper import (
     configure_sweep_loop,
     mark_sweep_loop_stopped,
     sweep_round,
     sweep_status,
 )
-from src.core.bootstrap import ensure_default_products, ensure_default_settings
-from src.ops.appearance import AppearanceStore
-from src.ops.release_info import CURRENT_VERSION, ensure_current_release
-from src.security.access_log import install_access_log_noise_filter
-from src.security.body_guard import RequestBodyGuard
-from src.security.compression import SelectiveGZipMiddleware
-from src.security.request_security import (
+from .core.bootstrap import ensure_default_products, ensure_default_settings
+from .ops.appearance import AppearanceStore
+from .ops.release_info import CURRENT_VERSION, ensure_current_release
+from .security.access_log import install_access_log_noise_filter
+from .security.body_guard import RequestBodyGuard
+from .security.compression import SelectiveGZipMiddleware
+from .security.request_security import (
     error_page_html,
     forwarded_headers_present,
     new_csp_nonce,
@@ -53,9 +53,9 @@ from src.security.request_security import (
     same_origin_request,
     security_headers,
 )
-from src.security.schema_guard import ensure_schema
-from src.security.setup_guard import SetupGuard, announce_setup_window
-from src.ops.site_settings import get_setting
+from .security.schema_guard import ensure_schema
+from .security.setup_guard import SetupGuard, announce_setup_window
+from .ops.site_settings import get_setting
 
 logger = logging.getLogger("src")
 

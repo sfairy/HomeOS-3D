@@ -11,35 +11,35 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from src.commerce import coupons, fulfill
-from src.core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
-from src.commerce.expiry import expire_stale_orders
-from src.core.models import (
+from ..commerce import coupons, fulfill
+from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
+from ..commerce.expiry import expire_stale_orders
+from ..core.models import (
     License,
     Order,
     Product,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     CreateOrderRequest,
 )
-from src.security.security import (
+from ..security.security import (
     new_order_no,
     new_token,
     token_matches,
     utcnow,
 )
-from src.core.serializers import (
+from ..core.serializers import (
     is_sold_out,
     order_payload,
 )
-from src.ops import site_settings as site_config
-from src.payments import (
+from ..ops import site_settings as site_config
+from ..payments import (
     channel_label,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
 )
-from src.payments.base import PaymentError
+from ..payments.base import PaymentError
 
 
 from .store_shared import (

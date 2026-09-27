@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from src.config import StoreSettings
+from ..config import StoreSettings
 
 BUSY_TIMEOUT_SECONDS = 5
 
@@ -57,7 +57,7 @@ class Database:
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
 
     def create_all(self) -> None:
-        from src.core import models  # noqa: F401
+        from ..core import models  # noqa: F401
 
         Base.metadata.create_all(self.engine)
 

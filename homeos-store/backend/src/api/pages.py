@@ -10,10 +10,10 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 
-from src.core.deps import DbSession
-from src.core.models import Account, ProductImage
-from src.api import page_shell
-from src.security.request_security import render_template
+from ..core.deps import DbSession
+from ..core.models import Account, ProductImage
+from ..api import page_shell
+from ..security.request_security import render_template
 
 logger = logging.getLogger("src.pages")
 

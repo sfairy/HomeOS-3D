@@ -5,8 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from src.config import StoreSettings
-from src.core.models import Order, StoreSetting
+from ..config import StoreSettings
+from ..core.models import Order, StoreSetting
 
 
 @dataclass(frozen=True)

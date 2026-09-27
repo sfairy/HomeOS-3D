@@ -11,10 +11,10 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from src.commerce import money
-from src.ops import site_settings as site_config
-from src.core.deps import AdminAccount, SettingsDep
-from src.core.models import (
+from ..commerce import money
+from ..ops import site_settings as site_config
+from ..core.deps import AdminAccount, SettingsDep
+from ..core.models import (
     Account,
     AccountSession,
     AuditLog,
@@ -24,11 +24,11 @@ from src.core.models import (
     ReferralWallet,
     StoreSetting,
 )
-from src.security.security import (
+from ..security.security import (
     iso,
 )  # noqa: F401
-from src.commerce.order_status import ORDER_STATUS_LABELS
-from src.commerce.order_status import (
+from ..commerce.order_status import ORDER_STATUS_LABELS
+from ..commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
 
@@ -242,8 +242,8 @@ def _license_detail(session, settings, license: License) -> dict:
     )
 
 # _license_detail 依赖的两个名字（从 licenses 组的导入块里对齐过来的）。
-from src.api.store_catalog import _license_meta
-from src.core.serializers import license_payload
+from ..api.store_catalog import _license_meta
+from ..core.serializers import license_payload
 
 def _entitlement_payload(entry: Entitlement) -> dict:
     now = utcnow()
@@ -264,9 +264,9 @@ def _entitlement_payload(entry: Entitlement) -> dict:
     }
 
 # _entitlement_payload 依赖的三个名字。
-from src.core.models import Entitlement
-from src.security.security import utcnow
-from src.security.security import iso_z
+from ..core.models import Entitlement
+from ..security.security import utcnow
+from ..security.security import iso_z
 
 # —— 批量查询与清理助手 ——
 def _by_ids(session: Session, model, ids) -> dict[str, object]:
@@ -360,9 +360,9 @@ def _resolve_by_hash_hint(session: Session, model, hint: str, label: str):
     return rows[0]
 
 from pathlib import Path
-from src.api.store_catalog import _image_map
-from src.api.store_catalog import _product_stats
-from src.core.serializers import product_payload
+from ..api.store_catalog import _image_map
+from ..api.store_catalog import _product_stats
+from ..core.serializers import product_payload
 
 # 商品
 def _product_delete_refs(session) -> tuple[dict[str, int], dict[str, int]]:

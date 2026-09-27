@@ -5,8 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.deps import AdminAccount
-from src.ops.appearance import AppearanceError, validate_preset, validate_tokens
+from ..core.deps import AdminAccount
+from ..ops.appearance import AppearanceError, validate_preset, validate_tokens
 
 router = APIRouter(prefix="/store-admin/v1/appearance", tags=["appearance"])
 

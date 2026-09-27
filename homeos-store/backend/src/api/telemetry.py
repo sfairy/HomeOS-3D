@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.models import StoreSetting
-from src.ops import site_settings as site_config
+from ..core.models import StoreSetting
+from ..ops import site_settings as site_config
 
 #: 页面模板里的甲板插入点。与 SCENE/APPEARANCE 同一套严格度（登记进
 DECK_PLACEHOLDER = '<!--{{DECK}}-->'

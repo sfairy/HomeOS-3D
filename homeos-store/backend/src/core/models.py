@@ -18,8 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.database import Base
-from src.security.security import utcnow
+from ..core.database import Base
+from ..security.security import utcnow
 
 from .models_engagement import (
     AccountSession,

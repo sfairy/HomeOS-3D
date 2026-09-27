@@ -11,10 +11,10 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.commerce import coupons, referrals
-from src.config import StoreSettings
-from src.ops import incidents
-from src.core.models import (
+from ..commerce import coupons, referrals
+from ..config import StoreSettings
+from ..ops import incidents
+from ..core.models import (
     Customer,
     Entitlement,
     License,
@@ -22,13 +22,13 @@ from src.core.models import (
     Product,
     StoreSetting,
 )
-from src.commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
-from src.security.security import (
+from ..commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
+from ..security.security import (
     activation_code_hint,
     new_activation_code,
     utcnow,
 )
-from src.core.serializers import json_list
+from ..core.serializers import json_list
 
 logger = logging.getLogger("src.commerce.fulfill")
 

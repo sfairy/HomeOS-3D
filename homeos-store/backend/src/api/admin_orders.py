@@ -12,36 +12,36 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from src.commerce import delivery, fulfill, referrals
-from src.commerce import coupons
-from src.ops import site_settings as site_config
-from src.core.deps import AdminAccount, DbSession, order_or_404
-from src.commerce.order_status import (
+from ..commerce import delivery, fulfill, referrals
+from ..commerce import coupons
+from ..ops import site_settings as site_config
+from ..core.deps import AdminAccount, DbSession, order_or_404
+from ..commerce.order_status import (
     order_status_label,
 )
-from src.commerce.order_status import (
+from ..commerce.order_status import (
     FAILURE_MARKABLE_STATUSES as ORDER_FAILURE_MARKABLE_STATUSES,
 )
-from src.commerce.order_status import (
+from ..commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
-from src.commerce.order_status import (
+from ..commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from src.commerce.order_status import refundable_cents
-from src.payments import PROVIDER_NAMES, normalize_provider_name
-from src.payments.channels import provider_label
-from src.payments.base import PaymentError
-from src.payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
+from ..commerce.order_status import refundable_cents
+from ..payments import PROVIDER_NAMES, normalize_provider_name
+from ..payments.channels import provider_label
+from ..payments.base import PaymentError
+from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
 #: 退款的三个助手（锁 / 额度 CAS / 流水留痕）住在 payments/refunds.py：它们是
 #: 「渠道侧真的动过钱」之后的记账口径，与本文件的接口层职责不同，也该能单独被
 #: 回调与巡检路径复用。
-from src.payments.refunds import (
+from ..payments.refunds import (
     claim_refund_amount,
     record_refund_audit,
     refund_lock,
 )
-from src.core.models import (
+from ..core.models import (
     DeviceBinding,
     Entitlement,
     License,
@@ -50,16 +50,16 @@ from src.core.models import (
     Product,
     StoreSetting,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     AdminOrderActionRequest,
     AdminOrderReviewRequest,
 )
-from src.security.security import (
+from ..security.security import (
     iso_z,
     new_uuid,
     utcnow,
 )  # noqa: F401
-from src.core.serializers import (
+from ..core.serializers import (
     order_payload,
 )
 

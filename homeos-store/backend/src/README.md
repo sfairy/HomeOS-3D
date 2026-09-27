@@ -37,15 +37,6 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 生产勿使用任何「响应里回显验证码」的通道（已删除）。SMTP 示例见根目录 `.env.example`。
 
-### 测试
-
-```bash
-.venv-store/bin/pip install -r homeos-store/backend/src/requirements-dev.txt
-PYTHONPATH=homeos-store/backend .venv-store/bin/python -m pytest homeos-store/backend/src/tests -q
-```
-
-测试用临时数据目录，不碰项目根 `data/` / `keys/local/`。
-
 ### 必须单进程
 
 `run.py` 单 worker。不要 `--workers N`，也不要多实例共享同一数据目录：配色快照、进程内限流、巡检状态都在内存里。跨进程安全的限流（登录失败等）走数据库。
@@ -121,8 +112,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m pytest homeos-store/ba
 homeos-store/
 ├── backend/src/            # 后端包名 src（PYTHONPATH=backend）
 │   ├── run.py app.py config.py
-│   ├── core/ security/ commerce/ payments/ licensing/ ops/ api/
-│   └── tests/
+│   └── core/ security/ commerce/ payments/ licensing/ ops/ api/
 ├── data/                   # 运行时（不入库）
 ├── keys/local/             # 授权私钥（不入库）
 ├── frontend/               # pages / src / public

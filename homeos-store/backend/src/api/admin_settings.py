@@ -10,20 +10,20 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from src.config import ALIPAY_ORDER_TTL_FLOOR_SECONDS
-from src.ops import site_settings as site_config
-from src.ops import mail_settings, mailer
-from src.core.deps import AdminAccount, DbSession, SettingsDep
-from src.payments import (
+from ..config import ALIPAY_ORDER_TTL_FLOOR_SECONDS
+from ..ops import site_settings as site_config
+from ..ops import mail_settings, mailer
+from ..core.deps import AdminAccount, DbSession, SettingsDep
+from ..payments import (
     PROVIDER_NAMES,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
 )
-from src.payments.base import PaymentError
-from src.payments import urls as payment_urls
-from src.payments import wechat_signing as signing
-from src.payments.credentials import (
+from ..payments.base import PaymentError
+from ..payments import urls as payment_urls
+from ..payments import wechat_signing as signing
+from ..payments.credentials import (
     alipay_credentials_summary,
     resolve_secret_input,
     validate_callback_url,
@@ -32,15 +32,15 @@ from src.payments.credentials import (
     validate_public_key_text,
     wechat_credentials_summary,
 )
-from src.core.models import (
+from ..core.models import (
     DEFAULT_SUPPORT_EMAIL,
     StoreSetting,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     AdminMailTestRequest,
     AdminSettingsRequest,
 )
-from src.security.security import (
+from ..security.security import (
     is_valid_email,
     normalize_email,
     utcnow,

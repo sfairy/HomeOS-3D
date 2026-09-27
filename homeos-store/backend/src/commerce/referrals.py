@@ -9,8 +9,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.commerce import money
-from src.core.models import (
+from ..commerce import money
+from ..core.models import (
     Account,
     Order,
     ReferralLedger,
@@ -18,7 +18,7 @@ from src.core.models import (
     ReferralWithdrawal,
     utcnow,
 )
-from src.security.security import new_referral_code, new_uuid
+from ..security.security import new_referral_code, new_uuid
 
 logger = logging.getLogger("src.commerce.referrals")
 

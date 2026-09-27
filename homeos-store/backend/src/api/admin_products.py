@@ -10,21 +10,21 @@ import secrets
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import or_, select
 
-from src.ops import features
-from src.commerce import catalog
-from src.core.deps import AdminAccount, DbSession, SettingsDep
-from src.core.models import (
+from ..ops import features
+from ..commerce import catalog
+from ..core.deps import AdminAccount, DbSession, SettingsDep
+from ..core.models import (
     Product,
     ProductImage,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     AdminProductPatch,
     AdminProductRequest,
 )
-from src.security.security import (
+from ..security.security import (
     utcnow,
 )  # noqa: F401
-from src.core.serializers import (
+from ..core.serializers import (
     json_list,
     list_json,
 )

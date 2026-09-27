@@ -8,8 +8,8 @@ import os
 
 import uvicorn
 
-from src.app import create_app
-from src.config import STORE_ROOT, load_settings
+from .app import create_app
+from .config import STORE_ROOT, load_settings
 
 _TRUTHY = frozenset({'1', 'true', 'yes', 'on'})
 

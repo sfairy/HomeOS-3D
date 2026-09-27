@@ -12,8 +12,8 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, status
 
-from src.security.limiter import SlidingWindowLimiter
-from src.security.request_security import forwarded_headers_present
+from ..security.limiter import SlidingWindowLimiter
+from ..security.request_security import forwarded_headers_present
 
 logger = logging.getLogger("src.setup")
 

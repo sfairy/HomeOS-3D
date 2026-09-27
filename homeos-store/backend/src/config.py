@@ -8,8 +8,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.core.env import load_dotenv
-from src.licensing import keys as license_keys
+from .core.env import load_dotenv
+from .licensing import keys as license_keys
 
 logger = logging.getLogger("src.config")
 

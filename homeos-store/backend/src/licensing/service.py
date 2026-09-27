@@ -9,16 +9,16 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from src.ops import site_settings as site_config
-from src.config import StoreSettings
-from src.licensing.crypto import (
+from ..ops import site_settings as site_config
+from ..config import StoreSettings
+from ..licensing.crypto import (
     KeyGeneration,
     KeyRegistry,
     LeaseSigner,
     LicenseServerError,
     TransportCipher,
 )
-from src.core.models import (
+from ..core.models import (
     Customer,
     DeviceBinding,
     DeviceReleaseEvent,
@@ -29,13 +29,13 @@ from src.core.models import (
     RecoveryToken,
     utcnow,
 )
-from src.security.security import (
+from ..security.security import (
     iso_z,
     new_token,
     new_uuid,
     token_hash,
 )
-from src.core.serializers import json_list
+from ..core.serializers import json_list
 
 logger = logging.getLogger("src.license")
 

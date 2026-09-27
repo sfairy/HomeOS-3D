@@ -13,8 +13,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.database import Base
-from src.security.security import new_uuid, utcnow
+from ..core.database import Base
+from ..security.security import new_uuid, utcnow
 
 
 def _id() -> str:

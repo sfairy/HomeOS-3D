@@ -21,13 +21,13 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 
-from src.commerce import delivery, fulfill
-from src.core.models import Order, Product
-from src.ops import incidents, site_settings as site_config
-from src.payments import normalize_provider_name, wechat as wechat_module
-from src.payments.base import PaymentError
-from src.payments.settlement import settle_paid_order
-from src.security.security import utcnow
+from ..commerce import delivery, fulfill
+from ..core.models import Order, Product
+from ..ops import incidents, site_settings as site_config
+from ..payments import normalize_provider_name, wechat as wechat_module
+from ..payments.base import PaymentError
+from ..payments.settlement import settle_paid_order
+from ..security.security import utcnow
 
 logger = logging.getLogger("src.api.wechat")
 

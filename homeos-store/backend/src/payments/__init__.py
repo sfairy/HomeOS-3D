@@ -5,10 +5,10 @@
 
 from __future__ import annotations
 
-from src.config import StoreSettings
-from src.payments.alipay import AlipayProvider
-from src.payments.base import PaymentError, PaymentIntent, PaymentProvider
-from src.payments.channels import (
+from ..config import StoreSettings
+from ..payments.alipay import AlipayProvider
+from ..payments.base import PaymentError, PaymentIntent, PaymentProvider
+from ..payments.channels import (
     CHANNEL_LABELS,
     PROVIDER_NAMES,
     channel_label,
@@ -18,13 +18,13 @@ from src.payments.channels import (
     is_known_provider,
     normalize_provider_name,
 )
-from src.payments.credentials import (
+from ..payments.credentials import (
     alipay_credentials_summary,
     merge_alipay_settings,
     merge_wechat_settings,
     wechat_credentials_summary,
 )
-from src.payments.wechat import WeChatPayProvider
+from ..payments.wechat import WeChatPayProvider
 
 __all__ = [
     "AlipayProvider",

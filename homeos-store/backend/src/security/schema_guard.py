@@ -14,8 +14,8 @@ from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import Column
 
-from src.core.database import Base
-import src.core.models  # noqa: F401  仅为注册全部模型元数据
+from ..core.database import Base
+from ..core import models
 
 logger = logging.getLogger("src.schema")
 

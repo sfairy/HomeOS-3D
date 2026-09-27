@@ -10,9 +10,9 @@ from uuid import uuid4
 
 import httpx
 
-from src.config import StoreSettings
-from src.core.models import Order, StoreSetting
-from src.ops.net_probe import (
+from ..config import StoreSettings
+from ..core.models import Order, StoreSetting
+from ..ops.net_probe import (
     LEVEL_FAIL,
     LEVEL_PASS,
     LEVEL_SKIP,
@@ -22,8 +22,8 @@ from src.ops.net_probe import (
     probe_tls,
 )
 # CloseResult 曾定义在本模块里；现在住在 base.py（微信支付用同一套关单语义）。
-from src.payments import channels
-from src.payments.base import (
+from ..payments import channels
+from ..payments.base import (
     CloseResult,
     PaymentError,
     PaymentIntent,

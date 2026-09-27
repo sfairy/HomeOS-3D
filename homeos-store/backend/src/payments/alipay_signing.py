@@ -14,8 +14,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 # 地址校验与诊断的**规则本体**在 payments/urls.py（渠道无关）；这里只固定渠道名。
-from src.payments import urls as payment_urls
-from src.payments.base import PaymentError
+from ..payments import urls as payment_urls
+from ..payments.base import PaymentError
 
 
 CHINA_TZ = timezone(timedelta(hours=8))

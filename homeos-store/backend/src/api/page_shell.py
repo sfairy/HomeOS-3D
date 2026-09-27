@@ -10,8 +10,8 @@ from pathlib import Path
 from fastapi import Request
 from sqlalchemy.orm import Session
 
-from src.api.telemetry import DECK_PLACEHOLDER, deck_markup, deck_tiles, has_deck
-from src.ops.release_info import CURRENT_VERSION
+from ..api.telemetry import DECK_PLACEHOLDER, deck_markup, deck_tiles, has_deck
+from ..ops.release_info import CURRENT_VERSION
 
 SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
 

@@ -10,8 +10,8 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import aliased
 
-from src.core.deps import AdminAccount, DbSession
-from src.core.models import (
+from ..core.deps import AdminAccount, DbSession
+from ..core.models import (
     AuditLog,
     DeviceBinding,
     DeviceReleaseEvent,
@@ -20,7 +20,7 @@ from src.core.models import (
     LicenseSession,
     RecoveryToken,
 )
-from src.security.security import (
+from ..security.security import (
     iso,
     utcnow,
 )  # noqa: F401

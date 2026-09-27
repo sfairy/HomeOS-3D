@@ -8,9 +8,9 @@ import logging
 from sqlalchemy import exists, insert, literal, null, select
 from sqlalchemy.orm import Session
 
-from src.ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
-from src.core.models import Product, StoreSetting
-from src.core.serializers import list_json
+from ..ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
+from ..core.models import Product, StoreSetting
+from ..core.serializers import list_json
 
 logger = logging.getLogger("src.core.bootstrap")
 

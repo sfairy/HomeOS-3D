@@ -9,16 +9,16 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import or_, select
 
-from src.core.deps import AdminAccount, DbSession
-from src.core.models import (
+from ..core.deps import AdminAccount, DbSession
+from ..core.models import (
     DeviceBinding,
     DeviceReleaseEvent,
     License,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     AdminOrderActionRequest,
 )
-from src.security.security import (
+from ..security.security import (
     iso_z,
     utcnow,
 )  # noqa: F401

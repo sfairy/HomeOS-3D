@@ -16,11 +16,11 @@ from email.message import EmailMessage
 from email.utils import parseaddr
 from typing import Iterator
 
-from src.ops import mail_settings, net_probe
-from src.config import StoreSettings
-from src.core.models import StoreSetting
-from src.ops.net_probe import check_result
-from src.security.security import is_valid_email, new_verification_code
+from ..ops import mail_settings, net_probe
+from ..config import StoreSettings
+from ..core.models import StoreSetting
+from ..ops.net_probe import check_result
+from ..security.security import is_valid_email, new_verification_code
 
 logger = logging.getLogger("src.ops.mailer")
 

@@ -8,11 +8,11 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from src.commerce import coupons, money
-from src.ops import incidents
-from src.security import password_gate
-from src.commerce.expiry import expire_stale_orders
-from src.core.models import (
+from ..commerce import coupons, money
+from ..ops import incidents
+from ..security import password_gate
+from ..commerce.expiry import expire_stale_orders
+from ..core.models import (
     Account,
     Coupon,
     CouponRedemption,
@@ -27,21 +27,21 @@ from src.core.models import (
     ReferralWallet,
     ReferralWithdrawal,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     ReleaseDeviceRequest,
 )
-from src.security.security import (
+from ..security.security import (
     iso,
     utcnow,
 )
-from src.core.serializers import (
+from ..core.serializers import (
     account_center_payload,
     binding_version,
     json_list,
     product_payload,
 )
-from src.ops import site_settings as site_config
-from src.payments.reconcile import reconcile_channel_order
+from ..ops import site_settings as site_config
+from ..payments.reconcile import reconcile_channel_order
 
 
 HISTORY_PAGE_SIZE = 20
@@ -134,7 +134,7 @@ def _image_map(session) -> dict[str, ProductImage]:
 def _bundled_map(session) -> dict[str, Product]:
     return {product.id: product for product in session.scalars(select(Product))}
 def _product_item(session, product: Product) -> dict:
-    from src.core.serializers import json_list
+    from ..core.serializers import json_list
 
     stats = _product_stats(session, {product.id})
     image = session.scalars(

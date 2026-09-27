@@ -9,17 +9,17 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import and_, or_, select
 
-from src.ops import features
-from src.core.deps import AdminAccount, DbSession
-from src.core.models import (
+from ..ops import features
+from ..core.deps import AdminAccount, DbSession
+from ..core.models import (
     Entitlement,
     License,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     AdminEntitlementPatch,
     AdminEntitlementRequest,
 )
-from src.security.security import (
+from ..security.security import (
     utcnow,
 )  # noqa: F401
 

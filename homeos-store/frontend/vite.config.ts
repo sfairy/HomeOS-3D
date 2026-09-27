@@ -70,14 +70,15 @@ function flattenTemplatesPlugin(): Plugin {
         if (fs.existsSync(loose)) fs.unlinkSync(loose);
       }
       // 页面壳注入的场景片段：与 templates 同目录，文件名由后端约定。
-      const sceneSources = [
-        path.join(storeRoot, "public/static/scene/scene.html"),
-        path.join(projectRoot, "../homeos-3d/design/scene/scene.html"),
-      ];
-      const sceneFrom = sceneSources.find((p) => fs.existsSync(p));
-      if (sceneFrom) {
-        fs.copyFileSync(sceneFrom, path.join(templatesDir, "_scene.html"));
+      // 商店自包含：只使用本项目 public/static/scene/scene.html，
+      // 缺失即报错，不回退到其它项目（保持两项目相互独立）。
+      const sceneFrom = path.join(storeRoot, "public/static/scene/scene.html");
+      if (!fs.existsSync(sceneFrom)) {
+        throw new Error(
+          `商店场景片段缺失：${sceneFrom}；请从 design/scene/scene.html 同步分发副本到本项目 public/static/scene/`,
+        );
       }
+      fs.copyFileSync(sceneFrom, path.join(templatesDir, "_scene.html"));
     },
   };
 }

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.models import Release
+from ..core.models import Release
 
 logger = logging.getLogger("src.ops.release_info")
 

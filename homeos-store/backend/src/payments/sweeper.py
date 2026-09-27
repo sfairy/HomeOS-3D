@@ -10,13 +10,13 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
 
-from src.commerce import fulfill
-from src.ops import incidents, site_settings as site_config
-from src.config import StoreSettings
-from src.core.database import Database
-from src.core.models import Order, utcnow
-from src.payments.reconcile import SweepResult, reconcile_due_orders
-from src.security.security import iso_z
+from ..commerce import fulfill
+from ..ops import incidents, site_settings as site_config
+from ..config import StoreSettings
+from ..core.database import Database
+from ..core.models import Order, utcnow
+from ..payments.reconcile import SweepResult, reconcile_due_orders
+from ..security.security import iso_z
 
 logger = logging.getLogger("src.payments.sweeper")
 
@@ -287,7 +287,7 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
 
     # 发码邮件的兜底补发：即时发送跑在响应之后的后台任务里，进程重启或当时 SMTP
     # 抖动都会让它没发生。这里放在入账与补发之后 —— 本轮刚入账 / 刚补发的单也能捞到。
-    from src.commerce import delivery
+    from ..commerce import delivery
 
     delivered = delivery.sweep_undelivered(database, limit=max(1, int(settings.payment_sweep_batch or 25)))
     if delivered:

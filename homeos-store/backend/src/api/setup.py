@@ -11,10 +11,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal, select
 
-from src.core.deps import DbSession
-from src.core.models import Account, AccountSession
-from src.security.request_security import resolve_client_ip, secure_cookies_required
-from src.security.security import (
+from ..core.deps import DbSession
+from ..core.models import Account, AccountSession
+from ..security.request_security import resolve_client_ip, secure_cookies_required
+from ..security.security import (
     hash_password,
     is_valid_email,
     new_token,

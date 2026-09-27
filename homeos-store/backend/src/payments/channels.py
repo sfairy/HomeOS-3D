@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 
-from src.config import StoreSettings
-from src.core.models import StoreSetting
+from ..config import StoreSettings
+from ..core.models import StoreSetting
 
 #: 受支持的支付渠道。
 PROVIDER_NAMES: tuple[str, ...] = ("alipay", "wechat")

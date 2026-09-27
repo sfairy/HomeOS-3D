@@ -11,17 +11,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from src.security import password_gate
-from src.config import StoreSettings
-from src.core.models import (
+from ..security import password_gate
+from ..config import StoreSettings
+from ..core.models import (
     Account,
     AccountSession,
     Customer,
     EmailVerification,
 )
-from src.security.limiter import SlidingWindowLimiter
-from src.security.request_security import resolve_client_ip, secure_cookies_required
-from src.security.security import (
+from ..security.limiter import SlidingWindowLimiter
+from ..security.request_security import resolve_client_ip, secure_cookies_required
+from ..security.security import (
     code_hash,
     new_token,
     token_hash,

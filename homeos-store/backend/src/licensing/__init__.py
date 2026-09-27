@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from src.licensing.crypto import (
+from ..licensing.crypto import (
     LicenseServerError,
     LeaseSigner,
     TransportCipher,
     b64url_decode,
     b64url_encode,
 )
-from src.licensing import keys
+from ..licensing import keys
 
 __all__ = [
     "LicenseServerError",

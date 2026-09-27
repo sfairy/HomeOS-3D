@@ -10,13 +10,13 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.ops import incidents, mail_settings, mailer
-from src.security import password_gate
-from src.security.limiter import SlidingWindowLimiter
-from src.config import StoreSettings
-from src.core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
-from src.commerce import delivery
-from src.core.models import (
+from ..ops import incidents, mail_settings, mailer
+from ..security import password_gate
+from ..security.limiter import SlidingWindowLimiter
+from ..config import StoreSettings
+from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
+from ..commerce import delivery
+from ..core.models import (
     Account,
     AccountSession,
     Customer,
@@ -28,7 +28,7 @@ from src.core.models import (
     Product,
     Release,
 )
-from src.core.schemas import (
+from ..core.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,
     LabelRequest,
@@ -36,7 +36,7 @@ from src.core.schemas import (
     VerificationRequest,
     VerifyEmailRequest,
 )
-from src.security.security import (
+from ..security.security import (
     code_hash,
     new_code_salt,
     is_valid_email,
@@ -45,11 +45,11 @@ from src.security.security import (
     utcnow,
     verify_password,
 )
-from src.core.serializers import (
+from ..core.serializers import (
     device_release_policy,
     product_payload,
 )
-from src.ops import site_settings as site_config
+from ..ops import site_settings as site_config
 
 
 from .store_shared import (

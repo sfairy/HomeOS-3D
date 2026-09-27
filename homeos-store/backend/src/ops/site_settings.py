@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.config import StoreSettings
-from src.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
-from src.payments.channels import (
+from ..config import StoreSettings
+from ..core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
+from ..payments.channels import (
     RETIRED_DISPLAY_NAMES,
     default_channel_name,
     display_name_for,
     enabled_channel_names,
 )
-from src.payments.credentials import merge_alipay_settings, merge_wechat_settings
-from src.payments.wechat import WeChatPayProvider
-from src.security.security import iso, utcnow
+from ..payments.credentials import merge_alipay_settings, merge_wechat_settings
+from ..payments.wechat import WeChatPayProvider
+from ..security.security import iso, utcnow
 
 #: 已删除渠道留下的显示名规则住在 payments/channels.py（显示名在那儿解析）；
 #: 这里重新导出，让 api/admin_settings.py 的保存时校验继续从同一处拿。

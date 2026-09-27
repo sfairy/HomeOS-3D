@@ -8,8 +8,8 @@ import logging
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from src.core.models import Account, Coupon, CouponRedemption, Order
-from src.security.security import utcnow
+from ..core.models import Account, Coupon, CouponRedemption, Order
+from ..security.security import utcnow
 
 logger = logging.getLogger("src.commerce.coupons")
 
