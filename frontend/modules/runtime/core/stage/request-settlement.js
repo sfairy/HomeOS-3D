@@ -1,16 +1,7 @@
 /*
  * 设备请求结算。
- *
- * 幕帘、空调、电视、灯光四类控制请求的超时、失败与确认结算。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 export function createRequestSettlement(ctx) {
-  /**
-   * 结清窗帘控制请求：清定时器、撤回叶片待确认标记、把失败原因写进反馈，
-   * 再重绘标记与灯光面板并唤醒渲染。
-   */
   function settleCoverRequest(pendingCoverKey, coverError) {
     const pendingCoverRequest = ctx.coverRequestsById.get(pendingCoverKey);
     if (pendingCoverRequest) {
@@ -72,7 +63,6 @@ export function createRequestSettlement(ctx) {
 
   /**
    * 结清通用设备附加实体的控制请求（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植的卡片操作）。
-   * 与空调、电视一样只做「清超时 + 出表 + resolve / reject」三件事。
    */
   function settleDeviceRequest(pendingDeviceKey, deviceError) {
     const pendingDeviceRequest = ctx.deviceRequestsById.get(pendingDeviceKey);
@@ -88,7 +78,6 @@ export function createRequestSettlement(ctx) {
   }
 
   // 结清灯光命令：清超时、按需下发排队中的下一条、回滚或确认本地预览，
-  // 最后把错误写进面板提示。超时时不下发排队命令，避免超时后还继续往设备灌命令。
   function settleLightCommand(lightRequestKey, lightError = "", isTimedOut = false) {
     const lightRequest = ctx.lightRequestsById.get(lightRequestKey);
     if (!lightRequest) {

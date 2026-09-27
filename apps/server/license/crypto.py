@@ -1,13 +1,4 @@
 """授权链路的密码学原语。
-
-三块职责，共同构成「离线可信」的基础：
-1. LeaseVerifier —— 用 Ed25519 公钥校验授权服务签发的「签名租约」，这是门禁的信任根：
-   数据库里的状态字段可以被改写，签名伪造不了。
-2. LicenseTransportCipher —— X25519 ECDH 协商一次性共享秘密，经 HKDF-SHA256 派生
-   AES-256-GCM 密钥，加密请求体并解密响应体，保证激活码、令牌与实例 ID 不以明文过网。
-3. SecretCipher —— 用本机密钥文件（Fernet）加密落库的会话令牌、恢复令牌与激活码。
-
-本模块所有失败都抛 LicenseCryptoError；调用方据此把状态归类为 INVALID / INSTANCE_MISMATCH。
 """
 from __future__ import annotations
 import base64
@@ -40,23 +31,14 @@ class LicenseCryptoError(RuntimeError):
 
 class LicenseTransportCipher:
     """加密一次授权请求，并解密与之配对的响应。
-
-    握手是无状态的一次性 ECDH：每次 encrypt_request 都新生成一把临时 X25519 私钥，
-    同一请求重放也不会复用密钥流。返回的对称密钥必须原样交给 decrypt_response ——
-    AAD 里绑定了方向、路径与 keyId，跨请求复用必然解不开。
     """
     # 协议版本串，同时参与 HKDF 的 info 与 AES-GCM 的 AAD；
-    # 改动它等于与授权服务断约，只应随协议升级一起变。
     PROTOCOL = b'homeos-license-transport-v1'
 
     def __init__(self, public_key_path: Path, key_id: str, expected_sha256: str) -> None:
         """载入并校验授权传输公钥（服务端 X25519 公钥）。
-
-        expected_sha256 是公钥文件内容的 SHA-256 十六进制指纹，钉死在发布版本里。
-        异常: LicenseCryptoError —— keyId 非法、公钥读不到、指纹不符，或公钥不是 X25519。
         """
         # keyId 会被拼进 HKDF 的 info 与 AAD，且必须与授权服务完全一致，
-        # 因此限制在安全字符集与长度内，避免控制字符污染派生输入。
         if not key_id or len(key_id) > 64 or not all(character.isalnum() or character in '-_.' for character in key_id):
             raise LicenseCryptoError('授权传输加密 keyId 格式无效。')
         try:
@@ -64,8 +46,6 @@ class LicenseTransportCipher:
         except OSError as error:
             raise LicenseCryptoError(f'无法读取授权传输公钥：{public_key_path}') from error
         actual_sha256 = hashlib.sha256(key_data).hexdigest()
-        # 指纹校验刻意放在解析之前：确认文件内容就是发布版本里钉死的那份公钥，防止被换成
-        # 攻击者公钥；用 compare_digest 做常数时间比较，避免指纹被逐字节试探。
         if not hmac.compare_digest(actual_sha256, expected_sha256):
             raise LicenseCryptoError('授权传输公钥指纹与正式发布版本不匹配。')
         try:
@@ -73,7 +53,6 @@ class LicenseTransportCipher:
         except ValueError as error:
             raise LicenseCryptoError('授权传输公钥格式无效。') from error
         # 只接受 X25519：Ed25519 公钥混进来要么 exchange 直接抛错，要么协商出一把两端
-        # 都不一致的密钥，提前显式拒绝更容易定位。
         if not isinstance(key, X25519PublicKey):
             raise LicenseCryptoError('授权传输公钥必须是 X25519。')
         self._key = key
@@ -89,23 +68,18 @@ class LicenseTransportCipher:
         """还原 URL 安全 base64；先补回被 _encode 去掉的填充位再交给 AES-GCM。"""
         try:
             # -len(value) % 4 正好是缺失的 '=' 个数：RFC 4648 允许省略填充，
-            # 但标准解码器会因此报错，所以这里补齐。
             return base64.urlsafe_b64decode(value + '=' * (-len(value) % 4))
         except (TypeError, ValueError) as error:
             raise LicenseCryptoError('授权传输响应编码无效。') from error
 
     def encrypt_request(self, payload: dict[str, Any], path: str) -> tuple[dict[str, str], bytes]:
         """加密一次请求体，返回（信封字段字典，响应解密所需的对称密钥）。
-
-        path 为请求路径（如 /v2/activate），参与密钥派生与 AAD 绑定。
-        返回的 key 必须原样保留，用于 decrypt_response 解密配对的响应。
         """
         # 每次请求都换一把临时私钥：即便某次请求密文被录下，也无法反推长期私钥。
         ephemeral = X25519PrivateKey.generate()
         # ECDH 共享秘密；服务端用自己私钥 + 信封里的 ephemeralPublicKey 得到同一个值。
         shared = ephemeral.exchange(self._key)
         # 从共享秘密派生 32 字节 AES-256 密钥。info 绑定协议版本、keyId 与路径，
-        # 使同一对密钥在不同端点或协议版本下派生出不同密钥，避免跨端点复用。
         key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=self.PROTOCOL + b'\x00' + self.key_id.encode('ascii') + b'\x00' + path.encode('ascii')).derive(shared)
         # GCM 推荐 96 位随机 IV；同一密钥下 IV 绝不重复。
         iv = os.urandom(12)
@@ -125,11 +99,7 @@ class LicenseTransportCipher:
 
     def decrypt_response(self, envelope: dict[str, Any], path: str, key: bytes) -> dict[str, Any]:
         """解密与某个请求配对的响应信封。
-
-        path 必须与加密时一致，key 为 encrypt_request 返回的对称密钥（一个请求一把）。
-        异常: LicenseCryptoError —— keyId 不符、编码非法、IV 长度异常或 GCM 校验失败。
         """
-        # 先核对 keyId 再解密：不符说明请求被路由到了别的环境，早一步拒绝能给出更准确的原因。
         if envelope.get('keyId') != self.key_id:
             raise LicenseCryptoError('授权传输响应 keyId 不匹配。')
         iv = self._decode(envelope.get('iv', ''))
@@ -141,7 +111,6 @@ class LicenseTransportCipher:
         aad = self.PROTOCOL + b'\x00response\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
         try:
             # 解密与 JSON 解析放在同一个 try：GCM tag 校验失败、明文不是 JSON、
-            # 或不是 UTF-8，全部视为「响应不可信」，对外只给一条中文错误。
             plaintext = AESGCM(key).decrypt(iv, ciphertext, aad)
             payload = json.loads(plaintext)
         except Exception as error:
@@ -153,17 +122,13 @@ class LicenseTransportCipher:
 
 def parse_timestamp(value: str) -> datetime:
     """解析租约里的 ISO-8601 时间戳，统一成 UTC 时区感知对象。
-
-    返回可直接与 datetime.now(timezone.utc) 比较的 datetime；无法解析时抛 LicenseCryptoError。
     """
     try:
         # 兼容 'Z' 后缀：fromisoformat 在 Python 3.11 之前不认识 'Z'，
-        # 统一替换成 '+00:00' 才能解析。
         parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
     except (TypeError, ValueError) as error:
         raise LicenseCryptoError('租约时间格式无效。') from error
     # 没有时区信息时按 UTC 解释：服务端始终以 UTC 签发，缺失时区不能理解成本机时区，
-    # 否则跨时区部署会误判租约到期；再统一折算到 UTC，保证后续比较都在同一时区。
     return ensure_aware(parsed).astimezone(timezone.utc)
 
 
@@ -177,18 +142,10 @@ def _decode(value: str) -> bytes:
 
 class LeaseVerifier:
     """用 Ed25519 公钥校验授权服务签发的签名租约。
-
-    这是离线门禁的信任根：即使数据库里的 status 被改成 ACTIVE，也必须先通过这里对
-    signedLease 的验签才会被放行。多公钥支持（trusted_keys）是为了密钥轮换：新公钥
-    上线时旧公钥仍可验签，等所有安装都续租过一轮后再撤下。
     """
 
     def __init__(self, public_key_path: Path | None = None, product: str = 'homeos', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, default_key_id: str = 'default') -> None:
         """配置可信公钥集合。
-
-        expected_sha256 为单公钥模式下的 SHA-256 指纹；trusted_keys 为多公钥模式：
-        {keyId: (公钥路径, 指纹或 None)}。
-        异常: ValueError —— 可信公钥集合为空（配置错误，启动期就该失败）。
         """
         self.product = product
         self.default_key_id = default_key_id
@@ -207,11 +164,6 @@ class LeaseVerifier:
 
     def _public_key(self, key_id: str) -> Ed25519PublicKey:
         """取出（并缓存）某个 keyId 对应的 Ed25519 公钥。
-
-        读文件、核指纹、解析 PEM 每把钥每进程只做一次：它们原先出现在每次 verify 里，
-        而 verify 落在每个带会话 Cookie 的请求上。信任锚在运行期不变 —— 公钥随发行版打包，
-        启动期已核过指纹，因此运行期替换 keys/ 下的公钥文件也不会改变已加载的信任锚。
-        异常: LicenseCryptoError —— 公钥读不到、指纹不符，或不是 Ed25519。
         """
         cached = self._parsed_keys.get(key_id)
         if cached is not None:
@@ -237,11 +189,6 @@ class LeaseVerifier:
 
     def verify(self, signed_lease: str, instance_id: str) -> dict[str, Any]:
         """校验签名租约并返回其载荷。
-
-        signed_lease 形如 <base64url(payload)>.<base64url(signature)>；instance_id 为当前安装
-        实例 ID，载荷里的 instanceId 必须与之一致。
-        异常: LicenseCryptoError —— 格式、编码、keyId、指纹、签名、产品或实例任一不符，
-        以及缺少必要字段或序号非法。
         """
         try:
             # 只切第一个点：payload 段不含点，但 maxsplit=1 更稳，签名段里出现点也不会截断内容。
@@ -288,9 +235,6 @@ class LeaseVerifier:
 
 class SecretCipher:
     """落库凭证的对称加密（Fernet：AES-128-CBC + HMAC-SHA256 认证）。
-
-    数据库里只存密文：会话令牌、恢复令牌与激活码即使被拖库也无法直接复用。密钥单独存在
-    key_path（0600 权限），与数据库分离 —— 备份数据库不会连带泄漏密钥，删库也不能解密历史备份。
     """
 
     def __init__(self, key_path: Path) -> None:
@@ -299,11 +243,6 @@ class SecretCipher:
 
     def _key(self) -> bytes:
         """取本机 Fernet 密钥；进程内只碰一次文件。
-
-        目录 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」都在
-        ``secret_key_file`` 里，与 HA 凭据密钥共用一份实现；缓存也在那里 —— 密钥文件一旦存在
-        就是这个部署的加密身份，运行期不会变，第二次起不再走 mkdir + chmod + read。
-        异常: LicenseCryptoError —— 密钥文件已存在但内容为空，或密钥文件/目录不可写。
         """
         return load_or_create_secret_key(
             self.key_path,
@@ -317,9 +256,6 @@ class SecretCipher:
 
     def decrypt(self, value: str) -> str:
         """解密库里取出的密文。
-
-        异常:
-            LicenseCryptoError: 密钥不匹配、密文被改动（HMAC 校验失败）或内容损坏。
         """
         try:
             return Fernet(self._key()).decrypt(value.encode('ascii')).decode('utf-8')

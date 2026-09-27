@@ -1,22 +1,19 @@
 /**
  * `title-button` 控件：标题 / 副标题 / 图标与字号，支持模板变量替换。
  */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271208";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271208";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271226";
 // 标记点默认色取全站主控色（见 design/scene/page.css）。
-import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
 // 标题按钮控件：纯展示 + 外框装饰，尺寸单位统一由 componentContentUnitsPx 换算。
 registerComponent("title-button", {
@@ -28,13 +25,6 @@ registerComponent("title-button", {
     const { height: titleUnitPx } = componentContentUnitsPx(titleComponent, titleContext);
     const titleElement = document.createElement("div");
     titleElement.className = "hb-title-button";
-    // 这里**刻意不写** --title-frame-color / -width / -offset-x / -offset-y。
-    // 那四枚曾经存在过（早期用 CSS 画外框的方案），但现在的外框是一段内联 SVG：
-    // 颜色直接落成 path 的 stroke 属性、宽度落成 stroke-width、两个偏移参与算出
-    // 括号的坐标（见下面 titleFrameOffsetXPx / titleFrameOffsetYPx）。也就是说这四项
-    // 输入已经在 JS 里被消费完了，再写进元素的 style 只是没人读的死壳
-    // （tools/check_invariants.mjs 第 10 条会拦下这类「写了没人读」的变量）。
-    // 其余 --title-* 变量不同：它们由 renderer.css 的 .hb-title-button-* 规则取用。
     titleElement.style.setProperty(
       "--title-main-size",
       clampCoercedNumber(titleProperties.mainSize, 8, 200, 34) * titleUnitPx + "px"

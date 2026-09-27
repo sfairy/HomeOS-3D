@@ -1,7 +1,4 @@
 """商店接口的 referrals 资源组（从 api/store.py 拆出）。
-
-子路由不带前缀，由父路由在**原来的位置** include，以此保持注册顺序（FastAPI 按注册序匹配）。
-只留邀请总览 / 邀请码 / 邀请历史 / 提现申请四条路由；钱包与提现载荷在 store_catalog.py。
 """
 from __future__ import annotations
 
@@ -156,7 +153,6 @@ def request_withdrawal(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="请先生成邀请码。")
 
     # requestKey 是幂等键：重复提交必须原样返回上一次结果，
-    # 而不是被"存在处理中提现"这类状态校验挡住。
     existing = session.scalars(
         select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == payload.request_key)
     ).first()
@@ -173,7 +169,6 @@ def request_withdrawal(
             detail=f"最低提现 {money.format_centi(minimum_centi)} 积分。",
         )
     # 「可用积分」口径必须与前端展示一致（余额 - 冻结）；只比 balance 的话，
-    # 「可用 0 元」的用户照样能提交申请，一路走到后台才被人工拒绝。
     available_centi = referrals.available_points_centi(wallet)
     if points_centi > available_centi:
         raise HTTPException(
@@ -189,8 +184,6 @@ def request_withdrawal(
         )
     fee_percent = float(setting.referral_withdrawal_fee_percent or 0.0)
     # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的到账金额与实际不符，只能事后投诉；
-    # 前端已在发 expectedFeePercent，这里真正校验它，不一致就让用户重新确认一次。
-    # 比对用基点整数：浮点的 abs(a-b) > 1e-6 对「1% vs 1.0000001%」判不出来，而这两个值在前端显示成同一个数字。
     if payload.expected_fee_percent is not None and money.percent_to_bps(
         payload.expected_fee_percent
     ) != money.percent_to_bps(fee_percent):
@@ -211,8 +204,6 @@ def request_withdrawal(
         )
     except referrals.WalletConflictError:
         #: 上面的「可用积分够不够」「有没有正在处理的提现」都是**读**判断，与真正冻结之间存在窗口：
-        #: 两个并发申请会各自读到 frozen=0、各自通过校验，最终只冻结一次却挂两笔待审 —— 审完就能重复套现。
-        #: 冲突时让用户重试即可，绝不能让它变成一个 500 或静默成功。
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="钱包刚刚有其它操作，请刷新后重试。",

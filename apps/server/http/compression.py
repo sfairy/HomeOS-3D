@@ -1,28 +1,4 @@
 """窄口径的响应压缩：只压「文本类 + 体积够大 + 不是流式透传」的响应。
-
-**为什么不用 Starlette 自带的 ``GZipMiddleware``**：它只判断「响应头里有没有 content-encoding」，
-其余一律压。而本应用有一整类**必须原样透传**的响应 —— ``apps/server/api/ha_proxy.py`` 那五条代理
-路由（``/api/camera_hls/``、``/api/camera_proxy/``、``/api/camera_proxy_stream/``、
-``/api/image_proxy/``、``/api/media_player_proxy/``、``/api/hls/``）刻意**删掉**上游的
-content-encoding、按已解码字节逐块下发（见该文件 RESPONSE_HEADERS_TO_DROP 与 pass_through_body
-的说明）。对它们再压一次不只是白烧 CPU：摄像头分片与 MJPEG 流本来就不该被重新编码，而且
-「按字节透传」会变成「按块压缩」，客户端拿到的分块边界不再是上游那一份。
-
-于是口径收成三条，缺一不可：
-
-1. 请求的 ``accept-encoding`` 里有 gzip（不看 q 值：浏览器实际不会发 ``gzip;q=0``，
-   为它加一条分支只会让这个文件更难读）；
-2. 响应**没有** content-encoding（已经有就不重复压），content-type 在下面的白名单里；
-3. 请求路径**不在** ``BYPASS_PATH_PREFIXES`` 里 —— 这一条在响应头生成之前就能判定，
-   因此流式透传的通路根本不会走到压缩逻辑里。
-
-再加两道闸门：``content-length``` 已知且小于 ``MINIMUM_SIZE`` 时直接跳过（几十字节压完往往
-更大，还白白把 Content-Length 换成 chunked），以及 HEAD 请求一律跳过（它不带实体，压它只会让
-响应头与实体对不上）。
-
-实现是**纯 ASGI 中间件**而不是 ``BaseHTTPMiddleware``：后者会把流式响应整份读进内存，
-而 ``/api/hls/`` 这类无限流一旦走到那条路径就会把内存吃光。这里逐块压、逐块发，
-任何时刻只持有一个 chunk。
 """
 from __future__ import annotations
 
@@ -53,7 +29,6 @@ BYPASS_PATH_PREFIXES: tuple[str, ...] = (
 MINIMUM_SIZE = 1024
 
 #: 压缩级别。取 6 而不是 9：这一档是 CPU 与体积的拐点，9 级对首屏那几份大文件
-#: 多花的 CPU 换来的体积收益不到 1%。
 _COMPRESSION_LEVEL = 6
 
 #: 15 位窗口 + 16 表示「gzip 容器」，与 gzip(1) 的默认口径一致，兼容性最好。
@@ -101,10 +76,6 @@ def _content_length(headers: Sequence[tuple[bytes, bytes]]) -> int | None:
 
 def _rewrite_start_headers(headers: Sequence[tuple[bytes, bytes]]) -> list[tuple[bytes, bytes]]:
     """把响应头改成「已压缩」的形态。
-
-    删掉 content-length：压缩后长度变了，留着它会比实际字节数大，客户端读到「少了一段」
-    会当成截断。补 vary：同一份 URL 对不同 accept-encoding 的客户端内容不同，共享缓存必须
-    按它分桶，否则会把 gzip 的那一份喂给不支持 gzip 的客户端。
     """
     rewritten = [
         (key, value)

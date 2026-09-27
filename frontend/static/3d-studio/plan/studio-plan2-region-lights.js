@@ -1,41 +1,24 @@
-/**
- * 按房间区域（region）计算光照的「区域灯」模块，替代逐盏原生灯（PointLight / SpotLight）的实时光照。
- * 为什么：一层可能有几十盏灯，逐盏走 three.js 的光照循环会让每个材质的着色器迅速膨胀，且大量灯在视觉上互相重叠、性价比极低。
- * 做法：每盏灯按其类型 + 用户微调换算成一个「光照体积」（椭圆 / 条状 / 圆角矩形 / 方形），把一层楼所有灯的体积参数（中心、半尺寸、颜色、朝向）打进 uniform 数组或数据纹理；
- * 再给每个接收面材质克隆一份，用 onBeforeCompile 注入一段循环所有体积并做「有界并集」求和的着色器片段（buildShaderChunk），把结果加到 indirectDiffuse 上。
- * 对外：createRegionLightController（控制器工厂）；regionLightKey 与 sampleRegionVolumes 只在本模块内使用。
- * 全局约定：灯节点被强制放到 REGION_LIGHT_LAYER（30）层 —— 原生光照不再渲染它们，但体积仍参与着色，避免「灯本体不画、光也丢了」；
- * uniform 名统一带 plan2 前缀，并与接触阴影模块共享 plan2ViewToWorld / plan2MotionToLayout 的坐标系语义（世界坐标 → 布局坐标）；长度一律米、角度用度（rotation 是用户输入的角度制）；
- * 体积的 axis 分量是「编码位」而非几何方向：xy 存水平朝向单位向量，z 存形状码，w 存软边（softness），详见 buildShaderChunk 上方的说明。
- */
 
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）。
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271208";
-import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js?v=2609271208";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271226";
+import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js?v=2609271226";
 
 // 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
-// 着色器内建函数** clamp(...)（那些必须逐字保留）—— 把 JS 侧改名只会让 diff 变大、并让后来者
-// 更容易误改着色器字符串。实现只有一份，名字不同而已。
 const clamp = clampNumber;
 
 // 区域灯所在的自定义层号：studio-app.js 的 region-light 分支与灯控制器都用它，
-// 两边必须同一个值，否则灯会被原生光照重复计算或干脆不参与光照。
 export const REGION_LIGHT_LAYER = 30;
 // 接收面分类：floor / wall / furniture。同一盏灯对不同类别用不同的增益与体积高度，
-// 让地面更亮、墙面稍暗、家具居中，避免整屋亮度一刀切。
 const REGION_KINDS = ["floor", "wall", "furniture"];
 // uniform 数组长度向上取到 16 的整数倍：GPU 对 uniform 数组的布局更友好，
-// 且容量变化不会每加一盏灯就重新编译着色器。
 const alignTo16 = sizeValue => Math.max(16, Math.ceil(sizeValue / 16) * 16);
 /**
  * 区域灯的稳定键：把楼层 ID 与灯 ID 编码成一个字符串，形如 `["3F","abc-uuid"]`。
- * 选 JSON 而不是 `a:b` 拼接，是因为楼层名与灯 ID 都可能含冒号之类的分隔符，JSON 转义能保证可逆；isRegionLightKey 会用同一函数回写一遍做「往返校验」，确保外部的键一定能解回原值。
  */
 const regionLightKey = (floorKeyId, lightKeyId) =>
   JSON.stringify([String(floorKeyId), String(lightKeyId)]);
 /**
  * 校验一个字符串是不是本模块生成的合法区域灯键。
- * 除结构检查外还要求「重新编码后与原串完全一致」：这样 `["3F","abc","extra"]` 之类的畸形输入、以及带多余空格的 JSON 都会被拒掉，保证键可作为 Map 的稳定身份。
  */
 function isRegionLightKey(keyString) {
   try {
@@ -50,11 +33,6 @@ function isRegionLightKey(keyString) {
     return false;
   }
 }
-/**
- * 清洗外部传入的区域覆盖配置（用户在编辑器里对某盏灯画的「光斑形状」）。输入是不可信数据（来自持久化文档 / 前端表单），所以逐字段校验 + 夹取：
- * 键必须能通过 isRegionLightKey（否则整条丢弃）；shape 只允许 circle / square / ellipse / strip；width / depth 必须是有限数且夹到 [0.5, 20] 米； 可选字段若给了就必须是有限数，否则整条丢弃（宁可退回默认形状，也不要用 NaN 去算几何）；heightMin > heightMax 这类自相矛盾的区间直接判非法。
- * 通过的条目会被归一成一份新对象（Object.create(null)，不带原型，避免原型污染），数值全部夹到与着色器编码相容的范围里。
- */
 
 /**
  * 沿父链向上查找某个 userData 字段。
@@ -66,10 +44,6 @@ function findAncestorUserData(startObject, userDataKey) {
     }
   }
 }
-/**
- * 判断材质能否作为区域灯的接收面：只有内置的标准 / 物理 / Phong / Lambert 材质才注入区域灯代码，因为它们都实现了 three.js 的灯光 chunk 结构（lights_fragment_begin 等），注入点一定存在。
- * 自定义 ShaderMaterial 没有这些 chunk，强行注入会在 replace 处静默失效或报错；hbDedicatedWall 是墙壁专用的自定义材质，走另一套注入分支，因此单独放行。
- */
 function isRegionReceiverMaterial(materialCandidate) {
   return (
     materialCandidate &&
@@ -82,7 +56,6 @@ function isRegionReceiverMaterial(materialCandidate) {
 }
 /**
  * 判断 startNode 在 rootNode 子树内且沿途都可见。
- * 与「只看 visible」的区别：向上走到 rootNode 之外还没遇到根，说明节点已被移出场景、它的 matrixWorld 也不可信，返回 false；遍历到 rootNode 即停，避免无谓地爬满父链。
  */
 function isVisibleWithin(startNode, rootNode) {
   for (let currentNode = startNode; currentNode; currentNode = currentNode.parent) {
@@ -95,11 +68,6 @@ function isVisibleWithin(startNode, rootNode) {
   }
   return false;
 }
-/**
- * 判定一个网格属于哪一类接收面（floor / wall / furniture），判定优先级（越靠前越可信）：1. 祖先上的 regionReceiverKind 显式声明 —— 建模 / 导出的规范字段，直接采信；
- * 2. modelLayer：items / lights 归家具、walls 归墙面；3. 网格名里的 wall / floor 关键字（外部模型常见命名约定）。 4. 几何启发式：若没有 modelLayer 且最长轴 > 1.5m、最短轴 < 0.18m，说明是一块又大又薄的面板 —— 判为地板；5. 兜底：有 modelLayer 归家具，否则归墙面。
- * 之所以层层兜底：外部导入的模型不带我们的 userData，只能靠命名与形状猜；猜错的代价只是增益曲线略有差异，不会导致漏光。
- */
 function classifyReceiverKind(candidateMesh) {
   const declaredKind = findAncestorUserData(candidateMesh, "regionReceiverKind");
   if (REGION_KINDS.includes(declaredKind)) {
@@ -140,8 +108,6 @@ function classifyReceiverKind(candidateMesh) {
 }
 /**
  * 比较并按需写入 Vector4，返回是否发生变化。
- * 存在意义：uniform 上传有成本，且 three.js 只有在值真的变了时才好判断「这一组材质要不要重新上传 uniform」。
- * 逐分量比较可以避免每帧无条件写 uniform 带来的额外开销，也让上层能用一个 changed 标志汇总。
  */
 function setVector4IfChanged(targetVector, xComponent, yComponent, zComponent, wComponent) {
   const didChange =
@@ -152,11 +118,6 @@ function setVector4IfChanged(targetVector, xComponent, yComponent, zComponent, w
   targetVector.set(xComponent, yComponent, zComponent, wComponent);
   return didChange;
 }
-/**
- * 生成注入到接收面材质里的区域灯着色器片段：片段以 buildShaderChunk(group) + 原 fragmentShader 的形式「前置」，其中定义的 uniform / varyings / plan2SurfaceLight 对整个片元着色器可见；调用方随后把 `reflectedLight.indirectDiffuse += ... * plan2SurfaceLight(...)` 插到 `#include <lights_fragment_end>` 之后 —— 那时 three.js 已算完所有原生光照，我们的结果只是叠加，不影响原有管线。
- * uniform 布局两种模式二选一（由容量决定）：纹理模式（PLAN2_TEXTURE_DATA = 1）把数据放在 4 列 × capacity 行的 RGBA32F DataTexture 里，每盏灯占 4 个 texel（0 = center、1 = extent、2 = color、3 = axis），当 `capacity * 4 + 128 > maxFragmentUniforms` 时自动切到这一模式，避开桌面 GL 的 fragment uniform 数量上限；数组模式则是 plan2Centers / plan2Extents / plan2Colors / plan2Axes 四个 vec4 数组，长度即 capacity。 axis 分量编码（着色器据 axis.z 分支选几何）：axis.xy = 体积在水平面的朝向单位向量（rotation 旋转后的结果），axis.z = 0 自动椭圆、1 自动条灯、2 覆盖椭圆、3 覆盖条灯（圆角矩形）、4 覆盖方形，axis.w = softness（仅覆盖模式即 axis.z > 1.5 用作软边起点）；extent 的 x / z 为水平半尺寸、y 为垂直半高、w 为垂直方向软边厚度；center.w 是「点亮强度」（0 表示这盏灯没开，着色器开头就 continue 掉）。
- * 形态差异都在分支里处理，而不是拆成多份着色器：分开编译会让每个房间都产生独立程序、程序数量爆炸；用 uniform 分支只多几次比较。
- */
 function buildShaderChunk(volumeGroup) {
   return (
     "\n#define PLAN2_LIGHT_CAPACITY " +
@@ -168,8 +129,6 @@ function buildShaderChunk(volumeGroup) {
 }
 /**
  * 在 CPU 侧求某点被一组光照体积照亮的颜色（着色器 plan2SurfaceLight 的等价实现）。
- * 为什么要有 CPU 版本：反射、悬浮预览、导出等场景拿不到正在编译的着色器，只能在 JS 里对同一套体积参数求值；两边必须保持一致的公式与分支条件（尤其是 axis.z 的形状码判定阈值 0.5 / 1.5 / 2.5 / 3.5），改一边就要改另一边。
- * 求值方式：逐体积算影响权重 influence（水平衰减 × 垂直衰减 × 强度），颜色按权重加权平均，总覆盖度用「有界并集」公式 1 - Π(1 - influence) 累积 —— 多盏灯重叠时不会像直接相加那样过曝，也不会像取 max 那样产生导数折痕。
  */
 function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
   let coverage = 0;
@@ -211,7 +170,6 @@ function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
     let horizontalFalloff =
       1 - normalizedDistance * normalizedDistance * (3 - normalizedDistance * 2);
     // axis.z > 3.5（方形）：两个轴独立柔化。用「各轴独立」而不是 max(x,z)，
-    // 是因为 max 在对角线上会产生导数不连续，视觉上出现四块三角楔形亮斑。
     if (axis.z > 3.5) {
       const xEdgeRatio = clamp(
         (Math.abs(localX) / Math.max(extent.x, 0.001) - fadeStart) / (1 - fadeStart),
@@ -233,7 +191,6 @@ function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
       clamp(center.w, 0, 1.5);
     totalWeight += influence;
     // 有界并集：新体积只在「尚未被覆盖」的部分叠加，覆盖度天然封顶在 1，
-    // 不会像累加那样在灯重叠处暴亮。
     coverage += (1 - coverage) * influence;
     accumulatedColor[0] += color.x * influence;
     accumulatedColor[1] += color.y * influence;
@@ -245,8 +202,6 @@ function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
 }
 /**
  * 创建区域灯控制器（一个场景一份；内部的状态与材质克隆缓存跨帧复用）。
- * 主要职责：register 登记一盏灯、把它移到 REGION_LIGHT_LAYER 并停用实时阴影；sync 每帧推进 —— 必要时重建结构（重新扫描场景、换材质、算体积），再把每盏灯的体积参数写进所属楼层 / 分类的 uniform 或数据纹理； 材质侧：所有接收面材质会被克隆并注入区域灯着色器（见 getRegionMaterial）。
- * 与接触阴影的配合：非墙面灯组会顺带把接触阴影的 uniform 一起挂到同一材质上，这样一次注入同时解决「区域光照 + 接触阴影」，不必叠加两层 onBeforeCompile。
  */
 export function createRegionLightController({
   THREE: THREE,
@@ -287,19 +242,14 @@ export function createRegionLightController({
   });
 
   const registrationsByLight = new Map();
-  // listenedNodes：给每个节点挂 childadded / childremoved 监听，用于自动发现结构变化。
-  // 用 Set 记录已挂载的节点，避免重复 addEventListener（重复挂会累积调用）。
   const listenedNodes = new Set();
   const assignmentsByMesh = new Map();
   // 克隆材质 → 原始材质：用于还原（导出 / 释放时把场景恢复成原样）。
   const sourceMaterialByClone = new WeakMap();
   // 原始材质 → (变体键 → 克隆材质)：同一份材质在不同楼层 / 分类 / 变体下各有一份克隆，
-  // 因为 uniform 必须按「楼层 + 分类」分组，材质也就必须分组。
   const clonesByMaterial = new Map();
   const groupsByKey = new Map();
-  // retainedRoots：外部（楼层缓存）声明「这些子树还在用」，避免被当作陈旧节点回收。
   const retainedRoots = new Set();
-  // 这些临时向量 / 矩阵在闭包里建一次，避免在每帧对每盏灯的热路径上反复 new。
   const lightWorldPosition = new THREE.Vector3();
   const floorRootPosition = new THREE.Vector3();
   const sampleWorldPoint = new THREE.Vector3();
@@ -314,16 +264,13 @@ export function createRegionLightController({
   const volumeInputsScratch = [];
   const settings = {
     // 全局总增益。3 是让区域灯的推导亮度与旧版逐盏实时光照对齐的标定值，
-    // 改它相当于整体调亮 / 调暗，各分类的相对关系由下面的 xxxGain 控制。
     gain: 3,
     floorGain: 1,
     // 墙面略暗（0.9）：墙是大面积浅色，按地面同等增益会显得发灰、失去层次。
     wallGain: 0.9,
     furnitureGain: 1,
-    // 体积范围相对灯本身标称 range 的缩放；0.8 收紧一点，避免相邻房间互相串光。
     rangeScale: 0.8,
     // 区域灯仍复用场景里唯一投射阴影的平行光（太阳）的阴影图，
-    // 0.6 是把它压到不喧宾夺主的程度 —— 区域灯负责亮度，阴影只负责轮廓。
     sunShadowStrength: 0.6
   };
   const stats = {
@@ -356,27 +303,20 @@ export function createRegionLightController({
   // 退出运动模式后的「亮度淡回」起点时间戳（280ms）；null 表示当前不需要淡回。
   let motionFadeStartMs = null;
   // 结构脏标记：任何「场景里多/少了一个节点」的事件都会把它置位，
-  // 下一次 sync 才真正重扫，避免在遍历过程中修改场景引发重入。
   const markStructureDirty = () => {
     shouldRescanStructure = true;
   };
   const originalOnBeforeRender = scene.onBeforeRender;
   /**
    * 取（必要时创建）某个「楼层 + 接收面分类」的灯组，并把容量对齐到 16 的倍数。
-   * 灯组是 uniform 的载体：同一楼层的同一分类共用一组 uniform，于是同一份克隆材质可以覆盖该分类的所有网格，材质数量被压到很低。
-   * 容量变化时要做三件事：重建 slot 数组、按需重建数据纹理、让已缓存的材质 needsUpdate = true —— 因为着色器里的 PLAN2_LIGHT_CAPACITY 变了，必须重新编译才能拿到新的数组长度（three.js 不会自动感知宏变化）。
    */
   
   /**
    * 取（必要时克隆并注入）区域灯材质。
-   * 为什么必须克隆：区域灯是「按楼层 + 分类分组」的，同一份原始材质在不同分组下要绑定不同的 uniform 对象，而 uniform 是挂在材质上的，所以只能一份分组一份克隆；变体键由「楼层 + 分类 + 是否保留细节面 + 是否地面调色」组成，同键复用。 注入内容（onBeforeCompile 里按顺序）：1. 先调用原始材质的 onBeforeCompile，保证不破坏它自己的注入；2. 把灯组 uniform 合并进 shader.uniforms；3. 地面调色额外乘 plan2FloorBrightness（用户在编辑器里调的地面亮度）；
-   * 4. 顶点把世界坐标写到 vPlan2WorldPosition（用 viewToWorld 矩阵从 mvPosition 还原）；5. 片元前置 buildShaderChunk，再把区域的贡献加到 indirectDiffuse，墙面走专用分支（只补 diffuse / opacity，不叠间接光）；6. 非墙面灯组还会注入接触阴影采样（opaque_fragment 处乘上遮蔽）；7. 对「不需要细节、非 alpha 墙、非透明」的材质，改用一套廉价的简单光照，把 three.js 的原生光照 chunk 整段删掉，只留我们注入的计算。
    */
   
   /**
    * 重新扫描整个场景结构（材质替换、分组容量、监听器、统计的唯一重算入口）。
-   * 流程：1. 遍历一次收集节点表与网格表，顺带找出已登记的灯；2. 维护 childadded / childremoved 监听（新增节点挂上、消失的摘掉），这样后续结构变化能自动把 shouldRescanStructure 置位； 3. 回填每盏灯的楼层 ID、槽位键与楼层根节点；4. 按「楼层 × 分类」建灯组（容量按实际灯数对齐到 16）；5. 逐网格分类接收面并换材质，收集 liveMaterials；
-   * 6. 回收：不再使用的网格还原原材质、不再使用的克隆材质 dispose、空灯组销毁 —— 全部依据本轮的 liveMaterials / swappedMeshes 判断；7. 统计原生灯（未登记的灯）数量，便于排查「还有实时光照在跑」。
    */
   function rebuildStructure() {
     stats.structureScans += 1;
@@ -409,7 +349,6 @@ export function createRegionLightController({
     for (const [registeredLight, registrationRecord] of registrationsByLight) {
       if (!registeredLights.has(registeredLight)) {
         // 灯被移出场景了：把图层掩码还原，让它在别处仍按原生灯工作，
-        // 并注销登记（否则会一直占着渲染层 30 不参与任何光照）。
         registeredLight.layers.mask = registrationRecord.originalLayers;
         registrationsByLight.delete(registeredLight);
       }
@@ -427,7 +366,6 @@ export function createRegionLightController({
       registration.key = regionLightKey(registration.floorId, registration.id);
       let floorRoot = rootObject;
       // 向上找第一个带楼层字段的祖先作为「楼层根」：灯的高度是相对楼层算的
-      // （floorElevation），楼层根一旦找错，竖直方向的体积就会整体偏移。
       for (
         let ancestor = registration.light.parent;
         ancestor && ancestor !== rootObject;
@@ -448,8 +386,6 @@ export function createRegionLightController({
     }
     const defaultFloorId =
       registrationsByFloorId.size === 1 ? registrationsByFloorId.keys().next().value : "default";
-    // 一盏都没有时也要留一个 "default" 楼层键：否则下面的接收面分组会因为找不到
-    // 楼层而反复创建空组，且 sampleFloorVolume 的默认楼层取不到值。
     if (!registrationsByFloorId.size) {
       registrationsByFloorId.set(defaultFloorId, []);
     }
@@ -462,7 +398,6 @@ export function createRegionLightController({
     const swappedMeshes = new Set();
     for (const mesh of meshList) {
       // 辅助物件（背景、网格线、轮廓、灯的示意外观）不接收区域光：
-      // 它们是编辑器标记而不是房屋组成部分，被照亮会显得很怪。
       if (
         ["background", "grid", "outline", "light-source-preview"].includes(
           findAncestorUserData(mesh, "exportRole")
@@ -477,7 +412,6 @@ export function createRegionLightController({
       );
       if (!registrationsByFloorId.has(meshFloorId)) {
         // 网格的楼层没有灯：仍然要建 0 容量的灯组，让这些接收面也有 uniform
-        // （否则材质里的 uniform 为 undefined，着色器编译会失败）。
         registrationsByFloorId.set(meshFloorId, []);
         for (const emptyKindName of REGION_KINDS) {
           ensureLightGroup(meshFloorId, emptyKindName, 0, regionLightContext());
@@ -508,7 +442,6 @@ export function createRegionLightController({
             isFloorReceiver
           , regionLightContext());
       // 只在真的换了材质时才写回：receiverKind / 楼层变了但克隆恰好相同的情况
-      // 很常见（比如都是 simple 变体），无条件赋值会让 three.js 误以为材质变了。
       if (
         Array.isArray(material)
           ? assignedMaterial.some(
@@ -531,7 +464,6 @@ export function createRegionLightController({
     }
     const stillAssignedMeshes = new Set();
     // retainedRoots 里的子树可能是「被楼层缓存保留、没挂回主场景」的：
-    // 逐个遍历它们，把它们用到的材质补进 liveMaterials，避免被下面的回收逻辑误删。
     for (const trackedRoot of retainedRoots) {
       trackedRoot.traverse(traversedNode => {
         if (assignmentsByMesh.has(traversedNode)) {
@@ -548,7 +480,6 @@ export function createRegionLightController({
       });
     }
     for (const [assignedMesh, meshAssignment] of assignmentsByMesh) {
-      // 既不在本轮换过材质、也不在保留子树里 → 该网格已经不再需要区域灯材质，还原。
       if (!swappedMeshes.has(assignedMesh) && !stillAssignedMeshes.has(assignedMesh)) {
         restoreMeshMaterial(assignedMesh, meshAssignment);
         assignmentsByMesh.delete(assignedMesh);
@@ -558,7 +489,6 @@ export function createRegionLightController({
       for (const [staleVariantKey, staleClone] of cloneMap) {
         if (!liveMaterials.has(staleClone)) {
           // 变体键形如 `楼层\0分类\0变体`，取最后一个 \0 之前的部分即所属灯组，
-          // 顺手把克隆从灯组的材质集合里摘掉，否则灯组永远不空、不会被回收。
           groupsByKey
             .get(staleVariantKey.slice(0, staleVariantKey.lastIndexOf("\0")))
             ?.materials.delete(staleClone);
@@ -579,7 +509,6 @@ export function createRegionLightController({
     nativeLights = [];
     scene.traverse(sceneNode => {
       // 未登记的灯会继续走 three.js 的实时光照。收集它们是为了 stat 里能报警，
-      // 避免出现「灯在场景里但完全没被区域灯接管」的隐蔽问题。
       if (sceneNode.isLight && !registrationsByLight.has(sceneNode)) {
         nativeLights.push(sceneNode);
       }
@@ -589,7 +518,6 @@ export function createRegionLightController({
     stats.meshCount = swappedMeshes.size;
     stats.floorCount = registrationsByFloorId.size;
     // 「细节材质」= 保留了原生 PBR 光照的材质：外部模型、带 alpha 渐变的墙、透明玻璃。
-    // 它们的数量直接决定着色器会不会退化得只剩区域灯。
     stats.detailedMaterials = [...liveMaterials].filter(
       surfaceMaterial =>
         surfaceMaterial.userData.plan2DetailedSurface ||
@@ -607,7 +535,6 @@ export function createRegionLightController({
   }
   /**
    * 把网格的材质还原成区域灯克隆之前的原始材质。
-   * 只有「当前挂载的仍是我们当初赋上去的那一份」时才还原：中途被别的模块换过材质（比如反射通道临时替换）说明这份分配已失效，强行还原会覆盖别人的改动。
    */
   function restoreMeshMaterial(swappedMesh, assignmentRecord) {
     if (swappedMesh.material === assignmentRecord.assigned) {
@@ -620,7 +547,6 @@ export function createRegionLightController({
   }
   /**
    * 登记一盏灯，让它由区域灯接管。
-   * 重复登记同一盏灯不会重置已有记录（保留 fullIntensity 的原始基准），只刷新图层并再次标记结构脏 —— 这样「改亮度」不会把基准值也一起改掉。
    * @param {object} lightObject 灯对象（必须 isLight）。
    */
   
@@ -648,7 +574,6 @@ export function createRegionLightController({
         shouldRescanStructure = true;
       }
       // 运动模式（且非瞬时）下不重扫：过渡中场景每帧都在变，重扫会不断换材质、
-      // 不断触发着色器编译，直接把帧率打穿。过渡结束由 setMotion 再置一次脏标记。
       if (shouldRescanStructure && (!isMotionEnabled || isMotionInstant)) {
         rebuildStructure();
       }
@@ -659,7 +584,6 @@ export function createRegionLightController({
       return;
     }
     // 280ms 的淡回：退出运动模式时亮度不是瞬间跳回，而是平滑过渡，
-    // 否则家具落位的瞬间会看到整屋亮度闪一下。
     const motionFadeProgress =
       motionFadeStartMs === null
         ? 1
@@ -684,7 +608,6 @@ export function createRegionLightController({
           activeLightGroup.uniforms.plan2MotionToLayout.value.identity();
         }
         // 总增益 × 分类增益 × 淡回进度：三者相乘得到该灯组本帧的最终增益，
-        // 一个数就同时表达了「整体亮度」「地面/墙面/家具差异」「过渡动画」。
         const gainValue =
           settings.gain * settings[activeLightGroup.kind + "Gain"] * motionFadeProgress;
         shouldUpdateUniforms ||= activeLightGroup.uniforms.plan2Gain.value !== gainValue;
@@ -701,7 +624,6 @@ export function createRegionLightController({
       loopRegistrations.forEach((floorEntry, slotIndex) => {
         const { light: light, item: lightItem } = floorEntry;
         // 只刷新自身与祖先的世界矩阵（不递归子节点）：灯通常没有子节点，
-        // 递归在几十盏灯的循环里是纯开销。
         light.updateWorldMatrix(true, false);
         lightWorldMatrix.copy(light.matrixWorld);
         if (motionMatrix) {
@@ -717,7 +639,6 @@ export function createRegionLightController({
         }
         const floorElevation = floorEntry.floorRoot ? floorRootPosition.y : 0;
         // 可见性两重判断：灯被隐藏 / 移出场景时 amount 直接为 0；
-        // 否则按「当前 intensity ÷ 标称满值」归一化成点亮比例。
         const actualAmount = isVisibleWithin(light, rootObject)
           ? clamp(coercedFiniteNumberOr(light.intensity, 0) / floorEntry.fullIntensity, 0, 1.5)
           : 0;
@@ -751,7 +672,6 @@ export function createRegionLightController({
           stats.structureScans
         );
         // 体积参数签名逐项比对：全部一致就说明这盏灯的输入没变，
-        // 可以跳过下面几十行的体积重算（拖拽相机、拖别的家具时大量命中）。
         if (
           floorEntry.volumeInputs &&
           volumeInputsScratch.every(
@@ -768,13 +688,11 @@ export function createRegionLightController({
           clamp(coercedFiniteNumberOr(settings.rangeScale, 1), 0.2, 3);
         const isStripLight = lightItem.type === "striplight" || light.isRectAreaLight;
         // 默认半径 = 灯范围 × 类型系数：吸顶灯 0.45（更宽的光斑），其余 0.33。
-        // 这两个系数是把「标称照射范围」换算成「视觉上的亮区半径」的标定结果。
         const defaultRadius = scaledRange * (lightItem.type === "ceilinglight" ? 0.45 : 0.33);
         const halfWidth = Math.max(0.05, coercedFiniteNumberOr(lightItem.width, light.width || 2) / 2);
         const halfDepth = Math.max(0.025, coercedFiniteNumberOr(lightItem.depth, light.height || 0.2) / 2);
         const matrixElements = lightWorldMatrix.elements;
         // 从世界矩阵的第 0 / 2 列取水平朝向（灯的前方在 XZ 平面的投影），
-        // 归一化成单位向量，作为体积的局部轴 —— axis.xy 就是这么来的。
         const horizontalDistance = Math.hypot(matrixElements[0], matrixElements[2]);
         const directionX =
           horizontalDistance > 0.00001 ? matrixElements[0] / horizontalDistance : 1;
@@ -790,14 +708,11 @@ export function createRegionLightController({
           ? directionX * Math.sin(rotationRad) + directionZ * Math.cos(rotationRad)
           : directionZ;
         // softEdgeSize 给体积留出一圈软边：取范围与 0.3m 的较大值，
-        // 避免小范围灯因为软边过窄而出现硬边。
         const softEdgeSize = Math.max(0.3, scaledRange * 0.23);
         // 条灯以「短边的一半 + 少量余量 + 软边」为基准半径；其它灯用 defaultRadius + 软边。
         const baseRadius = isStripLight
           ? halfDepth + scaledRange * 0.07 + softEdgeSize
           : defaultRadius + softEdgeSize;
-        // region 是这盏灯「当前生效的几何描述」，复用对象避免每帧分配；
-        // 它同时是 listRegions / inspect 对外暴露的数据来源，也是覆盖字段的落点。
         const region = (floorEntry.region ||= {
           center: [0, 0, 0],
           lampCenter: [0, 0, 0],
@@ -838,7 +753,6 @@ export function createRegionLightController({
         region.amount = effectiveAmount;
         region.realAmount = actualAmount;
         // heightAbove / heightBelow 是「相对灯的高度」写法，换算成绝对高度区间；
-        // heightMin / heightMax 则是直接给的绝对高度，优先级更高（见下）。
         region.heightAbove = lightOverride?.heightAbove;
         region.heightBelow = lightOverride?.heightBelow;
         region.lampHeight = lightWorldPosition.y - floorElevation;
@@ -856,16 +770,13 @@ export function createRegionLightController({
           const loopSlot = loopLightGroup.slots[slotIndex];
           const loopKind = loopLightGroup.kind;
           // 垂直范围按分类微调：地面略微下沉 0.18（把地板下沿也包住），
-          // 墙面 / 家具只下沉 0.1（不让光渗到楼下一层）。
           let bottomY = floorElevation - (loopKind === "floor" ? 0.18 : 0.1);
           // 上沿至少比地面高 0.2m，保证体积不会退化成零高度；
-          // 墙面额外抬 0.55m（墙面本来就高），家具抬 0.2m。
           let topY = Math.max(
             floorElevation + 0.2,
             lightWorldPosition.y + (loopKind === "wall" ? 0.55 : 0.2)
           );
           // 边缘柔化厚度按分类取不同系数：地面 0.23（最大，贴近真实的地面溢光）、
-          // 墙面 0.18（墙脚过渡要短一些）、家具 0.2。
           let edgeFade = Math.max(
             0.3,
             scaledRange * (loopKind === "floor" ? 0.23 : loopKind === "wall" ? 0.18 : 0.2)
@@ -878,7 +789,6 @@ export function createRegionLightController({
             lightOverride?.heightMax !== undefined
           ) {
             // 给了高度限制就重算 [bottomLimit, topLimit]：heightMin/Max 是绝对高度，
-            // heightBelow/Above 是相对灯高；heightMin === 0 被特判成「贴地」（含地板下沿）。
             const bottomLimit =
               lightOverride.heightMin !== undefined
                 ? lightOverride.heightMin === 0
@@ -894,8 +804,6 @@ export function createRegionLightController({
                   ? topY + edgeFade
                   : lightWorldPosition.y + lightOverride.heightAbove;
             const heightSpan = Math.max(0, topLimit - bottomLimit);
-            // 软边不能超过总高度的一半：否则上下两端的柔化会互相重叠，
-            // 中间就没有「实心」区域了（甚至算出负的净高）。
             edgeFade = Math.max(0.00001, Math.min(edgeFade, heightSpan / 2));
             bottomY = bottomLimit + edgeFade;
             topY = Math.max(bottomY, topLimit - edgeFade);
@@ -904,8 +812,6 @@ export function createRegionLightController({
               slotAmount = 0;
             }
           }
-          // 覆盖模式下尺寸完全由用户给定（不再随灯型变化）；否则条灯用半宽 + 余量 + 软边，
-          // 其它灯用 defaultRadius + 软边。
           const slotHalfWidth = lightOverride
             ? lightOverride.width / 2
             : isStripLight
@@ -935,7 +841,6 @@ export function createRegionLightController({
             setVector4IfChanged(loopSlot.color, light.color.r, light.color.g, light.color.b, 0) ||
             slotChanged;
           // 形状码（axis.z）：覆盖模式 4 = 方形、3 = 条灯（圆角矩形）、2 = 椭圆（circle 也走椭圆）；
-          // 未覆盖时 1 = 自动条灯、0 = 自动椭圆。着色器按这些阈值分支出不同的距离场。
           slotChanged =
             setVector4IfChanged(
               loopSlot.axis,
@@ -955,7 +860,6 @@ export function createRegionLightController({
           loopLightGroup.changed ||= slotChanged;
           if (slotChanged && loopLightGroup.texture) {
             // 纹理模式下数据不会自动跟着 Vector4 变：必须把四个 vec4 按 16 个 float
-            // 写回纹理缓冲。偏移量 slotIndex * 16 对应「每盏灯 4 列 × 每列 4 通道」。
             const textureData = loopLightGroup.texture.image.data;
             const slotByteOffset = slotIndex * 16;
             loopSlot.center.toArray(textureData, slotByteOffset);
@@ -967,7 +871,6 @@ export function createRegionLightController({
       });
       for (const dirtyLightGroup of loopGroups) {
         if (dirtyLightGroup.changed && dirtyLightGroup.texture) {
-          // 只在真正改了 slot 时才重传整张数据纹理；否则每帧上传几十 KB 是纯浪费。
           dirtyLightGroup.texture.needsUpdate = true;
         }
         shouldUpdateUniforms ||= dirtyLightGroup.changed;
@@ -975,11 +878,9 @@ export function createRegionLightController({
     }
     if (shouldUpdateUniforms) {
       // 统计「本帧是否真的写过 uniform」：长期居高不下说明体积签名命中率太低，
-      // 需要检查是不是每帧都在重建灯具（比如灯的世界矩阵被别处反复改动）。
       stats.uniformUpdates += 1;
     }
     // 只统计「可见且落在相机图层里」的原生灯：图层不匹配的灯虽然存在但不会被渲染，
-    // 统计进去会误导排查。
     stats.nativeLights = nativeLights.filter(
       sceneLight =>
         isVisibleWithin(sceneLight, scene) &&
@@ -988,22 +889,16 @@ export function createRegionLightController({
   }
   /**
    * 导出一份「本帧区域灯状态」的快照，供调试面板 / 自动化测试读取。
-   * 全部是深拷贝（数组手动展开）：调用方拿到的对象不会被下一帧的原地更新悄悄改掉，可以安全地序列化或延迟比较。
    */
   
   /**
    * 设置区域覆盖表（编辑器里给某盏灯画的形状）。
-   * 先清洗再写入，随后立即同步一次：传入的 save/apply 期望「调用完就生效」，不能等到下一帧。
-   * 第二个参数 true 表示跳过结构扫描 —— 形状变化只影响体积参数，不需要重扫场景换材质。
    */
   function setOverrides(rawOverrideInput) {
     overrides = sanitizeRegionOverrides(rawOverrideInput, regionLightContext());
     sync(undefined, true);
     return getOverrides();
   }
-  /**
-   * 取覆盖表的副本（键值各复制一层）：直接返回内部对象会让调用方改到我们的状态，所以必须复制；值里的都是标量，复制一层值对象即可。
-   */
   function getOverrides() {
     return Object.fromEntries(
       Object.entries(overrides).map(([overrideKey, overrideValue]) => [
@@ -1016,8 +911,6 @@ export function createRegionLightController({
   }
   /**
    * 列出所有「已经算出体积」的灯（即至少 sync 过一次的灯）。
-   *
-   * 返回的是深拷贝：region 内部对象在每帧被原地复用，直接返回会被下一帧改掉。
    */
   function listRegions() {
     return [...registrationsByLight.values()]
@@ -1033,9 +926,6 @@ export function createRegionLightController({
         }
       }));
   }
-  /**
-   * 进入 / 退出「单灯预览」模式：预览时被选中的灯至少按 0.6 的强度渲染（即使实际是灭的）、其余灯归零，以便在编辑器里看清每盏灯的光斑形状与边界；传非数组即退出预览。
-   */
   function setPreview(previewKeyList) {
     previewKeys = Array.isArray(previewKeyList)
       ? new Set(
@@ -1048,7 +938,6 @@ export function createRegionLightController({
   }
   /**
    * 在 CPU 侧采样某楼层某个分类的区域光照结果（走 sampleRegionVolumes）。
-   * 会把采样点先乘上 plan2MotionToLayout，保证与着色器处于同一坐标系 —— 运动模式下世界坐标与布局坐标不一致，漏掉这一步会采到错误位置。
    */
   function sampleFloorVolume(
     samplePoint,
@@ -1070,8 +959,6 @@ export function createRegionLightController({
   }
   /**
    * 释放控制器：还原所有被换掉的材质与灯的图层掩码，销毁克隆材质与数据纹理。
-   * 幂等；释放后 controller 上的方法仍可调用（内部有 isDisposed 守卫）但不再生效。
-   * 顺序上先还原场景（restoreMeshMaterial）再销毁资源，避免场景里残留指向已销毁材质的引用。
    */
   function dispose() {
     if (!isDisposed) {
@@ -1111,7 +998,6 @@ export function createRegionLightController({
   }
   /**
    * 场景的 onBeforeRender 钩子：借渲染前的时机做一次同步。
-   * 之所以挂在这里而不是主循环：three.js 每次渲染都会调它，能保证「相机 / 图层刚被外部改过」之后用的是最新状态；renderArgs[2] 即当前相机。
    */
   function onBeforeRender(...renderArgs) {
     originalOnBeforeRender?.apply(this, renderArgs);
@@ -1119,8 +1005,6 @@ export function createRegionLightController({
   }
   /**
    * 设置地面亮度百分比（100 = 原样，50~150 之间夹取）。
-   *
-   * 走共享 uniform，所以改一次就作用于所有楼层的地面，不触发任何重编译。
    */
   const setFloorBrightness = brightnessPercent => {
     const brightnessRatio = clamp(coercedFiniteNumberOr(brightnessPercent, 100), 50, 150) / 100;
@@ -1134,8 +1018,6 @@ export function createRegionLightController({
   };
   /**
    * 进入 / 退出运动模式。两种粒度：
-   * 普通运动模式（motionInstant = false）：亮度直接归零，过渡期间不更新 uniform，等退出时再用 280ms 淡回（motionFadeStartMs），用于楼层过渡这种大范围位移；
-   * 瞬时模式（motionInstant = true）：仍按每帧重算体积，只是把坐标换到布局空间（plan2MotionToLayout），用于家具小幅拖拽，要求光跟着走。
    */
   function setMotion(motionEnabled, motionInstant = false) {
     if (isMotionEnabled === (motionEnabled === true) && isMotionInstant === motionInstant) {
@@ -1148,7 +1030,6 @@ export function createRegionLightController({
       isMotionEnabled || motionInstant || previousMotionInstant ? null : performance.now();
     if (isMotionEnabled && !isMotionInstant) {
       // 普通运动模式下把增益与阴影强度都清零：宁可短暂没有区域光，
-      // 也不要让光斑跟着旧位置残留在画面上。
       for (const frozenLightGroup of groupsByKey.values()) {
         frozenLightGroup.uniforms.plan2Gain.value = 0;
         frozenLightGroup.uniforms.plan2SunShadowStrength.value = 0;
@@ -1158,7 +1039,6 @@ export function createRegionLightController({
     requestFrame();
   }
   // 对外接口。sync 由 studio-app 的渲染循环调用，也通过 scene.onBeforeRender 兜底；
-  // 其余方法都是「改状态 + 让下一次 sync 生效」的模式，不会在调用栈里直接做重活。
   const controller = {
     register: registerLight,
     sync: sync,

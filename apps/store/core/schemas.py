@@ -8,10 +8,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class _Camel(BaseModel):
-    #: ``allow_inf_nan=False`` 覆盖**所有** float 字段：pydantic 默认放行 ``Infinity`` /
-    #: ``NaN``，而 JSON 里 ``1e999`` 就能造出 ``Infinity``。``Field(gt=0)`` 拦不住它
-    #: （``inf > 0`` 为真），随后 ``money.to_centi`` 抛 ``ValueError`` 无人接管 —— 攻击者
-    #: 用一个字段就换到一个 500。让它在校验层变成 422 才是正确的位置。
     model_config = ConfigDict(populate_by_name=True, extra="ignore", allow_inf_nan=False)
 
 
@@ -19,7 +15,6 @@ class _Camel(BaseModel):
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     #: register / reset 无需登录；verify / change_email 必须带登录态
-    #: （见 ``apps.store.api.store._PURPOSES_REQUIRING_ACCOUNT``）
     purpose: str = Field(
         default="register", pattern="^(register|reset|verify|change_email)$"
     )
@@ -27,9 +22,6 @@ class VerificationRequest(_Camel):
 
 class ChangeEmailRequest(_Camel):
     """把账号邮箱换成一个新地址。
-
-    必须凭**发到新地址**的验证码才能改：只校验旧邮箱的话，账号一旦被他人登录，
-    对方就能把邮箱换走、随后用「忘记密码」彻底夺走账号。
     """
 
     email: str = Field(min_length=3, max_length=255)
@@ -39,9 +31,6 @@ class ChangeEmailRequest(_Camel):
 
 class ChangePasswordRequest(_Camel):
     """已登录账号修改密码。
-
-    必须凭当前登录密码确认身份（挡住会话被劫持的最后一道锁）；改密后其它设备上的
-    会话全部踢下线，只保留当前这一个。
     """
 
     old_password: str = Field(min_length=1, max_length=128, alias="oldPassword")
@@ -83,7 +72,6 @@ class LabelRequest(_Camel):
 class ReleaseDeviceRequest(_Camel):
     password: str = Field(min_length=1, max_length=128)
     #: 乐观锁：前端打开「解除绑定」弹窗时记下当时的绑定快照，提交时回传；期间授权可能
-    #: 已在别的标签页重绑。这些字段必须显式声明，schema 不认就会丢弃、校验形同不存在。
     expected_binding_id: str | None = Field(default=None, alias="expectedBindingId", max_length=64)
     expected_activated_at: datetime | None = Field(default=None, alias="expectedActivatedAt")
     expected_binding_version: str | None = Field(
@@ -122,9 +110,6 @@ class WithdrawalRequest(_Camel):
 # 管理后台
 class _AdminBase(BaseModel):
     """后台请求体基类：**未知字段直接报 422**。
-
-    商店侧 ``_Camel`` 用 ``extra="ignore"`` 容忍客户端多传字段；但后台是自己人用的界面，
-    静默丢弃字段的代价是运营以为改动生效了（接口 200、库里没变），所以收紧成显式报错。
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid", allow_inf_nan=False)
@@ -191,9 +176,6 @@ class AdminCouponRequest(_AdminBase):
 
 class AdminCouponPatch(_AdminBase):
     """优惠码的部分更新。
-
-    字段与 ``AdminCouponRequest`` 对齐：优惠码发出去就很难收回，运营需要能改门槛、
-    折扣、有效期与适用范围。``max_redemptions`` 允许下调，但不允许改成 0 或负数。
     """
 
     description: str | None = Field(default=None, max_length=255)
@@ -217,7 +199,6 @@ class AdminSettingsRequest(_AdminBase):
     support_email: str | None = Field(default=None, alias="supportEmail", max_length=255)
     #: 品牌标识；留空则回落到系统默认的 homeos-mark.svg
     logo_url: str | None = Field(default=None, alias="logoUrl", max_length=512)
-    #: 「一键部署」脚本地址；留空 = 账号中心不显示部署块（刻意不给默认值，见 site_settings）
     deploy_base_url: str | None = Field(default=None, alias="deployBaseUrl", max_length=512)
     maintenance_mode: bool | None = Field(default=None, alias="maintenanceMode")
     maintenance_message: str | None = Field(default=None, alias="maintenanceMessage", max_length=512)
@@ -239,8 +220,6 @@ class AdminSettingsRequest(_AdminBase):
         default=None, alias="deviceReleaseCooldownSeconds", ge=0
     )
     # ---- 支付宝凭据（后台可改，免重启） ---------------------------------- #
-    #: 留空 = 清掉站点配置、跟随环境变量；不传 = 保持不变。传回 GET 拿到的打码值
-    #: （``••••`` 开头）同样视为「保持不变」，否则会把真密钥覆盖成 `••••abcd`。
     alipay_app_id: str | None = Field(default=None, alias="alipayAppId", max_length=64)
     alipay_seller_id: str | None = Field(default=None, alias="alipaySellerId", max_length=64)
     alipay_app_private_key: str | None = Field(
@@ -283,15 +262,11 @@ class AdminSettingsRequest(_AdminBase):
     expose_verification_code: bool | None = Field(
         default=None, alias="exposeVerificationCode"
     )
-    #: 前端「清除已保存的授权码」勾选框走这个独立字段，避免和「留空不改动」打架。
     smtp_clear_password: bool | None = Field(default=None, alias="smtpClearPassword")
 
 
 class AdminMailTestRequest(_AdminBase):
     """「邮件诊断 / 发送测试邮件」的收件人。
-
-    刻意显式传参而不是发给当前管理员：排障常要往客户那个收不到验证码的邮箱发一封。
-    留空表示**只做连接诊断**（域名解析、TCP/TLS、登录握手），不发任何邮件。
     """
 
     email: str | None = Field(default=None, min_length=3, max_length=255)
@@ -306,9 +281,6 @@ class AdminLicenseRequest(_AdminBase):
 
 class AdminLicensePatch(_AdminBase):
     """授权的后台修正。
-
-    ``extend_days`` 与 ``access_expires_at`` 互斥：前者在现有到期时间上顺延（永久授权
-    以当前时刻重新计时），后者直接指定绝对时间；``access_expires_at`` 传 null 表示永久。
     """
 
     user_label: str | None = Field(default=None, alias="userLabel", max_length=64)
@@ -351,9 +323,6 @@ class AdminAccountPatch(_AdminBase):
 
 class AdminWalletAdjustRequest(_AdminBase):
     """邀请积分人工调账。
-
-    ``delta`` 可为负（扣减）。调账一律走 ledger，保证流水与余额永远对得上，
-    不允许直接改余额绕过账本。
     """
 
     delta: float = Field(description="余额变动，可为负")
@@ -368,19 +337,12 @@ class AdminWithdrawalResolveRequest(_AdminBase):
 
 class AdminOrderActionRequest(_AdminBase):
     note: str = Field(default="", max_length=255)
-    #: 只对退款有意义：显式声明「这笔钱是在线下退的」。后台手动标记支付的订单没有
-    #: 支付渠道交易，走网关必然失败，此时可勾选离线退款并如实记录金额与备注。
     offline: bool = False
-    #: 只对退款有意义：本次退多少（分），留空表示退掉**剩余全部可退金额**。部分退款后
-    #: 同一订单可退多次，每次都生成独立 ``order_refunds`` 流水并带唯一渠道幂等请求号。
     amount_cents: int | None = Field(default=None, alias="amountCents", gt=0)
 
 
 class AdminOrderReviewRequest(_AdminBase):
     """「标记已处理」的复核结论。
-
-    备注可选，但强烈建议填写：``review_note`` 是「这单为什么被标出来、为什么放行」的
-    唯一记录，只有时间戳的条目事后等于没有信息。
     """
 
     note: str = Field(default="", max_length=200)

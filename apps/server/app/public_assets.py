@@ -1,15 +1,4 @@
 """匿名可访问的静态资源清单。
-
-清单在 ``frontend/public-static.json``，是 ``premium_asset`` 判定「这个 /static 资源要不要登录」
-的唯一事实来源。放在 ``frontend/`` 下而不是 ``frontend/static/`` 里：那是被 StaticFiles 挂载出去
-的目录，清单本身不该出现在可下载的命名空间里。
-
-**为什么不再写死在中间件里**：这份集合同时是安全边界 —— 它决定「谁可以匿名取到什么」。
-安全边界越显式越好核对，而写在 300 行的中间件里，改的时候既要翻代码又要判断哪些条目还活着。
-每条后面的 ``why` 说明了「为什么它必须匿名」，这条信息与集合本身同等重要：漏掉一个入口脚本，
-对应页面在未登录状态下会白屏。
-
-读取结果按 (路径, mtime_ns) 缓存：清单是静态文件，但开发态改完立刻生效比"重启才生效"省事。
 """
 from __future__ import annotations
 
@@ -37,10 +26,6 @@ def load_always_revalidate(frontend_dir: Path) -> frozenset[str]:
 
 def load_public_static_files(frontend_dir: Path) -> frozenset[str]:
     """读清单，返回可匿名访问的 URL 路径集合。
-
-    异常:
-        HTTPException: 500 —— 清单缺失或格式不对。这是部署事故，要明确喊出来：静默回空集合
-            会让**所有**静态资源都要求登录，表现为"未登录页面全白屏"，比启动失败更难查。
     """
     return _load_list(frontend_dir, "files")
 
@@ -74,7 +59,6 @@ def _load_list(frontend_dir: Path, field: str) -> frozenset[str]:
         )
     paths = []
     for item in raw_files:
-        # 允许两种写法：带 why 的对象，或纯路径字符串（新增条目懒得写理由时）。
         value = item.get('path') if isinstance(item, dict) else item
         if not isinstance(value, str) or not value.startswith('/static/'):
             raise HTTPException(

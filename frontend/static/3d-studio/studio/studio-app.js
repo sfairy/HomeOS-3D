@@ -1,14 +1,5 @@
 /**
  * 3D 户型工作室主脚本，全工作室唯一的编排层：平面绘制、three.js 三维呈现、
- * 文档持久化（650ms 防抖自动保存 + revision 乐观并发）与多楼层导出。
- * 后端契约：GET/PUT /api/v1/studio3d 以 revision 做乐观并发，不一致返回 409
- * （body 带 currentRevision），前端弹冲突框让用户选，绝不静默覆盖；删除仍被 3D 控件绑定的
- * 模型时服务端要求先确认影响，前端用 PUT /studio3d?dryRun=1 预检（只算不写、回 200）把确认框
- * 提前弹出来，避免正常路径先去撞一次 428；导出走
- * /studio3d/exports，目标文件夹由 x-export-folder 头指定；只读模式下
- * requestStudioApi 直接拒绝写请求。
- * 平面坐标是底图像素（pixelsPerMeter 唯一换算系数，未标定取 0 并处处兜底），
- * 平面 y 向下、世界 y 向上，世界单位米；同源静态资源必须同一条 ?v= 戳。
  */
 import {
   normalizeCurtainTrack,
@@ -17,22 +8,20 @@ import {
   curtainPanelRanges,
   addRollerCurtain,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609271208";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609271208";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609271208";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609271208";
+} from "../loaders/studio-curtain-track.js?v=2609271226";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609271226";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609271226";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609271226";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
   positionPointMenu
-} from "../../shared/menu-positioning.js?v=2609271208";
-import { paletteColor } from "../../utils/colors.js?v=2609271208";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609271208";
+} from "../../shared/menu-positioning.js?v=2609271226";
+import { paletteColor } from "../../utils/colors.js?v=2609271226";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609271226";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609271208";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609271208";
-// 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
-// 新增物件类型只需要改 studio-item-types.js 一处。
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609271226";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609271226";
 import {
   APPLIANCE_ITEM_TYPES,
   APPLIANCE_MODEL_ITEM_TYPES,
@@ -47,10 +36,9 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609271208";
+} from "./studio-item-types.js?v=2609271226";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
-// 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609271208";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609271226";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
@@ -58,40 +46,36 @@ import {
   createMuralArtTexture,
   createFeatureWallTexture,
   createStoneSlabTexture
-} from "../materials/studio-surface-textures.js?v=2609271208";
-// 逐物件「材质风格」的质感层：与外部模型那一路（studio-external-models.js 的 resolveSharedMaterial）
-// 共用同一份取图函数，占位几何与加载后的成品才是同一种纹路。柱体的饰面档位（大理石 / 木饰面 /
-// 木格栅…）在两条路上都要能看出来，否则模型到位的一瞬间纹路会整片消失。
+} from "../materials/studio-surface-textures.js?v=2609271226";
 import {
   createMaterialSurfaceTexture,
   hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js?v=2609271208";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609271208";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609271208";
+} from "../materials/studio-surface-fabrics.js?v=2609271226";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609271226";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609271226";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609271208";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609271208";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609271208";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609271208";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609271208";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609271208";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609271208";
+} from "./studio-camera-constraints.js?v=2609271226";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609271226";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609271226";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609271226";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609271226";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609271226";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609271226";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609271208";
+} from "../materials/studio-wall-materials.js?v=2609271226";
 import {
   WARM_HOME_STYLE,
   WARM_WOOD_STYLE,
   applyItemFinish,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609271208";
+} from "./studio-scene-style.js?v=2609271226";
 // 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
-// 因此逐物件选择优先于全局风格（见 studio-material-styles.js 的模块头）。
 import {
   MATERIAL_STYLE_AUTO,
   MATERIAL_STYLE_ITEM_TYPES,
@@ -100,55 +84,50 @@ import {
   materialStyleAutoLabel,
   normalizeMaterialStyle,
   applyMaterialStyle
-} from "./studio-material-styles.js?v=2609271208";
-// 逐「门」的材质档位：门不是物件（scene.doors 里的建筑附件），所以不放上面那张按物件类型对账的
-// 表里，单独一份数据 + 纯函数（见 studio-door-materials.js 的模块头）。
+} from "./studio-material-styles.js?v=2609271226";
 import {
   DOOR_MATERIAL_AUTO,
   doorMaterialAutoLabel,
   doorMaterialOptionsFor,
   findDoorMaterial,
   normalizeDoorMaterial
-} from "./studio-door-materials.js?v=2609271208";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609271208";
+} from "./studio-door-materials.js?v=2609271226";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609271226";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609271208";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609271208";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609271208";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609271208";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609271208";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609271208";
-// 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609271208";
-// 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609271208";
+} from "../../bridge/render-cache.js?v=2609271226";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609271226";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609271226";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609271226";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609271226";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609271226";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609271226";
+import { debugLog } from "../../utils/debug-log.js?v=2609271226";
 // 首屏分段埋点（`[3D-load]`）：开关与出口都在 utils/debug-log.js，本文件只负责在链上打点。
-import { createLoadTiming } from "../../bridge/load-timing.js?v=2609271208";
+import { createLoadTiming } from "../../bridge/load-timing.js?v=2609271226";
 // 舞台页的提前起跑（舞台页里非 null）：它已经替我们读过场景持久缓存、发过场景接口请求、
-// 开始下载 stage 模块 —— 三件事都直接复用，绝不再做第二遍。
-import { stageStartup } from "../stage-startup.js?v=2609271208";
+import { stageStartup } from "../stage-startup.js?v=2609271226";
 // 场景持久缓存：把「归一后的场景文档」跨会话存起来，舞台页二次打开时跳过整段逐层归一。
-import { prepareSceneDocument } from "../scene-persistent-cache.js?v=2609271208";
+import { prepareSceneDocument } from "../scene-persistent-cache.js?v=2609271226";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609271208";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609271226";
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609271208";
+import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js?v=2609271226";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609271208";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609271208";
+import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js?v=2609271226";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609271226";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609271208";
+} from "../../bridge/light-motion.js?v=2609271226";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -188,7 +167,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609271208";
+} from "../plan/geometry.js?v=2609271226";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -197,14 +176,13 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609271208";
+} from "../export/export-utils.js?v=2609271226";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
-// 实现：两页的三栏骨架、分隔条交互、状态记忆是同一套需求，各写一份必然漂移。
 import {
   createLayoutController,
   bindLayoutControls
-} from "../../shared/layout-shell.js?v=2609271208";
-import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609271208";
+} from "../../shared/layout-shell.js?v=2609271226";
+import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js?v=2609271226";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -212,25 +190,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609271208";
-import { reorderFloors } from "../plan/floor-order.js?v=2609271208";
-import { syncControlValue } from "./ui-controls.js?v=2609271208";
+} from "../export/export-presets.js?v=2609271226";
+import { reorderFloors } from "../plan/floor-order.js?v=2609271226";
+import { syncControlValue } from "./ui-controls.js?v=2609271226";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609271208";
+} from "./studio-widgets.js?v=2609271226";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609271208";
+} from "../loaders/studio-external-models.js?v=2609271226";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609271208";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609271208";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609271208";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609271208";
+} from "../plan/studio-plan-drawing.js?v=2609271226";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609271226";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609271226";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609271226";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -243,19 +221,15 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609271208";
+} from "../loaders/studio-normalization.js?v=2609271226";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
- * 一律走 createElement，避免选择器与生成顺序耦合。
  * @returns {Element|null} 未命中返回 null，调用方需自行判空。
  */
 const selectElement = selector => document.querySelector(selector);
 const isStageViewerMode = window.location.pathname === "/api/v1/modules/interaction3d/stage.html";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
- *
- * 舞台页的加载链最长，也就是它最需要分段：`draft-fetched` / `scene-preparation-*` / `draft-loaded` /
- * `stage-mounted` 四五个点连起来，就能看出「偶发变慢」到底卡在接口、归一还是 stage 模块。
  */
 const loadTiming = createLoadTiming("studio");
 // 模块求值本身也是一个可观测的节点：它与进口的下载 / 解析是一体的，出现异常长间隔说明模块树变重了。
@@ -263,19 +237,8 @@ loadTiming("module-evaluated");
 
 /**
  * 平面画布（2D planContext）取色。
- *
- * CanvasRenderingContext2D 只认具体色值，`ctx.strokeStyle = "var(--hos-accent)"` 会被
- * 静默忽略（非法值直接丢弃，画笔保持上一次的颜色）—— 所以画布上的品牌色必须从
- * CSS 变量里读出来。这里读的是 studio.css 的别名令牌（--accent / --accent-bright /
- * --guide / --done），别名再指向 design/scene 那份全站调色板，改色只改设计源。
- *
- * 取色实现走 utils/colors.js 的 paletteColor（唯一实现，按令牌名缓存）：本文件以前自己抄了一份，
- * 与那边的差别只有「兜底色写死在这里的 #ffc46a」—— 现在兜底色回到调用点上显式传，与 home.js、
- * 控件注册表、模板的写法一致。
  */
 // 画布上取不到令牌时的兜底色。四枚各自对应自己的色相 ——
-// 以前 --guide / --done 与 --accent 共用同一个兜底（琥珀），一旦令牌读不到，
-// 吸附点会画成琥珀、闭合空间会画成琥珀，两个本来靠色相区分的东西糊成一个。
 const STUDIO_ACCENT_FALLBACK = "#ffc46a";
 const STUDIO_ACCENT_BRIGHT_FALLBACK = "#ffd9a0";
 const STUDIO_AURA_FALLBACK = "#c9a0ff";
@@ -289,18 +252,9 @@ const PLAN_GUIDE = () => paletteColor("--guide", STUDIO_AURA_FALLBACK);
 /** 闭合空间有效。 */
 const PLAN_DONE = () => paletteColor("--done", STUDIO_ECO_FALLBACK);
 
-// 上面四枚读的是 studio.css 的**别名**（--accent / --guide / --done），因为那是它自己的
-// 主题层。下面三枚没有对应的别名，直接读 canonical 的 --hos-tool-* 工具面族 ——
-// 这一族是编辑器 / 显示端 / 工作室三套界面共用的中性 chrome，工作室正是三套之一。
-//
-// 这三枚原先都是在画布上直接写十六进制。2D canvas 拿不到 CSS 变量，所以「写死」曾经是
-// 唯一的路；改成调用 paletteColor 之后，管理员换主控色 / 换主题时它们会一起走。
-// paletteColor 内部按令牌名缓存（utils/colors.js），在每帧的重绘路径上调用没有额外开销。
 const STUDIO_LABEL_FALLBACK = "#f1f7fb";
 const STUDIO_PAPER_FALLBACK = "#0b0f12";
 const STUDIO_HANDLE_FALLBACK = "#141a20";
-/** 户型图铭牌的文字（画布 2D 与标签贴图共用一枚取值）。原先取 --hos-tool-muted-dim（#8d989f），
-    压在深色楼板上太灰；改取工具面最亮一档文字色 --hos-tool-ink（#f1f7fb，近白），与主题一致。 */
 const PLAN_LABEL = () => paletteColor("--hos-tool-ink", STUDIO_LABEL_FALLBACK);
 /** 户型画布的「纸」底色（导出与截图时先把整张画布铺满它）。原来是 #0d1319。 */
 const PLAN_PAPER = () => paletteColor("--hos-tool-bg", STUDIO_PAPER_FALLBACK);
@@ -323,7 +277,6 @@ let isVacuumMoving = false;
 let isBackgroundFrameVisible = false;
 let backgroundTheme = "grid";
 // 材质风格（default / warm-wood）与墙体透明度覆盖：两者都由舞台侧通过
-// studioApi.appearance() 下发，改动一次就要整体重建场景材质。
 let studioSceneStyle = "default";
 let wallOpacityOverride = null;
 let isCurtainMoving = false;
@@ -344,8 +297,6 @@ window.addEventListener("pagehide", () => renderCache?.close(), {
 });
 /**
  * 计算光照渲染缓存的场景指纹（sha256）。舞台模式靠它判断画面是否与缓存一致，
- * 指纹不变就复用上一帧贴图。场景数据与渲染器状态（色调映射 / 色彩空间 / 阴影类型）
- * 都参与哈希；相机矩阵按 1e-8 取整，避免浮点末位抖动让整份缓存失效。
  */
 function sceneCacheDescriptor(widthPx, heightPx) {
   const floorScenes =
@@ -353,8 +304,6 @@ function sceneCacheDescriptor(widthPx, heightPx) {
   previewCamera.updateMatrixWorld();
   /**
    * 把 4x4 矩阵元素抹到 1e-8 供缓存指纹使用（相机矩阵末位会抖动：同一机位两次
-   * updateMatrixWorld 也可能差 1e-16，直接入哈希会让缓存无意义失效；1e-8 米远低于渲染精度）。
-   * 抹平实现只有一份（utils/numbers.js），这里的 8 是本调用方的精度契约。
    */
   const roundMatrixElements = matrixElements =>
     matrixElements.map(matrixEntry => roundToDecimals(matrixEntry, 8));
@@ -368,7 +317,6 @@ function sceneCacheDescriptor(widthPx, heightPx) {
     stableCacheJSON({
       version: RENDER_CACHE_VERSION,
       // three.js 版本单独入指纹：光照 / 阴影的着色器随版本而变，同一份配置渲染出的像素并不相同，
-      // 而旧图的键里没有这一位 —— 升级 three 后会自动作废，不必指望有人记得去手改 RENDER_CACHE_VERSION。
       threeRevision: threeModuleMin.REVISION,
       scene: cacheSceneDescriptor(floorScenes),
       mode: currentPreviewFloorMode(),
@@ -383,7 +331,6 @@ function sceneCacheDescriptor(widthPx, heightPx) {
       // 材质风格与墙体透明度都参与渲染缓存的指纹：任一项变了，上一版缓存必须作废。
       style: studioPalette(),
       // 家居配色同样会改变家具像素，而默认风格下它并不体现在 style 里（style 还是 STUDIO_PALETTE），
-      // 因此单独入指纹，避免默认风格的家具画面与其它配色串用同一份缓存。
       homeStyle: homePalette(),
       wallOpacity: wallOpacityOverride,
       visibility: visibility,
@@ -610,19 +557,10 @@ const detailsResizerElement = selectElement("#details-resizer");
 
 /**
  * 布局状态的存储键。
- *
- * 两个比例原先存在 activeScene.settings 里（previewPanelRatio / detailsPanelWidthRatio），但它们的
- * 语义从来只是「右栏多宽、预览多高」：拖动分隔条会 markDocumentDirty() → 触发 650ms 防抖自动保存
- * → 撞上并发编辑就弹 409 冲突框；而且文档换台设备打开，布局也跟着跑。两处都不对。
- * bridge/scene-update.js 与 bridge/render-cache.js 早就把这两个键列进忽略名单（注释写明它们
- * 「只改变编辑器的观察方式」），本次把这份既有判断落实到存储层：布局是纯 UI 偏好，存本机。
  */
 const STUDIO_LAYOUT_STORAGE_KEY = "homeos.layout.v1.studio";
 
 // 布局常量缓存槽，含义与失效时机见下方 studioLayoutMetrics()。
-// 必须声明在 createLayoutController 之前：details / previewHeight 两栏的 limits() 在控制器**构造期**
-// 就会被调用（loadState → normalizePanelState → resolvePanelLimits），而 limits() 经 measurePanelLimits()
-// 读的就是这个槽。写成 let 却放在控制器创建之后，整个模块会在求值到第 573 行时直接落进 TDZ。
 let studioLayoutConstants = null;
 
 const studioLayout = createLayoutController({
@@ -635,8 +573,6 @@ const studioLayout = createLayoutController({
       element: libraryPanelElement,
       unit: "px",
       def: 204,
-      // 上下限写在 studio.css 的 --layout-library-min-w / --layout-library-max-w：JS 侧再抄一份
-      // 数字就会与 CSS 漂移（原先正是如此：CSS 写库栏 204px、JS 兜底 168）。
       minVar: "--layout-library-min-w",
       maxVar: "--layout-library-max-w",
       collapsible: true
@@ -648,7 +584,6 @@ const studioLayout = createLayoutController({
       unit: "%",
       def: 29,
       // 百分比栏的上下限随窗口尺寸变化，是本模块唯一必须现算的一类：窗口变窄 / 变矮之后，
-      // 上一个窗口算出的比例会把右栏压成一条缝或把库栏挤没。
       limits: () => {
         const panelLimits = measurePanelLimits();
         return {
@@ -676,7 +611,6 @@ const studioLayout = createLayoutController({
   separators: [
     {
       // 右栏那条老分隔条：一个手柄同时管两个方向（横着拖改宽度、竖着拖改预览高度），
-      // 手柄在右栏内部，是 --layout-rail-w 之外唯一不从网格轨道切分的地方。
       element: detailsResizerElement,
       orientation: "both",
       label: "拖动调整 3D 预览高度与属性栏宽度",
@@ -705,7 +639,6 @@ const studioLayout = createLayoutController({
     }
   ]
   // 不设 onChange：布局变化后平面画布与 3D 舞台的尺寸重算各自挂在 ResizeObserver 上
-  // （文件末尾的 resizePlanCanvas / handleStageResize），网格一变它们自己会收到通知。
 });
 
 /**
@@ -715,13 +648,6 @@ let pendingLegacyLayoutSeed = null;
 
 /**
  * 暂存老草稿里的两个布局比例（previewPanelRatio / detailsPanelWidthRatio）。
- *
- * 这两个值描述的是「右栏多宽、3D 预览多高」，从来只是观察方式，却一直混在文档里。本次迁移到
- * localStorage 之后，老文档里的值不能直接丢掉：用户升级后第一次打开会看到布局被重置。
- *
- * 之所以只「暂存」而不在这里直接播种：normalizeScene 是纯变换，读盘、导入、撤销、多楼层快照
- * 都过它，在其中写存储 / 改 DOM 会把这层纯变换变成有副作用的操作，也会在撤销栈里被反复触发。
- * 真正播种放在 migrateLegacyLayoutSettings()，由 UI 同步路径在文档装好之后调用一次。
  */
 function captureLegacyLayoutSeed(rawSettings) {
   if (!rawSettings || typeof rawSettings != "object") {
@@ -743,7 +669,6 @@ function captureLegacyLayoutSeed(rawSettings) {
 
 /**
  * 把老文档里的两个布局比例搬进 localStorage。只在本地还没有任何布局记录时生效（判定在
- * layout-shell.js 的 seedPanels 里），所以可以放心地在每次 UI 同步时调用。
  */
 function migrateLegacyLayoutSettings() {
   if (!pendingLegacyLayoutSeed) {
@@ -781,9 +706,6 @@ const lightGroupAreaNewNameElement = selectElement("#light-group-area-new-name")
 const PREVIEW_OBJECT_LAYER = 2;
 const STUDIO_PALETTE = {
   background: 1120029,
-  // 地面 / 地板 / 网格：原先是近乎黑的一组石板色（地面 #151922、楼板 #586174），
-  // 而一个户型出图时近七成面积都落在这两块上，整幅预览因此压得很暗。
-  // 这里整体提到浅石板，冷调保留，只把明度抬上去（色相不动，和深色背景仍是同一族）。
   ground: 7239559,
   floor: 12568532,
   floorEdge: 16163146,
@@ -846,7 +768,6 @@ const ITEM_TYPE_DEFINITIONS = {
     width: 1.8,
     depth: 2,
     // 整件高度 = 床头板顶面（软包床头实物就在 1.0~1.1m）。占位几何、规格表与 scaleBasis
-    // 三处都以 1.05 为基准，改一处要一起改。
     height: 1.05,
     color: "#d8d4c9"
   },
@@ -964,8 +885,6 @@ const ITEM_TYPE_DEFINITIONS = {
     color: "#a9c5d3"
   },
   // 悬空楼梯（1 字型直跑）：占地 0.97 × 2.25、层高 2.59，逐值等于流水线规格 size 与
-  // studio-external-models.js 的 scaleBasis（三处必须一致，否则运行侧分轴缩放会拉变形）。
-  // 取色沿用木踏面，兜底盒体 / 缩略图至少是木头色而不是楼梯族的冷灰。
   floatingstairs: {
     name: "悬空楼梯",
     glyph: "⇧",
@@ -1050,13 +969,6 @@ const ITEM_TYPE_DEFINITIONS = {
     width: 1.5,
     depth: 0.35,
     height: 0.82,
-    // **这里没有 elevation**：吊柜的挂高（柜底离地 1.4m）烘在几何里 —— 流水线规格的 mountHeight
-    // （导出时整件抬起 1.4，成品几何 y ∈ [1.4, 2.22]）与占位几何的 `wallCabinetMountHeight` 同值。
-    // 物件自己的 elevation 是**在这之上再加的偏移**（默认 0），与**原版**同一个口径：原版那台吊柜
-    // 资产的柜底也在 1.378m，而它的 ITEM_TYPE_DEFINITIONS.wallcabinet 里同样没有 elevation。
-    // 两边必须一致，否则同一个草稿在另一个程序里会被抬两次 —— 本仓把挂高留在这一格的那一版
-    // （037cd779 写 1.6，后来回调到 1.4）就是这样：草稿在原版里比本仓高出一个挂高。
-    // 老草稿的这一格由 normalizeScene 换算（见那里的 wallCabinet 迁移）。
     color: "#9a806c"
   },
   kitchenbase: {
@@ -1093,8 +1005,6 @@ const ITEM_TYPE_DEFINITIONS = {
   },
   freezer: {
     // 卧式冰柜：占地方向是「宽 × 深」的长边在前，与它顶开盖的造型一致。
-    // 三轴必须与 tools/models/model-specs.mjs 的 size 及 studio-external-models.js 的
-    // scaleBasis 逐值相等 —— 运行侧按 scaleBasis 非等比缩放，这里少一条就会「加了但点不出来」。
     name: "冰柜",
     glyph: "▭",
     width: 1.05,
@@ -1318,8 +1228,6 @@ const ITEM_TYPE_DEFINITIONS = {
     name: "钢琴",
     glyph: "▰",
     // 三角钢琴的实物尺寸（Yamaha GB1 这类小型三角琴 1.46 × 1.48 × 0.99，键盘面高 0.72）：
-    // 1.5m 宽（键盘那一侧最宽）× 1.5m 长 × 0.99m 高。原先的 1.8 × 1.8 × 1.35 是照那件
-    // 第三方素材「等比缩放到合适大小」凑出来的三个数，与实物对不上。
     width: 1.5,
     depth: 1.5,
     height: 0.99,
@@ -1733,7 +1641,6 @@ const ITEM_TYPE_DEFINITIONS = {
   kitchenisland: {
     name: "岛台",
     glyph: "▭",
-    // 宽 2.4 与 studio-external-models.js 的 scaleBasis 逐值相等：高台 0.8 + 低台（伸缩餐台）1.6。
     width: 2.4,
     depth: 0.8,
     height: 0.9,
@@ -1985,16 +1892,11 @@ const ITEM_TYPE_DEFINITIONS = {
   },
 };
 const TV_MOUNT_STYLES = new Set(["standard", "tabletop", "mobile"]);
-/** 移动支架的整件高度：落地件，比壁挂 / 座装高出一截（进深与离地高度见 TELEVISION_MOUNT_DEPTHS）。 */
 const MOBILE_TV_MOUNT_DIMENSIONS = Object.freeze({
   height: 1.55
 });
 /**
  * 电视进深由挂装方式决定，不是用户拉出来的：壁挂只有机身 60mm、座装含底板 180mm、移动支架含脚架
- * 550mm —— 三份规格 tv_standard / tv_tabletop / tv_mobile 的 depth 就是这套值，机身高度带的比例
- * 也照这套形态写死（见 computeTelevisionBodyMetrics）。模型按 item 的 width/height/depth 做非等比
- * 拉伸，进深档位对不上就会被拉厚（或者把该有脚架的支架压扁），所以两处必须一起拨：新建的电视、
- * 以及改挂装方式的时候。
  */
 const TELEVISION_MOUNT_DEPTHS = Object.freeze({
   standard: 0.06,
@@ -2005,7 +1907,6 @@ const TELEVISION_MOUNT_DEPTHS = Object.freeze({
 const TELEVISION_PLAN_MIN_DEPTH = 0.12;
 /**
  * 电视离地高度同样由挂装方式决定：壁挂要挂到「看着舒服」的高度（面板下沿 0.70m，0.92m 的面板
- * 中心正好落在 1.16m），座装 / 移动支架都落在地面上。
  */
 const TELEVISION_MOUNT_ELEVATIONS = Object.freeze({
   standard: 0.7,
@@ -2014,8 +1915,6 @@ const TELEVISION_MOUNT_ELEVATIONS = Object.freeze({
 });
 /**
  * 改挂装方式时把进深与离地高度拨到对应档。两样都只在「当前值恰好等于某一种挂装的标称值」
- * （容差 1mm）时才拨 —— 用户在平面 / 属性面板里手工改过的物件保留他改的值，不吃这一拨；
- * 标称值之间互相切换（座装 180mm ⇄ 移动 550mm、地面 ⇄ 0.70m）因此照样能拨过去。
  */
 function snapTelevisionMountDimensions(televisionItem, nextMountStyle) {
   const televisionDepth = finite(televisionItem.depth, 0);
@@ -2102,15 +2001,12 @@ const DOOR_TYPE_DIMENSIONS = {
 };
 /**
  * 取某类灯具的聚光角上限（度）。兜底 120 而不是 180：真实射灯不会做成全向，
- * 保守上限可避免导入的数据把角度设到肉眼可见的穿模。
  */
 function maxLightAngleForType(itemType) {
   return LIGHT_TYPE_MAX_ANGLE_DEG[itemType] || 120;
 }
 /**
  * 判断某类物件是否仍被任何楼层使用，外部模型管理器据此决定能否释放 glTF 资源。
- * 必须查所有楼层（不只当前层），否则切层回来要重新下载。电视按挂装方式拆成
- * tv_standard / tv_tabletop 等虚拟类型，需按挂装方式比对。
  */
 function isItemTypeInUse(queriedItemType) {
   return !!studioDocument?.floors?.some(searchedFloor =>
@@ -2127,7 +2023,6 @@ function isItemTypeInUse(queriedItemType) {
 }
 /**
  * 汇总若干楼层里出现过的外部模型类型（去重）。窗帘被排除 —— 它是参数化几何现场
- * 生成的，不走 glTF；表里没有对应模型的类型也滤掉，免得调用方拿空模型名去请求。
  */
 function collectItemModelTypes(sourceFloors = []) {
   return [
@@ -2143,7 +2038,6 @@ function collectItemModelTypes(sourceFloors = []) {
 }
 /**
  * 当前预览范围内需要的外部模型类型。单层预览只看当前层，整层堆叠（all）要看所有
- * 楼层 —— 后者在切换堆叠模式时会一次性加载较多模型，是预加载的主要来源。
  */
 function currentFloorModelTypes() {
   const modelSourceFloors =
@@ -2153,7 +2047,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609271208"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609271226"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.186.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -2171,12 +2065,6 @@ let deferredModelTypes = [];
 let deferredModelTimer = null;
 /**
  * 模型延迟放行协议的宿主端。加载器（`loaders/studio-external-models.js`）只通过传给
- * `createExternalModelManager` 的 `deferralHost` 查询状态，读端与写端都在静态可见的
- * ESM 边界上。
- *
- * 此前这三件事走 `window.externalModelLoadsDeferred` / `window.__haBridgeDeferExternalModel`
- * / `window.__haBridgeReleasingDeferredModels` 三个全局：写端在这里、读端在另一个文件，
- * 改错名字或漏写一处都不会报错，只表现为「首屏该延后的没延后」这种安静的性能回退。
  */
 let isReleasingDeferredModels = false;
 function deferModelTypeForLater(deferredType) {
@@ -2189,8 +2077,6 @@ function deferModelTypeForLater(deferredType) {
 }
 /**
  * 延迟释放被搁置的模型加载：页面刚打开时先压后（等首屏与草稿稳定），
- * 避免与首帧渲染抢带宽。条件不满足时 300ms 后重试而非放弃 ——
- * 页面隐藏、导出中、相机运动时都不适合插入大量解析工作。
  */
 function scheduleDeferredModelLoad(delayMs = 900) {
   window.clearTimeout(deferredModelTimer);
@@ -2217,8 +2103,6 @@ function scheduleDeferredModelLoad(delayMs = 900) {
 }
 /**
  * 立即放行若干模型类型的加载，并取消待执行的延迟释放。置 isReleasingDeferredModels
- * 是给外部模型管理器的钩子：它靠这个标志区分「用户主动要模型」与「后台补加载」，
- * 只有前者允许打断当前的低优先级加载队列。
  */
 function releaseDeferredModels(modelTypes = []) {
   window.clearTimeout(deferredModelTimer);
@@ -2239,16 +2123,12 @@ function releaseDeferredModels(modelTypes = []) {
 }
 /**
  * 放行当前预览范围内所有被搁置的模型，返回全部加载 Promise。
- *
- * 展示页（whenPresented）与导出前都会调用它并等待，确保出图时模型都在场。
  */
 function releaseAllDeferredModels() {
   return releaseDeferredModels(currentFloorModelTypes());
 }
 /**
  * 合并短时间内的多次预览重建请求（80ms 防抖），只保留最后一次。
- * 导出中或相机运动中的请求不丢弃，记为 isPrecompilePending，
- * 待高优先级操作结束后由 updateModelLoadingStatus 补一次。
  */
 function schedulePreviewRebuild() {
   updateModelLoadingStatus();
@@ -2298,8 +2178,6 @@ const { loadExternalItemModel: loadExternalItemModel, modelTypeForItem: modelTyp
   externalModelManager;
 /**
  * 刷新「正在载入模型」提示，并在模型全部就绪后补一次被打断的预编译。载入期间临时
- * 禁用 OrbitControls：几何与阴影贴图都在变，此时转动相机会让帧率抖得很难看，
- * 也会让阴影预算反复重算。
  */
 function updateModelLoadingStatus(loadState = externalModelManager.modelLoadState()) {
   if (!modelLoadingStatusElement) {
@@ -2337,15 +2215,11 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
     );
 }
 // 几何体与材质的进程内复用池：键是尺寸 / 颜色等可枚举参数。
-// 户型图里同一件家具会被复制很多次，不缓存的话每份都会新建 geometry / material，
-// 显存与 draw call 都会成倍增长；这里缓存的对象在场景清空时统一 dispose。
 const rugGeometryBySizeKey = new Map();
 const rugMaterialByColorKey = new Map();
 const mergedWallBandGeometryCache = new Map();
 const materialByRenderKey = new Map();
 // 自身发光的物件类型：电视机、汽车、户型铭牌与三类灯具。
-// 它们要么带自发光材质、要么有随开关变化的部件，合批后这些逐物件状态就丢了，
-// 因此在实例化与静态合批里都要显式排除。
 const SELF_LIT_ITEM_TYPES = new Set([
   "tv",
   "smallcar",
@@ -2355,8 +2229,6 @@ const SELF_LIT_ITEM_TYPES = new Set([
   "striplight"
 ]);
 // 允许做「烘焙式合批」的物件白名单：把整件家具的所有网格焊成一份几何。
-// 只收造型固定、不需要单独控制某一部分的家具；白名单之外一律保留原网格，
-// 因为合批会让射线拾取与逐部件材质调整失效。
 const BATCH_MERGE_ITEM_TYPES = new Set([
   "coffeetable",
   "squarecoffeetable",
@@ -2406,17 +2278,10 @@ const BATCH_MERGE_ITEM_TYPES = new Set([
   "shower",
   "basin"
 ]);
-// 「实例化合批」白名单，当前刻意为空：这条路径只共享 geometry / material 而不焊网格，
-// 但在带描边的家具上会出现边缘线错位，先停用保留实现，待修好再逐类放开。
 const INSTANCE_MERGE_ITEM_TYPES = new Set();
 // 走新版合批构建路径的物件类型，构建时会打上 optimizationBatch 标记便于统计。
-// 外观完全交给 glTF 外部模型的物件类型：先用程序化几何占位，
-// 模型到位后整组替换并释放占位网格，因此这里决定「加载前能不能先看见东西」。
-// 同样使用外部模型、但要按「家电」语义处理的类型：
-// 加载时会走另一套材质与阴影策略（金属件多、体量大，阴影不值得全开）。
 /**
  * 往父分组里挂一个外部 glTF 物件，并刷新「模型加载中」提示。只是
- * externalModelManager 的一层薄封装：把选中态翻译成管理器需要的选项。
  */
 function addExternalItemModel(
   parentGroup,
@@ -2435,7 +2300,6 @@ function addExternalItemModel(
   return modelObject;
 }
 // 灯光属性面板的字段登记表：字段名 → 界面控件与单位。
-// 单位同时用于界面展示与格式化，新增灯光字段只改这里，不要再散落到各处。
 const LIGHT_FIELD_CONFIG = {
   lightTemperature: {
     label: "色温",
@@ -2465,8 +2329,6 @@ const LIGHT_FIELD_CONFIG = {
 };
 /**
  * 把灯光属性的原始输入夹到合法区间并归一精度。中文界面传入字符串且用户可输任意
- * 数字，因此每字段独立兜底：色温 2200~6500K 取整、亮度 0~100 取整、照射范围
- * 0.5~10m 一位小数、光束角下限 15° 且上限随灯型、离地 0~6m 两位小数。
  */
 function sanitizeLightFieldValue(lightFieldKey, rawValue, lightingItemType) {
   if (lightFieldKey === "lightTemperature") {
@@ -2485,7 +2347,6 @@ function sanitizeLightFieldValue(lightFieldKey, rawValue, lightingItemType) {
 }
 /**
  * 按字段单位把数值格式化成界面文案。角度与百分比紧贴数字（48% / 48°），米与开尔文
- * 留一个空格（3.0 m / 3000 K）—— 这是界面既有约定，改格式会连带影响导出预览里的文字对齐。
  */
 function formatLightFieldValue(formattedFieldKey, value) {
   const fieldConfig = LIGHT_FIELD_CONFIG[formattedFieldKey];
@@ -2542,35 +2403,15 @@ const {
 });
 /**
  * 单层场景数据的结构版本（`floor.scene.schemaVersion`）。
- *
- * 与文档级的 `schemaVersion`（`normalizeStudioDocument` 读写的那一个）是两套独立命名空间，
- * 各自递增：本值由 `normalizeScene` 读取，只用于迁移「每层的绘制数据」——墙、门窗、物件。
- * 历史：1 之前为初版；2 起修正了条灯的横竖朝向；3 起窗帘「预览打开」的默认值由关闭改为全开；
- * 4 起该默认值从全开改为 COVER_DEFAULT_PREVIEW_POSITION（75%）；5 起吊柜默认挂高从 1.6 回调到
- * 1.4；6 起吊柜的挂高**退回原版口径**——1.4 改回烘进几何（类型定义里不再有 elevation），老草稿
- * 那一格里的「柜底离地绝对值」换算成「额外偏移」（见 normalizeScene 里的 wallCabinet 迁移）。
- *
- * **每次加一条迁移就必须 +1**：下面的迁移判据都是 `schemaVersion < 本值`，不涨的话新迁移会
- * 在老档上反复生效（用户手改的值第二天又被改回去）。反过来，**已经定稿的迁移不能再跟着本值涨**
- * —— 见 CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION 的说明。
- *
- * 必须声明在 createEmptyScene / normalizeScene 的**调用点之前**：`activeScene` 的初始化就在下面
- * 几行，而它经 createEmptyScene 读本常量，放晚了会撞上 const 的暂时性死区。
  */
 const FLOOR_SCENE_SCHEMA_VERSION = 6;
 
 /**
  * 窗帘「预览打开」默认值定稿的那一版（= 第 4 版）。
- *
- * 这条迁移不跟 `FLOOR_SCENE_SCHEMA_VERSION`：它的判据是「文档写在默认值定稿之前」，而定稿之后
- * 存进去的 `100` 是**用户主动选的**。跟本值涨的写法在只加一条新迁移时就会把那些 100 当成旧默认
- * 再改一遍（静默抹掉用户选择），所以阈值钉死在定稿那一版上。
  */
 const CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION = 4;
 
 // 本文件的状态集中在下面这段 let 里（没有状态容器对象）：绘制 / 预览 / 导出三处回调都要
-// 就地读写，封装成 store 反而要在热点路径上多做一次取值。
-// 约定：文档级状态由 markDocumentDirty() 落盘；纯视图状态（viewTransform、各类 snapTarget）不写盘也不进撤销栈。
 let savedSceneRecord = null;
 let sceneLoadToken = 0;
 let backgroundRevision = 0;
@@ -2634,16 +2475,10 @@ let autosaveTimer = null;
 let isSaving = false;
 let saveConflict = null;
 // 「稍后处理」：用户先不当场二选一。冲突记录留着（本地内容一点不丢、也绝不静默覆盖），
-// 但它不再停掉自动保存 —— 停掉之后界面一切正常，用户会一直以为在存，
-// 直到刷新页面才发现这一段的改动没了。
 let saveConflictDeferred = false;
 // 「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、先要一次确认
-// （编辑器用 PUT ?dryRun=1 预检，428 为兜底），并附上绑定到「当前 revision + 新场景 + 现有文档 +
-// 本次影响」的令牌。这里存下待确认的计划与**当时**的 revision / 场景快照 —— 确认重发必须原样带
-// 回去，令牌才对得上。
 let saveInteractionConfirmation = null;
 // 「保留模型」：收起对话框但记录留着（本地删除与撤销栈一点不动、也绝不按未确认的计划清理）。
-// 与 409 的「稍后处理」同义，是这条流程里唯一不丢东西的出口。
 let saveInteractionDeferred = false;
 let toastTimer = null;
 let isSceneUpdateQueued = false;
@@ -2736,23 +2571,6 @@ let isPageUnloading = false;
 let appliedLightPrecompileSignature = "";
 const precompiledLightSignatures = new Set();
 const MAX_PRECOMPILE_PLAN_COUNT = 16;
-/**
- * 迁移窗帘「预览打开」的历史默认值。
- *
- * 历史上默认值改过两次，都要在读盘时把旧默认值搬到当前值 —— 因为写进配置的值分不清
- * 「当时的默认」与「用户主动选的」：
- * - 版本 2 及以前：新建窗帘一律写死 `curtainPreview: 0`，与「用户主动设为关闭」共用同一个值；
- * - 版本 3：上一次迁移把那批 0 改写成了全开的 `100`，与「用户主动选全开」同样无法区分。
- *
- * 两步都直接归到当前默认值（COVER_DEFAULT_PREVIEW_POSITION），不必先走一遍 100 再降一次。
- * 只有 0（版本 2 及以前）与 100 这两个「已知默认值」会被改写，其余值原样保留；
- * 迁移只做一次：归一化后的文档会带上当前版本号，之后用户手动改的值不会再被动到。
- *
- * 阈值取 `CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION`（定稿那一版）而**不是**活的
- * `FLOOR_SCENE_SCHEMA_VERSION` —— 后者每加一条新迁移就 +1，跟着它涨会把定稿之后存进去的
- * `100`（那是用户主动选的）再当成旧默认改一遍。见该常量的说明。
- * 字段本身缺失时不在此处理 —— `normalizeCurtainTrack` 已把「未设置」按当前默认值处理。
- */
 function migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion) {
   if (
     sourceItemRecord?.type !== "curtain" ||
@@ -2761,10 +2579,8 @@ function migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion) {
     return sourceItemRecord;
   }
   const legacyCurtainPreview = finite(sourceItemRecord.curtainPreview, NaN);
-  // 版本 2 及以前那个「等于 0 即默认」的老口径：0 与用户主动关闭不可分辨，一并抬到当前默认值。
   const isLegacyDefault = schemaVersion < 3 && legacyCurtainPreview === 0;
   // 版本 3 那次迁移留下的全开值。注意这一条对「版本 3 文档里用户自己设的 0 / 50」不生效 ——
-  // 只有 100 会被改写，其它值原样保留。
   const isPreviousDefault = legacyCurtainPreview === 100;
   return isLegacyDefault || isPreviousDefault
     ? {
@@ -2775,8 +2591,6 @@ function migrateLegacyCurtainPreview(sourceItemRecord, schemaVersion) {
 }
 /**
  * 新建一个空白场景（单层绘制数据）。默认值写死在此而非 UI 层：
- * 墙高 2.4m、墙厚 0.15m、吸附容差 13px、预览面板占比 0.52；schemaVersion 供
- * normalizeScene 做兼容迁移。默认带一个灯组，避免用户先面对空下拉框。
  */
 function createEmptyScene() {
   return {
@@ -2823,8 +2637,6 @@ function createEmptyScene() {
 }
 /**
  * 按楼层序号生成默认楼层名（一层…十层，之后用「N层」）。只用于「用户没改过名字」的
- * 情况：normalizeStudioDocument 拿它跟存档名字比对，相等即视为自动名并重新生成，
- * 避免插入 / 删除楼层后名字错位。
  */
 function floorNameForIndex(floorNumber) {
   return (
@@ -2834,8 +2646,6 @@ function floorNameForIndex(floorNumber) {
 }
 /**
  * 新建楼层记录。elevation/offsetX/offsetZ/rotation 是整层相对世界原点的摆放变换；
- * originX/originY 是平面坐标原点偏移，有底图时默认取图幅中心，使底图像素可直接当
- * 平面坐标。aligned/alignmentPending 记录是否已对齐，非首层默认未对齐、首次对齐时求解。
  */
 function createFloor(newFloorIndex = 0, floorScene = createEmptyScene()) {
   const normalizedScene = normalizeScene(floorScene);
@@ -2857,8 +2667,6 @@ function createFloor(newFloorIndex = 0, floorScene = createEmptyScene()) {
 }
 /**
  * 把服务端（或旧版本）存下的文档归一成当前结构。夹取范围是「物理上说得通」的宽松
- * 边界，只挡损坏数据（NaN、负数、离谱偏移），不替用户做设计决策 —— 收紧会让老草稿
- * 打开后数值被悄悄改掉。缺字段一律补默认值，任何对象都能安全过一遍得到可用文档。
  */
 function normalizeStudioDocument(rawDocument) {
   const rawFloors = Array.isArray(rawDocument?.floors) ? rawDocument.floors : null;
@@ -2943,7 +2751,6 @@ function normalizeStudioDocument(rawDocument) {
 }
 /**
  * 取当前正在编辑的楼层记录。导出期间以 exportRenderState.selectedFloorId 为准：
- * 导出可以只导某一层，而界面上的当前层可能还是别的层，两者必须分开，否则导出预览会串层。
  */
 function getCurrentFloor() {
   const selectedFloorId = exportRenderState?.selectedFloorId || activeFloorId;
@@ -2955,15 +2762,12 @@ function getCurrentFloor() {
 }
 /**
  * 深拷贝整份文档（楼层、场景、导出预设全覆盖）。用 structuredClone 而不是 JSON 往返：
- * 文档里有 Set / Map / TypedArray，JSON 会把它们悄悄降级成空对象。
  */
 function cloneStudioDocument() {
   return structuredClone(studioDocument || normalizeStudioDocument(activeScene));
 }
 /**
  * 生成要提交给后端的文档快照。与 cloneStudioDocument 的差别只在导出期间：导出用的是
- * 临时相机与楼层范围，必须一起写进草稿，否则用户调好的每层机位导出后就丢；
- * 非导出状态直接返回等价的深拷贝。
  */
 function snapshotDocumentForSave() {
   const documentSnapshot = cloneStudioDocument();
@@ -3010,11 +2814,6 @@ function closeFloorContextMenu() {
   floorContextMenuElement.hidden = true;
   floorMenuTargetId = "";
 }
-/**
- * 在鼠标位置弹出楼层右键菜单。最后一层不允许删除（按钮禁用），因为空文档会让整套
- * 绘制逻辑失去落点。落点交给 shared/menu-positioning.js 按菜单**实测尺寸**夹进视口 ——
- * 原先这里按 116×82 的估算值裁剪，菜单项增删或文案变长后那组常量就失效了。
- */
 function openFloorContextMenu(menuFloor, contextMenuEvent) {
   floorMenuTargetId = menuFloor.id;
   const floorDeleteButton = floorContextMenuElement.querySelector('[data-floor-action="delete"]');
@@ -3047,8 +2846,6 @@ function closeFloorDeleteDialog() {
 }
 /**
  * 执行删除楼层：移除记录、重排标高、切到相邻层并落盘。删后按 defaultFloorHeight 重排
- * 是为了让楼层堆叠保持等距（用户手动对齐过的层会在下次进入对齐模式时重算）；
- * 切到被删层的前一层（不存在则第一层），比固定切首层更符合直觉。
  */
 async function deleteFloor() {
   const floorToDelete = studioDocument.floors.find(
@@ -3086,8 +2883,6 @@ function openFloorRenameDialog(renamedFloor) {
 }
 /**
  * 重绘楼层列表。列表项同时承担三种交互：单击切层、长按 280ms 拖动排序、右键出菜单。
- * 长按门限是刻意的：直接可拖会让「点一下切层」变误拖，280ms 是手感上仍算「按住」的上限。
- * 拖动用自定义 MIME application/x-homeos-floor 传楼层 ID，避免与文件拖放混淆。
  */
 function renderFloorList() {
   if (studioDocument) {
@@ -3111,8 +2906,6 @@ function renderFloorList() {
       let dragReadyTimer = null;
       /**
        * 复位本行「长按待拖」状态：清掉定时器并移除高亮样式。
-       * pointerup / pointercancel / dragend 与每次重新按下都会调用，否则取消手势后会残留
-       * 280ms 定时器，让后续一次普通点击被误判成拖动排序。
        */
       const resetDragReady = () => {
         if (dragReadyTimer) {
@@ -3215,7 +3008,6 @@ function renderFloorList() {
 }
 /**
  * 清掉所有楼层行上的拖放落点指示。dragend 与每次重新计算落点前都会调用，
- * 保证同一时刻只有一行带 drop-before / drop-after 高亮，不会留下残影。
  */
 function clearFloorDropIndicators() {
   for (const staleRowElement of floorListElement.querySelectorAll(".floor-row")) {
@@ -3225,8 +3017,6 @@ function clearFloorDropIndicators() {
 }
 /**
  * 把被拖动的楼层移到目标楼层的上方或下方，并落盘新的顺序。数组重排交给纯函数
- * reorderFloors，返回同一引用即表示无效拖放（例如拖到自己身上），静默返回；
- * 成功后强制重建场景（顺序决定堆叠高度与阴影）并递增 revision 触发自动保存。
  */
 function reorderFloorList(draggedFloorIdParam, targetFloorIdParam, shouldInsertAfter) {
   const reorderedFloors = reorderFloors(
@@ -3256,7 +3046,6 @@ function reorderFloorList(draggedFloorIdParam, targetFloorIdParam, shouldInsertA
 }
 /**
  * 按当前状态刷新「对齐楼层」按钮与工具栏引导文案。只有非基准层（下标 > 0）且已完成
- * 比例校准才允许对齐；对齐流程中把「先点参照层、再点当前层」的引导写进工具提示。
  */
 function updateFloorAlignmentControls() {
   const currentFloor = getCurrentFloor();
@@ -3279,8 +3068,6 @@ function updateFloorAlignmentControls() {
 }
 /**
  * 切换当前编辑楼层（列表点击、楼层按钮、导出逐层遍历都走这里）。切层是全局状态重置点：
- * 清空选中、撤销/重做栈与比例工具状态，释放上一层延迟加载模型并重载底图，再整体刷新。
- * 释放模型与加载贴图都异步，用自增的 floorSwitchToken 做竞态守卫，否则连续切层会出现错层画面。
  */
 async function activateFloor(targetFloorId, { persist: shouldPersist = false } = {}) {
   const requestedFloorRecord = studioDocument?.floors.find(
@@ -3338,10 +3125,6 @@ async function activateFloor(targetFloorId, { persist: shouldPersist = false } =
     }
   }
 }
-/**
- * 新增一个空楼层并立即切过去。新楼层名在「楼层 N」基础上做去重；activateFloor 内部
- * 不写 revision，因此切换完成后要补一次 markDocumentDirty，保证新楼层会被自动保存。
- */
 async function addFloor() {
   const newFloor = createFloor(studioDocument.floors.length);
   newFloor.name = uniqueFloorName(newFloor.name);
@@ -3356,8 +3139,6 @@ async function addFloor() {
 }
 /**
  * 平面像素点 → 世界坐标（米）。未旋转时平面 x→世界 x、平面 y→世界 z；平面 y 向下而
- * 世界 y 向上，故 z 分量里 y 的系数取负，rotation（度）按反向旋转。pixelsPerMeter
- * 未标定时兜底为 1，调用方需确认是否已校准。
  */
 function floorPointToScenePoint(sourceFloorRef, pointToConvert) {
   const floorPointScale = sourceFloorRef?.scene?.calibration?.pixelsPerMeter || 1;
@@ -3377,8 +3158,6 @@ function floorPointToScenePoint(sourceFloorRef, pointToConvert) {
 }
 /**
  * 世界坐标（米）→ 平面像素点，是 floorPointToScenePoint 的逆运算：先减楼层偏移
- * （offsetX/offsetZ）得到以楼层原点为中心的局部坐标，再按 -rotation 反向转回平面朝向，
- * 最后乘 pixelsPerMeter 并加回 originX/originY。标定缺失时同样按 1 兜底。
  */
 function scenePointToFloorPoint(scenePointToConvert, scenePoint) {
   const floorPixelsPerMeter = scenePointToConvert?.scene?.calibration?.pixelsPerMeter || 1;
@@ -3402,15 +3181,12 @@ function scenePointToFloorPoint(scenePointToConvert, scenePoint) {
 }
 /**
  * 把平面像素点从一层楼层的坐标系换算到另一层。实现是「先转到世界、再转回平面」两步
- * 拼接；对齐时靠它把参照层的墙投影到当前层做吸附，也用于跨层复制几何。
  */
 function convertBetweenFloors(planPoint, fromFloor, toFloor) {
   return scenePointToFloorPoint(toFloor, floorPointToScenePoint(fromFloor, planPoint));
 }
 /**
  * 取参照层的墙并换算到当前层坐标系，供对齐时吸附使用。
- *
- * 吸附只关心几何，因此保留 id 与属性、只重算 start / end。
  */
 function referenceWallsForAlignment() {
   if (!floorAlignState) {
@@ -3425,8 +3201,6 @@ function referenceWallsForAlignment() {
 }
 /**
  * 进入楼层对齐流程的第一阶段（在参照层上点参照点）。参照层固定取楼层列表中的上一层，
- * 两层都必须已完成比例校准，否则只提示、不改状态。进入后清空选中、切回选择工具，
- * 并把画布光标改成十字线。
  */
 function startFloorAlignment() {
   const alignmentSourceFloor = getCurrentFloor();
@@ -3455,7 +3229,6 @@ function startFloorAlignment() {
 }
 /**
  * 放弃楼层对齐流程，恢复画布光标与工具状态。用户按 Esc、或点了别的楼层导致流程失效时
- * 调用；未处于对齐流程时什么都不做，因此可无条件挂到全局按键 / 点击处理上。
  */
 function cancelFloorAlignment() {
   if (floorAlignState) {
@@ -3469,8 +3242,6 @@ function cancelFloorAlignment() {
 }
 /**
  * 处理楼层对齐的两阶段画布点击：先在参照层按 18/zoom 平面像素吸附取参照点并换算到参照层坐标系，
- * 再在当前层点同一位置，以该点为新原点、把参照点世界坐标写入 offsetX/offsetZ 使两层重合，
- * 最后写 alignment 记录、标记 aligned、重建并落盘。
  */
 function handleFloorAlignClick(clickPoint) {
   if (!floorAlignState) {
@@ -3534,8 +3305,6 @@ function handleFloorAlignClick(clickPoint) {
 }
 /**
  * 提交「预览楼层间距」输入值（合法区间 0~20m）。与 exportFloorGap 分开存储：预览间距只
- * 影响编辑器取景。变化量需超过 1e-6 才写回，因为输入框失焦与回车都会触发本函数，无阈值
- * 会反复重建。上限 20m 的依据：单层层高最大 6m，更远在整景视角里已看不出关联。
  */
 function commitPreviewFloorGap() {
   const previewGap = clamp(
@@ -3552,7 +3321,6 @@ function commitPreviewFloorGap() {
 }
 /**
  * 提交「统一整景堆叠」开关。该开关决定整景预览是共用一套相机投影还是逐层套用各自视角，
- * 会改变整景取景，因此必须让场景缓存整体失效重建而不只是重绘。
  */
 function commitUniformOverviewStack() {
   studioDocument.uniformOverviewStack = previewFloorUniformInput.checked;
@@ -3563,7 +3331,6 @@ function commitUniformOverviewStack() {
 }
 /**
  * 提交「导出楼层间距」输入框的值，合法区间 0~20m。与 previewFloorGap 分开存储：
- * 导出间距只影响导出图的层间摆位，不改变编辑器里看到的预览效果。
  */
 function commitExportFloorGap() {
   const exportGap = clamp(
@@ -3581,8 +3348,6 @@ function commitExportFloorGap() {
 }
 /**
  * 按几何交点切分墙体，并把门窗栏杆重新挂到切分后的墙上。墙体必须在相交处断开，
- * 否则 T / L 形接口会出现重叠面与接缝。切分后每段墙用 t（沿墙 0~1）定位附件，原先挂在
- * 整墙上的 t 要按落在哪一段重新折算，再用 clampWindowT 夹进该段的有效区间。
  */
 function splitWallsWithOpenings(walls, windows, doors, planPixelsPerMeter, railings = []) {
   const wallPieces = splitWallSegments(walls);
@@ -3605,11 +3370,6 @@ function splitWallsWithOpenings(walls, windows, doors, planPixelsPerMeter, raili
     piecesByWallId.get(piece.sourceWall.id).push(attachmentReference);
     splitWalls.push(splitWall);
   }
-  /**
-   * 把一个原本挂在整面墙上、以 t（沿墙 0~1）定位的附件重新挂到切分后的某一段墙。
-   * 先按原 t 定位所在墙段：1e-7 容差吃掉浮点误差，恰好落在接缝上时归给最后一段；
-   * segmentSpan 再兜一层防止零长段除零；折算结果过 clampWindowT，否则门窗会跨出墙端悬空。
-   */
   const remapAttachment = attachmentRef => {
     const pieces = piecesByWallId.get(attachmentRef.wallId);
     if (!pieces?.length) {
@@ -3639,8 +3399,6 @@ function splitWallsWithOpenings(walls, windows, doors, planPixelsPerMeter, raili
 }
 /**
  * 把任意来源的场景 JSON 归一成当前版本可用对象（读盘、导入、外层 API 都过这里）：
- * 逐字段类型兜底与区间夹取，丢掉退化几何（长度 ≤0.1px 的墙、指向不存在墙的门窗），
- * 补齐默认灯组与区域引用，后续渲染代码无需判空。schemaVersion 用于兼容历史数据。
  */
 function normalizeScene(raw) {
   const emptyScene = createEmptyScene();
@@ -3649,7 +3407,6 @@ function normalizeScene(raw) {
   }
   const schemaVersion = finite(raw.schemaVersion, 0);
   // 老草稿把两个布局比例混在 settings 里，本次迁移到 localStorage。这里只暂存旧值，
-  // 真正播种由 migrateLegacyLayoutSettings() 在文档装好之后做（见该函数的说明）。
   captureLegacyLayoutSeed(raw.settings);
   const calibrationPixelsPerMeter = clamp(finite(raw.calibration?.pixelsPerMeter, 0), 0, 100000);
   const calibration =
@@ -3707,7 +3464,6 @@ function normalizeScene(raw) {
     ? raw.doors
         .map(rawDoor => {
           // 门型要先定下来：材质档位的合法性按门型判（玻璃档位只在玻璃门型上算数），
-          // 门型从玻璃门改成实心门时，存着的那一格玻璃档位会在这一步被归一到 auto。
           const doorType = Object.hasOwn(DOOR_TYPE_DIMENSIONS, rawDoor?.doorType)
             ? rawDoor.doorType
             : "solid";
@@ -3776,8 +3532,6 @@ function normalizeScene(raw) {
   }
   /**
    * 按名字取灯组；没有就新建一个（原地修改 normalizedLightGroups）。归一化过程中同一个
-   * 名字可能被多处引用（灯带默认组、区域分配），按名字复用可避免出现多份「默认灯组」。
-   * 名字先过 normalizeLabelText，新建的组 areaId 为 null。
    */
   const ensureLightGroup = (groupName = "默认灯组") => {
     const normalizedGroupName = normalizeLabelText(groupName, "默认灯组", 24);
@@ -3853,17 +3607,6 @@ function normalizeScene(raw) {
             Math.abs(depth - 0.45) < 0.01 &&
             Math.abs(height - 1.8) < 0.01;
           const isRugLegacyHeight = sourceItemRecord?.type === "rug" && height >= 0.045;
-          // 吊柜的挂高在 037cd779 之后被搬进过 elevation（那一版的默认值 1.6，后来回调成 1.4），
-          // 现在又退回**原版口径**：挂高（柜底 1.4m）烘在几何里，elevation 只存「在这之上再加的
-          // 偏移」（默认 0，见 ITEM_TYPE_DEFINITIONS.wallcabinet）。于是老档（没带过当前版本号的）
-          // 要换一次单位 —— 那一格存的本来是**柜底离地**的绝对值：
-          //   1.4 / 1.6 = 那两版自动写进去的默认值，不带用户意图 → 归 0（= 原版默认挂高）；
-          //   < 0.5     = 吊柜贴着地放不成立，只可能是更早那一版的「额外偏移」→ 原样保留；
-          //   其余      = 0 基时代的柜底离地绝对值 → 减去烘进几何的那一段。
-          // 那一段随物件高度等比缩放（scaleBasis 的高 0.82），所以按 height / 0.82 折算 ——
-          // 不折算的话把 1.0m 高的吊柜（底 1.7）搬到新口径会整件再顶高 30cm、顶到天花板上。
-          // 与窗帘那条一样有取舍：写进配置的值分不清「当时的默认」与「用户主动选的」，所以
-          // 「手改过 1.4 / 1.6」也会被归位 —— 判据只认这两个确切的旧默认值。
           const isLegacyWallCabinetElevation =
             sourceItemRecord?.type === "wallcabinet" &&
             schemaVersion < FLOOR_SCENE_SCHEMA_VERSION;
@@ -4139,7 +3882,6 @@ function normalizeScene(raw) {
 }
 /**
  * 生成带类型前缀的唯一 ID。优先 crypto.randomUUID；非安全上下文（http 局域网、老浏览器）
- * 拿不到它，退化到「时间戳 + 随机串」，只要求同文档内不重名。
  */
 function createId(prefix) {
   const uniquePart =
@@ -4147,17 +3889,11 @@ function createId(prefix) {
     Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
   return prefix + "-" + uniquePart;
 }
-/**
- * 深拷贝一份场景，供撤销 / 重做快照使用。必须深拷贝：撤销栈存的是历史状态，
- * 与当前编辑对象共享引用会让后续修改把历史一起改掉。structuredClone 比 JSON 往返快。
- */
 function cloneSceneForHistory(sourceScene = activeScene) {
   return structuredClone(sourceScene);
 }
 /**
  * 查某个灯具所属的灯组（当前楼层）。
- *
- * 灯组 ID 失效（灯组被删）时兜底返回第一个灯组，保证界面永远有一个可用的分组。
  */
 function lightGroupForItem(lookupItem) {
   return (
@@ -4168,7 +3904,6 @@ function lightGroupForItem(lookupItem) {
 }
 /**
  * 在指定场景里查灯具所属的灯组。与 lightGroupForItem 的差别只在「查哪个场景」：
- * 整层堆叠预览时每层都有自己的 lightGroups，必须用灯具所在楼层的场景去查，否则会串组。
  */
 function lightGroupForItemInScene(sceneItem, targetScene = activeScene) {
   return (
@@ -4177,11 +3912,6 @@ function lightGroupForItemInScene(sceneItem, targetScene = activeScene) {
     null
   );
 }
-/**
- * 判断某盏灯此刻是否点亮。判定顺序有意如此：先看强制可见集合 forceVisibleLightIds
- * （导出某张预设图时指定只亮哪些灯），再看所属灯组是否被关，最后交给自适应光照缓存 ——
- * 低配设备上不亮的灯不参与实时计算，只有导出或刻意保留缓存时才一律按点亮处理。
- */
 function isLightEnabled(checkedItem) {
   if (forcedVisibleLightIds !== null) {
     return forcedVisibleLightIds.has(checkedItem.id);
@@ -4199,14 +3929,12 @@ function televisionItems() {
 }
 /**
  * 当前楼层里的小汽车物件（类型 smallcar）。充电图层编号与充电负载估算都以它为准；
- * 只看 activeScene，不涉及其它楼层。
  */
 function carItems() {
   return activeScene.items.filter(carItem => carItem.type === "smallcar");
 }
 /**
  * 取当前预览范围内的楼层列表：整景（all）给全部楼层，单层只给当前层。单层分支用
- * filter(Boolean) 兜住「尚未选中楼层」的空值，返回值可能为空数组，调用方需按可空处理。
  */
 function previewFloors() {
   if (currentPreviewFloorMode() === "all") {
@@ -4217,8 +3945,6 @@ function previewFloors() {
 }
 /**
  * 计算某楼层在整景导出图里相对基准层的垂直偏移（米）。单层导出无堆叠概念，返回 0。
- * 整景按楼层次序乘 exportFloorGap，使导出层间距与设置一致；不复用 previewFloorGap
- * 是因为预览间距给人看、导出间距要能单独构图。楼层已删（findIndex 失败）按 0 兜底。
  */
 function floorExportOffset(measuredFloor) {
   if (currentPreviewFloorMode() !== "all") {
@@ -4237,14 +3963,12 @@ function floorGroupKey(keyFloorId, keyGroupId) {
 }
 /**
  * 拼接「楼层 + 物件」复合键，供跨层选中集合、强制点亮集合与光照缓存键使用。楼层 id
- * 为空时用 "floor" 占位，保证历史单层数据也能得到稳定字符串键（键要进哈希）。
  */
 function floorItemKey(itemFloorId, itemId) {
   return (itemFloorId || "floor") + ":" + itemId;
 }
 /**
  * 灯组的作用域键：单层预览只用灯组 ID，整层堆叠才带楼层前缀。这样单层模式的灯组开关
- * 能沿用同一套键，切到堆叠模式又不会把各层的同名灯组当成同一个。
  */
 function lightGroupScopeKey(scopeFloorId, scopeGroupId) {
   if (currentPreviewFloorMode() === "all") {
@@ -4255,7 +3979,6 @@ function lightGroupScopeKey(scopeFloorId, scopeGroupId) {
 }
 /**
  * 收集预览范围内所有灯具，附带所属楼层、灯组与两种作用域键；一次遍历产出灯光计算、
- * 灯组开关、缓存键多处需要的信息。没有灯组的灯用「__ungrouped」占位，保证键是字符串。
  */
 function collectPreviewLights() {
   return (
@@ -4279,8 +4002,6 @@ function collectPreviewLights() {
 }
 /**
  * 收集楼层里的灯组，并算出每组内的灯具。
- *
- * index 保留灯组在场景里的原始顺序，供拖动排序与键盘上下移动使用。
  */
 function collectLightGroups(groupSourceFloors = studioDocument?.floors || []) {
   return groupSourceFloors.flatMap(groupFloor =>
@@ -4313,7 +4034,6 @@ function collectTelevisions(televisionSourceFloors = studioDocument?.floors || [
 }
 /**
  * 收集楼层里的小汽车，位置下标用于给「汽车充电 N」图层编号。与 collectTelevisions /
- * collectLightGroups 同构，index 是「在本层内的序号」，不含楼层维度。
  */
 function collectCars(carSourceFloors = studioDocument?.floors || []) {
   return carSourceFloors.flatMap(carFloor =>
@@ -4329,8 +4049,6 @@ function collectCars(carSourceFloors = studioDocument?.floors || []) {
 }
 /**
  * 给新增 / 粘贴进来的电视分配唯一的「电视画面 N」图层名：已用名取自当前楼层全部电视，
- * 编号从 1 起递增并跳过已占用号。顺便把 screenEnabled 补成默认开启（只有显式 false 才
- * 保持关闭），新加的电视不用手动去图层栏点开。
  */
 function assignTelevisionLayerNames(televisionItemsToName) {
   const usedTelevisionLayerNames = new Set(
@@ -4351,8 +4069,6 @@ function assignTelevisionLayerNames(televisionItemsToName) {
 }
 /**
  * 给新增 / 粘贴进来的小汽车分配唯一的「汽车充电 N」图层名，与 assignTelevisionLayerNames
- * 结构对称，但开关默认值相反：只有 chargingEnabled === true 才算开启 —— 新增的汽车默认
- * 不参与充电负载统计，避免误加一台车就抬高峰值功率。
  */
 function assignCarLayerNames(carItemsToName) {
   const usedCarLayerNames = new Set(carItems().map(carLayerItem => carLayerItem.chargingLayerName));
@@ -4378,7 +4094,6 @@ function normalizeLayerNames(itemsToName) {
 }
 /**
  * 确保当前场景至少有一个灯组，并返回当前激活的那个。有副作用：会就地补出 lightGroups
- * 数组与「默认灯组」，并在 activeLightGroupId 指向已删灯组时改指第一个。
  */
 function ensureActiveLightGroup() {
   const sceneLightGroups = (activeScene.lightGroups ||= []);
@@ -4400,8 +4115,6 @@ function ensureActiveLightGroup() {
 }
 /**
  * 重建「所属灯组」下拉框，并按传入物件回填选中项。选项取自 activeScene.lightGroups，
- * 所以灯组增删后必须整表重建（replaceChildren）；物件不属于任何组时回落到当前激活灯组，
- * 保证下拉框任何时候都有值。末尾的 syncStudioSelect 同步自定义下拉壳的显示文本。
  */
 function renderLightGroupSelect(selectedItem) {
   const lightGroupSelectElement = selectElement("#light-group");
@@ -4418,8 +4131,6 @@ function renderLightGroupSelect(selectedItem) {
 }
 /**
  * 关闭灯组右键菜单，并清掉菜单记录的目标灯组 id。
- *
- * 目标 id 必须一起清，否则下次打开别的组时可能会误作用于上一个组。
  */
 function closeLightGroupContextMenu() {
   lightGroupContextMenuElement.hidden = true;
@@ -4427,8 +4138,6 @@ function closeLightGroupContextMenu() {
 }
 /**
  * 在鼠标位置打开灯组右键菜单（重命名 / 复制 / 删除）。打开前先把该组设为激活并重绘列表，
- * 让「菜单作用于哪一组」视觉上唯一确定。场景只剩一个灯组时禁用删除（场景必须至少留一个）。
- * 坐标由 shared/menu-positioning.js 按菜单实测尺寸夹进视口（原先用 116×108 估算）。
  */
 function openLightGroupContextMenu(menuGroup, groupContextMenuEvent) {
   lightGroupMenuTargetId = menuGroup.id;
@@ -4447,8 +4156,6 @@ function openLightGroupContextMenu(menuGroup, groupContextMenuEvent) {
 }
 /**
  * 删除一个灯组，连同组内的灯。语义是「组没了，灯也不该留着」：先收集组内灯具 id 再
- * 一起从 items 剔除，并清理选中集与激活灯组，避免留下悬空选择。删除前压一次历史快照
- * 保证可撤销；只剩一个灯组时直接返回。
  */
 function deleteLightGroup(removedGroup) {
   if (!removedGroup || activeScene.lightGroups.length <= 1) {
@@ -4491,7 +4198,6 @@ function deleteLightGroup(removedGroup) {
 }
 /**
  * 给灯组取一个不重名的名字，重名时追加「 2」「 3」…… 后缀从 2 起递增而不是拼随机数，
- * 用户看到的名字要可读、可预测。
  * @returns {string} 场景内唯一的名字。
  */
 function uniqueLightGroupName(requestedGroupName) {
@@ -4507,8 +4213,6 @@ function uniqueLightGroupName(requestedGroupName) {
 }
 /**
  * 复制一个灯组及其组内全部灯具，副本插在原组后并成为激活组。名字走 uniqueLightGroupName
- * （原名 + " 副本"）避免重名；灯具 structuredClone 深拷贝并换新 id、指向新组。复制后按
- * 「一盏」定单选、「多盏」定多选，方便整体拖动。全程包在一次历史快照内，可一步撤销。
  */
 function duplicateLightGroup(sourceGroup) {
   if (!sourceGroup) {
@@ -4557,8 +4261,6 @@ function duplicateLightGroup(sourceGroup) {
 }
 /**
  * 清掉灯组行与区域行上的拖放落点高亮 / 落点标记。dragend 与每次重新计算落点前都会调用，
- * 保证同一时刻只有一行带高亮。两套选择器分开清理：灯组行有前后两个方向，区域行只有
- * 「拖入容器」一种状态。
  */
 function clearLightGroupDropIndicators() {
   for (const staleGroupRowElement of lightGroupListElement.querySelectorAll(".light-group-row")) {
@@ -4571,7 +4273,6 @@ function clearLightGroupDropIndicators() {
 }
 /**
  * 把灯组移动到目标区域，可插到某组之前 / 之后。只有区域或顺序真的变了才写撤销记录；
- * 顺序先摘掉被拖组再定位锚点，避免自己成为自己的锚点，锚点找不到则只更新区域。落位后展开目标区域。
  * @param {boolean} [placeAfter=false] true 表示插到锚点之后。
  */
 function moveLightGroupToArea(sourceId, targetAreaId, targetGroupId = null, placeAfter = false) {
@@ -4616,8 +4317,6 @@ function moveLightGroupToArea(sourceId, targetAreaId, targetGroupId = null, plac
 }
 /**
  * 创建一个灯组列表行（含长按拖动排序与右键菜单）。鼠标 / 触控的拖动门限不同：触摸必须
- * 按住 280ms —— 图层面板本身要滚动，第一下触摸就直接拖动会抢走滚动手势；鼠标与触控笔
- * 没有这个冲突，按下即可拖。
  */
 function createLightGroupRow(listedLightGroup) {
   const groupRowElement = document.createElement("div");
@@ -4642,7 +4341,6 @@ function createLightGroupRow(listedLightGroup) {
     groupRowElement.classList.remove("drag-ready");
   };
   // 行本身可拖动，但触摸必须先按住：图层面板要滚动，若第一下触摸就进入拖动会抢走滚动。
-  // 鼠标与触控笔没有这个冲突，可以直接拖，因此排序只需一次普通拖拽而不必长按。
   groupRowElement.addEventListener("pointerdown", groupPointerDownEvent => {
     resetGroupDragReady();
     if (groupPointerDownEvent.button !== 0 || groupPointerDownEvent.target.closest("button")) {
@@ -4749,8 +4447,6 @@ function createLightGroupRow(listedLightGroup) {
 }
 /**
  * 创建一个「区域」区块（可折叠，内含该区域的灯组行）。区域头同时是拖放目标，只有
- * 「当前不在该区域」时才加 drop-into 高亮，避免同区域拖动出现误导性反馈。展开状态存在
- * expandedAreaIds（内存态，不落盘），收起时整个组行列表都不渲染。
  */
 function createAreaSection(listedArea, memberGroups) {
   const isAreaExpanded = expandedAreaIds.has(listedArea.id);
@@ -4856,8 +4552,6 @@ function normalizeAreaName(requestedAreaName) {
 }
 /**
  * 判断区域名是否已被占用。
- *
- * excludeAreaId 用于「重命名自己」的场景：不改名直接确认时不该被自己挡下。
  */
 function areaNameTaken(areaName, excludeAreaId) {
   return (activeScene.areas || []).some(
@@ -4866,7 +4560,6 @@ function areaNameTaken(areaName, excludeAreaId) {
 }
 /**
  * 以「新建」模式打开区域命名对话框。新建与重命名共用同一个 <dialog>，靠 areaRenameMode /
- * areaRenameId 区分提交行为。打开后等一帧再 focus：模态动画这一帧还没结束，立即聚焦会被吞掉。
  */
 function openAreaCreateDialog() {
   areaRenameMode = "create";
@@ -4878,7 +4571,6 @@ function openAreaCreateDialog() {
 }
 /**
  * 以「重命名」模式打开区域对话框，并预填原名字。预填后在 requestAnimationFrame 里调
- * select()，用户直接输入即可替换全文；聚焦同样必须等模态帧生效，否则会被浏览器忽略。
  */
 function openAreaRenameDialog(renameTargetArea) {
   if (!renameTargetArea) {
@@ -4893,18 +4585,12 @@ function openAreaRenameDialog(renameTargetArea) {
 }
 /**
  * 关闭区域命名对话框，并把模式重置回「新建」。必须重置：残留上次的 rename 模式与 id
- * 会让用户点「新建区域」时被当成重命名提交，改动到别的区域上。
  */
 function closeAreaRenameDialog() {
   areaRenameMode = "create";
   areaRenameId = "";
   areaRenameDialogElement.close();
 }
-/**
- * 删除一个区域，并把原本归属它的灯组退回「未分类」。只删区域、不删灯组 —— 区域只是归类
- * 标签，连带删组会丢用户的灯具配置：先把这些灯组的 areaId 清空，再从 areas 移除并清掉
- * 展开态记录。全程一次历史快照，可整体撤销。
- */
 function deleteArea(removedArea) {
   if (!removedArea) {
     return;
@@ -4925,7 +4611,6 @@ function deleteArea(removedArea) {
 }
 /**
  * 在鼠标位置打开区域右键菜单（重命名 / 删除）。与灯组菜单同理，坐标交给
- * shared/menu-positioning.js 按实测尺寸夹进视口（原先用 128×84 估算）。
  */
 function openAreaContextMenu(menuArea, areaMenuEvent) {
   areaContextMenuId = menuArea.id;
@@ -4938,8 +4623,6 @@ function openAreaContextMenu(menuArea, areaMenuEvent) {
 }
 /**
  * 关闭区域右键菜单，并清掉目标区域 id。
- *
- * 目标 id 必须一起清，否则下次从别处触发菜单时会误作用到上一个区域。
  */
 function closeAreaContextMenu() {
   areaContextMenuElement.hidden = true;
@@ -4947,8 +4630,6 @@ function closeAreaContextMenu() {
 }
 /**
  * 重建「所属区域」下拉框：「未分类」恒在首位，其后是当前场景的全部区域。选项少，
- * 整表重建比增量更新更不易出错。传入的 selectedAreaId 已不存在（区域刚被删）时回落到
- * 空值，而不是留下指向幽灵区域的悬空选项；末尾同步自定义下拉壳的显示文本。
  */
 function syncAreaAssignOptions(selectedAreaId) {
   const areaOptions = [
@@ -4980,8 +4661,6 @@ function syncAreaAssignOptions(selectedAreaId) {
 }
 /**
  * 打开灯组的「分配区域」对话框。打开前按该灯组当前所属区域回填下拉框，并清空
- * 「新建区域」输入框；新区域可在该对话框内即时创建（见 createAreaFromAssignDialog），
- * 不用先退出再走一遍区域菜单。
  */
 function openLightGroupAreaDialog(assignTargetGroup) {
   if (!assignTargetGroup) {
@@ -5002,8 +4681,6 @@ function closeLightGroupAreaDialog() {
 }
 /**
  * 在「分配区域」对话框里直接新建区域，并立即把它设为当前选项。名字先过 normalizeAreaName
- * 做长度 / 空白归一，再做空值与重名校验 —— 同场景内同名区域会让下拉框无法区分。新建后
- * 自动展开并选中该区域，用户可以接着点确定，不必退出对话框重来。
  */
 function createAreaFromAssignDialog() {
   const newAreaName = normalizeAreaName(lightGroupAreaNewNameElement.value);
@@ -5030,8 +4707,6 @@ function createAreaFromAssignDialog() {
 }
 /**
  * 重绘右侧图层面板（灯光 / 电器 / 家居三个分类共用一个面板）。内容跟着 activeAssetTab 走：
- * 灯光页列灯组（已归属区域的按区域分组排前、未分类排最后），电器页列电视画面图层，家居页列
- * 车辆充电图层，三类互斥。本分类无内容时整面板隐藏并提前返回。areaId 指向已删区域的按未分类处理。
  */
 function renderLightGroupList() {
   const televisions = televisionItems();
@@ -5044,8 +4719,6 @@ function renderLightGroupList() {
     return;
   }
   // 同一个面板服务三个分类：灯光页下的灯组、电器页下每台电视的画面图层、
-  // 家居页下每台车的充电图层。每次只列出当前分类自己的条目，
-  // 因此图层列表永远不会把三类混在一起。
   lightGroupsOffButton.textContent = showLightGroups
     ? "全关"
     : showTelevisionScreens
@@ -5094,8 +4767,6 @@ function renderLightGroupList() {
 }
 /**
  * 创建一个电视画面图层行（开关图标 + 名称 + 计数）。开关字段语义是「是否关闭」：
- * 默认视为开启，判断一律写成「!== false」，只有显式存了 false 才算关。切换时压一次历史
- * 快照并只刷新 items —— 画面开关仅影响贴图可见性，无需重建整个场景。
  */
 function createTelevisionLayerRow(televisionLayerIndex, television) {
   const televisionRowElement = document.createElement("div");
@@ -5132,7 +4803,6 @@ function createTelevisionLayerRow(televisionLayerIndex, television) {
 }
 /**
  * 创建一个汽车充电图层行（开关图标 + 名称 + 计数）。与电视行相反，充电状态的默认值是
- * 「关」：只有 chargingEnabled === true 才算开启，与 assignCarLayerNames 的口径一致。
  */
 function createCarChargingLayerRow(carRowLayerIndex, car) {
   const carRowElement = document.createElement("div");
@@ -5163,8 +4833,6 @@ function createCarChargingLayerRow(carRowLayerIndex, car) {
 }
 /**
  * 一键开 / 关当前楼层的全部灯组（图层面板的「全关」按钮在灯光页的语义）。所有组状态已经
- * 一致时直接返回，避免压入没有实际变化的历史快照；变更后把全部灯组 id 一次性交给
- * updateLightGroupsEnabled —— 逐个通知会让光照缓存反复失效、整景光照被重复计算。
  */
 function setLightGroupsEnabled(enabled) {
   const enabledGroups = activeScene.lightGroups || [];
@@ -5180,8 +4848,6 @@ function setLightGroupsEnabled(enabled) {
 }
 /**
  * 一键开 / 关当前楼层全部电视画面。判据是 screenEnabled !== false（该字段语义为「是否关闭」，
- * 缺省视为开启，与逐行开关同口径）。刷新用 scope="items" 并保留光照缓存 —— 屏幕开关只改贴图、
- * 与光照无关，丢掉光照缓存会白重算一遍。
  */
 function setTelevisionScreensEnabled(enabled) {
   const televisions = televisionItems();
@@ -5200,7 +4866,6 @@ function setTelevisionScreensEnabled(enabled) {
 }
 /**
  * 一键开 / 关当前楼层的全部汽车充电状态。与电视相反，这里按 chargingEnabled === true
- * 取状态（充电缺省为关）；刷新只走 items 且保留光照缓存，充电状态只影响车身贴图。
  */
 function setCarChargingEnabled(enabled) {
   const cars = carItems();
@@ -5219,7 +4884,6 @@ function setCarChargingEnabled(enabled) {
 }
 /**
  * 按当前资产分类（灯光 / 电器 / 家居）把「全开 / 全关」转发给对应子函数。面板上只有一个
- * 按钮，语义随 activeAssetTab 变化；分派后重绘图层列表刷新各行的开关图标。
  */
 function setCategoryLayersEnabled(enabled) {
   if (activeAssetTab === "appliance") {
@@ -5233,7 +4897,6 @@ function setCategoryLayersEnabled(enabled) {
 }
 /**
  * 判断某个对象是否处于选中态（主选中或多选中任一命中）。场景重建时会对每个对象调用一次，
- * 所以只做一次主选中比较 + 小数组线性查找，不额外构建 Set（多选规模通常只有个位数）。
  */
 function isSelected(selectionKind, selectedId) {
   return (
@@ -5245,7 +4908,6 @@ function isSelected(selectionKind, selectedId) {
 }
 /**
  * 清空全部选中状态（主选中与多选一并清）。切层、撤销、进入对齐等场景都会先调用它；
- * 本函数只改状态不重绘，由调用方决定随后刷新哪个作用域。
  */
 function clearSelection() {
   primarySelection = null;
@@ -5253,8 +4915,6 @@ function clearSelection() {
 }
 /**
  * 设置单选：把指定对象设为主选中并清空多选。
- *
- * kind 或 id 任一为空都视为「取消选中」，调用方可以直接传空值而不用写分支。
  */
 function setSelection(setSelectionKind, selectionId) {
   primarySelection =
@@ -5266,10 +4926,6 @@ function setSelection(setSelectionKind, selectionId) {
       : null;
   multiSelection = [];
 }
-/**
- * 推断单个物件需要刷新哪个渲染作用域。灯（downlight / ceilinglight / striplight）只影响
- * 光照，普通家具只需重建网格；而 flooropening（楼板开洞）会改变楼板几何、可能牵连整层甚至整景。
- */
 function scopeForItem(scopedItem) {
   if (scopedItem?.type === "flooropening") {
     return "all";
@@ -5281,8 +4937,6 @@ function scopeForItem(scopedItem) {
 }
 /**
  * 推断选中集合对应的最小刷新作用域，供选中联动与属性修改后重绘。规则：全是门窗栏杆等
- * 建筑构件 → architecture；全是 item 时看灯的比例，全灯 → lights、全非灯 → items；
- * 一旦混类就退回 all。空选中或选中项已不存在（含 flooropening）同样返回 all —— 宁可多刷，不能漏刷。
  */
 function scopeForSelection(selection) {
   if (
@@ -5325,8 +4979,6 @@ function currentSelectionScope() {
 }
 /**
  * 推断选中集合中与光照相关的刷新作用域。与 scopeForSelection 的差别在「没有灯」时：
- * 一盏灯都没有（或选中项已不存在）返回 null 表示无需刷新光照，而不是退回 all ——
- * 这是灯光快捷键能只重算必要楼层的关键。灯带被显式纳入灯的判定。
  */
 function lightScopeForSelection(lightSelection) {
   if (!lightSelection.length) {
@@ -5376,8 +5028,6 @@ function currentLightScope() {
 }
 /**
  * 请求刷新场景，作用域取「调用方想要的」与「当前选中实际需要的」并集：选中状态会影响哪些对象
- * 需要重建（如选中灯时还要连带更新其参与光照的缓存）。并集里出现 all 就整体刷新并提前返回，
- * 否则逐个作用域调用 applySceneRefresh（内部合并工作项）。全程 preserveLightCache:true。
  */
 function requestSceneRefresh(refreshScope) {
   const detectedScope = currentLightScope();
@@ -5400,8 +5050,6 @@ function requestSceneRefresh(refreshScope) {
 }
 /**
  * 按几何交点重新切分墙体，并把门窗栏杆重挂到切分后的墙上（原地改写场景）。每次墙体几何
- * 变化后（拖墙、改厚、加门窗）都要重跑，否则 T / L 形接口会残留重叠面。换算系数取
- * currentPixelsPerMeter() || 1，未标定时退化为 1:1，只影响 t 的夹取精度。
  */
 function refreshSplitGeometry() {
   const recomputedGeometry = splitWallsWithOpenings(
@@ -5418,8 +5066,6 @@ function refreshSplitGeometry() {
 }
 /**
  * 合并共线的相邻墙段，并把门窗栏杆重挂到合并后的墙上。容差 1e-6 米（1 微米）：只吃吸附与
- * 手工编辑残留的亚微米级错位，不会把刻意分开画的两段墙误并。墙数没减少就直接返回 0；
- * 附件映射失败（历史残留指向已删墙的引用）时保持原样，猜测映射更危险。
  */
 function mergeCollinearWalls() {
   const wallById = new Map(activeScene.walls.map(indexedWall => [indexedWall.id, indexedWall]));
@@ -5432,7 +5078,6 @@ function mergeCollinearWalls() {
   );
   /**
    * 把挂在旧墙上的附件按 wallIdMap 重挂到合并后的新墙。三个前置条件（新墙 id、旧墙对象、
-   * 新墙对象）缺一就原样返回 —— 历史文档可能残留指向已删墙的附件，保持不动比猜测映射更安全。
    */
   const remapMergedAttachment = wallAttachment => {
     const newWallId = merged.wallIdMap.get(wallAttachment.wallId);
@@ -5452,26 +5097,17 @@ function mergeCollinearWalls() {
   activeScene.railings = activeScene.railings.map(remapMergedAttachment);
   return removedWallCount;
 }
-/**
- * 取当前楼层的像素↔米换算系数，未标定时返回 0。刻意返回 0 而不是 1：调用方必须显式写
- * 「|| 1」之类的兜底，这样「忘记校准」在代码里看得见，而不是悄悄按 1:1 算出错误尺寸。
- */
 function currentPixelsPerMeter() {
   return activeScene.calibration?.pixelsPerMeter || 0;
 }
 /**
  * 统一的工作室后端请求入口：拼 /api/v1 前缀、解析响应与错误。只读视图下禁止非 GET 请求并直接抛错；
- * cache:"no-store" 防止刷新拿到旧 revision；401 跳登录、403 且 code 为 LICENSE_RESTRICTED 跳授权页，
- * 判定口径与错误形态见 utils/api-request.js（五处请求入口共用一份）；
- * 超时交给 apiFetch（20s / 3 分钟）—— 自动保存悬挂必须抛错，否则 isSaving 永不复位。
  */
 async function requestStudioApi(requestPath, requestOptions = {}, prewarmedResponse = null) {
   if (isStageViewerMode && requestOptions.method && requestOptions.method !== "GET") {
     throw new Error("交互户型为只读视图。");
   }
   // 舞台页的场景请求可能已经被 stage-startup.js 提前发出（同一个 URL、同一份头，见其文件头）：
-  // 收下那一份就不必再传一次整份户型。预热失败 / 超时 / 已被取消时 `catch` 成 null，照旧自行请求，
-  // 所以「预热有没有成功」对上层是不可见的，唯一的差别只是快或没那么快。
   const prewarmedApiResponse = prewarmedResponse ? await prewarmedResponse.catch(() => null) : null;
   const apiResponse =
     prewarmedApiResponse ||
@@ -5523,8 +5159,6 @@ async function requestStudioApi(requestPath, requestOptions = {}, prewarmedRespo
 }
 /**
  * 弹出一条底部提示，并按语气决定停留时长。warning 停 4400ms、其余 2600ms：警告（如
- * 「该操作会丢弃未保存修改」）需要更长阅读时间。重复调用会先清掉上一个定时器，保证同一
- * 时刻只有一条提示在计时，不会出现前一条提前把后一条关掉。
  */
 function showToast(toastMessage, tone = "") {
   window.clearTimeout(toastTimer);
@@ -5539,7 +5173,6 @@ function showToast(toastMessage, tone = "") {
 }
 /**
  * 更新顶部保存状态指示器（文案 + 语气色）。用 innerHTML 拼一个 <i> 圆点再跟文案，
- * 是为了复用同一份 CSS 而不额外加节点；label 全部由调用方写死，不含用户数据。
  */
 function setSaveState(label, saveStateTone = "") {
   saveStateElement.className = ("save-state " + saveStateTone).trim();
@@ -5547,8 +5180,6 @@ function setSaveState(label, saveStateTone = "") {
 }
 /**
  * 在改动文档前压入一条撤销快照，并清空重做栈。栈上限 40 步：再多也几乎没人会连点 40 次
- * 撤销，而每份快照都是整场景深拷贝，限长是为了控内存。一旦产生新改动，原有的重做分支就
- * 失效了，所以必须清空 redoStack。
  */
 function pushHistorySnapshot() {
   undoStack.push(cloneSceneForHistory());
@@ -5557,10 +5188,6 @@ function pushHistorySnapshot() {
   }
   redoStack = [];
 }
-/**
- * 把一份「已经克隆好的」场景快照直接压入撤销栈（不再克隆）。与 pushHistorySnapshot 的
- * 唯一差别就在这里：粘贴、复制等已持有快照副本的路径可省掉一次整场景克隆的开销。
- */
 function pushHistoryEntry(snapshotScene) {
   undoStack.push(snapshotScene);
   if (undoStack.length > 40) {
@@ -5570,8 +5197,6 @@ function pushHistoryEntry(snapshotScene) {
 }
 /**
  * 把一份场景快照套用为当前场景（撤销与重做的共同出口）。快照先过 normalizeScene 归一
- * （栈里可能来自旧 schema，直接套用会缺字段），随后写回楼层记录、同步平面旋转角、清空选中与
- * 比例工具状态，重载底图再整体刷新。末尾 markDocumentDirty 是刻意的：撤销/重做也是文档改动。
  */
 async function applySceneSnapshot(rawScene) {
   activeScene = normalizeScene(rawScene);
@@ -5586,16 +5211,9 @@ async function applySceneSnapshot(rawScene) {
   refreshStudio();
   markDocumentDirty();
 }
-/**
- * 历史操作的互斥闩。applySceneSnapshot 是异步的（重建几何、等贴图），套用期间场景处于半成品态；
- * 两下撤销重叠会在中间态上 cloneSceneForHistory()，使撤销/重做栈错位。闩只挡「套用中」的重入，
- * 不挡正常的连续操作。
- */
 let historyBusy = !1;
 /**
  * 撤销一步：先把当前状态压入重做栈，再取出撤销栈顶快照套用。
- *
- * 必须先 clone 当前状态再 pop，两步顺序颠倒会让栈里存进被改写后的对象。
  */
 async function undo() {
   if (historyBusy || !undoStack.length) {
@@ -5627,11 +5245,6 @@ async function redo() {
     historyBusy = !1;
   }
 }
-/**
- * 撤销 / 重做的快捷键入口（Ctrl/Cmd+Z，加 Shift 为重做）。按住 Ctrl+Z 时浏览器会补发 repeat
- * keydown，而每一下都要 clone 整份场景再异步套用，排队跑完会一次跳好几步 —— 故忽略 repeat，
- * 与方向键推动（nudge）同口径。
- */
 function applyHistoryShortcut(shortcutEvent) {
   if (shortcutEvent.repeat) {
     return;
@@ -5640,8 +5253,6 @@ function applyHistoryShortcut(shortcutEvent) {
 }
 /**
  * 标记文档有未保存改动：递增版本号、更新状态条并排一次防抖自动保存。changeRevision 随 PUT 提交给
- * 后端做乐观并发，任何改动都必须走这里。自动保存延迟 650ms（比逐字符输入慢、比能察觉的停顿快），
- * 连续拖动会不断清掉旧定时器。只读视图下整个函数是空操作。
  */
 function markDocumentDirty() {
   if (!isStageViewerMode) {
@@ -5655,8 +5266,6 @@ function markDocumentDirty() {
 }
 /**
  * 载入一份草稿记录（首次打开、冲突后切换版本、埋点刷新都走这里）。sceneLoadToken 自增做竞态守卫，
- * 异步回来时不是最新一次就整段丢弃；内嵌模式必须等外部模型真正加载完（最多 3.5s 兜底）才结束 loading
- * 态，否则导出图会缺模型；非内嵌模式反过来先让首屏可交互、后台补模型后强制重建；结尾恢复上次相机位。
  */
 async function loadStudioRecord(record) {
   const loadToken = ++sceneLoadToken;
@@ -5665,10 +5274,6 @@ async function loadStudioRecord(record) {
   deferredModelTypes = [];
   areExternalModelsDeferred = false;
   savedSceneRecord = record;
-  // 场景持久缓存只在舞台页生效（只有那里有灯光历史作用域，缓存键才拼得出来；编辑器页
-  // `stageStartup` 为 null，整个分支不参与）。命中的是「归一后的场景文档」，于是这一段
-  // 逐层归一被整段跳过 —— 但前提是记录与缓存里的 syncKey 一致且未过 7 天 TTL，
-  // 否则 prepareSceneDocument 会照常调用归一（见 scene-persistent-cache.js 的三重校验）。
   const preparedScene = stageStartup
     ? prepareSceneDocument(record, stageStartup.cache.peek(stageStartup.key), normalizeStudioDocument)
     : null;
@@ -5785,16 +5390,12 @@ function openSaveConflictDialog() {
 }
 /**
  * 把「有未处理冲突」这件事挂在界面上：状态栏文案 + 一颗常驻的「处理保存冲突」按钮。
- * 之所以需要这颗按钮：用户选了「稍后处理」后对话框就收起来了，没有第二条入口的话
- * 冲突就再也处理不了，只能刷新页面重来。
  */
 function setSaveConflictPendingUi(hasPendingConflict) {
   saveConflictReopenButton.hidden = !hasPendingConflict;
 }
 /**
  * 记录 409 保存冲突，并按需弹处理对话框。saveConflict 保存服务器最新场景、本地待保存场景与本次要
- * 匹配的目标 revision。冲突未处理期间（且用户没选「稍后处理」）saveStudioDraft 会跳过自动保存，
- * 避免反复撞同一个冲突；「处理保存冲突」按钮始终可见，所以跳过不是用户看不见的状态。
  */
 function handleSaveConflict(
   conflictingServerScene,
@@ -5815,8 +5416,6 @@ function handleSaveConflict(
 }
 /**
  * 「稍后处理」：收起对话框，但冲突记录留着。这是三条出路里唯一不丢东西的一条 ——
- * 不加载服务器版本（丢本地），也不覆盖（丢远端）。本地文档仍然完整，后续编辑照常进自动
- * 保存（会撞 409，但状态栏与按钮一直挂着），用户想处理时点一下按钮就能回到这个对话框。
  */
 function deferSaveConflict() {
   if (!saveConflict) {
@@ -5839,11 +5438,6 @@ function resolveSaveConflict() {
 }
 /**
  * 提交一次场景快照到 PUT /api/v1/studio3d，返回服务器回写的最新草稿记录（含新 revision）。
- * 非 2xx 抛带 status / code 的接口错误（见 utils/api-request.js），409 / 428 从中读 payload。
- *
- * 抽成模块级函数而不是 saveStudioDraft 的局部函数，是因为「确认删除影响」的重发也要走同一条
- * 请求路径，并且必须能覆写 revision 与场景快照：令牌绑定的是 428 当时那一份，见 confirmSaveInteraction。
- *
  * @param {{revision: number}} sceneRecord 服务器草稿记录，取它的 revision 做乐观并发。
  * @param {object|null} [sceneSnapshot] 覆写要提交的场景，null 表示现取当前文档快照。
  * @param {string|null} [interactionConfirmation] 删除影响确认令牌，非空时一并提交。
@@ -5873,17 +5467,10 @@ function openSaveInteractionDialog() {
 }
 /**
  * 把「有未确认的删除影响」挂在界面上：状态栏文案 + 一颗常驻入口。与 409 的「处理保存冲突」
- * 同一逻辑 —— 用户点了「保留模型」后对话框就收起来了，没有第二条入口的话就再也回不去确认。
  */
 function setSaveInteractionPendingUi(hasPendingInteraction) {
   saveInteractionReopenButton.hidden = !hasPendingInteraction;
 }
-/**
- * 渲染对话框内容：服务端 message + 本次影响规模 + 受影响的仪表盘名 + 每条绑定所在项目 / 控件的 label。
- * 全部走 textContent：label 与仪表盘名都是用户数据，绝不能用 innerHTML 拼。
- * projects / impacts 都按「可能缺失或不是数组」处理：428 的明细来自服务端，缺一项也只该少显示一行，
- * 不该让渲染抛错把整个确认流程卡死（那正是「弹窗内容不全」最坏的形态）。
- */
 function renderSaveInteractionDialog(confirmation) {
   const impactedProjects = Array.isArray(confirmation.projects)
     ? [...new Set(confirmation.projects)]
@@ -5906,19 +5493,13 @@ function renderSaveInteractionDialog(confirmation) {
 }
 /**
  * 记录「删除影响未确认」，并按需弹确认对话框。record 里存的是服务端令牌与**发起这次保存时**
- * 捕获的 revision / 场景快照：确认重发必须原样复用它俩（令牌是它们算出来的哈希），任何一处换了
- * 都落不到同一份计划。scene 必须是那次请求体里**原样发出去的那个对象**，不能在 catch 里重取快照。
- * 未确认期间（且用户没选「保留模型」）saveStudioDraft 会跳过自动保存，避免反复撞同一份未确认计划；
- * 「处理删除影响」按钮始终可见，所以跳过不是用户看不见的状态。
  * @param {object} payload 预检（PUT ?dryRun=1 的 200 响应体）或 428 的 detail（服务端 428
- *   响应体 {"detail": {...}} 里的那一层）。两条路径字段同构，故共用这一处处理。
  * @param {number} revision 服务器草稿版本（乐观并发用）。
  * @param {object} scene 那次请求发出的场景快照。
  * @param {number} localRevision 该快照对应的本地 changeRevision，确认时据此判断场景是否已过期。
  */
 function handleSaveInteractionConfirmation(payload, revision, scene, localRevision, { reopenDialog = true } = {}) {
   // 容一次「调用方误传整包响应体」：真传错时 token 会被读成空串，确认重发永远撞回 428 —— 正是
-  // 用户侧表现为「弹窗项目名是 —、明细空白，点确认也存不进去」的那个故障。这里兜底以免再犯。
   const detail = payload?.detail && typeof payload.detail === "object" ? payload.detail : payload;
   saveInteractionConfirmation = {
     token: detail?.token || "",
@@ -5938,9 +5519,6 @@ function handleSaveInteractionConfirmation(payload, revision, scene, localRevisi
 }
 /**
  * 「保留模型」：撤销这次删除，把模型放回原位 —— 模型回来后那几条绑定重新成立，保存自然通过。
- * 与参考实现的「撤销删除」同义。对话框是模态的，弹出期间用户改不了场景，所以撤销栈顶就是
- * 删除前那一刻的快照，undo() 恰好只回退这次删除；若栈已空（删除被后续编辑挤出栈）则没有
- * 「放回去」可言，退回与「稍后处理」同义的挂起态：只收起对话框，内容一点不丢，常驻入口仍在。
  */
 async function keepModelForInteraction() {
   if (!saveInteractionConfirmation) {
@@ -5951,14 +5529,11 @@ async function keepModelForInteraction() {
     deferSaveInteraction();
     return;
   }
-  // 先清记录再撤销：撤销末尾会 markDocumentDirty 触发保存，那时不该再被判成「未确认」而跳过。
   resolveSaveInteraction();
   await undo();
 }
 /**
  * 「稍后处理」：收起对话框，但确认记录留着、本地删除与撤销栈一点不动 —— 用户随时可以 Ctrl/Cmd+Z
- * 撤销这次删除（模型回来后保存自然通过），也可以点常驻入口回来确认。这是这条流程里唯一不丢东西的
- * 出口，与 409 的「稍后处理」同义。
  */
 function deferSaveInteraction() {
   if (!saveInteractionConfirmation) {
@@ -5981,14 +5556,6 @@ function resolveSaveInteraction() {
 }
 /**
  * 「确认删除并保存」：带令牌、连同 428 当时捕获的**同一个 revision 与场景快照**重发，服务端才会
- * 按用户确认的那份计划清理并落盘。三种岔路都刻意不静默：
- *
- * - 用户在 428 与确认之间又编辑过（changeRevision 与捕获值不同）：拿旧快照落盘会悄悄丢掉这段改动，
- *   于是丢弃旧令牌、重新走一次保存，让服务端按当前内容重新算影响并弹框。
- * - 重发又 428：期间场景 / 关联仪表盘变了，服务端回了新令牌，重新弹框让用户重新确认。
- * - 重发撞 409 户型版本冲突：这次确认作废，转交既有的 handleSaveConflict 让用户选版本。
- * 其余失败（含 PROJECT_REVISION_CONFLICT 这类可重试冲突）保留对话框并提示服务端文案，
- * 用户再点一次即可重试 —— 不会退回每 500ms 撞一次请求的空转。
  */
 async function confirmSaveInteraction() {
   const confirmation = saveInteractionConfirmation;
@@ -6005,7 +5572,6 @@ async function confirmSaveInteraction() {
     return;
   }
   // 用户这次是主动确认，不再处于「保留模型」的挂起态：失败时保持对话框与挂起记录（不放行自动保存），
-  // 让他能再点一次重试。
   saveInteractionDeferred = false;
   isSaving = true;
   setSaveState("正在保存…", "saving");
@@ -6025,7 +5591,6 @@ async function confirmSaveInteraction() {
   } catch (saveRequestError) {
     if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
       // 期间场景或关联仪表盘变了：服务端回了新令牌，重新弹框（更新令牌），绝不静默重试。
-      // revision / scene / localRevision 都沿用同一份捕获值：我们重发的仍是那一份内容。
       handleSaveInteractionConfirmation(
         saveRequestError.payload?.detail,
         confirmation.revision,
@@ -6059,7 +5624,6 @@ async function confirmSaveInteraction() {
   } finally {
     isSaving = false;
     // 与 saveStudioDraft 同一口径：重发期间又落了新编辑（changeRevision 前进）且没有挂着的
-    // 冲突 / 未确认记录时，补排一次自动保存，别让那笔改动等到下一次编辑才落盘。
     if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
       window.clearTimeout(autosaveTimer);
       autosaveTimer = window.setTimeout(saveStudioDraft, 500);
@@ -6068,12 +5632,6 @@ async function confirmSaveInteraction() {
 }
 /**
  * 取出一份文档快照里「可能被 3D 控件绑定指向」的物件身份集合。口径与服务端
- * apps/server/modules/interaction3d/studio_cleanup.py 的 identities() 一致：楼层场景的
- * items（kind=model）、lightGroups（kind=light），以及 doors（ID 带 `door:` 前缀）。
- *
- * 这里只用来回答「这次保存是不是删掉了物件」，据此决定要不要先向服务端要一份影响清单
- * （见 requestInteractionConfirmationIfNeeded）。判错不会出错：多判只是多一次预检；漏判
- * 时那条路会落回服务端 428 的既有分支，确认框照样会弹。
  */
 function documentBindingIdentities(documentSnapshot) {
   const identities = new Set();
@@ -6100,7 +5658,6 @@ function documentBindingIdentities(documentSnapshot) {
 }
 /**
  * 这次保存相对上一次成功保存的场景，是否删掉了物件。只有删过才可能撞上「删除影响确认」，
- * 也才值得多做一次预检；没删过就直接保存，一分额外开销都不加。
  */
 function sceneRemovedBindingTargets(previousSnapshot, nextSnapshot) {
   const nextIdentities = documentBindingIdentities(nextSnapshot);
@@ -6113,13 +5670,6 @@ function sceneRemovedBindingTargets(previousSnapshot, nextSnapshot) {
 }
 /**
  * 删除影响预检：先问出「这次保存会撞哪些绑定」（PUT ?dryRun=1，服务端只算不写），有影响就直接
- * 把确认框弹出来并返回 true —— 正常删除路径因此不再先撞一次 428。428 本身没错，但它是预期内的
- * 业务控制流，浏览器控制台却会为每次删除留一条没法从 JS 侧清掉的红字，那才是用户看得见的那条。
- *
- * 预检与真保存共用同一条计算，令牌绑定 revision / 场景 / 项目文档 / 影响四样，用户在预检后点
- * 「确认删除并保存」时原样重发即可命中同一份计划。漏判（例如日后新增一类可绑定物件而这里没跟上）
- * 也不会漏掉确认：那次 PUT 仍会收到 428，走 saveStudioDraft 里既有的兜底分支。
- *
  * @returns {Promise<boolean>} true 表示确认框已挂上、本次不应再提交。
  */
 async function requestInteractionConfirmationIfNeeded(sceneRecord, sceneSnapshot, localRevision) {
@@ -6144,12 +5694,6 @@ async function requestInteractionConfirmationIfNeeded(sceneRecord, sceneSnapshot
   });
   return true;
 }
-/**
- * 自动 / 手动保存草稿到 PUT /api/v1/studio3d（携带 revision 做乐观并发）。前置：非只读、已读到过记录、不在保存中、
- * 无未处理冲突 / 未确认的删除影响、changeRevision ≠ savedRevision。进入时固化本次 revision，请求期间的新编辑不算进来；
- * 409 拉服务器版本交给 handleSaveConflict，428 交给 handleSaveInteractionConfirmation，两者都绝不静默覆盖。
- * 返回 saved/no-changes/skipped/blocked-by-conflict/blocked-by-interaction-confirmation/failed 供调用点判断。
- */
 async function saveStudioDraft() {
   if (isStageViewerMode || !savedSceneRecord) {
     return "skipped";
@@ -6157,13 +5701,9 @@ async function saveStudioDraft() {
   if (isSaving) {
     return "skipped";
   }
-  // 冲突未处理期间跳过（避免把同一个冲突反复撞上去），但「稍后处理」之后不再跳过：
-  // 那时把保存停掉，用户看不到任何异样，会一直以为改动在存。
   if (saveConflict && !saveConflictDeferred) {
     return "blocked-by-conflict";
   }
-  // 「本次删除影响」未确认期间同样跳过（否则就是每 500ms 反复预检出同一份未确认计划）；
-  // 「保留模型」之后放行 —— 与 409 的「稍后处理」同义，那时再停掉用户就看不见异样了。
   if (saveInteractionConfirmation && !saveInteractionDeferred) {
     return "blocked-by-interaction-confirmation";
   }
@@ -6173,21 +5713,17 @@ async function saveStudioDraft() {
   isSaving = true;
   const revision = changeRevision;
   // 本次要提交的场景快照只取一次：428 的令牌是服务端对**这份请求体**算的哈希，确认重发必须原样
-  // 带回去。若在 catch 里重取快照，请求往返期间的新编辑会让旧令牌对不上、永远停在 428。
   const sceneSnapshot = snapshotDocumentForSave();
   setSaveState("正在保存…", "saving");
   try {
     try {
       // 先做删除影响预检：命中就把确认框挂上、本次不再提交（服务端不落盘）。
-      // 这一步让正常删除路径不再先撞一次 428；漏判时下面的 428 分支照旧兜底。
       if (await requestInteractionConfirmationIfNeeded(savedSceneRecord, sceneSnapshot, revision)) {
         return "blocked-by-interaction-confirmation";
       }
       savedSceneRecord = await putStudioScene(savedSceneRecord, sceneSnapshot);
     } catch (saveRequestError) {
       // 428：本次删除会让控件绑定悬空，服务端什么都没写、只回了令牌与影响清单。把「当时」的
-      // revision 与**同一个**场景快照（sceneSnapshot）连同本地版本号存进确认记录 ——
-      // 用户确认后必须原样重发，令牌才对得上，也才能判断场景有没有过期。
       if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
         handleSaveInteractionConfirmation(
           saveRequestError.payload?.detail,
@@ -6200,23 +5736,18 @@ async function saveStudioDraft() {
         );
         return "blocked-by-interaction-confirmation";
       }
-      // 409 只处理户型草稿版本冲突（STUDIO3D_REVISION_CONFLICT）。PROJECT_REVISION_CONFLICT 是关联
-      // 仪表盘被并发写入引起的**可重试**冲突，没有「加载 / 覆盖」二选一可言，抛给外层 catch 走普通
-      // 失败分支：提示服务端文案，并按自动保存节奏重试。
       if (saveRequestError.status !== 409 || saveRequestError.code === "PROJECT_REVISION_CONFLICT") {
         throw saveRequestError;
       }
       const remoteScene = await requestStudioApi("/studio3d");
       handleSaveConflict(remoteScene, snapshotDocumentForSave(), revision, {
         // 用户已经选了「稍后处理」时不再弹窗：记录照样刷新（latest 跟得上服务器），
-        // 但不用同一个冲突反复打断他 —— 状态栏与「处理保存冲突」按钮一直挂着。
         reopenDialog: !saveConflictDeferred
       });
       return "blocked-by-conflict";
     }
     savedRevision = revision;
     // 这次能保存成功就说明服务端已找不到悬空引用：之前挂着的「删除影响」确认已经过时，
-    // 清掉记录与常驻入口（典型路径是用户先撤销了删除、再保存）。
     if (saveInteractionConfirmation) {
       resolveSaveInteraction();
     }
@@ -6234,7 +5765,6 @@ async function saveStudioDraft() {
   } finally {
     isSaving = false;
     // 冲突或未确认的删除影响挂着时不再重排：等用户处理完（或者他改了下一笔，由 markDocumentDirty
-    // 触发），否则就是一个每 500ms 撞一次 409 / 428 的空转循环。
     if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
       window.clearTimeout(autosaveTimer);
       autosaveTimer = window.setTimeout(saveStudioDraft, 500);
@@ -6243,7 +5773,6 @@ async function saveStudioDraft() {
 }
 saveConflictDialogElement.addEventListener("cancel", dialogCancelEvent => {
   // ESC 不再是「按了没反应」：它等同于「稍后处理」—— 内容一点不丢、也不静默覆盖，
-  // 状态栏与「处理保存冲突」按钮继续留在界面上。
   dialogCancelEvent.preventDefault();
   deferSaveConflict();
 });
@@ -6283,7 +5812,6 @@ saveConflictOverwriteButton.addEventListener("click", () => {
 });
 saveInteractionDialogElement.addEventListener("cancel", dialogCancelEvent => {
   // ESC 与「保留模型」同义：收起对话框，本地删除与撤销栈一点不动，
-  // 用户还能撤销这次删除，或从顶栏「处理删除影响」入口回来确认。
   dialogCancelEvent.preventDefault();
   deferSaveInteraction();
 });
@@ -6296,8 +5824,6 @@ saveInteractionReopenButton.addEventListener("click", () => {
 saveInteractionConfirmButton.addEventListener("click", confirmSaveInteraction);
 /**
  * 平面坐标 → 画布坐标：先缩放再平移（此处不做视图旋转）。旋转拆到 rotateScreenPoint
- * 单独负责：旋转要绕视口中心进行，而平移偏移量定义在未旋转的画布坐标系里，
- * 两者分开才不会互相污染。
  */
 function planToScreen(planCoordinates) {
   return {
@@ -6307,8 +5833,6 @@ function planToScreen(planCoordinates) {
 }
 /**
  * 把画布坐标绕视口中心旋转，得到屏幕上实际显示的位置。角度取负：document 里存的是
- * 「视图被旋转」的角度，要把内容摆到屏幕上得反向旋转，0° 时是恒等映射。旋转中心取
- * 视口中心而非画布原点，这样旋转时内容不会整体甩出可视区。
  */
 function rotateScreenPoint(screenCoordinates) {
   const centerX = viewportWidthPx / 2;
@@ -6325,7 +5849,6 @@ function rotateScreenPoint(screenCoordinates) {
 }
 /**
  * 画布坐标 → 平面坐标，是 planToScreen 与 rotateScreenPoint 的联合逆运算。顺序与正向
- * 相反：先反旋转，再减平移、除缩放。zoom 由 clamp 保证下界 0.03，不会是 0，无需防除零。
  */
 function screenToPlan(screenPointToConvert) {
   const rotatedPoint = rotateScreenPoint(screenPointToConvert);
@@ -6336,7 +5859,6 @@ function screenToPlan(screenPointToConvert) {
 }
 /**
  * 把指针事件的 client 坐标换算成画布局部坐标。用 getBoundingClientRect 而不是
- * offsetX / offsetY：后者在事件从子元素冒泡上来、或画布被 CSS 缩放时都不可靠。
  */
 function canvasPointFromEvent(pointerEvent) {
   const canvasRect = planCanvasElement.getBoundingClientRect();
@@ -6347,7 +5869,6 @@ function canvasPointFromEvent(pointerEvent) {
 }
 /**
  * 计算当前楼层内容的平面包围盒，供「适应视图」与初始取景使用。优先级是墙 → 家具 →
- * 整场景（含底图）：有墙时只按墙取景，平面图能铺满视口而不会被底图的空白边距带偏。
  */
 function sceneModelBounds() {
   if (activeScene.walls.length) {
@@ -6366,10 +5887,6 @@ function sceneModelBounds() {
     return modelBounds(activeScene);
   }
 }
-/**
- * 调整缩放与平移，让当前内容整体落入视口（「适应视图」）。留白取视口短边 4.5% 再夹进 18~34 CSS 像素；视图转
- * 90°/270° 时内容与视口宽高对调；缩放夹在 0.03~8（下界防缩成一点、上界避免像素化），最后按包围盒中心对齐视口中心。
- */
 function fitViewToBounds() {
   const bounds = sceneModelBounds();
   const padding = clamp(Math.min(viewportWidthPx, viewportHeightPx) * 0.045, 18, 34);
@@ -6392,8 +5909,6 @@ function fitViewToBounds() {
 }
 /**
  * 以某个屏幕点为锚点缩放平面视图（滚轮缩放）。记下锚点对应的平面坐标与旋转后屏幕坐标，改完
- * zoom 再反解 offset，使该点在屏幕上不动。默认锚点是视口中心（键盘 / 按钮缩放走这条分支）。
- * 缩放区间 0.03~12，上界比 fitViewToBounds 更松，方便贴近看细节。
  */
 function zoomViewAt(
   factor,
@@ -6409,10 +5924,6 @@ function zoomViewAt(
   viewTransform.offsetY = screenAnchor.y - planAnchor.y * viewTransform.zoom;
   renderPlanView();
 }
-/**
- * 把平面视图顺时针旋转 90° 并重新取景。旋转角同时写回 activeScene.settings.planViewRotation
- * 并 markDocumentDirty —— 视图旋转角属于文档内容，刷新与导出后要还原成用户看到的方向。
- */
 function rotatePlanView() {
   viewTransform.rotation = (viewTransform.rotation + 90) % 360;
   activeScene.settings.planViewRotation = viewTransform.rotation;
@@ -6421,8 +5932,6 @@ function rotatePlanView() {
 }
 /**
  * 按容器尺寸重设画布分辨率与绘制上下文（窗口 resize、侧栏折叠时调用）。设备像素比封顶 2：
- * 平面是矢量绘制，3x 屏上再翻倍像素只会徒增绘制量。宽高至少取 1 像素，避免容器隐藏时
- * Math.round 出 0 导致 canvas 报错；已经「适应过视图」就只重绘，否则重新取景。
  */
 function resizePlanCanvas() {
   const stageRect = planStageElement.getBoundingClientRect();
@@ -6438,11 +5947,6 @@ function resizePlanCanvas() {
     fitViewToBounds();
   }
 }
-/**
- * 取（必要时重建）墙体派生几何缓存：楼板多边形 / 交点 / 拼接延伸 / 未闭合端点。计算是 O(n²) 级别且每帧都可能用到，
- * 故按场景对象整体缓存，用「容差 + 墙体签名」（id、两端点、厚度、是否允许开口）判断失效；容差按 1% 缩放并取下限 1 米。
- * 四个字段都是懒计算（null = 未算）。
- */
 function wallDerivedData(toleranceMeters) {
   const tolerance = Math.max(1, toleranceMeters * 0.01);
   const wallSignature = activeScene.walls
@@ -6506,8 +6010,6 @@ function wallJoinExtensionsForWalls(joinToleranceMeters) {
 }
 /**
  * 取（并缓存）没有闭合的墙端点，用于提示「这一圈墙还没围成房间」。判定依赖楼板多边形：
- * 被楼板覆盖住的端点不算未闭合，因此这里会顺带触发 floorPolygonsForWalls。传入同一容差值
- * 是为了让两条缓存落在同一份 wallDerivedData 上（容差是缓存签名的一部分）。
  */
 function unclosedEndpointsForWalls(endpointToleranceMeters) {
   const endpointDerived = wallDerivedData(endpointToleranceMeters);
@@ -6520,8 +6022,6 @@ function unclosedEndpointsForWalls(endpointToleranceMeters) {
 }
 /**
  * 算出门 / 窗 / 栏杆在平面上的落位：中心点、两端点与墙方向单位向量。洞口位置以「沿墙比例 t」
- * 存储而非绝对坐标，墙被拖动 / 拉伸时门窗会跟着走。t 先过 clampWindowT 夹进合法区间，半宽取
- * min(洞口宽/2, 墙长/2) 兜底历史数据；未标定时按 1px/米 近似；墙不存在或长度为零返回 null。
  */
 function openingPlacementInfo(opening) {
   const hostWallRecord = activeScene.walls.find(hostWall => hostWall.id === opening.wallId);
@@ -6563,8 +6063,6 @@ function openingPlacementInfo(opening) {
 }
 /**
  * 在平面图上绘制一段栏杆（三层描边 + 两端圆点 + 选中时的浮动标签）。最外层用近黑色、宽度为
- * 「墙厚 × 像素/米 × 缩放 + 5」打底，让栏杆在任意底图颜色上都有轮廓（+5 是屏幕像素级最小加粗）；
- * 中间是本体色，最内层 1px 浅色高光做金属质感。颜色三档：预览半透明青、选中橙、常态青。
  */
 function drawPlanRailing(railing, railingOptions = {}) {
   const railingPlacement = openingPlacementInfo(railing);
@@ -6606,11 +6104,6 @@ function drawPlanRailing(railing, railingOptions = {}) {
     );
   }
 }
-/**
- * 在平面图上绘制一扇门，按 doorType 分七种画法（solid/glass/double/entry/sliding-glass/roller-shutter/frame-only）。
- * 沿洞口先铺近黑描边打底再按类型叠加：门垛、门板、卷帘片（每 0.35m 一道、夹 3~18 道）、门带把手、开启扇与铰链圆弧，
- * 方向由 hinge/swing 决定；所有 max(.../zoom, ...) 都是让最小尺寸在屏幕上保持恒定。
- */
 function drawPlanDoor(door, doorOptions = {}) {
   const doorPlacement = openingPlacementInfo(door);
   if (!doorPlacement) {
@@ -6951,31 +6444,21 @@ function drawPlanDoor(door, doorOptions = {}) {
 }
 /**
  * 圆形占地物件在平面图上那一两个**同心圈**的半径比（圈半径 / 占地半径）。
- *
- * 每个比值都是从 `tools/models/model-specs.mjs` 的实际半径除出来的，注释里写出是哪个部件 ——
- * 改规格时这里要一起改。不变量只钉得住「该不该画圆」（名单 + 实测轮廓），钉不住
- * 「圈画在哪个半径上」，所以保持成除式便于与规格逐条对照。
- * 空数组是允许的：kettle 这类俯视只有一层的物件就没有内圈。
  */
 const ROUND_PLAN_RING_RATIOS_BY_TYPE = Object.freeze({
-  fan: [0.144 / 0.2], // 网罩 r 0.144 / 底座 r 0.20（俯视看到网罩落在底座圆里）
-  floorac: [0.19 / 0.21], // 顶盖 r 0.19 / 机身 r 0.21
-  humidifier: [0.045 / 0.15], // 顶部出雾口 r 0.045 / 机身 r 0.15
-  airpurifier: [0.12 / 0.17], // 顶盖出风格栅 r 0.12 / 塔身 r 0.17
-  trashbin: [0.135 / 0.14], // 盖沿 r 0.135 / 桶身 r 0.14
-  kettle: [0.07 / 0.095], // 壶盖 r 0.07 / 底座 r 0.095
-  stool: [0.133 / 0.18], // 环状踏脚 r 0.133 / 座面 r 0.18
+  fan: [0.144 / 0.2],
+  floorac: [0.19 / 0.21],
+  humidifier: [0.045 / 0.15],
+  airpurifier: [0.12 / 0.17],
+  trashbin: [0.135 / 0.14],
+  kettle: [0.07 / 0.095],
+  stool: [0.133 / 0.18],
   barstool: [0.148 / 0.21], // 环状踏脚 r 0.148 / 座面 r 0.21
   // 两层：台面收边 r 0.432 / 台面 r 0.45；中心柱底座 r 0.22 / 台面 r 0.45
   roundcoffeetable: [0.432 / 0.45, 0.22 / 0.45],
-  coatrail: [0.075 / 0.225] // 中部挂圈 r 0.075 / 底盘 r 0.225
+  coatrail: [0.075 / 0.225]
 });
 
-/**
- * 在平面图上绘制一个物件（家具 / 灯具 / 洞口 / 窗帘 / 柱子 / 平面标签的总入口）。绘制前统一把画布平移到物件中心并按
- * rotation 旋转，此后各分支用「以中心为原点、宽度沿 ±X、深度沿 ±Y」的局部坐标，同一份形状对任何朝向都成立。按 type
- * 分派：flooropening 画洞口提示；灯具按色温着色；planlabel 反推字号；薄板 / 小车 / 窗帘 / 柱子等各有可辨识符号。
- */
 function drawPlanItem(itemToDraw) {
   const itemCenterScreen = planToScreen(itemToDraw);
   const planFootprint = itemPlanFootprint(itemToDraw);
@@ -7017,8 +6500,6 @@ function drawPlanItem(itemToDraw) {
     planContext.lineWidth = 1.2;
     if (itemToDraw.type === "striplight" && stripIsStanding(itemToDraw)) {
       // 立起后，平面能画的只剩它占的那块地（厚度 × 发光宽度），发光长度改为沿房间向上延伸、
-      // 俯视看不见，所以用「双层轮廓」来表示 —— 与躺倒的柱子同一种处理，
-      // 那是另一种会打破「宽 × 深」直觉的姿态。
       planContext.beginPath();
       planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
       planContext.fill();
@@ -7248,10 +6729,6 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     // 座舱：比例沿用自建车那套（座舱 0.85 × 0.459 的整车、中心略偏后）—— 整车那头 2.19 × 5.01
-    // 与改资产前逐值相同（上游车模实测 2.192 × 5.012），所以外轮廓不用动；座舱内部的界线是
-    // 示意图层面的近似（上游车模的座舱实际位置略靠前一点），不参与任何对账判据。
-    // 这里原先写着「比例取自 tools/models/model-specs.mjs 的 smallcar」—— 那份规格 2026-09-26 已撤
-    // （小车换回上游第三方车模，见 materials/studio-car-finish.js），现在这几个数就是本绘制分支自己的契约。
     planContext.fillStyle = "rgba(38, 48, 57, .72)";
     planContext.beginPath();
     planContext.roundRect(
@@ -7263,9 +6740,6 @@ function drawPlanItem(itemToDraw) {
     );
     planContext.fill();
     // 四个车轮：轮胎中心 x = ±0.95（= 车宽的 0.434）、轴距 ±1.55（= 车长的 0.309），
-    // 平面足迹就是轮胎自己那圈投影 0.16 × 0.68m（0.073 / 0.136 的比值）。
-    // 原先写的是 0.09 × 0.17 的方块 —— 0.17 × 5.01 = 0.85m 的「车轮」比实物大了三成，
-    // 而且横向摆到 ±0.5（超出车宽）把车画成了一辆履带车。
     for (const carBodyOffsetX of [-0.434, 0.434]) {
       for (const carBodyOffsetY of [-0.309, 0.309]) {
         planContext.fillRect(
@@ -7290,9 +6764,6 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "elevator") {
     // 电梯：井道框 + 轿厢内框 + 前侧两扇轿门。原先没有这一支，符号落进兜底的圆角矩形 ——
-    // 一个电梯井在户型图上读成一块圆角地毯。三层的比例都按 3D 规格的米制值换算
-    // （tools/models/model-specs.mjs 的 elevator：两侧壁板内面 x = ±0.65、后壁内面 z = −0.71、
-    // 门面 z = 0.71，占地的半宽 0.70 / 半深 0.76）—— 改规格必须同时改这里。
     planContext.beginPath();
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
@@ -7307,7 +6778,6 @@ function drawPlanItem(itemToDraw) {
       elevatorCarInnerHalfDepthPx * 2
     );
     // 轿门：门面（平面 +y = 模型 +z，与楼梯那支的上行箭头同一套朝向）上那两扇，
-    // 各 0.645 宽、中间留 1cm 缝，画成两条粗线。
     planContext.lineWidth = Math.max(1.5, itemWidthPx * 0.035);
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.0035, elevatorCarInnerHalfDepthPx);
@@ -7321,9 +6791,6 @@ function drawPlanItem(itemToDraw) {
     normalizeCurtainTrack(itemToDraw).curtainForm === "roller"
   ) {
     // 卷帘：一整片帘布 + 一条卷管，没有轨道、没有左右两片，也不画褶皱线。
-    // 必须在下面那条「有 curtainTrack 就画轨道」的分支之前 —— 卷帘归一化后也带
-    // curtainTrack: "straight"，否则会被误判成轨道帘。平面始终画满主边长度，
-    // 预览开合只影响立体高度，不改变平面足迹。
     planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(234, 240, 244, .72)";
     planContext.lineWidth = isItemSelected ? 2 : 1.5;
     planContext.beginPath();
@@ -7345,8 +6812,6 @@ function drawPlanItem(itemToDraw) {
     const planPixelsPerUnit = itemWidthPx / itemToDraw.width;
     /**
      * 沿轨道把 [segmentStart, segmentEnd]（单位米）采成折线并描边。采样密度取
-     * max(16, 段长 × 30)：曲线段要够密才不会出折角，16 的下限避免极短段只出两个点时把曲线
-     * 塌成一条直线。采样结果（x / z）先乘 planPixelsPerUnit 换算成平面像素再落笔。
      */
     const drawTrackSegment = (segmentStart, segmentEnd, segmentWidthPx, segmentStrokeColor) => {
       planContext.beginPath();
@@ -7401,8 +6866,6 @@ function drawPlanItem(itemToDraw) {
       : "split";
     /**
      * 画一片帘布：圆角矩形本体 + 4 条等分褶皱线。褶皱线把帘布分成 5 份，这是平面上区分
-     * 「布」与「板」的最小代价。尺寸全部走局部坐标（宽高由调用方按比例给出），所以左右两片
-     * 帘布可以复用同一段代码，只是起点与宽度不同。
      */
     const drawCurtainPanel = (panelStartX, panelWidthPx) => {
       planContext.beginPath();
@@ -7442,7 +6905,6 @@ function drawPlanItem(itemToDraw) {
   } else if (itemToDraw.type === "pillar") {
     if (pillarIsLying(itemToDraw)) {
       // 躺倒时，平面画的是柱子占的地面范围（宽 × 长）而不是截面；
-      // 内层轮廓沿用与其他形状相同的双层线处理，保持图面风格统一。
       planContext.beginPath();
       planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
       planContext.fill();
@@ -7484,7 +6946,6 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     // 柜体前缘：吧台柜靠后（z 从 −0.325 到 −0.03），前面那 0.295 是留给吧凳的容腿空间。
-    // 这条线原来画在 −0.18 处（旧资产的柜体前沿），按新规格应当是 −0.03 / 0.65 ≈ −0.046。
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.45, -itemDepthPx * 0.046);
     planContext.lineTo(itemWidthPx * 0.45, -itemDepthPx * 0.046);
@@ -7503,7 +6964,6 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "table") {
     // 餐桌组合：一张台面 + 六张椅子。原先这一支不存在，符号直接落进兜底的圆角矩形，
-    // 整件被填成一整块 2.4 × 1.8 的实心块 —— 看不出「桌 + 椅」这个构造。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx * 0.3125,
@@ -7515,7 +6975,6 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     // 六张椅子：两侧各两张、两端各一张 —— 占地 2.4 × 1.8 的外沿就是它们撑出来的。
-    // 椅面约 0.44 见方，于是六个小矩形同尺寸（0.44 / 2.4 × 0.44 / 1.8）。
     for (const [tableChairOffsetX, tableChairOffsetY] of [
       [-0.175, 0.378],
       [0.175, 0.378],
@@ -7539,8 +6998,6 @@ function drawPlanItem(itemToDraw) {
     ["kitchenbase", "kitchensink", "kitchencooktop"].includes(itemToDraw.type)
   ) {
     // 厨房地柜三件：平面符号就是那条柜体线加一件「台面上的东西」——
-    // 地柜只有柜体；水盆柜画出台面开孔里那只盆；灶柜画四个灶眼（户型图的常规画法）。
-    // 用直角矩形而不是兜底的圆角矩形：柜体落地就是方角。
     planContext.beginPath();
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
@@ -7577,9 +7034,6 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     // 内圈 = 缸体（上下口框外沿 1.46 × 0.51），外圈 = 底柜台面（1.5 × 0.55），两圈之比直接
-    // 取自 tools/models/model-specs.mjs 的 aquarium 规格。原先写死 0.86 / 0.68，那是照旧资产
-    // （一个没有底柜、没有缸壁的空心方箱）手绘的比例；新缸体几乎占满台面（97% × 93%），
-    // 照旧画会让平面图上的缸比 3D 小一大圈。**改缸体宽度必须同时改这里。**
     const aquariumTankWidthRatio = 1.46 / 1.5;
     const aquariumTankDepthRatio = 0.51 / 0.55;
     planContext.strokeRect(
@@ -7601,14 +7055,6 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "coffeetable") {
     // 组合茶几：两块叠合错位的石材 —— 下方是通体黑石座，上方是向左悬挑的白石板。
-    //
-    // 这不是「两个圆墩子」，是**手绘符号照抄旧资产**留下的后果：早先的组合茶几资产是
-    // 两个圆柱墩子加一块方台面，符号就画成了两个圆（下面还各带一个小圆当墩心）。
-    // 资产换成两块石板之后，符号不会自己跟着变 —— 平面图与 3D 就对不上了。
-    //
-    // 比例直接取自 tools/models/model-specs.mjs 的 coffeetable 规格（石座 1.72 × 1.05、
-    // 石板 1.00 × 0.85，整件 1.90 × 1.05）。**改 3D 尺寸必须同时改这里**，否则这次修的
-    // 就是这个毛病的复发。三个比例都以整件 footprint 为 1，除式留在代码里便于对照规格。
     const coffeeTableBaseLengthRatio = 1.72 / 1.9;
     const coffeeTableBaseOffsetRatio = 0.09 / 1.9;
     const coffeeTableTopLengthRatio = 1.0 / 1.9;
@@ -7616,7 +7062,6 @@ function drawPlanItem(itemToDraw) {
     const coffeeTableTopDepthRatio = 0.85 / 1.05;
     const coffeeTableCornerRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.02;
     // 先画石座（它在下面、也是外轮廓那一件），再画石板压上去；两层同一枚填充色带透明度，
-    // 叠合处自然深一档，俯视就能读出「大石台上压着一块小石板」。
     planContext.beginPath();
     planContext.roundRect(
       (-coffeeTableBaseLengthRatio / 2 + coffeeTableBaseOffsetRatio) * itemWidthPx,
@@ -7660,8 +7105,6 @@ function drawPlanItem(itemToDraw) {
       planContext.stroke();
     }
     if (isRoundTableTurntableItem(itemToDraw)) {
-      // 转盘面直径 0.8 落在 2.2 的占地里 —— 半径比 0.18（原先是 0.27，那是旧资产的转盘尺寸，
-      // 画出来比新规格的转盘大一倍）。
       planContext.beginPath();
       planContext.ellipse(0, 0, itemWidthPx * 0.18, itemDepthPx * 0.18, 0, 0, Math.PI * 2);
       planContext.fill();
@@ -7692,7 +7135,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
     planContext.fillStyle = "rgba(25, 34, 43, .58)";
     // 四条方腿在四角：x = ±0.66 / 1.4、z = ±0.32 / 0.7（原先取 ±0.39 / ±0.34，
-    // 那是旧资产四条腿的位置，新规格的腿更靠外）。
     for (const screwOffsetX of [-0.47, 0.47]) {
       for (const screwOffsetY of [-0.45, 0.45]) {
         planContext.beginPath();
@@ -7707,12 +7149,6 @@ function drawPlanItem(itemToDraw) {
       }
     }
   } else if (itemToDraw.type === "piano") {
-    // 三角钢琴：与 3D 用**同一份翼形轮廓**（tools/models/model-specs.mjs 的 pianoPlan）。
-    // 规格文件是 Node 侧的模块，前端拿不到它，所以这条轮廓在两边各写一份 —— 改一处必须改另一处，
-    // 否则就会出现「3D 换了琴、平面图上还是旧轮廓」那类脱钩（组合茶几已经踩过一次）。
-    //
-    // 归一化坐标 u ∈ [-1, 1] 是低音侧 → 高音侧、v ∈ [0, 1] 是尾端 → 键盘侧；琴身只占
-    // u = ±0.96（0.72 / 0.75）—— 整件最宽的那 1.50m 在键盘那一侧，由键床定。
     const pianoPlanShape = {
       start: [1, 1],
       path: [
@@ -7801,9 +7237,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "squattoilet") {
     // 蹲便器俯视：外面一圈是便槽边沿，中间那道圆角矩形是**槽口**（宽 0.33m / 进深 0.43m，
-    // 中心比整件中心偏前 0.05m —— 因为靠墙那侧还有一道 0.16m 深的存水弯高台）。
-    // 原先画的是「外框 + 一圈椭圆 + 两侧两块小方」，那两块小方是照旧资产的两只脚踏位置画的，
-    // 新规格里没有脚踏，已去掉；椭圆也换成了与槽口同宽的圆角矩形。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx / 2,
@@ -7828,8 +7261,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "urinal") {
     // 小便斗俯视：外框就是壳体（0.38 × 0.34 全都用上），里面那块圆角矩形是**腔口**
-    // （宽 0.28m，从靠墙的壳体背壁一直开到前方那圈边圈的内沿），腔口前沿一条横线是边圈的内沿。
-    // 原先画的内圈椭圆只有 0.15m 宽，比实物腔口小一半，读起来像只趴着的小盆。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx / 2,
@@ -7867,8 +7298,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "bathtub") {
     // 浴缸俯视：外框是缸壁外沿（1.70 × 0.78，四角与规格同半径），里面那圈是**缸口内沿**
-    // （缸壁 0.08m 厚 → 内沿退到 ±0.765m / ±0.31m）。原先内圈画到 0.58 × 0.45，
-    // 比真缸口小了一圈，读起来像只大托盘里放了个盆。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx * 0.48,
@@ -7890,7 +7319,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "basin") {
     // 台盆柜俯视：整件就是石材台面（0.90 × 0.50），台面上一个台上盆 + 盆后一支龙头。
-    // 这一支原先没有，落到兜底那只圆角矩形上，与「台面 + 台上盆 + 龙头」完全对不上。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx / 2,
@@ -7926,8 +7354,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "glasspartition") {
     // 玻璃隔断俯视：中间那片半透明是玻璃（1.20 × 0.012，实际只有一条缝），两端 0.05m 宽的
-    // 立柱才是整件在平面上真正占的地方（立柱与横梁 0.08m 厚，正好是整件的进深）。
-    // 玻璃中线由第二段绘制链补（见下），这里只负责面板、两根立柱与拉手落点。
     planContext.fillStyle = "rgba(169, 197, 211, .2)";
     planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(183, 218, 231, .82)";
     planContext.beginPath();
@@ -7949,7 +7375,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "shower") {
     // 淋浴房俯视：外框是 0.90 × 0.90 的底盘，内圈是底盘的内凹面，靠墙（-y）那侧有立柱落点，
-    // 内凹面里偏后一块地漏篦子。这一支原先也没有，落到兜底矩形上。
     planContext.beginPath();
     planContext.roundRect(
       -itemWidthPx / 2,
@@ -8114,28 +7539,16 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (ROUND_FOOTPRINT_ITEM_TYPES.has(itemToDraw.type)) {
     // 圆形占地的物件（落地扇 / 圆凳 / 圆茶几 / 圆桶类家电……）画圆而不是兜底的圆角矩形。
-    // 这一支不写死类型名单，判据在 studio-item-types.js 的 ROUND_FOOTPRINT_ITEM_TYPES ——
-    // 那张名单由 `node tools/audit_plan_symbols.mjs` 实测流水线 GLB 的俯视轮廓得出，
-    // 「实测是圆却没按圆画」与「名单里有但实测不是圆」都会被不变量当场拦下。
-    // 用椭圆而不是 arc：非等比摆放（用户把圆锥形物件拉扁）时轮廓要跟着占地方向走。
     planContext.beginPath();
     planContext.ellipse(0, 0, itemWidthPx / 2, itemDepthPx / 2, 0, 0, Math.PI * 2);
     planContext.fill();
     planContext.stroke();
   } else if (itemToDraw.type === "kitchenisland") {
-    // 岛台兼餐桌（见 model-specs.mjs 的 kitchenisland）：兜底那支「整块圆角矩形」把 2.4 × 0.8
-    // 全画成了一块实心柜体，而实物只有 +x 端那 0.8 × 0.8 是落地柜体（台面高 0.9），另外 1.6m
-    // 长的一截是 0.75m 高的伸缩餐台板、外端一条板式支腿落地。俯视看，前者是**体**、后者只是一块
-    // **面** —— 这是这两件在平面上唯一的差别，也正是这个符号要画出来的东西。画成实心尤其错在
-    // 悬挑那一侧：平面图上会读成「整件都是落地柜」，摆吧凳的位置就没了。
-    //
-    // 下面五个比值全部来自 3D 规格的米制值（整宽 2.4、进深 0.8 是分母）：改 model-specs.mjs 的
-    // kitchenisland 尺寸必须同手改这五个数，否则平面符号会开始说谎。
-    const islandBlockRatio = 0.8 / 2.4; // 高台（含台面）沿长度占的比例
-    const islandTableDepthRatio = 0.72 / 0.8; // 伸缩餐台板的进深（比台面每侧窄 4cm）
-    const islandLegThicknessRatio = 0.03 / 2.4; // 支腿厚 30mm
-    const islandLegDepthRatio = 0.6 / 0.8; // 支腿进深 0.6（餐台板 0.72 每侧再收 6cm）
-    const islandLegCenterRatio = 0.02 / 2.4; // 支腿中心离板尖 20mm
+    const islandBlockRatio = 0.8 / 2.4;
+    const islandTableDepthRatio = 0.72 / 0.8;
+    const islandLegThicknessRatio = 0.03 / 2.4;
+    const islandLegDepthRatio = 0.6 / 0.8;
+    const islandLegCenterRatio = 0.02 / 2.4;
     const islandBlockWidthPx = itemWidthPx * islandBlockRatio;
     // 高台：实心一块，贴 +x 端、进深占满（台面四周各出柜体 5cm，俯视就是占地那一圈边缘）。
     planContext.beginPath();
@@ -8149,7 +7562,6 @@ function drawPlanItem(itemToDraw) {
     planContext.fill();
     planContext.stroke();
     // 伸缩餐台：只描边。它是一块 0.75m 高的板，俯视没有「体」可填 —— 填了就又回到那个
-    // 「整件都是柜子」的误读上，而它恰恰是这件物件里唯一能坐人的地方。
     planContext.strokeRect(
       -itemWidthPx / 2,
       (-itemDepthPx * islandTableDepthRatio) / 2,
@@ -8157,7 +7569,6 @@ function drawPlanItem(itemToDraw) {
       itemDepthPx * islandTableDepthRatio
     );
     // 板式支腿：外端那条真正落地的东西（窄板一块）。不画它，1.6m 的悬挑在平面上没有支撑点，
-    // 读起来像一张悬空的板。
     planContext.fillRect(
       -itemWidthPx / 2 +
         itemWidthPx * islandLegCenterRatio -
@@ -8196,12 +7607,10 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "piano") {
     // 钢琴这一层画两处：黑键带 + 三条琴腿（脚轮位置）。坐标全部按 3D 规格的米制值换算：
-    // 规格里键床 z 0.55→0.75、三条腿在 (±0.6, 0.6) 与 (-0.02, -0.18)。
     const pianoDepthScale = itemDepthPx / 1.5;
     const pianoKeyBedTopPx = 0.55 * pianoDepthScale;
     const pianoKeyBedHeightPx = 0.2 * pianoDepthScale;
     // 黑键：88 键的标准布局是 7 组「2 + 3」共 35 个黑键，投影到平面上是一条断续的窄带 ——
-    // 画成整条实心黑带在 1:50 的户型图上看不出差别，这里就画整条。
     planContext.fillStyle = "rgba(17, 24, 31, .55)";
     planContext.fillRect(
       -itemWidthPx * 0.384,
@@ -8224,8 +7633,6 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "coffeetable") {
     // 组合茶几在这一层只画**石板的收边**：沿白石板内侧退一圈的细线，表示石板有厚度、不是一张纸。
-    // 原先这里画的是两个墩心小圆（旧资产的两个圆柱墩子），已随符号一起换成石板。
-    // 比例与上面 drawPlanItem 里的那组同源，改 3D 规格时一起改。
     const coffeeTableTopLengthRatio = 1.0 / 1.9;
     const coffeeTableTopOffsetRatio = -0.45 / 1.9;
     const coffeeTableTopDepthRatio = 0.85 / 1.05;
@@ -8266,7 +7673,6 @@ function drawPlanItem(itemToDraw) {
       itemWidthPx * 0.625,
       itemDepthPx * 0.5
     );
-    // 四条桌腿：x = ±0.68 / 2.4、z = ±0.38 / 1.8（旧符号取的 ±0.38 / ±0.32 是旧资产的腿位）。
     for (const tableLegOffsetX of [-0.283, 0.283]) {
       for (const tableLegOffsetY of [-0.211, 0.211]) {
         planContext.beginPath();
@@ -8290,8 +7696,6 @@ function drawPlanItem(itemToDraw) {
   } else if (itemToDraw.type === "fridge") {
     if (itemToDraw.fridgeStyle === "double") {
       // 左右双开门：俯视读「两扇竖门的中缝」。中缝从正面（+y 为物件正面，与鞋柜同一约定）
-      // 往内画 45% 进深，两条平行竖线分别代表左右门扇的内侧边。0.02 是按门扇内沿
-      // (±0.006 × 宽) 放大到平面上可辨的推断值；dist 平面原本不区分冰箱款式，此处为双开门新增。
       for (const fridgeSeamSign of [-1, 1]) {
         planContext.beginPath();
         planContext.moveTo(fridgeSeamSign * itemWidthPx * 0.02, itemDepthPx * 0.5);
@@ -8306,7 +7710,6 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "freezer") {
     // 顶开式冰柜：俯视最可读的信息是「顶盖分缝」——沿正面往内约 18% 进深画一条横线，
-    // 再在右前角点一个小圆代表模型上的指示面板。+y 为物件正面，与上面冰箱同一约定。
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.46, itemDepthPx * 0.3);
     planContext.lineTo(itemWidthPx * 0.46, itemDepthPx * 0.3);
@@ -8353,10 +7756,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "shoecabinet") {
     // 中竖板 + 两列柜门的中缝：俯视把占地分成「左列换鞋凳 / 敞开鞋格」与「右列柜门」两段，
-    // 比一块实心矩形多出的信息就这一点（鞋柜在平面上本来就是个方盒子）。
-    // 门缝只从**正面**往里画 45% 进深 —— 画满进深会读成一块隔板，而它其实是正面的事。
-    // 平面里 +y 是物件的 +z（正面），与上面 basin 的正面画法同一个约定。
-    // 0.455 是规格里两列门缝的 x（整宽 1.8 的对折再让 0.445 中缝）；改宽度必须同时改这个比值。
     const shoecabinetSeamRatio = 0.455 / 1.8;
     const shoecabinetSeamInsetPx = itemDepthPx * 0.45;
     planContext.beginPath();
@@ -8387,7 +7786,6 @@ function drawPlanItem(itemToDraw) {
     );
   } else if (itemToDraw.type === "basin") {
     // 台面下柜体的前脸：双门的门缝（在正中）与两只拉手落点。俯视看不到门，但按既有符号的
-    // 惯例（冰箱的门缝、洗碗机的门线）都要留一道记号，否则整件在平面图上只是一块板。
     planContext.beginPath();
     planContext.moveTo(0, itemDepthPx * 0.4);
     planContext.lineTo(0, itemDepthPx * 0.5);
@@ -8465,10 +7863,6 @@ function drawPlanItem(itemToDraw) {
       );
     }
   } else if (itemToDraw.type === "plant") {
-    // 冠幅 + 盆托两圈。模型重建后冠叶真的铺满整件 0.75 × 0.75（见 tools/models/model-specs.mjs
-    // 的 plant），旧符号只画一圈 0.31 的圆 —— 那是照旧资产的冠幅（那时冠叶只伸到 0.647 宽）
-    // 手绘的，摆到新模型旁边平面图上的绿植会小一圈。
-    // 外圈取冠幅的 0.46 倍（0.69 / 0.75，留一点叶尖不压线），内圈取盆托口径 0.38。
     const plantCanopyRadiusPx = Math.min(itemWidthPx, itemDepthPx) * 0.46;
     const plantSaucerRadiusPx = Math.min(itemWidthPx, itemDepthPx) * (0.38 / 0.75);
     planContext.beginPath();
@@ -8479,9 +7873,6 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (STAIR_ITEM_TYPES.has(itemToDraw.type)) {
     if (itemToDraw.type === "stairs" || itemToDraw.type === "floatingstairs") {
-      // 直行楼梯（stairs 混凝土实心 / floatingstairs 悬空踏板）：10 级踏面线 + 一条指向上行的箭头。
-      // 两件的上行方向同向（几何都从 +z 端往 -z 升），踏面数也都是 10，所以共用这一支；
-      // 悬空梯没有斜梁、平面符号上本来就不该多画任何边线。
       for (let stairTreadIndex = 1; stairTreadIndex < 10; stairTreadIndex += 1) {
         const stairTreadY = -itemDepthPx / 2 + (itemDepthPx * stairTreadIndex) / 10;
         planContext.beginPath();
@@ -8498,15 +7889,10 @@ function drawPlanItem(itemToDraw) {
       planContext.stroke();
     } else {
       // 钢 / 玻璃楼梯是 **U 形双跑**（见 model-specs.mjs 的 uStairLayout）：两跑并行、
-      // 平台贴 -z 端，各 10 级爬完层高。平面符号必须跟着改成两跑 + 平台 ——
-      // 画成单跑不只是「少一条线」：在 1:50 的户型图上，它会把梯段的起步位置指错半跨。
       const stairFlightWidth = itemToDraw.type === "steelstairs" ? 0.9 : 1.225;
       const stairLandingDepth = 0.5;
       const stairRiserCount = 10;
       // 米 → 像素的换算率：本函数的像素尺寸来自 planFootprint（不是 itemToDraw.width），
-      // 所以这里必须除以 planFootprint 的米制边长，别再写回 itemWidth / itemDepth ——
-      // 那两个名字在本函数不存在（只有像素版 itemWidthPx / itemDepthPx），
-      // 引用即 ReferenceError：钢梯 / 玻璃梯一画到户型图上就整张图不刷新。
       const stairPlanScaleX = itemWidthPx / planFootprint.width;
       const stairPlanScaleZ = itemDepthPx / planFootprint.depth;
       const stairFlightWidthPx = stairFlightWidth * stairPlanScaleX;
@@ -8600,8 +7986,6 @@ function drawPlanItem(itemToDraw) {
 }
 /**
  * 把物件的局部坐标（以物件中心为原点、未旋转）换算成平面坐标，就是一次绕物件中心的
- * 二维旋转 + 平移。手柄拾取、角点缩放与命中测试都用它，保证「屏幕上看到的手柄位置」
- * 和「算出来的手柄位置」用的是同一套变换。
  */
 function rotateLocalToPlan(rotatingItem, localX, localY) {
   const rotationRad = ((Number(rotatingItem.rotation) || 0) * Math.PI) / 180;
@@ -8612,8 +7996,6 @@ function rotateLocalToPlan(rotatingItem, localX, localY) {
 }
 /**
  * 算出选中物件在平面上的控制点：四角缩放手柄 + 顶部旋转手柄。手柄位置先按物件半宽 / 半深算出
- * 局部坐标，再经 rotateLocalToPlan 旋转到平面；每个角点带出对角点，缩放时用来固定对边。
- * 旋转手柄伸出长度按 17/zoom 反算，使其在屏幕上恒定约 17px（zoom 下限 0.01 防除零）。
  */
 function itemControlHandles(handleItem) {
   const pixelsPerMeter = currentPixelsPerMeter() || 100;
@@ -8667,7 +8049,6 @@ function itemControlHandles(handleItem) {
 }
 /**
  * 手柄拾取：判断平面点击是否落在选中物件的旋转手柄或角点缩放手柄上。只在「选择工具 + 恰好单选一个物件」时生效
- * （多选时手柄重叠容易点错，返回 null 交给普通点选）。命中半径 9/zoom 平面像素使手感恒定；旋转手柄优先于角点。
  */
 function hitTestItemHandle(hitPlanPoint) {
   if (activeTool !== "select" || primarySelection?.kind !== "item" || multiSelection.length) {
@@ -8702,7 +8083,6 @@ function hitTestItemHandle(hitPlanPoint) {
 }
 /**
  * 由任意两个点构造轴对齐包围盒（不要求两点有序）。框选、橡皮筋矩形等都从「按下点 +
- * 当前点」来，顺序取决于拖动方向，因此这里统一取 min / max，调用方不必先排序。
  */
 function boundsFromPoints(firstPoint, secondPoint) {
   return {
@@ -8714,8 +8094,6 @@ function boundsFromPoints(firstPoint, secondPoint) {
 }
 /**
  * 判断点是否落在轴对齐包围盒内（含边界）。
- *
- * 框选、命中测试的高频内层调用，因此写成四个内联比较，不构造对象也不做多余计算。
  */
 function pointInBounds(point, pointBounds) {
   return (
@@ -8727,8 +8105,6 @@ function pointInBounds(point, pointBounds) {
 }
 /**
  * 判断线段是否与轴对齐包围盒相交（框选墙体等线性实体用）。先做一次端点快速包含判定
- * （覆盖线段完全在盒内的情况），再拿线段去和盒子的四条边逐个求交；平行 / 共线重叠的情况
- * 由 geometry.js 的 segmentIntersection 统一处理。
  */
 function segmentIntersectsBounds(segmentStartPoint, segmentEndPoint, segmentBounds) {
   if (
@@ -8771,8 +8147,6 @@ function segmentIntersectsBounds(segmentStartPoint, segmentEndPoint, segmentBoun
 }
 /**
  * 框选命中测试：列出与矩形框相交 / 落入框内的所有实体。线性实体（墙、门窗、栏杆）用
- * segmentIntersectsBounds；物件允许三种情况之一 —— 中心在框内、任一角点在框内、或框的角点
- * 落在物件旋转矩形内。灯光页签只框灯、其余页签不框灯，避免在灯光图层里误选家具。
  */
 function collectEntitiesInMarquee(marqueeStart, marqueeEnd) {
   const marqueeBounds = boundsFromPoints(marqueeStart, marqueeEnd);
@@ -8889,11 +8263,6 @@ function collectEntitiesInMarquee(marqueeStart, marqueeEnd) {
   }
   return hitEntities;
 }
-/**
- * 把当前平面画布整幅拷贝到离屏快照画布（renderPlanView 的收尾动作）。在即将开始「便宜重绘」的交互前调用，此后每帧
- * 平移与框选只需贴回快照再补画少量变化。只有尺寸真变了才改 canvas 的 width/height —— 赋值会清空位图；画布尚无尺寸或
- * 2D 上下文缺失时返回 false，调用方需兜底。
- */
 function syncMetricsCanvas() {
   if (!planCanvasElement.width || !planCanvasElement.height || !metricsContext) {
     return false;
@@ -8910,11 +8279,6 @@ function syncMetricsCanvas() {
     return true;
   }
 }
-/**
- * 把离屏快照贴回平面画布，可整体偏移（用于平移 / 框选）。偏移量以 CSS 像素传入，贴图前乘 canvas.width/viewportWidthPx
- * 换算成设备像素并取整 —— drawImage 传小数会重采样、画面发虚。快照尺寸与当前画布不一致时返回 false，调用方退化为完整
- * renderPlanView。前后 save/restore 并用单位变换，因为快照按设备像素存、planContext 平时带 dpr 缩放。
- */
 function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffsetY = 0 } = {}) {
   if (
     !metricsCanvas.width ||
@@ -8940,8 +8304,6 @@ function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffset
 }
 /**
  * 在快照之上叠画框选矩形（只画框，不重绘平面）。与 blitMetricsCanvas 配套：先贴回快照
- * 再补上选择框，从而避免每次 pointermove 都走一遍 renderPlanView。虚线框按 0.5 像素内缩
- * 并 clamp 宽度，是为了避免 1px 描边在高 DPI 下糊成 2px。
  */
 function drawMarqueeOverlay() {
   if (pointerInteraction?.type !== "marquee") {
@@ -8970,11 +8332,6 @@ function drawMarqueeOverlay() {
   );
   planContext.restore();
 }
-/**
- * 整帧重绘平面视图（2D 画布唯一出口）。绘制顺序即遮挡顺序：底色 → 底图 → 测量网格 → 对齐参照 → 墙 → 门窗 → 栏杆 →
- * 洞口预览 → 家具 → 未闭合端点告警 → 灯光 → 标定线。平移缩放已烘进 planToScreen，这里只补一层绕视口中心的旋转，故
- * 「屏幕像素」常量都要除以 zoom 还原。灯光图层整体压到 0.48 透明度且灯最后画；未闭合端点超过 3 处就不逐个写文字。
- */
 function renderPlanView() {
   const isLightPlanView = activeAssetTab === "light";
   planContext.clearRect(0, 0, viewportWidthPx, viewportHeightPx);
@@ -9268,8 +8625,6 @@ function renderPlanView() {
 }
 /**
  * 按 primarySelection 取回被选中的实体对象。单选状态只存 {kind, id}，真正的对象要从当前
- * 楼层里查；查不到（例如刚被删除、或撤销后又重做丢了 id）就顺手清空 primarySelection，
- * 避免界面上残留一个指向已不存在实体的选中态。
  */
 function findSelectedEntity() {
   if (!primarySelection) {
@@ -9292,11 +8647,6 @@ function findSelectedEntity() {
   }
   return selectedEntity || null;
 }
-/**
- * 平面视图命中测试：返回点击位置下最上层的实体引用。判定顺序刻意是「先物件 → 门窗栏杆 → 最后墙」，物件视觉层级最高；
- * 每类内部 reverse() 从后往前扫（数组末尾后画、盖在上面）。灯光页签只认灯具，避免编辑灯光时误选家具。容差统一写成
- * 「屏幕像素 ÷ zoom」（窗 10px、门窗栏杆 12px、墙取半墙厚与 8px 较大值），任意缩放下手感一致。
- */
 function hitTestEntityAt(hitTestPlanPoint) {
   const hitPixelsPerMeter = currentPixelsPerMeter() || 100;
   const hitLightTab = activeAssetTab === "light";
@@ -9379,8 +8729,6 @@ function hitTestEntityAt(hitTestPlanPoint) {
 }
 /**
  * 刷新新手引导清单的完成态与当前高亮步骤。六步按固定顺序判定（底图 / 标定 / 墙体 / 物件 / 灯具 /
- * 导出），取第一个未完成项作为当前步骤，全部完成时兜底成 "export" 让最后一步保持高亮。
- * 「物件」与「灯具」同出于 activeScene.items，靠 LIGHT_ITEM_TYPES 区分（前者要排除灯具）。
  */
 function updateOnboardingSteps() {
   const completedSteps = {
@@ -9404,7 +8752,6 @@ function updateOnboardingSteps() {
 }
 /**
  * 读 studio.css 声明的一枚长度型布局变量。读不到时用兜底值 —— 这里宁可退化到「旧版本写死的那个
- * 数字」，也不能让上下限变成 NaN：NaN 会让每一栏的尺寸都算成 0，界面直接塌掉。
  */
 function readStudioLayoutLength(element, cssVarName, fallbackPx) {
   const rawValue = getComputedStyle(element).getPropertyValue(cssVarName).trim();
@@ -9412,12 +8759,6 @@ function readStudioLayoutLength(element, cssVarName, fallbackPx) {
   return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallbackPx;
 }
 
-/**
- * 布局常量的缓存。这些值来自 studio.css，只在断点切换时变（@media (max-width: 1380px) 会同时
- * 改库栏宽度、中栏下限与右栏下限），而 measurePanelLimits() 在拖拽的每一帧都要被调用两次。
- * 每次现读要 6 次 getComputedStyle：拖拽时我们正在改内联自定义属性，样式本来就是脏的，
- * 这会把强制样式重算塞进每一帧。所以在 resize 时清空一次即可（槽位本身声明在文件上方）。
- */
 function studioLayoutMetrics() {
   if (studioLayoutConstants) {
     return studioLayoutConstants;
@@ -9425,8 +8766,6 @@ function studioLayoutMetrics() {
   const shellStyle = getComputedStyle(studioShellElement);
   const columnGapPx = Number.parseFloat(shellStyle.columnGap);
   studioLayoutConstants = {
-    // 右栏宽度下限：CSS 用 minmax() 强制它，JS 的钳制必须与它同值，否则两套口径会在拖动到极限时
-    // 打架（网格被 minmax 顶住不再变窄，而 JS 以为还能继续拖）。
     detailsMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-details-min-w", 420),
     // 中栏宽度下限：拖大右栏时至少要给中间绘图台留这么多。
     centerMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-center-min-w", 400),
@@ -9448,12 +8787,6 @@ function studioLayoutMetrics() {
 
 /**
  * 量出右栏宽度与 3D 预览高度的比例上下限（拖拽与键盘调宽共用）。全部用「当前实际像素 ÷ 参考像素」
- * 换算成比例，元素尚未布局（宽高为 0）时用窗口尺寸兜底，避免算出 0 或 NaN。
- *
- * 所有常量都从 studio.css 的布局变量读（见 studioLayoutMetrics），不再在 JS 里抄第二份：
- * 原先 CSS 写库栏 204px 而 JS 兜底 168、CSS 写中栏最小 400px 而 JS 允许压到 320，
- * 拖到极限时三条轨道之和超过容器，网格真的会溢出并被 body{overflow:hidden} 裁掉。
- * 最后仍 clamp 到固定区间，保证比例永不为 0 或 1。
  */
 function measurePanelLimits() {
   const metrics = studioLayoutMetrics();
@@ -9465,7 +8798,6 @@ function measurePanelLimits() {
     detailsResizerElement.parentElement?.getBoundingClientRect().height || metrics.dividerHeightPx;
   const libraryPanelWidthPx =
     libraryPanelElement?.getBoundingClientRect().width || metrics.libraryMinWidthPx;
-  // 右栏两个下限是「绝对像素」，换算成比例才有意义；分母为 0 时上面已经兜过底。
   return {
     minimumHeightRatio: clamp(
       metrics.previewMinHeightPx / panelHeightPx,
@@ -9492,8 +8824,6 @@ function measurePanelLimits() {
 }
 /**
  * 吸附当前是否生效：用户没在设置里关掉吸附，且没有按住临时关闭键
- * （isSnapTemporarilyDisabled，由修饰键在拖拽期间临时置位）。兜底逻辑写在 !== false 上，
- * 让缺字段的旧草稿默认开启吸附。
  */
 function isSnapEnabled() {
   return activeScene.settings.snapEnabled !== false && !isSnapTemporarilyDisabled;
@@ -9507,8 +8837,6 @@ function setSnapSettingsVisible(isVisible) {
 }
 /**
  * 把吸附设置（总开关、各吸附项、容差）同步到工具栏控件。所有判定都用 !== false：老草稿里这些字段
- * 可能不存在，缺字段按「默认开启」处理，只有显式 false 才算关闭。容差 clamp 到 6~24px（更小则鼠标精度
- * 不足以稳定命中，更大则会把邻近墙线一起吸走）。正在拉参考线时不覆盖状态栏文案，那行此时显示标定进度。
  */
 function syncSnapControls() {
   const isSnapOn = activeScene.settings.snapEnabled !== false;
@@ -9529,8 +8857,6 @@ function syncSnapControls() {
 }
 /**
  * 全量刷新工作台界面（墙面全局参数、物件计数、面板比例、相机与灯光控件）。这是「场景数据变化后把 UI
- * 重画一遍」的总入口，本身不改任何场景数据，只做单向 model → view 同步。各控件统一走 syncControlValue
- * 而非直接赋 value：该函数会跳过当前获焦控件（用户正在输入时不能把字符顶掉）且不写重复值。
  */
 function syncStudioUi() {
   syncSnapControls();
@@ -9562,8 +8888,6 @@ function syncStudioUi() {
     " 物件";
   renderLightGroupList();
   // 布局比例现在归 studioLayout 管（localStorage），这里只做两件事：
-  // 把老文档里的旧值一次性播种进来（只在本机还没有布局记录时生效），
-  // 以及让布局层在窗口尺寸变化后重新钳制一次 —— 百分比栏的上下限随窗口走。
   migrateLegacyLayoutSettings();
   studioLayout.refresh();
   applyCameraMode(currentCameraMode());
@@ -9575,8 +8899,6 @@ function syncStudioUi() {
 }
 /**
  * 渲染右侧属性检查器：按选中类型显示对应字段组并回填当前值。三种状态互斥：框选多选（只提示数量）、单选（按 kind 切
- * 字段组）、空选中（引导文案）。物件分支最复杂：ITEM_TYPE_DEFINITIONS 决定标题，随后一连串 hidden/title 开关把无关
- * 字段藏起来 —— 表单只写一份、靠显隐复用。数值回填走 finite + clamp 兜底，min/max/step 也按类型就地改写。
  */
 function renderInspector() {
   const inspectedEntity = findSelectedEntity();
@@ -9657,8 +8979,6 @@ function renderInspector() {
       syncControlValue(selectElement("#door-height"), inspectedEntity.height.toFixed(2));
       syncControlValue(selectElement("#door-position"), Math.round(inspectedEntity.t * 100) + "%");
       // 所有门型默认都显示「合页侧」与「内外开」两个开关，只有真正没有门扇可翻的类型例外：
-      // 仅门框根本没有门扇；双开门与卷帘门不存在单一合页侧可换。入户门与玻璃推拉门
-      // 既有合页侧（哪一扇固定），也有内外向，所以这两个按钮必须保留。
       selectElement(".door-actions").hidden = inspectedEntity.doorType === "frame-only";
       selectElement("#door-hinge").hidden = ["double", "roller-shutter"].includes(
         inspectedEntity.doorType
@@ -9859,7 +9179,6 @@ function renderInspector() {
         syncStudioSelect(selectElement("#curtain-position"));
         const curtainSettings = normalizeCurtainTrack(inspectedEntity);
         // 形态（普通窗帘 / 卷帘）：卷帘下「轨道 + 布面」那一整组字段都不适用，统一隐藏，
-        // 只保留预览开合 —— 卷帘的 0% 放下、100% 卷起仍然要能预览。
         const curtainIsRoller = curtainSettings.curtainForm === "roller";
         selectElement("#curtain-form").value = curtainIsRoller ? "roller" : "standard";
         syncStudioSelect(selectElement("#curtain-form"));
@@ -9968,7 +9287,6 @@ function renderInspector() {
           : inspectedEntity.type === "presence"
             ? "0.005"
             : "0.05";
-      // 躺姿立柱的 height 表示沿平面铺开的长度，所以字段标题也要随之改叫「长」。
       itemHeightLabelElement.textContent = pillarIsLying(inspectedEntity) ? "长（m）" : "高（m）";
       syncControlValue(
         selectElement("#item-height"),
@@ -9993,8 +9311,6 @@ function renderInspector() {
 }
 /**
  * 保存 / 编辑流程里的统一刷新入口：先同步 UI 与属性检查器，再重画平面视图，最后按 scope
- * 重建 3D 场景。refreshScopeName 传 "none" 时只刷新 UI 而不重建场景，供那些只改了 UI 相关
- * 字段、重建场景纯属浪费的调用点使用（如切换页签、改面板比例）。
  */
 function refreshStudio(refreshScopeName = "all") {
   syncStudioUi();
@@ -10006,11 +9322,6 @@ function refreshStudio(refreshScopeName = "all") {
     });
   }
 }
-/**
- * 切换到指定工具（选择 / 画墙 / 门窗 / 标定等）并同步相关 UI 状态。未知工具名直接忽略：TOOL_HELP_TEXT 既是帮助文案表
- * 也当工具白名单用。灯光页签下只允许「选择」工具（此时户型锁定）。从画墙切走且还有未闭合墙线时提示一次（未闭合的墙
- * 不生成地面，是用户最常困惑的点）；切走 / 切入统一清掉吸附目标与标定预览锚点。
- */
 function activateTool(toolName) {
   if (!TOOL_HELP_TEXT[toolName]) {
     return;
@@ -10047,11 +9358,6 @@ function activateTool(toolName) {
     showToast("当前墙线未闭合，不会生成地面；如果绘制的是隔墙，可以忽略此提醒。", "warning");
   }
 }
-/**
- * 确认当前楼层已完成比例标定，未标定则引导用户去画参考线。未标定时 currentPixelsPerMeter() 返回 0，之后所有像素↔米
- * 换算都不可用，因此凡是「要放置真实尺寸物体」的入口都先调它。失败时不仅提示，还主动切到 fallbackTool（默认 "scale"），
- * 让用户下一步就能画参考线。
- */
 function ensureCalibration(fallbackTool = "scale") {
   if (currentPixelsPerMeter()) {
     return true;
@@ -10061,11 +9367,6 @@ function ensureCalibration(fallbackTool = "scale") {
     return false;
   }
 }
-/**
- * 删除当前选中内容（支持多选与单选）。两条分支都先 pushHistorySnapshot 记账、删完再 markDocumentDirty，因此删除可撤销、
- * 也参与乐观并发。级联规则是刻意的：删墙必须连带删掉挂在其上的门窗栏杆（它们只有 wallId 引用，留下就是悬空数据），
- * 删完墙还要 mergeCollinearWalls 合并共线墙段。多选删除按 kind 分桶再过滤，比逐个调用单选删除少刷新很多次场景。
- */
 function deleteSelection() {
   if (multiSelection.length) {
     const selectionScope = currentSelectionScope();
@@ -10163,11 +9464,6 @@ function deleteSelection() {
   refreshStudio(targetScope);
   markDocumentDirty();
 }
-/**
- * 按类型定义新建一个场景物件并选中它。ITEM_TYPE_DEFINITIONS 给出宽 / 高 / 深与默认颜色，这里只补该类型特有的初始字段
- * （用展开语法写在对应分支里，保证不给无关类型塞脏字段，它们会直接进草稿 JSON）。灯光额外挂到当前激活的灯光分组，
- * 命名冲突由 normalizeLayerNames 统一改名。放置前必须已标定比例，否则新物件的 x/y（像素）无法解释。
- */
 function createSceneItem(newItemType, itemPosition, overrides = {}) {
   const typeDefinition = ITEM_TYPE_DEFINITIONS[newItemType];
   if (!typeDefinition || !ensureCalibration()) {
@@ -10207,7 +9503,6 @@ function createSceneItem(newItemType, itemPosition, overrides = {}) {
           screenLayerName: "电视画面 " + (televisionItems().length + 1),
           tvMountStyle: "standard",
           // 新电视默认壁挂：进深与离地高度都按挂装档位给（壁挂 60mm / 面板下沿 0.70m），
-          // 不是类型定义里那个「老默认」（0.18m / 落地）。
           depth: TELEVISION_MOUNT_DEPTHS.standard,
           elevation: TELEVISION_MOUNT_ELEVATIONS.standard
         }
@@ -10284,8 +9579,6 @@ function createSceneItem(newItemType, itemPosition, overrides = {}) {
 }
 /**
  * 原地复制选中的家具 / 电器 / 灯具（不走系统剪贴板）。只复制物件、不复制墙与门窗；灯光页签只复制灯。
- * 副本用 structuredClone 深拷贝（物件里有嵌套的窗帘轨道 / 灯带，浅拷贝会让两份共享同一对象），
- * 重新生成 id 并按固定偏移错开原位。副本只有一个就选中它、多个整体进入多选，方便继续批量移动。
  */
 function duplicateSelection() {
   const sourceItemIds = new Set([
@@ -10307,7 +9600,6 @@ function duplicateSelection() {
   pushHistorySnapshot();
   /**
    * 副本相对原件的平面偏移量。固定取 0.12 米（换算成像素）而不是随机值：连续多次复制会形成
-   * 整齐的斜向阵列，也保证副本一定和原件部分重叠，用户一眼能看出「这是复制出来的」。
    */
   const duplicateOffsetPlan = (currentPixelsPerMeter() || 100) * 0.12;
   const duplicatedItems = sourceItems.map(duplicateSourceItem => ({
@@ -10339,8 +9631,6 @@ function duplicateSelection() {
 }
 /**
  * 收集要放进剪贴板的物件（复制与剪切共用的取数逻辑）。与 duplicateSelection 同一套筛选
- * 口径：只看当前页签对应的物件类别，且必须落在 primarySelection / multiSelection 里。
- * 返回的是原对象引用，调用方负责克隆，避免这里改了剪贴板却动了场景里的对象。
  */
 function collectClipboardItems() {
   const clipboardSourceIds = new Set([
@@ -10358,8 +9648,6 @@ function collectClipboardItems() {
 }
 /**
  * 把选中物件深拷贝进模块级剪贴板（Ctrl/Cmd+C）。同时记下「复制来源楼层」的标定与楼层变换参数：
- * 跨楼层粘贴时平面像素的物理含义可能不同（各层可各自标定、旋转 / 偏移），只有带上来源信息才能
- * 把坐标换算到目标楼层的同一相对位置。复制后把 pasteOffsetStep 归零，让下一次粘贴从第一档开始。
  */
 function copySelectionToClipboard() {
   const copiedClipboardItems = collectClipboardItems();
@@ -10385,11 +9673,6 @@ function copySelectionToClipboard() {
   pasteOffsetStep = 0;
   showToast("已复制 " + clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。");
 }
-/**
- * 把剪贴板里的物件粘贴到当前楼层。灯具若在目标楼层找不到原 lightGroupId（跨楼层粘贴常见）就改挂到当前激活灯光分组，
- * 否则灯会引用不存在的分组、开关失效。洞口跨楼层粘贴要经 convertBetweenFloors 换算并修正 rotation。pasteOffsetStep
- * 每粘贴一次累加一档（0.12m），连续粘贴排成阶梯而非叠在同一点。页签自动跟随内容切换。
- */
 function pasteClipboardItems() {
   if (!clipboardItems.length) {
     showToast("暂无可粘贴的物件。");
@@ -10458,11 +9741,6 @@ function pasteClipboardItems() {
   markDocumentDirty();
   showToast("已粘贴 " + pastedItems.length + " 个物件。");
 }
-/**
- * 按 activeScene.background.url 异步加载平面底图，成功时写入 backgroundTexture。竞态防护：每次调用先自增
- * backgroundRevision 并清空 texture，load 回调里比对版本号与 URL，任一变了就丢弃这张过期图片。2s 超时兜底：坏 URL 卡住
- * 时保证 Promise 能落地。无论成功、失败还是超时都 resolve，不会 reject。
- */
 async function loadBackgroundTexture() {
   const backgroundLoadRevision = ++backgroundRevision;
   backgroundTexture = null;
@@ -10523,8 +9801,6 @@ async function loadBackgroundTexture() {
 }
 /**
  * 上传用户选中的底图文件并设为当前楼层底图。前端先按扩展名粗筛（后端仍复验）。上传期间禁用按钮并改文案，防止同一张图
- * 被重复提交。首次导入时把楼层原点挪到图片中心（originInitialized 只做一次），避免接下来画的第一笔落到画布边界外。
- * 导入完成后自动切到 "scale" 工具：底图不标定就没法用，直接推用户到必须做的下一步。失败转成 toast 提示。
  */
 async function uploadPlanImage(file) {
   if (file) {
@@ -10574,9 +9850,6 @@ async function uploadPlanImage(file) {
 }
 /**
  * 取 3D 工作台场景调色板（背景、地面、墙、地板、门窗等硬编码色值的唯一出处）。包成函数是为了
- * 留一个「按主题换配色」的切换点：sceneStyle 为 warm-wood 时在基础调色板上叠加暖阳原木色卡
- * （WARM_WOOD_STYLE，其中 warmWood: true 是各处场景判断分支的开关），其余返回基础调色板。
- * 家居材质请改用 homePalette() —— 默认风格下也只有家居会换色，墙 / 地板 / 灯光 / 门窗不受影响。
  */
 function studioPalette() {
   if (studioSceneStyle === "warm-wood") {
@@ -10584,7 +9857,6 @@ function studioPalette() {
       ...STUDIO_PALETTE,
       ...WARM_WOOD_STYLE,
       // 暖阳原木本来就同时启用「家居」与「场景」两张色卡；家居换色分支改看 warmFurniture 之后，
-      // 这里必须补上这一位，楼梯 / 柱等仍走 studioPalette 的家居类材质才会保持原观感。
       warmFurniture: true
     };
   }
@@ -10592,9 +9864,6 @@ function studioPalette() {
 }
 /**
  * 取家居材质调色板：默认风格也采用暖阳原木的家居配色（WARM_HOME_STYLE），
- * 但绝不并入 WARM_SCENE_STYLE —— 墙、地板、灯光、背景、门窗因此在默认风格下保持原观感。
- * warmFurniture: true 是家居换色分支（材质替换、木色 / 布艺槽位、自发光等）的总开关，
- * 与场景开关 warmWood 相互独立。暖阳原木下直接复用 studioPalette()，保证那一档逐值不变。
  */
 function homePalette() {
   if (studioSceneStyle === "warm-wood") {
@@ -10611,9 +9880,6 @@ function homePalette() {
 }
 /**
  * 重建「材质风格」下拉的档位。档位随物件类型变化（沙发是布艺组、柜类是木作组、洁具是陶瓷组…），
- * 因此不能像 muralStyle 那样把 <option> 写死在标记里，得按当前类型重来一遍。
- * 只在类型与档位数真的变了时才重写 DOM：填充检查器会在拖拽 / 缩放 / 改尺寸时被反复调用，
- * 每次都重建一遍选项会白白掉帧。
  */
 function syncMaterialStyleOptions(itemType, selectedStyle) {
   const selectControl = selectElement("#material-style");
@@ -10621,8 +9887,6 @@ function syncMaterialStyleOptions(itemType, selectedStyle) {
   if (selectControl.dataset.optionSignature !== optionSignature) {
     selectControl.textContent = "";
     // 「跟随全局风格」永远排最前：它是默认值，也是「这块我不管」的出口。
-    // 显示名逐类型取（materialStyleAutoLabel）：柱体上这一档叫「配墙（跟随墙体）」，因为对柱子来说
-    // 它不是「不管」，而是「跟墙一样」—— 柱体的另一组档位只剩「与柜同料」那四档。
     const autoOption = document.createElement("option");
     autoOption.value = MATERIAL_STYLE_AUTO;
     autoOption.textContent = materialStyleAutoLabel(itemType);
@@ -10641,9 +9905,6 @@ function syncMaterialStyleOptions(itemType, selectedStyle) {
 
 /**
  * 重建「门材质」下拉的档位。档位随门型变化（玻璃门多出清玻 / 茶玻两档，实心门没有），
- * 因此与物件的材质风格一样按当前门型重建，不把 <option> 写死进标记。
- * 与 syncMaterialStyleOptions 同一条省帧契约：只在门型与档位数真的变了时才重写 DOM ——
- * 填充检查器会在拖拽 / 缩放 / 改尺寸时被反复调用。
  */
 function syncDoorMaterialOptions(doorType, selectedStyle) {
   const selectControl = selectElement("#door-material");
@@ -10669,8 +9930,6 @@ function syncDoorMaterialOptions(doorType, selectedStyle) {
 
 /**
  * 快照 / 草稿里的 materialStyle 字段。只有真正选了风格时才写键：
- * 未选（auto）时**不写**，字段集合与加这个属性之前完全一致，老快照重存也不会凭空长出一个键。
- * 与调色板侧「auto 不加 materialSurface 键」是同一套契约。
  */
 function materialStyleSnapshotFields(itemRecord) {
   const itemType = itemRecord?.type;
@@ -10683,26 +9942,15 @@ function materialStyleSnapshotFields(itemRecord) {
 
 /**
  * 按物件类型挑调色板：家居类（HOME_ITEM_TYPES）走 homePalette()，默认风格即暖阳家居配色；
- * 其余类型（墙、门窗、楼梯、柱、小汽车、楼板洞口…）走 studioPalette()，保持各风格的场景观感。
- * 最后再套一层逐类型的成品外观（applyItemFinish）：柜类的柜体色、不锈钢家电的银灰 / 银黑。
- * 这一层对「程序化兜底几何」与「外部模型」是同一份结果 —— 前者读 furniture*、后者读
- * appliance*，applyItemFinish 把两组键指到同一族色，模型到位前后不会突然换色。
- * 最后一道是逐物件的「材质风格」（applyMaterialStyle）：它优先于全局风格，且只覆盖自己声明的键。
  */
 function paletteForItemType(itemType, materialStyle = MATERIAL_STYLE_AUTO) {
   const basePalette = HOME_ITEM_TYPES.has(itemType) ? homePalette() : studioPalette();
   const finishedPalette = applyItemFinish(basePalette, itemType, JOINERY_ITEM_TYPES);
-  // 逐物件「材质风格」：auto（未选）时 applyMaterialStyle 原样返回入参，这里直接返回 finishedPalette，
-  // 不复制对象也不加任何键 —— 这是老草稿 / 老快照不需要数据迁移的技术原因。
   const styledPalette = applyMaterialStyle(finishedPalette, itemType, materialStyle);
   if (styledPalette.surface === null) {
     return finishedPalette;
   }
   // 质感信息随调色板一起走：与既有的 warmWood / warmFurniture 标记同一套做法，
-  // 材质替换阶段（studio-external-models.js 的 resolveSharedMaterial）据此套贴图与粗糙度 / 金属度。
-  // materialSurface 是**整件**兜底（只对没有角色的网格生效）；materialRoles 是「档位即组合」，
-  // 按材质角色逐块给配方 —— 流水线模型（材质名 material-<槽位>-<角色>）走的是后者，
-  // 于是柜体、柜面、台面、拉手各拿各的一份，不再整件一个颜色。
   return {
     ...styledPalette.palette,
     materialSurface: styledPalette.surface,
@@ -10713,8 +9961,6 @@ function paletteForItemType(itemType, materialStyle = MATERIAL_STYLE_AUTO) {
 }
 /**
  * 按方位角 / 仰角把平行光摆到球面位置上。极坐标转直角坐标：水平距离 = cos(仰角) × 距离，
- * 所以 elevation=0 时光正落在水平面上。X 用 cos(方位)、Z 用 sin(方位)，与 three.js 右手
- * 坐标系一致（+Y 向上，方位角从 +X 轴朝 +Z 方向增大）。
  */
 function positionLightFromAngles(light, azimuthDeg, elevationDeg, lightDistance) {
   if (!light) {
@@ -10729,11 +9975,6 @@ function positionLightFromAngles(light, azimuthDeg, elevationDeg, lightDistance)
     Math.sin(azimuthRad) * horizontalDistance
   );
 }
-/**
- * 把 baseLighting 配置应用到预览场景的灯光与渲染器上。三盏平行光的距离（18.4 / 15.2 / 16.1）是配合阴影相机远平面调出的
- * 经验值：太近则阴影贴图分辨率不够、边缘发毛，太远则超出 far 被裁掉。shadow.bias(-0.00012) / normalBias(0.016) /
- * radius(1.75) 是消阴影痤疮与摩尔纹的经验组合；高阴影质量档把 radius 收到 1.2、blurSamples 提到 8。开启分区光照时整体乘 0.5。
- */
 function applyBaseLighting() {
   const palette = studioPalette();
   const lightingSettings = baseLighting;
@@ -10746,7 +9987,6 @@ function applyBaseLighting() {
   renderer.toneMappingExposure = lightingSettings.exposure;
   const regionLightingScale = isRegionLightingEnabled ? 0.5 : 1;
   // 暖阳原木：整套基础光换成暖白 —— 天光偏暖、地面反光偏米黄、主光更黄，
-  // 冷色的环境光/补光整体提亮压平，避免原木色被冷光染灰。
   const isWarmWood = !!palette.warmWood;
   if (hemisphereLight) {
     hemisphereLight.color.setHex(isWarmWood ? 16776178 : 14278376);
@@ -10799,8 +10039,6 @@ function applyBaseLighting() {
 }
 /**
  * 切换「高阴影质量」档位；降档时把阴影相机视锥还原回升档前的备份。升档前先备份 shadow.camera 的六向
- * 边界：高画质档会在别处收紧视锥以提高每米贴图密度，降档时不还原会缺一块阴影。只在档位真的变化时干活；
- * 最后把档位写到 canvas 的 dataset（exportShadowQuality），让导出 / 离屏路径读到同一档位。
  */
 function setHighShadowQuality(isHighQuality) {
   const nextHighQuality = isHighQuality === true;
@@ -10834,8 +10072,6 @@ function setHighShadowQuality(isHighQuality) {
 }
 /**
  * 把请求的阴影贴图边长适配到本机 GPU 能力与当前画质档。非高画质档原样返回（实时预览优先保帧率）。
- * 高画质档至少给到 FALLBACK_MAX_TEXTURE_SIZE（1024 保底），但不能超过 GPU 的 maxTextureSize ——
- * 超了 WebGL 会创建失败、阴影整个消失，故用 min(设备上限, max(请求值, 保底值)) 双向夹紧。
  */
 function resolveShadowMapSize(requestedSize) {
   if (!isHighShadowQuality) {
@@ -10849,8 +10085,6 @@ function resolveShadowMapSize(requestedSize) {
 }
 /**
  * 把 baseLighting 的当前值回填到「基础照明」面板的各个输入框上（模型 → 视图）。整数档位
- * 控件（step === "5"）取整显示，免得出现 0.9999 这类显示噪声；只写值、不派发 input 事件，
- * 不会反向触发编辑回调。
  */
 function syncBaseLightControlInputs() {
   for (const controlInput of baseLightControlInputs) {
@@ -10864,8 +10098,6 @@ function syncBaseLightControlInputs() {
 }
 /**
  * 应用一份基础光配置：归一化 → 回填控件 → 重设灯光 → 失效渲染。先 normalizeBaseLighting
- * 再落库，保证缺字段 / 越界值不会进入运行时。是否要重算阴影贴图，取决于本次改动有没有触及
- * DEFAULT_BASE_LIGHTING 里的字段：只改曝光这类参数时不必重算，可省掉一次全场景重绘。
  */
 function applyBaseLightingSettings(lightingConfig) {
   const previousLighting = baseLighting;
@@ -10880,8 +10112,6 @@ function applyBaseLightingSettings(lightingConfig) {
 }
 /**
  * 打开基础光设置面板（必要时先回填一次文档里的配置）。挂载点跟着导出对话框走：对话框打开时面板必须挂进
- * 对话框内部，否则会落在遮罩之下点不到。面板尺寸随内容自适应，重建后可能落到窗口外，
- * 故按实测尺寸夹回可视区（8px 边距），与拖拽路径共用 shared/menu-positioning.js 的同一段算术。
  */
 function openBaseLightingPanel() {
   if (!studioDocument || !baseLightControlsElement) {
@@ -10909,10 +10139,6 @@ function openBaseLightingPanel() {
     });
   }
 }
-/**
- * 关闭基础光设置面板，并把未保存的手改回滚成文档里的值。这是刻意的「取消语义」：
- * 面板上的调整是即时的（所见即所得），不点保存就关闭等于放弃。
- */
 function closeBaseLightingPanel() {
   if (baseLightControlsElement) {
     if (studioDocument) {
@@ -10921,11 +10147,6 @@ function closeBaseLightingPanel() {
     baseLightControlsElement.hidden = true;
   }
 }
-/**
- * 保存基础光设置：写进文档 → 标记脏 → 通知自动化通道 → 立刻存草稿。这里不等 markDocumentDirty 排的
- * 650ms 防抖，因为同一份设置还要通过 postMessage 广播（type: "base-lighting-saved"），两边必须看到
- * 同一份数据；先落盘再广播可避免自动化侧读到旧值（随后的防抖计时器会因 revision 相等而空转）。
- */
 function saveBaseLighting() {
   if (!studioDocument) {
     return;
@@ -10939,7 +10160,6 @@ function saveBaseLighting() {
     lighting: normalizedLighting
   });
   // 不能用「调用过 saveStudioDraft」当成功：冲突挂着或请求失败时它并不会落盘，
-  // 那时弹「已保存」就是在骗用户。
   saveStudioDraft().then(baseLightingSaveOutcome => {
     if (baseLightingSaveOutcome === "saved") {
       showToast("基础光设置已保存，导图和自动化控件已同步。", "success");
@@ -10953,8 +10173,6 @@ function saveBaseLighting() {
 }
 /**
  * 处理基础光面板单个控件的输入事件。只接受面板上真实存在的键（controlKey in baseLighting），防止
- * dataset 写错时把脏字段塞进配置。解析失败用旧值兜底（finite 第二参数）：输入框清空的一瞬是空字符串，
- * 不能让配置变成 NaN。每次输入都 invalidateRender({shadows:true}) —— 光变了阴影必然要重算。
  */
 function handleBaseLightControlInput(editedControlInput) {
   const controlKey = editedControlInput.dataset.baseLightControl;
@@ -10971,8 +10189,6 @@ function handleBaseLightControlInput(editedControlInput) {
 }
 /**
  * 取当前该读哪一份相机设置。全景（所有楼层）模式下相机属于整份文档，存在
- * studioDocument.combinedCameraSettings；单层模式下则属于该楼层场景的 settings。两处字段
- * 结构相同，调用方（相机模式 / 视向 / 焦距）只认返回值，不关心来源。
  */
 function cameraSettingsSource() {
   if (currentPreviewFloorMode() === "all") {
@@ -10983,7 +10199,6 @@ function cameraSettingsSource() {
 }
 /**
  * 当前相机投影模式，只有透视与正交两种。用「是不是 perspective」来判断而非白名单校验
- * orthographic：老草稿缺字段或写着别的值时统一落到正交（户型图默认更接近正交投影）。
  */
 function currentCameraMode() {
   if (cameraSettingsSource()?.cameraMode === "perspective") {
@@ -10994,7 +10209,6 @@ function currentCameraMode() {
 }
 /**
  * 当前相机视向：顶视图或自由视角。只认 "top"，其余（包括缺字段的老草稿）一律按 "free"
- * 处理 —— 旧文档打开就是自由视角，不会突然被锁成正交俯视。
  */
 function currentCameraView() {
   if (cameraSettingsSource()?.cameraView === "top") {
@@ -11005,8 +10219,6 @@ function currentCameraView() {
 }
 /**
  * 顶视图当前的水平旋转角，归一化到 0/90/180/270 四档之一。先四舍五入到 90 的整数倍
- * （顶视图只允许直角转向，非直角会让正交投影下的墙线出现锯齿），再对负值补 360 取模两次，
- * 保证结果恒在 [0, 360)。缺失或非数字按 0 处理。
  */
 function currentTopRotationDeg() {
   return (
@@ -11016,8 +10228,6 @@ function currentTopRotationDeg() {
 }
 /**
  * 计算俯视图相机的「上方向」向量，使平面图按相机顶旋角在屏幕上摆正。相机在俯视时 up 取
- * (sin, 0, -cos)，等价于把世界 +Z 绕 Y 轴旋转 rotationDeg；默认取 currentTopRotationDeg()
- * 已对齐到 90° 整数倍的角度。由恢复 / 导出预设视角的路径调用。
  */
 function topViewUpVector(rotationDeg = currentTopRotationDeg()) {
   const rotationAngleRad = threeModuleMin.MathUtils.degToRad(rotationDeg);
@@ -11025,15 +10235,12 @@ function topViewUpVector(rotationDeg = currentTopRotationDeg()) {
 }
 /**
  * 当前相机焦距（毫米），夹在 18~120mm。下限 18mm 已是超广角，再短透视畸变大到没法看户型；
- * 上限 120mm 属长焦，超过只在拍局部特写时才有意义。缺字段 / 非数字用 50mm（接近人眼）兜底。
  */
 function currentFocalLength() {
   return clamp(finite(cameraSettingsSource()?.cameraFocalLength, 50), 18, 120);
 }
 /**
  * 收集当前真正生效的灯具（供光照计算与渲染开销估算使用）。只留两条都成立的灯：所在灯光
- * 分组没被关掉，且亮度 > 0。分组关闭或亮度归零的灯对画面没有贡献，算进去会虚高开销，
- * 让自适应画质策略误以为很卡而降档。
  */
 function collectActiveLights() {
   return collectPreviewLights()
@@ -11045,8 +10252,6 @@ function collectActiveLights() {
 }
 /**
  * 估算当前灯光配置的渲染开销，并给出本机预算。预览像素数优先取渲染画布的真实位图尺寸；画布未建好时
- * 用视口面积 × 0.32（预览区约占屏幕三分之一）兜底并保底 12 万像素，避免拿 0 去算预算。单灯开销与设备
- * 预算分别由 geometry.js 的 adaptiveLightRenderCost 与 adaptiveDeviceLightBudget 计算（后者读硬件并发与内存）。
  */
 function measureLightRenderCost() {
   const activeLights = collectActiveLights();
@@ -11072,11 +10277,6 @@ function measureLightRenderCost() {
     })
   };
 }
-/**
- * 重算自适应渲染状态：当前该不该用「光照缓存」替代实时光照。两处防抖 / 迟滞：hasAdaptiveRenderProbe 保证「第一次探测」
- * 只记录不判定，避免刚打开页面因首帧慢就降级；退出条件比进入苛刻得多（开销要低于预算×0.68 且低于历史峰值×0.55），
- * 否则会在阈值附近抖动。舞台只读模式固定开启；从开回到关时递增 lightCacheRevision 并让缓存失效。
- */
 function updateAdaptiveRenderState() {
   if (isStageViewerMode) {
     isAdaptiveRenderActive = true;
@@ -11111,8 +10311,6 @@ function updateAdaptiveRenderState() {
 }
 /**
  * 当前是否应该用「光照缓存」渲染：自适应已激活且画面不在动。分区灯开启时一律返回 false ——
- * 分区灯本身就是二维光照图，再叠一层缓存没有意义。环境动画（背景帧）、窗帘 / 吸尘器运动
- * 期间也返回 false，这些逐帧变化的内容用缓存只会看到卡住的残影。
  */
 function isAdaptiveLightCacheEnabled() {
   if (isRegionLightingEnabled) {
@@ -11130,8 +10328,6 @@ function isAdaptiveLightCacheEnabled() {
 }
 /**
  * 打开自适应渲染（切到光照缓存路径）。只有帧率评估确认「确实撑不住」（sufficient）时才允许开启且不重复开启。
- * 开启时把当前开销记为 adaptiveRenderCost 作为峰值基准（退出迟滞用），递增 lightCacheRevision 并置
- * needsLightCacheRefresh，让下一帧重新烘焙，最后按新档位重设渲染质量。
  */
 function enableAdaptiveRender(frameAssessment) {
   if (!isAdaptiveRenderActive && !!frameAssessment?.sufficient) {
@@ -11145,8 +10341,6 @@ function enableAdaptiveRender(frameAssessment) {
 }
 /**
  * 依据最近的帧间隔判断是否该降级到光照缓存。判据是「连续几帧慢」而非单帧：阈值随灯光开销与设备预算之
- * 比变化 —— 开销越接近 / 超过预算（比值 ≥1 甚至 ≥1.8），容忍的连续慢帧数越少（5 → 4 → 3），
- * 因为这类设备对抖动更敏感。severe 直接一把到阈值，避免用户先卡几秒才降级。
  */
 function assessFrameRateForAdaptive() {
   if (isAdaptiveRenderActive) {
@@ -11172,8 +10366,6 @@ function assessFrameRateForAdaptive() {
 }
 /**
  * 采集一帧的耗时样本（渲染循环每帧结束时调用）。只在「需要被度量的渲染」里采样：相机运动（或舞台播放动画）才关心帧率，
- * 导出渲染、已降级与场景无灯时都不采样。过滤 <8ms 的间隔（同一帧内多次回调），上限 120ms（舞台放宽到 2000ms），
- * 超过的截到 120ms。攒满 24 个样本评估一次并丢掉前 12 个（滑动窗口），避免总用同一批旧数据判定。
  */
 function sampleFrameInterval(frameTimestampMs = performance.now()) {
   if (
@@ -11202,15 +10394,12 @@ function sampleFrameInterval(frameTimestampMs = performance.now()) {
 }
 /**
  * 是否开启实时预览（关掉后需要手动点「更新」才刷新三维画面）。
- *
- * 兜底用 !== false：老草稿缺字段时默认开启实时预览，符合用户预期。
  */
 function isLivePreviewEnabled() {
   return activeScene.settings?.livePreviewEnabled !== false;
 }
 /**
  * 同步预览模式控件（实时 / 手动）与「更新」按钮状态。手动模式下按钮才显示，并用
- * isPreviewDirty 区分「已更新 / 待更新」两态 —— 画面没跟着变时需要明确提示该点更新了。
  */
 function syncPreviewControls() {
   const isLivePreview = isLivePreviewEnabled();
@@ -11225,10 +10414,6 @@ function syncPreviewControls() {
   refreshPreviewButton.classList.toggle("is-dirty", isPreviewDirty);
   refreshPreviewButton.textContent = isPreviewDirty ? "待更新 · 更新" : "已更新";
 }
-/**
- * 同步相机投影模式按钮的选中态，并联动焦距输入框。焦距只在透视相机下有意义，所以这里
- * 顺手把当前模式透传给 syncFocalLengthInputs，避免它再读一次设置。
- */
 function syncCameraModeButtons(cameraMode = currentCameraMode()) {
   for (const cameraModeButton of cameraModeButtons) {
     cameraModeButton.classList.toggle("active", cameraModeButton.dataset.cameraMode === cameraMode);
@@ -11237,7 +10422,6 @@ function syncCameraModeButtons(cameraMode = currentCameraMode()) {
 }
 /**
  * 同步「视角」工具栏的选中态：高亮当前视角按钮，并只在顶视图下启用顶旋按钮。active 类与
- * aria-pressed 同时维护（样式与读屏各取所需）；其余视角禁用顶旋按钮，避免用户误点后视角突变。
  */
 function syncCameraViewButtons(cameraView = currentCameraView()) {
   for (const cameraViewButton of cameraViewButtons) {
@@ -11251,8 +10435,6 @@ function syncCameraViewButtons(cameraView = currentCameraView()) {
 }
 /**
  * 把焦距回填到各处的焦距输入框，并按投影模式控制可用性。正交相机没有焦距概念，因此非透视
- * 模式下禁用输入框，并给外层 .camera-focal-control 加 is-disabled 一起置灰（含标签）。
- * 显示时取整，避免 23.999999 这类浮点尾数出现在输入框里。
  */
 function syncFocalLengthInputs(syncCameraMode = currentCameraMode()) {
   for (const focalLengthInputElement of cameraFocalLengthInputs) {
@@ -11265,19 +10447,12 @@ function syncFocalLengthInputs(syncCameraMode = currentCameraMode()) {
 }
 /**
  * 把焦距写进目标相机（仅透视相机有效）。这里再次 clamp 到 18~120：调用方可能直接把用户
- * 输入透传进来，越界焦距会让视锥走样（接近 0 甚至翻转画面）。正交相机静默跳过，
- * 好让调用点不必自己判断投影模式。
  */
 function applyFocalLength(targetCamera = previewCamera, focalLength = currentFocalLength()) {
   if (targetCamera?.isPerspectiveCamera) {
     targetCamera.setFocalLength(clamp(finite(focalLength, 50), 18, 120));
   }
 }
-/**
- * 按当前渲染档位调整控件可用性与状态提示。取舍点：走光照缓存时关掉聚光阴影图集（缓存里已不实时算光，
- * 图集白算），但舞台页与灯光过渡期间例外 —— 舞台要固定观感、过渡要正确的动态阴影。顶视图禁用轨道旋转，
- * 否则用户会把正交俯视转成斜视、平面感就没了。末尾清空质量状态提示，真正的统计由性能诊断面板负责。
- */
 function applyRenderQualityMode() {
   if (!orbitControls) {
     return;
@@ -11295,11 +10470,6 @@ function applyRenderQualityMode() {
     previewQualityStatusElement.textContent = "";
   }
 }
-/**
- * 计算当前该用的渲染像素比（devicePixelRatio 乘各档位缩放系数）。常规上限 1.6 倍（再高画布像素增长快、肉眼收益极小）；
- * 运动渲染上限压到 1.0，帧率优先。舞台 + 运动渲染还叠 motionRenderScale，但只在非用户主动转镜头时生效。分区光照模式
- * 按灯数 / 设备预算自适应：超预算就乘 sqrt(预算 / 开销)，再乘 0.85 并夹在 0.5~0.85。
- */
 function targetPixelRatio(isMotionRender = false) {
   if (
     isStageViewerMode &&
@@ -11333,11 +10503,6 @@ function targetPixelRatio(isMotionRender = false) {
   return adaptivePixelRatio;
 }
 const LIGHT_FADE_DURATION_MS = 150;
-/**
- * 请求下一帧重绘（按需渲染的统一入口）。同时置 needsRender 并清掉 hasRenderedFrame：后者表示「当前画面
- * 仍有效」，不清掉的话按需循环会认为无需重绘而跳过本次请求。真正唤起渲染的是 demandFrameLoop，它可能
- * 当前没有排队的 rAF，因此必须显式 wake()，否则这次请求会被静默吞掉。
- */
 function requestRenderFrame() {
   needsRender = true;
   hasRenderedFrame = false;
@@ -11345,8 +10510,6 @@ function requestRenderFrame() {
 }
 /**
  * 显示 / 隐藏光照缓存图层。舞台模式下缓存图层与实时画布是叠着的两层，显示缓存时必须把
- * 实时画布 opacity 归零 —— 缓存里已经烘焙了实时的光，两层同时可见会亮度翻倍形成重影。
- * 非舞台模式只有平面预览用到这层缓存，直接切 hidden 即可。
  */
 function setLightCacheVisible(shouldShowLightCache) {
   lightCacheCanvasElement.hidden = !shouldShowLightCache;
@@ -11356,8 +10519,6 @@ function setLightCacheVisible(shouldShowLightCache) {
 }
 /**
  * 判断当前是否还有「渲染相关」的异步工作没落地，供光照缓存烘焙前的准入检查使用。覆盖外部
- * 模型加载 / 排队、预编译待执行、预编译渲染定时器未触发、场景更新已排队。任何一项为真都说明
- * 画面马上还要变，此时烘缓存只会烘出一张立刻作废的图，应改期而不是硬烘。
  */
 function hasPendingRenderWork() {
   const modelLoadState = externalModelManager.modelLoadState();
@@ -11370,11 +10531,6 @@ function hasPendingRenderWork() {
   );
 }
 let activeCacheWriteHandle = null;
-/**
- * 把离屏画布写进持久化光照缓存，并挑合适时机落盘。时机分三级：先等一帧 rAF，再等 180ms（用户常在这段时间继续操作），
- * 最后交给 requestIdleCallback（空闲期写盘不抢渲染）。任何「用户马上要改画面」的信号都会取消写盘：pagehide、捕获阶段
- * pointerdown / wheel，以及 OrbitControls 的 start/change。取消时把画布尺寸清零回收显存；入口先取消上一个未完成的写入。
- */
 function scheduleCacheWrite(cacheKey, cacheCanvas, isStillValid) {
   activeCacheWriteHandle?.cancel();
   const orbitControlsHandle = orbitControls;
@@ -11391,8 +10547,6 @@ function scheduleCacheWrite(cacheKey, cacheCanvas, isStillValid) {
   const canCommitWrite = () => !writeHandle.cancelled && isStillValid();
   /**
    * 取消本次缓存写入：解绑全部监听、清空离屏画布并置取消标记。
-   *
-   * 幂等，因此可以直接当作各事件回调注册（多个触发源谁先到都行）。
    */
   const cancelCacheWrite = () => {
     writeHandle.cancelled = true;
@@ -11430,8 +10584,6 @@ function scheduleCacheWrite(cacheKey, cacheCanvas, isStillValid) {
     });
   /**
    * 真正执行写盘（由空闲回调触发），无论成败都收尾清理。用 Promise.resolve().then 把写盘推到
-   * 微任务末端，避免在空闲回调里同步做重活阻塞当帧；进入写盘前后都查一次 canCommitWrite，
-   * 因为从拿到回调到真正执行之间用户完全可能已经开始新交互。
    */
   const runCacheWrite = () => {
     writeHandle.idle = null;
@@ -11487,11 +10639,6 @@ function scheduleCacheWrite(cacheKey, cacheCanvas, isStillValid) {
     logCacheWriteError(cacheWriteFailure);
   }
 }
-/**
- * 烘焙「静止画面」光照缓存：把当前实时渲染结果拷进缓存图层。开头一长串条件判断「现在能不能折腾」—— 帧循环不可用、缓存关闭、
- * 渲染器缺失、导出 / 相机运动 / 灯光过渡 / 窗帘或扫地机在动、背景帧可见等，任一为真就放弃；仍有未完成的渲染工作则改 120ms
- * 后重试；isSettleValid 会在取值与 await 之间复验条件。取不到持久化缓存时就地渲染一帧充当缓存，成功交 scheduleCacheWrite 落盘。
- */
 async function settleStageLightCache() {
   lightCacheSettleTimer = null;
   if (
@@ -11528,8 +10675,6 @@ async function settleStageLightCache() {
   const settleCacheRevision = lightCacheRevision;
   /**
    * 复验「本次缓存烘焙是否仍然有效」。与函数开头的准入条件同源，但额外要求
-   * lightCacheRevision 未变 —— 期间只要有人 invalidateRender 过，烘出来的就已经是旧画面。
-   * 它会被传进异步 API（acquire / scheduleCacheWrite），让它们自己中途放弃。
    */
   const isSettleValid = () =>
     isFrameLoopAvailable &&
@@ -11635,8 +10780,6 @@ async function settleStageLightCache() {
 }
 /**
  * 按各灯光分组的当前亮度，把分组画布合成为一张光照缓存图。只在缓存图层可见时合成（hidden 说明走实时
- * 渲染，合成了也没人看）。分组画布用非预乘 alpha 叠画，alpha 取 0~1 的分组亮度；亮度 ≤0.001 直接跳过
- * —— 这是视觉上已完全熄灭的阈值，画它只白搭一次 drawImage 与状态切换。save/restore 成对出现防 alpha 泄漏。
  */
 function compositeLightCache() {
   if (!isLightCacheReady || lightCacheCanvasElement.hidden) {
@@ -11656,11 +10799,6 @@ function compositeLightCache() {
     }
   }
 }
-/**
- * 让若干灯光分组的光照在 durationMs 内平滑淡入 / 淡出（只改缓存图层的合成亮度），不碰真实灯光强度：开关分组是高频操作，
- * 重建整张光照缓存太贵，改 alpha 是近似但零成本的替代。起始亮度取当前合成值（可能停在半途），缺失时按分组当前开关状态
- * 兜底。缓存未就绪时直接跳到目标亮度并排一次构建。缓动用 smoothstep（3t²-2t³），两端导数为 0、起止不生硬。
- */
 function fadeLightGroups(groupIds, durationMs = LIGHT_FADE_DURATION_MS) {
   const targetGroupIds = [...new Set(groupIds)].filter(Boolean);
   if (!targetGroupIds.length) {
@@ -11720,11 +10858,6 @@ function findLightGroup(lightGroupIdParam) {
     ) || null
   );
 }
-/**
- * 把指定灯光分组的灯具强度平滑过渡到目标值（开灯到 lightOnIntensity，关灯到 0）。与 fadeLightGroups 的区别：那条走缓存
- * 图层 alpha 淡变，这条直接改灯对象 intensity，用于关闭自适应光照缓存（或导出渲染中）仍需过渡的场合。shouldForceLightOff
- * 在自适应缓存开启且非导出时强制目标为 0 —— 否则灯具造型（烘焙图）与实时灯会重影。目标强度 > 0 的灯先 visible 再渐亮。
- */
 function transitionLightGroups(transitionGroupIds, transitionDurationMs = LIGHT_FADE_DURATION_MS) {
   if (!previewModelRoot) {
     return false;
@@ -11801,11 +10934,6 @@ function transitionLightGroups(transitionGroupIds, transitionDurationMs = LIGHT_
   sceneTransitionFrame = requestAnimationFrame(stepLightTransition);
   return true;
 }
-/**
- * 应用「哪些灯光分组处于启用状态」的选择，并同步所有相关视图。先去重再剔除空值，防止 undefined 造出永远找不到的分组。
- * 渲染分支二选一：自适应光照缓存开启且非导出时走 fadeLightGroups（改缓存图层 alpha，最平滑且不必重烘）；否则先试
- * transitionLightGroups（直接改灯强度），返回 false 再退回整层灯光刷新。后续刷新覆盖分组列表、属性面板、平面图与渲染质量。
- */
 function updateLightGroupsEnabled(enabledGroupIds) {
   const enabledGroupIdList = [...new Set(enabledGroupIds)].filter(Boolean);
   if (isAdaptiveLightCacheEnabled() && !exportRenderState) {
@@ -11822,11 +10950,6 @@ function updateLightGroupsEnabled(enabledGroupIds) {
   applyRenderQualityMode();
   scheduleLightPrecompile();
 }
-/**
- * 标记渲染结果失效，并按需安排重算（场景 / 阴影 / 光照缓存）。options.shadows 为真时把所有投影灯的 shadow.needsUpdate
- * 打开（阴影贴图默认只在灯动过时重算）。options.preserveLightCache 是「马上要重建灯光模型」的专用通道：只排一次构建、
- * 不递增 revision。常规路径：缓存开 → 递增 revision、打脏、必要时隐藏缓存图层并重排构建；缓存关 → 丢弃缓存回实时渲染。
- */
 function invalidateRender(options = {}) {
   if (isStageViewerMode && (options.scene === true || options.shadows === true)) {
     sceneCacheRevision++;
@@ -11872,11 +10995,6 @@ function invalidateRender(options = {}) {
     }
   }
 }
-/**
- * 重建灯光模型，同时保住已有的光照缓存不被判失效。靠模块级开关 isPreservingLightCache，让重建过程中触发的 invalidateRender
- * 走「保留缓存」分支（只排构建、不递增 revision）。用 try/finally 复位开关：中途抛错若忘复位，后续所有失效都会错误地保留
- * 缓存、画面停在旧光照上。全景与单层模式分别走 refreshPreviewScene 与 refreshLightsLayer。
- */
 function rebuildLightModelsPreservingCache() {
   isPreservingLightCache = true;
   try {
@@ -11893,11 +11011,6 @@ function rebuildLightModelsPreservingCache() {
     isPreservingLightCache = false;
   }
 }
-/**
- * 遍历预览模型，把所有灯具对象按「楼层 + 灯具 item」分组收集成 Map。key 由 floorItemKey(楼层 ID, 灯具 ID)
- * 生成，因此总览模式下不同楼层的同 ID 灯具不会互相覆盖；value 是该灯具下的若干 THREE.Light 对象（一个造型
- * 可能含多盏灯，如主灯 + 补光）。被 ensureLightModels / 缓存烘焙等需要按灯具开关光的路径调用。
- */
 function collectLightsByItemKey() {
   const lightsByItemKey = new Map();
   previewModelRoot?.traverse(lightObject => {
@@ -11913,11 +11026,6 @@ function collectLightsByItemKey() {
   });
   return lightsByItemKey;
 }
-/**
- * 确保每个待渲染灯都有对应的 three.js 灯光模型，返回按键索引的映射。快速路径：全部命中直接返回，不做任何重建 —— 每帧都会
- * 走到这里。舞台模式只补缺失的几个（addMissingLightModels），整层重建会打断播放观感；普通编辑模式整层重建并保留缓存。
- * 重建期间临时置 forcedVisibleLightIds 让新建的灯先强制可见、建完再按分组收敛，否则会因判定时序漏掉首次渲染。
- */
 function ensureLightModels(previewLights) {
   let lightsByKey = collectLightsByItemKey();
   if (previewLights.every(lightEntry => lightsByKey.has(lightEntry.itemKey))) {
@@ -11937,11 +11045,6 @@ function ensureLightModels(previewLights) {
   lightsByKey = collectLightsByItemKey();
   return lightsByKey;
 }
-/**
- * 为「还没有 3D 灯模型」的灯具补建模型，并登记进 missingLightsByKey。建模要用到「该灯具所属楼层」的坐标体系（像素/米、
- * 楼层原点、floorBounds），故循环里临时把 activeScene / activeFloorId 指向目标楼层，并在 finally 里无条件还原 —— 中途
- * continue 或抛错都不能把全局状态留在别的楼层。原点口径：总览模式用楼层 originX/originY，单层模式用当前楼层 bounds 中心。
- */
 function addMissingLightModels(missingPreviewLights, missingLightsByKey) {
   const previousActiveScene = activeScene;
   const previousActiveFloorId = activeFloorId;
@@ -12015,11 +11118,6 @@ function addMissingLightModels(missingPreviewLights, missingLightsByKey) {
   });
   return missingLightsByKey;
 }
-/**
- * 只点亮指定 itemKey 的那一盏灯、其余全灭 —— 差分烘焙的核心开关（传空串即全灭，用于先取无灯基准帧）。熄灭不只是
- * visible=false，还要 intensity 归零并关掉聚光灯 castShadow：图集模式下 three.js 仍会为 castShadow 的灯占阴影位，
- * 不关会把别人家的阴影烘进这一盏的差分里。点亮时若 shadow.map 为空则补 needsUpdate 强制首帧出影。
- */
 function setLightModelVisibility(modelLightsByItemKey, visibleItemKey = "") {
   for (const [visibleLightItemKey, visibleLightObjects] of modelLightsByItemKey) {
     const isLightVisible = visibleLightItemKey === visibleItemKey;
@@ -12040,8 +11138,6 @@ function setLightModelVisibility(modelLightsByItemKey, visibleItemKey = "") {
 }
 /**
  * 取当前「生效中」灯具的物件键集合（分组开启且亮度大于 0）。与 collectActiveLights 的
- * 判定口径一致，只是这里只要键。交给 applyLightVisibility 用 Set 做包含判断，把逐盏灯
- * 两两比对的 O(n²) 降到 O(n) —— 灯多时这个差别很明显。
  */
 function activeLightItemKeys() {
   return new Set(
@@ -12056,8 +11152,6 @@ function activeLightItemKeys() {
 }
 /**
  * 按「当前生效的灯」批量设置可见性（缓存烘焙结束后的还原用）。与 setLightModelVisibility 的区别：
- * 这里保留每盏灯各自的分组 / 亮度判定，而不是只点亮一盏。聚光灯 castShadow 统一置 false —— 还原后阴影
- * 归属由 applyShadowBudget 重新分配，此刻留着只会先算一遍马上要被推翻的阴影。
  */
 function applyLightVisibility(visibilityLightsByItemKey) {
   const activeLightKeys = activeLightItemKeys();
@@ -12077,8 +11171,6 @@ function applyLightVisibility(visibilityLightsByItemKey) {
 }
 /**
  * 把当前画面（含光照缓存图层）拷进遮挡画布，遮住缓存烘焙过程的中间态。烘焙要逐灯渲染并读回像素，实时画布会短暂处于
- * 「只有一盏灯亮」的状态，遮挡层在烘焙前先拍下当前画面盖住它。舞台模式下先把过渡与透明度设成「立刻显示」，免得上一次
- * 淡出未结束导致遮挡图半透明。缓存图层正在显示时要把缓存一起画上去，否则遮挡图是「灯全灭」版本、反而更吓人。
  */
 function drawRenderShield() {
   if (!previewRenderShieldElement || !renderer?.domElement) {
@@ -12129,8 +11221,6 @@ function drawRenderShield() {
 }
 /**
  * 隐藏渲染遮挡层；舞台模式下可选择 180ms 淡出。硬切换会让人觉得画面「跳」了一下，故舞台模式在有缓存结果时
- * 走淡出；180ms 与灯光淡入淡出（150ms）同量级，观感统一又不拖沓。淡出结束后立刻把 transition/opacity 复位，
- * 否则下一次 drawRenderShield 想「立即显示」时会被残留过渡拖慢、遮不住中间态。
  */
 function hideRenderShield({ smooth: isSmooth = false } = {}) {
   if (previewRenderShieldElement) {
@@ -12156,8 +11246,6 @@ function hideRenderShield({ smooth: isSmooth = false } = {}) {
 }
 /**
  * 等待画面真正绘制上屏，用于「挡住画布 → 渲染 → 读像素」的预览取图流程。先调用
- * drawRenderShield() 铺上遮罩（否则用户会看到一帧裸场景，也可能读到中间态），再等两次
- * requestAnimationFrame：第二次才确保上一帧结果已提交到合成器，只等一次常读到旧内容。
  */
 function nextPaint() {
   drawRenderShield();
@@ -12165,11 +11253,6 @@ function nextPaint() {
     requestAnimationFrame(() => requestAnimationFrame(resolvePaint))
   );
 }
-/**
- * 把渲染画布缩放到指定尺寸并读回像素（缓存烘焙的取数手段）。用独立离屏画布 + drawImage 缩放，而不是直接读 WebGL 画布：
- * 渲染器创建时可能没开 preserveDrawingBuffer，直接 getImageData 会拿到空数据。willReadFrequently 提示浏览器改用 CPU
- * 后备缓冲，省掉每次读回触发的 GPU→CPU 同步 —— 烘焙时每盏灯都要读一次，开销很显眼。
- */
 function readCanvasPixels(readbackWidthPx, readbackHeightPx) {
   const readbackCanvas = document.createElement("canvas");
   readbackCanvas.width = readbackWidthPx;
@@ -12185,19 +11268,12 @@ function readCanvasPixels(readbackWidthPx, readbackHeightPx) {
 }
 /**
  * 连续渲染 3 帧预览场景，让延迟生效的渲染效果（阴影图集分配、后处理）收敛后再读像素。
- * 次数写死为 3 是实测经验：第 1 帧只完成常规绘制，阴影贴图等往往第 2 帧才真正落到 GPU，
- * 第 3 帧用于兜底；再多画纯属浪费（本函数在烘焙循环里被反复调用）。
  */
 function renderPreviewFrames() {
   for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
     renderer.render(previewOverlayScene, previewCamera);
   }
 }
-/**
- * 安排一次延迟的光照缓存烘焙（防抖合并，默认 420ms）。420ms 给「相机停稳 / 改完场景后手还在点」留出沉降时间，稳定性部分
- * 由 isSettleValid 在执行时复验。准入条件全部为真才排队：舞台模式下帧循环可用或渲染器未销毁，且没有导出、相机运动、
- * 运动渲染、灯光过渡等会改变画面的活动。每次先 clearTimeout；触发时若外部模型仍在加载，改以 240ms 重排。
- */
 function scheduleLightCacheBuild(settleDelayMs = 420) {
   if (
     (!isStageViewerMode || !!isFrameLoopAvailable) &&
@@ -12224,11 +11300,6 @@ function scheduleLightCacheBuild(settleDelayMs = 420) {
     }, settleDelayMs);
   }
 }
-/**
- * 立刻把光照缓存标记为脏并尽快重建（不做防抖延迟）。与 invalidateRender 内部排期路径的差别是延迟为 0，用在
- * 「明确知道缓存已过时、需要马上补上」的场合。正在构建时不重复排期 —— 构建的 finally 会按
- * needsLightCacheRefresh 自行重排，重复排只会造成两次烘焙。
- */
 function invalidateLightCacheSoon() {
   if (!!isAdaptiveLightCacheEnabled() && !exportRenderState && !isLightCacheBuilding) {
     needsLightCacheRefresh = true;
@@ -12236,11 +11307,6 @@ function invalidateLightCacheSoon() {
     applyRenderQualityMode();
   }
 }
-/**
- * 构建光照缓存：逐灯隔离渲染 → 求与基线之差 → 按分组累加成光照图层（舞台模式交给 settleStageLightCache）。核心是差分
- * 烘焙：先全灭记基线像素，再逐盏点亮渲染一帧，由 buildLightDeltaPixels 只保留该灯造成的变化，于是分组画布能像图层一样
- * 按亮度叠加，开关某组只要改合成 alpha。每盏灯处理后让出主线程并复验 revision；烘焙期间临时隐藏网格以免污染差分。
- */
 async function buildLightCache() {
   if (isStageViewerMode) {
     return settleStageLightCache();
@@ -12403,7 +11469,6 @@ async function buildLightCache() {
     window.HABridgeLog?.error(lightCacheBuildError, {
       phase: "studio-light-cache"
     });
-    // 上面已经上报过一份；这里只在 ?debug=1 时补一份到控制台，避免生产里同一错误响两遍。
     debugLog("error", lightCacheBuildError);
     isLightCacheReady = !lightCacheCanvasElement.hidden;
   } finally {
@@ -12432,11 +11497,6 @@ async function buildLightCache() {
     }
   }
 }
-/**
- * 进入「导出渲染」状态：暂停一切会改动画面的异步工作，把画布交给导出流程独占。三步都必要：清掉 sceneUpdateTimer 防止
- * 导出中场景被重建；置 isExportRendering 让 scheduleLightCacheBuild / 帧循环的准入判断全部失效；若正在烘焙缓存，自增
- * lightCacheRevision 让在飞的烘焙放弃并记下 needsLightCacheRefresh 以便导出结束后补烘。与 finishExportRender 成对使用。
- */
 function beginExportRender() {
   window.clearTimeout(sceneUpdateTimer);
   sceneUpdateTimer = null;
@@ -12448,11 +11508,6 @@ function beginExportRender() {
     needsLightCacheRefresh = true;
   }
 }
-/**
- * 退出「导出渲染」状态：延迟 120ms 后再恢复预览态的常规更新。延后是刻意的：导出最后一帧
- * 可能刚提交给合成器，立刻切回预览尺寸会闪一帧旧画面。延迟窗口内若又重新进入导出
- * （beginExportRender），定时器会被清掉，等于把这次恢复合并掉。
- */
 function endExportRender() {
   window.clearTimeout(sceneUpdateTimer);
   sceneUpdateTimer = window.setTimeout(() => {
@@ -12478,8 +11533,6 @@ function endExportRender() {
 }
 /**
  * 把渲染器像素比调整到当前模式（预览 / 导出、运动 / 静止）应使用的值。相机运动期间降采样是
- * 主要的性能取舍：像素比一降，光照缓存仍可复用（preserveLightCache: true），因为缓存与最终
- * 分辨率无关。只有新旧比值差超过 1e-6 才真正调 setPixelRatio，避免无谓重建 framebuffer。
  */
 function updateRenderPixelRatio(
   shouldUseMotionRatio,
@@ -12498,11 +11551,6 @@ function updateRenderPixelRatio(
     preserveLightCache: preserveLightCache
   });
 }
-/**
- * 相机开始运动（OrbitControls 的 "start" 事件）时切入「运动态」。运动期间降像素比 / 调渲染质量由 applyRenderQualityMode
- * 统一决定，目的是保住交互帧率；同时清掉上次松手后排的「恢复高像素比」定时器，否则它会在拖动中途把画质抬回去。
- * hasCameraMotionMoved 与帧耗时样本一并重置，用于判断这次交互是否真要触发保帧策略，以及重新统计运动期间帧率。
- */
 function startCameraMotion() {
   window.clearTimeout(pixelRatioRestoreTimer);
   pixelRatioRestoreTimer = null;
@@ -12514,8 +11562,6 @@ function startCameraMotion() {
 }
 /**
  * 相机首次真正移动时的一次性降采样：切到运动像素比并保留光照缓存。用
- * hasCameraMotionMoved 保证只执行一次 —— 拖动过程中每帧都会走到这里，
- * 但分辨率只需在第一次移动时降下来。
  */
 function handleCameraMotionMoved() {
   if (!hasCameraMotionMoved) {
@@ -12528,8 +11574,6 @@ function handleCameraMotionMoved() {
 }
 /**
  * 相机交互结束：恢复静止画质，并延迟 140ms 把像素比切回高分辨率。若本次交互相机压根没动
- * （hasCameraMotionMoved 为 false），只补一次导出档位的变更标记并直接返回，不触发分辨率
- * 来回切换。延迟 140ms 是给阻尼留余量，避免刚松手又立刻拖拽导致反复重建 framebuffer。
  */
 function finishCameraMotion() {
   const hasCameraMoved = hasCameraMotionMoved;
@@ -12557,8 +11601,6 @@ function finishCameraMotion() {
 }
 /**
  * 刷新导出侧栏里与「视角」相关的控件可见性与文案（单层视角 / 全楼总览两套）。两种模式互斥：单层模式显示楼层视角操作、
- * 总览模式显示总览操作，而总览操作与层间距 / 对齐控件只有楼层数 > 1 时才有意义。「恢复视角」与「保存视角」的文案、
- * tooltip 与 disabled 均按当前模式切换，未保存过视角时禁用恢复。由楼层切换、导出面板打开、视角保存等路径调用。
  */
 function syncCameraViewControls() {
   const hasMultipleFloors = (studioDocument?.floors.length || 0) > 1;
@@ -12589,8 +11631,6 @@ function syncCameraViewControls() {
 }
 /**
  * 取当前模式下已保存的固定相机视角快照。总览模式读文档级的 combinedFixedCameraView，
- * 单层模式读该楼层的 settings.fixedCameraView。「固定视角」是导出用的取景书签，
- * 与用户当前所在的实时视角无关。
  */
 function savedCameraView() {
   if (currentPreviewFloorMode() === "all") {
@@ -12599,11 +11639,6 @@ function savedCameraView() {
     return activeScene.settings?.fixedCameraView;
   }
 }
-/**
- * 把一份相机快照写入当前预览模式对应的存储位置。总览模式存到 studioDocument.combinedFixedCameraView（跨楼层
- * 共享一份），单层模式存到 activeScene.settings.fixedCameraView（每层各存一份），分开正是为了让「切换楼层」
- * 不互相覆盖已保存视角。与读取侧 savedCameraView() 必须成对改动。只写内存，落盘由调用方负责。
- */
 function storeCameraView(cameraViewSnapshot) {
   if (currentPreviewFloorMode() === "all") {
     studioDocument.combinedFixedCameraView = cameraViewSnapshot;
@@ -12611,11 +11646,6 @@ function storeCameraView(cameraViewSnapshot) {
     activeScene.settings.fixedCameraView = cameraViewSnapshot;
   }
 }
-/**
- * 创建并深度定制预览相机的 OrbitControls。参数：dampingFactor 0.22 与 rotateSmoothing 8 让拖拽有惯性但不飘；
- * min/maxDistance 2~100、min/maxZoom 0.35~6 限定相机距离（米）与正交缩放；target 初始 y=0.6m 约为室内视线高度。
- * 重写 update() 是为：俯视图下保留 up、钳制极角区间、到限时清零旋转增量（防松手弹走），并用 constrainCameraPosition 拉回可行区域。
- */
 function createOrbitControls(orbitCamera) {
   const orbitControlsInstance = new OrbitControls(orbitCamera, renderer.domElement);
   orbitControlsInstance.enableDamping = true;
@@ -12703,11 +11733,6 @@ function createOrbitControls(orbitCamera) {
 const MIN_CAMERA_NEAR = 0.02;
 const MAX_CAMERA_NEAR = 0.32;
 const CAMERA_NEAR_DISTANCE_RATIO = 0.006;
-/**
- * 按相机到目标的距离动态调整近 / 远裁剪面，既不 z-fighting 又不切掉模型。near 与距离成正比（比例 0.006）并夹在 0.02~0.32：
- * 太小远处深度精度急剧衰减，太大又会切掉贴近相机的物体。正交相机固定 0.02。far 取距离的 5~8 倍（正交 5、透视 8）并保底
- * 100。变化量小于阈值就不重算投影矩阵，因为本函数挂在 change 事件上、每次移动都会调用，无谓重算会让拖动明显变卡。
- */
 function updateCameraClipPlanes(clipCamera = previewCamera, clipTarget = orbitControls?.target) {
   if (!clipCamera || !clipTarget) {
     return false;
@@ -12731,7 +11756,6 @@ function updateCameraClipPlanes(clipCamera = previewCamera, clipTarget = orbitCo
 }
 /**
  * 量出相机在目标距离处的可视高度（米），用于在透视 / 正交之间保持构图一致。正交相机取上下
- * 边界之差除以 zoom；透视相机用距离 × 2tan(fov/2)。换算不出时返回 10，保证调用方拿到正数。
  */
 function measureVisibleHeight(frameCamera, frameTarget) {
   if (frameCamera?.isOrthographicCamera) {
@@ -12748,8 +11772,6 @@ function measureVisibleHeight(frameCamera, frameTarget) {
 }
 /**
  * 把当前相机状态存成「固定视角」书签并立即落盘。快照覆盖恢复所需的一切：投影方式、视角标识、顶旋角、位置与 target、
- * 正交下的 visibleHeight、透视下的 fov 与焦距。非导出状态下先 pushHistorySnapshot 使保存可撤销，导出状态跳过历史快照。
- * fov 在正交时填 36、focalLength 填 null 只为让快照结构统一。收尾必须 syncCameraViewControls()（按钮可能要从禁用变可用）。
  */
 async function saveCurrentCameraView() {
   if (!previewCamera || !orbitControls) {
@@ -12806,11 +11828,6 @@ async function saveCurrentCameraView() {
     showToast(viewLabel + "已记录，正在保存…");
   }
 }
-/**
- * 恢复已保存机位，并可选记录历史与提示。先比对模式 / 视角 / 顶视旋转 / 焦距是否变化，任一
- * 变化且允许记录时才打历史快照。正交与透视分别用 applyOrthographicFrame / applyFocalLength
- * 还原构图；焦距为 null 时回退到保存的 fov，并把它反推成焦距写回相机设置。
- */
 function restoreStoredCameraView(restoreViewOptions = {}) {
   const storedView = savedCameraView();
   if (!storedView || !previewCamera || !orbitControls) {
@@ -12896,8 +11913,6 @@ function restoreStoredCameraView(restoreViewOptions = {}) {
 }
 /**
  * 切换相机视角（free / top），必要时重排相机位置。顶视图把相机抬到目标上方（透视按可视高度
- * 反推高度，正交沿用原距离），并用 topViewUpVector 固定屏幕上方向。已处于目标视角且非 force
- * 时直接返回，避免重复重置打断用户的缩放 / 平移。
  */
 function applyCameraView(requestedView, viewRequestOptions = {}) {
   const normalizedView = requestedView === "top" ? "top" : "free";
@@ -12951,11 +11966,6 @@ function applyCameraView(requestedView, viewRequestOptions = {}) {
   applyRenderQualityMode();
   orbitControls.update();
 }
-/**
- * 在透视与正交相机之间切换（会重建相机与 OrbitControls）。three.js 无法在两种投影间复用同一相机对象，故需按当前构图反推
- * 新相机位置：preserveView 时保持可视高度，否则沿用原距离。视图纵横比取自 userData，没有则按预览容器实时计算。重建后用
- * 同一 orbitTarget 与 up 还原朝向，最后按需立刻 update（交互舞台可推迟，避免布局未定时的跳变）。
- */
 function applyCameraMode(requestedMode, modeOptions = {}) {
   const normalizedMode = requestedMode === "perspective" ? "perspective" : "orthographic";
   syncCameraModeButtons(normalizedMode);
@@ -13023,22 +12033,10 @@ function applyCameraMode(requestedMode, modeOptions = {}) {
 }
 /**
  * 判断这次初始化失败是不是「创建 WebGL 上下文」失败。
- *
- * 只有这一种失败值得重试：GPU 进程刚重启、或显存一时腾不出来时，隔一下再建通常就成了。
- * three.js 建不出上下文时抛的就是这两句文案（见 WebGLRenderer 里 getContext 的两个分支，
- * 带了 attributes 的那个会多一句 "with your selected attributes"），按文案判定即可 ——
- * 别把初始化前半段抛的 ReferenceError 也当成可重试，那种重试多少次都一样。
  */
 function isWebglContextCreationFailure(stageInitError) {
   return /Error creating WebGL context/.test(String(stageInitError?.message || ""));
 }
-/**
- * 初始化 3D 舞台：渲染器、相机、灯光、控制器与按需帧循环，顺序不可随意调整：建 WebGLRenderer（antialias + alpha，sRGB 输出），
- * VSM 阴影与区域光照互斥；相机 / 控制器 / 性能诊断并挂 overviewStackController 与三选一的阴影实现（contactShadow /
- * regionLight / spotShadowAtlas）；renderFrame 是唯一出帧函数（按需渲染、帧耗时采样）；整段包在 try 中，失败显示 #webgl-message，
- * 「建 WebGL 上下文失败」还会隔 1 秒重试一次（isRetry 标记重试那一轮，用来保证一次故障只记一条日志）；
- * 渲染器始终没建起来时抛错给调用方 —— 这一页没有渲染器等于什么都没有。
- */
 async function initializeStudioStage({ isRetry = false } = {}) {
   const stageContainer = selectElement("#preview-3d");
   try {
@@ -13206,7 +12204,6 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     let lastMotionFrameTimeMs = -Infinity;
     /**
      * 单帧渲染回调：按需出帧、采样帧耗时并上报渲染统计。返回值是下一次调度的延迟毫秒数：
-     * Infinity 表示当前没有工作、交给外部唤醒；0 表示仍需继续出帧（如相机运动中）。
      */
     const renderFrame = (rafTimestampMs = performance.now()) => {
       if (!renderer) {
@@ -13273,11 +12270,6 @@ async function initializeStudioStage({ isRetry = false } = {}) {
           lightCacheSettleTimer = null;
         }
       };
-      /**
-       * 响应父页面传来的可见性控制（hb-i3d-parent-visibility 自定义事件）。嵌入式舞台里 document.hidden 未必反映
-       * 真实可见性，故由父页面显式通知。不可见时必须停掉按需帧循环并清掉光照缓存定时器 —— 否则隐藏页面仍在后台
-       * 渲染，白白耗电发热。恢复可见时若期间有灯被标记为需要重新预编译，就补一次，避免回前台首帧卡顿。
-       */
       const handleParentVisibilityChange = visibilityEvent => {
         isFrameLoopAvailable = visibilityEvent.detail === true;
         syncFrameLoopAvailability();
@@ -13338,9 +12330,6 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     }
   } catch (webglInitError) {
     // 建不出上下文先重试一次（只一次）：GPU 进程刚重启、或显存一时腾不出来时（macOS 上
-    // 不罕见），隔 1 秒再建通常就成了，而这一页没有渲染器等于什么都没有，等这 1 秒划算。
-    // 重试那一轮不再重试，也不在这里记日志 —— 日志与兜底文案统一由「最终失败」那一次写，
-    // 否则一次故障会留下两条一模一样的记录，事后分不清是真的失败了两次还是只重试过。
     if (!renderer && !isRetry && isWebglContextCreationFailure(webglInitError)) {
       await new Promise(resolveStageRetry => window.setTimeout(resolveStageRetry, 1000));
       await initializeStudioStage({
@@ -13352,15 +12341,8 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     window.HABridgeLog?.error(webglInitError, {
       phase: "studio-webgl-init"
     });
-    // 失败本身已经写在 #webgl-message 与 HABridgeLog 里，控制台这份只在 ?debug=1 时出现。
     debugLog("error", webglInitError);
     // 渲染器根本没建起来时这一页后面每一步都直接用 renderer，继续往下跑只会以
-    // 「Cannot read properties of null (reading 'debug')」的 TypeError 在宿主里爆掉 ——
-    // 用户看到一句看不懂的报错，也没有重试入口。抛给 initializeStudio 的 catch 分流：
-    // 舞台模式 postMessage 给宿主的 error 通道（走 handleStageLoadError，显示可重试的错误
-    // 界面），编辑模式走 Toast。
-    // 渲染器已建成（只是后面某一步抛错）的保持原样吞掉：那种情况画面多半还能用，
-    // 不该把整页作废。
     if (!renderer) {
       throw new Error("当前浏览器无法创建 3D 画面，可能是显卡资源不足或已被其它 3D 页面占用，请关闭后重试。");
     }
@@ -13368,8 +12350,6 @@ async function initializeStudioStage({ isRetry = false } = {}) {
 }
 /**
  * 按可视高度与视口纵横比设置正交相机的视锥边界。aspect ≥ 1 时以高度为准向两侧扩宽；
- * aspect < 1（竖屏）时以宽度为准向上扩高，并给 aspect 夹一个 0.1 下限，
- * 防止极端窄视口把视锥拉成无穷大。
  */
 function applyOrthographicFrame(frameVisibleHeight, aspect, orthoCamera = previewCamera) {
   if (!orthoCamera?.isOrthographicCamera) {
@@ -13389,11 +12369,6 @@ function applyOrthographicFrame(frameVisibleHeight, aspect, orthoCamera = previe
   }
   orthoCamera.updateProjectionMatrix();
 }
-/**
- * 舞台容器尺寸变化时的统一处理入口（resize 观察器 / 窗口尺寸变化的回调）。导出渲染期间画布尺寸由导出流程独占，转交
- * resizeExportStage 处理。容器宽高各自 Math.max(...,1) 兜底，防止隐藏或折叠时拿到 0 导致宽高比算出 Infinity。只在画布
- * 实际尺寸变了才调 renderer.setSize；但还记录投影矩阵签名，投影变了也要 invalidateRender，否则会出现「逻辑已更新但没人请求重绘」。
- */
 function handleStageResize() {
   if (!renderer) {
     return;
@@ -13461,8 +12436,6 @@ function captureCameraSnapshot() {
 }
 /**
  * 把相机快照应用到当前相机与控制器（导出 / 打印前的还原入口）。快照里的投影模式可能与当前
- * 不同，因此先 applyCameraMode 重建相机，再逐项写回位置与投影参数；正交相机用
- * applyOrthographicFrame 还原取景高度。
  */
 function applyCameraSnapshot(snapshot, snapshotAspect = snapshot?.viewportAspect || 1) {
   if (!!snapshot && !!renderer) {
@@ -13491,11 +12464,6 @@ function applyCameraSnapshot(snapshot, snapshotAspect = snapshot?.viewportAspect
     orbitControls.update();
   }
 }
-/**
- * 读取导出尺寸输入，夹紧到 320~4096 像素并取整。320 是缩略图下限，再小看不清户型；4096 是主流 GPU 单个
- * framebuffer / 纹理的安全上限，超过后部分移动端会直接创建失败。取整是因为输入框带小数时 setSize 会产生
- * 半像素画布，最终图片边缘会出现半透明的一列 / 一行。
- */
 function exportDimensions() {
   return {
     width: Math.round(clamp(finite(exportWidthInput.value, DEFAULT_EXPORT_WIDTH), 320, 4096)),
@@ -13504,8 +12472,6 @@ function exportDimensions() {
 }
 /**
  * 刷新导出面板的分辨率与比例文案，并用宽高比驱动预览框形状。宽高比用内联的最大公约数（辗转相除）约分，得到
- * 「16 : 9」这类直观写法；但只在约分后的两个数都不超过 32 时才用整数比 —— 否则 1234:997 之类的互质大数是噪声，
- * 此时退回保留两位小数的 "x : 1"。最后把比值写进 --export-aspect 自定义属性，由 CSS 决定预览框尺寸。
  */
 function syncExportResolutionLabels() {
   const { width: exportWidthPx, height: exportHeightPx } = exportDimensions();
@@ -13527,11 +12493,6 @@ function syncExportResolutionLabels() {
     String(exportWidthPx / exportHeightPx)
   );
 }
-/**
- * 计算导出时应使用的渲染像素比。普通导出直接用 devicePixelRatio：那条路径走离屏大画布，再乘系数只是白烧显存。自动导图
- * 嵌入模式下导出画布摆在页面里显示，像素比至少要满足「目标导出分辨率 ÷ 当前舞台尺寸」，下限 1.5 保证 Retina 屏不发虚。
- * limitRatio 为真时上限 2（运动 / 预览路径），为假时上限 4（静态导出，画质优先）。
- */
 function exportPixelRatio(limitRatio = false) {
   const basePixelRatio = window.devicePixelRatio || 1;
   if (!isAutoDiagramEmbed || !exportPreviewStageElement) {
@@ -13550,8 +12511,6 @@ function exportPixelRatio(limitRatio = false) {
 }
 /**
  * 在导出预览态下把渲染器与相机适配到预览框，使最终产物构图与屏幕预览一致。准入条件缺一不可：已进入导出态、导出任务不在
- * 进行中、渲染器与相机就绪。像素比二选一：自动插图嵌入沿用 exportPixelRatio(false) 的精确换算，普通导出限制在
- * devicePixelRatio 与 2 之间。正交相机用 stageAspect 重新套用取景框，透视相机只改 aspect；末尾 orbitControls.update() 后重绘。
  */
 function resizeExportStage() {
   if (!exportRenderState || isExportBusy || !renderer || !previewCamera) {
@@ -13585,8 +12544,6 @@ function refreshExportPreview() {
 }
 /**
  * 处理导出宽高输入，按锁定比例联动另一边并夹紧到 320–4096。shouldClampBoth 为真时
- * （失焦 / 提交）两边都夹紧，且当其中一边触底或触顶时反算另一边，尽量保住比例；否则只更新
- * 被改动的那条边，让用户输入过程不被强行改写。最终统一走 refreshExportPreview。
  */
 function setExportDimension(dimension, shouldClampBoth = false) {
   const inputDimensionValue = Number(
@@ -13648,8 +12605,6 @@ function setExportDimension(dimension, shouldClampBoth = false) {
 }
 /**
  * 恢复导出预览用的已保存机位（按导出宽高比重算投影）。与 restoreStoredCameraView 的区别：
- * 这里只作用于导出态，走 applyCameraSnapshot 快照通道，远裁剪面按相机到目标距离的 5 / 8 倍
- * （至少 100）反推。
  */
 function restoreExportCamera(restoreOptions = {}) {
   const savedExportView = savedCameraView();
@@ -13714,11 +12669,6 @@ function restoreExportCamera(restoreOptions = {}) {
     showToast("已恢复上次保存的" + exportViewLabel + "。");
   }
 }
-/**
- * 渲染导出预设槽位（视角存档）的标签页按钮。先把文档里的槽位数组归一化（补足数量、清理越界）并回写文档 —— 面板槽位数量固定，
- * 缺槽位会让后面下标全部错位。名字优先用户命名，其次楼层名，最后兜底「未命名存档」；未设置的槽位显示「未设置」。整块用
- * replaceChildren 重建而不做逐项 diff：槽位数量很少（上限 MAX_EXPORT_PRESET_COUNT），重建成本远低于维护 diff 逻辑。
- */
 function renderExportPresetSlots() {
   const presetSlots = normalizeExportPresetSlots(studioDocument?.exportPresets);
   const activePresetSlot = normalizeActiveExportPresetSlot(
@@ -13768,8 +12718,6 @@ function renderExportPresetSlots() {
 }
 /**
  * 用当前画布状态生成一份导出档位快照（分辨率、楼层、勾选文件、相机位姿）。透视模式下会先把
- * 焦距输入框的值夹到 18~120mm 并写回设置与相机，保证档位里存的焦距和画面上看到的一致；
- * 本函数只读状态并返回新对象，不改动文档。
  */
 function buildExportPreset({ name: presetName = "" } = {}) {
   if (previewCamera.isPerspectiveCamera) {
@@ -13869,8 +12817,6 @@ function applyPresetCamera(presetCamera) {
 }
 /**
  * 应用指定槽位的导出档位：分辨率、楼层选择、勾选的文件与相机一次性还原。兼容旧的选中项
- * 编码：档位里若含 "televisionOn" / "vehicleCharging" 总开关，则把对应前缀（screen: /
- * vehicle:）的所有细项一并勾上，保证老档位仍可用。
  */
 function applyExportPreset(slotIndex, applyOptions = {}) {
   const exportPreset = normalizeExportPreset(studioDocument?.exportPresets?.[slotIndex]);
@@ -13914,7 +12860,6 @@ function applyExportPreset(slotIndex, applyOptions = {}) {
 }
 /**
  * 切换活动导出档位：先保存当前档位，再应用目标档位。非法下标或导出进行中直接忽略。
- * 应用失败（目标槽为空）时只更新状态文案，仍然切换活动槽位，方便用户就地编辑。
  */
 function selectExportPresetSlot(presetSlotIndexToApply) {
   const presetSlotCount = studioDocument?.exportPresets?.length || 0;
@@ -13939,7 +12884,6 @@ function selectExportPresetSlot(presetSlotIndexToApply) {
 }
 /**
  * 把当前画布状态写回活动档位（导出视角的自动保存）。仅在导出态且非导出进行中生效；
- * exportPresets 脏标记为 false 时直接返回，避免重复写入。写入后打脏并重渲染档位列表。
  */
 function saveActiveExportPreset() {
   window.clearTimeout(saveRetryTimer);
@@ -13990,7 +12934,6 @@ function exportPresetLabel(preset, labelSlotIndex) {
 }
 /**
  * 生成不与其他档位重名的名称（重名则追加递增序号）。名称先按 normalizeLabelText 截到 24 字；
- * 排除 excludeSlotIndex 指向的槽位，使「重命名自己为原名」不被误判为重名。
  */
 function uniqueExportPresetName(baseName, excludeSlotIndex = -1) {
   const normalizedPresetName = normalizeLabelText(baseName, "导出视角", 24);
@@ -14014,8 +12957,6 @@ function uniqueExportPresetName(baseName, excludeSlotIndex = -1) {
 }
 /**
  * 新增一个导出档位：以当前视角为初始状态，并沿用上一个档位的分辨率设置。先保存当前档位以免
- * 未落盘的相机调整丢失；档位数上限为 MAX_EXPORT_PRESET_COUNT（8，受档位条 UI 宽度限制）。
- * 副作用：写 studioDocument、重渲染档位条，并经 markDocumentDirty() 排入自动保存。
  */
 function addExportPresetSlot() {
   if (!exportRenderState || isExportBusy) {
@@ -14090,8 +13031,6 @@ function closePresetDeleteDialog() {
 }
 /**
  * 打开「删除档位」对话框，并把待删档位的显示名写进确认文案。
- *
- * 只剩一个档位时不开（必须至少保留一个存档）；打开前先保存当前档位。
  */
 function openPresetDeleteDialog() {
   if (isExportBusy) {
@@ -14113,8 +13052,6 @@ function openPresetDeleteDialog() {
 }
 /**
  * 删除当前导出档位并切换到相邻档位。只剩一个档位时不删（至少要留一个）。删除后活动下标取
- * min(原下标, 末位)，即优先停在原来的位置、删末位时退一格；随后静默应用相邻档位，让画布
- * 立刻反映新档位。楼层与户型数据完全不受影响，仅动 exportPresets。
  */
 function deleteActiveExportPreset() {
   const remainingPresetSlots = normalizeExportPresetSlots(studioDocument?.exportPresets);
@@ -14149,11 +13086,6 @@ function deleteActiveExportPreset() {
     : "当前存档尚未设置";
   showToast("已删除“" + removedPresetLabel + "”，楼层和户型未受影响。", "success");
 }
-/**
- * 内嵌自绘模式下渲染首帧并把结果回传父页面（失败时最多重试 7 次）。父页面需要一张确定完成的 3D 图，故这里做一次同步的
- * 「强制出帧」：连续渲染两遍让纹理 / 阴影稳定，再用 renderer.info 的 calls / triangles 判定是否真画出了东西。重试采用 rAF
- * 递归而非定时器；7 次仍失败就 postMessage 报错，成功则回传楼层列表与当前楼层。
- */
 function ensureAutoDiagramFrame(frameAttempt = 0) {
   if (!!isAutoDiagramEmbed && !!autoDiagramComponentId && window.parent !== window) {
     requestAnimationFrame(() => {
@@ -14218,11 +13150,6 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
     });
   }
 }
-/**
- * 打开导出对话框，并把当前预览状态整体快照进 exportRenderState。打开期间会把渲染画布搬到对话框内的导出舞台，因此必须先
- * 把「可复原的一切」存下来：相机、选中项、楼层与总览的相机设置、各灯组 / 电视 / 汽车开关、像素比。打开时会临时关掉聚光
- * 阴影图集与所有灯组、清空选择，避免选中高亮混进导出图。内嵌自绘模式还会从 URL 参数覆盖分辨率与文件夹名。
- */
 function openExportDialog() {
   if (exportRenderState || !renderer || !previewCamera || !orbitControls) {
     return;
@@ -14366,8 +13293,6 @@ function openExportDialog() {
 }
 /**
  * 填充「单独导出文件」列表：电视画面层、汽车充电层、每个灯组的透明光效层。键名约定为
- * 「screen:<key>」/「vehicle:<key>」/「group:<key>」，与 applyExportPreset 和 runStudioExport
- * 的筛选逻辑共用同一套前缀；多楼层时文件名带上楼层名前缀以避免重名。
  */
 function populateExportGroupFiles() {
   if (!exportGroupFilesInput) {
@@ -14447,7 +13372,6 @@ function populateExportGroupFiles() {
 }
 /**
  * 重建导出对话框的楼层下拉框：先列出全部楼层，楼层数大于 1 时再追加「全楼合并」。选项必须
- * 整体替换而不能增量更新，因为楼层可被增删；全楼视图下顺带显示层间距输入框（单层时隐藏）。
  */
 function renderExportFloorOptions() {
   const isCombinedFloorView = currentPreviewFloorMode() === "all";
@@ -14476,8 +13400,6 @@ function renderExportFloorOptions() {
 }
 /**
  * 切换导出时的楼层选择（单层 / 全楼合并），并重建相关预览。选择 "all" 只在楼层数大于 1 时
- * 有效；选定单层会把 activeScene 切到该楼层。之后重建导出选项、恢复该模式已保存的机位
- * （没有则重置视角），并刷新状态文案与预览尺寸。
  */
 function applyExportFloorSelection(requestedFloorId) {
   if (!exportRenderState || isExportBusy) {
@@ -14528,8 +13450,6 @@ function collectCheckedExportFileKeys() {
 }
 /**
  * 关闭导出对话框，并把 openExportDialog 保存的快照逐项还原回预览态。还原顺序与打开时相反：
- * 先把楼层 / 总览的相机设置写回，再把画布搬回原父节点，然后用 applyCameraSnapshot 复原机位
- * （含像素比），最后恢复灯组 / 电视 / 汽车的开关与选中项并重绘画布。导出进行中不响应。
  */
 function closeExportDialog() {
   if (!exportRenderState || isExportBusy) {
@@ -14596,8 +13516,6 @@ function closeExportDialog() {
 }
 /**
  * 切换导出忙碌态：禁用对话框内除「关闭」与「导出」之外的控件，并显示忙碌提示。
- *
- * 忙碌期间同时锁住 OrbitControls，防止出图过程中相机被拖动导致画面不一致。
  */
 function setExportBusy(busyState) {
   isExportBusy = busyState;
@@ -14629,8 +13547,6 @@ function renderExportPreviewFrames() {
 }
 /**
  * 把 canvas 转成 Blob（JPEG / PNG 与质量由导出常量决定）。
- *
- * @throws {Error} 浏览器拒绝导出时抛出「无法生成导出图像。」。
  */
 function canvasToBlob(sourceCanvas) {
   return new Promise((resolveBlob, rejectBlob) => {
@@ -14647,11 +13563,6 @@ function canvasToBlob(sourceCanvas) {
     );
   });
 }
-/**
- * 抓取当前舞台画面到离屏 canvas，可选返回像素数据与 Blob。willReadFrequently 只在确实要读像素（pixels: true）时
- * 打开：它会让浏览器把 canvas 放在 CPU 可读内存里，长期开启反而拖慢绘制，故按需设置。
- * @throws {Error} 无法创建 2D 上下文时抛出中文错误。
- */
 async function captureStageImage(captureWidth, captureHeight, captureOptions = {}) {
   renderExportPreviewFrames();
   const captureCanvasElement = document.createElement("canvas");
@@ -14675,8 +13586,6 @@ async function captureStageImage(captureWidth, captureHeight, captureOptions = {
 }
 /**
  * 合成电视画面层：把「点亮电视后」的画面减去「未点亮」的基准画面，得到透明的画面增量层，
- * 供仪表盘叠加使用。
- * @throws {Error} 无法创建 2D 上下文时抛出中文错误。
  */
 async function composeTelevisionLayerBlob(basePixelFrame, litPixelFrame) {
   const televisionLayerCanvas = document.createElement("canvas");
@@ -14694,11 +13603,6 @@ async function composeTelevisionLayerBlob(basePixelFrame, litPixelFrame) {
   );
   return canvasToBlob(televisionLayerCanvas);
 }
-/**
- * 逐个点亮灯组内的光源，把每盏灯的增量光效叠加合成一张灯组阴影图。three.js 多光源阴影无法单独取某一盏的贡献，只能依次把
- * forcedVisibleLightIds 限定为单盏、抓一帧、与基准帧求差，再把差值画到合成画布累加。每盏灯之间 yieldToScheduler 让出主线程；
- * 结束时无论成败都在 finally 里清掉 forcedVisibleLightIds，防止残留状态把后续渲染污染成单灯画面。
- */
 async function compositeLightGroupShadows(
   baseFrame,
   lightGroupExportEntry,
@@ -14769,8 +13673,6 @@ async function compositeLightGroupShadows(
 }
 /**
  * 合成导出用的背景底图：先铺满主题背景色，再把户型俯视图逐像素叠上去。户型俯视图由离屏
- * 渲染得到；为 null 时只输出纯色背景，供没有底图的场景使用。
- * @throws {Error} 无法创建 2D 上下文时抛出中文错误。
  */
 async function composeBackgroundBlob(
   backgroundWidthPx,
@@ -14802,8 +13704,6 @@ async function composeBackgroundBlob(
 }
 /**
  * 把任意标签清洗成安全的文件名片段：NFKC 归一化、剔除 Windows 非法字符，把空白与连续短横线
- * 折叠成单个 "-"，并截到 48 字。48 字是留有余量的经验值：多数文件系统限制路径 255 字节，
- * 包内还要拼目录与去重后缀。清洗后为空时回退 fallbackLabel。
  */
 function sanitizeFileName(rawLabel, fallbackLabel) {
   return (
@@ -14817,8 +13717,6 @@ function sanitizeFileName(rawLabel, fallbackLabel) {
   );
 }
 /**
- * 在导出包内申请一个不重名的文件名：同名时追加 -2、-3 递增后缀。占用集合按 toLocaleLowerCase() 比较 —— Windows / macOS
- * 文件名大小写不敏感，只按原样比较会生成两个互相覆盖的文件。
  * @returns {string} 可用的文件名。
  */
 function reserveExportFileName(
@@ -14862,8 +13760,6 @@ function buildExportCameraState(aspectViewportWidth, aspectViewportHeight) {
   };
 }
 /**
- * 把平面灯光条目换算成导出用描述（像素坐标除以标定系数得米）。平面 y 向下、世界 z 向前，故 y 映射到 z；多楼层导出时海拔
- * 叠加 floorExportOffset() 的楼板高度。pixelsPerMeter 未标定时兜底为 1。
  * @returns {object} 导出用的灯光描述对象。
  */
 function buildExportedLight(lightSourceItem, owningFloor = getCurrentFloor()) {
@@ -14893,8 +13789,6 @@ function buildExportedLight(lightSourceItem, owningFloor = getCurrentFloor()) {
 }
 /**
  * 把某个锚点（灯光 / 设备）投影到当前相机画面，返回 0~1 的归一化屏幕坐标。全楼合并模式下先把「平面像素 + 楼层
- * origin/offset/rotation」换算成楼层局部米，再加上该楼层在楼堆里的海拔（按高度排序的序号 × 层间距）才能对齐；单层模式以
- * 模型包围盒中心为原点保证居中。锚点高度取 Math.max(0.02, height||0.1)/2；投影非有限值或 z 超出 [-1,1] 时返回 null。
  */
 function projectAnchorToFloorPlan(anchorItem, anchorFloor, floorCandidates = previewFloors()) {
   if (!anchorItem || !anchorFloor || !previewCamera) {
@@ -15001,10 +13895,6 @@ function findLightAnchor(
 async function readFileBytes(fileSource) {
   return new Uint8Array(await fileSource.arrayBuffer());
 }
-/**
- * 把场景收敛成「只显示指定一组灯 / 电视 / 汽车」的隔离状态，供分门别类导出参考图。三个参数都支持通配 "*"（保留全部），
- * 空串表示该类全部关掉；refreshPreviewScene() 负责让新可见性真正落到渲染上。
- */
 function isolateExportVisibility(
   groupKeyFilter = "",
   televisionKeyFilter = "",
@@ -15023,9 +13913,6 @@ function isolateExportVisibility(
   }
   refreshPreviewScene();
 }
-/**
- * 按导出角色（如 plan / model）批量切换节点可见性。隐藏平面层时会顺带失效阴影缓存：平面几何若还参与阴影，会在地面留下残留影子。
- */
 function setExportRoleVisibility(exportRole, roleVisibility) {
   if (previewModelRoot) {
     previewModelRoot.traverse(roleTargetObject => {
@@ -15040,7 +13927,6 @@ function setExportRoleVisibility(exportRole, roleVisibility) {
 }
 /**
  * 结束「同名文件夹是否覆盖」的询问：关闭对话框并把用户选择交回等待中的 Promise。用可选调用触发 resolver，
- * 因为该 resolver 可能已被下一次询问覆盖或清理过。
  * @param {string} [chosenAction="cancel"] "overwrite" 或 "cancel"。
  */
 function settleOverwriteChoice(chosenAction = "cancel") {
@@ -15051,11 +13937,6 @@ function settleOverwriteChoice(chosenAction = "cancel") {
   }
   pendingOverwriteResolver?.(chosenAction);
 }
-/**
- * iframe 内嵌（auto-diagram-embed）场景专用的覆盖确认框：把对话框挂到父窗口文档上，避免被 iframe 可视区域裁剪。跨窗口没有
- * 共用 UI 组件，只能手工建 DOM；除按钮外还监听 Esc（cancel）、close 与两侧 pagehide —— 父页面卸载时按「不覆盖」处理，保证
- * Promise 一定 settle，不会让导出流程永久挂起。
- */
 function showEmbeddedOverwriteDialog(hostWindow, displayFolderName) {
   const hostDocument = hostWindow.document;
   const embeddedOverwriteDialog = hostDocument.createElement("dialog");
@@ -15084,7 +13965,6 @@ function showEmbeddedOverwriteDialog(hostWindow, displayFolderName) {
     };
     /**
      * 内嵌对话框「不覆盖」的快捷入口，供 Esc、close 事件与 pagehide 兜底共用。
-     *
      * @returns {void}
      */
     const cancelChoice = () => settleChoice("cancel");
@@ -15112,8 +13992,6 @@ function showEmbeddedOverwriteDialog(hostWindow, displayFolderName) {
 }
 /**
  * 询问用户是否覆盖已存在的同名导出文件夹。内嵌场景走父窗口自绘对话框；独立页面用页面内的 <dialog>，结果通过模块级
- * overwriteConfirmResolve 回填。若上一次询问尚未结束，先把它按「不覆盖」结算，避免两个 Promise 争抢同一 resolver；
- * 返回 "overwrite" 或 "cancel"。
  */
 function requestOverwriteDecision(overwriteFolderName) {
   if (overwriteConfirmResolve) {
@@ -15129,10 +14007,6 @@ function requestOverwriteDecision(overwriteFolderName) {
     });
   }
 }
-/**
- * 把「导出已中止」的通知回传给父页面，仅内嵌场景需要。targetOrigin 用 window.location.origin 而非 "*"，避免把消息广播给
- * 任意监听者。stopCode / stopMessage 分别是中止原因代码与说明文案。
- */
 function notifyExportStopped(stopCode, stopMessage) {
   if (!!isAutoDiagramEmbed && !!autoDiagramComponentId && window.parent !== window) {
     window.parent.postMessage(
@@ -15161,11 +14035,6 @@ function showExportCompleteDialog(exportOutcome) {
     exportCompleteDialogElement.showModal();
   }
 }
-/**
- * 执行一次完整导出：校验文件夹名与勾选项 → 逐类渲染 → 打包 ZIP → 上传。同一份场景反复出图，靠 isolateExportVisibility /
- * setExportRoleVisibility 切出「只留某组灯 / 某台电视 / 某辆车」的中间态，再与全关基准帧求差合成可叠加图层。服务端 409
- * STUDIO3D_EXPORT_EXISTS 时向用户确认后带 X-Export-Overwrite 重传；finally 里无论成败都恢复开关与高阴影质量。失败转成状态文案 + toast。
- */
 async function runStudioExport() {
   if (!exportRenderState || isExportBusy) {
     return;
@@ -15579,10 +14448,6 @@ async function runStudioExport() {
     const exportPackageBlob = new Blob([zipBlob], {
       type: "application/zip"
     });
-    /**
-     * 把导出包（ZIP）POST 到 /studio3d/exports。目标文件夹与是否覆盖走自定义请求头：文件夹名必须 encodeURIComponent（含中文时
-     * 不能直接进 header），覆盖标记只在需要时带上；返回后端导出结果（含 relativePath）。
-     */
     const uploadExportPackage = (allowOverwrite = false) =>
       requestStudioApi("/studio3d/exports", {
         method: "POST",
@@ -15652,7 +14517,6 @@ async function runStudioExport() {
       phase: "studio-export",
       componentId: autoDiagramComponentId || ""
     });
-    // 导出失败已经通过 toast / 状态文案与 HABridgeLog 两处告知，控制台这份只在 ?debug=1 时出现。
     debugLog("error", exportError);
     exportStatusElement.textContent = exportError?.message || "导出失败，请重试。";
     showToast(exportError?.message || "导图失败。", "error");
@@ -15694,11 +14558,6 @@ async function runStudioExport() {
     refreshExportPreview();
   }
 }
-/**
- * 递归释放一棵场景子树占用的 GPU 资源（几何、材质、贴图、阴影贴图）。用两个 Set 去重：同一 geometry / material 常被多个
- * mesh 共享，重复 dispose 会把仍在用的资源提前释放成空白。带 *_SharedMaterial / externalModelSharedTextures 标记的资源属于
- * 跨子树共享，必须留给其所有者释放，这里只跳过不销毁。
- */
 function disposeSceneSubtree(disposedRoot) {
   const disposedGeometries = new Set();
   const disposedMaterials = new Set();
@@ -15738,7 +14597,6 @@ function disposeSceneSubtree(disposedRoot) {
 }
 /**
  * 清空预览模型根节点下的全部子节点，并逐个释放其 GPU 资源。先复制 children 再遍历：
- * remove() 会就地改动 children，边遍历边删会漏掉元素。
  */
 function clearPreviewModel() {
   if (previewModelRoot) {
@@ -15748,11 +14606,6 @@ function clearPreviewModel() {
     }
   }
 }
-/**
- * 创建一个圆角方盒并挂到父节点上（家具零件的主力构造函数）。圆角半径取三边最小值的 14%，并受 0.45×最小边与 0.08m 双重
- * 上限约束：前者防止薄板被倒角吃掉，后者让大衣柜一类保持硬边观感。parentObject.userData.squareEdges 或显式 rounded:false 时
- * 退回直角 BoxGeometry；返回新建的方盒 mesh。
- */
 function addBoxMesh(
   parentObject,
   boxWidth,
@@ -15792,10 +14645,6 @@ function addBoxMesh(
   parentObject.add(boxMesh);
   return boxMesh;
 }
-/**
- * 把零件描述统一成 {width, height, depth, x, y, z, rotationY} 对象。兼容数组 [w,h,d,x,y,z,ry]（后四项可省，默认 0）与对象
- * 两种写法；数组是「手工排布的零件表」用的紧凑写法，只在这一处归一化，下游一律按字段名取值。
- */
 function normalizePartSpec(partSpec) {
   if (Array.isArray(partSpec)) {
     const [specWidth, specHeight, specDepth, specX = 0, specY = 0, specZ = 0, specRotationY = 0] =
@@ -15820,11 +14669,6 @@ function normalizePartSpec(partSpec) {
     rotationY: partSpec.rotationY || 0
   };
 }
-/**
- * 把一批墙带零件合并成单个 BufferGeometry，并按零件参数缓存复用。合并而非逐件建 mesh 是为了把一整段墙压成一次 draw call；
- * 缓存键取全部尺寸与位姿的 JSON（同户型里大量墙带尺寸完全相同，命中率很高）。尺寸非有限值或小于 0.1mm 的零件丢弃；全无效
- * 时返回 null，调用方需兜底。
- */
 function buildMergedWallGeometry(wallBandSpecs) {
   const validWallBands = wallBandSpecs
     .map(normalizePartSpec)
@@ -15873,8 +14717,6 @@ function buildMergedWallGeometry(wallBandSpecs) {
   return mergedWallBandGeometryCache.get(wallBandCacheKey);
 }
 /**
- * 按「颜色 + 材质参数」缓存并复用墙体材质，避免同色墙各建一份。缓存键把颜色转成十六进制再序列化：THREE.Color 不能直接当键，
- * 且同色不同写法（"#fff" 与 "white"）应命中同一份材质。
  * @returns {THREE.MeshStandardMaterial} 共享材质实例。
  */
 function resolveSharedWallMaterial(wallColor, wallMaterialOptions = {}) {
@@ -15891,7 +14733,6 @@ function resolveSharedWallMaterial(wallColor, wallMaterialOptions = {}) {
     wallMaterialOptions.emissive ?? 0,
     wallMaterialOptions.emissiveIntensity ?? 0,
     // 质感贴图与它的平铺密度：贴图按 surface 全局缓存，这里只需把「取哪张、铺几次」记进键，
-    // 同色的木门扇与漆门扇才会各自命中正确的材质，不会互相串味。
     wallMaterialOptions.surface ?? null,
     wallMaterialOptions.surfaceRepeat ?? null
   ]);
@@ -15909,7 +14750,6 @@ function resolveSharedWallMaterial(wallColor, wallMaterialOptions = {}) {
       emissiveIntensity: wallMaterialOptions.emissiveIntensity ?? 0
     });
     // 只有声明了质感族、且该族确实有画法时才挂贴图（漆面 / 陶瓷 / 玻璃都没有，硬塞一张噪点图
-    // 只会让表面显脏）。贴图是均值≈1 的亮度细节图，只贡献纹理、不贡献色相，色相仍由 color 给。
     if (wallMaterialOptions.surface && hasMaterialSurfaceTexture(wallMaterialOptions.surface)) {
       const wallSurfaceTexture = createMaterialSurfaceTexture(
         threeModuleMin,
@@ -15929,7 +14769,6 @@ function resolveSharedWallMaterial(wallColor, wallMaterialOptions = {}) {
 }
 /**
  * 把门材质档位的配方并入墙带材质参数：配方只声明它要覆盖的那几项（质感族 / 粗糙度 / 金属度 /
- * 贴图平铺次数），其余沿用调用处给的基参 —— 门扇与门套各自的投影开关、透明设置不会被档位打乱。
  */
 function doorMaterialRecipeOptions(baseOptions, materialRecipe) {
   if (!materialRecipe) {
@@ -15948,7 +14787,6 @@ function doorMaterialRecipeOptions(baseOptions, materialRecipe) {
   }
   return mergedOptions;
 }
-/** 门部件取色：档位给了色号就用它，否则回落场景调色板的那一支。 */
 function doorMaterialRecipeColor(baseColor, materialRecipe) {
   return materialRecipe && Number.isFinite(materialRecipe.color)
     ? materialRecipe.color
@@ -15956,9 +14794,6 @@ function doorMaterialRecipeColor(baseColor, materialRecipe) {
 }
 /**
  * 把门材质档位写进那条门记录。`auto`（跟随全局风格）**不落键** —— 与物件侧的 materialStyle
- * 同一约定（见 materialStyleSnapshotFields）：归一化、检查器改动两处都走这里，因此「选回跟随
- * 全局风格」等于把这扇门还原成加这个属性之前的样子，草稿 / 快照里也不会凭空多出一格默认值。
- * 档位合法性按门型判：玻璃档位落到实心门上会被归一到 auto（见 normalizeDoorMaterial）。
  * @returns {string} 归一后的档位 id。
  */
 function applyDoorMaterialStyle(doorRecord, doorType, styleValue) {
@@ -15970,10 +14805,6 @@ function applyDoorMaterialStyle(doorRecord, doorType, styleValue) {
   doorRecord.materialStyle = materialStyle;
   return materialStyle;
 }
-/**
- * 把墙带几何与共享材质组装成一个 mesh，挂到建筑根节点上。在 userData 打 architectureSharedGeometry / Material 标记，供
- * disposeSceneSubtree 识别为共享资源、不随单个子树销毁。几何无效时返回 null。
- */
 function addWallBandMesh(architectureRoot, wallBands, wallMaterialColor, wallMeshOptions = {}) {
   const wallGeometry = buildMergedWallGeometry(wallBands);
   if (!wallGeometry) {
@@ -15992,8 +14823,6 @@ function addWallBandMesh(architectureRoot, wallBands, wallMaterialColor, wallMes
   return wallMesh;
 }
 /**
- * 生成地毯几何（圆角底板 + 略小一圈的贴花平面），并按尺寸缓存。厚度先夹到 4~18mm：低于 4mm 会与地板 z-fighting，
- * 高于 18mm 不像地毯。贴花取 0.88×宽 / 0.84×深，留出边框让地毯显出绒面内圈。
  * @returns {{base: THREE.BufferGeometry, inset: THREE.BufferGeometry, rugThickness: number}} 底板与贴花几何及实际厚度。
  */
 function buildRugGeometry(rugWidth, rugThicknessInput, rugDepth) {
@@ -16019,8 +14848,6 @@ function buildRugGeometry(rugWidth, rugThicknessInput, rugDepth) {
   return rugGeometryBySizeKey.get(rugSizeKey);
 }
 /**
- * 按颜色（与是否贴花）缓存并复用地毯材质。贴花那份开 polygonOffset(-2/-4)：它与底板几乎共面，不做深度偏移会出现 z-fighting
- * 花斑。地毯完全哑光，roughness 固定 1、metalness 固定 0。
  * @returns {THREE.MeshStandardMaterial} 共享材质实例。
  */
 function resolveRugMaterial(rugColor, isRugInset = false) {
@@ -16044,10 +14871,6 @@ function resolveRugMaterial(rugColor, isRugInset = false) {
   }
   return rugMaterialByColorKey.get(rugMaterialKey);
 }
-/**
- * 把地毯底板与贴花两层 mesh 挂到父节点上。底板抬高半个厚度，让地毯「坐」在地板上而不是嵌进去；底板只接收阴影不投射（薄片
- * 投影会出现细长阴影条）。贴花绕 X 轴转 -90° 成水平面并在底板之上再抬 1mm，配合 polygonOffset 避免共面闪烁。选中态克隆材质。
- */
 function addRugMeshes(rugParent, rugItem, rugBaseColor, rugInsetColor) {
   const servedRugGeometry = buildRugGeometry(rugItem.width, rugItem.height, rugItem.depth);
   if (!servedRugGeometry) {
@@ -16086,8 +14909,6 @@ function addRugMeshes(rugParent, rugItem, rugBaseColor, rugInsetColor) {
 }
 /**
  * 计算一份材质的「可合并签名」：只有渲染表现完全等价的材质才会得到同一串签名。无法用签名稳妥表达的一律返回空串（拒绝参与
- * 合并）：非标准材质、半透明 / 透射 / alphaHash、带 displacementMap、改过 onBeforeCompile 或 customProgramCacheKey 的自定义
- * 着色、有裁剪面，以及默认带任意贴图的材质。
  */
 function computeMaterialSignature(signatureMesh, ignoreTextures = false, normalizeColor = false) {
   const signatureMaterial = signatureMesh.material;
@@ -16166,7 +14987,6 @@ function computeMaterialSignature(signatureMesh, ignoreTextures = false, normali
 }
 /**
  * 计算几何的「可合并签名」：属性名、itemSize、是否归一化与底层数组类型的组合。只比对元信息而不比对顶点数据，
- * 是因为合并的前提是属性布局一致 —— mergeGeometries() 会直接拼接属性数组，布局不同就拼不上。
  * @returns {string} 签名 JSON。
  */
 function computeGeometrySignature(signatureObject) {
@@ -16199,8 +15019,6 @@ function collectMeshDescendants(subtreeRoot) {
 }
 /**
  * 计算材质的「可共享键」：只取影响外观的字段（颜色、粗糙度、金属度、自发光、面剔除、透明与深度 / 混合设置、
- * 贴图 uuid），不含 id / uuid 等实例身份字段。与 computeMaterialSignature 的分工：这个更宽松，只用于把同款材质
- * 并成一份实例，不参与几何合并，故无需对自定义着色器做严格拒绝。材质是数组或非标准材质时返回空串。
  */
 function computeMaterialKey(keyedMesh) {
   const keyedMaterial = keyedMesh.material;
@@ -16227,11 +15045,6 @@ function computeMaterialKey(keyedMesh) {
     ]);
   }
 }
-/**
- * 在单个家具子树内做几何 / 材质的去重共享（仅对 INSTANCE_MERGE_ITEM_TYPES 内的家具类型生效）。重复资源会被
- * dispose 后用同一份实例替换，并在根节点写 optimizationStats 供性能面板展示。这里只让多个 mesh 共用资源，
- * 不改变节点结构。
- */
 function shareGeometryAndMaterials(sharedRoot, mergeItemType) {
   if (!INSTANCE_MERGE_ITEM_TYPES.has(mergeItemType)) {
     return;
@@ -16268,11 +15081,6 @@ function shareGeometryAndMaterials(sharedRoot, mergeItemType) {
       .size
   };
 }
-/**
- * 把子树里「材质签名 + 几何签名」相同的若干 mesh 烘焙成一个合并 mesh（≥2 个才合并）。先用 mergeRoot.matrixWorld 的逆矩阵把各
- * mesh 的世界矩阵折算成相对根节点的局部矩阵，再对几何做变换 —— 这样合并结果挂回根节点后位置不变。电视屏与光晕单独跳过（要
- * 参与画面刷新与单独开关）；同组只留代表性 mesh，其余几何与材质逐个 dispose。
- */
 function bakeMergedItemMeshes(mergeRoot, batchItemType) {
   if (!BATCH_MERGE_ITEM_TYPES.has(batchItemType)) {
     return;
@@ -16386,8 +15194,6 @@ function addCylinderMesh(
   return cylinderMesh;
 }
 /**
- * 把对象标记为「光源示意体」：导出时整体隐藏，也不参与阴影。renderOrder 设为 20，保证它在透明叠加层里最后绘制，
- * 不被家具挡住。
  * @returns {THREE.Object3D} 传入的同一个对象，便于链式书写。
  */
 function markAsLightSourcePreview(lightSourceObject) {
@@ -16397,11 +15203,6 @@ function markAsLightSourcePreview(lightSourceObject) {
   lightSourceObject.renderOrder = 20;
   return lightSourceObject;
 }
-/**
- * 为选中的灯带生成可视线框：灯管 + 发光条 + 出光方向锥。仅在「非导出态且该灯带被选中」时可见。用两层 Group 拆开旋转：
- * yawGroup 管水平朝向（verticalRotation）、rollGroup 管自转（stripRollRotation），方便直观看出光往哪儿打。glowLength 由光照
- * 范围推算（range × 0.16 夹到 0.28~0.72m）；光色由色温换算，取不到时用暖白兜底。
- */
 function addStripLightPreview(previewParent, stripLightItem) {
   if (stripLightItem.type !== "striplight") {
     return;
@@ -16488,8 +15289,6 @@ function addStripLightPreview(previewParent, stripLightItem) {
 }
 /**
  * 构建窗帘曲面几何：三条宽度不同的水平圈（导轨）沿高度张开成裙摆状。每条圈自后向前分三段：背面直线 → 侧面 →
- * 18 段圆弧包到正面，弧度用 sin / cos 采样出连续波浪面。半宽 0.31/0.43/0.49 与高度 0.42/0.72 是手工调出的观感
- * 参数：越往上圈越宽、越往前，模拟自然下垂的褶皱。相邻两圈用四边形带连接，顶 / 底再各加一个三角扇封口。
  */
 function buildCurtainGeometry(curtainWidth, curtainDepth, curtainHeight) {
   const curtainRails = [
@@ -16516,8 +15315,6 @@ function buildCurtainGeometry(curtainWidth, curtainDepth, curtainHeight) {
     }
   ];
   /**
-   * 把一条导轨圈规格展开成首尾相接的顶点列表（背面两角 + 正面半圆采样）。18 段是本工程曲面采样统一的细分度：再密对观感提升
-   * 有限，却会让顶点数与合并成本线性上涨。
    * @returns {Array<THREE.Vector3>} 该圈的顶点列表。
    */
   const buildRailPoints = railSpec => {
@@ -16583,10 +15380,6 @@ function buildCurtainGeometry(curtainWidth, curtainDepth, curtainHeight) {
   curtainGeometry.computeBoundingSphere();
   return curtainGeometry;
 }
-/**
- * 用方盒拼出一把椅子（坐面 + 靠背 + 四腿）并挂到父节点上。各尺寸按外形比例推导：坐面高 0.49×椅高、厚 0.12×椅高，靠背位于
- * -0.39×进深处，四腿分前后两对（±0.38×宽）。椅腿 rounded:false 保持直角，坐面 / 靠背给一点圆角做出软包感。
- */
 function addChairModel(
   chairParent,
   chairWidth,
@@ -16662,11 +15455,6 @@ function addChairModel(
   chairGroup.rotation.y = chairRotation;
   chairParent.add(chairGroup);
 }
-/**
- * 为窗洞生成玻璃与窗框：玻璃做成略小的半透明片，四条框条围在四周。玻璃内缩 paneInset = min(45mm, 8% 宽, 4% 高)，
- * 给窗框留压边。玻璃半透明（0.24）且 depthWrite:false、renderOrder 7，保证室内外都能看透且不遮挡后面的物体；
- * 框条不投影，因为薄条投影会出现难看的细黑线。
- */
 function addWindowFrameMeshes(
   frameParent,
   windowPanes,
@@ -16676,7 +15464,6 @@ function addWindowFrameMeshes(
   glassRecipe = null
 ) {
   // frameRecipe / glassRecipe 是门材质档位给的配方（窗调用不传，行为与从前逐值相同）：
-  // 门套的料、玻璃的通透度与色相因此能逐门不同，而不是全网一套固定值。
   const frameOptions = doorMaterialRecipeOptions(
     {
       rounded: false,
@@ -16730,7 +15517,6 @@ function addWindowFrameMeshes(
     );
   }
   // 暖阳原木：窗玻璃略降不透明度、略提金属度，让室内暖光在玻璃上留一层散射感，
-  // 否则纯白背景透过去会显得玻璃「发灰」。
   const isWarmWoodGlass = !!studioPalette().warmWood;
   const glassPaneOptions = doorMaterialRecipeOptions(
     {
@@ -16756,10 +15542,6 @@ function addWindowFrameMeshes(
   }
   addWallBandMesh(frameParent, frameBarBoxes, frameColor, frameOptions);
 }
-/**
- * 给选中模型的所有标准材质加自发光高亮（强度 0.32，颜色取主题强调色）。只处理 MeshStandardMaterial：Basic /
- * 自定义材质没有 emissive 语义，强行写入会被忽略。直接改传入实例（调用方传进来的通常是克隆体）。
- */
 function highlightSelectedModel(highlightRoot, shouldHighlight) {
   if (!shouldHighlight) {
     return;
@@ -16779,11 +15561,6 @@ function highlightSelectedModel(highlightRoot, shouldHighlight) {
     }
   });
 }
-/**
- * 把平面标题（主标题 + 副标题 + 小徽标 + 分隔线）画到 canvas 上，再做成平铺在地面的贴图 mesh。画布固定 2048×640：一组像素
- * 坐标（115/130 起点、184px 与 310px 字号、1580 处徽标、590 处分隔线）都按这个坐标系手调，改画布尺寸必须同步改常量。徽标的
- * 圆孔用 destination-out 反相抠出。alphaTest 0.02 让全透明像素不写入深度；toneMapped:false 保证文字不被色调映射压暗。
- */
 function buildPlanLabelMesh(labelSettings) {
   const labelCanvasElement = document.createElement("canvas");
   labelCanvasElement.width = 2048;
@@ -16876,10 +15653,6 @@ function buildPlanLabelMesh(labelSettings) {
   labelMesh.renderOrder = 8;
   return labelMesh;
 }
-/**
- * 收集当前楼层里所有「应当投射阴影」的灯 id 集合。先把平面条目映射成选灯算法需要的形状（type / brightness / enabled），缺失
- * 亮度回落到该灯型的默认值，再交给 selectShadowCastingLightIds，以 MAX_SPOT_SHADOW_TEXTURE_UNITS 作为硬上限择优挑选。
- */
 function collectShadowCastingLightIds() {
   return new Set(
     selectShadowCastingLightIds(
@@ -16898,8 +15671,6 @@ function collectShadowCastingLightIds() {
   );
 }
 /**
- * 数一份材质占用的纹理单元数（MeshBasic / Shadow 材质恒为 0）。物理材质开启透射（transmission > 0）时会额外占用
- * 一张透射纹理，这里手动加 1，否则阴影预算会算漏。
  * @returns {number} 纹理单元数量。
  */
 function countMaterialTextures(countedMaterial) {
@@ -16915,8 +15686,6 @@ function countMaterialTextures(countedMaterial) {
   return textureCount;
 }
 /**
- * 统计场景里单个 mesh 最多的纹理占用（取最大值，因为最坏的那个 mesh 决定预算）。叠加层场景的环境贴图也计入：
- * 它不在模型树里，但同样占纹理单元。
  * @returns {number} 单 mesh 最大纹理单元数。
  */
 function maxTexturesPerMesh(measuredRoot = previewModelRoot) {
@@ -16940,8 +15709,6 @@ function maxTexturesPerMesh(measuredRoot = previewModelRoot) {
   return maxTextureCount;
 }
 /**
- * 向 WebGL 上下文查询片段着色器可用的纹理单元数。查不到时依次回落到渲染器能力值与 16 —— 16 是 WebGL2 规范保证的
- * 最小值，作为底线不会高估预算。
  * @returns {number} 可用的最大纹理单元数（至少为 1）。
  */
 function queryMaxTextureUnits() {
@@ -16950,8 +15717,6 @@ function queryMaxTextureUnits() {
   return Math.max(1, Math.floor(finite(maxImageUnits, renderer?.capabilities?.maxTextures || 16)));
 }
 /**
- * 收集场景里可参与阴影预算竞争的聚光灯候选项。只认带 shadowCandidate 标记的灯（由建灯处打上），避免把环境光、
- * 面光源或临时灯算进来。id 用「楼层 id:灯 id」拼成，保证多楼层场景里唯一。
  * @returns {Array<object>} 候选项列表（id / groupId / type / brightness / enabled）。
  */
 function collectSpotShadowCandidates(shadowSearchRoot = previewModelRoot) {
@@ -16974,11 +15739,6 @@ function collectSpotShadowCandidates(shadowSearchRoot = previewModelRoot) {
   });
   return shadowCandidates;
 }
-/**
- * 按 GPU 纹理单元预算决定本帧允许几盏聚光灯投射阴影，并同步到场景与 canvas 的 dataset，返回实际开启阴影的聚光灯数量。
- * 预算 = 片段纹理单元总数 − 材质贴图占用 − 非聚光灯阴影占用 − 面光源占用 − 预留量：每盏投影聚光灯都要独占一张深度纹理，
- * 超预算会导致编译失败，所以宁可少开。开启区域光照时改由区域光控制器接管，这里把相关灯移出阴影层并返回 0。
- */
 function applyShadowBudget(
   shadowRoot = previewModelRoot,
   { rebuildAtlas: shouldRebuildAtlas = true } = {}
@@ -17100,11 +15860,6 @@ function applyShadowBudget(
   individualShadowCanvas.dataset.activeUserLights = String(individualUserLightCount);
   return enabledSpotShadowCount;
 }
-/**
- * 把一盏灯（灯带 / 筒灯 / 吊灯等）作为 three.js 光源装进家具组并配好阴影参数。仅在「灯是亮的 / 本帧允许重建光照 / 正在重建
- * 模型」时才真正建灯，否则提前返回，省下建灯与着色器编译开销。亮度折算成 0~1 后乘按灯型给的基准强度（灯带 48、吸顶灯 680、
- * 其余 520）；灯带再按照射范围比例与安装高度增益加权。灯带用 RectAreaLight，其余用 SpotLight。
- */
 function addLightFixtureToScene(fixtureParent, lightFixtureItem, prewarmItemIdSet) {
   const fixtureColorHex = isStageViewerMode
     ? lightEffectColorHex(lightFixtureItem.lightTemperature)
@@ -17122,7 +15877,6 @@ function addLightFixtureToScene(fixtureParent, lightFixtureItem, prewarmItemIdSe
   const lightTypeDefaults =
     DEFAULT_LIGHT_SETTINGS[lightFixtureItem.type] || DEFAULT_LIGHT_SETTINGS.downlight;
   // 亮度比例：舞台查看器允许到 150%，编辑器预览仍封顶 100%。
-  // 上限必须按页面区分 —— 编辑器里超亮度会让预览与实际下发效果不一致。
   const brightnessRatio =
     clamp(
       finite(lightFixtureItem.lightBrightness, lightTypeDefaults.brightness),
@@ -17265,8 +16019,6 @@ function addLightFixtureToScene(fixtureParent, lightFixtureItem, prewarmItemIdSe
   }
 }
 /**
- * 生成电视机默认画面贴图（960×540 的 16:9 海报）。取 960×540 是折中：在导出的大图上足够清晰，又不会让每台电视
- * 各占太多显存。拿不到 2D 上下文时返回 null，调用方退化成纯色屏。
  * @returns {THREE.CanvasTexture|null} 海报贴图；无法创建画布时为 null。
  */
 function createTelevisionPosterTexture() {
@@ -17286,15 +16038,6 @@ function createTelevisionPosterTexture() {
 }
 /**
  * 按安装方式算出电视机身高度与垂直中心相对总高的比例。
- *
- * 三条比例都让**机身顶到整件高度**，机身下缘以下才是支架该占的地方 —— 这样 item 的高度就是
- * 「这台电视从落脚面到顶边有多高」，而规格里的模型尺寸也跟着有确切含义（机身带 = 机身高度，
- * 底盘 / 立杆只填带外那一段），运行侧的非等比缩放才能把机身带与屏幕位置一起按 item 尺寸比例拉开。
- *
- *   挂装（1.00 / 0.50）—— 没有落地件，机身即整件（机身下缘就在 y=0，抬多高由物件的 elevation 决定）；
- *   座装（0.56 / 0.72）—— 底板 + 立杆占下面 44%，机身从 0.44 撑到顶；
- *   移动支架（0.43 / 0.76）—— 机身最窄、悬得最高，顶上再留一条推手横杆。
- *
  * @returns {{bodyHeight: number, centerY: number}} 机身高度与中心高度（米）。
  */
 function computeTelevisionBodyMetrics(televisionMetricsItem, televisionBodyHeight) {
@@ -17307,14 +16050,6 @@ function computeTelevisionBodyMetrics(televisionMetricsItem, televisionBodyHeigh
 }
 /**
  * 量出「机身高度带」里最靠前的那个面，屏幕贴它往前 3mm。
- *
- * 为什么不能按经验公式（机身深 × 0.28）算固定偏移：三份挂装模型的机身进深并不一样
- * （挂装只有机身那 60mm、座装 / 移动支架的进深主要是底盘），固定偏移会让屏幕浮在机身之前
- * 或陷进机身里。所以直接量：只认落在机身高度带内的网格 —— 底盘、底板、脚轮都在带外，
- * 立杆与推手横杆在带内但排在机身之后，量出来的就是机身前脸。
- *
- * 量不到（占位几何 / 机型不认识）时返回 null，由调用方退回经验公式。坐标一律换算到
- * parentObject 的局部系再比，物件在场景里被转过角度也不影响判定。
  */
 function measureTelevisionBodyFrontZ(parentObject, bodyMinY, bodyMaxY) {
   const externalModelRoot = parentObject.children.find(
@@ -17360,12 +16095,6 @@ function measureTelevisionBodyFrontZ(parentObject, bodyMinY, bodyMaxY) {
   });
   return Number.isFinite(frontZ) ? frontZ : null;
 }
-/**
- * 给电视装上屏幕：关屏时是一块深色面板，开屏时有海报画面加一层外发光。屏幕比机身略小（宽 0.965、高 0.94）并贴在机身前脸上，
- * 前脸位置**量出来**（见 measureTelevisionBodyFrontZ）：有外挂模型时贴机身实测的前脸，占位几何时退回「机身深 × 0.28 的一半 + 6mm」
- * 那条经验公式 —— 占位机身是按这个偏移画的，两者一致。开屏时用六面材质数组只把正面换成海报贴图；另叠一张略大的加色发光面
- * （opacity 0.09）模拟溢光，它关掉 depthTest、renderOrder 提前，避免被机身挡住。
- */
 function addTelevisionScreenMeshes(
   televisionParent,
   televisionScreenItem,
@@ -17407,7 +16136,6 @@ function addTelevisionScreenMeshes(
     );
     screenOffMesh.userData.televisionScreen = true;
     // 暖阳原木：熄灭的屏幕换成手工玻璃材质（暖色玻璃 + 微弱反光），
-    // 面序与 BoxGeometry 一致，只替换朝向观众的那一面（索引 4）。
     if (studioPalette().warmWood) {
       const tvOffFrameMaterial = screenOffMesh.material;
       const warmTelevisionGlass = createWarmTelevisionGlass(threeModuleMin);
@@ -17421,7 +16149,6 @@ function addTelevisionScreenMeshes(
       ];
     }
     // 屏幕玻璃的冷暖由材质决定，但 2D 画布的贴图渲染走的是 interaction3d 运行时，
-    // 那里只能读到 userData，因此把风格一并挂上去。
     screenOffMesh.userData.sceneStyle = studioPalette().warmWood ? "warm-wood" : "default";
     if (isStageViewerMode) {
       screenOffMesh.userData.environmentEffect = true;
@@ -17486,11 +16213,6 @@ function addTelevisionScreenMeshes(
   tvScreenMesh.receiveShadow = false;
   televisionParent.add(tvScreenMesh);
 }
-/**
- * 为充电中的汽车在地面叠加光晕与闪电标志（未充电时直接返回）。光晕是 256×256 的径向渐变再叠网格点阵（每 10px 一点、
- * 半径 1.45px），点阵让光晕带一点颗粒感而不至于太塑料。面片按车身尺寸放大（宽 1.72 倍、深 1.42 倍）铺在地上，抬高
- * 14mm 并开 polygonOffset(-1/-3) 防 z-fighting。闪电用 Shape 手绘轮廓，尺寸取车身短边的 22%（不小于 0.18m）。
- */
 function addVehicleChargingEffect(
   chargingParent,
   chargingItem,
@@ -17555,8 +16277,6 @@ function addVehicleChargingEffect(
   chargingGlowMesh.castShadow = false;
   chargingGlowMesh.receiveShadow = false;
   // 特效叠层，不是占位几何：小车模型加载完成时，finishItemModel 会把「此刻挂在模型组上的
-  // 几何」整批换掉（那些是加载中的代餐盒体），这一块必须跟着活下来 —— 不标记的话，
-  // 充电特效会在车模到位的一瞬间凭空消失。
   chargingGlowMesh.userData.homeosModelOverlay = true;
   chargingParent.add(chargingGlowMesh);
   const boltShape = new threeModuleMin.Shape();
@@ -17592,17 +16312,11 @@ function addVehicleChargingEffect(
 }
 /**
  * 取渲染器支持的最大各向异性过滤倍数，取不到时按 1 处理（即不做各向异性过滤）。
- *
  * @returns {number} 最大各向异性倍数。
  */
 function studioMaxTextureAnisotropy() {
   return renderer?.capabilities?.getMaxAnisotropy?.() || 1;
 }
-/**
- * 构建壁画：内衬背板 + 画芯 + 贴在画芯上的程序化画作贴图 + 四条边框。边框宽取短边的 5.8%，画芯四边各内缩 1.9 倍
- * 边框宽（且不小于整体的 36%），这样很小的画也不会被压得没有画芯。画作贴图由 createMuralArtTexture 程序生成，
- * 失败时保留纯色画芯、不阻断渲染。所有板件一律 rounded:false，保持画框的直线感。
- */
 function buildMuralItemMeshGroup(
   group,
   item,
@@ -17716,11 +16430,6 @@ function buildMuralItemMeshGroup(
     frameProfile
   );
 }
-/**
- * 构建造型墙：底板 + 程序化饰面贴图，栅格样式再叠一排实体格栅条。格栅条数按 100mm 间距推算并夹在 4~48 根之间
- * （太密既看不出分隔又白费绘制）；条宽取间距的 62%，条厚夹在 20~50mm，兼顾立体感与轻巧感。贴图由
- * createFeatureWallTexture 程序生成，失败时退回纯色饰面。
- */
 function buildFeatureWallItemMeshGroup(group, item, itemWidth, itemDepth, itemHeight) {
   const wallStyle = normalizeFeatureWallStyle(item.wallStyle);
   const wallMaterial = FEATURE_WALL_STYLE_MATERIAL[wallStyle];
@@ -17786,7 +16495,6 @@ function buildFeatureWallItemMeshGroup(group, item, itemWidth, itemDepth, itemHe
 const PILLAR_SHAPES = Object.freeze(["square", "round", "semicircle", "quarter", "quarterinner"]);
 const pillarShapeSet = new Set(PILLAR_SHAPES);
 /**
- * 把柱体造型名归一到合法集合，非法值回退到第一项（square）。
  * @returns {string} 合法造型名。
  */
 function normalizePillarShape(value) {
@@ -17794,8 +16502,6 @@ function normalizePillarShape(value) {
 }
 /**
  * 物件的姿态是「立起来」还是「沿平面躺下」。轴线指的是物件的长度方向：
- * "vertical" 把长度指向房间纵深，"horizontal" 让长度沿平面铺开。
- * 它不等于平面旋转——平面旋转请用「平面旋转」，两种姿态下都适用。
  */
 const ITEM_AXES = Object.freeze(["vertical", "horizontal"]);
 const itemAxisSet = new Set(ITEM_AXES);
@@ -17821,8 +16527,6 @@ function itemFootprintSwapped(item) {
 }
 /**
  * 平面占位（单位：米）。姿态会让物件的长度轴与房间换位，故平面占位不能一律直接取 width/depth：立姿立柱取横截面
- * （宽 x 深）；躺姿立柱取宽 x 长（长度铺在平面上）；躺姿灯带取发光长度 x 发光宽度（俯视能看到的发光面）；
- * 立姿灯带取厚度 x 发光宽度（发光长度沿纵向竖起）。标准字段从不被改写，width/depth/height 始终表示「长度」与「横截面」。
  */
 function itemPlanFootprint(item) {
   if (pillarIsLying(item)) {
@@ -17839,7 +16543,6 @@ function itemPlanFootprint(item) {
   }
   if (item?.type === "tv") {
     // 壁挂电视的进深是真身 60mm，直接画会细成一条线；平面符号与缩放手柄都按下限兜一下，
-    // 3D 那边仍按真实进深（60mm）立起来。
     return {
       width: finite(item?.width, 0),
       depth: Math.max(finite(item?.depth, 0), TELEVISION_PLAN_MIN_DEPTH)
@@ -17874,9 +16577,6 @@ function itemFromPlanFootprintResize(item, resized) {
     };
   }
   if (stripIsStanding(item)) {
-    // 平面占位是 厚度 x 发光宽度，所以平面上唯一可拖的是发光宽度（depth）；
-    // 厚度是物理常量，发光长度又已竖起来、不在平面上，因此这两个标准字段
-    // 一律还原成原值，不采用拖拽结果。
     return {
       ...resized,
       width: finite(item?.width, 0),
@@ -17885,9 +16585,6 @@ function itemFromPlanFootprintResize(item, resized) {
   }
   if (item?.type === "tv") {
     // 电视进深是「挂装方式 + 真身」决定的物理量（壁挂 60mm / 座装 180mm / 移动支架 550mm），
-    // 变更它的唯一入口是切换挂装方式（snapTelevisionMountDimensions）。平面上为了符号与手柄
-    // 抓得住，itemPlanFootprint 给进深兜了个下限，于是拖拽结果里的 depth 一律丢掉 ——
-    // 与立姿灯带的厚度同样处理；不丢的话「拉一下宽度」会把壁挂机身顺手加厚一倍。
     return {
       ...resized,
       depth: finite(item?.depth, finite(resized?.depth, 0.1))
@@ -17895,11 +16592,6 @@ function itemFromPlanFootprintResize(item, resized) {
   }
   return resized;
 }
-/**
- * 把物件姿态应用到它自己建好的网格组上：用一个枢轴把内容整体包起来。之所以「包一层」而不是逐个移动子对象，是因为无论素材
- * 原点约定是什么，包一层都能保持原有偏移正确；而枢轴的局部坐标系已被物件组偏航过，所以「平面旋转」依然表示「物件朝向」。
- * 必须最后执行且排在外置模型替换之后（替换会销毁此前建好的一切）；躺姿立柱绕 X 轴向下翻转，立姿灯带绕 Z 轴向上翻转、向下垂挂。
- */
 function applyItemPosture(group, item) {
   const lyingPillar = pillarIsLying(item);
   const standingStrip = stripIsStanding(item);
@@ -17912,11 +16604,8 @@ function applyItemPosture(group, item) {
   }
   posturePivot.rotation[lyingPillar ? "x" : "z"] = lyingPillar ? -Math.PI / 2 : Math.PI / 2;
   posturePivot.updateMatrixWorld(true);
-  // 在枢轴挂进组之前测量，所以这个包围盒已经是物件组局部坐标系下的结果。
   const pivotContent = new threeModuleMin.Box3().setFromObject(posturePivot);
   /**
-   * 求包围盒在某一轴上的居中位移量（摆姿态时把内容挪到轴心）。传入的 min / max 可能是 ±Infinity（空包围盒），
-   * 此时返回 0；取 -(min + max) / 2 而非 -min，是为了让内容整体居中而不是贴边。
    * @returns {number} 需要的位移量；包围盒无效时为 0。
    */
   const pivotCenterOf = (minValue, maxValue) =>
@@ -17952,11 +16641,6 @@ function appendPillarOutlineArc(
     path.lineTo(centerX + Math.cos(arcAngle) * radiusX, centerY + Math.sin(arcAngle) * radiusY);
   }
 }
-/**
- * 立柱在 XY 平面上的截面：X 轴是物件宽度，+Y 指向物件的背边，所以把挤出体立正
- * 之后每个平直面都会落在 -Z 侧（即靠墙一面）。所有造型都铺满物件「宽 x 深」的
- * 完整占位，这样平面符号与命中检测都无需另作处理。
- */
 function buildPillarOutline(shape, width, depth) {
   const path = new threeModuleMin.Shape();
   const halfWidth = width / 2;
@@ -17980,7 +16664,6 @@ function buildPillarOutline(shape, width, depth) {
   }
   if (shape === "quarterinner") {
     // 在同一占位内与 "quarter" 互补：凹弧从远端角切进来，
-    // 所以把 quarter 与 quarterinner 两根立柱叠在同一位置即可拼满「宽 x 深」的方形。
     path.moveTo(halfWidth, halfDepth);
     path.lineTo(halfWidth, -halfDepth);
     path.lineTo(-halfWidth, -halfDepth);
@@ -17995,7 +16678,6 @@ function buildPillarOutline(shape, width, depth) {
 }
 /**
  * 为非方形造型生成封闭无缝隙的立柱实体。结果与方盒采用同一套约定：
- * 以原点为中心，精确铺满「宽 x 深 x 高」的占位。
  */
 function buildPillarSolidGeometry(shape, width, depth, height) {
   const solidGeometry = new threeModuleMin.ExtrudeGeometry(
@@ -18046,28 +16728,7 @@ function tracePillarPlanPath(plan2dContext, shape, widthPx, depthPx) {
   plan2dContext.rect(-halfWidth, -halfDepth, widthPx, depthPx);
 }
 /**
- * 构建柱体：方柱直接用 BoxGeometry，其余造型用 buildPillarSolidGeometry 造截面。所有造型共用同一份材质 —— 内置资产
- * 本身就是各面同色的方盒，单材质能让异形柱与方柱观感一致。setWallGradientHeight 仍要调：墙面试色着色器模式会读这个
- * 属性做渐变压暗。柱体归入墙的反射角色（reflectionRole: "wall"）以参与地面反射。
- *
- * 取料与外部模型那一路**同一口径**（否则模型加载到位的一瞬间柱子会换一次料）：
- *   1. 选了「与柜同料」的档位时有按角色的配方（palette.materialRoles.body），取它的颜色 / 粗糙度 /
- *      金属度 / 质感贴图 —— 柱体只有一份材质，所以取柱身（body）那一档；柱脚柱帽的分色由
- *      外部模型的三段几何表达，占位几何这一段本来就只有一个盒子；
- *   2. 没选档位（柱体上这一档叫「配墙（跟随墙体）」）时回落到墙体自身的材质 —— 柱体是墙的一部分，
- *      与 applyAppliancePalette 的柱分支同值，也与旁边的墙同值。
- * 此前这里**只**取墙色、而外部模型取的是家具色，于是「加载前后本来就是两种颜色」。
- */
-/**
  * 柱体占位几何的材质：选了「与柜同料」的档位时按角色配方造一份标准材质，与外部模型到位后用
- * createFurnitureMaterial 生成的那份**同型**（不透明 + 同一张质感贴图 + 同一组粗糙度 / 金属度），
- * 于是模型加载前后只有几何精度在变、料不变。
- *
- * 为什么这一路不能沿用 `makeWallSideMaterial`：「配墙」那一档要的正是墙体材质本身（连分区光照的
- * 明暗都该一致，所以那一档就该走 makeWallSideMaterial，见下）；而选了木作档位时，柱子表面是一层
- * 家具木料 + 木纹贴图，墙体那支专用 ShaderMaterial 既不读 `map` 也不读 roughness / metalness，
- * 柱子会照样是一块纯色，正是「下拉能选、选了没反应」。两条路的取舍就是这么分的：
- * 「配墙」要的是「跟墙同一种观感」，选了柜体系档位要的是「这种木料本身」。
  */
 function createStyledPillarMaterial(palette) {
   const pillarBodyRecipe = palette.materialRoles.body;
@@ -18093,8 +16754,6 @@ function createStyledPillarMaterial(palette) {
     }
   }
   if (palette.warmFurniture) {
-    // 与 resolveSharedMaterial 给不透明件补的那层自发光同一值（柱体不在 sofa / bed / rug / chair
-    // 那几个类型里，取的就是兜底档），暖色主题下占位几何才不会比成品暗一档。
     pillarMaterial.emissive = new threeModuleMin.Color(pillarBodyRecipe.color);
     pillarMaterial.emissiveIntensity = 0.065;
   }
@@ -18103,9 +16762,6 @@ function createStyledPillarMaterial(palette) {
 }
 function buildPillarItemMeshGroup(group, item, itemWidth, itemDepth, itemHeight, palette) {
   const pillarWallOpacity = Math.min((palette.wallOpacity || 0) * 1.75, 0.55);
-  // 烘焙好的立柱素材本身就是各面同色材质的方盒，所以异形柱也统一只用一份材质，
-  // 让异形实体与方柱在观感上保持一致。
-  // 下面仍保留 setWallGradientHeight：墙面试色着色器模式会读取该属性做渐变。
   const pillarBodyRecipe = palette?.materialRoles?.body ?? null;
   const pillarIsStyled = Number.isFinite(pillarBodyRecipe?.color);
   const pillarMaterial = pillarIsStyled
@@ -18131,8 +16787,6 @@ function buildPillarItemMeshGroup(group, item, itemWidth, itemDepth, itemHeight,
 }
 /**
  * 出厂构建器需要的外部依赖：本模块私有的网格构造与收尾工具。
- * 它们全都是函数声明，或是文件前部就已初始化的 import / 常量，所以这份字面量放在这里不会踩 TDZ。
- * 物件类型词表不在这里 —— 构建体与分派表直接从 studio-item-types.js 取同一份定义。
  */
 const ITEM_BUILDER_DEPS = {
   addBoxMesh,
@@ -18167,8 +16821,6 @@ const ITEM_BUILDER_DEPS = {
 };
 /**
  * 石材板整图，按色号取：程序化几何（茶几的两块石板、餐桌台面）用它贴图，与外部模型走
- * **同一份缓存贴图** —— 否则「加载中的占位几何」与「到位后的成品」会是两种石头，
- * 加载完成的一瞬间纹路会跳一下。缓存按色号分，同一色号所有构件共享一张。
  */
 const stoneSlabTextureByFlavor = new Map();
 function getStoneSlabTexture(flavor) {
@@ -18180,18 +16832,11 @@ function getStoneSlabTexture(flavor) {
   }
   return stoneSlabTextureByFlavor.get(flavor) ?? null;
 }
-/**
- * 餐桌大理石台面贴图：即石材板的白色色号（见 getStoneSlabTexture），保留这个入口是因为
- * 餐桌 / 圆餐桌的构建体按「大理石台面」的语义在用它。
- */
 function getMarbleTableTopTexture() {
   return getStoneSlabTexture("marble");
 }
 /**
  * 把一个平面条目构建成三维模型组 —— 全工程「条目数据 → three.js 对象」的唯一入口。
- * 这里只做四件事：建组打类型标记 → 拼构建上下文 → 按分派表构建 → 收尾。
- * 原先这里是一条 5744 行、65 个分支的 if/else 链，现在分派表与 62 个构建体都在 item-builders/ 下：
- * 顺序仍是优先级（轨道帘 → 灯光 → 平面标签 → 外部 GLTF 兜底 → 各专有造型），见 item-builders/registry.js。
  */
 function buildItemModel(itemSpec, prewarmLightIdSet = null) {
   const itemGroup = new threeModuleMin.Group();
@@ -18200,10 +16845,8 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
     itemGroup.userData.optimizationBatch = "v1-next-ten";
   }
   // 家居类走暖阳家居色卡（默认风格也生效），建筑 / 结构件仍取场景色卡；
-  // 逐物件的 materialStyle 在此并入 —— 兜底几何与外部模型因此拿到同一份（含质感的）调色板。
   const itemPalette = paletteForItemType(itemSpec.type, itemSpec.materialStyle);
   // 构建上下文 = 模块私有依赖 + 本次调用的入参与配色别名。
-  // 每个构建体只解构自己用到的键，因此这里的键即全部构建体的外部依赖总和。
   const itemBuilderContext = {
     ...ITEM_BUILDER_DEPS,
     itemSpec,
@@ -18226,11 +16869,6 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
   finishItemModel(itemBuilderContext);
   return itemGroup;
 }
-/**
- * 把条目的朝向写进模型组：先按 rotation 定水平朝向，再叠加各类型特有的姿态。平面角度顺时针为正，而 three.js 绕 Y 轴
- * 逆时针为正，故取负值；楼梯方向与镜像鞋柜用 scale.x = -1 做镜像，不复制几何；摄像头 / 存在传感器用 YXZ 顺序先俯仰
- * 再偏航，俯仰夹在 ±180°；灯带用 YXZ 且把 x/z 归零只保留水平朝向，其余灯具俯仰夹在 ±90°。
- */
 function applyItemOrientation(itemGroupObject, orientedItemSpec) {
   itemGroupObject.rotation.y = -threeModuleMin.MathUtils.degToRad(
     finite(orientedItemSpec.rotation, 0)
@@ -18264,8 +16902,6 @@ function applyItemOrientation(itemGroupObject, orientedItemSpec) {
 }
 /**
  * 把一个家具组摊平成「可实例化描述」列表，供跨实例批量合并。只要有一项不满足实例化条件就整体放弃（返回 null）：
- * 根矩阵含镜像（determinant < 0，InstancedMesh 无法表达镜像）、材质透明或半透明、蒙皮 / 形变网格、材质键算不出来，
- * 或几何不是外部模型共享的那一类。签名里把相对矩阵四舍五入到 1e-6：浮点尾差不应产生新分组。
  */
 function collectMeshDescriptors(descriptorRoot) {
   descriptorRoot.updateMatrixWorld(true);
@@ -18323,11 +16959,6 @@ function collectMeshDescriptors(descriptorRoot) {
     return null;
   }
 }
-/**
- * 把场景里大量重复的同款家具合并成 InstancedMesh，一次砍掉绝大部分 draw call。参与前提是「同类型 + 每个 mesh 的相对矩阵与
- * 材质签名完全一致 + 数量 ≥2」。自发光件与需单独开关或有动态效果的窗帘 / 空调 / 电视等不参与，选中的条目也跳过 —— 否则用户
- * 正在拖的那件会被冻结进实例。生成后把原组从场景移除并释放资源，统计写入根节点与 canvas dataset。
- */
 function batchRepeatedItemMeshes(instanceRoot, instanceItemEntries) {
   const descriptorsBySignature = new Map();
   for (const { item: instanceItemSpec, group: instanceItemGroup } of instanceItemEntries) {
@@ -18453,18 +17084,8 @@ function batchRepeatedItemMeshes(instanceRoot, instanceItemEntries) {
   }
   return instanceBatchStats;
 }
-/**
- * 把静态家具里「材质签名 + 几何签名相同」的 mesh 合并成更少的大 mesh。与 batchRepeatedItemMeshes 的分工：这里不要求
- * 是同款家具，而是逐 mesh 比对材质与几何签名，因此能顺带合并同一件家具内部的重复零件。祖先节点不可见的 mesh 会被跳过
- * （隐藏语义必须保住，否则隐藏的零件会被合并进来重新出现）；只处理未被裁剪（drawRange 为全量）且非 InstancedMesh 的网格。
- */
 function mergeStaticItemMeshes(staticBatchRoot, staticItemEntries) {
   const meshGroupsBySignature = new Map();
-  /**
-   * 挑出可以参与合并的几何属性名（按名字排序，保证签名稳定）。顶点色（color）只有在材质真的开了 vertexColors 时才算数，
-   * 否则它是无意义的冗余属性，带上只会让本该合并的网格被拆开。舞台模式下更严格：带贴图的材质只允许 position / normal
-   * （以及有效的 color）—— 舞台合并管线不重算其余属性，多带会画出错误的画面。
-   */
   const collectBatchableAttributes = attributeSourceMesh => {
     const attributeNames = Object.keys(attributeSourceMesh.geometry.attributes)
       .filter(
@@ -18723,8 +17344,6 @@ function mergeStaticItemMeshes(staticBatchRoot, staticItemEntries) {
 }
 /**
  * 收集外部模型里「尚未预编译过」的共享材质。外部模型为省内存会复用同一份几何与材质，这里只挑出带
- * externalModelSharedGeometry 标记的网格，按材质对象去重后返回，交给 scheduleModelPrecompile 一次性调 renderer.compile
- * 预热着色器。
  */
 function collectExternalModelSignatures() {
   const materialSignatures = new Set();
@@ -18745,10 +17364,6 @@ function collectExternalModelSignatures() {
   });
   return [...materialSignatures];
 }
-/**
- * 把外部模型材质复用情况与两轮预编译次数写进 canvas 的 dataset。仅供开发期诊断读取（浏览器 devtools 直接看属性，
- * 外部诊断脚本按 dataset 取值），不参与任何渲染决策；保留它们正是因为排障时要靠。
- */
 function publishExternalMaterialStats() {
   if (!renderer?.domElement) {
     return;
@@ -18759,10 +17374,6 @@ function publishExternalMaterialStats() {
   renderer.domElement.dataset.externalPrecompilePassCount = String(externalPrecompilePassCount);
   renderer.domElement.dataset.lightPrecompilePassCount = String(lightPrecompilePassCount);
 }
-/**
- * 按灯型统计灯光构成，生成代表「一组光照配置」的签名。签名形如 "聚光灯数:面光源数:点光源数:其他数"：着色器变体只取决于
- * 各灯型的数量组合，因此构成相同的两套灯光可以复用已编译的 program，不必再走一遍 waitForShaderCompilation。
- */
 function lightConfigurationSignature(countedLights) {
   let spotLightTotal = 0;
   let rectAreaLightCount = 0;
@@ -18781,11 +17392,6 @@ function lightConfigurationSignature(countedLights) {
   }
   return spotLightTotal + ":" + rectAreaLightCount + ":" + pointLightCount + ":" + otherLightCount;
 }
-/**
- * 规划本次需要提前编译的灯光组合（预编译计划）。WebGL 第一次遇到新的光照组合要现场编译着色器，表现为掉帧，故这里枚举有代表性
- * 的组合 —— 当前全亮态、全灭态、每个灯组单独显隐，以及舞台模式下的全亮态 —— 每个组合记录「需要临时改 visible 的灯」，由
- * scheduleLightPrecompile 逐个套用后编译预热。计划条数受 MAX_PRECOMPILE_PLAN_COUNT 限制，forceEntry 与当前组合永不丢弃。
- */
 function buildLightPrecompilePlan() {
   if (!previewModelRoot) {
     return [];
@@ -18820,10 +17426,6 @@ function buildLightPrecompilePlan() {
     appliedLightPrecompileSignature = lightPrecompileCacheKey;
     precompiledLightSignatures.clear();
   }
-  /**
-   * 向预编译计划追加一个候选组合（闭包，直接写 builtPrecompilePlan）。用 seenLightSignatures 对本次计划内部去重，用
-   * precompiledLightSignatures 对历史已编译组合去重；两者都不命中时才考虑数量上限。
-   */
   const addPrecompileChanges = (signatureLights, reportedLightChanges, forceEntry = false) => {
     const lightSignature = lightConfigurationSignature(signatureLights);
     if (!seenLightSignatures.has(lightSignature)) {
@@ -18892,11 +17494,6 @@ function buildLightPrecompilePlan() {
   return builtPrecompilePlan;
 }
 const LIGHT_PRECOMPILE_TIMEOUT_MS = 4500;
-/**
- * 触发场景编译并等待着色器真正就绪，失败 / 超时返回 false。依赖 KHR_parallel_shader_compile 扩展：缺失时 three.js 的
- * compile() 是同步阻塞的，预热没有意义。含 transmission 的材质必须在一个 1x1 的 render target 上编译，否则透射分支不会被
- * 编译进去。轮询间隔 32ms、总超时 4500ms；isStillCurrent 返回 false 表示场景 / 渲染器已被替换，立即放弃。
- */
 function waitForShaderCompilation(targetRenderer, sceneToCompile, cameraToCompile, isStillCurrent) {
   const rendererGlContext = targetRenderer.getContext();
   if (
@@ -18937,10 +17534,6 @@ function waitForShaderCompilation(targetRenderer, sceneToCompile, cameraToCompil
   const shaderPrograms = [...targetRenderer.info.programs];
   const compileDeadline = performance.now() + LIGHT_PRECOMPILE_TIMEOUT_MS;
   return new Promise((resolveCompile, rejectCompile) => {
-    /**
-     * 轮询着色器是否编译完成（闭包，仅在 waitForShaderCompilation 内使用）。除 isReady() 外还要取一次 uniform 与 attribute：
-     * three.js 的 program 要到这一步才真正完成链接准备，只看 isReady 会拿到半成品。每轮先复核渲染器与 WebGL 上下文仍是同一个。
-     */
     const scheduleCompilePoll = () => {
       try {
         if (
@@ -18953,8 +17546,6 @@ function waitForShaderCompilation(targetRenderer, sceneToCompile, cameraToCompil
         }
         const compiledPrograms = new Set(targetRenderer.info.programs);
         /**
-         * 判断一个着色器程序此刻是否仍然有效。三重校验：程序还在渲染器的程序表里、program 对象存在、且 WebGL 上下文认得它。
-         * 少任何一条都说明它已被回收，或是上一帧的残留。
          * @returns {boolean} 是否有效。
          */
         const isProgramCompiled = trackedProgram =>
@@ -18993,7 +17584,6 @@ function waitForShaderCompilation(targetRenderer, sceneToCompile, cameraToCompil
 }
 /**
  * 判断此刻是否应当暂停灯光预编译。页面正在卸载或标签页不可见时暂停；舞台（viewer）模式下还要求帧循环可用且渲染缓存
- * 未关闭，否则预编译不会被呈现出来。
  * @returns {boolean} true 表示应暂停 / 推迟预编译。
  */
 function isLightPrecompilePending() {
@@ -19005,7 +17595,6 @@ function isLightPrecompilePending() {
 }
 /**
  * 判断是否处于「正在动相机 / 正在过渡灯光」的高干扰期。相机手势、导出渲染、灯光缓存重建、外部模型预编译、灯光明暗过渡
- * 期间都不适合插入额外编译，否则会与动画抢主线程导致明显卡顿。
  * @returns {boolean} true 表示此刻不宜做预编译。
  */
 function isCameraGestureActive() {
@@ -19019,11 +17608,6 @@ function isCameraGestureActive() {
     (!isStageViewerMode && isAdaptiveLightCacheEnabled())
   );
 }
-/**
- * 延迟调度灯光预编译（防抖，默认 360ms）。只有区域光照 / 自动图集开启时才做。调用时先清掉上一个定时器，保证短时间内多次触发
- * 只执行最后一次。回调里逐项检查上下文（渲染器、相机、场景、无手势、无待加载模型），不满足就退避 240ms 重试；真正执行时逐
- * 组合 await yieldToIdle()，并在前后还原灯光的 visible 与 intensity（编译只是预热）。失败时置 dataset.lightPrecompileState = fallback。
- */
 function scheduleLightPrecompile(precompileDelayMs = 360) {
   if (!isRegionLightingEnabled && !isAutoDiagramEmbed && !isPageUnloading) {
     shouldRerunLightPrecompile = true;
@@ -19066,8 +17650,6 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
           pendingPrecompilePlan.length
         );
         /**
-         * 判断计划执行期间场景是否仍然有效（闭包）。任一捕获引用被替换，或期间又触发了新的预编译 / 页面隐藏 / 相机手势，就视为
-         * 计划过期：调用方立即停止并置 shouldRerunLightPrecompile 以便重排。
          * @returns {boolean} true 表示可以继续应用当前计划。
          */
         const isPlanStillCurrent = () =>
@@ -19163,11 +17745,6 @@ window.addEventListener(
     once: true
   }
 );
-/**
- * 延迟调度外部模型材质的着色器预编译（默认 0ms，即下一轮宏任务）。结构与 scheduleLightPrecompile 相同：防抖 + 检查上下文 +
- * 失败退避 240ms 重试。先收集未预编译的共享材质，调 renderer.compile 后记入 precompiledModelSignatures 并递增
- * externalPrecompilePassCount —— 该计数是灯光预编译缓存键的一半。无论成功与否都会在 finally 里串到 scheduleLightPrecompile。
- */
 function scheduleModelPrecompile(modelPrecompileDelayMs = 0) {
   if (!isRegionLightingEnabled) {
     shouldRerunExternalPrecompile = true;
@@ -19224,10 +17801,6 @@ function scheduleModelPrecompile(modelPrecompileDelayMs = 0) {
     }
   }
 }
-/**
- * 统一入口：请求刷新三维场景（把「哪些范围脏了」交给场景更新计划）。非实时预览且未强制时只置 isPreviewDirty 标记，等场景可见
- * 时再重建；强制刷新则把 "all" 加入待更新范围。scope 只认 items / lights / architecture，其余按 "all" 处理。
- */
 function applySceneRefresh(refreshOptions = {}) {
   const isRefreshForced = refreshOptions.force === true;
   const normalizedScope = ["items", "lights", "architecture"].includes(refreshOptions.scope)
@@ -19292,8 +17865,6 @@ function applySceneRefresh(refreshOptions = {}) {
 }
 /**
  * 求当前场景「需要取景的范围」（平面包围盒，单位：平面像素）。优先只按墙体计算 —— 墙体才代表建筑轮廓；没有墙时退化为
- * 只按家具算，保证刚放几件家具也能取到合适的景；两者都为空时交给 modelBounds 兜底。始终把 background 传 null：底图可能是
- * 扫描件，尺寸远大于户型本身，计入后相机会被拉得过远。
  */
 function computeFloorBounds() {
   if (activeScene.walls.length) {
@@ -19314,8 +17885,6 @@ function computeFloorBounds() {
 }
 /**
  * 由一段墙实体算出它在世界坐标（米）下的矩形足迹（四个角点）。墙体挤出与地面接触阴影都靠它：先求墙两端的方向向量与其法线，
- * 再按厚度的一半向两侧各偏 halfThickness。只有当该段实体顶到整面墙的起点 / 终点时，才把 extensions 里的补角延伸量加上去 ——
- * 这样转角处相邻两墙能互相补齐，不会留下发丝缝。段长为 0 时返回 null。
  */
 function buildWallFootprint(
   footprintWall,
@@ -19393,10 +17962,6 @@ function polygonLoopToPath(PathConstructor, loopPoints) {
   path.closePath();
   return path;
 }
-/**
- * 把一组带孔环整理成 three.js 的 Shape 列表（外轮廓 + 内孔）。约定：环的有向面积 > 0 视为外轮廓，< 0 视为孔。孔按「被哪个外轮廓
- * 包住」归位，命中多个时取面积最小的那个。若一个外轮廓都没有（数据只给了孔），则把孔反向当作外轮廓使用，否则几何体会凭空消失。
- */
 function buildPolygonShapes(polygonLoops) {
   const outerLoopEntries = [];
   const holeLoops = [];
@@ -19440,21 +18005,13 @@ function buildPolygonShapes(polygonLoops) {
     return outerShape;
   });
 }
-/**
- * 创建墙面（挤出体侧面）材质。不透明度 >= 0.999 视为不透明：走 LessEqualDepth；否则用 LessDepth 并开启透明混合。工作室预览
- * 不使用舞台那套正面专用墙面 shader，而是 FrontSide + 开启 depthWrite + 关闭 transmission —— 半透明挤出体若用 DoubleSide +
- * transmission，会从近侧表面透出背面与转角重叠，接缝看起来像「碎掉」。区域光照下的半透明墙会被标记 userData.alphaWallBand。
- */
 function makeWallSideMaterial(sideColor, sideOpacity, wallSideMaterialOptions = {}) {
   const isSideOpaque = sideOpacity >= 0.999;
   const isAlphaBand = isRegionLightingEnabled && !isSideOpaque;
   // 暖阳原木：墙面靠更强的自发光（0.32）撑起整体亮度，墙脚渐变也换成几乎不压暗的版本；
-  // polygonOffset 特例（选中描边一类）不参与，避免高亮描边跟着变亮。
   const isWarmCleanWall =
     !!studioPalette().warmWood && wallSideMaterialOptions.polygonOffset !== true;
   // 工作室预览不走舞台那套正面专用墙面 shader：半透明挤出体若用 DoubleSide +
-  // transmission，会从近侧表面透出背面与转角重叠，接缝看起来像被撕碎。
-  // 这里对齐舞台的做法 —— 只画正面、开启深度写入、关闭 transmission。
   const createdWallSideMaterial = createWallSideMaterial(
     threeModuleMin,
     {
@@ -19487,8 +18044,6 @@ function makeWallSideMaterial(sideColor, sideOpacity, wallSideMaterialOptions = 
   return createdWallSideMaterial;
 }
 /**
- * 创建一个永不渲染的占位材质。挤出体的材质数组第 0 槽位对应「端盖」：three.js 的 ExtrudeGeometry 会把首尾两个端面分给
- * 材质索引 0、侧面分给索引 1（这里 1 号槽位才是真实墙面材质）。用一个 visible=false 的空材质吃掉端盖，省掉两层看不见的面。
  * @returns {object} 已置 visible=false 的 MeshBasicMaterial。
  */
 function createInvisibleWallMaterial() {
@@ -19496,10 +18051,6 @@ function createInvisibleWallMaterial() {
   invisibleWallMaterial.visible = false;
   return invisibleWallMaterial;
 }
-/**
- * 创建墙顶压条 / 平面色带使用的材质（贴在 XZ 平面上的 ShapeGeometry）。半透明时把不透明度再乘 1.08 并封顶 0.42：色带面积小，
- * 照原样太淡会看不出墙线位置。墙面试验着色器下颜色整体提亮 1.2 倍以补偿试验光照下的亮度差；返回 MeshStandardMaterial。
- */
 function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}) {
   const isWarmWood = !!studioPalette().warmWood;
   const isTopOpaque = topOpacity >= 0.999;
@@ -19521,11 +18072,9 @@ function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}
     polygonOffsetFactor: topMaterialOptions.polygonOffsetFactor ?? -2,
     polygonOffsetUnits: topMaterialOptions.polygonOffsetUnits ?? -4,
     // ShapeGeometry 会被旋转到 XZ 平面、法线朝下，因此保持 DoubleSide，
-    // 这样从常用的俯视机位看，顶面条带依然可见。
     side: threeModuleMin.DoubleSide,
     emissive: topMaterialOptions.emissive ?? topMaterialOptions.topColor ?? topBaseColor,
     // 暖阳原木且未走 polygonOffset 特例时，顶面条带自发光抬到 0.18：
-    // 暖色背景下墙顶线本来就浅，不加一点自发光会从天花板上「消失」。
     emissiveIntensity: topMaterialOptions.emissiveIntensity
       ? topMaterialOptions.emissiveIntensity * 0.3
       : isWarmWood && topMaterialOptions.polygonOffset !== true
@@ -19533,11 +18082,6 @@ function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}
         : 0.08
   });
 }
-/**
- * 把一组闭环挤出成墙体（沿 Y 轴从 baseY 到 topY），并挂到模型根节点下。先尝试求多边形并集：并集成功说明这些环互相接触，用
- * 并集结果可避免同一面墙被叠加渲染两次（半透明墙叠两层会露出内部接缝）；半透明但未做并集时强制 depthWrite=true + LessDepth。
- * 挤出体再绕 X 轴旋转 90° 摆到 XZ 平面，并写入墙面渐变与转角距离两组顶点属性，供墙面试验着色器使用。
- */
 function addWallExtrusion(
   extrusionLoops,
   baseY,
@@ -19607,11 +18151,6 @@ function addWallExtrusion(
     previewModelRoot.add(extrudedWallMesh);
   }
 }
-/**
- * 在指定高度铺一层平面色带（墙顶压条、楼层分界带等）。与 addWallExtrusion 一样先做并集去重；y 再抬 0.0005 是为了
- * 避开与压顶面的深度冲突（z-fighting）。舞台模式下透明色带强制 forceSinglePass，否则 three.js 的双面透明会画两遍、
- * 叠加后颜色明显偏深。环为空时直接返回。
- */
 function addPlanBandMesh(bandLoops, wallBandY, bandColor, bandOpacity, bandOptions = {}) {
   if (!bandLoops.length) {
     return;
@@ -19643,11 +18182,6 @@ function addPlanBandMesh(bandLoops, wallBandY, bandColor, bandOpacity, bandOptio
     previewModelRoot.add(bandMesh);
   }
 }
-/**
- * 给楼层外轮廓描一圈发光线（细条 + 淡淡的加色光晕）。每条边生成两个 BoxGeometry：0.042 高、0.038 厚的亮条负责「线」；
- * 0.066 / 0.078 的加色渐晕（opacity 0.09）负责「光」。所有边各自合并成一个 geometry 只画一次，避免每边一个 draw call；
- * userData.exportRole="outline" 告诉导出流程这是装饰线，不参与阴影与反射。
- */
 function addFloorEdgeOutline(edgeLoop, outlineColor, edgeSurfaceY) {
   const outlineGeometries = [];
   const capGeometries = [];
@@ -19662,13 +18196,11 @@ function addFloorEdgeOutline(edgeLoop, outlineColor, edgeSurfaceY) {
     }
     /**
      * 这条边中点在 X 轴上的坐标，用来把描边条平移到边的正中。
-     *
      * @type {number}
      */
     const edgeCenterX = (edgeStartPoint.x + edgeEndPoint.x) / 2;
     /**
      * 同一条边中点在 Z 轴上的坐标（平面 y 轴对应世界 z 轴）。
-     *
      * @type {number}
      */
     const centerZ = (edgeStartPoint.z + edgeEndPoint.z) / 2;
@@ -19733,10 +18265,6 @@ function addFloorEdgeOutline(edgeLoop, outlineColor, edgeSurfaceY) {
     previewModelRoot.add(capMesh);
   }
 }
-/**
- * 把多边形的每个顶点沿「质心 → 顶点」方向向外推开固定距离。这是廉价的外扩近似：只在凸多边形上与真正的等距偏移等价，凹多边形
- * 会略有失真；但光晕与投影都是柔边装饰，近似已经够用。距离下限取 1e-6，防止顶点与质心重合时除零；不修改入参。
- */
 function offsetPolygonOutward(polygonOffsetPoints, offset) {
   const centroid = polygonOffsetPoints.reduce(
     (accumulator, accumulatedPoint) => ({
@@ -19758,11 +18286,6 @@ function offsetPolygonOutward(polygonOffsetPoints, offset) {
     };
   });
 }
-/**
- * 在楼层底部铺一层极淡的接触阴影，让墙体看起来「压」在地面上。轮廓先外扩 0.028 米再合并成单个几何体；颜色 0x080B12、
- * 透明度 5.2%、depthWrite=false 且用 polygonOffset 压后，只负责暗角过渡。墙面试验着色器下由着色器负责 AO，
- * 这里直接跳过，避免重复叠加。无轮廓时直接返回。
- */
 function addFloorContactShadow(shadowPolygons, shadowSurfaceY) {
   if (!shadowPolygons.length || isWallShaderTrialEnabled()) {
     return;
@@ -19804,17 +18327,11 @@ function addFloorContactShadow(shadowPolygons, shadowSurfaceY) {
 }
 /**
  * 判断是否启用墙面试验着色器。此前 `?wall-trial=...` 可覆盖编译期默认值、不必重新构建就能对比
- * 不同墙面渲染方案（例如 single,depth），该调试旁路已移除；现在只由 WALL_RUNTIME_PROFILE 决定。
  * @returns {boolean} true 表示走试验着色器分支。
  */
 function isWallShaderTrialEnabled() {
   return isRegionLightingEnabled && WALL_RUNTIME_PROFILE === "shader";
 }
-/**
- * 添加地面网格（GridHelper），并注入「径向 + 视距」双衰减的自定义着色器。格数按 1.25 米一格换算、最少 12 格，基础透明度 0.24。
- * onBeforeCompile 里替换 three.js 的着色器片段，加入两组 uniform：gridFadeNear/Far 按到网格中心的距离做径向淡出（以网格边长
- * 的 0.18/0.46 倍为界）；gridDepthFadeNear/Far 按到相机的深度淡出，每帧在 onBeforeRender 里按当前相机重算。
- */
 function addFloorGrid(gridSize, gridPalette, gridHeightY) {
   const gridDivisions = Math.max(Math.round(gridSize / 1.25), 12);
   const gridHelper = new threeModuleMin.GridHelper(
@@ -19892,11 +18409,6 @@ function addFloorGrid(gridSize, gridPalette, gridHeightY) {
   gridHelper.userData.exportRole = "grid";
   previewModelRoot.add(gridHelper);
 }
-/**
- * 在地面上叠加三层柔化投影（模拟建筑落在地面的环境阴影）。三层分别是（spread / 偏移X / 偏移Y / 透明度）：0.035、0.13、
- * -0.1、0.12；0.13、0.18、-0.14、0.055；0.3、0.24、-0.19、0.018 —— 越外层越淡、越大、偏移越远，叠出方向感。参数写成
- * 字面量数组是为了能一眼看出三层的递进关系。传入 holes 时用 subtractPolygonLoops 挖掉中庭，避免阴影糊住天井。
- */
 function addFloorGroundShadow(groundShadowPolygon, groundShadowSurfaceY, holes = []) {
   if (!Array.isArray(groundShadowPolygon) || groundShadowPolygon.length < 3) {
     return;
@@ -19953,11 +18465,6 @@ function addFloorGroundShadow(groundShadowPolygon, groundShadowSurfaceY, holes =
     previewModelRoot.add(groundShadowMesh);
   });
 }
-/**
- * 构建「建筑层」：所有墙体、墙顶色带、门窗与栏杆一次成组。顺序刻意分成四步：1) 把门窗栏杆统一成带 sill / height 的洞口，交给
- * wallSolidPieces 切出实心墙；2) 按「同一足迹 + 同一上下高度 + 同一透明度」去重后收集成 wallVolumes，再按上下界排序切成水平层
- * 逐层挤出，使每层墙面透明度一致；3) 每层顶部铺墙顶色带，选中的墙加加色高亮；4) 按墙遍历门窗栏杆，各自组装成 Group 挂到模型根节点。
- */
 function buildArchitectureLayer({
   ppm: architecturePixelsPerMeter,
   toWorld: architectureToWorld,
@@ -20299,15 +18806,12 @@ function buildArchitectureLayer({
       const isHostDoorSelected = isSelected("door", loopedDoorSpec.id);
       const hostDoorType = loopedDoorSpec.doorType || "solid";
       // 逐门「材质」档位：auto（未选）时每一处都回落到原来的 architecturePalette，渲染与加这个
-      // 属性之前逐字节一致；选了档位时按配方覆盖门扇 / 门套 / 五金 / 玻璃各自那一份。
       const doorMaterialStyle = findDoorMaterial(hostDoorType, loopedDoorSpec.materialStyle);
       const doorLeafRecipe = doorMaterialStyle?.leaf ?? null;
       const doorFrameRecipe = doorMaterialStyle?.frame ?? null;
       const doorHandleRecipe = doorMaterialStyle?.handle ?? null;
       const doorGlassRecipe = doorMaterialStyle?.glass ?? null;
       // 舞台模式：给门模型根打上环境模型标识与开合类型，运行时锁动画（lock-motion）靠这组
-      // userData 找到门并决定怎么动。只有推拉 / 卷帘 / 仅门框需要单独归类，其余（实木 / 玻璃 /
-      // 双开 / 入户）都走「绕 y 轴旋转的平开」这一套。编辑态一律不打标，渲染与从前逐字节一致。
       if (isStageViewerMode) {
         doorGroup.userData.environmentModelId = "door:" + loopedDoorSpec.id;
         doorGroup.userData.environmentModelType = "door";
@@ -20326,8 +18830,6 @@ function buildArchitectureLayer({
         : doorMaterialRecipeColor(architecturePalette.frame, doorFrameRecipe);
       const doorFrameThickness = 0.065;
       // 暖阳原木：给实心门扇与卷帘补一层暖色自发光（doorLeaf），让木面在低照度下
-      // 仍有可见亮部；玻璃门不加 —— 自发光会把玻璃糊成一片。选了材质档位时也不加：
-      // 档位的色号是设计好的成品色，再叠一层自发光会把浅色门扇（白漆）糊掉。
       const warmDoorLeafOptions = architecturePalette.warmWood && !doorMaterialStyle
         ? { emissive: architecturePalette.doorLeaf, emissiveIntensity: 0.4 }
         : {};
@@ -20376,7 +18878,6 @@ function buildArchitectureLayer({
         const slidingPanelPositions = slidingDoorPanelCenters(doorWidth, doorHinge);
         if (isStageViewerMode) {
           // 舞台模式：两扇门各放进一个枢轴 Group，运行时只平移「活动扇」。活动扇的关门位
-          // 取固定扇的镜像位（±0.23 门宽），开门行程正好落回固定扇身上，与转轴同侧一致。
           const slidingFixedClosedX = slidingPanelPositions.fixed;
           const slidingMovingClosedX = -slidingPanelPositions.fixed;
           const slidingFixedPanelGroup = new threeModuleMin.Group();
@@ -20490,7 +18991,6 @@ function buildArchitectureLayer({
         const panelOnlyHeight = Math.max(doorHeight - doorFrameThickness * 0.85, 0.8);
         const panelSwing = loopedDoorSpec.swing === -1 ? -1 : 1;
         // 舞台模式：门帘（面板 + 叶片）挂到独立的「卷帘枢轴」Group 上，枢轴原点落在门帘底边。
-        // 运行时抬高 position.y 再压缩 scale.y，视觉上就是门帘向上卷起；编辑态沿用旧层级。
         let rollerLeafParent = doorGroup;
         if (isStageViewerMode) {
           const rollerPanelPivot = new threeModuleMin.Group();
@@ -20528,7 +19028,6 @@ function buildArchitectureLayer({
           shutterSlats.push([panelOnlyWidth * 0.98, 0.012, 0.052, 0, slatY, panelSwing * 0.052]);
         }
         // 叶片取门套那一档的料：与门帘面板同档会让叶片分不出层次（卷帘最怕读成一块整板），
-        // 档位的门套色恰是同族里更深的一档。
         addWallBandMesh(
           rollerLeafParent,
           shutterSlats,
@@ -20557,14 +19056,11 @@ function buildArchitectureLayer({
         const entryDoorWidth = Math.max(doorWidth - doorFrameThickness * 1.5, 0.4);
         const entryDoorHeight = Math.max(doorHeight - doorFrameThickness * 0.85, 0.8);
         // 门扇本体始终居中；「内外翻转」只把装饰条与把手镜像到墙的另一面 ——
-        // 门关着的时候，只有这些细节能让人看出哪边是室内。
         const entryFlipSign = loopedDoorSpec.swing === -1 ? -1 : 1;
         const entryDoorColor = isHostDoorSelected
           ? architecturePalette.accent
           : doorMaterialRecipeColor(architecturePalette.furnitureDark, doorLeafRecipe);
         // 舞台模式：门扇挂到「合页枢轴」Group 上，枢轴摆在铰链那一侧的门边，扇体几何整体
-        // 反向平移同样的距离，旋转才会绕门边转而不是绕门中心转。运行时按 doorLeafWidth
-        // 自行把枢轴摆回同一位置（门扇宽 = 门洞宽 - 1.5 倍门套厚）。
         let entryLeafParent = doorGroup;
         let entryLeafShiftX = 0;
         if (isStageViewerMode) {
@@ -20645,12 +19141,9 @@ function buildArchitectureLayer({
         const doublePanelWidth = Math.max((doorWidth - doorFrameThickness * 1.8) / 2, 0.25);
         const doublePanelHeight = Math.max(doorHeight - doorFrameThickness * 0.8, 0.4);
         // 双开门的开启角度固定为 0.42π（约 75.6°）：既明显敞开，又不会
-        // 让门扇与门套穿插；swing 为 -1 时整体镜像到墙的另一面。
         const doublePanelAngle = (loopedDoorSpec.swing === -1 ? 1 : -1) * Math.PI * 0.42;
         if (isStageViewerMode) {
           // 舞台模式：两扇各挂一个「合页枢轴」Group，枢轴就地摆在各自门边，开启角 baked 成
-          // 枢轴自身旋转（doorFixedHinge 让运行时别按门宽挪枢轴）。扇体在枢轴局部坐标里朝门
-          // 中心偏 leafOffsetX，绕门边转出来的摆位与编辑态那套预烘焙坐标等价。
           for (const leafSign of [-1, 1]) {
             const leafRotationY = leafSign < 0 ? doublePanelAngle : -doublePanelAngle;
             const leafOffsetX = leafSign < 0 ? doublePanelWidth / 2 : -doublePanelWidth / 2;
@@ -20787,8 +19280,6 @@ function buildArchitectureLayer({
       doorGroup.add(glassLeafGroup);
       if (isStageViewerMode) {
         // 舞台模式：这个 leaf Group 本身就是合页枢轴（枢轴位在门边），运行时按根上的
-        // doorLeafWidth 重摆枢轴、绕它转；开启角 doorOpenRotation 与关门角 doorClosedRotation
-        // 记在根上，方向由编辑态那套 doorLeafRotation 烘焙出的符号决定。
         glassLeafGroup.userData.doorHingePivot = true;
         glassLeafGroup.userData.doorRestRotation = glassLeafGroup.rotation.y;
       }
@@ -20864,11 +19355,6 @@ function buildArchitectureLayer({
     }
   }
 }
-/**
- * 重建当前楼层的整份预览场景（单层模式下的总装配入口）。顺序刻意固定：先清空基础灯光与模型根并让渲染缓存失效，再按
- * computeFloorBounds 的取景中心建立「平面像素 → 世界米」换算，随后铺地面 → 建筑层 → 逐件家具 → 批量合并，最后重排阴影预算。
- * 地面分三条路径：有下沉洞口时挖洞再挤出楼板；有墙围轮廓时取第一段挤出、其余只贴阴影描边；什么都没有时兜底矩形楼板。
- */
 function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = false } = {}) {
   contactShadowController?.invalidate();
   if (isRegionLightingEnabled && previewModelRoot) {
@@ -20893,8 +19379,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   const sceneFocusX = floorFocusPoint?.x ?? (sceneFloorBounds.minX + sceneFloorBounds.maxX) / 2;
   const sceneFocusY = floorFocusPoint?.y ?? (sceneFloorBounds.minY + sceneFloorBounds.maxY) / 2;
   /**
-   * 把平面像素坐标换算成楼层局部的世界坐标（米），并以取景中心为原点。平面 y 轴向下、世界 z 轴向前，故 y 映射到 z。
-   * sceneFocusX / sceneFocusY 是该层的取景中心，先减掉它可让楼层内容绕场景原点摆放，轨道控制器与阴影相机都以原点为中心。
    * @returns {{x: number, z: number}} 世界坐标（米）。
    */
   const toWorldPoint = worldInputPoint => ({
@@ -20929,7 +19413,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     emissiveIntensity: 0.025
   });
   // 暖阳原木：往地面材质里注入「浅色橡木地板 + 板缝 + 木纹」的着色器补丁，
-  // 非暖色主题下函数内部会直接返回，材质保持原样。
   decorateWarmFloor(floorMaterial, scenePalette);
   const floorPolygons = floorPolygonsForWalls(scenePixelsPerMeter);
   const floorOpeningItems = activeScene.items
@@ -20945,7 +19428,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     );
   /**
    * 给一块地面轮廓补上接地阴影，以及按设置开启的轮廓线。只做叠加装饰，不生成楼板本体；有下沉洞口的场景由调用方按每块
-   * 轮廓分别调用，避免把洞口盖住。
    */
   const addFloorSurfaceMeshes = surfacePolygons => {
     addFloorGroundShadow(surfacePolygons, sceneGridY);
@@ -20953,11 +19435,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
       addFloorEdgeOutline(surfacePolygons, scenePalette.floorEdge, floorTopY);
     }
   };
-  /**
-   * 把预算好的地面几何挂到模型根节点上（闭包）。ExtrudeGeometry 挤出的方向是 +Z，必须由 rotateToVertical 指明绕 X 轴
-   * 立起来，并据此决定高度取地面值还是「地面减去半个板厚」。只有没有下沉洞口时才在楼板表面补阴影与描边 —— 挖过洞的地面
-   * 由调用方逐块轮廓自行补，避免把洞口盖住。
-   */
   const addFloorSlab = (slabPolygons, slabGeometry, rotateToVertical) => {
     const floorMesh = new threeModuleMin.Mesh(slabGeometry, floorMaterial);
     floorMesh.rotation.x = rotateToVertical ? Math.PI / 2 : 0;
@@ -21159,8 +19636,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   }
 }
 /**
- * 取当前的楼层预览模式。只有文档里楼层多于一层、「全部楼层」叠放模式才生效；单层时一律按 "active" 处理，避免出现
- * 只有一层的堆叠视图。
  * @returns {string} "all" 叠放全部楼层，"active" 只看当前楼层。
  */
 function currentPreviewFloorMode() {
@@ -21170,13 +19645,8 @@ function currentPreviewFloorMode() {
     return "active";
   }
 }
-/**
- * 把楼层预览模式同步到工具栏按钮的选中态与可用性。除 class 外还写 aria-pressed 供读屏识别；「全部楼层」按钮在只有
- * 一层时禁用，防止切到没有意义的视图。
- */
 function syncPreviewFloorButtons() {
   const previewMode = currentPreviewFloorMode();
-  // 楼层数多于一层才允许切到「全部楼层」叠放视图，否则该按钮置灰。
   const hasSeveralFloors = (studioDocument?.floors.length || 0) > 1;
   for (const floorModeButton of previewFloorButtons) {
     const isActiveFloorButton = floorModeButton.dataset.previewFloor === previewMode;
@@ -21185,10 +19655,6 @@ function syncPreviewFloorButtons() {
     floorModeButton.disabled = floorModeButton.dataset.previewFloor === "all" && !hasSeveralFloors;
   }
 }
-/**
- * 切换楼层预览模式（"all" 叠放 / "active" 单层）。单层文档里传 "all" 会被收敛回 "active"。模式变了要连带重建场景、重设相机模式
- * 并重置取景。同时释放延迟加载的外部模型（叠放视图用不到底层楼层的细节）。
- */
 function setPreviewFloorMode(mode, { persist: persistPreviewMode = true } = {}) {
   if (studioDocument) {
     studioDocument.previewFloorMode =
@@ -21206,11 +19672,6 @@ function setPreviewFloorMode(mode, { persist: persistPreviewMode = true } = {}) 
     }
   }
 }
-/**
- * 刷新预览场景：单层模式直接重建，叠放模式逐层重建并堆叠。叠放模式的做法是暂时把 previewModelRoot / activeScene / activeFloorId /
- * floorFocusPoint 指向「当前正在处理的楼层」，复用同一个 rebuildPreviewScene，处理完再恢复快照 —— 因此循环里的赋值必须成对出现。
- * 楼层按 elevation 升序排，间距取 exportFloorGap（导出中）或 previewFloorGap；第一层之外会去掉或隐藏背景板与网格。
- */
 function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = false } = {}) {
   if (!previewModelRoot) {
     return;
@@ -21292,8 +19753,6 @@ function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = f
 }
 /**
  * 只重建指定楼层（楼层内容变化时的增量切换）。叠放模式下若目标楼层对应的 Group 尚未建出（或楼层列表与场景不同步），
- * 退化为整体 refreshPreviewScene；否则逐个目标楼层切上下文重建。中间那串逗号表达式是刻意写法：把赋上下文、摆位置、
- * 重建串成一条语句，让重建结果（是否首层）作为 if 条件。单层模式下只有目标里含当前楼层时才需刷新。
  */
 function switchPreviewFloor(targetFloorIds) {
   if (!targetFloorIds.size || !previewModelRoot) {
@@ -21374,8 +19833,6 @@ function switchPreviewFloor(targetFloorIds) {
 }
 /**
  * 组装当前楼层的平面上下文，供局部重建（家具层 / 灯光层 / 建筑层）复用。返回的四件事就是建几何所需的全部坐标系信息：
- * 比例尺、地面高度、地面轮廓列表，以及「平面像素 → 世界米」的换算函数。拿不到比例尺（尚未标定 / 没有底图）时返回 null，
- * 调用方据此跳过本次重建 —— 这是局部重建与 rebuildPreviewScene 共用同一套换算的唯一约定。
  */
 function computeFloorPlanContext() {
   const planContextPixelsPerMeter = currentPixelsPerMeter();
@@ -21409,11 +19866,6 @@ function removeModelLayer(removedLayerName) {
     }
   }
 }
-/**
- * 重建家具层（items）或灯光层（lights）。局部重建比整体重建便宜：只删掉目标图层再按 activeScene.items 重建，建筑层与另一图层
- * 原样保留。灯光层与家具层的差别：灯光层不参与批量合并、需要重算阴影投射灯 ID 并重跑 applyRenderQualityMode、且 invalidateRender
- * 不动阴影。shadowRoot 用于把阴影预算作用到整棵根上，而不是刚重建的子树。
- */
 function rebuildModelLayer(
   rebuiltLayerName,
   {
@@ -21502,11 +19954,6 @@ function rebuildModelLayer(
     preserveLightCache: layerPreserveLightCache
   });
 }
-/**
- * 重建建筑层（墙体 / 门窗 / 栏杆 / 墙顶色带）。建筑层是「整层重来」的：先删掉旧建筑层节点再整体重建，因此这里额外让
- * 接触阴影控制器失效（墙体轮廓变了，旧的贴地阴影必须重算）。与家具层一样把阴影预算作用到 shadowRoot 上，避免只更新
- * 子树造成阴影图集与场景不一致。
- */
 function rebuildArchitectureRoot({
   preserveLightCache: architecturePreserveLightCache = false,
   shadowRoot: architectureShadowRoot = previewModelRoot
@@ -21542,11 +19989,6 @@ function refreshItemsLayer(itemLayerOptions = {}) {
 function refreshLightsLayer(lightLayerOptions = {}) {
   rebuildModelLayer("lights", lightLayerOptions);
 }
-/**
- * 按范围局部重建场景（architecture / items / lights 的任意组合）。叠放模式下每个楼层是模型根下的一个 Group，局部重建必须先临时
- * 把 previewModelRoot / floorFocusPoint 切到当前楼层的 Group 上，重建完再在 finally 里恢复，否则会把新几何挂到根节点而错位。
- * 找不到楼层记录或 Group 时退化为整体刷新。
- */
 function refreshSceneScopes(requestedScopes, scopeRefreshOptions) {
   const scopeRootSnapshot = previewModelRoot;
   const scopeFocusSnapshot = floorFocusPoint;
@@ -21587,8 +20029,6 @@ function refreshSceneScopes(requestedScopes, scopeRefreshOptions) {
   }
 }
 /**
- * 判断某个对象（含其祖先）是否落在被排除的图层里。逐级向上比对 userData.modelLayer：图层标记只写在层根节点上，
- * 所以必须沿父链查，单纯看对象自身会漏判。
  * @returns {boolean} true 表示该对象属于被排除的图层。
  */
 function isObjectInExcludedLayer(traversedObject, layerFilter) {
@@ -21603,11 +20043,6 @@ function isObjectInExcludedLayer(traversedObject, layerFilter) {
   }
   return false;
 }
-/**
- * 计算整个预览场景（可选排除若干图层）的世界包围盒。只统计 isMesh 的实体，并跳过 background / grid / light-source-preview 这些
- * 装饰角色 —— 背景板边长是户型对角线的十几倍。InstancedMesh 的顶点不反映实例变换，必须用 computeBoundingBox 得到的本地盒再乘
- * matrixWorld；普通网格同理用几何体自带的 boundingBox。
- */
 function computeSceneBoundingBox({ excludeModelLayers: boundingExcludedLayers = null } = {}) {
   const boundingBox = new threeModuleMin.Box3();
   previewModelRoot.updateWorldMatrix(true, true);
@@ -21636,11 +20071,6 @@ function computeSceneBoundingBox({ excludeModelLayers: boundingExcludedLayers = 
   });
   return boundingBox;
 }
-/**
- * 把平行光的阴影相机对准整份场景，并按内容尺寸重算阴影贴图范围。只在高质量阴影模式下有意义。取场景世界包围盒的 8 个角点，先
- * 变换到光空间的 matrixWorldInverse 下，得到阴影相机应覆盖的 XY 矩形与 Z 深度区间；再按 5%（水平）与 8%（深度）余量外扩且不小于
- * MIN_SHADOW_CAMERA_MARGIN。未启用高质量阴影或场景为空时返回 false。
- */
 function fitDirectionalShadowCamera() {
   if (!isHighShadowQuality || !mainDirectionalLight?.shadow?.camera || !previewModelRoot) {
     return false;
@@ -21690,11 +20120,6 @@ function fitDirectionalShadowCamera() {
   mainDirectionalLight.shadow.needsUpdate = true;
   return true;
 }
-/**
- * 把相机复位到默认取景（「重置视角」、切换楼层与预览模式后调用）。view 只认 "top" / "free"，缺省沿用当前视角。取景范围分两种：
- * 叠放模式按整个场景包围盒（排除 items / lights，边长限制 5~100 米）；单层模式按户型平面对角线换算成米并限制在 5~35 米。
- * frameExtent 还要把最高墙算进来（至少比平面外扩 18%），否则斜视时楼顶会被裁。
- */
 function resetCameraView(cameraViewOptions = {}) {
   if (!previewCamera || !orbitControls) {
     return;
@@ -21772,11 +20197,6 @@ function resetCameraView(cameraViewOptions = {}) {
   applyRenderQualityMode();
   orbitControls.update();
 }
-/**
- * 求某个平面点对应的吸附结果（统一包装 geometry.js 的 snapPoint）。吸附关闭时若按住 Shift 仍给出轴向锁定结果（axisLockedPoint），
- * 保证「临时锁轴」在关闭吸附时同样可用；其余情况返回 kind=null 的原始点。网格吸附粒度 0.1 米，角度吸附固定 15°；各项开关都读
- * activeScene.settings，关闭时传空数组而不是省掉参数，让底层算法始终走同一条代码路径。
- */
 function resolveSnapTarget(snapPointInput, anchor, forceOrthogonal = false) {
   const snapPixelsPerMeter = currentPixelsPerMeter() || 100;
   if (!isSnapEnabled()) {
@@ -21817,8 +20237,6 @@ function resolveSnapTarget(snapPointInput, anchor, forceOrthogonal = false) {
   });
 }
 /**
- * 判断当前吸附点是否落回起点（用于提示「点击闭合空间」）。容差取 1 厘米（比例尺的 0.01，至少 1 像素）：指针回到起点
- * 附近就认为用户想闭合成环，而不是画一条极短的墙。
  * @returns {boolean} true 表示吸附到起点、应当闭合。
  */
 function isSnapClosingSpace(snapTargetCandidate = snapTarget) {
@@ -21831,11 +20249,6 @@ function isSnapClosingSpace(snapTargetCandidate = snapTarget) {
     distance(snapTargetCandidate.point, snapEndpointCandidate) <= endpointTolerance
   );
 }
-/**
- * 重算吸附状态，并刷新吸附提示文案与画布光标。这个函数同时承担「绘制预览」职责：按当前工具往 snapTarget / windowSnapTarget /
- * doorSnapTarget / railingSnapTarget 与 scalePreviewCurrent 里写本次绘制要用的点，再据此更新提示条与光标。文案与状态一一对应；
- * 还没有起点（scaleAnchorPoint 为空）时直接返回。
- */
 function updateSnapIndicator(shiftKey = snapOverridePoint) {
   if (!scaleAnchorPoint) {
     return;
@@ -21935,8 +20348,6 @@ function beginPointerScale(snapPointerEvent) {
 }
 /**
  * 平面画布按下指针的总分发器（左键 / 中键）。按下先聚焦画布，再按优先级判定命中：平移、楼层对齐、各绘制工具
- * （洞口 / 比例尺 / 墙 / 门窗栏杆）、标签、手柄缩放旋转、实体拖动（按住 Alt 先深拷贝再拖）、最后落空进框选并清空选择。
- * 所有分支最后都要捕获指针（capturePointer），否则指针移出画布后会丢事件。
  */
 function onPlanCanvasPointerDown(canvasPointerEvent) {
   if (canvasPointerEvent.button !== 0 && canvasPointerEvent.button !== 1) {
@@ -22332,11 +20743,6 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
     endExportRender();
   }
 }
-/**
- * 平面画布指针移动的分发器（拖动中实时更新 + 空闲时吸附预览）。拖动中按 pointerInteraction.type 分派：下沉洞口 Shift 取轴对齐
- * 正方形；框选位移超 4px 才算真的框选过；平移先经 rotateScreenPoint 换算旋转后位移；移动家具 Shift 锁单轴、按 0.05m 网格吸附、
- * 位移不足 3px 不生效；缩放家具 Shift 等比；旋转家具 Shift 吸附 15°；门窗栏杆投影到宿主墙再 clampWindowT。
- */
 function onPlanCanvasPointerMove(moveEvent) {
   const moveScreenPoint = canvasPointFromEvent(moveEvent);
   const movePlanPoint = screenToPlan(moveScreenPoint);
@@ -22440,7 +20846,6 @@ function onPlanCanvasPointerMove(moveEvent) {
         return;
       }
       // 平躺的立柱按平面足迹（宽 × 长）缩放，因此先取带足迹的副本参与缩放，
-      // 再把结果折回 item.height 当长度。
       const resizeSourceItem = itemWithPlanFootprint(pointerInteraction.originalItem);
       const originalHeight = Math.max(finite(resizeSourceItem.height, 0.05), 0.001);
       const minFootprint = itemMinimumFootprint(resizeSourceItem.type);
@@ -22563,7 +20968,6 @@ function onPlanCanvasPointerMove(moveEvent) {
 }
 /**
  * 相机手势的合并帧回调：把一帧内的多次指针移动合成一次处理。先清帧句柄再取状态，这样回调过程中再次调度不会被覆盖 ——
- * 典型的高频 pointermove → 每帧只处理一次节流写法。
  */
 function onCameraGestureFrame() {
   cameraGestureFrame = 0;
@@ -22575,7 +20979,6 @@ function onCameraGestureFrame() {
 }
 /**
  * 记录相机手势的最新坐标并安排下一帧处理（节流入口）。只保存最新位置，帧回调取用时天然丢掉中间态 —— 相机跟随不需要
- * 对每个采样点都响应。
  */
 function updateCameraGestureState(moveTrackingEvent) {
   cameraGestureState = {
@@ -22586,10 +20989,6 @@ function updateCameraGestureState(moveTrackingEvent) {
   };
   cameraGestureFrame ||= requestAnimationFrame(onCameraGestureFrame);
 }
-/**
- * 结束相机手势：取消待处理的帧并立刻处理最后位置。只有记录中的指针 ID 与抬起的指针一致才处理 —— 多指触摸时手指抬起顺序
- * 不定，用 ID 比对可避免第二根手指抬起就把手势判结束。
- */
 function endCameraGesture(pointerId) {
   if (!!cameraGestureState && cameraGestureState.pointerId === pointerId) {
     if (cameraGestureFrame) {
@@ -22600,7 +20999,6 @@ function endCameraGesture(pointerId) {
 }
 /**
  * 滚轮缩放的沉降帧回调：把累积的目标缩放一次性应用到视图。
- *
  * @returns {void}
  */
 function onCameraSettleFrame() {
@@ -22613,11 +21011,6 @@ function onCameraSettleFrame() {
     zoomViewAt(targetZoom, settleTargetPoint);
   }
 }
-/**
- * 处理滚轮缩放（累积目标缩放 + 90ms 防抖沉降）。缩放系数用 Math.exp(-deltaY * 0.0012) 连乘而不是直接赋值：同一帧内的多次
- * 滚轮事件能自然叠加成平滑连续缩放。缩放锚点取事件所在的画布像素，保证「鼠标指哪儿缩哪儿」。沉降结束后调用 endExportRender
- * 释放导出渲染占用。
- */
 function onPlanCanvasWheel(wheelEvent) {
   cameraTargetZoom *= Math.exp(-wheelEvent.deltaY * 0.0012);
   cameraTargetPoint = canvasPointFromEvent(wheelEvent);
@@ -22633,11 +21026,6 @@ function onPlanCanvasWheel(wheelEvent) {
     endExportRender();
   }, 90);
 }
-/**
- * 平面画布指针抬起的分发器（结束交互并落地结果）。下沉洞口框选：宽深都不小于 0.1 米才生成 flooropening（上限 20 米），
- * pointercancel 一律不生成。框选：把原有选择（按住 Shift 时）与框中实体按 kind:id 去重合并。其余拖动：moved / copied 为真时先
- * pushHistoryEntry(before) 再 markDocumentDirty，然后按类型局部刷新场景。三条分支都要释放指针捕获并清空 pointerInteraction。
- */
 function onPlanCanvasPointerUp(releaseEvent) {
   if (!pointerInteraction || pointerInteraction.pointerId !== releaseEvent.pointerId) {
     return;
@@ -22738,11 +21126,6 @@ function onPlanCanvasPointerEnd(endEvent) {
   endCameraGesture(endEvent.pointerId);
   onPlanCanvasPointerUp(endEvent);
 }
-/**
- * 把右侧属性面板里的输入读回当前选中实体，并立即重建对应范围。每个字段都过 finite + clamp 兜底，取值范围与单位写死在分支里
- * （例如墙高 0.01~6 米、门窗用 clampWindowT 约束在宿主墙内）。若干字段还带联动：改墙时顺带更新全局墙高 / 墙厚；电视支架从
- * mobile 切回固定时若尺寸仍是支架尺寸则恢复机型默认值；窗帘换轨道形态后按 curtainFootprintDepth 重算进深。最后 refreshStudio + 标记脏。
- */
 function applyInspectorChanges(entityKind) {
   const editingEntity = findSelectedEntity();
   if (!editingEntity || primarySelection?.kind !== entityKind) {
@@ -22920,8 +21303,6 @@ function applyInspectorChanges(entityKind) {
           curtainFabric: selectElement("#curtain-fabric").value
         })
       );
-      // 形态字段已改名上游的 curtainForm：把历史草稿里的 curtainStyle 就地删掉，
-      // 否则一副帘会同时带两个形态键 —— 归一化只写新键、不删旧键，旧值会静默残留。
       delete editingEntity.curtainStyle;
       if (editedCurtainTrack !== "straight" && editingEntity.curtainTrack === "straight") {
         editingEntity.depth = 0.18;
@@ -22963,7 +21344,6 @@ function applyInspectorChanges(entityKind) {
         editingEntity.height = ITEM_TYPE_DEFINITIONS.tv.height;
       }
       // 进深与离地高度跟着挂装方式走（壁挂 60mm / 0.70m，座装 180mm / 落地，移动 550mm / 落地）：
-      // 不拨的话壁挂机身会被座装留下的 180mm 进深拉厚三倍、还杵在地上。手工改过的物件不受影响。
       snapTelevisionMountDimensions(editingEntity, nextMountStyle);
       editingEntity.tvMountStyle = nextMountStyle;
     }
@@ -22981,7 +21361,6 @@ function applyInspectorChanges(entityKind) {
         selectElement("#material-style").value
       );
       // auto 不落键：草稿 / 快照里只有真正选过风格才留下 materialStyle，
-      // 因此「选回跟随全局」等于把物件还原成加了属性之前的状态。
       if (nextMaterialStyle === MATERIAL_STYLE_AUTO) {
         delete editingEntity.materialStyle;
       } else {
@@ -23058,7 +21437,6 @@ function applyInspectorChanges(entityKind) {
 }
 /**
  * 清空比例尺 / 画墙的临时状态（绘制结束或取消时调用）。
- *
  * @returns {void}
  */
 function resetScaleInteractionState() {
@@ -23069,18 +21447,12 @@ function resetScaleInteractionState() {
 }
 /**
  * 结束连续画墙：清掉临时状态并重绘画布（工具栏「完成」按钮调用）。
- *
  * @returns {void}
  */
 function finishWallDrawing() {
   resetScaleInteractionState();
   renderPlanView();
 }
-/**
- * 工作室的启动入口（DOM 就绪后调用一次）。初始化顺序刻意固定：先 initializeStudioStage() 建好渲染器 / 相机 / 轨道控件并完成事件
- * 绑定（后面所有函数都依赖这些单例），再 resizePlanCanvas()；之后才向后端取数据 —— 舞台模式取 interaction3d 的 .../current，编辑
- * 模式取 /api/v1/studio3d，统一交给 loadStudioRecord 灌进文档并渲染首帧。失败一律进 catch：舞台 postMessage 给父窗口，编辑模式提示 Toast。
- */
 async function initializeStudio() {
   if (!isStudioRoute) {
     setSaveState("地址无效", "error");
@@ -23088,7 +21460,6 @@ async function initializeStudio() {
   }
   try {
     // 必须 await：initializeStudioStage 内部可能在等一次上下文重建重试，不等它就直接
-    // 往下走会拿到还没建好的 renderer。
     await initializeStudioStage();
     resizePlanCanvas();
     const pageSearchParams = new URLSearchParams(window.location.search);
@@ -23102,7 +21473,6 @@ async function initializeStudio() {
         : "/studio3d",
       {},
       // 舞台页的预热响应（stage-startup.js 已经发过同一个 URL）；非舞台页为 null，
-      // 走 requestStudioApi 里的常规 fetch。
       stageStartup?.response
     );
     projectNameElement.textContent = "户型图绘制";
@@ -23112,10 +21482,8 @@ async function initializeStudio() {
     loadTiming("draft-loaded");
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
-      // 舞台模块的下载在 stage-startup.js 里就已经开始（`stageStartup.module`），这里等的是
-      // 同一份模块 —— 拿预热的那份，省掉一次「现在才开始下载」。没有预热时退回动态 import。
       const { mountStage: mountStage } = await (stageStartup?.module ||
-        import("/api/v1/modules/interaction3d/core/stage.js?v=2609271208"));
+        import("/api/v1/modules/interaction3d/core/stage.js?v=2609271226"));
       mountStage(createStageController());
       loadTiming("stage-mounted");
       return;
@@ -23184,8 +21552,6 @@ removePlanButton.addEventListener("click", () => {
   }
 });
 /**
- * 进入一次全局墙参数编辑：若已有输入框处于编辑中先提交上一次，首次进入时压入历史快照并
- * 挂起导出渲染。
  * @param {HTMLInputElement} input 触发编辑的墙高 / 墙厚 / 墙不透明度输入框。
  */
 function beginWallSettingEdit(input) {
@@ -23199,8 +21565,6 @@ function beginWallSettingEdit(input) {
   }
 }
 /**
- * 把平面视图重绘合并到下一帧执行，避免连续输入时反复重绘。
- *
  * @returns {void} 无返回值。
  */
 function scheduleOverlayRedraw() {
@@ -23211,7 +21575,6 @@ function scheduleOverlayRedraw() {
 }
 /**
  * 结束全局墙参数编辑：回填输入框显示值、刷新检查器与整场景，并解除导出渲染挂起。
- *
  * @returns {void} 无返回值。
  */
 function commitWallSettingInput() {
@@ -23238,8 +21601,6 @@ function scheduleWallSettingCommit(commitDelayMs = 80) {
   wallSettingCommitTimer = window.setTimeout(commitWallSettingInput, commitDelayMs);
 }
 /**
- * 把「全局墙高」输入框的值写到场景设置与所有墙体；值未变化时不写历史。
- *
  * @returns {void} 无返回值。
  */
 function applyGlobalWallHeight() {
@@ -23262,7 +21623,6 @@ function applyGlobalWallHeight() {
 }
 /**
  * 把「全局墙厚」输入框的值写到场景设置与所有墙体，并同步平面视图重绘。
- *
  * @returns {void} 无返回值。
  */
 function applyGlobalWallThickness() {
@@ -23288,7 +21648,6 @@ function applyGlobalWallThickness() {
 }
 /**
  * 把「全局墙不透明度」输入框的百分比换算成 0-1 后写入场景设置。
- *
  * @returns {void} 无返回值。
  */
 function applyGlobalWallOpacity() {
@@ -23319,10 +21678,6 @@ toggleFloorEdgeButton.addEventListener("click", () => {
   refreshStudio();
   markDocumentDirty();
 });
-/**
- * 按当前素材页签显示 / 隐藏分类标题与家具按钮。三个页签（home / appliance / light）互斥：家电与灯具各自只显示自己的按钮，
- * home 显示除它们之外的全部；分类标题同理只显示属于本页签的那一组。
- */
 function syncAssetTabVisibility() {
   for (const headingButton of assetHeadingCategoryButtons) {
     headingButton.hidden = headingButton.dataset.assetHeadingCategory !== activeAssetTab;
@@ -23340,11 +21695,6 @@ function syncAssetTabVisibility() {
     itemTypeButton.hidden = !isVisibleForTab;
   }
 }
-/**
- * 切换左侧素材分类页签（家居 / 家电 / 灯光）。非法页签名一律回落 "home"（防止按钮 dataset 被改写后进入无页签状态）。
- * 切换后会关掉灯组右键菜单、同步按钮态与网格显隐，并处理选择与页签的匹配：灯光页签下若选中的不是灯具（或反之）就清空选择
- * —— 属性面板按类型渲染，留着不匹配的选择会出现「改了没反应」的困惑；多选一律清空。光照作用域变化时补一次场景刷新。
- */
 function activateAssetTab(tabName) {
   const assetTab = ["home", "appliance", "light"].includes(tabName) ? tabName : "home";
   const tabLightScope = currentLightScope();
@@ -23577,7 +21927,6 @@ document.addEventListener("pointerdown", documentPointerEvent => {
 });
 /**
  * 关闭楼层重命名对话框，并清掉记录的目标楼层 ID。
- *
  * @returns {void}
  */
 function closeFloorRenameDialog() {
@@ -23623,7 +21972,6 @@ floorDeleteFormElement.addEventListener("submit", floorDeleteSubmitEvent => {
 });
 /**
  * 关闭灯组重命名对话框，并清掉记录的目标灯组 ID。
- *
  * @returns {void}
  */
 function closeLightGroupRenameDialog() {
@@ -23657,25 +22005,16 @@ lightGroupRenameFormElement.addEventListener("submit", lightGroupRenameSubmitEve
   }
   closeLightGroupRenameDialog();
 });
-/**
- * 关闭灯具批量属性对话框，并清空待应用的编辑内容。清空是必要的：否则下次打开会沿用上一次
- * 选好的属性与数值。
- */
 function closeLightPropertyDialog() {
   activeLightPropertyEdit = null;
   lightPropertyApplyDialogElement.close();
 }
 /**
- * 收集某个作用域内所有灯具勾选框（默认整份列表）。作用域参数让「组内全选」能复用同一份逻辑：传灯组所在 section 即只处理该组。
  * @returns {Array<HTMLInputElement>} 勾选框数组（可能为空）。
  */
 function collectLightTargetItems(lightTargetScopeElement = lightPropertyTargetListElement) {
   return [...lightTargetScopeElement.querySelectorAll("[data-light-target-item-id]")];
 }
-/**
- * 同步灯具批量对话框的选择计数与全选按钮文案。除总数外还逐个灯组刷新组内「已选 / 总数」与组内全选按钮 —— 两处文案规则一致：
- * 全部勾选时显示「取消全选」，否则显示「全选」。
- */
 function syncLightTargetSelection() {
   const lightTargetItemElements = collectLightTargetItems();
   const checkedLightTargetCount = lightTargetItemElements.filter(
@@ -23703,11 +22042,6 @@ function syncLightTargetSelection() {
         : "全选";
   }
 }
-/**
- * 渲染灯具批量属性对话框里的可选灯具清单。按灯组分组渲染（灯组无灯具则整组跳过），每个灯具一个勾选框且默认全选。显示名规则：
- * 同一类型有多盏时用「类型名 + 序号」（序号按类型分别递增），只有一盏时用类型名。右侧小字显示该属性当前值，当前选中的灯额外加
- * 「当前灯 · 」前缀。清单一盏都没有时显示空态文案。lightPropertyFieldKey 决定小字展示哪个属性。
- */
 function renderLightPropertyTargets(lightPropertyFieldKey) {
   lightPropertyTargetListElement.replaceChildren();
   let renderedLightCount = 0;
@@ -23918,7 +22252,6 @@ lightPropertyApplyFormElement.addEventListener("submit", lightPropertyApplySubmi
 });
 
 // 墙面批量应用复用灯光批量对话框的结构：默认全选、跳过没有改动的墙，
-// 并把所有改动合并成一次历史快照提交（一次撤销即可整体回退）。
 let wallPropertyApplyEdit = null;
 const wallPropertyApplyDialogElement = selectElement("#wall-property-apply-dialog");
 const wallPropertyApplyFormElement = selectElement("#wall-property-apply-form");
@@ -23931,7 +22264,6 @@ const wallPropertyApplyButtons = [...document.querySelectorAll("[data-apply-wall
 
 /**
  * 关闭墙面批量应用对话框，并清空待应用的编辑内容。
- *
  * @returns {void}
  */
 function closeWallPropertyApplyDialog() {
@@ -23946,8 +22278,6 @@ function collectWallTargetCheckboxes(wallTargetScopeElement = wallPropertyTarget
   return [...wallTargetScopeElement.querySelectorAll("[data-wall-target-item-id]")];
 }
 /**
- * 求一面墙实际生效的透明度（百分比整数）。opacity 为 null / undefined 表示「跟随全局」settings.wallOpacity，有数值才是该墙的
- * 单独设置；两者的优先级在这里收口，面板显示与批量应用都以此为准。
  * @returns {number} 0~100 的整数百分比。
  */
 function wallEffectiveOpacityPercent(wallRecord) {
@@ -23959,8 +22289,6 @@ function wallEffectiveOpacityPercent(wallRecord) {
   return Math.round((customOpacity === null ? globalOpacity : customOpacity) * 100);
 }
 /**
- * 生成墙面批量对话框里「当前值」的展示文本。高度 / 厚度按米保留两位小数；透明度属性分两种写法：opacityMode 显示「跟随通用」或
- * 「单独设置 xx%」，opacity 则显示具体百分比（跟随全局时前面加「跟随通用」说明来源）。
  * @returns {string} 展示用文案。
  */
 function wallPropertyCurrentText(wallRecord, wallPropertyKey) {
@@ -23983,7 +22311,6 @@ function wallPropertyCurrentText(wallRecord, wallPropertyKey) {
 }
 /**
  * 同步墙面批量对话框的选择计数与全选按钮文案。
- *
  * @returns {void}
  */
 function syncWallTargetSelection() {
@@ -23999,10 +22326,6 @@ function syncWallTargetSelection() {
       ? "取消全选"
       : "全选";
 }
-/**
- * 渲染墙面批量属性对话框里的可选墙体清单。墙面不分组，直接按楼层里的墙顺序排列成一个网格；每项默认勾选，标题为「墙体 N」，
- * 小字显示当前值（当前选中墙额外加「当前墙 · 」前缀）。没有墙时显示空态文案。
- */
 function renderWallPropertyTargets(wallPropertyKey) {
   wallPropertyTargetListElement.replaceChildren();
   const listedWalls = activeScene.walls || [];
@@ -24309,10 +22632,6 @@ exportOverwriteDialogElement.addEventListener("cancel", overwriteDialogCancelEve
   overwriteDialogCancelEvent.preventDefault();
   settleOverwriteChoice("cancel");
 });
-/**
- * 关闭「导出完成」对话框。先判 open 再 close：对未打开的 dialog 调 close() 会被浏览器忽略，但在部分环境下会抛异常，
- * 这里顺手做了保护。
- */
 const closeExportCompleteDialog = () => {
   if (exportCompleteDialogElement.open) {
     exportCompleteDialogElement.close();
@@ -24410,8 +22729,6 @@ exportFloorSelectElement.addEventListener("change", () =>
 );
 exportPackageButton.addEventListener("click", runStudioExport);
 /**
- * 把基础光照状态回传给父窗口（仅自动图嵌入场景）。三条前置条件缺一不可：处于嵌入模式、URL 带组件 ID、父窗口存在且文档已载入。
- * 消息里同时带上当前值、已保存值与默认值，父窗口据此判断是否显示「未保存」标记；origin 固定为同源，父窗口侧据此校验来源。
  * @param {string} [lightingStatus="ready"] 状态标记：ready / preview / saved / cancelled。
  */
 function postBaseLightingState(lightingStatus = "ready") {
@@ -24434,10 +22751,6 @@ function postBaseLightingState(lightingStatus = "ready") {
     );
   }
 }
-/**
- * 把楼层列表与当前楼层选择回传给父窗口（仅自动图嵌入场景）。floorSelection 复用与导出相同的语义：叠放预览时上报字符串 "all"，
- * 否则上报当前楼层 ID，父窗口无需理解两种模式的差别。
- */
 function postFloorStateToParent() {
   if (
     !!isAutoDiagramEmbed &&
@@ -24611,10 +22924,6 @@ refreshPreviewButton.addEventListener("click", () =>
     force: true
   })
 );
-/* 右栏分隔条（#details-resizer）的拖拽、键盘调宽与收尾全部由 shared/layout-shell.js 接管：
-   指针捕获、2px 抖动阈值、双轴换算、方向键步长、双击复位都在那里，两页共用。原先这段是本文件里
-   唯一会「拖一下布局就把文档标脏」的地方（endDetailsResize 里的 markDocumentDirty），
-   迁移到布局层之后拖动分隔条不再产生任何文档写入。 */
 for (const cameraModeToggleButton of cameraModeButtons) {
   cameraModeToggleButton.addEventListener("click", () => {
     const requestedCameraMode =
@@ -24745,10 +23054,6 @@ baseLightControlsHeaderElement?.addEventListener("pointermove", panelDragMoveEve
     topPx: panelResizeState.startTop + panelDragDeltaY
   });
 });
-/**
- * 结束基础灯光面板的拖拽：清空拖拽状态。指针 id 不匹配则忽略，避免多指操作时误把后来那次拖拽结束掉。该处理函数同时挂在
- * pointerup 与 pointercancel 上，指针被系统抢走时也能正确收尾。
- */
 const endPanelDrag = panelDragEndEvent => {
   if (!!panelResizeState && panelDragEndEvent.pointerId === panelResizeState.pointerId) {
     panelResizeState = null;
@@ -25175,7 +23480,6 @@ const studioLayoutControls = bindLayoutControls({ controller: studioLayout, root
 
 /**
  * 执行一个布局动作并同步共享控件的可视态。快捷键入口不经过 bindLayoutControls 的点击处理，
- * 所以每条快捷键都要显式同步一次（否则按了 ⌘B 侧栏收起了，把手条的 aria-expanded 却还停在旧值）。
  */
 function runLayoutAction(layoutAction) {
   layoutAction();
@@ -25197,8 +23501,6 @@ bindLayoutShortcuts({
   ]
 });
 
-// 百分比栏的上下限与库栏宽度都会随断点 / 窗口尺寸变，所以窗口一变就要丢掉布局常量缓存再重新钳制：
-// 缓存留着会让窄屏继续按宽屏的库栏宽度扣减右栏上限。
 window.addEventListener("resize", () => {
   studioLayoutConstants = null;
   studioLayout.refresh();
@@ -25209,7 +23511,6 @@ initializeNumberInputs();
 syncBaseLightControlInputs();
 /**
  * 等待自适应灯光缓存构建完成（最多 1.8 秒），导出取图前用它确保光照已就绪。
- *
  * @returns {Promise<void>} 缓存就绪或超时后 resolve。
  */
 async function waitForLightCacheSettle() {
@@ -25228,7 +23529,6 @@ async function waitForLightCacheSettle() {
 }
 /**
  * 创建舞台控制器：把楼层缓存、位姿与相机混合投影、灯光过渡/渐变、轨道控制覆盖等运行时操作封装成一组闭包接口。
- *
  * @returns {object} 舞台控制器对象，暴露相机帧监听、帧循环、楼层切换、灯光状态应用等接口。
  */
 function createStageController() {
@@ -25247,17 +23547,12 @@ function createStageController() {
   };
   let appearanceSignature = "";
   let floorCacheEpoch = 0;
-  /**
-   * 释放一条缓存的楼层记录：先让环境与区域光控制器放手，再销毁整棵子树。必须先通知控制器再 dispose —— 它们内部持有对该节点与
-   * 材质的引用，顺序反了会留下悬空引用。
-   */
   const disposeCachedFloorRecord = cachedFloorEntry => {
     environmentSceneController?.releaseRoot?.(cachedFloorEntry.node);
     regionLightController?.releaseRoot?.(cachedFloorEntry.node);
     disposeSceneSubtree(cachedFloorEntry.node);
   };
   /**
-   * 释放楼层过渡缓存：不传集合时整体作废（epoch 递增），否则只保留集合内的楼层。
    * @param {Set<string>|null} [keptFloorIdSet=null] 需要保留的楼层 ID 集合。
    */
   const releaseFloorCache = (keptFloorIdSet = null) => {
@@ -25369,8 +23664,6 @@ function createStageController() {
     }
   }
   /**
-   * 应用正交与透视相机之间的混合投影：命中缓存时直接复用，否则按距离/可见高度/视口比例重算投影矩阵。
-   *
    * @returns {void} 无返回值。
    */
   function applyBlendedProjection() {
@@ -25624,7 +23917,6 @@ function createStageController() {
   }
   /**
    * 取消所有灯光渐变：停掉补间帧并清空渐变表。
-   *
    * @returns {void} 无返回值。
    */
   function cancelLightFade() {
@@ -25730,7 +24022,6 @@ function createStageController() {
   }
   /**
    * 开启灯光过渡会话：快照并取消现有渐变、置脏灯光缓存、隐藏缓存画布，改为逐灯实时过渡。
-   *
    * @returns {void} 无返回值。
    */
   function beginLightTransitionSession() {
@@ -25799,7 +24090,6 @@ function createStageController() {
   }
   /**
    * 结束灯光过渡会话：等环境动效、相机运动与逐灯过渡都停下后恢复灯光缓存，未就绪则延时重试。
-   *
    * @returns {void} 无返回值。
    */
   function endLightTransitionSession() {
@@ -25864,7 +24154,6 @@ function createStageController() {
   }
   /**
    * 拆除所有灯光过渡与相关定时器：把灯光直接落到终值并清理会话状态，供销毁或重载场景时调用。
-   *
    * @returns {void} 无返回值。
    */
   function teardownLightTransitions() {
@@ -26122,7 +24411,6 @@ function createStageController() {
             {
               ...lightStateOptions,
               immediate: isImmediateLightTransition,
-              // 同一次变化里色温也变了：预览需要更长的过渡，否则冷暖跳变会显得生硬。
               temperatureChanged:
                 lightChangeState.previousKelvin !== lightChangeState.item.lightTemperature
             }
@@ -26170,7 +24458,6 @@ function createStageController() {
   }
   /**
    * 同步预览投影：渲染尺寸 / 聚焦视口 / 相机变化时重设 viewOffset，未变化则只更新混合投影。
-   *
    * @returns {void} 无返回值。
    */
   function syncPreviewProjection() {
@@ -26206,7 +24493,6 @@ function createStageController() {
   }
   /**
    * 把当前控制约束（平移 / 缩放开关与旋转轴向锁定）应用到轨道控制器。
-   *
    * @returns {void} 无返回值。
    */
   function applyControlConstraints() {
@@ -26281,7 +24567,6 @@ function createStageController() {
   }
   /**
    * 计算总览视角的中心点：按需统计各楼层墙线包围盒与最高墙高，叠层模式下再抬高到层叠体量的中部。
-   *
    * @returns {object|null} Three.js Vector3；单层非总览模式或没有墙线时返回 null。
    */
   function computeOverviewCenter() {
@@ -26371,8 +24656,6 @@ function createStageController() {
     return (boundsCacheCenter || fallbackCenterTarget).clone();
   }
   /**
-   * 接管轨道控制器：绑定 start / change / update 回调，实现旋转中心覆盖、相机角度限制与灯光过渡收尾。
-   *
    * @returns {void} 无返回值。
    */
   function installOrbitControlsOverrides() {
@@ -26385,8 +24668,6 @@ function createStageController() {
     const baseControlsUpdate = overriddenControls.update.bind(overriddenControls);
     boundOrbitControls = overriddenControls;
     /**
-     * 相机交互结束后延时收尾灯光过渡会话，避免操作过程中反复重建灯光缓存。
-     *
      * @returns {void} 无返回值。
      */
     const settleLightTransitionAfterControls = () => {
@@ -26450,7 +24731,6 @@ function createStageController() {
       }
       /**
        * 本次更新使用的轨道中心：首次调用时以当前目标点解析并缓存为覆盖中心。
-       *
        * @returns {object} Three.js Vector3 形式的旋转中心。
        */
       const updatedOrbitCenter = (orbitPivotOverride ||= resolveOrbitCenter(
@@ -26525,7 +24805,6 @@ function createStageController() {
   }
   /**
    * 按背景可见性开关同步背景与网格对象的显隐，并兼顾主题控制器与楼层背景的例外规则。
-   *
    * @returns {void} 无返回值。
    */
   function applyBackgroundVisibility() {
@@ -26661,7 +24940,6 @@ function createStageController() {
   }
   /**
    * 逐帧把冻结期间被压低的阴影强度恢复回原值，用于运动结束后的收尾动画。
-   *
    * @returns {void} 无返回值。
    */
   function restoreShadowIntensity() {
@@ -26931,10 +25209,6 @@ function createStageController() {
       if (!!didCurtainFrameChange || wasCurtainMoving !== isCurtainMovingNow) {
         if (didCurtainFrameChange) {
           try {
-            /**
-             * 把序列化的窗帘帧解析成「楼层 id → 该层窗帘行」的映射。帧数据是 JSON 数组，每行第 2 个元素（下标 1）是楼层 id；按它分组后
-             * 即可逐层比对，只让真正变化的楼层重算地面反射。JSON 解析失败时抛出 SyntaxError，由调用方 catch 后全量刷新。
-             */
             const parseCurtainFrames = serializedCurtainFrames => {
               const curtainRowsByFloorId = new Map();
               for (const curtainFrameRow of JSON.parse(serializedCurtainFrames)) {
@@ -27682,8 +25956,6 @@ function createStageController() {
     },
     appearance(appearanceOptions) {
       // 材质风格与墙体透明度会整体换掉墙面 / 地板 / 门窗 / 灯光的着色方式，
-      // 只标一句「需要重画」不够 —— 必须真正重建一次场景材质，否则旧主题的
-      // 自发光与颜色会留在网格上。相机位姿在重建前后成对保存 / 恢复。
       const nextSceneStyle =
         appearanceOptions.sceneStyle === "warm-wood" ? "warm-wood" : "default";
       const nextWallOpacityOverride =
@@ -27865,8 +26137,6 @@ function createStageController() {
         )
         .map(orderedFloorEntry => orderedFloorEntry.id);
       /**
-       * 为某个楼层建立「楼层局部米 → 世界」的基变换矩阵。基向量由世界点差分求出：x 轴取该层 pixelsPerMeter 对应的 x 方向、z 轴同理，
-       * y 轴固定朝上；平移量取楼层原点。这样过渡动画里各楼层才能按各自的标定比例正确缩放并叠放。
        * @returns {THREE.Matrix4} 该楼层的变换矩阵。
        */
       const floorMatrixForId = matrixTargetFloorId => {
@@ -28122,8 +26392,6 @@ function createStageController() {
         presentationRecordMatch => presentationRecordMatch.id === presentationFloorId
       );
       /**
-       * 把世界点转成展示坐标：总览叠加模式下交给叠加控制器统一抬升与对齐，其余情况原样返回。用可选链判断控制器是否存在，是因为展示
-       * 坐标可能在过渡动画尚未初始化时就被调用，此时直接返回世界点即可。
        * @returns {THREE.Vector3|null} 展示坐标点；无控制器时即原值。
        */
       const toPresentationPoint = presentationWorldPoint =>

@@ -1,8 +1,5 @@
 /*
  * 设备控件区块：组合弹窗（用户在编辑器里自己拼的弹窗）。
- *
- * showCustomPopup 按弹窗模板把若干控件排进一个弹窗里，是所有弹窗里最通用的一支：
- * 布局（网格/横排）、缩略模式、内嵌图表与相机预览都在这里分发。
  */
 
 import {
@@ -10,24 +7,24 @@ import {
   formatLineChartValue,
   mountCameraMedia,
   renderLineChartDetails
-} from "../../registry.js?v=2609271208";
-import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
+} from "../../registry.js?v=2609271226";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609271208";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609271208";
+} from "../../../../utils/cover-features.js?v=2609271226";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609271226";
 import {
   bathHeaterModeUsesAirflow,
   climateIsPoweredOn,
   climateModeLabel,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609271208";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271208";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271208";
+} from "../../../controls/climate.js?v=2609271226";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271226";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271226";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -43,15 +40,15 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609271208";
+} from "../../../controls/cover-runtime.js?v=2609271226";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609271208";
+} from "../../../controls/cover-direction.js?v=2609271226";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance
-} from "../../runtime-dialog-motion.js?v=2609271208";
-import { syncedLineChartProperties } from "../../runtime-document.js?v=2609271208";
+} from "../../runtime-dialog-motion.js?v=2609271226";
+import { syncedLineChartProperties } from "../../runtime-document.js?v=2609271226";
 import {
   airQualityAccent,
   airQualityAccentSoft,
@@ -59,20 +56,16 @@ import {
   appendAirerVisual,
   createSwitchVisual,
   popupModuleDialogTitle
-} from "../primitives.js?v=2609271208";
+} from "../primitives.js?v=2609271226";
 
-import { ensureDeviceControlMethods } from "./lazy-modules.js?v=2609271208";
+import { ensureDeviceControlMethods } from "./lazy-modules.js?v=2609271226";
 
 export const customPopupMethods = {
   /**
    * 打开文档里定义的组合弹窗（customPopup）。
-   * 打开时递增弹窗代数并重新订阅运行期状态：弹窗内可能引用当前页没有的实体，
-   * 订阅集合必须覆盖它们，否则弹窗控件拿不到状态推送。
    */
   async showCustomPopup(popupDefinition, { preview: popupPreviewMode = false } = {}) {
     this.closeRuntimeDialog();
-    // 代数 +1 让弹窗内上一轮发出的历史曲线请求作废：
-    // 关闭或重开弹窗后，旧请求的结果不能写回新弹窗的图表。
     this.historyPopupGeneration += 1;
     this.activePopupId = String(popupDefinition?.id || "");
     // 弹窗里的控件可能引用本页未出现的实体，必须先补订阅再渲染。
@@ -116,8 +109,6 @@ export const customPopupMethods = {
     const popupHandlersByEntityId = new Map();
     /**
      * 注册组合弹窗内的状态回调。
-     *
-     * 与净化器弹窗同理：同一实体可能被多个模块订阅，按实体 ID 聚合成数组。
      */
     const registerPopupStateHandler = (popupHandlerEntityId, popupStateHandler) => {
       if (!popupHandlersByEntityId.has(popupHandlerEntityId)) {
@@ -233,8 +224,6 @@ export const customPopupMethods = {
           (moduleDeviceProfile || this.deviceProfile(moduleResolvedEntityId))?.roles || {};
         /**
          * 取弹窗内某个实体用于首帧渲染的状态，从未收到过状态时返回 unknown 占位。
-         * 控件创建时就需要一份状态渲染首帧，但推送可能还没到；占位对象带齐
-         * entityId/state/attributes，省去控件内部到处判空。
          */
         const stateForPopupEntity = popupStateEntityId => {
           const popupEntityStateValue = this.states.get(popupStateEntityId);
@@ -305,8 +294,6 @@ export const customPopupMethods = {
           .filter(angleControlEntry => angleControlEntry.entityId);
         /**
          * 往电动床弹窗的某个区块追加一个通用能力控件。
-         * 控件同时登记到弹窗清理表与状态回调表：前者保证关闭时解绑内部监听，后者让该实体
-         * 后续的状态推送能直接同步到这个控件。
          */
         const appendBedCapabilityControl = (
           sectionContainer,
@@ -402,8 +389,6 @@ export const customPopupMethods = {
         }
         /**
          * 从三个角度实体当前的状态重算并刷新电动床的角度读数与模型倾角。
-         * 三个角色共用同一套渲染逻辑，故按角色逐个取状态后调用同一渲染函数；取不到值显示
-         * "--"，模型保持上一次姿态。
          */
         const syncBedAngleState = () => {
           const bedAngleStates = {
@@ -413,7 +398,6 @@ export const customPopupMethods = {
           };
           /**
            * 从角度实体状态里解析出角度数值；不是有限数时返回 null。
-           *
            * @returns {number|null} 角度值（单位：度）；不可用时为 null。
            */
           const bedAngleValueFor = bedAngleEntityState => {
@@ -426,8 +410,6 @@ export const customPopupMethods = {
           };
           /**
            * 渲染单个角度角色的读数文本，并同步床模型对应部位的倾角。
-           * 倾角通过 CSS 变量 --hb-bed-<role>-angle 下发，让模型姿态与读数共用同一角度值，
-           * 避免两处各算一遍导致不同步。
            */
           const renderBedAngleReadout = (
             bedAngleRole,
@@ -491,7 +473,6 @@ export const customPopupMethods = {
         let popupCameraLensOffset = 0;
         /**
          * 生成摄像头镜头的 3D 变换串（水平摇头 + 极轻微的 Z 轴倾斜）。
-         * rotateZ 取 rotateY 的 0.035 倍，让摇头带一点真实云台的不规则感而非塑料感的纯水平滑动。
          */
         const popupCameraLensTransform = (
           popupCameraLensRotationDeg,
@@ -506,8 +487,6 @@ export const customPopupMethods = {
           "px)";
         /**
          * 启动一次镜头摇头动画，结束后随机延时递归调度下一次。
-         * 候选角度先按「与当前位置至少差 7 度」过滤，避免只挪一点点看不出动作；时长与过冲量
-         * 掺随机数防止循环机械；节点已卸载直接返回，命中 prefers-reduced-motion 则不启动。
          */
         const startPopupCameraLensAnimation = () => {
           if (!popupCameraBodyElement.isConnected) {
@@ -673,8 +652,6 @@ export const customPopupMethods = {
         popupModuleHeadingElement.append(popupChartOutputElement);
         /**
          * 把折线图模块当前实体的状态渲染成标题旁的大号数值与单位。
-         * 数值可解析时按组件声明的 statePrecision 格式化，否则原样显示 state（如 "unknown"），
-         * 保证任何状态下都有可读文本；aria-label 同步更新。
          */
         const renderPopupChartValue = popupChartState => {
           const popupChartNumericValue = Number.parseFloat(popupChartState?.state);
@@ -706,8 +683,6 @@ export const customPopupMethods = {
         let popupChartRefreshTimer = 0;
         /**
          * 重建弹窗里的折线图：渲染新实例、接替旧实例并同步线色。
-         * 折线图尺寸依赖挂载后的实际布局，无法原地更新只能整体替换，故先解绑旧实例的悬浮监听
-         * 再 replaceWith；弹窗已关闭或图表已脱离文档时直接返回，避免在已销毁 DOM 上替换。
          */
         const refreshPopupChart = () => {
           popupChartRefreshTimer = 0;
@@ -728,8 +703,6 @@ export const customPopupMethods = {
         };
         /**
          * 安排一次折线图重建（默认 700ms 防抖）。
-         *
-         * 用 `||=` 保证同一时刻只有一个待执行定时器：连续状态推送只换来一次重建。
          */
         const schedulePopupChartRefresh = (refreshDelayMs = 700) => {
           popupChartRefreshTimer ||= window.setTimeout(
@@ -774,8 +747,6 @@ export const customPopupMethods = {
         switchPopupVisual.visual.classList.add("hb-custom-switch-visual");
         /**
          * 把开关实体的状态渲染到开关视觉与状态文案上。
-         * button 实体是瞬时动作（按一下执行一次），没有开/关概念，因此用 pending / success
-         * 两个动作态驱动文案与高亮，而不是用 state 判断。
          */
         const renderSwitchPopupState = nextState => {
           switchPopupState = nextState;
@@ -904,8 +875,6 @@ export const customPopupMethods = {
         };
         /**
          * 渲染灯光可视化（灯泡光色、亮度、光晕范围）并同步状态文案与无障碍属性。
-         * 入参既可能是实体状态（state / attributes），也可能是内部轻量对象（isOn / brightnessPercent / colorTemperatureKelvin / colorRgb），因此每个字段都先看顶层再退回 attributes。亮度按 HA 约定的 0~255 归一成
-         * 百分比；色温缺失时按 2000~6500K 在暖 / 冷色间线性插值；只有设备声明支持彩色才采信 rgb/hs 上报值。
          */
         const renderLightVisual = (nextLightState = {}) => {
           const nextLightAttributes = nextLightState.attributes || {};
@@ -1103,8 +1072,6 @@ export const customPopupMethods = {
         climateVisualButton.append(climateUnitElement, climateAirflowElement);
         /**
          * 渲染弹窗里气候控件的可视化状态（开关态、运行态、目标温度与主题色）。
-         * 参数用对象解构并带默认值：调用方（能力控件的 onVisualChange 回调）在部分字段缺失时
-         * 也能安全调用，缺省即视为 off；浴霸没有开关概念，用 airflow 模式判定高亮。
          */
         const renderPopupClimateVisual = ({
           mode: climateMode = "off",
@@ -1451,8 +1418,6 @@ export const customPopupMethods = {
         }
         /**
          * 同步晾衣机顶灯状态（仅晾衣机形态生效），非晾衣机直接返回。
-         * 晾衣机下整块可视化本身就是灯的开关按钮，故灯实体不可用时要置按钮 disabled 并给出
-         * 对应的无障碍文案。
          */
         const renderAirerLightState = (airerLightNextState = airerLightState) => {
           if (!isAirerCover) {
@@ -1489,8 +1454,6 @@ export const customPopupMethods = {
         );
         /**
          * 渲染窗帘 / 晾衣机可视化：开合位置、叶片角度、帘幕位移与状态文案。
-         * 位置 0~100 映射到一组 CSS 变量（开合比、单 / 双面板宽度、叶片角度、晾衣机下移量），面板宽度用线性式 拟合以免在样式层写分段函数。「物理状态」与「展示状态」分开算：电机接反时两者相反，所以 open / opening
-         * 一律用 physicalCoverState 归一后再判高亮，保证位置与图标方向始终一致。
          */
         const renderPopupCoverVisual = ({
           position: coverTargetPosition = 0,
@@ -1859,7 +1822,6 @@ export const customPopupMethods = {
         };
         /**
          * 判断实体是否处于「有可读数值」的状态。
-         * 离线实体的 state 是 "unknown"/"unavailable" 字符串，Number() 会得到 NaN，因此先排除哨兵值再判 isFinite；用于在多个候选实体里挑真正在上报数据的那个。
          * @returns {boolean} 状态存在、不是哨兵值且可解析为有限数时为 true。
          */
         const hasNumericEntityState = stateEntityId => {
@@ -1898,8 +1860,6 @@ export const customPopupMethods = {
           airPurifierSecondaryMetricsElement.append(metricRowElement);
           /**
            * 把某个指标实体的状态写进净化器的次要指标行。
-           * 单位优先取状态里的 unit_of_measurement，退回实体元数据；unknown/unavailable 显示
-           * "--"，避免出现 "unknown ppm" 这类文案。
            */
           const renderMetricValue = metricState => {
             metricStrongElement.textContent = ["unknown", "unavailable"].includes(
@@ -1921,8 +1881,6 @@ export const customPopupMethods = {
         const pm25RoleId = moduleDeviceProfile?.roles?.pm25;
         /**
          * 渲染净化器空气质量表盘（含无专用空气质量实体时用 PM2.5 分档的兜底）。
-         * 文案优先按专用空气质量实体的中英文关键词归类（正则覆盖 excellent / 优 等写法）；
-         * 取不到就退回 PM2.5 数值分档：≤15 优、≤35 良、≤75 轻度污染，其余较差。
          */
         const renderAirQualityGauge = () => {
           const airQualityStateValue = getEntityStateRecord(airQualityRoleId);
@@ -1990,8 +1948,6 @@ export const customPopupMethods = {
         renderAirQualityGauge();
         /**
          * 渲染净化器弹窗的开关状态：刷新 ON/OFF 文案、按钮态、表盘运行态与状态文案。
-         * 除 unknown/unavailable 外只要不是 off 都视为运行中（fan 实体还可能有 auto 或各档风速，
-         * 不能只认 "on"）；参数默认取弹窗缓存状态，便于无参调用时重绘。
          */
         const renderAirPurifierPower = (airPurifierNextState = popupAirPurifierState) => {
           popupAirPurifierState = airPurifierNextState || popupAirPurifierState;
@@ -2121,8 +2077,6 @@ export const customPopupMethods = {
         popupMediaActionsElement.className = "hb-media-player-actions";
         /**
          * 创建组合弹窗内媒体模块的动作按钮。
-         * 与详情弹窗同款按钮共用一套写法：置灰防连点、失败交给 onError、finally 恢复可用；
-         * 预览态只渲染不派发。
          */
         const createPopupMediaActionButton = (buttonLabel, buttonService) => {
           const popupMediaActionButton = document.createElement("button");
@@ -2193,8 +2147,6 @@ export const customPopupMethods = {
         };
         /**
          * 渲染组合弹窗媒体模块的播放进度条与时长文本。
-         * 与详情弹窗同一套外推逻辑：HA 只给 media_position 快照，播放中须叠加
-         * media_position_updated_at 之后流逝的时间；无时长则整块隐藏。
          */
         const renderMediaProgress = () => {
           if (!Number.isFinite(popupMediaDurationSeconds) || popupMediaDurationSeconds <= 0) {
@@ -2238,7 +2190,6 @@ export const customPopupMethods = {
         });
         /**
          * 判断两个数值是否在容差 0.005 内相等。
-         * 用于区分「HA 已确认刚下发的音量」与「HA 仍在报旧值」，从而决定能否撤掉本地覆盖值。
          */
         const areNumbersClose = (firstNumber, secondNumber) =>
           Number.isFinite(firstNumber) &&
@@ -2254,8 +2205,6 @@ export const customPopupMethods = {
         };
         /**
          * 把排队的音量值下发给 media_player.volume_set。
-         * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新值留在队列，本次结束后
-         * 若有不同值则 140ms 后补发，既避免乱序又不丢最后一次拖动；失败清本地覆盖并上报 onError。
          */
         const flushVolumeRequest = async () => {
           window.clearTimeout(volumeRetryTimer);
@@ -2290,8 +2239,6 @@ export const customPopupMethods = {
         };
         /**
          * 滑杆 change 提交：记录本地覆盖值并延迟下发音量。
-         * 120ms 延迟用于合并拖动中的连续 change；若有请求在途则不再排定时器，交给
-         * flushVolumeRequest 的补发逻辑收尾。
          */
         const handleVolumeChange = () => {
           const sliderVolumeLevel = Math.max(
@@ -2312,8 +2259,6 @@ export const customPopupMethods = {
         volumeSliderElement.addEventListener("change", handleVolumeChange);
         /**
          * 把 media_player 最新状态渲染进组合弹窗的媒体模块。
-         * 与播放器详情弹窗逻辑一致：状态文案与扬声器视觉态、标题/副标题回退链、按钮可用性
-         * （supported_features 位掩码 16/32）、播放进度、音量博弈；封面地址变化时才重建 img。
          */
         const renderMediaPlayerState = popupMediaState => {
           const mediaAttributes = popupMediaState?.attributes || {};
@@ -2461,7 +2406,6 @@ export const customPopupMethods = {
     this.detailsDialog = popupDialogElement;
     /**
      * 为组合弹窗的模块列表生成签名串，用于判断是否需要整体重建弹窗。
-     * 签名不仅含模块 id 与类型，还含电动床各角色解析出的实体 ID：实体目录刷新后同一模块可能换绑到别的实体， 只比 id/type 会漏判、弹窗继续显示旧设备。模块间用 "|"、字段间用 ":" 分隔，拼成可整体比较的字符串。
      * @returns {string} 模块列表的签名串。
      */
     const buildModulesSignature = moduleList =>

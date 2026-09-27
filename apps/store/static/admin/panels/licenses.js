@@ -1,17 +1,15 @@
 /**
  * 授权与设备绑定。
- *
- * 激活码列表与签发/补发/升级，以及设备绑定的解绑与查看。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
-import { d, dt, pill, utcInput } from "../format.js?v=2609271208";
-import { LICENSE_SOURCE } from "../vocab.js?v=2609271208";
-import { api, withBusy } from "../api.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
+import { d, dt, pill, utcInput } from "../format.js?v=2609271226";
+import { LICENSE_SOURCE } from "../vocab.js?v=2609271226";
+import { api, withBusy } from "../api.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 // --------------------------------------------------------------------------- //
 // 激活码
@@ -25,8 +23,6 @@ export async function loadLicenses() {
   if (status) params.set('status_filter', status);
   if (expiring) params.set('expiring_days', expiring);
   // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
-  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
-  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
   let data;
   try {
     data = await pagedFetch('licenses', '/licenses', Object.fromEntries(params));
@@ -69,7 +65,6 @@ $('#license-issue').addEventListener('click', () => {
 $('#license-cancel').addEventListener('click', () => { host.hideEditor('#license-editor'); });
 
 // 签发结果落在编辑器里的常驻面板：激活码是这一屏唯一的产出，toast 三秒消失后
-// 运营就没法再核对/复制了。同一次会话内重新点「签发」会先清掉上一次的结果。
 export function showIssueResult(result) {
   $('#license-issue-code').textContent = result.activationCode || '';
   $('#license-issue-target').textContent = [
@@ -93,11 +88,8 @@ $('#license-form').addEventListener('submit', async (event) => {
           validityDays: form.elements.validityDays.value ? Number(form.elements.validityDays.value) : null,
         }),
       });
-      // 激活码是这一屏的唯一产出，toast 三秒就没了，所以同时写进编辑器里的
-      // 持久结果面板，方便复制粘贴给客户。
       showIssueResult(result);
       form.reset();
-      // 新签发的授权按 created_at desc 排在最前，所以回到第 1 页才看得到它
       resetPage('licenses');
       await Promise.all([loadLicenses(), host.loadOverview()]);
     }, '签发中…');
@@ -105,7 +97,6 @@ $('#license-form').addEventListener('submit', async (event) => {
 });
 
 // 修正授权：客服处理「客户要延期 / 备注写错了」。
-// 三种到期时间给法互斥，前端先挡一道，后端 admin_patch_license 还会再校验一次。
 $('#license-patch-cancel').addEventListener('click', () => { host.hideEditor('#license-patch-editor'); });
 
 $('#license-patch-form').addEventListener('submit', async (event) => {
@@ -121,8 +112,6 @@ $('#license-patch-form').addEventListener('submit', async (event) => {
   }
   const payload = { userLabel: form.elements.userLabel.value.trim() };
   if (extendDays) payload.extendDays = Number(extendDays);
-  // 显式 null = 改为永久有效，所以「永久」必须由复选框驱动，
-  // 不能拿空输入框当默认值，否则一次误提交就把授权改成永久。
   if (permanent) payload.accessExpiresAt = null;
   // 输入框是本地时间，提交前换算成库里认的 UTC
   else if (expiresAt) payload.accessExpiresAt = utcInput(expiresAt);
@@ -228,13 +217,6 @@ export async function loadBindings() {
 
 $('#binding-refresh').addEventListener('click', () => { resetPage('bindings'); loadBindings(); });
 
-// 与「强制解绑」的区别：释放只是置为失效、保留历史；删除会把整行抹掉（会话与找回
-// 令牌挂在 binding_id 上，随之级联清理）。
-// **解绑事件不会跟着删**（它挂在 license_id 上，不在这行绑定上），所以解绑冷却照旧
-// —— 需要连冷却一起复位时不要指望「彻底删除」。
-// **两者都不影响重新激活** —— 解绑之后本来就能立刻激活（冷却约束的是「下一次解绑」，
-// 见 apps.store.api.store.release_device）。所以这里不该再拿「能不能马上激活」当卖点，
-// 差别只剩「留不留绑定行 / 要不要顺手清掉这个实例的会话与找回令牌」。
 $('#binding-rows').addEventListener('click', async (event) => {
   const bindingId = event.target.dataset.bindingDelete;
   if (!bindingId) return;

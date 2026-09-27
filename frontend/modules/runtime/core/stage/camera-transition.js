@@ -1,10 +1,5 @@
 /*
  * 相机过渡与跟随。
- *
- * 聚焦/楼层切换的相机过渡推进、相机交互开关，以及扫地机跟随视角。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 export function createCameraTransition(ctx) {
   /**
@@ -62,7 +57,6 @@ export function createCameraTransition(ctx) {
     const elapsedMs = Math.max(0, transitionTimestamp - ctx.cameraTransition.started);
     const transitionProgress = ctx.cameraTransition.transition.progress(elapsedMs);
     // 记下当前进度：楼层过渡末段允许用户按下即接管相机（见 canvas 的 pointerdown），
-    // 那个判断读的必须是本帧刚算出的值。
     ctx.cameraTransition.amount = transitionProgress;
     ctx.focusViewportInset =
       ctx.cameraTransition.inset +
@@ -157,7 +151,6 @@ export function createCameraTransition(ctx) {
       return;
     }
     // 「runtime / panel」两种模式在展示场景里要用户可交互才生效；编辑态是例外 ——
-    // 编辑器要靠 panel 模式做「实时预览弹窗」（preview-device-panel），0.6.5 同口径。
     if (
       !ctx.isEditing &&
       ["runtime", "panel"].includes(focusModeName) &&
@@ -262,14 +255,12 @@ export function createCameraTransition(ctx) {
   }
 
   // 每帧推进跟随相机：目标点取扫地机世界坐标再抬高 0.05 米，
-  // 否则相机会贴地、被机身自己挡住。
   function updateVacuumFollow(deltaSeconds) {
     if (!ctx.followedVacuumId) {
       return;
     }
     const followWorldPosition = ctx.vacuumMotion.worldPosition(ctx.followedVacuumId);
     // 需要绑定的 floorId / modelId 才能查模型锚点：相机取景对准房间里的模型，
-    // 而不是只盯着机体自身坐标。
     const followedVacuumBinding = (ctx.config.devices?.vacuums || []).find(
       followedVacuum => followedVacuum.id === ctx.followedVacuumId
     );
@@ -282,7 +273,6 @@ export function createCameraTransition(ctx) {
       followedVacuumBinding.modelId
     )?.center;
     // 取景点优先用模型锚点中心（相机看向房间整体）；模型尚未就绪时退回机体世界坐标。
-    // 统一抬高 0.05 米：地板高度处相机会贴地并被机身自己遮挡。
     const followRevealTarget = (
       followAnchorCenter ? new ctx.THREE.Vector3(...followAnchorCenter) : followWorldPosition.clone()
     ).add(new ctx.THREE.Vector3(0, 0.05, 0));

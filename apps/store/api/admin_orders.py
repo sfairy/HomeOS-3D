@@ -1,8 +1,4 @@
 """运营后台的 orders 资源组（从 api/admin.py 拆出）。
-
-子路由不带前缀（路径本身就是绝对路径），由父路由 admin.py 在**原来的位置**
-router.include_router() 套上 /store-admin/v1 —— 位置决定注册顺序，FastAPI 按注册序匹配路由，
-所以每拆一组都要用 72 条路由基线逐项比对（含顺序）。
 """
 from __future__ import annotations
 
@@ -62,7 +58,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _FULFILLABLE_STATUS_TEXT,
     _admin_actor,
@@ -89,9 +84,6 @@ def admin_list_orders(
     offset: int = 0,
 ) -> dict:
     """订单列表（分页 + 筛选）。
-    ``status_filter`` 支持逗号分隔的多状态（如 ``paid,fulfillment_failed``），概览看板的「待发货」
-    待办靠它一次带出两类订单。日期区间按 ``created_at`` 过滤、边界都含；时间参数由前端按本地时区算好
-    再转 UTC，服务端只做 naive UTC 归一。
     """
     expire_stale_orders(session, settings)
     base = select(Order)
@@ -118,8 +110,6 @@ def admin_list_orders(
         limit=limit,
         offset=offset,
         # 删除守卫的第三条判据（渠道交易是否已确认关闭）前端拿不到，这里补进列表，
-        # 让「能不能删」只有一个口径，否则按钮照常显示、点下去才 409。``paymentProvider`` 同理：
-        # manual 订单只能线下退款，退款确认框的文案要据此换掉，不能把钱记成已退。
         render=lambda row: {
             **order_payload(row),
             "channelPayable": channel_still_payable(row),
@@ -132,9 +122,6 @@ def _fulfill_with_failure_state(
     session: Session, *, order: Order, setting: StoreSetting, actor: str
 ) -> dict:
     """履约并处理失败：抛异常时把订单标记为 ``fulfillment_failed`` 而不是 500。
-    用 SAVEPOINT 包住履约，失败只回滚这一段的写入（半张授权、库存、邀请奖励），订单本身仍占着库存
-    预留与优惠码名额（货没发出去）。这样状态机自洽：``fulfillment_failed`` 既在预留未归还集合里，
-    也在可重试集合里，运营点「履约」能重来、点「退款」也能正常退。
     """
     try:
         with session.begin_nested():
@@ -148,7 +135,6 @@ def _fulfill_with_failure_state(
             .values(
                 status="fulfillment_failed",
                 # 履约入口会把 fulfilled_at 抢先写上做幂等闸门，SAVEPOINT 回滚后
-                # 库里已是旧值；这里再显式清一次，避免重试被判成「已完成」。
                 fulfilled_at=None,
                 needs_review=True,
                 review_note=f"履约失败：{reason[:230]}",
@@ -170,9 +156,6 @@ def admin_mark_paid(
     order_no: str, session: DbSession, admin: AdminAccount
 ) -> dict:
     """人工补记：把订单放行（发码），但**不计入营收**。
-    「客户催单先放行」「赠送补偿」时账上并没有钱，而营收按 ``paid_at`` 汇总 —— 只盖 ``paid_at`` 会
-    凭空多出一笔营收且事后分不清，所以它同时置 ``manual_settlement`` 并被营收口径排除、概览里单列。
-    **钱确实收到了**（线下转账、现金）请用 ``settle-offline``；两个入口分开，让「算不算营收」写在 URL 里。
     """
     return _manual_payment(session, order_no, admin=admin, manual_settlement=True)
 
@@ -182,10 +165,6 @@ def admin_settle_offline(
     order_no: str, session: DbSession, admin: AdminAccount
 ) -> dict:
     """线下收款入账：人工确认这笔钱**已经收到**（转账/现金），计入营收。
-
-    与 ``mark-paid`` 的唯一差别是营收口径：``manual_settlement=False``。金额仍按
-    订单实付记，审计动作是独立的 ``order.settle_offline``，所以「某笔营收是人确认过
-    的」在审计日志里查得到 —— 渠道确认过钱的订单不会留下这条动作。
     """
     return _manual_payment(session, order_no, admin=admin, manual_settlement=False)
 
@@ -194,17 +173,12 @@ def _manual_payment(
     session: Session, order_no: str, *, admin: AdminAccount, manual_settlement: bool
 ) -> dict:
     """``mark-paid`` / ``settle-offline`` 的共用实现。
-
-    两处必须逐字节一致：状态守卫、条件 UPDATE 抢单、履约分流（``manual`` 模式停在
-    ``paid`` 等人核对）—— 任何一处只改一个入口，就会出现「同样一张单，从哪个按钮点
-    进去行为不同」。
     """
     setting = site_config.get_setting(session)
     order = order_or_404(session, order_no)
     if order.status == "fulfilled":
         return order_payload(order)
     # payment_failed 不在这里补标记：该状态在支付失败时已释放库存预留与优惠码
-    # 名额，再标记支付并履约会造成二次扣减。
     if order.status not in ORDER_FULFILLABLE_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -214,7 +188,6 @@ def _manual_payment(
             ),
         )
     # 条件 UPDATE 抢单：后台按钮可以双击、也可能与「履约」按钮并发点击。
-    # 只靠上面的读判断的话，两个请求各自把订单标成 paid 并各发一次码。
     result = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -240,8 +213,6 @@ def _manual_payment(
         "" if manual_settlement else "人工确认已收到钱（线下），计入营收",
     )
     # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）；手动发卡商品只标记已支付，
-    # 把发码留给「履约」按钮——两条支付路径必须一致：真实支付宝到账（settle_paid_order）
-    # 见 manual 也停在 paid 等人核对，后台一按就发码的话「人工发卡」这道闸门等于不存在。
     if order.fulfillment_mode != "manual":
         return _fulfill_with_failure_state(
             session, order=order, setting=setting, actor=_admin_actor(admin)
@@ -257,7 +228,6 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
     if order.status == "fulfilled":
         return order_payload(order)
     # 终态订单不能履约：cancelled / expired 的库存与优惠码名额早已释放，
-    # refunded 的授权已收回。放行会凭空发码，并重复扣减预留造成超卖。
     if order.status not in ORDER_FULFILLABLE_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -268,8 +238,6 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         )
     if order.paid_at is None:
         # 只补时间戳，不碰状态：状态流转与幂等由 fulfill_order 的条件 UPDATE 负责。
-        # 同时置人工补记标记，因为这里也是「没收到钱就放行」的一条路（例如手动发卡订单
-        # 直接点「履约」）；不标记的话，钱没到的订单会因为这个按钮进入营收。
         session.execute(
             update(Order)
             .where(Order.id == order.id)
@@ -288,9 +256,6 @@ def admin_review_order(
     order_no: str, payload: AdminOrderReviewRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
     """把订单的「待复核」标记清掉（人工已处理）。
-    ``needs_review`` 目前只来自「订单超时关闭后支付才到账」的复活单（钱收了、码发了，但库存早已还给
-    别人）。只有置位路径而没有清除路径时，概览页那条待办会永久挂着、告警失效；刻意不在履约成功时
-    自动清除，因为复活单的价值就是让人看见「这单超卖过」。清标记同时把复核结论追加进 ``review_note``。
     """
     order = order_or_404(session, order_no)
     if order.status == "pending":
@@ -306,8 +271,6 @@ def admin_review_order(
     note = (payload.note or "").strip()
     stamp = utcnow().strftime("%Y-%m-%d %H:%M UTC")
     order.needs_review = False
-    #: 保留原始原因而不是清空：这一栏是「这单为什么被标出来」的唯一记录，
-    #: 清掉之后几天后回头看就只剩一句「已处理」，等于把线索删了。
     order.review_note = (
         f"{previous}｜{stamp} 已处理：{note}" if note else f"{previous}｜{stamp} 已处理"
     )[:255]
@@ -324,10 +287,6 @@ def admin_review_order(
 
 
 #: 同一订单的退款必须串行：渠道退款不可逆，而退款接口是「读累计值 → 调渠道 → 写累计值」的形状，
-#: 两个并发请求会各自读到同一个 ``refund_amount_cents``、把钱退两次而累计值只加一次。
-#: 不用「条件 UPDATE 抢单」是因为闸门必须在**调渠道之前**取得，而那一刻事务还没写过东西，条件
-#: UPDATE 会把 SQLite 写锁攥到请求结束、阻塞整个网络往返期间的所有下单。用进程内锁（每单一把、
-#: 带引用计数以免字典只增不减）不占数据库写锁，跨进程残余窗口由 ``_claim_refund_amount`` 兜住。
 _refund_locks: dict[str, list] = {}
 _refund_locks_guard = threading.Lock()
 
@@ -361,10 +320,6 @@ def _claim_refund_amount(
     session: Session, order: Order, *, seen_cents: int, add_cents: int
 ) -> bool:
     """把本次退款金额并进累计值，条件是「累计值仍是本次读到的那个」。
-
-    与 ``expire_stale_orders`` 同一套抢单套路：只有还能看到 ``seen_cents`` 的
-    一方才有资格写。``refund_amount_cents`` 是可空列，用 ``coalesce`` 兜住历史
-    数据里的 NULL（``NULL = 0`` 在 SQL 里不成立，漏掉会让老订单永远抢不到）。
     """
     claimed = session.execute(
         update(Order)
@@ -388,8 +343,6 @@ def admin_refund(
     with _refund_lock(order_no):
         result = _refund_order(order_no, payload, request, session, admin)
         # 必须在本进程锁**之内**把抢单结果与流水落库：请求会话的 commit 发生在依赖
-        # teardown（见 apps.store.core.database.Database.session），那时锁早已释放，第二笔并发
-        # 退款会读到同一旧累计值，两次抢单都成立、钱多退一倍；teardown 的 commit 是空操作。
         session.commit()
         return result
 
@@ -418,7 +371,6 @@ def _refund_order(
             detail=f"该订单已全额退款 ¥{refunded_cents / 100:.2f}，没有可退余额。",
         )
 
-    # 不传金额 = 退掉剩余全部（与历史上「一退就退全款」的行为保持一致）
     amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
     if amount_cents > remaining_cents:
         raise HTTPException(
@@ -432,8 +384,6 @@ def _refund_order(
     refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
 
     #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退交易，
-    #: 必须按**线下退款**记账，绝不能回落到「当前站点配置的渠道」——配模拟收银台时会
-    #: 「退成功」却分文未动。这里不抛 409（这类订单只能线下退），改为自动改走线下并记审计。
     forced_offline = _offline_refund_reason(order)
     offline_refund = bool(payload.offline) or bool(forced_offline)
     if forced_offline and not payload.offline:
@@ -443,7 +393,6 @@ def _refund_order(
         refund_reason = f"{refund_reason}｜{forced_offline}，按线下退款记账"[:255]
 
     # 幂等键必须**每次退款动作都不同**。写成 RF{订单号} 的话，支付宝会把第二次
-    # 部分退款当成「同一笔退款」直接返回上次结果 —— 钱没退出去，本地却记成已退。
     out_request_no = f"RF{order.order_no}-{new_uuid()[:8]}"[:128]
     refund = OrderRefund(
         order_id=order.id,
@@ -456,18 +405,13 @@ def _refund_order(
         status="failed",
     )
     # 先不加进请求事务：失败路径要靠独立事务落库，而已经绑在请求会话上的对象
-    # 再挂到新会话会报「object already attached to session」。
 
     refund_trade_no: str | None = None
     refund_detail = ""
     #: 渠道**实际**退回的金额。渠道可能只退了一部分（unrefunded_cents > 0），
-    #: 记账必须按实际数字，否则账面营收会被多减。
     settled_cents = amount_cents
 
     if amount_cents > 0 and not offline_refund:
-        # 关键：退款必须真的把钱退回去。这里过去只改本地状态，界面显示「已退款」
-        # 而钱仍在商户账户：账面上营收消失了，用户却没收到退款。
-        # 网关/渠道失败一律 409 且**不改任何状态**，绝不出现「状态改了、钱没退」。
         provider = _refund_provider(
             request.app.state.resolve_payment_provider,
             order=order,
@@ -483,9 +427,6 @@ def _refund_order(
                 setting=setting,
             )
         except PaymentError as error:
-            # 失败也要留痕：否则「退了几次都没成功」这件事在库里查不出来。
-            # 注意这里必须用独立事务 —— 下面抛的 409 会让请求事务整体回滚，
-            # 共用事务的话这条流水会被一起抹掉，等于没记。
             refund.detail = str(error)[:255]
             record_refund_in_new_session(session, refund)
             logger.warning("退款被渠道拒绝 order=%s: %s", order.order_no, error)
@@ -500,12 +441,8 @@ def _refund_order(
         refund_trade_no = result.trade_no
         refund_detail = result.detail
         # 渠道只退了一部分时按实际金额入账，并把差额如实告诉运营 ——
-        # 过去这种情况直接 409 拒绝，连「退了多少」都没记下来。
         settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
 
-    # 渠道确认「本次没有新增资金变动」时 settled_cents 会是 0（fund_change=N / refund_fee=0）：
-    # 这不是成功退款，而是「这笔钱早就退过了」——绝不能因此把订单推进 partially_refunded
-    # （会让资金未动的订单显示成退过钱，还连带归还预留）。只留一条流水，订单状态保持原样。
     if settled_cents <= 0:
         refund.status = "succeeded"
         refund.amount_cents = 0
@@ -527,15 +464,11 @@ def _refund_order(
         return order_payload(order)
 
     # 走到这里渠道已经确认退款（或本来就是线下退款），可以安全地并入请求事务。
-    # 先抢单把本次金额并进累计值，再落流水 —— 两者必须同生共死，否则审计流水会
-    # 与订单上的累计值对不上。
     cumulative_cents = refunded_cents + settled_cents
     if not _claim_refund_amount(
         session, order, seen_cents=refunded_cents, add_cents=settled_cents
     ):
         # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值被另一笔退款改动过（进程内锁
-        # 没覆盖到的跨进程并发）。绝不能静默覆盖（那笔钱会从账面上消失），也不能只回 409。
-        # 先回滚请求事务（它可能持有写锁，独立事务写不进去），再把流水写进独立事务并报人工核对。
         session.rollback()
         refund.status = "succeeded"
         refund.amount_cents = settled_cents
@@ -568,16 +501,12 @@ def _refund_order(
         order.refund_trade_no = refund_trade_no
 
     # 预留归还的判定必须用**退款前**的状态，且对部分退款同样生效：
-    # ``partially_refunded`` 不在 RESERVING_STATUSES 里，订单一旦离开那些状态，
-    # 就再没人负责归还这一件预留了（漏掉等于这件货永久卖不出去）。
     if order.status in {"paid", "fulfillment_failed"}:
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_order_reservation(session, order=order, product=product)
 
     fully_refunded = total_cents > 0 and cumulative_cents >= total_cents
     if fully_refunded:
-        # 全额退完才收回授权、回退邀请奖励、把订单推进终态。
-        # 部分退款只记录资金流出：客户仍然持有（且我们仍然欠着）那张授权。
         _revoke_order_entitlements(session, order)
         referrals.reverse_order_reward(
             session, order=order, note=f"订单 {order.order_no} 退款，奖励退回"
@@ -609,9 +538,6 @@ def _refund_order(
 
 def _revoke_order_entitlements(session, order: Order) -> None:
     """收回订单产生的激活码与权益（全额退款时调用）。
-    两种情况权属不同：``issue``（本单发的新授权）整张作废；``upgrade`` / ``patch``（改的是用户此前
-    付过钱的那张授权）只能还原成改动前的样子 —— 整张作废等于没收他原来的消费，什么都不做又变成
-    「钱退了、永久授权还在手里」（这类授权的 ``License.order_id`` 指向最早那张订单，按单号找不到）。
     """
     if (
         order.license_action in {"upgrade", "patch"}
@@ -642,11 +568,6 @@ def _revoke_order_entitlements(session, order: Order) -> None:
 
 
 def _offline_refund_reason(order: Order) -> str:
-    """这笔退款为什么**只能**按线下处理（渠道侧没有可退的交易）；无需强制时返回空串。
-    「标记支付」的订单把 ``payment_provider`` 记成 ``manual``，这类单在渠道侧根本不存在交易，过去却
-    会回落到当前站点渠道去退：配支付宝报「交易不存在」，配模拟收银台则直接「退成功」、账面凭空多出
-    一笔已退款却无资金流动。没记下单渠道或渠道名已不受支持的老订单同理，只能按线下如实记账。
-    """
     provider = normalize_provider_name(order.payment_provider)
     if provider == "manual":
         return "该订单是后台人工标记支付的（渠道侧没有这笔交易）"
@@ -659,9 +580,6 @@ def _offline_refund_reason(order: Order) -> str:
 
 def _refund_provider(resolver, *, order: Order, setting):
     """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。
-    运营中途切换渠道后，用当前渠道去退老订单会打到错误网关（报「交易不存在」，或模拟渠道直接「退
-    成功」），所以优先按 ``order.payment_provider`` 找渠道实现。能走到这里的订单渠道名必然受支持：
-    ``manual`` / 未知渠道已由 :func:`_offline_refund_reason` 拦下改走线下。
     """
     order_provider = normalize_provider_name(order.payment_provider)
     if order_provider in PROVIDER_NAMES:
@@ -674,9 +592,6 @@ def admin_list_order_refunds(
     order_no: str, session: DbSession, _admin: AdminAccount
 ) -> dict:
     """某张订单的退款流水（含被渠道拒绝的尝试）。
-
-    支持多次部分退款之后，「这张单到底退了几次、每次多少钱」必须能一眼查到，
-    否则对账只能靠翻审计日志里的自由文本。
     """
     order = order_or_404(session, order_no)
     rows = session.scalars(
@@ -718,7 +633,6 @@ def admin_cancel(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：取消与超时扫描/支付入账可能同时发生，只有把订单从
-    # pending 推走的那一个请求才释放预留与优惠码名额。
     if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
@@ -732,10 +646,6 @@ def admin_cancel(
 @router.delete("/orders/{order_no}")
 def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
     """删除订单（用于清理测试单 / 垃圾单）。
-    订单是营收与授权来源的凭证，只允许删**确定没动过任何授权**的历史单据：状态必须是终态
-    ``cancelled`` / ``expired``、``license_id`` 为空、``license_state_before_json`` 为空、渠道交易已确认
-    关闭。不能拿 ``target_license_id`` 当判据 —— 增量包与升级单在下单时就会写这一列，它表达「打算改谁」
-    而非「已经改过谁」，当成判据会让所有增购/升级垃圾单永远删不掉。已付款/已履约请走「退款」保留流水。
     """
     order = order_or_404(session, order_no)
 
@@ -756,7 +666,6 @@ def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -
         )
     if channel_still_payable(order):
         # 删掉之后钱进来就再没有任何凭证：异步通知找不到订单号只会打 error 日志，
-        # 巡检的回看窗口也已覆盖过它（见 ``channel_still_payable``）。
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(

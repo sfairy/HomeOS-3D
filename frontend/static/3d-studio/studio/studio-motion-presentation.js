@@ -1,9 +1,5 @@
 /**
  * 镜头 / 楼层运动期间的呈现降级开关。
- *
- * 把「地板在动」「镜头在动」「运动是否已落定」三件事汇总成两个布尔信号，交给外部挂起或恢复
- * 反射与阴影，避免运动过程中反复重算高开销贴图。对外为 createMotionPresentation 工厂，返回
- * floor / camera / advance。反射是否开启还受 liveCameraReflections 影响。
  */
 
 /**
@@ -22,7 +18,6 @@ export function createMotionPresentation({
 
   // 每次状态变化都重算两个输出信号，调用方不需要自己推导组合条件。
   function publishMotionState() {
-    // 运动落定后立即恢复反射，避免停在「最后一帧」时反射仍被挂起。
     setReflections(
       (isFloorMotionActive || (isCameraMotionActive && !shouldReflectLiveCamera)) &&
         !isMotionSettled

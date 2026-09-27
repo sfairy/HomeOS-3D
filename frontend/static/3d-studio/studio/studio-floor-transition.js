@@ -1,10 +1,5 @@
 /**
  * 楼层之间的切换动画（滑动 / 展开 / 退场）：把「旧楼层集合」与「新楼层集合」编排成一段动画而非硬切。
- *
- * 坐标与单位：矩阵都是 three.js 世界矩阵（右手系、Y 轴向上、单位米），elements[12..14] 依次是平移
- * x / y / z，动画直接改这三个分量。约定：floorSpread 是相邻楼层屏幕间距参考值（米），用于估算不存在的
- * 旧楼层从哪入场；过渡期间每个楼层临时挂到以楼层 ID 命名的 Group 下（可整体移动 / 旋转一层而不动层内
- * 对象局部变换），结束再解开；地面层（地板 / 网格 / 接触阴影）材质换成透明克隆体随动画淡入淡出。
  */
 
 export function createFloorTransition({
@@ -19,7 +14,6 @@ export function createFloorTransition({
   let activeRecords = [];
   let isTransitionActive = false;
   // 三选一的动画模式：scroll 模式（楼层连续排布）、exit 模式（退到单层的抽离）、
-  // 以及装配模式（assemblyState 非空时，多楼层从同一锚点展开）。
   let slideState = null;
   let exitState = null;
   let assemblyState = null;
@@ -28,7 +22,6 @@ export function createFloorTransition({
    * 把矩阵拆成 position / quaternion / scale。
    */
   const decomposeMatrix = matrix => {
-    // 三个向量各复用一个实例，避免每帧为每个楼层分配新对象。
     const positionVector = new three.Vector3();
     const quaternionValue = new three.Quaternion();
     const scaleVector = new three.Vector3();
@@ -69,7 +62,6 @@ export function createFloorTransition({
       };
       floorGroup.traverse(sceneNode => {
         // 只接管地面层（背景 / 网格 / 接触阴影）：它们需要独立淡出，
-        // 否则滑动时地面会像一整块板跟着飞出去。
         if (
           !sceneNode.material ||
           !["background", "grid", "contact-shadow"].includes(sceneNode.userData?.exportRole)
@@ -78,12 +70,8 @@ export function createFloorTransition({
         }
         const originalMaterial = sceneNode.material;
         // 过渡期间地面必须可透明（要做淡入淡出），并复制原材质的着色器钩子 ——
-        // clone() 不会带过去，漏掉会让阴影图集 / 环境反射的补丁在过渡中失效。
-        // 同时关掉深度写入：多层半透明地面否则会互相遮挡出条纹。
         const cloneGroundMaterial = material => {
           const clonedMaterial = material.clone();
-          // clone() 不会复制这两个钩子，必须手动带过去，
-          // 否则阴影图集 / 环境反射的着色器补丁会在过渡期间失效。
           clonedMaterial.onBeforeCompile = material.onBeforeCompile;
           clonedMaterial.customProgramCacheKey = material.customProgramCacheKey.bind(material);
           // 过渡期间地面必须可透明，才能做淡入淡出。
@@ -126,7 +114,6 @@ export function createFloorTransition({
     for (const groundEntry of floorRecord.ground) {
       groundEntry.node.material = groundEntry.original;
       for (const disposableMaterial of groundEntry.materials) {
-        // 克隆材质是过渡专用的，用完必须 dispose，否则每次切楼层都泄漏一批材质。
         disposableMaterial.dispose();
       }
     }
@@ -140,14 +127,10 @@ export function createFloorTransition({
     restoreGroundMaterials(leavingRecord);
     leavingRecord.node.removeFromParent();
     // transferred 表示这层楼已经被 reuse 复用给新场景，此时不能销毁。
-    // 否则先问 onRelease 是否愿意接管，不愿接管才真正 dispose。
     if (!leavingRecord.transferred && (!shouldDispose || !onRelease(leavingRecord))) {
       onDispose(leavingRecord.node);
     }
   }
-  /**
-   * 复用上一轮过渡留下的楼层包装：把里面的内容取出并挂回根节点。
-   */
   function reuseRecord(cachedRecord, targetFrame) {
     restoreGroundMaterials(cachedRecord);
     const cachedChildren = [...cachedRecord.node.children];
@@ -174,9 +157,6 @@ export function createFloorTransition({
     cachedRecord.transferred = true;
     return reusedNode;
   }
-  /**
-   * 取出待过渡的楼层记录：已有过渡在跑就沿用当前记录，否则现捕捉一份。
-   */
   function takeRecords(takeFloorIds, resolveBaseFrame, takeGroupByFloorId) {
     // 过渡期间立刻暂停反射：反射探针采到的中间态会污染反射贴图。
     onSuspendReflections(true);
@@ -212,8 +192,6 @@ export function createFloorTransition({
       previousRecords.map(previousEntry => [previousEntry.id, previousEntry])
     );
     const nextById = new Map(nextRecords.map(nextEntry => [nextEntry.id, nextEntry]));
-    // 聚焦层的选择顺序：显式指定 > 上一轮标记保留的层 > 新旧共有的层 > 第一个。
-    // 顺序体现了优先级：调用方的意图最优先，其次是动画连续性。
     const focusRecord =
       nextRecords.find(targetCandidate => targetCandidate.id === targetFloorId) ||
       nextRecords.find(keptCandidate => previousById.get(keptCandidate.id)?.keep) ||
@@ -221,7 +199,6 @@ export function createFloorTransition({
       nextRecords[0];
     const anchorRecord = previousById.get(focusRecord.id) || previousRecords[0];
     // 装配矩阵：把「锚点层当前的世界帧」换算成「聚焦层的基准帧」，
-    // 于是所有新出现的楼层都能从锚点的位置整齐展开。滚动模式下不用这套。
     const handoffMatrix =
       !isScrollTransition && nextRecords.length > 1
         ? anchorRecord.frame.clone().multiply(focusRecord.baseFrame.clone().invert())
@@ -233,9 +210,7 @@ export function createFloorTransition({
     const keptPreviousRecord =
       previousRecords.find(keptEntry => keptEntry.keep) || previousRecords[0];
     // 取楼层在自下而上顺序里的下标，用来算层间相对位移（层差 × floorSpread）；
-    // 找不到时 indexOf 返回 -1，位移量会退化但不会抛错 —— 楼层列表本应与 floorOrder 一致。
     const orderIndexOf = orderFloorId => floorOrder.indexOf(orderFloorId);
-    // 滚动模式需要上一轮的滚动位置来保持惯性连续，否则每次切换都会跳回起点。
     const scrollAnchorRecord = previousRecords.find(scrollingEntry =>
       Number.isFinite(scrollingEntry.scrollPosition)
     );
@@ -247,7 +222,6 @@ export function createFloorTransition({
       const offsetFrame = frameMatrix.clone();
       const offsetMeters = stepDelta * floorSpread;
       const axisVector = isScrollTransition && scrollAxis ? scrollAxis : new three.Vector3(0, 1, 0);
-      // 直接改矩阵的平移分量，避免再构造一次 Matrix4 乘法的开销。
       offsetFrame.elements[12] += axisVector.x * offsetMeters;
       offsetFrame.elements[13] += axisVector.y * offsetMeters;
       offsetFrame.elements[14] += axisVector.z * offsetMeters;
@@ -256,7 +230,6 @@ export function createFloorTransition({
     activeRecords = [];
     for (const nextRecord of nextRecords) {
       const previousRecord = previousById.get(nextRecord.id);
-      // 上一轮就在的楼层沿用它的实际帧；新出现的楼层按「从锚点层偏移 N 层」估算入场位置。
       const recordFrame =
         previousRecord?.frame ||
         offsetFrameBySteps(
@@ -291,7 +264,6 @@ export function createFloorTransition({
       // 滚动模式下只有聚焦层留在场景里，其余楼层作为滑动内容被带走。
       nextRecord.keep = !isScrollTransition || nextRecord.id === focusRecord.id;
       nextRecord.node.userData.floorTransitionLeaving = !nextRecord.keep;
-      // 地面淡入：上一轮已有该层就接着它的 alpha，新层从 0 开始。
       nextRecord.groundFrom = previousRecord?.groundAlpha ?? 0;
       nextRecord.groundTo = nextRecord.keep ? 1 : 0;
       activeRecords.push(nextRecord);
@@ -304,7 +276,6 @@ export function createFloorTransition({
       if (nextById.has(restoredRecord.id)) {
         continue;
       }
-      // 本轮不再展示的楼层：挂回场景，让它按顺序滑出屏幕而不是凭空消失。
       sceneRoot.add(restoredRecord.node);
       const restoredFrame = offsetFrameBySteps(
         focusRecord.baseFrame,
@@ -327,7 +298,6 @@ export function createFloorTransition({
           spread: scrollAnchorRecord?.scrollSpacing || floorSpread,
           order: [...floorOrder],
           screenSpacing: scrollAnchorRecord?.scrollScreenSpacing,
-          // 滚动位置以「层序号」为单位，可从上一轮的位置接着走。
           scrollFrom: scrollAnchorRecord?.scrollPosition ?? orderIndexOf(keptPreviousRecord.id),
           scrollTo: orderIndexOf(focusRecord.id)
         }
@@ -341,7 +311,6 @@ export function createFloorTransition({
           }
         : null;
     if (!slideState) {
-      // 非滚动模式必须清掉上轮遗留的滚动字段，否则采样时会误走滚动分支。
       for (const staleRecord of activeRecords) {
         delete staleRecord.scrollPosition;
         delete staleRecord.scrollSpacing;
@@ -370,7 +339,6 @@ export function createFloorTransition({
     for (const finishedRecord of activeRecords) {
       if (finishedRecord.keep && finishedRecord.node.parent === finishRoot) {
         // 保留层：把包装 Group 的变换清零，然后 children 直接挂回根节点，
-        // 这样过渡结束后场景图里不再残留任何动画用的临时节点。
         finishedRecord.node.position.set(0, 0, 0);
         finishedRecord.node.quaternion.identity();
         finishedRecord.node.scale.set(1, 1, 1);
@@ -392,7 +360,6 @@ export function createFloorTransition({
     assemblyState = null;
     // 过渡结束才恢复反射，此时场景已是稳定姿态。
     onSuspendReflections(false);
-    // 强制重绘一帧：否则停在下一次交互才刷新，会看到过渡的最后一帧残留。
     onInvalidate(true);
   }
 
@@ -412,13 +379,10 @@ export function createFloorTransition({
   };
   /**
    * 预先算好滑动 / 装配动画所需的相机空间数据。
-   * 为什么预计算：过渡期间每帧都要把楼层摆到「屏幕上某个位置」，世界坐标换算屏幕坐标需要相机矩阵与投影参数，
-   * 这些在同一段过渡里只在起止两次取值（中间按 progress 插值），提前算完能省下每层的重复计算。
    */
   function prepareSlideCameras(fromCameraSpec, toCameraSpec, projections = null) {
     if (assemblyState && projections) {
       // 装配模式 + 有投影参数：走「屏幕空间对齐」路径，
-      // 让新出现的楼层在屏幕上从锚点层的位置散开，而不是沿世界 Y 轴。
       const fromViewMatrix = computeCameraFrame(fromCameraSpec).invert();
       const toViewMatrix = computeCameraFrame(toCameraSpec).invert();
       const assemblyAnchorRecord = activeRecords.find(
@@ -427,13 +391,11 @@ export function createFloorTransition({
       const centersById = new Map(
         activeRecords.map(centerRecord => {
           // 直接量取楼层内容的几何中心（而不是用基准帧的平移），
-          // 因为基准帧可能不在楼层几何中心，用它对齐会偏。
           const worldBounds = new three.Box3();
           centerRecord.node.updateWorldMatrix(true, true);
           const inverseNodeWorld = centerRecord.node.matrixWorld.clone().invert();
           centerRecord.node.traverseVisible(meshNode => {
             // 排除背景 / 网格 / 接触阴影：这些是无边界的平面，
-            // 一旦计入，包围盒会变得极大，中心点也就失去意义。
             if (
               !!meshNode.isMesh &&
               !!meshNode.geometry &&
@@ -488,8 +450,6 @@ export function createFloorTransition({
         const screenFrom = recordCenter.clone().applyMatrix4(recordWorldFrame);
         const screenTo = recordCenter.clone().applyMatrix4(toViewFrame);
         if (!assemblyRecord.wasVisible) {
-          // 新出现的楼层不能让它在原地淡入，否则会看到「凭空冒出」；
-          // 把它沿装配方向从锚点位置依次排开。
           const anchorProjectionScale = projectedScaleAtDepth(projections.from, -anchorCenter.z);
           const assemblySign =
             (assemblyRecord.assemblyOffset /
@@ -497,7 +457,6 @@ export function createFloorTransition({
             1.8;
           screenFrom.copy(anchorCenter);
           screenFrom.y += assemblySign * anchorProjectionScale;
-          // 同一方向上更接近锚点的楼层要排得更靠内，否则会重叠。
           const closerCount = activeRecords.filter(
             otherRecord =>
               !otherRecord.wasVisible &&
@@ -578,7 +537,6 @@ export function createFloorTransition({
             .multiply(inverseExitWorld)
             .multiply(exitMeshNode.matrixWorld);
           // 遍历包围盒 8 个角点取最大抬升量：只按盒子顶点算，
-          // 比遍历所有顶点便宜得多，而退场动画不需要像素级精确。
           for (const exitCornerX of [exitMeshBounds.min.x, exitMeshBounds.max.x]) {
             for (const exitCornerY of [exitMeshBounds.min.y, exitMeshBounds.max.y]) {
               for (const exitCornerZ of [exitMeshBounds.min.z, exitMeshBounds.max.z]) {
@@ -589,7 +547,6 @@ export function createFloorTransition({
                 ).applyMatrix4(boundsToWorld);
                 for (const exitProjection of [projections.from, projections.to]) {
                   // 把「该纵深处的可视半高」换算出来，乘 1.12 留一点余量，
-                  // 保证楼层完全滑出画面而不是只露出半个角。
                   const projectedHeight =
                     (exitProjection.height *
                       (1 -
@@ -616,7 +573,6 @@ export function createFloorTransition({
     slideState.projected = !!projections;
     slideState.projections = projections;
     // 在基准视图矩阵之上再叠一层竖直平移：把滑入 / 滑出的轨道上下错开，
-    // 避免两条轨迹在同一高度重叠而穿模。
     const withVerticalOffset = (baseSlideFrame, offsetY) =>
       new three.Matrix4().makeTranslation(0, offsetY, 0).multiply(baseSlideFrame);
     /**
@@ -650,7 +606,6 @@ export function createFloorTransition({
         };
       }
       if (slideRecord.wasVisible) {
-        // 上一帧的滚动位移要补回来，否则相机一动会让楼层「回弹」一下。
         worldFrame.elements[13] -= slideRecord.scrollOffset || 0;
       }
       slideRecord.node.updateWorldMatrix(true, true);
@@ -663,14 +618,12 @@ export function createFloorTransition({
           !!boundsMeshNode.geometry &&
           !["background", "grid", "contact-shadow"].includes(boundsMeshNode.userData?.exportRole) &&
           // 这里用逗号表达式「顺手」计算缺失的包围盒（computeBoundingBox 返回 undefined，
-          // 所以条件后半段才是真正的判定），避免为这一步单独写一个循环。
           (boundsMeshNode.geometry.boundingBox || boundsMeshNode.geometry.computeBoundingBox(),
           boundsMeshNode.geometry.boundingBox && !boundsMeshNode.geometry.boundingBox.isEmpty())
         ) {
           const meshToWorld = inverseSlideWorld.clone().multiply(boundsMeshNode.matrixWorld);
           const meshBoundingBox = boundsMeshNode.geometry.boundingBox;
           recordBounds.union(meshBoundingBox.clone().applyMatrix4(meshToWorld));
-          // 角点先存下来：后面判断进出场范围时反复要用，避免重复遍历。
           for (const cornerX of [meshBoundingBox.min.x, meshBoundingBox.max.x]) {
             for (const cornerY of [meshBoundingBox.min.y, meshBoundingBox.max.y]) {
               for (const cornerZ of [meshBoundingBox.min.z, meshBoundingBox.max.z]) {
@@ -686,7 +639,6 @@ export function createFloorTransition({
         ? new three.Vector3()
         : recordBounds.getCenter(new three.Vector3());
       // 每个楼层有两组投影参数：入场时用「起」的，离场 / 已可见时用「终」的。
-      // 之所以按方向分开：远景深的楼缩小、近景深的楼放大，视觉上才有纵深。
       slideRecord.projectionFrom = slideRecord.wasVisible ? projections.from : projections.to;
       slideRecord.projectionTo =
         slideRecord.keep || !slideRecord.wasVisible ? projections.to : projections.from;
@@ -703,7 +655,6 @@ export function createFloorTransition({
             const transformedCorner = cornerVector.clone().applyMatrix4(pairMatrix);
             const orderIndex = slideState.order.indexOf(slideRecord.id);
             // 链条两端的楼层只能往外走，中间的按绝对距离衡量，
-            // 否则「往下滑」的楼层会算出负的行程。
             const directionalExtent =
               orderIndex === 0
                 ? transformedCorner.y
@@ -727,7 +678,6 @@ export function createFloorTransition({
     });
     if (projections && !Number.isFinite(slideState.screenSpacing)) {
       // 屏幕间距：按最高的楼层再留 0.24 的余量，并夹在 [1.24, 1.8]，
-      // 上限防止极端高的楼层把间距撑到看不清相邻层。
       slideState.screenSpacing = Math.min(
         1.8,
         Math.max(1.24, ...slideCandidates.map(extentCandidate => 1 + extentCandidate.extent + 0.24))
@@ -742,7 +692,6 @@ export function createFloorTransition({
       if (projections) {
         if (candidateRecord.wasVisible && !Number.isFinite(candidateRecord.scrollOffset)) {
           // 上一层没有留下滚动偏移（首次进入滚动模式）时，
-          // 按「距滚动起点多少层」估算一个初始偏移，避免所有楼层叠在一起。
           const scrollCenterPoint = candidateRecord.scrollCenter
             .clone()
             .applyMatrix4(candidateFrame);
@@ -759,7 +708,6 @@ export function createFloorTransition({
         );
         if (!candidateRecord.keep) {
           // 离场楼层要额外走远一点：先按终态构图，再沿屏幕方向推动它，
-          // 并补偿缩放，让「推远」看起来是深度变化而不是简单的平移。
           const scaledSlideFrame = new three.Matrix4().compose(
             candidateRecord.slideTo.position,
             candidateRecord.slideTo.quaternion,
@@ -774,7 +722,6 @@ export function createFloorTransition({
           scaledSlideFrame.premultiply(
             new three.Matrix4().makeScale(scaleRatio, scaleRatio, scaleRatio)
           );
-          // 缩放是以原点为中心的，要把纵深补回来，否则物体沿 z 轴跑偏。
           scaledSlideFrame.elements[14] += slideExitDepth * (scaleRatio - 1);
           scaledSlideFrame.elements[13] +=
             (recordOrderIndex - slideState.scrollTo) * slideState.screenSpacing * slideExitScale;
@@ -784,7 +731,6 @@ export function createFloorTransition({
             ...candidateCorners.map(corner => {
               const cornerInFrame = corner.clone().applyMatrix4(scaledSlideFrame);
               // 用 1.14 的余量确保整个包围盒离开屏幕，最后除以 slideExitScale
-              // 换算回「屏幕间距」这同一套单位。
               return (
                 (projectedScaleAtZ(projections.to, cornerInFrame.z) * 1.14 -
                   slideSign * cornerInFrame.y) /
@@ -821,7 +767,6 @@ export function createFloorTransition({
   }
   /**
    * 按纵深算投影缩放：把世界单位换算成屏幕半高比例。
-   * 与内部同名逻辑的区别是入参是「投影参数对象」而不是矩阵，供外部（导出、相机适配）复用同一套公式。
    */
   function projectedScaleAtDepth(projectionSpec, depthValue) {
     return Math.max(
@@ -844,7 +789,6 @@ export function createFloorTransition({
       return;
     }
     // 自愈检查：保留层的父节点已经不是场景根，说明外层代码重建过场景图，
-    // 过渡状态已经失效，直接收尾而不是继续摆一个已经不在场景里的节点。
     if (
       activeRecords.some(
         staleEntry => staleEntry.keep && staleEntry.node.parent !== getRootObject()
@@ -857,7 +801,6 @@ export function createFloorTransition({
     const clampedProgress = Math.max(0, Math.min(1, progressRatio));
     if (!projectionParams && slideState?.projections) {
       // 只插值 height / weight / distance 三个字段，
-      // 它们是透视公式的全部输入，线性插值即可与相机运动大致同步。
       const { from: projectionFrom, to: projectionTo } = slideState.projections;
       projectionParams = Object.fromEntries(
         ["height", "weight", "distance"].map(projectionKey => [
@@ -882,7 +825,6 @@ export function createFloorTransition({
         const screenScale = projectedScaleAtDepth(projectionParams, screenPoint.z);
         const screenFrame = new three.Matrix4().compose(
           new three.Vector3(),
-          // 姿态用球面插值（四元数），避免欧拉角插值出现的抖动与万向锁。
           new three.Quaternion().slerpQuaternions(
             assemblyScreen.from.quaternion,
             assemblyScreen.to.quaternion,
@@ -892,7 +834,6 @@ export function createFloorTransition({
         );
         const pivotPoint = assemblyScreen.pivot.clone().applyMatrix4(screenFrame);
         // 屏幕坐标是「以中心为原点」的，而矩阵的平移是相对对象自身枢轴的，
-        // 因此要用枢轴点做差，才能让几何中心落在目标屏幕点上。
         screenFrame.setPosition(
           new three.Vector3(
             screenPoint.x * screenScale,
@@ -1014,7 +955,6 @@ export function createFloorTransition({
                   Math.max(0.001, projectionAtRecord.distance))) /
             2;
           // 缩放补偿：让「该楼层的等效透视」在当前帧的相机参数下保持一致，
-          // 于是相机推拉时楼层的观感大小不会突变。
           const scaleCorrection = slideScale / Math.max(0.001, recordScale);
           slideFrame.premultiply(
             new three.Matrix4().makeScale(scaleCorrection, scaleCorrection, scaleCorrection)
@@ -1040,7 +980,6 @@ export function createFloorTransition({
                   Math.abs(slideState.order.indexOf(sampledRecord.id) - slideState.scrollTo) *
                     slideState.screenSpacing
               );
-            // 0.75 之后才开始淡出，且用 smoothstep 的二次形式避免线性淡出的生硬感。
             const exitFade = Math.max(0, Math.min(1, (clampedProgress - 0.75) / 0.21));
             slideFrame.elements[13] +=
               exitDirection * exitExtra * slideScale * exitFade * exitFade * (3 - exitFade * 2);
@@ -1091,16 +1030,13 @@ export function createFloorTransition({
     // 通知外部：本帧只改了对象变换，可以走「不重建场景」的轻量重绘路径。
     onInvalidate(false);
     if (clampedProgress === 1) {
-      // 走到终点立刻收尾，避免过渡状态一直挂着导致后续操作被当成「过渡中」。
       finishTransition();
     }
   }
   // 对外接口：capture/take/reuse 负责把楼层从场景里取出与放回，
-  // begin/sample/finish 驱动动画，setSlideCameras 在动画前补齐相机数据。
   return {
     capture: captureFloors,
     take: takeRecords,
-    // reuse 用于「上一轮取出的楼层」复用给新场景，避免重建几何。
     reuse: reuseRecord,
     begin: beginTransition,
     sample: sampleTransition,

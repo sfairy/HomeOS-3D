@@ -1,42 +1,22 @@
 /**
  * 3D 安防配置编辑器（摄像头、人体传感器与门锁共用一个弹窗）：与 config-editor.js 同构 —— 弹窗 +
- * 预览舞台（mountInteraction3d，editing=true）+ 草稿。
- *
- * 三种编辑对象共用同一面板，只靠 getCollectionKey / getKindLabel 区分：摄像头（位置、朝向、焦距、
- * 点击行为等）、人体传感器（触发模式与探测路线；路线编辑会打开 presence-editor.js 子编辑器，
- * 期间本编辑器主动卸载预览运行时，一个容器只挂一个）与门锁（把 HA 的门锁 / 门磁实体绑到场景里
- * 一扇已经画好的门上，再调门扇开合与标签）。
- * 约定：保存通过 onSave 交给宿主落库（本模块不发保存请求），脏标记沿用 editor-save-status 的签名
- * 比较口径；退出（点「退出」或 Esc）直接关闭弹窗，不弹未保存确认框（与 0.6.5 同口径）。对外只导出
- * openSecurityEditor。
- *
- * 门锁的字段口径一律不自造：五个实体槽位（锁 / 门磁 / 电量 / 低电量 / 防拆）、三种门磁来源
- * （sensor / single-event / dual-event）与开合折算全部来自 lock-state.js（实现只有 bridge 那一份），
- * 后端再按 lock.py 复核。三处必须逐字一致，否则会出现「编辑器能填、保存被拒」或「配好了、舞台不动」。
- * 可选的门模型同样不自造：舞台快照的 doors 就是 lock-state.js 的 doorModels 展开的清单（与舞台
- * 收集门锁绑定同一份），本文件只过滤掉不能承载动画的 frame-only 门。
- * 注意 lock.py 会把门型（doorType）等已挪到户型图模型上的字段从绑定里丢弃，所以门型只从选中的
- * 门模型读取，绝不写回绑定。
  */
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=2609271208";
-import { mountInteraction3d } from "../core/runtime.js?v=2609271208";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=2609271208";
-// 人物方案表（traveler / bean / glow）与 3D 侧 createWalker 用的是同一份：批量设置里的
-// 「人物方案」选项与展示文案都从这里取，绝不另抄一份。
-import { DESIGNS } from "../presence/presence-character.js?v=2609271208";
+} from "../presence/presence-motion.js?v=2609271226";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=2609271226";
+import { DESIGNS } from "../presence/presence-character.js?v=2609271226";
 // 跨域批量应用对话框：config-editor 与本编辑器共用同一实现（本文件只提供字段描述表与目标集合）。
-import { copyBatchFields, openBatchApply } from "../editor/batch-apply.js?v=2609271208";
+import { copyBatchFields, openBatchApply } from "../editor/batch-apply.js?v=2609271226";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609271208";
-import { applyMdiMask } from "../core/static-helpers.js?v=2609271208";
+} from "../core/editor-save-status.js?v=2609271226";
+import { applyMdiMask } from "../core/static-helpers.js?v=2609271226";
 // 门锁状态与槽位顺序从 lock-state.js 取（它本身只是运行侧的薄转出口）：面板上的「当前状态」
-// 与舞台动画必须同一口径，所以绝不在本文件里重写状态映射。
-import { LOCK_ENTITY_FIELDS, lockState } from "./lock-state.js?v=2609271208";
+import { LOCK_ENTITY_FIELDS, lockState } from "./lock-state.js?v=2609271226";
 import {
   createDomFactory,
   doorOpenFromText,
@@ -46,10 +26,8 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609271208";
+} from "../core/static-helpers-editor.js?v=2609271226";
 
-// doorSource 的取值与中文名，逐字对照 lock.py 的 `("sensor", "single-event", "dual-event")`。
-// 参考实现里的 `always` 在本项目后端会被判非法，故不提供。面板选项与打开时的归一都用这一份表。
 const LOCK_DOOR_SOURCE_OPTIONS = [
   ["sensor", "门磁传感器"],
   ["single-event", "单事件门磁"],
@@ -57,19 +35,14 @@ const LOCK_DOOR_SOURCE_OPTIONS = [
 ];
 const LOCK_DOOR_SOURCE_VALUES = LOCK_DOOR_SOURCE_OPTIONS.map(([doorSourceValue]) => doorSourceValue);
 // 绑定里的门模型 ID 一律写成 door:<id>：后端 lock.py 会剥掉前缀再写回，舞台也按这个前缀把绑定
-// 匹配回门模型。lock-state.js 的 doorModels 给出的 modelId 理论上已经是这个形式（早期配置可能
-// 写成 door:door:x），这里统一兜一次前缀 —— 少了它就会出现「编辑器里选得中、保存被判非法」。
 const normalizeDoorModelId = modelId => {
   const rawModelId = String(modelId || "").replace(/^(?:door:)+/, "");
   return rawModelId ? "door:" + rawModelId : "";
 };
 // 各实体槽位在「device_class 未知」时的兜底域白名单：HA 目录条目本身不带 device_class
-// （要实时状态才有），没有状态时至少按域把候选框到可能的范围。
 const LOCK_FIELD_DOMAINS = {
   entityId: ["lock"],
   // 门磁槽位放两个域：binary_sensor 是标准门磁；sensor 是「门状态做成枚举传感器」的那一族
-  // 门锁（小米 S2 的 `sensor.*_door_state`，device_class 为 enum）。上游 0.6.5 的实体选择器
-  // 同样写的是 `['binary_sensor','sensor'].includes(domain)`，这里逐字对齐。
   doorEntityId: ["binary_sensor", "sensor"],
   batteryEntityId: ["sensor"],
   lowBatteryEntityId: ["binary_sensor"],
@@ -79,12 +52,8 @@ const LOCK_FIELD_DOMAINS = {
   doorCloseEntityId: ["event"]
 };
 // 门型 → 用哪套「动作」控件（与 lock-motion.js 的 rig 划分一致）：
-// 平开门用铰链 + 内外开 / 开角；双开门用开合方向 + 开角；推拉门用滑动方向；
-// 卷帘门按上下卷收，不用左右铰链或内外开方向；frame-only 不能承载门锁动画（后端也拒绝）。
 const LOCK_HINGE_DOOR_TYPES = ["entry", "solid", "glass"];
 // 「批量设置」的字段描述表：与 0.6.5 参考实现同一张表 —— 摄像头走图标 / 尺寸组，
-// 人体传感器（存在感应）走感应光圈 + 人物外观组。key 一律用本仓运行时既有字段名
-// （presence-scene.js / presence-editor.js 的读法），值交给 batch-apply 的 copyBatchFields 原样写入。
 const CAMERA_BATCH_FIELDS = [
   ["icon", "图标", "mdi:cctv"],
   ["size", "标签大小", 44],
@@ -97,7 +66,6 @@ const CAMERA_BATCH_FIELDS = [
   fallback: fallbackValue
 }));
 // 门锁的批量外观字段：与门锁面板实际渲染的四个外观项一一对应（图标 / 卡片大小 / 文字大小 /
-// 标签显示），labelMode 沿用面板的写入口径 —— 写三态的 labelMode 同时清掉旧的 labelHidden。
 const LOCK_BATCH_APPEARANCE_FIELDS = [
   { key: "icon", label: "图标", fallback: "mdi:door-closed" },
   { key: "size", label: "卡片大小", fallback: 44 },
@@ -113,11 +81,6 @@ const LOCK_BATCH_APPEARANCE_FIELDS = [
   }
 ];
 // 「兼容门型」= 门型逐字相等：参考实现里动作字段的 compatible 是
-// doorTypeOf(target) === doorTypeOf(source)，不是「同族」—— 平开门（solid/entry/glass）只与
-// 同一种平开门兼容，双开门 / 推拉门 / 卷帘门 / 仅门框同理；跨门型时动作参数没有对应关系，
-// compatible 一律返回 false，绝不无条件写入。哪些动作字段出现则由源门型决定（见 openBatchApplyDialog）。
-// optional 的三项（行走速度 / 点击人物聚焦 / 触控范围扩展）在批量弹窗里默认不勾选，
-// 避免把某台传感器个性化的行走参数误套到其它传感器上。
 const PRESENCE_BATCH_FIELDS = [
   ["waveEnabled", "显示感应光圈", true],
   ["waveScale", "光圈缩放", 1],
@@ -142,16 +105,12 @@ const PRESENCE_BATCH_FIELDS = [
 }));
 /**
  * 打开 3D 安防配置编辑器。
- * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
- * （可选项来自场景，未就绪时面板只能显示加载态）。
  */
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
   entities: entities = [],
   // 实时状态：门锁面板的「门锁状态」要用它折算。宿主不一定传（传了才有实时读数；没传时
-  // lockState 会按「一条可用实体都没有」折算成未知态，绝不编造读数）。运行时状态表允许 Map
-  // 或普通对象，lockState 两种都收。
   states: states = {},
   pickers: pickers,
   onSave: onSaveConfig
@@ -166,9 +125,6 @@ export async function openSecurityEditor({
     presenceSensors: draftProperties.security?.presenceSensors || []
   };
   // 门锁字段归一：门型（doorType）/ 门牌 / 墙体这些字段现在已经属于户型图模型，
-  // 后端 lock.py 保存时也会直接丢弃；这里打开就清掉，免得它们跟着草稿签名反复「变脏」。
-  // labelHidden 是旧字段，新配置统一写三态的 labelMode。modelId 统一成 door:<id>
-  // （舞台按这个前缀把绑定匹配回门模型，老配置可能没写前缀，甚至写成 door:door:<id>）。
   for (const lockItem of draftProperties.security.locks) {
     for (const legacyKey of ["doorType", "doorLabel", "wallId", "t"]) {
       delete lockItem[legacyKey];
@@ -191,40 +147,31 @@ export async function openSecurityEditor({
     }
   }
   for (const cameraItem of draftProperties.security.cameras) {
-    // 摄像头没有「按钮」的概念：历史配置里可能残留按钮相关字段，
-    // 打开时顺手清掉，免得保存后又把无效字段写回后端。
     delete cameraItem.buttonHidden;
     delete cameraItem.hiddenClickable;
   }
   // 已保存的草稿签名：脏标记与「是否有改动」判断的唯一参照。
   let savedDraftSignature = serializeEditorDraft(draftProperties);
-  // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent，按钮写死
-  // type="button"（对话框里出现表单时，不写 type 的回车 / 点击都可能误提交）。
-  // 类名一律带 i3d- 前缀，样式复用 runtime.css。
   const { el: createElement, button: createButton } = createDomFactory(document);
   // 编辑器样式复用运行时的 runtime.css，打开时注入、关闭时移除，
-  // 展示页无需为编辑器额外加载样式。
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271208";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271226";
   // 门锁编辑面板的专属样式（实体选择器行、动作 / 外观栅格）单独一张表：它只服务本编辑器，
-  // 不进 stage.css —— 那是舞台的样式，展示页与工作室都会加载，编辑器专属规则混进去会外溢。
   const securityStyleLinkElement = createElement("link");
   securityStyleLinkElement.rel = "stylesheet";
   securityStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/security/security-editor.css?v=2609271208";
+    "/api/v1/modules/interaction3d/security/security-editor.css?v=2609271226";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，
-  // 从而在弹窗盖住预览时挂起渲染（runtime.js 的挂起检测就是按这个属性找 dialog 的）。
   editorDialogElement.dataset.i3dPreviewScope = "security";
   const headerElement = createElement("header");
   const bodyElement = createElement("div", "i3d-editor-body");
   const viewElement = createElement("div", "i3d-editor-view");
   const panelElement = createElement("aside");
   // 「当前容器」游标：字段创建函数把控件挂到它上面，分区 / 折叠块只需切换这个游标，
-  // 不必层层传参。
   let currentContainerElement = panelElement;
   const aspectBoxElement = createElement("div", "i3d-editor-aspect");
   const stageHostElement = createElement("div", "i3d-editor-stage");
@@ -237,7 +184,6 @@ export async function openSecurityEditor({
   viewElement.append(aspectBoxElement);
   bodyElement.append(viewElement, panelElement);
   // 舞台元数据（楼层、可用模型、摄像头 / 传感器列表）：面板的可选项完全由它决定，
-  // 未就绪前所有下拉只能显示加载态。
   let sceneMetadata = null;
   let selectedFloorId =
     draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || "";
@@ -257,7 +203,6 @@ export async function openSecurityEditor({
   // 选择器代次：关闭选择器时自增，作废它尚未返回的异步回调。
   let pickerGeneration = 0;
   let presenceEditorHandle = null;
-  // 「批量设置」弹窗句柄：编辑器关闭时要一并摘掉，否则会留下一个脱离弹窗的模态层。
   let batchDialogHandle = null;
   // 人体传感器子编辑器是否打开：打开期间本编辑器不占用预览运行时，也禁止保存。
   let isPresenceEditorOpen = false;
@@ -269,9 +214,6 @@ export async function openSecurityEditor({
   const getCollectionKey = () =>
     securityKind === "camera" ? "cameras" : securityKind === "lock" ? "locks" : "presenceSensors";
   // 三类安防设备在界面上的中文名，面板标题与提示统一从这里取，不散落字符串。
-  // 面板里一律叫「门」而不是「门锁」：上游 0.6.5 的 kindLabel 就是 `lock → '门'`，
-  // 「门列表 / 添加门 / 关联门模型 / 一键应用到其他门」这一整套文案都由它拼出来，
-  // 各写各的会让同一块面板里「门」「门锁」两种叫法混着出现。
   const getKindLabel = () =>
     securityKind === "camera" ? "摄像头" : securityKind === "lock" ? "门" : "人体传感器";
   // 当前编辑类型对应的配置数组（摄像头 / 人体传感器 / 门锁三选一）。
@@ -286,32 +228,24 @@ export async function openSecurityEditor({
   const findSelectedFloor = () =>
     sceneMetadata?.floors.find(candidateFloor => candidateFloor.id === selectedFloorId);
   // 本层可选的门模型：舞台快照里的 doors 已经是 doorModels 展开后的清单（带 modelId 与平面坐标，
-  // 与舞台收集门锁绑定用的是同一份），这里只做一次「frame-only 不能承载门锁动画」的过滤
-  // （后端 require_lock_model 也会拒绝这种门）。快照没带 doors 时退化成空清单，不会误报可选门。
   const getFloorDoorModels = () =>
     (findSelectedFloor()?.doors || []).filter(doorModel => doorModel.doorType !== "frame-only");
   // 该楼层上可用的同类型场景模型（映射用的候选）；找不到楼层时给空数组。
-  // 门锁的候选不是 scene.items，而是上面的门模型清单，故单独走一条。
   const getFloorModelList = () =>
     securityKind === "lock" ? getFloorDoorModels() : findSelectedFloor()?.[getCollectionKey()] || [];
   // 模型候选的稳定 ID：摄像头 / 传感器用场景项 id，门模型用 doorModels 给的 modelId。
-  // 绑定里 `modelId` 一律存这个值，与后端 lock.py 要求的 `door:` 前缀口径一致。
   const getCandidateModelId = candidateModel =>
     securityKind === "lock"
       ? normalizeDoorModelId(candidateModel?.modelId)
       : candidateModel?.id || "";
   // 按 modelId 回查本层的门模型：门型（用哪套动画控件）与缺省坐标都从它取。
-  // 两边都过一遍 normalizeDoorModelId：绑定里存的是带前缀的形式，快照给的门模型 ID 理论上
-  // 也是，但老场景可能少了前缀 —— 少这一步就会把「门模型还在」误判成「已移除」。
   const findDoorModelForItem = item =>
     getFloorDoorModels().find(
       doorModel => normalizeDoorModelId(doorModel.modelId) === item?.modelId
     );
   // 配置项的稳定标识：三类设备的 id 可能重名，拼上类型前缀后作为 3D 侧命令的目标 ID
-  // （门锁与 binding-collectors.js 的 "lock:" + id 逐字一致）。
   const toItemKey = item => securityKind + ":" + item.id;
   // 预览用属性：楼层固定为当前编辑楼层，相机取该楼层已保存的视角，
-  // 这样编辑器里的取景与展示页一致，拖出来的位置才有可比性。
   const buildEditorProperties = () => ({
     ...draftProperties,
     floorSelection: selectedFloorId,
@@ -328,7 +262,6 @@ export async function openSecurityEditor({
     }
   };
   // 把草稿推给预览运行时。人体传感器子编辑器打开期间跳过 ——
-  // 那时预览运行时已被卸载，由子编辑器接管。
   function syncEditorRuntime() {
     if (!isDisposed && !isPresenceEditorOpen && isAccessAllowed) {
       editorRuntime?.update(
@@ -352,7 +285,6 @@ export async function openSecurityEditor({
     syncSaveButtonState();
   }
   // 保存按钮的禁用条件集中在这里：保存中 / 无改动 / 正在调视角 / 无授权 /
-  // 场景未就绪 / 子编辑器打开，任一成立都不可保存。
   function syncSaveButtonState() {
     if (!isDisposed) {
       saveButtonElement.disabled =
@@ -365,7 +297,6 @@ export async function openSecurityEditor({
     }
   }
   // 保存结果只占一个展示位：错误写错误行、成功写状态行，两者互斥，
-  // 避免出现「保存失败」和「已保存」同时挂在界面上。
   function setSaveResultMessage(messageText, { isError = false } = {}) {
     if (isDisposed) {
       return;
@@ -385,7 +316,6 @@ export async function openSecurityEditor({
     activePickerHandle = null;
   }
   // 下拉字段：候选为空时给出「正在加载… / 暂无可选项」占位，
-  // 否则一个空白下拉会让人以为界面坏了。
   function createSelectField(labelText, optionEntries, selectedValue, onValueChange) {
     const selectElement = createElement("select");
     selectElement.setAttribute("aria-label", labelText);
@@ -404,10 +334,6 @@ export async function openSecurityEditor({
     currentContainerElement.append(labelElement);
     return selectElement;
   }
-  /**
-   * 数字输入字段：shouldCommitWhileTyping 用于需边调边看效果的字段（焦距等），其余在 change 时提交。
-   * 提交时若值非法（空 / 非数字 / 越界）就退回上一个合法值，而不是把 NaN 或越界值写进草稿。
-   */
   function createNumberField(
     fieldLabel,
     currentValue,
@@ -461,7 +387,6 @@ export async function openSecurityEditor({
     currentContainerElement.append(fieldLabelElement);
   }
   // 布尔开关行（存在感应外观的「点击人物聚焦」）：与 presence-editor.js 的开关同构 ——
-  // label 内放「文字 + checkbox」，改动即写回草稿并标脏。
   function createToggleField(fieldLabel, currentValue, onValueCommit) {
     const toggleInputElement = createElement("input");
     toggleInputElement.type = "checkbox";
@@ -478,17 +403,12 @@ export async function openSecurityEditor({
   }
   /**
    * 打开「批量设置」弹窗：把当前项的外观字段套用到同楼层的其他同类项。
-   * 字段描述表按安防类别取（摄像头 / 人体传感器 / 门锁各一组）；目标集合 = 当前楼层、同集合里的
-   * 其他项，只覆盖勾选的字段 —— 实体 / 模型 / 名称 / 路线 / 坐标（门锁另加视角 focusCamera）
-   * 一律保留（batch-apply 只写描述表里列出的 key）。门锁的动作类字段另带 compatible 谓词，
-   * 仅在目标门与源门「门型逐字相等」时写入（doorTypeOf(target) === doorTypeOf(source)；按目标判定）。
    */
   function openBatchApplyDialog(sourceItem) {
     if (isDisposed || !isAccessAllowed || isSaving || isCameraEditing || isPresenceEditorOpen) {
       return;
     }
     // 源快照：把「高度」这类未显式落库的字段先按各自面板的默认值补齐，
-    // 批量弹窗展示的当前值才与面板所见一致（摄像头 0.15 米；门锁 = 门高的一半）。
     const sourceModelEntry = getFloorModelList().find(
       modelMatch => getCandidateModelId(modelMatch) === sourceItem.modelId
     );
@@ -505,15 +425,10 @@ export async function openSecurityEditor({
     let batchFields;
     if (securityKind === "lock") {
       // 门锁：外观 + 高度无条件复制；动作类字段按「兼容门型」出现并过滤。
-      // 门型逐字读取（读不到门模型时按平开门 "solid" 处理，与门锁面板同一缺省）。
       const doorTypeOf = candidateItem =>
         findDoorModelForItem(candidateItem)?.doorType || "solid";
       const sourceDoorType = doorTypeOf(sourceItem);
       // 字段是否出现由源门型决定（逐条硬条件）：
-      //   平开门 solid / entry / glass → 开门角度 + 开门方向 + 铰链方向
-      //   双开门 double               → 开门角度 + 开门方向
-      //   玻璃推拉门 sliding-glass     → 开门方向
-      //   卷帘门 roller-shutter / 仅门框 frame-only → 三个动作字段都不出现
       const isHingeDoorType = LOCK_HINGE_DOOR_TYPES.includes(sourceDoorType);
       const isDoubleDoorType = sourceDoorType === "double";
       const isSlidingDoorType = sourceDoorType === "sliding-glass";
@@ -583,8 +498,6 @@ export async function openSecurityEditor({
         }
         for (const targetItem of selectedTargetItems) {
           // 「兼容门型」必须在**目标**上判定：batch-apply.js 的 copyBatchFields 本身已按目标求值
-          // compatible（`field.compatible(target)`），这里再按目标筛一遍是幂等的（无 compatible 的
-          // 摄像头 / 人体传感器字段表筛完仍是原表，行为不变），只为把「逐目标过滤」的语义写在明面上。
           const applicableFields = selectedFieldDefs.filter(
             fieldEntry => !fieldEntry.compatible || fieldEntry.compatible(targetItem)
           );
@@ -627,7 +540,6 @@ export async function openSecurityEditor({
         savedDraftSignature = serializeEditorDraft(draftProperties);
         isDirty = false;
         // 与 0.6.5 dist 的门锁保存回执逐字一致：这一步只把改动落到编辑器草稿，
-        // 真正写库要再点一次顶部「保存」。
         setSaveResultMessage("已应用到编辑器，请保存仪表盘。");
       }
     } catch (saveError) {
@@ -647,9 +559,6 @@ export async function openSecurityEditor({
   saveButtonElement.className = "primary";
   saveButtonElement.disabled = true;
   // 关闭编辑器：直接释放子编辑器、选择器、预览运行时与观察者，移除注入的样式，
-  // 并把焦点还给打开它的元素。
-  // 0.6.5 的「退出」（以及 dialog 的 cancel）就是直接释放，没有二次确认 —— 本仓曾在这里
-  // 拦一道「配置尚未保存，确定退出？」，已按原版删掉，避免和原版观感不一致。
   function closeEditor() {
     if (!isDisposed) {
       isDisposed = true;
@@ -693,7 +602,6 @@ export async function openSecurityEditor({
   const previewResizeObserver = new ResizeObserver(updatePreviewSize);
   previewResizeObserver.observe(viewElement);
   // 授权变化：失去授权时立即卸载预览运行时并关掉所有子弹窗 ——
-  // 没有权限就不应继续渲染或编辑；此时不自动重挂，等用户重新获取授权。
   const unsubscribeAccessChange = subscribeInteraction3dAccess(accessState => {
     const isAllowed = accessState.allowed === true;
     if (isAllowed !== isAccessAllowed) {
@@ -718,7 +626,6 @@ export async function openSecurityEditor({
       }
     }
   });
-  // 相机指令串行执行：队列保证先后顺序，避免并发指令把视角互相覆盖。
   async function runCameraCommand(commandName, commandPayload) {
     const commandTargetItem = findSelectedItem();
     if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) {
@@ -775,8 +682,6 @@ export async function openSecurityEditor({
     }
   }
   // 打开人体传感器子编辑器。它会接管预览：这里先卸载自己的运行时（一个容器只挂一个），
-  // 子编辑器的保存回调把草稿合并进 security；无论正常关闭还是异常，都要重新挂载预览并重绘面板，
-  // 否则回到本编辑器会是一个空白舞台。
   async function openPresenceSubEditor() {
     if (!isSaving && !isCameraEditing && !isPresenceEditorOpen && !!isAccessAllowed) {
       isPresenceEditorOpen = true;
@@ -837,7 +742,6 @@ export async function openSecurityEditor({
     return sectionElement;
   }
   // 折叠分组：展开状态按 key 记在 Set 里，面板重绘后仍然保持展开。
-  // 返回的是内容容器，调用方往里面塞字段。
   function createDisclosure(summaryText, disclosureKey, hostElement = currentContainerElement) {
     const detailsElement = createElement("details", "i3d-security-disclosure");
     detailsElement.open = expandedDisclosureKeySet.has(disclosureKey);
@@ -863,7 +767,6 @@ export async function openSecurityEditor({
   const readLockStateEntry = entityId =>
     entityId ? (states instanceof Map ? states.get(entityId) : states?.[entityId]) : null;
   // 目录条目自带 device_class 时优先用它，没有就看实时状态的 attributes ——
-  // 与 lockEntityRole 读取这三个字段的顺序保持一致。
   const lockEntityDeviceClass = entity =>
     entity?.deviceClass ||
     entity?.device_class ||
@@ -877,12 +780,6 @@ export async function openSecurityEditor({
     entity?.enabled === false ||
     ["missing", "disabled"].includes(entity?.status);
   // 单个实体能不能填某个槽位：逐条对应上游 0.6.5 安防编辑器里那段 entityFilter 的收口部分 ——
-  //   1. lockEntityRole 认得它（域 + device_class 都对）→ 收；
-  //   2. 角色认不出时退回域白名单：门磁槽位放 binary_sensor 与 sensor 两域，电量槽位只放 sensor。
-  // 第 2 条不是「兜底凑数」，而是上游刻意留的宽口：小米 S2 这类门锁把「门状态」做成
-  // `sensor.*_door_state`（device_class 是 enum），角色判定认不出它，若把规则写成
-  // 「device_class 已知就只信角色」，整族设备的门磁槽位候选恒为空 —— 面板上只剩一个
-  // 空选择器，用户看到的就是「找不到实体」。本仓照抄上游的宽口，不额外收紧。
   const lockEntityMatchesField = (entity, field) => {
     if (isLockEntityDisabled(entity)) {
       return false;
@@ -899,11 +796,6 @@ export async function openSecurityEditor({
   // 把实体清单补成 lockEntityRole 能吃的形状，供「自动识别」一键回填五个槽位。
   const lockCandidateEntities = () =>
     entities.map(entity => ({ ...entity, deviceClass: lockEntityDeviceClass(entity) }));
-  // 门状态做成「枚举传感器」的门锁（小米 S2：`sensor.*_door_state`，device_class 是 enum，
-  // 值为 已上锁 / 已开锁 / 门未关 / 门虚掩）：lockEntityRole 只认 binary_sensor 的 door / opening，
-  // 自动识别因此永远填不上门磁槽位。这里补一档本仓自己的判定 —— 域是 sensor、名字里有「门」，
-  // 且当前读数落在门磁词表里（doorOpenFromText 认得出来）三条同时成立才算，避免把门锁的
-  // 电量 / 状态这类同域传感器认成门磁。
   const isSensorDoorStateEntity = entity => {
     const entityId = entity?.entityId || entity?.entity_id || "";
     if (String(entityId).split(".")[0] !== "sensor") {
@@ -922,7 +814,6 @@ export async function openSecurityEditor({
     );
   };
   // 自动回填门磁槽位：只在「槽位为空 + 这台设备名下恰好一支枚举门状态」时写入。
-  // 命中多支说明判定有歧义，宁可留空让用户自己挑 —— 与 identifyLockEntities 同一条纪律。
   const autoFillSensorDoorState = (item, candidateEntities) => {
     if (item.doorEntityId || item.doorSource === "single-event" || item.doorSource === "dual-event") {
       return false;
@@ -938,9 +829,6 @@ export async function openSecurityEditor({
     return true;
   };
   // 「选择设备」入口：与上游 0.6.5 「实体来源」里那一行同一条契约（pickers.device，
-  // 标题「选择门设备」、按钮文字未绑定时「选择设备」）。上游选完设备后由设备适配器
-  // 分配 doorEntityId / batteryEntityId；本仓保留五槽位直选，所以这里复用同一份
-  // identifyLockEntities 来回填「设备名下恰好命中一个」的槽位，不删任何已有能力。
   function createLockDevicePickerButton(item) {
     const deviceButtonElement = createButton(item.deviceName || "选择设备", async () => {
       const devicePickerGeneration = ++pickerGeneration;
@@ -976,7 +864,6 @@ export async function openSecurityEditor({
                   item[entityField] = detectedRoles[entityField];
                 } else if (item[entityField] && !deviceEntityIdSet.has(item[entityField])) {
                   // 旧槽位不属于这台设备了：留着只会让运行时去订阅一台已解绑设备的实体。
-                  // 仍在这台设备名下的手调槽位保持不动（本仓比上游多的那份直选能力）。
                   delete item[entityField];
                 }
               }
@@ -997,16 +884,10 @@ export async function openSecurityEditor({
       }
     });
     // 上游这里不挂任何类名：按钮走宿主页全局 button 基线（居中、圆角 5、30px 高），
-    // 与下面两行 38px 的左对齐槽位按钮一眼分得开（「选整台设备」vs「选单个实体」）。
-    // 这里同样不挂 i3d-picker-button —— 挂了会多出左对齐与 :after 箭头，两侧就不一致了。
     deviceButtonElement.setAttribute("aria-label", "选择门设备");
     return deviceButtonElement;
   }
   // 槽位候选的第二道闸（第一道是实体选择器按 deviceKind 给的域白名单）：与上游 0.6.5 的
-  // entityFilter 逐条同序 —— 当前值始终放行（否则用户会以为配置丢了）→ 绑过设备时只留这台
-  // 设备名下的实体 → 最后按 lockEntityRole / 域白名单收口。
-  // 与上游唯一的差别是「没绑设备时」：上游一律拒绝（那两个槽位本来也禁用），本仓多出的
-  // 锁本体 / 低电量 / 防拆三个槽位允许脱离设备手选，所以这里不拦，只按角色与域收口。
   const lockSlotEntityFilter = (field, item) => candidateEntity => {
     const candidateEntityId = candidateEntity?.entityId || candidateEntity?.entity_id || "";
     if (candidateEntityId === item[field]) {
@@ -1021,9 +902,6 @@ export async function openSecurityEditor({
     return lockEntityMatchesField(candidateEntity, field);
   };
   // 槽位选择按钮：与上游 0.6.5 的「开关门检测：<实体>」「电量：<实体>」同款 —— 按钮文字是
-  // 「槽位名：当前实体名」（未绑定作「未选择」），点击打开实体选择器，标题「选择<槽位名>实体」。
-  // 上游那两个槽位在没选设备时禁用（候选只可能来自那台设备），本仓保留的槽位同理由调用方传
-  // disabled，不用「候选为空」隐式表达，用户一眼能看出是「先选设备」而不是「没有可用实体」。
   function createLockEntityPickerButton(
     labelText,
     field,
@@ -1039,7 +917,6 @@ export async function openSecurityEditor({
           current: item[field] || "",
           deviceKind,
           // 弹层标题与触发按钮的无障碍名同一份口径：槽位名改一处就够，不会出现
-          // 「按钮写锁本体、弹层写门实体」这种两侧不一致。
           title: ariaLabel,
           entityFilter: lockSlotEntityFilter(field, item),
           onSelect(pickedEntityId) {
@@ -1052,7 +929,6 @@ export async function openSecurityEditor({
               return;
             }
             // 上游这里无条件赋值（清空即写空串）；本仓槽位一律「空值即删除」，后端按缺省
-            // 处理，序列化出的文档不会多出一堆空字段。
             if (pickedEntityId) {
               item[field] = pickedEntityId;
             } else {
@@ -1072,7 +948,6 @@ export async function openSecurityEditor({
       }
     });
     // 文字与实体名同宽：长实体名走省略号（.i3d-security-entity-label 与面板里其他实体
-    // 选择按钮共用），完整文字挂在 title 上，悬停仍能看到全名。
     const entityLabelText =
       labelText +
       "：" +
@@ -1083,7 +958,6 @@ export async function openSecurityEditor({
     entityButtonElement.title = entityLabelText;
     entityButtonElement.className = "i3d-picker-button i3d-lock-entity-picker";
     // 无障碍名跟着槽位走（默认「选择<槽位>实体」）；锁本体这一路沿用本仓既有的「选择门实体」，
-    // 免得读屏里出现「选择锁本体实体」这种叠字。
     entityButtonElement.setAttribute("aria-label", ariaLabel);
     entityButtonElement.disabled = disabled;
     // 与 createLockTextField 同一约定：造完直接落进当前容器，调用方不用再 append 一次。
@@ -1110,7 +984,6 @@ export async function openSecurityEditor({
     currentContainerElement.append(fieldElement);
   }
   // 切换门磁来源时清掉不属于该来源的字段：lock.py 对事件实体的域、双事件的两实体不同、
-  // 单事件的两读数不同都有复核，残留字段会直接导致保存被拒。
   function applyLockDoorSource(item, nextSource) {
     const clearFields = fieldNames => fieldNames.forEach(fieldName => delete item[fieldName]);
     if (!nextSource) {
@@ -1169,15 +1042,10 @@ export async function openSecurityEditor({
     );
   }
   // 门锁的面板主体：实体来源 → 门扇动作 → 标签外观 / 位置。门型只从选中的门模型读，
-  // 不写回绑定（lock.py 会把绑定里的 doorType 丢弃）。
   function renderLockBindingPanel(item) {
     const doorModel = findDoorModelForItem(item);
     const doorType = doorModel?.doorType || "solid";
     // 实体来源：与上游 0.6.5 逐行同构 —— 分区标题 + 「选择设备 / <门设备名>」整台设备入口，
-    // 再跟「开关门检测：<实体>」「电量：<实体>」两个槽位按钮（都是 pickers.entity 弹层；
-    // 未选设备时禁用，因为上游这两个槽位的候选只可能来自那台设备）。
-    // 本仓比上游多出来的东西（实时状态行、锁实体直选、三种门磁来源、低电量 / 防拆槽位、
-    // 自动识别）一律收进下面的折叠块：默认折叠时这一段与上游逐行一致。
     createSectionHeading("实体来源");
     currentContainerElement.append(createLockDevicePickerButton(item));
     createLockEntityPickerButton("开关门检测", "doorEntityId", item, {
@@ -1202,8 +1070,6 @@ export async function openSecurityEditor({
         )
       );
     }
-    // 面板里一律叫「门」而不是「门锁」（见 getKindLabel 的说明），所以这里写作「锁本体」：
-    // 与「电量 / 低电量 / 防拆」并列，读起来是一个槽位名，不会与整台「门」混淆。
     createLockEntityPickerButton("锁本体", "entityId", item, {
       deviceKind: "lock",
       ariaLabel: "选择门实体"
@@ -1212,7 +1078,6 @@ export async function openSecurityEditor({
       createElement("p", "i3d-note", "锁本体须为 lock.* 域；门磁、电量、防拆都可选。")
     );
     // 门磁来源：选项就是 LOCK_DOOR_SOURCE_OPTIONS（后端 lock.py 的合法取值）；
-    // 「不绑定门磁」= 删除 doorSource，后端按缺省 sensor 处理，但门磁实体为空时门开合就是未知。
     createSelectField(
       "门磁来源",
       [["", "不绑定门磁"], ...LOCK_DOOR_SOURCE_OPTIONS],
@@ -1226,7 +1091,6 @@ export async function openSecurityEditor({
     const doorSource = item.doorSource || "";
     if (doorSource === "sensor") {
       // 门磁传感器来源用的就是上方那个「开关门检测」槽位：这里只说明去哪改，不再摆第二个
-      // 控件编辑同一个字段（两处都能改，既容易改出不一致，也让面板多出一行重复内容）。
       currentContainerElement.append(
         createElement("p", "i3d-note", "门磁传感器来源直接使用上方的「开关门检测」槽位。")
       );
@@ -1254,8 +1118,6 @@ export async function openSecurityEditor({
     createLockEntityPickerButton("低电量", "lowBatteryEntityId", item, { deviceKind: "lock-aux" });
     createLockEntityPickerButton("防拆", "tamperEntityId", item, { deviceKind: "lock-aux" });
     // 自动识别：identifyLockEntities 只在「每个槽位恰好命中一个」时回填，命中多个宁可留空，
-    // 避免把实体错绑到不确定的槽位。枚举型门状态（小米 S2 那类 sensor 门磁）由
-    // autoFillSensorDoorState 补一档，同样只在「恰好一支」时才写。
     currentContainerElement.append(
       createButton("自动识别实体", () => {
         const candidateEntities = lockCandidateEntities();
@@ -1296,7 +1158,6 @@ export async function openSecurityEditor({
           ["right", "右开"]
         ],
         // 没写过 hinge 时显示门模型的设置（舞台就是按「绑定值 → 门模型 → 左开」三级兜底的），
-        // 用户不动它就不落进绑定，门模型改了也跟着改。
         item.hinge || doorModel?.hinge || "left",
         nextHinge => {
           item.hinge = nextHinge;
@@ -1493,7 +1354,6 @@ export async function openSecurityEditor({
       createElement("p", "i3d-note", "仅调整门标记，不移动门模型。也可在预览中拖动标记。")
     );
     // 批量设置（门锁）：把外观 / 高度 / 同门型的动作设置套用到同楼层的其他门；
-    // 没有其他门时禁用，避免点开一个必然为空的弹窗。
     const doorBatchSectionElement = createSectionHeading("批量设置");
     const doorBatchApplyButtonElement = createButton("一键应用到其他门", () =>
       openBatchApplyDialog(item)
@@ -1512,7 +1372,6 @@ export async function openSecurityEditor({
     );
   }
   // 面板总渲染：整块替换子节点。选中项、折叠状态等界面状态都存在闭包变量里，
-  // 所以这里不能把状态寄存在 DOM 节点上，否则每次重绘都会丢。
   function renderPanel() {
     panelElement.replaceChildren();
     syncSaveButtonState();
@@ -1534,7 +1393,6 @@ export async function openSecurityEditor({
     );
     createSelectField(
       "安防类别",
-      // 选项顺序与文案与上游 0.6.5 逐字一致（上游 `['camera':'摄像头','presence':'人体传感器','lock':'门']`）。
       [
         ["camera", "摄像头"],
         ["presence", "人体传感器"],
@@ -1623,11 +1481,8 @@ export async function openSecurityEditor({
           : securityKind === "lock"
             ? {
                 // 门锁默认给一套「平开门」的合法动作参数（都在 lock.py 的区间内），
-                // 用户随后可按实际门型调整；门型本身不写进绑定。
                 doorSource: "sensor",
                 // 不写 hinge：舞台取门轴是「绑定值 → 门模型自带 → 缺省左开」三级兜底
-                // （binding-collectors.js），门模型的 hinge 才是真正的来源。写死一个值
-                // 反而会把户型图上的设置盖掉，用户只在面板里改过才该落进绑定。
                 openDirection: 1,
                 openAngle: 80,
                 duration: 0.7,
@@ -2003,13 +1858,10 @@ export async function openSecurityEditor({
         );
       } else if (securityKind !== "lock") {
         // 门锁不挂这里的单实体选择器：它有「选择门设备」+ 五个槽位（锁 / 门磁 / 电量 /
-        // 低电量 / 防拆）与三种门磁来源，槽位按钮在下面的门锁面板里逐个渲染。
         currentContainerElement.append(entityPickerButtonElement);
       }
       if (securityKind === "lock") {
         // 门锁面板自成一体（实体来源 → 门扇动作 → 标签外观 / 位置）：槽位按钮沿用同一套
-        // pickers.entity，只是 deviceKind 换成 lock / lock-door / lock-battery / lock-aux /
-        // lock-event（与上游 0.6.5 的两个槽位同名）。
         renderLockBindingPanel(selectedItem);
       }
       if (securityKind === "camera") {
@@ -2252,10 +2104,6 @@ export async function openSecurityEditor({
       if (securityKind === "presence") {
         if (selectedItem.modelId) {
           // 感应光圈：wave* 三项控制舞台地面感应光圈（presence-scene.js 的
-          // createPresenceWaves 直接读 waveEnabled / waveScale / waveOpacity），其余五项与
-          // presence-editor.js 共用 character / color / size / speed / clickToFocus / hitPadding。
-          // 两个数值框按上游口径以「百分比」呈现：大小 = waveScale×100（25–300，除回 100 落盘），
-          // 透明度 = 100−waveOpacity（内部仍存「不透明度」，越大越实）。关闭时整个数值组禁用。
           const waveSectionElement = createSectionHeading("感应光圈");
           createSelectField(
             "显示光圈",
@@ -2328,7 +2176,6 @@ export async function openSecurityEditor({
             true
           );
           // 行走速度 / 点击聚焦 / 触控范围扩展归入「更多设置」折叠块：这三项属于可选参数，
-          // 与批量弹窗里的 optional 字段一一对应。
           const advancedSettingsBodyElement = createDisclosure(
             "更多设置",
             "presence-extra:" + selectedItem.id,
@@ -2383,7 +2230,6 @@ export async function openSecurityEditor({
         );
       }
       // 批量设置：与参考实现同一入口 —— 摄像头 / 人体传感器把当前项的外观字段套用到同楼层的
-      // 其他同类项。门锁不走这里（其绑定字段与门模型强相关，无法脱离门型复制），面板保持原样。
       if (securityKind !== "lock") {
         const batchSectionElement = createSectionHeading("批量设置");
         const batchTargetItemCount = getItemList().filter(
@@ -2439,7 +2285,6 @@ export async function openSecurityEditor({
     }
   }
   // 挂载安防编辑器的预览运行时：editing=true 且模块固定为 security，
-  // 因此舞台上只有摄像头、人体传感器与门锁可交互（门锁标记可拖动，拖完写回绑定坐标）。
   function mountEditorRuntime() {
     if (!isDisposed && !!isAccessAllowed && !editorRuntime && !isPresenceEditorOpen) {
       editorRuntime = mountInteraction3d(stageHostElement, {
@@ -2464,7 +2309,6 @@ export async function openSecurityEditor({
         onEdit(editEvent) {
           if (!isDisposed && !!isAccessAllowed) {
             // 舞台上拖动标记写回坐标：摄像头的 "camera:<id>" 与门锁的 "lock:<id>"
-            // （与 binding-collectors.js 的 id 口径一致）都落在同一处理里。
             if (editEvent.action === "position") {
               const positionTargetMatch = /^(camera|lock):(.+)$/.exec(editEvent.id || "");
               const positionTargetList =

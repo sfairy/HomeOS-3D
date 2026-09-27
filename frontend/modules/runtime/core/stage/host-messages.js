@@ -1,28 +1,16 @@
 /*
  * 宿主消息处理。
- *
- * hb-i3d-v1 通道的全部宿主消息分支，以及场景替换的应用与回滚。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 // 通用设备的六个品类（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）在运行侧也是**合法的模块名**：
-// 编辑器打开某一品类的配置时会把 `editingModule` 设成品类名（见 config-editor 的
-// mountEditorRuntime），舞台要靠它把 activeModule 切到该品类，通用设备的标记才会被收集、
-// 被渲染成 3D 里的按钮。漏掉这张表，品类名会被下面的兜底判成 "light"，
-// 于是「模型选好了但场景里没有按钮」—— 与上游 0.6.5 的同一段（含 ...GENERIC_DEVICE_KINDS）对齐。
-import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271208";
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271226";
 // 展示态的「模块 / 品类 → 所属页签」归一：与页签清单同一份实现，别在下面再抄一张表。
-import { moduleTabOf } from "./module-tabs.js?v=2609271208";
+import { moduleTabOf } from "./module-tabs.js?v=2609271226";
 export function createHostMessageHandler(ctx) {
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
-   * config 最重：同时携带配置、实体状态、编辑态与视图编辑标志，收到后要重算
-   * 楼层、模块、相机与各子系统；场景替换进行中则先挂起，等替换完成再处理。
    */
   function handleHostMessage(messageEvent) {
     // 释放后一律不处理：pagehide 之后仍可能有已排队的 message 到达，而下面每个分支
-    // 都会重算楼层/模块/相机并拉起定时器 —— 那时 DOM 已经拆掉，拉起的定时器不会有人清。
     if (ctx.isDisposed) {
       return;
     }
@@ -37,7 +25,6 @@ export function createHostMessageHandler(ctx) {
     ctx.wakeFrameLoop();
     if (message.type === "navigation-editing") {
       // 导航位置调整态走这条轻量通道，不复用 config：config 会整份替换配置、重算楼层与相机，
-      // 等于切一次模式就重放一次入场呈现，代价与观感都不可接受。
       ctx.navigationEditing = message.active === true;
       ctx.updatePanelChrome();
     } else if (message.type === "presentation-layout") {
@@ -56,7 +43,6 @@ export function createHostMessageHandler(ctx) {
     } else if (message.type === "config") {
       if (ctx.isSceneUpdating) {
         // 场景替换进行中：先挂起这条 config 并保留整个事件（后面会重放），
-        // 只保留最新一条即可，中间状态没必要逐条应用。
         ctx.queuedConfigMessage = messageEvent;
         return;
       }
@@ -134,7 +120,6 @@ export function createHostMessageHandler(ctx) {
         (ctx.focusMode || ctx.focusRestoreCameraPose || ctx.cameraTransition) &&
         (isCameraChanged ||
           // 材质风格与墙体透明度都会整体改变画面，和换楼层一样必须先退出聚焦，
-          // 否则聚焦态的调暗 / 相机都还停留在旧风格上。
           ctx.config.sceneStyle !== message.properties.sceneStyle ||
           ctx.config.wallOpacity !== message.properties.wallOpacity ||
           ctx.config.floorSelection !== message.properties.floorSelection ||
@@ -155,14 +140,12 @@ export function createHostMessageHandler(ctx) {
       ctx.isEditing = message.editing === true;
       ctx.isViewEditing = message.viewEditing === true;
       // 导航位置调整态：平时由 navigation-editing 轻量消息设置，这里跟随 config 兜一次
-      // （舞台整页重载后配置会重发，新文档里的模式状态得由它对齐）。
       ctx.navigationEditing = message.navigationEditing === true;
       ctx.selectedId = message.selectedId || "";
       // config 携带的是全量状态，直接整份替换；增量合并只发生在 states 消息。
       ctx.statesByEntityId = message.states || {};
       ctx.isEditorCanvas = message.editorCanvas === true && !ctx.isEditing;
       // 材质风格同时落在 body 上：3D 舞台之外的宿主 UI（弹窗、灯控面板等）
-      // 也由 stage.css / runtime.css 的 [data-scene-style="warm-wood"] 规则驱动。
       if (document.body?.dataset) {
         document.body.dataset.sceneStyle =
           ctx.config.sceneStyle === "warm-wood" ? "warm-wood" : "default";
@@ -171,7 +154,6 @@ export function createHostMessageHandler(ctx) {
       ctx.observeAllClimates();
       // 第二个参数带上整份配置：背景控制器据此判断是否切到暖阳、是否停掉动态背景。
       ctx.backgroundTheme.configure(ctx.config.backgroundTheme, ctx.config);
-      // 编辑态强制不可交互：否则在编辑器里挪标记会顺手触发设备的控制命令。
       ctx.isInteractive = !ctx.isEditing && message.interactive === true;
       ctx.editingVacuumId = message.editingVacuumId || "";
       ctx.configuredModules = ctx.configuredModuleKinds(ctx.config);
@@ -186,7 +168,6 @@ export function createHostMessageHandler(ctx) {
             "vacuum",
             "vacuum-shortcut",
             // 通用设备：编辑器把 editingModule 设成品类名（fridge / plant / …），
-            // 这里必须原样放行，否则会被兜底成 "light"，品类标记整批不渲染。
             ...GENERIC_DEVICE_KINDS
           ].includes(message.editingModule)
           ? message.editingModule
@@ -238,7 +219,6 @@ export function createHostMessageHandler(ctx) {
         ) || ctx.config.floorSelection === "all"
           ? ctx.config.floorSelection
           : ctx.stageOptions.document.floors[0].id;
-      // 单层视图下「总览」依然有效，所以这里不会把它换成「灯光」。
       if (!ctx.isEditing && activeFloorId === "all") {
         ctx.activeModule = "overview";
       }
@@ -264,7 +244,6 @@ export function createHostMessageHandler(ctx) {
       }
       ctx.renderMarkers();
       // 记录本次配置的代次；下面的呈现等待只在代次未被超越时回报结果，
-      // 否则会把旧配置的相机姿态当成最新的发给宿主。
       const configRevision = ++ctx.configRevisionCount;
       (ctx.isPresented ? Promise.resolve() : ctx.stageOptions.whenPresented())
         .then(() => {
@@ -367,7 +346,6 @@ export function createHostMessageHandler(ctx) {
             }
           : message.states || {};
       // 状态更新是记录「上次使用的模式」的主要时机，必须放在灯光 reconcile 之前，
-      // 与配置分支保持同一顺序，避免两处行为漂移。
       ctx.observeAllClimates();
       for (const reconciledLightEntry of ctx.config.lights || []) {
         if (
@@ -475,7 +453,6 @@ export function createHostMessageHandler(ctx) {
           ctx.focusBinding(message.id, "preview");
         } else if (message.command === "preview-device-panel") {
           // 编辑器「实时预览弹窗」：只按面板模式打开该绑定的弹窗，不动相机、不发设备指令。
-          // 编辑态下 focusBinding 同样放行 panel —— 这一条正是为编辑态准备的（与 0.6.5 同口径）。
           ctx.focusBinding(message.id, "panel");
         } else if (message.command === "preview-light-effect") {
           if (
@@ -572,8 +549,6 @@ export function createHostMessageHandler(ctx) {
 
   /**
    * 应用一次场景（户型 / 模型）替换。
-   * 替换前挡住并发的场景更新、关掉相机交互（否则用户会在替换过程中拖出悬空视角）；
-   * 替换中途失败时回滚到上一份场景，并把错误抛给调用方。
    */
   async function applySceneUpdate(sceneUpdate) {
     const previousScene = ctx.stageOptions.savedScene;
@@ -586,14 +561,10 @@ export function createHostMessageHandler(ctx) {
     ctx.idleRotation.activity();
     ctx.updateMarkerVisibility();
     // 先占位成空函数：coverSceneUpdate() 本身可能抛错，此时 finally 仍会调用它，
-    // 没有占位会解引用 undefined。
     let releaseSceneUpdate = () => {};
     // 「模型已经真的换过」。这个标志决定失败后要不要回滚，因此只能在
-    // stageOptions.replaceScene 成功返回之后置位：置早了，失败一次就会把上一份场景
-    // 白白重套一遍（重置相机、重跑灯光），而这个二次替换本身失败时还会顶替掉原始错误。
     let didReplaceScene = false;
     // 真正执行替换：换模型 → 同步楼层 / 外观 → 重算配置与标记。
-    // 失败回滚时会拿上一份场景再调一次，所以这里不能假设「只跑一次」。
     const replaceScene = async nextSceneUpdate => {
       ctx.stageOptions.finishFloorTransition?.();
       await ctx.stageOptions.replaceScene(nextSceneUpdate);
@@ -651,7 +622,6 @@ export function createHostMessageHandler(ctx) {
           await replaceScene(previousScene);
         } catch (rollbackError) {
           // 回滚自己也失败时不能再往外抛：那样 throw sceneUpdateError 永远走不到，
-          // 调用方只看到一个二次故障，真正的原因（为什么开始变）就彻底消失了。
           console.error("场景替换失败后回滚也失败，已保留最初的错误。", rollbackError);
         }
       }

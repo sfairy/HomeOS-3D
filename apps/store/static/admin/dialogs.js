@@ -1,15 +1,10 @@
 /**
  * 确认类弹窗。
- *
- * 确认、人工调账、修改密码、批量清理四个 <dialog> 的开合与结算。
- *
- * 四个 <dialog> 的开关与结算集中在一处：确认、人工调账、改密码、批量清理。调账结算后要回刷
- * 面板列表，这类跨面板的引用走 host。
  */
 
-import { $, toast } from "./dom.js?v=2609271208";
-import { api, storeApi } from "./api.js?v=2609271208";
-import { host } from "./host.js?v=2609271208";
+import { $, toast } from "./dom.js?v=2609271226";
+import { api, storeApi } from "./api.js?v=2609271226";
+import { host } from "./host.js?v=2609271226";
 
 // --------------------------------------------------------------------------- //
 // 确认弹窗（替代原生 confirm，可展示影响面）
@@ -19,7 +14,6 @@ export const confirmDialog = $('#confirm-dialog');
 let confirmResolver = null;
 
 // 三种语气：danger=不可恢复的删除，warning=会降级成可恢复的停用/下架，
-// success=正向确认（如通过提现）。图标与按钮配色都跟着语气走。
 const CONFIRM_TONES = {
   danger: { icon: '!', button: 'danger' },
   warning: { icon: '!', button: 'warning' },
@@ -96,9 +90,6 @@ $('#adjust-ok').addEventListener('click', async () => {
   // 校验不通过就保持弹窗打开，让运营接着改，别把输入一起清掉
   if (!note) return toast('人工调账必须填写备注。', 'danger');
   if (!delta && !frozenDelta) return toast('余额与冻结金额不能同时为 0。', 'danger');
-  // 失败之前**不能**关窗、也不能清 resolver：过去这里是「先 settleAdjust(null) 再发请求」，
-  // 于是接口一失败（权限、NaN、账号不存在），刚填好的金额与备注就随窗口一起消失了，
-  // 运营只能凭记忆重填一遍。现在改成「成功才关窗」，失败原地保留输入。
   try {
     const result = await api(`/referral-wallets/${accountId}/adjust`, {
       method: 'POST',
@@ -184,8 +175,6 @@ export function askPurge({ title, message, impact }) {
 $('#purge-cancel').addEventListener('click', () => purgeDialog.close());
 
 // <dialog> 的原生关闭路径不止「取消」按钮：Esc、点遮罩都会直接关掉它，而 close()
-// 不会动 purgeResolver —— 少了这条监听，askPurge() 的调用方会挂住（「点了清理没反应」），
-// 且上一轮的 promise 一直等待。统一在 close 事件里收口：无论谁关窗，等待方都拿到「取消」。
 purgeDialog.addEventListener('close', () => {
   const resolve = purgeResolver;
   purgeResolver = null;
@@ -199,7 +188,6 @@ $('#purge-ok').addEventListener('click', () => {
     return;
   }
   // 先摘 resolver 再关窗：close 监听会把「还没人接」当成取消，
-  // 不摘的话这里刚算好的天数会被 null 覆盖掉。
   const resolve = purgeResolver;
   purgeResolver = null;
   purgeDialog.close();

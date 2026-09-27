@@ -1,20 +1,11 @@
 /*
  * 控件渲染层样式：画布内所有「控件」的外观总表。
- *
- * 服务对象：渲染器动态生成的 .hb-* 结构（控件外壳、编辑态选中框与变换手柄、实体详情对话框，
- * 以及灯 / 开关 / 空调 / 窗帘 / 扫地机 / 传感器 / 媒体播放器 / 图表等控件的可视化与动画）。
- * 主题变量：文档里的 theme.variables 由 renderer.js 逐条写成 CSS 自定义属性挂到渲染容器上，
- * 运行期还会按实体状态补写。故本文件的 --hb-* 一律「只消费、不定义」，不要写死主题色。
- * 尺寸单位：px 都是设计标称坐标系（2778×1940）里的绝对值，屏幕大小由渲染器 scale(...) 决定；
- * 与鼠标精度相关的尺寸再用 --hb-ui-scale 反向抵消，否则放大后手柄会点不准。
  */
 
 /* ===== 渲染器视口与运行时对话框层 ===== */
 
 /*
  * z-index 阶梯：画布内浮层取 32 位有符号整数的高位，确保压住宿主文档里的一切
- * （编辑器浮层、display-boot 的启动遮罩 2147483000、apple-install-guide 的 10001）。
- * 这里只定义层级名；--hb-* 主题色仍由 renderer.js 写在渲染容器上，本文件不定义。
  */
 :root {
   --z-edit-group: 2147483644; /* 正在编辑的组：抬到选中框之上 */
@@ -49,8 +40,6 @@
   place-items: center;
   animation: hb-runtime-dialog-layer-in 0.22s ease-out 1 both;
 }
-/* 缩放进来的弹窗按设计稿高度定高，所以卡片的 max-height 必须让位，
-   否则 max-height: none !important 会被下面的卡片规则重新压回去。 */
 .hb-runtime-scaled-dialog > .hb-entity-details-card,
 .hb-runtime-scaled-dialog > .hb-custom-popup-card {
   height: auto;
@@ -68,7 +57,6 @@
   min-height: var(--hb-runtime-dialog-design-height, 0px);
   box-sizing: border-box;
 }
-/* 遮罩入场：背景色与模糊一起渐变，避免弹窗打开瞬间整屏闪一下。 */
 @keyframes hb-runtime-dialog-layer-in {
   0% {
     background: #04060900;
@@ -165,7 +153,6 @@
 .hb-renderer-canvas.hb-editing-group > .hb-component:not(.hb-active-edit-group) {
   pointer-events: none;
 }
-/* 正在编辑的组抬到选中框之上，否则它的内容会被选中框挡住点不到。 */
 .hb-renderer-canvas.hb-editing-group > .hb-component.hb-active-edit-group {
   z-index: var(--z-edit-group, 2147483644) !important;
   pointer-events: auto;
@@ -205,7 +192,6 @@
   width: 100%;
   height: 100%;
 }
-/* 可交互控件：运行态整块可点，禁用文本选择避免长按出现系统菜单。 */
 .hb-component.interactive {
   cursor: pointer;
   transition: filter 0.12s ease;
@@ -361,7 +347,6 @@
   transform: translate(-50%, -50%);
   content: "";
 }
-/* hover 只提亮描边与底色，不改尺寸，避免手柄在鼠标下抖动。 */
 .hb-selection-bounds > .hb-transform-handle:hover:before {
   border-color: var(--hos-accent, #ffc46a);
   background: #2c3135f0;
@@ -427,7 +412,6 @@
   pointer-events: none;
 }
 /* 引导四边形的虚线描边：vector-effect 保证画布缩放后线宽不变，仍是 1.4px。
-   描边与被描的面同色系（面上是 6% 的 accent，边是 92% 的 accent-bright）：
    原来是「面上一点橙、边上一圈金」，两个色相各自为政，缩放时看着像两个图层。 */
 .hb-door-window-perspective-guide polygon {
   fill: rgba(var(--hos-accent-rgb), 0.06);
@@ -501,7 +485,6 @@
   margin-top: 5px;
   font-size: 10px;
 }
-/* 图片控件：禁用浏览器默认的「拖出图片」与选中行为，否则编辑时一拖就跑。 */
 .hb-image-component {
   display: block;
   width: 100%;
@@ -554,7 +537,6 @@
   opacity: 0 !important;
   visibility: hidden;
 }
-/* 只在过渡期间提升为合成层，过渡结束就撤掉，避免几十个特效层常驻显存。 */
 .hb-icon-button-effect-layer.is-transitioning img {
   will-change: opacity, filter;
 }
@@ -574,8 +556,6 @@
   cursor: move;
   touch-action: none;
 }
-/* 气流图用 object-fit: fill 拉满，因为几何（缩放 / 旋转）已由 JS 算好在
-   外层容器上，这里再保持比例会二次变形。 */
 .hb-air-conditioner-airflow-layer img {
   display: block;
   width: 100%;
@@ -599,8 +579,6 @@
   user-select: none;
 }
 /* 徽标：定位点由 --climate-icon-top/left 给出（JS 按控件几何算好），
-   再用 translate(-50%, -50%) 把自身中心对到该点；
-   底色用 color-mix 按 --climate-badge-opacity 调透明度，避免为每种
    主题色单独写一个 rgba。 */
 .hb-air-conditioner-icon-badge {
   position: absolute;
@@ -618,7 +596,6 @@
   pointer-events: none;
 }
 /* 图标本体用 mask 而不是 <img>：颜色由渲染器写的 background-color 决定，
-   换色只需改变量，不必换图；-webkit- 前缀是为老版 Safari 保留的。
    下面这些图标共用同一组 mask 声明，各自规则里只留尺寸与定位。 */
 .hb-air-conditioner-icon,
 .hb-icon-button-effect-icon,
@@ -648,7 +625,6 @@
       color-mix(in srgb, var(--climate-icon-color) 48%, transparent)
   );
 }
-/* 文案层：纯展示、不吃事件，所以命中区不会被文字抢走。 */
 .hb-air-conditioner-text {
   position: absolute;
   inset: 0;
@@ -656,7 +632,6 @@
   pointer-events: none;
 }
 /* 主文案与副文案共用一组规则，位置由各自的 top/left 变量分开指定；
-   width: max-content + nowrap 是为了让长文案不折行（渲染器已按可用宽度
    算好字号与省略），overflow: visible 则保证即使溢出也不被裁掉。 */
 .hb-air-conditioner-text strong,
 .hb-air-conditioner-text small {
@@ -690,7 +665,6 @@
     sans-serif;
 }
 /* 点击特效按钮的静态外观：边框宽度、圆角、底色与内外发光全部走变量，
-   变量由 JS 按用户在编辑器里的设置写入；因为描边宽度是变量，
    box-sizing: border-box 才能保证内容区不被描边撑破。 */
 .hb-icon-button-effect {
   position: relative;
@@ -810,7 +784,6 @@
   pointer-events: none;
 }
 /* 指示三角：不用背景图，直接用 border 画出等边三角形（上边框实色 + 左右透明），
-   三角大小收敛成局部变量 --title-marker-size，放大发光时只调一处；
    发光色用 currentColor，跟随文字颜色而不是另开变量。 */
 .hb-title-button-marker {
   --title-marker-size: 10px;
@@ -1000,15 +973,6 @@
   width: 50%;
   height: 50%;
   /* 辉光跟随**这枚设备自己的**底色，而不是一个固定蓝。
-     紧邻的 .hb-device-button-icon-badge 注释写得明白：「按设备类型取色的圆底，
-     圆底颜色 / 透明度也走变量（每个设备可以配不同颜色）」，badgeColor 由
-     button-renderer.js 写进 --device-badge-color，而 .hb-device-button-icon 正是
-     badge 的子节点（deviceButtonBadgeElement.append(deviceButtonIconElement)），
-     所以这枚变量在图标层本来就可继承 —— 用不着新令牌。
-     改之前这里是写死的 rgba(55, 155, 255)（色相 210°），于是圆底已经是设备色了、
-     图标外圈却一律泛蓝：开着灯的暖色设备顶上挂一圈冷蓝，管理员把主控色换成暖金之后
-     这一圈也不会动。今天它跟 --hos-cool 的 205° 同族，属于旧青色主控那代的残留。
-     color-mix 而不是 rgba(var(...))：--device-badge-color 是完整颜色值（可读色由
      resolveColor 落成 #5b5e66 这类），不是 88, 196, 255 那种分量三元组。 */
   filter: drop-shadow(
     0 0 var(--device-button-icon-glow-size, 5px)
@@ -1396,7 +1360,6 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
-/* 历史数据加载中的占位进度条：一段左右淡出的细线，避免加载期间图表区空一片。 */
 .hb-line-chart-component.history-loading:after {
   position: absolute;
   right: 5%;
@@ -1505,9 +1468,6 @@
 /* ===== 摄像头预览弹窗 ===== */
 
 /* 原生 <dialog>：由 presentRuntimeDialog 用 show() 打开，挂在下方的
-   .hb-renderer-runtime-dialog-layer 里 —— 遮罩/模糊由那一层提供（见文件开头的
-   .hb-renderer-runtime-dialog-layer），所以这里不要写 ::backdrop：
-     show() 不会把弹窗送进顶层，::backdrop 根本不会生成。
    宽度 / 高度用 min() 夹住，窄屏时也保证至少留 24px / 20px 边距。 */
 .hb-camera-preview-dialog {
   position: relative;
@@ -1637,8 +1597,6 @@
   animation: hb-camera-device-arrive 0.62s cubic-bezier(0.2, 0.78, 0.28, 1) 0.08s 1 both;
 }
 /* 挂架底座：整台摄像机完全用 CSS 画，自下而上是底座、支臂、球机身、镜头、指示灯。
-   104×54 是按外层 .hb-camera-device-visual（190×122）的比例定的，改尺寸需同步调其它件。
-   圆角写成 48%/36% 的两段式，是为了让顶部呈穹顶、底部仍接近方形，像真实的云台底座；
    168deg 的金属渐变刻意让高光偏右上，与机身 36% 25% 的径向高光保持同一光源方向。 */
 .hb-camera-device-mount {
   position: absolute;
@@ -1697,7 +1655,6 @@
   transform: translate(-50%);
 }
 /* 球机身：径向渐变把高光中心放在 36% 25%，与底座光源同向，形成一颗金属球。
-   preserve-3d 与 transform-origin: 50% 88% 是为 JS 的 Web Animations 服务——
    以底部为轴做 rotateY，镜头才会像云台一样摆动，而不是整颗球原地自转。 */
 .hb-camera-device-body {
   position: absolute;
@@ -1742,8 +1699,6 @@
   content: "";
 }
 /* 镜头：5px 深色镜圈 + 四段径向渐变模拟镜片从反射到漆黑的过渡。
-   --hb-camera-lens-shift 由 renderer.js 按扫视目标写成 px 偏移（见 renderer.js 的
-   setProperty("--hb-camera-lens-shift", ...)），配 0.48s 缓动让每次移动是滑动而非瞬移；
    变量默认 0px，所以没有 JS 驱动时镜头也保持居中。 */
 .hb-camera-device-lens {
   --hb-camera-lens-shift: 0px;
@@ -1819,7 +1774,6 @@
   filter: grayscale(1) brightness(0.65);
 }
 /* 预览舞台：grid + place-items 让 <video> 或占位图始终居中。
-   min-width / min-height 归零，是为了让它在 flex 父容器里能被压缩而不撑破外框
    （flex 子项默认 min-width: auto，会拒绝收缩到内容尺寸以下）。 */
 .hb-camera-preview-stage {
   position: relative;
@@ -1836,9 +1790,6 @@
   box-sizing: border-box;
   place-items: center;
 }
-/* 舞台衬底：径向渐变把画面中心略微提亮，避免纯 #080b0e 显得死黑；
-   圆角用 inherit 跟随舞台，防止边框与底色出现一圈错位；pointer-events: none
-   保证它压不住 <video> 的点击与悬停。 */
 .hb-camera-preview-stage:before {
   position: absolute;
   z-index: 0;
@@ -2076,7 +2027,6 @@
 /* ===== 实体详情弹窗（通用外壳） ===== */
 
 /* 所有实体点击后的详情弹窗共用这层外壳，具体控件用附加类
-   （.light-details / .climate-details / .vacuum-details …）改宽高与配色。
    默认 460px 是「只有几个能力项」的窄版；宽版见下面几条同族规则。 */
 .hb-entity-details-dialog {
   position: relative;
@@ -2093,13 +2043,6 @@
   box-shadow: 0 28px 88px #000000c2;
 }
 /* 宽版弹窗（折线图 / 灯 / 空调 / 扫地机）统一 22px 圆角、渐变底与内发光，
-   只有宽度和限高按内容区分。
-   这份渐变原先逐字重复 12 次，注释写着「重复写是有意的 —— 各自独立可调，
-   也不用为此再加一个共享类到 DOM 上」。后半句的顾虑用令牌就解决了：令牌不动 DOM。
-   前半句「独立可调」实测并没有被有意使用 —— 12 份里有 2 份已经漂成
-   `#12181d 52% / #0c1115` 和 `49% / #0c1115`，只差 1 个通道和 1–4% 停点，
-   纯属抄写噪声。所以收成 --hos-tool-panel（定义在 design/scene/page.css 的
-   --hos-tool-* 组）。真要单独调某个弹窗，覆盖 background 比改 12 处副本容易。
    注意：令牌值取那 10 份的多数写法，另外 2 处并过来只差 1 个通道，肉眼不可辨。 */
 .hb-entity-details-dialog.line-chart-details {
   width: min(760px, calc(100% - 24px));
@@ -2274,7 +2217,6 @@
   place-items: center;
 }
 /* 机器人本体：纯 CSS（径向渐变做金属质感 + 多层 inset 阴影做圆角），
-   isolation: isolate 让内部子元素的 z-index 只在机器人内部比较，
    不会被外层电池 / 状态文字等元素干扰。 */
 .hb-vacuum-robot {
   position: relative;
@@ -2565,12 +2507,10 @@
   padding-right: 3px;
   overflow-y: auto;
 }
-/* 指令已下发、等实体状态回传期间用 wait 光标，避免用户重复点。 */
 .hb-vacuum-details-controls.is-pending {
   cursor: wait;
 }
 /* 操作区是 6 列网格，每个按钮占 2 列 —— 即一行 3 个；
-   最后一行的两个 / 一个按钮靠 is-last-row-pair / is-last-row-single
    扩成 3 列 / 6 列，避免出现"贴左边留两个空位"的残缺行。 */
 .hb-vacuum-details-actions {
   display: grid;
@@ -2604,7 +2544,6 @@
     transform 0.12s ease;
 }
 /* 末行补齐与紧凑模式：is-last-row-pair / is-last-row-single 把最后一行的按钮扩成
-   3 列 / 6 列，避免出现「贴左边留两个空位」的残缺行；has-many-actions（能力项偏多时
    由 JS 加上）整体降高到 62px 并缩小图标与标题，让一屏能放下更多按钮。 */
 .hb-vacuum-details-actions button[hidden] {
   display: none;
@@ -2879,8 +2818,6 @@
 }
 
 /* 与摄像头预览同理：本弹窗也由 presentRuntimeDialog 用 show() 打开，
-   ::backdrop 不会生成 —— 遮罩由 .hb-renderer-runtime-dialog-layer 提供。
-     （这里不要写 ::backdrop：它取不到层那份遮罩值（层是 #040609d1 + blur(5px)），
      且没进顶层就等于没写，从不生效。） */
 /* 卡片本体：竖向 flex，标题固定、内容区滚动；max-height 与弹窗一致，
    两者不同步会出现内容溢出圆角的情况。 */
@@ -2958,7 +2895,6 @@
     inset 0 1px #e2eaef13,
     inset 0 0 46px #6f849209;
 }
-/* 弹窗外框已限高，卡片再按 vh 限一次，避免小屏或移动端地址栏伸缩时标题被裁掉。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-card {
   max-height: min(580px, calc(100vh - 60px));
 }
@@ -3015,7 +2951,6 @@
   z-index: 1;
 }
 /* 五块床板（床垫 / 背板 / 腰托 / 腿板 / 底座）共用一套几何：绝对定位 + 统一
-   过渡 + transform-origin 落在板底边，抬升才是「绕铰链转」而不是整体平移。
    各板再用 rotateX 把自己的角度叠上去。 */
 .hb-electric-bed-mattress,
 .hb-electric-bed-back,
@@ -3046,7 +2981,6 @@
     0 12px 18px #00000059;
   transform: perspective(520px) rotateX(58deg);
 }
-/* 背板：以底边为轴抬升，角度用 calc(34deg - --hb-bed-backrest-angle) 叠加 JS 写入的状态值。 */
 .hb-electric-bed-back {
   z-index: 1;
   top: 34px;
@@ -3060,7 +2994,6 @@
     0 8px 13px #00000052;
   transform: rotateX(calc(34deg - var(--hb-bed-backrest-angle)));
 }
-/* 腰托（z-index 3，最上层）：基准 58deg 与床垫同角以保证贴合，再叠加 --hb-bed-waist-angle。 */
 .hb-electric-bed-waist {
   z-index: 3;
   right: 92px;
@@ -3202,10 +3135,8 @@
   font-weight: 650;
 }
 /* 床的能力项直接复用通用能力控件（滑杆 / 下拉），下面几条规则只做「剥壳」：
-   去掉它自带的外框与标题文字，因为外层 .hb-electric-bed-control 已经画了卡片，
    两层框叠在一起会出现双边框。 */
 /* 床的能力项直接复用通用能力控件（滑杆 / 下拉 / 选项按钮），下面几条规则只做「剥壳」：
-   去掉通用控件自带的外框、底色与标题文字，因为外层 .hb-electric-bed-control 已经画了卡片，
    两层框叠在一起会出现双边框。 */
 .hb-electric-bed-capability {
   min-width: 0;
@@ -3335,7 +3266,6 @@
     top 0.18s ease,
     transform 0.18s ease;
 }
-/* 悬停：主题色描边 + 稍亮底色，只改颜色不改尺寸，避免鼠标移入移出时抖动。 */
 .hb-electric-bed-select-trigger:hover:not(:disabled) {
   border-color: rgba(var(--hos-lumen-rgb), 0.48);
   background: linear-gradient(145deg, #ffffff16, #ffffff06);
@@ -3385,10 +3315,6 @@
   box-sizing: border-box;
   scrollbar-color: rgba(var(--hos-lumen-rgb), 0.42) transparent;
 }
-/* [hidden] 与 ::backdrop：菜单本体是 <div popover="auto">（不是 <dialog>），隐藏状态由 JS
-   两手维护 —— hidden 属性 + hidePopover()；不支持 popover 的浏览器退回纯定位，那时只有
-   hidden 这一道，所以必须显式 display: none。popover 展开会进顶层并生成默认透明的
-   ::backdrop，写明透明是防 UA 改成半透明黑把页面整体变暗。 */
 .hb-electric-bed-select-menu[hidden] {
   display: none;
 }
@@ -3414,8 +3340,6 @@
   white-space: nowrap;
   cursor: pointer;
 }
-/* 菜单项的三态高亮：悬停与键盘聚焦共用一套（outline: 0 是因为这里用底色 + 描边
-   表达焦点，避免再套一圈系统焦点框形成双重描边）；.active 额外加一层内发光。 */
 .hb-electric-bed-select-option:hover,
 .hb-electric-bed-select-option:focus-visible {
   border-color: #96a2aa3d;
@@ -3434,7 +3358,6 @@
   grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
   gap: 6px;
 }
-/* 选项按钮：35px 高度比弹窗外的同类按钮矮一点，因为卡片内已经有一层留白。 */
 .hb-electric-bed-capability .hb-capability-options button {
   min-height: 35px;
   padding: 6px 8px;
@@ -3497,13 +3420,10 @@
   color: var(--hos-tool-muted-dim);
   font-size: 13px;
 }
-/* 副文案为空时整行隐藏，避免标题下方留下一段无内容的空白。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:empty {
   display: none;
 }
 /* 下面这一组是床模型的第二套（覆盖）外观：把上面那套带透视的 3D 视角
-   改成侧视示意图 —— 压到 330×126、关掉 perspective，并重置各床板的
-   top / 描边 / 阴影、改用 rotate() 表现抬升角度。
    两套同名同优先级，靠「写在后面」生效；改上面那套前先看这里。 */
 .hb-electric-bed-model {
   width: min(330px, 96%);
@@ -3609,7 +3529,6 @@
 .hb-electric-bed-base:after {
   right: 20px;
 }
-/* 侧视图不再需要旧的文字读数区（型号 / 状态），隐藏掉避免和角度浮标重复。 */
 .hb-electric-bed-visual > strong,
 .hb-electric-bed-visual > small {
   display: none;
@@ -3744,8 +3663,6 @@
   display: none;
 }
 /* 当前值大字块：颜色取 --hb-chart-current-color，与曲线上当前段同色；
-   :before 是一团放大模糊的同色光斑，做「发光背景」而不是用 drop-shadow
-   （模糊半径 46px 的纯色光斑比阴影更接近设计稿的柔光）。
    入场动画延迟 1.18s —— 等曲线画完再跳出来。 */
 .hb-line-chart-current-visual {
   position: absolute;
@@ -3926,9 +3843,6 @@
 .hb-light-details-panel .hb-light-details-slider input::-webkit-slider-runnable-track {
   height: 14px;
 }
-/* WebKit 滑块：43px 圆钮（拖动时涨到 49px）；margin-top 取 −14.5px ≈ −(43−14)/2，
-   让滑块在 14px 的轨道上垂直居中；border 5px transparent 配 background-clip: padding-box，
-   是为了在不撑大盒子的前提下留出一圈描边位（纯色渐变只填充到 padding 边界）。 */
 .hb-light-details-panel .hb-light-details-slider input::-webkit-slider-thumb {
   width: 43px;
   height: 43px;
@@ -3999,8 +3913,6 @@
   font-size: 14px;
 }
 /* 灯的可视化：颜色 / 不透明度 / 缩放三个变量由 JS 按亮度与色温写入，
-   下面所有光效（光晕、灯泡、色点）都从这三个变量派生，改灯效不必碰结构。
-   （曾有的第四枚 blur 从未被取用，已连同 JS 侧的写入一并删除，理由见
    .hb-light-visual-aura 上方注释。） */
 /* 灯具图形 236×174，绝对定位到弹窗右上（top −190px 落进标题区）。
    编辑器里只作展示、不接收事件；详情弹窗里才升级为可点击的开关（见下）。 */
@@ -4085,13 +3997,6 @@
   content: "";
 }
 /* 大范围环境光晕：四层同心 box-shadow 从 56px 扩散到 400px，
-   层数越多越接近真实灯泡的柔和衰减；整体不透明度跟随亮度变量。
-
-   这里刻意不加 filter: blur()。上游去混淆源码曾带进来一枚 --hb-light-visual-blur
-   （JS 按亮度算 15–129px），但在本仓库任何一次提交里都没有过取用点 —— 也就是说
-   「用模糊做柔化」这套映射从来没有落地过，柔和衰减一直是靠上面这四层同心阴影叠出来的。
-   补上的代价不小：129px 的高斯模糊要对一整张近千像素的纹理逐帧重算，而亮度滑块一拖
-   就在动画（见下面的 transition），代价明显高于收益。变量本身已连同 JS 侧写入一并删除，
    若要重新引入，连 blur 值一起在这里做视觉验证。 */
 .hb-light-visual-aura {
   position: absolute;
@@ -4408,7 +4313,6 @@
     scale 0.28s ease;
 }
 /* 翘板：inset 让出面板四周留白，两行网格分别承载 ON / OFF 两个字符。
-   perspective(440px) + rotateX(9deg) 让翘板呈「上半朝外」的立体倾斜；
    开启时旋转角取反（见 .is-on），视觉上就是翘板被按到了另一侧。 */
 .hb-switch-visual-rocker {
   position: absolute;
@@ -4578,7 +4482,6 @@
 .hb-entity-details-dialog.cover-details .hb-entity-details-card {
   max-height: min(620px, calc(100vh - 60px));
 }
-/* 头部 190px 高、左对齐，右侧预留 310px 给窗帘图形，避免标题与图形重叠。 */
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading {
   position: relative;
   min-height: 190px;
@@ -4816,10 +4719,6 @@
 /* ===== 窗帘 / 梦幻帘图形（可点击，绝对定位在弹窗右上） ===== */
 
 /* 244×154 的窗口，两个变量由 JS 写入：--hb-cover-panel-width 单侧窗帘宽度、
-   --hb-cover-single-panel-width 单侧开合整幅宽度。下面两行兜底值与
-   utils/cover-features.js 的 COVER_*_WIDTH_BASE_PERCENT 同值（位置 0 = 合拢），
-   几何来路与「为什么四个数只能写一份」见该文件的注释。
-   曾有的第三枚 --hb-cover-open-position 由 JS 写入但样式表从不取用，已删除：
    帘布宽度由上面两个派生量决定，原始百分比只留在 JS 里供叶片角度与晾衣杆使用。 */
 .hb-cover-visual {
   --hb-cover-panel-width: 45.9%;
@@ -5065,7 +4964,6 @@
 .hb-cover-visual.is-dream.is-tilt-center .hb-cover-visual-slat:after {
   opacity: 0.22;
 }
-/* 转到 82deg（几乎正对视线）时改用纯色填充，避免渐变在极窄的面上出现条纹。 */
 .hb-cover-visual.is-dream.is-tilt-center .hb-cover-visual-slat > i {
   background: #ddd9d1;
   transform: rotateY(82deg);
@@ -5078,8 +4976,6 @@
 .hb-cover-visual.is-dream.is-curtain-moving .hb-cover-visual-slat {
   transition-duration: 1.15s;
 }
-/* 运行中的叶片高光：按 --hb-cover-slat-delay-index（回退到 --hb-cover-slat-index）
-   逐片延迟 34ms，形成自左向右扫过的波纹。 */
 .hb-cover-visual.is-dream.is-moving .hb-cover-visual-slats i {
   animation: hb-cover-slat-shimmer 0.72s ease-in-out infinite alternate;
   animation-delay: calc(var(--hb-cover-slat-delay-index, var(--hb-cover-slat-index)) * 34ms);
@@ -5443,8 +5339,6 @@
 /* ===== 空调 / 热水器机型图形（在详情里可点击开关） ===== */
 
 /* 容器在编辑器预览里只是装饰：opacity 0.62 且不接收事件；
-   进入详情弹窗后升级为真正的开关按钮（见下）。
-   --hb-climate-visual-accent 是机型色，各状态按需覆盖。
    406×126 的尺寸与头部 146px 高度配套。 */
 .hb-climate-visual {
   --hb-climate-visual-accent: var(--hos-sensor);
@@ -5793,7 +5687,6 @@
   transform: none;
 }
 /* 五个灯左右均分（13% / 31% / 49% / 67% / 84%）；
-   下面每个灯再给一个递减的 animation-delay（−0.45s 步进），
    让同一个呼吸动画错开相位，形成流水感。 */
 .hb-climate-visual.is-water-heater .hb-climate-visual-vent i:nth-child(1) {
   left: 13%;
@@ -5832,7 +5725,6 @@
 
 /* ===== 热水器详情弹窗布局 ===== */
 
-/* 弹窗更宽（840px），因为要并排放表盘、模式与扩展区。 */
 .hb-entity-details-dialog.water-heater-details {
   width: min(840px, calc(100% - 24px));
 }
@@ -6132,7 +6024,6 @@
   box-sizing: border-box;
 }
 /* 扩展条内部改 6 列、统一压到 32px 高。
-   下面这一长串 :not(.water-heater-details) 选择器是为了叠加权重，
    确保它稳定盖过扩展控件的基础样式与热水器的 40px 覆盖，与书写顺序无关。 */
 .hb-entity-details-dialog.climate-details:not(.water-heater-details)
   .hb-entity-details-card
@@ -6296,7 +6187,6 @@
   height: 20px;
   align-items: center;
 }
-/* 10px 单行截断；次要说明（small）默认不显示，避免撑高到 48px 以上（见下一条）。 */
 .hb-water-heater-extension-toggle strong {
   display: block;
   overflow: hidden;
@@ -6311,8 +6201,6 @@
 .hb-water-heater-extension-toggle small {
   display: none;
 }
-/* 开启态刻意不改壳子（描边、底色、阴影都保持原样），
-   只把图标点亮（见下一条），避免整排控件的对齐基线跳动。 */
 .hb-water-heater-extension-toggle.is-on {
   border-color: transparent;
   background: #ffffff05;
@@ -6636,9 +6524,6 @@
   border: 0;
 }
 /* 取色盘：170px 高的圆角面板，两层背景叠加——
-   上层白色径向渐变把中心提亮成近白（低饱和区），
-   下层是从 −90deg 起的 9 段 conic 彩虹，绕满 360deg 回到起点色。
-   三个变量（x / y / color）由 JS 写入，下面的柔光、光晕、手柄都靠它们定位取色。
    touch-action 与 user-select 置 none，保证拖动取色不会触发页面滚动或选中文字。 */
 .hb-light-color-picker {
   --hb-light-color-picker-x: 50%;
@@ -6860,7 +6745,6 @@
   box-shadow: none;
   opacity: 0.48;
 }
-/* 面板型详情里，禁用滑杆不再画卡片，只保留内容，避免出现空壳。 */
 .hb-light-details-panel .hb-light-details-slider.is-unavailable {
   border: 0;
   background: transparent;
@@ -7091,7 +6975,6 @@
 /* ===== 空调 / 暖风机详情的主控件区 ===== */
 
 /* 两列网格：左列固定 360px 放温控盘，右列 minmax(0,1fr) 自适应放分组控件。
-   --hb-climate-accent 与 --hb-climate-accent-soft 就地定义，下面所有子元素都从这里取色，
    接入新机型只需覆盖这两个变量。 */
 .hb-climate-details-controls {
   --hb-climate-accent: var(--hos-lumen);
@@ -7199,8 +7082,6 @@
   padding: 0;
 }
 /* 表盘：218px 圆，用 conic-gradient 画进度弧。
-   从 225deg 起、到 495deg（75% = 270° 可用行程），起点在左下、右下留缺口。
-   --hb-climate-temperature-progress 默认 35%、--hb-climate-thumb-angle 默认 351deg，
    是无数据时的静态外观；两个变量都注册在 @property 里以便插值过渡。
    touch-action: none 让触摸拖动不被页面滚动抢走。 */
 .hb-climate-temperature-dial {
@@ -7347,7 +7228,6 @@
     sans-serif;
   letter-spacing: -0.04em;
 }
-/* 数值变化时弹一下（0.24s），避免连续点按时的生硬跳变。 */
 .hb-climate-temperature-content > strong.is-changing {
   animation: hb-climate-temperature-pop 0.24s ease-out;
 }
@@ -7597,8 +7477,6 @@
   cursor: default;
   opacity: 0.5;
 }
-/* 下拉菜单用 <div popover="auto"> 承载（不是 <dialog>）：position: fixed + z-index 取 32 位上限，
-   保证菜单始终盖在详情弹窗之上（[hidden] 与 ::backdrop 的处理见后面几条）。 */
 .hb-climate-select-menu {
   position: fixed;
   inset: auto;
@@ -7622,14 +7500,11 @@
   scrollbar-width: thin;
 }
 /* 下拉菜单是 <div popover="auto">（见上面的 .hb-climate-select-menu）：
-   [hidden] 在两条路径上都要用 —— 支持 popover 的浏览器由 UA 规则隐藏，不支持的浏览器
    退回「hidden=false + dataset.open」自己定位，那时没有 UA 规则，必须显式 display: none。 */
 .hb-climate-select-menu[hidden] {
   display: none;
 }
 /* 遮罩透明：支持 popover 的浏览器里菜单展开时会进顶层，**它真的会生成 ::backdrop**，
-   顶层层级正是「菜单盖在详情弹窗之上」的依据；点击外部关闭由 JS 处理，不靠浏览器默认行为。
-   写明透明是为了不被 UA 改成半透明黑遮罩（popover 的默认值本来就是透明）。
    注意别把这条当死代码删掉：死的是 <dialog> + show() 那一类，见摄像头预览的说明。 */
 .hb-climate-select-menu::backdrop {
   background: transparent;
@@ -7955,7 +7830,6 @@
   animation: none;
 }
 /* 用 @property 注册自定义属性才能被插值：进度注册成 <percentage>，
-   角度注册成 <angle>，这样拨盘旋转与进度条都有平滑过渡而不是硬跳。
    初始值对应「关机 / 未知」状态下的静态外观。 */
 @property --hb-climate-temperature-progress {
   syntax: "<percentage>";
@@ -8004,7 +7878,6 @@
     transform: rotate(360deg);
   }
 }
-/* 选中的模式按钮呼吸：只改外发光的半径与内高光强度，不动尺寸，避免布局抖动。 */
 @keyframes hb-climate-active-breathe {
   0%,
   to {
@@ -8157,7 +8030,6 @@
 /* ===== 各详情弹窗的错峰入场编排（全局共用） ===== */
 
 /* 所有详情弹窗共用一套「从上到下依次浮入」的节奏：
-   第一梯队 0.12s 出现，之后按 0.06s 递增。列表顺序即视觉顺序，
    新增弹窗时把它的主视觉元素挂到对应梯队即可，不必另写动画。 */
 .hb-entity-details-dialog.light-details .hb-light-details-controls > :nth-child(1),
 .hb-entity-details-dialog.cover-details .hb-cover-details-controls > :nth-child(1),
@@ -8370,7 +8242,6 @@
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-/* 竖网格比横网格更淡，避免抢过数据折线。 */
 .hb-line-chart-details-grid.vertical {
   stroke: #7e8d9917;
 }
@@ -9113,7 +8984,6 @@
   filter: drop-shadow(0 0 4px var(--hb-climate-visual-accent))
     drop-shadow(0 0 8px var(--hb-climate-visual-accent));
 }
-/* 只开灯暖（不吹风）时把气流整条隐掉，避免出现「亮着灯却在吹风」的错觉。 */
 .hb-climate-visual.is-bath-heater.is-running:not(.is-airflow-mode) .hb-climate-visual-airflow {
   opacity: 0;
 }
@@ -9826,7 +9696,6 @@
   gap: 9px;
   padding-top: 8px;
 }
-/* 曲名与艺术家名都单行截断，避免长文件名把卡片撑变形。 */
 .hb-custom-media-player-body > strong {
   overflow: hidden;
   color: var(--hos-tool-ink);
@@ -9925,10 +9794,6 @@
   cursor: pointer;
 }
 /* 选中态描边与淡底。走 --hos-cool —— 能力选项框在属性弹窗里，那里没有 tone 类，
-   --hos-tone 落到默认的 --hos-accent；但「选中」在这块 UI 里一直是冷色（与设备读色的
-   cool 同族），所以显式取 cool 而不是跟着主控色走。
-   原来这里写死的是 #73c8ff 系（旧的柔蓝）：--hos-cool 是 #58c4ff，
-   两个值差一档亮度，换调色板时这里不会跟着变，于是同一屏里选中框的蓝
    与「制冷」图标的蓝会是两种蓝。 */
 .hb-capability-options button.active {
   border-color: rgba(var(--hos-cool-rgb, 88, 196, 255), 0.45);
@@ -9971,7 +9836,6 @@
 
 /* ===== 媒体播放器详情弹窗 ===== */
 
-/* 宽度 540px，比通用弹窗窄一点，因为内容是竖排的播放卡片。 */
 .hb-media-player-details {
   width: min(540px, calc(100% - 18px));
 }
@@ -10239,7 +10103,6 @@
   cursor: pointer;
 }
 /* 字号一律写成 calc(Npx / var(--hb-runtime-dialog-scale, 1))：
-   弹窗放不下时 renderer.js 会给整个 dialog 加 scale(...)，这里反向除掉，
    屏幕上看到的字号才不会跟着缩水。 */
 .hb-media-browser-location {
   overflow: hidden;
@@ -10330,7 +10193,6 @@
   font-size: calc(15px / var(--hb-runtime-dialog-scale, 1));
 }
 /* 3D 弹窗（.hb-custom-popup-dialog 卡片）里再放大一档：内边距 16px、
-   工具条 56px、关闭 46px、路径 20px。:is() 只用于收窄选择器书写，
    不改变优先级判定里的具体性以外的行为。 */
 .hb-custom-popup-dialog > :is(.hb-custom-popup-card) > .hb-media-browser-panel {
   gap: 12px;
@@ -10552,7 +10414,6 @@
   max-width: 300px;
   padding-top: 2px;
 }
-/* 状态行绝对定位到标题下方 42px，脱离文档流避免撑高标题区。 */
 .hb-custom-popup-module--air-purifier .hb-custom-popup-module-status {
   position: absolute;
   top: 42px;
@@ -10633,7 +10494,6 @@
   width: 218px;
   height: 218px;
 }
-/* 表盘尺寸与详情一致（218px），所以弧端半径仍是 104px。 */
 .hb-custom-popup-module--air-purifier .hb-air-purifier-arc-cap {
   transform: translate(-50%, -50%) rotate(var(--hb-air-purifier-cap-angle)) translateY(-104px);
 }
@@ -10989,7 +10849,6 @@
     0 0 0 1px #dae5e91a,
     0 3px 7px #0000008c;
 }
-/* 没有封面时必须显式隐藏，否则空 img 仍会留下描边圈。 */
 .hb-media-speaker-artwork[hidden] {
   display: none;
 }
@@ -11138,7 +10997,6 @@
   justify-items: start;
   gap: 4px;
 }
-/* 设备名 33px，宽度收到 420px，避免文字伸到右侧机型底下。 */
 .hb-entity-details-dialog.air-purifier-details .hb-entity-details-heading > div > strong {
   max-width: 420px;
   color: var(--hos-tool-ink);
@@ -11478,7 +11336,6 @@
   opacity: 0.5;
   cursor: default;
 }
-/* 按下只缩 2.5%，不做位移，避免机身与热区错位。 */
 .hb-air-purifier-visual:active:not(.is-unavailable) .hb-air-purifier-visual-body {
   transform: translate(-50%) scale(0.975);
 }
@@ -11644,7 +11501,6 @@
   top: -8px;
 }
 /* 表盘本体用 conic-gradient 画 270° 弧：从 225deg 起，
-   --hb-air-purifier-progress 由 JS 按净化进度写入，75% 之后完全不画，
    正好留出右下角 90° 的缺口。 */
 .hb-air-purifier-gauge {
   --hb-air-purifier-progress: 0%;
@@ -11696,7 +11552,6 @@
   pointer-events: none;
   transform: rotate(0);
 }
-/* 运行中：表盘 2.6s 呼吸发光，指示环 3.6s 匀速旋转（互不整除，避免节奏同步）。 */
 .hb-air-purifier-gauge.is-running {
   animation: hb-climate-running-glow 2.6s ease-in-out infinite;
 }
@@ -11873,7 +11728,6 @@
   align-items: stretch;
   gap: 7px;
 }
-/* 风速档固定三列，档位数固定所以不用 auto-fit。 */
 .air-purifier-details .hb-air-purifier-speed-options {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -11900,7 +11754,6 @@
 .hb-custom-popup-module--air-purifier .hb-air-purifier-speed-options {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-/* 机身呼吸：亮度只在 1↔1.035 之间，幅度极小，避免大屏上闪。 */
 @keyframes hb-air-purifier-body-glow {
   0%,
   to {
@@ -11980,7 +11833,6 @@
 /* ===== 人体存在传感器（状态可视化 + 人形行走动效） ===== */
 
 /* 强调色默认沿用「无人」色（--hos-sensor），占用态由下面 is-occupied 切到生态薄荷。
-   尺寸与运动参数（--hb-presence-*）全部由 registry.js 以内联变量写入，
    本文件只给默认值，缺变量时仍可渲染。 */
 .hb-presence-sensor {
   --hb-presence-accent: var(--hb-presence-clear, var(--hos-sensor));
@@ -12169,7 +12021,6 @@
     filter 0.38s ease,
     transform 0.45s cubic-bezier(0.2, 0.8, 0.24, 1);
 }
-/* 挂在锚点上的人形：锚点宽高为 0，所以尺寸必须改用 px 变量给。 */
 .hb-presence-sensor-traveler .hb-presence-sensor-person {
   top: 0;
   left: 0;
@@ -12350,7 +12201,6 @@
   display: grid;
   gap: 5px;
 }
-/* 设备名 32px：该弹窗以状态展示为主，标题刻意放大。 */
 .hb-entity-details-dialog.presence-details .hb-entity-details-heading strong {
   color: var(--hos-tool-ink);
   font-size: 32px;
@@ -12560,7 +12410,6 @@
   }
 }
 /* 椭圆轨道的 16 点折线近似：CSS 关键帧无法算三角函数，
-   所以按每 22.5° 采一点，12 个非轴向点用 JS 预写入的 sin/cos 常量变量拼出。
    默认值对应 rx=32px、ry=13px（0.382683 = sin22.5°、0.92388 = cos22.5°、0.707 = sin45°）。 */
 @keyframes hb-presence-orbit-fallback {
   0%,
@@ -12573,7 +12422,6 @@
       var(--hb-presence-orbit-y-steep-negative, -12.01px)
     );
   }
-  /* 右上弧的后半段（45°→67.5°）：x 由 22.62px 增到 29.56px，y 由 −9.19px 收到 −4.98px。 */
   12.5% {
     transform: translate(
       var(--hb-presence-orbit-x-diagonal, 22.62px),
@@ -12589,7 +12437,6 @@
   25% {
     transform: translate(var(--hb-presence-orbit-x, 32px));
   }
-  /* 右下弧（112.5°→157.5°）：x 由 29.56px 收到 12.25px，y 由 4.98px 增到 12.01px。 */
   31.25% {
     transform: translate(
       var(--hb-presence-orbit-x-steep, 29.56px),
@@ -12611,7 +12458,6 @@
   50% {
     transform: translateY(var(--hb-presence-orbit-y, 13px));
   }
-  /* 左下弧（202.5°→247.5°）：x 由 −12.25px 递减到 −29.56px，y 由 12.01px 收到 4.98px。 */
   56.25% {
     transform: translate(
       var(--hb-presence-orbit-x-shallow-negative, -12.25px),
@@ -12633,7 +12479,6 @@
   75% {
     transform: translate(var(--hb-presence-orbit-x-negative, -32px));
   }
-  /* 左上弧（292.5°→337.5°）：x 由 −29.56px 收到 −12.25px，y 由 −4.98px 增到 −12.01px。 */
   81.25% {
     transform: translate(
       var(--hb-presence-orbit-x-steep-negative, -29.56px),
@@ -12880,7 +12725,6 @@
 
 /* ===== 水浸传感器 ===== */
 
-/* 默认水蓝 #42c8ff，外发光比其它传感器更淡（14%），避免抢眼。 */
 .hb-water-leak-sensor {
   position: relative;
   display: block;
@@ -12913,7 +12757,6 @@
   overflow: visible;
   pointer-events: none;
 }
-/* 水洼：椭圆径向渐变，7% 内近白高光、25% 主色、75% 起全透明，避免硬边。 */
 .hb-water-leak-puddle {
   position: absolute;
   bottom: 20%;
@@ -13038,7 +12881,6 @@
     transform: translate(-50%, -50%) scale(2.25);
   }
 }
-/* 水洼呼吸：缩放仅 0.96↔1.02、不透明度 0.4↔0.58，幅度刻意压小不抢戏。 */
 @keyframes hb-water-leak-puddle {
   0%,
   to {
@@ -13132,7 +12974,6 @@
   transform-origin: center;
   animation: hb-smoke-wisp 5.6s cubic-bezier(0.22, 0.55, 0.36, 1) infinite;
 }
-/* 三条烟缕时长（6s / 5.6s / 6.2s）与负延迟各不相同，避免同步显得机械。 */
 .hb-smoke-wisps path:nth-child(1) {
   stroke-width: 3.7;
   animation-delay: -4.35s;
@@ -13444,7 +13285,6 @@
 .hb-entity-details-dialog.electric-bed-loading-details {
   --hb-climate-accent: var(--hb-bed-accent);
 }
-/* 卡片最小高度与下面 loading-body 的 300px 配套，避免骨架阶段塌陷。 */
 .hb-entity-details-dialog.electric-bed-loading-details .hb-entity-details-card {
   min-height: 360px;
 }
@@ -13517,7 +13357,6 @@
   background: var(--hos-tool-surface);
   isolation: isolate;
 }
-/* 预览默认透明，等渲染器加 is-ready 再淡入，避免白底闪一下。 */
 .hb-floorplan-auto-diagram-preview {
   position: absolute;
   z-index: 1;
@@ -13738,15 +13577,11 @@
   min-height: 0;
   padding: 0;
 }
-/* 概览区改为块级，避免通用规则的 grid 在窄面板里把内容挤扁。 */
 .i3d-vacuum-details .hb-vacuum-details-overview {
   display: block;
   min-height: 0;
 }
 /* 机器图形：与 3D 舞台里那批设备插画同一口径 —— 2D 那张 260px 高的「台面卡片」
-   （描边 + 渐变底 + 投影）是给详情页用的，弹窗里只留机器本身和地面投影，
-   整块压到 190px 一档（冰箱 190 / 洗衣机 188 同一档），把高度让给下面的统计与动作。
-   尺寸不变形：机器人的内部坐标全是 px，缩放交给电池环上的 transform，
    几何关系（雷达凸起、边刷、抹布）因此保持原比例。 */
 .i3d-vacuum-details .hb-vacuum-visual {
   width: 100%;

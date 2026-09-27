@@ -1,11 +1,4 @@
 /* 视口缩放壳的样式（canonical 源：design/scene/viewport-shell.css）
-
-   配合 viewport-shell.js 使用：.viewport-frame 是铺满窗口的底板，.app-shell 是缩放对象，
-   .app-shell__content 承载固定 1366×1024 的设计稿内容层。
-
-   只有需要固定比例画布的页面才引这份（目前是 HomeOS-Activate 签发页）；
-   主项目与商店的入口页是全视口自适应，引了反而会把内容缩错。
-
    改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 .viewport-frame {
@@ -17,9 +10,6 @@
   align-items: center;
   position: relative;
   overflow: hidden;
-  /* 夜空四档：与 design/scene/page.css 的 --hos-sky-* 同值。Activate 是独立构建，
-     不保证加载得到那份调色板，所以每处都带上同值的字面兜底 —— 兜底一旦与真值不同步，
-     这一页会静默退回旧色而不是报错。 */
   background: linear-gradient(
     160deg,
     var(--hos-sky-deep, #050912) 0%,

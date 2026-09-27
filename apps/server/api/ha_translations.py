@@ -1,8 +1,4 @@
 """实体翻译表的缓存：内存 + 磁盘 + 同键并发去重（single-flight）。
-
-从 api/ha.py 拆出来：那一份只留 HA 的连接与实体路由。翻译表是**独立的缓存层**（TTL、落盘、
-代次作废都自成一套），而它正好是全站慢请求的绝对大头 —— 单独成模块之后，收益实测
-（ops/bench_translations.py）与它改起来都不必翻 1500 行的路由文件。
 """
 from __future__ import annotations
 
@@ -24,9 +20,6 @@ from .ha_shared import active_connection
 
 def load_translation_context(database_manager: Database) -> tuple[HAConnection | None, set[str]]:
     """取活跃连接，以及需要向其请求实体翻译的集成名集合。
-
-    只统计「同步正常、来自 HA registry 且带 translation_key」的实体所属平台：
-    只有这些平台才可能有需要翻译的枚举值，其余平台请求了也是白跑一趟。
     """
     with database_manager.session_factory() as database:
         connection = active_connection(database)
@@ -48,28 +41,12 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
         database.expunge(connection)
         return connection, integrations
 #: 实体翻译表的缓存时长（秒）。翻译内容由 HA 的集成版本决定，进程生命周期内几乎不变，
-#: 而重取一次要按集成逐个往返（实测中位 2.9 秒、最坏 23 秒）。不缓存就等于每个打开编辑器 /
-#: 展示页的客户端都重付一次。
 TRANSLATION_CACHE_TTL_SECONDS = 3600
 #: 翻译表持久化的文件名（相对 ``data/cache/``）。与更新检查的缓存同一个目录。
 TRANSLATION_CACHE_FILENAME = 'entity-translations.json'
 TranslationKey = tuple[str, str, tuple[str, ...]]
 class EntityTranslationCache:
     """实体翻译表的缓存：内存 + 磁盘 + 同键并发去重（single-flight）。
-
-    三层语义，缺一不可：
-
-    1. **内存缓存**：TTL 内命中直接返回；键是「连接 + 语言 + 集成集合」——
-       目录里新增平台时会自动落到新键上重取，不必等 TTL 到期。
-    2. **single-flight**（见 :meth:`get_or_fetch`）：同一个键的并发调用**只回源一次**。
-       这不是锦上添花，是实测出来的必需项：``data/logs`` 里 1819 条慢请求有 **1760 条**
-       是这个接口，且 **614 个批次在 5 秒内出现 ≥2 次** —— 多个客户端同时冷启动时，
-       每个都在各自回源一遍，把 HA 的 WebSocket 也一起打多遍。
-    3. **磁盘缓存**：进程重启（升级部署、开发态热重载）后不必再付一次中位 2.9 秒的回源。
-
-    ``clear`` 挂在 HA 连接被重建 / 删除时 —— 翻译内容跟着那一台 HA 走，地址可以不变而实例
-    已经换了一台。因此它**必须连磁盘文件一起删**，否则下一台 HA 会立刻吃回上一台的翻译表；
-    同时它会推进代次，让"清空之后才落地的在途回源"不再写回缓存。
     """
 
     def __init__(
@@ -112,12 +89,6 @@ class EntityTranslationCache:
         cache_key: TranslationKey,
         fetch: Callable[[], Awaitable[dict[str, str]]],
     ) -> dict[str, str]:
-        """命中内存直接返回；否则**同一个键只回源一次**，并发调用共用同一份结果。
-
-        ``shield`` 保证等待方被取消（客户端断线 / 切页）时不会把共享的那次回源一起取消 ——
-        否则先到的那台设备一刷新，后到的就永远等不到结果。失败既不写内存也不写磁盘，
-        并且会从在途表里摘掉，下一次调用仍会重试（不做负缓存）。
-        """
         cached = self.get(cache_key)
         if cached is not None:
             return cached
@@ -184,7 +155,6 @@ class EntityTranslationCache:
         if not isinstance(integrations, list):
             return
         # 用「文件里记下的落盘时刻」换算年龄，而不是假设进程重启是瞬时的。
-        # 时钟回拨（savedAt 在未来）按 0 岁处理，宁可多信一次也不当成过期。
         age = max(0.0, time.time() - saved_at)
         if age >= self.ttl_seconds:
             return
@@ -192,7 +162,6 @@ class EntityTranslationCache:
         self.entries[key] = (time.monotonic() - age, resources)
 
     def _save_to_disk(self, cache_key: TranslationKey, resources: dict[str, str]) -> None:
-        """原子写盘；失败静默（缓存丢了下次重查即可，与更新检查的缓存同一取舍）。"""
         if self.cache_path is None:
             return
         connection_id, language, integrations = cache_key

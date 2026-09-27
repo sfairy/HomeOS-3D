@@ -1,28 +1,16 @@
 /**
  * 模型的屏幕描边与设备光晕（两种 2D 叠加层反馈）：createScreenOutlines 把选中模型轮廓投影到屏幕、
- * 用 SVG 描边 + 呼吸脉冲标出；createEnvironmentHalos 在模型前方贴一片加性发光面片，用颜色表示设备状态。
- *
- * 约定：描边只依赖「模型的 27 个方向极值点」，极值点缓存以几何体 uuid 为键，几何体复用或扫地机
- * 移动组变化时自动失效重算。
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271208";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
-// 描边色要靠 paletteColor 现取：SVG 的 stroke 属性吃不下 var()，写 var(--hos-x) 会被当作
-// 非法颜色**静默忽略**，描边保持上一次的值（或不画）。令牌一旦缺失则退回兜底色。
-// 取色经 core/static-helpers.js 那座桥 —— runtime 资源挂在 /api/v1/modules/interaction3d/ 下，
-// URL 比磁盘路径深一层，直接写裸相对路径会算错层数（曾写成 "../../../static/utils/colors.js"，
-// 解析成 /api/v1/static/utils/colors.js → 404，整段模块图被掐断）。桥内部用绝对路径。
-import { paletteColor } from "../core/static-helpers.js?v=2609271208";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
+import { paletteColor } from "../core/static-helpers.js?v=2609271226";
 
 /**
  * 模型轮廓描边的颜色（三层描边共用，靠宽度与不透明度分出内外辉光）。
- *
- * 原来是写死的 #d5dedb —— 一枚与主题无关的近白。改成读工具面族的弱文字档后，
- * 换主题时这圈轮廓会跟着走；取值差 7/4/11 个通道，肉眼不可辨。
  */
 const outlineStrokeColor = () => paletteColor("--hos-tool-ink-dim", "#dce2e6");
 
@@ -40,8 +28,6 @@ function outlineHull(hullInput) {
     (secondPoint[1] - originPoint[1]) * (thirdPoint[0] - originPoint[0]);
   /**
    * 走一条链（下半边或上半边）。
-   * cross <= 0 就弹出：等于 0 也要弹，这样共线的中间点被丢掉，最终轮廓
-   * 只保留真正的拐角（描边更短、也不会有毛刺）。
    */
   const buildHullSide = sortedInput => {
     const stack = [];
@@ -77,7 +63,6 @@ export function createScreenOutlines({
   // 描边是纯装饰，对读屏器隐藏。
   svgElement.setAttribute("aria-hidden", "true");
   // 三层描边叠加出「外发光 + 内发光 + 实线」的观感；
-  // 宽度与不透明度成反比（越粗越淡），因此看起来是柔和的辉光而不是三条线。
   const outlineColor = outlineStrokeColor();
   for (const [outlinePathElement, outlineWidth, outlineOpacity] of [
     [outerGlowElement, 10, 0.14],
@@ -109,7 +94,6 @@ export function createScreenOutlines({
   let cachedCameraKey = "";
   let pointsByModel = new WeakMap();
   // 呼吸脉冲：三个描边层同步做 1 → 0.3 → 1 的透明度过山车。
-  // 用户要求减少动态效果时不做动画（数组为空，后续全部逻辑自然退化为静态描边）。
   const pulseAnimations =
     prefersReducedMotionNow()
       ? []
@@ -154,7 +138,6 @@ export function createScreenOutlines({
     }
   }
   // 27 个方向（-1/0/1 的三元组合，去掉零向量）。
-  // 沿这些方向各取一个最远点，就能用极小的代价近似出模型的「轮廓点云」。
   const directionVectors = [];
   for (const xIndex of [-1, 0, 1]) {
     for (const yIndex of [-1, 0, 1]) {
@@ -175,10 +158,8 @@ export function createScreenOutlines({
     }));
     const scratchVector = new three.Vector3();
     // 递归遍历网格顶点，按每个方向向量取投影极值，得到世界坐标下的轮廓散点。
-    // 矩阵沿父级相乘传入（不读 matrixWorld），以免依赖本帧是否已渲染。
     function walkMeshes(object3d, parentMatrix) {
       // 跳过环境效果、扫地机的移动组、隐藏子树，以及嵌套的独立模型
-      // （嵌套模型有自己的坐标系，不该算进当前模型的轮廓）。
       if (
         object3d.userData?.environmentEffect ||
         object3d === modelRoot.userData?.vacuumMobileRoot ||
@@ -252,9 +233,6 @@ export function createScreenOutlines({
     cachedRenderKey = "";
     const modelsByKey = new Map();
     cachedModelRoot?.traverse(traversedObject => {
-      // 只有这些类型的环境模型支持描边（灯具等其它模型没有意义，也会拖慢遍历）。
-      // 这份清单与 environment-scene.js 的两张表、studio-app.js 的四处内联清单同属「环境模型类型」
-      // 七处同步点之一（见 tools/check_invariants.mjs 对应判据）；漏写只会让该设备不高亮。
       if (
         ![
           "wallac",
@@ -308,8 +286,6 @@ export function createScreenOutlines({
   }
   /**
    * 取一个模型真正需要描边的根节点。
-   * 窗帘要按「帘布」逐个描边（帘布会移动、收拢），扫地机要同时描
-   * 机身与移动组（机身随位姿移动）。
    */
   function collectOutlineRoots(sceneModelRoot) {
     if (sceneModelRoot.userData.environmentModelType === "curtain") {
@@ -331,8 +307,6 @@ export function createScreenOutlines({
   }
   /**
    * 取（或重算）某个模型的轮廓极值点。
-   *
-   * 缓存键包含几何体与扫地机移动组：两者任一变化都意味着顶点位置变了。
    */
   function resolveSilhouettePoints(targetModel) {
     const geometry = targetModel.geometry;
@@ -433,7 +407,6 @@ export function createScreenOutlines({
           ];
         });
         // 有任何一个点跑出裁剪范围（在相机背后或被裁掉）就整体放弃这个模型：
-        // 否则凸包会把远处的点连回来，画出穿过整个屏幕的错误轮廓。
         if (
           projectedPoints.some(projectedPoint => projectedPoint[2] < -1 || projectedPoint[2] > 1)
         ) {
@@ -459,7 +432,6 @@ export function createScreenOutlines({
       pathElement.setAttribute("d", outlinePathData);
     }
   }
-  /** 暂停描边：立即隐藏并设置一段冷却时间，避免相机移动时反复闪烁。 */
   function pauseOutlines() {
     setPulseActive(false);
     // 120ms 冷却：相机连续移动期间不必每帧重算投影。
@@ -488,7 +460,6 @@ export function createScreenOutlines({
         return true;
       }
     },
-    /** 冷却期内返回剩余等待时间，否则返回 Infinity（无需定时器）。 */
     nextDelay() {
       if (isOutlineActive && performance.now() < resumeAtTimestamp) {
         return Math.max(1, resumeAtTimestamp - performance.now());
@@ -505,7 +476,6 @@ export function createScreenOutlines({
 }
 /**
  * 创建设备光晕（贴片发光）。
- *
  * @param {number} options.modeAmount 光晕总强度（0 时完全不可见）。
  */
 export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: modeAmount }) {
@@ -515,8 +485,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   let cachedHalosKey;
   let isHaloActive = false;
   // 光晕定位键直接用共享实现：本文件原先还留着一份逐字节相同的本地定义，
-  // 与 core/scene-model-key.js 的关系见那里的模块头（同一模型不能拿到两个身份）。
-  // 1×1 的共享平面：所有光晕都靠缩放变形，无需各自建几何体。
   const planeGeometry = new threeNamespace.PlaneGeometry(1, 1);
   /** 释放一片光晕（几何体是共享的，只销毁材质）。 */
   function disposeHalo(haloRecord) {
@@ -536,7 +504,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
         haloItem.deviceKind
       ])
     );
-    // 键没变就完全跳过：避免每帧重新量包围盒。
     if (
       cachedHaloRoot === haloModelRoot &&
       cachedHaloRevision === haloSceneRevision &&
@@ -630,8 +597,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
           vertexShader:
             "varying vec2 vHaloUv; void main(){ vHaloUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
           // 片元着色器：对最多 3 个圆角矩形求 SDF 并取最小值，
-          // 只保留外部衰减（outer），因此看起来是贴在物体周围的辉光而不是实心块。
-          // 注意：字符串里的 // 是 GLSL 注释，属于着色器源码，必须原样保留。
           fragmentShader:
             "varying vec2 vHaloUv;\n            uniform float haloMode, haloFeather;\n            uniform vec2 haloSize;\n            uniform vec3 haloColor;\n            uniform vec4 haloRects[3];\n            uniform int haloRectCount;\n            void main() {\n              vec2 p = (vHaloUv - 0.5) * (haloSize + vec2(haloFeather * 2.0));\n              float d = 10000.0;\n              for (int i = 0; i < 3; i++) {\n                if (i >= haloRectCount) break;\n                vec4 rect = haloRects[i];\n                float radius = min(rect.z, rect.w) * 0.18;\n                vec2 q = abs(p - rect.xy) - rect.zw + vec2(radius);\n                d = min(d, length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius);\n              }\n              float outer = 1.0 - smoothstep(0.0, haloFeather, max(d, 0.0));\n              float alpha = outer * outer * haloMode * 0.025;\n              if (alpha < 0.001) discard;\n              gl_FragColor = vec4(haloColor, alpha);\n              #include <colorspace_fragment>\n            }",
           transparent: true,
@@ -670,7 +635,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
       halo.mesh.position.copy(modelCenter);
       halo.mesh.rotation.y = isVerticalHalo ? Math.PI / 2 : 0;
       if (isVerticalHalo) {
-        // 竖向风口贴到 +X 面（离墙面 6mm），否则贴到 +Z 面。
         halo.mesh.position.x = modelBounds.max.x + 0.006;
       } else {
         halo.mesh.position.z = modelBounds.max.z + 0.006;
@@ -714,7 +678,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
     const haloRects = uniforms.haloRects.value;
     const visiblePanels = targetHalo.panels.filter(visiblePanel => visiblePanel.visible);
     if (!visiblePanels.length) {
-      // 没有可见帘布（全收拢）：回退成以光晕中心为原点的一个默认矩形。
       uniforms.haloRectCount.value = 1;
       haloRects[0].set(0, 0, targetHalo.width / 2, targetHalo.height / 2);
       return;

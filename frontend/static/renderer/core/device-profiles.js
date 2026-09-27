@@ -1,20 +1,14 @@
 /**
  * 小米设备的档案识别与角色实体匹配：用「平台白名单 + 名称关键词打分」把同一台设备的
- * 实体聚成一档档案，解析出 climate / cover / light / power / 各类传感器等角色的落点。
- *
- * 档案 roles 的键名与各控件 runtime 读取的字段名一一对应，改键名会同时改到多个控件。
  */
 // 取域走 `utils/entities.js` 的 `entityDomainOf`。
-import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609271208";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271208";
+import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609271226";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271226";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
 /**
  * 判断实体是否可用于档案匹配。
- * 与 entity-metadata.js 的判定一致，此处刻意重复实现而不 import：该模块被编辑器与运行时共用，
- * 保持零依赖可以避免因版本戳错配而加载两份。
  */
 function entityIsUsable(candidateEntity) {
   return (
@@ -24,10 +18,6 @@ function entityIsUsable(candidateEntity) {
     candidateEntity.status !== "disabled"
   );
 }
-/**
- * 为某个角色给单个实体打分：域不对直接返回 -1，否则叠加名称关键词加分，分越高越可能被选中。
- * 加分项都写死在同一处，让「为什么选了这个实体」在排查时一眼可见。
- */
 function scoreEntityForRole(entity, entityRole) {
   const domain = entityDomainOf(entity);
   const roleSearchText = entitySearchText(
@@ -62,7 +52,6 @@ function scoreEntityForRole(entity, entityRole) {
     }
   }
     // 灯的识别最讲究：同一台净化器 / 浴霸上常带多个附属小灯，
-    // 用关键词减分把它们压下去，避免把指示灯当成主灯来控。
   if (entityRole === "light") {
     if (domain !== "light") {
       return -1;
@@ -181,8 +170,6 @@ function scoreEntityForRole(entity, entityRole) {
 }
 /**
  * 在候选实体里挑出最匹配某个角色的一个。
- * 排序依据依次为：得分降序 → 实体 ID 更短者优先（越短越像主实体）→ 字典序（保证结果稳定）；
- * 得分为 0 也允许入选（域匹配但没命中关键词），-1 才被排除。
  */
 function pickBestEntityForRole(entityList, targetRole) {
   return (
@@ -205,8 +192,6 @@ function pickBestEntityForRole(entityList, targetRole) {
 }
 /**
  * 在候选实体里挑出电动床的某个可控部位。
- * 与通用打分不同：先按角色对应的「域 + 名称」硬性过滤（靠背 / 腿部 / 腰部必须是 number，模式必须是 select 且不含
- * 记忆 / 姿势），再按实体 ID 字典序取第一个，目的是让同一台床的按钮顺序在不同设备上保持一致。
  */
 function pickBestBedControlEntity(entities, role) {
   return (
@@ -261,8 +246,6 @@ function xiaomiIntegration(entityMetadata) {
 }
 /**
  * 解析一台小米设备的完整档案：确认平台属小米 → 收集同设备可用实体 → 拼检索文本 → 逐个角色竞聘 →
- * 处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
- * roles.primary 是「最像主控」的实体（都没有时回落传入的 entityId）；confidence 表示规则命中还是兜底。
  */
 export function resolveXiaomiDeviceProfile(
   entityId,
@@ -279,7 +262,6 @@ export function resolveXiaomiDeviceProfile(
   // 设备档案可能缺失（设备索引未下发或该设备未注册），此时退回只用实体自身字段做识别。
   const deviceMetadata = (deviceId && devicesById?.get?.(deviceId)) || null;
     // 同设备实体是档案的基础：来源是「同一 deviceId」的可用实体，且必须属于同一集成版本，
-    // 避免把别的平台（例如第三方接入）的同名实体混进来。
   const deviceEntities = [...(entitiesById?.values?.() || [])].filter(
     sameDeviceCandidate =>
       entityIsUsable(sameDeviceCandidate) &&
@@ -296,8 +278,6 @@ export function resolveXiaomiDeviceProfile(
   }
   const stateEntry = statesByEntityId?.get?.(entityId);
   const stateObject = resolveStateEntry(stateEntry, {});
-    // 检索文本刻意包含设备级信息（名称 / 厂商 / 型号）与所有同设备实体的命名，
-    // 因为诸如「电动床」「浴霸」这类判断往往只在设备名或某个附属实体名里出现。
   const searchText = entitySearchText(
     integration,
     deviceMetadata?.name,
@@ -313,7 +293,6 @@ export function resolveXiaomiDeviceProfile(
     ])
   );
     // 逐角色竞聘后丢掉空结果：roles 里只会出现真正解析到的键，
-    // 调用方用 roles.xxx 的真值判断「该能力是否存在」。
   const roleEntityIds = Object.fromEntries(
     [
       "climate",
@@ -352,8 +331,6 @@ export function resolveXiaomiDeviceProfile(
     );
   if (selectEntities.length) {
       // 下拉实体（select）是电动床模式的主要载体，这里单独再排一次序：
-      // 名称含 model / 模式 / 工作模式 / operation / function 的优先，
-      // 选项多的次优先（min(80, 选项数 * 8) 封顶，避免选项极多的实体一家独大）。
     const scoreSelectEntity = rankedSelectEntity => {
       const selectSearchText = entitySearchText(
         rankedSelectEntity.entityId,
@@ -367,7 +344,6 @@ export function resolveXiaomiDeviceProfile(
       const modeScoreBonus = /mode|模式|工作模式|operation|function/.test(selectSearchText)
         ? 320
         : 0;
-      // 记忆位下拉要留给记忆按钮，不能占掉模式位，所以给一个足以抵消任何加分的重罚。
       const memoryScorePenalty = /memory|记忆|姿势/.test(selectSearchText) ? -520 : 0;
       return (
         modeScoreBonus + memoryScorePenalty + Math.min(80, Number(selectOptions?.length || 0) * 8)
@@ -434,8 +410,6 @@ export function resolveXiaomiDeviceProfile(
         String(rightRemainingSelect.entityId || "")
       )
     );
-    // 记忆位的候选回退链：优先专用记忆实体 → 按钮实体 → 剩余下拉实体。
-    // 很多床没有独立的「记忆」实体，只能拿第二个按钮 / 下拉来当记忆 1 / 记忆 2。
   const buttonOrSelectEntities = buttonEntities.length ? buttonEntities : remainingSelectEntities;
   const memoryCandidateEntities = memoryEntities.length ? memoryEntities : buttonOrSelectEntities;
     // 按候选顺序取前两个：下标 0 为记忆 1、下标 1 为记忆 2，缺位时留空串表示不可用。
@@ -456,8 +430,6 @@ export function resolveXiaomiDeviceProfile(
   const isAirPurifier = /air.?purifier|(?:^|[._-])airp(?:[._-]|$)|空气净化/.test(searchText);
   let deviceType = "generic";
     // 判定顺序即优先级，不能重排：名称明确是床、或四个部位全齐才算电动床；
-    // 其次是浴霸（要有 climate 或 fan 才算）、空调、窗帘、净化器；
-    // 最后才是「只有某个域」的宽泛兜底。顺序错了会把带灯的空调误判成灯之类。
   if (isElectricBed || hasAllBedControls) {
     deviceType = "electric-bed";
   } else if (isBathHeater && (roleEntityIds.climate || roleEntityIds.fan)) {
@@ -478,7 +450,6 @@ export function resolveXiaomiDeviceProfile(
     deviceType = "switch";
   }
     // 窗帘的细分类型只影响控件的交互形态（晾衣机 / 梦幻帘 / 普通帘），
-    // 认不出时给标准帘而不是空值，调用方按 standard 渲染即可。
   const coverKind =
     roleEntityIds.cover && /airer|clothes.?rack|laundry.?rack|晾衣机|晾衣架/.test(searchText)
       ? "airer"
@@ -518,8 +489,6 @@ export function resolveXiaomiDeviceProfile(
 }
 /**
  * 把档案里能推断出的控件属性回填到组件上。
- * 只回填 deviceType 与 coverKind，且仅在原值为空或 auto 时写入——
- * 用户在编辑器里显式选过的类型必须优先于自动识别结果。
  */
 export function applyXiaomiDeviceProfile(component, profile) {
   if (!component || !profile) {

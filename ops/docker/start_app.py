@@ -17,9 +17,6 @@ from apps.server.security.http_security import (  # noqa: E402  (必须晚于 sy
 )
 
 #: 默认只信任回环：容器里没有反向代理时，TCP 对端就是客户端本人，任何人都伪造不了
-#: ``X-Forwarded-For``。前面真有反代（宿主机 nginx / 另一个容器）时，必须由运维显式
-#: 写成那个代理的地址或网段 —— 不能用 ``*`` 图省事，那等于把「来源地址」交给客户端自己填
-#: （见 ``unsafe_forwarded_allow_ips``）。
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
 
 #: 授权公钥（Ed25519 与 X25519）都是 SubjectPublicKeyInfo，PEM 头一致。
@@ -27,12 +24,6 @@ PUBLIC_KEY_MARKER = b'-----BEGIN PUBLIC KEY-----'
 
 
 def _inspect_client_key(path: Path) -> tuple[bool, str]:
-    """检查一个公钥文件是否可用，返回 (就绪, 未就绪原因)。
-
-    只有「读不了」是立刻终止的硬错误 —— 权限不会自愈，而且这是跨机器拷贝最常见的
-    坑（scp / docker cp 留下的 root:600）。空文件与坏内容按「还在写」处理：商店写入
-    不是原子的，瞬时读到半截不应该让主应用退出。
-    """
     try:
         content = path.read_bytes()
     except FileNotFoundError:
@@ -52,10 +43,6 @@ def _inspect_client_key(path: Path) -> tuple[bool, str]:
 
 def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) -> None:
     """等待商店把公钥写到共享目录。
-
-    文件还没出现、或正处于写入中途（空文件）时继续等；**存在但读不了**时立刻退出：
-    那是权限问题，不会自己好。旧实现只检查「存在且非空」，遇到跨机器拷贝留下的
-    ``root:600`` 会一路等到 120 秒超时，报出来的还是「请确认商店已启动」，指错方向。
     """
     paths = (
         client_keys_dir / 'license-public.pem',
@@ -100,7 +87,6 @@ def main() -> None:
     environment = apply_client_key_env(environment, client_keys_dir)
 
     # 转发头信任范围：默认回环，只有显式配置才放宽。取成通配时在 uvicorn 起来之前
-    # 就喊出来 —— 那一刻还没有全局日志，只能用 stderr（docker logs 里看得到）。
     forwarded_allow_ips = (
         environment.get('UVICORN_FORWARDED_ALLOW_IPS', '').strip() or DEFAULT_FORWARDED_ALLOW_IPS
     )

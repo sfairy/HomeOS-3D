@@ -1,16 +1,5 @@
 /*
  * 物件构建器：厨房电器
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 厨房：橱柜一体（地柜 / 水槽 / 灶台）、冰箱、油烟机、洗碗机、蒸箱、微波炉、电饭煲。
- */
-/**
- * 命中：["kitchenbase", "kitchensink", "kitchencooktop"].includes(itemSpec.type)
  */
 export function buildKitchenBaseItem(context) {
   const {
@@ -27,7 +16,6 @@ export function buildKitchenBaseItem(context) {
     itemSpec,
     itemWidth,
   } = context;
-  // 柜门白与灶面银黑走的是调色板上那两个专用键，不在家具四档别名里，所以要整份调色板。
   const cabinetDoorColor = itemPalette.cabinetDoor ?? furnitureLightColor;
   const steelBlackBrightColor = itemPalette.steelBlackBright ?? furnitureSoftColor;
   const steelBlackDarkColor = itemPalette.steelBlackDark ?? furnitureDarkColor;
@@ -262,7 +250,6 @@ export function buildFridgeItem(context) {
   );
   if (itemSpec?.fridgeStyle === "double") {
     // 左右双开门：两扇等宽通高竖门并排，门缝落在正中线，每扇门靠中线一侧各一只竖向长把手。
-    // 门扇是一层贴在前脸的薄板（厚度取进深的 4%，上限 25mm），门缝与四周透出后面的深色衬板。
     const fridgeDoorPanelDepth = Math.min(0.025, itemDepth * 0.04);
     const fridgeDoorFrontZ = itemDepth * 0.5;
     addBoxMesh(

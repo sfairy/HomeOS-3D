@@ -1,16 +1,11 @@
 /**
  * 会话与令牌类诊断表。
- *
- * 会话、授权会话、找回令牌、登录尝试、邮箱验证、解绑事件与核销记录七张列表。
- *
- * 诊断页里七张只读列表（会话、授权会话、找回令牌、登录尝试、邮箱验证、解绑事件、核销
- * 记录），都只是「取一页、渲染一页」，聚在一起省得散落。
  */
 
-import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609271208";
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { dt, money, num, pill } from "../format.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
+import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609271226";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { dt, money, num, pill } from "../format.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
 
 export async function loadSessions() {
   const cursor = pageState('sessions');

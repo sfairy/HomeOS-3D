@@ -1,11 +1,4 @@
 """授权服务器侧的加密传输与租约签名。
-
-必须与客户端 `apps/server/license/crypto.py` **逐字节对齐**：
-
-- HKDF info = ``PROTOCOL + 0x00 + keyId + 0x00 + path``（salt=None, SHA-256, 32 字节）
-- AES-GCM AAD = ``PROTOCOL + 0x00 + b"request"|b"response" + 0x00 + path + 0x00 + keyId``
-- 所有二进制字段使用 **base64url 无填充**
-- 租约 = ``b64url(payload_json_bytes) + "." + b64url(ed25519_signature)``
 """
 
 from __future__ import annotations
@@ -25,8 +18,6 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from apps.store.licensing import keys
 
 #: 传输协议标识。**改动它等于把所有已部署客户端踢下线**：它参与 HKDF 的 info 与 AES-GCM
-#: 的 AAD，新旧不一致时连密钥都派不出来，请求会在解密阶段失败且没有降级路径。
-#: 发布时须同步提升 VERSION 并写清升级顺序（先升客户端、再升服务端）。
 PROTOCOL = b"homeos-license-transport-v1"
 #: 激活时客户端上报的产品标识，服务端严格比对。
 PRODUCT = "homeos"
@@ -34,11 +25,6 @@ PRODUCT = "homeos"
 
 class LicenseServerError(Exception):
     """授权端点错误。``revoked`` 为真时表示这是客户端的「确认吊销」语义。
-
-    ``retry_after`` 只在 429 上有值：它是**从这一刻起还要等多少秒**，由 API 层放进
-    ``Retry-After`` 响应头。客户端据此退避而不是按固定间隔重打 —— 心跳本身是分钟级
-    的，撞上小时级的限流窗口时若不做退避，整个窗口内的每一次尝试都只会再拿一个 429
-    （``SlidingWindowLimiter`` 的取舍见 ``apps/store/security/limiter.py``）。
     """
 
     def __init__(
@@ -165,10 +151,6 @@ class LeaseSigner:
 @dataclass(frozen=True)
 class KeyGeneration:
     """一代密钥：一对传输密钥 + 一对签名密钥，两者成对轮换。
-
-    两把密钥的 keyId 是**各自**从公钥派生的，所以这里不假设它们同字符串：
-    客户端用自己那份 ``transport`` id 发请求，用租约里的 ``keyId`` 去可信表里
-    找验签公钥，两条链各自独立。
     """
 
     transport: TransportCipher
@@ -185,19 +167,6 @@ class KeyGeneration:
 
 class KeyRegistry:
     """当前一代 + 至多一代上一代，按请求里的**传输** keyId 选择。
-
-    存在的理由是轮换要能「重着来」：
-
-    * 服务端先换新密钥、客户端还是旧的 —— 旧客户端发上来的 ``keyId`` 命中上一代，
-      用上一代的传输私钥解开、用上一代的签名密钥签租约，客户端照旧验得过；
-    * 客户端先更新、服务端还是旧的 —— 客户端可信表里同时登记新旧两把公钥
-      （见 ``apps/server/config.py``），旧的照样能用。
-
-    没有这张表时这两种状态都会硬失败：报「keyId 不匹配」（传输层）或
-    「不受信任的授权公钥」（验签层）—— 两种都很像被攻击，实际只是在轮换。
-
-    选中的那一代**同时决定签名密钥**：不能固定用 active 签。旧客户端的可信表里
-    只有旧公钥，用新密钥签出来的租约它一律不认。
     """
 
     def __init__(self, generations: Sequence[KeyGeneration]) -> None:

@@ -1,27 +1,13 @@
 /**
  * 3D 工作室素材库的卡片清单：一张数据表 + 一次渲染。
- *
- * 为什么放在 JS 而不是 HTML：一百多张卡片的标记结构逐字相同，只有 5 个字段不同，
- * 原样写在 3d-studio.html 里就是约 560 行同构标记，占了整份文档的四分之一。
- *
- * 改动前先读这三条硬约束：
- * 1. **必须早于 studio-app.js 的 DOM 缓存**。studio-app.js 用
- *    document.querySelectorAll("[data-item-type]") 一次性抓走全部卡片再绑事件，
- *    渲染晚于那一刻，卡片就会「看得见、点不动」。
- * 2. **渲染结果必须与拆分前的 HTML 逐字一致**，缩进、属性顺序、i/span/small 的顺序
- *    都算数 —— studio.css 的 .asset-card 规则与相邻兄弟选择器都建立在这个结构上。
- *    改完请逐字比对结构与字段。
- * 3. data-item-type 是脚本查表键、data-asset-subcategory 决定分组显隐
- *    （与顶部页签的 data-asset-category 一一对应），两者都不能随手改。
  */
 
 /**
  * 卡片字段：type 查表键 / sub 分组子类 / icon 图标字符 / name 名称 /
- * size 模型真实占地（米，与实际不符会让用户误判可摆放空间）。
  * @type {{ category: string, label: string, note: string, items: { type: string, sub: string, icon: string, name: string, size: string }[] }[]}
  */
 // 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
-import { escapeHtml } from "../../utils/html-escape.js?v=2609271208";
+import { escapeHtml } from "../../utils/html-escape.js?v=2609271226";
 
 export const STUDIO_ASSET_PALETTE = [
   {
@@ -271,12 +257,6 @@ function assetGroupHtml(group) {
 
 /**
  * 把素材网格渲染进容器。整体赋值 innerHTML（而不是逐个 appendChild）：
- * 生成结果要与拆分前的标记逐字一致，包含分组之间的换行与缩进。
- *
- * 首尾那两个换行/缩进常量不是装饰：它们复刻的是拆分前容器自身的排版
- * （`<div id="asset-grid">` 后面换一行、`</div>` 前缩进 10 空格）。
- * 去掉也能正常显示，但逐字校验就会退化成「肉眼看着一样」，
- * 逐字校验与改前改后的 DOM diff 都依赖这个不变量。
  */
 const GRID_LEAD = "\n";
 const GRID_TAIL = "\n          ";

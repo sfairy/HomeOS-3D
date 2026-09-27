@@ -1,11 +1,7 @@
 /**
  * 跨页面 / 跨项目复制组件（含「复制到指定页面」与「复制到侧边栏共享区」）。
- *
- * 图层树复制菜单与画布右键菜单调用的纯逻辑层：找到源组件、克隆并整棵子树换新 ID、生成不重名
- * 的副本名、校验导航与弹窗引用，必要时按画布比例缩放，最后插入目标集合。复制到共享区时所有
- * 页面都要引用这批新共享组件；副作用是就地修改 targetDocument，调用方负责进历史栈。
  */
-import { positiveNumberOr } from "../utils/numbers.js?v=2609271208";
+import { positiveNumberOr } from "../utils/numbers.js?v=2609271226";
 
 function findComponentInTree(componentTree, targetComponentId) {
   for (const childComponent of componentTree || []) {
@@ -44,11 +40,9 @@ function collectComponentsByIds(documentTree, wantedComponentIds) {
 }
 /**
  * 列出可作为复制目标的页面：源组件在共享区时全部页面入选；属于某页面时排除它自己所在的页，
- * 避免同页重复。
  */
 function copyComponentTargetPages(originDocument, copiedComponentId) {
   const locatedTarget = locateComponentWithScope(originDocument, copiedComponentId);
-  // 源组件在共享区时所有页面都可作为目标；否则排除它自己所在的页面。
   return locatedTarget
     ? (originDocument?.pages || []).filter(
         otherPage => locatedTarget.scope === "shared" || otherPage !== locatedTarget.page
@@ -57,7 +51,6 @@ function copyComponentTargetPages(originDocument, copiedComponentId) {
 }
 /**
  * 构造「复制到…」下拉候选项：先按页面生成 key 为 "page:<path>" 的目标；只有源组件属于某个
- * 页面时，才在最前面插入共享区（侧边栏）——共享组件不允许再复制到共享区。
  */
 export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
   const targetLocation = locateComponentWithScope(pageSourceDocument, sourceComponentId);
@@ -69,14 +62,11 @@ export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
     scope: "page",
     page: page
   }));
-  // 源组件属于某个页面时才允许复制到共享侧边栏，避免共享组件自我复制。
   return targetLocation.scope === "page"
     ? [{ key: "shared", name: "侧边栏", scope: "shared" }, ...pageTargets]
     : pageTargets;
 }
 // 递归给组件及其子树换新 ID；createComponentId 由调用方注入（便于测试）。
-// 导出给「整页复制」用（editor-document-management.js）：那份曾经自己写过一遍同款递归，
-// 两处任何一处漏改都会让复制出来的页面与源页面共用组件 ID（实体绑定互相串台）。
 export function assignFreshComponentIds(componentNode, createComponentId) {
   componentNode.id = createComponentId();
   for (const nestedChildComponent of componentNode.children || [])
@@ -122,7 +112,6 @@ function scaleComponentGeometry(geometryComponent, scaleX, scaleY, childScale, i
     positionX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
     positionY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
     // 3D 控件按目标画布的横纵比例各自伸缩，其余组件用统一的子级缩放：
-    // 3D 内部画面是铺满外框渲染的，横纵同比例会让外框与渲染口径不一致。
     scaledWidth = width * (geometryComponent.type === "interaction3d" ? scaleX : childScale),
     scaledHeight = height * (geometryComponent.type === "interaction3d" ? scaleY : childScale);
   // 顶层按中心缩放（与目标画布比例对齐），子组件只随父级缩放。
@@ -185,7 +174,6 @@ function pruneInvalidReferences(componentToPrune, pruneDocument, handleInvalidRe
 // 把作用域标识解析成可写的组件数组；"shared" 或 "page:<path>" 两种写法。
 function resolveTargetComponentList(listDocument, scopeKey) {
   if (scopeKey === "shared")
-    // 首次复制到共享区时懒创建数组，避免文档里出现多余的空数组字段。
     return listDocument.sharedComponents || (listDocument.sharedComponents = []);
   const targetPagePath = String(scopeKey || "").replace(/^page:/, ""),
     matchedPage = (listDocument.pages || []).find(
@@ -229,7 +217,6 @@ export function copyComponentsAcrossDocuments(
     return [];
   const sourceComponents = collectComponentsByIds(sourceDocumentToCopy, requestedIds),
     targetComponents = resolveTargetComponentList(targetDocumentToCopy, targetScopeToCopy);
-  // 有 ID 找不到组件，或目标作用域不存在，整体放弃（避免复制出半个结果）。
   if (sourceComponents.length !== requestedIds.length || !targetComponents) return [];
   const copiedComponents = [];
   for (const sourceComponent of sourceComponents) {
@@ -247,7 +234,6 @@ export function copyComponentsAcrossDocuments(
       delete copiedComponent.properties.previewState,
       pruneInvalidReferences(copiedComponent, targetDocumentToCopy, handleInvalidAction),
       // 3D 控件即使调用方声明 scaleMode: "none" 也要适配目标画布：
-      // 它的外框尺寸直接决定渲染画布大小，不缩放就会在跨分辨率复制后错位。
       (scaleMode === "proportional" || copiedComponent.type === "interaction3d") &&
         fitComponentToCanvas(
           copiedComponent,
@@ -260,7 +246,6 @@ export function copyComponentsAcrossDocuments(
     // 插到最前面即层级最底，不会盖住目标位置已有的组件。
     targetComponents.unshift(...copiedComponents),
     applyLayerOrder(targetComponents),
-    // 共享组件必须让每个页面都引用，否则复制完看不到。
     targetScopeToCopy === "shared" &&
       addSharedComponentRefsToPages(
         targetDocumentToCopy,

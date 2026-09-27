@@ -1,15 +1,5 @@
-/**
- * Draco 解码 Worker 脚本（同源部署版）：studio-app.js 经 draco-loader.js 的 SameOriginDRACOLoader
- * 启动本 Worker，在后台线程把 .drc 压缩几何解成 three.js 属性数组，避免主线程卡顿。
- *
- * 协议：初始化 {type: "init", decoderPath, decoderConfig}；解码请求 {type: "decode", id, buffer,
- * taskConfig}；成功回包 {type: "decode", id, geometry}，失败回包 {type: "error", id, error}。
- * 约定：类型名、错误文案与 taskConfig 里的 attributeIDs / useUniqueIDs / vertexColorSpace 字段名
- * 都沿用 three.js DRACOLoader 的既有约定，方便对照上游实现。本文件无模块导出，只通过 self.onmessage 通信。
- */
 "use strict";
 // 经典 Worker 没有模块作用域：靠这条指令把「给未声明变量赋值」从静默变成报错。
-// 解码结果要按转移对象回传给主线程，写错的属性名不该被悄悄挂到 self 上。
 
 // 解码器 WASM 模块的加载 Promise：只初始化一次，后续解码请求复用同一实例。
 let decoderPending = null;
@@ -56,7 +46,6 @@ self.onmessage = event => {
           error: decodeError?.message || String(decodeError)
         });
       } finally {
-        // 无论成败都要销毁 WASM 侧的 Decoder，否则堆内存会随请求数持续增长。
         dracoModule.destroy(dracoDecoder);
       }
     })
@@ -87,14 +76,11 @@ function initializeDecoder(options) {
   } catch (importError) {
     return Promise.reject(importError);
   }
-  // glTF 版导出的是 draco_decoder_gltf.wasm，仓库里实际只放了 draco_decoder.wasm，
-  // 这里统一重定向到真实文件名，与上游 DRACOLoader 的处理保持一致。
   decoderConfig.locateFile = fileName =>
     "" + decoderPath + (fileName === "draco_decoder_gltf.wasm" ? "draco_decoder.wasm" : fileName);
   return new Promise((resolve, reject) => {
     let isModuleLoaded = false;
     // 新版 Emscripten 走 onModuleLoaded 回调，旧版返回 Promise；
-    // 两条路径都接上，用幂等标记保证只 resolve 一次。
     decoderConfig.onModuleLoaded = module => {
       isModuleLoaded = true;
       resolve({
@@ -105,7 +91,6 @@ function initializeDecoder(options) {
       const modulePromise = self.DracoDecoderModule(decoderConfig);
       if (modulePromise && typeof modulePromise.then == "function") {
         modulePromise.then(dracoInstance => {
-          // 回调版本已经 resolve 过就不再重复处理，Promise 的二次 resolve 是空操作但仍需避免歧义。
           if (!isModuleLoaded) {
             resolve({
               draco: dracoInstance
@@ -123,7 +108,6 @@ function initializeDecoder(options) {
 /**
  * 把一段 Draco 压缩数据解成 three.js 的几何数据。
  * @param {object} taskConfig DRACOLoader 下发的任务配置（属性 id / 类型 / 唯一 id 开关等）。
- * @throws {Error} 几何类型未知或解码失败。
  */
 function decodeGeometry(draco, decoder, encodedData, taskConfig) {
   const attributeIds = taskConfig.attributeIDs;
@@ -158,7 +142,6 @@ function decodeGeometry(draco, decoder, encodedData, taskConfig) {
     const attributeType = self[attributeTypes[attributeKey]];
     let dracoAttribute;
     // useUniqueIDs 为真说明导出端用的是稳定唯一 id，按 id 取更可靠；
-    // 否则按语义类型（POSITION / NORMAL / ...）取，缺失的属性直接跳过。
     if (taskConfig.useUniqueIDs) {
       dracoAttribute = decoder.GetAttributeByUniqueId(dracoGeometry, attributeIds[attributeKey]);
     } else {
@@ -177,7 +160,6 @@ function decodeGeometry(draco, decoder, encodedData, taskConfig) {
       dracoAttribute
     );
     // 顶点色在不同 glTF 导出器里可能是线性空间也可能是 sRGB，把主线程的判定结果带回，
-    // three.js 侧据此决定要不要做色彩空间转换。
     if (attributeKey === "color") {
       decodedAttribute.vertexColorSpace = taskConfig.vertexColorSpace;
     }
@@ -193,8 +175,6 @@ function decodeGeometry(draco, decoder, encodedData, taskConfig) {
 
 /**
  * 取出网格的三角形索引。
- * Draco 索引固定为 32 位；这里在 WASM 堆上分配临时缓冲，读出后立刻 slice 成
- * 独立数组再释放，避免返回的视图指向已回收的堆内存。
  */
 function decodeIndex(dracoLib, meshDecoder, mesh) {
   const indexCount = mesh.num_faces() * 3;
@@ -226,7 +206,6 @@ function decodeAttribute(
   const dracoDataType = getDracoDataType(dracoApi, arrayType);
   const componentByteLength = componentCount * arrayType.BYTES_PER_ELEMENT;
   // Draco 输出按 4 字节对齐，单分量 8 位属性（如 Uint8 顶点色）每点后面会带填充字节，
-  // 因此先按对齐后的长度申请缓冲，再把有效分量压实。
   const alignedByteLength = Math.ceil(componentByteLength / 4) * 4;
   const alignedComponentCount = alignedByteLength / arrayType.BYTES_PER_ELEMENT;
   const dataByteLength = pointCount * componentByteLength;
@@ -276,8 +255,6 @@ function decodeAttribute(
 
 /**
  * 把 JS 定型数组类型映射到 Draco 的数据类型常量。
- *
- * @throws {Error} 遇到不支持的数组类型。
  */
 function getDracoDataType(dracoNamespace, arrayConstructor) {
   if (arrayConstructor === Float32Array) {

@@ -2,11 +2,10 @@
  * 设备控件区块：空调/地暖/浴霸详情（模式、目标温度、风速、摆风与联动灯）。
  */
 
-import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271208";
-import { randomUuid } from "../../../../utils/random-id.js?v=2609271208";
-// 颜色插值统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
-import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609271208";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
+import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271226";
+import { randomUuid } from "../../../../utils/random-id.js?v=2609271226";
+import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609271226";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
 import {
   climateControlStructureKey,
   climateEffectMode,
@@ -21,15 +20,13 @@ import {
   climateSwingModeLabel,
   normalizeClimateCapabilities,
   reconcileClimateTargetTemperature
-} from "../../../controls/climate.js?v=2609271208";
+} from "../../../controls/climate.js?v=2609271226";
 
-import { createClimateOptionGroup } from "./climate-option-group.js?v=2609271208";
+import { createClimateOptionGroup } from "./climate-option-group.js?v=2609271226";
 
 export const climateDetailsMethods = {
   /**
    * 构建空调 / 地暖详情弹窗的控制区（电源、模式、温度、风速、摆风）。
-   * 能力清单先过 normalizeClimateCapabilities 归一：各家集成的属性名与取值不一致，
-   * 统一字段后才能用同一套逻辑决定渲染哪些控件。
    */
   createClimateDetailsControls(
     climateControlsEntityId,
@@ -54,7 +51,6 @@ export const climateDetailsMethods = {
     climateControlsElement.className = "hb-climate-details-controls";
     climateControlsElement.dataset.climateDeviceType = climateDeviceType;
     // 结构键由实体、状态与机型算出：同键时只需更新数值，换键才整体重建控件，
-    // 避免每次温度变化都把整块温控区重画一遍而闪烁。
     climateControlsElement.dataset.climateStructureKey = climateControlStructureKey(
       climateControlsEntityId,
       climateControlsState,
@@ -79,7 +75,6 @@ export const climateDetailsMethods = {
     let commandTimer = null;
     let commandClearTimer = null;
     // 指令确认窗口：记下最近一次下发的指令，8 秒内视其仍然有效，
-    // 用来抑制「状态推送还没回来时滑条值弹回旧值」。
     const clearCommandTimers = () => {
       confirmedCommand = null;
       window.clearTimeout(commandTimer);
@@ -100,8 +95,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 安排一次「指令中间态」清理（2.5 秒后把待发状态一并收掉）。
-     * 与 8 秒确认窗口配套：确认窗口负责压住状态回弹，这个短定时器负责在请求失败或用户
-     * 不再操作时复位 pending 状态。
      */
     const scheduleCommandClear = () => {
       window.clearTimeout(commandClearTimer);
@@ -154,15 +147,11 @@ export const climateDetailsMethods = {
     let latestClimateEntityState = climateControlsState;
     /**
      * 取实体状态对应的气候「效果模式」，供可视化层决定配色与动画。
-     *
-     * 不同设备类型（空调 / 浴霸等）对 state 的解释不同，统一交给 climateEffectMode 判定。
      */
     const resolveEffectMode = effectSourceState =>
       climateEffectMode(effectSourceState, climateDeviceType);
     /**
      * 渲染温控区：模式按钮高亮、强调色、当前温度与可视回调。
-     * 强调色按「制冷 / 制热 / 其他」取模式色，再用目标温度在区间内的比例提亮，让用户一眼
-     * 看出设定温度处于高位还是低位；末尾统一刷新所有按钮与自定义下拉的选中态。
      */
     const renderClimateControls = (controlsSourceState = latestClimateEntityState) => {
       latestClimateEntityState = controlsSourceState || latestClimateEntityState;
@@ -222,8 +211,6 @@ export const climateDetailsMethods = {
           : "当前温度 --";
       /**
        * 按服务名取出该服务对应的「当前值」，用于高亮模式按钮与自定义下拉。
-       * HA 把模式、风速、摆风、预设等维度分散在 state 与各种 attribute 上，这里按服务名
-       * 集中映射，免得每个按钮各自写一遍取值逻辑。
        */
       const resolveServiceValue = climateServiceName =>
         climateServiceName === "set_hvac_mode"
@@ -276,8 +263,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 渲染圆形温控表盘：设定值、进度弧、指针角度与加减按钮可用性。
-     * 表盘可视角度只有 270°（自 225° 起），故进度按 75% 折算而非 100%；边界判断留半步
-     * 容差 stepEpsilon，否则步进值非整数时会「差一点点按不动」；参数控制强调动画重放。
      */
     const renderThermostat = (shouldAnimate = false) => {
       temperatureValueElement.innerHTML = supportsTargetTemperature
@@ -326,7 +311,6 @@ export const climateDetailsMethods = {
     let temperatureQueueTimer = null;
     /**
      * 判断两个设定温度是否相等（容差 1e-8）。
-     * 温度可能是 22.5 这类浮点数，直接用 === 会因浮点误差误判，导致相同的值仍被下发一次服务调用。
      */
     const areTemperaturesEqual = (firstTemperature, secondTemperature) =>
       firstTemperature !== null &&
@@ -347,8 +331,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 串行下发温度设定请求。
-     * 同一时刻只允许一个在途请求：取队首下发，期间新值继续排队，本轮结束 220ms 后再处理
-     * 下一个；与上次成功值相同就跳过；失败时清空队列并把显示回退到最后一个成功值。
      */
     const flushTemperatureQueue = async () => {
       window.clearTimeout(temperatureQueueTimer);
@@ -398,8 +380,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 把当前目标温度排入下发队列。
-     * 与队列末尾值相同就不重复排队（只刷新确认窗口）。preserveIntermediateSteps 为真且设备是热水器时保留 中间档位，因为热水器「点一次升一档」，合并中间值会让实际档位跳级；其他设备与拖动结束只留最终值。
-     * 160ms 延迟用于合并连续点击。
      */
     const enqueueTemperature = ({
       preserveIntermediateSteps: preserveIntermediateSteps = true
@@ -435,8 +415,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 按步长增减目标温度（「+」「-」按钮的处理函数）。
-     * 先夹到设备支持的 [min, max]，再按 capabilityTemperatureStep 的小数位数取整，避免
-     * 浮点累加出现 22.500000000000004 这类值；值真的变化才重绘并入队下发。
      */
     const stepTargetTemperature = stepCount => {
       if (!climateControlsInteractive || !supportsTargetTemperature) {
@@ -460,8 +438,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 把表盘上的指针位置换算成设定温度。
-     * 有效角度区间 225°~495°（从正下方顺时针 270°，缺口在正下方）；指针落在缺口
-     * 135°~225° 内时按靠近端吸附到端值，避免读值跳变；比例再按设备温区与步长量化。
      */
     const temperatureFromPointer = dialPointerEvent => {
       const dialRect = temperatureDialElement.getBoundingClientRect();
@@ -526,8 +502,6 @@ export const climateDetailsMethods = {
     });
     /**
      * 结束表盘拖动：清掉拖动态、释放指针捕获，并仅在温度真的变化时下发。
-     * 比较对象是「按下时的温度」而非上一次移动值，一次拖动只产生一个请求；
-     * preserveIntermediateSteps 传 false，让队列合并中间值。
      */
     const endDialDrag = dialReleaseEvent => {
       if (!activeDialDrag || dialReleaseEvent.pointerId !== activeDialDrag.pointerId) {
@@ -576,7 +550,6 @@ export const climateDetailsMethods = {
       ])
     );
     // 温控选项组（450 行细节）已外提到 climate-option-group.js；下面用它需要的 12 个外层局部
-    // 组成上下文对象传进去，函数体保持原样。
     const climateOptionGroupContext = {
       waterHeaterPanelElement,
       climateControlsInteractive,
@@ -657,8 +630,6 @@ export const climateDetailsMethods = {
       fanRangeElement.disabled = manualFanModes.length === 0;
       /**
        * 取风速档位对应的中文标签，取不到时退回原始值，最后兜底 "--"。
-       *
-       * 档位名可能是数字（1、2）或英文（low/auto），所以查表前统一转小写字符串。
        */
       const fanModeLabelAt = fanModeIndex =>
         fanModeLabels[String(manualFanModes[fanModeIndex]).toLowerCase()] ||
@@ -672,8 +643,6 @@ export const climateDetailsMethods = {
       autoFanButton.classList.toggle("active", isAutoFanSelected);
       /**
        * 渲染风速滑条：档位文案、进度填充与「自动」按钮高亮。
-       * 自动挡不在手动档位序列里，故用 isAutoFanSelected 单独决定文案，同时保留滑条位置，
-       * 用户切回手动时能原地恢复上次档位。
        */
       const renderFanSlider = () => {
         const fanSliderIndex = Number(fanRangeElement.value);
@@ -1030,8 +999,6 @@ export const climateDetailsMethods = {
   },
   /**
    * 构建浴室取暖器的照明开关。
-   * 取暖与照明是同一设备下的两个实体，开关必须落到 light 实体上，故单独做一个控件，
-   * 而不复用取暖器本体的开关。
    */
   createBathHeaterLightControl(
     bathLightEntityId,
@@ -1089,8 +1056,6 @@ export const climateDetailsMethods = {
     };
     /**
      * 切换浴霸灯（乐观更新 + 失败回滚）。
-     *
-     * 先按相反状态渲染以获得即时反馈，请求失败再退回原状态并把错误交给 onError。
      */
     const toggleBathLight = async () => {
       if (!bathLightInteractive || isBathLightPending) {

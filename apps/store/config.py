@@ -1,7 +1,4 @@
 """授权商店服务的运行配置。
-
-约定：接入凭据、路径、端口这类「运维」配置走环境变量（本文件）；
-站点名称、公告、邀请比例这类「可运营」内容走数据库 store_settings 表。
 """
 
 from __future__ import annotations
@@ -27,10 +24,6 @@ DEFAULT_ORDER_TTL_SECONDS = 120
 #: 解除设备绑定冷却（与参考站一致：28800 秒 = 8 小时）
 DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
 #: 签发租约的有效期；客户端默认 300 秒心跳一次。
-#: ⚠ 这个值**同时**决定两件事：① **离线可用时长** —— 签名有效期内客户端连不上商店也照常放行，租约
-#: 一过就转 ``LEASE_EXPIRED`` 并收回编辑器功能；② **吊销生效上界** —— 停用授权/解绑设备后客户端要等
-#: 下一次成功心跳，持续离线的客户端最坏撑到租约到期。两者需求反向，取 72 小时作折中：吊销最多 3 天
-#: 生效，商店整体停摆 3 天内也不会把所有已付费客户锁在门外。误配很大时启动会打告警。
 DEFAULT_LEASE_TTL_SECONDS = 72 * 3600
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 300
 #: 邮箱验证码有效期与重发间隔
@@ -46,15 +39,11 @@ def _env_str(name: str, default: str = "") -> str:
 
 
 #: ``_env_bool`` 接受的写法。**不再用「不在真值集合里就当假」**：部署时把
-#: ``STORE_COOKIE_SECURE`` 敲成 ``ture`` 会让 Cookie 静默丢掉 ``Secure``，
-#: ``STORE_ALLOW_MOCK_PAYMENTS`` 敲错则可能把模拟收银台留在线上 —— 这类拼错的
-#: 唯一正确处置是启动即失败，而不是替运维猜。
 _ENV_TRUE = frozenset({"1", "true", "yes", "on", "y", "t"})
 _ENV_FALSE = frozenset({"0", "false", "no", "off", "n", "f"})
 
 
 def _read_secret_file(path: str) -> str:
-    """读取密钥文件内容；读不到就返回空串（由调用方回退到内联值）。"""
     if not path:
         return ""
     try:
@@ -83,9 +72,6 @@ def _env_int(
     maximum: int | None = None,
 ) -> int:
     """读一个整数环境变量。
-    解析失败**抛错，不回退默认值**：环境变量是部署时的输入，写错一个字符过去会静默变成「按默认值跑」，
-    正是「改了配置但行为没变」且日志一字不提的事故来源；只有「未设置」与「空串」才用默认值。范围校验
-    同理放在这里，否则调用方各自 ``max(1, ...)`` 兜底会把「配错了」悄悄变成按别的值跑。
     """
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -148,16 +134,12 @@ class StoreSettings:
     cookie_name: str = "ha_bridge_store_session"
     hint_cookie_name: str = "homeos_store_hint"
     #: HTTPS 部署时置 True；默认 False 不代表「只有显式开启才安全」——
-    #: 请求级判定会自动按 https 给 Cookie 加 Secure，见 request_security。
     cookie_secure: bool = False
     #: 可信反向代理的 IP / CIDR 列表。为空表示不信任任何转发头，
-    #: 此时限流与审计按 TCP 对端地址统计（直连部署下就是真实客户端）。
     trusted_proxies: tuple[str, ...] = ()
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
 
     #: 首次初始化（创建第一个管理员）的引导密钥。
-    #: 为空时由 ``apps/store/security/setup_guard.py`` 自动生成一份并落到 ``data_dir/setup-token``，
-    #: 同时打印到启动日志（stderr）。用 localhost / 127.0.0.1 从本机直连访问无需填写。
     setup_token: str = ""
 
     # 邮箱验证码
@@ -169,32 +151,22 @@ class StoreSettings:
     smtp_password: str = ""
     smtp_use_ssl: bool = True
     smtp_starttls: bool = False
-    #: 单次 SMTP 交互的超时；重试会让总耗时乘以尝试次数，所以别设太大
     smtp_timeout_seconds: int = 15
     #: 发信失败后的重试次数。**只对瞬时故障重试**（连接被拒、超时、4xx），
-    #: 认证失败/收件人被拒这类确定性错误重试没有意义，只会拖慢注册接口。
     smtp_max_attempts: int = 3
     #: 重试之间的基础退避秒数（线性递增：1s、2s、3s…）
     smtp_retry_backoff_seconds: float = 1.0
     verification_ttl_seconds: int = DEFAULT_VERIFICATION_TTL_SECONDS
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
     #: 全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
-    #: 见 ``apps/store/api/store.py`` 的 ``_VERIFICATION_IP_LIMITER``）。做成可配置是因为
-    #: 合理值随站点规模变化；触发时会打 error 级日志提示运营调高。
     verification_global_hourly_limit: int = 500
     #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
     expose_verification_code: bool = False
     #: 是否公开 ``/store-api-docs``。默认**关闭**：那两个页面会把全部商店与
-    #: 后台端点、参数结构、鉴权方式一次性列给任何人 —— 等于给攻击者一份现成的目录。
-    #: 本地联调时用 STORE_EXPOSE_API_DOCS=1 打开。
     expose_api_docs: bool = False
 
     # 支付
-    #: 空串 = 尚未配置渠道。**绝不能默认 mock**：模拟收银台点一下就直接签发真实
-    #: 授权（照默认部署 = 付费产品免费送）；未配置时 ``resolve_provider`` 拒绝建单。
     payment_provider: str = ""
-    #: 是否允许使用模拟收银台（mock）。默认关闭，必须显式开启（STORE_ALLOW_MOCK_PAYMENTS=1），
-    #: 且仅供本地联调；正式收款环境绝不能打开。
     allow_mock_payments: bool = False
     alipay_app_id: str = ""
     alipay_gateway_url: str = "https://openapi.alipay.com/gateway.do"
@@ -214,28 +186,19 @@ class StoreSettings:
     alipay_verify_response_sign: bool = True
 
     # 授权签发
-    #: 注意：仓库根的 keys/ 是客户端默认读取的公钥镜像（由 ops/start.py / 容器启动自动同步），私钥留在服务自己的目录
     license_keys_dir: Path = STORE_ROOT / "keys" / "local"
     #: 留空 = 按公钥文件派生 keyId（推荐，见 ``license_key_id`` 属性）；显式赋值时
-    #: 轮换要服务端与客户端同步改名，否则重生成密钥后客户端只会看到「指纹不匹配」。
-    #: 名字带 ``_override`` 是让同名属性成为唯一入口，读到的永远是**实际生效**的 id。
     license_key_id_override: str = ""
     license_transport_key_id_override: str = ""
     lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     heartbeat_interval_seconds: int = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
-    #: ``/v2/heartbeat`` 与 ``/v2/recover`` 的**来源 IP** 小时配额（见 ``apps/store/api/license.py``）。
-    #: 比 ``/v2/activate`` 的 60/小时宽得多：这些令牌猜不出来但流量常态，且额度按
-    #: **出口地址**算，NAT 下多设备会叠加 —— 出问题表现为「授权页卡住 + 429」，调大即可。
     license_session_ip_hourly_limit: int = 3600
 
     # 订单 / 设备
     order_ttl_seconds: int = DEFAULT_ORDER_TTL_SECONDS
     device_release_cooldown_seconds: int = DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS
     #: 后台支付巡检间隔（秒），0 = 关闭。巡检补前端轮询覆盖不到的两件事：
-    #: 认领「用户付完就关页面」的单；关闭本地已过期但支付宝仍开着（旧二维码
-    #: 还能付）的交易。
     payment_sweep_interval_seconds: int = 30
-    #: 每轮巡检处理的订单上限，避免积压时一次性打爆渠道配额
     payment_sweep_batch: int = 25
 
     @property
@@ -245,10 +208,6 @@ class StoreSettings:
     @property
     def appearance_path(self) -> Path:
         """站点配色文件；删除该文件并重启即可回到设计系统默认配色。
-
-        与主应用的 ``AppearanceStore`` 同款做法（``data/appearance.json``）：
-        两份文件各自独立 —— 商店是独立部署、独立域名的对外站点，
-        它的配色不该跟着主应用中控走。
         """
         return self.data_dir / "appearance.json"
 
@@ -295,13 +254,6 @@ class StoreSettings:
 
     @property
     def license_key_id(self) -> str:
-        """实际写进租约的签名 keyId：显式配置优先，否则由公钥文件派生。
-
-        派生而不是给个默认字符串，是为了让「换密钥」在协议上可见：同名的静态
-        id 配上客户端那张指纹表，轮换后新密钥会被报成「指纹不匹配」。
-        公钥文件缺失时退回显式值/空串，把失败留给真正加载密钥的那一步报，
-        而不是在这里编一个谁也对不上的 id。
-        """
         if self.license_key_id_override:
             return self.license_key_id_override
         return license_keys.key_id_from_public(self.public_key_path) if self.public_key_path.is_file() else ""
@@ -317,9 +269,6 @@ class StoreSettings:
     @property
     def previous_key_paths(self) -> tuple[Path, Path, Path, Path] | None:
         """上一代四件套（签名/传输 × 公/私）；只要有一件缺失就返回 ``None``。
-
-        四件必须齐全：只留了公钥没有私钥，服务端既解不开旧客户端的请求、也签不出
-        旧客户端认的租约，留着只会让人误以为窗口开着。
         """
         paths = (
             self.previous_private_key_path,
@@ -345,21 +294,15 @@ class StoreSettings:
     @property
     def smtp_ready(self) -> bool:
         """SMTP 是否具备真正发信的条件。
-
-        少了授权码/密码就直接判定为未就绪：否则每个验证码请求都会去连一次远端、
-        等到超时（``_send_smtp`` 的 timeout=15s）才回退，注册接口白白卡十几秒。
-        这里提前拦掉，让它立刻退化为日志/回显模式。
         """
         if self.mail_mode != "smtp" or not self.smtp_host:
             return False
-        # 有用户名就必须有密码；部分内网 SMTP 允许匿名，所以用户名空时不强制密码
         if self.smtp_username and not self.smtp_password:
             return False
         return True
 
     @property
     def smtp_misconfigured(self) -> bool:
-        """显式要求 smtp 但凭据不全——需要大声报警，避免又变成静默失败。"""
         return self.mail_mode == "smtp" and not self.smtp_ready
 
         # 支付宝密钥：优先读文件，其次用内联值
@@ -443,12 +386,8 @@ def load_settings(**overrides) -> StoreSettings:
         "alipay_verify_response_sign": _env_bool("STORE_ALIPAY_VERIFY_RESPONSE", True),
         "license_keys_dir": _env_path("STORE_LICENSE_KEYS_DIR", STORE_ROOT / "keys" / "local"),
         #: 留空 = 由公钥文件派生 keyId（见 ``license_key_id`` 属性）。
-        #: 不再给静态默认值：静态名字在轮换后不变，客户端会把新公钥报成指纹不匹配。
         "license_key_id_override": _env_str("STORE_LICENSE_KEY_ID"),
         "license_transport_key_id_override": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID"),
-        #: 没有上界：调大是**合法的可用性取舍**（见 ``_warn_lease_revocation_bound``），
-        #: 只在启动时把「吊销生效上界」的代价打进日志。下界与心跳频率的交叉校验见
-        #: ``_validate_settings``。
         "lease_ttl_seconds": _env_int(
             "STORE_LEASE_TTL_SECONDS", DEFAULT_LEASE_TTL_SECONDS, minimum=60
         ),
@@ -490,8 +429,6 @@ def load_settings(**overrides) -> StoreSettings:
 _LOOPBACK_BIND_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 #: ``(字段, 最小值, 最大值)``：环境变量那侧已经带了范围，这里再对**最终对象**做一遍，
-#: 因为 ``load_settings(**overrides)`` 是绕过 ``_env_int`` 的（程序化构造走这条路），
-#: 而「负数 TTL」这种配置的后果与来源无关。
 _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("port", 1, 65535),
     ("smtp_port", 1, 65535),
@@ -514,9 +451,6 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
 
 def _validate_settings(settings: StoreSettings) -> None:
     """启动即校验，配错就抛 —— 不静默纠正、不带着坏值继续跑。
-    ① **单字段越界**（``_RANGED_FIELDS``）：典型是 ``order_ttl_seconds`` 为负或 0，订单 ``expires_at``
-    等于创建时间、用户看到「一下单就过期」而下单接口照常 200。② **跨字段矛盾**：租约 TTL 必须明显大于
-    心跳间隔，否则健康客户端会在两次心跳之间就把租约耗到 ``LEASE_EXPIRED``。取 2 倍心跳作为下界。
     """
     for field, minimum, maximum in _RANGED_FIELDS:
         value = getattr(settings, field)
@@ -538,10 +472,6 @@ def _validate_settings(settings: StoreSettings) -> None:
 
 def _validate_rotation(settings: StoreSettings) -> None:
     """检查轮换重叠窗口的配置自洽性。
-    上一代密钥齐全时窗口就是开着的，这里只拦「开了但没用」的组合：① 显式 keyId 且上一代派生出**同一个**
-    id（例如把当前密钥直接复制成 ``*.previous.pem``，或两边都用静态 ``STORE_LICENSE_KEY_ID``），此时
-    ``KeyRegistry`` 会因 id 重复拒绝启动；② 上一代存在但只改了其中一个 id —— 不影响启动，但会在日志里
-    点明「旧客户端仍按上一代 id 验签」。
     """
     previous_paths = settings.previous_key_paths
     if previous_paths is None:
@@ -567,10 +497,6 @@ def _validate_rotation(settings: StoreSettings) -> None:
 
 def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
     """验证码回显 + 非本机绑定 → 大声告警。
-    回显（``mail_mode=echo`` 或 ``STORE_EXPOSE_VERIFICATION_CODE``）是本地联调用的：一旦同时监听非本机
-    网卡，请求侧只对能确定来自本机的来源回显，但前面挂了**同机反代且没配** ``STORE_TRUSTED_PROXIES``
-    时每个外部请求的对端都是 127.0.0.1、无从区分 —— 那正是要提醒的场景。刻意只告警不抛错：硬失败会把
-    本机联调这一合法用法一起挡掉。
     """
     exposure_on = bool(settings.expose_verification_code) or settings.mail_mode == "echo"
     bind_host = (settings.host or "").strip().lower()
@@ -588,15 +514,11 @@ def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
 
 
 #: 租约 TTL 超过这个值时给启动告警：此时「吊销最慢多久生效」已经慢到不像话，
-#: 但又不至于明显是笔误 —— 属于「运营可能没意识到自己配了什么」的区间。
 _LEASE_TTL_WARN_SECONDS = 7 * 24 * 3600
 
 
 def _warn_lease_revocation_bound(settings: StoreSettings) -> None:
     """把「吊销生效上界」在启动日志里说清楚。
-    租约 TTL 同时是离线可用时长与**吊销最慢多久生效**，但常量名读起来只像前者 —— 运营为「让断网用户
-    更从容」把它调到 30 天时，多半没意识到停用一张授权也要等 30 天才对离线设备生效。所以这里把耦合
-    关系换算成天数摆到日志里。刻意只告警不拦：TTL 调大是合法的可用性取舍，只保证选择时看得见代价。
     """
     seconds = int(settings.lease_ttl_seconds or 0)
     if seconds <= _LEASE_TTL_WARN_SECONDS:

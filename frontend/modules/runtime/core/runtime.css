@@ -1,14 +1,7 @@
 /*
  * 3D 交互控件的外层样式（宿主页侧）。
- *
- * 位置：interaction3d 的运行时外壳，runtime.js 建出的 iframe 与加载态、以及各编辑器弹窗
- * （配置 / 外观编辑器、照射范围对话框、扫地机地图编辑器、弹窗布局预览、聚焦设备弹窗）都靠这里的类名；
- * 编辑器弹窗由 JS 打开时动态注入本文件，关闭时移除。
- *
- * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
- * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609271208";
+@import "/static/bridge/controls.css?v=2609271226";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -17,8 +10,6 @@
   background: transparent;
   color: #eee8dd;
   /* 尺寸容器：3D 控件从小挂件到整屏背景尺寸跨度极大，加载 / 失败文案要按控件
-     实际尺寸缩放（见下面 .i3d-loading 的 cq 字号），否则整屏时 14px 根本看不清。
-     width / height 都是 100%（父层给定了像素尺寸），size containment 不会反过来
      把自身压成零高，也不会改动子元素的百分比定位。 */
   container-type: size;
 }
@@ -38,8 +29,6 @@
   transform-origin: 0 0;
   opacity: 0;
 }
-/* 就绪前 iframe 保持透明，避免用户看到尚未布好光的半成品画面；
-   就绪后淡入，缩放同步由 JS 完成。 */
 .hb-interaction3d-runtime.is-ready .i3d-frame {
   opacity: 1;
   animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -64,7 +53,6 @@
   background: transparent;
   color: var(--hos-tool-text-dim);
   /* 字号跟着控件尺寸走：小挂件落到 16px 下限（与旧的 14px 观感接近），
-     墙面屏 / 整屏 3D 背景能放大到 40px。min() 同时看宽和高，
      避免「很宽但很矮」的组件里字把画面撑爆。 */
   font-family: sans-serif;
   font-size: clamp(16px, min(2.4cqw, 6cqh), 40px);
@@ -297,7 +285,6 @@
   border: 0;
   accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
-/* 说明文案与错误行：错误行空着时不占高度，避免面板跳动。 */
 .i3d-editor .i3d-note {
   margin: 8px 0 12px;
   color: var(--muted, #89949d);
@@ -1524,9 +1511,6 @@
   cursor: default;
 }
 /* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
- * 宿主节点的 data-scene-style 由 runtime.js 写入，这里把弹窗 / 扫地机详情 /
- * 实体详情这类运行时浮层换成与舞台同一套暖米色，保证 3D 控件与运行时弹窗
- * 看起来是同一套皮肤。取值与 0.5.6 暖色色卡逐字一致。
  */
 .hb-interaction3d-runtime[data-scene-style="warm-wood"] :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
   color: #493f34;

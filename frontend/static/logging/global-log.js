@@ -1,13 +1,8 @@
 /**
  * 全局日志查看器（后端日志 + 客户端上报日志的统一界面）。
- *
- * 编辑器 / 面板顶栏「全局日志」按钮打开的对话框，由 global-log-boot.js 注入 api 后调用
- * setupGlobalLog 启动。分页拉取 /api/v1/logs、按等级 / 分类 / 关键字筛选、展开详情、导出 txt、
- * 清空，并在打开期间自动刷新。接口路径由注入的 api 拼接；每页 200 条，翻到「查看历史」时暂停
- * 自动刷新，避免覆盖用户正在看的内容。
  */
-import { confirmAction } from "../shared/ui-confirm.js?v=2609271208";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609271208";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609271226";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609271226";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {
@@ -56,7 +51,6 @@ export function setupGlobalLog({ api: apiRequest }) {
   let refreshTimer = null;
   let searchTimer = null;
   let nextOffset = null;
-  // 加载中又收到新的刷新请求时置位，当前请求结束后补一次，避免请求互相覆盖。
   let hasPendingRefresh = false;
   const PAGE_SIZE = 200;
 
@@ -70,7 +64,6 @@ export function setupGlobalLog({ api: apiRequest }) {
       listElement.append(emptyElement);
       return;
     }
-    // 先攒进 DocumentFragment 再一次性插入，避免逐条 append 触发多次布局。
     const fragment = document.createDocumentFragment();
     for (const logEntry of entryList) {
       const itemElement = document.createElement("article");
@@ -82,7 +75,6 @@ export function setupGlobalLog({ api: apiRequest }) {
       messageElement.textContent = logEntry.message || "未提供说明";
       const metaElement = document.createElement("span");
       // 客户端上报的日志同时给出「客户端发生」与「服务端接收」两个时间，
-      // 便于排查离线补传的时序问题。
       const timeText = logEntry.clientTimestamp
         ? "客户端发生 " +
           formatTimestamp(logEntry.clientTimestamp) +
@@ -131,7 +123,6 @@ export function setupGlobalLog({ api: apiRequest }) {
     listElement.append(fragment);
   }
 
-  // 刷新分类下拉；当前选中的分类若已不存在则回退到「全部分类」。
   function syncCategoryOptions(categories) {
     const currentCategory = categorySelect.value;
     categorySelect.replaceChildren(new Option("全部分类", ""));
@@ -160,9 +151,6 @@ export function setupGlobalLog({ api: apiRequest }) {
     return searchParams;
   }
 
-  /**
-   * 拉取日志列表；options.append 为 true 时在现有列表后追加（翻页），否则从第一页重新加载。
-   */
   async function loadEntries({ append: append = false } = {}) {
     if (isLoading) {
       // 正在加载时记下待刷新标记，由 finally 里的逻辑补一次。
@@ -187,7 +175,6 @@ export function setupGlobalLog({ api: apiRequest }) {
       queryParams.set("offset", String((append && nextOffset) || 0));
       const response = await apiRequest("/logs?" + queryParams);
       const items = response?.items || [];
-      // 追加时按 id 去重（Map 保留后写入的项），避免翻页期间新日志造成重复行。
       entries = append
         ? [...new Map([...entries, ...items].map(entry => [entry.id, entry])).values()]
         : items;
@@ -248,7 +235,6 @@ export function setupGlobalLog({ api: apiRequest }) {
     }
   }
 
-  // 关闭对话框时必须停止自动刷新，否则会在后台持续请求。
   function stopAutoRefresh() {
     if (refreshTimer) {
       window.clearInterval(refreshTimer);
@@ -264,14 +250,12 @@ export function setupGlobalLog({ api: apiRequest }) {
     await loadEntries();
     stopAutoRefresh();
     refreshTimer = window.setInterval(() => {
-      // 用户翻到历史页或展开了详情时暂停刷新，避免内容被顶掉。
       if (entries.length <= PAGE_SIZE && !listElement.querySelector("details[open]")) {
         loadEntries();
       }
     }, 10000);
   }
 
-  // 关闭对话框：必须停掉轮询再 close，否则对话框已关但 interval 仍在后台发请求。
   function closeDialog() {
     stopAutoRefresh();
     if (dialogElement.open) {
@@ -290,7 +274,6 @@ export function setupGlobalLog({ api: apiRequest }) {
   );
   levelSelect.addEventListener("change", loadEntries);
   categorySelect.addEventListener("change", loadEntries);
-  // 搜索输入做 250ms 防抖，避免每敲一个字就发一次请求。
   searchInput.addEventListener("input", () => {
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(loadEntries, 250);

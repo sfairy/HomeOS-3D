@@ -1,23 +1,15 @@
 /*
  * 物件模型构建分派表。
- *
- * 拆之前：studio-app.js 的 buildItemModel 里一条 5700 行的 if/else 链，65 个分支挨在一起，
- * 改一个物件要横穿几千行，谁先谁后只能靠读。拆之后：这里只剩「谓词 + 构建器」一行一条，
- * 顺序仍是优先级（第一条命中即胜出），构建体各自在 item-builders/*.js 里。
- *
- * 谓词改动必须和原链同序：几个排除性条件（外部模型兜底要求「不是 smallcar / 不是 sofa」）
- * 依赖前面的专有分支先命中，顺序一动就换分支。
  */
-import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609271208";
-// 窗帘形态的单一读法（新字段 curtainForm，兼容历史 curtainStyle）—— 分派表与运行时必须同一口径。
-import { resolveCurtainForm } from "../../loaders/studio-curtain-track.js?v=2609271208";
+import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609271226";
+import { resolveCurtainForm } from "../../loaders/studio-curtain-track.js?v=2609271226";
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   STAIR_ITEM_TYPES
-} from "../studio-item-types.js?v=2609271208";
+} from "../studio-item-types.js?v=2609271226";
 import {
   buildCurtainItem,
   buildFloorlampItem,
@@ -25,7 +17,7 @@ import {
   buildRollerCurtainItem,
   buildTrackCurtainItem,
   buildWalllampItem
-} from "./curtain-lighting.js?v=2609271208";
+} from "./curtain-lighting.js?v=2609271226";
 import {
   buildCabinetItem,
   buildFeaturewallItem,
@@ -36,17 +28,17 @@ import {
   buildShoecabinetItem,
   buildSideboardItem,
   buildWallcabinetItem
-} from "./storage-cabinets.js?v=2609271208";
+} from "./storage-cabinets.js?v=2609271226";
 import {
   buildExternalModelFallbackItem
-} from "./external-fallback.js?v=2609271208";
+} from "./external-fallback.js?v=2609271226";
 import {
   buildGlasspartitionItem,
   buildPlantItem,
   buildSmallcarItem,
   buildStairItem,
   buildTvItem
-} from "./media-structure.js?v=2609271208";
+} from "./media-structure.js?v=2609271226";
 import {
   buildBarItem,
   buildBedItem,
@@ -55,7 +47,7 @@ import {
   buildRoundTableTurntableItem,
   buildSofaItem,
   buildTableItem
-} from "./seating.js?v=2609271208";
+} from "./seating.js?v=2609271226";
 import {
   buildAquariumItem,
   buildGaswaterheaterItem,
@@ -63,7 +55,7 @@ import {
   buildStoragewaterheaterItem,
   buildTeaBarMachineItem,
   buildWasherDryerItem
-} from "./water-appliances.js?v=2609271208";
+} from "./water-appliances.js?v=2609271226";
 import {
   buildCoffeetableItem,
   buildDeskItem,
@@ -72,11 +64,11 @@ import {
   buildRugItem,
   buildSquarecoffeetableItem,
   buildTvstandItem
-} from "./tables-desks.js?v=2609271208";
+} from "./tables-desks.js?v=2609271226";
 import {
   buildBookcaseItem,
   buildGlasscabinetItem
-} from "./tall-cabinets.js?v=2609271208";
+} from "./tall-cabinets.js?v=2609271226";
 import {
   buildDishwasherItem,
   buildFridgeItem,
@@ -85,7 +77,7 @@ import {
   buildRangehoodItem,
   buildRicecookerItem,
   buildSteamovenItem
-} from "./kitchen.js?v=2609271208";
+} from "./kitchen.js?v=2609271226";
 import {
   buildAirpurifierItem,
   buildCameraPresenceItem,
@@ -93,7 +85,7 @@ import {
   buildNasItem,
   buildRobotvacuumItem,
   buildWallacItem
-} from "./climate-devices.js?v=2609271208";
+} from "./climate-devices.js?v=2609271226";
 import {
   buildBasinItem,
   buildBathtubItem,
@@ -102,17 +94,13 @@ import {
   buildToiletItem,
   buildUrinalItem,
   buildVanityItem
-} from "./bathroom.js?v=2609271208";
+} from "./bathroom.js?v=2609271226";
 
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。
- * terminal 为真表示该类型自带收尾（轨道帘构建完直接返回模型组），调用方跳过 finishItemModel。
  */
 export const ITEM_MODEL_BUILDERS = [
   {
-    // itemSpec.type === "curtain" && offlineModelExport !== true && resolveCurtainForm(itemSpec) === "roller"
-    // 卷帘排在轨道帘之前：两者都命中 type === "curtain"，先到的分支胜出，
-    // 卷帘必须在这里被截住，否则会落进轨道帘那条（生成轨道 + 左右两片）。
     match: ({ itemSpec }) => itemSpec.type === "curtain" &&
       itemSpec.offlineModelExport !== true &&
       resolveCurtainForm(itemSpec) === "roller",
@@ -120,7 +108,6 @@ export const ITEM_MODEL_BUILDERS = [
     terminal: true
   },
   {
-    // itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true
     match: ({ itemSpec }) => itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true,
     build: buildTrackCurtainItem,
     terminal: true
@@ -136,8 +123,6 @@ export const ITEM_MODEL_BUILDERS = [
     build: buildPlanlabelItem
   },
   {
-    // itemSpec.offlineModelExport !== true && ALL_ITEM_MODELS[itemSpec.type] && !(itemSpec.type === "fridge" && itemSpec.fridgeStyle === "double") && itemSpec.type !== "smallcar" && itemSpec.type !== "sofa"
-    // 左右双开门冰箱没有对应 GLB，必须落到下面的程序化 buildFridgeItem；其余冰箱仍走外部模型。
     match: ({ itemSpec }) => itemSpec.offlineModelExport !== true &&
     ALL_ITEM_MODELS[itemSpec.type] &&
     !(itemSpec.type === "fridge" && itemSpec.fridgeStyle === "double") &&
@@ -261,7 +246,6 @@ export const ITEM_MODEL_BUILDERS = [
     build: buildWallcabinetItem
   },
   {
-    // ["kitchenbase", "kitchensink", "kitchencooktop"].includes(itemSpec.type)
     match: ({ itemSpec }) => ["kitchenbase", "kitchensink", "kitchencooktop"].includes(itemSpec.type),
     build: buildKitchenBaseItem
   },
@@ -451,7 +435,6 @@ export function buildItemBody(context) {
 
 /**
  * 收尾：外部模型整棵替换、电视屏幕、合批与材质共享、选中高亮、姿态。
- * 放在最后是因为外部模型替换可能换掉整棵子树，姿态要作用在替换后幸存的节点上。
  */
 export function finishItemModel(context) {
   const {
@@ -475,8 +458,6 @@ export function finishItemModel(context) {
     itemSpec.offlineModelExport !== true
   ) {
     // 占位件 = 此刻挂在模型组上的**几何**。例外是「不是占位件、而是独立叠层」的那几块
-    // （小车的充电光晕与闪电）：它们是特效，不是「模型到位前的代餐」，一起清掉会让
-    // 车模加载完成的一瞬间充电特效凭空消失。
     const externalModelChildren = [...itemGroup.children].filter(
       placeholderChild => placeholderChild.userData?.homeosModelOverlay !== true
     );

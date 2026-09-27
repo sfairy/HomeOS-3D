@@ -1,23 +1,13 @@
 /*
  * 3D 舞台（iframe 内）的样式表。
- *
- * 位置：interaction3d 的展示侧，stage.js 建出的演示层、标记层、工具栏与页签、灯光面板、
- * 设备状态卡、聚焦暗角与照射范围编辑器的类名都靠这里定位；仅舞台页加载时引入。
- *
- * 约定：标记与浮层绝对定位叠在 canvas 上，坐标由 stage.js 每帧投影写成 style.left / top，
- * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
- * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609271208";
-@import "../nas/nas-panel.css?v=2609271208";
-@import "../climate/climate-panel.css?v=2609271208";
-@import "../cover/cover-panel.css?v=2609271208";
-@import "../device/device-panel.css?v=2609271208";
+@import "/static/bridge/controls.css?v=2609271226";
+@import "../nas/nas-panel.css?v=2609271226";
+@import "../climate/climate-panel.css?v=2609271226";
+@import "../cover/cover-panel.css?v=2609271226";
+@import "../device/device-panel.css?v=2609271226";
 /* ===== 舞台页面骨架 ===== */
 
-/* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
-   → #preview-3d 这条链路，宿主页面的其余结构一概隐藏，
-   避免父页面的调试容器或工具栏漏进舞台。 */
 html:has(body.interaction3d-stage),
 body.interaction3d-stage {
   width: 100%;
@@ -682,9 +672,6 @@ body.interaction3d-stage.is-background-hidden,
   pointer-events: none;
 }
 /* 视图编辑时显示的鼠标操作提示条。
-   它是给「正在编辑的人」看的说明，不跟着演示层的缩放一起变小：--i3d-help-scale 由
-   stage.js 的 layoutStage 按演示层缩放反算（缺省 1 = 设计字号）。编辑器预览里设计画布
-   常被压到 0.36 倍，不反算的话 11px 只剩 4px，等于看不见。
    因此三处都要跟着反算：自身缩放、与底边的距离（乘），以及宽度上限（除，避免放大后越界）。 */
 .interaction3d-stage .i3d-view-help {
   position: absolute;
@@ -706,10 +693,6 @@ body.interaction3d-stage.is-background-hidden,
   transform-origin: 50% 100%;
   pointer-events: none;
 }
-/* 编辑态的「正在配置：…」提示条。和操作提示条一样是给「正在编辑的人」看的，所以用同一套
-   反算口径 —— 自身缩放、与上/左边的距离（乘）、宽度上限（除）；三处少一处就会在编辑器
-   预览（画布常压到 0.36 倍）里错位或越界，见上面 .i3d-view-help 的说明。
-   它不属于任何控制面板，只是给选中态补一个名字，因此不吃指针事件、压在最上层。 */
 .interaction3d-stage .i3d-editor-selection {
   position: absolute;
   top: calc(14px * var(--i3d-help-scale, 1));
@@ -1434,11 +1417,9 @@ body.interaction3d-stage.is-background-hidden,
   letter-spacing: 0.025em;
   line-height: 22px;
 }
-/* 子面板各自收缩到列宽内，避免长标题把并排布局撑破（并排只有约半幅宽）。 */
 .i3d-cover-group-panel > .i3d-cover-panel {
   min-width: 0;
   /* 并排时每列只剩约 154px，2D 原尺寸的 244px 示意图放不下（还要留出内边距）；
-     按 0.6 缩到约 146px —— 再小叶片会糊成一片，反而看不出是窗帘。
      竖排（.is-vertical，单列 320px）时恢复原尺寸，见下一条。 */
   --i3d-cover-visual-scale: 0.6;
 }
@@ -1446,7 +1427,6 @@ body.interaction3d-stage.is-background-hidden,
   --i3d-cover-visual-scale: 1;
 }
 /* 组合标记：标记层会在里面塞两枚成员图标（典型是纱帘 + 布帘）。默认的 .i3d-marker-icon
-   是「绝对定位 + 居中」，两枚会叠在一起，所以这里改成横向排列，底色也从圆改成胶囊 ——
    宽度由 marker-layer 按「两枚图标 + 间隙」写在内联样式上，这里只负责怎么排。 */
 .interaction3d-stage .i3d-marker.is-curtain-group {
   display: flex;
@@ -1496,26 +1476,11 @@ body.interaction3d-stage.is-background-hidden,
   text-align: right;
   white-space: nowrap;
 }
-/* ===== 电视设备图形（材质照 2D 的 .hb-media-speaker-visual 移植，形态改成屏框） =====
-
-   2D 那个域画的是 88px 圆形音箱，本仓这一页是电视 / 媒体播放器弹窗 —— 圆球摆在标题下
-   会被读成音箱。所以形态按电视重画（屏框 + 屏面 + 底部网罩条 + 状态灯 + 底座），
-   但材质配方逐条沿用 2D：
-
-   - 机身：以左上偏中为受光点的径向渐变（2D 是 circle at 42% 36%，这里因为屏框是横构图
-     把受光点移到 30% 22%），加内高光 + 外投影；
-   - 网罩：±42° 两组重复线性渐变交叉叠出织网，透明度 0.62 —— 与 2D 完全同值；
-   - 状态灯：强调色圆点，播放中提亮并做 2.2s 呼吸（2D 的光圈是同一个节奏）。
-
-   配色一律硬编（不取主题令牌）：这是一台实体电视的金属与玻璃，主题翻成暖色浅底时
-   跟着变米白会立刻读成「一块塑料板」——与净化器 / 空调 / 灯具那几台图形同一口径。 */
 .i3d-tv-visual {
   --i3d-tv-accent: #97bfdf;
   position: relative;
   flex: none;
   /* 单独占一行、居中，与净化器 / 窗帘 / 灯具面板同一套节奏。
-     居中用 `margin: … auto` 而不是只靠 align-self：电视面板根（.i3d-television-panel）
-     不是 flex 容器（它只是外壳里的一个 flex 项），此时 align-self 完全不生效，图形会被
      甩到左边 —— auto 水平外边距在 block 与 flex 两种父级下都能居中，故两层都留着。 */
   align-self: center;
   width: 240px;
@@ -1677,8 +1642,6 @@ body.interaction3d-stage.is-background-hidden,
   padding-top: 10px;
   min-width: 0;
 }
-/* 封面铺满屏面：电视播的是满屏画面，所以用 cover 而不是 contain（2D 音箱的圆封面同为 cover）。
-   封面未加载 / 失败时由 [hidden] 隐藏，露出下面那块暗色玻璃。 */
 .i3d-tv-artwork {
   position: absolute;
   inset: 0;
@@ -1752,7 +1715,6 @@ body.interaction3d-stage.is-background-hidden,
   transform: translate(-50%);
   white-space: nowrap;
   /* 字号由 marker-layer.js 的行内样式按标记标签口径写入（见那边的 MARKER_LABEL_SCALE），
-     这里的 12px 只是脚本没跑时的兜底。内边距与圆角用 em 跟着字号走：写成 px 的话标签会
      变成「大字号挤在小框里」。这组值在原 12px 字号下正好等于 3px / 6px / 5px，与旧观感一致。 */
   font-size: 12px;
   color: var(--hos-tool-ink);
@@ -1862,8 +1824,6 @@ body.interaction3d-stage.is-background-hidden,
   border-top: 0;
   text-align: center;
 }
-/* 扫地机随口文案气泡：只在总览页随机出现，用淡入淡出避免干扰，
-   位置由 stage.js 投影决定，这里不设固定偏移。 */
 .i3d-vacuum-quip {
   display: block;
   padding-top: 4px;
@@ -2056,8 +2016,6 @@ body.interaction3d-stage.is-background-hidden,
   display: block;
   box-sizing: border-box;
   /* 轨道宽度 = 页签数 × 58px + 6px：一个页签占 58px（宽 56 + 间隙 2），两端各留 3px。
-     这几个数字和 stage.js 的 MODULE_TAB_WIDTH / MODULE_TAB_STRIDE / MODULE_TAB_TRACK_PADDING
-     是一对 —— 那边用它算导航条的缩放上限，这里用它画实际尺寸；只改一边，导航条会在
      缩放判定「放得下」的情况下贴边溢出。 */
   width: calc(var(--i3d-tab-count, 6) * 58px + 6px);
   height: 40px;
@@ -2122,9 +2080,6 @@ body.interaction3d-stage.is-background-hidden,
 /* ===== 导航位置调整态（只在编辑器画布开） ===== */
 
 /* 编辑器画布里的舞台 iframe 平时 pointer-events: none —— 点击要留给画布去选控件，
-   所以「拖动导航条改位置」必须先由宿主开一个调整态（runtime.js 的 setNavigationEditing）。
-   可拖标记（is-navigation-draggable / is-navigation-dragging）挂在 stage.js 里真正接收指针的
-   两条上：分类栏的内层轨道与楼层栏。若改成挂外层 .i3d-navigation，这里的选择器也要跟着改 ——
    外层是 pointer-events: none，且指针捕获绑在它身上不保证收得到事件。 */
 .interaction3d-stage .i3d-module-tabs.is-navigation-draggable,
 .interaction3d-stage .i3d-floor-tabs.is-navigation-draggable {
@@ -2313,11 +2268,6 @@ body.interaction3d-stage.is-background-hidden,
   content: none;
 }
 /* 门牌：门锁标记上那块「门名 + 开合状态（· 电量）」的标签。
-   与摄像头标签同样是「图标在左、两行文字在右」的两列栅格。配色走**与其它标记同一套深色玻璃**：
-   底 #1b2029dc、正文 #f2eee7，与标记底座 / 摄像头 / 传感器标签共用一层皮，只在两个地方留暖金
-   （描边 + 门图标）作「这是一块门牌」的识别色 —— 整块奶油色纸卡在暗场里是场景里唯一一块亮色，
-   与旁边深色的摄像头 / 传感器标签摆在一起就是「不协调」本体。
-   米色纸卡不是删掉而是挪到暖阳原木主题下（见文末 data-scene-style="warm-wood" 覆盖）——
    那一套主题里全场标签本来就是米白（.i3d-vacuum-status / .i3d-room-label 同色），纸卡在那里才成立。 */
 .interaction3d-stage .i3d-security-label.is-lock-status {
   display: grid;
@@ -2599,7 +2549,6 @@ body.interaction3d-stage.is-background-hidden,
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
 }
 /* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
- * 整段只把冷灰面板换成暖米色系：浮层用半透明暖米底 + 暖褐文字，面板内压成深褐 / 暖陶土。
  */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs {
@@ -2764,8 +2713,6 @@ body.interaction3d-stage.is-background-hidden,
   --i3d-climate-accent: #a4472a;
 }
 /* 净化器在暖木浅底上同样要走「低风偏蓝 → 高风偏绿」的渐变，但得换成深色档：
-   #58c4ff / #88dcbf 在 #fff9ed 上对比度只有 1.7:1 左右，等于看不见。
-   低端直接沿用上面 cool 那枚 #28677f（同一枚字面量，不新增），高端取深绿 #2f7355
    —— 在 #fff9ed 上约 5.4:1，过 AA。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="purify"] {
   --i3d-climate-accent: color-mix(
@@ -2775,8 +2722,6 @@ body.interaction3d-stage.is-background-hidden,
   );
 }
 /* 档位按钮的色阶也要跟着换成深色档。这条必须比模块里那条更高优先级：模块用的是
-   --hos-cool / --hos-eco-bright（浅色档，在 #fff9ed 上几乎看不见），这里要压过去。
-   同时它也得压过下面那条 warm-wood 的 :is(...)[aria-pressed="true"]，否则选中态会
    退回成整块面板一个颜色，「色阶」在浅色主题下就失效了。 */
 .interaction3d-stage[data-scene-style="warm-wood"]
   .i3d-climate-panel[data-climate-mode="purify"] .i3d-climate-speed-levels > .i3d-climate-choice {
@@ -2926,8 +2871,6 @@ body.interaction3d-stage.is-background-hidden,
   background: #948c7e;
 }
 /* 暖阳原木主题下的门牌：这里才是那块「米白纸卡 + 暖褐字」的木牌 —— 同一主题里
-   .i3d-vacuum-status / .i3d-room-label / 温湿度计卡片都是米白，门牌纸卡在暖阳背景下才成立。
-   三条覆盖缺一不可：底 / 标题走纸卡暖褐、第二行走更浅的暖灰褐、门图标回金棕（暗场里那枚
    --hos-accent 的亮金落在米白底上会糊）。特异性都压过上面的暗场规则（属性选择器 + 同串类名多一段）。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-lock-status {
   background: #fffaf1;
@@ -2995,10 +2938,6 @@ body.interaction3d-stage.is-background-hidden,
 /* ===== 门锁面板（.i3d-lock-panel） ===== */
 
 /* 面板外壳：宿主类 is-lock-panel 此前全仓没有对应规则（只有 stage.js 挂类名），
-   于是门锁面板掉回 .i3d-light-panel 的默认外壳 160px + overflow:hidden ——
-   而它的内容是「标题 + 状态 + 详情胶囊 + 密码框 + 操作按钮 + 反馈」，
-   实测约 250–300px，底部的操作按钮会被直接裁掉（不是视觉瑕疵，是够不着按钮）。
-   这里补齐与其它设备面板同一套「按内容自适应 + 上限 + 纵向滚动」；
    240px 只作下限，高度仍由内容决定。 */
 .interaction3d-stage .i3d-light-panel.is-lock-panel {
   height: auto;
@@ -3245,10 +3184,6 @@ body.interaction3d-stage.is-background-hidden,
   letter-spacing: 0.025em;
 }
 /* 通用设备面板的状态行：暖木下与标题并排、靠右对齐。
-   注意它**不是** `i3d-device-status` —— 那个类只有灯光面板在用（stage.js），
-   通用设备面板的状态行是个裸 `<p>`（与上游 0.6.5 的 device-panel 一致，不挂类名），
-   所以这里按结构选中 heading-text 里的那个 p（error 是 heading-text 的兄弟节点，不会被误伤）。
-   颜色刻意不写 !important：JS 会把 --i3d-device-status-*（正常 / 异常 / 已关闭 / 未知）
    写成内联 style.color，那条四态语义必须盖得住主题色。 */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-device-panel .i3d-climate-heading-text p {
   flex: none;

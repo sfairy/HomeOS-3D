@@ -1,21 +1,13 @@
 /**
  * 实体与控件的活动态判定、状态文案格式化。
- *
- * 所有「从状态对象里取出可比较文本」的动作都走 `utils/state-entry.js` 的 `stateTextOf()`，
- * 不要在本文件里再写一遍 `String(state?.newState?.state ?? state?.state ?? "")`。
- * 各域的活动词表刻意保持各自一份（默认域 on/open/true/home、图层另加 opening/active/playing），
- * 词表不同是知识不同，不合并。
  */
-import { entityPowerIsOn } from "../entity-power.js?v=2609271208";
+import { entityPowerIsOn } from "../entity-power.js?v=2609271226";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271208";
-// 「按 ID 取域」的回退路径走 `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留
-// —— 它**不切点号**，换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609271208";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271226";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609271226";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
-// 它不 import 任何东西，避免 cover-runtime.js 与本文件反向 import 成环。
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271208";
-import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609271208";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271226";
+import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609271226";
 import {
   climateEffectMode,
   climateIsPoweredOn,
@@ -23,14 +15,12 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "../../controls/climate.js?v=2609271208";
+} from "../../controls/climate.js?v=2609271226";
 // 同门分片：cover-state
-import { coverComponentIsActive } from "./cover-state.js?v=2609271208";
+import { coverComponentIsActive } from "./cover-state.js?v=2609271226";
 
 /**
  * 控件「是否为活动态」的统一入口：cover 域走窗帘逻辑（活动定义与普通开关不同）。
- * 其余域先看 properties.runtimePowerEntityId（浴霸等开关状态由另一实体承载），
- * 该属性缺失或与自身相同时才用控件绑定的实体与状态。
  */
 export function isComponentEntityActive(
   powerAwareComponent,
@@ -56,10 +46,6 @@ export function isComponentEntityActive(
   return entityPowerIsOn(runtimePowerEntityId, runtimePowerState, powerAwareComponent);
 }
 
-/**
- * 取实体状态的图标名：优先用实体自身上报的 icon 属性，否则按域给默认 mdi 图标，
- * 认不出的域用 mdi:devices 兜底。
- */
 export function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
   const stateIconName = String(
     resolveStateEntry(stateIconEntityState)?.attributes?.icon || ""
@@ -90,8 +76,6 @@ export function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
 
 /**
  * 把实体状态格式化成展示文案，优先级：数值（纯数字才格式化，精度取 properties.statePrecision）→
- * 窗帘电机反接时的状态互换文案 → HA 翻译（实体状态键与组件状态键两级）→ 内置中英文对照表 →
- * 原始状态值 → 「未知」；最后按需拼单位，状态为「不可用 / 未知」时不拼。
  */
 export function formatEntityState(rawState, formattedEntityId = "", formatContext = {}) {
   const resolvedStateEntry = resolveStateEntry(rawState);
@@ -169,7 +153,6 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
   const numericStateValue = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(stateValueText)
     ? Number(stateValueText)
     : Number.NaN;
-  // 只有整串都是数字时才当数值格式化，避免把 on / off 或带单位的字符串当数字处理。
   const displayState = Number.isFinite(numericStateValue)
     ? formatNumericValue(numericStateValue, formatContext.component?.properties?.statePrecision)
     : coverStateOverride || translatedStateText || defaultStateLabels;
@@ -183,8 +166,6 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
 
 /**
  * 灯光类控件的活动态判定。
- *
- * 编辑器里直接采用预览开关；运行时按绑定实体是否处于开启态判断。
  */
 export function isLightVisualActive(visualComponent, visualContext) {
   if (visualContext.editable && visualContext.previewState === "on") {
@@ -229,7 +210,6 @@ export function isDeviceButtonVisualActive(buttonPreviewComponent, buttonPreview
 
 /**
  * 取温控控件用于渲染的模式名：编辑态预览开机给示例模式（浴霸 heat、空调 cool），关机给 off。
- * 运行时走 climate.js 的展示模式推导，统一转小写便于类名拼接。
  */
 function resolveClimatePresentationMode(climateComponent, climateContext) {
   const climateEntityId = climateComponent.bindings?.entity?.entityId || "";
@@ -292,7 +272,6 @@ export function resolveClimateEffectMode(effectModeComponent, effectModeContext)
 
 /**
  * 取温控控件的模式标签：关机只显示模式名；开机有目标温度则追加，
- * 否则退回当前温度，都没有就只显示模式名。
  */
 export function resolveClimateLabel(modeLabelComponent, modeLabelContext) {
   const modeLabelEntityId = modeLabelComponent.bindings?.entity?.entityId || "";
@@ -319,7 +298,6 @@ export function resolveClimateLabel(modeLabelComponent, modeLabelContext) {
 
 /**
  * 判断户型图图层是否应点亮。比通用活动态更宽：opening / active / playing 也算，
- * 因为图层绑定的可能是窗帘、媒体播放器这类语义不同的实体。
  */
 export function isLayerEntityActive(diagramLayerEntityId, layerContext) {
   if (!diagramLayerEntityId) {

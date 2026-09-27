@@ -1,13 +1,5 @@
 /*
  * 物件构建器：用水与热水设备
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 用水与热水的设备、洗烘一体机、茶吧机、鱼缸。
  */
 /**
  * 命中：itemSpec.type === "aquarium"

@@ -1,26 +1,5 @@
 /**
  * 「附加功能」卡片网格：把一台设备上除主控之外的相关实体（开关 / 选项 / 数值 / 按钮 /
- * 纯状态显示）渲染成一整套可拖拽排序、可拉伸尺寸的卡片，嵌进面板的附加控件区。
- *
- * extraTypes 是这套渲染的总开关：它先取实体 ID 的域（`light.kitchen` → `light`），再把域
- * 映射成卡片该长成什么形态 ——
- *
- *   switch 类（switch / input_boolean / light）→ "switch"：卡片主体是一枚开关按钮
- *   select 类（select / input_select）        → "select"：自定义下拉（popover + 方向键）
- *   number 类（number / input_number）        → "number"：带 min / max / step 的数字输入
- *   button 类（button / input_button）        → "button"：点击后二次确认再下发
- *   其余域                                    → "state"：只读，用来显示一个小状态
- *
- * 返回值固定是「形态 + state」两元素数组：第一个元素决定主控件长什么样，第二个元素告诉
- * 调用方这个实体同时也能当状态显示用；调用方拿它和配置里写死的 type 求交，取不到交集就
- * 退化成 state（配置里改错了类型也不会渲染出一个发不出命令的滑稽控件）。
- *
- * 布局偏好（顺序 / 列宽 / 行高）一律通过 onLayout 回调交回给调用方，本模块自己不持久化：
- * 一是这套卡片在「配置预览」与「真实运行时」跑的是同一份代码，只有调用方能判断当前是不是
- * 编辑态、以及这份偏好该写回哪个配置字段；二是拖拽期间会临时重排 DOM，若模块再存一份私有
- * 布局，回传的新配置一旦被 update 送回来就会和私有副本打架；三是键盘排序、拖拽换位、尺寸
- * 吸附最终都归约成同一份 layout 数组，调用方按配置格式落盘、下次 update 原样送回，这就是
- * 唯一的真相来源。模块只做「把当前状态画出来」和「把用户意图翻译成 layout」两件事。
  */
 // 网格换算里的固定量：卡片区把一行切成 6 份，`--extra-columns` 写的就是「占几份」。
 const GRID_GAP = 8;
@@ -34,9 +13,7 @@ const CARD_MIN_ROWS = 2;
 const COLUMN_SPAN = { 3: 2, 4: 4, 1: 3, 2: 6 };
 // 键盘 / 拖拽调整列宽时按这个顺序循环，顺序即「从窄到宽」的视觉直觉。
 const COLUMN_ORDER = [3, 1, 4, 2];
-// 触屏长按多久才算「拿起卡片」，避免滑动面板时误触发拖拽。
 const TAP_LONG_PRESS_DELAY = 300;
-// 指针移动超过它才算拖拽，否则当作点击。
 const DRAG_START_DISTANCE = 6;
 // 等待设备确认状态变化的最长时间，超时报「未确认」而不是一直转圈。
 const CONFIRM_TIMEOUT = 10000;
@@ -54,10 +31,6 @@ const FALLBACK_VIEWPORT = { width: 1024, height: 768 };
 
 /**
  * 推出某个实体 ID 可用的卡片形态列表。
- *
- * 之所以返回「形态 + state」而不是单个形态：同一张卡片既要能操作、又要在只读场景里
- * 当状态显示；调用方用 `includes(item.type)` 求交，交集为空时退化成 state。域不认领的
- * 实体（sensor / binary_sensor / climate…）一律是只读的 state，不会凭空造出控件。
  */
 export function extraTypes(entityId) {
   const domain = String(entityId).split(".")[0];
@@ -77,10 +50,6 @@ export function extraTypes(entityId) {
 
 /**
  * 去掉卡片标题开头的「设备名 + 分隔符」冗余前缀，其余原样返回。
- *
- * 只在「标题确实以该前缀开头、且去掉后还剩内容」时才动它：设备名与实体名对不上、或者
- * 前缀等于整条标题（实体名恰好就是设备名）时，去掉只会得到空标题，那是比冗余更糟的结果。
- * 分隔符按 HA 与中文命名的常见写法收：空格 / 中点 / 括号 / 横线 / 下划线 / 冒号 / 顿号 / 斜杠。
  */
 export function extraTitle(rawTitle, prefix) {
   const text = String(rawTitle ?? "").trim();
@@ -92,7 +61,6 @@ export function extraTitle(rawTitle, prefix) {
   return rest || text;
 }
 
-/** 形态 → 中文名的唯一词表：卡片标题、编辑器选项都读它，避免各处自己再写一遍文案。 */
 export const extraLabels = {
   switch: "开关",
   select: "选项",
@@ -103,10 +71,6 @@ export const extraLabels = {
 
 /**
  * 找出与某个实体同属一台设备（deviceId / device_id 相同）的其它实体。
- *
- * 净化器这类设备在 HA 里会拆成一堆实体（开关、模式、滤芯寿命…），配置里往往只绑定其中一个；
- * 换绑时必须能把整台设备的实体一起带过来，否则新选的实体拿不到兄弟实体，卡片网格会空掉。
- * 实体表里两种字段名并存（后端归一化前后不一致），所以两个都读，谁先有值用谁。
  */
 export function purifierRelatedEntities(entities, entityId) {
   const target = entities.find(item => item.entityId === entityId);
@@ -120,10 +84,6 @@ export function purifierRelatedEntities(entities, entityId) {
 
 /**
  * 判断「换绑」之后设备是否真的变了，用来决定要不要整块重建卡片网格。
- *
- * 关键在比较的是 deviceId 而不是 entityId：同一台设备下从实体 A 换到实体 B，卡片集合其实是
- * 同一批，重建只会让正在编辑的布局白白跳动。只有「原设备查不到」或「新旧设备 ID 不同」才
- * 算真换了设备。前后实体相同则直接 false，省一次查表。
  */
 export function purifierDeviceChanged(entities, previousEntityId, nextEntityId) {
   if (previousEntityId === nextEntityId) {
@@ -138,10 +98,6 @@ export function purifierDeviceChanged(entities, previousEntityId, nextEntityId) 
 
 /**
  * 把一次用户操作翻译成后端命令，并在下发前做齐本地校验。
- *
- * 校验放在这里而不是交给后端：实体离线 / 未就绪、类型不匹配、选项过期、数值越界或不符合
- * 步长，这些都能在本地立刻判断出来，提前抛中文错误比等一次失败的网络往返体验好得多。抛错
- * 只代表「这条命令不该发」，调用方会把 message 显示在卡片下方的错误行里，不是程序异常。
  */
 export function extraCommand(item, state, value) {
   const liveState = state?.newState || state;
@@ -165,7 +121,6 @@ export function extraCommand(item, state, value) {
     service = "press";
   }
   if (item.type === "select") {
-    // 选项可能被设备端改过，下发前必须拿最新 attributes.options 复核，否则会静默失败。
     if (!liveState.attributes?.options?.includes(value)) {
       throw new Error("选项已失效");
     }
@@ -187,7 +142,6 @@ export function extraCommand(item, state, value) {
     ) {
       throw new Error("数值超出设备范围");
     }
-    // 步长对齐：允许浮点误差，但 (值 - 下限) 必须是步长的整数倍，否则设备会自行取整。
     if (Math.abs((numeric - min) / step - Math.round((numeric - min) / step)) > 0.00001) {
       throw new Error("数值不符合设备步长");
     }
@@ -205,10 +159,6 @@ export function extraCommand(item, state, value) {
 
 /**
  * 把配置里的原始控件列表归一化成渲染用的布局数组。
- *
- * 归一做三件事：补出 type（配置里可能只写了 entityId）、把 columns 收进合法集合、把 rows 收成
- * 1 / 2。这样渲染、拖拽、键盘调整、尺寸吸附全都面对同一份形状固定的数据，不必到处判空。
- * （label 被有意剔除：它只用于控件无障碍名，不属于布局字段，留在数组里会让布局比较永远不等。）
  */
 export function extraLayout(controls) {
   return controls.map(({ label, ...rest }) => ({
@@ -225,9 +175,6 @@ export function extraLayout(controls) {
 
 /**
  * 把某个卡片移动到另一个卡片的位置，返回新的布局数组。
- *
- * 先 extraLayout 再找下标，保证传入的是原始配置也能算对；先摘出再插入，等于「把源位置
- * 抽掉、目标位置补上」，语义与拖拽落点一致。任一实体找不到就原样返回，绝不静默改动顺序。
  */
 export function moveExtra(controls, entityId, targetEntityId) {
   const layout = extraLayout(controls);
@@ -243,29 +190,16 @@ export function moveExtra(controls, entityId, targetEntityId) {
 
 /**
  * 创建附加功能卡片网格控制器。
- *
- * 对外只暴露 `update({ item, states })` 与 `dispose()`：update 负责按当前配置重建 / 刷新卡片并
- * 读取 states 里的实时值，dispose 负责摘掉挂在 document 上的全局监听与所有 DOM。所有布局
- * 变更（拖拽换位、键盘排序、拉伸尺寸）都从 `onLayout(layout)` 回传，本模块不保存也不猜测
- * 配置格式；调用方落盘后通过下一次 update 送回来即可。onControl 收到的就是 extraCommand 的
- * 产物，发送失败由调用方决定怎么抛，卡片会显示错误。
  */
 export function createPurifierExtras({
   element: hostElement,
   onControl,
   onLayout = () => {},
   // 可选的「冗余前缀」提供者：返回一段设备名（如「冰箱」）时，卡片标题开头的它连同分隔符
-  // 会被去掉。HA 的 friendly_name 惯例是「设备名 + 实体名」，而卡片网格的宿主面板标题已经
-  // 写着同一个设备名，再带一遍只会让长实体名更快换行。默认不提供即完全不改标题。
-  // 传函数而不是字符串：绑定可能在同一个面板里换设备，前缀要跟着 update 一起变。
   titlePrefixProvider = () => ""
 }) {
-  // 刻意用宿主的 ownerDocument：卡片可能被放进弹窗 / 预览 iframe，用全局 document 会造出属于
-  // 外部文档的孤儿节点，事件与样式都对不上。
   const doc = hostElement.ownerDocument || globalThis.document;
   let viewModel = {};
-  // 布局签名：item.id + 归一化后的 layout + 是否编辑态，任一变化才重建 DOM，避免每次状态
-  // 回包都把卡片推倒重来（那样会打断输入框焦点与下拉）。
   let layoutSignature = "";
   let cards = [];
   // 每次绑定 / 重建就自增，用来丢弃属于上一批卡片的异步回包与定时器。
@@ -283,9 +217,6 @@ export function createPurifierExtras({
 
   /**
    * 关掉当前打开的自定义下拉。
-   *
-   * popover 不支持时菜单被临时搬到 body（portal），关闭时必须搬回卡片内，否则下次重建
-   * DOM 会留下一个游离节点。restoreFocus 用于键盘交互（Escape / 选中后）把焦点还给触发按钮。
    */
   function closeSelect(restoreFocus = false) {
     if (!openSelect) {
@@ -326,10 +257,6 @@ export function createPurifierExtras({
 
   /**
    * 打开某个 select 卡的下拉，并做视口内的定位。
-   *
-   * 同一下拉再点一次就是收起；popover 可用时用原生 popover（浏览器负责层级与关闭），不可用
-   * 时把菜单搬到 body 并手动按视口夹取 left / top，保证再靠边的卡片也能把菜单完整露出来。
-   * 菜单高度按剩余空间与选项数取小，方向键焦点落在当前值上。
    */
   function openSelectMenu(record) {
     if (record.control.disabled) {
@@ -342,7 +269,6 @@ export function createPurifierExtras({
     closeSelect();
     openSelect = record;
     if (!record.menu.showPopover && doc.body) {
-      // 菜单 portal 出去后脱离卡片色上下文，需要把场景主题一并带过去，否则浅 / 深色会串。
       record.menu.dataset.theme =
         hostElement.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
       doc.body.append(record.menu);
@@ -373,7 +299,6 @@ export function createPurifierExtras({
         SELECT_MENU_MIN_HEIGHT,
         Math.min(SELECT_MENU_MAX_HEIGHT, Math.max(spaceBelow, spaceAbove))
       ) + "px";
-    // 下方放得下整份选项（或下方本来就比上方宽敞）就向下开，否则贴控件上沿向上开。
     record.menu.style.top =
       spaceBelow >= Math.min(SELECT_MENU_MAX_HEIGHT, record.choices.length * SELECT_MENU_ROW + GRID_GAP) ||
       spaceBelow >= spaceAbove
@@ -388,9 +313,6 @@ export function createPurifierExtras({
 
   /**
    * 按卡片当前内容与容器宽度，算出它能接受的最小列数 / 行数。
-   *
-   * 拖拽改尺寸和响应式重排共用这一处算术：列数只能落在「内容放得下」的档位上，行数则由
-   * 内容高度撑开。容器还没量到宽度（隐藏 / 首帧）时只补最小行数，不猜列数。
    */
   function fitLayout(record, item = record.item) {
     const gridWidth = hostElement.clientWidth;
@@ -416,10 +338,6 @@ export function createPurifierExtras({
 
   /**
    * 量出卡片内容实际需要几行。
-   *
-   * 同样被响应式重排和拖拽改尺寸共用。select / number 是「标题 + 控件」竖排，两块高度相加；
-   * 其余形态取两者较大值。confirm / error 这些临时块出现时额外占一行。最后换算成行数并按
-   * 传入行数取大——只增不减，避免用户手动调大的卡片被一次测量打回最小高度。
    */
   function measureRows(record, rowCount) {
     const computed = doc.defaultView?.getComputedStyle?.(record.section);
@@ -448,7 +366,6 @@ export function createPurifierExtras({
     return Math.max(rowCount, Math.ceil((content + GRID_GAP) / ROW_UNIT));
   }
 
-  /** 把算好的列 / 行写回卡片 CSS 变量；拖拽进行中不抢写，避免拖拽反馈与实际尺寸打架。 */
   function syncCardMetrics(record) {
     if (dragState) {
       return;
@@ -480,10 +397,6 @@ export function createPurifierExtras({
 
   /**
    * 结束一次拖拽。
-   *
-   * cancelled 为真（Esc / pointercancel / 长按失败）时回滚到配置里的原始顺序；否则把拖拽过程中
-   * 算出的临时 layout 落到 DOM 上，并在「真的换过位且确实在编辑态」时通过 onLayout 回传，
-   * 让调用方落盘。两者 JSON 相同就不回传，避免白白触发一次配置写入。
    */
   function finishDrag(cancelled = false) {
     if (!dragState) {
@@ -518,7 +431,6 @@ export function createPurifierExtras({
     }
   }
 
-  /** 拖拽中按 Esc 取消：capture 阶段拦下，避免面板把它当成「关闭弹窗」。 */
   const onEscapeKeydown = event => {
     if (event.key === "Escape" && dragState) {
       event.preventDefault();
@@ -530,11 +442,6 @@ export function createPurifierExtras({
 
   /**
    * 给一个拖拽把手（或整张卡片）绑上「拖拽换位 / 拉伸尺寸」的完整手势。
-   *
-   * resize 为 true 时走尺寸分支，false 时走换位分支，共用同一套指针生命周期。触屏上没有
-   * hover，必须长按 300ms 才进入拖拽，期间指针移动超过阈值就取消——这样面板本身的滚动不受
-   * 影响。换位用「所有卡片矩形的中心距」找最近落点，尺寸则把指针位移折算成最近的一档列宽 / 行高，
-   * 并用一个浮层（i3d-extra-gesture-hint）实时汇报「会变成什么样」。
    */
   function bindDrag(handle, section, item, resize) {
     handle.addEventListener("pointerdown", event => {
@@ -612,7 +519,6 @@ export function createPurifierExtras({
         }
         return;
       }
-      // 指针捕获做幂等兜底：已经捕获就跳过，否则补一次（部分浏览器 pointerdown 后不会自动捕获）。
       if (!state.handle.hasPointerCapture?.(event.pointerId)) {
         state.handle.setPointerCapture?.(event.pointerId);
       }
@@ -718,10 +624,6 @@ export function createPurifierExtras({
 
   /**
    * 按最新 states 刷新所有卡片的文案、可用性与下拉选项。
-   *
-   * 全程只改文本 / 属性、不重建 DOM（重建只在布局签名变化时发生），这样输入框焦点与展开的
-   * 下拉不会被打断。pending 的卡片一旦等到期望值或实体掉线就立刻解除，错误行也随之更新；
-   * 下拉选项只在 options 真的变了（JSON 比较）时才重建按钮。
    */
   function refreshRows() {
     // 每轮只问一次前缀：它是面板级属性（设备名），不必每张卡各问一次。
@@ -744,8 +646,6 @@ export function createPurifierExtras({
         row.expected = null;
         row.error.textContent = "实体已离线，操作结果未确认";
       }
-      // 标题取配置里的 label（会被 extraLayout 有意剔除，故通常落到 friendly_name），
-      // 再过一道「去设备名前缀」；tooltip 保留完整原名，悬停仍能看到全称。
       const rawTitle = row.item.label || attributes.friendly_name || row.item.entityId;
       row.title.textContent = extraTitle(rawTitle, titlePrefix);
       row.title.title = rawTitle;
@@ -795,7 +695,6 @@ export function createPurifierExtras({
           });
           row.menu.replaceChildren(...row.choices);
         }
-        // 等待确认期间先把下拉显示成期望值（乐观），否则用户会看到值「跳回去」。
         row.control.value =
           row.pending && row.expected != null ? row.expected : available ? state.state : "";
         row.control.disabled ||= !options.length;
@@ -815,7 +714,6 @@ export function createPurifierExtras({
         row.control.min = attributes.min;
         row.control.max = attributes.max;
         row.control.step = attributes.step || 1;
-        // 正在输入的输入框不要被状态回包覆盖，否则用户打一半的数字会被抹掉。
         if (doc.activeElement !== row.control) {
           row.control.value =
             row.pending && row.expected != null ? row.expected : available ? state.state : "";
@@ -828,11 +726,6 @@ export function createPurifierExtras({
 
   /**
    * 用新的视图模型刷新整块网格：必要时重建卡片 DOM，然后统一刷新一次状态。
-   *
-   * 重建只发生在「设备 / 布局 / 编辑态」签名变化时，并且会先收干净上一批的全局监听残留、
-   * 拖拽、下拉与定时器；generation 自增让所有在途异步回包失效。刷新状态则每次都做，因为它
-   * 只改文本、开销小，且 states 可能随时到达。整个逻辑对 `viewModel.item.extraControls`
-   * 为空的设备直接隐藏宿主，不挂空壳。
    */
   function update(nextViewModel) {
     viewModel = nextViewModel;
@@ -851,7 +744,6 @@ export function createPurifierExtras({
       cards = [];
       for (const item of layout) {
         const section = createEl("section");
-        // i3d-climate-option-group 复用空调面板的卡片底色 / 圆角，i3d-extra-<type> 决定布局细节。
         section.className = "i3d-climate-option-group i3d-extra-card i3d-extra-" + item.type;
         section.style.setProperty("--extra-columns", COLUMN_SPAN[item.columns]);
         section.style.setProperty("--extra-rows", item.rows);
@@ -928,7 +820,6 @@ export function createPurifierExtras({
         const error = createEl("p");
         error.setAttribute("role", "status");
         error.className = "i3d-climate-error";
-        // 配置里的 type 必须落在 extraTypes 给的集合里才作数，否则退化成只读状态。
         const type = extraTypes(item.entityId).includes(item.type) ? item.type : "state";
         const control =
           type === "state" ? null : createEl(type === "number" ? "input" : "button", "执行");
@@ -1029,7 +920,6 @@ export function createPurifierExtras({
                 openSelectMenu(row);
               }
             });
-            // 原生 popover 被 Esc / 点击外部关掉时同步内部状态，避免 openSelect 悬空。
             menu.addEventListener("toggle", event => {
               if (event.newState === "closed" && openSelect === row) {
                 closeSelect();
@@ -1088,7 +978,6 @@ export function createPurifierExtras({
               }
             });
           } else {
-            // switch 用 click、number 用 change：数字输入等失焦 / 回车再发，避免每敲一位都发命令。
             control.addEventListener(type === "number" ? "change" : "click", row.submit);
           }
           section.append(control);

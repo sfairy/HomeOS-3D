@@ -1,7 +1,4 @@
 """支付宝回调路由：异步通知 + 同步跳转页。
-
-异步通知是**唯一可信的到账依据**（同步跳转只是用户浏览器行为，可以被伪造），
-所以这里只认验签通过的通知，并且必须回纯文本 ``success``，否则支付宝会一直重推。
 """
 
 from __future__ import annotations
@@ -30,10 +27,6 @@ from apps.store.security.security import token_matches
 logger = logging.getLogger("apps.store.api.alipay")
 
 #: 同步跳转页的**按来源**查单预算。
-#:
-#: 这个端点是匿名 GET，且 ``out_trade_no`` 由调用方直接给，会对 ``pending`` 订单**真的
-#: 发一次渠道查单**（阻塞网络往返），只靠「按订单号节流」挡不住 —— 攻击者换订单号即可
-#: 绕过，把跳转页变成查单风暴并占满 AnyIO 线程池。按来源给粗粒度总预算（含 force 路径）。
 _RETURN_QUERY_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=60.0)
 
 router = APIRouter(tags=["alipay"])
@@ -43,11 +36,6 @@ NOTIFY_PATH = "/store/v1/payments/alipay/notify"
 
 def _active_alipay_provider(request: Request, session=None):
     """返回**当前站点配置下真正在收款**的支付宝渠道；不是支付宝（或渠道不可用）就返回 None。
-
-    本函数按**当前**站点配置解析且**永不抛错**（两个调用点都匿名可达，500 会让支付宝一直重推、
-    也让用户看到白屏）。与 ``reconcile._reconcile_alipay_provider`` 是两份不同的知识：那份带
-    ``name_override="alipay"``、**绕过渠道开关**且允许抛错 —— 巡检要打的是「这单当时用的渠道」，
-    不能因为运营今天切了渠道就不再认领历史订单。
     """
     setting = site_config.get_setting(session) if session is not None else None
     try:
@@ -65,11 +53,6 @@ def alipay_notify(
     request: Request, session: DbSession, body: bytes = Body(b"")
 ) -> PlainTextResponse:
     """支付宝异步通知（同步端点，跑在线程池里）。
-
-    刻意写成同步 ``def``：每一步都是同步阻塞的（验签是 RSA 运算，之后还要开 SQLite 会话
-    写订单），而它**匿名可达**且支付宝失败时会密集重推；放事件循环上跑，持续 POST 就能把
-    整个服务卡住。请求体自己按 urlencoded 解析（同步端点不能 await ``request.form()``），
-    真正的闸门仍是 ``verify_notification`` 验签。
     """
     settings = request.app.state.settings
     provider = _active_alipay_provider(request, session)
@@ -85,7 +68,7 @@ def alipay_notify(
 
     try:
         pairs = parse_qsl(body.decode("utf-8"), keep_blank_values=True)
-    except (UnicodeDecodeError, ValueError):  # pragma: no cover - 畸形字节
+    except (UnicodeDecodeError, ValueError):
         logger.error("支付宝异步通知解析失败")
         return PlainTextResponse("failure")
 
@@ -102,7 +85,6 @@ def alipay_notify(
         return PlainTextResponse("failure")
 
     # app_id / seller_id 必须拿**验签用的那份**凭据来比：provider 内部已合并后台站点配置，
-    # 而手上的 ``settings`` 只有环境变量，用它比较会在后台配了商户号时静默跳过整段校验。
     effective = provider.resolve_settings(settings)
 
     if notification.app_id and effective.alipay_app_id:
@@ -212,17 +194,6 @@ _RETURN_PAGE = """<!doctype html>
 
 
 def _render_return_page(request: Request, **fields: object) -> HTMLResponse:
-    """渲染回跳页：先按 ``str.format`` 填空，再让 ``inject_scene`` 把配色插入点换成 <link>。
-
-    顺序不能反。``inject_scene`` 找不到插入点就抛异常（这是刻意的守卫：少了那个
-    ``<link>``，页面只会安静地停在默认配色，管理员会以为保存没生效），所以插入点
-    必须**原样**活到注入那一刻；而 ``_RETURN_PAGE`` 要过 ``str.format()``，
-    手写的两层的花括号会被折叠成一层 —— 注入时机放在 format 之后，就只能靠
-    ``{appearance}`` 这个占位字段把常量原样填进去，别无他法。
-
-    ``Cache-Control`` 也在这里统一注入：这一屏显示的是刚刚发生的付款结果，
-    被任何中间层缓存下来都是事故。
-    """
     markup = _RETURN_PAGE.format(appearance=APPEARANCE_PLACEHOLDER, **fields)
     return HTMLResponse(
         inject_scene(markup, request),
@@ -237,9 +208,6 @@ def alipay_return(
     out_trade_no: str = "",
 ) -> HTMLResponse:
     """同步跳转页。
-
-    这里展示的状态**不作为到账依据**，只顺手做一次查单对账，
-    真正入账仍然依赖验签通过的异步通知或查单结果。
     """
     settings = request.app.state.settings
     provider = _active_alipay_provider(request, session)
@@ -258,12 +226,9 @@ def alipay_return(
             next_url="/user/dashboard/index",
             next_label="前往账号中心",
             # 主题表按文件 mtime 带版本号（见 core/static_revision.py），
-            # 免得这里的字面量要与模板里那份手工同步。
             theme_stamp=file_revision(settings.static_dir / "theme.css"),
         )
 
-    # 跳回来这件事无法证明身份，所以 force 只在**持订单凭证**时生效：否则枚举订单号就能绕过
-    # 节流，把这里变成查单风暴。不持凭证时走按订单号的常规节流，对真实用户没有影响。
     if provider is not None and provider.is_configured(settings):
         setting = site_config.get_setting(session)
         token = (request.query_params.get("token") or "").strip()

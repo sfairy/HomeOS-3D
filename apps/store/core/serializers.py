@@ -1,6 +1,4 @@
 """ORM → 参考站风格 JSON 的序列化。
-
-字段命名与 ``pay.habridge.cn`` 实测响应保持逐字段一致（camelCase）。
 """
 
 from __future__ import annotations
@@ -53,9 +51,6 @@ def available_stock_units(product: Product) -> int | None:
 
 def is_sold_out(product: Product) -> bool:
     """是否售罄 —— **全站唯一**的售罄判据。
-
-    单独抽出来是因为下单热路径要用它，而那里过去为了这一位把商品统计与套餐映射都算了一遍。
-    判据留一份，也不会出现「前台显示可买、后端判定售罄」的偏差。
     """
     stock = available_stock_units(product)
     return stock is not None and stock <= 0
@@ -134,15 +129,11 @@ def account_payload(account: Account) -> dict:
         "id": account.id,
         "email": account.email,
         # 是否管理员：前台据此决定「管理后台」入口显不显示。这是账号**自己**的属性，
-        # 只有持该账号会话的人拿得到，不构成对他人的信息泄漏；权限本身仍由
-        # ``require_admin`` 在后台 API 上判定，前端这个字段只管入口可见性。
         "isAdmin": bool(account.is_admin),
         # 邮箱是否已验证：未验证会被 ``_require_verified`` 挡在查看订单/下单之外，
-        # 前端必须能看出来并给出「去验证」入口，否则用户只看到一个无法解释的 401。
         "emailVerified": account.email_verified_at is not None,
         "emailVerifiedAt": iso_z(account.email_verified_at),
         # 库内时间列都是 naive UTC，序列化必须带 Z 后缀：裸 ISO 串会被浏览器当本地时间
-        # 解析，东八区直接偏早 8 小时（授权显示"已到期"、解绑冷却少算 8 小时）。
         "createdAt": iso_z(account.created_at),
         "lastLoginAt": iso_z(account.last_login_at),
     }
@@ -169,11 +160,6 @@ def binding_version(binding: DeviceBinding | None) -> str | None:
 
 def device_payload(binding: DeviceBinding | None) -> dict | None:
     # 已解绑的行不是「当前绑定的设备」。``release`` 只把 ``active`` 置 False（行留作
-    # 历史，见 ``DeviceBinding`` 的唯一约束是 (license_id, instance_id)），所以调用方
-    # 即使把一行历史绑定递进来，这里也必须返回 None —— 否则前台会把这台已经解绑的设备
-    # 显示成「已绑定本机」，并继续给出「解除设备绑定」按钮。判定收在这里而不是只靠每个
-    # 查询自己带 ``active`` 过滤：漏一处就是一个「解绑了还显示绑着」的入口。
-    # 存活判据见 ``DeviceBinding.is_live``（与心跳/恢复同一份），不在本地重写一遍。
     if binding is None or not binding.is_live:
         return None
     return {
@@ -212,11 +198,6 @@ def device_release_policy(
 
 
 #: 授权来源（``License.issuance_source``）→ 中文名。
-#:
-#: 后端只写两个值：``manual``（后台手工签发 / 履约方式为人工）与 ``payment_automatic``
-#: （付款后自动发码）。前台曾自存一份 `admin_manual / historical_import / payment_manual /
-#: payment_automatic` 的映射 —— 只有最后一个能命中，手工签发的授权因此落到兜底文案，
-#: 而且「该授权由后台手动发放」那条提示的判断恒为 false。字典的键必须与写入方一致。
 ISSUANCE_SOURCE_LABELS: dict[str, str] = {
     "manual": "后台手动发卡",
     "payment_automatic": "支付后自动发卡",
@@ -257,9 +238,6 @@ def license_payload(
         "validityDays": license.validity_days,
         "issuanceSource": license.issuance_source,
         # 来源的中文名与「是否是手动签发」都由服务端给出，前台不再自存词表：
-        # 前台那份的键是 admin_manual / historical_import / payment_manual，而后端实际只写
-        # manual / payment_automatic —— 手工签发的授权因此落到兜底文案，且「该授权由后台
-        # 手动发放」那条提示的 includes 判断恒为 false，永远不会出现。
         "issuanceSourceLabel": issuance_source_label(license.issuance_source),
         "manuallyIssued": license.issuance_source == "manual",
         "userLabel": license.user_label,
@@ -323,7 +301,6 @@ def order_payload(order: Order) -> dict:
         "payment": payment,
         "refundAmountCents": int(order.refund_amount_cents or 0),
         #: 还能退多少（分）。支持多次部分退款后，后台必须知道「剩余可退」，
-        #: 否则第二次退款只能靠运营心算已退金额。
         "refundableCents": refundable_cents(
             order.amount_cents, order.refund_amount_cents
         ),
@@ -331,10 +308,8 @@ def order_payload(order: Order) -> dict:
         "needsReview": bool(order.needs_review),
         "reviewNote": order.review_note or "",
         #: 这笔订单的「已支付」是人工补记的：照常发码，但**不计入营收**。
-        #: 后台必须能看见它，否则「营收比订单少」就成了一处没有解释的偏差。
         "manualSettlement": bool(order.manual_settlement),
         #: 这一单是否改过一张**已有**授权（升级/增量包履约前的快照非空）。后台「删除订单」
-        #: 的守卫之一，前端必须用同一口径，否则会出现「按钮能点但后端 409」的错位。
         "targetLicenseModified": bool(order.license_state_before_json),
         "codeHint": order.license.code_hint if order.license is not None else None,
         "createdAt": iso_z(order.created_at),
@@ -382,7 +357,6 @@ def account_center_payload(
         "entitlements": [entitlement_payload(item, now=moment) for item in entitlements],
         "orders": [order_payload(order) for order in orders],
         #: 订单总数与 ``orders`` 的长度可能不同：账号中心只取最近若干单，没有这个数字
-        #: 前端只能显示「已加载的」条数，用户看到第 50 单封顶会以为更早的订单丢了。
         "ordersTotal": int(orders_total if orders_total is not None else len(orders)),
         # 前台靠它决定「试用还能不能买」。
         "hasUsedTrial": bool(has_used_trial),

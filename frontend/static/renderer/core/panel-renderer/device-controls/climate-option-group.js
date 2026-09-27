@@ -1,27 +1,18 @@
 /**
  * 温控选项组（模式 / 风速 / 摆风 / 预设）控件的构建：内联按钮或自定义下拉二选一。
- *
- * 从 climate.js 拆出来：那一份只留设备详情控制区的编排，而这一份是「一组选项怎么画」的 450 行细节
- *（呈现形式由 climateOptionPresentation 按选项数量与文案长度决定；原生 select 满足不了样式与弹层
- * 定位，所以用 popover + listbox 手工实现并补齐键盘操作）。
- * 它原本是外层方法里的闭包，用到 12 个外层局部（要挂载的两个容器、实体与能力、变更回调、错误提示
- * 等）；外提时把这 12 个名字加成解构参数，调用点用 ...climateOptionGroupContext 展开传入 ——
- * 函数体一字未改，依赖关系反而在签名上写明了。
  */
 
 
-import { randomUuid } from "../../../../utils/random-id.js?v=2609271208";
+import { randomUuid } from "../../../../utils/random-id.js?v=2609271226";
 import {
   climateEffectMode,
   climateIsPoweredOn,
   climateOptionPresentation,
   climatePowerCommand,
 
-} from "../../../controls/climate.js?v=2609271208";
+} from "../../../controls/climate.js?v=2609271226";
      /**
       * 创建一组温控选项控件（模式 / 风速 / 摆风 / 预设等）。
-      * 呈现形式由 climateOptionPresentation 按「选项数量与文案长度」自动决定：少量短文案用内联按钮，多或长 则用自定义下拉 —— 原生 select 无法满足样式与弹层定位需求，所以用 popover + listbox 角色手工实现并补齐
-      * 键盘操作。取值列表去重后为空则整组不渲染，避免出现空区块。
       */
 
 export function createClimateOptionGroup({
@@ -95,8 +86,6 @@ export function createClimateOptionGroup({
         let isSelectRequestPending = false;
         /**
          * 判断下拉菜单当前是否展开。
-         * 优先用 :popover-open 伪类；不支持 popover 的环境走兼容分支读 dataset.open 标记，
-         * 避免整个方法抛错导致菜单彻底不可用。
          */
         const isSelectMenuOpen = () => {
           try {
@@ -107,8 +96,6 @@ export function createClimateOptionGroup({
         };
         /**
          * 把下拉当前值渲染到触发器文案与菜单项的选中态上。
-         * 显示文案优先取对应菜单项文本（可能已本地化），找不到才退回原始值，保证未在 labels
-         * 登记的取值也能显示。
          */
         const renderSelectValue = selectValueOption => {
           const currentSelectValueText = String(selectValueOption ?? "");
@@ -127,13 +114,6 @@ export function createClimateOptionGroup({
         };
         /**
          * 计算并设置下拉菜单的尺寸与位置（空间不足时向上翻转）。
-         * 用 fixed 定位并夹进取视口：宽度取触发器宽度与 190px 的较大值、高度上限 360px；
-         * 下方容不下且上方更宽裕时向上弹；最后把 left/top 夹进视口内 10px，避免贴边或溢出。
-         *
-         * 为什么不与编辑器侧那 11 处下拉共用 `shared/menu-positioning.js`：这里有三处手感是它
-         * 没有的 —— 宽度**下限** 190px、翻转阈值用 `min(内容高, 180)` 且要求上方更宽裕、不翻转时
-         * 把 top 也夹进视口。共享实现要长出三个开关才能表达，而那三个开关只服务这一个调用点；
-         * 强行合并会改掉长菜单贴底时的翻转时机（本文件在展示页上），得靠视觉验证兜。故保留分叉。
          */
         const positionSelectMenu = () => {
           if (!isSelectMenuOpen() && selectMenuElement.hidden) {
@@ -173,8 +153,6 @@ export function createClimateOptionGroup({
         };
         /**
          * 打开下拉菜单并完成定位，必要时把焦点移入选项。
-         *
-         * 触发器禁用或有请求在途时不打开，避免在提交过程中切换取值。
          */
         const openSelectMenu = (shouldFocusFirstOption = false) => {
           if (!selectTriggerElement.disabled && !isSelectRequestPending) {
@@ -196,8 +174,6 @@ export function createClimateOptionGroup({
         };
         /**
          * 提交下拉选中的取值：先乐观刷新触发器文案，再调用服务，失败时回滚显示。
-         * 成功后必须把结果合并进 latestClimateEntityState：状态推送总晚于服务返回，不合并的话紧接着的 renderClimateControls 会按旧状态把刚选中的模式改回去。合并时还要补齐派生字段 —— hvac_mode 同步 state 与
-         * hvac_action（否则配色不对），浴霸预设的「待机/关闭」折算成 off，水暖的 operation_mode 映射成 on/off。
          */
         const commitSelectOption = async committedOptionValue => {
           if (!climateControlsInteractive || isSelectRequestPending) {

@@ -1,9 +1,5 @@
 /**
  * 楼层导航选项的生成逻辑。
- *
- * 为楼层切换控件产出选项列表，每项给出楼层 ID、显示标签与原始名称，3D 舞台与面板共用同一份
- * 结果。对外提供 floorNavigationChoices 纯函数，可直接单测。标签格式固定为数字层「3F」、
- * 地下层「B1」、全楼层「ALL」，前端若有地方按前缀判断楼层类型，依赖的正是这个格式。
  */
 
 /**
@@ -12,7 +8,6 @@
 export function floorNavigationChoices(floors, floorNumbers = {}) {
   /**
    * 把楼层名里的数字解析成整数：支持阿拉伯数字、中文数字与带「十」的复合中文数字；
-   * 无法识别时返回 0，交由调用方兜底。
    */
   const parseFloorNumber = floorNameText => {
     if (/^\d+$/.test(floorNameText)) {
@@ -92,7 +87,6 @@ export function floorNavigationChoices(floors, floorNumbers = {}) {
       })
       // 反转让地上层自上而下排列（顶层在前），符合楼层选择器的视觉习惯。
       .reverse(),
-    // 只有一层时不给「全部楼层」，避免出现没有意义的入口。
     ...(floors.length > 1 ? [["all", "ALL", "全部楼层"]] : [])
   ];
 }

@@ -1,30 +1,13 @@
 /**
  * NAS 运行状态指示灯。
- *
- * 在 NAS 模型正面叠加一颗着色器绘制的呼吸绿灯，并临时隐藏模型自带的指示灯网格，避免出现
- * 「两颗灯」。对外提供 nasDeviceState、createNasStatus。主开关可绑 binary_sensor /
- * switch / input_boolean；未直接绑定时改看 statusSource 下的「主指标 + 指标列表」是否有任意
- * 一项有有效数值。
- *
- * 同一套平面灯也是「通用设备状态灯」的实现：createNasStatus 接受 modelType / readState，
- * 由调用方决定读哪一族状态。指示灯颜色与动态由三个名字驱动：
- *   indicatorColor —— 着色器 uniform，readState 从 HA 侧解析出的具体颜色。
- *   customColor    —— 着色器 uniform，0/1 开关：为 1 时放弃内置绿渐变，改用 indicatorColor。
- *   breathing      —— 每条记录上的布尔量，决定这颗灯是否参与呼吸动画（不呼吸就常亮）。
- * readState 返回的 status（normal / warning / unknown / off）与 color 决定这三者；
- * NAS 默认口径只用 on，四态配色只有通用设备（device/device-status.js）会提供。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271208";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
-// 定位必须带上楼层；两侧缺字段 / 空串必须是同一个键，否则指示灯挂不上。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271208";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
 /**
  * 归一化单个 NAS 开关实体。
  */
@@ -32,7 +15,6 @@ function nasState(entityId, state) {
   const stateObject = resolveStateEntry(state, {});
   const stateValue = stateTextOf(stateObject);
   // 只接受三元组里明确的开 / 关：unknown、unavailable 等一律算不可用，
-  // 否则设备掉线时指示灯会继续按「上一次的 on」亮着。
   const available =
     /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/.test(entityId || "") &&
     stateObject.available !== false &&
@@ -45,16 +27,13 @@ function nasState(entityId, state) {
 }
 /**
  * 归一化 NAS 设备的整体状态：直接绑开关实体（item.entityId），或绑一组「状态指标」
- * （item.statusSource，常见于用 SNMP / 传感器间接判断在线）。
  */
 export function nasDeviceState(item, stateSources = {}) {
   // 状态源可能是 Map（舞台侧按 entityId 建的索引）也可能是普通对象；取值口径只有一份实现
-  // （utils/state-entry.js 的 readFromMapOrRecord），本地不再写第二遍。
   const readState = stateEntityId => readFromMapOrRecord(stateSources, stateEntityId);
   if (item.entityId) {
     return nasState(item.entityId, readState(item.entityId));
   }
-  // 用 Set 去重：主指标常常同时出现在 metrics 列表里，重复查询没有意义。
   const hasActiveMetric = [
     ...new Set([
       item.statusSource?.primaryEntityId,
@@ -66,7 +45,6 @@ export function nasDeviceState(item, stateSources = {}) {
       !!metricEntityId &&
       metricState?.available !== false &&
       // 数值型传感器只要 state 不是空 / 未知就算「有数据」，
-      // 具体数值不参与判断 —— 这里只关心 NAS 是否在响应。
       metricState?.state != null &&
       !["", "unknown", "unavailable", "none"].includes(stateTextOf(metricState))
     );
@@ -79,12 +57,8 @@ export function nasDeviceState(item, stateSources = {}) {
   };
 }
 // 内置绿渐变的「默认绿」哨兵色：readState 给出的颜色若是它，说明设备处于默认的正常色，
-// 不必动用自定义色通道（片元着色器里的 customColor 开关）。四态配色的完整表在
-// device/device-status.js（normal #43ce82 / warning #efa33d / unknown、off #89929b），
-// 这里只认这一个哨兵，避免把调色板复制成两份后各自漂移。
 const DEFAULT_INDICATOR_COLOR = "#43ce82";
 // indicatorColor uniform 的初值：NAS 走内置绿渐变用不到它，通用设备每次 sync 都会被
-// readState 覆盖；留着只是为了「没拿到颜色」时片元着色器仍有一个合法值可乘。
 const FALLBACK_INDICATOR_COLOR = "#0fff33";
 /**
  * 创建 NAS 指示灯控制器。
@@ -92,10 +66,7 @@ const FALLBACK_INDICATOR_COLOR = "#0fff33";
 export function createNasStatus({
   THREE: THREE,
   requestFrame: requestFrame = () => {},
-  // 模型类型：'nas' 走内置绿渐变 + on/off 开关；通用设备传自己的 modelType，改看四态 status。
   modelType: modelType = "nas",
-  // 状态读取器：默认 NAS 口径；通用设备传 device/device-status.js 的 deviceStatus，
-  // 由它额外带回 status 与 color。返回里有 color 就会被当作 indicatorColor 使用。
   readState: readState = nasDeviceState
 }) {
   const meshesByBindingId = new Map();
@@ -107,19 +78,15 @@ export function createNasStatus({
   let syncedBindingsSignature;
   let isDisposed = false;
   // 是否有「正在呼吸」的指示灯，决定 tick / nextDelay 是否需要继续工作；
-  // 常亮（不呼吸）的灯不占用逐帧循环。
   let hasVisibleIndicator = false;
-  // 初始为 -Infinity 是刻意的：第一次 tick 一定能通过下面的帧率节流判断。
   let lastTickMs = -Infinity;
   // 两个来源都查：某些嵌入环境里 globalThis.matchMedia 缺失而 window 上有，
-  // 反之（测试桩）也可能只有前者，任何一处命中即视为要求「减少动态效果」。
   const prefersReducedMotion = () => prefersReducedMotionNow();
   /**
    * 释放一条记录：恢复被隐藏的原生指示灯，移除并销毁自制平面。
    */
   function releaseEntry(entry) {
     // 逐个还原为「创建时记录的可见性」，而不是无脑设成 true，
-    // 因为有些原生灯本来就是隐藏的（由模型动画控制）。
     for (const [indicator, wasVisible] of entry.indicators) {
       indicator.visible = wasVisible;
     }
@@ -160,7 +127,6 @@ export function createNasStatus({
       const modelsByLocation = new Map();
       syncedRoot?.traverse(sceneObject => {
         // 这里必须比对注入的 modelType，不能写死 "nas"：通用设备（冰箱 / 洗衣机 …）的模型
-        // 打的是自己的 environmentModelType，写死就一台都匹配不到，状态灯永远不亮。
         if (sceneObject.userData?.environmentModelType !== modelType) {
           return;
         }
@@ -189,7 +155,6 @@ export function createNasStatus({
         activeBindingIds.add(binding.id);
         let existing = meshesByBindingId.get(binding.id);
         if (existing?.model !== matchedModel) {
-          // 绑定的模型变了（重建或改了配置），旧平面必须回收，否则会留在旧模型上。
           if (existing) {
             releaseEntry(existing);
           }
@@ -202,7 +167,6 @@ export function createNasStatus({
           const modelSize = modelBounds.getSize(new THREE.Vector3());
           const modelCenter = modelBounds.getCenter(new THREE.Vector3());
           // 着色器绘制指示灯：顶点着色器贴点并保证最小屏幕尺寸，片元画「核心 + 光晕」并在
-          // alpha 极低时 discard；transparent + depthTest: false + renderOrder 提高，让它始终画在外壳之上。
           const ledMaterial = new THREE.ShaderMaterial({
             transparent: true,
             depthTest: false,
@@ -214,7 +178,6 @@ export function createNasStatus({
                 value: new THREE.Color(FALLBACK_INDICATOR_COLOR)
               },
               // 0/1 开关：非 NAS 模型且颜色不是默认绿时为 1（用 indicatorColor 覆盖调色板）；
-              // NAS 恒为 0，始终走内置绿渐变。
               customColor: {
                 value: modelType !== "nas" ? 1 : 0
               },
@@ -249,15 +212,12 @@ export function createNasStatus({
           ledMesh.renderOrder = 100;
           const viewportSize = new THREE.Vector2();
           // 顶点着色器需要知道视口高度才能反算「最小 24 像素」的尺寸，
-          // 视口会在窗口缩放时变化，所以在每帧渲染前刷新而不是只在创建时取一次。
           ledMesh.onBeforeRender = renderer => {
             ledMaterial.uniforms.viewportHeight.value = renderer.getSize(viewportSize).y;
           };
           // 尺寸取模型宽度的 22%，并夹在 0.025–0.075 之间，
-          // 免得大机柜上大得夸张、小设备上又小到看不见。
           const indicatorSize = Math.max(0.025, Math.min(0.075, modelSize.x * 0.22));
           ledMesh.scale.set(indicatorSize, indicatorSize, indicatorSize);
-          // 摆在模型正面偏右、靠近下沿的位置；z 方向额外外移 0.003 避免与外壳共面闪烁。
           ledMesh.position.set(
             modelCenter.x + modelSize.x * 0.36,
             modelBounds.min.y + modelSize.y * 0.26,
@@ -269,7 +229,6 @@ export function createNasStatus({
               return;
             }
             // 模型自带的指示灯有两种特征：材质名以 nas-material-4 结尾（模型导出时的约定），
-            // 或材质带自发光（emissive > 0）。两者任一命中就隐藏，由自制灯统一表达状态。
             if (
               (Array.isArray(child.material) ? child.material : [child.material]).some(
                 childMaterial =>
@@ -314,7 +273,6 @@ export function createNasStatus({
       uniforms.sizeScale.value = sizeScale;
       uniforms.brightness.value = brightness;
       // 状态读取口径由调用方注入：NAS 默认 nasDeviceState（只回 on），通用设备回 deviceStatus
-      // （额外带 status 与 color）。这里不区分两者，有 color / status 就用，没有就退回 NAS 口径。
       const deviceState = readState(activeBinding, states);
       if (deviceState.color) {
         needsRender ||= bindingEntry.color !== deviceState.color;
@@ -322,14 +280,11 @@ export function createNasStatus({
         uniforms.indicatorColor.value.set(deviceState.color);
       }
       // customColor 是片元着色器的调色板开关：只有「非 NAS 模型 + 颜色不是默认绿」才为 1，
-      // 此时放弃内置绿渐变、改用 indicatorColor；NAS 永远为 0（换主控色也不跟着变色）。
       const customColor =
         modelType !== "nas" && deviceState.color !== DEFAULT_INDICATOR_COLOR ? 1 : 0;
       needsRender ||= uniforms.customColor.value !== customColor;
       uniforms.customColor.value = customColor;
       // 显示条件：NAS 看「开机」；通用设备看 readState 的 visible 与四态 ——
-      // off 不亮，unknown 以灰色常亮表示「读不到」。
-      // 只有总开关打开且设备可显示时才显示；灯灭时不销毁实例，便于状态恢复后立刻显示。
       const shouldShow =
         enabled &&
         (modelType === "nas"
@@ -338,7 +293,6 @@ export function createNasStatus({
       needsRender ||= bindingEntry.mesh.visible !== shouldShow;
       bindingEntry.mesh.visible = shouldShow;
       // 呼吸态：NAS 亮起就呼吸；通用设备只在正常（normal）或告警（warning）时呼吸，
-      // 其余稳态常亮，避免「运行中」的灯闪成故障感。
       bindingEntry.breathing =
         shouldShow &&
         (modelType === "nas" ||
@@ -352,7 +306,6 @@ export function createNasStatus({
         uniforms.pulse.value = 1;
       }
     }
-    // 有正在呼吸的指示灯时常驻重绘；否则只在属性真的变化时重绘一次。
     if (needsRender || hasVisibleIndicator) {
       requestFrame();
     }
@@ -370,7 +323,6 @@ export function createNasStatus({
       return true;
     }
     lastTickMs = nowMs;
-    // 呼吸曲线：cos 在 1400ms 周期内映射到 [0.14, 1.0] 亮度，不会全灭（看起来像掉线）；「减少动态效果」时固定常亮 1。
     const pulse = reducedMotion
       ? 1
       : 0.14 + (0.5 - Math.cos((nowMs / 1400) * Math.PI * 2) * 0.5) * 0.86;
@@ -392,7 +344,6 @@ export function createNasStatus({
     sync: sync,
     tick: tick,
     // 下次 tick 的间隔：没有正在呼吸的指示灯、或用户要求减少动态效果时返回 Infinity，
-    // 表示「不要再调度」，由 sync 在需要时重新唤起动画循环。
     nextDelay: () =>
       !isDisposed && hasVisibleIndicator && !prefersReducedMotion() ? 1000 / 30 : Infinity,
     dispose() {

@@ -1,14 +1,6 @@
 name: Guards
 
 # 「改动即校验」的唯一入口。
-#
-# 为什么单开一份而不是给 docker.yml 加 push 触发：docker.yml 的 build job 里写着
-# `push=${{ github.event_name != 'pull_request' }}` —— 一旦让它在 push 上跑，默认分支的每次
-# 提交都会向 GHCR 推镜像，正是该工作流注释里明确要避免的事（不消耗 Actions 额度、不向 GHCR
-# 推未打算发布的镜像）。所以校验单独放这里，出包前那道留在 docker.yml。
-#
-# 两份工作流**共用同一份守卫清单**：docker.yml 的注释里也写明了这一点。改清单时两边一起改，
-# 否则「CI 过了但出包被拦」或反过来的错配不会有人发现。
 on:
   push:
     branches: ["**"]
@@ -32,12 +24,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      # 七道 Node 守卫已在本轮清理中整体移除（README「开发工具」有记录）；现在补回这一类里
-      # 价值最高的一道：tools/check_invariants.mjs 钉二十一条「不报错、只静默失效」的不变量。
-      # 逐条清单与各自的踩坑背景写在 README「前端结构卫生」一节，这里不重复列举 ——
-      # 早先在此处抄过一份清单，补进新条目后就地与 README 失了同步。
-      # 这些都是每次编辑都可能踩到、且踩到时浏览器/解释器不报错的那一类，不能留给人工 review。
-      # ubuntu-latest 自带 node，不需要额外 setup。
       - name: Invariants (tools/check_invariants.mjs)
         run: node tools/check_invariants.mjs
 
@@ -45,6 +31,5 @@ jobs:
         run: pip install ruff
 
       # 规则集与边界见仓库根的 ruff.toml：只挑全仓已达标的那几条（未使用 import、
-      # 重复定义、未使用局部变量、未定义名字、注释掉的代码）。
       - name: Dead code, unused imports and commented-out code
         run: ruff check .

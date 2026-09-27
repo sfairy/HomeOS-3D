@@ -1,15 +1,4 @@
 /* HomeOS 入口页显示字体：本地自托管（canonical 源：design/scene/fonts.css）
-
-   为什么不用 Google Fonts 的 CSS：
-   1. 主应用的 CSP 是 `style-src 'self'`，外链样式表会被直接拦下；
-   2. 签发服务在卖家 NAS 上跑，离线/内网环境不能依赖外网字体；
-   3. 三端各自独立构建，字体必须随各自镜像分发。
-
-   只收 latin 子集（合计约 86 KB）：Exo 2 与 JetBrains Mono 在上游是可变字体，
-   一份文件覆盖多个字重；CJK 不下载，交给系统字体回退（见 page.css 的 --hos-font-cjk）。
-   unicode-range 与上游一致：不写的话浏览器会拿这套 latin-only 字体去试 CJK 码位，
-   白白多一次请求再逐字回退。
-
    改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 @font-face {

@@ -1,16 +1,7 @@
 /**
  * 3D 交互组件的类型标识与新建实例的默认模板。
- *
- * 前端唯一的初始值来源：后端只校验与存储、不补默认值，故这里的字段名与取值必须与渲染层、
- * 设置面板的读取口径一致。`module.3d_interaction` 是与授权服务约定死的能力名，改名会让已购用户失去权限。
- * lightingMode 只认 standard / region（缺省与非法值折算成 standard），
- * backgroundTheme 只认 grid / dots（历史别名 contours 折算成 dots），读入时统一经 normalize* 归一；
- * sceneStyle 只认 default / warm-wood，wallOpacity 为 null（跟随主题）或 0~1。
- * 分页观感（pageDimStrength / pageSaturation / focusDim*）不在本文件写死，统一取自
- * page-appearance-presets.js 的预设，保证「模板新建」与「旧草稿读入」两路观感一致。
- * create 按画布 56% 居中放置。
  */
-import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609271208";
+import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609271226";
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
 const INTERACTION3D_TYPE = "interaction3d",
@@ -20,7 +11,6 @@ const INTERACTION3D_TYPE = "interaction3d",
     ["region", "轻量柔光"]
   ],
   // 两档并存，standard 为默认：只有显式写了 "region" 才走轻量柔光（二维光照图 + 接触阴影），
-  // 其余（缺省、历史值、非法值）一律折算成 standard（原生灯光 + 实时阴影）。
   normalizeInteraction3dLightingMode = lightingMode =>
     lightingMode === "region" ? "region" : "standard",
   BACKGROUND_THEMES = [
@@ -38,17 +28,13 @@ const INTERACTION3D_TYPE = "interaction3d",
     scopes: ["page"],
     /**
      * 依据当前画布尺寸生成一个默认组件实例。
-     * 尺寸沿用设计标称 2778 × 1940，组件占画布 56% 并居中，保证任何画布比例下都完整落在可视区内。
      * @param {string} options.id 实例 ID，由调用方生成，模板不负责唯一性。
      */
     create({ id: instanceId, instanceName: displayName = "3D 交互", canvas: canvasSize }) {
-      // 画布缺省值与 preview-layout.js 中的兜底值必须一致，否则预览与真实渲染会错位。
       const canvasWidth = Number(canvasSize?.width || 2778),
         canvasHeight = Number(canvasSize?.height || 1940),
         componentWidth = canvasWidth * 0.56,
         componentHeight = canvasHeight * 0.56;
-      // 返回的对象里，properties 的字段名由渲染层直接消费（例如 renderScale、pageDimStrength
-      // 的六个页面键），改动字段名必须同步改渲染层，否则会退化成默认观感。
       return {
         id: instanceId,
         type: INTERACTION3D_TYPE,
@@ -74,8 +60,6 @@ const INTERACTION3D_TYPE = "interaction3d",
           renderScale: 0.8,
           lightingMode: "standard",
           groundReflection: { mode: "off", resolution: 512, strength: 0.18 },
-          // 分页观感预设：展开后得到 pageDimStrength / pageSaturation / focusDimStrength /
-          // focusVignetteStrength 四个键。传空对象是因为模板不需要覆盖预设里的任何一项。
           ...withPageAppearancePreset({}),
           popupOpacity: 74,
           interaction: { rotationMode: "free", panEnabled: !1, zoomEnabled: !1 },
@@ -91,8 +75,6 @@ const INTERACTION3D_TYPE = "interaction3d",
             dimStrength: 70,
             airConditioners: [],
             // 空气净化器与温湿度计都是 0.6.5 新增的环境集合：模板里显式给出空数组，
-            // 编辑器第一次打开这两个配置节时才不会读到 undefined 而渲染失败。
-            // 顺序与参考实现的模板默认值一致（airConditioners → airPurifiers → curtains → temperatureHumidity）。
             airPurifiers: [],
             curtains: [],
             temperatureHumidity: []
@@ -105,8 +87,6 @@ const INTERACTION3D_TYPE = "interaction3d",
       };
     }
   };
-// 对外只留下面这几个。INTERACTION3D_TYPE 与 INTERACTION3D_FEATURE 只供本模块内构造默认实例
-// （模板的 id / type 字段），它们不是「给别人的接口」，故不再导出。
 export {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,

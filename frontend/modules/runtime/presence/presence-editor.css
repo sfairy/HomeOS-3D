@@ -1,21 +1,13 @@
 /*
  * 人物存在 / 安防绑定编辑器的弹窗样式。
- *
- * presence-editor.js 打开弹窗时动态注入本文件、关闭时移除；弹窗根节点是
- * .i3d-editor.i3d-presence-editor，内部为「左绑定列表 / 中户型平面 / 右参数表单」三栏。
- * 主题变量：宿主页 :root 的 --surface / --field / --line / --muted（编辑页来自 app.css，
- * 3D 工作室来自 studio.css），这里全写成 var(--名, 兜底色)，保证弹窗被单独打开也不丢样式。
- * 约定：开头 @import runtime.css 复用弹窗骨架，本文件只负责人物编辑器特有的三栏布局、路线工具、
- * 预设宫格与配色按钮。
  */
-@import "../core/runtime.css?v=2609271208";
+@import "../core/runtime.css?v=2609271226";
 /* ===== 弹窗骨架与三栏布局 ===== */
 
 /* 弹窗比通用编辑器更宽：中间要放得下户型平面。 */
 .i3d-presence-editor {
   width: min(1600px, calc(100vw - 32px));
 }
-/* 头部状态文字：限宽避免长实体名把标题栏挤变形。 */
 .presence-status {
   max-width: 380px;
   color: var(--muted, #89949d);
@@ -71,7 +63,6 @@
   gap: 6px;
   margin: 0;
 }
-/* 字段里的控件统一撑满列宽，避免长文案把栅格列撑开。 */
 .presence-field input,
 .presence-field select,
 .presence-field button {
@@ -90,7 +81,6 @@
   gap: 10px;
   background: var(--surface, #1a2026);
 }
-/* touch-action: none 把触摸手势交给 JS（平移/缩放路线），否则移动端会与页面滚动打架。 */
 .presence-plan > svg {
   width: 100%;
   flex: 1;
@@ -251,7 +241,6 @@
 .presence-field > span {
   white-space: nowrap;
 }
-/* 字段里的按钮文案过长时省略，避免弹窗出现横向滚动条。 */
 .presence-field > button {
   overflow: hidden;
   text-overflow: ellipsis;

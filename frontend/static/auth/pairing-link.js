@@ -1,18 +1,12 @@
 /**
  * 配对链接（二维码）的解析与苹果设备引导条件判断。
- *
- * 扫码落地页 pair.js 与 apple-install-guide.js 共用的纯逻辑：校验并解析二维码里的配对链接，
- * 并判断当前设备是否需要「添加到主屏幕」引导。链接形态固定为
- * <origin>/pair?scan=1#code=xxxxxx&type=homeos-pair&version=1，任一环节不符即视为无效，
- * 宁可报错也不降级接受。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=2609271208";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609271226";
 
 /**
  * 解析并严格校验配对链接；链接超长、格式不符或字段缺失时抛中文错误文案。
  */
 export function parsePairingLink(rawLink) {
-  // 超长字符串通常意味着扫到了非配对二维码，先挡掉避免后续解析开销与被撑爆的风险。
   if (String(rawLink).length > 4096)
     throw new Error(
       "二维码内容过长，请重新生成。"
@@ -20,7 +14,6 @@ export function parsePairingLink(rawLink) {
   const parsedUrl = new URL(rawLink),
     hashParams = new URLSearchParams(parsedUrl.hash.slice(1));
   // 校验要点：只接受 http/https 且不带用户信息（防钓鱼）；路径必须精确为
-  // /pair 且查询串必须是 ?scan=1；哈希参数必须恰好是 code/type/version 三个。
   if (
     !["http:", "https:"].includes(parsedUrl.protocol) ||
     parsedUrl.username ||

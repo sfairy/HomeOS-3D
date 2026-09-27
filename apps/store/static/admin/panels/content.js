@@ -1,19 +1,15 @@
 /**
  * 审计与权益。
- *
- * 后台审计日志与账号权益（含补发与搜索）。
- *
- * 两块内容管理的列表与编辑器：后台审计日志、账号权益。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { api, withBusy } from "../api.js?v=2609271208";
-import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609271208";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { api, withBusy } from "../api.js?v=2609271226";
+import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609271226";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 // --------------------------------------------------------------------------- //
 // 审计日志
@@ -67,8 +63,6 @@ $('#audit-rows').addEventListener('click', async (event) => {
 $('#audit-purge').addEventListener('click', async () => {
   const days = Number($('#audit-purge-days').value || 0);
   // 必须是不小于 1 的**整数**：后端按整数天解析，3.5 会被 FastAPI 直接挡在
-  // 参数校验那层，前端只能收到一条英文 422，运营看不懂也不知道该怎么改。
-  // 诊断面板的清理对话框（runPurge）用的是同一套校验，两边必须一致。
   if (!Number.isInteger(days) || days < 1) { toast('清理天数必须是不小于 1 的整数。', 'warning'); return; }
   const ok = await askConfirm({
     title: '批量清理审计日志',
@@ -93,10 +87,6 @@ export async function loadEntitlements() {
   const status = $('#entitlement-status').value;
   if (feature) params.set('keyword', feature);
   if (status) params.set('status_filter', status);
-  // 与同文件的 loadAudits 一样在这里收口：这个 loader 不只被 activate() 调用（那里有 catch），
-  // 「刷新 / 查询」按钮与分页器、筛选框都直接调它，失败时没人接那个 Promise，会在控制台留一条
-  // Uncaught (in promise)；401/403 时 api() 已经切回登录屏，列表里也由 pagedFetch 渲染了「读取出错」，
-  // 这里再补一句提示即可。
   let data;
   try {
     data = await pagedFetch('entitlements', '/entitlements', Object.fromEntries(params));
@@ -201,7 +191,6 @@ $('#entitlement-patch-form').addEventListener('submit', async (event) => {
           featureCode: form.elements.featureCode.value.trim(),
           productName: form.elements.productName.value.trim(),
           startsAt: utcInput(form.elements.startsAt.value),
-          // 显式 null = 永久有效，所以「清空到期时间」就是改永久，符合直觉
           expiresAt: utcInput(form.elements.expiresAt.value),
           active: form.elements.active.checked,
         }),

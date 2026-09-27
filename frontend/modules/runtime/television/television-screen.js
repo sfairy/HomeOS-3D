@@ -1,33 +1,28 @@
 /**
  * 电视屏幕的画面渲染。
- *
- * 把 HA 播放器上报的「封面 + 状态」画到一张 2D 画布，再作为 CanvasTexture 贴到电视模型的
- * 屏幕面，替代模型自带的发光贴图。对外提供 createTelevisionScreens。没有封面时用
- * 3d-studio/materials/studio-television-poster.js 生成程序化海报，保证离线 / 未播放时屏幕不纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=2609271208";
+import { televisionState } from "./television-state.js?v=2609271226";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：这里原先建键用裸值、
-// 查表也用裸值，一旦某一侧缺字段就成 `null` 而另一侧是 `""`，屏幕永远挂不上。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609271208",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609271226",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609271208"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609271226"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609271208",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609271226",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609271208"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609271226"));
 /**
  * 创建电视屏幕控制器。
  */
@@ -44,7 +39,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
     // removed 标记保证幂等：几何体 dispose 事件与主动释放可能先后到达。
     if (!targetEntry.removed) {
       targetEntry.removed = true;
-      // 摘掉几何体的 dispose 监听，避免释放后再被回调一次。
       targetEntry.screen.geometry.removeEventListener("dispose", targetEntry.onGeometryDispose);
       // 自增 generation：让在途的封面加载回调失效。
       targetEntry.generation++;
@@ -169,7 +163,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
             continue;
           }
           const texture = new THREE.CanvasTexture(canvasElement);
-          // 画布内容按 sRGB 解释；toneMapped 关闭，避免色彩被色调映射压暗。
           texture.colorSpace = THREE.SRGBColorSpace;
           const material = new THREE.MeshBasicMaterial({
             map: texture,
@@ -181,7 +174,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
           });
           const originalMaterial = screenMesh.material;
           // BoxGeometry 的材质顺序是 [+x, -x, +y, -y, +z, -z]，
-          // 因此下标 4 是正前方（屏幕所在的那一面），只替换它，其余保持原材质。
           const materials = Array.from(
             {
               length: 6
@@ -217,7 +209,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
             image: null
           };
           const createdEntry = screenEntry;
-          // 几何体被场景重建销毁时，贴图也要跟着释放，否则会留下一张悬空纹理。
           screenEntry.onGeometryDispose = () => {
             releaseScreen(createdEntry);
             if (screensByLocation.get(location) === createdEntry) {
@@ -229,7 +220,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
           screensByLocation.set(location, screenEntry);
         }
         const deviceState = televisionState(binding, states);
-        // 签名只覆盖「画面上看得见的东西」，避免音量等无关状态变化触发重绘。
         const signature = JSON.stringify([
           deviceState.on,
           deviceState.status,
@@ -257,7 +247,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
               const loadedImage = new Image();
               loadedImage.onload = () => {
                 // 三重校验：未销毁、仍是最新一次加载、记录还在表里。
-                // 快速换曲时旧图的 onload 会晚于新图到达，必须挡掉。
                 if (
                   !isDisposed &&
                   generation === screenEntry.generation &&

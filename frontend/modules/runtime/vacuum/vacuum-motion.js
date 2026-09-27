@@ -1,20 +1,14 @@
 /**
  * 扫地机的实时位姿动画、台词与跟随相机：把 HA 上报的「地图坐标系位姿」换算到 3D 户型坐标、
- * 驱动模型平滑移动，并在跟随视角下把挡在相机与扫地机之间的家具临时变透明。
- *
- * 与 HA 的字段约定：camera 域地图实体的 attributes 里，vacuum_position / robot_position 为机器人
- * 地图坐标，charger_position 为基站坐标，calibration_points 是「地图像素 ↔ 扫地机坐标」的三点标定，
- * heading 角度存在 a 字段（度）。地图地址由 vacuum-map.js 解析。
  */
-// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609271208";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609271226";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=2609271208";
+} from "./vacuum-map.js?v=2609271226";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);
@@ -25,8 +19,6 @@ const asValidMapPoint = pointCandidate =>
     : null;
 /**
  * 把扫地机上报的坐标点换算成 3D 户型里的平面坐标（米）。
- * 三步：三点标定重心插值 → 地图像素坐标；像素按图尺寸归一化到 [-0.5, 0.5] 再乘地图宽 / 深，
- * 得到以地图中心（即户型原点）为原点的局部坐标；按 mapConfig 的旋转角与偏移落到楼层坐标系。
  */
 function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
   // 边界校验一次做全：缺任何一项都无法换算，早退比中途出 NaN 更好排查。
@@ -76,7 +68,6 @@ function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
     firstCalibration.map.y +
     secondWeight * (secondCalibration.map.y - firstCalibration.map.y) +
     thirdWeight * (thirdCalibration.map.y - firstCalibration.map.y);
-  // 像素 → 以图片中心为原点的局部米：-0.5 是因为图片中心对应户型原点。
   const localX = (mapX / mapPixelSize.width - 0.5) * mapConfig.width;
   const localY = (mapY / mapPixelSize.height - 0.5) * mapConfig.depth;
   const rotationRad = ((mapConfig.rotation || 0) * Math.PI) / 180;
@@ -90,7 +81,6 @@ function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
  */
 function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   // 绑定了「上游共享地图」却没有解析出可用的地图绑定时，说明这张地图由别的绑定负责渲染，
-  // 这条绑定就不再画第二台机器，避免同一台扫地机出现两份模型。
   if (
     vacuumBinding.map?.sourceMapId &&
     !vacuumBindingsForMap([vacuumBinding], statesByEntityId).length
@@ -104,7 +94,6 @@ function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   const mapAttributes = resolveStateEntry(mapStateEntry)?.attributes || {};
   const chargerPoint = asValidMapPoint(mapAttributes.charger_position);
   const robotPoint = asValidMapPoint(mapAttributes.vacuum_position || mapAttributes.robot_position);
-  // 三个前置条件都满足才有意义：状态可用、基站坐标存在、地图尺寸已知。
   if (!statusPresentation.available || !chargerPoint || !mapResolution) {
     return null;
   }
@@ -135,8 +124,6 @@ function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   }
   /**
    * 计算朝向角。
-   * 不能直接用 HA 的 a 字段：标定变换可能含旋转与缩放，角度会失真。这里把
-   * 「沿 a 方向前进 100 个地图单位」的点也做同样变换，用变换后两点连线方向作朝向。
    */
   const headingAngle = headingSource => {
     if (!isFiniteNumber(headingSource?.a)) {
@@ -174,7 +161,6 @@ function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
     x: poseMapPoint.x - chargerMapPoint.x,
     y: poseMapPoint.y - chargerMapPoint.y,
     // 朝向同样取相对值，并用 atan2(sin, cos) 取最短夹角。
-    // 两边任一算不出朝向时给 0（保持模型原始朝向），而不是让模型乱转。
     angle:
       poseHeading !== null && chargerHeading !== null
         ? Math.atan2(Math.sin(poseHeading - chargerHeading), Math.cos(poseHeading - chargerHeading))
@@ -244,8 +230,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
   };
   /**
    * 为扫地机模型创建「可移动主体」。
-   * 把模型里贴地的部分（刷盘 / 机身）单独摘出来挂到一个 Group 上，之后只移动
-   * 这个 Group，充电桩等固定部件留在原地不动。
    */
   function createMotionEntry(modelRoot, motionItem) {
     modelRoot.updateWorldMatrix(true, true);
@@ -269,7 +253,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
       if (
         meshBounds &&
         // 两个几何特征挑出「贴地的机器本体」：高度低于模型总高的 30%，
-        // 且横向中心比模型正面更靠里（排除贴在背面的充电桩 / 背板）。
         meshBounds.max.y < modelHeight * 0.3 &&
         meshBounds.getCenter(new THREE.Vector3()).z > modelDepth * 0.05
       ) {
@@ -297,7 +280,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
       quaternion: sourceMesh.quaternion.clone(),
       scale: sourceMesh.scale.clone()
     }));
-    // 用 attach 而不是 add：attach 会保持世界变换不变，避免机器人在挂载瞬间跳位。
     floorMeshes.forEach(bodyMesh => bodyGroup.attach(bodyMesh));
     const restPosition = bodyGroup.position.clone();
     // 打上标记，供场景清理逻辑识别这个自制节点。
@@ -331,8 +313,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
   }
   /**
    * 确保拿到地图图片的像素尺寸（异步加载 + 缓存 + 失败退避）。
-   * 地图坐标换算必须知道像素尺寸，而它只能等图片加载完才知道，因此返回 null
-   * 表示「还在加载」，调用方下一轮再试。
    */
   function ensureMapSize(sizeItem) {
     const mapEntityId = sizeItem.map?.entityId;
@@ -355,7 +335,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
     ) {
       return sizeCacheEntry.size;
     }
-    // 同一把键上的历史失败次数要延续，避免每次重试都从 1 秒重新开始。
     const failureCount = (sizeCacheEntry?.key === cacheKey && sizeCacheEntry.failures) || 0;
     if (sizeCacheEntry) {
       // 换键时先彻底放弃旧图：清定时器、摘回调、清 src，防止旧图回调作用到新条目上。
@@ -426,7 +405,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
       const matchedModel = findModelObject(trackedItem);
       let trackedEntry = motionEntriesByItemId.get(trackedItem.id);
       if (trackedEntry?.model !== matchedModel) {
-        // 模型换了（重建或改配置）：先释放旧的，避免两套移动组同时存在。
         if (trackedEntry) {
           disposeMotionEntry(trackedEntry);
         }
@@ -464,7 +442,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
       ) {
         trackedEntry.target = telemetry;
         if (!trackedEntry.initialized) {
-          // 第一次拿到位姿：直接吸附到目标，避免机器人从模型原点滑过去。
           trackedEntry.x = telemetry.x;
           trackedEntry.y = telemetry.y;
           trackedEntry.angle = telemetry.angle;
@@ -542,8 +519,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
         let deltaX = target.x - animatedEntry.x;
         let deltaY = target.y - animatedEntry.y;
         let distance = Math.hypot(deltaX, deltaY);
-        // 世界距离超过 2.5 米说明不是「走过去」而是「换了一个位置」：
-        // 例如用户重新划区、换了地图、或机器人被搬走，这时直接瞬移比穿墙滑行合理。
         if (
           sceneContext
             .worldPoint(animatedEntry.item.floorId, target.x, target.y, 0)
@@ -562,11 +537,9 @@ export function createVacuumMotion(sceneContext, requestRender) {
           animatedEntry.dirty = true;
         }
         // 指数平滑：1 - e^(-5Δt)，与帧率无关；Δt 夹到 0.1 秒，
-        // 页面切后台回来时不会一步跳到位。
         const smoothingFactor = 1 - Math.exp(-Math.min(deltaSeconds, 0.1) * 5);
         animatedEntry.x += deltaX * smoothingFactor;
         animatedEntry.y += deltaY * smoothingFactor;
-        // 角度同样取最短方向插值，避免从 179° 转到 -179° 时绕一整圈。
         let angleDelta = Math.atan2(
           Math.sin(target.angle - animatedEntry.angle),
           Math.cos(target.angle - animatedEntry.angle)
@@ -575,7 +548,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
         if (distance > 0.02 || Math.abs(angleDelta) > 0.002) {
           isMoving = true;
         } else {
-          // 进入阈值内就直接对齐目标，避免无限逼近带来的持续重绘。
           animatedEntry.x = target.x;
           animatedEntry.y = target.y;
           animatedEntry.angle = target.angle;
@@ -587,7 +559,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
         animatedEntry.dirty = false;
         didUpdate = true;
         // 场景里楼层可能整体平移过，因此位移要在世界坐标里算：
-        // 取楼层原点与目标点的世界坐标之差，作为本次移动的等效世界位移。
         const floorOrigin = sceneContext.worldPoint(animatedEntry.item.floorId, 0, 0, 0);
         const floorTarget = sceneContext.worldPoint(
           animatedEntry.item.floorId,
@@ -639,12 +610,10 @@ export function createVacuumMotion(sceneContext, requestRender) {
  * 生成「俯视跟拍」相机姿势：落在焦点正上方 6 米、沿原视线方向后退 2.5 米。
  */
 export function vacuumBirdCamera(camera, focusPoint) {
-  // 只保留水平方向：俯视视角不需要俯仰分量，否则仰角会随原相机变化而漂移。
   const offsetX = (camera?.position?.[0] || 0) - (camera?.target?.[0] || 0);
   const offsetZ = (camera?.position?.[2] || 1) - (camera?.target?.[2] || 0);
   const horizontalDistance = Math.hypot(offsetX, offsetZ) || 1;
   // 相机落在焦点正上方 6 米、沿原视线方向水平后退 2.5 米：
-  // 既能看全房间，又能看清扫地机拖动的地图轨迹。
   return {
     ...camera,
     mode: "perspective",
@@ -690,14 +659,12 @@ export function createVacuumFollowCamera(threeNamespace) {
    */
   function collectOccluders(occluderContext, occlusionItem) {
     // 与全仓其它「楼层 + 模型」键同一套归一（见 core/scene-model-key.js）：裸 JSON 会把缺失的
-    // 楼层编成 null、空串编成 ""，同一个跟随对象会以为自己换了两次，白白重建一次遮挡列表。
     const occluderKey = sceneModelKey(occlusionItem.floorId, occlusionItem.modelId);
     if (
       cachedModelRoot !== occluderContext.modelRoot ||
       cachedSceneRevision !== occluderContext.sceneRevision ||
       cachedOccluderKey !== occluderKey
     ) {
-      // 场景或跟随对象变了：先还原旧材质再重建列表，避免还原到错误的网格上。
       restoreHiddenMaterials();
       cachedModelRoot = occluderContext.modelRoot;
       cachedSceneRevision = occluderContext.sceneRevision;
@@ -706,7 +673,6 @@ export function createVacuumFollowCamera(threeNamespace) {
       cachedModelRoot?.traverse(object => {
         if (!!object.isMesh && !!object.geometry) {
           // 逐个祖先排查：属于环境效果（灯效、状态点）或扫地机自身模型的网格都不算遮挡物，
-          // 否则机器人会把自己挡成透明，或灯效被当成家具。
           for (
             let ancestorObject = object;
             ancestorObject;
@@ -743,7 +709,6 @@ export function createVacuumFollowCamera(threeNamespace) {
     collectOccluders(revealContext, revealItem);
     const visibleMeshes = new Set();
     // 以焦点为中心打 5 条射线（中心 + 前后左右各 0.18 米）：
-    // 单条射线容易被家具的缝隙漏过，多采样能减少「边缘处家具突然闪现」。
     for (const [sampleOffsetX, sampleOffsetZ] of [
       [0, 0],
       [0.18, 0],
@@ -758,12 +723,10 @@ export function createVacuumFollowCamera(threeNamespace) {
       const rayDistance = rayDirection.length();
       raycaster.set(cameraPosition, rayDirection.normalize());
       raycaster.near = 0;
-      // 终点留出 0.015 米的余量：否则射线会打到扫地机自己身上，把自己也变透明。
       raycaster.far = Math.max(0, rayDistance - 0.015);
       for (const intersection of raycaster.intersectObjects(occluderMeshes, false)) {
         let isVisible = true;
         // 逐级检查可见性：Raycaster 不会跳过 invisible 的对象，
-        // 若不排除，隐藏的网格也会被当成遮挡物。
         for (
           let visibleAncestor = intersection.object;
           visibleAncestor;
@@ -806,7 +769,6 @@ export function createVacuumFollowCamera(threeNamespace) {
         visibleMesh.material = materialEntry.replacement;
       }
       // 每帧从原始材质重新拷贝参数再改透明度：这样其它逻辑（如主题切换）
-      // 对原材质的修改仍会被带上，不会因为一次透明化就永久丢失。
       const originalMaterials = Array.isArray(materialEntry.original)
         ? materialEntry.original
         : [materialEntry.original];

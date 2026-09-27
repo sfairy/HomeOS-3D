@@ -1,16 +1,4 @@
 """3D 交互运行时资源的可下发清单。
-
-清单在 ``frontend/modules/runtime/manifest.json``，是这条路由的**唯一事实来源**：
-``get_resource`` 只下发清单里登记过的文件，而清单本身就是这条路由的安全边界 ——
-"文件放进磁盘"不等于"可以被下发"，因为这条路由按增量包能力码门禁。
-
-**为什么不再写死在 Python 里**：原先那份是"文件名清单 + 媒体类型表"两份结构拼出来的
-（77 条 js 一条条列举，css 再单独 update 一遍）。新增一个模块要改两处，漏掉一处不报错 ——
-只表现为浏览器里那个模块 404、整条 import 链断掉（本仓真踩过一次）。改成清单文件之后：
-新增模块只改清单一处，而"清单 ↔ 磁盘"的一致性由 ``tools/check_invariants.mjs`` 双向核对兜住。
-
-读取结果按 (路径, mtime_ns) 缓存：清单是静态文件，但开发态改完立刻生效比"重启才生效"省事，
-而 mtime 一变缓存自然失效，不需要任何显式刷新。
 """
 from __future__ import annotations
 
@@ -38,10 +26,6 @@ def runtime_manifest_path(frontend_dir: Path) -> Path:
 
 def load_runtime_manifest(frontend_dir: Path) -> tuple[frozenset[str], dict[str, str]]:
     """读清单，返回 ``(可下发的相对路径集合, 扩展名 → 媒体类型)``。
-
-    异常:
-        HTTPException: 500 —— 清单缺失或格式不对。这是部署事故，用 500 明确喊出来，
-            而不是静默回一份空清单：那会让"所有 3D 交互资源都 404"看起来像前端写错了路径。
     """
     path = runtime_manifest_path(frontend_dir)
     try:
@@ -73,7 +57,6 @@ def load_runtime_manifest(frontend_dir: Path) -> tuple[frozenset[str], dict[str,
     if isinstance(declared, dict):
         media_types.update({str(key): str(value) for key, value in declared.items()})
     loaded = (frozenset(raw_files), media_types)
-    # 只留最近一份：清单是单文件，缓存多份没有意义，反而会钉住历史内容。
     _manifest_cache.clear()
     _manifest_cache[cache_key] = loaded
     return loaded

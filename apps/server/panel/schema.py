@@ -1,13 +1,4 @@
 """仪表盘文档的 pydantic 结构定义与整体校验。
-
-模型的字段名用 snake_case，别名（alias）用前端的 camelCase：
-入库与网络传输一律走别名，内部代码读写属性名，两边互不干扰。
-
-`ExtensibleModel.extra = "allow"` 是刻意的：前端会先于后端上线新字段，
-放行未知键可以让旧后端继续保存新前端写出的文档，不会因多一个字段就整份拒绝。
-
-对外入口：`validate_panel_document`。它负责跨字段的引用校验，
-单字段的范围约束则写在各自的 Field 上。
 """
 from __future__ import annotations
 
@@ -19,7 +10,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from .action_rules import POPUP_SOURCES, valid_entity_id, valid_ha_entity_id
 
 # 通用标识符：字母或数字开头，后续允许字母数字与 . _ -，总长不超过 128。
-# 页面 ID、组件 ID、弹窗 ID、模板 ID 共用这一条规则。
 IDENTIFIER = re.compile("^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$")
 
 
@@ -40,9 +30,6 @@ class CanvasBackground(ExtensibleModel):
 
 class Canvas(ExtensibleModel):
     """画布尺寸与缩放策略。
-
-    resize_* 三个字段记录「用户手动调整窗口后」的基准尺寸与内容缩放，
-    为空表示从未手动调整过，此时前端直接按 width / height 等比铺满。
     """
 
     # 上下限与前端编辑器的输入框约束保持一致，防止绕过界面写入异常尺寸。
@@ -51,7 +38,6 @@ class Canvas(ExtensibleModel):
     scale_mode: Literal['contain', 'cover', 'stretch'] = Field(
         default="contain", alias="scaleMode"
     )
-    # 组件整体缩放系数；上限 256 是历史约定，用于超大屏点阵字场景。
     component_scale: float = Field(default=1, alias="componentScale", gt=0, le=256)
     popup_scale: float = Field(default=1, alias="popupScale", gt=0, le=256)
     resize_base_width: float | None = Field(
@@ -128,7 +114,6 @@ class ComponentAction(ExtensibleModel):
     domain: str | None = Field(default=None, max_length=64)
     service: str | None = Field(default=None, max_length=64)
     # 透传参数（如 more-info 的 popupSource / popupId / entityId），
-    # 键名由前端与运行期约定，这里只做容器不做约束。
     data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -265,9 +250,6 @@ class PanelDocument(ExtensibleModel):
     @classmethod
     def normalize_default_page_path(cls, value: str | None) -> str | None:
         """空串归一成 None：前端用空值表示「没设默认页」。
-
-        不归一的话，``""`` 会被当成一个路径去参加下面那条「必须存在于 pages」的校验，
-        于是「清空默认页」这个动作反而保存不了。
         """
         if value is None:
             return None
@@ -276,9 +258,6 @@ class PanelDocument(ExtensibleModel):
     @model_validator(mode="after")
     def validate_structure(self) -> 'PanelDocument':
         """跨字段的引用完整性校验。
-
-        单字段的范围约束由各自 Field 负责，这里只查「引用是否存在、ID 是否唯一」
-        这类无法在单字段上表达的问题，把错误尽早挡在入库之前。
         """
         def walk(items: list[PanelComponent]):
             """深度优先展开组件树，让嵌套子组件也参与唯一性与动作校验。"""
@@ -294,15 +273,12 @@ class PanelDocument(ExtensibleModel):
         if len(page_paths) != len(set(page_paths)):
             raise ValueError("页面路径不能重复。")
         # 默认页必须真的存在：指向一个不存在的路径，展示页打开就落在空白页上
-        # （前端虽然有「兜底到第一页」的容错，但把打不开的默认页存进库里本身就是脏数据，
-        # 而且它会让「默认页」这个设置在别的读取路径上继续骗人）。
         if self.default_page_path is not None and self.default_page_path not in page_paths:
             raise ValueError(f"默认页 {self.default_page_path} 不存在。")
         popup_ids = [popup.id for popup in self.custom_popups]
         if len(popup_ids) != len(set(popup_ids)):
             raise ValueError("组合弹窗 ID 不能重复。")
         # 共享组件与各页面组件放在一起校验：不同页面引用同一共享组件时，
-        # 组件实体本身只存一份，ID 必须在整个项目内唯一。
         all_components = list(walk(self.shared_components))
         for page in self.pages:
             all_components.extend(walk(page.components))
@@ -317,7 +293,6 @@ class PanelDocument(ExtensibleModel):
         if len(component_ids) != len(set(component_ids)):
             raise ValueError("组件 ID 必须在项目内唯一。")
         # 逐个组件校验动作指向：跳转目标必须是本项目的页面，
-        # more-info 的弹窗来源与目标必须存在，避免运行时点下去没反应。
         for component in all_components:
             for action in component.actions.values():
                 if action.type == "navigate" and action.target not in page_paths:
@@ -345,13 +320,7 @@ class PanelDocument(ExtensibleModel):
 
 def validate_panel_document(value: dict[str, Any]) -> dict[str, Any]:
     """校验并归一一份仪表盘文档。
-    返回:
-        归一后的字典：按别名（camelCase）输出、剔除 None 字段，
-    异常:
-        pydantic.ValidationError: 字段类型、范围或引用完整性校验失败，
-        由调用方转成 422 响应。
     """
     document = PanelDocument.model_validate(value)
     # by_alias：保证出参与前端 JSON 字段名一致；
-    # exclude_none：不把未配置字段写成 null，避免前端覆盖已有默认值。
     return document.model_dump(mode="json", by_alias=True, exclude_none=True)

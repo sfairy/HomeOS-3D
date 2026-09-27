@@ -1,22 +1,14 @@
 /*
  * 展示页启动引导（splash）样式（配合 display-boot.js）。
- *
- * /display/<项目名> 首屏遮罩，脚本在首屏素材就绪后摘掉本层。明暗主题由 :root 上的
- * data-display-theme 决定（display-boot.js 按画布背景色写入），没有该属性时跟随系统
- * prefers-color-scheme；各元素的出现动画都带固定延迟。
  */
 
 /* ===== 主题变量 ===== */
 
-/* 默认深色；:root:not([data-display-theme="dark"]) 让显式 dark 主题覆盖系统设置。 */
 :root {
   --display-boot-bg: #11171d;
   --display-boot-fg: #f1f4f5;
   --display-boot-muted: #98a3ac;
   /* 焦点环。启动层必须早于任何令牌表就能画出正确颜色（它是「页面还没样式时」的那一屏），
-     所以这里不能写 var(--hos-accent) —— 只能自带一份，值刻意与 --hos-accent (#ffc46a) 相等。
-     原来是 #f5a40b：介于旧琥珀 #ffa73a 与新主控色 #ffc46a 之间的第三个值，
-     既不属于任何一代色板，也不会在换主控色时更新（启动层本来就不该跟主控色走，
      但也不该留一个谁也不认识的橙）。 */
   --display-boot-focus: #ffc46a;
 }
@@ -44,7 +36,6 @@
   display: grid;
   place-items: center;
   overflow: auto;
-  /* 四边都留安全区，避免内容被刘海或手势条遮挡。 */
   padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   color: var(--display-boot-fg);
@@ -117,8 +108,6 @@
 .display-splash-logo {
   animation: display-boot-logo-breathe 1.9s ease-in-out 1.4s infinite;
 }
-/* 品牌标识取自 apps/store/static/homeos-mark.svg；页面 CSP 为 style-src 'self'，
-   内联 <style> 会被拦截，故把标识自带动画挪到本外部样式表。 */
 @keyframes stmkHub {
   0%,
   100% {
@@ -187,7 +176,6 @@
   font-size: 14px;
   cursor: pointer;
 }
-/* 键盘聚焦用 2px 描边 + 偏移，触屏点击不显示，避免误触高亮。 */
 #display-splash-actions button:focus-visible {
   outline: 2px solid var(--display-boot-focus);
   outline-offset: 3px;
@@ -206,7 +194,6 @@
   transform: scale(1.09);
   transition: transform 0.55s ease;
 }
-/* 错误态停掉循环动画，避免用户以为仍在加载。 */
 #display-splash.is-error .display-splash-logo,
 #display-splash.is-error .display-splash-halo {
   animation: none;
@@ -280,7 +267,6 @@
 /* ===== 运行期提示横幅（非阻塞） ===== */
 
 /* 只在启动层摘掉之后才有机会出现：断网、刷新超时、实时推送被服务端停掉时，
-   用一条横幅说明「画面可能不是最新的」，而不是把过期画面当正常画面继续展示。
    配色刻意不跟随明暗主题：警示条必须一眼看见，浅色画布上用深橙底反而更醒目。 */
 :root {
   --display-notice-bg: rgba(154, 52, 18, 0.94);

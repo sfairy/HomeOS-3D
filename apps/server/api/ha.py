@@ -1,11 +1,3 @@
-"""Home Assistant 集成的主接口面：连接配置、目录查询、历史、同步与设备控制。
-
-HA 能力码分三档（读接口只要求 api）：ha.control（调服务 / 浏览媒体）、ha.sync
-（触发目录同步，会批量改库）、ha.configure（保存 / 删除连接，会改地址与 Token）。
-
-中控设备的可见范围由 dependencies 层收窄：涉及实体的查询都经过 viewer_entity_ids。
-runtime_router 提供 /ws/runtime 实时状态推送，用心跳与配对复查维持长连接。
-"""
 from __future__ import annotations
 
 import asyncio
@@ -42,30 +34,17 @@ from .ha_shared import (
 from . import ha_connection
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
-#: `/ha/test` 的尝试预算 (max_failures, window_seconds, block_seconds)。
-#: 这个端点让**服务端**按请求里给的地址与 Token 发一次出网请求（TCP + TLS + 认证握手），
-#: 是内网任意地址的探测器。此前只有「管理员 + 授权允许 api」两道门禁、不限次数：
-#: 拿着管理员会话就能把它当端口扫描器用，或者单纯用它把家宽出口打满。
 HA_TEST_LIMIT = (20, 60, 120)
 #: 键空间上限：键是账号 id，外部造不出来；仍用带键上限的计数器，与其它键来自外部的
-#: 计数器保持同一套纪律。
 HA_TEST_KEYS = 1024
 # 服务调用白名单：键为 (domain, service)，值为允许透传的参数名（空集表示不接受参数）。
-# 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 —— 前端被篡改也无法把 HA 任意服务当远程执行入口。
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     # 门锁：modules/interaction3d/api.py 的 lock 分支放行这三个服务（另有一道
-    # lock.py 的 validate_lock_command 复核能力位与密码），参数只有 code。
-    # 这三条必须在这里也登记 —— 那条分支最后同样落到本函数，漏一条门锁面板就是每次
-    # 上锁 / 解锁 / 释放锁舌都 403，而前端只显示一句笼统的失败。
     ('lock', 'lock'): {'code'},
     ('lock', 'unlock'): {'code'},
     ('lock', 'open'): {'code'},
     ('homeassistant', 'toggle'): set(),
     ('button', 'press'): set(),
-    # 附加实体的 input_* 变体：purifier.py 的 EXTRA_TYPES 把 input_button / input_boolean /
-    # input_select 分别映射成 button / switch / select 并放行命令，通用设备与净化器的附加
-    # 功能卡片也照这张表渲染。它们的域与 button / switch / select 不同，必须逐条登记，
-    # 否则卡片可点、命令却卡在这里。
     ('input_button', 'press'): set(),
     ('input_boolean', 'turn_on'): set(),
     ('input_boolean', 'turn_off'): set(),
@@ -88,13 +67,9 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('climate', 'set_fan_mode'): {'fan_mode'},
     ('climate', 'set_swing_mode'): {'swing_mode'},
     # 上下摆风与左右摆风是两条独立服务，不是同一件事的别名。2D 空调面板在实体上报
-    # swing_horizontal_modes 时会渲染「水平摆风」一组（见
-    # renderer/core/panel-renderer/device-controls/climate.js），参数名是
-    # swing_horizontal_mode。漏这一条 → 该组每次点都是 403，面板只回显一句笼统的失败。
     ('climate', 'set_swing_horizontal_mode'): {'swing_horizontal_mode'},
     ('climate', 'set_preset_mode'): {'preset_mode'},
     # 3D 面板在「没有可恢复模式」时发它，让设备自己回到默认模式（见
-    # modules/interaction3d/climate.py 的 CLIMATE_SERVICES 说明）。参数为空集。
     ('climate', 'turn_on'): set(),
     ('water_heater', 'turn_on'): set(),
     ('water_heater', 'turn_off'): set(),
@@ -102,7 +77,6 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('water_heater', 'set_operation_mode'): {'operation_mode'},
     ('fan', 'set_percentage'): {'percentage'},
     ('fan', 'set_preset_mode'): {'preset_mode'},
-    # 净化器面板的摆头与前后吹向：参数名与 purifier.py 的 validate_purifier_command 一一对应。
     ('fan', 'oscillate'): {'oscillating'},
     ('fan', 'set_direction'): {'direction'},
     ('fan', 'turn_on'): set(),
@@ -126,14 +100,10 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('vacuum', 'start'): set(),
         ('vacuum', 'pause'): set(),
         # 停止 / 定位 / 局部清扫：2D 扫地机面板按 supported_features 决定是否显示这几枚
-        # 按钮（renderer/controls/vacuum-runtime.js 的 vacuumSupportedActions），参数为空集。
-        # 漏掉时「开始清扫」点得动、却永远停不下来 —— 正是本项目最忌讳的静默失效。
         ('vacuum', 'stop'): set(),
         ('vacuum', 'locate'): set(),
         ('vacuum', 'clean_spot'): set(),
         ('vacuum', 'return_to_base'): set(),
-        # 老固件只有 turn_on / turn_off，没有 start / stop；vacuumActionService 会把
-        # start / stop 映射成这两个服务名，域仍是 vacuum（不是 homeassistant）。
         ('vacuum', 'turn_on'): set(),
         ('vacuum', 'turn_off'): set(),
         ('vacuum', 'set_fan_speed'): {'fan_speed'},
@@ -167,15 +137,9 @@ router.include_router(ha_connection.router)
 @router.post('/test')
 async def test_connection(payload: HATestRequest, request: Request, user: LicensedUser) -> dict[str, Any]:
     """用请求里给的地址与 Token 试连 HA（需管理员 + 授权允许 api）。
-
-    请求体 base_url（内网，必填）/ external_base_url（外网，选填）/ access_token / verify_tls。
-    两个地址都会试一遍，成功返回 ``{'ok': True, 'endpoints': [...]}``（顶层 version /
-    locationName 取自第一个成功的地址，兼容旧前端）；两路全不通时 422，detail 是中文文案。
     """
     require_admin_for_ha(user)
     # 限流键用账号 id：本端点要求管理员，而它唯一能被滥用的方式就是「同一个管理员反复点」——
-    # 无论是猜内网端口还是试 Token，都记在同一个人头上。成功不重置：试连没有「成功」
-    # 这一说（对方在线与否与请求是否合规无关），重置等于给出一个免费的探测额度。
     limiter = request.app.state.ha_test_limiter
     remaining = limiter.retry_after(user.id)
     if remaining > 0:
@@ -220,9 +184,6 @@ def list_entities(
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
     """分页查询实体目录（需已认证 + 授权允许 api）。
-
-    查询参数 search / domain / areaId / status / limit（默认 200，1..500）/ offset；
-    中控设备只看到 viewer_entity_ids 允许的实体。返回 {items, total, limit, offset}。
     """
     connection = active_connection(database)
     if connection is None:
@@ -232,7 +193,6 @@ def list_entities(
     allowed_entity_ids = viewer_entity_ids(database, viewer)
     if allowed_entity_ids is not None:
         if not allowed_entity_ids:
-            # 没有任何可见实体就直接短路，避免生成 IN () 这种退化 SQL。
             return {'items': [], 'total': 0, 'limit': limit, 'offset': offset}
         filters.append(HAEntity.entity_id.in_(allowed_entity_ids))
     if search:
@@ -298,11 +258,6 @@ async def entity_translations(
     _viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """拉取实体枚举值的简体中文翻译（需已认证 + 授权允许 api）。
-
-    返回 {'language': 'zh-Hans', 'resources': {...}}；未配置 HA 时 resources 为空字典，
-    前端保持集成自带的英文原值即可。命中进程内缓存时直接返回，不再回源。
-    异常:
-        HTTPException 502: HA 不可达或凭证解密失败。
     """
     # 同步查库交给线程执行：本路由是 async，不能阻塞事件循环。
     connection, integrations = await asyncio.to_thread(load_translation_context, request.app.state.database)
@@ -313,7 +268,6 @@ async def entity_translations(
 
     async def fetch_resources() -> dict[str, str]:
         # 这一段只由「拿到那把锁的那一个调用」执行：同键的并发请求共用它的结果，
-        # 因此 client_for 的端点探测也不会被并发重复做。
         client = await request.app.state.ha_connector.client_for(connection)
         return await client.fetch_entity_translations(integrations, language='zh-Hans')
 
@@ -331,11 +285,6 @@ async def entity_history(
     entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
     hours: int = Query(24, ge=1, le=168),
 ) -> dict[str, Any]:
-    """读取实体的历史曲线（需已认证 + 授权允许 api）。
-
-    查询参数 entityId（必填）、hours（默认 24，1..168）。返回 {entityId, hours, points}，
-    points 为 [{timestamp, value}]。403 越权；409 未配置 HA；404 实体不存在/禁用/失联；502 HA 查询失败。
-    """
     connection, entity_exists = await asyncio.to_thread(
         load_authorized_entity_context,
         request.app.state.database,
@@ -346,7 +295,6 @@ async def entity_history(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
-    # HA 的历史接口按绝对起始时间查询，这里换算成 UTC 的 ISO 字符串。
     start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     try:
         history = await request.app.state.ha_connector.fetch_history(connection, entity_id, start_time, hours)
@@ -375,8 +323,6 @@ async def entity_history(
 @router.get('/areas')
 def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     """列出 HA 区域（需已登录 + 授权允许 api）。
-
-    返回 {items: [{areaId, name, aliases, status}]}；未配置 HA 时为空列表。
     """
     connection = active_connection(database)
     if connection is None:
@@ -399,9 +345,6 @@ def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]
 @router.get('/devices')
 def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str, Any]:
     """列出 HA 设备（需已认证 + 授权允许 api）。
-
-    中控设备只看到「其下挂着可见实体」的设备：先用可见实体反查 device_id 再过滤，
-    避免把同一 HA 里别的设备名字暴露给这块屏。返回 items（字段为 camelCase）。
     """
     connection = active_connection(database)
     if connection is None:
@@ -443,9 +386,6 @@ def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str,
 @router.get('/sync/status')
 def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
     """读取目录同步状态（需已认证 + 授权允许 api）。
-
-    返回 configured / connected / status / phase / 各次同步时间 / catalogRevision /
-    counts / lastError；未配置 HA 时返回最小的 not_configured 结构。
     """
     connection = active_connection(database)
     if connection is None:
@@ -467,7 +407,6 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
             'devices': state.device_count if state else 0,
             'areas': state.area_count if state else 0,
         },
-        # 连接正常时一律为 None；异常时优先用连接器的实时错误，其次才是库里的历史错误。
         'lastError': None
         if request.app.state.ha_connector.connected
         else (
@@ -479,9 +418,6 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 @router.post('/sync')
 async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
     """触发一次全量同步（需管理员 + 授权允许 api 与 ha.sync）。
-
-    ha.sync 会批量改库（新增/更新/回收实体、设备、区域），风险高于 ha.control。
-    返回 {'ok': True, 'counts': {...}}；403 授权不足或非管理员；409 未配置；502 HA 侧失败。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
@@ -500,9 +436,6 @@ async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
 @router.get('/health')
 def ha_health(request: Request, database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
     """HA 连接健康检查（需已认证 + 授权允许 api）。
-
-    返回 configured / connected / lastError；lastError 优先取连接器的运行时错误，
-    其次取库里记录的上次错误。
     """
     connection = active_connection(database)
     connected = request.app.state.ha_connector.connected
@@ -524,10 +457,6 @@ async def call_service(
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """调用 HA 服务控制设备（需已认证 + 授权允许 api 与 ha.control）。
-
-    校验顺序（任一不过就不回源）：能力码 → 服务白名单 → data 字段被该服务允许 →
-    homeassistant.toggle 要求实体域可开关、其它服务要求域一致 → 实体可见且同步正常。
-    返回 {'ok': True, 'result': {...}}。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
@@ -553,7 +482,6 @@ async def call_service(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail='该实体类型不支持切换动作。',
         )
-    # 非跨域服务要求域一致，避免用 light.turn_on 去操作一个 switch 实体。
     if payload.domain != 'homeassistant' and entity_domain != payload.domain:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -578,7 +506,6 @@ async def call_service(
             payload.data,
         )
     except (HAClientError, CredentialCipherError) as error:
-        # 标记诊断日志已记录，避免全局日志中间件为同一次失败再补一条。
         request.state.diagnostic_error_logged = True
         request.app.state.global_log.append(
             'error',
@@ -616,14 +543,10 @@ async def browse_media(
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """浏览媒体播放器的可播放内容（需已认证 + 授权允许 api 与 ha.control）。
-
-    请求体 entity_id / media_content_id / media_content_type（可空）。
-    返回 {'ok': True, 'result': HA 原始结果}；422 实体不是媒体播放器，其余同 call_service。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     entity_domain = payload.entity_id.partition('.')[0]
-    # 媒体浏览只对媒体播放器有意义，其它域直接拒绝，不必回源。
     if entity_domain != 'media_player':
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

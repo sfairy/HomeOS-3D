@@ -1,34 +1,26 @@
-/**
- * `line-chart` 控件：注册折线图，绘制与历史序列在 `history-chart.js`。
- */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271208";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../../controls/line-chart-runtime.js?v=2609271208";
+} from "../../../controls/line-chart-runtime.js?v=2609271226";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../../controls/weather-chart-runtime.js?v=2609271208";
-// 同门分片：history-chart
+} from "../../../controls/weather-chart-runtime.js?v=2609271226";
 import {
   attachChartTooltip,
   buildHistorySeries
-} from "../history-chart.js?v=2609271208";
+} from "../history-chart.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   chartThresholdPalette,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
-// 折线图控件：序列由 buildHistorySeries 整理，几何与路径由 line-chart-runtime 计算。
 registerComponent("line-chart", {
   render(chartComponent, chartContext) {
     const chartProperties = chartComponent.properties || {};
@@ -43,7 +35,6 @@ registerComponent("line-chart", {
       chartProperties.hours
     );
     // 阈值色带由渲染层读令牌后注入：本模块碰 DOM，weather-chart-runtime 不碰，
-    // 所以「令牌 → 实际色值」这一步落在这一侧（见 registry-visuals 的 chartThresholdPalette）。
     const chartThresholdColors = chartThresholdPalette();
     const chartThresholds = resolvedThresholds(
       chartProperties.thresholds,

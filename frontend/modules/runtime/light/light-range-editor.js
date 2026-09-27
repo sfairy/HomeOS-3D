@@ -1,11 +1,5 @@
 /**
  * 灯光照射范围编辑器（平面 / 3D 双视图）：舞台侧通过 range-editor 消息打开，以独立浮层挂在
- * 容器的 ownerDocument 上，直接读写宿主注入的 regionLighting（区域布光系统）。
- *
- * 数据模型：覆盖以 regionKey = [区域 ID, 灯具 ID] 为键，值是光区的几何与离地参数；编辑先写本地副本
- * 并即时反馈到场景，只有 commitOverrides 才回调宿主，故「改到一半关掉」不会污染已保存配置。
- * 取值口径：宽 / 深 0.5~20 米（两位小数）；离地 0~20 米，0 表示本层地面；柔和度界面按 5%~100%
- * 展示、写入时换算成 0.05~1 的比例。对外只导出 mountRegionRangeEditor。
  */
 // 夹取与换算统一走 utils/numbers.js（唯一实现，经 static-helpers 桥取用）。
 import {
@@ -17,28 +11,13 @@ import {
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609271208";
+} from "../core/static-helpers.js?v=2609271226";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
-// 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
-// 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
-// 覆盖对象是纯数据（无函数 / 无循环引用），用 JSON 深拷贝最省事；
-// 顺带把 undefined 兜底成空对象。
 const deepCloneObject = sourceObject => JSON.parse(JSON.stringify(sourceObject || {}));
-// 保留两位小数（厘米级精度）：避免把 0.30000000000000004 这类浮点噪声写进配置，
-// 也保证前后端比较时不会因为尾差判定为「改过了」。
 const roundToHundredth = numericInput => Math.round(numericInput * 100) / 100;
 
 /**
  * 光区编辑器的取色。SVG 的 fill / stroke 属性和 canvas 一样读不到 CSS 变量
- * （`stroke: "var(--hos-accent)"` 会被静默忽略，画笔保持上一次的值），
- * 所以品牌色必须从调色板令牌里现取一次再派生。
- *
- * 惰性 + 记忆化：`paletteColor` 按令牌名缓存**第一次**取到的值，所以不能放在模块求值时
- * （那一刻运行期调色板可能还没挂上，会把兜底色永久缓存下来）。放到首次绘制时取，
- * 一次取齐后复用，不会被每帧重绘拖着反复算。
- *
- * 18 枚色阶全部由主控色（--hos-accent*）与传感器灰（--hos-sensor / --hos-sky-haze）派生 ——
- * 原来是一组写死的暖色十六进制，管理员换掉主控色后这层光区纹丝不动。
  */
 let rangeEditorPaletteCache = null;
 function rangeEditorPalette() {
@@ -53,12 +32,6 @@ function rangeEditorPalette() {
     idleStroke: paletteColor("--hos-sensor", "#9eb0c4"),
     idleMarkerFill: paletteColor("--hos-ink", "#f1f7fb"),
     // 标记点的外圈：取传感器灰的**暗档**，与上面 idleStroke 同族但更弱，
-    // 让「未选中」这一族自成一个层次（亮档描光区、暗档描标记点）。
-    // 原来写的是 --hos-sky-haze，兜底 #536777 —— 两者差得很远，说明那个令牌是选错的：
-    // --hos-sky-haze (#24395a) 是夜空族的**面色**（彩度 54、亮度 0.040），拿来当画布上的
-    // 描边几乎是黑的，而兜底值透露的真实意图是一枚中调蓝灰（彩度 36、亮度 0.129）。
-    // --hos-sensor-deep (#77879a) 的彩度 35 与它几乎一致、色相同为蓝灰，正是这一族
-    // 早就定义好却一直没有消费者的暗档。
     idleMarkerStroke: paletteColor("--hos-sensor-deep", "#77879a"),
     // 三种拖拽手柄与连线。
     handleFill: paletteColor("--hos-accent-bright", "#ffd9a0"),
@@ -71,14 +44,10 @@ function rangeEditorPalette() {
   return rangeEditorPaletteCache;
 }
 // 光区键：用 JSON.stringify 序列化 [区域 ID, 灯具 ID]，而不是拼分隔符 ——
-// ID 里一旦出现分隔符，拼接就会撞键。
 const toRegionKey = (areaIdPart, lightIdPart) =>
   JSON.stringify([String(areaIdPart), String(lightIdPart)]);
 /**
  * 按拖拽的手柄计算光区的新宽高（纯函数，便于单测）。
- * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式取变化更大的那一轴作为缩放系数，
- * 并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
- * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
 export function resizeRegionDimensions(
   sourceRegion,
@@ -120,9 +89,6 @@ export function resizeRegionDimensions(
 }
 /**
  * 生成离地高度的补丁，并保证下限不高于上限。
- * 用户把下限调到上限之上时直接把另一端改成同一个值（而非拒绝输入），拖到边界时手感是「推着另一端走」；
- * heightAbove / heightBelow 是旧的自动推算字段，这里显式置 undefined，由调用方删除，避免两套字段同时存在。
- * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
 export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
@@ -149,8 +115,6 @@ export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
 }
 /**
  * 挂载照射范围编辑器浮层。
- * 编辑器自己管一份覆盖集合，编辑时即时作用到场景，提交时通过 onChange 交回宿主；
- * 平面与 3D 预览两套相机状态各自保存，来回切换不会互相打断。
  */
 export function mountRegionRangeEditor(
   editorHost,
@@ -166,7 +130,6 @@ export function mountRegionRangeEditor(
   const editorWindow = editorDocument.defaultView;
   const threeNamespace = editorHost.THREE;
   // 面板结构一次性用 innerHTML 拼出（含大量静态文案与 aria 标签），
-  // 之后统一用 data-field / data-action 取控件；改界面只需改这一段字符串。
   const editorElement = editorDocument.createElement("section");
   editorElement.className = "plan2-range-editor";
   editorElement.dataset.testid = "range-editor";
@@ -175,7 +138,6 @@ export function mountRegionRangeEditor(
   editorElement.innerHTML =
     '\n    <svg aria-label="灯具与照射范围" role="group"></svg>\n    <header class="p2r-top"><div class="p2r-title">平面光区编辑<small>拖动边角调整范围，按住 Shift 等比例缩放</small></div><span class="p2r-compact-caption">自由拖动 · Shift 等比</span></header>\n    <div class="p2r-panel">\n      <h3>照射范围</h3>\n      <div class="p2r-view-switch" role="group" aria-label="编辑视图">\n        <button type="button" data-action="view-plan" aria-pressed="true">平面编辑</button>\n        <button type="button" data-action="view-3d" aria-pressed="false">3D 预览</button>\n      </div>\n      <div class="p2r-selectors">\n        <label class="p2r-field">楼层<select data-field="floor" aria-label="楼层"></select></label>\n        <label class="p2r-field">灯具<select data-field="fixture" aria-label="灯具"></select></label>\n      </div>\n      <div class="p2r-grid">\n        <label class="p2r-field p2r-shape">光区形状<select data-field="shape" aria-label="光区形状"><option value="circle">圆形</option><option value="square">方形</option></select></label>\n        <label class="p2r-field"><span data-width-label>宽度（米）</span><input data-field="width" aria-label="宽度（米）" type="number" min="0.5" max="20" step="0.1" inputmode="decimal"></label>\n        <label class="p2r-field"><span data-depth-label>深度（米）</span><input data-field="depth" aria-label="深度（米）" type="number" min="0.5" max="20" step="0.1" inputmode="decimal"></label>\n        <label class="p2r-field p2r-rotation">旋转（度）<input data-field="rotation" aria-label="旋转（度）" type="number" min="-180" max="180" step="1" inputmode="decimal"></label>\n        <label class="p2r-field p2r-soft-field">边缘柔和度<span class="p2r-softness"><input data-field="softness" aria-label="边缘柔和度" type="range" min="5" max="100" step="1"><output data-soft-value>35%</output></span></label>\n      </div>\n      <h3>离地照明范围</h3>\n      <div class="p2r-grid">\n        <label class="p2r-field">最低照到（米）<input data-field="heightMin" aria-label="最低照到（米）" type="number" min="0" max="20" step="0.05" placeholder="自动" inputmode="decimal"></label>\n        <label class="p2r-field">最高照到（米）<input data-field="heightMax" aria-label="最高照到（米）" type="number" min="0" max="20" step="0.05" placeholder="自动" inputmode="decimal"></label>\n      </div>\n      <p class="p2r-status" data-height-summary></p>\n      <p class="p2r-status">从本层地面算起，0 米是地面；留空自动。切到“3D 预览”可边调高度边看效果。</p>\n      <div class="p2r-options">\n        <label class="p2r-check i3d-setting-toggle"><input data-field="moveCenter" type="checkbox">允许移动范围中心</label>\n        <label class="p2r-check i3d-setting-toggle"><input data-field="group" type="checkbox">同步本组范围</label>\n        <label class="p2r-check i3d-setting-toggle"><input data-field="preview" type="checkbox"><span data-preview-label>仅预览当前灯</span></label>\n      </div>\n      <div class="p2r-actions"><button type="button" data-action="reset-center">中心回到灯位</button><button type="button" data-action="reset">恢复模型默认</button><button type="button" class="p2r-done" data-action="close">完成</button></div>\n      <p class="p2r-status" role="status" aria-live="polite"></p>\n    </div>\n    <div class="p2r-help">外边界为光照衰减到零的位置 · 范围不代表墙体挡光</div>';
   // 独立会话（standalone）没有宿主弹窗可关，把「完成」按钮藏掉，
-  // 关闭动作由宿主驱动。
   editorElement.querySelector("[data-action=close]").hidden = standalone;
   editorHost.container.append(editorElement);
   const svgElement = editorElement.querySelector("svg");
@@ -192,12 +154,10 @@ export function mountRegionRangeEditor(
   const raycaster = new threeNamespace.Raycaster();
   const pointerNdc = new threeNamespace.Vector2();
   // 拾取地面用数学平面做射线求交，而不是求交场景网格：
-  // 地面只是视觉平面没有实体几何，算平面交点更快、也不受地板贴图边界影响。
   const groundPlane = new threeNamespace.Plane(new threeNamespace.Vector3(0, 1, 0), 0);
   let isOpen = false;
   let isDisposed = false;
   // 本次编辑产生的覆盖集合（regionKey → 光区参数）：编辑期间先落在这里并即时生效，
-  // 只有 commitOverrides 才把它交回宿主。
   let overridesByRegionKey = {};
   let regions = [];
   let selectedRegionKey = "";
@@ -206,12 +166,10 @@ export function mountRegionRangeEditor(
   let openedCameraState = null;
   let requestedFloorSelection = "";
   // 进入编辑器前轨道控制的开关状态：退出时必须按原样恢复，
-  // 否则用户会莫名其妙地转不动视角。
   let previousControlsEnabled = true;
   let topViewCameraState = null;
   let is3dPreview = false;
   // 平面编辑与 3D 预览各自的相机快照：来回切换时各自还原，
-  // 不复用同一份 —— 两种视图的取景需求本来就不同。
   let savedCameraState3d = null;
   let savedCameraStatePlan = null;
   let dragState = null;
@@ -229,8 +187,6 @@ export function mountRegionRangeEditor(
   // 配置里的楼层 ID 可能是数字、场景元数据里是字符串，因此统一转成字符串比较。
   const findFloorById = floorId =>
     (editorHost.document?.floors || []).find(floor => String(floor.id) === String(floorId));
-  // 取当前光区的「同组兄弟」：有 groupId 时按组匹配，否则退化成只匹配它自己。
-  // 「整组一起调」的开关会用它把一次改动扩散到整组。
   const findRegionSiblings = sourceRegionItem =>
     sourceRegionItem
       ? regions.filter(
@@ -241,7 +197,6 @@ export function mountRegionRangeEditor(
               : siblingCandidate.key === sourceRegionItem.key)
         )
       : [];
-  // 本次编辑实际波及的光区键：勾了「整组」就展开为同组兄弟，否则只有当前选中的那个。
   const getAffectedRegionKeys = () =>
     fieldElements.group.checked
       ? findRegionSiblings(getSelectedRegion()).map(groupRegion => groupRegion.key)
@@ -298,7 +253,6 @@ export function mountRegionRangeEditor(
     return optionElement;
   }
   // 表单 → 界面回填：面板上所有控件与状态文案都在这一个地方刷新，
-  // 避免各处零散赋值造成「改了但没显示」的不一致。
   function syncFormState() {
     fieldElements.floor.replaceChildren(
       ...(editorHost.document?.floors || []).map(floorEntry =>
@@ -358,7 +312,6 @@ export function mountRegionRangeEditor(
         }
       }
       // 光照高度区间的显示文案：未设置（undefined）显示「自动」，0 及以下显示「地面」，
-      // 其余保留两位小数加「米」——与输入框的回填精度保持一致。
       const formatHeightText = heightLevel =>
         heightLevel === undefined
           ? "自动"
@@ -403,8 +356,6 @@ export function mountRegionRangeEditor(
     wake();
   }
   // 写入覆盖的核心：以场景实际光区值打底，叠加已有覆盖，再叠本次补丁（勾了「同步本组范围」时写到该组所有光区）；
-  // 高度字段为 undefined 的一律删掉 —— 留着会参与序列化比较，导致脏标记误判。
-  // shouldRefreshControls 用于需要立刻交回宿主的操作（例如重置）。
   function applyOverride(overridePatch, shouldRefreshControls = false) {
     if (getSelectedRegion()) {
       for (const affectedRegionKey of getAffectedRegionKeys()) {
@@ -454,7 +405,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 提交覆盖：先以光照系统当前的覆盖为准（期间可能有别的入口改过），
-  // 再深拷贝一份交给 onChange —— 必须给副本，否则宿主异步保存期间用户继续编辑会污染快照。
   function commitOverrides() {
     overridesByRegionKey = deepCloneObject(
       getRegionLighting()?.getOverrides?.() || overridesByRegionKey
@@ -486,14 +436,11 @@ export function mountRegionRangeEditor(
       region.center[2] + offsetAlongX * axisZ + offsetAlongZ * axisX
     );
   }
-  // SVG 元素的唯一实现见 /static/shared/dom-factory.js（必须 createElementNS + setAttribute）。
-  // 本文件的调用点默认把新节点挂到 svgElement 上，故只在工厂外留一层默认父节点的适配。
   const { svg } = createDomFactory(editorDocument);
   function createSvgElement(tagName, attributes, parentElement = svgElement) {
     return svg(tagName, attributes, parentElement);
   }
   // 生成光区的屏幕路径：方形取四角、圆形按 64 段逼近圆周（足够平滑且点数可控）。
-  // insetScale 用来画内缩的虚线内框，表达「外边界是衰减到零的位置」。
   function buildRegionPathData(pathRegion, pathWorldY, insetScale = 1) {
     const halfWidth = (pathRegion.width * insetScale) / 2;
     const halfDepth = (pathRegion.depth * insetScale) / 2;
@@ -553,7 +500,6 @@ export function mountRegionRangeEditor(
     );
   }
   // 重绘整层 SVG 覆盖层：光区轮廓、灯位、拖拽手柄与尺寸标注都在这里生成。
-  // 非当前选中的光区压到 0.45 不透明度，让编辑对象始终是视觉焦点。
   function renderSvgOverlay() {
     if (!isOpen || !editorHost.camera || is3dPreview) {
       return;
@@ -854,7 +800,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 按下：先判命中拖拽手柄（改尺寸），再判光区内部（移中心，且必须在勾选「允许移动范围中心」时）；
-  // 两者都不命中就不进入拖拽，让事件继续冒泡给轨道控制。
   function handlePointerDown(pointerDownEvent) {
     if (pointerDownEvent.button !== 0 || !isOpen || is3dPreview) {
       return;
@@ -945,7 +890,6 @@ export function mountRegionRangeEditor(
     dragState.changed = true;
   }
   // 结束拖拽：shouldRevert 用于 Esc 取消，丢弃本次改动而不写回覆盖；
-  // 正常结束才落库到覆盖集合并提交。
   function finishDrag(endDragEvent, shouldRevert = false) {
     if (!dragState || (endDragEvent && endDragEvent.pointerId !== dragState.pointerId)) {
       return;
@@ -974,7 +918,6 @@ export function mountRegionRangeEditor(
     applyPreviewToScene();
     renderSvgOverlay();
   }
-  // 编辑期间关掉轨道控制，否则拖手柄会顺带旋转视角。
   function suspendOrbitControls() {
     if (editorHost.controls) {
       editorHost.controls.enabled = false;
@@ -993,7 +936,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 平面编辑 ↔ 3D 预览切换：两边各自的相机状态先存后取，
-  // 并同步面板文案与轨道控制开关。
   function set3dPreviewEnabled(shouldUse3dPreview) {
     if (!isOpen || is3dPreview === shouldUse3dPreview) {
       return;
@@ -1031,13 +973,10 @@ export function mountRegionRangeEditor(
     wake();
   }
   // 算本层的平面包围盒：墙按厚度外扩、家具按旋转后的四个角展开，
-  // 漏掉旋转后的角会让相机取景裁掉家具。
   function computeGroundBounds(horizontalAxis, verticalAxis) {
     const floorScene = findFloorById(activeFloorId)?.scene;
     const groundSamplePoints = [];
     // 记一个采样点（可带半径），半径用于把包围盒按物体实际尺寸外扩；
-    // 坐标不是有限数就直接跳过，否则会把整层的包围盒算成无效值。
-    // 采样高度固定 0.065 米，下面的兜底分支也用同一高度，两处才落在同一平面上。
     const addSamplePoint = (sampleWorldX, sampleWorldY, sampleRadius = 0) => {
       if (!Number.isFinite(Number(sampleWorldX)) || !Number.isFinite(Number(sampleWorldY))) {
         return;
@@ -1218,7 +1157,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 合并同一帧内的多次重绘请求：ResizeObserver 与状态变化常常连着触发，
-  // 逐次重绘会白算好几遍。
   function scheduleRender({ fit: shouldFit = false } = {}) {
     if (isOpen) {
       pendingFit ||= shouldFit;
@@ -1273,7 +1211,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 表单变更入口：按 data-field 分发。柔和度界面按百分比、写库换算成 0.05~1 的比例；
-  // 宽深夹到 0.5~20 米；旋转归一化到 -180~180 度。
   function handleFieldChangeEvent(fieldChangeEvent) {
     const fieldControl = fieldChangeEvent.target;
     const fieldName = fieldControl.dataset.field;
@@ -1351,7 +1288,6 @@ export function mountRegionRangeEditor(
     }
   }
   // 键盘操作：方向键微调（Shift 加速）、Esc 取消当前拖拽 ——
-  // 手柄拖拽要有等价的键盘路径，否则纯键盘用户改不了范围。
   function handleEditorKeyDown(editorKeyEvent) {
     if (!isOpen || editorKeyEvent.defaultPrevented) {
       return;
@@ -1641,9 +1577,6 @@ export function mountRegionRangeEditor(
 }
 /**
  * 增强编辑器表单控件：原生 select 包成自定义下拉、数字输入加步进按钮与键盘支持。
- * 自己做下拉是因为原生 select 的弹出层在弹窗里样式与层级都不可控；
- * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器反复开关，漏一个就会累积。
- * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
 export function mountRangeFormControls(editorRootElement) {
   const formDocument = editorRootElement.ownerDocument;
@@ -1682,9 +1615,6 @@ export function mountRangeFormControls(editorRootElement) {
     }
   }
   // 菜单用 fixed 定位并现算位置：普通绝对定位会被弹窗的 overflow 裁掉。
-  // 定位算法只有一份（/static/shared/menu-positioning.js，编辑器里 11 处下拉都用它），
-  // 这里把本控件的手感原样传成参数：间距 4、边距 8、高度上限 320 且下限 40、按内容取高。
-  // 视口取 formWindow：本编辑器可能被嵌进另一份文档，顶层 window 的尺寸不是它。
   function positionSelectMenu() {
     if (!openSelect) {
       return;
@@ -1767,7 +1697,6 @@ export function mountRangeFormControls(editorRootElement) {
     }
   }
   // 选中一项：写回原生 select 并派发 change 事件，复用同一条表单变更链路，
-  // 这样自定义控件与直接改原生控件的行为完全一致。
   function chooseSelectOption(targetSelectEntry, chosenOptionButton) {
     if (!chosenOptionButton || chosenOptionButton.disabled || targetSelectEntry.select.disabled) {
       return;
@@ -1824,9 +1753,6 @@ export function mountRangeFormControls(editorRootElement) {
     });
     addTrackedListener(nativeSelect, "change", () => syncCustomSelect(selectEntryModel));
   }
-  // 步进实现只有一份（/static/shared/number-input-stepper.js，经 static-helpers 桥取用）。
-  // 本适配层只补两件本文件特有的事：一次步进就要落配置（立刻补发 change），事件构造器取本表单
-  // 文档那份（跨文档时全局 Event 与 formWindow.Event 不是同一个 realm 的构造器）。
   const stepNumberInput = (numberInputElement, stepDirection) =>
     sharedStepNumberInput(numberInputElement, stepDirection, {
       dispatchChange: true,

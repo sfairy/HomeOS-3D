@@ -1,20 +1,11 @@
 /**
  * 渲染器 ↔ 3D 交互舞台的桥接层：渲染器只认识组件控制器（renderInteraction3d 返回宿主元素），
- * 真正的 3D 实现跑在舞台页 iframe 内，本模块负责两者间的授权、加载、生命周期与「编辑器视图」登记。
- *
- * 约定：授权接口为 /api/v1/modules/interaction3d/access，响应必须同时给出 allowed 与正的
- * validForSeconds（access-monitor 依赖后者决定续期节奏）；运行时代码走
- * /api/v1/modules/interaction3d/core/runtime.js，URL 上的 ?v= 是构建脚本生成的缓存戳，改代码后必须同步
- * 更新；错误对象上挂 status 以区分「明确拒绝（403）」「登录失效（401）」与「暂时不可用」。
- * 副作用：模块级持有单个授权监视器与两张按组件 ID 索引的 Map，挂载时插入 link / div / iframe，卸载时移除。
  */
-import { createAccessMonitor } from "./access-monitor.js?v=2609271208";
-import { createInteraction3dCover } from "./cover.js?v=2609271208";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609271208";
+import { createAccessMonitor } from "./access-monitor.js?v=2609271226";
+import { createInteraction3dCover } from "./cover.js?v=2609271226";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=2609271226";
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
- *
- * @throws {Error} 请求失败或响应不合法；错误对象带 `status`（403 明确拒绝 / 401 未登录 / 502 其它）。
  */
 export async function requestInteraction3dAccess() {
   const abortController = new AbortController();
@@ -41,7 +32,6 @@ export async function requestInteraction3dAccess() {
     }
     const accessGrant = await accessResponse.json();
     // 200 也要校验内容：allowed 必须严格为 true，且有效期为正数。
-    // allowed === false 说明后端明确拒绝（补 403，走保留封面的分支），其余归为 502 可重试。
     if (
       accessGrant?.allowed !== true ||
       !Number.isFinite(Number(accessGrant.validForSeconds)) ||
@@ -53,7 +43,6 @@ export async function requestInteraction3dAccess() {
     }
     return accessGrant;
   } finally {
-    // 成功、失败、超时三条路径都要清定时器，避免页面长期持有无用的 abort。
     clearTimeout(abortTimeoutId);
   }
 }
@@ -69,11 +58,6 @@ function notifyViewReady(componentId, error) {
     waiter(error);
   }
 }
-/**
- * 把挂载失败的原因压成一句能进占位文案的短句。
- * 只认「Error 的非空 message」与「非空字符串」两种形状：抛出来的东西可能是任何值（throw {}、Promise.reject(undefined)、
- * 事件对象…），String(值) 会得到 [object Object] 写进用户可见文案 —— 那比没有原因更糟。
- */
 function interaction3dLoadFailureReason(loadError) {
   const rawReason =
     typeof loadError?.message === "string" && loadError.message
@@ -88,11 +72,6 @@ function interaction3dLoadFailureReason(loadError) {
   // 运行时抛出的栈可能很长（甚至带打包后的路径），占位文案只留一句能读的。
   return normalizedReason.length > 60 ? normalizedReason.slice(0, 60) + "…" : normalizedReason;
 }
-/**
- * 3D 运行时挂载失败时的兜底：说明原因、切回待授权态、通知等待者。
- * 三件事缺一不可：原因要出现在占位文案里（几种失败在页面上长得一样，排查只能靠猜）、原始错误要进全局日志
- * （唯一能事后取证的通道）、编辑态等待者要当场被拒（否则编辑器干等 25 秒超时）。
- */
 function showInteraction3dLoadFailure(hostElement, component, context, loadError) {
   const loadFailureReason = interaction3dLoadFailureReason(loadError);
   const loadFailureElement = document.createElement("div");
@@ -119,13 +98,10 @@ export function getInteraction3dEditorView(requestedComponentId) {
 }
 /**
  * 等待指定组件的编辑器视图就绪。
- *
- * @throws {Error} 25 秒内未就绪（"户型准备较慢，请稍候重试。"），或视图加载/授权失败。
  */
 export function waitInteraction3dEditorView(pendingComponentId) {
   return new Promise((resolve, reject) => {
     // 清理必须幂等：正常就绪、报错、超时三条路径都会调用它，
-    // 并把空集合从 Map 里删掉，避免 Map 随「用过的组件」无限增长。
     const cleanup = () => {
       clearTimeout(timeoutId);
       waitersByComponentId.get(pendingComponentId)?.delete(handleViewReady);
@@ -134,8 +110,6 @@ export function waitInteraction3dEditorView(pendingComponentId) {
       }
     };
     // 就绪回调：既登记进等待集合，也在一开始立刻试跑一次。错误优先于就绪（存在旧视图
-    // 也不能算可用）；就绪则要求 ready 与 metadata 同时到位 —— 只有 metadata 有了，
-    // 调用方才能读到户型尺寸等信息。两条分支都先 cleanup 再结束 Promise。
     const handleViewReady = viewError => {
       const editorView = editorViewByComponentId.get(pendingComponentId);
       // 错误优先于就绪：加载失败时即便存在旧视图也不能当作可用。
@@ -157,14 +131,11 @@ export function waitInteraction3dEditorView(pendingComponentId) {
       waitersByComponentId.set(pendingComponentId, new Set());
     }
     waitersByComponentId.get(pendingComponentId).add(handleViewReady);
-    // 立即试一次：视图可能在我们注册之前就已就绪，否则这次等待会一直卡到超时。
     handleViewReady();
   });
 }
 /**
  * 让除当前组件外的其它 3D 组件退出模态编辑状态。
- * 编辑器同一时刻只允许一个组件处于视图编辑 / 弹窗预览 / 范围编辑 / 导航位置调整，
- * 否则多个组件同时接管画布指针事件会互相干扰。
  */
 export function cancelOtherInteraction3dViews(activeComponentId) {
   for (const [viewComponentId, otherView] of editorViewByComponentId) {
@@ -183,7 +154,6 @@ export function cancelOtherInteraction3dViews(activeComponentId) {
   }
 }
 // 懒创建授权监视器，并把页面可见性接到它的 suspend / resume 上：
-// 切到后台或离开页面时停掉轮询，回来时立刻重新验证（授权可能已在这期间被撤销）。
 function getAccessMonitor() {
   return (
     accessMonitor ||
@@ -220,11 +190,9 @@ export function renderInteraction3d(component, context = {}) {
   let isLoading = false;
   let isMounted = false;
   // loadToken 是加载的版本号：每次加载 / 失效都自增，
-  // 在途的异步结果回来后发现号不对就自行作废，避免旧结果覆盖新状态。
   let loadToken = 0;
   let runtime;
   let isPageVisible = true;
-  // 渲染器切换页面时调用：离屏页不继续渲染，避免为看不见的组件白耗 GPU。
   hostElement.setInteraction3dPageVisible = isVisible => {
     isPageVisible = isVisible !== false;
     runtime?.setPageVisible?.(isPageVisible);
@@ -237,7 +205,6 @@ export function renderInteraction3d(component, context = {}) {
     component.properties?.backgroundVisible !== true
   );
   // 属性更新走「就地更新」而不是重建：重建会重载 iframe 导致闪屏与状态丢失。
-  // refresh 聚焦布局是必要的，因为组件尺寸 / 内容可能改变，聚焦时的让位距离要重算。
   hostElement.updateInteraction3d = (nextComponent, nextContext) => {
     component = nextComponent;
     context.document = nextContext;
@@ -249,7 +216,6 @@ export function renderInteraction3d(component, context = {}) {
     focusLayout.refresh();
   };
   // 授权丢失（或运行时被彻底停用）时的统一收尾：先让在途加载作废，再拆掉运行时与样式，
-  // 最后换成封面；顺序反了会出现「封面已出现但旧 iframe 还在渲染」的叠影。
   function handleAccessLost() {
     focusLayout.setActive(false);
     loadToken += 1;
@@ -259,7 +225,6 @@ export function renderInteraction3d(component, context = {}) {
       editorViewByComponentId.delete(component.id);
     }
     if (!isDisposed) {
-      // 通知等待中的编辑器：本次失败要显式报错，否则调用方只能干等到 25 秒超时。
       notifyViewReady(component.id, new Error("3D 户型暂不可用，请检查授权或重新载入。"));
     }
     // runtime 本身就是销毁函数（运行时模块以「返回回收函数」为约定）。
@@ -292,7 +257,6 @@ export function renderInteraction3d(component, context = {}) {
       hostElement.setAttribute("aria-busy", "true");
       // 只在尚未挂载时显示占位：已经渲染好的场景不该被等待文案顶掉。
       if (!isMounted) {
-        // 占位期间作废在途加载，防止上一轮的加载结果稍后把占位替换掉。
         loadToken += 1;
         isLoading = false;
         const pendingElement = document.createElement("div");
@@ -304,11 +268,9 @@ export function renderInteraction3d(component, context = {}) {
       return;
     }
     if (isMounted) {
-      // 恢复授权：只切状态，不重新加载运行时，否则会丢掉相机与交互状态、并闪一次屏。
       runtime?.setAuthorized(true);
       hostElement.dataset.access = "allowed";
       hostElement.setAttribute("aria-busy", "false");
-      // 授权恢复后才通知编辑器视图就绪，避免编辑器拿到一个禁止操作的视图。
       if (context.editable) {
         notifyViewReady(component.id);
       }
@@ -321,9 +283,8 @@ export function renderInteraction3d(component, context = {}) {
     isLoading = true;
     const currentLoadToken = ++loadToken;
     try {
-      // 动态 import 带 ?v= 缓存戳，必须与后端静态资源戳同步，否则会加载到旧运行时。
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609271208");
+        await import("/api/v1/modules/interaction3d/core/runtime.js?v=2609271226");
       // 三个丢弃条件：组件已销毁、已有更新的一轮加载、页面已切走（回来时会重新走一遍）。
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
@@ -332,13 +293,12 @@ export function renderInteraction3d(component, context = {}) {
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/core/runtime.css?v=2609271208";
+        "/api/v1/modules/interaction3d/core/runtime.css?v=2609271226";
       // 先单独 append 让浏览器尽早开始下载，等运行时容器建好后再一次性替换成最终结构。
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");
       hostElement.replaceChildren(stylesheetElement, runtimeContainerElement);
       // onPresented 是舞台页首帧已呈现的信号：编辑器视图必须等它再通知就绪，
-      // 否则调用方会立刻读到尚未填充的 metadata。onFocusChange 用于驱动聚焦让位布局。
       runtime = runtimeModule.mountInteraction3d(runtimeContainerElement, {
         component: component,
         context: context,
@@ -361,19 +321,16 @@ export function renderInteraction3d(component, context = {}) {
       if (context.editable) {
         editorViewByComponentId.set(component.id, runtime);
       }
-      // 场景已挂载才切状态：先呈现后放行，避免出现「已放行但画面还空着」的空窗。
       hostElement.dataset.access = "allowed";
       hostElement.setAttribute("aria-busy", "false");
       isMounted = true;
     } catch (loadError) {
-      // 加载失败也要给出可读提示并显式通知等待者，否则编辑器只能干等到 25 秒超时。
       if (!isDisposed && currentLoadToken === loadToken) {
         stylesheetElement?.remove();
         stylesheetElement = null;
         showInteraction3dLoadFailure(hostElement, component, context, loadError);
       }
     } finally {
-      // 只有在本次 token 仍然有效时才复位：否则会误清掉新一轮加载的「进行中」标记。
       if (currentLoadToken === loadToken) {
         isLoading = false;
       }

@@ -1,10 +1,5 @@
 /**
  * 阴影灯索引。
- *
- * 聚光灯数量多时，「每帧遍历全场景挑出可见且投影的灯并排序」是笔可观开销，本模块把这次遍历
- * 的结果缓存下来，只在场景结构变化（增删子节点、换根对象）时重建。对外导出
- * createRenderLightIndex，返回 read / invalidate / dispose 与 stats。read 返回的数组是内部
- * 复用的同一引用，调用方只读。
  */
 
 /**
@@ -31,7 +26,6 @@ export function createRenderLightIndex() {
   const invalidateIndex = () => {
     needsRebuild = true;
   };
-  // 注销必须与注册严格配对：否则每次重建都会在旧对象上叠加一份监听，失效回调成倍增长。
   function resetObservers() {
     for (const observedObject of observedObjects) {
       observedObject.removeEventListener("childadded", invalidateIndex);
@@ -72,9 +66,6 @@ export function createRenderLightIndex() {
   }
   return {
     stats: stats,
-    /**
-     * 每帧调用：返回可见且需要投影的聚光灯，按阴影代价从高到低排序；结果数组内部复用，只读。
-     */
     read(root, camera) {
       // 已销毁时返回空数组而不是抛错：调用方不必在每个帧循环里判生命周期。
       if (isDisposed) {
@@ -112,9 +103,7 @@ export function createRenderLightIndex() {
         if (!isVisible || !light.layers.test(camera.layers)) {
           continue;
         }
-        // 代价分：投影灯记 2 分，已分配阴影贴图的再加 1 分；分数高的排前面。
         const shadowScore = (light.castShadow ? 2 : 0) + (light.map ? 1 : 0);
-        // 逐位对比上一帧的顺序与代价分，只有真的变了才触发排序（sort 是这里最贵的一步）。
         if (
           traversalLights[visibleLightCount] !== light ||
           traversalScores[visibleLightCount] !== shadowScore
@@ -130,7 +119,6 @@ export function createRenderLightIndex() {
         isOrderChanged = true;
       }
       traversalLights.length = traversalScores.length = visibleLightCount;
-      // 原地复用 sortedLights（清空 → 填充 → 排序），避免每帧新建数组带来 GC 抖动。
       if (isOrderChanged) {
         sortedLights.length = 0;
         for (const orderedLight of traversalLights) {
@@ -148,7 +136,6 @@ export function createRenderLightIndex() {
       return sortedLights;
     },
     invalidate: invalidateIndex,
-    // 释放时不仅停用，还要注销监听并清缓存，避免持有已销毁场景的引用导致内存泄漏。
     dispose() {
       isDisposed = true;
       resetObservers();

@@ -1,10 +1,5 @@
 /**
  * 仪表盘画布尺寸调整：把整份文档从旧分辨率换算到新分辨率。
- *
- * 编辑器「画布尺寸」对话框调用；展示页不做换算，只读结果。深拷贝文档后按宽高比例与内容缩放
- * 因子重算所有组件 position，并同步画布的 componentScale / popupScale 与重算基准。
- * resizeBaseWidth / resizeBaseHeight / resizeContentScale 记录「上一次调整的基准」，多次调整
- * 时用它而非当前尺寸算比例，避免累积误差；数值四舍五入到 1e-6。
  */
 
 // 保留 6 位小数，既压掉浮点误差，又不至于让坐标精度不足。
@@ -32,13 +27,10 @@ function scaleComponentSubtree(
     originalHeight = positiveNumberOrDefault(position.height, 100),
     originalX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
     originalY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
-    // 3D 控件外框按画布比例伸缩，其余组件按内容缩放因子：3D 内部画布铺满外框渲染，等比因子会与内部口径不一致而黑边或裁切。
     scaledWidth =
       originalWidth * (componentNode.type === "interaction3d" ? horizontalScale : contentScaleFactor),
     scaledHeight =
       originalHeight * (componentNode.type === "interaction3d" ? verticalScale : contentScaleFactor);
-  // 定位规则：顶层组件按中心点对齐缩放，避免靠近边界的组件被挤出画布；
-  // 子组件只随父级等比缩放，保持相对父容器的位置。
   if (
     ((componentNode.position = {
       ...position,
@@ -56,7 +48,6 @@ function scaleComponentSubtree(
       height: roundToMicroPrecision(scaledHeight)
     }),
     // 图标按钮特效的宽高是相对容器的百分比语义（fill 模式除外），
-    // 这里用除法还原，抵消父级缩放，保证特效视觉尺寸不变。
     componentNode.type === "icon-button-effect" &&
       componentNode.properties?.effectLayoutMode !== "fill")
   ) {
@@ -83,7 +74,6 @@ function scaleComponentSubtree(
 }
 
 // 摊平「文档级共享组件 + 各页面顶层组件」，作为缩放 / 越界检查的统一输入。
-// 与 home.js 的 flattenComponents 不同：那份展平控件树的 children，这份展平文档顶层清单且不下钻。
 function flattenDocumentComponents(dashboardDocument) {
   return [
     ...(dashboardDocument.sharedComponents || []),
@@ -94,7 +84,6 @@ function flattenDocumentComponents(dashboardDocument) {
 // 只检查顶层组件的包围盒是否越出画布，嵌套子组件不单独判定。
 function isComponentOutsideCanvas(targetComponent, canvasWidth, limitHeight) {
   // fill 模式的 3D 控件在布局上就是铺满画布的，尺寸跟着画布走，
-  // 永远不会越界；按记录尺寸判定反而会在改比例后误报。
   if (
     targetComponent?.type === "interaction3d" &&
     targetComponent.properties?.layoutMode === "fill"
@@ -106,7 +95,6 @@ function isComponentOutsideCanvas(targetComponent, canvasWidth, limitHeight) {
     positionY = Number(componentPosition.y),
     componentWidth = positiveNumberOrDefault(componentPosition.width, 100),
     componentHeight = positiveNumberOrDefault(componentPosition.height, 100);
-  // 坐标缺失时视为历史脏数据，不当作越界，避免误报。
   return !Number.isFinite(positionX) || !Number.isFinite(positionY)
     ? !1
     : positionX < 0 ||
@@ -130,11 +118,9 @@ export function countComponentsOutsideCanvas(documentModel, documentWidth, docum
 
 /**
  * 把文档缩放到目标画布尺寸。
- * @throws {Error} 宽或高不是范围内的整数时抛出中文错误文案。
  */
 export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeight, options = {}) {
   // 深拷贝：编辑器需要保留原文档用于撤销，绝不能就地改写入参；
-  // 缺少 resizeBase* 字段的老文档以当前尺寸为基准，等价于「一次性缩放」。
   const resizedDocument = JSON.parse(JSON.stringify(sourceDocument)),
     baseWidth = positiveNumberOrDefault(resizedDocument?.canvas?.width, 2778),
     baseHeight = positiveNumberOrDefault(resizedDocument?.canvas?.height, 1940),
@@ -160,7 +146,6 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
     );
   // 尺寸没变就直接返回副本，省掉一次全树遍历。
   if (widthPx === baseWidth && heightPx === baseHeight) return resizedDocument;
-  // lockContent：只改画布大小、组件保持原样；3D 控件例外，外框必须跟着画布比例走，否则 fill 模式渲染尺寸对不上。
   if (options.lockContent) {
     for (const flatComponent of flattenDocumentComponents(resizedDocument)) {
       if (flatComponent.type === "interaction3d") {

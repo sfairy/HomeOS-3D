@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
 """构建期把 Python 源码编译成原生扩展（``.so``）后删除 ``.py``。
-
-与 ``ops/docker/obfuscate_javascript.mjs`` 对应：那个脚本混淆前端 / 商店的 JS，本脚本
-把后端与商店的 Python 编译成机器码。运行镜像里只剩原生扩展，读不到也反编译不出源码。
-
-行为：
-- 编译 ``apps/server/``、``apps/store/``、``ops/docker/`` 与 ``ops/container_entrypoint.py`` 下的全部
-  ``.py``，包括各包的 ``__init__.py``（编译成 ``<pkg>/__init__.<suffix>.so``）。
-- ``db/migrations/`` 必须保持源码：Alembic 的 ``env.py`` 与各 revision 都按文件路径读取
-  源码执行（``load_python_file``），编译成 ``.so`` 后 Alembic 无法加载。
-- 编译成功后删除 ``.py``、Cython 生成的 ``.c``、``build/`` 与 ``__pycache__`` / ``*.pyc``。
-
-用法::
-
-    python ops/docker/compile_python.py /app
 """
 from __future__ import annotations
 
@@ -31,7 +17,6 @@ KEEP_SOURCE_PREFIXES = ("db/",)
 COMPILER_DIRECTIVES = {
     "language_level": "3",
     # 关掉「用注解当类型」：本项目的注解是 PEP 563 之后的普通标注，交给 Cython 解析
-    # 反而会因为 ``X | None`` 之类的写法报错。
     "annotation_typing": False,
     # 保留函数签名与自省信息，FastAPI 依赖 inspect.signature 解析路由参数。
     "binding": True,
@@ -66,9 +51,6 @@ def _expected_so(path: Path) -> Path:
 
 def _precheck(sources: list[Path]) -> None:
     """先用 Python 自己的解析器过一遍，源码有问题时给出清晰报错。
-
-    Cython 遇到残缺 / 拼错的源码会抛内部 CompileError，甚至编译器崩溃，很难定位；
-    这里提前用 ``ast.parse`` 报出文件名与行号（例如构建上下文里混入了写了一半的文件）。
     """
     broken: list[str] = []
     for path in sources:
@@ -120,10 +102,6 @@ def _compile(root: Path, sources: list[Path], jobs: int) -> None:
 
 
 def _relocate_package_inits(root: Path, sources: list[Path]) -> None:
-    """把 ``<pkg>.<suffix>.so`` 挪进包目录改名 ``<pkg>/__init__.<suffix>.so``。
-
-    否则根目录 / 父目录会多出一个同名扩展，import 时它会先于包目录命中，把包顶掉。
-    """
     for path in sources:
         if path.name != "__init__.py" or len(path.relative_to(root).parts) < 2:
             continue

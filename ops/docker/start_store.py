@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """商店容器启动器：准备授权密钥，再启动 store。
-
-首次部署无管理员时，通过 /setup 页面设置（而非环境变量 seed）。
-商品目录 / 站点配置由 apps.store.app.create_app() 启动时自动幂等补齐。
 """
 from __future__ import annotations
 
@@ -78,7 +75,6 @@ def main() -> None:
     os.environ.clear()
     os.environ.update(environment)
     # 镜像里 apps/store/run 已被编译成原生扩展，``python -m`` 只支持有字节码的模块，
-    # 因此改用 import + main() 启动。
     os.execvp(
         sys.executable,
         [sys.executable, "-c", "import apps.store.run as m; m.main()"],

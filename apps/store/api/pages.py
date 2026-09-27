@@ -1,8 +1,4 @@
 """页面路由、静态资源挂载、商品图与模拟收银台。
-
-参考站是「同一个 HTML 外壳 + ``data-store-page`` 分页切换」的多页应用，
-这里沿用同一套结构：所有页面路由返回同一份 ``store.html``，
-由前端根据 ``location.pathname`` 显示对应分页。
 """
 
 from __future__ import annotations
@@ -38,16 +34,6 @@ def _render_page(
     request: Request, template_text: str, session: DbSession, *, page: str
 ) -> HTMLResponse:
     """模板 → 响应：填 CSP nonce，再把场景片段与状态甲板填进各自的占位符。
-
-    三步都是纯字符串替换，顺序无关；放在一处是为了让「新加一个入口页」只需要把模板
-    读出来交给它，而不是各自拼 ``HTMLResponse`` 时忘掉其中一步（忘掉 nonce = 内联脚本
-    被 CSP 拒；忘掉场景 = 页面看起来正常但少了整块插画；忘掉甲板 = 同样看不出来）。
-
-    ``page`` 是模板文件名（``store.html`` / ``admin.html`` / ``setup.html``）。
-    商店的前台是「一份 HTML 服务所有路由」：七个路径返回的是同一份 ``store.html``，
-    所以**不能**从 URL 反推该给哪一块甲板读数 —— 由调用方在读模板时就登记下来
-    （见 ``page_shell.page_of``）。这里在替换**之前**写 ``request.state``：注入函数
-    是它的唯一消费者，晚一步就是 AttributeError。
     """
     setattr(request.state, page_shell.PAGE_STATE_ATTR, page)
     text = render_template(template_text, request)
@@ -65,9 +51,6 @@ def _render_store_page(request: Request, session: DbSession) -> HTMLResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="商店页面模板缺失。",
         )
-    # 变量名刻意不叫 ``html``：本模块顶部有一处 ``import html``（转义用），
-    # 同名局部变量会把它在这个函数里遮掉 —— 现在没问题，但下一个人在这里
-    # 加一句 ``html.escape(...)`` 就会撞上 AttributeError。
     template = template_path.read_text(encoding="utf-8")
     return _render_page(request, template, session, page = "store.html")
 
@@ -142,17 +125,12 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     folder: Path = request.app.state.settings.product_images_dir
     root = folder.resolve()
     target = (root / image.path).resolve()
-    # 目录边界必须按**路径段**判断，不能用字符串前缀：``/data/images`` 与 ``/data/images-backup``
-    # 前缀相同，字符串比较会放行后者，库里一条脏 ``path`` 就能读到商品图目录之外的任意文件。
-    # 另外必须要求是**文件**：目录也能通过 exists()，交给 FileResponse 会炸。
     if target == root or root not in target.parents or not target.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
     return FileResponse(target, headers={"Cache-Control": "public, max-age=86400"})
 
 
 # 模拟收银台
-#: 嵌进 ``<script>`` 的 JSON 必须把 ``<`` 等转义成 ``\uXXXX``：``json.dumps`` 只保证 JSON 合法、
-#: 不保证 HTML 安全，``</script>`` 会原样出现并**提前结束脚本块**（``>``/``&``、U+2028/2029 同理）。
 _JSON_SCRIPT_ESCAPES = {
     "<": "\\u003c",
     ">": "\\u003e",
@@ -164,10 +142,6 @@ _JSON_SCRIPT_ESCAPES = {
 
 def _json_for_script(payload: dict) -> str:
     r"""把字典序列化成可以安全放进 ``<script>`` 的 JSON 字面量。
-
-    不用 ``html.escape``：那会产出 ``&lt;`` 这类 HTML 实体，而 ``<script>`` 里的
-    内容是**原始文本**（不解实体），结果是页面上真的显示出 ``&lt;``。
-    ``\uXXXX`` 才是这个上下文里唯一正确的转义。
     """
     text = json.dumps(payload, ensure_ascii=False)
     for raw, escaped in _JSON_SCRIPT_ESCAPES.items():
@@ -177,25 +151,17 @@ def _json_for_script(payload: dict) -> str:
 
 def _cashier_html(order: Order, *, request: Request) -> str:
     """把订单渲染成模拟收银台页面。
-
-    不再接收 ``Product``：页面上的商品名取自 ``order_payload`` 的 ``productName``（订单自己
-    记着下单时的名字），调用方若为此多查一次商品表，查到的还是「现在」的名字。
     """
     payload = order_payload(order)
     amount = payload["amountCents"] / 100
     safe = _json_for_script(payload)
-    # 内联脚本必须带本次响应的 nonce，否则会被自身的 CSP（``script-src`` 无
-    # ``'unsafe-inline'``）挡下 —— 见 ``apps/store/request_security.csp_header``。
     nonce = html.escape(str(getattr(request.state, "csp_nonce", "") or ""), quote=True)
     # 文本上下文单独转义：``<title>`` 与 ``.hos-meta-pill`` 里出现 ``<`` 会被当成标签，
-    # 而这里的数据有用户可控的部分（邮箱），不转义就是存储型 XSS。
     order_no = html.escape(str(payload["orderNo"]))
     product_name = html.escape(str(payload["productName"]))
     email = html.escape(str(payload["email"]))
     status_text = html.escape(str(payload["status"]))
     # 样式与图标的版本号取自文件 mtime（见 core/static_revision.py）：页面由后端渲染，
-    # 不必再让人记得把这里的 ?v= 字面量与模板里那份同步。五条链接指向同几个文件，
-    # 各自取各自的 mtime，因此不存在「同值」要求。
     static_dir = request.app.state.settings.static_dir
     scene_stamp = file_revision(static_dir / "scene" / "page.css")
     fonts_stamp = file_revision(static_dir / "scene" / "fonts.css")
@@ -298,9 +264,6 @@ cancelButton.addEventListener('click', () => act('cancel'));
 </html>
 """
     # 场景片段仍走统一的注入函数：收银台是独立响应（不经 render_template），
-    # 但场景内容与商店其它入口页必须逐字一致，所以不能在这里另抄一份标记。
-    # 它没有甲板插入点（这一页讲的是「这一笔订单」，不是「这套服务」），
-    # 所以这里不传 session —— 注入函数只在真要填甲板时才要会话。
     return inject_scene(markup, request)
 
 
@@ -313,10 +276,6 @@ def mock_cashier(
     t: str | None = None,
 ) -> HTMLResponse:
     """模拟收银台页面。
-    **必须能证明对这笔订单的访问权**：短时票据（``?t=``）或该订单所属账号已登录。页面会把
-    ``lookupToken`` 写进 HTML 供按钮调用 ``mock/pay``，而订单号本身**从来不是一道授权** —— 它会出现在
-    邮件、客服工单、截图与 Referer 里。URL 里不放长期有效的 ``lookup_token``（能查订单详情的 bearer
-    凭据），改放 30 分钟的短时票据；登录态兜底给账号中心「继续支付」这类同浏览器路径用。
     """
     order = order_or_404(session, order_no)
 
@@ -350,8 +309,6 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
     if order.status == "fulfilled":
         return order_payload(order)
     # 状态白名单：只有待付款订单可被模拟收银台入账。expired / cancelled 的预留与名额已归还，
-    # 再入账履约等于扣掉其它待支付订单的预留（放开超卖），payment_failed / refunded 同理不可复活。
-    # 刻意**不**沿用 settlement 的「钱到账就发码」策略——那是真实支付宝通知的补救路径。
     if order.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -359,7 +316,6 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
         )
 
     # 条件 UPDATE 抢单：模拟收银台按钮可以双击、也可能与轮询并存，两个请求
-    # 各自读到 pending 就会重复发码。谁抢到这一行谁入账，另一个拿到 rowcount=0。
     claimed = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -396,8 +352,6 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：与「模拟支付」按钮可以同时点，两个请求各自读到 pending
-    # 就会一个取消、一个入账，库存则被释放两次。谁抢到这一行谁负责释放副作用
-    # （库存预留 + 优惠码名额），都在 close_pending_order 里一并做掉。
     if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
@@ -425,9 +379,6 @@ def _ensure_mock_provider(request: Request, session) -> None:
 
 def _ensure_mock_order(order: Order) -> None:
     """订单自身必须也是模拟渠道。
-    只校验「当前渠道是 mock」并不够：下单时渠道是**冻结在订单行上**的（``Order.payment_provider``），
-    而当前渠道是站点配置，两者可以不一致 —— 一笔支付宝订单还挂着时运维把站点渠道切回 mock，持有自己
-    ``lookupToken`` 的下单方就能把真实渠道的单标记为已支付并触发发码，而钱一分没到；取消同理。
     """
     if (order.payment_provider or "") != "mock":
         raise HTTPException(

@@ -1,14 +1,8 @@
 /**
  * 场景坐标框架：把相机的位姿在「两个项目 / 两种楼层摆放」之间搬移。
- *
- * 切换项目、导入导出或切换「全楼层」预览时，同一个视角要落到新场景的同一处，必须换算坐标系，
- * 本模块只做几何计算。对外导出 transformSceneCamera。楼层摆放字段为 originX/originY、
- * offsetX/offsetZ、rotation（角度）、elevation 与 scene.calibration.pixelsPerMeter，缺任一按
- * 默认值兜底，不得抛错；返回的相机对象是深拷贝。
  */
 
 // 计算楼层的世界摆放：把楼层局部坐标映射到世界坐标所需的缩放 ppm、旋转 (c, s) 与平移 (x, y, z)。
-// 返回 null 表示该楼层在当前项目里不存在（调用方据此走「不做变换」的兜底）。
 function computeFloorPlacement(project, floorId, activeFloorId) {
   const floors = project.floors || [];
   // "all"（全楼层）模式下相机锚定到当前激活楼层；其余情况按传入的 floorId 直接取。
@@ -19,9 +13,7 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
     return null;
   }
   const scene = floor.scene;
-  // 标定缺失时按 1 像素/米处理：数学上仍有意义，视觉上等价于 1:1。
   const pixelsPerMeter = scene.calibration?.pixelsPerMeter || 1;
-  // 全楼层预览照抄每层自己记录的摆放：旋转按角度制取负（three.js 绕 Y 轴旋向与文档定义相反），高度按 elevation 排序后乘 previewFloorGap。
   if (floorId === "all" && floors.length > 1) {
     // 文档里的 rotation 是角度制，且绕 Y 轴的旋向与 three.js 相反，因此取负号后再转弧度。
     const rotationRad = (-(floor.rotation || 0) * Math.PI) / 180;
@@ -43,7 +35,6 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
     };
   }
   // 单层模式：优先用墙体端点求包围盒，没有墙就用家具项，再退到背景图尺寸，
-  // 最后是 1200 × 800 的兜底画布 —— 任何一层都能算出一个可用的摆放。
   let points = scene.walls?.length
     ? scene.walls.flatMap(wall => [wall.start, wall.end])
     : scene.items?.length
@@ -92,7 +83,6 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
 }
 /**
  * 把相机位姿从源项目坐标系搬到目标项目坐标系。
- * 以两侧共有的楼层 ID 为锚点对齐「同一个房间」；任一侧缺摆放信息时返回相机状态的深拷贝。
  */
 export function transformSceneCamera(
   cameraState,
@@ -123,7 +113,6 @@ export function transformSceneCamera(
   // 长度比例 = 源像素/米 ÷ 目标像素/米。
   const scale = sourcePlacement.ppm / targetPlacement.ppm;
   // 用两套摆放的旋转直接合成角度差：cos(θt−θs) 与 sin(θt−θs)，
-  // 避免分别取出角度再相减带来的符号与周期（±360°）处理。
   const cosDelta = targetPlacement.c * sourcePlacement.c + targetPlacement.s * sourcePlacement.s;
   const sinDelta = targetPlacement.s * sourcePlacement.c - targetPlacement.c * sourcePlacement.s;
   // 位置与方向的旋转都只需要这一对 (c, s)，因此先备好一个函数复用。
@@ -146,7 +135,6 @@ export function transformSceneCamera(
     ];
   };
   // position / target 是「点」，要平移 + 旋转 + 缩放；up 是方向向量，只旋转不平移；
-  // frameSize 是长度量，只缩放。三者语义不同，因此分别处理而不是共用一次变换。
   return {
     ...structuredClone(cameraState),
     position: transformPoint(cameraState.position),

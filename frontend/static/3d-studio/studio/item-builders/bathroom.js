@@ -1,13 +1,5 @@
 /*
  * 物件构建器：卫浴
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 卫浴：马桶、蹲便、小便斗、浴缸、淋浴、台盆、梳妆台。
  */
 /**
  * 命中：itemSpec.type === "vanity"
@@ -759,11 +751,6 @@ export function buildShowerItem(context) {
 
 /**
  * 命中：itemSpec.type === "basin"
- *
- * 加载中的占位几何，与 tools/models/model-specs.mjs 的 basin 一一对应（外部 GLB 到位后整组被换掉）。
- * 规格基准：宽 0.9 / 高 0.88 / 深 0.5；**镜柜烘在 0.88 之上**（柜底 1.15、顶面 1.81），
- * 所以下面一律按「规格里的米 × 三轴倍率」摆件，而不是按 itemHeight 的百分比掰 ——
- * 百分比写法在「整件被拉高拉矮」时会把镜柜也一起拉高，与模型的等比缩放对不上。
  */
 export function buildBasinItem(context) {
   const {

@@ -1,8 +1,4 @@
 """运营后台的 entitlements 资源组（从 api/admin.py 拆出）。
-
-子路由不带前缀（路径本身就是绝对路径），由父路由 admin.py 在**原来的位置**
-router.include_router() 套上 /store-admin/v1 —— 位置决定注册顺序，FastAPI 按注册序匹配路由，
-所以每拆一组都要用 72 条路由基线逐项比对（含顺序）。
 """
 from __future__ import annotations
 
@@ -31,7 +27,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -57,10 +52,6 @@ def admin_list_entitlements(
     offset: int = 0,
 ) -> dict:
     """权益列表（分页 + 筛选）。
-
-    ``status_filter`` 取 ``active`` / ``inactive``。这里的 active 是**叠加有效期后**
-    的实际生效状态，与库里的开关列不同（见 ``_entitlement_payload``）：运营问
-    「这个人到底有没有这个功能」时，答案只能是叠加后的那一个。
     """
     base = select(Entitlement)
     if license_id:
@@ -111,16 +102,12 @@ def admin_create_entitlement(
     payload: AdminEntitlementRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
     """手工补一条权益。
-
-    同一张授权下同一个 ``feature_code`` 只能有一条，否则客户端到底按哪条开功能
-    就说不清了，所以重复时直接报冲突、引导去编辑已有那条。
     """
     license = session.get(License, payload.license_id)
     if license is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
     feature_code = payload.feature_code.strip()
     # 补权益是「手工放行一个能力」：码写错了不会报错，客户端的 ``allows`` 只会
-    # 一直拒绝 —— 表现是「后台显示已发放、功能却打不开」。所以必须对齐能力目录。
     if feature_code not in features.FEATURE_CODES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -185,8 +172,6 @@ def admin_patch_entitlement(
     if data.get("feature_code"):
         feature_code = str(data["feature_code"]).strip()
         # 与 admin_create_entitlement 对齐：功能码写错了不会报任何错，客户端的
-        # ``allows`` 只会一直拒绝 —— 表现是「后台显示已发放、功能却打不开」。
-        # 创建时校验、编辑时不校验，等于给同一条规则留了一个后门。
         if feature_code not in features.FEATURE_CODES:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

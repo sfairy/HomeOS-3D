@@ -2,19 +2,17 @@
  * 设备控件区块：摄像头预览（取流、清晰度切换、全屏与交互式 3D 入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271208";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271226";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../../../bridge/camera-popup-layout.js?v=2609271208";
-import { mountCameraMedia } from "../../registry.js?v=2609271208";
-import { componentDialogTitle } from "../primitives.js?v=2609271208";
+} from "../../../../bridge/camera-popup-layout.js?v=2609271226";
+import { mountCameraMedia } from "../../registry.js?v=2609271226";
+import { componentDialogTitle } from "../primitives.js?v=2609271226";
 
 export const cameraDetailsMethods = {
   /**
    * 打开摄像头预览弹窗（实时流 / 快照）。
-   *
-   * @throws {Error} 组件没有绑定实体。
    */
   showCameraPreview(
     cameraPreviewComponent,
@@ -69,8 +67,6 @@ export const cameraDetailsMethods = {
     let cameraLensOffset = 0;
     /**
      * 生成摄像头镜头组的变换字符串。
-     * 水平旋转时带 0.035 倍的极小 rotateZ，制造手持云台的不规则感；透视距离 260px 是
-     * 视觉调参值，改小会让镜头显得更广角。
      */
     const cameraLensTransform = (cameraLensRotationDeg, cameraLensOffsetYPx = 0) =>
       "translateX(-50%) perspective(260px) rotateY(" +
@@ -82,8 +78,6 @@ export const cameraDetailsMethods = {
       "px)";
     /**
      * 启动一次镜头摆动动画，结束后随机延时再摆下一次。
-     * 候选角度先滤掉与当前位置差小于 7 度的，否则几乎是看不见的原地抖动；动画走 Web
-     * Animations API，finish 后把终值写回内联样式再取消，否则合成层终值会与内联样式打架。
      */
     const startCameraLensAnimation = () => {
       if (!cameraDeviceBodyElement.isConnected) {
@@ -167,7 +161,6 @@ export const cameraDetailsMethods = {
     let isCameraReady = false;
     /**
      * 摄像头媒体就绪回调：把状态文案与样式从 connecting 切到 live。
-     * 用 isCameraReady 一次性守卫：媒体流重连会重复触发 onReady，反复切 class 会打断揭示动画。
      */
     const handleCameraReady = () => {
       if (!isCameraReady) {
@@ -198,8 +191,6 @@ export const cameraDetailsMethods = {
       : 16 / 9;
     /**
      * 按弹窗可用空间重算摄像头预览的宽高。
-     * 3D 舞台上交给 cameraDialogElement.resizeInteraction3d（舞台侧按自己的布局算）；
-     * 普通弹窗把宽度限制在 760px、按比例反推高度，并给标题与边距留出 88px。
      */
     const applyCameraPreviewLayout = () => {
       if (interaction3dContext) {
@@ -237,8 +228,6 @@ export const cameraDetailsMethods = {
       });
       /**
        * 用媒体流的真实像素尺寸更新预览宽高比。
-       * 只在 3D 舞台内生效：HA 的 aspectRatio 常缺失或不准，拿到真实尺寸后写回
-       * cameraPreviewRatio 缓存，供后续弹窗复用。
        */
       const applyCameraMediaDimensions = (cameraMediaWidth, cameraMediaHeight) => {
         if (
@@ -335,8 +324,6 @@ export const cameraDetailsMethods = {
       );
       /**
        * 把摄像头弹窗摆到 3D 舞台的呈现区域内。
-       * 舞台可能被 CSS 整体缩放，故先取未缩放的「呈现尺寸」算布局，再按根元素与呈现尺寸
-       * 的比值乘回去；调两次 cameraPopupLayout 是刻意的，第一次让面板宽度参与后续计算。
        */
       const applyInteraction3dLayout = () => {
         const presentationLayout = interaction3dContext.getPresentationLayout?.();
@@ -411,8 +398,6 @@ export const cameraDetailsMethods = {
       };
       cameraDialogElement.resizeInteraction3d = applyInteraction3dLayout;
       // 观察器回调只排程：布局函数会写被观察元素的宽度，通知投递中再触发会报
-      // 「ResizeObserver loop completed with undelivered notifications」，推迟一帧即可避开。
-      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接用。
       let cameraLayoutFrameId = 0;
       const scheduleCameraLayout = () => {
         if (cameraLayoutFrameId) {

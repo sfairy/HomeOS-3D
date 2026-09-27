@@ -1,17 +1,4 @@
 """硬件指纹：把机器与主板标识派生成稳定的安装实例 ID。
-
-设计要点：
-1. 只取「跨重启、跨容器重建都保持不变」的标识（machine-id、主板序列号等），
-   并且先归一化（压缩空白、转小写）再参与哈希。
-2. 出厂占位值（INVALID_IDENTIFIERS）必须排除：这些值在同一批设备上完全相同，
-   拿它们做绑定等于没有绑定。
-3. 容器里优先读 /host/... —— 容器内的 /etc/machine-id 会随后端镜像重建而变，
-   挂载进来的宿主机文件才是稳定来源。
-4. 拼接时加版本前缀与 \x00 分隔符再哈希：既避免字段拼接的歧义碰撞，
-   又让「算法前缀变更」等价于让全部旧 ID 失效（需要重新绑定时用）。
-5. ``data/hardware-fallback-id`` 只是熵补充，必须用本机宿主信号（不在 data/ 内）
-   封印；整盘拷贝 data/ 到另一台机器时封印校验失败，会换新秘密并改变
-   instance_id，从而强制重新激活。
 """
 from __future__ import annotations
 import hashlib
@@ -24,8 +11,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 # 各家主板 / 虚拟机固件写死的默认值或占位文案；这些值在大量机器上重复出现，
-# 一旦被当成真实标识用于绑定，任意同型号设备都能顶替。条目均已小写，
-# 因为 _clean 会先把原始值转成小写再比对。
 INVALID_IDENTIFIERS = {
     '',
     'none',
@@ -39,10 +24,6 @@ INVALID_IDENTIFIERS = {
 @dataclass(frozen=True)
 class HardwareIdentity:
     """安装实例身份三元组。
-
-    instance_id 用于授权服务侧的绑定与租约校验；machine_id / board_id 是两类
-    标识各自的哈希，便于诊断「到底是机器变了还是主板变了」。frozen 表示
-    这份身份一经创建就不应再被改动。
     """
     instance_id: str
     machine_id: str
@@ -52,7 +33,6 @@ class HardwareIdentity:
 def _clean(value: str) -> str:
     """归一化原始标识：压缩内部空白、去首尾、转小写；占位值统一清成空串。"""
     # 先压缩内部空白：DMI 里常见 'To Be Filled By O.E.M.' 与多空格变体，
-    # 规范化后再比对黑名单才能命中。
     normalized = ' '.join(value.strip().split()).lower()
     return '' if normalized in INVALID_IDENTIFIERS else normalized
 
@@ -82,7 +62,6 @@ def _machine_identity(override: str = '') -> str:
     if _clean(override):
         return _clean(override)
     # /host/etc/machine-id 放最前：容器内的路径会随镜像重建变化，
-    # 挂载进来的宿主机文件才是跨升级稳定的来源。
     for path in ('/host/etc/machine-id', '/etc/machine-id', '/var/lib/dbus/machine-id'):
         value = _read(path)
         if not value:
@@ -100,10 +79,6 @@ def _machine_identity(override: str = '') -> str:
 
 def _board_identity(override: str = '') -> str:
     """取主板标识：把可用的 DMI 字段全部收集起来，排序去重后拼成一个字符串。
-
-    之所以用「多字段聚合」而不是只取 board_serial：不少机器上单个字段缺失，
-    或者写的是占位值；聚合能显著提高「同一台机器在不同发行版/内核下得出相同结果」
-    的概率，进而避免把老设备误判成新安装。
     """
     if _clean(override):
         return _clean(override)
@@ -126,7 +101,6 @@ def _board_identity(override: str = '') -> str:
                 continue
             values.append(_clean(match.group(1)))
     # 排序去重保证有确定顺序：DMI 的读取顺序在不同内核上并不保证一致，
-    # 不排序会让同一台机器得到不同 ID，从而被误判为新安装。
     return '|'.join(sorted({value for value in values if value}))
 
 
@@ -204,17 +178,6 @@ def _write_private_text(path: Path, content: str) -> None:
 
 def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
     """兜底熵：硬件字段不全时生成随机秘密，并用本机宿主封印绑定。
-
-    封印与当前机器不一致（典型：整盘拷贝 data/ 到另一台机器）时丢弃旧秘密、
-    生成新秘密，从而改变 instance_id，迫使重新激活。
-
-    参数:
-        path: 存放兜底文件的路径（位于 data/ 内，可被拷贝）。
-    返回:
-        32 字节十六进制随机串。
-    异常:
-        OSError: 文件系统不可写，无法创建兜底标识。
-        RuntimeError: 宿主封印为空，无法安全建立不可拷贝绑定。
     """
     if not host_seal:
         raise RuntimeError('无法计算本机宿主封印，拒绝使用可拷贝的兜底设备标识。')
@@ -235,7 +198,6 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
             if isinstance(payload, dict):
                 secret = _clean(str(payload.get('secret') or ''))
                 stored_seal = _clean(str(payload.get('host_seal') or ''))
-        # 旧版纯文本秘密没有本机封印：直接作废，避免拷贝 data/ 后被迁移成合法绑定。
 
     if (
         secret
@@ -257,12 +219,6 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
 
 def hardware_identity(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> HardwareIdentity:
     """按机器与主板标识计算硬件身份。
-
-    参数:
-        required: True 表示拿不到完整标识时必须报错或走兜底；False 允许退化为开发值。
-        fallback_path: 兜底随机 ID 的存放路径；None 表示不允许兜底。
-    异常:
-        RuntimeError: required 为真但标识缺失，且无法创建兜底 ID。
     """
     machine = _machine_identity(machine_override)
     board = _board_identity(board_override)
@@ -283,19 +239,13 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
         # 把 data/ 外的宿主信号编进材料：即使有人手工改封印文件，只要宿主不同，ID 仍变。
         host_extra = host_seal
     if required and (not machine or not board):
-        # 走到这里至少缺一项：machine 有值说明缺的是主板，否则报告机器缺失。
-        # 这是兜底路径不可用时的最后一道门禁 —— 宁可启动失败，
-        # 也不能拿空标识去建立绑定（那会让所有设备共享同一个身份）。
         missing = '主板' if machine else '机器'
         raise RuntimeError(f'无法读取{missing} ID，不能建立硬件绑定授权。')
     # required=False（开发/测试）时用主机名兜底：保证本地跑得通，
-    # 但这类值不具备绑定意义，绝不能出现在生产配置里。
     if not machine:
         machine = f'development-machine:{platform.node()}'
     if not board:
         board = f'development-board:{platform.node()}'
-    # \x00 分隔 + 带版本前缀：避免字段拼接产生歧义碰撞（如 machine='a\x00board=b' 之类的组合），
-    # 前缀一旦变更就等于让所有旧 ID 失效，用于需要强制重新绑定的场合。
     if used_fallback:
         material = (
             f'homeos-hardware-v2\x00machine={machine}\x00board={board}\x00host={host_extra}'

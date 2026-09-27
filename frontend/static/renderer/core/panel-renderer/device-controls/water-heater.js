@@ -2,8 +2,8 @@
  * 设备控件区块：热水器详情扩展（模式、目标温度与保温设置在 climate 之外的补充控件）。
  */
 
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { climateModeLabel } from "../../../controls/climate.js?v=2609271208";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { climateModeLabel } from "../../../controls/climate.js?v=2609271226";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -11,18 +11,16 @@ import {
   relatedEntitySelectService,
   relatedPopupContext,
   selectedRelatedEntities
-} from "../../../../shared/related-entities.js?v=2609271208";
-import { confirmAction } from "../../../../shared/ui-confirm.js?v=2609271208";
+} from "../../../../shared/related-entities.js?v=2609271226";
+import { confirmAction } from "../../../../shared/ui-confirm.js?v=2609271226";
 import {
   relatedWaterHeaterEntities,
   waterHeaterRelatedEntityLabel
-} from "../../../controls/cover-runtime.js?v=2609271208";
+} from "../../../controls/cover-runtime.js?v=2609271226";
 
 export const waterHeaterDetailsMethods = {
   /**
    * 构建热水器详情弹窗的扩展区（同设备上的照明、杀菌、循环等附加实体）。
-   * 这些实体不在 water_heater 域下，只能按「同设备 + 角色」从关联实体里挑；
-   * excludedEntityIds 排掉主控制区已出现过的实体，避免一处功能出现两次。
    */
   createWaterHeaterExtensionControls(
     extensionsEntityId,
@@ -51,8 +49,6 @@ export const waterHeaterDetailsMethods = {
     const excludedEntityIdSet = new Set(extensionExcludedEntityIds);
     /**
      * 需要渲染成扩展控件的关联实体列表。
-     * 用户手工选过就用选择结果，否则按设备自动推断；再排掉主控制区已出现过的实体，
-     * 避免同一功能在两处各出现一次。
      */
     const extensionRelatedEntities = (
       extensionSelectedEntities === null
@@ -73,7 +69,6 @@ export const waterHeaterDetailsMethods = {
     const stateHandlersByEntityId = new Map();
     /**
      * 取扩展区某实体的状态，从未收到过状态时返回 unknown 占位对象。
-     * 占位对象带齐 entityId/state/attributes，让五类扩展控件都能无条件按状态对象渲染首帧。
      */
     const getExtensionEntityState = handlerTargetEntityId => {
       const extensionStateRecord = this.states.get(handlerTargetEntityId);
@@ -118,8 +113,6 @@ export const waterHeaterDetailsMethods = {
         let isTogglePending = false;
         /**
          * 渲染扩展区里的开关类控件（灯 / 开关 / 输入布尔 / 风扇）。
-         *
-         * 请求在途时按钮置 disabled 并标记 aria-busy，避免连点让状态来回跳。
          */
         const renderExtensionToggle = (toggleSourceState = toggleEntityState) => {
           toggleEntityState = toggleSourceState || toggleEntityState;
@@ -209,8 +202,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 把扩展下拉的取值格式化成展示文案。
-         * 浴霸的取值是设备私有模式名，借 climateModeLabel 本地化；其余设备直接显示原始取值，
-         * 避免误用气候模式词典。
          */
         const formatOptionLabel = optionLabelValue =>
           extensionPopupContext?.deviceType === "bath-heater"
@@ -218,8 +209,6 @@ export const waterHeaterDetailsMethods = {
             : String(optionLabelValue || "");
         /**
          * 判断扩展下拉菜单是否展开。
-         *
-         * 优先用 :popover-open；不支持 popover 的环境回退读 dataset.open。
          */
         const isExtensionMenuOpen = () => {
           try {
@@ -230,7 +219,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 计算并设置扩展下拉菜单的尺寸与位置（空间不足时向上翻转）。
-         * 与温控区下拉同一套策略，只是上限更小（宽 132、高 216），因为扩展区处在弹窗角落、空间更紧。
          */
         const positionExtensionMenu = () => {
           if (!isExtensionMenuOpen() && extensionSelectMenuElement.hidden) {
@@ -301,8 +289,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 提交扩展下拉选中的取值：乐观渲染 → 调用对应选项服务 → 失败回滚。
-         * 不同域的选项服务名不同，由 relatedEntitySelectService 统一映射，映射不到直接抛错
-         * 而不静默失败；乐观渲染时一并带上 options，否则重绘会丢掉菜单项。
          */
         const commitExtensionOption = async extensionOptionValue => {
           if (!extensionsInteractive || isExtensionSelectPending || !extensionOptionValue) {
@@ -343,8 +329,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 重建扩展下拉的选项列表。
-         *
-         * 由调用方先做签名比对，只在选项集合变化时调用，所以这里直接整块替换即可。
          */
         const renderExtensionOptions = (extensionOptions, extensionOptionsCurrent) => {
           extensionSelectMenuElement.replaceChildren(
@@ -372,8 +356,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 渲染扩展区的下拉（select / input_select）控件。
-         * 选项集合用 JSON 签名比对：不变就只更新选中态，避免每次状态推送重建按钮列表；
-         * 实体报 unknown / unavailable 时保留上一次有效取值，防止下拉文案闪成「无选项」。
          */
         const renderExtensionSelect = (extensionSelectSourceState = extensionSelectState) => {
           extensionSelectState = extensionSelectSourceState || extensionSelectState;
@@ -495,8 +477,6 @@ export const waterHeaterDetailsMethods = {
         let isSteppingPending = false;
         /**
          * 解析数字实体的取值边界与步长，属性缺失时退回 0~100、步长 1。
-         * HA 的 number 实体属性不全时没有可用范围，给保守默认值以免步进器不可操作；
-         * 步长下限取 0.001 是防除零 —— 后面要用它的小数位数做量化。
          */
         const resolveNumberBounds = () => {
           const numberAttributes = numberEntityState?.attributes || {};
@@ -511,8 +491,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 渲染扩展区的数字步进器：显示数值与单位，并按可用性禁用加减按钮。
-         * unknown/unavailable 时显示 "--" 并禁用按钮；参数默认取缓存状态，方便服务返回后
-         * 无参调用重绘。
          */
         const renderNumberControl = (numberSourceState = numberEntityState) => {
           numberEntityState = numberSourceState || numberEntityState;
@@ -536,8 +514,6 @@ export const waterHeaterDetailsMethods = {
         };
         /**
          * 按步长调整数字实体并通过 set_value 下发。
-         * 值先夹到 [min, max]，再按步长的小数位数取整 —— 浮点加法会得到 0.30000000000000004
-         * 这类值，回写设备会留脏数据；边界无变化直接返回；在途时先乐观显示，失败回滚。
          */
         const stepNumber = async stepDirection => {
           if (!extensionsInteractive || isSteppingPending || !Number.isFinite(numericValue)) {
@@ -590,8 +566,6 @@ export const waterHeaterDetailsMethods = {
         let isActionPending = false;
         /**
          * 渲染扩展区按钮类控件的可用性。
-         * 只有 unavailable 才算不可用：button 实体的 state 通常是最后一次按下的时间戳，
-         * 不能当可用性判据；请求在途时同样禁用，避免重复触发。
          */
         const renderActionButton = actionSourceState => {
           const isActionUnavailable =
@@ -642,8 +616,6 @@ export const waterHeaterDetailsMethods = {
         const readonlyValueElement = document.createElement("small");
         /**
          * 渲染扩展区的只读数值（sensor / binary_sensor）。
-         * binary_sensor 的 on/off 转成「已触发 / 正常」，普通 sensor 拼上单位；
-         * unknown/unavailable 统一显示「不可用」并给容器打标，便于样式弱化。
          */
         const renderReadonlyValue = readonlySourceState => {
           const readonlyStateText = String(readonlySourceState?.state || "unknown");

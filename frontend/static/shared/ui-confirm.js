@@ -1,13 +1,8 @@
 /**
  * 站内统一确认框。
- *
- * 编辑器、展示页、3D 配置编辑器共用，替代 window.confirm（暗色页面不再跳出浅色系统框，
- * 按钮文案可定制）。导出 confirmAction({kicker, title, message, detail, confirmLabel,
- * cancelLabel, tone}) → Promise<boolean>。遮罩 / Esc / 关闭按钮一律按「取消」（false），
- * 只有点确认才 true；同一时刻只开一个，重复调用先关掉上一个并以 false 结束它。
  */
 
-const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609271208";
+const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609271226";
 const DIALOG_ID = "homeos-ui-confirm-dialog";
 
 let stylePromise = null;
@@ -82,7 +77,6 @@ export async function confirmAction({
   tone = "default"
 } = {}) {
   await ensureConfirmStyles();
-  // 上一个还开着时先按「取消」收掉，避免两个确认框叠在一起抢焦点。
   if (typeof activeFinish === "function") {
     activeFinish(false);
   }
@@ -149,7 +143,6 @@ export async function confirmAction({
     } else {
       dialogElement.setAttribute("open", "");
     }
-    // 危险操作默认焦点放在取消上，避免回车误确认。
     (normalizedTone === "danger" ? cancelButton : acceptButton).focus();
   });
 }

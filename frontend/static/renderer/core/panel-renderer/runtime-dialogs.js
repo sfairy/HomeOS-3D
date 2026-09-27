@@ -1,34 +1,24 @@
 /*
  * 区块四：运行期弹窗外壳。
- *
- * 详情弹窗的公共骨架：居中定位与缩放（按画布短边占比）、焦点循环、Esc 与点外关闭、
- * 入场动效、以及关闭时的收尾。各设备详情只负责往里填内容，不再各自写一套弹窗行为，
- * 于是「所有弹窗的关闭方式一致」这件事才守得住。
- *
- * runtimeDialogTitleSerial 是 aria-labelledby 用的自增序号：模块级可变状态，因此留在本文件
- * 而不是 primitives.js —— 导入的绑定不可赋值，放那边会让 += 直接抛错。
  */
 
 import {
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "../runtime-dialog-motion.js?v=2609271208";
+} from "../runtime-dialog-motion.js?v=2609271226";
 import {
   COMPACT_DIALOG_TARGET_OCCUPANCY,
   DEFAULT_DIALOG_TARGET_OCCUPANCY,
   RUNTIME_DIALOG_FOCUSABLE_SELECTOR,
   runtimeDialogLayout,
   runtimeDialogViewport
-} from "./primitives.js?v=2609271208";
+} from "./primitives.js?v=2609271226";
 
 // 弹窗标题 id 的自增序号 —— aria-labelledby 要的是一个稳定且唯一的 id，
-// 十个弹窗共用同一段代码，用序号区分比让每个调用点自己起名可靠。
 let runtimeDialogTitleSerial = 0;
 export const runtimeDialogMethods = {
   /**
    * 登记当前弹窗并接管它的缩放：按设计尺寸固定宽度，再整体缩放到可用区域。
-   * 弹窗内容按设计稿绝对尺寸排版，因此先把宽度钉死在设计宽度（禁止 max-width 收缩）再 transform 缩放， 才能保证内部布局与设计稿一致。尺寸变化用 ResizeObserver + requestAnimationFrame 合并：内容异步加载
-   * 会连续触发布局变化，逐次重算会抖动，这里一帧只算一次。
    */
   registerRuntimeDialogScale(dialogLayerElement, dialogElement, designWidthPx, designHeightPx) {
     const usesStableMotion = runtimeDialogUsesStableMotion();
@@ -106,8 +96,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 按当前层与仪表盘的实际矩形重算弹窗缩放并写回样式。
-   * 每帧调用，不做与布局无关的重活；弹窗已从 DOM 摘掉时直接返回（关闭动画期间会先
-   * disconnect 再触发尺寸回调）。
    */
   updateRuntimeDialogScale() {
     const activeDialogScaleContext = this.runtimeDialogScaleContext;
@@ -189,8 +177,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 注销缩放上下文：断开观察者、取消待执行帧与入场动画。
-   * 只有当前登记的弹窗与传入元素一致时才清：旧弹窗的关闭回调可能晚于新弹窗打开，
-   * 不加判断会把新弹窗的上下文一起清掉。
    */
   clearRuntimeDialogScale(clearedDialogElement) {
     if (this.runtimeDialogScaleContext?.dialog === clearedDialogElement) {
@@ -205,8 +191,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 关闭运行期弹窗。
-   * 未 open 的 dialog 调 close() 不触发 close 事件，因此用 dispatchEvent 手动补一次，
-   * 让依赖关闭事件的清理逻辑（缩放注销、清理回调）两种情况都能跑到。
    */
   closeRuntimeDialog(closedDialogElement = this.detailsDialog) {
     if (closedDialogElement) {
@@ -228,7 +212,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 绑定「点击弹窗外区域关闭弹窗」。
-   * 开场 320ms 内不响应：打开弹窗那次点击会穿透到遮罩层，不设冷却会让弹窗刚出现就被关掉。
    */
   bindRuntimeDialogOutsideDismiss(dismissLayerElement, dismissDialogElement, dismissPanelElement) {
     // 320ms 冷却：打开弹窗的那次点击会继续冒泡到遮罩层，不留冷却期就会立即被关掉。
@@ -245,8 +228,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 呈现一层运行时弹窗，并让它成为「真正的模态」。
-   * 不用 `showModal()`：弹窗坐标是画布坐标，showModal 会把它提到 top layer 而脱离画布坐标空间（整体缩放的展示页 上尺寸与位置都走样），还会额外生成 `::backdrop` 与层自带遮罩叠加（82% → 约 97%）。故保留 show() 的坐标空间，
-   * 自己补模态语义：`aria-modal` + `aria-labelledby` 指向标题 `<strong>`、打开时焦点交给弹窗、Tab 在弹窗内循环、关闭后把焦点还给打开它的元素（用 `isConnected` 判断，文档可能已被整份替换）。
    */
   presentRuntimeDialog(dialogLayerElement, dialogElement) {
     if (!dialogElement || dialogElement.open) {
@@ -264,8 +245,6 @@ export const runtimeDialogMethods = {
     }
     /**
      * Tab 焦点循环：只在弹窗内首尾相接，别的一概不管。
-     * 可见性判定用 `getClientRects().length`：`offsetParent` 对 `position: fixed` 及其子元素
-     * 恒为 null，拿它过滤会把弹窗里所有控件都当成不可见。
      */
     const focusTrapHandler = trapKeyEvent => {
       if (trapKeyEvent.key !== "Tab") {
@@ -326,8 +305,6 @@ export const runtimeDialogMethods = {
   },
   /**
    * 给一层运行时弹窗挂「按 ESC 关闭」。
-   * 必须看 `defaultPrevented`：层里嵌的下拉 / 展开面板按 ESC 只该收起自己，但事件会继续冒泡上来， 否则「想关下拉」就变成「把整个设备弹窗也关掉」。里层处理 ESC 时都调过 `preventDefault()`，所以
-   * 「冒泡到这里仍带 preventDefault」即等于「已有人处理过」。新增弹窗都要走这条，别各写一份 close()。
    */
   bindRuntimeDialogEscapeClose(escapeLayerElement, escapeDialogElement) {
     escapeLayerElement.addEventListener("keydown", escapeKeyEvent => {

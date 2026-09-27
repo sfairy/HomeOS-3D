@@ -1,28 +1,14 @@
 /**
  * 空调气流（出风）效果：根据空调 / 风口的模型包围盒自动推导「出风口」位置，挂一片着色器绘制的
- * 流动气幕；运行时淡入、停止时淡出。
- *
- * 与 HA 的字段约定：开关看实体 state（cool / heat / fan_only / drying 等），是否真的在吹风看
- * hvac_action（cooling / heating / fan / drying）；颜色按 state 取（cool 蓝、heat 橙、其余中性灰）。
- * 注意：下面两个着色器字符串里的 // 是 GLSL 注释，属于着色器源码本身，必须原样保留，不能改写或翻译。
  */
 
-// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-// 「其它」档的中性灰（AIRFLOW_OTHER_COLOR）同样经这座桥 —— runtime 资源挂在
-// /api/v1/modules/interaction3d/ 下，URL 比磁盘路径深一层，裸相对路径会算错层数而 404。
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609271208";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609271226";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271208";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
-    制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
-    主控色被改成极光紫那天，制冷气流不该跟着变紫。
-    「其它」用共享常量 AIRFLOW_OTHER_COLOR（#dce2e6）：它是无色相中性灰，调色板里没有对应令牌，
-    硬套 --hos-sensor（离线 / 未知）会把「其它模式」误读成「设备离线」；定义与理由见
-    frontend/static/utils/airflow-colors.js，编辑器侧与控件渲染兜底读的是同一枚。
-    三档都必须在**取用时**解析（本模块在被调用时才跑），不能提到模块顶层：
     顶层求值时样式表可能还没解析完，paletteColor 会把兜底色缓存下来、之后一直用那个。 */
 function flowStateColors() {
   return {
@@ -61,25 +47,19 @@ export function createEnvironmentAirflow({
   let hasIndexedScene = false;
   let lastTickMs = -Infinity;
   let overviewOverride;
-  // 总览模式：显式指定优先，否则「没有聚焦任何设备」即视为总览。
   const isOverviewMode = () => overviewOverride ?? !focusedId;
   // reducedMotion 显式配置优先于系统偏好；两者都没有时按「不减少」处理。
   let reducedMotionOverride = typeof reducedMotion == "boolean" ? reducedMotion : undefined;
   // 每次调用都重读系统偏好（实现见 core/motion-preference.js）：用户可能在页面存活期间切换系统的
-  // 「减少动态效果」，缓存成常量就再也听不到这次变化。显式配置（reducedMotion 参数）优先于系统偏好。
   const prefersReducedMotion = () => reducedMotionOverride ?? prefersReducedMotionNow();
   // 顶点着色器：总览模式下把气幕在三个方向上都放大，让远景也能看见气流；
-  // 出风口一侧（uv.y = 0）保持原始位置与宽度，因此只会向远端扩张。
   const FLOW_VERTEX_SHADER =
     "attribute float flowLayer;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    void main() {\n      vFlowUv = uv; vFlowLayer = flowLayer;\n      vec3 expanded = position;\n      // Expand away from the outlet; the mouth keeps its authored position and width.\n      expanded.x *= 1.0 + flowOverview * 0.15 * uv.y;\n      expanded.y *= 1.0 + flowOverview * 0.25;\n      expanded.z *= 1.0 + flowOverview * 0.35;\n      gl_Position = projectionMatrix * modelViewMatrix * vec4(expanded, 1.0);\n    }";
   // 片元着色器：用值噪声做纵向纤维状气流，横向高斯边缘 + 纵向距离衰减；
-  // 两层（flowLayer）叠加出厚度，总览模式下频率更低（更粗的纤维）、更不透。
   const FLOW_FRAGMENT_SHADER =
     "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      float edge = exp(-0.8 * across * across) * (1.0 - smoothstep(0.45, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.56, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }";
   /**
    * 由模型包围盒推导出风口版式（位置、宽度、长度、下坠量）。
-   * 三种形态各有经验参数：airoutlet（风口）口长沿 Z、旋转 90°；floorac（柜机）风道窄而长、略向下坠；
-   * wallac（挂机）风道宽而短、下坠更多。
    */
   function resolveOutletLayout(model) {
     // 精确顶点包围盒（exact）：风口模型刚加载时几何体可能还没算过缓存盒，且要挡住 NaN 顶点。
@@ -91,14 +71,10 @@ export function createEnvironmentAirflow({
     if (modelSize.x <= 0 || modelSize.y <= 0 || modelSize.z <= 0) {
       return null;
     }
-    // 模型没声明类型时按比例猜：明显又高又窄的当作柜机，否则当作挂机。
     const modelType =
       model.userData.environmentModelType ||
       (modelSize.y > modelSize.x * 1.5 && modelSize.y > modelSize.z * 1.5 ? "floorac" : "wallac");
     // 空气净化器：气流从顶盖**向上**吹，不是空调那种贴墙/落地的水平风道 —— 因此 fall 为 0，
-    // 并绕 X 轴倒转 -90° 把风道竖起；宽度取水平面较长边（圆筒机身 x/z 一般相等），
-    // 长度随机身高度（越高的塔机吹得越远）。
-    // 少了这一支，它会落进下面的挂机/柜机分支，在净化器身上画出一条横向空调风道。
     if (modelType === "airpurifier") {
       return {
         type: modelType,
@@ -107,7 +83,6 @@ export function createEnvironmentAirflow({
         fall: 0,
         rotationX: -Math.PI / 2,
         spread: 0.3,
-        // 出口取顶盖中心 + 5mm：抬离顶面，避免与顶盖共面闪烁。
         outlet: [
           (modelBox.min.x + modelBox.max.x) / 2,
           modelBox.max.y + 0.005,
@@ -126,7 +101,6 @@ export function createEnvironmentAirflow({
         fall: mouthLength * 0.28,
         rotationY: Math.PI / 2,
         spread: 0.3,
-        // 出风口稍微外移（max.x + 3% 厚度，最小 3mm），避免与模型面共面闪烁。
         outlet: [
           modelBox.max.x + Math.max(0.003, modelSize.x * 0.03),
           modelBox.min.y + modelSize.y * 0.48,
@@ -159,8 +133,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 构建气幕几何：两层 25×7 的网格面片。
-   * UV 的 y 方向表示「离出风口的距离」，着色器按它做衰减与噪声取样；
-   * flowLayer 属性区分两层，用于错开纤维相位与透明度。
    */
   function buildFlowGeometry(layout) {
     const positions = [];
@@ -216,8 +188,6 @@ export function createEnvironmentAirflow({
     geometry.setIndex(indexTriples);
     geometry.computeBoundingBox();
     // 顶点着色器会在总览模式下把顶点放大（x/y/z 分别最多 15% / 25% / 35%），
-    // 而包围盒只按原始顶点算，因此这里按同样的放大系数手动撑大包围盒，
-    // 否则气幕在远景下会被视锥剔除掉一截。
     const scratchVertex = new THREE.Vector3();
     for (let vertexIndex = 0; vertexIndex < positions.length / 3; vertexIndex++) {
       geometry.boundingBox.expandByPoint(
@@ -237,7 +207,6 @@ export function createEnvironmentAirflow({
     effectToDispose.mesh.geometry.dispose();
     effectToDispose.mesh.material.dispose();
   }
-  /** 重新推导版式；版式变化时重建几何体与位置，否则不动（避免每帧重建）。 */
   function refreshEffectLayout(effectEntry) {
     const nextLayout = resolveOutletLayout(effectEntry.model);
     if (!nextLayout) {
@@ -271,7 +240,6 @@ export function createEnvironmentAirflow({
         flowColor: {
           value: new THREE.Color(flowStateColors().other)
         },
-        // 初始不透明度为 0：等状态同步后再淡入，避免加载瞬间闪一片气流。
         flowOpacity: {
           value: 0
         },
@@ -284,7 +252,6 @@ export function createEnvironmentAirflow({
       },
       transparent: true,
       // 不写深度：气幕是加性观感的效果层，写深度会遮住后面的家具；
-      // 但仍做深度测试，保证被墙挡住时不会透出来。
       depthWrite: false,
       depthTest: true,
       side: THREE.DoubleSide,
@@ -414,7 +381,6 @@ export function createEnvironmentAirflow({
         (hvacAction === "" || AIRFLOW_ACTIONS.has(hvacAction));
       const overviewUniformValue = isOverviewMode() ? 1 : 0;
       // 总览模式下用满不透明度（远景本来就看不清）；聚焦时也保持不透明，
-      // 让细腻的高光纤维能被看见 —— 之前聚焦降到 0.68 会把高光一起压掉。
       const targetOpacity =
         isEnabled && isFocusTarget && isAirflowActive ? (overviewUniformValue ? 1.45 : 1) : 0;
       const uniforms = effect.mesh.material.uniforms;
@@ -452,7 +418,6 @@ export function createEnvironmentAirflow({
       } else if (targetOpacity > 0) {
         effect.mesh.visible = true;
       } else if (uniforms.flowOpacity.value === 0) {
-        // 淡出已经结束才真正隐藏，避免中途截断动画。
         effect.mesh.visible = false;
         uniforms.flowOverview.value = overviewUniformValue;
       }
@@ -541,7 +506,6 @@ export function createEnvironmentAirflow({
     if (timestampMs >= lastTickMs && timestampMs - lastTickMs < frameIntervalMs) {
       return true;
     }
-    // 把上次更新时刻吸附到帧网格，避免长期节流下的累计漂移。
     lastTickMs =
       Number.isFinite(lastTickMs) && timestampMs >= lastTickMs
         ? timestampMs - ((timestampMs - lastTickMs) % frameIntervalMs)
@@ -558,7 +522,6 @@ export function createEnvironmentAirflow({
           animatedEffect.startTime = timestampMs;
         }
         // 不透明度用线性过渡（240ms），总览系数用 smoothstep：
-        // 前者短促干脆，后者涉及几何放大，缓和一点看起来更自然。
         const fadeProgress = Math.max(
           0,
           Math.min(1, (timestampMs - animatedEffect.startTime) / 240)
@@ -579,7 +542,6 @@ export function createEnvironmentAirflow({
         effectUniforms.flowOpacity.value = opacityValue;
         effectUniforms.flowOverview.value = animatedOverviewValue;
         if (fadeProgress === 1) {
-          // 过渡结束：直接写入精确目标值，避免浮点残差。
           effectUniforms.flowOpacity.value = animatedEffect.target;
           effectUniforms.flowOverview.value = animatedEffect.overviewTarget;
           animatedEffect.mesh.visible = animatedEffect.target > 0;
@@ -612,7 +574,6 @@ export function createEnvironmentAirflow({
       requestFrame();
     }
   };
-  // 停在偏好变化上：摘钩函数由 motion-preference.js 返回，拿不到 matchMedia 时是空函数，不必判空。
   const stopWatchingReducedMotion = onReducedMotionChange(handleReducedMotionChange);
   return {
     setRoot: setRoot,

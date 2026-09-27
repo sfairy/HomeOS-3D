@@ -1,21 +1,17 @@
 /*
  * 设备控件区块：按 HA 能力（supported_features / attribute）自动生成的详情感。
- *
- * 没有专门详情页的设备靠它兜底：把实体属性翻译成开关、滑杆、下拉与只读读数。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
 import {
   climateModeLabel,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609271208";
-import { createSwitchVisual } from "../primitives.js?v=2609271208";
+} from "../../../controls/climate.js?v=2609271226";
+import { createSwitchVisual } from "../primitives.js?v=2609271226";
 
 export const capabilityDetailsMethods = {
   /**
    * 按实体能力清单生成详情弹窗里的控件（电源、模式选择、数值调节等）。
-   * 能力清单决定放哪些控件，同一函数因此服务风扇、净化器等多种设备；variant 用于同设备
-   * 不同入口的样式微调，inert 用于预览态禁用交互。
    */
   createCapabilityDetailsControls(
     capabilityEntityId,
@@ -58,7 +54,6 @@ export const capabilityDetailsMethods = {
     const capabilityAttributes = () => capabilityState?.attributes || {};
     /**
      * 实体是否处于不可用状态：unknown / unavailable 时所有交互都不该发服务调用。
-     *
      * @returns {boolean} 是否不可用。
      */
     const isCapabilityUnavailable = () =>
@@ -99,8 +94,6 @@ export const capabilityDetailsMethods = {
     }
     /**
      * 生成一个「多选一」控制组（模式、风速、摆头等）。
-     * 选项先去重并去首尾空白，防止 HA 属性混入重复项导致按钮重影；电动床类的 select
-     * 实体额外换成自绘下拉框（原生 select 在弹窗里样式不可控）。
      */
     const createCapabilityOptionGroup = (
       optionGroupLabel,
@@ -160,8 +153,6 @@ export const capabilityDetailsMethods = {
         let isBedSelectPending = false;
         /**
          * 下拉菜单是否展开。
-         * 优先用 :popover-open 判定，老浏览器不支持该伪类时退回 dataset.open（由 toggle 事件
-         * 与 open/close 函数共同维护）。
          */
         const isBedSelectMenuOpen = () => {
           try {
@@ -172,8 +163,6 @@ export const capabilityDetailsMethods = {
         };
         /**
          * 把下拉菜单摆到触发按钮下方，下方空间不足时翻到上方。
-         * 菜单以 popover 挂在顶层、用 fixed 定位，故须按视口坐标自行计算并夹取：宽度取按钮
-         * 宽度与 150px 的较大者，左右各留 10px，高度上限 306px。
          */
         const positionBedSelectMenu = () => {
           if (!isBedSelectMenuOpen() && bedSelectMenuElement.hidden) {
@@ -223,8 +212,6 @@ export const capabilityDetailsMethods = {
         };
         /**
          * 展开下拉菜单。
-         * 优先走原生 popover API，不支持时退化成普通定位 + dataset.open 标记；参数为真时
-         * 把焦点移到当前选中项（键盘操作入口）。
          */
         const openBedSelectMenu = (shouldFocusBedOption = false) => {
           if (!bedSelectTriggerElement.disabled) {
@@ -246,8 +233,6 @@ export const capabilityDetailsMethods = {
         };
         /**
          * 提交下拉选中的选项：先乐观更新本地状态并刷新 UI，再调用服务，失败回滚。
-         * 服务是异步的，不先同步 capabilityState 界面就要等一个来回才有反馈；失败时整体回滚到提交前的快照
-         * 并交给 onError 走统一提示。state 只在服务是 select_option 时才覆盖，否则只写选项属性，避免污染其它能力的状态。
          */
         const selectBedOption = async bedOptionValue => {
           if (
@@ -290,8 +275,6 @@ export const capabilityDetailsMethods = {
         };
         /**
          * 重绘下拉菜单的选项列表，并更新触发按钮上的当前值文案。
-         * 当前值不在候选列表里（属性刚被写坏）时显示第一项而非 undefined，列表为空时显示
-         * 「读取中…」；选项按钮带 role=option 与 aria-selected，键盘可读。
          */
         const renderBedSelectOptions = (bedOptionValues, bedSelectedValue) => {
           bedSelectMenuElement.replaceChildren(
@@ -375,8 +358,6 @@ export const capabilityDetailsMethods = {
       for (const presetModeValue of normalizedGroupOptions) {
         const modeOptionButton = document.createElement("button");
         modeOptionButton.type = "button";
-        // HA 各厂商的 preset_mode 写法不一（favorite / favorite_level 同义，low/medium/high
-        // 与 strong/normal 也是常见档位），常见写法都列上；未收录的原样显示。
         const airPurifierModeLabels = {
           auto: "自动",
           sleep: "睡眠",
@@ -661,8 +642,6 @@ export const capabilityDetailsMethods = {
     }
     /**
      * 把最新实体状态同步到「能力详情」面板的所有控件上（整体刷新，不做增删）。
-     * fan 域的「开启」判定放宽为「非 off / unknown / unavailable」，其余域只认字符串 on；
-     * 各控件分支都尽量只改 class / value / disabled，避免每次状态推送重建 DOM。
      */
     function syncCapabilityState(nextCapabilityState) {
       capabilityState = nextCapabilityState || capabilityState;

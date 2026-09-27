@@ -1,27 +1,16 @@
 /**
  * 平面图叠加层的绘制工具。
- *
- * 平面视图在 three.js 画布之上叠一层 2D Canvas，本模块提供基础图元：米制网格、线段、端点、
- * 告警圈与浮标文字。入参一律是设计图平面坐标（像素，与户型数据同一套），由调用方注入的
- * planToScreen / screenToPlan 与屏幕互转。所有图元只写调用方提供的 2D 上下文且各自
- * save / restore，不向外泄漏绘图状态。
  */
 
-// 2D canvas 拿不到 CSS 变量，所以这里的颜色必须取成具体值再画。
-// paletteColor 是 utils/colors.js 里的唯一实现，按令牌名缓存，逐点调用不产生额外开销。
-import { paletteColor } from "../../utils/colors.js?v=2609271208";
+import { paletteColor } from "../../utils/colors.js?v=2609271226";
 
 // 端点圆点的**深色实心**：轮廓上的彩色描边要靠它压住，才能在浅色底图与深色底图上都看清。
-// 与 studio-app.js 里选择手柄的填充是同一个角色（深底 + 彩色边），所以共用同一枚工具面令牌 ——
-// 这两处以前各写各的十六进制（#0e151b 与 #111820，只差几个通道）。
 const pointFillColor = () => paletteColor("--hos-tool-surface", "#141a20");
 
 /**
  * 逐字绘制文本以支持字距：Canvas 2D 原生没有字距设置，只能累计游标逐字画。
- * 整串宽度超出 maxWidthPx 时对整体横向压缩而非截断换行，保证窄空间里仍完整可读。
  */
 export function drawTrackedText(textContext, text, originX, originY, trackingPx, maxWidthPx) {
-  // 用展开运算符按码点切分，避免把 emoji 等代理对字符拆成两半。
   const characters = [...String(text || "")];
   if (!characters.length) {
     return 0;
@@ -42,7 +31,6 @@ export function drawTrackedText(textContext, text, originX, originY, trackingPx,
   let cursorX = 0;
   characters.forEach((character, characterIndex) => {
     textContext.fillText(character, cursorX, 0);
-    // 最后一个字符后面不再补字距，否则返回值会比实际视觉宽度大。
     cursorX +=
       glyphWidths[characterIndex] + (characterIndex < characters.length - 1 ? trackingPx : 0);
   });
@@ -67,14 +55,12 @@ export function createPlanDrawingTools({
    */
   function drawMetricGrid() {
     const meterScale = pixelsPerMeter();
-    // 比例尺尚未就绪（如画布还没量出尺寸）时直接跳过，避免画出错误间距的网格。
     if (!meterScale) {
       return;
     }
     const { width: canvasWidth, height: canvasHeight } = getCanvasSize();
     const zoom = getViewZoom();
     // 基准步长半米，再按缩放把屏幕上的间距收敛到 18~100 像素：
-    // 太密会糊成灰底，太疏则失去参照作用；翻倍 / 减半保证步长始终是 0.5 米的整数倍。
     let gridStep = meterScale * 0.5;
     while (gridStep * zoom < 18) {
       gridStep *= 2;
@@ -200,7 +186,6 @@ export function createPlanDrawingTools({
   function drawOpenEndpointWarning(endpointPlan) {
     const endpointScreen = planToScreen(endpointPlan);
     context.save();
-    // 强制不透明：告警标记不能因为全局透明度设置而被淡化。
     context.globalAlpha = 1;
     // 红色外发光 + 半透明填充圈 + 中心实心点，共三层以突出「墙体未闭合」的端点。
     context.shadowColor = "rgba(255, 84, 76, .75)";
@@ -212,7 +197,6 @@ export function createPlanDrawingTools({
     context.arc(endpointScreen.x, endpointScreen.y, 9, 0, Math.PI * 2);
     context.fill();
     context.stroke();
-    // 关掉阴影再画中心点，否则小圆点会被自己的发光糊掉。
     context.shadowBlur = 0;
     context.fillStyle = "#ff6258";
     context.beginPath();
@@ -240,7 +224,6 @@ export function createPlanDrawingTools({
     context.strokeStyle = "rgba(255, 255, 255, .11)";
     context.lineWidth = 1;
     context.beginPath();
-    // 标签悬在锚点上方 25 像素处，避免遮挡锚点本身的图形。
     context.roundRect(anchorScreen.x - labelWidth / 2, anchorScreen.y - 25, labelWidth, 18, 5);
     context.fill();
     context.stroke();

@@ -1,18 +1,8 @@
 /*
  * 物件构建器：储物与墙面造型
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 餐边柜、鞋柜、地柜、层板、壁柜，以及立柱 / 平面标签 / 背景墙 / 壁画这四个小构建体。
  */
 /**
  * 把颜色朝白（amount > 0）或朝黑（amount < 0）插值。纯整数运算。
- * 与 studio-material-styles.js 的 shadeColor 是同一条公式：两边的内衬色必须算得一样，
- * 否则 GLB 到位的一瞬间柜内会「变一下色」。
  * @param {number} color 0xRRGGBB
  * @param {number} amount -1..1
  * @returns {number} 0xRRGGBB
@@ -76,12 +66,6 @@ export function buildFeaturewallItem(context) {
 
 /**
  * 命中：itemSpec.type === "sideboard"
- *
- * 形体与流水线那件（tools/models/model-specs.mjs 的 sideboard）**同构**：
- * 下柜 → 石台面 → 敞开的操作格（带背板）→ 上柜，上柜最右一扇是茶色玻璃门。
- * 这层只是 GLB 到位前的过渡几何（见 studio-external-models.js 里 loadExternalModel 的降级路径），
- * 比例 / 基色 / 透明度都照流水线抄；早先这里是「下柜 + 凹进去的抽屉带 + 上柜」的形体，
- * 与真正的餐边柜差着一道敞开格，切到 GLB 时整件会明显跳一下。
  */
 export function buildSideboardItem(context) {
   const {
@@ -94,7 +78,6 @@ export function buildSideboardItem(context) {
     itemWidth,
     threeModuleMin,
   } = context;
-  // 比例取自规格：下柜 0–0.39H、台面骑在 0.39H 这道缝上、操作格 0.39–0.61H、上柜 0.61–1.0H。
   const sideboardLowerHeight = itemHeight * 0.39;
   const sideboardNicheTop = itemHeight * 0.61;
   const sideboardUpperHeight = itemHeight - sideboardNicheTop;
@@ -109,8 +92,6 @@ export function buildSideboardItem(context) {
   // 门板与整扇玻璃门同色系：上柜三扇门并排，玻璃那扇不能带一圈深色木框。
   const sideboardDoorColor = furnitureSoftColor;
   // 玻璃：色号 / 不透明度 / 双面 / 不写深度，都与运行侧按 glass 角色给的配方对齐，
-  // 也即与玻璃柜（glasscabinet）那扇玻璃门同款 —— 玻璃柜的色号由调色板从它烘进 GLB 的
-  // 蓝灰基色提亮而来，所以要写**提亮之后**的 0xa9c5d3。
   const sideboardGlassColor = 0xa9c5d3;
   const sideboardGlassOptions = {
     rounded: false,
@@ -128,8 +109,6 @@ export function buildSideboardItem(context) {
   const sideboardCarcassDepth = itemDepth - sideboardDoorThickness;
   const sideboardCarcassZ = -sideboardDoorThickness * 0.5;
   // 上柜围板厚度（1.8cm 一档）。上柜必须是**空心柜体**：玻璃门后面若贴着实体，玻璃到后壁
-  // 只剩 2cm，无论透明度调到多少都会读成「一块深色板」—— 流水线那件（model-specs.mjs 的
-  // sideboard）留了 40cm 空腔，这里必须跟着一样，否则 GLB 到位的一瞬间柜子会「凹进去」。
   const sideboardPanelThickness = Math.min(Math.max(itemWidth * 0.01125, 0.014), 0.024);
   const sideboardUpperInnerWidth = itemWidth - sideboardPanelThickness * 2;
   const sideboardBackHeight = sideboardUpperHeight - sideboardPanelThickness * 2;
@@ -138,8 +117,6 @@ export function buildSideboardItem(context) {
   const sideboardDividerZ =
     -itemDepth * 0.5 + sideboardPanelThickness + sideboardDividerDepth * 0.5;
   // 柜内衬 ≠ 柜体色：玻璃后面那面若跟着深色柜体走，玻璃会读成一个黑洞；跟柜门走又会让
-  // 玻璃和实心门分不出来。取**柜体色朝白提 45%** 的中间调 —— 与流水线那件同一条公式
-  // （studio-material-styles.js 的 joineryCombo 内衬默认值），两边算出来必须是同一个色。
   const sideboardInteriorColor = shadeColor(furnitureColor, 0.45);
   addBoxMesh(
     itemGroup,
@@ -311,15 +288,6 @@ export function buildSideboardItem(context) {
 
 /**
  * 命中：itemSpec.type === "shoecabinet"
- *
- * 鞋柜：落地踢脚 + 左列换鞋凳 / 四层敞开鞋格 / 上柜双短门 + 右列下柜双门 / 敞开中格 / 上柜双门
- * + 木顶板；六处敞开格里摆着成双的鞋。
- *
- * 占位几何**必须与规格逐段对齐**（tools/models/model-specs.mjs 的 shoecabinet）：这一件是
- * 「左半一张换鞋凳、右半一列柜门」这种非骨架造型，占位的分段一旦与成品不同，GLB 落地那一帧
- * 整件会跳一次形。规格里的米值在这里按 `addShoeBlock` 逐件搬过来，y 一律给**底面**高度
- * （与规格同语义）—— 两套坐标的 y 零点必须对齐：吊柜的挂高（1.4m）是与规格**一起**烘进几何的
- * （见 `buildWallcabinetItem`），只在一处加挂高，加载完成那一帧整件就会跳 1.4m。
  */
 export function buildShoecabinetItem(context) {
   const {
@@ -429,9 +397,6 @@ export function buildShoecabinetItem(context) {
   // ── 顶板：占地 1.8 × 0.42 与整件最高的一件都由它定 ──
   addShoeBlock(1.8, 0.05, 0.42, 0, 2.2, 0.01, furnitureSoftColor, SHOE_FACE);
   // ── 六处敞开格里的鞋 ──
-  // 占位里一双鞋只给**一件方块**：规格里拆成鞋底 / 鞋帮 / 鞋头是为了正视读得出鞋型，而占位只活到
-  // GLB 落地那一帧 —— 一件 0.13 × 0.095 × 0.264（转过 12° 之后的占地）就够把「这一格有东西、
-  // 东西有多高」读出来，与规格里的数量、间距、进深位置保持同一张表。
   const shoecabinetBayTable = [
     { floorY: 0.45, fromX: -0.84, toX: -0.05, pairCount: 3 },
     { floorY: 0.8, fromX: -0.84, toX: -0.05, pairCount: 3 },
@@ -462,10 +427,6 @@ export function buildShoecabinetItem(context) {
 
 /**
  * 命中：itemSpec.type === "cabinet"
- *
- * 衣柜：柜体取棕褐（cabinetBody），正面再盖两扇白色门板（cabinetDoor）。
- * 外部模型那条路径同样跑这个外观（见 studio-external-models.js 的 cabinet 分支），
- * 这里是模型未就绪 / 离线导出时的兜底，两者观感要一致。
  */
 export function buildCabinetItem(context) {
   const {
@@ -525,7 +486,6 @@ export function buildCabinetItem(context) {
       }
     );
   }
-  // 拉手：挂在门板前面（门板已从柜体表面外凸，拉手必须再往外一档，否则会被门板吃掉）。
   for (const cabinetHandleOffset of [-0.08, 0.08]) {
     addBoxMesh(
       itemGroup,
@@ -655,16 +615,6 @@ export function buildPillarItem(context) {
 
 /**
  * 命中：itemSpec.type === "wallcabinet"
- *
- * 加载中的占位几何，与 tools/models/model-specs.mjs 的 wallcabinet 逐值对应（外部 GLB 到位后整组被换掉）。
- * 规格里那块中竖板是 `fullOnly`，lite 版不产，占位件也不画；其余零件的位置 / 尺寸都照规格抄。
- * 抄漏一处（层板底面 0.4、背板 1.44 × 0.757）不会报错，只是模型到位那一帧柜内会轻轻跳一下。
- *
- * **挂高（柜底离地 1.4m）烘在几何里**：规格用 mountHeight 声明、导出时整件抬起，占位件照同一口径
- * 加在每一块的底面上（`wallCabinetMountHeight`）—— 两边必须都含这一段。以前占位件含 1.4、规格是 0 基，
- * 「模型加载完成的那一帧」柜子会往下掉 1.4m；反过来（占位 0 基、成品含 1.4）则会往上跳。
- * 物件的 `elevation` 在这之上**再加**一段偏移（类型定义里没有默认值，与**原版**同一个口径：原版那台
- * 吊柜资产的柜底也在 1.378m 处，两个程序才能打开同一个草稿）。
  */
 export function buildWallcabinetItem(context) {
   const {
@@ -676,8 +626,6 @@ export function buildWallcabinetItem(context) {
     itemHeight,
     itemWidth
   } = context;
-  // 烘进几何的挂高（米）：与规格的 wallcabinet.mountHeight 同值。它同样吃 scaleY —— 成品是
-  // 「几何抬 1.4 之后整件按高度缩放」，占位件不跟着缩就会在物件被改高时与成品错开。
   const wallCabinetMountHeight = 1.4;
   // 三轴的「规格米 → 实际米」倍率。规格基准：宽 1.5 / 高 0.82 / 深 0.35。
   const scaleX = itemWidth / 1.5;
@@ -713,10 +661,8 @@ export function buildWallcabinetItem(context) {
   addWallCabinetBlock(0.02, 0.76, 0.3, -0.73, 0.02, -0.02, furnitureColor);
   addWallCabinetBlock(0.02, 0.76, 0.3, 0.73, 0.02, -0.02, furnitureColor);
   // 背板：宽 1.44 / 顶面 0.777 —— 与规格逐值相等（规格那道「背板顶面压到 0.777、宽度收到 1.44」
-  // 是躲共面用的，占位件照抄同一组数；写成 1.46 / 0.76 会让模型到位那一帧柜内两侧与顶缝跳一下）。
   addWallCabinetBlock(1.44, 0.757, 0.014, 0, 0.02, -0.163, furnitureSoftColor, { roughness: 0.68 });
   // 层板：柜内一块可调层板，把格口分成上下两层。底面 0.4 / 背面让到 −0.153 同样照规格 ——
-  // 规格里那块层板还是 fullOnly（lite 不产），占位件按完整版画，形状与坐标都必须一致。
   addWallCabinetBlock(1.44, 0.018, 0.28, 0, 0.4, -0.013, furnitureSoftColor, { roughness: 0.6 });
   // 顶板：占地 1.5 × 0.35 由它定，也是整件最高的一件（顶面 = 0.82 = 声明高度）。
   addWallCabinetBlock(1.5, 0.04, 0.35, 0, 0.78, 0, furnitureSoftColor, { roughness: 0.5 });

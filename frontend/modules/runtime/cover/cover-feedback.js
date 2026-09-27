@@ -1,11 +1,5 @@
 /**
  * 窗帘的「展示态」推算：把 HA 的离散上报补成连续的动画表现。HA 只在位置变化时上报
- * current_position，而 6 秒行程里可能只上报两三次，故本模块夹在状态与 3D 动画之间负责：
- * ① 平滑补间（smoothingTime，把跳变位置渲染成连续运动）；② 指令乐观推算（commandPreview，
- * 点开合后立刻按行程时间推算位置）；③ 断线续算（storage，梦幻帘无可信整体反馈，刷新后接着推算）。
- *
- * 与 HA 的约定：判定「上报是否更新」用 attributes.last_updated / updatedAt；仅梦幻帘（dream）
- * 且 overallFeedbackAvailable === false 时启用持久化。
  */
 
 /**
@@ -41,7 +35,6 @@ export function createCoverFeedback({
       }
     } catch {
       // 存储不可用（隐私模式 / 被策略禁用）时删不掉：残留的旧值只会在下次 restore 时
-      // 因 scope 校验不通过而被丢弃，不会把已结束的运动恢复成活的状态。
     }
   }
   /** 保存当前推算位置与剩余运动，供刷新后继续（存储不可用 / 配额满时放弃这次写入）。 */
@@ -57,7 +50,6 @@ export function createCoverFeedback({
         ? {
             to: activeMotion.to,
             // 只存「剩余时长」而不是终点时间：performance.now() 跨刷新不可比，
-            // 靠墙上时钟 + 剩余时长才能续算。
             duration: Math.max(0, activeMotion.duration - (now() - activeMotion.start))
           }
         : null
@@ -69,10 +61,8 @@ export function createCoverFeedback({
       }
     } catch {
       // 存储不可用或配额满：放弃这次持久化。这只是「刷新后继续运动」的锦上添花，
-      // 丢掉它不影响本次命令的执行与反馈。
     }
   }
-  /** 从存储恢复推算位置，并按已过去的时间推进剩余运动（存储不可用 / 内容损坏时不做恢复）。 */
   function restorePresentation(entityId, entry) {
     if (!shouldPersist(entry)) {
       clearPresentation(entityId);
@@ -82,7 +72,6 @@ export function createCoverFeedback({
       const storageKey = storageKeyFor(entityId);
       const stored = storageKey && JSON.parse(storage?.getItem(storageKey) || "null");
       // 校验从存储恢复的位置值：必须是 0~100 之间的有限数字。存储内容属于外部输入，
-      // 手改 / 旧版本残留 / 损坏都可能塞进字符串或越界值，NaN 一旦进入动画就会整条卡死。
       const isValidPosition = value =>
         typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
       // 存储内容是外部输入，逐项校验：位置必须落在 0–100，时间戳必须可解析。
@@ -92,7 +81,6 @@ export function createCoverFeedback({
       const elapsedMs = Math.max(0, wallNow() - stored.savedAt);
       const storedMotion = stored.motion;
       // 运动数据的合法性额外限制：终点位置合法、时长在 [0, travelTime] 内，
-      // 超出单程时间的值只可能是脏数据。
       if (
         storedMotion &&
         (!isValidPosition(storedMotion.to) ||
@@ -122,7 +110,6 @@ export function createCoverFeedback({
       entry.railUnconfirmed = true;
     } catch {
       // 存储不可用或内容损坏（JSON.parse 失败 / 结构不符）：不做恢复，entry 保持调用方
-      // 传入的原样。宁可少一次续算，也不让一个坏掉的快照把翻板位置定死。
     }
   }
   /** 推进补间；返回是否有运动在推进（调用方据此决定是否重绘）。 */
@@ -145,8 +132,6 @@ export function createCoverFeedback({
   }
   /**
    * 把展示位置重新对准新目标。能连续推算时（命令预览 + 非叶片轴），
-   * 按剩余行程折算补间时长，让被打断的行程以大致相同的速度接着走完，
-   * 而不是不管剩多远都固定花 smoothingTime —— 那会在远距离时显得「瞬移」。
    */
   function retargetMotion(retargetedEntry, targetPosition) {
     // 叶片轴不做续算：它的位置反馈是角度，不能用「百分比行程」折算时长。
@@ -161,7 +146,6 @@ export function createCoverFeedback({
       retargetedEntry.motion = null;
       return;
     }
-    // 目标没变就别重启补间：否则每次上报都重来一遍 180ms，看起来一直在「抖」。
     if (retargetedEntry.motion?.to === targetPosition) {
       return;
     }
@@ -228,7 +212,6 @@ export function createCoverFeedback({
       return;
     }
     // 三个变化标记：真实位置变了、state 文案变了、以及「上次可用值」是否变化
-    // （用于判断有没有收到一份新鲜且可用的状态）。
     const positionChanged = nextState.position !== previousState.position;
     const stateChanged = nextState.state !== previousState.state;
     const lastAvailableChanged =
@@ -249,7 +232,6 @@ export function createCoverFeedback({
     }
     entry.lastAvailable = nextState;
     if (entry.bladeHold !== null) {
-      // 叶片指令后的保持：等设备上报的位置追上目标值再解除，避免中途被旧值覆盖。
       if (nextState.position !== entry.bladeHold) {
         return;
       }
@@ -324,7 +306,6 @@ export function createCoverFeedback({
       command.service === "set_cover_position" &&
       draftPosition !== null &&
       // 只有「拖动预览值正好就是下发值」时才直接采信草稿：
-      // 否则说明设备回报的位置与用户拖动不一致，应以设备为准。
       draftPosition === intentTarget
     ) {
       commandEntry.position = draftPosition;
@@ -337,7 +318,6 @@ export function createCoverFeedback({
     if (command.service === "stop_cover" || defer) {
       commandEntry.motion = null;
     }
-    // 15 秒的意图生存期：超过它仍未从状态里得到确认就放弃（避免界面一直「执行中」）。
     commandEntry.intent = {
       service: command.service,
       target: intentTarget,
@@ -361,7 +341,6 @@ export function createCoverFeedback({
   }
   /**
    * 启动乐观推算：按行程时间把当前位置动画到目标位置。
-   *
    * @param {*} previewToken 命令令牌，必须与当前令牌一致。
    */
   function startPreview(previewEntityId, previewToken) {
@@ -391,15 +370,11 @@ export function createCoverFeedback({
             to: targetPosition,
             start: now(),
             // 时长按行程比例计算（走过半程就只等半程），并保底 180ms：
-            // 太短的动画看起来像瞬移，反而失去「正在动」的反馈。
             duration: Math.max(180, (Math.abs(targetPosition - startPosition) / 100) * travelTime)
           };
     savePresentation(previewEntityId, previewEntry);
     return true;
   }
-  /**
-   * 命令失败：回退到真实位置并清除乐观状态。
-   */
   function fail(failedEntityId, failedToken, message) {
     const failedEntry = feedbackByEntityId.get(failedEntityId);
     // 令牌不匹配说明这是过期回调（用户又发了新命令），忽略。
@@ -413,7 +388,6 @@ export function createCoverFeedback({
     failedEntry.bladeHold = null;
     failedEntry.error = message;
     if (failedEntry.actual.position !== null) {
-      // 回退到设备上报的位置；位置未知时保持现状。
       failedEntry.position = failedEntry.actual.position;
       failedEntry.estimated = false;
     }
@@ -429,8 +403,6 @@ export function createCoverFeedback({
       return fallbackState;
     }
     // 只要开着命令预览且还有补间在跑，就按补间方向报开 / 关：
-    // 此时设备上报的 state 往往还是旧值（甚至已经是 open / closed），
-    // 若回落到 actual.state，面板会在帘子明显还在移动时显示「已停」。
     const hasMotionEstimate = !!commandPreview && !!snapshotEntry.motion;
     // 补间在跑时，开合方向由补间的走向决定。
     const opening = hasMotionEstimate
@@ -491,7 +463,6 @@ export function createCoverFeedback({
   }
   /**
    * 下一次需要 tick 的间隔。
-   *
    * @returns {number} 毫秒；有补间时按 30fps 返回，否则等到最近的意图过期，都没有则 Infinity。
    */
   function nextDelay(currentTimeMs = now()) {

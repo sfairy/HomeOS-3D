@@ -1,8 +1,4 @@
 """运营后台的 ops 资源组（从 api/admin.py 拆出）。
-
-尾部一整块原本连续 762 行（21 条路由）：一次搬走会让新模块越过 800 行预算，
-所以按「会话与运营」/「合规与审计」对半拆。子路由不带前缀，父路由在原位置 include，
-以此保持路由注册顺序（FastAPI 按注册序匹配）。
 """
 from __future__ import annotations
 
@@ -36,7 +32,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -100,9 +95,6 @@ def admin_list_sessions(
 @router.delete("/sessions/{ref}")
 def admin_revoke_session(ref: str, session: DbSession, admin: AdminAccount) -> dict:
     """把单条登录会话踢下线。
-
-    必须按会话粒度撤销：改密码或停用账号都会连带踢掉该账号的**全部**会话，
-    包括管理员自己正在用的那条。
     """
     record = _resolve_by_hash_hint(session, AccountSession, ref, "登录会话")
     account = session.get(Account, record.account_id)
@@ -117,9 +109,6 @@ def admin_revoke_session(ref: str, session: DbSession, admin: AdminAccount) -> d
 @router.delete("/sessions")
 def admin_purge_sessions(session: DbSession, admin: AdminAccount, older_than_days: int) -> dict:
     """清理早已过期的登录会话。
-
-    安全谓词：只清 ``expires_at`` 本身早于截止时间的。未过期的会话一律保留 ——
-    删掉等于把正在用的人踢下线。
     """
     cutoff = _cutoff_days(older_than_days)
     return _purge_rows(
@@ -183,8 +172,6 @@ def admin_list_referral_ledger(
             build=build,
         ),
         # 类型词表随数据一起下发（同 ``incidents.kinds`` 的做法）：后台的筛选下拉与列表标签
-        # 都由它生成，不再自存一份。自存的那份曾经 6 个键里只有 manual_adjust 与后端对得上，
-        # 而筛选是精确等值匹配 —— 选任何一项都返回空列表；列表则把 5 类真实流水显示成英文。
         "kinds": referrals.ledger_kind_options(),
     }
 
@@ -198,12 +185,6 @@ def admin_list_coupon_redemptions(
     limit: int = 200,
     offset: int = 0,
 ) -> dict:
-    """优惠码的「曾占用过名额」历史凭证。
-
-    注意它**不是**可随便清的日志：``per_account_limit`` 判定要读这张表，
-    清掉一条就等于给那个账号重新开一个名额。所以这里只提供单条作废，
-    不提供按时间批量清理（详见 ``admin_void_coupon_redemption``）。
-    """
     base = select(CouponRedemption)
     if coupon_id:
         base = base.where(CouponRedemption.coupon_id == coupon_id)
@@ -229,11 +210,8 @@ def admin_list_coupon_redemptions(
                     "accountEmail": account.email if account else "",
                     "orderId": record.order_id,
                     "orderNo": order.order_no if order else "",
-                    # 订单进了 RELEASED_STATUSES、名额已归还的核销记录，只是历史凭证；
-                    # 其余状态（含 fulfilled / refunded）都仍占着名额。界面据此区分。
                     "orderStatus": order.status if order else "",
                     # 判据与 SQL 侧同源（coupons.holds_slot），不要再在这里写第二份规则：
-                    # 两边不一致时，界面显示「占用中」而实际上名额已经放开了。
                     "holding": coupons.holds_slot(record, order),
                     "voidedAt": iso(record.voided_at) if record.voided_at else "",
                     "voidReason": record.void_reason or "",
@@ -255,9 +233,6 @@ def admin_list_coupon_redemptions(
 
 def _recount_coupon_redemptions(session: Session, coupon: Coupon | None) -> int:
     """把 ``coupon.redeemed_count`` 按「仍占用名额」的核销记录重算。
-    核销记录的作废会改变「此刻还被占用多少名额」，而这个计数参与 ``max_redemptions`` 校验，所以任何
-    一次作废之后都必须跟着重算，否则会出现「名额看着还有、下单却说领完」。谓词与下单校验同源
-    （``coupons.holds_slot_conditions()``）：订单已释放、记录被作废、订单被删除都不再计入。
     """
     if coupon is None:
         return 0
@@ -280,9 +255,6 @@ def admin_void_coupon_redemption(
     redemption_id: str, session: DbSession, admin: AdminAccount
 ) -> dict:
     """作废一条核销记录（仅供纠错：重复核销、测试单、误发折扣）。
-    **软删除**：置 ``voided_at`` 而不是删行。这张表既是 ``per_account_limit`` 的判定依据，又是「谁在
-    什么时候用哪个码减了多少钱」的唯一凭证；直接 ``session.delete`` 会让审计里只剩一句「作废了某条
-    记录」，折扣额、账号、订单号全部查不回来。作废后连带重算 ``coupon.redeemed_count``，两件事都写审计。
     """
     record = session.get(CouponRedemption, redemption_id)
     if record is None:
@@ -292,7 +264,6 @@ def admin_void_coupon_redemption(
     code = coupon.code if coupon else record.coupon_id
 
     #: 已作废的记录再点一次（双击、两个标签页）不再重复记账：置空时间会覆盖掉
-    #: 第一次的作废人与时间，审计里就会出现两条「作废」却只有一个时间戳。
     already = record.voided_at is not None
     if not already:
         record.voided_at = utcnow()
@@ -336,7 +307,6 @@ def admin_list_customers(
 
     def build(rows) -> list[dict]:
         #: 两个计数改成**每页两条**聚合查询（``GROUP BY customer_id``），而不是每行两条：
-        #: 页大小 500 时原来要发 1000 条 ``SELECT count(*)``，客户表越大越慢。
         customer_ids = {row.id for row in rows}
         scope_ids = customer_ids or {""}
         order_counts = dict(

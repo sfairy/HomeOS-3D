@@ -1,14 +1,10 @@
 /**
  * 导出流程的底层工具：分辨率换算、ZIP 打包、灯光增量图层。
- *
- * 导出（渲染成图 / 打包 zip）时的公共工具层，被 studio-app.js 调用。分辨率单位为像素，
- * 本模块不涉及三维坐标换算；无全局状态，纯计算，buildStoredZip 返回可直接塞进 Blob 的字节数组。
  */
 
 // 文本文件名编码器：ZIP 条目名统一按 UTF-8 写入，与包里的 UTF-8 标志位配套。
 const textEncoder = new TextEncoder();
 
-// 导出渲染倍率。1 表示按预设尺寸 1:1 渲染；调大可用于超采样后缩放，代价是显存与耗时。
 export const EXPORT_RENDER_SCALE = 1;
 // 导出图片统一用 WebP：同画质下体积远小于 PNG，且保留透明通道。
 export const EXPORT_IMAGE_MIME_TYPE = "image/webp";
@@ -20,7 +16,6 @@ export const EXPORT_IMAGE_QUALITY = 0.95;
  * 把预设尺寸按渲染倍率换算成实际像素尺寸。
  */
 export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCALE) {
-  // 倍率为 0 / NaN 时不能直接乘，否则会得到 0 尺寸的画布。
   const effectiveScale = Number.isFinite(scale) && scale > 0 ? scale : EXPORT_RENDER_SCALE;
   return {
     width: Math.max(1, Math.round(Number(width) * effectiveScale)),
@@ -30,8 +25,6 @@ export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCAL
 
 /**
  * 计算 CRC-32 校验和（ZIP 每个条目都必须带）。
- * 多项式 0xEDB88320 写成 -306674912 是为了避免有符号位移在 JS 里被提升成 32 位溢出；
- * 初始值与收尾异或均按规范取 0xFFFFFFFF。
  */
 function crc32(bytes) {
   let checksum = 4294967295;
@@ -74,8 +67,6 @@ function concatChunks(chunks) {
 
 /**
  * 生成一个只用 stored（不压缩）方式的 ZIP 字节流。
- * 导出内容基本都是已压过的图片，再走 deflate 收益极小却要额外引入压缩实现，
- * 因此牺牲体积换实现简单与打包速度；各段偏移按 ZIP 规范手工写入。
  */
 export function buildStoredZip(entries) {
   const localParts = [];
@@ -96,7 +87,6 @@ export function buildStoredZip(entries) {
     writeUint16LE(localView, 6, 2048);
     // 压缩方式 0 = stored（不压缩）。
     writeUint16LE(localView, 8, 0);
-    // 最后修改时间与日期写 0：导出结果可复现，避免同一份内容因时间戳不同而字节不一致。
     writeUint16LE(localView, 10, 0);
     writeUint16LE(localView, 12, 0);
     writeUint32LE(localView, 14, crc32Value);
@@ -156,8 +146,6 @@ export function buildStoredZip(entries) {
 
 /**
  * 计算「灯光图层」相对「基础图层」的增量像素：基础图已是完整场景，灯光层只承载变化过的像素，
- * 按 alpha 叠加即可还原开灯效果。亮度差 ≤1.5（Rec.709 加权，低于人眼 8 位色深分辨力）且
- * alpha 差 ≤1/255 时视为未变化；两帧尺寸不一致（多半是渲染分辨率没对齐）时抛 Error。
  */
 export function buildLightDeltaPixels(basePixels, litPixels) {
   if (basePixels.length !== litPixels.length) {

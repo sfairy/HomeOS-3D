@@ -1,7 +1,7 @@
 /** 见文件头（store-shared 的说明）。这里补上「页面链接拼接」与两个被商品目录/订单两块共用的渲染片段。 */
 
-import { formatCents as money } from "./money.js?v=2609271208";
-import { fromResponse } from "./api-error.js?v=2609271208";
+import { formatCents as money } from "./money.js?v=2609271226";
+import { fromResponse } from "./api-error.js?v=2609271226";
 
 export const STORE_PAGE_REVISION = '20260909-referrals-v1';
 
@@ -97,9 +97,6 @@ export function toast(message, tone = 'info') {
   node.timer = setTimeout(() => node.classList.remove('show'), 3200);
 }
 
-// `api` 是「拿到 /account 就刷新解绑策略」的天然收口点，但具体渲染逻辑（updateDeviceReleasePolicy）
-// 在 store.js，直接 import 会与 store.js -> store-shared.js 形成循环依赖。所以这里只留一个注册口，
-// 由 store.js 在模块求值期把自己的实现挂进来；未注册时（如后台/初始化页只调 api 不碰账号区）静默跳过。
 let accountLoadedHandler = null;
 export function onAccountLoaded(handler) {
   accountLoadedHandler = handler;
@@ -112,8 +109,6 @@ export async function api(path, options = {}) {
   });
   const body = response.status === 204 ? null : await response.json().catch(() => ({}));
   if (!response.ok) {
-    // 「把 detail 变成人话」只有一份实现（apps/store/static/api-error.js），与后台/初始化页
-    // 共用。
     const error = fromResponse(response, body, '请求失败，请稍后重试。');
     error.retryAfter = Number(response.headers.get('Retry-After') || 0);
     throw error;
@@ -136,5 +131,3 @@ export function currentPage() {
 }
 
 // showPage 已随「商品目录」一起下沉到 store.js：它要判断当前商品是不是主商品
-// （primaryProducts），而该函数属于 store-catalog.js；留在这一层就得反向 import，形成
-// store-shared → store-catalog → store-shared 的循环依赖。

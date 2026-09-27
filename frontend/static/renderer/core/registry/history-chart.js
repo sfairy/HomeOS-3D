@@ -1,33 +1,19 @@
-/**
- * 折线图控件：历史序列构造、时间戳格式化、悬浮提示与详情面板绘制。
- *
- * 阈值 / 平滑 / 配色等纯函数在 `controls/weather-chart-runtime.js`，本文件只做组装与交互。
- */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271208";
-import { formatZhDateTime } from "../../../utils/datetime.js?v=2609271208";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
+import { formatZhDateTime } from "../../../utils/datetime.js?v=2609271226";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../controls/line-chart-runtime.js?v=2609271208";
+} from "../../controls/line-chart-runtime.js?v=2609271226";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../controls/weather-chart-runtime.js?v=2609271208";
+} from "../../controls/weather-chart-runtime.js?v=2609271226";
 // 同门分片：registry-visuals
-import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609271208";
+import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609271226";
 
-/**
- * 把历史点整理成等间隔的折线序列：丢掉时间戳或数值非法的点，追加当前值作为最新一点，
- * 相邻重复（同一时间戳同一值）先去重，再按「每小时一个桶」前向填充（桶内取该时刻之前最近的一条记录），
- * 这样空档期会自然延续上一个值，与仪表盘读数语义一致。
- */
 export function buildHistorySeries(historyContext, historyEntityId, currentStateValue, historyHours = 24) {
   // 先把原始点归一成「毫秒时间戳 + Number 数值」，后面统一按这两个字段比较与排序；
-  // 解析失败的点会得到 NaN，交给紧随其后的 filter 丢掉，避免脏数据把曲线拉平。
   const historySamples = (
     Array.isArray(historyContext.history?.get(historyEntityId)?.points)
       ? historyContext.history.get(historyEntityId).points
@@ -92,8 +78,6 @@ export function buildHistorySeries(historyContext, historyEntityId, currentState
 
 /**
  * 把时间戳格式化成图表提示用的 `MM-DD HH:mm` 或 `HH:mm`。
- *
- * Intl 的中文格式用斜杠分隔，这里统一替换成短横线。
  */
 function formatHistoryTimestamp(timestampValue, includeDate = true) {
   return formatZhDateTime(timestampValue, { withDate: includeDate });
@@ -101,8 +85,6 @@ function formatHistoryTimestamp(timestampValue, includeDate = true) {
 
 /**
  * 给折线图挂上指针提示：竖线、光点与跟随的数值气泡。定位策略随气泡挂载的父元素分三种 ——
- * 图表容器内用 absolute 并按容器缩放比反算、运行时弹窗层内用 absolute 再减去弹窗层偏移、
- * document.body 用 fixed 直接按视口坐标；气泡按缩放比反向缩放，靠近容器左右边缘时改右 / 左对齐防裁切。
  */
 export function attachChartTooltip(
   chartRootElement,
@@ -132,8 +114,6 @@ export function attachChartTooltip(
   chartContainerElement.append(hoverGuideElement, hoverDotElement);
   tooltipParentElement.append(tooltipElement);
   // 图表气泡的 pointermove 处理器：把指针横坐标折算成时间（先取容器内比例，再用
-  // valueRange 收窄到数据区间），线性扫描最近样本，再按容器 / 弹层的实际缩放摆放
-  // 气泡、引导线与光点。元素一律用百分比定位，容器尺寸变化时无需重算像素。
   const handlePointerMove = pointerEvent => {
     const dialogLayerElement =
       tooltipParentElement === chartContainerElement
@@ -158,7 +138,6 @@ export function attachChartTooltip(
       tooltipGeometry.firstTime +
       rangeRatio * (tooltipGeometry.lastTime - tooltipGeometry.firstTime);
     // 线性扫描找时间上最近的点：点数受窗口限制（最多百来个），
-    // 线性扫描比二分更好写，也更省一次排序假设。
     const closestSample = tooltipGeometry.points.reduce((nearestSample, candidateSample) =>
       Math.abs(candidateSample.timestamp - targetTime) <
       Math.abs(nearestSample.timestamp - targetTime)
@@ -234,7 +213,6 @@ export function attachChartTooltip(
     hoverGuideElement.hidden = false;
     hoverDotElement.hidden = false;
   };
-  // 移出图表时只隐藏三个浮层元素，不销毁：指针在图表内反复进出时避免反复重建 DOM。
   const handlePointerLeave = () => {
     tooltipElement.hidden = true;
     hoverGuideElement.hidden = true;
@@ -251,7 +229,6 @@ export function attachChartTooltip(
 
 /**
  * 渲染折线图弹窗里的详情视图（大图 + 阈值色带 + 当前值），与控件本体共用同一套数据整理与几何计算。
- * 返回值上挂了 syncLineChartState，运行时状态更新时直接调用它增量刷新，不必整块重建 DOM。
  */
 export function renderLineChartDetails(detailsComponent, detailsContext) {
   const detailsEntityId = detailsComponent.bindings?.entity?.entityId || "";
@@ -266,7 +243,6 @@ export function renderLineChartDetails(detailsComponent, detailsContext) {
   );
   const detailsElement = document.createElement("section");
   detailsElement.className = "hb-line-chart-details";
-  // 同 line-chart：阈值色带由渲染层读令牌后注入（weather-chart-runtime 是纯计算模块，不读 DOM）。
   const detailsThresholdColors = chartThresholdPalette();
   const detailsThresholds = resolvedThresholds(
     detailsComponent.properties?.thresholds,

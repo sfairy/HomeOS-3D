@@ -1,28 +1,4 @@
 """请求体的字节上限（ASGI 中间件）。
-
-商店是**公网直连**的服务（``STORE_BASE_URL`` 就是它的公开地址），而 FastAPI 处理请求时
-**先把整个请求体读进内存**，之后才轮到依赖与路由体 —— 于是 ``POST /store/v1/auth/login``、
-``/store/v1/verification/*``、``/v2/activate`` 这些**鉴权之前**就要读体的入口，任何匿名请求
-都能拿一个大 body 把进程内存打满。限流按**请求数**算，管不到单个请求的体积，所以这一层
-必须独立存在。
-
-两档上限：
-
-- **默认 1 MiB**：其余全部写路由。商店的请求体本来就都极小 —— 登录、验证码、授权封套
-  （几 KB 级）、支付宝表单回调、模拟收银台 —— 1 MiB 留了两个数量级的余量。
-- **multipart 声明上限 16 MiB**：``POST /store-admin/v1/products/{id}/image`` 是唯一的上传
-  路由，走 ``UploadFile``（Starlette 将其 spool 到磁盘，内存里只留约 1 MiB），成品上限是
-  8 MB（``IMAGE_MAX_BYTES``）。这一层**不缓冲它** —— 缓冲等于把整张图拉回内存，正好废掉
-  spooling 的意义；只按 ``Content-Length`` 提前拒绝明显超限的请求。
-
-刻意不复刻主应用 ``apps/server/http/body_guard.py`` 的 JSON 嵌套深度扫描：那份扫描要在
-``json.loads`` 之前跑一遍字节状态机，而商店这一侧除 ``apps/store/api/license.py`` 一处
-``await request.json()`` 外解析全交给 pydantic，深嵌套输入最多得到「一个被接住的 500」，
-不构成内存放大。为它在这里再存一份解析器状态机不划算 —— 主应用那一份则**必须有**，
-因为草稿文档会被递归遍历。
-
-与 ``apps/server/security/http_security.py`` 那类判据不同，这不是「两份必须逐字一致」的规则：
-两侧的额度与放行名单本就不同，各自独立维护。
 """
 from __future__ import annotations
 
@@ -62,14 +38,6 @@ def _content_type(scope) -> str:
 
 async def _read_capped_body(receive, limit: int) -> tuple[bytes, bool]:
     """逐块读请求体，累计超过 ``limit`` 就停下。
-
-    返回 ``(请求体, 是否超限)``。超限时返回值无意义（调用方直接回 413）。
-
-    不信任 ``Content-Length``：分块传输（chunked）根本没有这个头，伪造一个小值也能让
-    「先看头再读」的写法形同虚设。累计判断是唯一可靠的判据。
-
-    超限后仍把剩余分块读完再返回：连接上残留的字节会被 h11 当成下一个请求的起始，
-    直接报协议错误 —— 那会让「请求太大」表现成连接被重置。
     """
     chunks: list[bytes] = []
     total = 0
@@ -110,11 +78,6 @@ async def _send_too_large(send, limit: int) -> None:
 
 class RequestBodyGuard:
     """给全部非流式请求加请求体字节上限（默认 1 MiB，multipart 见模块说明）。
-
-    同时把读到的请求体**重放**给下游：FastAPI 仍按原样再读一次并自己 ``json.loads``，
-    因此路由签名与 pydantic 校验行为完全不变 —— 这一层只负责在解析之前把病态输入挡掉。
-    重放不额外占用内存（交给下游的就是同一个 bytes 对象），而 FastAPI 本来也会把整个
-    请求体读进内存。
     """
 
     def __init__(self, app) -> None:

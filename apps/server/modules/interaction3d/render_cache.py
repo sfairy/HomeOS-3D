@@ -1,15 +1,4 @@
 """一次性、有上限的灯光合图缓存（只放 PNG，不保存任何项目或户型数据）。
-
-舞台页把多盏灯的照明效果合成为一张 PNG 回传到这里，下次打开直接取图，省掉一轮 WebGL 渲染。
-文件按 (projectId, sceneId) 的 sha256 分目录、以 cache_key 命名；缓存键由前端按「场景 + 灯光
-参数 + RENDER_CACHE_VERSION」算出，参数或版本一变键就变（后端只校验它是 64 位十六进制，
-不解释其内容）。
-
-失效与回收在读、写两条路径上完成，靠 .lock 文件锁串行化：读时超过 MAX_AGE_SECONDS 或单条超限
-即删除并视为未命中；写时先校验图片，再清掉超过 1 小时的 .tmp 残留，并按 mtime 升序淘汰到总量与
-条数上限以内。
-
-这里的数据随时可以丢：清空目录只会让舞台页多渲染一次，不影响正确性。
 """
 from __future__ import annotations
 
@@ -39,14 +28,6 @@ MAX_AGE_SECONDS = 2592000
 
 def cache_path(data_dir: Path, scene_id: str, project_id: str, key: str) -> Path:
     """算出某个缓存键对应的磁盘路径。
-
-    key 必须是 64 位十六进制（前端算出的 sha256）：既是文件名安全的，
-    也杜绝了用 .. 之类字符串拼出目录穿越的可能。
-    目录名再对 projectId + sceneId 做一次 sha256：不同项目里同名的缓存键
-    不会互相覆盖，目录名里也不会出现项目与场景的真实 ID。
-
-    异常:
-        HTTPException: 422，缓存键格式非法。
     """
     if not re.fullmatch('[0-9a-f]{64}', key):
         raise HTTPException(422, detail='缓存标识无效。')
@@ -58,14 +39,6 @@ def cache_path(data_dir: Path, scene_id: str, project_id: str, key: str) -> Path
 @contextmanager
 def cache_lock(root: Path, *, shared: bool = False):
     """对缓存根目录加文件锁，串行化同目录的读、写与淘汰。
-
-    ``shared=True`` 加共享锁：多个读者可以同时持有，只有写路径（含淘汰）会与它们
-    互斥。读缓存是高频路径，写缓存只在舞台页重新渲染后发生一次，因此读不该被读挡住
-    。
-
-    参数:
-        root: 缓存根目录。
-        shared: 读路径传 True；写入与淘汰必须用排他（默认）。
     """
     root.mkdir(parents=True, exist_ok=True)
     # 锁文件常驻且用 'a+b'（不截断）：它只作为加锁句柄，不存内容。
@@ -77,14 +50,6 @@ def cache_lock(root: Path, *, shared: bool = False):
 
 def read_cache(path: Path) -> bytes | None:
     """读取缓存内容；未命中、已过期或超限时返回 None。
-
-    返回 None 而不抛异常：调用方只关心「有没有可用缓存」，统一按未命中处理（HTTP 204）即可。
-
-    读路径只持共享锁，且**只碰这一个文件**：命中时是「stat + 读」，不扫全目录、不算淘汰、
-    也不删任何东西。原先读也抢整目录排他锁，于是每一张缓存图命中都要把它之后的所有读与写排成一队，
-    而它同时还做了一次全量 glob + stat。过期与超限的条目在这里只判不删 —— 删除是写操作，交给下一次
-    ``write_cache`` 的淘汰顺带完成（它本来就先清过期条目），代价是过期条目可能多留一格时间，
-    而缓存随时可以丢。
     """
     root = path.parent.parent
     if not root.exists():
@@ -97,7 +62,6 @@ def read_cache(path: Path) -> bytes | None:
                 return None
             content = path.read_bytes()
             # 触摸节流：60 秒内读多次只更新一次 mtime，少写元数据，又保证「经常被读」的条目不被 LRU 误伤。
-            # 在共享锁里写元数据是安全的：淘汰持排他锁，与共享锁互斥，不会出现「刚 stat 到、正要 utime，文件已被删」。
             if time.time() - stat.st_mtime > 60:
                 os.utime(path, None)
             return content
@@ -108,13 +72,6 @@ def read_cache(path: Path) -> bytes | None:
 
 def write_cache(path: Path, content: bytes) -> None:
     """校验并写入一份缓存图层，随后做一轮淘汰。
-
-    写入用「临时文件 + rename」：rename 在同一文件系统内是原子的，
-    读侧永远看不到写了一半的 PNG。写完后顺手清理残留临时文件与超限条目，
-    这样不需要额外的后台任务（缓存可丢弃，及时性要求不高）。
-
-    异常:
-        HTTPException: 413 内容为空或超出单条体积上限；422 不是合法 PNG。
     """
     if not content or len(content) > MAX_ENTRY_BYTES:
         raise HTTPException(413, detail='缓存图层过大。')
@@ -156,8 +113,6 @@ def write_cache(path: Path, content: bytes) -> None:
             entries.append((stat.st_mtime, stat.st_size, candidate))
         total, count = sum(item[1] for item in entries), len(entries)
         # 排序键显式写成 (mtime, size, 完整路径字符串)：前两个分量可能完全相同（同批写入、或被对齐过时间戳），
-        # 淘汰谁就完全由第三个决定，所以它必须**一定唯一** —— 同一 glob 出的路径天然唯一，也就排得出确定顺序，
-        # 不会掉进「所有分量都相等」的稳定排序里听凭目录顺序。（旧写法比较 Path 对象实测也不抛错，CPython 给 PurePath 定义了全序。）
         for _, size, candidate in sorted(
             entries, key=lambda item: (item[0], item[1], str(item[2]))
         ):
@@ -166,7 +121,6 @@ def write_cache(path: Path, content: bytes) -> None:
             candidate.unlink(missing_ok=True)
             total -= size
             count -= 1
-        # 淘汰后可能留下空目录，顺手删掉，避免 scope 目录无限累积。
         for directory in root.iterdir():
             if not directory.is_dir():
                 continue

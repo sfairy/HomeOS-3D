@@ -1,11 +1,7 @@
 /**
  * 编辑器组件集合操作：命名、层级排序与共享组件引用维护。
- *
- * 图层树与画布右键菜单的「复制 / 组合 / 引用共享组件」等操作：为控件推导中文显示名、生成不
- * 重名的实例名与副本名、刷新组件 ID、按图层顺序写回 zIndex，以及维护页面对共享组件的引用
- * 顺序。命名规则与界面显示强相关（「_副本」「组合 2」等后缀），修改会影响既有文档的显示名。
  */
-import { newId } from "./editor-utils.js?v=2609271208";
+import { newId } from "./editor-utils.js?v=2609271226";
 
 /**
  * 推导组件的显示名。
@@ -49,8 +45,6 @@ export function componentLabel(component) {
                                       ? "组合"
                                       : component.type;
   const instanceName = component.properties?.instanceName;
-  // 历史版本把数量统计的实例名写成「灯光统计」「开灯统计」，这里识别出来
-  // 以便沿用类型名而不是显示这些内部命名。
   const statisticsNameMatch =
     component.type === "light-statistics"
       ? /^(?:灯光统计|开灯统计)(_副本\d*)?$/.exec(String(instanceName || ""))
@@ -105,7 +99,6 @@ export function groupNameForCollection(collectionComponents, baseName = "组合"
 
 /**
  * 递归刷新组件及其所有子组件的 ID。
- * 复制 / 粘贴时必须整体换 ID，否则会与源组件在文档里「同 ID 双份」。
  */
 export function refreshComponentIds(targetComponent, componentId = null) {
   targetComponent.id = componentId || newId("component");
@@ -119,7 +112,6 @@ export function refreshComponentIds(targetComponent, componentId = null) {
  * 生成复制后的组件显示名。
  */
 export function copiedComponentLabel(sourceComponent, siblingComponents) {
-  // 先剥掉源名称里已有的副本后缀，避免出现「_副本_副本」。
   const baseLabel =
     String(componentLabel(sourceComponent) || "控件")
       .trim()
@@ -144,7 +136,6 @@ export function copiedComponentLabel(sourceComponent, siblingComponents) {
 export function applyCollectionLayerOrder(orderedComponents) {
   for (let layerIndex = 0; layerIndex < (orderedComponents || []).length; layerIndex += 1) {
     const layeredComponent = orderedComponents[layerIndex];
-    // 数组越靠后层级越高；zIndex 用「总数 - 下标」表示，避免出现 0 或负值。
     layeredComponent.position = {
       ...(layeredComponent.position || {}),
       zIndex: orderedComponents.length - layerIndex
@@ -154,7 +145,6 @@ export function applyCollectionLayerOrder(orderedComponents) {
 
 /**
  * 同步各页面对共享组件的引用顺序，使其跟随 sharedComponents 的排列。
- * 删除某个共享组件后残留的引用要一并清掉；顺序也要与图层面板一致。
  */
 export function syncSharedComponentReferenceOrder(editorDocument) {
   // 全局共享组件顺序是唯一权威：各页面只保留自己确实引用过的那些，并按此顺序重排。
@@ -178,7 +168,6 @@ export function ensureSharedComponentReference(sourceDocument, sharedComponentId
   const targetPage = (sourceDocument?.pages || []).find(
     documentPage => documentPage.path === pagePath
   );
-  // 组件必须真实存在于 sharedComponents，避免页面上留下指向不存在组件的悬空引用。
   const hasSharedComponent = (sourceDocument?.sharedComponents || []).some(
     sharedComponentEntry => sharedComponentEntry.id === sharedComponentId
   );

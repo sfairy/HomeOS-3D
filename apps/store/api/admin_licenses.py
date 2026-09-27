@@ -1,8 +1,4 @@
 """运营后台的 licenses 资源组（从 api/admin.py 拆出）。
-
-子路由不带前缀（路径本身就是绝对路径），由父路由 admin.py 在**原来的位置**
-router.include_router() 套上 /store-admin/v1 —— 位置决定注册顺序，FastAPI 按注册序匹配路由，
-所以每拆一组都要用 72 条路由基线逐项比对（含顺序）。
 """
 from __future__ import annotations
 
@@ -43,7 +39,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -70,10 +65,6 @@ def admin_list_licenses(
     offset: int = 0,
 ) -> dict:
     """激活码列表（分页 + 筛选）。
-
-    这里没有直接套 ``_page``：``_license_payload`` 需要账号、设备绑定与最近一次
-    解绑时间，逐行去查就是 N+1。所以先取出本页的行，再一次性交给
-    ``_license_meta`` 批量补齐（``_count_rows`` 负责 total）。
     """
     base = select(License)
     if keyword:
@@ -95,7 +86,6 @@ def admin_list_licenses(
         base = base.where(License.account_id == account_id)
     if expiring_days is not None:
         # 只圈「还没过期、但 N 天内过期」的：已经过期的授权不属于「临期提醒」，
-        # 混进来会让运营误以为还有救。
         moment = utcnow()
         base = base.where(
             License.access_expires_at.is_not(None),
@@ -165,12 +155,8 @@ def admin_issue_license(
             ),
         )
 
-    # 与订单履约走同一条「撞码重试」路径，否则同一种冲突在这里是 500、
-    # 在那里是自动重试，两个入口的可靠性不一样。
     license = fulfill.insert_license_with_unique_code(session, build)
     # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
-    # 审计日志会在后台列表里长期展示、也常被导出/转发，等于把它抄了一份到
-    # 一个没有访问控制的地方。列表页自己也只用 code_hint。
     _audit(
         session,
         _admin_actor(admin),
@@ -178,12 +164,9 @@ def admin_issue_license(
         license.id,
         f"{license.code_hint}（人工签发）",
     )
-    # 后台签发成功后要在一个常驻面板里展示结果，所以把「给谁、什么商品、有效期到哪天」
-    # 一并返回，省得前端再发一次列表查询去凑（列表还带分页，不一定含这一条）。
     return {
         "activationCodeId": license.id,
         # 明文取自这一行本身（``activation_code`` 列存的就是明文，激活要按它查；
-        # 脱敏提示码另存 ``code_hint``）。后台签发是一次性展示，返回它是刻意的。
         "activationCode": license.activation_code,
         "email": email,
         "productName": license.product_name,
@@ -202,8 +185,6 @@ def admin_deactivate_license(
     license.active = False
     license.revoked_at = utcnow()
     # 一条授权可能在多台设备上绑定过（每个 instance_id 一行），停用必须把它们
-    # 全部释放。只释放 .first() 会留下仍为 active 的绑定行，既让客户端以为还
-    # 能用，也会让「删除授权」的活跃绑定守卫形同虚设。
     for binding in session.scalars(
         select(DeviceBinding).where(DeviceBinding.license_id == license.id)
     ):
@@ -229,8 +210,6 @@ def admin_activate_license(license_id: str, session: DbSession, admin: AdminAcco
 @router.delete("/licenses/{license_id}")
 def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """彻底删除一条授权（含级联的权益、绑定、租约与会话）。
-    不可恢复，所以两道守卫：必须**先停用**（强制「停用 → 再删」两步），且不允许存在仍活跃的设备绑定。
-    ``orders.license_id`` / ``orders.target_license_id`` 是 ON DELETE SET NULL，订单会保留、只是不再指向它。
     """
     license = session.get(License, license_id)
     if license is None:

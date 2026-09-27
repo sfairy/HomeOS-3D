@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
 """翻译表缓存的收益实测：真实流量基线 + 本地确定性基准。
-
-为什么需要这一份：/api/v1/ha/translations 是全站慢请求的绝对大头（见下），而它改完
-（内存 + 磁盘 + 同键并发去重）之后，**真实流量那一侧没有改后样本** —— 日志停在改动
-之前，所以只能靠本地基准把「改后行为」钉住，并把「真实改前基线」如实标出来。
-
-用法::
-
-    python ops/bench_translations.py                # 跑确定性基准（默认回源延迟 50ms）
-    python ops/bench_translations.py --latency-ms 2896
-    python ops/bench_translations.py --logs data/logs/global-events.jsonl   # 只提取真实基线
 """
 from __future__ import annotations
 
@@ -111,7 +101,6 @@ async def run_benchmark(latency_ms: float, concurrency: int) -> int:
     if len(calls) == 1 and deduped_ms > latency_ms * 3 + 200:
         failures.append('single-flight 墙钟 %.0f ms 明显超过一次回源' % deduped_ms)
 
-    # ② 反事实：不做去重时上游要付的代价（顺序回源 = 最坏情况；并发 = 上游被同时打 N 次）。
     reference: list[int] = []
     reference_fetch = make_fetch(reference)
     started = time.monotonic()

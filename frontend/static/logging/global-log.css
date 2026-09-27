@@ -1,9 +1,5 @@
 /*
  * 全局日志对话框样式（配合 global-log.js）。
- *
- * 编辑器 / 面板顶栏「全局日志」弹层，宿主是 .settings-dialog。整体走深色后台风格，尺寸与其它
- * 设置弹窗共用 .settings-dialog 外壳，这里只覆盖宽度与内部布局；自定义下拉（.custom-select）
- * 样式需与全局控件保持一致。
  */
 
 /* ===== 打开按钮 ===== */
@@ -40,7 +36,6 @@
   gap: 8px;
   padding: 14px 18px 10px;
 }
-/* min-width: 0 让网格子项可以收缩，否则搜索框会把整行撑宽。 */
 .global-log-toolbar select,
 .global-log-toolbar input {
   min-width: 0;
@@ -130,8 +125,6 @@
   background: #71808a;
 }
 /* 等级色只在圆点与徽标上体现，正文保持中性色以免整屏发花。
-   三档直接用全站语义色：成功=生态薄荷、提醒=暖光、错误=珊瑚。
-   原来 success 走 var(--success) 而 warning / error 各写一个十六进制，
    三种状态两边两套取值，改语义色时只有一条会跟着走。 */
 .global-log-item.success > i {
   background: var(--hos-eco);
@@ -151,7 +144,6 @@
   gap: 5px;
 }
 .global-log-item strong {
-  /* 日志里可能含超长路径 / 堆栈片段，强制换行避免撑宽列表。 */
   overflow-wrap: anywhere;
   color: var(--hos-tool-ink-dim);
   font-size: 11px;
@@ -217,7 +209,6 @@
   .settings-dialog.global-log-dialog {
     width: calc(100vw - 28px);
   }
-  /* 工具栏折成两列，搜索框独占一整行，避免控件被压到不可用宽度。 */
   .global-log-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

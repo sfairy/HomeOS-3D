@@ -1,19 +1,12 @@
 /**
  * 工作室表单控件的外观增强（自定义下拉框与数字步进器）。
- *
- * 属性面板大量使用原生 <select> 与 <input type="number">，本模块在原地把它们包装成可编排
- * 样式的 DOM。原生控件仍保留在 DOM 中并作为唯一「值来源」，只是被隐藏（tabIndex = -1 且
- * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
-import { capturePointer } from "../../utils/pointer-capture.js?v=2609271208";
-// 下拉的展开方向与可用高度：菜单留在文档流里（absolute + inset），所以不能走
-// positionFloatingMenu 的 fixed 坐标（dialog 的 top layer 与 container-type 祖先都会让
-// 视口坐标失效），只借这里的「按最近的裁剪容器实测」来回答向上/向下与最多多高。
+import { capturePointer } from "../../utils/pointer-capture.js?v=2609271226";
 import {
   nearestScrollClip,
   resolveDropPlacement
-} from "../../shared/menu-positioning.js?v=2609271208";
+} from "../../shared/menu-positioning.js?v=2609271226";
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();
@@ -25,11 +18,8 @@ let openController = null;
 function closeStudioSelect(targetController = openController) {
   if (targetController) {
     targetController.wrapper.classList.remove("open");
-    // opens-up 是展开时按实测空间算出来的，收起后清掉；max-height 同理还给 CSS 里的 240px 上限，
-    // 否则先展开一次低位下拉，之后所有下拉都会带着那次的矮高度。
     targetController.menu.classList.remove("opens-up");
     targetController.menu.style.maxHeight = "";
-    // aria-expanded 必须与实际可见性同步，否则读屏用户会听到错误的展开状态。
     targetController.trigger.setAttribute("aria-expanded", "false");
     targetController.menu.hidden = true;
     if (openController === targetController) {
@@ -40,10 +30,6 @@ function closeStudioSelect(targetController = openController) {
 
 /**
  * 展开前定方向：菜单向下展开会被**最近的滚动容器**裁掉时翻到触发器上方，并把高度收到可用空间内。
- *
- * 之前这里只有 CSS 的 `top: calc(100% + 4px)` + `max-height: 240px`，低位字段（如灯组、门类型）
- * 的下拉会被 .inspector-card 的 overflow 切掉，且没有任何提示。参照系取滚动容器而不是视口：
- * 菜单被谁裁就按谁算，否则卡片内部「下方空间够不够」的判断会失效。
  */
 function placeStudioSelectMenu(controllerRecord) {
   const { menu, trigger } = controllerRecord;
@@ -65,7 +51,6 @@ export function syncStudioSelect(selectElement) {
     return;
   }
   // 取显示文本的三级兜底：优先标准接口，其次按 selectedIndex 取，
-  // 最后退回第一项 —— 浏览器对「无选中项」的处理并不一致。
   const selectedOptionElement =
     selectElement.selectedOptions?.[0] ||
     selectElement.options[selectElement.selectedIndex] ||
@@ -139,7 +124,6 @@ function enhanceStudioSelect(hostSelectElement) {
   const menuElement = document.createElement("div");
   menuElement.className = "studio-select-menu";
   // 菜单 id 优先复用原生控件的 id，便于上层用 label 的 for 属性定位；
-  // 没有 id 时用当前控制器数量生成一个稳定后缀。
   menuElement.id =
     (hostSelectElement.id || "studio-select-" + (controllersBySelect.size + 1)) + "-menu";
   menuElement.setAttribute("role", "listbox");
@@ -175,7 +159,6 @@ function enhanceStudioSelect(hostSelectElement) {
   });
   hostSelectElement.addEventListener("change", () => syncStudioSelect(hostSelectElement));
   // 选项由外部代码动态增删，用 MutationObserver 兜住所有改动，
-  // 避免要求每个调用点都记得手动调用同步函数。
   new MutationObserver(() => syncStudioSelect(hostSelectElement)).observe(hostSelectElement, {
     childList: true,
     subtree: true,
@@ -192,7 +175,6 @@ export function initializeStudioSelects(rootElement = document) {
     enhanceStudioSelect(discoveredSelect);
   }
   // 点击菜单与触发器之外的任何位置都收起；用 pointerdown 而不是 click，
-  // 这样在拖拽 / 触屏手势开始时就能收起，反应更跟手。
   rootElement.addEventListener("pointerdown", pointerEvent => {
     if (openController && !openController.wrapper.contains(pointerEvent.target)) {
       closeStudioSelect();
@@ -202,7 +184,6 @@ export function initializeStudioSelects(rootElement = document) {
     if (keydownEvent.key !== "Escape" || !openController) {
       return;
     }
-    // 拦下 Escape：避免它继续冒泡去关闭外层的弹窗。
     keydownEvent.preventDefault();
     keydownEvent.stopPropagation();
     const triggerToFocus = openController.trigger;
@@ -213,7 +194,6 @@ export function initializeStudioSelects(rootElement = document) {
 
 /**
  * 同步步进按钮的禁用态。
- * 只读输入框同样要禁用步进按钮：stepUp / stepDown 对 readonly 无效，留着按钮会点了没反应。
  */
 function syncStepperButtonsDisabled(stepperInput, stepperButtons) {
   const isStepperDisabled = stepperInput.disabled || stepperInput.readOnly;
@@ -272,7 +252,6 @@ function enhanceNumberInput(numberInput) {
         return false;
       } else {
         // 每次步进都派发 input 事件，让面板上的联动（例如尺寸预览）实时刷新；
-        // change 事件留到整段操作结束时再发，避免长按连点时事件风暴。
         numberInput.dispatchEvent(
           new Event("input", {
             bubbles: true
@@ -283,7 +262,6 @@ function enhanceNumberInput(numberInput) {
     };
     stepperButtonElement.addEventListener("click", buttonClickEvent => {
       // 键盘触发 click 时不做任何事：实际的步进逻辑挂在 pointerdown 上，
-      // 这里只阻止按钮抢走焦点与默认行为。
       buttonClickEvent.preventDefault();
       buttonClickEvent.stopPropagation();
     });
@@ -308,7 +286,6 @@ function enhanceNumberInput(numberInput) {
       }, 320);
       // 长按收尾：清掉加速定时器并解绑三个结束事件（up / cancel / lostpointercapture）。
       const handleRepeatEnd = () => {
-        // 用标志位保证只收尾一次：pointerup / pointercancel / lostpointercapture 可能都触发。
         if (!isPointerReleased) {
           isPointerReleased = true;
           // 同一个 id 可能对应 timeout 也可能对应 interval，两个都清掉更稳妥。
@@ -329,7 +306,6 @@ function enhanceNumberInput(numberInput) {
       stepperButtonElement.addEventListener("pointerup", handleRepeatEnd);
       stepperButtonElement.addEventListener("pointercancel", handleRepeatEnd);
       stepperButtonElement.addEventListener("lostpointercapture", handleRepeatEnd);
-      // 捕获指针：鼠标按住后移出按钮仍能收到 pointerup，否则长按会停不下来。
       capturePointer(stepperButtonElement, pointerDownEvent.pointerId);
     });
     stepperButtonsContainer.append(stepperButtonElement);

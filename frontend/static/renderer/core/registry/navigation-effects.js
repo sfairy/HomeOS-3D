@@ -1,20 +1,13 @@
 /**
  * 导航按钮的特效层与高亮判定。
- *
- * 高亮优先级：编辑态预览 → 目标页等于当前页 → 绑定实体的活动态；都没有时不高亮。
  */
-import { randomUuid } from "../../../utils/random-id.js?v=2609271208";
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271208";
+import { randomUuid } from "../../../utils/random-id.js?v=2609271226";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
 // 同门分片：registry-visuals
-import { resolveColor } from "./registry-visuals.js?v=2609271208";
+import { resolveColor } from "./registry-visuals.js?v=2609271226";
 
 /**
  * 生成导航按钮的边框与光晕 SVG：viewBox 宽度固定 236，高度按控件实际宽高比换算，配合
- * preserveAspectRatio=none 拉伸，内部只需按 236 宽的坐标系算边距、圆角与描边宽度。
- * 渐变 id 用随机 UUID 加后缀，避免同一页面上多个导航按钮的 id 冲突而引用到前一个的渐变。
  */
 export function buildNavigationEffects(
   navFrameComponent,
@@ -51,8 +44,6 @@ export function buildNavigationEffects(
   const navGlowAngleValue = clampCoercedNumber(navFrameProperties.glowAngle, 0, 360, 45);
   const navOpacityDivisor = isNavFrameActive ? 0.98 : 0.48;
   // 把设计稿的透明度档位折算到当前控件的透明度：先乘 navFrameOpacity，再除以档位
-  // 上限 navOpacityDivisor（活动 0.98 / 非活动 0.48），让最亮的 stop 恰好落在控件
-  // 设定值上；末尾夹到 0~1，防止系数放大后溢出。
   const scaleNavOpacity = navOpacityInput =>
     Math.max(0, Math.min(1, (navOpacityInput * navFrameOpacity) / navOpacityDivisor));
   const navGradientIdSuffix = "navigation-" + randomUuid();
@@ -172,7 +163,6 @@ export function buildNavigationEffects(
 
 /**
  * 判断导航按钮是否高亮：优先级为编辑态预览 → 目标页等于当前页 → 绑定实体的活动态。
- * 都没有时按不高亮处理。
  */
 export function navigationButtonIsActive({
   targetPage: navigationTargetPage = "",

@@ -1,10 +1,4 @@
 """ORM 模型定义：主应用的全部数据表。
-
-约定：所有时间列都是 UTC aware（`DateTime(timezone=True)`），默认值统一用 `utc_now`，
-展示时由前端按浏览器本地时区换算；需要加密的敏感字段（HA 令牌、激活码、会话令牌）以
-`encrypted_*` 命名，库里存密文，密钥在 `data/secrets/` 下；同步自 HA 的表用 `sync_status`
-+ `missing_since` 表达「曾经存在但当前消失」，不直接删行，这样已绑定的实体不会因为一次
-同步失败就丢失绑定。
 """
 from __future__ import annotations
 
@@ -24,9 +18,6 @@ def utc_now() -> datetime:
 
 class User(Base):
     """管理员账号的库内身份行。
-
-    认证不读这里的 `password_hash`（凭据已外置到 admin-account.json），这一行保留主要是为了
-    让 project.created_by 等外键有稳定的引用目标。
     """
 
     __tablename__ = 'users'
@@ -45,8 +36,6 @@ class User(Base):
 
 class LoginSession(Base):
     """管理员登录会话；主键是令牌的 sha256，明文令牌只存在于浏览器 Cookie。
-
-    删除用户时会话级联删除，因此账号重置只需清空这张表。
     """
 
     __tablename__ = 'sessions'
@@ -63,9 +52,6 @@ class LoginSession(Base):
 
 class DisplayPairingCode(Base):
     """中控配对码：6 位数字码的哈希 + 可回显的密文。
-
-    同时存哈希与密文是为了兼顾安全与易用：哈希用于配对时校验，
-    密文（对称加密）让管理员日后还能在界面上看到当初发的那个码。
     """
 
     __tablename__ = 'display_pairing_codes'
@@ -84,9 +70,6 @@ class DisplayPairingCode(Base):
 
 class DisplayDevice(Base):
     """已配对的中控设备。
-
-    `pairing_code_id` 可为空：早期版本创建的设备没有关联配对码，
-    它们不受配对码启停影响，只能由管理员显式吊销（写 revoked_at）。
     """
 
     __tablename__ = 'display_devices'
@@ -106,13 +89,6 @@ class DisplayDevice(Base):
 
 class HAConnection(Base):
     """一条 Home Assistant 连接配置。
-
-    长期访问令牌以密文存放；`is_active` 用来标记当前生效的那一条，
-    新同步写入实体时只认活跃连接。
-
-    地址分内网与外网两套，**内网优先**：只要内网可达就一直走内网，内网不通才自动切到外网
-    （见 ha/service.py 的端点解析）。两套地址各有自己的证书校验开关 —— 内网多是 http 或
-    自签名证书，默认不校验；外网走公网，默认校验。
     """
 
     __tablename__ = 'ha_connections'
@@ -129,7 +105,6 @@ class HAConnection(Base):
     #: 外网地址是否校验 HTTPS 证书。默认 True：公网地址应当有受信任证书。
     external_verify_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     #: 最近一次探到在用的端点：'internal' / 'external'；NULL 表示还没探过。
-    #: 落库只是为了刷新页面后能立刻显示「当前在用哪一个」，权威值始终在内存里。
     active_endpoint: Mapped[str | None] = mapped_column(String(16), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     ha_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -141,10 +116,6 @@ class HAConnection(Base):
 
 class HAEntity(Base):
     """从 HA 同步来的实体。
-
-    唯一约束是 (connection_id, entity_id)：换了一条连接后同名实体是另一条记录。实体在 HA 里
-    消失时不删行，而是把 sync_status 置为非 active 并记 missing_since，这样仪表盘的绑定关系
-    不会因为 HA 临时重启就丢失。
     """
 
     __tablename__ = 'ha_entities'
@@ -172,9 +143,6 @@ class HAEntity(Base):
 
 class HADevice(Base):
     """从 HA 设备注册表同步来的物理设备。
-
-    `registry_metadata_json` 原样保存注册表元数据，
-    为的是将来前端需要更多字段时不必再加列、也不必重跑全量同步。
     """
 
     __tablename__ = 'ha_devices'
@@ -198,8 +166,6 @@ class HADevice(Base):
 
 class HAArea(Base):
     """从 HA 区域注册表同步来的区域（房间）。
-
-    `aliases_json` 保存区域的别名数组，用于在中文环境里匹配房间名。
     """
 
     __tablename__ = 'ha_areas'
@@ -218,9 +184,6 @@ class HAArea(Base):
 
 class HASyncState(Base):
     """每条连接的同步进度与统计（主键就是 connection_id，一行一连接）。
-
-    `catalog_revision` 每次实体目录变化就自增，前端据此判断要不要重新拉实体列表，
-    避免每次都做全量比对。
     """
 
     __tablename__ = 'ha_sync_state'
@@ -242,11 +205,6 @@ class HASyncState(Base):
 
 class Project(Base):
     """一个仪表盘项目。
-
-    `name` 全局唯一，因为它同时被用作展示地址 `/display/{项目名称}` 的路径段；`slug` 是给内部
-    与文件命名用的 ASCII 形式。两条唯一性都由数据库唯一索引兜底（应用层「先查后写」只是为了让
-    常见错误尽早返回中文提示）：`name` 冲突回 409 让用户改名，`slug` 冲突换后缀重试。
-    `created_by` 用 RESTRICT：只要还有项目引用，就不允许删除该用户行。
     """
 
     __tablename__ = 'projects'
@@ -262,9 +220,6 @@ class Project(Base):
 
 class ProjectDraft(Base):
     """项目草稿：与 Project 一对一（主键就是 project_id）。
-
-    `revision` 是乐观锁：保存时必须带上客户端读到的版本号，
-    不一致说明另一个页面已经改过，接口返回 409 让用户选择覆盖还是加载服务端版本。
     """
 
     __tablename__ = 'project_drafts'
@@ -279,17 +234,11 @@ class ProjectDraft(Base):
 
 class ProjectPathAlias(Base):
     """项目改名后保留的旧展示地址。
-
-    展示地址由**名称**派生，而名称可以改 —— 改完之后，已配对、书签里存着旧地址的墙面平板就
-    再也打不开这一页，且只会一直收到 404。这里按「旧名称 → 项目」记一行：`/display/{旧名称}`
-    在没有现存项目占用该名称时 303 跳到当前地址，被占用时以现存项目为准。
-    刻意存名称而不存 id，保证别名与地址一致；每个项目的别名数量有上限（见 PROJECT_PATH_ALIAS_LIMIT）。
     """
 
     __tablename__ = 'project_path_aliases'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    # 旧名称全局唯一：一个地址只可能指向一个项目，撞名时后来者接管（见 projects.py）。
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     project_id: Mapped[str] = mapped_column(ForeignKey('projects.id', ondelete='CASCADE'), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
@@ -297,9 +246,6 @@ class ProjectPathAlias(Base):
 
 class GlobalCustomPopupState(Base):
     """全局组合弹窗的单行状态表（固定 id=1）。
-
-    弹窗内容整体以 JSON 数组存在 `popups_json` 里，`revision` 用于并发检测。
-    `updated_by` 用 SET NULL：删用户不该连带删掉弹窗，只丢掉"最后修改人"。
     """
 
     __tablename__ = 'global_custom_popup_state'
@@ -313,14 +259,6 @@ class GlobalCustomPopupState(Base):
 
 class StudioInteractionSync(Base):
     """3D 户型图与仪表盘之间的关联清理状态（单行，固定 id=1）。
-
-    保存户型图时如果删掉了被 3D 控件绑定的模型，``interaction3d`` 会把这些悬空绑定从各项目
-    文档里剪掉。被剪掉的条目连同它的身份键存进这里的 ``document_json``（形如
-    ``{'archive': [...]}``）：模型日后被加回场景时，据此把绑定放回原位。
-
-    为什么不存进草稿文件：草稿是「当前户型的快照」，而这批撤销记录属于 3D 控件配置这一侧，
-    生命周期与草稿不一致（换一份户型也该保留，模型加回来要能还原）。为什么不逐条建表：
-    撤销记录只在保存路径整体读写、从不按单条查询，一行 JSON 更贴近它的使用方式。
     """
 
     __tablename__ = 'studio_interaction_sync'
@@ -332,10 +270,6 @@ class StudioInteractionSync(Base):
 
 class LicenseState(Base):
     """本机授权状态（单行，固定 id=1）。
-
-    敏感值全部加密存放：激活码、会话令牌、恢复令牌。`signed_lease` 是服务端签发的 Ed25519
-    签名租约原文，客户端离线验签即可判断是否仍然有效。`status` 取值包括 UNACTIVATED / ACTIVE /
-    CONNECTION_WARNING / LEASE_EXPIRED / REVOKED；只有「确认吊销」与「租约过期」会拦截功能。
     """
 
     __tablename__ = 'license_state'
@@ -347,7 +281,6 @@ class LicenseState(Base):
     session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     lease_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     activation_code_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    # 以下三个 encrypted_* 字段存放密文，密钥来自 data/secrets/license_credentials.key。
     encrypted_activation_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     activation_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     signed_lease: Mapped[str | None] = mapped_column(Text, nullable=True)

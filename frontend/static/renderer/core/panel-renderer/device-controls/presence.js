@@ -1,8 +1,5 @@
-/*
- * 设备控件区块：存在传感器详情（在场时长、最近触发与历史时间线）。
- */
 
-import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271208";
+import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271226";
 import {
   formatPresenceDuration,
   presenceHistoryBuckets,
@@ -10,16 +7,14 @@ import {
   presenceSensorPresentation,
   presenceStateTimestamp,
   renderRegisteredComponent
-} from "../../registry.js?v=2609271208";
-import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { componentDialogTitle } from "../primitives.js?v=2609271208";
+} from "../../registry.js?v=2609271226";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { componentDialogTitle } from "../primitives.js?v=2609271226";
 
 export const presenceDetailsMethods = {
   /**
    * 打开人体存在传感器详情弹窗（活动曲线、停留时长、触发事件）。
-   * 传感器种类由实体与设备画像判定，不同种类展示的区块不同，故先定种类再建控件。
-   * @throws {Error} 组件没有绑定实体。
    */
   showPresenceDetails(presenceComponent, { preview: presencePreview = false } = {}) {
     const presenceEntityId = presenceComponent.bindings?.entity?.entityId;
@@ -103,8 +98,6 @@ export const presenceDetailsMethods = {
       paletteColor("--hos-sensor", "#9eb0c4");
     /**
      * 把存在感类实体的状态归一成展示所需的 key 与元数据。
-     * 人体、门窗、水浸、烟雾、燃气几类传感器判定规则完全不同，统一交给 presenceSensorPresentation；
-     * 这里只注入该实体的运动事件配置，并允许覆写「当前时间」以便按历史时间点回放判定。
      */
     const resolvePresencePresentation = (presenceInputState, presenceNow = Date.now()) =>
       presenceSensorPresentation(presenceInputState, "auto", {
@@ -236,7 +229,6 @@ export const presenceDetailsMethods = {
     presenceDialog.append(presenceCard);
     /**
      * 把时间戳格式化成「今天 HH:MM」或「MM-DD HH:MM」。
-     * 与今天同一天时省略日期以减少视觉噪音，否则补上月日，并把 Intl 默认的 "/" 换成 "-"。
      */
     const formatPresenceTimestamp = timestampMs => {
       if (!Number.isFinite(timestampMs)) {
@@ -254,11 +246,6 @@ export const presenceDetailsMethods = {
         return formatZhDateTime(eventDate);
       }
     };
-    /**
-     * 重绘存在感时间轴：把历史分桶渲染成一行色块，并汇总有人时长。
-     * 分桶固定 48 段，色块宽度才稳定不跳动；每块 title 给出「多少分钟前 + 状态」。
-     * 桶序号按剩余比例估算分钟数，有人时长按「有人桶数 × 每桶分钟数」折算，避免再遍历历史。
-     */
     const renderPresenceTimeline = () => {
       const historyBuckets = presenceHistoryBuckets(
         presenceHistoryPoints,
@@ -307,8 +294,6 @@ export const presenceDetailsMethods = {
     };
     /**
      * 求「最近一次检测到人」的时间戳。
-     * 同时看两处：历史点里判定为 occupied 的记录，以及当前状态为 occupied 时的状态变更
-     * 时间 —— 后者未必已写进历史（历史异步落库），漏掉会显示偏旧时间；都没有则返回 null。
      */
     const lastPresenceTimestamp = () => {
       const presenceMotionConfig = presenceMotionEventConfig(
@@ -359,8 +344,6 @@ export const presenceDetailsMethods = {
     };
     /**
      * 按传感器最新状态刷新存在感弹窗：状态文案、图形态与各项指标。
-     * 图形类名因传感器类型而异（门窗 open、水浸 wet、烟雾 / 燃气 alert），不能统一套
-     * occupied，故按 kind 分别组装；本函数只按当前状态重算，持续时长推进由外层每秒触发。
      */
     const renderPresenceState = nextPresenceState => {
       presenceState = nextPresenceState || presenceState;

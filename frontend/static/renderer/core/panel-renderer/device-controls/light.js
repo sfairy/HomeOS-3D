@@ -2,7 +2,7 @@
  * 设备控件区块：灯具详情（亮度、色温、颜色、效果与灯组场景）。
  */
 
-import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271208";
+import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609271226";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -21,13 +21,11 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../../../controls/light-runtime.js?v=2609271208";
+} from "../../../controls/light-runtime.js?v=2609271226";
 
 export const lightDetailsMethods = {
   /**
    * 构建灯具详情弹窗的控制区（电源、亮度、色温、颜色）。
-   * 能力分三档：支持彩色、只支持色温、都不支持；不支持的控件不渲染，
-   * 因此渲染哪些滑块由能力探测结果决定，而非用户配置。
    */
   createLightDetailsControls(
     lightControlsEntityId,
@@ -53,8 +51,6 @@ export const lightDetailsMethods = {
     const slidersByDataKey = new Map();
     /**
      * 创建灯具详情弹窗里的一个滑条控件（亮度或色温）。
-     * 用参数对象而非位置参数，因为两个滑条只有单位与数据键不同；拖动（input）只更新本地
-     * 显示并回调预览，松手（change）才下发 light.turn_on，避免拖动中打出大量服务调用。
      */
     const createLightSlider = ({
       label: sliderLabelText,
@@ -184,8 +180,6 @@ export const lightDetailsMethods = {
         lightColorPickerPointFromHs([colorHs.hue, colorHs.saturation]);
       /**
        * 应用 HS 色值：归一化入参、更新取色盘手柄与颜色，并回调可视化层。
-       *
-       * 色相取模到 [0,360)、饱和度夹到 [0,100]，这样键盘连按可以绕圈而不会越界。
        */
       const applyColorPickerHs = ({
         hue: pickerHue = colorHs.hue,
@@ -216,8 +210,6 @@ export const lightDetailsMethods = {
       };
       /**
        * 处理取色盘上的指针事件：把指针位置换算成 HS 色值并应用。
-       * 先按取色盘实际矩形把 client 坐标归一化到 0~1（夹取），再交由
-       * lightColorPickerHsFromPoint 反解出色相 / 饱和度；盘面尺寸为 0 时直接返回，避免除零。
        */
       const handleColorPickerPointer = colorPickerEvent => {
         const colorPickerRect = colorPickerElement.getBoundingClientRect();
@@ -243,8 +235,6 @@ export const lightDetailsMethods = {
       };
       /**
        * 把当前选中的颜色通过 light.turn_on 提交，并用在途标记去重。
-       * 拖动结束会连续触发提交，不加 isColorRequestPending 守卫会发出一串请求；请求期间
-       * 给取色盘加 aria-busy，让辅助技术知道正处于忙碌状态。
        */
       const commitColorPicker = async () => {
         if (!!lightControlsInteractive && !isColorRequestPending) {
@@ -281,8 +271,6 @@ export const lightDetailsMethods = {
       });
       /**
        * 结束取色盘拖动：清掉拖动标记、释放指针捕获，并提交最终颜色。
-       * 以 dataset.dragging 判断「是否真的在拖」，避免 pointercancel 与 pointerup 各触发
-       * 一次提交导致重复下发。
        */
       const handleColorPickerRelease = async colorReleaseEvent => {
         if (colorPickerElement.dataset.dragging === "true") {
@@ -391,8 +379,6 @@ export const lightDetailsMethods = {
     };
     /**
      * 安排一次场景预设的下发结果核对。
-     * 下发后设备状态不会立刻到位，先强制保持一段最小时间，再要求状态连续稳定
-     * （LIGHT_PRESET_STABLE_CONFIRMATION_MS）或到达最大等待时间才判定结束；同一时刻只排一个定时器。
      */
     const schedulePresetCheck = () => {
       window.clearTimeout(presetTimer);
@@ -422,8 +408,6 @@ export const lightDetailsMethods = {
     const presetDefinitions = LIGHT_DETAIL_PRESET_DEFINITIONS;
     /**
      * 把预设里的「色温百分比」换算成实际色温（开尔文）。
-     * 预设只声明相对位置（0% 暖 → 100% 冷），须结合这盏灯自身支持的 min/max 色温换算，
-     * 才能适配不同型号。
      */
     const presetKelvin = presetEntry =>
       relativeLightColorTemperature(
@@ -527,8 +511,6 @@ export const lightDetailsMethods = {
     lightControlsElement.append(presetsElement);
     /**
      * 根据灯光当前状态高亮匹配的预设按钮。
-     * 匹配是模糊的：亮度容差 4 个百分点、色温容差取 50K 与量程 6% 的较大者
-     * —— 设备回传值与下发值存在量化误差，精确相等会永远不高亮；两维都命中且灯 on 才激活。
      */
     const renderPresetActiveState = presetState => {
       const presetLightAttributes = presetState?.attributes || {};

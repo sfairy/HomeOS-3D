@@ -1,12 +1,4 @@
 """Home Assistant 连接器服务：同步、实时事件与状态分发的主循环。
-
-- ``_run`` 常驻后台：取启用连接 → 全量同步 → WebSocket 长连收事件，异常按指数退避重连；
-- ``sync_once`` 按 ``ha_reconcile_interval_seconds`` 周期对账，用 HA 权威数据修正漏掉的增量；
-- ``_handle_live_event`` 只做「落库 + 推内存」，注册表类事件再触发防抖的元数据刷新；
-- 状态分发交给 ``StateHub``，本模块只决定「谁该被关注」。
-
-并发约定：数据库操作经 ``_run_database`` 串行化并放线程池（SQLAlchemy 是同步的），
-注册表刷新与全量同步共用 ``_sync_lock``，避免两份快照互相覆盖。
 """
 from __future__ import annotations
 import asyncio
@@ -29,17 +21,12 @@ from .crypto import CredentialCipher
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .state_hub import StateHub
 # 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
-# 连回 Wi-Fi），外网也可能已经失效。代价是一次 /api/config，换来 60 秒内自动归位。
 HA_ENDPOINT_RECHECK_SECONDS = 60
 # 补拉状态的重试退避（秒）：共尝试 3 次（首次 + 两次重试），
-# 用来兜住 HA 刚启动或集成还没就绪、状态暂时不完整的时刻。
 STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
-# 历史查询并发上限：HA 侧的历史接口要查 recorder 数据库，开销大。
 HISTORY_FETCH_CONCURRENCY = 2
-# 历史结果短缓存（秒）：同一图表在页面切换/轮询时会重复请求，30 秒内直接复用。
 HISTORY_CACHE_SECONDS = 30
 # 判断「状态是否不完整、值得再拉一次」的关键属性表。HA 启动初期或集成重载时会先返回
-# 带 entity_id 但属性缺失的占位状态，climate 这类控件的可用性全靠这几个属性，缺一个就重拉。
 STATE_FETCH_REQUIRED_ATTRIBUTES = {
     'climate': {
         'fan_modes',
@@ -58,7 +45,6 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
         if state is None:
             return True
         # 不在白名单里的域只要有状态就算完整；sensor 例外：unknown / unavailable 是
-        # 「还没读到值」的占位状态，必须重拉，否则图表永远停在未知。
         return domain == 'sensor' and str(state.get('state') or '').strip().casefold() in frozenset({'unknown', 'unavailable'})
     attributes = state.get('attributes') if isinstance(state, dict) else None
     # 属性表缺失，或必备属性一个都没有 —— 两种情况都按残缺处理。
@@ -72,9 +58,6 @@ from .live import HALiveMixin
 
 class HAConnectorService(HARegistryMixin, HALiveMixin):
     """HA 连接器的生命周期与同步逻辑。
-
-    一个进程只保有一个实例（挂在 app.state.ha_connector），由它持有后台任务、内存状态
-    与各类锁；配置变更（地址、令牌、TLS）走 `restart` 重建连接。
     """
 
     def __init__(
@@ -86,12 +69,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         on_endpoint_switch: Callable[[], None] | None = None,
     ) -> None:
         """参数：
-
-        on_reconnect: 连接被重建 / 删除时的回调，用于作废从连接派生的进程内状态
-            （媒体代理快照缓存与 HLS 归属记账）；用回调避免连接器与派生状态互相依赖。
-        on_endpoint_switch: 内网 / 外网端点发生切换时的回调。与 on_reconnect 分开：
-            切换端点时从连接派生的缓存要作废（HLS 令牌是旧端点发的），但**保温池不能一起
-            停掉** —— 它会自己按新端点重新起流，停了就再也没人把它叫回来。
         """
         self.settings = settings
         self.database = database
@@ -121,16 +98,12 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         self._watch_lock = asyncio.Lock()
         # connection_id -> 防抖中的注册表刷新任务。
         self._registry_refresh_tasks = { }
-        # 历史查询并发闸门与短缓存，见 fetch_history。
         self._history_semaphore = asyncio.Semaphore(HISTORY_FETCH_CONCURRENCY)
         self._history_cache = { }
-        # 同一 key 的并发历史查询合并成一个任务，避免同时打 HA 多份。
         self._history_fetches = { }
         self._history_cache_lock = asyncio.Lock()
-        # 首次同步成功只在日志里记一次，避免每次重连都刷屏。
         self._initial_sync_logged = False
         # 当前可用端点（内网优先）：所有出网调用都从它取地址与证书校验开关。
-        # 缓存窗口内共用同一个结果，避免每个媒体请求都探一次。
         self._endpoint: HAEndpoint | None = None
         self._endpoint_signature: tuple | None = None
         self._endpoint_probed_at = 0.0
@@ -149,14 +122,11 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     @property
     def runtime_error(self) -> str | None:
-        """最近一次连接失败的原因，成功后清空。"""
         return self._runtime_error
 
     @property
     def endpoint_kind(self) -> str | None:
         """当前在用的端点类型（'internal' / 'external'）；还没探过时为 None。
-
-        内存里的值才是权威的（库里那份只是上一次的快照），界面优先拿这个。
         """
         return self._endpoint.kind if self._endpoint is not None else None
 
@@ -170,16 +140,12 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         if self._runner is not None and not self._runner.done():
             return
         # 复制一份干净的 contextvars：后台任务常驻，不能继承调用方（通常是某个 HTTP
-        # 请求）的日志上下文，否则日志会一直挂在那次请求上。
         context = copy_context()
         context.run(event_context.set, { })
         self._runner = asyncio.create_task(self._run(), name = 'ha-connector', context = context)
 
     async def stop(self) -> None:
         """停掉主循环与所有子任务，等待它们真正结束。
-
-        先取消子任务（防抖中的注册表刷新、进行中的历史查询）再取消主循环，
-        否则主循环退出后这些任务会变成没人回收的孤儿任务。
         """
         registry_tasks = list(self._registry_refresh_tasks.values())
         self._registry_refresh_tasks.clear()
@@ -212,7 +178,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         # 地址可能被改过（甚至换了内外网其中一路），端点缓存必须作废后重探。
         self.invalidate_endpoint()
         # 连接换了，媒体代理的两份记账就都作废了：快照缓存里是上一台 HA 的画面，
-        # HLS 归属记的是上一台 HA 的令牌。同一地址也可能换了另一套系统，缓存无法自行发现。
         if self._on_reconnect is not None:
             self._on_reconnect()
         self.start()
@@ -224,9 +189,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def _run_database(self, operation, *args, **kwargs):
         '''把连接器的数据库操作串行化，且不阻塞异步服务循环。
-
-        SQLAlchemy 是同步 API，直接在协程里跑会卡住事件循环，因此丢进线程池；
-        加锁是因为本项目用 SQLite，同一时刻只允许一个写入者，并发写会报 database is locked。
         '''
         async with self._database_lock:
             return await asyncio.to_thread(operation, *args, **kwargs)
@@ -250,8 +212,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def watched_entity_ids(self) -> set[str]:
         """当前需要关注的实体：持久引用（草稿/弹窗）+ 运行期订阅。
-
-        每次状态事件都会调用它，所以这里只做集合运算，不查库。
         """
         async with self._watch_lock:
             return set(self._persistent_entity_ids) | set(self._runtime_entity_watch_counts)
@@ -260,11 +220,9 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         """重新扫描草稿与弹窗，刷新持久关注的实体集合。"""
         next_ids = await self._run_database(self._load_persistent_entity_ids)
         async with self._watch_lock:
-            # 先算出新增项再赋值，否则拿不到差异（只补拉新出现的实体）。
             added = next_ids - self._persistent_entity_ids
             self._persistent_entity_ids = next_ids
             retained = set(self._persistent_entity_ids) | set(self._runtime_entity_watch_counts)
-        # retain 内部要拿 StateHub 的锁，放在自己的锁外调用，避免两把锁嵌套。
         await self.state_hub.retain(retained)
         if ensure_states and added:
             await self.ensure_entity_states(added)
@@ -272,9 +230,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def add_runtime_entity_watch(self, entity_ids: set[str], *, ensure_states: bool = True) -> None:
         """登记运行期关注（某个打开中的页面要实时收这些实体的状态）。
-
-        用计数而非集合：同一实体可能被多个前端连接同时订阅，只有全部退订
-        之后才该停止关注。ensure_states 打开时会立刻补拉，避免页面出现空白。
         """
         normalized = {
             str(value) for value in entity_ids if str(value) }
@@ -301,9 +256,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def ensure_entity_states(self, entity_ids: set[str]) -> None:
         """确保这批实体在内存里有可用状态，缺的/残缺的点名补拉。
-
-        补拉结果只 `merge` 进内存，不主动推送：调用方随后自己读快照初始化界面，
-        这里再推一遍只会造成重复渲染。
         """
         normalized = {
             str(entity_id) for entity_id in entity_ids if str(entity_id) }
@@ -327,7 +279,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         for delay in (0, *STATE_FETCH_RETRY_DELAYS):
             if delay:
                 await asyncio.sleep(delay)
-            # 固定本轮要请求的集合：期间被并发修改的 pending 不影响本次语义。
             requested = set(pending)
             states = await client.fetch_states(requested)
             pending.clear()
@@ -338,16 +289,12 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
                     for state in states
                     if isinstance(state, dict) and
                     (entity_id := str(state.get('entity_id') or '')) in requested and
-                    # 只对本轮请求过、且拿回来仍残缺的实体继续重试，避免把调用方没要的实体卷进来。
                     state_requires_fetch_retry(entity_id, state))
             if not pending:
                 break
 
     def invalidate_endpoint(self) -> None:
         """作废当前端点的缓存，下次取用时重新探测（内网优先）。
-
-        调用点有两处，理由相同 —— 「现在用的这一路已经不通了」：连接主循环失败（多半是
-        离开家 / 回到家的那一刻），以及连接配置被改写（地址换了，缓存的端点已经不对）。
         """
         self._endpoint = None
         self._endpoint_signature = None
@@ -356,12 +303,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def active_endpoint(self, connection: HAConnection) -> HAEndpoint:
         """取这条连接**当前可用**的端点，内网优先。
-
-        只要内网连得上就一直用内网，内网不通才退到外网；内网恢复后（下一次复探）自动切回。
-        结果按 ``HA_ENDPOINT_RECHECK_SECONDS`` 缓存：窗口内所有调用（同步、媒体代理、服务
-        调用、历史查询）共用同一个端点，不会每个请求都探一次。
-
-        异常: HAClientError —— 两路都连不上，错误里带上两路各自的原因。
         """
         signature = endpoint_signature(connection)
         switched_from: HAEndpoint | None = None
@@ -428,21 +369,13 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     async def client_for(self, connection: HAConnection) -> HAClient:
         """按连接记录构造 HA 客户端（每次解密令牌，不缓存明文）。
-
-        地址取 ``active_endpoint`` 的解析结果而不是连接上的某一个字段 —— 内网与外网两套
-        地址由它决定用哪一套，调用方不必关心。
         """
         endpoint = await self.active_endpoint(connection)
         token = self.cipher.decrypt(connection.encrypted_access_token)
         return self._client_for_endpoint(connection, endpoint, token, self.settings)
 
     async def fetch_history(self, connection: HAConnection, entity_id: str, start_time: str, hours: int) -> list[dict[str, Any]]:
-        '''限制并发并做短缓存的历史读取，避免图表请求把 HA 打爆。
-
-        参数: start_time 为 ISO8601 起始时间；hours 为时间跨度（小时），一并进缓存键。
-        '''
         # 缓存键不含 start_time：起始时间由 hours 反推，同一个 hours 就是同一张图。
-        # 用 time.monotonic 而非挂钟时间，系统对时/改时间不会让缓存判断失真。
         cache_key = (str(connection.id), str(entity_id), int(hours))
         now = time.monotonic()
         async with self._history_cache_lock:
@@ -465,7 +398,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
             self._history_fetches.pop(cache_key, None)
 
     async def _fetch_and_cache_history(self, connection: HAConnection, entity_id: str, start_time: str, cache_key: tuple[str, str, int]) -> list[dict[str, Any]]:
-        """真正执行历史查询并写入缓存（由 fetch_history 的单飞任务调用）。"""
         async with self._history_semaphore:
             history = await (await self.client_for(connection)).fetch_history(entity_id, start_time)
         async with self._history_cache_lock:
@@ -483,15 +415,11 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
             connection = database.get(HAConnection, connection_id)
             if connection is None or not connection.is_active:
                 raise HAClientError('Home Assistant 连接不存在或已停用。')
-            # expunge：否则 session 关闭后读属性会抛 DetachedInstanceError（本函数跑在线程池里）。
             database.expunge(connection)
             return connection
 
     async def sync_once(self, connection_id: str | None = None, reconciled: bool = False) -> dict[str, int]:
         """执行一次全量对账，并把结果推给前端。
-
-        ``connection_id`` 缺省取当前启用连接；``reconciled`` 为真表示周期性对账（由长连空闲
-        超时或定时触发），会额外记录 last_reconciled_at。返回实体 / 设备 / 区域的数量统计。
         """
         # 与防抖的注册表刷新互斥：两份快照若交叉写库，后写的会把先写的结果覆盖。
         async with self._sync_lock:
@@ -531,9 +459,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     def _schedule_registry_refresh(self, connection_id: str) -> None:
         """安排一次（防抖后的）注册表元数据刷新。
-
-        每来一条注册表事件就取消上一个未执行的任务并重开计时器，静默
-        REGISTRY_REFRESH_DEBOUNCE_SECONDS 后才真正刷新，把连发的多条事件合并成一次拉取。
         """
         current = self._registry_refresh_tasks.get(connection_id)
         if current is not None and not current.done():
@@ -544,7 +469,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
 
     def _mark_sync_started(self, connection_id: str) -> None:
-        """记录「全量同步开始」，供界面显示同步中状态（status=syncing / phase=full_snapshot）。"""
         with self.database.session_factory() as database:
             state = database.get(HASyncState, connection_id) or HASyncState(connection_id = connection_id)
             state.status = 'syncing'
@@ -557,9 +481,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     def _safe_record_error(self, connection_id: str, message: str) -> None:
         """记录错误的兜底版本：连落库都失败时最多留一条进程日志，绝不抛出。
-
-        它是在错误处理路径上被调用的，若在这里再抛异常会掩盖最初的错误原因，
-        甚至让主循环来不及走退避。
         """
         try:
             self._record_error(connection_id, message)
@@ -570,7 +491,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
 
     @staticmethod
     def _status(disabled_by: str | None) -> str:
-        """由 disabled_by 推出 sync_status：有值即 disabled，否则 active。"""
         return 'disabled' if disabled_by else 'active'
 
 
@@ -583,9 +503,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
     @staticmethod
     def _active_catalog_counts(database, connection_id: str) -> dict[str, int]:
         """统计「非 missing」的实体/设备/区域数量。
-
-        口径与目录接口一致：missing 的记录仍在库里（为了保住绑定关系），
-        但不应出现在任何计数里。
         """
         return {
             'entities': int(database.scalar(select(func.count()).select_from(HAEntity).where(HAEntity.connection_id == connection_id, HAEntity.sync_status != 'missing')) or 0),

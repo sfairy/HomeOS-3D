@@ -1,11 +1,3 @@
-/**
- * 编辑器历史栈与草稿恢复写入器：撤销 / 重做与「未保存草稿恢复」的核心工具。
- *
- * 职责：带延迟合并的草稿恢复写入器；把文档拆成「组件条目 + 顺序」用于历史快照比对；
- * 生成忽略纯样式 / 坐标差异的文档签名。
- * 约定：签名判断「文档是否真的变了」，故剔除 actions / bindings / position / properties /
- * style 这些高频但语义可忽略的键；快照策略「结构优先」，避免拖拽的每个像素都进历史栈。
- */
 const IGNORED_COMPONENT_KEYS = new Set(["actions", "bindings", "position", "properties", "style"]);
 
 /**
@@ -82,7 +74,6 @@ export function editorComponentEntries(editorDocument) {
       collectEntry(childComponent, scope, pagePath, componentId);
     }
   };
-  // 共享组件先于页面组件收集，order 的前后关系即历史比对的顺序依据。
   for (const sharedComponent of editorDocument?.sharedComponents || []) {
     collectEntry(sharedComponent, "shared", "", null);
   }
@@ -99,7 +90,6 @@ export function editorComponentEntries(editorDocument) {
 
 /**
  * 生成组件的「结构」签名：只保留身份与层级，忽略样式与坐标。
- *
  * @returns {string} JSON 字符串签名，children 仅保留子组件 ID。
  */
 export function editorComponentStructure(structureComponent) {
@@ -117,7 +107,6 @@ export function editorComponentStructure(structureComponent) {
 
 /**
  * 生成只反映「页面骨架」的文档签名：清空所有组件再算签名。
- *
  * @returns {string} 文档签名。
  */
 export function editorDocumentFrameSignature(sourceDocument) {
@@ -133,13 +122,7 @@ export function editorDocumentFrameSignature(sourceDocument) {
   return documentSignature(documentWithoutComponents);
 }
 
-/**
- * 生成文档内容签名，用于判断保存 / 历史比较时内容是否真的变化。
- * 归一化：丢弃无类型或 type 为 "none" 的动作；data 为空删该键；非 navigate 动作删 target；
- * domain / service 属运行时推导字段一并删；对象键排序后再序列化，避免键序不同产生假差异。
- */
 export function documentSignature(document) {
-  // 把动作对象压到最小等价形态，避免等价配置被判为不同。
   const normalizeAction = action => {
     if (!action || !action.type || action.type === "none") {
       return null;

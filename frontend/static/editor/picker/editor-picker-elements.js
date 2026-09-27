@@ -1,9 +1,5 @@
 /**
  * 编辑器选择器的 DOM 元素工厂。
- *
- * 图标 / 实体 / 素材三类分页选择器弹层，生成列表项与「当前选中值」展示块。展示文案由注入的
- * 回调（entityPickerText、assetDisplayName 等）决定，本模块只管结构与类名。列表项统一用
- * dataset.editorPickerValue 携带取值，选择器靠它读取点击结果。
  */
 
 /**
@@ -69,7 +65,6 @@ export function createEditorPickerElements({
     const iconGlyphElement = document.createElement("i");
     iconGlyphElement.setAttribute("aria-hidden", "true");
     const maskImageUrl = mdiIconUrl(trimmedIconName);
-    // 没有图标名时不生成 mask 地址，避免出现无效的 url("")。
     (maskImageUrl &&
       (iconGlyphElement.style.setProperty("mask-image", `url("${maskImageUrl}")`),
       iconGlyphElement.style.setProperty("-webkit-mask-image", `url("${maskImageUrl}")`)),

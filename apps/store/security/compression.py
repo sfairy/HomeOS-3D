@@ -1,25 +1,4 @@
 """响应压缩（商店侧）：只压「文本类 + 体积够大」的响应。
-
-商店是**公网直连**的服务，而它每次打开后台都要下发 ``jquery.min.js``（86 KB）与几份
-上百 KB 的样式表；控制台的 JSON 列表动辄几十 KB。这些内容 gzip 之后只剩约四分之一。
-（生产部署通常在商店前面还有一层反代，那一层也开了压缩；但 ``docker-compose`` 直连 18082、
-或 ``ops/start.py`` 本地联调的路径上没有反代，压缩只能由应用自己做。）
-
-**为什么是这一份而不是复用主应用那份**：商店与主应用是两个独立部署的项目，各自只
-``import`` 自己的包（见 ``apps/store/core/static_revision.py` 的同款说明与主 README）。本文件与
-``apps/store/security/body_guard.py` 是同一类做法：概念共享、实现各留一份。口径也必须按商店裁剪 ——
-主应用那份要为 HA 代理的五条流式透传通路让路，商店根本没有那类路由。
-
-口径三条，缺一不可：
-
-1. 请求的 ``accept-encoding`` 里有 gzip（不看 q 值：浏览器实际不会发 ``gzip;q=0``）；
-2. 响应**没有** content-encoding，content-type 在下面的白名单里；
-3. ``content-length``` 已知且小于 ``MINIMUM_SIZE`` 时跳过 —— 几十字节压完往往更大。
-
-再加一条 HEAD 跳过：它不带实体，压它只会让响应头与实体对不上。
-
-实现是**纯 ASGI 中间件**：``BaseHTTPMiddleware``` 会把响应整份读进内存，而商店有支付宝
-回调这类需要及时回 ``success`` 的端点，不该为了压缩多一层缓冲。
 """
 from __future__ import annotations
 
@@ -87,9 +66,6 @@ def _content_length(headers: Sequence[tuple[bytes, bytes]]) -> int | None:
 
 def _rewrite_start_headers(headers: Sequence[tuple[bytes, bytes]]) -> list[tuple[bytes, bytes]]:
     """把响应头改成「已压缩」的形态。
-
-    删掉 content-length：压缩后长度变了，留着它客户端会当成截断。补 vary：同一份 URL 对不同
-    accept-encoding 的客户端内容不同，共享缓存必须按它分桶，否则会把 gzip 那份喂给不支持 gzip 的客户端。
     """
     rewritten = [
         (key, value)

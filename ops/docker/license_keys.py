@@ -26,9 +26,6 @@ def ensure_store_license_keys(
     client_keys_dir: Path,
 ) -> tuple[str, str]:
     """确保商店私钥存在，并同步公钥到 client_keys_dir。
-
-    返回:
-        (签名公钥 sha256, 传输公钥 sha256)
     """
     # 延迟导入：主应用镜像不包含 store 包，只有商店启动路径会走到这里。
     from apps.store.licensing import keys as license_keys

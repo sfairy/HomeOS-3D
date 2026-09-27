@@ -1,6 +1,5 @@
-// ESM：原先是 IIFE 里挂 window.HBReferrals，现在改成模块导出（store.js 用 import 取用）。
-import { esc } from "./htmlsafe.js?v=2609271208";
-import { formatPoints, formatCentsPlain } from "./money.js?v=2609271208";
+import { esc } from "./htmlsafe.js?v=2609271226";
+import { formatPoints, formatCentsPlain } from "./money.js?v=2609271226";
 
 const $ = s => document.querySelector(s);
 const storageKey = 'hb_invite_v1';
@@ -13,9 +12,6 @@ try {
   else if (saved) localStorage.removeItem(storageKey);
 } catch {}
 // 积分流水的类型标签。键必须覆盖后端全部写入方（apps/store/commerce/referrals.py 的
-// LEDGER_KIND_LABELS 与 api/admin.py 的人工调账）：曾漏掉 manual_adjust，于是后台人工
-// 调账出现在用户自己的流水里时会原样显示成 snake_case。
-// 措辞有意与后台的账务口径不同（reward 这里叫「邀请奖励」），那是对用户更直白说法。
 const labels = {reward:'邀请奖励',reversal:'邀请失败',freeze:'提现冻结',withdrawal:'提现完成',release:'退回积分',manual_adjust:'人工调账',pending:'待审核',paid:'已提现',rejected:'已驳回 / 撤销'};
 const date = v => v ? new Date(v).toLocaleString('zh-CN', {hour12:false}) : '—';
 const table = (heads, rows) => rows.length ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>';
@@ -25,9 +21,6 @@ export const HBReferrals = {
     let data, kind='ledger', page=1, requestKey=crypto.randomUUID(), busy=false, sequence=0;
     const error = e => {$('#referral-error').textContent=e.message;$('#referral-error').hidden=false;toast(e.message);};
     // 提现下限只有一个主人：服务端下发的 settings.withdrawalMinPoints（后台可配）。
-    // 前端曾把它写死成 100，于是调低到 50 时有 50~99 积分的用户永远提不出来（按钮一直灰着），
-    // 调高到 200 时 100 积分的用户能点但会被服务端驳回。data 还没到（init 的第一帧）时给 0，
-    // 让按钮先可用；refresh() 一回来就会用真实值纠正。
     const minPoints = () => Math.max(0, Number(data?.settings?.withdrawalMinPoints ?? 0));
     const preview = () => {
       const raw = $('#referral-withdraw-form').elements.points.value;
@@ -46,11 +39,8 @@ export const HBReferrals = {
       $('#referral-link').hidden=!w;
       if(w) $('#referral-link').value=`${location.origin}/user/authentication/register?invite=${encodeURIComponent(w.code)}`;
       // 「可用积分」必须和服务端 referrals.available_points 同一口径：余额 - 提现冻结。
-      // 不能直接展示 balance：那样「可用」会把已申请提现的钱也算进去，
-      // 用户看着 100 积分却提不出来。
       const available = Math.max(0, Number(w?.balance || 0) - Number(w?.frozen || 0));
       // 四张积分卡各挂一个语义色（与账号概览、后台徽标同一套 data-tone 词汇）：
-      // 可用=薄荷（正常）、提现中=暖光（待办）、累计=青（主控）、已提现=极光紫（归档）。
       $('#referral-stats').innerHTML=[['可用积分',available,'eco'],['提现中积分',w?.frozen,'lumen'],['累计净奖励',w?.earned,'accent'],['已提现积分',w?.withdrawn,'aura']].map(([label,v,tone])=>`<article data-tone="${tone}"><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');
       $('#referral-withdraw-form button').disabled=!w || available<minPoints() || Number(w.frozen)>0;
       $('#referral-guide-reward').textContent=`好友注册后，实际支付成功的订单，按实付金额的 ${s.ratePercent}% 奖励积分。注册本身不发积分，支付成功后自动入账。`;
@@ -59,7 +49,6 @@ export const HBReferrals = {
       const pointsInput = $('#referral-withdraw-form').elements.points;
       pointsInput.min = String(minPoints());
       pointsInput.placeholder = `最低 ${minPoints()}`;
-      // 区块抬头那句「满 N 积分可申请提现」同样跟着服务端走，否则调低门槛后正文与输入框自相矛盾。
       $('#referral-withdraw-lead').textContent = `1 积分等于 1 元，满 ${minPoints()} 积分可申请提现。提交申请后凭申请编号联系客服人工办理。`;
       preview();
     }

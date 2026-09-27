@@ -1,10 +1,5 @@
 /**
  * 工作室模型库的程序化表面贴图：3D 工作室「挂画墙」的装饰画与「背景墙」的饰面材质都在线生成，
- * 模型库无需附带外部图片资源。风格常量表、样式归一化与两个贴图工厂（createMuralArtTexture /
- * createFeatureWallTexture，结果按风格缓存）。
- *
- * 关键约定：每个绘制函数用「带种子的 LCG」取随机数，同一风格每次刷新与每次导出都画出逐字节相同的图像。
- * 坐标：绘制尺寸是贴图像素（挂画 768×512、背景墙 1024×768），内部一律用宽高比例值定位，与分辨率解耦。
  */
 
 // 挂画墙可选的艺术风格。
@@ -30,8 +25,6 @@ const FEATURE_WALL_STYLES = Object.freeze([
 
 /**
  * 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
- * 只靠贴图无法体现材质差异（如混凝土的漫反射与金属的高光），因此每种风格各配一组
- * 颜色 / 粗糙度 / 金属度。
  */
 export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   marble: { color: 0xf7f7f5, roughness: 0.34, metalness: 0.03 },
@@ -68,7 +61,6 @@ function seededRandomSource(seed) {
   let randomSeed = seed >>> 0;
   return () => {
     // 常数取自 Numerical Recipes 的 LCG（乘 1664525、加 1013904223），
-    // 再除以 2^32 归一化到 [0, 1)；>>> 0 保证中间结果留在 32 位无符号范围内。
     randomSeed = (randomSeed * 1664525 + 1013904223) >>> 0;
     return randomSeed / 4294967296;
   };
@@ -86,8 +78,6 @@ function shadeColor(hexColor, factor) {
 
 /**
  * 用二次曲线平滑地串起一串采样点并描边。
- * 直接连线会得到明显的折线感；这里以相邻点的中点为锚、采样点本身为控制点做
- * 二次贝塞尔，让石纹与木纹看起来是自然生长的。
  */
 function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {
@@ -169,8 +159,6 @@ function paintMuralBauhaus(canvasCtx, width, height) {
 
 /**
  * 色域风格挂画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
- *
- * 圆角半径由随机数决定，让每块色域的柔和程度略有差别。
  */
 function paintMuralColorField(canvasCtx, width, height) {
   const colorFieldRandom = seededRandomSource(74123);
@@ -431,7 +419,6 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
     return null;
   }
   muralPainters[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
-  // 基色贴图必须标为 sRGB，否则渲染器会按线性空间解释导致颜色发灰。
   const texture = new threeApi.CanvasTexture(canvasElement);
   texture.colorSpace = threeApi.SRGBColorSpace;
   // 各向异性上限取 8：足以让斜视角度下的纹路不糊，又不会在小设备上耗费过多采样。
@@ -443,14 +430,6 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
 
 /**
  * 大理石的两个色号。**画法只有一套**（同一个随机结构、同一组云斑与纹路数量），色号只换调色：
- * 底色渐变、云斑明暗、主纹 / 细纹的颜色与透明度、噪点色，以及随机种子。
- *
- * 为什么做成「色号」而不是两份画法：白石与黑石在实物上是同一种石头（都是抛光大理岩），
- * 差别只在底色与纹路反差 —— 若各写一套，两边的纹路风格、疏密必然慢慢跑偏，
- * 同一件家具上的上下两块石板会像两种完全不同的材料。
- *
- * ⚠️ 白色色号（`white`）的每一项都必须是**原值**：背景墙的大理石饰面与餐桌台面用的是同一张图，
- * 动这里的数字会连带改掉背景墙。加色号请只加新对象，不要改 white。
  */
 const MARBLE_TONES = Object.freeze({
   white: Object.freeze({
@@ -476,7 +455,6 @@ const MARBLE_TONES = Object.freeze({
     speckDarkAlpha: ".3"
   }),
   // 黑金大理石（黑底白纹）：实物参考里黑石座就是这一支 —— 近黑的底上飘着灰白纹路，
-  // 纹路比白石那支更细更亮（黑底上只有亮纹才看得见，暗纹等于没有）。
   dark: Object.freeze({
     seed: 20260924,
     baseStops: Object.freeze([
@@ -847,8 +825,6 @@ function paintFeatureWallConcrete(canvasCtx, width, height) {
 
 /**
  * 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
- *
- * 织纹用奇偶列 / 行交替的明暗线模拟平纹织物，间距 3 像素是像素与观感的折中。
  */
 function paintFeatureWallFabric(canvasCtx, width, height) {
   const fabricRandom = seededRandomSource(38971);
@@ -983,14 +959,6 @@ export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1
 
 /**
  * 石材板整图的色号表：**整块石材**（茶几的上下两块石板、餐桌台面）走这里，
- * 与「细节层」（studio-surface-fabrics.js 的 SURFACE_TEXTURE_ALIAS）不是一回事 ——
- * 细节层是均值≈1 的中性灰图，只能压暗、不能提亮，所以黑底白纹的石材**做不出来**
- * （近黑底上再乘什么都还是黑的）。石材板要的是自带颜色的整图，因此单独走一条路。
- *
- * 白色色号直接复用背景墙那张大理石图：同一种石材在背景墙与茶几上必须是同一张，
- * 否则近看会发现两种纹路（与 studio-surface-fabrics.js 的分工注释同一条约定）。
- * 黑色色号不登记进 FEATURE_WALL_STYLES —— 它不是背景墙的饰面选项，加了会平白多出一个
- * 用户可见的墙面色号，而这里要的只是家具上的一块灰石。
  */
 const STONE_SLAB_TONES = Object.freeze({
   marble: MARBLE_TONES.white,

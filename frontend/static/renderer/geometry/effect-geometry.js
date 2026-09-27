@@ -1,21 +1,13 @@
 /**
  * 特效图层的几何与层级计算：z-index 分配、图层尺寸推导、裁剪定位与参考图反推缩放。
- *
- * 位置：纯几何模块，被 3D 交互页与控件 runtime 共用；不碰网络，只读传入的对象与 DOM。
- *
- * 单位约定：left / top / width / height 是画布像素，rotation 是角度（deg），scale 是无量纲倍数；
- * percent 型属性（effectWidth / effectHeight）是相对宿主尺寸的百分比。
  */
 
 // 人体感应特效的基础层级：取 5 亿，保证压在普通组件（z-index 通常几百到几千）之上，
-// 又给下面的图标按钮特效留出更高的一档。
 const PRESENCE_SENSOR_BASE_Z_INDEX = 500000000;
 // 图标按钮特效的基础层级：取 10 亿，是画布内的最高档，确保按钮与光效永远可点。
 const ICON_BUTTON_EFFECT_BASE_Z_INDEX = 1000000000;
 /**
  * 给图标按钮特效组件补上缺省可见性开关。
- * 用 hasOwnProperty 而非真值判断：这两个属性都可能是 false（用户主动关闭），`??` 或 `||`
- * 会把用户的选择覆盖回 true；仅对键不存在的新数据补默认值。
  */
 export function normalizeIconButtonEffectComponent(component) {
   if (component?.type !== "icon-button-effect") {
@@ -37,8 +29,6 @@ export function normalizeIconButtonEffectComponent(component) {
 }
 /**
  * 计算宿主元素最终的 z-index。
- * 图标按钮特效仅在「按钮可见」或「隐藏内容也允许点击」时才抬到 ICON_BUTTON_EFFECT_BASE_Z_INDEX
- * （人体感应特效同理抬到 PRESENCE_SENSOR_BASE_Z_INDEX）；均不成立说明当前不可交互，不该挡住其它元素。
  */
 export function componentHostZIndex(hostComponent, baseZIndex, applyTypeBoost = true) {
   const resolvedZIndex = Number(baseZIndex || 0);
@@ -69,8 +59,6 @@ export function effectFadeDuration(effectComponent) {
 }
 /**
  * 计算被裁剪源图的原始尺寸。
- * 兜底顺序：先看组件缓存的原始尺寸，再看图片元素 dataset 里的记录，
- * 最后才用元素的 naturalWidth / naturalHeight。
  */
 export function effectSourceDimensions(
   sourceComponent,
@@ -120,8 +108,6 @@ export function effectSourceDimensions(
 }
 /**
  * 把源图坐标系下的裁剪矩形换算到目标尺寸坐标系。
- * 宽高有效、起点非负、宽高为正、右 / 下边不越界这几项检查缺一不可：
- * 任何一项不成立都说明裁剪数据是坏的，此时宁可整图不裁也不要裁出黑边。
  */
 export function effectCropRectangle(cropImageElement, targetDimensions) {
   const datasetWidth = Number(cropImageElement?.dataset?.effectOriginalWidth || 0);
@@ -161,8 +147,6 @@ export function effectCropRectangle(cropImageElement, targetDimensions) {
 }
 /**
  * 计算裁剪后图层的定位盒。
- * 裁剪块中心相对原图中心的偏移要先按 scale 放大、再随图层旋转角旋转，最后叠加到
- * 原图中心上，否则旋转后裁剪块会跑到错误的位置。
  */
 export function effectCroppedLayerGeometry({
   centerX: centerX,
@@ -201,8 +185,6 @@ export function effectCroppedLayerGeometry({
 }
 /**
  * 为特效挑一张参考图，并算出它相对目标的缩放比例。
- * 优先显式指定 effectReferenceImageId；否则在「可见、原始尺寸与目标一致、层级低于参考组件」
- * 的图片里取层级最高者；都没有返回 null。
  */
 export function effectReferenceImageTransform(
   project,
@@ -212,7 +194,6 @@ export function effectReferenceImageTransform(
   fillWidth,
   fillHeight
 ) {
-  // 目标尺寸非法时无从比较，直接判无参考图，避免下面按 0 做分母。
   if (!(targetWidth > 0) || !(targetHeight > 0)) {
     return null;
   }
@@ -221,8 +202,6 @@ export function effectReferenceImageTransform(
   const referencedCandidates = [];
   const fallbackCandidates = [];
   // 递归把组件树里所有 image 塞进候选池。显式指定了 effectReferenceImageId 时只收该图；
-  // 否则收「可见 + 原始尺寸与目标完全一致 + 层级低于参考组件」的图（启发式：同尺寸底图
-  // 通常就是它所属的参考图）。分成两个数组是因为指定命中要优先于尺寸启发式。
   const collectCandidates = componentList => {
     for (const childComponent of componentList || []) {
       if (childComponent.type === "image") {
@@ -246,7 +225,6 @@ export function effectReferenceImageTransform(
           const candidateHeight = isFillLayout
             ? fillHeight
             : Number(childPosition.height || targetHeight);
-          // 取宽高比的较小者，即等比缩放到完全装进目标框，避免参考图被拉变形。
           const candidate = {
             zIndex: childZIndex,
             scale: Math.min(candidateWidth / targetWidth, candidateHeight / targetHeight)

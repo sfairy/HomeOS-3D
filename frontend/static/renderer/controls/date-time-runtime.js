@@ -1,9 +1,5 @@
 /**
  * 日期 / 时间控件的格式化工具。
- *
- * 把 Date 格式化成控件要展示的三段文案——时间、日期、农历；只做纯格式化，不读控件注册表、
- * 不碰网络，运行时由 home.js 定时触发重绘并传入最新 Date。显示选项来自控件属性（camelCase），
- * showSeconds / hour12 / showWeekday 为 true 时才改变输出形态。
  */
 
 /**
@@ -33,7 +29,6 @@ export function formatLocalTime(options, date = new Date()) {
  * 把日期格式化成 `YYYY-MM-DD[ 星期X]` 文案。
  */
 export function formatLocalDate(displayOptions, dateValue = new Date()) {
-  // 刻意不用 toISOString()：那条路径按 UTC 切片，跨时区会整体偏移一天。
   const dateText =
     dateValue.getFullYear() +
     "-" +
@@ -48,9 +43,6 @@ export function formatLocalDate(displayOptions, dateValue = new Date()) {
 }
 /**
  * 把时间点格式化成中文农历文案（形如「农历八月初十」）。
- * 依赖 Intl 中文农历历法；引擎缺失该历法时返回空串，由调用方隐藏这一行，而不是整个控件渲染失败。
- * 不能直接用 format()：它对「日」会输出阿拉伯数字（如「八月10日」），不符合中文农历读法，
- * 这里改成取部件后按农历口径重排日号。
  */
 export function formatLunarDate(dateSource = new Date()) {
   try {

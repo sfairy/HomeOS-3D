@@ -1,26 +1,21 @@
 /**
  * `presence-sensor` 控件：人体感应，附带门磁 / 水浸 / 烟感 / 燃气四种传感器专题绘制。
- *
- * 四个 `render*Sensor` 只被本控件使用，故与注册放在一起。
  */
-import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609271208";
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271208";
+import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=2609271226";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
 import {
   presenceAnimationPhase,
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../../../controls/presence-runtime.js?v=2609271208";
+} from "../../../controls/presence-runtime.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
 /**
  * 渲染门窗传感器。
@@ -228,7 +223,6 @@ function renderGasSensor(gasProperties, gasPresentation) {
 }
 
 // 人体感应控件：把四种传感器外观（人体 / 门窗 / 水浸 / 烟雾 / 天然气）合成一个控件，
-// 具体外观由 properties.sensorKind 决定，状态统一走 presence-runtime 的四态映射。
 registerComponent("presence-sensor", {
   render(presenceComponent, presenceContext) {
     const presenceProperties = presenceComponent.properties || {};
@@ -378,11 +372,6 @@ registerComponent("presence-sensor", {
       "--hb-presence-person-height",
       presenceUnit.height * 62 + "px"
     );
-    // 这里曾有 --hb-presence-copy-gap / -main-size / -secondary-size 三枚写入。
-    // 它们对应的「文案」层（DOM 与 .hb-presence-copy-* 的 gap / font-size 规则）已在
-    // 0.6.2 的重构里整体移除，只剩 JS 这半截还在按人物框尺寸算字号 —— 算了没人用。
-    // 三枚一并删除（tools/check_invariants.mjs 第 10 条记录了这一类「写了没人读」）。
-    // 注意上面那几枚 --hb-presence-person-* 不同：它们由 presence 的样式表取用。
     presenceElement.setAttribute("role", "img");
     presenceElement.setAttribute("aria-label", "人在传感器：" + sensorPresentationData.label);
     const presenceVisualElement = document.createElement("div");

@@ -1,6 +1,4 @@
 <!-- HomeOS 场景标记片段（canonical 源：design/scene/scene.html）
-     占位符：SHELL_TITLE / SHELL_NAME / VERSION / STATUS_LABEL / TITLE / TAGLINE /
-             DOSSIER_LABEL / DOSSIER / LOGO_SRC
      改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 -->
 <div class="hos-scene">
     <div class="hos-scene__stage" aria-hidden="true">
@@ -35,22 +33,6 @@
       </div>
 
       <svg class="hos-scene__mountains" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMax slice">
-        <!-- 这一段色值**刻意写死**。但请先纠正一条曾写在这里的说法：
-             不是「SVG 不能用 var()」。在主项目这套 `style-src 'self'` 下实测三者表现不同 ——
-             内联 <style> 被拦、style="fill:…" 属性被拦，而**呈现属性** fill="var(…)" 能正常解析
-             （CSP 的 style-src 只管 <style> 元素与 style 属性，呈现属性不在其列）。
-             真正的原因是：这是一幅手绘插画，山脊 / 雪面 / 建筑暗面的色阶是为这幅画手工推出来的
-             （#5f7396 #1e2b46 #3c5074 #293a55 #e4eef8 … 都不在 :root 里），只有少数几个值恰好与
-             令牌同值。只把那几个换成 var()，换主题时端点会跟着走而中间色阶不动，整条渐变反而更脏；
-             何况那批 rgba(255,217,160,α) 派生色也没有对应的 -rgb 兄弟令牌可用。
-             所以保留一张手工对照表（改色时两边一起改）。取值全部取自
-             design/scene/page.css 的 :root 调色板：
-               夜空族   deep #050912  low #081020  mid #0d1728  high #16263c  haze #24395a
-               主控暖金 #ffc46a（亮 #ffd9a0，深 #e09523）
-               居家暖光 #ff9d4d（亮 #ffba83，深 #c96a1d）
-               极光紫   #c9a0ff  生态薄荷 #5fd0a8  设备读色 heat #ff8a65 / cool #58c4ff
-             覆盖不到的半透明派生色（如 fp:0.38 的山脊）按上表手工推 —— 它们不在 :root 里，
-             这类 rgba() 不在 :root 里，只能按上表手工核对。 -->
         <defs>
           <linearGradient id="hosMtFar" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#5f7396" stop-opacity="0.38" />
@@ -88,7 +70,6 @@
             <stop offset="100%" stop-color="#050a12" />
           </linearGradient>
           <!-- 屋里四扇窗 = 四个房间四种光。这是整幅插画里最直白的「智能家居」：
-               客厅暖光（有人）、书房薄荷（新风 / 绿植）、主卧极光紫（氛围灯）、
                机房青色（屏幕与信号）。全暖光会像一栋普通房子，全青色会像一块屏幕。 -->
           <linearGradient id="hosWinWarm" x1="0" y1="0" x2="0.15" y2="1">
             <stop offset="0%" stop-color="#fff0c8" />
@@ -185,19 +166,6 @@
         </g>
 
         <!-- 小屋。整组一起缩放 —— 这个 scale 不是随手定的，它是「放大」与「别撞到左栏那张
-             档案表 / 别撞到玻璃坞」之间唯一的旋钮。改之前先读这四条：
-
-             ① 锚点钉在整组 bbox 的**左上角**（本地 10,14 → 世界 371.8,591.5 不动），
-                于是放大只往**右下**长：左边沿与塔顶留在原地，档案表最后一行那句最长的
-                文字（/store/admin 右端约 415px）不会被推上来的墙体盖住；
-             ② 四个窗是画面里最亮的东西，必须留在档案表**下面**：1366px 下文字最低到
-                y 529，锚在左上时窗子只会更低（现 546 起）—— 往上一挪就顶进文字行；
-             ③ 塔的右边沿要留在坞的**玻璃面**之外：1014px 宽下坞左沿 446px，塔右沿落在
-                484px，只擦到面板左沿几个像素。再大就要从面板底下穿出来了；
-             ④ 底边仍在画布内：1366×768 下屋基落在 y 634，下面还有一段雾。
-
-             换算：tx = 371.8 − 10S，ty = 591.5 − 14S（S=1.5 → translate(357 570)）。
-             换句话说，改 S 必须同时改这两个数，否则锚点就漂了 —— 漂的方向正是 ①②③ 三条
              各自要避开的方向。 -->
         <g transform="translate(357 570) scale(1.5)">
           <g class="hos-scene__home">
@@ -306,7 +274,6 @@
   </div>
 
   <!-- 色调氛围层：把「一页一色」从右栏坞体铺到整幅画面上（见 scene.css 该段注释）。
-       放在 stage 之外而不是里面：stage 有 perspective，进 3D 上下文后
        mix-blend-mode: screen 会被丢掉，空气感就没了。 -->
   <div class="hos-scene__tint" aria-hidden="true"></div>
 
@@ -317,7 +284,6 @@
   </div>
 
   <!-- 全宽指挥条：左＝品牌 lockup，右＝在线状态 + 站点名 + 版本。
-       原先这条写死了 right: var(--hos-dock-span)，跨不过右栏的坞，于是整页没有一个
        能承载全局状态的位置（品牌、状态、版本全挤在左半屏）。 -->
   <header class="hos-scene__head">
     <div class="hos-scene__lockup">
@@ -329,8 +295,6 @@
         <span class="hos-scene__wordmark">
           <span class="hos-scene__name">HomeOS</span>
           <!-- 定位语是**写死**的，与隔壁那行 HomeOS 一样不走占位符：它不是「这一页说什么」，
-               而是「这套东西是什么」—— 五页与商店三屏、主应用与授权中心都是同一句。
-               与右侧的「站点名 | 版本」共用同一种分隔符（.hos-scene__ver-sep 的等宽做法），
                顶栏两端因此读成同一句话的两种写法。 -->
           <i class="hos-scene__wordmark-sep" aria-hidden="true"></i>
           <span class="hos-scene__label">全屋智能家居</span>
@@ -352,7 +316,6 @@
   </header>
 
   <!-- 左栏：这一道门是什么。字标与版本号已上移顶栏，这里只留四行 ——
-       页面标题（整页最重的一块字）、一句标语、一行「这台机器具备什么」的读数条，
        以及最下面那张四行的本机档案。 -->
   <div class="hos-scene__brand">
     <p class="hos-scene__title">{{TITLE}}</p>

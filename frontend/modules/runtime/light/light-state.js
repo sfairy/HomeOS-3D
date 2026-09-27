@@ -1,27 +1,13 @@
-/**
- * 灯光（light / switch）状态的归一化、历史缓存与本地预览。
- *
- * HA 在灯关闭时通常上报残缺实体（没有 brightness / color_temp），所以本模块除归一化外，
- * 还记住「灯上次是什么样」供下次点亮回填；用户拖滑杆时先按本地值渲染，等 HA 回传后对账，避免跳变。
- *
- * 字段约定：brightness 为 0–255；色温 HA 有 color_temp（mired）与 color_temp_kelvin 两套写法，
- * 换算 kelvin = 1000000 / mired，本模块统一以开尔文对外。
- */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=2609271208";
+import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=2609271226";
 /**
  * 判断是否为可用的数值型输入。
- * null、空串、非数字字符串一律视为「缺失」，避免被 Number 转成 0 或 NaN 后混进亮度 / 色温计算。
  */
 const isNumericValue = candidateValue =>
   candidateValue != null && candidateValue !== "" && Number.isFinite(Number(candidateValue));
 /**
  * HA 的 color_mode 白名单。
- * color_temp 单独判断（走色温通道），其余属「彩光 / 纯亮度」通道；onoff 表示只有开关没有亮度，
- * 是判断「是否支持亮度」的重要反例。
  */
 const COLOR_MODE_SET = new Set([
   "hs",
@@ -35,7 +21,6 @@ const COLOR_MODE_SET = new Set([
 ]);
 /**
  * 把 HA 的灯光实体归一化成面板 / 动画使用的状态。
- *
  * @param {string} entityId 实体 ID，形如 light.living_room；非 light. 前缀一律视为不可用。
  */
 export function lightState(entityId, entityState, fallbackState) {
@@ -45,16 +30,11 @@ export function lightState(entityId, entityState, fallbackState) {
     ? attributes.supported_color_modes
     : [];
   const isLightDomain = entityId.startsWith("light.");
-  // color_mode 只接受已知值；不认识的模式（HA 新版本可能新增）回退到历史值，
-  // 避免把新模式的灯误判成「不支持色温」。
   const colorMode =
     isLightDomain &&
     (attributes.color_mode === "color_temp" || COLOR_MODE_SET.has(attributes.color_mode))
       ? attributes.color_mode
       : (fallbackState?.colorMode ?? null);
-  // 亮度支持判定：优先看 supported_color_modes —— 只要有一种不是 onoff/unknown 就说明可调；
-  // 没有该属性时，退化为「上报过 brightness」「supported_features 第 0 位（BRIGHTNESS）」
-  // 或「历史值说支持」三者之一。
   const brightnessSupported =
     isLightDomain &&
     (supportedColorModes.length
@@ -63,7 +43,6 @@ export function lightState(entityId, entityState, fallbackState) {
         (Number(attributes.supported_features) & 1) !== 0 ||
         fallbackState?.brightnessSupported === true);
   // 色温支持判定同上：优先 supported_color_modes 内含 color_temp，
-  // 否则看是否上报过色温上下限 / 当前色温，或 supported_features 第 1 位（COLOR_TEMP）。
   const temperatureSupported =
     isLightDomain &&
     (supportedColorModes.length
@@ -75,7 +54,6 @@ export function lightState(entityId, entityState, fallbackState) {
         (Number(attributes.supported_features) & 2) !== 0 ||
         fallbackState?.temperatureSupported === true);
   // 色温下限：新版属性优先；老版本只有 max_mireds（微倒度越大色温越低），
-  // 因此下限开尔文 = 1000000 / max_mireds；两者都没有才用历史值或 2000K 兜底。
   const minimumKelvin = isNumericValue(attributes.min_color_temp_kelvin)
     ? Number(attributes.min_color_temp_kelvin)
     : Number(attributes.max_mireds) > 0
@@ -87,8 +65,6 @@ export function lightState(entityId, entityState, fallbackState) {
     : Number(attributes.min_mireds) > 0
       ? 1000000 / Number(attributes.min_mireds)
       : (fallbackState?.maximum ?? 6500);
-  // 当前色温：优先开尔文属性；老设备给的是 mired，需换算；都没有则回退历史值。
-  // 这里要求 > 0，因为 0 在两种单位下都是无意义值。
   const kelvinValue =
     isNumericValue(attributes.color_temp_kelvin) && Number(attributes.color_temp_kelvin) > 0
       ? Number(attributes.color_temp_kelvin)
@@ -99,9 +75,6 @@ export function lightState(entityId, entityState, fallbackState) {
   const rawBrightness = isNumericValue(attributes.brightness)
     ? Math.max(0, Math.min(255, Number(attributes.brightness)))
     : null;
-  // 亮度百分比：state 为 off 且亮度为 0 说明是关机残留值，不能当有效亮度，回退到历史值（也为 0 或缺则 null）。
-  // 下限取 Math.max(1, …) 是刻意的：只要不是 0 就至少显示 1%，否则 1/255 会被四舍五入成 0，
-  // 用户会看到「开着但亮度为 0」。
   const brightnessPercent =
     rawBrightness !== null && (stateObject.state !== "off" || rawBrightness !== 0)
       ? rawBrightness > 0
@@ -111,7 +84,6 @@ export function lightState(entityId, entityState, fallbackState) {
         ? fallbackState.brightness
         : null;
   // minimum / maximum 的夹取互相参照，保证即使设备上报的上下限颠倒，
-  // 输出仍是合法区间；整体再限制在 1000–20000K 这一现实可用的范围内。
   return {
     on: stateObject.state === "on",
     available: ["on", "off"].includes(stateObject.state),
@@ -127,7 +99,6 @@ export function lightState(entityId, entityState, fallbackState) {
 }
 /**
  * 把归一化状态转换成「用于渲染」的状态：设备声明支持某项却暂时报不出值时宁可渲染成关闭，
- * 也不要让动画拿到 undefined 后出现亮度突变或除零。
  * @returns {object} 浅拷贝，其中 on 会被按需降级为 false。
  */
 export function lightRenderState(stateSnapshot) {
@@ -143,16 +114,12 @@ export function lightRenderState(stateSnapshot) {
     on: stateSnapshot.on && !hasMissingBrightness && !hasMissingKelvin
   };
 }
-/** 历史记录保留 7 天：足够覆盖「周末回家发现灯还是上次的亮度」，又不会把存储撑爆。 */
 const HISTORY_MAX_AGE_MS = 604800000;
-/** 最多跟踪 256 个灯具实体，超出后按最旧记录淘汰，避免无上限增长。 */
 const MAX_TRACKED_ENTITIES = 256;
-/** 允许记录历史的实体域；switch 也纳入是因为部分灯具被接成了开关。 */
 const isLightEntityId = entityIdCandidate => /^(light|switch)\.[a-z0-9_]+$/.test(entityIdCandidate);
 /** 属性级数值校验：布尔值不算数值（Number(true) 会变成 1，属于脏数据）。 */
 const isNumericAttribute = attributeValue =>
   typeof attributeValue != "boolean" && isNumericValue(attributeValue);
-/** 历史记录里每个属性各自的合法性校验，写入与读取两侧共用同一份口径。 */
 const LIGHT_ATTRIBUTE_VALIDATORS = {
   brightness: brightnessValue =>
     Number.isFinite(brightnessValue) && brightnessValue > 0 && brightnessValue <= 100,
@@ -166,11 +133,6 @@ const LIGHT_ATTRIBUTE_VALIDATORS = {
   brightnessSupported: brightnessSupportedFlag => typeof brightnessSupportedFlag == "boolean",
   temperatureSupported: temperatureSupportedFlag => typeof temperatureSupportedFlag == "boolean"
 };
-/**
- * 从一次实体上报里抽出「值得写进历史」的属性补丁。
- * 只记录本次确实出现过的属性并逐项经 LIGHT_ATTRIBUTE_VALIDATORS 过滤，历史里不会混入 undefined 或越界值，
- * 也不会用「没上报」的信息覆盖已有记录。
- */
 function computeAttributePatch(patchEntityId, patchEntityState) {
   const entityStateBody = resolveStateEntry(patchEntityState, {});
   const entityAttributes = entityStateBody.attributes || {};
@@ -179,8 +141,6 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
   const patchSupportedColorModes = Array.isArray(entityAttributes.supported_color_modes)
     ? entityAttributes.supported_color_modes
     : [];
-  // 下面几个 hasReportedXxx 的写法（> 0 判断 + mired 分支）是刻意的：
-  // 只有「设备确实报了一个有意义的正值」才算数，0 与缺失都视为没上报。
   const hasReportedBrightness =
     isNumericAttribute(entityAttributes.brightness) && Number(entityAttributes.brightness) > 0;
   const hasReportedKelvin =
@@ -213,7 +173,6 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
     attributePatch.temperatureSupported = resolvedLightState.temperatureSupported;
   }
   // 具体数值只在「确实上报了」且「能力允许」时才收录：
-  // 不支持亮度的灯哪怕报了个 brightness，也不该污染历史。
   if (hasReportedBrightness && resolvedLightState.brightnessSupported) {
     attributePatch.brightness = resolvedLightState.brightness;
   }
@@ -239,12 +198,7 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
     )
   );
 }
-/**
- * 创建灯光历史存储器（localStorage 持久化 + 内存索引）：读取一律当作不可信输入校验，
- * 写入「合并后再存」避免多标签页互冲，写盘节流（默认 50ms），存储不可用时静默降级为只用内存。
- */
 function createLightHistoryStore(storage, scope, now, schedule, cancel) {
-  // 参数不合法就整体关闭历史功能，调用方会退化成「只有内存缓存」的模式。
   if (!storage || typeof scope != "string" || !scope.trim()) {
     return null;
   }
@@ -263,8 +217,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     Math.max(0, ...Object.values(attributeRecords).map(attributeRecord => attributeRecord.at));
   /**
    * 清理过期记录并控制实体数量上限。
-   *
-   * 带时间闸门：未到期且实体数未超限时直接返回，避免每次上报都全量遍历。
    */
   function pruneExpiredRecords(nowMs) {
     if (nowMs < nextPruneMs && historyByEntityId.size <= MAX_TRACKED_ENTITIES) {
@@ -282,7 +234,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
           nextPruneMs = Math.min(nextPruneMs, record.at + HISTORY_MAX_AGE_MS);
         }
       }
-      // 属性被清空的实体整条删掉，否则会白占名额。
       if (!Object.keys(storedAttributes).length) {
         historyByEntityId.delete(storedEntityId);
       }
@@ -303,11 +254,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     }
     return didPrune;
   }
-  /**
-   * 从存储里读出并校验历史：存储内容来自外部（旧版本、其它页面甚至手工篡改），
-   * 因此逐层校验顶层版本与结构、实体 ID 形态、属性名与值、时间戳是否落在过去 7 天内。
-   * @throws {Error} 顶层结构无法识别时抛出，由调用方按「存储不可用」处理。
-   */
   function readStoredHistory() {
     const storedHistoryByEntityId = new Map();
     const storedJSON = storage.getItem(storageKey);
@@ -364,7 +310,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     }
     pruneExpiredRecords(now());
   } catch {
-    // 存储损坏：直接放弃历史功能（返回 null），而不是带病运行。
     return null;
   }
   /** 序列化成存储格式；版本号固定写 1，与读取侧的校验对应。 */
@@ -383,7 +328,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
       hasPendingWrites = false;
       try {
         // 先重新读一遍存储：其它标签页可能在本页内存快照之后写了更新的记录，
-        // 以「时间戳更新的那条为准」做逐属性合并，保证不丢数据。
         for (const [persistedEntityId, persistedAttributes] of readStoredHistory()) {
           const mergedRecords = historyByEntityId.get(persistedEntityId) || {};
           for (const [mergedKey, newerRecord] of Object.entries(persistedAttributes)) {
@@ -391,8 +335,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
               mergedRecords[mergedKey] = newerRecord;
             }
           }
-          // 若历史里明确记着「不支持亮度 / 色温」，则把对应的残留数值删掉，
-          // 否则换了一批设备（同一实体 ID）后会沿用上一代的无效数值。
           if (mergedRecords.brightnessSupported?.value === false) {
             delete mergedRecords.brightness;
           }
@@ -405,7 +347,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
         pruneExpiredRecords(now());
         storage.setItem(storageKey, serializeHistory());
       } catch {
-        // 写失败（配额满 / 隐私模式）后不再重试，避免每次上报都抛异常。
         isStorageUsable = false;
       }
     }
@@ -420,9 +361,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     }
   }
   return {
-    /**
-     * 记录一次实体上报，并返回该实体目前累积出的历史属性。
-     */
     resolve(resolveEntityId, resolveEntityState) {
       const resolveNowMs = now();
       hasPendingWrites = pruneExpiredRecords(resolveNowMs) || hasPendingWrites;
@@ -432,7 +370,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
         // 签名相同说明这次上报没有带来新信息，跳过写入（HA 会重复推送同一状态）。
         if (signatureByEntityId.get(resolveEntityId) !== patchSignature) {
           // 先删后设：Map 的迭代顺序即插入顺序，这样最近活跃的实体排在最后，
-          // 后面的淘汰逻辑（依赖插入顺序）才能正确清掉最旧的签名。
           signatureByEntityId.delete(resolveEntityId);
           signatureByEntityId.set(resolveEntityId, patchSignature);
           const entityHistory = historyByEntityId.get(resolveEntityId) || {};
@@ -448,7 +385,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
               hasPendingWrites = true;
             }
           }
-          // 能力一旦被判为不支持，立即清掉对应数值，避免历史里长期留着无效亮度。
           if (resolvedPatch.brightnessSupported === false && entityHistory.brightness) {
             delete entityHistory.brightness;
             hasPendingWrites = true;
@@ -460,7 +396,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
           if (Object.keys(entityHistory).length) {
             historyByEntityId.set(resolveEntityId, entityHistory);
           }
-          // 签名表与历史表用同一个上限；迭代顺序即插入顺序，删的是最旧的。
           while (signatureByEntityId.size > MAX_TRACKED_ENTITIES) {
             signatureByEntityId.delete(signatureByEntityId.keys().next().value);
           }
@@ -473,8 +408,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
           ([mergedKeyName, mergedRecord]) => [mergedKeyName, mergedRecord.value]
         )
       );
-      // 历史里可能只有亮度 / 色温数值而没有能力结论（早期版本写入的数据），
-      // 这里按「有值即支持」补一次推论，只在该键缺失时生效（??=）。
       mergedAttributes.brightnessSupported ??=
         Number.isFinite(mergedAttributes.brightness) ||
         (!!mergedAttributes.colorMode && mergedAttributes.colorMode !== "onoff");
@@ -506,9 +439,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     }
   };
 }
-/**
- * 创建灯光状态缓存：把历史回填与「上一次的对外状态」合到一起。
- */
 export function createLightStateCache({
   storage: cacheStorage,
   scope: cacheScope,
@@ -525,11 +455,7 @@ export function createLightStateCache({
     cacheCancel
   );
   return {
-    /**
-     * 归一化一个实体，历史可用时用历史补齐缺失字段。
-     */
     resolve(cacheEntityId, cacheEntityState) {
-      // name 不在历史里（它不算「灯光属性」），因此单独从内存的上次状态里补。
       const cachedAttributes = historyStore
         ? {
             name: lastStateByEntityId.get(cacheEntityId)?.name,
@@ -538,7 +464,6 @@ export function createLightStateCache({
         : lastStateByEntityId.get(cacheEntityId);
       const computedState = lightState(cacheEntityId, cacheEntityState, cachedAttributes);
       // 灯灭时 HA 会把 brightness 报成 0，直接用会让「下次开灯」变全黑；
-      // 这里把上一次的非零亮度写回缓存，作为下次开灯的默认亮度。
       lastStateByEntityId.set(
         cacheEntityId,
         computedState.brightness === 0
@@ -561,15 +486,11 @@ export function createLightStateCache({
 }
 /**
  * 构造灯光控制命令。
- * @throws {Error} 实体非法 / 不可用、参数非数值，或设备不支持该调节。
  */
 export function lightCommand(commandEntityId, commandName, commandValue, capabilities) {
   if (!/^(light|switch)\.[a-z0-9_]+$/.test(commandEntityId) || !capabilities.available) {
     throw new Error("设备不可用。");
   }
-  // 域走 static-helpers 桥过来的 `entityDomainFromId`（唯一实现仍在 utils/entities.js，
-  // 见该模块头）；局部名用 entityDomainName，避免 `entityDomain` 让人误以为它还是
-  // 本文件自带的一份实现。上面那行正则已保证 commandEntityId 是字符串。
   const entityDomainName = entityDomainFromId(commandEntityId);
   if (commandName === "power") {
     return {
@@ -584,7 +505,6 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   }
   if (commandName === "brightness" && capabilities.brightnessSupported) {
     // 面板用 1–100 的百分比，HA 要 0–255：先夹取再换算，且至少为 1，
-    // 否则 1% 会被换算成 2（四舍五入后的最小值），再小就直接是 0 等于关灯。
     return {
       domain: entityDomainName,
       service: "turn_on",
@@ -611,8 +531,6 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
 }
 /**
  * 创建灯光本地预览：在 HA 回传之前先按用户操作渲染。
- * 生命周期：set → retain（已确认提交）→ 值一致后 reconcile 删除；reject 立即删除，无响应则 expire 超时清理。
- * 每个预览带自增 revision，retain/acknowledge/reject 要求 revision 匹配，避免快速连续操作时新旧混淆。
  */
 export function createLightPreview({ now: previewNow = () => performance.now() } = {}) {
   const previewsByEntityId = new Map();
@@ -623,7 +541,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
      */
     set(previewEntityId, previewCommand, previewValue, isCommitted = false) {
       // 在旧预览基础上叠加新值；任何一项调节都隐含「灯已打开」，
-      // 只有显式关机的 power 命令才会把 on 写成 false。
       const previewValues = {
         ...previewsByEntityId.get(previewEntityId)?.values,
         on: previewCommand === "power" ? previewValue === true : true
@@ -649,7 +566,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
         delete previewValues.kelvin;
       }
       // 15 秒是预览的兜底存活时间：超过它仍未与 HA 对齐就丢弃，
-      // 防止一次丢失的回包让界面永远停在乐观状态。
       const previewEntry = {
         values: previewValues,
         revision: ++revisionCounter,
@@ -677,7 +593,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
         return;
       }
       // 逐项比较；数值项必须都落进容差内才算一致。
-      // 色温容差取 15K：设备对色温普遍会做取整或按档位靠拢，容差太小会一直对不上。
       const isSettled = Object.entries(pendingPreview.values).every(
         ([previewKey, expectedValue]) =>
           previewKey === "on"
@@ -686,16 +601,12 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
               Math.abs(serverEntityState[previewKey] - expectedValue) <=
                 (previewKey === "kelvin" ? 15 : 1)
       );
-      // 设备不可用时预览没有意义；已提交且对账成功则功成身退。
-      // 未提交的预览即使对上了也先保留，等释放时再由 retain/reject 决定。
       if (!serverEntityState.available || (pendingPreview.committed && isSettled)) {
         previewsByEntityId.delete(reconcileEntityId);
       }
     },
     /**
      * 把预览降级为「未提交」。
-     *
-     * 用于连续交互（例如滑杆拖动中）：当前值还会变，不应因一次对账成功就被清掉。
      */
     hold(holdEntityId, holdRevision) {
       const heldPreview = previewsByEntityId.get(holdEntityId);
@@ -715,8 +626,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 收到 HA 已受理的应答，缩短剩余存活时间。
-     * 应答只代表命令已被接收、状态未必立刻回传，因此不直接删除，而是把超时压到 8 秒，
-     * 失败了也能较快退回服务器状态。
      */
     acknowledge(acknowledgeEntityId, acknowledgeRevision) {
       const acknowledgedPreview = previewsByEntityId.get(acknowledgeEntityId);

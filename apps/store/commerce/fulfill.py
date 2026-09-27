@@ -1,6 +1,4 @@
 """订单履约：发放激活码、追加减量包、记邀请奖励。
-
-无论支付渠道是模拟收银台还是真实支付宝，最终都汇聚到这里，保证履约行为一致。
 """
 
 from __future__ import annotations
@@ -35,7 +33,6 @@ logger = logging.getLogger("apps.store.commerce.fulfill")
 
 
 #: ``Order.license_state_before_json`` 里记录的授权字段白名单：快照要能原样写回去，
-#: 多记一个不该还原的字段（比如 ``active``）会在退款时把用户停用过的授权重新点亮。
 _LICENSE_SNAPSHOT_FIELDS = (
     "product_id",
     "product_name",
@@ -47,7 +44,6 @@ _LICENSE_SNAPSHOT_FIELDS = (
 )
 
 #: 快照里按时间还原的字段。JSON 存的是 ISO 字符串，写回 ORM 前必须转回 ``datetime``：
-#: SQLite 的 DateTime 列只接受 datetime/date，直接写字符串会在退款那一刻抛 TypeError。
 _LICENSE_MOMENT_FIELDS = frozenset({"access_started_at", "access_expires_at"})
 
 
@@ -65,9 +61,6 @@ def _snapshot_license(license: License) -> str:
 
 def _capture_license_state(session: Session, order: Order, license: License) -> None:
     """首次改动这张授权时留下快照。**幂等**：已经拍过就不覆盖。
-
-    升级单被重复履约时第二次会拿到一张已改过的授权，覆盖快照等于把「升级前」记成了
-    「升级后」，退款就再也还原不回去。
     """
     if (order.license_state_before_json or "").strip():
         return
@@ -85,11 +78,6 @@ def _parse_moment(value: object) -> datetime | None:
 
 def revert_license_change(session: Session, *, order: Order, license: License) -> bool:
     """把升级 / 增量包改过的授权还原成快照里的样子。返回是否真的还原过。
-
-    退款时必须走这一步，而不是「把授权作废」：被改的这张授权是用户**此前已经付过钱**
-    的（他买的是升级，不是买新码），整张作废等于没收了他原来那笔消费。
-
-    幂等：重复调用只会重复做同一件事（快照不会被清空），所以退款重试是安全的。
     """
     snapshot = json.loads(order.license_state_before_json or "{}")
     if not isinstance(snapshot, dict) or not snapshot:
@@ -110,7 +98,6 @@ def revert_license_change(session: Session, *, order: Order, license: License) -
         setattr(license, field, value)
 
     # 套餐权益要按**还原后**的商品重新展开：升级时 grant_bundled_entitlements 会把
-    # 命中的权益行改写成升级商品的 product_id，只停用本单权益会关掉用户原有的套餐功能。
     restored = session.get(Product, license.product_id) if license.product_id else None
     if (
         restored is not None
@@ -146,9 +133,6 @@ def _unique_activation_code(session: Session) -> str:
 
 def _is_activation_code_collision(error: IntegrityError) -> bool:
     """这个 ``IntegrityError`` 是不是「激活码撞了唯一约束」。
-
-    刻意不只看列名：``activation_code`` 也会出现在**非空约束**的消息里，只按列名判断
-    会把恒为 NULL 的 bug 当成碰撞重试 8 次，把真正的缺陷藏起来。要求同时命中 UNIQUE。
     """
     text = str(getattr(error, "orig", error)).upper()
     return "UNIQUE" in text and "ACTIVATION_CODE" in text
@@ -158,10 +142,6 @@ def insert_license_with_unique_code(
     session: Session, build, *, attempts: int = 8
 ) -> License:
     """插入一行授权，激活码撞唯一约束就换一个码重试。
-
-    不能只靠「先查后插」（并发下仍会撞唯一约束并冒到接口层变成 500）；插入包在
-    SAVEPOINT 里，撞了只撤销这一次插入、重新调 ``build`` 换码重试；只对「激活码
-    重复」重试，其它 ``IntegrityError`` 直接抛出。
     """
     for _ in range(attempts):
         code = _unique_activation_code(session)
@@ -181,7 +161,6 @@ def insert_license_with_unique_code(
             continue
         else:
             # 主键是 flush 时生成的；少了这一句，``build`` 忘了 ``session.add``
-            # 也会静默发出一个 id 为 None 的授权 —— 这种失败比崩溃难查得多。
             if license.id is None:
                 raise RuntimeError("授权插入后没有主键：build 必须把对象加进 session。")
             return license
@@ -190,9 +169,6 @@ def insert_license_with_unique_code(
 
 def bundled_feature_codes(session: Session, product: Product) -> list[str]:
     """套餐 ``included_product_ids`` 展开出的功能码。
-
-    ``included_product_ids`` 必须在这里展开：履约与 ``features_for`` 都只认商品自己的
-    ``feature_codes``，运营把商品 id 填进套餐却没抄功能码时，用户付款后就什么都拿不到。
     """
     included = [str(item) for item in json_list(product.included_product_ids_json)]
     if not included:
@@ -245,10 +221,6 @@ def _upsert_entitlement(
     expires_at: datetime | None,
 ) -> bool:
     """确保该授权上存在 ``feature_code`` 的权益并刷新有效期；返回是否**新建**。
-
-    插入放在 SAVEPOINT 内且 flush 也在其内：``(license_id, feature_code)`` 有唯一索引，
-    并发履约可能都走完「查不到」，撞索引时回滚这一条并改成更新既有行；提前 flush 会把
-    会话打成 needs-rollback。
     """
     existing = _entitlement_for(session, license.id, feature_code)
     if existing is not None:
@@ -271,7 +243,6 @@ def _upsert_entitlement(
             session.add(entry)
             session.flush()
     except IntegrityError:
-        # 失败的那条不能留在会话里：否则提交时会再插一次、再次撞索引。
         if entry in session:
             session.expunge(entry)
         existing = _entitlement_for(session, license.id, feature_code)
@@ -320,13 +291,9 @@ def upgrade_license_in_place(
     now: datetime | None = None,
 ) -> License:
     """把一张有时限的授权就地升级为订单上的商品（通常是永久授权）。
-
-    保留激活码与设备绑定，用户已配好的客户端不需要重新激活 —— 这正是「升级」与
-    「再买一张新码」的区别。
     """
     moment = now or utcnow()
     validity_days = product.validity_days
-    #: 先留快照再动字段，否则退款时再也还原不回去（「退了钱、永久授权还在」的根因）。
     _capture_license_state(session, order, license)
     license.product_id = product.id
     license.product_name = product.name
@@ -337,13 +304,6 @@ def upgrade_license_in_place(
     license.access_expires_at = (
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
-    # 历史数据归一：早期版本写过 ``payment_manual``，现在已无任何写入方（全仓只有
-    # ``manual`` 与 ``payment_automatic`` 两个写入点）。升级后的这张码由订单驱动，
-    # 所以把它归到自动发码。
-    #
-    # 条件只判这一个值：原先写的是 ``in {"payment_automatic", "payment_manual"}``，
-    # 但对 ``payment_automatic`` 而言赋值与现值完全相同 —— 那半个条件是个空操作，
-    # 读起来却像在「调整来源」，容易让人以为升级会改动别的来源。
     if license.issuance_source == "payment_manual":
         license.issuance_source = "payment_automatic"
     order.license_id = license.id
@@ -389,7 +349,6 @@ def create_license_for_order(
     # 激活码撞车在这里被吃成一次重试，而不是把异常甩给「钱已经收了」的调用方。
     license = insert_license_with_unique_code(session, build)
     order.license_id = license.id
-    # 套餐包含的商品必须在这里落成权益，否则「套餐」只是一张价格牌。
     grant_bundled_entitlements(
         session, license=license, product=product, customer=customer, now=moment
     )
@@ -413,7 +372,6 @@ def apply_addon_to_license(
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
     created = 0
-    #: 增量包对授权只做「续期」，但退款必须能收回这段延长，所以同样要留快照。
     _capture_license_state(session, order, license)
     for feature_code in json_list(product.feature_codes_json):
         feature_code = str(feature_code)
@@ -439,7 +397,6 @@ def apply_addon_to_license(
 
 
 def release_reserved_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
-    """归还预留。SQL 原子递减并夹到 0，避免「读-改-写」丢更新或写出负数。"""
     if product is None:
         return
     amount = max(0, int(quantity))
@@ -454,7 +411,6 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
     )
     if result.rowcount == 0:
         # 预留本来就是 0：多半是同一次预留被归还了两次。负数预留会让
-        # available = stock - reserved 虚高、直接放开超卖，所以夹到 0 并告警。
         clamped = session.execute(
             update(Product)
             .where(Product.id == product.id)
@@ -470,9 +426,6 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
 
 def reserve_stock(session: Session, product: Product, quantity: int = 1) -> bool:
     """占用预留。返回是否成功（库存不足时返回 False 且不做任何改动）。
-
-    必须是「带条件的原子 UPDATE」：并发请求会同时通过更早处的 ``soldOut`` 检查再各写
-    同一份旧值，限量 1 件的商品被卖两份；判断与自增放进同一条 UPDATE 才安全。
     """
     amount = max(0, int(quantity))
     if not amount:
@@ -500,9 +453,6 @@ def reserve_stock(session: Session, product: Product, quantity: int = 1) -> bool
 
 def consume_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
     """把已卖出的数量从 ``stock_quantity`` 里真正扣掉。
-
-    库存口径：``available_stock = stock_quantity - reserved_stock``；下单只加预留，
-    履约才扣 ``stock_quantity``。少了这一步两者会互相抵消，限量 1 件的商品可以无限次卖出。
     """
     if product is None or product.stock_quantity is None:
         return
@@ -534,7 +484,6 @@ def consume_stock(session: Session, product: Product | None, quantity: int = 1) 
 
 
 #: 真正持有库存预留的订单状态；``reserved_stock`` 只是缓存，真实依据见
-#: ``recompute_reserved_stock``。
 RESERVING_STATUSES = RESERVING_STATUS_FROM_ORDER
 
 
@@ -542,9 +491,6 @@ def release_order_reservation(
     session: Session, *, order: Order, product: Product | None, quantity: int = 1
 ) -> bool:
     """归还这一单占用的预留，并在订单上打上「已归还」的标记。返回本次是否真的归还。
-
-    **所有释放点都必须走这里**：若各处直接调 ``release_reserved_stock``，就无法知道
-    「这一单此刻还占不占预留」，只能按状态反推 —— 复活单会再释放一次，扣掉**别人**的预留。
     """
     if order.stock_reservation_released_at is not None:
         return False
@@ -552,7 +498,6 @@ def release_order_reservation(
         update(Order)
         .where(Order.id == order.id)
         #: 用数据库里的当前值做比较并交换，而不是信内存对象：这些调用点刚用条件
-        #: UPDATE 抢过订单状态（``synchronize_session=False``），内存里是旧值。
         .where(Order.stock_reservation_released_at.is_(None))
         .values(stock_reservation_released_at=utcnow())
         .execution_options(synchronize_session=False)
@@ -569,10 +514,6 @@ def release_order_effects(
     session: Session, *, order: Order, product: Product | None
 ) -> None:
     """归还这一单占用的库存预占与优惠码名额。
-
-    两件事必须成对发生，所以收成一个函数：漏归还预留会把 ``reserved_stock`` 越算越高
-    （商品误判售罄），漏归还优惠码会让名额被永久占用。函数自身幂等，但调用方仍只该在
-    真正抢到状态迁移的那一次调用它。
     """
     release_order_reservation(session, order=order, product=product)
     coupons.release_coupon(session, order)
@@ -587,9 +528,6 @@ def close_pending_order(
     moment: datetime | None = None,
 ) -> bool:
     """把**待支付**订单原子地推入终态，并释放它的库存预留与优惠码名额。
-
-    返回本次是否真的推动了状态（``False`` = 已被别的路径处理）。只有抢到状态迁移的
-    那一次才释放副作用 —— 拿到 ``False`` 时不要再自己释放，那会把预留扣两次并放开超卖。
     """
     claimed = session.execute(
         update(Order)
@@ -606,10 +544,6 @@ def close_pending_order(
 
 def recompute_reserved_stock(session: Session) -> dict[str, int]:
     """按订单表重算每个商品的 ``reserved_stock``，返回「商品 id → 修正量」。
-
-    以订单表为准把缓存拉回真实值，用于自愈存量数据。计数条件必须带上
-    ``stock_reservation_released_at IS NULL``：只看状态会把**复活单**算成仍占着预留，
-    反而把占用虚增、让本可下单的商品被误判售罄。
     """
     counted = {
         product_id: int(count or 0)
@@ -641,10 +575,6 @@ def fulfill_order(
     release_stock: bool | None = None,
 ) -> dict:
     """履约。幂等：已履约的订单直接返回。
-
-    ``release_stock`` 默认由 ``stock_reservation_released_at is None`` 推导（唯一事实
-    来源）：``settle_paid_order`` 会把 expired/cancelled 的订单复活成 paid 再履约，这些
-    状态进入终态时预留早已释放，按订单状态猜会扣掉**其它**订单的预留并放开超卖。
     """
     moment = now or utcnow()
     if order.status == "fulfilled" or order.fulfilled_at is not None:
@@ -654,7 +584,6 @@ def fulfill_order(
         raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")
 
     # 并发幂等闸门：把「是否已履约」的判断与标记合并成一条带条件的 UPDATE ——
-    # 支付宝会重复推送通知，查单也可能同时到达，只靠读判断会重复发码。
     claimed = session.execute(
         update(Order)
         .where(Order.id == order.id)
@@ -708,7 +637,6 @@ def fulfill_order(
     if should_release:
         release_order_reservation(session, order=order, product=product, quantity=1)
     # 发码即售出：哪条路径（正常支付 / 关单后复活补发）都要把这一件从
-    # stock_quantity 扣掉，否则「预留释放」会把可用量还回去，等于白送一件。
     consume_stock(session, product, 1)
 
     reward = referrals.grant_order_reward(
@@ -730,6 +658,5 @@ def fulfill_order(
         "alreadyFulfilled": False,
         "licenseId": order.license_id,
         #: 单位是**厘**（1 积分 = 100 厘），与 ``ReferralLedger`` / 钱包同口径；
-        #: 目前无调用方读取，保留只为不改变既有返回结构，键名带 Centi 防误解。
         "referralRewardPointsCenti": reward,
     }

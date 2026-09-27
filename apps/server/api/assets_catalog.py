@@ -1,8 +1,4 @@
 """素材目录的进程内缓存与扫描：AssetCatalog、孤儿素材清扫、3D 工作室导出索引。
-
-从 api/assets.py 拆出来：那一份只留「路由 + 逐请求的读写」，而这一份是**目录状态**（三类素材分别是
-什么、各占多大、哪些已经无人引用）。它是进程内单实例缓存（单进程部署前提），与「这次请求该返回哪个
-文件」是两件事；拆开之后清扫逻辑也不必和路由挤在一份文件里。
 """
 from __future__ import annotations
 import json
@@ -29,18 +25,14 @@ from .assets_uploads import (
 
 
 # 用户素材目录的**总量**上限：单文件上限挡不住「一直传」，而盘满之后先坏的是数据库与日志。
-# 1 GiB 对家庭部署够放几百张图；与 MAX_UPLOAD_BYTES 一样用十进制 MB 写进用户文案。
 MAX_USER_ASSET_TOTAL_BYTES = 1000 * 1000 * 1000
 # 用量超过这个水位就记警告，不自动删图（未被引用不等于没人要，删它等于弄丢用户的图）。
 USER_ASSET_WARN_BYTES = MAX_USER_ASSET_TOTAL_BYTES * 4 // 5
 # 「目录里已没有合法图片」的空壳目录保留多久再回收。上传是「先建目录、写完临时文件、
-# 校验通过后改名」，进行中的上传长的就是这个样子，不能一看见就删。
 USER_ASSET_ORPHAN_GRACE_SECONDS = 3600
 # 变体缓存里对不上任何现存素材版本的键保留多久再回收（缓存可以随时重算）。
 EFFECT_VARIANT_GRACE_SECONDS = 24 * 3600
-# 透明裁剪后向外多留 2 像素：避免缩放采样时边缘出现一圈锯齿。
 EFFECT_VARIANT_PADDING = 2
-# 裁剪后面积几乎等于原图就不生成变体：省下一份没有意义的缓存文件。
 EFFECT_VARIANT_MAX_AREA_RATIO = 0.98
 # 用户素材 ID 就是 uuid4().hex：用固定长度十六进制做目录名校验，从源头杜绝路径穿越。
 ASSET_ID = re.compile('^[0-9a-f]{32}$')
@@ -53,13 +45,10 @@ def user_asset_file(root: Path, asset_id: str) -> Path | None:
     # resolve 之后再确认仍在 root 之下：防止符号链接把读取引到目录之外。
     if not directory.is_relative_to(root) or not directory.is_dir():
         return None
-    # 一个素材目录应当恰好一个非隐藏图片文件：0 个或多个都算非法（避免歧义）。
     matches = [item for item in directory.iterdir() if item.is_file() and not item.name.startswith('.') and item.suffix.lower() in UPLOAD_IMAGE_SUFFIXES]
     return matches[0] if len(matches) == 1 else None
 def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[int, int] | None = None) -> dict:
     """把用户素材文件拼成前端使用的 JSON（camelCase 出）。
-
-    dimensions 只在刚上传时已知，列目录时不传，避免为每张图解码。
     """
     stat = path.stat()
     # 版本号取「修改时间纳秒 + 文件大小」：内容一变 URL 就变，浏览器可以长期强缓存。
@@ -78,16 +67,10 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
     return payload
 def effect_variant_cache_key(full_asset_id: str, version: str) -> str:
     """变体缓存的键：素材 ID 与版本号的哈希。
-
-    生成与回收必须用同一个算法，否则巡检会把正在用的变体当成垃圾删掉
-    （表现为渲染退回整图或报缺文件）。
     """
     return hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
 def directory_bytes(directory: Path) -> int:
     """递归统计目录占用的字节数；读不到的条目按 0 计。
-
-    与 ``scene_store.scene_folder_bytes`` 不同：那个只数第一层（户型快照目录是平铺的），
-    用户素材目录是「一层一个素材」，必须递归。
     """
     total = 0
     for path in directory.rglob('*'):
@@ -99,11 +82,6 @@ def directory_bytes(directory: Path) -> int:
             continue
     return total
 def directory_holds_asset(directory: Path) -> bool:
-    """目录里是否还有「像素材」的文件 —— 判定刻意放宽，宁可漏收也不删用户的图。
-
-    巡检把「没有素材的目录」当残留回收，因此这是唯一分界线：判据比 ``user_asset_file``
-    松，只要任一层还有图片文件就算有素材，避免因历史遗留的异常目录删掉用户的图。
-    """
     for path in directory.rglob('*'):
         # 单个条目探测失败不改变「目录里是否有图片」的结论，继续看下一个。
         try:
@@ -114,9 +92,6 @@ def directory_holds_asset(directory: Path) -> bool:
     return False
 def _discard_variant_files(variant_path: Path | None) -> int:
     """删掉一张变体缓存（PNG + 同名 JSON 元数据），返回释放的字节数。
-
-    变体是缓存，删掉最多重算一次；路径为 None 返回 0。删不掉的条目按 0 计，
-    清理是附加工作，不该让「删素材」这条路径失败。
     """
     if variant_path is None:
         return 0
@@ -136,9 +111,6 @@ def _discard_variant_files(variant_path: Path | None) -> int:
     return released
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
     """按 alpha 包围盒生成透明裁剪后的 PNG 变体，供运行时渲染器使用。
-
-    原图不动：变体另存缓存目录，文件名由「素材 ID + 版本号」哈希决定，并附同名 JSON
-    记录裁剪矩形，命中缓存无需重新解码。``path`` 只支持 PNG / WebP；不适用时返回 None。
     """
     # 只有 PNG / WebP 能做无损透明裁剪，其它格式直接跳过。
     if path.suffix.lower() not in frozenset({'.png', '.webp'}):
@@ -147,7 +119,6 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     cache_key = effect_variant_cache_key(full_asset_id, version)
     variant_path = cache_root / f'{cache_key}.png'
     metadata_path = cache_root / f'{cache_key}.json'
-    # 命中缓存还要校验元数据自洽：裁剪矩形必须落在原图范围内，否则当作脏缓存重新生成。
     if variant_path.is_file() and metadata_path.is_file():
         try:
             metadata = json.loads(metadata_path.read_text(encoding = 'utf-8'))
@@ -157,7 +128,6 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
             top = int(metadata['cropY'])
             crop_width = int(metadata['width'])
             crop_height = int(metadata['height'])
-            # 元数据各项必须为正且裁剪框不越界，否则视为损坏。
             if not (original_width > 0 and original_height > 0 and left >= 0 and top >= 0 and crop_width > 0 and crop_height > 0 and left + crop_width <= original_width and top + crop_height <= original_height):
                 raise ValueError('invalid effect variant metadata')
             metadata['url'] = f'/api/v1/assets/effect-variant?assetId={quote(full_asset_id, safe = "")}&v={quote(version, safe = "")}'
@@ -226,9 +196,6 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     return (payload, variant_path)
 def studio3d_export_metadata(folder: Path) -> tuple[dict[str, str], dict[str, int]]:
     """读取 3D 工作室导出文件夹里的 lights.json 清单。
-
-    返回: (文件名 → 角色, 文件名 → 导出顺序)。清单缺失或损坏时返回两个空字典，
-    素材仍会被列出，只是角色与排序退化为默认值。
     """
     manifest_path = folder / 'lights.json'
     # 没有清单就当没有角色信息，不影响图片本身的列出与访问。
@@ -278,8 +245,6 @@ def studio3d_export_payload(folder_name: str, path: Path, role: str = '', export
     return payload
 def user_asset_sort_key(item: dict) -> tuple[str, int, int, str]:
     """用户素材的展示排序键：目录 → 3D 角色 → 导出顺序 → 名称。
-
-    3D 导出的图片按固定角色顺序排前面（电视、车辆、户型图、底图…），其余统一落最后一档。
     """
     name = str(item.get('name', ''))
     base_name = Path(name).stem
@@ -312,8 +277,6 @@ def user_asset_sort_key(item: dict) -> tuple[str, int, int, str]:
     return (str(item.get('folder', '')).casefold(), priority, user_order, name.casefold())
 def studio3d_export_file(root: Path, folder_name: str, filename: str) -> Path | None:
     """校验并解析 3D 导出图片的路径；任何可疑输入都返回 None（路由层转成 404）。
-
-    只接受单层、不以点开头的目录名与文件名，且后缀必须是 PNG / WebP。
     """
     if not folder_name or folder_name in frozenset({'.', '..'}) or Path(folder_name).name != folder_name or folder_name.startswith('.') or not filename or filename in frozenset({'.', '..'}) or Path(filename).name != filename or filename.startswith('.') or Path(filename).suffix.lower() not in frozenset({'.png', '.webp'}):
         return None
@@ -325,16 +288,10 @@ def studio3d_export_file(root: Path, folder_name: str, filename: str) -> Path | 
     return path
 class AssetCatalog:
     '''进程内的素材目录缓存。
-
-    前提：客户部署只有一个 app 进程，因此目录状态放内存、用 RLock 保护即可。
-    内容变更后对应 revision 换成新的随机值，前端据此判断是否重新拉列表。
     '''
 
     def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None) -> None:
         """记录各素材根目录并统一转成绝对路径。
-
-        参数:
-            effect_variants_root: 特效变体缓存根目录；None 时默认落在用户素材父目录下。
         """
         self.built_in_root = built_in_root.resolve()
         self.user_root = user_root.resolve()
@@ -342,7 +299,6 @@ class AssetCatalog:
         self.effect_variants_root = effect_variants_root.resolve() if effect_variants_root else self.user_root.parent / 'cache' / 'effect-variants'
         # 目录的读写都在这把锁下进行：上传/删除与列表读取并发时不会读到半更新状态。
         self.mutation_lock = RLock()
-        # 懒加载标记：首次访问才扫盘，避免应用启动时就遍历素材目录。
         self._builtin_loaded = False
         self._user_loaded = False
         self._builtin_items = { }
@@ -355,8 +311,6 @@ class AssetCatalog:
 
     def _attach_effect_variant(self, payload: dict, path: Path) -> None:
         """给素材条目附加效果变体信息（失败就静默跳过）。
-
-        变体是可选增强字段，生成失败不影响素材本身的使用。
         """
         try:
             generated = effect_variant_payload(path, str(payload['assetId']), str(payload['version']), self.effect_variants_root)
@@ -404,8 +358,6 @@ class AssetCatalog:
 
     def _load_user(self) -> None:
         """懒加载用户素材目录，同时把 3D 工作室的导出图片并进同一份索引。
-
-        两类素材的 assetId 前缀不同（user: / studio3d:），因此在同一字典里不会冲突。
         """
         with self.mutation_lock:
             if self._user_loaded:
@@ -425,7 +377,6 @@ class AssetCatalog:
                 for folder in self.studio3d_exports_root.iterdir():
                     if not folder.is_dir() or folder.name.startswith('.'):
                         continue
-                    # 每个导出文件夹只读一次清单，拿到角色与排序，避免逐文件读盘。
                     (export_roles, export_order) = studio3d_export_metadata(folder)
                     for path in folder.iterdir():
                         if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in frozenset({'.png', '.webp'}):
@@ -453,14 +404,11 @@ class AssetCatalog:
         self._load_builtin()
         with self.mutation_lock:
             items = [dict(item) for item in self._builtin_items.values()]
-        # 名称做 casefold 再比较，避免大小写影响展示顺序。
         items.sort(key = lambda item: (item['folder'], item['name'].casefold()))
         return items
 
     def user_items(self) -> list[dict]:
         """列出全部用户素材（含 3D 导出），顺带清理磁盘上已消失的条目。
-
-        清理只在真的删掉条目时才换版本戳，否则轮询这个接口会不断触发前端重拉。
         """
         self._load_user()
         with self.mutation_lock:
@@ -479,7 +427,6 @@ class AssetCatalog:
                 else:
                     continue
                 stale_ids.append(asset_id)
-            # 只有确实清理了内容才换版本戳，避免无谓地让前端重新拉取。
             if stale_ids:
                 for asset_id in stale_ids:
                     self._user_items.pop(asset_id, None)
@@ -499,7 +446,6 @@ class AssetCatalog:
     def asset_exists(self, asset_id: str) -> bool:
         """判断素材 ID 是否在目录里；user: 与 studio3d: 都查用户侧索引。"""
         # 前缀决定查哪本索引：user: 与 studio3d: 共用用户侧目录（studio3d 的导出图也登记在那里，
-        # 所以这里不是「走到兜底」），builtin: 走内置目录，其余前缀一律不存在。
         if asset_id.startswith('user:'):
             self._load_user()
             with self.mutation_lock:
@@ -537,10 +483,6 @@ class AssetCatalog:
 
     def remove_user(self, full_asset_id: str) -> int:
         """从内存目录里摘掉一个用户素材，同时删掉它的效果变体缓存，返回释放的字节数。
-
-        两件事必须同一个动作里做完：变体的路径记录就在下面这张表里，先摘条目的话
-        路径就再也查不到了 —— 缓存文件会永远留在这块盘上，谁也看不见、谁也删不掉。
-        合成一个动作，调用方就没有「先调哪个」这种可以搞错的余地。
         """
         self._load_user()
         with self.mutation_lock:
@@ -558,7 +500,6 @@ class AssetCatalog:
             for asset_id in removed_ids:
                 self._user_items.pop(asset_id, None)
                 self._effect_variant_paths.pop(asset_id, None)
-            # 一个都没删到就不换版本戳，避免让前端白重拉一次。
             if removed_ids:
                 self._user_revision = uuid4().hex
 
@@ -573,16 +514,11 @@ class AssetCatalog:
 
     def user_asset_bytes(self) -> int:
         """用户素材目录当前占用的字节数（含尚未改名的临时文件）。
-
-        直接扫盘而不维护累加计数：手工删文件、上传中断、外部工具都改得动这个目录，
-        计数漂移配额就失效。代价是每次上传多一次目录遍历。
         """
         return directory_bytes(self.user_root) if self.user_root.is_dir() else 0
 
     def effect_variant_keys(self) -> set[str]:
         """现存素材版本对应的变体缓存键，供巡检判断缓存里哪些文件是孤儿。
-
-        只列「当前版本」的键：版本变了旧键就作废（URL 里带版本号，旧变体没有任何人再请求）。
         """
         return {
             effect_variant_cache_key(str(item.get('assetId') or ''), str(item.get('version') or ''))
@@ -590,11 +526,6 @@ class AssetCatalog:
         }
 def referenced_user_asset_ids(database, studio3d_draft_path: Path) -> set[str]:
     """此刻仍被引用的用户素材 ID（不含 ``user:`` 前缀）集合。
-
-    引用来源三处：项目草稿文档、全局组合弹窗（独立存放）、3D 户型草稿（不在库里，
-    单独读盘）。判据是「文档里出现过 ``user:`` 开头的字符串」—— 与删素材守卫
-    （``document_uses_asset``）同一套「任意提及」口径，两处结论必须一致：否则会出现
-    「巡检说这张图没人用、真去删又被拒绝」，而巡检结果直接进磁盘告警文案。
     """
     def is_user_asset(text: str) -> bool:
         """只收用户上传的图片：内置素材不会出现在这个目录里。"""
@@ -631,16 +562,9 @@ def sweep_user_asset_storage(
     orphan_grace: int = USER_ASSET_ORPHAN_GRACE_SECONDS,
     variant_grace: int = EFFECT_VARIANT_GRACE_SECONDS,
 ) -> dict[str, int]:
-    """回收用户素材目录里那些**看不见的**残留，返回本轮统计。
-
-    只收没有合法图片的空壳目录 / 散落文件（上传中断等残留）与对不上现存版本的变体缓存；
-    刻意不回收「未被引用的图片」（未被引用不等于没人要，删它等于弄丢用户的图）。
-    返回 ``{'directories', 'files', 'variants', 'released', 'kept'}``。
-    """
     moment = time() if now is None else now
     stats = {'directories': 0, 'files': 0, 'variants': 0, 'released': 0, 'kept': 0}
     # 先归一成绝对路径：``user_asset_file`` 内部会 resolve 再判「还在根目录之下」，
-    # 两边口径必须一致，否则每个素材目录都会被判成非法 —— 而这里的判定后果是删掉它。
     root = root.resolve()
     if root.is_dir():
         for entry in sorted(root.iterdir()):
@@ -665,12 +589,10 @@ def sweep_user_asset_storage(
             if entry.is_dir():
                 shutil.rmtree(entry, ignore_errors = True)
             else:
-                # 单个文件删不掉就留着，不因此中断整轮清理（与 rmtree 的 ignore_errors 同款取舍）。
                 try:
                     entry.unlink()
                 except OSError:
                     pass
-            # 以「真的不在了」判定回收成功：删不掉（权限/占用）时不能算已回收，否则统计会骗人。
             if entry.exists():
                 stats['kept'] += 1
             else:
@@ -701,9 +623,6 @@ def sweep_user_asset_storage(
     return stats
 def sweep_user_assets_for_app(app) -> dict[str, int]:
     """请求路径 / 启动流程用的薄封装：自己开短会话算引用关系，再巡检并汇总用量。
-
-    顺带把「该由人来看一眼」的两件事写进全局日志：用量过水位、存在没有任何仪表盘引用的
-    图片（给出张数与字节）。不自动删它们，理由见 :func:`sweep_user_asset_storage`。
     """
     root = app.state.settings.user_assets_dir
     variants_root = app.state.asset_catalog.effect_variants_root
@@ -737,9 +656,5 @@ def sweep_user_assets_for_app(app) -> dict[str, int]:
     return {**stats, 'usedBytes': used_bytes, 'unusedBytes': unused_bytes}
 def document_uses_asset(value, asset_id: str) -> bool:
     """整份文档（任意嵌套的 dict/list）里是否还有地方提到该素材 ID。
-
-    判据是「**键名或值里出现过这个字符串**」，比 ``document_keyed_values`` 那种按字段名猜的
-    收集更宽 —— 这里的后果是「拒删」，宽一格只是少删一张图；窄一格会删掉仍被引用的素材，
-    引用它的控件渲染回退或报错（前端 ``requestDeleteAsset`` 用的是同一套判据）。
     """
     return document_mentions(value, lambda text: text == asset_id)

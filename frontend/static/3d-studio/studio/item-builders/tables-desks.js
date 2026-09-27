@@ -1,26 +1,8 @@
 /*
  * 物件构建器：桌与桌面设备
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 茶几与方茶几、书桌、台式机、笔记本、电视柜、地毯。
  */
 /**
  * 命中：itemSpec.type === "coffeetable"
- *
- * 「组合茶几」= 两块石材叠合错位：白石板压在黑石座上。这里是**加载中的占位几何** ——
- * 外部 GLB 还没到位时先顶上，到位后整组被换掉（见 registry.js 的 finishItemModel）。
- *
- * 因此它的比例必须跟着 model-specs.mjs 的 coffeetable 一起改：占位几何与成品长得不一样，
- * 加载完成的一瞬间就会有「先是一对圆墩、再变成两块石板」的跳变。所有比例都写成对
- * itemWidth / itemDepth / itemHeight 的定比，那三处尺寸改动后这边自动跟着走。
- *
- * 石材整图与外部模型共用同一份缓存贴图（context.stoneSlabTexture），
- * 所以占位时看到的纹路就是成品那块石头的纹路。
  */
 export function buildCoffeetableItem(context) {
   const {
@@ -32,7 +14,6 @@ export function buildCoffeetableItem(context) {
     itemWidth,
     stoneSlabTexture
   } = context;
-  // 石座：长度 1.72 / 1.90、整高 0.30 / 0.50、进深占满、右端顶到 +0.95 → 中心偏 +0.09 / 1.90。
   const coffeetableBaseWidth = itemWidth * (1.72 / 1.9);
   const coffeetableBaseHeight = itemHeight * (0.3 / 0.5);
   const coffeetableBaseCenterX = itemWidth * (0.09 / 1.9);

@@ -1,15 +1,5 @@
 /**
  * 客户端日志上报（浏览器侧）。
- *
- * 包裹 window.fetch 后暴露 window.HABridgeLog：收集未捕获异常、资源加载失败、未处理的
- * Promise 拒绝与请求异常（失败或耗时超 5 秒），脱敏后进本地队列，按批发送到
- * /api/v1/logs/events。登录 / 初始化 / 配对这类公开页面只允许上报 warning 与 error，并改
- * 发 /api/v1/logs/public-events。队列存 sessionStorage，上限 50 条 / 约 120KB / 15 分钟，
- * 超限丢最旧；失败按指数退避重试（1 秒起，上限 60 秒）；上报路径本身不记录。
- *
- * 顺带收口一类「非业务的控制台噪音」：已知第三方浏览器扩展挂钩主世界的 XHR 后，会对
- * HLS 分片这类二进制响应反复打 console.error。它不属于本应用、也无法上报，只在这里按前缀
- * 精确丢弃（``?debug=1`` 时保留，见 ``suppressThirdPartyConsoleNoise``）。
  */
 (function (bridgeWindow) {
   "use strict";
@@ -19,11 +9,9 @@
   const originalFetch = bridgeWindow.fetch.bind(bridgeWindow),
     LOG_STORAGE_KEY = "homeos-client-log-v1",
     MAX_QUEUED_EVENT_COUNT = 50,
-    // 12e4 字节 ≈ 120KB，避免 sessionStorage 被日志撑爆。
     MAX_QUEUE_BYTES = 12e4,
     // 900 秒（15 分钟）之前的日志视为过期，不再补报。
     MAX_EVENT_AGE_MS = 900 * 1e3,
-    // 已上报过的错误对象与已关联响应用 WeakSet 去重，避免同一错误反复入队。
     reportedErrors = new WeakSet(),
     linkedResponseSet = new WeakSet(),
     // 上下文白名单：只允许这些键进入日志，其余一律丢弃，防止误传敏感字段。
@@ -63,9 +51,6 @@
 
   /**
    * 判断当前是否打开了开发开关。
-   *
-   * 与 utils/debug-log.js 的 `isFrontendDebugMode` 同一口径（只认 `?debug=1` / `true`）。
-   * 这里不能 import 那个模块：本文件是经典脚本，且要在页面最早期生效，只能就地复制这段判断。
    */
   function isDebugModeEnabled() {
     try {
@@ -80,13 +65,6 @@
 
   /**
    * 丢弃已知第三方浏览器扩展在主世界打的 console.error 噪音。
-   *
-   * `ImageAssistant` 这类扩展会把 `XMLHttpRequest.prototype.send` 包一层，在 load 回调里
-   * **无条件**读 `responseText`（实参先求值，早于它判断 content-type）；而 hls.js 拉 HLS 分片
-   * 用的是 `responseType='arraybuffer'`，于是每个分片都抛一次 `InvalidStateError`，被扩展自己
-   * catch 后 `console.error` 一句。异常、响应与画面都不受影响，纯粹是控制台噪音。
-   *
-   * 只按前缀精确丢弃这一条：其余 console.error 原样透传，业务错误照常可读；`?debug=1` 时不过滤。
    */
   function suppressThirdPartyConsoleNoise() {
     const consoleObject = bridgeWindow.console;
@@ -111,7 +89,6 @@
   function sanitizePath(rawPath) {
     try {
       const parsedUrl = new URL(String(rawPath || ""), bridgeWindow.location.href);
-      // 非 http(s) / ws(s) 协议只保留协议名，避免泄漏自定义协议里的参数。
       if (!["http:", "https:", "ws:", "wss:"].includes(parsedUrl.protocol))
         return `[${parsedUrl.protocol.replace(":", "")}]`;
       let normalizedPath = parsedUrl.pathname;
@@ -119,7 +96,6 @@
         normalizedPath = decodeURIComponent(normalizedPath);
       } catch {
         // 畸形百分号编码（如 %zz）时保留原样：这里的路径只用于把请求归类成脱敏标签，
-        // 解不出来不影响归类，也没必要为此丢掉整条日志。
       }
       // HLS 流地址带随机 token，统一折叠成 [stream]；邮箱 / JWT 也一并替换。
       return normalizedPath
@@ -139,7 +115,6 @@
    * @returns {string} 脱敏后的文本。
    */
   function redactSensitive(rawText, maxLength = 1e3) {
-    // 依次脱敏：Cookie 头、PEM 私钥、邮箱、URL、Token/JWT、「密钥=值」、HLS 流地址，最后去掉剩余查询串。
     return String(rawText ?? "")
       .replace(
         /(\b(?:set-cookie|cookie)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\r\n]+)/gi,
@@ -247,7 +222,6 @@
         ...logContext,
         ...reportContext,
         // page 必须钉死为当前路径：公开通道用它做白名单门禁，
-        // 不能被 hbLogContext / setContext 里的同名键覆盖成编辑器路径。
         page: bridgeWindow.location.pathname
       }),
       clientTimestamp: new Date().toISOString()
@@ -264,7 +238,6 @@
    */
   function reportError(thrownValue, extraContext = {}, fallbackMessage = "") {
     if (thrownValue && typeof thrownValue == "object") {
-      // 同一个 Error 只上报一次，避免 catch 链里层层重复。
       if (reportedErrors.has(thrownValue)) return;
       reportedErrors.add(thrownValue);
     }
@@ -277,9 +250,6 @@
     );
   }
 
-  /**
-   * 把错误对象与响应关联，避免同一错误在别处再报一次。
-   */
   function linkErrorToResponse(errorObject, response) {
     return (
       errorObject &&
@@ -292,8 +262,6 @@
 
   /**
    * 公开通道发送前规范化：钉死 page、丢掉非法时间戳、保证 message 非空。
-   * 队列可能残留编辑器页的 page（例如会话过期后降级到 public-events），
-   * 不处理就会被服务端以「不支持的页面」422 打回，控制台刷红。
    */
   function normalizePublicEvent(rawEvent) {
     const context = { ...(rawEvent?.context || {}) };
@@ -327,7 +295,6 @@
       return;
     }
     // 从待发送队列摘掉一条日志（发送成功，或因切到公开模式被跳过）。不用下标而是用
-    // indexOf 重新定位：队列在 await 期间可能被并发修改，下标会失效；找不到时静默跳过。
     const removeQueuedEntry = queuedEntry => {
       const queueIndex = eventQueue.indexOf(queuedEntry);
       // 队列可能在并发中被清空，下标为 -1 时直接跳过。
@@ -335,7 +302,6 @@
     };
     isFlushing = !0;
     try {
-      // 单次 flush 最多尝试 5 条：避免长时间占用主线程，剩余留给下一轮。
       for (let attemptIndex = 0; eventQueue.length && attemptIndex < 5; attemptIndex += 1) {
         const batchEntry = eventQueue[0];
         // 页面切换到公开模式后，队列里遗留的 info / success 不再发送。
@@ -344,9 +310,7 @@
           continue;
         }
         const abortController = typeof AbortController == "function" ? new AbortController() : null,
-          // 8 秒超时兜底：网络挂起时主动 abort，避免请求队列堆积。
           timeoutId = bridgeWindow.setTimeout(() => abortController?.abort(), 8e3);
-        // 公开通道发送前规范化，避免「不支持的页面 / 空 message / 非法时间」打出 422。
         const eventBody = publicMode ? normalizePublicEvent(batchEntry.event) : batchEntry.event;
         let sendResponse;
         try {
@@ -400,7 +364,6 @@
           ? requestInput
           : requestInput?.url
       );
-    // 日志接口自身的请求不记录，否则上报失败会引发日志风暴。
     if (/^\/api\/v1\/logs(?:\/|$)/.test(requestPath))
       return originalFetch(requestInput, fetchOptions);
     const startedAt = Date.now(),
@@ -412,13 +375,6 @@
     try {
       const fetchResponse = await originalFetch(requestInput, fetchOptions),
         durationMs = Date.now() - startedAt;
-      // 定级按响应类别，与后端诊断中间件同一口径（见 apps/server/main.py：5xx 记 error，4xx 记 warning）：
-      // 4xx 是「这次请求被拒」，其中 409 / 428 更是本应用**预期内**的业务控制流（乐观并发冲突、
-      // 删除影响待确认），调用方都会自己处理并重发。把 4xx 一律记成 error，会把预期流程渲染成故障，
-      // 还把真正的服务端故障（5xx）淹没在同一片红里；进页面时那次「先撞 4xx 再走确认」的保存
-      // 就是最典型的受害者。
-      // 成功时把响应标记为「已上报」，随后抛错时 linkErrorToResponse 不会重复记录。
-      // 慢请求（≥5 秒）无论成败都记 warning，用于发现性能退化。
       return (
         (!fetchResponse.ok || durationMs >= 5e3) &&
           (reportEvent(
@@ -436,7 +392,6 @@
         fetchResponse
       );
     } catch (caughtError) {
-      // 取实际生效的 signal：显式传入优先，否则用 Request 对象自带的。
       const abortSignal =
         fetchOptions.signal === void 0 ? requestInput?.signal : fetchOptions.signal;
       throw (
@@ -520,7 +475,6 @@
     const storedEntries = JSON.parse(bridgeWindow.sessionStorage.getItem(LOG_STORAGE_KEY) || "[]");
     if (Array.isArray(storedEntries))
       for (const storedEntry of storedEntries.slice(-MAX_QUEUED_EVENT_COUNT)) {
-        // 结构不完整或已过期的历史条目直接丢弃。
         if (
           !storedEntry?.event ||
           !Number.isFinite(storedEntry.queuedAt) ||
@@ -540,7 +494,6 @@
             details: redactSensitive(storedEvent.details, 8e3),
             context: pickContext({
               ...(storedEvent.context || {}),
-              // 恢复队列时也钉死为当前页，避免带着旧 page 撞上公开通道白名单。
               page: bridgeWindow.location.pathname
             }),
             // 时间用入队时刻，保证补报日志的时间线仍准确。

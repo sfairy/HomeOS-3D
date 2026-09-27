@@ -1,7 +1,4 @@
 """商店接口的 auth 资源组（从 api/store.py 拆出）。
-
-子路由不带前缀，由父路由在**原来的位置** include，以此保持注册顺序（FastAPI 按注册序匹配）。
-只留「注册 / 登录 / 登出 / 我 / 改密 / 重置」六条路由；会话 Cookie、验证码与限流在 store_shared.py，口令确认闸门同在那里。
 """
 from __future__ import annotations
 
@@ -67,8 +64,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
 
-    # 顺序不能反：先消费验证码，再回答「这个邮箱是否已注册」，否则任何人都能拿瞎编的
-    # 验证码探出账号是否存在（409 = 有、请先获取验证码 = 无），枚举口又从 _assert_purpose_allowed 挪回来。
     _consume_verification(session, email=email, purpose="register", code=payload.code)
 
     existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
@@ -89,7 +84,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if referral_code:
         if not referral_code.isdigit():
             # 邀请码是纯数字；填错格式时之前是**静默忽略**，用户以为绑定成功了，
-            # 而关系永远补不上（注册流程只有这一次机会写入 referred_by）。
             referral_note = "邀请码格式不正确（应为纯数字），本次未绑定邀请关系。"
         else:
             referrer_wallet = session.scalars(
@@ -108,7 +102,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
                     session.flush()
 
     token = _create_session(session, request, account)
-    # 显式 commit —— 同 login handler 的原因
     session.commit()
     state = _account_license_state(session, account)
     body = account_state_payload(
@@ -118,7 +111,6 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
         has_used_trial=_has_used_trial(session, account),
     )
     # 邀请码没能绑定时必须让用户看到：绑定只在注册这一步发生，静默失败之后
-    # 没有任何补救入口。
     body["referralNote"] = referral_note
     response = JSONResponse(body)
     _set_session_cookies(
@@ -175,17 +167,12 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
 
     # 登录成功：清掉这个账号与这个来源 IP 的失败计数。清来源 IP 是为了「同一个人先打错几次再成功」的正常体验，
-    # 唯一放宽是「持有任一有效凭据者可重置该 IP 计数」，而有凭据者本就不需要撞库，按账号那一档始终在拦他真正想攻的账号。
-    # 全局桶不清 —— 它是聚合观测，被一次成功登录清零就失去了发现慢速撞库的意义。
     password_gate.clear(session, account_scope)
     if ip_scope:
         password_gate.clear(session, ip_scope)
     password_gate.record_attempt(session, account_scope, succeeded=True)
 
     token = _create_session(session, request, account)
-    # 显式 commit —— 依赖里的 context manager 会在 response **发送完毕后**才 commit，
-    # Set-Cookie 里的 token 在 commit 前查不到。浏览器拿到 200 后立刻发 /auth/me，
-    # 就会撞进「上一个请求还没 commit」的窗口。
     session.commit()
     permanent, temporary = _account_license_state(session, account)
     response = JSONResponse(
@@ -243,11 +230,6 @@ def change_password(
     account: AuthedAccount,
 ) -> dict:
     """已登录账号修改密码。
-
-    安全约束：
-    - 必须凭**当前密码**确认身份（挡住会话被劫持场景）
-    - 新密码 ≥ 8 位（与注册一致）
-    - 改密后踢掉其它设备的会话，只保留当前这一个
     """
     confirm_scope = _enforce_password_confirmation_gate(session, account)
     if not verify_password(payload.old_password, account.password_hash):
@@ -264,7 +246,6 @@ def change_password(
     account.password_hash = hash_password(payload.new_password)
 
     # 踢掉其它设备的会话，只保留当前这一个。改密码就是为了止损，
-    # 不这么做的话——会话被偷了，改完密码攻击者依然保持登录。
     settings: StoreSettings = request.app.state.settings
     current = token_hash(request.cookies.get(settings.cookie_name) or "")
     for record in session.scalars(
@@ -284,8 +265,6 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
     # 同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
-    # 「尚未注册」这个回答只该给到已经证明持有该邮箱的人；否则这里就是一个
-    # 一次请求一个答案的枚举探针（而且它连验证码都不用去拿）。
     _consume_verification(session, email=email, purpose="reset", code=payload.code)
 
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()

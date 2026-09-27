@@ -1,15 +1,7 @@
 /**
  * 虚拟人物（人体模型）的程序化建模、步态动画与资源释放。
- *
- * 项目不引入外部人物模型资源，所有角色都用 three.js 基本几何体当场拼出：DESIGNS 是可选角色表，
- * createWalker 造模型，animateWalker 用行走相位驱动四肢摆动，disposeWalker 回收几何体与材质。
- * 坐标与单位（与舞台其它 overlay 一致）：1 单位 = 1 米，Y 轴向上，模型正面朝 +Z（转向角按 atan2(dx, dz)）；
- * 根节点原点即脚底水平面，贴地由 presence-scene.js 量脚底包围盒后微调；角色总高 1.3~1.5 米，
- * 鞋底高度写进 userData.soleHeight（场景侧据此换算落地补偿，不能省）。
- * 根节点 userData 是跨文件契约：parts（animateWalker 的摆动入口）、design（设计键）。
  */
 
-/** 可选人物方案；name / description 直接作为配置界面文案，height（米）与 pace 仅为设计参考值。 */
 export const DESIGNS = {
   traveler: {
     name: "软帽小旅人",
@@ -37,14 +29,12 @@ export const DESIGNS = {
  * 按设计键拼装一个可走动的人物模型。
  */
 export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler") {
-  // 容错而非抛错：历史配置里可能存着已下线的角色名，回退比让整个场景加载失败更合适。
   if (!DESIGNS[designKey]) {
     designKey = "traveler";
   }
   const walkerGroup = new THREE.Group();
   // HB- 前缀标记「应用自建节点」，在场景遍历时能一眼区分人物与户型模型。
   walkerGroup.name = "HB-" + designKey;
-  // 布料统一高粗糙度、保持 metalness 默认 0，避免环境光下出现塑料感高光。
   const outfitMaterial = new THREE.MeshStandardMaterial({
     color: outfitColor,
     roughness: 0.9
@@ -66,7 +56,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(...position);
     // 人物投影是场景里唯一「与地面接触」的暗示，必须投射；自身不接收阴影也能省一次采样，
-    // 这个体量的卡通角色自阴影肉眼几乎看不出。
     mesh.castShadow = true;
     mesh.receiveShadow = false;
     parentGroup.add(mesh);
@@ -151,7 +140,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
         accentMaterial,
         armPivot
       );
-      // 0.12 弧度让手臂微微外张，避免与躯干刚性穿插。
       armPivot.rotation.z = sideSign * 0.12;
       armPivots.push(armPivot);
     }
@@ -164,7 +152,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
       const hipGroup = new THREE.Group();
       hipGroup.position.set(legSideSign * hipOffsetX, hipY, 0);
       walkerGroup.add(hipGroup);
-      // 圆柱上粗下细（1 : 0.94），避免直筒状看起来像塑料管。
       addMesh(
         new THREE.CylinderGeometry(legRadius, legRadius * 0.94, legLength, 12),
         accentMaterial,
@@ -240,14 +227,11 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     );
     const brimPositions = hatBrimGeometry.attributes.position;
     // 手工把帽檐顶点「向后翻卷」：按高度线性回收半径（0.088 是翻卷量，0.203 是檐口高度），
-    // 再让 y 随新的 x 微抬（0.022），得到软帽特有的上翘弧线 —— 纯旋转体做不出这个弧度。
     for (let vertexIndex = 0; vertexIndex < brimPositions.count; vertexIndex++) {
       const vertexY = brimPositions.getY(vertexIndex);
-      // 先写 X：下一行的 Y 补偿读回的是刚写入的新 X，两层修正有意耦合。
       brimPositions.setX(vertexIndex, brimPositions.getX(vertexIndex) - (vertexY * 0.088) / 0.203);
       brimPositions.setY(vertexIndex, vertexY + brimPositions.getX(vertexIndex) * 0.022);
     }
-    // 手改顶点后法线仍是旧的，必须重算，否则帽檐光照会保持原旋转体的朝向。
     hatBrimGeometry.computeVertexNormals();
     // 帽子整体坐在头顶（1.152 米）之上。
     parts.hat = addMesh(hatBrimGeometry, outfitMaterial, [0, 1.152, 0], headGroup);
@@ -258,7 +242,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   if (designKey === "bean") {
     // 豆子身体：一颗略扁的球直接充当外衣，没有独立躯干与裙摆。
     parts.robe = addSphere([0.274, 0.298, 0.224], [0, 0.538, 0], outfitMaterial, bodyGroup);
-    // 头身比刻意夸张（头半径 0.281 大于旅人的 0.188），这是豆豆最醒目的辨识特征。
     addSphere([0.281, 0.279, 0.253], [0, 0.998, 0.018], accentMaterial, headGroup);
     // 脸更大，眼睛相应放大并拉开眼距（0.075 / 半径 0.016）。
     addEyes(1.006, 0.269, 0.075, 0.016);
@@ -291,7 +274,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
       outfitMaterial,
       bodyGroup
     );
-    // 脖子用深色而不是点缀色：要与下方暖色灯罩形成对比，避免整体糊成一团亮色。
     addMesh(
       new THREE.CylinderGeometry(0.038, 0.043, 0.1, 16),
       darkMaterial,
@@ -307,7 +289,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     });
     const bulbMesh = addSphere([0.11, 0.143, 0.104], [0, 1.083, 0], glowMaterial, headGroup);
     // 灯泡藏在灯罩内部：渲染出来会在罩内壁穿帮产生硬边，因此只保留节点不渲染，
-    // 观感由下面对灯罩材质的自发光承担。
     bulbMesh.castShadow = false;
     bulbMesh.visible = false;
     // 灯罩用 MeshPhysicalMaterial：需要一点半透「玻璃感」，标准材质做不到这种层次。
@@ -333,7 +314,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
       headGroup
     );
     // 灯罩不投影（自发光体不该有实心阴影），并显式排在默认层之后绘制，
-    // 避免与内部灯泡共面时的透明排序闪烁。
     shadeMesh.castShadow = false;
     shadeMesh.renderOrder = 1;
     // 罩顶圆盘：封住灯罩口，兼作「帽子」。
@@ -355,7 +335,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     parts.shadeMat = shadeMaterial;
   }
   // 以下两个 userData 字段是跨文件契约（场景侧读 parts、动画分支读 design），
-  // 返回前必须写全。
   walkerGroup.userData.parts = parts;
   walkerGroup.userData.design = designKey;
   return walkerGroup;
@@ -375,7 +354,6 @@ export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds)
   bodyPivot.position.y =
     // 用 |sin| 而不是 sin：每迈一步身体向上弹一次（一个步幅两次起伏中的「一次」）。
     Math.abs(Math.sin(walkPhase)) * (isBeanDesign ? 0.026 : 0.012) * walkAmount +
-    // 站立时叠加呼吸起伏（1.65 rad/s），走动时淡出，否则会与步伐弹跳打架。
     Math.sin(elapsedSeconds * 1.65) * 0.003 * (1 - walkAmount);
   bodyPivot.rotation.z = Math.sin(walkPhase) * (isBeanDesign ? 0.055 : 0.018) * walkAmount;
   // 行走时轻微前倾 0.015 弧度，静止时回正。
@@ -395,7 +373,6 @@ export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds)
     armRigs[armIndex].rotation.x = -Math.sin(walkPhase + armIndex * Math.PI) * 0.14 * walkAmount;
   }
   // 只有「小灯灵」带自发光材质，用同一相位（1.7 rad/s）做呼吸：灯泡幅度大、灯罩幅度小，
-  // 形成「光源在罩内明暗」的层次。
   if (walkerRoot.userData.parts.glowMat) {
     walkerRoot.userData.parts.glowMat.emissiveIntensity =
       0.9 + Math.sin(elapsedSeconds * 1.7) * 0.13;
@@ -408,7 +385,6 @@ export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds)
  */
 export function disposeWalker(walkerToDispose) {
   // 用 Set 去重：一次 createWalker 里多个网格共用同一几何体与材质（例如所有眼睛共用一个
-  // 球体几何），逐个 dispose 会重复释放同一份资源。
   const geometrySet = new Set();
   const materialSet = new Set();
   walkerToDispose.traverse(childNode => {

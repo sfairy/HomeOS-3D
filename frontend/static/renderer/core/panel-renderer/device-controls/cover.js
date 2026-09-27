@@ -11,13 +11,11 @@ import {
   dreamCurtainIsRetracted,
   learnAirerPositionCalibration,
   physicalCoverState
-} from "../../../controls/cover-runtime.js?v=2609271208";
+} from "../../../controls/cover-runtime.js?v=2609271226";
 
 export const coverDetailsMethods = {
   /**
    * 构建窗帘 / 晾衣机详情弹窗的控制区（开合、位置、倾斜、电机反向、升降）。
-   * 设备差异很大（梦幻帘无位置概念、晾衣机有升降与照明、部分电机接线反向），因此全部靠
-   * 入参开关在构建期定分支，点击时不再判断。
    */
   createCoverDetailsControls(
     coverControlsEntityId,
@@ -106,8 +104,6 @@ export const coverDetailsMethods = {
     let isCurtainRetracted = dreamCurtainIsRetracted(coverControlsState?.state, coverMotorReversed);
     /**
      * 按设备形态生成动作按钮组（关 / 暂停 / 开，晾衣机为下降 / 暂停 / 升起）。
-     * 电机反向的设备把开 / 关服务对调，故按钮文案不变、下发的服务名相反；返回数组同时供
-     * `renderPositionState` 高亮，顺序固定为「主 / 暂停 / 次」。
      */
     const coverActionDefinitions = (
       isDreamCoverControl
@@ -234,7 +230,6 @@ export const coverDetailsMethods = {
     let controlMotorState = coverMotorState;
     /**
      * 触发晾衣机的位置标定学习（记录升降两端对应的设备原始值）。
-     * 晾衣机的 number 指令值与实际高度不成比例，必须用实测端点反推映射；非晾衣机直接跳过。
      */
     const learnPositionCalibration = () => {
       if (coverIsAirer) {
@@ -250,8 +245,6 @@ export const coverDetailsMethods = {
     let latestCoverStateText = String(coverControlsState?.state || "");
     /**
      * 把实体状态换算成 0~100 的展示位置。
-     * 晾衣机位置非线性（指令值与实际高度不成比例），走标定映射并区分收起 / 展开；普通 cover
-     * 直接读 current_position（倾斜时读 current_tilt_position）；取不到数值时 open 计 100、其余计 0。
      */
     const resolvePositionFromState = positionSourceState => {
       const reportedPosition = coverIsAirer
@@ -298,7 +291,6 @@ export const coverDetailsMethods = {
     };
     /**
      * 渲染位置滑条与动作按钮高亮，并把位置回调给可视化层。
-     * 位置夹到 0~100；按钮高亮依据本次运动方向而非服务器回报状态，点击后能立刻反馈。
      */
     const renderPositionState = (renderPositionValue, renderMotionState = "") => {
       sliderPosition = Math.max(0, Math.min(100, Number(renderPositionValue) || 0));
@@ -367,8 +359,6 @@ export const coverDetailsMethods = {
       const animationDurationMs = Math.max(900, Math.abs(toPosition - fromPosition) * 28);
       /**
        * 位置动画的一帧：按三次缓出曲线把滑条从起点推进到目标。
-       * 缓出曲线 1-(1-t)^3 前快后慢，更接近电机减速停止的手感；动画只驱动界面（真实位置仍以
-       * 设备回报为准），到终点后不再排下一帧。
        */
       const animatePositionStep = frameTimestampMs => {
         const animationProgress = Math.min(
@@ -425,8 +415,6 @@ export const coverDetailsMethods = {
     };
     /**
      * 应用一条窗帘实体状态：更新位置、运动态与梦幻帘开合状态。
-     * primary 表示状态来自主实体，需顺带更新内部缓存文案。晾衣机在「保持位置」窗口内忽略服务器回报的中间值， 避免位置传感器抖动让滑条来回跳；梦幻帘「已收拢」异步生效，所以点击后的目标态要一直保留到实体真正到达，
-     * 超时则放弃，避免界面永远停在乐观值上。
      */
     const applyCoverState = (coverSourceState, { primary: isPrimaryState = false } = {}) => {
       if (isPrimaryState) {

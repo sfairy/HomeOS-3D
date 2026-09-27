@@ -1,18 +1,10 @@
 /**
  * 摄像头在线状态指示点。
- *
- * 在 3D 场景的摄像头模型上叠加一个小球，依据 HA 实体状态切换颜色，用最轻量的方式表达在线 /
- * 离线。对外提供 cameraOnline、createCameraStatus。颜色取家居面板的灰蓝（离线）与绿（在线），
- * 半透明小球不参与射线拾取（raycast 置空），避免挡住模型本体的点击。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271208";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
-// 所以定位必须带上楼层，同一模型 ID 在不同楼层可以重复。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
 /**
  * 判断摄像头实体是否在线。
  */
@@ -37,7 +29,6 @@ export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = 
   // 所有状态点共用同一份几何体（半径为 1，实际大小靠 scale 控制），减少 GPU 资源。
   const dotGeometry = new THREE.SphereGeometry(1, 10, 8);
   // 以下三个缓存用于判断「场景结构或绑定关系是否变化」，
-  // 只有变化时才重建索引，避免每帧遍历整棵场景树。
   let cachedRoot;
   let cachedRevision;
   let cachedBindingsKey;
@@ -110,12 +101,10 @@ export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = 
         activeBindingIds.add(activeBinding.id);
         let trackedEntry = entriesByBindingId.get(activeBinding.id);
         if (trackedEntry?.model !== matchedModel) {
-          // 绑定的模型换了（例如模型被重建），旧状态点必须释放，否则会残留。
           if (trackedEntry) {
             disposeStatusEntry(trackedEntry);
           }
           // 0x777d84：离线灰蓝；toneMapped 关闭是为了让颜色不被色调映射改写。
-          // depthWrite 关闭：状态点是叠加指示，不希望遮挡或与本体产生深度冲突。
           const dotMaterial = new THREE.MeshBasicMaterial({
             color: 7830916,
             toneMapped: false,
@@ -125,7 +114,6 @@ export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = 
           const dotMesh = new THREE.Mesh(dotGeometry, dotMaterial);
           dotMesh.name = "camera-status-" + activeBinding.id;
           // userData 是给清理逻辑看的标记：environmentEffect 让清理把它当作
-          // 「环境效果」子对象统一摘除；后两项提示几何体与材质是共享的，不要重复销毁。
           Object.assign(dotMesh.userData, {
             environmentEffect: true,
             cameraStatus: true,
@@ -148,7 +136,6 @@ export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = 
         trackedEntry.mesh.scale.setScalar(Math.max(0.003, activeBinding.width * 0.027));
       }
       for (const [staleBindingId, staleEntry] of entriesByBindingId) {
-        // 绑定已被删除的状态点属于陈旧对象，必须回收，否则会一直挂在模型上。
         if (!activeBindingIds.has(staleBindingId)) {
           disposeStatusEntry(staleEntry);
           entriesByBindingId.delete(staleBindingId);

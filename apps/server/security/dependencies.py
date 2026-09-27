@@ -1,18 +1,4 @@
 """FastAPI 依赖：身份认证、授权门禁与中控视角的数据可见范围。
-
-三层结构，逐层收紧：
-1. 认证层 —— 解析管理员会话 Cookie 或中控设备 Cookie，得出 ViewerPrincipal；
-2. 授权层 —— 在认证之上叠加能力码门禁（api / projects.write 等）；
-3. 可见范围层 —— 中控设备只能看到自己绑定的实体与图片，由 viewer_entity_ids 收窄。
-
-**为什么放在 `security/` 而不是 `api/`**：这三层被 `api`、`modules/interaction3d`
-与 `observability` 三处共用，而它们互相之间还有反向 import（例如 `api/projects.py`
-调 3D 模块的门禁）。依赖提供者若待在 `api/`，包级依赖图上会同时与 `modules`、
-`observability` 成环；下沉到 `security/` 后三处都只是「向上依赖安全层」。
-本模块只依赖 `security` / `panel` / `core`，不反向 import 任何路由。
-
-命名约定：带 `short_lived` 的版本会在返回前把 ORM 对象 detach（expunge），让数据库连接
-尽早归还连接池；中控设备长时间挂着展示页，不这样做容易耗尽连接。
 """
 from __future__ import annotations
 
@@ -46,19 +32,11 @@ from .security import set_display_cookie
 from ..core.time_utils import ensure_aware
 
 #: 中控设备心跳的续期节流窗口（秒）：活跃到这个间隔才回写 ``last_seen_at`` 并续期 Cookie。
-#: 每次心跳都写库会把这块平板变成热点行，节流的意义就在这里。
-#:
-#: 它同时是**启动自检的依据**：令牌有效期必须大于这个窗口，否则设备会在有机会续期之前
-#: 先过期（表现是「刚配对完就回配对页」）—— 见 ``main.py`` 里对
-#: ``display_token_ttl_seconds`` 的告警。
 DISPLAY_HEARTBEAT_THROTTLE_SECONDS = 300
 
 
 def get_database_session(request: Request):
     """把应用级会话工厂转成 FastAPI 的请求级依赖。
-
-    用 yield 而不是 return：请求结束时生成器的清理逻辑会关闭会话，
-    因此每个请求拿到的是全新会话，不会跨请求串状态。
     """
     yield from request.app.state.database.sessions()
 
@@ -71,10 +49,6 @@ def _admin_session(
     request: Request, response: Response, database: DatabaseSession
 ) -> User | None:
     """解析管理员会话 Cookie，返回当前登录用户；不满足条件返回 None。
-
-    判定口径全部在 ``access.check_admin_session`` 里（含绝对寿命与归属校验），这里只负责
-    它需要的副作用：清理失效会话行、滑动续期并重写 Cookie，以及把身份写进日志上下文。
-    会话过半程后会滑动续期（更新 last_seen_at / expires_at），让长时间开着编辑器的用户不掉线。
     """
     settings = request.app.state.settings
     token = admin_token_from(request.cookies, settings)
@@ -92,7 +66,6 @@ def _admin_session(
     if user is None:
         return None
     if session.renewed:
-        # 续期回写与 Cookie 重发必须同时发生，否则浏览器侧会比服务端先过期。
         response.set_cookie(
             key=settings.cookie_name,
             value=token,
@@ -112,10 +85,6 @@ def _admin_session(
 def authenticated_user(
     request: Request, response: Response, database: DatabaseSession
 ) -> User:
-    """要求管理员已登录，否则 401。
-
-    只认管理员会话，不接受中控设备身份 —— 写操作与后台接口都走这一条。
-    """
     user = _admin_session(request, response, database)
     if user is None:
         raise HTTPException(
@@ -129,9 +98,6 @@ def authenticated_short_lived_user(
     request: Request, response: Response
 ) -> User:
     """同 authenticated_user，但返回前把用户对象从会话上摘下来。
-
-    这样 with 块结束时连接就能归还连接池，路由函数手里只剩一个
-    已加载好属性的游离对象，后续不再触发任何查询。
     """
     with request.app.state.database.session_factory() as database:
         user = authenticated_user(request, response, database)
@@ -146,13 +112,6 @@ CurrentUser = Annotated[User, Depends(authenticated_short_lived_user)]
 
 def license_restricted_detail(license_status: str, message: str) -> dict:
     """构造 LICENSE_RESTRICTED 的 403 detail —— 全仓唯一一处组装这三个字段。
-
-    前端只认 `code`，并靠 `licenseStatus` 决定要不要弹「去 /license 重新激活」的引导。
-    少一个字段不会报错，只会让那条引导永不出现：用户看到的是一句业务失败文案，然后卡在
-    死路上（`assets.py` 曾经就漏了 `licenseStatus`，是同一语义四份拷贝里唯一漏的那个）。
-
-    单独拆出这个纯函数是为了兼容异步调用点：`projects.py` 的能力码判定跑在工作线程里，
-    它自己 await 出 status 再调这里，形状仍然与同步调用点逐字相同。
     """
     return {
         "code": "LICENSE_RESTRICTED",
@@ -163,9 +122,6 @@ def license_restricted_detail(license_status: str, message: str) -> dict:
 
 def require_capability(request: Request, capability: str, message: str) -> None:
     """能力码门禁：不允许就抛 403 LICENSE_RESTRICTED。
-
-    新增带门禁的路由请走这里，不要手写 HTTPException —— 手写的那几处字段已经在漂移了
-    （有一处漏 licenseStatus，另一处文案不同导致前端判不出同一类错误）。
     """
     if not request.app.state.license_service.allows(capability):
         raise HTTPException(
@@ -177,10 +133,6 @@ def require_capability(request: Request, capability: str, message: str) -> None:
 
 
 def licensed_user(request: Request, user: CurrentUser) -> User:
-    """在已登录基础上要求授权允许 `api` 能力，否则 403。
-
-    403 的 detail 里回带当前授权状态，前端据此引导用户去 /license 处理。
-    """
     require_capability(request, "api", "当前授权状态不允许执行此操作。")
     return user
 
@@ -196,11 +148,6 @@ def _display_device(
     request: Request, response: Response, database: DatabaseSession
 ) -> DisplayDevice | None:
     """解析中控设备 Cookie，返回对应设备；未配对、已失效或已过期返回 None。
-
-    有效期是「滑动」的：每次活跃（>= ``DISPLAY_HEARTBEAT_THROTTLE_SECONDS`` 节流）就把
-    last_seen_at 推到当前时间，按 last_seen_at + display_token_ttl_seconds 判定 ——
-    长期不用的平板与只在攻击者手里的令牌会自己过期，正常挂机的墙面平板只要还在轮询就一直有效；
-    另有一个可选的硬上限（默认关闭）。
     """
     settings = request.app.state.settings
     token = display_token_from(request.cookies, settings)
@@ -232,13 +179,6 @@ def _display_device(
 def authenticated_viewer(
     request: Request, response: Response, database: DatabaseSession
 ) -> ViewerPrincipal:
-    """要求「管理员已登录」或「已配对的中控设备」，否则 401。
-
-    优先级：管理员会话优先 —— 管理员在已配对的平板上打开页面时看到的仍是完整权限，
-    而不是被降级成单项目视角。
-    与页面路由、实时连接共用 access.resolve_principal 这一个入口，避免某处漏查绝对寿命
-    与中控令牌有效期。
-    """
     user = _admin_session(request, response, database)
     if user is not None:
         return ViewerPrincipal(user=user)
@@ -256,8 +196,6 @@ def authenticated_short_lived_viewer(
     request: Request, response: Response
 ) -> ViewerPrincipal:
     """同上，但返回前把身份对象 detach，尽早释放数据库连接。
-
-    展示页会长期挂着 WebSocket 与轮询请求，连接不及时归还很快就把池占满。
     """
     with request.app.state.database.session_factory() as database:
         viewer = authenticated_viewer(request, response, database)
@@ -273,10 +211,6 @@ CurrentViewer = Annotated[ViewerPrincipal, Depends(authenticated_short_lived_vie
 
 
 def licensed_viewer(request: Request, viewer: CurrentViewer) -> ViewerPrincipal:
-    """在已认证基础上要求授权允许 `api` 能力，否则 403。
-
-    与 licensed_user 的区别只在主体类型，门禁口径完全一致（同一个 require_capability）。
-    """
     require_capability(request, "api", "当前授权状态不允许执行此操作。")
     return viewer
 
@@ -286,10 +220,6 @@ LicensedViewer = Annotated[ViewerPrincipal, Depends(licensed_viewer)]
 
 
 def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
-    """确认当前主体有权访问指定项目，否则 403。
-
-    管理员会话的 project_id 为 None，视为不受限直接放行；中控设备只能访问自己绑定的项目。
-    """
     if viewer.project_id is not None and viewer.project_id != project_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -300,10 +230,6 @@ def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
 
 def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dict:
     """取出中控设备所绑定项目的仪表盘文档。
-
-    任何一环缺失（无绑定项目、无草稿、JSON 损坏）都返回空字典，让上层退化成「看不到任何
-    实体」，而不是把异常抛给展示页。弹窗按 referenced_only=True 水合，不把库里全部弹窗
-    塞进这份文档。
     """
     if viewer.project_id is None:
         return {}
@@ -319,9 +245,6 @@ def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dic
 
 def _document_bound_values(value, suffix: str) -> set[str]:
     """收集文档里所有以指定后缀结尾的键对应的字符串值。
-
-    键名比较大小写不敏感（assetId / AssetId 都算），用于按名字约定捞出引用的资源，
-    不依赖文档结构版本。
     """
     result = set()
     if isinstance(value, dict):
@@ -342,18 +265,12 @@ def viewer_entity_ids(
     database: DatabaseSession, viewer: ViewerPrincipal
 ) -> set[str] | None:
     """算出当前主体可见的实体集合；返回 None 表示不受限（管理员会话）。
-
-    三步收窄：1) 文档里显式绑定的实体；2) 按「同设备」放开同一物理设备的从属实体
-    （如空调所属设备上的指示灯、热水器的按钮与数值）；3) 小米平台再放开同设备同平台的可用实体。
-    第 2、3 步是必要的：HA 里一个物理设备会拆成多个域上的实体，只放开显式绑定的那些，
-    中控面板上的子功能会全部点不动。
     """
     if viewer.project_id is None:
         return None
     allowed = document_entity_ids(_display_document(database, viewer))
     if not allowed:
         return allowed
-    # 只认当前活跃的 HA 连接，避免旧连接的实体污染可见范围。
     active_connection_id = database.scalar(
         select(HAConnection.id).where(HAConnection.is_active.is_(True))
     )
@@ -367,7 +284,6 @@ def viewer_entity_ids(
     ).all()
     sources_by_device = {}
     # 按 (连接, 设备) 归类「已被显式绑定」的实体，
-    # 后面要按设备去找同设备的其它实体，先建好索引避免每次重查。
     for item in bound_sources:
         if not item.device_id:
             continue
@@ -405,7 +321,6 @@ def viewer_entity_ids(
                 continue
             candidate_domain = candidate.domain
             # identity 把候选实体的所有可读名字折成一个小写串，后面用关键词匹配判断
-            # 「这个实体是不是那个物理设备的某个部件」—— 同一部件的命名在集成之间并不统一。
             identity = " ".join(
                 filter(
                     None,
@@ -419,11 +334,9 @@ def viewer_entity_ids(
                 )
             ).casefold()
             # 判断候选实体是否属于「同一物」：满足下面任一条规则即自动放行。
-            # sources 是该设备上已被显式绑定的实体，规则都以它们为参照。
             automatic = any(
                 (
                     # 小米集成会把一个设备的实体分到不同 platform 名下，
-                    # 其它集成没有这个情况，因此非小米的只要求平台一致。
                     source.platform not in {"xiaomi_home", "xiaomi_miot"}
                     or candidate.platform == source.platform
                 )
@@ -451,7 +364,6 @@ def viewer_entity_ids(
                         )
                     )
                     # 人体传感器：event 域本体是"有人移动"，
-                    # 配套的 sensor 才是"无人移动"，两个都要放行。
                     or source.domain == "event"
                     and candidate_domain == "sensor"
                     and (
@@ -468,7 +380,6 @@ def viewer_entity_ids(
                         or "电机反向" in identity
                     )
                     # 晾衣机：本体是 cover，它的照明是 light，
-                    # 名字里带 airer / 晾衣机 / 晾衣架 才算同一物。
                     or source.domain == "cover"
                     and candidate_domain in {"light", "switch"}
                     and any(
@@ -558,7 +469,6 @@ def viewer_entity_ids(
                 continue
             allowed.add(candidate.entity_id)
     # 小米平台额外一层：同一设备同一平台下的实体关联是可靠的，
-    # 因此按 (设备, 平台) 再放开一批可控域，覆盖名字里猜不出来的部件。
     xiaomi_sources = database.scalars(
         select(HAEntity).where(
             HAEntity.connection_id == active_connection_id,
@@ -567,7 +477,6 @@ def viewer_entity_ids(
             HAEntity.device_id.is_not(None),
         )
     ).all()
-    # 去重出 (设备, 平台) 组合，一个设备一块条件，避免条件数随实体数膨胀。
     xiaomi_pairs = {
         (item.device_id, item.platform)
         for item in xiaomi_sources
@@ -613,10 +522,6 @@ def viewer_entity_ids(
 def require_viewer_entity(
     database: DatabaseSession, viewer: ViewerPrincipal, entity_id: str
 ) -> None:
-    """确认该实体在主体的可见范围内，否则 403。
-
-    可见范围为 None（管理员会话）时直接放行。
-    """
     allowed = viewer_entity_ids(database, viewer)
     if allowed is not None and entity_id not in allowed:
         raise HTTPException(
@@ -630,9 +535,6 @@ def viewer_user_asset_ids(
     database: DatabaseSession, viewer: ViewerPrincipal
 ) -> set[str] | None:
     """当前主体可见的用户上传图片 ID 集合；None 表示不受限。
-
-    只收 `user:` 前缀的资源 ID —— 内置素材（builtin:）另有资产目录统一把关，
-    这里只解决"某块屏不该看到别的屏的图片"。
     """
     if viewer.project_id is None:
         return None
@@ -649,15 +551,9 @@ def viewer_studio3d_asset_ids(
     database: DatabaseSession, viewer: ViewerPrincipal
 ) -> set[str] | None:
     """当前主体可见的 3D 工作室导出资源 ID 集合；None 表示不受限。
-
-    同一份文档里 `studio3d:<导出目录>/<文件名>` 形式的引用（assetId / effectAssetId 都算）。
-    3D 导出目录按项目生成，但接口只按「目录名 + 文件名」取文件，不做归属校验的话，任何一台
-    中控设备都能遍历出别的项目的户型图（跨项目 IDOR）；按文件而不是按目录放开，避免把中间
-    产物与整包 zip 一起暴露。
     """
     if viewer.project_id is None:
         return None
-    # 键名后缀匹配是大小写不敏感的（assetId / AssetId / effectAssetId 全部命中），一次扫描就够。
     return {
         item
         for item in _document_bound_values(_display_document(database, viewer), "assetId")
@@ -668,11 +564,6 @@ def viewer_studio3d_asset_ids(
 def require_viewer_studio3d_asset(
     database: DatabaseSession, viewer: ViewerPrincipal, asset_id: str
 ) -> None:
-    """确认该 3D 导出资源被当前主体的仪表盘引用，否则 403。
-
-    asset_id 形如 `studio3d:<导出目录>/<文件名>`；对不上就拒绝，
-    文案与用户图片那条保持一致口径（不区分「不存在」与「无权访问」的细节）。
-    """
     allowed = viewer_studio3d_asset_ids(database, viewer)
     if allowed is not None and asset_id not in allowed:
         raise HTTPException(
@@ -685,7 +576,6 @@ def require_viewer_studio3d_asset(
 def require_viewer_user_asset(
     database: DatabaseSession, viewer: ViewerPrincipal, asset_id: str
 ) -> None:
-    """确认该用户图片被当前主体的仪表盘引用，否则 403。"""
     allowed = viewer_user_asset_ids(database, viewer)
     if allowed is not None and asset_id not in allowed:
         raise HTTPException(

@@ -2,24 +2,22 @@
  * 设备控件区块：扫地机详情（地图、清洁模式、耗材与交互式 3D 地图入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271208";
-import { vacuumMapImageSource } from "../../registry.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271208";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271226";
+import { vacuumMapImageSource } from "../../registry.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271226";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../../../controls/vacuum-runtime.js?v=2609271208";
-import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609271208";
-import { componentDialogTitle } from "../primitives.js?v=2609271208";
+} from "../../../controls/vacuum-runtime.js?v=2609271226";
+import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609271226";
+import { componentDialogTitle } from "../primitives.js?v=2609271226";
 
 export const vacuumDetailsMethods = {
   /**
    * 打开扫地机详情弹窗（地图、清扫控制、耗材与电量）。
-   *
-   * @throws {Error} 组件没有绑定实体。
    */
   showVacuumDetails(
     vacuumControlComponent,
@@ -124,9 +122,6 @@ export const vacuumDetailsMethods = {
     const vacuumAreaValue = createVacuumStat("本次面积", "◇");
     const vacuumDurationValue = createVacuumStat("清扫时长", "◷");
     // 机器图形两处都画，只是排法不同：2D 详情弹窗里它与统计并排（左机器、右读数），
-    // 3D 面板里它单独占一行、压在统计之上 —— 与冰箱 / 冰柜 / NAS 那批
-    // 「标题 + 状态 → 机器 → 卡片」的节奏对齐。3D 下的去卡片化与尺寸在
-    // renderer.css 的 .i3d-vacuum-details 段里覆盖（2D 那一套 260px 台面不动）。
     vacuumOverviewElement.append(vacuumVisualElement, vacuumStatsElement);
     const vacuumControlsElement = document.createElement("section");
     vacuumControlsElement.className = "hb-vacuum-details-controls";
@@ -192,8 +187,6 @@ export const vacuumDetailsMethods = {
     vacuumControlsElement.append(vacuumActionsElement);
     /**
      * 把设备返回的取值规范化成查表用的键。
-     * 各固件写法差异很大（Sweeping / sweeping / sweeping-and-mopping），统一转小写、
-     * 非字母数字换下划线并去首尾下划线，才能命中中文标签表。
      */
     const normalizeVacuumOptionKey = optionRawValue =>
       String(optionRawValue || "")
@@ -217,8 +210,6 @@ export const vacuumDetailsMethods = {
     const vacuumOptionGroups = [];
     /**
      * 创建一个扫地机可选值分组（清洁模式 / 风速档 …）。
-     * 选中行为由调用方通过 onSelect 处理，这里只管渲染、选中态与禁用逻辑；选项为空返回 null
-     * 避免渲染空分组；分组登记进 vacuumOptionGroups，便于状态推送时统一调用各自的 sync。
      */
     const createVacuumOptionGroup = ({
       label: groupLabel,
@@ -257,8 +248,6 @@ export const vacuumDetailsMethods = {
       });
       /**
        * 按当前取值高亮对应的选项按钮。
-       *
-       * 比较前先规范化键，避免设备大小写、连字符的写法差异导致选中态丢失。
        */
       const syncOptionGroup = selectedOption => {
         const selectedOptionKey = normalizeVacuumOptionKey(selectedOption);
@@ -307,8 +296,6 @@ export const vacuumDetailsMethods = {
     let cleaningModeGroup = null;
     /**
      * 记录清洁模式实体的最新状态，并同步清洁模式分组的选中态。
-     * 分组可能还没创建（属性未到位时 cleaningModeGroup 为 null），此时只更新缓存，
-     * 待重建分组时用 currentOption 兜底显示。
      */
     const applyCleaningModeState = nextCleaningModeState => {
       if (nextCleaningModeState) {
@@ -319,8 +306,6 @@ export const vacuumDetailsMethods = {
     let isVacuumActionPending = false;
     /**
      * 切换扫地机弹窗的「动作进行中」态：整块标记 pending 并禁用所有动作 / 选项按钮。
-     * 服务是异步的，期间仍可点击会让多条指令交叉下发；标记 dataset.unsupported 的按钮
-     * （设备不支持的动作）始终保持禁用。
      */
     const setVacuumActionPending = isPending => {
       isVacuumActionPending = isPending;
@@ -334,8 +319,6 @@ export const vacuumDetailsMethods = {
     };
     /**
      * 统一调用扫地机相关服务，并集中处理乐观更新、回滚与错误上报。
-     * 调用前两道守卫：预览态或已有动作在途时直接返回 false，丢弃并发指令。传入 optimisticVacuumState 就先 乐观渲染、失败再回滚 —— 回滚目标由 rollbackStateHandler / rollbackState 指定，因为不同调用点要回滚的
-     * 对象不同（主状态、或某个分组的选中态）。
      */
     const invokeVacuumService = async (
       vacuumServiceDomain,
@@ -468,8 +451,6 @@ export const vacuumDetailsMethods = {
     vacuumDialogElement.append(vacuumCardElement);
     /**
      * 把扫地机状态翻译成中文状态文案。
-     * 判定有优先级：清洗拖布 / 烘干 / 排水 / 回充 / 建图等子动作属性先判 —— 它们与主状态
-     * 并行，只看 state 会把「正在洗拖布」显示成「正在清扫」；再看 vacuum_state，最后回退 state 原文。
      */
     const vacuumStatusText = vacuumStatusState => {
       const vacuumStatusAttributes = vacuumStatusState?.attributes || {};
@@ -517,15 +498,12 @@ export const vacuumDetailsMethods = {
     };
     /**
      * 把统计数值格式化成可显示的数字；不是有限数时返回占位文本。
-     *
      * @param {string} [fallbackText="--"] 数值不可用时的占位文本。
      */
     const formatVacuumNumber = (numericMetric, fallbackText = "--") =>
       Number.isFinite(Number(numericMetric)) ? Number(numericMetric) : fallbackText;
     /**
      * 判断扫地机是否处于「工作中」，用于驱动动画与按钮高亮。
-     * 只看 state 不够：洗拖布、烘干、建图等子动作期间 state 可能仍是 docked，还要一并检查
-     * running / returning / washing / drying / mapping 属性位。
      */
     const isVacuumBusy = busyState => {
       const busyAttributes = busyState?.attributes || {};
@@ -540,8 +518,6 @@ export const vacuumDetailsMethods = {
     };
     /**
      * 渲染扫地机电量文本。
-     * 电量可能来自设备自身属性，也可能来自独立电池 sensor，两种来源由
-     * vacuumBatteryPercent 统一取值；取不到时显示 "--"。
      */
     const renderVacuumBattery = () => {
       const batteryPercent = vacuumBatteryPercent(vacuumState, vacuumBatteryCurrentState);
@@ -557,8 +533,6 @@ export const vacuumDetailsMethods = {
     };
     /**
      * 按扫地机最新状态刷新详情弹窗的全部视觉与按钮态：状态文案、工作中 / 暂停 / 回充 / 扫地 / 拖地等视觉态、
-     * 电量、本次面积与时长、动作按钮的显隐与高亮（按 supported_features 决定可见性）、清洁模式与风速分组的 选中态，以及错误 / 缺水的告警条。
-     * 动作按钮按三列排布，末行的 2 个或 1 个按钮要单独补 is-last-row-pair / is-last-row-single，否则会因网格均分而偏左。
      */
     function renderVacuumState(nextVacuumState) {
       if (!nextVacuumState) {
@@ -791,8 +765,6 @@ export const vacuumDetailsMethods = {
       );
       /**
        * 按 3D 舞台的实际尺寸重算扫地机弹窗的位置、缩放与最大高度。
-       * 舞台可能被外部容器整体缩放（presentation 尺寸 ≠ 实际 client 尺寸），故把
-       * popupPlacement 算出的比例分别乘宽 / 高缩放因子；最大高度按剩余空间反算以免底部被裁。
        */
       const layoutVacuumDialog = () => {
         const layoutRootElement = interaction3dOptions.root || this.container;
@@ -836,8 +808,6 @@ export const vacuumDetailsMethods = {
       };
       vacuumDialogElement.resizeInteraction3d = layoutVacuumDialog;
       // 观察器回调只排程：布局函数会把尺寸写回被观察的元素本身，投递过程中再触发会报
-      // 「ResizeObserver loop completed with undelivered notifications」，推迟一帧即可避开。
-      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接用。
       const scheduleVacuumDialogLayout = () => {
         if (vacuumLayoutFrameId) {
           return;
@@ -892,8 +862,6 @@ export const vacuumDetailsMethods = {
   },
   /**
    * 从 3D 舞台打开扫地机详情。
-   * 弹窗的呈现尺寸由舞台侧提供的布局回调决定（舞台可能整体缩放或倾斜），
-   * 因此几何参数全部由调用方注入，这里不自行计算。
    */
   openInteraction3dVacuumDetails(
     vacuumComponentConfig,
@@ -915,7 +883,6 @@ export const vacuumDetailsMethods = {
     let vacuumOptionsSignature = "";
     /**
      * 计算扫地机「可选值集合」的签名，用于判断详情弹窗是否需要重建。
-     * 风速档、吸力档、清洁模式、options 这些可选值只存在于实体属性里，设备刚上线时往往为空，等属性补齐后必须 重建弹窗才会出现对应控件；把这几组列表序列化成字符串整体比较，比逐个字段比对更省事也不易漏字段。
      * @returns {string} 当前可选值集合的签名。
      */
     const computeVacuumOptionsSignature = () =>
@@ -937,8 +904,6 @@ export const vacuumDetailsMethods = {
       );
     /**
      * 写入扫地机相关实体的状态，并把状态分发给弹窗内的各个控件。
-     * 弹窗打开时逐个实体调用已注册的状态回调（detailsStateSync.handlers）；之后若可选值
-     * 签名变化（设备刚上线、属性补齐）则整个弹窗重建；无状态的实体写成 unavailable 快照。
      */
     const applyVacuumStates = vacuumStates => {
       for (const vacuumEntityKey of vacuumEntityIds) {
@@ -962,8 +927,6 @@ export const vacuumDetailsMethods = {
     applyVacuumStates(initialStates);
     /**
      * 在组件树里递归查找绑定到当前扫地机实体的 vacuum-control 组件。
-     * 组件可能藏在任意层级的 children 里，因此深度优先遍历；找不到返回 null，
-     * 此时「已选关联实体」按空列表处理。
      */
     const findVacuumControlComponent = componentList => {
       for (const componentEntry of componentList || []) {
@@ -1007,8 +970,6 @@ export const vacuumDetailsMethods = {
     };
     /**
      * 打开（或重建）扫地机详情的 3D 交互弹窗，并刷新可选值签名。
-     * 重建前先摘掉旧的 close 监听：重建会换成新的 dialog 实例，不摘会残留对已销毁弹窗的引用；
-     * 重建的目的就是让新出现的可选值控件生效。
      */
     const showVacuumDialog = () => {
       vacuumDialog?.removeEventListener("close", onDialogClose);
@@ -1041,8 +1002,6 @@ export const vacuumDetailsMethods = {
   },
   /**
    * 刷新扫地机地图图层（地图是 image 实体，地址随每次清扫变化）。
-   *
-   * liveMedia 为 false 时直接跳过：静态截图模式不跟地图，反复拉大图只会浪费带宽。
    */
   refreshVacuumMapEntity(vacuumEntityIdInput) {
     if (

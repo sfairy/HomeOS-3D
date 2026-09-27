@@ -1,38 +1,33 @@
 <!doctype html>
 <!--
   3D 户型工作室（/3d-studio）：导入底图 → 标定 → 描绘户型 → 摆物件 → 布灯 → 导图。
-  授权：需登录且允许 editor，否则后端 303 去 /login 或 /license；未初始化先去 /setup。
-  入口脚本 studio-app.js（module，唯一编排层），与 studio.css 共用同一条 `?v=`（否则同时加载新旧两份模块、出现两套单例状态）。
-  CSP 为 style-src 'self'：本页无内联样式/脚本，全部行为由 studio-app.js 经 id / data-* 接管。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609271208"></script>
+    <script src="/static/logging/client-log.js?v=2609271226"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271208" type="image/svg+xml" />
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271226" type="image/svg+xml" />
     <!-- 全站调色板（design/scene/page.css 的分发产物）。studio.css 的 :root 只是把它
-         别名成 --bg / --accent / --guide 这些历史令牌名；画布色值由 studio-app.js 的
          paletteColor() 从计算样式里读同一批变量。必须在 studio.css 之前加载。 -->
     <link
       rel="stylesheet"
-      href="/static/auth/scene/page.css?v=2609271208"
+      href="/static/auth/scene/page.css?v=2609271226"
     />
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio/studio.css?v=2609271208"
+      href="/static/3d-studio/studio/studio.css?v=2609271226"
     />
     <!-- 布局交互层（折叠把手条 / 分隔条）的共享样式，两页共用。
          必须排在 studio.css 之后：它要用同一特异性覆盖面板内边距与网格轨道。 -->
     <link
       rel="stylesheet"
-      href="/static/shared/layout.css?v=2609271208"
+      href="/static/shared/layout.css?v=2609271226"
     />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271208` 的 <link>。
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271226` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -40,7 +35,7 @@
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609271208" alt="HomeOS" />
+        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609271226" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -78,8 +73,6 @@
     <main class="studio-shell">
       <!-- ===== 左侧素材库面板 ===== -->
       <aside class="library-panel panel-surface">
-        <!-- 折叠把手条：折叠后它是本面板上唯一残留的控件，所以必须排在面板内部（layout.css 靠
-             [data-collapsed] 藏掉其余子元素）。aria-expanded / aria-label 由 layout-shell.js 维护。 -->
         <button
           class="layout-collapse-rail"
           type="button"
@@ -159,14 +152,11 @@
               <h2>家居、电器与灯光</h2>
             </div>
           </div>
-          <!-- 分类页签靠 data-asset-category 与 #asset-grid 里的 data-asset-subcategory 配对过滤：
-               家居 / 电器两组常驻，灯光组只有存在灯具模板时才显示。 -->
           <div class="asset-category-tabs" role="group" aria-label="模型分类">
             <button class="active" type="button" data-asset-category="home" aria-pressed="true">家居</button
             ><button type="button" data-asset-category="appliance" aria-pressed="false">电器</button
             ><button type="button" data-asset-category="light" aria-pressed="false">灯光</button>
           </div>
-          <!-- 灯具模板整排默认 hidden：只有灯光分类被选中时才由脚本放出来，避免三栏并排时抢占首屏。 -->
           <div id="light-asset-row" class="light-asset-row" aria-label="灯具模板" hidden>
             <button
               class="asset-card light-asset-card"
@@ -210,10 +200,6 @@
             <div id="light-group-list" class="light-group-list"></div>
           </section>
           <!-- 素材网格：卡片由 studio-asset-palette.js 的数据表渲染 —— 一百多张卡片的标记逐字相同，
-               原样写在这里就是数百行同构标记。渲染发生在 studio-app.js 建 DOM 缓存之前
-               （它用 [data-item-type] 一次性抓走全部卡片再绑事件，晚了卡片就点不动）。
-               硬约束：data-item-type 是脚本查表键、data-asset-subcategory 决定分组显隐，
-               data-asset-heading-category 与顶部页签的 data-asset-category 一一对应（home / appliance）；
                卡片 <small> 里的尺寸是模型真实占地（米），与实际不符会让用户误判可摆放空间。 -->
           <div id="asset-grid" class="asset-grid" aria-label="家居与电器模型库"></div>
         </section>
@@ -232,8 +218,6 @@
       <!-- ===== 中间绘图台 ===== -->
       <section class="plan-panel panel-surface">
         <div class="plan-toolbar">
-          <!-- data-tool 是工具注册表的键（select / pan / scale / wall / window / door / railing /
-               label / flooropening），studio-app.js 按它切换指针行为与 canvas 光标；新增工具必须在脚本里同步注册。 -->
           <div class="tool-group" role="toolbar" aria-label="绘图工具">
             <button class="tool-button active" type="button" data-tool="select" title="选择与移动">
               <i>⌁</i><span>选择</span>
@@ -446,7 +430,6 @@
                   aria-label="全楼总览视角"
                   hidden
                 >
-                  <!-- 与「保存视角」同理：没有存过机位时「恢复」保持禁用，避免恢复到一个凭空的默认角度。 -->
                   <button id="save-overview-view" type="button" title="保存当前全楼角度和投影方式">保存总览</button>
                   <button id="fixed-overview-view" type="button" title="恢复上次保存的全楼视角" disabled="disabled">
                     恢复总览
@@ -468,7 +451,6 @@
                     <button class="active" type="button" data-camera-mode="orthographic">正交</button
                     ><button type="button" data-camera-mode="perspective">透视</button>
                   </div>
-                  <!-- 焦段只在透视模式下有意义，正交模式下脚本会把它置灰。 -->
                   <label class="camera-focal-control" title="仅在透视模式下生效"
                     ><span>焦段</span
                     ><input
@@ -495,7 +477,6 @@
                preview-3d 同时是 three.js 的挂载点，webgl-message / model-loading-status 都盖在它上面。 -->
           <div id="preview-3d" class="preview-3d" data-style="night">
             <!-- 进阶设置面板默认 hidden，由「进阶设置」按钮开合；
-                 data-base-light-control 的取值与渲染缓存描述符里的灯光参数同名，
                  改这里必须同步改 studio-app.js 的默认值与缓存键，否则缓存会串味。 -->
             <div id="base-light-controls" class="base-light-controls" hidden>
               <div class="base-light-controls-header">
@@ -678,7 +659,6 @@
             ><canvas id="preview-render-shield" class="preview-render-shield" hidden></canvas>
             <!-- WebGL 创建失败时的兜底文案：只有真的起不来场景才显示，正常路径一直 hidden。 -->
             <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面。</div>
-            <!-- 模型懒加载状态条：首次构建或切换楼层拉模型时才出现，避免用户以为页面卡死。 -->
             <div id="model-loading-status" class="model-loading-status" role="status" aria-live="polite" hidden>
               <span class="model-loading-spinner" aria-hidden="true"></span><span>正在加载模型…</span>
             </div>
@@ -686,8 +666,6 @@
         </section>
         <div class="details-divider">
           <!-- role="separator" + 拖动：把画布宽度和 3D 预览高度的分配权交给用户。
-               交互（指针捕获 / 双轴换算 / 方向键 / 双击复位）由 shared/layout-shell.js 统一接管，
-               写的是 studio.css 里的 --details-panel-width 与 --preview-panel-height；
                这两个值存 localStorage，不进文档。 -->
           <button
             id="details-resizer"
@@ -813,7 +791,6 @@
                 </select></label
               >
               <!-- 门材质：紧跟在门型下面 —— 选完是哪一扇门，下一个问题就是「什么料做」。
-                   档位随门型变化（玻璃门多两档玻璃，实心门没有），因此 <option> 不写死在标记里，
                    由 studio-app.js 在填充检查器时按门型重建。 -->
               <label class="door-type-field"
                 >门材质<select id="door-material"></select></label
@@ -836,7 +813,6 @@
                 ><label>墙上位置<input id="railing-position" readonly="readonly" /></label>
               </div>
             </div>
-            <!-- ===== 物件属性：下面那些专属字段块都默认 hidden，脚本按 data-item-type 只显示匹配的一块 ===== -->
             <div id="item-fields" class="field-section" hidden>
               <div id="label-text-fields" class="label-text-fields" hidden>
                 <label>中文标题<input id="label-title" maxlength="24" autocomplete="off" /></label
@@ -900,7 +876,6 @@
                 >
               </fieldset>
               <!-- 窗帘形态：普通窗帘（轨道帘，默认）与卷帘。卷帘没有轨道、没有左右两片、没有褶皱，
-                   选中后轨道形状 / 转角 / 左右长度 / 合拢位置 / 帘布类型全部隐藏，只保留预览开合。
                    字段名与取值照搬上游 0.6.5：`curtainForm` 的 `standard` / `roller`。 -->
               <div id="curtain-track-fields" hidden>
                 <label class="door-type-field"
@@ -1104,11 +1079,7 @@
         </section>
       </aside>
     </main>
-    <!-- ===== 对话框集合：统一用原生 <dialog>，关闭依赖 form method="dialog" 的浏览器内建行为，
-         因此这里不需要（也不应该）自己写 display 显隐逻辑，showModal / close 由脚本调用。 ===== -->
     <!-- ===== 小对话框：比例尺 / 重命名 / 删除 / 批量应用 / 导出提示 =====
-              都用 <form method="dialog">（原生提交即关闭），分支靠按钮 id 或 value 区分。
-              样式基类 .scale-dialog，按语义叠加 .light-group-rename-dialog 或 .floor-delete-dialog —— 两者只决定配色与宽度，可跨语义复用。
               文案里可变的部分（名称、路径、计数）留成带 id 的空元素，打开前由脚本填充。 -->
 
     <!-- 参考线比例尺：填这段参考线的真实米数，与只读的像素长度相除得到 pixelsPerMeter，
@@ -1251,8 +1222,6 @@
     <!-- 保存冲突：PUT /api/v1/studio3d 返回 409（revision 与服务器不一致）时弹出。
          这里刻意不给「自动合并」选项 —— 两个页面都在改同一份户型，静默合并必然覆盖掉一方的改动。 -->
     <!-- 保存冲突（revision 不一致）：另一处已改过户型，只给两条明确的出路 ——
-         加载服务器版本（丢弃本地）或用当前页面覆盖（丢弃远端），不做自动合并。
-         第三条「稍后处理」是唯一的非破坏性出口：内容一点不丢，冲突记录留着，
          本地编辑继续跑（会撞 409），状态栏与顶栏「处理保存冲突」按钮一直挂着提醒。 -->
     <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
       <form method="dialog">
@@ -1269,11 +1238,6 @@
       </form>
     </dialog>
     <!-- 本次删除影响：保存时发现被删的模型仍被 3D 控件绑定引用，服务端会要求先确认。
-         编辑器先用 PUT /studio3d?dryRun=1 预检（服务端只算不写、回 200）拿到确认令牌与影响
-         清单，把确认框提前弹出来，因此正常删除路径不会再先去撞一次 428（428 仍保留为兜底：
-         预检漏判、或确认期间关联仪表盘又变了时会走到它）。只有用户明确「确认删除并保存」，
-         才会带着令牌、连同当时的 revision 与场景快照重发，服务端据此同步清理那些绑定。
-         「保留模型」是唯一不丢东西的出口：撤销这次删除把模型放回原位，绑定随即重新成立、
          保存自然通过；也可从顶栏「处理删除影响」入口回来确认删除。 -->
     <dialog id="save-interaction-dialog" class="scale-dialog export-notice-dialog save-interaction-dialog">
       <form method="dialog">
@@ -1352,7 +1316,6 @@
         </div>
       </form>
     </dialog>
-    <!-- 导图保存完成：显示保存路径；标题与正文都用 id，因为同一对话框也用于「部分成功」等结果。 -->
     <dialog id="export-complete-dialog" class="scale-dialog export-notice-dialog export-complete-dialog">
       <form method="dialog">
         <button id="export-complete-close" class="dialog-close" type="button" aria-label="关闭导图完成提示">×</button>
@@ -1523,7 +1486,6 @@
                 ><small>透明背景户型、铭牌与描边</small>
               </li>
               <!-- 「单独导出文件」的动态分组（电视画面层 / 充电层 / 每组灯效层）。
-                   它是一个 li：(ul 的直接子元素只允许 li，原来是 div) 而内层仍是同一个 div，
                    所以外层网格看到的依然只有「一整块」，行距与改前逐像素一致。 -->
               <li class="export-file-group-host"><div id="export-group-files"></div></li>
               <li>
@@ -1582,17 +1544,13 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
-    <!-- 入口脚本：本页两个 module，顺序有意义 —— stage-startup.js 先执行，把「读场景持久缓存 /
-         提前发场景接口 / 提前下 stage 模块」这三件事发出去（只在舞台页生效：它按路径判断，编辑器页
-         整体返回 null），studio-app.js 随后直接收下这三样。三条 src 与 studio.css 必须共用同一条
-         ?v=2609271208 -->
     <script
       type="module"
-      src="/static/3d-studio/stage-startup.js?v=2609271208"
+      src="/static/3d-studio/stage-startup.js?v=2609271226"
     ></script>
     <script
       type="module"
-      src="/static/3d-studio/studio/studio-app.js?v=2609271208"
+      src="/static/3d-studio/studio/studio-app.js?v=2609271226"
     ></script>
   </body>
 </html>

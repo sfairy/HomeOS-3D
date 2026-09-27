@@ -1,108 +1,5 @@
 /**
  * 「不报错、只静默失效」的不变量守卫（逐条清单见文件末尾的 `checks` 数组）。
- *
- * 为什么只留这一类：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
- * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面这些对应的失效方式恰好相反 ——
- * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类。
- *
- * 本条目的展开范围是 1–9（结构类）；10 起是后续按同一取舍补进的 —— 10–15 配色类（含 theme-color /
- * webmanifest 的写死色值）、16–28 是清单与产物一致性类（模型注册表两端、流水线 GLB 与规格自洽、
- * 环境模型类型七处、材质风格档位覆盖、「档位即组合」的角色覆盖、素材库页签与类型词表两端、
- * 默认档位的角色出口、平面符号该不该画圆、命令闸门与状态订阅两端口径、环境页面归一表
- * （pageDimming 的模块→页面别名）、doorModels 的楼层入参、卷帘契约的五处出口）、
- * 之后按补入顺序分别是：引用了本文件解析不出绑定的名字（真语法树 + 作用域链，见第 9 条尾部）、
- * 净化器模型类型三处白名单同源（净化器与新风机在三处消费者之间的口径）、窗帘面板的返回键集合
- * （0.6.5 的 deactivate，漏了会让帘组面板退化成 ?.() 兜底）、扫地机状态别名与文案同源（别名漏登
- * 即静默显示成「状态更新中」）、吊柜挂高的三处同源（规格 mountHeight / 占位几何 / 类型定义里不能
- * 再有 elevation —— 2026-09 的「同一个草稿放到原版里，吊柜高出一个挂高」就是这么来的）、
- * 聚焦可用设备清单与上游同集合、授权状态文案三处同源、前端可派发的 HA 服务必须登记进后端
- * ALLOWED_SERVICES（按钮可点、命令必被拒）。
- *
- * 本文件有意不再写「共 N 条」：序号与总数在历次补条后已经对不上（README 同一处曾同时出现
- * 32 / 33 / 34 三个说法），而 README 早就定了「引用一律用条目名而不是序号」的口径 —— 这里照办。
- * 这些条目的踩坑背景写在各自 `checks` 条目的 title 与代码注释里。
- *
- * 三段共用同一条底线：**判不出真假就不判** —— 宁可漏报，也不让这里退化成
- * 「把误报一条条塞进去」的垃圾桶。下面 1–9 逐条如下：
- *
- *   1. `frontend/modules/runtime/**` 里出现裸 `/static/...` 静态 import。
- *      运行侧（舞台页以 `file:` 打开）解析不了绝对路径，表现为**整个模块树加载失败**，
- *      而报错信息只指向导入方。static-helpers.js 的桥就是为绕开这一点存在的，
- *      可 `stage.js` 自己在写下「禁止裸 import」的注释后，隔一行就写了一条裸 import。
- *   2. 入口 JS 里 `selectElement("#x")` / `getElementById("x")` 指向的 id 在 HTML 中不存在。
- *      取到 `null` 之后，`if (el)` 分支静默跳过、`el?.addEventListener` 静默不挂载，
- *      表现是「按钮点了没反应」，且整条链路无任何报错。`#refresh-light-preview` 就是这么丢的。
- *   3. 全站静态资源缓存戳出现第二个值，或同一模块被「带戳 / 不带戳」两种写法引用。
- *      无打包器，`?v=` 是唯一的缓存失效手段；同模块一处带戳一处不带会被当成两个模块、
- *      各留一份模块级状态（两份控件注册表就是这么来的）。后半句比前半句更隐蔽：`?v=` 的
- *      **值**是唯一的、前半句校验通过，漏掉的只是其中一处没写戳 —— 模块表以含查询串的 URL
- *      为键，`./host.js` 与 `./host.js?v=…` 就是两份实例。商店后台真踩过：`admin/app.js`
- *      漏写戳，装配好的 84 个 `host.xxx()` 回调全落在面板看不见的那份对象上。
- *   4. 后端包之间出现新的环（`apps/server/api → apps/server/modules → apps/server/api` 这类）。
- *      Python 的包级环通常**不报错**：谁先被导入、环上那个名字此刻是不是已初始化，全看
- *      启动顺序，改一圈 import 就可能在某个部署路径下变成 `AttributeError`/空模块。
- *      上一轮把 `core` 的双向依赖（`core.schemas → panel.documents`、`core.schemas → ha.client`）
- *      下沉到 `core/design.py` 与 `core/ha_url.py` 就是这么发现并修掉的。
- *   5. mdi 图标版本出现第二个值，或版本号指向的 vendor 目录不存在。
- *      版本号分散在 JS 常量、CSS 的三条遮罩地址与后端的目录解析里，升级图标库漏改一处不会报错：
- *      CSS 那三条是舞台灯光素材图标（写错即空白），JS 那份写错则整套图标 404。
- *
- *   6. import 的说明符解析不到真实文件 —— 相对路径算错层数，或绝对路径没落到承载它的地方。
- *      外提/搬迁模块时最容易漏的一步：文件换了目录、层数没跟着改。ESM 在解析期解析说明符，
- *      一个少写的 `../` 会让导入方所在的整棵模块树加载失败 —— `editor/home/` 那批外提文件
- *      把 `./editor-utils.js` 少写了一层，症状是整个编辑器打不开，控制台却只指向那一行。
- *      绝对路径还有第二种断法：`/api/v1/modules/interaction3d/...` 的 runtime 资源**是一张
- *      服务端白名单**，文件放进磁盘不等于能被下发。所以这条同时校验白名单与磁盘一一对应。
- *
- *   7. 物件构建体用了 `itemBuilderContext` 提供的键，却没在自己函数顶部解构出来。
- *      同样是外提留下的：`buildItemModel` 那条 5744 行 if/else 链拆成 62 个构建体时，
- *      函数的**签名依赖**（context 的键）随函数一起搬走了，但函数体里对 `furnitureDarkColor`
- *      这类配色别名的取用点没跟着补进解构列表。表现是 `ReferenceError: furnitureDarkColor
- *      is not defined`，且只在**该物件类型被渲染时**才炸 —— 窗帘、蹲便器、小便器、壁灯、落地灯
- *      五类各少一个名字，不点开那几类就永远看不见。这是全仓最大的一次外提，也是最容易漏的一类。
- *
- *   8. HTML 的 `<script src>` / `<link href>` 与 CSS 的 `url()` / `@import` 指向不存在的资源。
- *      与第 3 条同源：没有打包器，静态文件路径全靠手写。这类断法是**最安静的一种** ——
- *      JS/CSS 缺了会整片功能消失，字体或图标缺了只是一处样式悄悄回退到系统默认，
- *      而 `?v=` 戳正好把它们从缓存里救出来一次、下一个人再把路径改错时又悄悄生效。
- *      判定按 URL（不是按磁盘）：`/store-static/` 与 `/fonts` 是两个挂在同一目录上的 URL，
- *      磁盘上「往上跳出挂载点」的写法在浏览器里可能是合法的。
- *
- *   9. `import` 进来的名字不在目标模块的导出里（含命名空间成员、动态解构，以及桥文件的转出口）。
- *      大文件拆分留下的伤口都在这一层：`buildItemModel` 拆成 62 个构建体、`PanelRenderer` 拆成
- *      四块、`mountStage` 拆成六簇，每个新模块都是「从原文件剪下来的一段」，剪完对不上原处的
- *      导出名是最容易漏的一步。失败是**解析期**的：`The requested module … does not provide an
- *      export named`，整棵模块树起不来，而报错只指向导入处、不指出该补什么。上一版把这一条
- *      写在「明确不做的事」里，理由是「需要允许新文件先落地再谈接线」—— 那个理由站不住：
- *      import 里文件名与名字同时写死在那一行，不存在「还没接线」的中间态。
- *      与第 6 条并列而不是合并：第 6 条只问「文件在不在」，这一条问「名字在不在」。
- *
- *      本条原本还想判另一半 ——「调用的名字在本文件没有任何绑定」（少搬一个 import 的另一种
- *      症状：只在**执行到那一行**时才 ReferenceError，与第 7 条同类）。当年按行级口径试过并放弃：
- *      没有语法树就分不清对象字面量的键、成员名、解构键与真正的取用，全仓 298 个模块上跑出 7996 条，
- *      绝大多数是模板字符串里的 GLSL（`vec2` / `mix` / `smoothstep` / `texture2D`）与平台内置
- *      （`Number` / `Map` / `Set`）。**这一半现在由第 29 条接手**：判定改用真正的语法树 + 作用域链
- *      （`tools/lib/free-variables.mjs`，解析器是仓库已有的 `tools/vendor/acorn`，仍然零 npm 依赖）——
- *      实测全仓真自由标识符只剩宿主全局 + 那两处真 bug（itemWidth / itemDepth / materialPalette）。
- *      宁可漏报，也不让这里变成「把误报一条条塞进去」的垃圾桶 —— 所以第 29 条的宿主白名单里
- *      只收浏览器 / Worker 自带的名字。
- *
- * 明确不做的事：不检查注册表分片是否齐全 —— 那类需要「允许新文件先落地再接线」的宽容度，
- * 硬拦会把正常改动挡死。
- * 第 6 条不在此列：import 里既然已经写死了文件名，就不存在「先落地再接线」的中间态，解析不到
- * 只可能是层数写错，或者绝对路径写到了不承载它的前缀上。绝对说明符只在能算出服务端真实口径
- * 时才判（两个 StaticFiles 挂载点 + runtime 白名单），其余按路由放过。
- * 第 7 条同理：构建体顶部那行解构就是它的完整外部依赖清单，缺一项必然是漏搬，不存在中间态。
- * 第 8 条只判「文件型资源」：`<img src>`/`srcset`、HTML 内联 `<style>`、以及 HTML 里的相对引用
- * （相对的是**文档 URL**，而文档 URL 由路由决定，换算不出唯一答案）都放过。
- * 第 9 条只判「本仓可解析的相对/绝对说明符」：裸说明符（`three` 之类）不判，目标解析不出磁盘
- * 路径时放过，目标是 `vendor/` 下的压缩产物时也放过（那类文件是一整行，文本扫描读不出导出表，
- * 且本仓不许改）—— 判不出真假就不判，这是这套守卫唯一的底线。
- *
- * Usage:
- *   node tools/check_invariants.mjs
- *
- * 退出码 1 表示有违规；输出每条都带 file:line，能直接跳转。
  */
 
 import { execFileSync } from "node:child_process";
@@ -112,7 +9,6 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 // 仓库路径一律来自 paths.mjs（唯一事实来源，见那个文件的模块头）。
-// rel() 本文件自带一份同义实现：它只做展示格式转换，不涉及"路径从哪来"这件事。
 import {
   BACKEND_DIR,
   DESIGN_DIR,
@@ -147,12 +43,8 @@ const SKIP_DIRS = new Set([
 
 /**
  * 运行期由脚本动态创建、因而本就不在任何 HTML 里的 id。
- *
- * 只有确实由 JS 自己 `createElement` + 设 id 的元素才登记在这里，并且必须写明由谁创建 ——
- * 否则这里会慢慢变成「把误报一条条塞进去」的垃圾桶，守卫也就死了。新增条目请连同创建点一起写。
  */
 const DYNAMIC_IDS = new Set([
-  // bridge/editor.js 的 3D 交互检查器面板：编辑器运行时按需建 DOM，不写在 index.html 里。
   "interaction3d-inspector",
   // 运行时舞台的提示层与拖拽幽灵：由 stage.js 在自己的容器内创建。
   "stage-hint",
@@ -186,14 +78,6 @@ const rel = file => path.relative(ROOT, file);
 // ---------------------------------------------------------------------------
 
 
-/**
- * 声明式 ESM `import` / `export`：`import ... from "/static/..."`、`export ... from "/static/..."`、
- * 以及副作用导入 `import "/static/..."`。
- *
- * 必须按整份文本匹配而不是逐行匹配：声明可以跨行写（`import {\n a,\n b\n} from "..."`），
- * 逐行比对会把这类写法整片漏掉 —— 上一版就漏了 `range-dialog.js` 与 `config-editor.js` 的几处。
- * `[^;]*?` 保证不会跨语句匹配（分号是一道硬边界）。
- */
 const STATIC_DECL_RE = /^[ \t]*(?:import|export)\s[^;]*?(?:from\s*)?["']\/static\//gm;
 
 /** 动态 `import("/static/...")`，捕获其后的路径片段用于判断是否 vendor。 */
@@ -201,12 +85,6 @@ const STATIC_DYN_RE = /\bimport\s*\(\s*["']\/static\/([\w./@+-]+)/g;
 
 /**
  * 运行侧的合法写法只有两种，其余一律算违规：
- *
- *  - 声明式 `/static/` import：**永远违规**。没有 `file:` 回退可言，解析期就断开整棵模块树。
- *  - 动态 `import("/static/...")`：只有当同文件里存在 `import.meta.url.startsWith("file:")`
- *    分流时才算合法（static-helpers.js 的桥就靠这个分流工作）。
- *  - `/static/vendor/` 的动态导入额外放行：第三方库只做懒加载（例如 three.js 约 600KB），
- *    vendor 目录没有「相对路径副本」可供 file: 回退，且这些调用点都在 try/catch 里降级。
  */
 function checkRuntimeImports() {
   const problems = [];
@@ -279,7 +157,6 @@ function checkElementIds(htmlFiles) {
     if (wanted.size === 0) continue;
 
     // 候选 HTML：正文里提到过这个 JS 文件名的页面。找不到候选（例如经 API 动态下发的
-    // 运行侧模块）就退回「全部 HTML 的 id 并集」—— 宁可漏报，也不要对着正确的代码报错。
     const base = path.basename(file);
     const candidates = htmlFiles.filter(html => html.text.includes(base));
     const scope = candidates.length > 0 ? candidates : htmlFiles;
@@ -297,10 +174,6 @@ function checkElementIds(htmlFiles) {
 // 3) 全站只允许一个 ?v= 戳
 // ---------------------------------------------------------------------------
 
-/**
- * 与 bump 工具保持同一份扫描面：`apps/store/static` 必须和 `apps/store/templates` 一起扫，
- * 否则商店静态目录里的第二个戳永远看不见（历史上正是这样沉默了很久）。
- */
 const STAMP_SCAN_ROOTS = [
   path.join(FRONTEND_DIR),
   path.join(STORE_DIR, "templates"),
@@ -318,18 +191,6 @@ const QUERY_V_RE = /\?v=[^"'`\s)]+/g;
 
 /**
  * 模块身份（第 3 条真正要防的东西）。
- *
- * 上一条只比「`?v=` 的值有几个」，看不见**根本没写戳**的那种引用：同一个文件被
- * `./host.js` 与 `./host.js?v=…` 两处引用时，值是唯一的、校验通过，而浏览器按 URL 认模块，
- * 这是**两份实例**（模块表以解析后的 URL 为键，查询串参与其中）。真踩过一次：
- * `apps/store/static/admin/app.js` 用不带戳的写法 import `host.js`，其余 11 个面板都带戳 ——
- * app.js 往自己那份 `Object.assign(host, …)` 装配方法，面板拿到的那份始终是空对象，
- * 84 处 `host.xxx()` 全在调用时抛 `TypeError`。
- *
- * 只判「静态 import / re-export / 动态 import」这三种**会真的执行**的引用。刻意放过两类：
- *   - `new URL("./x.js", import.meta.url)`：那是 `file:` 打开时的开发态旁路，与生产分支互斥
- *     （static-helpers.js 的注释写明了这套双路径），同时跑不到，不算两份实例；
- *   - 同一文件的全 `?v=` 值不同：上一条已经在全站层面拦住了。
  */
 const MODULE_REF_SCAN_ROOTS = [
   path.join(FRONTEND_DIR),
@@ -360,7 +221,7 @@ function specifierToDisk(file, spec) {
 }
 
 function checkModuleInstances() {
-  const byFile = new Map(); // 磁盘路径 → { stamped: [], plain: [] }
+  const byFile = new Map();
   const record = (disk, spec, at) => {
     const bucket = byFile.get(disk) ?? { stamped: [], plain: [] };
     (spec.includes("?v=") ? bucket.stamped : bucket.plain).push(`${at}  "${spec}"`);
@@ -382,8 +243,6 @@ function checkModuleInstances() {
     }
   }
 
-  // 入口 HTML 的 `type="module"` 脚本也是模块表里的一条：它加载的 URL 与某处 import 不一致，
-  // 同样是两份实例（`palette.js` / `home.js` 这类入口最容易被别的模块顺手 import 一次）。
   const HTML_MODULE_RES = [
     /<script\b[^>]*\btype\s*=\s*["']module["'][^>]*\bsrc\s*=\s*["']([^"']+)["']/g,
     /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*\btype\s*=\s*["']module["']/g
@@ -429,7 +288,6 @@ function checkSingleStamp() {
     for (const match of text.matchAll(QUERY_V_RE)) {
       const value = match[0];
       // 模板占位（`?v=${storeStaticVersion}`）与 f-string 由后端在渲染期填值，
-      // 不参与「单一戳」判定；bump 工具也明确跳过它们。
       if (value.includes("{") || value.includes("}")) continue;
       if (!byValue.has(value)) byValue.set(value, []);
       const bucket = byValue.get(value);
@@ -453,20 +311,10 @@ function checkSingleStamp() {
 
 /**
  * 已知且**暂时接受**的环，按「成员包名排序后用 | 连接」登记。
- *
- * - `apps.server.api | apps.server.modules`：`api/projects.py` 在删项目时调 3D 模块的
- *   `sweep_scenes_for_app`、保存文档时调 `require_document_changes`（3D 授权门禁要插在
- *   项目保存路径上）；反向 `modules/interaction3d/api.py` 又调 `api/ha.py` 的 `call_service`
- *   与 `api/assets.py` 的 `user_asset_file`。两者都是**路由层互调**，要拆干净得先把
- *   `call_service` 的主体（约 90 行校验 + 回源 + 审计）从路由里提成普通函数，属于安全敏感改动，
- *   单独一轮处理。这条环在当前代码上是安全的：环上两侧都没有 `__init__` 副作用，
- *   也不存在「导入期就读对方属性」，因此只是方向不干净，不会静默失效。
- *   新增这条以外的环会直接失败；把这两处拆掉后请一并删掉本条目。
  */
 const ALLOWED_BACKEND_CYCLES = new Set(["apps.server.api|apps.server.modules"]);
 
 
-/** 文件路径 → 点分模块名（`apps/server/api/ha.py` → `apps.server.api.ha`）。 */
 function backendModuleName(file) {
   return rel(file)
     .replace(/\.py$/, "")
@@ -481,13 +329,12 @@ const PY_IMPORT_RE = /^[ \t]*(?:from\s+([.\w]+)\s+import|import\s+([.\w]+))/gm;
 
 /**
  * 包级环检测。只看二级包之间的边，相对导入按当前文件所在目录解析 ——
- * 逐文件比对会漏掉 `from ..core.design import X` 这种写法，而上一轮的环正是这样写出来的。
  */
 function checkBackendPackageCycles() {
   const files = [...walk(BACKEND_DIR, new Set([".py"]))];
   const moduleToPackage = new Map(files.map(file => [backendModuleName(file), backendPackageOf(backendModuleName(file))]));
 
-  const edges = new Map(); // `${from}->${to}` → 首个示例（file:line）
+  const edges = new Map();
   const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 
   for (const file of files) {
@@ -506,7 +353,7 @@ function checkBackendPackageCycles() {
       } else if (spec.startsWith("apps.server.")) {
         target = spec;
       } else {
-        continue; // 标准库 / 第三方
+        continue;
       }
       const targetPackage = moduleToPackage.get(target) ?? backendPackageOf(target);
       if (!targetPackage.includes(".")) continue;
@@ -560,9 +407,6 @@ function checkBackendPackageCycles() {
 
 /**
  * 版本号在两处语言里各有一份（JS 的 `MDI_VERSION`、本文的目录），CSS 里还有三条写死的遮罩地址。
- * 升级图标库时漏改任何一处都**不报错**：CSS 那三条是舞台灯光素材的图标，写错就是一片空白；
- * JS 那份写错则整套图标 404（图标选择器、舞台标记、天气以外的图标全空）。
- * 所以这里钉两件事：全站只出现一个版本值，且 `static/vendor/mdi/<version>/` 真的在仓库里。
  */
 const MDI_VERSION_REF_RES = [
   /vendor\/mdi\/([0-9][\w.-]*)\//g,
@@ -618,21 +462,6 @@ function checkMdiVersion() {
 
 /**
  * 判「说明符 → 真实文件」这一件事，不碰导出符号（见文件头「明确不做的事」）。
- *
- * 与第 1 条一样按整份文本匹配：说明符可以跨行写，逐行比对会把
- * `import {\n a,\n b\n} from "../x.js"` 这类写法整片漏掉。
- *
- * 但**不能用第 1 条那种 `(?:from\s*)?` 可选写法**：本仓代码分号很少，`export function closeRowMenus() {`
- * 之后到第一个 `;` 之间没有任何 `from`，可选写法会越过函数体去咬住函数里第一个 `.` 开头的字符串
- * （`.menu__pop`、`.interaction3d-cover-message`），把 CSS 选择器当成模块路径。
- * 所以 `from` 是硬条件，且拆成三条：带 `from` 的声明式导入/re-export、副作用导入、动态导入。
- *
- * 相对说明符（`.` 或 `..` 开头）按导入方所在目录换算；绝对说明符（`/` 开头）按**服务端真正
- * 的解析口径**换算，算不出口径的一律不判（路由不是文件）：
- *   - `/static/...`、`/store-static/...` → 两个 StaticFiles 挂载点，拼成磁盘路径后存在即通过；
- *   - `/api/v1/modules/interaction3d/...` → runtime 资源有显式白名单，**登记了才算存在**。
- *
- * 只判 `.js/.css/.mjs` 结尾的绝对说明符，`/n/...` 这类页面路由与其余 `/api/v1/...` 一律放过。
  */
 const MODULE_IMPORT_RE = /^[ \t]*(?:import|export)\b[^;]*?\bfrom\s*["']([./][^"']*)["']/gm;
 const MODULE_BARE_IMPORT_RE = /^[ \t]*import\s*["']([./][^"']*)["']/gm;
@@ -644,24 +473,14 @@ const STATIC_MOUNTS = [
   ["/store-static/", path.join(STORE_STATIC_DIR)]
 ];
 
-/** 运行侧资源路由前缀：URL 里这段之后与 `RUNTIME_MODULES_DIR`（见第 1 条）一一对应，但**要过白名单**。 */
 const RUNTIME_RESOURCE_PREFIX = "/api/v1/modules/interaction3d/";
 //: 3D 交互运行时模块的磁盘根。它的"可下发集合"以同目录的 manifest.json 为唯一事实来源
-//: （后端 runtime_manifest.py 与 tools/audit_dead_code.mjs 读的是同一份）。
 
 /**
  * 读 `get_resource()` 里的白名单。现读而不在这里抄一份：抄一份就等于给「新增一个 runtime 模块」
- * 留了个必须手工同步的步骤，而漏同步的后果正是本守卫要拦的（浏览器 404、import 链断在第一跳）。
  */
 /**
  * 读 3D 交互运行时资源的可下发清单。
- *
- * 它是 ``frontend/modules/runtime/manifest.json`` —— 这条路由的可下发集合与安全边界只有这一个
- * 事实来源（后端 runtime_manifest.py 读同一份）。原先这里是从 api.py 里正则抠那份 Python 字面量，
- * "清单"因此横跨两种语言、两处维护；改成清单文件之后，新增模块只改一处。
- *
- * 清单读不到时返回 ``null``（而不是空集合）：空集合会让下面那条"清单 ↔ 磁盘"判成
- * "磁盘上的文件全是多余的"，报出一堆假问题 —— 读不到本身就该单独报一条。
  */
 function readRuntimeResourceWhitelist() {
   const manifestPath = path.join(RUNTIME_MODULES_DIR, "manifest.json");
@@ -679,7 +498,6 @@ function readRuntimeResourceWhitelist() {
 /** 扫描面与第 3 条的 `?v=` 戳一致：前端与商店的 JS 都可能被静态服务直接喂给浏览器。 */
 const MODULE_SCAN_ROOTS = [path.join(FRONTEND_DIR), path.join(STORE_DIR)];
 
-/** 行号查询表：按换行位建一次索引，避免对 home.js（近 1MB）每条 import 都重切一遍全文。 */
 function makeLineCounter(text) {
   const starts = [0];
   for (let i = 0; i < text.length; i += 1) {
@@ -702,7 +520,6 @@ function checkModuleSpecifiers() {
   const runtimeWhitelist = readRuntimeResourceWhitelist();
 
   // runtime 清单与磁盘必须一一对应，两个方向都会造成「不报错、只在浏览器里 404」：
-  // 少登记 → 文件在磁盘上却不被下发；多登记 → 文件已删/改名，要等有人 import 到才暴露。
   const manifestFile = rel(path.join(RUNTIME_MODULES_DIR, "manifest.json"));
   if (runtimeWhitelist === null) {
     problems.push({
@@ -758,16 +575,6 @@ function checkModuleSpecifiers() {
           }
         } else {
           // 相对说明符一律按**被引用文件自己的 URL** 解析，而不是按磁盘路径 —— 对 runtime
-          // 资源这两者**深度不同**，正是本条曾经漏检的地方。
-          //
-          // runtime 资源挂在 /api/v1/modules/interaction3d/ 下，比磁盘路径
-          // frontend/modules/runtime/ 深一层。于是磁盘上算得出来的 "../../../static/utils/colors.js"
-          // （→ frontend/static/utils/colors.js，存在）在浏览器里会解析成
-          // /api/v1/static/utils/colors.js，一次 404、整棵模块图静默掐断 —— 而这里当时
-          // 只做 `path.resolve(path.dirname(file), target)`，看到磁盘上有就放过了。
-          //
-          // 所以：runtime 文件里的相对说明符必须**仍留在 runtime 前缀内**。要取 /static 下的
-          // 东西只能经 core/static-helpers.js 的桥（桥内部用绝对路径，与层数、前缀都无关）。
           const runtimeName = path.relative(RUNTIME_MODULES_DIR, file);
           const insideRuntime =
             runtimeName !== "" && !runtimeName.startsWith("..") && !path.isAbsolute(runtimeName);
@@ -834,9 +641,6 @@ const ITEM_TYPES_JS = path.join(STUDIO_DIR,
 
 /**
  * 抹掉注释与字符串/模板，保留长度与换行 —— 这样按偏移算出的行号与原文一致。
- *
- * 不做这一步会把注释里提到的名字、以及字符串里的 CSS 选择器当成代码引用
- * （第 6 条的正则最初就踩过这个坑，见那里的注释）。
  */
 function stripCommentsAndStrings(src) {
   const out = [...src];
@@ -922,12 +726,6 @@ function topLevelKeysOf(objectLiteralBody) {
   return keys;
 }
 
-/**
- * 构建体可见的 context 键 = `ITEM_BUILDER_DEPS` 的键 ∪ `itemBuilderContext` 自有的键。
- *
- * 两条都从 studio-app.js 现读，不在这里抄一份常量：抄一份就等于给「给上下文加个键」
- * 留了个必须手工同步的步骤，而漏同步的后果正是本守卫要拦的东西。
- */
 function readBuilderContextKeys() {
   const text = fs.readFileSync(STUDIO_APP, "utf8");
   const keys = new Set();
@@ -989,7 +787,6 @@ function checkBuilderContextKeys() {
         }
       }
 
-      // 函数内自己声明的名字，避免把局部变量报成漏搬。
       const local = new Set();
       for (const d of body.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) local.add(d[1]);
       for (const d of body.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)/g)) local.add(d[1]);
@@ -1034,10 +831,6 @@ const NON_FILE_PREFIX_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
 
 /**
  * URL 挂载表：`[URL 前缀, 磁盘根, 是否要过 runtime 白名单]`，按磁盘根由长到短排列。
- *
- * 与第 6 条的 `STATIC_MOUNTS` 分开，因为这里多了一条**靠目录别名存在、而不是前缀直连**的挂载点：
- * 商店把 `apps/store/static/fonts` 同时挂在 `/fonts` 下，于是 `/store-static/font.min.css` 里写
- * `../fonts/font.woff2` 在磁盘上「不存在」、在浏览器里却正中 `/fonts`。
  */
 const URL_MOUNTS = [
   ["/api/v1/modules/interaction3d/", RUNTIME_MODULES_DIR, true],
@@ -1071,10 +864,6 @@ function fileToUrl(file) {
 
 /**
  * 一条资源引用换算成磁盘路径；算不出来（该由人工/路由保证）返回 null。
- *
- * 这里**按 URL 而不是按文件系统**解析：引用是浏览器按**被引用文件自己的 URL** 解析的，
- * 磁盘上的相对关系只是碰巧一致，越出挂载点的写法（`apps/store/static/font.min.css` 里写
- * `../fonts/font.woff2` → `/fonts/font.woff2`）在磁盘上 "不存在"、在浏览器里却正中另一个挂载点。
  */
 function resolveAssetRef(spec, fromUrl, runtimeWhitelist) {
   const target = spec.split("?")[0].split("#")[0];
@@ -1084,7 +873,7 @@ function resolveAssetRef(spec, fromUrl, runtimeWhitelist) {
   if (!target.startsWith("/") && fromUrl === null) return null;
   const url = target.startsWith("/") ? target : resolveRelativeUrl(fromUrl, target);
   const mount = URL_MOUNTS.find(([prefix]) => url.startsWith(prefix));
-  if (!mount) return null; // `/n/...`、`/api/v1/...` 等：路由，不是文件
+  if (!mount) return null;
   const name = url.slice(mount[0].length);
   if (mount[2]) return { disk: path.join(mount[1], name), unlisted: !runtimeWhitelist.has(name) };
   return { disk: path.join(mount[1], name), unlisted: false };
@@ -1136,9 +925,6 @@ function checkHtmlAssetRefs() {
 
 /**
  * 本仓可解析的模块文件（与第 3 条的扫描面一致，`vendor/` 由 walk 跳过）。
- *
- * 刻意与 `MODULE_REF_SCAN_ROOTS` 共用一份：两处若各写一份，就会出现「第 3 条看得见的文件
- * 第 9 条看不见」这类偏移，而偏移本身不会有人发现。
  */
 function moduleSourceFiles() {
   const files = [];
@@ -1148,7 +934,6 @@ function moduleSourceFiles() {
   return files;
 }
 
-/** 括号配平用；行尾注释先摘掉，避免注释里的括号把累积逻辑带偏。 */
 function stripLineComment(line) {
   return line.replace(/(^|[^:"'`\\])\/\/.*$/, "$1");
 }
@@ -1164,15 +949,9 @@ function braceDepth(chunk) {
 
 /**
  * 取出「声明级」的 import / export 语句。
- *
- * 必须把跨行声明拼回一条再解析：`import {\n a,\n b\n} from "…"` 这种写法在本仓是常态
- * （printWidth 100 一超就换行），逐行看只会看到 `import {` 这一个片段。第 1 条当年就踩过
- * 「逐行匹配漏掉跨行声明」的坑，这里沿用同一口径：从行首 import/export 起累积，直到括号配平。
- * 缩进过的行（函数体里的动态 import 之类）不算声明级，交给下面按正则单独处理。
  */
 function readModuleDeclarations(text) {
   // 用真语法树切顶层声明：按行数花括号会被字符串 / 模板串里的括号带偏（shader 字符串一多就漏声明，
-  // 于是「import 的名字不在导出里」误报）。解析不了（故意写坏的样本）才退回下面的按行实现。
   try {
     const tree = parseModuleForDeclarations(text, { ecmaVersion: "latest", sourceType: "module", locations: true });
     const declarations = [];
@@ -1223,7 +1002,6 @@ function readModuleDeclarationsByLines(text) {
       text: buffer,
       line: i + 1,
       // 声明自身的字符区间：判「这个名字在本文件还被用在哪」时必须把自己排除掉，
-      // 否则 `export { a } from "…"` 里的 a 会被当成一次取用（上一版正是这么误报的）。
       start: lineStarts[i],
       end: lineStarts[last] + lines[last].length
     });
@@ -1232,7 +1010,6 @@ function readModuleDeclarationsByLines(text) {
   return out;
 }
 
-/** `{ a, b as c }` → [{ imported: "a", local: "a" }, { imported: "b", local: "c" }] */
 function parseNamedList(source) {
   const items = [];
   for (const raw of source.split(",")) {
@@ -1247,18 +1024,11 @@ function parseNamedList(source) {
 
 /**
  * 第三方打包产物不判：`vendor/` 下是压缩过的单行文件（`export{a as b,c,d}` 全在一行里），
- * 文本级扫描看不见它的导出表。判不出真假就只会变成误报源，而且本仓明令不许改这些文件
- * （README「不要改 frontend/static/vendor/ 下的 three.js…」），发现真问题也无从修。
- * 返回 null 表示「不知道」，调用方一律放过。
  */
 function isVendorModule(file) {
   return rel(file).split(path.sep).includes("vendor");
 }
 
-/**
- * 目标模块的导出表。`export * from` 递归展开（带环保护），`export { a } from "…"` 记名字，
- * 目标是裸说明符或解析不到磁盘时不再往下追（返回 null 表示「不知道」，调用方一律放过）。
- */
 const moduleExportsCache = new Map();
 
 function moduleExportsOf(file, stack = new Set()) {
@@ -1297,8 +1067,6 @@ function moduleExportsOf(file, stack = new Set()) {
     const braced = body.match(/\{([^}]*)\}/);
     if (braced && !/^[ \t]*export\s+(?:async\s+)?(?:function|class|const|let|var)\b/.test(body)) {
       for (const item of parseNamedList(braced[1])) named.add(item.local);
-      // `export { a } from "t"` 的 a 必须在 t 里存在 —— 桥文件（static-helpers*.js）
-      // 全靠这种写法转出口，目标改了导出名而这里没跟着改，同样是解析期硬失败。
       if (from) {
         const target = specifierToDisk(key, from[1]);
         const sub = target ? moduleExportsOf(target, stack) : null;
@@ -1327,10 +1095,6 @@ function moduleExportsOf(file, stack = new Set()) {
 
 /**
  * 摘掉注释，供「这个名字在文件里还被用在哪」这类窄口径扫描用：只扫名字，注释里的同名文字
- * 不该算取用（`registry.js` 的文件头注释就逐个列出了它转出口的名字）。
- *
- * 块注释的**换行必须留下**：上一条版本把整块注释删成空串，行号整体前移，报出来的位置
- * 指向了完全无关的行。字符串里的 `//` 之类会让它多摘一点 —— 方向是「少报」而不是「误报」。
  */
 function stripComments(text) {
   return text
@@ -1342,9 +1106,6 @@ function stripComments(text) {
 
 /**
  * 找出 `name` 在本文件里的取用行（行号，1 起）。只认两种形态：
- *   - 调用：`name(` 或 `name?.(`
- *   - 取值：前面不是 `.`/`?.`/`#`，后面不是 `:`（对象字面量的键、`case` 标签）
- * 解构键（`{ name: alias }`）与成员名（`a.name`）都会被这两条排除掉。
  */
 function findLocalUses(text, name) {
   const lines = [];
@@ -1436,8 +1197,6 @@ function checkModuleBindings() {
         });
       }
     }
-    // `const { a, b } = await import("…")`（含 static-helpers*.js 的「条件动态 import + 命名导出」桥）：
-    // 只判生产分支那条绝对路径，开发态的 new URL(..., import.meta.url) 与它互斥，不重复判。
     for (const match of text.matchAll(/const\s*\{([^}]*)\}\s*=\s*await\s*import\(\s*["']([^"']+)["']\s*\)/g)) {
       const target = specifierToDisk(file, match[2]);
       if (!target) continue;
@@ -1468,20 +1227,12 @@ function checkModuleBindings() {
     }
 
     // ---- 9A″：纯转出口的名字，在本文件里不是绑定 ----
-    // `export { clampNumber as clamp } from "…"` 只把名字挂上对外接口，不在本模块作用域建绑定；
-    // 同文件里再写 `clamp(...)` 就是运行期 ReferenceError，而栈顶指向导出方自己的函数（README
-    // 记的那次现场像「几何/预算算法坏了」，其实是导出写法）。同理 `import { clampNumber } …;
-    // export { clampNumber as clamp };` 也不建绑定，两种写法一起判：只认**转出口里出现的名字**，
-    // 而且只认「后面跟 `(`」与「不跟 `:`、前面不带 `.`」这两种取用形态 —— 与 9B 相反，这里名字
-    // 是已知的、数量是个位数，窄口径就够。
     const allDeclarations = readModuleDeclarations(text);
     const reexports = allDeclarations
       .map(decl => ({ decl, match: decl.text.match(/^[ \t]*export\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/) }))
       .filter(entry => entry.match);
     if (reexports.length > 0) {
       // 只挖掉「自己会列出这个名字」的语句：import 与 `export … from`。**不能**连
-      // `export function …` 一起挖 —— 那种声明的函数体也是多行的，会被当成一条声明整块挖空，
-      // 而真正的取用恰恰就写在函数体里（上一版正是这样把注入的用例漏掉的）。
       const maskTargets = allDeclarations.filter(
         decl => /^[ \t]*import\b/.test(decl.text) || /\bfrom\s*["']/.test(decl.text)
       );
@@ -1510,23 +1261,6 @@ function checkModuleBindings() {
 
 /**
  * 这一条防的是「机制没接上」：JS 侧 `style.setProperty("--x", …)` 把值算好写下去，
- * 而样式表里**没有任何规则**用 `var(--x)` 取它。此时那行 JS 是纯粹的静默空转 ——
- * 值算对了、也写进 DOM 了，只是没有任何东西会因此改变外观或布局。
- *
- * 为什么值得单独一条：这类断法在浏览器里**零报错、零警告**，DevTools 的 Elements 面板里
- * 还能看见那个变量挂着正确的值，于是读代码的人会以为它在生效。本仓实测有 10 枚，
- * 每一处的注释都还在描述那个「本该发生」的效果 —— 代码与注释同时撒谎，
- * 只有把「写」与「读」两边的集合做差才看得见。
- *
- * 判定口径（宁漏不误）：
- *   - 「写」只认**完整字面量**：`"--hb-bed-" + role + "-angle"` 这类拼接写法以 `-` 结尾，
- *     不是完整令牌名，直接排除（否则会拿半个名字去比对，报出一堆假的）。
- *   - 「读」= CSS 的 `var(--x)`、JS 的 `getPropertyValue("--x")`、以及 colors.js 的
- *     `paletteColor("--x", …)`。三者的共同点是**名字以字面量出现在源码里**：
- *     只要没人读它，这个名字就不会以别的形式出现，所以按名字做差是可靠的。
- *   - 曾经列过 10 枚已知的「写下去但没人读」，**现已全部修完并清空**（见下方注释保留的
- *     逐条结论）。清空而不是留白名单：留着等于给这 10 个名字开了永久通行证，
- *     哪天它们被重新写回来，本条守卫会一声不响地放过 —— 那正是它要防的事。
  */
 const PROP_WRITE_RE = /setProperty\(\s*["'](--[\w-]+)["']/g;
 
@@ -1562,38 +1296,6 @@ function collectCssPropReads() {
 
 /**
  * 已知「写下去但没人读」的 10 枚令牌，共 5 套机制。每条都要写明**缺的是哪一半**，
- * 否则下一个人无法判断该补 CSS 还是该删 JS —— 而两种修法都成立时，只有知道意图的人能选。
- */
-/**
- * 「写下去但没人读」的豁免名单。**当前为空** —— 修完 10 枚之后刻意不留条目，理由见上。
- *
- * 2026-09 的 10 枚（5 套机制）逐条结论，留作档案：
- *
- *   --hb-light-visual-blur        **删 JS**。上游去混淆源码带进来的，本仓库任何一次提交里
- *                                 都没有过 var() 取用点，也就从未生效过；柔和衰减一直是靠
- *                                 .hb-light-visual-aura 那四层同心 box-shadow 叠出来的。
- *                                 补 blur 要对近千像素纹理逐帧重算（滑块一拖就在动画），
- *                                 代价高于收益。变量与两处写入一并删除。
- *   --hb-cover-open-position      **删 JS**。帘布宽度由 -panel-width / -single-panel-width
- *                                 两个派生量决定，原始百分比样式表从不取用。顺带把那两个
- *                                 派生量里重复写在 entity-details.js 与 custom-popup.js 的
- *                                 四个魔数（45.9 / 0.331 / 91.8 / 0.79）收进
- *                                 utils/cover-features.js —— 它们「只是恰好等值」，
- *                                 和该文件里 COVER_POSITION_EPSILON_PERCENT 当年分叉的情形一样。
- *   --hb-presence-copy-gap        **删 JS**。对应的「文案」层（DOM 与 .hb-presence-copy-*
- *   --hb-presence-copy-main-size   的 gap / font-size 规则）已在 0.6.2 重构里整体移除，
- *   --hb-presence-copy-secondary-size 只剩 JS 这半截还在按人物框尺寸算字号，算了没人用。
- *   --hos-scale                   **删 JS**。缩放一直直接落成行内 transform，
- *                                 这枚变量自始至终没接上。若要按缩放比做样式表侧补偿
- *                                 （浮层反向缩放），需连行内 transform 一起挪进样式表，
- *                                 因为行内样式永远压过规则、变量加了也不生效。
- *   --title-frame-color           **删 JS**（4 枚）。外框现在是一段内联 SVG：颜色落成 path 的
- *   --title-frame-width           stroke、宽度落成 stroke-width、两个偏移参与算出括号坐标，
- *   --title-frame-offset-x        这四项输入在 JS 里已经消费完了。它们是早期「用 CSS 画框」
- *   --title-frame-offset-y        方案的残壳。注意其余 --title-* 不同，那些有 var() 取用。
- *
- * 新增条目请务必写明**缺的是哪一半**（该补 CSS 还是该删 JS）与判断依据；两种修法都成立时，
- * 只有知道意图的人能选。更好的做法是直接修掉。
  */
 const UNWIRED_CSS_PROPS = new Map([]);
 
@@ -1625,22 +1327,6 @@ function checkUnreadCustomProps() {
 
 /**
  * 第 11 条：令牌引用被「粘」在十六进制残渣上 —— `var(--x)d1`。
- *
- * 这是「按 6 位色值做子串替换」的典型事故：原文是 8 位十六进制 #11171cd1
- * （面色的半透明变体），批量替换器只认 6 位 #11171c，于是把前缀换成了令牌、
- * 把两位 α 落在后面。浏览器对整条声明判无效，结果是**该属性静默失效**
- * （背景没了、边框没了），控制台一声不响。
- *
- * 和上面十条同一类「不报错、只静默失效」，所以放进守卫：
- * 新增一处就无法悄悄溜过。修法是补 -rgb 兄弟令牌写成
- * `rgba(var(--x-rgb), .86)`，或把该处还原成 8 位十六进制。
- *
- * **不能只认裸 `var(--x)`**：残渣同样会落在带兜底的形态上 ——
- * `var(--hos-eco, #5fd0a8)ad`（原文 #5fd0a8ad）。这种写法**碰巧能跑**，
- * 因为有兜底值恰好同值，替换结果又拼回了合法的 8 位色；
- * 可一旦色板把 --hos-eco 改掉，替换结果就变成 9 位十六进制、整条声明失效 ——
- * 「今天不报错」正是它最危险的地方。所以这里按**括号配对**扫 var() 的收尾，
- * 兜底值里再嵌 color-mix()/渐变也照样能扫到。
  */
 const CSS_SCAN_ROOTS = [
   path.join(FRONTEND_DIR),
@@ -1650,19 +1336,6 @@ const CSS_SCAN_ROOTS = [
 
 /**
  * `theme-color` / webmanifest 里的写死色值与色板走散。
- *
- * meta[name=theme-color] 与 webmanifest 的 theme_color / background_color **吃不下 var()**
- * （前者不参与 CSS 级联，后者是 JSON），所以它们只能写成十六进制 —— 这一点的结论没变，
- * 审计脚本也在这几行上关掉了「该用令牌」的提示。
- *
- * 但「只能写死」不等于「可以随便写」：这 13 个 HTML/py 与 5 份 manifest 表达的是同一件事
- * ——**页面最底层的那个颜色**。一旦有人改了 design/scene/page.css 的 --hos-sky-deep，
- * 这些写死值不会有任何提示地停在旧色上，而症状是「手机地址栏 / 启动画面与页面底色差一点」，
- * 是最难联想到色板的一类问题。之前没有任何守卫覆盖它：审计把它当「吃不下 var()」放行，
- * 而放行不等于核准 —— 它只是不再投诉，值是漂还是不漂没人看。
- *
- * 判法：取值必须**逐字等于**色板里那两枚「页面最底层」令牌的 canonical 值。
- * 新增页面若确实压着别的底色，把该令牌加进这份白名单 —— 加的那一步就是复核。
  */
 const THEME_COLOR_TOKENS = ["--hos-sky-deep", "--hos-tool-bg"];
 
@@ -1723,7 +1396,6 @@ function checkGluedTokenRefs() {
         if (depth !== 0) continue;
         const after = text.slice(cursor, cursor + 2);
         // 只看「十六进制位」且后面不再接标识符字符：`var(--x)auto` 是正常写法，
-        // 而 `var(--x)ad;` / `var(--x)d1` 是 α 位被切在了括号外。
         if (!/^[0-9a-fA-F]{1,2}(?![0-9a-zA-Z_-])/.test(after)) continue;
         problems.push({
           file: rel(file),
@@ -1743,52 +1415,16 @@ function checkGluedTokenRefs() {
 
 /**
  * 第 12 条：`var(--hos-x, 兜底值)` 的兜底值与令牌的 canonical 值不一致。
- *
- * 兜底值只在令牌**缺失**时才生效，所以平时渲染完全正常 —— 它是一类「平时看不见、
- * 真出事时又没人会往这儿找」的潜伏值。实测修出 20 处，全是同一来路：改语义色之前
- * 那套旧调色板的值被留在了兜底位。差异不是一点点：
- *
- *   --hos-cool   兜底 #a8c5d3  vs canonical #58c4ff   （青蓝 → 灰蓝，最远的一处）
- *   --hos-eco    兜底 #9ed8bc  vs canonical #5fd0a8
- *   --hos-alert  兜底 #d45f5f  vs canonical #f07a7e
- *   --hos-muted  兜底 α .58    vs canonical α .64
- *   --hos-lumen  兜底 #ffab32  vs canonical #ff9d4d    （确认弹窗主按钮整个暖色系）
- *
- * 判法：解析 design/scene/page.css 的 :root 取值（支持 hex / 三元组 / rgba(var(--x-rgb), α)），
- * 再扫全站 CSS/JS 的 `var(--hos-*, <简单颜色>)`。只比「兜底值是简单颜色」的那些 ——
- * 兜底写成 linear-gradient 之类的（如 --hos-grad-* 那几处）解析不了，不判。
  */
 const FALLBACK_RE =
   /var\(\s*(--hos-[\w-]+)\s*,\s*(#[0-9a-fA-F]{6}|rgba?\([^()]*\)|\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3})\s*\)/g;
 
 /**
  * JS 侧的同一件事：`paletteColor("--hos-x", "#兜底")`。
- *
- * `utils/colors.js` 的 `paletteColor` 是 JS 读调色板的唯一入口（SVG 的 stroke、
- * 2D canvas 的 fillStyle 都拿不到 CSS 变量，只能这样现取一次）。它的第二个参数
- * 与 CSS 的 `var()` 兜底是同一种东西：只在令牌取不到时生效，因此平时渲染完全正常，
- * 一旦运行期调色板没挂上就会静默换成另一套颜色。
- *
- * 单独一条正则是因为写法不同（引号包裹、逗号分隔），不能靠 FALLBACK_RE 覆盖。
- * 修出实例：light-range-editor.js 的 `--hos-sky-haze` 兜底 `#536777`，而 canonical
- * 是 `#24395a` —— 差得如此之远，反过来说明该处**令牌选错了**（拿夜空族的面色当描边），
- * 而不是兜底写错，所以最终改的是令牌本身。
  */
 const PALETTE_FALLBACK_RE =
   /paletteColor\(\s*["'](--hos-[\w-]+)["']\s*,\s*["'](#[0-9a-fA-F]{6}|rgba?\([^()]*\)|\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3})["']/g;
 
-/**
- * 第三种兜底写法：`{ token: "--hos-x", fallback: "#lit" }`（可带 rgbFallback）。
- *
- * 有些映射被写成了**数据**而不是调用 —— 面板原语把「空气质量档 → 颜色」存成
- * `{ token, fallback, rgbFallback }`，折线图把出厂阈值存成「令牌数组 + 兜底数组」。
- * 这种形态下 JS 侧不会出现 `paletteColor(...)`，CSS 侧也没有 `var()`，前两条正则都看不见它，
- * 但「兜底必须等于 canonical」这条要求一字不差。真实漏网：primitives.js 的 excellent / good
- * 两档兜底写着 #4ed6a8，而 --hos-eco 是 #5fd0a8。
- *
- * 两键顺序在源码里可以互换，所以双向都匹配；`rgbFallback` 与 `fallback` 都要写对，
- * 因此同一条也覆盖三元组形态。
- */
 const TOKEN_FALLBACK_PAIR_RE =
   /token\s*:\s*["'](--hos-[\w-]+)["']\s*,\s*(?:rgb)?[Ff]allback\s*:\s*["']([^"']+)["']|(?:rgb)?[Ff]allback\s*:\s*["']([^"']+)["']\s*,\s*token\s*:\s*["'](--hos-[\w-]+)["']/g;
 
@@ -1840,7 +1476,6 @@ function checkFallbackDrift() {
     for (const file of walk(root, new Set([".css", ".js"]))) {
       const text = fs.readFileSync(file, "utf8");
       // 三种写法同一件事：CSS 的 var(--x, 兜底)、JS 的 paletteColor("--x", "兜底")、
-      // 以及数据形态的 { token: "--x", fallback: "兜底" }。
       const forms = [
         { re: FALLBACK_RE, form: "var() 兜底", tokenGroup: 1, valueGroup: 2 },
         { re: PALETTE_FALLBACK_RE, form: "paletteColor() 兜底", tokenGroup: 1, valueGroup: 2 },
@@ -1879,14 +1514,6 @@ function checkFallbackDrift() {
 
 /**
  * 第 13 条：SVG 里的注释是非法 XML —— 注释体内出现连续两个连字符。
- *
- * XML 规范不允许注释内含 `--`（它是注释的结束符开头），而 SVG 是 XML 而不是 HTML：
- * HTML 里注释中间夹 `--` 多数浏览器容忍，SVG 会**整个文件解析失败**，画面上只留
- * 白/空白，控制台给的是 `not well-formed` 而不是「颜色不对」，很难联想到注释。
- *
- * 这条是踩出来的：给品牌标加注说明「不要改成 var(--hos-x)」时，注释里的 `--` 让
- * 6 个 SVG 全部失效 —— 而 SVG 本身没有 lint 会跑。写令牌名时省掉前导横线
- * （写 hos-sky-deep 而不是双横线开头）即可绕开。
  */
 const SVG_COMMENT_RE = /<!--([\s\S]*?)-->/g;
 
@@ -1917,23 +1544,6 @@ function checkMarkupComments() {
 
 /**
  * 第 14 条：八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 的契约不符。
- *
- * `design/scene/appearance.js:178-179` 是这两档的唯一定义处，写死了
- * `-soft = 0.13` / `-line = 0.32`（商店侧 theme.css 与后端白名单都按这个口径）。
- * 但各页面在给「某个设备的强调柔光 / 描边」下本地定义时，常常自己手写一份
- * `rgba(var(--hos-x-rgb), α)`，于是同一个语义角色在全站散出 0.12 / 0.13 / 0.15 / 0.16
- * 四种 α —— 换主控色时只有恰好写 0.13 的那一档跟着契约走，其余永远停在原地。
- * 实测一次扫出 11 处（renderer.css 5 / admin.css 3 / app.css 1 / studio.css 1 …）。
- *
- * 判据不是「名字以 -soft/-line 结尾」——那样会漏掉全部真违约、只认出本来就对的
- * canonical 令牌（`--hb-lumen-soft` 这类）。真违约的名字是 `--accent-soft` /
- * `--hb-vacuum-accent-soft` / `--hb-tone-line`，都不以家族名命名。所以改看**取值**：
- * 只要它是 `rgba(var(--{hos,hb}-<八族之一>-rgb), α)` 形式、且名字以 `-soft`/`-line` 结尾，
- * 就按契约比对。这样 `--hos-atmo-soft`（取值是字面 rgb，不是派生）与
- * `--uc-line`（引用的是 sky-haze，不属于八族）都自然落在规则之外，无需白名单。
- *
- * 名字里带 `-text` 的跳过：那是文字 α（如 `--accent-text-soft` 的 0.82），
- * 与「柔光底 / 描边」不是一回事 —— 与 audit_colors.mjs 的 roleOfToken 同一口径。
  */
 const FAMILY_SOFT_LINE_RE =
   /(--[\w-]+-(soft|line))\s*:\s*(rgba\([^;]*?\)|#[0-9a-fA-F]{8})\s*;/g;
@@ -1957,8 +1567,8 @@ function checkSoftLineAlpha() {
       const stripped = text.replace(/\/\*[\s\S]*?\*\//g, (m) => "\n".repeat(m.split("\n").length - 1));
       for (const match of stripped.matchAll(FAMILY_SOFT_LINE_RE)) {
         const [full, token, kind, value] = match;
-        if (token.includes("-text")) continue; // 文字 α，不是柔光/描边
-        if (!FAMILY_RGB_IN_VALUE_RE.test(value)) continue; // 非八族派生，语义无关
+        if (token.includes("-text")) continue;
+        if (!FAMILY_RGB_IN_VALUE_RE.test(value)) continue;
         const alpha = alphaOfSoftLineValue(value);
         if (alpha === null || Number.isNaN(alpha)) continue;
         const want = SOFT_LINE_CONTRACT[kind];
@@ -1986,7 +1596,6 @@ const EXTERNAL_MODELS_JS = path.join(STATIC_DIR,
 );
 /**
  * 注册表条目：`类型: defineHomeItemModel("子目录", "文件基名", {`。
- * 允许换行写法 —— rounddiningtable_turntable 就是拆成三行的，只认单行会漏掉它。
  */
 const MODEL_ENTRY_RE =
   /^[ \t]*([a-z_0-9]+):\s*define(?:Home|Appliance)ItemModel\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,/gm;
@@ -2014,7 +1623,6 @@ function collectModelFiles() {
 
 /**
  * 读一个 GLB 的包围盒与材质名。只用 Node 内置能力解析容器（magic / chunk / JSON），
- * 不引入 three —— 护栏要能在 CI 的裸 Node 里跑，而判据本身只需要 POSITION 访问器的 min/max。
  */
 function readGlbSummary(file) {
   const buffer = fs.readFileSync(file);
@@ -2069,14 +1677,6 @@ function readGlbSummary(file) {
 
 /**
  * 流水线生成的模型规格（tools/models/model-specs.mjs）。
- *
- * 这条判据**只对这批模型**生效，不覆盖 models/ 下的外部既有资产 —— 两边的契约本就不同：
- *   - 流水线产物按约定「变换烘进几何、包围盒逐值等于 scaleBasis、材质名 material-<槽位号>」，
- *     因为 generate-models.mjs 就是按这套约定导出的；
- *   - 外部既有资产是别人按自己的工具链导出的，材质名走的是另一套**同样被运行侧支持**的
- *     子串约定（重音在 `cushion` / `foliage` / `-soft` / `-light` / `-dark` 上），把它们按
- *     `material-<槽位号>` 判就是纯误报。
- * 取不到规格表（模块解析失败等）就整体跳过，宁可漏报。
  */
 const { PIPELINE_MODEL_SPECS, PIPELINE_LITE_VERTEX_BUDGET_RATIO } = await (async () => {
   try {
@@ -2084,7 +1684,6 @@ const { PIPELINE_MODEL_SPECS, PIPELINE_LITE_VERTEX_BUDGET_RATIO } = await (async
     return {
       PIPELINE_MODEL_SPECS: module.MODEL_SPECS,
       // lite 顶点预算的缺省上限比例与生成器取同一个来源；这里不抄一个 0.9，两端各写一份
-      // 就会出现「生成器放行、守卫报红」的分裂口径。
       PIPELINE_LITE_VERTEX_BUDGET_RATIO: module.DEFAULT_LITE_VERTEX_BUDGET_RATIO ?? 0.9
     };
   } catch {
@@ -2097,26 +1696,11 @@ const GLB_SIZE_TOLERANCE_METERS = 0.0015;
 
 /**
  * 磁盘 GLB 的内容必须与注册表 `scaleBasis` 自洽。
- *
- * 与上一条（checkModelAssetUrls）的分工：那条只管「文件在不在、有没有被引用」，
- * 这条管「文件内容对不对」。两者都不管的话会出现这些**只在画面上表现为「有点歪」**的失效：
- *
- *   1. **改了规格没重新导出** —— 磁盘上还是旧尺寸，而运行侧按 scaleBasis 做非等比缩放，
- *      成品被整体拉伸。实测发生过：smartlock 宽少 5mm（0.075 vs 0.08）被拉宽 6.7%。
- *   2. **底面不在 y=0** —— preserveOrigin 直接拿原点贴地，偏了就是半埋进地板或浮空。
- *   3. **占地中心不在原点** —— 摆放时按占地居中计算，偏心会让物件视觉上偏出包围盒。
- *   4. **材质名不是 `material-<槽位号>`** —— 运行侧按槽位号与后缀（-soft / -dark / cushion）
- *      查色卡，名字对不上就是「模型到位后颜色不跟风格走」，而这条连 fallback 都没有。
- *   5. **lite 不比完整版轻** —— 首屏加载的那一份没起到作用，等于白做一条产线。
- *   6. **lite 与完整版的包围盒不一致** —— lite 才是主资源（完整版是加载失败时的回退），
- *      少一块撑轮廓的零件就是物件本身小了一圈：零报错，只是模型一到位轻轻缩一下。
- *
- * 判不出真假就不判：解析失败只报告「读不了」，不去猜内容；作用域限于流水线产物。
  */
 function checkModelGlbIntegrity() {
   const problems = [];
   if (!PIPELINE_MODEL_SPECS) {
-    return problems; // 规格表读不到就不判，避免退化成纯误报
+    return problems;
   }
   const text = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
   MODEL_ENTRY_RE.lastIndex = 0;
@@ -2131,14 +1715,14 @@ function checkModelGlbIntegrity() {
     const entry = entries[index];
     // 条目文本 = 本条起点到下一条起点；末条到文件尾。scaleBasis 就在这段里。
     if (!PIPELINE_MODEL_SPECS[entry.itemType]) {
-      continue; // 外部既有资产走自己的命名 / 比例约定，不按流水线判据判
+      continue;
     }
     const blockEnd = index + 1 < entries.length ? entries[index + 1].index : text.length;
     const block = text.slice(entry.index, blockEnd);
     const relative = `${entry.modelDir}/${entry.fileKey}`;
     const fullPath = path.join(MODELS_DIR, `${relative}.glb`);
     if (!fs.existsSync(fullPath)) {
-      continue; // 存在性归 checkModelAssetUrls 管，这里不重复报
+      continue;
     }
     const full = readGlbSummary(fullPath);
     if (full.error) {
@@ -2174,9 +1758,6 @@ function checkModelGlbIntegrity() {
       const wanted = basisMatch[1].split(",").map(value => Number(value.trim()));
       if (wanted.length === 3 && wanted.every(value => Number.isFinite(value))) {
         const actual = [full.max[0] - full.min[0], full.max[1] - full.min[1], full.max[2] - full.min[2]];
-        // 高度按规格里的 `authoredHeight` 判（缺省等于 scaleBasis 的高）。有些物件的几何**刻意
-        // 伸出声明箱体之外**（台盆的镜柜烘在台面以上），声明高度只描述落地柜体，作者实际烘出的
-        // 总高另记在 authoredHeight —— 不认这个键，这条守卫会对这一类物件稳定误报。
         const wantedWithExtent = [
           wanted[0],
           PIPELINE_MODEL_SPECS[entry.itemType].authoredHeight ?? wanted[1],
@@ -2195,7 +1776,6 @@ function checkModelGlbIntegrity() {
           }
         }
         // 底面高度按规格里的 `mountHeight` 判（缺省 0）：挂墙件（吊柜）把挂高烘在几何里，柜底本来
-        // 就在 1.4m 那一档 —— 与生成器的同源校验一致，见 model-specs.mjs 的 wallcabinet。
         const wantedMinY = PIPELINE_MODEL_SPECS[entry.itemType].mountHeight ?? 0;
         if (Math.abs(full.min[1] - wantedMinY) > GLB_SIZE_TOLERANCE_METERS) {
           problems.push({
@@ -2227,11 +1807,6 @@ function checkModelGlbIntegrity() {
       if (lite.error) {
         problems.push({ file: rel(litePath), line: 0, detail: `${entry.itemType} 的 lite 版读不了：${lite.error}` });
       } else {
-        // lite 与完整版必须**逐值同包围盒**：lite 是运行侧的主资源（完整版只是加载失败时的回退），
-        // 少一块撑轮廓的零件就是「物件本身小了一圈」，零报错。历史上 31 件这么踩过 ——
-        // 撑住进深 / 宽度 / 高度的零件（柜门把手、壁挂件挂板、地毯流苏、楼梯斜裙板……）被打了
-        // `fullOnly`，或者 lite 的降段数没踩在圆截面的极值角上。生成器那一侧有同源的 0.5mm 校验，
-        // 这里判磁盘文件（1.5mm）：它拦的是「规格改了但没重新导出」，与包围盒那条同一个分工。
         for (const axis of [0, 1, 2]) {
           const drift = Math.max(
             Math.abs(lite.min[axis] - full.min[axis]),
@@ -2249,8 +1824,6 @@ function checkModelGlbIntegrity() {
           }
         }
         // 上限比例跟着规格走（缺省取生成器同源的 DEFAULT_LITE_VERTEX_BUDGET_RATIO）。方柱这类
-        // 「零件一件都丢不得、分段一处都降不了」的类型显式声明 1：它的 lite 与完整版同形是
-        // 有意为之，不该在这里被反复报一条没人能修的警报。
         const budgetRatio =
           PIPELINE_MODEL_SPECS[entry.itemType].liteVertexBudgetRatio ?? PIPELINE_LITE_VERTEX_BUDGET_RATIO;
         if (lite.vertices > full.vertices * budgetRatio) {
@@ -2275,25 +1848,12 @@ const STORAGE_CABINETS_BUILDER_JS = path.join(ITEM_BUILDERS_DIR,
 
 /**
  * 吊柜的挂高（柜底离地）必须三处同源。
- *
- * 为什么单列一条：吊柜的挂高是**烘进几何**的（规格的 `mountHeight`，导出时整件抬起 1.4m）——
- * 这是照**原版既有资产**的口径定的：那台资产的柜底也在 1.378m，而它的
- * `ITEM_TYPE_DEFINITIONS.wallcabinet` 里没有 elevation，摆位只把 elevation 当偏移。
- * 于是这一个高度在三个地方各写了一份，漂掉任何一处都不报错：
- *   1. `tools/models/model-specs.mjs` 的 `wallcabinet.mountHeight` —— 生成器按它抬整件；
- *   2. `item-builders/storage-cabinets.js` 的 `wallCabinetMountHeight` —— 占位几何照同一个口径加；
- *   3. `studio-app.js` 的 `ITEM_TYPE_DEFINITIONS.wallcabinet` —— **不能再有 `elevation`**。
- * 1 与 2 不同 →「模型加载完成的那一帧」柜子往下一掉或往上一跳（占位只活到那一帧，不报错）；
- * 3 多出一格 → 本仓新放一件吊柜的默认落点与原版差一个挂高（原版那一格是 0），而这一格的值
- * 还会跟着草稿写出去 —— 2026-09 的「草稿放到原版里，吊柜的高度还是不对」就是这么来的：
- * 那一版把 1.6 写进这一格，几何又是 0 基，于是同一个草稿在原版里从 1.4m 悬到 3.1m。
- * 判据只覆盖这一件（全库只有它烘了挂高），读不到规格 / 源码就不判。
  */
 function checkWallCabinetMountHeightParity() {
   const problems = [];
   const spec = PIPELINE_MODEL_SPECS?.wallcabinet;
   if (!spec) {
-    return problems; // 规格表读不到（这一件没在流水线里）就不判
+    return problems;
   }
   const declaredMountHeight = spec.mountHeight ?? 0;
 
@@ -2373,24 +1933,6 @@ function checkWallCabinetMountHeightParity() {
 
 /**
  * 流水线 GLB 里不得有**会闪的**共面重叠（z-fighting）。
- *
- * 为什么单列一条：两块不同槽位的面落在同一平面、而且在平面上有重叠时，GPU 按图元顺序
- * 抢同一像素、逐帧抖动 —— 画面上是一片闪动的条纹。它**不报错、不崩、不进控制台**，
- * 单张截图也看不出来（触发条件与相机距离、浮点精度有关），只有在真正转起来时才显形。
- * 已实际发生过的一批：面板贴在机身前脸上、顶盖与机身一起顶到同一个标高、玻璃门与柜体
- * 同宽同面、踏板的两条长边与斜梁逐面齐平 —— 全库 87 处。
- *
- * 判据与修法这类工具同源，直接复用 tools/audit_coplanar_faces.mjs（同一份 GLB 读取与
- * 法向分类），避免「守卫一套口径、审计另一套口径」：
- *   - 只报**同向**（两块面朝向同一侧）与**背靠背但两侧沾到玻璃**（glass 是 DoubleSide +
- *     depthWrite:false，背面剔不掉）的；
- *   - 背靠背且两件都是单面材质的（顶盖坐在箱体上、层板贴在背板前）不计 —— 那类是正常叠放，
- *     从外侧看朝内那块被背面剔除丢掉，不闪；要做到 0 得把每个接触面都改成互嵌或留缝，
- *     代价高而画面零变化。
- *
- * 修法不是「把面推开」：包围盒受 1mm 的规格校验约束，外表面不能动。正确做法是让**非极值的那一件**
- * 退让 2~5mm（嵌进母体、或收到相邻件的内表面之内），外观不变而两个面不再共面。
- * 本环境无法目视（零 WebGL 绘制），这条守卫是这批缺陷唯一的发现路径。
  */
 function checkCoplanarOverlaps() {
   const problems = [];
@@ -2404,7 +1946,6 @@ function checkCoplanarOverlaps() {
     );
   } catch (error) {
     // 审计脚本自身跑不起来时**必须报错**：静默返回「通过」会让这条守卫在无人察觉的情况下失效，
-    // 而它又是这类缺陷唯一的发现路径（本环境零 WebGL 绘制，目视不了）。
     problems.push({
       file: "tools/audit_coplanar_faces.mjs",
       line: 0,
@@ -2414,11 +1955,6 @@ function checkCoplanarOverlaps() {
   }
   for (const entry of payload.unreadable || []) {
     // 作用域与标题一致：这条判据管的是**流水线产物**的几何。既有资产（第三方导出，
-    // 用 Draco / sparse 访问器 / 外部 .bin）本来就读不动，也不在生成器的覆盖范围内 ——
-    // 报出来只会让这条守卫永远红着而没有任何人能修，与其它几条「外部既有资产走自己的
-    // 约定、不按流水线判据判」的判据同一个口径。真正读不动的流水线产物仍然照报
-    //（那一定是生成器或导出坏了）。整批读不动的清单在 `--json` 的 unreadable 字段里，
-    // 手跑 node tools/audit_coplanar_faces.mjs 也会逐件点出来。
     if (!PIPELINE_MODEL_SPECS[entry.type.replace(/-lite$/, "")]) {
       continue;
     }
@@ -2444,43 +1980,11 @@ function checkCoplanarOverlaps() {
 
 /**
  * 模型资源的两端对齐：注册表写出的路径必须真有文件，磁盘上的 GLB 也必须被注册表引用。
- *
- * 为什么单列一条：这一路**没有任何运行时报错**。加载失败会静默退回过程几何（studio-external-models.js
- * 的 fallback 路径），物件照样出现、只是糊一点，肉眼极难判定「模型没到位」还是「模型就长这样」。
- * 已实际发生过的失效：换戳脚本按旧签名把 defineHomeItemModel 的第二参（当时是回退版本号）整段换成
- * 新戳；第二参改成文件基名后，同一段正则把**基名**换成了版本戳，全站模型 URL 变成
- * `/models/furniture/2609240238.glb`，192 个文件一个都取不到。基名形状那条判据就是这次事故的指纹。
- */
-/**
- * `modelTypeForItem`（studio-external-models.js）派生出来的模型类型：由基础类型带出来，
- * 本来就不该出现在「可加载类型」那两张名单里，因此不参与下面那条可达性判据。
  */
 const DERIVED_MODEL_TYPE_RE =
   /^(curtain_(left|right|split)|pillar_(round|semicircle|quarter|quarterinner)|tv_(standard|tabletop|mobile)|rounddiningtable_turntable)$/;
 /**
  * 已知「注册了模型但没有任何一条路会加载它」的存量条目。**现已清空** —— 这份名单是
- * 债务清单、不是白名单：它让下面那条判据只拦新增的孤儿条目，不把存量一次性炸出来。
- *
- * 最后四笔（`smallcar` / `elevator` / `steelstairs` / `glassstairs`）的来龙去脉值得留一笔：
- * 它们**有意不在 HOME_ITEM_TYPES** 里（建筑本体与车辆不进暖阳家居配色，见 studio-item-types.js
- * 那段注释），而「不参与家居配色」被顺带读成了「不加载模型」—— 于是注册条目与被它引用的 GLB
- * 一起空转。2026-09 这四件按流水线规格重建（见 model-specs.mjs 的 elevator / uStairLayout），
- * 重建的同时把它们加进 EXTERNAL_MODEL_ITEM_TYPES，这条判据从此对它们生效：
- * 再被漏掉就直接报错，不再靠人记得。
- *
- * 其中小汽车 2026-09-26 又换回了上游第三方车模（贴图集 + Draco），因此它**不再是**流水线产物、
- * 也从 model-specs.mjs 里撤掉了；但这条判据对它照旧成立 —— 资产仍在注册表里、仍由
- * media-structure.js 的小车构建体加载，撤掉规格不等于可以少一处加载路径。
- *
- * 空白名单仍留着而不是删掉机制：判据本身要一直在，下一条孤儿条目才拦得住
- * （`sofa` 当初就是这么挂了一版 —— GLB 一直在，画面上却是没有腿的程序化方块）。
- *
- * 更早收清的几笔：airoutlet / pipelinewaterpurifier / tea_bar_machine 三件接 HA 的家电在
- * 流水线重建那一轮拿到了带 scaleBasis 与角色槽位的新 GLB，于是划掉并加进
- * APPLIANCE_MODEL_ITEM_TYPES；`piano` 同理 —— 旧的那份是原样搬进来的第三方素材（单位厘米、
- * 底面在 y=−0.502、材质名是 `金色金属材料` / `[Color_009]1` 这种、注册条目连 scaleBasis 都给不
- * 出来，于是写不了角色、也就永远不会跟着材质风格换色），重建后它是 1.5 × 0.99 × 1.5 的三角钢琴、
- * 八个角色槽位，于是划掉并加进 EXTERNAL_MODEL_ITEM_TYPES。
  */
 const KNOWN_UNREACHABLE_MODEL_TYPES = new Set([]);
 
@@ -2525,11 +2029,6 @@ function checkModelAssetUrls() {
     }
   }
   // ── 反向的一条：注册了、但没有任何一条路会去加载它 ────────────────────────
-  // 上面两条查「文件在不在、有没有被引用」，这一条查「引用它的那条路有没有人会走」。
-  // registry.js 的收尾判据是 EXTERNAL_MODEL_ITEM_TYPES ∪ APPLIANCE_MODEL_ITEM_TYPES，
-  // 不在这两张名单里的类型**永远**退回过程几何，而两头对账照样全绿 —— 于是这条注册
-  // 连同它的 GLB 一起空转，零报错。sofa 就是这么挂着的：GLB 一直有，画面上却是那版
-  // 「抬离地面却没有腿」的程序化方块，两个缺陷互相掩护，谁也没被发现。
   const itemTypesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
   const loadableTypes = new Set([
     ...readLiteralSet(itemTypesText, "EXTERNAL_MODEL_ITEM_TYPES"),
@@ -2570,16 +2069,8 @@ const ENVIRONMENT_HALOS_JS = path.join(RUNTIME_MODULES_DIR,
 );
 /**
  * 「环境模型类型」这组清单在仓库里重复了 7 处，且**每一处漏写都不报错**：
- *   - environment-scene.js 的 MODEL_TYPE_TO_PAGE / MODEL_TYPE_TO_DEVICE_KIND（两张表，按类型反推页面与设备种类）；
- *   - environment-halos.js 的描边资格清单（少了 → 该设备永远不高亮，看着像「没绑上」）；
- *   - studio-app.js 的四处等价清单（合批排除 + 打 environmentModelType 标记，少了 → 预览里拿不到状态）。
- * 所以这里把它们取出来两两比对。取值靠「找到 wallac 再向外扩到最近的 [ ]」，不依赖变量名 ——
- * 那四处是内联数组字面量，本来就没有名字。
  */
 function readBracketLists(text) {
-  // 认列表靠**连续三连**「wallac → floorac → airoutlet」：studio-app.js 里还有一组含 wallac 的
-  // 大集合（家具 + 家电 + 洁具几十项），只看单个 wallac 会把它整段吞进来。这三连只有环境模型
-  // 清单才满足（那组大集合里 wallac 后面跟的是 floorac、再后面是 nas）。
   const lists = [];
   const signature = /"wallac",\s*"floorac",\s*"airoutlet",/g;
   let match;
@@ -2664,15 +2155,6 @@ function checkEnvironmentModelTypes() {
 
 /**
  * 「环境页面归一表」不能漏登页签别名。
- *
- * environment-scene.js 的 pageDimming 先把「模块 ID」归一成「页面 ID」，随后 pageModelBindings
- * 与 screenOutlines 都按这个页面取值。漏登一个别名时该页签会同时掉进两个坑：既不在页面白名单里
- * （压暗 / 降饱和整段不生效），又把页面筛成别名本身（环境模型既不描边、也不合成展示绑定）。
- * 症状是「切到该页签，环境设备全部失去高亮」，浏览器不报任何错。
- *
- * 期望值对着上游 0.6.5 的 pageDimming 反混淆结果钉死：上游把 `purifier` / `temperature-humidity`
- * 归入 environment、通用设备品类归入 devices（本仓净化器并入环境页、通用设备也不是独立模块，
- * 故这两类不登记）。本仓已踩过一次 —— temperature-humidity 页签漏登，切过去环境设备全不高亮。
  */
 function checkEnvironmentPageNormalization() {
   const text = fs.readFileSync(ENVIRONMENT_SCENE_JS, "utf8");
@@ -2736,14 +2218,8 @@ function checkEnvironmentPageNormalization() {
   return problems;
 }
 
-/**
- * 取对象字面量里**第一层**的键名与值表达式（嵌套对象里的键不算 —— 角色配方的值是 `{ surface, color }`，
- * 内层键不能当成角色名）。`defaulted` 表示该键的值带 `??` 兜底。
- */
 function readTopLevelObjectEntries(objectText) {
   const entries = [];
-  // 先去掉行尾注释：本文件里带默认值的角色（`accent: accent ?? upholstery`）前面正好是一行说明注释，
-  // 不剥注释的话「上一个非空字符」会是句号而不是逗号，那个角色就会被漏掉。
   const source = objectText.replace(/\/\/[^\n]*/g, "");
   let depth = 0;
   for (let i = 0; i < source.length; i += 1) {
@@ -2779,15 +2255,6 @@ function readTopLevelObjectKeys(objectText) {
 
 /**
  * 解析组合构造器（joineryCombo / fabricCombo …）能为哪些角色提供配方。
- *
- * 返回每个构造器的两类角色：
- *   - `all`：它返回的全部角色（能表达的角色）；
- *   - `defaulted`：返回时带 `??` 兜底的角色 —— 调用处不写也算数（柜类的 trim / base 默认跟随柜体、
- *     软包的 accent / cushion 默认跟随主体、frame 默认跟随腿）。
- *
- * 为什么要把「兜底」单独拎出来：调用处**没传**、构造器也**没有兜底**的角色，配方里的 color 会是
- * undefined，运行侧 `Number.isFinite(color)` 判定不过 → 那块网格静默保留基础色。这跟「写了配方
- * 但值为空」是同一种失效，必须判出来。所以覆盖判据是「调用处显式传入 ∪ 构造器兜底」。
  */
 function readComboRoleSupport(text) {
   const supportByName = new Map();
@@ -2820,15 +2287,6 @@ function readComboRoleSupport(text) {
   return supportByName;
 }
 
-/**
- * 解析 studio-material-styles.js 里的风格组：`const X_STYLES = Object.freeze([ defineStyle(...) ])`。
- * 颜色对象是扁平的，因此按大括号配对取出每个档位的键名就够了，不需要真解析 JS。
- *
- * 同时取出「档位即组合」那部分的角色名：颜色对象之后如果跟着 `xxxCombo({ ... })`，
- * 该档位按角色给出的配方就是这个构造器**返回**的那些角色（不是调用处字面写出的那几个，
- * 见 readComboOutputRoles）。取角色名的目的是护栏要能回答「这个类型的这个角色，
- * 在这个档位里到底有没有配方」—— 缺一个就会静默退回基础色。
- */
 function collectMaterialStyleGroups(text) {
   const groups = [];
   const comboRoleSupport = readComboRoleSupport(text);
@@ -2872,8 +2330,6 @@ function collectMaterialStyleGroups(text) {
         item => item[1]
       );
       // 颜色对象之后可能跟一个组合构造器调用（joineryCombo / fabricCombo …）：
-      // 该档位**真正覆盖到**的角色 = 调用处显式传入的 ∪ 构造器用 `??` 兜底的。
-      // 只写对象字面量（没有构造器）时，覆盖到的就是字面量里第一层的键。
       const comboCallMatch = /([A-Za-z_][A-Za-z_0-9]*Combo)\(\s*\{/.exec(body.slice(objectEnd + 1));
       let roleNames = null;
       if (comboCallMatch) {
@@ -2910,7 +2366,6 @@ function collectMaterialStyleGroups(text) {
   return groups;
 }
 
-/** 取 `const NAME = new Set([ "a", "b" ])` 里的字符串成员（含 Object.freeze(new Set([...])) 形式）。 */
 function readLiteralSet(text, name) {
   const start = text.indexOf(`const ${name} = `);
   if (start === -1) {
@@ -2927,23 +2382,6 @@ function readLiteralSet(text, name) {
 
 /**
  * 「材质风格」可选项的覆盖率守卫。
- *
- * 这个功能的失效方式是**纯静默**的：下拉照常渲染、值照常落盘、控制台零报错，只是选了之后
- * 3D 里什么都没变 —— 因为调色板的某个键压根没被任何换色分支读，或者读的键风格没覆盖。
- * 单看代码极难发现（要同时读完 applyFurniturePalette 的几十个分支和十几组风格定义），
- * 因此把四条约束固化成校验：
- *
- *   1. 每个档位至少要覆盖一个「基准键」（completeFurnitureRamp 的候选键，从源码里读，
- *      不在此处复制一份）。缺了它，completeFurnitureRamp 不会补齐四档 —— 一旦物件的零件
- *      落在 furniture* 档，风格就完全不起作用。
- *   2. 服务了「家电调色板」类型（APPLIANCE_PALETTE_ITEM_TYPES）的风格组必须写全
- *      appliance / applianceSoft / applianceDark —— 家电分支只认这三键，只写 furniture*
- *      同样是「选了没反应」（电视的 SCREEN_STYLES 就踩过这个坑，见 studio-material-styles.js）。
- *   3. 每个「支持材质风格」的类型都必须能查到档位（逐类型表或材质族兜底），
- *      否则下拉里只有「跟随全局风格」，属性面板上等于没有这个功能。
- *   4. 档位表 / 族表里不许出现不属于该类型的键 —— 类型改名或删类型后残留的键是死代码，
- *      而它对应的新类型会因此落到第 3 条上。
- *
  * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
  */
 function checkMaterialStyleCoverage() {
@@ -2961,7 +2399,6 @@ function checkMaterialStyleCoverage() {
     });
     return problems;
   }
-  // 从源码里读基准键与四档键名，避免这里再抄一份、两边各自漂移。
   const rampBaseKeys = [
     ...rampFunction[1].matchAll(/colors\.([A-Za-z_][A-Za-z_0-9]*)\s*\?\?/g)
   ].map(item => item[1]);
@@ -3109,22 +2546,12 @@ function checkMaterialStyleCoverage() {
 
 /**
  * 「档位即组合」的角色覆盖守卫。
- *
- * 这一条的失效方式和上一条同源、但更隐蔽：**风格档位为该类型的每个材质角色都要有配方**，
- * 缺一个角色，那一块网格就静默退回基础色 —— 现象是「这个风格下别的地方都变了，就是某一块没变」，
- * 与旧行为（整件单色）混在一起几乎无法判定。角色名写错（`leg` 写成 `legg`）也是同一个下场。
- *
- * 判据（两端都从源码取，不在这里抄一份）：
- *   1. 规格里声明的角色必须在 MODEL_SLOT_ROLES 词表内，且不以 -soft / -dark / -light 结尾
- *      （那三个后缀是既有资产的亮度分档约定，撞上会被运行侧当成亮度分档取色）；
- *   2. 对每个带角色的流水线类型，它**能选到的每个档位**都必须给出该类型用到的全部角色的配方。
- *
  * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
  */
 function checkMaterialRoleCoverage() {
   const problems = [];
   if (!PIPELINE_MODEL_SPECS) {
-    return problems; // 规格表读不到就不判
+    return problems;
   }
   const stylesText = fs.readFileSync(MATERIAL_STYLES_JS, "utf8");
   const groups = collectMaterialStyleGroups(stylesText);
@@ -3134,7 +2561,6 @@ function checkMaterialRoleCoverage() {
       roleNamesByStyleId.set(entry.id, entry.roles);
     }
   }
-  // 类型 → 它能选到的风格组名：逐类型表优先，其次是材质族兜底（与 materialStyleOptionsFor 同序）。
   const explicitGroupByType = new Map();
   const explicitStart = stylesText.indexOf("const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = ");
   if (explicitStart !== -1) {
@@ -3172,18 +2598,12 @@ function checkMaterialRoleCoverage() {
 
   /**
    * 流水线规格键 → 取档位时该查哪个**物件类型**。绝大多数规格与物件类型 1:1，只有电视是三对一：
-   * 它按挂装方式拆成 tv_standard / tv_tabletop / tv_mobile 三份模型，但物件类型始终是 tv
-   * （运行侧 modelTypeForItem 由 item.tvMountStyle 现算模型键），逐类型档位表里也只有 tv 一条。
-   * 折算回 tv 之后，这三份模型用到的角色就能被它真正会走的档位（SCREEN_STYLES）验到；
-   * 不折算的话它们查不到档位、这一条会直接跳过 —— 恰恰是最需要验的三份（角色最多）。
    */
   const styleLookupTypeBySpec = new Map([
     ["tv_standard", "tv"],
     ["tv_tabletop", "tv"],
     ["tv_mobile", "tv"],
     // 窗帘同样是「一个物件类型对多份模型」：按开合方式拆成三段（左 / 右 / 对开），
-    // 但物件类型始终是 curtain，逐类型档位表里也只有 curtain 一条。不折算的话这三份
-    // 会查不到档位、整条跳过 —— 而它们正是本轮新增角色的三份。
     ["curtain_left", "curtain"],
     ["curtain_right", "curtain"],
     ["curtain_split", "curtain"]
@@ -3192,7 +2612,7 @@ function checkMaterialRoleCoverage() {
   for (const [itemType, spec] of Object.entries(PIPELINE_MODEL_SPECS)) {
     const declaredRoles = [...new Set((spec.slots || []).map(slot => slot.role).filter(Boolean))];
     if (declaredRoles.length === 0) {
-      continue; // 还没补角色的类型不判 —— 它们本来就走整件配色那条路
+      continue;
     }
     for (const role of declaredRoles) {
       if (!MODEL_SLOT_ROLES.includes(role) || MODEL_SLOT_ROLE_SUFFIX_RE.test(role)) {
@@ -3213,7 +2633,7 @@ function checkMaterialRoleCoverage() {
       groupNameByFamily.get(familyGroupByType.get(styleLookupType));
     const group = groupName ? rolesByGroupName.get(groupName) : null;
     if (!group) {
-      continue; // 「这个类型查不到档位」由上一条（材质风格覆盖）负责报
+      continue;
     }
     for (const entry of group.entries) {
       if (!entry.roles) {
@@ -3241,7 +2661,6 @@ function checkMaterialRoleCoverage() {
   }
 
   // 石材色号（`slab`）也要对账：色号写错时 createStoneSlabTexture 返回 null，
-  // 运行侧退化成「一个纯色 + 没纹路」，正是本条守卫要防的「选了没反应」。
   const implementedFlavors = readStoneSlabFlavors();
   if (implementedFlavors) {
     const externalText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
@@ -3282,29 +2701,14 @@ function checkMaterialRoleCoverage() {
 
 /**
  * 「调色板路径」的角色出口守卫。
- *
- * 失效方式：默认档位（「跟随全局风格」）走的不是 `joineryCombo` 那套按角色的配方，而是
- * studio-external-models.js 的 `applyFurniturePalette`；它末尾有一条「按烘焙亮度分三档」的
- * 兜底，本意是给**整件同一种主料**的家具分层次。内容物与五金落进那条兜底会被刷成主料色 ——
- * 书柜里的书与柜体同色、鞋柜敞开格里的鞋读成一堆木方块、梳妆台的镜面是一块木头。这三条
- * 症状都不报错，只能靠眼睛发现（而且要先知道自己在看什么）：它们各自被「不跟木色走」的
- * 配方挡过一次，但那只在**手动选了材质档位**时才生效。
- *
- * 判据：规格里出现过的**每一个角色**都必须在运行侧的出口登记表里登记，且三份名单互不重叠：
- *   - `CARCASS_MATERIAL_ROLE_SET`：本来就是主料，跟着调色板三档走；
- *   - `AUTHORED_COLOR_MATERIAL_ROLE_RECIPES`：内容物 / 撞色陈设件 / 镜面，取规格里烘焙的原色；
- *   - `NON_CARCASS_MATERIAL_ROLE_SET`：另有专管（五金 / 玻璃 / 布艺 / 琴键 / 绿植 / 水槽灶面 / 屏面）。
- * 反向也判：登记了却没有任何规格在用（改名之后的残渣）、或不在角色词表里（拼错），都会报出来。
- *
  * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
  */
 function checkMaterialRolePaletteOutlets() {
   const problems = [];
   if (!PIPELINE_MODEL_SPECS) {
-    return problems; // 规格表读不到就不判
+    return problems;
   }
   const loaderText = fs.readFileSync(EXTERNAL_MODELS_JS, "utf8");
-  /** 取 `const NAME = new Set([ ... ])` 里的字符串成员；读不到返回 null（改名即整条失效）。 */
   const readRoleSet = name => {
     const start = loaderText.indexOf(`const ${name} = new Set([`);
     if (start === -1) {
@@ -3397,21 +2801,6 @@ function checkMaterialRolePaletteOutlets() {
 
 /**
  * 圆形占地的物件在平面图上没有按圆画（或名单里塞了不是圆的）。
- *
- * 平面图符号是手绘的（studio-app.js 的 drawPlanItem），3D 早已换成流水线规格，两者不会互相
- * 牵引 —— 0.9 × 0.9 的圆茶几画成方角矩形、圆桶加湿器画成方块，画面上「对不上」但浏览器零报错。
- * 这一条把「该不该画圆」变成可判的：
- *
- *   实测（判据见 tools/lib/glb-footprint.mjs：格数比 ≈ π/4 且各向半径等长）
- *     ↔ studio-item-types.js 的 ROUND_FOOTPRINT_ITEM_TYPES（运行侧照它画圆）
- *
- * 双向都判：实测是圆却没进名单 → 那一件在户型图上是个方角矩形；名单里有但实测不是圆 →
- * 名单该收，否则圆的符号会盖在一个方方正正的物件上。
- * 另加一道「名单有没有真的接上」：只导出名单、不去用（少写 `.has(itemToDraw.type)` 分支）
- * 是这类改动最典型的半成品状态，两个方向都正常、画面上一点变化都没有。
- *
- * 判不出真假就不判：读不到 GLB、几何太简单（径向样本不够）的条目一律跳过，只报「读不了」。
- *
  * @returns {Array<{file: string, line: number, detail: string}>} 问题清单。
  */
 function checkRoundFootprintPlanSymbols() {
@@ -3433,8 +2822,6 @@ function checkRoundFootprintPlanSymbols() {
     [...typesText.slice(declaredStart, declaredEnd).matchAll(/"([a-z_0-9]+)"/g)].map(item => item[1])
   );
   // 名单必须真的接上**外轮廓那一支**：只有名单没有分支 = 改动做了一半，画面上一模一样。
-  // 判据要精确到「那一支里有 fill()」—— 圆里的同心圈（ROUND_PLAN_RING_RATIOS_BY_TYPE 那一段）
-  // 也带 ellipse()，只看 ellipse 会被它蒙混过去（实测过：把外轮廓那一支停掉，判据照样通过）。
   const appText = fs.readFileSync(STUDIO_APP, "utf8");
   if (
     !/ROUND_FOOTPRINT_ITEM_TYPES\.has\(itemToDraw\.type\)[\s\S]{0,500}?ellipse\([\s\S]{0,240}?\.fill\(/.test(
@@ -3453,7 +2840,7 @@ function checkRoundFootprintPlanSymbols() {
   try {
     measured = measureFootprints();
   } catch {
-    measured = null; // 读不出就不判，避免退化成纯误报
+    measured = null;
   }
   if (!measured) {
     return problems;
@@ -3494,7 +2881,6 @@ function checkRoundFootprintPlanSymbols() {
 
 /**
  * 取某个 `const NAME = Object.freeze({` 对象字面量里的全部字符串值（只取这一层。
- * 用户是「色号表」这类扁平结构 —— 槽位表里嵌了一层 Object.freeze，所以按括号配对切到对象结束为止）。
  */
 function readObjectLiteralStrings(sourceText, name) {
   const declarationIndex = sourceText.indexOf(`const ${name} = Object.freeze({`);
@@ -3523,8 +2909,6 @@ function readObjectLiteralStrings(sourceText, name) {
 
 /**
  * 从 studio-surface-textures.js 里读出**已实现**的石材整图色号。
- * 来源两处：STONE_SLAB_TONES 的键，以及 createStoneSlabTexture 里特判复用背景墙贴图的那个 `marble`。
- * 读不到（改名 / 结构变化）时返回 null，本条子校验整体跳过 —— 不误报比多报一条更重要。
  */
 function readStoneSlabFlavors() {
   const surfaceTexturesPath = path.join(STATIC_DIR,
@@ -3546,7 +2930,6 @@ function readStoneSlabFlavors() {
       item => item[1]
     )
   );
-  // 特判分支：`if (flavor === "marble")` 直接复用背景墙那张图，不在 STONE_SLAB_TONES 里出现。
   for (const item of textureText.matchAll(/flavor === "([a-zA-Z][a-zA-Z0-9_-]*)"/g)) {
     flavors.add(item[1]);
   }
@@ -3559,16 +2942,6 @@ const ASSET_PALETTE_JS = path.join(STUDIO_DIR,
 
 /**
  * 素材库页签与类型词表两端对账。
- *
- * 素材库的分组显隐走两条**互不知情**的数据：卡片自己的 `data-asset-category`（来自
- * STUDIO_ASSET_PALETTE 里那一组的 `category`，在 studio-asset-palette.js）决定分组标题是否可见，
- * 而 studio-app.js 的 syncAssetTabVisibility 用 APPLIANCE_ITEM_TYPES 决定**卡片**是否可见。
- * 两条数据一旦错开，症状是卡片挂在上一个仍可见的家居标题下面 —— 也就是「家电跑进了
- * 结构与特殊物件 / 卫浴那一组」。它不报错，只有人盯着素材栏才发现，所以在这里双向对账：
- *   - 「电器」组的卡片必须都在 APPLIANCE_ITEM_TYPES 里（少了就是漏到家居页签）；
- *   - 「家居」组的卡片必须都不在 APPLIANCE_ITEM_TYPES 里（多了就是家居卡片跑进电器页签）。
- * 同一份名单还决定兜底盒体的取色（external-fallback.js：家电取电器色、其余取家具色），
- * 所以漏一个会连带让加载中的占位几何变成另一个颜色。
  */
 function checkAssetPaletteTypeSets() {
   const problems = [];
@@ -3579,8 +2952,6 @@ function checkAssetPaletteTypeSets() {
   const itemTypesText = fs.readFileSync(ITEM_TYPES_JS, "utf8");
 
   // 卡片按所属分组的 category 归堆。分组对象形如
-  // `{ category: "appliance", label: …, note: …, items: [ { type: "fridge", … }, … ] }`，
-  // 所以从 `category:` 起配到该组 `items: [` 的收尾 `]` 为止。
   const cardsByCategory = new Map();
   const groupRe = /category:\s*"(home|appliance)"[\s\S]*?items:\s*\[([\s\S]*?)\n {4}\]/g;
   let groupMatch;
@@ -3635,11 +3006,6 @@ function checkAssetPaletteTypeSets() {
 
 /**
  * 有外部模型的类型里，占地尺寸**允许**与 scaleBasis 不一致的那些（当前只有一件）。
- *
- * `smallcar`：2026-09-26 换回上游第三方车模（贴图集 + Draco）后不再是流水线产物，
- * 也从 `model-specs.mjs` 撤掉了；它是**按模型实测尺寸摆放**的（运行侧量完直接缩放，
- * 不用 scaleBasis 语义），因此 `ITEM_TYPE_DEFINITIONS` 那一格只是拖拽落点用的经验值，
- * 与注册表条目的 scaleBasis 本来就不是同一件事。判据对其它类型照旧生效。
  */
 const ITEM_SIZE_PARITY_EXEMPT_TYPES = new Set(["smallcar"]);
 
@@ -3648,20 +3014,6 @@ const ITEM_SIZE_PARITY_TOLERANCE = 0.005;
 
 /**
  * 素材库卡片与「类型定义」两端对账。
- *
- * 素材库卡片只声明一个 `type` 字符串，能不能真正**放下**一件东西却完全取决于 studio-app.js 的
- * `ITEM_TYPE_DEFINITIONS`：`createSceneItem()` 的头两行就是
- * `const typeDefinition = ITEM_TYPE_DEFINITIONS[newItemType]; if (!typeDefinition || !ensureCalibration()) return;`
- * 于是「卡片在、定义不在」的表现是**点一下什么也不发生** —— 不报错、不弹提示、草稿不变，
- * 连拖拽落点也被同一处拦下（palette drop 与点击走的是同一个入口）。
- *
- * 这正是加一件新物件时最容易漏的一格：模型注册表、类型词表、材质风格、平面符号四处都补了，
- * 唯独忘了这一格 —— 而且漏掉之后其余四处全都在「等待被调用」，谁也报不出错。
- * 判据：素材库里出现的每个 type 都要有一条 `ITEM_TYPE_DEFINITIONS.<type>: { … }`。
- *
- * 顺带对账三个数的来源：定义里的 width / depth / height 是该类型的默认占地方向，
- * 有外部模型时必须与注册表 scaleBasis 逐值相等，否则新放下的一件会先按定义里的尺寸
- * 建占位几何、模型落地那一帧再被缩到另一个尺寸（肉眼是「加进去时跳一下」）。
  */
 function checkAssetPaletteItemTypeDefinitions() {
   const problems = [];
@@ -3676,7 +3028,7 @@ function checkAssetPaletteItemTypeDefinitions() {
   const stripped = stripComments(appText);
   const definitionsStart = stripped.indexOf("const ITEM_TYPE_DEFINITIONS = {");
   if (definitionsStart === -1) {
-    return problems; // 改名或挪了位置：这条判据读的是源码文本，读不到就不判
+    return problems;
   }
   const definitionsText = stripped.slice(stripped.indexOf("{", definitionsStart));
   let depth = 0;
@@ -3747,7 +3099,6 @@ function checkAssetPaletteItemTypeDefinitions() {
     const body = definitionBodyByType.get(type);
     if (!body) continue;
     if (ITEM_SIZE_PARITY_EXEMPT_TYPES.has(type)) continue;
-    // 该类型在注册表里的 scaleBasis（注册表条目形如 `fridge: defineApplianceItemModel("appliance", "fridge", {`）
     const registryRe = new RegExp(`\\n  ${type}: define[A-Za-z]*ItemModel\\([\\s\\S]*?scaleBasis:\\s*\\[([^\\]]+)\\]`);
     const registryMatch = registryRe.exec(externalText);
     if (!registryMatch) continue;
@@ -3787,17 +3138,6 @@ function readExportedSetMembers(sourceText, name) {
   return new Set([...body.matchAll(/"([^"]+)"/g)].map(item => item[1]));
 }
 
-// ---------------------------------------------------------------------------
-// 25) 命令闸门放行的实体，必须落在状态订阅口径内
-// ---------------------------------------------------------------------------
-// 宿主对同一批「非顶层绑定」的实体有两处展开：命令闸门（决定这条 control 能否下发）与
-// 状态订阅（决定舞台收不收得到它的读数）。两处同源，必须一起改 —— 补门锁与附加实体那次
-// 只补了闸门、订阅侧漏了，症状是「命令发得出去、面板恒显不可用」：lightStream 只推订阅集
-// 内的实体（服务端按订阅报文过滤），没订上的实体读数是永久空值，而整条链路没有任何报错。
-//
-// 判定用「配置读取路径」而不是函数名：两处对同一批配置的取用路径必然一致（都是
-// componentProperties.security.locks / .devices / .environment.airPurifiers 这些），
-// 而函数名可以为了「闸门只要附加控件、订阅还要电源与健康规则」这类差异而合理地不同。
 const RUNTIME_JS_PATH = path.join(ROOT, "frontend/modules/runtime/core/runtime.js");
 
 /** 归一 `componentProperties` 之后的属性链；动态下标（`?.[…]`）到此为止，只记到哪一层。 */
@@ -3814,10 +3154,6 @@ function configReadPaths(sourceText) {
 
 /**
  * 取「本文件里以两空格缩进定义的某个辅助函数」的整段正文；找不到返回 null。
- *
- * 这些辅助函数都定义在 `mountInteraction3d` 的函数体顶层（两空格缩进），所以按
- * 「下一条同样缩进的声明 / 语句」切边界是可靠的；边界含 `if` / `for` / `}` 是防止
- * 辅助函数紧跟着一段控制流时把后面整段都吃进来（多吃只会放松判定，少吃才是误报）。
  */
 function helperBody(sourceText, name) {
   const declaration = new RegExp(`^  (?:const|let|function|async function)\\s+${name}\\b`, "gm");
@@ -3934,15 +3270,6 @@ function checkControlGateWithinSubscription() {
 
 /**
  * `doorModels` 的入参必须是**楼层对象**，不能是 `floor.scene`。
- *
- * 这个函数对两种形态的容错是**不对称**的：取门列表时 `config.scene.doors` 不成还有
- * `config.doors` 兜底，查墙却只认 `config.scene.walls`。于是传 `floor.scene` 时门列表
- * 兜得住、墙列表变成 `scene.scene.walls` = undefined，画在墙上的门（`scene.doors` 里绝大多数）
- * 全部因为「找不到挂靠的墙」被丢掉；只有工作室导出的、没有 `wallId` 的独立门模型才会侥幸留下。
- *
- * 症状是静默的：快照里 `floors[].doors` 成了空数组，安防面板的门锁列表恒为空（提示「本层没有
- * 可用的门模型」、添加按钮 disabled），门锁**一条也建不出来**，保存后的配置里连 `locks` 键都没有；
- * 而同一份元数据的摄像头 / 传感器清单正常，所以看起来像「只有门不对」。浏览器不报任何错。
  */
 function checkDoorModelsFloorArgument() {
   const problems = [];
@@ -3984,7 +3311,6 @@ function checkDoorModelsFloorArgument() {
     const lineOf = makeLineCounter(text);
     for (const match of text.matchAll(callRe)) {
       const arg = match[1].trim();
-      // 定义本身（`function doorModels(config)` / `export const entryDoorModels = doorModels;`）跳过。
       if (arg === "" || arg === "config" || !arg.includes(".")) continue;
       if (!/\.scene\b/.test(arg) && !/\.scene$/.test(arg)) continue;
       if (/\bsome\s*\(/.test(arg)) continue;
@@ -4000,17 +3326,6 @@ function checkDoorModelsFloorArgument() {
 
 /**
  * 卷帘（coverKind=roller）契约：帘型默认取户型模型形态，模型侧字段名与取值照搬上游 0.6.5
- * （`curtainForm: "standard" | "roller"`，工作室下拉框 `#curtain-form`），编辑器里显式改过时
- * 置 coverKindOverride 让交互配置的 coverKind 胜出（与上游 0.6.5 同口径）。
- *
- * 这几处任一漏掉都是「不报错、只静默失效」：
- *   · 后端取值枚举漏 roller  → 编辑器一选卷帘，整份配置保存时 422；
- *   · 后端字段白名单漏 coverKindOverride → 覆写标记被当成未知字段，整份 422；
- *   · 编辑器归一 / 下拉漏 roller → 下拉框里没有卷帘，选不出来；
- *   · config-metadata.js 漏透传 curtainForm → 模型明明是卷帘，编辑器仍显示普通窗帘；
- *   · geometry.js 漏读 coverKindOverride → 覆写选了卷帘，舞台照旧按垂帘渲染；
- *   · 工作室漏写 curtainForm（写成历史字段名或漏掉状态）→ 画出来的卷帘存不下来、老草稿读不出。
- * 这些是同一份契约的各个出口，改任一处都要同手改这里。
  */
 function checkCurtainKindContract() {
   const problems = [];
@@ -4118,7 +3433,6 @@ function checkCurtainKindContract() {
   ];
   for (const testCase of cases) {
     // 一个出口可能横跨多个文件（后端校验按域拆到了 config_domains.py）：判据是「这些必须
-    // 同手在场的文本出现在这一侧的某个文件里」，而不是把它们钉死在某一份文件里。
     const fulls = (testCase.files ?? [testCase.file]).map((item) => path.join(ROOT, item));
     let text = "";
     try {
@@ -4140,27 +3454,6 @@ function checkCurtainKindContract() {
 // 29) 模块里出现「本文件解析不出绑定」的标识符取用（真正的语法树 + 作用域链）
 // ---------------------------------------------------------------------------
 
-/**
- * 这条原本被称为「明确不做」的一半（见文件头第 9 条）：「调用的名字在本文件没有任何绑定」
- * 曾在无语法树的前提下按行级正则试过，全仓跑出 7996 条、绝大多数是模板字符串里的 GLSL，
- * 只好放弃。现在判定交给 tools/lib/free-variables.mjs（用 tools/vendor/acorn 建真语法树 +
- * 作用域链），实测全仓真自由标识符只剩浏览器宿主全局，因此这条可以立起来了。
- *
- * 为什么它值得一条守卫：这类引用**没有任何静态报错**，只有真的执行到那一行才 ReferenceError。
- * 两处真实案例都是在「把一段代码搬进另一个函数」时漏掉参数/改错名字留下的 ——
- *   · studio-app.js 的 drawPlanItem 里画钢 / 玻璃楼梯时写了 itemWidth / itemDepth，
- *     而本函数只有像素版 itemWidthPx / itemDepthPx 与米制 planFootprint；
- *   · studio-external-models.js 的 applyAppliancePalette 里写 materialPalette，
- *     而那个名字只在唯一调用点的实参位置存在，函数内的绑定叫 appliancePalette。
- * 症状分别是「户型图上放钢梯 / 玻璃梯就整张图不刷新」与「小车一走家电调色板就炸」，
- * 且都要用户正好碰到那一件才看得见。
- *
- * 判据边界（与 tools/lib/free-variables.mjs 的注释一致，这里只补一层宿主白名单）：
- *   - 只认**取用**，不认对象字面量的键、成员名（a.b 的 b）、import/export 说明符、标签；
- *   - `typeof 裸名字` 不报（特征探测的常规写法）、`with` 体内不报（作用域运行期才定）；
- *   - 宿主全局由 HOST_GLOBALS 兜底 —— 这张表的**唯一**增补理由是「浏览器 / Worker 宿主自带」。
- *     凡是要往这里加业务名字，先问一句「它为什么在文件里没有绑定」，多半是真 bug。
- */
 const HOST_GLOBALS = new Set([
   // 语言内置
   "undefined", "Infinity", "NaN", "globalThis", "Object", "Function", "Boolean", "Symbol",
@@ -4209,22 +3502,6 @@ const HOST_GLOBALS = new Set([
 
 /**
  * 「净化器可绑定的场景模型类型」三处白名单必须同源。
- *
- * 净化器（`airpurifier`）与按净化器接入的新风机（`freshair`）在 HA 里都是 `fan` 域，
- * 前端靠实体域渲染净化器面板，因此「哪些场景模型能绑到一条 `environment.airPurifiers` 配置上」
- * 这份类型表有三处消费者：
- *
- *   - `config-editor.js` 的 `sceneModelTypes()`：模型选择器的候选；
- *   - `binding-collectors.js` 的 `collectClimateBindings()`：运行时的场景绑定；
- *   - `purifier.py` 的 `PURIFIER_MODEL_TYPES`：命令侧「模型是否还在场景里」的复核。
- *
- * 任一处漏改的失效方式都**不报错**：选择器漏 → 该外观根本配不上；绑定漏 → 配上了但
- * `modelAvailable` 恒为 false（模型不渲染、点不开面板、控制静默失效）；后端漏 → 配置与画面
- * 都对，命令却 409「空气净化器模型已失联」。三类症状互不覆盖，所以只能靠这条守卫钉住口径。
- *
- * 判定只比「集合是否相同」，不比书写格式：空格、引号（JS 双引号 / Python 单引号）都不参与
- * 比较；但写法一变到解析不出（例如类型表改成变量拼接）就当场报出来 —— 宁可报「守卫失效」，
- * 也不要它悄悄退化成永远通过。
  */
 function checkPurifierModelTypes() {
   const problems = [];
@@ -4328,16 +3605,6 @@ function checkPurifierModelTypes() {
 
 /**
  * 窗帘面板的返回键集合（上游 0.6.5 的 `deactivate`）。
- *
- * 0.6.5 的 cover-panel 返回 `{ root, update, deactivate, dispose }`，其中 deactivate 的语义是
- * 「把面板从正在被操作的状态里摘出来」（拖动进行中时撤回预览与草稿，但面板还要继续用）。
- * 帘组面板在成员被换掉 / 整组收起时必须调它，否则那一次拖动留下的预览会挂在场景里，
- * 直到用户碰下一个控件才消失 —— 全程零报错。
- *
- * 本仓曾漏登这个方法，于是 cover-group-panel.js 只能写 `panel.deactivate?.()` 兜底：
- * 兜底写法的代价是「方法在不在」这件事永远没人知道，漏了也只是静默少清一次场。
- * 所以这里同时钉三件事：返回键里有 deactivate、它的实现仍带「仅在拖动中才动手」的守卫、
- * 以及调用侧不许再出现 `?.()`。
  */
 function checkCoverPanelDeactivate() {
   const problems = [];
@@ -4412,12 +3679,6 @@ function checkCoverPanelDeactivate() {
 
 /**
  * 扫地机状态别名词表（与上游 0.6.5 逐条对齐）。
- *
- * 同一个语义在厂商侧有多个写法（回充有 returning / returning_to_base / returning_home，
- * 清洗拖布有 washing / mop_washing / self_washing / cleaning_mop……）。漏登的别名不会报错，
- * 它会掉进字典后面的兜底分支，界面上显示成「状态更新中」—— 用户看到的是「这台机器不知道自己
- * 在干什么」，而代码里一切正常。所以这里既钉「别名必须在表里」，也钉「同一语义的别名必须同文案」：
- * 后一条能挡住「新加了别名但文案抄错」的那类漂移。
  */
 function checkVacuumStateAliases() {
   const problems = [];
@@ -4429,8 +3690,6 @@ function checkVacuumStateAliases() {
     return [{ file: rel(mapPath), line: 0, detail: "读不到 vacuum-map.js，守卫无法判定" }];
   }
   // 查表点写作 `{...}[vacuumRawState.toLowerCase()]`（查表前要先归一化大小写，
-  // 见 vacuum-map.js 里那段注释），所以这里只匹配到 `[vacuumRawState` 为止 ——
-  // 带上完整的 `]` 会在归一化写法改动时静默失配，守卫变成一条永远报「找不到字典」的假警报。
   const at = text.indexOf("[vacuumRawState");
   const tableAt = text.lastIndexOf("{", at);
   const tableBody = at === -1 || tableAt === -1 ? "" : text.slice(tableAt, at);
@@ -4531,8 +3790,6 @@ function checkFreeIdentifiers() {
 
 /**
  * 取 `marker` 之后第一个 `{ ... }` 的配对内容；括号不配对时返回空串。
- * 用它而不是正则截到第一个 `}`：对象里嵌套数组 / 对象（本文件的两处标签表都没有，
- * 但守卫不该依赖这一点）时截断点会落在内层。
  */
 function objectLiteralBody(text, marker) {
   const markerAt = text.indexOf(marker);
@@ -4571,7 +3828,6 @@ function checkFocusableDeviceKinds() {
     return problems;
   }
   // 与上游 0.6.5 同集合：漏掉 lock 或通用设备品类，那类绑定会继续落到「有 modelId → 空调」
-  // 那一支，点一次门锁就会把上次看过的那台空调打开（命令照发、浏览器零报错）。
   for (const kind of ["lock", "nas", "television", "vacuum", "presence", "camera"]) {
     if (!body.includes(`"${kind}"`)) {
       problems.push({
@@ -4601,7 +3857,6 @@ function checkLicenseStatusLabelSets() {
     }
   };
   // 三处同源：后端是状态枚举的唯一出处，恢复页与编辑器顶栏各有一份展示文案。
-  // 任一处的键集落后，就会在该状态上原样显示英文码 / 显示空白提示。
   const sources = [
     {
       file: "apps/server/license/service.py",
@@ -4667,22 +3922,6 @@ function checkLicenseStatusLabelSets() {
 
 /**
  * 第 35 条：前端能派发的 HA 服务必须登记进后端 ALLOWED_SERVICES。
- *
- * 起因是同一类真实踩坑连出三次：`vacuum.stop` / `vacuum.locate` / `vacuum.clean_spot`
- * （2D 扫地机面板「开得动、停不下来」）与 `climate.set_swing_horizontal_mode`
- * （2D 空调「水平摆风」整组每次点都 403）。前端按 supported_features 把按钮渲染出来，
- * 后端白名单却没登记那条服务 —— 于是按钮可点、命令必被拒，面板只回显一句笼统的失败，
- * 浏览器零报错。正是本项目最忌讳的「不报错、只静默失效」。
- *
- * 判据：收集前端分发位置里出现的服务名 —— `service: "x"`、`callEntityService("d", "x")`、
- * `invoke*Service("d", "x")`、媒体动作按钮、扫地机动作定义表 —— 逐个核对 ALLOWED_SERVICES。
- * 域名与服务名都是字面量时按**确切组合**核对，其余只核对服务名是否存在于任一域。
- *
- * 局限（刻意保留）：前端域名常是变量（`domain: command.domain`），因此这里不做
- * 「域 + 服务」的组合核对，只挡「服务名整条缺失」—— 三次踩坑都属后者。
- *
- * 误报出口：某条字面量确非 HA 服务时，登记进 NON_HA_SERVICE_LITERALS 并写明理由。
- * 不要放宽匹配式来消误报，那会把这条守卫一并弄死。
  */
 const NON_HA_SERVICE_LITERALS = new Set([]);
 
@@ -4713,7 +3952,6 @@ function checkFrontendHaServicesAllowed() {
     return [{ file: rel(haFile), line: 0, detail: "ALLOWED_SERVICES 一条都没解析出来，匹配式可能失效" }];
   }
 
-  // 分发位置。带 domain 的按确切组合核对，否则只核对服务名。
   const positions = [
     { re: /\bservice\s*:\s*"([a-z_]+)"/g, service: 1 },
     { re: /\bcallEntityService\(\s*"([a-z_]+)"\s*,\s*"([a-z_]+)"/g, domain: 1, service: 2 },
@@ -4772,18 +4010,6 @@ function checkFrontendHaServicesAllowed() {
 
 /**
  * 第 37 条：附加实体的「域 → 卡片形态」词表两端同源。
- *
- * 前端渲染附加功能卡片时读的是 purifier-extras.js 的 extraTypes()，后端复核命令读的是
- * purifier.py 的 EXTRA_TYPES —— 前者决定「这张卡长成开关 / 下拉 / 数值 / 按钮 / 只读状态」，
- * 后者决定「这条命令放不放行」。两边错开的失效方式恰好是本项目最忌讳的那一类：
- *
- *   · 前端多认一个域（例如把 cover 当开关渲染）→ 卡片可点、命令必被 422 拒，
- *     浏览器零报错，用户只看到「点了没反应」；
- *   · 后端多认一个域 → 前端永远渲染不出那张卡，是一条谁也用不到的死条目。
- *
- * 判据：两端都只取「可写」的域（前端各形态对应的键，后端 kind != "state" 的键），双向比对。
- * 编辑器侧那份候选词表（device-entity-config.js 的 DOMAIN_CAPABILITIES）不参与 ——
- * 它的消费者已随最近一次重构删除，现在只有这两处是真正的契约出口。
  */
 function checkExtraEntityDomainParity() {
   const runtimeFile = "frontend/modules/runtime/climate/purifier-extras.js";
@@ -4846,26 +4072,6 @@ function checkExtraEntityDomainParity() {
 
 /**
  * 第 38 条：表达式被静默改写的语法陷阱。
- *
- * 起因是一次真实事故：``frontend/static/logging/client-log.js`` 里混进了一个残留的行号前缀
- * ``370|``，那一行成了
- *
- *     370|            `${ok ? "请求耗时较长" : "请求失败"}：${method} ${path}`,
- *
- * ``number | string`` 是**位或**：字符串先转数字得 NaN、再按 0 算，于是整个表达式的值恒为数字
- * ``370``。后果是**每一条「慢请求 / 请求失败」的客户端日志都丢掉了消息体**（data/logs 里
- * 23 条 ``"message":"370"``，真实信息只剩在 context 里），而它语法合法 —— acorn 通过、浏览器
- * 不报错、ruff 与其余 37 条守卫全都看不见。这正是本仓最忌讳的「不报错、只静默失效」。
- *
- * 两种形态都判，都只判**确定是错的**写法：
- *
- *   1. **行首残留行号**（``^\s*\d+|``）：正常 JS 里不会有一行以「数字 + 竖线」开头 ——
- *      就算真要写位或，也不会把它放在语句开头。CSS 的竖线也不会出现在行首。
- *   2. **数字与字符串/模板串做位或**（``370 | "x"`` / ``"y" | 5``）：字符串参与位或永远不是
- *      本意（``| 0`` 这种 ToInt32 惯用法不涉及字符串，不会误报）。
- *
- * 扫描范围刻意排除 ``vendor/``：压缩过的第三方代码里 ``1|0`` 这类位标志很常见，
- * 而它们不涉及字符串字面量，本判据本来也不会命中 —— 排除是为了把"看得懂的那部分"钉死。
  */
 function checkSilentExpressionRewrite() {
   const problems = [];
@@ -4884,7 +4090,6 @@ function checkSilentExpressionRewrite() {
         continue;
       }
       // 先剥注释再扫：本守卫的文档注释里就引用了这两个坏形态（\`370|\` 与 \`370 | "x"\`），
-      // 不剥就会自己报自己。stripComments 保留换行，行号仍然对得上。
       const lines = stripComments(raw).split("\n");
       for (const [index, line] of lines.entries()) {
         if (lineNumberResidue.test(line)) {
@@ -4910,21 +4115,6 @@ function checkSilentExpressionRewrite() {
 
 /**
  * 第 39 条：文件规模预算（棘轮式：只许减、不许增）。
- *
- * 一个文件长到几千行之后，"改一处"就变成了"先读完半个文件"：定位成本、审查成本、
- * 冲突概率全都随行数涨，而它对**运行时**没有任何好处 —— 它是纯粹的维护性债务，
- * 而且没有任何工具会替你报警。这条守卫就是那个报警器。
- *
- * 采用**棘轮**而不是一刀切，是因为现状里有 38 个超标文件（最大的 studio-app.js 28304 行）。
- * 一次性要求全达标等于把守卫关掉；只要求"不再变差"才是可执行的：
- *
- *   - 超过限额且**没登记**在 tools/file-size-baseline.json → 失败（新增债务）；
- *   - 登记了但**行数比记录还多** → 失败（旧债又涨了）；
- *   - 已经拆到限额以内、台账里还留着 → 失败（请删掉那一条，台账只能缩）；
- *   - 台账里的文件已经不存在 → 失败（改名或删除后要同步台账）。
- *
- * tools/ 下的脚本刻意不纳入：它们是"一份可以线性浏览的清单"（守卫本身 5264 行、
- * 配色审计 1873 行），按域拆开反而更难核对。压缩过的 *.min.js 同理 —— 那不是我们的代码。
  */
 function checkFileSizeBudget() {
   const problems = [];
@@ -4996,18 +4186,6 @@ function checkFileSizeBudget() {
 
 /**
  * 第 41 条：仓库路径不许在脚本里重复推导。
- *
- * 起因是真实踩到的一处：本文件里 frontend/modules/runtime 被定义了两次
- * （RUNTIME_DIR 与 RUNTIME_MODULES_DIR），两个名字同一路径、各拼各的。改路径时漏掉一处，
- * 结果就是**守卫看着是绿的，实际查了一个空目录** —— 这类"检查本身失效"比不检查更危险。
- *
- * 判据（两条都只判确定的形态，不猜）：
- *
- *   1. tools/paths.mjs 已经导出的目录，不许在别的脚本里再 path.join(ROOT, "a", "b") 拼一遍；
- *   2. 仓库根本身不许自己算（path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")）——
- *      一律从 paths.mjs 取 ROOT。
- *
- * paths.mjs 自己不受这两条约束（它就是那个"一处"）。
  */
 function checkPathConstantsHaveOneSource() {
   const problems = [];
@@ -5028,9 +4206,6 @@ function checkPathConstantsHaveOneSource() {
   const matchers = exported.map(item => ({
     name: item.name,
     segments: item.segments,
-    // path.join(ROOT, "a", "b")：允许换行与任意空白（本仓 printWidth=100，长路径必然折行）。
-    // 结尾用 (?=\s*[,)]) 而不是 \)：path.join(STATIC_DIR, "editor") 这种
-    // "在导出目录下再取一段子目录"同样是重复推导，只是多带了一段。
     pattern: new RegExp(
       "path\\.join\\(\\s*ROOT\\s*,"
         + item.segments.map(seg => '\\s*"' + escapeRe(seg) + '"').join("\\s*,")
@@ -5070,21 +4245,6 @@ function checkPathConstantsHaveOneSource() {
 
 /**
  * 第 42 条：匿名可访问的静态资源清单必须是清单文件，不许写回 Python 字面量。
- *
- * 这份集合同时是**安全边界**：它决定"谁可以匿名取到什么"。原先它是中间件里的 63 行
- * Python 字面量 —— 改的时候既要翻代码又要判断哪些条目还活着，而漏掉一个入口脚本的表现是
- * "未登录页面白屏"，只能在浏览器里才发现。现在它是 frontend/public-static.json，
- * 每条还能带一句"为什么它必须匿名"。
- *
- * 判据三条：
- *
- *   1. 装配层不许再出现**指向具体资源文件**的 /static 字面量（形如 /static/x/y.css）；
- *      单纯的前缀判断 startswith("/static/") 不算 —— 那是路由分流，不是白名单条目；
- *   2. 清单里的每个路径都必须在磁盘上真实存在（写错一个字符 = 那条永久失效、静默 401）；
- *   3. 清单必须是合法 JSON 且 files 是数组（读不出来时服务端会直接 500，这里提前报）。
- *
- * 反向（"磁盘上的公开资源都登记了"）刻意不判：这是一份白名单，不是完整清单 ——
- * 绝大多数 /static 资源本来就该要求登录。
  */
 function checkPublicAssetManifest() {
   const problems = [];
@@ -5142,21 +4302,6 @@ function checkPublicAssetManifest() {
 
 /**
  * 第 43 条：两个可独立部署的项目（apps/server / store）不得互相 import。
- *
- * 它们是**两个独立项目**，可能部署在不同的服务器上：主应用（18081）与授权商店 / 授权服务器
- * （18082）。一旦一方 import 另一方，就出现三个立刻成立的后果：
- *
- *   1. 单独部署商店（只发 apps/store/）会 ImportError —— 而"商店独立部署"正是它存在的理由；
- *   2. 两侧被迫同版本发布，主应用的任何一次改动都会卡住商店的发布；
- *   3. 商店镜像里会连主应用的业务代码一起带进去（授权服务器不需要、也不该有它们）。
- *
- * 因此本仓明确允许**同名双份实现**（core/static_revision.py、core/appearance.py、
- * security/body_guard.py / compression.py / access_log.py 等），每份由各自项目独立维护 ——
- * 这份"重复"是刻意的隔离成本，不是可以顺手合并的重复代码。要保证两边不漂移，
- * 用**构建期生成 + 逐字节校验**（design/scene 的三份分发副本就是这个模式的样板），
- * 绝不是在运行时 import 对方。
- *
- * 判据：只在真正的代码里找（先剥注释与字符串，所以文档里写到对方的名字不算）。
  */
 function checkDeployablesStayIndependent() {
   const problems = [];
@@ -5193,11 +4338,6 @@ function checkDeployablesStayIndependent() {
 
 /**
  * apps/server 与 apps/store 互不 import（不变量 #43），概念共享时实现各留一份。
- * 清单 packages/contracts/surfaces.json 声明「哪些名字的两份必须是同一份代码面」。
- *
- * 比较时剥掉整行注释与 docstring：两侧的「为什么各留一份」说明本来就该各写各的，
- * 只有真正会走散的数据与逻辑才被钉住。kind=set 的面比的是两侧的字符串集合
- * （商店的 FEATURE_CATALOG 里取 code 字段，主应用侧按 serverExtra 补上它独有的码）。
  */
 function extractSurface(text, name) {
   const lines = text.split("\n");
@@ -5346,14 +4486,6 @@ function checkContractSurfaces() {
 // 45) 自研 JS 默认是 ESM：出现未登记的经典脚本就报错
 // ---------------------------------------------------------------------------
 
-/**
- * 本仓默认 ESM（<script type="module"> + import/export）。仍保持经典脚本的只有少数几份，
- * 每一份都必须登记在 tools/classic-scripts.json 并写明「为什么必须是经典脚本」——它们是
- * 「首帧前执行 / 必须最先执行 / 是 Worker」这类靠时序或宿主机制成立的文件，顺手转成模块会静默坏掉。
- *
- * 两种放行：文件里有 import/export；或被某个页面用 type="module" 加载（模块可以不导出任何东西）。
- * 清单里的条目反过来也要对账：文件被转成模块后要把它删掉，否则这份清单会变成过期文档。
- */
 function checkClassicScriptsRegistered() {
   const problems = [];
   const manifestPath = path.join(TOOLS_DIR, "classic-scripts.json");
@@ -5413,6 +4545,193 @@ function checkClassicScriptsRegistered() {
 }
 
 
+// ---------------------------------------------------------------------------
+// 45) design/scene 的五份文件在三处分发副本里逐字节一致
+// ---------------------------------------------------------------------------
+
+/** canonical 是 `design/scene/`，两个分发副本是主应用入口页与商店各自的那份。 */
+const SYNCED_SCENE_FILES = ["page.css", "panel.css", "scene.css", "scene.html", "appearance.js"];
+
+const SCENE_COPY_DIRS = [
+  DESIGN_SCENE_DIR,
+  path.join(FRONTEND_DIR, "static", "auth", "scene"),
+  path.join(STORE_STATIC_DIR, "scene")
+];
+
+function checkSceneCopiesInSync() {
+  const problems = [];
+  for (const name of SYNCED_SCENE_FILES) {
+    const canonical = path.join(SCENE_COPY_DIRS[0], name);
+    if (!fs.existsSync(canonical)) {
+      problems.push({ file: rel(canonical), line: 0, detail: `canonical 缺失：${name}` });
+      continue;
+    }
+    const expected = fs.readFileSync(canonical, "utf8").split("\n");
+    for (const directory of SCENE_COPY_DIRS.slice(1)) {
+      const candidate = path.join(directory, name);
+      if (!fs.existsSync(candidate)) {
+        problems.push({ file: rel(candidate), line: 0, detail: `分发副本缺失：${name}` });
+        continue;
+      }
+      const actual = fs.readFileSync(candidate, "utf8").split("\n");
+      const limit = Math.min(expected.length, actual.length);
+      let firstDiff = -1;
+      for (let index = 0; index < limit; index++) {
+        if (expected[index] !== actual[index]) {
+          firstDiff = index;
+          break;
+        }
+      }
+      if (firstDiff === -1 && expected.length === actual.length) continue;
+      problems.push({
+        file: rel(candidate),
+        line: firstDiff === -1 ? limit + 1 : firstDiff + 1,
+        detail: `与 design/scene/${name} 不一致，请从 design/scene/ 同步这一份`
+      });
+    }
+  }
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// 46) 商店 theme.css 的 --hb-* 与 design/scene/page.css 的 --hos-* 逐 token 相等
+// ---------------------------------------------------------------------------
+
+/**
+ * 镜像表：商店侧的名字 → 场景侧的名字。
+ */
+const HB_HOS_MIRROR_ALIAS = {
+  "--hb-bg": "--hos-sky-deep",
+  "--hb-surface": "--hos-sky-low",
+  "--hb-surface-soft": "--hos-sky-mid",
+  "--hb-surface-raised": "--hos-sky-high",
+  ...Object.fromEntries(
+    ["accent", "lumen", "aura", "eco", "heat", "cool", "alert", "sensor"].flatMap(name =>
+      ["", "-rgb", "-bright", "-deep"].map(suffix => [`--hb-${name}${suffix}`, `--hos-${name}${suffix}`])
+    )
+  ),
+  ...Object.fromEntries(
+    ["sky-deep", "sky-low", "sky-mid", "sky-high", "sky-haze"].flatMap(name => [
+      [`--hb-${name}`, `--hos-${name}`],
+      [`--hb-${name}-rgb`, `--hos-${name}-rgb`]
+    ])
+  ),
+  "--hb-ink": "--hos-ink",
+  "--hb-ink-bright": "--hos-ink-bright",
+  "--hb-ink-rgb": "--hos-ink-rgb",
+  "--hb-muted-rgb": "--hos-muted-rgb",
+  "--hb-on-bright": "--hos-on-bright",
+  "--hb-star-rgb": "--hos-star-rgb",
+  "--hb-star-cool-rgb": "--hos-star-cool-rgb"
+};
+
+/** 读「令牌名 → 原始值」，同一名字只取第一次定义。 */
+function parseTokenMap(file) {
+  const tokens = new Map();
+  if (!fs.existsSync(file)) return tokens;
+  const text = fs.readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const match of text.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    if (!tokens.has(match[1])) tokens.set(match[1], match[2].trim());
+  }
+  return tokens;
+}
+
+/** `#081020` / `rgb(8, 16, 32)` / `8, 16, 32` → `[r, g, b, a]`。 */
+function parseColorLiteral(value) {
+  const hex = /^#([0-9a-fA-F]{6})$/.exec(value);
+  if (hex) {
+    const n = Number.parseInt(hex[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
+  }
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(value);
+  if (rgb) {
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3]), rgb[4] === undefined ? 1 : Number(rgb[4])];
+  }
+  const triplet = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/.exec(value);
+  return triplet ? [Number(triplet[1]), Number(triplet[2]), Number(triplet[3]), 1] : null;
+}
+
+/** 跟随 `var()` 链与 `rgba(var(--x-rgb), α)` 组合，解析成 `[r, g, b, a]`。 */
+function resolveTokenColor(name, tokens, depth = 0) {
+  if (depth > 8) return null;
+  const raw = tokens.get(name);
+  if (raw === undefined) return null;
+  const direct = parseColorLiteral(raw);
+  if (direct) return direct;
+  const reference = /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]+))?\)$/.exec(raw);
+  if (reference) {
+    const resolved = resolveTokenColor(reference[1], tokens, depth + 1);
+    if (resolved) return resolved;
+    return reference[2] ? parseColorLiteral(reference[2].trim()) : null;
+  }
+  const composite = /^rgba\(\s*var\(\s*(--[\w-]+)\s*\)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(raw);
+  if (!composite) return null;
+  const base = resolveTokenColor(composite[1], tokens, depth + 1);
+  if (!base) return null;
+  const alpha = composite[2] === undefined ? 1 : Math.min(1, Math.max(0, Number(composite[2])));
+  return [base[0], base[1], base[2], alpha];
+}
+
+function checkStoreTokenMirror() {
+  const sceneTokens = parseTokenMap(path.join(DESIGN_SCENE_DIR, "page.css"));
+  const storeTokens = parseTokenMap(path.join(STORE_STATIC_DIR, "theme.css"));
+  const problems = [];
+  const normalize = value => (value ?? "").replace(/\s+/g, "");
+  for (const [storeName, sceneName] of Object.entries(HB_HOS_MIRROR_ALIAS)) {
+    const storeValue = storeTokens.get(storeName);
+    const sceneValue = sceneTokens.get(sceneName);
+    if (storeValue === undefined && sceneValue === undefined) continue;
+    if (storeValue === undefined) {
+      problems.push({
+        file: "apps/store/static/theme.css",
+        line: 0,
+        detail: `缺少镜像令牌 ${storeName}（对应 ${sceneName}）`
+      });
+      continue;
+    }
+    if (sceneValue === undefined) {
+      problems.push({
+        file: "design/scene/page.css",
+        line: 0,
+        detail: `缺少 ${sceneName}（镜像 ${storeName}）`
+      });
+      continue;
+    }
+    if (storeName.endsWith("-rgb")) {
+      if (normalize(storeValue) !== normalize(sceneValue)) {
+        problems.push({
+          file: "apps/store/static/theme.css",
+          line: 0,
+          detail: `${storeName} = ${storeValue} 与 ${sceneName} = ${sceneValue} 取值不同`
+        });
+      }
+      continue;
+    }
+    const storeColor = resolveTokenColor(storeName, storeTokens);
+    const sceneColor = resolveTokenColor(sceneName, sceneTokens);
+    if (!storeColor || !sceneColor) {
+      problems.push({
+        file: "apps/store/static/theme.css",
+        line: 0,
+        detail: `${storeName} / ${sceneName} 至少一侧解析不出颜色，无法比对`
+      });
+      continue;
+    }
+    const same =
+      storeColor[0] === sceneColor[0] &&
+      storeColor[1] === sceneColor[1] &&
+      storeColor[2] === sceneColor[2] &&
+      Math.abs(storeColor[3] - sceneColor[3]) < 0.005;
+    if (same) continue;
+    problems.push({
+      file: "apps/store/static/theme.css",
+      line: 0,
+      detail: `${storeName} = ${storeValue} 与 ${sceneName} = ${sceneValue} 取值不同`
+    });
+  }
+  return problems;
+}
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -5426,7 +4745,7 @@ const checks = [
   },
   {
     title: "全站静态资源不是同一个 ?v= 戳，或同一模块被「带戳 / 不带戳」两种写法引用",
-    hint: "跑 node tools/bump_static_cache_versions.mjs 统一戳；带戳与不带戳混用等于两份模块实例（模块表以含查询串的 URL 为键），把那处漏掉的 ?v= 补上 —— 开发态旁路 new URL(..., import.meta.url) 不算",
+    hint: "按 README「开发工具」里的换戳命令把全站 ?v= 统一成同一个新戳；带戳与不带戳混用等于两份模块实例（模块表以含查询串的 URL 为键），把那处漏掉的 ?v= 补上 —— 开发态旁路 new URL(..., import.meta.url) 不算",
     run: () => [...checkSingleStamp(), ...checkModuleInstances()]
   },
   {
@@ -5527,7 +4846,7 @@ const checks = [
       {
         title: "流水线 GLB 内容与规格 / scaleBasis 不自洽（多半是改了规格没重新导出）",
         hint:
-          "改 tools/models/model-specs.mjs 里的 size 后**必须重跑** node tools/models/generate-models.mjs 导出，" +
+          "改 tools/models/model-specs.mjs 里的 size 后**必须重新导出**对应的 GLB（生成器不随仓库分发），" +
           "并把 studio-external-models.js 的 scaleBasis 一起对齐 —— 运行侧按 scaleBasis 非等比缩放，" +
           "两者不一致就会被拉变形，而浏览器里只表现为「看着有点歪」。底面必须落在 y=0（preserveOrigin 直接贴地）、" +
           "占地中心必须在原点；挂墙件把挂高烘进几何时（规格里的 mountHeight，现在只有吊柜）底面按那个值判。" +
@@ -5545,7 +4864,7 @@ const checks = [
           "看逐件清单（--model=<类型> 单件、--all-faces 连无害的背靠背一起列）。修法**不是把面推开** —— " +
           "外表面撑住包围盒，生成器有 1mm 的规格校验；要让**非极值的那一件**退让：嵌进母体、或收到" +
           "相邻件的内表面之内（例如 «面板贴在机身前脸上» 改成面板凸出 1.5mm、玻璃门与柜体同宽改成收 4mm、" +
-          "踏板与斜梁逐面齐平改成踏板收 2mm/边）。改完必须重跑 node tools/models/generate-models.mjs",
+          "踏板与斜梁逐面齐平改成踏板收 2mm/边）。改完必须重新导出这两件 GLB",
         run: checkCoplanarOverlaps
       },
       {
@@ -5716,7 +5035,7 @@ const checks = [
           "tools/models/model-specs.mjs 的 wallcabinet.mountHeight（生成器按它抬整件）、" +
           "item-builders/storage-cabinets.js 的 wallCabinetMountHeight（占位几何照同一个口径加）、" +
           "studio-app.js 的 ITEM_TYPE_DEFINITIONS.wallcabinet（**不能**有 elevation：原版那一格是 0）。" +
-          "改挂高就三处一起改，改完重跑 node tools/models/generate-models.mjs wallcabinet 导出、" +
+          "改挂高就三处一起改，改完重新导出 wallcabinet、" +
           "并让 studio-external-models.js 的 HOME_LITE_MODEL_VERSION 前进一格（模型文件名没变，" +
           "不换戳浏览器会继续喂旧几何）",
         run: checkWallCabinetMountHeightParity
@@ -5777,7 +5096,7 @@ const checks = [
           "Python 单文件 800 行、JS/MJS 单文件 1200 行。超标的既有文件登记在 tools/file-size-baseline.json，" +
           "行数只能往下走；拆到限额以内之后请把那条删掉（守卫会提醒）。要拆的话按本仓已有的缝走：" +
           "item-builders/、plan/、loaders/、editor/home/*、panel-renderer/device-controls/* —— " +
-          "外提之后必须跑一次 node tools/bump_static_cache_versions.mjs（同模块两枚戳 = 两份实例）。" +
+          "外提之后必须换一次全站 ?v= 戳（同模块两枚戳 = 两份实例）。" +
           "tools/ 下的脚本与压缩过的 *.min.js 不纳入本条",
         run: checkFileSizeBudget
       },
@@ -5820,6 +5139,22 @@ const checks = [
       "必须最先执行、是 Worker）就登记进 tools/classic-scripts.json 的 classic 并写明理由。" +
       "反过来：把例外转成模块后要把它从清单里删掉，守卫会对账。",
     run: checkClassicScriptsRegistered
+  },
+  {
+    title: "design/scene 的五份文件在三处副本里逐字节一致",
+    hint:
+      "canonical 是 design/scene/，两个分发副本是 frontend/static/auth/scene/ 与 apps/store/static/scene/。" +
+      "这五个文件没有构建步骤、靠手工复制：漏同步一处不会报错，只表现为另一个部署停在旧样式上，" +
+      "先把 design/scene/ 改成正确的那一份，再从它同步两个副本",
+    run: checkSceneCopiesInSync
+  },
+  {
+    title: "商店 theme.css 的 --hb-* 与 design/scene/page.css 的 --hos-* 逐 token 相等",
+    hint:
+      "两套色板靠 HB_HOS_MIRROR_ALIAS 这张显式镜像表对应（--hb-surface ↔ --hos-sky-low 这类" +
+      "同名不同字是本仓的既定契约）。新增令牌时在表里补一行；漏补的令牌这条检查看不到。" +
+      "取值不同时先判断是哪一侧写错，改完两边一起跑一次",
+    run: checkStoreTokenMirror
   }
     ];
 

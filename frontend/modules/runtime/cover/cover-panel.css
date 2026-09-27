@@ -1,17 +1,8 @@
 /*
  * 窗帘 / 梦幻帘面板（.i3d-cover-panel）在 3D 舞台内的样式。
- *
- * 由 stage.css @import 引入，作用对象是 cover-panel.js 生成的窗帘面板（标题与百分比、位置滑杆、
- * 打开 / 暂停 / 关闭按钮、反馈文案与梦幻帘叶片提示）；外壳沿用 .i3d-light-panel，只覆盖高度。
- * 滑杆已填充长度由 JS 写成 --hb-cover-position-progress，是这里唯一由脚本注入的自定义属性。
- *
- * 约定：.hb-cover-details-* 是窗帘详情控件的共享类名，本文件规则一律以 .i3d-cover-panel 作前缀限定；
- * 滑杆的 WebKit 与 Firefox 伪元素必须分别写（两条链路盒模型不同）。
  */
 
 /* 面板外壳：高度自适应并给出 232px 下限，保证位置滑杆与动作按钮不会挤在一起。
-   加上限与纵向滚动：示意图占 154px，小视口下整块会超出可用的竖直空间
-   （上限算式与气候面板同源，见 climate-panel.css 里 is-climate-panel 那段注释）。
    只有纵向滚动条：示意图居中、宽度 244px 不超内容区，横向一旦允许滚动会多出一条无用的横条。 */
 .interaction3d-stage .i3d-light-panel.is-cover-panel {
   height: auto;
@@ -25,7 +16,6 @@
 
 .i3d-cover-panel {
   /* 示意图的缩放系数：并排的帘组（约半幅宽）放不下 244px 原尺寸，由组外壳下调本值；
-     单副帘面板与竖排帘组都是 1（320px 内容区放得下 2D 原尺寸，不必缩）。
      声明在面板这一层而不是示意图上：自定义属性写在元素自身会盖掉继承值，那样组外壳就改不动了。 */
   --i3d-cover-visual-scale: 1;
   display: flex;
@@ -67,20 +57,6 @@
   line-height: 14px;
 }
 /* ===== 设备示意图：窗帘（照 2D 的 .hb-cover-visual 移植）=====
-   部件与 2D 一一对应：窗洞 + 顶轨 + 左右帘布 + 梦幻帘叶片层 + 窗台压条。
-   材质配方（玻璃斜向渐变、顶轨四段金属、帘布 13% 宽褶纹平铺、叶片 rotateY）逐条照搬。
-
-   与 2D 的三处必要差异：
-   1. 2D 那幅是 244×154 的绝对定位浮层（top:-164px right:32px，飘在标题右侧），
-      这里原尺寸居中、单独占一行 —— 尺寸够了就不缩放；空调那台是因为 2D 画到 406px
-      宽、超出 320px 的内容区才缩到 0.72。
-   2. 2D 的示意图本身就是按钮（点击切换开合），故有 hover/active/cursor/tap-highlight。
-      这里滑杆与三个动作按钮都已各有一套，图再挂一次点击等于给同一动作开第二条无标签路径，
-      故去掉了这套交互（DOM 侧是 aria-hidden + pointer-events: none）。
-   3. 晾衣机分支（.is-airer）不移植：3D 运行期的 coverKind 只有 standard / roller / dream
-      （见 core/stage/geometry.js 的 COVER_KIND_SET），没有晾衣架这个概念。
-
-   两个宽度变量由 cover-panel.js 写入，都是开合百分比的线性函数（见 utils/cover-features.js）；
    叶片角度同样是线性式（1.8°/格，50% 正好 90°）。 */
 .i3d-cover-visual {
   --i3d-cover-panel-width: 45.9%;
@@ -111,13 +87,6 @@
   scale: var(--i3d-cover-visual-scale);
 }
 
-/* 刻意不做入场动画。
-   2D 那幅有 hb-cover-visual-drop（从 −150px 落下 + 过冲回弹），但它的宿主是「每次打开
-   都重建的详情弹窗」，动画天然只在打开时跑一次；本仓的窗帘面板是舞台挂载时构造一次、
-   之后只靠 is-open 显隐，照搬过来会在页面加载时就把动画跑完，用户真正打开面板时什么也看不到。
-   要修得给动画挂上 is-open（或每次打开重建面板），而净化器 / 空调那两台已经验收的图形
-   都只做状态驱动动画（is-on / is-running 的呼吸与吹风），不做入场——
-   这里跟随同一口径，宁可少一个花活也不要一条「永远在加载时自娱自乐」的规则。 */
 /* 窗台：底部一条金属压条，把窗洞「托」住。 */
 .i3d-cover-visual:after {
   position: absolute;
@@ -211,7 +180,6 @@
   animation: i3d-cover-panel-shift 0.84s ease-in-out infinite alternate;
 }
 /* 梦幻帘的叶片层：默认隐藏，只有 .is-dream 才启用。
-   --i3d-cover-retract-ratio 是整排叶片的收拢比例（0 = 铺满整窗，1 = 完全收到一侧），
    由 cover-panel.js 按整体开合位置写入；非梦幻帘恒为 0。 */
 .i3d-cover-visual-slats {
   --i3d-cover-retract-ratio: 0;
@@ -224,8 +192,6 @@
   gap: 2px;
 }
 /* 叶片等宽平分。
-   --i3d-cover-slat-gather 是该叶片「完全收拢」时要沿 x 走的距离（px，由 JS 按方向与序号写入，
-   与 2D 弹窗的 --hb-cover-retracted-shift 同一条公式）；乘以收拢比例后就是当前位移。
    0.42s 过渡让整体开合（尤其只在少数几次状态推送时才跳变的位置）走起来是滑动而不是瞬移。 */
 .i3d-cover-visual-slat {
   --i3d-cover-slat-gather: 0px;
@@ -313,13 +279,10 @@
 .i3d-cover-visual.is-dream.is-tilt-center .i3d-cover-visual-slat:after {
   opacity: 0.22;
 }
-/* 转到 82deg（几乎正对视线）时改用纯色填充，避免渐变在极窄的面上出现条纹。 */
 .i3d-cover-visual.is-dream.is-tilt-center .i3d-cover-visual-slat > i {
   background: #ddd9d1;
   transform: rotateY(82deg);
 }
-/* 运行中的叶片高光：按 --i3d-cover-slat-delay-index（回退到 --i3d-cover-slat-index）
-   逐片延迟 34ms，形成自收拢侧扫过的波纹。 */
 .i3d-cover-visual.is-dream.is-moving .i3d-cover-visual-slats i {
   animation: i3d-cover-slat-shimmer 0.72s ease-in-out infinite alternate;
   animation-delay: calc(var(--i3d-cover-slat-delay-index, var(--i3d-cover-slat-index)) * 34ms);
@@ -447,7 +410,6 @@
   height: 49px;
   margin-top: -17.5px;
 }
-/* Firefox 的轨道需要显式给高度，否则滑块会贴着控件顶部。 */
 .i3d-cover-panel .hb-cover-details-position input::-moz-range-track {
   height: 14px;
 }
@@ -512,7 +474,6 @@
 .i3d-cover-panel .hb-cover-details-actions button:active {
   transform: scale(0.96);
 }
-/* is-pending：指令已发出、等待设备确认，用描边而不是改底色，避免与选中态混淆。 */
 .i3d-cover-panel .hb-cover-details-actions button.is-pending {
   border-color: rgba(var(--hos-cool-rgb), 0.74);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-cool-rgb), 0.3);
@@ -548,7 +509,6 @@
   opacity: 0.45;
   cursor: default;
 }
-/* 禁用按钮上仍会命中 :hover，这里把高亮还原回默认渐变，避免"看起来可点"。 */
 .i3d-cover-panel .hb-cover-details-actions button:disabled:hover {
   border-color: #8397a25c;
   color: var(--hos-tool-text);
@@ -571,14 +531,11 @@
   line-height: 14px;
   overflow-wrap: anywhere;
 }
-/* 错误文案走全站语义色。原来写死 #eeb0a0 —— 与 --hos-alert-bright(#f5a3a6) 差 13 个通道，
-   属于「同一个意思、三个文件三套取值」的静默漂移（runtime.css 那三处是另一枚 #e69c93）。 */
 .i3d-cover-feedback.is-error {
   color: var(--hos-err);
 }
 /* ===== 隐藏与减少动态效果 ===== */
 
-/* [hidden] 需要强制生效，否则会被上面的 flex 规则覆盖。 */
 .i3d-cover-panel [hidden] {
   display: none !important;
 }

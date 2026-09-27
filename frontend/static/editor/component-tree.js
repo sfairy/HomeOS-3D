@@ -1,9 +1,5 @@
 /**
  * 组件树的查找与定位工具。
- *
- * 在「共享组件 + 各页面组件」两层结构里按 ID 找组件，并给出它在哪个集合、第几个位置、属于哪个
- * 页面，供插入 / 删除 / 拖拽复用。组件树为递归结构，children 可缺省；scope 取 "shared" /
- * "page"，root 表示命中项直接位于 sharedComponents 或某个 page.components 顶层。
  */
 
 /**
@@ -61,7 +57,6 @@ export function findComponentLocation(documentModel, searchedComponentId) {
     return null;
   }
   // isRoot 表示这一层直接挂在 sharedComponents / page.components 上，
-  // 决定调用方能否直接增删该节点。
   const locateComponent = (items, scope, page = null, isRoot = false) => {
     for (let index = 0; index < (items || []).length; index += 1) {
       const component = items[index];

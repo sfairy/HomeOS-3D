@@ -1,14 +1,9 @@
 /**
  * 运行时弹窗与设备入场的动画补丁，只在「3D 运行时」这类全屏场景使用，编辑器不加载。
- *
- * 目的：绕开 Safari（WebKit）播放一次性 CSS 动画的渲染缺陷——动画结束后元素可能停在首帧
- * （全透明 / 错位），看起来像弹窗没出来。故宁可牺牲一部分动效，也保证内容一定可见。
  */
 
 /**
  * 判断当前浏览器是否为「非 Chromium 的 Safari / WebKit」。
- * 判定同时要求出现 AppleWebKit 与 Safari，并排除 Chrome、Edg、OPR、FxiOS 等
- * 同样带 AppleWebKit 字样的浏览器——它们的 UA 都含这两段字符串，排除后才剩下真 Safari。
  */
 export function runtimeDialogUsesStableMotion({
   userAgent: userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent || ""
@@ -22,14 +17,11 @@ export function runtimeDialogUsesStableMotion({
 }
 /**
  * 播放入场动画，保证弹窗内容可见。
- * 非 Safari 直接返回空数组交给 CSS 原有动画；带 hb-runtime-simplified-motion 类时连后代一起扫描并取消
- * 「只播放一次」的动画（iterations === 1，正是它卡在首帧），无限循环的保留；只对第一个子元素做不透明度淡入。
  */
 export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
   if (!runtimeDialogUsesStableMotion()) {
     return [];
   }
-  // 简化动效模式下弹窗内部还有别的入场动画，需要连后代一起清掉，否则局部仍可能透明。
   const motionRoots = dialogElement.classList.contains("hb-runtime-simplified-motion")
     ? [dialogElement, contentElement, ...contentElement.querySelectorAll("*")]
     : [dialogElement, contentElement];
@@ -75,7 +67,6 @@ export function playMediaSpeakerEntrance(speakerElement) {
   if (!speakerElement || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     return null;
   } else {
-    // 关键帧刻意做过冲：先滑过头再回弹，最后停在原位（offset 1 时 transform 已是恒等变换）。
     return speakerElement.animate(
       [
         {
@@ -101,7 +92,6 @@ export function playMediaSpeakerEntrance(speakerElement) {
       ],
       {
         duration: 720,
-        // 140ms 延迟让弹窗本体先出现，避免两个动画挤在同一帧上显得突兀。
         delay: 140,
         easing: "cubic-bezier(.18,.78,.24,1)",
         fill: "both"
@@ -120,7 +110,6 @@ export function playFixedDeviceDropEntrance(
     return null;
   } else {
     // 用 translate 而不是 top / left：位移交给合成层，长列表里不会触发重排。
-    // 起始帧带 2px 模糊模拟景深，落定过程中清零，最后以 7px → -3px → 0 的二次回弹收尾。
     return deviceElement.animate(
       [
         {

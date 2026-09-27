@@ -1,12 +1,4 @@
 """商店首次部署初始化：通过页面设置管理员账号。
-
-这是**唯一**的首次初始化入口：部署者直接在浏览器里创建管理员，无需 SSH 到服务器跑命令，也不再有
-「用环境变量预置默认管理员」的路径（那等于给每个照文档部署的实例留一个公开后门）。
-
-安全约束：① 仅有同源中间件不够（它在不带 Origin/Referer 时放行，``curl`` 默认不带），非本机直连的
-请求必须带上 ``STORE_SETUP_TOKEN``；② 管理员创建改成一条 ``INSERT ... SELECT ... WHERE NOT EXISTS``，
-由数据库决定谁抢到，避免「先 SELECT 再 INSERT」在 argon2 的宽窗口里被并发双建，抢不到的一律 409；
-③ 仅在没有任何管理员账号时可用；④ 创建后自动登录并下发会话 Cookie。
 """
 
 from __future__ import annotations
@@ -42,7 +34,6 @@ class SetupAdminRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=MIN_PASSWORD_LENGTH)
     confirm_password: str = Field(min_length=MIN_PASSWORD_LENGTH)
-    #: 非本机直连时必须提供；用 localhost / 127.0.0.1 从本机（loopback 对端、未经代理）访问时可以留空。
     setup_token: str = Field(default="", max_length=512)
 
 
@@ -59,9 +50,6 @@ def admin_exists(session) -> bool:
 @router.get("/status", include_in_schema=False)
 def setup_status(request: Request, session: DbSession) -> dict:
     """检查是否需要初始化管理员。
-    **对任何人如实回答「初始化了没有」等于免费提供探针**：``false`` 就是在对全网宣告「这家店还没有
-    管理员，来抢」，而它唯一的正当用途只对**本来就有资格初始化**的调用方有意义。所以只对这类调用方
-    （本机直连，或带了正确的 ``X-Setup-Token``）回答真相，其余一律回 ``true`` —— 安全默认且不泄漏信息。
     """
     if admin_exists(session):
         return {"initialized": True}
@@ -80,8 +68,6 @@ def setup_admin(
     email = payload.email.strip().lower()
 
     # 邮箱形态校验先于任何状态判断：只看请求体，不泄漏「有没有管理员 / 引导密钥对不对」。
-    # 必须校验是因为它是**管理员账号的登录标识**，而同一值在后台建账号、测试发信等入口都先过
-    # ``is_valid_email`` 再落库 —— 只有「首次设置」不过，恰恰是部署者最认真输入的一次。
     if not is_valid_email(email):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -95,8 +81,6 @@ def setup_admin(
         )
 
     # 顺序有讲究：1) 先判「是否已有管理员」，必须排在守卫前 —— 初始化后守卫会作废
-    # 引导密钥，先过守卫会得到摸不着头脑的 403 而非 409；2) 守卫排在 argon2 前，否则
-    # 未授权请求先烧一遍 ``hash_password`` 等于免费打满 CPU；3) 邮箱唯一性只为文案。
     if admin_exists(session):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -122,7 +106,6 @@ def setup_admin(
     password_hash = hash_password(payload.password)
 
     # 原子抢占「第一个管理员」这个名额：判空与写入在同一条语句里，由数据库定胜负。
-    # 不能用「先 SELECT 后 INSERT」—— 两次调用可以各自读到 admin_count=0。
     statement = (
         insert(Account)
         .from_select(

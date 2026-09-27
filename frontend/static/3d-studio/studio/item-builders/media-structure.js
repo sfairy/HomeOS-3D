@@ -1,13 +1,5 @@
 /*
  * 物件构建器：影音与结构件
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 电视（含屏幕与挂架）、小车（含充电桩特效）、玻璃隔断、楼梯（三种）、绿植。
  */
 /**
  * 命中：itemSpec.type === "smallcar"
@@ -148,8 +140,6 @@ export function buildTvItem(context) {
   const televisionBodyBottomY = televisionBodyCenterY - televisionScreenHeight * 0.5;
   if (itemSpec.tvMountStyle === "mobile") {
     // 与 tv_mobile 规格同构：四只脚轮 + 落地底盘 + 立杆（顶上收一条推手横杆）+ 机身。占位几何只在
-    // 模型到位前露脸（离线导出里则一直顶替模型），轮廓同形才不会「加载完成前后跳一下」；原来那块
-    // 底座画在 televisionBodyBottomY * 0.76 —— 一块悬在 0.64m 半空的板。
     const televisionCasterRadius = Math.max(Math.min(itemWidth, itemDepth) * 0.05, 0.026);
     const televisionBaseHeight = Math.max(itemHeight * 0.032, 0.04);
     const televisionBaseWidth = Math.max(itemWidth * 0.4, televisionCasterRadius * 4);
@@ -159,7 +149,6 @@ export function buildTvItem(context) {
     const televisionStandZ = -itemDepth * 0.22;
     const televisionStandBottomY = televisionCasterRadius * 2 + televisionBaseHeight;
     // 立杆一直升到整件高度（与 tv_mobile 规格一致：它从底盘穿到顶、推手横杆收在顶端），
-    // 机身高度带里的那段落在机身之后，不会顶到屏幕。
     const televisionStandHeight = Math.max(
       itemHeight - televisionStandBottomY,
       itemHeight * 0.2
@@ -515,7 +504,6 @@ export function buildPlantItem(context) {
         })
       );
       // 暖阳原木：叶片放大到 1.85 倍，同株植物的体量更饱满，
-      // 不必新增模型资源就能让绿植在暖色背景里站得住。
       const plantLeafScale = itemPalette.warmFurniture ? 1.85 : 1;
       plantLeafMesh.scale.set(
         itemWidth * 0.045 * plantLeafScale,

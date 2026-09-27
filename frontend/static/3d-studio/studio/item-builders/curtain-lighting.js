@@ -1,17 +1,5 @@
 /*
  * 物件构建器：窗帘与灯具
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 轨道帘（自带收尾、命中即返回模型组）、卷帘（同为自带收尾）、普通帘、灯带/筒灯/吸顶灯、壁灯、落地灯。
- * 窗帘的布料配色与暖阳主题补偿、灯具的预编译登记都在这一支里。
- */
-/**
- * 命中：itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true
  */
 export function buildTrackCurtainItem(context) {
   const {
@@ -31,7 +19,6 @@ export function buildTrackCurtainItem(context) {
   });
   if (itemPalette.warmFurniture) {
     // 暖阳原木：轨道帘的布帘统一换成暖米白并整体补一点自发光 ——
-    // 主题下各面料贴图原本的色差会被冲淡，颜色对齐后整幅帘子才像同一套色系。
     itemGroup.traverse(curtainPartNode => {
       if (curtainPartNode.userData.curtainPart === "cloth" && curtainPartNode.material) {
         curtainPartNode.material.color.set(16776696);
@@ -44,13 +31,6 @@ export function buildTrackCurtainItem(context) {
   return itemGroup;
 }
 
-/**
- * 命中：itemSpec.type === "curtain" && itemSpec.offlineModelExport !== true && resolveCurtainForm(itemSpec) === "roller"
- *
- * 卷帘走专用支路，而不是塞进轨道帘：两者几何完全不同（卷帘无轨道、无左右分片、无褶皱），
- * 放在同一条 if 里只会让 addTrackCurtain 里到处是「如果是卷帘就跳过」。
- * 分派表里这条排在轨道帘之前，因此卷帘不会被轨道帘那条（terminal）先命中。
- */
 export function buildRollerCurtainItem(context) {
   const {
     addRollerCurtain,
@@ -64,13 +44,11 @@ export function buildRollerCurtainItem(context) {
   } = context;
   addRollerCurtain(threeModuleMin, itemGroup, itemSpec, {
     // 布面取 rollerCurtain 这一档：默认家居色卡与逐物件材质风格（CURTAIN_STYLES）都备好了该键，
-    // 缺省时退回轨道帘用的 furnitureLight，保证非家居调色板下也有一个合理布色。
     light: itemPalette.rollerCurtain ?? itemPalette.furnitureLight,
     dark: furnitureDarkColor
   });
   if (itemPalette.warmFurniture) {
     // 与轨道帘同一套暖阳处理：卷帘的布面（放下的平面与卷起的布卷）统一换成暖米白并整体补一点自发光，
-    // 让同一扇窗上的两种帘型在暖阳主题下是同一色系；五金件（底杆 / 支架）不在此列，保持家具深色。
     itemGroup.traverse(curtainPartNode => {
       if (curtainPartNode.userData.curtainPart === "cloth" && curtainPartNode.material) {
         curtainPartNode.material.color.set(16776696);
@@ -162,8 +140,6 @@ export function buildCurtainItem(context) {
     );
   }
   /**
-   * 铺开一片窗帘布：7 道褶皱 + 上下两根横向压条。褶皱固定 7 道，宽度按片宽的 1/7 均分；相邻褶皱前后交错 ±10% 深度，每道再比
-   * 均分宽度宽 1.24 倍，形成叠压感。上下压条分别压住布顶与布中，让布片看起来是挂在轨道上的。
    * @param {number} curtainPanelStartX 该片布的起始 X（米）。
    */
   const addCurtainPanel = (curtainPanelStartX, panelWidth) => {

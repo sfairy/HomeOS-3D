@@ -1,35 +1,6 @@
 /* HomeOS 可配置配色（canonical 源：design/scene/appearance.js）
-   预设、明暗派生与令牌展开都在这里，三个入口（主应用 / 商店 / Activate）共用同一份。
-   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。
-
-   ## 为什么这份逻辑在前端而不是后端
-
-   主应用与商店是两个独立的 Docker 构建上下文（Dockerfile 只 COPY frontend/ 或只
-   COPY apps/store/），后端代码无法互相 import；把同一段 HSL 派生写两份 Python，再靠一个
-   比对脚本来维持一致，是这份仓库里已经有过的坏味道（见 theme.css 顶部的历史注释）。
-
-   而「改一个主控色」这件事本身就需要**即时预览**：管理员拖色轮时页面要立刻变，等一次
-   网络往返才知道效果是不可用的。既然前端必须有一份派生逻辑，就不该再有第二份 ——
-   所以前端算完整张令牌表，后端只做「白名单 + 取值格式」校验后原样存下来（见
-   apps/server/core/appearance.py 与 apps/store/ops/appearance.py 的 validate_tokens）。
-
-   这不等同于「后端信任前端」：能调用这两个接口的都是已登录的管理员，他们本来就能改
-   站点名与公告。后端要防的是**把样式表写坏**（注入选择器、关掉自己的样式、撑爆 CSP），
-   而不是防管理员审美。取值格式两道正则就是那道墙。
-
-   ## 为什么 -bright / -deep 是算出来的
-
-   四束光各自只有 4 枚字面色令牌（base / bright / deep / rgb），其余（渐变、软底、
-   描边、辉光）全是引用它们的 var()，改字面量就整片跟上。手写 48 个十六进制不现实，
-   而只开放 base 又会得到「主控色换了、按钮的亮渐变还是旧的琥珀」这种半身不遂的效果。
-
-   预设表里「暖居琥珀」显式写着 bright / deep：它是默认值，必须与
-   design/scene/page.css 逐字相等 —— 否则管理员只是打开面板点一下保存，默认外观就
    悄悄变了。 */
 
-/** 可配置的四束光。heat / cool / alert / sensor **刻意不在其中**：
-    它们编码物理含义（热 / 冷 / 故障 / 离线），管理员把「热」配成冷色会直接破坏语义，
-    而居家四色只回答「这个家看起来是什么气质」。 */
 export const CONFIGURABLE = ["accent", "lumen", "aura", "eco"];
 
 /** 中文名，给设置界面用（后端也要报错文案，故与 PRESETS 分开导出）。 */
@@ -42,8 +13,6 @@ export const COLOR_LABELS = {
 
 /**
  * 预设配色。全站只用一套（暖居琥珀），保留数组结构是为了让设置界面、后端校验与
- * 冒烟测试继续按「预设」这一层表达走 —— 但不再提供多方案可选。
- * `shades` 必须显式写出（见文件头：默认值不许漂移），且与 page.css 逐字相等。
  */
 export const PRESETS = [
   {
@@ -51,7 +20,6 @@ export const PRESETS = [
     label: "暖居琥珀",
     hint: "全站唯一配色：暖金主控，灯光 / 氛围 / 生态在线各占一束暖光",
     colors: { accent: "#ffc46a", lumen: "#ff9d4d", aura: "#c9a0ff", eco: "#5fd0a8" },
-    // 与 design/scene/page.css 的 --hos-*-bright / --hos-*-deep 逐字相等。
     shades: {
       accent: { bright: "#ffd9a0", deep: "#e09523" },
       lumen: { bright: "#ffba83", deep: "#c96a1d" },
@@ -66,12 +34,6 @@ export const DEFAULT_PRESET = "amber";
 
 /* --------------------------------------------------------------- 颜色工具 */
 
-/* 本模块是**构建隔离**的独立副本，不能 import frontend/static/utils/colors.js：主应用与商店是两个
-   独立构建上下文（Dockerfile 只 COPY 各自目录），auth 页也可能只带自身静态目录。所以这里的
-   normalizeHex / hexToRgb 与 utils/colors.js 里那几个同名工具**不是漏合并**，失败语义也刻意不同：
-   本模块用于配色派生（管理员拖色轮 → 实时算令牌表），非法色必须**抛错**让配置错误立刻暴露；
-   那边服务的是「显示路径」，要的是拿不到就兜底 / 返回 null。
-   三份副本（design/scene、frontend/static/auth/scene、apps/store/static/scene）必须逐字一致。 */
 
 /** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`；无法解析时返回 null。 */
 export function normalizeHex(input) {
@@ -89,18 +51,12 @@ function hexToRgb(hex) {
   return [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16));
 }
 
-/** `{ r, g, b }` → `r, g, b`。半透明派生色一律写 rgba(var(--x-rgb), α)，见 page.css 顶部注释。 */
 export function rgbTriplet(hex) {
   return hexToRgb(hex).join(", ");
 }
 
 /**
  * 由一个基色推出 `-bright` 与 `-deep`。
- *
- * 用 HSL 而不是向白 / 黑插值：向白插值会把亮色洗成灰白（`#ffc46a` 提亮 10% 后彩度
- * 掉得肉眼可见），而「亮一档」在界面上的作用是**同一个色相的更亮一档**，不是更灰。
- * 所以亮度加固定量、饱和度只做轻微收缩（深色档多收一点：深色本身面积大，
- * 彩度不掉会让整块界面显得浊）。
  */
 export function deriveShades(hex) {
   const [r, g, b] = hexToRgb(hex).map((channel) => channel / 255);
@@ -149,14 +105,6 @@ export function deriveShades(hex) {
 
 /**
  * 把四个基色展开成两张样式表要用的字面量令牌表。
- *
- * 只回**字面量**令牌：`--hos-grad-accent`、`--hb-accent-soft`、`--hb-focus-ring`
- * 这类都是 `var()` 引用，改字面量它们自己会跟上。多回一份引用值只会让「谁才是真的
- * 生效值」变得可疑，而下一个人一定会去改错那一个。
- *
- * 两个命名空间一起发：主应用与场景读 `--hos-*`，商店读 `--hb-*`（theme.css 是
- * page.css 的镜像，两侧令牌须逐 token 相等）。同一张表在两端都无害，
- * 于是只需要一个 `GET /appearance.css` 响应体、一份前端产出。
  */
 export function appearanceTokens(colors) {
   const tokens = {};
@@ -180,7 +128,6 @@ export function appearanceTokens(colors) {
     tokens[`--hb-${name}-text`] = bright;
   }
   // 主按钮 hover 用的是比默认渐变再亮一档的独立渐变（默认那层上面压着深色文字，
-  // 直接加 filter 会把文字洗灰，见 theme.css 的 --hb-accent-grad-hover）。
   const accent = normalizeHex(colors.accent);
   if (accent) {
     const shades = colors.accentShades || deriveShades(accent);
@@ -197,11 +144,6 @@ export function presetTokens(presetId) {
 
 /**
  * 预设 + 可选的自定义主控色 → 展开好的令牌表。设置界面用这一个函数出图。
- *
- * `accentColor` 与预设的 accent 相同时刻意**沿用预设的明暗档**：默认预设的
- * `-bright` / `-deep` 必须与设计系统逐字相等（见文件头），如果这里一律走
- * `deriveShades()`，管理员打开面板什么都不改、点一下保存，默认外观就变了。
- * 只有真正的自定义色才交给派生函数 —— 那种情况下本来就没有「既定值」可言。
  */
 export function resolveTokens({ presetId, accentColor } = {}) {
   const preset = PRESETS.find((item) => item.id === presetId) || PRESETS.find((item) => item.id === DEFAULT_PRESET);
@@ -234,8 +176,6 @@ export function tokenNames() {
 
 /**
  * CSS 变量名（含 `--`）→ 去前缀的 kebab 名，供 `style.setProperty()` 用。
- * 设置界面用 CSSOM 逐枚赋值做即时预览：CSSOM 不受 CSP 的 `style-src 'self'` 约束
- * （那道限制只管内联 `<style>` 与 `style=` 属性）。
  */
 export function cssVariableName(token) {
   return token.startsWith("--") ? token : `--${token}`;

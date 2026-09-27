@@ -1,10 +1,5 @@
 /*
  * 实体选项与列表。
- *
- * 可挑选实体的收集与展示（名称、副标题、类型标签）、列表的无限滚动与溢出预览，以及各类选项列表（实体 / 图标 / 灯具统计）的渲染与定位。
- *
- * 由 static/editor/home.js 外提而来：这里只放函数，对 home.js 模块级状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
 import {
@@ -14,21 +9,21 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../../shared/action-rules.js?v=2609271208";
-import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609271208";
-import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js?v=2609271208";
-import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609271208";
-import { findComponent } from "../component-tree.js?v=2609271208";
+} from "../../shared/action-rules.js?v=2609271226";
+import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609271226";
+import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js?v=2609271226";
+import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609271226";
+import { findComponent } from "../component-tree.js?v=2609271226";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js?v=2609271208";
+} from "../../renderer/core/registry.js?v=2609271226";
 import {
   normalizedPopupClimateDeviceType,
   popupModuleEntityRecommended
-} from "../editor-document-management.js?v=2609271208";
-import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609271208";
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271208";
+} from "../editor-document-management.js?v=2609271226";
+import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609271226";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271226";
 
 export function createEntityOptions(ctx) {
   // 被外提到同目录的新模块（见其文件头）：惰性上下文，调用点传 entityOptionsContext()。
@@ -45,8 +40,6 @@ export function createEntityOptions(ctx) {
   });
 
 
-  // 取实体域统一走 utils/entities.js 的 entityDomainOf：带点号或非字符串的 domain 下，
-  // 它与本文件原先那份的切分结果不同，而两边消费方都是拿去查标签表或与裸域名比较，所以只留这一个口径。
   /** 取实体在界面上展示的种类标签（如「灯光」「辅助元素」「虚拟实体」）。 */
   function entityKindLabel(entityForLabel) {
     const entityDomainName = entityDomainOf(entityForLabel);
@@ -77,7 +70,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取实体名相对于设备名的「副标题」部分。HA 的实体名常被拼成「设备名 实体名」，直接用会重复；
-   * 这里按空格与间隔号「·」两种分隔尝试剥掉设备名前缀，剥不出结果时回落到 originalName，再不行返回空串。
    */
   function entityDisplaySubtitle(namedEntity, entityDeviceName = deviceNameForEntity(namedEntity)) {
     const entityName = collapseWhitespace(namedEntity?.name);
@@ -104,8 +96,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取实体在界面上的完整展示名：设备名 + 副标题。
-   *
-   * 虚拟实体是渲染器自造的，没有设备归属，直接用自身的 name。
    */
   function entityDisplayName(entityForDisplay, displayNameOverride = "") {
     if (entityForDisplay?.virtual) {
@@ -128,8 +118,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取实体选择项的单行标签，形如「[灯光] 客厅灯 · light.living_room」。
-   *
-   * 展示名与实体 ID 相同时不重复追加 ID。
    */
   function entityOptionLabel(entityForOption) {
     const optionDisplayName = entityDisplayName(entityForOption);
@@ -161,8 +149,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 汇总灯光统计控件里某个实体的可用性与状态文案。状态取自渲染器的实际运行态（editorRenderer.states），
-   * 而不是实体目录 —— 目录只说明实体存在，不能说明此刻是否可用。「无法判断:<原状态>」刻意把原始状态码
-   * 带出来，方便用户到 HA 侧排查。
    */
   function lightStatisticsEntityStatus(statisticsTargetEntityId, statisticsEntity = null) {
     if (!statisticsEntity) {
@@ -213,7 +199,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 设置灯光统计面板的提示文案（并切换错误样式）。文案为空时整条提示隐藏（用 !text 判断，顺带兜住
-   * null/undefined）；错误态用 class 表达，样式交给 CSS，避免在这里写内联样式。
    */
   function setLightStatisticsMessage(statisticsMessageText = "", isStatisticsMessageError = false) {
     ctx.lightStatisticsEntityMessageElement.textContent = statisticsMessageText;
@@ -223,7 +208,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 深度优先展开组件树，得到含所有层级子控件的扁平数组。结果数组由递归通过默认参数一路传递并原地追加，
-   * 父组件先于其子组件入列；调用方拿到的是新构造的数组（默认参数），内部递归共享同一个引用。
    */
   function flattenComponents(flattenSourceComponents, flattenedResult = []) {
     for (const flattenedComponent of flattenSourceComponents || []) {
@@ -233,11 +217,6 @@ export function createEntityOptions(ctx) {
     return flattenedResult;
   }
 
-  /**
-   * 取某页实际渲染的全部组件：页面自有组件 + 该页引用的共享组件。共享组件实体存在 document.sharedComponents
-   * 里，页面只持有 sharedComponentIds，所以这里要做一次 ID → 组件的解引用（失效引用直接过滤），
-   * 再展开分组内部的子控件。
-   */
   function componentsInPage(pageForComponents = ctx.currentPage()) {
     if (!pageForComponents || !ctx.activeProject?.document) {
       return [];
@@ -266,8 +245,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 返回当前页面适用的「图标可见性」虚拟实体（没有则空数组）。虚拟实体不是真实 HA 实体，而是
-   * 「按图标效果控件的可见性来驱动某个图标显隐」的伪绑定，只有页面里存在 icon-button-effect 组件时才有意义，
-   * 所以这里先扫描页面判断；只用第一个，因为一张页面通常只有一组图标效果。
    */
   function iconVisibilityVirtualEntities(pageForVirtualEntities = ctx.currentPage()) {
     if (
@@ -281,11 +258,6 @@ export function createEntityOptions(ctx) {
     }
   }
 
-  /**
-   * 登记一行「内容溢出时可悬停横向滚动」的预览目标。状态存在 WeakMap（previewTargetsByRow）里而不是 DOM
-   * 属性上：行节点是复用的，WeakMap 能在节点被丢弃时自动释放，也避免把 DOM 元素序列化进 dataset；
-   * data-overflow-scroll-preview* 标记只是给选择器与调试用的镜像。
-   */
   function registerOverflowPreviewRow(previewRowElement, previewTargetList) {
     /**
      * 规范化后的待滚动元素数组；单个元素与数组都接受，空值在这里剔除。
@@ -304,8 +276,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取（必要时创建）选择器按钮内承载文案的 .inspector-picker-value 元素。
-   *
-   * 首次接管时把按钮原有的纯文本搬进新元素，兼容旧标记结构下按钮直接放文本的写法。
    */
   function ensurePickerValueElement(pickerValueHostElement) {
     if (!pickerValueHostElement) {
@@ -336,22 +306,16 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取某种组件的实体选择器配置（触发按钮、下拉菜单、搜索框、选项容器），含 except（菜单互斥分组名）与
-   * recommended（推荐判定，如灯光效果推荐 light 域）。用 if/else 链而非查表对象，因为每项直接引用模块级 DOM 常量，
-   * 查表会在模块初始化时就把所有常量求值一遍；未知类型回落到图片选择器配置。
    */
   
 
   /**
    * 渲染实体选择器的候选列表：虚拟实体固定 100 分排最前（它们代表图标可见性这类特殊绑定），其余按组件自带的
-   * recommended 判定给分（true=1 / false=0），同分保持原始顺序避免抖动。匹配用「显示名 + domain」拼接后做小写包含判断，
-   * 输入 light 既能命中域也能命中实体名；选中项用 class 与 aria-selected 双标。
    */
   
 
   /**
    * 把控件当前绑定的实体回填到选择器按钮上（文档 → 表单）。绑定的实体可能已不存在，此时直接显示原始
-   * entityId 兜底而不是显示空。回填时清空搜索框，下拉若正开着就按新类型重渲染候选；最后同步「复制 ID」
-   * 按钮与关联实体配置块 —— 换控件后锚点位置也会变，所以这两步必须放在回填之后。
    */
   function syncEntityPickerValue(component) {
     const componentPickerConfig = entityPickerConfig(component.type, entityOptionsContext());
@@ -387,7 +351,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把实体下拉摆到按钮下方（空间不足则翻到上方）。阈值同 positionLightStatisticsEntityMenu
-   * （clamped 宽 / 高度 150~430 / 列表扣 58px）；句柄由 entityPickerConfig 按类型解析。
    */
   function positionEntityPickerMenu(pickerComponentType = "image") {
     const activePickerConfig = entityPickerConfig(pickerComponentType, entityOptionsContext());
@@ -403,7 +366,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把图片素材下拉摆到触发按钮下方。直接复用通用的实体选择器菜单定位逻辑（传入 "image" 取图片类的
-   * 锚点配置），保持所有下拉的定位规则一致。
    */
   function positionImagePickerMenu() {
     positionEntityPickerMenu("image");
@@ -420,10 +382,6 @@ export function createEntityOptions(ctx) {
     );
   }
 
-  /**
-   * 同步所有弹窗动作区块的实体输入框与按钮显示。新加的动作块实体为空时默认填第一个实体，避免出现空绑定；
-   * 随后刷新按钮文案，且只对已经展开的实体下拉重渲染选项（隐藏的下拉不必浪费一次渲染）。
-   */
   function syncPopupEntityInputs() {
     for (const popupEntityInput of document.querySelectorAll("[data-popup-entity]")) {
       const popupTriggerElement = popupEntityInput.closest("[data-action-trigger]");
@@ -441,10 +399,6 @@ export function createEntityOptions(ctx) {
     }
   }
 
-  /**
-   * 同步组合弹窗 climate 模块的「设备类型」分段控件（自动识别 / 空调 / 浴霸）。该行只在模块类型为 climate
-   * 时显示；写回时同时清掉模块上旧的顶层 deviceType 字段，避免 properties.deviceType 与顶层字段两份值不一致。
-   */
   function syncPopupModuleDeviceType(
     deviceTypeName = ctx.popupModuleFormElement.elements.deviceType.value
   ) {
@@ -480,10 +434,6 @@ export function createEntityOptions(ctx) {
     ctx.popupModuleEntityButtonElement._entityCopySync?.();
   }
 
-  /**
-   * 渲染组合弹窗模块的实体候选列表。排序策略：先用 popupModuleEntityRecommended 把与模块类型匹配的实体
-   * 排前面，再按目录原始下标做稳定排序，保证同推荐度时顺序可预期。
-   */
   function renderPopupModuleEntityOptions(searchText = ctx.popupModuleEntitySearchInputElement.value) {
     const boundModuleEntityId = ctx.popupModuleFormElement.elements.entityId.value;
     const normalizedSearch = String(searchText || "")
@@ -555,7 +505,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 取（必要时初始化）某个图标列表容器的滚动加载状态。状态按容器存在 WeakMap 里：同一个页面同时挂着
-   * 导航、图标按钮、标题按钮等多份图标下拉，关键字与分页位置必须互不影响；generation 用于丢弃过期请求。
    */
   function iconListState(iconOptionsElement) {
     let iconListStateValue = ctx.iconListStateByElement.get(iconOptionsElement);
@@ -583,8 +532,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 在锚点元素上方居中显示图标名气泡（空间不足改到下方）。气泡挂在最近的 <dialog> 内而非 body：
-   * 模态对话框处于浏览器 top layer，挂到 body 会被背板遮住看不见。
-   * 水平位置夹到距视口边缘 8px 内（含气泡自身宽度，给阴影留视觉余量）。
    */
   function showIconTooltip(tooltipAnchorElement, tooltipText) {
     hideIconTooltip();
@@ -611,10 +558,6 @@ export function createEntityOptions(ctx) {
     ctx.iconTooltipElement = tooltipContentElement;
   }
 
-  /**
-   * 给元素挂上图标名提示的显示/隐藏交互。鼠标（pointerenter/leave）与键盘（focus/blur）两条路径都挂：
-   * 只挂鼠标的话键盘用户看不到完整图标名。
-   */
   function attachIconTooltip(tooltipTargetElement, tooltipLabelText) {
     tooltipTargetElement.addEventListener("pointerenter", () =>
       showIconTooltip(tooltipTargetElement, tooltipLabelText)
@@ -626,17 +569,10 @@ export function createEntityOptions(ctx) {
     tooltipTargetElement.addEventListener("blur", hideIconTooltip);
   }
 
-  /**
-   * 渲染（或追加）一页图标选项并维护滚动分页：append 为 false 或关键字变化时重置列表、分页归零并 generation + 1，
-   * 让在途旧请求作废；首项固定为「不使用图标」；loading / complete 挡掉滚动事件触发的重复请求；
-   * 失败时复位 loading 并把异常继续抛出，交给调用方决定提示方式。
-   */
   
 
   /**
    * 给滚动容器挂上「滚到底部自动加载下一页」的行为。阈值 120px：提前一屏的一小段距离就开始加载，
-   * 用这段距离抵消网络往返时间，用户继续滚动时新内容通常已经就位；重复触发由调用方（loadMoreIcons）
-   * 内部的状态位挡掉，这里只负责判断位置。
    */
   function attachInfiniteScroll(infiniteScrollElement, loadMoreIcons) {
     infiniteScrollElement.addEventListener("scroll", () => {
@@ -685,7 +621,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 加载图标按钮「常态图标」的候选列表。设备按钮未指定图标时首项文案是「跟随实体图标」（图标来自实体绑定），
-   * 其余图标按钮则是「不使用图标」——与运行时的图标回退策略保持一致。
    */
   async function loadIconButtonIconOptions(
     iconButtonIconQuery = "",
@@ -716,11 +651,6 @@ export function createEntityOptions(ctx) {
     }, entityOptionsContext());
   }
 
-  /**
-   * 加载统计控件图标的候选列表。默认图标只在 properties 里根本没有 icon 字段时才补上（用 hasOwn 判断）：
-   * 用户主动清空图标会留下空串字段，那种情况必须尊重；datasetKey 换成 lightStatisticsIconName，
-   * 与其它图标下拉的 data 键区分开。
-   */
   async function loadLightStatisticsIconOptions(
     statisticsIconQuery = "",
     { append: appendStatisticsIcons = false } = {}
@@ -742,7 +672,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把导航图标下拉摆到按钮下方（空间不足则翻到上方）。
-   * 间距 / 高度 / 列表阈值全取 positionFloatingMenu 的默认值，差别只在锚点是按钮的父元素。
    */
   function positionNavigationIconMenu() {
     positionFloatingMenu({
@@ -754,8 +683,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把图标按钮「效果」图标下拉摆到按钮下方（空间不足则翻到上方）。
-   *
-   * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
    */
   function positionIconButtonEffectIconMenu() {
     positionFloatingMenu({
@@ -767,8 +694,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把图标按钮的图标下拉摆到按钮下方（空间不足则翻到上方）。
-   *
-   * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
    */
   function positionIconButtonIconMenu() {
     positionFloatingMenu({
@@ -780,8 +705,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把标题按钮图标下拉摆到按钮下方（空间不足则翻到上方）。
-   *
-   * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
    */
   function positionTitleButtonIconMenu() {
     positionFloatingMenu({
@@ -793,8 +716,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把灯光统计的图标下拉摆到按钮下方（空间不足则翻到上方）。
-   *
-   * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
    */
   function positionLightStatisticsIconMenu() {
     positionFloatingMenu({
@@ -806,8 +727,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把灯光统计的实体下拉摆到按钮下方（空间不足则翻到上方）。
-   *
-   * 比图标下拉更宽更高：高度上限 430、列表扣 58px；宽度先取锚点宽再压进视口（clamped）。
    */
   function positionLightStatisticsEntityMenu() {
     positionFloatingMenu({
@@ -820,10 +739,6 @@ export function createEntityOptions(ctx) {
     });
   }
 
-  /**
-   * 复位统计实体选择器的临时选择状态。statisticsEntityId / statisticsReplaceIndex 是选择器与文档之间
-   * 的暂存中介，复位是为了让下一次「加入」不会带上上一次的实体或替换下标。
-   */
   function resetLightStatisticsPicker({ clearMessage: shouldClearMessage = true } = {}) {
     ctx.statisticsEntityId = "";
     ctx.statisticsReplaceIndex = -1;
@@ -835,16 +750,10 @@ export function createEntityOptions(ctx) {
     }
   }
 
-  /**
-   * 渲染统计控件的实体候选列表。排序刻意分三级：支持统计的实体优先，其次是 light 域实体，最后才回到
-   * 原始顺序 —— 统计控件只对部分实体有意义，把不可用的沉到后面能少滚几屏。
-   */
   
 
   /**
    * 选中候选实体并立即写入统计控件。
-   *
-   * 已存在（且不是要替换的那个下标）时直接报错返回，避免同一实体被加两次。
    */
   function pickLightStatisticsEntity(
     pickedStatisticsEntityId,
@@ -875,8 +784,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 把当前选中的实体加入统计控件（替换模式下改写对应下标）。校验做了两层：mutateDocument 之外先拦一次
-   * 用于即时提示，文档修改函数内部再拦一次，防止用户点得很快时「文档已被改过」的竞态；结果用结果码
-   * 而不是异常表达，因为这不是错误而是一种需要提示的业务分支。
    */
   function addLightStatisticsEntity() {
     const statisticsTargetComponentId = ctx.selectedComponentId;
@@ -972,8 +879,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 从灯光统计组件的实体列表里移除指定下标的实体，并同步清理 properties.entityLabels 里对应的标签，
-   * 否则该实体的名字会残留，之后用同一 entityId 加回来时会显示成旧名字。下标校验用 Number.isInteger 且非负，
-   * 非法下标 splice 会静默删掉别的实体。经 mutateDocument 改写文档并进入撤销历史。
    */
   function removeLightStatisticsEntity(statisticsRemoveIndex) {
     const statisticsRemoveComponentId = ctx.selectedComponentId;
@@ -1013,7 +918,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 渲染「已加入统计」的实体行（名称、ID、运行状态与更换 / 删除按钮）。实体可能已从系统里消失，
-   * 此时回落到 entityLabels 里存下的历史名称，并给整行加 missing 类，让用户知道它已经不可用。
    */
   function renderLightStatisticsEntities(statisticsRowComponent = ctx.selectedComponent()) {
     if (statisticsRowComponent?.type !== "light-statistics") {
@@ -1071,7 +975,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 停止某一行的悬停滚动并复位。定时器与动画帧都要清：元素被移除后 rAF 会一直跑下去；
-   * scrollLeft 归零则是为了下次悬停仍从行首开始滚。
    */
   function stopHoverScroll(hoverScrollRowElement) {
     const hoverScrollState = hoverScrollStateByRow.get(hoverScrollRowElement);
@@ -1086,7 +989,6 @@ export function createEntityOptions(ctx) {
 
   /**
    * 从事件目标向上找到可横向滚动的预览元素。先按选择器找直接命中项，找不到再退回到所在行登记的
-   * 第一个目标 —— 这样鼠标落在行内空白处也能触发滚动预览。
    */
   function findOverflowPreviewTarget(closestSourceElement) {
     const previewTargetElement = closestSourceElement.closest?.(HOVER_SCROLL_TARGET_SELECTOR);

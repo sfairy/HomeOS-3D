@@ -1,13 +1,8 @@
 /**
  * 弹窗「关联功能」实体：候选筛选、默认勾选、名称清洗与操作确认。
- *
- * 由被绑定实体推导所属设备（热水器 / 净化器 / 浴霸 / 空调 / 扫地机），从同一设备的兄弟
- * 实体里挑出可关联项、按域排序、限制勾选数量。mode 为 "selected" 的显式勾选优先；返回
- * null 表示「未配置过」，与「配置为空」区分。候选排序稳定：不可用项最后、再按域优先级、
- * 最后按实体 ID 字典序。
  */
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609271208";
-import { entityDomainOf } from "../utils/entities.js?v=2609271208";
+import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=2609271226";
+import { entityDomainOf } from "../utils/entities.js?v=2609271226";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 const RELATED_ENTITY_MODE_SELECTED = "selected";
@@ -136,8 +131,6 @@ export const RELATED_ENTITY_DOMAIN_LABELS = Object.freeze({
   binary_sensor: "状态"
 });
 
-// 取实体域：统一走 utils/entities.js 的 entityDomainOf，避免在「domain 带点号 / 不是字符串」
-// 时静默认错域（消费方都是拿去查标签表或与裸域名比较）。
 
 /**
  * 判断实体当前是否可用（未被禁用、未被删除）。
@@ -192,7 +185,6 @@ export function relatedPopupContext(
   statesByEntityId = new Map()
 ) {
   // 这些组件类型自带弹窗入口；另外只要挂了「非当前实体 / 非指定实体」的
-  // more-info 动作，也算弹窗触发者。
   const isPopupTriggerComponent = [
     "icon-button-effect",
     "icon-button",
@@ -216,7 +208,6 @@ export function relatedPopupContext(
   if (!configuredEntityId || !sourceEntity) {
     return null;
   }
-  // 兄弟实体限定在同一设备内，避免把别的设备的功能也列进来。
   const popupSiblingEntities = entitiesForDevice(entitiesByEntityId, sourceEntity.deviceId);
   // 小米设备档案给出各角色（climate / fan / light / pm25 等）对应的实体 ID。
   const deviceProfile = resolveXiaomiDeviceProfile(
@@ -239,7 +230,6 @@ export function relatedPopupContext(
   let deviceType = "";
   let primaryEntityId = configuredEntityId;
   // 判定顺序即优先级：热水器 > 净化器 > 扫地机 > 浴霸 > 空调；
-  // component.type 显式指定优先于设备档案推断。
   if (component?.type === "water-heater" || waterHeaterEntity) {
     deviceType = "water-heater";
     primaryEntityId = waterHeaterEntity?.entityId || configuredEntityId;
@@ -327,7 +317,6 @@ export function relatedPopupCandidates(
         // 排除主实体自身；域必须在白名单内。
         candidate.entityId !== context.primaryEntityId &&
         allowedDomains.has(entityDomainOf(candidate)) &&
-        // 已勾选的实体即使当前不可用也保留，否则用户会「看不到自己选过的东西」。
         (relatedEntityIsAvailable(candidate) || selectedEntityIdSet.has(candidate.entityId))
     )
     .sort((left, right) => {
@@ -429,9 +418,6 @@ export function legacyRelatedEntityIds(
   return [];
 }
 
-/**
- * 生成关联实体的展示名：去掉源 / 主实体名称前缀，避免界面重复。
- */
 export function relatedEntityLabel(popupContext, entityTarget) {
   let label = String(entityTarget?.name || entityTarget?.originalName || "")
     .replace(/\s+/g, " ")
@@ -473,7 +459,6 @@ export function relatedEntityNeedsConfirmation(confirmationCandidate) {
   if (entityDomainOf(confirmationCandidate) !== "button") {
     return false;
   }
-  // 中英文危险词表；中文与英文都要覆盖，因为实体名可能来自 HA 或翻译资源。
   const searchText = [
     confirmationCandidate?.entityId,
     confirmationCandidate?.name,

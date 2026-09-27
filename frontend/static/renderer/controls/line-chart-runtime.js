@@ -1,9 +1,5 @@
 /**
  * 折线图几何与数值格式化。
- *
- * 把一组带 timestamp / value 的序列点映射到 SVG 用户坐标系，并按精度设置格式化数值标签。
- * 纯计算模块，不做 DOM、不引控件注册表；控件提供 viewBox 尺寸与序列数据。坐标系与 SVG
- * 一致：原点在左上、y 轴向下，数值越大映射出的 y 越小。
  */
 
 /**
@@ -19,7 +15,6 @@ export function lineChartGeometry(
   const dataMin = Math.min(...series.map(datapoint => datapoint.value));
   const dataMax = Math.max(...series.map(seriesPoint => seriesPoint.value));
   const valueSpan = dataMax - dataMin;
-  // 三重保底：数值本身可能全为 0，此时 magnitude 兜到 0.001，避免留白算成 0 后除零。
   const valueMagnitude = Math.max(Math.abs(dataMin), Math.abs(dataMax), 0.001);
   // 上下各留一点空间，曲线不至于贴边；恒定序列（span 为 0）靠 magnitude 那一项撑出留白。
   const valuePadding = Math.max(0.0001, valueSpan * 0.12, valueMagnitude * 0.02);
@@ -62,7 +57,6 @@ function normalizedStatePrecision(precisionOption) {
 }
 /**
  * 按量级自动挑选小数位：>=100 取整、>=10 一位、>=1 两位、>=0.01 三位、更小四位。
- * 读数长度基本稳定，又不会把温度之类的小数压掉。
  */
 function automaticNumericPrecision(inputValue) {
   const magnitude = Math.abs(Number(inputValue));
@@ -94,13 +88,11 @@ export function formatNumericValue(value, precisionSetting = "auto") {
     // 自动模式下再转一次数字，把 "12.30" 这类尾零抹掉。
     return String(Number(formattedValue));
   } else {
-    // 用户显式指定精度时刻意保留尾零，保证同列数字位数对齐。
     return formattedValue;
   }
 }
 /**
  * 把图表数值格式化成标签文案。
- * 薄封装：精度规则交给 formatNumericValue，控件侧不必直接依赖数值格式化模块的命名。
  */
 export function formatLineChartValue(chartValue, precision = "auto") {
   return formatNumericValue(chartValue, precision);

@@ -1,15 +1,9 @@
 /**
  * 「暖阳原木」主题下的树叶放大。
- *
- * 外部导入的模型叶片按原设计尺寸烘进去，直接换色显得单薄；本模块在几何层面把 foliage 材质
- * 的三角形按连通分量整簇放大并轻微旋转，让树冠在无额外模型资源下变蓬松。
- * 只处理材质名匹配 /foliage/i 的几何分组；enlargeWarmLeaves 返回新几何，不修改入参。
  */
 
 /**
  * 按连通分量放大树叶几何：在 foliage 分组内建并查集，把共享顶点与「位置相同但被拆开」的顶点并到同一簇
- * （导入模型常因 UV / 材质拆点，只按索引相连会把一片叶子拆成多块、放大后穿插）；每簇取包围盒中心，
- * 绕 Y 轴旋转 (簇序号 % 3 - 1) × 60° 并按 scale 放大相对坐标。结果写在几何副本上，不改动原几何与传入法线。
  */
 export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
   const positionAttribute = geometry.attributes.position;
@@ -17,7 +11,6 @@ export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
     return geometry;
   }
   const indexAttribute = geometry.index;
-  // 没有 groups 时把整块几何当成一个默认分组，避免下面直接跳过。
   const geometryGroups = geometry.groups.length
     ? geometry.groups
     : [
@@ -88,7 +81,6 @@ export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
     return geometry;
   }
   // 按根分组。遍历顺序即 parentByVertex 的插入顺序，簇序号依赖它，
-  // 而簇序号决定旋转角度 —— 这里的顺序不能随意调整，否则叶片旋转会整体错位。
   const verticesByRoot = new Map();
   for (const vertexIndex of parentByVertex.keys()) {
     const root = findRoot(vertexIndex);
@@ -124,7 +116,6 @@ export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
     const rotationSin = Math.sin(clusterRotation);
     for (const vertexIndex of clusterVertices) {
       // 先在 xz 平面上把相对坐标放大，再按上面的角度旋转回簇中心周边；
-      // Y 方向同样以簇中心为基准放大，叶片才会整体变厚而不只是变宽。
       const offsetX = (positionAttribute.getX(vertexIndex) - clusterCenter[0]) * scale;
       const offsetZ = (positionAttribute.getZ(vertexIndex) - clusterCenter[2]) * scale;
       enlargedPosition.setXYZ(
@@ -136,7 +127,6 @@ export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
     }
   }
   enlargedPosition.needsUpdate = true;
-  // 顶点整体挪过位置，法线与包围体都要重算，否则光照与剔除都会出错。
   enlargedGeometry.computeVertexNormals();
   enlargedGeometry.computeBoundingBox();
   enlargedGeometry.computeBoundingSphere();

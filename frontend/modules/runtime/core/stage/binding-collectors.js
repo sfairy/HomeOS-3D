@@ -1,36 +1,24 @@
 /*
  * 绑定收集。
- *
- * 从配置与状态表里收集各设备类型的绑定项，供标记渲染、面板与命中测试共用。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-// 通用设备的品类表：品类名 → { collection, modelType, label, icon, height }。
-// 六个品类共用同一段收集逻辑，靠这张表把「集合名 / 模型类型 / 缺省高度」参数化。
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile,
   isGenericDeviceKind
-} from "../../device/device-profiles.js?v=2609271208";
-// 门模型的展开口径与运行时 / 编辑器共用同一份实现（实现在 static/bridge/lock-state-runtime.js）：
-// 锁绑定要靠它把配置里的 modelId 对到楼层场景里那扇门，从而拿到门轴、门型与缺省坐标。
-import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609271208";
+} from "../../device/device-profiles.js?v=2609271226";
+import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609271226";
 // 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
-// （实现在 static/bridge/temperature-humidity.js，经运行侧薄桥转出）。
-import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609271208";
+import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609271226";
 // 窗帘组合（一拖多）的归一与舞台条目 id 口径：编辑器的配对候选、组合面板与舞台绑定必须
-// 共用同一份判据，否则会出现「编辑器认的组合舞台不认」这类静默的两套逻辑。
 import {
   curtainGroupEntryId,
   validCurtainGroups
-} from "../../cover/cover-groups.js?v=2609271208";
+} from "../../cover/cover-groups.js?v=2609271226";
 
 export function createBindingCollectors(ctx) {
   /**
    * 收集扫地机绑定：合并配置项、场景模型与运行期偏移（拖拽 / 动画位置）。
-   * 编辑态忽略偏移，保证编辑器里显示的一直是配置坐标。
    */
   function collectVacuumBindings() {
     return (ctx.config.devices?.vacuums || []).map(vacuumBindingEntry => {
@@ -42,7 +30,6 @@ export function createBindingCollectors(ctx) {
             vacuumSceneItemCandidate.type === "robotvacuum"
         );
       // 编辑态必须忽略运行期偏移：编辑器里显示与保存的都是配置坐标，
-      // 否则拖拽动画跑过之后会把动画位置当成用户摆的位置存下去。
       const vacuumOffset = (!ctx.isEditing && ctx.vacuumMotion.offset(vacuumBindingEntry.id)) || {
         x: 0,
         y: 0
@@ -104,12 +91,6 @@ export function createBindingCollectors(ctx) {
 
   /**
    * 收集「环境」里成对的空调 / 净化器绑定：把配置项与场景模型合并。
-   * 坐标优先用配置里的显式值（编辑器拖拽过），缺省回落到模型坐标与几何中心高度。
-   *
-   * 净化器与空调共用这一份，而不是各写一套：运行时它同属 `climate` 模块，面板按实体域
-   * （fan → `deviceState.purifier`）决定渲染净化器控件，所以绑定的形状必须逐字一致。
-   * 两者只有三处不同：配置集合名、场景模型的 type 白名单、兜底图标与兜底高度
-   * （兜底高度取各自模型的真实高度，见 tools/models/model-specs.mjs）。
    */
   function collectEnvironmentClimateEntries(entries, modelTypes, fallbackIcon, fallbackHeight) {
     return (entries || []).map(climateEntry => {
@@ -138,10 +119,6 @@ export function createBindingCollectors(ctx) {
   }
   /**
    * 空调（挂机 / 柜机 / 出风口）+ 空气净化器的绑定。
-   *
-   * 净化器必须在这里一起收集：它的配置项存在 `environment.airPurifiers` 里，漏了这一步
-   * 场景里就不会生成它的绑定，模型不渲染、点不开面板、控制直接失效 —— 而配置与后端校验
-   * 都是通过的，浏览器里一点报错都没有。
    */
   function collectClimateBindings() {
     return [
@@ -152,9 +129,6 @@ export function createBindingCollectors(ctx) {
         0.28
       ),
       // 净化器在场景里有两副外观：空气净化器（type === "airpurifier"，studio 有专用构建器）
-      // 与新风机（type === "freshair"，算作净化器的一种 —— 两者在 HA 里都是 fan 域，面板
-      // 与能力位同形）。借用空调那套白名单会让它们全都绑不上模型（modelAvailable 恒为
-      // false）；后端 purifier.py 的 require_purifier_model 认的是同一份类型表。
       ...collectEnvironmentClimateEntries(
         ctx.config.environment?.airPurifiers,
         ["airpurifier", "freshair"],
@@ -281,12 +255,6 @@ export function createBindingCollectors(ctx) {
 
   /**
    * 收集窗帘组合绑定（一拖多 / 双层帘）。
-   *
-   * 一个组合在舞台上只呈现为**一个**条目，替换掉它的两名成员（否则两副帘会冒出三个图标）。
-   * 组合本身不带状态：memberItems 是两名成员各自的**普通窗帘绑定**（与 collectCurtainBindings
-   * 同一口径的字段名），组面板据此为每个成员各渲染一块子面板、各自开合。
-   * id 走 curtainGroupEntryId（"curtain-group:" 前缀），与普通窗帘的裸 id 不会撞车，拖拽 /
-   * 选中回写时也能靠前缀反查到配置里的组合。
    */
   function collectCurtainGroupBindings() {
     const curtainBindingById = new Map(
@@ -298,7 +266,6 @@ export function createBindingCollectors(ctx) {
           .map(memberId => curtainBindingById.get(memberId))
           .filter(Boolean);
         // validCurtainGroups 已保证配置侧两名成员都存在；这里防的是绑定收集侧缺项（场景 / 状态
-        // 尚未就绪时）。成员凑不齐就整条不渲染，避免面板为半条组合空出一块。
         if (memberItems.length !== 2) {
           return null;
         }
@@ -309,7 +276,6 @@ export function createBindingCollectors(ctx) {
           isCurtainGroup: true,
           deviceKind: "cover",
           // 组合没有自己的图标：标记层按 memberItems 的两枚图标合成，这里显式留空，
-          // 免得下游的 `icon || 默认图标` 把组合画成单枚窗帘。
           icon: "",
           clickAction: curtainGroupEntry.clickAction || "focus",
           modelAvailable: true,
@@ -327,11 +293,6 @@ export function createBindingCollectors(ctx) {
 
   /**
    * 舞台**渲染**用的窗帘绑定集合，与 collectCurtainBindings（控制 / 动画 / 反查用）区分开：
-   * 这里把已被组合收录的成员滤掉，换成对应的组合条目。
-   *
-   * 不做这层过滤，一名成员会同时以「组合的一部分」和「独立窗帘」两种身份出现，画面上就是
-   * 两副帘三个图标。控制路径刻意仍走 collectCurtainBindings：组内成员的子面板命令要通过
-   * entityId 反查到成员绑定，滤掉就控不了。
    */
   function collectCurtainDisplayBindings() {
     const groupedMemberIds = new Set(
@@ -344,7 +305,6 @@ export function createBindingCollectors(ctx) {
   }
 
   // 收集扫地机房间快捷入口：visible === false 的扫地机不生成入口，
-  // 避免出现看得见却点不到的按钮。
   function collectVacuumRoomShortcuts() {
     return collectVacuumBindings()
       .filter(
@@ -376,10 +336,6 @@ export function createBindingCollectors(ctx) {
   }
 
   // 收集门锁绑定（安防模块的「门」）。
-  //
-  // 一条锁配置本身不是控件，它指向「一扇门」：门模型来自楼层的 scene.doors（要么是工作室导出的
-  // 门模型，要么是画在墙上的户型门由 doorModels 插值出坐标）。这里把配置项与门模型合并成绑定，
-  // 门轴方向、门型、缺省坐标都从门模型补 —— 舞台上的门动画要按门型选 rig、按门轴定旋转中心。
   const collectLockBindings = () =>
     (ctx.config.security?.locks || [])
       .map(securityLockEntry => {
@@ -387,7 +343,6 @@ export function createBindingCollectors(ctx) {
           securityLockFloorCandidate => securityLockFloorCandidate.id === securityLockEntry.floorId
         );
         // 与 stage.js 的动画清单、lock.py 同口径：先剥净 door: 前缀再补一次，裸门 ID 与
-        // door:<id> 两种写法都要能对上门场景里的门。
         const lockDoorRawModelId = String(securityLockEntry.modelId || "").replace(/^(?:door:)+/, "");
         const lockDoorModelId = lockDoorRawModelId ? "door:" + lockDoorRawModelId : "";
         const securityLockDoorModel =
@@ -399,7 +354,6 @@ export function createBindingCollectors(ctx) {
         return {
           ...securityLockEntry,
           // 门轴方向：配置显式值 → 门模型自带 → 缺省左开。与舞台动画共用 lockHinge：两侧各写
-          // 一份兜底的话，右开门会出现「面板显示右开、门却绕左边转」。
           hinge: lockHinge(securityLockEntry, securityLockFloor),
           id: "lock:" + securityLockEntry.id,
           deviceKind: "lock",
@@ -413,14 +367,12 @@ export function createBindingCollectors(ctx) {
             ? securityLockEntry.y
             : (securityLockDoorModel?.y ?? 0),
           // 门是立在地上的薄片：标记高度取门高的一半（即门的几何中心），而不是底面。
-          // 2.2 米是标准门高，门模型没给高度时用它兜底。
           height: Number.isFinite(securityLockEntry.height)
             ? securityLockEntry.height
             : (securityLockDoorModel?.height ?? 2.2) * 0.5
         };
       })
       // 展示态把「一个实体都没绑」的门丢掉：这种门点了也没有任何可看内容，
-      // 留在舞台上只会挡住场景。编辑态必须全部保留，否则用户没法把新门拖到舞台上配置。
       .filter(
         securityLockFilterEntry =>
           ctx.isEditing ||
@@ -433,10 +385,6 @@ export function createBindingCollectors(ctx) {
       );
 
   // 收集温湿度计绑定（环境模块的「温湿度计」）。
-  //
-  // 与门锁不同，温湿度计不指向任何场景模型：它是一块悬在楼层上方的信息卡，位置完全由配置
-  // 给出（编辑器拖拽写回 x / y）。缺省落点取楼层几何中心 —— 与工作室放置新标记的口径同源
-  // （bridge 的 temperatureHumidityFloorCenter）。因此这里不做模型匹配，只补设备种类与缺省坐标。
   const collectTemperatureHumidityBindings = () =>
     (ctx.config.environment?.temperatureHumidity || []).map(temperatureHumidityEntry => {
       const temperatureHumidityFloor = ctx.stageOptions.document.floors.find(
@@ -450,7 +398,6 @@ export function createBindingCollectors(ctx) {
         clickAction: "focus",
         icon: "",
         // 信息卡不依赖场景模型，标记永远可定位；缺省 `modelAvailable !== false` 同理，
-        // 这里显式写成 true，免得下游把「没配模型」误读成「模型被移除」。
         modelAvailable: true,
         x: Number.isFinite(temperatureHumidityEntry.x)
           ? temperatureHumidityEntry.x
@@ -466,9 +413,6 @@ export function createBindingCollectors(ctx) {
     });
 
   // 收集「场景里有窗帘模型但配置未绑定实体」的预览窗帘：按 楼层 + 模型 去重，
-  // 让编辑器在未绑定状态下也能看到窗帘。
-  // 去重键走 core/scene-model-key.js：两侧都必须归一（配置侧可能没写楼层、场景项一侧可能缺字段），
-  // 否则同一个窗帘会被判成「未绑定」而多出一条假预览。
   function collectPreviewCovers() {
     const boundCoverKeys = new Set(
       collectCurtainBindings().map(boundCurtain =>
@@ -496,16 +440,11 @@ export function createBindingCollectors(ctx) {
   }
 
   // 收集通用设备绑定（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）。
-  //
-  // 六个品类只有「集合名、模型类型、缺省图标与高度」三处差异，全部走 device-profiles 表，
-  // 这样后面再加品类时这里一行不用改。`deviceKind` 直接就是品类名 —— stage.js 的
-  // isGenericDeviceKind(deviceKind) 靠它判是不是通用设备弹窗。
   function collectGenericDeviceBindings(deviceKind) {
     const genericProfile = genericDeviceProfile(deviceKind);
     return genericProfile
       ? (ctx.config.devices?.[genericProfile.collection] || []).map(genericDeviceEntry => {
           // 按「模型 id + 品类对应的模型类型」配对：同一楼层里可能有同名 id 的别的模型，
-          // 只看 id 会把冰箱认成旁边的柜子，于是 modelAvailable 与坐标一起错。
           const genericSceneItem = ctx.stageOptions.document.floors
             .find(genericFloor => genericFloor.id === genericDeviceEntry.floorId)
             ?.scene.items.find(
@@ -536,7 +475,6 @@ export function createBindingCollectors(ctx) {
   }
 
   // 所有已配置设备，不分它属于哪个模块。ID 约定与各模块保持一致，
-  // 这样总览页可以直接复用 findBinding / activateBinding。
   function collectAllDeviceBindings() {
     return [
       ...collectClimateBindings(),
@@ -552,7 +490,6 @@ export function createBindingCollectors(ctx) {
     ].map(bindingEntry => ({
       ...bindingEntry,
       // 这三类在收集时就带了带前缀的 id（lock: / camera: / presence:），再拼一次会变成
-      // "lock:lock:xxx"；其余设备类型的 id 是裸 id，需要在这里补前缀。
       id: ["camera", "presence", "lock"].includes(bindingEntry.deviceKind)
         ? bindingEntry.id
         : bindingEntry.deviceKind + ":" + bindingEntry.id
@@ -565,7 +502,6 @@ export function createBindingCollectors(ctx) {
   }
 
   // 模块绑定的统一入口：安防模块把摄像头与人体传感器合并，其余模块直接用
-  // resolveModuleBindings 的结果。
   const collectModuleBindings = () => {
     let moduleBindings =
       ctx.activeModule === "security"
@@ -604,8 +540,6 @@ export function createBindingCollectors(ctx) {
 
   /**
    * 按当前模块解析出要显示的标记绑定。
-   * 展示态的「总览 / 全部楼层」刻意返回空数组：那两种模式只展示房子本体，
-   * 设备按钮留给各自的模块页签。
    */
   function resolveModuleBindings() {
     if (!ctx.isEditing && ctx.isOverviewMode()) {
@@ -632,13 +566,9 @@ export function createBindingCollectors(ctx) {
       return collectTelevisionBindings();
     } else if (isGenericDeviceKind(ctx.activeModule)) {
       // 编辑某一品类（冰箱 / 绿植 / …）时 activeModule 就是品类名：标记 id 保持裸 id，
-      // 编辑器的选中 / 拖拽回写才能直接对上配置项（与 cover / climate 同口径）。
-      // 上游 0.6.5 的同一分支：isGenericDeviceKind(text4) ? collectGenericDeviceBindings(text4)。
       return collectGenericDeviceBindings(ctx.activeModule);
     } else if (ctx.activeModule === "devices") {
       // 「设备」是 NAS / 电视 / 五个通用设备品类的聚合页签：三者的绑定在同一份配置里，
-      // 只是集合名不同。漏掉通用设备那一段，「模型选好了但场景里不出现按钮」——
-      // 上游 0.6.5 同一分支为 [...NAS, ...电视, ...GENERIC_DEVICE_KINDS.flatMap(...)]。
       return [
         ...collectNasBindings(),
         ...collectTelevisionBindings(),
@@ -648,8 +578,6 @@ export function createBindingCollectors(ctx) {
         id: deviceBinding.deviceKind + ":" + deviceBinding.id
       }));
     } else if (ctx.activeModule === "cover") {
-      // 编辑态下 activeModule 就是 "cover"：标记 id 保持裸 id（组合是 "curtain-group:" 前缀），
-      // 编辑器的选中 / 拖拽回写才能直接对上配置项。
       return collectCurtainDisplayBindings();
     } else if (ctx.activeModule === "climate") {
       return collectClimateBindings();

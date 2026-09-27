@@ -1,21 +1,13 @@
 /**
  * 人体存在（presence）的页面可见性、路径校验与触发计时。
- *
- * 人体存在角色沿一条闭合路径走动，并依据绑定实体的状态决定是否出现、出现多久。本模块集中放
- * 这些纯逻辑：页面过滤、路径合法性、触发条件判定与计时、沿路径取点，供 3D 场景与配置编辑器
- * 共用。对外提供 presenceVisibleOnPage、validPresenceRoute、
- * snapsToPresenceStart、createPresenceTriggers、closedPath、sampleClosedPath。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）、「按 ID 切域」与交互页面清单都只有一份实现
-// （`/static/utils/` 里那几份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）
-// 不能写裸 `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
 import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609271208";
-/** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
+} from "../core/static-helpers.js?v=2609271226";
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。
  */
@@ -23,15 +15,12 @@ export function presenceVisibleOnPage(presenceBinding, pageId) {
   // 默认只在前三个页面显示：全楼层总览、灯光、安防 —— 这是人体存在最常用的场景。
   const displayPages = presenceBinding.displayPages ?? ["overview", "light", "security"];
   return (
-    // 先校验 pageId 本身是已知页面，避免配置里写错的页面名意外匹配。
     PRESENCE_PAGES.some(([pageKey]) => pageKey === pageId) &&
     (displayPages === "all" || (Array.isArray(displayPages) && displayPages.includes(pageId)))
   );
 }
 /**
  * 校验人体存在的巡游路径是否可用（闭合折线，首尾自动相连）。
- * 点数 3–128、坐标有限且不超过 ±1e6、各点互不重合，且至少有一个中间点与首点、次点不共线，
- * 否则多边形退化成线，无法采样出朝向。
  */
 export function validPresenceRoute(route) {
   if (
@@ -58,7 +47,6 @@ export function validPresenceRoute(route) {
     return false;
   } else {
     // 只检查中间点（首尾不参与）：任一点与前一点、后一点构成的叉积不为 0，
-    // 即说明折线有「拐弯」，多边形不会退化成直线。
     return route.slice(1, -1).some((middlePoint, pointIndex) => {
       const nextPoint = route[pointIndex + 2];
       return (
@@ -99,7 +87,6 @@ export const PRESENCE_TRIGGER_MODES = [
 ];
 /**
  * 判断该触发方式是否为「一次性显示后自动消失」：equals / change 是瞬时事件，靠
- * displayDuration 控制时长；auto 模式绑 event.* 实体时也按瞬时事件处理。
  */
 export function presenceTriggerIsTimed(triggerBinding) {
   return (
@@ -110,8 +97,6 @@ export function presenceTriggerIsTimed(triggerBinding) {
 }
 /**
  * 创建人体存在的触发状态跟踪器。
- * HA 只给实体当前值，3D 需要知道「何时开始出现、显示多久」；这里为每个绑定维护
- * （是否触发中、起始时刻、时长），每次状态同步时按触发模式更新。
  */
 export function createPresenceTriggers(nowProvider = () => Date.now()) {
   const triggersByBindingId = new Map();
@@ -120,7 +105,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
      * 用最新的绑定列表与实体状态刷新触发记录。
      */
     sync(bindings, states) {
-      // 清掉已经不在配置里的绑定，避免记录无限增长。
       const presentIds = new Set(bindings.map(bindingEntry => bindingEntry.id));
       for (const staleId of triggersByBindingId.keys()) {
         if (!presentIds.has(staleId)) {
@@ -139,7 +123,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
         let triggerMode = binding.triggerMode || "auto";
         if (triggerMode === "auto") {
           // 自动识别：event.* 按事件处理；名字里带「人数」语义且值是数字的按阈值处理；
-          // 其余一律按开关量（on / off）处理。
           const looksLikePeopleCount =
             /person_count|people_count|occupancy_count|human_count|人数|人员数量|人体数量/i.test(
               binding.entityId + " " + (state?.attributes?.friendly_name || "")
@@ -187,7 +170,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
         }
         if (triggerMode === "equals" || triggerMode === "change") {
           // 触发条件：值发生了变化（equals 还要求变成指定值），
-          // 且 HA 上报的时间戳比上次记录更新，避免重复推送把计时反复重置。
           const changedForMode =
             isAvailable && previousRecord?.available && stateText !== previousRecord.value;
           const isNewerTimestamp =
@@ -198,8 +180,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
             changedForMode &&
             isNewerTimestamp &&
             (triggerMode === "change" || stateText === String(binding.triggerValue ?? "on").trim());
-          // 记录刻意做成「粘住」的：命中一次之后，后续与触发无关的状态推送不应把它关掉，
-          // 显示时长由 visible() 里的 started + duration 控制。
           triggersByBindingId.set(binding.id, {
             key: configKey,
             value: stateText,
@@ -213,7 +193,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
           });
           continue;
         }
-        // 常驻类：threshold 比对数值、state 看是否 on；阈值分支读配置里的 triggerMode，只有用户显式选「数值大于阈值」才套用。
         const isOn =
           isAvailable &&
           (triggerMode === "threshold"
@@ -223,7 +202,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
             : presenceIsActive(state));
         const valueChanged = previousRecord?.value !== stateText;
         // 起始时刻只在「从关到开」或「开着时值发生变化」时重置，其余情况沿用旧值，
-        // 这样显示时长不会因为无关的属性刷新而不断续期。
         const startedMs =
           !previousRecord || (isOn && (!previousRecord.on || valueChanged))
             ? (timestampMs ?? nowProvider())
@@ -253,7 +231,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
 }
 /**
  * 把闭合折线预处理成可快速采样的分段表。
- * 首尾自动相连；长度为 0 的分段丢弃且不累加总长，避免在同一点反复取到随机朝向。
  */
 export function closedPath(points) {
   const segments = [];
@@ -291,7 +268,6 @@ export function sampleClosedPath(path, distance) {
   // 取模两次是为了处理负数：JS 的 % 会保留负号，需要再加一轮总长拉回正区间。
   const wrappedDistance = ((distance % path.length) + path.length) % path.length;
   // 分段按 start 升序，返回第一个覆盖该距离的段；由于浮点误差可能落在末尾之外，
-  // 因此用 at(-1) 兜底最后一段。
   const segment =
     path.segments.find(
       candidateSegment => wrappedDistance < candidateSegment.start + candidateSegment.length

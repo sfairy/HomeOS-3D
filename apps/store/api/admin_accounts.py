@@ -1,8 +1,4 @@
 """运营后台的 accounts 资源组（从 api/admin.py 拆出）。
-
-子路由不带前缀（路径本身就是绝对路径），由父路由 admin.py 在**原来的位置**
-router.include_router() 套上 /store-admin/v1 —— 位置决定注册顺序，FastAPI 按注册序匹配路由，
-所以每拆一组都要用 72 条路由基线逐项比对（含顺序）。
 """
 from __future__ import annotations
 
@@ -35,7 +31,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _account_payload,
     _admin_actor,
@@ -61,9 +56,6 @@ def admin_list_accounts(
     offset: int = 0,
 ) -> dict:
     """账号列表（分页 + 筛选）。
-
-    ``role`` 取 ``admin`` / ``user``；``status_filter`` 取 ``active`` / ``inactive`` /
-    ``unverified``（注册了但邮箱还没验证——这些人登不上前台，客服工单基本都是他们）。
     """
     base = select(Account)
     if keyword:
@@ -111,8 +103,6 @@ def admin_deactivate_account(account_id: str, session: DbSession, admin: AdminAc
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
     # 与 ``admin_patch_account`` 的两条自锁保护必须一致：这个端点是「停用」的
-    # 快捷入口，如果这里不拦，运营绕过 PATCH 一样能把自己（或最后一位管理员）
-    # 关在门外，后台只剩「改数据库」这一条路。
     _guard_self_lockout(account, admin, action="停用当前登录的账号")
     _guard_last_active_admin(session, account)
     account.is_active = False
@@ -127,10 +117,6 @@ def admin_patch_account(
     account_id: str, payload: AdminAccountPatch, session: DbSession, admin: AdminAccount
 ) -> dict:
     """修正账号资料 / 重置密码 / 调整管理员与启用状态。
-
-    两条自锁保护：不能取消自己的管理员权限、也不能停用自己——否则后台会把
-    管理员自己关在门外，只能直接改库救回来。降权时还会校验系统里必须剩下
-    至少一个启用状态的管理员。
     """
     account = session.get(Account, account_id)
     if account is None:
@@ -188,7 +174,6 @@ def admin_patch_account(
 
     if data.get("new_password"):
         account.password_hash = hash_password(data["new_password"])
-        # 密码一改就踢掉全部会话，避免旧 token 继续用
         _drop_account_sessions(session, account.id)
         # 审计里只记「改过密码」，绝不记明文
         changed.append("new_password")
@@ -206,10 +191,6 @@ def admin_patch_account(
 @router.delete("/accounts/{account_id}")
 def admin_delete_account(account_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """删除账号。
-
-    账号下面挂着授权、订单、积分流水，硬删会连带清空或留下孤儿指针。所以只要
-    还挂着业务数据就拒绝删除，只允许停用；真正放行硬删的只有从未产生过业务
-    数据的「干净」账号。管理员自己不能删自己。
     """
     account = session.get(Account, account_id)
     if account is None:

@@ -1,10 +1,4 @@
 """登录失败次数限制器（内存态，按进程生效）。
-
-用途：对同一用户名 / 来源连续失败的登录请求做短时封禁，挡住暴力猜密码，同时不引入外部
-缓存依赖。代价是状态不跨进程：多 worker 部署时各自计数，属可接受的取舍。
-
-页面上还有一个「键由外部输入决定」的场景：中控配对的 6 位码，那类键空间等于外部可以随便造，
-因此另配 ``BoundedAttemptLimiter``（带键上限的一层包装）。
 """
 from __future__ import annotations
 
@@ -17,21 +11,13 @@ from time import monotonic
 from .sliding_window import SlidingWindow
 
 #: ``LoginAttemptLimiter`` 内部两张表合计保留的键数量上限。键常常来自外部（被猜的用户名、
-#: 被试的配对码、请求对端地址），不封顶就是一条内存放大路径：每换一个新键只留一条记录，
-#: 攒够就吃满内存，而且它们**永不清理** —— 清理只发生在「同一个键被再次查询」的时候。
 MAX_TRACKED_KEYS = 4096
 #: 清扫的摊还步长：攒够 ``max_keys / 8`` 个新键才再扫一次。清扫本身是 O(n)，
-#: 但只在越过阈值的那一刻付一次代价，不会「稳定在阈值上时每个请求都全表扫一遍」。
 TRIM_STEP_RATIO = 8
 
 
 class BoundedAttemptLimiter:
     """带键上限的失败计数器：包一层 ``LoginAttemptLimiter`` 并管理键空间。
-
-    键来自外部输入（被尝试的配对码、被猜的用户名）时，键空间等于外部随便造，不封顶就是内存
-    放大路径。策略：按最近使用顺序记住键，超过 ``max_keys`` 就淘汰最久未用的（连它的失败与
-    封禁记录一起清掉）。被淘汰的键等于重新开始计数，但想挤掉自己正在磨的那个键得先造出
-    ``max_keys`` 个其它键，每次都要花调用方那层的共享预算，因此这一层只用来兜底。
     """
 
     def __init__(
@@ -43,9 +29,6 @@ class BoundedAttemptLimiter:
         max_keys: int = 1024,
     ) -> None:
         """透传阈值给内部的计数器，并记下键上限。
-
-        max_failures 为窗口内允许的失败次数上限；window_seconds 为统计窗口长度（秒）；
-        block_seconds 为超限后的封禁时长（秒）；max_keys 为同时记住的键数量上限。
         """
         self._limiter = LoginAttemptLimiter(max_failures, window_seconds, block_seconds)
         self._keys: OrderedDict[str, None] = OrderedDict()
@@ -92,13 +75,6 @@ class BoundedAttemptLimiter:
 
 class LoginAttemptLimiter:
     """滑动窗口计数器 + 封禁表，按 key（通常是用户名）分别计数。
-
-    默认策略：300 秒窗口内失败 5 次，封禁 600 秒。达到阈值时清空窗口计数，这样解封后是
-    重新开始计数，而不是一进来就又被立刻封禁。键空间有上限（``max_keys``，见 ``_trim``）。
-
-    窗口本身（裁剪 + 键上限的机械）来自 ``sliding_window.KeyedWindows``；这里只留配额与
-    「失败到阈值就封禁」这一步业务。注意**没有**直接用 ``KeyedWindows`` 的 LRU 淘汰：封禁
-    表中的键必须优先保住（丢它等于自己给自己解封），淘汰顺序由 ``_trim`` 决定。
     """
 
     def __init__(
@@ -110,9 +86,6 @@ class LoginAttemptLimiter:
         max_keys: int = MAX_TRACKED_KEYS,
     ) -> None:
         """记录阈值。
-
-        max_failures / window_seconds / block_seconds 见类说明；max_keys 为内部两张表
-        合计保留的键数量上限（见 ``_trim``）。
         """
         self.max_failures = max_failures
         self.window_seconds = window_seconds
@@ -132,7 +105,6 @@ class LoginAttemptLimiter:
             blocked_until = self._blocked_until.get(key, 0)
             if blocked_until > now:
                 return True
-            # 已过封禁时间：删掉封禁标记，避免这张表随 key 数量一直增长。
             self._blocked_until.pop(key, None)
             self._prune(key, now)
             return False
@@ -147,7 +119,6 @@ class LoginAttemptLimiter:
             window.append(now)
             if len(window) >= self.max_failures:
                 self._blocked_until[key] = now + self.block_seconds
-                # 清空窗口：解封后重新计数，避免刚解封就被一次失败再次封禁。
                 window.clear()
             # 记账是唯一会让内部状态增长的动作，压回上限也放在这里。
             self._trim(now, keep_key=key)
@@ -168,11 +139,6 @@ class LoginAttemptLimiter:
 
     def _trim(self, now: float, *, keep_key: str | None = None) -> None:
         """把内部状态压回 ``max_keys`` 以内；调用方必须已持有 ``_lock``。
-
-        为什么需要这一步：键来自外部，而清理只发生在同一个键被再次查询时 —— 攻击者只要一直
-        换新键，这些记录就再也不会被访问、永远清不掉。丢谁按「损失最小」排：先清窗口外的失败
-        与已到期的封禁，再丢没有封禁的键（只丢计数），最后才动封禁中的键并丢最快要解封的那些，
-        且绝不动 keep_key（本次记账的键），否则等于自己给自己解封。
         """
         if len(self._failures) + len(self._blocked_until) <= self._trim_threshold:
             return
@@ -209,10 +175,6 @@ class LoginAttemptLimiter:
 
     def retry_after(self, key: str) -> int:
         """该 key 还要等多少秒才能再试（未封禁时返回 0）。
-
-        与 ``block_seconds``（封禁总时长）不是一回事：调用方拿它拼 ``Retry-After`` 时指的是
-        「从现在起还要等多久」，用总时长会一路偏乐观。向上取整、至少 1 秒，避免客户端拿到
-        「等 0 秒」后立刻重试又被拒。返回值随调用递减（基于 monotonic）。
         """
         now = monotonic()
         with self._lock:
@@ -225,8 +187,6 @@ class LoginAttemptLimiter:
 
     def _prune(self, key: str, now: float) -> None:
         """丢弃窗口外的失败时间戳；窗口清空后连键一起删掉。
-
-        必须连键删掉：键来自外部，空窗口留在字典里就等于攻击者能靠换新键把它撑大。
         """
         window = self._failures.get(key)
         if window is None:

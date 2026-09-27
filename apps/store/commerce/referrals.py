@@ -1,9 +1,4 @@
 """邀请与积分账本。
-
-积分口径：1 积分 = 1 元，奖励 = 实付金额（元）× 奖励比例，不足 0.01 的部分舍去。
-**单位**：账本里所有积分都是 ``int`` 厘（1 积分 = 100 厘），运算交给
-:mod:`apps.store.commerce.money`；用整数是因为浮点会让 SQL 与 Python 的舍入规则
-（half-away / half-even）在 ``.xx5`` 上分叉，提现的并发比对会误报冲突。
 """
 
 from __future__ import annotations
@@ -28,12 +23,6 @@ from apps.store.security.security import new_referral_code, new_uuid
 logger = logging.getLogger("apps.store.commerce.referrals")
 
 #: 积分流水类型（``ReferralLedger.kind``）的取值与中文名 —— **后端是唯一出处**。
-#:
-#: 本模块与 ``api/admin.py`` 的人工调账就是全部写入方，所以词表放在这里。后台的筛选下拉与
-#: 流水列表都改由接口下发（``ledger_kind_options``），不再自存一份 —— 自存的那份 6 个键里
-#: 只有 ``manual_adjust`` 与后端对得上，而筛选是精确等值匹配，选任何一项都返回空列表。
-#: 前台用户流水（apps/store/static/referrals.js）有意使用另一套更口语的说法（如 reward 说成
-#: 「邀请奖励」），那是面向用户的措辞，不并入这张账务口径的表。
 LEDGER_KIND_LABELS: dict[str, str] = {
     "reward": "下单奖励",
     "reversal": "奖励退回",
@@ -61,25 +50,16 @@ def ledger_kind_options() -> list[dict[str, str]]:
 
 class WalletConflictError(RuntimeError):
     """并发改动同一本钱包时的冲突（调用方应提示重试，而不是当成 500）。
-
-    ``balance_centi`` / ``frozen_centi`` 是读-改-写的聚合值：两个请求各自读到
-    ``frozen = 0`` 会各自冻结成功并覆盖对方，账面只冻结一笔却挂着两笔待审提现。
     """
 
 
 class WalletGuardError(RuntimeError):
     """写入会让钱包违反业务不变式（如余额为负），**不可重试**。
-
-    与冲突的区别在语义：那个是「有人抢先了，重来可能就成了」，这个是「请求本身不合法」，
-    所以调用方必须转成 4xx 而不是 503。
     """
 
 
 def get_or_create_wallet(session: Session, account: Account) -> ReferralWallet:
     """取（必要时建）该账号的积分钱包。
-
-    ``account_id`` 与 ``code`` 都有唯一索引，并发下两条都会撞：插入放在 SAVEPOINT 里，
-    撞了只回滚这一次插入，再判断是「复用对手建好的」还是「换一个码重试」。
     """
     wallet = _wallet_for(session, account)
     if wallet is not None:
@@ -112,8 +92,6 @@ def _wallet_for(session: Session, account: Account) -> ReferralWallet | None:
 
 def _pick_free_code(session: Session, account: Account) -> str:
     """挑一个当前没人占用的邀请码并写回账号；查不出来就抛。
-
-    只做「查」：并发下查出来的空位随时可能被对手先占，真正的占用判定交给唯一索引。
     """
     for _ in range(32):
         candidate = new_referral_code()
@@ -131,9 +109,6 @@ def _pick_free_code(session: Session, account: Account) -> str:
 
 def available_points_centi(wallet: ReferralWallet | None) -> int:
     """可用积分 = 余额 - 冻结，单位**厘**。
-
-    这是全站唯一口径：``balance_centi`` 是已赚到的总额（含正在提现的部分），界面上叫
-    「可用积分」，提现校验也必须用它，否则「可用 0 元」的用户仍能提交提现申请。
     """
     if wallet is None:
         return 0
@@ -144,9 +119,6 @@ def available_points_centi(wallet: ReferralWallet | None) -> int:
 
 def is_self_referral(session: Session, referrer: Account | None, account: Account) -> bool:
     """判断「自己邀请自己」。
-
-    两种形态都要拦：同一个账号，以及**同邮箱开小号**（注册 A、拿 A 的码注册 B、用 B
-    下单给自己返点）。邮箱是这套系统里唯一的身份标识，因此按它判定。
     """
     if referrer is None or account is None:
         return True
@@ -168,12 +140,6 @@ def _apply_wallet_delta(
     min_balance_centi: int | None = None,
     min_frozen_centi: int | None = None,
 ) -> tuple[int, int]:
-    """把余额变动写成**一条 SQL** 并返回改动后的 ``(balance_centi, frozen_centi)``。
-
-    不能用 ``wallet.balance_centi += delta``：读-改-写会让并发请求互相覆盖、账本少记
-    且不报错。整数列不需要 round；``min_*`` 是可选下界守卫，塞进同一条 UPDATE 的
-    ``WHERE``，结果会变成负数的那次匹配不到行（``rowcount == 0``）。
-    """
     values: dict[str, object] = {}
     if delta_centi:
         values["balance_centi"] = func.coalesce(ReferralWallet.balance_centi, 0) + int(
@@ -185,7 +151,6 @@ def _apply_wallet_delta(
         )
     if earned_delta_centi:
         #: 累计获得同样是读-改-写：两笔奖励并发结算会互相覆盖，改成一条 SQL 的加法，
-        #: 并夹到非负（退回奖励时可能把累计值扣到 0 以下）。
         values["earned_centi"] = func.max(
             0,
             func.coalesce(ReferralWallet.earned_centi, 0) + int(earned_delta_centi),
@@ -199,7 +164,6 @@ def _apply_wallet_delta(
         return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
 
     conditions = [ReferralWallet.id == wallet.id]
-    #: 只在**这一列真的要被改动**时才加守卫：历史负值不该让无关写入也被拒绝。
     if delta_centi and min_balance_centi is not None:
         conditions.append(
             func.coalesce(ReferralWallet.balance_centi, 0) + int(delta_centi)
@@ -217,7 +181,6 @@ def _apply_wallet_delta(
         .execution_options(synchronize_session=False)
     )
     if result.rowcount == 0:
-        #: 唯一能走到这里的原因是守卫不成立（``id`` 一定存在，调用方刚拿到这本钱包）。
         raise WalletGuardError(
             "这次记账会让钱包余额或冻结额变成负数，已拒绝写入。"
         )
@@ -241,10 +204,6 @@ def ledger_entry(
     min_frozen_centi: int | None = None,
 ) -> ReferralLedger:
     """记一条流水并原子更新钱包。
-
-    ``min_balance_centi`` / ``min_frozen_centi`` 透传给 :func:`_apply_wallet_delta`
-    作为**下界守卫**：不满足时整个写入不生效并抛 ``WalletGuardError``，流水也不会被
-    插入（两条语句在同一个事务里，调用方转成 4xx 即可）。
     """
     balance, frozen = _apply_wallet_delta(
         session,
@@ -263,7 +222,6 @@ def ledger_entry(
         delta_centi=int(delta_centi),
         frozen_delta_centi=int(frozen_delta_centi),
         #: 记的是**数据库里算出来的**结果，而不是本地推导的期望值。两者不一致时
-        #: 这个字段就是发现「有人绕过账本直接改钱包」的唯一线索。
         balance_after_centi=balance,
         frozen_after_centi=frozen,
         note=note,
@@ -299,7 +257,6 @@ def grant_order_reward(
     referrer = session.get(Account, buyer.referred_by_account_id)
     if referrer is None or not referrer.is_active:
         return 0
-    # 自邀（同账号 / 同邮箱开小号）不发奖励：否则等于把奖励比例变成永久折扣。
     if is_self_referral(session, referrer, buyer):
         logger.warning(
             "检测到自邀并跳过奖励 buyer=%s referrer=%s order=%s",
@@ -334,9 +291,6 @@ def reverse_order_reward(
     session: Session, *, order: Order, note: str = "订单退款，奖励退回"
 ) -> int:
     """退款时把已发放的奖励扣回。返回**实际扣回的积分（厘）**。
-
-    可扣上限 = 余额 - 冻结（冻结部分已进入提现审批，动不得）。扣不回来的差额记进
-    流水备注作为追偿依据 —— 硬扣会写出负数余额，而系统没有任何追偿手段。
     """
     if not order.referral_reward_points_centi or order.referral_reward_points_centi <= 0:
         return 0
@@ -350,7 +304,6 @@ def reverse_order_reward(
         return 0
     wallet = get_or_create_wallet(session, referrer)
     points_centi = int(order.referral_reward_points_centi)
-    # 冻结部分不能动（那笔钱已经进入提现审批），所以可扣上限是「余额 - 冻结」。
     deductible = min(points_centi, available_points_centi(wallet))
     shortfall = points_centi - deductible
     detail = note if not shortfall else (
@@ -361,17 +314,12 @@ def reverse_order_reward(
         wallet,
         kind="reversal",
         delta_centi=-deductible,
-        #: 累计获得按**整笔**奖励回退（不是按实际扣回的 deductible）：退款后这笔奖励
-        #: 就不存在了，counted 值应回到发放前的口径；夹到 0 由 SQL 完成。
         earned_delta_centi=-points_centi,
         note=detail,
         reference=order.order_no,
         order_id=order.id,
     )
     #: 只把**真正扣回的部分**结清：还有短差时保留短差，而不是清零。
-    #: 清零会让这笔债权从账上消失，而短差恰恰最容易发生在「积分正在提现审批中」的时候 ——
-    #: 那笔提现一旦被驳回，冻结会回到余额，本该追回的奖励就白拿了，库里却再也查不到欠多少。
-    #: 保留短差后，这个字段的含义变成「还没扣回的奖励」，重复调用即继续追偿。
     order.referral_reward_points_centi = shortfall
     session.flush()
     return deductible
@@ -391,10 +339,6 @@ def create_withdrawal(
     fee_percent: float,
 ) -> ReferralWithdrawal:
     """新建提现申请，并把对应积分**原子地**冻结。
-
-    冻结用条件 UPDATE 抢单（``where frozen == 读到的值``），而不是直接累加：否则两个
-    请求都读到 frozen=0、都通过校验，账面只冻结一笔却挂着两笔待审提现，甚至可以反复
-    套现。``rowcount == 0`` 说明期间有人改过钱包，抛 ``WalletConflictError`` 让调用方重试。
     """
     existing = session.scalars(
         select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == request_key)
@@ -432,7 +376,6 @@ def create_withdrawal(
     session.add(withdrawal)
     session.flush()
 
-    #: 抢单已加进 frozen，这里只补流水（frozen_delta=0 避免加两次）。
     session.refresh(wallet)
     ledger_entry(
         session,
@@ -452,9 +395,6 @@ def resolve_withdrawal(
     note: str = "",
 ) -> ReferralWithdrawal:
     """审批一笔待处理提现。**抢单式**：只有把状态从 pending 改走的那一次才动钱包。
-
-    双击审批在过去会把同一笔结算两次；条件 UPDATE 让「状态迁移」与「记账」成为同一个
-    原子动作，``rowcount == 0`` 说明别人已处理，直接返回。
     """
     if withdrawal.status != "pending":
         return withdrawal
@@ -490,10 +430,6 @@ def resolve_withdrawal(
             note=note or "提现完成",
             reference=withdrawal.id,
             #: 下界守卫：冻结额是「余额里被预留的那一份」，正常情况下 balance >= frozen，
-            #: 所以扣掉冻结额不会让余额变负。但这条不变式可以由**人工调账**打破（后台调账
-            #: 允许传负 delta），一旦打破，这里就会把余额写成负数 —— 而负余额会让后续每一笔
-            #: 记账都撞守卫。宁可拒绝：CAS 与记账在同一个事务里，抛出去等于整笔回滚、
-            #: 申请仍是 pending，运营把钱补回来再点一次即可。调用方须把它转成 4xx。
             min_balance_centi=0,
         )
     else:

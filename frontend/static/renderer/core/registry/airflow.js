@@ -1,26 +1,19 @@
 /**
  * 空调气流层：按模式与风速画出可动的气流示意。
- *
- * 纯 SVG 拼接，无第三方依赖；尺寸单位来自 `registry-visuals.js` 的 `appendSvgElement`。
  */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271208";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271226";
 // 「其它」档的中性灰：与编辑器侧共用同一枚定义，原先这里写的是 #ffffff、其余四处写 #dce2e6。
-import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609271208";
+import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js?v=2609271226";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateEffectMode
-} from "./entity-state.js?v=2609271208";
+} from "./entity-state.js?v=2609271226";
 // 同门分片：registry-visuals
-import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609271208";
+import { paletteColor, resolveColor } from "./registry-visuals.js?v=2609271226";
 
 /**
  * 生成空调 / 浴霸出风动画的 SVG（data URI）。
- * 用 SVG 而非 canvas：纯矢量渐变与位移交给浏览器合成更省电，且可用 SMIL 让光带沿路径流动；
- * 用 data URI 而非内联 DOM：图片可享受缓存与解码优化。外观参数都做了夹取，越界不破图。
  */
 function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
   const airflowMotionMode = airflowProperties.airflowMotion === "static" ? "static" : "dynamic";
@@ -29,7 +22,6 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
       ? resolveColor(airflowProperties.airflowCoolColor, paletteColor("--hos-cool", "#58c4ff"))
       : airflowClimateMode === "heat"
         // 与上面 cool 分支对称：都走 paletteColor 取令牌。原先这一支只写死 #ff8a65，
-        // 于是换主控色时冷气跟、热气不跟 —— 同一个 switch 的两支行为不一致。
         ? resolveColor(airflowProperties.airflowHeatColor, paletteColor("--hos-heat", "#ff8a65"))
         : resolveColor(airflowProperties.airflowOtherColor, AIRFLOW_OTHER_COLOR);
   const airflowAngleDeg = clampCoercedNumber(airflowProperties.airflowAngle, -360, 360, 7);
@@ -52,13 +44,11 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
   const airflowTailY = airflowMidY + (airflowBottomY - airflowMidY) * 0.56;
   const airflowSpreadPx = Math.min(70, Math.sqrt(airflowSpreadValue / 100) * 44);
   // 确定性伪随机（sin 哈希取小数部分）：形状要有「随机感」，
-  // 但同一个控件的每次渲染必须完全一致，否则每次状态更新气流都会跳动。
   const pseudoRandomUnit = randomSeed => {
     const randomSeedProduct = Math.sin(randomSeed * 12.9898) * 43758.5453;
     return randomSeedProduct - Math.floor(randomSeedProduct);
   };
   // 主气流条数 3~12、小光点 2~4 条，都按密度比例推算并设上下限：
-  // 太少看不出风，太多则 SVG 节点数暴涨（每个光点两个 rect）。
   const airflowStrandCount = Math.max(3, Math.min(12, Math.round(airflowDensityRatio * 8)));
   const airflowWispCount = Math.max(2, Math.min(4, Math.round(1.5 + airflowDensityRatio * 1.2)));
   const airflowStrandOffsets = Array.from(
@@ -160,7 +150,6 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
           (wispWidth * 0.22).toFixed(2) +
           '" fill="url(#core)"/>';
         // 静态模式：不循环动画，而是用一次 0.001 秒的 animateMotion 加 fill=freeze，
-        // 把光点钉在 keyPoints 指定的相位上——等价于「摆好姿势不播放」。
         if (airflowMotionMode === "static") {
           return (
             '<g opacity="' +
@@ -200,8 +189,6 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
     )
   );
   // 外层固定 viewBox 0 0 180 240 并由 preserveAspectRatio=none 拉伸铺满图层，
-  // 因此内部坐标是「百分比式」的，与控件实际尺寸无关；
-  // 角度用整体 rotate(angle 90 120) 实现，绕画布中心旋转。
   const airflowSvgMarkup =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 240" preserveAspectRatio="none"><defs><linearGradient id="bed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' +
     airflowColor +

@@ -1,18 +1,11 @@
 /**
  * 设备配对落地页（/pair）逻辑：可手输 6 位配对码，也可由二维码链接带入。
- *
- * 把配对码提交到 /api/v1/displays/pair，校验返回的面板地址后跳转。约定：pairing-entry.js 把二维码
- * 哈希暂存在 window.__HA_BRIDGE_PAIRING_HASH__，本模块优先读它；配对码只允许 6 位数字；targetUrl
- * 必须与当前站点同源且以 /display/ 开头，否则拒绝跳转。
- * 约定：扫码带入后不隐藏手输入口，只把焦点交给主操作按钮（隐藏已聚焦元素会把焦点甩回 body，键盘 /
- * 读屏用户就落到页面顶部）；配对请求走 utils/api-fetch.js（20 秒超时），按钮恢复放在 finally —— 弱网下
- * 「请求不结算」与「按钮永久灰掉」是同一件事的两半。
  */
 import {
   parsePairingLink as parseScanLink,
   needsAppleInstallGuide as shouldShowInstallGuide
-} from "./pairing-link.js?v=2609271208";
-import { apiFetch } from "../utils/api-fetch.js?v=2609271208";
+} from "./pairing-link.js?v=2609271226";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271226";
 
 const formElement = document.querySelector("#pair-form"),
   messageElement = document.querySelector("#message"),
@@ -41,8 +34,6 @@ function applyPairingHash() {
         location.origin + location.pathname + location.search + rawHash
       );
       // 解析成功：把配对码填进输入框，再把焦点交给主操作按钮。
-      // 刻意不隐藏手输入口：隐藏聚焦中的元素会把焦点甩回 body，键盘 / 读屏用户直接落到页面顶部；
-      // 保留输入框还留着「改一下再连」的退路，不必另造「重新输入」按钮。
       ((codeInput.value = pairingLink.code),
         (titleElement.textContent = "连接 HomeOS"),
         (descriptionElement.textContent =
@@ -50,8 +41,6 @@ function applyPairingHash() {
         (formElement.querySelector('button[type="submit"] span').textContent = "连接"),
         submitButton.focus({ preventScroll: !0 }));
     } catch (caughtError) {
-      // 解析失败：只把原因显示给用户。输入框留在原地且仍可编辑，这里不抢焦点 ——
-      // 手机上自动聚焦会弹出数字键盘，把下面的主按钮顶出屏幕。
       ((messageElement.textContent = caughtError.message),
         (messageElement.hidden = !1));
     }
@@ -62,7 +51,6 @@ function applyPairingHash() {
 (window.addEventListener("homeos-pairing-link", applyPairingHash),
   applyPairingHash(),
   codeInput.addEventListener("input", () => {
-    // 输入即时过滤：只留数字并截断到 6 位，避免用户提交必然失败的格式。
     codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
   }),
   formElement.addEventListener("submit", async submitEvent => {
@@ -90,7 +78,6 @@ function applyPairingHash() {
         panelUrl.pathname.length <= "/display/".length
       )
         throw new Error("服务返回的面板地址无效。");
-      // 配对成功即清空输入框，避免返回时残留旧配对码。
       codeInput.value = "";
       const needsInstallGuide = shouldShowInstallGuide(
         navigator,
@@ -104,8 +91,6 @@ function applyPairingHash() {
       ((messageElement.textContent = submitError.message),
         (messageElement.hidden = !1));
     } finally {
-      // 成功、失败、超时、异常穿透四条路径都要把按钮放回来：以前只在 catch 里复位，
-      // 漏掉的路径会让按钮永久灰掉（用户只能刷新页面重来）；放在 finally 里永远不会漏。
       submitButton.disabled = !1;
     }
   }));

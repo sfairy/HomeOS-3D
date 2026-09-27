@@ -1,34 +1,16 @@
 /**
  * 环境氛围（页面压暗、降饱和、状态发光与光晕）：把「聚焦观感」注入户型已有材质，
- * 只让与当前任务有关的设备亮起来，并为被聚焦的模型叠加光晕。不替换材质，而是给原材质
- * onBeforeCompile 打补丁插入去饱和 + 发光 + 压暗三段逻辑，不丢原贴图与光照；基础材质被
- * 多绑定共用，故按「绑定」克隆变体材质并以 customProgramCacheKey 版本后缀强制重编译。
- * 补丁必须完整可逆：unpatchMaterial / resetScene / dispose 都要还原。setRoot 在模型树更换时
- * 重建索引；setMode 是全部观感输入入口；tick 由帧循环调用，返回 true 表示仍在淡入淡出
- * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
-// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271208";
-// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
-// 现已提为共享实现，其余模块不再各写一份。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271226";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
-import { createEnvironmentHalos } from "./environment-halos.js?v=2609271208";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609271226";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
 export function pageDimming(config, activeModule, isFocusMode = false) {
   // 模块 ID → 页面 ID 的归一：气候 / 窗帘 / 温湿度计都算「环境」页，NAS / 电视算「设备」页，
-  // 扫地机快捷入口算「扫地机」页。查不到就用模块名本身当页面。
-  //
-  // 温湿度计必须在这里归到「环境」页：它和空调 / 窗帘 / 净化器共用同一套环境压暗与模型高亮，
-  // 漏掉这一条时 `moduleKey` 会是 "temperature-humidity"，既不在下面的页面白名单里（于是
-  // 压暗 / 降饱和整段不生效），又会把 pageModelBindings 的页面筛成同名（于是环境模型既不描边
-  // 也不合成展示绑定）—— 症状是「切到温湿度计页，环境设备全部失去高亮」，浏览器不报任何错。
-  // 上游 0.6.5 的 pageDimming 同样把 temperature-humidity 归入 environment（另有 purifier，
-  // 本仓净化器并入环境页、没有独立模块，故不登记）。
-  // tools/check_invariants.mjs 的「环境页面归一表」一条把这个映射钉死。
   const moduleKey =
     {
       climate: "environment",
@@ -38,7 +20,6 @@ export function pageDimming(config, activeModule, isFocusMode = false) {
       television: "devices",
       "vacuum-shortcut": "vacuum"
     }[activeModule] || activeModule;
-  // 白名单外的页面（例如编辑器内部视图）一律不压暗，避免把别人的画布弄脏。
   if (!["overview", "light", "environment", "devices", "vacuum", "security"].includes(moduleKey)) {
     return {
       page: moduleKey,
@@ -52,7 +33,6 @@ export function pageDimming(config, activeModule, isFocusMode = false) {
   const clampPercent = (candidateValue, fallbackValue) =>
     Number.isFinite(candidateValue) ? Math.max(0, Math.min(100, candidateValue)) : fallbackValue;
   // 压暗强度的取值链：页面级配置 → 环境默认（70）→ 总览页恒为 0。
-  // 总览页是「看全屋」的场景，压暗会让所有设备一起变暗，得不偿失。
   const dimStrengthPercent = clampPercent(
     config.pageDimStrength?.[moduleKey],
     moduleKey === "overview" ? 0 : clampPercent(config.environment?.dimStrength, 70)
@@ -78,26 +58,12 @@ export function pageDimming(config, activeModule, isFocusMode = false) {
 // 模型类型 → 所属页面的映射，用于把静态模型也纳入页面绑定（见 pageModelBindings）。
 /**
  * 「环境模型类型」这组清单在仓库里重复了七处（这里是两张表，另有 environment-halos.js 的描边资格
- * 清单与 studio-app.js 的四处内联清单），逐处漏写都不报错、只静默少特效或少绑定。改动请成组进行，
- * 由 tools/check_invariants.mjs 的「环境模型类型七处清单不一致」逐字把关。
- *
- * 新风机 / 温控面板 / 加湿器 / 除湿器按 climate 收（HA 里都是温湿度与新风一类可调控对象），
- * 可视门铃按 camera 收（它本身就是一路摄像头）。
- *
- * 以下新家电**刻意不登记**（不是遗漏），原因都是「没有对得上的 deviceKind」，登记了只会借错渲染：
- *   - soundbar / speaker / projector：唯一的媒体种类是 television，而 television 那条支路会往模型上
- *     画**屏幕画面**（television-state.js）。回音壁没有屏，接上去等于给它贴一张不该存在的画面；
- *   - gateway：网络类只有 nas，而 nas 那条支路挂的是**硬盘状态灯**（nas-status.js），语义不对；
- *   - smartlock / smartpanel：HA 里的 lock / 面板类在本项目没有对应种类，硬套 presence（人体感应）
- *     会把门锁显示成「有人在」。
- * 这些类型在工作室里照常摆放、照常套材质风格；要走 HA，得先补出对应的 deviceKind。
  */
 const MODEL_TYPE_TO_PAGE = {
   wallac: "environment",
   floorac: "environment",
   airoutlet: "environment",
   // 空气净化器：参考实现里它就是 environment 页 + climate 种类（与空调同一套面板，
-  // 靠实体域 fan 决定渲染净化器控件），不是独立种类。
   airpurifier: "environment",
   curtain: "environment",
   freshair: "environment",
@@ -142,8 +108,6 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
 };
 /**
  * 把「楼层场景里的静态模型」合成为页面绑定列表。
- * 背景：绑定了实体的设备由 stage.js 提供绑定，但户型里还可能有没绑实体、或不属于当前页面绑定集合的模型
- * （总览页要显示全部）；这里按模型类型反推所属页面，给缺绑定的模型补一个 previewOnly 展示用绑定。
  */
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
   // 键用 (楼层, 模型) 复合值：模型 ID 在不同楼层可能重名。
@@ -163,8 +127,6 @@ export function pageModelBindings(floors, sceneBindings, page, floorId) {
           return [];
         }
         // 与上面 bindingsByKey 同一套键。注意它还派生出合成绑定的 id（`presentation:` 前缀），
-        // 所以键的编码是**对外可见**的：对真实文档（楼层与模型 id 都是字符串）本函数与
-        // `JSON.stringify([a, b])` 逐字节相同，id 不变。
         const modelBindingKey = sceneModelKey(floorOfScene.id, sceneItem.id);
         const existingBinding = bindingsByKey.get(modelBindingKey);
         return [
@@ -191,8 +153,6 @@ export function pageModelBindings(floors, sceneBindings, page, floorId) {
  */
 export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   // 三个全局 uniform 对象被所有补丁共享（同一引用挂进 shader），改一次即可全场生效。
-  // amount：页面压暗强度 0~1；mode：环境模式强度 0~1（0 表示不改造观感）；
-  // saturation：饱和度 0~1，1 为原色。默认 0.75 与 pageDimming 的默认值对齐。
   const amountUniform = {
     value: 0
   };
@@ -262,7 +222,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     Array.isArray(arrayCandidate) ? arrayCandidate : arrayCandidate ? [arrayCandidate] : [];
   /**
    * 判断材质能否被注入着色器补丁：白名单只收常见的内置光照材质。
-   * 自定义 ShaderMaterial 的片元着色器里没有 opaque_fragment / colorspace_fragment 这些 chunk，注入会编译失败。
    */
   const isSupportedMaterial = materialCandidate =>
     materialCandidate?.isMaterial &&
@@ -273,10 +232,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       materialCandidate.isMeshLambertMaterial ||
       materialCandidate.isMeshPhongMaterial ||
       materialCandidate.isMeshToonMaterial);
-  /**
-   * 造一组 uniform 引用：amount 全局共享（页面压暗全场同值），retain / glow / lift 每组独立。
-   * 它们是「按绑定」的发光参数；lift 默认 [0.12, 0.8] 是中性设备的发光抬升曲线。
-   */
   const createUniforms = () => ({
     amount: amountUniform,
     retain: {
@@ -301,11 +256,9 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     const previousOnBeforeCompile = material.onBeforeCompile;
     const previousProgramCacheKey = material.customProgramCacheKey;
     // 用 hasOwn 区分「材质自己定义过」与「从原型继承的默认实现」：
-    // 还原时前者要赋回原值，后者必须 delete，否则会给材质留下一个多余的自有属性。
     const hadOnBeforeCompile = Object.hasOwn(material, "onBeforeCompile");
     const hadProgramCacheKey = Object.hasOwn(material, "customProgramCacheKey");
     // 变体材质要接在来源材质的注入链之后：链上的每一环都必须被执行，
-    // 否则来源材质自己的自定义注入会被我们顶掉。
     const existingPatch = sourceMaterial ? patchedMaterials.get(sourceMaterial) : null;
     const priorCompile = existingPatch?.priorCompile || previousOnBeforeCompile;
     const priorKey = existingPatch?.priorKey || previousProgramCacheKey;
@@ -317,8 +270,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     const patchedOnBeforeCompile = function (shaderParameters, renderer) {
       priorCompile?.call(this, shaderParameters, renderer);
       const opaqueFragmentChunk = "#include <opaque_fragment>";
-      // 两段式短路：先确认片元着色器里存在目标 chunk（否则注入无处安放），
-      // 再把六个 uniform 挂到 shader 上并检查是否已经注入过（防止重复 replace）。
       if (
         !shaderParameters.fragmentShader.includes(opaqueFragmentChunk) ||
         ((shaderParameters.uniforms.hbEnvironmentAmount = uniforms.amount),
@@ -332,18 +283,15 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         return;
       }
       // 注入点选在 opaque_fragment 之后：此时 outgoingLight 已经算完，改它等于改最终物体色，
-      // 又早于色彩空间转换，因此后续的色调映射 / sRGB 处理仍然生效。
       shaderParameters.fragmentShader =
         "uniform float hbEnvironmentAmount;\nuniform float hbEnvironmentMode;\nuniform float hbEnvironmentSaturation;\nuniform float hbEnvironmentRetain;\nuniform vec3 hbEnvironmentGlow;\nuniform vec2 hbEnvironmentLift;\n" +
         shaderParameters.fragmentShader.replace(
           opaqueFragmentChunk,
           // 三段逻辑：① 按 Rec.709 亮度混合去饱和（分量 1.005/1.0/0.99 让去饱和后的灰略偏暖，
-          // 纯灰会显得死板）；② 叠加发光色；③ lift 把发光按当前亮度抬升，亮处更亮、暗处靠常量托底。
           "float hbEnvironmentLuma = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));\noutgoingLight = mix(outgoingLight, vec3(hbEnvironmentLuma) * vec3(1.005, 1.0, 0.99), hbEnvironmentMode * (1.0 - hbEnvironmentRetain) * (1.0 - hbEnvironmentSaturation));\noutgoingLight += hbEnvironmentGlow * hbEnvironmentMode * (vec3(hbEnvironmentLift.x) + clamp(outgoingLight, 0.0, 1.0) * hbEnvironmentLift.y);\n" +
             opaqueFragmentChunk
         );
       // 整体压暗放在色彩空间转换之后：直接乘最终颜色，压暗不会被 tone mapping 回弹。
-      // retain 越接近 1 越保留原色（被聚焦 / 被选中的设备就靠它保持亮度）。
       const colorSpaceFragmentChunk = "#include <colorspace_fragment>";
       shaderParameters.fragmentShader = shaderParameters.fragmentShader.replace(
         colorSpaceFragmentChunk,
@@ -351,9 +299,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           "\ngl_FragColor.rgb *= mix(1.0, 0.15, hbEnvironmentAmount * (1.0 - hbEnvironmentRetain));"
       );
     };
-    // 着色器缓存键：三段注入的源码一变就必须换 key，否则 three 会复用旧 program；版本后缀 v7 手工递增。
-    // 键的取法分两种情况：原材质若用 three 默认实现（恒为空串）则改用注入函数源码当键，
-    // 否则所有打过补丁的材质会哈希到同一个 program，互相串味。
     const patchedProgramCacheKey = function () {
       return (
         (priorKey === THREE.Material.prototype.customProgramCacheKey
@@ -385,7 +330,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     halos.setVisible(false);
     for (const entry of meshEntries) {
       // 只在当前材质确实还是我们挂上去的那份变体时才换回：模型可能已被别的模块
-      // 替换过材质，强行覆盖会破坏别人的状态。
       if (entry.applied && entry.mesh.material === entry.applied) {
         entry.mesh.material = entry.original;
       }
@@ -427,12 +371,10 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   function unpatchMaterial(targetMaterial, patch) {
     let didRestore = false;
     // 只在当前方法仍是我们注入的那个时才还原：材质可能已被别人重新赋值，
-    // 这时"还原"会把别人的实现覆盖掉。
     if (targetMaterial.onBeforeCompile === patch.compile) {
       if (patch.hasCompile) {
         targetMaterial.onBeforeCompile = patch.oldCompile;
       } else {
-        // 原本是继承自原型的默认实现，必须 delete 掉自有属性才算真正还原。
         delete targetMaterial.onBeforeCompile;
       }
       didRestore = true;
@@ -447,7 +389,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     }
     if (didRestore) {
       // 自己克隆出来的变体材质由我们负责销毁；来自模型的原始材质绝不能 dispose，
-      // 它还被场景里其它 mesh 用着（patch.source 非空即表示这是变体）。
       if (!patch.source) {
         targetMaterial.dispose();
       }
@@ -456,8 +397,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 取（必要时创建）某个基础材质在某绑定下的变体材质。
-   * 之所以要变体：一份基础材质常被多个模型共用（同一款空调），而每个绑定的发光色与 lift 各不相同，
-   * 共享材质会让后设置的绑定覆盖前一个。
    */
   function resolveVariantMaterial(baseMaterial, targetBinding) {
     if (!isSupportedMaterial(baseMaterial)) {
@@ -474,7 +413,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       const variantMaterial = baseMaterial.clone();
       const variantUniforms = createUniforms();
       // clone() 不会深拷贝 defines，不补回去会让变体丢失基础材质的编译开关
-      // （贴图 / 法线等特性就是靠 defines 打开的）。
       if (baseMaterial.defines) {
         variantMaterial.defines = {
           ...baseMaterial.defines
@@ -497,8 +435,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     resolvedVariant.binding = targetBinding;
     resolvedVariant.uniforms.lift.value.set(
       // lift 决定发光的形态：窗帘是薄布，几乎不吃自发光（0.025 / 0.9）；
-      // 空调外壳大，常量托底给高一点（0.16 / 1.05）让整机亮起来；
-      // 其余设备取中性值（0.12 / 0.8）。
       ...(targetBinding.deviceKind === "cover"
         ? [0.025, 0.9]
         : targetBinding.deviceKind === "climate"
@@ -511,7 +447,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    * 按当前绑定把每个 mesh 的材质挂成对应变体（没绑定的还原为原始材质）。
    */
   function applyBindingMaterials() {
-    // 完全关闭且淡出结束时才允许「拆掉」特效，否则淡出过程中材质会被提前还原而闪一下。
     if (!sceneRoot || (!isEnabled && amountUniform.value === 0 && modeUniform.value === 0)) {
       detachAppliedMaterials();
       pruneMaterialVariants();
@@ -521,7 +456,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       sceneRoot,
       activeBindings(),
       rootRevision,
-      // 光晕按模型键定位，复用索引好的 mesh 记录，避免重复遍历模型树。
       new Map(
         meshEntries
           .filter(filteredEntry => filteredEntry.modelNode)
@@ -530,7 +464,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     );
     halos.setVisible(true);
     // 一个模型可能被多个绑定命中（真实绑定 + 展示用合成绑定），取第一个即可：
-    // 材质只有一套，挑一个代表就够，重复挂载没有意义。
     const bindingsByModelKey = new Map();
     for (const pageBinding of activeBindings()) {
       if (pageBinding.modelId != null && pageBinding.visible !== false) {
@@ -569,14 +502,12 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     for (const [staleSourceMaterial, variantsOfSource] of variantsBySourceMaterial) {
       for (const [candidateBindingKey, removedVariant] of variantsOfSource) {
         if (!activeBindingKeys.has(candidateBindingKey)) {
-          // 从淡出队列里摘掉，否则 tick 还会去改一个已 dispose 的材质。
           fadingEntries.delete(removedVariant);
           patchedMaterials.delete(removedVariant.material);
           removedVariant.material.dispose();
           variantsOfSource.delete(candidateBindingKey);
         }
       }
-      // 来源材质没有任何变体了就整条记录删掉，避免 Map 无限增长。
       if (!variantsOfSource.size) {
         variantsBySourceMaterial.delete(staleSourceMaterial);
       }
@@ -606,7 +537,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           (materialBinding.deviceKind === "nas"
             ? materialBinding.statusSource?.primaryEntityId
             : "");
-        // 取值口径只有一份实现（utils/state-entry.js 的 readFromMapOrRecord），本地不再手写。
         const stateRecord = readFromMapOrRecord(entityStates, entityId);
         // 状态可能是事件包裹（newState）或就是 state 本身，两种形态都兼容。
         const state = resolveStateEntry(stateRecord, {});
@@ -615,8 +545,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         const isStateActive = !["", "off", "unknown", "unavailable"].includes(stateKey);
         const isSelected = materialBinding.id === selectedId;
         // 发光强度是观感调参表：选中最亮（1.45），窗帘固定 1.2；
-        // 空调分运行 / 待机（1.35 / 1）；其它设备运行 1.125，而待机时给 0.325 而不是 0，
-        // 是为了让「存在但没开」的设备仍有微弱轮廓，不至于在压暗后完全消失。
         const intensity = targetAmount
           ? isSelected
             ? 1.45
@@ -647,7 +575,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           didChange = true;
           changedFloorIdsTarget.add(materialBinding.floorId);
           // 只有「模式已经打开」且允许动画时才做过渡：首次开启时 modeUniform 还是 0，
-          // 此时做淡入会和整体压暗的淡入叠加，看起来像闪两下。
           if (shouldAnimate && modeUniform.value > 0 && !prefersReducedMotion()) {
             materialVariant.fade = {
               // 从当前值出发而不是从 0 出发：中途被打断也不会跳变。
@@ -679,7 +606,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       }
       sceneRoot = nextRoot || null;
       rootRevision = revision;
-      // 只有「已经开始工作」时才立刻重建索引；否则等 setMode 打开特效时再建，省一次遍历。
       if (!!hasTraversedScene || !!isEnabled || !!bindings.length) {
         indexSceneGraph();
         applyBindingMaterials();
@@ -690,15 +616,11 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 遍历模型树，建立 mesh → 材质 / 所属模型 的索引，并给材质打补丁。
-   * 这是本模块最重的一次遍历，只在根节点变化、绑定变化或首次启用时执行；已有记录会被复用（见 entriesByMesh），
-   * 避免每帧重复打补丁。
    */
   function indexSceneGraph() {
     if (!sceneRoot?.traverse) {
       return;
     }
-    // 复用上一轮的记录：key 为 mesh 节点。保留子树（retainedMeshEntries）优先，
-    // 它们在上一轮被别的模块「占住」，材质状态要一并带过来。
     const entriesByMesh = new Map([
       ...retainedMeshEntries,
       ...meshEntries.map(indexedEntry => [indexedEntry.mesh, indexedEntry])
@@ -707,7 +629,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     const usedMaterials = new Set();
     sceneRoot?.traverse?.(node => {
       // 跳过非网格、无材质，以及明确标记为 overlay 效果（人物、波纹、路线线）的节点：
-      // 它们有自己的材质逻辑，被环境补丁改造会出问题。
       if (!node.isMesh || !node.material || node.userData?.environmentEffect) {
         return;
       }
@@ -715,8 +636,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       let foundFloorId;
       let modelNode;
       // 沿父链往上一路找 environmentModelId / environmentFloorId 标记（放在模型根上）。
-      // 用逗号表达式把两个查找塞进 for 的条件里，命中后置为 null 即不再重复查找，
-      // 这样即使树的层级很深也只走一遍祖先链。
       for (
         let ancestorNode = node;
         ancestorNode &&
@@ -731,7 +650,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       );
       const existingEntry = entriesByMesh.get(node);
       // 若当前材质是我们挂上去的变体，说明记录的 original 才是模型真正的材质，
-      // 不能把变体当成新的"原始材质"存下来（否则会层层套娃）。
       const originalMaterial =
         existingEntry?.applied && node.material === existingEntry.applied
           ? existingEntry.original
@@ -753,11 +671,9 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       for (const entryOriginalMaterial of toArray(originalMaterial)) {
         usedMaterials.add(entryOriginalMaterial);
         // 未绑定任何设备的材质也打补丁，用共享的 baseUniforms 即可 —— 页面压暗是全场行为，
-        // 不能让没绑实体的墙面 / 地板保持原样。
         patchMaterial(entryOriginalMaterial, baseUniforms);
       }
     });
-    // 剩下的记录是「本轮遍历没见到的 mesh」：先把它们的材质还原，但保留子树例外。
     for (const staleEntry of entriesByMesh.values()) {
       let isRetainedSubtree = false;
       for (
@@ -771,7 +687,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         }
       }
       // 保留子树里的 mesh 暂时不可见（比如正在做楼层过渡），但稍后还会回来，
-      // 此时还原材质会造成闪烁，因此只把记录挪进保留表（见下面的 retainedMeshEntries）。
       if (
         !isRetainedSubtree &&
         staleEntry.applied &&
@@ -792,8 +707,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     };
     for (const keptEntry of entriesByMesh.values()) {
       if (isUnderRetainedRoot(keptEntry.mesh)) {
-        // 保留子树继续占着变体材质（否则变体会被 pruneMaterialVariants 回收），
-        // 同时把它计入 usedMaterials，防止补丁被当成"无人使用"而撤销。
         retainedMeshEntries.set(keptEntry.mesh, keptEntry);
         for (const retainedMaterial of toArray(keptEntry.original)) {
           usedMaterials.add(retainedMaterial);
@@ -802,7 +715,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     }
     meshEntries = nextMeshEntries;
     // 清理孤儿资源：来源材质已经不在场景里（模型被删）时，它名下的变体也必须释放，
-    // 否则反复进出编辑态会不断累积显存。
     for (const [orphanSourceMaterial, variantsOfOrphan] of variantsBySourceMaterial) {
       if (!usedMaterials.has(orphanSourceMaterial)) {
         for (const discardedVariant of variantsOfOrphan.values()) {
@@ -864,7 +776,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     );
     const didBindingsChange = bindingsSignature !== nextSignature;
     const didEnabledChange = isEnabled !== isEnabledNext;
-    // 只有「模式已经打开」时才值得播淡出：否则压暗本身还在淡入，两个过渡会叠加。
     const shouldAnimateBindings =
       didBindingsChange &&
       options.animateBindings === true &&
@@ -876,7 +787,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         const nextModelKeys = new Set(
           nextBindings.map(nextBinding => sceneModelKey(nextBinding.floorId, nextBinding.modelId))
         );
-        // 被移除的绑定先"退休"而不是立刻删：让它的发光淡出，避免设备突兀熄灯。
         for (const retiredBinding of bindings) {
           if (!nextBindingKeys.has(composeBindingKey(retiredBinding))) {
             retiredBindings.set(composeBindingKey(retiredBinding), retiredBinding);
@@ -901,7 +811,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     if (Object.hasOwn(options, "states")) {
       entityStates = options.states || {};
     }
-    // 选中比聚焦优先：已经有选中项时不再为聚焦播动画，避免两层高亮互相盖。
     const shouldAnimateFocus =
       Object.hasOwn(options, "focusedId") &&
       (options.focusedId || "") !== focusedId &&
@@ -946,7 +855,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       // 这几类变化会牵动全场（压暗 / 饱和度 / 材质挂载），只能整体重建。
       requestFrame();
     } else if (didMaterialTargetsChange && (isEnabled || modeUniform.value > 0)) {
-      // 只是个别设备换了发光：只重建受影响楼层的地面反射，代价小得多。
       requestFrame([...changedFloorIds]);
     }
   }
@@ -1013,7 +921,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           : fade.from[targetIndex] + (targetComponent - fade.from[targetIndex]) * easedProgress
       );
       const fadeGlowColor = fadingEntry.uniforms.glow.value;
-      // 只在数值真的变了时才标脏：过渡结束后这段比较会一直为假，避免空转重绘。
       if (
         fadingEntry.uniforms.retain.value !== interpolatedTarget[0] ||
         fadeGlowColor.r !== interpolatedTarget[1] ||
@@ -1025,7 +932,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       }
       fadingEntry.uniforms.retain.value = interpolatedTarget[0];
       fadeGlowColor.setRGB(interpolatedTarget[1], interpolatedTarget[2], interpolatedTarget[3]);
-      // 光晕颜色跟着材质走，否则会出现"模型已变色、光晕还是旧色"的割裂感。
       halos.setColor(fadingEntry.binding.id, fadeGlowColor);
       if (fadeProgress === 1) {
         fadingEntries.delete(fadingEntry);
@@ -1033,7 +939,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       }
     }
     // 淡出播完后再清理退休绑定并重挂材质；这一步必须在 tick 里做，
-    // 否则 setMode 时会立刻把还在淡出的材质拆掉。
     if (retiredBindings.size && !fadingEntries.size) {
       retiredBindings.clear();
       applyBindingMaterials();
@@ -1043,7 +948,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       detachAppliedMaterials();
     }
     if (didTickChange) {
-      // 模式整体在变时影响全场，只能整体重建；否则只重建变色设备所在的楼层。
       requestFrame(isModeAnimating ? undefined : [...tickChangedFloorIds]);
     }
     return (

@@ -1,8 +1,4 @@
 """运营后台的 withdrawals 资源组（从 api/admin.py 拆出）。
-
-路由在原文件里是分散的（1 段），因此本模块有两个子路由：
-第一段用 router、其余段用 router_extra —— 父路由在各自原来的位置分别 include，
-以此保持路由注册顺序（FastAPI 按注册序匹配）。
 """
 from __future__ import annotations
 
@@ -30,7 +26,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -52,9 +47,6 @@ def admin_list_withdrawals(
     offset: int = 0,
 ) -> dict:
     """提现申请列表（分页 + 筛选）。
-
-    ``keyword`` 命中账号邮箱：运营手里通常只有用户报的邮箱，
-    让他自己在几百条里翻既慢又容易看错行。
     """
     base = select(ReferralWithdrawal)
     if status_filter:
@@ -89,7 +81,6 @@ def admin_list_withdrawals(
             "netPoints": money.format_centi(row.net_points_centi),
             "status": row.status,
             #: 中文口径由服务端下发（``referrals.WITHDRAWAL_STATUS_LABELS``）：前台
-            #: 钱包流水与后台列表必须同一套说法，模板里那份手写映射已经删掉。
             "statusLabel": referrals.WITHDRAWAL_STATUS_LABELS.get(row.status, row.status),
             "note": row.note,
             "createdAt": iso_z(row.created_at),
@@ -118,7 +109,6 @@ def admin_resolve_withdrawal(
         )
     except referrals.WalletGuardError:
         #: 余额小于冻结额（只能由人工调账造成）时记账会被守卫拒绝。整个事务随之回滚，
-        #: 申请仍是 pending —— 所以这里必须给一句能照做的说明，而不是让它变成 500。
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -141,10 +131,6 @@ def admin_delete_withdrawal(
     withdrawal_id: str, session: DbSession, admin: AdminAccount
 ) -> dict:
     """删除提现申请记录（仅限**已结算**的申请）。
-
-    待审核（pending）的申请带着被冻结的积分，删掉会让冻结额度对不上账，
-    所以必须先通过或驳回。已结算的申请删除后，积分流水（referral_ledger）
-    仍然保留，资金审计不受影响。
     """
     withdrawal = session.get(ReferralWithdrawal, withdrawal_id)
     if withdrawal is None:

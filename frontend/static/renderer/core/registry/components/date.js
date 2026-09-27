@@ -1,21 +1,18 @@
 /**
  * `date` 控件：本地日期与农历。
  */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271208";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271226";
 import {
   formatLocalDate,
   formatLunarDate
-} from "../../../controls/date-time-runtime.js?v=2609271208";
+} from "../../../controls/date-time-runtime.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
 // 日期控件：主行日期 + 可选星期 / 农历，同样由运行时定时刷新。
 registerComponent("date", {
@@ -47,7 +44,6 @@ registerComponent("date", {
       dateElement.append(lunarElement);
     }
     // 刷新日期文案。30 秒一次足够：日期与农历都以「天」为最小变化单位，
-    // 轮询只是为了让跨零点时能在半分钟内自动翻页，无需按秒刷新。
     const updateDateDisplay = () => {
       const todayDate = new Date();
       datePrimaryElement.textContent = formatLocalDate(dateProperties, todayDate);

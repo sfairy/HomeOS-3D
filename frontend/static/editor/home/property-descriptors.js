@@ -1,27 +1,18 @@
 /*
  * 组件属性描述符。
- *
- * 各组件类型的属性定义表，以及配套的读取、变更收集与展示格式化；量程、传感器类型与图标按钮选项的解算也在这里。
- *
- * 由 static/editor/home.js 外提而来：这里只放函数，对 home.js 模块级状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import { clone, roundField } from "../editor-utils.js?v=2609271208";
-import { findComponent } from "../component-tree.js?v=2609271208";
+import { clone, roundField } from "../editor-utils.js?v=2609271226";
+import { findComponent } from "../component-tree.js?v=2609271226";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609271208";
-import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271208";
+} from "../../utils/colors.js?v=2609271226";
+import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271226";
 
 export function createPropertyDescriptors(ctx) {
 
-  /**
-   * 读取折线图组件在某个属性上的当前取值，供「变更对比」与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
-   * 其余走 properties，缺省时回退到 lineChartDefaults 的深拷贝（避免默认值被改写）；组件为空时返回 undefined。
-   */
   function getLineChartPropertyValue(lineChartSourceComponent, lineChartPropertyKey) {
     if (lineChartSourceComponent) {
       if (lineChartPropertyKey === "width" || lineChartPropertyKey === "height") {
@@ -39,10 +30,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出折线图组件相对「基线快照」发生变化的属性键，用于生成变更摘要：基线优先取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
-   * 找不到时退化为组件自身的快照，从而保证首次对比不会误报全量变更；类型不符时返回空数组。
-   */
   function collectLineChartChangedProperties(lineChartCollectComponent) {
     if (!lineChartCollectComponent || lineChartCollectComponent.type !== "line-chart") {
       return [];
@@ -62,10 +49,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 把折线图属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比（缺省 2778×1940 与 schema 标称一致），
-   * 缩放转百分比、旋转加角度符号，阈值转成「N 段配色」。
-   */
   function formatLineChartPropertyValue(
     lineChartFormatKey,
     lineChartPropertyValue,
@@ -104,10 +87,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取标题按钮组件在指定属性上的当前取值，供变更对比与格式化复用：宽高来自 position、缩放来自 style、旋转来自 position.rotation，
-   * 其余走 properties，缺省时回退 titleButtonDefaults（默认值不写回组件）；组件为空时返回 undefined。
-   */
   function getTitleButtonPropertyValue(titleButtonSourceComponent, titleButtonPropertyKey) {
     if (titleButtonSourceComponent) {
       if (titleButtonPropertyKey === "width" || titleButtonPropertyKey === "height") {
@@ -125,10 +104,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出标题按钮组件相对基线文档中同名组件发生变化的属性键。基线现取现比（不做缓存），因此调用方需保证 baselineDocument
-   * 处于本次编辑开始前的状态；类型不符时返回空数组。
-   */
   function collectTitleButtonChangedProperties(titleButtonCollectComponent) {
     if (!titleButtonCollectComponent || titleButtonCollectComponent.type !== "title-button") {
       return [];
@@ -147,10 +122,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 把标题按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比，缩放与各段文字/图标的相对位置统一渲染为百分比，
-   * 旋转加角度符号；布尔值直接翻译成「显示 / 隐藏」。
-   */
   function formatTitleButtonPropertyValue(
     titleButtonFormatKey,
     titleButtonPropertyValue,
@@ -205,10 +176,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取空调按钮组件在指定属性上的当前取值，供变更对比与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
-   * 其余走 properties 并回退 airConditionerDefaults，避免默认值被误判为已修改。
-   */
   function getAirConditionerPropertyValue(airConditionerSourceComponent, airConditionerPropertyKey) {
     if (airConditionerSourceComponent) {
       if (airConditionerPropertyKey === "width" || airConditionerPropertyKey === "height") {
@@ -226,10 +193,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出空调按钮组件相对基线快照发生变化的属性键。基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存（首次现取），
-   * 这样连续弹窗不会因基线被后续编辑污染而重复报告同一处改动；类型不符时返回空数组。
-   */
   function collectAirConditionerChangedProperties(airConditionerCollectComponent) {
     if (
       !airConditionerCollectComponent ||
@@ -261,10 +224,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 把空调按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换成百分比；缩放类（含气流缩放、角标透明度）乘 100 加百分号；
-   * 旋转与气流角度加角度符号；气流动画把 static 翻译成「静态」，其余为「动态」。
-   */
   function formatAirConditionerPropertyValue(
     airConditionerFormatKey,
     airConditionerPropertyValue,
@@ -304,10 +263,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取「图标按钮效果」组件在指定属性上的当前取值，供变更对比与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
-   * 其余走 properties 并回退 iconButtonEffectDefaults；组件为空时返回 undefined。
-   */
   function getIconButtonEffectPropertyValue(
     iconButtonEffectSourceComponent,
     iconButtonEffectPropertyKey
@@ -328,10 +283,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出「图标按钮效果」组件相对基线快照发生变化的属性键。基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
-   * 保证同一组件多次对比使用同一把「尺子」；类型不符时返回空数组。
-   */
   function collectIconButtonEffectChangedProperties(iconButtonEffectComponent) {
     if (!iconButtonEffectComponent || iconButtonEffectComponent.type !== "icon-button-effect") {
       return [];
@@ -365,7 +316,6 @@ export function createPropertyDescriptors(ctx) {
 
   /**
    * 把「图标按钮效果」属性格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度/缩放类乘 100 加百分号；
-   * 尺寸与位置类直接加百分号；时长类加「秒」；布局模式把 fill 译为「铺满」。末尾用 || 兜底，空值统一显示为「不使用」。
    */
   function formatIconButtonEffectPropertyValue(
     iconButtonEffectFormatKey,
@@ -421,11 +371,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取图标按钮类组件的某个属性值，统一走「新字段 → 历史字段 → 默认值」的回退链。尺寸与缩放/旋转不放在 properties 里，
-   * 而是分居 position 与 style（这是组件模型的约定），故单独分支取值。颜色类字段存在多轮历史命名（如 iconColor/clearColor/
-   * iconOffColor/iconOnColor），按新→旧顺序回退，保证老文档打开后仍能显示出颜色而不是空白。
-   */
   function getIconButtonPropertyValue(iconButtonSourceComponent, iconButtonPropertyKey) {
     if (!iconButtonSourceComponent) {
       return;
@@ -475,10 +420,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出图标按钮类组件相对基线快照发生变化的属性键。同一函数覆盖 icon-button / device-button / presence-sensor 三种类型：
-   * 前者用 iconButtonPropertyDefinitions 全量键，后两者用显式白名单（传感器还会按品类细分）；基线按组件 ID 缓存以避免重复深拷贝。
-   */
   function collectIconButtonChangedProperties(iconButtonCollectComponent) {
     if (
       !iconButtonCollectComponent ||
@@ -538,10 +479,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 查属性键对应的分组/中文标签，按组件类型选择不同的字典：设备按钮复用图标按钮的定义，但把 main* / secondary* 两组改名为
-   * 「标题 / 状态」并去掉原标签里的「中文」「英文」后缀，透明度项统一显示为「透明度」，让同一份定义适配另一种命名语境。
-   */
   function resolveIconButtonPropertyDefinition(
     iconButtonDefinitionComponent,
     iconButtonDefinitionLookupKey
@@ -571,10 +508,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 把图标/设备按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度与缩放类乘 100 加百分号；
-   * 角度类加「°」；时长类加「秒」；四角透视与默认值逐字比较，相同显示「默认透视」，否则「自定义透视」。
-   */
   function formatIconButtonPropertyValue(
     iconButtonFormatKey,
     iconButtonPropertyValue,
@@ -661,11 +594,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取摄像头组件在指定属性上的当前取值，并按后端字段约定做一次归一化：displayMode 只认 "snapshot"，其余一律算 "live"；
-   * 刷新间隔下限取 6 秒（低于该值会让预览频繁重建连接），缺省 10；fit 只认 "contain"；radius 兼容旧文档里写成百分比的大数
-   * （>0.5 时除以 100），最终夹到 0–0.5。宽高取 position、缩放取 style、旋转取 position.rotation。
-   */
   function getCameraPropertyValue(cameraSourceComponent, cameraPropertyKey) {
     if (!cameraSourceComponent) {
       return;
@@ -711,7 +639,6 @@ export function createPropertyDescriptors(ctx) {
 
   /**
    * 列出摄像头组件相对基线文档中同名组件发生变化的属性键。基线现取现比（走的仍是带归一化的取值函数，因此两种写法的等价值
-   * 不会被判为变更）；类型不符时返回空数组。
    */
   function collectCameraChangedProperties(cameraCollectComponent) {
     if (!cameraCollectComponent || cameraCollectComponent.type !== "camera") {
@@ -726,10 +653,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 把摄像头属性的原始值格式化成变更摘要里的可读文案：展示模式把 snapshot/live 译为「快照 / 实时」；适配方式把 contain 译为
-   * 「原始比例」、其余为「压缩 16:9」；宽高按画布尺寸换算成百分比，半径/缩放/边框透明度乘 100 加百分号，角度类加「°」。
-   */
   function formatCameraPropertyValue(
     cameraFormatKey,
     cameraPropertyValue,
@@ -779,11 +702,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 读取面板边框组件在指定属性上的当前取值，并兼容旧版排版字段：老文档只有 textLeft / textTop / lineGap 三个整体字段，
-   * 左右位置直接沿用 textLeft；主标题的顶部位置由 textTop 减去半个行距（lineGap/2）换算成占组件高度的百分比得到。
-   * height 取 Math.max(1, ...) 是为了避免除零。
-   */
   function getPanelFrameStyleValue(panelFrameStyleSourceComponent, panelFrameStylePropertyKey) {
     if (!panelFrameStyleSourceComponent) {
       return;
@@ -833,10 +751,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 列出面板边框组件相对基线快照发生变化的属性键。基线按组件 ID 缓存；若基线里该组件已不是 panel-frame（例如中途换过类型），
-   * 则整表视为已变更，让用户看到完整的新样式而不是空列表；类型不符时返回空数组。
-   */
   function collectPanelFrameStyleChanges(panelFrameStyleComponent) {
     if (!panelFrameStyleComponent || panelFrameStyleComponent.type !== "panel-frame") {
       return [];
@@ -866,10 +780,6 @@ export function createPropertyDescriptors(ctx) {
     );
   }
 
-  /**
-   * 把面板边框属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度/圆角/柔光强度与大小乘 100 加百分号；
-   * 旋转与渐变角度加「°」；四段文字的相对位置按百分比直接展示。
-   */
   function formatPanelFrameStyleValue(
     panelFrameStyleFormatKey,
     panelFrameStylePropertyValue,
@@ -924,8 +834,6 @@ export function createPropertyDescriptors(ctx) {
 
   /**
    * 读取导航按钮组件在指定属性上的当前取值，并兼容旧版「统一透明度」字段：老文档把文字/图标的闲置与激活透明度合并成
-   * idleOpacity / activeOpacity，这里按新键优先、旧键兜底依次回退，文字左位置同理回退 textLeft。mainTextTop 缺省时用
-   * textTop 减去 1800/64.36（旧版把 1800px 设计稿上的 64.36px 行高偏移折算成百分比），保持与历史渲染结果一致。
    */
   function getNavigationStyleValue(navigationStyleSourceComponent, navigationStylePropertyKey) {
     if (!navigationStyleSourceComponent) {
@@ -991,10 +899,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 汇总导航按钮本次会话内真正发生变化的属性键：先剪枝再比对，已记录旧值但当前值与旧值仍相等的键会被滤掉（例如改了又改回原值），
-   * 保证摘要只列净变化。
-   */
   function collectNavigationStyleChanges(navigationChangesComponent) {
     ctx.pruneNavigationSavedSettings(navigationChangesComponent);
     return [
@@ -1011,10 +915,6 @@ export function createPropertyDescriptors(ctx) {
       .map(([savedNavigationEntryKey]) => savedNavigationEntryKey);
   }
 
-  /**
-   * 把导航按钮属性格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；各类透明度/圆角/泛光强度与大小乘 100 加百分号；
-   * 文字与图标位置按百分比展示；旋转与泛光角度加「°」。
-   */
   function formatNavigationStyleValue(
     navigationFormatKey,
     navigationPropertyValue,
@@ -1074,10 +974,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 归一传感器组件的品类标识：只认五种已支持品类，老文档没有 sensorKind 字段时统一按 "presence" 处理，
-   * 保证这类组件仍能落到一套可编辑的属性面板上。
-   */
   function resolveSensorKind(sensorComponent) {
     const sensorKindCandidate = sensorComponent?.properties?.sensorKind;
     if (
@@ -1089,9 +985,6 @@ export function createPropertyDescriptors(ctx) {
     }
   }
 
-  /**
-   * 把传感器品类标识翻译成中文显示名：与 resolveSensorKind 的五个品类一一对应，未知值不会走到这里（已被归一成 "presence"）。
-   */
   function resolveSensorKindLabel(sensorLabelComponent) {
     return {
       presence: "人体/人在传感器",
@@ -1104,7 +997,6 @@ export function createPropertyDescriptors(ctx) {
 
   /**
    * 按传感器品类列出参与「变更对比」的属性键：尺寸与变换四个键是所有品类共用的，其余按品类收敛到各自的专有字段
-   * （如门窗只有 iconOnColor/perspectiveCorners、水浸只有 waterLeakColor），避免把别的品类专属字段也算进本品的变更清单。
    */
   function presenceSensorPropertyKeys(presenceSensorComponent) {
     const transformPropertyKeys = ["width", "height", "scale", "rotation"];

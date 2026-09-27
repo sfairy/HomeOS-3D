@@ -1,27 +1,9 @@
 /*
  * 物件构建器：座具与睡眠
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 沙发、床、床头柜、餐桌、圆桌（含转盘款）、吧台、椅子。
  */
-import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609271208";
+import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609271226";
 /**
  * 命中：itemSpec.type === "sofa"
- *
- * 这是**加载中的占位几何** —— 外部 GLB（tools/models/model-specs.mjs 的 sofa）到位后整组会被
- * 换掉（见 registry.js 的 finishItemModel），加载失败时才真的留在画面上。
- *
- * 所以它的比例必须跟着规格一起改：占位与成品长得不一样，加载完成的一瞬间就会跳一下。
- * 下面所有尺寸都写成对 itemWidth / itemHeight / itemDepth 的定比，规格那三处一改这边自动跟着走。
- *
- * 记一笔旧账：这一版之前是「几块方块抬离地面 11.5cm 却没有腿」—— 沙发是浮空的，
- * 而同一件家具的 GLB 又因为类型没进 EXTERNAL_MODEL_ITEM_TYPES 而从不加载。
- * 现在占位与成品都是「收分木脚 + 座台 + 靠背 + 扶手 + 坐垫 + 靠垫 + 抱枕」。
  */
 export function buildSofaItem(context) {
   const {
@@ -123,12 +105,6 @@ export function buildSofaItem(context) {
 
 /**
  * 命中：itemSpec.type === "bed"
- *
- * 加载中的占位几何，比例与 tools/models/model-specs.mjs 的 bed 一一对应（外部 GLB 到位后整组被换掉）。
- * 所有尺寸都写成「规格米 × 分轴倍率」，规格那三处一改这边自动跟上 —— 三轴各用各的倍率，
- * 因为物件被拉宽拉高时占位轮廓也得跟着走，否则模型一加载进来画面会跳一下。
- *
- * 规格里的高度是 **1.05**（床头板顶面），不是床垫面：这是这张床最高的一件。
  */
 export function buildBedItem(context) {
   const {
@@ -197,7 +173,6 @@ export function buildBedItem(context) {
     }
   }
   // 床架箱体 0.14 → 0.26；床垫沉进去 1cm；床头板从床架面立到 1.05；被子盖到床尾前 6cm；
-  // 折边与搭毯压在被子上；两对枕头一竖一斜。
   addBedBlock(1.76, 0.12, 2, 0, 0.14, 0, bedBodyColor, { radius: 0.012 });
   addBedBlock(1.72, 0.24, 1.88, 0, 0.25, 0.04, furnitureColor, { radius: 0.04 });
   addBedBlock(1.8, 0.91, 0.1, 0, 0.14, -0.95, furnitureColor, { radius: 0.045 });
@@ -205,7 +180,6 @@ export function buildBedItem(context) {
   addBedBlock(1.78, 0.06, 0.22, 0, 0.545, -0.29, furnitureSoftColor, { radius: 0.02 });
   addBedBlock(1.78, 0.045, 0.44, 0, 0.545, 0.72, furnitureSoftColor, { radius: 0.018 });
   // 枕头 / 抱枕的后仰角：addBoxMesh 不吃 rotationX（那是圆柱专用的选项），
-  // 所以拿回网格自己转 —— 后仰的枕头才像靠在床头板上，立着摆会读成两块立方体。
   for (const pillowX of [-0.43, 0.43]) {
     const pillow = addBedBlock(0.76, 0.15, 0.44, pillowX, 0.45, -0.7, furnitureLightColor, {
       radius: 0.055

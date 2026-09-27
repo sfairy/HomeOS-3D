@@ -1,11 +1,4 @@
 """支付宝的凭据与签名层：密钥解析、参数签名、异步通知验签、凭据校验。
-
-从 payments/alipay.py 拆出来的（那个文件 1126 行：既做签名，又做 HTTP 调用与订单状态机）。
-这一层里的东西都能**单独验证** —— 签名与验签可以拿一对固定密钥做往返测试，而 AlipayProvider
-那边的行为必须连真实网关才能测。拆开之后改密钥处理或签名口径，不必碰订单状态机那一半。
-
-validate_gateway_url / validate_callback_url 会做可达性探测（走 .net_probe），那是「凭据是否
-可用」的一部分校验，不是下单链路。
 """
 from __future__ import annotations
 
@@ -127,33 +120,21 @@ def _load_public_key(raw: str) -> rsa.RSAPublicKey:
 
 
 # 凭据校验（纯函数：返回错误文案而不是抛异常，供保存校验与后台自检共用）
-#: 支付宝要求 RSA2048。低于这个位数本地能签名成功，网关却一律拒绝 ——
-#: 报错只有一句笼统的「验签失败」，运营根本想不到是密钥长度问题。
 MIN_RSA_BITS = 2048
 
 
 class ResponseSignatureMissing(PaymentError):
     """响应里没有 ``sign``：支付宝在「app_id / 私钥不对」这类错误上**不签名**
-    （它没有一把已知的公钥可用于签），所以此时**测不了**公钥对不对。
-
-    单独成类，让自检能按异常类型判成「无法判定」而不是靠匹配报错文案 —— 文案一改，
-    判定就会静默退化成最宽松的 WARN。
     """
 
 
 class ResponseSignatureInvalid(PaymentError):
     """响应带了签名但验不过：配置的那把「支付宝公钥」是错的。
-
-    这是最该判 FAIL 的一支（典型成因：把「应用公钥」填成了「支付宝公钥」），
-    同样不能靠匹配报错文案来判断。
     """
 
 
 def private_key_error(text: str) -> str:
     """应用私钥的校验结论；合法时返回空串。
-
-    返回文案而非抛异常，是为了让「保存时校验」与「后台自检」共用同一份判断，
-    避免出现「保存拦得住、自检说没问题」。
     """
     if not (text or "").strip():
         return "未配置应用私钥。"
@@ -184,10 +165,6 @@ def public_key_error(text: str) -> str:
 
 def key_pair_same_modulus(private_key_text: str, public_key_text: str) -> bool:
     """配置的「支付宝公钥」是否就是**应用私钥自己导出的公钥**（模数相同即等价）。
-
-    这是最难自查的配置错误：下单、查单全都正常（请求只用应用私钥签名），唯独
-    异步通知验签全部失败，表现是「用户付了钱、订单永远停在待支付」，日志里只有
-    一句笼统的「通知验签失败」。
     """
     try:
         private_key = _load_private_key(private_key_text)
@@ -211,9 +188,6 @@ def validate_gateway_url(text: str) -> None:
 
 def validate_callback_url(text: str, *, label: str) -> None:
     """回调地址必须是带主机名的绝对 http(s) URL，且不能指向本机/内网。
-
-    刻意允许 http：纯内网调试会用到；而它填错的代价是「用户付了钱订单不到账」，
-    支付宝不会报错，所以保存时就拦下明显写不成 URL 的值。
     """
     if not text:
         return
@@ -249,9 +223,6 @@ def _callback_check(
     check_id: str, label: str, url_value: str, *, reachable_hint: str
 ) -> dict:
     """回调地址的单项诊断：格式 → 是否内网 → 本机可达性。
-
-    用 GET 探测而非 POST：通知端点只接受 POST，GET 得到的 405 恰好证明域名解析、
-    TLS、HTTP 服务与路由都正常；POST 会真的撞进通知处理逻辑，绝不能在自检里做。
     """
     text = (url_value or "").strip()
     if not text:
@@ -321,8 +292,6 @@ def _skip_ws(raw: str, index: int) -> int:
 
 def _skip_json_string(raw: str, index: int) -> int:
     """``raw[index]`` 必须是引号：返回**闭合引号之后**的位置（未闭合返回 ``-1``）。
-
-    必须按转义规则走：值里可能有被转义的引号，草率找下一个引号会截断字符串。
     """
     index += 1
     length = len(raw)
@@ -339,9 +308,6 @@ def _skip_json_string(raw: str, index: int) -> int:
 
 def _skip_json_value(raw: str, index: int) -> int:
     """返回一个 JSON 值结束之后的位置（``-1`` 表示结构损坏）。
-
-    只做「跳过」不做解析：这里要的不是值本身，而是它在**原文里占哪一段** ——
-    验签必须对着原始字节算，重新 ``json.dumps`` 会因为空格与转义差异而验不过。
     """
     start = _skip_ws(raw, index)
     if start < 0:
@@ -382,10 +348,6 @@ def _skip_json_value(raw: str, index: int) -> int:
 
 def extract_raw_node(raw: str, key: str) -> str | None:
     """从原始响应文本里抠出**顶层** ``key`` 节点的原始子串。
-
-    验签必须用原始字节（重新 ``json.dumps`` 会因空格/转义差异失败）；按 JSON 结构
-    逐层跳过并要求键命中恰好一次，重复键或骨架损坏一律返回 ``None`` —— 调用方必须
-    当成「不能验签」，绝不能退化成「跳过验签」。
     """
     target = json.dumps(key, ensure_ascii=False)
     index = _skip_ws(raw, 0)

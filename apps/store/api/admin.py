@@ -1,7 +1,4 @@
 """管理后台 API：``/store-admin/v1/*``。
-
-参考站没有公开管理台，这里自建最小可用后台，让商店「可运营」：
-商品、订单、激活码、设备绑定、优惠码、提现审核、站点配置。
 """
 
 from __future__ import annotations
@@ -52,7 +49,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from . import admin_coupons
 from . import admin_accounts
 from . import admin_licenses
@@ -83,10 +79,6 @@ router = APIRouter(prefix="/store-admin/v1", tags=["admin"])
 @router.get("/overview")
 def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
     """经营看板数据。
-
-    除了原来的累计数，这里补齐了「有时间维度的营收」「订单漏斗」「需要人工处理的
-    待办」「库存/授权/积分的风险面」。后台概览页只读这一个接口，所以任何运营每天
-    要看一眼的数字都应该在这里出现，而不是让人自己去各分页里数。
     """
     setting = site_config.get_setting(session)
     expire_stale_orders(session, settings)
@@ -129,8 +121,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         revenue["windows"].append(bucket)
 
     # —— 订单漏斗 ——
-    # 一次 group by 拿全部状态，避免 8 条 count 语句。缺失的状态补 0，前端才能按
-    # ORDER_STATUS_CHOICES 稳定渲染（不能因为「一条 fulfilled 都没有」就少一格）。
     status_rows = session.execute(
         select(
             Order.status,
@@ -153,8 +143,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     ]
 
     # —— 待办：需要人工介入的东西 ——
-    # 「待发货」= 钱已到账但还没发出去；失败状态逐项单列，因为它们不是「排队等自动发货」，
-    # 而是「自动发货炸了 / 付款没成、必须人工重试或退款」。计数按唯一清单 ORDER_ATTENTION_STATUSES。
     awaiting_fulfillment = count(
         select(func.count(Order.id)).where(
             Order.status == "paid", Order.fulfillment_mode == "automatic"
@@ -228,7 +216,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         "activeEntitlements": count(
             select(func.count(Entitlement.id)).where(Entitlement.active.is_(True))
         ),
-        # 净营收（已减退款）。它得覆盖全部已收款状态，所以不能只算 fulfilled。
         "revenueCents": total_gross - total_refunded,
         "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
         "deviceBindings": count(
@@ -237,14 +224,9 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         "serverTime": iso_z(moment),
         "maintenanceMode": bool(setting.maintenance_mode),
         # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
-        # 接口会报错——钱照收、单停在待支付——所以必须由概览主动把它摆出来。
         "paymentSweep": sweep_status(),
-        # 被刻意吞掉的资金/履约异常计数。与巡检同理：这些异常不会让任何接口
-        # 报错，只会让「钱收了、码没发」悄悄发生，所以必须主动摆出来。
         "incidents": incidents.status(),
         # 启动期积分口径迁移的结果。对账不通过时旧列会被保留，而旧列是 NOT NULL
-        # 且无 DDL 默认值 —— 那是**之后每次下单写入**才炸的，届时已经与迁移无关了，
-        # 所以要在概览里能回看到「本次启动到底迁干净了没有」。
         "pointsMigration": migration_status(),
         # —— 营收（含时间窗）——
         "revenue": revenue,
@@ -293,11 +275,8 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         # —— 积分负债 ——
         "referral": {
             # 冻结是「已申请提现、还没打款」，仍在 balance 里但用户动不了，
-            # 所以可用 = balance - frozen。三者都要摆出来，只给 balance 会让
-            # 运营以为要付的钱比实际多。
             "wallets": int(wallet_row[0] or 0),
             #: 对外仍是「两位小数字符串」，与改动前一致（厘是 1/100，无损）。
-            #: 聚合值在库侧以厘求和（整数求和精确），只在出口渲染一次。
             "balancePoints": money.format_centi(wallet_row[1] or 0),
             "frozenPoints": money.format_centi(wallet_row[2] or 0),
             "availablePoints": money.format_centi(
@@ -312,10 +291,6 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
 @router.post("/maintenance/recompute-stock")
 def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
     """按订单表重算各商品的 ``reserved_stock``。
-
-    这个计数只是缓存，真实依据是仍处于 pending / paid 的订单条数。历史缺陷
-    （对已取消订单履约）会重复释放预留，把缓存扣低并直接放开超卖——超卖以后
-    没法自动回滚，只能人工处理。所以给运营一个显式入口把缓存拉回真实值。
     """
     changes = fulfill.recompute_reserved_stock(session)
     detail = "、".join(f"{pid} {delta:+d}" for pid, delta in changes.items()) or "无变化"
@@ -326,10 +301,6 @@ def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
 @router.post("/incidents/ack")
 def admin_ack_incidents(session: DbSession, admin: AdminAccount) -> dict:
     """确认（清零）资金/履约异常计数。
-
-    为什么需要这个入口：这些计数是给监控报警用的，一次性的抖动会把它点亮，而它是
-    进程内的 —— 除了重启服务没有别的办法按灭。按不灭的灯等于没有灯，所以给后台
-    一个「我看到了、已处理」的按钮：清零计数，并把**清零前**的次数写进审计。
     """
     before = incidents.clear(actor=_admin_actor(admin))
     detail = (
@@ -355,10 +326,6 @@ def admin_ack_incidents(session: DbSession, admin: AdminAccount) -> dict:
 @router.get("/feature-codes")
 def admin_feature_codes(_admin: AdminAccount) -> dict:
     """商品可选的功能码目录（中文名 + 说明）。
-
-    目录定义在 ``apps/store/ops/features.py``，与主程序的能力码一一对应。后台下拉多选
-    直接渲染它，运营不再手写代码，也就不会把 ``ha.control`` 抄成 ``ha.contorl``
-    这种「不报错但客户端静默拦截」的隐性故障。
     """
     return features.feature_catalog_payload()
 
@@ -368,26 +335,11 @@ router.include_router(admin_products.router)
 
 
 
-#: 订单状态中文口径统一来自 ``apps.store.commerce.order_status``（服务端唯一来源），
-#: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
-#: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
-#: 批量拼列表），不要在后台再留一份「本地副本」——曾经那份 `_ORDER_STATUS_LABELS`
-#: 就是没人读的别名，`_status_label` 那种一层转发也算同一种病。
 
 
 @router.get("/order-status-meta")
 def admin_order_status_meta(_admin: AdminAccount) -> dict:
     """下发订单状态词表与两个动作集合（后台下拉、标签、按钮门禁的唯一来源）。
-
-    这份元数据存在的理由是可验证的：后台曾把「哪些状态能履约 / 能退款」手写成
-    ``['pending','paid']`` / ``['paid','fulfilled']``，于是 ``fulfillment_failed``
-    （概览的待办卡片明确写着「请到订单里重试履约或退款」）在所有按钮的判据里都不在列 ——
-    运营按提示点进筛选列表，看到的是一排没有任何操作的订单；``partially_refunded``
-    同理（服务端允许退第二次，界面不给按钮）。筛选下拉还漏了 ``partially_refunded``，
-    从漏斗图点进来时 ``select.value`` 设不上，静默退化成「全部状态」。
-
-    这类漂移不会有任何报错，只表现为「说好的按钮没有」。状态集合与词表都只有一份，
-    需要它们的界面从这里取，不再在模板里抄第二份。
     """
     return {
         "labels": dict(ORDER_STATUS_LABELS),
@@ -402,21 +354,18 @@ router.include_router(admin_orders.router)
 
 
 # 激活码
-# licenses 资源组在 admin_licenses.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_licenses.router)
 # bindings 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_bindings.router)
 
 
 # 优惠码
-# coupons 资源组在 admin_coupons.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_coupons.router)
 # withdrawals 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(admin_withdrawals.router)
 
 
 # 站点配置资源组在 admin_settings.py；include 放在这里而不是文件末尾，
-# 是为了让路由注册顺序与原文件逐条一致（FastAPI 按注册序匹配）。
 router.include_router(admin_settings.router)
 # accounts 资源组在 admin_accounts.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_accounts.router)
@@ -431,9 +380,6 @@ def admin_patch_license(
     admin: AdminAccount,
 ) -> dict:
     """修正授权的有效期 / 备注。
-    到期时间的三种给法互斥、避免一次请求里两个字段互相覆盖：``extend_days`` 在现有到期时间上顺延
-    （永久授权以当前时刻重新计时）；``access_expires_at`` 指定绝对时间、显式传 null 表示改为永久；
-    只给 ``validity_days`` 则按开始时间重算，避免「买的 365 天、实际只到明年」。
     """
     license = session.get(License, license_id)
     if license is None:
@@ -487,16 +433,12 @@ def admin_patch_license(
 
 
 
-# entitlements 资源组在 admin_entitlements.py（include 放在原位置以保持路由注册顺序）。
 router.include_router(admin_entitlements.router)
 @router.post("/referral-wallets/{account_id}/adjust")
 def admin_adjust_wallet(
     account_id: str, payload: AdminWalletAdjustRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
     """人工调账（有资金影响）。
-
-    强制要求备注，且一律走 ``referrals.ledger_entry`` 记账：余额与流水在同一个
-    事务里更新，不允许直接改余额绕过账本，否则对账时余额对不上流水。
     """
     account = session.get(Account, account_id)
     if account is None:
@@ -507,9 +449,6 @@ def admin_adjust_wallet(
             status_code=status.HTTP_400_BAD_REQUEST, detail="人工调账必须填写备注。"
         )
 
-    #: NaN / Infinity 必须在这里被挡掉：JSON 标准没有这两个字面量，但 Python 的 ``json``
-    #: 默认**接受**它们，构造请求体就能把 nan 写进钱包余额——``nan == 0`` 与 ``nan < 0``
-    #: 全为假，两道守卫都被绕过且余额永远算不回正常值。``money.to_centi`` 抛 ValueError，翻成 400。
     try:
         delta_centi = money.to_centi(payload.delta)
         frozen_delta_centi = money.to_centi(payload.frozen_delta)
@@ -535,8 +474,6 @@ def admin_adjust_wallet(
 
     try:
         #: 上面那次判断只是**为了给出带数字的文案**，挡不住并发：两个调账请求各自读到同一份
-        #: 余额、各自算出「不会为负」再写回，后写覆盖先写，负余额就这么落库（接口还返回 200）。
-        #: 真正的守卫传进 ``ledger_entry``，与加法压在同一条 UPDATE 的 WHERE 里，匹配不到即拒。
         entry = referrals.ledger_entry(
             session,
             wallet,

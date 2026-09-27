@@ -1,25 +1,12 @@
 <!doctype html>
-<!--
-  中控设备配对页（/pair）。后端门禁顺序固定：未初始化先 303 去 /setup；已登录且非 ?scan=1 时按 ?next= 跳走；
-  已配对设备（非 ?scan=1）直接 303 去它绑定的仪表盘；最后还要授权允许 display，否则就地渲染恢复页。
-  ?scan=1 是「我还要再配一台」的显式通道，走这条时上面两条跳转都跳过，故它是扫码链接的固定落点。
-  视觉与 /setup、/login、/license、/license-recovery 统一：全屏场景 + 右侧玻璃表单坞。
-  id 契约（pair.js 直接解引用）：#pair-form / #message / #pair-title / #pair-description / #apple-pair-note，
-  且提交按钮内部必须有 <span>（扫码成功后脚本改写它的文案为「连接」）。
-  场景片段由后端注入：页面里那个独立的场景占位符（见 apps/server/http/page_shell.py
-  的 SCENE_PLACEHOLDER）会被替换成整块场景标记。
-  入口脚本：/static/auth/pairing-entry.js（必须最前）、client-log.js、
-  /static/auth/scene/scene-depth.js（手持档开关：给 <html> 挂 .hos-touch）、auth-shell.js、/static/auth/pair.js。
--->
 <html lang="zh-CN" class="hos-shell">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
     <!-- pairing-entry.js 必须是本页第一个脚本：它要在其它脚本读地址栏之前，
-         把 location.hash 里的配对信息搬到 window.__HA_BRIDGE_PAIRING_HASH__ 并清掉哈希，
          否则刷新页面会重复触发一次配对。 -->
-    <script src="/static/auth/pairing-entry.js?v=2609271208"></script>
-    <script src="/static/logging/client-log.js?v=2609271208"></script>
+    <script src="/static/auth/pairing-entry.js?v=2609271226"></script>
+    <script src="/static/logging/client-log.js?v=2609271226"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -27,16 +14,15 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>配对中控设备 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271208" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271208" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=2609271208" />
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609271208" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271208` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271226" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271226" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271226" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609271226" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271226` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -53,22 +39,18 @@
           <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
           <!-- 开通路径（读数源：apps/server/http/commissioning.py）。不写死在这份 HTML 里：
-               同一页对不同访问者的读数不同（管理员带着会话来，墙面板没有也不该有会话），
                所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
           <!--{{STEPS}}-->
 
           <!-- 状态甲板（读数源：apps/server/http/telemetry.py）。本页有两种访问者：
-               管理员带 ?scan=1 来配第二块屏（给「已配对几台」），
                墙面板自己来看这一页（给「上次同步」与运行时长）。 -->
           <div class="hos-panel__head">
             <div class="hos-eyebrow-row">
               <p class="hos-eyebrow">设备配对 · 04/05</p>
               <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>6 位配对码</span>
             </div>
-            <!-- pair-title / pair-description 会被 /static/auth/pair.js 改写文案：扫码成功时换成「连接 HomeOS」的说法。 -->
             <h1 id="pair-title">接入这台中控</h1>
             <p id="pair-description" class="hos-panel__desc">输入管理员为这台中控设置的固定 6 位配对码。</p>
-            <!-- 默认 hidden，只有 pair.js 判定「iOS 且未加入主屏幕」时才显示，避免桌面端看到无关提示。 -->
             <p id="apple-pair-note" class="hos-notice" hidden>连接成功后会引导你添加到主屏幕，以后点击 HomeOS 图标即可打开。</p>
           </div>
 
@@ -115,14 +97,14 @@
       </main>
     </div>
 
-    <!-- auth-shell.js 也要带 ?v=2609271208 -->
+    <!-- auth-shell.js 也要带 ?v=2609271226 -->
     <!-- 手持档开关（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：不导出
          任何东西，只给 <html> 挂 .hos-touch（scene.css「静止档」的判据兜底），首帧前跑完。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609271208"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=2609271208"></script>
-    <script type="module" src="/static/auth/pair.js?v=2609271208"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609271226"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=2609271226"></script>
+    <script type="module" src="/static/auth/pair.js?v=2609271226"></script>
     <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
          时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
-    <script type="module" src="/static/auth/entry-deck.js?v=2609271208"></script>
+    <script type="module" src="/static/auth/entry-deck.js?v=2609271226"></script>
   </body>
 </html>

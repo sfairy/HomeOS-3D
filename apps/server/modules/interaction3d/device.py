@@ -1,12 +1,4 @@
 """通用设备的弹窗配置契约：冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植。
-
-这六类设备的共同点是「实体不由控件自己推导」：控件只记录它绑定到哪台设备
-（deviceId / deviceName），弹窗要显示什么由那台设备名下有哪些实体决定。
-因此校验里最硬的一条是 **不接受 entityId** —— 一旦控件自己存了主实体，
-就又回到了「按实体推导设备」的老路，取不到设备的其它实体。
-
-状态灯规则（statusRules）与附加功能（extraControls）是弹窗的两块可选内容，
-两块都给空也能保存（此时 deviceId 仍然必填，因为弹窗需要它去取实体）。
 """
 from __future__ import annotations
 
@@ -28,7 +20,6 @@ DEVICE_PROFILES: dict[str, dict[str, str]] = {
 }
 
 # properties['devices'] 里这些集合的校验方式完全一致，只是模型类型不同；
-# 顶层白名单与校验循环都从这里派生，避免新增设备时漏改某一处。
 GENERIC_DEVICE_COLLECTIONS: tuple[str, ...] = tuple(
     profile["collection"] for profile in DEVICE_PROFILES.values()
 )
@@ -36,12 +27,6 @@ GENERIC_DEVICE_COLLECTIONS: tuple[str, ...] = tuple(
 
 def validate_device_bindings(items, validate_camera, *, model_type: str) -> None:
     """校验某一类通用设备的绑定表。
-
-    参数:
-        validate_camera: 来自 config 的相机参数校验器（聚焦视角是共用结构）。
-        model_type: DEVICE_PROFILES 的键，用于取报错文案。
-    异常:
-        HTTPException: 422，任一字段非法。
     """
     device_label = DEVICE_PROFILES[model_type]["label"]
 
@@ -85,15 +70,12 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
         if not isinstance(item, dict) or set(item) - fields:
             fail()
         # 设备名与设备 ID 都要有：前者是面板标题，后者是取实体的唯一线索。
-        # 控件自己不许存主实体 —— 见模块文档：主实体由设备归属反查。
         if any(
             not text(item.get(key, ""))
             for key in ("id", "floorId", "modelId", "deviceId", "deviceName", "label")
         ) or item.get("entityId"):
             fail()
         # id / floorId / modelId 还要求非空：上面那条只看「是字符串且在长度内」，空串也能过，
-        # 而下面 `item["floorId"]` 是直接下标取用 —— 缺键会在这里抛 KeyError，冒泡成 500
-        # 而不是 422。上游把这条与上面那条分开写，此处补齐。
         if any(not item.get(key) for key in ("id", "floorId", "modelId")):
             fail()
         model = (item["floorId"], item["modelId"])
@@ -130,7 +112,6 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
         ):
             fail()
         # 配了弹窗内容就必须有设备可查；没配内容时 deviceId 仍然必填（上面已校验），
-        # 这条只是把「有规则必须有归属」写成显式约束，避免以后放宽 deviceId 时漏掉。
         if (extras or rules) and not item.get("deviceId"):
             fail()
         selected = set()
@@ -142,10 +123,6 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
             ):
                 fail()
             eid = extra["entityId"]
-            # 同一个实体只能配一次；type 只认这五种能力，允许把 select / number / switch / button
-            # 实体配成 'state' 只读渲染（上游口径），其余情况必须与所在域的默认能力一致，
-            # 否则会出现「按钮渲染成开关」这类前后端不一致。
-            # 这几条与 config.py 里空气净化器那一节必须**逐字一致**：要改两边一起改。
             if (
                 eid in selected
                 or extra.get("type") not in {"state", "button", "number", "select", "switch"}
@@ -163,7 +140,6 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
                 if type(extra[key]) is not int or extra[key] not in allowed:
                     fail()
         # statusRules 只有两种：power（单个规则）与 health（规则列表）；
-        # health 是空调/空气净化器那种多指标设备用的。
         rule_values = []
         for key, value in rules.items():
             if key == "health" and isinstance(value, list):
@@ -178,8 +154,6 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
             ):
                 fail()
             # 两端状态值都要有且不同：相同的两个值永远匹配不上，属于配置错误。
-            # 上限 120（与上游一致，比通用 text 的 128 更紧），且 strip 后不得为空 ——
-            # 纯空白值能让「亮灯条件」永远匹配不上，属于配置错误。
             if (
                 any(
                     not text(rule[key], 120) or not rule[key].strip()
@@ -191,11 +165,6 @@ def validate_device_bindings(items, validate_camera, *, model_type: str) -> None
 
 
 def require_device_model(binding: dict, scene: dict, model_type: str) -> None:
-    """确认绑定的模型仍在当前户型里，否则拒绝（模型被删掉后控件不该继续静默工作）。
-
-    异常:
-        HTTPException: 409，模型已移除或类型已改变。
-    """
     floor = next(
         (floor_item for floor_item in scene.get("floors", []) if floor_item.get("id") == binding.get("floorId")),
         {},

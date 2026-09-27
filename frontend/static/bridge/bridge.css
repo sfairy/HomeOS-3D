@@ -1,15 +1,10 @@
 /*
  * 3D 交互组件的宿主样式（渲染器 iframe 宿主、授权外观、入场动画、封面与检查器区块）。
- *
- * 约定：
- *   - 授权状态由宿主元素的 data-access（locked / pending / allowed）切换，取值与 access-monitor.js 对应；
- *   - iframe 在 .is-ready 前保持 opacity: 0，避免白屏闪烁；
- *   - 封面类名 .interaction3d-cover-* 与 cover.js 创建的元素一一对应，改名会同时失效。
  */
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609271208";
+@import "/static/bridge/controls.css?v=2609271226";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -24,11 +19,9 @@
   background: transparent;
   text-align: center;
   /* 尺寸容器：等待 / 失败文案按组件实际尺寸缩放（见 .i3d-access-pending 的 cq 字号），
-     整屏 3D 背景上 12px 会小到看不清。宿主宽高来自 .hb-component 的内联像素，
      size containment 不会反过来压自身尺寸。 */
   container-type: size;
 }
-/* 渲染器注入的包装层必须撑满，否则下面 iframe 的 inset: 0 会退化成零尺寸。 */
 .hb-interaction3d-host > div {
   width: 100%;
   height: 100%;
@@ -55,14 +48,11 @@
   border: 0;
   opacity: 0;
 }
-/* 就绪信号由舞台页发出；缓动曲线统一，避免每次挂载的观感不一致。 */
 .hb-interaction3d-host .is-ready .i3d-frame {
   opacity: 1;
   animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 /* 只过渡不透明度：首帧做位移 / 缩放会让人误以为组件位置抖动。
-   @keyframes i3d-scene-enter 定义在 runtime.css —— 上面这条规则用的是宿主文档里的
-   同名动画，而 runtime.css 是 bridge.js 挂载 3D 时注入宿主文档的（舞台页 iframe
    内部也靠它）。两个文档各留一份会让名字在同一文档里重复，所以此处不再定义。 */
 /* 尊重系统的「减少动态效果」偏好：直接跳到终态。 */
 @media (prefers-reduced-motion: reduce) {
@@ -80,7 +70,6 @@
   border-color: transparent;
 }
 /* 等待文案继承宿主背景，确保与后续出现的封面底色一致，切换时不闪色。
-   字号同样按组件尺寸缩放（与 runtime.css 的 .i3d-loading 同一套口径），
    小挂件 15px 起，整屏 3D 背景最大 36px。 */
 .hb-interaction3d-host .i3d-access-pending {
   display: grid;
@@ -102,7 +91,6 @@
   display: grid;
   gap: 12px;
 }
-/* 滑块占满剩余宽度，右侧数值用等宽数字（tabular-nums）避免拖动时宽度跳动。 */
 #interaction3d-inspector .i3d-vignette-setting {
   display: flex;
   align-items: center;
@@ -141,7 +129,6 @@
 #interaction3d-inspector .inspector-section > button {
   font-size: 11px;
 }
-/* 手势开关两列等宽；minmax(0, 1fr) 是关键，否则长文案会把列宽顶开。 */
 #interaction3d-inspector .i3d-gesture-toggles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -198,7 +185,6 @@
 }
 /* ===== 未授权封面 ===== */
 
-/* isolation: isolate 把封面内部的层叠与混合模式与外部隔离，避免被画布上的效果影响。 */
 .interaction3d-cover {
   position: relative;
   display: grid;
@@ -266,7 +252,6 @@
   border-radius: 2px;
   background: #edbd65;
 }
-/* 提示文案限宽 290px（约 20 个汉字），行高放宽，避免长句连成一片难以阅读。 */
 .interaction3d-cover-message {
   max-width: 290px;
   font-size: 14px;
@@ -419,7 +404,6 @@
   min-width: 0;
 }
 /* 墙体透明度：左滑杆占满剩余宽度，右数字框固定宽度（含步进器）+ %。
- * 数字框会被 enhanceNumberInputsIn 包进 .inspector-number-control（默认 width:100%），
  * 若不压回固定宽度，步进器会跟着贴到行尾，中间出现大块空白。 */
 #interaction3d-inspector .i3d-wall-opacity-row {
   display: flex;
@@ -438,10 +422,6 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  /* accent-color 的回落值必须与 --accent 的取值同源（design/scene 的 --hos-accent）。
-     这里保留字面量是因为本文件同时被 index.html（有调色板）和 display.html 以 @import
-     链路引入，而 controls.css 还会被运行期动态注入的 runtime.css / stage.css 引入 ——
-     那些页面不保证加载了调色板。回落值不是「备用配色」，只是调色板不在场时的同一枚色。 */
   accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 #interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control {
@@ -545,7 +525,6 @@
   gap: 4px;
 }
 /* 「在画布上拖拽调整」是「导航位置」这一组的主操作，整行铺满。
- * 它曾经挂在 .i3d-finishing-row 里 —— 那是两列等宽的取值行，单个按钮只占半行（约 105px），
  * 「在画布上拖拽调整」八个字会被折成两行，看着像一个空框。 */
 #interaction3d-inspector .i3d-navigation-drag-row {
   display: grid;
@@ -752,7 +731,6 @@
 #interaction3d-inspector .i3d-behavior-scope-row select {
   width: 100%;
 }
-/* 可折叠分组（<details>）：overflow: visible 是必要的 —— 否则分组内的下拉菜单会被裁掉。 */
 #interaction3d-inspector .i3d-inspector-group {
   min-width: 0;
   border: 1px solid var(--line, #303840);

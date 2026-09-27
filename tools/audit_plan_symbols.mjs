@@ -1,28 +1,5 @@
 /**
  * 平面符号与 3D 占地轮廓的**形状对账**：圆形占地的物件不能在户型图上画成方角矩形。
- *
- *   node tools/audit_plan_symbols.mjs              # 全量报告
- *   node tools/audit_plan_symbols.mjs --only=round # 只列「实测是圆」的那一批
- *   node tools/audit_plan_symbols.mjs --regress    # 与名单对账：缺口 / 多余，非零退出
- *
- * 为什么需要它：平面图符号是手绘的（`studio-app.js` 的 `drawPlanItem`），3D 早已换成流水线规格，
- * 两者不会互相牵引。0.9 × 0.9 的圆茶几画成方角矩形、圆桶加湿器画成方块 —— 画面上「对不上」，
- * 但浏览器零报错、单看代码也看不出来，只能逐件用眼睛过。本工具把「该画圆」变成可测的量：
- *
- *   格数比 ≈ π/4 且各向半径等长 → 圆（判据见 tools/lib/glb-footprint.mjs 的文件头）
- *
- * 名单在 `studio-item-types.js` 的 `ROUND_FOOTPRINT_ITEM_TYPES`（运行侧照它画圆）。
- * 本工具与那条不变量都用**同一份**判据，避免两处口径漂移。
- *
- * **判据的边界（判不出真假就不判，宁可漏报）**：
- *   1. 只判「纯圆」。**圆机身 + 方底座 / 坞站**这类混合轮廓（扫地机的自集尘基站、破壁机的方底座、
- *      咖啡机的方机身）会被判成「方」—— 它们的外轮廓确实以方为主，兜底矩形是对的。
- *      真出现「圆比方更主要」的混合件时，得单独给它一支复合符号，本判据测不出来。
- *   2. 派生模型键的类型测不到（`tv` → `tv_standard`、`curtain` → `curtain_*` 三件、
- *      `rounddiningtableturntable` → `rounddiningtable_turntable`），报告里会单列出来，
- *      免得看起来「全都测过了」。其中转盘圆桌另有专门的一支画圆。
- *   3. 阈值是**区间**不是点：`0.7 < 格数比 < 0.86` 且 `径向变异 < 0.05`（阈值来历见
- *      tools/lib/glb-footprint.mjs 的文件头）。贴着任一侧取，规格微调就会让判据反复跳。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -74,11 +51,6 @@ export function measurableItemTypes() {
 
 /**
  * 清单里出现、却没有同名规格的类型。
- *
- * 它们是**派生模型键**那一类：`tv` 的 GLB 是 `tv_standard`、`curtain` 是 `curtain_*` 三件、
- * `rounddiningtableturntable` 是 `rounddiningtable_turntable`。本工具测不到它们，
- * 所以明确列出来 —— 免得报告看起来「全都测过了」。这几件的圆/方由各自的实际模型决定
- * （`rounddiningtableturntable` 走 ROUND_TABLE_TURNTABLE_ITEM_TYPES，另有专门的一支画圆）。
  */
 export function unmeasurableItemTypes() {
   const source = fs.readFileSync(STUDIO_TYPES_JS, "utf8");
@@ -100,7 +72,6 @@ function glbPathOf(type) {
   return path.join(MODELS_ROOT, dir, `${fileKey}.glb`);
 }
 
-/** 逐件实测。返回 `[{ type, stats, isRound }]`（读不到 GLB 的条目 stats 为 null）。 */
 export function measureFootprints({ onlyTypes = null } = {}) {
   const types = onlyTypes || measurableItemTypes();
   const results = [];

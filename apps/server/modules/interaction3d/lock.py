@@ -1,11 +1,4 @@
 """门锁与门磁：显式的门绑定 + 按 HA 能力位复核的锁命令。
-
-门在户型图里是「模型 + 传感器」的组合：模型提供门扇几何与开合动画，实体提供开合状态。
-绑定里同时记着这两者（modelId 指模型、doorEntityId 之类的指实体），所以校验要一起看：
-模型被删掉后控件不能继续静默工作，传感器的域也必须和它读取的字段对得上。
-
-命令侧只看 HA 上报的能力位（supported_features）：不同品牌的门锁支持的位不一样，
-不按位判断就会出现「按钮点得动、设备不响应」。
 """
 from __future__ import annotations
 
@@ -15,7 +8,6 @@ import re
 from fastapi import HTTPException
 
 # 这些字段只做类型与长度校验，缺省即空串也允许 —— 门的绑定是渐进补全的，
-# 例如先在户型图里放一扇门，之后才去绑定门磁实体。
 _OPTIONAL_FIELDS = frozenset(
     {
         "x",
@@ -40,11 +32,6 @@ def _text(value) -> bool:
 
 def validate_lock_bindings(items, validate_camera) -> None:
     """校验 security.locks 绑定表。
-
-    参数:
-        validate_camera: 来自 config 的相机参数校验器（聚焦视角是共用结构）。
-    异常:
-        HTTPException: 422，任一字段非法。
     """
 
     def fail():
@@ -96,7 +83,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
         if not isinstance(item, dict):
             fail()
         # 旧版本把这几个字段写在门绑定里，现在它们属于户型图模型；直接丢弃，
-        # 让老配置在保存时被自动清理，而不是因为多余字段被拒。
         for key in ("doorType", "doorLabel", "wallId", "t"):
             item.pop(key, None)
         model_id = item.get("modelId")
@@ -109,7 +95,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
                 raw_model_id = raw_model_id[5:]
             item["modelId"] = f"door:{raw_model_id}" if raw_model_id else model_id
         # 必填项里除 _OPTIONAL_FIELDS 之外都在此核对：字符串且不超过 128 字符。
-        # 空串是合法的（见 _OPTIONAL_FIELDS 的说明），因此这里不强制非空。
         if any(not _text(item.get(key, "")) for key in fields - _OPTIONAL_FIELDS):
             fail()
         if (
@@ -132,7 +117,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
             if re.fullmatch("event\\.[a-z0-9_]+", item[key]):
                 continue
             fail()
-        # 双事件：开与关必须是两个不同的事件实体，否则永远分不清方向。
         if (
             item.get("doorSource") == "dual-event"
             and item.get("doorOpenEntityId")
@@ -172,7 +156,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
             fail()
         if item.get("hinge", "left") not in ("left", "right"):
             fail()
-        # labelHidden 是旧字段，labelMode 是新的三态；没写 labelMode 时由 labelHidden 折算。
         default_label_mode = "hidden" if item.get("labelHidden") is True else "always"
         if item.get("labelMode", default_label_mode) not in ("hidden", "always", "open"):
             fail()
@@ -200,9 +183,6 @@ def validate_lock_bindings(items, validate_camera) -> None:
 
 def require_lock_model(binding: dict, scene: dict) -> None:
     """确认门绑定的模型仍在当前户型里，并且它挂靠的墙也还在。
-
-    异常:
-        HTTPException: 409，门模型已移除或更改。
     """
     valid = any(
         floor.get("id") == binding.get("floorId")
@@ -227,9 +207,6 @@ def require_lock_model(binding: dict, scene: dict) -> None:
 
 def validate_lock_command(service: str, data, state) -> None:
     """按 HA 上报的能力位复核锁命令。
-
-    异常:
-        HTTPException: 422 操作或参数不支持；409 门锁不可用或正在动作。
     """
     if service not in frozenset({"lock", "open", "unlock"}) or not isinstance(data, dict) or set(data) - {"code"}:
         raise HTTPException(422, detail="不支持的门锁操作或参数。")
@@ -249,6 +226,5 @@ def validate_lock_command(service: str, data, state) -> None:
     code = data.get("code")
     if code is not None and (not isinstance(code, str) or not 1 <= len(code) <= 128):
         raise HTTPException(422, detail="门锁密码格式无效。")
-    # 设备声明了 code_format 就必须带密码，否则设备会拒绝或触发错误提示音。
     if attributes.get("code_format") and not code:
         raise HTTPException(422, detail="此门锁需要密码。")

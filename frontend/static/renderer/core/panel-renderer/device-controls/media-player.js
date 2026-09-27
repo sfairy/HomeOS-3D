@@ -1,20 +1,15 @@
 /*
  * 设备控件区块：媒体播放器详情与媒体库浏览。
- *
- * 播放控制、音量、音源切换，以及媒体库的控制端（browseMedia 走 HA 的 media 浏览服务，
- * 结果按目录树渲染，懒加载下一层）。
  */
 
-import { apiErrorMessage } from "../../../../utils/api-error.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { playMediaSpeakerEntrance } from "../../runtime-dialog-motion.js?v=2609271208";
-import { componentDialogTitle } from "../primitives.js?v=2609271208";
+import { apiErrorMessage } from "../../../../utils/api-error.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { playMediaSpeakerEntrance } from "../../runtime-dialog-motion.js?v=2609271226";
+import { componentDialogTitle } from "../primitives.js?v=2609271226";
 
 export const mediaPlayerDetailsMethods = {
   /**
    * 打开媒体播放器详情弹窗（播放控制、进度、音源与音量）。
-   * 打开前先关掉当前弹窗：媒体详情体量大，两个叠在一起会同时占满可用区域。
-   * @throws {Error} 组件没有绑定实体。
    */
   showMediaPlayerDetails(mediaPlayerComponent, { preview: mediaPlayerPreview = false } = {}) {
     const mediaPlayerDetailsEntityId = mediaPlayerComponent.bindings?.entity?.entityId;
@@ -88,7 +83,6 @@ export const mediaPlayerDetailsMethods = {
     mediaActionsElement.className = "hb-media-player-actions";
     /**
      * 创建媒体详情弹窗的动作按钮（上一曲 / 播放暂停 / 下一曲）。
-     * 点击后先置灰防连点，失败交给 onError，成功与否都在 finally 恢复可用；预览态只渲染不派发。
      */
     const createMediaActionButton = (mediaButtonLabel, mediaServiceName, mediaServiceData = {}) => {
       const mediaActionButton = document.createElement("button");
@@ -160,8 +154,6 @@ export const mediaPlayerDetailsMethods = {
     };
     /**
      * 渲染播放进度条与已播 / 总时长文本。
-     * HA 的 media_position 只是某一时刻的快照（media_position_updated_at），播放中必须
-     * 叠加此后流逝的时间，否则进度条会卡住；位置夹到 [0, duration]，无时长则整块隐藏。
      */
     const renderPlaybackProgress = () => {
       if (!Number.isFinite(mediaDurationSeconds) || mediaDurationSeconds <= 0) {
@@ -182,8 +174,6 @@ export const mediaPlayerDetailsMethods = {
     const progressIntervalTimer = window.setInterval(renderPlaybackProgress, 1000);
     /**
      * 判断两个音量值是否足够接近（容差 0.005）。
-     * 用于区分「HA 已回传刚下发的音量」与「HA 仍在报旧值」：前者可撤掉本地覆盖，
-     * 后者必须继续压制滑杆，否则会被旧值拽回去。
      */
     const isVolumeCloseEnough = (firstVolume, secondVolume) =>
       Number.isFinite(firstVolume) &&
@@ -191,7 +181,6 @@ export const mediaPlayerDetailsMethods = {
       Math.abs(firstVolume - secondVolume) <= 0.005;
     /**
      * 渲染音量滑杆与百分比文本，并把音量夹到 0~1。
-     * 同时刷新 pendingVolumeValue：它是「界面当前显示音量」的唯一来源，供回声判定与补发复用。
      */
     const renderVolumeLevel = volumeLevel => {
       pendingVolumeValue = Math.max(0, Math.min(1, Number(volumeLevel) || 0));
@@ -200,8 +189,6 @@ export const mediaPlayerDetailsMethods = {
     };
     /**
      * 把排队的音量值下发给 media_player.volume_set。
-     * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新值留在队列，本次结束后
-     * 140ms 再补发一次，既避免乱序也不丢最后一次拖动；失败回滚本地覆盖并回到 HA 上次上报值。
      */
     const flushVolumeLevel = async () => {
       window.clearTimeout(volumeFlushTimer);
@@ -233,8 +220,6 @@ export const mediaPlayerDetailsMethods = {
     };
     /**
      * 提交滑杆音量：记录本地覆盖值并延迟下发。
-     * 立即写 localVolumeOverride 是为了压住 HA 回声状态；120ms 延迟把连续 change 合并成
-     * 一次请求；在途时不再排新定时器，交给 flushVolumeLevel 的补发逻辑收尾。
      */
     const commitVolumeChange = () => {
       const nextVolumeLevel = Math.max(0, Math.min(1, Number(volumeInputElement.value) || 0));
@@ -266,8 +251,6 @@ export const mediaPlayerDetailsMethods = {
     volumeInputElement.addEventListener("change", commitVolumeChange);
     /**
      * 把 media_player 的最新状态同步到播放器弹窗的全部界面元素。
-     * 涵盖状态文案与扬声器视觉态、标题/副标题、播放暂停与上下曲按钮可用性
-     * （supported_features 位掩码 16/32）、播放进度，以及音量滑杆与本地覆盖值的博弈。
      */
     const syncMediaPlayerState = nextPlayerState => {
       mediaPlayerState = nextPlayerState || mediaPlayerState;
@@ -481,8 +464,6 @@ export const mediaPlayerDetailsMethods = {
     };
     /**
      * 切换媒体浏览器的忙碌态：忙碌时禁用触发器、返回键与列表内的全部按钮。
-     *
-     * 目录加载与投播都是异步的，期间若仍可点击会让「当前目录 ID」与列表内容错位。
      */
     const setMediaBrowserBusy = mediaBusyValue => {
       isMediaBrowserBusy = !!mediaBusyValue;
@@ -493,16 +474,10 @@ export const mediaPlayerDetailsMethods = {
         childButton.disabled = isMediaBrowserBusy;
       });
     };
-    /**
-     * 取媒体条目的展示标题：title → name → media_content_id 依次回退。
-     * 各类媒体源字段不统一（音乐用 title、电台用 name），末级兜底 "未命名媒体" 避免空白行。
-     */
     const mediaEntryTitle = mediaEntry =>
       String(mediaEntry?.title || mediaEntry?.name || mediaEntry?.media_content_id || "未命名媒体");
     /**
      * 打开媒体库的一个目录，并把返回的子项渲染成列表。
-     * 目录层级与游标由 HA 的 media-source 协议给出（media_content_id / media_content_type），
-     * 进入新目录时把当前层级压栈以支持「返回」；读取与投播期间用 busy 态禁用全部按钮防连点。
      */
     const openMediaDirectory = async (
       mediaContentEntryId,
@@ -650,8 +625,6 @@ export const mediaPlayerDetailsMethods = {
   },
   /**
    * 读取媒体的目录内容（媒体浏览器用）。
-   *
-   * @throws {Error} 读取失败。
    */
   async browseMedia(
     mediaBrowserEntityId,

@@ -1,24 +1,5 @@
 /*
  * 3D 配置弹窗里「通用设备 / 空气净化器」两块专属内容的样式。
- *
- * 为什么单独一张表：这两块（状态灯规则、附加功能）只有通用设备（冰箱 / 冰柜 / 洗碗机 /
- * 洗衣机 / 烘干机 / 绿植）与空气净化器才有，其余编辑对象（灯光 / 空调 / 窗帘 / 扫地机 / NAS / 电视 /
- * 温湿度计 / 门锁）都不显示。core/runtime.css 是所有交互编辑器共用的骨架、core/stage.css
- * 是舞台样式（展示页与 3D 工作室都会加载），把编辑器专属规则塞进这两处会外溢到别的页面
- * —— 所以照 presence/presence-editor.css 的先例单开一份，由 config-editor.js 打开弹窗时
- * 注入、关闭时随弹窗一起移除。
- *
- * 与 presence-editor.css 的差别：那份 CSS 自己 @import runtime.css（它的 JS 不注入骨架），
- * 本文件不重复 import —— config-editor.js 已经把 core/runtime.css 挂进 <head> 了，再来一次
- * 只会让同一份样式表被解析两遍、且改了版本号两边容易漏同步。
- *
- * 附加功能不再自带卡片网格预览：卡片由「实时预览弹窗」交给舞台渲染（样式在
- * climate/climate-panel.css 里，由舞台自己的 stage.css @import）。
- * 本文件只管编辑器自己造的那几个节点 —— 规则行、内联附加功能选择器的尺寸与排布。
- *
- * 主题变量来自宿主页 :root 的 --surface / --field / --line / --muted / --text /
- * --hos-accent-rgb（编辑页来自 app.css，3D 工作室来自 studio.css），一律写成
- * var(--名, 兜底色)，保证弹窗被单独打开也不丢样式。
  */
 
 /* ===== 状态灯（可选） ===== */
@@ -43,7 +24,6 @@
 }
 
 /* 一条规则：实体选择按钮 | 取值下拉（或「设置匹配条件」） | 移除。
-   栅格而不是 flex：多行规则之间的列宽必须对齐，否则「实体 / 条件 / 移除」三列会各自为政。
    未选实体时只有实体按钮一列（is-empty），标题列因此不会留出空槽。 */
 .i3d-status-rule {
   display: grid;
@@ -69,7 +49,6 @@
 }
 
 /* 取值下拉（「开启时亮灯」）用面板里的原生 select 口径：底、边、字号与 config-editor 的
-   其余下拉一致。这里不引 climate-panel.css 的 .i3d-climate-choice（那是面板控件的类名，
    编辑器下拉没有那个类），所以补一份同样的观感。 */
 .i3d-status-rule select {
   height: 28px;
@@ -141,11 +120,6 @@
 /* ===== 附加功能 ===== */
 
 /* 「实时预览弹窗」按钮 + 说明 + 内联 details 选择器，三段与 0.6.5 同序。
-   details 的外观（描边 + 内缩、加粗 summary）由 runtime.css 的
-   .i3d-unified-settings .i3d-config-section details 提供 —— 与 0.6.5 同一个选择器，
-   这里只补选择器内部那张实体清单。类名与上游同名（.i3d-extra-chooser /
-   .i3d-extra-entity-list / .i3d-extra-entity-row），既方便对照，
-   也不会和状态灯规则的 .i3d-status-* 混在一起。
    卡片网格本身不在这里：它随「实时预览弹窗」交给舞台渲染，样式在 climate-panel.css。 */
 .i3d-extra-chooser summary {
   padding: 8px 0;

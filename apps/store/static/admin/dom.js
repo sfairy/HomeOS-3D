@@ -1,9 +1,5 @@
 /**
  * DOM 与提示。
- *
- * 选择器短名、转义、轻提示、表格空行，以及点账号邮箱整段选中。
- *
- * 选择器短名、HTML 转义、轻提示与表格空行 —— 每个面板都要用的那一层。
  */
 
 export const $ = (selector, root = document) => root.querySelector(selector);
@@ -19,20 +15,15 @@ export function toast(message, kind = 'success') {
 }
 
 // HTML 转义。实现在 apps/store/static/htmlsafe.js（唯一一份）：
-// 这里只取别名，不再自己维护转义集 —— 两处实现并存时，少转一个字符不会有任何
-// 报错，只会让某个拼接点变成注入点。
-import { esc } from "../htmlsafe.js?v=2609271208";
+import { esc } from "../htmlsafe.js?v=2609271226";
 
 export { esc };
 
-// 空态：图标 + 文案，避免只剩一行灰字显得像加载失败
 export function emptyRow(columns, text) {
   return `<tr><td colspan="${columns}"><div class="table-empty"><span>◌</span>${esc(text)}</div></td></tr>`;
 }
 
 // 翻页统一在文档级委托（全部列表共用同一套分页条）；复制按钮也走这一个处理器 ——
-// 激活码、订单号、客户邮箱手工敲一遍必然出错。无论如何先建立选区：剪贴板 API 可能因
-// 非安全上下文 / 缺用户激活 / 权限策略而失败，此时用户已有选中内容，按一次 Ctrl/Cmd+C 即可。
 export function selectNodeText(node) {
   const range = document.createRange();
   range.selectNodeContents(node);

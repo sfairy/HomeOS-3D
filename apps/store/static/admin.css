@@ -1,30 +1,6 @@
-/* ==========================================================================
-   HomeOS 授权商店 · 管理后台。依赖 theme.css（令牌 + 按钮 / 表单 / 卡片 / 表格 / 对话框 / 胶囊）。
-   本文件只做三件事：后台骨架（左侧 rail + 主工作区）、面板与数据表排版、后台专属小组件（KPI 卡、行内 ⋯ 菜单、危险操作区、确认弹窗外观）。
-
-   配色不再是「暗色专业控制台」这一条路。全站（商店前台 / 后台 / 主程序入口页 / 场景插画）
-   共用 design/scene/page.css 那一份调色板：暖金是主控，暖光、极光紫、薄荷是居家三光，
-   heat / cool / alert / sensor 是设备读色。theme.css 逐字镜像这批令牌，
-   两侧取值必须一致（无自动比对），所以这里的颜色**必须**走 var()，不写十六进制。
-
-   两套分色在这一层叠起来，各管一件事：
-     · 业务域（--a-tint*，来自 data-domain）→ 「这一屏属于哪个业务域」：面板头辉光、
-       编号、角线、侧栏选中态、表格行悬停条。
-     · 组件族（--hb-tone*，来自 .is-tone-*）→ 「这一屏里哪个数字讲的是哪件事」：
-       KPI 卡边框与数值、订单漏斗的色带。
-   两者在 .is-tone-* 里会打架，所以消费族色时一律读 --hb-tone*，不读 --a-tint*。
-
-   画布 → 卡片 → 浮层三级分层走 --a-glass（半透底 + 背板模糊 + 顶缘高光）：
-   后台卡片曾经全是不透明底，把 .admin-main 的三束氛围光整块盖住，整屏是平的。
-
-   后台专属令牌用 --a-* 前缀，避免污染前台 store.css。已彻底移除 Bootstrap：不再有 .btn / .form-control / .card / .alert 语义。
-   ========================================================================== */
 
 /* 后台专属令牌 */
 /* 定义在 :root 而不是 .admin-shell：确认弹窗、轻提示、登录页都是 <body> 的
-   直接子元素，在 .admin-shell 之外。若把令牌挂在 .admin-shell 上，这三处引用
-   var(--a-*) 会解析失败——background 变透明、border-color 退回 currentColor，
-   弹窗会变成一层没有底色的浅边虚影。
    （admin.css 只被 admin.html 引入，放 :root 不会影响前台 store.html。） */
 :root {
   --a-radius: var(--hb-radius-lg);
@@ -39,8 +15,6 @@
   --a-transition: var(--hb-transition);
 
   /* 玻璃面：工作区的面板 / 卡片 / 表格 / KPI 卡共用一套「半透底 + 背板模糊 + 顶缘发丝」。
-     后台原来各写各的不透明底（--a-surface / --hb-card-bg），下面那三束氛围光全被盖住，
-     整屏就是一块平板。半透之后光从卡片后面透出来，卡片之间才有前后关系。
      不透明度取 0.58–0.66：再透会让 11px 的小字压在氛围光上发虚，再实就回到不透明。 */
   --a-glass: linear-gradient(
     180deg,
@@ -48,7 +22,6 @@
     rgba(var(--hb-sky-low-rgb), 0.66)
   );
   --a-glass-blur: blur(10px) saturate(135%);
-  /* 顶缘高光。深色玻璃靠这一道 1px 才「立」得起来，否则像贴纸。 */
   --a-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 
   /* 默认色调 = 主控暖金。登录页、确认弹窗、轻提示这些 body 直属容器读这里。 */
@@ -61,15 +34,6 @@
 }
 
 /* 业务域色调层：五个业务域各一种语义色，页面骨架（面板头辉光、编号、角线、
-   KPI 顶缘、漏斗条、侧栏选中态）跟着所属域变色，形成「一眼看出在哪个业务域」。
-
-   这一层不再自己造色相。原来用 `hsl(var(--a-tint-h) …)` 现算，算出来的暖金和
-   theme.css 里的暖金永远差几个百分点 —— 前台一个色、后台另一个色，肉眼能看出
-   「不是同一个颜色」。现在直接引用前台的色调开关 --hb-tone*（见 theme.css 的
-   [data-tone]），后台 / 前台 / 入口页场景共用一份色板。
-
-   --a-tint* 保留为 --hb-tone* 的别名，后台里 40 多处旧引用不用逐个改：
-   别名必须声明在**带 data-domain 的那个元素**上，因为自定义属性在声明处求值 ——
    写在 :root 上会固定解析成主控暖金，域色就永远不生效。 */
 [data-domain],
 .admin-shell {
@@ -82,11 +46,6 @@
 }
 
 /* 域 → 色调。面板与侧栏分组两边都挂 data-domain：
-   面板负责工作区，分组负责侧栏那一组链接的选中态与色点。
-
-   五域的分色不是凑数：概览与订单是主控（暖金）、商品与版本是货架（暖光）、
-   激活码与绑定是「已生效」（薄荷）、权益与流水是档案（极光紫）、
-   站点配置与审计是运维（传感器灰蓝）。这套词汇与商店前台的能力卡、
    账号中心统计、中控示意完全一致 —— 全站只有一个颜色语言。 */
 .admin-panel[data-domain='operations'],
 .nav-group[data-domain='operations'] {
@@ -261,7 +220,6 @@ body {
 }
 
 /* 一级菜单：整行可点。用 button 而非 div，键盘 Tab / Enter 天然可用。
-   chevron 在 DOM 里排最后（保持「标题 → 角标」阅读顺序），这里用 order 提到最前，右侧就不会只剩一个孤零零的小箭头。
    折叠态箭头指右、展开态指下。高度压到 26px：默认全开时 5 个分组标题 + 15 个链接要在 900px 高的屏幕里一屏装下，标题多占 12px 就是链接少看两行。 */
 .nav-group__toggle {
   display: flex;
@@ -278,7 +236,6 @@ body {
   font-size: 12px;
   font-weight: 650;
   /* 标题都是中文，uppercase 不生效，能拉开「标签感」的只有字距。
-     但字距随字号一起放大会把中文拆得七零八落，所以字号升上来后
      字距反而要收回一点，靠字重和颜色区分层级。 */
   letter-spacing: 0.04em;
   text-align: left;
@@ -288,7 +245,6 @@ body {
 }
 
 /* 分组标题左侧一道 3px 域色导轨：竖着看下来，五个分组是五段不同颜色，
-   视线扫过侧栏就知道后台一共分了几个域、现在哪一段是展开的。
    导轨比给标题上色稳：标题文字要保证对比度，颜色不能太亮，导轨可以。 */
 .nav-group__toggle::before {
   width: 3px;
@@ -380,8 +336,6 @@ body {
 }
 
 /* 子项左侧的竖向导轨，和一级菜单折叠箭头的中心对齐
-   （标题左右内边距 8px + 箭头半宽 7px）。
-   分组一多，光靠缩进很难一眼看出「这几行列属上面哪个标题」；补一条渐隐的
    竖线，层级关系就落在视觉上而不是靠猜。 */
 .nav-group__items-inner::before {
   position: absolute;
@@ -437,9 +391,6 @@ body {
 }
 
 /* 选中态：淡色调底 + 高亮文字 + 行首一条色条。
-   不再用实心描边方框——那会把每一行都框成一个「输入框」，和表单控件混淆，
-   一行行看下来也显得很吵。
-   颜色取自所属分组的 data-domain：点开「商品」那一组，整组的选中态是紫的，
    与工作区的面板头同一个色相，「现在在哪」这件事不需要再读一遍文字。 */
 .admin-side a.nav-link.active {
   color: var(--a-tint-bright);
@@ -591,8 +542,6 @@ body {
 /* admin-main 背景氛围层 */
 .admin-main {
   /* 氛围层：三束居家光（主控暖金 / 极光紫 / 暖光）各来一圈极淡的辉光（alpha ~0.05）铺在工作区底下。
-     前台与入口页的场景是同一组光，只是这里压到几乎看不见 —— 后台是长时间注视的界面，
-     亮度必须低于 0.06，再高就会和卡片背景抢对比度，正文小字开始发灰。
      写在这里而不是另加 ::before 层：滚动容器的背景不随内容滚动，天然就是固定底，不需要 background-attachment: fixed（那个在滚动容器上会强制合成层重绘，长表格滚动时掉帧）。 */
   background-image: radial-gradient(90% 55% at 12% 0%, rgba(var(--hb-accent-rgb), 0.05), transparent 70%),
     radial-gradient(75% 50% at 88% 8%, rgba(var(--hb-aura-rgb), 0.045), transparent 72%),
@@ -600,9 +549,6 @@ body {
   background-repeat: no-repeat;
 }
 
-/* 面板编号：/01 … /14。不能用 CSS 计数器——计数只对「生成了盒子」的元素生效，而 14 个面板同时只有 1 个可见，会让每页都显示 /01。
-   也不能用 nth-child：面板内部还有 tab 容器，DOM 一插节点「.admin-main 的第 N 个子元素」就整体错位。
-   所以编号挂在 **id** 上，面板怎么搬动、加多少 tab 都不会串号。 */
 #panel-overview { --a-panel-no: "01"; }
 #panel-products { --a-panel-no: "02"; }
 #panel-orders { --a-panel-no: "03"; }
@@ -627,9 +573,6 @@ body {
 }
 
 /* 后台的卡片与表格套同一层玻璃。
-   改 .hb-card 本身而不是在 admin 里重画：卡片的内边距、圆角、表头分隔全在
-   theme.css 里，重画一份就等着两侧走散。这里只叠背景与阴影两层。
-   只用 --a-glass 覆盖 background：--hb-card-bg 仍作为 admin.css 加载失败时的兜底
    （单文件部署漏拷 admin.css 时后台还能看，只是没有玻璃感）。 */
 .admin-panel .hb-card,
 .admin-panel .table-wrap {
@@ -648,7 +591,6 @@ body {
 
 /* 面板头（标题 + 说明 + 操作区） */
 /* 与前台 .hb-page-head 是同一套「控制台页头」语言：通栏、细网格 + 琥珀辉光、
-   下缘一道渐隐的琥珀发丝线。这里用负外边距顶到 .admin-main 的内边距边缘，
    所以 .admin-panel.active 不再需要 padding-top，页头自己带上下留白。 */
 .panel-head {
   position: relative;
@@ -669,7 +611,6 @@ body {
 }
 
 /* 细网格 + 双层域色辉光，与前台页头横幅同一套质感（网格 46px 一循环，
-   所以能直接复用 theme.css 里的 hb-head-drift 做无缝漂移）。
    辉光色相取自面板的 data-domain —— 这是「多色」在工作区里最大的一块面积。 */
 .panel-head::before {
   position: absolute;
@@ -717,7 +658,6 @@ body {
 }
 
 /* 面板编号：由 .admin-panel 的 id 显式给出的 --a-panel-no 决定，
-   左缩进 13px 与下方说明文字对齐（h2 的色条占了 13px）。
    编号本身也取域色：它是最小的一块「当前业务域」提示。 */
 .panel-head__text::before {
   display: block;
@@ -793,10 +733,6 @@ body {
   content: "";
 }
 
-/* 标签页（tab）：内容密集的面板（站点配置 30 个字段、诊断数据 7 张表、概览 8 个区块）平铺一页要滚三屏，tab 把它们切成互斥的几屏。
-   三件事必须靠组件本身保证：① 语义 —— role=tablist/tab/tabpanel + aria-selected + aria-controls，指示条只是视觉层；
-   ② 隐藏用 hidden 属性而非自定义 class，它同时退出可访问性树与 Tab 焦点序列；③ 窄屏给横向滚动 + 隐藏滚动条而不折行（折行会让面板头高度跳变、切 tab 时整页上下跳）。
-   .admin-tabs--sub 是面板内的二级标签，用在订单列表这类地方。 */
 .admin-tabs {
   position: relative;
   display: flex;
@@ -845,7 +781,6 @@ body {
 }
 
 /* 配置面板的五个 tab 各自带 data-tone（见 admin.html）：选中态改读分区自己的色调，
-   而不是整面板的域色 —— 否则五个 tab 选中后全是同一个传感器灰蓝。
    选择器多一个 [data-tone]，特异性高于上面那条，所以不依赖书写顺序。 */
 .admin-tabs__tab[data-tone][aria-selected="true"] {
   color: var(--hb-tone-text);
@@ -866,9 +801,6 @@ body {
   content: "";
 }
 
-/* 标签页内容：切换靠 hidden 属性，所以这里只负责「显示时」的排版。
-   .admin-tab-pane 内部可能是表格、编辑器或一整块表单，间距交给下面的
-   相邻规则，不在这里写死。 */
 .admin-tab-pane[hidden] {
   display: none;
 }
@@ -953,16 +885,12 @@ body {
 }
 
 /* 字段级说明：解释字段语义，跟在字段名或控件后面。
-   选择器必须带 .hb-field > 这一层：主题里 .hb-field > span 是 (0,1,1) 而 .admin-field-hint 只有 (0,1,0)，写在 label 里的 <span class="admin-field-hint"> 会被当成字段名套上标签样式，说明文字变成第二个加粗标签。
-   加一层类得 (0,2,0) 才压得住，<small> 与 <span> 两种写法也才长得一样。
    位置规则：多列带（一行两个以上字段）里必须写在控件之后，夹在中间会把控件顶下去导致同行控件不在一条线上；独占整行的字段（admin-grid__full）不受此限。 */
 .admin-field-hint,
 .hb-field > .admin-field-hint {
   display: block;
   margin-top: 2px;
   /* 用 --hb-muted（对卡片背景 5.66:1）而不是 --hb-ink-soft（10.75:1）。
-     说明文字必须比它解释的字段名更弱：字段名是 8.31:1，用 ink-soft 会让
-     说明比标题还亮，层级反过来。也不能用 --hb-muted-dim（3.99:1），那低于
      对比度下限 4.5。 */
   color: var(--hb-muted);
   font-size: 11.5px;
@@ -1033,14 +961,6 @@ body {
 }
 
 /* 节点留在表单里（事件委托才收得到点击），但打开时切成 position: fixed，
-   并借 popover 进顶层（见 features.js 的 openFeaturePicker）：.admin-main 是
-   overflow: auto 的滚动容器、编辑器卡片又挂着 backdrop-filter，两者都会裁剪/错位弹层
-   —— 与行内「⋯」菜单同一套处理，坐标由 JS 现算。
-
-   顶层 popover 的必要清账分两处：坐标用的 inset 在下面的打开态规则里清（UA 的 inset: 0
-   会让 right/bottom 把弹层从「左上角 + 内联宽高」拉成铺满视口右下），其余三条在这里 ——
-   margin: auto 会在坐标还没写进来前把它居中；overflow: auto 会与内层
-   .feature-picker__list 的滚动抢一层，高度也跟着 max-height 变；color: CanvasText
    会把没自带颜色的文字从继承来的 --hb-ink 换掉。都清回 popover 之前的计算值。 */
 .feature-picker__pop {
   position: absolute;
@@ -1256,7 +1176,6 @@ body {
   background: var(--a-tint-faint);
 }
 
-/* 负数金额（扣减的积分）用危险色，避免在一列正数里被忽略 */
 .hb-table .is-negative {
   color: var(--hb-danger-text);
 }
@@ -1282,39 +1201,10 @@ body {
 }
 
 /* 站点配置：六个分区的字段栅格。
-   规则挂在面板上而不是「form 里的 pane」上，因为这个面板的六个 pane 来源不同 ——
-   前五段是 <form class="admin-grid"> 的网格项，第六段（站点配色）刻意落在 form 之外
-   （它走 PUT /appearance，放进 form 里会让在十六进制输入框里敲回车顺带整表保存一次）。
-   过去列宽挂在 ``.admin-grid--wide > .admin-tab-pane`` 上，第六段拿不到，
-   于是同一个面板里前五段是三列以上的字段带、第六段是普通块级堆叠，内部节奏对不上，
-   再加上第六段的 admin-grid__full / __wide 全是空转（它压根不是网格）。
-
-   ``:not([hidden])`` 不是修辞：下面这份 display 与本文件早先那条
-   ``.admin-tab-pane[hidden] { display: none }`` **优先级完全相同**，
-   胜负全看源码顺序 —— 晚出现的 ``display: grid`` 会把隐藏的 pane 一起显示出来，
-   于是六个分区的字段同时铺在一屏上。
    加了 :not([hidden]) 之后隐藏的 pane 根本不匹配这条规则，不会再有这个隐患。 */
 #panel-settings .admin-tab-pane:not([hidden]) {
   display: grid;
   /* 列数写死，不用 auto-fit。这一段有 admin-grid__wide（span 2）字段，
-     而 auto-fit 在某档宽度下会只算出 1 条轨道 —— 此时 span 2 会**凭空生成一条
-     隐式轨道**（grid-auto-columns 默认 auto），结果是三件事一起坏掉：
-     两条轨道宽度不等（340 / 200）、紧跟的 admin-grid__full 只跨「显式轨道」
-     于是拿到 340px 而不是整行 554px、整块栅格横向溢出。列数写死就没有这个自由：
-     3 条轨道配 span 2 是 2 ≤ 3，2 条轨道配 span 2 是整行，都不会溢出。
-
-     每一档都要满足 README §11.10 那条不变式：字段名在**本档最窄的一条轨道**里
-     排得下（全角 12.24px / 半角 7px / 空格 3.4px，留 8px 余量）。所以档位分界不按
-     审美取，按这个预算倒推 —— 实测这些字段名里最长的一条是「网关地址（留空跟随沙箱
-     开关 / 环境变量）」233px，要 241px 起（判据用真的量出来的字段名宽度，不是估的）。
-     卡片正文宽 ≈ 视口 − 346px（侧栏 252 + 主区内边距 40 + 卡片内边距 40 + 4），
-     于是：
-       3 列 —— content ≥ 3×241 + 2×14 = 751px，即视口 ≥ 1097px，取 1120px 留余量
-                （1121px 时轨道 248px）；
-       2 列 —— 861–1119px，content 515–773px，最窄轨道 250px；
-       1 列 —— ≤ 860px，与下面那条把 .admin-grid__wide 打回整行的全局规则同档，
-                否则单列里的 span 2 又会生成隐式轨道。
-     列数固定意味着轨道会随视口收窄（auto-fit 不会），所以约束点从「最小列宽」
      变成了「本档最窄处」，上面的数字就是按后者算的。 */
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
@@ -1327,14 +1217,6 @@ body {
   }
 
   /* 两列档的收尾补丁：站点配置里有三条「三个一列字段」的带 —— 支付渠道 / 支付显示名 /
-     交易标题，AppID / 卖家 PID / 网关地址，奖励比例 / 提现手续费 / 最低提现积分。
-     三列档它们正好排满一行；到两列档就变成「2 + 1」，第三个字段自己占一行、
-     右半边整块空着（1120px 下实测空 394px，正好是行宽的一半），
-     看上去像没排完 —— 而它后面紧跟的往往是整行的东西（勾选框组、整行字段），
-     这块空位就卡在中间，比别处稀疏。
-     给这三个字段一个 admin-grid__fill-2col，在这一档占满整行：读起来的顺序不变
-     （还是第三个），行也铺满了。三列档那一带本来就满，所以规则不放进 ≥1121px；
-     一列档本来就整行，同样不需要。
      代价是「带里字段数」与这条补丁绑定了：往这三条带里增删字段，要回来重数一遍。 */
   #panel-settings .admin-tab-pane:not([hidden]) > .admin-grid__fill-2col {
     grid-column: 1 / -1;
@@ -1355,7 +1237,6 @@ body {
 }
 
 /* 一行里既有「标签 + 控件」的字段、又有裸按钮时的对齐方式：按钮跟着**控件**走
-   （贴底），而不是跟着整块居中 —— 后者会让按钮比旁边的输入框高出半个标签，
    看上去像没对齐。见站点配置「注册邮件 → 邮箱预设」那一行。 */
 .admin-form-actions--fielded {
   align-items: flex-end;
@@ -1365,7 +1246,6 @@ body {
 }
 
 /* 字段说明文字。用在「分组标题下方的解释」和「测试结果的就地反馈」两处：
-   后者必须是 is-success / is-danger 变色的，否则运营点了「测试凭据」之后
    会去别处找结果。 */
 .admin-hint {
   margin: 0;
@@ -1378,12 +1258,6 @@ body {
 .admin-hint.is-danger { color: var(--hb-danger-text); }
 
 /* 空着的说明文字、空的诊断清单、空的就地反馈都要整体退出布局。
-   它们都是字段栅格的网格项，而网格项「高度 0」不等于「不占位」：
-   一行 0 高的网格项照样吃掉一个 14px 的行间距。站点配置里这种空位有三处 ——
-   支付宝的 ``#alipay-effective-urls`` 与 ``#alipay-diagnostic-list``、
-   邮件预设的 ``#mail-preset-hint``、邮件的 ``#mail-diagnostic-list`` ——
-   展开前就是「测试凭据」那一行下面莫名多出 14px 空白，与旁边等距的行不成比例。
-   ``:empty`` 只匹配真的一个字符都没有的元素（模板里这四处都是 <p></p> / <ul></ul>，
    没有换行缩进），所以不会误伤有内容的那些。 */
 .admin-hint:empty,
 .admin-diagnostic-list:empty {
@@ -1391,9 +1265,6 @@ body {
 }
 
 /* 逐项诊断清单（站点配置 → 支付宝凭据 / 注册邮件）。
-   四个级别必须一眼可分：pass 是「真的验过了」，skip 是「压根没测」，
-   warn 是「测不了或需留意」。把 skip 画成绿色会让整个自检失去意义 ——
-   那正是这批改动要消灭的东西。所以每一级都有自己的图标位与配色，
    而不是只靠一句话里的措辞。 */
 .admin-diagnostic-list {
   display: grid;
@@ -1446,7 +1317,6 @@ body {
 .admin-diagnostic.is-skip .admin-diagnostic__label { color: var(--hb-ink-soft); }
 
 /* 状态徽标（如「支付宝凭据：已配置 · 环境变量」）。
-   四种状态各自的边框与底色都要区分开：这一行是运营判断「配置是否可用」的唯一
    入口，全靠颜色给出结论。 */
 .admin-status-chip {
   display: inline-flex;
@@ -1480,7 +1350,6 @@ body {
 }
 
 /* 长表单（站点配置 19 个字段、商品编辑器 16 个字段）平铺成一片时，
-   找「支付渠道」和找「邀请有礼」的代价一样高。插入分区小标题，把字段
    按语义切成两三段。小标题自己也是一个 grid item，跟着列宽走。 */
 .admin-grid__section {
   display: flex;
@@ -1509,14 +1378,6 @@ body {
 }
 
 /* 站点配置的六个分区各挂一个 data-tone（见 admin.html 的 data-tab-strip），
-   于是 tab 选中态与分区内的小标题一起变色 ——「我正站在哪一段」由一个颜色回答。
-   这一层与面板级的 data-domain 是两套词汇、互不冲突：面板答「这是哪个业务域」，
-   分区答「这段配置在配什么」。站点配置整面板都属于 system 域（传感器灰蓝），
-   只靠域色的话六个 tab 全是同一个灰蓝，等于没分。
-
-   小标题只在「一段里真的还分几带」时才写（支付宝凭据 → 凭据与自检 / 回调地址，
-   注册邮件 → 邮箱预设与自检 / SMTP 参数 / 验证码策略）。以前每个 pane 都在 tab
-   正下方原样重复一遍 tab 的名字（tab「站点信息」下面紧跟标题「站点信息」），
    同一句话在 20px 内说两遍，正是「布局零乱」里最扎眼的那一层。 */
 .admin-tab-pane[data-tone] .admin-grid__section {
   color: var(--hb-tone-text);
@@ -1524,8 +1385,6 @@ body {
 .admin-tab-pane[data-tone] .admin-grid__section::after {
   background: linear-gradient(90deg, var(--hb-tone-line), var(--a-line));
 }
-/* 站点配色分页。面板放在 <form> 之外（见 admin.html 的注释），所以这里不依赖
-   表单栅格；preset 卡片与主应用编辑器面板同构，只是换了 hb- 前缀的令牌。 */
 .admin-palette-presets {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -1626,8 +1485,6 @@ body {
   background: var(--sw);
   transition: background 0.12s ease-out;
 }
-/* 配色面板自己的提示行。刻意不复用后台的 toast：那个是浮层，会盖在色轮上，
-   而「配色已保存」这条信息应该留在它所属的面板里。 */
 .admin-inline-msg {
   margin: 0 0 10px;
   padding: 8px 10px;
@@ -1757,12 +1614,8 @@ body {
 
 /* 表格 */
 /* 表格跟随主区一起滚，表头用 sticky 吸在 .admin-main 顶部。
-   overflow: clip 只裁切、不产生滚动容器——所以既能裁出圆角，
    又不会像 overflow: auto/hidden 那样把 sticky 的参照物抢走。 */
 /* 表格自己就是一个有界的滚动视口，而不是「撑满整页 + 靠页面滚」。三件事都靠这一条：
-   ① 表头吸附位置 —— thead th 是 sticky top:0，吸附参照是最近的滚动祖先；只要这个祖先不是 .table-wrap（例如 overflow: clip 时吸附到 .admin-main），窗口一窄就失效（过去 ≤1420px 把 .table-wrap 改成 overflow-x:auto 就是这种后果，笔记本上滚过一屏再看不到列名）。
-   ② 一页 50 行的订单表有 2400px 高，封顶后分页条、筛选条、面板标题都留在视野里。
-   ③ 横向溢出只滚表格本身，不牵动整页。
    高度用 vh 而非固定 px（矮屏跟着变矮）；overscroll-behavior 保持默认，滚到末尾继续滚就把页面交还出去，不会把用户困在表格里。 */
 .table-wrap {
   max-height: min(72vh, 820px);
@@ -1775,7 +1628,6 @@ body {
 }
 
 /* table-layout: fixed 是「任何内容都不横向溢出」的根本保证。
-   自动布局下列宽跟着内容走，8 列的订单表会被最小内容宽度顶宽只能横滚；
    固定布局把列宽钉成下面的像素值，超出部分一律省略号，完整值放 title。 */
 .table-wrap .hb-table {
   min-width: 860px;
@@ -1787,7 +1639,6 @@ body {
 }
 
 /* 悬停时左缘亮起域色条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言。
-   取域色而非固定琥珀：这样在「激活码」（暖金）里悬停是暖金的，一眼知道在哪一类数据上
    操作，也不会因为几个面板共用 .hb-table 而全部染成同一色。 */
 .table-wrap .hb-table tbody td:first-child {
   box-shadow: inset 2px 0 0 transparent;
@@ -1799,9 +1650,6 @@ body {
 }
 
 /* 操作列：主操作 + ⋯ 只占一个紧凑宽度，必须写死像素且写够。
-   table-layout: fixed 下 Chrome 会忽略列上的 max-content / min-content / fit-content 与 min-width（实测三种写法均无效），而 .hb-table tbody td 又是 overflow: hidden —— 列写窄了按钮不是溢出可见，而是被裁掉一半且再也点不到。
-   列宽 = 单元格内边距 20 + Σ按钮宽 + 5 × (按钮数 - 1)；汉字按钮宽 = 11.5 × 字数 + 18；⋯ 按钮宽 = 30。
-   例：2 字 + ⋯ = 96 → 取 100；4 字 + ⋯ = 119 → 取 122；2 字 + 2 字 + ⋯ = 142 → 取 146。
    改动行内主操作文案时（尤其 2 字加长成 4 字那种），回来同步这一列的 px。 */
 .table-wrap .hb-table thead th:last-child,
 .table-wrap .hb-table tbody td:last-child {
@@ -1905,8 +1753,6 @@ body {
   }
 }
 
-/* 一次性结果面板：签发激活码这类「产出即交付」的操作。toast 3.6 秒就消失，而运营通常要「签发 → 复制 → 切到聊天窗口粘贴」，中间任何一次分神都会丢掉刚刚那个码。
-   所以结果要留在页面上，直到下一次操作把它替换掉。 */
 .admin-result {
   margin-top: 14px;
   padding: 14px 16px;
@@ -1961,7 +1807,6 @@ body {
 }
 
 /* 列表里的复制按钮：默认半透明、hover 才显形。
-   激活码一屏几十个，常亮的按钮会把整列变成按钮墙，反而看不出哪串是码。
    这里不用 opacity:0 完全隐藏——键盘 Tab 过去时必须有可见焦点。 */
 .admin-copy {
   margin-left: 6px;
@@ -1994,8 +1839,6 @@ body {
 
 /* 列宽：由容器决定，不由内容决定 */
 /* 这里用「像素宽 + 不定宽列」而不是百分比：
-   ① 百分比列宽会随窗口缩放，窄窗口下「状态」「有效期」这类短字段被截断就完全失去意义；② 固定像素让可截断的长文本列（邮箱、商品名、说明）承担全部压缩，它们本来就有 title 悬浮提示兜底。
-   table-layout: fixed 下未指定宽度的列平分剩余空间，所以只给需要保底的列写死 px，其余留空即可（数字来自浏览器实测的自然宽度）。
    min-width 是安全阀：窗口窄到装不下保底列时改为横向滚动，而不是把列挤成三个字；各表 min-width ≈ 保底列之和 + 每张不定宽列 150px。 */
 
 /* 订单：订单号 / 邮箱* / 商品* / 类型 / 金额 / 状态 / 创建时间 / 操作 */
@@ -2006,9 +1849,6 @@ body {
 #panel-orders .hb-table th:nth-child(7) { width: 162px; }
 #panel-orders .hb-table th:nth-child(8) { width: 122px; }
 /* 1072 → 1040：1072 是 8 列保底列之和 + 2 张不定宽列 × 150。
-   但 1440 宽度的窗口下正文区正好 1060px，1072 会让订单表常态性地多出 12px
-   横向滚动条（Windows / Linux 的实体滚动条还要再吃掉 15px，变成 27px），
-   为了一屏差 6px 的邮箱列宽换来一根常驻横条并不划算。
    1040 仍然高于 8 列的可读下限，窄窗口照样按这个下限改为横向滚动。 */
 #panel-orders .hb-table { min-width: 1040px; }
 
@@ -2069,8 +1909,6 @@ body {
 
 /* 行内「⋯」菜单 */
 /* 菜单节点仍留在单元格里，这样绑定在 #xxx-rows 上的事件委托照样能收到点击；
-   但弹出层在打开时切成 position: fixed + popover 顶层（见下面两条规则与 menus.js），
-   因为 .table-wrap 是 overflow: auto 的裁剪容器，absolute 的菜单会被它切掉一截，
    而且表格矮时上下都放不下、翻转也救不回来。 */
 .menu {
   position: relative;
@@ -2092,8 +1930,6 @@ body {
   display: grid;
   min-width: 158px;
   /* 顶层 popover 的 UA 默认值要清（理由同 .feature-picker__pop）：
-     margin: auto 会在 JS 写坐标前把弹层居中，overflow: auto 与 popover 之前
-     不是同一个盒子，color: CanvasText 会顶掉继承来的 --hb-ink；
      inset: 0 则在下面的打开态规则里清。 */
   margin: 0;
   overflow: visible;
@@ -2115,10 +1951,6 @@ body {
 }
 
 /* 打开时把弹出层移出裁剪范围：固定定位 + popover 进顶层，节点才真的相对视口摆放。
-   只写 position: fixed 是不够的 —— .table-wrap 与 .hb-card 上的 backdrop-filter
-   （admin.css 的 --a-glass-blur）会给 fixed 后代造一个包含块，弹层于是被表格裁剪、
-   还被表格自己的内部滚动带着上下漂移，看起来像「点了没反应」。popover 属性写在
-   table.js 的 rowMenu 里，开关在 menus.js 的 openRowMenu / closeRowMenus。
    坐标由 JS 按「⋯」按钮的位置算好后写成内联 top/left，这里先把绝对定位的那套值清空。 */
 .menu.is-open .menu__pop {
   position: fixed;
@@ -2157,7 +1989,6 @@ body {
   background: var(--hb-danger-soft);
 }
 
-/* 菜单里的说明文字（无动作）：与可点的 menu__item 明确区分，避免被当成按钮点 */
 .menu__note {
   margin: 0;
   padding: 7px 10px;
@@ -2172,9 +2003,6 @@ body {
 
 /* 概览 KPI 卡 */
 /* 用栅格而非 flex-wrap：flex 下每一行的 flex-basis 会让**跨行宽度不一致**——
-   营收 4 张卡各 265px，紧接着的累计 9 张卡第一行被分到 5 列、每张只剩 209px，
-   第二行 4 张又回到 265px。同一页里同一种卡片出现两种宽度，看起来像错位。
-   栅格先定列数再放卡片：每行等宽，末行的空位就是空位，不会把卡片撑变形。
    auto-fit 会让「张数不足一行」时自动收掉空列并铺满（营收 4 张仍然是 4 张 265px）。 */
 .stat-grid {
   display: grid;
@@ -2253,9 +2081,6 @@ body {
 }
 
 /* 主数字永远单行：KPI 卡的价值在于「一眼对比」，同一排里一张两行的数字会让
-   整排卡片被撑高、数字自己也读不出量级。放不下时降档（下面两个类），
-   再放不下就省略号收尾 —— 一定要有 text-overflow，否则靠 .stat 的
-   overflow: hidden 无声截断，看起来是一个「少了一位」的错数字。
    完整值由渲染时的 title 属性兜底。 */
 .stat .stat__value {
   display: block;
@@ -2265,9 +2090,6 @@ body {
 }
 
 /* 长数值降档。卡宽下限 186px、左右内边距各 16px，可用 154px：
-   25px 等宽一行 10 个字符、19px 放 13 个、15px 放 16 个（等宽字符约 0.61em/字，
-   浏览器实测 0.59–0.60）。档位由 admin.html 的 valueSize() 按字符数给出，
-   容量与阈值的关系必须与 admin.html 的 valueSize() 保持一致。
    选择器必须带 .stat 前缀：`.stat strong` 的权重比单个修饰类高。 */
 .stat .stat__value--sm {
   font-size: 19px;
@@ -2280,23 +2102,6 @@ body {
 }
 
 /* 族色修饰类（KPI 卡与订单漏斗共用）：域色解决「这一屏属于哪个业务域」，但一屏里
-   4–8 张 KPI 卡全同一色就读不出「哪个数字讲的是哪件事」。
-
-   类名沿用已有的 is-tone-*（消费点在 admin/panels/overview.js 的 KPI 卡与
-   admin/format.js 的 STATUS_TONES→族色映射，模板里没有引用），但**不再自造色相**：
-   六个类各自把 --hb-tone* 换成前台同名的那束语义色（theme.css 的 --hb-lumen /
-   --hb-aura / --hb-eco / --hb-cool / --hb-accent / --hb-sensor）。
-   原来给的是 `--a-tone: 38` 这样的色相数字，再由消费者 `hsl(var(--a-tone) 90% 62%)`
-   现算 —— 算出来的琥珀与商店的暖光差着几个百分点，前台一个色、后台另一个色。
-   现在两侧引用同一批令牌，后台的薄荷与商店的薄荷是同一个绿。
-
-   映射不是重命名：琥珀 = 暖光（营收 / 待处理）、主控 = 主控色（有效授权 /
-   在线设备）、翠 = 生态薄荷（已履约）、紫 = 极光（商品 / 权限）、
-   蓝 = 清凉（账号 / 积分）、珊瑚 = 危险（支付失败 / 已退款）、
-   灰蓝 = 传感器（已取消 / 已过期 —— 流程已终结，不该再抢注意力）。
-
-   必须排在 .stat.is-alert / .stat.is-danger **之前**：is-alert（待处理）是语气，
-   语义上要压过族色；两者权重相同时靠源码顺序决胜，顺序反了就会出现
    「告警卡被染成蓝的」。 */
 .is-tone-amber {
   --hb-tone: var(--hb-lumen);
@@ -2313,7 +2118,6 @@ body {
 }
 
 /* 名字必须说真话：这一类装的 --hb-tone 是主控色（默认琥珀），不是青。
-   叫 is-tone-cyan 时，读代码的人会以为它和 is-tone-blue 同族，
    写模板的人会挑它当「蓝色系」，而它跟 is-tone-amber 只差一档橙度。 */
 .is-tone-accent {
   --hb-tone: var(--hb-accent);
@@ -2353,8 +2157,6 @@ body {
 }
 
 /* KPI 卡：只换颜色，字号 / 降档阈值 / padding 一律不动 ——
-   这几个值与 admin.html 的 valueSize()、admin.css 的 .stat__value--* 档位联动，
-   动一个值就会让卡片放不下。消费者一律读 --hb-tone*（族色类已经换过），
    不读 --a-tint* —— 那是所属业务域的色，两者在这一层是两件事。 */
 .stat:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate) {
   border-color: var(--hb-tone-line);
@@ -2413,7 +2215,6 @@ body {
 }
 
 /* 待办磁贴。用按钮而不是 div：它可点、可聚焦、支持键盘回车。
-   容器边框取域色（概览属运营域，即琥珀），卡片内部仍走 is-alert / is-danger
    的语气色——「有没有事」和「这是哪一域」是两件事，不该混在一个变量里。 */
 .overview-todos {
   border-color: rgba(var(--hb-tone-rgb), 0.28);
@@ -2445,7 +2246,6 @@ body {
 }
 
 /* 「待处理」：与 .stat.is-alert 同一枚暖光。语气色必须全后台只有一套取值，
-   否则概览上「待支付订单」这张卡走暖光（语义色）、旁边的待办磁贴走 --hb-tone，
    也就是跟随管理员改的主控色 —— 同一个含义在相邻两张卡上会是两种颜色。 */
 .overview-todo.is-alert {
   border-color: var(--hb-lumen-line);
@@ -2465,9 +2265,6 @@ body {
 }
 
 /* 与正上方的 .stat.is-alert 同一支笔：那块的数字用 --hb-lumen-bright
-   （暖光的可读档），这里的数字也必须一样，否则同一屏里两个「待处理」计数深浅不同。
-   写 --hb-warning-text 而不是 --hb-lumen-bright：它们指向同一个值
-   （theme.css 里 --hb-warning-text = var(--hb-lumen-bright)），
    但语义名说出了「为什么用这个色」，而「待处理」正是 warning 这一档。 */
 .overview-todo.is-alert .overview-todo__count {
   color: var(--hb-warning-text);
@@ -2549,10 +2346,6 @@ body {
 }
 
 /* 漏斗条按订单状态着色：待付款 = 暖光、已付款/已完成 = 生态薄荷、
-   支付失败/发货失败/已退款 = 珊瑚、已取消/已过期 = 传感器灰蓝。
-   色相不是在这里挑的，是 format.js 的 STATUS_TONES 派生的（同一个状态在
-   订单表的胶囊和这里的条子必须是同一个色系）。
-   色值来自上面的 .is-tone-*，这里只负责把它画成一条渐隐的色带 ——
    已终结的状态（slate）不再需要单独特判，它映射到的传感器灰本来就是低饱和的。 */
 .funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate)
   .funnel-item__fill {
@@ -2579,8 +2372,6 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-/* 风险区两张预警表只有 3–4 列，各自挤在 ~540px 的双列卡片里。全局 860px 保底（.table-wrap .hb-table）是按最宽的订单表定的，套上来会把右侧「可售」「到期」顶出卡片边界，只能在卡片内部横向滚，而卡片只有半屏宽、滚起来连表头都对不上。
-   这里按各自实际列数重定保底与列宽：3–4 个短列 + 1 个可截断文本列，540px 完全放得下。 */
 #overview-stock-table,
 #overview-expiring-table {
   min-width: 0;
@@ -2702,7 +2493,6 @@ body {
   box-shadow: 0 10px 26px -14px rgba(var(--hb-danger-rgb), 0.8);
 }
 
-/* 会降级成「停用 / 下架」这类可恢复结果时用告警色，避免和不可恢复的删除长得一样 */
 .confirm-dialog.is-warning .confirm-dialog__icon {
   border-color: var(--hb-warning-line);
   color: var(--hb-warning-text);
@@ -2753,14 +2543,6 @@ body {
 }
 
 /* 后台登录：整页场景壳（与商店前台入口页、主项目入口页同款；场景与玻璃坞在
-   /store-static/scene/，源在仓库 design/scene/）。原来的「左说明栏 + 右表单卡」
-   已被玻璃坞取代，所以这一段只剩把壳钉在视口上。
-
-   用 fixed 而不是让 #admin-login 走文档流：.hos-page 的 height: 100% 依赖父级有
-   确定高度，而它是 body 的直接子元素。钉在视口上就不依赖那条高度链，也不会在
-   #admin-app / #admin-boot 还占着位置时被挤走。
-
-   登录成功/失败由 admin.html 里的 showLogin() 切 #admin-login 的 hidden，
    整块壳跟着一起出现消失 —— 页面里只有这一处场景，不必再叠一层空状态。 */
 #admin-login {
   position: fixed;
@@ -2816,8 +2598,6 @@ body {
 }
 
 /* 杂项 */
-/* 后台里所有裸 <a> 用域色，避免落到浏览器默认蓝。
-   链接属于「当前这一屏的内容」，跟着域走；主操作按钮才是全局品牌色。 */
 .admin-main a:not(.hb-button):not(.nav-link) {
   color: var(--a-tint-bright);
 }
@@ -2832,9 +2612,6 @@ body {
 }
 
 /* 窄屏：侧栏折叠为顶部栏 */
-/* 表格的保底列宽是按桌面宽度定的（最宽的订单表 1072px），窗口不够宽时右侧「操作」列必须够得着——这是功能问题，不是观感问题。
-   过去这条写成「窄屏才把 .table-wrap 改成 overflow-x: auto」，代价是表头吸顶失效（横向滚动容器也就是 sticky 的参照物）。
-   现在 .table-wrap 在所有宽度下都是自己的滚动视口，横纵各滚各的，两个诉求不再互斥。 */
 
 @media (max-width: 860px) {
   .admin-shell {
@@ -2869,9 +2646,6 @@ body {
     display: contents;
   }
 
-  /* 窄屏导航是横排平铺，折叠在这里没有意义：
-     隐藏一级菜单标题，把两层折叠容器摊平成 flex 子项，
-     并显式还原 visibility（竖屏折叠态是 hidden，不然平铺出来还是看不见）。 */
   .nav-group__toggle {
     display: none;
   }

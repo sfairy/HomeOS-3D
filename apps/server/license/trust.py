@@ -1,7 +1,4 @@
 """授权信任锚启动自检：公钥文件存在且指纹与配置一致。
-
-构造 ``LicenseTransportCipher`` / 验签时也会核对指纹，但报错偏底层。
-本模块在启动期给出明确的密钥准备指引，避免激活阶段才发现密钥漂移。
 """
 from __future__ import annotations
 
@@ -26,9 +23,6 @@ def _file_sha256(path: Path) -> str:
 
 def verify_license_trust_anchors(settings: Settings) -> None:
     """校验签名公钥与传输公钥的文件存在性与指纹。
-
-    异常:
-        RuntimeError: 缺失或指纹不一致；文案含密钥准备操作指引。
     """
     for key_id, (path, expected) in settings.license_trusted_public_keys.items():
         if not path.exists():

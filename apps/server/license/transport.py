@@ -1,7 +1,4 @@
 """HTTP 传输与响应落地：发请求、解析错误、把状态写进 self._state
-
-从 license/service.py 的 LicenseService 里搬出来的方法组（mixin）：只移动方法本身，
-私有属性仍由 LicenseService.__init__ 建立 —— 因此这里只依赖 self 上的协议，不反向依赖那个模块。
 """
 from __future__ import annotations
 
@@ -34,21 +31,12 @@ class LicenseTransportMixin:
     @staticmethod
     def _valid_instance_id(value: str) -> bool:
         """校验实例 ID 的字符集与长度。
-
-        硬件指纹为 SHA-256 十六进制（64 字符）；下限 16 挡住占位/手填短串，
-        上限 64 与服务端字段对齐。
         """
         # 允许 ':'，兼容 fallback-machine:xxx 派生格式的诊断片段（正式 ID 仍是纯 hex）。
         return 16 <= len(value) <= 64 and all(character.isalnum() or character in '-_.:' for character in value)
     def _instance_id(self) -> str:
         """取出本机硬件指纹派生的安装实例 ID，并持久化到 data/instance-id。
-
-        身份以硬件为准（见 ``hardware.hardware_instance_id``），不再使用可拷贝的
-        uuid4 安装文件。``data/`` 整盘拷贝到另一台机器时：真实硬件不同，或兜底
-        文件的本机封印不匹配，都会得到新的 instance_id；``_state`` 随之判为
-        ``INSTANCE_MISMATCH``，用户需在商店解绑后用同一激活码重新激活。
         """
-        # 缓存命中直接返回，避免每次门禁判定都重读硬件标识。
         if self._cached_instance_id:
             return self._cached_instance_id
         path = self.settings.instance_id_path
@@ -59,7 +47,6 @@ class LicenseTransportMixin:
         except OSError:
             saved = ''
         # 硬件指纹是唯一真相源；读不到真实硬件时走「本机封印 + data/ 内熵」兜底，
-        # 单独拷贝 data/ 不能把绑定带到另一台机器。
         value = hardware_instance_id(
             machine_override=self.settings.hardware_machine_id_override,
             board_override=self.settings.hardware_board_id_override,
@@ -68,7 +55,6 @@ class LicenseTransportMixin:
         )
         if not self._valid_instance_id(value):
             raise RuntimeError('硬件指纹派生的实例标识无效，无法建立设备绑定。')
-        # 只在内容真的变了才写盘，避免每次启动都做无谓的写入与 rename。
         if saved != value:
             temporary = path.with_name(f'''.{path.name}.tmp''')
             descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -83,11 +69,6 @@ class LicenseTransportMixin:
     @asynccontextmanager
     async def _credential_operation(self):
         """凭证读写的临界区：串行化续租，并保证进程内只有一个凭证写入者。
-
-        两层锁各有分工，缺一不可：
-        - ``_heartbeat_lock`` 管**本进程内**的并发（手动重试 vs 心跳 vs 恢复）；
-        - 进程锁管**跨进程**（同机被误启动两份服务）。进程锁通常在 start() 就已长期持有，
-          此时这里只是复用；若本实例不是长期持有者，就临时加锁、用完即放。
         """
         async with self._heartbeat_lock:
             # 只有「当前没持锁」时才临时加：长期持有者已经锁住了，重复 acquire 是空操作。
@@ -98,14 +79,10 @@ class LicenseTransportMixin:
                 yield
             finally:
                 # 只释放自己临时取得的那一次：把 start() 拿到的长期锁放掉会让
-                # 单实例保护在运行中途失效。
                 if temporary:
                     self._process_lock.release()
     def _state(self, database) -> LicenseState:
         """取（或初始化）单行授权状态，并处理实例 ID 变化。
-
-        单例表：全库只有一行 LicenseState，因此直接 limit(1) 取。
-        若实例 ID 变了（换机 / 硬件指纹升级替换旧 UUID），清空全部租约相关字段并要求重新绑定。
         """
         state = database.scalar(select(LicenseState).limit(1))
         instance_id = self._instance_id()
@@ -117,7 +94,6 @@ class LicenseTransportMixin:
             database.refresh(state)
         elif state.instance_id != instance_id:
             # 实例 ID 变化说明授权绑定已失效：必须清空租约与全部令牌，
-            # 不能把旧值留着继续参与门禁判定。
             state.instance_id = instance_id
             state.lease_id = None
             state.session_id = None
@@ -138,39 +114,28 @@ class LicenseTransportMixin:
             database.commit()
             self._record_status(state.status, state.last_error)
         return state
-    # 以下同步方法只做查库 / 落库，供 async 调用方用 asyncio.to_thread 转交：同步会话跑在事件循环上会阻塞所有请求。
     def _activation_instance_id(self) -> str:
         """取当前实例 ID（同步，供 ``activate`` 放线程池）。"""
         with self.database.session_factory() as database:
             return self._state(database).instance_id
     def _activation_credentials(self) -> tuple[bool, str | None, str]:
         """取自动重激活要用的本地凭证（同步，供 ``reactivate`` 放线程池）。
-
-        返回: (是否已激活, 加密的激活码, 授权邮箱)。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
             return (bool(state.license_id), state.encrypted_activation_code, state.activation_email or '')
     def _recovery_credentials(self) -> tuple[str | None, str, int]:
         """取租约恢复要用的本地凭证（同步，供 ``_recover_unlocked`` 放线程池）。
-
-        返回: (加密的恢复令牌, 实例 ID, 本地租约序号)。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
             return (state.encrypted_recovery_token, state.instance_id, state.lease_sequence)
     def _lease_expired(self, expires_at: datetime, *, now: datetime) -> bool:
         """租约是否**确实**已到期（含时钟偏移容差）。
-
-        本机时钟快几秒就会在租约仍可用时提前判过期，而心跳间隔是分钟级，会造出
-        「服务端认为有效、本机完全受限」的窗口；代价是多用 ``license_clock_skew_seconds`` 秒。
         """
         return expires_at <= now - timedelta(seconds=self.settings.license_clock_skew_seconds)
     def _lease_sequence_ok(self, payload_sequence: int, state: LicenseState) -> bool:
         """租约序号判据：手上这份租约不能比已经记下的更旧。
-
-        防重放要求「不比备忘更旧」；若写成完全相等，任何让两个字段不同步的状态
-        （库被回滚、行被外部修过）都会变成终局 INVALID。更大的值回写成新备忘（自愈）。
         """
         if payload_sequence < state.lease_sequence:
             return False
@@ -179,9 +144,6 @@ class LicenseTransportMixin:
         return True
     def _validate_saved_state(self, state: LicenseState, database) -> None:
         """启动时的离线校验：只信签名租约，不信库里的 status。
-
-        校验顺序为验签 → 序号不比备忘更旧 → 到期时间 → 时钟回拨，
-        任一步失败都写回明确状态与中文原因，供前端展示。
         """
         # 没有租约，或已处于终态（停用/未激活）时无需校验。
         if not state.signed_lease or state.status in frozenset({'DEACTIVATED', 'UNACTIVATED'}):
@@ -213,8 +175,6 @@ class LicenseTransportMixin:
         self._record_status(state.status)
     async def _post(self, path: str, payload: dict) -> dict:
         """向授权服务发送加密请求，按候选列表依次重试。
-
-        未配置端点或全部候选失败抛 ``LicenseClientError``；4xx 业务拒绝直接抛出，不重试。
         """
         candidates = self._endpoint_pool.candidates()
         # 未配置是配置问题（重试无用），全部不可用是暂时问题，两者给出不同文案。
@@ -222,7 +182,6 @@ class LicenseTransportMixin:
             raise LicenseClientError('尚未配置授权服务器地址。')
         if not candidates:
             raise LicenseClientError('授权服务器暂时不可用，请稍后重试。')
-        # 记住最后一次失败原因：全部候选都失败时抛出它，保留最有信息量的文案与状态码。
         last_failure = None
         async with httpx.AsyncClient(transport=self._transport, timeout=self.settings.license_request_timeout_seconds) as client:
             for endpoint in candidates:
@@ -236,7 +195,6 @@ class LicenseTransportMixin:
                     last_failure = LicenseClientError('无法连接授权服务器。')
                     continue
                 if response.status_code >= 500:
-                    # 5xx 视为服务端暂时故障：换候选的同时拉黑，避免每次都先撞同一台坏机器。
                     self._endpoint_pool.mark_failed(endpoint.base_url)
                     detail, code = self._parse_error_response(response)
                     last_failure = LicenseClientError(detail, status_code=response.status_code, code=code)
@@ -248,7 +206,6 @@ class LicenseTransportMixin:
                         detail,
                         status_code=response.status_code,
                         code=code,
-                        # 429 才有意义：服务端回的是**剩余**等待秒数，调用方据此进入冷却。
                         retry_after_seconds=self._parse_retry_after(response),
                     )
                 # 204 / 空响应是合法的成功返回（个别接口无 body）。
@@ -279,9 +236,6 @@ class LicenseTransportMixin:
     @staticmethod
     def _parse_retry_after(response: httpx.Response) -> float | None:
         """从 429 响应头取 ``Retry-After``（秒）。
-
-        只认秒数写法：服务端发的就是限流器算出的剩余秒数。钳到 ``[1, 3600]``，
-        下界避免「回 0 就不休避」变成热循环，上界防止伪造头把客户端长期钉死在冷却里。
         """
         raw = response.headers.get('Retry-After')
         if raw is None:
@@ -294,9 +248,6 @@ class LicenseTransportMixin:
     @staticmethod
     def _parse_error_response(response: httpx.Response) -> tuple[str, str | None]:
         """从错误响应取出 detail 与可选业务 code。
-
-        协议：``{"detail": ..., "code": "REVOKED", "revoked": true}``；
-        ``revoked: true`` 且无 code 时补 ``REVOKED``。
         """
         try:
             # 非 JSON 或顶层不是字典时回落通用文案，绝不把原始 body 透传给用户。
@@ -314,8 +265,6 @@ class LicenseTransportMixin:
             return '授权服务器拒绝请求。', None
     def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
         """把一次成功的授权响应落库（验签通过后才算成功）。
-
-        ``activation_code`` 加密落库供自动重激活；``activation_code_hint`` 截掉后 9 位作界面提示。
         """
         # 缺字段时留空串，交给 verifier 统一按「格式无效」拒绝。
         signed_lease = response.get('signedLease', '')
@@ -342,8 +291,6 @@ class LicenseTransportMixin:
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error)
             if self._lease_expired(expires_at, now=now):
-                # 服务端返回已过期租约：不写入可用状态，避免刚「激活成功」就拿到失效凭证。
-                # 判据含时钟偏移容差，本机快几秒不会让刚签发的租约被判成过期。
                 state.status = 'LEASE_EXPIRED'
                 state.last_error = '授权服务器返回了已到期租约。'
                 database.commit()
@@ -408,11 +355,7 @@ class LicenseTransportMixin:
             return self._payload(state)
     def _payload(self, state: LicenseState) -> dict:
         """组装对外状态字典（字段名与前端约定死，逐字不可改）。
-
-        会在落库状态之上做实时修正：时钟回拨、租约到期、启动联网确认未完成都会覆盖
-        effective_status，保证前端看到的与门禁口径一致。
         """
-        # 先复制库值再实时修正：修正不写库，避免把与时间相关的瞬时判断固化成持久状态。
         effective_status = state.status
         effective_error = state.last_error
         now = datetime.now(timezone.utc)
@@ -423,7 +366,6 @@ class LicenseTransportMixin:
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
         elif lease_expires and self._lease_expired(lease_expires, now=now) and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'RECOVERY_RETRY'}):
-            # 库里写着 ACTIVE 但租约已到期：覆盖为 LEASE_EXPIRED，避免前端显示正常却被门禁拦下。
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
                 effective_error = '授权租约已到期。'
@@ -449,7 +391,6 @@ class LicenseTransportMixin:
             visible_features = [item for item in stored_features if isinstance(item, str)]
         visible_products = []
         if state.signed_lease:
-            # 产品清单只从「验签通过的租约」里取，避免把库里的脏数据透给前端。
             try:
                 signed_payload = self.verifier.verify(state.signed_lease, state.instance_id)
             except LicenseCryptoError:
@@ -485,7 +426,6 @@ class LicenseTransportMixin:
             'leaseId': state.lease_id,
             'leaseSequence': state.lease_sequence,
             'edition': 'full' if state.license_id else None,
-            # 未激活时一律返回空权益与空产品，避免前端误判为已授权。
             'features': visible_features if state.license_id else [],
             # featureAccess 额外乘上验签结果：租约不合法（被改、过期、实例不符）也不放行。
             'featureAccess': {
@@ -499,7 +439,6 @@ class LicenseTransportMixin:
             'lastHeartbeatAt': ensure_aware(state.last_heartbeat_at),
             'lastVerifiedAt': ensure_aware(state.last_verified_at),
             # 重试相关字段：前端据此决定提示文案、按钮可见性与倒计时。
-            # 没有显式错误码时按状态补一个：前端只认 errorCode，缺码会让提示退化成空白。
             'errorCode': self._error_code or {
                 'RECOVERY_RETRY': 'RECOVERY_TOKEN_INVALID',
                 'RECOVERY_REQUIRED': 'LICENSE_REMOTE_REJECTED',

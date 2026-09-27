@@ -1,17 +1,12 @@
 /**
  * 面板按钮点击音效。
- *
- * 展示页 / 编辑器运行时的交互反馈模块，由页面在需要时构造实例：维护「音效开关」的本地持久化，
- * 并在按钮点击时播放一次点击音。开关存在 localStorage（homeos-dashboard-sound-enabled），默认
- * 开启；播放用 Audio 克隆节点，保证快速连点时每次都能从头出声。
  */
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
   // 改名前的旧键：升级上来的用户此前存的是这个键，不回读会让他们的静音设置静默失效。
   LEGACY_SOUND_ENABLED_STORAGE_KEY = "ha-bridge-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609271208";
+  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609271226";
 
 // 读取音效开关：新键缺失时回读改名前的旧键（升级用户的静音设置存在那里）；
-// 两者都缺失视为开启；隐私模式禁读 localStorage 时同样兜底为开启。
 function isSoundEnabled() {
   try {
     const storedValue = window.localStorage.getItem(SOUND_ENABLED_STORAGE_KEY);
@@ -30,7 +25,6 @@ export function createButtonSound() {
   let enabled = isSoundEnabled();
   // 无 Audio 构造器（老环境 / SSR）时置 null，后续调用自动降级为静默。
   const audioTemplate = typeof Audio == "function" ? new Audio(BUTTON_CLICK_SOUND_URL) : null;
-  // 预先声明 preload 与音量，避免首次点击才加载导致延迟发声。
   return (
     audioTemplate && ((audioTemplate.preload = "auto"), (audioTemplate.volume = 0.42)),
     {
@@ -51,7 +45,6 @@ export function createButtonSound() {
       play() {
         if (!enabled || !audioTemplate) return;
         // 克隆节点而非复用同一个 Audio：并发点击时各自的 currentTime 互不干扰；
-        // 浏览器也可能因自动播放策略拒绝播放，静默吞掉 Promise 拒绝。
         const audioClone = audioTemplate.cloneNode(!0);
         ((audioClone.volume = audioTemplate.volume),
           (audioClone.currentTime = 0),

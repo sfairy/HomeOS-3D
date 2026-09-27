@@ -1,13 +1,9 @@
 /**
  * 组件动作规则（Action Rule）的取值与合法性判定。
- *
- * 编辑器「动作」检查器与展示页运行时的纯逻辑模块：定义动作类型 / 弹窗来源 / 可开关实体域的
- * 允许取值，并校验动作配置与组件绑定是否匹配。不碰 DOM 也不请求后端；校验所需的页面路径集合、
- * 弹窗 ID 集合由调用方传入，传入 null 表示「暂不校验该维度」。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=2609271208";
+import { isVirtualEntityId } from "./virtual-entities.js?v=2609271226";
 // 「按 ID 切域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../utils/entities.js?v=2609271208";
+import { entityDomainFromId } from "../utils/entities.js?v=2609271226";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);
@@ -15,7 +11,6 @@ export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);
 // 「更多信息」弹窗的数据来源：当前实体 / 指定实体 / 指定弹窗。
 const POPUP_SOURCES = Object.freeze(["current", "entity", "custom"]);
 
-// 这些 HA 域里的实体调用 toggle 才有意义；虚拟实体单独放行（见下方判定）。
 export const TOGGLE_ENTITY_DOMAINS = new Set([
   "automation",
   "button",
@@ -40,7 +35,6 @@ function actionPopupSource(action) {
   if (POPUP_SOURCES.includes(popupSource)) {
     return popupSource;
   } else {
-    // 出现未知取值时统一回退，避免把脏数据带进运行时。
     return "current";
   }
 }
@@ -71,7 +65,6 @@ export function actionNeedsCurrentEntity(actionRule) {
  */
 export function entityIdSupportsToggle(entityId) {
   const normalizedEntityId = String(entityId || "");
-  // 域前缀统一走 utils/entities.js 的 entityDomainFromId；实体名里再出现点号也不会干扰判断。
   return (
     isVirtualEntityId(normalizedEntityId) ||
     TOGGLE_ENTITY_DOMAINS.has(entityDomainFromId(normalizedEntityId))

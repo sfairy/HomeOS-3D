@@ -5,22 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#050912">
   <meta name="description" content="注册账号、购买授权与管理激活设备">
-  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609271208">
+  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609271226">
   <title>HomeOS 授权服务 - HomeOS 授权中心</title>
   <link rel="stylesheet" href="/store-static/font.min.css">
-  <link rel="stylesheet" href="/store-static/theme.css?v=2609271208">
+  <link rel="stylesheet" href="/store-static/theme.css?v=2609271226">
   <!-- 场景设计系统的分发产物（源在仓库 design/scene/）。登录 / 注册 / 找回这三块整屏壳
        用的是它，前台其余分页仍走 theme.css + store.css 的令牌。 -->
-  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609271208">
-  <link rel="stylesheet" href="/store-static/scene/page.css?v=2609271208">
-  <link rel="stylesheet" href="/store-static/scene/scene.css?v=2609271208">
-  <link rel="stylesheet" href="/store-static/scene/panel.css?v=2609271208">
-  <link rel="stylesheet" href="/store-static/store.css?v=2609271208">
+  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609271226">
+  <link rel="stylesheet" href="/store-static/scene/page.css?v=2609271226">
+  <link rel="stylesheet" href="/store-static/scene/scene.css?v=2609271226">
+  <link rel="stylesheet" href="/store-static/scene/panel.css?v=2609271226">
+  <link rel="stylesheet" href="/store-static/store.css?v=2609271226">
   <!-- 这一份**故意**不是模块：它只做「首屏之前」的事（读 cookie 里的登录提示，给 <html> 打上
-       hb-auth-hint / hb-license-hint 类），模块是延迟执行的，等它跑起来样式已经闪一下了。
        其余商店脚本都已是 ESM（type="module"）。 -->
-  <script src="/store-static/auth-bootstrap.js?v=2609271208"></script>
-  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609271208` 的 <link>。
+  <script src="/store-static/auth-bootstrap.js?v=2609271226"></script>
+  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609271226` 的 <link>。
        必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
   <!--{{APPEARANCE}}-->
 </head>
@@ -30,17 +29,15 @@
 <header class="hb-topbar">
   <div class="hb-container hb-topbar__inner">
     <a class="hb-brand" href="/" aria-label="HomeOS 授权中心 首页">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271208" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271226" alt=""></span>
       <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
     </a>
     <nav class="hb-nav" id="navbarNav" aria-label="主导航">
       <a class="hb-nav__link" data-hb-nav="home" href="/">首页</a>
-      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=2609271208">购买授权</a>
+      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=2609271226">购买授权</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="account" href="/user/dashboard/index">账号中心</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="referrals" href="/user/referrals">邀请有礼</a>
       <!-- 「管理后台」入口只对管理员账号出现：初始就是 hidden，store.js 拿到
-           /auth/me 的 isAdmin 后才摘掉这个属性。不用 .hb-auth-only（那只表示
-           「登录了」），非管理员看到的是「没有这个入口」，而不是一个点进去被
            403 挡回来的按钮。 -->
       <a class="hb-nav__link" data-hb-nav="admin" data-admin-entry href="/admin" hidden>管理后台</a>
     </nav>
@@ -56,7 +53,7 @@
 <main id="store-maintenance" class="hb-maintenance-page" hidden aria-labelledby="store-maintenance-title">
   <section class="hb-maintenance-card">
     <div class="hb-maintenance-brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271208" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271226" alt=""></span>
       <span><strong id="maintenance-site-name">HomeOS</strong><small>授权服务中心</small></span>
     </div>
     <div class="hb-maintenance-visual" aria-hidden="true">
@@ -76,8 +73,6 @@
 <main class="hb-store-main hb-store-main--flush" data-store-page="home" hidden>
   <section class="hb-hero">
     <!-- 场景背景层：与入口页/后台登录同出 design/scene 那一套（天空渐变 + 极光 + 星野 + 地平线辉光），
-         色值逐条对齐 scene.css。这里复刻的是「背景」，不是整段场景片段 —— 片段自带品牌锁定区
-         （h1 + 副题 + 状态条），塞进首页会和 hero 自己的标题打架，两份场景的 SVG 渐变 id 也会在同一
          文档里重名。山脊与小屋同理不进首页：hero 要放标题和按钮。 -->
     <div class="hb-hero__fx" aria-hidden="true">
       <span class="hb-hero__sky"></span>
@@ -96,7 +91,7 @@
       <p class="hb-lead">HomeOS 是跑在自己服务器上的全屋智能管家：3D 户型里开关灯与窗帘，统一纳管家电与环境，
         场景、安防与全屏中控都在同一个界面里完成 —— 数据留在本机，不经过任何第三方云。</p>
       <div class="hb-hero__actions">
-        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=2609271208" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
+        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=2609271226" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--primary hb-button--lg" id="home-login-link" href="/user/authentication/login">登录账号 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-register-link" href="/user/authentication/register">注册账号</a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-account-link" href="/user/dashboard/index" hidden>进入账号中心</a>
@@ -276,7 +271,7 @@
           <li>Home Assistant 实体同步</li>
           <li>中控配对与全局日志</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609271208">查看价格</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609271226">查看价格</a>
       </article>
       <article class="hb-tier hb-tier--featured" data-tone="accent">
         <header class="hb-tier__head">
@@ -288,7 +283,7 @@
           <li>3D 户型工作室与自动导图</li>
           <li>3D 交互舞台：灯、窗帘、空调、电视、扫地机</li>
         </ul>
-        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=2609271208">查看价格</a>
+        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=2609271226">查看价格</a>
       </article>
       <article class="hb-tier" data-tone="aura">
         <header class="hb-tier__head">
@@ -300,7 +295,7 @@
           <li>单个能力单独购买</li>
           <li>不影响原授权有效期</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609271208">查看增量包</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609271226">查看增量包</a>
       </article>
     </div>
     <p class="hb-tiers__note">具体在售商品与价格以商品列表为准；买错或换机都可以在账号中心自助处理。</p>
@@ -391,7 +386,7 @@
       <span><i class="fa-duotone fa-regular fa-box-open"></i></span>
       <strong>商品不可购买</strong>
       <p>该商品可能已下架或链接已失效，请返回商品列表重新选择。</p>
-      <a class="hb-button hb-button--secondary" href="/products?v=2609271208">返回商品列表</a>
+      <a class="hb-button hb-button--secondary" href="/products?v=2609271226">返回商品列表</a>
     </section>
 
     <div class="hb-checkout-shell" id="store-checkout-shell">
@@ -468,7 +463,7 @@
       </div>
 
       <aside class="hb-product-summary">
-        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=2609271208" alt="授权商品"></div>
+        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=2609271226" alt="授权商品"></div>
         <div class="hb-product-summary__content">
           <div class="hb-product-summary__badges">
             <span><i class="fa-duotone fa-regular fa-bolt"></i> <b id="store-delivery-label">自动发货</b></span>
@@ -497,11 +492,6 @@
 
 <!-- ===================== 入口分页（登录 / 注册 / 找回） ===================== -->
 <!-- 三块合用一个整页场景壳（与主项目入口页、后台登录同款）：同一份场景标记、同一块玻璃坞，
-     坞里三张表单靠 [hidden] 切换（store.js 的 showPage 按 location.pathname 切分页）。
-     合成一块而不各带一份场景，是因为 store.html 是「一份 HTML 服务所有前台路由」：
-     各带一份就要在一个响应里塞三份一模一样的场景标记。
-     样式来自 /store-static/scene/ 的分发产物；场景标记由 apps/store/api/page_shell.py 注入。
-     表单里一律用 name 而不是 id 定位字段：store.js 走的是 form.elements.email /
      .password / .confirmPassword / .code / .referralCode。 -->
 <!-- 登录 = 主控暖金（一页一色表的锚点）。此前这里没有 tone 类，靠 page.css
        的默认值兜底 —— 机制与主项目五页不同，读代码的人看不出它是刻意的。 -->
@@ -608,8 +598,6 @@
         </div>
 
         <!-- 两枚密码并排：认证三屏里找回屏同样是最长的一档（四组字段 + 甲板 + 抬头），
-             两行密码各占一行时 1366×768 上正好多出 38px 的坞内滚动条。
-             「注册邮箱」独占一行而不是与「获取验证码」并排：发码键与验证码是一件事，
              拆开读反而绕 —— 与注册屏的分组不同，是因为两屏的字段集本来就不同。 -->
         <div class="hos-row-2">
           <div class="hos-field">
@@ -670,7 +658,6 @@
 
       <form id="store-register-form" class="hos-form">
         <!-- 邮箱与「获取验证码」同一行：这一步本来就是「填邮箱 → 点发码」一个动作，
-            分两行写在版面上把它读成了两件事。顺带省下一整行的高度 —— 注册屏是
             认证三屏里最长的一屏（四组字段 + 甲板 + 抬头），1366×768 上正好差 70px。 -->
         <div class="hos-row-2">
           <div class="hos-field">
@@ -900,7 +887,7 @@
 <footer class="hb-site-footer">
   <div class="hb-container hb-site-footer__inner">
     <div class="hb-site-footer__brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271208" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609271226" alt=""></span>
       <div>
         <strong id="footer-site-name">HomeOS 授权中心</strong>
         <p>安全支付，自动发码，账号统一管理。</p>
@@ -909,7 +896,7 @@
     <div class="hb-site-footer__meta">
       <nav class="hb-site-footer__links">
         <a href="/">首页</a>
-        <a href="/products?v=2609271208">购买授权</a>
+        <a href="/products?v=2609271226">购买授权</a>
         <a class="hb-guest-only" href="/user/authentication/login">账号登录</a>
         <a class="hb-auth-only" href="/user/dashboard/index">账号中心</a>
       </nav>
@@ -1050,19 +1037,17 @@
 <div id="store-toast" class="hb-toast" role="status" aria-live="polite"></div>
 
 <!-- 手持档开关（源：design/scene/scene-depth.js）。普通脚本而不是 module：不导出任何
-     东西，只给 <html> 挂 .hos-touch（scene.css「静止档」的判据兜底），必须在首帧前跑完。
      CSP 的 script-src 含 'self'，同源外部脚本不需要 nonce。 -->
-<script type="module" src="/store-static/scene/scene-depth.js?v=2609271208"></script>
+<script type="module" src="/store-static/scene/scene-depth.js?v=2609271226"></script>
 <script src="/store-static/jquery.min.js"></script>
 <script src="/store-static/jquery.qrcode.min.js"></script>
-<script type="module" src="/store-static/htmlsafe.js?v=2609271208"></script>
-<script type="module" src="/store-static/api-error.js?v=2609271208"></script>
-<script type="module" src="/store-static/money.js?v=2609271208"></script>
-<script type="module" src="/store-static/referrals.js?v=2609271208"></script>
-<script type="module" src="/store-static/store.js?v=2609271208"></script>
+<script type="module" src="/store-static/htmlsafe.js?v=2609271226"></script>
+<script type="module" src="/store-static/api-error.js?v=2609271226"></script>
+<script type="module" src="/store-static/money.js?v=2609271226"></script>
+<script type="module" src="/store-static/referrals.js?v=2609271226"></script>
+<script type="module" src="/store-static/store.js?v=2609271226"></script>
 <!-- 状态甲板的自走读数（源：apps/store/static/entry-deck.js）。它读页面里已有的时间戳，
-     不发任何请求；没有 .hos-deck 时自行退出 —— store.html 承担了七个路由，
      其中只有认证三屏有甲板。与主应用那份是两份文件、一套 data-* 契约。 -->
-<script type="module" src="/store-static/entry-deck.js?v=2609271208"></script>
+<script type="module" src="/store-static/entry-deck.js?v=2609271226"></script>
 </body>
 </html>

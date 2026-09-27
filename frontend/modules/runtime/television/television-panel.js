@@ -1,31 +1,20 @@
 /**
  * 电视控制面板（3D 详情弹窗 / 配置预览共用）。
- *
- * 把 televisionState 归一化后的状态渲染成「封面 + 曲目信息 + 播放进度 + 开关机 / 上一集 /
- * 播放暂停 / 下一集」，命令交给 onControl 发送。对外提供 createTelevisionPanel。面板不直接
- * 访问后端：开关机与媒体控制分别由 television-state.js 生成命令；进度条靠每秒重绘推进，
- * 因为 HA 只在状态变化时上报 media_position。
  */
 import {
   televisionState,
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=2609271208";
-// DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的静态
-// import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609271208";
+} from "./television-state.js?v=2609271226";
+import { createDomFactory } from "../core/static-helpers.js?v=2609271226";
 /**
  * 创建电视面板。
- *
- * `element` 给出宿主容器时，节点按它的 ownerDocument 创建（面板被放进弹窗 / 预览 iframe 的另一份
- * 文档时才不会造出属于外部文档的孤儿节点）；省略则用全局 document。
  */
 export function createTelevisionPanel({
   element: hostElement,
   onControl: onControl = async () => {}
 } = {}) {
-  // 类名统一带 i3d- 前缀，样式分别写在 stage.css / nas-panel.css，避免与宿主页面的样式互相污染。
   const { el: createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
   const rootElement = createElement("div", "i3d-television-panel");
   // 标题区沿用 NAS 面板的样式类，两个面板在弹窗里外观一致。
@@ -34,14 +23,6 @@ export function createTelevisionPanel({
   const statusElement = createElement("span", "i3d-tv-status");
   const contentElement = createElement("div", "i3d-tv-content");
   // 设备图形：照 2D 的 .hb-media-speaker-visual 移植材质配方（机身渐变、交叉网罩、
-  // 状态光圈），形态改按电视屏框来画。
-  //
-  // 为什么换形态：2D 那个域画的是 88px 的圆形音箱，而本仓这一页是电视 / 媒体播放器弹窗，
-  // 圆球摆在标题下会被读成音箱；但两者的「材质语言」是同一套，所以沿用 2D 的
-  // 受光面径向渐变、±42° 两组重复渐变叠出的网罩、以及随状态呼吸的强调色光圈。
-  //
-  // 结构：屏框（机身）→ 屏面（封面 / 占位）→ 底部网罩条（2D 的网罩配方用在这里）→ 状态灯。
-  // 封面仍是同一个 <img>（i3d-tv-artwork），继续走原有的加载 / 失败隐藏逻辑，不另起一套。
   const visualElement = createElement("div", "i3d-tv-visual");
   visualElement.setAttribute("aria-hidden", "true");
   const visualBezelElement = createElement("div", "i3d-tv-visual-bezel");
@@ -54,7 +35,6 @@ export function createTelevisionPanel({
   const mediaMetaElement = createElement("span", "");
   const progressElement = createElement("progress", "");
   const timeElement = createElement("span", "i3d-tv-time");
-  // 开关做成两个独立按钮（而不是一个切换按钮），避免状态回传延迟时按钮文案来回跳。
   const powerOnButton = createElement("button", "i3d-tv-power");
   const powerOffButton = createElement("button", "i3d-tv-power");
   const errorElement = createElement("p", "i3d-tv-error");
@@ -83,7 +63,6 @@ export function createTelevisionPanel({
       try {
         await onControl(mediaControl.command);
       } catch (error) {
-        // 只在仍是同一个实体时展示错误，避免旧实体的失败盖住新实体的界面。
         if (!isDisposed && instanceAtSend === instanceId) {
           errorElement.textContent = error?.message || "播放控制失败，请重试。";
         }
@@ -154,7 +133,6 @@ export function createTelevisionPanel({
     errorElement.textContent = "";
     render();
     // 14 秒超时：电视开机需要几秒才会上报新状态，给足时间；
-    // 超时后放弃乐观显示并回到真实状态，避免界面永远停在「开机中…」。
     powerTimeoutId = setTimeout(() => {
       if (!isDisposed && instanceId === powerInstanceAtSend) {
         clearPendingPower();
@@ -215,7 +193,6 @@ export function createTelevisionPanel({
         pendingPower !== null ||
         !buttonControl.available ||
         !buttonControl.supported;
-      // 禁用原因（不支持 / 状态不可用）放在 title 里，鼠标悬停可见。
       powerButton.title = viewModel.editing ? "编辑预览不可控制设备" : buttonControl.reason;
     }
     rootElement.setAttribute("aria-busy", String(pendingPower !== null));
@@ -242,8 +219,6 @@ export function createTelevisionPanel({
     titleElement.textContent = state.name;
     statusElement.textContent = state.status;
     // 设备图形的四种态：开机 / 播放中 / 已暂停 / 关机。与 2D 音箱那三态
-    // （is-playing / is-paused / is-off）对齐，另加 is-on 用来点亮状态灯 ——
-    // 电视「开着但没在播」时也该有活的指示灯，而 2D 的音箱没有这一档。
     const isPaused = state.on && state.state === "paused";
     visualElement.classList.toggle("is-on", state.on);
     visualElement.classList.toggle("is-playing", state.playing);
@@ -259,7 +234,6 @@ export function createTelevisionPanel({
       artworkElement.hidden = !artworkUrl;
       if (artworkUrl) {
         // 新封面先藏起来，等 onload 之后再显示；
-        // onload 里再比一次地址，防止连续换曲时旧图的 onload 把新图的占位提前揭开。
         artworkElement.hidden = true;
         artworkElement.onload = () => {
           if (viewModel && artworkUrl === state.artwork) {
@@ -277,7 +251,6 @@ export function createTelevisionPanel({
     progressElement.value = state.position || 0;
     timeElement.textContent =
       televisionTime(state.position) + " / " + televisionTime(state.duration);
-    // 停止播放就撤掉每秒重绘的定时器，避免空闲时持续刷新。
     if (!state.playing && progressTimerId !== null) {
       clearInterval(progressTimerId);
       progressTimerId = null;
@@ -290,9 +263,6 @@ export function createTelevisionPanel({
      */
     update(nextViewModel) {
       // 释放后一律忽略：dispose() 已经 remove() 掉根节点并清空 viewModel，而 update()
-      // 会给它重新赋上视图模型并重绘 —— 那既写进一棵已摘除的 DOM，又会在下面重新
-      // 创建每秒推进进度的 setInterval；dispose() 里的清理早已跑过，那个定时器
-      // 从此没有任何人会清，一直转到页面卸载。
       if (isDisposed) {
         return;
       }

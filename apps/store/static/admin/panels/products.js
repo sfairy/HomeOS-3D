@@ -1,18 +1,16 @@
 /**
  * 商品面板。
- *
- * 商品列表与编辑器（定价、有效期、库存、功能码），以及商品目录缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609271208";
-import { api, withBusy } from "../api.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271208";
-import { money, num, pill } from "../format.js?v=2609271208";
-import { PRODUCT_TYPE } from "../vocab.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609271226";
+import { api, withBusy } from "../api.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271226";
+import { money, num, pill } from "../format.js?v=2609271226";
+import { PRODUCT_TYPE } from "../vocab.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 // --------------------------------------------------------------------------- //
 // 商品
@@ -38,7 +36,6 @@ export function productFormPayload(form) {
     active: form.elements.active.checked,
     featured: form.elements.featured.checked,
     // 下面三个是结算会读的开关，不是纯展示字段：
-    //   requiresLicense → 决定下单走「追加到已有授权」还是「新发一张码」
     isFullPrice: form.elements.isFullPrice.checked,
     packageContentsLocked: form.elements.packageContentsLocked.checked,
     requiresLicense: form.elements.requiresLicense.checked,
@@ -52,8 +49,6 @@ export function openProductEditor(product) {
   form.reset();
   form.elements.id.value = product ? product.id : '';
   $('#product-editor-title').textContent = product ? `编辑商品 · ${product.name}` : '新增商品';
-  // 隐藏域不参与 required 校验、也不保证被 form.reset() 清掉，所以显式给值：
-  // 新增商品留空，编辑商品回填。漏了这一步，「新增」会带着上一个商品的勾选提交。
   setFeaturePickerValue(picker, (product && product.featureCodes) || []);
   if (product) {
     form.elements.name.value = product.name;
@@ -84,7 +79,6 @@ export function openProductEditor(product) {
 }
 
 // 商品目录（不分页）单独拉一份：授权签发、权益编辑这些下拉框要的是**全部**在售
-// 商品，而分页后的列表只有当前一页。目录缓存放 state.products，商品变动后重拉。
 export async function loadProductCatalog() {
   const data = await api('/products?limit=500&status_filter=active');
   state.products = data.items;
@@ -99,8 +93,6 @@ export async function loadProducts() {
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
   // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
-  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
-  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
   let data;
   try {
     data = await pagedFetch('products', '/products', Object.fromEntries(params));
@@ -133,7 +125,6 @@ export async function loadProducts() {
 }
 
 // 商品在两个地方各有一份：分页列表（当前页）与完整目录（下拉框用）。
-// 编辑/删除要拿的是**行上那一条**，所以先查当前页再查目录。
 export function findProduct(id) {
   return (state.productPage || []).find(item => item.id === id)
     || (state.products || []).find(item => item.id === id);
@@ -171,7 +162,6 @@ $('#product-rows').addEventListener('click', async (event) => {
   if (deleteId) {
     const product = findProduct(deleteId);
     // 用后端给的 licenseCount / orderCount（与删除守卫同口径）如实预告结果，
-    // 避免管理员以为会真删、结果只是下架。
     const refs = [];
     if (product?.licenseCount) refs.push(`<b>${num(product.licenseCount)}</b> 条授权`);
     if (product?.orderCount) refs.push(`<b>${num(product.orderCount)}</b> 笔订单`);
@@ -194,7 +184,6 @@ $('#product-rows').addEventListener('click', async (event) => {
 });
 
 // 商品图上传：走 multipart，后端会按扩展名落盘并生成新的 ?v= 版本号，
-// 所以上传成功必须重新拉列表，否则界面还挂着旧图（浏览器也会拿缓存）。
 $('#product-rows').addEventListener('change', async (event) => {
   const input = event.target.closest('[data-product-image-upload]');
   if (!input) return;

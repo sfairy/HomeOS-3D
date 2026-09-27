@@ -1,35 +1,28 @@
 /**
  * `icon-button` / `device-button` 共用的按钮渲染器：图标、状态文案、配色与点击反馈。
- *
- * 两个控件类型外观与交互一致，差异只在默认图标与尺寸，因此共用这一份实现；
- * `components/icon-button.js` 只负责把同一份渲染器注册到两个类型名上。
  */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../utils/numbers.js?v=2609271208";
+} from "../../../utils/numbers.js?v=2609271226";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
-import { mdiIconUrl } from "../../../utils/icon-url.js?v=2609271208";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271226";
+import { mdiIconUrl } from "../../../utils/icon-url.js?v=2609271226";
 // 同门分片：entity-state
 import {
   formatEntityState,
   isDeviceButtonVisualActive,
   resolveStateIcon
-} from "./entity-state.js?v=2609271208";
+} from "./entity-state.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "./registry-visuals.js?v=2609271208";
+} from "./registry-visuals.js?v=2609271226";
 
 // 图标按钮与设备按钮共用同一份渲染器：两者结构一致，差异只在 data 里带的类型，
-// 渲染时用 component.type 区分（见下面的 isDeviceButton）。
 export const buttonRenderer = {
   render(deviceButtonComponent, deviceButtonContext) {
     const deviceButtonProperties = deviceButtonComponent.properties || {};
@@ -85,7 +78,6 @@ export const buttonRenderer = {
     const deviceButtonCenterX = deviceButtonWidth / 2;
     const deviceButtonCenterY = deviceButtonHeight / 2;
     // 光晕按角度定位到控件一侧：先换成弧度，再沿该方向按宽高的固定比例（16% / 18%）偏移，
-    // 比例取宽高各自的百分比而不是统一半径，控件被拉扁时光晕才不会跑出边缘。
     const deviceButtonGlowAngleRad = (deviceButtonGlowAngle * Math.PI) / 180;
     const deviceButtonGlowX =
       deviceButtonCenterX + Math.cos(deviceButtonGlowAngleRad) * deviceButtonWidth * 0.16;
@@ -356,8 +348,6 @@ export const buttonRenderer = {
           deviceButtonProperties.symbolSize ?? deviceButtonIconSize * 0.5,
           1,
           100,
-          // 图标取下限 1 时「一半」是 0.5 —— 兜底现在原样返回，所以在调用点先夹一次，
-          // 行为与统一前（兜底跟着夹）逐字相同。
           clampNumber(deviceButtonIconSize * 0.5, 1, 100)
         );
         const deviceButtonSymbolPercent = clampCoercedNumber(

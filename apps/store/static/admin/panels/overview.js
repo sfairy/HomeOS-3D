@@ -1,21 +1,14 @@
 /**
  * 概览面板。
- *
- * 营收、订单漏斗、待办与库存/到期提示，以及巡检、清结算等运营动作。
- *
- * 概览页：营收、漏斗、待办、巡检与清结算等运营动作。待办会跳到别的面板，跳转入口经 host。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271208";
-import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271208";
-import { api } from "../api.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271226";
+import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271226";
+import { api } from "../api.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
-// --------------------------- 概览 --------------------------- //
-// 营收时间窗文案的 key 由服务端给（last24h / last7d / last30d），只做展示、不自己算时间，
-// 避免前后端对「今天」的理解不一致。
 const REVENUE_WINDOW_LABELS = {
   last24h: '近 24 小时',
   last7d: '近 7 天',
@@ -23,7 +16,6 @@ const REVENUE_WINDOW_LABELS = {
 };
 
 // 待办磁贴：超过 0 才显示。jump 是「跳到哪个面板、先把某个筛选器设成什么」。
-// 只跳转不带筛选会让人落在没有过滤的长列表上，等于没告诉他问题在哪。
 export const OVERVIEW_TODOS = [
   {
     key: 'awaitingFulfillment', label: '待发货', tone: 'is-alert',
@@ -77,7 +69,6 @@ export function jumpFromOverview(target) {
     else if (node) {
       node.value = target.value ?? '';
       // 选项由服务端词表填的筛选器（订单状态）此刻可能还没选项：赋值给不存在的 value 会把
-      // select 静默设成空值，跳转就悄悄退化成「全部」。把意图记下来，填完选项后补一次。
       if (node.tagName === 'SELECT' && node.value !== String(target.value ?? '')) {
         PENDING_FILTER_VALUES.set(target.filter, target.value);
       }
@@ -86,17 +77,12 @@ export function jumpFromOverview(target) {
   // 目标面板可能停在别的页码上，不清零会落到空的第 N 页
   resetPage(target.page);
   // 落到列表 tab：带 tab 的面板第一个 tab 都是列表，而待办说的都是
-  // 「列表里有哪些行要处理」，落在表单 tab 上等于什么都没告诉他。
-  // 没有 tab 的面板不加 /list 后缀，地址栏保持干净。
   const tab = host.collectTabs(target.page) ? 'list' : '';
   location.hash = tab ? `#${target.page}/${tab}` : `#${target.page}`;
   host.activate(target.page, tab);
 }
 
 // 巡检状态 → 徽标语气。**只放语气，中文名由后端下发**（sweep.healthLabel，见
-// apps/store/payments/sweeper.py 的 SWEEP_HEALTH_LABELS）：后台自存一份中文名时，后端新增一档
-// 就会静默落到兜底 —— 「连续失败」被显示成「等待中」，而这块存在的全部意义就是一眼可见。
-// 未知档位按 warning 兜底（可能是版本错配），配合下面按 health 分支的说明文案一起看。
 const SWEEP_HEALTH_TONE = {
   ok: 'hb-tag--success',
   disabled: 'hb-tag--warning',
@@ -106,7 +92,6 @@ const SWEEP_HEALTH_TONE = {
   stopped: 'hb-tag--danger',
 };
 
-// 「多久以前」给中文可读量级，别丢一个秒数让人自己换算。
 function humanAge(seconds) {
   const value = Number(seconds);
   if (!Number.isFinite(value) || value < 0) return '—';
@@ -117,7 +102,6 @@ function humanAge(seconds) {
 }
 
 // 这块的意义就在于「出问题时一定要看得见」：待办区没有待办会整块隐藏，
-// 而巡检坏掉恰恰不产生任何待办（订单只是静静停在待支付），所以必须常驻显示。
 function renderPaymentSweep(sweep) {
   const pillNode = $('#overview-sweep-pill');
   const detail = $('#overview-sweep-detail');
@@ -163,7 +147,6 @@ function renderPaymentSweep(sweep) {
 }
 
 // 资金/履约异常计数。文案的重点是「这些异常不会自己报错」——运维看到
-// 非零时该去处理订单（重试发码 / 退款），而不是去查服务是不是挂了。
 export function renderIncidents(incidents) {
   const pillNode = $('#overview-incidents-pill');
   const detail = $('#overview-incidents-detail');
@@ -203,8 +186,6 @@ export function renderIncidents(incidents) {
 }
 
 // 启动期积分口径迁移（FLOAT 积分 → INTEGER 厘）的对账结果。整块只在未通过时出现：
-// 通过时没有可操作内容。文案要说清后果是**之后才发生**的，否则运营看到「迁移未通过」
-// 会以为只是历史数据的问题，而真正会炸的是下一笔下单。
 function renderPointsMigration(migration) {
   const card = $('#overview-points-migration');
   const detail = $('#overview-points-migration-detail');
@@ -233,8 +214,6 @@ export async function loadOverview() {
   renderPointsMigration(data.pointsMigration);
 
   // —— 营收 ——
-  // 钱一律用琥珀（运营域色）立住「这几个数字讲的是钱」；人工补记要单独写进注脚 ——
-  // 营收把它排除在外，差额不摆在数字旁边，运营看到「订单不少、营收偏低」只能靠猜。
   const manualNote = revenue.totalManualCents
     ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
     : '';
@@ -301,11 +280,8 @@ export async function loadOverview() {
     : emptyRow(3, `未来 ${Number(attention.expiringWindowDays || 30)} 天内没有到期的授权。`);
 
   // —— 累计 ——
-  // 每张卡是 [标签, 主数字, 补充说明, 语气]；主数字只放一个量级，拆解一律走 note（卡宽
-  // ~186px、主数字 25px，复合串必折行）。is-tone-* 只表示数字属于哪一族，告警语气排后面压过语义色。
   const referral = data.referral || {};
   // 积分负债 = 全部未兑付的积分 = balance（可用 + 冻结）。只给「可用」会低估要付的账，
-  // 只给 balance 又看不出多少已申请提现，所以主数字给总额、note 给拆解。
   const pointsTotal = Number(referral.balancePoints || 0);
   const cards = [
     ['账号', data.accounts, '', 'is-tone-blue'],
@@ -379,7 +355,6 @@ $('#overview-recompute-stock').addEventListener('click', async () => {
 });
 
 // 确认（清零）入账异常计数。文案要说清这是「我已经处理过了」而不是
-// 「问题消失了」：清零只按灭这盏灯，订单本身还在 fulfillment_failed 上等人工处理。
 $('#overview-incidents-ack').addEventListener('click', async () => {
   const ok = await askConfirm({
     title: '确认已处理',

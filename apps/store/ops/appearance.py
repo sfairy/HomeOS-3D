@@ -1,20 +1,4 @@
 """商店侧的站点配色：``data/appearance.json`` 的读写。
-
-与主应用 ``apps/server/core/appearance.py`` 是同一件事的两个副本 —— 两个服务各自独立
-构建、独立部署（``Dockerfile`` 的 app / store 两个 target 只 COPY 各自的目录），
-没有可共享的 Python 包。这里存在的只有**校验**：预设、明暗派生与令牌展开都在
-``design/scene/appearance.js`` 里，前端设置界面 import 的就是它，本模块只接收
-已经展开好的令牌表。
-
-为什么校验必须留：``tokens_to_css()`` 把键值直接拼进 ``:root{}``，键里塞一个 ``}``
-就能关掉整站样式。两道墙 —— 键必须命中令牌白名单正则，值必须命中该后缀的取值正则；
-不通过就整个请求 422，不做部分保留（半张配色表会让界面「大部分对、某一处不对」，
-比完全没配色更难排查）。
-
-本文件的 ``_TOKEN_NAME`` 正则必须与 ``design/scene/appearance.js`` 的 ``tokenNames()``
-保持一致 —— 两份副本里唯一会走散的就是这条正则，改动其一时请手工核对另一份。
-（商店页面实际加载的是它的分发副本 ``apps/store/static/scene/appearance.js``，那份由
-``design/scene/`` 手工同步，只读；改配色请改源文件，见 ``apps/store/README.md``。）
 """
 from __future__ import annotations
 
@@ -25,11 +9,6 @@ import secrets
 from pathlib import Path
 
 #: 令牌名白名单。与 ``apps/server/core/appearance.py`` 逐字相同，与
-#: ``design/scene/appearance.js`` 的 ``tokenNames()`` 一一对应。
-#:
-#: 前缀同时收 ``--hos-`` 与 ``--hb-`` 是**故意的**：前者归主应用与 3D 场景、后者归商店
-#: （appearance.js 的 ``tokensToCss`` 两个命名空间一起发）。看着像改名前缀的历史残留，
-#: 别顺手收窄 —— 收窄的结果是商店自己的令牌被 422 拒掉。
 _TOKEN_NAME = re.compile(
     r'^--(?:hos|hb)-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
 )
@@ -37,8 +16,6 @@ _TOKEN_NAME = re.compile(
 _TOKEN_NAME_EXTRA = frozenset({'--hb-accent-grad-hover'})
 
 _HEX = r'#[0-9a-f]{6}'
-#: 软色（-soft）与描边（-line）同形：都是半透明 rgba，所以共用同一个 pattern 对象
-#: ——两个后缀各自一个键是必须的（下面按后缀查表），重复的只是取值本身。
 _SOFT_PATTERN = re.compile(r'^rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.\d+\)$')
 _VALUE_PATTERNS: dict[str, re.Pattern[str]] = {
     '-rgb': re.compile(r'^\d{1,3}, \d{1,3}, \d{1,3}$'),
@@ -49,12 +26,6 @@ _VALUE_DEFAULT = re.compile(rf'^{_HEX}$')
 _VALUE_GRADIENT = re.compile(rf'^linear-gradient\(180deg, {_HEX}, {_HEX}\)$')
 
 #: 允许的预设 id。取值合法性（防写坏样式表）与「是不是我们发出去的预设」
-#: 是两件事：后者防的是下拉框里出现一个从来没见过的名字。
-#:
-#: ``custom`` 商店界面**永远不会发出**（``apps/store/static/palette.js`` 的 ``draft.preset``
-#: 只取自 ``PRESETS``，目前只有 ``amber``），保留它是为了两件事：与主应用那份同名副本
-#: 的取值集对齐，以及在 ``load()`` 时容忍一个手改/历史遗留的 ``preset`` —— 校验失败会连
-#: **tokens 一起丢弃**（见 ``load``），为一个只是标签的字段赔上整份配色不划算。
 PRESET_IDS = frozenset({'amber', 'custom'})
 
 SCHEMA_VERSION = 1
@@ -116,12 +87,9 @@ def validate_preset(preset: object) -> str:
 
 def tokens_to_css(tokens: dict[str, str]) -> str:
     """把令牌表拼成 ``:root{…}`` 样式表正文。
-
-    ``tokens`` 必须来自 :func:`validate_tokens` —— 拼接的安全性由那道白名单保证。
     """
     if not tokens:
         # 没配置时返回合法的空样式表而不是 404：<link> 拿到 404 会在控制台留下一条
-        # 常年存在的红字，而「还没配过」是完全正常的初始状态。
         return '/* HomeOS 商店配色：尚未配置，使用设计系统默认值。 */\n'
     body = '\n'.join(f'  {name}: {value};' for name, value in sorted(tokens.items()))
     return f'/* HomeOS 商店配色（由设置界面生成，勿手改） */\n:root {{\n{body}\n}}\n'
@@ -129,9 +97,6 @@ def tokens_to_css(tokens: dict[str, str]) -> str:
 
 class AppearanceStore:
     """``data/appearance.json`` 的读写。
-
-    与账号文件不同，这份文件天生要反复覆盖（管理员每拖一次色轮都可能保存一次），
-    所以写入用「临时文件 + rename」保证原子，但不拒绝覆盖。
     """
 
     def __init__(self, path: Path) -> None:
@@ -141,9 +106,6 @@ class AppearanceStore:
 
     def load(self) -> None:
         """启动时读一次。文件不存在、读不动或 schema 不认，都退回默认配色。
-
-        刻意不抛异常：配色是纯装饰，一份坏掉的配色文件绝不该让商店起不来 ——
-        那会把「管理员改错了颜色」升级成「顾客打不开商店」。
         """
         self._preset = ''
         self._tokens = {}

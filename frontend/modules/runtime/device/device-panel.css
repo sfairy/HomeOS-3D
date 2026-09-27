@@ -1,38 +1,9 @@
 /*
  * 通用设备面板（.i3d-device-panel）的设备图形与排版。
- *
- * 由 stage.css @import 引入，作用对象是 device-panel.js 渲染的通用设备弹窗（冰箱 / 冰柜 /
- * 洗碗机 / 洗衣机 / 烘干机 / 绿植）：标题行、设备图形、附加功能卡片网格。
- *
- * 设备图形与空调 / 净化器（climate-panel.css）、电视（stage.css）、窗帘（cover-panel.css）
- * 是同一套做法：纯 CSS 画的实物插画，单独占一行居中，插在标题行与内容之间，不吃指针事件、
- * 不进无障碍树。六个品类共用一棵部件树（见 device-panel.js 的 createDeviceVisual），
- * 形状差异全部落在下面的 `.is-<品类>` 上，换品类只换一个类名。
- *
- * 配色一律硬编，不取主题令牌：这是实体家电的银灰 / 陶土与绿植，主题翻成暖色浅底时跟着
- * 变米白会立刻读成「一块塑料板」——与净化器 / 空调 / 电视那几台图形同一口径。
- * 状态色是唯一的例外：状态灯按 deviceStatus 的四态上色，走的仍是下面那组硬编色，
- * 因为「正常 / 异常 / 已关闭 / 未知」是跨主题一致的语义色。
  */
 
 /* ===== 面板的竖直空间上限 ===== */
 
-/* 为什么不沿用空调那条（climate-panel.css 的 is-climate-panel）：
-   空调的上限是「可用空间的一半」，因为它面板里塞着模式 / 风速 / 温区一大堆控件，
-   不限住就会糊满整个场景。通用设备没有这个问题 —— 一台机器的插画 + 两三张卡就是全部内容，
-   而它的插画比空调的（净化器 140px）高得多：冰箱 190px、洗衣机 / 烘干机 188px。
-   用一半的上限时，光「标题 + 插画」就已经超过上限，卡片被顶到滚动区外，
-   打开面板只看到标题和一台被裁掉下半截的冰箱。这里改成「可用空间全给，上下各留 12px」，
-   另设 620px 绝对上限兜住「配了十几张卡」的情况；下限 200px 防止极矮视口算出零或负值。
-
-   上沿取**面板实际用的那个偏移量** --i3d-control-top（stage.js 的 layoutStage 写在面板的
-   行内样式上，stage.css 的 top 读的就是它），而不是 climate-panel.css 里那个
-   max(12px, min(56% - 400px, 100% - 812px)) —— 后者早被 top: var(--i3d-control-top)
-   取代，跟着它算会让面板越过下沿。
-
-   类名由 stage.js 的面板登记表挂上（hostClass: "is-device-panel"），与 NAS / 电视 / 门锁
-   同一套路数。早先这里写的是 `:has(> .i3d-device-panel:not([hidden]))`，靠结构反推品类 ——
-   只要面板根节点不再是外壳的直接子节点，整条规则就静默失效，而且浏览器里零报错。 */
 .interaction3d-stage .i3d-light-panel.is-device-panel {
   height: auto;
   max-height: min(
@@ -47,9 +18,6 @@
 
 /* ===== 图形底盘：所有品类共用的金属材质与投影 ===== */
 
-/* 两类图形的公共底盘：通用设备的 `.i3d-device-visual` 与 NAS 的 `.i3d-nas-visual`。
-   NAS 的几何体画在 nas-panel.css（硬盘位 / 面板格栅放进不通用设备那棵「机身 / 门盖 / 把手」树里），
-   但**材质与留白只在这一处定义** —— 同一份金属配方散进两份文件，换色时必然只改一处。 */
 .i3d-device-visual,
 .i3d-nas-visual {
   position: relative;
@@ -59,10 +27,8 @@
   align-self: center;
   /* 与空调 / 净化器图形的上下留白取同一组数值（2 / 10），三块内容的节奏才对得上。 */
   margin: 2px auto 10px;
-  /* 装饰性插画：点击穿透到面板本身，否则会挡住它覆盖的那片区域。 */
   pointer-events: none;
   /* 两台「金属家电」的公共配方：受光面亮、下沿暗，加一条顶部高光缝与落地外投影。
-     冰柜 / 洗碗机 / 洗衣机 / 烘干机这四台直接用这两个变量，冰箱单独补一段丝纹高光；
      NAS 底盘同属金属家电，同样取这两个变量。 */
   --i3d-appliance-light: linear-gradient(168deg, #f4f7f8, #d0d7da 46%, #9aa4a9);
   --i3d-appliance-dark: linear-gradient(168deg, #7c878d, #5a656c 54%, #363f45);
@@ -84,17 +50,6 @@
 }
 
 /* 高个机型整体缩一档。
-   冰箱 190px、洗衣机 / 烘干机 188px、绿植 182px、洗碗机 176px —— 这是四个最高的插画，
-   而冰柜只有 108px、NAS 只有 76px。差别不是审美问题：面板的竖直预算是
-   「舞台高 − 上沿偏移 − 12px」，在 366px 高的舞台上（实测用户那台就是这个量级）
-   只有 334px，而「内边距 40 + 标题 38 + 插画 190 + 间距 + 一行卡片」要 341px —— 
-   插画原尺寸时最后一行卡片必然被顶进滚动区，也就是「标题 + 半台冰箱」那一眼。
-
-   为什么用 zoom 而不是 transform: scale()：
-   图形内部全是绝对定位的 px 坐标（门缝 63px、把手 82px…），要等比缩小必须让
-   盒子尺寸与内部坐标一起缩。transform 只缩放绘制、不改盒子，父容器仍按 190px 占位，
-   等于白缩 —— 除非把每个品类的自然宽高抄成变量再逐个写 calc()，那样
-   七个品类各多一份像素值，改尺寸时必然漏改。zoom 同时缩放盒子与内部坐标，
    每个品类一行就够，也不影响父容器的测量（stage.js 读的 offsetHeight 会跟着变小）。 */
 .i3d-device-visual.is-fridge,
 .i3d-device-visual.is-dishwasher,
@@ -567,7 +522,6 @@
   margin-left: -11px;
   transform: rotate(54deg);
 }
-/* 绿植没有开关语义，不画状态灯（与 device-profiles 里 statusIndicator:false 同一口径）。 */
 .i3d-device-visual.is-plant > .i3d-device-visual-light {
   display: none;
 }

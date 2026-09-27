@@ -1,9 +1,5 @@
 /**
  * 电视 / 显示屏待机画面（poster）的 Canvas 2D 绘制。
- *
- * 没有真实电视画面时，用本模块把一张品牌宣传图渲染到电视屏幕的贴图 Canvas 上作为待机海报。
- * 只导出纯绘制函数 drawTelevisionPoster，不持有状态。内部统一按 960×540 的设计坐标系作画，
- * 函数开头用 scale 映射到实际画布尺寸。
  */
 
 /**
@@ -28,7 +24,6 @@ export function drawTelevisionPoster(canvasSize, context) {
   context.fillStyle = "#7f93a6";
   context.font = "600 15px Arial, sans-serif";
   context.fillText("SMART HOME, SIMPLY CONNECTED", 88, 119);
-  // 中文主标题：两行固定断句，避免依赖字体度量做自动换行。
   context.fillStyle = "#ffffff";
   context.font = "700 48px sans-serif";
   context.fillText("让全屋设备", 54, 224);
@@ -77,7 +72,6 @@ export function drawTelevisionPoster(canvasSize, context) {
   context.fillStyle = "#f5f8fb";
   context.font = "700 58px Arial, sans-serif";
   context.fillText("24°", 578, 148);
-  // 运行状态圆点固定在卡片右上角；填色后要把 textAlign 改回 left，避免影响后续文本。
   context.fillStyle = "#32c59b";
   context.beginPath();
   context.arc(856, 118, 31, 0, Math.PI * 2);

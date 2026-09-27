@@ -1,25 +1,14 @@
 /**
  * 扫地机底图对齐编辑器（模态弹窗，纯手写 SVG），让用户把底图摆到户型平面图正确位置，
- * 产出 `{ x, y, width, depth, rotation, opacity, visible }` 交回面板保存。
- * 单位：户型平面数据与 SVG viewBox 都以「米」为单位（SVG 用户单位 == 平面米 == 世界米）；
- * 底图由中心点 (x, y) + width/depth + rotation（度）描述，四角交给 mapCorners（与 3D 舞台共用）；
- * 屏幕像素与 SVG 单位用 getScreenCTM().a 换算，手柄半径、字号按 unitsPerPixel 反算保持视觉大小恒定。
- * 交互：空白拖动 = 平移视图，地图上拖动 = 移动地图，四角圆点 = 缩放，绿点 = 旋转，Shift 拖角 = 等比；
- * 滚轮在地图上缩放地图（1.08 步进）、否则缩放视图（1.12 步进）；双指捏合缩放地图。重绘无脏标记与 rAF，
- * 改动同步调用 renderEditor()（节点极少、交互低频，异步批处理只会增加不一致风险）。
  */
-import { mapCorners, mapSource } from "./vacuum-map.js?v=2609271208";
-import { capturePointer } from "../core/static-helpers.js?v=2609271208";
+import { mapCorners, mapSource } from "./vacuum-map.js?v=2609271226";
+import { capturePointer } from "../core/static-helpers.js?v=2609271226";
 import {
   createDomFactory,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609271208";
+} from "../core/static-helpers-editor.js?v=2609271226";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
- * 地面开洞、文字标签一律排除（不在落地层或只是标注），缺合法坐标或宽高非正的也丢掉。
- * 尺寸乘以 plan.pixelsPerMeter，非法时退化为 1，避免整块平面被乘成 0 而看不见。
- *
- * 导出仅为与 0.6.5 的模块 API 对齐（上游导出该符号）；本仓目前无外部消费者。
  */
 export function planFurniture(plan = {}) {
   // pixelsPerMeter 缺失或非正时退化为 1：宁可比例不准，也不能让整张平面缩成 0。
@@ -35,7 +24,6 @@ export function planFurniture(plan = {}) {
     "label"
   ]);
   return (plan.items || [])
-    // 坐标与尺寸必须都是有限数且为正，否则这个条目画出来只剩一条线。
     .filter(
       planItem =>
         !excludedFurnitureTypes.has(planItem.type) &&
@@ -45,7 +33,6 @@ export function planFurniture(plan = {}) {
     )
     .map(furniture => ({
       ...furniture,
-      // 尺寸换到像素尺度；rotation 归一成数字，避免字符串参与后面的三角函数运算。
       width: furniture.width * pixelsPerMeter,
       depth: furniture.depth * pixelsPerMeter,
       rotation: Number(furniture.rotation) || 0
@@ -53,13 +40,10 @@ export function planFurniture(plan = {}) {
 }
 /**
  * 打开「底图对齐」弹窗。
- * 内部维护一份 draftState.map 草稿：拖动、滚轮、输入框改的都是草稿，只有点「保存」才通过 onSave 交给面板
- * （面板再写回配置并落库），因此「关闭」按钮天然等于放弃本次修改。
  */
 export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: saveHandler }) {
   const documentRef = window.document;
   // 本弹窗的全部节点都经 DOM 工厂创建（唯一实现见 /static/shared/dom-factory.js）：
-  // 元素、SVG（必须 createElementNS，普通 createElement 拿到的是 HTML 元素）与按钮。
   const { el, svg, button } = createDomFactory(documentRef);
   const createHtmlElement = (tagName, textContent) => el(tagName, "", textContent);
   const createSvgElement = (svgTagName, svgAttributes = {}) => svg(svgTagName, svgAttributes);
@@ -114,9 +98,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   // 关闭标记：ResizeObserver 回调靠它判断自己是否还在有效生命周期内。
   let isClosed = false;
   // 尺寸观察器。必须在这里先声明：closeEditor 定义在下方、却要 disconnect 它，
-  // 而观察器本身是在弹窗挂上页面之后才创建的 —— 用 const 声明在 680 行之后，
-  // closeEditor 一旦在创建之前被调用（提前退出、创建过程中同步抛错）就会踩到
-  // 暂时性死区抛 ReferenceError，且那时 isClosed 已被置位，弹窗再也没法关掉。
   let resizeObserver = null;
   // 指针交互状态：同一时刻只可能是「拖动/平移」或「捏合」其中之一。
   let dragState = null;
@@ -124,7 +105,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 关闭并销毁弹窗。
    */
   const closeEditor = () => {
-    // 只关一次：断开观察器、关闭 dialog、移除节点，避免残留节点与观察者。
     if (!isClosed) {
       isClosed = true;
       // 可能还没创建（弹窗挂上页面前就退出）：用可选调用，别让关闭流程自己抛错。
@@ -183,12 +163,9 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   };
   /**
    * 按比例缩放底图（改草稿里的 width/depth，不是视图）。
-   * 缩放系数按「最小边不小于 0.01、最大边不超过 1e6 个单位」夹取：既避免缩到 0 后除零，
-   * 也避免数值过大后浮点精度失控。
    */
   const scaleMap = scaleFactor => {
     const draftMap = draftState.map;
-    // 两轴同步缩放，保持底图长宽比，避免地图被拉变形。
     const clampedScale = Math.max(
       0.01 / Math.min(draftMap.width, draftMap.depth),
       Math.min(1000000 / Math.max(draftMap.width, draftMap.depth), scaleFactor)
@@ -199,8 +176,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   };
   /**
    * 缩放视图（只改 viewBox，不动底图尺寸），并保持视图中心不变。
-   *
-   * 视图宽度夹在户型包围盒的 15%~1000%：再小看不清手柄，再大容易迷失方位。
    */
   const zoomView = zoomFactor => {
     const nextViewWidth = Math.max(
@@ -217,7 +192,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     };
     applyViewBox();
   };
-  // 底图本体：preserveAspectRatio=none，因为 width/depth 是用户分别设定的两轴尺寸。
   const mapImageElement = createSvgElement("image", {
     preserveAspectRatio: "none"
   });
@@ -244,7 +218,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
         furnitureEntry.rotation +
         ")",
       "data-furniture-id": furnitureEntry.id,
-      // 颜色字段必须是 6 位十六进制色值，否则退回默认灰蓝，防止注入非法属性。
       fill: /^#[0-9a-f]{6}$/i.test(furnitureEntry.color || "") ? furnitureEntry.color : "#91a4b5",
       "fill-opacity": 0.28,
       stroke: "#d0dae3",
@@ -253,7 +226,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     });
     /**
      * 往当前家具 group 里追加一个形状。
-     *
      * @param {string} shapeTagName SVG 形状标签名。
      */
     const appendFurnitureShape = (shapeTagName, shapeAttributes) =>
@@ -287,7 +259,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
           }
     );
     // 床：两只枕头 + 一条床头横线；沙发：坐垫轮廓 + 靠背分缝线。
-    // 这些都是纯装饰细节，用途是让用户一眼认出家具朝向，从而判断底图有没有转反。
     if (furnitureEntry.type === "bed") {
       appendFurnitureShape("rect", {
         x: -furnitureWidth * 0.42,
@@ -368,7 +339,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   const viewToolsElement = createHtmlElement("div");
   viewToolsElement.className = "i3d-vacuum-view-tools";
   // 「地图 ±」改底图尺寸（1.1 倍步进），「视图 ±」改 viewBox（1.2 倍步进），
-  // 步进故意不同：对齐尺寸要精细，看远看近要快。
   viewToolsElement.append(
     createButton("地图 −", () => scaleMap(1 / 1.1)),
     createButton("地图 +", () => scaleMap(1.1)),
@@ -396,7 +366,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     })
   );
   planElement.append(viewToolsElement);
-  // passive: false 才能 preventDefault，否则滚轮会带着外层页面一起滚。
   svgElement.addEventListener(
     "wheel",
     wheelEvent => {
@@ -413,7 +382,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     }
   );
   const sidebarElement = createHtmlElement("aside");
-  // 操作提示与上面的交互实现一一对应；改交互时必须同步改这里，否则用户会被误导。
   const hintElement = createHtmlElement(
     "p",
     "拖动地图移动，拖角点缩放，拖圆点旋转；Shift 等比缩放。地图上滚轮或双指缩放地图，空白处滚轮缩放视图。"
@@ -422,8 +390,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   sidebarElement.append(hintElement);
   /**
    * 在侧栏创建一个数字输入框，并与草稿对象的某个键双向绑定。
-   * 输入非法或为空时回填旧值（绝不把 NaN 写进草稿）；合法值先夹在 [minValue, maxValue] 再落盘回显。
-   * step 只记录在 dataset 上供外部增减按钮读取，输入框本身用 step="any"，否则小数步进会被取整。
    */
   const createNumberField = (
     labelText,
@@ -444,7 +410,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
       step: "any",
       value: boundObject[boundKey]
     });
-    // 步进值只存进 dataset 供外部按钮读取；输入框本身用 any，避免被浏览器取整。
     inputElement.dataset.numberStep = String(stepValue);
     inputElement.setAttribute("aria-label", labelText);
     inputElement.addEventListener("change", () => {
@@ -525,7 +490,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
       renderEditor();
     })
   );
-  // 没选地图实体时给一句提示：此时对齐没有意义，但仍可继续放置房间快捷按钮。
   const mapNoteElement = createHtmlElement(
     "p",
     draftState.map.entityId ? "" : "尚未选择地图；仍可放置房间快捷按钮。"
@@ -535,7 +499,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   mapImageElement.addEventListener("error", () => {
     mapNoteElement.textContent = "地图暂时无法载入，请检查地图实体；已保存的位置会保留。";
   });
-  // 有实体才设置 href：否则 <image> 会去请求空地址并触发一次无意义的 error。
   if (draftState.map.entityId) {
     mapImageElement.setAttribute("href", mapSource(draftState.map.entityId));
   }
@@ -544,18 +507,13 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   let lastLabelScale = null;
   /**
    * 把草稿状态同步到整个弹窗 DOM（唯一的渲染入口）。
-   *
-   * 所有交互最终都会调用它：输入框回写、底图 image 几何、手柄重建、标签字号。
    */
   function renderEditor() {
     const currentMap = draftState.map;
     // unitsPerPixel：屏幕上 1 个 CSS 像素对应多少 SVG 用户单位（即多少米）。
-    // 手柄半径、标签字号都拿它反算，这样缩放视图时手柄的视觉大小保持不变。
     const unitsPerPixel = 1 / Math.max(0.001, svgElement.getScreenCTM()?.a || 1);
     for (const [fieldPropertyKey, fieldInputElement] of fieldsByProperty) {
-      // 正在编辑的输入框不回写：否则用户打字打到一半就会被草稿值覆盖，光标也会跳。
       if (documentRef.activeElement !== fieldInputElement) {
-        // 保留两位小数，避免浮点误差显示成 12.000000000000002 这种噪声。
         fieldInputElement.value = Number(currentMap[fieldPropertyKey].toFixed(2));
       }
     }
@@ -566,19 +524,16 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
         labelElement.setAttribute(
           "font-size",
           // 字号取「11 个屏幕像素」与「家具宽度的 85% 平摊到每个字」中的较小者，
-          // 保证长名字也不会溢出家具轮廓。
           Math.min(
             unitsPerPixel * 11,
             (labelItem.width * 0.85) / Math.max(1, [...labelItem.name].length)
           )
         );
-        // 家具在屏幕上的短边不足 25 像素时直接隐藏标签，否则会糊成一团。
         labelElement.style.display =
           Math.min(labelItem.width, labelItem.depth) / unitsPerPixel < 25 ? "none" : "";
       }
     }
     // 底图几何：以中心点 (x, y) 换算成 image 的左上角，再叠加绕中心的 rotate，
-    // 与 3D 侧 mapCorners 的几何定义完全一致。
     for (const [imageAttributeName, imageAttributeValue] of Object.entries({
       x: currentMap.x - currentMap.width / 2,
       y: currentMap.y - currentMap.depth / 2,
@@ -616,7 +571,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
         })
       )
     );
-    // 旋转手柄悬在地图上边中点外侧；距离随户型尺寸缩放，避免大图上手柄离地图太远。
     const rotationRad = (currentMap.rotation * Math.PI) / 180;
     const rotateHandleDistance = currentMap.depth / 2 + Math.max(boundsWidth, boundsDepth) * 0.055;
     handlesLayerElement.append(
@@ -632,7 +586,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   }
   /**
    * 屏幕坐标 → SVG 用户坐标（即平面米）：唯一实现在 /static/shared/svg-point.js（经
-   * static-helpers-editor 桥取用）。这里只把 `svgElement` 绑上，调用点拿到的点可直接参与地图几何运算。
    */
   const toSvgPoint = pointerEvent => bridgedToSvgPoint(svgElement, pointerEvent);
   /**
@@ -645,13 +598,11 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
       x: downEvent.clientX,
       y: downEvent.clientY
     });
-    // 第二个指头落下即切换成捏合模式，同时把拖动状态清掉，避免两套手势互相打架。
     if (pointersById.size === 2) {
       downEvent.preventDefault();
       const [pinchPointerA, pinchPointerB] = [...pointersById.values()];
       pinchState = {
         // 记录初始指距（下限 1 防止除零）与初始地图尺寸；
-        // 后续捏合都以「初始值 × 比例」计算，避免逐帧累乘带来的误差与抖动。
         distance: Math.max(
           1,
           Math.hypot(pinchPointerA.x - pinchPointerB.x, pinchPointerA.y - pinchPointerB.y)
@@ -719,7 +670,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     const dragMap = draftState.map;
     const dragStartMap = dragState.map;
     if (dragState.kind === "pan") {
-      // 平移视图：屏幕位移要除以当前缩放系数才能换算成用户单位，否则缩小时会越拖越慢。
       const screenScale = svgElement.getScreenCTM().a;
       viewBox = {
         ...dragState.viewBox,
@@ -752,7 +702,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
       const cosRotation = Math.cos(dragRotationRad);
       const sinRotation = Math.sin(dragRotationRad);
       // 把屏幕位移投影到地图自身的两条轴上（乘旋转矩阵），再按角点符号决定增减；
-      // 下限 0.01 防止拖成 0 或负数。
       let nextWidth = Math.max(
         0.01,
         dragStartMap.width + (dragDeltaX * cosRotation + dragDeltaY * sinRotation) * cornerSigns[0]
@@ -786,7 +735,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     }
     renderEditor();
   });
-  // 抬起与取消都要复位指针状态；否则残留的 pointerId 会把下一次单指拖动误判成捏合。
   for (const releaseEventName of ["pointerup", "pointercancel"]) {
     svgElement.addEventListener(releaseEventName, releaseEvent => {
       pointersById.delete(releaseEvent.pointerId);
@@ -809,7 +757,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     closeEditor();
   });
   dialogElement.showModal();
-  // 初始点击「显示全部」：首次打开就把户型与地图一起框进视野，避免用户看到空白。
   viewToolsElement.lastElementChild.click();
   resizeObserver.observe(svgElement);
   return {

@@ -1,9 +1,5 @@
 /**
  * 组件封面（cover）与授权提示文案。
- *
- * 3D 交互组件未授权或未购买时，设计器 / 仪表盘用这里生成的 DOM 覆盖在组件之上，把交互挡在
- * 外面，因此兼「占位」与「门禁提示」两个职责。导出 updateInteraction3dCoverMessage、
- * createInteraction3dCover。提示文案与 class 名 `interaction3d-cover-*` 均约定死，改名会失效。
  */
 
 // 默认两行提示：第一行指向购买入口，第二行说明购买后的生效方式。
@@ -13,14 +9,12 @@ const DEFAULT_COVER_MESSAGES = [
 ];
 /**
  * 替换封面上已有的提示文案（授权状态变化后原地刷新）。
- * 不重建整块封面，重建会丢掉封面元素上的过渡动画与已有引用。
  */
 export function updateInteraction3dCoverMessage(
   coverTitleElement,
   messages = DEFAULT_COVER_MESSAGES
 ) {
   const messageElement = coverTitleElement?.querySelector?.(".interaction3d-cover-message");
-  // 用 replaceChildren 整体换掉，而不是逐个 remove / append，避免中间出现空窗帧。
   messageElement &&
     messageElement.replaceChildren(
       ...messages.map(messageText => {
@@ -38,9 +32,8 @@ export function createInteraction3dCover({ showTitle: isTitleVisible = !0 } = {}
   coverElement.className = "interaction3d-cover";
   const coverImageElement = document.createElement("img");
   // 缩略图 URL 上的版本戳与后端静态资源缓存戳机制一致；
-  // 换图后必须同步改这里，否则浏览器会一直吃旧缓存。
   ((coverImageElement.src =
-    "/static/component-thumbnails/interaction3d.png?v=2609271208"),
+    "/static/component-thumbnails/interaction3d.png?v=2609271226"),
     (coverImageElement.alt = ""),
     (coverImageElement.decoding = "async"));
   const titleElement = document.createElement("span");

@@ -1,38 +1,20 @@
-// ESM：原先是 IIFE，现在直接是模块顶层代码（页面用 <script type="module"> 加载）。
-// 金额 / 转义 / 接口错误文案的实现各只有一份，在 static/ 下同源。
-import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271208";
-import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271208";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271208";
-import { fromResponse } from "./api-error.js?v=2609271208";
-import { HBReferrals } from "./referrals.js?v=2609271208";
+import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271226";
+import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271226";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271226";
+import { fromResponse } from "./api-error.js?v=2609271226";
+import { HBReferrals } from "./referrals.js?v=2609271226";
 import { addonProducts, addonTypeLabel, applyProductFilter, availableAddonProducts, chooseProduct, isAddonProduct, isTrialProduct, primaryProductUnavailable, primaryProducts, renderAddons, renderProduct, renderProducts, requestedUpgradeLicenseId } from "./store-catalog.js";
-// 与 store-catalog.js / store-orders.js 之间是**函数级互引**（它们用这里的 loadAccount，这里用它们的
-// 渲染与支付函数）。只在事件回调里调用、都不在模块求值期用，所以是安全的；要拆得更干净就得把
-// 账号区也下沉，收益不大，故留这一处并写明。
 import { archiveOrder, cancelPendingOrderFrom, confirmAction, orderCountdownText, orderRemainingSeconds, pollOrder, showPayment, showPendingOrderNotice, stopPaymentTimers } from "./store-orders.js";
 
 
 // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图；这里复用页面已
-// 加载的 theme.css 上的 `?v=`（由 tools/bump_static_cache_versions.mjs 统一改写）补上版本号。
-// 注意 `?v=` 要用反引号包住：刷新工具是按字面量全局替换的，写成裸 `?v=` 会把这段注释也
-// 当成待改写的戳（本文件直到 apps/store/static 被纳入扫描范围才暴露这个问题）。
 let storeStaticVersion;
 
 
-// 金额格式化的唯一实现在 apps/store/static/money.js（后台同源）。保留这两个短名是因为
-// 下面已有 20+ 处调用点；它们只是绑定，不是第二份实现。
-// 支付弹窗把「¥」单独排成小一号的符号，只取数字部分
-// HTML 转义。实现在 apps/store/static/htmlsafe.js（唯一一份）；
-// 这个名字保留是因为下面已有 20+ 处调用点。
 
-// `tone` 只区分「报错」与「其它」，因为这两类需要的不是同一条通道：
-//   报错 → role=alert / aria-live=assertive，直接打断读当前内容，并及时上红边
-//   其它 → role=status / aria-live=polite，等用户读完当前这句再播报
-// 属性一律在写 textContent **之前**设置：读屏器是在 DOM 变更那一刻取用当前的角色与
 
 
 // 页面可见性切换（三张表单共用一块玻璃坞）。原先在 store-shared.js，因要用到本层的
-// primaryProducts() 判断商品详情页该落到「购买」还是「账号」区，故下沉到这里。
 function showPage() {
   const page = currentPage();
   $$('[data-store-page]').forEach(node => { node.hidden = node.dataset.storePage !== page; });
@@ -69,12 +51,8 @@ function updateDeviceReleasePolicy(payload) {
   const serverNow = Date.parse(payload?.serverTime);
   state.deviceReleasePolicy = { cooldownSeconds };
   (payload?.licenses || []).forEach(license => {
-    // The global policy fallback keeps a rolling deployment safe while an old
-    // API node still returns the previous account-level countdown shape.
     const policy = license.deviceReleasePolicy || globalPolicy;
     const nextAllowedAt = Date.parse(policy.nextAllowedAt);
-    // Use the server's clock to establish each license's remaining interval,
-    // then advance it monotonically without relying on the device clock.
     const remainingMs = cooldownSeconds === 0 ? 0 : Number.isFinite(serverNow) && Number.isFinite(nextAllowedAt)
       ? Math.max(0, nextAllowedAt - serverNow)
       : Math.max(0, Number(policy.remainingSeconds) || 0) * 1000;
@@ -100,7 +78,6 @@ function updateDeviceReleasePolicy(payload) {
 }
 
 // 把实现挂到 store-shared 的 `api` 上：每次成功拿到 /account 都会回调到这里，
-// 从而刷新各授权的解绑倒计时（见 store-shared.js 里 onAccountLoaded 的说明）。
 onAccountLoaded(updateDeviceReleasePolicy);
 
 function updateDeviceReleaseUi() {
@@ -266,9 +243,7 @@ function ownedPermanentLicense(product) {
   }) || null;
 }
 
-//: 用户在「已经买过」确认框里点了「仍然购买」后置为 true，避免第二次提交又弹一次。
 function confirmDuplicatePurchase(product) {
-  // 原专用弹窗 #duplicate-purchase-dialog 与站内确认框只差文案，统一到 confirmAction 可少一份模板、CSS 与 Esc 判断。
   return confirmAction({
     kicker: 'Duplicate Purchase',
     title: '你可能已经买过这个授权',
@@ -343,7 +318,6 @@ function applyAccountUi() {
   $('#home-login-link').hidden = Boolean(state.account);
   $('#home-register-link').hidden = Boolean(state.account);
   // 管理后台入口：只给管理员账号。标记里默认 hidden，这里只负责在确认过
-  // /auth/me 的 isAdmin 之后放行；非管理员（含未登录）保持隐藏。
   $$('[data-admin-entry]').forEach(entry => { entry.hidden = !state.account?.isAdmin; });
 }
 
@@ -396,9 +370,6 @@ function bindPasswordControls(form) {
 }
 
 function statusLabel(order) {
-  // 「已付款但要人工发卡」是前台自己的措辞（后台列表不区分这一档），所以只这一档由前台判。
-  // 其余一律用服务端下发的 statusLabel —— 它来自 apps/store/commerce/order_status.py 的唯一词表。
-  // 前台自存一份就会漏值：partially_refunded（后台可真实写入）曾因此被原样显示成 snake_case。
   if (order.status === 'paid' && order.fulfillmentMode === 'manual') return '待人工发卡';
   return order.statusLabel || order.status;
 }
@@ -438,7 +409,6 @@ async function sendRegisterCode() {
     startEmailCooldown(button, result.resendAfter || 120);
     if (result.code) {
       // 本地联调（mail_mode=echo）：服务端把验证码回显在响应里，自动填入并明确提示，
-      // 否则默认 log 模式下用户永远收不到码、注册流程直接卡死。
       form.elements.code.value = result.code;
       toast(`本地联调验证码 ${result.code}，已自动填入。`);
     } else {
@@ -499,7 +469,6 @@ async function sendResetCode() {
     form.dataset.verificationId = result.verificationId;
     startEmailCooldown(button, result.resendAfter);
     if (result.code) {
-      // 同注册流程：本地联调直接回显，避免重置密码卡在收不到验证码
       form.elements.code.value = result.code;
       toast(`本地联调验证码 ${result.code}，已自动填入。`);
     } else {
@@ -534,14 +503,11 @@ function accountOrderActions(item) {
   return actions.length ? `<div class="hb-account-actions">${actions.join('')}</div>` : '';
 }
 
-// 单张订单卡片。抽成函数是因为它有两条渲染路径：账号中心首屏与「加载更多」。
-// 两处各写一份模板的话，加载出来的卡片迟早和首屏长得不一样。
 function accountOrderCard(item) {
   const countdown = item.status === 'pending'
     ? `<p class="hb-order-countdown" data-order-expires="${escapeHtml(item.expiresAt)}" data-order-no="${escapeHtml(item.orderNo)}">剩余 ${orderCountdownText(item.expiresAt)}，超时后自动关闭</p>`
     : '';
   // 优先按订单记录的目标授权匹配：同一账号下的多张授权共享同一个 customerId，
-  // 只按 customerId 找会一律命中第一张，附加关系显示错。
   const target = item.orderType === 'addon'
     ? state.accountLicenses.find(license => license.activationCodeId === item.targetLicenseId)
       || state.accountLicenses.find(license => license.customerId === item.customerId)
@@ -551,7 +517,6 @@ function accountOrderCard(item) {
 }
 
 /** 「加载更多订单」按钮：只在还有未加载的订单时出现，并写出剩余条数。
- *  接口按页返回（默认 20 单），没有这个按钮时买满一页的用户会以为更早的订单
  *  被系统丢掉了 —— 界面上既看不到后面的单，也没有任何「还有更多」的提示。 */
 function accountOrdersMoreButton() {
   const remaining = Number(state.accountOrdersTotal || 0) - Number(state.accountOrdersLoaded || 0);
@@ -569,8 +534,6 @@ async function loadMoreAccountOrders() {
     const offset = Number(state.accountOrdersLoaded || 0);
     const data = await api(`/orders?offset=${offset}&limit=20`);
     const items = data.items || [];
-    // 游标按**实际返回条数**推进，而不是按请求的 limit：后端可能因为筛选口径
-    // 变化少给几条，按 limit 跳会被跳过一段（订单从列表里消失）。
     state.accountOrdersLoaded = offset + items.length;
     state.accountOrdersTotal = Number(data.ordersTotal ?? state.accountOrdersTotal);
     button.parentElement.remove();
@@ -586,7 +549,6 @@ async function loadMoreAccountOrders() {
 }
 
 /* 账号中心的元信息芯片。
-   状态与期限是最需要一眼扫到的两个字段，给它们语义色；来源、发卡时间这类
    只做中性展示。颜色统一走 theme.css 的令牌，不要在 JS 里写色值。 */
 function metaChip(text, variant = '') {
   return `<span class="hb-meta-chip${variant ? ` hb-meta-chip--${variant}` : ''}">${escapeHtml(text)}</span>`;
@@ -633,10 +595,6 @@ function renderAccountOverview(payload) {
   setText('[data-account-tab-count="orders"]', orders.length);
 }
 
-/* 「一键部署」指令块：脚本与**完整命令**都由后端下发（apps/store/ops/site_settings.py 的
-   DEPLOY_SCRIPTS 按后台配置的部署地址拼好），前端只负责渲染 —— 自己再拼一份脚本名的
-   话，改脚本时页面上的命令会静默 404，而那种错很难从界面上看出来。
-   后台没配部署地址时后端回空数组，这里整块不渲染。 */
 function deploymentMarkup() {
   const scripts = state.configuration?.store?.deployScripts;
   if (!Array.isArray(scripts) || !scripts.length) return '';
@@ -677,9 +635,6 @@ function renderAccount(payload) {
       : '';
     const actions = `<div class="hb-account-actions">${upgradeAction}${labelAction}${releaseAction}</div>`;
     // 来源与「是否手动发放」都由服务端下发（apps/store/core/serializers.py 的
-    // ISSUANCE_SOURCE_LABELS）。前台曾自存一份 admin_manual/historical_import/
-    // payment_manual 的映射，而后端只写 manual / payment_automatic —— 手工签发的授权
-    // 落到兜底文案，手动发放提示的判断也恒为 false。
     const source = item.issuanceSourceLabel || '后台发放';
     const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
     const validity = item.validityDays ? `${item.validityDays} 天` : '永久授权';
@@ -723,7 +678,6 @@ function renderAccount(payload) {
   }).join('');
   const orders = $('#account-orders');
   const orderItems = payload.orders || [];
-  //: 分页状态与「加载更多」：接口只返回最近 20 单，总数在 ordersTotal 里；没有按钮时买满一页的用户会以为更早订单丢了。
   state.accountOrdersLoaded = orderItems.length;
   state.accountOrdersTotal = Number(payload.ordersTotal ?? orderItems.length);
   orders.innerHTML = (orderItems.length
@@ -762,7 +716,6 @@ export async function loadAccount() {
 
 async function accountAction(event) {
   // 复制部署指令。命令原文放在 data-deploy-copy 上而不是读 <code> 的文本：
-  // 「$」提示符不进剪贴板，用户粘到终端里就能直接跑。
   const copy = event.target.closest('[data-deploy-copy]');
   if (copy) {
     try {
@@ -792,7 +745,6 @@ async function accountAction(event) {
   release.disabled = true;
   release.textContent = '读取解绑设置…';
   try {
-    // Refresh on every entry so a previously displayed cooldown cannot block new settings.
     await loadAccount();
     const license = state.accountLicenses.find(item => item.activationCodeId === activationCodeId);
     if (!license?.device) {
@@ -922,11 +874,9 @@ async function init() {
   $$('[data-product-filter]').forEach(button => button.addEventListener('click', () => applyProductFilter(button.dataset.productFilter)));
   $$('[data-account-tab]').forEach(button => button.addEventListener('click', () => showAccountTab(button.dataset.accountTab)));
   // ESC 和「关闭」按钮都会关掉这个 <dialog>，把停表和清空当前订单挂在 close
-  // 事件上，免得只按 ESC 时轮询还在后台跑、state.currentOrder 还留着旧订单。
   $('#payment-dialog').addEventListener('close', () => { stopPaymentTimers(); state.currentOrder = null; });
   $$('#payment-dialog [data-payment-close]').forEach(button => button.addEventListener('click', () => $('#payment-dialog').close()));
   // 「我已完成支付」：不等下一轮 3 秒轮询，立刻查一次状态；订单超时被关单后后端对「关单时发现
-  // 已付款」有兜底入账（reconcile._confirm_paid_after_close），用户点一下就能取回补发的激活码。
   $('#payment-refresh').addEventListener('click', async () => {
     const order = state.currentOrder;
     if (!order) return;
@@ -947,7 +897,6 @@ async function init() {
   $('#guest-purchase-trigger')?.addEventListener('click', showGuestPurchaseNotice);
   $('#guest-purchase-dismiss')?.addEventListener('click', () => $('#guest-purchase-dialog')?.close());
   // 待支付订单弹窗：右上角 X / ESC 只是关掉提示（订单仍然有效，倒计时继续走），
-  // 「取消支付」才真的关单。停表挂在 close 事件上，两条路径都不会漏。
   $('#pending-order-dialog').addEventListener('close', () => {
     clearInterval(state.pendingCountdownTimer);
     state.pendingCountdownTimer = null;

@@ -1,9 +1,5 @@
 /**
  * 授权卡片的数据整形与渲染。
- *
- * /license 授权页（编辑器中「授权信息」卡片）的展示逻辑：把 /api/v1/license/status 的原始数据
- * 整理成卡片的类型、名称、有效期与权益列表，并写入对话框内对应节点。卡片文案（已开通 / 未开通、
- * 永久、到期等）与后端状态码一一对应；权益开关只读后端返回的 featureAccess。
  */
 
 // 商品类型的中文名；"template" 类型只用于模板，不展示给用户。
@@ -40,7 +36,6 @@ function licenseCardData(licenseData = {}) {
         )
       : [],
     // 已激活、未被禁用且状态属于「可用」三档才算真正生效：
-    // STARTUP_VALIDATION_REQUIRED 是联网确认前的宽限态，租约实际有效，编辑器顶栏也按警告档处理。
     isActive =
       isLicensed &&
       licenseData.allowed !== !1 &&
@@ -66,15 +61,8 @@ function licenseCardData(licenseData = {}) {
       )
     ];
   return {
-    /**
-     * 是否已落过激活码记录（可能已失效，仅表示曾经绑定过）。
-     */
     licensed: isLicensed,
-    /**
-     * 仅在租约真正可用时展示商品详情，避免 INSTANCE_MISMATCH 等状态仍显示「基础版/永久」。
-     */
     showDetails: isActive,
-    // 自定义套餐直接展示组合名；否则看权益是否全开，全开显示「全授权」。
     type:
       primaryProduct?.type === "package"
         ? typeLabels.join(" + ")
@@ -100,7 +88,6 @@ function licenseCardData(licenseData = {}) {
  * 创建授权卡片渲染器。
  */
 export function createLicenseCard({ dialog: dialogElement }) {
-  // 卡片内所有节点统一以 #license-<key> 命名，避免与页面其它元素冲突。
   const querySection = sectionKey => dialogElement.querySelector(`#license-${sectionKey}`);
   return {
     render(data) {

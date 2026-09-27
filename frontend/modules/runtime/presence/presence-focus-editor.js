@@ -1,18 +1,11 @@
 /**
  * 「人在传感器 · 聚焦视角」配置弹窗：左侧内嵌 3D 预览（mountInteraction3d），右侧是投影方式
- * 与焦段控件，用户拖动 / 滚轮调出的结果作为 focusCamera 保存。
- * 与舞台的协议：相机操作走 runtime 的 focusCommand，命令名与 stage.js 的 editor-command 分支
- * 一一对应（edit-light-camera / focus-projection / focus-focal-length / save-light-camera）；
- * 舞台每条命令回一份 camera 快照，本模块据此回填控件，「保存此视角」时交给 onSave 写回草稿。
- * 约定：内嵌预览尺寸由 interaction3dPreviewSize 算出，需用 ResizeObserver 跟随可视区域；
- * 打开 / 关闭时派发 hb-i3d-preview-scope 并给 dialog 打标记，让 runtime.js 挂起 / 恢复渲染；
- * 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=2609271208";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
 import {
   createDomFactory,
   interaction3dPreviewSize
-} from "../core/static-helpers-editor.js?v=2609271208";
+} from "../core/static-helpers-editor.js?v=2609271226";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */
@@ -24,7 +17,6 @@ export function openPresenceFocusEditor({
   onSave: onSave
 }) {
   const editorDocument = window.document;
-  // 元素的唯一实现见 /static/shared/dom-factory.js；本文件的历史签名是 (标签名, 文本)。
   const { el, button } = createDomFactory(editorDocument);
   const createElement = (tagName, initialText) => el(tagName, "", initialText);
   const dialogElement = createElement("dialog");
@@ -49,8 +41,6 @@ export function openPresenceFocusEditor({
   viewElement.append(aspectBoxElement);
   /**
    * 把预览容器调整到户型应有的长宽比。
-   * 尺寸不是固定值：面板文档里可能写了画布比例，也可能随窗口变化，
-   * 所以每次都由 interaction3dPreviewSize 现算，而不是缓存。
    */
   const updatePreviewSize = () => {
     const previewSize = interaction3dPreviewSize(
@@ -73,7 +63,6 @@ export function openPresenceFocusEditor({
   let isBusy = false;
   let cameraState = null;
   // 命令队列的头：每条命令都把它替换成一个「等上一队列完成才放行」的 Promise，
-  // 从而把并发的 focusCommand 串成一条链（相机只有一份状态，必须按序应用）。
   let commandQueue = Promise.resolve();
   // 收集所有按钮：syncControls 统一按 isReady / isBusy 置灰，省得逐个维护。
   const actionButtons = [];
@@ -87,8 +76,6 @@ export function openPresenceFocusEditor({
   };
   /**
    * 关闭弹窗并释放预览运行时。
-   * 用 isClosed 做幂等：cancel 事件、保存成功后、异常路径都可能触发，
-   * 重复执行会让 editorRuntime 二次销毁并抛错。
    */
   const closeEditor = () => {
     if (!isClosed) {
@@ -108,9 +95,7 @@ export function openPresenceFocusEditor({
     actionButtons.forEach(actionButton => {
       actionButton.disabled = !isReady || isBusy;
     });
-    // 焦段只对透视投影有意义，正交模式下直接禁用，避免用户改了却没有效果。
     focalLengthInputElement.disabled = !isReady || isBusy || cameraState?.mode !== "perspective";
-    // 只在用户没在输入时才回填：否则命令往返一次就会覆盖掉正在敲的数字。
     if (editorDocument.activeElement !== focalLengthInputElement) {
       focalLengthInputElement.value = String(Math.round(cameraState?.focalLength || 50));
     }
@@ -130,7 +115,6 @@ export function openPresenceFocusEditor({
       return;
     }
     // 拖焦段是高频微调，若也置忙碌态，输入框会在每次往返里闪一下禁用；
-    // 但它仍要排队，保证命令按顺序落到同一份相机状态上。
     const isFocalLengthCommand = commandName === "focus-focal-length";
     const previousQueuePromise = commandQueue;
     let releaseQueueGate;
@@ -167,12 +151,10 @@ export function openPresenceFocusEditor({
         statusElement.textContent = "拖动旋转，滚轮缩放；调整完成后保存此视角。";
       }
     } catch (commandError) {
-      // 失败不关闭弹窗：状态栏提示原因，用户可以直接重试。
       if (!isClosed) {
         statusElement.textContent = commandError.message;
       }
     } finally {
-      // 先放行队列再解除忙碌态：否则下一条命令会看到 isBusy 仍为 true 而被拒绝。
       releaseQueueGate();
       if (!isFocalLengthCommand) {
         isBusy = false;
@@ -229,7 +211,6 @@ export function openPresenceFocusEditor({
   });
   const focalLengthFieldElement = createElement("label");
   focalLengthFieldElement.append(createElement("span", "焦段（mm）"), focalLengthInputElement);
-  // 先跑一次同步：此时尚未就绪，所有按钮应为禁用，避免用户在预览加载完前点击。
   syncControls();
   panelElement.append(
     statusElement,
@@ -248,13 +229,11 @@ export function openPresenceFocusEditor({
   dialogElement.showModal();
   updatePreviewSize();
   // 预览只放「这一个传感器」：属性做深拷贝后替换 security.presenceSensors，
-  // 避免预览里出现别的角色干扰调镜头。
   const draftProperties = structuredClone(properties);
   draftProperties.security = {
     presenceSensors: [structuredClone(item)]
   };
   // 相机取「传感器所在楼层」的存档视角；若当前就该楼层则退回当前相机，
-  // 都没有时交给舞台用楼层默认视角（null 即默认）。
   draftProperties.floorSelection = item.floorId;
   draftProperties.camera =
     draftProperties.floorCameras?.[item.floorId] ||
@@ -270,7 +249,6 @@ export function openPresenceFocusEditor({
     },
     editing: true,
     editingModule: "security",
-    // 户型呈现完成后才可以发相机命令；只做一次，避免重复进入聚焦态。
     onPresented: () => {
       if (!isReady && !isClosed) {
         isReady = true;

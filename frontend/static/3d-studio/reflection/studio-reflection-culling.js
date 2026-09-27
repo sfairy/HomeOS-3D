@@ -1,10 +1,5 @@
 /**
  * 地面反射的可见性剔除：逐面镜子渲染反射贴图时，把「不可能出现在镜像画面里的网格」临时隐藏，
- * 减少反射通道的绘制量。
- *
- * 工作方式：add 收集候选网格 → begin(capture, camera) 以该面镜子在镜像贴图里实际占用的 UV 范围
- * 收窄相机投影矩阵 → 用收窄后的视锥整体剔除 → restore 恢复。capture.matrix 是「世界坐标 → 镜像
- * 贴图 UV 空间」的矩阵，capture.map 是反射渲染目标（用其宽度换算纹素尺寸）；不申请 GPU 资源。
  */
 
 /**
@@ -12,14 +7,11 @@
  */
 export function createReflectionCulling(THREE) {
   // 三种缓存都用 WeakMap：网格被回收后缓存自动失效，不会随场景编辑无限增长。
-  // boundsCacheByGeometry 记的是「包围盒是按哪个版本的 position 属性算的」，
-  // boxCacheByMesh 记世界包围盒，entryCacheByMesh 复用候选条目对象。
   const boundsCacheByGeometry = new WeakMap();
   const boxCacheByMesh = new WeakMap();
   const entryCacheByMesh = new WeakMap();
   const candidateEntries = [];
   const hiddenMeshes = [];
-  // 下面这些临时对象在构造函数里建一次，避免每帧在热路径上反复 new。
   const scratchClipVector = new THREE.Vector4();
   const scratchNdcMatrix = new THREE.Matrix4();
   const scratchProjectionMatrix = new THREE.Matrix4();
@@ -31,7 +23,6 @@ export function createReflectionCulling(THREE) {
     skippedCaptures: 0
   };
   // 自定义着色器材质无法保证在镜像相机下行为一致（可能读屏幕坐标），
-  // 位移贴图会改变顶点位置使包围盒失真，两类都不参与剔除。
   const isUnsupportedMaterial = material =>
     !material || material.isShaderMaterial || material.displacementMap;
 
@@ -77,7 +68,6 @@ export function createReflectionCulling(THREE) {
       boxCacheByMesh.set(mesh, cachedBox);
     }
     // 用「局部包围盒 + 世界矩阵」两个比较对象判断是否过期，
-    // 比每次都重新 applyMatrix4 便宜，而相等比较会直接短路。
     if (
       !cachedBox.ready ||
       !cachedBox.local.equals(localBounds) ||
@@ -91,9 +81,6 @@ export function createReflectionCulling(THREE) {
     return cachedBox.box;
   }
 
-  /**
-   * 清空候选列表并恢复上一轮被隐藏的网格。
-   */
   function reset() {
     restore();
     candidateEntries.length = 0;
@@ -105,7 +92,6 @@ export function createReflectionCulling(THREE) {
    */
   function add(candidateMesh, skipShadowCasters = false) {
     // 只有「自带视锥剔除、无子节点、非骨骼 / 非实例化 / 无变形目标」的普通网格才安全：
-    // 子节点与实例化网格的可见性会影响多个渲染项，单独隐藏会误伤。
     if (
       !candidateMesh.isMesh ||
       !candidateMesh.visible ||
@@ -123,8 +109,6 @@ export function createReflectionCulling(THREE) {
       return;
     }
     const worldBounds = getWorldBounds(candidateMesh);
-    // 包围盒数值必须全为有限值，否则 NaN 会让 intersectsBox 恒为 false，
-    // 结果是把本该可见的网格藏起来，出现「反射里少东西」的怪现象。
     if (
       worldBounds &&
       Number.isFinite(
@@ -138,7 +122,6 @@ export function createReflectionCulling(THREE) {
     ) {
       let entry = entryCacheByMesh.get(candidateMesh);
       if (!entry) {
-        // 条目在网格生命周期内复用，避免每帧为同样的网格新建对象。
         entry = {
           object: candidateMesh,
           box: worldBounds
@@ -151,7 +134,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 针对一面镜子开始一轮剔除：把镜面源物体的世界包围盒投影到镜像贴图 UV 空间，得到它实际占用的矩形，
-   * 据此构造「只渲染这块矩形」的投影矩阵并做视锥剔除（既提高有效分辨率，也剔掉大量无关网格）。
    * @returns {boolean} 返回 false 表示镜面在贴图上完全不可见，整次反射可以跳过。
    */
   function begin(capture, camera) {
@@ -173,8 +155,6 @@ export function createReflectionCulling(THREE) {
             1
           )
           .applyMatrix4(capture.matrix);
-        // w <= 0 表示该角点落在镜像相机背后，UV 没有意义；
-        // 此时放弃收窄，退回整屏投影（isInsideFrustum = false）。
         if (scratchClipVector.w <= 0.00001) {
           isInsideFrustum = false;
           break;
@@ -190,7 +170,6 @@ export function createReflectionCulling(THREE) {
     scratchProjectionMatrix.copy(camera.projectionMatrix);
     if (isInsideFrustum) {
       // 边距 = 固定的 14/1024（经验值，覆盖镜面自身的厚度与法线扰动）
-      //      + 2 个纹素（吸收采样时的双线性插值，防止边缘出现一条透明缝）。
       const edgePadding = 0.013671875 + 2 / capture.map.width;
       minU = Math.max(0, minU - edgePadding);
       minV = Math.max(0, minV - edgePadding);
@@ -204,7 +183,6 @@ export function createReflectionCulling(THREE) {
       const uSpan = maxU - minU;
       const vSpan = maxV - minV;
       // 该矩阵把 [minU, maxU] × [minV, maxV] 这段 NDC 区域拉伸到整个 [-1, 1]，
-      // 等价于给相机换了个更窄的视锥，只渲染镜面用到的那块区域。
       scratchNdcMatrix.set(
         1 / uSpan,
         0,
@@ -241,9 +219,6 @@ export function createReflectionCulling(THREE) {
     return true;
   }
 
-  /**
-   * 恢复所有被本轮剔除隐藏的网格。
-   */
   function restore() {
     for (const hiddenMesh of hiddenMeshes) {
       hiddenMesh.visible = true;

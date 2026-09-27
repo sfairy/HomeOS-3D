@@ -1,12 +1,5 @@
 /*
  * 区块三：运行期桥接（WebSocket、订阅、状态缓存、动作派发）。
- *
- * connectRuntime 是入口：连上后按文档里登记过的实体分批订阅，把推送分发给已渲染的控件，
- * 并把「点了按钮到 HA 确认之间」的那段时间用乐观状态顶上（applyOptimisticToggle）。
- * 历史曲线的拉取与重试（图表历史缓存）也挂在同一条链上。
- *
- * 本区块是唯一持有连接与重试计时器的地方；它不改文档、不建选中框，
- * 需要改 DOM 时一律转调 document-core.js 的刷新方法。
  */
 
 import {
@@ -16,26 +9,26 @@ import {
   presenceMotionEventConfig,
   renderAirConditionerAirflowLayer,
   renderRegisteredComponent
-} from "../registry.js?v=2609271208";
-import { apiErrorMessage } from "../../../utils/api-error.js?v=2609271208";
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609271208";
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
-import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609271208";
+} from "../registry.js?v=2609271226";
+import { apiErrorMessage } from "../../../utils/api-error.js?v=2609271226";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609271226";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271226";
+import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609271226";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "../entity-power.js?v=2609271208";
+} from "../entity-power.js?v=2609271226";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../../shared/virtual-entities.js?v=2609271208";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271208";
-import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609271208";
-import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609271208";
-import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609271208";
+} from "../../../shared/virtual-entities.js?v=2609271226";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271226";
+import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609271226";
+import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609271226";
+import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609271226";
 import {
   coverToggleServiceForComponent,
   relatedAirerCurrentPositionSensor,
@@ -49,36 +42,32 @@ import {
   relatedWaterHeaterEntities,
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive
-} from "../../controls/cover-runtime.js?v=2609271208";
-// 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
-// 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271208";
+} from "../../controls/cover-runtime.js?v=2609271226";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271226";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "../runtime-caches.js?v=2609271208";
+} from "../runtime-caches.js?v=2609271226";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "../runtime-document.js?v=2609271208";
+} from "../runtime-document.js?v=2609271226";
 import {
   OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS,
   RUNTIME_SUBSCRIPTION_ENTITY_LIMIT,
   componentDialogTitle,
   createOptimisticToggleTimeoutError,
   isSupportedComponentAction
-} from "./primitives.js?v=2609271208";
+} from "./primitives.js?v=2609271226";
 
 
 export const runtimeBridgeMethods = {
   /**
    * 连接运行期通道并订阅当前页需要的实体。
-   * 订阅集合不等于「页面上写到的实体」，还要补齐一批隐式依赖：弹窗里引用的实体、人体传感器配套的「无人 移动」实体、扫地机的状态传感器与清扫模式、窗帘的电机反向开关与晾衣机的位置实体等 —— 漏订一个，对应
-   * 控件就会永远停在旧状态。force 为 true 时跳过「订阅集合没变就不重连」的短路，用于息屏 / 网络恢复与补数据重试。
    */
   connectRuntime({ force: forceReconnect = false } = {}) {
     if (!this.document || this.destroyed) {
@@ -100,7 +89,6 @@ export const runtimeBridgeMethods = {
     ];
     const subscriptionEntityIds = collectEntityIds(runtimeComponents);
     // 弹窗是「脱离页面」的一块内容：它的实体可能这一页根本没用过，
-    // 不在这里补进订阅集合，弹窗里的控件就只会有初始状态。
     const activePopupDefinition = this.activePopupId
       ? (this.document.customPopups || []).find(
           customPopupDefinition => String(customPopupDefinition.id || "") === this.activePopupId
@@ -112,7 +100,6 @@ export const runtimeBridgeMethods = {
       }
     }
     // 人体传感器的 event 实体只报「有人移动」，配套的 sensor 才报「无人移动」；
-    // 订阅必须覆盖到配套实体，否则界面会一直停在「有人」。
     for (const eventEntityId of [...subscriptionEntityIds]) {
       if (this.entityMetadata.get(eventEntityId)?.domain !== "event") {
         continue;
@@ -138,7 +125,6 @@ export const runtimeBridgeMethods = {
       }
     }
     // 扫地机的工作状态传感器单独存在，其 vacuum 本体不在订阅集合里时也要一起补上，
-    // 否则详情里的「清扫中」不会随任务变化。
     for (const sensorEntityId of [...subscriptionEntityIds]) {
       const sensorMetadata = this.entityMetadata.get(sensorEntityId);
       if (
@@ -350,7 +336,6 @@ export const runtimeBridgeMethods = {
           });
         }
         this.reconnectAttempt = 0;
-        // 订阅请求已发出（服务端仍可能随后以 4400 拒绝，那时会再报一次不可用）。
         this.options.onRuntimeAvailabilityChange?.(true);
         runtimeSocket.send(
           JSON.stringify({
@@ -537,8 +522,6 @@ export const runtimeBridgeMethods = {
               " 个，已停止重连。请减少统计或控件中绑定的实体。"
             : "实时状态订阅请求无效，已停止自动重连。";
         // 这一条是「永久停止」：渲染层不会再重连，画面会停在最后一帧。
-        // 除了进日志，还要让宿主页面有机会把「画面可能已过期」显示出来
-        // （展示页据此挂常驻横幅，见 display.js 的 onRuntimeAvailabilityChange）。
         this.options.onRuntimeAvailabilityChange?.(false, closeReasonMessage);
         this.options.onError?.(new Error(closeReasonMessage));
         return;
@@ -555,8 +538,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 断开运行期订阅并作废当前连接。
-   * socketGeneration 递增是关键作废手段：断开是异步的，旧连接之后仍可能派发消息或错误，
-   * 靠代数比对全部丢弃，避免旧连接影响新订阅。
    */
   disconnectRuntime() {
     this.socketGeneration += 1;
@@ -577,8 +558,6 @@ export const runtimeBridgeMethods = {
     let socketCloseTimer;
     /**
      * 取消「等待旧 socket 关闭」的兜底定时器与事件监听。
-     * 被 closePendingSocket 与 socket 自身的 close 事件共用：后者覆盖「连接在超时前就
-     * 自己失败」的情况，避免定时器空转。
      */
     const cancelSocketCloseWait = () => {
       window.clearTimeout(socketCloseTimer);
@@ -587,8 +566,6 @@ export const runtimeBridgeMethods = {
     };
     /**
      * 清理等待逻辑并关闭旧的运行期 socket。
-     * 调用方已排除非 CONNECTING 的状态：连接中的 socket 直接 close 会被浏览器忽略，必须
-     * 等它 open 之后（或超时兜底）再关；close() 前再确认一次状态，避免重复关闭。
      */
     const closePendingSocket = () => {
       cancelSocketCloseWait();
@@ -606,14 +583,10 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 给「状态尚未补齐」的折线图实体安排一次补数据重连。
-   * 只针对折线图：其它控件拿到当前状态就能画，折线图还要历史序列，缺失会一直空着。
-   * 指数退避（500ms 起、封顶 10s）最多 5 次，每轮都用连接代数校验，重连或销毁后放弃本轮。
    */
   scheduleRuntimeHydrationRetry(subscription, generationId) {
     /**
      * 判断本次订阅里是否还有折线图实体缺数据（决定要不要继续补数据重试）。
-     * 只盯折线图：其它控件拿到当前状态就能渲染，只有折线图依赖历史序列，缺失会一直空着；
-     * 是否缺数据交给 lineChartRuntimeStateNeedsHydration 判定。
      */
     const needsHydration = () => {
       const { entityIds: hydrationEntityIds, runtimeComponents: hydrationComponents } =
@@ -645,7 +618,6 @@ export const runtimeBridgeMethods = {
     }
     this.runtimeHydrationRetryAttempt += 1;
     // 退避公式 2^(n-1) × 500ms：第 1 次 500ms、第 2 次 1s……封顶 10s，
-    // 兼顾「刚断就恢复」与「别一直重连」。
     const hydrationRetryDelayMs = Math.min(
       10000,
       2 ** (this.runtimeHydrationRetryAttempt - 1) * 500
@@ -665,8 +637,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 注册「实体状态变化 → 回调」的运行期处理器。
-   * 同一实体可挂多个处理器（被多个控件引用），因此按实体存 Set；传入 scope 组件 ID 后
-   * 组件销毁时会自动注销，避免控件层忘记解绑导致泄漏。
    */
   registerRuntimeStateHandler(handlerEntityId, stateHandler, handlerScopeComponentId = null) {
     const runtimeStateHandlerKey = String(handlerEntityId || "");
@@ -693,9 +663,6 @@ export const runtimeBridgeMethods = {
       this.cleanups.push(removeRuntimeStateHandler);
     }
   },
-  /**
-   * 注册历史曲线刷新回调（定时轮询与手动刷新都会触发）。
-   */
   registerHistoryChartRefresher(refresherCallback, refresherComponentId = null) {
     if (typeof refresherCallback != "function") {
       return;
@@ -723,14 +690,10 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 合并短时间内的状态推送，延迟统一刷新。
-   * 一次状态变化常带来十几个实体更新，逐个刷新会连续触发重排；这里把实体 ID 攒进集合、
-   * 只保留一个定时器（重设即重新计时），抖动窗口内的刷新压成一次。
    */
   scheduleRuntimeRender(scheduledEntityId, renderDelayMs = 120) {
     if (!this.destroyed && !!this.document && !!scheduledEntityId) {
       this.runtimeRenderEntityIds.add(String(scheduledEntityId));
-      // clearTimeout + 重新 setTimeout 是刻意的防抖：窗口内再来一个实体就整体顺延，
-      // 避免连续推送把刷新拆成很多帧。
       window.clearTimeout(this.runtimeRenderTimer);
       this.runtimeRenderTimer = window.setTimeout(
         () => {
@@ -745,11 +708,6 @@ export const runtimeBridgeMethods = {
       );
     }
   },
-  /**
-   * 请求刷新历史曲线（请求键由文档代数、页面路径、弹窗 ID 与弹窗代数组装）。
-   * 交给 HistoryRefreshCoordinator 去重：多个图表、定时轮询与可见性恢复可能同时触发，
-   * 协调器保证同一请求键同时只跑一趟。
-   */
   refreshHistorySeries() {
     if (!this.document || this.destroyed || document.visibilityState === "hidden") {
       return;
@@ -764,11 +722,6 @@ export const runtimeBridgeMethods = {
       this.refreshHistorySeriesPass()
     );
   },
-  /**
-   * 历史曲线刷新失败后的重试（指数退避 1s 起、封顶 8s，最多 4 次）。
-   *
-   * 已有重试排队或页面隐藏时不再安排：隐藏状态下刷新本来就会被跳过，排了只是空跑。
-   */
   scheduleHistoryRetry() {
     if (
       this.destroyed ||
@@ -787,11 +740,6 @@ export const runtimeBridgeMethods = {
       this.refreshHistorySeries();
     }, retryDelayMs);
   },
-  /**
-   * 实际拉取历史数据并驱动各图表刷新（一轮）。
-   * 开工前记下文档代数与弹窗代数，请求返回后逐项校验：期间换过文档或弹窗的结果一律丢弃，
-   * 否则上一份文档的数据会画进当前图表。
-   */
   async refreshHistorySeriesPass() {
     if (!this.document || this.destroyed || document.visibilityState === "hidden") {
       return;
@@ -800,11 +748,6 @@ export const runtimeBridgeMethods = {
     const popupGeneration = this.historyPopupGeneration;
     const historyPagePath = this.page?.path || "";
     const historyRequestsByEntityId = new Map();
-    /**
-     * 收集一批组件里需要历史数据的实体及其请求参数，写入 historyRequestsByEntityId。
-     * 只有折线图与存在感传感器需要历史：前者默认 600s 采样 / 24h，后者 300s / 24h；间隔夹在 30s~24h、时长夹在 1h~168h —— 太密会把后端打满，区间太短则图表没内容。同一实体被多处引用时合并为一条请求，并保留 shared /
-     * 页面 / 弹窗等来源信息，供返回时判断这批数据是否仍属于当前上下文。
-     */
     const collectHistoryRequests = (historySourceComponents, requestContext) => {
       const historyComponents = collectComponents(
         historySourceComponents,
@@ -892,21 +835,12 @@ export const runtimeBridgeMethods = {
     let didUpdateSeries = false;
     let didFailHistory = false;
     const pendingHistoryRequests = [...historyRequestsByEntityId];
-    /**
-     * 取当前的历史请求上下文，用于判断在途请求的返回值是否已经过期。
-     * 文档代数、页面路径、弹窗 ID、弹窗代数任一变化都意味着用户已切走，这批历史数据不能再画进当前图表。
-     */
     const currentHistoryContext = () => ({
       documentGeneration: this.historyDocumentGeneration,
       pagePath: this.page?.path || "",
       popupId: this.activePopupId || null,
       popupGeneration: this.historyPopupGeneration
     });
-    /**
-     * 串行拉取排队中的历史请求，并把结果写进历史序列缓存。
-     * 用 while + shift 串行而非并发：历史查询对后端较重，一页可能有十几个图表，并发会瞬间
-     * 打满后端；每轮开头校验请求是否仍属当前上下文；缓存新鲜（距抓取不超 interval 秒）则跳过。
-     */
     const fetchHistoryRequest = async () => {
       while (pendingHistoryRequests.length) {
         const [requestEntityId, requestOptions] = pendingHistoryRequests.shift();
@@ -1024,8 +958,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 判断某实体的乐观态是否已被真实状态确认，确认后清除乐观标记。
-   * 三个出口：无乐观态 / 乐观态超有效期 / 真实状态与期望一致，均算确认。
-   * 灯效控件多一层：亮度等可视属性未到位时不算确认，否则会先按默认亮度闪一帧。
    */
   optimisticStateIsConfirmed(optimisticEntityIdInput, optimisticStateUpdate) {
     const pendingOptimistic = this.pendingOptimisticStates.get(
@@ -1080,14 +1012,11 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 刷新开关类控件的可视状态（含乐观态与状态未落定时的过渡态）。
-   * cover 域单独处理：窗帘 / 晾衣机的「开」看位置到达而非 state，梦幻帘另有一套口径；
-   * 编辑器强制预览态优先级最高，用于属性面板实时预览。
    */
   updateOptimisticToggleVisuals(entityIdFilter, componentIdFilter = null) {
     for (const [componentId, componentRecord] of this.componentRecords) {
       const componentBoundEntity = componentRecord.bindings?.entity?.entityId;
       // 用电源实体而不是绑定实体去取状态：浴室取暖器这类设备的开关在 light 兄弟实体上，
-      // 拿绑定实体的状态永远画不出开态。
       const resolvedPowerEntityId = componentBoundEntity
         ? this.powerEntityId(componentRecord, componentBoundEntity)
         : "";
@@ -1107,7 +1036,6 @@ export const runtimeBridgeMethods = {
         continue;
       }
       const entityState = this.states.get(resolvedPowerEntityId);
-      // cover 域走位置判断，不能按 on/off 处理，所以先分出这一支。
       const isCoverEntity = String(resolvedPowerEntityId || "").startsWith("cover.");
       const isDreamCurtain =
         isCoverEntity &&
@@ -1325,15 +1253,12 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 写下乐观的开关状态并立即刷新界面，返回可撤销的还原函数。
-   * 交互路径先让界面响应，再等 HA 推送确认；8 秒内没等到就自动回滚，
-   * 既不让界面长期停在错误状态，也给慢设备留余量。
    */
   applyOptimisticToggle(toggleEntityIdInput, toggleComponent = null) {
     const optimisticEntityId = toggleEntityIdInput;
     const resolvedPowerTargetEntityId = this.powerEntityId(toggleComponent, optimisticEntityId);
     const coverEntityState = this.states.get(resolvedPowerTargetEntityId);
     // 状态缓存里可能存的是 `{newState, oldState}` 包装（推送时的原始载荷），
-    // 也可能直接是状态对象，两种形状都要兼容。
     const currentEntityState = resolveStateEntry(coverEntityState, {
       entityId: resolvedPowerTargetEntityId,
       attributes: {}
@@ -1354,7 +1279,6 @@ export const runtimeBridgeMethods = {
         : runtimeCoverStateIsActive(coverEntityState)
       : entityPowerIsOn(resolvedPowerTargetEntityId, coverEntityState, optimisticComponent));
     // 窗帘类乐观态直接改 state 与 current_position（HA 的 cover 约定字段），
-    // 梦幻帘没有位置概念，因此不加 current_position。
     const optimisticState = isCoverDomainEntity
       ? {
           ...currentEntityState,
@@ -1411,8 +1335,6 @@ export const runtimeBridgeMethods = {
       }
       restoreConfirmedState();
       // 回滚必须说出来：界面自己变回去、用户只看到「点了没反应」会反复点，
-      // 而事实是命令已发出、设备 / HA 未回报状态，这条一次性提示是它唯一的出口。
-      // 只在真的回滚了这一支上报（手动撤销或 HA 推送到达时回滚函数已被清掉）。
       this.options.onError?.(createOptimisticToggleTimeoutError(resolvedPowerTargetEntityId));
     }, OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS);
     this.states.set(resolvedPowerTargetEntityId, nextStoredState);
@@ -1429,8 +1351,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 解析组件真正该用的「电源实体」，即开关语义挂在哪一个实体上。
-   * 三级回退：实体画像的电源目标 → 浴室取暖器挂同设备照明实体的约定 → 组件自身绑定实体；
-   * 第三级兜底，保证任何情况下都返回可用实体。
    */
   powerEntityId(
     powerComponent,
@@ -1448,7 +1368,6 @@ export const runtimeBridgeMethods = {
       return this.runtimeEntityId(resolvedPowerTarget);
     }
     // 浴室取暖器的开关能力在 HA 里落在同设备的 light 实体上（本体只有 climate），
-    // 这是设备侧的字段约定，只能按「同设备 + light 域 + 元数据可用」来找。
     const relatedContext = relatedPopupContext(
       powerComponent,
       this.entityMetadata,
@@ -1471,8 +1390,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 返回把绑定重指向电源实体的组件副本，供运行期刷新使用。
-   * 电源实体与绑定实体一致时原样返回；不一致时把原实体 ID 记进
-   * properties.runtimePowerEntityId —— 状态推送按电源实体来，但文案与其它绑定仍按原实体。
    */
   runtimePowerComponent(
     runtimeComponent,
@@ -1504,8 +1421,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 切换到指定页面并重渲染、重订阅。
-   *
-   * 目标页不存在时静默忽略：跳转目标可能来自旧版文档的按钮配置，不该因此报错。
    */
   navigate(targetPagePath) {
     const targetPage = this.document?.pages.find(
@@ -1513,8 +1428,6 @@ export const runtimeBridgeMethods = {
     );
     if (targetPage) {
       this.page = targetPage;
-      // 切页会重建全部控件，上一页遗留的补数据重试必须清掉，否则它会拿旧页的
-      // 实体 ID 去订阅，把新页的订阅额度挤占掉。
       window.clearTimeout(this.runtimeHydrationRetryTimer);
       this.runtimeHydrationRetryTimer = null;
       this.runtimeHydrationRetryAttempt = 0;
@@ -1527,22 +1440,18 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 图标显隐虚拟实体的作用域键。
-   * 按页面区分，不同页面的同一开关互不影响；缺页面信息时退化成 "current-page"。
    */
   iconVisibilityPageKey() {
     return String(this.page?.path || this.page?.id || "current-page");
   },
   /**
    * 当前页图标按钮的显隐状态（缺省视为显示）。
-   * 只把显式 false 当作隐藏：状态未写入时按可见渲染，否则首帧图标会空一下再出现。
    */
   iconVisibilityState() {
     return this.virtualEntityStates.get(this.iconVisibilityPageKey()) !== false;
   },
   /**
    * 切换「虚拟实体」的开关状态（目前只用于图标按钮的整体显隐）。
-   * 虚拟实体是渲染器自造的（virtual.xxx），不来自 HA，只存在本实例的状态缓存里。
-   * @throws {Error} 不是图标显隐类虚拟实体，或当前页没有图标按钮（效果）控件。
    */
   toggleVirtualEntity(virtualEntityId) {
     const parsedVirtualEntity = parseVirtualEntityId(virtualEntityId);
@@ -1569,8 +1478,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 切换效果层的激活态并在需要时播一次淡变。
-   * 先读 offsetWidth 强制回流，否则「加过渡类又立刻换激活类」会被并入同一次样式计算，
-   * 过渡不生效。
    */
   setEffectLayerActive(layerHostElement, isActive, fadeDurationSeconds = 0) {
     if (!layerHostElement) {
@@ -1602,8 +1509,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 按实体灯效状态同步效果层的不透明度与滤镜。
-   * 最终透明度 = 用户设定的不透明度 × 灯效状态推出的系数；awaiting-light-visual 标记
-   * 用于状态未到达时先不显示，避免闪一帧默认亮度。
    */
   syncEffectLayerLightVisual(effectComponent, layerElement) {
     if (!layerElement || effectComponent?.type !== "icon-button-effect") {
@@ -1637,8 +1542,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 取灯具最近一次确认过的可视状态（先内存缓存，再本地存储）。
-   * 走本地存储是为了整页刷新后仍按上次亮度 / 色温绘制；超过 30 天（2592000000ms）
-   * 的缓存直接丢弃，避免用户换灯后一直沿用旧属性。
    */
   cachedLightVisualState(lightEntityIdInput) {
     const lightEntityId = String(lightEntityIdInput || "");
@@ -1674,7 +1577,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 记住灯具最后一次「亮着」的可视属性，供下次开机或状态缺失时还原外观。
-   * 只在含亮度或色温的更新里记录：关灯推送通常缺省这些属性，照记会把上次亮度覆盖成空值。
    */
   rememberLightVisualState(visualEntityIdInput, visualStateUpdate) {
     const visualEntityId = String(visualEntityIdInput || "");
@@ -1685,8 +1587,6 @@ export const runtimeBridgeMethods = {
     const stateAttributes = newEntityState.attributes;
     /**
      * 判断状态属性是否为可用数值：非 null/undefined/空串且能转成有限数。
-     * 关机或离线时亮度/色温可能是 "" 或 null，Number() 会得到 0 或 NaN，
-     * 因此既排除空值又做 Number.isFinite 校验，避免无效值写进缓存。
      */
     const attributeHasNumericValue = attributeName =>
       stateAttributes[attributeName] !== null &&
@@ -1728,7 +1628,6 @@ export const runtimeBridgeMethods = {
     this.confirmedLightVisualStates.set(visualEntityId, persistedVisualEntry);
     try {
       // 写本地存储放进 try：隐私模式或配额用尽会直接抛错，
-      // 缓存失败不该影响灯效渲染这条主路径。
       window.localStorage?.setItem(
         "homeos:light-visual:" + visualEntityId,
         JSON.stringify({
@@ -1740,8 +1639,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 给控件绑定运行期动作（单击 / 双击 / 长按）。三种手势共用一个指针序列、靠定时器区分：单击要等一个双击
-   * 判定窗口才能确定不是双击，长按要在阈值时刻先触发，触发过长按后还要抑制随之而来的 click，否则一次操作 会发两个请求；toggle 动作派发前先写乐观态让界面即时响应。逻辑动作类型不受支持时会被过滤成 null，
-   * 因此「有动作配置」不等于「动作可用」。
    */
   bindRuntimeActions(runtimeActionElement, runtimeActionComponent) {
     let clickResetTimer = null;
@@ -1751,7 +1648,6 @@ export const runtimeBridgeMethods = {
     let activePointerState = null;
     let lastTapRecord = null;
     // 长按 / 双击之后的 click 抑制截止时间：这两个手势触发后浏览器仍会补一个 click，
-    // 不抑制就会重复执行单击动作。
     let suppressClickUntilMs = 0;
     let rollbackToggle = null;
     let previousToggleState;
@@ -1783,7 +1679,6 @@ export const runtimeBridgeMethods = {
       this.options.onRuntimeButtonPress?.(runtimeActionElement);
     };
     // 单击的 toggle 先落乐观态：等 HA 回推送再变色会有明显延迟感。
-    // 虚拟实体不走这里 —— 它本来就在本地，没有网络往返。
     const applyTapToggleOptimistic = () => {
       if (rollbackToggle || tapAction?.type !== "toggle") {
         return;
@@ -1806,8 +1701,6 @@ export const runtimeBridgeMethods = {
     };
     /**
      * 提交单击动作：把乐观回滚句柄交给 runAction，由它在调用失败时还原界面状态。
-     *
-     * 先清空本地句柄再派发，避免 runAction 内部同步失败时回滚到已失效的引用。
      */
     const commitTapAction = () => {
       const pendingRollbackToggle = rollbackToggle;
@@ -1823,7 +1716,6 @@ export const runtimeBridgeMethods = {
       }
     };
     // touch-action 设为 manipulation：去掉移动端 300ms 的点击延迟，
-    // 同时保留滚动能力（不设 none，否则控件会变成滚动死区）。
     runtimeActionElement.style.touchAction = "manipulation";
     runtimeActionElement.addEventListener("contextmenu", contextMenuEvent =>
       contextMenuEvent.preventDefault()
@@ -1961,8 +1853,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 运行动作的统一入口：派发并吞掉异步错误。
-   * 动作派发是「点了就得有反应」的路径，不能把异常抛回事件处理器；出错统一写全局日志，
-   * 附带组件与实体信息，便于在展示页定位是哪块控件出了问题。
    */
   runAction(runActionComponent, runActionConfig, runActionOptions = {}) {
     if (!!runActionConfig?.type && runActionConfig.type !== "none") {
@@ -1991,8 +1881,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 为某个实体构造一个「用于弹窗的组件」。
-   * 目标实体往往不是设备拿到状态的最优实体（如净化器开关挂在 fan、浴霸开关挂在 light），
-   * 因此按设备画像的角色重定向到主实体，保证弹窗开关与列表状态同源。
    */
   popupComponentForEntity(requestedTargetEntityId, popupLabelText = "") {
     let resolvedEntityId = String(requestedTargetEntityId || "");
@@ -2093,8 +1981,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 按动作声明的来源打开弹窗。
-   * 三种来源：custom 打开文档里的组合弹窗（配置的弹窗已删除时报错而非静默无反应）、
-   * entity 打开指定实体、current 打开控件自身绑定的实体。
    */
   async showActionPopup(popupSourceComponent, popupActionConfig, { preview: popupPreview = false } = {}) {
     const popupSourceKind = popupActionConfig?.data?.popupSource || "current";
@@ -2161,8 +2047,6 @@ export const runtimeBridgeMethods = {
   },
   /**
    * 执行一次控件动作（toggle / navigate / more-info），返回值可 await。
-   * 开关类动作会把乐观态的回滚函数一路带下去：HA 拒绝或超时后由调用方回滚界面，
-   * 避免界面与真实状态长期不一致。
    */
   async dispatchAction(
     dispatchComponent,
@@ -2266,11 +2150,6 @@ export const runtimeBridgeMethods = {
       this.navigate(dispatchConfig.target);
     }
   },
-  /**
-   * 调用 Home Assistant 服务（设备控制的唯一出口）。走本机后端转发接口，浏览器不直连 HA，令牌与会话留在后端；
-   * hbLogContext 是全局日志约定的字段，出错时能直接看出是哪块屏幕的哪个实体。
-   * @throws {Error} 后端返回非 2xx 时抛出，文案优先取后端的 detail。
-   */
   async callEntityService(serviceDomain, serviceName, serviceEntityId, serviceData = {}) {
     const serviceResponse = await fetch("/api/v1/ha/services/call", {
       method: "POST",

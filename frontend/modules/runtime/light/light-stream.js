@@ -1,12 +1,3 @@
-/**
- * 灯光 / 实体状态的 WebSocket 流式订阅：状态变化频繁，走 HTTP 轮询代价高，故改成长连接 ——
- * 连上后先收一份全量快照，之后只收增量变更。
- *
- * 与后端协议（/api/v1/ws/runtime）：客户端发 { type: "subscribe", entityIds }；服务端回
- * { type: "snapshot", states }（全量）、{ type: "state_changed", entityId, state, attributes }（增量）、
- * { type: "state_removed", entityId }、{ type: "ping" }（保活）、{ type: "resync_required" }（需重建连接）。
- * 回调传出的状态都是 structuredClone 过的副本，调用方改动不会污染内部缓存。
- */
 export function createLightStream({
   onStates: onStates = () => {},
   onPatch: onPatch = null,
@@ -43,7 +34,6 @@ export function createLightStream({
     attributes: {}
   });
   // 全量广播：按订阅列表逐个取值，缺的用「不可用」占位，保证调用方拿到的键集合稳定。
-  // 尚未收到快照时返回空对象 —— 避免连接刚建立就被误判成「所有设备都掉线」。
   const emitStates = () =>
     onStates(
       hasSnapshot
@@ -57,8 +47,6 @@ export function createLightStream({
           )
         : {}
     );
-  // 增量广播：有 onPatch 时只推变化的那个实体（避免每次都重建整张状态表），
-  // 否则退化成一次全量广播，保证调用方逻辑仍然正确。
   const emitPatch = patchedEntityId =>
     typeof onPatch == "function"
       ? onPatch({
@@ -100,8 +88,6 @@ export function createLightStream({
   }
   /**
    * 安排一次重连（指数退避）。
-   * 退避序列 500ms、1s、2s、4s、8s、16s 封顶 15s；已销毁、未激活、
-   * 没有订阅或有重连在途时都不排新定时器。
    */
   function scheduleReconnect() {
     if (isDisposed || !isStreamActive || !subscribedEntityIds.length || reconnectTimerId !== null) {
@@ -132,7 +118,6 @@ export function createLightStream({
     }
     activeSocket = nextSocket;
     // 所有事件都先过这道判断：只有「仍然有效的那一个 socket」的事件才处理，
-    // 否则会出现旧连接关闭时把新连接的状态清掉的竞态。
     const isCurrentSocket = () =>
       !isDisposed &&
       isStreamActive &&
@@ -141,7 +126,6 @@ export function createLightStream({
     /**
      * 统一的断线处理。
      * @param {number} [closeCode=0] WebSocket 关闭码；4400/4401/4403 属协议层拒绝
-     *        （报文非法 / 未认证 / 无权限），重连无用，故不重试。
      */
     const handleSocketFailure = (closeCode = 0) => {
       if (isCurrentSocket()) {
@@ -253,14 +237,12 @@ export function createLightStream({
       }
     };
     // 首帧心跳给 12 秒（比稳态的 65 秒短得多）：握手阶段若迟迟收不到快照，
-    // 说明连接实际上没有建立成功，尽早放弃并重连比干等 65 秒体验更好。
     scheduleHeartbeatTimeout(12000);
   }
   return {
     /**
      * 设置订阅的实体列表。
      * @param {string[]} [options.additionalEntityIds=[]] 白名单外的补充实体，
-     *        只校验 ID 形态，允许订阅本列表未覆盖的域。
      */
     configure(entityIds = [], { additionalEntityIds: additionalEntityIds = [] } = {}) {
       if (isDisposed) {

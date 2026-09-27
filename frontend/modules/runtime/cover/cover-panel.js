@@ -1,28 +1,19 @@
 /**
  * 窗帘控制面板（3D 详情弹窗 / 配置预览共用）。
- *
- * 把 coverState 归一化后的状态渲染成「开合位置滑杆 + 打开 / 暂停 / 关闭」，操作交给 onControl；
- * onPreview 让 3D 场景在拖动滑杆时实时预览目标位置。
- *
- * 约定：不直接访问后端，命令由 cover-state.js 的 coverControl 构造。梦幻帘（coverKind === "dream"）
- * 走「整体 + 叶片」两段语义，同一滑杆控制叶片角度，且必须整体关闭到位后才允许调整。
  */
 import {
   coverState,
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609271208";
+} from "./cover-state.js?v=2609271226";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
-// `/static/...` 的静态 import，故经 static-helpers 桥取用。
-// 另外三个是示意图要用的窗帘几何：帘布宽度（两片对开 / 单侧整幅）与开合方向 ——
-// 与 3D 窗帘动画同一份口径，避免面板与场景对同一扇窗给出两种画法。
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent,
   createDomFactory,
   resolveCoverDirection
-} from "../core/static-helpers.js?v=2609271208";
+} from "../core/static-helpers.js?v=2609271226";
 /**
  * 创建窗帘面板。
  */
@@ -31,8 +22,6 @@ export function createCoverPanel({
   onControl: onControl = async () => {},
   onPreview: onPreview = () => {}
 } = {}) {
-  // 刻意用宿主的 ownerDocument：面板被放进别的文档（弹窗、预览 iframe）时才不会造出属于外部
-  // 文档的孤儿节点（append 会静默无效或抛 "not a child of this node"）。
   const { el: createElement, replaceChildren } = createDomFactory(
     hostElement?.ownerDocument || globalThis.document
   );
@@ -44,15 +33,6 @@ export function createCoverPanel({
   headingElement.append(titleElement, statusElement);
   const bladeHintElement = createElement("p", "i3d-cover-blade-hint", "叶片角度 · 50% 为 90°打开");
   bladeHintElement.hidden = true;
-  // 设备示意图：照 2D 弹窗的 .hb-cover-visual 一比一移植（窗洞 / 顶轨 / 左右帘布 / 梦幻帘叶片），
-  // 单独占一行、居中，摆在标题与控件之间 —— 与净化器面板同一套摆法。
-  //
-  // 为什么用 i3d- 前缀而不是直接复用 .hb-cover-visual：3D 舞台页在弹窗预览（core/popup-preview.js）
-  // 里会把真正的 2D 面板渲染进同一个文档，renderer.css 也就一并加载。沿用同名类会让 2D 那条
-  // `position: absolute; top: -164px` 反过来盖到面板里的示意图上；前缀隔开，两套样式表互不打扰。
-  //
-  // 纯插画：aria-hidden + 不吃指针事件。开合动作一律由下面的滑杆与按钮发起，示意图不承担点击
-  //（2D 里那幅图本身就是电源式开关，那是因为它没有别的控件；这里滑动与开关都已各有一套）。
   const visualElement = createElement("div", "i3d-cover-visual");
   visualElement.setAttribute("aria-hidden", "true");
   const visualWindowElement = createElement("i", "i3d-cover-visual-window");
@@ -63,7 +43,6 @@ export function createCoverPanel({
   // 叶片数固定 13，与 2D 一致：再密会在 244px 宽的窗洞里糊成一片，再疏则看不出「帘」。
   const visualSlatCount = 13;
   // 完全收拢时相邻叶片的堆叠步距（px）：与 2D 弹窗（entity-details.js）逐值一致 —— 略小于
-  // 叶片间距，收拢后各片互相压住而不是完全重合，边缘还看得出是「一叠帘片」。
   const SLAT_GATHER_STEP_PX = 14.5;
   for (let slatIndex = 0; slatIndex < visualSlatCount; slatIndex += 1) {
     const slatElement = createElement("span", "i3d-cover-visual-slat");
@@ -163,7 +142,6 @@ export function createCoverPanel({
     viewModel.item?.modelAvailable !== false &&
     deviceState.available;
   // 滑杆显示值的优先级：本地草稿 > 外部预览的目标 > 外部预览的当前位置 >
-  // 待确认意图的目标（已确认则改用真实位置，因为命令即将到达目标，不必再显示目标值）。
   const resolveTargetPosition = () =>
     draftPosition ??
     viewModel.presentation?.targetPosition ??
@@ -172,7 +150,6 @@ export function createCoverPanel({
       ? deviceState.position
       : (pendingIntent?.target ?? deviceState.position));
   // 展示状态优先用外部（3D 场景）给的版本；没有时从设备状态派生一份。
-  // 派生时会按 railUnconfirmed 把「确认关闭」降级：梦幻帘开过之后就不能再相信关闭反馈。
   const resolvePresentation = () =>
     viewModel.presentation || {
       ...deviceState,
@@ -180,8 +157,6 @@ export function createCoverPanel({
     };
   /**
    * 滑杆是否可用。
-   * 梦幻帘只能调叶片，且必须满足 coverCanAdjustBlades 的门禁；
-   * 其余窗帘则要求设备支持设置位置。
    */
   const canAdjustSlider = () =>
     canControl() &&
@@ -234,7 +209,6 @@ export function createCoverPanel({
     const instanceAtSend = instanceId;
     const ticket = ++ticketCounter;
     // 有外部 presentation 时（弹窗详情），目标是可预期到达的，
-    // 因此不设超时，完全交给外部的展示状态驱动生命周期。
     const hasPresentation = !!viewModel.presentation;
     clearPendingIntent();
     draftPosition = null;
@@ -273,7 +247,6 @@ export function createCoverPanel({
     };
     if (!hasPresentation) {
       // 15 秒兜底：无外部展示状态时，命令若迟迟没有引起状态变化就放弃等待，
-      // 否则界面会一直停留在「执行中」。
       intentTimeoutId = setTimeout(() => {
         if (!isDisposed && instanceId === instanceAtSend && pendingIntent?.ticket === ticket) {
           intentTimeoutId = null;
@@ -298,7 +271,6 @@ export function createCoverPanel({
           // 有外部展示状态时命令发出即视为意图结束，等待状态回传即可。
           clearPendingIntent();
         } else if (pendingIntent) {
-          // 否则继续等待状态变化确认；这里只是标记「已经发出」。
           pendingIntent.sending = false;
         }
         render();
@@ -307,8 +279,6 @@ export function createCoverPanel({
   }
   /**
    * 先本地校验再发送控制命令。
-   * 校验前先把展示状态合并进设备状态：梦幻帘的可调叶片判断依赖展示层的 closedConfirmed
-   * （可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。不可控时返回 undefined。
    */
   function requestControl(requestedService, controlValue) {
     if (canControl()) {
@@ -346,7 +316,6 @@ export function createCoverPanel({
     isDragging = true;
     draftPosition = Math.max(0, Math.min(100, Math.round(sliderValue)));
     // 拖动过程中就把目标位置交给 3D 场景做实时预览；预览状态回填到 viewModel，
-    // 这样滑杆与场景显示的是同一份数据，不会互相打架。
     const previewPresentation = onPreview(viewModel.item?.entityId, draftPosition);
     if (previewPresentation) {
       viewModel = {
@@ -391,7 +360,6 @@ export function createCoverPanel({
     render();
   }
   // pointercancel（手势被系统抢走）与 blur（焦点离开）都要取消预览，
-  // 否则滑杆会停在半途的位置上，3D 预览也会一直挂着。
   positionSliderElement.addEventListener("pointercancel", cancelPreview);
   positionSliderElement.addEventListener("blur", () => {
     if (draftPosition !== null) {
@@ -400,27 +368,13 @@ export function createCoverPanel({
   });
   /**
    * 同步设备示意图。
-   *
-   * 开合百分比 → 帘布宽度 / 叶片角度 / 整体收拢的映射与 2D 弹窗逐条相同（宽度用
-   * utils/cover-features.js 的线性式，叶片角度固定 1.8°/格，50% 正好是 90°）；数据源复用面板
-   * 已经算好的 displayPosition，不另起一套状态 —— 滑杆拖动时草稿位置会立刻反映到示意图上，
-   * 场景预览、滑杆、读数是同一份值。
-   *
-   * 梦幻帘多一根轴：displayPosition 是**叶片角度**，而整排叶片的收拢由**整体开合位置**
-   * （presentation.position，缺失时用状态推断值）驱动 —— 与 3D 场景里 curtain-motion 的
-   * resolvePoseFallback 同一份口径，否则设备整体收起来了、面板却还铺着一整排叶片。
-   *
-   * 方向类与收拢步距只在方向真的变了才写：13 个子节点 × 每次状态推送都写一遍样式，
-   * 在拖动滑杆（每帧一次 render）时是白白的布局开销；收拢**比例**则每次都要写（它就一个变量）。
    */
   let visualDirection = "";
   function syncVisual(displayPosition, isDreamCover, presentation) {
     const visualPosition = Math.max(0, Math.min(100, displayPosition ?? 0));
     visualElement.classList.toggle("is-dream", isDreamCover);
     visualElement.classList.toggle("is-tilt-reversed", visualPosition > 50);
-    // 与 2D 同容差：±2% 内视为「叶片正对视线」，此时走纯色填充避免窄面上的渐变条纹。
     visualElement.classList.toggle("is-tilt-center", Math.abs(visualPosition - 50) <= 2);
-    // moving 已含「可用」判定（cover-state.js 里就是 available && opening/closing），不必再叠一层。
     visualElement.classList.toggle("is-moving", deviceState.moving);
     const nextDirection = resolveCoverDirection(viewModel.item);
     if (nextDirection !== visualDirection) {
@@ -441,7 +395,6 @@ export function createCoverPanel({
           String(slatDelayIndex)
         );
         // 该叶片「完全收拢」时要走的距离（px）：越靠收拢侧的叶片走得越少，收拢后互相压住。
-        // 数值与 2D 弹窗的 --hb-cover-retracted-shift 同一条公式、同一个步距。
         const slatGatherPx =
           nextDirection === "left"
             ? -slatIndex * SLAT_GATHER_STEP_PX
@@ -454,13 +407,6 @@ export function createCoverPanel({
       }
     }
     // 整体收拢比例（0 铺满整窗，1 完全收到一侧）：只有梦幻帘需要，其余帘型恒为 0。
-    // 位置未知时回落到状态推断值（statePositionHint：open=100 / closed=0），再兜底 0 ——
-    // 与 3D 侧 resolvePoseFallback 的三层优先级同序。
-    //
-    // 必须写在 .i3d-cover-visual-slats 自己身上，而不是外层 .i3d-cover-visual：样式表在
-    // **该元素上**声明了兜底值 0，而自定义属性一旦在元素上声明就**不再继承**父级的值 ——
-    // 写在外层时这里的 `0` 会把传入的比例整个盖掉，叶片只会转角度、永远收不拢（已踩过）。
-    // 写在声明它的同一个元素上，内联样式胜过样式表，比例才生效。
     const overallPosition = isDreamCover
       ? Number.isFinite(presentation?.position)
         ? presentation.position
@@ -529,7 +475,6 @@ export function createCoverPanel({
     positionLegendElement.children[0].textContent = isDreamCover ? "一侧闭合" : "关闭";
     positionLegendElement.children[1].textContent = isDreamCover ? "反向闭合" : "打开";
     // 输出值的优先级：拖动草稿 > （梦幻帘）叶片角度 > （估算位置时）设备位置 > 展示位置。
-    // 估算位置不可信，所以宁可显示设备上报值。
     const displayPosition =
       draftPosition ??
       (isDreamCover
@@ -585,7 +530,6 @@ export function createCoverPanel({
       service: actionService,
       capability: capability
     } of actionButtons) {
-      // 梦幻帘用「开启 / 关闭」，普通窗帘用「打开 / 关闭」，避免与叶片开合混淆。
       actionButton.children[0].textContent =
         actionService === "stop_cover"
           ? "暂停"
@@ -615,7 +559,6 @@ export function createCoverPanel({
     feedbackElement.textContent = feedbackMessage;
     feedbackElement.hidden = !feedbackMessage;
     feedbackElement.classList.toggle("is-error", !!feedbackMessage);
-    // aria-busy：有外部预览时看预览是否在生效，否则看是否有未确认的意图。
     rootElement.setAttribute(
       "aria-busy",
       String(
@@ -651,7 +594,6 @@ export function createCoverPanel({
     }
     const previousState = deviceState;
     viewModel = nextViewModel;
-    // 上游可能已经传了归一化状态（用 positionKnown 是否为布尔值识别），避免重复归一化。
     deviceState =
       nextViewModel.state?.entityId === nextEntityId &&
       typeof nextViewModel.state?.positionKnown == "boolean"
@@ -671,7 +613,6 @@ export function createCoverPanel({
       onPreview(nextEntityId, null);
     }
     // 状态签名包含时间戳字段：即使 state 与 position 都没变，
-    // 只要 HA 又推了一次（last_updated 变了）也算一次新状态。
     const nextSignature = JSON.stringify([
       deviceState.state,
       deviceState.position,
@@ -688,11 +629,8 @@ export function createCoverPanel({
       clearPendingIntent();
     }
     // 只有「没有外部展示状态」时才由本面板自行对账意图：
-    // 有 presentation 时生命周期的判断权在外部的展示状态里。
     if (!viewModel.presentation && pendingIntent && stateRevision > pendingIntent.revision) {
       // 四种「已经达成目标」的判定，命中任一即认为命令生效：1) 到达目标位置（0.5% 容差，
-      // 覆盖设备取整误差）；2) 暂停命令且已停止移动；3) 打开命令但设备不报位置，且 state 从
-      // 非 open 翻转为 open；4) 此前已确认在运动，现在停下来了。
       const reachedTarget =
         pendingIntent.target !== null &&
         deviceState.position !== null &&
@@ -709,7 +647,6 @@ export function createCoverPanel({
         clearPendingIntent();
       } else if (pendingIntent.target !== null) {
         // 尚未到达目标：判断设备是否「朝目标方向动起来了」。
-        // 初始位置已知时用位置差的方向，未知时用服务名推断方向。
         const expectedDirection =
           pendingIntent.initialPosition === null
             ? pendingIntent.service === "open_cover"
@@ -741,14 +678,12 @@ export function createCoverPanel({
         }
       }
     }
-    // 不在拖动中就丢弃草稿，避免旧草稿盖住新上报的位置。
     if (!isDragging) {
       draftPosition = null;
     }
     render();
   }
   // 释放面板：拖拽中先把预览位置撤回（onPreview(null)），再置位 isDisposed、
-  // 自增 instanceId 让在途回包失效，最后清定时器与 DOM。
   function dispose() {
     if (!isDisposed) {
       isDisposed = true;
@@ -765,9 +700,6 @@ export function createCoverPanel({
     root: rootElement,
     update: update,
     // 停用：把面板从「正在被操作」的状态里摘出来（拖动进行中时撤回预览与草稿）。
-    // 帘组面板在成员被换掉 / 整组收起时会调它 —— 与 dispose 的区别是面板还要继续用，
-    // 所以这里走完整的 cancelPreview（含 render），而不是 dispose 里那条不重绘的简化路径。
-    // 与 0.6.5 同口径：只在真的处于拖动中才动手，没有草稿就不必惊动场景。
     deactivate() {
       if (isDragging) {
         cancelPreview();

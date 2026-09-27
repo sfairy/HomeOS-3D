@@ -1,55 +1,17 @@
 /**
  * 逐物件的「材质风格」属性（materialStyle）。
- *
- * 与 studio-scene-style.js 的关系：那里是**场景级**风格（studioSceneStyle = default / warm-wood），
- * 一改就影响全场；这里是**逐物件**覆盖层，挂在单个物件的 materialStyle 上。解析顺序是
- * 「基础调色板 → applyItemFinish（柜体 / 不锈钢成品外观）→ applyMaterialStyle（本文件的覆盖）」，
- * 因此逐物件选择永远优先于全局风格。
- *
- * 覆盖范围是硬要求：**所有家居家电类型**（新增与现存一视同仁）都要能选，不允许有类型落到
- * 「只有跟随全局」这一个选项上。为此用了三档解析：
- *   1. MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE —— 逐类型显式档位（首选，表达力最强）；
- *   2. MATERIAL_STYLES_BY_FAMILY —— 按材质族兜底（新增一件同类物件时至少不会没档可选）；
- *   3. 通用兜底 —— 仅「跟随全局风格」。前两档写全时这一档不该被触达。
- *
- * "auto" 是默认值，语义是「跟随全局风格」：**不复制调色板、不覆盖任何键**，行为与加这个属性之前
- * 逐字节相同 —— 这是老草稿 / 老快照不需要数据迁移的原因。
- *
- * 刻意排除的两类（不是遗漏）：
- *   - mural 已有 muralStyle（画面风格）、featurewall 已有 wallStyle（墙面材质），语义与本属性重叠，
- *     再叠一层只会让同一件东西有两个风格字段、互相打架；
- *   - planlabel / flooropening / 墙体 / LIGHT_ITEM_TYPES 不是家居家电模型，不参与。
- *
- * 唯一的例外是**柱体（pillar）**：它不是家居，但「这根柱子表面做什么料」是设计上真实的诉求，
- * 而且有明确的两端可配 —— 与现有墙体一致，或与柜体同料（走柜类那套木作）。
- *
- * 与墙体一致的那一端**只留一档**（不是七档饰面各列一项）：柱子是建筑本体，它的「配墙」只有一种
- * 正确解 —— 和它所在的那道墙一样。所以这一端不另立色号，直接复用墙体自己的取料路径，档位的名字
- * 在柱体上就叫「配墙（跟随墙体）」，即 `auto` 在柱体上的显示名（见 materialStyleAutoLabel）：选了
- * 它就不覆盖任何键，柱体照常走 makeWallSideMaterial / 墙色调色板，与旁边的墙逐值相同。
- * 若把七种背景墙饰面列成七档，柱子会变成「一块贴着大理石贴图的独立板」——那是背景墙的做法，
- * 不是墙体的做法，而且选完还得自己保证和真墙一致。
- *
- * 纯数据 + 纯函数：不引入 THREE、不碰 DOM，因此工作台与舞台两侧都能安全 import。
  */
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
-} from "./studio-item-types.js?v=2609271208";
+} from "./studio-item-types.js?v=2609271226";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
 
 /**
  * `auto` 档在下拉里的显示名：多数类型是「跟随全局风格」，但**柱体**不是。
- *
- * 柱体的 `auto` 语义比一般类型强：它不是「这块我不管」，而是「跟墙一样」—— 选中后不覆盖任何键，
- * 柱体照常走墙体自己的取料路径（占位几何 makeWallSideMaterial、外部模型用墙色调色板），与旁边的
- * 墙逐值相同。所以这一档在柱体上直接叫「配墙（跟随墙体）」，让「与墙一致」这件事在下拉里有一个
- * 说得清的出口（PILLAR_STYLES 里只剩「与柜同料」四档，见那里的说明）。
- *
- * 只改显示名、不改取值：草稿里存的仍是 "auto"，老数据不需要迁移。
  */
 const MATERIAL_STYLE_AUTO_LABEL_BY_ITEM_TYPE = Object.freeze({
   pillar: "配墙（跟随墙体）"
@@ -62,20 +24,6 @@ export function materialStyleAutoLabel(itemType) {
 
 /**
  * 不参与「材质风格」的类型：
- *   - mural / featurewall：已有 muralStyle / wallStyle，语义重叠（见模块头）；
- *   - stairs / steelstairs / glassstairs / floatingstairs / smallcar / elevator：**建筑构件与车辆，
- *     不是家居家电**。它们走的是「克隆原始材质」的路径，调色板根本不参与（studio-app.js 的
- *     paletteForItemType 刻意把它们排除在 HOME_PALETTE_ITEM_TYPES 之外），颜色表达的是房子本体
- *     而不是装修风格。收进来的话下拉能选、选了没反应 —— 宁可不要这个控件。
- *
- * 柱体（pillar）**不在**这张表里：它是唯一一件「表面做什么料由人来定」的建筑构件 —— 一根独立柱
- * 要么是墙体的一部分（**跟随墙体**，见 materialStyleAutoLabel 里柱体那一档），要么是木作包柱
- * （与柜子同料，见 PILLAR_STYLES）。两端各有各的权威来源，不在这里另起一套。
- *
- * 未被收录的四个（steelstairs / glassstairs / floatingstairs / smallcar / elevator）是**隐式**落在
- * 能力集之外的（它们本来就不在 HOME / EXTERNAL / APPLIANCE 三张词表里），这里仍逐个列进 EXCLUDED：
- * 语义靠「恰好没被收录」来表达太脆，将来谁把 smallcar 收进 EXTERNAL_MODEL_ITEM_TYPES，这份排除表
- * 就是唯一的护栏。
  */
 export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
   new Set([
@@ -92,7 +40,6 @@ export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
 
 /**
  * 支持「材质风格」的全部类型：家居（含软装 / 家电 / 洁具）+ 可被外部模型替换的类型 + 家电模型类型，
- * 去掉有专用风格字段的那两类。新增物件类型时必须把它加进来，否则检查器不会显示风格字段。
  */
 export const MATERIAL_STYLE_ITEM_TYPES = new Set(
   [...HOME_ITEM_TYPES, ...EXTERNAL_MODEL_ITEM_TYPES, ...APPLIANCE_MODEL_ITEM_TYPES].filter(
@@ -102,7 +49,6 @@ export const MATERIAL_STYLE_ITEM_TYPES = new Set(
 
 /**
  * 质感族：决定用哪张程序化贴图，以及粗糙度 / 金属度落在哪一档。
- * 贴图由 materials/studio-surface-fabrics.js 按 surface 键生成（与背景墙共用一套画法）。
  */
 const SURFACE_ROUGHNESS = Object.freeze({
   fabric: 0.92,
@@ -150,19 +96,6 @@ function shadeColor(color, amount) {
 }
 /**
  * 补齐 furniture* 四档中缺失的键。
- *
- * 为什么必须补齐：外部模型的换色分支（studio-external-models.js 的 applyFurniturePalette）对
- * 没有专属槽位表的类型，是**按模型烘焙亮度分档**在这四键里挑一个 —— 暗档取 furnitureDark、
- * 中档取 furniture、亮档取 furnitureSoft（暖色下又被强制等于 furnitureLight）。也就是说一件
- * 模型的各个零件会分别落到四个不同的键上。
- *
- * 只写其中两三个键，结果是「零件各走各的」：选了风格只有一部分零件变色、剩下的保持原样，
- * 看起来就像控件失灵。极端例子是 LEATHER_STYLES —— 它只写了 furnitureLight / furnitureSoft，
- * 而 loungechair 的零件恰好落在 furniture / furnitureDark 两档，于是躺椅选了皮革档**完全没反应**。
- *
- * 因此这里按「显式声明优先、缺的按基准色派生」把四档填满：基准色取该风格里最有代表性的那个键，
- * 派生出的浅 / 柔 / 深三档与该色同族，零件之间仍有明度差、不会糊成一块。
- *
  * @param {object} colors 风格显式声明的覆盖键。
  * @returns {object} 四档齐全的覆盖键。
  */
@@ -180,7 +113,6 @@ function completeFurnitureRamp(colors) {
     colors.leafColor;
   if (rampBase === undefined) {
     // 纯装饰类（只改叶色 / 台面 / 玻璃）没有可作基准的实体色：不硬造四档，
-    // 这类风格靠自己的专属键生效，检查里的「必须四档齐全」豁免它们。
     return { ...colors };
   }
   return {
@@ -194,13 +126,6 @@ function completeFurnitureRamp(colors) {
 
 /**
  * 把「按角色的组合」编译成可直接套用的配方表。
- *
- * 每个配方只要求写 `{ surface, color }`：粗糙度与金属度按质感族自动派生（SURFACE_ROUGHNESS /
- * SURFACE_METALNESS），需要时再显式覆盖。这样写档位的人不必同时记住「拉丝金属该给多少 roughness」
- * —— 那一档已经是全站统一的一份表，各档位各写一遍必然走散。
- *
- * 返回 null 表示「这个档位没有按角色给组合」，运行侧据此完全跳过角色这条路 ——
- * 既有资产与未选风格的物件都走不到这里。
  */
 function compileRoleRecipes(byRole) {
   if (!byRole) {
@@ -210,17 +135,12 @@ function compileRoleRecipes(byRole) {
   for (const [role, recipe] of Object.entries(byRole)) {
     const roleSurface = recipe.surface ?? null;
     compiled[role] = Object.freeze({
-      // 石材板色号（见 studio-external-models.js 的 createStoneSlabTexture）：给了它，
-      // 这一块网格就按**整块石材整图**渲染，surface 与它二选一 —— 两者同时写只有 slab 生效。
       slab: recipe.slab ?? null,
       surface: roleSurface,
       color: recipe.color,
       roughness: recipe.roughness ?? SURFACE_ROUGHNESS[roleSurface] ?? null,
       metalness: recipe.metalness ?? SURFACE_METALNESS[roleSurface] ?? null,
       // 质感贴图在 UV 上的平铺次数。运行侧读的是 `roleRecipe.repeat ?? 2`
-      // （见 studio-external-models.js 的 resolveSharedMaterial）：不写就是默认的 2 次，
-      // 需要按构件尺度加密 / 放稀贴图的那一档才在这里给值（同一支料贴到 0.45m 的立柱与
-      // 3m 的背景墙上，间距本来就不该一样）。
       repeat: recipe.repeat ?? null
     });
   }
@@ -233,15 +153,7 @@ function compileRoleRecipes(byRole) {
  * @param {string} label 下拉里显示的中文名。
  * @param {string} surface 整件质感族（键见 SURFACE_ROUGHNESS）。仅在**没有** byRole 时作为兜底使用。
  * @param {object} colors 覆盖调色板的键值（键名须与 STUDIO_PALETTE / WARM_HOME_STYLE 一致）；
- *   缺的 furniture* 档位由 completeFurnitureRamp 补齐，显式声明的键优先。
- *   这一份是给**既有资产**用的（它们只有槽位号、没有角色，靠命名与亮度分档取色）。
  * @param {object} [byRole] 「档位即组合」：按**材质角色**给配方，供流水线模型（材质名带角色的那批）。
- *   每个配方只需写 `{ surface, color }`，粗糙度 / 金属度按 surface 自动派生；
- *   需要时可用 `roughness` / `metalness` 显式覆盖。角色的含义与词表见 tools/models/model-roles.mjs。
- *
- *   为什么一个档位需要两套表达：既有资产的材质名里没有角色信息（`material-3`、`ha-sofa-frame`），
- *   只能用颜色键与亮度分档；而流水线模型按实物分件，柜体与柜面是不同的 mesh，必须各自取配方。
- *   两者并存期间以 byRole 优先，迁移完成后 colors 可以逐步收窄。
  */
 function defineStyle(id, label, surface, colors, byRole = null) {
   return Object.freeze({
@@ -255,14 +167,6 @@ function defineStyle(id, label, surface, colors, byRole = null) {
 
 /**
  * 布艺座具 / 卧床的组合：软包 + 框架 + 脚 + 可分离件。
- *
- * 为什么要有这类构造器，而不是每档位手写一串 byRole：组合里各角色的**从属关系**是
- * 实物的常识，写一次比四十个档位各记一遍可靠 —— 手扶与坐垫同一种织物、木质框架与腿同一种木料、
- * 床垫与床头同一种织物，这是大多数真实家具的做法；只有确实要撞色时才显式覆盖。
- *
- * 卧床沿用了同一份角色表（这是刻意的，词表总量因此不必膨胀）：
- * 床架 = `frame`、床脚 = `leg`、**床垫 = `upholstery`**（它是这张床上最大的那块软包）、
- * 枕头 = `cushion`、床品 / 被面 = `fabric`。
  */
 function fabricCombo({ upholstery, leg, frame, accent, cushion, top, trim, metal, body, fabric }) {
   return {
@@ -281,17 +185,12 @@ function fabricCombo({ upholstery, leg, frame, accent, cushion, top, trim, metal
     top: top ?? upholstery,
     trim: trim ?? frame ?? leg,
     // 五金给一个通用钢色兜底：门把手、脚轮、气压柱的金属与织物 / 木料的档位无关，
-    // 让每个档位各写一遍同样的钢灰只会走散。要别的金属色（黑铁、黄铜）时显式覆盖即可。
     metal: metal ?? { surface: "metal", color: 0x9aa1a8 }
   };
 }
 
 /**
  * 柜类的组合：柜体 / 柜面 / 台面 / 五金一次说清。
- *
- * 抽屉面默认跟随柜面、封边与层板默认跟随柜体 —— 同样是实物常识（抽屉与门板是同一批饰面，
- * 层板与箱体同料），不是「懒得写」。台面与五金必须显式给：这两处正是柜子看起来像「一块木头」
- * 还是像成品柜的分水岭。
  */
 function joineryCombo({
   body,
@@ -312,52 +211,21 @@ function joineryCombo({
   stash,
   accent
 }) {
-  // 这两条默认值刻意在 `return` **之前**算好，而不是把对象字面量直接写在 return 里 ——
-  // 护栏（tools/check_invariants.mjs 的 readTopLevelObjectEntries）是按字符扫 return 那个对象、
-  // 只认 depth === 1 的键，且跳过一个键时会把它值里的 `{` / `(` 一起跳过去、深度记账就此带偏。
-  // 值里嵌一对花括号，它后面那些角色就会被整片漏读 —— 表现为护栏误报「glass 没有配方」。
-  // 提出来之后 return 里每个值都是裸标识符，扫多少遍都不会偏。
-  //
-  // 柜内衬默认值 = 柜体木色朝白提 45%。这个数不是拍出来的，是拿三档内衬各渲一张、量玻璃区与
-  // 邻门的亮度差量出来的（木柜白门档位）：
-  //   - 跟柜体走（深色）：玻璃区亮度 91、邻门 190，差 99 —— 玻璃读成一个黑洞；
-  //   - 跟柜门走（浅色）：玻璃区 176、邻门 190，只差 14 —— 玻璃与实心门几乎分不出来，
-  //     等于白做一扇玻璃门；
-  //   - 提到中间调：玻璃区 148、邻门 190，差 42，与玻璃柜「玻璃对柜身」的 34 同档，
-  //     且玻璃区内的亮度跨度从 0 涨到 18 —— 透过玻璃能看见层板与中立板，纵深才成立。
-  // 不写死色号是因为烤漆 / 胡桃木档位下柜体本身就变，内衬得跟着同一族木色走。
   const interiorRecipe = Number.isFinite(body?.color)
     ? { surface: "wood", color: shadeColor(body.color, 0.45) }
     : door;
   // 玻璃门 / 玻璃层板在柜类里是独立槽位。默认取**玻璃柜（glasscabinet）那扇玻璃门的玻璃**：
-  // 餐边柜最右一扇整扇玻璃门要与它对上（models/model-specs.mjs 的 sideboard），四个柜类档位
-  // 统一收在同一个颜色上，换档位时玻璃不会在几种玻璃之间跳。要清玻的玻璃隔断走 GLASS_STYLES，
-  // 不受这里影响。它是**唯一**要让透明件也参与组合的地方：玻璃不随木色变，但会随玻璃色变。
-  //
-  // 色号不是拍出来的，是从玻璃柜实际渲染结果里取的（`#a9c5d3`，不透明度 0.28）——
-  // 玻璃柜是既有资产，它的玻璃色由调色板从烘进 GLB 的蓝灰基色提亮而来，所以这里必须写
-  // **提亮之后**的值，写烘进去的那个原始值再被提一次就偏白了。要改请两台一起改。
   const glassRecipe = { surface: "glass", color: 0xa9c5d3 };
   // 水槽盆体 / 灶面与炉架的兜底料：厨柜里唯二**不随木色走**的金属面（不锈钢水槽、银黑灶面）。
-  // 提出来算与上面两个默认值同理：护栏扫的是 return 那个对象里 depth === 1 的键，
-  // 值里嵌一对花括号会把它后面那些角色整片漏读。
   const sinkRecipe = { surface: "metal", color: 0xb9bfc5, roughness: 0.24, metalness: 0.62 };
   const cooktopRecipe = { surface: "metal", color: 0x33363a, roughness: 0.2, metalness: 0.6 };
   // 镜面（梳妆台的立镜）：与 sanitaryCombo 里那份同料 —— 镜面是**不透明**的镀银面，
-  // 不能借用 glass 角色（运行侧对 glass 强制 0.28 不透明度，镜子会变成能看穿的茶色玻璃板）。
-  // surface 取 glass 的目的是**清掉贴图**（glass 在 studio-surface-fabrics.js 里没有画法）。
-  // 金属度只给 0.35 的原因见 sanitaryCombo 里同一处的说明（场景没有环境贴图，高金属度会发黑）。
   const mirrorRecipe = { surface: "glass", color: 0xdbe4ea, roughness: 0.08, metalness: 0.35 };
   // 书脊 / 书封：**不跟木色走**。柜体换胡桃还是白漆，书架上那批书仍然是同一批米黄纸脊 ——
-  // 跟木色走的话深色柜里的书会一并发黑，整柜读成一块暗木头（书柜最怕的就是这个）。
-  // 用 paint 质感族（无贴图、粗糙 0.6）：纸面不需要木纹也不该有布纹。
   const bookRecipe = { surface: "paint", color: 0xd6c6a4 };
   // 敞开格里的内容物（鞋柜里那一双双鞋）：**不跟木色走**，理由与上面书脊那条一致 —— 跟木色走
-  // 的话深色柜里的鞋会一起发黑，敞开格读成一堆木方块。质感取皮革族（鞋面在实物上多是皮 / 布），
-  // 颜色压得比书脊深一档（0x6f7176 的灰褐）：它是**内容物**而不是陈设，不该比柜体更亮。
   const stashRecipe = { surface: "leather", color: 0x6f7176 };
   // 撞色书脊与摆件：陶土色。书柜需要一点点「不是木头」的颜色把满架同色的书分开，
-  // 花瓶用的也是它 —— 两处在实物上都是同一个角色（陈设里的撞色那件）。
   const accentRecipe = { surface: "ceramic", color: 0xb0663f };
   return {
     body: body,
@@ -367,13 +235,11 @@ function joineryCombo({
     shelf: shelf ?? body,
     book: book ?? bookRecipe,
     // 敞开格里的内容物默认取上面那一条「不跟木色走」的配方：鞋柜是唯一用到它的类型，
-    // 而它一旦跟着柜体走，鞋柜最像鞋柜的那一层就整片失效（而且是换了深色档位才看得出的那种）。
     stash: stash ?? stashRecipe,
     accent: accent ?? accentRecipe,
     // 踢脚默认与柜体同料（真实柜子的踢脚要么同色、要么同色更深一档，撞色的很少）。
     base: base ?? body,
     // 柜脚默认跟随踢脚：床头柜 / 电视柜 / 梳妆台这类「箱体坐在四条腿上」的柜子，
-    // 腿与踢脚在实物上就是同一批木作（要金属脚的产品自行显式给 leg）。
     leg: leg ?? base ?? body,
     top: top,
     interior: interior ?? interiorRecipe,
@@ -401,8 +267,6 @@ const FABRIC_STYLES = Object.freeze([
     fabricCombo({
       upholstery: { surface: "fabric", color: 0xf3e7d8 },
       leg: { surface: "wood", color: 0xb08a5e },
-      // 折边 / 床尾搭毯这一档必须与床品**有色差**，否则「被子上再铺一层」在成品里完全读不出来
-      // （默认值是同料同色）。取同族更深一档的暖驼：不跳色，但层次成立。
       accent: { surface: "fabric", color: 0xc09a6e }
     })
   ),
@@ -508,10 +372,6 @@ const LEATHER_STYLES = Object.freeze([
 // ── 木作柜体 ──────────────────────────────────────────────────────────────
 /**
  * 柜类四档的「柜体 / 柜面」两支料。
- *
- * 抽成常量而不是留在 JOINERY_STYLES 的调用处，是因为**柱体的「柜体系」档位要和柜子配对**：
- * 两处各写一遍色号，改一处就会出现「明明选的是同一个档位，柱子却比柜子深一档」——
- * 「配对」这件事最容易被这一种改动悄悄破坏。
  */
 const JOINERY_TONE_BY_STYLE = Object.freeze({
   "joinery-wood-white": Object.freeze({
@@ -532,8 +392,6 @@ const JOINERY_TONE_BY_STYLE = Object.freeze({
   })
 });
 // 「档位即组合」的样板族：每个档位一次说清柜体、柜面、台面、五金。
-// 柜体是木料还是烤漆、柜面是白门还是同色木门、台面是石还是木 —— 这几件事的组合关系才决定
-// 一个柜子像不像成品，而不在于「柜子整体是什么颜色」。
 const JOINERY_STYLES = Object.freeze([
   defineStyle(
     "joinery-wood-white",
@@ -620,14 +478,6 @@ const JOINERY_STYLES = Object.freeze([
 // ── 柱体：与墙一致（auto 档）+ 与柜同料（本表四档）─────────────────────────
 /**
  * 柱体的角色组合：柱身 / 柱脚 / 柱帽三段。
- *
- * 与柜类的 joineryCombo 是同一副骨架（把实物常识补成默认值）：**柱脚压深、柱帽提亮**，
- * 与程序化占位几何（studio-app.js 的 buildPillarItemMeshGroup）和 auto 档的墙色三段分色
- * 完全同构 —— 这样「选了档位」与「没选档位」之间差的只是料，不是分色方式。
- *
- * 注意 base / trim 必须写成 `base ?? body` 这种**带 `??` 的兜底**形式：护栏
- * （tools/check_invariants.mjs 的 readComboRoleSupport）就是靠值的文本里有没有 `??` 来判断
- * 「调用处不写也算数」的，写成中转变量会被判成「这个角色没有配方」。
  */
 function pillarCombo({ body, base, trim }) {
   return {
@@ -636,28 +486,6 @@ function pillarCombo({ body, base, trim }) {
     trim: trim ?? body
   };
 }
-/**
- * 柱体的「材质风格」只列**与柜同料**那四档，因为柱子只有两种做法：
- *
- *   1. **与墙一致** —— 柱子是墙体的一部分，外观应当和它所在的那道墙逐值相同。这一端**不在这里
- *      列档位**：它没有「七种饰面可选」这回事，正确的解只有一个（跟墙一样）。因此它由 `auto`
- *      承担，在柱体上的显示名是「配墙（跟随墙体）」（见 materialStyleAutoLabel），选中后不覆盖
- *      任何键，柱体照常走墙体自己的取料路径（占位几何用 makeWallSideMaterial、外部模型用
- *      墙色调色板的三段分色）—— 于是柱子和墙永远同色，也不会出现「背景墙改了、柱子还是旧的」。
- *
- *      为什么不把背景墙那七种饰面（大理石 / 木格栅 / …）列成七档：那七种是**背景墙这件装饰板**
- *      的画法，不是墙体的画法。列成档位会把柱子变成「一块贴着贴图的独立板」，还得靠人手动保证
- *      与真墙一致 —— 与「和现有墙体保持一致」正好相反。
- *
- *   2. **与柜同料**（木柜白门 / 浅橡木 / 胡桃木 / 深色烤漆）—— 柱子是木作包柱，与柜子同料。
- *      四档的 id 与柜类档位相同（joinery-oak…），色号取同一份 `JOINERY_TONE_BY_STYLE`。
- *
- * 柜体系里柱身取**柜面**、柱脚与柱帽取**柜体**：一根包柱上面积最大的是门板那一面，收边跟箱体走。
- * 于是「木柜白门」这一档的柱子是白柱身 + 深木色两道线脚，正是柜子的读法。
- *
- * `colors` 里的键只服务于两条路：completeFurnitureRamp 的基准键（护栏第 20 条）与「拿不到角色
- * 配方时」的兜底取色。真正的外观由 byRole 的三段配方决定。
- */
 const PILLAR_STYLES = Object.freeze([
   // ── 柜体系：与柜类「材质风格」下拉同名同料（柱身取柜面、柱脚柱帽取柜体）──
   defineStyle(
@@ -721,10 +549,6 @@ const PILLAR_STYLES = Object.freeze([
 // ── 木器家具（桌椅 / 茶几 / 床架）─────────────────────────────────────────
 /**
  * 木器家具的组合：台面 / 腿 / 箱体 / 抽屉面 / 横撑 / 五金。
- *
- * 与柜类（joineryCombo）的差别在于**腿**：柜类是整件箱体、腿只是踢脚，木器家具的腿是看得见的一根
- * 构件，而且是「这个风格有多木」最直接的体现 —— 原木本色是木腿、黑砂金属腿是黑铁腿。所以腿必须
- * 逐档位显式给，不能从台面推。
  */
 function woodCombo({ top, leg, metal, body, drawer, shelf, trim, base, upholstery, cushion }) {
   return {
@@ -738,7 +562,6 @@ function woodCombo({ top, leg, metal, body, drawer, shelf, trim, base, upholster
     trim: trim ?? body ?? top,
     base: base ?? leg ?? metal,
     // 床垫 / 床品：木器族里唯一不随木色走的一档 —— 木架换胡桃还是白漆，床垫都还是那个中性米白
-    // （真实床垫 / 被面也几乎不跟着床架的木色变）。上下床的床垫槽位就靠这一条。
     upholstery: upholstery ?? { surface: "fabric", color: 0xf3e7d8 },
     cushion: cushion ?? upholstery ?? { surface: "fabric", color: 0xf3e7d8 },
     metal: metal
@@ -747,11 +570,6 @@ function woodCombo({ top, leg, metal, body, drawer, shelf, trim, base, upholster
 
 /**
  * 石材件的组合：石板 / 石座 / 五金。
- *
- * 与柜类、木器族的差别在**腿**这一项：石材家具没有腿，落地的那一件本身就是石座（`base`）——
- * 组合茶几就是「白石板压黑石座」这个构造。因此 base 刻意**不**跟随 top：上下两块在实物上
- * 常是两种石材（图片里正是白石与黑石），给 base 补一个「跟随台面」的默认值只会把这种对比抹平。
- * 所以两块都必须逐档位显式给 —— 这也是构造器里唯一不让写兜底的一处。
  */
 function stoneCombo({ top, base, metal, trim, drawer, shelf }) {
   return {
@@ -766,15 +584,6 @@ function stoneCombo({ top, base, metal, trim, drawer, shelf }) {
   };
 }
 
-// ── 组合石材件（茶几 / 石座台面）──────────────────────────────────────────
-// 「档位即组合」在石材上的落点：一个档位一次说清**上石板**与**下石座**分别是哪种石材。
-// 参考实物：白石板压黑石座（本组的默认档，也是模型烘焙色的来源），以及整白、整黑、
-// 米黄洞石三种常见变体 —— 换档位换的是石材本身，不是「整件刷成另一个颜色」。// 石材用 `slab` 指明色号（见 studio-external-models.js 的 createStoneSlabTexture）：
-//   marble      白大理石（与背景墙那张同图，同一种石料只是同一张）
-//   marble-dark 黑金大理石（近黑底 + 灰白纹）
-// color 在这里是**染色**（乘到整图上），两块同色号时靠它拉开一档明暗；不写就是原色。
-// 「米黄洞石」那一档刻意**不给 slab**：洞石是哑光沉积岩、没有大理岩那种纹路，
-// 走 surface: "stone" 的细节层更贴近实物 —— 配方里没有 slab 即表示「这块不是整块石材」。
 const STONE_SLAB_ON_WHITE = Object.freeze({
   slab: "marble",
   color: 0xffffff,
@@ -816,7 +625,6 @@ const MARBLE_TABLE_STYLES = Object.freeze([
     },
     stoneCombo({
       top: STONE_SLAB_ON_WHITE,
-      // 同一种石料、两件，靠染色把下座压暗一档，否则上下会糊成一块。
       base: { ...STONE_SLAB_ON_WHITE, color: 0xd9d8d3 }
     })
   ),
@@ -926,7 +734,6 @@ const WOOD_FURNITURE_STYLES = Object.freeze([
       furnitureSoft: 0x55555a,
       furnitureDark: 0x242426
     },
-    // 这一档的腿**就是**黑铁腿 —— 档位名写的就是这件事，所以 leg 与 base 都给金属。
     woodCombo({
       top: { surface: "wood", color: 0x6b4526 },
       leg: { surface: "metal", color: 0x2e2e30 },
@@ -937,16 +744,6 @@ const WOOD_FURNITURE_STYLES = Object.freeze([
   )
 ]);
 
-// ── 不锈钢 / 白色家电 / 小家电 / IT 设备 ───────────────────────────────────
-// 三档说的都是「机身那一大片金属或烤漆」，所以机身 / 门板 / 面板跟随档位；而**玻璃视窗与屏
-// 不该跟着档位变**（衣物护理机的玻璃门、蒸烤箱的观察窗，换成银黑还是奶白都还是那块清玻），
-// 五金则一直是那支钢色。这三件事写进构造器，档位就不必各记一遍 —— 这正是角色体系要解决的
-// 「不该跟着变的东西别跟着变」。
-//
-// 这个构造器同时服务不锈钢家电（STEEL_APPLIANCE_STYLES）、小家电 / IT 设备（DEVICE_STYLES）
-// 与屏类（SCREEN_STYLES）三组档位：它们的**共性**就是「一块大机身 + 一小块屏 / 玻璃 + 一支五金」，
-// 差别只在档位给机身什么材质（金属 / 烤漆 / 亮漆），那由各档位自己的入参决定，与构造器无关。
-// 名字里的 appliance 因此指「电器设备」这一整类，不只是不锈钢家电。
 function applianceCombo({
   body,
   door,
@@ -971,7 +768,6 @@ function applianceCombo({
     trim: trim ?? body,
     base: base ?? body,
     // 台面与抽屉面都跟随档位的主体色：洗衣机的台面与箱体同材质、抽屉面与门板同色，是这一族
-    // 实物的共同规律；单独给它们一个默认值，档位表就不必每档重复一遍。
     top: top ?? body,
     drawer: drawer ?? door ?? body,
     // 层架（机器人基站的托盘、晾衣架的平铺网面）与机身同色；脚则是五金件。
@@ -1046,8 +842,6 @@ const STEEL_APPLIANCE_STYLES = Object.freeze([
 // ── 小家电 / IT 设备 ──────────────────────────────────────────────────────
 const DEVICE_STYLES = Object.freeze([
   // 这三档原先只写颜色、没有组合，于是小家电 / IT 设备的网格**一律按槽位取色**——机器人基站的
-  // 屏、吸尘器的尘杯、晾衣架的灯带都只能跟着机身走。补上组合后它们各自有角色可循；
-  // 屏、玻璃、五金由构造器固定（换档位不该把显示屏也换色），机身随档位。
   defineStyle(
     "device-white",
     "皓白",
@@ -1107,12 +901,6 @@ const DEVICE_STYLES = Object.freeze([
 // ── 洁具陶瓷 ──────────────────────────────────────────────────────────────
 /**
  * 洁具的组合：陶瓷本体 / 内腔 / 台面 / 柜体 / 五金。
- *
- * 六件洁具（台盆 / 马桶 / 蹲便 / 小便斗 / 浴缸 / 花洒）是同一个构造逻辑 ——
- * 「一件陶瓷（或亚克力）本体 + 一处更暗的内腔 + 一支电镀五金」，台盆再加一套柜体木作。
- * 所以本体给它本身，内腔默认由本体「压暗 18%」自动派生（缸内、盆底、斗腔都是同一种陶瓷的
- * 背光面，不可能比本体亮 —— 这条默认值顺带解决了「内腔与本体一个色，整件读成一块实心」），
- * 五金与玻璃则**不随档位变**：镀铬龙头换成岩灰档位也还是镀铬，玻璃隔断的透明件同理。
  */
 function sanitaryCombo({
   body,
@@ -1130,9 +918,6 @@ function sanitaryCombo({
   mirror,
   grating
 }) {
-  // 内腔与木作两条默认值刻意在 return **之前**算好：护栏（tools/check_invariants.mjs 的
-  // readTopLevelObjectEntries）按字符扫 return 那个对象、只认 depth === 1 的键，且跳过一个键时
-  // 会把它值里的 `{` / `(` 一起跳过去、深度记账就此带偏。提出来之后 return 里每个值都是裸标识符。
   const bodyRecipe = body ?? null;
   const interiorRecipe =
     interior ??
@@ -1143,11 +928,6 @@ function sanitaryCombo({
   const metalRecipe = metal ?? { surface: "metal", color: 0xbfc6cc };
   const glassRecipe = glass ?? { surface: "glass", color: 0xdfeaec };
   // 镜面不随档位变（与 glass / metal 同理：陶瓷换到岩灰档，镜子还是那面镜子）。
-  // surface 取 glass 是为了**清掉贴图**：glass 在 studio-surface-fabrics.js 里没有画法，
-  // 于是这一块拿到一张干净的镜面；给 metal 会平添一层拉丝纹，照出来是花的。
-  // 金属度刻意只给 0.35 而不是 0.9：场景里**没有环境贴图**（studio 全程不挂 scene.environment），
-  // 而金属是没有漫反射的 —— 金属度拉到 0.9 的镜面会把 65% 的入射光直接丢掉，渲染成一块近黑的面板。
-  // 0.35 配 0.08 的粗糙度：漫反射还在（浅蓝灰的底色读得出来），高光很紧（一看就是镜面）。
   const mirrorRecipe = mirror ?? {
     surface: "glass",
     color: 0xdbe4ea,
@@ -1174,9 +954,6 @@ function sanitaryCombo({
 
 /**
  * 玻璃隔断的组合：玻璃 + 框（立柱 / 横梁）+ 拉手。
- *
- * 与洁具分开写是因为「透明件也要参与组合」：洁具那六件的玻璃只出现在浴缸溢流那种小件上，
- * 而隔断的**主体**就是玻璃 —— 清玻换成茶玻时，框通常也跟着换成古铜色（成品隔断就是这么配色的）。
  */
 function glazingCombo({ glass, frame, handle, trim, metal }) {
   const frameRecipe = frame ?? metal ?? { surface: "metal", color: 0xb4babf };
@@ -1233,7 +1010,6 @@ const CERAMIC_STYLES = Object.freeze([
     },
     sanitaryCombo({
       // 岩灰档位是「岩板质感」那一挂：整件（本体也含）改成石面，柜体则压成深灰漆 ——
-      // 这一档下陶瓷件的观感从「白瓷」变成「石材一体盆」，是市面上的主流替代做法。
       body: { surface: "stone", color: 0xc2c0ba },
       top: { surface: "stone", color: 0xa9a8a3 },
       frame: { surface: "paint", color: 0x6f7276 },
@@ -1274,19 +1050,6 @@ const GLASS_STYLES = Object.freeze([
   )
 ]);
 
-// ── 灯具 ──────────────────────────────────────────────────────────────────
-// floorlamp / walllamp 同时属于 APPLIANCE_PALETTE_ITEM_TYPES，灯体走的是**家电**换色分支
-// （读 appliance* 三键、不锈钢成品另见 APPLIANCE_FINISH_*），因此各档位除家具四档外必须写全
-// appliance / applianceSoft / applianceDark —— 只写 furniture* 属于「下拉能选、选了没反应」。
-//
-// 这两件是本次重建进流水线的（原来是两份二进制旧资产）。重建后每块网格都带角色：
-//   灯杆 / 横臂 / 关节 = `metal`，配重底板与壁灯背板 = `base`，罩口金属圈 = `trim`，灯罩 = `lit`。
-// 于是档位可以按实物给「组合」而不是给一个颜色了 —— 真实灯具本来就是
-// 「一支杆 + 一个罩 + 一处配重」三种料，杆换胡桃而罩永远是那块亚麻布，档位表就不必各记一遍。
-//
-// 灯罩一律走 `fabric`（布艺灯罩，这是市面上最常见的落地 / 壁灯罩），不上 `paint`：
-// 布罩半透着光、表面是哑的，漆面罩反而读成塑料壳。四档只换布色（米白 / 亚麻 / 冷白 / 米灰），
-// 换色卡时罩子跟着走一点点，杆的材质与颜色才是档位的主角。
 const LAMP_STYLES = Object.freeze([
   defineStyle(
     "lamp-warm-brass",
@@ -1365,7 +1128,6 @@ const LAMP_STYLES = Object.freeze([
     },
     applianceCombo({
       // 木杆 + 铜件：这是唯一一档杆件不走金属的 —— 木杆落地灯在暖木色系里几乎必有，
-      // 缺了它，「材质风格」这一栏在家具与灯具之间就少一个对照项。
       body: { surface: "wood", color: 0x6b4526 },
       metal: { surface: "metal", color: 0x9c6b3f },
       trim: { surface: "metal", color: 0x9c6b3f },
@@ -1378,10 +1140,6 @@ const LAMP_STYLES = Object.freeze([
 // ── 绿植 / 软装摆件 ──────────────────────────────────────────────────────
 /**
  * 绿植的组合：叶 / 盆 / 托 / 干 / 土。
- *
- * 五种料里只有叶与盆是「看得出换了档」的两块：叶决定这株植物的调子，盆决定它的容器。
- * 托、干、土从盆色派生 —— 盆托与花盆是同一批陶件（天然同色系深一档），
- * 主干是深木色，盆土是不反光的深色颗粒，这三块在任何一档都不该抢戏。
  */
 function plantCombo({ foliage, pot, saucer, trunk, soil }) {
   const derivedTrunk = { surface: "wood", color: 0x6b5a42 };
@@ -1446,17 +1204,6 @@ const DECOR_STYLES = Object.freeze([
 // ── 地毯 ──────────────────────────────────────────────────────────────────
 /**
  * 地毯的组合：毯面 + 包边 + 防滑底。
- *
- * 包边默认从毯面色派生（同色系深 22%）而不是写死：实物上的包边就是同族深一档的织带，
- * 写死一个棕褐色会让三档地毯共用同一条边，毯面换了色而边没换，一眼就看出是「整件刷色」。
- * 防滑底压到深 62% —— 它只在被掀起来时才看得到，深色底也不会在浅色毯面边缘透出一道亮线。
- *
- * 三块都上 `fabric` 质感：这是簇绒地毯唯一能拿到织纹的地方（见 studio-surface-fabrics.js
- * 的 SURFACE_TEXTURE_ALIAS），不上就只剩一片纯色。
- *
- * 参数名一律用**角色名**（fabric / trim / base）而不是 field / border / backing：
- * 护栏（tools/check_invariants.mjs 的 readComboRoleSupport）按「调用处传进来的键名」判定
- * 这个档位覆盖了哪些角色，参数名与角色名不一致时 fabric 会被判成「没配方」。
  */
 function rugCombo({ fabric, trim, base }) {
   const derivedTrim = { surface: "fabric", color: shadeColor(fabric.color, -0.22) };
@@ -1507,9 +1254,6 @@ const RUG_STYLES = Object.freeze([
 // ── 窗帘布面 ──────────────────────────────────────────────────────────────
 /**
  * 窗帘的组合：帘布 + 顶轨 / 支架。
- *
- * 帘布一律 `fabric`（布面才有织纹与哑光），顶轨一律 `metal`：真实窗帘的轨道是铝合金，
- * 它不该跟着布色变 —— 这也是三档之间「布换色、杆不换」的原因。
  */
 function curtainCombo({ fabric, metal }) {
   const derivedMetal = { surface: "metal", color: 0x9aa1a8 };
@@ -1559,11 +1303,6 @@ const CURTAIN_STYLES = Object.freeze([
 // ── 鱼缸 ──────────────────────────────────────────────────────────────────
 /**
  * 鱼缸的组合：柜体 / 柜门 / 台面 / 踢脚 / 拉手（下）+ 缸框 / 缸内背板 / 玻璃 / 灯板（上）。
- *
- * 这是全站唯一一件**跨两族料**的家具：下半是柜类（木作 / 漆面），上半是水族（玻璃 + 黑框）。
- * 所以它的组合不能只给一个颜色 —— 缸框默认从柜体派生但**压到深 50%**：
- * 柜体换成胡桃木时，缸框会跟着变成深胡桃，而不是留在黑框上。玻璃默认永远是那一份清水色
- * （0xdfeaec，与 GLASS_STYLES / 柜类玻璃同一支），因为它不该跟着柜子的木色走。
  */
 function aquariumCombo({ body, door, top, base, handle, frame, glass, interior, lit }) {
   const derivedBase = { surface: "lacquer", color: shadeColor(body.color, -0.45) };
@@ -1630,17 +1369,10 @@ const AQUARIUM_STYLES = Object.freeze([
   )
 ]);
 
-// ── 钢琴 ──────────────────────────────────────────────────────────────────
-// 钢琴这一族与其它档位最不同的一点是**琴键不跟着档位走**：亮光黑琴身、亮光白琴身、暖木琴身，
-// 琴键都是那片象牙白与那排黑键（实物就是如此）。所以白键 / 黑键在构造器里给死值 —— 交给各档位
-// 自己写一遍，迟早有一档把琴键刷成木色，而那种错法看上去还挺「统一」，肉眼判不出来。
 const PIANO_KEY_RECIPE = Object.freeze({ surface: "lacquer", color: 0xf6f2e8 });
 const PIANO_ACCENT_RECIPE = Object.freeze({ surface: "lacquer", color: 0x16181a });
 /**
  * 钢琴的组合：琴身 / 顶盖 / 腰线 / 键床与键侧木 / 琴腿 / 五金 + 白键 / 黑键。
- *
- * 琴身、顶盖、腰线三者同料但明度依次递进：顶盖受光最多、腰线最浅、琴身最沉。这一层明度差
- * 是实物上最容易读出来的一处层次，一整块同色的琴身会像一块塑料。
  */
 function pianoCombo({ body, top, trim, panel, leg, metal, key, accent }) {
   return {
@@ -1715,12 +1447,8 @@ const PIANO_STYLES = Object.freeze([
   )
 ]);
 
-// ── 影音屏幕 ──────────────────────────────────────────────────────────────
-// 电视走家电调色板，且整机取色只看 applianceDark（见 studio-external-models.js 的 tv_ 分支），
-// 因此档位必须覆盖 appliance* 三键；只写 furniture* 会是「选了没反应」。
 const SCREEN_STYLES = Object.freeze([
   // 屏类的角色分工与设备族同一套骨架：**屏自己永远是那块深色的屏**，只有边框（trim）与
-  // 底座（metal）跟着档位走 —— 换「银灰」是把边框换成银灰，不是把画面也刷成银灰。
   defineStyle(
     "screen-black",
     "曜黑",
@@ -1753,15 +1481,6 @@ const SCREEN_STYLES = Object.freeze([
   )
 ]);
 
-/**
- * 逐类型显式档位表。同族物件共用同一组档位常量，避免同一批风格在十几个类型里各写一遍。
- * 键必须属于 MATERIAL_STYLE_ITEM_TYPES —— 与它不一致时 materialStyleOptionsFor 会回落到族兜底，
- * 而不是报错：物件照常可放，只是档位少一点，这比整件东西放不下去好。
- *
- * 注意键是**物件类型**：按挂装方式拆成三份模型的电视（tv_standard / tv_tabletop / tv_mobile）
- * 在这里只有 tv 一条 —— 那三份是同一件东西的三种挂装，档位自然同组。护栏因此把这三个模型键
- * 折算回 tv 再比（见 tools/check_invariants.mjs 的 checkMaterialRoleCoverage）。
- */
 const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = Object.freeze({
   // 布艺座位 / 卧床
   sofa: FABRIC_STYLES,
@@ -1909,13 +1628,11 @@ const MATERIAL_STYLE_OPTIONS_BY_ITEM_TYPE = Object.freeze({
   // 影音屏幕（新增）
   screenpanel: SCREEN_STYLES,
   // 结构构件（唯一一件可换表面料的）：柱体的档位是「墙体系 + 柜体系」两套配对，
-  // 见 PILLAR_STYLES 的说明。走逐类型表而不是材质族 —— 它不是家具，没有可归的族。
   pillar: PILLAR_STYLES
 });
 
 /**
  * 材质族兜底表：按类型所属的族取一组档位。
- * 只在显式表查不到时使用，保证「新增了同类物件但忘了加显式档位」时不至于没档可选。
  */
 const MATERIAL_FAMILY_BY_ITEM_TYPE = Object.freeze({
   sofa: "fabric",
@@ -1993,7 +1710,6 @@ const AUTO_ONLY_OPTIONS = Object.freeze([]);
 
 /**
  * 某类型可选的风格档位（不含「跟随全局风格」，那一项由界面统一补在最前）。
- * 先查逐类型显式表，再查材质族，最后是空数组（界面只显示 `跟随全局风格`）。
  */
 export function materialStyleOptionsFor(itemType) {
   if (!isMaterialStyleCapable(itemType)) {
@@ -2022,8 +1738,6 @@ export function findMaterialStyle(itemType, styleId) {
 
 /**
  * 把任意取值归一到「该类型下合法的风格 id」。
- * 非法值一律落回 `auto`（跟随全局）而不是抛错：草稿里出现脏值 / 旧值 / 别的类型留下的 id 时，
- * 物件照常显示，只是回到默认外观 —— 这与 normalizeMuralArtStyle 的取舍一致。
  */
 export function normalizeMaterialStyle(itemType, styleValue) {
   if (typeof styleValue !== "string" || styleValue === MATERIAL_STYLE_AUTO) {
@@ -2034,14 +1748,6 @@ export function normalizeMaterialStyle(itemType, styleValue) {
 
 /**
  * 把逐物件风格叠加到调色板上。
- *
- * `auto`（或该类型不支持的取值）时**原样返回入参调色板**，不做任何复制或改写 —— 这是「加了属性
- * 但没选风格」的物件与改动前逐字节一致的原因。命中风格时返回一个浅拷贝，只覆盖该风格声明的键，
- * 其余键（背景、墙、地板等场景色）保持基础调色板的值。
- *
- * 返回值里的 surface / roughness / metalness 供材质侧决定质感贴图与参数；`auto` 时为 null，
- * 材质侧据此跳过质感处理。
- *
  * @param {object} palette 基础调色板（已过 applyItemFinish）。
  * @param {string} itemType 物件类型。
  * @param {string} styleValue 物件上的 materialStyle 取值。
@@ -2067,7 +1773,6 @@ export function applyMaterialStyle(palette, itemType, styleValue) {
     roughness: SURFACE_ROUGHNESS[style.surface] ?? null,
     metalness: SURFACE_METALNESS[style.surface] ?? null,
     // 「档位即组合」：按角色的配方。流水线模型的材质名带角色（material-<槽位>-<角色>），
-    // 运行侧据此给每一块网格取**它自己的**颜色与质感；为 null 时这条路整段跳过。
     roles: style.roles ?? null,
     styleId: style.id
   };

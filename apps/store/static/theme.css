@@ -1,22 +1,3 @@
-/* ==========================================================================
-   HomeOS 统一设计系统 · 深空 + 暖金。
-   本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：令牌 → 重置 → 排版 → 组件。
-   页面级布局分别写在 store.css 与 admin.css，那两份文件只允许摆放区块，不允许重新定义组件外观。
-
-   配色与入口页的场景设计系统同源（源在仓库 design/scene/，令牌见其 page.css 的 --hos-*）。
-   **取值不在文件头列一遍**：这里曾经抄着一张对照表（canvas #050910 / surface #0a1520 /
-   success #58bd93 …），而它没撑到下一次改色 —— 表还在，令牌早换了两轮，谁照着表改谁错。
-   要取值看下面「1. 令牌」那一节，那是唯一的定义处；要看两侧是否走散，按 token 逐个比
-   `design/scene/page.css` 的 --hos-* 与本文件的 --hb-*。
-
-   ! 这里**不再**与主程序 frontend/static/app.css 逐字对齐：app.css 是中控台内部的琥珀主题，
-   而商店是面向买家的「授权服务中心」，与 /setup、/login、Activate 激活页同属对外入口，
-   视觉基准是场景设计系统。两者同为暖色琥珀，但 app.css 走自己的变量名与字号阶梯。
-
-   强调色一律用 rgba(var(--hb-accent-rgb), α) 而不是写死的 rgba(255, 196, 106, α)：
-   改品牌色时只要动三个 channel 令牌，散落在 store.css / admin.css 的透明度派生色会一起
-   跟上（过去它们全是写死的琥珀，换色只能靠全局搜替换）。
-   ========================================================================== */
 
 /* 1. 令牌 */
 :root {
@@ -24,8 +5,6 @@
   accent-color: var(--hb-accent);
 
   /* 夜空族：与场景（design/scene/page.css 的 --hos-sky-*）同值。首页夜空与入口页山景
-     必须是同一天色，否则从入口页点进商城会「天亮了一次」。
-     色面（surface）是商店侧的层级名、天空（sky）是场景侧的层级名，指向同一批值，
      所以下面用 var() 别名而不是抄一遍十六进制：抄一遍就迟早只改一侧。 */
   --hb-sky-deep: #050912;
   --hb-sky-low: #081020;
@@ -35,14 +14,10 @@
   --hb-sky-deep-rgb: 5, 9, 18;
   --hb-sky-low-rgb: 8, 16, 32;
   --hb-sky-mid-rgb: 13, 23, 40;
-  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-sky-high-rgb: 22, 38, 60;
   --hb-sky-haze-rgb: 36, 57, 90;
-  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
 
   /* 星空与浮尘的「一点光」。与 design/scene/page.css 的 --hos-star-* 逐字相等。
-     首页 hero 的星域与入口页场景是同一片天，用同一批值；过去这里是 18 处
-     rgba(220,240,255/160,230,255/180,235,255, α) 字面量，改天色时会漏掉这一层，
      于是「从入口页点进商城天亮了一次」的老毛病原样复现在星空上。 */
   --hb-star-rgb: 220, 240, 255;
   --hb-star-cool-rgb: 168, 226, 255;
@@ -59,32 +34,16 @@
   --hb-line-strong: #2b4a6e;
 
   /* 文字。与 design/scene/page.css 逐 token 相等 —— 包括 --hb-muted 那个 α。
-     它先前是实色 #8ea8b8，比场景侧的 --hos-muted 合成值亮两档：两侧都自称
-     「次级文字」，商店的比主程序的白一截，而没有任何一处会因此报错。
-     对齐后合成值见下方注释；--hb-muted-dim 是**商店自有**的第二档（表格密集、
      需要比 PWA 面板更暗一档的脚注），不是漂移，别把它也「对齐」掉。 */
   --hb-ink: #f1f7fb;
   --hb-ink-bright: #f7fcff;
-  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-ink-soft: #c8dbe8;
   --hb-ink-rgb: 241, 247, 251;
-  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-muted-rgb: 186, 214, 232;
   /* 这一档与 design/scene/page.css 的 --hos-muted **必须逐个相等**，两侧一起改。
-     0.58 → 0.64 是量出来的：0.58 合成在 sky-high(#16263c) 上只有 4.41:1，略低于 AA；
-     而这一档同时是坞脚与说明文字的下限（.hos-deck__label / .hos-panel__meta /
-     .hos-scene__ver 都在用它）。0.64 把最坏情形拉过 5:1，且三档（0.82 / 0.72 / 0.64）
-     的排序不变。
-     商店前台这些页面里 0.58 时的 4.41:1 恰好碰不到（那几处用的是 --hb-ink），
      但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
   --hb-muted: rgba(var(--hb-muted-rgb), 0.64);
   /* 商店自有最暗一档。**它有使用上限**：只允许压到 surface-soft 一级为止。
-     原因是结构性的，不是取值没调好 —— 要让一个**固定字面量**在 sky-high 上也过 4.5:1，
-     它就得亮过 --hb-muted 在深底上的合成值，那一档的「最暗」语义当场失效
-     （推导见 tools/audit_colors.mjs 的 FOREGROUND_CEILING）。
-     实际后果：**别把它放进 .hb-page-head / .hb-account-heading**，那两块横幅的渐变
-     100% 停点是 surface-raised，dim 档在那里只有 4.04:1（__path / __feed small 因此
-     改用 --hb-muted）。表格脚注、档位提示、版本号这些压在 surface / surface-soft 上的
      场景都在上限之内，照旧可用。 */
   --hb-muted-dim: #6d8797;
 
@@ -93,33 +52,19 @@
   --hb-accent: #ffc46a;
   --hb-accent-bright: #ffd9a0;
   --hb-accent-deep: #e09523;
-  /* 0.13 / 0.32 不是随手挑的：appearance.js:178-179 的 `appearanceTokens()` 给
-     lumen / aura / eco 发的 soft / line 就是这一对，而它给 accent 发的也是同一对。
-     这里若写成 0.12 / 0.42，管理员「打开配色面板 → 什么都不改 → 点保存」就会把
-     全站强调描边从 0.42 悄悄改成 0.32（写回的内联变量盖过这张表），
-     而且同屏的主控色软底比居家三光淡一档 —— 四枚色只有它一个不一样。
-     这条契约现在有守卫：tools/audit_colors.mjs 的 checkSoftLineContract() 按
-     appearance.js 实际发出的 α 逐族比对，改单侧会被拦下。 */
   --hb-accent-soft: rgba(var(--hb-accent-rgb), 0.13);
   --hb-accent-line: rgba(var(--hb-accent-rgb), 0.32);
   --hb-accent-text: var(--hb-accent-bright);
   /* 0.06 的极淡底：给「有琥珀光但几乎不成形」的那几处用 —— store.css 的
-     .hb-hero 光斑、激活态外圈 7px 扩散环、侧栏选中条的底，admin.css 把它转发成
-     --a-tint-faint。它与 --hb-accent-soft(0.13) 是**两档**，不是同一个东西：
-     0.13 读得出「这一块泛着琥珀」，0.06 只读得出「不是纯黑」。
      别拿它当 --hb-accent-line + opacity 的替代（反过来也一样）—— 前者是面、后者是线。 */
   --hb-accent-faint: rgba(var(--hb-accent-rgb), 0.06);
   --hb-accent-grad: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
   /* 悬停时的提亮版：主按钮默认就用渐变底，再叠一层 filter 会让上面的深色文字发灰，
-     所以单独给一份更亮的渐变。写 var() 而不是字面量：appearance.js:186-188 的
-     appearanceTokens() 发的就是 `${bright} → ${accent}`，管理员换掉主控色后
      这边必须跟着换，否则按钮默认态变了、hover 态还是琥珀。 */
   --hb-accent-grad-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
   --hb-accent-glow: 0 10px 26px -14px rgba(var(--hb-accent-rgb), 0.8);
 
   /* 表单聚焦环：三层一起用才成立——贴边描边（把 1px 边框「加粗」成 2px）
-     + 4px 扩散环（保证在深色底上的可辨识度）+ 负 spread 的辉光
-     （只作为光晕，不糊成一片亮蓝）。整站输入控件共用这一个变量，
      避免各页各写一份 box-shadow 后逐渐走样。 */
   --hb-focus-ring: 0 0 0 1px var(--hb-accent), 0 0 0 4px var(--hb-accent-soft),
     0 0 20px -10px rgba(var(--hb-accent-rgb), 0.85);
@@ -128,10 +73,6 @@
      避免每处各写一个近黑的十六进制。 */
   --hb-on-bright: #041018;
 
-  /* ── 居家三光 ────────────────────────────────────────────────────────────
-     与场景调色板同名同值（design/scene/page.css 的 --hos-lumen / --hos-aura / --hos-eco）。
-     这两组令牌必须逐个相等，但已无自动比对 —— 靠人记得改两侧，正是过去琥珀主题
-     能留在这里三个月的唯一原因。 */
   --hb-lumen-rgb: 255, 157, 77;
   --hb-lumen: #ff9d4d;
   --hb-lumen-bright: #ffba83;
@@ -139,12 +80,6 @@
   --hb-lumen-soft: rgba(var(--hb-lumen-rgb), 0.13);
   --hb-lumen-line: rgba(var(--hb-lumen-rgb), 0.32);
   /* `-text` = 「这个色当文字用时取哪一档」，四束光各一枚，取值一律 = `-bright`：
-     -bright 是给渐变用的亮档，恰好也是这几个色在深底上作文字时唯一够亮的档
-     （base 压 sky-low 只有 3.4–5.4:1 不等，-bright 才稳定过 4.5:1）。
-     这里**不再**自己写一遍 #ffba83：那曾让「暖光的亮档」在仓库里裂成
-     -bright 与 -text 两个值。现在二者是别名，改色只改 -bright 一处。
-     名字保留是因为 appearance.js 的 appearanceTokens() 与 palette.js 的白名单
-     都按 base / -bright / -deep / -rgb / -soft / -line / -text 这一组发令牌
      （见 palette.js 的 applyPreview 注释），删掉它会让注入表多出一枚无人认领的名字。 */
   --hb-lumen-text: var(--hb-lumen-bright);
   --hb-aura-rgb: 201, 160, 255;
@@ -162,13 +97,6 @@
   --hb-eco-line: rgba(var(--hb-eco-rgb), 0.32);
   --hb-eco-text: var(--hb-eco-bright);
 
-  /* ── 设备读色 ────────────────────────────────────────────────────────────
-     heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
-     商店里的授权状态、后台的库存与订单状态都从这几个色取，不再各写各的绿黄红。
-
-     bright / deep 两档与 --hos-* 同组逐字相等。四族里只有它们先前缺这两档，
-     于是 [data-tone=heat|cool|sensor] 的渐变只能写死十六进制 ——
-     改 --hb-heat 时渐变不会跟着动，一族的两个色各自过自己的日子。 */
   --hb-heat-rgb: 255, 138, 101;
   --hb-heat: #ff8a65;
   --hb-heat-bright: #ffb59c;
@@ -176,9 +104,6 @@
   --hb-heat-soft: rgba(var(--hb-heat-rgb), 0.13);
   --hb-heat-line: rgba(var(--hb-heat-rgb), 0.32);
   /* 设备三族（heat / cool / sensor）的 `-text` 就是 base 本身，不走 `-bright`：
-     这三色的 base 已经够亮（heat #ff8a65 压 sky-low 7.0:1、sensor #9eb0c4 7.4:1），
-     再提一档就压不住「温度偏高」这种中性读数的语气了。
-     四束光走 `-bright` 是因为它们要当**主色**用（按钮、徽标），得更醒目；
      而这三族只需要「读得清」，族与族之间的差异是刻意的，不是漏对齐。 */
   --hb-heat-text: var(--hb-heat);
   --hb-cool-rgb: 88, 196, 255;
@@ -193,17 +118,12 @@
   --hb-sensor-bright: #cfdae6;
   --hb-sensor-deep: #77879a;
   /* 0.12 → 0.13、并补一枚 --hb-sensor-line：设备四族里只有 sensor 的 soft 比同族
-     淡一档、且 line 完全没有令牌（[data-tone='sensor'] 里写的是内联的 0.28）。
-     两处都是同一件事的症状 —— 这一族被当成「凑数的中性色」处理，没进那对契约。
-     soft 0.13 与 heat/cool 对齐；line 0.28 → 0.32 与全族对齐。
-     离线灰本来就该比彩色族**轻**，但「轻」应当由色相与彩度表达（#9eb0c4 本就近乎中性），
      不是靠把同族的 α 再调低一档 —— 那只会让灰色描边在深底上直接消失。 */
   --hb-sensor-soft: rgba(var(--hb-sensor-rgb), 0.13);
   --hb-sensor-line: rgba(var(--hb-sensor-rgb), 0.32);
   --hb-sensor-text: var(--hb-sensor);
 
   /* 语义色：成功 = 生态薄荷、危险 = 珊瑚、提醒 = 暖光。
-     三者的通道值就是上面的 eco / alert / lumen，所以 --hb-success-* 是别名而不是
      另一套颜色 —— 状态语义与设备语义在这里是同一件事。 */
   --hb-success-rgb: var(--hb-eco-rgb);
   --hb-success: var(--hb-eco);
@@ -217,9 +137,6 @@
   --hb-alert-deep: #c85a5e;
   --hb-alert-soft: rgba(var(--hb-alert-rgb), 0.13);
   /* 0.34 → 0.32：这一枚是审计查出的一处真漂移。四束光的 soft/line 契约是
-     appearance.js 发的 0.13 / 0.32（见 --hb-accent-soft 上方注释），
-     alert 只是**一族的语义别名**（--hb-danger-* 就转发到它），没有理由自成一套。
-     单看 0.34 与 0.32 差别不可见，但它是「契约只写在别处、没有守卫时必然发生的事」
      的样本：同屏的告警描边比暖光描边重 6%，没人会去量的那种不一致。 */
   --hb-alert-line: rgba(var(--hb-alert-rgb), 0.32);
   --hb-alert-text: var(--hb-alert-bright);
@@ -229,8 +146,6 @@
   --hb-danger-line: var(--hb-alert-line);
   --hb-danger-text: var(--hb-alert-text);
   /* 语义色族的 -rgb 通道。warning 这一枚目前**没有取用点**（success / danger 各有一处
-     box-shadow 用它），留着是为了三族对称：`--hb-{success,danger,warning}-rgb` 是一组，
-     缺掉中间一枚会让下一个人以为「warning 没有 rgb 通道」而去别处再定义一遍。
      若确定不要，就三枚一起删并把各自的取用点改成 -soft / -line。 */
   --hb-warning-rgb: var(--hb-lumen-rgb);
   --hb-warning: var(--hb-lumen);
@@ -243,13 +158,11 @@
   --hb-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
   --hb-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
   /* 设备读色的四支。--hb-grad-alert 与 page.css 的 --hos-grad-alert 同源同值；
-     heat / cool / sensor 这三支商店独有（场景侧没有消费点），
      所以它们的 base / bright / deep 三档更要与 --hos-* 对齐 —— 那三档是共用真值。 */
   --hb-grad-heat: linear-gradient(180deg, var(--hb-heat-bright), var(--hb-heat-deep));
   --hb-grad-cool: linear-gradient(180deg, var(--hb-cool-bright), var(--hb-cool-deep));
   --hb-grad-alert: linear-gradient(180deg, var(--hb-alert-bright), var(--hb-alert-deep));
   --hb-grad-sensor: linear-gradient(180deg, var(--hb-sensor-bright), var(--hb-sensor-deep));
-  /* 镜像专用：入口页那边有 var() 取用点，商店这边没有 —— 这是**刻意的**，不是漏接。theme.css 是 design/scene/page.css 的镜像，镜像表要求逐 token 相等（tools/audit_colors.mjs 的 checkTokenMirror 会拦），所以这里的每一枚都必须在。删掉它省下的不是一行 CSS，而是让「--hos 侧有、--hb 侧没有」变成常态 —— 那正是过去两套色板能各走各的起点。 */
   --hb-grad-aurora: linear-gradient(
     100deg,
     var(--hb-accent) 0%,
@@ -277,35 +190,17 @@
   --hb-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
   --hb-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
   /* 阴影三档里的最淡一档，目前**没有取用点**（-md 一处、-lg 五处）。留着的理由与
-     上面 --hb-warning-rgb 同类：一档尺度缺了中间那级，后来者会自己补一个近值
      （审计量到的正是这类事 —— 中性灰裂成 57 簇）。要收就三档一起定档位，别只删这一枚。 */
   --hb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
   --hb-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --hb-shadow-lg: 0 30px 100px rgba(0, 0, 0, 0.58);
   --hb-card-bg: linear-gradient(180deg, var(--hb-surface-soft) 0%, var(--hb-surface) 100%);
 
-  /* 排版：与场景同一套**打包字体**（apps/store/static/scene/fonts.css 定义 @font-face，
-     四族 Exo 2 / Orbitron / JetBrains Mono / Share Tech Mono 都有）。CJK 走系统回退 ——
-     只打包了 latin 子集。
-     注意「同一套打包字体」不等于「同一套 font stack」：下面 mono 那一档是**有意不同**的，
-     理由写在那行旁边。 */
   --hb-font: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
   /* 品牌字：站名那一个词（.hb-brand__text strong）。这里原叫 --hb-font-display，
-     是个名实不符的名字 —— 它全站只被取用一次，就是品牌标，而这个角色在场景侧的
-     令牌叫 --hos-font-brand（见 design/scene/page.css）。场景那边 --hos-font-display
-     是「版面标题」档（Exo 2，不含 Orbitron），与品牌标是两回事。
-     改成转发 --hos-font-brand：名字对了，取值也从「商店自己抄的一份 Orbitron 栈」
      变成引用唯一真值（原先那份的 CJK 回退比 canonical 少两族）。 */
   --hb-font-brand: var(--hos-font-brand);
-  /* 数据字（金额 / 订单号 / 支付倒计时 / KPI / 邀请码）。**刻意不用 --hos-font-mono**：
-     那边首选 Share Tech Mono（宽、细、强风格化的显示用等宽），适合场景里的短标签，
-     但不适合要一眼读准的 commerce 数字 —— 商店这一档要读的是「¥1,299.00」与倒计时。
-     JetBrains Mono 是照代码可读性设计的，同宽度 + 更清晰的字形骨架，这里更合适。
-     代价要认：store.html 同时加载 scene/panel.css，于是同一页上 .hos-eyebrow 走
-     Share Tech Mono、商店自己的数据走 JetBrains Mono，两个等宽字体并存。
-     这是「装饰性标签 vs 数据」的分工，不是漏改；若哪天要收成一个，先确认
-     Share Tech Mono 在 ¥/小数点/倒计时上的可读性真的够。 */
   --hb-font-mono: 'JetBrains Mono', SFMono-Regular, ui-monospace, Consolas, Menlo, monospace;
 
   /* 动效 */
@@ -318,13 +213,6 @@
 }
 
 /* 组件色调开关，默认主控暖金。
-   给任意元素加 `data-tone="lumen|aura|eco|heat|cool|alert|sensor"`，它和它的子树里的
-   --hb-tone* 就切到该色系。卡片 / 图标 / 徽标 / 统计数字统一只读这几个变量，
-   于是「给一张卡换个色」= 在模板上加一个属性，而不是把 border + background + color
-   三处颜色各抄一遍（过去商店里正是这么做的，24 个写死的十六进制就是这么来的）。
-
-   为什么是 data 属性而不是 .hb-tone--x 类：这些分色是**数据**的性质（这张卡是温控、
-   这个数字是授权数），不是版面的性质。写在模板的属性位上，改配色时不会有人误以为
    它是布局钩子。 */
 [data-tone='accent'] {
   --hb-tone: var(--hb-accent);
@@ -416,7 +304,6 @@ body {
   color: var(--hb-ink);
   background-color: var(--hb-bg);
   /* 深空画布上的三团氛围光，与入口页场景插画同源：
-     右上主控暖金（山后的信号）、左下居家暖光（屋里的灯）、中部极光紫（夜里的天色）。
      前台分页没有场景层，页面「有厚度、有温度」就靠这三团 —— 只留暖金会是仪表盘。 */
   background-image:
     radial-gradient(circle at 88% -6%, rgba(var(--hb-accent-rgb), 0.1), transparent 34rem),
@@ -693,8 +580,6 @@ b {
 }
 
 /* 告警按钮的边框/底色一直取自 --hb-warning-*（= 居家暖光），只有文字和 hover
-   还挂在主控色上。默认琥珀看不出来，但管理员把主控色改成别的色相后，
-   这颗按钮会变成「暖光底的紫色字、hover 时整颗变紫」—— 告警语义被主题色吃掉。
    四态全部收回暖光家族，与 .admin-toast__item.is-warning 一致。 */
 .hb-button--warning {
   border-color: var(--hb-warning-line);
@@ -1046,7 +931,6 @@ b {
 }
 
 /* 账号中心的状态芯片（授权卡抬头、权益卡抬头各一枚）。变体**必须**写成
-   复合选择器：单类名（0,1,0）扛不住外层容器里任何 `.xxx span` 这类
    （0,1,1）规则，颜色会静默退回中性灰。 */
 .hb-meta-chip {
   display: inline-flex;
@@ -1117,7 +1001,6 @@ b {
 }
 
 /* 空态底色：一层极淡的斜向条纹，让「这里没东西」也有质感。
-   用 repeating-linear-gradient 而不是网格，是因为空态多为窄条/方框，
    网格线在非整格尺寸下会被切得参差不齐。 */
 .hb-empty::before {
   position: absolute;
@@ -1332,11 +1215,6 @@ b {
 }
 
 /* 报错档：同一个节点，同一套几何，只换语义色。
-   以前成功与失败长得一模一样（都是 ink 字 + 中性玻璃），「登录成功，正在进入购买页」
-   和「密码错误」除了文案没有任何区别 —— 而这条提示只停留 3.2 秒，用户经常是
-   余光扫到一眼，颜色是唯一来得及读的信号。
-   底色用「半透明语义色叠在 raised 面板上」而不是单独的语义底色：提示是浮在正文上的
-   fixed 层，半透明底会把下面的文字透上来，小字立刻糊掉。
    对比：--hb-danger-text (#f5a3a6) 叠在 --hb-surface-raised (#16263c) 上约 7.7:1。 */
 .hb-toast.is-err {
   border-color: var(--hb-danger-line);
@@ -1357,8 +1235,6 @@ b {
 }
 
 /* 纵向 flex + 页脚 margin-top:auto 是「等高网格不拉伸徽标行」的关键：
-   卡片若是 grid，同排最矮卡之外多出来的高度会被均摊到每一行，
-   内容少的卡（只有徽标 + 标题）会表现为徽标被拉成竖椭圆、标题比邻卡低一截。
    别改回 grid。 */
 .hb-addon-card {
   position: relative;
@@ -1487,8 +1363,6 @@ html.hb-auth-hint .hb-guest-only {
   display: none !important;
 }
 
-/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
-   放在设计系统里而不是各自的页面样式表里：前台 theme+store、后台 theme+admin 互不加载，keyframes 放任何一边都会让另一边引用到一个不存在的动画名，而那种失败是静默的（只是不动了）。 */
 @keyframes hb-head-drift {
   from {
     background-position: 0 0, 0 0, 0 0, 0 0;

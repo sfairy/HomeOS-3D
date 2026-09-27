@@ -1,18 +1,5 @@
 /**
  * 通用设备的状态判定与「提醒条件」词表。
- *
- * 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）没有专属状态模块，它们的顶部状态灯
- * 与弹窗头部完全由配置里的 statusRules 决定：
- *
- *   statusRules.power   —— 开关类实体，{ entityId, active, inactive }，决定「开 / 关」
- *   statusRules.health  —— 提醒条件，单个或数组，命中 active 就让状态灯转成警告色
- *
- * 两件事必须成对:一是 `deviceStatus` 把规则 + 实时状态折算成一枚状态灯（颜色 / 是否可用），
- * 二是 `deviceStatusChoices` 从实体自身推出「这个实体有哪两种状态、中文叫什么」——
- * 编辑器的提醒条件下拉就靠它，否则用户得手写 on / off 这类原始字符串。
- *
- * 词表按 device_class 分：binary_sensor 的 26 个 class 各有各的说法（door 是「打开 / 关闭」，
- * moisture 是「有漏水 / 无漏水」），普通实体则只有一组通用的 on / off / open / closed 词。
  */
 
 // binary_sensor 各 device_class 的 [真, 假] 中文名。顺序即「第一个是异常态」。
@@ -72,7 +59,6 @@ const SWITCH_LIKE_DOMAINS = [
 ];
 
 // 「默认值就是正常」的三个 device_class：它们的 on 表示一切正常（在线 / 已插电 / 有电），
-// 提醒条件必须取 off，否则一配好就常亮警告灯。
 const NORMALLY_ON_DEVICE_CLASSES = ["connectivity", "plug", "power"];
 
 const STATUS_COLORS = {
@@ -84,10 +70,6 @@ const STATUS_COLORS = {
 
 /**
  * 推出某个实体可选的两种状态及其中文名；推不出来（比如湿度这种连续量）返回 null。
- *
- * 三种来源按优先级：on / off 类域 → binary_sensor 的 device_class 词表 → 实体自带的
- * 两值 options。最后一种要求「恰好两个、互不相同、都是非空字符串、且不是 unknown /
- * unavailable」—— 少了任何一条，编辑器就会给用户一个选不出有效状态的下拉。
  */
 export function deviceStatusChoices(entity = {}, state) {
   const liveState = state?.newState || state;
@@ -124,16 +106,12 @@ export function deviceStatusChoices(entity = {}, state) {
   return {
     options: options.map(option => ({ value: option, label: STATE_LABELS[option] || option })),
     // 两值选项（HA 的 select / input_select）没有「哪个算正常」的约定，取第一个——
-    // 与用户在下拉里看到的顺序一致，改起来最直观。
     reminderValue: options[0]
   };
 }
 
 /**
  * 新建一条状态规则时的缺省值。
- *
- * power 取第一个选项（on / 打开 / 在线…），health 取 reminderValue —— 后者的存在
- * 正是为了让「提醒条件」的缺省值落在真会出事的那一侧。
  */
 export function defaultDeviceStatusRule(entity, state, role) {
   const choices = deviceStatusChoices(entity, state);
@@ -150,14 +128,6 @@ export function defaultDeviceStatusRule(entity, state, role) {
 
 /**
  * 把 statusRules + 实时状态折算成一枚状态灯。
- *
- * status 四态：
- *   warning —— 任一 health 规则命中 active（有漏水 / 有故障…），优先级最高
- *   unknown —— 任一规则读到 unknown 或 unavailable，或 power 未知
- *   off     —— power 命中 inactive
- *   normal  —— 其余
- *
- * 规则全为空时返回 visible:false —— 没配规则的设备不该在场景里挂一盏永远绿色的灯。
  */
 export function deviceStatus(item, states = {}) {
   const statusRules = item?.statusRules;
@@ -206,9 +176,6 @@ export function deviceStatus(item, states = {}) {
 
 /**
  * 这台设备牵扯到的全部实体 ID（附加控件 + power + health）。
- *
- * 用来决定「哪些实体要订阅」以及「删除设备时要回收哪些订阅」——漏一个就会让状态
- * 灯停在旧值上。顺序按 Set 去重后保留首次出现，保证订阅顺序稳定。
  */
 export function deviceEntityIds(item) {
   const healthRules = Array.isArray(item?.statusRules?.health)

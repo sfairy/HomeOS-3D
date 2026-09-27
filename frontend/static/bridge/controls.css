@@ -1,12 +1,5 @@
 /*
  * 3D 交互设置面板里的开关（toggle）样式。
- *
- * 只被 bridge.css 以 @import 引入，同时作用于组件检查器 #interaction3d-inspector、3D 编辑器
- * .i3d-editor、清扫地图编辑器 .i3d-vacuum-map-editor 与 plan2 范围编辑器；所有规则都以
- * :is(...) 前缀限定作用域。勾选态用主题强调色 var(--accent)，缺省回落到 design/scene
- * 的 --hos-accent，再缺省才是同值字面量（本文件经 bridge.css / runtime.css / stage.css
- * 三个入口 @import 进来，运行期动态注入的那些页面不保证加载了调色板）。手柄位移 12px 与
- * 轨道 / 手柄尺寸是算好的，改尺寸必须同时改 translate。
  */
 
 /* ===== 开关行与轨道 ===== */
@@ -78,7 +71,6 @@
   background: var(--hos-ink, #f1f7fb);
   transform: translate(12px);
 }
-/* 焦点环只在键盘操作时出现（focus-visible），鼠标点击不显示，避免干扰视觉。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:focus-visible {

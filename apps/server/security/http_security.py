@@ -1,18 +1,4 @@
 """请求来源解析与同源校验（真实客户端 IP / HTTPS 判定 / CSRF 同源闸门）。
-
-三件事写在一起，是因为它们共用同一份「谁在代理、能不能相信转发头」的判断：
-
-- ``resolve_client_ip``：在可信反向代理后面取出真实来源 IP。**不可信时宁可用对端地址，
-  也绝不相信客户端自己写的 X-Forwarded-For** —— 后者等于让攻击者每次请求换一个 IP，
-  限流形同虚设。
-- ``secure_cookies_enabled``：自动判断这次请求是不是 HTTPS。漏配 APP_COOKIE_SECURE 时，
-  管理员会话 Cookie 与十年期的中控令牌会明文裸奔，而这个开关靠「运维记得改环境变量」，
-  本来就不该靠人。
-- ``same_origin_request``：改状态的请求必须同源。SameSite=Lax + 只收 JSON 是第一道闸
-  （挡住浏览器的跨站表单与 preflight 失败），这一道是显式的第二道，免得日后新增一个
-  GET 写操作或 text/plain 接口就立刻可被 CSRF。
-
-对外只暴露纯函数：不读全局状态，代理配置从 Settings 取。
 """
 from __future__ import annotations
 
@@ -29,20 +15,13 @@ from ..config import Settings
 FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')
 
 #: 能代表「本机」的地址：既用作可信的**对端**地址，也用作可信的 ``Host`` 主机名。
-#: 商店侧 ``setup_guard.LOOPBACK_HOSTS`` 是刻意重复的一份，改动必须同步。
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
-#: uvicorn 的 ``--forwarded-allow-ips`` 里，这些写法等同于「任何对端都可以自称客户端」。
-#: 它与本模块的 ``APP_TRUSTED_PROXIES`` 是两层独立配置：uvicorn 那层决定 ``scope["client"]``
-#: 会不会被 ``X-Forwarded-For`` 改写，而本模块的全部判断都建立在「``request.client`` 是
-#: 真实对端」之上 —— 一旦放开成通配，登录预算、配对码枚举预算与审计来源 IP 会同时失效。
 WILDCARD_FORWARDED_ALLOW_IPS = frozenset({'*', '0.0.0.0/0', '::/0'})
 
 
 def unsafe_forwarded_allow_ips(value: str | None) -> bool:
     """``--forwarded-allow-ips`` 的取值是否等于「谁的转发头都信」。
-
-    支持逗号分隔的列表形态（``127.0.0.1,*`` 这种混写同样算不安全）。
     """
     return any(
         piece.strip() in WILDCARD_FORWARDED_ALLOW_IPS
@@ -52,9 +31,6 @@ def unsafe_forwarded_allow_ips(value: str | None) -> bool:
 
 def forwarded_allow_ips_warning(value: str | None) -> str:
     """取值会破坏来源地址可信性时给出告警文案；安全取值返回空串。
-
-    调用方有两处，用的是同一份文案：容器启动器（uvicorn 起来之前就喊）与主应用
-    lifespan（写进全局日志，让只看管理界面的运维也能看到）。
     """
     if not unsafe_forwarded_allow_ips(value):
         return ''
@@ -69,10 +45,6 @@ def forwarded_allow_ips_warning(value: str | None) -> str:
 @lru_cache(maxsize=32)
 def parse_trusted_proxies(values: tuple[str, ...]) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
     """把 ``APP_TRUSTED_PROXIES`` 解析成网段元组。
-
-    接受单个 IP（按 /32 或 /128 处理）与 CIDR 写法，逗号分隔。
-    解析不了的值抛 ValueError：代理信任范围是安全配置，写错了必须当场暴露，
-    而不是静默退化成「谁也不信」（那会让限流悄悄按代理地址统计）。
     """
     networks = []
     for raw in values:
@@ -95,7 +67,6 @@ class ClientAddress:
     #: 用于限流与审计的地址；取不到时为空串。
     ip: str
     #: 这个地址是否能代表「一个客户端」。False 表示只能拿到一个共享地址
-    #: （例如可信代理没传转发头），此时不能拿它当限流桶。
     per_client: bool
     #: 是否由可信代理的转发头解析得出。
     via_proxy: bool
@@ -121,8 +92,6 @@ def _normalize_ip(value: str) -> str:
 
 def _host_header_name(request: Request) -> str:
     """``Host`` 头里的主机名：去端口、去 IPv6 方括号、转小写；读不到时返回空串。
-
-    只做「取出主机名」这一件事，判断在 :func:`is_direct_local`。
     """
     raw = (request.headers.get('host') or '').strip().lower()
     if not raw:
@@ -139,31 +108,6 @@ def _host_header_name(request: Request) -> str:
 
 def is_direct_local(request: Request) -> bool:
     """是否是「本机直连」：loopback 对端 + loopback ``Host`` + 没有任何转发头。
-
-    三个条件缺一不可：
-
-    - **只看对端地址不够**：反向代理与主应用同机部署（compose 的默认形态）时，所有外部
-      请求经代理进来，对端同样是 ``127.0.0.1``；``ssh -L``、``kubectl port-forward``、
-      ``socat`` 之类同样让远端来访者的对端变成回环地址。
-    - **只看有没有转发头也不够**：那正是客户端自己就能写的字段，而 nginx 默认**不补**
-      ``X-Forwarded-*`` —— 一个「公网域名 → 127.0.0.1:18081」的同机反代，判据完全等同于
-      本机运维。
-    - **因此还要看 ``Host``**：它由浏览器按访问地址写入，反代默认原样透传（Caddy、
-      Traefik、以及 ``proxy_set_header Host $host`` 的 nginx 都是）。同机反代把公网域名转
-      到回环端口时 ``Host`` 是那个域名，不再落进 :data:`LOOPBACK_HOSTS`；运维用
-      ``localhost`` / ``127.0.0.1`` 打开时才是回环。编排器的健康探针同样走
-      ``http://127.0.0.1:...``（见 Dockerfile / docker-compose），照旧拿得到详情。
-
-    它回答的是「这次请求是不是本机运维亲手发的」，因此只能用于**放宽**本机操作的门槛
-    （首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
-
-    已知残留（刻意接受，不要用「再加一个请求头」去补）：``ssh -L`` / ``kubectl
-    port-forward`` 这类**原样透传字节**的隧道会把 ``Host: localhost:<本地端口>`` 一并带到
-    后端，与真·本机运维在协议层不可区分；而能开这种隧道的人已经握有宿主 shell，那份
-    0600 的 ``setup-token`` 就在同一台机器上。
-
-    用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的 ``/health/*``：
-    前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号。
     """
     if any(request.headers.get(name) for name in FORWARDED_HEADERS):
         return False
@@ -185,9 +129,6 @@ def _is_trusted(host: str, networks) -> bool:
 
 def _forwarded_chain(request: Request) -> list[str]:
     """从转发头里取出地址链（左起第一个是原始客户端，最不可信）。
-
-    只接受能解析成 IP 的片段：``X-Forwarded-For`` 里出现 ``unknown``、
-    主机名或任意垃圾值时一律丢弃，不让它们参与「谁是不可信的下一跳」的判断。
     """
     chain = []
     for piece in request.headers.get('x-forwarded-for', '').split(','):
@@ -203,14 +144,6 @@ def _forwarded_chain(request: Request) -> list[str]:
 
 def resolve_client_ip(request: Request) -> ClientAddress:
     """解析本次请求的真实来源地址。
-
-    规则（顺序很重要）：
-    1. 没配 ``APP_TRUSTED_PROXIES``，或对端不在其中 —— 对端就是客户端，
-       转发头**一律忽略**（否则任何人伪造一个 X-Forwarded-For 就能换 IP 绕过限流）；
-    2. 对端是可信代理 —— 从 ``X-Forwarded-For`` 右往左跳过可信代理，
-       第一个不可信的地址就是客户端（右侧由我们自己的代理追加，伪造不了）；
-    3. 全程都是可信代理但链上没有客户端地址（例如代理没配转发头）——
-       只能给出共享的对端地址，并标 ``per_client=False``。
     """
     settings = _settings(request)
     networks = parse_trusted_proxies(tuple(getattr(settings, 'trusted_proxies', ()) or ()))
@@ -235,15 +168,6 @@ def _settings(request: Request) -> Settings:
 
 def secure_cookies_enabled(request: Request) -> bool:
     """本次请求是否必须给 Cookie 加 Secure。
-
-    判定顺序（任一成立即加）：
-    1. 显式配了 APP_COOKIE_SECURE=1（永远优先，可强制开启）；
-    2. ``APP_BASE_URL`` 是 https（部署形态本身就说明了）；
-    3. 可信代理明确转发了 ``X-Forwarded-Proto: https``；
-    4. 本连接自身就是 https。
-
-    这样运维忘了配开关也不会明文下发会话；反之在纯 http 局域网里不会误加，
-    免得浏览器直接丢弃 Cookie 导致「登录后又变回未登录」。
     """
     settings = _settings(request)
     if settings is not None and getattr(settings, 'cookie_secure', False):
@@ -269,26 +193,12 @@ def _origin_from_referer(referer: str) -> str:
 
 def configured_base_origin(settings) -> str:
     """``APP_BASE_URL`` 归一化出的 ``scheme://host``；未配置或写错时返回空串。
-
-    写错（例如漏了 ``https://`` 只写主机名）时返回空串，调用方据此**必须**显式提醒 ——
-    Origin 校验会静默退回「只比较 Host」，运维却以为对外地址已经被钉死。
     """
     return _origin_from_referer(str(getattr(settings, 'app_base_url', '') or '').strip())
 
 
 def expected_request_scheme(request: Request) -> str:
     """本应用**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
-
-    判定顺序与 :func:`secure_cookies_enabled` 一致（配置 → 可信代理转发头 → 本连接）：
-    显式配了 ``APP_BASE_URL`` 就以它的 scheme 为准（反代没转发 ``X-Forwarded-Proto`` 时，
-    这是唯一知道「对外是 https」的地方）；否则若对端是可信代理且转发了
-    ``X-Forwarded-Proto`` 就采信它（浏览器脚本改不了这个头：``no-cors`` 下加它会触发
-    preflight，普通表单更加不了头）；再否则看本连接自身的 scheme。
-
-    ``origin_allowed`` 不能拿 **Origin 自己带的 scheme** 去拼白名单
-    （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」，同主机的
-    明文页面（例如劫持了 80 端口的中间人）因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是
-    攻击者能决定的、Host 不是，所以 scheme 必须由部署形态给出，并在这一处集中判定一次。
     """
     settings = _settings(request)
     base_url = str(getattr(settings, 'app_base_url', '') or '').strip().lower()
@@ -305,25 +215,15 @@ def expected_request_scheme(request: Request) -> str:
 
 def _http_scheme(scheme: str) -> str:
     """把连接层的 scheme 归一到 ``http`` / ``https``。
-
-    WebSocket 握手时 Starlette（按 ASGI）给的 ``request.url.scheme`` 是 ``ws`` / ``wss``，
-    而浏览器的 ``Origin`` 头永远是 ``http`` / ``https``（``ws`` 不是合法的 Origin scheme）。
-    不归一化就会拼出 ``ws://host`` 去比 ``http://host``，永不相等 —— WebSocket 握手会被
-    无条件判成跨站（本地开发未配 ``APP_BASE_URL`` 时必现），HTTP 侧照旧不受影响。
     """
     return {'ws': 'http', 'wss': 'https'}.get(scheme, scheme)
 
 
 def origin_allowed(request: Request, origin: str) -> bool:
     """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本应用。
-
-    这是「Origin 是否属于本应用」的唯一判据，HTTP 请求（``same_origin_request``）与
-    WebSocket 握手（``ha.websocket_origin_allowed``）共用 —— 两侧曾经各写一套，规则随即漂移：
-    WS 那套不查 ``app_base_url``，反代下会把合法连接判成跨站。
     """
     parsed = urlsplit(origin)
     # Origin 必须是裸的 scheme://host：``http://evil@本机地址/`` 这类写法会让
-    # 朴素的字符串比较误判为同源，因此带 userinfo / 路径 / 查询的一律拒绝。
     if (
         parsed.scheme not in {'http', 'https'}
         or not parsed.netloc
@@ -338,7 +238,6 @@ def origin_allowed(request: Request, origin: str) -> bool:
     host = request.headers.get('host', '').strip().lower()
     if host:
         # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据。
-        # scheme 则取自部署形态，不能取 Origin 自己声明的那个。
         allowed.add(f'{expected_request_scheme(request)}://{host}')
     base_origin = configured_base_origin(_settings(request))
     if base_origin:
@@ -349,13 +248,6 @@ def origin_allowed(request: Request, origin: str) -> bool:
 
 def same_origin_request(request: Request) -> bool:
     """改状态的请求是否来自本应用（CSRF 第二道闸）。
-
-    判定依据是浏览器无法伪造的这两个头：
-
-    - 有 ``Origin``：用 :func:`origin_allowed` 比较；
-    - 只有 ``Referer``：取它的 scheme://host 做同样的比较（老浏览器表单提交）；
-    - 两个都没有：放行。浏览器发起的跨站写请求一定带 Origin，缺头说明是
-      脚本 / 本机工具（curl、健康检查、内部调用），它们本来也带不上受害者的 Cookie。
     """
     origin = request.headers.get('origin', '').strip()
     if origin:

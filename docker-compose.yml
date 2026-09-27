@@ -1,12 +1,4 @@
 # HomeOS 自托管部署（双容器：主应用 + 授权商店）
-#
-# 用法：
-#   cp .env.example .env   # 按需填写 A 区（域名 / 反代）
-#   docker compose up -d
-#   # 首次部署后，在浏览器打开 http://<商店地址>/setup 设置管理员
-#
-# 本地构建：
-#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 services:
   homeos-3d-store:
@@ -57,9 +49,6 @@ services:
       # 默认走 compose 内网；独立授权域名时在 .env 覆盖
       APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
       # uvicorn 的转发头信任范围。默认只信回环：本服务把 18081 发布到宿主机，任何
-      # 直连的客户端都能自己写 X-Forwarded-For，一旦放开成 *，登录限流、配对码枚举
-      # 预算与审计来源 IP 就都成了「客户端自己说了算」。前面有反代时填代理地址/网段
-      # （例如宿主机的 172.17.0.1，或反代容器所在网段），不要用 *。
       UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
     volumes:
       - homeos-3d-data:/data

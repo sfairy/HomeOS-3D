@@ -1,10 +1,5 @@
 /*
  * 输入活动与空闲行为。
- *
- * 指针/按键活动追踪、活动保持、空闲旋转与图标显隐的启停。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 export function createInputActivity(ctx) {
   // 记录用户活动：刷新最后活动时间戳；ESC 顺便退出扫地机跟随视角。
@@ -30,8 +25,6 @@ export function createInputActivity(ctx) {
     updateActivityHolds();
   }
 
-  // 清空输入状态（窗口失焦 / 页面隐藏时调用），否则会误判成「一直有人在操作」，
-  // 空闲旋转与隐藏图标就一直不触发。
   function clearInputState() {
     ctx.activePointerIds.clear();
     ctx.pressedKeys.clear();
@@ -49,7 +42,6 @@ export function createInputActivity(ctx) {
   }
 
   // 把页面行为（自动旋转、空闲隐藏图标、空闲退出聚焦）下发给三个空闲控制器。
-  // 行为随模块变化，所以每次配置更新都要重算一遍。
   function applyPageBehavior() {
     ctx.pageBehavior = ctx.resolvePageBehavior(ctx.config, ctx.activeModule);
     ctx.idleRotation.configure(ctx.pageBehavior.autoRotate);

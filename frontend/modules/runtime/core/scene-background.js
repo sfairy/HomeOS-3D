@@ -1,23 +1,12 @@
 /**
  * 场景背景：在「经典网格 / 微光星尘」之上叠加暖阳背景，包住 background-theme.js 并对外
- * 提供完全相同的接口（theme / active / configure / sync / interact / tick / suspend / dispose）。
- *
- * 暖阳原木主题不再给地面注入着色器，而是往 overlayScene 挂一块全屏四边形，用屏幕空间片元
- * 着色器画「暖色底 + 尘埃 + 一束阳光」，并替掉导出的 background / grid 这两个角色对象。
- * 暖阳背景本身有两档配色：默认「暖阳微光」偏亮暖白，`warmBackgroundTheme` 打开后切到
- * 「暖阳暮色」——底色压成灰褐、光色转暖黄、点缀加深为陶土色；两档共用同一份着色器，只差三支
- * uniform 颜色，因此切档不需要重编程序，theme 会如实报出当前生效的那一档。
- *
- * 约定：全屏四边形直接写裁剪空间坐标铺满屏幕（renderOrder 取 -10000 保证最先绘制）；帧循环
- * 按需驱动，每帧最多每 50ms 请求一次重绘，返回 Infinity 时舞台退出循环；主题名不下发后端、不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=2609271208";
+import { createBackgroundTheme } from "./background-theme.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271208";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271226";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
- * 平面中心取该层所有墙端点的包围盒中心，无墙或坐标非有限时退化为原点；结果按 scene 对象缓存。
  */
 function backgroundFloorAnchor(
   stageOptions,
@@ -59,13 +48,10 @@ function backgroundFloorAnchor(
     anchorCache.set(anchorFloor.scene, planCenter);
   }
   // 平面坐标的 y 对应展示坐标的 y，高度固定下压 0.203 米：让阳光落在楼板略下方，
-  // 地面上的物体才不会把光束整段挡住。
   return stageOptions.presentationPoint(anchorFloor.id, ...planCenter, -0.203);
 }
 /**
  * 暖阳尘埃的 GLSL 片段：把屏幕空间切成网格，每格用 hash 生成一颗尘埃，fwidth 抗锯齿后得到
- * 「核心 + 光晕」两层亮度，threshold 丢掉一部分格子让分布稀疏。
- * 字符串里的换行与空格都属于着色器源码，改动会同时改变渲染结果与 customProgramCacheKey，不能用 JS 注释替代。
  */
 const WARM_MOTES_CHUNK =
   "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";
@@ -116,7 +102,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   let warmBackdrop = null;
   let isWarmWood = false;
   // 暖阳背景的两档配色：默认「暖阳微光」，暖阳原木主题下可再叠一层「暖阳暮色」。
-  // 两档只差下面三支颜色，着色器源码完全共用，因此切换配色不需要重编程序。
   let isWarmDusk = false;
   let isBackgroundEnabled = true;
   let isMotionEnabled = true;
@@ -170,7 +155,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     warmBackdrop.name = "warm-wood-background";
     // 最先绘制：renderOrder 取极小值，配合 depthTest:false 保证它在所有物体之下。
     warmBackdrop.renderOrder = -10000;
-    // 位置由着色器直接写裁剪空间坐标，包围盒没有意义，必须关掉视锥剔除。
     warmBackdrop.frustumCulled = false;
     stageOptions.overlayScene?.add(warmBackdrop);
   }
@@ -185,10 +169,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   }
   /**
    * 写入暖阳背景的配色。
-   *
-   * 「暖阳微光」（默认）是偏亮的暖白，接近日照充足的室内；「暖阳暮色」把底色压成灰褐、
-   * 光色转暖黄、点缀加深为陶土色，得到日落时分的观感。三支颜色都按主题整体替换，
-   * 不做插值渐变 —— 配置切换本就该是一个瞬时动作，渐变反而会让人以为画面在卡顿。
    */
   function applyWarmPalette(useDuskPalette) {
     warmUniforms.warmDeep.value.set(useDuskPalette ? "#746c67" : "#d9d6cc");
@@ -223,7 +203,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
         return themeController.theme;
       }
       // 对外暴露的是「当前真正生效的配色档」，而不是配置里的原始值：调用方据此判断
-      // 是否需要重绘，也便于调试时一眼看出暖阳下到底是微光还是暮色。
       return isWarmDusk ? "warm-dusk" : "warm-sunlight";
     },
     get active() {
@@ -239,8 +218,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     configure(configuredTheme, config = {}) {
       const nextWarmWood = config.sceneStyle === "warm-wood";
       // 暮色只在暖阳原木主题下成立：其余主题连暖阳背景都不显示，更谈不上哪一档配色。
-      // 判定顺序与参考实现一致：先看 warmBackgroundTheme，再回落到 backgroundTheme 这个主题名；
-      // 另外额外接受布尔 true，因为后端把 warmBackgroundTheme 定义成布尔开关。
       const warmThemeChoice = config.warmBackgroundTheme || config.backgroundTheme;
       const nextWarmDusk =
         nextWarmWood &&
@@ -250,14 +227,12 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
         nextWarmDusk !== isWarmDusk ||
         isMotionEnabled !== (config.backgroundMotion !== false);
       if (didChange) {
-        // 主题、配色档或动态开关变了：先停掉当前帧循环，避免残留的时间基准把新主题算歪。
         stopWarmFrames();
       }
       isWarmWood = nextWarmWood;
       isWarmDusk = nextWarmDusk;
       isMotionEnabled = config.backgroundMotion !== false;
       // 三支颜色每次都重写：本函数的调用频率是「宿主发来整份配置时」，写颜色可忽略不计，
-      // 换掉的是「配色是否已同步」这个本可写错的状态位。
       applyWarmPalette(nextWarmDusk);
       themeController.configure(configuredTheme);
       if (isWarmWood) {
@@ -284,8 +259,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     },
     /**
      * 处理一次指针交互。
-     * 暖阳下没有地面脉冲可打，但相机的每一次移动都值得重绘一帧；
-     * 其余主题原样转交给地面主题控制器。
      */
     interact(pointerEvent, shouldRaycast) {
       if (isWarmWood) {
@@ -306,7 +279,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
       if (!isWarmWood) {
         return themeController.tick(frameTimestampMs);
       }
-      // 背景被关掉、或页面切到后台：停帧，避免空转。
       if (!isBackgroundEnabled || globalThis.document?.hidden) {
         stopWarmFrames();
         return Infinity;
@@ -336,7 +308,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
         floorTransition &&
         floorTransition.from !== stageOptions.backgroundFloor
       ) {
-        // 楼层过渡中：在「来源层锚点」与「目标层锚点」之间插值，阳光落点平滑滑过去。
         const fromAnchorPoint = backgroundFloorAnchor(stageOptions, anchorCache, floorTransition.from);
         if (fromAnchorPoint) {
           floorAnchorPoint.lerpVectors(fromAnchorPoint, floorAnchorPoint.clone(), floorTransition.amount);
@@ -352,13 +323,11 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
           )
           .add(warmUniforms.warmShift.value);
       }
-      // 单帧时间差封顶 60ms：切回标签页时不会因为巨大的间隔让动画跳一大步。
       const deltaSeconds =
         lastTickMs === null
           ? 0
           : Math.min(0.06, Math.max(0, (frameTimestampMs - lastTickMs) / 1000));
       lastTickMs = frameTimestampMs;
-      // 总览模式下尘埃铺得更开（1），单层视角收到 0，用指数缓动避免切换时突兀。
       const overviewTarget = stageOptions.backgroundFloor === "all" ? 1 : 0;
       warmUniforms.warmOverview.value +=
         (overviewTarget - warmUniforms.warmOverview.value) * (1 - Math.exp(-deltaSeconds * 4));

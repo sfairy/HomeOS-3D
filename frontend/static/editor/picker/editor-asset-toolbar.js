@@ -1,9 +1,5 @@
 /**
  * 编辑器素材选择器的文件夹工具栏。
- *
- * 图片 / IBE 分页选择器弹层顶部，由 picker 控制器渲染时调用：构造「文件夹下拉 + 删除 + 上传」
- * 一行控件，并把刷新回调挂到 pickerController.syncAssetToolbar。文件夹名为 "." 时显示为
- * 「根目录」；删除按钮只对用户素材文件夹可用；DOM 通过注入的 documentObject 构造，便于测试。
  */
 
 /**
@@ -32,7 +28,6 @@ export function createEditorAssetToolbar({
     ((folderSelectElement.className = "editor-paged-picker-folder"),
       folderSelectElement.setAttribute("aria-label", "选择图片文件夹"),
       folderSelectElement.addEventListener("change", () => {
-        // 切文件夹属于换数据集，必须重置分页，否则会停在不存在的页码上。
         (setFolder(pickerState, folderSelectElement.value),
           pickerController.syncAssetToolbar?.(),
           pickerController.refresh({ resetPage: !0 }));
@@ -57,7 +52,6 @@ export function createEditorAssetToolbar({
     ((uploadButtonElement.type = "button"),
       (uploadButtonElement.className = "asset-upload-button"),
       (uploadButtonElement.textContent = "上传"),
-      // 上传入口复用选择器自带的上传输入框，避免页面上出现多个 file input。
       uploadButtonElement.addEventListener("click", () => getUploadInput(pickerState).click()),
       toolbarElement.append(folderRowElement, uploadButtonElement),
       (pickerController.syncAssetToolbar = () => {

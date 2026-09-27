@@ -1,11 +1,4 @@
 """请求来源解析与同源校验（真实客户端 IP / HTTPS 判定 / CSRF 同源闸门）。
-
-对外只暴露纯函数：不读全局状态，代理配置从 StoreSettings 取。
-
-几个关键判据：``resolve_client_ip`` 在可信代理后面取真实来源 IP，**不可信时宁愿用
-对端地址**；``secure_cookies_required`` 自动判断是否 HTTPS（漏配 STORE_COOKIE_SECURE
-时后台会话 Cookie 会明文裸奔）；``same_origin_request`` 是改状态请求的第二道闸。
-与 ``apps/server/security/http_security.py`` 是刻意重复的两份，改一处必须同步改另一处。
 """
 from __future__ import annotations
 
@@ -24,9 +17,6 @@ FORWARDED_HEADERS = ("x-forwarded-for", "x-forwarded-proto", "x-real-ip", "forwa
 @lru_cache(maxsize=32)
 def parse_trusted_proxies(values: tuple[str, ...]) -> tuple:
     """把 ``STORE_TRUSTED_PROXIES`` 解析成网段元组。
-
-    接受单个 IP 与 CIDR，逗号分隔。解析不了的值抛 ValueError：代理信任范围是
-    安全配置，写错了必须当场暴露，而不是静默退化成「谁也不信」。
     """
     networks = []
     for raw in values:
@@ -85,8 +75,6 @@ def _is_trusted(host: str, networks) -> bool:
 
 def _forwarded_chain(request: Request) -> list[str]:
     """从转发头里取出地址链（左起第一个是原始客户端，最不可信）。
-
-    只接受能解析成 IP 的片段：``unknown``、主机名或垃圾值一律丢弃。
     """
     chain = []
     for piece in request.headers.get("x-forwarded-for", "").split(","):
@@ -107,10 +95,6 @@ def _settings(request: Request):
 
 def resolve_client_ip(request: Request) -> ClientAddress:
     """解析本次请求的真实来源地址。
-
-    规则（顺序很重要）：对端不可信时转发头**一律忽略**（否则伪造 X-Forwarded-For 就能
-    换 IP 绕过限流）；对端可信时从 ``X-Forwarded-For`` 右往左跳过可信代理，第一个不可信
-    的地址就是客户端；全程可信但链上没有客户端地址时只能给共享对端并标 ``per_client=False``。
     """
     settings = _settings(request)
     networks = parse_trusted_proxies(tuple(getattr(settings, "trusted_proxies", ()) or ()))
@@ -128,19 +112,12 @@ def resolve_client_ip(request: Request) -> ClientAddress:
 
 def secure_cookies_required(request: Request) -> bool:
     """本次请求是否必须给 Cookie 加 ``Secure``。
-
-    判定顺序（任一成立即加）：显式开关 → ``STORE_BASE_URL`` 是 https → 可信代理转发了
-    ``X-Forwarded-Proto: https`` → 本连接自身是 https。判据由 :func:`request_is_https`
-    统一提供（加 Secure 与发 HSTS 是同一个事实）。
     """
     return request_is_https(request)
 
 
 def request_is_https(request: Request) -> bool:
     """本次请求是不是走 HTTPS（Cookie 的 ``Secure`` 与 HSTS 共用这一份判据）。
-
-    **只采信可信代理的转发头**：直接读 ``X-Forwarded-Proto`` 会让任何调用方用一个
-    请求头把自己伪装成 https，进而骗到 HSTS 或 Secure Cookie。
     """
     settings = _settings(request)
     if settings is not None and getattr(settings, "cookie_secure", False):
@@ -166,9 +143,6 @@ def _origin_from_referer(referer: str) -> str:
 
 def expected_request_scheme(request: Request) -> str:
     """本商店**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
-
-    顺序：``STORE_BASE_URL`` 的 scheme → 可信代理转发的 X-Forwarded-Proto → 本连接自身。
-    不能拿 Origin 自己带的 scheme 去拼白名单，否则攻击者页面可自称 https 同源。
     """
     settings = _settings(request)
     base_url = str(getattr(settings, "public_base_url", "") or "").strip().lower()
@@ -187,7 +161,6 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本商店。"""
     parsed = urlsplit(origin)
     # Origin 必须是裸的 scheme://host：``http://evil@本机地址/`` 这类写法会让朴素的
-    # 字符串比较误判为同源，因此带 userinfo / 路径 / 查询的一律拒绝。
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.netloc
@@ -202,7 +175,6 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     host = request.headers.get("host", "").strip().lower()
     if host:
         # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据；
-        # scheme 取自部署形态，不能取 Origin 自己声明的那个。
         allowed.add(f"{expected_request_scheme(request)}://{host}")
     settings = _settings(request)
     base_origin = _origin_from_referer(str(getattr(settings, "public_base_url", "") or "").strip())
@@ -214,9 +186,6 @@ def _origin_allowed(request: Request, origin: str) -> bool:
 
 def same_origin_request(request: Request) -> bool:
     """改状态的请求是否来自本商店（CSRF 第二道闸）。
-
-    有 ``Origin`` 就比它；只有 ``Referer`` 就比 Referer 的来源；都没有则放行 —— 浏览器
-    发起的跨站写请求一定带 Origin，缺头说明是脚本/本机工具（支付回调、监控探活）。
     """
     origin = request.headers.get("origin", "").strip()
     if origin:
@@ -230,9 +199,6 @@ def same_origin_request(request: Request) -> bool:
 
 def _accept_quality(accept: str, target: str) -> float:
     """``Accept`` 头里某一种媒体类型的 q 值；没有提到它则返回 ``-1``。
-
-    只做「提取 q 值」这一件事，不实现完整的 RFC 7231 内容协商：这里只需要在
-    ``text/html`` 与 ``application/json`` 之间比大小。
     """
     best = -1.0
     for item in accept.split(","):
@@ -254,9 +220,6 @@ def _accept_quality(accept: str, target: str) -> float:
 
 def prefers_html(request: Request) -> bool:
     """调用方是否**明确**更想要 HTML（用于 500 该回页面还是回 JSON）。
-
-    必须 ``Accept`` 里**显式**写了 ``text/html`` 且排在 ``application/json`` 之前：浏览器
-    永远显式带它，而 fetch/curl/监控带 ``*/*`` 或 json —— 正好等价于「这是个浏览器」。
     """
     accept = request.headers.get("accept", "").strip()
     if not accept:
@@ -269,9 +232,6 @@ def prefers_html(request: Request) -> bool:
 
 def error_page_html() -> str:
     """500 页面。**不含**任何异常细节与外部资源。
-
-    不引用 ``/store-static`` 的样式表：500 的常见成因之一就是静态资源读不到，再让页面
-    依赖外部 CSS 只会得到一片白。样式内联、字体用系统栈，也不放内联脚本。
     """
     return """<!doctype html>
 <html lang="zh-CN">
@@ -327,25 +287,17 @@ def forwarded_headers_present(request: Request) -> bool:
 
 
 #: 页面模板里内联 ``<script>`` 用来占位 nonce 的记号。用纯字符串替换而不是正则改 HTML：
-#: 正则「找 script 标签」会在属性顺序/注释上出错，且出错方式是**静默漏掉**某个脚本。
 CSP_NONCE_PLACEHOLDER = "{{NONCE}}"
 
 
 def new_csp_nonce() -> str:
     """生成一次性 CSP nonce。
-
-    必须**每响应一个新值**：复用同一个值等于把 nonce 变成常量，攻击者只要从任意
-    一个响应里读到它，注入的内联脚本就能带着同样的 nonce 通过校验。
     """
     return secrets.token_urlsafe(16)
 
 
 def csp_header(nonce: str) -> str:
     """构造商店的 Content-Security-Policy。
-
-    ``script-src`` 只放行本站脚本与带本次 nonce 的内联脚本，**没有** 'unsafe-inline'/
-    'unsafe-eval'；``style-src`` 放宽到 'unsafe-inline' 是刻意的（二维码用行内 style 画，
-    CSP 不为 style 属性提供 nonce，且 CSS 注入拿不到执行能力）。
     """
     script_src = f"'self' 'nonce-{nonce}'" if nonce else "'self'"
     return "; ".join(
@@ -366,20 +318,14 @@ def csp_header(nonce: str) -> str:
 
 def security_headers(request: Request) -> dict[str, str]:
     """商店所有响应统一加的安全头。
-
-    放在中间件统一加：漏掉一个端点就是漏掉一条，而商店有大量 ``innerHTML`` 拼装。HSTS
-    只在本次请求确实是 HTTPS 时下发 —— 纯 http 局域网硬发会把用户挡在门外，不是加固。
     """
     nonce = str(getattr(request.state, "csp_nonce", "") or "")
     headers = {
-        # 不让浏览器猜类型：否则一个被上传的「图片」可能按 HTML 解析并执行脚本。
         "X-Content-Type-Options": "nosniff",
-        # 出站请求不带完整路径（避免把订单号/令牌泄给第三方），同站仍带完整来源。
         "Referrer-Policy": "strict-origin-when-cross-origin",
         "Content-Security-Policy": csp_header(nonce),
         # 点击劫持兜底：CSP 的 frame-ancestors 已覆盖现代浏览器，这条照顾老浏览器。
         "X-Frame-Options": "DENY",
-        # 商店用不到这些能力，全部显式关闭，避免「某个依赖悄悄调用」变成许可。
         "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
         # 跨源打开时切断 opener 引用：本商店没有任何需要保留 opener 的流程。
         "Cross-Origin-Opener-Policy": "same-origin",
@@ -391,9 +337,6 @@ def security_headers(request: Request) -> dict[str, str]:
 
 def render_template(text: str, request: Request) -> str:
     """把模板里的 CSP nonce 占位符替换成本次请求的 nonce。
-
-    没有占位符的模板原样返回。给页面加内联脚本就要写 ``nonce="{{NONCE}}"``，不写会被
-    CSP 拒掉并在控制台报错 —— 这个失败模式是显式且局部的。
     """
     nonce = str(getattr(request.state, "csp_nonce", "") or "")
     if not nonce or CSP_NONCE_PLACEHOLDER not in text:

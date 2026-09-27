@@ -1,17 +1,12 @@
 /**
  * 导出预设的归一化与摘要文案：把后端读回、可能缺字段或被手改过的预设清洗后再用。
- *
- * 位置：3D 工作室「导出」面板的预设槽（每个槽保存分辨率、楼层范围、相机姿态、附加文件等）。
- * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；字段名与前端 JSON 的 camelCase 对齐。
- * 纯函数，不做持久化。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271208";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271226";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;
 
 // 允许出现在导出列表里的固定文件键：渲染图与平面图两类基础产物。
-// 除这些之外只接受带前缀引用（group / screen / vehicle），见下面的正则。
 const VALID_SELECTED_FILE_KEYS = new Set([
   "background",
   "backgroundWithPlan",
@@ -33,13 +28,8 @@ function normalizeVector3(source, defaults = {}) {
   };
 }
 
-/**
- * 归一化「随导出一并输出的文件」清单：未知键被过滤掉，避免旧版本残留的文件名让导出流程找不到素材；
- * 前缀引用允许 1~180 个字符，长度上限与后端文档字段长度限制一致。
- */
 function normalizeSelectedFiles(files) {
   if (Array.isArray(files)) {
-    // 先去重（用 Set）再截断，避免重复项占满 128 的额度。
     return [
       ...new Set(
         files
@@ -104,7 +94,6 @@ export function normalizeExportPreset(rawPreset) {
   );
   return {
     version: 1,
-    // 名称与文件夹名都做长度截断，避免导出路径过长或换行符混入文件名。
     name: String(rawPreset.name || "")
       .trim()
       .slice(0, 24),
@@ -115,7 +104,6 @@ export function normalizeExportPreset(rawPreset) {
     // floorMode 只有 all（全楼合并）与 floor（单层）两种取值。
     floorMode: rawPreset.floorMode === "all" ? "all" : "floor",
     floorId: String(rawPreset.floorId || "").slice(0, 180),
-    // 楼层间距 0~20 米，决定全楼导出时刻意拉开的层间空隙。
     floorGap: clampNumber(coercedFiniteNumberOr(rawPreset.floorGap, 3), 0, 20),
     camera: normalizePresetCamera(rawPreset.camera),
     folderName: String(rawPreset.folderName || "").slice(0, 60),
@@ -125,8 +113,6 @@ export function normalizeExportPreset(rawPreset) {
 
 /**
  * 归一化整个预设槽数组。
- * 槽位数量夹在 1~8 之间（常量值与此处字面量一致）；非数组时按默认 4 个空槽处理，保证 UI 至少有槽位可用。
- * 槽位内容允许为 null，表示尚未配置。
  */
 export function normalizeExportPresetSlots(slots) {
   const slotList = Array.isArray(slots) ? slots : [];
@@ -141,8 +127,6 @@ export function normalizeExportPresetSlots(slots) {
 
 /**
  * 归一化当前选中的预设槽下标。
- *
- * 越界或非整数一律回到 0，避免上层用非法下标去索引槽位数组。
  */
 export function normalizeActiveExportPresetSlot(activeSlotIndex, requestedSlotCount = 4) {
   const slotNumber = Number(activeSlotIndex);
@@ -163,8 +147,6 @@ export function exportPresetIsEmpty(preset, presetFeatureEnabled = false) {
 
 /**
  * 生成槽位摘要：「1852×1293 · 一层 · 透视」。
- * 让用户不切换槽位也能判断它是干什么的：档位名是用户自起的，随意时只有分辨率 / 楼层 / 投影方式能说明内容。
- * 楼层名走传入的 id → 名称映射，查不到时显式说「楼层已变更」而不是留空；未配置的槽位返回「未设置」。
  */
 export function exportPresetSummary(preset, floorNamesById = new Map()) {
   const normalizedPreset = normalizeExportPreset(preset);

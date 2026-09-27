@@ -1,28 +1,19 @@
 /**
  * 展示页启动引导（splash）状态机。
- *
- * 位置：/display/<id> 最前置脚本，早于渲染脚本执行，负责盖住首屏白屏。
- * 职责：维护 loading → waiting → leaving → done / error，等首屏素材与 3D 交互宿主就绪后再淡出；
- * 把画布背景色推导成明 / 暗主题写入 localStorage；失败时给出重试与「先进入仪表盘」两种出口。
- * 约定：通过 window.HABridgeDisplayBoot 暴露 setDocument / ready / fail / notice / recovered /
- * setRuntimePush 与只读的 pending / failed；?capturePreview=1 时完全跳过启动引导。
  */
 (() => {
   "use strict";
   const documentElement = document.documentElement,
-    // capturePreview 用于截图与预览，跳过启动遮罩，避免截到引导层。
     isCapturePreview = new URLSearchParams(location.search).get("capturePreview") === "1",
     // 主题按路径分别记忆，不同展示页可以各自保持明 / 暗设置。
     themeStorageKey = `homeos:display-theme:${location.pathname}`;
   documentElement.classList.toggle("capture-preview", isCapturePreview);
   try {
     // 只接受 dark / light 两个已知值，脏数据一律忽略。
-    // 读不到（首次访问 / 隐私模式）就用默认主题，不为它挡住首屏。
     const storedTheme = localStorage.getItem(themeStorageKey);
     (storedTheme === "dark" || storedTheme === "light") &&
       (documentElement.dataset.displayTheme = storedTheme);
   } catch {}
-  // splashPhase：loading 等首屏、waiting 等素材稳定、leaving 淡出中、done / error 终态。
   let splashPhase = isCapturePreview ? "done" : "loading",
     pollTimer,
     loadingTimeoutTimer,
@@ -36,13 +27,11 @@
     getSplashMessageElement = () => document.getElementById("display-splash-message"),
     prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // 运行期横幅的三条来源，各自有各自的撤销条件（见各自的 setter）：
-  // 实时推送停止（等重新订阅成功）> 刷新失败（等下一次刷新成功）> 一次性提示（8 秒）。
   let noticeHideTimer,
     noticeFlashMessage = "",
     noticeRefreshMessage = "",
     noticeRuntimeMessage = "";
 
-  // 统一清理四类定时器，进入终态后必须调用，避免残留回调再改状态。
   function clearAllTimers() {
     for (const timerId of [pollTimer, loadingTimeoutTimer, leaveTimer, hintTimer])
       clearTimeout(timerId);
@@ -91,8 +80,6 @@
       ? (documentElement.dataset.displayTheme = themeName)
       : delete documentElement.dataset.displayTheme;
     try {
-      // 记忆主题，下次进入同一页面时首帧就用对配色，避免闪白。
-      // 写不进去只是下次不再记忆，本次主题已经生效。
       themeName
         ? localStorage.setItem(themeStorageKey, themeName)
         : localStorage.removeItem(themeStorageKey);
@@ -101,8 +88,6 @@
 
   /**
    * 把当前该显示的那条提示写到运行期横幅上，谁都没有时收起。
-   * 三类提示共用一个元素，按严重程度取一条；页面顶部只允许一条横幅，
-   * 叠两条会互相盖住、也让读屏重复播报。
    */
   function renderNotice() {
     const noticeElement = document.getElementById("display-notice");
@@ -116,8 +101,6 @@
 
   /**
    * 显示一条一次性提示，8 秒后自动收起。
-   * 用于「控件操作失败」这类已经过去的事件：它们没有持续状态，
-   * 留着不走反而让人以为画面还在坏着。
    */
   function showFlashNotice(message) {
     clearTimeout(noticeHideTimer);
@@ -139,8 +122,6 @@
 
   /**
    * 设置 / 撤销「无法更新」横幅（断网、超时这类刷新失败）。
-   * 它跟着「下一次刷新成功」一起撤销（recovered），否则恢复联网后横幅会一直挂着，
-   * 用户再也分不清好坏。
    */
   function setRefreshNotice(message) {
     ((noticeRefreshMessage = String(message || "")), renderNotice());
@@ -148,7 +129,6 @@
 
   /**
    * 设置 / 撤销「实时推送已停止」横幅。
-   * 与刷新失败分开记：刷新成功不代表实体状态会恢复，只有渲染层重新订阅成功（available 为 true）才算恢复。
    * @param {string} [message] 不可用时的文案。
    */
   function setRuntimePushNotice(available, message) {
@@ -160,8 +140,6 @@
 
   /**
    * 进入错误终态并显示提示。
-   * 启动层已摘掉（phase 为 done）时不再有「错误界面」可用，改为挂一条非阻塞横幅
-   * 并保留画面；否则展示页断网后会一直安静地显示冻结旧数据，墙面屏前的人看不出异常。
    */
   function showError(error, canEnter = !1) {
     // 运行期失败：数据可能已经过期，但页面还能用，不要用遮罩把整屏挡住。
@@ -200,13 +178,11 @@
       getSplashMessageElement() &&
         (getSplashMessageElement().textContent = "准备就绪"),
       // 两级定时：先等 250ms 让「准备就绪」可读，再加 550ms 离场动画；
-      // 用户开了「减少动态效果」时两段都压到最短。
       (leaveTimer = setTimeout(
         () => {
           (getSplashElement()?.classList.add("is-leaving"),
             (leaveTimer = setTimeout(
               () => {
-                // 焦点原本在启动层内时要交还给仪表盘，否则键盘用户会失去焦点。
                 const hadFocusInside = getSplashElement()?.contains(document.activeElement);
                 (getSplashElement()?.remove(),
                   documentElement.classList.remove("display-booting"),
@@ -268,7 +244,6 @@
       )
         return !0;
     for (const hostElement of shellElement.querySelectorAll(".hb-interaction3d-host")) {
-      // 未解锁的 3D 宿主和加载失败的宿主不算「待加载」，否则会永远等下去。
       if (
         !isVisible(hostElement) ||
         hostElement.dataset.access === "locked" ||
@@ -315,7 +290,6 @@
         3e4
       )));
     let stableSinceMs = 0;
-    // 轮询判定「连续 120ms 无新增待加载素材」才收尾，避免图片先解码后替换造成闪烁。
     const poll = () => {
       if (splashPhase !== "waiting") return;
       const now = performance.now();
@@ -382,7 +356,6 @@
           getSplashElement()?.focus({ preventScroll: !0 });
       }),
       // 断网导致的启动失败，在恢复联网后自动重试一次：墙面屏前通常没人能去点「重试」，
-      // 自愈是唯一合理的出口。只在错误终态时重载，正常运行中不因网络抖动打断画面。
       window.addEventListener("online", () => {
         splashPhase === "error" && location.reload();
       })));

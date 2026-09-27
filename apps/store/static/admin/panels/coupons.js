@@ -1,16 +1,14 @@
 /**
  * 优惠码。
- *
- * 优惠码列表、编辑器与核销记录跳转。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
-import { localInput, money, num, pill, utcInput } from "../format.js?v=2609271208";
-import { api, withBusy } from "../api.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
+import { localInput, money, num, pill, utcInput } from "../format.js?v=2609271226";
+import { api, withBusy } from "../api.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 // --------------------------------------------------------------------------- //
 // 优惠码
@@ -22,8 +20,6 @@ export async function loadCoupons() {
   if (keyword) params.set('keyword', keyword);
   if (status) params.set('status_filter', status);
   // 「刷新 / 搜索」按钮、分页器与筛选框都直接调这个 loader，失败时没人接那个 Promise，
-  // 会在控制台留一条 Uncaught (in promise)；401/403 时 api() 已切回登录屏，pagedFetch
-  // 也渲染了「读取出错」，这里补一句提示即可（与 loadAudits 同款收口）。
   let data;
   try {
     data = await pagedFetch('coupons', '/coupons', Object.fromEntries(params));
@@ -46,7 +42,6 @@ export async function loadCoupons() {
         rowMenu('更多操作',
           menuItem('编辑', `data-coupon-edit="${esc(coupon.id)}"`),
           menuItem('查看核销记录', `data-coupon-redemptions="${esc(coupon.id)}" data-coupon-code="${esc(coupon.code)}"`),
-          // 删除守卫数的是核销记录（历史凭证），不是「占用名额」，所以判据用 redemptionCount
           menuItem('删除', `data-coupon-delete="${esc(coupon.id)}" data-coupon-code="${esc(coupon.code)}" data-coupon-used="${coupon.redemptionCount || 0}"`, { danger: true }),
         ),
       )}</td>
@@ -63,7 +58,6 @@ export function openCouponEditor(coupon) {
   const form = $('#coupon-form');
   form.reset();
   $('#coupon-editor-title').textContent = coupon ? `编辑优惠码 ${coupon.code}` : '新增优惠码';
-  // 码是对外承诺，改掉等于让已发出去的码失效，所以只有新增时能填
   form.elements.code.readOnly = Boolean(coupon);
   if (!coupon) { host.showEditor('#coupon-editor'); return; }
   form.elements.id.value = coupon.id;
@@ -98,9 +92,6 @@ $('#coupon-form').addEventListener('submit', async (event) => {
     minAmountCents: Number(form.elements.minAmountCents.value || 0),
     maxRedemptions: form.elements.maxRedemptions.value ? Number(form.elements.maxRedemptions.value) : null,
     perAccountLimit: Number(form.elements.perAccountLimit.value || 0),
-    // 空串即「不限」，这里刻意传 null 而不是省略字段：
-    // 省略等于「保持原值」，运营想清掉已设的截止时间就永远清不掉。
-    // 输入框里的本地时间要换算成库里的 UTC（见 utcInput）。
     startsAt: utcInput(form.elements.startsAt.value),
     expiresAt: utcInput(form.elements.expiresAt.value),
     applicableProductIds: idList(form.elements.applicableProductIds.value),
@@ -140,7 +131,6 @@ $('#coupon-rows').addEventListener('click', async (event) => {
     state.redemptionFilter = { couponId: redemptionsFor, couponCode: event.target.dataset.couponCode || redemptionsFor };
     pageState('coupon-redemptions').offset = 0;
     // 落到「优惠码核销」那个 tab：核销表不在默认 tab 上，停在默认 tab 的话
-    // 下面那句 scrollIntoView 会对着一个 hidden 元素做无效滚动。
     await host.activate('diagnostics', 'redeem');
     $('#redemption-rows').scrollIntoView({ block: 'center' });
     return;

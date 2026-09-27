@@ -1,17 +1,12 @@
 /**
  * 实体选项面板的几块渲染：实体选择器（含配置）、图标选择器、灯光统计实体。
- *
- * 从 entity-options.js 拆出来：那一份只留 createEntityOptions 的编排与其余面板，
- * 这一份是「选择器/统计/图标各自怎么画、怎么取数」的细节。它们原本是工厂里的闭包，
- * 用到 ctx 等外层局部；外提时统一多一个 context 参数并在开头解构自己需要的那几个，
- * 调用点传惰性上下文工厂 entityOptionsContext()。
  */
 
 
-import { TOGGLE_ENTITY_DOMAINS } from "../../shared/action-rules.js?v=2609271208";
-import { entityDomainOf } from "../../utils/entities.js?v=2609271208";
-import { entitySearchTextOf } from "../../utils/entities.js?v=2609271208";
-import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609271208";
+import { TOGGLE_ENTITY_DOMAINS } from "../../shared/action-rules.js?v=2609271226";
+import { entityDomainOf } from "../../utils/entities.js?v=2609271226";
+import { entitySearchTextOf } from "../../utils/entities.js?v=2609271226";
+import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609271226";
 
 export function entityPickerConfig(entityPickerComponentType = "image", context) {
   const { ctx } = context;
@@ -120,8 +115,6 @@ export function entityPickerConfig(entityPickerComponentType = "image", context)
         except: "icon-button-entity",
         recommended: presenceSensorEntity => {
           // 这四个字段的拼接原先在这里手写了一遍（与 presence-runtime.js 那份逐字相同），
-          // 现在统一走 utils/entities.js 的 entitySearchTextOf：字段清单只有一处定义，
-          // 加字段时不会再漏掉某一个调用点（漏了的表现为「这台设备认不出来」）。
           const entitySearchBlob = entitySearchTextOf(presenceSensorEntity);
           const sensorKind = ctx.selectedComponent()?.properties?.sensorKind || "presence";
           const entityDomainValue = entityDomainOf(presenceSensorEntity);

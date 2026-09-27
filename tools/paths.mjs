@@ -1,14 +1,5 @@
 /**
  * 仓库路径的单一事实来源。
- *
- * 规矩只有一条：**任何脚本都不许再自己拼仓库相对路径**。要用某个目录，从这里 import；
- * 这里没有的，先加到这里。``tools/check_invariants.mjs`` 的「路径常量不许重复推导」一条会强制它 ——
- * 起因是守卫文件里一度把 ``frontend/modules/runtime`` 定义了两次（``RUNTIME_DIR`` 与
- * ``RUNTIME_MODULES_DIR``），两处同名不同源，改路径时漏掉一处就会出现"守卫看着绿、实际查了个空目录"。
- *
- * 为什么值得单独一个文件：搬一个目录要同时改的东西里，最容易被漏掉的就是**工具脚本里的路径**
- * （运行时代码的路径早就集中在 ``apps/server/config.py`` / ``apps/store/config.py`` 了）。把这些常量收在
- * 这里之后，"搬目录"从"改 N 个文件"变成"改这一个文件"。
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";

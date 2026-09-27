@@ -63,9 +63,6 @@ logger = logging.getLogger("apps.store")
 
 def _ensure_license_keys(settings: StoreSettings) -> None:
     """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。
-
-    默认 ``apps/store/keys/local`` 缺密钥或与仓库根 ``keys/`` 不一致时直接失败，避免
-    「商店一把钥、客户端另一把」的静默激活失败；非默认目录仍可自动生成、不强制镜像。
     """
     default_keys_dir = (STORE_ROOT / "keys" / "local").resolve()
     using_default = settings.license_keys_dir.resolve() == default_keys_dir
@@ -126,9 +123,6 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
 
 def build_key_registry(settings: StoreSettings):
     """按当前密钥 +（可选的）上一代密钥组装密钥环。
-
-    上一代四件套齐全时重叠窗口自动开启，没有开关：少配一件只会让「以为窗口开着」的人
-    白等。放在装配层是因为配置模块与密钥工具互相 import 会成环。
     """
     active = KeyGeneration(
         transport=TransportCipher(
@@ -168,7 +162,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     settings.license_keys_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     _ensure_license_keys(settings)
     # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成「谁也不信」
-    # （那会让限流与授权记录里的客户端地址全变成代理地址）。
     trusted_proxies = parse_trusted_proxies(tuple(settings.trusted_proxies))
     if not trusted_proxies and settings.public_base_url.startswith("https://"):
         logger.warning(
@@ -180,14 +173,11 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     database.create_all()
 
     # create_all 只建缺的表，对已存在的表**不会加列**。新增字段必须在这里补上，
-    # 否则老部署要等到某条特定 API 被调用时才以 no such column 崩掉。
     applied = ensure_schema(database.engine)
     if applied:
         logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
 
     # 邀请积分从 FLOAT（积分）迁到 INTEGER（厘）。必须排在 ensure_schema 之后：
-    # 新列由它补出来，这里回填、对账，全部通过后才退役旧列；旧列是 NOT NULL 且
-    # ORM 已不再映射，不删掉的话之后每次插入都会 NOT NULL constraint failed。
     migration = migrate_points(database.engine)
     if migration.changed:
         logger.warning("邀请积分口径迁移完成：%s", migration.summary())
@@ -196,9 +186,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             for problem in table.problems:
                 logger.error("积分迁移问题 %s：%s", table.table, problem)
         # 「启动成功」不等于「迁移成功」：对账不通过的表会整表跳过删列，旧列仍是
-        # NOT NULL 且无 DDL 默认值，ORM 又已不映射它，之后每一次插入都会
-        # NOT NULL constraint failed。上面逐条 error 很容易淹在启动日志里，
-        # 这里补一条汇总，并指明可机器读取的地方（/healthz 的 pointsMigration）。
         logger.warning(
             "邀请积分口径迁移未通过：%d 张表有未决问题，旧列未退役，"
             "之后的新写入会以 NOT NULL 失败；详见 /healthz 的 pointsMigration。",
@@ -206,13 +193,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         )
 
     # 解绑冷却的「没配过」原来是写死的 28800（NOT NULL 且无 DDL 默认值），导致
-    # STORE_DEVICE_RELEASE_COOLDOWN_SECONDS 永远不生效；这里把它搬进可空的新列。
-    # 同样必须排在 ensure_schema 之后（新列由它补出来），理由与上面一致。
-    #
-    # 这一段**必须与积分迁移平级**：它曾经被插进上面那个 ``if not migration.ok:``
-    # 的循环体里（连缩进一起带进去），于是积分迁移的汇总告警在积分真出问题时反而不
-    # 打印、却在冷却出问题时打印一条指向积分与 ``/healthz`` 的错话。两段互不相干，
-    # 不要再嵌套回去。
     cooldown = migrate_device_release_cooldown(database.engine)
     if cooldown.changed:
         logger.warning("解绑冷却配置迁移完成：%s", cooldown.summary())
@@ -220,10 +200,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         for problem in cooldown.problems:
             logger.error("解绑冷却配置迁移问题：%s", problem)
         # 汇总的理由与积分那条相同（逐条 error 会淹在启动日志里），但失败面小得多：
-        # 没有任何金额，对账只针对一列配置，回填没做成的后果只是「冷却值仍是旧列的
-        # 值」。唯一的连带故障是删列失败 —— 旧列是 NOT NULL 又无 DDL 默认值、ORM 已
-        # 不映射它，``store_settings`` 的新建行会以 NOT NULL constraint failed 失败。
-        # 这里刻意不新增 /healthz 健康位（见 ops.cooldown_migration 的 docstring）。
         logger.warning(
             "解绑冷却配置迁移未通过：%d 处未决问题，旧列未退役，"
             "它会让 store_settings 的新建行以 NOT NULL 失败；详见上面逐条 error。",
@@ -244,13 +220,9 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     async def _payment_sweep_loop() -> None:
         """后台支付巡检循环。
-
-        每轮跑在 ``asyncio.to_thread`` 里：渠道调用是阻塞 I/O，直接在事件循环里发同步
-        请求会把整个服务卡住（连 /healthz 都不响应）。状态经 ``sweeper`` 登记。
         """
         interval = int(settings.payment_sweep_interval_seconds or 0)
         # 代号要一路带到 sweep_round / mark_sweep_loop_stopped：测试里会反复建 app，
-        # 只有当前代号的写入才算数，旧循环迟到的 finally 不能把新循环标成「已停止」。
         generation = configure_sweep_loop(interval)
         if interval <= 0:
             logger.info("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
@@ -266,21 +238,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 except Exception:  # noqa: BLE001 - 单轮异常不能让巡检整体退出
                     logger.exception("支付巡检本轮失败，将在 %d 秒后重试", interval)
         finally:
-            # 循环以任何方式结束（取消、任务异常）都要落这个状态：否则后台会一直显示
-            # 「上次成功 xx 分钟前」，看着像还活着，实际已经没人对账了。
             mark_sweep_loop_stopped(generation)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # 访问日志的第三方噪音过滤必须在 lifespan 这一层装：uvicorn 会先
-        # configure_logging（dictConfig 会清掉已配置 logger 上的过滤器），之后才导入应用。
-        # 口径见 apps/store/security/access_log.py 的模块头。
         install_access_log_noise_filter()
         logger.info(
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
         # 首次初始化窗口：库里还没有管理员时，把引导密钥打印到启动日志（stderr），
-        # 之后的 POST /store/v1/setup/admin 必须带上它（本机直连除外）。
         with database.session() as session:
             if not setup_api.admin_exists(session):
                 setup_guard.ensure_token()
@@ -297,7 +264,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             database.dispose()
 
     #: 文档页默认关闭：它会把全部商店与后台端点、参数结构、鉴权方式一次性列给任何人
-    #: （含 ``/v2/*`` 授权协议）。关掉的方式就是置 None。
     _docs_enabled = bool(settings.expose_api_docs)
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
@@ -313,21 +279,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.license_authority = authority
     app.state.setup_guard = setup_guard
     # 商店站点配色：一个 JSON 文件，没有迁移、也没有表。失败只退回默认配色 ——
-    # 配色是纯装饰，不该让商店起不来（那会把「改错了颜色」升级成「顾客打不开商店」）。
     app.state.appearance = AppearanceStore(settings.appearance_path)
     app.state.appearance.load()
 
     @app.middleware("http")
     async def require_same_origin_for_writes(request: Request, call_next):
         """改状态的商店/后台请求必须同源（CSRF 第二道闸）。
-
-        第一道闸是 SameSite=Lax + 只收 JSON 体。保护范围：``/store/v1/*`` 与
-        ``/store-admin/v1/*`` 的非 GET 请求。``/v2/*``（程序调用，无 Origin）与支付宝
-        异步回调（服务器直连，真伪由签名校验）不拦。
         """
         path = request.url.path
         # 只提示一次：请求带了转发头但没配可信代理，说明前面有反代而限流与授权记录
-        # 只能看到代理地址。这是配置问题，反复记会把日志刷满。
         if not getattr(app.state, "proxy_warning_logged", False) and forwarded_headers_present(request):
             if not trusted_proxies:
                 app.state.proxy_warning_logged = True
@@ -351,22 +311,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         return await call_next(request)
 
     # 请求体字节上限。注册在这里意味着它比同源闸门与路由更靠外：FastAPI 是先读全请求体
-    # 再进依赖与路由的，未登录的匿名请求也能用它把内存打满（见 apps/store/security/body_guard.py）。
-    # 位置在安全头那层**之内**：下面再注册的安全头中间件会把 413 也补上安全头。
     app.add_middleware(RequestBodyGuard)
 
     # 响应压缩：**先注册 = 更靠里**，压的是路由产出（含 /store-static 下的主题与后台脚本）
-    # 的原始字节。口径见 apps/store/security/compression.py 的模块头。
     app.add_middleware(SelectiveGZipMiddleware)
 
     # 安全头中间件必须**最后**注册：``@app.middleware`` 往栈顶插，最后注册的那层才
-    # 在最外层，上面那道同源闸门提前返回的 403 也会被它补上头。
     @app.middleware("http")
     async def attach_security_headers(request: Request, call_next):
         """给所有响应补上安全头。
-
-        挂在唯一入口上才能保证「以后新加的端点自动带上」；商店有大量 ``innerHTML`` 拼装，
-        真正兜住它们的不是「记得转义」而是这一层。nonce 必须在 ``call_next`` 之前生成。
         """
         request.state.csp_nonce = new_csp_nonce()
         response = await call_next(request)
@@ -377,13 +330,9 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     def resolve_payment_provider(setting=None, *, name: str | None = None):
         """解析支付渠道。
-
-        ``name`` 用于「按订单下单时的渠道」做事后操作（例如退款）：渠道被切换后，
-        必须打到当时那个网关。传空表示按当前站点配置解析。
         """
         if setting is None:
             # 没带站点配置就从库里现读一份：支付宝凭据可以在后台改，绝不能把
-            # 「调用方没传 setting」当成「用环境变量里那套旧凭据」。
             with database.session() as lookup:
                 setting = get_setting(lookup)
         if name:
@@ -416,12 +365,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     @app.get("/store-appearance.css", include_in_schema=False)
     def appearance_stylesheet(request: Request) -> Response:
         """商店站点配色样式表：内容就是当前配置展开出的 ``:root{…}``。
-
-        不需要登录：它只含颜色字面量，和 ``theme.css`` 一样是公开的设计系统资源，
-        而且要能跟在未登录也会看到的商店首页后面加载。
-
-        ``?v=`` 与 ETag 都在：URL 带版本时给一年强缓存（改配色 URL 就变），
-        不带时要求每次校验 —— 手敲地址看到的一定是当前值。
         """
         revision = app.state.appearance.revision
         has_version = request.query_params.get("v") == revision
@@ -438,10 +381,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         # status 只表示「进程活着」，探活机器不会被巡检状态带偏；巡检与 incidents
-        # 单独放子对象。incidents 是资金/履约路径上被刻意吞掉的异常，不参与 status ——
-        # 否则探活机器会把「有订单履约失败」当成进程不健康，去重启一个本可自愈的服务。
-        # pointsMigration 同理：对账没过是数据问题，重启进程解决不了，也不该被
-        # 当成「进程挂了」去反复重启。
         return {
             "status": "ok",
             "version": __version__,
@@ -454,9 +393,6 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> Response:
         """未处理异常统一出口（按调用方想要的格式回答）。
-
-        挂在 ``ServerErrorMiddleware`` 上（用户中间件之外），因此必须自己补安全头 ——
-        否则 500 页面就是全站唯一没有 CSP 的响应。HTML 分支**不落任何异常内容**。
         """
         logger.exception("未处理的异常：%s", error)
         if prefers_html(request):

@@ -614,7 +614,7 @@ apps/store/
 
 ### 界面主题（暗色 + 琥珀）
 
-主题与主程序同源，但**不是逐字同源**：两边都以 `design/scene/page.css` 为唯一真值（canonical），商店侧通过 `--hb-*` 镜像令牌（53 对，逐 token 相等，由 `tools/audit_colors.mjs` 每次校验）再派生出 `-soft` / `-line` / `-text` 等商店特有的语义档。`theme.css` 文件头写明了这一点 —— 它与 `frontend/static/app.css` 的取值**不再**逐字对齐（app.css 只是把历史令牌名转发到工具面族）。整体仍是**暗色画布 + 单一琥珀强调色**。参考站那份浅色样板表（`bridge-store.css` / `merged.css` / `referrals.css` / `product-packages.css`）与后台的 Bootstrap 5.3 **已全部删除**，不再有「基线样式 + 事后补丁层」这套结构。
+主题与主程序同源，但**不是逐字同源**：两边都以 `design/scene/page.css` 为唯一真值（canonical），商店侧通过 `--hb-*` 镜像令牌（53 对，逐 token 相等，由 `tools/check_invariants.mjs` 的镜像令牌条目每次校验）再派生出 `-soft` / `-line` / `-text` 等商店特有的语义档。`theme.css` 文件头写明了这一点 —— 它与 `frontend/static/app.css` 的取值**不再**逐字对齐（app.css 只是把历史令牌名转发到工具面族）。整体仍是**暗色画布 + 单一琥珀强调色**。参考站那份浅色样板表（`bridge-store.css` / `merged.css` / `referrals.css` / `product-packages.css`）与后台的 Bootstrap 5.3 **已全部删除**，不再有「基线样式 + 事后补丁层」这套结构。
 
 | 文件 | 作用 | 谁加载 |
 | --- | --- | --- |

@@ -1,17 +1,7 @@
 /**
  * 授权恢复：文案表 + 轻量请求封装 + 恢复页（/license-recovery）自举。
- *
- * 拆成独立模块是因为「同一句话」要在三个地方说：授权页（/license）、恢复页、展示端。
- * 分散成三份必然漂移 —— 用户在两处看到对同一个状态的不同解释，就不知道该信哪个。
- *
- * 本模块不依赖 utils/api-fetch.js：恢复页正是「后端可能连不上」时打开的页面，
- * 它的请求必须自带超时且不读 cookie 之外的本机状态，越少依赖越不容易一起坏掉。
- *
- * 文案与状态码的对应关系由后端 license/service.py 的状态枚举决定，改一边要改另一边。
  */
 
-// 15 秒超时：恢复页会在断网时反复自检，请求必须能自己结束，否则「在飞闩」永远放不掉、
-// 按钮永久灰掉，用户唯一的自救入口就死了。
 const REQUEST_TIMEOUT_MS = 15000;
 // 自动复查间隔。取 5 秒是为了与授权页轮询同一节奏；恢复页通常很快被离开，不需要退避。
 const RECHECK_INTERVAL_MS = 5000;
@@ -36,14 +26,6 @@ const STATUS_MESSAGES = {
 
 /**
  * 把后端授权状态翻译成一句给用户看的话。
- *
- * 参数:
- *   state: 后端 /license/status 或 /license/availability 的返回体。
- *   detail: 可选的服务端原文（``lastError``）。有就用它当主句 —— 它比本地文案更具体
- *     （例如硬件指纹迁移的处置步骤）；但仍然要叠加下面三段实时提示，
- *     否则倒计时与限流提示会在这条路径上丢掉。
- * 依次叠加「限流」「正在验证」「第 N 次重试倒计时」三段补充说明：
- * 只报「不可用」而不说「什么时候再试」，用户唯一能做的就是不停点按钮。
  */
 export function licenseMessage(state = {}, detail = "") {
   let message = detail || STATUS_MESSAGES[state.status] || "正在读取授权状态…";
@@ -62,9 +44,6 @@ export function licenseMessage(state = {}, detail = "") {
 
 /**
  * 带超时的 JSON 请求；失败一律抛 Error（带可选 status）。
- *
- * 与 utils/api-fetch.js 的差别（有意如此）：不读响应头里的缓存策略、不重试、不续期，
- * 只做「发一次、限时、把 detail 翻成人话」，因为本模块要在最坏情况下仍然可用。
  */
 export async function licenseRequest(url, options = {}) {
   const controller = new AbortController();
@@ -81,14 +60,12 @@ export async function licenseRequest(url, options = {}) {
       );
       error.status = response.status;
       // 后端在 detail.retryable 里明确回答「再点有没有用」。透传出去，调用方才能
-      // 决定藏不藏按钮 —— 前端自己从状态码猜「503 可重试、409 不可重试」太脆。
       if (typeof payload?.detail?.retryable === "boolean") error.retryable = payload.detail.retryable;
       throw error;
     }
     return payload;
   } catch (caughtError) {
     // 已经有 status 的是上面构造的业务错误，原样上抛；其余（断网、超时、响应非 JSON）
-    // 统一换成「检查网络」的说明 —— fetch 原始文案（如 "Failed to fetch"）对用户无意义。
     if (caughtError.status) throw caughtError;
     throw new Error("暂时连接不到 HA Bridge 服务，请检查网络；网络恢复后会自动检查。");
   } finally {
@@ -105,7 +82,6 @@ if (recoveryRoot) {
   const retryButton = document.querySelector("#recovery-retry");
 
   // inFlight 防重入（点击、online、定时器三个触发源会叠加）；
-  // done 表示「已验证通过或页面即将卸载」——此后不再自检，避免跳转瞬间又发一次请求。
   let inFlight = false;
   let done = false;
   let recheckTimer = null;
@@ -118,7 +94,6 @@ if (recoveryRoot) {
     if (tone) messageElement.classList.add(`hos-tone--${tone}`);
   }
 
-  /** 清掉上一轮的错误行。错误与状态是两行，成功那一轮不能留着上一轮的报错。 */
   function clearError() {
     if (!errorElement) return;
     errorElement.textContent = "";
@@ -130,13 +105,10 @@ if (recoveryRoot) {
     window.clearTimeout(recheckTimer);
     inFlight = true;
     // 只有用户自己按下的那一次才置灰。自动自检每 5 秒一轮，也跟着置灰的话，
-    // 这一页唯一的出口按钮会每 5 秒暗一下再亮回来 —— 一个「现在不能点」的假信号。
-    // 手动那次仍然要置灰：它代表"请求在飞"，而且这段时间本来就不该重复点。
     if (manual) retryButton.disabled = true;
     if (manual) messageElement.textContent = "正在重新连接授权后台…";
     try {
       // 手动重试走 POST /retry（后端会忽略端点冷却），随后统一读 availability 取最新状态；
-      // 自动自检只用无副作用的 availability。
       const first = await licenseRequest(
         `/api/v1/license/${manual ? "retry" : "availability"}`,
         manual ? { method: "POST" } : {}
@@ -146,8 +118,6 @@ if (recoveryRoot) {
       if (state.displayAllowed) {
         done = true;
         // 「通了」是这一页唯一的高光时刻。原来它直接 reload，用户看到的是「一次无声的重载」
-        // （自动自检 5 秒一轮，最迟 5 秒后才可能刷新）；停半拍把话说清楚，
-        // 也让 .hos-status 的 eco 语义层真正被用到 —— 否则那条规则永远不可达。
         messageElement.textContent = "授权已恢复，正在进入…";
         paintTone("eco");
         retryButton.hidden = true;
@@ -169,7 +139,6 @@ if (recoveryRoot) {
       }
       paintTone("alert");
       // 后端明确说「再试也没用」（已进终态）时藏起按钮；其余错误（断网、超时）
-      // 保留按钮 —— 那正是用户能自救的场景。
       retryButton.hidden = caughtError.retryable === false;
     } finally {
       inFlight = false;

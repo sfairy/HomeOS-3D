@@ -1,15 +1,8 @@
 /**
  * NAS 设备目录（Profiles）：把 HA 里散落的 NAS 相关实体（系统 / 存储 / 健康 / 网络）
- * 归并成「一台 NAS = 一个 profile」。数据来自 /api/ha 的实体表与设备注册表，本文件不发请求。
- *
- * 约定：只认 fnos 与 synology_dsm 两个集成；METRIC_DEFINITIONS 同时决定展示的指标、
- * 中文标签、分组与顺序（新增指标必须补进这张表）；群晖的 uniqueId 编码了主机名与指标名，
- * 解析见 resolveMetricIdentity。纯函数，无副作用。
  */
 
 // 指标白名单：键为 HA 的指标名，值为 [中文标签, 分组, 值类型]。
-// 值类型缺省为 number；status 表示布尔状态，problem 表示「为真即告警」需要高亮。
-// 这张表既是白名单又是排序表，因此未登记的指标不会出现在面板上（见 metricDefinition 的兜底分支）。
 const METRIC_DEFINITIONS = {
   cpu_total_load: ["CPU 使用率", "system"],
   cpu_user_load: ["CPU 用户使用率", "system"],
@@ -44,14 +37,11 @@ const isUsableEntity = entity =>
 const normalizeNasPlatform = platform =>
   ["fnos", "synology_dsm"].includes(platform) ? platform : null;
 // 按键名降序排列：匹配 uniqueId 后缀时必须先试长键，
-// 否则 cpu_5min_load 会被更短的 cpu_load 之类提前命中，解析出错误的主机名。
 const METRIC_KEYS_BY_LENGTH = Object.keys(METRIC_DEFINITIONS).sort(
   (keyA, keyB) => keyB.length - keyA.length
 );
 /**
  * 从实体的 uniqueId 中解析出「指标键」与「主机标识」。
- * 群晖形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；其它平台退化为「后缀匹配指标名，
- * 剩下的前缀即主机标识」。白名单外的指标键为 undefined，主机标识匹配不上为 null。
  */
 function resolveMetricIdentity(sourceEntity) {
   const uniqueId = sourceEntity.uniqueId || "";
@@ -80,7 +70,6 @@ function resolveMetricIdentity(sourceEntity) {
   };
 }
 // 白名单里查不到的指标一律用实体自身名称兜底（分组按 system，类型按域名区分），
-// 这样后续即使 HA 集成新增指标，面板也不至于整条丢数据。
 const metricDefinition = metric =>
   METRIC_DEFINITIONS[metric.key] || [
     metric.name || metric.originalName || metric.entityId,
@@ -88,7 +77,6 @@ const metricDefinition = metric =>
     metric.entityId.startsWith("binary_sensor.") ? "status" : "number"
   ];
 // 「系统指标」用于为每台 NAS 挑一个代表实体（见 nasProfiles 结尾）：
-// 白名单里的 system 分组、状态指标，以及群晖的 network（DSM 把网速归入系统概览）。
 const isSystemMetric = checkedMetric =>
   Object.hasOwn(METRIC_DEFINITIONS, checkedMetric.key) &&
   (METRIC_DEFINITIONS[checkedMetric.key][1] === "system" ||
@@ -97,8 +85,6 @@ const isSystemMetric = checkedMetric =>
       METRIC_DEFINITIONS[checkedMetric.key][1] === "network"));
 /**
  * 把 HA 实体与设备注册表聚合成 NAS profile 列表。
- * 顺序不能颠倒：① 从设备注册表建 profile 并沿 viaDeviceId 合并（同一台 NAS 常被拆成多台子设备）；
- * ② 把指标实体解析出主机标识；③ 把指标归属到 profile（设备 ID → 主机标识 → 设备名前缀兜底）。
  */
 export function nasProfiles(entities = [], devices = []) {
   // 设备注册表按 deviceId 建索引：后面所有归属判断都以它为准。
@@ -106,7 +92,6 @@ export function nasProfiles(entities = [], devices = []) {
     devices.filter(isUsableEntity).map(device => [device.deviceId, device])
   );
   // 记录「这台设备暴露了哪些 NAS 平台」：平台数恰好为 1 的设备才是干净的 NAS，
-  // 多平台的通常是容器 / 网关设备，归并结果不可靠。
   const platformsByDeviceId = new Map(
     [...devicesByDeviceId.values()].map(deviceEntry => [
       deviceEntry.deviceId,
@@ -114,7 +99,6 @@ export function nasProfiles(entities = [], devices = []) {
     ])
   );
   // 实体表里也带 platform（注册表偶尔缺失），因此再补一轮。
-  // missing 实体的平台信息不可信；设备未登记时静默跳过。
   for (const entityRecord of entities) {
     if (entityRecord.status !== "missing" && normalizeNasPlatform(entityRecord.platform)) {
       platformsByDeviceId.get(entityRecord.deviceId)?.add(entityRecord.platform);
@@ -125,8 +109,6 @@ export function nasProfiles(entities = [], devices = []) {
     ...(platformsByDeviceId.get(sourceDevice.deviceId) || [])
   ];
   // 两张索引配合使用：identity（平台 + 真实设备 ID）用于建档，
-  // entityKey（平台 + 链上任意设备 ID）用于归属 —— 实体表里出现的是子设备 ID，
-  // 而 profile 建在链路顶端的宿主设备上，只有它能同时命中两侧。
   const profilesByIdentity = new Map();
   const profilesByEntityKey = new Map();
   // 第一遍：来自注册表的设备建档。service 类型只是集成入口（例如 DSM 的服务实体），本身不是设备。
@@ -141,7 +123,6 @@ export function nasProfiles(entities = [], devices = []) {
     }
     const devicePlatform = platforms[0];
     // viaDeviceId 串成设备链时，profile 要建在链路顶端的宿主设备上；
-    // visited 用于防御环形引用（数据异常时不至于死循环）。
     const visitedDeviceIds = new Set();
     let currentDevice = chainDevice;
     let isChainValid = true;
@@ -155,8 +136,6 @@ export function nasProfiles(entities = [], devices = []) {
       const configEntryIds = currentDevice.registryMetadata.configEntryIds || [];
       const parentConfigEntryIds = parentDevice?.registryMetadata?.configEntryIds || [];
       // 父设备必须存在、不是 service、平台与当前设备一致，
-      // 且（双方都声明了 configEntryIds 时）至少有一个配置入口重合 ——
-      // 否则只能认为它们「挂在同一台 HA 主机下」，不能合成一台 NAS。
       if (
         !parentDevice?.registryMetadata ||
         parentDevice.registryMetadata.entryType === "service" ||
@@ -193,8 +172,6 @@ export function nasProfiles(entities = [], devices = []) {
     );
   }
   // 第二遍：挑出候选指标实体。规则自上而下是 —— 只认 sensor / binary_sensor 域、
-  // 平台在 NAS 白名单内、设备已登记、状态不是 missing；
-  // 随后解析出主机标识，最后再用一条过滤剔除「problem 类却落在 sensor 域」的误匹配。
   const metricEntities = entities
     .filter(
       candidateEntity =>
@@ -213,7 +190,6 @@ export function nasProfiles(entities = [], devices = []) {
         metricCandidate.entityId.startsWith("binary_sensor.")
     );
   // 没有注册表信息的设备（旧版集成）按「平台 + 设备 ID」建兜底 profile，
-  // 并记下主机标识，供后面把同主机的指标归到一起。
   for (const legacyEntity of metricEntities.filter(
     legacyMetricEntity =>
       !devicesByDeviceId.get(legacyMetricEntity.deviceId).registryMetadata &&
@@ -243,7 +219,6 @@ export function nasProfiles(entities = [], devices = []) {
       entityProfile.platform + ":" + entityProfile.deviceId
     );
     // 有注册表的设备必须命中 entityKey 索引才算归属成功，不参与后面的模糊匹配 ——
-    // 后者可能把同一主机上另一台 NAS 的指标混进来。
     if (devicesByDeviceId.get(entityProfile.deviceId).registryMetadata) {
       if (targetProfile) {
         targetProfile.metrics.push(entityProfile);
@@ -291,17 +266,13 @@ export function nasProfiles(entities = [], devices = []) {
     }
   }
   // 排序口径：先按白名单顺序（即 METRIC_DEFINITIONS 的书写顺序），
-  // 同组同名再按 entityId 兜底，保证每次渲染顺序稳定。
   const metricKeyOrder = Object.keys(METRIC_DEFINITIONS);
   // 指标排序权重：白名单 METRIC_DEFINITIONS 内的按下标排（越小越靠前），
-  // 不在白名单里的统一返回白名单长度，排到最后，不会插到白名单指标中间。
   const metricRank = rankedMetric =>
     metricKeyOrder.includes(rankedMetric.key)
       ? metricKeyOrder.indexOf(rankedMetric.key)
       : metricKeyOrder.length;
   // 收尾四件事：只保留「有指标」或「来自注册表」的 profile；指标按白名单排序（不再截断条数）；
-  // 挑一个主指标（优先系统指标）作行摘要；
-  // 指标来自子设备时，把设备名括号内的部分作为前缀标出来，最后整体按 NAS 名称排序。
   return profiles
     .filter(keptProfile => keptProfile.registry || keptProfile.metrics.length)
     .map(profileEntry => {

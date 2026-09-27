@@ -1,32 +1,11 @@
-/**
- * 运行时缓存层：历史序列、静态图解码、特效图加载与扫地机地图预加载。
- * 把「会重复发生、开销又高」的四类异步操作收敛到这里统一节流：历史序列缓存与请求串行化、
- * 画布静态图的有界解码缓存、特效图的按需加载与优先级提升、扫地机地图的预加载与失败退避。
- * 各缓存的构造参数都可注入 createImage / setTimer / clearTimer，便于测试替换。
- *
- * 缓存键：历史序列 =「实体ID:小时数」（按插入顺序淘汰到 MAX_HISTORY_SERIES_CACHE_SIZE 条）；
- * 静态图 = 完整图片地址（setSources 整体替换，切页回收旧位图）；特效图 = 图片地址，状态记在
- * img 元素 dataset 上、元素移除即失效；扫地机地图 = 去掉 ?query 的地址（版本 token 变化仍视为同一张图）。
- */
 const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
-// 历史数据的请求超时：超过 12 秒即视为失败，调用方按空序列处理，而不是一直挂着。
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
-/**
- * 生成历史序列的缓存键。
- */
 export function historySeriesCacheKey(cacheEntityId, hours) {
   return String(cacheEntityId || "") + ":" + (Number(hours) || 0);
 }
-/**
- * 写入历史序列缓存，并按插入顺序淘汰超量条目。
- *
- * 空序列不写：请求失败会得到空数组，写进去反而会把上一次的好数据顶掉。
- */
 export function cacheHistorySeries(cache, entityId, series) {
   if (!!Array.isArray(series?.points) && series.points.length !== 0) {
     // Map 保持插入顺序，取第一个键即最久未更新的条目；循环到容量回到上限为止。
-    // 上限只认 MAX_HISTORY_SERIES_CACHE_SIZE 一处：这里再写一个字面量会让调参只改半边，
-    // 而「改了没生效」在行为上与「没改」长得一模一样。
     cache.set(historySeriesCacheKey(entityId, series.hours), series);
     while (cache.size > MAX_HISTORY_SERIES_CACHE_SIZE) {
       const oldestKey = cache.keys().next().value;
@@ -37,11 +16,6 @@ export function cacheHistorySeries(cache, entityId, series) {
     }
   }
 }
-/**
- * 历史请求的串行化协调器。
- * 同一时刻只允许一个历史请求在途，避免连续切页打出一串并发请求；又不能丢掉用户最后一次操作，
- * 所以待执行的请求只保留「最新那一个」。
- */
 export class HistoryRefreshCoordinator {
   constructor() {
     this.running = null;
@@ -51,7 +25,6 @@ export class HistoryRefreshCoordinator {
   }
   /**
    * 执行 run，必要时排队等当前请求结束：同 key 丢弃待执行项，不同 key 覆盖、只保留最新的，
-   * 同 key 保持原样避免重复入队。
    */
   request(requestKey, run) {
     if (this.running) {
@@ -88,8 +61,6 @@ export class HistoryRefreshCoordinator {
 }
 /**
  * 画布静态图的有界解码缓存。
- * 画布上大量 <img> 共用同一批图片，直接交给浏览器会在切页瞬间发起几十个请求，且解码位图没有上限；这里把
- * 「需要的图」收敛成集合，按并发上限与空闲延迟排队加载，已解码的 Image 按 LRU 保留（prioritySources 受保护）。
  */
 export class RuntimeStaticImageCache {
   /**
@@ -112,7 +83,6 @@ export class RuntimeStaticImageCache {
     this.setTimer = setTimer;
     this.clearTimer = clearTimer;
     // desiredSources 是「当前文档需要」的全集；prioritySources 是需要优先可见的子集；
-    // loadedSources 只记已成功加载的地址；decodedImages 以插入顺序充当 LRU 队列。
     this.desiredSources = new Set();
     this.prioritySources = new Set();
     this.loadedSources = new Set();
@@ -126,8 +96,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 用最新的图片需求整体替换旧集合，并回收不再需要的资源。
-   *
-   * 不做增量 diff 而是整体替换：切页时需求几乎全变，逐个比较反而更慢。
    */
   setSources(sources = [], prioritySources = []) {
     if (!this.stopped) {
@@ -144,7 +112,6 @@ export class RuntimeStaticImageCache {
         this.desiredSources.has(removedSource)
       );
       // 展开成数组再迭代：循环里会删 activeLoads 的项，直接遍历 Map 会漏掉条目。
-      // 正在加载的图移除 src 即可让浏览器取消请求，再走各自的 cancel 回调把在途账目记平。
       for (const [activeSource, { image: activeImage, cancel: cancelActiveLoad }] of [
         ...this.activeLoads
       ]) {
@@ -153,7 +120,6 @@ export class RuntimeStaticImageCache {
           cancelActiveLoad();
         }
       }
-      // 已加载集合与解码缓存同步收缩，避免切页后仍抱着上一页的位图。
       for (const loadedSource of [...this.loadedSources]) {
         if (!this.desiredSources.has(loadedSource)) {
           this.loadedSources.delete(loadedSource);
@@ -188,7 +154,6 @@ export class RuntimeStaticImageCache {
    */
   enqueue(source, { active: isActive = false } = {}) {
     // 六种「不需要再排队」的情形一次挡掉：已停止、地址为空、当前不需要、已解码、
-    // 正在加载，以及已加载但本次不是优先图。
     const normalizedSource = String(source || "");
     if (
       this.stopped ||
@@ -227,7 +192,6 @@ export class RuntimeStaticImageCache {
     }
     const normalizedDelay = Math.max(0, Number(staticScheduleDelayMs) || 0);
     const dueAt = Date.now() + normalizedDelay;
-    // 已有更早到期的定时器时不动它：否则连续入队会让加载被无限推迟。
     if (this.timer === null || !(dueAt >= this.timerDueAt)) {
       if (this.timer !== null) {
         this.clearTimer(this.timer);
@@ -277,9 +241,6 @@ export class RuntimeStaticImageCache {
     let isSettled = false;
     let hasDecodeStarted = false;
     let timeoutHandle = null;
-    // 静态图加载的唯一收尾出口：load / error / decode 完成 / 超时 / 被取消都汇到这里，靠 isSettled 保证只跑一次；
-    // 摘监听、清定时器、从在途表出队，成功且仍被需要时把 Image 挪到 LRU 末尾并裁剪缓存，最后 drain() 让出并发名额。
-    // loaded=false 表示失败或超时，此时不认领结果，下次 setSources 需要它会重新入队。
     const finishStaticLoad = loaded => {
         // 收尾动作：摘监听、从在途表移除，成功时把解码后的 Image 放到 LRU 末尾，最后再尝试排空。
       if (!isSettled) {
@@ -306,8 +267,6 @@ export class RuntimeStaticImageCache {
         return;
       }
       hasDecodeStarted = true;
-      // decode() 让位图在展示前就绪，避免绘制首帧时同步解码造成卡顿；
-      // 它只是优化，失败（含不支持的浏览器）同样按加载成功处理。
       let decodePromise = null;
       try {
         decodePromise = typeof image.decode == "function" ? image.decode() : null;
@@ -350,8 +309,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 把已解码图片裁到上限。
-   * 优先淘汰非优先图；若全都是优先图，则退回淘汰最久未用的一张，
-   * 保证容量一定能回到上限内而不是死循环。
    */
   trimDecodedImages() {
     while (this.decodedImages.size > this.maxDecoded) {
@@ -398,8 +355,6 @@ export class RuntimeStaticImageCache {
 }
 /**
  * 特效图片加载器：图片元素是画布上真实存在且要参与渲染的 <img>，加载状态记在 dataset 上
- * （effectPendingSource / effectLoadingSource / effectLoadedSource），元素重建后也知道是否加载过；
- * 已离开文档（isConnected 为 false）的元素会被剪枝，避免为离屏特效浪费带宽。
  */
 export class RuntimeEffectImageLoader {
   /**
@@ -438,12 +393,10 @@ export class RuntimeEffectImageLoader {
     // 记下「想要加载的地址」，drain 阶段会拿它与元素当前状态比对，确认此刻仍然需要它。
     imageElement.dataset ||= {};
     imageElement.dataset.effectPendingSource = effectSource;
-    // 已加载的就是它，直接返回；同时清掉待加载标记，否则会被反复当成待加载项。
     if (imageElement.dataset.effectLoadedSource === effectSource) {
       delete imageElement.dataset.effectPendingSource;
       return;
     }
-    // 这个地址之前加载过：直接把 src 指过去命中浏览器缓存，不必再走一遍队列。
     if (this.loadedSources.has(effectSource)) {
       imageElement.dataset.effectLoadedSource = effectSource;
       delete imageElement.dataset.effectPendingSource;
@@ -465,7 +418,6 @@ export class RuntimeEffectImageLoader {
         sequence: this.sequence++
       });
     }
-    // 优先图跳过空闲延迟立即尝试；普通图等空闲，避免和首屏渲染抢带宽。
     if (isPriority) {
       this.drain(true);
     } else {
@@ -496,8 +448,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 排空队列。
-   * 与静态图缓存不同，这里用 findIndex 逐项查找而不是取队首：队首那张可能已不可见或已被加载，
-   * 必须跳过它继续往后找。
    */
   drain(activeOnly = false) {
     if (!this.stopped) {
@@ -542,12 +492,8 @@ export class RuntimeEffectImageLoader {
     pendingImage.dataset.effectLoadingSource = pendingSource;
     let isEffectSettled = false;
     let effectTimeoutHandle = null;
-    // 特效图加载的唯一收尾出口：load / error / 超时 / 被取消都走这里（isEffectSettled 保证只执行一次）。
-    // 与静态图的区别是收尾时会二次核对 dataset.effectPendingSource，只认领「元素此刻仍想要这次地址」的结果，
-    // 否则说明期间已切图，结果必须丢弃；inFlight 用计数器而非 activeLoads 的键数记账，最后统一 drain()。
     const finishEffectLoad = effectLoaded => {
         // 收尾：只有「元素当前想要的地址仍是本次这个」时才认领结果，
-        // 否则说明期间已切到别的图，本次结果要丢弃。
       if (!isEffectSettled) {
         isEffectSettled = true;
         if (effectTimeoutHandle !== null) {
@@ -651,8 +597,6 @@ export class RuntimeEffectImageLoader {
 }
 /**
  * 扫地机地图图片预加载器：以「去掉查询串的地址」为键，地图图片带版本 token，同一张图只保留
- * 最新一份，旧 token 记录会清掉，缓存不会无限增长。
- * 已加载、已排队、正在加载的地址直接跳过；失败地址记录时间戳，retryDelay 内不再重试，避免请求风暴。
  */
 export class RuntimeVacuumMapImagePreloader {
   /**
@@ -697,7 +641,6 @@ export class RuntimeVacuumMapImagePreloader {
     if (failedAt && this.now() - failedAt < this.retryDelay) {
       return false;
     }
-      // 同一张图的旧 token 失败记录要清掉，否则它会一直占着退避表。
     for (const failedSource of this.failedAt.keys()) {
       if (failedSource !== vacuumSource && failedSource.split("?", 1)[0] === sourceKey) {
         this.failedAt.delete(failedSource);
@@ -738,8 +681,6 @@ export class RuntimeVacuumMapImagePreloader {
     const preloaderImage = this.createImage();
     let isVacuumSettled = false;
     // 扫地机地图预加载的唯一收尾出口（load / error / 被取消），isVacuumSettled 保证
-    // 只跑一次。成功时把 loadKey 指向新地址并摘掉同键旧地址，保持 loadedSourceByKey
-    // 与 loadedSources 一致；失败则记 failedAt 时间戳做退避，重试交给下次 enqueue 判断。
     const finishVacuumLoad = vacuumLoaded => {
       if (!isVacuumSettled) {
         isVacuumSettled = true;
@@ -810,11 +751,6 @@ export class RuntimeVacuumMapImagePreloader {
     this.failedAt.clear();
   }
 }
-/**
- * 判断一个已发出的历史请求在返回时是否仍然有意义。
- * 三层判定：文档代次必须一致（换了文档一律作废）；共享组件、或当前页路径一致即可；
- * 否则要求弹窗 ID 与弹窗代次都一致——弹窗关掉再打开同一个时 popupGeneration 会变，旧结果不会污染新弹窗。
- */
 export function historyRequestStillRelevant(requestContext, currentContext) {
   if (requestContext.documentGeneration !== currentContext.documentGeneration) {
     return false;

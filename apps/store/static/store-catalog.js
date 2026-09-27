@@ -1,18 +1,15 @@
 /**
  * 商店前台的商品目录：卡片/详情渲染、筛选与增购项分组。
- *
- * 从 store.js 拆出来：那一份只留页面编排与账号/订单流程，这一份是「商品长什么样、怎么排」。
- * 共享状态与请求原语在 store-shared.js。
  */
 
-import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271208";
-import { $ as $ } from "./store-shared.js?v=2609271208";
-import { $$ as $$ } from "./store-shared.js?v=2609271208";
-import { currentPage as currentPage } from "./store-shared.js?v=2609271208";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271208";
-import { formatCents as money } from "./money.js?v=2609271208";
-import { state as state } from "./store-shared.js?v=2609271208";
-import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271208";
+import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271226";
+import { $ as $ } from "./store-shared.js?v=2609271226";
+import { $$ as $$ } from "./store-shared.js?v=2609271226";
+import { currentPage as currentPage } from "./store-shared.js?v=2609271226";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271226";
+import { formatCents as money } from "./money.js?v=2609271226";
+import { state as state } from "./store-shared.js?v=2609271226";
+import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271226";
 
 export function chooseProduct() {
   if (currentPage() !== 'item') { state.product = null; return; }
@@ -80,7 +77,6 @@ export function primaryCard(product) {
     ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
     : `<a class="hb-button hb-button--primary hb-button--sm" href="${escapeHtml(productHref(product))}">${state.account ? (requestedUpgradeLicenseId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
   const badge = isTrialProduct(product) ? `${product.validityDays} 天试用` : bundle ? '全授权' : product.productType === 'package' ? '自定义套餐' : '主授权';
-  // 每个主授权卡都要有一行说明（套餐卡展示所含内容，其余卡展示商品说明）；否则卡片显空且标题比同排低一截。
   const summary = product.productType === 'package' ? packageContentsText(product) : product.displayDescription || product.note || '';
   const contents = summary ? `<p>${escapeHtml(summary)}</p>` : '';
   return `<article class="hb-addon-card${unavailable ? ' is-purchased' : ''}" data-product-group="${productGroup(product)}"><span class="hb-addon-card__badge">${escapeHtml(badge)}</span><h3>${escapeHtml(product.name)}</h3>${contents}<div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
@@ -109,7 +105,6 @@ export function catalogCards() {
 export function renderProducts() {
   const cards = catalogCards();
   // 没有任何主授权在售时，顶栏「购买授权」与页脚入口都收起来，
-  // 避免把用户送进一个空页面。语义是「完全没上架」，不是「已经买完」。
   document.documentElement.classList.toggle('hb-no-base-products', !primaryProducts().length);
   const counts = { all: cards.length, base: 0, bundle: 0, trial: 0, addon: 0 };
   cards.forEach(card => { counts[card.group] += 1; });
@@ -150,7 +145,6 @@ export function renderAddons() {
 
 export function packageContentsText(product) {
   // 「主授权」是套餐默认包含的基础授权（includedProductIds 里只有增量包，基础授权是隐式的），
-  // 所以这里只能给字面量。不要写死品牌：站点名在后台可改，写死会跟站点名对不上。
   return ['主授权', ...(product.packageItems || []).map(item => item.name)].join(' + ');
 }
 

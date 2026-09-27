@@ -1,32 +1,13 @@
 /**
  * 门模型的开合动画：把 lock-state 折出的 doorOpen 翻译成门网格的姿态变化，并逐帧推进。
- *
- * 门在 3D 场景里按 rig 分成三类可动骨架（由 userData 上的枢轴字段区分）：
- *   - 平开门（hinge）：doorHingePivot / entryDoorPivot，绕 y 轴旋转；
- *   - 推拉门（slide）：doorSlidePivot，沿 x 轴平移；
- *   - 卷帘门（roller）：doorRollerPivot，沿 y 轴收放（位移同时按比例压扁门片）。
- * 关节的「休息位 / 关门位」在第一次遇到时从 mesh 自身记下来，之后即使配置改动也能回到原位。
- *
- * 与渲染器的约定：模型被判定为 static（frame-only，或无 target）时要把先前动过的门复位；
- * 每帧有位移或复位时回调 requestRender / invalidateReflections，避免不必要的重绘。
- * 系统「减少动态效果」偏好开启时，位移一步到位（跳过插值），但最终姿态与正常动画一致。
  */
-import { lockState } from "./lock-state.js?v=2609271208";
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
+import { lockState } from "./lock-state.js?v=2609271226";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
 
 /**
  * 创建门锁动画控制器。
- *
- * 参数从运行时上下文取出（与前几个 motion 模块同形）：
- *   modelRoot             3D 场景根节点，逐帧 traverse 找带门枢轴的网格；
- *   requestRender         需要重绘时的回调；
- *   invalidateReflections 门姿态变化会影响倒影时的失效回调。
- *
- * 返回 { tick(time, doorModels, states), dispose() }：tick 由舞台主循环每帧调用，返回
- * 「本帧是否还有门在动」，主循环据此决定要不要继续推进；dispose 把所有门复位。
  */
 export function createLockMotion({ modelRoot, requestRender, invalidateReflections }) {
-  // mesh → { kind, rest, target }：每扇可动门的姿态状态；rest 是关节的静止值，target 是目标值。
   const motions = new Map();
   // 上一帧时间戳（毫秒）；null 表示刚开始或已复位，本帧不产生位移（delta = 0）。
   let lastTickTime = null;
@@ -69,11 +50,6 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
 
   /**
    * 算出某扇门本帧的目标姿态。
-   *
-   * 返回 null 表示「这扇门不参与动画」（static，或门磁状态未知）。doorAnimationType 决定
-   * 用哪套 rig：sliding 优先读 mesh 自己的 doorSlideSide（单扇左右开），再退回父级的开 / 关
-   * 位移；roller 读卷帘行程；其余一律按平开门处理，有 doorOpenRotation（模型导出时烘焙的角度）
-   * 就以它的符号为准，否则退用配置的开角与铰链方向。
    */
   function resolveTarget(doorModel, parent, mesh, states) {
     const animationType = parent.userData?.doorAnimationType || "entry";
@@ -86,7 +62,6 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
     }
     if (animationType === "sliding") {
       if (Number.isFinite(mesh.userData?.doorSlideSide)) {
-        // 单扇推拉门：只有「开向自己这一侧」时才滑出，否则停在 0。
         const direction = doorModel.openDirection === -1 ? -1 : 1;
         return {
           kind: "slide",
@@ -161,7 +136,6 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
         }
         return false;
       }
-      // 帧间隔夹在 0–0.1 秒：切后台再回来时，避免用几秒的 delta 一步跳过整段动画。
       const deltaSeconds =
         lastTickTime === null
           ? 0
@@ -188,7 +162,6 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
         const kind = slidePivot ? "slide" : rollerPivot ? "roller" : "hinge";
         let motion = motions.get(mesh);
         // 首次见到（或门型变了）时登记休息位与当前目标；有目标就直接摆到目标姿态，
-        // 避免刷新页面后门先以静止位渲染一帧再跳。
         if (
           (!motion || motion.kind !== kind) &&
           ((motion = {
@@ -223,7 +196,6 @@ export function createLockMotion({ modelRoot, requestRender, invalidateReflectio
           // 空块：上面的条件与副作用整体构成一次「初始化」动作。
         }
         // 平开门的门扇枢轴要横向偏移半个门宽，使旋转围绕门边而不是门中心；
-        // doorFixedHinge 标记的门已经烘焙好枢轴，跳过。
         if (hingePivot && !mesh.userData?.doorFixedHinge) {
           const leafWidth = Number(
             parent.userData?.doorLeafWidth ?? parent.userData?.entryDoorLeafWidth ?? 0.8

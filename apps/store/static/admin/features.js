@@ -1,18 +1,12 @@
 /**
  * 功能项选择器。
- *
- * 商品/权益上的功能码选择器：候选项渲染、多选与必选约束、摘要同步。
- *
- * 功能码选择器是跨面板控件（商品与权益都用同一个），所以单独成模块，候选清单也只取一份。
  */
 
-import { state } from "./state.js?v=2609271208";
-import { $, $$, esc, toast } from "./dom.js?v=2609271208";
-import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js?v=2609271208";
-import { api } from "./api.js?v=2609271208";
+import { state } from "./state.js?v=2609271226";
+import { $, $$, esc, toast } from "./dom.js?v=2609271226";
+import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js?v=2609271226";
+import { api } from "./api.js?v=2609271226";
 
-// 功能码选择器（商品多选 / 权益单选共用）：目录由 /feature-codes 下发，勾选即写代码，避免手写英文码抄错后静默失效。
-// 根节点 data-* 配置：data-feature-picker（标记根）、data-feature-multiple="true"（多选，缺省单选）、data-feature-empty（空值提示）；仍提交与原 name 一致的隐藏域（多选存 CSV），单选必填需自行拦截（见 requireFeatureCode）。
 function featureLabel(code) {
   const item = (state.featureCatalog || []).find(entry => entry.code === code);
   return item ? item.label : code;
@@ -44,7 +38,6 @@ export function featurePickerMultiple(root) {
 }
 
 // 单选实例（权益的功能码）是必填字段：空值直接拦在客户端，别让一个空
-// featureCode 打到服务端、换回一句读不懂的 pydantic 校验错误。
 export function requireFeatureCode(root, message) {
   if (featurePickerValue(root).length) return true;
   toast(message, 'danger');
@@ -53,7 +46,6 @@ export function requireFeatureCode(root, message) {
 }
 
 // 已有记录可能带着目录里没有的代码（旧版本遗留、脚本导入）。它们必须仍然可见、
-// 可取消勾选——否则运营一保存就被静默丢掉，等于后台擅自改了授权内容。
 function featurePickerExtras(selected) {
   // 目录还没到就别急着判「未知」：那会把所有已选代码都错标成自定义代码。
   if (!(state.featureCatalog || []).length) return [];
@@ -85,7 +77,6 @@ export function syncFeatureSummary(root) {
 function featureOptionRow(root, code, label, description) {
   const checked = featurePickerValue(root).includes(code) ? ' checked' : '';
   // 选项故意不带 name：单选若共用 name，form.elements.featureCode 会变成
-  // RadioNodeList，各处 .value 的读取口径就跟着变了。互斥由 change 处理器自己管。
   const type = featurePickerMultiple(root) ? 'checkbox' : 'radio';
   return `<label class="feature-option">
       <input type="${type}" data-feature-option value="${esc(code)}"${checked}>
@@ -111,7 +102,6 @@ export function renderFeatureOptions(root) {
   const groups = state.featureGroups && state.featureGroups.length
     ? [...state.featureGroups]
     : [{ key: 'base', label: '基础能力' }];
-  // 目录里出现了分组表没登记的新 group 时补一个，避免新增能力码在界面上直接消失。
   const knownGroups = new Set(groups.map(group => group.key));
   matched.forEach(item => {
     if (knownGroups.has(item.group)) return;
@@ -172,10 +162,6 @@ export function closeFeaturePickers() {
 }
 
 // 与行内「⋯」菜单同一套坐标算法：absolute 弹出层会被 .admin-main / .table-wrap 的
-// overflow 裁掉，所以打开时切成 position: fixed，用按钮位置现算坐标。
-// 也因此和菜单一样必须借 popover 进顶层：编辑器卡片（.hb-card）挂着 --a-glass-blur，
-// backdrop-filter 会把 fixed 的包含块从视口改成那张卡片，坐标全错 —— 表现是「点开选择器
-// 什么都没出现，其实飘到卡片外面去了」。详见 menus.js 的 openRowMenu。
 function placeFeaturePicker(root) {
   const pop = $('[data-feature-pop]', root);
   const toggle = $('[data-feature-toggle]', root);
@@ -226,7 +212,6 @@ export async function loadFeatureCatalog() {
 }
 
 // 事件全部委托到 document：选择器实例散落在商品与权益的编辑器里，逐个
-// addEventListener 会在反复开关编辑器时越绑越多。
 document.addEventListener('click', (event) => {
   const toggle = event.target.closest('[data-feature-toggle]');
   if (toggle) {
@@ -267,7 +252,6 @@ document.addEventListener('keydown', (event) => {
 });
 
 // 弹层坐标按按钮位置算死，任何祖先滚动都会错位；但弹层自身的列表要能滚，
-// 所以捕获阶段里放行来自 .feature-picker 的 scroll。
 $('.admin-main').addEventListener('scroll', (event) => {
   if (event.target.closest && event.target.closest('.feature-picker')) return;
   closeFeaturePickers();

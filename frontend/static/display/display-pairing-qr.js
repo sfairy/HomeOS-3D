@@ -1,21 +1,14 @@
 /**
  * 展示页的配对二维码弹窗。
- *
- * 中控设备展示页上「扫码配对新设备」入口，仅在配对被启用时可用：把服务地址与 6 位配对码编码
- * 成 /pair?scan=1#... 链接并渲染成 QR，地址可现场修改（换网段时无需回后台），并附 iPhone 添加
- * 到主屏引导。二维码内容格式必须与 pairing-link.js 的 parsePairingLink 完全对应；拒绝本机回环
- * 地址，因为手机连不上电脑的 localhost。
  */
 import qrcode from "../vendor/qrcode-generator/qrcode.js";
 
 /**
  * 校验服务地址与配对码，拼出二维码内容。
- * @throws {Error} 地址不合法（含路径 / 账号 / 查询串）或配对码格式错误。
  */
 function pairingQrPayload(serverUrl, code) {
   const serverUrlObject = new URL(String(serverUrl).trim());
   // 只接受「裸 origin」形式：不允许用户信息、查询串、哈希与非根路径，
-  // 否则拼出来的配对链接会被 parsePairingLink 拒绝。
   if (
     !["http:", "https:"].includes(serverUrlObject.protocol) ||
     serverUrlObject.username ||
@@ -68,7 +61,6 @@ export function showDisplayPairingQr(pairing) {
   const descriptionElement = document.createElement("p");
   descriptionElement.textContent = `扫描下方二维码，连接“${pairing.name}”。安卓 App 或手机相机均可扫码。`;
   const downloadLink = document.createElement("a");
-  // 外链必须带 noopener noreferrer，避免被打开的页面拿到 window.opener。
   ((downloadLink.className = "display-pairing-qr-download"),
     (downloadLink.href = "https://wiki.habridge.cn/downloads/HaBridge.apk"),
     (downloadLink.target = "_blank"),
@@ -114,7 +106,6 @@ export function showDisplayPairingQr(pairing) {
   ((closeButton.type = "button"),
     (closeButton.textContent = "关闭"),
     closeButton.addEventListener("click", () => dialogElement.close()));
-  // 重新生成二维码；地址非法时清空图形并把原因写到提示行。
   const renderQr = () => {
     try {
       if (!pairing.enabled)
@@ -145,7 +136,6 @@ export function showDisplayPairingQr(pairing) {
       closeButton
     ),
     document.body.append(dialogElement),
-    // 关闭后立即从 DOM 摘除，避免二维码 SVG 长期占内存；once 保证只解绑一次。
     dialogElement.addEventListener("close", () => dialogElement.remove(), { once: !0 }),
     renderQr(),
     dialogElement.showModal());

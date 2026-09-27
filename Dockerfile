@@ -1,16 +1,6 @@
 # syntax=ops/docker/dockerfile:1
-# HomeOS 双镜像：app（主应用）与 store（授权商店 / 授权服务器）
-# 保护策略：业务 JS 经 javascript-obfuscator 混淆；Python 经 Cython 编译成原生扩展
-# （.so）后删除源码。运行镜像里读不到、也反编译不出后端代码。
-#
-# 构建：
-#   docker build --target app   -t homeos-3d:local .
-#   docker build --target store -t homeos-3d-store:local .
-# 或直接用 GHCR 预构建镜像：docker-compose.store.yml + docker-compose.app.yml（先起商店）
 
 # Cython 必须钉死版本：3.3.0 的 AnalyseExpressionsTransform 在本项目的
-# apps/server/observability/global_log.py 上会崩溃（`(value or {}).items()` 触发类型推断
-# 回归），3.1.x / 3.2.x 正常。升级前请先用两个 target 各跑一次构建验证。
 ARG CYTHON_VERSION=3.1.6
 
 # ─── 前端 / 商店静态资源混淆 ─────────────────────────────────────
@@ -27,8 +17,9 @@ FROM js-tools AS frontend-protected
 
 WORKDIR /work
 COPY frontend ./frontend
+# 混淆必须真的跑过：产物里有十六进制标识符，源文件里不存在这种形态的名字。
 RUN node /opt/obfuscate/obfuscate_javascript.mjs frontend \
-    && ! grep -q '全局日志上报的启动引导' frontend/static/logging/global-log-boot.js \
+    && grep -q '_0x' frontend/static/logging/global-log-boot.js \
     && grep -q . frontend/static/vendor/three/0.186.0/three.module.min.js
 
 
@@ -37,7 +28,7 @@ FROM js-tools AS store-static-protected
 WORKDIR /work
 COPY apps/store/static ./apps/store/static
 RUN node /opt/obfuscate/obfuscate_javascript.mjs apps/store/static \
-    && ! grep -q '给商店静态资源补上版本号' apps/store/static/store.js \
+    && grep -q '_0x' apps/store/static/store.js \
     && test -f apps/store/static/jquery.min.js
 
 

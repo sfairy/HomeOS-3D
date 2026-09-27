@@ -21,9 +21,6 @@ def utcnow() -> datetime:
 
 def naive_utc(value: datetime | None) -> datetime | None:
     """时区归一的**唯一**实现：带时区的值先换算到 UTC，再去掉时区。
-
-    它是「协议要求 UTC、库里存 naive UTC」这条知识的执行点，``iso``/``iso_micro`` 都调它：
-    少做一步不会报错，只会把小时数静默偏掉 —— 东八区正好偏 8 小时。
     """
     if value is None or value.tzinfo is None:
         return value
@@ -92,10 +89,6 @@ def token_hash(token: str) -> str:
 
 def token_matches(candidate: str | None, expected: str | None) -> bool:
     """恒定时间比较两个令牌；任一为空即 ``False``。
-
-    ``lookup_token`` 是能直接换到订单内容的 bearer 凭据，用 ``==`` 比较会逐字节提前返回，
-    把「猜不中」变成按字节试出来。两侧先编码成 bytes：``compare_digest`` 收到非 ASCII
-    ``str`` 会抛 ``TypeError``，而 candidate 由攻击者控制，抛异常等于多一个 500 面。
     """
     if not candidate or not expected:
         return False
@@ -124,10 +117,6 @@ def new_code_salt() -> str:
 
 def code_hash(code: str, salt: str = "") -> str:
     """验证码在库里只存哈希，且**逐条加盐**。
-
-    验证码只有 6 位（10⁶ 空间），无盐哈希全局确定：可预计算成表、一次爆破覆盖所有行，还能
-    反推两个用户拿过同一个码；逐条盐把成本压回按行重算。``salt`` 为空串表示本列引入之前的
-    旧记录，按旧口径校验，否则升级瞬间在用的验证码（最多 10 分钟寿命）会集体失效。
     """
     text = (code or "").strip()
     if not salt:
@@ -137,10 +126,6 @@ def code_hash(code: str, salt: str = "") -> str:
 
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
     """生成订单号：``HOMEOS-<本地时间14位>-<邮箱前缀>-<随机6位>``。
-
-    时间精度只到秒、后缀只取邮箱本地部分，所以「同一秒 + 同一邮箱前缀」必然撞号（同账号
-    连点两次或两个不同账号同秒下单），唯一索引一撞就是 500；补随机段后按构造即唯一。
-    用 ``secrets``：订单号出现在查询链接与邮件里，能被猜到就没意义了。
     """
     moment = now or (datetime.now(timezone.utc) + timedelta(hours=8))
     local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
@@ -150,8 +135,6 @@ def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
     return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}-{suffix}"
 
 
-#: 邮箱形状校验。刻意写得保守：只拒绝明显不是邮箱的输入（缺 @、带空格、域名没有点等），
-#: 不追求 RFC 5322 的完整文法——把能收信的合法地址误判掉，比放过一个拼错的地址更麻烦。
 _EMAIL_RE = re.compile(
     r"^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]{1,64}"
     r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"

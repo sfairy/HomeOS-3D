@@ -1,10 +1,5 @@
 /**
  * 墙体材质与墙带几何属性工具：3D 工作室生成墙体（含门窗上下的墙带）时决定墙面着色方式与
- * 「墙脚偏暗、越高越亮」的渐变；同一套材质也被平面二期的光照函数复用。
- *
- * 约定：材质通过自定义顶点属性与几何绑定 —— hbWallHeight 为归一化墙高，hbWallCornerDistance 为顶点
- * 到最近墙体棱边的沿边距离；wallFeatures 是逗号分隔的特性串（shader / single / depth），由调用方拼出。
- * 注意：注入的 GLSL 字符串里保留了原有英文注释 —— 属于字符串内容，改动即改变着色器源码，按原文保留。
  */
 
 /**
@@ -24,7 +19,6 @@ export function createWallSideMaterial(
       ? createDedicatedWallMaterial(THREE, materialParams, isWarmWood)
       : new THREE.MeshPhysicalMaterial(materialParams);
   // 强制单遍渲染：three.js 对半透明双面材质默认会渲染两遍（正、背面各一次），
-  // 墙面色块重叠时会出现颜色加倍，这里显式关掉。
   if (enhance && featureSet.has("single")) {
     material.forceSinglePass = true;
   }
@@ -43,8 +37,6 @@ export function createWallSideMaterial(
         "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;"
       );
       shaderObject.fragmentShader = "varying float vHbWallHeight;\n" + shaderObject.fragmentShader;
-      // 闭合的半透明体：把背面丢弃，否则当调用方把 side 留作 DoubleSide 时，
-      // 它会透过离观察者更近的那个表面显出来。
       shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
         "#include <clipping_planes_fragment>",
         "#include <clipping_planes_fragment>\nif (!gl_FrontFacing) discard;"
@@ -52,7 +44,6 @@ export function createWallSideMaterial(
       shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
         "#include <opaque_fragment>",
         // 暖阳下墙面提亮到几乎不压暗（0.92），且完全不做透明度补偿 ——
-        // 墙脚被压暗会让浅色木调显得脏；默认主题沿用 0.70 与 0.65 的补偿。
         "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
           (isWarmWood ? "0.92" : "0.70") +
           ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
@@ -60,9 +51,6 @@ export function createWallSideMaterial(
           " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>"
       );
     };
-    // 着色器源码一变就要换缓存键，否则升级后浏览器仍会复用旧编译结果。
-    // 两个键都带 -frontface：本仓库的注入比上游多一句正面剔除（见上面的修复）；
-    // 暖色分支因此不能直接沿用上游的 hb-wall-warm-clean-v1，否则含义对不上源码。
     material.customProgramCacheKey = () =>
       isWarmWood ? "hb-wall-warm-clean-v1-frontface" : "hb-wall-height-gradient-v4-frontface";
   }
@@ -70,12 +58,9 @@ export function createWallSideMaterial(
 }
 /**
  * 创建专用墙体材质（自定义 ShaderMaterial）。
- * 相比通用 PBR 的注入方案，这里可直接调用平面二期的表面光照函数
- * （plan2SurfaceLight / plan2Gain），让墙面与其他二期物件共用同一套光照口径；代价是必须自己接管法线、裁剪面与色彩空间等全部流程。
  */
 function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
   // 顶点侧只需要透传墙高与角距，法线在世界空间里算好传给片元；
-  // 片元侧按「天光 + key 光 + 墙脚/墙角压暗」组合出墙面亮度。
   const shaderMaterial = new three.ShaderMaterial({
     uniforms: {
       diffuse: {
@@ -94,7 +79,6 @@ function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
         ? "mix(vec3(0.98, 0.98, 0.97), vec3(1.0), up) * (0.66 + 0.16 * up + 0.10 * key)"
         : "mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key)") +
       ";\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - " +
-      // 暖阳下墙脚几乎不压暗（0.14 对 0.54），否则浅色墙面底部会拖出一条灰带。
       (isWarmWood ? "0.14" : "0.54") +
       " * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - " +
       // 墙角同理：0.08 只保留一点转折暗示。
@@ -107,23 +91,18 @@ function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
     forceSinglePass: false
   });
   // 额外挂上 color / opacity 字段：上层可能按普通材质的方式读改颜色，
-  // 这里保持同一套字段名以免出现「改了不生效」。
   shaderMaterial.color = new three.Color(wallParams.color);
   shaderMaterial.opacity = wallParams.opacity;
   shaderMaterial.userData.hbDedicatedWall = true;
   // 未提供 hbWallCornerDistance 的几何（例如简易墙面）用 [100, 100] 兜底，
-  // 两个分量都远大于生效区间，等价于「离所有墙角都很远」，不产生墙角阴影。
   shaderMaterial.defaultAttributeValues.hbWallCornerDistance = [100, 100];
   // 固定缓存键：专用墙体着色器源码唯一，所有墙面共用一份已编译的程序。
-  // 暖色分支的源码与默认分支不同（见上面的条件拼接），必须各用各的键。
   shaderMaterial.customProgramCacheKey = () =>
     isWarmWood ? "hb-dedicated-wall-warm-clean-v1" : "hb-dedicated-wall-front-corner-balanced-v9";
   return shaderMaterial;
 }
 /**
  * 为墙面几何写入 hbWallCornerDistance 属性（到墙角的两个方向距离）。
- * 输入是墙体的平面闭合环（设计图坐标，米）：拆成边段后为每个「竖直面」顶点
- * 找出最近的棱边，记下沿边距离与剩余距离，片元着色器据此在墙角附近压暗，让墙体的转折关系更清楚。
  */
 export function setWallCornerDistances(threeNamespace, geometry, loops) {
   // 先把所有环化成「带方向的边段」列表，后面逐顶点找最近边时直接线性遍历。
@@ -135,7 +114,6 @@ export function setWallCornerDistances(threeNamespace, geometry, loops) {
         !pointIndex ||
         Math.hypot(point.x - loop[pointIndex - 1].x, point.y - loop[pointIndex - 1].y) > 1e-7
     );
-    // 环的写法可能首尾重合，去掉末点避免生成一条零长度边。
     if (
       vertices.length > 1 &&
       Math.hypot(vertices[0].x - vertices.at(-1).x, vertices[0].y - vertices.at(-1).y) < 1e-7
@@ -143,7 +121,6 @@ export function setWallCornerDistances(threeNamespace, geometry, loops) {
       vertices = vertices.slice(0, -1);
     }
     // 去掉共线点，只保留真正的拐角：共线点会把一段直墙拆成多条边，
-    // 让后面按「沿边距离」算出的墙角阴影出现假的边界。
     vertices = vertices.filter((currentVertex, vertexIndex, vertexList) => {
       const previousVertex = vertexList[(vertexIndex + vertexList.length - 1) % vertexList.length];
       const nextVertex = vertexList[(vertexIndex + 1) % vertexList.length];
@@ -186,7 +163,6 @@ export function setWallCornerDistances(threeNamespace, geometry, loops) {
     }
     let bestDistance = Infinity;
     // 打分由三部分组成：到该边所在直线的垂距、落在边外时的越界距离、
-    // 以及顶点法线与边方向的夹角项（法线垂直于该边的顶点更可能属于这条墙）。
     for (const edge of edgeSegments) {
       const offsetX = positionAttribute.getX(vertexCursor) - edge.x;
       const offsetY = positionAttribute.getY(vertexCursor) - edge.y;
@@ -214,8 +190,6 @@ export function setWallCornerDistances(threeNamespace, geometry, loops) {
 }
 /**
  * 为墙体几何写入 hbWallHeight 属性（归一化墙高）。
- * 高度按「沿某根轴的线性映射」再除以墙高求出，结果夹在 0~1；轴为 z 时取 Z
- * 分量，否则取 Y —— 不同来源的墙体几何其「向上」轴并不一致。
  */
 export function setWallGradientHeight(threeModule, meshGeometry, axis, offset, scale, heightSpan) {
   const wallPositionAttribute = meshGeometry.attributes.position;

@@ -1,62 +1,40 @@
 <!doctype html>
 <!--
   编辑器主页面（/），仪表盘的全部编辑入口。
-  后端三道门禁顺序固定：未初始化 → 303 /setup；未登录 → 303 /login；无 editor → 303 /license。
-  因此本页能打开就说明初始化、登录与 ACTIVE 授权三者都已通过；页面自身不做这三项判断。
-  三栏共用同一份「仪表盘文档」（字段口径见 apps/server/panel/schema.py）。
-  入口脚本按顺序：global-log-boot.js（日志面板先就绪）、/static/editor/appearance.js（站点配色）、
-  /static/editor/home.js（module）。摄像头用到的 hls.js 不在这里静态引入，改由
-  renderer/core/registry/hls-loader.js 在真正要播 HLS 时才注入（605 KB，绝大多数会话用不到）。
-  home.js 内部 import 的 renderer.js 与 registry.js 必须与 renderer.css 共用同一条 `?v=`，否则会出现两份控件注册表。
-  CSP 为 style-src/script-src 'self'，故无内联样式与脚本；行为全靠 id 与 data-* 挂接，改这些名字等于改接口。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609271208"></script>
+    <script src="/static/logging/client-log.js?v=2609271226"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。
-         这个宽度有三个同源值：本行、app.css 的 --editor-design-width、home.js 的
          EDITOR_DESIGN_WIDTH —— 都是吃不下 var() 的位置，改一处要同手改另两处。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
-    <!-- 移动端状态栏 / 任务切换器取这一档。**刻意与全站其余 10 处不同**：
-         入口页（login/setup/license/pair）、商店与工作室的底色都是夜空最深档
-         --hos-sky-deep #050912，唯独编辑器画的是中性石板 --hos-tool-bg #0b0f12
-         （决策 2：编辑器保持中性，不跟场景的夜空族）。写 #050912 会让状态栏
-         与页面本身差一档，在 iOS Safari 上是一条明显的色带。
-         注意 manifest-h5.webmanifest 的 theme_color 仍是 #050912 且**不能改**：
-         它与 login/setup/license/pair 四个入口页共用，那四页的底确实是 sky-deep。
-         代价是「安装到桌面后」的 PWA 窗口底色仍是夜空档 —— 这是已知且有意的取舍，
-         要消掉它就得给编辑器单独做一份 manifest。 -->
     <meta name="theme-color" content="#0b0f12" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271208" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271208" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609271208" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609271208" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271226" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271226" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271226" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271226" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609271226" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=2609271226" />
     <!-- 全站调色板（design/scene/page.css 的分发产物）。index.html **不再自带色板**：
-         app.css 的 :root 只是把它别名成 --bg / --accent 这些历史令牌名。
-         必须在 app.css 之前加载：别名在解析时就要能取到 --hos-*，顺序反了第一批
          自定义属性会解析成无效值，整页回落成透明底 + 默认蓝链接。 -->
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271208" />
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
-         内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271226" />
     <link
       rel="stylesheet"
-      href="/static/app.css?v=2609271208"
+      href="/static/app.css?v=2609271226"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609271208" />
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=2609271226" />
     <!-- 布局交互层（折叠把手条 / 分隔条）的共享样式，与 /3d-studio 共用。
          必须排在 app.css 之后：它要用同一特异性覆盖面板内边距与网格轨道。 -->
-    <link rel="stylesheet" href="/static/shared/layout.css?v=2609271208" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271208` 的 <link>。
+    <link rel="stylesheet" href="/static/shared/layout.css?v=2609271226" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271226` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -64,7 +42,7 @@
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609271208" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=2609271226" alt="" /><strong
           >HomeOS</strong
         ><span class="version">0.6.5</span>
       </div>
@@ -81,8 +59,6 @@
     <main class="editor-shell">
       <!-- ===== 左栏：控件图层导航（仪表盘 → 页面 / 弹窗 → 控件树） ===== -->
       <aside class="panel navigator">
-        <!-- 折叠把手条：折叠后它是本面板上唯一残留的控件，所以必须排在面板内部
-             （layout.css 靠 [data-collapsed] 藏掉其余子元素）。aria-expanded / aria-label 由 layout-shell.js 维护。 -->
         <button
           class="layout-collapse-rail"
           type="button"
@@ -155,7 +131,6 @@
               <span>全局组合弹窗</span><button id="popup-new" type="button" disabled="disabled">新建</button>
             </div>
             <!-- 原生 select 仍是 value 的真相源与 change 事件来源，只是被脚本包了一层自建菜单外观
-                 （原生弹层在部分内核上无法显示「★ 默认页」标记，也无法受 CSS 控制）；
                  标记 data-native-select 的作用是让增强逻辑幂等跳过，不要删。 -->
             <select id="popup-select" data-native-select="true" aria-label="选择组合弹窗" hidden disabled="disabled">
               <option value="">暂无组合弹窗</option>
@@ -203,7 +178,6 @@
           <div class="workspace-heading-copy">
             <h2 id="workspace-title">页面画布</h2>
             <span id="workspace-resolution" class="workspace-resolution" hidden></span>
-            <!-- 中控地址只在保存过之后才有意义，未保存时整段 hidden，避免给出会 404 的链接。 -->
             <p id="dashboard-display-hint" class="dashboard-display-hint" hidden>
               中控地址 <a id="dashboard-display-link" target="_blank" rel="noopener noreferrer"></a
               ><button id="display-devices-open" type="button">中控设备</button>
@@ -211,7 +185,6 @@
           </div>
           <div class="workspace-toolbar">
             <div class="workspace-primary-actions">
-              <!-- 撤销 / 重做是文档快照式历史，各留 10 步（与 title 文案一致，改上限要一起改）。 -->
               <div class="history-toolbar-actions" aria-label="编辑历史">
                 <button
                   id="undo"
@@ -298,8 +271,6 @@
         <form id="image-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
-            <!-- 每个 inspector-form 对应一种控件类型，名字里的 id 前缀就是 home.js 里的 syncXxxInspector；
-                 form 之间字段名可以重名，因为同一时刻只会显示一个。 -->
             <div class="inspector-grid two-columns">
               <label>类型<input id="image-type" value="图片" readonly="readonly" /></label>
               <label>备注<input id="image-label" maxlength="128" /></label>
@@ -381,9 +352,6 @@
           </section>
           <section class="inspector-section">
             <h3>动作</h3>
-            <!-- 三种触发方式各自一组动作，data-action-trigger 是脚本读取的键（tap / doubleTap / hold），
-                 data-action-type 是动作分发键（none / toggle / more-info / navigate）。
-                 选到 navigate 时才会显示 data-action-target 那个页面下拉。 -->
             <div id="component-action-controls" class="component-action-controls">
               <div class="component-action-control" data-action-trigger="tap">
                 <span>点按</span>
@@ -2695,7 +2663,6 @@
             </div>
           </section>
         </form>
-        <!-- 折线图：数据来自 recorder 历史统计，采样窗口在下方单独配置。 -->
         <form id="line-chart-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -3349,9 +3316,6 @@
       </aside>
     </main>
     <!-- ===== 对话框与结果提示 =====
-             全部用原生 <dialog>（自带焦点陷阱与顶层渲染），由 home.js 的 showModal()/close() 操控。
-             每个可关闭对话框右上角有 .icon-button（纯符号，必须给 aria-label），它只是「取消」，真动作在 .settings-form 的提交按钮。
-             .settings-form 是共用表单栅格（见 app.css），说明区与结果提示也用它对齐内边距；删除类对话框加 .delete-dialog 与 "DANGER ZONE" 眉标。
              带 id 的标题/眉标由脚本按「新建 / 编辑」改写文案；部分对话框内嵌隐藏表单（项目、页面、HA 连接），首次打开时由脚本填充后再显示。 -->
 
     <dialog id="popup-name-dialog" class="settings-dialog popup-name-dialog">
@@ -3788,9 +3752,6 @@
         </div>
       </section>
       <!-- HA 连接表单：与 #ha-connection-view 互斥（未连接时显示本表单，已连接时显示只读视图）。
-           accessToken 用 type="password" + autocomplete="off"：长期访问令牌是长效凭证，
-           不能让浏览器记住或自动回填。地址分内网（优先）与外网（备用）两套，内网那一路默认
-           不校验证书（多为 http 或自签名），外网那一路默认校验；内网连不上时后端自动改用外网。
            提交结果（成功或失败原因）统一写进下方的 #ha-message，不另开提示框。 -->
       <form id="ha-form" class="settings-form" hidden>
         <label><span>连接名称</span><input name="name" value="Home Assistant" maxlength="128" required /></label>
@@ -3830,7 +3791,6 @@
         <p id="ha-sync-detail">实体 0 · 设备 0 · 区域 0</p>
       </div>
     </dialog>
-    <!-- 授权信息：展示租约状态与设备绑定；这里刻意复用 .ha-connection-view 的只读视图样式。 -->
     <dialog id="license-dialog" class="settings-dialog license-dialog" data-tone="lumen">
       <div class="dialog-heading">
         <div>
@@ -3883,7 +3843,6 @@
         <p id="license-recovery-hint" class="license-recovery" hidden></p>
       </section>
       <!-- 两个动作是一条递进的阶梯：「重新连接」只用本地恢复凭证轻量续租（多数网络类故障
-           在这一步就好），「重新激活」才会带着本机保存的激活码重跑完整激活流程
            （只有凭证也失效时才需要，代价是可能要求用户重新输入激活码）。 -->
       <div class="license-actions">
         <button id="license-dialog-retry" type="button" hidden>重新连接授权后台</button>
@@ -3919,8 +3878,6 @@
       </form>
     </dialog>
     <!-- 站点配色：四束光的预设与自定义主控色。
-         即时预览走 CSSOM（documentElement.style.setProperty），不受 CSP 的
-         style-src 'self' 限制；点「保存」才写 /api/v1/appearance，后端据此
          生成 /appearance.css，改完刷新也是同一套颜色。 -->
     <dialog id="appearance-dialog" class="settings-dialog appearance-dialog" data-tone="aura">
       <div class="dialog-heading">
@@ -4505,8 +4462,6 @@
         </div>
       </div>
     </dialog>
-    <!-- 全局日志：内容由 /static/logging/global-log.js 渲染到 .global-log-body（分页 + 级别过滤），
-         页面里只留容器，避免日志量大时把主文档撑大。 -->
     <dialog id="global-log-dialog" class="settings-dialog global-log-dialog" data-tone="sensor">
       <div class="dialog-heading">
         <div>
@@ -4548,16 +4503,15 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=2609271208"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=2609271226"></script>
     <!-- 站点配色面板：独立模块，顶栏「配色」按钮即它的入口。
          与 home.js 分开是因为它不依赖编辑器状态 —— 换配色是站点级设置，不是仪表盘级。 -->
-    <script type="module" src="/static/editor/appearance.js?v=2609271208"></script>
+    <script type="module" src="/static/editor/appearance.js?v=2609271226"></script>
     <!-- 摄像头 HLS 用的 hls.js（vendor 目录，版本写在路径里、故不挂缓存戳）不在这里静态引入：
-         它由 renderer/core/registry/hls-loader.js 在第一次真正要播 HLS 时按需注入，
          省掉每次打开都要先下载并执行 605 KB 的那份库（此前它还挡在 home.js 前面）。 -->
     <script
       type="module"
-      src="/static/editor/home.js?v=2609271208"
+      src="/static/editor/home.js?v=2609271226"
     ></script>
   </body>
 </html>

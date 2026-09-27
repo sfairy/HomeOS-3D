@@ -1,29 +1,8 @@
 /*
  * NAS 状态面板（.i3d-nas-panel）在 3D 舞台内的样式。
- *
- * 由 stage.css @import 引入，作用对象是 nas-panel.js 渲染的 NAS 概览（标题、状态行、按分组排列的
- * 指标卡片、底部更新时间）；外壳沿用 .i3d-light-panel，只覆盖固定高度。
- *
- * 约定：卡片底部细条宽度由 JS 写成内联 style.width，不经过自定义属性；配色统一走绿色系（NAS 属存储类
- * 设备），卡片状态只用类名表达 —— .is-wide（时间戳占整行）、.is-warning（接近阈值）、.is-unavailable（取值失败）。
- *
- * 绿色是**语义**（存储 / 在线），不是随手挑的色相，所以这里刻意不跟主控色走；
- * 但每一处绿都必须落在 --hos-eco* 上，而不是写死 #6bd49c 这类字面量 —— 过去整份文件
- * 是 15 处写死的绿（外加一个 #efbd70 的旧琥珀），换色板时它一处都不跟着变，
- * 于是「设备读色」里唯一没接令牌的面板就是这一块。
- *
- * 剩下的 #ffffff04 / #ffffff08 / #ffffff10 是有意保留的：它们是中性白透明度发丝线，
- * 不承载色相，也不该随主控色变化（--hos-* 里没有对应的「白」令牌）。
  */
 
 /* 面板外壳：外层高度仍然是**固定**的（不是 auto）——指标区是内部滚动
-   （.i3d-nas-metrics 靠 flex:1 + min-height:0 撑起来），要有一个确定高度才滚得动，
-   标题与图形也才能始终留在原位；换成 auto 会让整块面板一起滚，标题会被指标顶出视野，
-   正是那段注释明确要避免的。
-   上限从 400px 提到 460px：面板顶部多了 NAS 图形（约 86px），不抬高就只剩一行指标可看。
-   算式也改成直接拿 --i3d-control-top 算「剩下多少竖直空间」，与 device-panel.css 里
-   通用设备那条同源 —— climate-panel.css 的 max(12px, min(56% - 400px, 100% - 812px))
-   早被 stage.css 的 top: var(--i3d-control-top) 取代，跟着它算会让面板越过下沿。
    下限 300px 防止极矮视口算出负值。 */
 .interaction3d-stage .i3d-light-panel.is-nas-panel {
   height: min(460px, max(300px, calc(100% - var(--i3d-control-top, 24px) - 24px)));
@@ -57,9 +36,6 @@
 /* ===== NAS 图形 ===== */
 
 /* 与通用设备弹窗里那台机器同一套视觉语言：底盘（金属材质 / 落地影 / 上下留白）在 device-panel.css
-   的 `.i3d-device-visual, .i3d-nas-visual` 公共块里，这里只画这台 NAS 的几何体：
-   双盘位 + 面板格栅 + 状态灯。
-   150×76 是「一眼认得出是台 NAS」与「不吃掉指标区」之间的折中 —— 竖直方向每多 10px，
    指标区就少一行。 */
 .i3d-nas-visual {
   width: 150px;
@@ -196,7 +172,6 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  /* 滚到边界时不把滚动事件传给外层舞台，避免误触平移/缩放。 */
   overscroll-behavior: contain;
   /* 预留滚动条宽度：内容多寡切换时卡片宽度不会来回跳。 */
   scrollbar-gutter: stable;
@@ -211,8 +186,6 @@
 }
 /* ===== 指标区滚动条（WebKit 覆盖） ===== */
 
-/* scrollbar-width / scrollbar-color 是标准属性，::-webkit-scrollbar 只在 WebKit 生效；
-   用 @supports 探测到 WebKit 后把标准属性还原成 auto，避免两套样式互相干扰。 */
 @supports selector(::-webkit-scrollbar) {
   .i3d-nas-metrics,
   .i3d-nas-metrics:hover,
@@ -309,7 +282,6 @@
   white-space: nowrap;
 }
 /* 接近阈值：数值转琥珀色提醒。走 --hos-lumen-bright（居家暖光）而不是 --hos-accent：
-   「阈值告警」是状态语义，不是「可进入 / 可操作」；主控色被改成极光紫那天，
    这块的提醒不该跟着变成紫色。 */
 .i3d-nas-metric.is-warning strong {
   color: var(--hos-lumen-bright, #ffba83);

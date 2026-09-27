@@ -1,11 +1,4 @@
 """邮箱验证码投递。
-
-``STORE_MAIL_MODE`` 三种模式：``log`` 只写日志（默认，本地联调）、``echo`` 写日志并在响应里回显明文
-（**仅限本地**）、``smtp`` 真实发信。
-
-发信的三条铁律：瞬时故障（限流、偶发 4xx）必须重试，否则验证码根本没发出去；确定性失败
-（认证失败、收件人被拒）不能重试，只会把注册接口拖到超时；邮件同时提供
-``multipart/alternative`` 的 HTML 与纯文本兜底，因为纯文本在真机邮箱里难读、但部分企业网关只认它。
 """
 
 from __future__ import annotations
@@ -42,7 +35,6 @@ class _Copy:
 
 
 #: 用途 → 文案。新增用途时必须在这里登记：``_copy_for`` 对未知用途会回落到
-#: 通用文案，但「您正在验证账号」这种模糊说法会让用户怀疑邮件是钓鱼。
 PURPOSE_COPY: dict[str, _Copy] = {
     "register": _Copy(
         label="注册账号",
@@ -65,8 +57,6 @@ PURPOSE_COPY: dict[str, _Copy] = {
         ignore_hint="如果这不是您本人的操作，请忽略本邮件，您的邮箱不会被更改。",
     ),
     #: 后台「发送测试邮件」用。文案必须自报家门：测试邮件会出现在运营自己的
-    #: 收件箱里，如果它和真实验证码邮件长得一模一样，事后没人分得清哪封是测的；
-    #: 主题里也带上「测试」字样（label 直接进主题），邮件列表里一眼可辨。
     "test": _Copy(
         label="【测试邮件】",
         action="测试验证码邮件的投递链路（收到本邮件即说明 SMTP 配置可用，无需任何操作）",
@@ -85,7 +75,6 @@ class MailResult:
     mode: str
     #: SMTP 实际尝试次数（含首次）；未走 SMTP 时为 0
     attempts: int = 0
-    #: 失败原因（已截断）；成功或未走 SMTP 时为空
     error: str = ""
     #: 仅本地联调：把验证码明文回给接口调用方
     exposed_code: str | None = None
@@ -93,11 +82,6 @@ class MailResult:
 
 def _code_fingerprint(code: str) -> str:
     """把验证码渲染成可在日志里留痕、但无法据以还原的形式。
-
-    刻意不用 ``123***`` 这类掩码：验证码是定长数字串，掩码会把搜索空间从
-    10^n 降到 10^(n-3)，日志一旦外流就等于替攻击者做完了大部分爆破。
-    这里改用短哈希指纹 —— 仍能用来核对「两条日志是不是同一个码」（排障真正
-    需要的部分），但反推不出任何一位数字。
     """
     text = (code or "").strip()
     if not text:
@@ -129,10 +113,6 @@ def _render_plain(code: str, copy: _Copy, site: str, ttl_minutes: int) -> str:
 
 def _render_html(code: str, copy: _Copy, site: str, ttl_minutes: int) -> str:
     """渲染 HTML 版本。
-
-    全部用行内样式：多数邮箱客户端会剥离 ``<head>`` 里的 ``<style>``，
-    class 选择器在 Gmail/Outlook 里基本不可靠。表格布局同理 —— flex/grid
-    在 Outlook 桌面版上会被直接丢掉。
     """
     site_escaped = html.escape(site)
     code_escaped = html.escape(code)
@@ -186,7 +166,6 @@ def _build_message(
     message["To"] = email
     message["Subject"] = subject
     # 先设纯文本再 add_alternative：顺序决定 MIME 部件次序，
-    # 纯文本必须在前（客户端从后往前挑它能显示的最「富」的那一个）。
     message.set_content(plain)
     message.add_alternative(rich, subtype="html")
     return message
@@ -194,9 +173,6 @@ def _build_message(
 
 def _is_transient(error: BaseException) -> bool:
     """判断是否值得重试。
-
-    认证失败、收件人被拒属于「改配置或换地址才能解决」，重试纯属浪费时间；
-    其余 SMTP/网络异常（限流 4xx、连接重置、超时）都按瞬时故障处理。
     """
     if isinstance(error, (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused)):
         return False
@@ -211,9 +187,6 @@ def _connect_smtp(
     settings: StoreSettings, *, deadline: float | None = None
 ) -> Iterator[smtplib.SMTP]:
     """建立到 SMTP 的连接并完成 TLS / 登录握手，**不发信**。
-    独立成段是为了让「连接诊断」复用真正发信时的同一条连接与登录逻辑，避免 STARTTLS/ehlo
-    细节漂移导致「诊断说通、真发信失败」。``login`` 仅在配了用户名时调用（匿名投递的 SMTP
-    带空用户名登录会得到与配置无关的失败）；``deadline`` 把单次连接超时压进总预算。
     """
     timeout = max(1, int(settings.smtp_timeout_seconds or 15))
     if deadline is not None:
@@ -247,10 +220,6 @@ def _send_smtp_once(
 
 
 #: 一次发信的**总**墙钟预算（秒）。
-#: 单次连接超时（``smtp_timeout_seconds``，默认 15s）× 重试次数 + 线性退避最坏可达 ~50 秒，
-#: 而发信走**同步端点**、全程占着一个线程池工作线程，``/store/v1/verifications`` 又匿名可达，
-#: 并发刷几次就能占满线程池、拖垮整个商店前端。三个旋钮单独看都合理、乘起来才是灾难，所以
-#: 这里放一条**安全上限**而非可调策略：调大只会让线程被占更久，没有场景需要更久。
 MAX_SEND_WALL_SECONDS = 20.0
 
 
@@ -258,9 +227,6 @@ def _send_smtp(
     settings: StoreSettings, *, email: str, subject: str, plain: str, rich: str
 ) -> tuple[bool, int, str]:
     """带重试的投递，返回 ``(是否成功, 尝试次数, 错误文本)``。
-
-    整段受 ``MAX_SEND_WALL_SECONDS`` 约束：预算耗尽就立刻放弃并如实返回
-    **实际**尝试次数，绝不为了一次重试把线程再占 15 秒。
     """
     message = _build_message(
         mail_from=settings.mail_from,
@@ -295,8 +261,6 @@ def _send_smtp(
             )
             if attempt >= max_attempts or not _is_transient(error):
                 break
-            # 线性退避：重试之间给对端一点恢复时间，避免被当成轰炸。
-            # 但不能睡过总预算 —— 睡过去等于白白占着线程。
             if backoff:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -323,8 +287,6 @@ def send_verification_email(
 ) -> MailResult:
     copy = _copy_for(purpose)
     # 站点配置优先、环境变量兜底的合并必须收口在这里，而不是让每个调用方自己做。
-    # 「测试邮件」按钮的意义就是验证**用户真正会走到的那条路**：若这里读环境变量，
-    # 运营改了后台授权码、点测试却通了（或反过来），得到的结论正好是错的。
     settings = mail_settings.merge_mail_settings(settings, setting)
     mode = (settings.mail_mode or "log").lower()
     site = setting.site_name or "HomeOS 授权中心"
@@ -335,7 +297,6 @@ def send_verification_email(
     rich = _render_html(code, copy, site, ttl_minutes)
 
     #: 是否允许在响应里回显验证码（本地联调）。smtp 模式下由独立开关控制，
-    #: echo 模式则天然回显。
     expose = settings.expose_verification_code or mode == "echo"
 
     if settings.smtp_misconfigured:
@@ -370,8 +331,6 @@ def send_verification_email(
         )
 
     # 写不写明文验证码必须区分来由：**显式**选 log/echo 时日志就是投递通道，写明文是设计意图；
-    # 选 smtp 但因凭据不全**回退**到日志时，运营以为不打码，实际验证码都留在日志里，任何能读日志
-    # 的人（聚合、冷备、工单附件）都能接管账号。故回退场景只记掩码并告警，显式打开才写明文。
     log_plaintext_code = mode in {"log", "echo"} or settings.expose_verification_code
     if log_plaintext_code:
         logger.warning(
@@ -405,9 +364,6 @@ def send_test_email(
     email: str,
 ) -> MailResult:
     """后台「发送测试邮件」：走**真实**投递路径，但不产生验证码记录。
-    刻意复用 ``send_verification_email``：测试的意义就是验证运营真正会走的那条路，另写一条的话
-    两边在 ``smtp_ready`` 判定、重试、降级上的分歧都不会被测出来。差别只在**不写库** —— 不占
-    单邮箱配额，邮件里的验证码在系统里也不存在。
     """
     return send_verification_email(
         settings,
@@ -420,10 +376,6 @@ def send_test_email(
 
 def _mail_from_address(mail_from: str) -> str:
     """从 ``HomeOS <no-reply@example.com>`` 这种带显示名的写法里取出纯地址。
-
-    必须走 ``parseaddr`` 而不是直接拿去正则匹配：``apps.store.security.is_valid_email``
-    刻意不认显示名，而带显示名的发件人是本项目文档里推荐的写法，
-    直接匹配会把一份完全合法的配置判成失败。
     """
     _, address = parseaddr(mail_from or "")
     return address or (mail_from or "").strip()
@@ -431,10 +383,6 @@ def _mail_from_address(mail_from: str) -> str:
 
 def _describe_smtp_error(error: BaseException) -> str:
     """把 SMTP/网络异常翻译成运营能照着改的一句话。
-
-    「连不上」的成因有十几种，而每一种的处置方式完全不同：认证失败要去换授权码，
-    SSL 错误要去改加密方式，超时要去查防火墙。丢一句 ``OSError: [Errno 61]``
-    给运营等于没说，所以这里把最常见的几类分别写清楚。
     """
     if isinstance(error, smtplib.SMTPAuthenticationError):
         return (
@@ -465,9 +413,6 @@ def diagnose_mail(
     settings: StoreSettings, *, timeout_seconds: float = net_probe.DEFAULT_TIMEOUT_SECONDS
 ) -> tuple[bool, list[dict]]:
     """按**已合并站点配置**做一次邮件链路诊断，返回 ``(是否全部通过, 结论列表)``。
-    这里回答「配置本身对不对」（域名解析、TLS/端口、授权码登录），**不发信**所以可反复点；
-    ``send_test_email`` 回答「这条路真能通吗」，会真发一封。分开是刻意的：SMTP 故障在握手
-    阶段就能定位，而发信失败往往只回笼统 5xx。任何一项不是 ``pass``（含 skip/warn）都不算通过。
     """
     checks: list[dict] = []
     mode = (settings.mail_mode or "log").lower()
@@ -504,7 +449,6 @@ def diagnose_mail(
         )
 
     # 用户名与授权码必须成对。这个组合不对时 ``smtp_ready`` 为假，发信会**静默降级**
-    # 成写日志 —— 用户收不到信，而后台每一样看起来都填好了。
     if settings.smtp_username and not settings.smtp_password:
         checks.append(
             check_result(
@@ -541,8 +485,6 @@ def diagnose_mail(
             )
         )
 
-    # 只有真打算走 smtp 时才做网络探测：log/echo 模式下检测 DNS 与登录没有意义，
-    # 反而会让运营以为「修好了网络就能发信」。
     if mode != "smtp":
         checks.append(
             check_result("dns", "域名解析", net_probe.LEVEL_SKIP, "投递方式不是 smtp，未做网络探测。")

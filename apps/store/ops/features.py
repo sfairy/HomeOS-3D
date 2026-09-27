@@ -1,9 +1,4 @@
 """客户端能力码目录（中文名 + 说明）。
-
-功能码会写进租约的 ``features``，由主程序 ``LicenseService.allows`` 逐项判定。代码是
-英文标识，运营手写抄错一个字母不会报错——履约照发，客户端只是静默拦截，所以改用中文
-目录渲染下拉多选。代码清单必须与主项目保持一致（``apps/server/license/service.py`` 的
-``BASE_FEATURES`` 与 ``apps/server/modules/interaction3d/access.py`` 的 ``FEATURE``）。
 """
 
 from __future__ import annotations
@@ -82,7 +77,6 @@ FEATURE_CATALOG: tuple[dict[str, str], ...] = (
 FEATURE_CODES: frozenset[str] = frozenset(item["code"] for item in FEATURE_CATALOG)
 
 #: 播种商品时写进 ``feature_codes_json`` 的**顺序**。内容由目录决定，顺序只是展示，
-#: 换顺序会让新装站点的功能码顺序与老站点不同。
 BASE_PRODUCT_FEATURES: tuple[str, ...] = (
     "api",
     "assets",

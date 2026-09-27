@@ -1,8 +1,4 @@
 """当前版本的发布记录常量与兜底写入。
-
-store 的库不走 Alembic：结构由 ``create_all`` 在启动时创建。这里只保留
-「当前版本的发布记录」——``/store/v1/updates/latest`` 查的正是这张表，
-客户端靠它判断是否有新版本。
 """
 
 from __future__ import annotations
@@ -17,9 +13,6 @@ from apps.store.core.models import Release
 
 logger = logging.getLogger("apps.store.ops.release_info")
 
-#: **产品版本**：客户端拿它比对 ``/store/v1/updates/latest`` 判断有没有新版本，会写进 ``releases``
-#: 表。别与 ``store.__version__``（服务端口线版本，进 /healthz 与 OpenAPI）混用 —— 两者含义不同，
-#: 但排查时都以 "version" 出现在响应里。
 CURRENT_VERSION = "0.6.2"
 CURRENT_RELEASE_DATE = "2026-09-20"
 CURRENT_UPGRADE_NOTES = (
@@ -74,8 +67,6 @@ def ensure_current_release(session: Session) -> bool:
             return True
         return False
 
-    # ``releases`` 上 (product, channel, version) 是唯一索引，「查不到就插」在多实例同时
-    # 启动时会撞索引，而这是**启动路径**，一次竞争就让容器起不来。用 SAVEPOINT 兜住。
     try:
         with session.no_autoflush, session.begin_nested():
             session.add(

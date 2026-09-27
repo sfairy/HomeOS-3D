@@ -1,9 +1,5 @@
 /**
  * 地面反射参数的归一化。
- *
- * 编辑器设置面板写入、渲染层读取，是两侧对反射配置的唯一解释口径。对外导出
- * normalizeGroundReflection。mode / resolution 的合法取值由本文件写死，渲染层不再重复校验；
- * 新增取值时必须同时改这里，否则会被静默回落成默认值。
  */
 
 /**
@@ -15,8 +11,6 @@ export function normalizeGroundReflection(settings = {}) {
     (settings = settings && typeof settings == "object" ? settings : {}),
     {
       mode: ["off", "inside", "outside", "all"].includes(settings.mode) ? settings.mode : "off",
-      // 反射贴图分辨率的白名单只有三档，刻意不接受任意数值：
-      // 非档位值会让 GPU 分配出预期外的显存，这里统一压回 512。
       resolution: [256, 512, 768].includes(settings.resolution) ? settings.resolution : 512,
       // 上限 0.45 是观感与性能的折中：再高会盖过地面材质本身，也更容易出现反射瑕疵。
       strength: Number.isFinite(settings.strength)

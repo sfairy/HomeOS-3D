@@ -1,31 +1,24 @@
-/**
- * `navigation-button` 控件：跳转 + 特效层 + 高亮，后两者在 `navigation-effects.js`。
- */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=2609271208";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271208";
+} from "../../../../utils/numbers.js?v=2609271226";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271226";
 // 同门分片：entity-state
-import { isComponentEntityActive } from "../entity-state.js?v=2609271208";
+import { isComponentEntityActive } from "../entity-state.js?v=2609271226";
 // 同门分片：navigation-effects
 import {
   buildNavigationEffects,
   navigationButtonIsActive
-} from "../navigation-effects.js?v=2609271208";
+} from "../navigation-effects.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   navigationContentUnitPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
 // 导航按钮控件：目标页取自三个点击动作里的 navigate，其次才是 properties.targetPage；
-// 高亮状态由 navigationButtonIsActive 统一判定。
 registerComponent("navigation-button", {
   render(navigationComponent, navigationContext) {
     const navigationProperties = navigationComponent.properties || {};
@@ -113,7 +106,6 @@ registerComponent("navigation-button", {
       -100,
       200,
       // 兜底是「文本上移一个行高」的推导值（行高比 100/64.36），文本贴下限 -100 时会
-      // 算到 -127 附近 —— 兜底现在原样返回，所以在调用点先夹一次，行为与统一前逐字相同。
       clampNumber(navigationTextTop - navigationLineHeightRatio * 18, -100, 200)
     );
     const navigationSecondaryLeft = clampCoercedNumber(

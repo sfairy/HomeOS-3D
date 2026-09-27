@@ -1,17 +1,4 @@
 """访问主体的唯一解析实现：一次请求（或一条连接）到底是谁。
-
-管理员会话 Cookie 与中控设备 Cookie 的校验原先在三处各写一遍（HTTP 依赖
-``dependencies._admin_session``、页面与静态资源 ``main.signed_in`` /
-``main.active_display``、实时连接握手 ``api.ha.websocket_viewer``），三处口径并不相同：
-
-- 只有 HTTP 依赖查会话的**绝对寿命**（``session_hard_max_age_seconds``），页面路由与
-  ``/static/*``、``/assets/builtin/*`` 因此照旧放行；
-- 只有 HTTP 依赖查中控令牌的**有效期**，展示页与实时连接完全绕过
-  ``display_token_ttl_seconds`` / ``display_token_hard_ttl_seconds``。
-
-修法不是给另外两处补上判断 —— 那样下次再添入口，同样的洞会以第三种写法再来一次；
-而是把「凭据 → 主体」收敛成本模块的唯一实现。调用方只保留各自需要的副作用：
-HTTP 侧重发续期 Cookie、页面侧跳登录、实时连接侧 detach。
 """
 from __future__ import annotations
 
@@ -28,16 +15,12 @@ from .security import session_token_hash
 from ..core.time_utils import ensure_aware
 
 #: 会话滑动续期的写库节流窗口（秒）。展示页与编辑器的轮询是秒级的，
-#: 不做节流的话每个请求都会变成一次写事务，因此最多每 300 秒回写一次。
 SESSION_REFRESH_INTERVAL_SECONDS = 300
 
 
 @dataclass(frozen=True)
 class ViewerPrincipal:
     """一次请求的访问主体：管理员账号，或一台已配对的中控设备。
-
-    两个字段互斥（管理员登录优先），因此判断「是谁在看」时
-    一律用 is_admin_session / project_id 这两个属性，不要直接看字段。
     """
 
     user: User | None = None
@@ -57,10 +40,6 @@ class ViewerPrincipal:
 @dataclass(frozen=True)
 class AdminSessionCheck:
     """管理员会话 Cookie 的校验结果；不含任何写操作。
-
-    把「判断」与「副作用」分开，是因为三处调用方要的副作用各不相同：HTTP 依赖要
-    滑动续期并重发 Cookie，页面路由只想要一个布尔值，实时连接既不发 Cookie 也不
-    续期。共享的是判断口径，不是副作用。
     """
 
     #: 校验通过时的用户；未通过一律为 None。
@@ -119,16 +98,6 @@ def check_admin_session(
     now: datetime | None = None,
 ) -> AdminSessionCheck:
     """校验管理员会话 Cookie，返回「是谁」以及要不要续期 / 清理。
-
-    判定顺序：账号已初始化 → Cookie 存在 → 会话行存在 → 滑动有效期未过 → 绝对寿命未到 →
-    归属当前管理员 → 用户仍启用。任一步不通过都返回 user=None，由调用方决定是 401、
-    跳登录页还是回落到中控身份。
-
-    绝对寿命（session_hard_max_age_seconds）是这条链上最容易漏的一环：少了它，一枚被盗
-    Cookie 只要还在被使用就会被滑动续期一直续下去。因此它写在这里，而不是留给某个入口自己补。
-
-    refresh=True 时跨过续期窗口会把 last_seen_at / expires_at 推到当前时间（写库并置
-    renewed=True，调用方据此重发 Cookie）；默认纯读、不产生写操作。
     """
     if account_user_id is None or not token:
         return AdminSessionCheck()
@@ -165,10 +134,6 @@ def check_admin_session(
 
 def discard_expired_session(database: Session, session: AdminSessionCheck) -> None:
     """删掉已失效的会话行（只有真的存在且已失效时才写库）。
-
-    过期行不清会随使用时间一直攒着，而这里没有定时清理任务，只能靠每次路过时
-    顺手清一行 —— 这也是它必须留在共享实现里的原因：三个入口各自实现时，
-    两个入口都忘了清，过期行只会越来越多。
     """
     if session.expired and session.record is not None:
         database.delete(session.record)
@@ -186,13 +151,6 @@ def resolve_principal(
     now: datetime | None = None,
 ) -> PrincipalResolution:
     """凭据解析的唯一入口：管理员会话优先，其次中控配对。
-
-    优先级固定不变：管理员在已配对的平板上打开页面时应当看到完整权限，
-    而不是被降级成单项目视角。
-
-    两种身份都没解析出来时返回的 viewer 两个字段都是 None，由调用方决定
-    是 401、跳登录页还是以 4401 关闭实时连接。中控令牌的有效期判定在
-    active_display_device 内部完成（调用方无法绕过）。
     """
     admin = check_admin_session(
         database,

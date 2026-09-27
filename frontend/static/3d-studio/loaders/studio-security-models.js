@@ -1,9 +1,5 @@
 /**
  * 摄像 / 人体存在传感器的程序化建模。
- *
- * 生成安防设备（itemSpec.type 为 camera 或 presence）的几何，由 studio-app.js 在设备分支调用，
- * 产出直接挂到设备分组节点下。只导出 addSecurityModel。长度单位米，模型以自身底部中心为原点、
- * 朝向 +Z，modelSpec 的 width / depth / height 即外接盒尺寸。
  */
 
 /**
@@ -12,7 +8,6 @@
 export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
   const { width: modelWidth, depth: modelDepth, height: modelHeight } = modelSpec;
   // 四套共用材质：外壳、装饰件（金属感）、深色件、镜头玻璃。
-  // 每个设备最多用到其中几套，结尾会把没用到的 dispose 掉，避免材质泄漏。
   const materialsByPart = {
     shell: new THREE.MeshStandardMaterial({
       color: palette.applianceSoft ?? palette.furnitureLight,
@@ -34,7 +29,6 @@ export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
     })
   };
   // 统一入口：建网格 → 摆位置 → 可选缩放 → 开投影收发 → 挂到分组。
-  // 安防设备多为实体，因此默认同时参与投射与接收阴影。
   const addPartMesh = (geometry, materialKey, positionX, positionY, positionZ, scaleFactors) => {
     const mesh = new THREE.Mesh(geometry, materialsByPart[materialKey]);
     mesh.position.set(positionX, positionY, positionZ);
@@ -64,7 +58,6 @@ export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
     ]);
   if (modelSpec.type === "camera") {
     // 半球摄像机：自下而上依次是底座、机身、球罩、镜头面板、双镜头与支架环。
-    // 底座：略收口的圆柱，作为吸顶安装的底盘。
     addCylinderPart(
       modelWidth * 0.35,
       modelWidth * 0.36,
@@ -74,7 +67,6 @@ export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
     );
     // 机身：上大下小的圆柱，形成锥形的过渡段。
     addCylinderPart(modelWidth * 0.27, modelWidth * 0.4, modelHeight * 0.35, modelHeight * 0.245);
-    // 球罩主体：扁椭球，宽度按外形宽度取值，高度按高度取值，进深略收避免穿出机身。
     addSpherePart(
       "shell",
       0,
@@ -160,7 +152,6 @@ export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
       "trim"
     );
     // 传感器视窗：开口圆柱只保留约 130° 的一段圆弧（起始 -0.36π、跨度 0.72π），
-    // 贴在主体前方形成弧形检测面；开口体不封底，因此不参与阴影投射以外的封闭体积计算。
     const sensorBodyMesh = addPartMesh(
       new THREE.CylinderGeometry(
         modelWidth * 0.446,
@@ -182,7 +173,6 @@ export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
   }
   if (modelSpec.type === "presence") {
     // 人体存在传感器整体都是回转体，逐个子网格压扁即可；
-    // 上面那段开口视窗已经压过，跳过以免二次缩放。
     for (const childMesh of modelGroup.children) {
       if (
         childMesh.geometry?.type !== "CylinderGeometry" ||

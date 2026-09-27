@@ -1,8 +1,4 @@
 """仪表盘（项目）与其草稿的接口，编辑器的所有读写都落在这里。
-
-路由前缀 /api/v1/projects。项目与草稿共用同一个 id（ProjectDraft.project_id 即 Project.id）。
-并发控制靠草稿行上的递增 revision：保存时必须带回读取时的 revision，
-不匹配即 409，避免两个页面互相覆盖；全局组合弹窗另有自己的 revision 与冲突码。
 """
 from __future__ import annotations
 
@@ -30,36 +26,22 @@ from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDr
 router = APIRouter(prefix='/projects', tags=['projects'])
 
 #: 项目名冲突时给用户看的文案。创建、复制、改名三处共用一份，
-#: 免得同一个错误在不同入口说成不同的话。
 NAME_CONFLICT_DETAIL = '仪表盘名称已存在。'
 
 #: slug 撞唯一约束时最多重试几次。
-#: 每轮都用当时的库状态重新生成 slug（``unique_slug`` 会看到对手已经提交的那一行），
-#: 因此正常情况下第二轮就能拿到空闲后缀。上限只是兜底：不封顶的重试在病态输入下
-#: 会变成一个迟迟不返回的请求。
 SLUG_CONFLICT_ATTEMPTS = 5
 
 #: 每个项目最多保留几条旧展示地址。旧地址是给「已经配对、书签里还是老地址」
-#: 的平板用的，正常只会落后一两个名字；设上限是为了让反复改名不会把别名表撑大。
 PROJECT_PATH_ALIAS_LIMIT = 20
 
 
 def require_project_write(request: Request) -> None:
-    """写操作的授权门禁：要求授权允许 projects.write，否则 403。
-
-    认证由 LicensedUser 依赖完成，这里只叠一层能力码；
-    读接口与写接口共用同一个 router，所以门禁写在各个写路由里而不是挂在依赖上。
-    """
     if not request.app.state.license_service.allows('projects.write'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
 
 
 def document_asset_ids(value) -> set[str]:
     """收集文档里引用的全部素材 ID（只认 builtin: 与 user: 两种前缀）。
-
-    走 ``document_keyed_values`` 的字段收集口径（键名 ``assetId`` 后缀 + ``assetIds`` 列表），
-    而不是「任意字符串以某前缀开头」：这里的结果决定保存接口是否 422，判据必须跟着
-    写入端（``panel/schema.py`` 的素材字段）走，不能因为文案里恰好出现 ``user:xxx`` 就拒存。
     """
     return document_keyed_values(
         value,
@@ -70,9 +52,6 @@ def document_asset_ids(value) -> set[str]:
 
 def validate_document_assets(request: Request, document: dict) -> set[str]:
     """校验文档引用的图片都还在素材目录里，并返回其中用户上传图片的 ID 集合。
-
-    会抛 422，detail 为 ASSET_MISSING：图片已被删掉，仪表盘不能再引用它。
-    返回值供保存接口加锁使用（见 update_project_draft 的 asset_guard）。
     """
     catalog = request.app.state.asset_catalog
     user_asset_ids = set()
@@ -90,17 +69,12 @@ def validate_document_assets(request: Request, document: dict) -> set[str]:
 
 def serialize_document(document: dict) -> str:
     """把文档序列化成落库字符串。
-
-    键排序 + 紧凑分隔符，保证同一份文档每次序列化结果完全一致，
-    这样比较「内容是否变化」时可以直接比字符串，不必逐字段 diff。
     """
     return canonical_json(document)
 
 
 def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict:
     """把项目行拼成前端使用的 JSON（camelCase 出）。
-
-    传入 draft 时额外带上 draftRevision 与 schemaVersion。
     """
     payload = {
         'id': project.id,
@@ -117,11 +91,7 @@ def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict
 
 def unique_slug(database: DatabaseSession, name: str) -> str:
     """由名称生成 URL 用的 slug，已被占用时追加 -2、-3 …。
-
-    slug 只用于展示路径，因此可以随意变形；唯一性必须保证，
-    因为路径要靠它定位到唯一的仪表盘。
     """
-    # 只保留小写字母与数字，其余折叠成连字符；中文名会被清空，故兜底成 dashboard。截断到 96 字符避免超长 slug。
     base = re.sub('[^a-z0-9]+', '-', name.lower()).strip('-')[:96] or 'dashboard'
     candidate = base
     suffix = 2
@@ -134,12 +104,6 @@ def unique_slug(database: DatabaseSession, name: str) -> str:
 
 def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_project_id: str | None = None) -> None:
     """确认项目名未被占用（可排除自身），重名则抛 409「仪表盘名称已存在。」。
-
-    名称与 slug 分开校验：名称是用户看到并用来区分仪表盘的唯一依据，
-    不能因为 slug 能自动加后缀就允许重名。
-
-    这只是「尽早给中文提示」的那一道。并发下两个请求可以同时查到「没人用」，
-    真正裁决的是 ``projects.name`` 上的唯一约束 —— 见 :func:`insert_project_with_draft`。
     """
     query = select(Project.id).where(Project.name == name)
     if exclude_project_id:
@@ -150,22 +114,12 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
 
 def record_project_path_alias(database: DatabaseSession, project_id: str, previous_name: str) -> None:
     """记下改名前的展示地址，让已经配对的中控设备继续打得开。
-
-    展示地址由名称派生，改名会让旧地址永久 404，而平板手里存的正是旧地址。这里按「旧名称 → 项目」
-    记一行，展示页在没有现存项目占用该名称时 303 跳转。
-
-    两处细节：**先删同名别名再插入** —— 那个名字可能属于**另一个**项目（它先放弃了这个名字，
-    现在又被本项目放弃一次），同一时刻只能有一个解释，取最近一次放弃者（平板手里那个地址最可能
-    指的就是刚刚放弃它的项目），删除+插入在同一笔事务里、靠唯一索引兜底；**每项目只保留最近
-    ``PROJECT_PATH_ALIAS_LIMIT`` 条** —— 反复改名不该让别名表无界增长，而平板也不会落后几十个
-    名字（真落后那么多，重新配对是更合理的期望）。
     """
     database.execute(delete(ProjectPathAlias).where(ProjectPathAlias.name == previous_name))
     database.add(ProjectPathAlias(name=previous_name, project_id=project_id))
     # flush 一下，下面的清理才能看见刚插入的这一行（同一事务内可见，但 ORM 需要它进 SQL）。
     database.flush()
     # 多取一条就能判断「是否超限」，同时把扫描量钉在常数级（不用 offset：SQLite 的
-    # OFFSET 需要配合 LIMIT，写 limit+1 更直白也更好读）。
     recent_ids = database.scalars(
         select(ProjectPathAlias.id)
         .where(ProjectPathAlias.project_id == project_id)
@@ -179,10 +133,6 @@ def record_project_path_alias(database: DatabaseSession, project_id: str, previo
 
 def validate_document_or_422(document: dict) -> dict:
     """校验一份要落库的文档；失败按 422 回带校验层写好的中文文案。
-
-    保存与复制共用这一处映射。校验层抛的是 ``ValueError``，不接住就是 500 加一段堆栈
-—— 复制那条路径上更糟：源文档一旦脏了，这个项目就**永远复制不出来**，
-    而用户看到的只是「服务器内部错误」。
     """
     try:
         return validate_panel_document(document)
@@ -200,25 +150,6 @@ def insert_project_with_draft(
     document: dict,
 ) -> tuple[Project, ProjectDraft]:
     """插入项目与其首版草稿，返回两行（只 flush，不提交）。
-
-    ``ensure_unique_project_name`` 与 ``unique_slug`` 都是「先查后写」：两个请求可以同时查到
-    「这个名字 / 这个 slug 没人用」，然后一起去插 —— 唯一约束成了真正的裁决者，撞上的那个拿到
-    ``IntegrityError``。不接住就会变成 500，而用户只是又点了一次「新建」，或者另一个
-    标签页刚建过同名项目。
-
-    两条约束的退让方式不同，因此分开处理：
-
-    - 名称是用户区分仪表盘的唯一依据，也是展示地址 ``/display/{名称}`` 的路径段，不能悄悄改名
-      —— 撞了就 409，让用户自己换一个。
-    - slug 只是内部用的 ASCII 形式，可以随便加后缀，因此换一个后缀重试。
-
-    插入包在 SAVEPOINT 里：撞了就回滚到保存点，只撤销这一次插入，不牵连外层事务已经写好的东西。
-    重试时会重新构造两行 —— 上一轮的对象已随保存点作废，继续往上写等于往一个作废的对象上写。
-
-    ``project_id`` 由调用方生成（项目与草稿必须共用同一个），``created_by`` 同时作为草稿的
-    updated_by，``document`` 落库时会去掉弹窗部分。返回 (项目行, 草稿行)，两行都已 flush。
-    名称撞唯一约束或连续多轮都只撞 slug 时抛 409；不是这两条可退让的约束（外键、非空、别的唯一
-    约束）时原样抛出 ``IntegrityError``。
     """
     for _ in range(SLUG_CONFLICT_ATTEMPTS):
         project = Project(
@@ -245,7 +176,6 @@ def insert_project_with_draft(
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL) from error
             if not is_unique_violation(error, 'projects.slug'):
                 # 外键、非空、别的唯一约束：换多少个 slug 都是同样的失败，
-                # 把真正的缺陷当碰撞重试只会藏住原因。
                 raise
             continue
         else:
@@ -259,16 +189,12 @@ def insert_project_with_draft(
 @router.get('')
 def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """列出当前主体可见的仪表盘，附带各自的草稿版本信息。
-
-    管理员身份看到全部，按更新时间倒序；中控设备身份只会看到自己绑定的那一个项目。
-    返回 {items: [...]}。
     """
     query = select(Project).order_by(Project.updated_at.desc())
     # 中控设备被限定在单个项目上：即使知道别的项目 id 也列不出来。
     if viewer.project_id is not None:
         query = query.where(Project.id == viewer.project_id)
     projects = list(database.scalars(query))
-    # 一次性把这批项目的草稿查出来，避免每个项目单独查一次（N+1）。
     drafts = {
         item.project_id: item
         for item in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id.in_([project.id for project in projects])))
@@ -280,16 +206,9 @@ def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
 @router.post('', status_code=status.HTTP_201_CREATED)
 def create_project(payload: ProjectCreateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     """新建一个空白仪表盘，同时写入它的第一版草稿。
-
-    身份与能力码：LicensedUser（认证 + api），另需 projects.write，否则 403
-    「当前授权不允许修改仪表盘。」。
-    请求字段：name、description、canvas_width、canvas_height。
-    返回：项目 JSON（含 draftRevision = 1）。
-    重名时抛 409「仪表盘名称已存在。」。
     """
     require_project_write(request)
     # 命名冲突属于最常见的输入错误，先查一次以便尽早返回中文提示。
-    # 并发下真正裁决的是 projects.name 上的唯一约束，见 insert_project_with_draft。
     ensure_unique_project_name(database, payload.name)
     # id 在本进程先生成：项目与草稿必须共用同一个 id，不能等 flush 之后再取。
     project_id = str(uuid4())
@@ -312,9 +231,6 @@ def create_project(payload: ProjectCreateRequest, request: Request, database: Da
 @router.get('/{project_id}')
 def get_project(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取单个项目的基本信息与草稿版本号。
-
-    中控设备只能读自己绑定的项目，越权由 require_viewer_project 抛 403
-    「该中控设备未绑定此仪表盘。」；项目不存在抛 404「项目不存在。」。
     """
     require_viewer_project(viewer, project_id)
     project = database.get(Project, project_id)
@@ -326,12 +242,6 @@ def get_project(project_id: str, database: DatabaseSession, viewer: LicensedView
 @router.post('/{project_id}/duplicate', status_code=status.HTTP_201_CREATED)
 def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     """复制一个仪表盘（连同它的文档内容）为新项目。
-
-    身份与能力码：LicensedUser + projects.write。
-    请求字段：name（新项目名）。
-    返回：新项目 JSON，草稿 revision 从 1 重新开始。
-    会抛的错误：404「项目或草稿不存在。」、409「仪表盘名称已存在。」、
-    422 ASSET_MISSING（源文档引用的图片已被删除）。
     """
     require_project_write(request)
     source = database.get(Project, project_id)
@@ -344,14 +254,12 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
         database,
         require_document(source_draft, on_error='源仪表盘的草稿内容已损坏，无法复制。'),
     )
-    # 3D 场景不随复制走：户型图与导出的图片属于原项目，复制过去会指向不存在的素材。
     document.pop('studio3d', None)
     # 目标文档若含 3D 内容，同样要过 3D 模块的授权校验。
     require_interaction3d_changes(request, document, database=database)
     validate_document_assets(request, document)
     document['projectId'] = duplicate_id
     document['name'] = payload.name
-    # 改名后的副本走一遍完整校验，避免源文档里的历史脏字段被原样带过去。
     document = validate_document_or_422(document)
     (duplicate, duplicate_draft) = insert_project_with_draft(
         database,
@@ -370,11 +278,6 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
 @router.delete('/{project_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> None:
     """删除仪表盘及其草稿，返回 204。
-
-    身份与能力码：LicensedUser + projects.write，且必须 role == admin，
-    否则 403「仅管理员可以删除项目。」。
-    请求字段：confirmation —— 必须与项目名逐字相同，否则 422
-    「确认文字与项目名称不一致。」；项目不存在抛 404「项目不存在。」。
     """
     require_project_write(request)
     # 删除不可逆，在能力码之上再加一道管理员角色门禁。
@@ -393,28 +296,15 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
     # 删了项目后实体绑定变了：放到后台任务里重算持久实体集合，不拖慢响应。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
     # 项目没了，它名下的户型快照可能再没人引用。放到后台任务里清理：
-    # 巡检规则统一（没人引用 + 过了保留期才删），所以这里不需要「哪些是它的」这份信息。
     background_tasks.add_task(sweep_scenes_for_app, request.app)
 
 
 @router.get('/{project_id}/draft')
 async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取项目草稿：文档本体 + schemaVersion / revision / 全局弹窗版本。
-
-    打开项目前联网确认绑定（走 15 秒的节流窗口）：商店解绑后不能继续用离线租约读草稿，而窗口远
-    短于心跳间隔（默认 300 秒），因此解绑最多 15 秒就反映到这里，请求路径上不再有「每打开一次项目
-    就一次网络往返」的等待。
-
-    中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；草稿不存在抛 404
-    「项目草稿不存在。」。
-
-    同步查库与文档水合都在工作线程里做：这条路由是 ``async def``（要 await 联网确认），
-    而 SQLAlchemy 的同步会话与整份文档的 JSON 解析都不该留在事件循环上。
     """
     await request.app.state.license_service.confirm_binding()
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
-        # 异步调用点自己 await 出 status，detail 仍由 license_restricted_detail 统一组装 ——
-        # 字段与同步门禁逐字相同，前端不必按调用点分支。
         license_status = await asyncio.to_thread(request.app.state.license_service.status)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -431,18 +321,10 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
 
 def _draft_payload(database: DatabaseSession, project_id: str, viewer: LicensedViewer) -> dict | None:
     """读取草稿并组装响应体（同步，调用方放进工作线程）。
-
-    草稿不存在返回 None，由调用方转 404 —— 把「有没有草稿」与「怎么回响应」分开。
-
-    文档损坏这一个例外在**这里**就抛 422（走统一入口 `require_document`）：
-    它不能像别的读路径那样降级成空文档，因为编辑器会照着「空白项目」继续编辑，
-    下一次保存就把坏掉的草稿盖掉了（studio3d 的 ``_read_draft`` 出于同样的理由
-    拒绝静默降级）。异常从工作线程穿回来仍由 FastAPI 正常转成 422 响应。
     """
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         return None
-    # 中控设备视角只水合文档真正引用到的组合弹窗，避免把整个弹窗库下发到墙面屏。
     document = hydrate_document_popups(
         database,
         require_document(draft, on_error='当前草稿内容已损坏，请从备份恢复。'),
@@ -461,9 +343,6 @@ def _draft_payload(database: DatabaseSession, project_id: str, viewer: LicensedV
 @router.get('/{project_id}/revision')
 def get_project_revision(project_id: str, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """只返回草稿修订号，供展示端轮询判断是否需要整份重新拉取。
-
-    比 get_project_draft 少读一次完整文档，是展示页高频轮询专用的轻量接口。
-    返回 projectId / revision / globalPopupRevision / updatedAt。
     """
     require_viewer_project(viewer, project_id)
     draft = database.get(ProjectDraft, project_id)
@@ -480,13 +359,6 @@ def get_project_revision(project_id: str, database: DatabaseSession, viewer: Lic
 @router.put('/{project_id}/draft')
 def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
     """保存仪表盘草稿（编辑器最核心的写接口）。
-
-    身份与能力码：LicensedUser + projects.write。请求关键字段 document（整份文档）、revision
-    （客户端读到的版本）、globalPopupsDirty（本次是否改动全局组合弹窗）、globalPopupRevision。
-    返回保存后的文档（含新 revision）与投影给前端的字段。会抛：404「项目草稿不存在。」；
-    409 PROJECT_REVISION_CONFLICT「草稿已被其他页面更新。」；409 GLOBAL_POPUP_REVISION_CONFLICT
-    「全局组合弹窗已在其他仪表盘中更新，请刷新后重试。」；409「其他仪表盘正在更新，组合弹窗尚未
-    删除，请重试。」；422（校验层原始中文文案，如 ASSET_MISSING、名称重复）。
     """
     require_project_write(request)
     draft = database.get(ProjectDraft, project_id)
@@ -515,12 +387,9 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         if isinstance(popup, dict) and isinstance(popup.get('id'), str)
     }
     # 本次被删掉的全局弹窗 = **库里有、提交里没有**的那些，要给引用它们的草稿做级联清理。
-    # 方向反了会静默坏两件事：新增弹窗时指向新弹窗的动作会被当成悬空引用清成 ``type:"none"``；
-    # 删弹窗时这个集合为空、级联形同虚设，别的草稿留着悬空引用、下次保存必定 422。
     removed_popup_ids = (
         stored_popup_ids - submitted_popup_ids if payload.global_popups_dirty else set()
     )
-    # 先摘掉本份文档里指向已删弹窗的引用，再交校验层，避免校验时判为悬空引用。
     clear_popup_references(document_value, removed_popup_ids)
     # studio3d 内容由 3D 模块单独存盘，不进仪表盘文档。
     document_value.pop('studio3d', None)
@@ -544,7 +413,6 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     submitted_popups = document.get('customPopups') or []
     global_popups_changed = payload.global_popups_dirty and serialize_document(submitted_popups) != serialize_document(stored_global_popups)
     expected_global_popup_revision = payload.global_popup_revision or popup_state.revision
-    # 乐观锁的第二道闸在全局弹窗上：别人先改过就让本次保存失败，避免覆盖。
     if global_popups_changed and expected_global_popup_revision != popup_state.revision:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
             'code': 'GLOBAL_POPUP_REVISION_CONFLICT',
@@ -552,7 +420,6 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             'currentRevision': popup_state.revision})
     serialized_document = serialize_document(strip_document_popups(document))
     # 文档引用了用户图片时，整段「校验 + 落库」与删除图片的上传接口互斥；
-    # 否则删除请求可能在校验通过之后、提交之前把图片删掉，留下悬空引用。
     asset_guard = request.app.state.asset_catalog.mutation_lock if user_asset_ids else nullcontext()
     with asset_guard:
         # 拿到锁后再校验一次：加锁之前的校验结果可能已经过期。
@@ -614,28 +481,20 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         renamed = False
         previous_name = None
         try:
-            # 改名前的名称要留着给展示地址做别名，所以先读一次再用 UPDATE 覆盖。
             previous_name = database.scalar(select(Project.name).where(Project.id == project_id))
             # UPDATE 与 commit 都要包住：唯一约束在语句执行时就检查，不是等到 commit
-            # 才报 —— 只包 commit 的话异常照样会冒到接口层变成 500。
             database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
-            # 旧地址也要跟着留下：已经配对、书签里存着旧地址的平板不该因为改名而打不开。
-            # 与改名放在同一笔事务里 —— 要么「新名字 + 旧地址别名」一起生效，要么都不生效。
             renamed = previous_name is not None and previous_name != document['name']
             if renamed:
                 record_project_path_alias(database, project_id, previous_name)
             database.commit()
         except IntegrityError as error:
             # 上面的 ensure_unique_project_name 是「先查后写」：并发下另一个请求可能抢先建成
-            # 同名项目，唯一约束才是真正的裁决者。改名不该被悄悄改成别的名字，回 409 让用户
-            # 自己选；整笔保存一起回滚，免得留下「文档存进去了、项目名没改」的半成品。
             database.rollback()
             if not is_unique_violation(error, 'projects.name'):
                 raise
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL) from error
     if renamed:
-        # 改名要让用户知道旧地址仍然可用：平板不会因为这次改名失联，但也不必一直
-        # 停在旧地址上（每次打开多一次跳转），提示里给出「可以直接用新地址」的出路。
         request.app.state.global_log.append(
             'info', '仪表盘编辑器', '配置',
             f'仪表盘已改名：{previous_name} → {document["name"]}；旧地址 /display/{previous_name} '
@@ -648,7 +507,6 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     draft = database.get(ProjectDraft, project_id)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f"仪表盘已保存：{document['name']}（修订 {draft.revision}）")
     # 回给编辑器的文档带完整弹窗：编辑器要能编辑所有组合弹窗，而不只是被引用到的那些。
-    # 刚写进去的文档，读不回来就是我们自己的 bug：按 422 报出来而不是回一份空文档。
     hydrated_document = hydrate_document_popups(
         database, require_document(draft, on_error='当前草稿内容已损坏，无法读取。')
     )

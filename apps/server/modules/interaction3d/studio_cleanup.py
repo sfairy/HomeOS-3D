@@ -1,24 +1,4 @@
 """模型删除后的 3D 交互绑定级联清理。
-
-背景：3D 控件的绑定（门锁 / 窗帘 / 空调 / 灯光 / 设备…）用 ``(floorId, modelId)``
-（灯光用 ``groupId``）指向户型图里的 3D 物件。用户在户型图编辑器里删掉一个模型再保存时，
-那些绑定就成了悬空引用 —— 舞台页会渲染出一个点不动的图标。此前这类「模型已失联」是在
-**运行时**逐条硬拒绝（见 device/lock/cover/climate 的 ``require_*_model``），用户只能到每个
-项目的配置里手动删。这里把「删模型」变成一次**可确认、可撤销**的批量修复。
-
-三条不可动摇的前提：
-
-1. **只动配置绑定，绝不碰 HA 实体。** 清理的是 ``properties`` 里的绑定条目，实体本身、
-   实体与设备的归属一律不动 —— 参考实现把这句话写进模块 docstring，这里照做。
-2. **``plan_cleanup`` 是纯函数。** 输入（项目文档、旧 / 新场景、撤销记录）不被修改；
-   它返回**新的**文档映射、新的撤销记录与影响清单。落库、写盘只发生在调用方。
-3. **幂等。** 同一份输入跑第二次，``removed`` / ``added`` 都为空，直接短路返回空结果；
-   不会把已经清理过的绑定再「清理」一遍（那会无限追加撤销记录）。
-
-``archives`` / 返回值里的 ``saved`` 是**撤销记录**：每删掉一条绑定就记下它的原始条目与
-身份键（``scope`` + ``path`` + ``key``）。模型日后被加回场景（``added`` 命中）时，
-调用方把记录原样喂回来，这里就会把绑定放回原位；窗帘组合（``curtainGroups``）另有一份
-「成员齐了、不冲突就恢复」的逻辑。
 """
 from __future__ import annotations
 
@@ -33,15 +13,12 @@ from .device import GENERIC_DEVICE_COLLECTIONS
 from .scene_store import scenes_dir
 
 #: 场景里「物件身份」的两种集合形状：(身份类别, 楼层场景里的集合字段)。
-#: 灯组与普通模型分属不同类别，因为灯光的绑定键用的是 groupId 而不是 modelId。
 _FLOOR_COLLECTIONS: tuple[tuple[str, str], ...] = (
     ('model', 'items'),
     ('light', 'lightGroups'),
 )
 
 #: 一个绑定集合在 ``properties`` 里的路径。顺序无关紧要，但这是遍历与撤销记录 path 的唯一来源。
-#: 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）从 DEVICE_PROFILES 派生，新增设备类型时
-#: 不必在这里再抄一遍。
 COLLECTIONS: tuple[tuple[str, ...], ...] = (
     ('lights',),
     ('environment', 'airConditioners'),
@@ -57,20 +34,11 @@ COLLECTIONS: tuple[tuple[str, ...], ...] = (
     ('security', 'locks'),
 )
 
-#: sceneId 的形态：由 ``POST /scenes`` 生成的 uuid4().hex。只有这种 ID 才可能是本模块冻结的快照。
 _SCENE_ID_PATTERN = re.compile('[a-f0-9]{32}')
 
 
 def identities(scene: dict | None) -> set[tuple[str, str, str]]:
     """把一份场景里全部「可被绑定指向」的物件身份提炼成 ``(floorId, kind, id)`` 集合。
-
-    只收三类：楼层场景的 ``items``（普通模型，kind=``model``）、``lightGroups``（灯组，
-    kind=``light``）与 ``doors``（门，kind=``door``，ID 加 ``door:`` 前缀）。门的 ID 在绑定里
-    也是这个带前缀的形态（见 :func:`binding_key` 与 ``lock.py``），两处必须一致，否则
-    「删了一扇门」永远匹配不到指向它的门锁绑定。
-
-    刻意只读新版 ``floors[].scene`` 结构：老版单层场景没有楼层 ID，无法与绑定里的 floorId
-    对上，硬要兼容只会给「同一 ID 在不同楼层」埋下误删。
     """
     result: set[tuple[str, str, str]] = set()
     for floor in (scene or {}).get('floors', []) or []:
@@ -92,11 +60,6 @@ def identities(scene: dict | None) -> set[tuple[str, str, str]]:
 
 def collection(properties: dict, path: tuple[str, ...]) -> tuple[dict, list]:
     """按路径取出绑定的父容器与列表本体，供删除 / 追加时就地改写。
-
-    返回 ``(parent, items)``：``parent[path[-1]]`` 就是那个列表。中间层缺失或不是字典时
-    按空字典下潜（拿到的 ``parent`` 是个游离对象，写它不会污染文档）—— 调用方只有在
-    ``items`` 非空时才会真正改写，因此不会把空结构写进文档。``items`` 不是列表时按空列表
-    处理，避免对字符串 / 数字做迭代。
     """
     parent = properties
     for key in path[:-1]:
@@ -108,19 +71,11 @@ def collection(properties: dict, path: tuple[str, ...]) -> tuple[dict, list]:
 
 def binding_key(item: dict, path: tuple[str, ...]) -> tuple:
     """一条绑定指向的物件身份，与 :func:`identities` 产出的元组可直接比较。
-
-    三类特殊口径：
-
-    - ``security.locks``：门在绑定里以 ``door:`` 前缀的 ``modelId`` 标识（见 ``lock.py``
-      的归一），身份类别是 ``door``；
-    - ``lights``：灯光绑定的是**灯组**，身份取自 ``groupId``，类别是 ``light``；
-    - 其余（空调 / 窗帘 / 电视 / 通用设备…）：指向楼层场景 ``items`` 里的模型，取 ``modelId``。
     """
     if path == ('security', 'locks'):
         model_id = item.get('modelId')
         if isinstance(model_id, str):
             # 与 lock.py 同口径地剥净前缀再补一次：控件侧存的一直是 ``door:<id>``，
-            # 但参考实现存的是裸门 ID，两种写法都要能对上门场景里的 ``door:<id>``。
             raw = model_id
             while raw.startswith('door:'):
                 raw = raw[5:]
@@ -135,11 +90,6 @@ def binding_key(item: dict, path: tuple[str, ...]) -> tuple:
 
 def confirmation_token(revision: Any) -> str:
     """把「这次清理计划」摘要成一个确认令牌，绑定到精确的输入。
-
-    公式与参考实现逐字一致：``sha256(json.dumps(payload, sort_keys=True, separators=(',', ':')))``。
-    调用方把 ``[revision, scene, documents, impacts]`` 作为 payload 传进来 —— 于是前端拿到的
-    令牌与「哪一个版本、哪一份场景、哪些项目文档、哪些影响」一一对应：期间任何一处变了，
-    旧令牌立即失效，确认就落不到另一份计划上。
     """
     return hashlib.sha256(
         json.dumps(revision, sort_keys=True, separators=(',', ':')).encode()
@@ -154,22 +104,6 @@ def plan_cleanup(
     settings: Any,
 ) -> tuple[dict[str, dict], list[dict], list[dict]]:
     """算出一份**新的**文档映射、新的撤销记录与影响清单，输入一概不改。
-
-    参数:
-        documents: ``{projectId: 仪表盘文档}``。只有真正被改动的文档会出现在返回的 output 里。
-        old_scene / new_scene: 本次保存前 / 后的户型场景，用来算被删 / 被加的物件身份。
-        archives: 上一次清理留下的撤销记录；模型被加回时据此还原绑定。
-        settings: 用来定位快照目录（``modules/interaction3d/scenes``）。
-
-    返回:
-        ``(output, saved, impacts)``：``output`` 是 ``{projectId: 新文档}``（未改动则不含该键）；
-        ``saved`` 是清理后的完整撤销记录；``impacts`` 每项形如
-        ``{'projectId', 'componentId', 'label'}``，供 UI 展示「删这个模型会影响哪些控件」。
-        若本次既没删也没加任何物件，返回 ``({}, 原撤销记录副本, [])``。
-
-    异常:
-        不抛异常：快照文件缺失 / 损坏（``OSError`` / ``UnicodeDecodeError`` /
-        ``JSONDecodeError`` / ``TypeError``）时跳过那个控件，宁可这次不清理也不让保存失败。
     """
     before = identities(old_scene)
     after = identities(new_scene)
@@ -195,7 +129,6 @@ def plan_cleanup(
             if not snapshot_path.is_file():
                 continue
             # 快照读不出来（缺失 / 坏编码 / 坏 JSON / 类型不对）时跳过这个控件：一次保存
-            # 不该因为一份坏快照失败，代价是这次不清理它而已。
             try:
                 snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
             except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError):
@@ -254,7 +187,6 @@ def plan_cleanup(
                 parts = tuple(entry['path'])
                 parent, items = collection(properties, parts)
                 item = entry['item']
-                # 已经存在同 ID 或同身份键的条目就不再补一条，避免重复渲染。
                 if not any(
                     other.get('id') == item.get('id')
                     or binding_key(other, parts) == tuple(entry['key'])

@@ -1,32 +1,12 @@
 /**
  * 编辑器「组件模板」内置模板库：registerComponentTemplate 注册、按作用域列举、
- * createComponentFromTemplate 实例化、normalizeDashboardDocument 打开项目时补齐存量文档。
- * 模板只描述出厂默认值，create() 产出的对象就是 apps/server/panel/schema.py 中 PanelComponent 的 JSON 形态
- * （id / type / componentVersion / position / bindings / properties / style / actions / children），
- * 模板本身不持久化，只在组件上留 templateRef。
- * 约定：设计标称画布 2778×1940（与 schema.Canvas 同源），position 的 x / y / width / height 为该画布像素；
- * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
- * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609271208";
-import { paletteColor } from "../utils/colors.js?v=2609271208";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271208";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609271226";
+import { paletteColor } from "../utils/colors.js?v=2609271226";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271226";
 
 /**
  * 模板里「主控色」的出厂默认值。
- *
- * 模板对象是**模块级**字面量，本函数在模块求值时就被调用一次，把结果写进模板。
- * 这依赖一个有保证的时序：模板模块的入口在 index.html 里是 `<script type="module">`，
- * 而模块脚本执行前解析器必须等已发出的样式表加载完（否则会闪一帧无样式），
- * 所以此刻 design/scene 的调色板已经应用，getComputedStyle 能取到真值。
- * 取不到时 paletteColor 回落到与调色板同值的字面量，模板依然可用。
- *
- * 为什么不直接写死 #ffc46a：写死之后「换主控色」要在两个地方改，而模板里这四处
- * 是**写进用户文档**的（markerColor / iconActiveColor / countActiveColor），
- * 漏改就会留下一批新组件停在旧色上，肉眼看不出来是哪儿的问题。
- *
- * 注意作用边界：这只改「新建组件」的出厂值。用户已保存的文档里存的是当时写入的
- * 十六进制，不在这里改写 —— 那是用户数据，要变色由编辑器里的组件属性面板负责。
  */
 function themeAccentDefault() {
   return paletteColor("--hos-accent", "#ffc46a");
@@ -46,10 +26,8 @@ const DEFAULT_DASHBOARD_THEME = Object.freeze({
 });
 // 自定义弹窗没有独立模板库，templateRef 缺失时统一回落到这个内置弹窗模板 id。
 const DEFAULT_POPUP_TEMPLATE = "custom-popup";
-// interaction3d 模板由 3D 模块自行定义，这里只负责注册，避免模板库反向依赖 3D 实现细节。
 registerComponentTemplate(interaction3dTemplate);
 // 弹窗里的展示顺序。模板是否可用由各自 scopes 决定，这张表只管排序，
-// 因此漏登记的模板不会消失，只会被排到列表末尾（见 listComponentTemplates）。
 const templateScopeOrder = {
   shared: ["time", "date", "weather", "line-chart", "panel-frame", "navigation-button"],
   page: [
@@ -68,9 +46,6 @@ const templateScopeOrder = {
     "panel-frame"
   ]
 };
-// 各控件类型的默认 properties / style / dimensions，键为组件的 type；createComponentFromTemplate 会用这里覆盖 create() 的同名属性
-// （模板只管画布/实体，通用观感默认值集中在此）。dimensions 是标称画布 2778×1940 上的定稿像素值，优先级高于 create() 的比例结果；
-// style.scale 保留完整小数位避免二次四舍五入走样；注意取值方向与 normalizeComponent 相反——归一化时以文档已写下的取值为优先。
 const componentDefaultsByType = {
   image: {
     properties: {
@@ -610,7 +585,6 @@ const componentDefaultsByType = {
 /**
  * 注册一个控件模板，供模板库列举与实例化。
  * @param {object} template 必须含 id（全局唯一）与 create（工厂函数），可选 name / description / thumbnailId / scopes。
- * @throws {Error} 缺少 id，或 create 不是函数——这类模板进不了库，早抛早发现。
  */
 function registerComponentTemplate(template) {
   if (!template?.id || typeof template.create != "function") {
@@ -637,7 +611,6 @@ export function listComponentTemplates(scope) {
       const rightOrderIndex = templateOrder.indexOf(rightTemplate.id);
       return (
         // 未登记的模板统一用 MAX_SAFE_INTEGER 参与比较，等于全部排到列表末尾；
-        // 之所以不用 -1，是为了避免「新模板插到最前面」打乱用户熟悉的入口位置。
         (leftOrderIndex < 0 ? Number.MAX_SAFE_INTEGER : leftOrderIndex) -
         (rightOrderIndex < 0 ? Number.MAX_SAFE_INTEGER : rightOrderIndex)
       );
@@ -645,8 +618,6 @@ export function listComponentTemplates(scope) {
 }
 /**
  * 按模板 id 实例化一份完整组件文档。
- *
- * @throws {Error} 模板 id 未注册。
  */
 export function createComponentFromTemplate(templateId, templateOptions) {
   const templateDefinition = templatesById.get(templateId);
@@ -663,7 +634,6 @@ export function createComponentFromTemplate(templateId, templateOptions) {
   };
   const componentDefaults = componentDefaultsByType[baseComponent.type];
   // 未在 componentDefaultsByType 登记的类型（含第三方注册的模板）直接用 create() 的结果，
-  // 不做二次覆盖，保证外部模板能完全自定义自己的默认值。
   if (!componentDefaults) {
     return baseComponent;
   }
@@ -676,9 +646,6 @@ export function createComponentFromTemplate(templateId, templateOptions) {
     ...baseComponent.position
   };
   if (defaultDimensions) {
-    // 这里才是最终生效的尺寸：create() 里按比例算出的宽高会被 componentDefaultsByType.dimensions
-    // 覆盖，比例值只对未登记 dimensions 的类型（image、presence-sensor 等）起作用。
-    // 缺 canvas 时回落到设计标称画布 2778×1940，与后端 schema.Canvas 默认值同源。
     const canvasWidth = Number(templateOptions?.canvas?.width || 2778);
     const canvasHeight = Number(templateOptions?.canvas?.height || 1940);
     position.width = defaultDimensions.width;
@@ -704,11 +671,8 @@ export function createComponentFromTemplate(templateId, templateOptions) {
 }
 /**
  * 打开已有文档时的归一化：只做「补全」和「清理」，绝不改写存量取值。
- * 模板默认值仅用于补齐缺失字段，文档里已写下的 properties / style 原样保留
- * （否则用户刚保存的属性会在下次打开时被默认值覆盖）；只有 templateId / version 会被规整回模板引用格式。
  */
 function normalizeComponent(mappedComponent, canvas) {
-  // 老文档可能只存了 type 没有 templateRef；内置模板的 id 与 type 同名，用 type 兜底即可命中。
   const resolvedTemplateId = mappedComponent.templateRef?.templateId || mappedComponent.type;
   let createdComponent = null;
   try {
@@ -719,11 +683,9 @@ function normalizeComponent(mappedComponent, canvas) {
       targetPage: mappedComponent.properties?.targetPage
     });
   } catch {
-    // 未知或已下线的模板：保留原样，不能因为归一化失败就拒绝打开项目。
     createdComponent = null;
   }
   // position / bindings / actions 一律沿用文档里的原值：位置是用户的版面成果，
-  // 绑定与动作可能已被手动改过，模板默认值只用来补 properties / style 的缺字段。
   const preparedComponent = createdComponent
     ? {
         ...mappedComponent,
@@ -758,8 +720,6 @@ function normalizeComponent(mappedComponent, canvas) {
 }
 /**
  * 打开项目时归一化整份仪表盘文档：补齐缺失结构，但不动用户已保存的取值。
- * 旧文档可能缺 sharedComponents / customPopups / theme 或组件上的 templateRef，就地补齐后再交给编辑器渲染，
- * 避免旧项目打不开；新增默认项也走同一入口补给旧文档，不需要一次性迁移脚本。
  */
 export function normalizeDashboardDocument(editorDocument) {
   const documentCanvas = editorDocument.canvas || {};
@@ -798,23 +758,16 @@ export function normalizeDashboardDocument(editorDocument) {
 }
 /**
  * 按当前时间属性推算时间控件的默认宽高。
- * 宽度是估算值（等宽数字按字号系数累加字符数，再加字间距与右侧留白），目的只是让新组件落地时框住内容；
- * 用户之后可随意调整字号与位置。
  */
 export function timeComponentDimensions(timeOptions = {}) {
-  // 上下限与编辑器属性面板的滑杆范围一致，避免脏数据把默认框撑到画布之外。
   const fontSize = Math.max(12, Math.min(500, Number(timeOptions.fontSize || 96)));
   const letterSpacing = Math.max(-20, Math.min(100, Number(timeOptions.letterSpacing || 0)));
   const showSeconds = timeOptions.showSeconds === true;
   // 按最宽的字符组合估位数：12 小时制带秒是 "12:00:00 AM"（11 位），
-  // 24 小时制不带秒是 "12:00"（5 位），其余组合取中间值。
   const characterCount = timeOptions.hour12 === true ? (showSeconds ? 11 : 8) : showSeconds ? 8 : 5;
   const fontWeight = Number(timeOptions.fontWeight ?? 0.4);
-  // 字重 ≥0.67 时笔画明显变宽，按 1.035 放大框宽，避免粗体被裁掉；
-  // fontWeight 也存在 1~900 的整数写法，这里先用 (w-1)/899 折算到 0~1 再比较。
   const widthScale = (fontWeight > 1 ? (fontWeight - 1) / 899 : fontWeight) >= 0.67 ? 1.035 : 1;
   // 宽 = 字宽累加 + 字间距 + 右侧留白：0.61 是等宽数字的平均字宽系数，
-  // 0.16 是右侧留白；字间距只在字符之间生效，所以乘 (字符数 - 1)。
   return {
     width: Math.max(
       fontSize,
@@ -836,7 +789,6 @@ export function dateComponentDimensions(dateOptions = {}) {
   const lunarSpacing = Math.max(-20, Math.min(100, Number(dateOptions.lunarSpacing || 1)));
   const lineGap = Math.max(0, Math.min(200, Number(dateOptions.lineGap ?? 8)));
   // 主行行宽系数：带星期是「2026年9月16日 周三」这类最长形态（约 9.35 字宽），
-  // 不带星期去掉「周X」后按 6.35 字宽估算。
   const primaryLineHeight = dateOptions.showWeekday === false ? 6.35 : 9.35;
   // 农历行如「八月初六」，最长约 6 个字宽。
   const lunarLineHeight = 6;
@@ -845,7 +797,6 @@ export function dateComponentDimensions(dateOptions = {}) {
   const lunarWidth = lunarSize * lunarLineHeight + lunarSpacing * 5;
   const showLunar = dateOptions.showLunar === true;
   return {
-    // 额外加 0.12 个主字号作右侧留白，避免最后一个字贴边。
     width: Math.max(primarySize, primaryWidth, showLunar ? lunarWidth : 0) + primarySize * 0.12,
     // 1.16 / 1.18 为两行的行高系数，lineGap 是行间距。
     height: primarySize * 1.16 + (showLunar ? lunarSize * 1.18 + lineGap : 0)
@@ -900,14 +851,12 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建图片组件：固定 4:3 框体并居中。
-   *
    * @param {string} options.id 实例 ID，由调用方生成，模板不负责唯一性。
    */
   create({ id: imageComponentId, instanceName: imageInstanceName = "图片", canvas: imageCanvas }) {
     const imageCanvasWidth = Number(imageCanvas?.width || 2778);
     const imageCanvasHeight = Number(imageCanvas?.height || 1940);
     // 图片属于内容型控件，不跟随画布比例：固定 320×240（4:3），接近多数素材的原始比例，
-    // 这样「contain」铺满时四周留白最小。
     const imageWidth = 320;
     const imageHeight = 240;
     return {
@@ -1016,7 +965,6 @@ registerComponentTemplate({
     const vacuumMapCanvasHeight = Number(vacuumMapCanvas?.height || 1940);
     // 56% 与底图（户型图 / 3D 交互）对齐，实时地图作为透明图层叠在底图上，范围必须一致。
     const vacuumMapWidth = vacuumMapCanvasWidth * 0.56;
-    // 1156:1120 是扫地机地图素材的原始宽高比，按宽度等比推高，避免拉伸变形。
     const vacuumMapHeight = (vacuumMapWidth * 1156) / 1120;
     return {
       id: vacuumMapComponentId,
@@ -1069,7 +1017,6 @@ registerComponentTemplate({
     const iconButtonEffectCanvasWidth = Number(iconButtonEffectCanvas?.width || 2778);
     const iconButtonEffectCanvasHeight = Number(iconButtonEffectCanvas?.height || 1940);
     // 0.075 是设计标称画布下的正方形按钮占比（2778 × 0.075 ≈ 208）；
-    // 效果图以 fill 方式铺满同一框（effectLayoutMode: "fill"），故宽高取相同值。
     const iconButtonEffectWidth = iconButtonEffectCanvasWidth * 0.075;
     const iconButtonEffectHeight = iconButtonEffectWidth;
     return {
@@ -1124,7 +1071,6 @@ registerComponentTemplate({
         scale: 1,
         visible: true
       },
-      // 只有绑定了灯实体才预置「点按切换」动作，否则留空，避免点按无反馈却看不出原因。
       actions: iconButtonEffectLightEntityId
         ? {
             tap: {
@@ -1153,7 +1099,6 @@ registerComponentTemplate({
     const titleButtonCanvasWidth = Number(titleButtonCanvas?.width || 2778);
     const titleButtonCanvasHeight = Number(titleButtonCanvas?.height || 1940);
     // 0.18 × 0.065 是设计标称画布 2778×1940 上的房间标题条比例（约 500 × 126），
-    // 与「数量统计」同宽，便于多页统一排版；实际落地尺寸以 componentDefaultsByType 为准。
     const titleButtonWidth = titleButtonCanvasWidth * 0.18;
     const titleButtonHeight = titleButtonCanvasHeight * 0.065;
     return {
@@ -1300,7 +1245,6 @@ registerComponentTemplate({
     const iconButtonCanvasWidth = Number(iconButtonCanvas?.width || 2778);
     const iconButtonCanvasHeight = Number(iconButtonCanvas?.height || 1940);
     // 0.1 宽、0.15 高是设计标称画布上的竖版按钮比例（约 278 × 291），
-    // 比设备按钮略高，留出上下两行文字的呼吸空间。
     const iconButtonWidth = iconButtonCanvasWidth * 0.1;
     const iconButtonHeight = iconButtonCanvasHeight * 0.15;
     return {
@@ -1403,7 +1347,6 @@ registerComponentTemplate({
     const deviceButtonCanvasWidth = Number(deviceButtonCanvas?.width || 2778);
     const deviceButtonCanvasHeight = Number(deviceButtonCanvas?.height || 1940);
     // 0.1 × 0.11 是设计标称画布上的横向按钮比例（约 278 × 213），与图标按钮同宽、更扁，
-    // 对应「图标 + 主副标题」的单行排布。
     const deviceButtonWidth = deviceButtonCanvasWidth * 0.1;
     const deviceButtonHeight = deviceButtonCanvasHeight * 0.11;
     return {
@@ -1475,7 +1418,6 @@ registerComponentTemplate({
     const presenceSensorCanvasWidth = Number(presenceSensorCanvas?.width || 2778);
     const presenceSensorCanvasHeight = Number(presenceSensorCanvas?.height || 1940);
     // 传感器带光晕、人形等动效元素，不随画布比例缩放：固定 360×240（3:2），
-    // 保证动效的轨道半径与素材比例在任何画布上都一致。
     const presenceSensorWidth = 360;
     const presenceSensorHeight = 240;
     return {
@@ -1610,7 +1552,6 @@ registerComponentTemplate({
     const airConditionerCanvasWidth = Number(airConditionerCanvas?.width || 2778);
     const airConditionerCanvasHeight = Number(airConditionerCanvas?.height || 1940);
     // 0.11 × 0.08 是设计标称画布上的宽扁卡片比例（约 306 × 155），
-    // 对应「图标 + 主副标题」的横向排布；实际落地尺寸以 componentDefaultsByType 为准。
     const airConditionerWidth = airConditionerCanvasWidth * 0.11;
     const airConditionerHeight = airConditionerCanvasHeight * 0.08;
     return {
@@ -1731,7 +1672,6 @@ registerComponentTemplate({
       bindings: {},
       properties: timeProperties,
       // scale 是展示缩放：position 宽高 × scale 才是屏幕上的实际尺寸。
-      // 这里的值会被 componentDefaultsByType.time.style.scale 覆盖，仅为模板自带初值。
       style: {
         scale: 1.8,
         visible: true
@@ -1885,7 +1825,6 @@ registerComponentTemplate({
     const lineChartCanvasWidth = Number(lineChartCanvas?.width || 2778);
     const lineChartCanvasHeight = Number(lineChartCanvas?.height || 1940);
     // 0.19 × 0.16 是设计标称画布上的图表卡片比例（约 528 × 310），与底图框取同一组数值，
-    // 因为常见用法是把折线图叠在底图框里。
     const lineChartWidth = lineChartCanvasWidth * 0.19;
     const lineChartHeight = lineChartCanvasHeight * 0.16;
     return {
@@ -2023,10 +1962,8 @@ registerComponentTemplate({
     const navigationButtonCanvasWidth = Number(navigationButtonCanvas?.width || 2778);
     const navigationButtonCanvasHeight = Number(navigationButtonCanvas?.height || 1940);
     // 0.2 × 0.085 是设计标称画布上的长条导航比例（约 556 × 165），
-    // 比其它按钮更宽，方便左侧图标 + 右侧两行文案的排布。
     const navigationButtonWidth = navigationButtonCanvasWidth * 0.2;
     const navigationButtonHeight = navigationButtonCanvasHeight * 0.085;
-    // targetPage 统一转成字符串：属性来源可能是 undefined 或数字，避免把非字符串写进文档。
     const navigationButtonTargetPagePath = String(navigationButtonTargetPage || "");
     return {
       id: navigationButtonComponentId,

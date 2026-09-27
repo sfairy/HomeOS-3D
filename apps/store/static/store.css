@@ -1,11 +1,3 @@
-/* ==========================================================================
-   HomeOS 授权中心 · 前台页面布局
-   只负责「区块摆放」：外壳、首页、商品、结算、认证、账号、邀请、维护页、收银台。
-   组件外观（按钮 / 表单 / 卡片 / 表格 / 对话框 / 商品卡）全部来自 theme.css，
-   本文件不重新定义组件，也不写死色值（一律走 --hb-* 令牌）。
-
-   加载顺序：font.min.css → theme.css → store.css
-   ========================================================================== */
 
 /* 1. 外壳：顶栏 + 内容 + 页脚 */
 /* body 是纵向 flex：内容不足一屏时页脚也会贴在底部 */
@@ -82,9 +74,6 @@ body.hb-store-loading .hb-topbar::after {
 }
 
 /* 品牌字标走 Orbitron（--hb-font-brand，= 场景的 --hos-font-brand），
-   与入口页场景里那个 HomeOS 字标同一款：
-   这是整站唯一一处「品牌露出」，用显示字体把商店和激活页系在一起。
-   字重提到 700（Orbitron 只打包了 700，写别的字重会被浏览器合成），
    字距放宽一点 —— Orbitron 的 O 本就很圆，再挤在一起会糊。 */
 .hb-brand__text strong {
   display: block;
@@ -157,7 +146,6 @@ body.hb-store-loading .hb-topbar::after {
 }
 
 /* 商店里一件主授权都没上架时（store.js 在 <html> 上切这个类），
-   把「购买授权」入口整体收起，别把用户送进一个空页面。
    注意语义是「完全没上架」，不是「你已买完」。 */
 html.hb-no-base-products .hb-nav__link[data-hb-nav="purchase"],
 html.hb-no-base-products #home-purchase-link,
@@ -194,7 +182,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 页脚上缘由素线换成「两端隐去、中央偏琥珀」的发丝线：整页最后一条水平线
-   落在视口底部，用渐变收尾比一条贯穿全宽的实线更干净，也呼应页头横幅
    与卡片上缘的那套指示灯语言。 */
 .hb-site-footer::before {
   position: absolute;
@@ -268,10 +255,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   font-size: 11.5px;
 }
 
-/* 通用页面区块：定义「科技感」在首页之外那几页的落点。首页用整屏视觉重量立第一印象，内页更密、需要可读性，所以改成「一块有分量的控制台铭牌 + 干净的正文」。
-   ::before 漂移细网格 + 左琥珀辉光 + 右下补光；::after 下缘指示灯 + 左上/右下两道 HUD 角线；
-   eyebrow 状态点 + 分区名 + 等宽路径；h1 放大到 27–40px，强调短语走琥珀渐变，与首页同一套排印语言。
-   正文区域（卡片 / 表格 / 列表）保持干净——正文要的是可读性，不是氛围。 */
 .hb-page-head,
 .hb-account-heading {
   position: relative;
@@ -290,8 +273,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   overflow: hidden;
 }
 
-/* 细网格 + 双层琥珀辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
-   无缝循环，做出一条几乎察觉不到的漂移，让整块铭牌「是活的」而不是一张贴图。 */
 .hb-page-head::before,
 .hb-account-heading::before {
   position: absolute;
@@ -311,7 +292,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 下缘指示灯 + 左侧能量条 + 左上 / 右下 HUD 角线，全在这一个伪元素上分层铺开。
-   角线内缩 14px：横幅圆角是 --hb-radius-xl，贴边的直角线会与圆角互相打架。
    左侧能量条只占中间 56% 高度，是为了避开上下两个圆角。 */
 .hb-page-head::after,
 .hb-account-heading::after {
@@ -331,8 +311,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   pointer-events: none;
 }
 
-/* ::before/::after 是绝对定位盒，会盖在普通流子元素之上，所以子元素也要
-   进入定位层（只加 position，不加 z-index：文档顺序自然让子元素在上）。 */
 .hb-page-head > *,
 .hb-account-heading > * {
   position: relative;
@@ -396,15 +374,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 .hb-account-heading__path {
   padding-left: 10px;
   border-left: 1px solid var(--hb-line-strong);
-  /* 这一条原本用 --hb-muted-dim，而它是**全站最暗的一档**（#6d8797，为表格脚注准备的）。
-     横幅的底色是 linear-gradient(126deg, surface-soft 0%, surface 58%, surface-raised 100%)
-     —— 右下角那一端正是最亮的 surface-raised(#16263c)，dim 档压在上面只有 4.04:1，
-     低于 AA。横幅是全前台最显眼的区块、路径又是「我在哪个模块」的唯一线索，
-     属于最不该读不清的一类字。
-     改用 --hb-muted 后 5.03:1。降档的视觉层次没有丢：这一行仍是 12px 等宽大写，
-     与旁边 30px 的标题、13px 的 feed 读数本来就不在同一个层级上，靠字号已经分开了。
-     约束记在 tools/audit_colors.mjs 的 FOREGROUND_CEILING：--hb-muted-dim 只允许压到
-     surface-soft 一级为止，进横幅这类以 surface-raised 收尾的面就会在那里被列出来。 */
   color: var(--hb-muted);
   letter-spacing: 0.08em;
   text-transform: none;
@@ -458,8 +427,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* feed 的小标签同样从 --hb-muted-dim 抬到 --hb-muted，理由与 __path 完全一致：
-   这块读数条位于横幅右下角，正压在渐变的 surface-raised 停点上（4.04:1 → 5.03:1）。
-   它比 __path 更小（10px 等宽大写），所以更不能靠降对比度来做层次 ——
    小字号本身就是最弱的一档，再压暗就是「设计上刻意不让人读」。 */
 .hb-page-head__feed small {
   color: var(--hb-muted);
@@ -496,8 +463,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   margin-bottom: 12px;
 }
 
-/* HUD 角标：主面板的左上 / 右下角线。给「页面主角面板」（结算摘要、邀请卡、维护卡）加一对 16px 琥珀角线，像设备屏幕的取景框。
-   只是 2 条 1px 线、贴在面板内缩 9px 处：不放四角（每张卡都加会变成整页噪声，反看不出主次）；内缩而不贴边（面板圆角 14–18px，贴边的直角线会与圆角互相打架）。 */
 .referral-share,
 .hb-maintenance-card {
   position: relative;
@@ -539,11 +504,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   border-bottom-right-radius: var(--hb-radius-xs);
 }
 
-/* 首页：单屏居中 hero（整页不滚动）。首页只留一块内容——居中的品牌宣言 + 三步流程（原先的商品区与保障条已删：商品在 /products 有完整筛选，首页再罗列一遍既稀释焦点、又在只上架 1–2 个 SKU 时显得零散）。
-   页面「厚度」改由背景特效层承担而不是堆卡片：细网格 + 琥珀辉光 + 扫描线，三层透明度都压得很低，只在暗色画布上隐约可见，不参与信息传达。
-   不滚动的做法：body 本是「min-height:100vh 的纵向 flex」，把首页 main 变成 flex:1 的弹性块，hero 就吃掉「顶栏以下、页脚以上」全部剩余高度。
-   刻意**不写** `height:100svh` + `overflow:hidden` 这类硬锁：body 的高度语义是 min-height，内容真放不下时（小屏、放大字号、首访多出的第三个按钮）会自然长高照常滚动，而硬锁会把页脚或流程条直接裁掉——代价是「一屏装下」不是强保证，而是「装得下时不滚、装不下时不裁」。
-   用 :has() 而不是让 JS 往 body 挂类名，是为了让这条规则在 JS 失败时也不参与（退化结果只是首页恢复成普通滚动流，不会错版）。 */
 body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--flush {
   display: flex;
   flex: 1;
@@ -568,7 +528,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   pointer-events: none;
 }
 
-/* 细网格：径向遮罩让它只在中上部浮现，避免整屏噪点盖过文字 */
 .hb-hero__grid {
   position: absolute;
   inset: -1px;
@@ -581,8 +540,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 夜空：把首页背后的画布从「平涂深色」换成场景那条 168° 渐变，四团氛围光与
-   design/scene/scene.css 的 .hos-scene__sky 同参数同位置，只是尺寸单位换成 vw
-   （这里没有 .hos-page 那层容器，cqw 会按小视口解析）。两端回落到 --hb-bg，
    所以与顶栏、页脚、正文区无缝接上。 */
 .hb-hero__sky {
   position: absolute;
@@ -647,7 +604,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 星野：两层点阵（远层小、近层大），各自缓慢呼吸出闪烁感。
-   上密下疏靠 mask 收边 —— 下半屏要留给标题与按钮，星星在那里只会变成噪点
    （正文区另有细网格，两者不叠在同一段高度上）。 */
 .hb-hero__stars {
   position: absolute;
@@ -982,7 +938,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 能力卡：按能力分色（温控 / 安防 / 机器人 / 灯光…，由模板上的 data-tone 决定）。
-   图标块用色调软底 + 色调文字，卡片描边默认走中性线，hover 才亮成该能力的色调 ——
    一排卡片全是同一种琥珀时，用户读不出「这张卡在讲什么」。 */
 .hb-cap {
   display: flex;
@@ -1369,7 +1324,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 步骤序号：四步走一条色相环 —— 暖金（进入）→ 极光紫（配置）→ 暖光（激活）→ 薄荷（就绪），
-   由模板给每个 .hb-steps__item 挂 data-tone。流程类内容用色彩表示「走到第几步」，
    比四个一模一样的琥珀方块更容易一眼看出进度语义。 */
 .hb-steps__index {
   display: grid;
@@ -1739,7 +1693,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 全授权（主授权 + 增量包）是客单价最高、也最省事的一档，默认给它更高的视觉
-   权重：琥珀描边 + 琥珀底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
    角标文案仍由后台商品的 badge 字段决定，不写死在样式里。 */
 .hb-addon-card[data-product-group="bundle"] {
   border-color: var(--hb-accent-line);
@@ -1875,7 +1828,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   font-weight: 700;
 }
 
-/* 编号占位后，原本的图标格就不再需要 */
 .hb-checkout-form .hb-form-section__head > i,
 .hb-checkout-form .hb-form-section__head > span {
   display: none;
@@ -1920,7 +1872,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 10px;
 }
 
-/* 数量固定为 1：不做成输入框，避免「能不能改」的歧义 */
 .hb-fixed-quantity {
   display: inline-flex;
   align-items: baseline;
@@ -2119,7 +2070,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 站内统一的确认框（#confirm-dialog）。全站的「要不要做这一步」都走它，不再用
-   window.confirm —— 系统框会跟着操作系统主题走（暗色页面里跳出一个浅色框），
    按钮名字、语气、换行都改不了，也不吃设计系统的配色与圆角。 */
 .hb-confirm-dialog {
   width: min(400px, calc(100vw - 28px));
@@ -2160,14 +2110,10 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--hb-bg) 72%, transparent), var(--hb-shadow-lg);
 }
 
-/* 收款台类弹窗：付款码弹窗（#payment-dialog）与待支付订单弹窗（#pending-order-dialog）共用一套骨架与信息块——宽度、三段式固定布局、金额行、倒计时行、订单号行，两者只差一个二维码（写在一起是为了避免改了一个忘了另一个）。
-   按「先扫码 / 先核对 → 再等结果」分三段：白底二维码 + 琥珀辉光优先吸引视线；金额与倒计时各占一条带边框的行，形成同一组待确认信息；订单号贴底、用分隔线断开，方便对客服报单号。 */
 :is(.hb-payment-dialog, .hb-pending-dialog) {
   width: min(404px, calc(100vw - 28px));
 }
 
-/* 三段式固定布局：头尾不滚、只有中间内容滚。手机（640px 高左右）上内容比可用高度多出几十像素，若整张弹窗滚动底部两个按钮会被推出屏幕，这里改成 flex 列 + 中段 overflow，按钮永远贴底。
-   [open] 必须写在选择器里：.hb-dialog 没有 display 声明，直接写 :is(...) { display:flex } 会盖过 UA 的 dialog:not([open]) { display:none }，未打开的弹窗会一直可见。 */
 :is(.hb-payment-dialog, .hb-pending-dialog)[open] {
   display: flex;
   flex-direction: column;
@@ -2305,9 +2251,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 「还在等结果」的脉动用**只走合成层**的两个属性（opacity + transform）画在伪元素上。
-   不要用 box-shadow / background-position 之类的属性做无限动画：它们每帧都要重新
-   计算样式并重绘（实测：弹窗打开时 RecalcStyleCount ≈ 350 次/秒，整页跟着卡），
-   而 opacity + transform 由合成线程直接处理，不碰主线程。
    这一层独立出来还顺便解决了另一个问题——脉动不再让二维码所在的这一块反复重绘。 */
 .hb-pay-timer__dot::after {
   content: "";
@@ -2381,7 +2324,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 「订单已关闭」的补充说明：只在弹窗进入 .is-closed 时出现。
-   文案位置紧贴倒计时条，是为了回答用户在超时那一刻最可能的疑问——
    「我刚付过钱，钱去哪了」。 */
 .hb-pay-closed {
   display: none;
@@ -2396,7 +2338,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 订单作废（超时 / 取消 / 支付失败）：二维码失去意义——渠道侧的交易随后会被
-   关单，扫出来的结果只会是「订单已关闭」。这里把白底高对比的码压暗去彩，
    连同琥珀辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
 .hb-payment-dialog.is-closed #payment-qr {
   filter: grayscale(1);
@@ -2490,16 +2431,6 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 6. 入口分页（登录 / 注册 / 找回）：整页场景壳
-
-   这三块从「顶栏 + 左右两栏」换成了与主项目入口页、商店后台登录同款的整页场景
-   （场景插画与玻璃表单坞在 /store-static/scene/，源在仓库 design/scene/）。
-   三张表单共用一份场景与一块玻璃坞，靠 [hidden] 在坞内切换（store.js 的 showPage
-   按 location.pathname 切分页）—— store.html 是「一份 HTML 服务所有前台路由」，
-   各带一份场景就要在一个响应里塞三份一模一样的标记。
-
-   整块壳钉在视口上、顶栏与页脚让位：场景是一整幅插画，让 sticky 顶栏压在上面
-   会切掉山脊的顶部。用 :has() 而不是让 JS 往 body 挂类名（与首页 --flush 那条
-   同一思路）：JS 失败时整块壳保持隐藏，退化成原来的普通文档流，不会错版。
    维护模式下 showPage() 不会被调用，三张表单保持初始的 [hidden]，壳也就不出现。 */
 .hb-auth-stage {
   position: fixed;
@@ -2523,10 +2454,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 }
 
 /* 「忘记密码？」在标签行右侧，本体是链接而不是提示文案。.hos-hint 的灰（0.45 alpha）
-   在 0.68rem 下会和左边标签糊成一片，分不出可以点，所以按链接着色。
-   选择器带上 .hos-label-row，特异性高过 .hos-hint 自身那条。
-   颜色读商店自己的命名空间：这一页确实也加载了 scene/page.css（--hos-* 在那里），
-   但 store.css 是商店的样式表，跨命名空间取值等于把两个独立构建偷偷绑在一起 ——
    哪天入口页不再引场景样式表，这里会静默退回继承色（链接变回浏览器默认蓝）。 */
 .hb-auth-stage .hos-label-row a.hos-hint {
   color: var(--hb-accent);
@@ -2537,11 +2464,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   text-decoration: underline;
 }
 
-/* --------------------------------------------------------------------------
-   7. 账号中心
-   .hb-account-heading 的横幅样式（网格 / 辉光 / 圆角 / 内边距）与 .hb-page-head
-   共用，定义在第 2 节；这里只叠加账号页特有的部分。
-   -------------------------------------------------------------------------- */
 .hb-account-heading p {
   margin-top: 8px;
   color: var(--hb-muted);
@@ -2565,8 +2487,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 }
 
 /* 统计卡：顶部一道渐隐色调线 + 等宽数字。四个数字并列时，等宽 + tabular-nums
-   才能让位数不同的数值左对齐；标签走大写等宽，读起来像仪表盘表头。
-   每张卡的顶部线与数字各按自己的语义分色（已激活=暖光、设备=暖金、席位=极光紫、
    剩余天数=就绪薄荷 / 临期珊瑚），与后台徽标同一套 data-tone，改一处两处一起变。 */
 .hb-account-stats article,
 .referral-stats article {
@@ -2620,7 +2540,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   line-height: 1.05;
 }
 
-/* 内部 tab：竖向导轨。容器最宽 1600px，顶栏横排的 tab 会被拉成一条很长的横线、视点要在「分栏」与「右边内容」之间来回跳；改成左侧竖向导轨后分组、计数与概览统计收在一个固定的小视区里，右侧内容区还能拿到完整可用宽度（授权与订单都是自适应网格，宽度直接决定列数）。 */
 .hb-account-shell {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
@@ -2946,8 +2865,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 }
 
 /* ---- 授权卡里的「一键部署」指令块 ----------------------------------------
-   只在**有效**授权卡里出现（判据在 store.js），地址由后台「站点配置 → 站点信息」下配。
-   造型是一块深色终端面板：与上面浅一档的规格表拉开层次，让「这是要复制去跑的命令」
    一眼可辨；配色一律走 --hb-* 令牌，不写死色值。 */
 .hb-deploy {
   margin-top: 16px;
@@ -3071,7 +2988,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   overflow-wrap: anywhere;
 }
 
-/* 「$」是提示符不是命令内容，所以复制按钮取的是 data-deploy-copy 而不是这行文本 */
 .hb-deploy-cmd__prompt {
   color: var(--hb-accent-bright);
   font-weight: 700;
@@ -3218,7 +3134,6 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 }
 
 /* 邀请码生成后（复制按钮出现即代表已生成）把码从一句说明文字升级成一块等宽
-   读数：邀请码是要念给朋友、抄进注册表单的东西，字号和字距必须够醒目。
    没有生成时 #referral-code-text 仍是一句普通说明，保持 12.5px 正文样式。 */
 .referral-share > div:has(#referral-copy-code:not([hidden])) #referral-code-text {
   padding: 14px 16px;
@@ -3758,7 +3673,6 @@ body.hb-maintenance-active .hb-site-footer {
   }
 
   /* 首页的 main 走 --flush（hero 与顶栏无缝相接，且由 flex 锁控制内边距），
-     不能在这里被通用内边距重新撑开——否则顶栏与 hero 之间会露出一条没有
      网格/辉光的空白缝。 */
   .hb-store-main:not(.hb-store-main--flush) {
     padding: 24px 0 44px;
@@ -3819,7 +3733,6 @@ body.hb-maintenance-active .hb-site-footer {
   }
 
   /* 手机上一行放两个按钮，而不是全宽逐个堆叠：首访（未登录 + 有在售商品）正好
-     是三个按钮，全宽堆叠要占 166px，会把页脚挤出首屏。两列之后 2/3/4 个按钮都
      不超过两行，且落单的那个会自动撑满整行。 */
   .hb-hero__actions {
     width: 100%;

@@ -1,16 +1,9 @@
 /**
  * 扫地机器人控件的状态映射。
- *
- * 职责：把 HA 的 supported_features 位掩码翻译成按钮列表；把按钮动作映射成服务名
- * （老固件只有 turn_on / turn_off，没有 start / stop）；从机器人属性或同设备电池传感器解析电量。
- *
- * 位置：纯计算模块，被 interaction3d 扫地机面板与编辑器预览共用。
- * 约定：位掩码沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
  */
 
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271208";
-// 状态条目归一统一走 utils/state-entry.js，避免各处再各抄一份签名不同的副本。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271208";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271226";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271226";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
@@ -24,8 +17,6 @@ const VACUUM_FEATURE_FLAGS = Object.freeze({
 });
 /**
  * 由 supported_features 位掩码得出可用动作列表。
- * 属性缺失或非法时回落到最小可用集 start / pause / return_to_base：与其禁用所有按钮（用户完全无法操作），
- * 不如给出最常见的一组，由后端在调用失败时回显错误。
  */
 export function vacuumSupportedActions(vacuumState) {
   const supportedFeatures = vacuumState?.attributes?.supported_features;
@@ -67,8 +58,6 @@ export function vacuumSupportedActions(vacuumState) {
 }
 /**
  * 把动作名映射成实际要调用的服务名。
- * 只处理「有 turn_on 但没有 start」与「有 turn_off 但没有 stop」这两种老固件形态，其余同名直接透传；
- * 位掩码不可解析时也透传，把判断交给后端。
  */
 export function vacuumActionService(vacuumEntity, actionName) {
   const featureFlags = Number(vacuumEntity?.attributes?.supported_features);
@@ -105,8 +94,6 @@ function parsePercent(rawPercent) {
 }
 /**
  * 取扫地机电量。
- * 先按 battery_level → battery_percentage → battery 读机器人自身属性（不同固件字段名不同，
- * 逐个尝试比按型号分支更稳），都没有时才回退到独立的电池传感器。
  */
 export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) {
   const attributes = resolveStateEntry(vacuumStateOrChange)?.attributes || {};
@@ -124,8 +111,6 @@ export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) 
 }
 /**
  * 在同一个设备下挑出最可能是「电量」的传感器实体：必须与扫地机同设备、sensor 域且当前可用。
- * 用打分排序而非写死命名规则，综合 device_class、翻译键、名称关键词、图标与单位：加分项如 battery（+240）、单位 %（+25），
- * 减分项如耗材词（滤芯 / 主刷 / 尘袋，-260）、解析不出百分比（-40）；只留正分，按分数降序、ID 升序取第一条。
  */
 export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId, vacuumEntityId) {
   const vacuumMetadata = metadataByEntityId.get(vacuumEntityId);

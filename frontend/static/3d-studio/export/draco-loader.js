@@ -1,22 +1,10 @@
 /**
  * 同源部署下的 Draco 加载器。
- *
- * 加载外部 glTF / GLB（几何用 Draco 压缩）时的解码入口，由 studio-app.js 实例化后交给
- * three.js 的 GLTFLoader。对外：SameOriginDRACOLoader。原版 DRACOLoader 用 Blob URL 启
- * Worker，而部署环境 CSP 只允许同源脚本，故改成直接用同源的 draco-decoder-worker.js。
- *
- * r186 的 DRACOLoader 把解码器路径收进 `this.decoderPaths`（`{js, wasm, dep_js}` 对象），
- * 既不保留可交给 Worker 的目录字符串，init 消息里也不再带 `decoderPath`；本类因此自己记一份
- * 目录（`setDecoderPath` 时从基类解析结果反推），并在发 init 时补上。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609271208";
+import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609271226";
 
-/**
- * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。
- */
 function normalizeWorkerError(cause) {
-  // Worker / 事件对象上的 message 可能为空，此时用中文文案兜底，避免抛出空错误难以排查。
   const errorMessage = String(cause?.message || "").trim();
   return new Error(errorMessage || "Draco 同源解码 Worker 启动失败");
 }
@@ -35,8 +23,6 @@ function directoryFromDecoderUrl(url) {
 
 /**
  * 使用同源 Worker 脚本的 DRACOLoader。
- * 与基类差异有三处：_initDecoder 不做主线程预加载（真正的初始化在 Worker 内完成）、
- * _getWorker 由基类的 Blob URL 方案改为 new Worker(同源 URL)、setDecoderPath 额外留一份目录字符串。
  */
 export class SameOriginDRACOLoader extends DRACOLoader {
   /**
@@ -52,7 +38,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
 
   /**
    * 交给基类解析出 decoderPaths，再从结果反推目录供同源 Worker 使用。
-   * 这样说字符串与 `{ js, wasm }` 两种入口都能覆盖，不必自己判类型。
    */
   setDecoderPath(path) {
     super.setDecoderPath(path);
@@ -62,10 +47,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
 
   /**
    * 静默写入解码器配置。
-   *
-   * 基类 r186 起给这个方法打了弃用警告（r194 移除），但本仓仍按 `{ type: "wasm" | "js" }` 传，
-   * 且 Worker 侧就是靠它选 draco_wasm_wrapper.js / draco_decoder.js。这里直接赋同样的字段，
-   * 免得每次进 3D 工作室都往控制台刷一条与调用方无关的废弃警告。
    */
   setDecoderConfig(config) {
     this.decoderConfig = config;
@@ -74,11 +55,9 @@ export class SameOriginDRACOLoader extends DRACOLoader {
 
   /**
    * 解码器初始化整体在 Worker 内完成，主线程这边立刻给一个已 resolve 的 Promise。
-   * 覆写是为了绕开基类「主线程预加载 + Blob URL Worker」那条 CSP 走不通的路径。
    */
   _initDecoder() {
     if (this.sameOriginWorkerUrl) {
-      // 用 ||= 而不是直接赋值：基类可能已写入其它值，避免覆盖。
       this.decoderPending ||= Promise.resolve();
       return this.decoderPending;
     } else {
@@ -94,10 +73,8 @@ export class SameOriginDRACOLoader extends DRACOLoader {
     if (this.sameOriginWorkerUrl) {
       return this._initDecoder().then(() => {
         // 池未满就新建；_callbacks / _taskCosts / _taskLoad 三个字段沿用基类的约定，
-        // 因为基类的 load() 会直接读写它们。
         if (this.workerPool.length < this.workerLimit) {
           if (!this.decoderDirectory) {
-            // 先于 Worker 创建检查：否则会先漏一个 Worker 再抛错。
             throw new Error("Draco decoderPath 未配置");
           }
           let worker;
@@ -127,7 +104,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
           worker.onerror = errorEvent => {
             const fatalError = normalizeWorkerError(errorEvent);
             worker._fatalError = fatalError;
-            // Worker 已不可用，把在飞的任务全部拒掉，否则调用方会永久等待。
             for (const failingTask of Object.values(worker._callbacks)) {
               failingTask.reject(fatalError);
             }
@@ -147,7 +123,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
           );
         }
         const selectedWorker = this.workerPool[this.workerPool.length - 1];
-        // 该 Worker 之前出过致命错误就直接抛出，避免任务被派给死掉的 Worker。
         if (selectedWorker._fatalError) {
           throw selectedWorker._fatalError;
         }

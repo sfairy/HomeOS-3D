@@ -1,9 +1,5 @@
 /**
  * 编辑器设置对话框的懒挂载与点击穿透防护。
- *
- * 把未打开的 dialog.settings-dialog 从 DOM 上摘掉，需要时再挂回并打开，减少首屏节点数；同时
- * 拦截「按下拖拽松手落在遮罩上」误触成的关闭。摘除后由补丁过的 show / showModal 自动重新挂载，
- * 调用方无感知；close 后延迟一帧再摘除，等关闭动画结束。
  */
 
 /**
@@ -48,7 +44,6 @@ export function deferHiddenEditorDialogs(
  * 安装对话框遮罩误触防护：在对话框内按下指针、拖到遮罩上松手会被判定为点击遮罩而关闭，容易丢内容。
  */
 export function installSettingsDialogBackdropGuard() {
-  // 记录本次指针序列是否起始于遮罩本身，用 WeakMap 避免给 DOM 加自定义属性。
   const backdropPointerState = new WeakMap();
   (document.addEventListener(
     "pointerdown",
@@ -70,7 +65,6 @@ export function installSettingsDialogBackdropGuard() {
         )
           return;
         const pointerStartedOnBackdrop = backdropPointerState.get(clickedDialog);
-        // 只有「按下时就落在遮罩上」才允许关闭；否则拦下这次 click。
         (backdropPointerState.delete(clickedDialog),
           pointerStartedOnBackdrop === !1 &&
             (clickEvent.preventDefault(), clickEvent.stopImmediatePropagation()));

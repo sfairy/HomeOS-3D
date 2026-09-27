@@ -1,12 +1,5 @@
 /**
  * 天气图表的数据映射与曲线绘制。
- *
- * 职责：把 HA 天气状态（sunny / rainy / …）映射成图标名与中文文案并按昼夜修正；转出 meteocons
- * 图标地址（实现在 utils/icon-url.js，这里只是同名转出口）；由序列推导阈值色带或归一化手填阈值；
- * 把点集转成平滑的 SVG 路径。
- *
- * 位置：纯计算模块，折线 / 天气图表控件渲染时调用；不碰网络与 DOM。
- * 约定：条件字符串与图标名沿用 HA 与 meteocons 的既有命名，改动会直接影响图标能否加载。
  */
 
 // 天气条件 → [meteocons 图标名, 中文文案]。文案会直接上屏，与界面约定死的字符串一致。
@@ -29,8 +22,6 @@ const WEATHER_VISUALS_BY_CONDITION = {
 };
 /**
  * 取天气图标名与文案。
- * HA 的天气条件不含昼夜信息，sunny / partlycloudy 日落后必须换夜间图标，否则晚上会
- * 显示大太阳；unknown / unavailable 用通用异常图标，不把原始状态当文案上屏。
  */
 export function weatherVisual(condition, sunState = "") {
   let normalizedCondition = String(condition || "")
@@ -57,22 +48,11 @@ export function weatherVisual(condition, sunState = "") {
 }
 /**
  * 拼 meteocons 图标地址。
- * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这份知识，
- * 共用同一条白名单）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=2609271208";
+export { meteoconUrl } from "../../utils/icon-url.js?v=2609271226";
 // 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
-import { resolveColor } from "../../utils/colors.js?v=2609271208";
+import { resolveColor } from "../../utils/colors.js?v=2609271226";
 // 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
-//
-// 这是一条**连续色带**，不是四个独立的语义色：它要能按顺序读出「安全 → 正常 → 偏高 → 危险」，
-// 所以四档之间靠亮度和色相同时拉开。调色板里没有一条现成的四档色带，因此色带本身由渲染层
-// 用四枚已有令牌拼出来（registry-visuals.js 的 chartThresholdPalette），这里只留兜底 ——
-// 本模块是纯计算模块，按约定不碰 DOM，不能自己去 getComputedStyle 读令牌。
-//
-// 原先这四档是直接写死在这儿的（#ddffc2 / #68cc3e / #ff8e52 / #ff1a1a），于是「改配色只改
-// page.css」这条不变量在图表上失效：管理员把主控色改成极光紫后，折线图里那条最扎眼的
-// 纯红 #ff1a1a 一点没动 —— 而它是整个界面上唯一还剩的饱和红。
 export const CHART_THRESHOLD_FALLBACK_COLORS = ["#88dcbf", "#5fd0a8", "#ff8a65", "#f07a7e"];
 // 单色兜底（「取不到任何阈值」时的那一格）。与 --hos-eco 同值。
 export const CHART_THRESHOLD_FALLBACK_COLOR = "#5fd0a8";
@@ -97,8 +77,6 @@ function sampleArrayAtRatio(values, ratio) {
 }
 /**
  * 归一化用户手填的阈值：丢掉非数值项、校验颜色、按值升序排列。
- * 排序是必须的：thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
- * 顺序错了颜色就会错档。
  */
 function normalizedThresholds(thresholds, defaultColor = CHART_THRESHOLD_FALLBACK_COLOR) {
   return (Array.isArray(thresholds) ? thresholds : [])
@@ -111,8 +89,6 @@ function normalizedThresholds(thresholds, defaultColor = CHART_THRESHOLD_FALLBAC
 }
 /**
  * 由序列自动生成四档阈值。
- * 用分位数而非极值：点数 ≥5 时取 5% 与 95% 分位，离群点不会把色带拉平；点数太少退化为取最小 / 最大。
- * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 撑开四档，否则四档重叠成同一个值、图上只剩一种颜色。
  */
 function automaticThresholds(series, gradient = CHART_THRESHOLD_FALLBACK_COLORS) {
   // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。
@@ -132,7 +108,6 @@ function automaticThresholds(series, gradient = CHART_THRESHOLD_FALLBACK_COLORS)
     [minimumValue, maximumValue] = [maximumValue, minimumValue];
   }
   const valueSpan = maximumValue - minimumValue;
-  // 用相对误差量级判断「几乎恒定」，避免绝对值相近但量级差别很大的序列被误判。
   const spanEpsilon = Math.max(Math.abs(minimumValue), Math.abs(maximumValue), 1) * 1e-9;
   if (valueSpan <= spanEpsilon) {
     const padding = Math.max(Math.abs(minimumValue) * 0.01, 0.01);
@@ -189,8 +164,6 @@ export function thresholdColor(sortedThresholds, value, defaultColor = CHART_THR
 }
 /**
  * 把点集转成平滑的三次贝塞尔路径。
- * 控制点按 Catmull-Rom 转 Bézier 的经典做法取相邻点差的 1/6，首尾点用自身补齐
- * （previousPoint / afterNextPoint），端点也能得到切线而不出现折角；坐标保留三位小数。
  */
 export function smoothChartPath(points) {
   if (!points.length) {

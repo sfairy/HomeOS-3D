@@ -1,13 +1,4 @@
 """3D 交互增量包的全部 HTTP 路由，统一挂在 /modules/interaction3d 前缀下。
-
-四类资源：
-- 户型快照：把 studio 草稿冻结成不可变的 sceneId 快照（含底图副本），供舞台页长期读取；
-- 舞台页：下发 3d-studio.html，并注入样式与「灯光历史作用域」；
-- 设备控制：灯光 / 开关直接转发 HA，电视、空调、窗帘先做配置与能力校验；
-- 渲染缓存：舞台页回传的灯光合图 PNG，按 (项目, 户型, 缓存键) 分目录存放。
-
-鉴权口径：读接口用 LicensedViewer（认证 + api 授权 + sceneId 归属校验），
-写接口（建快照）用 LicensedUser（必须管理员登录），两者都再叠一层 require_access。
 """
 from __future__ import annotations
 
@@ -87,12 +78,6 @@ router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 @router.post('/scenes', status_code=status.HTTP_201_CREATED)
 def snapshot_scene(request: Request, _user: LicensedUser):
     """把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。
-
-    冻结的意义：studio 草稿会被继续编辑，而舞台页的 sceneId 必须长期指向同一份数据，否则同一块屏
-    刷新前后布局就变了。底图也复制一份，之后在 studio 里删掉素材也不影响已有快照。
-
-    落盘后顺带做一轮快照回收（见 scene_store）：冻结是低频操作，正好是清理的好时机；回收只碰
-    「没有任何仪表盘引用、且已过保留期」的快照。草稿不存在、为空或 JSON 损坏时抛 409。
     """
     require_access(request)
     # 没有草稿说明用户还没在 3D 户型图绘制里保存过，属于可预期状态，用 409 而非 404。
@@ -114,12 +99,10 @@ def snapshot_scene(request: Request, _user: LicensedUser):
     # 'x' 独占创建：sceneId 是新的，万一撞名也宁可报错，不覆盖已有快照。
     with path.open('x', encoding='utf-8') as output:
         # 原样落盘 studio 草稿的 JSON，不裁剪也不另加版本号：快照与草稿共用同一份
-        # 场景格式，兼容性靠读取端容错（例如缺 floors 时兜底成单层）。
         json.dump(payload, output, ensure_ascii=False)
     # 384（八进制 600）：快照含户型细节，只给属主读写。
     path.chmod(384)
     scene = payload['scene']
-    # 老格式的快照没有 floors 字段，这里用 [{'scene': scene}] 兜底成「整份 scene 即唯一一层」。
     for floor in scene.get('floors', [{'scene': scene}]):
         background = floor.get('scene', {}).get('background') or {}
         # 底图资源 ID 形如 user:<hash>，去掉前缀后才是素材目录里的文件名。
@@ -130,7 +113,6 @@ def snapshot_scene(request: Request, _user: LicensedUser):
         # 复制成 <sceneId>-<assetId><后缀>，与快照同目录，清理场景时可一并删除。
         shutil.copyfile(asset, folder / f'{scene_id}-{asset_id}{asset.suffix.lower()}')
     # 冻结成功后顺带回收一轮：只碰「没有任何仪表盘引用、且已过保留期」的快照。
-    # 回收失败不影响这次冻结（文件已落盘、sceneId 已经可用），但要让运维看见。
     try:
         sweep_scenes_for_app(request.app)
     except Exception as error:  # noqa: BLE001 - 清理是附加工作，绝不能连累冻结本身
@@ -143,9 +125,6 @@ def snapshot_scene(request: Request, _user: LicensedUser):
 @router.get('/scenes/{scene_id}')
 def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """读取一份户型快照（底图 URL 已注入）。
-
-    返回快照原文，只在每个楼层的背景上补一个指向本模块 background 路由的 url，
-    让前端统一按 url 取图，不必自己拼路径与鉴权参数。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
     payload = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
@@ -166,19 +145,12 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
 @router.get('/scenes/{scene_id}/current')
 def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId: str = '', since: str = ''):
     """对比 studio 草稿与参考快照，返回最新场景；无变化时返回 204。
-
-    since 是前端上次拿到的 syncKey，两者一致说明没有改动，直接回 204 ——
-    这是舞台页轮询的主路径，避免每次轮询都回传整份户型。
-
-    异常:
-        HTTPException: 409，前端带了 since（说明正在跟踪同步）但草稿读不出来或写了一半。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
     reference = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
     source = request.app.state.settings.studio3d_draft_path
     try:
         # 带 since 说明前端正在跟踪同步：读不出草稿必须报错让它重试，
-        # 不能悄悄退化成快照，否则前端会以为「没有变化」而一直停在旧画面上。
         if since and not source.is_file():
             raise ValueError('saved source unavailable')
         # 不带 since 的首次加载：草稿不可用时用快照兜底，保证舞台页能渲染出来。
@@ -214,17 +186,6 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
 @router.get('/scenes/{scene_id}/background/{asset_id}')
 def get_background(scene_id: str, asset_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """读取户型快照的底图。
-
-    两个来源，都以**本场景**为准：先找随快照一起冻结的本地副本（``<sceneId>-<assetId><后缀>``）；
-    副本缺失（冻结时复制失败、素材后来才补上）时回退到用户素材库，此时要求该素材是本场景自己
-    引用过的底图。
-
-    回退路径过去信的是全局草稿（``studio3d_draft_path``）—— 那份文件是全机共用的，它此刻编辑的
-    可能是**别的项目**的户型，于是绑项目 A 的展示页只要猜中 / 枚举 ``asset_id`` 就能把别的项目的
-    底图取走。改为只认本场景：快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」
-    这个真实场景依然可取；管理员会话额外保留「当前草稿引用过就放行」（管理员本来就不受素材可见
-    范围限制，``viewer_user_asset_ids`` 对它返回 None，这条只让编辑器刚换、还没冻结的底图也能
-    显示，不会让它多拿到任何东西）。两种来源都取不到时抛 404。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
     path = scene_path(request, scene_id)
@@ -237,7 +198,6 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
                 continue
             return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': NO_STORE})
     try:
-        # 回退路径：快照建立时复制失败，或素材是后来才补上的，就从用户素材库直读。
         scene = json.loads(path.read_text(encoding='utf-8'))['scene']
         # 必须被**本场景**的某个楼层背景引用才放行，等于「底图跟着这个户型走」。
         referenced = asset_id in _background_asset_ids(scene)
@@ -258,21 +218,9 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
 @router.post('/control')
 async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
     """3D 舞台页的设备控制入口，按 domain 走四条不同的校验路径。
-
-    - media_player / 前端声明为 television：确认实体确实配在该控件的电视列表里，且对应电视模型仍在
-      场景中，再按 supported_features 位掩码核对能力；
-    - cover / climate：确认环境配置里的绑定与场景中的窗帘 / 空调模型，再取 HA 实时状态做能力校验；
-    - fan：确认净化器配在该控件的 environment.airPurifiers 里、对应模型仍在场景中，
-      再取 HA 实时状态做能力校验；
-    - 其余（light / switch）：只允许 turn_on / turn_off，直接转发 HA 服务调用。
-
-    ``payload`` 含 domain / service / entity_id / data 与定位字段，``viewer`` 是已认证且通过 api
-    授权的主体。403 实体未配置到当前控件；404 实体不存在或已禁用；409 状态不可用或模型失联；
-    415 / 413 / 422 参数或能力不匹配。
     """
     require_access(request)
     if payload.device_kind == 'television' or payload.domain == 'media_player':
-        # 必须能定位到具体控件，否则无从校验实体到底配在哪块屏上。
         component, properties = control_scope(database, payload, viewer, '电视')
         # 取控件配置：实体必须真配在这个控件的电视列表里（properties.devices.televisions）。
         bindings = properties.get('devices', {}).get('televisions', [])
@@ -288,7 +236,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         scene = load_live_scene(request, properties.get('sceneId', ''))
         try:
             # 三重条件同时成立才算模型在线：楼层 ID、模型 ID 与模型类型 tv；
-            # 只比 ID 不够 —— 同一 ID 可能在别的楼层，也可能已被改成其它类型。
             valid = any(
                 model.get('id') == item.get('modelId') and model.get('type') == 'tv'
                 for item in matches
@@ -309,7 +256,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             'media_play': 16384,
             'media_pause': 1}
         # domain 必须是 switch 或 media_player；data 必须为空（电视控制不接受透传参数）；
-        # 用 switch 控制时只允许开关机，不能拿开关实体去调播放控制。
         if payload.domain not in {
             'switch',
             'media_player'} or payload.service not in media_features or payload.data or payload.domain == 'switch' and not power_command:
@@ -325,7 +271,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             raise HTTPException(409, detail='电视电源状态不可用，请稍后重试。')
         if payload.domain == 'media_player':
             features = state.get('attributes', {}).get('supported_features', 0)
-            # bool 是 int 的子类必须单独排除，否则 True 会被当成「支持全部低位能力」。
             if not isinstance(features, int) or isinstance(features, bool) or not features & media_features[payload.service]:
                 raise HTTPException(422, detail='此媒体实体不支持该操作。')
             # 非开关机指令要求电视已开机：off / standby 下 HA 会静默失败。
@@ -373,8 +318,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         'device-extra',
         'purifier-extra'}:
         # 设备附加实体（开关 / 下拉 / 数值 / 按钮）：这些实体不属于控件的绑定表本身，
-        # 而是挂在某台设备（通用设备或空气净化器）的 extraControls 下，因此要先按
-        # deviceId 找到那台设备，再确认这个实体确实在它的附加功能列表里。
         is_purifier = payload.device_kind == 'purifier-extra'
         name = '附加实体'
         component, properties = control_scope(database, payload, viewer, name)
@@ -386,9 +329,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             """附加实体该用哪套「模型还在不在」的判据，取决于它挂在净化器还是通用设备上。"""
             if is_purifier:
                 # 净化器自己的实体挂在宿主绑定上。模型存活必须用净化器自己的判据：
-                # 场景里它的 type 是 airpurifier 或 freshair（新风机），借空调那套
-                # （wallac/floorac/airoutlet）会把每一台净化器都判成「模型已失联」，
-                # 附加功能整个不可用。
                 require_purifier_model([host], host.get('entityId', ''), scene)
             else:
                 require_device_model(host, scene, model_type)
@@ -402,7 +342,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             raise HTTPException(404, detail='实体不存在、已禁用或已失联。')
         if is_purifier:
             # 净化器的附加实体必须与净化器本体挂在同一台 HA 设备下：宿主实体换绑到别的
-            # 设备后，附加功能会控制到不属于这台净化器的东西上。
             primary_id = host.get('entityId', '') if host is not None else ''
             primary = database.scalar(
                 select(HAEntity).where(
@@ -426,7 +365,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         name = '窗帘' if is_cover else '空调'
         # 空调 / 窗帘同样要定位到控件，才能核对环境配置里的实体绑定。
         component, properties = control_scope(database, payload, viewer, name)
-        # 窗帘与空调分别放在 properties.environment.curtains / airConditioners 下。
         bindings = properties.get('environment', {}).get('curtains' if is_cover else 'airConditioners', [])
         # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
         if not any(item.get('entityId') == payload.entity_id for item in bindings):
@@ -439,12 +377,10 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                 bindings, payload.entity_id, scene
             ),
         )
-        # 只认当前活跃的 HA 连接，避免旧连接下的同名实体被误用。
         connection = active_connection(database)
         if connection is None:
             raise HTTPException(409, detail='请先配置 Home Assistant 连接。')
         # 实体必须属于活跃连接、域与请求一致、同步正常且未被用户禁用；
-        # 只信数据库里的实体记录，不接受前端声明的 domain。
         entity = database.scalar(
             select(HAEntity).where(
                 HAEntity.connection_id == connection.id,
@@ -466,8 +402,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         return await call_service(payload, request, viewer)
     elif payload.domain == 'fan':
         # 空气净化器本体（校验见 purifier.py）：实体配在 environment.airPurifiers 下，
-        # 顺序与空调 / 窗帘一致 —— 先证明绑定在当前控件上，再证明模型还在场景里。
-        # 附加实体不走这条：那些挂在宿主设备的 extraControls 下，见上面的 device-extra 分支。
         component, properties = control_scope(database, payload, viewer, '空气净化器')
         bindings = properties.get('environment', {}).get('airPurifiers', [])
         # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
@@ -506,8 +440,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             'turn_off'}:
             raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
         # 与前三个分支同一口径：中控设备必须证明这个实体**真的配在当前控件上**。少了这一步，
-        # 凡是这块屏可见的实体都能被控制（兄弟实体、别的控件配的灯）。前端 runtime 也做了同样的
-        # 比对，但那只是体验、不是边界 —— 直接调接口就能绕过。管理员会话不设这道。
         if not viewer.is_admin_session:
             component, _properties = control_scope(database, payload, viewer, '设备')
             # 灯光表里 entityId 可以为空（纯装饰的灯），因此这里比的是「有没有一条绑到它」。
@@ -518,14 +450,6 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
 
 @router.get('/stage.html')
 def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId: str = ''):
-    """下发舞台页 HTML，并注入阶段样式与灯光历史作用域。
-
-    用字符串替换而不是改静态文件：这份页面与编辑器共用同一个文件，这里只做两处追加 ——
-    <head> 末尾挂本模块样式，<body> 上挂 class 与 data-* 作用域。
-    页面本身 no-store，保证改版后前端立刻拿到新版本。
-
-    两处追加都**必须命中**，否则整页会退化成工作室界面（见各处的断言）。
-    """
     database = request.app.state.database.session_factory()
     with database:
         require_scene_viewer(request, database, viewer, sceneId, projectId)
@@ -537,8 +461,6 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if '</head>' not in html:
         raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
     # 样式表按文件 mtime 带版本号（与页面里其它服务端拼出来的静态链接同一口径，见
-    # core/static_revision.py）：页面本身 no-store，URL 变了浏览器才会重新取样式，
-    # 而 mtime 让人不必记得改这行字面量。
     style_revision = file_revision(settings.frontend_dir / 'modules' / 'runtime' / 'core' / 'stage.css')
     html = html.replace(
         '</head>',
@@ -558,9 +480,6 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
 @router.get('/scenes/{scene_id}/render-cache/{cache_key}')
 def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """取一份灯光渲染缓存；不存在时返回 204，让前端自己重新渲染。
-
-    204 而不是 404：缓存缺失是正常状态（首次打开、刚被清理过），
-    前端按「无缓存」处理即可，不必区分两种情况。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
     scene_path(request, scene_id)
@@ -577,13 +496,6 @@ def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: Li
 @router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=status.HTTP_204_NO_CONTENT)
 async def put_render_cache(scene_id: str, cache_key: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """接收舞台页回传的灯光合图 PNG 并写入缓存。
-
-    鉴权与磁盘 IO 都放到线程池执行：文件锁（flock）是阻塞调用，
-    直接留在事件循环里会拖住其它请求。
-    请求体边收边计数，超限立刻中断，避免畸形请求先把体积放大一轮。
-
-    异常:
-        HTTPException: 415 不是 PNG；413 超出单条缓存体积上限。
     """
     await run_in_threadpool(require_scene_transfer, request, viewer, scene_id, projectId)
     scene_path(request, scene_id)
@@ -606,8 +518,6 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
 @router.get('/access')
 def get_access(request: Request, _viewer: LicensedViewer) -> JSONResponse:
     """返回前端授权凭据（短时效，仅供界面判断元素显隐）。
-
-    响应不缓存：授权状态随时可能变化。
     """
     return JSONResponse(access_grant(request), headers={'Cache-Control': NO_STORE})
 
@@ -615,9 +525,6 @@ def get_access(request: Request, _viewer: LicensedViewer) -> JSONResponse:
 @router.get('/projects/{project_id}/components/{component_id}/config')
 def get_config(project_id: str, component_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取单个 3D 交互控件的完整配置（含位置与全部 properties）。
-
-    先查项目归属再查增量包授权：无权限的调用方不该从错误码里
-    推断出「这个仪表盘 / 控件是否存在」。
     """
     require_viewer_project(viewer, project_id)
     require_access(request)
@@ -642,19 +549,10 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
 @router.get('/{filename:path}')
 def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
     """下发 3D 交互前端资源（JS / CSS），按白名单限定可访问文件。
-
-    白名单的键是相对 ``frontend/modules/runtime`` 的路径（含子目录），
-    路由用 ``{filename:path}`` 接收，以支持按域细分后的嵌套目录。
-
-    异常:
-        HTTPException: 404，文件不在白名单内，或解析后落在资源目录之外。
     """
     require_access(request)
     # 可下发清单的唯一事实来源是 frontend/modules/runtime/manifest.json
-    # （见 runtime_manifest 模块头）。清单同时是安全边界 —— 没登记的文件一律 404，
-    # 前缀 /{filename:path} 不会退化成任意文件读取。
     allowed_files, media_types = load_runtime_manifest(request.app.state.settings.frontend_dir)
-    # 先按清单拒绝，再落盘检查，避免无权限的探测走到文件系统。
     media_type = media_types.get(Path(filename).suffix)
     if filename not in allowed_files or media_type is None:
         raise HTTPException(404, detail='3D 交互资源不存在。')

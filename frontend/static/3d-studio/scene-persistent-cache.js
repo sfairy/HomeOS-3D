@@ -1,27 +1,8 @@
 /**
  * 3D 户型「已准备场景」的 IndexedDB 持久缓存。
- *
- * 为什么需要：一次冷启动里，`normalizeStudioDocument` 会把整份草稿逐层归一（迁移旧 schema、
- * 补默认值、重建场景记录），随后渲染还得按同样结构再走一遍 —— 「首次进入编辑器仪表盘后 3D
- * 户型偶发重新生成」就出在这条重复劳动上。把归一后的场景按「版本 + 变更令牌」缓存起来，
- * 第二次打开直接取回，跳过整段生成。
- *
- * **正确性优先于命中率**：只有三个条件同时成立才复用 —— 缓存版本号等于
- * `SCENE_PREPARATION_VERSION`、变更令牌（syncKey）与当前草稿一致、且条目未超过
- * `7 * 86400000`（7 天）的 TTL。版本不符或过期一律按未命中处理（返回 null），绝不把旧几何
- * 喂给新代码。syncKey 由后端对 scene 本身做规范化哈希得到（见 interaction3d 的
- * `/scenes/{id}/current`）：草稿一改，令牌就变，缓存自动失效。
- *
- * 缓存的值就是归一后的场景文档：`floors`（每层含 `items` / `doors` 等部件）、`baseLighting`、
- * `combinedCameraSettings` —— 即「已准备场景」的全部零件。库 / 仓库布局见模块底部常量。
- *
- * 与模型缓存同一条底线：IndexedDB 不可用（隐私模式 / 禁用 / 配额满）时所有接口都退化成空操作，
- * 调用方走原本的非缓存路径，不抛错、不产生未处理的 Promise 拒绝。这条底线与「超时只降级这一次
- * 调用」「写入空闲串行化」「LRU 剪枝」都由 `idb-store.js` 统一提供（与模型缓存同一份实现，
- * 不再各抄一遍）；本模块只负责「键怎么算、什么算可复用、条目里放什么」。
  */
-import { createIdbStore } from "./idb-store.js?v=2609271208";
-import { debugLog } from "../utils/debug-log.js?v=2609271208";
+import { createIdbStore } from "./idb-store.js?v=2609271226";
+import { debugLog } from "../utils/debug-log.js?v=2609271226";
 
 /** 场景准备格式版本。归一逻辑或缓存信封一改就动它，旧条目会自动因版本不符而失效。 */
 export const SCENE_PREPARATION_VERSION = "20260923-v1";
@@ -47,12 +28,6 @@ const DEFAULT_TIMEOUT_MS = 120;
 /** 打开数据库至少给 1500ms：首次建库要跑 onupgradeneeded，比单条读写慢得多。 */
 const MIN_OPEN_TIMEOUT_MS = 1500;
 
-/**
- * 生成场景缓存键：版本 + 光照历史作用域 + 项目 + 场景 + 入口脚本 URL。
- * 入口脚本 URL 参与是因为缓存的是「这份代码准备出来的场景」—— 发布换戳后键自然改变，
- * 不需要额外的清缓存动作。三段标识（作用域 / 项目 / 场景）任一缺失都返回空串，
- * 调用方据此跳过缓存（编辑器页正是这种情况：那里没有舞台注入的作用域）。
- */
 export function scenePreparationKey(lightHistoryScope, projectId, sceneId, source = "") {
   if (!lightHistoryScope || !projectId || !sceneId) {
     return "";
@@ -62,10 +37,6 @@ export function scenePreparationKey(lightHistoryScope, projectId, sceneId, sourc
 
 /**
  * 判断一份归一后的场景文档是否完整到可以复用。
- * 判据与生成端一一对应：schemaVersion 7、楼层非空且 activeFloorId 命中某一层、
- * 顶层光照与相机设置存在、每层的 `scene.settings` 与
- * walls / items / doors / windows / railings 都在（且四个部件都是数组）。
- * 任何一项缺失都说明这是半成品或被改坏的文档，宁可重新生成。
  */
 function isUsablePreparedDocument(document) {
   return (
@@ -102,9 +73,6 @@ export function reusableScenePreparation(preparedEntry, options) {
 
 /**
  * 取一份可用的场景文档：命中缓存返回它的深拷贝（调用方随后会就地改字段，不能让它污染缓存条目），
- * 未命中则调用 `generate(record.scene)`（通常是 `normalizeStudioDocument`）现场生成。
- *
- * 返回 `reused` 让调用方决定要不要把新生成的结果 `schedule()` 回去，也让埋点区分两条路径。
  * @param {{scene: object, syncKey?: string}} record 后端返回的草稿记录。
  * @param {object|null} cachedEntry `preload()` / `peek()` 的结果。
  * @param {(scene: object) => object} generate 未命中时的生成函数。
@@ -119,7 +87,6 @@ export function prepareSceneDocument(record, cachedEntry, generate) {
 
 /**
  * 深拷贝一份场景文档。`structuredClone` 不可用时退回 JSON 往返；两者都失败时返回原对象
- * （调用方仍能工作，只是可能污染内存缓存）—— 缓存层不该成为故障源，所以这里刻意不抛错。
  */
 function clonePreparedDocument(document) {
   try {
@@ -138,15 +105,9 @@ export function createScenePersistentCache({
   env: env = globalThis,
   timeoutMs: timeoutMs = DEFAULT_TIMEOUT_MS
 } = {}) {
-  // 内存层：preload 读到的条目在这里等 peek，避免同一份文档在一次加载里读两遍 IDB。
   const entryByKey = new Map();
   const preloadByKey = new Map();
   // 统计口径（只在 ?debug=1 的诊断日志里输出，没有其它消费方）：
-  //   hits      预读到「版本 + TTL 都合格」的条目 —— 这不等于最终复用，复用还要过
-  //             reusableScenePreparation 的 syncKey 校验（键里刻意不含 syncKey）。
-  //   misses    预读正常完成但没拿到合格条目（不存在 / 版本不符 / 过期）。
-  //   writes    成功写入。
-  //   fallbacks 任何一次超时 / 异常（含写入失败）；与上面几项可能重叠，单独看。
   const stats = { hits: 0, misses: 0, writes: 0, fallbacks: 0 };
 
   const log = event => {
@@ -175,7 +136,6 @@ export function createScenePersistentCache({
 
   /**
    * 预读某个键的缓存条目：读路径最多等一小段（默认 120ms），超时按未命中处理，数据库连接留给
-   * 后台继续打开。结果同时写进内存层供 `peek()` 同步取用。返回的 Promise 永不拒绝。
    * @returns {Promise<object|null>}
    */
   function preload(key) {
@@ -211,7 +171,6 @@ export function createScenePersistentCache({
               return;
             }
             // 条目本身合格，无论这次 preload 有没有超时都放进内存层：peek() 是同步的，只有
-            // 放进来才可能被本会话取用。超时的那次不再记命中（那一刻已经记过 fallback）。
             entryByKey.set(key, entry);
             if (readState.timedOut) {
               settle(null);
@@ -275,7 +234,6 @@ export function createScenePersistentCache({
           transaction.onerror = transaction.onabort = () => settle(false);
           records.put(entry);
           // 条目自身就带 `bytes` 与 `created`，剪枝直接遍历主仓库即可（模型缓存另有一个
-          // 轻量 metadata 仓库，是因为它的模板体有几 MB、不适合每次都拉进内存）。
           store.prune({
             source: records,
             remove: pruneKey => records.delete(pruneKey),
@@ -284,14 +242,11 @@ export function createScenePersistentCache({
           });
         }, SCENE_WRITE_TIMEOUT_MS);
         if (stored) {
-          // 同步内存层：否则本会话再读同一个键只会拿回那份旧条目（或 preloadByKey 里
-          // 已 resolve 的 null —— 它从不清理），刚写进去的条目永远读不回来。
           entryByKey.set(key, entry);
           preloadByKey.delete(key);
           stats.writes += 1;
           log("stored");
         } else {
-          // 配额满 / 事务被中止：这是真实的写入失败，过去完全静默、连 fallback 都不记。
           noteFallback();
         }
       } catch {

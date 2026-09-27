@@ -1,13 +1,6 @@
 #!/usr/bin/env node
 /**
  * 构建期混淆业务 JavaScript，写入原路径（就地替换）。
- *
- * 跳过 vendor / 已压缩的第三方库，避免破坏 three.js、hls.js、jQuery 等。
- * ES module 的 import/export 路径保持不变；字符串数组做 base64 编码以抬高逆向成本。
- *
- * 用法:
- *   node ops/docker/obfuscate_javascript.mjs frontend
- *   node ops/docker/obfuscate_javascript.mjs apps/store/static
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -36,7 +29,7 @@ const OBFUSCATOR_OPTIONS = {
   renameProperties: false,
   reservedNames: ["^ha_bridge_", "^homeos", "^THREE$", "^Hls$", "^jQuery$", "^\\$"],
   reservedStrings: [],
-  seed: 0x486f6d65, // Home
+  seed: 0x486f6d65,
   selfDefending: false,
   simplify: true,
   splitStrings: true,
@@ -102,7 +95,6 @@ function obfuscateFile(filePath) {
 
   const options = {
     ...OBFUSCATOR_OPTIONS,
-    // 带 import/export 的文件按 module 解析，避免破坏模块边界
     sourceMap: false,
   };
 

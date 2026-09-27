@@ -1,13 +1,4 @@
 """商店首次初始化的访问守卫。
-
-``POST /store/v1/setup/admin`` 刻意不要求身份（首次设置时还没有账号可登），唯一闸门是「库里是否已有
-管理员」，于是一台未初始化的实例是**先到先得**的；当时唯一的保护是同源中间件，而它在请求**没有**
-Origin/Referer 时放行（``curl`` 默认不带），对脚本化攻击等于不存在。
-
-策略与主应用 ``apps/server/security/setup_guard.py`` 同构（store 要能单独部署）：本机直连（TCP 对端是
-loopback、``Host`` 主机名是 loopback、且**没带转发头**）放行；其它来源必须带对引导密钥
-``STORE_SETUP_TOKEN`` 或首次启动生成、0600 落盘、初始化后即删的一次性凭证，失败计入按来源限流。
-密钥刻意不写进全局日志。两份实现是刻意重复的，**没有**自动化闸门会发现漂移，改一处必须同步改另一处。
 """
 
 from __future__ import annotations
@@ -32,18 +23,11 @@ TOKEN_BYTES = 32
 MIN_TOKEN_LENGTH = 16
 
 #: 标记文件：它的存在（且指纹对得上）说明同目录的 ``setup-token`` 是本商店生成的。
-#: 为什么**不**在密钥文件里写注释来标记：``cat $APP_DATA_DIR/setup-token`` 是 README 教给运营的取用
-#: 方式，多出注释会让人拿到「注释 + 密钥」而在表单里粘出一个 403。密钥文件因此保持「一行就是一枚
-#: 密钥」，出处另放一个文件。主应用有同构的一份，两处必须一起改。
 GENERATED_MARKER_FILE = "setup-token.generated"
 #: 标记文件里那行指纹的前缀。
 FINGERPRINT_PREFIX = "sha256:"
 
 #: 判定「本机直连」时可信的地址：既用作**对端**地址，也用作 ``Host`` 主机名。
-#: **必须与主应用的 ``http_security.LOOPBACK_HOSTS`` 逐元素相同**：两份实现是刻意重复的同一套规则，
-#: 而这条规则是首次初始化窗口唯一的闸门。刻意**不收** ``testclient``（那是测试脚手架造出来的非 IP
-#: 对端名）也**不收空串**（``client`` 缺失只说明拿不到对端 —— unix socket 部署就是这种形态 —— 把
-#: 「拿不到」当「本机」放行等于重新打开「先到先得」；``Host`` 读不到时同理不放行）。
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 #: 初始化尝试的限流预算：每来源 10 次 / 15 分钟。
@@ -52,12 +36,6 @@ _SETUP_ATTEMPT_WINDOW_SECONDS = 900.0
 
 
 def token_fingerprint(token: str) -> str:
-    """令牌的短指纹：用来回答「盘上这份还是不是我们当初写下的那一枚」。
-
-    取 16 位十六进制就够：这不是口令学上的保护（密钥本身仍是高熵随机串，指纹也只留在
-    0600 的数据目录里），它只是**出处**的比对依据 —— 少了它，一份被运营替换过的密钥
-    文件会因为我们留着上一轮的标记而被当成自己生成的，于是初始化成功时被删掉。
-    """
     return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
 
 
@@ -84,23 +62,6 @@ def host_header_name(request: Request) -> str:
 
 def is_direct_local(request: Request) -> bool:
     """是否是「本机直连」：loopback 对端 + loopback ``Host`` + 没有任何转发头。
-
-    ``Host`` 这一条不能省：对端是 loopback 只说明「流量从本机网卡进来」，而**同机反向代理**
-    正是这个形态 —— nginx 默认连 ``X-Forwarded-*`` 都不补，Caddy / Traefik / 配了
-    ``proxy_set_header Host $host`` 的 nginx 则会把访问者用的**域名**原样透传下来。于是
-    「公网域名 → 127.0.0.1:18082」的同机反代，在只看对端时与本机运维完全一样，未初始化实例
-    的「先到先得」就此暴露到公网（``kubectl port-forward``、``ssh -L``、``socat`` 同类）。
-    运营用 ``localhost`` / ``127.0.0.1`` 打开时 ``Host`` 才是回环，这条判据因此把反代挡在外面
-    而不影响本机首次设置。
-
-    与 ``apps/store/api/store.py`` 那套「验证码只回显给本机」同源（那份刻意更宽，不要顺手统一），
-    但这里刻意**不**看 ``resolve_client_ip`` 的结果：首次初始化时运营还没来得及配
-    ``STORE_TRUSTED_PROXIES``，此时按「解析出的真实来源」判定，远端请求会因为对端是
-    127.0.0.1（同机反代）而被当成本机 —— 那正是要堵的洞。
-
-    已知残留（刻意接受，别再用「多加一个请求头」去补）：``ssh -L`` / ``kubectl port-forward``
-    这类**原样透传字节**的隧道会把 ``Host: localhost:<本地端口>`` 一并带到后端，与真·本机运维在
-    协议层不可区分；能开这种隧道的人已经握有宿主 shell，而 0600 的 ``setup-token`` 就在同一台机器上。
     """
     if forwarded_headers_present(request):
         return False
@@ -111,9 +72,6 @@ def is_direct_local(request: Request) -> bool:
 
 def read_token_file(text: str) -> str:
     """从密钥文件内容里取密钥：跳过 ``#`` 开头的注释行与空行。
-
-    自动生成的那份只有一行；运营预置的偶尔会带自己的注释。两种都要读得出来，所以按
-    「第一个非注释、非空行」取值，而不是整文件 strip。
     """
     for line in text.splitlines():
         stripped = line.strip()
@@ -148,7 +106,6 @@ class SetupGuard:
 
     @property
     def source(self) -> str:
-        """密钥来源，用于日志文案：``env`` / ``file`` / ``generated`` / ``none``。"""
         if self._configured:
             return "env"
         if self._token and not self._generated:
@@ -171,9 +128,6 @@ class SetupGuard:
 
     def _is_ours(self, token: str) -> bool:
         """盘上这枚令牌是否**有证据**说明是本商店生成的。
-        证据 = 标记文件里的指纹与该令牌的指纹一致。只看「标记文件在不在」不够：运营完全可能把它换成
-        自己的（或删掉重放一份），此时标记还在而密钥是运营的 —— 指纹对不上就不会被误删。读不到就当
-        「不是我们的」：宁可留下没用的文件，也不删掉可能是运营预置的恢复手段。
         """
         fingerprint = self._fingerprint_on_disk()
         return bool(fingerprint) and fingerprint == token_fingerprint(token)
@@ -195,9 +149,6 @@ class SetupGuard:
 
     def ensure_token(self) -> str:
         """确定本次初始化窗口的引导密钥；必要时生成并落盘。
-
-        优先环境变量（运营自己指定，跨重启稳定）；其次读回既有文件（初始化窗口被
-        中断后重启时不该换密钥，否则运营手上那份就作废了）；最后才生成新的。
         """
         if self._configured:
             self._token = self._configured
@@ -212,8 +163,6 @@ class SetupGuard:
             if len(existing) >= MIN_TOKEN_LENGTH:
                 self._token = existing
                 # 「是不是我们生成的」由标记文件里的指纹决定，而不是由「文件存在」
-                # 决定：运营预置的那份一旦被当成自己生成的，初始化成功后就会被
-                # consume() 删掉。
                 self._generated = self._is_ours(existing)
                 return self._token
 
@@ -234,21 +183,14 @@ class SetupGuard:
 
     def consume(self) -> None:
         """初始化成功后作废引导密钥，并清空限流计数。
-
-        只删**自动生成**的那份文件；``STORE_SETUP_TOKEN`` 由部署方持有、运营预置的
-        文件是部署方留给自己的恢复手段，两者本类都不越权处理（端点本身在初始化完成
-        后也会关闭，环境变量那份无法再被使用）。判据是标记文件里的指纹：
-        「读回文件」曾把它当成自己生成的，于是初始化一成功就删掉了运营预置的那份。
         """
         if self._generated:
             try:
                 self.path.unlink(missing_ok=True)
                 # 标记最后删：万一删密钥文件失败，标记还留着，下次启动的 discard_file
-                # 便仍认得出这枚残留在盘上的死凭证是我们自己写的。
                 self.marker_path.unlink(missing_ok=True)
             except OSError:
                 # 删不掉不该让「已经初始化成功」变成失败：端点的 initialized 闸门
-                # 已经关上了，这份文件最多是一枚死凭证。
                 logger.warning("初始化完成，但未能删除引导密钥文件 %s，请手动检查", self.path)
         self._token = ""
         self._generated = False
@@ -256,11 +198,6 @@ class SetupGuard:
 
     def discard_file(self) -> None:
         """删除**本商店自动生成**的残留密钥文件。
-
-        调用点是「实例已经初始化」，此时盘上的 ``setup-token`` 有两种可能：上一次未
-        完成窗口留下的自动生成文件，或运营**预置**的恢复手段。前者的内容照样能通过
-        :meth:`authorize` 的比对，该删；后者是运营放在这里让实例读的一份副本，删掉等于
-        把运营准备好的后路掐断。以标记文件里的指纹为准：对得上才删。
         """
         try:
             if not self.path.is_file():
@@ -277,9 +214,6 @@ class SetupGuard:
 
     def has_setup_privilege(self, request: Request, setup_token: str = "") -> bool:
         """本次请求是否有资格初始化（只判断，不抛错、不消耗限流配额）。
-        判据与 :meth:`authorize` 完全一致：本机直连，或带了正确的引导密钥。刻意共用这一份实现而不是
-        各写一套 —— 两套判据一旦漂移，结果就是「状态页说可以初始化，真点下去却 403」；``/setup/status``
-        用它决定能不能如实回答尚未初始化。
         """
         if is_direct_local(request):
             return True
@@ -323,9 +257,6 @@ class SetupGuard:
 
 def announce_setup_window(guard: SetupGuard) -> None:
     """把「实例尚未初始化」这件事连同引导密钥打印到启动日志。
-
-    走 stderr：容器日志会收，且不依赖全局日志是否已经被写坏。密钥本身只出现在这里
-    与 0600 的文件里，不进全局日志正文。
     """
     guard.ensure_token()
     location = "STORE_SETUP_TOKEN" if guard.source == "env" else str(guard.path)

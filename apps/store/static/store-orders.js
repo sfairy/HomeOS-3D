@@ -1,13 +1,10 @@
 /**
  * 商店前台的订单与支付流程：下单确认、支付面板、待支付提示、轮询与取消/归档。
- *
- * 从 store.js 拆出来：那一份只留页面编排与账号/授权区，这一份是「一笔订单从下单到落定」的全过程。
- * 共享状态与请求原语在 store-shared.js。
  */
 
-import { loadAccount } from "./store.js?v=2609271208";
-import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271208";
-import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271208";
+import { loadAccount } from "./store.js?v=2609271226";
+import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271226";
+import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271226";
 
 export function showPayment(order) {
   if (!order.payment?.qrCode) { toast('该订单暂无可用付款二维码。'); return; }
@@ -17,7 +14,6 @@ export function showPayment(order) {
   dialog.classList.remove('is-closed');
   $('#payment-product').textContent = order.productName;
   $('#payment-price').textContent = moneyAmount(order.amountCents);
-  // 付款说明由渠道下发（支付宝与本地模拟收银台文案不同），一直存在 payment.note 里但界面从未渲染，写死「支付宝」在 mock 模式下是错的。
   $('#payment-hint').textContent = order.payment.note
     || `打开${order.payment.displayName || '支付宝'}「扫一扫」完成付款，付款后本页会自动确认。`;
   $('#payment-order').textContent = order.orderNo;
@@ -45,8 +41,6 @@ export function showPayment(order) {
 export function showPendingOrderNotice(order) {
   state.pendingOrder = order;
   $('#pending-order-product').textContent = order.productName;
-  // 金额和订单号以前不显示：金额要跟商品对得上，订单号是找客服时唯一能定位的
-  // 凭证。两者都在这张弹窗里补齐，用户不用先跳到账号中心抄单号。
   $('#pending-order-price').textContent = moneyAmount(order.amountCents);
   $('#pending-order-no').textContent = order.orderNo;
   const dialog = $('#pending-order-dialog');
@@ -96,7 +90,6 @@ export function confirmAction({
   detailNode.textContent = detail;
   detailNode.hidden = !detail;
 
-  // 老 WebView 没有 showModal 时的兜底：用 open 手动挂出并打上 is-fallback 交给 CSS 居中；不用 window.confirm 兜底。
   const modal = typeof dialog.showModal === 'function';
   if (modal) dialog.showModal();
   else {
@@ -125,7 +118,6 @@ export function confirmAction({
   });
 }
 
-// （否则二维码还能继续扫付），再归还库存预留与优惠码名额；各写一份迟早分叉。
 export async function cancelPendingOrderFrom(button, order) {
   if (!order) return;
   const ok = await confirmAction({
@@ -149,7 +141,6 @@ export async function cancelPendingOrderFrom(button, order) {
     toast('订单已取消，库存和优惠码已释放。');
   } catch (error) {
     // 409 的两种来源（订单已被支付/已被超时关闭、关单时发现钱已付）都意味着
-    // 这笔单不再归用户处置：提示服务端原文，并把界面状态刷新到最新。
     toast(error.message || '取消失败，请刷新后重试。');
   }
   stopPaymentTimers();
@@ -187,8 +178,6 @@ export async function pollOrder(orderNo, token) {
     }
     if (['expired', 'payment_failed', 'cancelled'].includes(order.status)) {
       stopPaymentTimers();
-      // 订单作废后二维码没用了（渠道侧交易随后关单），压暗避免反复扫；但不关闭弹窗：订单号要留给
-      // 用户报客服，且「钱刚好卡在到期点到账」时后端会认回这笔单（reconcile._confirm_paid_after_close）。
       $('#payment-dialog').classList.add('is-closed');
       if (order.status === 'expired') toast('订单已超时关闭，库存和优惠码已释放。');
     }

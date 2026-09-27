@@ -1,16 +1,9 @@
 /**
  * 楼层堆叠总览（exploded view）：把多个楼层在同一画面里按层竖向错开叠加显示，便于一眼看完整栋布置。
- *
- * 实现思路：不改场景与几何，而是给每个楼层克隆一台相机、把「屏幕平移」直接乘进它的投影矩阵，
- * 再接管 renderer.render / renderBufferDirect 按对象所属楼层换相机。
- * 坐标：世界坐标、单位米；layout.gap 为层间视觉间隔（米），layout.amount 为错位倍率。
- * 副作用：控制器替换 renderer 上的两个方法，dispose 时必须调用以还原。
  */
 
 /**
  * 从节点向上回溯，找出它所属的楼层 id。
- * 场景里不同子系统用了不同字段记录楼层（普通物件、区域光、环境特效、灯光缓存），
- * 这里按优先级依次尝试，任一命中即返回。
  */
 function overviewFloorId(node) {
   for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
@@ -28,8 +21,6 @@ function overviewFloorId(node) {
 
 /**
  * 构造「把世界沿 Y 轴下移 stackedHeight，再整体在屏幕上平移」的投影矩阵。
- * three.js 渲染时会再乘一次 matrixWorldInverse，要得到「原投影 × 下移」的效果，矩阵末尾必须补一个
- * camera.matrixWorld；屏幕平移放在最左侧，故它是裁剪空间下的位移，与物体离相机的远近无关。
  */
 function stackProjection(
   THREE,
@@ -63,7 +54,6 @@ export function createOverviewStack({
   // 每个楼层一份 {camera, reflection, height}；相机是克隆出来的，投影矩阵被单独改写。
   const stackByFloorId = new Map();
   // 堆叠期间需要临时关掉视锥剔除（投影被改过，three.js 的剔除判定会出错），
-  // 这里记录每个节点的原值以便精确还原。
   const savedFrustumCulled = new Map();
   let stackedLayerCamera = null;
   let lastLayoutSignature = "";
@@ -149,7 +139,6 @@ export function createOverviewStack({
       }
     }
     // 堆叠中心取「平面中心 + 包围盒高度的一半」；顶面中心再上移半个堆叠总高，
-    // 用来估算整叠内容在屏幕上的纵向跨度。
     const stackCenter = new three.Vector3(layout.center[0], maxBoundHeight / 2, layout.center[2]);
     const topCenter = stackCenter.clone();
     topCenter.y += (sortedFloors.at(-1).elevation - sortedFloors[0].elevation) / 2;
@@ -162,13 +151,11 @@ export function createOverviewStack({
       projectionElements[11] * scratchViewPosition.z +
       projectionElements[15];
     // 投影矩阵的 [5] 是纵向缩放；两者相除把「世界米」换算成「裁剪空间单位」，
-    // 于是层间距在屏幕上看起来与相机远近无关，始终保持一致。
     const verticalScale = projectionElements[5] / Math.max(Math.abs(projectedDepth), 0.001);
     const activeFloorIds = new Set();
     for (const [floorIndex, floorEntry] of sortedFloors.entries()) {
       activeFloorIds.add(floorEntry.id);
       let stackRecord = stackByFloorId.get(floorEntry.id);
-      // 相机类型变了（透视 ↔ 正交）必须重建克隆，否则投影矩阵结构不匹配。
       if (!stackRecord || stackRecord.camera.type !== renderCamera.type) {
         stackRecord = {
           camera: renderCamera.clone(false),
@@ -186,7 +173,6 @@ export function createOverviewStack({
         0,
         stackRecord.camera.projectionMatrix
       );
-      // 改过投影矩阵后必须同步更新它的逆矩阵，否则射线拾取会算错。
       stackRecord.camera.projectionMatrixInverse.copy(stackRecord.camera.projectionMatrix).invert();
       // 镜像相机：直接把世界位置抬高该层堆叠高度，用于地面反射的取景。
       stackRecord.reflection.copy(renderCamera, false);
@@ -213,7 +199,6 @@ export function createOverviewStack({
       );
       layerRecord.camera.projectionMatrixInverse.copy(layerRecord.camera.projectionMatrix).invert();
     }
-    // 已被删除的楼层要把克隆相机一起清掉，否则 Map 会一直增长。
     for (const staleFloorId of stackByFloorId.keys()) {
       if (!activeFloorIds.has(staleFloorId)) {
         stackByFloorId.delete(staleFloorId);
@@ -258,7 +243,6 @@ export function createOverviewStack({
             syncFloorCameras(layerCamera);
             scene.traverse(childNode => {
               // 属于某个楼层的可见对象一律关掉剔除：它们的投影被整体平移过，
-              // 用原视锥判断会把「实际仍在画面里」的层误剔除掉。
               if (
                 (!!childNode.isMesh ||
                   !!childNode.isLine ||
@@ -284,7 +268,6 @@ export function createOverviewStack({
     try {
       return originalRender.call(this, renderScene, layerCamera, ...renderRest);
     } finally {
-      // 用 finally 保证渲染抛错时也能把钩子与状态还原，避免污染后续调用。
       stackedLayerCamera = previousLayerCamera;
       if (isStackedLayer) {
         if (scene.onBeforeRender === stackedOnBeforeRender) {
@@ -303,7 +286,6 @@ export function createOverviewStack({
     group
   ) {
     // 阴影 / 深度通道可能传入已释放或缺失的材质，three.js 会去读
-    // properties.get(material).state 而崩溃，这里先拦掉。
     if (!material || !geometry) {
       return;
     }
@@ -337,7 +319,6 @@ export function createOverviewStack({
         return ray;
       }
       // 层相机的投影矩阵被平移过，setFromCamera 无法直接使用；
-      // 这里手动在裁剪空间的 z = -1（近）与 z = 1（远）各取一点反投影，得到射线。
       const nearPoint = new three.Vector3(pointer.x, pointer.y, -1).unproject(targetCamera);
       const rayDirection = new three.Vector3(pointer.x, pointer.y, 1)
         .unproject(targetCamera)
@@ -365,7 +346,6 @@ export function createOverviewStack({
         return point;
       } else {
         // 先在层相机下投影，再用主相机反投影：把「内容生成时的位置」换算成
-        // 它在当前堆叠画面里的实际屏幕位置。
         return point.project(floorCamera).unproject(referenceCamera);
       }
     },

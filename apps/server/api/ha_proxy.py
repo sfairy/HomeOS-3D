@@ -1,12 +1,4 @@
 """Home Assistant 媒体与摄像头的反向代理。
-
-浏览器不能直接访问 HA（Token 只在服务端，HA 常在私网），因此把 camera_proxy /
-camera_proxy_stream / image_proxy / media_player_proxy / hls 几类路径中转到 HA：
-注入服务端 Bearer Token，剥掉浏览器凭据与转发头，只放行这些前缀并拒绝路径绕过。
-
-每条路径都必须给出属于当前主体的实体归属 —— 代理会注入 HA 令牌，没有这道校验时，
-绑在项目 A 的中控只要写下项目 B 的实体 ID 就能拉到别人的摄像头画面。
-快照走带 TTL 的进程内缓存；媒体流是长连接，流式分支超时设为 None（不主动掐断）。
 """
 from __future__ import annotations
 
@@ -39,7 +31,6 @@ from .media_proxy_support import (
 
 router = APIRouter(include_in_schema=False)
 # 转发给 HA 前要剥掉的请求头：逐跳头、浏览器凭据（cookie / authorization）与
-# 外层反代的来源信息。不剥这些会把自己的部署拓扑透给 HA，也可能让 HA 误判请求来源。
 REQUEST_HEADERS_TO_DROP = {
     'te',
     'via',
@@ -61,8 +52,6 @@ REQUEST_HEADERS_TO_DROP = {
     'transfer-encoding',
     'proxy-authorization',
 }
-# 回传浏览器前要剥掉的响应头：hop-by-hop 头，以及 content-length / content-encoding —
-# 这里会改写响应体（流式透传或本地缓存命中），长度与编码必须由本服务重新决定。
 RESPONSE_HEADERS_TO_DROP = {
     'connection',
     'set-cookie',
@@ -74,7 +63,6 @@ RESPONSE_HEADERS_TO_DROP = {
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
 
 #: 五条通配媒体前缀里「第一段路径就是实体 ID」的四条。
-#: ``/api/hls/`` 不在其中：HA 把 HLS 地址给成 ``/api/hls/<流令牌>/...``，令牌里没有实体信息。
 ENTITY_PATH_MEDIA_PREFIXES = (
     '/api/camera_proxy/',
     '/api/camera_proxy_stream/',
@@ -117,9 +105,6 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
 
 def media_proxy_entity_id(path: str) -> str | None:
     """从「路径里带实体」的媒体前缀取出实体 ID；不是那四条前缀时返回 None。
-
-    路径形态是 ``<前缀>/<实体 ID>[/...]``，实体 ID 由前端 ``encodeURIComponent`` 编码，
-    因此要解码一次再比对 —— 否则 ``camera.%78`` 这类写法会绕过校验。
     """
     for prefix in ENTITY_PATH_MEDIA_PREFIXES:
         if path.startswith(prefix):
@@ -133,9 +118,6 @@ def media_proxy_entity_id(path: str) -> str | None:
 
 def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, entity_id: str) -> None:
     """在独立会话里做一次实体归属校验；不可见时由 require_viewer_entity 抛 403。
-
-    独立会话是必需的：校验跑在 ``asyncio.to_thread`` 的线程里，而请求级会话绑定在
-    事件循环所在线程，跨线程使用会踩 SQLAlchemy 的会话线程约束。
     """
     with database_manager.session_factory() as database:
         require_viewer_entity(database, viewer, entity_id)
@@ -145,9 +127,6 @@ async def require_media_proxy_scope(
     request: Request, viewer: LicensedViewer
 ) -> None:
     """媒体代理的归属门禁：请求路径必须能定位到一个当前主体可见的实体。
-
-    只有「已认证 + 允许 api」不够：实体 ID 是可读名字，绑在项目 A 的中控只要写下项目 B
-    的实体就能拉到别人的画面（跨项目 IDOR）。做成路由级依赖，新路由漏掉它一眼能看出来。
     """
     path = request.url.path
     if not allowed_media_proxy_path(path):
@@ -157,7 +136,6 @@ async def require_media_proxy_scope(
     entity_id = media_proxy_entity_id(path)
     if entity_id is None:
         # HLS 分支：令牌查不到归属就拒绝（fail closed）。令牌只可能由本服务的
-        # /api/camera_hls 在实体校验后记账，查不到即不是本服务发的；前端会回落到 MJPEG。
         token = hls_stream_token(path)
         scope = caches.hls_scope(token)
         entity_id = caches.hls_entity_id(path) if scope is not None else None
@@ -166,7 +144,6 @@ async def require_media_proxy_scope(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='这段媒体流不属于当前中控仪表盘。',
             )
-        # 管理员不受限（project_id 为 None），中控则在一个短窗口内复用上次结论，避免每分片查库。
         project_key = viewer.project_id or ''
         if (
             project_key
@@ -196,9 +173,6 @@ async def require_media_proxy_scope(
 
 def versioned_image_proxy_cache_control(path: str, query: str, status_code: int) -> str | None:
     """为「带版本参数」的 HA 图片给出可长期缓存的 Cache-Control。
-
-    只对 /api/image_proxy/ 的 2xx 生效：带 hb 参数说明内容变化会反映在 URL 上，
-    因此可标记为 immutable 缓存 10 分钟；其余资源返回 None，不被浏览器缓存住。
     """
     if path.startswith('/api/image_proxy/') and 200 <= status_code < 300:
         # hb 是前端给「实体状态图」打的版本戳，值为空等同于没有版本信息，不能长缓存。
@@ -222,9 +196,6 @@ def load_authorized_camera_connection(
     database_manager: Database, viewer: ViewerPrincipal, entity_id: str
 ):
     """取摄像头实体所属的活跃连接，同时校验该实体在当前主体可见范围内。
-
-    不可见的实体由 require_viewer_entity 直接抛 403；没有活跃连接返回 None，
-    由调用方转成 409。
     """
     with database_manager.session_factory() as database:
         require_viewer_entity(database, viewer, entity_id)
@@ -236,9 +207,6 @@ def load_authorized_camera_connection(
 
 async def proxy_http(request: Request) -> Response:
     """媒体代理的核心实现：与身份无关的通用转发。
-
-    门禁：只允许 GET / HEAD 且路径命中白名单；未配置 HA 抛 409，凭证解密失败或回源失败
-    抛 502。查询串原样带给 HA，返回上游响应（流式或一次性），必要时改写缓存与 Location 头。
     """
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         # 路径不合规统一回 404 而不是 403：不向扫描者暴露哪些前缀存在。
@@ -301,10 +269,8 @@ async def proxy_http(request: Request) -> Response:
     try:
         upstream_request = client.build_request(request.method, target, headers=headers)
         # 必须始终以流式方式取回上游：stream=False 会让 httpx 先把整包读完，
-        # 之后 aiter_raw() 直接抛 StreamConsumed，而整包内存并未省下。
         upstream = await client.send(upstream_request, stream=True)
     except httpx.HTTPError as error:
-        # 失败路径同样要关掉客户端，否则连接池会随失败次数泄漏。
         await client.aclose()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -319,7 +285,6 @@ async def proxy_http(request: Request) -> Response:
     cache_control = versioned_image_proxy_cache_control(
         request.url.path, request.url.query, upstream.status_code
     )
-    # 带版本参数的图片覆写成长缓存，其余保持 HA 原本的策略。
     if cache_control:
         response_headers['cache-control'] = cache_control
     if 'location' in response_headers:
@@ -330,8 +295,6 @@ async def proxy_http(request: Request) -> Response:
     if stream_response:
         async def stream_body():
             """把上游字节流原样转发给客户端。
-
-            用 aiter_raw() 而不是 aiter_bytes()：这里只做管道不做解码，避免压缩响应被再解压一次。
             """
             try:
                 async for chunk in upstream.aiter_raw():
@@ -348,14 +311,7 @@ async def proxy_http(request: Request) -> Response:
 
     async def pass_through_body():
         """非流式分支：同样逐块透传，只在「够小且要缓存」时攒一份副本。
-
-        不能写 ``upstream.content``（上游给多大就占多大内存）；只有快照请求才攒，
-        超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 就丢弃已攒部分并停止累积。
-
-        必须用 ``aiter_bytes()`` 而不是 ``aiter_raw()``：响应头里会删掉
-        ``content-encoding``（见 RESPONSE_HEADERS_TO_DROP），因此这里发出的字节必须是**已解码**的。
         HA 即使在 ``accept-encoding: identity`` 下也会 gzip HLS 播放列表，用 ``aiter_raw()``
-        会把裸 gzip 当成明文下发 —— hls.js 解不开清单，直接报 manifestParsingError。
         """
         buffered = bytearray()
         cacheable = snapshot_request
@@ -366,7 +322,6 @@ async def proxy_http(request: Request) -> Response:
                 if cacheable:
                     buffered.extend(chunk)
                     if len(buffered) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
-                        # 超限就放弃缓存：清掉已攒的，避免「大图照样钉在内存里」。
                         cacheable = False
                         buffered = bytearray()
                 yield chunk
@@ -374,7 +329,6 @@ async def proxy_http(request: Request) -> Response:
             await upstream.aclose()
             await client.aclose()
         # 走到这里说明上游已经读完（提前关闭时不会执行到这里，半截内容绝不能进缓存）。
-        # 回源成功就顺手更新缓存，下一次请求直接命中。
         if cacheable and buffered and 200 <= upstream.status_code < 300:
             caches.remember_snapshot(
                 snapshot_key,
@@ -392,9 +346,6 @@ async def camera_hls_stream(
     entity_id: str, request: Request, viewer: LicensedViewer
 ) -> JSONResponse:
     """为摄像头换取 HLS 播放地址（需已认证且授权允许 api）。
-
-    路径参数 entity_id 必须是当前主体可见的实体，否则 403。返回 ``{'url': ...}``，或
-    ``{'url': None, 'fallback': 'mjpeg'}``（不支持时回落 MJPEG）。409 未配置 HA；502 启动流失败。
     """
     connection = await asyncio.to_thread(
         load_authorized_camera_connection, request.app.state.database, viewer, entity_id
@@ -448,8 +399,6 @@ async def camera_hls_stream(
     # 记账归属：HLS 令牌里没有实体信息，片段请求的校验只能靠这里记下的「令牌 → 实体」。
     request.app.state.media_proxy.remember_hls_stream(stream_url, entity_id)
     # 登记保温：go2rtc 在没人消费时约 10 秒就回收整条管道，下一次播放要为「连摄像头 +
-    # 起转码 + 生成初始分片」重新买单（实测首个清单 9.2 秒）。登记后由保温池持续消费，
-    # 后续每次打开（含刷新、切页、离开一会儿再回来）拿到的都是那条活流，挂上即播。
     request.app.state.camera_warmer.want(entity_id)
     return JSONResponse({'url': stream_url})
 
@@ -465,8 +414,5 @@ async def proxy_home_assistant_media(
     _scope: None = Depends(require_media_proxy_scope),
 ) -> Response:
     """五条媒体路径共用的代理入口（需已认证、授权允许 api、且实体对当前主体可见）。
-
-    路由用通配路径覆盖 HA 的几种媒体前缀，具体的白名单判定在 proxy_http 里做；
-    认证与授权由 _viewer 依赖完成，实体归属由 _scope 依赖完成，本函数只负责转发。
     """
     return await proxy_http(request)

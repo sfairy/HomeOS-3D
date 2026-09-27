@@ -1,14 +1,5 @@
 /*
  * 物件构建器：高柜
- *
- * 这些构建体原先都在 studio-app.js 的 buildItemModel 里，是一条 5700 行的 if/else 链；
- * 现在按物件类别分文件，每个函数收一个 context：
- *   - 类型词表（LIGHT_ITEM_TYPES 等）直接 import ../studio-item-types.js；
- *   - 本次调用的入参与度量、以及 studio-app.js 私有的网格构造 / 收尾工具，全部从 context 取，
- *     函数顶部只解构自己用到的名字 —— 于是每个构建体的外部依赖是可数的。
- *
- * 玻璃柜与书柜。两者的构建体各接近 380 行（隔板、玻璃门、灯带与书本），单独成文件，
- * 免得把储物那一份撑成第二个巨石。
  */
 /**
  * 命中：itemSpec.type === "glasscabinet"
@@ -307,8 +298,6 @@ export function buildGlasscabinetItem(context) {
     furnitureLightColor
   ];
   /**
-   * 在一格书柜里立起一排书（书脊朝外，宽高各自微扰）。书宽按列宽的 72% 扣掉间隙后均分；逐本从 5 种厚度系数与 5 种高度系数里按
-   * bookSeed 错位取值，保证相邻两格的书不会长得一模一样。
    * @param {number} bookSeed 随机种子，用于错开宽高组合。
    */
   const addBookRow = (bookColumnIndex, bookShelfIndex, bookCount = 5, bookSeed = 0) => {
@@ -345,10 +334,6 @@ export function buildGlasscabinetItem(context) {
       bookCursorX += bookThickness + bookGap;
     }
   };
-  /**
-   * 在一格里平叠一摞书（书页朝外、横向铺开）。stackColumnIndex / stackShelfIndex 指定列与层，stackCount 为叠放本数（默认 3），
-   * stackSeed 用于错开取色。
-   */
   const addBookStack = (stackColumnIndex, stackShelfIndex, stackCount = 3, stackSeed = 0) => {
     const stackColumnWidth = glassCabinetInnerWidth * glassCabinetColumnRatios[stackColumnIndex];
     const stackCenterX =
@@ -414,16 +399,6 @@ export function buildGlasscabinetItem(context) {
 
 /**
  * 命中：itemSpec.type === "bookcase"
- *
- * 与 `tools/models/model-specs.mjs` 的 bookcase **逐件同构**：落地踢脚 + 双侧板 + 中竖板（分左右两列）
- * + 下柜底板 + 四层层板 + 背板 + 顶板 + 下柜双门与竖条拉手，格口里两列摆满书、最上层右格留给摆件。
- *
- * 为什么连「书的排布」都要跟着对：占位只活到 GLB 落地那一帧。如果占位是几块空板、成品是满架书，
- * 加载完成的一瞬间整件会从空架子涨出一堆书 —— 那一下比占位本身粗糙得多。这里只求**看起来等价**：
- * 书脊宽度 / 高度按固定比值错落、整排占格口 86%、尾巴两本斜靠、旁边一摞平放，全部用同一组常量推。
- * 精确到毫米的排布归规格一份，不必在运行侧再写一遍（两份真值必然走散）。
- *
- * y 一律给**底面**高度（与规格同语义）。挂墙件把挂高烘进几何的那一处例外见 `buildWallcabinetItem`。
  */
 export function buildBookcaseItem(context) {
   const {
@@ -500,8 +475,6 @@ export function buildBookcaseItem(context) {
     metalness: 0.015
   });
   // ── 格口里的书 ──
-  // 与规格 `bookcaseShelfContents` 同一张表：每格地板 = 层板底面 + 板厚 − 4mm（书底咬进层板，
-  // 免得书底与层板面严格贴合），净高打 88 折；左右两列的取色序不同，两柜书才不会撞成一排同色。
   const BOOK_DEPTH_BY_ROW = [0.13, 0.153, 0.176];
   const bookcaseBookPalettes = [
     [furnitureLightColor, 0xa9563f, furnitureSoftColor, 0xcbb289],

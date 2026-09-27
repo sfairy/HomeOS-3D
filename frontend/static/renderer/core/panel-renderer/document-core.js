@@ -1,16 +1,8 @@
 /*
  * 区块一：文档生命周期与组件渲染。
- *
- * 「文档进来 → 建 DOM → 登记运行期索引 → 增量刷新 → 拆卸」这条主链在这里，
- * 也是 PanelRenderer 的对外语义所在（setDocument / render / refreshRuntimeComponent）。
- *
- * 与运行期有关的部分（WebSocket 连接、订阅、乐观更新、历史曲线拉取）在 runtime-bridge.js；
- * 选中与变换手势在 selection-transform.js；弹窗外壳在 runtime-dialogs.js。
  */
 
 // registry.js 是控件注册表的唯一出处，本文件只消费不注册。
-// 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
-// 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
 import {
   prewarmCameraMedia,
   renderAirConditionerAirflowLayer,
@@ -18,15 +10,13 @@ import {
   renderRegisteredComponent,
   setBuiltinAssetVersions,
   staticAssetImageSource
-} from "../registry.js?v=2609271208";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
-// （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
+} from "../registry.js?v=2609271226";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271226";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "../device-profiles.js?v=2609271208";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271208";
+} from "../device-profiles.js?v=2609271226";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271226";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -35,20 +25,17 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../../geometry/effect-geometry.js?v=2609271208";
-import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271208";
-import { isSupportedComponentAction } from "./primitives.js?v=2609271208";
+} from "../../geometry/effect-geometry.js?v=2609271226";
+import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271226";
+import { isSupportedComponentAction } from "./primitives.js?v=2609271226";
 
 export const documentCoreMethods = {
   /**
    * 装载一份仪表盘文档并渲染出指定页面。
-   * 会重置所有与上一份文档绑定的运行期状态（订阅生成号、历史曲线、待开弹窗等），
-   * 等同于换实例，调用方不必先 destroy。
    */
   setDocument(documentData, pagePath = null) {
     this.destroyed = false;
     // 只有编辑态才做宿主复用：3D 舞台要重建 WebGL 上下文，楼层平面图要重跑预览，
-    // 换文档/换页时把它们原样搬过来，能避免明显的白屏与闪烁。
     const retainedInteraction3dHosts = this.options.editable
       ? new Map(
           [...this.componentHosts].filter(
@@ -63,7 +50,6 @@ export const documentCoreMethods = {
       : null;
     const previousReplacingDocument = this.replacingDocument;
     // 用一个布尔标记整段换文档过程：期间会触发 resize / 状态推送等异步回调，
-    // 它们据此跳过「半旧半新」状态的渲染。
     this.replacingDocument = true;
     try {
       window.clearTimeout(this.historyRetryTimer);
@@ -89,7 +75,6 @@ export const documentCoreMethods = {
       this.historyPopupGeneration += 1;
       this.removedRuntimeEntityIds.clear();
       // 编辑态深拷贝一份：编辑器会就地改这份文档并频繁预览，直接改后端下发的对象
-      // 会让「取消」无法回退；展示页只读，深拷贝纯属浪费。
       this.document = this.options.editable ? structuredClone(documentData) : documentData;
       this.vacuumMapEntityIds = new Set(
         collectComponents(
@@ -102,8 +87,6 @@ export const documentCoreMethods = {
           .map(vacuumMapRecord => String(vacuumMapRecord.bindings?.entity?.entityId || ""))
           .filter(entityIdString => entityIdString.startsWith("image."))
       );
-      // 页面回退顺序：指定页 → 文档默认页 → 第一页。
-      // 后端删页或改了 defaultPagePath 时，宁可显示第一页也不要空屏。
       const matchedPage = this.document.pages.find(explicitPage => explicitPage.path === pagePath);
       const defaultPageRecord = this.document.pages.find(
         fallbackPage => fallbackPage.path === this.document.defaultPagePath
@@ -134,8 +117,6 @@ export const documentCoreMethods = {
   },
   /**
    * 用最新的资产版本戳刷新内置素材（图标、图片等）。
-   * 版本戳是资源地址的一部分（`?v=`），变化后必须重渲染并重预载，否则浏览器继续用旧缓存；
-   * 无新增版本时不重绘，避免每次心跳都整页刷新。
    */
   refreshBuiltinAssets(assetVersionEntries = []) {
     const assetVersionResult = setBuiltinAssetVersions(assetVersionEntries);
@@ -147,7 +128,6 @@ export const documentCoreMethods = {
   },
   /**
    * 把文档里用到的静态图片交给图片缓存分层预载。
-   * 整份文档的图片作低优先级预热、当前页优先加载：跨页上百张图同优先级抢带宽会拖慢首屏。
    */
   preloadStaticImages() {
     if (!this.document || !this.page) {
@@ -155,8 +135,6 @@ export const documentCoreMethods = {
     }
     /**
      * 从组件树中挑出「图片组件」并解析成静态资源地址，供后续分层预载。
-     *
-     * 只保留 type === "image" 且已绑定 assetId 的组件；未绑定资源的项会被过滤掉。
      */
     const collectAssetImageSources = components =>
       collectComponents(
@@ -187,8 +165,6 @@ export const documentCoreMethods = {
   },
   /**
    * 注入实体目录、翻译表与设备目录，随后整体重渲染并重新订阅。
-   * 目录是设备画像与实体可读名的来源，缺失时控件只能降级，因此到达后必须重画一次；
-   * 并补开先前因缺目录而挂起的详情弹窗（tryOpenPendingEntityDetails）。
    */
   setEntityCatalog(entityRecords = [], translationTable = {}, deviceRecords = []) {
     this.entityMetadata = new Map(
@@ -213,8 +189,6 @@ export const documentCoreMethods = {
   },
   /**
    * 取实体所属设备的画像（型号、角色、能力等，见 device-profiles.js）。
-   *
-   * 目录未注入时返回空值，调用方需按「画像缺失」走降级分支。
    */
   deviceProfile(entityIdInput) {
     return resolveXiaomiDeviceProfile(
@@ -226,7 +200,6 @@ export const documentCoreMethods = {
   },
   /**
    * 把实体 ID 归一成字符串。
-   * 绑定里可能缺字段（undefined / null），直接当 Map 键会各自成键导致状态查表失效。
    */
   runtimeEntityId(rawEntityId) {
     return String(rawEntityId || "");
@@ -258,12 +231,8 @@ export const documentCoreMethods = {
       timer: null
     };
     // 目录类挂起用轮询重试（目录到达时间不可预期），状态类挂起只等状态推送，
-    // 因此两条路径的超时与重试策略完全不同。
     const isCatalogDeferred = deferReason === "catalog" || deferReason === "electric-bed-catalog";
     if (isCatalogDeferred) {
-      /**
-       * 目录类挂起的轮询重试：目录或设备画像就绪后立刻重开详情，否则 260ms 后再试。
-       */
       const retryPendingDetails = () => {
         if (this.pendingEntityDetails !== pendingDetails) {
           return;
@@ -306,7 +275,6 @@ export const documentCoreMethods = {
         }
       },
       // 目录可能因网络慢而迟到，给 10s；热水器状态是本机推送，3s 不到就基本没戏，
-      // 超时后提示用户重试，避免弹窗一直悬着。
       isCatalogDeferred ? 10000 : 3000
     );
     this.pendingEntityDetails = pendingDetails;
@@ -341,8 +309,6 @@ export const documentCoreMethods = {
   },
   /**
    * 判断热水器详情所需的状态数据是否已就绪。
-   * 要画温度区间（HA 字段 temperature / min_temp / max_temp），缺一或区间非法就无法画刻度，
-   * 此时先不开详情，由调用方挂起等待。
    */
   waterHeaterDetailsReady(waterHeaterEntityId) {
     if (!this.entityCatalogReady) {
@@ -363,8 +329,6 @@ export const documentCoreMethods = {
   },
   /**
    * 建立（或复用）画布与视口，并渲染当前页的全部组件。
-   * retainedHostMap 是刻意保留的宿主（3D 舞台、楼层平面图预览）：内部持有 WebGL 上下文
-   * 或运行期实例，重建代价极高，换文档 / 换页时直接搬原 DOM 节点继续用。
    */
   render(retainedHostMap = null) {
     const canReuseHosts =
@@ -418,8 +382,6 @@ export const documentCoreMethods = {
   },
   /**
    * 渲染当前页的全部组件（含本页引用的共享组件）。
-   *
-   * 共享组件按 ID 建索引后再按页面引用列表取用，避免每渲染一个引用就去数组里线性查找。
    */
   renderComponents(retainHosts = false, carriedOverHosts = null) {
     if (!this.canvas || !this.page) {
@@ -484,8 +446,6 @@ export const documentCoreMethods = {
       : new Map();
     /**
      * 判断缓存的 3D 舞台宿主能否继续复用。
-     *
-     * sceneId 或 lightingMode 任一变化都意味着换场景了，必须重建舞台，否则会串场景。
      */
     const interaction3dMatchesRetained = (retainedComponentRecord, candidateComponentRecord) =>
       candidateComponentRecord?.type === "interaction3d" &&
@@ -636,8 +596,6 @@ export const documentCoreMethods = {
   },
   /**
    * 渲染单个组件：创建或复用宿主元素，再交给注册表里对应的渲染函数画内容。
-   * 宿主复用只对 camera / vacuum-map / floorplan-auto-diagram / interaction3d / group 开放：
-   * 这几类内部持有媒体流、WebGL 上下文或子组件树，重建代价高且会闪。
    */
   renderComponent(
     renderedComponent,
@@ -647,7 +605,6 @@ export const documentCoreMethods = {
     existingEffectLayerMap = null
   ) {
     // 先把图标按钮（效果）组件的属性归一化：老版本文档缺的默认值在此补齐，
-    // 后续渲染分支才能按同一套字段判断。
     const normalizedComponent = normalizeIconButtonEffectComponent(renderedComponent);
     const renderPowerComponent = this.runtimePowerComponent(normalizedComponent);
     // 允许复用的类型白名单，与 refreshEditorComponent 里的判断保持一致。
@@ -696,7 +653,6 @@ export const documentCoreMethods = {
       });
       retainedHostElement.style.setProperty("--hb-component-z", String(zIndex));
       // 隐藏用 hidden 而不是 display: none：hidden 不改变布局树外的层叠位置，
-      // 再次显示时不必重新计算周围元素的位置。
       retainedHostElement.hidden = renderedComponent.style?.visible === false;
       retainedHostElement.classList.toggle("layout-fill", isRetainedFillLayout);
       if (renderedComponent.type === "interaction3d") {
@@ -904,8 +860,6 @@ export const documentCoreMethods = {
         activeEffectLayer.hidden = renderedComponent.style?.visible === false;
         /**
          * 计算并写入图标按钮效果层的位置与尺寸。
-         * 图片自然尺寸未知时先隐藏图层（pendingNaturalSize），等 load 后由调用方再调一次，
-         * 避免用错误尺寸闪一帧；嵌套在分组内时还要换算回父组件局部坐标并反向抵消父层缩放旋转。
          */
         const applyEffectLayerLayout = () => {
           const sourceDimensions = effectSourceDimensions(
@@ -1102,11 +1056,6 @@ export const documentCoreMethods = {
     componentElement.append(contentElement);
     if (renderedComponent.type === "line-chart") {
       let lineChartElement = contentElement;
-      /**
-       * 历史曲线整块重渲染：重跑一次控件渲染函数并替换旧节点。
-       * 只在历史数据加载中（history-loading）整块重建，其余走增量刷新；替换前先解绑旧节点的
-       * 悬停监听（cleanupLineChartHover），否则旧实例会泄漏。
-       */
       const refreshLineChart = () => {
         if (!lineChartElement?.isConnected) {
           return;
@@ -1220,8 +1169,6 @@ export const documentCoreMethods = {
   },
   /**
    * 重绘单个组件（状态推送与编辑器属性回写都走这里）。
-   * 宿主已从 DOM 摘掉时跳过：拖拽重排、删除控件的瞬间仍可能收到状态推送，
-   * 此时重建会把已删除的控件又贴回页面。
    */
   refreshRuntimeComponent(runtimeComponentId) {
     const refreshedComponent = this.componentRecords.get(runtimeComponentId);
@@ -1360,11 +1307,8 @@ export const documentCoreMethods = {
   },
   /**
    * 在编辑态下就地刷新单个组件（改属性后不整页重绘）。
-   * 3D 舞台与组必须整体重建；楼层平面图仅在「预览层有无」变化时改样式与文案，避免重跑生成；
-   * 其余控件拆掉重建并记下原兄弟节点插回原位 —— DOM 顺序即层叠顺序，错位会突变遮挡关系。
    */
   refreshEditorComponent(editorComponentId) {
-    // 展示页没有属性面板，走不到这条路径；提前挡掉可以避免误改运行期状态。
     if (!this.options.editable) {
       return false;
     }
@@ -1377,8 +1321,6 @@ export const documentCoreMethods = {
     if (!editorHostParent) {
       return false;
     }
-    // 共享组件画在页面组件之下（zIndex 基数压到最低），否则它一旦盖住页面组件，
-    // 在多页共用的情形下会连带影响所有页面。
     const hostZIndex =
       editorHostParent === this.canvas &&
       (this.page.sharedComponentIds || []).includes(editorComponent.id)
@@ -1437,7 +1379,6 @@ export const documentCoreMethods = {
             ")"
         });
         // 除了 zIndex 还写一份 CSS 变量：部分子层（气流层、效果层）需要按父级层叠值
-        // 计算自己的相对层级，只给内联 zIndex 它们取不到。
         editorHostElement.style.setProperty("--hb-component-z", String(resolvedZIndex));
         editorHostElement.classList.toggle("layout-fill", isFillLayout);
         const diagramHintElement = editorHostElement.querySelector(
@@ -1458,7 +1399,6 @@ export const documentCoreMethods = {
     }
     const hostNextSibling = editorHostElement.nextSibling;
     // 重建前先跑清理回调：媒体流、订阅、定时器都挂在组件上，
-    // 不清理就重建会留下仍在运行的旧实例。
     this.cleanupRenderedComponent(editorComponentId);
     for (const removedCameraCleanup of this.cameraCleanups.get(editorComponentId)?.splice(0) ||
       []) {
@@ -1472,7 +1412,6 @@ export const documentCoreMethods = {
     editorHostElement.remove();
     this.renderComponent(editorComponent, editorHostParent, hostZIndex);
     // 重建后插回原位置：DOM 顺序决定同 zIndex 下的绘制顺序，
-    // 直接 append 会让组件跳到同级最后，视觉上层级改变。
     const refreshedHostElement = this.componentHosts.get(editorComponentId);
     if (refreshedHostElement && hostNextSibling?.parentElement === editorHostParent) {
       editorHostParent.insertBefore(refreshedHostElement, hostNextSibling);
@@ -1482,8 +1421,6 @@ export const documentCoreMethods = {
   },
   /**
    * 按实体 ID 批量刷新受影响的组件（状态推送的入口）。
-   * 开关类控件走 updateOptimisticToggleVisuals（要兼顾乐观态与过渡态），其余逐个重绘；
-   * line-chart / camera / vacuum-map 另有更重的刷新通道，这里跳过以免同帧重复加载。
    */
   refreshRuntimeComponents(entityIds) {
     const affectedComponentIds = new Set();
@@ -1498,7 +1435,6 @@ export const documentCoreMethods = {
       return;
     }
     // 这份类型名单必须与 updateOptimisticToggleVisuals 内部支持的类型保持一致，
-    // 漏一个就会出现「乐观态写了但界面不更新」。
     const optimisticToggleTypes = new Set([
       "icon-button-effect",
       "icon-button",
@@ -1527,8 +1463,6 @@ export const documentCoreMethods = {
   },
   /**
    * 把编辑器提交的组件更新并入文档并局部刷新（不整页重绘）。
-   * 前置校验很严：任一组件已不存在、宿主已摘除或类型被改就整体放弃并返回 false，
-   * 由调用方退化为整页重渲染 —— 类型变了可视件结构完全不同，局部替换会留下残留 DOM。
    */
   applyEditorComponentUpdates(updatedDocument, currentPagePath, componentUpdates = []) {
     if (!this.options.editable || !this.document || !Array.isArray(componentUpdates)) {
@@ -1560,8 +1494,6 @@ export const documentCoreMethods = {
         previousEntityIds.add(updateEntityId);
       }
     }
-    // 先换文档再改记录：页面回退逻辑（指定页 → 默认页 → 第一页）依赖新文档，
-    // 顺序颠倒会拿旧页面的组件列表去查找。
     this.document = updatedDocument;
     this.page =
       this.document.pages?.find(matchingPage => matchingPage.path === currentPagePath) ||
@@ -1578,7 +1510,6 @@ export const documentCoreMethods = {
         delete patchComponentRecord[existingPropertyKey];
       }
       // 先删旧键再整体赋值，而不是简单合并：属性被用户删掉时，合并会把旧值留下，
-      // 表现为「删了的样式还在」。
       Object.assign(patchComponentRecord, structuredClone(updatedComponentBody));
       if (updatedChildren) {
         patchComponentRecord.children = updatedChildren.map(childComponentRecord =>
@@ -1626,8 +1557,6 @@ export const documentCoreMethods = {
   },
   /**
    * 拆掉组件的运行期资源（订阅、定时器、媒体流等）。
-   *
-   * 复用的宿主元素会跳过清理，否则「保留 3D 舞台」的优化会在清理阶段被抵消。
    */
   cleanupComponents(removeAllCleanups = false, keptComponentIds = new Set()) {
     if (
@@ -1655,8 +1584,6 @@ export const documentCoreMethods = {
   },
   /**
    * 为组件登记一个清理回调，组件被移除或重渲染时执行。
-   *
-   * 同一个组件可以登记多个回调（例如同时持有定时器与媒体流），因此按 ID 存数组。
    */
   registerComponentCleanup(registeredComponentId, registeredCleanup) {
     if (!!registeredComponentId && typeof registeredCleanup == "function") {
@@ -1668,8 +1595,6 @@ export const documentCoreMethods = {
   },
   /**
    * 执行并清空某个组件的全部清理回调。
-   *
-   * 先 delete 再从数组里核销，保证回调里若又调回本函数不会重复执行。
    */
   cleanupRenderedComponent(renderedComponentId) {
     const componentCleanupCallbacks = this.componentCleanups.get(renderedComponentId) || [];
@@ -1692,8 +1617,6 @@ export const documentCoreMethods = {
   },
   /**
    * 收集单个组件（不含子组件）绑定到的全部实体 ID。
-   * 刻意清空 children：实体索引按组件逐个建立、子组件各自登记，递归会把父组件错误关联到
-   * 子组件的实体上，刷新时连坐重绘。
    */
   runtimeEntityIdsForComponent(indexedRuntimeComponent) {
     const runtimeEntityIdSet = collectEntityIds([
@@ -1736,7 +1659,6 @@ export const documentCoreMethods = {
   },
   /**
    * 把组件从实体索引中摘除，并顺手清掉空集合。
-   * 残留的空 Set 会让每次状态推送多遍历一批无意义实体键，长跑后开销累积。
    */
   unindexRuntimeComponent(unindexedComponentId) {
     for (const [indexedEntityId, indexedComponentIds] of this.runtimeEntityComponentIndex) {
@@ -1748,8 +1670,6 @@ export const documentCoreMethods = {
   },
   /**
    * 从宿主元素里挑出「控件内容」子节点（排除包裹层、命中区、选中框等装饰节点）。
-   *
-   * 重绘时只需要替换内容节点，命中区与选中框由渲染层自己管理，误删会让交互失效。
    */
   runtimeComponentContent(componentHostElement) {
     return (
@@ -1764,8 +1684,6 @@ export const documentCoreMethods = {
   },
   /**
    * 按容器尺寸重算画布缩放，并同步弹窗缩放与选中手柄。
-   * 由 ResizeObserver、窗口 resize、旋屏共同触发，必须幂等且轻量；容器尺寸为 0 时直接
-   * 返回，否则会把缩放算成 0、整页控件消失。
    */
   resize() {
     if (!this.viewport || !this.document) {
@@ -1793,8 +1711,6 @@ export const documentCoreMethods = {
       4
     );
     // 先读后写：先把全部手柄外框矩形一次读齐（整个 resize 只解析一次布局）再逐个套用；
-    // 写成「逐个写→读」的话，后一个宿主读取前已被前一个的写入弄脏，每个宿主都强制一次
-    // 同步重排 —— 组件多的页面在手机上滚动就是每帧 N 次重排。
     const transformHandleTargets = [];
     for (const [hostRecordId, componentHost] of this.componentHosts) {
       const componentRecord = this.componentRecords.get(hostRecordId);
@@ -1827,8 +1743,6 @@ export const documentCoreMethods = {
   },
   /**
    * 把 resize 合并到下一帧：同一帧里的多次触发只跑一遍。
-   * `visualViewport` 的 resize 在手机上每帧都来（滚动时地址栏收起、双指缩放），ResizeObserver 也可能连着 投递，而每步 resize 都要把全部手柄宿主量一遍再写一遍，不合并就是一帧跑好几遍。注意只合并**事件**入口：
-   * `resize()` 本身仍是同步的，渲染完一页之后那次调用（要立刻拿到缩放值）不受影响。
    */
   scheduleResize() {
     if (this.resizeFrameId) {
@@ -1841,8 +1755,6 @@ export const documentCoreMethods = {
   },
   /**
    * 销毁渲染器：断开订阅、移除监听、释放全部运行期资源。
-   *
-   * 销毁后实例不可再用。文档代数与弹窗代数一并递增，让所有在途请求的结果作废。
    */
   destroy() {
     this.destroyed = true;

@@ -1,23 +1,16 @@
 /**
  * 订单面板。
- *
- * 订单列表与逐行动作（标记支付、履约、退款、取消、删除、复核）；状态词表由服务端下发。
- *
- * 订单列表与逐行动作。状态词表由服务端下发（服务端是权威），这里只做展示映射与缓存。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271208";
-import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271208";
-import { api } from "../api.js?v=2609271208";
-import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271208";
-import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271208";
-import { askConfirm } from "../dialogs.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271226";
+import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271226";
+import { api } from "../api.js?v=2609271226";
+import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271226";
+import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271226";
+import { askConfirm } from "../dialogs.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
-// apps/store/commerce/order_status.py）。手写这两样的代价是静默的：动作数组漏掉
-// fulfillment_failed / partially_refunded，于是概览待办让运营「去订单里重试履约或退款」，
-// 点进筛选列表却一排操作按钮都没有；筛选下拉漏掉 partially_refunded，跳转退化成全部。
 let orderStatusMetaPromise = null;
 
 // 选项是否已按词表填过：只填一次，之后刷新列表不重建 DOM（重建会丢掉当前选中项）。
@@ -57,8 +50,6 @@ function orderStatusMeta() {
 // --------------------------------------------------------------------------- //
 export async function loadOrders() {
   // 词表先到位：下面要用它填筛选下拉并给按钮做门禁，缺了它会渲染出一排没有操作的订单。
-  // 词表与列表两张请求都在这里收口：刷新按钮、筛选框与分页器都直接调这个 loader，
-  // 失败时没人接那个 Promise，会在控制台留一条 Uncaught (in promise)。
   let orderStatus;
   let data;
   try {
@@ -80,29 +71,16 @@ export async function loadOrders() {
   }
   $('#order-rows').innerHTML = data.items.length ? data.items.map(order => {
     // 与后端 admin.py 的 _FULFILLABLE_STATUSES 一致：只有仍持有库存预留、未进终态的
-    // 订单显示「标记支付 / 履约」。终态订单放行会凭空发码并重复扣预留造成超卖
-    // （后端已一并返回 409，这里只是不让按钮误导人）。
-    // 三组门禁一律取服务端集合（`order_status.py`）：手写数组与后端漂移过一次 ——
-    // fulfillment_failed（自动发货炸了，等人工重试）与 partially_refunded（还能退第二次）
-    // 都在服务端集合里，却都不在界面的数组里，于是「该出现的按钮」一个都没有。
-    // 「标记支付」多一条 ``!order.paidAt``：它是给「钱还没记上」的订单补记（不计营收），
-    // 已付过的订单只有「履约」这一个有意义的动作。
     const canMarkPaid = orderStatus.fulfillable.includes(order.status) && !order.paidAt;
     const canFulfill = orderStatus.fulfillable.includes(order.status);
     const canRefund = orderStatus.refundable.includes(order.status);
     const canCancel = order.status === 'pending';
     // 「标记已处理」只在订单确实挂着待复核时出现（needsReview 由后端返回），
-    // 且未支付的单谈不上「已处理」。清标记刻意不自动发生：复活单的价值就在于
-    // 让人看见「这单超卖过」，必须由人确认。
     const canReview = Boolean(order.needsReview) && order.status !== 'pending';
     // 删除守卫与后端 admin_delete_order 逐条对齐：终态 + 没发过码（licenseId）+
-    // 没改过别人的授权（targetLicenseModified）+ 渠道交易已关单（channelPayable）。
-    // **不能**用 targetLicenseId 判：增量包/升级单下单时就写上它，用它这类垃圾单永远删不掉。
     const terminalOrder = ['cancelled', 'expired'].includes(order.status);
     const untouchedLicense = !order.licenseId && !order.targetLicenseModified;
     const canDelete = terminalOrder && untouchedLicense && !order.channelPayable;
-    // 只因「渠道那笔交易还没确认关闭」而删不了时，把原因写在菜单里。直接藏掉入口
-    // 会让「操作」列变成空白 —— 运营只能靠猜，这比一句说明糟糕得多。
     const deleteHeldByChannel = terminalOrder && untouchedLicense && order.channelPayable;
     const primaryPaid = canMarkPaid;
     const primary = primaryPaid
@@ -111,7 +89,6 @@ export async function loadOrders() {
         ? `<button class="hb-button hb-button--secondary hb-button--sm" data-order-fulfill="${esc(order.orderNo)}">履约</button>`
         : '';
     // 人工补记的标记：这类订单的「已支付」是人写的、钱还没确认收到，因此
-    // **不计入营收**。必须在列表上看得见，否则运营会拿订单数去对营收，越对越糊涂。
     const manualBadge = order.manualSettlement
       ? ' <span class="hb-meta-chip hb-meta-chip--warning" title="人工补记：钱未经渠道确认，不计入营收">人工补记</span>'
       : '';
@@ -130,7 +107,6 @@ export async function loadOrders() {
           canFulfill && primaryPaid
             ? menuItem('履约', `data-order-fulfill="${esc(order.orderNo)}"`) : '',
           // 人工补记（不计营收）与线下收款入账（计营收）分成两个入口：一个布尔参数
-          // 藏在请求体里的话，「这一下算不算营收」就没人看得见。
           primaryPaid
             ? menuItem('线下收款入账', `data-order-offline-settle="${esc(order.orderNo)}"`) : '',
           canRefund
@@ -182,8 +158,6 @@ $('#order-rows').addEventListener('click', async (event) => {
   }
 
   if (orderReview) {
-    // 刻意不自动清除待复核：复活单的价值就在于让人看见「这单超卖过」，
-    // 必须由人确认（哪怕结论是「无需处理」）。所以这里是与其它动作一致的确认框。
     const ok = await askConfirm({
       title: '标记复核完成',
       message: `确认订单 ${orderNo} 的待复核事项已处理？`,
@@ -238,8 +212,6 @@ $('#order-rows').addEventListener('click', async (event) => {
   let offlineRefund = false;
   if (action === 'mark-paid') {
     // 这个按钮**只**放行订单，不认钱。「客户催单先给码」「赠送/补偿」都走它，
-    // 所以它必须明确说出「不计营收」—— 用户以为在记账、系统却没记，比按钮点不动
-    // 危险得多。钱真收到了就用 ⋯ 里的「线下收款入账」。
     const ok = await askConfirm({
       title: '标记支付',
       message: `确认订单 ${orderNo} 已支付并放行？`,
@@ -253,8 +225,6 @@ $('#order-rows').addEventListener('click', async (event) => {
   }
   if (action === 'refund') {
     // 人工标记支付的订单在渠道侧没有交易，服务端按**线下退款**记账；必须把话说全，
-    // 否则运营以为「系统会去退钱」，点完就把订单记成已退款、用户却没收到钱。
-    // 渠道名由订单行上的 data-order-provider 带过来（列表渲染时就写进了 DOM）。
     const provider = String(orderProvider || '').toLowerCase();
     offlineRefund = !['', 'mock', 'alipay'].includes(provider);
     const ok = await askConfirm({

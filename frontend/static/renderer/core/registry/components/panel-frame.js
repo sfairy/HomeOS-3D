@@ -1,20 +1,17 @@
 /**
  * `panel-frame` 控件：面板框与标题条。
  */
-// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
-// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
-// （见 `utils/numbers.js` 模块头那张口径表）。
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=2609271208";
+} from "../../../../utils/numbers.js?v=2609271226";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271208";
+import { registerComponent } from "../registry-core.js?v=2609271226";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   resolveColor
-} from "../registry-visuals.js?v=2609271208";
+} from "../registry-visuals.js?v=2609271226";
 
 // 面板框控件：纯装饰性外框（描边 + 光晕），内部内容由子组件承载。
 registerComponent("panel-frame", {
@@ -197,7 +194,6 @@ registerComponent("panel-frame", {
           -100,
           200,
           // 兜底是「主文本上移一个行距」的推导值，行距大 / 面板矮时会低于下限 -100 ——
-          // 兜底现在原样返回，所以在调用点先夹一次，行为与统一前逐字相同。
           clampNumber(
             panelTextTop -
               (clampCoercedNumber(panelFrameProperties.lineGap, 0, 500, 24) /

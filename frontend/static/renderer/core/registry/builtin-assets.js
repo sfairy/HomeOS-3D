@@ -1,14 +1,10 @@
 /**
  * 内置资源的三个索引与 URL 解析：版本戳（`?v=`）、显式 URL、特效裁剪变体。
- *
- * 「认不出的资源一律返回空串」是刻意约定：调用方据此渲染占位，而不是发出必然 404 的请求。
  */
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271226";
 
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=2609271208
-// 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 
 const assetUrlByAssetId = new Map();
@@ -17,7 +13,6 @@ export const effectVariantByAssetId = new Map();
 
 /**
  * 用后端下发的资源清单刷新内置资源的版本与 URL 索引。
- * 返回 false 表示清单未变，调用方据此避免每次轮询都全量重绘；旧 ID 别名与原 ID 写入同一份索引。
  */
 export function setBuiltinAssetVersions(assetEntries = []) {
   const nextVersionByAssetId = new Map();
@@ -58,7 +53,6 @@ export function setBuiltinAssetVersions(assetEntries = []) {
         variantCropY + variantCropHeight <= variantOriginalHeight
       ) {
         // 特效变体只接受服务端 /api/v1/assets/effect-variant 且裁剪矩形完全落在原图内的记录，
-        // 任一项越界就整条丢弃——错误的裁剪会让特效图糊成一片空白。
         nextEffectVariantByAssetId.set(String(assetIdCandidate), {
           url: String(effectVariant.url),
           originalWidth: variantOriginalWidth,
@@ -105,10 +99,6 @@ export function setBuiltinAssetVersions(assetEntries = []) {
   return true;
 }
 
-/**
- * 把资源引用解析成可访问 URL，按匹配顺序支持资源 ID 索引、studio3d:、user:、builtin: 四类前缀。
- * 认不出的一律返回空串，由调用方渲染占位而不是发出必然 404 的请求。
- */
 export function resolveAssetUrl(assetReference) {
   const assetReferenceText = String(assetReference || "");
   if (assetUrlByAssetId.has(assetReferenceText)) {
@@ -116,7 +106,6 @@ export function resolveAssetUrl(assetReference) {
   }
   if (assetReferenceText.startsWith("studio3d:")) {
     // 前缀 "studio3d:" 共 9 个字符，切片后必须是恰好两段，且两段都非空——
-    // 多一层少一层都说明引用已损坏，直接判为空。
     const studioExportSegments = assetReferenceText.slice(9).split("/");
     if (studioExportSegments.length !== 2 || !studioExportSegments[0] || !studioExportSegments[1]) {
       return "";
@@ -143,8 +132,6 @@ export function resolveAssetUrl(assetReference) {
   }
     // 前缀 "builtin:" 共 8 个字符。
   const builtinAssetPath = assetReferenceText.slice(8);
-    // v1/2D 与 v1/3D 是历史路径，对应的资源目录已改名为「户型图示例」，
-    // 这里做一次映射，让老文档里的引用仍然能用。
   const encodedBuiltinAssetPath = (
     builtinAssetPath.startsWith("v1/2D/") || builtinAssetPath.startsWith("v1/3D/")
       ? builtinAssetPath.replace(/^v1\//, "v1/户型图示例/")
@@ -174,7 +161,6 @@ export function staticAssetImageSource(imageAssetId) {
 
 /**
  * 生成扫地机实时地图图片地址：走 HA 的 image_proxy。
- * hb 查询参数充当缓存键（updatedAt / lastChanged / state，都取不到用 initial），值变浏览器才重新取图。
  */
 export function vacuumMapImageSource(vacuumImageEntityId, vacuumImageState = null) {
   const vacuumImageResolvedState = resolveStateEntry(vacuumImageState) || {};

@@ -1,21 +1,16 @@
 /**
  * 3D 弹窗的布局预览：编辑弹窗（通用 / 摄像头）时，不打开真实弹窗也让用户看到弹窗会出现在哪里、
- * 多大、缩放多少。两级预览：createPopupLayoutPreview 是编辑面板里的示意方块，
- * createFocusDevicePopup 用真实 PanelRenderer 渲染一份不可交互的缩微副本。
- *
- * 与渲染器的约定：布局计算统一委托给 popup-placement.js（面板在视口内的落位）与
- * camera-popup-layout.js（摄像头弹窗的固定版式），这里只补默认值，避免 2D 弹窗与 3D 预览出现两套算法。
  */
 
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现，与其它运行侧模块同一座桥。
-import { createDomFactory } from "./static-helpers.js?v=2609271208";
+import { createDomFactory } from "./static-helpers.js?v=2609271226";
 // 复用渲染器的弹窗落位与摄像头版式算法；开发环境走相对路径，生产环境走静态路径。
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/popup-placement.js", import.meta.url))
-  : import("/static/bridge/popup-placement.js?v=2609271208"));
+  : import("/static/bridge/popup-placement.js?v=2609271226"));
 const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/camera-popup-layout.js", import.meta.url))
-  : import("/static/bridge/camera-popup-layout.js?v=2609271208"));
+  : import("/static/bridge/camera-popup-layout.js?v=2609271226"));
 /**
  * 计算弹窗预览的落位与缩放。
  */
@@ -25,10 +20,8 @@ function popupPreviewPlacement(kind, width, height, settings) {
   const panelWidth = cameraLayout?.panelWidth || 360;
   const panelHeight = cameraLayout?.panelHeight || 232;
   // 默认上边距：摄像头弹窗由版式给定；通用弹窗按视口高度的 56% 再上移 400（弹窗视觉重心偏上），
-  // 同时保证不超出视口底部（height - 812 对应弹窗展开后的最大高度），最小留 12px。
   const defaultTop = cameraLayout?.top ?? Math.max(12, Math.min(height * 0.56 - 400, height - 812));
   // 缩放：摄像头弹窗固定 2 倍（版式按 2 倍设计），通用弹窗按「不超出左右各 16px 边距、
-  // 不超出下方预留 100px」适配，并夹在 0.5–2 之间，避免极端窗口下缩到看不清或放到溢出。
   const defaultScale = cameraLayout
     ? 2
     : Math.min(
@@ -55,11 +48,9 @@ function popupPreviewPlacement(kind, width, height, settings) {
  */
 export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
   // 工厂按宿主的 ownerDocument 创建节点：嵌在 iframe 里也落在正确的文档中。
-  // 实现见 /static/shared/dom-factory.js（经 static-helpers 桥取用）。
   const { el: createElement } = createDomFactory(hostElement.ownerDocument || document);
   const layerElement = createElement("div", "i3d-popup-preview-layer");
   const previewElement = createElement("section", "i3d-popup-preview");
-  // aria-label 通过属性设置而不是 innerHTML，避免把无障碍文案与结构耦合。
   previewElement.setAttribute("aria-label", "弹窗布局预览");
   const headingElement = createElement("header", "i3d-popup-preview-heading");
   const headingTextElement = createElement("strong", "", "");
@@ -94,7 +85,6 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
       currentSettings
     );
     // 逻辑坐标 → 实际像素：编辑器会把逻辑画布等比缩放到宿主元素里，
-    // 预览块必须乘同一个比例才能与真实弹窗对齐；宽高比例分开算，避免非等比缩放下错位。
     const scaleX = hostElement.clientWidth / logicalWidth;
     const scaleY = hostElement.clientHeight / logicalHeight;
     Object.assign(previewElement.style, {
@@ -121,7 +111,6 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
           bodyElement.append(createElement("div", "i3d-popup-preview-video", "16:9 画面示例"));
         } else {
           // 通用弹窗用「窗帘控制」当示例：它是典型的名称 + 滑轨 + 操作按钮结构。
-          // 操作按钮里的空白是全角空格（\u3000），用来模拟按钮之间的间距。
           bodyElement.append(
             createElement("p", "i3d-popup-preview-name", "窗帘控制示例"),
             createElement("div", "i3d-popup-preview-track"),
@@ -148,8 +137,6 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
 }
 /**
  * 创建「聚焦编辑」用的真实弹窗预览。
- * 与示意预览不同，这里直接实例化渲染器的 PanelRenderer，渲染与线上完全一致的弹窗，
- * 只是整块设为 inert（不可交互）并隐藏，仅作为编辑时的视觉参照。
  */
 export function createFocusDevicePopup(
   popupHostElement,
@@ -170,7 +157,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/core/renderer.css?v=2609271208";
+  stylesheetLink.href = "/static/renderer/core/renderer.css?v=2609271226";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -184,10 +171,9 @@ export function createFocusDevicePopup(
   const resizePreview = () => panelHandle?.updateLayout?.();
   return {
     // ready 是异步的：PanelRenderer 需要先动态加载渲染器模块。
-    // 加载完成后若已被销毁（用户在加载期间就退出了编辑），直接放弃初始化。
     ready: (import.meta.url.startsWith("file:")
       ? import(new URL("../../../static/renderer/core/renderer.js", import.meta.url))
-      : import("/static/renderer/core/renderer.js?v=2609271208")
+      : import("/static/renderer/core/renderer.js?v=2609271226")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;
@@ -204,7 +190,6 @@ export function createFocusDevicePopup(
         popupOpacity: getSettings()?.opacity ?? 74
       };
       // 预览用不着真实实体；没有绑定实体时造一个虚拟实体 ID，
-      // 让渲染器走完正常的分支而不必为「预览」加特例。
       const previewItem = {
         ...item,
         entityId: item.entityId || popupKind + ".layout_preview"
@@ -232,7 +217,6 @@ export function createFocusDevicePopup(
           close: () => renderer.detailsDialog?.close()
         };
       } else {
-        // 通用弹窗与扫地机详情走同一个渲染器入口（接口名沿用历史命名，实际是通用详情弹窗）。
         panelHandle = renderer.openInteraction3dVacuumDetails(previewItem, () => {}, {
           ...interaction3dOptions,
           states: getStates()

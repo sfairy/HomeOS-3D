@@ -1,29 +1,22 @@
 /**
  * 「配置安防 / 人物与行走路线」编辑对话框，是 presence 的配置入口：三栏布局（绑定列表 /
- * SVG 平面图 + 3D 预览 / 人物方案、颜色、速度、大小、触发方式等属性控件）。
- *
- * manageBindings=true 从安防设置进入（可增删绑定、改触发方式），false 从人物与路线面板进入（只调路线与外观）。
- * 路线点存楼层平面图坐标（像素，当量由 plan.pixelsPerMeter 决定），3D 侧由 presence-scene.js 换算；
- * 编辑结果写进 draftProperties.security.presenceSensors 经 onSave 交回，routeClosed 编辑期间用
- * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
- * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609271208";
-import { mountInteraction3d } from "../core/runtime.js?v=2609271208";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=2609271226";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271226";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=2609271208";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271208";
-import { capturePointer } from "../core/static-helpers.js?v=2609271208";
+} from "./presence-motion.js?v=2609271226";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271226";
+import { capturePointer } from "../core/static-helpers.js?v=2609271226";
 import {
   createDomFactory,
   randomUuid,
   toSvgPoint as bridgedToSvgPoint
-} from "../core/static-helpers-editor.js?v=2609271208";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609271208";
+} from "../core/static-helpers-editor.js?v=2609271226";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609271226";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -52,8 +45,6 @@ export async function openPresenceEditor({
   for (const sensor of sensorBindings) {
     // displayPages 固定 all（人物在所有页面都显示），与后端字段兼容。
     sensor.displayPages = "all";
-    // 补齐历史数据缺失的字段默认值：老配置可能没有 character/color 等，
-    // 这里统一成与新建绑定一致的默认值，避免后续处处判空。
     Object.assign(sensor, {
       character: sensor.character ?? "traveler",
       color: sensor.color ?? "cyan",
@@ -67,8 +58,6 @@ export async function openPresenceEditor({
         : (sensor.displayDuration ?? 0)
     });
   }
-  // 元素 / SVG / 按钮的唯一实现见 /static/shared/dom-factory.js。本文件的调用点沿用「文本在前、
-  // 类名在后」的历史参数顺序，故只在工厂外面留一层一行的适配，不把顺序散到各调用点去改。
   const { el, svg, button } = createDomFactory(editorDocument);
   const createElement = (tagName, initialText, classNames) => el(tagName, classNames, initialText);
   const createSvgElement = (svgTagName, attributes) => svg(svgTagName, attributes);
@@ -76,7 +65,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609271208";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=2609271226";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
@@ -89,7 +78,6 @@ export async function openPresenceEditor({
     null;
   let isClosed = false;
   // 「用户意图上的闭合集合」：路线还没画完 / 正在拖动时，实际几何可能暂时不合法，
-  // 因此不能直接读 routeClosed，而是把意图记在 Set 里，落盘时再与合法性求交。
   let closedRouteSensorIds = new Set(
     sensorBindings
       .filter(
@@ -107,7 +95,6 @@ export async function openPresenceEditor({
       // routeClosed 只在两者同时成立时为 true：用户点了闭合，且几何确实能构成闭合路线。
       routeClosed: closedRouteSensorIds.has(sensorItem.id) && validPresenceRoute(sensorItem.route)
     }));
-  // 保存时的对比基准：脏判定与「保存后又改回来」都靠它，所以必须在任何编辑前取好。
   let savedPresenceSignature = serializeEditorDraft(presencePersistState());
   let draggedPoint = null;
   // 平面图画布的取景框（平面坐标系下的矩形），fitPlanBox 计算、renderRoutePlan 用。
@@ -126,7 +113,6 @@ export async function openPresenceEditor({
   let isHitRangeVisible = false;
   let topViewTimer = 0;
   let hoverPoint = null;
-  // 正在编辑中的控件提交函数：保存或重建面板前必须逐个 flush，否则最后一笔输入会丢。
   let fieldCollectors = [];
   let isDirty = false;
   /**
@@ -153,7 +139,6 @@ export async function openPresenceEditor({
       editorRuntime?.();
       editorDocument.removeEventListener("visibilitychange", handleVisibilityChange);
       // 角色预览是独立的 WebGL 上下文，必须显式 dispose + forceContextLoss，
-      // 否则反复开关编辑器会耗尽浏览器的 WebGL 上下文配额。
       if (characterPreview) {
         disposeWalker(characterPreview.root);
         characterPreview.renderer.dispose();
@@ -164,7 +149,6 @@ export async function openPresenceEditor({
       styleLinkElement.remove();
       // 通知宿主：这块预览已收起，其它 3D 预览可以恢复渲染。
       editorDocument.dispatchEvent(new Event("hb-i3d-preview-scope"));
-      // 焦点还回去，避免键盘用户在弹窗关闭后"失去光标"。
       previouslyFocusedElement?.focus?.();
       onClose?.();
     }
@@ -183,7 +167,6 @@ export async function openPresenceEditor({
           closedRouteSensorIds.has(sensorItem.id) && validPresenceRoute(sensorItem.route);
       }
       // 幂等短路：提交字段后签名可能与基准一致（例如用户改了又改回来），
-      // 此时不该弹出保存提示，只需要把按钮置灰。
       isDirty = serializeEditorDraft(presencePersistState()) !== savedPresenceSignature;
       if (!isDirty) {
         saveButtonElement.disabled = true;
@@ -217,7 +200,6 @@ export async function openPresenceEditor({
    * 重算脏标记并更新保存按钮与提示文案。
    */
   const markPresenceDirty = dirtyMessage => {
-    // 先提交在编辑中的字段，否则「刚输入但未失焦」的改动会被判成"没改"。
     flushFieldCollectors();
     isDirty = serializeEditorDraft(presencePersistState()) !== savedPresenceSignature;
     saveButtonElement.disabled = !isDirty;
@@ -271,7 +253,6 @@ export async function openPresenceEditor({
   const routeToolsElement = createElement("div", "", "presence-route-tools");
   routeToolsElement.append(
     createButton("闭合路线", () => {
-      // 闭合需要合法路线（≥3 点且不共线），否则多边形会退化成一条线。
       if (selectedSensor && validPresenceRoute(selectedSensor.route)) {
         closedRouteSensorIds.add(selectedSensor.id);
         markPresenceDirty();
@@ -299,7 +280,6 @@ export async function openPresenceEditor({
         closedRouteSensorIds.delete(selectedSensor.id);
         hoverPoint = null;
         draggedPoint = null;
-        // 清空后路线不合法，行走预览必须停下，否则 3D 侧会沿空路径报错。
         isWalkPreviewRunning = false;
         walkPreviewButton.textContent = "预览行走";
         markPresenceDirty("路径已清空，请重新绘制。");
@@ -320,7 +300,6 @@ export async function openPresenceEditor({
     // 平面视图下才显示 SVG 与路线工具；3D 视图靠 WebGL 预览，无需 SVG 覆盖。
     routeSvgElement.toggleAttribute("hidden", nextViewMode !== "plan");
     routeToolsElement.hidden = nextViewMode !== "plan";
-    // 切视图会丢弃进行中的拖动 / 悬停，避免回到平面视图时残留幽灵点。
     draggedPoint = null;
     hoverPoint = null;
     planViewButton.setAttribute("aria-pressed", String(nextViewMode === "plan"));
@@ -340,7 +319,6 @@ export async function openPresenceEditor({
   planViewButton.setAttribute("aria-pressed", "true");
   threeDViewButton.setAttribute("aria-pressed", "false");
   const walkPreviewButton = createButton("预览行走", () => {
-    // 行走预览要求路线闭合且合法，否则角色只能在一条折线上来回走。
     if (
       !selectedSensor ||
       !closedRouteSensorIds.has(selectedSensor.id) ||
@@ -360,7 +338,6 @@ export async function openPresenceEditor({
   });
   viewModeGroupElement.append(planViewButton, threeDViewButton);
   viewToolsElement.append(viewModeGroupElement, walkPreviewButton);
-  // 顺序敏感：runtimeElement 先入 DOM，routeSvgElement 叠在其上（同为 absolute 定位）。
   viewportElement.append(runtimeElement, routeSvgElement);
   planPanelElement.append(
     planTitleElement,
@@ -371,7 +348,6 @@ export async function openPresenceEditor({
   );
   bodyElement.append(bindingsPanelElement, planPanelElement, controlsPanelElement);
   dialogElement.append(headerElement, bodyElement);
-  // 等样式表加载完成再挂载对话框：否则首帧会闪一下无样式的表单。
   await new Promise((resolveStyleLoad, rejectStyleLoad) => {
     styleLinkElement.addEventListener("load", resolveStyleLoad, {
       once: true
@@ -385,7 +361,6 @@ export async function openPresenceEditor({
     );
     editorDocument.head.append(styleLinkElement);
   }).catch(styleLoadError => {
-    // 样式加载失败时把 link 摘掉，避免残留一个半加载的样式表影响下次打开。
     styleLinkElement.remove();
     throw styleLoadError;
   });
@@ -400,9 +375,6 @@ export async function openPresenceEditor({
       statusElement.textContent = loadError.message || String(loadError);
     }
   }
-  /**
-   * 取当前应当显示的楼层：选中绑定的楼层优先，否则回退到初始楼层 / 草稿楼层 / 首层。
-   */
   function currentFloor() {
     if (selectedSensor) {
       return floors.find(floorMatch => floorMatch.id === selectedSensor.floorId);
@@ -417,8 +389,6 @@ export async function openPresenceEditor({
   }
   /**
    * 延时切到正交顶视图（用于平面视图）。
-   * 30ms 延迟是为了合并连续调用：拖动窗户尺寸、连续 resize 时避免每帧都发命令；
-   * 回调里重新判断条件，因为定时器触发时用户可能已经切走视图。
    */
   function scheduleTopView() {
     clearTimeout(topViewTimer);
@@ -439,7 +409,6 @@ export async function openPresenceEditor({
   }
   /**
    * 把当前草稿同步给 3D 预览（未挂载则先挂载）：预览用裁剪过的副本而不是原始草稿 ——
-   * 只保留当前楼层的相机与传感器、关掉调暗/降饱和与自动旋转、只保留选中的那一条路线。
    */
   function syncPreview() {
     const previewFloorId = currentFloor()?.id;
@@ -512,8 +481,6 @@ export async function openPresenceEditor({
   }
   /**
    * 计算平面图的取景框 planBox（平面坐标系，单位是平面图像素）。
-   * 取景范围 = 墙体端点 ∪ 路线点，两边各留 10% 边距（pixelMargin），路线贴墙时圆点不会被裁掉；
-   * 没有数据时按 pixelsPerMeter 给一块默认视口。
    */
   function fitPlanBox() {
     const activeFloor = currentFloor();
@@ -527,7 +494,6 @@ export async function openPresenceEditor({
     const pixelsPerMeter = activeFloor?.plan?.pixelsPerMeter || 100;
     const minX = planPoints.length ? Math.min(...xCoordinates) : 0;
     const minY = planPoints.length ? Math.min(...yCoordinates) : 0;
-    // 下界取 1 米，避免只有一两个点时视野缩到不可用。
     const boxWidth = Math.max(
       pixelsPerMeter,
       planPoints.length ? Math.max(...xCoordinates) - minX : pixelsPerMeter * 10
@@ -595,7 +561,6 @@ export async function openPresenceEditor({
       return;
     }
     // 两个主题色，与 presence-scene.js / presence-character.js 里的取色保持一致：
-    // orange → 暖橙 #eaa044，其余（teal）→ 青绿 #52b8b1。
     const routeColor = selectedSensor.color === "orange" ? "#eaa044" : "#52b8b1";
     routeLayerElement.append(
       // 闭合用 polygon（自动连首尾），未闭合用 polyline，不能一律用 polygon。
@@ -610,8 +575,6 @@ export async function openPresenceEditor({
       })
     );
     // 圆点半径希望固定成 6~8 个"屏幕像素"，但 viewBox 会随取景框缩放，
-    // 所以用 CTM 的缩放系数换算回用户单位（1 / a = 每屏幕像素对应多少平面图像素）。
-    // getScreenCTM 在元素离屏 / 未布局时可能为 null，兜底按 1 处理，避免 NaN 污染 SVG。
     const svgUnitsPerPixel = 1 / Math.max(0.0001, Math.abs(routeSvgElement.getScreenCTM()?.a || 1));
     selectedSensor.route.forEach((point, pointIndex) => {
       routeLayerElement.append(
@@ -693,8 +656,6 @@ export async function openPresenceEditor({
   }
   /**
    * 添加一个数值输入行，读写 selectedSensor 上的某个属性；input 只是视图，真正写回发生在
-   * flushFieldCollectors() 或 change 事件，避免用户输入到一半（如 "0."）被规整成最小值。
-   * displayScale 用于「存储是米 / 展示是厘米」这类单位换算。
    */
   function addNumberField(
     numberLabel,
@@ -714,7 +675,6 @@ export async function openPresenceEditor({
     });
     numberInputElement.setAttribute("aria-label", numberLabel);
     // 捕获当前选中项：commitNumberField 可能晚于切换绑定才执行（save 前的 flush），
-    // 这时 selectedSensor 已经指向别人了，用闭包里的引用才不会写错对象。
     const sensorRef = selectedSensor;
     /**
      * 把输入框里的值规整后写回绑定对象。
@@ -742,7 +702,6 @@ export async function openPresenceEditor({
    * 重建右栏属性面板与左栏绑定列表（选中项变化、增删绑定后调用）。
    */
   function renderControls() {
-    // 重建会丢弃 DOM，必须先把在编辑的值提交回绑定对象，否则最后一笔输入丢失。
     flushFieldCollectors();
     fieldCollectors = [];
     draggedPoint = null;
@@ -755,7 +714,6 @@ export async function openPresenceEditor({
     );
     const addSensorButton = createButton("＋ 添加人在传感器", () => {
       // 新建绑定的默认值：与 offline 侧 presence 默认值保持一致
-      // （速度 0.45 m/s 是成年人步速，size 1 = 标准身高，hitPadding 8px 是点击热区外扩）。
       selectedSensor = {
         id: randomUuid(),
         label: "",
@@ -789,7 +747,6 @@ export async function openPresenceEditor({
       bindingsPanelElement.append(addSensorButton);
     }
     for (const listedSensor of sensorBindings) {
-      // 按钮文案三级回退：自定义名称 → 实体名 → entityId → 占位文案。
       const sensorButtonElement = createButton(
         listedSensor.label ||
           sensorNamesByEntityId.get(listedSensor.entityId) ||
@@ -818,14 +775,12 @@ export async function openPresenceEditor({
           await pickers.entity({
             trigger: sensorPickerButton,
             current: activeSensor.entityId,
-            // 限定设备类型：只列出人在传感器类实体，避免选到灯 / 窗帘。
             deviceKind: "presence",
             onSelect: (entityId, pickedEntity) => {
               flushFieldCollectors();
               fieldCollectors = [];
               activeSensor.entityId = entityId;
               // 事件型实体（event.*）没有"持续有人"的语义，只在一瞬间触发，
-              // 因此给一个 30 秒的默认展示时长，避免角色一闪而过。
               if (entityId.startsWith("event.") && !(activeSensor.displayDuration > 0)) {
                 activeSensor.displayDuration = 30;
               }
@@ -864,7 +819,6 @@ export async function openPresenceEditor({
     }
     const labelInputElement = createElement("input");
     labelInputElement.value = activeSensor.label;
-    // 128 与后端字段长度限制对齐，避免保存时才报错。
     labelInputElement.maxLength = 128;
     labelInputElement.placeholder = "可选，自定义名称";
     labelInputElement.setAttribute("aria-label", "显示名称");
@@ -881,7 +835,6 @@ export async function openPresenceEditor({
     labelInputElement.addEventListener("change", () => {
       commitLabelInput();
       // 直接改按钮文案而不是整体 renderControls()：后者会重建 DOM 导致输入框失焦。
-      // 索引要跳过可能的「＋ 添加」按钮（manageBindings 时它排在列表最前）。
       const listedSensorButton =
         bindingsPanelElement.querySelectorAll("button")[
           sensorBindings.indexOf(activeSensor) + (manageBindings ? 1 : 0)
@@ -940,7 +893,6 @@ export async function openPresenceEditor({
     }
     controlsPanelElement.append(designButtonsElement);
     // 角色预览容器：WebGL canvas 由 characterPreview 反复复用（见下方 append），
-    // 重建面板时只把已有 canvas 重新挂上去，不重建模型与渲染器。
     const characterPreviewElement = createElement("div", "", "presence-character-preview");
     characterPreviewElement.setAttribute("aria-label", "人物行走预览");
     controlsPanelElement.append(characterPreviewElement);
@@ -951,7 +903,6 @@ export async function openPresenceEditor({
       createElement("p", DESIGNS[activeSensor.character]?.description || "", "presence-note")
     );
     const colorButtonsElement = createElement("div", "", "presence-colors");
-    // 只有两个配色：与 3D 侧 routeColor / 人物材质的取色一一对应（cyan=#52b8b1, orange=#eaa044）。
     for (const [colorKey, colorLabel] of [
       ["cyan", "统一青色"],
       ["orange", "统一橙色"]
@@ -978,7 +929,6 @@ export async function openPresenceEditor({
       // 缺省 auto：跟随传感器自身的开关 / 有人状态，无需额外规则。
       triggerModeSelectElement.value = activeSensor.triggerMode || "auto";
       triggerModeSelectElement.addEventListener("change", () => {
-        // 切模式会增删后续字段，先 flush 再清空收集器，避免旧字段的提交函数残留。
         flushFieldCollectors();
         fieldCollectors = [];
         activeSensor.triggerMode = triggerModeSelectElement.value;
@@ -989,7 +939,6 @@ export async function openPresenceEditor({
         if (triggerModeSelectElement.value === "threshold") {
           activeSensor.triggerThreshold ??= 0;
         }
-        // 定时类触发（事件 / 数值）没有"持续有人"状态，必须给个显示时长，否则角色不出现。
         if (presenceTriggerIsTimed(activeSensor) && !(activeSensor.displayDuration > 0)) {
           activeSensor.displayDuration = 30;
         }
@@ -1010,7 +959,6 @@ export async function openPresenceEditor({
          * 把触发值输入框的内容提交到绑定对象（空值不提交）。
          */
         const commitTriggerValue = () => {
-          // 空值不提交：留空时保留原触发值，避免把规则改成"永不触发"。
           if (triggerValueInputElement.value.trim()) {
             activeSensor.triggerValue = triggerValueInputElement.value.trim().slice(0, 128);
           }
@@ -1120,7 +1068,6 @@ export async function openPresenceEditor({
       controlsPanelElement.append(
         createButton("删除此传感器", () => {
           sensorBindings.splice(sensorBindings.indexOf(activeSensor), 1);
-          // 同步清掉闭合意图，否则残留的 id 会被后续同 id 绑定误用。
           closedRouteSensorIds.delete(activeSensor.id);
           // 删除后回到第一条（或空状态），不能继续指向已移除的对象。
           selectedSensor = sensorBindings[0] || null;
@@ -1133,10 +1080,6 @@ export async function openPresenceEditor({
     fitPlanBox();
     syncPreview();
   }
-  /**
-   * 屏幕坐标 → SVG 用户坐标：唯一实现在 /static/shared/svg-point.js（经 static-helpers-editor 桥取用）。
-   * 这里只把 `routeSvgElement` 绑上，避免每个调用点都传一遍。
-   */
   const toSvgPoint = pointerEvent => bridgedToSvgPoint(routeSvgElement, pointerEvent);
   routeSvgElement.addEventListener("pointerdown", pointerDownEvent => {
     // 只有平面视图、鼠标左键、且有合法楼层时才响应绘制。
@@ -1149,7 +1092,6 @@ export async function openPresenceEditor({
       return;
     }
     const pointIndexAttribute = pointerDownEvent.target.getAttribute("data-point");
-    // 阻止默认行为：否则会触发文本选择 / 原生拖拽，把绘制手势打断。
     pointerDownEvent.preventDefault();
     // 捕获指针：拖出 SVG 边界（甚至移出窗口）也能继续收到 pointermove。
     capturePointer(routeSvgElement, pointerDownEvent.pointerId);
@@ -1182,7 +1124,6 @@ export async function openPresenceEditor({
         renderRoutePlan();
         return;
       }
-      // 否则进入拖动模式，实际移动在 pointermove 里做。
       draggedPoint = {
         index: Number(pointIndexAttribute)
       };
@@ -1206,7 +1147,6 @@ export async function openPresenceEditor({
       // 未拖拽时只做"悬停预览"（虚线 + 吸附提示）。
       if (selectedSensor && !closedRouteSensorIds.has(selectedSensor.id)) {
         hoverPoint = pointerSvgPoint;
-        // 传 false：拖动 / 悬停这类高频路径不顺带发相机命令，否则每帧都在移动镜头。
         renderRoutePlan(false);
       }
       return;
@@ -1236,11 +1176,9 @@ export async function openPresenceEditor({
     syncPreview();
   };
   // 三个事件都绑同一个收尾函数：pointercancel（系统手势打断）与
-  // lostpointercapture（别处夺走捕获）也必须复位 draggedPoint，否则会残留"粘住"的点。
   for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
     routeSvgElement.addEventListener(eventName, handlePointerEnd);
   }
-  // SVG 尺寸变化会改变 CTM，圆点半径与标注偏移都要重算，所以直接重绘。
   const routeResizeObserver = new ResizeObserver(renderRoutePlan);
   routeResizeObserver.observe(routeSvgElement);
   // Esc 关闭：拦住 <dialog> 的原生 cancel，走自己的 closeEditor 以释放资源。
@@ -1255,21 +1193,17 @@ export async function openPresenceEditor({
     // 页面隐藏时不再排下一帧（handleVisibilityChange 会在恢复时重启循环）。
     if (!isClosed && !editorDocument.hidden) {
       if (characterPreview && selectedSensor) {
-        // 只有角色方案或颜色变化才重建模型，避免每帧创建几何体。
         const previewKey = selectedSensor.character + ":" + selectedSensor.color;
         if (previewSignature !== previewKey) {
           disposeWalker(characterPreview.root);
           characterPreview.root = createWalker(
             characterPreview.THREE,
-            // 直接写字面量而不是读主题色：orange → 0xEAA044(15376452)、cyan → 0x52B8B1(5421233)，
-            // 与 presence-scene.js 的取色表逐位一致，避免两处不一致导致预览和舞台不同色。
             selectedSensor.color === "orange" ? 15376452 : 5421233,
             selectedSensor.character
           );
           characterPreview.scene.add(characterPreview.root);
           previewSignature = previewKey;
         }
-        // 帧间隔上限 0.1s：标签页切回来或断帧时避免动画瞬移一大段距离。
         const frameDeltaSeconds = lastFrameTimeMs
           ? Math.min(0.1, (timestamp - lastFrameTimeMs) / 1000)
           : 0;
@@ -1300,19 +1234,16 @@ export async function openPresenceEditor({
   renderControls();
   try {
     // three 走动态 import：只在真正打开编辑器时才下载（约 600KB），
-    // 下载失败只影响小预览，不影响路线编辑，所以整个初始化包在 try 里。
     const threeModule = await import("/static/vendor/three/0.186.0/three.module.min.js");
     if (isClosed) {
       return;
     }
     const previewRenderer = new threeModule.WebGLRenderer({
-      // alpha：预览背景透出面板底色，避免与对话框视觉割裂。
       alpha: true,
       antialias: true
     });
     // 上限 2 倍：高分屏上 3 倍会明显增加小窗口的 GPU 开销，收益却看不出来。
     previewRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    // 固定 240×160（3:2）：与 CSS 里的预览框尺寸对应，避免拉伸。
     previewRenderer.setSize(240, 160);
     const previewScene = new threeModule.Scene();
     // 32° 视场角 + 1.5 宽高比（=240/160），远平面 20 米足够包住宅内一层。
@@ -1322,13 +1253,10 @@ export async function openPresenceEditor({
     previewCamera.lookAt(0, 0.7, 0);
     previewScene.add(new threeModule.HemisphereLight(16777215, 7831948, 2.5));
     // 半球光：天空 0xFFFFFF / 地面 0x77818C（冷灰蓝），强度 2.5。
-    // three r155+ 采用物理光照单位，室内补光强度需给到 2 以上才接近旧版观感；
-    // 地面色偏冷是室内暗环境的常见反弹色，让角色下半身不至于死黑。
     const keyLight = new threeModule.DirectionalLight(16772824, 3);
     // 主光 0xFFEED8（暖白，模拟室内暖色顶灯），强度 3，从左上前方 45° 打下来。
     keyLight.position.set(3, 5, 3);
     previewScene.add(keyLight);
-    // 不带参数：用 createWalker 的默认配色与默认方案，随界面再重建（见 animateCharacterPreview）。
     const previewWalker = createWalker(threeModule);
     previewScene.add(previewWalker);
     characterPreview = {
@@ -1342,12 +1270,9 @@ export async function openPresenceEditor({
       .querySelector(".presence-character-preview")
       ?.append(previewRenderer.domElement);
     // 用 handleVisibilityChange 而不是直接 requestAnimationFrame：
-    // 它会先判断文档是否可见，隐藏状态下不会白排一帧。
     handleVisibilityChange();
     // 静默失败：three 未加载 / WebGL 不可用时，预览区域留空即可，路线编辑照常可用。
   } catch {
-    // 见上：预览是可选装饰，失败不阻塞编辑器打开。这里刻意不上报 —— 缺 three 是
-    // 已知的降级路径，把它打成错误日志只会淹没真正的问题。
   }
   return {
     close: closeEditor

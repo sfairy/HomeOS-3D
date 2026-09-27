@@ -1,24 +1,7 @@
 /**
  * 逐物件「材质风格」用到的程序化质感贴图（布纹 / 皮革粒纹 / 木纹 / 石纹 / 金属拉丝）。
- *
- * 与 studio-surface-textures.js 的分工：那边画的是**大件面**（壁画、背景墙的整幅画面），这边画的是
- * **家具表面**的细节层，并按「质感族」缓存。木 / 大理石 / 石 / 水泥 / 金属 / 织物六族直接复用
- * createFeatureWallTexture 的画法，不另起一套 —— 同一支木料在背景墙与餐桌上必须是同一张图，
- * 否则近看会发现两种木纹。
- *
- * **关键一步：取到的底图是彩色的，这里要把它规范化成「亮度细节图」再交给材质。**
- * 原因：材质的最终色 = map × color。风格档位的语义是「调色板决定色相」，若直接把彩色的木纹图
- * 乘上去，等于把木纹的棕色和调色板的木色叠了两遍，颜色会又暗又脏，而且不同档位之间的色差被贴图
- * 冲淡。所以这里逐像素取 Rec.709 亮度、按均值居中、压到 ±20% 的窄带（均值≈1 的灰图）：
- * 色相完全由调色板给，贴图只贡献纹理细节。
- *
- * 返回值约定：**null 表示「这个质感不需要贴图」**（纯色漆面、陶瓷、玻璃）。调用方据此跳过 map 设置、
- * 只调粗糙度与金属度 —— 给漆面硬塞一张噪点图只会让它显脏。
- *
- * 贴图一律 clone 底图后再处理：createFeatureWallTexture 返回的是跨调用共享的缓存实例，直接改它的
- * 平铺方式会顺带改掉背景墙。
  */
-import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609271208";
+import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609271226";
 
 /** 质感族 → 背景墙贴图名。只列有底图的族；不在此表内且没有专属画法的族一律返回 null。 */
 const SURFACE_TEXTURE_ALIAS = Object.freeze({
@@ -38,8 +21,6 @@ const surfaceTextures = new Map();
 
 /**
  * 画一张皮革粒纹：大颗粒（细胞状明暗斑）叠小颗粒（高频细点）。
- * 用固定种子的伪随机而非 Math.random：同一族贴图每次生成必须一致，否则重绘一次就换一张皮，
- * 而且材质缓存键会跟着变、缓存直接失效。
  */
 function paintLeather(canvasContext, width, height) {
   canvasContext.fillStyle = "#dcdcdc";
@@ -75,8 +56,6 @@ const surfacePainters = Object.freeze({
 
 /**
  * 把一张彩色底图规范化成均值≈1 的亮度细节图（见模块头）。
- * 任何一步拿不到像素（无 2D 上下文、跨域污染、尺寸为 0）都返回原图 —— 宁可要一张带色的底图，
- * 也不能让整个质感层失效。
  */
 function normalizeToDetailCanvas(sourceImage) {
   const sourceWidth = sourceImage?.width || 0;
@@ -131,7 +110,6 @@ function normalizeToDetailCanvas(sourceImage) {
 
 /**
  * 取某质感族的贴图。返回 null 表示该族不需要贴图。
- *
  * @param {object} threeApi THREE 命名空间（必须与场景同一份，否则 CanvasTexture 会被当成外来对象）。
  * @param {string} surfaceKey 质感族：wood / marble / stone / concrete / metal / fabric / leather。
  * @param {{maxAnisotropy?: number, repeat?: number}} [options] repeat 是贴图在 UV 上的平铺次数。

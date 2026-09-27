@@ -1,19 +1,5 @@
 /**
  * 从磁盘 GLB 直接读出**俯视占地轮廓**（不引 three，只用 Node 内置能力）。
- *
- * 为什么需要它：平面图符号是手绘的（`studio-app.js` 的 `drawPlanItem`），而 3D 早已换成流水线
- * 规格，两者不会互相牵引。把一个 0.9 × 0.9 的圆茶几画成方角矩形，画面上「对不上」但不报错，
- * 只能逐件用眼睛看 —— 这正是「静默失效」那一类。本模块把那件事变成可测的量：
- *
- *   **占地格数比** = 俯视占格数 / 占地包围盒格数
- *     实心矩形 ≈ 1.00、正圆 ≈ π/4 ≈ 0.785
- *   **径向变异系数** = 从质心向外按 72 个方向量外沿半径，半径的标准差 / 均值
- *     正圆各向等长 → 很小（< 0.06）；矩形对角方向长约 1.41 倍 → 明显偏大（> 0.1）
- *
- * 两条一起看：只有「格数比接近 π/4 **且** 径向变异系数很小」才是真的圆。单看格数比会把
- * 「中间挖空」的方框（格数比 0.5 但其实方方正正）误判成圆。
- *
- * 用的是**完整版**（非 -lite）：lite 会丢小件（`fullOnly`），占地可能因此变窄。
  */
 import fs from "node:fs";
 
@@ -88,7 +74,6 @@ function readIndexAccessor(json, bin, accessorIndex) {
 
 /**
  * 把一个 GLB 的全部三角面读成 `[x1, z1, x2, z2, x3, z2, …]` 的俯视投影。
- * 不做节点变换：流水线导出时变换已经烘进几何（见 generate-models.mjs 的约定）。
  */
 export function readGlbFootprintTriangles(file) {
   const { json, bin } = readChunks(file);
@@ -96,7 +81,7 @@ export function readGlbFootprintTriangles(file) {
   for (const mesh of json.meshes || []) {
     for (const primitive of mesh.primitives || []) {
       const mode = primitive.mode ?? 4;
-      if (mode !== 4) continue; // 只处理三角面
+      if (mode !== 4) continue;
       const positions = readVec3Accessor(
         json,
         bin,
@@ -175,7 +160,7 @@ export function footprintRoundness(triangles, grid = DEFAULT_GRID) {
     }
   }
   const radii = radialRadii(occupied, cols, rows, minX, minZ, cell);
-  if (radii.length < 24) return null; // 方向样本太少 → 判不出真假就不判
+  if (radii.length < 24) return null;
   const mean = radii.reduce((sum, value) => sum + value, 0) / radii.length;
   const variance =
     radii.reduce((sum, value) => sum + (value - mean) ** 2, 0) / radii.length;
@@ -224,14 +209,6 @@ function radialRadii(occupied, cols, rows, minX, minZ, cell) {
 
 /**
  * 判据的阈值。两组之间的**实测间隔**（2026-09 全量 126 件）：
- *
- *   - 圆：格数比 0.725 ~ 0.799、径向变异 0.016 ~ 0.035（10 件：圆茶几 / 圆凳 / 吧凳 / 落地扇 /
- *     立式空调 / 加湿器 / 净化器 / 圆桶垃圾桶 / 电水壶 / 衣帽架）
- *   - 方：径向变异最近的几件是 0.060（桌面小音箱）/ 0.093（立式音箱）/ 0.096（电饭煲）/
- *     0.108（边几）/ 0.109（套几）… 格数比最近的 0.844 / 0.883 / 0.976
- *
- * 阈值取在间隔中间，而不是贴着任一侧 —— 贴着的话，下次规格微调（把圆桶挪 1cm）就会让判据
- * 在「该报」与「不该报」之间反复跳，守卫会因此变成噪音、最后被人关掉。
  */
 const ROUND_AREA_RATIO_MIN = 0.7;
 const ROUND_AREA_RATIO_MAX = 0.86;

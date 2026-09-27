@@ -1,19 +1,8 @@
 /*
  * 空调 / 温控面板（.i3d-climate-panel）在 3D 舞台内的样式。
- *
- * 由 stage.css @import 引入，作用对象是 climate-panel.js 渲染的温控面板（标题与电源键、温度步进器、
- * 模式 / 风速选项组、温区提示与错误文案）；外壳沿用 .i3d-light-panel（只覆盖高度与滚动）。
- *
- * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted；面板另定义
- * --i3d-climate-accent 作为「当前模式强调色」，由 data-climate-mode 切换（制冷蓝 / 制热橙 / 关机灰），
- * --hb-climate-accent* 是给 .hb-* 通用控件复用的别名。面板内类名一律以 i3d-climate- 前缀书写。
  */
 
 /* 面板起始位置与外层 .i3d-light-panel 共用同一个 top 公式，
-   因此这里的高度上限也把那段 max(12px, min(56% - 400px, 100% - 812px)) 算进去：
-   减去起始偏移与上下各 12px 间距后再取剩余空间的一半，展开时不会越过视口下沿；
-   只有纵向滚动条：卡片网格是刻意比面板宽 8px 再右移 8px 的（.i3d-extra-grid 的
-   width: calc(100% + 8px) / margin-right: -8px），横向一旦允许滚动就会多出一条横条，
    面板看上去比原版胖一圈 —— 上游同样是 overflow-x: hidden + overflow-y: auto。 */
 .interaction3d-stage .i3d-light-panel.is-climate-panel {
   height: auto;
@@ -26,7 +15,6 @@
 
 .i3d-climate-panel {
   --i3d-climate-accent: #dce2e6;
-  /* 强调色的柔和底：用 color-mix 与面板底色混合，避免每个模式各写一份常量。 */
   --hb-climate-accent: var(--i3d-climate-accent);
   --hb-climate-accent-soft: color-mix(in srgb, var(--i3d-climate-accent) 28%, #11171c);
   display: flex;
@@ -42,8 +30,6 @@
     PingFang SC,
     sans-serif;
 }
-/* 三种模式的强调色：制冷蓝 / 制热橙 / 关机灰。取值与 panel-renderer/device-controls/climate.js
-   完全同一套 token（--hos-cool / --hos-heat / --hos-sensor），改色只改设计源。 */
 .i3d-climate-panel[data-climate-mode="cool"] {
   --i3d-climate-accent: var(--hos-cool);
 }
@@ -52,15 +38,6 @@
 }
 /**
  * 净化器的强调色随风速走。
- *
- * `--i3d-purifier-level` 是归一化后的风速（0–1），由 climate-panel.js 每次渲染写入。
- * 低风偏冷蓝、高风偏薄荷青 —— 两枚都是既有的「空气」族令牌（cool / eco-bright），
- * 不新增色板令牌，也不碰全站调色板（page.css 的三份分发副本必须逐字节一致，
- * 往那里加颜色会打破 tools/audit_colors.mjs 的第一条真值校验）。
- *
- * 为什么用颜色表达风速：空调靠 cool / heat 两个模式天然有颜色，净化器只有快慢，
- * 于是落在 other 桶里、整块面板是中性灰 —— 同一个弹窗，一个有颜色一个没有。
- * 风速是净化器唯一的「档位」语义，把它做成色调梯度，两种设备才有对等的信息密度。
  */
 .i3d-climate-panel[data-climate-mode="purify"] {
   --i3d-climate-accent: color-mix(
@@ -190,7 +167,6 @@
 .i3d-climate-panel select:disabled {
   cursor: default;
 }
-/* 面板内的 [hidden] 需要强制生效，避免被上面的 flex 布局规则覆盖。 */
 .i3d-climate-panel [hidden] {
   display: none !important;
 }
@@ -215,16 +191,12 @@
   overflow-wrap: anywhere;
 }
 /* 风速档位：按钮外观沿用 .i3d-climate-choice，但排布不走 flex 换行。
-   flex 会「按 48px 基准尽量多塞」，7 档就排成「第一行 6 个 + 第二行 1 个」，而那个落单的
-   还会被 flex: 1 1 48px 拉满整行宽 —— 看着像破版。改成等宽网格：列数由 JS 按档数算好
-   （speedLevelColumnCount）写进行内 grid-template-columns，一行几个就等分几列，
    末行不足也不拉伸。 */
 .i3d-climate-panel .i3d-climate-speed-levels {
   display: grid;
   align-items: stretch;
 }
 /* 风速读数兼标题（「风速 · 中风」「风速 40%」「风速 · 由模式控制」）。
-   上游没给它任何样式，于是它按 12px 正文色渲染，比旁边 11px 灰色的分组标题（h4）还显眼，
    视觉层级是反的。这里对齐 h4 的口径，让它退回「小标题」的位置。 */
 .i3d-climate-option-group > .i3d-climate-speed-title {
   color: var(--hos-tool-text-dim);
@@ -266,7 +238,6 @@
 }
 /* ===== 温控器表盘槽位 ===== */
 
-/* 槽位保留展开/收起的布局空间，避免表盘出现时把下方选项组顶下去。 */
 .i3d-climate-thermostat-slot {
   flex: none;
   padding: 12px 0 18px;
@@ -300,7 +271,6 @@
   cursor: default;
 }
 /* 量程弧画在伪元素上，而不是表盘自身的 background —— 表盘自身挂 mask 会把圆心里的
-   读数一起裁掉。`from 225deg` 是左下，顺时针扫 270deg 到右下，正下方留 90° 缺口，
    像一块仪表；两段色标就是「已走过 / 未走过」。 */
 .i3d-climate-dial::before {
   content: "";
@@ -330,7 +300,6 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  /* 圆心可用宽度 = 直径 - 环宽 × 2，读数得留出余量，否则会压到环上。 */
   width: 104px;
   text-align: center;
 }
@@ -376,7 +345,6 @@
   border-radius: 8px;
   font: inherit;
 }
-/* 原生下拉展开后的选项用不透明底色，否则半透明面板会让选项叠字看不清。 */
 .i3d-climate-panel select.i3d-climate-choice option {
   color: #20272b;
   background: #f5f6f7;
@@ -397,14 +365,9 @@
   cursor: pointer;
 }
 /* ===== 面板视觉增强：分组图标 / 分组卡片 / 风速滑杆刻度 / 电源图标按钮 =====
-   这一节集中放「让面板不再是一堆等宽文字按钮」的样式，全部只做视觉、不碰状态语义：
-   选中态仍然只认 aria-pressed，禁用态仍然只认 :disabled。
-   放在这里（而不是就近插进上面各块）是为了整节可读可回滚 —— 下面的附加卡片样式
    是按 6 列网格另算的，不受影响。 */
 
 /* 分组名前的几何符号。字符从 data-glyph 取而不是写进 DOM：它是纯装饰，不该进无障碍树
-   （h4 的文字本身就是分组名）。选择器带 [data-glyph]，将来新加的分组没配符号时
-   不会留下 5px 空档。
    净化器的风速组是例外，不挂 data-glyph，改用下面那片会转的扇叶。 */
 .i3d-climate-option-group h4[data-glyph]::before {
   content: attr(data-glyph);
@@ -415,9 +378,6 @@
   opacity: 0.9;
 }
 /* 净化器风速组的分组图标 = 一片扇叶，设备开着就转。
-   分组图标本来只是静态几何符号，而风速这组恰好有一个可以表达的东西 —— 有没有在送风。
-   转速刻意不跟档位联动：档位一改就变速会显得抽搐，稳定转动已经足够说明「正在送风」。
-   只挂 .is-on（净化器开机即送风），不挂 .is-running —— 后者只由空调分支写入，
    净化器的状态对象里没有这个字段（见 climate-state.js）。 */
 @keyframes i3d-climate-fan-spin {
   to {
@@ -441,7 +401,6 @@
     currentColor 240deg 282deg,
     transparent 282deg 360deg
   );
-  /* 挖掉圆心留出转轴，否则中间糊成一坨看不出是扇叶。 */
   -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 2.4px, #000 2.4px);
   mask: radial-gradient(circle at 50% 50%, transparent 0 2.4px, #000 2.4px);
   vertical-align: -2px;
@@ -468,7 +427,6 @@
   border-color: #65594726;
 }
 /* 风速组：标题与读数在同一行两端对齐，滑杆 / 刻度 / 档位各占满一行。
-   用 grid-area 排而不是再套一层容器 —— 面板的 DOM 结构（标题 span、滑杆 input、
    档位容器互为兄弟）与无障碍树保持不变，读屏与测试都不用跟着改。 */
 .i3d-climate-option-group.i3d-climate-speed {
   grid-template-columns: minmax(0, 1fr) auto;
@@ -510,7 +468,6 @@
   white-space: nowrap;
 }
 /* 滑杆保留原生绘制：Chrome 会按 accent-color 画出「已走过」的填充段，这正是「当前风速」
-   最直观的可视化。刻意不做 appearance: none 自绘 —— 自绘就拿不到那条随值填充的轨道，
    得再写一层 JS 同步渐变，不划算。这里只放大尺寸与触控目标。 */
 .i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-range {
   width: 100%;
@@ -520,7 +477,6 @@
   cursor: pointer;
 }
 /* 刻度条：等分标记每个档位落在滑轨的哪一处。左右各内缩半个滑块宽 —— 滑块圆心只能
-   在 [半宽, 100% - 半宽] 之间走，内缩后 left: <档位百分比>% 才正好落在圆心上，
    否则档位越高偏得越多。内缩量按原生滑块的半径取 8px。 */
 .i3d-climate-option-group.i3d-climate-speed > .i3d-climate-speed-ticks {
   position: relative;
@@ -540,8 +496,6 @@
     top 0.16s ease,
     background 0.16s ease;
 }
-/* 刻度是 aria-hidden 的装饰，没有 aria 状态可用，所以这里才需要 .is-active
-   （档位按钮那边一律走 aria-pressed，见上文选项按钮的约定）。 */
 .i3d-climate-speed-tick.is-active {
   top: 0;
   height: 10px;
@@ -551,10 +505,6 @@
   margin-top: 7px;
 }
 /* 档位按钮各自带上自己那一档的色调，整排从低到高连成一条色阶 —— 一眼能看出档位分布，
-   而不是七个长得一样的文字块。色阶位置由 climate-panel.js 写在按钮的 --i3d-level 上
-   （0–1，取该档自身的百分比，与面板强调色同源，所以被点亮那一档的颜色与读数 chip 一致）。
-   做法是就地覆盖 --i3d-climate-accent：下面那条通用的 [aria-pressed="true"] 规则
-   本来就写的是 var(--i3d-climate-accent)，正好自动吃到这一档的颜色，不必再打架比优先级。
    只对净化器生效 —— 空调的风速组是另一个容器，没有 i3d-climate-speed-levels 这个类。 */
 .i3d-climate-panel[data-climate-mode="purify"] .i3d-climate-speed-levels > .i3d-climate-choice {
   --i3d-climate-accent: color-mix(
@@ -563,16 +513,11 @@
     var(--hos-cool)
   );
   /* 底色也掺一点自己那一档的颜色：只画底部一条 3px 色条太暗，在深色按钮上几乎看不出
-     「一条色阶」，整排还是七个一样的块。混进中性白填充（#ffffff0a）而不是直接替换它，
      按钮的「实体感」不会丢。 */
   background: #ffffff0a;
-  /* 未选中的档位也要看得见自己的颜色，否则「一条色阶」只在选中的那一格成立。
-     用 inset 阴影画底部色条：它同样会被 border-radius 裁切，不必额外包一层容器。
-     色条取满色（不加透明度）—— 掺过透明度的色条在深色按钮上会被压成一层灰，看不出色阶。 */
   box-shadow: inset 0 -4px 0 var(--i3d-climate-accent);
 }
 /* 选中档：同色但明显更重，并在按钮外沿带一圈同色柔光，把「当前在哪一档」顶出来。
-   必须显式写这条而不是复用通用的 [aria-pressed="true"] —— 那条只有 12% 底色，
    与上面未选中态的 11% 几乎分不出来。 */
 .i3d-climate-panel[data-climate-mode="purify"]
   .i3d-climate-speed-levels
@@ -582,9 +527,6 @@
     inset 0 -4px 0 var(--i3d-climate-accent),
     0 0 12px color-mix(in srgb, var(--i3d-climate-accent) 34%, transparent);
 }
-/* 电源按钮改成圆形图标按钮：头部原本是「设备名 + 状态」两行字，再挂一个「关闭 / 开启」
-   文字块，最上面三行全是文字。图标用 CSS 画（圆环留缺口 + 一根竖线）而不是字形或图标字体
-   —— ⏻ 这类符号在 Windows / Android 上掉字体的概率不低，自绘没有字体依赖。 */
 .i3d-climate-power {
   position: relative;
   flex: none;
@@ -623,18 +565,6 @@
 }
 
 /* ===== 设备图形：净化器（照 2D 的 .hb-air-purifier-visual 移植）=====
-   部件与 2D 一一对应：落地光晕 + 出风弧 + 金属机身 + 顶部格栅 + 蜂窝出风口 + 显示屏。
-   材质配方（多段金属渐变、内外阴影、7px 网点、perspective 顶盖）全部照搬 2D，
-   只把整体尺寸按 0.72 倍缩放 —— 2D 是 400×194 绝对定位浮在标题右侧的，这里要独占一行居中。
-   机身 2D 是 326×84，缩到 235×60；比例全部保留，所以看上去仍是同一台机器。
-
-   尺寸与位置的取舍：这一块 288×140，摆在标题行下方、控件之上，居中。
-   净增约 140px 高度，真实视口下面板会超出高度上限而出现纵向滚动条
-   （上限是 (100% - 起始偏移 - 12) / 2，见上文 .i3d-light-panel.is-climate-panel 的注释）。
-   要缩小就把 .i3d-climate-purifier 的 width/height 调小，内部全是绝对定位，
-   改容器尺寸不会散架，但内部尺寸要同比例跟着改。
-
-   配色：机身用 2D 那套写死的银灰（它是「实物配色」，与主题无关），
    强调色只出现在三处 —— 出风弧、底部光晕、开机时的描边混色。 */
 .i3d-climate-purifier {
   position: relative;
@@ -644,7 +574,6 @@
   width: 288px;
   height: 140px;
   margin: 2px 0 10px;
-  /* 装饰性插画：不吃指针事件，点击穿透到面板本身（否则会挡住它覆盖的区域）。 */
   pointer-events: none;
 }
 .i3d-climate-purifier[hidden] {
@@ -896,10 +825,6 @@
 }
 
 /* ===== 设备图形：空调（照 2D 的 .hb-climate-visual 移植）=====
-   部件与 2D 一一对应：挂壁机身 + 左上品牌字 + 右上温度数码 + 下沿导风格栅 + 下方气流。
-   同上按 0.72 倍缩放（2D：整体 406×126、机身 350×76 → 这里 292×91 / 252×55）。
-   与净化器那台的关键差别都照 2D 的语义：气流在**下方**吹（挂机装在墙上，风往下走），
-   净化器是向上出风；并且多一档 is-running —— 开机但 hvac_action 是 idle（压缩机没转）时
    导风格栅不该翻出来吹。净化器没有这个中间态，所以那边只判 is-on。 */
 .i3d-climate-aircon {
   position: relative;
@@ -909,7 +834,6 @@
   width: 292px;
   height: 91px;
   margin: 2px 0 10px;
-  /* 装饰性插画：不吃指针事件，点击穿透到面板本身（否则会挡住它覆盖的区域）。 */
   pointer-events: none;
 }
 .i3d-climate-aircon[hidden] {
@@ -1102,7 +1026,6 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   /* 行高是「下限」而不是定值：卡片内容放得下时仍是原来那 36px，
-     放不下（长实体名换到第三行、开关按钮自带高度）时整行随之长高，不再裁内容。
      与下面卡片的 min-height 配对 —— 两者一起保证「自适应但不塌陷」。 */
   grid-auto-rows: minmax(36px, auto);
   /* 同一行的卡片拉平到该行最高的那张：高度自适应之后如果还顶对齐，
@@ -1114,7 +1037,6 @@
   margin-right: -8px;
   container-type: inline-size;
 }
-/* 卡片外壳：默认只在内容宽度内撑开；真正落进网格（.i3d-extra-grid > .i3d-extra-card）后才铺满栅格。 */
 .i3d-climate-panel .i3d-extra-card {
   flex: 0 1 auto;
   width: max-content;
@@ -1166,10 +1088,6 @@
   grid-template-columns: minmax(0, 1fr);
 }
 /* 描述块固定两列（标题 | 状态值），而不是 flex-wrap。
-   长实体名（HA 的 friendly_name 会把设备名拼在前面，「冰箱 冷藏室门2开关状态」这种）在
-   flex-wrap 下会把状态值挤到第二行 —— 卡片本来就只有一行高（44px×rows−8px，内容区 30px），
-   被挤下去的那行会被 overflow 裁掉，看到的就是「标题两行 + 右下角一个半截的已关闭」。
-   换成两列栅格后标题自己换行、状态值始终贴右并垂直居中，行高由两者较高的那个决定，
    不再有第三个行框被裁。 */
 .i3d-extra-state .i3d-extra-description {
   display: grid;
@@ -1245,8 +1163,6 @@
   min-width: 0;
 }
 /* 落进网格后的卡片：按 --extra-columns / --extra-rows 跨列跨行。
-   高度是**自适应**的：--extra-rows 只作为下限（44px 行高 − 8px 行距的换算），
-   内容真的更高时卡片跟着长高。写死高度会让换到第三行的长实体名被 overflow 裁掉 ——
    这正是「标题占两行 + 右下角一个半截状态值」的来源。 */
 .i3d-climate-panel .i3d-extra-grid > .i3d-extra-card {
   position: relative;
@@ -1296,7 +1212,6 @@
   opacity: 1;
 }
 /* 标题最多三行，超出省略。上限保留是为了防病态输入（几百字的实体名）把卡片撑成一块板，
-   但不再压在两行：卡片高度改自适应之后，三行是放得下的 —— 两行会把
    「厨房冰箱 冷藏室门2开关状态」这类真实名字裁掉最后一行。 */
 .i3d-extra-description h4 {
   display: -webkit-box;

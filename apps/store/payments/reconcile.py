@@ -1,10 +1,4 @@
 """主动查单对账 + 过期订单关单。
-
-回调地址要求公网可达，隧道掉线、支付宝重推延迟很常见，只依赖通知会出现「用户付了钱、
-订单一直显示待支付」。两条兜底：前端轮询顺带查单（同订单节流）+ 后台周期巡检。
-
-网络调用与写库刻意分两段（先收集动作、再统一落库）：SQLite 写锁跨整个事务持有，
-在写事务里等一次 15 秒的网关超时会把所有写请求拖成 ``database is locked``。
 """
 
 from __future__ import annotations
@@ -50,9 +44,6 @@ _lock = threading.Lock()
 
 def channel_still_payable(order: Order, *, now: datetime | None = None) -> bool:
     """这笔订单的渠道交易是否**仍可能被付款**。
-
-    支付宝预下单后不关单，旧二维码一直能扫；本地进入 expired/cancelled **不等于**渠道
-    交易结束。这里用 ``CLOSE_LOOKBACK_HOURS`` 同一窗口，与后台删除订单的守卫保持同口径。
     """
     if order.payment_provider != "alipay" or order.channel_closed_at is not None:
         return False
@@ -79,10 +70,6 @@ def _allow_query(order_no: str) -> bool:
 
 def _reconcile_alipay_provider(settings: StoreSettings, setting: StoreSetting):
     """按渠道名强制解析出支付宝渠道，**绕过当前的渠道开关**（含后台配置的凭据）。
-
-    巡检打的是「这单当时用的渠道」：运营今天把渠道切成模拟收银台，昨天真实付款的订单
-    仍必须被认领。本函数**允许抛出** ``PaymentError``（调用方是后台线程，坏了要让
-    ``/healthz`` 报 failing，而不是静默返回 None 假装没有支付宝订单）。
     """
     return resolve_provider(settings, setting, name_override="alipay")
 
@@ -153,7 +140,7 @@ class _Action:
     """巡检阶段收集到的待执行动作（此时**还没有**写库）。"""
 
     order: Order
-    kind: str  #: settle | close
+    kind: str
     trade_no: str = ""
     detail: str = ""
     #: 关单时是否也把本地订单推进终态（用于「已过期但仍是 pending」那一类）。
@@ -186,9 +173,6 @@ def _confirm_paid_after_close(
     result: SweepResult,
 ) -> bool:
     """关单接口报「已付款」时的兜底核实：重新查单，核对状态与金额后才入账。
-
-    不能把关单接口的一句话当收款凭证 —— 金额不符或状态其实是退款/关闭的交易会被
-    当成全额付款入账（发码、记营收、发邀请奖励）。核实不通过就什么都不动。
     """
     try:
         node = provider.query_payment(settings, order)
@@ -221,9 +205,6 @@ def _confirm_paid_after_close(
 
 def _expire_local_order(session: Session, order: Order) -> bool:
     """把「已过期但仍是 pending」的订单推进终态，归还预留与优惠码名额。
-
-    与其它取消路径共用 ``fulfill.close_pending_order``：同样是条件 UPDATE 抢单
-    （支付回调可能正好在这一瞬间认了钱），只是目标状态为 ``expired``。
     """
     product = session.get(Product, order.product_id) if order.product_id else None
     if not fulfill.close_pending_order(
@@ -242,10 +223,6 @@ def reconcile_due_orders(
     limit: int = 25,
 ) -> SweepResult:
     """巡检一次：先做渠道对账，再做**与渠道无关**的本地过期收尾。
-
-    渠道对账在前：已过期却还是 pending 的支付宝单先有机会被认领（钱可能已付、只是通知
-    丢了），确认没付才轮到关单/本地过期。本地收尾在后且不受渠道配置约束，否则没配支付宝
-    的站点连本地超时单都不清理，它们会永远占着库存预留。
     """
     result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
     #: 本地过期一次多清一些：这段不在用户请求里，巡检间隔以分钟计。
@@ -255,9 +232,6 @@ def reconcile_due_orders(
         logger.info(
             "支付巡检：本地过期收尾 %d 笔（已归还库存预留与优惠码名额）", expired
         )
-    #: 过期登录会话的清理原本在认证依赖里做，而那是读路径 —— 每个带旧 Cookie 的 GET
-    #: 都会开写事务并持有 SQLite 写锁。搬到巡检后仍会发生，但只在一个后台线程里。
-    #: 不并进 ``result``：它不是订单动作，混进 ``expired`` 会让给运营看的数字含义漂移。
     pruned = prune_expired_sessions(session)
     if pruned:
         logger.info("支付巡检：清理过期登录会话 %d 条", pruned)
@@ -272,9 +246,6 @@ def _sweep_channel_orders(
     limit: int = 25,
 ) -> SweepResult:
     """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
-
-    只处理支付宝订单；模拟渠道没有真实资金流。未配置渠道时**直接返回空结果** ——
-    本地过期收尾由 ``reconcile_due_orders`` 完成，不能因这里返回而一起跳过。
     """
     result = SweepResult()
     provider = _reconcile_alipay_provider(settings, setting)
@@ -302,8 +273,6 @@ def _sweep_channel_orders(
         try:
             node = provider.query_payment(settings, order)
         except PaymentError as error:
-            # 查单失败 ≠ 交易不存在：本轮什么都不做，下一轮再来。过去把失败当 None
-            # 处理，关单环节据此打上 channel_closed_at，一次网关抖动就永久关错单。
             result.failed += 1
             logger.warning("巡检查单失败 order=%s error=%s", order.order_no, error)
             continue
@@ -321,7 +290,6 @@ def _sweep_channel_orders(
             # 未到期的 pending 单查单只为发现「钱已到账但通知丢了」，没付属正常。
             continue
 
-        # 已过期但仍是 pending：必须收尾，否则一直占预留，渠道交易也一直开着。
         if node is None:
             # 渠道确认没有这笔交易：没有远端交易要关，只把本地订单推进终态。
             actions.append(
@@ -435,7 +403,6 @@ def _sweep_channel_orders(
                 source="alipay.sweep",
             )
             # 只有真的改动了才记数：``settle_paid_order`` 在已被其它路径入账时返回
-            # ``changed=False``；无条件 +1 会让运维按巡检日志判断欠单时永远对不上。
             if outcome.get("changed"):
                 result.settled += 1
                 result.settled_orders.append(action.order.order_no)
@@ -445,7 +412,6 @@ def _sweep_channel_orders(
             # 状态已被别的路径改走（支付回调 / 其它扫描），副作用由它负责。
             continue
         action.order.channel_closed_at = utcnow()
-        # 记一笔说明，方便排查「为什么这笔单被关掉了」
         if action.detail:
             logger.info(
                 "已关闭渠道交易 order=%s 说明=%s", action.order.order_no, action.detail

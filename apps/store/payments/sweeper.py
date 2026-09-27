@@ -1,11 +1,4 @@
 """后台支付巡检：定时对账 + 关闭过期交易 + 本地超时单收尾。
-
-必须由服务端定时跑，前端轮询靠不住：用户扫码付完款直接关掉页面就再没人查单，钱付了订单却停在
-pending，库存预留与优惠码名额一直挂着；本地订单过期/取消只是我们自己的状态，支付宝那笔预下单交易
-仍然开着、旧二维码还能扫；商店整天没人访问（或没配渠道）时超时单连本地都不会清理。
-
-巡检把这三件事收尾，最后一件与渠道无关所以没配支付宝也照跑；它跑在独立线程里（``asyncio.to_thread``），
-因为对渠道的调用是阻塞 I/O，直接在事件循环里 await 会把整个服务卡住。
 """
 
 from __future__ import annotations
@@ -20,9 +13,6 @@ from apps.store.config import StoreSettings
 from apps.store.core.database import Database
 from apps.store.core.models import utcnow
 from apps.store.payments.reconcile import SweepResult, reconcile_due_orders
-# 时间戳归一只有一份实现（``apps.store.security.iso_z``）：本文件原先自带的副本口径不同 —— 对带时区的
-# 输入会把当地时间贴上 ``Z`` 后缀（东八区差 8 小时），而现在库里存的都是 naive UTC 才恰好没出错。
-# 一旦上游传进带时区的值，它会静默把一个错误的「UTC 时刻」交给后台与 /healthz。
 from apps.store.security.security import iso_z
 
 logger = logging.getLogger("apps.store.payments.sweeper")
@@ -31,20 +21,14 @@ logger = logging.getLogger("apps.store.payments.sweeper")
 _MAX_ERROR_CHARS = 300
 
 # 巡检状态
-# 巡检坏掉时**只往日志刷 traceback**，服务照常启动、下单照常成功，「用户付了钱、订单停在待支付」就
-# 慢慢堆成工单而运维只有翻日志才知道；故须留下可被接口读到的状态且只放进程内存，词表六档不与 incidents 合并。
 HEALTH_OK = "ok"
-HEALTH_DISABLED = "disabled"  # 配置关掉了巡检（间隔 0）
-HEALTH_PENDING = "pending"  # 循环还没跑完第一轮
-HEALTH_NEVER = "never"  # 跑过，但一次都没成功
-HEALTH_FAILING = "failing"  # 成功过，但当前正在连续失败
-HEALTH_STOPPED = "stopped"  # 循环已退出（进程还在跑）
+HEALTH_DISABLED = "disabled"
+HEALTH_PENDING = "pending"
+HEALTH_NEVER = "never"
+HEALTH_FAILING = "failing"
+HEALTH_STOPPED = "stopped"
 
 #: 健康值 → 中文名。**后端是唯一出处**，概览接口随状态一起下发（同 incidents 的 label 做法）。
-#:
-#: 后台曾经自存一份，于是这里新增一档时前端不认识、直接落到 `|| '尚未启动'` 的兜底 ——
-#: 「连续失败」会被显示成「等待中」，而这块存在的全部意义就是让坏掉的巡检一眼可见。
-#: 语气（徽标颜色）不进这里：那是展示层的事，前端按 health 值自己映射更合适。
 SWEEP_HEALTH_LABELS: dict[str, str] = {
     HEALTH_OK: "正常",
     HEALTH_DISABLED: "已关闭",
@@ -58,8 +42,6 @@ SWEEP_HEALTH_LABELS: dict[str, str] = {
 @dataclass
 class _SweepState:
     #: 当前这份状态属于哪一次循环。同一个进程里可能先后起过多个 app（测试就是这么
-    #: 用的），光看状态本身分不出「这是那个还在跑的循环写的」还是「上一次循环迟到的
-    #: 收尾写的」——代号就是用来回答这个问题的。
     generation: int = 0
     configured: bool = False
     enabled: bool = False
@@ -75,17 +57,12 @@ class _SweepState:
 
 
 #: 循环跑在 asyncio.to_thread 的线程里，状态却是被请求线程读的（后台概览 / healthz），
-#: 所以读写都要过锁——否则后台可能读到「成功时间已写、失败次数还没清」的中间态。
 _state = _SweepState()
 _lock = threading.Lock()
 
 
 def configure_sweep_loop(interval_seconds: int) -> int:
     """由巡检循环启动时调用，声明「要跑、间隔多少」。
-
-    返回本次循环的**代号**（generation）。调用方要把它一路带到
-    ``sweep_round`` / ``mark_sweep_loop_stopped``：重复建 app、或上一个循环的
-    收尾迟到时，只有当前代号的写入才算数。
     """
     with _lock:
         _state.generation += 1
@@ -118,9 +95,6 @@ def _is_current(generation: int | None) -> bool:
 
 def mark_sweep_loop_stopped(generation: int | None = None) -> None:
     """循环退出时调用。
-    没有这一步，循环一旦静默退出（例如任务被取消），后台会一直显示「上次成功 xx 分钟前」，看起来还
-    活着、实际早就没人对账。``generation`` 用来确认退出的是当前这轮循环：旧循环的 finally 跑得晚一点
-    时，它**不能**把已经接上来的新循环标成「已停止」。不传表示不校验（手工调用）。
     """
     with _lock:
         if generation is not None and generation != _state.generation:
@@ -151,8 +125,6 @@ def _record_failure(error: BaseException, generation: int | None = None) -> None
         _state.consecutive_failures += 1
         _state.last_error_at = utcnow()
         _state.last_error = f"{type(error).__name__}: {error}"[:_MAX_ERROR_CHARS]
-        # 刻意**不**动 last_success_at：运维要看的正是「上次成功已经过去多久」，
-        # 失败时把它清掉，等于把「坏了多久」这个信息也一起抹掉了。
 
 
 def sweep_round(
@@ -161,9 +133,6 @@ def sweep_round(
     generation: int | None = None,
 ) -> SweepResult | None:
     """跑一轮巡检并登记状态。异常照旧往上抛。
-    异常的**登记**在这里、**处置**在调用方（``app.py`` 的循环负责打完整 traceback），这样「谁记录
-    状态」只有一处。``generation`` 表示这轮属于哪次循环，传 None 即「当前这轮」（手工调用不必取代号）；
-    不属于当前这轮的残留线程照样把巡检跑完（对账幂等），但不许写快照，以免把运维带偏。
     """
     if generation is None:
         generation = _current_generation()
@@ -200,7 +169,6 @@ def sweep_status() -> dict:
 
     if not configured:
         # 循环还没启动（或被独立导入本模块使用）。不能报成「已关闭」——那是在
-        # 陈述一个我们并不知道的结论。
         health = HEALTH_PENDING
     elif not enabled:
         health = HEALTH_DISABLED
@@ -234,11 +202,6 @@ def sweep_status() -> dict:
 
 
 def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | None:
-    """跑一轮巡检。返回 None 表示本轮无事可做。
-
-    每个轮次用**自己的会话**：巡检写库的时间和请求线程完全解耦，绝不能复用
-    某个请求的会话（那一事务可能已经持有写锁并卡在别处）。
-    """
     with database.session() as session:
         setting = site_config.get_setting(session)
         result = reconcile_due_orders(

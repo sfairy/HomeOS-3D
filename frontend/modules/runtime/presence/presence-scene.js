@@ -1,30 +1,22 @@
 /**
  * 人体存在（presence）在 3D 舞台里的角色呈现与地面检测波纹，是 presence 的渲染侧。
- * 把行走路线（楼层平面坐标）经 worldPoint 换算成世界坐标，为每个绑定造虚拟人物沿闭合路径
- * 匀速走动并按触发状态淡入/淡出；另给「检测到人」的传感器模型在地面画扩散波纹。
- *
- * 约定：routePoint 是楼层平面坐标，一律经 sceneOptions.worldPoint(floorId, x, y, height) 换算
- * （像素当量与原点由该函数处理，height 单位为米）；世界空间 Y 轴向上，人物正面朝 +Z。
- * sync(...) 只在外部签名变化时调用、内部再做细粒度 diff；tick 返回 true 表示还需继续出帧。
  */
-// 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609271208";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609271226";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271208";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271226";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271208";
-import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271208";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271226";
+import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271226";
 import {
   validPresenceRoute,
   createPresenceTriggers,
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=2609271208";
+} from "./presence-motion.js?v=2609271226";
 /**
  * 创建人体存在角色场景。
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，
- *     否则舞台为省电停掉帧循环后动画会僵住。
  */
 export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowProvider) {
   const actorsByBindingId = new Map();
@@ -34,14 +26,11 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   let elapsedSeconds = 0;
   // 触发计时复用 presence-motion 的实现：什么时候出现、显示多久与舞台无关。
   const triggers = createPresenceTriggers(nowProvider);
-  // 需要重建反射的楼层先攒起来，等一轮结束统一提交，避免一帧内多次重建同一楼层。
   const dirtyFloorIds = new Set();
   // 接触阴影的几何体与贴图只在第一次用到时创建，之后所有角色共用（见 createFootShadow）。
   let footShadowAssets = null;
   /**
    * 造一片「脚底接触阴影」。
-   * 不是真实软阴影，而是程序生成的径向渐变贴图铺在脚下：人物小又有自发光，开真实
-   * 阴影收益远低于代价；贴图与几何体只在首次调用时创建，Mesh 每次新建（材质各自调不透明度）。
    */
   function createFootShadow() {
     if (!footShadowAssets) {
@@ -55,7 +44,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
             ((pixelY + 0.5) / 64) * 2 - 1
           );
           // 只写 alpha 通道：颜色由材质决定。(1-d²)² 比线性衰减更接近真实接触阴影，
-          // 中心密实、边缘迅速消散。
           shadowPixels[(pixelY * 64 + pixelX) * 4 + 3] = Math.round(
             Math.max(0, 1 - radialDistance * radialDistance) ** 2 * 255
           );
@@ -82,7 +70,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
-      // 关掉色调映射，否则曝光变化会让阴影浓淡跟着变，看起来像浮在地面上。
       toneMapped: false
     });
     const shadowMesh = new sceneOptions.THREE.Mesh(footShadowAssets.geometry, shadowMaterial);
@@ -93,13 +80,9 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     shadowMesh.renderOrder = 2;
     // 标记为环境效果：environment-scene 与索引逻辑会跳过这类节点，不参与材质改造。
     shadowMesh.userData.environmentEffect = true;
-    // 不参与拾取：否则点到脚下的阴影却选中不了人物，或反而挡住人物的射线。
     shadowMesh.raycast = () => {};
     return shadowMesh;
   }
-  /**
-   * 把本轮攒下的脏楼层一次性提交给舞台重建反射。
-   */
   function flushReflectionFloors() {
     if (dirtyFloorIds.size) {
       sceneOptions.invalidateReflections?.([...dirtyFloorIds]);
@@ -109,14 +92,11 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   }
   /**
    * 设置角色的整体不透明度（淡入淡出）。
-   * 不能只改 opacity：半透明材质必须同时开 transparent 并关 depthWrite，否则角色
-   * 前后部件互相遮挡、出现「外壳盖住内里」的穿帮；transparent 是渲染状态开关，改动后必须置 needsUpdate 重编译着色器。
    */
   function applyActorOpacity(actor, targetOpacity) {
     actor.opacity = targetOpacity;
     for (const [material, originalMaterialState] of actor.materials) {
       material.opacity = originalMaterialState.opacity * targetOpacity;
-      // 半透明时关深度写入；恢复不透明时还原材质原本的取值（不要一律写成 true）。
       material.depthWrite = targetOpacity < 1 ? false : originalMaterialState.depthWrite;
       const shouldBeTransparent = originalMaterialState.transparent || targetOpacity < 1;
       if (material.transparent !== shouldBeTransparent) {
@@ -136,7 +116,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     // 先刷新世界矩阵：角色位置是每帧改的，不刷新会拿到上一帧的包围盒。
     measuredActor.root.updateWorldMatrix(true, true);
     // 逐个遍历子节点展开，而不是 expandByObject(root)：阴影是 root 的子节点，
-    // 它比人物扁得多但铺得更开，会让人物的点击热区被显著放大。
     for (const childObject of measuredActor.root.children) {
       if (childObject !== measuredActor.shadow) {
         bounds.expandByObject(childObject);
@@ -144,7 +123,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     }
     return bounds;
   }
-  // 复用的临时向量：贴地计算每帧都要跑一遍，避免每帧新建 Vector3 产生垃圾。
   const scratchFootPosition = new sceneOptions.THREE.Vector3();
   /**
    * 删除一个角色并摘下它的全部资源，同时记住它走到哪了。
@@ -182,7 +160,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     animateWalker(
       placedActor.root,
       // 步态相位 = 已走距离 / 角色缩放 × 12：同距离下角色越大步频越慢（步幅更大），
-      // 12 是与 speed 一起调出来的手感系数，不要理解成「每圈多少步」。
       (placedActor.distance / placedActor.size) * 12,
       // 编辑态的静态预览要求「站着不动」，用 walkAmount = 0 冻结步态。
       placedActor.preview ? 0 : 1,
@@ -196,17 +173,13 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
         return scratchFootPosition.y - placedActor.root.userData.soleHeight * placedActor.size;
       })
     );
-    // 再加 1.4% 身高（0.014 × size）的微小悬浮，避免脚掌正好埋进地板与阴影平面里。
     placedActor.root.position.y += pathSample.y + placedActor.size * 0.014 - groundOffsetY;
     // 阴影是 root 的子节点，位置会随 root 的 scale 一起放大，因此要除以 size 抵消，
-    // 使其始终贴在楼层地面（世界坐标 y ≈ pathSample.y + 0.008）上方一点。
     placedActor.shadow.position.y =
       (pathSample.y + 0.008 - placedActor.root.position.y) / placedActor.size;
   }
   /**
    * 计算每个可点击角色在屏幕上的包围矩形。
-   * 把世界包围盒的 8 个角投影到屏幕再取外接矩形 —— 比逐点采样便宜，也够用
-   * （角色是近立方体，倾斜投影下的误差可忽略）。
    */
   function computeHitRects(renderCamera, hitCanvasElement, sensorBindings) {
     const hitCanvasRect = hitCanvasElement.getBoundingClientRect();
@@ -229,7 +202,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
         }
       }
       // NDC 的 z 超出 ±1 表示整块都在裁剪体之外（相机背后或视锥外）；只要有一个角
-      // 落在视锥内就仍可能可见，所以这里用 every 而不是 some。
       if (projectedCorners.every(cornerPoint => cornerPoint.z < -1 || cornerPoint.z > 1)) {
         continue;
       }
@@ -277,8 +249,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
       if (sceneOptions.overlayScene && sceneOptions.worldPoint) {
         for (const binding of bindings) {
           // 逐条过滤「不该出现」的绑定。判定顺序有讲究：先排除配置层面的不可能
-          // （未闭合、没绑实体、路线非法、总开关关闭、不在本楼层），最后才查运行态
-          // 的触发与页面可见性 —— 前者是配置问题，后者每次状态变化都会重算。
           if (
             binding.routeClosed === false ||
             (!isEditing && !binding.entityId) ||
@@ -304,7 +274,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
             continue;
           }
           // 签名变化就整体重建角色：路线、外观、预览模式任一改动都走同一条路，
-          // 比逐个字段打补丁可靠；代价是重建时有几帧开销，对这么小的模型可接受。
           const actorSignature = JSON.stringify([binding, worldPoints, isEditing, isPreviewWalk]);
           let actorRecord = actorsByBindingId.get(binding.id);
           if (actorRecord && actorRecord.signature !== actorSignature) {
@@ -326,7 +295,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
             });
             for (const actorMaterial of actorMaterialSet) {
               // 给没有自发光的材质补一层自身颜色自发光（强度 0.55）：夜间 / 环境调暗
-              // 页面下人物不能黑成剪影，否则看不出有人在家。
               if (!actorMaterial.emissive?.getHex()) {
                 actorMaterial.emissive.copy(actorMaterial.color);
                 actorMaterial.emissiveIntensity = 0.55;
@@ -340,7 +308,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
             walkerRoot.userData.environmentFloorId = binding.floorId;
             sceneOptions.overlayScene.add(walkerRoot);
             // 进度只在「实体 / 楼层 / 路线 / 编辑态」都没变时才算数：换了路线还沿用旧距离
-            // 会让人物突然出现在新路径的某个莫名其妙的位置。
             const progressSignature = JSON.stringify([
               binding.entityId,
               binding.floorId,
@@ -378,10 +345,8 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
               preview: isEditing && !isPreviewWalk
             };
             walkerRoot.add(actorRecord.shadow);
-            // 编辑态直接给全不透明（不走淡入），非编辑态从 0 开始淡入，避免凭空出现。
             applyActorOpacity(actorRecord, isEditing ? 1 : 0);
             if (isEditing) {
-              // 编辑态才画路线预览线：抬高 0.025 米避免与地板共面闪烁。
               const routeLinePoints = [...worldPoints, worldPoints[0]].map(
                 linePoint =>
                   new sceneOptions.THREE.Vector3(linePoint.x, linePoint.y + 0.025, linePoint.z)
@@ -413,8 +378,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
       for (const [staleBindingId, staleActor] of actorsByBindingId) {
         if (!liveBindingIds.has(staleBindingId)) {
           const bindingMatch = bindings.find(bindingProbe => bindingProbe.id === staleBindingId);
-          // 「切走了页面」而不是「人不在了」时先淡出再删，避免下一页出现时闪一下；
-          // 其余情况（人走了、配置删了、总开关关了）必须立即移除，不能留残影。
           if (
             !isEditing &&
             enabled &&
@@ -433,7 +396,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
           }
         }
       }
-      // 进度缓存也要跟着绑定一起过期，否则删了又加的绑定会继承一份无意义的距离。
       for (const progressBindingId of progressByBindingId.keys()) {
         if (
           !bindings.some(bindingEntry => bindingEntry.id === progressBindingId) ||
@@ -495,7 +457,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
           dirtyFloorIds.add(tickedActor.floorId);
         }
       }
-      // 还有「在走的」或「没淡完的」角色就继续要帧；静止预览不算动画（否则会一直渲染）。
       const isAnimating = [...actorsByBindingId.values()].some(
         trackedActor => !trackedActor.preview || trackedActor.opacity !== 1
       );
@@ -514,7 +475,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
         return {
           center: [
             anchoredActor.root.position.x,
-            // +0.7 个身高：镜头对准躯干 / 头部而不是脚下，避免画面里人物贴在底边。
             anchoredActor.root.position.y + anchoredActor.size * 0.7,
             anchoredActor.root.position.z
           ]
@@ -559,7 +519,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
       );
       if (intersections.length) {
         // 命中的通常是最内层的子网格，需要沿父链回溯到角色根节点才能确定是哪个绑定；
-        // 若最近命中点不属于任何角色（例如别的物体挡在前面），返回 null 交给上层处理。
         return (
           clickableActors.find(([, candidateActor]) => {
             let sceneNode = intersections[0].object;
@@ -574,7 +533,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
         );
       }
       // 射线没打中（人物太细 / 点在小人两腿之间）时，用热区矩形的 padding 兜底：
-      // 计算点到矩形的最近距离，落在 padding 内就算命中，多个候选取最近的一个。
       const paddingHits = [];
       for (const {
         id: rectId,
@@ -619,18 +577,12 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     }
   };
 }
-/**
- * 创建「检测到人」的地面波纹效果：波纹出现在传感器模型（userData.environmentModelType === "presence"）
- * 的脚下，用同心圆环由中心向外扩散并淡出。所有波纹共用一份 RingGeometry 与每实例
- * 克隆的材质，环只靠缩放变形；每帧直接拷贝被跟随模型的 matrixWorld（传感器可能被拖动），开启「减少动态效果」时退化为静态环。
- */
 export function createPresenceWaves(waveOptions) {
   const { THREE: THREE } = waveOptions;
   const waveRecordsByBindingId = new Map();
   // 圆环默认躺在 XY 平面，一次性转到 XZ 地面；之后所有波纹共用这一个几何体。
   const ringGeometry = new THREE.RingGeometry(0.965, 1, 48);
   ringGeometry.rotateX(-Math.PI / 2);
-  // 三重缓存：模型根 / 场景版本 / 绑定签名任一变化才重建波纹节点，否则只更新数值。
   let cachedModelRoot;
   let cachedRevision;
   let cachedSignature = "";
@@ -653,7 +605,6 @@ export function createPresenceWaves(waveOptions) {
     floorId: waveFloorId = "",
     preview: wavePreview = false
   }) {
-    // dispose 之后所有入口都必须变成空操作：舞台可能在销毁后来一帧 tick / sync。
     if (isDisposed) {
       return;
     }
@@ -678,9 +629,6 @@ export function createPresenceWaves(waveOptions) {
       cachedRevision = revision;
       cachedSignature = bindingSignature;
       // 按「楼层 + 模型 ID」给传感器模型建索引：绑定里存的是 ID，画波纹要拿节点。
-      // 键必须走 core/scene-model-key.js 的共享实现：场景节点的 userData 常常缺
-      // environmentFloorId，而配置侧可能写成空串，裸 JSON.stringify 会把这两者编码成
-      // 两个不同的键，波纹于是静默不出现。
       const presenceModelsByKey = new Map();
       cachedModelRoot?.traverse(modelNode => {
         if (modelNode.userData?.environmentModelType === "presence") {
@@ -704,7 +652,6 @@ export function createPresenceWaves(waveOptions) {
         visibleBindingIds.add(waveBindingItem.id);
         let waveRecord = waveRecordsByBindingId.get(waveBindingItem.id);
         // 绑定的模型换了（例如换了传感器型号 / 重新布点）要重建波纹组；
-        // matrixAutoUpdate 关掉是因为位置完全由每帧拷贝模型世界矩阵决定。
         if (waveRecord?.model !== matchedModelNode) {
           if (waveRecord) {
             removeWaveRecord(waveRecord);
@@ -733,7 +680,6 @@ export function createPresenceWaves(waveOptions) {
                   toneMapped: false
                 })
               );
-              // 波纹是纯装饰，不参与拾取，否则会挡住传感器模型本身的点击。
               createdRingMesh.raycast = () => {};
               waveGroup.add(createdRingMesh);
               return createdRingMesh;
@@ -758,7 +704,6 @@ export function createPresenceWaves(waveOptions) {
           ringMesh.position.y = (waveBindingItem.height || 0.2) * 0.755;
         }
       }
-      // 配置里已经没有的绑定：连节点带材质一起清掉，避免越积越多。
       for (const [waveBindingId, staleWave] of waveRecordsByBindingId) {
         if (!visibleBindingIds.has(waveBindingId)) {
           removeWaveRecord(staleWave);
@@ -773,7 +718,6 @@ export function createPresenceWaves(waveOptions) {
         continue;
       }
       // 用户可调的范围：缩放 0.25~3 倍，不透明度 0~100%（默认 0.68）。
-      // 越界值一律夹回，避免配置里写坏的数值把波纹放大到铺满整个户型。
       activeWaveRecord.scale = Number.isFinite(waveBindingEntry.waveScale)
         ? Math.max(0.25, Math.min(3, waveBindingEntry.waveScale))
         : 1;
@@ -795,7 +739,6 @@ export function createPresenceWaves(waveOptions) {
         activeWaveRecord.opacity > 0 &&
         // 编辑预览时无视状态直接显示，方便调参数；正式运行时才要求状态激活。
         (wavePreview || isActiveState) &&
-        // 波纹是地面效果，只能出现在当前楼层，否则会叠在别的楼层地板上。
         waveBindingEntry.floorId === waveFloorId;
       hasVisibleWave ||= activeWaveRecord.group.visible;
     }
@@ -813,17 +756,14 @@ export function createPresenceWaves(waveOptions) {
     for (const visibleWave of waveRecordsByBindingId.values()) {
       if (visibleWave.group.visible) {
         // 波纹组自身不参与变换更新，每帧把被跟随模型的世界矩阵整体拷过来即可：
-        // 传感器可能被拖动 / 旋转，这样波纹永远贴合模型，不必反算偏移。
         visibleWave.model.updateWorldMatrix(true, false);
         visibleWave.group.matrix.copy(visibleWave.model.matrixWorld);
         visibleWave.group.matrixWorldNeedsUpdate = true;
         for (let ringIndex = 0; ringIndex < visibleWave.rings.length; ringIndex++) {
           // 周期 2.4 秒；三个环按 1/3 均分相位，形成「前一个刚淡出、后一个已扩散」的连续感。
-          // 开启减少动态效果时相位固定在 0.35，波纹退化为静止的浅色环。
           const ringPhase = prefersReducedMotion ? 0.35 : (elapsedMs / 2400 + ringIndex / 3) % 1;
           // 1.05 起步（略大于模型本身，不然会被模型盖住），随相位最多扩到 21 倍半径。
           const ringScale = visibleWave.radius * (1.05 + ringPhase * 20) * visibleWave.scale;
-          // 只留一个环给「减少动态效果」的用户，避免多个静止环叠成硬边。
           visibleWave.rings[ringIndex].visible = !prefersReducedMotion || ringIndex === 0;
           // 环在水平面上，y 不缩放（恒为 1），z 用 depthRatio 拉成椭圆跟随模型长宽比。
           visibleWave.rings[ringIndex].scale.set(ringScale, 1, ringScale * visibleWave.depthRatio);

@@ -1,12 +1,4 @@
 """3D 户型图（Studio 3D）草稿与导出文件的存储接口。
-
-草稿不走数据库，以单文件 JSON 存在 settings.studio3d_draft_path 上：编辑器每次保存都带
-revision，服务端比对一致再 +1，用这个字段做乐观并发控制；落盘走「临时文件 + fsync + rename」，
-保证断电不会留下半份草稿。
-
-导出方向相反：前端把 ZIP（场景 JSON + 家具图片）POST 上来，校验后解压到
-settings.studio3d_exports_dir 并注册进资产目录；删除前先扫描草稿与全局弹窗确认无引用。
-所有涉及导出目录的读改写都串行化在 _storage_lock 上，避免并发上传 / 删除互相踩踏。
 """
 from __future__ import annotations
 
@@ -43,38 +35,26 @@ from ..http.streaming import flush_and_sync, write_stream_in_batches
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 # 各条上限都是「防御性天花板」：正常户型图远小于这些值，设上限是为了挡住前端 bug 或
-# 恶意构造的超大请求把磁盘写满。草稿那一条与 core.body_limits.MAX_SCENE_DOCUMENT_BYTES 同源，
-# 免得出现「接口放行、落盘拒收」这种自相矛盾的门槛。
 MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512
 # 「本次删除影响」的确认文案。真保存的 428 与预检（dryRun）的 200 回的是同一件事，
-# 文案必须同源，否则两条路径会在弹窗里显示两种说法。
 INTERACTION_CONFIRMATION_MESSAGE = '删除的模型被 3D 控件引用，保存将一并移除这些绑定。'
 # 导出目录的互斥锁：上传、覆盖、删除都会做「先落临时目录再 rename」的多步操作，
-# 不加锁时两个并发请求的中间目录可能互相覆盖。
 _storage_lock = RLock()
 
 
 def utc_iso_now() -> str:
     """当前 UTC 时间的 ISO 字符串，写入草稿的 updatedAt 字段。
-
-    注意与 ``observability/global_log`` 的同名概念区分：那个 ``utc_now()`` 返回的是
-    ``datetime``，本函数返回的是**字符串**。两个模块此前都叫 ``_utc_now``，看名字分不出。
     """
     return datetime.now(timezone.utc).isoformat()
 
 
 def _atomic_json_write(path: Path, payload: dict) -> None:
     """把草稿原子地写进 JSON 文件。
-
-    步骤：序列化 → 检查大小 → 写同目录临时文件 → fsync → rename 覆盖。
-    payload 按键排序、去空格，保证内容相同则字节一致。
-    异常: HTTPException 413 —— 序列化后超过 MAX_DRAFT_BYTES。
     """
     encoded = canonical_json_bytes(payload)
-    # 写盘前就拦下超大草稿，避免先把大文件写出去再回滚。
     if len(encoded) > MAX_DRAFT_BYTES:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='户型图数据过大，无法保存。')
     # 临时文件必须与目标同目录：跨文件系统的 rename 不是原子操作。
@@ -97,9 +77,6 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
 
 def _read_draft(path: Path) -> dict | None:
     """读取草稿文件；文件不存在返回 None。
-
-    异常: HTTPException 500 —— 文件存在但 JSON 损坏或缺少 revision 字段。只能人工从备份恢复，
-    因此不静默降级成空草稿，否则编辑器下一次保存就会把坏文件覆盖掉。
     """
     if not path.is_file():
         return None
@@ -115,28 +92,15 @@ def _read_draft(path: Path) -> dict | None:
 
 def migrate_legacy_scene(database: DatabaseSession, draft_path: Path) -> dict | None:
     """把旧版仪表盘文档里的 studio3d 字段迁出成独立草稿文件。
-
-    迁移只做一次：从所有草稿里挑出第一份可用场景写入草稿文件（revision=1），并把该字段
-    从所有文档中删净 —— 不删的话每次启动都会重复迁移。没有任何可迁内容时返回 None。
-
-    **在启动期调用，不在 GET 路由里调用**：它写文件（`_atomic_json_write`）又 `commit()` 改库，
-    挂在 `GET /studio3d` 上等于让一个读接口带副作用 —— 并发 GET 会被 `_storage_lock` 串行化，
-    每次冷启动的第一个读请求还要额外写盘。参数用 `draft_path` 而不是 `Request`，就是为了
-    让「谁触发它」这件事在签名上就看得出来。
     """
     selected_scene = None
     changed = False
     # 按更新时间倒序：优先采用最近编辑过的那份场景。
     drafts = database.scalars(select(ProjectDraft).order_by(ProjectDraft.updated_at.desc())).all()
     for draft in drafts:
-        # 单份草稿损坏时跳过（统一入口）：迁移不该因为一份坏文档整个失败。
         document = parse_document(draft.document_json)
         if document is None:
             continue
-        # pop 而非 get：迁走之后要把它从文档里彻底移除，避免下次再被扫到。
-        # 用哨兵而不是 None 判定「键到底在不在」：`"studio3d": null` 也是一份要清理的残留，
-        # 若按 `scene is None` 跳过，这条草稿会被判成「无需处理」而永远不落库，
-        # 结果是每次启动都重扫一遍同一份文档（而它看起来明明已经删干净了）。
         missing = object()
         scene = document.pop('studio3d', missing)
         if scene is missing:
@@ -158,9 +122,6 @@ def migrate_legacy_scene(database: DatabaseSession, draft_path: Path) -> dict | 
 
 def _folder_name(request: Request) -> str:
     """从 x-export-folder 请求头解析并校验导出文件夹名。
-
-    必须是单个路径段：不含分隔符、不以点开头、结尾不是点或空格、不含 Windows 保留字符与
-    控制字符、UTF-8 编码不超过 180 字节。异常: HTTPException 422 —— 名称无效。
     """
     encoded = request.headers.get('x-export-folder', '')
     try:
@@ -168,7 +129,6 @@ def _folder_name(request: Request) -> str:
         name = unquote(encoded).strip()
     except (UnicodeError, ValueError) as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出文件夹名称无效。') from error
-    # Windows / NAS 共享上的保留字符，命中就拒绝，避免跨平台拷贝时出错。
     invalid_characters = '<>:"/\\|?*'
     if (
         not name
@@ -188,19 +148,12 @@ def _folder_name(request: Request) -> str:
 
 def _document_uses_asset_prefix(value, prefix: str) -> bool:
     """整份文档里是否存在以该前缀开头的字符串（用于查图片引用）。
-
-    判据与 ``assets.document_uses_asset`` 同源（键名与值都算，见 ``panel/entity_refs``），
-    宽一格只是少删一张图，窄一格会把还在用的导出图删掉。
     """
     return document_mentions(value, lambda text: text.startswith(prefix))
 
 
 def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
     """校验导出 ZIP 的结构与内容，返回条目列表。
-
-    校验项：ZIP 能打开、条目数与解压后总大小在上限内、只允许单层文件名、扩展名限定
-    .png/.json/.webp、JSON 必须能解析成对象、图片必须带正确魔数。任何一项不过都抛 4xx
-    中文错误，不做「尽量解压」的兜底。413 表示解压后总大小超限（防 zip bomb）；422 表示结构或内容非法。
     """
     try:
         archive = zipfile.ZipFile(archive_path)
@@ -253,7 +206,6 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
             if valid:
                 _assert_image_within_upload_limits(image_name, image_data)
                 continue
-            # 校验魔数而不只看扩展名，避免把伪装文件存进资产目录。
             format_name = 'PNG' if suffix == '.png' else 'WebP'
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{image_name} 不是有效的 {format_name} 文件。')
         return entries
@@ -261,18 +213,10 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
 
 def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
     """按**真实像素尺寸**校验导出包里的位图，越界抛 422。
-
-    为什么不能只验魔数 + 解压总量：一张几万见方的纯色 PNG 压缩比可以高到离谱，成包只有
-    几 MB —— 前面两道闸门都会放行，而它一旦注册成素材，解码它的是**浏览器**，炸在用户那边
-    （也顺带把缩略图 / 导出变体这些服务端步骤拖死）。上限刻意与 ``assets.validate_uploaded_image``
-    共用同一组常量：两条入口不能存在第二套口径。
-
-    只读头部、不解码像素（``Image.open`` 是惰性的），所以这一步本身不会变成新的解压炸弹入口。
     """
     try:
         with warnings.catch_warnings():
             # 尺寸超限由下面的显式判断负责，这里不靠 Pillow 的阈值报警；
-            # 让 warning 变成异常只会把「过大」误报成「已损坏」。
             warnings.simplefilter('ignore', Image.DecompressionBombWarning)
             with Image.open(io.BytesIO(data)) as probe:
                 (width, height) = probe.size
@@ -293,14 +237,6 @@ def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
 @router.get('')
 def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
     """读取 3D 户型图草稿（需已登录且授权允许 api）。
-
-    返回 {revision, scene, updatedAt}；草稿文件不存在时返回 revision=0 的空草稿，
-    前端据此进入新建流程。
-
-    旧版仪表盘文档里的 studio3d 字段由启动期的 `migrate_legacy_scene` 一次性迁出
-    （见 apps/server/main.py 的 lifespan）。这里刻意不把迁移挂在读路径上；但上一次保存若在
-    「库已提交、文件还没落盘」之间中断，本接口会补写草稿并清掉 pending ——
-    那是修复半状态，不是迁移。
     """
     # 读操作同样加锁：必须与写入串行。
     with _storage_lock:
@@ -312,9 +248,6 @@ def get_studio3d_draft(request: Request, database: DatabaseSession, _user: Licen
 
 def _interaction_archive(state: StudioInteractionSync | None) -> list:
     """从单行同步状态里取出上一次留下的撤销记录列表。
-
-    状态可能不存在（全新库）或内容被外部改坏：这两种情况都按「没有撤销记录」处理 ——
-    辅助数据不该让保存户型图失败，更不该让一次正常的清理把整次保存带崩。
     """
     if state is None:
         return []
@@ -330,8 +263,6 @@ def _interaction_archive(state: StudioInteractionSync | None) -> list:
 
 def _interaction_project_labels(database: DatabaseSession, impacts: list[dict]) -> list[str]:
     """把影响记录里的 projectId 换成人看得懂的项目名，供确认弹窗直接展示。
-
-    项目可能在两次请求之间被删掉，这时退回显示 id —— 宁可名字难看，也好过弹窗里少一项。
     """
     names = {project.id: project.name for project in database.scalars(select(Project)).all()}
     seen = dict.fromkeys(impact['projectId'] for impact in impacts)
@@ -347,36 +278,12 @@ def update_studio3d_draft(
     dry_run: bool = Query(False, alias='dryRun'),
 ) -> dict:
     """保存 3D 户型图草稿（需已登录且授权允许 api）。
-
-    请求体: scene（场景数据）与 revision（客户端持有的版本号）；成功返回新的
-    {revision, scene, updatedAt}。
-
-    保存时顺带清理「引用了已被删掉的场景模型」的 3D 控件绑定：删模型删的只是家具/门窗，
-    可仪表盘上那些绑定（灯、锁、窗帘……）还指着一个不存在的模型，点开就是空壳。
-    清理计划由纯函数 `plan_cleanup` 算出，本路由只负责取数据、落库、写盘；被剪掉的条目
-    连同身份键存进 `studio_interaction_sync`，等模型被重新画回场景时原样放回去。
-
-    dryRun=true 是同一套计算的**只读预检**：照样算影响清单，但一律不落盘，并把
-    「需不需要确认」用 200 回给客户端（{confirmationRequired, token, message, impacts,
-    projects, revision}）。客户端据此在真正提交之前就把确认框弹出来，正常删除路径于是不必
-    先撞一次 428 —— 那是预期内的业务控制流，却会让浏览器控制台为每次删除留一条清不掉的红字。
-    预检与真保存共用同一条计算，令牌在两步之间一致，确认时原样回传即可命中同一份计划。
-
-    异常:
-    - HTTPException 409 —— 版本号不一致，detail 为 {code: 'STUDIO3D_REVISION_CONFLICT',
-      message, currentRevision}，前端应提示「已在其他页面更新」并让用户重新拉取。
-    - HTTPException 428 —— 本次删除会让控件绑定悬空且未获确认，detail 为
-      {code: 'STUDIO3D_INTERACTION_CONFIRMATION', token, message, impacts, projects}：
-      前端弹确认框，用户同意后带同一个 token 重发即可；未确认时草稿、项目文档、撤销记录
-      一律未改动，撤销/取消直接丢弃本次请求即可。dryRun 时不走这条，改回 200（见上）。
     """
     with _storage_lock:
-        # 先补完上一次可能中断的落盘，否则下面读到的是旧 revision，客户端会被 409 卡住。
         _deliver_pending(request, database)
         current = _read_draft(request.app.state.settings.studio3d_draft_path)
         current_revision = current['revision'] if current else 0
         # 乐观并发控制（If-Match 语义）：客户端必须回传自己读到的版本号，
-        # 服务端不做覆盖式写入，避免两个标签页互相抹掉对方的编辑。
         if payload.revision != current_revision:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                 'code': 'STUDIO3D_REVISION_CONFLICT',
@@ -405,7 +312,6 @@ def update_studio3d_draft(
             request.app.state.settings)
         if impacts:
             # 令牌绑定「当前 revision + 新场景 + 现有文档 + 本次影响」：任何一项变了令牌就变，
-            # 用户确认的永远是它当时看到的那份计划。计划为空时不计算（省掉一次全库 JSON 序列化）。
             token = confirmation_token([current_revision, payload.scene, documents, impacts])
             if payload.interaction_confirmation != token:
                 projects = _interaction_project_labels(database, impacts)
@@ -428,9 +334,7 @@ def update_studio3d_draft(
                     'projects': projects})
         if dry_run:
             # 预检未命中（本次没有会让绑定悬空的删除）：同样不落盘，只回「无需确认」。
-            # 放在写回文档之前，保证 dryRun 在任何分支下都不会写库。
             return {'confirmationRequired': False, 'revision': current_revision}
-        # 逐份写回被清理过的文档；带 revision 条件，避免覆盖并发写入。
         for draft in drafts:
             cleaned = changed.get(draft.project_id)
             if cleaned is None:
@@ -450,19 +354,14 @@ def update_studio3d_draft(
             state = StudioInteractionSync(id=1)
             database.add(state)
         # 草稿先记进同步行的 pending 字段，等提交成功后再由 _deliver_pending 落到磁盘文件：
-        # 这样「库改了但文件没写」可以被下一次读取补上，而不会出现半份草稿。
         state.document_json = canonical_json({'archive': archive, 'pending': updated})
         # 撤销记录与草稿共用同一条体积上限：archive 存的是历次被剪掉的控件条目，反复增删模型
-        # 会让它越滚越大，一次保存就可能把库里这一行写成超大 JSON。超限时整批回滚（含上面
-        # 逐份文档的清理），并明确告知「关联清理未执行」—— 否则用户会以为清理成功、实际整份
-        # 保存都没落库。与草稿那条 413 是两条独立入口，故文案也不同。
         if len(state.document_json.encode('utf-8')) > MAX_DRAFT_BYTES:
             database.rollback()
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail='户型及撤销记录过大，未执行关联清理。')
         # 先提交库、再落盘：两步之间中断时，下一次读/写草稿会用 pending 补写完成，
-        # 库与文件最终一致（反过来「先写盘再提交」则可能在提交失败后留下已落盘的半份草稿）。
         database.commit()
         _deliver_pending(request, database)
         request.app.state.global_log.append('success', '3D户型图编辑器', '配置', f"3D 户型图草稿已保存（修订 {updated['revision']}）")
@@ -471,9 +370,6 @@ def update_studio3d_draft(
 
 def _deliver_pending(request, database) -> None:
     """把同步行里 pending 的草稿补写到磁盘，成功后就地清掉 pending。
-
-    保存路径先提交库、再调本函数写文件；两步之间进程被杀时，下一次读草稿会再次调用它，
-    于是补写完成 —— 库与文件最终一致。
     """
     state = database.get(StudioInteractionSync, 1)
     if state is None:
@@ -494,9 +390,6 @@ def _deliver_pending(request, database) -> None:
 @router.get('/exports/check')
 def check_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     """检查导出文件夹是否已存在（需已登录且授权允许 api）。
-
-    文件夹名取自 x-export-folder 请求头（经 _folder_name 校验）。
-    返回 {folderName, exists}，供前端在上传前弹「覆盖 / 换名」确认框。
     """
     folder_name = _folder_name(request)
     target = request.app.state.settings.studio3d_exports_dir / folder_name
@@ -506,10 +399,6 @@ def check_studio3d_export(request: Request, _user: LicensedUser) -> dict:
 
 def _install_export(settings, folder_name: str, temporary_archive: Path, entries: list[zipfile.ZipInfo], overwrite: bool) -> bool:
     """在写锁内把校验过的 ZIP 解压成正式导出目录，返回是否覆盖了旧文件夹。
-
-    整段都是同步文件操作（解压最大 1 GiB、若干次 rename），调用方必须放进线程池：
-    留在事件循环里会让一次大导出把全部 HTTP 与 WebSocket 一起冻住。存在性与覆盖判断放在
-    锁内做，防止两个并发上传都看到「不存在」而互相覆盖。
     """
     target = settings.studio3d_exports_dir / folder_name
     with _storage_lock:
@@ -526,7 +415,6 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
             with zipfile.ZipFile(temporary_archive) as archive:
                 for entry in entries:
                     output_path = staging / entry.filename
-                    # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive 校验过，不再信任 ZIP 自带信息。
                     with archive.open(entry) as source:
                         with output_path.open('xb') as output:
                             shutil.copyfileobj(source, output)
@@ -543,8 +431,6 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
                     os.replace(staging, target)
                     shutil.rmtree(backup, ignore_errors=True)
                 except Exception as error:
-                    # 回滚失败不能顶掉原始异常：那样看到的都是「回滚失败」，真正的原因
-                    # （新目录没能就位）反而丢了。把两者一起说清并链上原始异常。
                     try:
                         os.replace(backup, target)
                     except OSError as rollback_error:
@@ -564,9 +450,6 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
 
 def _register_exported_assets(catalog, folder_name: str, target: Path, entries: list[zipfile.ZipInfo]) -> None:
     """把导出包里的图片登记进素材目录（同步，调用方放进线程池）。
-
-    登记时要为每张图生成「透明裁剪变体」—— 一次完整的 Pillow 解码 + PNG 编码，
-    与解压同量级的同步重活，因此与解压一起交给工作线程。
     """
     for entry in entries:
         # 只登记图片：JSON 不是素材，前端素材库也不需要它。
@@ -577,11 +460,6 @@ def _register_exported_assets(catalog, folder_name: str, target: Path, entries: 
 @router.post('/exports', status_code=status.HTTP_201_CREATED)
 async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     """上传并保存 3D 导出包（需已登录且授权允许 api）。
-
-    请求头 x-export-folder（目标文件夹名，必填）、x-export-overwrite（'true' 表示允许覆盖）；
-    成功 201 返回 {folderName, relativePath, overwritten, files}。413 超限、422 结构非法、
-    409 已存在且未允许覆盖（STUDIO3D_EXPORT_EXISTS）。
-    收流留在事件循环里，所有同步重活（落盘、fsync、校验、解压换位、生成变体）交给工作线程。
     """
     folder_name = _folder_name(request)
     overwrite = request.headers.get('x-export-overwrite', '').strip().lower() == 'true'
@@ -628,11 +506,6 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
 @router.delete('/exports', status_code=status.HTTP_204_NO_CONTENT)
 def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _user: LicensedUser) -> Response:
     """删除一个自动导图文件夹（需已登录且授权允许 api）。
-
-    文件夹名取自 x-export-folder 请求头。删除前先扫描所有项目草稿、全局组合弹窗与户型图草稿，
-    只要还有图片被引用就拒绝。成功返回 204。
-    异常: HTTPException 409 —— 图片仍被引用，detail 为 {code: 'STUDIO3D_EXPORT_IN_USE',
-    message, folderName, projects}；404 不存在；422 名称非法。
     """
     folder_name = _folder_name(request)
     # 资产 ID 的前缀形式与前端约定一致，用前缀匹配即可覆盖文件夹下所有图片。
@@ -682,7 +555,6 @@ def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _
         os.replace(target, discarded)
         catalog = getattr(request.app.state, 'asset_catalog', None)
         if catalog is not None:
-            # 同步摘掉资产登记，否则素材库里会留下指向已删文件的死链。
             catalog.remove_studio3d_folder(folder_name)
         shutil.rmtree(discarded, ignore_errors=True)
     request.app.state.global_log.append('success', '图片管理', '删除', f'已删除自动导图文件夹：{folder_name}')

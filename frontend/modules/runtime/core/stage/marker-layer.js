@@ -1,39 +1,15 @@
 /*
  * 设备标记层。
- *
- * 设备标记的增删同步、投影定位与显隐，以及标记拖拽的按下/移动/抬起/取消。
- *
- * 由 core/stage.js 的 mountStage 外提而来：这里只放函数，对外部状态与兄弟函数的读写一律经
- * ctx —— ctx 的每一项都是 stage.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 // 组合条目的 id 口径只有一份实现（cover-groups.js）：拖拽回写要靠它把舞台 id 反查回配置组。
-import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609271208";
+import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609271226";
 
 /* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
- *
- * 舞台里的 UI 字号一律按**逻辑 px** 写，再由各自的缩放变量换算进设计画布：2778×1940 是 2 倍
- * 标称画布，所以灯光面板靠 --i3d-control-scale（×2）、导航靠 --i3d-navigation-scale（×2）把
- * 14px 抬成 28 设计 px。标记这套只带了 markerSize/44 这个「随标记大小」的比值，缺了这一步换算，
- * 于是同样写 12px 的标签在屏幕上只有面板文字的一半（面板 28 设计 px vs 标签 12 设计 px，恒定差
- * 2.2 倍，与预览缩放无关）。编辑器预览里画布再被压到 0.36，12 设计 px 只剩约 4px，等于看不见。
- *
- * 所以标记文字、标记自身的命中框、以及标签内那枚图标都要按同一个倍数换算：整块标签放大后，
- * 可点区域必须跟着放大，否则看得见的地方点不中；标签内的图标则要反着除回去，
- * 免得它相对普通标记的图标变成两倍大。
  */
 const MARKER_LABEL_SCALE = 2;
 
 /**
  * 门牌（门锁标记上那块标签）该不该贴。
- *
- * labelMode 的三个取值各有用途：always 常显（让用户一眼看见有哪些门）、open 只在门开着时显
- * （平时不挡场景，开门才提醒）、hidden 不显。表外的值不回落到 hidden 而是回落到 always ——
- * 配错不显示属于「静默少东西」，比多显示一块标签难排查得多。
- *
- * labelHidden 是 labelMode 之前的旧字段，只为兼容还在用它的老配置：它只能表达「显 / 不显」
- * 两态，所以只在 labelMode 没写时才生效。
- *
- * 非门锁的绑定一律返回 true（本函数只管门牌，摄像头与人体传感器的标签显隐另有规则）。
  */
 const doorLabelVisibility = binding =>
   binding.labelMode === "hidden" || binding.labelMode === "open" || binding.labelMode === "always"
@@ -50,8 +26,6 @@ const doorLabelVisible = (binding, lockStateValue) =>
 export function createMarkerLayer(ctx) {
   /**
    * 重绘标记列表：按当前模块的绑定集合增删 DOM 节点并同步内容。
-   *
-   * 场景替换过程中（isSceneUpdating）不重绘，避免与场景更新互相竞争。
    */
   function renderMarkers() {
     if (ctx.isSceneUpdating) {
@@ -72,7 +46,6 @@ export function createMarkerLayer(ctx) {
       let markerElement = ctx.markersById.get(renderedBinding.id);
       if (!markerElement) {
         // 温湿度计是一块只读信息卡（卡片本身就是标记），与展示态的人体传感器一样用 div
-        // 而不是 button，避免键盘 / 表单语义把一张只读卡片当成开关。
         const isTemperatureHumidityMarker =
           renderedBinding.deviceKind === "temperature-humidity";
         markerElement = ctx.makeElement(
@@ -83,7 +56,6 @@ export function createMarkerLayer(ctx) {
         markerElement.addEventListener("click", markerClickEvent => {
           markerClickEvent.stopPropagation();
           // 温湿度计没有对应面板：展示态点它只会落进灯光面板那条兜底分支，
-          // 因此在非编辑态直接吞掉这次点击；编辑态继续往下走，交给选中 / 拖拽。
           if (!ctx.isEditing && renderedBinding.deviceKind === "temperature-humidity") {
             return;
           }
@@ -119,8 +91,6 @@ export function createMarkerLayer(ctx) {
       const isTemperatureHumidityMarker = renderedBinding.deviceKind === "temperature-humidity";
       if (isCurtainGroupMarker) {
         // 组合标记要并排显示两名成员的图标（典型是纱帘 + 布帘），并按图标组合做重建签名：
-        // 只有成员图标真的变了才动 DOM，否则每帧 replaceChildren 会打断正在播放的过渡。
-        // 成员图标缺省回落到与普通窗帘同一个默认图标（mdi:curtains），不另造一枚。
         const curtainGroupMemberIcons = (renderedBinding.memberItems || []).map(memberItem =>
           /^mdi:[a-z0-9-]+$/.test(memberItem.icon || "") ? memberItem.icon : "mdi:curtains"
         );
@@ -139,7 +109,6 @@ export function createMarkerLayer(ctx) {
         }
       } else if (
         // 温湿度计的卡片自带两枚遮罩图标，不能走「普通标记的一枚图标」这条支路 ——
-        // 否则会先被塞进默认图标 SVG，再把卡片 replaceChildren 掉，白白做一次无效渲染。
         !isVacuumMarker &&
         !isTemperatureHumidityMarker &&
         markerElement.dataset.icon !== iconName
@@ -171,7 +140,6 @@ export function createMarkerLayer(ctx) {
             : isCurtainGroupMarker
               ? {
                   // 组合没有自己的实体：任一成员在线就算在线、任一成员「开着」就点亮，
-                  // 与单副帘的 coverIconIsOn 口径一致（成员状态逐个归一化后再判）。
                   available: (renderedBinding.memberItems || []).some(memberItem =>
                     ctx.coverState(
                       memberItem.entityId,
@@ -244,8 +212,6 @@ export function createMarkerLayer(ctx) {
           ? renderedBinding.hitSize
           : Math.max(44, markerSize);
       markerElement.style.width = markerElement.style.height = hitSize + "px";
-      // 组合标记要横排两枚图标：命中框至少容得下「两枚图标 + 间隙」，否则两枚图标会互相挤压。
-      // 只放大这个标记自己，普通窗帘仍按 hitSize 走。
       if (isCurtainGroupMarker) {
         markerElement.style.width = Math.max(hitSize, iconSize * 2 + 8) + "px";
         markerElement.style.height = Math.max(hitSize, iconSize + 8) + "px";
@@ -263,7 +229,6 @@ export function createMarkerLayer(ctx) {
           (renderedBinding.deviceKind === "presence" && ctx.isEditing)
       );
       // 温湿度计：卡片自带底色与圆角，不是圆形按钮，故单独一类；
-      // 编辑态再挂一个可拖拽类（覆盖卡片上的 pointer-events:none 与光标）。
       markerElement.classList.toggle("is-temperature-humidity", isTemperatureHumidityMarker);
       markerElement.classList.toggle(
         "is-editable-temperature-humidity",
@@ -311,10 +276,8 @@ export function createMarkerLayer(ctx) {
         );
         temperatureHumidityTitleElement.textContent = renderedBinding.label ?? "温湿度计";
         // 标题「留空隐藏」：卡片是 display:flex + gap:8px，只清空 textContent 仍会占一行
-        // 并留下 8px 间隙，所以必须显式 hidden（与上游同一判据）。
         temperatureHumidityTitleElement.hidden = !temperatureHumidityTitleElement.textContent;
         // 「这条温湿度计配没配实体」是两路实体任一非空；用于决定未绑定的那一行
-        // 是藏起来（另一路有绑定）还是留一行空读数（两路都没绑，卡片仍要有个样子）。
         const isTemperatureHumidityBound = !!(
           renderedBinding.temperatureEntityId || renderedBinding.humidityEntityId
         );
@@ -343,14 +306,9 @@ export function createMarkerLayer(ctx) {
               : "";
         }
         // 卡片宽度由配置的 size 决定（缺省 180 逻辑 px）；整块按标记标签倍数放大，
-        // 命中框再跟着卡片量出来的尺寸走，与门牌同一套口径（offsetWidth 不含 transform）。
         temperatureHumidityCard.style.width =
           Math.min(600, Math.max(100, Number(renderedBinding.size) || 180)) + "px";
         // 文字大小：卡片内所有字号（标题 1em、读数 1.5em/1.2em）都是相对单位，
-        // 所以在卡片上设 font-size 即可整块缩放。
-        // 只认编辑器写得出的区间（9~24，与上游同口径）；区间外的存量值一律当作「从未配置」
-        // 回落到 12 —— 本仓曾把 26 当缺省写进所有存量卡片，若按上游那样夹到上限，
-        // 这些卡片会比原来大一圈（12 正是卡片此前的固定字号，也就是「以前的样子」）。
         const meterConfiguredFontSize = Number(renderedBinding.iconSize);
         temperatureHumidityCard.style.fontSize =
           (meterConfiguredFontSize >= 9 && meterConfiguredFontSize <= 24
@@ -411,7 +369,6 @@ export function createMarkerLayer(ctx) {
         }
         const vacuumStatus = ctx.vacuumStatusPresentation(renderedBinding, ctx.statesByEntityId);
         // 整块状态卡（名称 / 明细 / 电量 / 卡片内边距 / 箭头）一起按标记标签口径放大：
-        // 卡内字号不动，缩放交给 transform 与下面两处框尺寸，三者才不会走散。
         const statusScale = (markerSize / 44) * MARKER_LABEL_SCALE;
         if (!renderedBinding.overviewQuip) {
           statusElement.querySelector(".i3d-vacuum-status-name").textContent =
@@ -450,8 +407,6 @@ export function createMarkerLayer(ctx) {
       ) {
         const entityState = ctx.resolveStateEntry(ctx.statesByEntityId[renderedBinding.entityId]);
         // 门锁的「在线」由 lockState 综合判定：锁本体 / 门磁 / 电量任一条在线即算在线，
-        // 所以这里直接用它算好的 available，不能只看 entityId 那一条实体的状态
-        // —— 门磁掉了但锁本体还在时，门依然是可用的。
         const lockStateValue =
           renderedBinding.deviceKind === "lock" ? deviceState.lock : null;
         const isAvailable =
@@ -464,7 +419,6 @@ export function createMarkerLayer(ctx) {
                 !["unknown", "unavailable"].includes(entityState.state);
         deviceState.available = isAvailable;
         // 「亮起」的口径：门锁是「已解锁或锁舌已释放」（这两种状态才需要用户注意），
-        // 摄像头是正在录像，其余（人体传感器）是 on。
         deviceState.on =
           renderedBinding.deviceKind === "lock"
             ? lockStateValue.state === "unlocked" || lockStateValue.state === "open"
@@ -494,7 +448,6 @@ export function createMarkerLayer(ctx) {
             renderedBinding.label ||
             (isLockMarker ? "门" : renderedBinding.deviceKind === "camera" ? "摄像头" : "人体传感器");
           // 「这条锁配没配实体」与其它两类不同：锁的实体散在五个槽位里，任何一个非空都算配过，
-          // 只看 entityId（锁本体）会把「只绑了门磁」的门误报成未绑定。
           const lockBoundEntityId =
             isLockMarker &&
             (renderedBinding.doorEntityId ||
@@ -530,11 +483,9 @@ export function createMarkerLayer(ctx) {
           securityLabelElement.classList.toggle("is-lock-status", isLockMarker);
           securityLabelElement.classList.toggle("is-camera-offline", !isAvailable);
           // 门牌贴不贴由 labelMode 决定：always 常显；open 只在门开着时显；hidden 不显。
-          // 缺省口径是「常显」（labelHidden: true 的老配置折算成 hidden）。
           securityLabelElement.hidden = !doorLabelVisible(renderedBinding, deviceState.lock);
           securityLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
           // 标签整块按标记标签口径放大：字号、内边距、圆角、图标位置都跟着 --i3d-security-scale
-          // 走，所以标签内的图标要反着除回去，才能和普通标记的图标一样大。
           const securityLabelScale = (markerSize / 44) * MARKER_LABEL_SCALE;
           if (renderedBinding.deviceKind === "camera" || isLockMarker) {
             const securityIconElement = markerElement.querySelector(".i3d-marker-icon");
@@ -547,11 +498,6 @@ export function createMarkerLayer(ctx) {
             );
           }
           markerElement.style.setProperty("--i3d-security-scale", String(securityLabelScale));
-          // 命中框 = 标签的布局尺寸 × 缩放（offsetWidth/offsetHeight 不含 transform，乘完才是
-          // 屏幕上真正占的范围），摄像头以外的两种情况再并上原来那组估算常量（同样乘缩放），
-          // 于是命中范围只会变大不会变小 —— 常量是估的，标签宽度随文字长短浮动，取较大值最保险；
-          // 量不到时（祖先尚未布局）也正好靠这组常量兜底。hitSize 是用户设的触控范围（设计 px），
-          // 已经落在屏幕尺寸上，不参与换算。
           const labelHitWidth = Math.max(
             securityLabelElement.offsetWidth,
             renderedBinding.deviceKind === "camera" ? 0 : isSensorChoice ? 120 : 180
@@ -578,7 +524,6 @@ export function createMarkerLayer(ctx) {
         roomLabelElement.textContent = renderedBinding.label || "清扫";
         roomLabelElement.hidden = renderedBinding.labelHidden === true;
         // 房间名是 chip 而不是整块缩放的元素，这里直接放字号；CSS 里的内边距 / 圆角已改成 em，
-        // 跟着字号一起长（见 stage.css 的 .i3d-room-label）。
         roomLabelElement.style.fontSize =
           (renderedBinding.fontSize || 12) * MARKER_LABEL_SCALE + "px";
       }
@@ -613,7 +558,6 @@ export function createMarkerLayer(ctx) {
 
   /**
    * 把标记的世界坐标投影成屏幕坐标并摆放 DOM：空闲超过 240ms 且没有扫地机在动时跳过（省每帧投影），
-   * 投影结果落在 NDC ±1.05 之外视为不可见（留 5% 余量避免边缘闪现）。
    * @param {boolean} [forceLayout=false] 强制重排，忽略签名缓存。
    */
   function updateMarkerPositions(forceLayout = false) {
@@ -759,7 +703,6 @@ export function createMarkerLayer(ctx) {
   }
 
   // 依据楼层过渡进度与相机过渡状态决定标记可见性：过渡未揭开标记时隐藏，
-  // 否则用户会看到标记在新旧楼层之间漂移。
   function updateMarkerVisibility() {
     const isFloorMarkersTransitioning =
       ctx.cameraTransition?.owner === "floor" && !ctx.cameraTransition.markersRevealed;
@@ -844,7 +787,6 @@ export function createMarkerLayer(ctx) {
   }
 
   // 开始拖拽标记：只在编辑态、无聚焦、鼠标左键时生效，并把指针捕获到元素上，
-  // 这样指针移出元素也不会丢事件。
   function beginMarkerDrag(dragStartEvent, dragBindingId) {
     if (!ctx.isEditing || ctx.focusMode || dragStartEvent.button !== 0) {
       return;
@@ -902,7 +844,6 @@ export function createMarkerLayer(ctx) {
     ctx.stageOptions.controls.enabled = false;
   }
 
-  // 拖拽中：位移超过阈值才算真正开始移动（否则仍视作点击），并实时预览新坐标。
   function moveMarkerDrag(dragMoveEvent) {
     if (
       !ctx.markerDragState ||
@@ -930,7 +871,6 @@ export function createMarkerLayer(ctx) {
   }
 
   // 结束拖拽：把最终坐标回报宿主落库；在元素上打 dataset.dragged，
-  // 让紧随而来的 click 事件知道这是一次拖拽而不是点击。
   function endMarkerDrag(dragEndEvent) {
     if (!!ctx.markerDragState && ctx.markerDragState.pointerId === dragEndEvent.pointerId) {
       if (ctx.markerDragState.moved) {
@@ -997,7 +937,6 @@ export function createMarkerLayer(ctx) {
   }
 
   // 取消拖拽：灯光模块下把坐标回滚到按下时的快照，其它模块交给
-  // 宿主下发的 config 覆盖成正确值。
   function cancelMarkerDrag() {
     if (ctx.markerDragState && ctx.activeModule === "light") {
       Object.assign(ctx.findBinding(ctx.markerDragState.id), ctx.markerDragState.original);

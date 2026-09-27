@@ -13,9 +13,6 @@ RUN_AS_USER = "homeos"
 
 def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
     """需要校正属主的可写目录。
-
-    只纳入环境里显式给出的路径，避免商店镜像误建主应用目录、反之亦然。
-    未设置 ``APP_DATA_DIR`` / ``STORE_DATA_DIR`` 时仍回落到各自默认值，兼容旧启动方式。
     """
     candidates: list[Path] = []
 
@@ -82,8 +79,6 @@ def initialize_permissions(
             os.chmod(directory, 0o700)
         except OSError as error:
             # 只读挂载（例如主应用以 :ro 挂载的公钥卷）无法校正属主，这里出声而不是
-            # 静默跳过：属主不对 + 只读 = 容器里的非 root 用户读不到这些文件，症状会
-            # 出现在很久之后的「授权公钥读不了」，而不是这里。跨机器拷入的卷最容易踩。
             if error.errno in {errno.EROFS, errno.EACCES, errno.EPERM}:
                 print(
                     f'警告：无法校正 {directory} 的属主（{error.strerror}）。'

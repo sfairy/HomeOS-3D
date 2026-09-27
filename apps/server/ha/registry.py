@@ -1,7 +1,4 @@
 """实体注册表与增量状态落地：注册表事件/快照怎么并进本地缓存
-
-从 license/service.py 的 LicenseService 里搬出来的方法组（mixin）：只移动方法本身，
-私有属性仍由 LicenseService.__init__ 建立 —— 因此这里只依赖 self 上的协议，不反向依赖那个模块。
 """
 from __future__ import annotations
 import asyncio
@@ -13,17 +10,12 @@ from sqlalchemy import select
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, utc_now
 from ..observability.global_log import _safe_text
 # 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
-# 连回 Wi-Fi），外网也可能已经失效。代价是一次 /api/config，换来 60 秒内自动归位。
 HA_ENDPOINT_RECHECK_SECONDS = 60
 # 补拉状态的重试退避（秒）：共尝试 3 次（首次 + 两次重试），
-# 用来兜住 HA 刚启动或集成还没就绪、状态暂时不完整的时刻。
 STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
-# 历史查询并发上限：HA 侧的历史接口要查 recorder 数据库，开销大。
 HISTORY_FETCH_CONCURRENCY = 2
-# 历史结果短缓存（秒）：同一图表在页面切换/轮询时会重复请求，30 秒内直接复用。
 HISTORY_CACHE_SECONDS = 30
 # 判断「状态是否不完整、值得再拉一次」的关键属性表。HA 启动初期或集成重载时会先返回
-# 带 entity_id 但属性缺失的占位状态，climate 这类控件的可用性全靠这几个属性，缺一个就重拉。
 STATE_FETCH_REQUIRED_ATTRIBUTES = {
     'climate': {
         'fan_modes',
@@ -42,7 +34,6 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
         if state is None:
             return True
         # 不在白名单里的域只要有状态就算完整；sensor 例外：unknown / unavailable 是
-        # 「还没读到值」的占位状态，必须重拉，否则图表永远停在未知。
         return domain == 'sensor' and str(state.get('state') or '').strip().casefold() in frozenset({'unknown', 'unavailable'})
     attributes = state.get('attributes') if isinstance(state, dict) else None
     # 属性表缺失，或必备属性一个都没有 —— 两种情况都按残缺处理。
@@ -60,9 +51,6 @@ class HARegistryMixin:
 
     async def _debounced_registry_refresh(self, connection_id: str) -> None:
         """防抖计时结束后真正拉取三份注册表并落库。
-
-        失败只记日志：元数据不是实时性的关键路径，等下一次事件或全量对账
-        自然会纠正，没必要让整条实时连接因此断开。
         """
         try:
             # 睡在最前面：睡眠期间排队的同类事件会取消本任务并重新计时。
@@ -85,15 +73,11 @@ class HARegistryMixin:
             self._log_event('error', '实体同步', f'Home Assistant 实体目录刷新失败：{error}', details = traceback.format_exc())
             LOGGER.error('HA registry metadata refresh failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
         finally:
-            # 只有自己仍是登记项时才摘除，否则会把休眠期间新排上的任务误删。
             current = self._registry_refresh_tasks.get(connection_id)
             if current is asyncio.current_task():
                 self._registry_refresh_tasks.pop(connection_id, None)
     def _apply_registry_event(self, connection_id: str, event_type: str, event_data: dict[str, Any]) -> str | None:
         """把一条注册表变更事件增量写库。
-
-        返回操作名（create/remove/update）供调用方广播目录变更，无效时返回 None。
-        **changes 里是「变更前的旧值」**；实体移除只置 missing 不删行，避免 HA 抖动丢绑定。
         """
         action = str(event_data.get('action') or 'update')
         # 白名单外的 action 一律忽略，等一次全量对账兜底。
@@ -203,15 +187,11 @@ class HARegistryMixin:
         return action
     def _apply_registry_snapshot(self, connection_id: str, entities: list[dict[str, Any]] | None, devices: list[dict[str, Any]] | None, areas: list[dict[str, Any]] | None) -> dict[str, int] | None:
         """用三份注册表快照刷新元数据（新增 + 更新，不做缺失标记）。
-
-        各自为 None 表示该份没取到；三份都没取到返回 None。刻意不把未出现的记录标记
-        missing：快照可能只成功一部分，缺失判定交给全量对账更安全，免得误清目录。
         """
         if entities is None and devices is None and areas is None:
             return None
         now = utc_now()
         with self.database.session_factory() as database:
-            # 先把已有记录整表读进字典，避免逐条 select 造成 N+1 查询。
             existing_entities = {
                 record.entity_id: record
                 for record in database.scalars(select(HAEntity).where(HAEntity.connection_id == connection_id))} if entities else { }
@@ -231,7 +211,6 @@ class HARegistryMixin:
                 record.unique_id = item.get('unique_id')
                 record.device_id = item.get('device_id')
                 record.area_id = item.get('area_id')
-                # 名称/图标用 or 兜底：HA 返回 None 时保留库里旧值，否则会把已同步的名字清空。
                 record.name = item.get('name') or item.get('original_name') or record.name
                 record.original_name = item.get('original_name')
                 record.icon = item.get('icon') or record.icon
@@ -298,7 +277,6 @@ class HARegistryMixin:
     def _record_error(self, connection_id: str, message: str) -> None:
         """把错误写进连接与同步状态（供界面展示）。"""
         # 截断到 2000 字符：错误里常带整段响应/堆栈，无上限会把状态表撑大，
-        # 界面也放不下。
         safe_message = message[:2000]
         with self.database.session_factory() as database:
             connection = database.get(HAConnection, connection_id)
@@ -319,7 +297,6 @@ class HARegistryMixin:
                 connection.last_error = None
             state = database.get(HASyncState, connection_id)
             # 注意这里不用「不存在就新建」：同步状态由同步流程负责创建，
-            # 连接成功本身不该凭空写出一行状态记录。
             if state:
                 state.status = 'connected'
                 state.phase = None
@@ -329,9 +306,6 @@ class HARegistryMixin:
     @staticmethod
     def _device_registry_metadata(item: dict) -> str:
         """把设备注册表条目压成一份精简 JSON，供前端按集成/入口筛选设备。
-
-        只挑稳定且有筛选价值的字段：integrations（从 identifiers 取集成名）、
-        configEntryIds、viaDeviceId、entryType。
         """
         return json.dumps({
             'integrations': sorted({
@@ -345,16 +319,12 @@ class HARegistryMixin:
             'entryType': item.get('entry_type') }, ensure_ascii = False)
     def _apply_incremental_state(self, connection_id: str, raw_state: dict[str, Any]) -> bool:
         """把一条实时状态事件增量落库。
-
-        返回目录是否变化（新实体出现、或 missing 实体复活）。这是高频路径，必须便宜：
-        已知实体在 INCREMENTAL_FLUSH_SECONDS 内直接返回，不碰数据库。
         """
         entity_id = str(raw_state.get('entity_id') or '')
         if not entity_id:
             return False
         key = (connection_id, entity_id)
         known = key in self._known_entity_ids
-        # 用 monotonic 计时，避免系统对时导致节流窗口被跳过或卡死。
         monotonic_now = time.monotonic()
         flush_incremental = monotonic_now - self._incremental_flushed_at.get(connection_id, 0) >= INCREMENTAL_FLUSH_SECONDS
         if known and not flush_incremental:

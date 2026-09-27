@@ -1,25 +1,13 @@
-/**
- * 背景主题（地面网格 / 微光星尘）：给地面材质注入 GLSL（onBeforeCompile + 自定义 uniform），
- * 在同一份网格上切换出「经典网格」与「微光星尘」两种外观，并让地面能对指针交互产生光影反馈。
- *
- * 约定：星尘主题把注入代码的版本号写进 customProgramCacheKey（":hb-ground-theme-v5"），改注入代码
- * 时必须同时改它，否则 three.js 会复用旧程序。地面局部坐标与世界对应关系是 vec2(position.x, -position.y)：
- * 平面几何的 +Y 对应场景的 -Z，故所有注入代码里都带负号。
- */
 
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271208";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271226";
 
 /**
  * 归一化主题名。
- *
- * "contours" 是早期版本的旧名，仍映射到 dots，保证老配置升级后不会掉回网格。
  */
 const normalizeBackgroundTheme = themeName =>
   themeName === "dots" || themeName === "contours" ? "dots" : "grid";
 // 注入到顶点 / 片元着色器的代码片段。
-// 注意：字符串里的 // 是 GLSL 注释，属于着色器源码的一部分，必须原样保留 ——
-// 改动它会同时改变 customProgramCacheKey 与渲染结果，且无法用 JS 注释替代。
 const GROUND_THEME_UNIFORM_CHUNK =
   "\nvarying vec2 vHbGround;\nuniform float hbGroundTheme;\nuniform float hbGroundSpan;\nuniform float hbGroundCoverage;\nuniform float hbGroundFallback;\nuniform vec2 hbGroundCenter;\nuniform vec3 hbGroundDeep;\nuniform float hbGroundActivity;\nuniform vec3 hbGroundPulse;\nuniform vec3 hbGroundInk;\nuniform vec3 hbGroundAccent;\n";
 const GROUND_THEME_FRAGMENT_CHUNK =
@@ -66,7 +54,6 @@ export function createBackgroundTheme(
   ];
   /**
    * 该对象是否应当保持可见：楼层背景隐藏逻辑（floorBackgroundHidden）会藏起远处楼层地面，
-   * 但被选为「兜底不透明层」的地面必须例外，否则整体透明度会不足。
    */
   const shouldRemainVisible = candidateObject =>
     !candidateObject.userData.floorBackgroundHidden ||
@@ -83,7 +70,6 @@ export function createBackgroundTheme(
     for (const blendProperty of BLEND_PROPERTY_KEYS) {
       entryMaterial[blendProperty] = entry.blend[blendProperty];
     }
-    // 只有在回调仍是我们替换的那个时才还原，避免覆盖别的模块后来的修改。
     if (entryMaterial.onBeforeCompile === entry.compile) {
       entryMaterial.onBeforeCompile = originalBeforeCompile;
     }
@@ -117,7 +103,6 @@ export function createBackgroundTheme(
         hbGroundTheme: {
           value: activeTheme === "dots" ? 1 : 0
         },
-        // 覆盖度：多块半透明地面叠在一起时，用它把 alpha 除回去，避免重复叠加变亮。
         hbGroundCoverage: {
           value: 1
         },
@@ -150,7 +135,6 @@ export function createBackgroundTheme(
         }
       }
     };
-    // 先把版本后缀从原键里剥掉，避免反复注入时版本号不断累积。
     const baseProgramKey = groundThemeEntry.programKey
       .call(meshMaterial)
       .replace(/:hb-ground-theme-v[0-9]+/g, "");
@@ -174,7 +158,6 @@ export function createBackgroundTheme(
           );
       }
     };
-    // 版本号参与程序缓存键：改注入代码必须同时改版本号（v5），否则 shader 不会重编。
     groundThemeEntry.key = () => baseProgramKey + ":hb-ground-theme-v5";
     meshMaterial.onBeforeCompile = groundThemeEntry.compile;
     meshMaterial.customProgramCacheKey = groundThemeEntry.key;
@@ -289,8 +272,6 @@ export function createBackgroundTheme(
         0
       );
       // 兜底不透明层：当所有可见地面的不透明度加起来不到 1 时（多层叠加被隐藏），
-      // 需要让一块「被判定为不可见」的半透明地面顶上来补齐，否则会透出场景底色。
-      // 优先复用上一次用的那块，避免每帧切换导致画面闪动。
       const previousFallbackEntry = entriesByObject.get(lastOpaqueObject);
       const fallbackEntry =
         previousFallbackEntry?.material.transparent &&
@@ -327,7 +308,6 @@ export function createBackgroundTheme(
         targetUniforms.hbGroundCoverage.value = targetMaterial.transparent ? totalOpacity : 1;
         if (targetMaterial.transparent) {
           // 改用预乘 alpha 的自定义混合：多层半透明地面叠加时不会出现「越叠越亮」，
-          // 这是与上面的 coverage 归一化配套的（两者缺一都会导致亮度不对）。
           targetMaterial.blending = THREE.CustomBlending;
           targetMaterial.blendEquation = targetMaterial.blendEquationAlpha = THREE.AddEquation;
           targetMaterial.blendSrc = targetMaterial.premultipliedAlpha

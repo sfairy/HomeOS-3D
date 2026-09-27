@@ -1,10 +1,5 @@
 /**
  * 扫地机器人（vacuum）的实体聚合目录。
- *
- * 舞台页清扫面板用这里产出的 profile 列表渲染「设备 + 地图 + 相关按键」，数据来自 /api/ha 的
- * 实体表与设备注册表，纯计算不发请求。对外导出 vacuumProfiles。后端实体字段有 `disabled_by` /
- * `disabledBy`、`device_id` / `deviceId` 两套写法，两边都要识别，否则 HA 集成升级后会出现
- * 「已禁用的扫地机仍显示」。
  */
 
 /**
@@ -25,7 +20,6 @@ export function vacuumProfiles(entities = [], devices = []) {
     /^vacuum\.[a-z0-9_]+$/.test(rawEntity.entityId)
   )) {
     const entityDeviceId = vacuumEntity.deviceId || vacuumEntity.device_id || "";
-    // 无 deviceId 的实体（旧版集成未上报）以 entityId 自成一组，避免多台机器被并成一条。
     const deviceKey = entityDeviceId || vacuumEntity.entityId;
     if (!profilesByDeviceId.has(deviceKey)) {
       // 用户自定义名称优先于注册表名与实体名：这是面板上唯一用户可辨认的标识。
@@ -39,7 +33,6 @@ export function vacuumProfiles(entities = [], devices = []) {
           )
         : [vacuumEntity];
       // maps 收 camera / image 域（清扫地图），relatedEntityIds 收可操作的辅助实体；
-      // 这两个域前缀是与 HA 集成约定死的分类口径。
       profilesByDeviceId.set(deviceKey, {
         deviceId: deviceKey,
         name:

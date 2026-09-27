@@ -1,14 +1,3 @@
-'''Initial HomeOS schema: the single baseline migration for a fresh install.
-
-Revision ID: 0001
-Revises:
-Create Date: 2026-09-16
-
-Earlier 0001-0015 revisions were collapsed into this file: this project is a
-first release, so no upgrade path from pre-existing databases is maintained.
-The licence 重新激活 columns (encrypted_activation_code / activation_email)
-were folded in here as well instead of being kept as a second revision.
-'''
 from alembic import op
 import sqlalchemy as sa
 revision = '0001'
@@ -46,13 +35,6 @@ def upgrade() -> None:
     sa.Column('encrypted_session_token', sa.Text(), nullable=True),
     sa.Column('encrypted_recovery_token', sa.Text(), nullable=True),
     # 保存激活凭证，支撑用户主动「重新激活」。客户端只在本地保留截断后的激活码
-    # 提示（activation_code_hint），一旦会话与租约恢复凭证同时过期，就会卡在
-    # 「心跳 401 → 恢复 401」的循环里：本地租约还没到期时状态是
-    # CONNECTION_WARNING（功能仍可用），到期后变成 LEASE_EXPIRED 被门禁拦死，
-    # 且不会自愈 —— 唯一出路是用原激活码重新调用 /v2/activate。
-    # 激活码（SecretCipher 加密）与购买邮箱随其它授权凭证存在同一行：用户点一次
-    # 「重新激活」即可恢复，不需要翻出当初的激活码；授权被吊销时这些凭证与
-    # encrypted_session_token / encrypted_recovery_token 一起清空。
     sa.Column('encrypted_activation_code', sa.Text(), nullable=True),
     sa.Column('activation_email', sa.String(length=255), nullable=True),
     sa.Column('status', sa.String(length=32), nullable=False),

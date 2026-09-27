@@ -1,37 +1,27 @@
 /**
  * 3D 交互编辑器里的各类选择器（picker）组装层：编辑器需要设备 / 图标 / 实体三种选择器，
- * 本模块集中「候选数据从哪来、怎么打分排序、选中后回调什么」，弹层 UI 由宿主通过 openPicker 与 elements 注入。
- *
- * 约定：设备 / 实体 / 房间目录来自 /api/v1/ha/devices 与 /api/v1/ha/areas，失败时抛中文文案；
- * 单选「清除绑定」用空字符串回调，各 onSelect 必须接受空值；回调的 profile 都经过 structuredClone，
- * 调用方可自由改动而不影响内部数据。副作用：会发起实体 / 设备 / 房间 / 图标请求。
  */
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=2609271208";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609271208";
+} from "../editor/picker/editor-picker-pagination.js?v=2609271226";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609271226";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
-// （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=2609271208";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=2609271208";
-import { nasProfiles } from "./nas-catalog.js?v=2609271208";
+import { entityDomainOf } from "../utils/entities.js?v=2609271226";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609271226";
+import { nasProfiles } from "./nas-catalog.js?v=2609271226";
 // 温湿度计的传感器判定与运行侧、后端同一份实现（static 共享层，零依赖）。
-import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609271208";
+import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609271226";
 // 门磁读数的词表（含小米 S2 那类「门状态做成枚举传感器」的取值）用运行侧同一份实现：
-// 选择器里的排序靠它把「读数真的像门磁」的实体往前排，两边口径不会漂。
-import { doorOpenFromText } from "./lock-state-runtime.js?v=2609271208";
+import { doorOpenFromText } from "./lock-state-runtime.js?v=2609271226";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
-// 避免把任意字符串写进组件文档，导致渲染时取不到图标。
 const isValidIconId = iconId =>
   typeof iconId == "string" && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId);
 /**
  * 按设备聚合人体传感器实体。
- * 用于「人在 / 移动」这类按设备绑定的交互：HA 里同一设备常有多个实体
- * （占用、移动、事件），面板希望用户选设备而不是逐个挑实体。
  */
 function presenceDeviceProfiles(entities = [], devices = [], lookupState = () => null) {
   const devicesById = new Map();
@@ -53,8 +43,6 @@ function presenceDeviceProfiles(entities = [], devices = [], lookupState = () =>
       entityEntry.attributes?.device_class ||
       lookupState(entityEntry.entityId)?.attributes?.device_class;
     // 三者任一命中即排除：1) 有 device_class 但不在白名单 —— 明确是别的用途；
-    // 2) 完全没有 device_class —— 用中英文关键词兜底（友好名可能是中文）；
-    // 3) 分类为 diagnostic / config —— 非主功能实体。
     if (
       (deviceClass && !["occupancy", "presence", "motion"].includes(deviceClass)) ||
       (!deviceClass &&
@@ -90,7 +78,6 @@ function presenceDeviceProfiles(entities = [], devices = [], lookupState = () =>
         entityId: entityEntry.entityId,
         name: entityEntry.name || entityEntry.entityId,
         // rank 决定同设备内多个实体的优先顺序：占用 / 人在最语义正确（0），
-        // 移动检测次之（1），靠关键词命中的兜底实体排最后（2）。
         rank:
           deviceClass === "occupancy" || deviceClass === "presence"
             ? 0
@@ -111,8 +98,6 @@ function presenceDeviceProfiles(entities = [], devices = [], lookupState = () =>
 }
 /**
  * 创建编辑器的选择器集合。
- * 所有依赖都从参数注入（openPicker / elements / fetchIcons / getEntities /
- * ensureEntities / entityPickerText），本模块既不依赖具体 UI，也便于测试里替换数据源。
  */
 export function createInteraction3dEditorPickers({
   openPicker: openPicker,
@@ -138,7 +123,6 @@ export function createInteraction3dEditorPickers({
     return (await devicesResponse.json()).items || [];
   }
 }) {
-  // 设备与房间目录一次性并行取齐，避免用户在列表里逐项展开时再等网络。
   async function loadDeviceProfiles() {
     // 房间请求单独 catch 成 null：它失败不应让整个设备选择器不可用。
     const [deviceRecords, areaRecords] = await Promise.all([
@@ -167,8 +151,6 @@ export function createInteraction3dEditorPickers({
         [...(platformsByDeviceId.get(deviceRecord.deviceId || deviceRecord.id) || [])]
           .sort()
           .join("、") || "未知集成",
-      // 房间名的三级兜底刻意区分两种「没有名字」：设备挂了房间但名字取不到（房间目录失败），
-      // 与设备确实没分配房间 —— 两者的处置方式不同。
       roomName:
         areaNamesById.get(deviceRecord.areaId || deviceRecord.area_id) ||
         (deviceRecord.areaId || deviceRecord.area_id ? "房间名称暂不可用" : "未分配房间")
@@ -286,7 +268,6 @@ export function createInteraction3dEditorPickers({
           )
         ],
         renderSelectedActions: () => [
-          // 已绑定时禁用「不绑定设备」，避免产生无意义的重复操作。
           elements.editorPickerClearAction("不绑定设备", !currentPresenceDeviceId)
         ],
         renderItem: optionItem => createDeviceOption(optionItem, currentPresenceDeviceId),
@@ -376,8 +357,6 @@ export function createInteraction3dEditorPickers({
       });
     },
     // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）按整台 HA 设备绑定：候选是设备目录
-    // 全集，entityId 装的是设备 ID。与 0.6.5 的 pickers.device 同一契约 —— 标题可被调用方
-    // 覆盖，deviceFilter 让调用方按设备（及其实体）再筛一遍。
     async device({
       trigger: deviceTrigger,
       current: currentDeviceId = "",
@@ -418,7 +397,6 @@ export function createInteraction3dEditorPickers({
           icon: deviceIconName
         }));
       // 已配置但目录里查不到（设备被删 / 尚未同步）：仍要显示成「当前未找到」，
-      // 否则用户看到的是一张空的「当前选中」卡片，以为绑定丢了。
       const currentDeviceOption =
         deviceOptions.find(deviceOption => deviceOption.entityId === currentDeviceId) ||
         (currentDeviceId
@@ -582,8 +560,6 @@ export function createInteraction3dEditorPickers({
                         ? "mdi:air-purifier"
                         : DEFAULT_LIGHT_ICON;
       // 图标目录条目里的 name 不带 mdi: 前缀（带前缀的是 slug），而本编辑器的图标 ID
-      // 一律带前缀（默认值、已存文档与 isValidIconId / 后端校验都是这个形式）。
-      // 展示当前选中态时要先把前缀剥掉，才能和条目的 name 相等。
       const currentIconName = String(currentIcon || "").replace(/^mdi:/, "");
       return openPicker({
         kind: "icon",
@@ -632,8 +608,6 @@ export function createInteraction3dEditorPickers({
             "editorPickerValue"
           );
           // 取值统一改回带 mdi: 前缀的 slug：元素工厂默认写的是不带前缀的 name，
-          // 而 onSelect 的 isValidIconId 与后端校验都要求前缀，直接用 name 会被判非法，
-          // 表现为「点了图标没反应、选择器关掉但图标没变」。
           iconOptionElement.dataset.editorPickerValue =
             iconOption.slug || "mdi:" + iconOption.name;
           return iconOptionElement;
@@ -653,31 +627,24 @@ export function createInteraction3dEditorPickers({
       deviceKind: entityDeviceKind = deviceKind,
       domain: entityDomainName,
       // 状态灯规则这类「候选由调用方定」的场景：title 覆盖标题，entityFilter 在域白名单
-      // 之后再过一遍候选（例如只留当前设备名下的实体、排掉已经在用的实体）。
       title: entityPickerTitle,
       entityFilter: entityCandidateFilter
     }) {
       // 交互语义比「实体域」复杂，这里先把各种特殊情形摊平成布尔量，
-      // 后续所有判定都只看这些布尔量，避免条件散落各处。
       const isNasEntity = entityDeviceKind === "nas";
       // device-status：状态灯规则的亮灭依据 / 提醒实体。候选是「调用方给的那批」（按设备
-      // 归拢后的实体），因此不设域白名单，只认 HA 合法的实体 ID 形状。
       const isDeviceStatusEntity = entityDeviceKind === "device-status";
       // 门锁槽位（开关门检测 / 电量 / 低电量 / 防拆 / 门磁事件）：上游 0.6.5 的安防编辑器也把这
-      // 几个槽位交给同一套实体选择器，deviceKind 用 lock-door / lock-battery。域白名单与文案
-      // 逐字照抄上游；更细的语义（device_class / 角色判定）由调用方 entityFilter 负责。
       const lockSlotKindByDeviceKind = {
         "lock-door": { pattern: /^(binary_sensor|sensor)\.[a-z0-9_]+$/ },
         "lock-battery": { pattern: /^sensor\.[a-z0-9_]+$/ },
         // 本仓额外的三个槽位（锁本体 / 低电量与防拆 / 门磁事件）不是上游的 deviceKind，
-        // 按各自域收口，文案与上面两路保持同一措辞。
         lock: { pattern: /^lock\.[a-z0-9_]+$/ },
         "lock-aux": { pattern: /^binary_sensor\.[a-z0-9_]+$/ },
         "lock-event": { pattern: /^event\.[a-z0-9_]+$/ }
       }[entityDeviceKind];
       const isLockSlotEntity = Boolean(lockSlotKindByDeviceKind);
       // 空气净化器：主实体是 HA 的 fan 域，白名单只放 fan.*（与上游 0.6.5 同一条
-      // `/^fan\.[a-z0-9_]+$/`）。净化器也走这套统一实体选择器，与其它设备同款控件。
       const isAirPurifierEntity = entityDeviceKind === "air-purifier";
       const isTelevisionEntity = entityDeviceKind === "television";
       const isTelevisionPowerEntity = entityDeviceKind === "television-power";
@@ -686,7 +653,6 @@ export function createInteraction3dEditorPickers({
         !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate");
       const isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity;
       // 温湿度计：同一套实体选择器服务两路，deviceKind 上带出「哪一路」，
-      // 候选与排序都交给 bridge 的 matchesTemperatureHumidityEntity（唯一判定口径）。
       const isTemperatureHumidityEntity =
         entityDeviceKind === "temperature-humidity-temperature" ||
         entityDeviceKind === "temperature-humidity-humidity";
@@ -698,7 +664,6 @@ export function createInteraction3dEditorPickers({
           getState(candidateEntity.entityId)
         );
       // 实体域白名单：决定「哪些实体有资格出现」。灯光 / 电视电源 / 人在允许任意域，
-      // 因为这类功能真正绑定的是「任意可控实体」或某域下由 device_class 判定的实体。
       const entityIdPattern =
         isLockSlotEntity
           ? lockSlotKindByDeviceKind.pattern
@@ -728,17 +693,12 @@ export function createInteraction3dEditorPickers({
                             ? /^fan\.[a-z0-9_]+$/
                             : /^(light|switch)\.[a-z0-9_]+$/;
       // 实体条目的 device_class 在哪一层是不定的：目录条目可能自带，也可能只在实时状态的
-      // attributes 里。排序与筛选都要读它，收敛成一个取值口径。
       const deviceClassOf = candidateEntity =>
         candidateEntity.deviceClass ||
         candidateEntity.device_class ||
         candidateEntity.attributes?.device_class ||
         getState(candidateEntity.entityId)?.attributes?.device_class;
       // 门锁槽位的排序权重（只决定顺序，候选范围由 entityFilter 决定）：小米 S2 这类门锁的
-      // 门磁候选里躺着六支 sensor（电量 / 充电 / 工作状态 / 门状态…），不排的话「门状态」夹在
-      // 中间得挨个读名字。门磁槽位两档往前排 —— device_class 是 door / opening 的标准门磁，
-      // 以及 binary_sensor 域（门磁最常见的域）或读数能被门磁词表认出来的（枚举型门状态，
-      // 如 已上锁 / 门未关）；电量槽位同理把 device_class=battery 的顶到最前。
       const lockSlotWeight = (candidateEntity, lockDeviceKind) => {
         const candidateDeviceClass = deviceClassOf(candidateEntity);
         if (lockDeviceKind === "lock-door") {
@@ -758,7 +718,6 @@ export function createInteraction3dEditorPickers({
       const { editorEntityMatches: entityMatches } = createEditorPickerQueries({
         entityPickerConfig: () => ({
           // recommended 返回一个粗粒度权重（2 首选 / 1 次选 / 0 其它），只用于排序：
-          // 让最符合当前交互语义的实体排在最前，而不是过滤掉其余候选。
           recommended: candidateEntity =>
             isLightEntity
               ? candidateEntity.entityId.startsWith("light.")
@@ -803,9 +762,6 @@ export function createInteraction3dEditorPickers({
                                         : "light."
                           )
         }),
-        // 候选来源在这里过滤：域不匹配的实体根本不进入选择器，避免用户绑上不可能生效的实体。
-        // 温湿度计再叠一层语义判定（device_class / 单位 / 名称），只留温度或湿度传感器。
-        // 状态灯规则再叠调用方给的 entityFilter（只留当前设备名下的实体、排掉已在用的实体）。
         pickerEntitiesForComponentType: () =>
           getEntities().filter(filteredEntity =>
             (isTemperatureHumidityEntity
@@ -824,9 +780,6 @@ export function createInteraction3dEditorPickers({
         return null;
       }
       // 已绑定但当前实体表里找不到的实体（HA 侧改名、离线或未同步）要保留占位条目，
-      // 否则用户会以为配置丢失，实际它仍存在于组件文档里。
-      // 文案取自 0.6.5 的实体选择器；上游只在温湿度计这一路挂占位条目，本仓在所有实体
-      // 选择器上都挂（有意放宽：丢占位会让用户看不到仍绑着的实体 ID），措辞与上游逐字一致。
       const missingCurrentEntity =
         currentEntityId &&
         entityIdPattern.test(currentEntityId) &&
@@ -837,7 +790,6 @@ export function createInteraction3dEditorPickers({
             }
           : null;
       // 在实体匹配结果后追加「当前未找到」的占位条目；占位项只在自身命中搜索词时出现，
-      // 既不污染搜索结果，又能让用户在任何搜索词下看到已绑定的实体 ID。
       const filterEntities = searchQuery => {
         const matches = entityMatches("interaction3d", searchQuery);
         // 占位条目只在自身匹配搜索词时补进结果，保持与正常实体一致的搜索行为。
@@ -853,7 +805,6 @@ export function createInteraction3dEditorPickers({
         return matches;
       };
       // 门锁槽位的空态文案逐字取自上游 0.6.5 的实体选择器（lock-door / lock-battery 两路），
-      // 本仓额外的三个槽位给一句同措辞的通稿。单独提出来算，不再往下面那条长三元链上叠层。
       const lockSlotEmptyText =
         entityDeviceKind === "lock-door"
           ? "没有匹配的门状态传感器，请检查设备的门/开合实体"
@@ -944,7 +895,6 @@ export function createInteraction3dEditorPickers({
           elements.createEditorEntityPickerOption(renderedEntity, currentEntityId),
         onSelect: selectedEntityId => {
           // 允许清空；允许重新选中「当前未找到」的占位项；
-          // 其余情况必须仍存在于实体表中且域合法，防止绑定到已失效的实体。
           if (
             !selectedEntityId ||
             selectedEntityId === missingCurrentEntity?.entityId ||
@@ -956,7 +906,6 @@ export function createInteraction3dEditorPickers({
             onEntitySelect(
               selectedEntityId,
               // 人在传感器与状态灯规则需要连同实体详情一起回传（前者据此推导 device_class，
-              // 后者据此从设备目录里取能力）；其它交互只关心实体 ID。
               entityDeviceKind === "presence" || isDeviceStatusEntity
                 ? getEntities().find(
                     matchedPresenceEntity => matchedPresenceEntity.entityId === selectedEntityId

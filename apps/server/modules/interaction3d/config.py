@@ -1,12 +1,4 @@
 """3D 增量包自己的配置契约：校验控件 properties 是否合法。
-
-刻意独立于仪表盘弹窗的 pydantic 模型（panel/schema.py）：3D 控件的配置
-字段多且迭代快，前后端约定用 JSON 交换，这里用「白名单 + 手工逐字段校验」
-实现，只要出现未登记字段就整份拒绝。
-
-两类校验都在这里完成：结构性（字段是否存在、类型、范围、ID 是否唯一）
-与引用性（实体 ID 的域是否与设备种类匹配、场景 / 模型 ID 是否存在于配置里）。
-写库前一定先过这一层。
 """
 import json
 import math
@@ -28,9 +20,6 @@ from .config_domains import (
 
 def validate_config(properties: dict) -> None:
     """校验一份 3D 交互控件的 properties。
-    异常:
-        HTTPException: 422，任一字段非法。大部分分支共用下面的 fail()，
-        因此文案统一；个别字段（如转动分辨率）会给出更具体的提示。
     """
 
     def fail():
@@ -39,15 +28,11 @@ def validate_config(properties: dict) -> None:
 
     def number(value, low, high):
         """值是否为 [low, high] 内的有限实数；bool 需单独排除（它是 int 的子类）。
-
-        ``from_text=False``：配置来自前端 JSON，数值字段写成字符串就是配置错了，
-        不能替它转换后放过（读 HA 属性那条路径才接受数字字符串）。
         """
         parsed = as_finite_number(value, from_text = False)
         return parsed is not None and low <= parsed <= high
 
     def positive_number(value):
-        """严格正数：尺寸、命中区域取 0 没有意义，因此 0 不算合法。"""
         return number(value, 0, math.inf) and value > 0
 
     def text(value, length=128):
@@ -56,17 +41,12 @@ def validate_config(properties: dict) -> None:
 
     def validate_camera(camera, *, allow_legacy_interaction=False):
         """校验相机参数对象；None 表示未配置，直接放行。
-
-        必填是 mode / zoom / target / position，其余按出现与否校验。
-        allow_legacy_interaction=True 时额外接受旧自由视角的三个字段，
-        仅供顶层 camera 的历史数据使用。
         """
         if camera is None:
             return None
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
-        # 历史字段：只为兼容旧文档，新写入的视角配置不会再产生它们。
         if allow_legacy_interaction:
             optional.update({'panEnabled', 'zoomEnabled', 'rotationMode'})
         # 必填齐备且没有未登记的键：多余键一律拒绝，防止前端悄悄塞字段。
@@ -87,7 +67,6 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        # 旧版视角开关：rotationMode 决定可转动的轴向，panEnabled / zoomEnabled 缺省为 True。
         if allow_legacy_interaction:
             if camera.get('rotationMode', 'free') not in ('free', 'horizontal', 'vertical'):
                 fail()
@@ -96,7 +75,6 @@ def validate_config(properties: dict) -> None:
         return None
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
-    # 新增字段必须前后端同步发版，旧后端不会静默丢掉自己认不出的配置。
     if not isinstance(properties, dict) or set(properties) - {
         'label',
         'camera',
@@ -135,7 +113,6 @@ def validate_config(properties: dict) -> None:
         'backgroundVisible',
         'motionRenderScale',
         # 暖阳原木主题的「背景暖阳暮色」开关：控件由前端渲染，这里只放行存取，
-        # 老版本读到该键也不会 422（升级路径上的前向兼容）。
         'warmBackgroundTheme',
         'lightRegionOverrides',
         'uniformOverviewStack',
@@ -143,13 +120,9 @@ def validate_config(properties: dict) -> None:
         'hideIconsWhileRotating'}:
         fail()
     # templateReadonly 标记「该控件来自模板、字段不可编辑」，只校验类型；
-    # 它不参与本层的引用校验，前端也不读它，因此只放行不解释。
     if 'templateReadonly' in properties and not isinstance(properties['templateReadonly'], bool):
         fail()
     # 暖阳原木主题下的背景配色：布尔 true 等价于「暖阳暮色」，字符串则显式给出档位
-    # （'warm-sunlight' 微光 / 'warm-dusk' 暮色，与参考实现的下拉框取值一致）。
-    # 两种写法都放行：后端早先把该键定义成布尔开关，前端下拉框写的是字符串，
-    # 收紧任何一种都会让另一侧的合法配置在保存时被 422。
     if 'warmBackgroundTheme' in properties and properties['warmBackgroundTheme'] not in (
         True,
         False,
@@ -192,9 +165,6 @@ def validate_config(properties: dict) -> None:
             'idleHideIcons',
             'hideIconsWhileRotating'}:
             fail()
-        # 单页覆盖里的 autoRotate / idleHideIcons 允许写 bool 简写（等价于 {enabled: ...}），
-        # 归一后递归再走一遍完整校验，避免两处各维护一套规则。
-        # 用 type(value) is bool 而不是 isinstance：1 / 0 这类整数不该被当成开关简写。
         normalized = {
             key: {'enabled': value} if key in {'autoRotate', 'idleHideIcons'} and type(value) is bool else value
             for key, value in behavior.items()
@@ -222,7 +192,6 @@ def validate_config(properties: dict) -> None:
     if any(not number(value, 0, 100) for value in page_dim.values()) or not number(properties.get('focusDimStrength', 15), 0, 100):
         fail()
     # 楼层编号：键是 floorId，不得为伪楼层 'all'；值是非 0 的 -99~99 整数，
-    # 0 被排除是因为它在界面上语义歧义（地面层还是未设置）。
     floor_numbers = properties.get('floorNumbers', {})
     if not isinstance(floor_numbers, dict) or len(floor_numbers) > 128:
         fail()
@@ -273,10 +242,8 @@ def validate_config(properties: dict) -> None:
         if 'scale' in placement and not number(placement['scale'], 0.5, 2):
             fail()
     # 光影两档并存：standard（标准光影，原生灯光 + 实时阴影）与 region（轻量柔光，按光区分区），
-    # 缺省按 standard 归一（与前端 definition.js 的 normalizeInteraction3dLightingMode 同口径）。
     if properties.get('lightingMode', 'standard') not in ('standard', 'region'):
         fail()
-    # 地面反射：resolution 只允许 256 / 512 / 768 三档渲染目标，strength 上限 0.45 防止过曝。
     reflection = properties.get('groundReflection', {})
     if not isinstance(reflection, dict) or set(reflection) - {
         'mode',
@@ -289,8 +256,6 @@ def validate_config(properties: dict) -> None:
         fail()
     if not number(reflection.get('strength', 0.18), 0, 0.45):
         fail()
-    # 光区覆盖表的键必须是 json.dumps([floorId, regionId], separators=(',', ':')) 的精确文本，
-    # 下面会把它解析回来，确认键本身可还原成一对 ID。
     overrides = properties.get('lightRegionOverrides', {})
     if not isinstance(overrides, dict) or len(overrides) > 1024:
         fail()
@@ -326,7 +291,6 @@ def validate_config(properties: dict) -> None:
             fail()
         if any(field in region and not number(region[field], 0, 20) for field in ('heightAbove', 'heightBelow', 'heightMin', 'heightMax')):
             fail()
-        # 高度区间不能为空，否则光区算不出可见范围。
         if 'heightMin' in region and 'heightMax' in region and region['heightMin'] > region['heightMax']:
             fail()
         if 'moveCenterEnabled' in region and not isinstance(region['moveCenterEnabled'], bool):
@@ -347,7 +311,6 @@ def validate_config(properties: dict) -> None:
         'contours'}:
         fail()
     # 材质风格：默认风格与「暖阳原木」。后端不放开 warm-sunlight ——
-    # 「暖阳微光」是运行时派生出来的背景主题，不下发也不落库。
     if str(properties.get('sceneStyle', 'default')) not in {
         'default',
         'warm-wood'}:
@@ -370,7 +333,6 @@ def validate_config(properties: dict) -> None:
         fail()
     if 'hideIconsWhileRotating' in properties and not isinstance(properties['hideIconsWhileRotating'], bool):
         fail()
-    # 视角交互：panEnabled / zoomEnabled 缺省为 True（与旧版一致），rotationMode 决定可转动轴向。
     interaction = properties.get('interaction', {})
     if not isinstance(interaction, dict) or set(interaction) - {
         'panEnabled',
@@ -426,7 +388,6 @@ def validate_config(properties: dict) -> None:
     exit_idle_seconds = idle_exit_focus.get('idleSeconds', 30)
     if not isinstance(exit_idle_seconds, int) or not number(exit_idle_seconds, 1, 3600):
         fail()
-    # 基光参数的取值范围；仰角下限（5° / 0°）是为了避免光源与地面共面时出现闪烁。
     lighting = properties.get('baseLighting', {})
     bounds = {
         'exposure': (0.5, 2),
@@ -456,13 +417,8 @@ def validate_config(properties: dict) -> None:
     # 灯光表：entityId 可空（纯装饰的灯），一旦填写就必须是合法的 HA 实体 ID。
     entity, fields, high, low = _validate_lights(fail, key, number, positive_number, properties, text, validate_camera)
     # 环境设备：窗帘（含窗帘组合）、空调、空气净化器与温湿度计五张表。窗帘 / 空调 / 净化器
-    # 各自绑定到场景里的 3D 模型，温湿度计是不绑模型的只读信息卡；窗帘组合只引用 curtains
-    # 里的成员，没有自己的实体。airPurifiers 必须在这里登记：模板默认值（definition.js）里就有
-    # 这个空数组，漏登记的后果不是「净化器存不上」，而是**任何**一次 3D 配置保存都整份 422。
     entity, fields, item, key, model = _validate_environment(fail, high, low, number, positive_number, properties, text, validate_camera)
     # 设备表：NAS、扫地机、电视，再加上通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 /
-    # 烘干机 / 绿植）—— 后者的校验方式完全一致，只是模型类型不同，因此按 DEVICE_PROFILES
-    # 派发，新增设备类型时只需改那张表。
     devices = properties.get('devices', {})
     if not isinstance(devices, dict) or set(devices) - {
         'nas',
@@ -474,7 +430,6 @@ def validate_config(properties: dict) -> None:
             devices.get(profile['collection'], []),
             validate_camera,
             model_type=profile['model_type'])
-    # 电视：entityId 是 media_player.*，电源实体另存 powerEntityId（允许 switch 等其它域）。
     televisions = devices.get('televisions', [])
     if not isinstance(televisions, list):
         fail()
@@ -701,7 +656,6 @@ def validate_config(properties: dict) -> None:
         if item.get('clickAction', 'focus') not in ('focus', 'focus-panel', 'panel'):
             fail()
         # statusSource 的 primaryEntityId 必须落在 metrics 里（除非为空），
-        # 保证被选为主状态的实体确实会渲染到面板上。
         if 'statusSource' in item:
             source = item['statusSource']
             required = {
@@ -749,6 +703,5 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
-    # 顶层默认相机允许历史交互字段，理由见 validate_camera 的说明。
     validate_camera(properties.get('camera'), allow_legacy_interaction=True)
     return None

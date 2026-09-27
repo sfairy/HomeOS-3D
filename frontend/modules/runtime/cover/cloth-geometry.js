@@ -1,21 +1,14 @@
 /**
  * 窗帘布料网格的程序化生成：正弦褶皱的薄壳（正/反/上/下四面 + 侧端盖，带厚度与顶点色）。
- *
- * 从 curtain-motion.js 拆出来：那一份只留「姿态采样与开合动画」，而这一份是**纯几何构造** ——
- * 只吃 (three, folds, fabric) 三个参数、不读任何模块级状态。分开之后几何参数（帘高、褶皱幅度、
- * 厚度、暗部深度）与动画参数各自成篇，也便于别处复用同一套布面。
  */
 /**
  * 程序化生成布料网格（正弦褶皱的薄壳）。
- * 不用模型平板是因为它表现不出「收拢时褶皱变密变深」；这里沿帘宽铺 N 个正弦褶皱，
- * 并生成正/反/上/下四面与两侧端盖，使布料有真实厚度（0.003 米）和可用法线。
  */
 export function createClothGeometry(three, folds, fabric) {
   const isSheer = fabric === "sheer";
   // 每道褶皱至少 6 段才能画出平滑的正弦；总数下限 64 段，保证窄帘也不出现折角。
   const segmentCount = Math.max(64, folds * 6);
   // 2.28168 是模型导出的实际帘高（米），用固定值而非模型量得的尺寸，
-  // 避免模型带缩放时布料高度被二次放大。
   const panelHeight = 2.28168;
   // 纱更薄，褶皱幅度取布帘的一半，看起来更轻盈。
   const foldAmplitude = isSheer ? 0.023 : 0.046;
@@ -29,7 +22,6 @@ export function createClothGeometry(three, folds, fabric) {
   // 褶皱位移与斜率：位移取正弦，斜率取导数，用于把法线扭转成垂直于布面。
   const foldDisplacement = seamRatio => foldAmplitude * Math.sin(seamRatio * folds * Math.PI * 2);
   // 上式的解析导数（∂/∂seamRatio）：直接用导数当切线算出布面法线，
-  // 比有限差分稳定，且与 foldDisplacement 严格同相位。
   const foldSlope = seamSlopeRatio =>
     foldAmplitude * folds * Math.PI * 2 * Math.cos(seamSlopeRatio * folds * Math.PI * 2);
   /** 写入一个顶点（位置 / 法线 / UV / 褶皱明暗）。 */
@@ -47,7 +39,6 @@ export function createClothGeometry(three, folds, fabric) {
     normalArray.push(normalX, normalY, normalZ);
     uvArray.push(textureU, textureV);
     // 褶皱暗部：positionX 在这里就是沿帘宽的比例，波谷压暗、波峰保持原色。
-    // 暗部深度按面料区分（纱帘 16%、布帘 34%），并用平方让暗部收在波谷附近。
     const foldDarkness = 0.5 - Math.sin(positionX * folds * Math.PI * 2) * 0.5;
     const foldShade = 1 - (isSheer ? 0.16 : 0.34) * foldDarkness * foldDarkness;
     colorArray.push(foldShade, foldShade, foldShade);
@@ -96,7 +87,6 @@ export function createClothGeometry(three, folds, fabric) {
       if (segmentIndex < segmentCount) {
         const segmentVertexIndex = faceVertexOffset + segmentIndex * 2;
         // 三角形绕序按面分别处理：正面与底面用一套，其余用反向的另一套，
-        // 目的是让所有面的法线都朝外，避免出现黑面。
         if (face === "front" || face === "bottom") {
           indexArray.push(
             segmentVertexIndex,
@@ -119,7 +109,6 @@ export function createClothGeometry(three, folds, fabric) {
       }
     }
   }
-  // 两侧端盖：把布面在 x=0 与 x=1 处封口（纱帘不封，因为只有单面）。
   for (const edgeX of isSheer ? [] : [0, 1]) {
     const capVertexOffset = positionArray.length / 3;
     const edgeNormalSign = edgeX === 0 ? -1 : 1;

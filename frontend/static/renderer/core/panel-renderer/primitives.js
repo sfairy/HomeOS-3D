@@ -1,39 +1,16 @@
 /*
  * PanelRenderer 各区块共用的小工具与阈值：调色、弹窗尺寸、乐观开关超时、控件视觉等。
- *
- * 这些原先都写在 renderer.js 顶部。拆块之后它们被多个区块共用（例如 createSwitchVisual
- * 同时服务于能力详情、组合弹窗与实体详情），留在任意一个区块里都会让另外两个反向依赖它，
- * 所以单独成文件 —— 依赖方向是「各区块 → primitives」，不成环。
- *
- * 这里只放纯函数、常量与品牌无关的 DOM 片段构造；任何需要 this（渲染器实例状态）的逻辑
- * 都不属于本文件。
  */
 
-import { randomUuid } from "../../../utils/random-id.js?v=2609271208";
-import { paletteColor } from "../../../utils/colors.js?v=2609271208";
-import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609271208";
+import { randomUuid } from "../../../utils/random-id.js?v=2609271226";
+import { paletteColor } from "../../../utils/colors.js?v=2609271226";
+import { componentActionIsSupported } from "../../../shared/action-rules.js?v=2609271226";
 
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
 export const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;
 
 /**
  * 空气质量四档读色 + 各档的半透明底色。
- *
- * 十二个色值原先在两个渲染函数里各写了一遍（净化器详情弹窗与 3D 弹窗预览模块），
- * 两边必须逐字相同才不会「同一个读数两个颜色」，而这种约束没有任何东西在守。
- * 现在只有这一份。
- *
- * 色值走 paletteColor() 而不是直接给 var()：这两个映射会被 setProperty 写成
- * **内联自定义属性**（`--hb-air-purifier-accent` / `-accent-soft`），内联值再被
- * 别处的 var() 消费。写 var() 也成立，但取实际色值更短，也不会在两条自定义属性
- * 之间再套一层变量间接 —— 出问题时 computed 面板里直接就是最终颜色。
- * 取不到调色板（页面未加载）时回落到与调色板同值的字面量。
- *
- * 「同值」是硬要求，而且这里踩过：excellent / good 两档的兜底曾经是 #4ed6a8（RGB 78, 214, 168），
- * 与 --hos-eco 的 canonical #5fd0a8（95, 208, 168）并不相等 —— 差在红通道 17 与绿通道 6。
- * 平时看不出来（令牌在时永不落兜底），只有调色板没加载时这两档才会偏出一档绿。
- * 三种「兜底」写法里这是第三种：var(--x, #lit)、paletteColor("--x", "#lit")、以及
- * 这里的 { token, fallback } 成对数据。tools/check_invariants.mjs 第 12 条三种都查。
  */
 const AIR_QUALITY_TONES = {
   excellent: { token: "--hos-eco", fallback: "#5fd0a8", rgbFallback: "95, 208, 168" },
@@ -62,7 +39,6 @@ export function airQualityAccentSoft(level, alpha) {
 // 弹窗默认占画布短边的比例（0.76）：留出四周的呼吸边距，视觉上不顶边。
 export const DEFAULT_DIALOG_TARGET_OCCUPANCY = 0.76;
 
-// 紧凑弹窗（如纯文字提示）用更小的占比，避免小块内容被放大得过大。
 export const COMPACT_DIALOG_TARGET_OCCUPANCY = 0.7;
 
 // 弹窗放大上限：超过 1.6 倍时位图与文字会明显发虚，宁可留白也不再放大。
@@ -75,12 +51,9 @@ const FILL_DIALOG_SCALE_LIMIT = 2;
 const TIGHT_FILL_DIALOG_SCALE_LIMIT = 2.12;
 
 // 乐观开关的确认等待上限：交互时先本地变色、等 HA 推送确认，超过这个时间没等到就回滚。
-// 取 8 秒是「慢设备也给够余量」与「不让界面长期停在错误状态」之间的折中；
-// 这个值同时用于写下 expiresAt 与排回滚定时器，提成常量是为了不让两处各写一个 8000。
 export const OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS = 8000;
 
 // 运行时弹窗里「会响应 Tab」的元素：disabled 与 tabindex="-1" 的不算，
-// 焦点循环就是按这份清单首尾相接的。
 export const RUNTIME_DIALOG_FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -92,7 +65,6 @@ export const RUNTIME_DIALOG_FOCUSABLE_SELECTOR = [
 
 /**
  * 计算运行期弹窗的可用尺寸与缩放比例。
- * 纯函数不碰 DOM，编辑器与展示页复用同一套尺寸口径。
  */
 export function runtimeDialogLayout({
   layerWidth: layerWidthPx,
@@ -104,13 +76,11 @@ export function runtimeDialogLayout({
   targetOccupancy: targetOccupancyRatio = DEFAULT_DIALOG_TARGET_OCCUPANCY
 }) {
   // 所有入参先做「非数即 1」的兜底：调用方常在布局尚未测量完时传入 undefined，
-  // 这里不放行 NaN，否则后面算出的 scale 会污染成 NaN 并写进 CSS。
   const boundedLayerWidthPx = Math.max(1, Number(layerWidthPx) || 1);
   const boundedLayerHeightPx = Math.max(1, Number(layerHeightPx) || 1);
   const boundedLayoutWidthPx = Math.max(1, Number(layoutWidthPx) || 1);
   const boundedLayoutHeightPx = Math.max(1, Number(layoutHeightPx) || 1);
   // 安全内边距按内容体量分三档，且都随画布短边等比缩放再夹取上下限，
-  // 目的是小屏上不浪费空间、大屏上不让弹窗顶到边缘。
   const dialogSafeInsetPx = tightFill
     ? Math.min(40, Math.max(24, Math.min(boundedLayerWidthPx, boundedLayerHeightPx) * 0.03))
     : fillAvailable
@@ -133,7 +103,6 @@ export function runtimeDialogLayout({
   );
   const preferredScale = Math.min(MAX_DIALOG_PREFERRED_SCALE, occupancyScale);
   // fillAvailable / tightFill 只是提高上限，最终仍要与 fitScale 取小，
-  // 保证任何配置下内容都不会超出可用区域。
   const resolvedScale = Math.min(
     fillAvailable
       ? tightFill
@@ -155,7 +124,6 @@ export function runtimeDialogLayout({
 
 /**
  * 计算弹窗层与仪表盘矩形的交集，得出真正可见的视口。
- * 仪表盘只占弹窗层一部分，弹窗要居中在可见区域上；参数缺失时退化成整层。
  */
 export function runtimeDialogViewport({
   layerLeft: layerLeftPx = 0,
@@ -182,7 +150,6 @@ export function runtimeDialogViewport({
   const resolvedDashboardWidthPx = Math.max(1, Number(dashboardWidthPx) || viewportWidthPx);
   const resolvedDashboardHeightPx = Math.max(1, Number(dashboardHeightPx) || viewportHeightPx);
   // 交集 = 左/上取较大者、右/下取较小者；直接写四行而不是封装函数，
-  // 是为了让这里的坐标口径与 CSS 定位的 origin 一眼对应。
   const overlapLeftPx = Math.max(viewportLeftPx, resolvedDashboardLeftPx);
   const overlapTopPx = Math.max(viewportTopPx, resolvedDashboardTopPx);
   const overlapRightPx = Math.min(
@@ -206,8 +173,6 @@ export function runtimeDialogViewport({
 
 /**
  * 乐观开关等不到状态确认时的错误对象。
- *
- * 单独抽出来是为了让文案与实体 id 的组装可测，也避免这段文字在两处漂。
  */
 export function createOptimisticToggleTimeoutError(entityId) {
   const timeoutError = new Error(
@@ -223,7 +188,6 @@ export function createOptimisticToggleTimeoutError(entityId) {
 
 /**
  * 递归给组件及子组件补上运行期 ID（`component-` + 随机 UUID），就地写回传入对象。
- * 运行期刷新要按 ID 反查宿主元素；只在内存文档上做，不回写服务端。
  */
 export function assignComponentIds(component) {
   component.id = "component-" + randomUuid();
@@ -235,7 +199,6 @@ export function assignComponentIds(component) {
 
 /**
  * 判断键盘事件是否按下了修饰键（Alt / Ctrl，Apple 设备上还包括 Command）。
- * 编辑态按住修饰键表示多选与框选；平台判断收在这里，免得各处重复做 userAgent 检测。
  */
 export function isModifierKeyPressed(keyboardEvent) {
   const platformName = navigator.userAgentData?.platform || navigator.platform || "";
@@ -245,8 +208,6 @@ export function isModifierKeyPressed(keyboardEvent) {
 
 /**
  * 判断控件动作是否受支持（转发到 action-rules.js 的统一口径）。
- *
- * 校验层与运行期共用同一条规则，避免「保存时合法、点下去没反应」这类不一致。
  */
 export function isSupportedComponentAction(targetComponent, actionConfig) {
   return componentActionIsSupported(targetComponent, actionConfig);
@@ -260,10 +221,6 @@ export function componentDialogTitle(titleComponent, fallbackTitle) {
   return String(componentProperties.label || "").trim() || fallbackTitle;
 }
 
-/**
- * 取弹窗模块标题，四级回退：组件 title → 调用方兜底 → HA friendly_name → 实体 ID。
- * friendly_name 是 HA 约定字段名；末级兜底保证标题永远非空。
- */
 export function popupModuleDialogTitle(popupComponent, popupEntityState, fallbackTitleText = "") {
   return (
     String(popupComponent?.title || "").trim() ||
@@ -275,7 +232,6 @@ export function popupModuleDialogTitle(popupComponent, popupEntityState, fallbac
 
 /**
  * 往宿主元素里追加晾衣机的纯装饰图形（结构写死，升降/照明由 class 另行切换）。
- * 用 createElement + ownerDocument 避免跨文档报错，且这些节点无文本、无需 HTML 解析。
  */
 export function appendAirerVisual(hostElement) {
   const ownerDocument = hostElement.ownerDocument;
@@ -302,7 +258,6 @@ export function appendAirerVisual(hostElement) {
 
 /**
  * 把晾衣机升降状态换成中文文案。
- * 未知状态返回空串而非「未知」：调用方据此省略该行，避免数据未就绪时显示错误文案。
  */
 export function airerPositionLabel(positionState) {
   return (
@@ -317,7 +272,6 @@ export function airerPositionLabel(positionState) {
 
 /**
  * 创建通用的开关可视件（摇板 + 指示灯 + 可选文案区）。
- * 交互与视觉解耦：返回的 sync 只把状态映射成 class 与 aria 属性，何时调用由调用方决定。
  */
 export function createSwitchVisual({
   label: labelText = "开关",
@@ -331,7 +285,6 @@ export function createSwitchVisual({
   switchElement.className = "hb-switch-visual";
   switchElement.classList.toggle("is-momentary", momentary);
   // 不可交互时同时用 inert 与 aria-disabled：前者挡住鼠标与键盘，后者让读屏软件
-  // 知道原因，只做视觉置灰（class）会让辅助设备仍能聚焦到这个按钮。
   switchElement.inert = !interactive;
   switchElement.setAttribute("aria-disabled", String(!interactive));
   const auraElement = document.createElement("i");
@@ -364,13 +317,11 @@ export function createSwitchVisual({
     switchElement.classList.add("is-compact");
   }
   // sync 的入参统一走一个对象：pending / success / unavailable 是三个彼此独立的
-  // 运行期维度（等待中 / 刚成功 / 不可用），平铺成位置参数极易传错顺序。
   const syncVisual = (
     isSwitchActive,
     { unavailable: unavailable = false, pending: pending = false, success: success = false } = {}
   ) => {
     // 点动开关没有稳定的开态，点亮只能表示「请求执行中」，因此用 pending 而不是状态值；
-    // unavailable 优先级最高，任何情况下都不点亮。
     const resolvedActive = (momentary ? pending : !!isSwitchActive) && !unavailable;
     switchElement.classList.toggle("is-on", resolvedActive);
     switchElement.classList.toggle("is-unavailable", unavailable);
@@ -401,8 +352,6 @@ export function createSwitchVisual({
     }
   };
   // 这里再查一遍 is-pending / is-unavailable 而不是只靠 disabled：
-  // 按钮需要在等待期间仍可聚焦（否则焦点会丢失、读屏中断），因此不能真禁用，
-  // 只能在点击回调里把重复触发挡掉。
   switchElement.addEventListener("click", () => {
     if (
       interactive &&

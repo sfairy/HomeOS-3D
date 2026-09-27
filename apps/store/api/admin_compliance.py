@@ -1,8 +1,4 @@
 """运营后台的 compliance 资源组（从 api/admin.py 拆出）。
-
-尾部一整块原本连续 762 行（21 条路由）：一次搬走会让新模块越过 800 行预算，
-所以按「会话与运营」/「合规与审计」对半拆。子路由不带前缀，父路由在原位置 include，
-以此保持路由注册顺序（FastAPI 按注册序匹配）。
 """
 from __future__ import annotations
 
@@ -33,7 +29,6 @@ logger = logging.getLogger("apps.store.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-# 于是本文件剩下的 57 条路由不用改任何一处调用。
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -58,10 +53,6 @@ def admin_list_email_verifications(
     offset: int = 0,
 ) -> dict:
     """邮箱验证码记录。``code_hash`` 属敏感字段，一律不下发。
-
-    同时下发投递结果：``delivered`` 为 false 时运营可以当场判断「用户说没收到」
-    是发信失败还是收件箱问题，不必再去翻（会轮转的）日志。
-    老记录没有这几个字段，一律给 null / 空串，前端按「未记录」展示。
     """
     base = select(EmailVerification)
     if email:
@@ -97,9 +88,6 @@ def admin_purge_email_verifications(
     session: DbSession, admin: AdminAccount, older_than_days: int
 ) -> dict:
     """清理早于指定天数的验证码记录。
-
-    安全谓词：只清**已消费或已过期**的。仍在有效期内、且没被用过的验证码
-    清掉会让用户正在走的注册/改密流程凭空失败，所以一律留在库里。
     """
     cutoff = _cutoff_days(older_than_days)
     where = and_(
@@ -129,7 +117,6 @@ def admin_list_device_release_events(
     limit: int = 200,
     offset: int = 0,
 ) -> dict:
-    """设备解绑历史。冷却时间是否该放行，看这张表。"""
     base = select(DeviceReleaseEvent)
     if license_id:
         base = base.where(DeviceReleaseEvent.license_id == license_id)
@@ -166,10 +153,6 @@ def admin_purge_device_release_events(
     session: DbSession, admin: AdminAccount, older_than_days: int
 ) -> dict:
     """清理早于指定天数的解绑事件。
-
-    安全谓词：**每条授权的最新一条解绑事件永远保留**。冷却判定读的正是「最近一次
-    解绑时间」，只有历史事件才是可丢的日志；如果按时间一刀切，把某条授权的唯一
-    事件删掉会顺带解除冷却，等于放行了它本该被拦住的自助解绑。
     """
     cutoff = _cutoff_days(older_than_days)
     newer = aliased(DeviceReleaseEvent)
@@ -195,7 +178,6 @@ def admin_purge_device_release_events(
 
 
 # 审计日志
-# 客户端侧会话与令牌：以前只能靠解绑/删绑定级联清理
 @router.get("/license-sessions")
 def admin_list_license_sessions(
     session: DbSession,
@@ -207,10 +189,6 @@ def admin_list_license_sessions(
     offset: int = 0,
 ) -> dict:
     """客户端登录会话。
-
-    这是「谁在用这张授权」的直接证据：``last_used_at`` 是心跳时间，
-    ``binding_id`` 指向具体设备。只看设备绑定、不看会话，就查不出
-    「同一张授权被多处同时使用」。
     """
     base = select(LicenseSession)
     moment = utcnow()
@@ -260,7 +238,6 @@ def admin_list_license_sessions(
 
 @router.delete("/license-sessions/{ref}")
 def admin_revoke_license_session(ref: str, session: DbSession, admin: AdminAccount) -> dict:
-    """撤销一条客户端会话。下一次心跳会因为会话不存在而要求重新激活。"""
     record = _resolve_by_hash_hint(session, LicenseSession, ref, "授权会话")
     license_ = session.get(License, record.license_id)
     hint = (record.id_hash or "")[:12]
@@ -281,9 +258,6 @@ def admin_purge_license_sessions(
     session: DbSession, admin: AdminAccount, older_than_days: int
 ) -> dict:
     """清理早已过期的客户端会话。
-
-    安全谓词：只清 ``expires_at`` 本身早于截止时间的（也就是早就失效的）。
-    未过期的会话一律保留 —— 删掉等于把在线客户端踢下线。
     """
     cutoff = _cutoff_days(older_than_days)
     return _purge_rows(
@@ -420,11 +394,6 @@ def admin_purge_audit_logs(
     session: DbSession, admin: AdminAccount, older_than_days: int
 ) -> dict:
     """按时间批量清理审计日志。
-
-    ``older_than_days`` 是**必填**查询参数且最小为 1 天（闸门见 ``_cutoff_days``）：
-    这样「一键清空全部」在接口层面就不成立，只能清理明确指定天数之前的记录。
-    本次清理动作自己也会写入一条审计记录（其时间为当前时刻，落在保留区内，
-    不会被自己删掉）。
     """
     cutoff = _cutoff_days(older_than_days)
     result = _purge_rows(

@@ -1,12 +1,4 @@
 """Home Assistant 实体状态的内存中枢与订阅分发。
-
-连接器把 HA 推来的原始状态归一成前端约定的 camelCase 结构后存在这里，再由 WebSocket / SSE 端点
-通过订阅队列实时取走，避免每个前端连接各自去 HA 拉一次状态。
-
-三条约定：状态字典的字段名（entityId / lastChanged / updatedAt …）是与前端约定死的协议，
-改动等于改协议；所有对 ``_states`` / ``_subscribers`` / ``_subscriber_entities`` 的读写都在
-``_lock`` 保护下进行，因为这些方法会被多个 asyncio 任务并发调用；订阅队列有界（见 ``subscribe``），
-满了就丢旧事件并补一个全量重同步信号 —— 宁可让前端重新拉一次快照，也不让慢消费者拖垮连接器。
 """
 from __future__ import annotations
 
@@ -23,7 +15,6 @@ class StateHub:
         """建立空的实体状态表与订阅者集合。"""
         # entityId -> 归一化后的状态字典。
         self._states = {}
-        # 订阅者队列集合；用 set 是因为退订只需 O(1) 丢弃，不关心顺序。
         self._subscribers = set()
         # 队列 -> 该订阅者关心的实体集合；None 表示尚未完成握手、暂时全量接收。
         self._subscriber_entities = {}
@@ -32,12 +23,9 @@ class StateHub:
     @staticmethod
     def normalize(raw: dict[str, Any]) -> dict[str, Any]:
         """把 HA 的原始状态对象转成前端协议结构。
-        返回:
-            键名全部为 camelCase 的状态字典；缺字段时给出安全默认值，
         """
         entity_id = str(raw.get("entity_id", ""))
         # state 缺失时按 unknown 处理：HA 在某些不可用场景下会省掉该字段，
-        # 用 unknown 可以让下游统一走「不可用」分支，而不是拿到空串。
         state = str(raw.get("state", "unknown"))
         return {
             "type": "state_changed",
@@ -56,12 +44,6 @@ class StateHub:
 
     async def replace(self, states: Iterable[dict[str, Any]]) -> None:
         """用一份完整快照整体替换内存状态，并通知被移除的实体。
-
-        全量对账（`sync_once`）后使用：只有当次快照里出现的实体才留在内存中，
-        因此差异部分要逐个发 `state_removed`，否则前端会一直显示已删除的实体。
-
-        参数:
-            states: HA 原始状态列表（未归一化）。
         """
         normalized = {
             item["entityId"]: item
@@ -78,9 +60,6 @@ class StateHub:
 
     async def merge(self, states: Iterable[dict[str, Any]]) -> None:
         """把若干状态合并进内存表，不删除任何已有实体，也不发通知。
-
-        补拉（`ensure_entity_states`）后使用：这里只负责让内存里有值，
-        推送交给随后的订阅者按需读取，避免补拉引起前端整屏刷新。
         """
         normalized = {
             item["entityId"]: item
@@ -92,8 +71,6 @@ class StateHub:
 
     async def update(self, raw: dict[str, Any]) -> dict[str, Any] | None:
         """写入单个实体的最新状态，并立即广播。
-        返回:
-            归一化后的状态字典；entityId 为空时返回 None（不写也不推）。
         """
         normalized = self.normalize(raw)
         if not normalized["entityId"]:
@@ -107,9 +84,6 @@ class StateHub:
         self, entity_ids: set[str] | None = None
     ) -> list[dict[str, Any]]:
         """取状态快照（深拷贝，调用方可随意改写）。
-
-        参数:
-            entity_ids: 只取这些实体；为 None 时返回全部。
         """
         async with self._lock:
             if entity_ids is None:
@@ -118,7 +92,6 @@ class StateHub:
                 values = (
                     self._states[key] for key in entity_ids if key in self._states
                 )
-            # 生成器在锁内消费完再深拷，避免锁外迭代正在被并发修改的字典。
             return deepcopy(list(values))
 
     async def entity_ids(self) -> set[str]:
@@ -128,9 +101,6 @@ class StateHub:
 
     async def retain(self, entity_ids: set[str]) -> None:
         """只保留给定实体，其余从内存丢弃（不发 state_removed）。
-
-        用于「没人再看这些实体」时的清理：前端此时已不再订阅，
-        逐条广播删除事件没有意义，还容易在页面切换瞬间造成闪烁。
         """
         async with self._lock:
             self._states = {
@@ -150,9 +120,6 @@ class StateHub:
 
     def subscribe(self) -> asyncio.Queue[dict[str, Any]]:
         """登记一个新订阅者并返回它的事件队列。
-
-        队列容量 512 是刻意设的上限：慢前端（页面隐藏、网络卡顿）不能
-        无限堆积事件吃内存，写满时由 publish 侧丢旧保新并补全量重同步。
         """
         queue = asyncio.Queue(maxsize=512)
         self._subscribers.add(queue)
@@ -161,7 +128,6 @@ class StateHub:
         return queue
 
     def unsubscribe(self, queue: asyncio.Queue[dict[str, Any]]) -> None:
-        """注销订阅者；连接断开时必须调用，否则 publish 会一直往死队列写。"""
         self._subscribers.discard(queue)
         self._subscriber_entities.pop(queue, None)
 
@@ -169,10 +135,6 @@ class StateHub:
         self, queue: asyncio.Queue[dict[str, Any]], entity_ids: set[str]
     ) -> None:
         """限制某个订阅者能收到的增量状态事件。
-
-        握手窗口期内（订阅尚未校验）排队的事件属于协议协商阶段，
-        随后的快照才是权威数据，因此这里先丢弃这些陈旧事件，
-        再开始运行期处理，防止前端收到比快照更早的过期状态。
         """
         if queue not in self._subscribers:
             return None
@@ -187,16 +149,8 @@ class StateHub:
 
     async def publish(self, event: dict[str, Any]) -> None:
         """把事件分发给所有订阅者。
-
-        分发规则：
-        - 只有状态类事件（state_changed / state_removed）会按实体过滤；
-          目录变更等广播事件对所有订阅者可见；
-        - `_subscriber_entities` 为 None 表示该订阅者还没完成握手，此时不过滤；
-        - 队列满时清空并压入 resync_required，让前端丢弃增量、重新拉全量快照，
-          这比继续丢事件更安全（丢事件会让界面停在错误状态）。
         """
         # tuple(...)：publish 是 async 的，遍历期间可能有订阅者退订；
-        # 先拷一份固定列表，避免 RuntimeError: Set changed size during iteration。
         for queue in tuple(self._subscribers):
             event_type = event.get("type")
             if event_type in frozenset({"state_changed", "state_removed"}):

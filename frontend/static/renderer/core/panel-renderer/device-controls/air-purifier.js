@@ -2,20 +2,18 @@
  * 设备控件区块：空气净化器详情（含空气质量四档读色与滤芯读数）。
  */
 
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271208";
-import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271208";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271226";
+import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271226";
 import {
   airQualityAccent,
   airQualityAccentSoft,
   componentDialogTitle
-} from "../primitives.js?v=2609271208";
+} from "../primitives.js?v=2609271226";
 
 export const airPurifierDetailsMethods = {
   /**
    * 打开空气净化器详情弹窗（含风量、滤芯寿命、空气质量等专有区块）。
-   *
-   * @throws {Error} 组件没有绑定实体。
    */
   showAirPurifierDetails(
     purifierComponent,
@@ -190,7 +188,6 @@ export const airPurifierDetailsMethods = {
       .filter(({ candidates: metricCandidates }) => metricCandidates.length);
     /**
      * 把实体状态解析成有限数值；unknown/unavailable 或非数值时返回 null。
-     * 净化器指标离线时 state 可能是字符串 "unknown"，Number() 会得到 NaN，所以必须显式排除这两个哨兵值，
      * 不能只靠 isFinite。@returns {number|null} 解析出的数值；不可用或非数值时为 null。
      */
     const numericStateValue = purifierEntityState => {
@@ -213,7 +210,6 @@ export const airPurifierDetailsMethods = {
       resolveStateEntry(this.states.get(candidateForMetric?.id));
     /**
      * 从指标的多个候选实体中挑出当前有可用数值的一个，全都不可用时退回第一个。
-     * 同一角色常绑定多个实体（不同型号的 PM2.5 传感器），优先选真在上报数据的那个。
      */
     const selectMetricCandidate = metricDefinitionInput =>
       metricDefinitionInput.candidates.find(
@@ -251,8 +247,6 @@ export const airPurifierDetailsMethods = {
     };
     /**
      * 把净化器指标状态格式化成「数值 + 单位」的展示文本。
-     * 单位优先取实体自带 unit_of_measurement，缺失时回退内置单位表；hours / days 显示为
-     * 中文「小时 / 天」；unknown / unavailable 一律显示 "--"，不透传原始状态词。
      */
     const formatMetricDisplay = (metricEntityState, metricUnitRole) => {
       if (
@@ -278,7 +272,6 @@ export const airPurifierDetailsMethods = {
     const purifierHandlersByEntityId = new Map();
     /**
      * 注册净化器弹窗的状态回调。
-     * 同一实体可能被电源、指标、空气质量等多处订阅，因此按实体 ID 聚合成数组而非相互覆盖。
      */
     const registerPurifierHandler = (purifierHandlerEntityId, purifierStateHandler) => {
       if (purifierHandlerEntityId) {
@@ -330,7 +323,6 @@ export const airPurifierDetailsMethods = {
     );
     /**
      * 没有专用空气质量实体时，用 PM2.5 读数反推空气质量等级与文案。
-     * 阈值按国内 PM2.5 分档：≤35 优、≤75 良、≤115 轻度污染，再高较差；读数缺失返回 unknown。
      */
     const resolvePm25Quality = () => {
       const pm25Candidate = pm25MetricDefinition
@@ -366,8 +358,6 @@ export const airPurifierDetailsMethods = {
     };
     /**
      * 渲染净化器空气质量表盘：主文案、进度弧长度与整卡主题色。
-     * 有专用空气质量实体时按中英文关键词归类等级（厂商用词差异大，用正则同时匹配
-     * very_poor / 严重 等写法），没有就退回 PM2.5 推算；等级同时驱动进度弧与两级主题色。
      */
     const renderPurifierAirQuality = () => {
       const airQualityRawText = String(airQualityState?.state || "").trim();
@@ -421,8 +411,6 @@ export const airPurifierDetailsMethods = {
     };
     /**
      * 同步净化器的开关状态：刷新文案、按钮态、仪表动画，并转发给能力控件。
-     * 只有明确 unknown/unavailable 才算不可用；其余状态里只要不是 off 都视为运行中
-     * —— 净化器还有 auto/favorite 等档位，不能只认 "on"。
      */
     const syncPurifierPowerState = nextPurifierState => {
       purifierState = nextPurifierState || purifierState;
@@ -450,8 +438,6 @@ export const airPurifierDetailsMethods = {
     };
     /**
      * 渲染净化器次要指标槽位（PM2.5 / 甲醛 / 滤芯寿命 / 温湿度中最多取三个）。
-     * 只展示能解析出数值的指标，每个指标可能对应多个候选实体（厂商命名不同），取第一个
-     * 有读数的；槽位是固定三个的复用节点，只改文案与类名，不重建 DOM。
      */
     const renderPurifierMetrics = () => {
       const resolvedMetricSelections = purifierMetricDefinitions
@@ -494,8 +480,6 @@ export const airPurifierDetailsMethods = {
     for (const refreshedMetricDefinition of purifierMetricDefinitions) {
       /**
        * 单个指标实体的状态回调：重算次要指标槽位。
-       *
-       * PM2.5 会同时影响表盘，所以额外触发一次空气质量渲染（此时不查表，直接看 key）。
        */
       const refreshPurifierMetric = () => {
         renderPurifierMetrics();

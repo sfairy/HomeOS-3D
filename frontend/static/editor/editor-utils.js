@@ -1,14 +1,9 @@
 /**
  * 编辑器通用小工具：ID / 颜色 / 数值格式化。
- *
- * 克隆文档、生成带前缀 ID、把标题转为 URL 片段、颜色空间互转（HEX / RGB / HSV）与面板字段
- * 取整。ID 依赖 utils/random-id.js 的 randomUuid；颜色一律先归一成小写 6 位 HEX。夹取与
- * 颜色归一不在这里：它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
- * 与 utils/colors.js。
  */
-import { randomUuid } from "../utils/random-id.js?v=2609271208";
-import { clampNumber } from "../utils/numbers.js?v=2609271208";
-import { hexToRgbOrNull } from "../utils/colors.js?v=2609271208";
+import { randomUuid } from "../utils/random-id.js?v=2609271226";
+import { clampNumber } from "../utils/numbers.js?v=2609271226";
+import { hexToRgbOrNull } from "../utils/colors.js?v=2609271226";
 
 /**
  * 深拷贝一个值。
@@ -28,8 +23,6 @@ export function newId(idPrefix) {
  * 把文本转成 URL 片段：去音标、转小写、非字母数字压成连字符。
  */
 export function slugify(text) {
-  // slice(0, 72) 限制长度，避免生成过长的路径；结果为空串时必须有回退值，
-  // 否则会产出空路径导致路由冲突。
   return (
     String(text || "")
       .normalize("NFKD")
@@ -42,8 +35,6 @@ export function slugify(text) {
 
 /**
  * HEX 转 RGB；非法输入兜底黑色 —— 编辑器要用它把颜色画出来，拿到 `undefined` 会直接崩在渲染里。
- * 解析（含三位缩写展开、可省略 `#`）归 utils/colors.js 的 `hexToRgbOrNull`（唯一实现），
- * 这里只定「非法时用什么」这一件事。
  */
 export function hexToRgb(hexColorInput) {
   return hexToRgbOrNull(hexColorInput) || { r: 0, g: 0, b: 0 };
@@ -97,7 +88,6 @@ export function rgbToHsv({ r: redValue, g: greenValue, b: blueValue }) {
  * HSV 转 RGB。
  */
 export function hsvToRgb(hue, saturation, brightness) {
-  // 二次取模把负角度（如 -30°）折回 [0, 360)，否则下面按扇区切片会落到负值区间。
   const normalizedHue = ((Number(hue) % 360) + 360) % 360;
   const normalizedSaturation = clampNumber(Number(saturation), 0, 1);
   const normalizedBrightness = clampNumber(Number(brightness), 0, 1);

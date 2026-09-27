@@ -1,7 +1,4 @@
 """授权密钥对的生成与加载。
-
-客户端会对公钥 PEM **文件字节**做 sha256 校验，因此这里必须输出标准
-`serialization.Encoding.PEM` 结果，且对外暴露的指纹一律按文件字节计算。
 """
 
 from __future__ import annotations
@@ -31,22 +28,15 @@ class GeneratedKeyPair:
 
 
 #: 上一代密钥的文件名后缀。轮换时把当前那对改名成 ``*<后缀>.pem`` 就地保留，授权服务按请求
-#: 里的 keyId 在其中选择（见 ``crypto.KeyRegistry``），于是两边都能用；只保留一代。
 PREVIOUS_KEY_SUFFIX = ".previous"
 
 
 def previous_path(path: Path) -> Path:
-    """``license-private.pem`` → ``license-private.previous.pem``（后缀在扩展名前）。"""
     return path.with_name(f"{path.stem}{PREVIOUS_KEY_SUFFIX}{path.suffix}")
 
 
 def key_id_from_public(public_path: Path) -> str:
     """由公钥**文件字节**派生 keyId。
-
-    不让它是配置字符串：静态 keyId 不随密钥变，重新生成密钥后客户端那张「keyId → 公钥文件
-    + 指纹」的表里同名条目会指向**旧指纹**，新密钥被报成「指纹不匹配」。从文件字节派生后
-    换密钥 ⇒ keyId 必变，且与客户端校验指纹的口径同源。显式配置仍优先
-    （``STORE_LICENSE_KEY_ID`` / ``APP_LICENSE_KEY_ID``），那种情况下轮换要两边同步改。
     """
     return f"hb-{public_key_sha256(public_path)[:16]}"
 

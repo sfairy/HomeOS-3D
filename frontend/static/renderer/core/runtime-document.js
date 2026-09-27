@@ -1,22 +1,11 @@
 /**
  * 运行时文档的遍历与实体依赖收集。
- *
- * 职责：收集「需要实时状态」的实体 ID 交给订阅层一次性拉取；按条件查找组件（尤其是折线图）；
- * 从别处的同名图表同步属性。
- *
- * 位置：运行时文档工具层，被 home.js 与各控件 runtime 复用；不持有状态，全是纯遍历。
- * 约定：文档模型沿用 components / sharedComponents / sharedComponentIds，与 /api/projects 下发的 JSON 一致。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609271208";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609271208";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609271226";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609271226";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271208";
-/**
- * 判断状态是否需要从后端补历史 / 详情。
- * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，需要触发一次补数据
- * 而不是直接按无效态渲染。
- */
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271226";
 export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
   const stateObject = resolveStateEntry(stateOrChange);
   if (!stateObject) {
@@ -27,11 +16,6 @@ export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
     normalizedState === "" || normalizedState === "unknown" || normalizedState === "unavailable"
   );
 }
-/**
- * 递归收集文档里所有需要实时状态的实体 ID。覆盖面刻意比「绑定的实体」宽——扫地机的
- * 主机 / 地图 / 关联实体与快捷方式、人体感应的安防分区传感器、light-statistics 的统计
- * 实体、weather 的太阳实体（缺省 sun.sun）、more-info(entity) 指定的实体、selectedRelatedEntityIds 也直接决定渲染。虚拟实体一律跳过（由渲染器合成，订阅会被判不存在）。
- */
 export function collectEntityIds(components, entityIdSet = new Set()) {
   for (const component of components || []) {
     for (const binding of Object.values(component.bindings || {})) {
@@ -62,10 +46,6 @@ export function collectEntityIds(components, entityIdSet = new Set()) {
     }
     if (component.type === "interaction3d") {
       // 门锁绑定和「人体感应的分区传感器」是同一类：实体不在 `bindings` 里，而在
-      // properties.security.locks[] 的五个槽位 + 三种门磁来源字段上。清单与运行侧
-      // core/runtime.js 的 collectLockEntities 逐字一致：那边喂的是舞台动画，
-      // 这边喂的是编辑器里的安防面板（状态行读数、device_class 判定、候选排序都要实时状态）。
-      // 漏掉这一块时的症状很安静：门能绑、能存，面板上的「电量 / 门状态」永远是「—」。
       for (const lockEntry of component.properties?.security?.locks || []) {
         for (const lockEntityField of [
           "entityId",
@@ -129,13 +109,9 @@ export function collectComponents(inputComponents, predicate, matches = []) {
 }
 /**
  * 找出与指定实体绑定的折线图组件。
- * 查找顺序刻意「由近及远」：当前页 → 当前页挂载的共享组件 → 其它页 → 全部共享组件。
- * 同一实体可能在多个页面都有图表，取最近的一个做属性来源，当前页看到的样式才符合直觉。
  */
 function matchingLineChartComponent(documentModel, page, entityId) {
   // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定
-  // 无副作用，所以能直接当 collectComponents 的 predicate 复用多次，对应下面
-  // 「当前页 → 共享组件 → 其它页 → 全部共享组件」由近及远的查找顺序。
   const isLineChartForEntity = candidateComponent =>
     candidateComponent.type === "line-chart" &&
     candidateComponent.bindings?.entity?.entityId === entityId;
@@ -143,7 +119,6 @@ function matchingLineChartComponent(documentModel, page, entityId) {
   if (directMatch) {
     return directMatch;
   }
-  // 共享组件可能被多次挂载，先按 ID 建索引，避免对每个挂载点重复全量扫描。
   const sharedComponentsById = new Map(
     (documentModel?.sharedComponents || []).map(sharedComponent => [
       sharedComponent.id,

@@ -1,22 +1,19 @@
 /*
  * 设备控件区块：实体详情总入口。
- *
- * 单个组件没有专门的详情页时走这里：按实体域与能力挑一组控件渲染详情弹窗，
- * 并负责「实体目录还没到、详情先被点开」时的等待与补开。
  */
 
 import {
   COVER_POSITION_EPSILON_PERCENT,
   formatLineChartValue,
   renderLineChartDetails
-} from "../../registry.js?v=2609271208";
-import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
+} from "../../registry.js?v=2609271226";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271226";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609271208";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
+} from "../../../../utils/cover-features.js?v=2609271226";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -27,10 +24,10 @@ import {
   normalizeClimateCapabilities,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../../../controls/climate.js?v=2609271208";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271208";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271208";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271208";
+} from "../../../controls/climate.js?v=2609271226";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271226";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271226";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271226";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -46,23 +43,21 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609271208";
+} from "../../../controls/cover-runtime.js?v=2609271226";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609271208";
+} from "../../../controls/cover-direction.js?v=2609271226";
 import {
   airerPositionLabel,
   appendAirerVisual,
   componentDialogTitle,
   createSwitchVisual
-} from "../primitives.js?v=2609271208";
+} from "../primitives.js?v=2609271226";
 
 
 export const entityDetailsMethods = {
   /**
    * 打开实体详情弹窗：按设备画像渲染相应区块，是「更多信息」动作的落点。
-   * 各类设备的详情差异全部收敛在这里，因此是本文件里最大的分支树；数据未就绪的设备（热水器等）交由 deferEntityDetailsUntilReady 挂起后重试。
-   * @throws {Error} 组件没有绑定实体。
    */
   async showEntityDetails(detailsComponent, { preview: detailsPreview = false } = {}) {
     const detailsEntityId = detailsComponent.bindings?.entity?.entityId;
@@ -77,7 +72,6 @@ export const entityDetailsMethods = {
       detailsComponent.properties?.deviceType === "electric-bed" ||
       deviceProfile?.deviceType === "electric-bed";
     // 按控件与设备画像保守预取这一屏可能用到的设备控件模块（宁可多取一类，也不漏）。
-    // 只此一行：逐分支 await 会让本文件超出「台账只许减」的预算。
     await this.prepareDeviceControlsForDetails(detailsComponent, deviceProfile);
     if (!this.entityCatalogReady) {
       this.deferEntityDetailsUntilReady(
@@ -91,7 +85,6 @@ export const entityDetailsMethods = {
         detailsPreview,
         isElectricBedDevice ? "electric-bed-catalog" : "catalog"
       );
-      // 画像尚未就绪但已知是电动床：先给加载态弹窗，否则用户点下去毫无反馈。
       if (isElectricBedDevice) {
         this.showElectricBedLoadingDetails(detailsComponent, {
           preview: detailsPreview
@@ -130,7 +123,6 @@ export const entityDetailsMethods = {
       this.deferEntityDetailsUntilReady(detailsComponent, detailsPreview);
       return;
     }
-    // 走到这里说明所需数据齐备，作废挂起超时，避免稍后又弹一次。
     window.clearTimeout(this.pendingEntityDetails?.timer);
     this.pendingEntityDetails = null;
     if (detailsComponent.type === "presence-sensor") {
@@ -320,8 +312,6 @@ export const entityDetailsMethods = {
     this.closeRuntimeDialog();
     /**
      * 判断实体当前是否处于「开启」状态。
-     * 三类控件规则不同：瞬时按钮（button）恒为 false；灯与开关只看 state === "on"；
-     * 气候类交给 climateIsPoweredOn —— 还要结合 hvac_action / preset_mode，否则送风、除湿会被判成关。
      */
     const resolvePowerOn = (powerStateText, powerStateAttributes = entityAttributes) =>
       isMomentaryButton
@@ -531,8 +521,6 @@ export const entityDetailsMethods = {
       };
       /**
        * 按灯光快照刷新详情弹窗里的光晕（颜色、透明度、模糊与缩放）。
-       * 亮度映射到 0.08~1 透明度、15~129px 模糊与 0.62~1.67 缩放，都是视觉调参值：透明度下限留 0.08 是为了让 「已开但很暗」与「已关闭」在界面上可区分。色温用 2000K~6500K 的暖色 [255,132,42] 与冷色 [172,225,255]
-       * 线性插值兜底，只在这盏灯拿不到可直接使用的 RGB 时才走到这条路。
        */
       const renderEntityLightVisual = () => {
         const lightVisualBrightness = Math.max(
@@ -1569,8 +1557,6 @@ export const entityDetailsMethods = {
     if (detailsComponent.type === "line-chart" && lineChartCurrentVisual) {
       /**
        * 重建详情弹窗里的折线图，并把新线色同步回外层容器。
-       * 折线图尺寸依赖挂载后的实际布局，无法原地更新，只能整体换新实例，故先解绑旧实例的
-       * 悬浮监听再 replaceWith；弹窗已关闭或图表已脱离文档时直接返回，避免在已销毁 DOM 上替换。
        */
       const refreshLineChartVisual = () => {
         chartRefreshTimer = 0;
@@ -1595,8 +1581,6 @@ export const entityDetailsMethods = {
       };
       /**
        * 安排一次折线图重建（默认 700ms 防抖）。
-       * 用 `||=` 保证同一时刻只有一个待执行定时器：历史数据通常成批到达，每条都重建会连续
-       * 触发重排，这里合并成一次。
        */
       const scheduleChartRefresh = (delayMs = 700) => {
         chartRefreshTimer ||= window.setTimeout(
@@ -1631,8 +1615,6 @@ export const entityDetailsMethods = {
     } else if (hasPowerToggle && renderPowerState) {
       /**
        * 把实体最新状态应用到详情弹窗（开关 / 灯 / 气候类控件的统一入口）。
-       * 气候控件的结构取决于实体属性（可用模式、风速档、摆风档…），属性变化时必须整块重建而非就地更新，否则 新旧档位按钮会混在一起；因此先比对 climateControlStructureKey，只有结构变了才重建，重建时把灯控、扩展
-       * 控件等外挂节点迁回新控件，最后统一刷新开关态与各子控件状态。
        */
       const applyEntityDetailsState = updatedEntityState => {
         latestEntityState = updatedEntityState;

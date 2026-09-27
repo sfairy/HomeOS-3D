@@ -1,22 +1,12 @@
 /**
  * 3D 工作室的输入归一化工具箱。
- *
- * 文档从后端读回或用户在面板输入参数后，统一把缺失 / 越界 / 类型不对的字段收敛成安全值再
- * 交给渲染与状态逻辑。长度单位一律米，角度单位度，相机位置用世界坐标，色温用开尔文；全部
- * 是纯函数，不持有状态、不写回入参。夹取统一用 utils/numbers.js 的 clampNumber，区间上下
- * 限与其余各处相反时结果会静默不同，故按同一份口径。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271208";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271226";
 // 色温换算（含唯一的公式与单通道夹取）共用 utils/colors.js：studio 侧与灯光侧的系数不许各写一份。
-import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609271208";
+import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609271226";
 
 /**
  * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。
- *
- * 薄封装 `utils/numbers.js` 的 `coercedFiniteNumberOr`：这套换算在 studio 侧被大量调用，过去这里是
- * 裸 `Number(value)` + `Number.isFinite`，缺了那份挡板 —— `Number("")` 是 0、`Number(true)` 是 1、
- * `Number([])` 也是 0，于是「用户清空了输入框」会被当成 0 写进场景参数。保留这个名字只是因为
- * 调用点太多，实现不许再自己写一份。
  */
 export function finite(value, fallback = 0) {
   return coercedFiniteNumberOr(value, fallback);
@@ -24,7 +14,6 @@ export function finite(value, fallback = 0) {
 
 /**
  * 把任意角度归一化到 [0, 360)。
- * 落在 [0, 360] 内的值原样返回：刻意保留 360 而不取模成 0，取模会吞掉「正好转了一圈」的意图。
  */
 export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
   const rotationDegrees = finite(degrees, fallbackDegrees);
@@ -38,7 +27,6 @@ export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
 
 /**
  * 给出某类物件允许的最小平面尺寸（米），对应检查器尺寸输入框的 min。
- * 人体存在传感器细长，允许小到 1 厘米；其余家具最小 10 厘米，避免生成几乎不可见的碎片。
  */
 export function itemMinimumFootprint(itemType) {
   if (itemType === "presence") {
@@ -85,9 +73,6 @@ export function normalizeLabelText(labelText, fallbackText, maxLength) {
 
 /**
  * 把色温换算成 0xRRGGBB（灯具发光色），公式与单通道收尾的唯一实现在 utils/colors.js。
- *
- * 色温先夹到 2200~6500 K：这是场景里灯具实际可用的色温范围，近似式在此区间内才准。调用方的
- * 区间与灯光实体效果色那条路**有意不同**（那条按近似式名义范围 1000~20000 夹）。
  */
 export function kelvinToRgbHex(kelvin) {
   return normalizedKelvinToRgbHex(kelvin, {
@@ -151,7 +136,6 @@ export function normalizeFixedCameraView(savedView) {
 export function normalizeCameraSettings(cameraSettings) {
   return {
     cameraView: cameraSettings?.cameraView === "top" ? "top" : "free",
-    // 顶视图旋转吸附到 90° 的倍数，避免出现 17° 这种手工拖出来的零碎角度。
     cameraTopRotation:
       (((Math.round(finite(cameraSettings?.cameraTopRotation, 0) / 90) * 90) % 360) + 360) % 360,
     cameraMode: cameraSettings?.cameraMode === "orthographic" ? "orthographic" : "perspective",
@@ -159,8 +143,6 @@ export function normalizeCameraSettings(cameraSettings) {
   };
 }
 
-// 默认基础照明：新建场景与「恢复默认」的基准，会被 normalizeBaseLighting 兜底读取，运行期不可就地改写。
-// 方位角以场景正前方为 0、顺时针为正，仰角自地平线向上度量；强度为各灯相对系数，曝光为 toneMappingExposure。
 export const DEFAULT_BASE_LIGHTING = Object.freeze({
   exposure: 1.05,
   hemisphereIntensity: 0.58,
@@ -179,7 +161,6 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
 
 /**
  * 归一化基础照明参数。
- * 上限按「明显过曝 / 过暗」的边界给出；仰角限 0~89°，89° 而非 90° 是为了避免顶光与地面共面。
  */
 export function normalizeBaseLighting(lightingSettings) {
   // 非对象（null / 字符串）统一当空对象处理，后续全部走默认值。
@@ -188,7 +169,6 @@ export function normalizeBaseLighting(lightingSettings) {
   return {
     exposure: clampNumber(finite(lightingInput.exposure, DEFAULT_BASE_LIGHTING.exposure), 0.5, 2),
     // floorBrightness 是后加的字段：旧文档里没有，此时不输出该键，
-    // 让上层能区分「未设置」与「显式设成默认值」。
     ...(lightingInput.floorBrightness !== undefined
       ? {
           floorBrightness: clampNumber(finite(lightingInput.floorBrightness, 100), 50, 150)

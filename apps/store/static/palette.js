@@ -1,33 +1,15 @@
 /**
  * 商店后台的「站点配色」面板（系统配置 → 站点配色）。
- *
- * 与主应用 `frontend/static/editor/appearance.js` 是同一件事的两个副本：两个服务
- * 各自独立构建、独立部署，没有可共享的 JS 包。颜色本身的逻辑**不在这里**——
- * 预设、明暗派生与令牌展开全在 `./scene/appearance.js`（design/scene 的分发产物），
- * 那是唯一一份实现，两个前端 import 的是同一个文件。
- *
- * 这里只做三件事：
- *   1. 即时预览：`documentElement.style.setProperty()` 逐枚写 CSS 变量。
- *      商店的 CSP 对 `style-src` 放宽到 `'unsafe-inline'`，但 CSSOM 赋值本来也不受
- *      那条限制 —— 拖动色轮能立刻看到整页变色，不必每次往返服务端。
- *   2. 保存：把展开好的令牌表 PUT 给 `/store-admin/v1/appearance`，后端据此生成
- *      `/store-appearance.css`；刷新后由那个 `<link>` 给出同一套颜色。
- *      预览与落地是同一个函数产出的同一张表，不会出现「拖的时候一个色、保存完另一个色」。
- *   3. 回读：打开面板时从服务端取回当前值，让界面与真实生效的颜色一致。
- *
- * 为什么单独一个模块而不是并进 admin/app.js：这个面板要用 `./scene/appearance.js`
- * 的预设与令牌展开（唯一一份实现），而它是设计侧分发过来的模块 —— 只有 ESM 能 import 它，
- * 把配色逻辑抄进后台入口就会多出第二份会走散的真值。
  */
 
-import { describe } from "./api-error.js?v=2609271208";
+import { describe } from "./api-error.js?v=2609271226";
 import {
   CONFIGURABLE,
   DEFAULT_PRESET,
   PRESETS,
   normalizeHex,
   resolveTokens,
-} from "./scene/appearance.js?v=2609271208";
+} from "./scene/appearance.js?v=2609271226";
 
 const dialogPane = document.querySelector('[data-tab-pane="palette"]');
 const presetList = document.getElementById("palette-preset-list");
@@ -44,11 +26,6 @@ const swatches = new Map(
 );
 
 /** 自定义色输入框的初值：从**当前生效的 --hb-accent** 读。
- *
- * 这条路同时覆盖两种情况，且不需要先登录：主题表 theme.css 给出没有配置时的默认值，
- * 服务端按已保存的配置生成的 `/store-appearance.css` 覆盖它 —— 于是 getComputedStyle
- * 拿到的就是站点此刻真实的主控色。配色接口 `/store-admin/v1/appearance` 要管理员身份，
- * 而这一页首先是登录屏，那会儿根本读不到。
  * 值本身由 `./scene/appearance.js` 的预设决定，这里不再存第二份默认色。 */
 function liveAccent() {
   const applied = getComputedStyle(document.documentElement).getPropertyValue("--hb-accent").trim();
@@ -71,17 +48,12 @@ function setMessage(text, kind = "") {
   messageBox.classList.toggle("is-err", kind === "err");
 }
 
-/** 草稿对应的令牌表。预设与自定义色的取舍全在 resolveTokens() 里。 */
 function draftTokens() {
   return resolveTokens({ presetId: draft.preset, accentColor: draft.accent || undefined });
 }
 
 /**
  * 把一张令牌表写到 root 上做预览。
- *
- * 只写**字面量**令牌（base / -bright / -deep / -rgb / -soft / -line / -text）：
- * 渐变那些是 `var()` 引用，改字面量它们自己会跟上。多写一份引用值等于把
- * 「谁才是真的生效值」变模糊，而下一个改这里的人一定会去改错那一份。
  */
 function applyPreview(tokens) {
   const root = document.documentElement;
@@ -115,7 +87,6 @@ function paintControls() {
   if (accentInput) accentInput.value = accent;
   if (accentHexInput && document.activeElement !== accentHexInput) accentHexInput.value = accent;
   // 自定义色输入只在「主控色被手动改过」时描边：恢复预设时用户看得见自己那枚
-  // 自定义色已经不再生效，而不是以为它还在。
   const preset = PRESETS.find((item) => item.id === draft.preset);
   const isCustom =
     Boolean(draft.accent) && normalizeHex(draft.accent) !== normalizeHex(preset?.colors.accent);
@@ -130,7 +101,6 @@ function repaint() {
   applyPreview(tokens);
 }
 
-/** 建预设卡片。内容不会变，所以只建一次。 */
 function buildPresetCards() {
   if (!presetList || presetList.childElementCount) return;
   presetList.innerHTML = PRESETS.map(
@@ -148,7 +118,6 @@ function buildPresetCards() {
     if (!button) return;
     draft.preset = button.dataset.preset;
     // 换预设 = 放弃自定义色：保留着它会让「点了暖居琥珀，主控色却还是上次拖的紫」
-    // 变成一个没有出口的状态。
     draft.accent = "";
     setMessage("");
     repaint();
@@ -167,7 +136,6 @@ async function loadSaved() {
     const preset =
       typeof payload?.preset === "string" && payload.preset ? payload.preset : DEFAULT_PRESET;
     saved = { preset, accent: "" };
-    // 服务端的 tokens 里主控色与预设不一致，说明当初存的就是自定义色。
     const stored = normalizeHex(payload?.tokens?.["--hb-accent"]);
     const presetAccent = normalizeHex(PRESETS.find((item) => item.id === preset)?.colors.accent);
     if (stored && stored !== presetAccent) saved.accent = stored;
@@ -216,10 +184,6 @@ if (dialogPane) {
     if (accentHexInput) accentHexInput.placeholder = initialAccent;
   }
   // 「配色面板此刻真的可见」要同时满足三个条件：外层 #admin-app 已经显形（登录看它）、
-  // 所在的 .admin-panel 是 .active（切侧栏看它）、分页自己不是 hidden（切分页看它）。
-  // 只看 dialogPane.hidden 是不够的 —— 页面刚加载时 app.js 还没调过 setTab，所有分页都
-  // 没有 hidden 属性，于是**登录屏**上也会被当成「可见」，往 /store-admin/v1/appearance
-  // 打一个必然 401 的请求（配色接口要管理员身份，而这一页首先是登录屏）。
   const settingsPanel = dialogPane.closest(".admin-panel");
   const appShell = document.getElementById("admin-app");
   const isVisible = () =>
@@ -234,10 +198,6 @@ if (dialogPane) {
     loaded = true;
     loadSaved().then(repaint);
   };
-  // 三个节点的属性变化都会改变可见性结论，所以都盯上；回调里重新判一次而不是各自
-  // 写一份条件 —— 分页切换靠 hidden（见 admin.html 里的 tabs 逻辑）、侧栏切换靠
-  // .active、登录态靠 #admin-app 的 hidden。比在后台脚本里加一个「切到配色分页了」
-  // 的自定义事件更少耦合：那个事件一旦被改名或漏派发，面板会安静地显示默认色。
   const observer = new MutationObserver(() => {
     if (!isVisible()) return;
     setMessage("");
@@ -257,7 +217,6 @@ if (dialogPane) {
   });
   accentHexInput?.addEventListener("input", () => {
     // 只在写全了才应用：输到一半的 "#ffc" 也是合法三位色，中途应用会让用户
-    // 看到一串自己没打算选的跳变。
     const value = normalizeHex(accentHexInput.value);
     accentHexInput.classList.toggle("is-invalid", Boolean(accentHexInput.value) && !value);
   });

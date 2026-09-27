@@ -1,18 +1,12 @@
 /**
  * 展示页主脚本（/display/<项目名>）。
- *
- * 长期打开的运行时页面，只读消费编辑器保存的草稿：解析地址得到项目、轮询 revision 判断
- * 是否刷新、拉取目录与素材、创建 PanelRenderer 渲染文档，并处理前后台切换、断网恢复与旋转
- * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）就地刷新自愈
- *（墙面屏前没人能填激活码，刷新让后端门禁重新判定）；两个判定口径见 utils/api-request.js；
- * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=2609271208";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271208";
-import { apiFetch } from "../utils/api-fetch.js?v=2609271208";
-import { createButtonSound } from "../shared/sound-effects.js?v=2609271208";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=2609271208";
-import { isAppleMobile } from "../utils/apple-device.js?v=2609271208";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=2609271226";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271226";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271226";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609271226";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=2609271226";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609271226";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -38,12 +32,9 @@ let lastCatalogFingerprint = null;
 let lastAssetsCheckAt = 0;
 let assetsVersion = null;
 
-// 苹果移动端判定统一走 utils/apple-device.js：两套证据（UA 里的 Macintosh / navigator.platform）
-// 都会被浏览器收紧，合并成一处并把两条证据并起来用。
 
 /**
  * 把展示根节点尺寸同步成真实可视区域尺寸。
- * iOS 的 visualViewport 会随地址栏收缩，故改取 screen 尺寸；屏幕方向与视口不一致时交换宽高。
  */
 function syncViewportSize() {
   const appleMobile = isAppleMobile();
@@ -65,7 +56,6 @@ function syncViewportSize() {
     displayShellElement.style.width = widthPx + "px";
     displayShellElement.style.height = heightPx + "px";
     if (appleMobile) {
-      // iOS 全屏时 html / body 也要撑满，否则滚动会让画布露出白边。
       document.documentElement.style.width = widthPx + "px";
       document.documentElement.style.height = heightPx + "px";
       document.body.style.width = widthPx + "px";
@@ -81,13 +71,6 @@ function buildPairUrl() {
 
 /**
  * 请求展示页所需的接口。
- *
- * 超时预算与超时错误的形态都交给 utils/api-fetch.js（`apiFetch`）：它是全站接口的唯一
- * 出入口，20 秒预算与 `name === "TimeoutError"` 的约定都在那里。这里曾自持一个 20 秒
- * `AbortController`，并且超时抛的是**裸 Error**（name 是 "Error"）—— 调用方按 name 判
- * 「是不是超时」时永远落空，只能靠中文文案猜，而文案是会随版本改的。
- *
- * @throws {Error} 超时（name 为 TimeoutError）、HTTP 失败或响应不是合法 JSON。
  */
 async function apiRequest(path) {
   // 追加 _=时间戳 与 no-store 双保险，绕过浏览器与中间层缓存。
@@ -110,9 +93,6 @@ async function apiRequest(path) {
     }
     if (authChallenge === "license-restricted") {
       // 刷新而不是跳 /license：展示端是墙面屏，通常没人能填激活码；刷新会让后端门禁
-      // 重新判定；若展示能力仍不可用，后端会把 /pair 与 /display/* 就地渲染成连接状态页
-      //（那里只有「正在重连」和自动重试），因此刷新本身就是可自愈的落点。
-      // 先重载再抛：重载是异步的，抛出的错误让当前这一帧立刻显示原因而不是白等。
       window.location.reload();
       throw apiRequestError(payload, {
         status: response.status,
@@ -121,8 +101,6 @@ async function apiRequest(path) {
       });
     }
     if (!response.ok) {
-      // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组；
-      // 错误形态与「先关联响应、避免重复上报」都在 utils/api-request.js 里。
       throw apiRequestError(payload, {
         status: response.status,
         fallback: "请求失败。",
@@ -131,13 +109,10 @@ async function apiRequest(path) {
     }
     return payload;
   } catch (caughtError) {
-    // 超时已经由 apiFetch 抛成 name === "TimeoutError" 的错误，后续按 name 分支的调用方
-    // 都能认出它，这里直接透传，不再把名字抹平。
     if (caughtError?.name === "TimeoutError") {
       throw caughtError;
     }
     // fetch 在网络层断掉时抛的是 `TypeError: Failed to fetch`，这句话会原样出现在
-    // 启动层的错误界面和运行期横幅上，对用户没有任何意义，这里换成可读文案。
     if (caughtError instanceof TypeError) {
       throw new Error("无法连接服务器，请检查网络连接。");
     }
@@ -169,14 +144,12 @@ async function refreshCatalog() {
           ])
         : "not-configured";
       const hasCatalogChange = fingerprint !== lastSyncFingerprint;
-      // 翻译资源只需拉一次；目录变化时也要重拉，因为实体名可能改语言。
       const shouldRefreshTranslations =
         !!syncStatus.configured &&
         !!syncStatus.connected &&
         (!hasTranslations || !!hasCatalogChange);
       if (!!hasCatalogChange || !!shouldRefreshTranslations) {
         if (!syncStatus.configured) {
-          // 未配置 HA：清空目录并标记已处理，避免每次轮询都重复走到这里。
           entityList = [];
           deviceList = [];
           translationResources = {};
@@ -226,7 +199,6 @@ async function refreshCatalog() {
   );
 }
 
-// 生成目录指纹：只取影响渲染的字段，避免无谓的重复下发。
 function buildCatalogFingerprint() {
   const entityRows = entityList.map(entity => [
     entity.entityId || "",
@@ -278,7 +250,6 @@ function decodeDisplayPath(value) {
 
 /**
  * 根据 URL 解析当前展示的项目。
- * @throws {Error} 地址非法、项目不存在或名称重复时抛出中文文案。
  */
 async function resolveProject() {
   const pathname = window.location.pathname;
@@ -302,7 +273,6 @@ async function resolveProject() {
     throw new Error("找不到仪表盘“" + projectName + "”。");
   }
   if (projectMatches.length > 1) {
-    // 展示页靠名称寻址，重名必须挡在入口，否则无法确定该渲染哪一个。
     throw new Error("仪表盘名称“" + projectName + "”重复，请先在编辑器中改名。");
   }
   return projectMatches[0];
@@ -329,7 +299,6 @@ async function refreshDisplay() {
             return;
           }
           const now = Date.now();
-          // 素材版本检查 30 秒节流，避免每次轮询都发一次请求。
           if (now - lastAssetsCheckAt >= 30000) {
             const assetsVersionResponse = await apiRequest("/assets/version");
             if (!assetsVersionResponse) {
@@ -357,7 +326,6 @@ async function refreshDisplay() {
         if (!draftResponse) {
           return;
         }
-        // 先让启动层按画布背景色定好主题，避免首帧闪白。
         window.HABridgeDisplayBoot?.setDocument(draftResponse.document);
         syncAppleDisplaySurface(draftResponse.document);
         buttonSound.setEnabled(draftResponse.document?.soundEnabled !== false);
@@ -394,7 +362,6 @@ async function refreshDisplay() {
               window.HABridgeDisplayBoot?.notice(rendererError?.message || "操作失败。");
             },
             // 实时推送可用性：致命关闭码（4400）后渲染层不会自动重连，画面会停在
-            // 最后一帧；此时挂一条常驻横幅，等它重新订阅成功再撤掉。
             onRuntimeAvailabilityChange(available, unavailableMessage) {
               window.HABridgeDisplayBoot?.setRuntimePush(available, unavailableMessage);
             }
@@ -402,7 +369,6 @@ async function refreshDisplay() {
           pushCatalogToRenderer();
         }
         if (builtinAssets && userAssets) {
-          // 素材表要合并内置与用户两部分后一次性替换，避免出现中间态。
           panelRenderer.refreshBuiltinAssets([
             ...(builtinAssets.items || []),
             ...(userAssets.items || [])
@@ -446,7 +412,6 @@ function refreshIfVisible() {
   if (document.visibilityState === "visible") {
     if (!window.HABridgeDisplayBoot?.failed) {
       // 这一次刷新整体成功（含「revision 没变，无需重渲染」）就说明网络通了，
-      // 此时必须撤掉「无法更新」横幅 —— 否则恢复联网后它一直挂着。
       refreshDisplay().then(
         () => window.HABridgeDisplayBoot?.recovered(),
         handleDisplayError

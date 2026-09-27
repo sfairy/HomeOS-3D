@@ -1,8 +1,4 @@
 """素材上传的校验与清洗：后缀/像素/体积上限、SVG 白名单净化、图片格式校验。
-
-从 api/assets.py 拆出来：那一份只留「目录 + 路由 + 落盘编排」，而这一份是**上传这一侧的闸门**。
-SVG 是唯一会被浏览器当脚本执行的素材格式，所以这里的每张白名单表都是安全边界 —— 单独成模块之后，
-「谁在改上传限制 / 谁在放宽净化」一眼可见，不必在 1200 行的路由文件里翻。
 """
 from __future__ import annotations
 import math
@@ -39,19 +35,15 @@ UPLOAD_CONTENT_TYPES = {
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
 # 单次上传请求体的字节上限，**逐块累计**判断（分块传输会让 Content-Length 失效）。
-# 取值刻意宽于像素上限：1000 万像素 × 4 字节 = 40 MB；目的是不让单个请求把盘写满。
 MAX_UPLOAD_BYTES = 64 * 1000 * 1000
-# SVG 是文本，另限体积与元素数量，避免海量节点把解析与渲染拖垮。
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
 # SVG 与 xlink 命名空间常量：清洗属性/元素时按这两个值做白名单比对。
 SVG_NAMESPACE = 'http://www.w3.org/2000/svg'
 XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink'
-# CSS 长度语法：可选正负号 + 数字 + 可选单位（px/pt/pc/mm/cm/in），用于解析 width/height。
 SVG_LENGTH = re.compile('^\\s*([+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?)\\s*(px|pt|pc|mm|cm|in)?\\s*$', re.IGNORECASE)
 # 取出 CSS 里 url(...) 的引用目标，用于判断样式引用的图片是否安全。
 SVG_URL = re.compile('url\\(\\s*([\'\\"]?)(.*?)\\1\\s*\\)', re.IGNORECASE)
-# style 文本里明确禁止的写法：@import 能拉外部样式，expression() 与 javascript: 能执行脚本。
 SVG_UNSAFE_STYLE = re.compile('(?:@import|expression\\s*\\(|javascript\\s*:|-moz-binding)', re.IGNORECASE)
 # 属性值里禁止的协议：脚本协议，以及把 HTML 冒充成图片的 data URL。
 SVG_UNSAFE_REFERENCE = re.compile('(?:javascript|vbscript)\\s*:|data\\s*:\\s*text/html', re.IGNORECASE)
@@ -85,14 +77,11 @@ def xml_local_name(value: str) -> str:
     return value.rsplit('}', 1)[-1].lower()
 def svg_reference_is_safe(value: str) -> bool:
     """判断 SVG 里的一处引用是否安全。
-
-    只放行两类：文档内部的片段引用（#id），以及内联的 data:image/*;base64 位图。
     """
     normalized = value.strip()
     # 片段引用（渐变、滤镜等内部 id）永远安全。
     if normalized.startswith('#'):
         return True
-    # 其余引用（http、file、其它 data:）一律拒绝，避免外链与脚本注入。
     if not normalized.lower().startswith('data:image/'):
         return False
     # 11 是 'data:image/' 的长度：取出媒体子类型再核对白名单，并要求确实是 base64。
@@ -116,9 +105,6 @@ def parse_svg_length(value: str | None) -> float | None:
     return number * SVG_LENGTH_FACTORS[(match.group(2) or '').lower()]
 def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
     """推断 SVG 的像素尺寸：优先 width/height，缺失时按 viewBox 补算，都没有则用
-    规范里 <image> 的默认 300x150。
-
-    尺寸超过上传上限时抛 ValueError（中文文案，直接给用户看）。
     """
     view_box = None
     raw_view_box = root.attrib.get('viewBox') or root.attrib.get('viewbox')
@@ -127,7 +113,6 @@ def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
             parts = [float(part) for part in re.split('[\\s,]+', raw_view_box.strip()) if part]
         except ValueError:
             parts = []
-        # viewBox 必须是四个有限数且宽高为正，否则视为无效。
         if len(parts) == 4 and all((math.isfinite(part) for part in parts)) and parts[2] > 0 and parts[3] > 0:
             view_box = (parts[2], parts[3])
     # 只缺一边时按 viewBox 比例补出另一边。
@@ -149,11 +134,7 @@ def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
     return dimensions
 def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
     """校验并就地清洗上传的 SVG，返回其像素尺寸。
-
-    清洗是白名单式：只留 SVG/xlink 命名空间下的安全元素与属性，摘掉脚本、动画、外部
-    嵌入与 on* 事件、危险引用，最后覆盖回原文件。任何不合规都抛中文 ValueError。
     """
-    # 三道体积/结构闸门都放在解析之前，避免把超大 XML 读进内存。
     if path.stat().st_size > MAX_UPLOAD_SVG_BYTES:
         raise ValueError('SVG 文件过大，请精简后重试。')
     source = path.read_bytes()
@@ -215,8 +196,6 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
     return dimensions
 def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
     """校验刚上传的图片文件，返回其像素尺寸；不合法时抛 ValueError。
-
-    SVG 走清洗流程，位图核对真实格式与像素上限。所有文案为中文，可直接作为 422 的 detail。
     """
     if suffix == '.svg':
         return validate_and_sanitize_uploaded_svg(path)

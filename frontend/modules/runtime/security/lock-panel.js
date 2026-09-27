@@ -1,21 +1,10 @@
 /**
  * 门锁详情面板（3D 详情弹窗 / 配置预览共用）。
- *
- * 把 lock-state 归一化后的门锁状态渲染成「状态文案 + 电量 + 密码输入 + 上锁 / 解锁 / 释放锁舌」，
- * 操作交给 onControl 下发给后端。约定：不直接访问后端，命令由本模块组装成
- * { deviceKind: "lock", domain: "lock", service, entityId, data } 的形状。
- *
- * 危险动作（解锁 / 释放锁舌）需要二次点击确认：第一次点击只提示，第二次才真的下发；
- * 结果文案固定为「指令已提交，状态以门反馈为准。」，真正的开合以后续状态回传为准。
  */
-import { lockState } from "./lock-state.js?v=2609271208";
+import { lockState } from "./lock-state.js?v=2609271226";
 
 /**
  * 创建门锁面板。
- *
- * onControl(command) 由宿主注入（通常是运行时上下文里的 sendControl，返回 Promise）。
- * 返回 { root, update({ item, states, editing }), hide(), dispose() }：root 是待挂载的根节点，
- * update 刷新绑定项与状态，hide 保留节点只隐藏（弹窗复用），dispose 彻底移除。
  */
 export function createLockPanel({ onControl }) {
   const el = (tag, text = "") => {
@@ -49,7 +38,6 @@ export function createLockPanel({ onControl }) {
   let currentItem = null;
   // editing=true 表示处于编辑器预览态，此时禁用一切下发。
   let isEditing = true;
-  // 有命令在途；在途期间按钮禁用，避免连点重复下发。
   let isBusy = false;
   // 已 dispose 后所有异步回包都不应再改 DOM。
   let isDisposed = false;
@@ -156,7 +144,6 @@ export function createLockPanel({ onControl }) {
     root: rootElement,
     /**
      * 用新的绑定项 / 状态 / 编辑态刷新面板。
-     * 换门锁（id 变化）时作废旧回包，并清空密码、待确认动作与提示文案。
      */
     update({ item, states, editing }) {
       if (currentItem?.id !== item.id) {

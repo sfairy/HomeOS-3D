@@ -3,18 +3,14 @@
  */
 
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
-// `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
-// 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609271208";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
-import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271208";
-import { componentDialogTitle } from "../primitives.js?v=2609271208";
+import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609271226";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271226";
+import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271226";
+import { componentDialogTitle } from "../primitives.js?v=2609271226";
 
 export const electricBedDetailsMethods = {
   /**
    * 打开电动床详情弹窗（靠背 / 腿部 / 整体升降与预设姿态）。
-   *
-   * @throws {Error} 组件没有绑定实体。
    */
   showElectricBedDetails(bedDetailsComponent, { preview: bedDetailsPreview = false } = {}) {
     const bedEntityId = bedDetailsComponent.bindings?.entity?.entityId;
@@ -140,8 +136,6 @@ export const electricBedDetailsMethods = {
     const bedControlBindings = [];
     /**
      * 读电动床某个实体的状态，缺失时返回 unknown 占位对象。
-     *
-     * 占位对象让能力控件可以直接按状态对象渲染首帧，不必在控件内部再判空。
      */
     const readBedEntityState = electricBedEntityId => {
       const bedEntityState = this.states.get(electricBedEntityId);
@@ -155,8 +149,6 @@ export const electricBedDetailsMethods = {
     };
     /**
      * 往电动床详情弹窗追加某个角色的能力控件，并登记状态回调与清理函数。
-     * bedStateHandlers 把该实体的后续推送转给控件；bedControlBindings 记下清理函数与角色名，
-     * 弹窗关闭时统一解绑，避免内部监听随弹窗泄漏。
      */
     const addBedRoleControl = (
       roleLabel,
@@ -299,8 +291,6 @@ export const electricBedDetailsMethods = {
     bedDetailsDialog.append(bedDetailsCard);
     /**
      * 把角度实体的状态换算成 0~100 的百分比，用于驱动床模型的倾斜幅度。
-     * 有 min/max 时按区间归一化；缺失或区间非法（max ≤ min）时把状态值当百分比用 ——
-     * 有些床的角度实体本就是 0~100 的无量纲数值；取不到数值时返回 0，让模型回到平躺。
      */
     const bedAnglePercent = (angleRoleId, angleEntityState) => {
       const angleStateValue = Number(angleEntityState?.state);
@@ -328,8 +318,6 @@ export const electricBedDetailsMethods = {
     };
     /**
      * 刷新电动床详情的三个角度读数、模型倾角与状态文案。
-     * 模型倾角 = 百分比 × 负系数（靠背 -0.42、腿部 -0.28、腰部 -0.1，单位 deg）：
-     * 系数是视觉标定值，让各部位活动幅度协调、并非真实角度；取负因 CSS 旋转正方向与抬起相反。
      */
     const refreshBedReadouts = () => {
       const backrestEntityState = readBedEntityState(electricBedRoles.backrest);
@@ -337,8 +325,6 @@ export const electricBedDetailsMethods = {
       const waistEntityState = readBedEntityState(electricBedRoles.waist);
       /**
        * 把角度实体的状态格式化成读数文本（数值 + 单位）。
-       *
-       * 单位取实体自带的 unit_of_measurement，缺省为度；状态不是数值时显示 "--"。
        */
       const formatAngleReading = angleReadingState => {
         const angleReadingValue = Number(angleReadingState?.state);
@@ -430,8 +416,6 @@ export const electricBedDetailsMethods = {
   },
   /**
    * 打开电动床的「加载中」占位弹窗。
-   * 电动床的能力要靠设备画像判断，画像未到时先给占位以免用户以为点击没反应；
-   * 组件未绑定实体时静默返回 —— 连占位都没法定位。
    */
   showElectricBedLoadingDetails(bedLoadingComponent, { preview: bedLoadingPreview = false } = {}) {
     if (!bedLoadingComponent.bindings?.entity?.entityId) {

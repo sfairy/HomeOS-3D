@@ -1,15 +1,4 @@
 """把邀请积分从 ``FLOAT``（积分）迁移到 ``INTEGER``（厘）。
-
-原先以 ``FLOAT`` 存积分，靠 ``round(x, 2)`` 维持两位小数，而 SQLite 的 round 是
-half-away、Python 是 half-even，``.xx5`` 上会分叉（见 :mod:`apps.store.commerce.money`）。
-
-迁移分四段、可中断可重入、先验证后销毁：新列由 ``ensure_schema`` 补上 → 逐行回填
-（只写不一致的行，重跑幂等）→ 逐行对账 ``format_centi(新值) == f"{旧值:.2f}"``
-（迁移前后显示给用户的数字必须一模一样）→ 全表通过才 ``DROP COLUMN``。
-
-必须真正删掉旧列：它是 ``NOT NULL`` 且无 DDL 默认值，ORM 不再映射后每次 INSERT 都会
-``NOT NULL constraint failed``，且**只在存量库上**失败。每步各自提交而非一个大事务，
-因为 SQLite 的 ``DROP COLUMN`` 内部要建新表拷数据，链路长且不易验证。
 """
 
 from __future__ import annotations
@@ -30,7 +19,6 @@ logger = logging.getLogger("apps.store.commerce.points_migration")
 
 
 #: 迁移映射：``{表名: ((旧列, 新列, 列的种类), ...)}``。列的种类只影响日志与错误信息
-#: （金额与比例都是 ×100 取整到整数，换算函数相同），分开标注便于对账失败时定位。
 _POINTS = "points"
 _RATIO = "ratio"
 
@@ -64,7 +52,7 @@ class TableReport:
     """单张表的迁移结果。"""
 
     table: str
-    state: str = "pending"  # fresh | migrated | already | missing-table | failed
+    state: str = "pending"
     backfilled: int = 0
     verified: int = 0
     dropped: list[str] = field(default_factory=list)
@@ -98,25 +86,14 @@ class MigrationReport:
         return "；".join(parts) or "无需迁移"
 
 
-#: 迁移健康值，与 ``payments.sweeper`` / ``ops.incidents`` 同构，方便 ``/healthz`` 的
-#: 读者用同一套判断处理三个子对象。
 HEALTH_PENDING = "pending"
 HEALTH_OK = "ok"
 HEALTH_DEGRADED = "degraded"
 
 #: 对账不通过时最多上报多少条问题。它是给 ``/healthz`` 一行提示用的，不是日志替身
-#: （全量问题在启动期已逐条 ``error``）。
 _MAX_REPORTED_PROBLEMS = 10
 
 #: 最近一次迁移的快照，供 ``/healthz`` 读取。
-#:
-#: 为什么要在模块里留一份：``migrate_points`` 只在启动期跑一次，而对账不通过的后果
-#: 是**运行期**才炸的 —— 该表整表跳过删列，旧列仍是 ``NOT NULL`` 且无 DDL 默认值，
-#: ORM 又已不再映射它，之后每一次插入都会 ``NOT NULL constraint failed``。
-#: 也就是说「启动成功 ≠ 迁移成功」，而启动日志滚过去之后就只剩这里能回答
-#: 「这个库到底迁干净了没有」。
-#: 进程内、不落库：这个答案取决于**本次启动**跑了什么，重启后由下一次迁移重写；
-#: 它也不是账目，丢了不影响对账。
 _LAST_RUN: dict | None = None
 _LAST_RUN_LOCK = threading.Lock()
 
@@ -167,24 +144,15 @@ def migration_status() -> dict:
 
 
 def _convert(value: object) -> int:
-    """旧 ``FLOAT`` 值 → 整数厘。比例列与金额列同式（见 ``_MIGRATION_SPEC`` 注释）。"""
     return money.to_centi(value)
 
 
 def _legacy_shown(value: object) -> str:
-    """旧值**当年显示出来的**字符串（对账基准）。
-
-    ``FLOAT`` 列的值都是 ``round(..., 2)`` 的产物，其最短 repr 恰好就是两位小数，
-    所以 ``f"{x:.2f}"`` 与当年的界面显示一致。
-    """
     return f"{float(value or 0.0):.2f}"
 
 
 def backup_database(engine: Engine, *, directory: Path | None = None) -> Path | None:
     """迁移前把 SQLite 库文件整份复制一份，返回备份路径。
-
-    实现复用 :func:`apps.store.security.schema_guard.backup_database`（那里合并重复行前也要
-    备份）；保留同名包装只为不动既有调用方，文件名前缀仍是 ``pre-centi-``。
     """
     return _backup_database(engine, directory=directory, label="centi")
 
@@ -210,13 +178,9 @@ def migrate_points(
     backup: bool = True,
 ) -> MigrationReport:
     """执行回填 + 对账（+ 可选退役旧列），并记下结果供 ``/healthz`` 读取。
-
-    ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行。**唯一
-    会破坏数据的一步是删列**，它被 ``problems`` 严格把关：任何一行对账不通过就整表跳过。
     """
     report = _migrate_points(engine, drop_legacy=drop_legacy, backup=backup)
     # 结果登记在这里而不是调用方：漏登记会让 ``/healthz`` 永远显示 pending，
-    # 而「迁移失败了」正是它存在的原因。
     remember_run(report)
     return report
 
@@ -284,7 +248,6 @@ def _migrate_points(
                 if tuple(int(value or 0) for value in current_values) != expected:
                     updates.append((*expected, row_id))
                 # 对账基准在**回填前**就固定下来；pairs / legacy_values / expected 三者
-                # 长度天然相等，strict=True 让「只在一处加列」立刻炸掉而非静默少对账。
                 for (legacy, _centi), legacy_value, expected_value in zip(
                     pairs, legacy_values, expected, strict=True
                 ):

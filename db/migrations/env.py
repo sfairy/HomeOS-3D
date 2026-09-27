@@ -12,14 +12,6 @@ config = context.config
 
 if config.config_file_name is not None:
     # ``disable_existing_loggers=False`` 是**承重**的，不是风格选择。
-    # 默认值是 True，而 ``fileConfig`` 会把「此刻已经存在、又没写进 alembic.ini 的 logger」
-    # 逐个置 ``disabled = True`` —— 我们恰恰是在**应用进程内**跑迁移的
-    # （``apps/server/core/migrations.py`` 的 ``run_migrations`` 在启动时调用），此时应用各模块在
-    # import 阶段创建的 logger 全都已经存在，于是启动一次迁移就把它们**永久静默**：
-    # ``logger.warning(...)`` 从此什么都不写，全局日志也跟着空掉（日志记录在
-    # ``logger.isEnabledFor`` 就被挡掉了，handler 再对也没用）。
-    # 症状是「日志整个消失」而不是报错，只在「迁移之前先创建一个 logger、迁移之后再问它还能不能
-    # 用」这种观测下才看得见 —— 仓库已没有自动化闸门能替你发现它，改动这一行后请手工这样验一遍。
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
@@ -38,11 +30,6 @@ def run_migrations_online() -> None:
 
 
 # 只支持在线模式。alembic 的离线模式（``--sql``：不连库、只打印 SQL）在这里没有调用方：
-# 应用内的唯一入口是 ``apps/server/core/migrations.py`` 的 ``command.upgrade``（总是在线），文档里
-# 给运维的命令同样是 ``alembic upgrade head``。
-#
-# 不用「把 offline 分支删掉、直接无条件在线」的写法：那样 ``alembic upgrade head --sql`` 会
-# 静默地去连真库并**真的执行迁移**，而调用方以为自己只是在导出 SQL。宁可明确拒绝。
 if context.is_offline_mode():
     raise RuntimeError(
         "本仓库不支持 alembic 离线模式（--sql）：迁移只在应用内以在线方式执行"

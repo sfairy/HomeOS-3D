@@ -46,17 +46,9 @@ def resolve_provider(
     settings: StoreSettings, setting=None, *, name_override: str | None = None
 ) -> PaymentProvider:
     """按站点配置选择支付渠道（站点配置优先于环境变量）。
-
-    未知渠道名**必须直接报错**，不能回落到模拟支付：运营在后台把渠道名写错一个字符，
-    商店就会静默切到本地收银台，而模拟收银台点一下就「已支付并自动发码」，等于把付费
-    授权免费送出去。宁可在下单时报 503，也不要静默降级成「免费」。
-
-    ``name_override`` 用于按历史渠道做事后操作（退款）：订单是哪个渠道收的钱，就必须去
-    哪个渠道退。
     """
     if name_override is not None:
         name = normalize_provider_name(name_override)
-        # 事后操作（退款/查单）要打「这单当时用的渠道」：历史 mock 订单必须仍能退。
         allow_mock = True
     else:
         # 这里**没有** ``or "mock"`` 兜底：静默落到模拟收银台等于默认免费送授权。
@@ -71,7 +63,6 @@ def resolve_provider(
         )
     if name == "alipay":
         # 站点配置（后台可改）优先于环境变量；合并后注入 provider，让它每个方法都用同一份
-        # 凭据，不会因为调用方传进来的 settings 只有环境变量就悄悄退回旧商户号。
         return AlipayProvider(merge_alipay_settings(settings, setting))
     if name == "mock":
         if not allow_mock:

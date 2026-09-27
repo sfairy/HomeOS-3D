@@ -1,15 +1,5 @@
 /*
  * 展示页基础样式（/display/<项目名>）。
- *
- * 位置：展示页最外层布局，负责铺满屏幕、禁止滚动与统一底色。
- * 约定：--display-surface-background 由 display-surface.js 按画布背景色写入，
- *   未设置时回退到 --hos-sky-deep，保证任何设备上都不会露出白底。
- *
- * 兜底层级是「JS 写入值 → 调色板 → 字面量」而不是直接写死一个深色：这四处原本写的是
- * #070b0e，而 display-surface.js 的兜底写法是 #050912 —— 同一件事两个值，
- * 且谁也不引用谁。JS 那侧改成 #050912 之后这里没跟着动，两边就正式分叉了：
- * 脚本一旦没跑（JS 被挡、极早的渲染时机），页面底色会比正常情况泛一层灰蓝。
- * 现在两边都指向 --hos-sky-deep，改色板时不可能再漏一处。
  */
 
 /* ===== 页面底色 ===== */
@@ -18,11 +8,6 @@
   color-scheme: dark;
   background: var(--display-surface-background, var(--hos-sky-deep, #050912));
   /* 氛围层（阶段 3）：展示端此前是 0 条 radial-gradient 的一块平板
-     （渲染器 renderer.css 自己那 41 条都在仪表盘控件内部，页面本身没有）。
-     这里给展示页的**底**补三束极淡的中性光：仪表盘不铺满整屏时（窄款面板、
-     留白布局）透出来的就是它，而不是一块纯色。
-     用 background-image 而不是改 background —— 底色仍由 JS 写入的
-     --display-surface-background 决定，这一层只是叠在它上面的一层极淡的光。
      展示页的底上没有文字，所以不存在压花小字的对比度风险。 */
   background-image:
     radial-gradient(circle at 86% -8%, var(--hos-atmo-strong), transparent 52rem),
@@ -51,7 +36,6 @@ body {
 }
 body {
   position: relative;
-  /* 关闭 iOS 的橡皮筋回弹，避免拖动时露出页面外的区域。 */
   overscroll-behavior: none;
 }
 
@@ -110,7 +94,6 @@ body {
 }
 .capture-preview .hb-camera-image,
 .capture-preview .hb-camera-video {
-  /* 放大 1.08 倍叠在模糊层上，避免模糊后四周露出空隙。 */
   filter: blur(24px) brightness(0.48) saturate(0.45);
   transform: scale(1.08);
 }

@@ -1,7 +1,4 @@
 """实时连接与快照：WebSocket 生命周期、事件分派与整表快照
-
-从 license/service.py 的 LicenseService 里搬出来的方法组（mixin）：只移动方法本身，
-私有属性仍由 LicenseService.__init__ 建立 —— 因此这里只依赖 self 上的协议，不反向依赖那个模块。
 """
 from __future__ import annotations
 import asyncio
@@ -15,17 +12,12 @@ from ..observability.global_log import _safe_text
 from .client import HAClient, HASnapshot, is_transient_disconnect
 from .endpoints import HAEndpoint
 # 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
-# 连回 Wi-Fi），外网也可能已经失效。代价是一次 /api/config，换来 60 秒内自动归位。
 HA_ENDPOINT_RECHECK_SECONDS = 60
 # 补拉状态的重试退避（秒）：共尝试 3 次（首次 + 两次重试），
-# 用来兜住 HA 刚启动或集成还没就绪、状态暂时不完整的时刻。
 STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
-# 历史查询并发上限：HA 侧的历史接口要查 recorder 数据库，开销大。
 HISTORY_FETCH_CONCURRENCY = 2
-# 历史结果短缓存（秒）：同一图表在页面切换/轮询时会重复请求，30 秒内直接复用。
 HISTORY_CACHE_SECONDS = 30
 # 判断「状态是否不完整、值得再拉一次」的关键属性表。HA 启动初期或集成重载时会先返回
-# 带 entity_id 但属性缺失的占位状态，climate 这类控件的可用性全靠这几个属性，缺一个就重拉。
 STATE_FETCH_REQUIRED_ATTRIBUTES = {
     'climate': {
         'fan_modes',
@@ -44,7 +36,6 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
         if state is None:
             return True
         # 不在白名单里的域只要有状态就算完整；sensor 例外：unknown / unavailable 是
-        # 「还没读到值」的占位状态，必须重拉，否则图表永远停在未知。
         return domain == 'sensor' and str(state.get('state') or '').strip().casefold() in frozenset({'unknown', 'unavailable'})
     attributes = state.get('attributes') if isinstance(state, dict) else None
     # 属性表缺失，或必备属性一个都没有 —— 两种情况都按残缺处理。
@@ -62,9 +53,6 @@ class HALiveMixin:
 
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
         """探一次端点是否可用（REST /api/config，带令牌）。不可用则抛 HAClientError。
-
-        用 REST 而不是 WebSocket：探测只回答「这一路能不能连上、令牌认不认」，一次普通请求
-        最便宜。真正的长连由主循环的 _live_connection 负责。
         """
         await HAClient(
             endpoint.base_url,
@@ -75,15 +63,10 @@ class HALiveMixin:
         ).test_connection()
     async def _run(self) -> None:
         """连接器主循环：连接 → 全量同步 → 长连收事件 → 断开后重连。
-
-        失败退避为 1→2→4→…→60 秒（封顶），成功建立长连就重置回 1，
-        避免 HA 长时间不可用时把日志和 CPU 打满。
         """
         backoff = 1
         while True:
             connection_id = None
-            # 本轮是否已经成功对账过一次。只有「连上之后掉线」才按例行掉线降噪；
-            # 压根没连上（地址错 / 令牌失效 / HA 没起来）仍然按 error 记 —— 那才是要人看的。
             established = False
             try:
                 connection = await self._run_database(self.active_connection)
@@ -107,11 +90,8 @@ class HALiveMixin:
                 self._connected = False
                 self._runtime_error = str(error)
                 # 失败就丢掉端点结论：内网不通要能退到外网、外网不通要能回到内网，
-                # 全靠这里让下一次循环重新按「内网优先」探一遍。
                 self.invalidate_endpoint()
                 # 已经连上之后才断的链路（心跳超时 / 对端重启 / TCP 被掐）按 warning 记：
-                # 这是家用网络里的常态，连接器下一轮就会自己接上，而每次记一条 error 加一整份
-                # traceback 会把真正需要人看的失败淹掉。判据与依据见 client.is_transient_disconnect。
                 transient = established and is_transient_disconnect(error)
                 if transient:
                     self._log_event('warning', '连接', f'Home Assistant 连接已断开，正在重连：{error}')
@@ -123,15 +103,11 @@ class HALiveMixin:
                     self._log_event('error', '连接', f'Home Assistant 连接异常：{error}', details = traceback.format_exc())
                     LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
                 if connection_id:
-                    # 记录失败原因供界面展示；_safe_record_error 内部再兜一层，落库失败也不会带崩主循环。
                     await self._run_database(self._safe_record_error, connection_id, str(error))
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 60)
     async def _live_connection(self, connection_id: str) -> None:
         """建立实时连接并持续处理事件，直到连接断开。
-
-        先补订阅并确认，再把订阅确认期间缓冲的事件按顺序处理掉（它们比快照新），
-        然后循环 recv；recv 以「距下次对账的剩余时间」为超时，空闲到点就主动全量对账。
         """
         connection = await self._run_database(self._load_connection, connection_id)
         client = await self.client_for(connection)
@@ -168,10 +144,6 @@ class HALiveMixin:
             await websocket.close()
     async def _handle_live_event(self, connection_id: str, message: dict[str, Any]) -> None:
         """处理一条 HA 实时事件。
-
-        `state_changed` 只把被关注的实体推进内存并广播，新实体才落库，已知实体靠
-        `_apply_incremental_state` 节流（高频实体否则会把库写满）；三个
-        `*_registry_updated` 更新元数据并触发一次防抖的注册表刷新。
         """
         if message.get('type') != 'event':
             return
@@ -206,7 +178,6 @@ class HALiveMixin:
                     entity_id = str(event_data.get('entity_id') or '')
                     changes = event_data.get('changes') if isinstance(event_data.get('changes'), dict) else { }
                     # HA 的 changes 放的是「变更前的旧值」，因此 entity_id 出现在这里
-                    # 说明实体被改过名，旧 ID 必须从内存清掉，否则前端会留着一个幽灵实体。
                     old_entity_id = str(changes.get('entity_id') or '')
                     removed_entity_ids = set()
                     if old_entity_id and old_entity_id != entity_id:
@@ -229,9 +200,6 @@ class HALiveMixin:
                 self._schedule_registry_refresh(connection_id)
     def _apply_snapshot(self, connection_id: str, snapshot: HASnapshot, reconciled: bool) -> dict[str, int]:
         """把一次全量快照写库，并标记「本次没出现的」实体 / 设备 / 区域为缺失。
-
-        ``reconciled`` 为真时记 last_reconciled_at。实体集合取「状态表 ∪ 注册表」（被禁用
-        的只在注册表，部分集成的只在状态）；缺失只置 missing 不删行；快照为 None 时跳过标记。
         """
         now = utc_now()
         state_by_id = {
@@ -316,7 +284,6 @@ class HALiveMixin:
                     record.missing_since = now
             existing_areas = {
                 item.area_id: item for item in database.scalars(select(HAArea).where(HAArea.connection_id == connection_id))}
-            # 与设备同样处理：areas 为 None 表示本轮没取到，不做缺失标记。
             seen_areas = {
                 area_id for area_id, item in existing_areas.items() if item.sync_status != 'missing'} if snapshot.areas is None else set()
             for item in snapshot.areas or []:

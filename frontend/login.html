@@ -1,20 +1,9 @@
 <!doctype html>
-<!--
-  登录页（/login）。后端门禁：未初始化先 303 去 /setup；已登录则按 ?next= 直接跳走（只认站内单斜杠路径）。
-  页面本身不做能力判定，登录成功后由 /static/auth/login.js 跳回 ?next=，再由目标页自己触发 editor 授权门禁。
-  视觉与 /setup、/license、/license-recovery、/pair 统一：全屏场景 + 右侧玻璃表单坞，
-  样式来自 /static/auth/scene/ 的分发产物（源在仓库 design/scene/）。
-  场景片段由后端注入：页面里那个独立的场景占位符（见 apps/server/http/page_shell.py
-  的 SCENE_PLACEHOLDER）会被替换成整块场景标记。
-  入口脚本：/static/logging/client-log.js（head 同步执行）、
-  /static/auth/scene/scene-depth.js（手持档开关：给 <html> 挂 .hos-touch）、/static/auth/auth-shell.js（共用密码显隐）、
-  /static/auth/login.js（表单提交）；CSP 为 style-src 'self'，不能写内联样式/脚本。
--->
 <html lang="zh-CN" class="hos-shell">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609271208"></script>
+    <script src="/static/logging/client-log.js?v=2609271226"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,18 +11,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>登录 · HomeOS</title>
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一次发布里所有静态资源必须共用同一枚时间戳，
-         否则浏览器会新老混用（例如新的 scene.css 配旧的 login.js）。 -->
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271208" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271208" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609271208" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609271208" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271208` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271226" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271226" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271226" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271226" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609271226" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609271226" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271226` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -50,7 +37,6 @@
           <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
           <!-- 开通路径（读数源：apps/server/http/commissioning.py）。不写死在这份 HTML 里：
-               同一页对不同访问者的读数不同（管理员带着会话来，墙面板没有也不该有会话），
                所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
           <!--{{STEPS}}-->
 
@@ -120,15 +106,13 @@
       </main>
     </div>
 
-    <!-- auth-shell.js 必须在 login.js 之前执行：它负责按 data-password-toggle 绑定密码显隐；
-         login.js 只关心表单本身，两者互不等待。这里同样要带 ?v=2609271208 -->
     <!-- 手持档开关（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：不导出
          任何东西，只给 <html> 挂 .hos-touch（scene.css「静止档」的判据兜底），首帧前跑完。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609271208"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=2609271208"></script>
-    <script type="module" src="/static/auth/login.js?v=2609271208"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609271226"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=2609271226"></script>
+    <script type="module" src="/static/auth/login.js?v=2609271226"></script>
     <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
          时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
-    <script type="module" src="/static/auth/entry-deck.js?v=2609271208"></script>
+    <script type="module" src="/static/auth/entry-deck.js?v=2609271226"></script>
   </body>
 </html>

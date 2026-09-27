@@ -1,27 +1,19 @@
 /**
  * 站点配置与诊断。
- *
- * 站点配置的读写闸门、支付宝与邮件凭据的校验与自检，以及诊断面板的批量清理。
- *
- * 面板里最大的一块：站点配置的读写闸门、支付宝/邮件凭据的自检，以及诊断页七张表的批量
- * 清理。配置项多、互相牵扯，所以整块一个模块。
  */
 
-import { $, $$, toast } from "../dom.js?v=2609271208";
-import { state } from "../state.js?v=2609271208";
-import { api, withBusy } from "../api.js?v=2609271208";
-import { askConfirm, askPurge } from "../dialogs.js?v=2609271208";
-import { pageState } from "../table.js?v=2609271208";
-import { host } from "../host.js?v=2609271208";
+import { $, $$, toast } from "../dom.js?v=2609271226";
+import { state } from "../state.js?v=2609271226";
+import { api, withBusy } from "../api.js?v=2609271226";
+import { askConfirm, askPurge } from "../dialogs.js?v=2609271226";
+import { pageState } from "../table.js?v=2609271226";
+import { host } from "../host.js?v=2609271226";
 
 /**
  * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
- * 写空、而界面只显示「保存成功」，所以读不到就把保存按钮闸住并说清原因。
  */
 function setSettingsLoadState(phase, message = '') {
   const chip = $('#settings-load-status');
-  // 保存按钮常驻在面板头部、落在表单之外（``form="settings-form"``），所以不能按
-  // ``'#settings-form button[type="submit"]'`` 找 —— 那样一个都找不到，闸门形同虚设。
   const submit = $('#settings-save');
   state.settingsLoaded = phase === 'ready';
   state.settingsLoadPhase = phase;
@@ -45,7 +37,6 @@ function setSettingsLoadState(phase, message = '') {
 
 /**
  * 按**上一次**的结论把闸门重新落到界面上：「忙状态」会把按钮重新启用，保存后的重载若失败，
- * 提交动作的 finally 再无条件放行就等于把闸门顶开（没回填的表单 + 亮着的按钮）。
  */
 export function syncSettingsGate() {
   setSettingsLoadState(state.settingsLoadPhase || 'loading', state.settingsLoadMessage || '');
@@ -75,7 +66,6 @@ export async function loadSettings() {
   form.elements.description.value = store.description || '';
   form.elements.announcement.value = data.announcement || '';
   // 不再回填成 'mock'：空串是「跟随环境变量」，把它写成 mock 等于运营随手保存一次
-  // 就把渠道固化成了模拟收银台（而它默认是被禁用的，下单会 503）。
   form.elements.paymentProvider.value = payment.provider || '';
   form.elements.paymentDisplayName.value = payment.displayName || '';
   // 交易标题只在「来源是后台」时回填：留空即跟随环境变量（与支付宝凭据同款口径）。
@@ -90,8 +80,6 @@ export async function loadSettings() {
   form.elements.referralWithdrawalFeePercent.value = referral.withdrawalFeePercent ?? 0;
   form.elements.referralWithdrawalMinPoints.value = referral.withdrawalMinPoints ?? 0;
   // 留空 = 跟随环境变量（与 smtpPort / verificationTtl 同款口径）：库里是 NULL 时
-  // 输入框必须是**空的**，否则运营看到的「28800」会被当成一个显式设置，随手一保存
-  // 就把「跟随环境变量」钉死成一个具体秒数 —— 那正是这次要修掉的那个 bug。
   form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds ?? '';
   form.elements.deviceReleaseCooldownSeconds.placeholder =
     `跟随环境变量（当前 ${data.deviceReleaseCooldownEffectiveSeconds ?? 0}）`;
@@ -100,11 +88,6 @@ export async function loadSettings() {
   setSettingsLoadState('ready');
 }
 
-/**
- * 渲染逐项诊断清单：**不把 `skip` / `warn` 渲染成绿色**。后端把「通过 / 没测到 / 需要留意 / 失败」
- * 分四级，只做「ok ? 绿 : 红」会让「投递方式是 log，压根没测」显示成和「SMTP 全通」一样的绿。
- * 每一条都带 title，避免长说明撑破版面。
- */
 export function renderDiagnostics(selector, checks) {
   const list = $(selector);
   list.textContent = '';
@@ -130,7 +113,6 @@ export function renderDiagnostics(selector, checks) {
   });
 }
 
-/** 清空诊断清单（重新加载配置时用，避免上一轮的结论挂在界面上误导人）。 */
 export function clearDiagnostics(selector) {
   const list = $(selector);
   if (list) list.textContent = '';
@@ -138,7 +120,6 @@ export function clearDiagnostics(selector) {
 
 /**
  * 回填支付宝凭据区块，三条铁律：密钥输入框永不回填（只把打码值放进 placeholder）；
- * 只回填「来源是后台」的字段（否则环境变量值会被随手保存固化进数据库）；清除勾选框每次复位。
  */
 function loadAlipayCredentials(alipay) {
   const form = $('#settings-form');
@@ -169,8 +150,6 @@ function loadAlipayCredentials(alipay) {
 
 /**
  * 把「当前实际生效」的回调地址与签名配置念出来。
- * 「用户付了钱、订单不到账」几乎全是通知地址的问题，过去这个值只在服务端拼接逻辑里，
- * 展示解析结果能让排障第一步就自证，不用翻代码或猜支付宝往哪个地址推。
  */
 function renderAlipayEffectiveUrls(alipay) {
   const target = $('#alipay-effective-urls');
@@ -181,8 +160,6 @@ function renderAlipayEffectiveUrls(alipay) {
 
 /**
  * 回填注册邮箱验证码区块，与支付宝区块共用同三条铁律（授权码永不回填、只回填后台来源、清除勾选复位）。
- * 有效期 / 冷却的 placeholder 写出当前生效数值（可能来自后台或环境变量）；「测试收件邮箱」不落库、每次按默认邮箱补齐；
- * 完全没有可用配置时按默认邮箱预设预填 SMTP 整块（判据 mailLooksUnconfigured：预填不会覆盖任何现有配置）。
  */
 function loadMailSettings(mail) {
   const form = $('#settings-form');
@@ -236,8 +213,6 @@ function loadMailSettings(mail) {
 
 /**
  * 渲染邮件投递的状态徽标：这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」不会报错 ——
- * 系统安静退化成写日志，用户收不到验证码而后台看起来都填好了。unsaved 表示描述的是表单里刚改完、
- * 还没保存的组合，避免切到 smtp 的当下就显示「SMTP 就绪」。
  */
 function renderMailBadge(mail, unsaved = false) {
   const badge = $('#mail-delivery-status');
@@ -264,7 +239,6 @@ function renderMailBadge(mail, unsaved = false) {
   badge.className = `admin-status-chip${tone ? ` ${tone}` : ''}`;
 }
 
-/** 勾了「清除授权码」就把输入框禁掉，避免「又填又清」这种自相矛盾的提交。 */
 export function syncMailSecretInput() {
   const form = $('#settings-form');
   const clear = form.elements.smtpClearPassword;
@@ -273,10 +247,6 @@ export function syncMailSecretInput() {
   if (clear.checked) input.value = '';
 }
 
-/**
- * 邮箱服务商预设：清单随 ``/settings`` 的 ``mail.presets`` 下发（后端 ``mail_settings.SMTP_PRESETS``），
- * **刻意不在这里抄一份** —— 两份清单漂移后页面会拿旧参数去填已改过接入方式的服务商，只有「测试邮件」会失败。
- */
 function mailPresets(mail) {
   return Array.isArray(mail && mail.presets) ? mail.presets : [];
 }
@@ -296,8 +266,6 @@ function presetEmailDomain(email) {
 
 /**
  * 按邮箱域名反查预设。自定义域名（企业邮局、自有域名）返回 ``null`` ——
- * 刻意不猜：猜错的话运营会照着填完、点了「测试凭据」才发现登录被拒，
- * 而正确参数只有他们自己的邮箱管理员知道。
  */
 function presetForEmail(email, mail) {
   const domain = presetEmailDomain(email);
@@ -327,8 +295,6 @@ function renderMailPresetOptions(mail) {
 
 /**
  * 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。
- * 打字过程中就把预设念出来，运营才知道「填入预设」会写进去什么；直接认成某个
- * 服务商并静默覆盖他手填的服务器，是更糟的行为。
  */
 export function syncMailPresetHint(mail) {
   const select = $('#mail-preset-provider');
@@ -353,10 +319,6 @@ function mailFromDisplayName(form) {
   return raw.replace(/[<>",;:]/g, '').trim() || 'HomeOS';
 }
 
-/**
- * 把服务商预设写进表单：``overwrite=false`` 时只补空着的字段（首次加载预填时可能已有运营在编辑的内容）。
- * 写入字段刻意包含「投递方式 = smtp」，否则地址填好了验证码还是只进日志，运营会以为预设没生效。
- */
 export function applyMailPreset(preset, mail, { overwrite = true } = {}) {
   if (!preset) return false;
   const form = $('#settings-form');
@@ -375,8 +337,6 @@ export function applyMailPreset(preset, mail, { overwrite = true } = {}) {
     set('smtpUsername', email);
     set('mailFrom', `${mailFromDisplayName(form)} <${email}>`);
     // 客服邮箱（在「站点信息」分区）**只在它空着时**才补上，且不受 overwrite 影响：
-    // 它是给用户回信用的地址，和 SMTP 账号不一定是同一个信箱 —— 运营拿
-    // no-reply@qq.com 当发信账号，不该顺手把客服邮箱也改成它。
     const support = form.elements.supportEmail;
     if (!String(support.value || '').trim()) support.value = email;
   }
@@ -390,8 +350,6 @@ export function applyMailPreset(preset, mail, { overwrite = true } = {}) {
 
 /**
  * 按**当前表单**重算徽标：「切到 smtp 但授权码没填」会让用户收不到验证码，必须在切换当下就变色提醒，
- * 故把未保存的值也算进来，并用「（表单已改，未保存）」说明结论描述的是保存之后的样子。
- * 就绪判定与后端 StoreSettings.smtp_ready 同口径：smtp 模式 + 有服务器 + 用户名与授权码成对。
  */
 export function refreshMailBadge() {
   const form = $('#settings-form');
@@ -421,8 +379,6 @@ export function refreshMailBadge() {
 
 /** 当前有没有「一份可能真的能发信」的邮件配置。 */
 function mailLooksUnconfigured(mail) {
-  // 判据刻意保守：只要环境变量或后台配置里出现过任何一个 SMTP 字段，就不再预填 ——
-  // 预填的值会随下一次保存落库，静默覆盖掉一份本来能用的配置。
   return !mail.modeFromDatabase
     && !mail.smtpHostFromDatabase
     && !mail.smtpPortFromDatabase
@@ -457,14 +413,10 @@ $('#mail-preset-provider').addEventListener('change', (event) => {
 });
 
 $('#mail-preset-email').addEventListener('input', () => {
-  // 手输了地址 = 「按这个地址重新识别」，所以要把下拉框上的**显式选择**清掉：
-  // 不清的话，上一次识别出的服务商会一直粘着 —— 界面提示写着 QQ，运营以为
-  // 「填入预设」会填 Gmail，点下去才发现填的是 QQ。
   $('#mail-preset-provider').value = '';
   syncMailPresetHint((state.settings || {}).mail || {});
 });
 
-/** 组装 SMTP 授权码：空输入 = 不改动（否则改个站点名就会顺手清掉授权码）。 */
 export function mailPasswordPayload(form) {
   if (form.elements.smtpClearPassword.checked) return { smtpClearPassword: true };
   const value = form.elements.smtpPassword.value.trim();
@@ -473,8 +425,6 @@ export function mailPasswordPayload(form) {
 
 /**
  * 渲染「凭据是否可用」的结论徽标。
- * 单独抽出是因为有两个触发点：加载配置时，以及运营**改了支付渠道下拉框**时 ——
- * 「切到 alipay 但凭据还没配」会直接导致下单 503，必须在切换当下变色提醒，而非等保存后。
  */
 export function renderAlipayBadge(alipay) {
   const form = $('#settings-form');
@@ -484,7 +434,6 @@ export function renderAlipayBadge(alipay) {
   const mockAllowed = Boolean(alipay.mockPaymentsAllowed);
 
   // 模拟收银台单独判：它的问题从来不是「凭据没配」，而是「服务端有没有显式打开」。
-  // 打开时它点一下就发码，必须一直是黄色告警；没打开时下单直接 503，要报红。
   if (effective === 'mock') {
     badge.textContent = mockAllowed
       ? '模拟收银台已启用 · 无需真实付款即发码，切勿用于生产收款'
@@ -509,7 +458,6 @@ export function renderAlipayBadge(alipay) {
   badge.className = `admin-status-chip${alipay.sandbox ? ' is-warning' : ''}`;
 }
 
-/** 勾了「清除」就把对应输入框禁掉，避免「又填又清」这种自相矛盾的提交。 */
 export function syncAlipaySecretInputs() {
   const form = $('#settings-form');
   const pairs = [
@@ -552,7 +500,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   // 第二道闸：按钮已经禁用了，但回车提交、脚本触发都不看 disabled。
-  // 配置没读到就提交，等于用一次「读取失败」把支付渠道和几个开关一起清掉。
   if (!state.settingsLoaded) {
     toast('站点配置还没读到，保存已被拦下。请先点侧栏的「站点配置」重新加载。', 'danger');
     return;
@@ -580,7 +527,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
         referralWithdrawalFeePercent: Number(form.elements.referralWithdrawalFeePercent.value || 0),
         referralWithdrawalMinPoints: Number(form.elements.referralWithdrawalMinPoints.value || 0),
         // 留空 = 清回「跟随环境变量」（null）。必须显式发 null 而不是发 0：
-        // 0 在这里是「不限间隔」这个显式设置，两者是不同状态。
         deviceReleaseCooldownSeconds: form.elements.deviceReleaseCooldownSeconds.value === ''
           ? null
           : Number(form.elements.deviceReleaseCooldownSeconds.value),
@@ -592,7 +538,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
         alipaySandbox: form.elements.alipaySandbox.checked,
         ...alipaySecretPayload(form),
         // 邮件 / 验证码：留空或 0 表示「跟随环境变量」，原样提交即可 ——
-        // 后端对 0 与空串的解释就是「不覆盖环境变量」。
         mailMode: form.elements.mailMode.value,
         smtpSecurity: form.elements.smtpSecurity.value,
         smtpHost: form.elements.smtpHost.value.trim(),
@@ -603,8 +548,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
         verificationCooldownSeconds: Number(form.elements.verificationCooldownSeconds.value || 0),
         ...mailPasswordPayload(form),
         // 三态：null = 清回「跟随环境变量」。必须显式发 null 而不是「不发这个键」，
-        // 否则运营一旦点过这个下拉框就再也回不到「跟随环境变量」—— 后端区分
-        // 「NULL（没配过）」和「false（生产上明确关掉）」，而两者都是有效状态。
         exposeVerificationCode: form.elements.exposeVerificationCode.value === ''
           ? null
           : form.elements.exposeVerificationCode.value === 'true',
@@ -616,16 +559,10 @@ $('#settings-form').addEventListener('submit', async (event) => {
   } catch (error) { toast(error.message, 'danger'); }
   finally {
     // 忙状态结束后必须按闸门重新校准：上面的 loadSettings() 失败时已经关掉了保存
-    // 按钮（表单没回填），而 withBusy 的收尾会无条件把它重新启用 —— 一次失败的
-    // 重载就这样被一次保存「顶开」了，页面上是一份空表单加一个亮着的保存按钮。
     syncSettingsGate();
   }
 });
 
-/**
- * 测试凭据：用一笔不存在的交易探活。凭据填错的反馈原本只在用户下单时出现且很笼统，
- * 这里让网关直接回答「这套 app_id + 密钥认不认」且不产生资金动作 —— 测试的是已保存的配置，故先保存再测试。
- */
 $('#alipay-test-button').addEventListener('click', async (event) => {
   const button = event.currentTarget;
   const output = $('#alipay-test-result');
@@ -634,7 +571,6 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
   output.className = 'admin-hint';
   clearDiagnostics('#alipay-diagnostic-list');
   // 这个按钮不是 submit，withBusy 抓不到它（它只会找表单里的 submit 按钮），
-  // 所以忙状态在这里自己管。
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
   button.textContent = '测试中…';
@@ -657,8 +593,6 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
 
 /**
  * 邮件诊断 / 发送测试邮件：按**已保存**的配置先做连接诊断，给了收件人再真发一封（先保存、再测试）。
- * 收件人留空时只做连接诊断（域名解析 + TCP/TLS + 登录握手，不发信），可反复点且能在授权码错 /
- * 端口与加密方式不匹配上给到最具体的原因。
  */
 $('#mail-test-button').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -702,7 +636,6 @@ export const DIAGNOSTIC_KEYS = [
 ];
 
 // 清理入口的「安全谓词」说明。每一条都要如实写清「什么会被删、什么一定不会」，
-// 因为这是不可撤销的批量删除；接口侧的天数闸门（>=1 天）也靠这段文案解释。
 const PURGE_SPECS = {
   sessions: {
     path: '/sessions',
@@ -765,7 +698,6 @@ export async function loadDiagnostics() {
 }
 
 $('#diagnostics-refresh').addEventListener('click', () => {
-  // 刷新时回到第一页，否则旧游标可能落在已经变短的列表之外
   DIAGNOSTIC_KEYS.forEach(key => { pageState(key).offset = 0; });
   loadDiagnostics();
 });

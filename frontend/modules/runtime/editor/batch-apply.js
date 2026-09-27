@@ -1,22 +1,5 @@
 /**
  * 跨域批量应用对话框。
- *
- * 0.6.5 把原本内联在 config-editor.js 里的「批量应用」抽成可复用模块，
- * 让配置编辑器与安防编辑器共用同一套「选设置 + 选目标 + 应用」流程。
- *
- * 两个导出：
- *   copyBatchFields(target, source, fields) —— 把 source 上被 fields 描述的值复制到 target；
- *   openBatchApply({...})                   —— 弹出选择界面，回调里由调用方自行落库 / 刷新。
- *
- * fields 是「字段描述表」，每项：
- *   { key, label, unit?, fallback?, optional?, compatible?(target), read?(source),
- *     write?(target, value), format?(value) }
- * `compatible` 是**按目标判定**（参考实现同款）：返回 false 的字段不会写进该目标
- * （例如「门型动作」只写给同族门型的门），因此同一张字段表可对逐目标差异化应用；
- * `read` / `write` 用于值不在 `item[key]` 上、需要换算的字段（高度、图标大小等）。
- * `optional: true` 的字段即使「本次修改过」也不默认勾选（高度、行为这类容易误伤的项）。
- *
- * 本文件不接触任何 /static/ 路径，可被 runtime 侧直接 import（见 check_invariants 的 import 边界规则）。
  */
 
 // 值 → 中文：与参考实现同表，供字段未提供 format 时兜底显示。
@@ -48,8 +31,6 @@ const VALUE_LABELS = Object.freeze({
 
 /**
  * 把 source 上被 fields 描述的值复制到 target。
- * 与参考实现同序：先过 compatible（对 target 判定），再 read（缺省读 target[field.key] ?? fallback），
- * 值非 undefined 才写入（write 优先，否则写 target[field.key]）。
  */
 export function copyBatchFields(target, source, fields) {
   for (const field of fields || []) {
@@ -72,7 +53,6 @@ export function copyBatchFields(target, source, fields) {
 
 /**
  * 打开批量应用对话框。
- *
  * @param {string}   title    对话框标题，同时用作 aria-label
  * @param {object}   source   被复制的源项（用于读当前值与「本次修改过」的展示）
  * @param {Array}    targets  目标项列表，每项至少含 id 与 label / deviceName

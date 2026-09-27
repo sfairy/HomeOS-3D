@@ -1,8 +1,4 @@
 """支付宝凭据解析：站点配置（后台可改）优先，环境变量兜底。
-
-``StoreSettings`` 是启动时装配好的**不可变**对象，而 ``StoreSetting`` 运行时可变 ——
-凭据必须每次现算，不能在启动时烘焙进 settings，否则后台改了商户号不重启就不生效。
-优先级规则与站点其它配置一致：**站点配置非空则覆盖环境变量，留空表示跟随环境变量**。
 """
 
 from __future__ import annotations
@@ -75,8 +71,6 @@ def merge_alipay_settings(
         # 回调地址同理：留空跟随环境变量，非空以站点配置为准；改它不该需要重启容器。
         alipay_notify_url=database_notify_url or settings.alipay_notify_url,
         alipay_return_url=database_return_url or settings.alipay_return_url,
-        # 必须清掉 ``..._PATH``：``alipay_private_key_text`` 是「文件优先于内联」，环境变量
-        # 配了 PATH 就会把后台刚填的私钥整个盖掉（后台显示已配置、签名却用旧密钥）。
         alipay_app_private_key_path=(
             "" if database_private_key else settings.alipay_app_private_key_path
         ),
@@ -100,7 +94,6 @@ def alipay_credentials_summary(
         "gatewayUrl": merged.alipay_gateway_url,
         "sandbox": bool(getattr(setting, "alipay_sandbox", False)),
         #: 当前**实际生效**的异步通知/同步跳转地址（可能来自后台、环境变量或按
-        #: STORE_BASE_URL 推导）。「通知没到」时运营第一件事就是确认支付宝在往哪推。
         "notifyUrl": merged.alipay_notify_url,
         "returnUrl": merged.alipay_return_url,
         #: 只读展示：签名算法与响应验签开关仍由环境变量控制（改错会全挂），排障时要看得见。
@@ -116,7 +109,6 @@ def alipay_credentials_summary(
             (getattr(setting, "alipay_public_key", "") or "").strip()
         ),
         #: 各字段各报各的来源。前端**只回填来源为后台的字段** —— 若把环境变量的值也回填，
-        #: 运营随手保存一次站点名就会把它「固化」进库，之后改环境变量再也无效。
         "appIdFromDatabase": bool((getattr(setting, "alipay_app_id", "") or "").strip()),
         "sellerIdFromDatabase": bool((getattr(setting, "alipay_seller_id", "") or "").strip()),
         "gatewayUrlFromDatabase": bool(
@@ -140,9 +132,6 @@ def alipay_credentials_summary(
 
 def validate_private_key_text(text: str) -> None:
     """校验应用私钥能被解析；不能则抛 ``PaymentError``。
-
-    在**保存时**校验而不是等第一次支付：错误应落在改配置的人眼前，而不是用户下单时。
-    判定逻辑复用 ``private_key_error``，后台自检要用同一份结论。
     """
     message = private_key_error(text)
     if message:

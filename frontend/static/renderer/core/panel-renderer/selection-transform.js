@@ -1,30 +1,24 @@
 /*
  * 区块二：选中、多选与变换手势。
- *
- * 从 setSelectedComponent 一路到拖拽/缩放/旋转的 pointer 手势、选中框与变换手柄的绘制、
- * 以及各控件类型自己的选中边界测量，全部收在这里。共同的约定是：
- * 一切以「组件本地坐标」计算，再经组件变换链换算到世界坐标（见 componentTransformChain）。
- *
- * 这些方法只读写 DOM 与自己的手势状态，不发请求、不碰运行期缓存。
  */
 
-import { capturePointer } from "../../../utils/pointer-capture.js?v=2609271208";
+import { capturePointer } from "../../../utils/pointer-capture.js?v=2609271226";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
   renderRegisteredComponent
-} from "../registry.js?v=2609271208";
+} from "../registry.js?v=2609271226";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../../geometry/transform-geometry.js?v=2609271208";
+} from "../../geometry/transform-geometry.js?v=2609271226";
 import {
   assignComponentIds,
   componentDialogTitle,
   isModifierKeyPressed
-} from "./primitives.js?v=2609271208";
+} from "./primitives.js?v=2609271226";
 
 export const selectionTransformMethods = {
   /**
@@ -38,8 +32,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 设置多选集合，并确定唯一「主选」组件。
-   *
-   * 不存在的组件 ID 会被直接丢掉：调用方常直接传文档里的 ID，而当前页可能不含它。
    */
   setSelectedComponents(componentIds, primaryComponentId = null) {
     this.selectedComponentIds = new Set(
@@ -75,7 +67,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 指定某个组件的选中框要挂在哪一层上。
-   * 气流层、效果层、门窗外透视的可见范围不等于宿主根节点，选中框挂到对应子层才能对齐。
    */
   setComponentSelectionLayer(layerComponentId, layerKind = "button") {
     if (layerComponentId) {
@@ -104,8 +95,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 预览组件的几何变换（位置 / 旋转 / 缩放），只改内存记录与 DOM，不写文档。
-   *
-   * 拖动、缩放过程中会以每帧的频率调用，因此这里绝不做深比较或整页重渲染。
    */
   previewComponentTransform(transformComponentId, transformPatch = {}) {
     const transformRecord = this.componentRecords.get(transformComponentId);
@@ -153,8 +142,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 预览组件属性补丁：合并进组件记录后按控件类型走最小重绘。
-   * 高频路径；与变换预览不同，属性变化可能要重画控件内容（如亮度、文案），
-   * 因此会有条件地重建该组件的可视件。
    */
   previewComponentProperties(propertyComponentId, propertyPatch = {}) {
     const propertyRecord = this.componentRecords.get(propertyComponentId);
@@ -278,7 +265,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 按当前选中集合重建选中框与变换手柄。
-   * 先整体移除再重画而不复用：数量少、重建便宜，复用易残留旧手柄（尤其切换气流/效果层时）。
    */
   syncSelection() {
     this.canvas
@@ -378,8 +364,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 收集当前选中组件的记录与宿主元素，供批量缩放 / 旋转使用。
-   * 仅当所有宿主同属一个父元素时才返回：缩放要以共同父级为坐标系，
-   * 跨父级没有统一参考系，此时退化为不显示多选框。
    */
   selectedScaleRecords() {
     const selectedRecords = [...this.selectedComponentIds].map(selectedComponentId => ({
@@ -404,7 +388,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 沿父级链累加旋转与缩放，得出该组件父级坐标系相对画布的总变换。
-   * 用 visited 集合防环：损坏文档或拖动中的父子互指会让界面卡死在这一帧。
    */
   componentParentTransform(chainComponentId) {
     let parentComponentId = this.componentParentIds?.get(chainComponentId) || null;
@@ -428,8 +411,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 从该组件向上收集变换链（自身 → 各级父级）。
-   *
-   * 同样带防环：这个函数是坐标换算的基础，任何死循环都会让整个编辑器失去响应。
    */
   componentTransformChain(transformChainComponentId) {
     const transformChain = [];
@@ -448,8 +429,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 把变换链上的旋转相加、缩放相乘，得到组件的世界变换。
-   * 单级缩放夹在 0.01~5（编辑器缩放的上下限）：越界值（如文档被手改）会让包围盒
-   * 算成 0 或无穷大，手柄随之消失。
    */
   componentWorldTransform(worldTransformComponentId) {
     return this.componentTransformChain(worldTransformComponentId).reduce(
@@ -467,8 +446,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 画布坐标 → 组件局部坐标：逆序走变换链做逆向变换。
-   * 与 componentLocalPointToWorld 必须严格互逆，否则按下点与拖动点算到不同坐标系，
-   * 表现为控件跟手偏移。
    */
   worldPointToComponentLocal(localPointComponentId, worldX, worldY) {
     let localPoint = {
@@ -540,8 +517,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 计算组件在画布上的轴对齐包围盒（已计入缩放与旋转）。
-   * light-statistics 的可视范围与 position 声明不一致（图例宽度随内容变），因此改读真实选中框尺寸；
-   * 有旋转时用「半宽半高在坐标轴上的投影」求外接矩形，而不是取旋转后的四个角点，这样包围盒不随角度抖动。
    */
   componentVisualBounds(boundsComponent, boundsHostElement = null) {
     const boundsPosition = boundsComponent.position || {};
@@ -569,14 +544,12 @@ export const selectionTransformMethods = {
         selectionBoundsRect[3] > 0
       ) {
         // 十进制解析失败会得到 NaN，四个值必须同时有效才采用，
-        // 否则宁可按文档声明的尺寸算，也不要写出一组 NaN 坐标。
         [localOffsetLeftPx, localOffsetTopPx, effectiveWidthPx, effectiveHeightPx] =
           selectionBoundsRect;
       }
     }
     const boundsScale = Math.max(0.01, Math.min(5, Number(boundsComponent.style?.scale || 1)));
     // 旋转围绕组件声明矩形的中心（pivot），而不是可视件的中心：
-    // CSS transform-origin 用的是前者，两者不一致时包围盒会整体偏移。
     const boundsRotationRad = (Number(boundsPosition.rotation || 0) * Math.PI) / 180;
     const scaledWidthPx = effectiveWidthPx * boundsScale;
     const scaledHeightPx = effectiveHeightPx * boundsScale;
@@ -653,7 +626,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 按画布缩放与世界缩放反向放大多选手柄。
-   * 手柄画在已缩放的坐标系里，不反向补偿就会在画布缩小时小到点不中、放大时变成大方块。
    */
   updateMultiSelectionHandleScale(multiBoundsElement, measuredBoundsRect = null) {
     if (!multiBoundsElement) {
@@ -666,8 +638,6 @@ export const selectionTransformMethods = {
       : 1;
     const uiScaleFactor = 1 / Math.max(0.001, canvasScale * ownerWorldScale);
     // 读在写之前：--hb-ui-scale / --hb-handle-outset 只作用于外框的子手柄，
-    // 不改变外框自己的盒子，所以先量后写与先写后量得到同一个矩形 ——
-    // 但先量能避免这次读被上面的写入弄脏而强制一次同步布局。
     const boundsClientRect = measuredBoundsRect || multiBoundsElement.getBoundingClientRect();
     multiBoundsElement.style.setProperty("--hb-ui-scale", String(uiScaleFactor));
     multiBoundsElement.style.setProperty("--hb-handle-outset", uiScaleFactor * 30 + "px");
@@ -729,7 +699,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 批量预览一组组件的变换（多选拖动 / 缩放 / 旋转的高频路径）。
-   * 一次性写入整批再统一触发回流；逐个组件读写样式会各自引发强制同步布局，多选时明显卡顿。
    */
   previewComponentsTransform(transformList, leadComponentId = this.selectedComponentId) {
     for (const componentTransformItem of transformList || []) {
@@ -784,8 +753,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始多选缩放：按指针相对包围盒中心距离的变化换算缩放比例。
-   * 只写预览变换，松手后由调用方决定是否提交文档；起始包围盒与指针距离一次性记下，
-   * 后续每帧只做比例换算，避免累积误差。
    */
   startComponentsScale(scalePointerEvent, recordList, boundsRect, activeBoundsElement) {
     scalePointerEvent.preventDefault();
@@ -830,7 +797,6 @@ export const selectionTransformMethods = {
     capturePointer(scalePointerEvent.currentTarget, activePointerId);
     /**
      * 多选缩放期间的指针移动处理：按指针到包围盒中心的距离比例缩放整批组件。
-     * 只写预览变换与 DOM 样式、不提交文档，并同步更新多选框尺寸；缩放因子夹在上下限之间。
      */
     const onScalePointerMove = scaleMoveEvent => {
       if (scaleMoveEvent.pointerId !== activePointerId) {
@@ -907,8 +873,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始多选旋转：按指针相对包围盒中心的角度变化旋转整批组件。
-   *
-   * 与多选缩放同构，只在交互期间写预览变换。
    */
   startComponentsRotate(
     rotationPointerEvent,
@@ -950,8 +914,6 @@ export const selectionTransformMethods = {
     capturePointer(rotationPointerEvent.currentTarget, rotatePointerId);
     /**
      * 多选旋转期间的指针移动处理：按指针绕包围盒中心的累计转角旋转整批组件。
-     *
-     * 每次增量转角先归一化到 (-π, π]，避免 atan2 在 ±180° 处跳变时组件瞬间翻转。
      */
     const onRotatePointerMove = rotateMoveEvent => {
       if (rotateMoveEvent.pointerId !== rotatePointerId) {
@@ -1025,8 +987,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始拖动组件（编辑器的核心交互）。
-   * 拖动期间只走预览变换，松手后由调用方决定是否写入文档；指针捕获元素由调用方指定，
-   * 以便拖出宿主边界后仍能持续收到移动事件。
    */
   startComponentMove(
     dragPointerEvent,
@@ -1129,8 +1089,6 @@ export const selectionTransformMethods = {
     dragRecords.forEach(movingRecord => movingRecord.host.classList.add("moving"));
     /**
      * 组件拖动期间的指针移动处理：把屏幕位移换算成画布坐标并更新整批被拖组件。
-     * 同时处理三件事：修饰键「拖出副本」（位移超 3px 才克隆，避免误触）、Shift 锁定单轴、
-     * 按 dragBounds 夹取增量；增量经父级变换换算成局部坐标写入 position，只预览不落库。
      */
     const onDragPointerMove = moveEvent => {
       if (moveEvent.pointerId !== dragPointerId) {
@@ -1273,8 +1231,6 @@ export const selectionTransformMethods = {
     };
     /**
      * 结束拖动：解绑全局监听，并按手势类型分别提交（新建副本 / 多选位移 / 单选位移）。
-     * 位置没变就不提交，避免纯点击留下无意义的改动记录；副本分支以拖动中最后的预览值为准，
-     * 取不到时退回起始位置。
      */
     const onDragPointerEnd = (dragEndEvent = null) => {
       if (
@@ -1349,8 +1305,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始单组件缩放。
-   *
-   * 交互期间只写预览变换，松手后由调用方提交文档。
    */
   startComponentScale(
     componentScalePointerEvent,
@@ -1382,8 +1336,6 @@ export const selectionTransformMethods = {
     capturePointer(componentScalePointerEvent.currentTarget, componentScalePointerId);
     /**
      * 单组件缩放期间的指针移动处理：按指针到组件中心的距离比例更新缩放值。
-     * 缩放值夹在 0.01~5；每帧都要把同一 transform 同步给选中覆盖层与变换手柄，
-     * 否则手柄滞后于组件、产生可见错位。
      */
     const onComponentScalePointerMove = componentScaleMoveEvent => {
       if (componentScaleMoveEvent.pointerId !== componentScalePointerId) {
@@ -1480,7 +1432,6 @@ export const selectionTransformMethods = {
     capturePointer(componentRotatePointerEvent.currentTarget, componentRotatePointerId);
     /**
      * 单组件旋转期间的指针移动处理：按指针绕组件中心的极角差更新旋转角。
-     * 旋转角 = 按下时角度 +（当前极角 - 按下时极角），写入 transform 时保留原有缩放分量。
      */
     const onComponentRotatePointerMove = componentRotateMoveEvent => {
       if (componentRotateMoveEvent.pointerId !== componentRotatePointerId) {
@@ -1539,7 +1490,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 为组件创建选中框（已存在则复用）。
-   * 宿主父层不是画布且自身未隐藏时返回 null：这类组件（如组内成员）的选中框由父级统一提供。
    */
   createComponentSelectionOverlay(overlayComponentHost, overlayComponentRecord) {
     if (
@@ -1586,7 +1536,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 为气流层创建独立的选中框。
-   * 气流层的可视区域不等于宿主根节点（层内有自己的偏移与裁剪），复用通用选中框会错位。
    */
   createAirflowSelectionOverlay(airflowOverlayLayerElement, airflowComponentRecord) {
     if (
@@ -1643,8 +1592,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 给图标按钮（效果）层追加选中框。
-   *
-   * 效果层的可见范围由裁剪矩形决定，选中框要贴着实际图形而不是宿主矩形。
    */
   appendEffectSelectionBounds(effectComponentLayerElement, effectBoundsComponentRecord) {
     if (
@@ -1810,14 +1757,11 @@ export const selectionTransformMethods = {
   },
   /**
    * 临时取消祖先链上的 hidden，执行测量回调后再恢复。
-   * hidden 元素量不到尺寸（offsetWidth 恒为 0），不先显示就拿不到真实尺寸；
-   * 恢复放在 finally 里，回调抛错也不会把元素留在可见态。
    */
   withSelectionMeasurementHost(measurementStartElement, measureCallback) {
     const hiddenElements = [];
     let measurementElement = measurementStartElement;
     while (measurementElement && measurementElement !== this.canvas) {
-      // 只记录本来隐藏的元素，恢复时按这份清单还原，避免把用户设成显示的元素又藏起来。
       if (measurementElement.hidden) {
         hiddenElements.push(measurementElement);
         measurementElement.hidden = false;
@@ -1834,7 +1778,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 判断元素是否可见且有实际尺寸（决定选中框要不要画）。
-   * 只看 display / visibility 不够：父级折叠、flex 收缩都可能让尺寸归零，还要查宽高。
    */
   selectionElementIsVisible(measuredElement) {
     if (!measuredElement || measuredElement.hidden) {
@@ -1856,8 +1799,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 计算元素相对指定祖先的偏移盒（left / top / 宽 / 高）。
-   * 逐级累加 offsetLeft / offsetTop 而非两个 getBoundingClientRect 相减：后者带上了
-   * 祖先 transform 的缩放，而选中框要与组件局部坐标系对齐。累加带防环。
    */
   selectionElementBox(boxElement, boxAncestorElement) {
     let offsetLeftPx = 0;
@@ -1887,8 +1828,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 把门窗的四个角点写成一个 CSS 透视矩阵，作用到门 / 窗可视件上。
-   *
-   * 用矩阵而不是 skew：四角可独立拖动，只有矩阵能表达任意四边形到矩形的投影。
    */
   applyDoorWindowPerspective(
     perspectiveFrontElement,
@@ -2003,8 +1942,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始拖动门窗透视的某一个角。
-   *
-   * 只改该角坐标，其余三角保持不动，松手后由调用方提交文档。
    */
   startDoorWindowPerspective(
     startPerspectivePointerEvent,
@@ -2044,8 +1981,6 @@ export const selectionTransformMethods = {
     let isPerspectiveFinished = false;
     /**
      * 透视角点拖动期间的指针移动处理：把指针位移换算成被拖角点的归一化坐标。
-     * 换算链：屏幕位移 → 除视图缩放 → 反向旋转分组累计角 → 除世界缩放，得到组件自身
-     * 坐标系位移，再按宽高归一化成 0~1 角点；每帧重建角点并刷新透视层与手柄。
      */
     const onPerspectivePointerMove = perspectiveMoveEvent => {
       if (perspectiveMoveEvent.pointerId !== perspectivePointerId) {
@@ -2089,8 +2024,6 @@ export const selectionTransformMethods = {
     };
     /**
      * 结束透视角点拖动：解绑全局监听，角点有变化才提交。
-     *
-     * 角点数组是扁平数字，用 JSON 串比较即可判断是否真的动过（拖回原位就不提交）。
      */
     const onPerspectivePointerEnd = (perspectiveEndEvent = null) => {
       if (
@@ -2178,7 +2111,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 开始拖动气流层。
-   * 气流层自带画布级偏移量（不是普通 left/top），因此单独一套手势处理并把偏移夹在允许范围。
    */
   startAirflowMove(
     moveStartPointerEvent,
@@ -2219,8 +2151,6 @@ export const selectionTransformMethods = {
     capturePointer(airflowMoveBoundsElement, airflowPointerId);
     /**
      * 气流层拖动期间的指针移动处理：把位移换算成出风偏移的百分比。
-     * 偏移以组件宽高百分比存储（airflowOffsetX/Y），故位移除以组件尺寸再乘 100，
-     * 结果按 airflowOffsetBounds 夹取，防止出风效果被拖出画布。
      */
     const onAirflowPointerMove = airflowMoveEvent => {
       if (airflowMoveEvent.pointerId !== airflowPointerId) {
@@ -2382,8 +2312,6 @@ export const selectionTransformMethods = {
     };
     /**
      * 气流层缩放期间的指针移动处理：按指针到中心的距离比例缩放气流层。
-     *
-     * 缩放值夹在 0.01~5 之间：下限避免除零/退化，上限避免特效铺满整个画布。
      */
     const onAirflowScalePointerMove = airflowScaleMoveEvent => {
       const airflowScaleMoveDistancePx = Math.hypot(
@@ -2459,7 +2387,6 @@ export const selectionTransformMethods = {
     capturePointer(airflowRotateCaptureElement, airflowRotatePointerEvent.pointerId);
     /**
      * 气流层旋转期间的指针移动处理：按指针绕中心的极角差旋转出风特效。
-     * 旋转角 = 起始角 +（当前极角 - 按下时极角）；与多选旋转不同，不累计增量也不做 ±π 归一化。
      */
     const onAirflowRotatePointerMove = airflowRotateMoveEvent => {
       const airflowPointerAngleRad = Math.atan2(
@@ -2509,8 +2436,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 计算空调控件选中框的位置与尺寸。
-   * 可视件由内容撑开（按钮组、送风图），尺寸不等于文档声明的 position 宽高，因此每次都要
-   * 量实际内容盒；量不到时退回声明尺寸，宁可框略大也不要消失。
    */
   updateAirConditionerButtonSelectionBounds(
     airConditionerHostElement,
@@ -2537,7 +2462,6 @@ export const selectionTransformMethods = {
     const airConditionerRects = [];
     /**
      * 把空调控件的数值属性（尺寸、坐标百分比）夹到合法区间。
-     * 非数值一律换成兜底值：旧文档可能写成字符串或空值，直接运算会得到 NaN 让选中框消失。
      */
     const clampAirConditionerValue = (
       airConditionerRawValue,
@@ -2574,8 +2498,6 @@ export const selectionTransformMethods = {
     };
     /**
      * 记录一段文字占用的矩形。
-     * 文字以左侧中心为锚点（控件样式约定），宽度先量实际渲染宽度，量不到时按一个字号兜底，
-     * 避免出现零宽矩形。
      */
     const pushAirConditionerTextRect = (
       airConditionerTextElement,
@@ -2721,7 +2643,6 @@ export const selectionTransformMethods = {
     };
     /**
      * 记录一个「以中心点定义」的矩形（图标徽标用）。
-     * 先校验四个值都有限且宽高为正，坏数据直接不记录，免得把选中框的并集撑到无穷大。
      */
     const pushDeviceButtonCenteredRect = (
       deviceButtonRectCenterX,
@@ -3074,7 +2995,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 计算灯光统计控件选中框的位置与尺寸。
-   * 图例宽度随统计项数量变化，声明尺寸只覆盖柱子区域，因此读真实的 .hb-selection-bounds 尺寸。
    */
   updateLightStatisticsSelectionBounds(
     statisticsHostElement,
@@ -3252,8 +3172,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 计算图片控件选中框的位置与尺寸。
-   * 异步：图片按 contain 等比缩放，只有拿到自然尺寸才能算出实际占位，故要等一次 load
-   * （或短超时兜底）；按真实占位画框才能与看到的图像边界一致。
    */
   async updateImageSelectionBounds(imageHostElement, imageRecord, imageBoundsElement) {
     const imageTargetElement = imageHostElement.querySelector(":scope > .hb-image-component");
@@ -3325,7 +3243,6 @@ export const selectionTransformMethods = {
     const inverseHandleScale =
       1 / Math.max(0.001, appliedComponentScale * elementVisualScale * parentTransformScale);
     // 读在写之前（理由同 updateMultiSelectionHandleScale）：resize 会把整个页面的
-    // 矩形一次读齐之后再把量好的传进来，只有零散调用点才在这里当场量。
     const transformBoundsRect = measuredBoundsRect || transformBoundsElement.getBoundingClientRect();
     transformBoundsElement.style.setProperty("--hb-ui-scale", String(inverseHandleScale));
     transformBoundsElement.style.setProperty("--hb-handle-outset", inverseHandleScale * 30 + "px");
@@ -3336,8 +3253,6 @@ export const selectionTransformMethods = {
   },
   /**
    * 找某个组件的手柄外框元素（选区外框）。
-   * 单独抽出来是为了只定位不测量：resize 在「读阶段」先量齐所有宿主矩形，
-   * 测量与套用分开后，一遍 resize 的布局解析从「每宿主一次」降到一次。
    */
   transformHandleBoundsElement(
     transformScaleHostElement,

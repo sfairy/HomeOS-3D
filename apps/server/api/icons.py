@@ -1,11 +1,4 @@
 """图标库查询接口：在 Material Design Icons 的元数据里按关键词搜索。
-
-路由前缀 /api/v1/icons。数据源是随前端一起发布的静态目录
-（frontend/static/vendor/mdi/<version>/meta.json），本模块只读不写。
-
-版本号从目录扫出来而不是写死：升级图标库只要把新版本目录放进 vendor 即可，
-写死时得同时改这里与前端三处（`utils/icon-url.js` 的 `MDI_VERSION`、studio.css 里
-三条遮罩地址），漏改一处就静默 404（图标选择器全空、舞台标记不出图）。
 """
 from __future__ import annotations
 
@@ -20,19 +13,11 @@ router = APIRouter(prefix='/icons', tags=['icons'])
 
 
 #: 已解析的元数据：{路径: (mtime_ns, 字节数, 条目)}。
-#: 键里为什么不只有路径：meta.json 会被**原地更新**（重新发布图标库、运维
-#: 替换 vendor 目录、开发时换一份 meta.json），只按路径缓存的话永远读回第一次那份，
-#: 表现为「新图标搜不到、旧图标搜得到」，而磁盘上明明已经是新文件。
-#: 存快照而不是用 lru_cache 是为了让「文件变没变」这件事可观测：排障时可以直接看这张表。
 _mdi_metadata_cache: dict[str, tuple[int, int, tuple[dict, ...]]] = {}
 
 
 def _mdi_version_root(frontend_dir: Path) -> Path:
     """定位当前的 mdi 版本目录：``frontend/static/vendor/mdi/<version>``。
-
-    以目录为准（取带 meta.json 的最高版本），这样升级只改资源、不改代码。
-    一个都找不到时抛 500 —— 图标库缺失属于部署事故，静默回空列表会让「图标全都没了」
-    看起来像搜索没命中。
     """
     vendor_root = frontend_dir / 'static' / 'vendor' / 'mdi'
     versions = [
@@ -55,10 +40,6 @@ def _mdi_version_root(frontend_dir: Path) -> Path:
 
 def _mdi_metadata(meta_path: Path) -> tuple[dict, ...]:
     """取（必要时重新解析）MDI 元数据。
-
-    每次先看 mtime 与字节数：没变就直接回上次解析的结果（省掉读盘 + 解析），变了就重新解析并覆盖。
-    判断依据只有「文件本身变没变」，与请求参数无关，因此按路径缓存是安全的（不同版本目录的路径
-    本来就不同）。返回已过滤的条目元组，顺序保持文件里的原始顺序。
     """
     stat = meta_path.stat()
     stamp = (stat.st_mtime_ns, stat.st_size)
@@ -94,11 +75,6 @@ def icons(
     offset: int = Query(0, ge=0),
 ) -> dict:
     """按关键词搜索图标，返回一页结果。
-
-    身份与能力码：LicensedUser（认证 + api）。
-    查询参数：query（关键词，可带 mdi: 前缀）、limit（1~240，默认 160）、offset。
-    返回 {library, version, total, offset, items[{name, slug, previewUrl}]}，
-    total 始终是全量命中数，分页只影响 items。
     """
     root = _mdi_version_root(request.app.state.settings.frontend_dir)
     version = root.name
@@ -114,7 +90,6 @@ def icons(
         if normalized and not any(normalized in value for value in haystack):
             continue
         matches.append(item)
-    # 排序取舍：完全命中 > 前缀命中 > 其它，同级按名字字典序，保证结果稳定可预期。
     matches.sort(
         key=lambda item: (
             0 if item['name'] == normalized else 1 if item['name'].startswith(normalized) else 2,

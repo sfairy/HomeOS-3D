@@ -1,10 +1,5 @@
 /**
  * 场景对象的矩阵更新加速。
- *
- * 场景构建完成后调用一次，给家具、墙体这类数量大又大多静止的对象装上「值未变则跳过重算」的
- * 短路逻辑——每帧遍历上百个对象重建矩阵是帧率的主要损耗来源。对外导出 cacheObjectTransforms。
- * 只包装仍在使用原型原始 updateMatrix 的对象，避免覆盖别的模块自己的实现；同一对象用模块级
- * WeakSet 记账，不重复包装。
  */
 
 // 已包装对象的记账表；用 WeakSet 是为了让对象被销毁后能随 GC 释放，不长期持有引用。
@@ -16,7 +11,6 @@ export function cacheObjectTransforms(rootObject, objectPrototype) {
   let instrumentedCount = 0;
   rootObject?.traverse(traversedObject => {
     // 跳过两类对象：已经包装过的，以及被其它模块改写过 updateMatrix 的。
-    // 后者若强行包装，会把别人的逻辑（例如骨骼动画的额外计算）整段吞掉。
     if (
       instrumentedObjects.has(traversedObject) ||
       traversedObject.updateMatrix !== objectPrototype.prototype.updateMatrix
@@ -24,7 +18,6 @@ export function cacheObjectTransforms(rootObject, objectPrototype) {
       return;
     }
     // 原始实现与上一次变换快照都保存在闭包里：放对象属性上会污染 three.js 对象的属性集，
-    // 也可能被序列化或遍历逻辑误读。
     const originalUpdateMatrix = traversedObject.updateMatrix;
     let lastPositionX;
     let lastPositionY;
@@ -38,7 +31,6 @@ export function cacheObjectTransforms(rootObject, objectPrototype) {
     let lastScaleZ;
     let lastParent;
     // 比较 position / quaternion / scale 的分量而非矩阵元素：分量比较更便宜，
-    // 且不必先构造矩阵，能把「未变化」的代价压到十次浮点比较。
     traversedObject.updateMatrix = function () {
       const position = this.position;
       const quaternion = this.quaternion;
@@ -56,7 +48,6 @@ export function cacheObjectTransforms(rootObject, objectPrototype) {
         scale.y === lastScaleY &&
         scale.z === lastScaleZ
       ) {
-        // 父节点变了：局部矩阵虽未变，世界矩阵仍需重算，否则对象会停留在旧父节点下的位置。
         if (this.parent !== lastParent) {
           this.matrixWorldNeedsUpdate = true;
         }
