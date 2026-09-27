@@ -858,6 +858,84 @@ import {
   wallIntersectionsForWalls,
   zoomViewAt
 } from "./studio-plan-interaction.js";
+import {
+  mergeCollinearWalls,
+  sampleFrameInterval
+} from "./studio-geometry-utils.js";
+import {
+  openBaseLightingPanel,
+  postBaseLightingState,
+  saveBaseLighting,
+  setHighShadowQuality
+} from "./studio-base-lighting.js";
+import {
+  areaNameTaken,
+  closeFloorDeleteDialog,
+  createAreaFromAssignDialog,
+  deleteFloor,
+  floorDeleteDialogElement,
+  lightGroupAreaNewNameElement,
+  lightGroupAreaSelectElement,
+  normalizeAreaName,
+  projectAnchorToFloorPlan,
+  startFloorAlignment,
+  switchPreviewFloor,
+  syncAreaAssignOptions
+} from "./studio-floor-switch.js";
+import {
+  addExportPresetSlot,
+  buildExportedLight,
+  canvasToBlob,
+  captureStageImage,
+  composeBackgroundBlob,
+  compositeLightGroupShadows,
+  floorExportOffset,
+  selectExportPresetSlot,
+  setExportDimension,
+  uniqueExportPresetName
+} from "./studio-export-pipeline.js";
+import {
+  activateAssetTab,
+  assetCategoryButtons,
+  assetGridElement,
+  closeLightGroupContextMenu,
+  collectClipboardItems,
+  copySelectionToClipboard,
+  deleteSelection,
+  duplicateSelection,
+  lightAssetRowElement,
+  pasteClipboardItems
+} from "./studio-selection-ops.js";
+import {
+  applyGlobalWallThickness,
+  beginWallSettingEdit,
+  collectLightTargetItems,
+  collectWallTargetCheckboxes,
+  commitWallSettingInput,
+  formatLightFieldValue,
+  lightPropertySelectionCountElement,
+  lightPropertyTargetListElement,
+  lightPropertyToggleAllButton,
+  renderLightPropertyTargets,
+  renderWallPropertyTargets,
+  sanitizeLightFieldValue,
+  scheduleOverlayRedraw,
+  syncLightTargetSelection,
+  syncWallTargetSelection,
+  wallEffectiveOpacityPercent,
+  wallPropertyCurrentText,
+  wallPropertySelectionCountElement,
+  wallPropertyTargetListElement,
+  wallPropertyToggleAllButton
+} from "./studio-property-panels.js";
+import {
+  applyInspectorChanges,
+  snapTelevisionMountDimensions
+} from "./studio-inspector-apply.js";
+import {
+  initializeStudioStage,
+  isWebglContextCreationFailure
+} from "./studio-stage-init.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -886,7 +964,6 @@ const addFloorButton = selectElement("#add-floor");
 const floorRenameDialogElement = selectElement("#floor-rename-dialog");
 const floorRenameFormElement = selectElement("#floor-rename-form");
 const floorRenameInputElement = selectElement("#floor-rename-input");
-const floorDeleteDialogElement = selectElement("#floor-delete-dialog");
 const floorDeleteFormElement = selectElement("#floor-delete-form");
 const floorDeleteNameElement = selectElement("#floor-delete-name");
 const saveConflictLoadButton = selectElement("#save-conflict-load");
@@ -902,9 +979,6 @@ const lightGroupRenameFormElement = selectElement("#light-group-rename-form");
 const lightGroupRenameInputElement = selectElement("#light-group-rename-input");
 const lightPropertyApplyDialogElement = selectElement("#light-property-apply-dialog");
 const lightPropertyApplyFormElement = selectElement("#light-property-apply-form");
-const lightPropertyTargetListElement = selectElement("#light-property-target-list");
-const lightPropertySelectionCountElement = selectElement("#light-property-selection-count");
-const lightPropertyToggleAllButton = selectElement("#light-property-toggle-all");
 const lightPropertyApplyTitleElement = selectElement("#light-property-apply-title");
 const lightPropertyApplyValueInput = selectElement("#light-property-apply-value");
 const baseLightControlsHeaderElement = baseLightControlsElement?.querySelector(
@@ -940,9 +1014,6 @@ const exportCompletePathElement = selectElement("#export-complete-path");
 /* 素材卡片必须先渲染：下面两行一次性抓走全部 [data-item-type] 与分组标题并据此绑事件，
    晚于这里生成的卡片会「看得见、点不动」。数据表在 studio-asset-palette.js。 */
 renderStudioAssetPalette(selectElement("#asset-grid"));
-const assetCategoryButtons = [...document.querySelectorAll("[data-asset-category]")];
-const assetGridElement = selectElement("#asset-grid");
-const lightAssetRowElement = selectElement("#light-asset-row");
 const areaRenameDialogElement = selectElement("#area-rename-dialog");
 const areaRenameFormElement = selectElement("#area-rename-form");
 const areaRenameTitleElement = selectElement("#area-rename-title");
@@ -950,29 +1021,6 @@ const areaRenameInputElement = selectElement("#area-rename-input");
 const lightGroupAreaDialogElement = selectElement("#light-group-area-dialog");
 const lightGroupAreaFormElement = selectElement("#light-group-area-form");
 const lightGroupAreaNameElement = selectElement("#light-group-area-name");
-const lightGroupAreaSelectElement = selectElement("#light-group-area-select");
-const lightGroupAreaNewNameElement = selectElement("#light-group-area-new-name");
-/**
- * 改挂装方式时把进深与离地高度拨到对应档。两样都只在「当前值恰好等于某一种挂装的标称值」
- */
-function snapTelevisionMountDimensions(televisionItem: any, nextMountStyle: any) {
-  const televisionDepth = finite(televisionItem.depth, 0);
-  if (
-    Object.values(TELEVISION_MOUNT_DEPTHS).some(
-      nominalDepth => Math.abs(televisionDepth - nominalDepth) < 0.001
-    )
-  ) {
-    televisionItem.depth = (TELEVISION_MOUNT_DEPTHS as any)[nextMountStyle];
-  }
-  const televisionElevation = finite(televisionItem.elevation, 0);
-  if (
-    Object.values(TELEVISION_MOUNT_ELEVATIONS).some(
-      nominalElevation => Math.abs(televisionElevation - nominalElevation) < 0.001
-    )
-  ) {
-    televisionItem.elevation = (TELEVISION_MOUNT_ELEVATIONS as any)[nextMountStyle];
-  }
-}
 const dracoLoader = new SameOriginDRACOLoader(
   "/static/3d-studio/export/draco-decoder-worker.js"
 );
@@ -1001,41 +1049,6 @@ function forcePreviewRebuild() {
 // 允许做「烘焙式合批」的物件白名单：把整件家具的所有网格焊成一份几何。
 // 走新版合批构建路径的物件类型，构建时会打上 optimizationBatch 标记便于统计。
 // 灯光属性面板的字段登记表：字段名 → 界面控件与单位。
-/**
- * 把灯光属性的原始输入夹到合法区间并归一精度。中文界面传入字符串且用户可输任意
- */
-function sanitizeLightFieldValue(lightFieldKey: any, rawValue: any, lightingItemType: any) {
-  if (lightFieldKey === "lightTemperature") {
-    return Math.round(clamp(finite(rawValue, 3000), 2200, 6500));
-  } else if (lightFieldKey === "lightBrightness") {
-    return Math.round(clamp(finite(rawValue, 50), 0, 100));
-  } else if (lightFieldKey === "lightRange") {
-    return Math.round(clamp(finite(rawValue, 3.5), 0.5, 10) * 10) / 10;
-  } else if (lightFieldKey === "lightAngle") {
-    return Math.round(clamp(finite(rawValue, 90), 15, maxLightAngleForType(lightingItemType)));
-  } else if (lightFieldKey === "elevation") {
-    return Math.round(clamp(finite(rawValue, 2.7), 0, 6) * 100) / 100;
-  } else {
-    return finite(rawValue);
-  }
-}
-/**
- * 按字段单位把数值格式化成界面文案。角度与百分比紧贴数字（48% / 48°），米与开尔文
- */
-function formatLightFieldValue(formattedFieldKey: any, value: any) {
-  const fieldConfig = (LIGHT_FIELD_CONFIG as any)[formattedFieldKey];
-  if (!fieldConfig) {
-    return String(value);
-  }
-  const formattedValue = ["lightRange", "elevation"].includes(formattedFieldKey)
-    ? Number(value).toFixed(formattedFieldKey === "elevation" ? 2 : 1)
-    : Math.round(value);
-  if (["%", "°"].includes(fieldConfig.unit)) {
-    return "" + formattedValue + fieldConfig.unit;
-  } else {
-    return formattedValue + " " + fieldConfig.unit;
-  }
-}
 // 工具提示文案（标题 + 说明），与界面文案一致，改动请同步 studio.css 的宽度假设。
 const isStudioRoute = isStageViewerMode || /^\/3d-studio\/?$/.test(window.location.pathname);
 
@@ -1085,41 +1098,6 @@ function requestFloorDelete(targetFloor: any) {
   }
 }
 /**
- * 关闭删除楼层对话框并清掉待删目标。
- */
-function closeFloorDeleteDialog() {
-  state.floorDeleteTargetId = "";
-  if (floorDeleteDialogElement.open) {
-    floorDeleteDialogElement.close();
-  }
-}
-/**
- * 执行删除楼层：移除记录、重排标高、切到相邻层并落盘。删后按 defaultFloorHeight 重排
- */
-async function deleteFloor() {
-  const floorToDelete = state.studioDocument.floors.find(
-    (deletedFloor: any) => deletedFloor.id === state.floorDeleteTargetId
-  );
-  closeFloorDeleteDialog();
-  if (!floorToDelete || state.studioDocument.floors.length <= 1) {
-    return;
-  }
-  const floorIndex = state.studioDocument.floors.findIndex(
-    (indexedFloor: any) => indexedFloor.id === floorToDelete.id
-  );
-  state.studioDocument.floors.splice(floorIndex, 1);
-  state.studioDocument.floors.forEach((renumberedFloor: any, orderedIndex: any) => {
-    renumberedFloor.elevation = orderedIndex * state.studioDocument.defaultFloorHeight;
-  });
-  const nextFloor = state.studioDocument.floors[Math.max(0, floorIndex - 1)] || state.studioDocument.floors[0];
-  await activateFloor(nextFloor.id, {
-    persist: false
-  });
-  syncPreviewFloorButtons();
-  markDocumentDirty();
-  showToast("已删除“" + floorToDelete.name + "”。", "success");
-}
-/**
  * 打开楼层重命名对话框并预填当前名字。
  */
 function openFloorRenameDialog(renamedFloor: any) {
@@ -1141,34 +1119,6 @@ async function addFloor() {
   markDocumentDirty();
   showToast("已新增“" + newFloor.name + "”，导入并校准后会设置上下层参照点。", "success");
   activateTool("select");
-}
-/**
- * 进入楼层对齐流程的第一阶段（在参照层上点参照点）。参照层固定取楼层列表中的上一层，
- */
-function startFloorAlignment() {
-  const alignmentSourceFloor = getCurrentFloor();
-  const currentFloorIndex =
-    state.studioDocument?.floors.findIndex((listFloor: any) => listFloor.id === alignmentSourceFloor?.id) ?? -1;
-  const referenceFloor =
-    currentFloorIndex > 0 ? state.studioDocument.floors[currentFloorIndex - 1] : null;
-  if (!!alignmentSourceFloor && !!referenceFloor) {
-    if (!alignmentSourceFloor.scene.calibration || !referenceFloor.scene.calibration) {
-      showToast("当前层和参照层都需要先完成比例校准。", "error");
-      return;
-    }
-    state.floorAlignState = {
-      floorId: alignmentSourceFloor.id,
-      referenceFloor: referenceFloor,
-      stage: "reference",
-      referencePoint: null
-    };
-    clearSelection();
-    activateTool("select");
-    planCanvasElement.style.cursor = "crosshair";
-    updateFloorAlignmentControls();
-    renderPlanView();
-    showToast("先在半透明的" + referenceFloor.name + "上点击一个参照点。");
-  }
 }
 /**
  * 提交「预览楼层间距」输入值（合法区间 0~20m）。与 exportFloorGap 分开存储：预览间距只
@@ -1212,25 +1162,6 @@ function commitExportFloorGap() {
     exportStatusElement.textContent = "全楼层间距已设为 " + exportGap.toFixed(1) + " m";
     markDocumentDirty();
   }
-}
-/**
- * 计算某楼层在整景导出图里相对基准层的垂直偏移（米）。单层导出无堆叠概念，返回 0。
- */
-function floorExportOffset(measuredFloor: any) {
-  if (currentPreviewFloorMode() !== "all") {
-    return 0;
-  }
-  const offsetFloorIndex = state.studioDocument.floors.findIndex(
-    (indexedFloorRecord: any) => indexedFloorRecord.id === measuredFloor?.id
-  );
-  return Math.max(offsetFloorIndex, 0) * finite(state.studioDocument.exportFloorGap, 3);
-}
-/**
- * 关闭灯组右键菜单，并清掉菜单记录的目标灯组 id。
- */
-function closeLightGroupContextMenu() {
-  lightGroupContextMenuElement.hidden = true;
-  state.lightGroupMenuTargetId = "";
 }
 /**
  * 删除一个灯组，连同组内的灯。语义是「组没了，灯也不该留着」：先收集组内灯具 id 再
@@ -1338,20 +1269,6 @@ function duplicateLightGroup(sourceGroup: any) {
   showToast("已复制“" + sourceGroup.name + "”及组内 " + copiedLights.length + " 盏灯。", "success");
 }
 /**
- * 归一区域名（去首尾空白、限长，空名等同于「未填写」）。
- */
-function normalizeAreaName(requestedAreaName: any) {
-  return normalizeLabelText(requestedAreaName, "", 16);
-}
-/**
- * 判断区域名是否已被占用。
- */
-function areaNameTaken(areaName: any, excludeAreaId: any = null) {
-  return (state.activeScene.areas || []).some(
-    (namedArea: any) => namedArea.id !== excludeAreaId && namedArea.name === areaName
-  );
-}
-/**
  * 以「新建」模式打开区域命名对话框。新建与重命名共用同一个 <dialog>，靠 areaRenameMode /
  */
 function openAreaCreateDialog() {
@@ -1410,37 +1327,6 @@ function closeAreaContextMenu() {
   state.areaContextMenuId = "";
 }
 /**
- * 重建「所属区域」下拉框：「未分类」恒在首位，其后是当前场景的全部区域。选项少，
- */
-function syncAreaAssignOptions(selectedAreaId: any) {
-  const areaOptions = [
-    {
-      value: "",
-      label: "未分类"
-    }
-  ];
-  for (const listedArea of state.activeScene.areas || []) {
-    areaOptions.push({
-      value: listedArea.id,
-      label: listedArea.name
-    });
-  }
-  lightGroupAreaSelectElement.replaceChildren(
-    ...areaOptions.map(areaOption => {
-      const optionElement = document.createElement("option");
-      optionElement.value = areaOption.value;
-      optionElement.textContent = areaOption.label;
-      return optionElement;
-    })
-  );
-  lightGroupAreaSelectElement.value = areaOptions.some(
-    areaOption => areaOption.value === selectedAreaId
-  )
-    ? selectedAreaId
-    : "";
-  syncStudioSelect(lightGroupAreaSelectElement);
-}
-/**
  * 打开灯组的「分配区域」对话框。打开前按该灯组当前所属区域回填下拉框，并清空
  */
 function openLightGroupAreaDialog(assignTargetGroup: any) {
@@ -1459,32 +1345,6 @@ function openLightGroupAreaDialog(assignTargetGroup: any) {
 function closeLightGroupAreaDialog() {
   state.areaAssignGroupId = "";
   lightGroupAreaDialogElement.close();
-}
-/**
- * 在「分配区域」对话框里直接新建区域，并立即把它设为当前选项。名字先过 normalizeAreaName
- */
-function createAreaFromAssignDialog() {
-  const newAreaName = normalizeAreaName(lightGroupAreaNewNameElement.value);
-  if (!newAreaName) {
-    showToast("请输入新区域名称。", "error");
-    return;
-  }
-  if (areaNameTaken(newAreaName)) {
-    showToast("已存在同名区域。", "error");
-    return;
-  }
-  pushHistorySnapshot();
-  const createdArea = {
-    id: createId("area"),
-    name: newAreaName
-  };
-  (state.activeScene.areas ||= []).push(createdArea);
-  expandedAreaIds.add(createdArea.id);
-  syncAreaAssignOptions(createdArea.id);
-  lightGroupAreaNewNameElement.value = "";
-  renderLightGroupList();
-  markDocumentDirty();
-  showToast("已新建区域“" + newAreaName + "”并选中。", "success");
 }
 /**
  * 一键开 / 关当前楼层的全部灯组（图层面板的「全关」按钮在灯光页的语义）。所有组状态已经
@@ -1549,39 +1409,6 @@ function setCategoryLayersEnabled(enabled: any) {
     setLightGroupsEnabled(enabled);
   }
   renderLightGroupList();
-}
-/**
- * 合并共线的相邻墙段，并把门窗栏杆重挂到合并后的墙上。容差 1e-6 米（1 微米）：只吃吸附与
- */
-function mergeCollinearWalls() {
-  const wallById = new Map(state.activeScene.walls.map((indexedWall: any) => [indexedWall.id, indexedWall]));
-  const merged = mergeCollinearWallSegments(state.activeScene.walls, 0.000001);
-  if (merged.walls.length === state.activeScene.walls.length) {
-    return 0;
-  }
-  const mergedWallById = new Map(
-    merged.walls.map((mergedEntryWall: any) => [mergedEntryWall.id, mergedEntryWall])
-  );
-  /**
-   * 把挂在旧墙上的附件按 wallIdMap 重挂到合并后的新墙。三个前置条件（新墙 id、旧墙对象、
-   */
-  const remapMergedAttachment = (wallAttachment: any) => {
-    const newWallId = merged.wallIdMap.get(wallAttachment.wallId);
-    const oldWall = wallById.get(wallAttachment.wallId);
-    const newWall = mergedWallById.get(newWallId);
-    if (!newWallId || !oldWall || !newWall) {
-      return wallAttachment;
-    }
-    const remappedAttachment = remapWallAttachment(wallAttachment, oldWall, newWall);
-    remappedAttachment.t = clampWindowT(newWall, remappedAttachment, currentPixelsPerMeter() || 1);
-    return remappedAttachment;
-  };
-  const removedWallCount = state.activeScene.walls.length - merged.walls.length;
-  state.activeScene.walls = merged.walls;
-  state.activeScene.windows = state.activeScene.windows.map(remapMergedAttachment);
-  state.activeScene.doors = state.activeScene.doors.map(remapMergedAttachment);
-  state.activeScene.railings = state.activeScene.railings.map(remapMergedAttachment);
-  return removedWallCount;
 }
 /**
  * 把一份场景快照套用为当前场景（撤销与重做的共同出口）。快照先过 normalizeScene 归一
@@ -1964,267 +1791,6 @@ function setSnapSettingsVisible(isVisible: any) {
   snapSettingsPanelElement.hidden = !isVisible;
   snapSettingsToggleButton.setAttribute("aria-expanded", String(isVisible));
 }
-function deleteSelection() {
-  if (state.multiSelection.length) {
-    const selectionScope = currentSelectionScope();
-    pushHistorySnapshot();
-    const wallSelectionIds = new Set(
-      state.multiSelection
-        .filter((wallSelection: any) => wallSelection.kind === "wall")
-        .map((wallSelectionId: any) => wallSelectionId.id)
-    );
-    const windowSelectionIds = new Set(
-      state.multiSelection
-        .filter((windowSelection: any) => windowSelection.kind === "window")
-        .map((windowSelectionId: any) => windowSelectionId.id)
-    );
-    const doorSelectionIds = new Set(
-      state.multiSelection
-        .filter((doorSelection: any) => doorSelection.kind === "door")
-        .map((doorSelectionId: any) => doorSelectionId.id)
-    );
-    const railingSelectionIds = new Set(
-      state.multiSelection
-        .filter((railingSelection: any) => railingSelection.kind === "railing")
-        .map((railingSelectionId: any) => railingSelectionId.id)
-    );
-    const itemSelectionIds = new Set(
-      state.multiSelection
-        .filter((itemSelection: any) => itemSelection.kind === "item")
-        .map((itemSelectionId: any) => itemSelectionId.id)
-    );
-    state.activeScene.walls = state.activeScene.walls.filter(
-      (filteredWall: any) => !wallSelectionIds.has(filteredWall.id)
-    );
-    state.activeScene.windows = state.activeScene.windows.filter(
-      (filteredWindow: any) =>
-        !windowSelectionIds.has(filteredWindow.id) && !wallSelectionIds.has(filteredWindow.wallId)
-    );
-    state.activeScene.doors = state.activeScene.doors.filter(
-      (filteredDoor: any) =>
-        !doorSelectionIds.has(filteredDoor.id) && !wallSelectionIds.has(filteredDoor.wallId)
-    );
-    state.activeScene.railings = state.activeScene.railings.filter(
-      (filteredRailing: any) =>
-        !railingSelectionIds.has(filteredRailing.id) &&
-        !wallSelectionIds.has(filteredRailing.wallId)
-    );
-    state.activeScene.items = state.activeScene.items.filter(
-      (outsideSelectionItem: any) => !itemSelectionIds.has(outsideSelectionItem.id)
-    );
-    if (wallSelectionIds.size) {
-      mergeCollinearWalls();
-    }
-    clearSelection();
-    refreshStudio(selectionScope);
-    markDocumentDirty();
-    return;
-  }
-  const targetEntity = findSelectedEntity();
-  if (!targetEntity || !state.primarySelection) {
-    return;
-  }
-  const targetScope = currentSelectionScope();
-  pushHistorySnapshot();
-  if (state.primarySelection.kind === "wall") {
-    state.activeScene.walls = state.activeScene.walls.filter(
-      (wallToRemove: any) => wallToRemove.id !== targetEntity.id
-    );
-    state.activeScene.windows = state.activeScene.windows.filter(
-      (windowOnRemovedWall: any) => windowOnRemovedWall.wallId !== targetEntity.id
-    );
-    state.activeScene.doors = state.activeScene.doors.filter(
-      (doorOnRemovedWall: any) => doorOnRemovedWall.wallId !== targetEntity.id
-    );
-    state.activeScene.railings = state.activeScene.railings.filter(
-      (railingOnRemovedWall: any) => railingOnRemovedWall.wallId !== targetEntity.id
-    );
-    mergeCollinearWalls();
-  } else if (state.primarySelection.kind === "window") {
-    state.activeScene.windows = state.activeScene.windows.filter(
-      (windowToRemove: any) => windowToRemove.id !== targetEntity.id
-    );
-  } else if (state.primarySelection.kind === "door") {
-    state.activeScene.doors = state.activeScene.doors.filter(
-      (doorToRemove: any) => doorToRemove.id !== targetEntity.id
-    );
-  } else if (state.primarySelection.kind === "railing") {
-    state.activeScene.railings = state.activeScene.railings.filter(
-      (railingToRemove: any) => railingToRemove.id !== targetEntity.id
-    );
-  } else {
-    state.activeScene.items = state.activeScene.items.filter(
-      (itemToRemove: any) => itemToRemove.id !== targetEntity.id
-    );
-  }
-  clearSelection();
-  refreshStudio(targetScope);
-  markDocumentDirty();
-}
-/**
- * 原地复制选中的家具 / 电器 / 灯具（不走系统剪贴板）。只复制物件、不复制墙与门窗；灯光页签只复制灯。
- */
-function duplicateSelection() {
-  const sourceItemIds = new Set([
-    ...(state.primarySelection?.kind === "item" ? [state.primarySelection.id] : []),
-    ...state.multiSelection
-      .filter((duplicateSelectionEntry: any) => duplicateSelectionEntry.kind === "item")
-      .map((duplicateSelectionId: any) => duplicateSelectionId.id)
-  ]);
-  const isLightDuplicateTab = state.activeAssetTab === "light";
-  const sourceItems = state.activeScene.items.filter(
-    (duplicateCandidate: any) =>
-      sourceItemIds.has(duplicateCandidate.id) &&
-      LIGHT_ITEM_TYPES.has(duplicateCandidate.type) === isLightDuplicateTab
-  );
-  if (!sourceItems.length) {
-    showToast("请先选择要复制的灯具、家具或电器。");
-    return;
-  }
-  pushHistorySnapshot();
-  /**
-   * 副本相对原件的平面偏移量。固定取 0.12 米（换算成像素）而不是随机值：连续多次复制会形成
-   */
-  const duplicateOffsetPlan = (currentPixelsPerMeter() || 100) * 0.12;
-  const duplicatedItems = sourceItems.map((duplicateSourceItem: any) => ({
-    ...structuredClone(duplicateSourceItem),
-    id: createId("item"),
-    x: duplicateSourceItem.x + duplicateOffsetPlan,
-    y: duplicateSourceItem.y + duplicateOffsetPlan
-  }));
-  normalizeLayerNames(duplicatedItems);
-  state.activeScene.items.push(...duplicatedItems);
-  if (duplicatedItems.length === 1) {
-    setSelection("item", duplicatedItems[0].id);
-  } else {
-    state.primarySelection = null;
-    state.multiSelection = duplicatedItems.map((duplicatedItem: any) => ({
-      kind: "item",
-      id: duplicatedItem.id
-    }));
-  }
-  refreshStudio(
-    sourceItems.some((duplicatedSource: any) => duplicatedSource.type === "flooropening")
-      ? "all"
-      : isLightDuplicateTab
-        ? "lights"
-        : "items"
-  );
-  markDocumentDirty();
-  showToast("已复制 " + duplicatedItems.length + " 个物件。");
-}
-/**
- * 收集要放进剪贴板的物件（复制与剪切共用的取数逻辑）。与 duplicateSelection 同一套筛选
- */
-function collectClipboardItems() {
-  const clipboardSourceIds = new Set([
-    ...(state.primarySelection?.kind === "item" ? [state.primarySelection.id] : []),
-    ...state.multiSelection
-      .filter((clipboardSelectionEntry: any) => clipboardSelectionEntry.kind === "item")
-      .map((clipboardSelectionId: any) => clipboardSelectionId.id)
-  ]);
-  const isLightClipboardTab = state.activeAssetTab === "light";
-  return state.activeScene.items.filter(
-    (clipboardSourceItem: any) =>
-      clipboardSourceIds.has(clipboardSourceItem.id) &&
-      LIGHT_ITEM_TYPES.has(clipboardSourceItem.type) === isLightClipboardTab
-  );
-}
-/**
- * 把选中物件深拷贝进模块级剪贴板（Ctrl/Cmd+C）。同时记下「复制来源楼层」的标定与楼层变换参数：
- */
-function copySelectionToClipboard() {
-  const copiedClipboardItems = collectClipboardItems();
-  if (!copiedClipboardItems.length) {
-    showToast("请先选择要复制的灯具、家具或电器。");
-    return;
-  }
-  state.clipboardItems = copiedClipboardItems.map((clipboardSourceClone: any) =>
-    structuredClone(clipboardSourceClone)
-  );
-  const clipboardOriginFloor = getCurrentFloor();
-  state.clipboardSourceFloor = {
-    id: clipboardOriginFloor.id,
-    originX: clipboardOriginFloor.originX,
-    originY: clipboardOriginFloor.originY,
-    offsetX: clipboardOriginFloor.offsetX,
-    offsetZ: clipboardOriginFloor.offsetZ,
-    rotation: clipboardOriginFloor.rotation,
-    scene: {
-      calibration: structuredClone(state.activeScene.calibration)
-    }
-  };
-  state.pasteOffsetStep = 0;
-  showToast("已复制 " + state.clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。");
-}
-function pasteClipboardItems() {
-  if (!state.clipboardItems.length) {
-    showToast("暂无可粘贴的物件。");
-    return;
-  }
-  if (
-    state.clipboardItems.some((clipboardFloorOpening: any) => clipboardFloorOpening.type === "flooropening") &&
-    !ensureCalibration()
-  ) {
-    return;
-  }
-  const isClipboardLightOnly = state.clipboardItems.every((clipboardLightCandidate: any) =>
-    LIGHT_ITEM_TYPES.has(clipboardLightCandidate.type)
-  );
-  if (isClipboardLightOnly && state.activeAssetTab !== "light") {
-    activateAssetTab("light");
-  } else if (!isClipboardLightOnly && state.activeAssetTab === "light") {
-    activateAssetTab("home");
-  }
-  pushHistorySnapshot();
-  state.pasteOffsetStep += 1;
-  const pasteOffsetPlan = (currentPixelsPerMeter() || 100) * 0.12 * state.pasteOffsetStep;
-  const pastedItems = state.clipboardItems.map((pastedSourceItem: any) => ({
-    ...structuredClone(pastedSourceItem),
-    id: createId("item"),
-    x: pastedSourceItem.x + pasteOffsetPlan,
-    y: pastedSourceItem.y + pasteOffsetPlan,
-    ...(pastedSourceItem.type === "flooropening" &&
-    state.clipboardSourceFloor &&
-    state.clipboardSourceFloor.id !== getCurrentFloor().id
-      ? {
-          ...convertBetweenFloors(pastedSourceItem, state.clipboardSourceFloor, getCurrentFloor()),
-          rotation:
-            pastedSourceItem.rotation +
-            finite(state.clipboardSourceFloor.rotation, 0) -
-            finite(getCurrentFloor().rotation, 0)
-        }
-      : {}),
-    ...(LIGHT_ITEM_TYPES.has(pastedSourceItem.type) &&
-    !state.activeScene.lightGroups.some(
-      (pastedLightGroup: any) => pastedLightGroup.id === pastedSourceItem.lightGroupId
-    )
-      ? {
-          lightGroupId: ensureActiveLightGroup().id
-        }
-      : {})
-  }));
-  normalizeLayerNames(pastedItems);
-  state.activeScene.items.push(...pastedItems);
-  if (pastedItems.length === 1) {
-    setSelection("item", pastedItems[0].id);
-  } else {
-    state.primarySelection = null;
-    state.multiSelection = pastedItems.map((pastedItem: any) => ({
-      kind: "item",
-      id: pastedItem.id
-    }));
-  }
-  refreshStudio(
-    pastedItems.some((pastedFloorOpening: any) => pastedFloorOpening.type === "flooropening")
-      ? "all"
-      : isClipboardLightOnly
-        ? "lights"
-        : "items"
-  );
-  markDocumentDirty();
-  showToast("已粘贴 " + pastedItems.length + " 个物件。");
-}
 /**
  * 上传用户选中的底图文件并设为当前楼层底图。前端先按扩展名粗筛（后端仍复验）。上传期间禁用按钮并改文案，防止同一张图
  */
@@ -2277,92 +1843,6 @@ async function uploadPlanImage(file: any) {
 
 
 /**
- * 切换「高阴影质量」档位；降档时把阴影相机视锥还原回升档前的备份。升档前先备份 shadow.camera 的六向
- */
-function setHighShadowQuality(isHighQuality: any) {
-  const nextHighQuality = isHighQuality === true;
-  if (nextHighQuality !== state.isHighShadowQuality) {
-    if (nextHighQuality && state.mainDirectionalLight?.shadow?.camera) {
-      const savedShadowCamera = state.mainDirectionalLight.shadow.camera;
-      state.savedShadowCameraBounds = {
-        left: savedShadowCamera.left,
-        right: savedShadowCamera.right,
-        top: savedShadowCamera.top,
-        bottom: savedShadowCamera.bottom,
-        near: savedShadowCamera.near,
-        far: savedShadowCamera.far
-      };
-    }
-    state.isHighShadowQuality = nextHighQuality;
-    applyBaseLighting();
-    if (!nextHighQuality && state.savedShadowCameraBounds && state.mainDirectionalLight?.shadow?.camera) {
-      const restoredShadowCamera = state.mainDirectionalLight.shadow.camera;
-      Object.assign(restoredShadowCamera, state.savedShadowCameraBounds);
-      restoredShadowCamera.updateProjectionMatrix();
-      state.savedShadowCameraBounds = null;
-    }
-    if (state.mainDirectionalLight?.shadow) {
-      state.mainDirectionalLight.shadow.needsUpdate = true;
-    }
-    if (state.renderer?.domElement) {
-      state.renderer.domElement.dataset.exportShadowQuality = nextHighQuality ? "high" : "realtime";
-    }
-  }
-}
-/**
- * 打开基础光设置面板（必要时先回填一次文档里的配置）。挂载点跟着导出对话框走：对话框打开时面板必须挂进
- */
-function openBaseLightingPanel() {
-  if (!state.studioDocument || !baseLightControlsElement) {
-    return;
-  }
-  const mountParent = exportDialogElement?.open ? exportDialogElement : document.body;
-  if (baseLightControlsElement.parentElement !== mountParent) {
-    mountParent.append(baseLightControlsElement);
-  }
-  if (baseLightControlsElement.hidden) {
-    applyBaseLightingSettings(state.studioDocument.baseLighting);
-  }
-  baseLightControlsElement.hidden = false;
-  const panelRect = baseLightControlsElement.getBoundingClientRect();
-  if (
-    panelRect.right > window.innerWidth - 8 ||
-    panelRect.bottom > window.innerHeight - 8 ||
-    panelRect.left < 8 ||
-    panelRect.top < 8
-  ) {
-    moveFloatingPanelIntoBounds({
-      panelElement: baseLightControlsElement,
-      leftPx: panelRect.left,
-      topPx: panelRect.top
-    });
-  }
-}
-function saveBaseLighting() {
-  if (!state.studioDocument) {
-    return;
-  }
-  const normalizedLighting = normalizeBaseLighting(state.baseLighting);
-  state.studioDocument.baseLighting = normalizedLighting;
-  applyBaseLightingSettings(normalizedLighting);
-  markDocumentDirty();
-  state.lightingChannel?.postMessage({
-    type: "base-lighting-saved",
-    lighting: normalizedLighting
-  });
-  // 不能用「调用过 saveStudioDraft」当成功：冲突挂着或请求失败时它并不会落盘，
-  saveStudioDraft().then(baseLightingSaveOutcome => {
-    if (baseLightingSaveOutcome === "saved") {
-      showToast("基础光设置已保存，导图和自动化控件已同步。", "success");
-    } else if (
-      baseLightingSaveOutcome === "blocked-by-conflict" ||
-      baseLightingSaveOutcome === "blocked-by-interaction-confirmation"
-    ) {
-      showToast("基础光设置已记录，但户型草稿还没保存，请先处理顶栏的保存提示。", "error");
-    }
-  });
-}
-/**
  * 处理基础光面板单个控件的输入事件。只接受面板上真实存在的键（controlKey in baseLighting），防止
  */
 function handleBaseLightControlInput(editedControlInput: any) {
@@ -2376,34 +1856,6 @@ function handleBaseLightControlInput(editedControlInput: any) {
     invalidateRender({
       shadows: true
     });
-  }
-}
-/**
- * 采集一帧的耗时样本（渲染循环每帧结束时调用）。只在「需要被度量的渲染」里采样：相机运动（或舞台播放动画）才关心帧率，
- */
-function sampleFrameInterval(frameTimestampMs = performance.now()) {
-  if (
-    (!state.isCameraMotionActive && (!isStageViewerMode || !state.isMotionRendering)) ||
-    state.exportRenderState ||
-    state.isAdaptiveRenderActive ||
-    !collectActiveLights().length
-  ) {
-    state.lastFrameTimestampMs = 0;
-    return;
-  }
-  if (state.lastFrameTimestampMs > 0) {
-    const frameIntervalMs = frameTimestampMs - state.lastFrameTimestampMs;
-    if (
-      frameIntervalMs >= 8 &&
-      (frameIntervalMs <= 120 || (isStageViewerMode && frameIntervalMs <= 2000))
-    ) {
-      state.recentFrameDurationsMs.push(Math.min(frameIntervalMs, 120));
-    }
-  }
-  state.lastFrameTimestampMs = frameTimestampMs;
-  if (!(state.recentFrameDurationsMs.length < 24)) {
-    assessFrameRateForAdaptive();
-    state.recentFrameDurationsMs.splice(0, 12);
   }
 }
 function invalidateLightCacheSoon() {
@@ -2479,470 +1931,6 @@ async function saveCurrentCameraView() {
   }
 }
 /**
- * 判断这次初始化失败是不是「创建 WebGL 上下文」失败。
- */
-function isWebglContextCreationFailure(stageInitError: any) {
-  return /Error creating WebGL context/.test(String(stageInitError?.message || ""));
-}
-async function initializeStudioStage({ isRetry = false } = {}) {
-  const stageContainer = selectElement("#preview-3d");
-  try {
-    state.previewOverlayScene = new threeModuleMin.Scene();
-    state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.05, 200);
-    state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.renderer = new threeModuleMin.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance"
-    });
-    if (isStageViewerMode) {
-      state.renderer.domElement.addEventListener("webglcontextrestored", () => {
-        state.appliedLightPrecompileSignature = "";
-        precompiledLightSignatures.clear();
-        scheduleLightPrecompile();
-      });
-    }
-    state.renderer.setPixelRatio(targetPixelRatio());
-    state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
-    state.renderer.toneMapping = threeModuleMin.NeutralToneMapping;
-    state.renderer.toneMappingExposure = 1.04;
-    state.renderer.shadowMap.enabled = !isRegionLightingEnabled;
-    state.renderer.shadowMap.type = threeModuleMin.VSMShadowMap;
-    stageContainer.append(state.renderer.domElement);
-    state.orbitControls = createOrbitControls(state.previewCamera);
-    updateModelLoadingStatus();
-    syncCameraModeButtons("orthographic");
-    syncCameraViewButtons();
-    state.hemisphereLight = new threeModuleMin.HemisphereLight(12504556, 1515053, 1.12);
-    state.hemisphereLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.previewOverlayScene.add(state.hemisphereLight);
-    state.ambientLight = new threeModuleMin.AmbientLight(7175581, 0.42);
-    state.ambientLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.previewOverlayScene.add(state.ambientLight);
-    state.mainDirectionalLight = new threeModuleMin.DirectionalLight(14543103, 2.05);
-    state.mainDirectionalLight.position.set(-7, 22, 6);
-    state.mainDirectionalLight.castShadow = true;
-    state.mainDirectionalLight.shadow.mapSize.set(2048, 2048);
-    state.mainDirectionalLight.shadow.camera.left = -20;
-    state.mainDirectionalLight.shadow.camera.right = 20;
-    state.mainDirectionalLight.shadow.camera.top = 20;
-    state.mainDirectionalLight.shadow.camera.bottom = -20;
-    state.mainDirectionalLight.shadow.autoUpdate = false;
-    state.mainDirectionalLight.shadow.needsUpdate = true;
-    state.mainDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.previewOverlayScene.add(state.mainDirectionalLight);
-    state.fillDirectionalLight = new threeModuleMin.DirectionalLight(8886724, 0.72);
-    state.fillDirectionalLight.position.set(9, 7, -10);
-    state.fillDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.previewOverlayScene.add(state.fillDirectionalLight);
-    state.topDirectionalLight = new threeModuleMin.DirectionalLight(15791103, 0.68);
-    state.topDirectionalLight.position.set(0, 16, 1);
-    state.topDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    state.previewOverlayScene.add(state.topDirectionalLight);
-    state.previewModelRoot = new threeModuleMin.Group();
-    state.previewOverlayScene.add(state.previewModelRoot);
-    let overviewLayoutDocument: any;
-    let overviewLayoutRevision: any;
-    let overviewCenter = [0, 0, 0];
-    let overviewBoundsByFloor = new Map();
-    state.overviewStackController = createOverviewStack({
-      THREE: threeModuleMin,
-      renderer: state.renderer,
-      scene: state.previewOverlayScene,
-      getCamera: () => state.previewCamera,
-      getLayout: () => {
-        const documentFloors = state.studioDocument?.floors || [];
-        const floorGap = state.exportRenderState
-          ? finite(state.studioDocument?.exportFloorGap, 3)
-          : finite(state.studioDocument?.previewFloorGap, 3);
-        if (
-          state.studioDocument?.uniformOverviewStack &&
-          (overviewLayoutDocument !== state.studioDocument ||
-            overviewLayoutRevision !== state.sceneCacheRevision)
-        ) {
-          const floorsBounds = new threeModuleMin.Box3();
-          overviewBoundsByFloor = new Map();
-          for (const overviewSourceFloor of documentFloors) {
-            const floorWallVertices = [];
-            for (const floorWall of overviewSourceFloor.scene.walls) {
-              for (const wallPoint of [floorWall.start, floorWall.end]) {
-                const floorScenePoint = floorPointToScenePoint(overviewSourceFloor, wallPoint);
-                floorsBounds.expandByPoint(
-                  new threeModuleMin.Vector3(floorScenePoint.x, 0, floorScenePoint.z)
-                );
-                floorWallVertices.push(
-                  [floorScenePoint.x, 0, floorScenePoint.z],
-                  [floorScenePoint.x, finite(floorWall.height, 2.8), floorScenePoint.z]
-                );
-              }
-            }
-            overviewBoundsByFloor.set(overviewSourceFloor.id, floorWallVertices);
-          }
-          overviewCenter = (
-            floorsBounds.isEmpty()
-              ? new threeModuleMin.Vector3()
-              : floorsBounds.getCenter(new threeModuleMin.Vector3())
-          ).toArray();
-          overviewLayoutDocument = state.studioDocument;
-          overviewLayoutRevision = state.sceneCacheRevision;
-        }
-        return {
-          enabled: state.studioDocument?.uniformOverviewStack === true,
-          floors: documentFloors,
-          gap: floorGap,
-          bounds: overviewBoundsByFloor,
-          center: [
-            overviewCenter[0],
-            ((documentFloors.length - 1) * floorGap) / 2,
-            overviewCenter[2]
-          ],
-          amount: state.overviewStackAmount ?? (currentPreviewFloorMode() === "all" ? 1 : 0)
-        };
-      }
-    });
-    window.addEventListener("pagehide", () => state.overviewStackController?.dispose(), {
-      once: true
-    });
-    if (isRegionLightingEnabled) {
-      state.contactShadowController = createContactShadowController({
-        THREE: threeModuleMin,
-        renderer: state.renderer,
-        getRoot: () => state.previewModelRoot,
-        requestFrame: requestRenderFrame,
-        canBuild: () =>
-          externalModelManager.modelLoadState().active === 0 &&
-          externalModelManager.modelLoadState().queued === 0
-      });
-      state.regionLightController = createRegionLightController({
-        THREE: threeModuleMin,
-        renderer: state.renderer,
-        scene: state.previewOverlayScene,
-        getRoot: () => state.previewModelRoot,
-        contactShadows: state.contactShadowController,
-        requestFrame: requestRenderFrame
-      });
-    } else {
-      state.spotShadowAtlasController = createSpotShadowAtlasController({
-        THREE: threeModuleMin,
-        renderer: state.renderer,
-        scene: state.previewOverlayScene,
-        camera: state.previewCamera,
-        syncBeforeRender: isStageViewerMode,
-        requestFrame: requestRenderFrame,
-        canBuild: () =>
-          !document.hidden &&
-          !state.exportRenderState &&
-          !state.isCameraMotionActive &&
-          !state.isMotionRendering &&
-          !state.isCurtainMoving &&
-          !state.isVacuumMoving &&
-          !state.isBackgroundFrameVisible &&
-          !state.isExportRendering &&
-          !state.isLightCacheBuilding &&
-          externalModelManager.modelLoadState().active === 0 &&
-          externalModelManager.modelLoadState().queued === 0
-      });
-    }
-    applyBaseLighting();
-    state.resizeObserver = new ResizeObserver(handleStageResize);
-    state.resizeObserver.observe(stageContainer);
-    resetCameraView();
-    let lastFrameTimeMs = performance.now();
-    let lastMotionFrameTimeMs = -Infinity;
-    const renderFrame = (rafTimestampMs = performance.now()) => {
-      if (!state.renderer) {
-        return Infinity;
-      }
-      const frameDeltaSeconds = Math.min(
-        Math.max((rafTimestampMs - lastFrameTimeMs) / 1000, 0),
-        0.05
-      );
-      lastFrameTimeMs = rafTimestampMs;
-      if (document.hidden) {
-        return Infinity;
-      }
-      const controlsChanged = state.orbitControls.update(frameDeltaSeconds);
-      if (controlsChanged) {
-        lastMotionFrameTimeMs = rafTimestampMs;
-      }
-      const idleDelayMs = rafTimestampMs - lastMotionFrameTimeMs < 600 ? 0 : Infinity;
-      if (controlsChanged) {
-        state.needsRender = true;
-      }
-      if (!state.needsRender && state.hasRenderedFrame) {
-        return idleDelayMs;
-      }
-      state.needsRender = false;
-      state.renderer.render(state.previewOverlayScene, state.previewCamera);
-      sampleFrameInterval();
-      state.hasRenderedFrame = true;
-      if (isStageViewerMode) {
-        state.renderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame"));
-      }
-      return idleDelayMs;
-    };
-    state.demandFrameLoop = createDemandFrameLoop({
-      onWake() {
-        lastFrameTimeMs = performance.now();
-      },
-      step(stepTimestampMs) {
-        return renderFrame(stepTimestampMs);
-      }
-    });
-    const wakeFrameLoop = () => state.demandFrameLoop.wake();
-    const syncFrameLoopAvailability = () => {
-      lastFrameTimeMs = performance.now();
-      const frameLoopEnabled = !document.hidden && state.isFrameLoopAvailable;
-      state.demandFrameLoop.setAvailable(frameLoopEnabled);
-      if (frameLoopEnabled) {
-        requestRenderFrame();
-        if (state.needsLightCacheRefresh) {
-          scheduleLightCacheBuild();
-        }
-      } else {
-        window.clearTimeout(state.lightCacheSettleTimer);
-        state.lightCacheSettleTimer = null;
-      }
-    };
-    if (isStageViewerMode) {
-      const handleParentVisibilityChange = (visibilityEvent: any) => {
-        state.isFrameLoopAvailable = visibilityEvent.detail === true;
-        syncFrameLoopAvailability();
-        if (state.isFrameLoopAvailable && state.shouldRerunLightPrecompile) {
-          scheduleLightPrecompile();
-        }
-      };
-      state.renderer.domElement.addEventListener(
-        "hb-i3d-parent-visibility",
-        handleParentVisibilityChange
-      );
-      for (const eventName of [
-        "pointerdown",
-        "pointermove",
-        "pointerup",
-        "pointercancel",
-        "wheel",
-        "keydown",
-        "keyup"
-      ]) {
-        state.renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
-          passive: true
-        });
-      }
-      document.addEventListener("visibilitychange", syncFrameLoopAvailability);
-      window.addEventListener(
-        "pagehide",
-        () => {
-          state.demandFrameLoop.dispose();
-          document.removeEventListener("visibilitychange", syncFrameLoopAvailability);
-          state.spotShadowAtlasController?.dispose?.();
-          state.regionLightController?.dispose();
-          state.contactShadowController?.dispose();
-          state.renderer.domElement.removeEventListener(
-            "hb-i3d-parent-visibility",
-            handleParentVisibilityChange
-          );
-          for (const cleanupEventName of [
-            "pointerdown",
-            "pointermove",
-            "pointerup",
-            "pointercancel",
-            "wheel",
-            "keydown",
-            "keyup"
-          ]) {
-            state.renderer.domElement.removeEventListener(cleanupEventName, wakeFrameLoop);
-          }
-        },
-        {
-          once: true
-        }
-      );
-      syncFrameLoopAvailability();
-      wakeFrameLoop();
-    } else {
-      for (const eventName of [
-        "pointerdown",
-        "pointermove",
-        "pointerup",
-        "pointercancel",
-        "wheel",
-        "keydown",
-        "keyup"
-      ]) {
-        state.renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
-          passive: true
-        });
-      }
-      document.addEventListener("visibilitychange", syncFrameLoopAvailability);
-      syncFrameLoopAvailability();
-      wakeFrameLoop();
-    }
-  } catch (webglInitError) {
-    // 建不出上下文先重试一次（只一次）：GPU 进程刚重启、或显存一时腾不出来时（macOS 上
-    if (!state.renderer && !isRetry && isWebglContextCreationFailure(webglInitError)) {
-      await new Promise(resolveStageRetry => window.setTimeout(resolveStageRetry, 1000));
-      await initializeStudioStage({
-        isRetry: true
-      });
-      return;
-    }
-    selectElement("#webgl-message").hidden = false;
-    window.HABridgeLog?.error?.(webglInitError, {
-      phase: "studio-webgl-init"
-    });
-    debugLog("error", webglInitError);
-    // 渲染器根本没建起来时这一页后面每一步都直接用 renderer，继续往下跑只会以
-    if (!state.renderer) {
-      throw new Error("当前浏览器无法创建 3D 画面，可能是显卡资源不足或已被其它 3D 页面占用，请关闭后重试。");
-    }
-  }
-}
-/**
- * 处理导出宽高输入，按锁定比例联动另一边并夹紧到 320–4096。shouldClampBoth 为真时
- */
-function setExportDimension(dimension: any, shouldClampBoth = false) {
-  const inputDimensionValue = Number(
-    (dimension === "width" ? exportWidthInput : exportHeightInput).value
-  );
-  if (!Number.isFinite(inputDimensionValue) || inputDimensionValue <= 0) {
-    return;
-  }
-  let nextWidthPx = dimension === "width" ? inputDimensionValue : Number(exportWidthInput.value);
-  let nextHeightPx = dimension === "height" ? inputDimensionValue : Number(exportHeightInput.value);
-  nextWidthPx =
-    Number.isFinite(nextWidthPx) && nextWidthPx > 0 ? nextWidthPx : DEFAULT_EXPORT_WIDTH;
-  nextHeightPx =
-    Number.isFinite(nextHeightPx) && nextHeightPx > 0 ? nextHeightPx : DEFAULT_EXPORT_HEIGHT;
-  if (exportLockRatioInput.checked) {
-    if (dimension === "width") {
-      if (shouldClampBoth) {
-        nextWidthPx = clamp(nextWidthPx, 320, 4096);
-        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
-        if (nextHeightPx < 320) {
-          nextHeightPx = 320;
-          nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
-        }
-        if (nextHeightPx > 4096) {
-          nextHeightPx = 4096;
-          nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
-        }
-      } else {
-        nextHeightPx = Math.round(clamp(nextWidthPx / state.exportAspectRatio, 320, 4096));
-      }
-    } else if (shouldClampBoth) {
-      nextHeightPx = clamp(nextHeightPx, 320, 4096);
-      nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
-      if (nextWidthPx < 320) {
-        nextWidthPx = 320;
-        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
-      }
-      if (nextWidthPx > 4096) {
-        nextWidthPx = 4096;
-        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
-      }
-    } else {
-      nextWidthPx = Math.round(clamp(nextHeightPx * state.exportAspectRatio, 320, 4096));
-    }
-  }
-  if (shouldClampBoth) {
-    nextWidthPx = Math.round(clamp(nextWidthPx, 320, 4096));
-    nextHeightPx = Math.round(clamp(nextHeightPx, 320, 4096));
-    exportWidthInput.value = String(nextWidthPx);
-    exportHeightInput.value = String(nextHeightPx);
-  } else if (exportLockRatioInput.checked) {
-    if (dimension === "width") {
-      exportHeightInput.value = String(nextHeightPx);
-    } else {
-      exportWidthInput.value = String(nextWidthPx);
-    }
-  }
-  refreshExportPreview();
-}
-/**
- * 切换活动导出档位：先保存当前档位，再应用目标档位。非法下标或导出进行中直接忽略。
- */
-function selectExportPresetSlot(presetSlotIndexToApply: any) {
-  const presetSlotCount = state.studioDocument?.exportPresets?.length || 0;
-  if (
-    !Number.isInteger(presetSlotIndexToApply) ||
-    presetSlotIndexToApply < 0 ||
-    presetSlotIndexToApply >= presetSlotCount ||
-    state.isExportBusy
-  ) {
-    return;
-  }
-  saveActiveExportPreset();
-  state.studioDocument.activeExportPresetSlot = presetSlotIndexToApply;
-  const didApplyPreset = applyExportPreset(presetSlotIndexToApply);
-  state.exportPresets = false;
-  renderExportPresetSlots();
-  markDocumentDirty();
-  if (!didApplyPreset) {
-    exportStatusElement.textContent =
-      "存档 " + String(presetSlotIndexToApply + 1).padStart(2, "0") + " 没有设置";
-  }
-}
-/**
- * 生成不与其他档位重名的名称（重名则追加递增序号）。名称先按 normalizeLabelText 截到 24 字；
- */
-function uniqueExportPresetName(baseName: any, excludeSlotIndex = -1) {
-  const normalizedPresetName = normalizeLabelText(baseName, "导出视角", 24);
-  const presetLabelSet = new Set(
-    (state.studioDocument?.exportPresets || [])
-      .map((presetEntry: any, presetEntryIndex: any) =>
-        presetEntryIndex === excludeSlotIndex
-          ? ""
-          : exportPresetLabel(presetEntry, presetEntryIndex)
-      )
-      .filter(Boolean)
-  );
-  if (!presetLabelSet.has(normalizedPresetName)) {
-    return normalizedPresetName;
-  }
-  let duplicateSuffixNumber = 2;
-  while (presetLabelSet.has(normalizedPresetName + " " + duplicateSuffixNumber)) {
-    duplicateSuffixNumber += 1;
-  }
-  return (normalizedPresetName + " " + duplicateSuffixNumber).slice(0, 24);
-}
-/**
- * 新增一个导出档位：以当前视角为初始状态，并沿用上一个档位的分辨率设置。先保存当前档位以免
- */
-function addExportPresetSlot() {
-  if (!state.exportRenderState || state.isExportBusy) {
-    return;
-  }
-  saveActiveExportPreset();
-  state.studioDocument.exportPresets = normalizeExportPresetSlots(state.studioDocument.exportPresets);
-  if (state.studioDocument.exportPresets.length >= MAX_EXPORT_PRESET_COUNT) {
-    showToast("最多可以保存 8 个导出存档。");
-    return;
-  }
-  const presetCount = state.studioDocument.exportPresets.length;
-  const presetBaseName =
-    currentPreviewFloorMode() === "all"
-      ? "全楼"
-      : getCurrentFloor()?.name || "存档 " + (presetCount + 1);
-  const newPresetName = uniqueExportPresetName(presetBaseName + "视角");
-  const previousPreset = state.studioDocument.exportPresets.slice(0, presetCount).reverse().find(Boolean);
-  const newPreset: any = buildExportPreset({
-    name: newPresetName
-  });
-  if (previousPreset) {
-    newPreset.width = previousPreset.width;
-    newPreset.height = previousPreset.height;
-    newPreset.lockRatio = previousPreset.lockRatio;
-  }
-  state.studioDocument.exportPresets.push(newPreset);
-  state.studioDocument.activeExportPresetSlot = presetCount;
-  state.exportPresets = false;
-  renderExportPresetSlots();
-  markDocumentDirty();
-  exportStatusElement.textContent = "已新增“" + newPresetName + "”";
-  showToast("已新增“" + newPresetName + "”，可以继续调整楼层和视角。", "success");
-}
-/**
  * 切换导出忙碌态：禁用对话框内除「关闭」与「导出」之外的控件，并显示忙碌提示。
  */
 function setExportBusy(busyState: any) {
@@ -2965,45 +1953,6 @@ function setExportBusy(busyState: any) {
   state.orbitControls.enabled = !busyState;
 }
 /**
- * 把 canvas 转成 Blob（JPEG / PNG 与质量由导出常量决定）。
- */
-function canvasToBlob(sourceCanvas: any) {
-  return new Promise((resolveBlob, rejectBlob) => {
-    sourceCanvas.toBlob(
-      (producedBlob: any) => {
-        if (producedBlob) {
-          resolveBlob(producedBlob);
-        } else {
-          rejectBlob(new Error("无法生成导出图像。"));
-        }
-      },
-      EXPORT_IMAGE_MIME_TYPE,
-      EXPORT_IMAGE_QUALITY
-    );
-  });
-}
-async function captureStageImage(captureWidth: any, captureHeight: any, captureOptions: any = {}) {
-  renderExportPreviewFrames();
-  const captureCanvasElement = document.createElement("canvas");
-  captureCanvasElement.width = captureWidth;
-  captureCanvasElement.height = captureHeight;
-  const captureContext = captureCanvasElement.getContext("2d", {
-    willReadFrequently: captureOptions.pixels === true
-  });
-  if (!captureContext) {
-    throw new Error("当前浏览器无法创建导出画布。");
-  }
-  captureContext.drawImage(state.renderer.domElement, 0, 0, captureWidth, captureHeight);
-  const captureResult: any = {};
-  if (captureOptions.pixels) {
-    captureResult.imageData = captureContext.getImageData(0, 0, captureWidth, captureHeight);
-  }
-  if (captureOptions.blob) {
-    captureResult.blob = await canvasToBlob(captureCanvasElement);
-  }
-  return captureResult;
-}
-/**
  * 合成电视画面层：把「点亮电视后」的画面减去「未点亮」的基准画面，得到透明的画面增量层，
  */
 async function composeTelevisionLayerBlob(basePixelFrame: any, litPixelFrame: any) {
@@ -3021,105 +1970,6 @@ async function composeTelevisionLayerBlob(basePixelFrame: any, litPixelFrame: an
     0
   );
   return canvasToBlob(televisionLayerCanvas);
-}
-async function compositeLightGroupShadows(
-  baseFrame: any,
-  lightGroupExportEntry: any,
-  frameWidthPx: any,
-  frameHeightPx: any,
-  lightGroupOrdinal: any,
-  lightGroupTotal: any
-) {
-  const shadowCompositeCanvas = document.createElement("canvas");
-  shadowCompositeCanvas.width = frameWidthPx;
-  shadowCompositeCanvas.height = frameHeightPx;
-  const shadowCompositeContext = shadowCompositeCanvas.getContext("2d");
-  const lightLayerCanvas = document.createElement("canvas");
-  lightLayerCanvas.width = frameWidthPx;
-  lightLayerCanvas.height = frameHeightPx;
-  const lightLayerContext = lightLayerCanvas.getContext("2d");
-  if (!shadowCompositeContext || !lightLayerContext) {
-    throw new Error("当前浏览器无法合成逐灯阴影。");
-  }
-  const enabledGroupLights = lightGroupExportEntry.lights.filter(
-    (groupLightItem: any) => finite(groupLightItem.lightBrightness, 0) > 0
-  );
-  try {
-    for (let lightLoopIndex = 0; lightLoopIndex < enabledGroupLights.length; lightLoopIndex += 1) {
-      const currentGroupLight = enabledGroupLights[lightLoopIndex];
-      exportStatusElement.textContent =
-        "正在渲染灯组 " +
-        (lightGroupOrdinal + 1) +
-        "/" +
-        lightGroupTotal +
-        "：" +
-        lightGroupExportEntry.name +
-        "（" +
-        (lightLoopIndex + 1) +
-        "/" +
-        enabledGroupLights.length +
-        "）";
-      state.forcedVisibleLightIds = new Set([currentGroupLight.id]);
-      if (currentPreviewFloorMode() === "all") {
-        refreshPreviewScene({
-          preserveLightCache: true
-        });
-      } else {
-        refreshLightsLayer({
-          preserveLightCache: true
-        });
-      }
-      const litFrameCapture = await captureStageImage(frameWidthPx, frameHeightPx, {
-        pixels: true
-      });
-      const lightDeltaPixelData = buildLightDeltaPixels(
-        baseFrame.data,
-        litFrameCapture.imageData.data
-      );
-      lightLayerContext.clearRect(0, 0, frameWidthPx, frameHeightPx);
-      lightLayerContext.putImageData(
-        new ImageData(lightDeltaPixelData as any, frameWidthPx, frameHeightPx),
-        0,
-        0
-      );
-      shadowCompositeContext.drawImage(lightLayerCanvas, 0, 0);
-      await yieldToScheduler();
-    }
-  } finally {
-    state.forcedVisibleLightIds = null;
-  }
-  return canvasToBlob(shadowCompositeCanvas);
-}
-/**
- * 合成导出用的背景底图：先铺满主题背景色，再把户型俯视图逐像素叠上去。户型俯视图由离屏
- */
-async function composeBackgroundBlob(
-  backgroundWidthPx: any,
-  backgroundHeightPx: any,
-  floorPlanImageData: any = null
-) {
-  const backgroundCanvasElement = document.createElement("canvas");
-  backgroundCanvasElement.width = backgroundWidthPx;
-  backgroundCanvasElement.height = backgroundHeightPx;
-  const backgroundCanvasContext = backgroundCanvasElement.getContext("2d");
-  if (!backgroundCanvasContext) {
-    throw new Error("当前浏览器无法创建导出底图。");
-  }
-  backgroundCanvasContext.fillStyle =
-    "#" + studioPalette().background.toString(16).padStart(6, "0");
-  backgroundCanvasContext.fillRect(0, 0, backgroundWidthPx, backgroundHeightPx);
-  if (floorPlanImageData) {
-    const floorPlanCanvasElement = document.createElement("canvas");
-    floorPlanCanvasElement.width = backgroundWidthPx;
-    floorPlanCanvasElement.height = backgroundHeightPx;
-    const floorPlanCanvasContext = floorPlanCanvasElement.getContext("2d");
-    if (!floorPlanCanvasContext) {
-      throw new Error("当前浏览器无法合成户型底图。");
-    }
-    floorPlanCanvasContext.putImageData(floorPlanImageData, 0, 0);
-    backgroundCanvasContext.drawImage(floorPlanCanvasElement, 0, 0);
-  }
-  return canvasToBlob(backgroundCanvasElement);
 }
 /**
  * @returns {string} 可用的文件名。
@@ -3163,114 +2013,6 @@ function buildExportCameraState(aspectViewportWidth: any, aspectViewportHeight: 
     visibleHeight: measureVisibleHeight(state.previewCamera, orbitControlTarget),
     fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : null
   };
-}
-/**
- * @returns {object} 导出用的灯光描述对象。
- */
-function buildExportedLight(lightSourceItem: any, owningFloor = getCurrentFloor()) {
-  const activeFloorPixelsPerMeter = owningFloor?.scene?.calibration?.pixelsPerMeter || 1;
-  return {
-    id: lightSourceItem.id,
-    floorId: owningFloor?.id || null,
-    type: lightSourceItem.type,
-    position: {
-      x: lightSourceItem.x / activeFloorPixelsPerMeter,
-      z: lightSourceItem.y / activeFloorPixelsPerMeter,
-      elevation: floorExportOffset(owningFloor) + (lightSourceItem.elevation || 0)
-    },
-    rotation: lightSourceItem.rotation || 0,
-    verticalRotation: lightSourceItem.verticalRotation || 0,
-    stripRollRotation:
-      (lightSourceItem.type === "striplight" && lightSourceItem.stripRollRotation) || 0,
-    size: {
-      width: lightSourceItem.width,
-      depth: lightSourceItem.depth
-    },
-    temperature: lightSourceItem.lightTemperature,
-    brightness: lightSourceItem.lightBrightness,
-    range: lightSourceItem.lightRange,
-    angle: lightSourceItem.lightAngle
-  };
-}
-/**
- * 把某个锚点（灯光 / 设备）投影到当前相机画面，返回 0~1 的归一化屏幕坐标。全楼合并模式下先把「平面像素 + 楼层
- */
-function projectAnchorToFloorPlan(anchorItem: any, anchorFloor: any, floorCandidates = previewFloors()) {
-  if (!anchorItem || !anchorFloor || !state.previewCamera) {
-    return null;
-  }
-  const anchorPixelsPerMeter = anchorFloor.scene?.calibration?.pixelsPerMeter || 1;
-  let anchorOffsetX = 0;
-  let anchorElevation =
-    Math.max(0, finite(anchorItem.elevation, 0)) +
-    Math.max(0.02, finite(anchorItem.height, 0.1)) / 2;
-  let anchorOffsetZ = 0;
-  if (currentPreviewFloorMode() === "all") {
-    const floorLocalX =
-      (finite(anchorItem.x, 0) - finite(anchorFloor.originX, 0)) / anchorPixelsPerMeter;
-    const floorLocalY =
-      (finite(anchorItem.y, 0) - finite(anchorFloor.originY, 0)) / anchorPixelsPerMeter;
-    const floorRotationRadians = -threeModuleMin.MathUtils.degToRad(
-      finite(anchorFloor.rotation, 0)
-    );
-    anchorOffsetX =
-      floorLocalX * Math.cos(floorRotationRadians) +
-      floorLocalY * Math.sin(floorRotationRadians) +
-      finite(anchorFloor.offsetX, 0);
-    anchorOffsetZ =
-      -floorLocalX * Math.sin(floorRotationRadians) +
-      floorLocalY * Math.cos(floorRotationRadians) +
-      finite(anchorFloor.offsetZ, 0);
-    const floorsSortedByElevation = [...floorCandidates].sort(
-      (floorEntryA, floorEntryB) => floorEntryA.elevation - floorEntryB.elevation
-    );
-    const floorStackIndex = Math.max(
-      0,
-      floorsSortedByElevation.findIndex(stackFloorEntry => stackFloorEntry.id === anchorFloor.id)
-    );
-    anchorElevation += floorStackIndex * finite(state.studioDocument.exportFloorGap, 3);
-  } else {
-    const singleFloorScene = anchorFloor.scene;
-    const singleFloorBounds = singleFloorScene.walls?.length
-      ? modelBounds({
-          background: null,
-          walls: singleFloorScene.walls,
-          items: []
-        })
-      : singleFloorScene.items?.length
-        ? modelBounds({
-            background: null,
-            walls: [],
-            items: singleFloorScene.items
-          })
-        : modelBounds(singleFloorScene);
-    anchorOffsetX =
-      (finite(anchorItem.x, 0) - (singleFloorBounds.minX + singleFloorBounds.maxX) / 2) /
-      anchorPixelsPerMeter;
-    anchorOffsetZ =
-      (finite(anchorItem.y, 0) - (singleFloorBounds.minY + singleFloorBounds.maxY) / 2) /
-      anchorPixelsPerMeter;
-  }
-  state.previewCamera.updateMatrixWorld(true);
-  const projectedAnchorPoint = new threeModuleMin.Vector3(
-    anchorOffsetX,
-    anchorElevation,
-    anchorOffsetZ
-  ).project(state.previewCamera);
-  if (
-    ![projectedAnchorPoint.x, projectedAnchorPoint.y, projectedAnchorPoint.z].every(
-      Number.isFinite
-    ) ||
-    projectedAnchorPoint.z < -1 ||
-    projectedAnchorPoint.z > 1
-  ) {
-    return null;
-  } else {
-    return {
-      x: clamp((projectedAnchorPoint.x + 1) / 2, 0, 1),
-      y: clamp((1 - projectedAnchorPoint.y) / 2, 0, 1)
-    };
-  }
 }
 /**
  * 在一组灯光里找出第一个能投影进画面的锚点，用于导出时自动取景构图；全部不可见时返回 null。
@@ -3996,86 +2738,6 @@ function setPreviewFloorMode(mode: any, { persist: persistPreviewMode = true } =
   }
 }
 /**
- * 只重建指定楼层（楼层内容变化时的增量切换）。叠放模式下若目标楼层对应的 Group 尚未建出（或楼层列表与场景不同步），
- */
-function switchPreviewFloor(targetFloorIds: any) {
-  if (!targetFloorIds.size || !state.previewModelRoot) {
-    return;
-  }
-  if (currentPreviewFloorMode() !== "all") {
-    if (targetFloorIds.has(state.activeFloorId)) {
-      refreshPreviewScene();
-    }
-    return;
-  }
-  const switchRootSnapshot = state.previewModelRoot;
-  const switchSceneSnapshot = state.activeScene;
-  const switchFloorIdSnapshot = state.activeFloorId;
-  const switchFocusSnapshot = state.floorFocusPoint;
-  const switchSortedFloors = [...state.studioDocument.floors].sort(
-    (switchFloorA, switchFloorB) => switchFloorA.elevation - switchFloorB.elevation
-  );
-  if (
-    switchSortedFloors.some(
-      candidateFloorRecord =>
-        !switchRootSnapshot.children.some(
-          (matchedFloorChild: any) => matchedFloorChild.userData?.floorId === candidateFloorRecord.id
-        )
-    )
-  ) {
-    refreshPreviewScene();
-    return;
-  }
-  try {
-    for (const [targetFloorIndex, targetFloorRecord] of switchSortedFloors.entries()) {
-      if (
-        targetFloorIds.has(targetFloorRecord.id) &&
-        ((state.previewModelRoot = switchRootSnapshot.children.find(
-          (foundFloorChild: any) => foundFloorChild.userData?.floorId === targetFloorRecord.id
-        )),
-        (state.activeScene = targetFloorRecord.scene),
-        (state.activeFloorId = targetFloorRecord.id),
-        (state.floorFocusPoint = {
-          x: finite(targetFloorRecord.originX, 0),
-          y: finite(targetFloorRecord.originY, 0)
-        }),
-        state.previewModelRoot.position.set(
-          finite(targetFloorRecord.offsetX, 0),
-          targetFloorIndex * state.studioDocument.previewFloorGap,
-          finite(targetFloorRecord.offsetZ, 0)
-        ),
-        state.previewModelRoot.rotation.set(
-          0,
-          -threeModuleMin.MathUtils.degToRad(finite(targetFloorRecord.rotation, 0)),
-          0
-        ),
-        state.previewModelRoot.scale.set(1, 1, 1),
-        rebuildPreviewScene(),
-        targetFloorIndex > 0)
-      ) {
-        for (const hiddenFloorChild of [...state.previewModelRoot.children]) {
-          if (["background", "grid"].includes(hiddenFloorChild.userData?.exportRole)) {
-            if (isStageViewerMode) {
-              hiddenFloorChild.userData.floorBackgroundHidden = true;
-              hiddenFloorChild.visible = false;
-              continue;
-            }
-            state.previewModelRoot.remove(hiddenFloorChild);
-            disposeSceneSubtree(hiddenFloorChild);
-          }
-        }
-      }
-    }
-  } finally {
-    state.previewModelRoot = switchRootSnapshot;
-    state.activeScene = switchSceneSnapshot;
-    state.activeFloorId = switchFloorIdSnapshot;
-    state.floorFocusPoint = switchFocusSnapshot;
-  }
-  applyShadowBudget(switchRootSnapshot);
-  fitDirectionalShadowCamera();
-}
-/**
  * 记录相机手势的最新坐标并安排下一帧处理（节流入口）。只保存最新位置，帧回调取用时天然丢掉中间态 —— 相机跟随不需要
  */
 function updateCameraGestureState(moveTrackingEvent: any) {
@@ -4086,314 +2748,6 @@ function updateCameraGestureState(moveTrackingEvent: any) {
     shiftKey: moveTrackingEvent.shiftKey
   };
   state.cameraGestureFrame ||= requestAnimationFrame(onCameraGestureFrame);
-}
-function applyInspectorChanges(entityKind: any) {
-  const editingEntity = findSelectedEntity();
-  if (!editingEntity || state.primarySelection?.kind !== entityKind) {
-    return;
-  }
-  const inspectorRefreshScope =
-    entityKind === "item"
-      ? scopeForItem(editingEntity)
-      : ["door", "window", "railing"].includes(entityKind)
-        ? "architecture"
-        : "all";
-  pushHistorySnapshot();
-  if (entityKind === "wall") {
-    editingEntity.height = clamp(
-      finite(selectElement("#wall-height").value, editingEntity.height),
-      0.01,
-      6
-    );
-    editingEntity.thickness = clamp(
-      finite(selectElement("#wall-thickness").value, editingEntity.thickness),
-      0.01,
-      3
-    );
-    editingEntity.opacity =
-      selectElement("#wall-opacity-mode").value === "custom"
-        ? clamp(
-            finite(selectElement("#wall-opacity").value, state.activeScene.settings.wallOpacity * 100),
-            0,
-            100
-          ) / 100
-        : null;
-    editingEntity.allowOpenEnd = selectElement("#wall-open-end-mode").value === "allowed";
-    state.activeScene.settings.wallHeight = editingEntity.height;
-    state.activeScene.settings.wallThickness = editingEntity.thickness;
-  } else if (entityKind === "window") {
-    editingEntity.width = clamp(
-      finite(selectElement("#window-width").value, editingEntity.width),
-      0.3,
-      20
-    );
-    editingEntity.height = clamp(
-      finite(selectElement("#window-height").value, editingEntity.height),
-      0.3,
-      20
-    );
-    editingEntity.sill = clamp(
-      finite(selectElement("#window-sill").value, editingEntity.sill),
-      0,
-      20
-    );
-    editingEntity.hasDivider = selectElement("#window-divider").value !== "without";
-    const windowWall = state.activeScene.walls.find(
-      (windowWallRecord: any) => windowWallRecord.id === editingEntity.wallId
-    );
-    if (windowWall) {
-      editingEntity.t = clampWindowT(windowWall, editingEntity, currentPixelsPerMeter());
-    }
-  } else if (entityKind === "door") {
-    editingEntity.doorType = Object.hasOwn(DOOR_TYPE_DIMENSIONS, selectElement("#door-type").value)
-      ? selectElement("#door-type").value
-      : "solid";
-    applyDoorMaterialStyle(
-      editingEntity,
-      editingEntity.doorType,
-      selectElement("#door-material").value
-    );
-    editingEntity.width = clamp(
-      finite(selectElement("#door-width").value, editingEntity.width),
-      0.55,
-      20
-    );
-    editingEntity.height = clamp(
-      finite(selectElement("#door-height").value, editingEntity.height),
-      1.8,
-      20
-    );
-    const doorWall = state.activeScene.walls.find(
-      (doorWallRecord: any) => doorWallRecord.id === editingEntity.wallId
-    );
-    if (doorWall) {
-      editingEntity.t = clampWindowT(doorWall, editingEntity, currentPixelsPerMeter());
-    }
-  } else if (entityKind === "railing") {
-    editingEntity.width = clamp(
-      finite(selectElement("#railing-width").value, editingEntity.width),
-      0.3,
-      20
-    );
-    editingEntity.height = clamp(
-      finite(selectElement("#railing-height").value, editingEntity.height),
-      0.5,
-      3
-    );
-    const inspectorRailingWall = state.activeScene.walls.find(
-      (railingWallRecord: any) => railingWallRecord.id === editingEntity.wallId
-    );
-    if (inspectorRailingWall) {
-      editingEntity.t = clampWindowT(inspectorRailingWall, editingEntity, currentPixelsPerMeter());
-    }
-  } else {
-    const inspectorPixelsPerMeter = currentPixelsPerMeter() || 1;
-    editingEntity.x =
-      finite(selectElement("#item-x").value, editingEntity.x / inspectorPixelsPerMeter) *
-      inspectorPixelsPerMeter;
-    editingEntity.y =
-      finite(selectElement("#item-y").value, editingEntity.y / inspectorPixelsPerMeter) *
-      inspectorPixelsPerMeter;
-    editingEntity.width = clamp(
-      finite(selectElement("#item-width").value, editingEntity.width),
-      itemMinimumFootprint(editingEntity.type),
-      8
-    );
-    editingEntity.height = clamp(
-      finite(selectElement("#item-height").value, editingEntity.height),
-      itemMinimumHeight(editingEntity.type),
-      6
-    );
-    editingEntity.depth = clamp(
-      finite(selectElement("#item-depth").value, editingEntity.depth),
-      itemMinimumFootprint(editingEntity.type),
-      8
-    );
-    editingEntity.elevation = clamp(
-      finite(selectElement("#item-elevation").value, editingEntity.elevation || 0),
-      0,
-      6
-    );
-    editingEntity.rotation =
-      editingEntity.type === "striplight"
-        ? normalizeFullRotation(selectElement("#item-rotation").value, editingEntity.rotation)
-        : finite(selectElement("#item-rotation").value, editingEntity.rotation);
-    if (editingEntity.type === "planlabel") {
-      editingEntity.title = normalizeLabelText(selectElement("#label-title").value, "家庭总览", 24);
-      editingEntity.subtitle = normalizeLabelText(
-        selectElement("#label-subtitle").value,
-        "HOME PLAN",
-        36
-      );
-      editingEntity.titleSpacing = clamp(
-        finite(selectElement("#label-title-spacing").value, 105) / 100,
-        0,
-        1.8
-      );
-      editingEntity.subtitleSpacing = clamp(
-        finite(selectElement("#label-subtitle-spacing").value, 8) / 100,
-        0,
-        0.6
-      );
-      editingEntity.lineLength = clamp(
-        finite(selectElement("#label-line-length").value, 86) / 100,
-        0.3,
-        1
-      );
-      editingEntity.height = 0.01;
-      editingEntity.elevation = 0;
-    }
-    if (editingEntity.type === "curtain") {
-      editingEntity.curtainPosition = ["left", "right", "split"].includes(
-        selectElement("#curtain-position").value
-      )
-        ? selectElement("#curtain-position").value
-        : "split";
-      const editedCurtainTrack = normalizeCurtainTrack(editingEntity).curtainTrack;
-      Object.assign(
-        editingEntity,
-        normalizeCurtainTrack({
-          // 形态先于轨道：卷帘会把下面的 curtainTrack 收敛成直线型（归一化里处理）。
-          curtainForm: selectElement("#curtain-form").value,
-          curtainTrack: selectElement("#curtain-track").value,
-          curtainCorner: selectElement("#curtain-corner").value,
-          curtainLeftLength: selectElement("#curtain-left-length").value,
-          curtainRightLength: selectElement("#curtain-right-length").value,
-          curtainMeet: selectElement("#curtain-meet").value,
-          curtainPreview: selectElement("#curtain-preview").value,
-          curtainFabric: selectElement("#curtain-fabric").value
-        })
-      );
-      if (editedCurtainTrack !== "straight" && editingEntity.curtainTrack === "straight") {
-        editingEntity.depth = 0.18;
-      }
-      editingEntity.depth = curtainFootprintDepth(editingEntity);
-    }
-    if (ROUND_TABLE_TURNTABLE_ITEM_TYPES.has(editingEntity.type)) {
-      editingEntity.roundTableTurntable = selectElement("#round-table-turntable").value === "with";
-    }
-    if (editingEntity.type === "fridge") {
-      // 只有 double 落键，其余（含未选、脏值）一律归一为 standard —— 与回填口径一致。
-      editingEntity.fridgeStyle =
-        (document.querySelector('input[name="fridge-style"]:checked') as any)?.value === "double"
-          ? "double"
-          : "standard";
-    }
-    if (STAIR_DIRECTION_ITEM_TYPES.has(editingEntity.type)) {
-      editingEntity.stairDirection = ["left", "right"].includes(
-        selectElement("#stair-direction").value
-      )
-        ? selectElement("#stair-direction").value
-        : "right";
-    }
-    if (editingEntity.type === "tv") {
-      const previousMountStyle = TV_MOUNT_STYLES.has(editingEntity.tvMountStyle)
-        ? editingEntity.tvMountStyle
-        : "standard";
-      const nextMountStyle = TV_MOUNT_STYLES.has(selectElement("#tv-mount-style").value)
-        ? selectElement("#tv-mount-style").value
-        : "standard";
-      if (previousMountStyle !== nextMountStyle && nextMountStyle === "mobile") {
-        editingEntity.height = Math.max(editingEntity.height, MOBILE_TV_MOUNT_DIMENSIONS.height);
-        editingEntity.elevation = 0;
-      } else if (
-        previousMountStyle === "mobile" &&
-        nextMountStyle !== "mobile" &&
-        Math.abs(editingEntity.height - MOBILE_TV_MOUNT_DIMENSIONS.height) < 0.001
-      ) {
-        editingEntity.height = ITEM_TYPE_DEFINITIONS.tv.height;
-      }
-      // 进深与离地高度跟着挂装方式走（壁挂 60mm / 0.70m，座装 180mm / 落地，移动 550mm / 落地）：
-      snapTelevisionMountDimensions(editingEntity, nextMountStyle);
-      editingEntity.tvMountStyle = nextMountStyle;
-    }
-    if (editingEntity.type === "mural") {
-      editingEntity.muralStyle = normalizeMuralArtStyle(selectElement("#mural-style").value);
-    }
-    if (editingEntity.type === "featurewall") {
-      editingEntity.wallStyle = normalizeFeatureWallStyle(
-        selectElement("#feature-wall-style").value
-      );
-    }
-    if (isMaterialStyleCapable(editingEntity.type)) {
-      const nextMaterialStyle = normalizeMaterialStyle(
-        editingEntity.type,
-        selectElement("#material-style").value
-      );
-      // auto 不落键：草稿 / 快照里只有真正选过风格才留下 materialStyle，
-      if (nextMaterialStyle === MATERIAL_STYLE_AUTO) {
-        delete editingEntity.materialStyle;
-      } else {
-        editingEntity.materialStyle = nextMaterialStyle;
-      }
-    }
-    if (editingEntity.type === "pillar") {
-      editingEntity.pillarShape = normalizePillarShape(selectElement("#pillar-shape").value);
-      editingEntity.pillarAxis = normalizePillarAxis(selectElement("#pillar-axis").value);
-    }
-    if (editingEntity.type === "striplight") {
-      editingEntity.stripAxis = normalizeStripAxis(selectElement("#strip-axis").value);
-    }
-    if (LIGHT_ITEM_TYPES.has(editingEntity.type)) {
-      const defaultLightSettings =
-        (DEFAULT_LIGHT_SETTINGS as any)[editingEntity.type] || DEFAULT_LIGHT_SETTINGS.downlight;
-      editingEntity.verticalRotation =
-        editingEntity.type === "striplight"
-          ? normalizeFullRotation(
-              selectElement("#item-vertical-rotation").value,
-              editingEntity.verticalRotation || 0
-            )
-          : clamp(
-              finite(
-                selectElement("#item-vertical-rotation").value,
-                editingEntity.verticalRotation || 0
-              ),
-              -90,
-              90
-            );
-      if (editingEntity.type === "striplight") {
-        editingEntity.stripRollRotation = normalizeFullRotation(
-          itemStripRollInput.value,
-          editingEntity.stripRollRotation || 0
-        );
-        editingEntity.lightSourceVisible = itemLightSourceVisibleInput.checked;
-      }
-      editingEntity.lightGroupId = state.activeScene.lightGroups.some(
-        (ownerLightGroup: any) => ownerLightGroup.id === selectElement("#light-group").value
-      )
-        ? selectElement("#light-group").value
-        : ensureActiveLightGroup().id;
-      editingEntity.lightTemperature = clamp(
-        finite(selectElement("#light-temperature").value, defaultLightSettings.temperature),
-        2200,
-        6500
-      );
-      editingEntity.lightBrightness = clamp(
-        finite(selectElement("#light-brightness").value, defaultLightSettings.brightness),
-        0,
-        100
-      );
-      editingEntity.lightRange = clamp(
-        finite(selectElement("#light-range").value, defaultLightSettings.range),
-        0.5,
-        10
-      );
-      editingEntity.lightAngle = clamp(
-        finite(selectElement("#light-angle").value, defaultLightSettings.angle),
-        15,
-        maxLightAngleForType(editingEntity.type)
-      );
-      editingEntity.height = (ITEM_TYPE_DEFINITIONS as any)[editingEntity.type].height;
-    } else if (["camera", "presence"].includes(editingEntity.type)) {
-      editingEntity.verticalRotation = clamp(
-        finite(selectElement("#item-vertical-rotation").value, editingEntity.verticalRotation || 0),
-        -180,
-        180
-      );
-    }
-  }
-  refreshStudio(inspectorRefreshScope);
-  markDocumentDirty();
 }
 /**
  * 结束连续画墙：清掉临时状态并重绘画布（工具栏「完成」按钮调用）。
@@ -4502,47 +2856,6 @@ removePlanButton.addEventListener("click", () => {
   }
 });
 /**
- * @param {HTMLInputElement} input 触发编辑的墙高 / 墙厚 / 墙不透明度输入框。
- */
-function beginWallSettingEdit(input: any) {
-  if (state.activeWallSettingInput && state.activeWallSettingInput !== input) {
-    commitWallSettingInput();
-  }
-  if (!state.activeWallSettingInput) {
-    pushHistorySnapshot();
-    state.activeWallSettingInput = input;
-    beginExportRender();
-  }
-}
-/**
- * @returns {void} 无返回值。
- */
-function scheduleOverlayRedraw() {
-  state.overlayRedrawFrame ||= requestAnimationFrame(() => {
-    state.overlayRedrawFrame = 0;
-    renderPlanView();
-  });
-}
-/**
- * 结束全局墙参数编辑：回填输入框显示值、刷新检查器与整场景，并解除导出渲染挂起。
- * @returns {void} 无返回值。
- */
-function commitWallSettingInput() {
-  window.clearTimeout(state.wallSettingCommitTimer);
-  state.wallSettingCommitTimer = null;
-  if (state.activeWallSettingInput) {
-    state.activeWallSettingInput = null;
-    syncControlValue(globalWallHeightInput, state.activeScene.settings.wallHeight.toFixed(2));
-    syncControlValue(globalWallThicknessInput, state.activeScene.settings.wallThickness.toFixed(2));
-    syncControlValue(globalWallOpacityInput, Math.round(state.activeScene.settings.wallOpacity * 100));
-    renderInspector();
-    applySceneRefresh({
-      scope: "all"
-    });
-    endExportRender();
-  }
-}
-/**
  * 延迟提交全局墙参数编辑，用于合并 change / blur 触发的多次提交。
  * @param {number} [commitDelayMs=80] 延迟毫秒数，传 0 表示立刻提交。
  */
@@ -4568,31 +2881,6 @@ function applyGlobalWallHeight() {
     for (const heightTargetWall of state.activeScene.walls) {
       heightTargetWall.height = nextWallHeight;
     }
-    markDocumentDirty();
-  }
-}
-/**
- * 把「全局墙厚」输入框的值写到场景设置与所有墙体，并同步平面视图重绘。
- * @returns {void} 无返回值。
- */
-function applyGlobalWallThickness() {
-  const nextWallThickness = clamp(
-    finite(globalWallThicknessInput.value, state.activeScene.settings.wallThickness),
-    0.01,
-    3
-  );
-  if (
-    !(Math.abs(nextWallThickness - state.activeScene.settings.wallThickness) < 1e-8) ||
-    !state.activeScene.walls.every(
-      (thicknessWall: any) => Math.abs(thicknessWall.thickness - nextWallThickness) < 1e-8
-    )
-  ) {
-    beginWallSettingEdit(globalWallThicknessInput);
-    state.activeScene.settings.wallThickness = nextWallThickness;
-    for (const thicknessTargetWall of state.activeScene.walls) {
-      thicknessTargetWall.thickness = nextWallThickness;
-    }
-    scheduleOverlayRedraw();
     markDocumentDirty();
   }
 }
@@ -4628,38 +2916,6 @@ toggleFloorEdgeButton.addEventListener("click", () => {
   refreshStudio();
   markDocumentDirty();
 });
-function activateAssetTab(tabName: any) {
-  const assetTab = ["home", "appliance", "light"].includes(tabName) ? tabName : "home";
-  const tabLightScope = currentLightScope();
-  closeLightGroupContextMenu();
-  state.activeAssetTab = assetTab;
-  for (const assetTabButton of assetCategoryButtons) {
-    const isActiveCategory = (assetTabButton as any).dataset.assetCategory === assetTab;
-    assetTabButton.classList.toggle("active", isActiveCategory);
-    assetTabButton.setAttribute("aria-pressed", String(isActiveCategory));
-  }
-  syncAssetTabVisibility();
-  assetGridElement.hidden = assetTab === "light";
-  lightAssetRowElement.hidden = assetTab !== "light";
-  const tabSelectedItem = findSelectedEntity();
-  const isSelectedLightItem =
-    state.primarySelection?.kind === "item" &&
-    tabSelectedItem &&
-    LIGHT_ITEM_TYPES.has(tabSelectedItem.type);
-  if (state.primarySelection && (assetTab === "light") != !!isSelectedLightItem) {
-    clearSelection();
-  }
-  if (state.multiSelection.length) {
-    clearSelection();
-  }
-  activateTool("select");
-  renderLightGroupList();
-  renderInspector();
-  renderPlanView();
-  if (tabLightScope !== currentLightScope()) {
-    requestSceneRefresh(tabLightScope);
-  }
-}
 for (const categoryButton of assetCategoryButtons) {
   categoryButton.addEventListener("click", () =>
     activateAssetTab((categoryButton as any).dataset.assetCategory)
@@ -4942,122 +3198,6 @@ function closeLightPropertyDialog() {
   state.activeLightPropertyEdit = null;
   lightPropertyApplyDialogElement.close();
 }
-/**
- * @returns {Array<HTMLInputElement>} 勾选框数组（可能为空）。
- */
-function collectLightTargetItems(lightTargetScopeElement = lightPropertyTargetListElement) {
-  return [...lightTargetScopeElement.querySelectorAll("[data-light-target-item-id]")];
-}
-function syncLightTargetSelection() {
-  const lightTargetItemElements = collectLightTargetItems();
-  const checkedLightTargetCount = lightTargetItemElements.filter(
-    lightTargetItemElement => lightTargetItemElement.checked
-  ).length;
-  lightPropertySelectionCountElement.textContent =
-    checkedLightTargetCount + "/" + lightTargetItemElements.length + " 灯";
-  lightPropertyToggleAllButton.disabled = !lightTargetItemElements.length;
-  lightPropertyToggleAllButton.textContent =
-    lightTargetItemElements.length && checkedLightTargetCount === lightTargetItemElements.length
-      ? "取消全选"
-      : "全选";
-  for (const lightGroupSectionElement of lightPropertyTargetListElement.querySelectorAll(
-    "[data-light-target-group-id]"
-  )) {
-    const lightGroupItemElements = collectLightTargetItems(lightGroupSectionElement);
-    const lightGroupCheckedCount = lightGroupItemElements.filter(
-      lightGroupItemElement => lightGroupItemElement.checked
-    ).length;
-    lightGroupSectionElement.querySelector("[data-light-target-group-count]").textContent =
-      lightGroupCheckedCount + "/" + lightGroupItemElements.length + " 灯";
-    lightGroupSectionElement.querySelector("[data-light-target-group-toggle]").textContent =
-      lightGroupItemElements.length && lightGroupCheckedCount === lightGroupItemElements.length
-        ? "取消全选"
-        : "全选";
-  }
-}
-function renderLightPropertyTargets(lightPropertyFieldKey: any) {
-  lightPropertyTargetListElement.replaceChildren();
-  let renderedLightCount = 0;
-  for (const lightTargetGroup of state.activeScene.lightGroups) {
-    const lightTargetGroupItems = state.activeScene.items.filter(
-      (lightTargetGroupItem: any) =>
-        LIGHT_ITEM_TYPES.has(lightTargetGroupItem.type) &&
-        lightTargetGroupItem.lightGroupId === lightTargetGroup.id
-    );
-    if (!lightTargetGroupItems.length) {
-      continue;
-    }
-    renderedLightCount += lightTargetGroupItems.length;
-    const createdLightGroupSection = document.createElement("section");
-    createdLightGroupSection.className = "light-property-target-group";
-    createdLightGroupSection.dataset.lightTargetGroupId = lightTargetGroup.id;
-    const lightGroupHeaderElement = document.createElement("header");
-    const lightGroupNameElement = document.createElement("strong");
-    lightGroupNameElement.textContent = lightTargetGroup.name;
-    const lightGroupCountElement = document.createElement("span");
-    lightGroupCountElement.dataset.lightTargetGroupCount = "";
-    const lightGroupToggleButton = document.createElement("button");
-    lightGroupToggleButton.type = "button";
-    lightGroupToggleButton.dataset.lightTargetGroupToggle = "";
-    lightGroupToggleButton.textContent = "取消全选";
-    lightGroupHeaderElement.append(
-      lightGroupNameElement,
-      lightGroupCountElement,
-      lightGroupToggleButton
-    );
-    const lightTargetGridElement = document.createElement("div");
-    lightTargetGridElement.className = "light-property-target-grid";
-    const lightCountsByItemType = new Map();
-    for (const listedLightItem of lightTargetGroupItems) {
-      lightCountsByItemType.set(
-        listedLightItem.type,
-        (lightCountsByItemType.get(listedLightItem.type) || 0) + 1
-      );
-    }
-    const lightOrdinalsByItemType = new Map();
-    for (const listedLightEntry of lightTargetGroupItems) {
-      const listedLightDefinition =
-        (ITEM_TYPE_DEFINITIONS as any)[listedLightEntry.type] || ITEM_TYPE_DEFINITIONS.downlight;
-      // 同一类型内的第几盏灯，用于「筒灯 2」这样的显示名。
-      const listedLightOrdinal = (lightOrdinalsByItemType.get(listedLightEntry.type) || 0) + 1;
-      lightOrdinalsByItemType.set(listedLightEntry.type, listedLightOrdinal);
-      const lightTargetLabelElement = document.createElement("label");
-      lightTargetLabelElement.className = "light-property-target-item";
-      const lightTargetCheckboxElement = document.createElement("input");
-      lightTargetCheckboxElement.type = "checkbox";
-      lightTargetCheckboxElement.checked = true;
-      lightTargetCheckboxElement.dataset.lightTargetItemId = listedLightEntry.id;
-      const lightTargetTextElement = document.createElement("span");
-      const lightTargetNameElement = document.createElement("strong");
-      lightTargetNameElement.textContent =
-        lightCountsByItemType.get(listedLightEntry.type) > 1
-          ? listedLightDefinition.name + " " + listedLightOrdinal
-          : listedLightDefinition.name;
-      const lightTargetValueElement = document.createElement("small");
-      const sanitizedLightFieldValue = sanitizeLightFieldValue(
-        lightPropertyFieldKey,
-        listedLightEntry[lightPropertyFieldKey],
-        listedLightEntry.type
-      );
-      lightTargetValueElement.textContent =
-        (listedLightEntry.id === state.primarySelection?.id ? "当前灯 · " : "") +
-        "当前 " +
-        formatLightFieldValue(lightPropertyFieldKey, sanitizedLightFieldValue);
-      lightTargetTextElement.append(lightTargetNameElement, lightTargetValueElement);
-      lightTargetLabelElement.append(lightTargetCheckboxElement, lightTargetTextElement);
-      lightTargetGridElement.append(lightTargetLabelElement);
-    }
-    createdLightGroupSection.append(lightGroupHeaderElement, lightTargetGridElement);
-    lightPropertyTargetListElement.append(createdLightGroupSection);
-  }
-  if (!renderedLightCount) {
-    const emptyLightTargetsElement = document.createElement("p");
-    emptyLightTargetsElement.className = "light-property-target-empty";
-    emptyLightTargetsElement.textContent = "当前没有可应用的灯具。";
-    lightPropertyTargetListElement.append(emptyLightTargetsElement);
-  }
-  syncLightTargetSelection();
-}
 for (const lightPropertyApplyButton of lightPropertyApplyButtons) {
   lightPropertyApplyButton.addEventListener("click", () => {
     const lightPropertySelectedEntity = findSelectedEntity();
@@ -5189,9 +3329,6 @@ const wallPropertyApplyDialogElement = selectElement("#wall-property-apply-dialo
 const wallPropertyApplyFormElement = selectElement("#wall-property-apply-form");
 const wallPropertyApplyTitleElement = selectElement("#wall-property-apply-title");
 const wallPropertyApplyValueElement = selectElement("#wall-property-apply-value");
-const wallPropertyTargetListElement = selectElement("#wall-property-target-list");
-const wallPropertySelectionCountElement = selectElement("#wall-property-selection-count");
-const wallPropertyToggleAllButton = selectElement("#wall-property-toggle-all");
 const wallPropertyApplyButtons = [...document.querySelectorAll("[data-apply-wall-property]")];
 
 /**
@@ -5201,102 +3338,6 @@ const wallPropertyApplyButtons = [...document.querySelectorAll("[data-apply-wall
 function closeWallPropertyApplyDialog() {
   state.wallPropertyApplyEdit = null;
   wallPropertyApplyDialogElement.close();
-}
-/**
- * 收集某个作用域内的墙面勾选框（不传则默认整份列表）。
- * @returns {Array<HTMLInputElement>} 勾选框数组（可能为空）。
- */
-function collectWallTargetCheckboxes(wallTargetScopeElement = wallPropertyTargetListElement) {
-  return [...wallTargetScopeElement.querySelectorAll("[data-wall-target-item-id]")];
-}
-/**
- * @returns {number} 0~100 的整数百分比。
- */
-function wallEffectiveOpacityPercent(wallRecord: any) {
-  const globalOpacity = finite(state.activeScene.settings.wallOpacity, 0.24);
-  const customOpacity =
-    wallRecord.opacity === null || wallRecord.opacity === undefined
-      ? null
-      : clamp(finite(wallRecord.opacity, globalOpacity), 0, 1);
-  return Math.round((customOpacity === null ? globalOpacity : customOpacity) * 100);
-}
-/**
- * @returns {string} 展示用文案。
- */
-function wallPropertyCurrentText(wallRecord: any, wallPropertyKey: any) {
-  if (wallPropertyKey === "height") {
-    return finite(wallRecord.height, 2.8).toFixed(2) + " m";
-  }
-  if (wallPropertyKey === "thickness") {
-    return finite(wallRecord.thickness, 0.12).toFixed(2) + " m";
-  }
-  const hasCustomOpacity =
-    wallRecord.opacity !== null &&
-    wallRecord.opacity !== undefined &&
-    Number.isFinite(wallRecord.opacity);
-  if (wallPropertyKey === "opacityMode") {
-    return hasCustomOpacity
-      ? "单独设置 " + wallEffectiveOpacityPercent(wallRecord) + "%"
-      : "跟随通用";
-  }
-  return (hasCustomOpacity ? "" : "跟随通用 ") + wallEffectiveOpacityPercent(wallRecord) + "%";
-}
-/**
- * 同步墙面批量对话框的选择计数与全选按钮文案。
- * @returns {void}
- */
-function syncWallTargetSelection() {
-  const wallTargetCheckboxes = collectWallTargetCheckboxes();
-  const checkedWallTargetCount = wallTargetCheckboxes.filter(
-    wallTargetCheckbox => wallTargetCheckbox.checked
-  ).length;
-  wallPropertySelectionCountElement.textContent =
-    checkedWallTargetCount + "/" + wallTargetCheckboxes.length + " 面墙";
-  wallPropertyToggleAllButton.disabled = !wallTargetCheckboxes.length;
-  wallPropertyToggleAllButton.textContent =
-    wallTargetCheckboxes.length && checkedWallTargetCount === wallTargetCheckboxes.length
-      ? "取消全选"
-      : "全选";
-}
-function renderWallPropertyTargets(wallPropertyKey: any) {
-  wallPropertyTargetListElement.replaceChildren();
-  const listedWalls = state.activeScene.walls || [];
-  if (!listedWalls.length) {
-    const emptyWallTargetsElement = document.createElement("p");
-    emptyWallTargetsElement.className = "light-property-target-empty";
-    emptyWallTargetsElement.textContent = "当前楼层没有可应用的墙体。";
-    wallPropertyTargetListElement.append(emptyWallTargetsElement);
-    syncWallTargetSelection();
-    return;
-  }
-  const wallTargetSectionElement = document.createElement("section");
-  wallTargetSectionElement.className = "light-property-target-group";
-  const wallTargetGridElement = document.createElement("div");
-  wallTargetGridElement.className = "light-property-target-grid";
-  listedWalls.forEach((listedWall: any, listedWallOrdinal: any) => {
-    const wallTargetLabelElement = document.createElement("label");
-    wallTargetLabelElement.className = "light-property-target-item";
-    const wallTargetCheckboxElement = document.createElement("input");
-    wallTargetCheckboxElement.type = "checkbox";
-    wallTargetCheckboxElement.checked = true;
-    wallTargetCheckboxElement.dataset.wallTargetItemId = listedWall.id;
-    const wallTargetTextElement = document.createElement("span");
-    const wallTargetNameElement = document.createElement("strong");
-    wallTargetNameElement.textContent = "墙体 " + (listedWallOrdinal + 1);
-    const wallTargetValueElement = document.createElement("small");
-    wallTargetValueElement.textContent =
-      (state.primarySelection?.kind === "wall" && state.primarySelection.id === listedWall.id
-        ? "当前墙 · "
-        : "") +
-      "当前 " +
-      wallPropertyCurrentText(listedWall, wallPropertyKey);
-    wallTargetTextElement.append(wallTargetNameElement, wallTargetValueElement);
-    wallTargetLabelElement.append(wallTargetCheckboxElement, wallTargetTextElement);
-    wallTargetGridElement.append(wallTargetLabelElement);
-  });
-  wallTargetSectionElement.append(wallTargetGridElement);
-  wallPropertyTargetListElement.append(wallTargetSectionElement);
-  syncWallTargetSelection();
 }
 for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
   wallPropertyApplyButton.addEventListener("click", () => {
@@ -5660,29 +3701,6 @@ exportFloorSelectElement.addEventListener("change", () =>
   applyExportFloorSelection(exportFloorSelectElement.value)
 );
 exportPackageButton.addEventListener("click", runStudioExport);
-/**
- * @param {string} [lightingStatus="ready"] 状态标记：ready / preview / saved / cancelled。
- */
-function postBaseLightingState(lightingStatus = "ready") {
-  if (
-    !!isAutoDiagramEmbed &&
-    !!autoDiagramComponentId &&
-    window.parent !== window &&
-    !!state.studioDocument
-  ) {
-    window.parent.postMessage(
-      {
-        type: "homeos-floorplan-auto-diagram-base-lighting-state",
-        componentId: autoDiagramComponentId,
-        status: lightingStatus,
-        lighting: normalizeBaseLighting(state.baseLighting),
-        savedLighting: normalizeBaseLighting(state.studioDocument.baseLighting),
-        defaults: normalizeBaseLighting(DEFAULT_BASE_LIGHTING)
-      },
-      window.location.origin
-    );
-  }
-}
 function postFloorStateToParent() {
   if (
     !!isAutoDiagramEmbed &&
