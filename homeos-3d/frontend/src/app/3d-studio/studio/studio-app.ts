@@ -300,6 +300,7 @@ import {
   FLOOR_SCENE_SCHEMA_VERSION,
   createEmptyScene
 } from "./studio-scene-defaults.js";
+import { state } from "./studio-state.js";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * @returns {Element|null} 未命中返回 null，调用方需自行判空。
@@ -342,25 +343,7 @@ const PLAN_HANDLE = () => paletteColor("--hos-tool-surface", STUDIO_HANDLE_FALLB
 const isRegionLightingEnabled =
   isStageViewerMode && new URLSearchParams(location.search).get("lighting") === "region";
 const WALL_RUNTIME_PROFILE = "shader";
-let regionLightController: any = null;
-let contactShadowController: any = null;
-let overviewStackController: any = null;
-let overviewStackAmount: any = null;
-let renderScale = 1;
-let motionRenderScale: any = null;
-let groundReflectionSettingsKey = "off";
-let isEnvironmentActive = false;
-let sceneCacheRevision = 0;
-let isVacuumMoving = false;
-let isBackgroundFrameVisible = false;
-let backgroundTheme = "grid";
 // 材质风格（default / warm-wood）与墙体透明度覆盖：两者都由舞台侧通过
-let studioSceneStyle = "default";
-let wallOpacityOverride: any = null;
-let isCurtainMoving = false;
-let curtainFrameKey = "[]";
-let environmentStructureKey = "[]";
-let isFrameLoopAvailable = true;
 const renderCache = isStageViewerMode
   ? createRenderCache({
       sceneId: new URLSearchParams(window.location.search).get("sceneId"),
@@ -378,15 +361,15 @@ window.addEventListener("pagehide", () => renderCache?.close(), {
  */
 function sceneCacheDescriptor(widthPx: any, heightPx: any) {
   const floorScenes =
-    currentPreviewFloorMode() === "all" ? studioDocument.floors : [getCurrentFloor()];
-  previewCamera.updateMatrixWorld();
+    currentPreviewFloorMode() === "all" ? state.studioDocument.floors : [getCurrentFloor()];
+  state.previewCamera.updateMatrixWorld();
   /**
    * 把 4x4 矩阵元素抹到 1e-8 供缓存指纹使用（相机矩阵末位会抖动：同一机位两次
    */
   const roundMatrixElements = (matrixElements: any) =>
     matrixElements.map((matrixEntry: any) => roundToDecimals(matrixEntry, 8));
   const visibility: any = [];
-  previewModelRoot.traverse((object: any) => {
+  state.previewModelRoot.traverse((object: any) => {
     if (["background", "grid"].includes(object.userData?.exportRole)) {
       visibility.push([object.userData.exportRole, object.visible]);
     }
@@ -398,40 +381,40 @@ function sceneCacheDescriptor(widthPx: any, heightPx: any) {
       threeRevision: threeModuleMin.REVISION,
       scene: cacheSceneDescriptor(floorScenes),
       mode: currentPreviewFloorMode(),
-      gap: studioDocument.previewFloorGap,
-      uniformOverviewStack: studioDocument.uniformOverviewStack === true,
-      ...(studioDocument.uniformOverviewStack === true
+      gap: state.studioDocument.previewFloorGap,
+      uniformOverviewStack: state.studioDocument.uniformOverviewStack === true,
+      ...(state.studioDocument.uniformOverviewStack === true
         ? {
             overviewProjection: "saved-camera-v1"
           }
         : {}),
-      lighting: baseLighting,
+      lighting: state.baseLighting,
       // 材质风格与墙体透明度都参与渲染缓存的指纹：任一项变了，上一版缓存必须作废。
       style: studioPalette(),
       // 家居配色同样会改变家具像素，而默认风格下它并不体现在 style 里（style 还是 STUDIO_PALETTE），
       homeStyle: homePalette(),
-      wallOpacity: wallOpacityOverride,
+      wallOpacity: state.wallOpacityOverride,
       visibility: visibility,
-      reflections: groundReflectionSettingsKey,
-      curtains: curtainFrameKey,
-      ...(backgroundTheme !== "grid"
+      reflections: state.groundReflectionSettingsKey,
+      curtains: state.curtainFrameKey,
+      ...(state.backgroundTheme !== "grid"
         ? {
-            backgroundTheme: "v5:" + backgroundTheme
+            backgroundTheme: "v5:" + state.backgroundTheme
           }
         : {}),
       models: externalModelManager.cacheRepresentation(
         floorScenes.flatMap((floor: any) => floor.scene.items)
       ),
       camera: {
-        world: roundMatrixElements(previewCamera.matrixWorld.elements),
-        projection: roundMatrixElements(previewCamera.projectionMatrix.elements)
+        world: roundMatrixElements(state.previewCamera.matrixWorld.elements),
+        projection: roundMatrixElements(state.previewCamera.projectionMatrix.elements)
       },
       width: widthPx,
       height: heightPx,
-      toneMapping: renderer.toneMapping,
-      exposure: renderer.toneMappingExposure,
-      colorSpace: renderer.outputColorSpace,
-      shadows: renderer.shadowMap.type
+      toneMapping: state.renderer.toneMapping,
+      exposure: state.renderer.toneMappingExposure,
+      colorSpace: state.renderer.outputColorSpace,
+      shadows: state.renderer.shadowMap.type
     })
   );
 }
@@ -561,7 +544,6 @@ const previewQualityStatusElement = selectElement("#preview-quality-status");
 const modelLoadingStatusElement = selectElement("#model-loading-status");
 const lightCacheCanvasElement = selectElement("#preview-light-cache");
 const previewRenderShieldElement = selectElement("#preview-render-shield");
-let shieldHideTimer: any = null;
 const cameraViewButtons = [...document.querySelectorAll("[data-camera-view]")];
 const cameraRotateTopButtons = [...document.querySelectorAll("[data-camera-rotate-top]")];
 const cameraModeButtons = [...document.querySelectorAll("[data-camera-mode]")];
@@ -639,7 +621,6 @@ const detailsResizerElement = selectElement("#details-resizer");
 const STUDIO_LAYOUT_STORAGE_KEY = "homeos.layout.v1.studio";
 
 // 布局常量缓存槽，含义与失效时机见下方 studioLayoutMetrics()。
-let studioLayoutConstants: any = null;
 
 const studioLayout = createLayoutController({
   storageKey: STUDIO_LAYOUT_STORAGE_KEY,
@@ -719,10 +700,6 @@ const studioLayout = createLayoutController({
   // 不设 onChange：布局变化后平面画布与 3D 舞台的尺寸重算各自挂在 ResizeObserver 上
 });
 
-/**
- * 老文档里两个布局比例的暂存区，见 captureLegacyLayoutSeed。
- */
-let pendingLegacyLayoutSeed: any = null;
 
 /**
  * 暂存老草稿里的两个布局比例（previewPanelRatio / detailsPanelWidthRatio）。
@@ -737,7 +714,7 @@ function captureLegacyLayoutSeed(rawSettings: any) {
     return;
   }
   // 存进去的是百分比（与布局层 % 栏的量纲一致），旧文档存的是 0~1 的比例，这里换算一次。
-  pendingLegacyLayoutSeed = {
+  state.pendingLegacyLayoutSeed = {
     previewHeight: Number.isFinite(legacyPreviewHeightRatio)
       ? legacyPreviewHeightRatio * 100
       : undefined,
@@ -749,11 +726,11 @@ function captureLegacyLayoutSeed(rawSettings: any) {
  * 把老文档里的两个布局比例搬进 localStorage。只在本地还没有任何布局记录时生效（判定在
  */
 function migrateLegacyLayoutSettings() {
-  if (!pendingLegacyLayoutSeed) {
+  if (!state.pendingLegacyLayoutSeed) {
     return;
   }
-  const legacyLayoutSeed = pendingLegacyLayoutSeed;
-  pendingLegacyLayoutSeed = null;
+  const legacyLayoutSeed = state.pendingLegacyLayoutSeed;
+  state.pendingLegacyLayoutSeed = null;
   studioLayout.seedPanels(legacyLayoutSeed);
 }
 /* 素材卡片必须先渲染：下面两行一次性抓走全部 [data-item-type] 与分组标题并据此绑事件，
@@ -818,7 +795,7 @@ function maxLightAngleForType(itemType: any) {
  * 判断某类物件是否仍被任何楼层使用，外部模型管理器据此决定能否释放 glTF 资源。
  */
 function isItemTypeInUse(queriedItemType: any) {
-  return !!studioDocument?.floors?.some((searchedFloor: any) =>
+  return !!state.studioDocument?.floors?.some((searchedFloor: any) =>
     searchedFloor.scene?.items?.some((searchedItem: any) => {
       if (queriedItemType.startsWith("tv_")) {
         const tvMountStyle = TV_MOUNT_STYLES.has(searchedItem.tvMountStyle)
@@ -851,7 +828,7 @@ function collectItemModelTypes(sourceFloors: any = []) {
 function currentFloorModelTypes() {
   const modelSourceFloors =
     currentPreviewFloorMode() === "all"
-      ? studioDocument?.floors || []
+      ? state.studioDocument?.floors || []
       : [getCurrentFloor()].filter(Boolean);
   return collectItemModelTypes(modelSourceFloors);
 }
@@ -866,20 +843,10 @@ dracoLoader.setWorkerLimit(2);
 dracoLoader.preload();
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
-let precompileRenderTimer: any = null;
-let isPrecompilePending = false;
-let isAutoDiagramLoading = false;
-let areExternalModelsDeferred = false;
-let deferredModelTypes: any = [];
-let deferredModelTimer: any = null;
-/**
- * 模型延迟放行协议的宿主端。加载器（`loaders/studio-external-models.js`）只通过传给
- */
-let isReleasingDeferredModels = false;
 function deferModelTypeForLater(deferredType: any) {
   if (deferredType) {
-    if (!deferredModelTypes.includes(deferredType)) {
-      deferredModelTypes.push(deferredType);
+    if (!state.deferredModelTypes.includes(deferredType)) {
+      state.deferredModelTypes.push(deferredType);
     }
     scheduleDeferredModelLoad();
   }
@@ -888,23 +855,23 @@ function deferModelTypeForLater(deferredType: any) {
  * 延迟释放被搁置的模型加载：页面刚打开时先压后（等首屏与草稿稳定），
  */
 function scheduleDeferredModelLoad(delayMs = 900) {
-  window.clearTimeout(deferredModelTimer);
-  deferredModelTimer = window.setTimeout(
+  window.clearTimeout(state.deferredModelTimer);
+  state.deferredModelTimer = window.setTimeout(
     () => {
-      deferredModelTimer = null;
+      state.deferredModelTimer = null;
       if (
-        !areExternalModelsDeferred ||
+        !state.areExternalModelsDeferred ||
         document.hidden ||
-        isExportRendering ||
-        isCameraMotionActive
+        state.isExportRendering ||
+        state.isCameraMotionActive
       ) {
-        if (areExternalModelsDeferred) {
+        if (state.areExternalModelsDeferred) {
           scheduleDeferredModelLoad(300);
         }
         return;
       }
-      const uniqueModelTypes = [...new Set(deferredModelTypes)];
-      deferredModelTypes = [];
+      const uniqueModelTypes = [...new Set(state.deferredModelTypes)];
+      state.deferredModelTypes = [];
       Promise.allSettled(releaseDeferredModels(uniqueModelTypes));
     },
     Math.max(0, delayMs)
@@ -914,20 +881,20 @@ function scheduleDeferredModelLoad(delayMs = 900) {
  * 立即放行若干模型类型的加载，并取消待执行的延迟释放。置 isReleasingDeferredModels
  */
 function releaseDeferredModels(modelTypes: any = []) {
-  window.clearTimeout(deferredModelTimer);
-  deferredModelTimer = null;
-  areExternalModelsDeferred = false;
+  window.clearTimeout(state.deferredModelTimer);
+  state.deferredModelTimer = null;
+  state.areExternalModelsDeferred = false;
   const pendingModelTypes = [...new Set<any>(modelTypes)].filter(
     candidateModelType => (ALL_ITEM_MODELS as any)[candidateModelType]
   );
   if (!pendingModelTypes.length) {
     return [];
   }
-  isReleasingDeferredModels = true;
+  state.isReleasingDeferredModels = true;
   const modelLoadPromises = pendingModelTypes.map(loadingModelType =>
     loadExternalItemModel(loadingModelType)
   );
-  isReleasingDeferredModels = false;
+  state.isReleasingDeferredModels = false;
   return modelLoadPromises;
 }
 /**
@@ -941,14 +908,14 @@ function releaseAllDeferredModels() {
  */
 function schedulePreviewRebuild() {
   updateModelLoadingStatus();
-  if (!isAutoDiagramEmbed && !isAutoDiagramLoading) {
-    if (isExportRendering || isCameraMotionActive) {
-      isPrecompilePending = true;
+  if (!isAutoDiagramEmbed && !state.isAutoDiagramLoading) {
+    if (state.isExportRendering || state.isCameraMotionActive) {
+      state.isPrecompilePending = true;
       return;
     }
-    window.clearTimeout(precompileRenderTimer);
-    precompileRenderTimer = window.setTimeout(() => {
-      precompileRenderTimer = null;
+    window.clearTimeout(state.precompileRenderTimer);
+    state.precompileRenderTimer = window.setTimeout(() => {
+      state.precompileRenderTimer = null;
       applySceneRefresh({
         force: true,
         precompile: true
@@ -961,9 +928,9 @@ function schedulePreviewRebuild() {
  */
 function forcePreviewRebuild() {
   updateModelLoadingStatus();
-  isPrecompilePending = false;
-  window.clearTimeout(precompileRenderTimer);
-  precompileRenderTimer = null;
+  state.isPrecompilePending = false;
+  window.clearTimeout(state.precompileRenderTimer);
+  state.precompileRenderTimer = null;
   applySceneRefresh({
     force: true,
     precompile: true
@@ -978,8 +945,8 @@ const externalModelManager = createExternalModelManager({
   onLoadStateChange: updateModelLoadingStatus,
   maxConcurrentLoads: 2,
   deferralHost: {
-    isDeferred: () => areExternalModelsDeferred,
-    isReleasing: () => isReleasingDeferredModels,
+    isDeferred: () => state.areExternalModelsDeferred,
+    isReleasing: () => state.isReleasingDeferredModels,
     defer: deferModelTypeForLater
   }
 });
@@ -993,12 +960,12 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
     return;
   }
   const isLoading = loadState.active > 0 || loadState.queued > 0;
-  if (!isLoading && isPrecompilePending) {
-    isPrecompilePending = false;
-    window.clearTimeout(precompileRenderTimer);
-    precompileRenderTimer = null;
-    if (orbitControls && !isExportBusy) {
-      orbitControls.enabled = false;
+  if (!isLoading && state.isPrecompilePending) {
+    state.isPrecompilePending = false;
+    window.clearTimeout(state.precompileRenderTimer);
+    state.precompileRenderTimer = null;
+    if (state.orbitControls && !state.isExportBusy) {
+      state.orbitControls.enabled = false;
     }
     modelLoadingStatusElement.hidden = false;
     modelLoadingStatusElement
@@ -1011,8 +978,8 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
     window.requestAnimationFrame(() => updateModelLoadingStatus());
     return;
   }
-  if (orbitControls && !isExportBusy) {
-    orbitControls.enabled = !isLoading;
+  if (state.orbitControls && !state.isExportBusy) {
+    state.orbitControls.enabled = !isLoading;
   }
   modelLoadingStatusElement.hidden = !isLoading;
   modelLoadingStatusElement
@@ -1100,10 +1067,10 @@ const {
   screenToPlan: screenToPlan,
   pixelsPerMeter: currentPixelsPerMeter,
   getCanvasSize: () => ({
-    width: viewportWidthPx,
-    height: viewportHeightPx
+    width: state.viewportWidthPx,
+    height: state.viewportHeightPx
   }),
-  getViewZoom: () => viewTransform.zoom
+  getViewZoom: () => state.viewTransform.zoom
 });
 
 /**
@@ -1112,161 +1079,20 @@ const {
 const CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION = 4;
 
 // 本文件的状态集中在下面这段 let 里（没有状态容器对象）：绘制 / 预览 / 导出三处回调都要
-let savedSceneRecord: any = null;
-let sceneLoadToken = 0;
-let backgroundRevision = 0;
-let activeScene: any = createEmptyScene();
-let studioDocument: any = null;
-let activeFloorId = "";
-let forcedVisibleLightIds: any = null;
-let backgroundTexture: any = null;
-let activeTool = "select";
 const selectedDoorType = "solid";
-let activeAssetTab = "home";
-let activeLightGroupId = "";
-let lightGroupMenuTargetId = "";
-let droppedLightGroupId = "";
-let draggingLightGroupId = "";
-let areaContextMenuId = "";
-let areaRenameMode = "create";
-let areaRenameId = "";
-let areaAssignGroupId = "";
 const expandedAreaIds = new Set();
-let draggingFloorId = "";
-let activeLightPropertyEdit: any = null;
-let clipboardItems: any = [];
-let clipboardSourceFloor: any = null;
-let pasteOffsetStep = 0;
-let primarySelection: any = null;
-let multiSelection: any = [];
-let scaleStartPoint: any = null;
-let snapEndpointCandidate: any = null;
-let scalePointCount = 0;
-let scalePreviewStart: any = null;
-let scaleReferenceLine: any = null;
-let floorAlignState: any = null;
-let floorSwitchToken = 0;
-let floorMenuTargetId = "";
-let floorDeleteTargetId = "";
-let scalePreviewCurrent: any = null;
-let scaleAnchorPoint: any = null;
-let snapTarget: any = null;
-let windowSnapTarget: any = null;
-let doorSnapTarget: any = null;
-let railingSnapTarget: any = null;
-let pointerInteraction: any = null;
-let isPanning = false;
-let snapOverridePoint = false;
-let isSnapTemporarilyDisabled = false;
-let viewportWidthPx = 1;
-let viewportHeightPx = 1;
-let isViewFitted = false;
-let viewTransform = {
-  zoom: 1,
-  offsetX: 0,
-  offsetY: 0,
-  rotation: 0
-};
-let undoStack: any = [];
-let redoStack: any = [];
-let changeRevision = 0;
-let savedRevision = 0;
-let autosaveTimer: any = null;
-let isSaving = false;
-let saveConflict: any = null;
 // 「稍后处理」：用户先不当场二选一。冲突记录留着（本地内容一点不丢、也绝不静默覆盖），
-let saveConflictDeferred = false;
 // 「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、先要一次确认
-let saveInteractionConfirmation: any = null;
 // 「保留模型」：收起对话框但记录留着（本地删除与撤销栈一点不动、也绝不按未确认的计划清理）。
-let saveInteractionDeferred = false;
-let toastTimer: any = null;
-let isSceneUpdateQueued = false;
-let isForcedSceneUpdate = false;
-let shouldInvalidateLightCache = false;
-let shouldPrecompileExternalModels = false;
 const pendingSceneUpdateScopes = new Set();
-let isPreviewDirty = false;
-let activeWallSettingInput: any = null;
-let wallSettingCommitTimer: any = null;
-let overlayRedrawFrame = 0;
 const wallDerivedCacheByScene = new WeakMap();
-let cameraGestureState: any = null;
-let cameraGestureFrame = 0;
-let cameraTargetZoom = 1;
-let cameraTargetPoint: any = null;
-let cameraSettleFrame = 0;
-let cameraSettleTimer: any = null;
-let exportRenderState: any = null;
-let isExportBusy = false;
-let isExportComplete = false;
-let exportPresets = false;
-let saveRetryTimer: any = null;
-let overwriteConfirmResolve: any = null;
-let isHighShadowQuality = false;
-let savedShadowCameraBounds: any = null;
-let exportAspectRatio = DEFAULT_EXPORT_WIDTH / DEFAULT_EXPORT_HEIGHT;
-let previewOverlayScene: any = null;
-let previewCamera: any = null;
-let renderer: any = null;
-let orbitControls: any = null;
-let previewModelRoot: any = null;
-let floorFocusPoint: any = null;
-let resizeObserver = null;
-let hemisphereLight: any = null;
-let ambientLight: any = null;
-let mainDirectionalLight: any = null;
-let fillDirectionalLight: any = null;
-let topDirectionalLight: any = null;
-let spotShadowAtlasController: any = null;
-let baseLighting = normalizeBaseLighting(DEFAULT_BASE_LIGHTING);
-let panelResizeState: any = null;
-let lightingChannel: any = null;
 try {
   // 不支持 / 被策略禁用时保持 null：下文一律用 lightingChannel?.，退化成「无跨标签同步」。
   if (typeof BroadcastChannel == "function") {
-    lightingChannel = new BroadcastChannel("homeos-studio3d-base-lighting-v1");
+    state.lightingChannel = new BroadcastChannel("homeos-studio3d-base-lighting-v1");
   }
 } catch {}
-let needsRender = true;
-let hasRenderedFrame = false;
-let demandFrameLoop: any = null;
-let pixelRatioRestoreTimer: any = null;
-let lightCacheSettleTimer: any = null;
-let isLightCacheBuilding = false;
-let isPreservingLightCache = false;
-let isRebuildingLightModels = false;
-let lightCacheRevision = 0;
-let isLightCacheReady = false;
-let needsLightCacheRefresh = false;
-let canvasByLightGroupKey = new Map();
-let brightnessByLightGroupKey = new Map();
-let lightGroupFadeFrame = 0;
-let sceneTransitionFrame = 0;
-let lightTransitionSession: any = null;
-let isMotionRendering = false;
-let isLightFadeAnimating = false;
-let isCameraMotionActive = false;
-let hasCameraMotionMoved = false;
-let isExportRendering = false;
-let sceneUpdateTimer: any = null;
-let isAdaptiveRenderActive = false;
-let hasAdaptiveRenderProbe = false;
-let adaptiveRenderCost = 0;
-let recentFrameDurationsMs: any = [];
-let lastFrameTimestampMs = 0;
-let slowFrameStreak = 0;
 const precompiledModelSignatures = new WeakSet();
-let isExternalPrecompileRunning = false;
-let shouldRerunExternalPrecompile = false;
-let externalPrecompilePassCount = 0;
-let externalPrecompileTimer: any = null;
-let isLightPrecompileRunning = false;
-let shouldRerunLightPrecompile = false;
-let lightPrecompilePassCount = 0;
-let lightPrecompileTimer: any = null;
-let isPageUnloading = false;
-let appliedLightPrecompileSignature = "";
 const precompiledLightSignatures = new Set();
 const MAX_PRECOMPILE_PLAN_COUNT = 16;
 function migrateLegacyCurtainPreview(sourceItemRecord: any, schemaVersion: any) {
@@ -1301,7 +1127,7 @@ function floorNameForIndex(floorNumber: any) {
  */
 function createFloor(newFloorIndex = 0, floorScene = createEmptyScene()) {
   const normalizedScene = normalizeScene(floorScene);
-  const defaultFloorHeight = clamp(finite(studioDocument?.defaultFloorHeight, 3), 1.8, 8);
+  const defaultFloorHeight = clamp(finite(state.studioDocument?.defaultFloorHeight, 3), 1.8, 8);
   return {
     id: createId("floor"),
     name: floorNameForIndex(newFloorIndex),
@@ -1405,10 +1231,10 @@ function normalizeStudioDocument(rawDocument: any) {
  * 取当前正在编辑的楼层记录。导出期间以 exportRenderState.selectedFloorId 为准：
  */
 function getCurrentFloor() {
-  const selectedFloorId = exportRenderState?.selectedFloorId || activeFloorId;
+  const selectedFloorId = state.exportRenderState?.selectedFloorId || state.activeFloorId;
   return (
-    studioDocument?.floors.find((matchingFloor: any) => matchingFloor.id === selectedFloorId) ||
-    studioDocument?.floors[0] ||
+    state.studioDocument?.floors.find((matchingFloor: any) => matchingFloor.id === selectedFloorId) ||
+    state.studioDocument?.floors[0] ||
     null
   );
 }
@@ -1416,19 +1242,19 @@ function getCurrentFloor() {
  * 深拷贝整份文档（楼层、场景、导出预设全覆盖）。用 structuredClone 而不是 JSON 往返：
  */
 function cloneStudioDocument() {
-  return structuredClone(studioDocument || normalizeStudioDocument(activeScene));
+  return structuredClone(state.studioDocument || normalizeStudioDocument(state.activeScene));
 }
 /**
  * 生成要提交给后端的文档快照。与 cloneStudioDocument 的差别只在导出期间：导出用的是
  */
 function snapshotDocumentForSave() {
   const documentSnapshot = cloneStudioDocument();
-  if (!exportRenderState) {
+  if (!state.exportRenderState) {
     return documentSnapshot;
   }
-  documentSnapshot.previewFloorMode = exportRenderState.floorMode;
+  documentSnapshot.previewFloorMode = state.exportRenderState.floorMode;
   for (const floorSnapshot of documentSnapshot.floors || []) {
-    const cameraSettings = exportRenderState.floorCameraSettings.get(floorSnapshot.id);
+    const cameraSettings = state.exportRenderState.floorCameraSettings.get(floorSnapshot.id);
     if (cameraSettings) {
       floorSnapshot.scene.settings.cameraMode = cameraSettings.mode;
       floorSnapshot.scene.settings.cameraView = cameraSettings.view;
@@ -1437,7 +1263,7 @@ function snapshotDocumentForSave() {
     }
   }
   documentSnapshot.combinedCameraSettings = {
-    ...exportRenderState.combinedCameraSettings
+    ...state.exportRenderState.combinedCameraSettings
   };
   return documentSnapshot;
 }
@@ -1446,7 +1272,7 @@ function snapshotDocumentForSave() {
  */
 function uniqueFloorName(name: any, excludeFloorId = "") {
   const existingNames = new Set(
-    (studioDocument?.floors || [])
+    (state.studioDocument?.floors || [])
       .filter((siblingFloor: any) => siblingFloor.id !== excludeFloorId)
       .map((namedFloor: any) => namedFloor.name)
   );
@@ -1464,12 +1290,12 @@ function uniqueFloorName(name: any, excludeFloorId = "") {
  */
 function closeFloorContextMenu() {
   floorContextMenuElement.hidden = true;
-  floorMenuTargetId = "";
+  state.floorMenuTargetId = "";
 }
 function openFloorContextMenu(menuFloor: any, contextMenuEvent: any) {
-  floorMenuTargetId = menuFloor.id;
+  state.floorMenuTargetId = menuFloor.id;
   const floorDeleteButton = floorContextMenuElement.querySelector('[data-floor-action="delete"]');
-  floorDeleteButton.disabled = studioDocument.floors.length <= 1;
+  floorDeleteButton.disabled = state.studioDocument.floors.length <= 1;
   floorContextMenuElement.hidden = false;
   positionPointMenu({
     menuElement: floorContextMenuElement,
@@ -1481,8 +1307,8 @@ function openFloorContextMenu(menuFloor: any, contextMenuEvent: any) {
  * 弹出删除楼层确认框；最后一层直接拒绝。
  */
 function requestFloorDelete(targetFloor: any) {
-  if (!!targetFloor && !(studioDocument.floors.length <= 1)) {
-    floorDeleteTargetId = targetFloor.id;
+  if (!!targetFloor && !(state.studioDocument.floors.length <= 1)) {
+    state.floorDeleteTargetId = targetFloor.id;
     floorDeleteNameElement.textContent = targetFloor.name;
     floorDeleteDialogElement.showModal();
   }
@@ -1491,7 +1317,7 @@ function requestFloorDelete(targetFloor: any) {
  * 关闭删除楼层对话框并清掉待删目标。
  */
 function closeFloorDeleteDialog() {
-  floorDeleteTargetId = "";
+  state.floorDeleteTargetId = "";
   if (floorDeleteDialogElement.open) {
     floorDeleteDialogElement.close();
   }
@@ -1500,21 +1326,21 @@ function closeFloorDeleteDialog() {
  * 执行删除楼层：移除记录、重排标高、切到相邻层并落盘。删后按 defaultFloorHeight 重排
  */
 async function deleteFloor() {
-  const floorToDelete = studioDocument.floors.find(
-    (deletedFloor: any) => deletedFloor.id === floorDeleteTargetId
+  const floorToDelete = state.studioDocument.floors.find(
+    (deletedFloor: any) => deletedFloor.id === state.floorDeleteTargetId
   );
   closeFloorDeleteDialog();
-  if (!floorToDelete || studioDocument.floors.length <= 1) {
+  if (!floorToDelete || state.studioDocument.floors.length <= 1) {
     return;
   }
-  const floorIndex = studioDocument.floors.findIndex(
+  const floorIndex = state.studioDocument.floors.findIndex(
     (indexedFloor: any) => indexedFloor.id === floorToDelete.id
   );
-  studioDocument.floors.splice(floorIndex, 1);
-  studioDocument.floors.forEach((renumberedFloor: any, orderedIndex: any) => {
-    renumberedFloor.elevation = orderedIndex * studioDocument.defaultFloorHeight;
+  state.studioDocument.floors.splice(floorIndex, 1);
+  state.studioDocument.floors.forEach((renumberedFloor: any, orderedIndex: any) => {
+    renumberedFloor.elevation = orderedIndex * state.studioDocument.defaultFloorHeight;
   });
-  const nextFloor = studioDocument.floors[Math.max(0, floorIndex - 1)] || studioDocument.floors[0];
+  const nextFloor = state.studioDocument.floors[Math.max(0, floorIndex - 1)] || state.studioDocument.floors[0];
   await activateFloor(nextFloor.id, {
     persist: false
   });
@@ -1527,7 +1353,7 @@ async function deleteFloor() {
  */
 function openFloorRenameDialog(renamedFloor: any) {
   if (renamedFloor) {
-    floorMenuTargetId = renamedFloor.id;
+    state.floorMenuTargetId = renamedFloor.id;
     floorRenameInputElement.value = renamedFloor.name;
     floorRenameDialogElement.showModal();
     requestAnimationFrame(() => floorRenameInputElement.select());
@@ -1537,13 +1363,13 @@ function openFloorRenameDialog(renamedFloor: any) {
  * 重绘楼层列表。列表项同时承担三种交互：单击切层、长按 280ms 拖动排序、右键出菜单。
  */
 function renderFloorList() {
-  if (studioDocument) {
+  if (state.studioDocument) {
     floorListElement.replaceChildren();
-    for (const listedFloor of studioDocument.floors) {
+    for (const listedFloor of state.studioDocument.floors) {
       const floorRowElement = document.createElement("div");
       floorRowElement.className =
         "floor-row" +
-        (listedFloor.id === activeFloorId ? " active" : "") +
+        (listedFloor.id === state.activeFloorId ? " active" : "") +
         (listedFloor.aligned ? "" : " unaligned");
       floorRowElement.dataset.floorId = listedFloor.id;
       floorRowElement.draggable = true;
@@ -1551,7 +1377,7 @@ function renderFloorList() {
         "aria-label",
         listedFloor.name +
           "，" +
-          (listedFloor.id === activeFloorId ? "当前楼层，" : "") +
+          (listedFloor.id === state.activeFloorId ? "当前楼层，" : "") +
           "长按拖动排序，右键可重命名或删除"
       );
       let isDragReady = false;
@@ -1585,20 +1411,20 @@ function renderFloorList() {
           resetDragReady();
           return;
         }
-        draggingFloorId = listedFloor.id;
+        state.draggingFloorId = listedFloor.id;
         floorRowElement.classList.remove("drag-ready");
         floorRowElement.classList.add("dragging");
         dragStartEvent.dataTransfer!.effectAllowed = "move";
         dragStartEvent.dataTransfer!.setData("application/x-homeos-floor", listedFloor.id);
       });
       floorRowElement.addEventListener("dragend", () => {
-        draggingFloorId = "";
+        state.draggingFloorId = "";
         floorRowElement.classList.remove("dragging");
         resetDragReady();
         clearFloorDropIndicators();
       });
       floorRowElement.addEventListener("dragover", dragOverEvent => {
-        if (!draggingFloorId || draggingFloorId === listedFloor.id) {
+        if (!state.draggingFloorId || state.draggingFloorId === listedFloor.id) {
           return;
         }
         dragOverEvent.preventDefault();
@@ -1614,19 +1440,19 @@ function renderFloorList() {
         }
       });
       floorRowElement.addEventListener("drop", dropEvent => {
-        if (!draggingFloorId || draggingFloorId === listedFloor.id) {
+        if (!state.draggingFloorId || state.draggingFloorId === listedFloor.id) {
           return;
         }
         dropEvent.preventDefault();
-        const draggedFloorId = draggingFloorId;
+        const draggedFloorId = state.draggingFloorId;
         const isAfterTarget = floorRowElement.dataset.dropPosition === "after";
-        draggingFloorId = "";
+        state.draggingFloorId = "";
         clearFloorDropIndicators();
         reorderFloorList(draggedFloorId, listedFloor.id, isAfterTarget);
       });
       const activateButton = document.createElement("button");
       activateButton.type = "button";
-      activateButton.textContent = listedFloor.id === activeFloorId ? "●" : "○";
+      activateButton.textContent = listedFloor.id === state.activeFloorId ? "●" : "○";
       activateButton.title = "切换到" + listedFloor.name;
       activateButton.addEventListener("click", activateEvent => {
         activateEvent.stopPropagation();
@@ -1638,7 +1464,7 @@ function renderFloorList() {
       floorNameElement.textContent = listedFloor.name;
       floorNameElement.title = "长按后拖动可调整楼层顺序，右键可重命名或删除楼层";
       const stateElement = document.createElement("small");
-      const listedFloorIndex = studioDocument.floors.findIndex(
+      const listedFloorIndex = state.studioDocument.floors.findIndex(
         (reorderedFloor: any) => reorderedFloor.id === listedFloor.id
       );
       stateElement.textContent =
@@ -1672,19 +1498,19 @@ function clearFloorDropIndicators() {
  */
 function reorderFloorList(draggedFloorIdParam: any, targetFloorIdParam: any, shouldInsertAfter: any) {
   const reorderedFloors = reorderFloors(
-    studioDocument.floors,
+    state.studioDocument.floors,
     draggedFloorIdParam,
     targetFloorIdParam,
     shouldInsertAfter,
-    studioDocument.defaultFloorHeight
+    state.studioDocument.defaultFloorHeight
   );
-  if (reorderedFloors === studioDocument.floors) {
+  if (reorderedFloors === state.studioDocument.floors) {
     return;
   }
-  const draggedFloor = studioDocument.floors.find(
+  const draggedFloor = state.studioDocument.floors.find(
     (movedFloor: any) => movedFloor.id === draggedFloorIdParam
   );
-  studioDocument.floors = reorderedFloors;
+  state.studioDocument.floors = reorderedFloors;
   renderFloorList();
   syncPreviewFloorButtons();
   updateFloorAlignmentControls();
@@ -1702,17 +1528,17 @@ function reorderFloorList(draggedFloorIdParam: any, targetFloorIdParam: any, sho
 function updateFloorAlignmentControls() {
   const currentFloor = getCurrentFloor();
   const activeFloorIndex = currentFloor
-    ? studioDocument.floors.findIndex((floorEntry: any) => floorEntry.id === currentFloor.id)
+    ? state.studioDocument.floors.findIndex((floorEntry: any) => floorEntry.id === currentFloor.id)
     : -1;
-  const canAlign = studioDocument.floors.length > 1 && activeFloorIndex > 0;
+  const canAlign = state.studioDocument.floors.length > 1 && activeFloorIndex > 0;
   alignFloorButton.hidden = !canAlign;
   alignFloorButton.disabled = !canAlign || !currentFloor?.scene?.calibration;
   alignFloorButton.textContent = currentFloor?.aligned ? "重新对齐" : "对齐楼层";
-  if (floorAlignState?.stage === "reference") {
+  if (state.floorAlignState?.stage === "reference") {
     activeToolLabelElement.textContent = "楼层对齐 · 参照层";
     toolHelpElement.textContent =
-      "点击" + floorAlignState.referenceFloor.name + "上的楼梯角、墙角或柱点；Esc 取消";
-  } else if (floorAlignState?.stage === "current") {
+      "点击" + state.floorAlignState.referenceFloor.name + "上的楼梯角、墙角或柱点；Esc 取消";
+  } else if (state.floorAlignState?.stage === "current") {
     activeToolLabelElement.textContent = "楼层对齐 · 当前层";
     toolHelpElement.textContent =
       "点击" + currentFloor.name + "上的相同位置；系统会自动重合上下楼层";
@@ -1722,35 +1548,35 @@ function updateFloorAlignmentControls() {
  * 切换当前编辑楼层（列表点击、楼层按钮、导出逐层遍历都走这里）。切层是全局状态重置点：
  */
 async function activateFloor(targetFloorId: any, { persist: shouldPersist = false } = {}) {
-  const requestedFloorRecord = studioDocument?.floors.find(
+  const requestedFloorRecord = state.studioDocument?.floors.find(
     (requestedFloor: any) => requestedFloor.id === targetFloorId
   );
   if (!requestedFloorRecord) {
     return;
   }
-  const activationToken = ++floorSwitchToken;
+  const activationToken = ++state.floorSwitchToken;
   const overviewFloor = currentPreviewFloorMode() === "all" ? captureCameraSnapshot() : null;
-  if (floorAlignState?.floorId !== requestedFloorRecord.id) {
-    floorAlignState = null;
+  if (state.floorAlignState?.floorId !== requestedFloorRecord.id) {
+    state.floorAlignState = null;
   }
-  activeFloorId = requestedFloorRecord.id;
-  studioDocument.activeFloorId = requestedFloorRecord.id;
-  activeScene = requestedFloorRecord.scene;
-  activeLightGroupId = "";
+  state.activeFloorId = requestedFloorRecord.id;
+  state.studioDocument.activeFloorId = requestedFloorRecord.id;
+  state.activeScene = requestedFloorRecord.scene;
+  state.activeLightGroupId = "";
   clearSelection();
   resetScaleInteractionState();
-  scalePreviewStart = null;
-  undoStack = [];
-  redoStack = [];
-  viewTransform.rotation = activeScene.settings.planViewRotation;
+  state.scalePreviewStart = null;
+  state.undoStack = [];
+  state.redoStack = [];
+  state.viewTransform.rotation = state.activeScene.settings.planViewRotation;
   Promise.allSettled(releaseAllDeferredModels());
   await loadBackgroundTexture();
-  if (activationToken === floorSwitchToken && activeFloorId === requestedFloorRecord.id) {
+  if (activationToken === state.floorSwitchToken && state.activeFloorId === requestedFloorRecord.id) {
     refreshStudio();
     updateFloorAlignmentControls();
     fitViewToBounds();
     requestAnimationFrame(() => {
-      if (activationToken === floorSwitchToken && activeFloorId === requestedFloorRecord.id) {
+      if (activationToken === state.floorSwitchToken && state.activeFloorId === requestedFloorRecord.id) {
         if (currentPreviewFloorMode() === "all") {
           if (overviewFloor) {
             applyCameraSnapshot(overviewFloor, overviewFloor.viewportAspect);
@@ -1759,7 +1585,7 @@ async function activateFloor(targetFloorId: any, { persist: shouldPersist = fals
           syncCameraViewButtons(currentCameraView());
           return;
         }
-        if (activeScene.settings.fixedCameraView) {
+        if (state.activeScene.settings.fixedCameraView) {
           restoreStoredCameraView({
             recordChange: false,
             silent: true
@@ -1778,9 +1604,9 @@ async function activateFloor(targetFloorId: any, { persist: shouldPersist = fals
   }
 }
 async function addFloor() {
-  const newFloor = createFloor(studioDocument.floors.length);
+  const newFloor = createFloor(state.studioDocument.floors.length);
   newFloor.name = uniqueFloorName(newFloor.name);
-  studioDocument.floors.push(newFloor);
+  state.studioDocument.floors.push(newFloor);
   syncPreviewFloorButtons();
   await activateFloor(newFloor.id, {
     persist: false
@@ -1818,14 +1644,14 @@ function convertBetweenFloors(planPoint: any, fromFloor: any, toFloor: any) {
  * 取参照层的墙并换算到当前层坐标系，供对齐时吸附使用。
  */
 function referenceWallsForAlignment() {
-  if (!floorAlignState) {
+  if (!state.floorAlignState) {
     return [];
   }
   const alignmentFloor = getCurrentFloor();
-  return floorAlignState.referenceFloor.scene.walls.map((sourceWall: any) => ({
+  return state.floorAlignState.referenceFloor.scene.walls.map((sourceWall: any) => ({
     ...sourceWall,
-    start: convertBetweenFloors(sourceWall.start, floorAlignState.referenceFloor, alignmentFloor),
-    end: convertBetweenFloors(sourceWall.end, floorAlignState.referenceFloor, alignmentFloor)
+    start: convertBetweenFloors(sourceWall.start, state.floorAlignState.referenceFloor, alignmentFloor),
+    end: convertBetweenFloors(sourceWall.end, state.floorAlignState.referenceFloor, alignmentFloor)
   }));
 }
 /**
@@ -1834,15 +1660,15 @@ function referenceWallsForAlignment() {
 function startFloorAlignment() {
   const alignmentSourceFloor = getCurrentFloor();
   const currentFloorIndex =
-    studioDocument?.floors.findIndex((listFloor: any) => listFloor.id === alignmentSourceFloor?.id) ?? -1;
+    state.studioDocument?.floors.findIndex((listFloor: any) => listFloor.id === alignmentSourceFloor?.id) ?? -1;
   const referenceFloor =
-    currentFloorIndex > 0 ? studioDocument.floors[currentFloorIndex - 1] : null;
+    currentFloorIndex > 0 ? state.studioDocument.floors[currentFloorIndex - 1] : null;
   if (!!alignmentSourceFloor && !!referenceFloor) {
     if (!alignmentSourceFloor.scene.calibration || !referenceFloor.scene.calibration) {
       showToast("当前层和参照层都需要先完成比例校准。", "error");
       return;
     }
-    floorAlignState = {
+    state.floorAlignState = {
       floorId: alignmentSourceFloor.id,
       referenceFloor: referenceFloor,
       stage: "reference",
@@ -1860,8 +1686,8 @@ function startFloorAlignment() {
  * 放弃楼层对齐流程，恢复画布光标与工具状态。用户按 Esc、或点了别的楼层导致流程失效时
  */
 function cancelFloorAlignment() {
-  if (floorAlignState) {
-    floorAlignState = null;
+  if (state.floorAlignState) {
+    state.floorAlignState = null;
     planCanvasElement.style.cursor = "";
     activateTool("select");
     updateFloorAlignmentControls();
@@ -1873,54 +1699,54 @@ function cancelFloorAlignment() {
  * 处理楼层对齐的两阶段画布点击：先在参照层按 18/zoom 平面像素吸附取参照点并换算到参照层坐标系，
  */
 function handleFloorAlignClick(clickPoint: any) {
-  if (!floorAlignState) {
+  if (!state.floorAlignState) {
     return false;
   }
   const alignmentTargetFloor = getCurrentFloor();
-  if (!alignmentTargetFloor || alignmentTargetFloor.id !== floorAlignState.floorId) {
+  if (!alignmentTargetFloor || alignmentTargetFloor.id !== state.floorAlignState.floorId) {
     cancelFloorAlignment();
     return true;
   }
-  if (floorAlignState.stage === "reference") {
+  if (state.floorAlignState.stage === "reference") {
     const referenceWalls = referenceWallsForAlignment();
     const snappedReferencePoint =
-      nearestWall(clickPoint, referenceWalls, 18 / viewTransform.zoom)?.point || clickPoint;
-    floorAlignState.referencePoint = convertBetweenFloors(
+      nearestWall(clickPoint, referenceWalls, 18 / state.viewTransform.zoom)?.point || clickPoint;
+    state.floorAlignState.referencePoint = convertBetweenFloors(
       snappedReferencePoint,
       alignmentTargetFloor,
-      floorAlignState.referenceFloor
+      state.floorAlignState.referenceFloor
     );
-    floorAlignState.stage = "current";
+    state.floorAlignState.stage = "current";
     updateFloorAlignmentControls();
     renderPlanView();
     showToast("现在点击" + alignmentTargetFloor.name + "上的同一个位置。");
     return true;
   }
   const alignPoint =
-    nearestWall(clickPoint, alignmentTargetFloor.scene.walls, 18 / viewTransform.zoom)?.point ||
+    nearestWall(clickPoint, alignmentTargetFloor.scene.walls, 18 / state.viewTransform.zoom)?.point ||
     clickPoint;
   const referenceOffset = floorPointToScenePoint(
-    floorAlignState.referenceFloor,
-    floorAlignState.referencePoint
+    state.floorAlignState.referenceFloor,
+    state.floorAlignState.referencePoint
   );
   alignmentTargetFloor.originX = alignPoint.x;
   alignmentTargetFloor.originY = alignPoint.y;
   alignmentTargetFloor.originInitialized = true;
   alignmentTargetFloor.offsetX = referenceOffset.x;
   alignmentTargetFloor.offsetZ = referenceOffset.z;
-  alignmentTargetFloor.rotation = floorAlignState.referenceFloor.rotation || 0;
+  alignmentTargetFloor.rotation = state.floorAlignState.referenceFloor.rotation || 0;
   alignmentTargetFloor.aligned = true;
   alignmentTargetFloor.alignmentPending = false;
   alignmentTargetFloor.alignment = {
-    referenceFloorId: floorAlignState.referenceFloor.id,
+    referenceFloorId: state.floorAlignState.referenceFloor.id,
     referencePoint: {
-      ...floorAlignState.referencePoint
+      ...state.floorAlignState.referencePoint
     },
     currentPoint: {
       ...alignPoint
     }
   };
-  floorAlignState = null;
+  state.floorAlignState = null;
   planCanvasElement.style.cursor = "";
   activateTool("select");
   renderFloorList();
@@ -1937,12 +1763,12 @@ function handleFloorAlignClick(clickPoint: any) {
  */
 function commitPreviewFloorGap() {
   const previewGap = clamp(
-    finite(previewFloorGapInput.value, studioDocument?.previewFloorGap || 3),
+    finite(previewFloorGapInput.value, state.studioDocument?.previewFloorGap || 3),
     0,
     20
   );
-  if (!(Math.abs(previewGap - finite(studioDocument?.previewFloorGap, 3)) < 0.000001)) {
-    studioDocument.previewFloorGap = previewGap;
+  if (!(Math.abs(previewGap - finite(state.studioDocument?.previewFloorGap, 3)) < 0.000001)) {
+    state.studioDocument.previewFloorGap = previewGap;
     previewFloorGapInput.value = previewGap.toFixed(1);
     refreshPreviewScene();
     markDocumentDirty();
@@ -1952,7 +1778,7 @@ function commitPreviewFloorGap() {
  * 提交「统一整景堆叠」开关。该开关决定整景预览是共用一套相机投影还是逐层套用各自视角，
  */
 function commitUniformOverviewStack() {
-  studioDocument.uniformOverviewStack = previewFloorUniformInput.checked;
+  state.studioDocument.uniformOverviewStack = previewFloorUniformInput.checked;
   invalidateRender({
     scene: true
   });
@@ -1963,12 +1789,12 @@ function commitUniformOverviewStack() {
  */
 function commitExportFloorGap() {
   const exportGap = clamp(
-    finite(exportFloorGapInput.value, studioDocument?.exportFloorGap || 3),
+    finite(exportFloorGapInput.value, state.studioDocument?.exportFloorGap || 3),
     0,
     20
   );
-  if (!(Math.abs(exportGap - finite(studioDocument?.exportFloorGap, 3)) < 0.000001)) {
-    studioDocument.exportFloorGap = exportGap;
+  if (!(Math.abs(exportGap - finite(state.studioDocument?.exportFloorGap, 3)) < 0.000001)) {
+    state.studioDocument.exportFloorGap = exportGap;
     exportFloorGapInput.value = exportGap.toFixed(1);
     refreshPreviewScene();
     exportStatusElement.textContent = "全楼层间距已设为 " + exportGap.toFixed(1) + " m";
@@ -2458,7 +2284,7 @@ function normalizeScene(raw: any) {
     items: rawItems
   };
 }
-function cloneSceneForHistory(sourceScene = activeScene) {
+function cloneSceneForHistory(sourceScene = state.activeScene) {
   return structuredClone(sourceScene);
 }
 /**
@@ -2466,15 +2292,15 @@ function cloneSceneForHistory(sourceScene = activeScene) {
  */
 function lightGroupForItem(lookupItem: any) {
   return (
-    activeScene.lightGroups?.find((matchedGroup: any) => matchedGroup.id === lookupItem?.lightGroupId) ||
-    activeScene.lightGroups?.[0] ||
+    state.activeScene.lightGroups?.find((matchedGroup: any) => matchedGroup.id === lookupItem?.lightGroupId) ||
+    state.activeScene.lightGroups?.[0] ||
     null
   );
 }
 /**
  * 在指定场景里查灯具所属的灯组。与 lightGroupForItem 的差别只在「查哪个场景」：
  */
-function lightGroupForItemInScene(sceneItem: any, targetScene = activeScene) {
+function lightGroupForItemInScene(sceneItem: any, targetScene = state.activeScene) {
   return (
     targetScene?.lightGroups?.find((sceneGroup: any) => sceneGroup.id === sceneItem?.lightGroupId) ||
     targetScene?.lightGroups?.[0] ||
@@ -2482,32 +2308,32 @@ function lightGroupForItemInScene(sceneItem: any, targetScene = activeScene) {
   );
 }
 function isLightEnabled(checkedItem: any) {
-  if (forcedVisibleLightIds !== null) {
-    return forcedVisibleLightIds.has(checkedItem.id);
+  if (state.forcedVisibleLightIds !== null) {
+    return state.forcedVisibleLightIds.has(checkedItem.id);
   } else if (lightGroupForItem(checkedItem)?.enabled === false) {
     return false;
   } else {
-    return exportRenderState || isPreservingLightCache || !isAdaptiveLightCacheEnabled();
+    return state.exportRenderState || state.isPreservingLightCache || !isAdaptiveLightCacheEnabled();
   }
 }
 /**
  * 当前楼层里的电视列表。
  */
 function televisionItems() {
-  return activeScene.items.filter((televisionItem: any) => televisionItem.type === "tv");
+  return state.activeScene.items.filter((televisionItem: any) => televisionItem.type === "tv");
 }
 /**
  * 当前楼层里的小汽车物件（类型 smallcar）。充电图层编号与充电负载估算都以它为准；
  */
 function carItems() {
-  return activeScene.items.filter((carItem: any) => carItem.type === "smallcar");
+  return state.activeScene.items.filter((carItem: any) => carItem.type === "smallcar");
 }
 /**
  * 取当前预览范围内的楼层列表：整景（all）给全部楼层，单层只给当前层。单层分支用
  */
 function previewFloors() {
   if (currentPreviewFloorMode() === "all") {
-    return studioDocument.floors;
+    return state.studioDocument.floors;
   } else {
     return [getCurrentFloor()].filter(Boolean);
   }
@@ -2519,10 +2345,10 @@ function floorExportOffset(measuredFloor: any) {
   if (currentPreviewFloorMode() !== "all") {
     return 0;
   }
-  const offsetFloorIndex = studioDocument.floors.findIndex(
+  const offsetFloorIndex = state.studioDocument.floors.findIndex(
     (indexedFloorRecord: any) => indexedFloorRecord.id === measuredFloor?.id
   );
-  return Math.max(offsetFloorIndex, 0) * finite(studioDocument.exportFloorGap, 3);
+  return Math.max(offsetFloorIndex, 0) * finite(state.studioDocument.exportFloorGap, 3);
 }
 /**
  * 拼接「楼层 + 灯组」复合键，用于跨层的灯组定位与缓存键。
@@ -2552,7 +2378,7 @@ function lightGroupScopeKey(scopeFloorId: any, scopeGroupId: any) {
 function collectPreviewLights() {
   return (
     currentPreviewFloorMode() === "all"
-      ? studioDocument?.floors || []
+      ? state.studioDocument?.floors || []
       : [getCurrentFloor()].filter(Boolean)
   ).flatMap((previewedFloor: any) =>
     previewedFloor.scene.items
@@ -2572,7 +2398,7 @@ function collectPreviewLights() {
 /**
  * 收集楼层里的灯组，并算出每组内的灯具。
  */
-function collectLightGroups(groupSourceFloors = studioDocument?.floors || []) {
+function collectLightGroups(groupSourceFloors = state.studioDocument?.floors || []) {
   return groupSourceFloors.flatMap((groupFloor: any) =>
     groupFloor.scene.lightGroups.map((listedGroup: any, groupPosition: any) => ({
       floor: groupFloor,
@@ -2589,7 +2415,7 @@ function collectLightGroups(groupSourceFloors = studioDocument?.floors || []) {
 /**
  * 收集楼层里的电视，位置下标用于给「电视画面 N」图层编号。
  */
-function collectTelevisions(televisionSourceFloors = studioDocument?.floors || []) {
+function collectTelevisions(televisionSourceFloors = state.studioDocument?.floors || []) {
   return televisionSourceFloors.flatMap((televisionFloor: any) =>
     televisionFloor.scene.items
       .filter((televisionCandidate: any) => televisionCandidate.type === "tv")
@@ -2604,7 +2430,7 @@ function collectTelevisions(televisionSourceFloors = studioDocument?.floors || [
 /**
  * 收集楼层里的小汽车，位置下标用于给「汽车充电 N」图层编号。与 collectTelevisions /
  */
-function collectCars(carSourceFloors = studioDocument?.floors || []) {
+function collectCars(carSourceFloors = state.studioDocument?.floors || []) {
   return carSourceFloors.flatMap((carFloor: any) =>
     carFloor.scene.items
       .filter((carCandidate: any) => carCandidate.type === "smallcar")
@@ -2665,7 +2491,7 @@ function normalizeLayerNames(itemsToName: any) {
  * 确保当前场景至少有一个灯组，并返回当前激活的那个。有副作用：会就地补出 lightGroups
  */
 function ensureActiveLightGroup() {
-  const sceneLightGroups = (activeScene.lightGroups ||= []);
+  const sceneLightGroups = (state.activeScene.lightGroups ||= []);
   if (!sceneLightGroups.length) {
     sceneLightGroups.push({
       id: createId("light-group"),
@@ -2674,11 +2500,11 @@ function ensureActiveLightGroup() {
       areaId: null
     });
   }
-  if (!sceneLightGroups.some((existingGroupRef: any) => existingGroupRef.id === activeLightGroupId)) {
-    activeLightGroupId = sceneLightGroups[0].id;
+  if (!sceneLightGroups.some((existingGroupRef: any) => existingGroupRef.id === state.activeLightGroupId)) {
+    state.activeLightGroupId = sceneLightGroups[0].id;
   }
   return (
-    sceneLightGroups.find((activeGroup: any) => activeGroup.id === activeLightGroupId) ||
+    sceneLightGroups.find((activeGroup: any) => activeGroup.id === state.activeLightGroupId) ||
     sceneLightGroups[0]
   );
 }
@@ -2688,7 +2514,7 @@ function ensureActiveLightGroup() {
 function renderLightGroupSelect(selectedItem: any) {
   const lightGroupSelectElement = selectElement("#light-group");
   lightGroupSelectElement.replaceChildren();
-  for (const optionGroup of activeScene.lightGroups || []) {
+  for (const optionGroup of state.activeScene.lightGroups || []) {
     const optionElement = document.createElement("option");
     optionElement.value = optionGroup.id;
     optionElement.textContent = optionGroup.name;
@@ -2703,19 +2529,19 @@ function renderLightGroupSelect(selectedItem: any) {
  */
 function closeLightGroupContextMenu() {
   lightGroupContextMenuElement.hidden = true;
-  lightGroupMenuTargetId = "";
+  state.lightGroupMenuTargetId = "";
 }
 /**
  * 在鼠标位置打开灯组右键菜单（重命名 / 复制 / 删除）。打开前先把该组设为激活并重绘列表，
  */
 function openLightGroupContextMenu(menuGroup: any, groupContextMenuEvent: any) {
-  lightGroupMenuTargetId = menuGroup.id;
-  activeLightGroupId = menuGroup.id;
+  state.lightGroupMenuTargetId = menuGroup.id;
+  state.activeLightGroupId = menuGroup.id;
   renderLightGroupList();
   const groupDeleteButton = lightGroupContextMenuElement.querySelector(
     '[data-light-group-action="delete"]'
   );
-  groupDeleteButton.disabled = activeScene.lightGroups.length <= 1;
+  groupDeleteButton.disabled = state.activeScene.lightGroups.length <= 1;
   lightGroupContextMenuElement.hidden = false;
   positionPointMenu({
     menuElement: lightGroupContextMenuElement,
@@ -2727,15 +2553,15 @@ function openLightGroupContextMenu(menuGroup: any, groupContextMenuEvent: any) {
  * 删除一个灯组，连同组内的灯。语义是「组没了，灯也不该留着」：先收集组内灯具 id 再
  */
 function deleteLightGroup(removedGroup: any) {
-  if (!removedGroup || activeScene.lightGroups.length <= 1) {
+  if (!removedGroup || state.activeScene.lightGroups.length <= 1) {
     return;
   }
   pushHistorySnapshot();
-  const fallbackGroup = activeScene.lightGroups.find(
+  const fallbackGroup = state.activeScene.lightGroups.find(
     (fallbackGroupRef: any) => fallbackGroupRef.id !== removedGroup.id
   );
   const removedLightIds = new Set(
-    activeScene.items
+    state.activeScene.items
       .filter(
         (groupLightCandidate: any) =>
           LIGHT_ITEM_TYPES.has(groupLightCandidate.type) &&
@@ -2743,20 +2569,20 @@ function deleteLightGroup(removedGroup: any) {
       )
       .map((groupLightIdSource: any) => groupLightIdSource.id)
   );
-  activeScene.items = activeScene.items.filter(
+  state.activeScene.items = state.activeScene.items.filter(
     (removableItem: any) => !removedLightIds.has(removableItem.id)
   );
-  activeScene.lightGroups = activeScene.lightGroups.filter(
+  state.activeScene.lightGroups = state.activeScene.lightGroups.filter(
     (filteredGroup: any) => filteredGroup.id !== removedGroup.id
   );
-  if (primarySelection?.kind === "item" && removedLightIds.has(primarySelection.id)) {
-    primarySelection = null;
+  if (state.primarySelection?.kind === "item" && removedLightIds.has(state.primarySelection.id)) {
+    state.primarySelection = null;
   }
-  multiSelection = multiSelection.filter(
+  state.multiSelection = state.multiSelection.filter(
     (selectionEntry: any) => selectionEntry.kind !== "item" || !removedLightIds.has(selectionEntry.id)
   );
-  if (activeLightGroupId === removedGroup.id) {
-    activeLightGroupId = fallbackGroup.id;
+  if (state.activeLightGroupId === removedGroup.id) {
+    state.activeLightGroupId = fallbackGroup.id;
   }
   refreshStudio("lights");
   markDocumentDirty();
@@ -2770,7 +2596,7 @@ function deleteLightGroup(removedGroup: any) {
  * @returns {string} 场景内唯一的名字。
  */
 function uniqueLightGroupName(requestedGroupName: any) {
-  const existingGroupNames = new Set(activeScene.lightGroups.map((namedGroup: any) => namedGroup.name));
+  const existingGroupNames = new Set(state.activeScene.lightGroups.map((namedGroup: any) => namedGroup.name));
   if (!existingGroupNames.has(requestedGroupName)) {
     return requestedGroupName;
   }
@@ -2793,11 +2619,11 @@ function duplicateLightGroup(sourceGroup: any) {
     id: createId("light-group"),
     name: uniqueLightGroupName(sourceGroup.name + " 副本")
   };
-  const groupIndex = activeScene.lightGroups.findIndex(
+  const groupIndex = state.activeScene.lightGroups.findIndex(
     (sourceGroupRef: any) => sourceGroupRef.id === sourceGroup.id
   );
-  activeScene.lightGroups.splice(groupIndex + 1, 0, copy);
-  const copiedLights = activeScene.items
+  state.activeScene.lightGroups.splice(groupIndex + 1, 0, copy);
+  const copiedLights = state.activeScene.items
     .filter(
       (copiedLight: any) =>
         LIGHT_ITEM_TYPES.has(copiedLight.type) && copiedLight.lightGroupId === sourceGroup.id
@@ -2807,16 +2633,16 @@ function duplicateLightGroup(sourceGroup: any) {
       id: createId("item"),
       lightGroupId: copy.id
     }));
-  activeScene.items.push(...copiedLights);
-  activeLightGroupId = copy.id;
-  primarySelection =
+  state.activeScene.items.push(...copiedLights);
+  state.activeLightGroupId = copy.id;
+  state.primarySelection =
     copiedLights.length === 1
       ? {
           kind: "item",
           id: copiedLights[0].id
         }
       : null;
-  multiSelection =
+  state.multiSelection =
     copiedLights.length > 1
       ? copiedLights.map((copiedLightEntry: any) => ({
           kind: "item",
@@ -2845,7 +2671,7 @@ function clearLightGroupDropIndicators() {
  * @param {boolean} [placeAfter=false] true 表示插到锚点之后。
  */
 function moveLightGroupToArea(sourceId: any, targetAreaId: any, targetGroupId: any = null, placeAfter = false) {
-  const sceneLightGroups = activeScene.lightGroups || [];
+  const sceneLightGroups = state.activeScene.lightGroups || [];
   const movedLightGroup = sceneLightGroups.find((movedGroupRef: any) => movedGroupRef.id === sourceId);
   if (!movedLightGroup) {
     return;
@@ -2875,7 +2701,7 @@ function moveLightGroupToArea(sourceId: any, targetAreaId: any, targetGroupId: a
   pushHistorySnapshot();
   movedLightGroup.areaId = nextAreaId;
   if (orderChanged) {
-    activeScene.lightGroups = nextOrder;
+    state.activeScene.lightGroups = nextOrder;
   }
   if (nextAreaId) {
     expandedAreaIds.add(nextAreaId);
@@ -2890,7 +2716,7 @@ function moveLightGroupToArea(sourceId: any, targetAreaId: any, targetGroupId: a
 function createLightGroupRow(listedLightGroup: any) {
   const groupRowElement = document.createElement("div");
   groupRowElement.className =
-    "light-group-row" + (listedLightGroup.id === activeLightGroupId ? " active" : "");
+    "light-group-row" + (listedLightGroup.id === state.activeLightGroupId ? " active" : "");
   groupRowElement.dataset.lightGroupId = listedLightGroup.id;
   groupRowElement.dataset.lightGroupAreaId = listedLightGroup.areaId || "";
   groupRowElement.draggable = true;
@@ -2933,7 +2759,7 @@ function createLightGroupRow(listedLightGroup: any) {
       resetGroupDragReady();
       return;
     }
-    draggingLightGroupId = listedLightGroup.id;
+    state.draggingLightGroupId = listedLightGroup.id;
     groupRowElement.classList.remove("drag-ready");
     groupRowElement.classList.add("dragging");
     groupDragStartEvent.dataTransfer!.effectAllowed = "move";
@@ -2943,13 +2769,13 @@ function createLightGroupRow(listedLightGroup: any) {
     );
   });
   groupRowElement.addEventListener("dragend", () => {
-    draggingLightGroupId = "";
+    state.draggingLightGroupId = "";
     groupRowElement.classList.remove("dragging");
     resetGroupDragReady();
     clearLightGroupDropIndicators();
   });
   groupRowElement.addEventListener("click", () => {
-    activeLightGroupId = listedLightGroup.id;
+    state.activeLightGroupId = listedLightGroup.id;
     renderLightGroupList();
   });
   groupRowElement.addEventListener("contextmenu", groupMenuEvent => {
@@ -2957,7 +2783,7 @@ function createLightGroupRow(listedLightGroup: any) {
     openLightGroupContextMenu(listedLightGroup, groupMenuEvent);
   });
   groupRowElement.addEventListener("dragover", groupDragOverEvent => {
-    if (!draggingLightGroupId || draggingLightGroupId === listedLightGroup.id) {
+    if (!state.draggingLightGroupId || state.draggingLightGroupId === listedLightGroup.id) {
       return;
     }
     groupDragOverEvent.preventDefault();
@@ -2973,13 +2799,13 @@ function createLightGroupRow(listedLightGroup: any) {
     }
   });
   groupRowElement.addEventListener("drop", groupDropEvent => {
-    if (!draggingLightGroupId || draggingLightGroupId === listedLightGroup.id) {
+    if (!state.draggingLightGroupId || state.draggingLightGroupId === listedLightGroup.id) {
       return;
     }
     groupDropEvent.preventDefault();
-    const draggedGroupIdValue = draggingLightGroupId;
+    const draggedGroupIdValue = state.draggingLightGroupId;
     const shouldInsertGroupAfter = groupRowElement.dataset.dropPosition === "after";
-    draggingLightGroupId = "";
+    state.draggingLightGroupId = "";
     clearLightGroupDropIndicators();
     moveLightGroupToArea(
       draggedGroupIdValue,
@@ -3006,7 +2832,7 @@ function createLightGroupRow(listedLightGroup: any) {
   groupNameElement.title = "长按灯组后拖动排序或移入区域，右键可设置区域、重命名、复制或删除";
   const countElement = document.createElement("small");
   countElement.textContent = String(
-    activeScene.items.filter(
+    state.activeScene.items.filter(
       (countedLight: any) =>
         LIGHT_ITEM_TYPES.has(countedLight.type) && countedLight.lightGroupId === listedLightGroup.id
     ).length
@@ -3038,12 +2864,12 @@ function createAreaSection(listedArea: any, memberGroups: any) {
     toggleAreaExpanded(listedArea.id);
   });
   areaHeaderElement.addEventListener("dragover", areaDragOverEvent => {
-    if (!draggingLightGroupId) {
+    if (!state.draggingLightGroupId) {
       return;
     }
     // 取一次被拖动的灯组，用它当前的区域判断要不要显示「可放入」高亮。
-    const draggedLightGroup = (activeScene.lightGroups || []).find(
-      (draggedGroupRef: any) => draggedGroupRef.id === draggingLightGroupId
+    const draggedLightGroup = (state.activeScene.lightGroups || []).find(
+      (draggedGroupRef: any) => draggedGroupRef.id === state.draggingLightGroupId
     );
     if (!draggedLightGroup) {
       return;
@@ -3063,13 +2889,13 @@ function createAreaSection(listedArea: any, memberGroups: any) {
     }
   });
   areaHeaderElement.addEventListener("drop", areaDropEvent => {
-    if (!draggingLightGroupId) {
+    if (!state.draggingLightGroupId) {
       return;
     }
     areaDropEvent.preventDefault();
     areaDropEvent.stopPropagation();
-    const draggedGroupIdValue = draggingLightGroupId;
-    draggingLightGroupId = "";
+    const draggedGroupIdValue = state.draggingLightGroupId;
+    state.draggingLightGroupId = "";
     clearLightGroupDropIndicators();
     moveLightGroupToArea(draggedGroupIdValue, listedArea.id);
   });
@@ -3123,7 +2949,7 @@ function normalizeAreaName(requestedAreaName: any) {
  * 判断区域名是否已被占用。
  */
 function areaNameTaken(areaName: any, excludeAreaId: any = null) {
-  return (activeScene.areas || []).some(
+  return (state.activeScene.areas || []).some(
     (namedArea: any) => namedArea.id !== excludeAreaId && namedArea.name === areaName
   );
 }
@@ -3131,8 +2957,8 @@ function areaNameTaken(areaName: any, excludeAreaId: any = null) {
  * 以「新建」模式打开区域命名对话框。新建与重命名共用同一个 <dialog>，靠 areaRenameMode /
  */
 function openAreaCreateDialog() {
-  areaRenameMode = "create";
-  areaRenameId = "";
+  state.areaRenameMode = "create";
+  state.areaRenameId = "";
   areaRenameTitleElement.textContent = "新建区域";
   areaRenameInputElement.value = "";
   areaRenameDialogElement.showModal();
@@ -3145,8 +2971,8 @@ function openAreaRenameDialog(renameTargetArea: any) {
   if (!renameTargetArea) {
     return;
   }
-  areaRenameMode = "rename";
-  areaRenameId = renameTargetArea.id;
+  state.areaRenameMode = "rename";
+  state.areaRenameId = renameTargetArea.id;
   areaRenameTitleElement.textContent = "重命名区域";
   areaRenameInputElement.value = renameTargetArea.name;
   areaRenameDialogElement.showModal();
@@ -3156,8 +2982,8 @@ function openAreaRenameDialog(renameTargetArea: any) {
  * 关闭区域命名对话框，并把模式重置回「新建」。必须重置：残留上次的 rename 模式与 id
  */
 function closeAreaRenameDialog() {
-  areaRenameMode = "create";
-  areaRenameId = "";
+  state.areaRenameMode = "create";
+  state.areaRenameId = "";
   areaRenameDialogElement.close();
 }
 function deleteArea(removedArea: any) {
@@ -3165,12 +2991,12 @@ function deleteArea(removedArea: any) {
     return;
   }
   pushHistorySnapshot();
-  for (const ownedLightGroup of activeScene.lightGroups || []) {
+  for (const ownedLightGroup of state.activeScene.lightGroups || []) {
     if (ownedLightGroup.areaId === removedArea.id) {
       ownedLightGroup.areaId = null;
     }
   }
-  activeScene.areas = (activeScene.areas || []).filter(
+  state.activeScene.areas = (state.activeScene.areas || []).filter(
     (filteredArea: any) => filteredArea.id !== removedArea.id
   );
   expandedAreaIds.delete(removedArea.id);
@@ -3182,7 +3008,7 @@ function deleteArea(removedArea: any) {
  * 在鼠标位置打开区域右键菜单（重命名 / 删除）。与灯组菜单同理，坐标交给
  */
 function openAreaContextMenu(menuArea: any, areaMenuEvent: any) {
-  areaContextMenuId = menuArea.id;
+  state.areaContextMenuId = menuArea.id;
   areaContextMenuElement.hidden = false;
   positionPointMenu({
     menuElement: areaContextMenuElement,
@@ -3195,7 +3021,7 @@ function openAreaContextMenu(menuArea: any, areaMenuEvent: any) {
  */
 function closeAreaContextMenu() {
   areaContextMenuElement.hidden = true;
-  areaContextMenuId = "";
+  state.areaContextMenuId = "";
 }
 /**
  * 重建「所属区域」下拉框：「未分类」恒在首位，其后是当前场景的全部区域。选项少，
@@ -3207,7 +3033,7 @@ function syncAreaAssignOptions(selectedAreaId: any) {
       label: "未分类"
     }
   ];
-  for (const listedArea of activeScene.areas || []) {
+  for (const listedArea of state.activeScene.areas || []) {
     areaOptions.push({
       value: listedArea.id,
       label: listedArea.name
@@ -3235,7 +3061,7 @@ function openLightGroupAreaDialog(assignTargetGroup: any) {
   if (!assignTargetGroup) {
     return;
   }
-  areaAssignGroupId = assignTargetGroup.id;
+  state.areaAssignGroupId = assignTargetGroup.id;
   lightGroupAreaNameElement.textContent = assignTargetGroup.name;
   lightGroupAreaNewNameElement.value = "";
   syncAreaAssignOptions(assignTargetGroup.areaId || "");
@@ -3245,7 +3071,7 @@ function openLightGroupAreaDialog(assignTargetGroup: any) {
  * 关闭灯组的「分配区域」对话框，并清掉目标灯组 id。
  */
 function closeLightGroupAreaDialog() {
-  areaAssignGroupId = "";
+  state.areaAssignGroupId = "";
   lightGroupAreaDialogElement.close();
 }
 /**
@@ -3266,7 +3092,7 @@ function createAreaFromAssignDialog() {
     id: createId("area"),
     name: newAreaName
   };
-  (activeScene.areas ||= []).push(createdArea);
+  (state.activeScene.areas ||= []).push(createdArea);
   expandedAreaIds.add(createdArea.id);
   syncAreaAssignOptions(createdArea.id);
   lightGroupAreaNewNameElement.value = "";
@@ -3280,9 +3106,9 @@ function createAreaFromAssignDialog() {
 function renderLightGroupList() {
   const televisions = televisionItems();
   const cars = carItems();
-  const showLightGroups = activeAssetTab === "light";
-  const showTelevisionScreens = activeAssetTab === "appliance" && televisions.length > 0;
-  const showCarCharging = activeAssetTab === "home" && cars.length > 0;
+  const showLightGroups = state.activeAssetTab === "light";
+  const showTelevisionScreens = state.activeAssetTab === "appliance" && televisions.length > 0;
+  const showCarCharging = state.activeAssetTab === "home" && cars.length > 0;
   lightLayerPanelElement.hidden = !(showLightGroups || showTelevisionScreens || showCarCharging);
   if (lightLayerPanelElement.hidden) {
     return;
@@ -3299,11 +3125,11 @@ function renderLightGroupList() {
   lightGroupListElement.replaceChildren();
   if (showLightGroups) {
     ensureActiveLightGroup();
-    const sceneAreas = activeScene.areas || [];
+    const sceneAreas = state.activeScene.areas || [];
     const areaIdSet = new Set(sceneAreas.map((areaRef: any) => areaRef.id));
     const groupsByAreaId = new Map();
     const unassignedLightGroups = [];
-    for (const listedLightGroup of activeScene.lightGroups) {
+    for (const listedLightGroup of state.activeScene.lightGroups) {
       const listedAreaId = areaIdSet.has(listedLightGroup.areaId) ? listedLightGroup.areaId : null;
       if (listedAreaId) {
         if (!groupsByAreaId.has(listedAreaId)) {
@@ -3404,7 +3230,7 @@ function createCarChargingLayerRow(carRowLayerIndex: any, car: any) {
  * 一键开 / 关当前楼层的全部灯组（图层面板的「全关」按钮在灯光页的语义）。所有组状态已经
  */
 function setLightGroupsEnabled(enabled: any) {
-  const enabledGroups = activeScene.lightGroups || [];
+  const enabledGroups = state.activeScene.lightGroups || [];
   if (enabledGroups.every((enabledGroup: any) => enabledGroup.enabled === enabled)) {
     return;
   }
@@ -3455,9 +3281,9 @@ function setCarChargingEnabled(enabled: any) {
  * 按当前资产分类（灯光 / 电器 / 家居）把「全开 / 全关」转发给对应子函数。面板上只有一个
  */
 function setCategoryLayersEnabled(enabled: any) {
-  if (activeAssetTab === "appliance") {
+  if (state.activeAssetTab === "appliance") {
     setTelevisionScreensEnabled(enabled);
-  } else if (activeAssetTab === "home") {
+  } else if (state.activeAssetTab === "home") {
     setCarChargingEnabled(enabled);
   } else {
     setLightGroupsEnabled(enabled);
@@ -3469,8 +3295,8 @@ function setCategoryLayersEnabled(enabled: any) {
  */
 function isSelected(selectionKind: any, selectedId: any) {
   return (
-    (primarySelection?.kind === selectionKind && primarySelection.id === selectedId) ||
-    multiSelection.some(
+    (state.primarySelection?.kind === selectionKind && state.primarySelection.id === selectedId) ||
+    state.multiSelection.some(
       (checkedEntry: any) => checkedEntry.kind === selectionKind && checkedEntry.id === selectedId
     )
   );
@@ -3479,21 +3305,21 @@ function isSelected(selectionKind: any, selectedId: any) {
  * 清空全部选中状态（主选中与多选一并清）。切层、撤销、进入对齐等场景都会先调用它；
  */
 function clearSelection() {
-  primarySelection = null;
-  multiSelection = [];
+  state.primarySelection = null;
+  state.multiSelection = [];
 }
 /**
  * 设置单选：把指定对象设为主选中并清空多选。
  */
 function setSelection(setSelectionKind: any, selectionId: any) {
-  primarySelection =
+  state.primarySelection =
     setSelectionKind && selectionId
       ? {
           kind: setSelectionKind,
           id: selectionId
         }
       : null;
-  multiSelection = [];
+  state.multiSelection = [];
 }
 function scopeForItem(scopedItem: any) {
   if (scopedItem?.type === "flooropening") {
@@ -3518,7 +3344,7 @@ function scopeForSelection(selection: any) {
     return "all";
   }
   const selectedItemIds = new Set(selection.map((selectionIdEntry: any) => selectionIdEntry.id));
-  const selectedItems = activeScene.items.filter((matchedItem: any) =>
+  const selectedItems = state.activeScene.items.filter((matchedItem: any) =>
     selectedItemIds.has(matchedItem.id)
   );
   if (
@@ -3543,7 +3369,7 @@ function scopeForSelection(selection: any) {
  */
 function currentSelectionScope() {
   return scopeForSelection(
-    multiSelection.length ? multiSelection : primarySelection ? [primarySelection] : []
+    state.multiSelection.length ? state.multiSelection : state.primarySelection ? [state.primarySelection] : []
   );
 }
 /**
@@ -3564,7 +3390,7 @@ function lightScopeForSelection(lightSelection: any) {
     return "all";
   }
   const lightSelectedIds = new Set(lightSelection.map((itemIdEntry: any) => itemIdEntry.id));
-  const matchedItems = activeScene.items.filter((matchedLightItem: any) =>
+  const matchedItems = state.activeScene.items.filter((matchedLightItem: any) =>
     lightSelectedIds.has(matchedLightItem.id)
   );
   if (!matchedItems.length) {
@@ -3592,7 +3418,7 @@ function lightScopeForSelection(lightSelection: any) {
  */
 function currentLightScope() {
   return lightScopeForSelection(
-    multiSelection.length ? multiSelection : primarySelection ? [primarySelection] : []
+    state.multiSelection.length ? state.multiSelection : state.primarySelection ? [state.primarySelection] : []
   );
 }
 /**
@@ -3622,24 +3448,24 @@ function requestSceneRefresh(refreshScope: any) {
  */
 function refreshSplitGeometry() {
   const recomputedGeometry = splitWallsWithOpenings(
-    activeScene.walls,
-    activeScene.windows,
-    activeScene.doors,
+    state.activeScene.walls,
+    state.activeScene.windows,
+    state.activeScene.doors,
     currentPixelsPerMeter() || 1,
-    activeScene.railings
+    state.activeScene.railings
   );
-  activeScene.walls = recomputedGeometry.walls;
-  activeScene.windows = recomputedGeometry.windows;
-  activeScene.doors = recomputedGeometry.doors;
-  activeScene.railings = recomputedGeometry.railings;
+  state.activeScene.walls = recomputedGeometry.walls;
+  state.activeScene.windows = recomputedGeometry.windows;
+  state.activeScene.doors = recomputedGeometry.doors;
+  state.activeScene.railings = recomputedGeometry.railings;
 }
 /**
  * 合并共线的相邻墙段，并把门窗栏杆重挂到合并后的墙上。容差 1e-6 米（1 微米）：只吃吸附与
  */
 function mergeCollinearWalls() {
-  const wallById = new Map(activeScene.walls.map((indexedWall: any) => [indexedWall.id, indexedWall]));
-  const merged = mergeCollinearWallSegments(activeScene.walls, 0.000001);
-  if (merged.walls.length === activeScene.walls.length) {
+  const wallById = new Map(state.activeScene.walls.map((indexedWall: any) => [indexedWall.id, indexedWall]));
+  const merged = mergeCollinearWallSegments(state.activeScene.walls, 0.000001);
+  if (merged.walls.length === state.activeScene.walls.length) {
     return 0;
   }
   const mergedWallById = new Map(
@@ -3659,15 +3485,15 @@ function mergeCollinearWalls() {
     remappedAttachment.t = clampWindowT(newWall, remappedAttachment, currentPixelsPerMeter() || 1);
     return remappedAttachment;
   };
-  const removedWallCount = activeScene.walls.length - merged.walls.length;
-  activeScene.walls = merged.walls;
-  activeScene.windows = activeScene.windows.map(remapMergedAttachment);
-  activeScene.doors = activeScene.doors.map(remapMergedAttachment);
-  activeScene.railings = activeScene.railings.map(remapMergedAttachment);
+  const removedWallCount = state.activeScene.walls.length - merged.walls.length;
+  state.activeScene.walls = merged.walls;
+  state.activeScene.windows = state.activeScene.windows.map(remapMergedAttachment);
+  state.activeScene.doors = state.activeScene.doors.map(remapMergedAttachment);
+  state.activeScene.railings = state.activeScene.railings.map(remapMergedAttachment);
   return removedWallCount;
 }
 function currentPixelsPerMeter() {
-  return activeScene.calibration?.pixelsPerMeter || 0;
+  return state.activeScene.calibration?.pixelsPerMeter || 0;
 }
 /**
  * 统一的工作室后端请求入口：拼 /api/v1 前缀、解析响应与错误。只读视图下禁止非 GET 请求并直接抛错；
@@ -3730,10 +3556,10 @@ async function requestStudioApi(requestPath: any, requestOptions: any = {}, prew
  * 弹出一条底部提示，并按语气决定停留时长。warning 停 4400ms、其余 2600ms：警告（如
  */
 function showToast(toastMessage: any, tone = "") {
-  window.clearTimeout(toastTimer);
+  window.clearTimeout(state.toastTimer);
   toastElement.textContent = toastMessage;
   toastElement.className = ("toast visible " + tone).trim();
-  toastTimer = window.setTimeout(
+  state.toastTimer = window.setTimeout(
     () => {
       toastElement.className = "toast";
     },
@@ -3751,67 +3577,66 @@ function setSaveState(label: any, saveStateTone = "") {
  * 在改动文档前压入一条撤销快照，并清空重做栈。栈上限 40 步：再多也几乎没人会连点 40 次
  */
 function pushHistorySnapshot() {
-  undoStack.push(cloneSceneForHistory());
-  if (undoStack.length > 40) {
-    undoStack.shift();
+  state.undoStack.push(cloneSceneForHistory());
+  if (state.undoStack.length > 40) {
+    state.undoStack.shift();
   }
-  redoStack = [];
+  state.redoStack = [];
 }
 function pushHistoryEntry(snapshotScene: any) {
-  undoStack.push(snapshotScene);
-  if (undoStack.length > 40) {
-    undoStack.shift();
+  state.undoStack.push(snapshotScene);
+  if (state.undoStack.length > 40) {
+    state.undoStack.shift();
   }
-  redoStack = [];
+  state.redoStack = [];
 }
 /**
  * 把一份场景快照套用为当前场景（撤销与重做的共同出口）。快照先过 normalizeScene 归一
  */
 async function applySceneSnapshot(rawScene: any) {
-  activeScene = normalizeScene(rawScene);
+  state.activeScene = normalizeScene(rawScene);
   const snapshotFloorRecord = getCurrentFloor();
   if (snapshotFloorRecord) {
-    snapshotFloorRecord.scene = activeScene;
+    snapshotFloorRecord.scene = state.activeScene;
   }
-  viewTransform.rotation = activeScene.settings.planViewRotation;
+  state.viewTransform.rotation = state.activeScene.settings.planViewRotation;
   clearSelection();
   resetScaleInteractionState();
   await loadBackgroundTexture();
   refreshStudio();
   markDocumentDirty();
 }
-let historyBusy = !1;
 /**
  * 撤销一步：先把当前状态压入重做栈，再取出撤销栈顶快照套用。
  */
 async function undo() {
-  if (historyBusy || !undoStack.length) {
+  if (state.historyBusy || !state.undoStack.length) {
     return;
   }
-  historyBusy = !0;
+  state.historyBusy = !0;
   try {
-    redoStack.push(cloneSceneForHistory());
-    const undoSnapshot = undoStack.pop();
+    state.redoStack.push(cloneSceneForHistory());
+    const undoSnapshot = state.undoStack.pop();
     await applySceneSnapshot(undoSnapshot);
   } finally {
     // 套用失败也必须放闩：闩卡住的话之后所有撤销都静默失效，且界面上没有任何提示。
-    historyBusy = !1;
+    state.historyBusy = !1;
   }
 }
 /**
  * 重做一步：先把当前状态压回撤销栈，再取出重做栈顶快照套用。
  */
 async function redo() {
-  if (historyBusy || !redoStack.length) {
+  if (state.historyBusy || !state.redoStack.length) {
     return;
   }
-  historyBusy = !0;
+  state.historyBusy = !0;
   try {
-    undoStack.push(cloneSceneForHistory());
-    const redoSnapshot = redoStack.pop();
+    state.undoStack.push(cloneSceneForHistory());
+    const redoSnapshot = state.redoStack.pop();
     await applySceneSnapshot(redoSnapshot);
   } finally {
-    historyBusy = !1;
+    state.historyBusy = !1;
   }
 }
 function applyHistoryShortcut(shortcutEvent: any) {
@@ -3825,11 +3650,11 @@ function applyHistoryShortcut(shortcutEvent: any) {
  */
 function markDocumentDirty() {
   if (!isStageViewerMode) {
-    isExportComplete = false;
-    changeRevision += 1;
+    state.isExportComplete = false;
+    state.changeRevision += 1;
     setSaveState("有未保存修改", "saving");
-    window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(saveStudioDraft, 650);
+    window.clearTimeout(state.autosaveTimer);
+    state.autosaveTimer = window.setTimeout(saveStudioDraft, 650);
     updateOnboardingSteps();
   }
 }
@@ -3837,52 +3662,52 @@ function markDocumentDirty() {
  * 载入一份草稿记录（首次打开、冲突后切换版本、埋点刷新都走这里）。sceneLoadToken 自增做竞态守卫，
  */
 async function loadStudioRecord(record: any) {
-  const loadToken = ++sceneLoadToken;
-  window.clearTimeout(deferredModelTimer);
-  deferredModelTimer = null;
-  deferredModelTypes = [];
-  areExternalModelsDeferred = false;
-  savedSceneRecord = record;
+  const loadToken = ++state.sceneLoadToken;
+  window.clearTimeout(state.deferredModelTimer);
+  state.deferredModelTimer = null;
+  state.deferredModelTypes = [];
+  state.areExternalModelsDeferred = false;
+  state.savedSceneRecord = record;
   const preparedScene = stageStartup
     ? prepareSceneDocument(record, stageStartup.cache.peek(stageStartup.key), normalizeStudioDocument)
     : null;
-  studioDocument = preparedScene ? preparedScene.document : normalizeStudioDocument(record.scene);
+  state.studioDocument = preparedScene ? preparedScene.document : normalizeStudioDocument(record.scene);
   if (preparedScene) {
     loadTiming(preparedScene.reused ? "scene-preparation-reused" : "scene-preparation-built");
     if (!preparedScene.reused) {
       // 写回缓存：下一次打开就能命中。异步、静默，写不进去只是下次还要重新归一。
-      stageStartup!.cache.schedule(stageStartup!.key, record, studioDocument);
+      stageStartup!.cache.schedule(stageStartup!.key, record, state.studioDocument);
     }
   }
   if (isStageViewerMode) {
-    for (const livePreviewFloor of studioDocument.floors) {
+    for (const livePreviewFloor of state.studioDocument.floors) {
       livePreviewFloor.scene.settings.livePreviewEnabled = true;
     }
   }
-  applyBaseLightingSettings(studioDocument.baseLighting);
-  activeFloorId = studioDocument.activeFloorId;
+  applyBaseLightingSettings(state.studioDocument.baseLighting);
+  state.activeFloorId = state.studioDocument.activeFloorId;
   if (isAutoDiagramEmbed && floorSelectionParam !== null) {
-    const selectedFloor = studioDocument.floors.find(
+    const selectedFloor = state.studioDocument.floors.find(
       (selectedFloorParam: any) => selectedFloorParam.id === floorSelectionParam
     );
-    if (floorSelectionParam === "all" && studioDocument.floors.length > 1) {
-      studioDocument.previewFloorMode = "all";
+    if (floorSelectionParam === "all" && state.studioDocument.floors.length > 1) {
+      state.studioDocument.previewFloorMode = "all";
     } else if (selectedFloor) {
-      studioDocument.previewFloorMode = "active";
-      studioDocument.activeFloorId = selectedFloor.id;
-      activeFloorId = selectedFloor.id;
+      state.studioDocument.previewFloorMode = "active";
+      state.studioDocument.activeFloorId = selectedFloor.id;
+      state.activeFloorId = selectedFloor.id;
     }
   }
-  activeScene = getCurrentFloor().scene;
-  activeLightGroupId = "";
+  state.activeScene = getCurrentFloor().scene;
+  state.activeLightGroupId = "";
   clearSelection();
   resetScaleInteractionState();
-  undoStack = [];
-  redoStack = [];
+  state.undoStack = [];
+  state.redoStack = [];
   const modelTypeList = currentFloorModelTypes();
   const isEmbedded = isAutoDiagramEmbed;
   if (isEmbedded) {
-    isAutoDiagramLoading = true;
+    state.isAutoDiagramLoading = true;
   }
   let embedLoadPromises = [];
   if (isEmbedded) {
@@ -3890,15 +3715,15 @@ async function loadStudioRecord(record: any) {
       loadExternalItemModel(pendingModelType)
     );
   }
-  areExternalModelsDeferred = !isEmbedded;
-  deferredModelTypes = isEmbedded ? [] : modelTypeList;
+  state.areExternalModelsDeferred = !isEmbedded;
+  state.deferredModelTypes = isEmbedded ? [] : modelTypeList;
   if (!isEmbedded) {
     scheduleDeferredModelLoad();
   }
   updateModelLoadingStatus();
   syncPreviewFloorButtons();
   updateFloorAlignmentControls();
-  viewTransform.rotation = activeScene.settings.planViewRotation;
+  state.viewTransform.rotation = state.activeScene.settings.planViewRotation;
   await loadBackgroundTexture();
   refreshStudio(isEmbedded ? "none" : "all");
   if (!isEmbedded) {
@@ -3909,15 +3734,15 @@ async function loadStudioRecord(record: any) {
       const loadPromise = Promise.allSettled(embedLoadPromises);
       await Promise.race([loadPromise, new Promise(resolve => window.setTimeout(resolve, 3500))]);
       Promise.allSettled(embedLoadPromises).then(() => {
-        if (loadToken === sceneLoadToken) {
+        if (loadToken === state.sceneLoadToken) {
           forcePreviewRebuild();
         }
       });
     } finally {
-      if (loadToken === sceneLoadToken) {
-        window.clearTimeout(precompileRenderTimer);
-        precompileRenderTimer = null;
-        isAutoDiagramLoading = false;
+      if (loadToken === state.sceneLoadToken) {
+        window.clearTimeout(state.precompileRenderTimer);
+        state.precompileRenderTimer = null;
+        state.isAutoDiagramLoading = false;
         updateModelLoadingStatus();
       }
     }
@@ -3926,7 +3751,7 @@ async function loadStudioRecord(record: any) {
       force: true
     });
     Promise.allSettled(embedLoadPromises).then(() => {
-      if (loadToken === sceneLoadToken) {
+      if (loadToken === state.sceneLoadToken) {
         forcePreviewRebuild();
       }
     });
@@ -3972,7 +3797,7 @@ function handleSaveConflict(
   serverRevision: any,
   { reopenDialog = true } = {}
 ) {
-  saveConflict = {
+  state.saveConflict = {
     latest: conflictingServerScene,
     localScene: localScene,
     targetVersion: serverRevision
@@ -3987,11 +3812,11 @@ function handleSaveConflict(
  * 「稍后处理」：收起对话框，但冲突记录留着。这是三条出路里唯一不丢东西的一条 ——
  */
 function deferSaveConflict() {
-  if (!saveConflict) {
+  if (!state.saveConflict) {
     saveConflictDialogElement.close();
     return;
   }
-  saveConflictDeferred = true;
+  state.saveConflictDeferred = true;
   setSaveState("等待处理保存冲突", "error");
   setSaveConflictPendingUi(true);
   saveConflictDialogElement.close();
@@ -4000,8 +3825,8 @@ function deferSaveConflict() {
  * 冲突已按用户选择处理掉：清记录、撤掉界面上的常驻入口、关对话框。
  */
 function resolveSaveConflict() {
-  saveConflict = null;
-  saveConflictDeferred = false;
+  state.saveConflict = null;
+  state.saveConflictDeferred = false;
   setSaveConflictPendingUi(false);
   saveConflictDialogElement.close();
 }
@@ -4070,7 +3895,7 @@ function renderSaveInteractionDialog(confirmation: any) {
 function handleSaveInteractionConfirmation(payload: any, revision: any, scene: any, localRevision: any, { reopenDialog = true } = {}) {
   // 容一次「调用方误传整包响应体」：真传错时 token 会被读成空串，确认重发永远撞回 428 —— 正是
   const detail = payload?.detail && typeof payload.detail === "object" ? payload.detail : payload;
-  saveInteractionConfirmation = {
+  state.saveInteractionConfirmation = {
     token: detail?.token || "",
     message: detail?.message || "",
     impacts: Array.isArray(detail?.impacts) ? detail.impacts : [],
@@ -4079,7 +3904,7 @@ function handleSaveInteractionConfirmation(payload: any, revision: any, scene: a
     scene: scene,
     localRevision: localRevision
   };
-  renderSaveInteractionDialog(saveInteractionConfirmation);
+  renderSaveInteractionDialog(state.saveInteractionConfirmation);
   setSaveState("等待处理删除影响", "error");
   setSaveInteractionPendingUi(true);
   if (reopenDialog) {
@@ -4090,11 +3915,11 @@ function handleSaveInteractionConfirmation(payload: any, revision: any, scene: a
  * 「保留模型」：撤销这次删除，把模型放回原位 —— 模型回来后那几条绑定重新成立，保存自然通过。
  */
 async function keepModelForInteraction() {
-  if (!saveInteractionConfirmation) {
+  if (!state.saveInteractionConfirmation) {
     saveInteractionDialogElement.close();
     return;
   }
-  if (!undoStack.length || historyBusy) {
+  if (!state.undoStack.length || state.historyBusy) {
     deferSaveInteraction();
     return;
   }
@@ -4105,11 +3930,11 @@ async function keepModelForInteraction() {
  * 「稍后处理」：收起对话框，但确认记录留着、本地删除与撤销栈一点不动 —— 用户随时可以 Ctrl/Cmd+Z
  */
 function deferSaveInteraction() {
-  if (!saveInteractionConfirmation) {
+  if (!state.saveInteractionConfirmation) {
     saveInteractionDialogElement.close();
     return;
   }
-  saveInteractionDeferred = true;
+  state.saveInteractionDeferred = true;
   setSaveState("等待处理删除影响", "error");
   setSaveInteractionPendingUi(true);
   saveInteractionDialogElement.close();
@@ -4118,8 +3943,8 @@ function deferSaveInteraction() {
  * 删除影响已按用户选择处理掉（确认保存成功）：清记录、撤掉常驻入口、关对话框。
  */
 function resolveSaveInteraction() {
-  saveInteractionConfirmation = null;
-  saveInteractionDeferred = false;
+  state.saveInteractionConfirmation = null;
+  state.saveInteractionDeferred = false;
   setSaveInteractionPendingUi(false);
   saveInteractionDialogElement.close();
 }
@@ -4127,33 +3952,33 @@ function resolveSaveInteraction() {
  * 「确认删除并保存」：带令牌、连同 428 当时捕获的**同一个 revision 与场景快照**重发，服务端才会
  */
 async function confirmSaveInteraction() {
-  const confirmation = saveInteractionConfirmation;
+  const confirmation = state.saveInteractionConfirmation;
   if (!confirmation) {
     saveInteractionDialogElement.close();
     return;
   }
-  if (isSaving) {
+  if (state.isSaving) {
     return;
   }
-  if (confirmation.localRevision !== changeRevision) {
+  if (confirmation.localRevision !== state.changeRevision) {
     resolveSaveInteraction();
     saveStudioDraft();
     return;
   }
   // 用户这次是主动确认，不再处于「保留模型」的挂起态：失败时保持对话框与挂起记录（不放行自动保存），
-  saveInteractionDeferred = false;
-  isSaving = true;
+  state.saveInteractionDeferred = false;
+  state.isSaving = true;
   setSaveState("正在保存…", "saving");
   try {
     // 关键：revision 与 scene 都用 428 当时捕获的那一份，令牌是它们的哈希，换了就落不到同一份计划。
-    savedSceneRecord = await putStudioScene(
+    state.savedSceneRecord = await putStudioScene(
       { revision: confirmation.revision },
       confirmation.scene,
       confirmation.token
     );
     resolveSaveInteraction();
-    savedRevision = confirmation.localRevision;
-    if (changeRevision === savedRevision) {
+    state.savedRevision = confirmation.localRevision;
+    if (state.changeRevision === state.savedRevision) {
       setSaveState("已自动保存", "saved");
       showToast("已删除模型并同步清理交互配置。", "success");
     }
@@ -4191,11 +4016,11 @@ async function confirmSaveInteraction() {
     setSaveState("保存失败", "error");
     showToast(saveRequestError.message || "3D 草稿保存失败。", "error");
   } finally {
-    isSaving = false;
+    state.isSaving = false;
     // 与 saveStudioDraft 同一口径：重发期间又落了新编辑（changeRevision 前进）且没有挂着的
-    if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
-      window.clearTimeout(autosaveTimer);
-      autosaveTimer = window.setTimeout(saveStudioDraft, 500);
+    if (!state.saveConflict && !state.saveInteractionConfirmation && state.changeRevision !== state.savedRevision) {
+      window.clearTimeout(state.autosaveTimer);
+      state.autosaveTimer = window.setTimeout(saveStudioDraft, 500);
     }
   }
 }
@@ -4259,48 +4084,48 @@ async function requestInteractionConfirmationIfNeeded(sceneRecord: any, sceneSna
     return false;
   }
   handleSaveInteractionConfirmation(interactionPlan, sceneRecord.revision, sceneSnapshot, localRevision, {
-    reopenDialog: !saveInteractionDeferred
+    reopenDialog: !state.saveInteractionDeferred
   });
   return true;
 }
 async function saveStudioDraft() {
-  if (isStageViewerMode || !savedSceneRecord) {
+  if (isStageViewerMode || !state.savedSceneRecord) {
     return "skipped";
   }
-  if (isSaving) {
+  if (state.isSaving) {
     return "skipped";
   }
-  if (saveConflict && !saveConflictDeferred) {
+  if (state.saveConflict && !state.saveConflictDeferred) {
     return "blocked-by-conflict";
   }
-  if (saveInteractionConfirmation && !saveInteractionDeferred) {
+  if (state.saveInteractionConfirmation && !state.saveInteractionDeferred) {
     return "blocked-by-interaction-confirmation";
   }
-  if (changeRevision === savedRevision) {
+  if (state.changeRevision === state.savedRevision) {
     return "no-changes";
   }
-  isSaving = true;
-  const revision = changeRevision;
+  state.isSaving = true;
+  const revision = state.changeRevision;
   // 本次要提交的场景快照只取一次：428 的令牌是服务端对**这份请求体**算的哈希，确认重发必须原样
   const sceneSnapshot = snapshotDocumentForSave();
   setSaveState("正在保存…", "saving");
   try {
     try {
       // 先做删除影响预检：命中就把确认框挂上、本次不再提交（服务端不落盘）。
-      if (await requestInteractionConfirmationIfNeeded(savedSceneRecord, sceneSnapshot, revision)) {
+      if (await requestInteractionConfirmationIfNeeded(state.savedSceneRecord, sceneSnapshot, revision)) {
         return "blocked-by-interaction-confirmation";
       }
-      savedSceneRecord = await putStudioScene(savedSceneRecord, sceneSnapshot);
+      state.savedSceneRecord = await putStudioScene(state.savedSceneRecord, sceneSnapshot);
     } catch (saveRequestError: any) {
       // 428：本次删除会让控件绑定悬空，服务端什么都没写、只回了令牌与影响清单。把「当时」的
       if (saveRequestError.status === 428 && saveRequestError.code === "STUDIO3D_INTERACTION_CONFIRMATION") {
         handleSaveInteractionConfirmation(
           saveRequestError.payload?.detail,
-          savedSceneRecord.revision,
+          state.savedSceneRecord.revision,
           sceneSnapshot,
           revision,
           {
-            reopenDialog: !saveInteractionDeferred
+            reopenDialog: !state.saveInteractionDeferred
           }
         );
         return "blocked-by-interaction-confirmation";
@@ -4311,16 +4136,16 @@ async function saveStudioDraft() {
       const remoteScene = await requestStudioApi("/studio3d");
       handleSaveConflict(remoteScene, snapshotDocumentForSave(), revision, {
         // 用户已经选了「稍后处理」时不再弹窗：记录照样刷新（latest 跟得上服务器），
-        reopenDialog: !saveConflictDeferred
+        reopenDialog: !state.saveConflictDeferred
       });
       return "blocked-by-conflict";
     }
-    savedRevision = revision;
+    state.savedRevision = revision;
     // 这次能保存成功就说明服务端已找不到悬空引用：之前挂着的「删除影响」确认已经过时，
-    if (saveInteractionConfirmation) {
+    if (state.saveInteractionConfirmation) {
       resolveSaveInteraction();
     }
-    if (changeRevision === savedRevision) {
+    if (state.changeRevision === state.savedRevision) {
       setSaveState("已自动保存", "saved");
     }
     return "saved";
@@ -4332,11 +4157,11 @@ async function saveStudioDraft() {
     showToast(saveFailureError.message || "3D 草稿保存失败。", "error");
     return "failed";
   } finally {
-    isSaving = false;
+    state.isSaving = false;
     // 冲突或未确认的删除影响挂着时不再重排：等用户处理完（或者他改了下一笔，由 markDocumentDirty
-    if (!saveConflict && !saveInteractionConfirmation && changeRevision !== savedRevision) {
-      window.clearTimeout(autosaveTimer);
-      autosaveTimer = window.setTimeout(saveStudioDraft, 500);
+    if (!state.saveConflict && !state.saveInteractionConfirmation && state.changeRevision !== state.savedRevision) {
+      window.clearTimeout(state.autosaveTimer);
+      state.autosaveTimer = window.setTimeout(saveStudioDraft, 500);
     }
   }
 }
@@ -4347,17 +4172,17 @@ saveConflictDialogElement.addEventListener("cancel", (dialogCancelEvent: any) =>
 });
 saveConflictLaterButton.addEventListener("click", deferSaveConflict);
 saveConflictReopenButton.addEventListener("click", () => {
-  if (saveConflict) {
+  if (state.saveConflict) {
     openSaveConflictDialog();
   }
 });
 saveConflictLoadButton.addEventListener("click", async () => {
-  const conflict = saveConflict;
+  const conflict = state.saveConflict;
   if (conflict) {
     resolveSaveConflict();
     try {
       await loadStudioRecord(conflict.latest);
-      savedRevision = changeRevision;
+      state.savedRevision = state.changeRevision;
       setSaveState("已加载服务器版本", "saved");
       showToast("已加载另一页面保存的户型，当前页面没有执行覆盖。", "success");
     } catch (serverLoadError: any) {
@@ -4367,16 +4192,16 @@ saveConflictLoadButton.addEventListener("click", async () => {
   }
 });
 saveConflictOverwriteButton.addEventListener("click", () => {
-  const overwriteConflict = saveConflict;
+  const overwriteConflict = state.saveConflict;
   if (overwriteConflict) {
-    studioDocument = normalizeStudioDocument(overwriteConflict.localScene);
-    activeFloorId = studioDocument.activeFloorId;
-    activeScene = getCurrentFloor().scene;
-    savedSceneRecord = overwriteConflict.latest;
+    state.studioDocument = normalizeStudioDocument(overwriteConflict.localScene);
+    state.activeFloorId = state.studioDocument.activeFloorId;
+    state.activeScene = getCurrentFloor().scene;
+    state.savedSceneRecord = overwriteConflict.latest;
     resolveSaveConflict();
     setSaveState("正在确认覆盖…", "saving");
-    window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(saveStudioDraft, 0);
+    window.clearTimeout(state.autosaveTimer);
+    state.autosaveTimer = window.setTimeout(saveStudioDraft, 0);
   }
 });
 saveInteractionDialogElement.addEventListener("cancel", (dialogCancelEvent: any) => {
@@ -4386,7 +4211,7 @@ saveInteractionDialogElement.addEventListener("cancel", (dialogCancelEvent: any)
 });
 saveInteractionKeepButton.addEventListener("click", keepModelForInteraction);
 saveInteractionReopenButton.addEventListener("click", () => {
-  if (saveInteractionConfirmation) {
+  if (state.saveInteractionConfirmation) {
     openSaveInteractionDialog();
   }
 });
@@ -4396,17 +4221,17 @@ saveInteractionConfirmButton.addEventListener("click", confirmSaveInteraction);
  */
 function planToScreen(planCoordinates: any) {
   return {
-    x: planCoordinates.x * viewTransform.zoom + viewTransform.offsetX,
-    y: planCoordinates.y * viewTransform.zoom + viewTransform.offsetY
+    x: planCoordinates.x * state.viewTransform.zoom + state.viewTransform.offsetX,
+    y: planCoordinates.y * state.viewTransform.zoom + state.viewTransform.offsetY
   };
 }
 /**
  * 把画布坐标绕视口中心旋转，得到屏幕上实际显示的位置。角度取负：document 里存的是
  */
 function rotateScreenPoint(screenCoordinates: any) {
-  const centerX = viewportWidthPx / 2;
-  const centerY = viewportHeightPx / 2;
-  const viewRotationRad = (-viewTransform.rotation * Math.PI) / 180;
+  const centerX = state.viewportWidthPx / 2;
+  const centerY = state.viewportHeightPx / 2;
+  const viewRotationRad = (-state.viewTransform.rotation * Math.PI) / 180;
   const cosRotation = Math.cos(viewRotationRad);
   const sinRotation = Math.sin(viewRotationRad);
   const offsetX = screenCoordinates.x - centerX;
@@ -4422,8 +4247,8 @@ function rotateScreenPoint(screenCoordinates: any) {
 function screenToPlan(screenPointToConvert: any) {
   const rotatedPoint = rotateScreenPoint(screenPointToConvert);
   return {
-    x: (rotatedPoint.x - viewTransform.offsetX) / viewTransform.zoom,
-    y: (rotatedPoint.y - viewTransform.offsetY) / viewTransform.zoom
+    x: (rotatedPoint.x - state.viewTransform.offsetX) / state.viewTransform.zoom,
+    y: (rotatedPoint.y - state.viewTransform.offsetY) / state.viewTransform.zoom
   };
 }
 /**
@@ -4440,40 +4265,40 @@ function canvasPointFromEvent(pointerEvent: any) {
  * 计算当前楼层内容的平面包围盒，供「适应视图」与初始取景使用。优先级是墙 → 家具 →
  */
 function sceneModelBounds() {
-  if (activeScene.walls.length) {
+  if (state.activeScene.walls.length) {
     return modelBounds({
       background: null,
-      walls: activeScene.walls,
+      walls: state.activeScene.walls,
       items: []
     });
-  } else if (activeScene.items.length) {
+  } else if (state.activeScene.items.length) {
     return modelBounds({
       background: null,
       walls: [],
-      items: activeScene.items
+      items: state.activeScene.items
     });
   } else {
-    return modelBounds(activeScene);
+    return modelBounds(state.activeScene);
   }
 }
 function fitViewToBounds() {
   const bounds = sceneModelBounds();
-  const padding = clamp(Math.min(viewportWidthPx, viewportHeightPx) * 0.045, 18, 34);
-  const availableWidth = Math.max(viewportWidthPx - padding * 2, 80);
-  const availableHeight = Math.max(viewportHeightPx - padding * 2, 80);
-  const isQuarterTurn = Math.abs(viewTransform.rotation / 90) % 2 === 1;
+  const padding = clamp(Math.min(state.viewportWidthPx, state.viewportHeightPx) * 0.045, 18, 34);
+  const availableWidth = Math.max(state.viewportWidthPx - padding * 2, 80);
+  const availableHeight = Math.max(state.viewportHeightPx - padding * 2, 80);
+  const isQuarterTurn = Math.abs(state.viewTransform.rotation / 90) % 2 === 1;
   const contentWidth = isQuarterTurn ? bounds.height : bounds.width;
   const contentHeight = isQuarterTurn ? bounds.width : bounds.height;
-  viewTransform.zoom = clamp(
+  state.viewTransform.zoom = clamp(
     Math.min(availableWidth / contentWidth, availableHeight / contentHeight),
     0.03,
     8
   );
-  viewTransform.offsetX =
-    viewportWidthPx / 2 - (bounds.minX + bounds.width / 2) * viewTransform.zoom;
-  viewTransform.offsetY =
-    viewportHeightPx / 2 - (bounds.minY + bounds.height / 2) * viewTransform.zoom;
-  isViewFitted = true;
+  state.viewTransform.offsetX =
+    state.viewportWidthPx / 2 - (bounds.minX + bounds.width / 2) * state.viewTransform.zoom;
+  state.viewTransform.offsetY =
+    state.viewportHeightPx / 2 - (bounds.minY + bounds.height / 2) * state.viewTransform.zoom;
+  state.isViewFitted = true;
   renderPlanView();
 }
 /**
@@ -4482,20 +4307,20 @@ function fitViewToBounds() {
 function zoomViewAt(
   factor: any,
   anchorPoint = {
-    x: viewportWidthPx / 2,
-    y: viewportHeightPx / 2
+    x: state.viewportWidthPx / 2,
+    y: state.viewportHeightPx / 2
   }
 ) {
   const planAnchor = screenToPlan(anchorPoint);
   const screenAnchor = rotateScreenPoint(anchorPoint);
-  viewTransform.zoom = clamp(viewTransform.zoom * factor, 0.03, 12);
-  viewTransform.offsetX = screenAnchor.x - planAnchor.x * viewTransform.zoom;
-  viewTransform.offsetY = screenAnchor.y - planAnchor.y * viewTransform.zoom;
+  state.viewTransform.zoom = clamp(state.viewTransform.zoom * factor, 0.03, 12);
+  state.viewTransform.offsetX = screenAnchor.x - planAnchor.x * state.viewTransform.zoom;
+  state.viewTransform.offsetY = screenAnchor.y - planAnchor.y * state.viewTransform.zoom;
   renderPlanView();
 }
 function rotatePlanView() {
-  viewTransform.rotation = (viewTransform.rotation + 90) % 360;
-  activeScene.settings.planViewRotation = viewTransform.rotation;
+  state.viewTransform.rotation = (state.viewTransform.rotation + 90) % 360;
+  state.activeScene.settings.planViewRotation = state.viewTransform.rotation;
   fitViewToBounds();
   markDocumentDirty();
 }
@@ -4504,13 +4329,13 @@ function rotatePlanView() {
  */
 function resizePlanCanvas() {
   const stageRect = planStageElement.getBoundingClientRect();
-  viewportWidthPx = Math.max(Math.round(stageRect.width), 1);
-  viewportHeightPx = Math.max(Math.round(stageRect.height), 1);
+  state.viewportWidthPx = Math.max(Math.round(stageRect.width), 1);
+  state.viewportHeightPx = Math.max(Math.round(stageRect.height), 1);
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-  planCanvasElement.width = Math.round(viewportWidthPx * pixelRatio);
-  planCanvasElement.height = Math.round(viewportHeightPx * pixelRatio);
+  planCanvasElement.width = Math.round(state.viewportWidthPx * pixelRatio);
+  planCanvasElement.height = Math.round(state.viewportHeightPx * pixelRatio);
   planContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  if (isViewFitted) {
+  if (state.isViewFitted) {
     renderPlanView();
   } else {
     fitViewToBounds();
@@ -4518,7 +4343,7 @@ function resizePlanCanvas() {
 }
 function wallDerivedData(toleranceMeters: any) {
   const tolerance = Math.max(1, toleranceMeters * 0.01);
-  const wallSignature = activeScene.walls
+  const wallSignature = state.activeScene.walls
     .map(
       (signatureWall: any) =>
         signatureWall.id +
@@ -4536,7 +4361,7 @@ function wallDerivedData(toleranceMeters: any) {
         (signatureWall.allowOpenEnd === true ? 1 : 0)
     )
     .join(";");
-  let derivedCache = wallDerivedCacheByScene.get(activeScene);
+  let derivedCache = wallDerivedCacheByScene.get(state.activeScene);
   if (!derivedCache || derivedCache.signature !== tolerance + "|" + wallSignature) {
     derivedCache = {
       signature: tolerance + "|" + wallSignature,
@@ -4546,7 +4371,7 @@ function wallDerivedData(toleranceMeters: any) {
       joinExtensions: null,
       unclosedEndpoints: null
     };
-    wallDerivedCacheByScene.set(activeScene, derivedCache);
+    wallDerivedCacheByScene.set(state.activeScene, derivedCache);
   }
   return derivedCache;
 }
@@ -4556,7 +4381,7 @@ function wallDerivedData(toleranceMeters: any) {
 function floorPolygonsForWalls(polygonToleranceMeters: any) {
   const polygonDerived = wallDerivedData(polygonToleranceMeters);
   polygonDerived.floorPolygons ||= closedWallFloorPolygons(
-    activeScene.walls,
+    state.activeScene.walls,
     polygonDerived.tolerance
   );
   return polygonDerived.floorPolygons;
@@ -4566,7 +4391,7 @@ function floorPolygonsForWalls(polygonToleranceMeters: any) {
  */
 function wallIntersectionsForWalls(intersectionToleranceMeters: any) {
   const intersectionDerived = wallDerivedData(intersectionToleranceMeters);
-  intersectionDerived.intersections ||= wallIntersections(activeScene.walls);
+  intersectionDerived.intersections ||= wallIntersections(state.activeScene.walls);
   return intersectionDerived.intersections;
 }
 /**
@@ -4574,7 +4399,7 @@ function wallIntersectionsForWalls(intersectionToleranceMeters: any) {
  */
 function wallJoinExtensionsForWalls(joinToleranceMeters: any) {
   const joinDerived = wallDerivedData(joinToleranceMeters);
-  joinDerived.joinExtensions ||= wallJoinExtensions(activeScene.walls);
+  joinDerived.joinExtensions ||= wallJoinExtensions(state.activeScene.walls);
   return joinDerived.joinExtensions;
 }
 /**
@@ -4583,7 +4408,7 @@ function wallJoinExtensionsForWalls(joinToleranceMeters: any) {
 function unclosedEndpointsForWalls(endpointToleranceMeters: any) {
   const endpointDerived = wallDerivedData(endpointToleranceMeters);
   endpointDerived.unclosedEndpoints ||= unclosedWallEndpoints(
-    activeScene.walls,
+    state.activeScene.walls,
     endpointDerived.tolerance,
     floorPolygonsForWalls(endpointToleranceMeters)
   );
@@ -4593,7 +4418,7 @@ function unclosedEndpointsForWalls(endpointToleranceMeters: any) {
  * 算出门 / 窗 / 栏杆在平面上的落位：中心点、两端点与墙方向单位向量。洞口位置以「沿墙比例 t」
  */
 function openingPlacementInfo(opening: any) {
-  const hostWallRecord = activeScene.walls.find((hostWall: any) => hostWall.id === opening.wallId);
+  const hostWallRecord = state.activeScene.walls.find((hostWall: any) => hostWall.id === opening.wallId);
   if (!hostWallRecord) {
     return null;
   }
@@ -4646,7 +4471,7 @@ function drawPlanRailing(railing: any, railingOptions: any = {}) {
       : "#8bd7e8";
   const railingOutlineWidthPx = Math.max(
     10,
-    railingPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * viewTransform.zoom + 5
+    railingPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * state.viewTransform.zoom + 5
   );
   drawPlanLine(railingPlacement.start, railingPlacement.end, {
     color: "rgba(7, 16, 21, .94)",
@@ -4689,7 +4514,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
         : "#bfe9ff";
   const doorOutlineWidthPx = Math.max(
     10,
-    doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * viewTransform.zoom + 5
+    doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * state.viewTransform.zoom + 5
   );
   drawPlanLine(doorPlacement.start, doorPlacement.end, {
     color: "rgba(7, 16, 21, .94)",
@@ -4702,7 +4527,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
       y: doorPlacement.unit.x
     };
     const frameJambHalfWidthPx = Math.max(
-      5 / viewTransform.zoom,
+      5 / state.viewTransform.zoom,
       doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.55
     );
     for (const frameJambPoint of [doorPlacement.start, doorPlacement.end]) {
@@ -4737,7 +4562,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
       y: doorPlacement.unit.x
     };
     const panelOffsetPx = Math.max(
-      2.5 / viewTransform.zoom,
+      2.5 / state.viewTransform.zoom,
       doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.16
     );
     const openingLengthPx = distance(doorPlacement.start, doorPlacement.end);
@@ -4789,7 +4614,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
     };
     const shutterOffsetPx =
       Math.max(
-        2 / viewTransform.zoom,
+        2 / state.viewTransform.zoom,
         doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.08
       ) * (door.swing === -1 ? -1 : 1);
     drawPlanLine(
@@ -4823,12 +4648,12 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
       };
       drawPlanLine(
         {
-          x: slatPoint.x - (shutterNormal.x * 3) / viewTransform.zoom,
-          y: slatPoint.y - (shutterNormal.y * 3) / viewTransform.zoom
+          x: slatPoint.x - (shutterNormal.x * 3) / state.viewTransform.zoom,
+          y: slatPoint.y - (shutterNormal.y * 3) / state.viewTransform.zoom
         },
         {
-          x: slatPoint.x + (shutterNormal.x * 3) / viewTransform.zoom,
-          y: slatPoint.y + (shutterNormal.y * 3) / viewTransform.zoom
+          x: slatPoint.x + (shutterNormal.x * 3) / state.viewTransform.zoom,
+          y: slatPoint.y + (shutterNormal.y * 3) / state.viewTransform.zoom
         },
         {
           color: "rgba(167, 178, 188, .72)",
@@ -4855,7 +4680,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
     const entryFlipSign = door.swing === -1 ? -1 : 1;
     const entryOffsetPx =
       Math.max(
-        2 / viewTransform.zoom,
+        2 / state.viewTransform.zoom,
         doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.08
       ) * entryFlipSign;
     drawPlanLine(
@@ -4962,8 +4787,8 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
   });
   if (doorType === "glass") {
     const glassInsetVector = {
-      x: (doorPlacement.unit.x * 3) / viewTransform.zoom,
-      y: (doorPlacement.unit.y * 3) / viewTransform.zoom
+      x: (doorPlacement.unit.x * 3) / state.viewTransform.zoom,
+      y: (doorPlacement.unit.y * 3) / state.viewTransform.zoom
     };
     drawPlanLine(
       {
@@ -4982,7 +4807,7 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
     );
   }
   const hingeScreenPoint = planToScreen(hingePoint);
-  const doorRadiusPx = distance(hingePoint, freePoint) * viewTransform.zoom;
+  const doorRadiusPx = distance(hingePoint, freePoint) * state.viewTransform.zoom;
   const doorStartAngleRad = Math.atan2(doorVector.y, doorVector.x);
   const doorEndAngleRad = doorStartAngleRad + (swingSign * Math.PI) / 2;
   planContext.save();
@@ -5015,8 +4840,8 @@ function drawPlanDoor(door: any, doorOptions: any = {}) {
 function drawPlanItem(itemToDraw: any) {
   const itemCenterScreen = planToScreen(itemToDraw);
   const planFootprint = itemPlanFootprint(itemToDraw);
-  const itemWidthPx = planFootprint.width * currentPixelsPerMeter() * viewTransform.zoom;
-  const itemDepthPx = planFootprint.depth * currentPixelsPerMeter() * viewTransform.zoom;
+  const itemWidthPx = planFootprint.width * currentPixelsPerMeter() * state.viewTransform.zoom;
+  const itemDepthPx = planFootprint.depth * currentPixelsPerMeter() * state.viewTransform.zoom;
   const isItemSelected = isSelected("item", itemToDraw.id);
   planContext.save();
   planContext.translate(itemCenterScreen.x, itemCenterScreen.y);
@@ -6596,7 +6421,7 @@ function itemControlHandles(handleItem: any) {
     rotationHandle: rotateLocalToPlan(
       handleItem,
       0,
-      -halfDepthPlan - 17 / Math.max(viewTransform.zoom, 0.01)
+      -halfDepthPlan - 17 / Math.max(state.viewTransform.zoom, 0.01)
     )
   };
 }
@@ -6604,7 +6429,7 @@ function itemControlHandles(handleItem: any) {
  * 手柄拾取：判断平面点击是否落在选中物件的旋转手柄或角点缩放手柄上。只在「选择工具 + 恰好单选一个物件」时生效
  */
 function hitTestItemHandle(hitPlanPoint: any) {
-  if (activeTool !== "select" || primarySelection?.kind !== "item" || multiSelection.length) {
+  if (state.activeTool !== "select" || state.primarySelection?.kind !== "item" || state.multiSelection.length) {
     return null;
   }
   const hitItem = findSelectedEntity();
@@ -6612,7 +6437,7 @@ function hitTestItemHandle(hitPlanPoint: any) {
     return null;
   }
   const itemControls = itemControlHandles(hitItem);
-  const handleHitRadiusPx = 9 / Math.max(viewTransform.zoom, 0.01);
+  const handleHitRadiusPx = 9 / Math.max(state.viewTransform.zoom, 0.01);
   if (distance(hitPlanPoint, itemControls.rotationHandle) <= handleHitRadiusPx) {
     return {
       type: "rotate-item",
@@ -6652,9 +6477,9 @@ function collectEntitiesInMarquee(marqueeStart: any, marqueeEnd: any) {
   const marqueeBounds = boundsFromPoints(marqueeStart, marqueeEnd);
   const marqueePixelsPerMeter = currentPixelsPerMeter() || 100;
   const hitEntities = [];
-  const isLightPlanTab = activeAssetTab === "light";
+  const isLightPlanTab = state.activeAssetTab === "light";
   if (!isLightPlanTab) {
-    for (const marqueeWall of activeScene.walls) {
+    for (const marqueeWall of state.activeScene.walls) {
       if (segmentIntersectsBounds(marqueeWall.start, marqueeWall.end, marqueeBounds)) {
         hitEntities.push({
           kind: "wall",
@@ -6662,7 +6487,7 @@ function collectEntitiesInMarquee(marqueeStart: any, marqueeEnd: any) {
         });
       }
     }
-    for (const marqueeWindow of activeScene.windows) {
+    for (const marqueeWindow of state.activeScene.windows) {
       const marqueeWindowPlacement = openingPlacementInfo(marqueeWindow);
       if (
         marqueeWindowPlacement &&
@@ -6678,7 +6503,7 @@ function collectEntitiesInMarquee(marqueeStart: any, marqueeEnd: any) {
         });
       }
     }
-    for (const marqueeDoor of activeScene.doors) {
+    for (const marqueeDoor of state.activeScene.doors) {
       const marqueeDoorPlacement = openingPlacementInfo(marqueeDoor);
       if (
         marqueeDoorPlacement &&
@@ -6690,7 +6515,7 @@ function collectEntitiesInMarquee(marqueeStart: any, marqueeEnd: any) {
         });
       }
     }
-    for (const marqueeRailing of activeScene.railings) {
+    for (const marqueeRailing of state.activeScene.railings) {
       const marqueeRailingPlacement = openingPlacementInfo(marqueeRailing);
       if (
         marqueeRailingPlacement &&
@@ -6725,7 +6550,7 @@ function collectEntitiesInMarquee(marqueeStart: any, marqueeEnd: any) {
       y: marqueeBounds.maxY
     }
   ];
-  for (const marqueeItem of activeScene.items) {
+  for (const marqueeItem of state.activeScene.items) {
     if (LIGHT_ITEM_TYPES.has(marqueeItem.type) !== isLightPlanTab) {
       continue;
     }
@@ -6788,8 +6613,8 @@ function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffset
   ) {
     return false;
   }
-  const metricsScaleX = planCanvasElement.width / Math.max(viewportWidthPx, 1);
-  const metricsScaleY = planCanvasElement.height / Math.max(viewportHeightPx, 1);
+  const metricsScaleX = planCanvasElement.width / Math.max(state.viewportWidthPx, 1);
+  const metricsScaleY = planCanvasElement.height / Math.max(state.viewportHeightPx, 1);
   planContext.save();
   planContext.setTransform(1, 0, 0, 1, 0, 0);
   planContext.fillStyle = PLAN_PAPER();
@@ -6806,19 +6631,19 @@ function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffset
  * 在快照之上叠画框选矩形（只画框，不重绘平面）。与 blitMetricsCanvas 配套：先贴回快照
  */
 function drawMarqueeOverlay() {
-  if (pointerInteraction?.type !== "marquee") {
+  if (state.pointerInteraction?.type !== "marquee") {
     return;
   }
-  const marqueeStartScreen = planToScreen(pointerInteraction.start);
-  const marqueeEndScreen = planToScreen(pointerInteraction.current);
+  const marqueeStartScreen = planToScreen(state.pointerInteraction.start);
+  const marqueeEndScreen = planToScreen(state.pointerInteraction.current);
   const marqueeLeftPx = Math.min(marqueeStartScreen.x, marqueeEndScreen.x);
   const marqueeTopPx = Math.min(marqueeStartScreen.y, marqueeEndScreen.y);
   const marqueeWidthPx = Math.abs(marqueeEndScreen.x - marqueeStartScreen.x);
   const marqueeHeightPx = Math.abs(marqueeEndScreen.y - marqueeStartScreen.y);
   planContext.save();
-  planContext.translate(viewportWidthPx / 2, viewportHeightPx / 2);
-  planContext.rotate((viewTransform.rotation * Math.PI) / 180);
-  planContext.translate(-viewportWidthPx / 2, -viewportHeightPx / 2);
+  planContext.translate(state.viewportWidthPx / 2, state.viewportHeightPx / 2);
+  planContext.rotate((state.viewTransform.rotation * Math.PI) / 180);
+  planContext.translate(-state.viewportWidthPx / 2, -state.viewportHeightPx / 2);
   planContext.fillStyle = "rgba(255, 157, 46, .10)";
   planContext.strokeStyle = "rgba(255, 176, 74, .92)";
   planContext.lineWidth = 1;
@@ -6833,15 +6658,15 @@ function drawMarqueeOverlay() {
   planContext.restore();
 }
 function renderPlanView() {
-  const isLightPlanView = activeAssetTab === "light";
-  planContext.clearRect(0, 0, viewportWidthPx, viewportHeightPx);
+  const isLightPlanView = state.activeAssetTab === "light";
+  planContext.clearRect(0, 0, state.viewportWidthPx, state.viewportHeightPx);
   planContext.fillStyle = PLAN_PAPER();
-  planContext.fillRect(0, 0, viewportWidthPx, viewportHeightPx);
+  planContext.fillRect(0, 0, state.viewportWidthPx, state.viewportHeightPx);
   planContext.save();
-  planContext.translate(viewportWidthPx / 2, viewportHeightPx / 2);
-  planContext.rotate((viewTransform.rotation * Math.PI) / 180);
-  planContext.translate(-viewportWidthPx / 2, -viewportHeightPx / 2);
-  if (backgroundTexture && activeScene.background && activeScene.settings.backgroundVisible) {
+  planContext.translate(state.viewportWidthPx / 2, state.viewportHeightPx / 2);
+  planContext.rotate((state.viewTransform.rotation * Math.PI) / 180);
+  planContext.translate(-state.viewportWidthPx / 2, -state.viewportHeightPx / 2);
+  if (state.backgroundTexture && state.activeScene.background && state.activeScene.settings.backgroundVisible) {
     const planOriginScreen = planToScreen({
       x: 0,
       y: 0
@@ -6849,32 +6674,32 @@ function renderPlanView() {
     planContext.save();
     planContext.globalAlpha = isLightPlanView ? 0.3 : 0.54;
     planContext.drawImage(
-      backgroundTexture,
+      state.backgroundTexture,
       planOriginScreen.x,
       planOriginScreen.y,
-      activeScene.background.width * viewTransform.zoom,
-      activeScene.background.height * viewTransform.zoom
+      state.activeScene.background.width * state.viewTransform.zoom,
+      state.activeScene.background.height * state.viewTransform.zoom
     );
     planContext.restore();
   }
   drawMetricGrid();
   const planRenderPixelsPerMeter = currentPixelsPerMeter() || 100;
-  if (floorAlignState) {
+  if (state.floorAlignState) {
     planContext.save();
     planContext.globalAlpha = 0.58;
     for (const alignmentWall of referenceWallsForAlignment()) {
       drawPlanLine(alignmentWall.start, alignmentWall.end, {
         color: "#52cfe0",
-        width: Math.max(2, alignmentWall.thickness * planRenderPixelsPerMeter * viewTransform.zoom),
+        width: Math.max(2, alignmentWall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom),
         dash: [7, 5],
         cap: "square"
       });
     }
     planContext.restore();
-    if (floorAlignState.referencePoint) {
+    if (state.floorAlignState.referencePoint) {
       const alignmentReferencePoint = convertBetweenFloors(
-        floorAlignState.referencePoint,
-        floorAlignState.referenceFloor,
+        state.floorAlignState.referencePoint,
+        state.floorAlignState.referenceFloor,
         getCurrentFloor()
       );
       drawPlanPoint(alignmentReferencePoint, "#ffb14f", 4.5);
@@ -6885,10 +6710,10 @@ function renderPlanView() {
   if (isLightPlanView) {
     planContext.globalAlpha = 0.48;
   }
-  for (const planWall of activeScene.walls) {
+  for (const planWall of state.activeScene.walls) {
     const isPlanWallSelected = isSelected("wall", planWall.id);
     const planWallWidthPx = Math.max(
-      planWall.thickness * planRenderPixelsPerMeter * viewTransform.zoom,
+      planWall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom,
       4
     );
     if (isPlanWallSelected) {
@@ -6907,11 +6732,11 @@ function renderPlanView() {
       color: "rgba(39, 51, 61, .82)",
       width: 1
     });
-    if (activeTool === "wall" || isPlanWallSelected) {
+    if (state.activeTool === "wall" || isPlanWallSelected) {
       drawPlanPoint(planWall.start, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
       drawPlanPoint(planWall.end, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
     }
-    if (isPlanWallSelected && multiSelection.length <= 1) {
+    if (isPlanWallSelected && state.multiSelection.length <= 1) {
       drawFloatingLabel(
         {
           x: (planWall.start.x + planWall.end.x) / 2,
@@ -6922,7 +6747,7 @@ function renderPlanView() {
       );
     }
   }
-  for (const planWindow of activeScene.windows) {
+  for (const planWindow of state.activeScene.windows) {
     const planWindowPlacement = openingPlacementInfo(planWindow);
     if (!planWindowPlacement) {
       continue;
@@ -6932,7 +6757,7 @@ function renderPlanView() {
       color: "rgba(7, 16, 21, .9)",
       width: Math.max(
         10,
-        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * viewTransform.zoom + 5
+        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom + 5
       ),
       cap: "butt"
     });
@@ -6952,8 +6777,8 @@ function renderPlanView() {
         y: planWindowPlacement.unit.x
       };
       const windowDividerHalfWidthPx = Math.max(
-        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * viewTransform.zoom * 0.72,
-        5 / viewTransform.zoom
+        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom * 0.72,
+        5 / state.viewTransform.zoom
       );
       drawPlanLine(
         {
@@ -6971,18 +6796,18 @@ function renderPlanView() {
         }
       );
     }
-    if (isPlanWindowSelected && multiSelection.length <= 1) {
+    if (isPlanWindowSelected && state.multiSelection.length <= 1) {
       drawFloatingLabel(planWindowPlacement.center, planWindow.width.toFixed(2) + " m", PLAN_GUIDE());
     }
   }
-  for (const planDoor of activeScene.doors) {
+  for (const planDoor of state.activeScene.doors) {
     drawPlanDoor(planDoor);
   }
-  for (const planRailing of activeScene.railings) {
+  for (const planRailing of state.activeScene.railings) {
     drawPlanRailing(planRailing);
   }
-  if (pointerInteraction?.type === "draw-flooropening") {
-    const { start: floorOpeningDragStart, current: floorOpeningDragEnd } = pointerInteraction;
+  if (state.pointerInteraction?.type === "draw-flooropening") {
+    const { start: floorOpeningDragStart, current: floorOpeningDragEnd } = state.pointerInteraction;
     drawPlanItem({
       ...ITEM_TYPE_DEFINITIONS.flooropening,
       type: "flooropening",
@@ -6994,12 +6819,12 @@ function renderPlanView() {
       depth: Math.abs(floorOpeningDragEnd.y - floorOpeningDragStart.y) / planRenderPixelsPerMeter
     });
   }
-  for (const planItem of activeScene.items) {
+  for (const planItem of state.activeScene.items) {
     if (!LIGHT_ITEM_TYPES.has(planItem.type)) {
       drawPlanItem(planItem);
     }
   }
-  if (!floorAlignState) {
+  if (!state.floorAlignState) {
     const detectedOpenEndpoints = unclosedEndpointsForWalls(planRenderPixelsPerMeter);
     for (const detectedOpenEndpoint of detectedOpenEndpoints) {
       drawOpenEndpointWarning(detectedOpenEndpoint);
@@ -7010,14 +6835,14 @@ function renderPlanView() {
   }
   planContext.restore();
   if (isLightPlanView) {
-    for (const planLightItem of activeScene.items) {
+    for (const planLightItem of state.activeScene.items) {
       if (LIGHT_ITEM_TYPES.has(planLightItem.type)) {
         drawPlanItem(planLightItem);
       }
     }
   }
-  const calibrationReference = activeScene.calibration?.reference;
-  if (calibrationReference && activeTool === "scale") {
+  const calibrationReference = state.activeScene.calibration?.reference;
+  if (calibrationReference && state.activeTool === "scale") {
     drawPlanLine(calibrationReference.start, calibrationReference.end, {
       color: "rgba(255, 157, 46, .72)",
       width: 2,
@@ -7034,49 +6859,49 @@ function renderPlanView() {
       "#ffad45"
     );
   }
-  if (scalePreviewStart && scalePreviewCurrent) {
-    drawPlanLine(scalePreviewStart, scalePreviewCurrent, {
+  if (state.scalePreviewStart && state.scalePreviewCurrent) {
+    drawPlanLine(state.scalePreviewStart, state.scalePreviewCurrent, {
       color: PLAN_ACCENT(),
       width: 2,
       dash: [7, 5]
     });
-    drawPlanPoint(scalePreviewStart, PLAN_ACCENT());
-    drawPlanPoint(scalePreviewCurrent, PLAN_ACCENT());
+    drawPlanPoint(state.scalePreviewStart, PLAN_ACCENT());
+    drawPlanPoint(state.scalePreviewCurrent, PLAN_ACCENT());
   }
-  if (scaleStartPoint && snapTarget) {
-    const isClosingSpace = isSnapClosingSpace(snapTarget);
-    drawPlanLine(scaleStartPoint, snapTarget.point, {
+  if (state.scaleStartPoint && state.snapTarget) {
+    const isClosingSpace = isSnapClosingSpace(state.snapTarget);
+    drawPlanLine(state.scaleStartPoint, state.snapTarget.point, {
       color: PLAN_ACCENT(),
       width: 2,
       dash: [7, 5]
     });
-    drawPlanPoint(scaleStartPoint, PLAN_ACCENT());
+    drawPlanPoint(state.scaleStartPoint, PLAN_ACCENT());
     drawPlanPoint(
-      snapTarget.point,
-      isClosingSpace ? PLAN_DONE() : snapTarget.kind ? PLAN_GUIDE() : PLAN_ACCENT(),
+      state.snapTarget.point,
+      isClosingSpace ? PLAN_DONE() : state.snapTarget.kind ? PLAN_GUIDE() : PLAN_ACCENT(),
       isClosingSpace ? 5 : 3.5
     );
     const scaleDistanceMeters =
-      distance(scaleStartPoint, snapTarget.point) / planRenderPixelsPerMeter;
+      distance(state.scaleStartPoint, state.snapTarget.point) / planRenderPixelsPerMeter;
     drawFloatingLabel(
       {
-        x: (scaleStartPoint.x + snapTarget.point.x) / 2,
-        y: (scaleStartPoint.y + snapTarget.point.y) / 2
+        x: (state.scaleStartPoint.x + state.snapTarget.point.x) / 2,
+        y: (state.scaleStartPoint.y + state.snapTarget.point.y) / 2
       },
       scaleDistanceMeters.toFixed(2) + " m",
       "#ffb04a"
     );
     if (isClosingSpace) {
-      drawFloatingLabel(snapTarget.point, "点击闭合空间", PLAN_DONE());
+      drawFloatingLabel(state.snapTarget.point, "点击闭合空间", PLAN_DONE());
     }
-  } else if (snapTarget?.kind && ["wall", "scale"].includes(activeTool)) {
-    drawPlanPoint(snapTarget.point, PLAN_GUIDE());
-    drawFloatingLabel(snapTarget.point, snapTarget.label, PLAN_GUIDE());
+  } else if (state.snapTarget?.kind && ["wall", "scale"].includes(state.activeTool)) {
+    drawPlanPoint(state.snapTarget.point, PLAN_GUIDE());
+    drawFloatingLabel(state.snapTarget.point, state.snapTarget.label, PLAN_GUIDE());
   }
-  if (activeTool === "window" && windowSnapTarget) {
+  if (state.activeTool === "window" && state.windowSnapTarget) {
     const previewWindowRecord = {
-      wallId: windowSnapTarget.wall.id,
-      t: windowSnapTarget.t,
+      wallId: state.windowSnapTarget.wall.id,
+      t: state.windowSnapTarget.t,
       width: 1.4
     };
     const previewWindowPlacement = openingPlacementInfo(previewWindowRecord);
@@ -7089,12 +6914,12 @@ function renderPlanView() {
       });
     }
   }
-  if (activeTool === "door" && doorSnapTarget) {
+  if (state.activeTool === "door" && state.doorSnapTarget) {
     const doorTypeDimensions = DOOR_TYPE_DIMENSIONS[selectedDoorType] || DOOR_TYPE_DIMENSIONS.solid;
     drawPlanDoor(
       {
-        wallId: doorSnapTarget.wall.id,
-        t: doorSnapTarget.t,
+        wallId: state.doorSnapTarget.wall.id,
+        t: state.doorSnapTarget.t,
         width: doorTypeDimensions.width,
         height: doorTypeDimensions.height,
         doorType: selectedDoorType,
@@ -7106,11 +6931,11 @@ function renderPlanView() {
       }
     );
   }
-  if (activeTool === "railing" && railingSnapTarget) {
+  if (state.activeTool === "railing" && state.railingSnapTarget) {
     drawPlanRailing(
       {
-        wallId: railingSnapTarget.wall.id,
-        t: railingSnapTarget.t,
+        wallId: state.railingSnapTarget.wall.id,
+        t: state.railingSnapTarget.t,
         width: 2,
         height: 1.1
       },
@@ -7121,13 +6946,13 @@ function renderPlanView() {
   }
   planContext.restore();
   drawMarqueeOverlay();
-  zoomValueElement.textContent = Math.round(viewTransform.zoom * 100) + "%";
+  zoomValueElement.textContent = Math.round(state.viewTransform.zoom * 100) + "%";
 }
 /**
  * 按 primarySelection 取回被选中的实体对象。单选状态只存 {kind, id}，真正的对象要从当前
  */
 function findSelectedEntity() {
-  if (!primarySelection) {
+  if (!state.primarySelection) {
     return null;
   }
   /**
@@ -7135,22 +6960,22 @@ function findSelectedEntity() {
    */
   const selectedEntity = (
     ({
-      wall: activeScene.walls,
-      window: activeScene.windows,
-      door: activeScene.doors,
-      railing: activeScene.railings,
-      item: activeScene.items
-    } as any)[primarySelection.kind] || []
-  ).find((entityCandidate: any) => entityCandidate.id === primarySelection.id);
+      wall: state.activeScene.walls,
+      window: state.activeScene.windows,
+      door: state.activeScene.doors,
+      railing: state.activeScene.railings,
+      item: state.activeScene.items
+    } as any)[state.primarySelection.kind] || []
+  ).find((entityCandidate: any) => entityCandidate.id === state.primarySelection.id);
   if (!selectedEntity) {
-    primarySelection = null;
+    state.primarySelection = null;
   }
   return selectedEntity || null;
 }
 function hitTestEntityAt(hitTestPlanPoint: any) {
   const hitPixelsPerMeter = currentPixelsPerMeter() || 100;
-  const hitLightTab = activeAssetTab === "light";
-  for (const hitItemEntity of [...activeScene.items].reverse()) {
+  const hitLightTab = state.activeAssetTab === "light";
+  for (const hitItemEntity of [...state.activeScene.items].reverse()) {
     if (
       LIGHT_ITEM_TYPES.has(hitItemEntity.type) === hitLightTab &&
       pointInRotatedRectangle(
@@ -7168,13 +6993,13 @@ function hitTestEntityAt(hitTestPlanPoint: any) {
   if (hitLightTab) {
     return null;
   }
-  for (const hitWindow of [...activeScene.windows].reverse()) {
+  for (const hitWindow of [...state.activeScene.windows].reverse()) {
     const hitWindowPlacement = openingPlacementInfo(hitWindow);
     if (
       hitWindowPlacement &&
       projectPointToSegment(hitTestPlanPoint, hitWindowPlacement.start, hitWindowPlacement.end)
         .distance <=
-        10 / viewTransform.zoom
+        10 / state.viewTransform.zoom
     ) {
       return {
         kind: "window",
@@ -7182,13 +7007,13 @@ function hitTestEntityAt(hitTestPlanPoint: any) {
       };
     }
   }
-  for (const hitDoor of [...activeScene.doors].reverse()) {
+  for (const hitDoor of [...state.activeScene.doors].reverse()) {
     const hitDoorPlacement = openingPlacementInfo(hitDoor);
     if (
       hitDoorPlacement &&
       projectPointToSegment(hitTestPlanPoint, hitDoorPlacement.start, hitDoorPlacement.end)
         .distance <=
-        12 / viewTransform.zoom
+        12 / state.viewTransform.zoom
     ) {
       return {
         kind: "door",
@@ -7196,13 +7021,13 @@ function hitTestEntityAt(hitTestPlanPoint: any) {
       };
     }
   }
-  for (const hitRailing of [...activeScene.railings].reverse()) {
+  for (const hitRailing of [...state.activeScene.railings].reverse()) {
     const hitRailingPlacement = openingPlacementInfo(hitRailing);
     if (
       hitRailingPlacement &&
       projectPointToSegment(hitTestPlanPoint, hitRailingPlacement.start, hitRailingPlacement.end)
         .distance <=
-        12 / viewTransform.zoom
+        12 / state.viewTransform.zoom
     ) {
       return {
         kind: "railing",
@@ -7210,10 +7035,10 @@ function hitTestEntityAt(hitTestPlanPoint: any) {
       };
     }
   }
-  for (const hitWall of [...activeScene.walls].reverse()) {
+  for (const hitWall of [...state.activeScene.walls].reverse()) {
     const hitWallHalfWidthPx = Math.max(
       (hitWall.thickness * hitPixelsPerMeter) / 2,
-      8 / viewTransform.zoom
+      8 / state.viewTransform.zoom
     );
     if (
       projectPointToSegment(hitTestPlanPoint, hitWall.start, hitWall.end).distance <=
@@ -7232,14 +7057,14 @@ function hitTestEntityAt(hitTestPlanPoint: any) {
  */
 function updateOnboardingSteps() {
   const completedSteps = {
-    background: !!activeScene.background,
-    scale: !!activeScene.calibration,
-    walls: activeScene.walls.length > 0,
-    items: activeScene.items.some((onboardingItem: any) => !LIGHT_ITEM_TYPES.has(onboardingItem.type)),
-    lights: activeScene.items.some((onboardingLightItem: any) =>
+    background: !!state.activeScene.background,
+    scale: !!state.activeScene.calibration,
+    walls: state.activeScene.walls.length > 0,
+    items: state.activeScene.items.some((onboardingItem: any) => !LIGHT_ITEM_TYPES.has(onboardingItem.type)),
+    lights: state.activeScene.items.some((onboardingLightItem: any) =>
       LIGHT_ITEM_TYPES.has(onboardingLightItem.type)
     ),
-    export: isExportComplete
+    export: state.isExportComplete
   };
   const currentStepName =
     ["background", "scale", "walls", "items", "lights", "export"].find(
@@ -7260,12 +7085,12 @@ function readStudioLayoutLength(element: any, cssVarName: any, fallbackPx: any) 
 }
 
 function studioLayoutMetrics() {
-  if (studioLayoutConstants) {
-    return studioLayoutConstants;
+  if (state.studioLayoutConstants) {
+    return state.studioLayoutConstants;
   }
   const shellStyle = getComputedStyle(studioShellElement);
   const columnGapPx = Number.parseFloat(shellStyle.columnGap);
-  studioLayoutConstants = {
+  state.studioLayoutConstants = {
     detailsMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-details-min-w", 420),
     // 中栏宽度下限：拖大右栏时至少要给中间绘图台留这么多。
     centerMinWidthPx: readStudioLayoutLength(studioShellElement, "--layout-center-min-w", 400),
@@ -7282,7 +7107,7 @@ function studioLayoutMetrics() {
     ),
     dividerHeightPx: readStudioLayoutLength(detailsPanelElement, "--layout-divider-h", 14)
   };
-  return studioLayoutConstants;
+  return state.studioLayoutConstants;
 }
 
 /**
@@ -7326,7 +7151,7 @@ function measurePanelLimits() {
  * 吸附当前是否生效：用户没在设置里关掉吸附，且没有按住临时关闭键
  */
 function isSnapEnabled() {
-  return activeScene.settings.snapEnabled !== false && !isSnapTemporarilyDisabled;
+  return state.activeScene.settings.snapEnabled !== false && !state.isSnapTemporarilyDisabled;
 }
 /**
  * 展开 / 收起吸附设置面板，并同步按钮的 aria-expanded 状态。
@@ -7339,19 +7164,19 @@ function setSnapSettingsVisible(isVisible: any) {
  * 把吸附设置（总开关、各吸附项、容差）同步到工具栏控件。所有判定都用 !== false：老草稿里这些字段
  */
 function syncSnapControls() {
-  const isSnapOn = activeScene.settings.snapEnabled !== false;
+  const isSnapOn = state.activeScene.settings.snapEnabled !== false;
   snapToggleButton.classList.toggle("active", isSnapOn);
   snapToggleButton.setAttribute("aria-pressed", String(isSnapOn));
   snapToggleStateElement.textContent = isSnapOn ? "开" : "关";
   for (const snapSettingInput of snapSettingInputs) {
-    (snapSettingInput as any).checked = activeScene.settings[(snapSettingInput as any).dataset.snapSetting] !== false;
+    (snapSettingInput as any).checked = state.activeScene.settings[(snapSettingInput as any).dataset.snapSetting] !== false;
   }
   syncControlValue(
     snapToleranceInput,
-    clamp(Math.round(finite(activeScene.settings.snapTolerance, 13)), 6, 24)
+    clamp(Math.round(finite(state.activeScene.settings.snapTolerance, 13)), 6, 24)
   );
   snapToleranceValueElement.textContent = snapToleranceInput.value + " px";
-  if (!scaleAnchorPoint) {
+  if (!state.scaleAnchorPoint) {
     snapIndicatorElement.textContent = isSnapOn ? "吸附：开启" : "吸附：关闭";
   }
 }
@@ -7361,30 +7186,30 @@ function syncSnapControls() {
 function syncStudioUi() {
   syncSnapControls();
   renderFloorList();
-  toggleBackgroundButton.disabled = !activeScene.background;
-  toggleBackgroundButton.textContent = activeScene.settings.backgroundVisible ? "隐藏" : "显示";
-  removePlanButton.disabled = !activeScene.background;
-  syncControlValue(globalWallHeightInput, activeScene.settings.wallHeight.toFixed(2));
-  syncControlValue(globalWallThicknessInput, activeScene.settings.wallThickness.toFixed(2));
-  syncControlValue(globalWallOpacityInput, Math.round(activeScene.settings.wallOpacity * 100));
+  toggleBackgroundButton.disabled = !state.activeScene.background;
+  toggleBackgroundButton.textContent = state.activeScene.settings.backgroundVisible ? "隐藏" : "显示";
+  removePlanButton.disabled = !state.activeScene.background;
+  syncControlValue(globalWallHeightInput, state.activeScene.settings.wallHeight.toFixed(2));
+  syncControlValue(globalWallThicknessInput, state.activeScene.settings.wallThickness.toFixed(2));
+  syncControlValue(globalWallOpacityInput, Math.round(state.activeScene.settings.wallOpacity * 100));
   toggleFloorEdgeButton.textContent =
-    activeScene.settings.floorEdgeVisible === false ? "隐藏" : "显示";
+    state.activeScene.settings.floorEdgeVisible === false ? "隐藏" : "显示";
   toggleFloorEdgeButton.setAttribute(
     "aria-pressed",
-    String(activeScene.settings.floorEdgeVisible !== false)
+    String(state.activeScene.settings.floorEdgeVisible !== false)
   );
   canvasEmptyElement.hidden =
-    !!activeScene.background || !!activeScene.walls.length || !!activeScene.items.length;
+    !!state.activeScene.background || !!state.activeScene.walls.length || !!state.activeScene.items.length;
   sceneCountsElement.textContent =
-    activeScene.walls.length +
+    state.activeScene.walls.length +
     " 墙 · " +
-    activeScene.windows.length +
+    state.activeScene.windows.length +
     " 窗 · " +
-    activeScene.doors.length +
+    state.activeScene.doors.length +
     " 门 · " +
-    activeScene.railings.length +
+    state.activeScene.railings.length +
     " 栏杆 · " +
-    activeScene.items.length +
+    state.activeScene.items.length +
     " 物件";
   renderLightGroupList();
   // 布局比例现在归 studioLayout 管（localStorage），这里只做两件事：
@@ -7402,7 +7227,7 @@ function syncStudioUi() {
  */
 function renderInspector() {
   const inspectedEntity = findSelectedEntity();
-  const multiSelectionCount = multiSelection.length;
+  const multiSelectionCount = state.multiSelection.length;
   inspectorEmptyElement.hidden = !!inspectedEntity;
   selectionInspectorElement.hidden = !inspectedEntity;
   deleteSelectionButton.disabled = !inspectedEntity && !multiSelectionCount;
@@ -7418,17 +7243,17 @@ function renderInspector() {
   inspectorEmptyElement.querySelector("strong").textContent = "选择画布中的对象";
   inspectorEmptyElement.querySelector("p").textContent =
     "选中墙体、窗户、门或家具后，可在这里精确调整。";
-  if (!!inspectedEntity && !!primarySelection) {
+  if (!!inspectedEntity && !!state.primarySelection) {
     lightPreviewNoteElement.hidden = true;
     selectionHeadingElement.classList.remove("light-selected");
-    wallFieldsElement.hidden = primarySelection.kind !== "wall";
-    windowFieldsElement.hidden = primarySelection.kind !== "window";
-    doorFieldsElement.hidden = primarySelection.kind !== "door";
-    railingFieldsElement.hidden = primarySelection.kind !== "railing";
-    itemFieldsElement.hidden = primarySelection.kind !== "item";
-    selectionIdElement.hidden = primarySelection.kind === "item";
+    wallFieldsElement.hidden = state.primarySelection.kind !== "wall";
+    windowFieldsElement.hidden = state.primarySelection.kind !== "window";
+    doorFieldsElement.hidden = state.primarySelection.kind !== "door";
+    railingFieldsElement.hidden = state.primarySelection.kind !== "railing";
+    itemFieldsElement.hidden = state.primarySelection.kind !== "item";
+    selectionIdElement.hidden = state.primarySelection.kind === "item";
     selectionIdElement.textContent = selectionIdElement.hidden ? "" : inspectedEntity.id;
-    if (primarySelection.kind === "wall") {
+    if (state.primarySelection.kind === "wall") {
       selectElement("#selection-title").textContent = "墙体";
       syncControlValue(
         selectElement("#wall-length"),
@@ -7439,18 +7264,18 @@ function renderInspector() {
       const customWallOpacity =
         inspectedEntity.opacity === null || inspectedEntity.opacity === undefined
           ? null
-          : clamp(finite(inspectedEntity.opacity, activeScene.settings.wallOpacity), 0, 1);
+          : clamp(finite(inspectedEntity.opacity, state.activeScene.settings.wallOpacity), 0, 1);
       selectElement("#wall-opacity-mode").value = customWallOpacity === null ? "global" : "custom";
       syncControlValue(
         selectElement("#wall-opacity"),
-        Math.round((customWallOpacity ?? activeScene.settings.wallOpacity) * 100)
+        Math.round((customWallOpacity ?? state.activeScene.settings.wallOpacity) * 100)
       );
       selectElement("#wall-opacity").disabled = customWallOpacity === null;
       syncStudioSelect(selectElement("#wall-opacity-mode"));
       selectElement("#wall-open-end-mode").value =
         inspectedEntity.allowOpenEnd === true ? "allowed" : "auto";
       syncStudioSelect(selectElement("#wall-open-end-mode"));
-    } else if (primarySelection.kind === "window") {
+    } else if (state.primarySelection.kind === "window") {
       selectElement("#selection-title").textContent = "窗户";
       syncControlValue(selectElement("#window-width"), inspectedEntity.width.toFixed(2));
       syncControlValue(selectElement("#window-height"), inspectedEntity.height.toFixed(2));
@@ -7462,7 +7287,7 @@ function renderInspector() {
         selectElement("#window-position"),
         Math.round(inspectedEntity.t * 100) + "%"
       );
-    } else if (primarySelection.kind === "door") {
+    } else if (state.primarySelection.kind === "door") {
       selectElement("#selection-title").textContent =
         ({
           solid: "普通平开门",
@@ -7486,7 +7311,7 @@ function renderInspector() {
       selectElement("#door-swing").hidden = false;
       // 门材质档位按门型重建：玻璃门型才多出清玻 / 茶玻，其余门型那一格会被归一到 auto。
       syncDoorMaterialOptions(inspectedEntity.doorType, inspectedEntity.materialStyle);
-    } else if (primarySelection.kind === "railing") {
+    } else if (state.primarySelection.kind === "railing") {
       selectElement("#selection-title").textContent = "玻璃栏杆";
       syncControlValue(selectElement("#railing-width"), inspectedEntity.width.toFixed(2));
       syncControlValue(selectElement("#railing-height"), inspectedEntity.height.toFixed(2));
@@ -7610,7 +7435,7 @@ function renderInspector() {
       if (isLightItem) {
         const inspectorLightDefaults =
           (DEFAULT_LIGHT_SETTINGS as any)[inspectedEntity.type] || DEFAULT_LIGHT_SETTINGS.downlight;
-        activeLightGroupId = lightGroupForItem(inspectedEntity)?.id || ensureActiveLightGroup().id;
+        state.activeLightGroupId = lightGroupForItem(inspectedEntity)?.id || ensureActiveLightGroup().id;
         renderLightGroupList();
         renderLightGroupSelect(inspectedEntity);
         syncControlValue(
@@ -7826,33 +7651,33 @@ function activateTool(toolName: any) {
   if (!(TOOL_HELP_TEXT as any)[toolName]) {
     return;
   }
-  if (activeAssetTab === "light" && toolName !== "select") {
+  if (state.activeAssetTab === "light" && toolName !== "select") {
     showToast("灯光编辑中户型已锁定，请先切回家居或电器。");
     return;
   }
   const shouldWarnUnclosedWall =
-    activeTool === "wall" && toolName !== "wall" && scalePointCount > 0;
-  activeTool = toolName;
+    state.activeTool === "wall" && toolName !== "wall" && state.scalePointCount > 0;
+  state.activeTool = toolName;
   planCanvasElement.dataset.tool = toolName;
   planCanvasElement.style.cursor = "";
   for (const toolButton of toolButtons) {
     toolButton.classList.toggle("active", (toolButton as any).dataset.tool === toolName);
   }
   [activeToolLabelElement.textContent, toolHelpElement.textContent] =
-    activeAssetTab === "light"
+    state.activeAssetTab === "light"
       ? ["灯光编辑", "户型已锁定；框选多盏灯后可整体拖动，Shift 锁轴，Option/Alt 复制"]
       : (TOOL_HELP_TEXT as any)[toolName];
-  finishWallButton.hidden = toolName !== "wall" || !scaleStartPoint;
+  finishWallButton.hidden = toolName !== "wall" || !state.scaleStartPoint;
   if (toolName !== "wall") {
     resetScaleInteractionState();
   }
   if (toolName !== "scale") {
-    scalePreviewStart = null;
+    state.scalePreviewStart = null;
   }
-  snapTarget = null;
-  windowSnapTarget = null;
-  doorSnapTarget = null;
-  railingSnapTarget = null;
+  state.snapTarget = null;
+  state.windowSnapTarget = null;
+  state.doorSnapTarget = null;
+  state.railingSnapTarget = null;
   renderPlanView();
   if (shouldWarnUnclosedWall) {
     showToast("当前墙线未闭合，不会生成地面；如果绘制的是隔墙，可以忽略此提醒。", "warning");
@@ -7868,51 +7693,51 @@ function ensureCalibration(fallbackTool = "scale") {
   }
 }
 function deleteSelection() {
-  if (multiSelection.length) {
+  if (state.multiSelection.length) {
     const selectionScope = currentSelectionScope();
     pushHistorySnapshot();
     const wallSelectionIds = new Set(
-      multiSelection
+      state.multiSelection
         .filter((wallSelection: any) => wallSelection.kind === "wall")
         .map((wallSelectionId: any) => wallSelectionId.id)
     );
     const windowSelectionIds = new Set(
-      multiSelection
+      state.multiSelection
         .filter((windowSelection: any) => windowSelection.kind === "window")
         .map((windowSelectionId: any) => windowSelectionId.id)
     );
     const doorSelectionIds = new Set(
-      multiSelection
+      state.multiSelection
         .filter((doorSelection: any) => doorSelection.kind === "door")
         .map((doorSelectionId: any) => doorSelectionId.id)
     );
     const railingSelectionIds = new Set(
-      multiSelection
+      state.multiSelection
         .filter((railingSelection: any) => railingSelection.kind === "railing")
         .map((railingSelectionId: any) => railingSelectionId.id)
     );
     const itemSelectionIds = new Set(
-      multiSelection
+      state.multiSelection
         .filter((itemSelection: any) => itemSelection.kind === "item")
         .map((itemSelectionId: any) => itemSelectionId.id)
     );
-    activeScene.walls = activeScene.walls.filter(
+    state.activeScene.walls = state.activeScene.walls.filter(
       (filteredWall: any) => !wallSelectionIds.has(filteredWall.id)
     );
-    activeScene.windows = activeScene.windows.filter(
+    state.activeScene.windows = state.activeScene.windows.filter(
       (filteredWindow: any) =>
         !windowSelectionIds.has(filteredWindow.id) && !wallSelectionIds.has(filteredWindow.wallId)
     );
-    activeScene.doors = activeScene.doors.filter(
+    state.activeScene.doors = state.activeScene.doors.filter(
       (filteredDoor: any) =>
         !doorSelectionIds.has(filteredDoor.id) && !wallSelectionIds.has(filteredDoor.wallId)
     );
-    activeScene.railings = activeScene.railings.filter(
+    state.activeScene.railings = state.activeScene.railings.filter(
       (filteredRailing: any) =>
         !railingSelectionIds.has(filteredRailing.id) &&
         !wallSelectionIds.has(filteredRailing.wallId)
     );
-    activeScene.items = activeScene.items.filter(
+    state.activeScene.items = state.activeScene.items.filter(
       (outsideSelectionItem: any) => !itemSelectionIds.has(outsideSelectionItem.id)
     );
     if (wallSelectionIds.size) {
@@ -7924,39 +7749,39 @@ function deleteSelection() {
     return;
   }
   const targetEntity = findSelectedEntity();
-  if (!targetEntity || !primarySelection) {
+  if (!targetEntity || !state.primarySelection) {
     return;
   }
   const targetScope = currentSelectionScope();
   pushHistorySnapshot();
-  if (primarySelection.kind === "wall") {
-    activeScene.walls = activeScene.walls.filter(
+  if (state.primarySelection.kind === "wall") {
+    state.activeScene.walls = state.activeScene.walls.filter(
       (wallToRemove: any) => wallToRemove.id !== targetEntity.id
     );
-    activeScene.windows = activeScene.windows.filter(
+    state.activeScene.windows = state.activeScene.windows.filter(
       (windowOnRemovedWall: any) => windowOnRemovedWall.wallId !== targetEntity.id
     );
-    activeScene.doors = activeScene.doors.filter(
+    state.activeScene.doors = state.activeScene.doors.filter(
       (doorOnRemovedWall: any) => doorOnRemovedWall.wallId !== targetEntity.id
     );
-    activeScene.railings = activeScene.railings.filter(
+    state.activeScene.railings = state.activeScene.railings.filter(
       (railingOnRemovedWall: any) => railingOnRemovedWall.wallId !== targetEntity.id
     );
     mergeCollinearWalls();
-  } else if (primarySelection.kind === "window") {
-    activeScene.windows = activeScene.windows.filter(
+  } else if (state.primarySelection.kind === "window") {
+    state.activeScene.windows = state.activeScene.windows.filter(
       (windowToRemove: any) => windowToRemove.id !== targetEntity.id
     );
-  } else if (primarySelection.kind === "door") {
-    activeScene.doors = activeScene.doors.filter(
+  } else if (state.primarySelection.kind === "door") {
+    state.activeScene.doors = state.activeScene.doors.filter(
       (doorToRemove: any) => doorToRemove.id !== targetEntity.id
     );
-  } else if (primarySelection.kind === "railing") {
-    activeScene.railings = activeScene.railings.filter(
+  } else if (state.primarySelection.kind === "railing") {
+    state.activeScene.railings = state.activeScene.railings.filter(
       (railingToRemove: any) => railingToRemove.id !== targetEntity.id
     );
   } else {
-    activeScene.items = activeScene.items.filter(
+    state.activeScene.items = state.activeScene.items.filter(
       (itemToRemove: any) => itemToRemove.id !== targetEntity.id
     );
   }
@@ -8071,7 +7896,7 @@ function createSceneItem(newItemType: any, itemPosition: any, overrides: any = {
       : {})
   };
   normalizeLayerNames([newItem]);
-  activeScene.items.push(newItem);
+  state.activeScene.items.push(newItem);
   setSelection("item", newItem.id);
   activateTool("select");
   refreshStudio(scopeForItem(newItem));
@@ -8082,13 +7907,13 @@ function createSceneItem(newItemType: any, itemPosition: any, overrides: any = {
  */
 function duplicateSelection() {
   const sourceItemIds = new Set([
-    ...(primarySelection?.kind === "item" ? [primarySelection.id] : []),
-    ...multiSelection
+    ...(state.primarySelection?.kind === "item" ? [state.primarySelection.id] : []),
+    ...state.multiSelection
       .filter((duplicateSelectionEntry: any) => duplicateSelectionEntry.kind === "item")
       .map((duplicateSelectionId: any) => duplicateSelectionId.id)
   ]);
-  const isLightDuplicateTab = activeAssetTab === "light";
-  const sourceItems = activeScene.items.filter(
+  const isLightDuplicateTab = state.activeAssetTab === "light";
+  const sourceItems = state.activeScene.items.filter(
     (duplicateCandidate: any) =>
       sourceItemIds.has(duplicateCandidate.id) &&
       LIGHT_ITEM_TYPES.has(duplicateCandidate.type) === isLightDuplicateTab
@@ -8109,12 +7934,12 @@ function duplicateSelection() {
     y: duplicateSourceItem.y + duplicateOffsetPlan
   }));
   normalizeLayerNames(duplicatedItems);
-  activeScene.items.push(...duplicatedItems);
+  state.activeScene.items.push(...duplicatedItems);
   if (duplicatedItems.length === 1) {
     setSelection("item", duplicatedItems[0].id);
   } else {
-    primarySelection = null;
-    multiSelection = duplicatedItems.map((duplicatedItem: any) => ({
+    state.primarySelection = null;
+    state.multiSelection = duplicatedItems.map((duplicatedItem: any) => ({
       kind: "item",
       id: duplicatedItem.id
     }));
@@ -8134,13 +7959,13 @@ function duplicateSelection() {
  */
 function collectClipboardItems() {
   const clipboardSourceIds = new Set([
-    ...(primarySelection?.kind === "item" ? [primarySelection.id] : []),
-    ...multiSelection
+    ...(state.primarySelection?.kind === "item" ? [state.primarySelection.id] : []),
+    ...state.multiSelection
       .filter((clipboardSelectionEntry: any) => clipboardSelectionEntry.kind === "item")
       .map((clipboardSelectionId: any) => clipboardSelectionId.id)
   ]);
-  const isLightClipboardTab = activeAssetTab === "light";
-  return activeScene.items.filter(
+  const isLightClipboardTab = state.activeAssetTab === "light";
+  return state.activeScene.items.filter(
     (clipboardSourceItem: any) =>
       clipboardSourceIds.has(clipboardSourceItem.id) &&
       LIGHT_ITEM_TYPES.has(clipboardSourceItem.type) === isLightClipboardTab
@@ -8155,11 +7980,11 @@ function copySelectionToClipboard() {
     showToast("请先选择要复制的灯具、家具或电器。");
     return;
   }
-  clipboardItems = copiedClipboardItems.map((clipboardSourceClone: any) =>
+  state.clipboardItems = copiedClipboardItems.map((clipboardSourceClone: any) =>
     structuredClone(clipboardSourceClone)
   );
   const clipboardOriginFloor = getCurrentFloor();
-  clipboardSourceFloor = {
+  state.clipboardSourceFloor = {
     id: clipboardOriginFloor.id,
     originX: clipboardOriginFloor.originX,
     originY: clipboardOriginFloor.originY,
@@ -8167,52 +7992,52 @@ function copySelectionToClipboard() {
     offsetZ: clipboardOriginFloor.offsetZ,
     rotation: clipboardOriginFloor.rotation,
     scene: {
-      calibration: structuredClone(activeScene.calibration)
+      calibration: structuredClone(state.activeScene.calibration)
     }
   };
-  pasteOffsetStep = 0;
-  showToast("已复制 " + clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。");
+  state.pasteOffsetStep = 0;
+  showToast("已复制 " + state.clipboardItems.length + " 个物件，按 ⌘/Ctrl+V 粘贴。");
 }
 function pasteClipboardItems() {
-  if (!clipboardItems.length) {
+  if (!state.clipboardItems.length) {
     showToast("暂无可粘贴的物件。");
     return;
   }
   if (
-    clipboardItems.some((clipboardFloorOpening: any) => clipboardFloorOpening.type === "flooropening") &&
+    state.clipboardItems.some((clipboardFloorOpening: any) => clipboardFloorOpening.type === "flooropening") &&
     !ensureCalibration()
   ) {
     return;
   }
-  const isClipboardLightOnly = clipboardItems.every((clipboardLightCandidate: any) =>
+  const isClipboardLightOnly = state.clipboardItems.every((clipboardLightCandidate: any) =>
     LIGHT_ITEM_TYPES.has(clipboardLightCandidate.type)
   );
-  if (isClipboardLightOnly && activeAssetTab !== "light") {
+  if (isClipboardLightOnly && state.activeAssetTab !== "light") {
     activateAssetTab("light");
-  } else if (!isClipboardLightOnly && activeAssetTab === "light") {
+  } else if (!isClipboardLightOnly && state.activeAssetTab === "light") {
     activateAssetTab("home");
   }
   pushHistorySnapshot();
-  pasteOffsetStep += 1;
-  const pasteOffsetPlan = (currentPixelsPerMeter() || 100) * 0.12 * pasteOffsetStep;
-  const pastedItems = clipboardItems.map((pastedSourceItem: any) => ({
+  state.pasteOffsetStep += 1;
+  const pasteOffsetPlan = (currentPixelsPerMeter() || 100) * 0.12 * state.pasteOffsetStep;
+  const pastedItems = state.clipboardItems.map((pastedSourceItem: any) => ({
     ...structuredClone(pastedSourceItem),
     id: createId("item"),
     x: pastedSourceItem.x + pasteOffsetPlan,
     y: pastedSourceItem.y + pasteOffsetPlan,
     ...(pastedSourceItem.type === "flooropening" &&
-    clipboardSourceFloor &&
-    clipboardSourceFloor.id !== getCurrentFloor().id
+    state.clipboardSourceFloor &&
+    state.clipboardSourceFloor.id !== getCurrentFloor().id
       ? {
-          ...convertBetweenFloors(pastedSourceItem, clipboardSourceFloor, getCurrentFloor()),
+          ...convertBetweenFloors(pastedSourceItem, state.clipboardSourceFloor, getCurrentFloor()),
           rotation:
             pastedSourceItem.rotation +
-            finite(clipboardSourceFloor.rotation, 0) -
+            finite(state.clipboardSourceFloor.rotation, 0) -
             finite(getCurrentFloor().rotation, 0)
         }
       : {}),
     ...(LIGHT_ITEM_TYPES.has(pastedSourceItem.type) &&
-    !activeScene.lightGroups.some(
+    !state.activeScene.lightGroups.some(
       (pastedLightGroup: any) => pastedLightGroup.id === pastedSourceItem.lightGroupId
     )
       ? {
@@ -8221,12 +8046,12 @@ function pasteClipboardItems() {
       : {})
   }));
   normalizeLayerNames(pastedItems);
-  activeScene.items.push(...pastedItems);
+  state.activeScene.items.push(...pastedItems);
   if (pastedItems.length === 1) {
     setSelection("item", pastedItems[0].id);
   } else {
-    primarySelection = null;
-    multiSelection = pastedItems.map((pastedItem: any) => ({
+    state.primarySelection = null;
+    state.multiSelection = pastedItems.map((pastedItem: any) => ({
       kind: "item",
       id: pastedItem.id
     }));
@@ -8242,12 +8067,12 @@ function pasteClipboardItems() {
   showToast("已粘贴 " + pastedItems.length + " 个物件。");
 }
 async function loadBackgroundTexture() {
-  const backgroundLoadRevision = ++backgroundRevision;
-  backgroundTexture = null;
-  if (!activeScene.background?.url) {
+  const backgroundLoadRevision = ++state.backgroundRevision;
+  state.backgroundTexture = null;
+  if (!state.activeScene.background?.url) {
     return;
   }
-  const backgroundUrl = activeScene.background.url;
+  const backgroundUrl = state.activeScene.background.url;
   await new Promise(resolveBackgroundLoad => {
     let hasBackgroundSettled = false;
     /**
@@ -8265,13 +8090,13 @@ async function loadBackgroundTexture() {
       "load",
       () => {
         if (
-          backgroundLoadRevision !== backgroundRevision ||
-          activeScene.background?.url !== backgroundUrl
+          backgroundLoadRevision !== state.backgroundRevision ||
+          state.activeScene.background?.url !== backgroundUrl
         ) {
           settleBackgroundLoad();
           return;
         }
-        backgroundTexture = backgroundImage;
+        state.backgroundTexture = backgroundImage;
         window.clearTimeout(backgroundLoadTimeoutId);
         if (hasBackgroundSettled) {
           renderPlanView();
@@ -8287,7 +8112,7 @@ async function loadBackgroundTexture() {
       "error",
       () => {
         window.clearTimeout(backgroundLoadTimeoutId);
-        if (backgroundLoadRevision === backgroundRevision) {
+        if (backgroundLoadRevision === state.backgroundRevision) {
           showToast("底图加载失败，请重新导入。", "error");
         }
         settleBackgroundLoad();
@@ -8320,7 +8145,7 @@ async function uploadPlanImage(file: any) {
         }
       });
       pushHistorySnapshot();
-      activeScene.background = {
+      state.activeScene.background = {
         assetId: uploadResponse.assetId,
         url: uploadResponse.url,
         name: uploadResponse.name,
@@ -8333,7 +8158,7 @@ async function uploadPlanImage(file: any) {
         backgroundFloor.originY = uploadResponse.height / 2;
         backgroundFloor.originInitialized = true;
       }
-      activeScene.settings.backgroundVisible = true;
+      state.activeScene.settings.backgroundVisible = true;
       await loadBackgroundTexture();
       fitViewToBounds();
       refreshStudio();
@@ -8352,7 +8177,7 @@ async function uploadPlanImage(file: any) {
  * 取 3D 工作台场景调色板（背景、地面、墙、地板、门窗等硬编码色值的唯一出处）。包成函数是为了
  */
 function studioPalette(): any {
-  if (studioSceneStyle === "warm-wood") {
+  if (state.studioSceneStyle === "warm-wood") {
     return {
       ...STUDIO_PALETTE,
       ...WARM_WOOD_STYLE,
@@ -8366,7 +8191,7 @@ function studioPalette(): any {
  * 取家居材质调色板：默认风格也采用暖阳原木的家居配色（WARM_HOME_STYLE），
  */
 function homePalette() {
-  if (studioSceneStyle === "warm-wood") {
+  if (state.studioSceneStyle === "warm-wood") {
     return {
       ...studioPalette(),
       warmFurniture: true
@@ -8477,60 +8302,60 @@ function positionLightFromAngles(light: any, azimuthDeg: any, elevationDeg: any,
 }
 function applyBaseLighting() {
   const palette = studioPalette();
-  const lightingSettings = baseLighting;
-  if (!previewOverlayScene || !renderer) {
+  const lightingSettings = state.baseLighting;
+  if (!state.previewOverlayScene || !state.renderer) {
     return;
   }
-  previewOverlayScene.background = null;
-  renderer.setClearColor(palette.background, 0);
-  previewOverlayScene.fog = null;
-  renderer.toneMappingExposure = lightingSettings.exposure;
+  state.previewOverlayScene.background = null;
+  state.renderer.setClearColor(palette.background, 0);
+  state.previewOverlayScene.fog = null;
+  state.renderer.toneMappingExposure = lightingSettings.exposure;
   const regionLightingScale = isRegionLightingEnabled ? 0.5 : 1;
   // 暖阳原木：整套基础光换成暖白 —— 天光偏暖、地面反光偏米黄、主光更黄，
   const isWarmWood = !!palette.warmWood;
-  if (hemisphereLight) {
-    hemisphereLight.color.setHex(isWarmWood ? 16776178 : 14278376);
-    hemisphereLight.groundColor.setHex(isWarmWood ? 10524035 : 1909296);
-    hemisphereLight.intensity = lightingSettings.hemisphereIntensity * regionLightingScale;
+  if (state.hemisphereLight) {
+    state.hemisphereLight.color.setHex(isWarmWood ? 16776178 : 14278376);
+    state.hemisphereLight.groundColor.setHex(isWarmWood ? 10524035 : 1909296);
+    state.hemisphereLight.intensity = lightingSettings.hemisphereIntensity * regionLightingScale;
   }
-  if (ambientLight) {
-    ambientLight.color.setHex(isWarmWood ? 15592162 : 9673384);
-    ambientLight.intensity = lightingSettings.ambientIntensity * regionLightingScale;
+  if (state.ambientLight) {
+    state.ambientLight.color.setHex(isWarmWood ? 15592162 : 9673384);
+    state.ambientLight.intensity = lightingSettings.ambientIntensity * regionLightingScale;
   }
-  if (mainDirectionalLight) {
-    mainDirectionalLight.color.setHex(isWarmWood ? 16774367 : 15922426);
-    mainDirectionalLight.intensity = lightingSettings.mainIntensity * regionLightingScale;
+  if (state.mainDirectionalLight) {
+    state.mainDirectionalLight.color.setHex(isWarmWood ? 16774367 : 15922426);
+    state.mainDirectionalLight.intensity = lightingSettings.mainIntensity * regionLightingScale;
     positionLightFromAngles(
-      mainDirectionalLight,
+      state.mainDirectionalLight,
       lightingSettings.mainAzimuth,
       lightingSettings.mainElevation,
       18.4
     );
-    mainDirectionalLight.shadow.bias = -0.00012;
-    mainDirectionalLight.shadow.normalBias = 0.016;
-    mainDirectionalLight.shadow.radius = 1.75;
-    mainDirectionalLight.shadow.blurSamples = 4;
-    if (isHighShadowQuality) {
-      mainDirectionalLight.shadow.radius = 1.2;
-      mainDirectionalLight.shadow.blurSamples = 8;
+    state.mainDirectionalLight.shadow.bias = -0.00012;
+    state.mainDirectionalLight.shadow.normalBias = 0.016;
+    state.mainDirectionalLight.shadow.radius = 1.75;
+    state.mainDirectionalLight.shadow.blurSamples = 4;
+    if (state.isHighShadowQuality) {
+      state.mainDirectionalLight.shadow.radius = 1.2;
+      state.mainDirectionalLight.shadow.blurSamples = 8;
     }
-    mainDirectionalLight.shadow.intensity = lightingSettings.mainShadowIntensity;
+    state.mainDirectionalLight.shadow.intensity = lightingSettings.mainShadowIntensity;
   }
-  if (fillDirectionalLight) {
-    fillDirectionalLight.color.setHex(isWarmWood ? 14346221 : 10528437);
-    fillDirectionalLight.intensity = lightingSettings.fillIntensity * regionLightingScale;
+  if (state.fillDirectionalLight) {
+    state.fillDirectionalLight.color.setHex(isWarmWood ? 14346221 : 10528437);
+    state.fillDirectionalLight.intensity = lightingSettings.fillIntensity * regionLightingScale;
     positionLightFromAngles(
-      fillDirectionalLight,
+      state.fillDirectionalLight,
       lightingSettings.fillAzimuth,
       lightingSettings.fillElevation,
       15.2
     );
   }
-  if (topDirectionalLight) {
-    topDirectionalLight.color.setHex(isWarmWood ? 16776693 : 16185338);
-    topDirectionalLight.intensity = lightingSettings.topIntensity * regionLightingScale;
+  if (state.topDirectionalLight) {
+    state.topDirectionalLight.color.setHex(isWarmWood ? 16776693 : 16185338);
+    state.topDirectionalLight.intensity = lightingSettings.topIntensity * regionLightingScale;
     positionLightFromAngles(
-      topDirectionalLight,
+      state.topDirectionalLight,
       lightingSettings.topAzimuth,
       lightingSettings.topElevation,
       16.1
@@ -8542,10 +8367,10 @@ function applyBaseLighting() {
  */
 function setHighShadowQuality(isHighQuality: any) {
   const nextHighQuality = isHighQuality === true;
-  if (nextHighQuality !== isHighShadowQuality) {
-    if (nextHighQuality && mainDirectionalLight?.shadow?.camera) {
-      const savedShadowCamera = mainDirectionalLight.shadow.camera;
-      savedShadowCameraBounds = {
+  if (nextHighQuality !== state.isHighShadowQuality) {
+    if (nextHighQuality && state.mainDirectionalLight?.shadow?.camera) {
+      const savedShadowCamera = state.mainDirectionalLight.shadow.camera;
+      state.savedShadowCameraBounds = {
         left: savedShadowCamera.left,
         right: savedShadowCamera.right,
         top: savedShadowCamera.top,
@@ -8554,19 +8379,19 @@ function setHighShadowQuality(isHighQuality: any) {
         far: savedShadowCamera.far
       };
     }
-    isHighShadowQuality = nextHighQuality;
+    state.isHighShadowQuality = nextHighQuality;
     applyBaseLighting();
-    if (!nextHighQuality && savedShadowCameraBounds && mainDirectionalLight?.shadow?.camera) {
-      const restoredShadowCamera = mainDirectionalLight.shadow.camera;
-      Object.assign(restoredShadowCamera, savedShadowCameraBounds);
+    if (!nextHighQuality && state.savedShadowCameraBounds && state.mainDirectionalLight?.shadow?.camera) {
+      const restoredShadowCamera = state.mainDirectionalLight.shadow.camera;
+      Object.assign(restoredShadowCamera, state.savedShadowCameraBounds);
       restoredShadowCamera.updateProjectionMatrix();
-      savedShadowCameraBounds = null;
+      state.savedShadowCameraBounds = null;
     }
-    if (mainDirectionalLight?.shadow) {
-      mainDirectionalLight.shadow.needsUpdate = true;
+    if (state.mainDirectionalLight?.shadow) {
+      state.mainDirectionalLight.shadow.needsUpdate = true;
     }
-    if (renderer?.domElement) {
-      renderer.domElement.dataset.exportShadowQuality = nextHighQuality ? "high" : "realtime";
+    if (state.renderer?.domElement) {
+      state.renderer.domElement.dataset.exportShadowQuality = nextHighQuality ? "high" : "realtime";
     }
   }
 }
@@ -8574,12 +8399,12 @@ function setHighShadowQuality(isHighQuality: any) {
  * 把请求的阴影贴图边长适配到本机 GPU 能力与当前画质档。非高画质档原样返回（实时预览优先保帧率）。
  */
 function resolveShadowMapSize(requestedSize: any) {
-  if (!isHighShadowQuality) {
+  if (!state.isHighShadowQuality) {
     return requestedSize;
   }
   const maxTextureSize = Math.max(
     1,
-    Math.floor(finite(renderer?.capabilities?.maxTextureSize, FALLBACK_MAX_TEXTURE_SIZE))
+    Math.floor(finite(state.renderer?.capabilities?.maxTextureSize, FALLBACK_MAX_TEXTURE_SIZE))
   );
   return Math.min(maxTextureSize, Math.max(requestedSize, FALLBACK_MAX_TEXTURE_SIZE));
 }
@@ -8588,7 +8413,7 @@ function resolveShadowMapSize(requestedSize: any) {
  */
 function syncBaseLightControlInputs() {
   for (const controlInput of baseLightControlInputs) {
-    const controlValue = (baseLighting as any)[(controlInput as any).dataset.baseLightControl];
+    const controlValue = (state.baseLighting as any)[(controlInput as any).dataset.baseLightControl];
     const isIntegerStep = (controlInput as any).step === "5";
     syncControlValue(
       controlInput,
@@ -8600,13 +8425,13 @@ function syncBaseLightControlInputs() {
  * 应用一份基础光配置：归一化 → 回填控件 → 重设灯光 → 失效渲染。先 normalizeBaseLighting
  */
 function applyBaseLightingSettings(lightingConfig: any) {
-  const previousLighting = baseLighting;
-  baseLighting = normalizeBaseLighting(lightingConfig);
+  const previousLighting = state.baseLighting;
+  state.baseLighting = normalizeBaseLighting(lightingConfig);
   syncBaseLightControlInputs();
   applyBaseLighting();
   invalidateRender({
     shadows: Object.keys(DEFAULT_BASE_LIGHTING).some(
-      configField => (previousLighting as any)[configField] !== (baseLighting as any)[configField]
+      configField => (previousLighting as any)[configField] !== (state.baseLighting as any)[configField]
     )
   });
 }
@@ -8614,7 +8439,7 @@ function applyBaseLightingSettings(lightingConfig: any) {
  * 打开基础光设置面板（必要时先回填一次文档里的配置）。挂载点跟着导出对话框走：对话框打开时面板必须挂进
  */
 function openBaseLightingPanel() {
-  if (!studioDocument || !baseLightControlsElement) {
+  if (!state.studioDocument || !baseLightControlsElement) {
     return;
   }
   const mountParent = exportDialogElement?.open ? exportDialogElement : document.body;
@@ -8622,7 +8447,7 @@ function openBaseLightingPanel() {
     mountParent.append(baseLightControlsElement);
   }
   if (baseLightControlsElement.hidden) {
-    applyBaseLightingSettings(studioDocument.baseLighting);
+    applyBaseLightingSettings(state.studioDocument.baseLighting);
   }
   baseLightControlsElement.hidden = false;
   const panelRect = baseLightControlsElement.getBoundingClientRect();
@@ -8641,21 +8466,21 @@ function openBaseLightingPanel() {
 }
 function closeBaseLightingPanel() {
   if (baseLightControlsElement) {
-    if (studioDocument) {
-      applyBaseLightingSettings(studioDocument.baseLighting);
+    if (state.studioDocument) {
+      applyBaseLightingSettings(state.studioDocument.baseLighting);
     }
     baseLightControlsElement.hidden = true;
   }
 }
 function saveBaseLighting() {
-  if (!studioDocument) {
+  if (!state.studioDocument) {
     return;
   }
-  const normalizedLighting = normalizeBaseLighting(baseLighting);
-  studioDocument.baseLighting = normalizedLighting;
+  const normalizedLighting = normalizeBaseLighting(state.baseLighting);
+  state.studioDocument.baseLighting = normalizedLighting;
   applyBaseLightingSettings(normalizedLighting);
   markDocumentDirty();
-  lightingChannel?.postMessage({
+  state.lightingChannel?.postMessage({
     type: "base-lighting-saved",
     lighting: normalizedLighting
   });
@@ -8676,10 +8501,10 @@ function saveBaseLighting() {
  */
 function handleBaseLightControlInput(editedControlInput: any) {
   const controlKey = editedControlInput.dataset.baseLightControl;
-  if (controlKey in baseLighting) {
-    baseLighting = normalizeBaseLighting({
-      ...baseLighting,
-      [controlKey]: finite(editedControlInput.value, (baseLighting as any)[controlKey])
+  if (controlKey in state.baseLighting) {
+    state.baseLighting = normalizeBaseLighting({
+      ...state.baseLighting,
+      [controlKey]: finite(editedControlInput.value, (state.baseLighting as any)[controlKey])
     });
     applyBaseLighting();
     invalidateRender({
@@ -8692,9 +8517,9 @@ function handleBaseLightControlInput(editedControlInput: any) {
  */
 function cameraSettingsSource() {
   if (currentPreviewFloorMode() === "all") {
-    return studioDocument.combinedCameraSettings;
+    return state.studioDocument.combinedCameraSettings;
   } else {
-    return activeScene.settings;
+    return state.activeScene.settings;
   }
 }
 /**
@@ -8755,7 +8580,7 @@ function collectActiveLights() {
  */
 function measureLightRenderCost() {
   const activeLights = collectActiveLights();
-  const costCanvasElement = renderer?.domElement;
+  const costCanvasElement = state.renderer?.domElement;
   const previewPixels =
     costCanvasElement?.width && costCanvasElement?.height
       ? costCanvasElement.width * costCanvasElement.height
@@ -8779,8 +8604,8 @@ function measureLightRenderCost() {
 }
 function updateAdaptiveRenderState() {
   if (isStageViewerMode) {
-    isAdaptiveRenderActive = true;
-    hasAdaptiveRenderProbe = true;
+    state.isAdaptiveRenderActive = true;
+    state.hasAdaptiveRenderProbe = true;
     return {
       count: 0,
       cost: 0,
@@ -8788,23 +8613,23 @@ function updateAdaptiveRenderState() {
     };
   }
   const renderCost = measureLightRenderCost();
-  const wasAdaptiveActive = isAdaptiveRenderActive;
-  if (hasAdaptiveRenderProbe) {
+  const wasAdaptiveActive = state.isAdaptiveRenderActive;
+  if (state.hasAdaptiveRenderProbe) {
     if (
-      isAdaptiveRenderActive &&
-      renderCost.cost < Math.min(renderCost.budget * 0.68, Math.max(adaptiveRenderCost * 0.55, 1))
+      state.isAdaptiveRenderActive &&
+      renderCost.cost < Math.min(renderCost.budget * 0.68, Math.max(state.adaptiveRenderCost * 0.55, 1))
     ) {
-      isAdaptiveRenderActive = false;
-      adaptiveRenderCost = 0;
-      slowFrameStreak = 0;
+      state.isAdaptiveRenderActive = false;
+      state.adaptiveRenderCost = 0;
+      state.slowFrameStreak = 0;
     }
   } else {
-    hasAdaptiveRenderProbe = true;
+    state.hasAdaptiveRenderProbe = true;
   }
-  if (wasAdaptiveActive && !isAdaptiveRenderActive) {
-    lightCacheRevision += 1;
-    isLightCacheReady = false;
-    needsLightCacheRefresh = false;
+  if (wasAdaptiveActive && !state.isAdaptiveRenderActive) {
+    state.lightCacheRevision += 1;
+    state.isLightCacheReady = false;
+    state.needsLightCacheRefresh = false;
     setLightCacheVisible(false);
   }
   return renderCost;
@@ -8818,11 +8643,11 @@ function isAdaptiveLightCacheEnabled() {
   } else {
     updateAdaptiveRenderState();
     return (
-      isAdaptiveRenderActive &&
-      !isEnvironmentActive &&
-      !isCurtainMoving &&
-      !isVacuumMoving &&
-      !isBackgroundFrameVisible
+      state.isAdaptiveRenderActive &&
+      !state.isEnvironmentActive &&
+      !state.isCurtainMoving &&
+      !state.isVacuumMoving &&
+      !state.isBackgroundFrameVisible
     );
   }
 }
@@ -8830,12 +8655,12 @@ function isAdaptiveLightCacheEnabled() {
  * 打开自适应渲染（切到光照缓存路径）。只有帧率评估确认「确实撑不住」（sufficient）时才允许开启且不重复开启。
  */
 function enableAdaptiveRender(frameAssessment: any) {
-  if (!isAdaptiveRenderActive && !!frameAssessment?.sufficient) {
-    isAdaptiveRenderActive = true;
-    hasAdaptiveRenderProbe = true;
-    adaptiveRenderCost = measureLightRenderCost().cost;
-    lightCacheRevision += 1;
-    needsLightCacheRefresh = true;
+  if (!state.isAdaptiveRenderActive && !!frameAssessment?.sufficient) {
+    state.isAdaptiveRenderActive = true;
+    state.hasAdaptiveRenderProbe = true;
+    state.adaptiveRenderCost = measureLightRenderCost().cost;
+    state.lightCacheRevision += 1;
+    state.needsLightCacheRefresh = true;
     applyRenderQualityMode();
   }
 }
@@ -8843,10 +8668,10 @@ function enableAdaptiveRender(frameAssessment: any) {
  * 依据最近的帧间隔判断是否该降级到光照缓存。判据是「连续几帧慢」而非单帧：阈值随灯光开销与设备预算之
  */
 function assessFrameRateForAdaptive() {
-  if (isAdaptiveRenderActive) {
+  if (state.isAdaptiveRenderActive) {
     return;
   }
-  const frameStats = assessAdaptiveRenderFrames(recentFrameDurationsMs);
+  const frameStats = assessAdaptiveRenderFrames(state.recentFrameDurationsMs);
   if (!frameStats.sufficient) {
     return;
   }
@@ -8854,13 +8679,13 @@ function assessFrameRateForAdaptive() {
   const costBudgetRatio = lightCacheRenderCost.cost / Math.max(lightCacheRenderCost.budget, 1);
   const slowStreakThreshold = costBudgetRatio >= 1.8 ? 3 : costBudgetRatio >= 1 ? 4 : 5;
   if (frameStats.severe) {
-    slowFrameStreak = slowStreakThreshold;
+    state.slowFrameStreak = slowStreakThreshold;
   } else if (frameStats.slow) {
-    slowFrameStreak += 1;
+    state.slowFrameStreak += 1;
   } else if (frameStats.smooth) {
-    slowFrameStreak = 0;
+    state.slowFrameStreak = 0;
   }
-  if (slowFrameStreak >= slowStreakThreshold) {
+  if (state.slowFrameStreak >= slowStreakThreshold) {
     enableAdaptiveRender(frameStats);
   }
 }
@@ -8869,34 +8694,34 @@ function assessFrameRateForAdaptive() {
  */
 function sampleFrameInterval(frameTimestampMs = performance.now()) {
   if (
-    (!isCameraMotionActive && (!isStageViewerMode || !isMotionRendering)) ||
-    exportRenderState ||
-    isAdaptiveRenderActive ||
+    (!state.isCameraMotionActive && (!isStageViewerMode || !state.isMotionRendering)) ||
+    state.exportRenderState ||
+    state.isAdaptiveRenderActive ||
     !collectActiveLights().length
   ) {
-    lastFrameTimestampMs = 0;
+    state.lastFrameTimestampMs = 0;
     return;
   }
-  if (lastFrameTimestampMs > 0) {
-    const frameIntervalMs = frameTimestampMs - lastFrameTimestampMs;
+  if (state.lastFrameTimestampMs > 0) {
+    const frameIntervalMs = frameTimestampMs - state.lastFrameTimestampMs;
     if (
       frameIntervalMs >= 8 &&
       (frameIntervalMs <= 120 || (isStageViewerMode && frameIntervalMs <= 2000))
     ) {
-      recentFrameDurationsMs.push(Math.min(frameIntervalMs, 120));
+      state.recentFrameDurationsMs.push(Math.min(frameIntervalMs, 120));
     }
   }
-  lastFrameTimestampMs = frameTimestampMs;
-  if (!(recentFrameDurationsMs.length < 24)) {
+  state.lastFrameTimestampMs = frameTimestampMs;
+  if (!(state.recentFrameDurationsMs.length < 24)) {
     assessFrameRateForAdaptive();
-    recentFrameDurationsMs.splice(0, 12);
+    state.recentFrameDurationsMs.splice(0, 12);
   }
 }
 /**
  * 是否开启实时预览（关掉后需要手动点「更新」才刷新三维画面）。
  */
 function isLivePreviewEnabled() {
-  return activeScene.settings?.livePreviewEnabled !== false;
+  return state.activeScene.settings?.livePreviewEnabled !== false;
 }
 /**
  * 同步预览模式控件（实时 / 手动）与「更新」按钮状态。手动模式下按钮才显示，并用
@@ -8910,9 +8735,9 @@ function syncPreviewControls() {
     previewSyncButton.setAttribute("aria-pressed", String(isPreviewSyncActive));
   }
   refreshPreviewButton.hidden = isLivePreview;
-  refreshPreviewButton.disabled = !isPreviewDirty;
-  refreshPreviewButton.classList.toggle("is-dirty", isPreviewDirty);
-  refreshPreviewButton.textContent = isPreviewDirty ? "待更新 · 更新" : "已更新";
+  refreshPreviewButton.disabled = !state.isPreviewDirty;
+  refreshPreviewButton.classList.toggle("is-dirty", state.isPreviewDirty);
+  refreshPreviewButton.textContent = state.isPreviewDirty ? "待更新 · 更新" : "已更新";
 }
 function syncCameraModeButtons(cameraMode = currentCameraMode()) {
   for (const cameraModeButton of cameraModeButtons) {
@@ -8948,22 +8773,22 @@ function syncFocalLengthInputs(syncCameraMode = currentCameraMode()) {
 /**
  * 把焦距写进目标相机（仅透视相机有效）。这里再次 clamp 到 18~120：调用方可能直接把用户
  */
-function applyFocalLength(targetCamera = previewCamera, focalLength = currentFocalLength()) {
+function applyFocalLength(targetCamera = state.previewCamera, focalLength = currentFocalLength()) {
   if (targetCamera?.isPerspectiveCamera) {
     targetCamera.setFocalLength(clamp(finite(focalLength, 50), 18, 120));
   }
 }
 function applyRenderQualityMode() {
-  if (!orbitControls) {
+  if (!state.orbitControls) {
     return;
   }
   const isAdaptiveCache = isAdaptiveLightCacheEnabled();
   const isStageLightTransition =
-    isStageViewerMode && lightTransitionSession && !isLightCacheBuilding;
-  spotShadowAtlasController?.setEnabled(
+    isStageViewerMode && state.lightTransitionSession && !state.isLightCacheBuilding;
+  state.spotShadowAtlasController?.setEnabled(
     isStageViewerMode || !isAdaptiveCache || !!isStageLightTransition
   );
-  orbitControls.enableRotate = currentCameraView() !== "top";
+  state.orbitControls.enableRotate = currentCameraView() !== "top";
   if (previewQualityStatusElement) {
     previewQualityStatusElement.hidden = true;
     previewQualityStatusElement.title = "";
@@ -8974,23 +8799,23 @@ function targetPixelRatio(isMotionRender = false) {
   if (
     isStageViewerMode &&
     isMotionRender &&
-    motionRenderScale !== null &&
-    (!isMotionRendering || isCameraMotionActive)
+    state.motionRenderScale !== null &&
+    (!state.isMotionRendering || state.isCameraMotionActive)
   ) {
-    return Math.min(window.devicePixelRatio || 1, 1.6) * renderScale * motionRenderScale;
+    return Math.min(window.devicePixelRatio || 1, 1.6) * state.renderScale * state.motionRenderScale;
   }
   if (isRegionLightingEnabled) {
-    const regionPixelRatio = Math.min(window.devicePixelRatio || 1, 1.6) * renderScale;
+    const regionPixelRatio = Math.min(window.devicePixelRatio || 1, 1.6) * state.renderScale;
     if (isMotionRender) {
       return Math.min(regionPixelRatio, 1);
     } else {
       return regionPixelRatio;
     }
   }
-  const isStageMotionRender = isStageViewerMode && isMotionRendering;
+  const isStageMotionRender = isStageViewerMode && state.isMotionRendering;
   let adaptivePixelRatio =
     Math.min(window.devicePixelRatio || 1, isMotionRender ? 1 : 1.6) *
-    (isStageViewerMode ? renderScale : 1);
+    (isStageViewerMode ? state.renderScale : 1);
   if (isStageViewerMode && (isMotionRender || isStageMotionRender)) {
     const { cost: motionRenderCost, budget: motionRenderBudget } = measureLightRenderCost();
     if (motionRenderCost > motionRenderBudget) {
@@ -9004,17 +8829,17 @@ function targetPixelRatio(isMotionRender = false) {
 }
 const LIGHT_FADE_DURATION_MS = 150;
 function requestRenderFrame() {
-  needsRender = true;
-  hasRenderedFrame = false;
-  demandFrameLoop?.wake();
+  state.needsRender = true;
+  state.hasRenderedFrame = false;
+  state.demandFrameLoop?.wake();
 }
 /**
  * 显示 / 隐藏光照缓存图层。舞台模式下缓存图层与实时画布是叠着的两层，显示缓存时必须把
  */
 function setLightCacheVisible(shouldShowLightCache: any) {
   lightCacheCanvasElement.hidden = !shouldShowLightCache;
-  if (isStageViewerMode && renderer) {
-    renderer.domElement.style.opacity = shouldShowLightCache ? "0" : "1";
+  if (isStageViewerMode && state.renderer) {
+    state.renderer.domElement.style.opacity = shouldShowLightCache ? "0" : "1";
   }
 }
 /**
@@ -9025,15 +8850,14 @@ function hasPendingRenderWork() {
   return (
     modelLoadState.active > 0 ||
     modelLoadState.queued > 0 ||
-    isPrecompilePending ||
-    precompileRenderTimer !== null ||
-    isSceneUpdateQueued
+    state.isPrecompilePending ||
+    state.precompileRenderTimer !== null ||
+    state.isSceneUpdateQueued
   );
 }
-let activeCacheWriteHandle: any = null;
 function scheduleCacheWrite(cacheKey: any, cacheCanvas: any, isStillValid: any) {
-  activeCacheWriteHandle?.cancel();
-  const orbitControlsHandle = orbitControls;
+  state.activeCacheWriteHandle?.cancel();
+  const orbitControlsHandle = state.orbitControls;
   const writeHandle: any = {
     cancelled: false,
     frame: null,
@@ -9069,12 +8893,12 @@ function scheduleCacheWrite(cacheKey: any, cacheCanvas: any, isStillValid: any) 
       cacheCanvas.width = cacheCanvas.height = 0;
       cacheCanvas = null;
     }
-    if (activeCacheWriteHandle === writeHandle) {
-      activeCacheWriteHandle = null;
+    if (state.activeCacheWriteHandle === writeHandle) {
+      state.activeCacheWriteHandle = null;
     }
   };
   writeHandle.cancel = cancelCacheWrite;
-  activeCacheWriteHandle = writeHandle;
+  state.activeCacheWriteHandle = writeHandle;
   /**
    * 上报缓存写盘过程中的异常（走宿主注入的 HABridgeLog，不打断渲染流程）。
    */
@@ -9140,57 +8964,57 @@ function scheduleCacheWrite(cacheKey: any, cacheCanvas: any, isStillValid: any) 
   }
 }
 async function settleStageLightCache() {
-  lightCacheSettleTimer = null;
+  state.lightCacheSettleTimer = null;
   if (
-    !isFrameLoopAvailable ||
+    !state.isFrameLoopAvailable ||
     renderCache?.closed ||
-    !renderer ||
-    exportRenderState ||
-    isCameraMotionActive ||
-    isExportRendering ||
-    isLightCacheBuilding ||
-    lightTransitionSession ||
-    isMotionRendering ||
-    isCurtainMoving ||
-    isVacuumMoving ||
-    isBackgroundFrameVisible ||
-    isLightFadeAnimating
+    !state.renderer ||
+    state.exportRenderState ||
+    state.isCameraMotionActive ||
+    state.isExportRendering ||
+    state.isLightCacheBuilding ||
+    state.lightTransitionSession ||
+    state.isMotionRendering ||
+    state.isCurtainMoving ||
+    state.isVacuumMoving ||
+    state.isBackgroundFrameVisible ||
+    state.isLightFadeAnimating
   ) {
     return;
   }
   if (
     hasPendingRenderWork() ||
-    spotShadowAtlasController?.isBuilding() ||
-    spotShadowAtlasController?.isPending()
+    state.spotShadowAtlasController?.isBuilding() ||
+    state.spotShadowAtlasController?.isPending()
   ) {
     scheduleLightCacheBuild(120);
     return;
   }
-  const stageCanvasElement = renderer.domElement;
+  const stageCanvasElement = state.renderer.domElement;
   const stageCanvasWidthPx = stageCanvasElement.width;
   const stageCanvasHeightPx = stageCanvasElement.height;
   if (!stageCanvasWidthPx || !stageCanvasHeightPx) {
     return;
   }
-  const settleCacheRevision = lightCacheRevision;
+  const settleCacheRevision = state.lightCacheRevision;
   /**
    * 复验「本次缓存烘焙是否仍然有效」。与函数开头的准入条件同源，但额外要求
    */
   const isSettleValid = () =>
-    isFrameLoopAvailable &&
+    state.isFrameLoopAvailable &&
     !renderCache?.closed &&
     !hasPendingRenderWork() &&
-    settleCacheRevision === lightCacheRevision &&
-    !exportRenderState &&
-    !isCameraMotionActive &&
-    !isExportRendering &&
-    !lightTransitionSession &&
-    !isMotionRendering &&
-    !isCurtainMoving &&
-    !isVacuumMoving &&
-    !isBackgroundFrameVisible &&
-    !isLightFadeAnimating;
-  isLightCacheBuilding = true;
+    settleCacheRevision === state.lightCacheRevision &&
+    !state.exportRenderState &&
+    !state.isCameraMotionActive &&
+    !state.isExportRendering &&
+    !state.lightTransitionSession &&
+    !state.isMotionRendering &&
+    !state.isCurtainMoving &&
+    !state.isVacuumMoving &&
+    !state.isBackgroundFrameVisible &&
+    !state.isLightFadeAnimating;
+  state.isLightCacheBuilding = true;
   let cacheEntry;
   let transientCacheCanvas = null;
   let settleCacheKey;
@@ -9225,7 +9049,7 @@ async function settleStageLightCache() {
       const settledLightsByKey = ensureLightModels(settlePreviewLights);
       applyLightVisibility(settledLightsByKey);
       applyRenderQualityMode();
-      renderer.render(previewOverlayScene, previewCamera);
+      state.renderer.render(state.previewOverlayScene, state.previewCamera);
       cacheEntry = document.createElement("canvas");
       transientCacheCanvas = cacheEntry;
       cacheEntry.width = stageCanvasWidthPx;
@@ -9247,10 +9071,10 @@ async function settleStageLightCache() {
     lightCacheCanvasElement.height = stageCanvasHeightPx;
     lightCacheContext.clearRect(0, 0, stageCanvasWidthPx, stageCanvasHeightPx);
     lightCacheContext.drawImage((cacheEntry as any).image || cacheEntry, 0, 0);
-    canvasByLightGroupKey.clear();
-    brightnessByLightGroupKey.clear();
-    isLightCacheReady = true;
-    needsLightCacheRefresh = false;
+    state.canvasByLightGroupKey.clear();
+    state.brightnessByLightGroupKey.clear();
+    state.isLightCacheReady = true;
+    state.needsLightCacheRefresh = false;
     stageCanvasElement.dataset.lightCachePixels = String(stageCanvasWidthPx * stageCanvasHeightPx);
     stageCanvasElement.dataset.lightCacheRetainedGroups = "complete-frame";
     setLightCacheVisible(true);
@@ -9271,9 +9095,9 @@ async function settleStageLightCache() {
         transientCacheCanvas.width = transientCacheCanvas.height = 0;
       }
     } finally {
-      isLightCacheBuilding = false;
+      state.isLightCacheBuilding = false;
     }
-    if (needsLightCacheRefresh && (!didSettleFail || settleCacheRevision !== lightCacheRevision)) {
+    if (state.needsLightCacheRefresh && (!didSettleFail || settleCacheRevision !== state.lightCacheRevision)) {
       scheduleLightCacheBuild(420);
     }
   }
@@ -9282,14 +9106,14 @@ async function settleStageLightCache() {
  * 按各灯光分组的当前亮度，把分组画布合成为一张光照缓存图。只在缓存图层可见时合成（hidden 说明走实时
  */
 function compositeLightCache() {
-  if (!isLightCacheReady || lightCacheCanvasElement.hidden) {
+  if (!state.isLightCacheReady || lightCacheCanvasElement.hidden) {
     return;
   }
   const compositeContext = lightCacheCanvasElement.getContext("2d");
   if (compositeContext) {
     compositeContext.clearRect(0, 0, lightCacheCanvasElement.width, lightCacheCanvasElement.height);
-    for (const [groupKey, groupCanvas] of canvasByLightGroupKey) {
-      const groupBrightness = clamp(finite(brightnessByLightGroupKey.get(groupKey), 0), 0, 1);
+    for (const [groupKey, groupCanvas] of state.canvasByLightGroupKey) {
+      const groupBrightness = clamp(finite(state.brightnessByLightGroupKey.get(groupKey), 0), 0, 1);
       if (!(groupBrightness <= 0.001)) {
         compositeContext.save();
         compositeContext.globalAlpha = groupBrightness;
@@ -9305,10 +9129,10 @@ function fadeLightGroups(groupIds: any, durationMs = LIGHT_FADE_DURATION_MS) {
     return;
   }
   const groupFades = targetGroupIds.map(fadedGroupId => ({
-    groupId: lightGroupScopeKey(activeFloorId, fadedGroupId),
+    groupId: lightGroupScopeKey(state.activeFloorId, fadedGroupId),
     from: clamp(
       finite(
-        brightnessByLightGroupKey.get(lightGroupScopeKey(activeFloorId, fadedGroupId)),
+        state.brightnessByLightGroupKey.get(lightGroupScopeKey(state.activeFloorId, fadedGroupId)),
         findLightGroup(fadedGroupId)?.enabled === false ? 0 : 1
       ),
       0,
@@ -9316,12 +9140,12 @@ function fadeLightGroups(groupIds: any, durationMs = LIGHT_FADE_DURATION_MS) {
     ),
     to: findLightGroup(fadedGroupId)?.enabled === false ? 0 : 1
   }));
-  cancelAnimationFrame(lightGroupFadeFrame);
-  if (!isLightCacheReady) {
+  cancelAnimationFrame(state.lightGroupFadeFrame);
+  if (!state.isLightCacheReady) {
     for (const immediateFade of groupFades) {
-      brightnessByLightGroupKey.set(immediateFade.groupId, immediateFade.to);
+      state.brightnessByLightGroupKey.set(immediateFade.groupId, immediateFade.to);
     }
-    if (!isLightCacheBuilding) {
+    if (!state.isLightCacheBuilding) {
       scheduleLightCacheBuild(0);
     }
     return;
@@ -9334,38 +9158,38 @@ function fadeLightGroups(groupIds: any, durationMs = LIGHT_FADE_DURATION_MS) {
     const fadeProgress = clamp((fadeTimestampMs - fadeStartMs) / durationMs, 0, 1);
     const easedFadeProgress = fadeProgress * fadeProgress * (3 - fadeProgress * 2);
     for (const groupFade of groupFades) {
-      brightnessByLightGroupKey.set(
+      state.brightnessByLightGroupKey.set(
         groupFade.groupId,
         groupFade.from + (groupFade.to - groupFade.from) * easedFadeProgress
       );
     }
     compositeLightCache();
     if (fadeProgress < 1) {
-      lightGroupFadeFrame = requestAnimationFrame(stepGroupFade);
+      state.lightGroupFadeFrame = requestAnimationFrame(stepGroupFade);
     } else {
-      lightGroupFadeFrame = 0;
+      state.lightGroupFadeFrame = 0;
     }
   };
-  lightGroupFadeFrame = requestAnimationFrame(stepGroupFade);
+  state.lightGroupFadeFrame = requestAnimationFrame(stepGroupFade);
 }
 /**
  * 按 id 在当前楼层的灯光分组里查分组对象。
  */
 function findLightGroup(lightGroupIdParam: any) {
   return (
-    activeScene.lightGroups?.find(
+    state.activeScene.lightGroups?.find(
       (lightGroupCandidate: any) => lightGroupCandidate.id === lightGroupIdParam
     ) || null
   );
 }
 function transitionLightGroups(transitionGroupIds: any, transitionDurationMs = LIGHT_FADE_DURATION_MS) {
-  if (!previewModelRoot) {
+  if (!state.previewModelRoot) {
     return false;
   }
   const transitionGroupIdSet = new Set(transitionGroupIds);
-  const shouldForceLightOff = isAdaptiveLightCacheEnabled() && !exportRenderState;
+  const shouldForceLightOff = isAdaptiveLightCacheEnabled() && !state.exportRenderState;
   const lightTransitions: any = [];
-  previewModelRoot.traverse((previewLightObject: any) => {
+  state.previewModelRoot.traverse((previewLightObject: any) => {
     if (
       !previewLightObject.isLight ||
       !transitionGroupIdSet.has(previewLightObject.userData?.lightGroupId)
@@ -9390,11 +9214,11 @@ function transitionLightGroups(transitionGroupIds: any, transitionDurationMs = L
     return false;
   }
   if (lightTransitions.some(({ to: transitionTarget }: any) => transitionTarget > 0)) {
-    applyShadowBudget(previewModelRoot, {
+    applyShadowBudget(state.previewModelRoot, {
       rebuildAtlas: false
     });
   }
-  cancelAnimationFrame(sceneTransitionFrame);
+  cancelAnimationFrame(state.sceneTransitionFrame);
   const transitionStartMs = performance.now();
   /**
    * 灯光强度过渡的每帧推进（缓动同样是 smoothstep，与 fadeLightGroups 一致）。
@@ -9414,9 +9238,9 @@ function transitionLightGroups(transitionGroupIds: any, transitionDurationMs = L
     }
     requestRenderFrame();
     if (transitionProgress < 1) {
-      sceneTransitionFrame = requestAnimationFrame(stepLightTransition);
+      state.sceneTransitionFrame = requestAnimationFrame(stepLightTransition);
     } else {
-      sceneTransitionFrame = 0;
+      state.sceneTransitionFrame = 0;
       let shouldHideLights = false;
       for (const hiddenLightTransition of lightTransitions) {
         if (!(hiddenLightTransition.to > 0)) {
@@ -9425,18 +9249,18 @@ function transitionLightGroups(transitionGroupIds: any, transitionDurationMs = L
         }
       }
       if (shouldHideLights) {
-        applyShadowBudget(previewModelRoot, {
+        applyShadowBudget(state.previewModelRoot, {
           rebuildAtlas: false
         });
       }
     }
   };
-  sceneTransitionFrame = requestAnimationFrame(stepLightTransition);
+  state.sceneTransitionFrame = requestAnimationFrame(stepLightTransition);
   return true;
 }
 function updateLightGroupsEnabled(enabledGroupIds: any) {
   const enabledGroupIdList = [...new Set(enabledGroupIds)].filter(Boolean);
-  if (isAdaptiveLightCacheEnabled() && !exportRenderState) {
+  if (isAdaptiveLightCacheEnabled() && !state.exportRenderState) {
     fadeLightGroups(enabledGroupIdList);
   } else if (!transitionLightGroups(enabledGroupIdList)) {
     applySceneRefresh({
@@ -9452,51 +9276,51 @@ function updateLightGroupsEnabled(enabledGroupIds: any) {
 }
 function invalidateRender(options: any = {}) {
   if (isStageViewerMode && (options.scene === true || options.shadows === true)) {
-    sceneCacheRevision++;
+    state.sceneCacheRevision++;
   }
-  needsRender = true;
-  hasRenderedFrame = false;
-  demandFrameLoop?.wake();
+  state.needsRender = true;
+  state.hasRenderedFrame = false;
+  state.demandFrameLoop?.wake();
   if (isStageViewerMode && (options.scene === true || options.shadows === true)) {
-    cacheObjectTransforms(previewOverlayScene, threeModuleMin.Object3D);
+    cacheObjectTransforms(state.previewOverlayScene, threeModuleMin.Object3D);
   }
   if (options.shadows === true) {
-    previewOverlayScene?.traverse((invalidatedObject: any) => {
+    state.previewOverlayScene?.traverse((invalidatedObject: any) => {
       if (invalidatedObject.isLight && invalidatedObject.castShadow && invalidatedObject.shadow) {
         invalidatedObject.shadow.needsUpdate = true;
       }
     });
   }
-  if (!isPreservingLightCache) {
+  if (!state.isPreservingLightCache) {
     if (
       options.preserveLightCache === true &&
       isAdaptiveLightCacheEnabled() &&
-      !exportRenderState
+      !state.exportRenderState
     ) {
-      if (!isLightCacheReady && !isLightCacheBuilding) {
+      if (!state.isLightCacheReady && !state.isLightCacheBuilding) {
         scheduleLightCacheBuild();
       }
       return;
     }
-    if (isAdaptiveLightCacheEnabled() && !exportRenderState) {
-      lightCacheRevision += 1;
-      needsLightCacheRefresh = true;
-      if (isStageViewerMode || options.scene === true || !isLightCacheReady) {
+    if (isAdaptiveLightCacheEnabled() && !state.exportRenderState) {
+      state.lightCacheRevision += 1;
+      state.needsLightCacheRefresh = true;
+      if (isStageViewerMode || options.scene === true || !state.isLightCacheReady) {
         setLightCacheVisible(false);
       }
       scheduleLightCacheBuild();
       applyRenderQualityMode();
     } else {
-      window.clearTimeout(lightCacheSettleTimer);
-      lightCacheSettleTimer = null;
-      isLightCacheReady = false;
-      needsLightCacheRefresh = false;
+      window.clearTimeout(state.lightCacheSettleTimer);
+      state.lightCacheSettleTimer = null;
+      state.isLightCacheReady = false;
+      state.needsLightCacheRefresh = false;
       setLightCacheVisible(false);
     }
   }
 }
 function rebuildLightModelsPreservingCache() {
-  isPreservingLightCache = true;
+  state.isPreservingLightCache = true;
   try {
     if (currentPreviewFloorMode() === "all") {
       refreshPreviewScene({
@@ -9508,12 +9332,12 @@ function rebuildLightModelsPreservingCache() {
       });
     }
   } finally {
-    isPreservingLightCache = false;
+    state.isPreservingLightCache = false;
   }
 }
 function collectLightsByItemKey() {
   const lightsByItemKey = new Map();
-  previewModelRoot?.traverse((lightObject: any) => {
+  state.previewModelRoot?.traverse((lightObject: any) => {
     const lightItemId = lightObject.userData?.lightItemId;
     if (!lightObject.isLight || !lightItemId) {
       return;
@@ -9534,24 +9358,24 @@ function ensureLightModels(previewLights: any) {
   if (isStageViewerMode) {
     return addMissingLightModels(previewLights, lightsByKey);
   }
-  isRebuildingLightModels = true;
-  forcedVisibleLightIds = new Set();
+  state.isRebuildingLightModels = true;
+  state.forcedVisibleLightIds = new Set();
   try {
     rebuildLightModelsPreservingCache();
   } finally {
-    forcedVisibleLightIds = null;
-    isRebuildingLightModels = false;
+    state.forcedVisibleLightIds = null;
+    state.isRebuildingLightModels = false;
   }
   lightsByKey = collectLightsByItemKey();
   return lightsByKey;
 }
 function addMissingLightModels(missingPreviewLights: any, missingLightsByKey: any) {
-  const previousActiveScene = activeScene;
-  const previousActiveFloorId = activeFloorId;
-  const wasRebuildingLightModels = isRebuildingLightModels;
+  const previousActiveScene = state.activeScene;
+  const previousActiveFloorId = state.activeFloorId;
+  const wasRebuildingLightModels = state.isRebuildingLightModels;
   const isOverviewMode = currentPreviewFloorMode() === "all";
   try {
-    isRebuildingLightModels = true;
+    state.isRebuildingLightModels = true;
     for (const {
       floor: targetFloorForLight,
       item: missingLightItem,
@@ -9564,15 +9388,15 @@ function addMissingLightModels(missingPreviewLights: any, missingLightsByKey: an
         continue;
       }
       const lightModelGroup = isOverviewMode
-        ? previewModelRoot?.children.find(
+        ? state.previewModelRoot?.children.find(
             (floorGroupCandidate: any) => floorGroupCandidate.userData?.floorId === targetFloorForLight.id
           )
-        : previewModelRoot;
+        : state.previewModelRoot;
       if (!lightModelGroup) {
         continue;
       }
-      activeScene = targetFloorForLight.scene;
-      activeFloorId = targetFloorForLight.id;
+      state.activeScene = targetFloorForLight.scene;
+      state.activeFloorId = targetFloorForLight.id;
       const modelPixelsPerMeter = currentPixelsPerMeter();
       if (!modelPixelsPerMeter) {
         continue;
@@ -9609,11 +9433,11 @@ function addMissingLightModels(missingPreviewLights: any, missingLightsByKey: an
       }
     }
   } finally {
-    activeScene = previousActiveScene;
-    activeFloorId = previousActiveFloorId;
-    isRebuildingLightModels = wasRebuildingLightModels;
+    state.activeScene = previousActiveScene;
+    state.activeFloorId = previousActiveFloorId;
+    state.isRebuildingLightModels = wasRebuildingLightModels;
   }
-  applyShadowBudget(previewModelRoot, {
+  applyShadowBudget(state.previewModelRoot, {
     rebuildAtlas: false
   });
   return missingLightsByKey;
@@ -9673,16 +9497,16 @@ function applyLightVisibility(visibilityLightsByItemKey: any) {
  * 把当前画面（含光照缓存图层）拷进遮挡画布，遮住缓存烘焙过程的中间态。烘焙要逐灯渲染并读回像素，实时画布会短暂处于
  */
 function drawRenderShield() {
-  if (!previewRenderShieldElement || !renderer?.domElement) {
+  if (!previewRenderShieldElement || !state.renderer?.domElement) {
     return;
   }
-  const shieldSourceCanvas = renderer.domElement;
+  const shieldSourceCanvas = state.renderer.domElement;
   if (!shieldSourceCanvas.width || !shieldSourceCanvas.height) {
     return;
   }
   if (isStageViewerMode) {
-    window.clearTimeout(shieldHideTimer);
-    shieldHideTimer = null;
+    window.clearTimeout(state.shieldHideTimer);
+    state.shieldHideTimer = null;
     previewRenderShieldElement.style.transition = "none";
     previewRenderShieldElement.style.opacity = "1";
   }
@@ -9700,7 +9524,7 @@ function drawRenderShield() {
       previewRenderShieldElement.height
     );
     if (isStageViewerMode) {
-      renderer.render(previewOverlayScene, previewCamera);
+      state.renderer.render(state.previewOverlayScene, state.previewCamera);
     }
     shieldContext.drawImage(shieldSourceCanvas, 0, 0);
     if (!lightCacheCanvasElement.hidden) {
@@ -9725,13 +9549,13 @@ function drawRenderShield() {
 function hideRenderShield({ smooth: isSmooth = false } = {}) {
   if (previewRenderShieldElement) {
     if (isStageViewerMode) {
-      window.clearTimeout(shieldHideTimer);
-      shieldHideTimer = null;
+      window.clearTimeout(state.shieldHideTimer);
+      state.shieldHideTimer = null;
       if (isSmooth && !previewRenderShieldElement.hidden) {
         previewRenderShieldElement.style.transition = "opacity 180ms ease-out";
         previewRenderShieldElement.style.opacity = "0";
-        shieldHideTimer = window.setTimeout(() => {
-          shieldHideTimer = null;
+        state.shieldHideTimer = window.setTimeout(() => {
+          state.shieldHideTimer = null;
           previewRenderShieldElement.hidden = true;
           previewRenderShieldElement.style.transition = "none";
           previewRenderShieldElement.style.opacity = "1";
@@ -9763,7 +9587,7 @@ function readCanvasPixels(readbackWidthPx: any, readbackHeightPx: any) {
   if (!readbackContext) {
     throw new Error("当前浏览器无法创建多灯缓存画布。");
   }
-  readbackContext.drawImage(renderer.domElement, 0, 0, readbackWidthPx, readbackHeightPx);
+  readbackContext.drawImage(state.renderer.domElement, 0, 0, readbackWidthPx, readbackHeightPx);
   return readbackContext.getImageData(0, 0, readbackWidthPx, readbackHeightPx);
 }
 /**
@@ -9771,28 +9595,28 @@ function readCanvasPixels(readbackWidthPx: any, readbackHeightPx: any) {
  */
 function renderPreviewFrames() {
   for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
-    renderer.render(previewOverlayScene, previewCamera);
+    state.renderer.render(state.previewOverlayScene, state.previewCamera);
   }
 }
 function scheduleLightCacheBuild(settleDelayMs = 420) {
   if (
-    (!isStageViewerMode || !!isFrameLoopAvailable) &&
+    (!isStageViewerMode || !!state.isFrameLoopAvailable) &&
     (!isStageViewerMode || !renderCache?.closed) &&
-    !!renderer &&
-    !!previewModelRoot &&
-    !exportRenderState &&
-    !isCameraMotionActive &&
-    !isExportRendering &&
-    !isLightCacheBuilding &&
-    !lightTransitionSession &&
-    !isMotionRendering &&
+    !!state.renderer &&
+    !!state.previewModelRoot &&
+    !state.exportRenderState &&
+    !state.isCameraMotionActive &&
+    !state.isExportRendering &&
+    !state.isLightCacheBuilding &&
+    !state.lightTransitionSession &&
+    !state.isMotionRendering &&
     !!isAdaptiveLightCacheEnabled()
   ) {
-    window.clearTimeout(lightCacheSettleTimer);
-    lightCacheSettleTimer = window.setTimeout(() => {
+    window.clearTimeout(state.lightCacheSettleTimer);
+    state.lightCacheSettleTimer = window.setTimeout(() => {
       const settleModelLoadState = externalModelManager.modelLoadState();
       if (settleModelLoadState.active > 0 || settleModelLoadState.queued > 0) {
-        lightCacheSettleTimer = null;
+        state.lightCacheSettleTimer = null;
         scheduleLightCacheBuild(240);
         return;
       }
@@ -9801,8 +9625,8 @@ function scheduleLightCacheBuild(settleDelayMs = 420) {
   }
 }
 function invalidateLightCacheSoon() {
-  if (!!isAdaptiveLightCacheEnabled() && !exportRenderState && !isLightCacheBuilding) {
-    needsLightCacheRefresh = true;
+  if (!!isAdaptiveLightCacheEnabled() && !state.exportRenderState && !state.isLightCacheBuilding) {
+    state.needsLightCacheRefresh = true;
     scheduleLightCacheBuild(0);
     applyRenderQualityMode();
   }
@@ -9811,33 +9635,33 @@ async function buildLightCache() {
   if (isStageViewerMode) {
     return settleStageLightCache();
   }
-  lightCacheSettleTimer = null;
+  state.lightCacheSettleTimer = null;
   if (
-    !renderer ||
-    exportRenderState ||
-    isCameraMotionActive ||
-    isExportRendering ||
-    isLightCacheBuilding ||
-    lightTransitionSession ||
-    isMotionRendering ||
+    !state.renderer ||
+    state.exportRenderState ||
+    state.isCameraMotionActive ||
+    state.isExportRendering ||
+    state.isLightCacheBuilding ||
+    state.lightTransitionSession ||
+    state.isMotionRendering ||
     !isAdaptiveLightCacheEnabled()
   ) {
     return;
   }
-  const cacheRevision = lightCacheRevision;
+  const cacheRevision = state.lightCacheRevision;
   const cachePreviewLights = collectPreviewLights().filter(
     ({ item: cacheLightItem, group: cacheLightGroup }: any) =>
       finite(cacheLightItem.lightBrightness, 0) > 0
   );
-  const cacheCanvasElement = renderer.domElement;
+  const cacheCanvasElement = state.renderer.domElement;
   let cacheWidthPx = cacheCanvasElement.width;
   let cacheHeightPx = cacheCanvasElement.height;
   if (!cacheWidthPx || !cacheHeightPx || !cachePreviewLights.length) {
     return;
   }
-  isLightCacheBuilding = true;
-  needsLightCacheRefresh = true;
-  const controlsEnabled = orbitControls.enabled;
+  state.isLightCacheBuilding = true;
+  state.needsLightCacheRefresh = true;
+  const controlsEnabled = state.orbitControls.enabled;
   const gridVisibilityByObject = new Map();
   let didBuildCache = false;
   applyRenderQualityMode();
@@ -9848,7 +9672,7 @@ async function buildLightCache() {
     }
     if (
       lightCacheCanvasElement.hidden ||
-      !isLightCacheReady ||
+      !state.isLightCacheReady ||
       lightCacheCanvasElement.width !== cacheWidthPx ||
       lightCacheCanvasElement.height !== cacheHeightPx
     ) {
@@ -9871,17 +9695,17 @@ async function buildLightCache() {
     const cacheLightsByKey = ensureLightModels(cachePreviewLights);
     await nextPaint();
     if (
-      cacheRevision !== lightCacheRevision ||
-      exportRenderState ||
-      isCameraMotionActive ||
-      isExportRendering ||
+      cacheRevision !== state.lightCacheRevision ||
+      state.exportRenderState ||
+      state.isCameraMotionActive ||
+      state.isExportRendering ||
       !isAdaptiveLightCacheEnabled()
     ) {
       return;
     }
     setLightModelVisibility(cacheLightsByKey);
     accumulatedLightContext.clearRect(0, 0, cacheWidthPx, cacheHeightPx);
-    previewModelRoot.traverse((previewObject: any) => {
+    state.previewModelRoot.traverse((previewObject: any) => {
       if (previewObject.userData?.exportRole === "grid") {
         gridVisibilityByObject.set(previewObject, previewObject.visible);
         previewObject.visible = false;
@@ -9891,10 +9715,10 @@ async function buildLightCache() {
     for (const cacheLightEntry of cachePreviewLights) {
       await yieldToIdle();
       if (
-        cacheRevision !== lightCacheRevision ||
-        exportRenderState ||
-        isCameraMotionActive ||
-        isExportRendering ||
+        cacheRevision !== state.lightCacheRevision ||
+        state.exportRenderState ||
+        state.isCameraMotionActive ||
+        state.isExportRendering ||
         !isAdaptiveLightCacheEnabled()
       ) {
         break;
@@ -9938,29 +9762,29 @@ async function buildLightCache() {
       groupLightCanvas.getContext("2d")?.drawImage(deltaLightCanvas, 0, 0);
       await yieldToScheduler();
       if (
-        cacheRevision !== lightCacheRevision ||
-        exportRenderState ||
-        isCameraMotionActive ||
-        isExportRendering ||
+        cacheRevision !== state.lightCacheRevision ||
+        state.exportRenderState ||
+        state.isCameraMotionActive ||
+        state.isExportRendering ||
         !isAdaptiveLightCacheEnabled()
       ) {
         break;
       }
     }
     if (
-      cacheRevision === lightCacheRevision &&
-      !exportRenderState &&
+      cacheRevision === state.lightCacheRevision &&
+      !state.exportRenderState &&
       isAdaptiveLightCacheEnabled()
     ) {
-      canvasByLightGroupKey = lightCanvasByGroupKey;
+      state.canvasByLightGroupKey = lightCanvasByGroupKey;
       for (const [builtGroupKey, builtGroupCanvas] of lightCanvasByGroupKey) {
-        brightnessByLightGroupKey.set(
+        state.brightnessByLightGroupKey.set(
           builtGroupKey,
           builtGroupCanvas.userData?.enabled === false ? 0 : 1
         );
       }
-      isLightCacheReady = true;
-      needsLightCacheRefresh = false;
+      state.isLightCacheReady = true;
+      state.needsLightCacheRefresh = false;
       setLightCacheVisible(true);
       compositeLightCache();
       didBuildCache = true;
@@ -9970,15 +9794,15 @@ async function buildLightCache() {
       phase: "studio-light-cache"
     });
     debugLog("error", lightCacheBuildError);
-    isLightCacheReady = !lightCacheCanvasElement.hidden;
+    state.isLightCacheReady = !lightCacheCanvasElement.hidden;
   } finally {
     for (const [restoredObject, restoredVisibility] of gridVisibilityByObject) {
       restoredObject.visible = restoredVisibility;
     }
     const restoredLightsByKey = collectLightsByItemKey();
-    if (lightTransitionSession) {
-      lightTransitionSession.restore();
-    } else if (isCameraMotionActive) {
+    if (state.lightTransitionSession) {
+      state.lightTransitionSession.restore();
+    } else if (state.isCameraMotionActive) {
       applyLightVisibility(restoredLightsByKey);
     } else {
       setLightModelVisibility(restoredLightsByKey);
@@ -9989,44 +9813,44 @@ async function buildLightCache() {
     } else {
       hideRenderShield();
     }
-    orbitControls.enabled = controlsEnabled;
-    isLightCacheBuilding = false;
+    state.orbitControls.enabled = controlsEnabled;
+    state.isLightCacheBuilding = false;
     applyRenderQualityMode();
-    if (needsLightCacheRefresh && isAdaptiveLightCacheEnabled() && !exportRenderState) {
+    if (state.needsLightCacheRefresh && isAdaptiveLightCacheEnabled() && !state.exportRenderState) {
       scheduleLightCacheBuild();
     }
   }
 }
 function beginExportRender() {
-  window.clearTimeout(sceneUpdateTimer);
-  sceneUpdateTimer = null;
-  isExportRendering = true;
-  window.clearTimeout(lightCacheSettleTimer);
-  lightCacheSettleTimer = null;
-  if (isLightCacheBuilding) {
-    lightCacheRevision += 1;
-    needsLightCacheRefresh = true;
+  window.clearTimeout(state.sceneUpdateTimer);
+  state.sceneUpdateTimer = null;
+  state.isExportRendering = true;
+  window.clearTimeout(state.lightCacheSettleTimer);
+  state.lightCacheSettleTimer = null;
+  if (state.isLightCacheBuilding) {
+    state.lightCacheRevision += 1;
+    state.needsLightCacheRefresh = true;
   }
 }
 function endExportRender() {
-  window.clearTimeout(sceneUpdateTimer);
-  sceneUpdateTimer = window.setTimeout(() => {
-    sceneUpdateTimer = null;
-    isExportRendering = false;
-    if (pendingSceneUpdateScopes.size && !isSceneUpdateQueued) {
+  window.clearTimeout(state.sceneUpdateTimer);
+  state.sceneUpdateTimer = window.setTimeout(() => {
+    state.sceneUpdateTimer = null;
+    state.isExportRendering = false;
+    if (pendingSceneUpdateScopes.size && !state.isSceneUpdateQueued) {
       const pendingRefreshScopes = [...pendingSceneUpdateScopes];
       const nextRefreshScope = pendingRefreshScopes.includes("all")
         ? "all"
         : pendingRefreshScopes[0];
       applySceneRefresh({
         scope: nextRefreshScope,
-        preserveLightCache: !shouldInvalidateLightCache
+        preserveLightCache: !state.shouldInvalidateLightCache
       });
     }
-    if (needsLightCacheRefresh) {
+    if (state.needsLightCacheRefresh) {
       scheduleLightCacheBuild(420);
     }
-    if (isPrecompilePending) {
+    if (state.isPrecompilePending) {
       schedulePreviewRebuild();
     }
   }, 120);
@@ -10038,34 +9862,34 @@ function updateRenderPixelRatio(
   shouldUseMotionRatio: any,
   { preserveLightCache: preserveLightCache = false } = {}
 ) {
-  if (!renderer || (exportRenderState && !isAutoDiagramEmbed)) {
+  if (!state.renderer || (state.exportRenderState && !isAutoDiagramEmbed)) {
     return;
   }
-  const targetRatio = exportRenderState
+  const targetRatio = state.exportRenderState
     ? exportPixelRatio(shouldUseMotionRatio)
     : targetPixelRatio(shouldUseMotionRatio);
-  if (Math.abs(renderer.getPixelRatio() - targetRatio) > 0.000001) {
-    renderer.setPixelRatio(targetRatio);
+  if (Math.abs(state.renderer.getPixelRatio() - targetRatio) > 0.000001) {
+    state.renderer.setPixelRatio(targetRatio);
   }
   invalidateRender({
     preserveLightCache: preserveLightCache
   });
 }
 function startCameraMotion() {
-  window.clearTimeout(pixelRatioRestoreTimer);
-  pixelRatioRestoreTimer = null;
-  isCameraMotionActive = true;
-  hasCameraMotionMoved = false;
-  recentFrameDurationsMs = [];
-  lastFrameTimestampMs = 0;
+  window.clearTimeout(state.pixelRatioRestoreTimer);
+  state.pixelRatioRestoreTimer = null;
+  state.isCameraMotionActive = true;
+  state.hasCameraMotionMoved = false;
+  state.recentFrameDurationsMs = [];
+  state.lastFrameTimestampMs = 0;
   applyRenderQualityMode();
 }
 /**
  * 相机首次真正移动时的一次性降采样：切到运动像素比并保留光照缓存。用
  */
 function handleCameraMotionMoved() {
-  if (!hasCameraMotionMoved) {
-    hasCameraMotionMoved = true;
+  if (!state.hasCameraMotionMoved) {
+    state.hasCameraMotionMoved = true;
     applyRenderQualityMode();
     updateRenderPixelRatio(true, {
       preserveLightCache: true
@@ -10076,26 +9900,26 @@ function handleCameraMotionMoved() {
  * 相机交互结束：恢复静止画质，并延迟 140ms 把像素比切回高分辨率。若本次交互相机压根没动
  */
 function finishCameraMotion() {
-  const hasCameraMoved = hasCameraMotionMoved;
+  const hasCameraMoved = state.hasCameraMotionMoved;
   assessFrameRateForAdaptive();
-  isCameraMotionActive = false;
-  hasCameraMotionMoved = false;
-  lastFrameTimestampMs = 0;
+  state.isCameraMotionActive = false;
+  state.hasCameraMotionMoved = false;
+  state.lastFrameTimestampMs = 0;
   applyRenderQualityMode();
-  window.clearTimeout(pixelRatioRestoreTimer);
+  window.clearTimeout(state.pixelRatioRestoreTimer);
   if (!hasCameraMoved) {
-    if (exportRenderState && !isExportBusy) {
+    if (state.exportRenderState && !state.isExportBusy) {
       scheduleExportPresetSave();
     }
     return;
   }
-  pixelRatioRestoreTimer = window.setTimeout(() => {
-    pixelRatioRestoreTimer = null;
+  state.pixelRatioRestoreTimer = window.setTimeout(() => {
+    state.pixelRatioRestoreTimer = null;
     updateRenderPixelRatio(false, {
       preserveLightCache: true
     });
   }, 140);
-  if (exportRenderState && !isExportBusy) {
+  if (state.exportRenderState && !state.isExportBusy) {
     scheduleExportPresetSave();
   }
 }
@@ -10103,16 +9927,16 @@ function finishCameraMotion() {
  * 刷新导出侧栏里与「视角」相关的控件可见性与文案（单层视角 / 全楼总览两套）。两种模式互斥：单层模式显示楼层视角操作、
  */
 function syncCameraViewControls() {
-  const hasMultipleFloors = (studioDocument?.floors.length || 0) > 1;
+  const hasMultipleFloors = (state.studioDocument?.floors.length || 0) > 1;
   const isCameraOverviewMode = currentPreviewFloorMode() === "all";
   floorCameraActionsElement.hidden = isCameraOverviewMode;
   overviewCameraActionsElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
   previewFloorGapControlElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
-  syncControlValue(previewFloorGapInput, finite(studioDocument?.previewFloorGap, 3).toFixed(1));
+  syncControlValue(previewFloorGapInput, finite(state.studioDocument?.previewFloorGap, 3).toFixed(1));
   previewFloorUniformControlElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
-  previewFloorUniformInput.checked = studioDocument?.uniformOverviewStack === true;
-  const hasFloorFixedView = !!activeScene.settings?.fixedCameraView;
-  const hasOverviewFixedView = !!studioDocument?.combinedFixedCameraView;
+  previewFloorUniformInput.checked = state.studioDocument?.uniformOverviewStack === true;
+  const hasFloorFixedView = !!state.activeScene.settings?.fixedCameraView;
+  const hasOverviewFixedView = !!state.studioDocument?.combinedFixedCameraView;
   fixedCameraViewInput.disabled = !hasFloorFixedView;
   fixedCameraViewInput.classList.toggle("has-saved-view", hasFloorFixedView);
   fixedOverviewViewInput.disabled = !hasOverviewFixedView;
@@ -10126,7 +9950,7 @@ function syncCameraViewControls() {
   selectElement("#export-use-fixed").title = isCameraOverviewMode
     ? "恢复已保存的全楼总览视角"
     : "恢复当前楼层已保存的视角";
-  selectElement("#export-use-fixed").disabled = !!isExportBusy || !hasFixedCameraView;
+  selectElement("#export-use-fixed").disabled = !!state.isExportBusy || !hasFixedCameraView;
   selectElement("#export-use-fixed").classList.toggle("has-saved-view", hasFixedCameraView);
 }
 /**
@@ -10134,20 +9958,20 @@ function syncCameraViewControls() {
  */
 function savedCameraView() {
   if (currentPreviewFloorMode() === "all") {
-    return studioDocument?.combinedFixedCameraView;
+    return state.studioDocument?.combinedFixedCameraView;
   } else {
-    return activeScene.settings?.fixedCameraView;
+    return state.activeScene.settings?.fixedCameraView;
   }
 }
 function storeCameraView(cameraViewSnapshot: any) {
   if (currentPreviewFloorMode() === "all") {
-    studioDocument.combinedFixedCameraView = cameraViewSnapshot;
+    state.studioDocument.combinedFixedCameraView = cameraViewSnapshot;
   } else {
-    activeScene.settings.fixedCameraView = cameraViewSnapshot;
+    state.activeScene.settings.fixedCameraView = cameraViewSnapshot;
   }
 }
 function createOrbitControls(orbitCamera: any) {
-  const orbitControlsInstance = new OrbitControls(orbitCamera, renderer.domElement);
+  const orbitControlsInstance = new OrbitControls(orbitCamera, state.renderer.domElement);
   orbitControlsInstance.enableDamping = true;
   orbitControlsInstance.rotateSmoothing = 8;
   orbitControlsInstance.rotateSmoothingThreshold = 0.000001;
@@ -10205,7 +10029,7 @@ function createOrbitControls(orbitCamera: any) {
   orbitControlsInstance.addEventListener("start", startCameraMotion);
   orbitControlsInstance.addEventListener("change", () => {
     updateCameraClipPlanes(orbitCamera, orbitControlsInstance.target);
-    if (isCameraMotionActive) {
+    if (state.isCameraMotionActive) {
       handleCameraMotionMoved();
       invalidateRender({
         preserveLightCache: true
@@ -10215,15 +10039,15 @@ function createOrbitControls(orbitCamera: any) {
     }
   });
   orbitControlsInstance.addEventListener("change", () => {
-    if (!exportRenderState || isExportBusy) {
+    if (!state.exportRenderState || state.isExportBusy) {
       return;
     }
     const presetSlotIndex = normalizeActiveExportPresetSlot(
-      studioDocument?.activeExportPresetSlot,
-      studioDocument?.exportPresets?.length
+      state.studioDocument?.activeExportPresetSlot,
+      state.studioDocument?.exportPresets?.length
     );
-    if (!exportPresets && !studioDocument?.exportPresets?.[presetSlotIndex]) {
-      exportPresets = true;
+    if (!state.exportPresets && !state.studioDocument?.exportPresets?.[presetSlotIndex]) {
+      state.exportPresets = true;
       renderExportPresetSlots();
     }
   });
@@ -10233,7 +10057,7 @@ function createOrbitControls(orbitCamera: any) {
 const MIN_CAMERA_NEAR = 0.02;
 const MAX_CAMERA_NEAR = 0.32;
 const CAMERA_NEAR_DISTANCE_RATIO = 0.006;
-function updateCameraClipPlanes(clipCamera = previewCamera, clipTarget = orbitControls?.target) {
+function updateCameraClipPlanes(clipCamera = state.previewCamera, clipTarget = state.orbitControls?.target) {
   if (!clipCamera || !clipTarget) {
     return false;
   }
@@ -10274,34 +10098,34 @@ function measureVisibleHeight(frameCamera: any, frameTarget: any) {
  * 把当前相机状态存成「固定视角」书签并立即落盘。快照覆盖恢复所需的一切：投影方式、视角标识、顶旋角、位置与 target、
  */
 async function saveCurrentCameraView() {
-  if (!previewCamera || !orbitControls) {
+  if (!state.previewCamera || !state.orbitControls) {
     return;
   }
   const viewLabel = currentPreviewFloorMode() === "all" ? "总览视角" : "当前层视角";
-  if (!exportRenderState) {
+  if (!state.exportRenderState) {
     pushHistorySnapshot();
   }
-  const savedTarget = orbitControls.target;
+  const savedTarget = state.orbitControls.target;
   storeCameraView({
-    mode: previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+    mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
     view: currentCameraView(),
     topRotation: currentTopRotationDeg(),
     position: {
-      x: previewCamera.position.x,
-      y: previewCamera.position.y,
-      z: previewCamera.position.z
+      x: state.previewCamera.position.x,
+      y: state.previewCamera.position.y,
+      z: state.previewCamera.position.z
     },
     target: {
       x: savedTarget.x,
       y: savedTarget.y,
       z: savedTarget.z
     },
-    visibleHeight: measureVisibleHeight(previewCamera, savedTarget),
-    fov: previewCamera.isPerspectiveCamera ? previewCamera.fov : 36,
-    focalLength: previewCamera.isPerspectiveCamera ? currentFocalLength() : null
+    visibleHeight: measureVisibleHeight(state.previewCamera, savedTarget),
+    fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : 36,
+    focalLength: state.previewCamera.isPerspectiveCamera ? currentFocalLength() : null
   });
   syncCameraViewControls();
-  if (exportRenderState) {
+  if (state.exportRenderState) {
     exportStatusElement.textContent = viewLabel + "已保存";
     const exportViewSaveOutcome = await saveStudioDraft();
     showToast(
@@ -10312,8 +10136,8 @@ async function saveCurrentCameraView() {
     return;
   }
   markDocumentDirty();
-  window.clearTimeout(autosaveTimer);
-  autosaveTimer = null;
+  window.clearTimeout(state.autosaveTimer);
+  state.autosaveTimer = null;
   const cameraViewSaveOutcome = await saveStudioDraft();
   // 冲突 / 未确认的删除影响 / 失败时不能说「已保存」：那正是用户以为改动落盘了、实际没有的那种情况。
   if (
@@ -10322,7 +10146,7 @@ async function saveCurrentCameraView() {
     cameraViewSaveOutcome === "failed"
   ) {
     showToast(viewLabel + "已记录，待顶栏保存提示处理后再落盘。", "error");
-  } else if (changeRevision === savedRevision) {
+  } else if (state.changeRevision === state.savedRevision) {
     showToast(viewLabel + "已保存。");
   } else {
     showToast(viewLabel + "已记录，正在保存…");
@@ -10330,7 +10154,7 @@ async function saveCurrentCameraView() {
 }
 function restoreStoredCameraView(restoreViewOptions: any = {}) {
   const storedView = savedCameraView();
-  if (!storedView || !previewCamera || !orbitControls) {
+  if (!storedView || !state.previewCamera || !state.orbitControls) {
     return;
   }
   const modeChanged = storedView.mode !== currentCameraMode();
@@ -10361,43 +10185,43 @@ function restoreStoredCameraView(restoreViewOptions: any = {}) {
     storedView.target.y,
     storedView.target.z
   );
-  previewCamera.position.set(storedView.position.x, storedView.position.y, storedView.position.z);
-  previewCamera.up.copy(
+  state.previewCamera.position.set(storedView.position.x, storedView.position.y, storedView.position.z);
+  state.previewCamera.up.copy(
     storedView.view === "top"
       ? topViewUpVector(storedView.topRotation)
       : new threeModuleMin.Vector3(0, 1, 0)
   );
-  previewCamera.userData.frameSize = storedView.visibleHeight;
-  previewCamera.userData.cameraView = storedView.view;
-  previewCamera.userData.topRotation = storedView.topRotation;
-  previewCamera.userData.viewportAspect ||= Math.max(
+  state.previewCamera.userData.frameSize = storedView.visibleHeight;
+  state.previewCamera.userData.cameraView = storedView.view;
+  state.previewCamera.userData.topRotation = storedView.topRotation;
+  state.previewCamera.userData.viewportAspect ||= Math.max(
     selectElement("#preview-3d").clientWidth /
       Math.max(selectElement("#preview-3d").clientHeight, 1),
     0.1
   );
-  previewCamera.zoom = 1;
-  if (previewCamera.isPerspectiveCamera) {
-    previewCamera.aspect = previewCamera.userData.viewportAspect;
+  state.previewCamera.zoom = 1;
+  if (state.previewCamera.isPerspectiveCamera) {
+    state.previewCamera.aspect = state.previewCamera.userData.viewportAspect;
     if (storedView.focalLength !== null) {
-      applyFocalLength(previewCamera, storedView.focalLength);
+      applyFocalLength(state.previewCamera, storedView.focalLength);
     } else {
-      previewCamera.fov = storedView.fov;
-      previewCamera.updateProjectionMatrix();
-      storedCameraSettings.cameraFocalLength = clamp(previewCamera.getFocalLength(), 18, 120);
+      state.previewCamera.fov = storedView.fov;
+      state.previewCamera.updateProjectionMatrix();
+      storedCameraSettings.cameraFocalLength = clamp(state.previewCamera.getFocalLength(), 18, 120);
     }
   } else {
     applyOrthographicFrame(
       storedView.visibleHeight,
-      previewCamera.userData.viewportAspect,
-      previewCamera
+      state.previewCamera.userData.viewportAspect,
+      state.previewCamera
     );
   }
-  updateCameraClipPlanes(previewCamera, cameraTargetVector);
-  previewCamera.lookAt(cameraTargetVector);
-  previewCamera.updateProjectionMatrix();
-  orbitControls.target.copy(cameraTargetVector);
+  updateCameraClipPlanes(state.previewCamera, cameraTargetVector);
+  state.previewCamera.lookAt(cameraTargetVector);
+  state.previewCamera.updateProjectionMatrix();
+  state.orbitControls.target.copy(cameraTargetVector);
   applyRenderQualityMode();
-  orbitControls.update();
+  state.orbitControls.update();
   syncCameraModeButtons(storedView.mode);
   syncCameraViewButtons(storedView.view);
   if (
@@ -10418,12 +10242,12 @@ function applyCameraView(requestedView: any, viewRequestOptions: any = {}) {
   const normalizedView = requestedView === "top" ? "top" : "free";
   const topRotationDeg = currentTopRotationDeg();
   syncCameraViewButtons(normalizedView);
-  if (!previewCamera || !orbitControls) {
+  if (!state.previewCamera || !state.orbitControls) {
     return;
   }
   if (
-    previewCamera.userData.cameraView === normalizedView &&
-    (normalizedView !== "top" || previewCamera.userData.topRotation === topRotationDeg) &&
+    state.previewCamera.userData.cameraView === normalizedView &&
+    (normalizedView !== "top" || state.previewCamera.userData.topRotation === topRotationDeg) &&
     viewRequestOptions.force !== true
   ) {
     applyRenderQualityMode();
@@ -10435,51 +10259,51 @@ function applyCameraView(requestedView: any, viewRequestOptions: any = {}) {
     });
     return;
   }
-  const cameraTarget = orbitControls.target.clone();
-  const visibleHeight = measureVisibleHeight(previewCamera, cameraTarget);
-  const targetDistanceToCamera = Math.max(previewCamera.position.distanceTo(cameraTarget), 8);
-  previewCamera.up.copy(topViewUpVector(topRotationDeg));
-  if (previewCamera.isPerspectiveCamera) {
+  const cameraTarget = state.orbitControls.target.clone();
+  const visibleHeight = measureVisibleHeight(state.previewCamera, cameraTarget);
+  const targetDistanceToCamera = Math.max(state.previewCamera.position.distanceTo(cameraTarget), 8);
+  state.previewCamera.up.copy(topViewUpVector(topRotationDeg));
+  if (state.previewCamera.isPerspectiveCamera) {
     applyFocalLength();
-    const topViewFovRad = threeModuleMin.MathUtils.degToRad(previewCamera.getEffectiveFOV());
+    const topViewFovRad = threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV());
     const cameraHeight = Math.max(visibleHeight / (Math.tan(topViewFovRad / 2) * 2), 8);
-    previewCamera.position.set(cameraTarget.x, cameraTarget.y + cameraHeight, cameraTarget.z);
+    state.previewCamera.position.set(cameraTarget.x, cameraTarget.y + cameraHeight, cameraTarget.z);
   } else {
     applyOrthographicFrame(
       visibleHeight,
-      previewCamera.userData.viewportAspect || 1,
-      previewCamera
+      state.previewCamera.userData.viewportAspect || 1,
+      state.previewCamera
     );
-    previewCamera.position.set(
+    state.previewCamera.position.set(
       cameraTarget.x,
       cameraTarget.y + targetDistanceToCamera,
       cameraTarget.z
     );
   }
-  previewCamera.userData.frameSize = visibleHeight;
-  previewCamera.userData.cameraView = "top";
-  previewCamera.userData.topRotation = topRotationDeg;
-  updateCameraClipPlanes(previewCamera, cameraTarget);
-  previewCamera.lookAt(cameraTarget);
-  previewCamera.updateProjectionMatrix();
-  orbitControls.target.copy(cameraTarget);
+  state.previewCamera.userData.frameSize = visibleHeight;
+  state.previewCamera.userData.cameraView = "top";
+  state.previewCamera.userData.topRotation = topRotationDeg;
+  updateCameraClipPlanes(state.previewCamera, cameraTarget);
+  state.previewCamera.lookAt(cameraTarget);
+  state.previewCamera.updateProjectionMatrix();
+  state.orbitControls.target.copy(cameraTarget);
   applyRenderQualityMode();
-  orbitControls.update();
+  state.orbitControls.update();
 }
 function applyCameraMode(requestedMode: any, modeOptions: any = {}) {
   const normalizedMode = requestedMode === "perspective" ? "perspective" : "orthographic";
   syncCameraModeButtons(normalizedMode);
-  if (!renderer) {
+  if (!state.renderer) {
     return;
   }
-  if ((normalizedMode === "perspective") == !!previewCamera?.isPerspectiveCamera) {
+  if ((normalizedMode === "perspective") == !!state.previewCamera?.isPerspectiveCamera) {
     applyFocalLength();
     applyRenderQualityMode();
     return;
   }
   const shouldPreserveView = modeOptions.preserveView !== false;
-  const previousCamera = previewCamera;
-  const orbitTarget = orbitControls?.target.clone() || new threeModuleMin.Vector3(0, 0.6, 0);
+  const previousCamera = state.previewCamera;
+  const orbitTarget = state.orbitControls?.target.clone() || new threeModuleMin.Vector3(0, 0.6, 0);
   const offsetVector = previousCamera
     ? previousCamera.position.clone().sub(orbitTarget)
     : new threeModuleMin.Vector3(1.12, 1.42, 1.2);
@@ -10499,36 +10323,36 @@ function applyCameraMode(requestedMode: any, modeOptions: any = {}) {
     shouldPreserveView && previousCamera
       ? measureVisibleHeight(previousCamera, orbitTarget)
       : previousCamera?.userData.frameSize || 10;
-  orbitControls?.dispose();
+  state.orbitControls?.dispose();
   if (normalizedMode === "perspective") {
-    previewCamera = new threeModuleMin.PerspectiveCamera(36, viewportAspect, 0.02, 200);
-    applyFocalLength(previewCamera);
+    state.previewCamera = new threeModuleMin.PerspectiveCamera(36, viewportAspect, 0.02, 200);
+    applyFocalLength(state.previewCamera);
     const perspectiveDistance =
       currentVisibleHeight /
-      (Math.tan(threeModuleMin.MathUtils.degToRad(previewCamera.getEffectiveFOV()) / 2) * 2);
+      (Math.tan(threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV()) / 2) * 2);
     const placementDistance = shouldPreserveView ? perspectiveDistance : offsetLength;
-    previewCamera.position
+    state.previewCamera.position
       .copy(orbitTarget)
       .addScaledVector(cameraDirection, Math.max(placementDistance, 2));
   } else {
-    previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.02, 200);
-    previewCamera.position.copy(orbitTarget).addScaledVector(cameraDirection, offsetLength);
-    applyOrthographicFrame(currentVisibleHeight, viewportAspect, previewCamera);
+    state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.02, 200);
+    state.previewCamera.position.copy(orbitTarget).addScaledVector(cameraDirection, offsetLength);
+    applyOrthographicFrame(currentVisibleHeight, viewportAspect, state.previewCamera);
   }
-  previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
-  previewCamera.userData.viewportAspect = viewportAspect;
-  previewCamera.userData.frameSize = currentVisibleHeight;
-  previewCamera.userData.cameraView = previousCamera?.userData.cameraView || "free";
-  previewCamera.userData.topRotation = previousCamera?.userData.topRotation || 0;
-  previewCamera.up.copy(previousCamera?.up || new threeModuleMin.Vector3(0, 1, 0));
-  updateCameraClipPlanes(previewCamera, orbitTarget);
-  previewCamera.lookAt(orbitTarget);
-  previewCamera.updateProjectionMatrix();
-  orbitControls = createOrbitControls(previewCamera);
-  orbitControls.target.copy(orbitTarget);
+  state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
+  state.previewCamera.userData.viewportAspect = viewportAspect;
+  state.previewCamera.userData.frameSize = currentVisibleHeight;
+  state.previewCamera.userData.cameraView = previousCamera?.userData.cameraView || "free";
+  state.previewCamera.userData.topRotation = previousCamera?.userData.topRotation || 0;
+  state.previewCamera.up.copy(previousCamera?.up || new threeModuleMin.Vector3(0, 1, 0));
+  updateCameraClipPlanes(state.previewCamera, orbitTarget);
+  state.previewCamera.lookAt(orbitTarget);
+  state.previewCamera.updateProjectionMatrix();
+  state.orbitControls = createOrbitControls(state.previewCamera);
+  state.orbitControls.target.copy(orbitTarget);
   applyRenderQualityMode();
   if (!isStageViewerMode || modeOptions.deferControlUpdate !== true) {
-    orbitControls.update();
+    state.orbitControls.update();
   }
 }
 /**
@@ -10540,78 +10364,78 @@ function isWebglContextCreationFailure(stageInitError: any) {
 async function initializeStudioStage({ isRetry = false } = {}) {
   const stageContainer = selectElement("#preview-3d");
   try {
-    previewOverlayScene = new threeModuleMin.Scene();
-    previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.05, 200);
-    previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
-    renderer = new threeModuleMin.WebGLRenderer({
+    state.previewOverlayScene = new threeModuleMin.Scene();
+    state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.05, 200);
+    state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.renderer = new threeModuleMin.WebGLRenderer({
       antialias: true,
       alpha: true,
       powerPreference: "high-performance"
     });
     if (isStageViewerMode) {
-      renderer.domElement.addEventListener("webglcontextrestored", () => {
-        appliedLightPrecompileSignature = "";
+      state.renderer.domElement.addEventListener("webglcontextrestored", () => {
+        state.appliedLightPrecompileSignature = "";
         precompiledLightSignatures.clear();
         scheduleLightPrecompile();
       });
     }
-    renderer.setPixelRatio(targetPixelRatio());
-    renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
-    renderer.toneMapping = threeModuleMin.NeutralToneMapping;
-    renderer.toneMappingExposure = 1.04;
-    renderer.shadowMap.enabled = !isRegionLightingEnabled;
-    renderer.shadowMap.type = threeModuleMin.VSMShadowMap;
-    stageContainer.append(renderer.domElement);
-    orbitControls = createOrbitControls(previewCamera);
+    state.renderer.setPixelRatio(targetPixelRatio());
+    state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
+    state.renderer.toneMapping = threeModuleMin.NeutralToneMapping;
+    state.renderer.toneMappingExposure = 1.04;
+    state.renderer.shadowMap.enabled = !isRegionLightingEnabled;
+    state.renderer.shadowMap.type = threeModuleMin.VSMShadowMap;
+    stageContainer.append(state.renderer.domElement);
+    state.orbitControls = createOrbitControls(state.previewCamera);
     updateModelLoadingStatus();
     syncCameraModeButtons("orthographic");
     syncCameraViewButtons();
-    hemisphereLight = new threeModuleMin.HemisphereLight(12504556, 1515053, 1.12);
-    hemisphereLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    previewOverlayScene.add(hemisphereLight);
-    ambientLight = new threeModuleMin.AmbientLight(7175581, 0.42);
-    ambientLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    previewOverlayScene.add(ambientLight);
-    mainDirectionalLight = new threeModuleMin.DirectionalLight(14543103, 2.05);
-    mainDirectionalLight.position.set(-7, 22, 6);
-    mainDirectionalLight.castShadow = true;
-    mainDirectionalLight.shadow.mapSize.set(2048, 2048);
-    mainDirectionalLight.shadow.camera.left = -20;
-    mainDirectionalLight.shadow.camera.right = 20;
-    mainDirectionalLight.shadow.camera.top = 20;
-    mainDirectionalLight.shadow.camera.bottom = -20;
-    mainDirectionalLight.shadow.autoUpdate = false;
-    mainDirectionalLight.shadow.needsUpdate = true;
-    mainDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    previewOverlayScene.add(mainDirectionalLight);
-    fillDirectionalLight = new threeModuleMin.DirectionalLight(8886724, 0.72);
-    fillDirectionalLight.position.set(9, 7, -10);
-    fillDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    previewOverlayScene.add(fillDirectionalLight);
-    topDirectionalLight = new threeModuleMin.DirectionalLight(15791103, 0.68);
-    topDirectionalLight.position.set(0, 16, 1);
-    topDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
-    previewOverlayScene.add(topDirectionalLight);
-    previewModelRoot = new threeModuleMin.Group();
-    previewOverlayScene.add(previewModelRoot);
+    state.hemisphereLight = new threeModuleMin.HemisphereLight(12504556, 1515053, 1.12);
+    state.hemisphereLight.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.previewOverlayScene.add(state.hemisphereLight);
+    state.ambientLight = new threeModuleMin.AmbientLight(7175581, 0.42);
+    state.ambientLight.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.previewOverlayScene.add(state.ambientLight);
+    state.mainDirectionalLight = new threeModuleMin.DirectionalLight(14543103, 2.05);
+    state.mainDirectionalLight.position.set(-7, 22, 6);
+    state.mainDirectionalLight.castShadow = true;
+    state.mainDirectionalLight.shadow.mapSize.set(2048, 2048);
+    state.mainDirectionalLight.shadow.camera.left = -20;
+    state.mainDirectionalLight.shadow.camera.right = 20;
+    state.mainDirectionalLight.shadow.camera.top = 20;
+    state.mainDirectionalLight.shadow.camera.bottom = -20;
+    state.mainDirectionalLight.shadow.autoUpdate = false;
+    state.mainDirectionalLight.shadow.needsUpdate = true;
+    state.mainDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.previewOverlayScene.add(state.mainDirectionalLight);
+    state.fillDirectionalLight = new threeModuleMin.DirectionalLight(8886724, 0.72);
+    state.fillDirectionalLight.position.set(9, 7, -10);
+    state.fillDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.previewOverlayScene.add(state.fillDirectionalLight);
+    state.topDirectionalLight = new threeModuleMin.DirectionalLight(15791103, 0.68);
+    state.topDirectionalLight.position.set(0, 16, 1);
+    state.topDirectionalLight.layers.enable(PREVIEW_OBJECT_LAYER);
+    state.previewOverlayScene.add(state.topDirectionalLight);
+    state.previewModelRoot = new threeModuleMin.Group();
+    state.previewOverlayScene.add(state.previewModelRoot);
     let overviewLayoutDocument: any;
     let overviewLayoutRevision: any;
     let overviewCenter = [0, 0, 0];
     let overviewBoundsByFloor = new Map();
-    overviewStackController = createOverviewStack({
+    state.overviewStackController = createOverviewStack({
       THREE: threeModuleMin,
-      renderer: renderer,
-      scene: previewOverlayScene,
-      getCamera: () => previewCamera,
+      renderer: state.renderer,
+      scene: state.previewOverlayScene,
+      getCamera: () => state.previewCamera,
       getLayout: () => {
-        const documentFloors = studioDocument?.floors || [];
-        const floorGap = exportRenderState
-          ? finite(studioDocument?.exportFloorGap, 3)
-          : finite(studioDocument?.previewFloorGap, 3);
+        const documentFloors = state.studioDocument?.floors || [];
+        const floorGap = state.exportRenderState
+          ? finite(state.studioDocument?.exportFloorGap, 3)
+          : finite(state.studioDocument?.previewFloorGap, 3);
         if (
-          studioDocument?.uniformOverviewStack &&
-          (overviewLayoutDocument !== studioDocument ||
-            overviewLayoutRevision !== sceneCacheRevision)
+          state.studioDocument?.uniformOverviewStack &&
+          (overviewLayoutDocument !== state.studioDocument ||
+            overviewLayoutRevision !== state.sceneCacheRevision)
         ) {
           const floorsBounds = new threeModuleMin.Box3();
           overviewBoundsByFloor = new Map();
@@ -10636,11 +10460,11 @@ async function initializeStudioStage({ isRetry = false } = {}) {
               ? new threeModuleMin.Vector3()
               : floorsBounds.getCenter(new threeModuleMin.Vector3())
           ).toArray();
-          overviewLayoutDocument = studioDocument;
-          overviewLayoutRevision = sceneCacheRevision;
+          overviewLayoutDocument = state.studioDocument;
+          overviewLayoutRevision = state.sceneCacheRevision;
         }
         return {
-          enabled: studioDocument?.uniformOverviewStack === true,
+          enabled: state.studioDocument?.uniformOverviewStack === true,
           floors: documentFloors,
           gap: floorGap,
           bounds: overviewBoundsByFloor,
@@ -10649,61 +10473,61 @@ async function initializeStudioStage({ isRetry = false } = {}) {
             ((documentFloors.length - 1) * floorGap) / 2,
             overviewCenter[2]
           ],
-          amount: overviewStackAmount ?? (currentPreviewFloorMode() === "all" ? 1 : 0)
+          amount: state.overviewStackAmount ?? (currentPreviewFloorMode() === "all" ? 1 : 0)
         };
       }
     });
-    window.addEventListener("pagehide", () => overviewStackController?.dispose(), {
+    window.addEventListener("pagehide", () => state.overviewStackController?.dispose(), {
       once: true
     });
     if (isRegionLightingEnabled) {
-      contactShadowController = createContactShadowController({
+      state.contactShadowController = createContactShadowController({
         THREE: threeModuleMin,
-        renderer: renderer,
-        getRoot: () => previewModelRoot,
+        renderer: state.renderer,
+        getRoot: () => state.previewModelRoot,
         requestFrame: requestRenderFrame,
         canBuild: () =>
           externalModelManager.modelLoadState().active === 0 &&
           externalModelManager.modelLoadState().queued === 0
       });
-      regionLightController = createRegionLightController({
+      state.regionLightController = createRegionLightController({
         THREE: threeModuleMin,
-        renderer: renderer,
-        scene: previewOverlayScene,
-        getRoot: () => previewModelRoot,
-        contactShadows: contactShadowController,
+        renderer: state.renderer,
+        scene: state.previewOverlayScene,
+        getRoot: () => state.previewModelRoot,
+        contactShadows: state.contactShadowController,
         requestFrame: requestRenderFrame
       });
     } else {
-      spotShadowAtlasController = createSpotShadowAtlasController({
+      state.spotShadowAtlasController = createSpotShadowAtlasController({
         THREE: threeModuleMin,
-        renderer: renderer,
-        scene: previewOverlayScene,
-        camera: previewCamera,
+        renderer: state.renderer,
+        scene: state.previewOverlayScene,
+        camera: state.previewCamera,
         syncBeforeRender: isStageViewerMode,
         requestFrame: requestRenderFrame,
         canBuild: () =>
           !document.hidden &&
-          !exportRenderState &&
-          !isCameraMotionActive &&
-          !isMotionRendering &&
-          !isCurtainMoving &&
-          !isVacuumMoving &&
-          !isBackgroundFrameVisible &&
-          !isExportRendering &&
-          !isLightCacheBuilding &&
+          !state.exportRenderState &&
+          !state.isCameraMotionActive &&
+          !state.isMotionRendering &&
+          !state.isCurtainMoving &&
+          !state.isVacuumMoving &&
+          !state.isBackgroundFrameVisible &&
+          !state.isExportRendering &&
+          !state.isLightCacheBuilding &&
           externalModelManager.modelLoadState().active === 0 &&
           externalModelManager.modelLoadState().queued === 0
       });
     }
     applyBaseLighting();
-    resizeObserver = new ResizeObserver(handleStageResize);
-    resizeObserver.observe(stageContainer);
+    state.resizeObserver = new ResizeObserver(handleStageResize);
+    state.resizeObserver.observe(stageContainer);
     resetCameraView();
     let lastFrameTimeMs = performance.now();
     let lastMotionFrameTimeMs = -Infinity;
     const renderFrame = (rafTimestampMs = performance.now()) => {
-      if (!renderer) {
+      if (!state.renderer) {
         return Infinity;
       }
       const frameDeltaSeconds = Math.min(
@@ -10714,27 +10538,27 @@ async function initializeStudioStage({ isRetry = false } = {}) {
       if (document.hidden) {
         return Infinity;
       }
-      const controlsChanged = orbitControls.update(frameDeltaSeconds);
+      const controlsChanged = state.orbitControls.update(frameDeltaSeconds);
       if (controlsChanged) {
         lastMotionFrameTimeMs = rafTimestampMs;
       }
       const idleDelayMs = rafTimestampMs - lastMotionFrameTimeMs < 600 ? 0 : Infinity;
       if (controlsChanged) {
-        needsRender = true;
+        state.needsRender = true;
       }
-      if (!needsRender && hasRenderedFrame) {
+      if (!state.needsRender && state.hasRenderedFrame) {
         return idleDelayMs;
       }
-      needsRender = false;
-      renderer.render(previewOverlayScene, previewCamera);
+      state.needsRender = false;
+      state.renderer.render(state.previewOverlayScene, state.previewCamera);
       sampleFrameInterval();
-      hasRenderedFrame = true;
+      state.hasRenderedFrame = true;
       if (isStageViewerMode) {
-        renderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame"));
+        state.renderer.domElement.dispatchEvent(new Event("hb-i3d-camera-frame"));
       }
       return idleDelayMs;
     };
-    demandFrameLoop = createDemandFrameLoop({
+    state.demandFrameLoop = createDemandFrameLoop({
       onWake() {
         lastFrameTimeMs = performance.now();
       },
@@ -10742,30 +10566,30 @@ async function initializeStudioStage({ isRetry = false } = {}) {
         return renderFrame(stepTimestampMs);
       }
     });
-    const wakeFrameLoop = () => demandFrameLoop.wake();
+    const wakeFrameLoop = () => state.demandFrameLoop.wake();
     const syncFrameLoopAvailability = () => {
       lastFrameTimeMs = performance.now();
-      const frameLoopEnabled = !document.hidden && isFrameLoopAvailable;
-      demandFrameLoop.setAvailable(frameLoopEnabled);
+      const frameLoopEnabled = !document.hidden && state.isFrameLoopAvailable;
+      state.demandFrameLoop.setAvailable(frameLoopEnabled);
       if (frameLoopEnabled) {
         requestRenderFrame();
-        if (needsLightCacheRefresh) {
+        if (state.needsLightCacheRefresh) {
           scheduleLightCacheBuild();
         }
       } else {
-        window.clearTimeout(lightCacheSettleTimer);
-        lightCacheSettleTimer = null;
+        window.clearTimeout(state.lightCacheSettleTimer);
+        state.lightCacheSettleTimer = null;
       }
     };
     if (isStageViewerMode) {
       const handleParentVisibilityChange = (visibilityEvent: any) => {
-        isFrameLoopAvailable = visibilityEvent.detail === true;
+        state.isFrameLoopAvailable = visibilityEvent.detail === true;
         syncFrameLoopAvailability();
-        if (isFrameLoopAvailable && shouldRerunLightPrecompile) {
+        if (state.isFrameLoopAvailable && state.shouldRerunLightPrecompile) {
           scheduleLightPrecompile();
         }
       };
-      renderer.domElement.addEventListener(
+      state.renderer.domElement.addEventListener(
         "hb-i3d-parent-visibility",
         handleParentVisibilityChange
       );
@@ -10778,7 +10602,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
         "keydown",
         "keyup"
       ]) {
-        renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
+        state.renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
           passive: true
         });
       }
@@ -10786,12 +10610,12 @@ async function initializeStudioStage({ isRetry = false } = {}) {
       window.addEventListener(
         "pagehide",
         () => {
-          demandFrameLoop.dispose();
+          state.demandFrameLoop.dispose();
           document.removeEventListener("visibilitychange", syncFrameLoopAvailability);
-          spotShadowAtlasController?.dispose?.();
-          regionLightController?.dispose();
-          contactShadowController?.dispose();
-          renderer.domElement.removeEventListener(
+          state.spotShadowAtlasController?.dispose?.();
+          state.regionLightController?.dispose();
+          state.contactShadowController?.dispose();
+          state.renderer.domElement.removeEventListener(
             "hb-i3d-parent-visibility",
             handleParentVisibilityChange
           );
@@ -10804,7 +10628,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
             "keydown",
             "keyup"
           ]) {
-            renderer.domElement.removeEventListener(cleanupEventName, wakeFrameLoop);
+            state.renderer.domElement.removeEventListener(cleanupEventName, wakeFrameLoop);
           }
         },
         {
@@ -10823,7 +10647,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
         "keydown",
         "keyup"
       ]) {
-        renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
+        state.renderer.domElement.addEventListener(eventName, wakeFrameLoop, {
           passive: true
         });
       }
@@ -10833,7 +10657,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     }
   } catch (webglInitError) {
     // 建不出上下文先重试一次（只一次）：GPU 进程刚重启、或显存一时腾不出来时（macOS 上
-    if (!renderer && !isRetry && isWebglContextCreationFailure(webglInitError)) {
+    if (!state.renderer && !isRetry && isWebglContextCreationFailure(webglInitError)) {
       await new Promise(resolveStageRetry => window.setTimeout(resolveStageRetry, 1000));
       await initializeStudioStage({
         isRetry: true
@@ -10846,7 +10670,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     });
     debugLog("error", webglInitError);
     // 渲染器根本没建起来时这一页后面每一步都直接用 renderer，继续往下跑只会以
-    if (!renderer) {
+    if (!state.renderer) {
       throw new Error("当前浏览器无法创建 3D 画面，可能是显卡资源不足或已被其它 3D 页面占用，请关闭后重试。");
     }
   }
@@ -10854,7 +10678,7 @@ async function initializeStudioStage({ isRetry = false } = {}) {
 /**
  * 按可视高度与视口纵横比设置正交相机的视锥边界。aspect ≥ 1 时以高度为准向两侧扩宽；
  */
-function applyOrthographicFrame(frameVisibleHeight: any, aspect: any, orthoCamera = previewCamera) {
+function applyOrthographicFrame(frameVisibleHeight: any, aspect: any, orthoCamera = state.previewCamera) {
   if (!orthoCamera?.isOrthographicCamera) {
     return;
   }
@@ -10873,10 +10697,10 @@ function applyOrthographicFrame(frameVisibleHeight: any, aspect: any, orthoCamer
   orthoCamera.updateProjectionMatrix();
 }
 function handleStageResize() {
-  if (!renderer) {
+  if (!state.renderer) {
     return;
   }
-  if (exportRenderState) {
+  if (state.exportRenderState) {
     resizeExportStage();
     return;
   }
@@ -10884,29 +10708,29 @@ function handleStageResize() {
   const resizeStageWidthPx = Math.max(resizeContainer.clientWidth, 1);
   const resizeStageHeightPx = Math.max(resizeContainer.clientHeight, 1);
   const currentCanvasSize = isStageViewerMode
-    ? renderer.getSize(new threeModuleMin.Vector2())
+    ? state.renderer.getSize(new threeModuleMin.Vector2())
     : null;
   const isCanvasSizeCurrent =
     currentCanvasSize?.x === resizeStageWidthPx && currentCanvasSize?.y === resizeStageHeightPx;
   const projectionSignature = isStageViewerMode
-    ? previewCamera.projectionMatrix.elements.join(",")
+    ? state.previewCamera.projectionMatrix.elements.join(",")
     : "";
   if (!isCanvasSizeCurrent) {
-    renderer.setSize(resizeStageWidthPx, resizeStageHeightPx, false);
+    state.renderer.setSize(resizeStageWidthPx, resizeStageHeightPx, false);
   }
-  previewCamera.userData.viewportAspect = resizeStageWidthPx / resizeStageHeightPx;
-  if (previewCamera.isOrthographicCamera) {
+  state.previewCamera.userData.viewportAspect = resizeStageWidthPx / resizeStageHeightPx;
+  if (state.previewCamera.isOrthographicCamera) {
     applyOrthographicFrame(
-      previewCamera.userData.frameSize || 10,
-      previewCamera.userData.viewportAspect
+      state.previewCamera.userData.frameSize || 10,
+      state.previewCamera.userData.viewportAspect
     );
   } else {
-    previewCamera.aspect = previewCamera.userData.viewportAspect;
+    state.previewCamera.aspect = state.previewCamera.userData.viewportAspect;
     applyFocalLength();
   }
   if (
     !isCanvasSizeCurrent ||
-    projectionSignature !== previewCamera.projectionMatrix.elements.join(",")
+    projectionSignature !== state.previewCamera.projectionMatrix.elements.join(",")
   ) {
     invalidateRender();
   }
@@ -10915,25 +10739,25 @@ function handleStageResize() {
  * 采集当前相机状态快照，供导出 / 打印流程保存与还原。
  */
 function captureCameraSnapshot() {
-  if (!previewCamera || !orbitControls) {
+  if (!state.previewCamera || !state.orbitControls) {
     return null;
   } else {
     return {
-      mode: previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
-      cameraView: previewCamera.userData.cameraView || currentCameraView(),
-      topRotation: previewCamera.userData.topRotation || 0,
-      position: previewCamera.position.clone(),
-      target: orbitControls.target.clone(),
-      up: previewCamera.up.clone(),
-      zoom: previewCamera.zoom,
-      visibleHeight: measureVisibleHeight(previewCamera, orbitControls.target),
+      mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+      cameraView: state.previewCamera.userData.cameraView || currentCameraView(),
+      topRotation: state.previewCamera.userData.topRotation || 0,
+      position: state.previewCamera.position.clone(),
+      target: state.orbitControls.target.clone(),
+      up: state.previewCamera.up.clone(),
+      zoom: state.previewCamera.zoom,
+      visibleHeight: measureVisibleHeight(state.previewCamera, state.orbitControls.target),
       frameSize:
-        previewCamera.userData.frameSize ||
-        measureVisibleHeight(previewCamera, orbitControls.target),
-      viewportAspect: previewCamera.userData.viewportAspect || 1,
-      fov: previewCamera.isPerspectiveCamera ? previewCamera.fov : 36,
-      near: previewCamera.near,
-      far: previewCamera.far
+        state.previewCamera.userData.frameSize ||
+        measureVisibleHeight(state.previewCamera, state.orbitControls.target),
+      viewportAspect: state.previewCamera.userData.viewportAspect || 1,
+      fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : 36,
+      near: state.previewCamera.near,
+      far: state.previewCamera.far
     };
   }
 }
@@ -10941,30 +10765,30 @@ function captureCameraSnapshot() {
  * 把相机快照应用到当前相机与控制器（导出 / 打印前的还原入口）。快照里的投影模式可能与当前
  */
 function applyCameraSnapshot(snapshot: any, snapshotAspect = snapshot?.viewportAspect || 1) {
-  if (!!snapshot && !!renderer) {
+  if (!!snapshot && !!state.renderer) {
     applyCameraMode(snapshot.mode, {
       preserveView: false
     });
-    previewCamera.position.copy(snapshot.position);
-    previewCamera.up.copy(snapshot.up);
-    previewCamera.zoom = snapshot.zoom || 1;
-    previewCamera.near = snapshot.near;
-    previewCamera.far = snapshot.far;
-    previewCamera.userData.frameSize = snapshot.frameSize;
-    previewCamera.userData.viewportAspect = snapshotAspect;
-    previewCamera.userData.cameraView = snapshot.cameraView || currentCameraView();
-    previewCamera.userData.topRotation = snapshot.topRotation || 0;
-    if (previewCamera.isPerspectiveCamera) {
-      previewCamera.fov = snapshot.fov;
-      previewCamera.aspect = snapshotAspect;
+    state.previewCamera.position.copy(snapshot.position);
+    state.previewCamera.up.copy(snapshot.up);
+    state.previewCamera.zoom = snapshot.zoom || 1;
+    state.previewCamera.near = snapshot.near;
+    state.previewCamera.far = snapshot.far;
+    state.previewCamera.userData.frameSize = snapshot.frameSize;
+    state.previewCamera.userData.viewportAspect = snapshotAspect;
+    state.previewCamera.userData.cameraView = snapshot.cameraView || currentCameraView();
+    state.previewCamera.userData.topRotation = snapshot.topRotation || 0;
+    if (state.previewCamera.isPerspectiveCamera) {
+      state.previewCamera.fov = snapshot.fov;
+      state.previewCamera.aspect = snapshotAspect;
     } else {
-      applyOrthographicFrame(snapshot.frameSize, snapshotAspect, previewCamera);
+      applyOrthographicFrame(snapshot.frameSize, snapshotAspect, state.previewCamera);
     }
-    previewCamera.lookAt(snapshot.target);
-    previewCamera.updateProjectionMatrix();
-    orbitControls.target.copy(snapshot.target);
+    state.previewCamera.lookAt(snapshot.target);
+    state.previewCamera.updateProjectionMatrix();
+    state.orbitControls.target.copy(snapshot.target);
     applyRenderQualityMode();
-    orbitControls.update();
+    state.orbitControls.update();
   }
 }
 function exportDimensions() {
@@ -11016,7 +10840,7 @@ function exportPixelRatio(limitRatio = false) {
  * 在导出预览态下把渲染器与相机适配到预览框，使最终产物构图与屏幕预览一致。准入条件缺一不可：已进入导出态、导出任务不在
  */
 function resizeExportStage() {
-  if (!exportRenderState || isExportBusy || !renderer || !previewCamera) {
+  if (!state.exportRenderState || state.isExportBusy || !state.renderer || !state.previewCamera) {
     return;
   }
   const { width: resizeWidthPx, height: resizeHeightPx } = exportDimensions();
@@ -11026,16 +10850,16 @@ function resizeExportStage() {
   const exportPixelRatioValue = isAutoDiagramEmbed
     ? exportPixelRatio(false)
     : Math.min(window.devicePixelRatio || 1, 2);
-  renderer.setPixelRatio(exportPixelRatioValue);
-  renderer.setSize(availableWidthPx, availableHeightPx, false);
-  previewCamera.userData.viewportAspect = stageAspect;
-  if (previewCamera.isOrthographicCamera) {
-    applyOrthographicFrame(previewCamera.userData.frameSize || 10, stageAspect, previewCamera);
+  state.renderer.setPixelRatio(exportPixelRatioValue);
+  state.renderer.setSize(availableWidthPx, availableHeightPx, false);
+  state.previewCamera.userData.viewportAspect = stageAspect;
+  if (state.previewCamera.isOrthographicCamera) {
+    applyOrthographicFrame(state.previewCamera.userData.frameSize || 10, stageAspect, state.previewCamera);
   } else {
-    previewCamera.aspect = stageAspect;
+    state.previewCamera.aspect = stageAspect;
     applyFocalLength();
   }
-  orbitControls.update();
+  state.orbitControls.update();
   invalidateRender();
 }
 /**
@@ -11065,31 +10889,31 @@ function setExportDimension(dimension: any, shouldClampBoth = false) {
     if (dimension === "width") {
       if (shouldClampBoth) {
         nextWidthPx = clamp(nextWidthPx, 320, 4096);
-        nextHeightPx = Math.round(nextWidthPx / exportAspectRatio);
+        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
         if (nextHeightPx < 320) {
           nextHeightPx = 320;
-          nextWidthPx = Math.round(nextHeightPx * exportAspectRatio);
+          nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
         }
         if (nextHeightPx > 4096) {
           nextHeightPx = 4096;
-          nextWidthPx = Math.round(nextHeightPx * exportAspectRatio);
+          nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
         }
       } else {
-        nextHeightPx = Math.round(clamp(nextWidthPx / exportAspectRatio, 320, 4096));
+        nextHeightPx = Math.round(clamp(nextWidthPx / state.exportAspectRatio, 320, 4096));
       }
     } else if (shouldClampBoth) {
       nextHeightPx = clamp(nextHeightPx, 320, 4096);
-      nextWidthPx = Math.round(nextHeightPx * exportAspectRatio);
+      nextWidthPx = Math.round(nextHeightPx * state.exportAspectRatio);
       if (nextWidthPx < 320) {
         nextWidthPx = 320;
-        nextHeightPx = Math.round(nextWidthPx / exportAspectRatio);
+        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
       }
       if (nextWidthPx > 4096) {
         nextWidthPx = 4096;
-        nextHeightPx = Math.round(nextWidthPx / exportAspectRatio);
+        nextHeightPx = Math.round(nextWidthPx / state.exportAspectRatio);
       }
     } else {
-      nextWidthPx = Math.round(clamp(nextHeightPx * exportAspectRatio, 320, 4096));
+      nextWidthPx = Math.round(clamp(nextHeightPx * state.exportAspectRatio, 320, 4096));
     }
   }
   if (shouldClampBoth) {
@@ -11111,7 +10935,7 @@ function setExportDimension(dimension: any, shouldClampBoth = false) {
  */
 function restoreExportCamera(restoreOptions: any = {}) {
   const savedExportView = savedCameraView();
-  if (!savedExportView || !exportRenderState) {
+  if (!savedExportView || !state.exportRenderState) {
     return;
   }
   const exportAspect = exportDimensions().width / exportDimensions().height;
@@ -11173,15 +10997,15 @@ function restoreExportCamera(restoreOptions: any = {}) {
   }
 }
 function renderExportPresetSlots() {
-  const presetSlots = normalizeExportPresetSlots(studioDocument?.exportPresets);
+  const presetSlots = normalizeExportPresetSlots(state.studioDocument?.exportPresets);
   const activePresetSlot = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.activeExportPresetSlot,
     presetSlots.length
   );
-  studioDocument.exportPresets = presetSlots;
-  studioDocument.activeExportPresetSlot = activePresetSlot;
+  state.studioDocument.exportPresets = presetSlots;
+  state.studioDocument.activeExportPresetSlot = activePresetSlot;
   const floorNamesById = new Map<any, any>(
-    (studioDocument?.floors || []).map((slotFloor: any) => [slotFloor.id, slotFloor.name])
+    (state.studioDocument?.floors || []).map((slotFloor: any) => [slotFloor.id, slotFloor.name])
   );
   exportPresetSlotsElement.replaceChildren(
     ...presetSlots.map((presetSlot, presetSlotIndexValue) => {
@@ -11213,7 +11037,7 @@ function renderExportPresetSlots() {
   exportPresetAddButton.disabled = presetSlots.length >= MAX_EXPORT_PRESET_COUNT;
   exportPresetRenameButton.disabled = !activePreset;
   exportPresetDeleteButton.disabled = presetSlots.length <= 1;
-  const isPresetEmpty = exportPresetIsEmpty(activePreset, exportPresets);
+  const isPresetEmpty = exportPresetIsEmpty(activePreset, state.exportPresets);
   exportPresetEmptyStateElement.hidden = !isPresetEmpty;
   exportPresetEmptyTitleElement.textContent = activePreset
     ? exportPresetLabel(activePreset, activePresetSlot) + "已设置"
@@ -11223,7 +11047,7 @@ function renderExportPresetSlots() {
  * 用当前画布状态生成一份导出档位快照（分辨率、楼层、勾选文件、相机位姿）。透视模式下会先把
  */
 function buildExportPreset({ name: presetName = "" } = {}) {
-  if (previewCamera.isPerspectiveCamera) {
+  if (state.previewCamera.isPerspectiveCamera) {
     const cameraFocalInputElement = selectElement("#camera-focal-length");
     const presetFocalLength = clamp(
       finite(cameraFocalInputElement?.value, currentFocalLength()),
@@ -11234,35 +11058,35 @@ function buildExportPreset({ name: presetName = "" } = {}) {
     for (const focalInputElement of cameraFocalLengthInputs) {
       (focalInputElement as any).value = String(Math.round(presetFocalLength));
     }
-    applyFocalLength(previewCamera, presetFocalLength);
+    applyFocalLength(state.previewCamera, presetFocalLength);
   }
   const { width: presetWidthPx, height: presetHeightPx } = exportDimensions();
-  const presetTarget = orbitControls.target;
+  const presetTarget = state.orbitControls.target;
   return normalizeExportPreset({
     name: presetName,
     width: presetWidthPx,
     height: presetHeightPx,
     lockRatio: exportLockRatioInput.checked,
     floorMode: currentPreviewFloorMode() === "all" ? "all" : "floor",
-    floorId: getCurrentFloor()?.id || activeFloorId,
-    floorGap: finite(studioDocument.exportFloorGap, 3),
+    floorId: getCurrentFloor()?.id || state.activeFloorId,
+    floorGap: finite(state.studioDocument.exportFloorGap, 3),
     camera: {
-      mode: previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+      mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
       view: currentCameraView(),
       topRotation: currentTopRotationDeg(),
       position: {
-        x: previewCamera.position.x,
-        y: previewCamera.position.y,
-        z: previewCamera.position.z
+        x: state.previewCamera.position.x,
+        y: state.previewCamera.position.y,
+        z: state.previewCamera.position.z
       },
       target: {
         x: presetTarget.x,
         y: presetTarget.y,
         z: presetTarget.z
       },
-      visibleHeight: measureVisibleHeight(previewCamera, presetTarget),
-      fov: previewCamera.isPerspectiveCamera ? previewCamera.fov : 36,
-      focalLength: previewCamera.isPerspectiveCamera ? currentFocalLength() : null
+      visibleHeight: measureVisibleHeight(state.previewCamera, presetTarget),
+      fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : 36,
+      focalLength: state.previewCamera.isPerspectiveCamera ? currentFocalLength() : null
     },
     folderName: exportFolderNameInput.value,
     selectedFiles: [...collectCheckedExportFileKeys()]
@@ -11322,22 +11146,22 @@ function applyPresetCamera(presetCamera: any) {
  * 应用指定槽位的导出档位：分辨率、楼层选择、勾选的文件与相机一次性还原。兼容旧的选中项
  */
 function applyExportPreset(slotIndex: any, applyOptions: any = {}) {
-  const exportPreset = normalizeExportPreset(studioDocument?.exportPresets?.[slotIndex]);
-  if (!exportPreset || !exportRenderState) {
+  const exportPreset = normalizeExportPreset(state.studioDocument?.exportPresets?.[slotIndex]);
+  if (!exportPreset || !state.exportRenderState) {
     return false;
   }
   exportWidthInput.value = String(exportPreset.width);
   exportHeightInput.value = String(exportPreset.height);
   exportLockRatioInput.checked = exportPreset.lockRatio;
-  exportAspectRatio = exportPreset.width / exportPreset.height;
-  studioDocument.exportFloorGap = exportPreset.floorGap;
-  const presetFloor = studioDocument.floors.find(
+  state.exportAspectRatio = exportPreset.width / exportPreset.height;
+  state.studioDocument.exportFloorGap = exportPreset.floorGap;
+  const presetFloor = state.studioDocument.floors.find(
     (presetFloorCandidate: any) => presetFloorCandidate.id === exportPreset.floorId
   );
   const presetFloorSelection =
-    exportPreset.floorMode === "all" && studioDocument.floors.length > 1
+    exportPreset.floorMode === "all" && state.studioDocument.floors.length > 1
       ? "all"
-      : presetFloor?.id || getCurrentFloor()?.id || activeFloorId;
+      : presetFloor?.id || getCurrentFloor()?.id || state.activeFloorId;
   applyExportFloorSelection(presetFloorSelection);
   exportFloorGapInput.value = exportPreset.floorGap.toFixed(1);
   exportFolderNameInput.value = exportPreset.folderName;
@@ -11365,19 +11189,19 @@ function applyExportPreset(slotIndex: any, applyOptions: any = {}) {
  * 切换活动导出档位：先保存当前档位，再应用目标档位。非法下标或导出进行中直接忽略。
  */
 function selectExportPresetSlot(presetSlotIndexToApply: any) {
-  const presetSlotCount = studioDocument?.exportPresets?.length || 0;
+  const presetSlotCount = state.studioDocument?.exportPresets?.length || 0;
   if (
     !Number.isInteger(presetSlotIndexToApply) ||
     presetSlotIndexToApply < 0 ||
     presetSlotIndexToApply >= presetSlotCount ||
-    isExportBusy
+    state.isExportBusy
   ) {
     return;
   }
   saveActiveExportPreset();
-  studioDocument.activeExportPresetSlot = presetSlotIndexToApply;
+  state.studioDocument.activeExportPresetSlot = presetSlotIndexToApply;
   const didApplyPreset = applyExportPreset(presetSlotIndexToApply);
-  exportPresets = false;
+  state.exportPresets = false;
   renderExportPresetSlots();
   markDocumentDirty();
   if (!didApplyPreset) {
@@ -11389,24 +11213,24 @@ function selectExportPresetSlot(presetSlotIndexToApply: any) {
  * 把当前画布状态写回活动档位（导出视角的自动保存）。仅在导出态且非导出进行中生效；
  */
 function saveActiveExportPreset() {
-  window.clearTimeout(saveRetryTimer);
-  saveRetryTimer = null;
-  if (!exportPresets) {
+  window.clearTimeout(state.saveRetryTimer);
+  state.saveRetryTimer = null;
+  if (!state.exportPresets) {
     return false;
   }
   const activePresetSlotIndex = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
-    studioDocument?.exportPresets?.length
+    state.studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.exportPresets?.length
   );
-  if (!exportRenderState || isExportBusy) {
+  if (!state.exportRenderState || state.isExportBusy) {
     return false;
   }
-  studioDocument.exportPresets = normalizeExportPresetSlots(studioDocument.exportPresets);
-  const activePresetName = studioDocument.exportPresets[activePresetSlotIndex]?.name || "";
-  studioDocument.exportPresets[activePresetSlotIndex] = buildExportPreset({
+  state.studioDocument.exportPresets = normalizeExportPresetSlots(state.studioDocument.exportPresets);
+  const activePresetName = state.studioDocument.exportPresets[activePresetSlotIndex]?.name || "";
+  state.studioDocument.exportPresets[activePresetSlotIndex] = buildExportPreset({
     name: activePresetName
   });
-  exportPresets = false;
+  state.exportPresets = false;
   renderExportPresetSlots();
   markDocumentDirty();
   return true;
@@ -11415,11 +11239,11 @@ function saveActiveExportPreset() {
  * 防抖地保存活动档位：360ms 内的多次相机变更只落一次盘。
  */
 function scheduleExportPresetSave() {
-  if (!!exportRenderState && !isExportBusy) {
-    exportPresets = true;
+  if (!!state.exportRenderState && !state.isExportBusy) {
+    state.exportPresets = true;
     renderExportPresetSlots();
-    window.clearTimeout(saveRetryTimer);
-    saveRetryTimer = window.setTimeout(saveActiveExportPreset, 360);
+    window.clearTimeout(state.saveRetryTimer);
+    state.saveRetryTimer = window.setTimeout(saveActiveExportPreset, 360);
   }
 }
 /**
@@ -11430,7 +11254,7 @@ function exportPresetLabel(preset: any, labelSlotIndex: any) {
     return "存档 " + String(labelSlotIndex + 1).padStart(2, "0");
   }
   // 档位可能引用已被删除的楼层，这里按 id 查楼层名作为显示名兜底，查不到则为空。
-  const presetFloorName = (studioDocument?.floors || []).find(
+  const presetFloorName = (state.studioDocument?.floors || []).find(
     (floorCandidate: any) => floorCandidate.id === preset.floorId
   )?.name;
   return preset.name || presetFloorName || "存档 " + String(labelSlotIndex + 1).padStart(2, "0");
@@ -11441,7 +11265,7 @@ function exportPresetLabel(preset: any, labelSlotIndex: any) {
 function uniqueExportPresetName(baseName: any, excludeSlotIndex = -1) {
   const normalizedPresetName = normalizeLabelText(baseName, "导出视角", 24);
   const presetLabelSet = new Set(
-    (studioDocument?.exportPresets || [])
+    (state.studioDocument?.exportPresets || [])
       .map((presetEntry: any, presetEntryIndex: any) =>
         presetEntryIndex === excludeSlotIndex
           ? ""
@@ -11462,22 +11286,22 @@ function uniqueExportPresetName(baseName: any, excludeSlotIndex = -1) {
  * 新增一个导出档位：以当前视角为初始状态，并沿用上一个档位的分辨率设置。先保存当前档位以免
  */
 function addExportPresetSlot() {
-  if (!exportRenderState || isExportBusy) {
+  if (!state.exportRenderState || state.isExportBusy) {
     return;
   }
   saveActiveExportPreset();
-  studioDocument.exportPresets = normalizeExportPresetSlots(studioDocument.exportPresets);
-  if (studioDocument.exportPresets.length >= MAX_EXPORT_PRESET_COUNT) {
+  state.studioDocument.exportPresets = normalizeExportPresetSlots(state.studioDocument.exportPresets);
+  if (state.studioDocument.exportPresets.length >= MAX_EXPORT_PRESET_COUNT) {
     showToast("最多可以保存 8 个导出存档。");
     return;
   }
-  const presetCount = studioDocument.exportPresets.length;
+  const presetCount = state.studioDocument.exportPresets.length;
   const presetBaseName =
     currentPreviewFloorMode() === "all"
       ? "全楼"
       : getCurrentFloor()?.name || "存档 " + (presetCount + 1);
   const newPresetName = uniqueExportPresetName(presetBaseName + "视角");
-  const previousPreset = studioDocument.exportPresets.slice(0, presetCount).reverse().find(Boolean);
+  const previousPreset = state.studioDocument.exportPresets.slice(0, presetCount).reverse().find(Boolean);
   const newPreset: any = buildExportPreset({
     name: newPresetName
   });
@@ -11486,9 +11310,9 @@ function addExportPresetSlot() {
     newPreset.height = previousPreset.height;
     newPreset.lockRatio = previousPreset.lockRatio;
   }
-  studioDocument.exportPresets.push(newPreset);
-  studioDocument.activeExportPresetSlot = presetCount;
-  exportPresets = false;
+  state.studioDocument.exportPresets.push(newPreset);
+  state.studioDocument.activeExportPresetSlot = presetCount;
+  state.exportPresets = false;
   renderExportPresetSlots();
   markDocumentDirty();
   exportStatusElement.textContent = "已新增“" + newPresetName + "”";
@@ -11506,13 +11330,13 @@ function closePresetRenameDialog() {
  * 打开档位重命名对话框，预填当前档位显示名并全选，方便直接覆写。
  */
 function openPresetRenameDialog() {
-  if (isExportBusy) {
+  if (state.isExportBusy) {
     return;
   }
   saveActiveExportPreset();
-  const presetSlotList = normalizeExportPresetSlots(studioDocument?.exportPresets);
+  const presetSlotList = normalizeExportPresetSlots(state.studioDocument?.exportPresets);
   const currentPresetSlotIndex = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.activeExportPresetSlot,
     presetSlotList.length
   );
   if (presetSlotList[currentPresetSlotIndex]) {
@@ -11536,15 +11360,15 @@ function closePresetDeleteDialog() {
  * 打开「删除档位」对话框，并把待删档位的显示名写进确认文案。
  */
 function openPresetDeleteDialog() {
-  if (isExportBusy) {
+  if (state.isExportBusy) {
     return;
   }
-  const presetSlotListForDelete = normalizeExportPresetSlots(studioDocument?.exportPresets);
+  const presetSlotListForDelete = normalizeExportPresetSlots(state.studioDocument?.exportPresets);
   if (presetSlotListForDelete.length <= 1) {
     return;
   }
   const presetIndexForDelete = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.activeExportPresetSlot,
     presetSlotListForDelete.length
   );
   exportPresetDeleteNameElement.textContent = exportPresetLabel(
@@ -11557,29 +11381,29 @@ function openPresetDeleteDialog() {
  * 删除当前导出档位并切换到相邻档位。只剩一个档位时不删（至少要留一个）。删除后活动下标取
  */
 function deleteActiveExportPreset() {
-  const remainingPresetSlots = normalizeExportPresetSlots(studioDocument?.exportPresets);
+  const remainingPresetSlots = normalizeExportPresetSlots(state.studioDocument?.exportPresets);
   if (remainingPresetSlots.length <= 1) {
     return;
   }
   const removedPresetIndex = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.activeExportPresetSlot,
     remainingPresetSlots.length
   );
   const removedPresetLabel = exportPresetLabel(
     remainingPresetSlots[removedPresetIndex],
     removedPresetIndex
   );
-  window.clearTimeout(saveRetryTimer);
-  saveRetryTimer = null;
-  exportPresets = false;
+  window.clearTimeout(state.saveRetryTimer);
+  state.saveRetryTimer = null;
+  state.exportPresets = false;
   remainingPresetSlots.splice(removedPresetIndex, 1);
-  studioDocument.exportPresets = remainingPresetSlots;
-  studioDocument.activeExportPresetSlot = Math.min(
+  state.studioDocument.exportPresets = remainingPresetSlots;
+  state.studioDocument.activeExportPresetSlot = Math.min(
     removedPresetIndex,
     remainingPresetSlots.length - 1
   );
   closePresetDeleteDialog();
-  const didRestoreNeighborPreset = applyExportPreset(studioDocument.activeExportPresetSlot, {
+  const didRestoreNeighborPreset = applyExportPreset(state.studioDocument.activeExportPresetSlot, {
     silent: true
   });
   renderExportPresetSlots();
@@ -11593,34 +11417,34 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
   if (!!isAutoDiagramEmbed && !!autoDiagramComponentId && window.parent !== window) {
     requestAnimationFrame(() => {
       if (
-        !exportRenderState ||
-        !renderer ||
-        !previewOverlayScene ||
-        !previewCamera ||
-        !orbitControls
+        !state.exportRenderState ||
+        !state.renderer ||
+        !state.previewOverlayScene ||
+        !state.previewCamera ||
+        !state.orbitControls
       ) {
         return;
       }
       resizeExportStage();
-      if (!previewModelRoot?.children?.length) {
+      if (!state.previewModelRoot?.children?.length) {
         refreshPreviewScene();
       }
       const hasSizedExportStage =
         exportPreviewStageElement.clientWidth > 1 && exportPreviewStageElement.clientHeight > 1;
-      const hasPreviewModelChildren = !!previewModelRoot?.children?.length;
+      const hasPreviewModelChildren = !!state.previewModelRoot?.children?.length;
       let isFrameProduced = false;
       if (hasSizedExportStage && hasPreviewModelChildren) {
         invalidateRender({
           shadows: true
         });
-        orbitControls.update();
+        state.orbitControls.update();
         for (let previewRenderPass = 0; previewRenderPass < 2; previewRenderPass += 1) {
-          renderer.render(previewOverlayScene, previewCamera);
+          state.renderer.render(state.previewOverlayScene, state.previewCamera);
         }
-        const rendererRenderStats = renderer.info.render;
+        const rendererRenderStats = state.renderer.info.render;
         isFrameProduced = rendererRenderStats.calls > 0 && rendererRenderStats.triangles > 0;
-        needsRender = false;
-        hasRenderedFrame = isFrameProduced;
+        state.needsRender = false;
+        state.hasRenderedFrame = isFrameProduced;
       }
       if (!isFrameProduced && frameAttempt < 7) {
         ensureAutoDiagramFrame(frameAttempt + 1);
@@ -11641,12 +11465,12 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
         {
           type: "homeos-floorplan-auto-diagram-ready",
           componentId: autoDiagramComponentId,
-          floors: studioDocument.floors.map((floorBrief: any) => ({
+          floors: state.studioDocument.floors.map((floorBrief: any) => ({
             id: floorBrief.id,
             name: floorBrief.name
           })),
           floorSelection:
-            currentPreviewFloorMode() === "all" ? "all" : getCurrentFloor()?.id || activeFloorId
+            currentPreviewFloorMode() === "all" ? "all" : getCurrentFloor()?.id || state.activeFloorId
         },
         window.location.origin
       );
@@ -11654,30 +11478,30 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
   }
 }
 function openExportDialog() {
-  if (exportRenderState || !renderer || !previewCamera || !orbitControls) {
+  if (state.exportRenderState || !state.renderer || !state.previewCamera || !state.orbitControls) {
     return;
   }
-  window.clearTimeout(saveRetryTimer);
-  saveRetryTimer = null;
-  exportPresets = false;
+  window.clearTimeout(state.saveRetryTimer);
+  state.saveRetryTimer = null;
+  state.exportPresets = false;
   const lightGroupSnapshot = collectLightGroups();
   const televisionSnapshot = collectTelevisions();
   const carSnapshot = collectCars();
-  exportRenderState = {
-    canvasParent: renderer.domElement.parentElement,
+  state.exportRenderState = {
+    canvasParent: state.renderer.domElement.parentElement,
     camera: captureCameraSnapshot(),
-    selected: primarySelection
+    selected: state.primarySelection
       ? {
-          ...primarySelection
+          ...state.primarySelection
         }
       : null,
-    selectedMany: multiSelection.map((selectedItemSnapshot: any) => ({
+    selectedMany: state.multiSelection.map((selectedItemSnapshot: any) => ({
       ...selectedItemSnapshot
     })),
     floorMode: currentPreviewFloorMode(),
-    selectedFloorId: activeFloorId,
+    selectedFloorId: state.activeFloorId,
     floorCameraSettings: new Map(
-      studioDocument.floors.map((floorSnapshotEntry: any) => [
+      state.studioDocument.floors.map((floorSnapshotEntry: any) => [
         floorSnapshotEntry.id,
         {
           mode: floorSnapshotEntry.scene.settings.cameraMode,
@@ -11688,7 +11512,7 @@ function openExportDialog() {
       ])
     ),
     combinedCameraSettings: {
-      ...studioDocument.combinedCameraSettings
+      ...state.studioDocument.combinedCameraSettings
     },
     groupStates: new Map(
       lightGroupSnapshot.map(({ key: groupStateKey, group: groupStateController }: any) => [
@@ -11714,9 +11538,9 @@ function openExportDialog() {
       topRotation: currentTopRotationDeg(),
       focalLength: currentFocalLength()
     },
-    pixelRatio: renderer.getPixelRatio()
+    pixelRatio: state.renderer.getPixelRatio()
   };
-  spotShadowAtlasController?.setEnabled(false);
+  state.spotShadowAtlasController?.setEnabled(false);
   for (const { group: groupControllerToDisable } of lightGroupSnapshot) {
     groupControllerToDisable.enabled = false;
   }
@@ -11756,10 +11580,10 @@ function openExportDialog() {
     syncExportResolutionLabels();
   }
   exportDialogElement.showModal();
-  exportPreviewStageElement.append(renderer.domElement);
+  exportPreviewStageElement.append(state.renderer.domElement);
   const restoredPresetSlot = normalizeActiveExportPresetSlot(
-    studioDocument.activeExportPresetSlot,
-    studioDocument.exportPresets.length
+    state.studioDocument.activeExportPresetSlot,
+    state.studioDocument.exportPresets.length
   );
   const didApplySavedPreset =
     restoredPresetSlot !== null &&
@@ -11767,13 +11591,13 @@ function openExportDialog() {
       silent: true
     });
   if (isAutoDiagramEmbed && floorSelectionParam !== null) {
-    const matchedFloorEntry = studioDocument.floors.find(
+    const matchedFloorEntry = state.studioDocument.floors.find(
       (floorMatchCandidate: any) => floorMatchCandidate.id === floorSelectionParam
     );
     const floorSelectionId =
-      floorSelectionParam === "all" && studioDocument.floors.length > 1
+      floorSelectionParam === "all" && state.studioDocument.floors.length > 1
         ? "all"
-        : matchedFloorEntry?.id || getCurrentFloor()?.id || activeFloorId;
+        : matchedFloorEntry?.id || getCurrentFloor()?.id || state.activeFloorId;
     applyExportFloorSelection(floorSelectionId);
   }
   if (!didApplySavedPreset) {
@@ -11789,7 +11613,7 @@ function openExportDialog() {
       resetCameraView();
     }
   }
-  exportAspectRatio = exportDimensions().width / exportDimensions().height;
+  state.exportAspectRatio = exportDimensions().width / exportDimensions().height;
   renderExportPresetSlots();
   refreshExportPreview();
   ensureAutoDiagramFrame();
@@ -11878,15 +11702,15 @@ function populateExportGroupFiles() {
  */
 function renderExportFloorOptions() {
   const isCombinedFloorView = currentPreviewFloorMode() === "all";
-  const floorSelectValue = isCombinedFloorView ? "all" : getCurrentFloor()?.id || activeFloorId;
+  const floorSelectValue = isCombinedFloorView ? "all" : getCurrentFloor()?.id || state.activeFloorId;
   exportFloorSelectElement.replaceChildren(
-    ...studioDocument.floors.map((floorOptionEntry: any) => {
+    ...state.studioDocument.floors.map((floorOptionEntry: any) => {
       const floorOptionElement = document.createElement("option");
       floorOptionElement.value = floorOptionEntry.id;
       floorOptionElement.textContent = floorOptionEntry.name;
       return floorOptionElement;
     }),
-    ...(studioDocument.floors.length > 1
+    ...(state.studioDocument.floors.length > 1
       ? [
           Object.assign(document.createElement("option"), {
             value: "all",
@@ -11897,29 +11721,29 @@ function renderExportFloorOptions() {
   );
   exportFloorSelectElement.value = floorSelectValue;
   syncStudioSelect(exportFloorSelectElement);
-  exportFloorGapControlElement.hidden = !isCombinedFloorView || studioDocument.floors.length <= 1;
-  syncControlValue(exportFloorGapInput, finite(studioDocument.exportFloorGap, 3).toFixed(1));
+  exportFloorGapControlElement.hidden = !isCombinedFloorView || state.studioDocument.floors.length <= 1;
+  syncControlValue(exportFloorGapInput, finite(state.studioDocument.exportFloorGap, 3).toFixed(1));
   syncCameraViewControls();
 }
 /**
  * 切换导出时的楼层选择（单层 / 全楼合并），并重建相关预览。选择 "all" 只在楼层数大于 1 时
  */
 function applyExportFloorSelection(requestedFloorId: any) {
-  if (!exportRenderState || isExportBusy) {
+  if (!state.exportRenderState || state.isExportBusy) {
     return;
   }
-  const isAllFloorsSelected = requestedFloorId === "all" && studioDocument.floors.length > 1;
+  const isAllFloorsSelected = requestedFloorId === "all" && state.studioDocument.floors.length > 1;
   if (!isAllFloorsSelected) {
-    const selectedFloorEntry = studioDocument.floors.find(
+    const selectedFloorEntry = state.studioDocument.floors.find(
       (floorLookupEntry: any) => floorLookupEntry.id === requestedFloorId
     );
     if (!selectedFloorEntry) {
       return;
     }
-    exportRenderState.selectedFloorId = selectedFloorEntry.id;
-    activeScene = selectedFloorEntry.scene;
+    state.exportRenderState.selectedFloorId = selectedFloorEntry.id;
+    state.activeScene = selectedFloorEntry.scene;
   }
-  studioDocument.previewFloorMode = isAllFloorsSelected ? "all" : "active";
+  state.studioDocument.previewFloorMode = isAllFloorsSelected ? "all" : "active";
   renderExportFloorOptions();
   syncPreviewFloorButtons();
   syncCameraViewControls();
@@ -11955,7 +11779,7 @@ function collectCheckedExportFileKeys() {
  * 关闭导出对话框，并把 openExportDialog 保存的快照逐项还原回预览态。还原顺序与打开时相反：
  */
 function closeExportDialog() {
-  if (!exportRenderState || isExportBusy) {
+  if (!state.exportRenderState || state.isExportBusy) {
     return;
   }
   closeBaseLightingPanel();
@@ -11963,8 +11787,8 @@ function closeExportDialog() {
     document.body.append(baseLightControlsElement);
   }
   saveActiveExportPreset();
-  const exportStateToRestore = exportRenderState;
-  for (const floorToRestore of studioDocument.floors) {
+  const exportStateToRestore = state.exportRenderState;
+  for (const floorToRestore of state.studioDocument.floors) {
     const savedFloorCameraSettings = exportStateToRestore.floorCameraSettings.get(
       floorToRestore.id
     );
@@ -11975,15 +11799,15 @@ function closeExportDialog() {
       floorToRestore.scene.settings.cameraFocalLength = savedFloorCameraSettings.focalLength;
     }
   }
-  studioDocument.combinedCameraSettings = {
+  state.studioDocument.combinedCameraSettings = {
     ...exportStateToRestore.combinedCameraSettings
   };
-  exportRenderState = null;
-  studioDocument.previewFloorMode = exportStateToRestore.floorMode;
-  activeScene =
-    studioDocument.floors.find((floorRestoreCandidate: any) => floorRestoreCandidate.id === activeFloorId)
-      ?.scene || studioDocument.floors[0].scene;
-  exportStateToRestore.canvasParent?.append(renderer.domElement);
+  state.exportRenderState = null;
+  state.studioDocument.previewFloorMode = exportStateToRestore.floorMode;
+  state.activeScene =
+    state.studioDocument.floors.find((floorRestoreCandidate: any) => floorRestoreCandidate.id === state.activeFloorId)
+      ?.scene || state.studioDocument.floors[0].scene;
+  exportStateToRestore.canvasParent?.append(state.renderer.domElement);
   const cameraSettingsTarget = cameraSettingsSource();
   cameraSettingsTarget.cameraMode = exportStateToRestore.cameraSettings.mode;
   cameraSettingsTarget.cameraView = exportStateToRestore.cameraSettings.view;
@@ -11992,8 +11816,8 @@ function closeExportDialog() {
   applyCameraSnapshot(exportStateToRestore.camera, exportStateToRestore.camera.viewportAspect);
   syncCameraModeButtons(exportStateToRestore.cameraSettings.mode);
   syncCameraViewButtons(exportStateToRestore.cameraSettings.view);
-  primarySelection = exportStateToRestore.selected;
-  multiSelection = exportStateToRestore.selectedMany;
+  state.primarySelection = exportStateToRestore.selected;
+  state.multiSelection = exportStateToRestore.selectedMany;
   for (const { key: restoreGroupKey, group: restoreGroupController } of collectLightGroups()) {
     if (exportStateToRestore.groupStates.has(restoreGroupKey)) {
       restoreGroupController.enabled = exportStateToRestore.groupStates.get(restoreGroupKey);
@@ -12010,7 +11834,7 @@ function closeExportDialog() {
         exportStateToRestore.carChargingStates.get(restoreCarKey);
     }
   }
-  renderer.setPixelRatio(exportStateToRestore.pixelRatio);
+  state.renderer.setPixelRatio(exportStateToRestore.pixelRatio);
   refreshPreviewScene();
   applyRenderQualityMode();
   handleStageResize();
@@ -12021,7 +11845,7 @@ function closeExportDialog() {
  * 切换导出忙碌态：禁用对话框内除「关闭」与「导出」之外的控件，并显示忙碌提示。
  */
 function setExportBusy(busyState: any) {
-  isExportBusy = busyState;
+  state.isExportBusy = busyState;
   const busyNoticeElement = selectElement("#export-busy-notice");
   if (busyNoticeElement) {
     busyNoticeElement.hidden = !busyState;
@@ -12037,15 +11861,15 @@ function setExportBusy(busyState: any) {
     syncCameraViewControls();
     renderExportPresetSlots();
   }
-  orbitControls.enabled = !busyState;
+  state.orbitControls.enabled = !busyState;
 }
 /**
  * 连渲三帧后再截图，抹平首帧可能缺纹理 / 阴影的问题（导出抓图前统一调用）。
  */
 function renderExportPreviewFrames() {
-  orbitControls.update();
+  state.orbitControls.update();
   for (let previewFramePass = 0; previewFramePass < 3; previewFramePass += 1) {
-    renderer.render(previewOverlayScene, previewCamera);
+    state.renderer.render(state.previewOverlayScene, state.previewCamera);
   }
 }
 /**
@@ -12077,7 +11901,7 @@ async function captureStageImage(captureWidth: any, captureHeight: any, captureO
   if (!captureContext) {
     throw new Error("当前浏览器无法创建导出画布。");
   }
-  captureContext.drawImage(renderer.domElement, 0, 0, captureWidth, captureHeight);
+  captureContext.drawImage(state.renderer.domElement, 0, 0, captureWidth, captureHeight);
   const captureResult: any = {};
   if (captureOptions.pixels) {
     captureResult.imageData = captureContext.getImageData(0, 0, captureWidth, captureHeight);
@@ -12143,7 +11967,7 @@ async function compositeLightGroupShadows(
         "/" +
         enabledGroupLights.length +
         "）";
-      forcedVisibleLightIds = new Set([currentGroupLight.id]);
+      state.forcedVisibleLightIds = new Set([currentGroupLight.id]);
       if (currentPreviewFloorMode() === "all") {
         refreshPreviewScene({
           preserveLightCache: true
@@ -12170,7 +11994,7 @@ async function compositeLightGroupShadows(
       await yieldToScheduler();
     }
   } finally {
-    forcedVisibleLightIds = null;
+    state.forcedVisibleLightIds = null;
   }
   return canvasToBlob(shadowCompositeCanvas);
 }
@@ -12244,13 +12068,13 @@ function reserveExportFileName(
  * @returns {object} 相机状态快照；正交模式下 fov 记为 null。
  */
 function buildExportCameraState(aspectViewportWidth: any, aspectViewportHeight: any) {
-  const orbitControlTarget = orbitControls.target;
+  const orbitControlTarget = state.orbitControls.target;
   return {
-    mode: previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+    mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
     position: {
-      x: previewCamera.position.x,
-      y: previewCamera.position.y,
-      z: previewCamera.position.z
+      x: state.previewCamera.position.x,
+      y: state.previewCamera.position.y,
+      z: state.previewCamera.position.z
     },
     target: {
       x: orbitControlTarget.x,
@@ -12258,8 +12082,8 @@ function buildExportCameraState(aspectViewportWidth: any, aspectViewportHeight: 
       z: orbitControlTarget.z
     },
     aspect: aspectViewportWidth / aspectViewportHeight,
-    visibleHeight: measureVisibleHeight(previewCamera, orbitControlTarget),
-    fov: previewCamera.isPerspectiveCamera ? previewCamera.fov : null
+    visibleHeight: measureVisibleHeight(state.previewCamera, orbitControlTarget),
+    fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : null
   };
 }
 /**
@@ -12294,7 +12118,7 @@ function buildExportedLight(lightSourceItem: any, owningFloor = getCurrentFloor(
  * 把某个锚点（灯光 / 设备）投影到当前相机画面，返回 0~1 的归一化屏幕坐标。全楼合并模式下先把「平面像素 + 楼层
  */
 function projectAnchorToFloorPlan(anchorItem: any, anchorFloor: any, floorCandidates = previewFloors()) {
-  if (!anchorItem || !anchorFloor || !previewCamera) {
+  if (!anchorItem || !anchorFloor || !state.previewCamera) {
     return null;
   }
   const anchorPixelsPerMeter = anchorFloor.scene?.calibration?.pixelsPerMeter || 1;
@@ -12326,7 +12150,7 @@ function projectAnchorToFloorPlan(anchorItem: any, anchorFloor: any, floorCandid
       0,
       floorsSortedByElevation.findIndex(stackFloorEntry => stackFloorEntry.id === anchorFloor.id)
     );
-    anchorElevation += floorStackIndex * finite(studioDocument.exportFloorGap, 3);
+    anchorElevation += floorStackIndex * finite(state.studioDocument.exportFloorGap, 3);
   } else {
     const singleFloorScene = anchorFloor.scene;
     const singleFloorBounds = singleFloorScene.walls?.length
@@ -12349,12 +12173,12 @@ function projectAnchorToFloorPlan(anchorItem: any, anchorFloor: any, floorCandid
       (finite(anchorItem.y, 0) - (singleFloorBounds.minY + singleFloorBounds.maxY) / 2) /
       anchorPixelsPerMeter;
   }
-  previewCamera.updateMatrixWorld(true);
+  state.previewCamera.updateMatrixWorld(true);
   const projectedAnchorPoint = new threeModuleMin.Vector3(
     anchorOffsetX,
     anchorElevation,
     anchorOffsetZ
-  ).project(previewCamera);
+  ).project(state.previewCamera);
   if (
     ![projectedAnchorPoint.x, projectedAnchorPoint.y, projectedAnchorPoint.z].every(
       Number.isFinite
@@ -12417,8 +12241,8 @@ function isolateExportVisibility(
   refreshPreviewScene();
 }
 function setExportRoleVisibility(exportRole: any, roleVisibility: any) {
-  if (previewModelRoot) {
-    previewModelRoot.traverse((roleTargetObject: any) => {
+  if (state.previewModelRoot) {
+    state.previewModelRoot.traverse((roleTargetObject: any) => {
       if (roleTargetObject.userData?.exportRole === exportRole) {
         roleTargetObject.visible = roleVisibility;
       }
@@ -12433,8 +12257,8 @@ function setExportRoleVisibility(exportRole: any, roleVisibility: any) {
  * @param {string} [chosenAction="cancel"] "overwrite" 或 "cancel"。
  */
 function settleOverwriteChoice(chosenAction = "cancel") {
-  const pendingOverwriteResolver = overwriteConfirmResolve;
-  overwriteConfirmResolve = null;
+  const pendingOverwriteResolver = state.overwriteConfirmResolve;
+  state.overwriteConfirmResolve = null;
   if (exportOverwriteDialogElement.open) {
     exportOverwriteDialogElement.close();
   }
@@ -12497,7 +12321,7 @@ function showEmbeddedOverwriteDialog(hostWindow: any, displayFolderName: any) {
  * 询问用户是否覆盖已存在的同名导出文件夹。内嵌场景走父窗口自绘对话框；独立页面用页面内的 <dialog>，结果通过模块级
  */
 function requestOverwriteDecision(overwriteFolderName: any) {
-  if (overwriteConfirmResolve) {
+  if (state.overwriteConfirmResolve) {
     settleOverwriteChoice("cancel");
   }
   if (isAutoDiagramEmbed && autoDiagramComponentId && window.parent !== window) {
@@ -12506,7 +12330,7 @@ function requestOverwriteDecision(overwriteFolderName: any) {
     exportOverwriteNameElement.textContent = overwriteFolderName;
     exportOverwriteDialogElement.showModal();
     return new Promise(overwriteDecisionResolver => {
-      overwriteConfirmResolve = overwriteDecisionResolver;
+      state.overwriteConfirmResolve = overwriteDecisionResolver;
     });
   }
 }
@@ -12539,7 +12363,7 @@ function showExportCompleteDialog(exportOutcome: any) {
   }
 }
 async function runStudioExport() {
-  if (!exportRenderState || isExportBusy) {
+  if (!state.exportRenderState || state.isExportBusy) {
     return;
   }
   saveActiveExportPreset();
@@ -12594,7 +12418,7 @@ async function runStudioExport() {
           exportFloorEntries.length > 1
             ? lightGroupFloorEntry.name + "-" + groupEntry.name
             : groupEntry.name,
-        enabledInEditor: exportRenderState.groupStates.get(groupExportKey) !== false,
+        enabledInEditor: state.exportRenderState.groupStates.get(groupExportKey) !== false,
         file: reserveExportFileName(
           exportFloorEntries.length > 1
             ? lightGroupFloorEntry.name + "-" + groupEntry.name
@@ -12620,7 +12444,7 @@ async function runStudioExport() {
         "" +
         (exportFloorEntries.length > 1 ? tvExportFloor.name + "-" : "") +
         (tvExportItem.screenLayerName || "电视画面 " + (tvExportOrdinal + 1)),
-      enabledInEditor: exportRenderState.tvStates.get(tvExportKey) !== false,
+      enabledInEditor: state.exportRenderState.tvStates.get(tvExportKey) !== false,
       floor: tvExportFloor,
       item: tvExportItem,
       file: null
@@ -12641,7 +12465,7 @@ async function runStudioExport() {
         "" +
         (exportFloorEntries.length > 1 ? vehicleExportFloor.name + "-" : "") +
         (vehicleExportItem.chargingLayerName || "汽车充电 " + (vehicleExportOrdinal + 1)),
-      chargingInEditor: exportRenderState.carChargingStates.get(vehicleExportKey) === true,
+      chargingInEditor: state.exportRenderState.carChargingStates.get(vehicleExportKey) === true,
       floor: vehicleExportFloor,
       item: vehicleExportItem,
       file: null
@@ -12714,8 +12538,8 @@ async function runStudioExport() {
       }
       isOverwriteConfirmed = true;
     }
-    renderer.setPixelRatio(1);
-    renderer.setSize(renderWidthPx, renderHeightPx, false);
+    state.renderer.setPixelRatio(1);
+    state.renderer.setSize(renderWidthPx, renderHeightPx, false);
     applyCameraSnapshot(savedCameraSnapshot, renderWidthPx / renderHeightPx);
     setHighShadowQuality(true);
     exportStatusElement.textContent = "正在生成精细阴影导出图层…";
@@ -12850,7 +12674,7 @@ async function runStudioExport() {
       exportName: exportTargetFolderName,
       floorMode: currentPreviewFloorMode(),
       floorPresentationGap:
-        currentPreviewFloorMode() === "all" ? finite(studioDocument.exportFloorGap, 3) : 0,
+        currentPreviewFloorMode() === "all" ? finite(state.studioDocument.exportFloorGap, 3) : 0,
       floors: exportFloorEntries.map((manifestFloor: any) => ({
         id: manifestFloor.id,
         name: manifestFloor.name,
@@ -13012,7 +12836,7 @@ async function runStudioExport() {
         window.location.origin
       );
     }
-    isExportComplete = true;
+    state.isExportComplete = true;
     updateOnboardingSteps();
     showExportCompleteDialog(exportUploadResponse);
   } catch (exportError: any) {
@@ -13039,20 +12863,20 @@ async function runStudioExport() {
       key: restoreGroupStateKey,
       group: restoreGroupStateController
     } of collectLightGroups()) {
-      if (exportRenderState?.groupStates.has(restoreGroupStateKey)) {
+      if (state.exportRenderState?.groupStates.has(restoreGroupStateKey)) {
         restoreGroupStateController.enabled =
-          exportRenderState.groupStates.get(restoreGroupStateKey);
+          state.exportRenderState.groupStates.get(restoreGroupStateKey);
       }
     }
     for (const { key: restoreTvStateKey, item: restoreTvStateController } of collectTelevisions()) {
-      if (exportRenderState?.tvStates.has(restoreTvStateKey)) {
-        restoreTvStateController.screenEnabled = exportRenderState.tvStates.get(restoreTvStateKey);
+      if (state.exportRenderState?.tvStates.has(restoreTvStateKey)) {
+        restoreTvStateController.screenEnabled = state.exportRenderState.tvStates.get(restoreTvStateKey);
       }
     }
     for (const { key: restoreCarStateKey, item: restoreCarStateController } of collectCars()) {
-      if (exportRenderState?.carChargingStates.has(restoreCarStateKey)) {
+      if (state.exportRenderState?.carChargingStates.has(restoreCarStateKey)) {
         restoreCarStateController.chargingEnabled =
-          exportRenderState.carChargingStates.get(restoreCarStateKey);
+          state.exportRenderState.carChargingStates.get(restoreCarStateKey);
       }
     }
     refreshPreviewScene();
@@ -13065,9 +12889,9 @@ async function runStudioExport() {
  * 清空预览模型根节点下的全部子节点，并逐个释放其 GPU 资源。先复制 children 再遍历：
  */
 function clearPreviewModel() {
-  if (previewModelRoot) {
-    for (const removedChild of [...previewModelRoot.children]) {
-      previewModelRoot.remove(removedChild);
+  if (state.previewModelRoot) {
+    for (const removedChild of [...state.previewModelRoot.children]) {
+      state.previewModelRoot.remove(removedChild);
       disposeSceneSubtree(removedChild);
     }
   }
@@ -13233,7 +13057,7 @@ function addStripLightPreview(previewParent: any, stripLightItem: any) {
   previewGroup.userData.lightSourcePreview = true;
   previewGroup.visible =
     stripLightItem.lightSourceVisible !== false &&
-    !exportRenderState &&
+    !state.exportRenderState &&
     isSelected("item", stripLightItem.id);
   const lightEmissiveColor = kelvinToRgbHex(stripLightItem.lightTemperature) || 16762219;
   const stripDepth = clamp(finite(stripLightItem.depth, 0.28), 0.1, 8);
@@ -13485,7 +13309,7 @@ function buildPlanLabelMesh(labelSettings: any) {
   labelContext.stroke();
   const labelTexture = new threeModuleMin.CanvasTexture(labelCanvasElement);
   labelTexture.colorSpace = threeModuleMin.SRGBColorSpace;
-  labelTexture.anisotropy = Math.min(renderer?.capabilities?.getMaxAnisotropy?.() || 1, 8);
+  labelTexture.anisotropy = Math.min(state.renderer?.capabilities?.getMaxAnisotropy?.() || 1, 8);
   labelTexture.needsUpdate = true;
   const labelMesh = new threeModuleMin.Mesh(
     new threeModuleMin.PlaneGeometry(labelSettings.width, labelSettings.depth),
@@ -13509,7 +13333,7 @@ function buildPlanLabelMesh(labelSettings: any) {
 function collectShadowCastingLightIds() {
   return new Set(
     selectShadowCastingLightIds(
-      activeScene.items.map((sceneLightItem: any) => ({
+      state.activeScene.items.map((sceneLightItem: any) => ({
         id: sceneLightItem.id,
         groupId: sceneLightItem.lightGroupId,
         type: sceneLightItem.type,
@@ -13526,7 +13350,7 @@ function collectShadowCastingLightIds() {
 /**
  * @returns {number} 单 mesh 最大纹理单元数。
  */
-function maxTexturesPerMesh(measuredRoot = previewModelRoot) {
+function maxTexturesPerMesh(measuredRoot = state.previewModelRoot) {
   let maxTextureCount = 0;
   measuredRoot?.traverse((measuredMesh: any) => {
     if (!measuredMesh.isMesh) {
@@ -13541,7 +13365,7 @@ function maxTexturesPerMesh(measuredRoot = previewModelRoot) {
       maxTextureCount = Math.max(maxTextureCount, countMaterialTextures(meshMaterial));
     }
   });
-  if (previewOverlayScene?.environment?.isTexture) {
+  if (state.previewOverlayScene?.environment?.isTexture) {
     maxTextureCount += 1;
   }
   return maxTextureCount;
@@ -13550,14 +13374,14 @@ function maxTexturesPerMesh(measuredRoot = previewModelRoot) {
  * @returns {number} 可用的最大纹理单元数（至少为 1）。
  */
 function queryMaxTextureUnits() {
-  const glContext = renderer?.getContext?.();
+  const glContext = state.renderer?.getContext?.();
   const maxImageUnits = glContext?.getParameter?.(glContext.MAX_TEXTURE_IMAGE_UNITS);
-  return Math.max(1, Math.floor(finite(maxImageUnits, renderer?.capabilities?.maxTextures || 16)));
+  return Math.max(1, Math.floor(finite(maxImageUnits, state.renderer?.capabilities?.maxTextures || 16)));
 }
 /**
  * @returns {Array<object>} 候选项列表（id / groupId / type / brightness / enabled）。
  */
-function collectSpotShadowCandidates(shadowSearchRoot = previewModelRoot) {
+function collectSpotShadowCandidates(shadowSearchRoot = state.previewModelRoot) {
   const shadowCandidates: any = [];
   shadowSearchRoot?.traverse((spotlightNode: any) => {
     if (!spotlightNode.isSpotLight || spotlightNode.userData?.shadowCandidate !== true) {
@@ -13578,7 +13402,7 @@ function collectSpotShadowCandidates(shadowSearchRoot = previewModelRoot) {
   return shadowCandidates;
 }
 function applyShadowBudget(
-  shadowRoot = previewModelRoot,
+  shadowRoot = state.previewModelRoot,
   { rebuildAtlas: shouldRebuildAtlas = true } = {}
 ) {
   if (isRegionLightingEnabled) {
@@ -13588,19 +13412,19 @@ function applyShadowBudget(
         regionLightNode.layers.set(REGION_LIGHT_LAYER);
       }
     });
-    if (renderer) {
-      renderer.domElement.dataset.spotShadowMode = "region";
-      renderer.domElement.dataset.activeSpotShadows = "0";
+    if (state.renderer) {
+      state.renderer.domElement.dataset.spotShadowMode = "region";
+      state.renderer.domElement.dataset.activeSpotShadows = "0";
     }
     return 0;
   }
-  if (!shadowRoot || !renderer) {
+  if (!shadowRoot || !state.renderer) {
     return 0;
   }
   const fragmentTextureUnits = queryMaxTextureUnits();
   const materialTextureUnits = maxTexturesPerMesh(shadowRoot);
   let nonSpotShadowTextureUnits = 0;
-  previewOverlayScene?.traverse((overlayLightNode: any) => {
+  state.previewOverlayScene?.traverse((overlayLightNode: any) => {
     if (
       overlayLightNode.visible !== false &&
       overlayLightNode.isLight &&
@@ -13623,12 +13447,12 @@ function applyShadowBudget(
     nonSpotShadowTextureUnits -
     rectAreaTextureUnits -
     RESERVED_TEXTURE_UNITS;
-  if (!exportRenderState && spotShadowAtlasController && availableSpotShadowUnits >= 1) {
+  if (!state.exportRenderState && state.spotShadowAtlasController && availableSpotShadowUnits >= 1) {
     const spotShadowLimit = shouldRebuildAtlas
-      ? spotShadowAtlasController.schedule(shadowRoot)
+      ? state.spotShadowAtlasController.schedule(shadowRoot)
       : collectSpotShadowCandidates(shadowRoot).length;
-    const activeSpotShadowCount = spotShadowAtlasController.sync(shadowRoot);
-    const atlasCanvasElement = renderer.domElement;
+    const activeSpotShadowCount = state.spotShadowAtlasController.sync(shadowRoot);
+    const atlasCanvasElement = state.renderer.domElement;
     atlasCanvasElement.dataset.fragmentTextureUnits = String(fragmentTextureUnits);
     atlasCanvasElement.dataset.materialTextureUnits = String(materialTextureUnits);
     atlasCanvasElement.dataset.spotShadowLimit = String(spotShadowLimit);
@@ -13654,9 +13478,9 @@ function applyShadowBudget(
     reservedTextureUnits: RESERVED_TEXTURE_UNITS,
     hardLimit: MAX_SPOT_SHADOW_TEXTURE_UNITS
   });
-  if (exportRenderState && spotShadowAtlasController) {
-    spotShadowAtlasController.setEnabled(false);
-    spotShadowAtlasController.sync(shadowRoot);
+  if (state.exportRenderState && state.spotShadowAtlasController) {
+    state.spotShadowAtlasController.setEnabled(false);
+    state.spotShadowAtlasController.sync(shadowRoot);
   }
   const shadowCastingKeySet = new Set(
     selectShadowCastingLightIds(collectSpotShadowCandidates(shadowRoot), computedShadowLimit)
@@ -13679,7 +13503,7 @@ function applyShadowBudget(
       }
     }
   });
-  const individualShadowCanvas = renderer.domElement;
+  const individualShadowCanvas = state.renderer.domElement;
   individualShadowCanvas.dataset.spotShadowMode = "individual";
   individualShadowCanvas.dataset.fragmentTextureUnits = String(fragmentTextureUnits);
   individualShadowCanvas.dataset.materialTextureUnits = String(materialTextureUnits);
@@ -13705,10 +13529,10 @@ function addLightFixtureToScene(fixtureParent: any, lightFixtureItem: any, prewa
   const isFixtureOn =
     isLightEnabled(lightFixtureItem) && finite(lightFixtureItem.lightBrightness, 0) > 0;
   const shouldRefreshLight =
-    !exportRenderState &&
-    forcedVisibleLightIds === null &&
+    !state.exportRenderState &&
+    state.forcedVisibleLightIds === null &&
     (isStageViewerMode || !isAdaptiveLightCacheEnabled());
-  const isRebuildingModels = !exportRenderState && isRebuildingLightModels;
+  const isRebuildingModels = !state.exportRenderState && state.isRebuildingLightModels;
   if (!isFixtureOn && !shouldRefreshLight && !isRebuildingModels) {
     return;
   }
@@ -13760,13 +13584,13 @@ function addLightFixtureToScene(fixtureParent: any, lightFixtureItem: any, prewa
     rectAreaLight.rotation.x = -Math.PI / 2;
     rectAreaLight.userData.lightItemId = lightFixtureItem.id;
     rectAreaLight.userData.lightGroupId = owningLightGroup?.id || "";
-    rectAreaLight.userData.lightFloorId = activeFloorId;
+    rectAreaLight.userData.lightFloorId = state.activeFloorId;
     rectAreaLight.userData.lightSourceType = "continuous-area-strip";
     rectAreaLight.userData.lightOnIntensity = stripIntensity;
     if (isRegionLightingEnabled) {
       rectAreaLight.userData.regionFullIntensity =
         rangeRatio * 48 * elevationGain * brightnessScale;
-      regionLightController?.register(rectAreaLight, lightFixtureItem);
+      state.regionLightController?.register(rectAreaLight, lightFixtureItem);
     }
     rollLightGroup.add(rectAreaLight);
     yawLightGroup.add(rollLightGroup);
@@ -13823,7 +13647,7 @@ function addLightFixtureToScene(fixtureParent: any, lightFixtureItem: any, prewa
       spotLight.shadow.bias = -0.00005;
       spotLight.shadow.normalBias = spotShadowSettings.normalBias;
       spotLight.shadow.radius = spotShadowSettings.radius;
-      spotLight.shadow.blurSamples = isHighShadowQuality
+      spotLight.shadow.blurSamples = state.isHighShadowQuality
         ? Math.max(8, spotShadowSettings.blurSamples)
         : spotShadowSettings.blurSamples;
       spotLight.shadow.autoUpdate = false;
@@ -13831,7 +13655,7 @@ function addLightFixtureToScene(fixtureParent: any, lightFixtureItem: any, prewa
     }
     spotLight.userData.lightItemId = lightFixtureItem.id;
     spotLight.userData.lightGroupId = owningLightGroup?.id || "";
-    spotLight.userData.lightFloorId = activeFloorId;
+    spotLight.userData.lightFloorId = state.activeFloorId;
     spotLight.userData.lightType = lightFixtureItem.type;
     spotLight.userData.lightBrightness = finite(
       lightFixtureItem.lightBrightness,
@@ -13843,7 +13667,7 @@ function addLightFixtureToScene(fixtureParent: any, lightFixtureItem: any, prewa
     if (isRegionLightingEnabled) {
       spotLight.userData.regionFullIntensity =
         (lightFixtureItem.type === "ceilinglight" ? 680 : 520) * brightnessScale;
-      regionLightController?.register(spotLight, lightFixtureItem);
+      state.regionLightController?.register(spotLight, lightFixtureItem);
     }
     const spotTarget = new threeModuleMin.Object3D();
     spotTarget.position.set(
@@ -13870,7 +13694,7 @@ function createTelevisionPosterTexture() {
   drawTelevisionPoster(posterCanvasElement, posterContext);
   const posterTexture = new threeModuleMin.CanvasTexture(posterCanvasElement);
   posterTexture.colorSpace = threeModuleMin.SRGBColorSpace;
-  posterTexture.anisotropy = Math.min(renderer?.capabilities?.getMaxAnisotropy?.() || 1, 8);
+  posterTexture.anisotropy = Math.min(state.renderer?.capabilities?.getMaxAnisotropy?.() || 1, 8);
   posterTexture.needsUpdate = true;
   return posterTexture;
 }
@@ -13997,7 +13821,7 @@ function addTelevisionScreenMeshes(
  * @returns {number} 最大各向异性倍数。
  */
 function studioMaxTextureAnisotropy() {
-  return renderer?.capabilities?.getMaxAnisotropy?.() || 1;
+  return state.renderer?.capabilities?.getMaxAnisotropy?.() || 1;
 }
 function buildMuralItemMeshGroup(
   group: any,
@@ -14465,15 +14289,15 @@ function batchRepeatedItemMeshes(instanceRoot: any, instanceItemEntries: any) {
     });
   }
   instanceRoot.userData.instanceBatchStats = instanceBatchStats;
-  if (renderer?.domElement) {
-    renderer.domElement.dataset.instanceBatchCount = String(instanceBatchStats.length);
-    renderer.domElement.dataset.instanceCount = String(
+  if (state.renderer?.domElement) {
+    state.renderer.domElement.dataset.instanceBatchCount = String(instanceBatchStats.length);
+    state.renderer.domElement.dataset.instanceCount = String(
       instanceBatchStats.reduce(
         (totalInstances, instanceBatchStat) => totalInstances + instanceBatchStat.instances,
         0
       )
     );
-    renderer.domElement.dataset.instanceDrawCallsSaved = String(
+    state.renderer.domElement.dataset.instanceDrawCallsSaved = String(
       instanceBatchStats.reduce(
         (totalReduction, geometryBatchStat) =>
           totalReduction + geometryBatchStat.before - geometryBatchStat.after,
@@ -14729,9 +14553,9 @@ function mergeStaticItemMeshes(staticBatchRoot: any, staticItemEntries: any) {
     }
   }
   staticBatchRoot.userData.staticItemBatchStats = staticBatchStats;
-  if (renderer?.domElement) {
-    renderer.domElement.dataset.staticItemBatchCount = String(staticBatchStats.length);
-    renderer.domElement.dataset.staticItemDrawCallsSaved = String(
+  if (state.renderer?.domElement) {
+    state.renderer.domElement.dataset.staticItemBatchCount = String(staticBatchStats.length);
+    state.renderer.domElement.dataset.staticItemDrawCallsSaved = String(
       staticBatchStats.reduce(
         (totalRemoved, staticBatchStat) =>
           totalRemoved + staticBatchStat.before - staticBatchStat.after,
@@ -14746,7 +14570,7 @@ function mergeStaticItemMeshes(staticBatchRoot: any, staticItemEntries: any) {
  */
 function collectExternalModelSignatures() {
   const materialSignatures = new Set();
-  previewModelRoot?.traverse((externalModelNode: any) => {
+  state.previewModelRoot?.traverse((externalModelNode: any) => {
     if (!externalModelNode.isMesh || !externalModelNode.userData.externalModelSharedGeometry) {
       return;
     }
@@ -14764,14 +14588,14 @@ function collectExternalModelSignatures() {
   return [...materialSignatures];
 }
 function publishExternalMaterialStats() {
-  if (!renderer?.domElement) {
+  if (!state.renderer?.domElement) {
     return;
   }
   const materialLoadState = externalModelManager.modelLoadState();
-  renderer.domElement.dataset.externalSharedMaterialCount = String(materialLoadState.materials);
-  renderer.domElement.dataset.externalMaterialReuseCount = String(materialLoadState.materialReuses);
-  renderer.domElement.dataset.externalPrecompilePassCount = String(externalPrecompilePassCount);
-  renderer.domElement.dataset.lightPrecompilePassCount = String(lightPrecompilePassCount);
+  state.renderer.domElement.dataset.externalSharedMaterialCount = String(materialLoadState.materials);
+  state.renderer.domElement.dataset.externalMaterialReuseCount = String(materialLoadState.materialReuses);
+  state.renderer.domElement.dataset.externalPrecompilePassCount = String(state.externalPrecompilePassCount);
+  state.renderer.domElement.dataset.lightPrecompilePassCount = String(state.lightPrecompilePassCount);
 }
 function lightConfigurationSignature(countedLights: any) {
   let spotLightTotal = 0;
@@ -14792,12 +14616,12 @@ function lightConfigurationSignature(countedLights: any) {
   return spotLightTotal + ":" + rectAreaLightCount + ":" + pointLightCount + ":" + otherLightCount;
 }
 function buildLightPrecompilePlan() {
-  if (!previewModelRoot) {
+  if (!state.previewModelRoot) {
     return [];
   }
   const visibleLights: any = [];
   const lightsByGroupId = new Map();
-  previewModelRoot.traverse((traversedLight: any) => {
+  state.previewModelRoot.traverse((traversedLight: any) => {
     if (
       !traversedLight.isLight ||
       !traversedLight.userData?.lightItemId ||
@@ -14820,9 +14644,9 @@ function buildLightPrecompilePlan() {
   const seenLightSignatures = new Set();
   const builtPrecompilePlan: any = [];
   const currentLightSignature = lightConfigurationSignature(visibleLights);
-  const lightPrecompileCacheKey = previewModelRoot.uuid + ":" + externalPrecompilePassCount;
-  if (appliedLightPrecompileSignature !== lightPrecompileCacheKey) {
-    appliedLightPrecompileSignature = lightPrecompileCacheKey;
+  const lightPrecompileCacheKey = state.previewModelRoot.uuid + ":" + state.externalPrecompilePassCount;
+  if (state.appliedLightPrecompileSignature !== lightPrecompileCacheKey) {
+    state.appliedLightPrecompileSignature = lightPrecompileCacheKey;
     precompiledLightSignatures.clear();
   }
   const addPrecompileChanges = (signatureLights: any, reportedLightChanges: any, forceEntry = false) => {
@@ -14898,9 +14722,9 @@ function buildLightPrecompilePlan() {
  */
 function isLightPrecompilePending() {
   return (
-    isPageUnloading ||
+    state.isPageUnloading ||
     document.hidden ||
-    (isStageViewerMode && (!isFrameLoopAvailable || renderCache?.closed))
+    (isStageViewerMode && (!state.isFrameLoopAvailable || renderCache?.closed))
   );
 }
 /**
@@ -14909,34 +14733,34 @@ function isLightPrecompilePending() {
  */
 function isCameraGestureActive() {
   return (
-    exportRenderState ||
-    isCameraMotionActive ||
-    isExportRendering ||
-    isLightCacheBuilding ||
-    isExternalPrecompileRunning ||
-    (isStageViewerMode && (isMotionRendering || lightTransitionSession)) ||
+    state.exportRenderState ||
+    state.isCameraMotionActive ||
+    state.isExportRendering ||
+    state.isLightCacheBuilding ||
+    state.isExternalPrecompileRunning ||
+    (isStageViewerMode && (state.isMotionRendering || state.lightTransitionSession)) ||
     (!isStageViewerMode && isAdaptiveLightCacheEnabled())
   );
 }
 function scheduleLightPrecompile(precompileDelayMs = 360) {
-  if (!isRegionLightingEnabled && !isAutoDiagramEmbed && !isPageUnloading) {
-    shouldRerunLightPrecompile = true;
-    window.clearTimeout(lightPrecompileTimer);
-    if (!isLightPrecompileRunning && !isLightPrecompilePending()) {
-      lightPrecompileTimer = window.setTimeout(async () => {
-        lightPrecompileTimer = null;
+  if (!isRegionLightingEnabled && !isAutoDiagramEmbed && !state.isPageUnloading) {
+    state.shouldRerunLightPrecompile = true;
+    window.clearTimeout(state.lightPrecompileTimer);
+    if (!state.isLightPrecompileRunning && !isLightPrecompilePending()) {
+      state.lightPrecompileTimer = window.setTimeout(async () => {
+        state.lightPrecompileTimer = null;
         if (isLightPrecompilePending()) {
           return;
         }
         const precompileModelLoadState = externalModelManager.modelLoadState();
         if (
-          !renderer ||
-          !previewOverlayScene ||
-          !previewCamera ||
-          !previewModelRoot ||
+          !state.renderer ||
+          !state.previewOverlayScene ||
+          !state.previewCamera ||
+          !state.previewModelRoot ||
           isCameraGestureActive() ||
-          areExternalModelsDeferred ||
-          deferredModelTimer ||
+          state.areExternalModelsDeferred ||
+          state.deferredModelTimer ||
           precompileModelLoadState.active > 0 ||
           precompileModelLoadState.queued > 0
         ) {
@@ -14944,17 +14768,17 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
           return;
         }
         const pendingPrecompilePlan = buildLightPrecompilePlan();
-        const capturedRoot = previewModelRoot;
-        const capturedOverlayScene = previewOverlayScene;
-        const capturedRenderer = renderer;
+        const capturedRoot = state.previewModelRoot;
+        const capturedOverlayScene = state.previewOverlayScene;
+        const capturedRenderer = state.renderer;
         if (!pendingPrecompilePlan.length) {
-          shouldRerunLightPrecompile = false;
+          state.shouldRerunLightPrecompile = false;
           capturedRenderer.domElement.dataset.lightPrecompileState = "ready";
           publishExternalMaterialStats();
           return;
         }
-        isLightPrecompileRunning = true;
-        shouldRerunLightPrecompile = false;
+        state.isLightPrecompileRunning = true;
+        state.shouldRerunLightPrecompile = false;
         capturedRenderer.domElement.dataset.lightPrecompileState = "working";
         capturedRenderer.domElement.dataset.lightPrecompilePlanCount = String(
           pendingPrecompilePlan.length
@@ -14963,10 +14787,10 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
          * @returns {boolean} true 表示可以继续应用当前计划。
          */
         const isPlanStillCurrent = () =>
-          previewModelRoot === capturedRoot &&
-          previewOverlayScene === capturedOverlayScene &&
-          renderer === capturedRenderer &&
-          !shouldRerunLightPrecompile &&
+          state.previewModelRoot === capturedRoot &&
+          state.previewOverlayScene === capturedOverlayScene &&
+          state.renderer === capturedRenderer &&
+          !state.shouldRerunLightPrecompile &&
           !isLightPrecompilePending() &&
           !isCameraGestureActive();
         let shouldApplyPlan = true;
@@ -14975,7 +14799,7 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
             await yieldToIdle();
             if (!isPlanStillCurrent()) {
               shouldApplyPlan = false;
-              shouldRerunLightPrecompile = true;
+              state.shouldRerunLightPrecompile = true;
               break;
             }
             const appliedLightChanges = planEntry.changes.map(
@@ -14998,7 +14822,7 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
               compilePromise = waitForShaderCompilation(
                 capturedRenderer,
                 capturedOverlayScene,
-                previewCamera,
+                state.previewCamera,
                 isPlanStillCurrent
               );
             } finally {
@@ -15013,10 +14837,10 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
             if (!(await compilePromise) || !isPlanStillCurrent()) {
               shouldApplyPlan = false;
               capturedRenderer.domElement.dataset.lightPrecompileDeferred = "true";
-              shouldRerunLightPrecompile ||= !isPlanStillCurrent();
+              state.shouldRerunLightPrecompile ||= !isPlanStillCurrent();
               break;
             }
-            lightPrecompilePassCount += 1;
+            state.lightPrecompilePassCount += 1;
             precompiledLightSignatures.add(planEntry.signature);
           }
           if (shouldApplyPlan) {
@@ -15030,9 +14854,9 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
           // 预编译只是优化，跳过不是故障；状态已经写在 dataset 上，控制台这份只在 ?debug=1 时出现。
           debugLog("debug", "3D first-light precompile skipped", precompileError);
         } finally {
-          isLightPrecompileRunning = false;
+          state.isLightPrecompileRunning = false;
           publishExternalMaterialStats();
-          if (shouldRerunLightPrecompile) {
+          if (state.shouldRerunLightPrecompile) {
             scheduleLightPrecompile(240);
           }
         }
@@ -15041,15 +14865,15 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
   }
 }
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && shouldRerunLightPrecompile) {
+  if (!document.hidden && state.shouldRerunLightPrecompile) {
     scheduleLightPrecompile();
   }
 });
 window.addEventListener(
   "pagehide",
   () => {
-    isPageUnloading = true;
-    window.clearTimeout(lightPrecompileTimer);
+    state.isPageUnloading = true;
+    window.clearTimeout(state.lightPrecompileTimer);
   },
   {
     once: true
@@ -15057,51 +14881,51 @@ window.addEventListener(
 );
 function scheduleModelPrecompile(modelPrecompileDelayMs = 0) {
   if (!isRegionLightingEnabled) {
-    shouldRerunExternalPrecompile = true;
-    window.clearTimeout(externalPrecompileTimer);
-    if (!isExternalPrecompileRunning) {
-      externalPrecompileTimer = window.setTimeout(async () => {
-        externalPrecompileTimer = null;
+    state.shouldRerunExternalPrecompile = true;
+    window.clearTimeout(state.externalPrecompileTimer);
+    if (!state.isExternalPrecompileRunning) {
+      state.externalPrecompileTimer = window.setTimeout(async () => {
+        state.externalPrecompileTimer = null;
         if (
-          !renderer ||
-          !previewOverlayScene ||
-          !previewCamera ||
-          !previewModelRoot ||
-          exportRenderState ||
+          !state.renderer ||
+          !state.previewOverlayScene ||
+          !state.previewCamera ||
+          !state.previewModelRoot ||
+          state.exportRenderState ||
           document.hidden ||
-          isCameraMotionActive ||
-          isExportRendering ||
-          isLightCacheBuilding
+          state.isCameraMotionActive ||
+          state.isExportRendering ||
+          state.isLightCacheBuilding
         ) {
           scheduleModelPrecompile(240);
           return;
         }
         const modelSignatures = collectExternalModelSignatures();
         if (!modelSignatures.length) {
-          shouldRerunExternalPrecompile = false;
+          state.shouldRerunExternalPrecompile = false;
           publishExternalMaterialStats();
           scheduleLightPrecompile();
           return;
         }
-        isExternalPrecompileRunning = true;
-        shouldRerunExternalPrecompile = false;
-        renderer.domElement.dataset.externalPrecompileState = "working";
+        state.isExternalPrecompileRunning = true;
+        state.shouldRerunExternalPrecompile = false;
+        state.renderer.domElement.dataset.externalPrecompileState = "working";
         try {
-          applyShadowBudget(previewModelRoot, {
+          applyShadowBudget(state.previewModelRoot, {
             rebuildAtlas: false
           });
-          renderer.compile(previewOverlayScene, previewCamera);
+          state.renderer.compile(state.previewOverlayScene, state.previewCamera);
           modelSignatures.forEach(modelSignature => precompiledModelSignatures.add(modelSignature as any));
-          externalPrecompilePassCount += 1;
-          renderer.domElement.dataset.externalPrecompileState = "ready";
+          state.externalPrecompilePassCount += 1;
+          state.renderer.domElement.dataset.externalPrecompileState = "ready";
         } catch (modelPrecompileError) {
-          renderer.domElement.dataset.externalPrecompileState = "fallback";
+          state.renderer.domElement.dataset.externalPrecompileState = "fallback";
           // 与首帧预编译同理：跳过只是落到 fallback，控制台这份只在 ?debug=1 时出现。
           debugLog("debug", "3D model precompile skipped", modelPrecompileError);
         } finally {
-          isExternalPrecompileRunning = false;
+          state.isExternalPrecompileRunning = false;
           publishExternalMaterialStats();
-          if (shouldRerunExternalPrecompile) {
+          if (state.shouldRerunExternalPrecompile) {
             scheduleModelPrecompile(120);
           } else {
             scheduleLightPrecompile();
@@ -15118,42 +14942,42 @@ function applySceneRefresh(refreshOptions: any = {}) {
     : "all";
   if (!isLivePreviewEnabled() && !isRefreshForced) {
     if (refreshOptions.transient !== true) {
-      isPreviewDirty = true;
+      state.isPreviewDirty = true;
     }
     syncPreviewControls();
     return;
   }
   if (isRefreshForced) {
-    isForcedSceneUpdate = true;
+    state.isForcedSceneUpdate = true;
     pendingSceneUpdateScopes.add("all");
   } else {
     pendingSceneUpdateScopes.add(normalizedScope);
   }
   if (refreshOptions.precompile === true) {
-    shouldPrecompileExternalModels = true;
+    state.shouldPrecompileExternalModels = true;
   }
   if (refreshOptions.preserveLightCache !== true) {
-    shouldInvalidateLightCache = true;
+    state.shouldInvalidateLightCache = true;
   }
-  if (!isSceneUpdateQueued) {
-    isSceneUpdateQueued = true;
+  if (!state.isSceneUpdateQueued) {
+    state.isSceneUpdateQueued = true;
     requestAnimationFrame(() => {
-      isSceneUpdateQueued = false;
-      if (isExportRendering && !isForcedSceneUpdate) {
+      state.isSceneUpdateQueued = false;
+      if (state.isExportRendering && !state.isForcedSceneUpdate) {
         return;
       }
-      const shouldRefreshNow = isLivePreviewEnabled() || isForcedSceneUpdate;
-      isForcedSceneUpdate = false;
+      const shouldRefreshNow = isLivePreviewEnabled() || state.isForcedSceneUpdate;
+      state.isForcedSceneUpdate = false;
       if (!shouldRefreshNow) {
-        isPreviewDirty = true;
+        state.isPreviewDirty = true;
         syncPreviewControls();
         return;
       }
       const pendingScopes = new Set(pendingSceneUpdateScopes);
       pendingSceneUpdateScopes.clear();
-      const shouldPreserveLightCache = !shouldInvalidateLightCache;
-      shouldInvalidateLightCache = false;
-      if (pendingScopes.has("all") || !activeScene.walls.length) {
+      const shouldPreserveLightCache = !state.shouldInvalidateLightCache;
+      state.shouldInvalidateLightCache = false;
+      if (pendingScopes.has("all") || !state.activeScene.walls.length) {
         refreshPreviewScene({
           preserveLightCache: shouldPreserveLightCache
         });
@@ -15162,13 +14986,13 @@ function applySceneRefresh(refreshOptions: any = {}) {
           preserveLightCache: shouldPreserveLightCache
         });
       }
-      const shouldPrecompileModels = shouldPrecompileExternalModels;
-      shouldPrecompileExternalModels = false;
+      const shouldPrecompileModels = state.shouldPrecompileExternalModels;
+      state.shouldPrecompileExternalModels = false;
       publishExternalMaterialStats();
       if (shouldPrecompileModels || collectExternalModelSignatures().length) {
         scheduleModelPrecompile();
       }
-      isPreviewDirty = false;
+      state.isPreviewDirty = false;
       syncPreviewControls();
     });
   }
@@ -15177,20 +15001,20 @@ function applySceneRefresh(refreshOptions: any = {}) {
  * 求当前场景「需要取景的范围」（平面包围盒，单位：平面像素）。优先只按墙体计算 —— 墙体才代表建筑轮廓；没有墙时退化为
  */
 function computeFloorBounds() {
-  if (activeScene.walls.length) {
+  if (state.activeScene.walls.length) {
     return modelBounds({
       background: null,
-      walls: activeScene.walls,
+      walls: state.activeScene.walls,
       items: []
     });
-  } else if (activeScene.items.length) {
+  } else if (state.activeScene.items.length) {
     return modelBounds({
       background: null,
       walls: [],
-      items: activeScene.items
+      items: state.activeScene.items
     });
   } else {
-    return modelBounds(activeScene);
+    return modelBounds(state.activeScene);
   }
 }
 function makeWallSideMaterial(sideColor: any, sideOpacity: any, wallSideMaterialOptions: any = {}) {
@@ -15307,7 +15131,7 @@ function addWallExtrusion(
       "z",
       topY,
       -1,
-      activeScene.settings.wallHeight
+      state.activeScene.settings.wallHeight
     );
     if (isWallShaderTrialEnabled() && extrusionOptions.polygonOffset !== true) {
       const extractedPoints = extrusionShapeLoop.extractPoints(1);
@@ -15336,7 +15160,7 @@ function addWallExtrusion(
     }
     extrudedWallMesh.receiveShadow = receivesShadow;
     extrudedWallMesh.renderOrder = extrusionOptions.renderOrder ?? 4;
-    previewModelRoot.add(extrudedWallMesh);
+    state.previewModelRoot.add(extrudedWallMesh);
   }
 }
 function addPlanBandMesh(bandLoops: any, wallBandY: any, bandColor: any, bandOpacity: any, bandOptions: any = {}) {
@@ -15367,7 +15191,7 @@ function addPlanBandMesh(bandLoops: any, wallBandY: any, bandColor: any, bandOpa
     if (isStageViewerMode && bandMaterial.transparent) {
       bandMaterial.forceSinglePass = true;
     }
-    previewModelRoot.add(bandMesh);
+    state.previewModelRoot.add(bandMesh);
   }
 }
 function addFloorEdgeOutline(edgeLoop: any, outlineColor: any, edgeSurfaceY: any) {
@@ -15433,7 +15257,7 @@ function addFloorEdgeOutline(edgeLoop: any, outlineColor: any, edgeSurfaceY: any
     outlineMesh.renderOrder = 3;
     outlineMesh.userData.exportRole = "outline";
     outlineMesh.userData.batchedFloorEdgeCount = edgeLoop.length;
-    previewModelRoot.add(outlineMesh);
+    state.previewModelRoot.add(outlineMesh);
   }
   if (capGeometry) {
     const capMesh = new threeModuleMin.Mesh(
@@ -15450,7 +15274,7 @@ function addFloorEdgeOutline(edgeLoop: any, outlineColor: any, edgeSurfaceY: any
     capMesh.renderOrder = 2;
     capMesh.userData.exportRole = "outline";
     capMesh.userData.batchedFloorEdgeCount = edgeLoop.length;
-    previewModelRoot.add(capMesh);
+    state.previewModelRoot.add(capMesh);
   }
 }
 function addFloorContactShadow(shadowPolygons: any, shadowSurfaceY: any) {
@@ -15490,7 +15314,7 @@ function addFloorContactShadow(shadowPolygons: any, shadowSurfaceY: any) {
   );
   contactShadowMesh.renderOrder = 1;
   contactShadowMesh.userData.batchedWallContactShadowCount = shapes.length;
-  previewModelRoot.add(contactShadowMesh);
+  state.previewModelRoot.add(contactShadowMesh);
 }
 /**
  * 判断是否启用墙面试验着色器。此前 `?wall-trial=...` 可覆盖编译期默认值、不必重新构建就能对比
@@ -15552,7 +15376,7 @@ function addFloorGrid(gridSize: any, gridPalette: any, gridHeightY: any) {
     }
     gridHelper.getWorldPosition(gridWorldPosition);
     const gridCameraDistance = Math.max(
-      activeCamera.position.distanceTo(orbitControls?.target || gridWorldPosition),
+      activeCamera.position.distanceTo(state.orbitControls?.target || gridWorldPosition),
       1
     );
     const viewHeight = activeCamera.isOrthographicCamera
@@ -15574,7 +15398,7 @@ function addFloorGrid(gridSize: any, gridPalette: any, gridHeightY: any) {
   gridHelper.position.y = gridHeightY + 0.012;
   gridHelper.renderOrder = 2;
   gridHelper.userData.exportRole = "grid";
-  previewModelRoot.add(gridHelper);
+  state.previewModelRoot.add(gridHelper);
 }
 function addFloorGroundShadow(groundShadowPolygon: any, groundShadowSurfaceY: any, holes: any = []) {
   if (!Array.isArray(groundShadowPolygon) || groundShadowPolygon.length < 3) {
@@ -15629,7 +15453,7 @@ function addFloorGroundShadow(groundShadowPolygon: any, groundShadowSurfaceY: an
     groundShadowMesh.position.y = groundShadowSurfaceY + 0.001 + layerIndex * 0.00015;
     groundShadowMesh.userData.floorPlanGroundShadow = true;
     groundShadowMesh.renderOrder = 1 + layerIndex;
-    previewModelRoot.add(groundShadowMesh);
+    state.previewModelRoot.add(groundShadowMesh);
   });
 }
 function buildArchitectureLayer({
@@ -15638,34 +15462,34 @@ function buildArchitectureLayer({
   floorSurfaceY: architectureSurfaceY
 }: any) {
   const architecturePalette = studioPalette();
-  const existingChildren = new Set(previewModelRoot.children);
+  const existingChildren = new Set(state.previewModelRoot.children);
   const wallOpenings = [
-    ...activeScene.windows,
-    ...activeScene.doors.map((sourceDoor: any) => ({
+    ...state.activeScene.windows,
+    ...state.activeScene.doors.map((sourceDoor: any) => ({
       ...sourceDoor,
       sill: 0
     })),
-    ...activeScene.railings.map((sourceRailing: any) => {
-      const railingHostWall = activeScene.walls.find(
+    ...state.activeScene.railings.map((sourceRailing: any) => {
+      const railingHostWall = state.activeScene.walls.find(
         (railingWallSpec: any) => railingWallSpec.id === sourceRailing.wallId
       );
       return {
         ...sourceRailing,
         sill: 0,
-        height: railingHostWall?.height || activeScene.settings.wallHeight
+        height: railingHostWall?.height || state.activeScene.settings.wallHeight
       };
     })
   ];
   const wallVolumes = [];
   const seenVolumeKeys = new Set();
   const joinExtensionsByWallId = wallJoinExtensionsForWalls(architecturePixelsPerMeter);
-  for (const loopedWall of activeScene.walls) {
+  for (const loopedWall of state.activeScene.walls) {
     // 墙体透明度覆盖（舞台下发）优先于户型 / 单墙设置；null 表示不覆盖。
     const wallOpacity =
-      wallOpacityOverride ??
+      state.wallOpacityOverride ??
       (loopedWall.opacity === null || loopedWall.opacity === undefined
-        ? activeScene.settings.wallOpacity
-        : clamp(finite(loopedWall.opacity, activeScene.settings.wallOpacity), 0, 1));
+        ? state.activeScene.settings.wallOpacity
+        : clamp(finite(loopedWall.opacity, state.activeScene.settings.wallOpacity), 0, 1));
     for (const loopedSolidPiece of wallSolidPieces(
       loopedWall,
       wallOpenings,
@@ -15796,7 +15620,7 @@ function buildArchitectureLayer({
       });
     }
   }
-  for (const openingHostWall of activeScene.walls) {
+  for (const openingHostWall of state.activeScene.walls) {
     const wallDeltaX = openingHostWall.end.x - openingHostWall.start.x;
     const wallDeltaY = openingHostWall.end.y - openingHostWall.start.y;
     const hostWallLength = Math.hypot(wallDeltaX, wallDeltaY);
@@ -15804,7 +15628,7 @@ function buildArchitectureLayer({
       continue;
     }
     const wallRotationY = -Math.atan2(wallDeltaY, wallDeltaX);
-    for (const loopedWindowSpec of activeScene.windows.filter(
+    for (const loopedWindowSpec of state.activeScene.windows.filter(
       (filteredWindowSpec: any) => filteredWindowSpec.wallId === openingHostWall.id
     )) {
       const windowT = clampWindowT(openingHostWall, loopedWindowSpec, architecturePixelsPerMeter);
@@ -15856,9 +15680,9 @@ function buildArchitectureLayer({
         before: windowParts.divided ? 6 : 5,
         after: 2
       };
-      previewModelRoot.add(windowGroup);
+      state.previewModelRoot.add(windowGroup);
     }
-    for (const loopedRailingSpec of activeScene.railings.filter(
+    for (const loopedRailingSpec of state.activeScene.railings.filter(
       (filteredRailingSpec: any) => filteredRailingSpec.wallId === openingHostWall.id
     )) {
       const railingT = clampWindowT(openingHostWall, loopedRailingSpec, architecturePixelsPerMeter);
@@ -15951,9 +15775,9 @@ function buildArchitectureLayer({
         before: 2 + railingPostCount * 2,
         after: 3
       };
-      previewModelRoot.add(railingGroup);
+      state.previewModelRoot.add(railingGroup);
     }
-    for (const loopedDoorSpec of activeScene.doors.filter(
+    for (const loopedDoorSpec of state.activeScene.doors.filter(
       (filteredDoorSpec: any) => filteredDoorSpec.wallId === openingHostWall.id
     )) {
       const doorT = clampWindowT(openingHostWall, loopedDoorSpec, architecturePixelsPerMeter);
@@ -15982,7 +15806,7 @@ function buildArchitectureLayer({
       if (isStageViewerMode) {
         doorGroup.userData.environmentModelId = "door:" + loopedDoorSpec.id;
         doorGroup.userData.environmentModelType = "door";
-        doorGroup.userData.environmentFloorId = activeFloorId;
+        doorGroup.userData.environmentFloorId = state.activeFloorId;
         doorGroup.userData.doorAnimationType =
           hostDoorType === "sliding-glass"
             ? "sliding"
@@ -16033,7 +15857,7 @@ function buildArchitectureLayer({
           before: 3,
           after: 1
         };
-        previewModelRoot.add(doorGroup);
+        state.previewModelRoot.add(doorGroup);
         continue;
       }
       if (hostDoorType === "sliding-glass") {
@@ -16150,7 +15974,7 @@ function buildArchitectureLayer({
           before: 15,
           after: 5
         };
-        previewModelRoot.add(doorGroup);
+        state.previewModelRoot.add(doorGroup);
         continue;
       }
       if (hostDoorType === "roller-shutter") {
@@ -16216,7 +16040,7 @@ function buildArchitectureLayer({
           before: 5 + shutterSlatCount,
           after: 3
         };
-        previewModelRoot.add(doorGroup);
+        state.previewModelRoot.add(doorGroup);
         continue;
       }
       if (hostDoorType === "entry") {
@@ -16301,7 +16125,7 @@ function buildArchitectureLayer({
           before: 7,
           after: 4
         };
-        previewModelRoot.add(doorGroup);
+        state.previewModelRoot.add(doorGroup);
         continue;
       }
       if (hostDoorType === "double") {
@@ -16433,7 +16257,7 @@ function buildArchitectureLayer({
           before: 7,
           after: 3
         };
-        previewModelRoot.add(doorGroup);
+        state.previewModelRoot.add(doorGroup);
         continue;
       }
       const isHingeRight = loopedDoorSpec.hinge === "right";
@@ -16510,10 +16334,10 @@ function buildArchitectureLayer({
         before: hostDoorType === "glass" ? 9 : 5,
         after: hostDoorType === "glass" ? 4 : 3
       };
-      previewModelRoot.add(doorGroup);
+      state.previewModelRoot.add(doorGroup);
     }
   }
-  for (const architectureChild of previewModelRoot.children) {
+  for (const architectureChild of state.previewModelRoot.children) {
     if (!existingChildren.has(architectureChild)) {
       architectureChild.userData.modelLayer = "architecture";
       architectureChild.traverse((architectureNode: any) => {
@@ -16534,11 +16358,11 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   }
   rugGeometryBySizeKey.clear();
   rugMaterialByColorKey.clear();
-  contactShadowController?.invalidate();
-  if (isRegionLightingEnabled && previewModelRoot) {
-    previewModelRoot.userData.regionFloorId = activeFloorId;
+  state.contactShadowController?.invalidate();
+  if (isRegionLightingEnabled && state.previewModelRoot) {
+    state.previewModelRoot.userData.regionFloorId = state.activeFloorId;
   }
-  if (!previewModelRoot) {
+  if (!state.previewModelRoot) {
     return;
   }
   applyBaseLighting();
@@ -16554,8 +16378,8 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   }
   const scenePalette = studioPalette();
   const sceneFloorBounds = computeFloorBounds();
-  const sceneFocusX = floorFocusPoint?.x ?? (sceneFloorBounds.minX + sceneFloorBounds.maxX) / 2;
-  const sceneFocusY = floorFocusPoint?.y ?? (sceneFloorBounds.minY + sceneFloorBounds.maxY) / 2;
+  const sceneFocusX = state.floorFocusPoint?.x ?? (sceneFloorBounds.minX + sceneFloorBounds.maxX) / 2;
+  const sceneFocusY = state.floorFocusPoint?.y ?? (sceneFloorBounds.minY + sceneFloorBounds.maxY) / 2;
   /**
    * @returns {{x: number, z: number}} 世界坐标（米）。
    */
@@ -16581,7 +16405,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   backgroundMesh.position.y = sceneGridY;
   backgroundMesh.receiveShadow = false;
   backgroundMesh.userData.exportRole = "background";
-  previewModelRoot.add(backgroundMesh);
+  state.previewModelRoot.add(backgroundMesh);
   addFloorGrid(groundPlaneSize, scenePalette, sceneGridY);
   const floorMaterial = new threeModuleMin.MeshStandardMaterial({
     color: scenePalette.floor,
@@ -16593,7 +16417,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   // 暖阳原木：往地面材质里注入「浅色橡木地板 + 板缝 + 木纹」的着色器补丁，
   decorateWarmFloor(floorMaterial, scenePalette);
   const floorPolygons = floorPolygonsForWalls(scenePixelsPerMeter);
-  const floorOpeningItems = activeScene.items
+  const floorOpeningItems = state.activeScene.items
     .filter((candidateItem: any) => candidateItem.type === "flooropening")
     .map((openingItem: any) =>
       floorOpeningPolygon(openingItem, scenePixelsPerMeter).map(polygonPlanPoint => {
@@ -16609,7 +16433,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
    */
   const addFloorSurfaceMeshes = (surfacePolygons: any) => {
     addFloorGroundShadow(surfacePolygons, sceneGridY);
-    if (activeScene.settings.floorEdgeVisible !== false) {
+    if (state.activeScene.settings.floorEdgeVisible !== false) {
       addFloorEdgeOutline(surfacePolygons, scenePalette.floorEdge, floorTopY);
     }
   };
@@ -16621,8 +16445,8 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     floorMesh.receiveShadow = true;
     floorMesh.userData.exportRole = "plan";
     floorMesh.userData.regionReceiverKind = "floor";
-    floorMesh.userData.regionFloorId = activeFloorId;
-    previewModelRoot.add(floorMesh);
+    floorMesh.userData.regionFloorId = state.activeFloorId;
+    state.previewModelRoot.add(floorMesh);
     if (!floorOpeningItems.length) {
       addFloorSurfaceMeshes(slabPolygons);
     }
@@ -16681,7 +16505,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
         z: outlinePoint.y
       }));
       addFloorGroundShadow(outlineLoop, sceneGridY, floorOpeningItems);
-      if (activeScene.settings.floorEdgeVisible !== false) {
+      if (state.activeScene.settings.floorEdgeVisible !== false) {
         addFloorEdgeOutline(outlineLoop, scenePalette.floorEdge, floorTopY);
       }
     }
@@ -16743,7 +16567,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
   });
   const sceneShadowLightIds = collectShadowCastingLightIds();
   const placedItemEntries = [];
-  for (const placedItemSpec of activeScene.items) {
+  for (const placedItemSpec of state.activeScene.items) {
     const placedPlanPoint = toWorldPoint(placedItemSpec);
     if (placedItemSpec.type === "flooropening") {
       continue;
@@ -16779,7 +16603,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     ) {
       placedItemModel.userData.environmentModelId = placedItemSpec.id;
       placedItemModel.userData.environmentModelType = placedItemSpec.type;
-      placedItemModel.userData.environmentFloorId = activeFloorId;
+      placedItemModel.userData.environmentFloorId = state.activeFloorId;
     }
     placedItemModel.position.set(
       placedPlanPoint.x,
@@ -16791,7 +16615,7 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
       ? "lights"
       : "items";
     placedItemModel.userData.exportRole = placedItemSpec.type === "planlabel" ? "label" : "plan";
-    previewModelRoot.add(placedItemModel);
+    state.previewModelRoot.add(placedItemModel);
     if (!LIGHT_ITEM_TYPES.has(placedItemSpec.type)) {
       placedItemEntries.push({
         item: placedItemSpec,
@@ -16799,25 +16623,25 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
       });
     }
   }
-  batchRepeatedItemMeshes(previewModelRoot, placedItemEntries);
-  mergeStaticItemMeshes(previewModelRoot, placedItemEntries);
-  previewModelRoot.traverse((untaggedNode: any) => {
-    if (untaggedNode !== previewModelRoot && !untaggedNode.userData.exportRole) {
+  batchRepeatedItemMeshes(state.previewModelRoot, placedItemEntries);
+  mergeStaticItemMeshes(state.previewModelRoot, placedItemEntries);
+  state.previewModelRoot.traverse((untaggedNode: any) => {
+    if (untaggedNode !== state.previewModelRoot && !untaggedNode.userData.exportRole) {
       untaggedNode.userData.exportRole = "plan";
     }
   });
-  applyShadowBudget(previewModelRoot, {
+  applyShadowBudget(state.previewModelRoot, {
     rebuildAtlas: !rebuildPreserveLightCache
   });
   if (isStageViewerMode) {
-    cacheObjectTransforms(previewModelRoot, threeModuleMin.Object3D);
+    cacheObjectTransforms(state.previewModelRoot, threeModuleMin.Object3D);
   }
 }
 /**
  * @returns {string} "all" 叠放全部楼层，"active" 只看当前楼层。
  */
 function currentPreviewFloorMode() {
-  if (studioDocument?.previewFloorMode === "all" && studioDocument.floors.length > 1) {
+  if (state.studioDocument?.previewFloorMode === "all" && state.studioDocument.floors.length > 1) {
     return "all";
   } else {
     return "active";
@@ -16825,7 +16649,7 @@ function currentPreviewFloorMode() {
 }
 function syncPreviewFloorButtons() {
   const previewMode = currentPreviewFloorMode();
-  const hasSeveralFloors = (studioDocument?.floors.length || 0) > 1;
+  const hasSeveralFloors = (state.studioDocument?.floors.length || 0) > 1;
   for (const floorModeButton of previewFloorButtons) {
     const isActiveFloorButton = (floorModeButton as any).dataset.previewFloor === previewMode;
     floorModeButton.classList.toggle("active", isActiveFloorButton);
@@ -16834,9 +16658,9 @@ function syncPreviewFloorButtons() {
   }
 }
 function setPreviewFloorMode(mode: any, { persist: persistPreviewMode = true } = {}) {
-  if (studioDocument) {
-    studioDocument.previewFloorMode =
-      mode === "all" && studioDocument.floors.length > 1 ? "all" : "active";
+  if (state.studioDocument) {
+    state.studioDocument.previewFloorMode =
+      mode === "all" && state.studioDocument.floors.length > 1 ? "all" : "active";
     syncPreviewFloorButtons();
     syncCameraViewControls();
     applyCameraMode(currentCameraMode(), {
@@ -16851,7 +16675,7 @@ function setPreviewFloorMode(mode: any, { persist: persistPreviewMode = true } =
   }
 }
 function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = false } = {}) {
-  if (!previewModelRoot) {
+  if (!state.previewModelRoot) {
     return;
   }
   if (currentPreviewFloorMode() !== "all") {
@@ -16861,10 +16685,10 @@ function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = f
     fitDirectionalShadowCamera();
     return;
   }
-  const refreshRootSnapshot = previewModelRoot;
-  const refreshSceneSnapshot = activeScene;
-  const refreshFloorIdSnapshot = activeFloorId;
-  const refreshFocusSnapshot = floorFocusPoint;
+  const refreshRootSnapshot = state.previewModelRoot;
+  const refreshSceneSnapshot = state.activeScene;
+  const refreshFloorIdSnapshot = state.activeFloorId;
+  const refreshFocusSnapshot = state.floorFocusPoint;
   applyBaseLighting();
   clearPreviewModel();
   invalidateRender({
@@ -16872,20 +16696,20 @@ function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = f
     scene: true,
     preserveLightCache: refreshPreserveLightCache
   });
-  const refreshSortedFloors = [...studioDocument.floors].sort(
+  const refreshSortedFloors = [...state.studioDocument.floors].sort(
     (sortedFloorA, sortedFloorB) => sortedFloorA.elevation - sortedFloorB.elevation
   );
-  const verticalFloorGap = exportRenderState
-    ? finite(studioDocument.exportFloorGap, 3)
-    : finite(studioDocument.previewFloorGap, 3);
+  const verticalFloorGap = state.exportRenderState
+    ? finite(state.studioDocument.exportFloorGap, 3)
+    : finite(state.studioDocument.previewFloorGap, 3);
   refreshSortedFloors.forEach((stackedFloor, iteratedFloorIndex) => {
     const createdFloorGroup = new threeModuleMin.Group();
     createdFloorGroup.name = "floor-" + stackedFloor.id;
     createdFloorGroup.userData.floorId = stackedFloor.id;
-    previewModelRoot = createdFloorGroup;
-    activeScene = stackedFloor.scene;
-    activeFloorId = stackedFloor.id;
-    floorFocusPoint = {
+    state.previewModelRoot = createdFloorGroup;
+    state.activeScene = stackedFloor.scene;
+    state.activeFloorId = stackedFloor.id;
+    state.floorFocusPoint = {
       x: finite(stackedFloor.originX, 0),
       y: finite(stackedFloor.originY, 0)
     };
@@ -16915,11 +16739,11 @@ function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = f
     );
     refreshRootSnapshot.add(createdFloorGroup);
   });
-  previewModelRoot = refreshRootSnapshot;
-  activeScene = refreshSceneSnapshot;
-  activeFloorId = refreshFloorIdSnapshot;
-  floorFocusPoint = refreshFocusSnapshot;
-  applyShadowBudget(previewModelRoot, {
+  state.previewModelRoot = refreshRootSnapshot;
+  state.activeScene = refreshSceneSnapshot;
+  state.activeFloorId = refreshFloorIdSnapshot;
+  state.floorFocusPoint = refreshFocusSnapshot;
+  applyShadowBudget(state.previewModelRoot, {
     rebuildAtlas: !refreshPreserveLightCache
   });
   fitDirectionalShadowCamera();
@@ -16933,20 +16757,20 @@ function refreshPreviewScene({ preserveLightCache: refreshPreserveLightCache = f
  * 只重建指定楼层（楼层内容变化时的增量切换）。叠放模式下若目标楼层对应的 Group 尚未建出（或楼层列表与场景不同步），
  */
 function switchPreviewFloor(targetFloorIds: any) {
-  if (!targetFloorIds.size || !previewModelRoot) {
+  if (!targetFloorIds.size || !state.previewModelRoot) {
     return;
   }
   if (currentPreviewFloorMode() !== "all") {
-    if (targetFloorIds.has(activeFloorId)) {
+    if (targetFloorIds.has(state.activeFloorId)) {
       refreshPreviewScene();
     }
     return;
   }
-  const switchRootSnapshot = previewModelRoot;
-  const switchSceneSnapshot = activeScene;
-  const switchFloorIdSnapshot = activeFloorId;
-  const switchFocusSnapshot = floorFocusPoint;
-  const switchSortedFloors = [...studioDocument.floors].sort(
+  const switchRootSnapshot = state.previewModelRoot;
+  const switchSceneSnapshot = state.activeScene;
+  const switchFloorIdSnapshot = state.activeFloorId;
+  const switchFocusSnapshot = state.floorFocusPoint;
+  const switchSortedFloors = [...state.studioDocument.floors].sort(
     (switchFloorA, switchFloorB) => switchFloorA.elevation - switchFloorB.elevation
   );
   if (
@@ -16964,47 +16788,47 @@ function switchPreviewFloor(targetFloorIds: any) {
     for (const [targetFloorIndex, targetFloorRecord] of switchSortedFloors.entries()) {
       if (
         targetFloorIds.has(targetFloorRecord.id) &&
-        ((previewModelRoot = switchRootSnapshot.children.find(
+        ((state.previewModelRoot = switchRootSnapshot.children.find(
           (foundFloorChild: any) => foundFloorChild.userData?.floorId === targetFloorRecord.id
         )),
-        (activeScene = targetFloorRecord.scene),
-        (activeFloorId = targetFloorRecord.id),
-        (floorFocusPoint = {
+        (state.activeScene = targetFloorRecord.scene),
+        (state.activeFloorId = targetFloorRecord.id),
+        (state.floorFocusPoint = {
           x: finite(targetFloorRecord.originX, 0),
           y: finite(targetFloorRecord.originY, 0)
         }),
-        previewModelRoot.position.set(
+        state.previewModelRoot.position.set(
           finite(targetFloorRecord.offsetX, 0),
-          targetFloorIndex * studioDocument.previewFloorGap,
+          targetFloorIndex * state.studioDocument.previewFloorGap,
           finite(targetFloorRecord.offsetZ, 0)
         ),
-        previewModelRoot.rotation.set(
+        state.previewModelRoot.rotation.set(
           0,
           -threeModuleMin.MathUtils.degToRad(finite(targetFloorRecord.rotation, 0)),
           0
         ),
-        previewModelRoot.scale.set(1, 1, 1),
+        state.previewModelRoot.scale.set(1, 1, 1),
         rebuildPreviewScene(),
         targetFloorIndex > 0)
       ) {
-        for (const hiddenFloorChild of [...previewModelRoot.children]) {
+        for (const hiddenFloorChild of [...state.previewModelRoot.children]) {
           if (["background", "grid"].includes(hiddenFloorChild.userData?.exportRole)) {
             if (isStageViewerMode) {
               hiddenFloorChild.userData.floorBackgroundHidden = true;
               hiddenFloorChild.visible = false;
               continue;
             }
-            previewModelRoot.remove(hiddenFloorChild);
+            state.previewModelRoot.remove(hiddenFloorChild);
             disposeSceneSubtree(hiddenFloorChild);
           }
         }
       }
     }
   } finally {
-    previewModelRoot = switchRootSnapshot;
-    activeScene = switchSceneSnapshot;
-    activeFloorId = switchFloorIdSnapshot;
-    floorFocusPoint = switchFocusSnapshot;
+    state.previewModelRoot = switchRootSnapshot;
+    state.activeScene = switchSceneSnapshot;
+    state.activeFloorId = switchFloorIdSnapshot;
+    state.floorFocusPoint = switchFocusSnapshot;
   }
   applyShadowBudget(switchRootSnapshot);
   fitDirectionalShadowCamera();
@@ -17018,8 +16842,8 @@ function computeFloorPlanContext() {
     return null;
   }
   const planFloorBounds = computeFloorBounds();
-  const planFocusX = floorFocusPoint?.x ?? (planFloorBounds.minX + planFloorBounds.maxX) / 2;
-  const planFocusY = floorFocusPoint?.y ?? (planFloorBounds.minY + planFloorBounds.maxY) / 2;
+  const planFocusX = state.floorFocusPoint?.x ?? (planFloorBounds.minX + planFloorBounds.maxX) / 2;
+  const planFocusY = state.floorFocusPoint?.y ?? (planFloorBounds.minY + planFloorBounds.maxY) / 2;
   return {
     ppm: planContextPixelsPerMeter,
     floorSurfaceY: -0.008,
@@ -17035,10 +16859,10 @@ function computeFloorPlanContext() {
  * @param {string} removedLayerName 图层名（模型节点的 userData.modelLayer）。
  */
 function removeModelLayer(removedLayerName: any) {
-  if (previewModelRoot) {
-    for (const layerChild of [...previewModelRoot.children]) {
+  if (state.previewModelRoot) {
+    for (const layerChild of [...state.previewModelRoot.children]) {
       if (layerChild.userData.modelLayer === removedLayerName) {
-        previewModelRoot.remove(layerChild);
+        state.previewModelRoot.remove(layerChild);
         disposeSceneSubtree(layerChild);
       }
     }
@@ -17048,10 +16872,10 @@ function rebuildModelLayer(
   rebuiltLayerName: any,
   {
     preserveLightCache: layerPreserveLightCache = false,
-    shadowRoot: layerShadowRoot = previewModelRoot
+    shadowRoot: layerShadowRoot = state.previewModelRoot
   } = {}
 ) {
-  if (!previewModelRoot) {
+  if (!state.previewModelRoot) {
     return;
   }
   const layerFloorPlanContext = computeFloorPlanContext();
@@ -17062,7 +16886,7 @@ function rebuildModelLayer(
   const isLightsLayer = rebuiltLayerName === "lights";
   const layerShadowLightIds = isLightsLayer ? collectShadowCastingLightIds() : null;
   const layeredItemEntries = [];
-  for (const layerItemSpec of activeScene.items) {
+  for (const layerItemSpec of state.activeScene.items) {
     if (LIGHT_ITEM_TYPES.has(layerItemSpec.type) !== isLightsLayer) {
       continue;
     }
@@ -17101,12 +16925,12 @@ function rebuildModelLayer(
     ) {
       layerItemModel.userData.environmentModelId = layerItemSpec.id;
       layerItemModel.userData.environmentModelType = layerItemSpec.type;
-      layerItemModel.userData.environmentFloorId = activeFloorId;
+      layerItemModel.userData.environmentFloorId = state.activeFloorId;
     }
     layerItemModel.position.set(layerPlanPoint.x, layerItemSpec.elevation || 0, layerPlanPoint.z);
     applyItemOrientation(layerItemModel, layerItemSpec);
     layerItemModel.userData.modelLayer = rebuiltLayerName;
-    previewModelRoot.add(layerItemModel);
+    state.previewModelRoot.add(layerItemModel);
     if (!isLightsLayer) {
       layeredItemEntries.push({
         item: layerItemSpec,
@@ -17115,14 +16939,14 @@ function rebuildModelLayer(
     }
   }
   if (!isLightsLayer) {
-    batchRepeatedItemMeshes(previewModelRoot, layeredItemEntries);
-    mergeStaticItemMeshes(previewModelRoot, layeredItemEntries);
+    batchRepeatedItemMeshes(state.previewModelRoot, layeredItemEntries);
+    mergeStaticItemMeshes(state.previewModelRoot, layeredItemEntries);
   }
   applyShadowBudget(layerShadowRoot, {
     rebuildAtlas: !layerPreserveLightCache
   });
   if (isStageViewerMode) {
-    cacheObjectTransforms(previewModelRoot, threeModuleMin.Object3D);
+    cacheObjectTransforms(state.previewModelRoot, threeModuleMin.Object3D);
   }
   if (isLightsLayer) {
     applyRenderQualityMode();
@@ -17134,14 +16958,14 @@ function rebuildModelLayer(
 }
 function rebuildArchitectureRoot({
   preserveLightCache: architecturePreserveLightCache = false,
-  shadowRoot: architectureShadowRoot = previewModelRoot
+  shadowRoot: architectureShadowRoot = state.previewModelRoot
 } = {}) {
   const architectureFloorPlanContext = computeFloorPlanContext();
-  if (!!previewModelRoot && !!architectureFloorPlanContext) {
+  if (!!state.previewModelRoot && !!architectureFloorPlanContext) {
     removeModelLayer("architecture");
     buildArchitectureLayer(architectureFloorPlanContext);
     if (!architecturePreserveLightCache) {
-      contactShadowController?.invalidate();
+      state.contactShadowController?.invalidate();
     }
     applyShadowBudget(architectureShadowRoot, {
       rebuildAtlas: !architecturePreserveLightCache
@@ -17168,21 +16992,21 @@ function refreshLightsLayer(lightLayerOptions: any = {}) {
   rebuildModelLayer("lights", lightLayerOptions);
 }
 function refreshSceneScopes(requestedScopes: any, scopeRefreshOptions: any) {
-  const scopeRootSnapshot = previewModelRoot;
-  const scopeFocusSnapshot = floorFocusPoint;
+  const scopeRootSnapshot = state.previewModelRoot;
+  const scopeFocusSnapshot = state.floorFocusPoint;
   if (currentPreviewFloorMode() === "all") {
-    const activeFloorRecord = studioDocument.floors.find(
-      (matchedFloorRecord: any) => matchedFloorRecord.id === activeFloorId
+    const activeFloorRecord = state.studioDocument.floors.find(
+      (matchedFloorRecord: any) => matchedFloorRecord.id === state.activeFloorId
     );
     const activeFloorGroup = scopeRootSnapshot?.children.find(
-      (foundFloorGroup: any) => foundFloorGroup.userData?.floorId === activeFloorId
+      (foundFloorGroup: any) => foundFloorGroup.userData?.floorId === state.activeFloorId
     );
     if (!activeFloorRecord || !activeFloorGroup) {
       refreshPreviewScene(scopeRefreshOptions);
       return;
     }
-    previewModelRoot = activeFloorGroup;
-    floorFocusPoint = {
+    state.previewModelRoot = activeFloorGroup;
+    state.floorFocusPoint = {
       x: finite(activeFloorRecord.originX, 0),
       y: finite(activeFloorRecord.originY, 0)
     };
@@ -17202,8 +17026,8 @@ function refreshSceneScopes(requestedScopes: any, scopeRefreshOptions: any) {
       refreshLightsLayer(layerRefreshOptions);
     }
   } finally {
-    previewModelRoot = scopeRootSnapshot;
-    floorFocusPoint = scopeFocusSnapshot;
+    state.previewModelRoot = scopeRootSnapshot;
+    state.floorFocusPoint = scopeFocusSnapshot;
   }
 }
 /**
@@ -17212,7 +17036,7 @@ function refreshSceneScopes(requestedScopes: any, scopeRefreshOptions: any) {
 function isObjectInExcludedLayer(traversedObject: any, layerFilter: any) {
   for (
     let ancestor = traversedObject;
-    ancestor && ancestor !== previewModelRoot;
+    ancestor && ancestor !== state.previewModelRoot;
     ancestor = ancestor.parent
   ) {
     if (layerFilter.has(ancestor.userData?.modelLayer)) {
@@ -17223,8 +17047,8 @@ function isObjectInExcludedLayer(traversedObject: any, layerFilter: any) {
 }
 function computeSceneBoundingBox({ excludeModelLayers: boundingExcludedLayers = null }: any = {}) {
   const boundingBox = new threeModuleMin.Box3();
-  previewModelRoot.updateWorldMatrix(true, true);
-  previewModelRoot.traverse((measuredNode: any) => {
+  state.previewModelRoot.updateWorldMatrix(true, true);
+  state.previewModelRoot.traverse((measuredNode: any) => {
     if (
       !!measuredNode.isMesh &&
       !["background", "grid", "light-source-preview"].includes(measuredNode.userData?.exportRole) &&
@@ -17250,22 +17074,22 @@ function computeSceneBoundingBox({ excludeModelLayers: boundingExcludedLayers = 
   return boundingBox;
 }
 function fitDirectionalShadowCamera() {
-  if (!isHighShadowQuality || !mainDirectionalLight?.shadow?.camera || !previewModelRoot) {
+  if (!state.isHighShadowQuality || !state.mainDirectionalLight?.shadow?.camera || !state.previewModelRoot) {
     return false;
   }
   const shadowSceneBounds = computeSceneBoundingBox();
   if (shadowSceneBounds.isEmpty()) {
     return false;
   }
-  previewModelRoot.updateWorldMatrix(true, true);
-  mainDirectionalLight.updateWorldMatrix(true, false);
-  mainDirectionalLight.target.updateWorldMatrix(true, false);
-  const shadowCamera = mainDirectionalLight.shadow.camera;
+  state.previewModelRoot.updateWorldMatrix(true, true);
+  state.mainDirectionalLight.updateWorldMatrix(true, false);
+  state.mainDirectionalLight.target.updateWorldMatrix(true, false);
+  const shadowCamera = state.mainDirectionalLight.shadow.camera;
   const lightPosition = new threeModuleMin.Vector3().setFromMatrixPosition(
-    mainDirectionalLight.matrixWorld
+    state.mainDirectionalLight.matrixWorld
   );
   const lightTarget = new threeModuleMin.Vector3().setFromMatrixPosition(
-    mainDirectionalLight.target.matrixWorld
+    state.mainDirectionalLight.target.matrixWorld
   );
   shadowCamera.position.copy(lightPosition);
   shadowCamera.lookAt(lightTarget);
@@ -17295,11 +17119,11 @@ function fitDirectionalShadowCamera() {
   shadowCamera.near = Math.max(0.1, nearDistance - depthMargin);
   shadowCamera.far = Math.max(shadowCamera.near + 1, farDistance + depthMargin);
   shadowCamera.updateProjectionMatrix();
-  mainDirectionalLight.shadow.needsUpdate = true;
+  state.mainDirectionalLight.shadow.needsUpdate = true;
   return true;
 }
 function resetCameraView(cameraViewOptions: any = {}) {
-  if (!previewCamera || !orbitControls) {
+  if (!state.previewCamera || !state.orbitControls) {
     return;
   }
   const nextView =
@@ -17333,47 +17157,47 @@ function resetCameraView(cameraViewOptions: any = {}) {
   const maxWallHeight =
     isFloorOverview && sceneSize
       ? sceneSize.y
-      : Math.max(0, ...activeScene.walls.map((sceneWall: any) => sceneWall.height || 0));
+      : Math.max(0, ...state.activeScene.walls.map((sceneWall: any) => sceneWall.height || 0));
   const frameExtent = Math.max(orthoFrameSize * 1.18, orthoFrameSize + maxWallHeight * 0.32);
-  previewCamera.userData.frameSize = frameExtent;
-  previewCamera.userData.cameraView = nextView;
-  previewCamera.userData.topRotation = viewTopRotationDeg;
+  state.previewCamera.userData.frameSize = frameExtent;
+  state.previewCamera.userData.cameraView = nextView;
+  state.previewCamera.userData.topRotation = viewTopRotationDeg;
   const resetTargetPoint = sceneCenter
     ? new threeModuleMin.Vector3(sceneCenter.x, sceneCenter.y, sceneCenter.z)
     : new threeModuleMin.Vector3(0, Math.min(0.78, orthoFrameSize * 0.055), 0);
   let resetCameraDistance;
-  if (previewCamera.isPerspectiveCamera) {
-    previewCamera.aspect = previewCamera.userData.viewportAspect || 1;
+  if (state.previewCamera.isPerspectiveCamera) {
+    state.previewCamera.aspect = state.previewCamera.userData.viewportAspect || 1;
     applyFocalLength();
     const boundsDiagonal =
       frameExtent /
-      (Math.tan(threeModuleMin.MathUtils.degToRad(previewCamera.getEffectiveFOV()) / 2) * 2);
+      (Math.tan(threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV()) / 2) * 2);
     resetCameraDistance = Math.max(boundsDiagonal * 1.04, orthoFrameSize * 1.65, 8);
   } else {
-    applyOrthographicFrame(frameExtent, previewCamera.userData.viewportAspect || 1);
+    applyOrthographicFrame(frameExtent, state.previewCamera.userData.viewportAspect || 1);
     resetCameraDistance = Math.max(orthoFrameSize * 3.2, 18);
   }
   if (nextView === "top") {
-    previewCamera.up.copy(topViewUpVector(viewTopRotationDeg));
-    previewCamera.position.set(
+    state.previewCamera.up.copy(topViewUpVector(viewTopRotationDeg));
+    state.previewCamera.position.set(
       resetTargetPoint.x,
       resetTargetPoint.y + resetCameraDistance,
       resetTargetPoint.z
     );
   } else {
-    previewCamera.up.set(0, 1, 0);
+    state.previewCamera.up.set(0, 1, 0);
     const resetCameraDirection = new threeModuleMin.Vector3(1.08, 1.7, 1.12).normalize();
-    previewCamera.position
+    state.previewCamera.position
       .copy(resetTargetPoint)
       .addScaledVector(resetCameraDirection, resetCameraDistance);
   }
-  updateCameraClipPlanes(previewCamera, resetTargetPoint);
-  previewCamera.zoom = 1;
-  previewCamera.lookAt(resetTargetPoint);
-  previewCamera.updateProjectionMatrix();
-  orbitControls.target.copy(resetTargetPoint);
+  updateCameraClipPlanes(state.previewCamera, resetTargetPoint);
+  state.previewCamera.zoom = 1;
+  state.previewCamera.lookAt(resetTargetPoint);
+  state.previewCamera.updateProjectionMatrix();
+  state.orbitControls.target.copy(resetTargetPoint);
   applyRenderQualityMode();
-  orbitControls.update();
+  state.orbitControls.update();
 }
 function resolveSnapTarget(snapPointInput: any, anchor: any, forceOrthogonal = false) {
   const snapPixelsPerMeter = currentPixelsPerMeter() || 100;
@@ -17395,9 +17219,9 @@ function resolveSnapTarget(snapPointInput: any, anchor: any, forceOrthogonal = f
       distance: 0
     };
   }
-  const snapSettings = activeScene.settings;
-  return snapPoint(snapPointInput, activeScene.walls, {
-    zoom: viewTransform.zoom,
+  const snapSettings = state.activeScene.settings;
+  return snapPoint(snapPointInput, state.activeScene.walls, {
+    zoom: state.viewTransform.zoom,
     screenTolerance: clamp(Math.round(finite(snapSettings.snapTolerance, 13)), 6, 24),
     anchor: anchor,
     forceOrthogonalAxis: forceOrthogonal,
@@ -17417,96 +17241,96 @@ function resolveSnapTarget(snapPointInput: any, anchor: any, forceOrthogonal = f
 /**
  * @returns {boolean} true 表示吸附到起点、应当闭合。
  */
-function isSnapClosingSpace(snapTargetCandidate = snapTarget) {
-  if (!snapEndpointCandidate || scalePointCount < 2 || !snapTargetCandidate?.point) {
+function isSnapClosingSpace(snapTargetCandidate = state.snapTarget) {
+  if (!state.snapEndpointCandidate || state.scalePointCount < 2 || !snapTargetCandidate?.point) {
     return false;
   }
   const endpointTolerance = Math.max(1, (currentPixelsPerMeter() || 100) * 0.01);
   return (
     snapTargetCandidate.kind === "endpoint" &&
-    distance(snapTargetCandidate.point, snapEndpointCandidate) <= endpointTolerance
+    distance(snapTargetCandidate.point, state.snapEndpointCandidate) <= endpointTolerance
   );
 }
-function updateSnapIndicator(shiftKey = snapOverridePoint) {
-  if (!scaleAnchorPoint) {
+function updateSnapIndicator(shiftKey = state.snapOverridePoint) {
+  if (!state.scaleAnchorPoint) {
     return;
   }
-  scalePreviewCurrent = {
-    ...scaleAnchorPoint
+  state.scalePreviewCurrent = {
+    ...state.scaleAnchorPoint
   };
   const scalePixelsPerMeter = currentPixelsPerMeter() || 100;
-  const snapDisabledLabel = isSnapTemporarilyDisabled ? "吸附：临时关闭" : "吸附：关闭";
-  if (activeTool === "scale" && scalePreviewStart && shiftKey) {
-    const scaleAxisLocked = axisLockedPoint(scaleAnchorPoint, scalePreviewStart);
-    scalePreviewCurrent = scaleAxisLocked.point;
-    snapTarget = null;
+  const snapDisabledLabel = state.isSnapTemporarilyDisabled ? "吸附：临时关闭" : "吸附：关闭";
+  if (state.activeTool === "scale" && state.scalePreviewStart && shiftKey) {
+    const scaleAxisLocked = axisLockedPoint(state.scaleAnchorPoint, state.scalePreviewStart);
+    state.scalePreviewCurrent = scaleAxisLocked.point;
+    state.snapTarget = null;
     snapIndicatorElement.textContent = "吸附：" + scaleAxisLocked.label;
-  } else if (activeTool === "scale") {
-    snapTarget = null;
+  } else if (state.activeTool === "scale") {
+    state.snapTarget = null;
     snapIndicatorElement.textContent = "吸附：自由";
   }
   cursorPositionElement.textContent =
     "X " +
-    (scalePreviewCurrent.x / scalePixelsPerMeter).toFixed(2) +
+    (state.scalePreviewCurrent.x / scalePixelsPerMeter).toFixed(2) +
     " m · Y " +
-    (scalePreviewCurrent.y / scalePixelsPerMeter).toFixed(2) +
+    (state.scalePreviewCurrent.y / scalePixelsPerMeter).toFixed(2) +
     " m";
-  if (activeTool === "wall") {
-    snapTarget = resolveSnapTarget(scaleAnchorPoint, scaleStartPoint, shiftKey);
-    snapIndicatorElement.textContent = isSnapClosingSpace(snapTarget)
+  if (state.activeTool === "wall") {
+    state.snapTarget = resolveSnapTarget(state.scaleAnchorPoint, state.scaleStartPoint, shiftKey);
+    snapIndicatorElement.textContent = isSnapClosingSpace(state.snapTarget)
       ? "闭合：点击闭合空间"
-      : snapTarget.kind
-        ? (!isSnapEnabled() && shiftKey ? "锁定" : "吸附") + "：" + snapTarget.label
+      : state.snapTarget.kind
+        ? (!isSnapEnabled() && shiftKey ? "锁定" : "吸附") + "：" + state.snapTarget.label
         : isSnapEnabled()
           ? "吸附：自由"
           : snapDisabledLabel;
-  } else if (["window", "door", "railing"].includes(activeTool)) {
+  } else if (["window", "door", "railing"].includes(state.activeTool)) {
     const scaleWallHit = nearestWall(
-      scalePreviewCurrent,
-      activeScene.walls,
-      16 / viewTransform.zoom
+      state.scalePreviewCurrent,
+      state.activeScene.walls,
+      16 / state.viewTransform.zoom
     );
     if (scaleWallHit) {
       const previewDoorDimensions =
         DOOR_TYPE_DIMENSIONS[selectedDoorType] || DOOR_TYPE_DIMENSIONS.solid;
       const scalePreviewPoint = {
         width:
-          activeTool === "door" ? previewDoorDimensions.width : activeTool === "railing" ? 2 : 1.4,
+          state.activeTool === "door" ? previewDoorDimensions.width : state.activeTool === "railing" ? 2 : 1.4,
         t: scaleWallHit.t
       };
       const openingSnapTarget = {
         wall: scaleWallHit.wall,
         t: clampWindowT(scaleWallHit.wall, scalePreviewPoint, scalePixelsPerMeter)
       };
-      windowSnapTarget = activeTool === "window" ? openingSnapTarget : null;
-      doorSnapTarget = activeTool === "door" ? openingSnapTarget : null;
-      railingSnapTarget = activeTool === "railing" ? openingSnapTarget : null;
+      state.windowSnapTarget = state.activeTool === "window" ? openingSnapTarget : null;
+      state.doorSnapTarget = state.activeTool === "door" ? openingSnapTarget : null;
+      state.railingSnapTarget = state.activeTool === "railing" ? openingSnapTarget : null;
       snapIndicatorElement.textContent =
-        activeTool === "door"
+        state.activeTool === "door"
           ? "吸附：墙体门洞"
-          : activeTool === "railing"
+          : state.activeTool === "railing"
             ? "吸附：墙体栏杆"
             : "吸附：墙体";
     } else {
-      windowSnapTarget = null;
-      doorSnapTarget = null;
-      railingSnapTarget = null;
+      state.windowSnapTarget = null;
+      state.doorSnapTarget = null;
+      state.railingSnapTarget = null;
       snapIndicatorElement.textContent = "吸附：未找到墙体";
     }
-  } else if (activeTool === "pan") {
-    snapTarget = null;
-    windowSnapTarget = null;
-    doorSnapTarget = null;
-    railingSnapTarget = null;
+  } else if (state.activeTool === "pan") {
+    state.snapTarget = null;
+    state.windowSnapTarget = null;
+    state.doorSnapTarget = null;
+    state.railingSnapTarget = null;
     snapIndicatorElement.textContent = isSnapEnabled() ? "吸附：开启" : snapDisabledLabel;
     planCanvasElement.style.cursor = "";
-  } else if (activeTool !== "scale") {
-    snapTarget = null;
-    windowSnapTarget = null;
-    doorSnapTarget = null;
-    railingSnapTarget = null;
+  } else if (state.activeTool !== "scale") {
+    state.snapTarget = null;
+    state.windowSnapTarget = null;
+    state.doorSnapTarget = null;
+    state.railingSnapTarget = null;
     snapIndicatorElement.textContent = isSnapEnabled() ? "吸附：开启" : snapDisabledLabel;
-    const scaleItemHandle = hitTestItemHandle(scalePreviewCurrent);
+    const scaleItemHandle = hitTestItemHandle(state.scalePreviewCurrent);
     planCanvasElement.style.cursor =
       scaleItemHandle?.type === "rotate-item"
         ? "grab"
@@ -17520,8 +17344,8 @@ function updateSnapIndicator(shiftKey = snapOverridePoint) {
  * @param {object} snapPointerEvent 指针事件（读 shiftKey 与屏幕坐标）。
  */
 function beginPointerScale(snapPointerEvent: any) {
-  snapOverridePoint = snapPointerEvent.shiftKey;
-  scaleAnchorPoint = screenToPlan(canvasPointFromEvent(snapPointerEvent));
+  state.snapOverridePoint = snapPointerEvent.shiftKey;
+  state.scaleAnchorPoint = screenToPlan(canvasPointFromEvent(snapPointerEvent));
   updateSnapIndicator();
 }
 /**
@@ -17536,32 +17360,32 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
   });
   const downScreenPoint = canvasPointFromEvent(canvasPointerEvent);
   const pointerPlanPoint = screenToPlan(downScreenPoint);
-  if (canvasPointerEvent.button === 1 || isPanning || activeTool === "pan") {
+  if (canvasPointerEvent.button === 1 || state.isPanning || state.activeTool === "pan") {
     canvasPointerEvent.preventDefault();
     beginExportRender();
-    pointerInteraction = {
+    state.pointerInteraction = {
       type: "pan",
       pointerId: canvasPointerEvent.pointerId,
       screen: rotateScreenPoint(downScreenPoint),
       visibleScreen: downScreenPoint,
-      offsetX: viewTransform.offsetX,
-      offsetY: viewTransform.offsetY
+      offsetX: state.viewTransform.offsetX,
+      offsetY: state.viewTransform.offsetY
     };
     planCanvasElement.classList.add("panning");
     syncMetricsCanvas();
     capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
-  if (floorAlignState && handleFloorAlignClick(pointerPlanPoint)) {
+  if (state.floorAlignState && handleFloorAlignClick(pointerPlanPoint)) {
     return;
   }
-  if (activeTool === "flooropening") {
+  if (state.activeTool === "flooropening") {
     if (!ensureCalibration()) {
       return;
     }
     canvasPointerEvent.preventDefault();
     beginExportRender();
-    pointerInteraction = {
+    state.pointerInteraction = {
       type: "draw-flooropening",
       pointerId: canvasPointerEvent.pointerId,
       start: pointerPlanPoint,
@@ -17570,76 +17394,76 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
-  if (activeTool === "scale") {
-    if (!scalePreviewStart) {
-      scalePreviewStart = pointerPlanPoint;
+  if (state.activeTool === "scale") {
+    if (!state.scalePreviewStart) {
+      state.scalePreviewStart = pointerPlanPoint;
       renderPlanView();
       return;
     }
     const axisLockedPlanPoint = canvasPointerEvent.shiftKey
-      ? axisLockedPoint(pointerPlanPoint, scalePreviewStart).point
+      ? axisLockedPoint(pointerPlanPoint, state.scalePreviewStart).point
       : pointerPlanPoint;
-    if (distance(scalePreviewStart, axisLockedPlanPoint) < 12 / viewTransform.zoom) {
+    if (distance(state.scalePreviewStart, axisLockedPlanPoint) < 12 / state.viewTransform.zoom) {
       showToast("参考线太短，请重新选择终点。", "error");
       return;
     }
-    scaleReferenceLine = {
-      start: scalePreviewStart,
+    state.scaleReferenceLine = {
+      start: state.scalePreviewStart,
       end: axisLockedPlanPoint
     };
-    scalePreviewStart = null;
+    state.scalePreviewStart = null;
     referencePixelsElement.textContent =
-      Math.round(distance(scaleReferenceLine.start, scaleReferenceLine.end)) + " px";
-    referenceMetersInput.value = activeScene.calibration?.reference?.meters || 3;
+      Math.round(distance(state.scaleReferenceLine.start, state.scaleReferenceLine.end)) + " px";
+    referenceMetersInput.value = state.activeScene.calibration?.reference?.meters || 3;
     scaleDialogElement.showModal();
     requestAnimationFrame(() => referenceMetersInput.select());
     renderPlanView();
     return;
   }
-  if (activeTool === "wall") {
+  if (state.activeTool === "wall") {
     if (!ensureCalibration()) {
       return;
     }
     const snapResult = resolveSnapTarget(
       pointerPlanPoint,
-      scaleStartPoint,
+      state.scaleStartPoint,
       canvasPointerEvent.shiftKey
     );
-    if (!scaleStartPoint) {
-      scaleStartPoint = {
+    if (!state.scaleStartPoint) {
+      state.scaleStartPoint = {
         ...snapResult.point
       };
-      snapEndpointCandidate = {
+      state.snapEndpointCandidate = {
         ...snapResult.point
       };
-      scalePointCount = 0;
+      state.scalePointCount = 0;
       finishWallButton.hidden = false;
       renderPlanView();
       return;
     }
-    if (distance(scaleStartPoint, snapResult.point) < currentPixelsPerMeter() * 0.08) {
+    if (distance(state.scaleStartPoint, snapResult.point) < currentPixelsPerMeter() * 0.08) {
       showToast("墙段太短，请选择更远的终点。", "error");
       return;
     }
     const wallDraft = {
       id: createId("wall"),
       start: {
-        ...scaleStartPoint
+        ...state.scaleStartPoint
       },
       end: {
         ...snapResult.point
       },
-      height: activeScene.settings.wallHeight,
-      thickness: activeScene.settings.wallThickness
+      height: state.activeScene.settings.wallHeight,
+      thickness: state.activeScene.settings.wallThickness
     };
     const minSegmentLength = Math.max(0.75, currentPixelsPerMeter() * 0.01);
     const uncoveredSegments = uncoveredCollinearWallSegments(
       wallDraft,
-      activeScene.walls,
+      state.activeScene.walls,
       minSegmentLength
     );
     if (!uncoveredSegments.length) {
-      scaleStartPoint = {
+      state.scaleStartPoint = {
         ...snapResult.point
       };
       showToast("该位置已有墙体，已跳过重复墙段。");
@@ -17652,22 +17476,22 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       distance(uncoveredSegments[0].end, wallDraft.end) > minSegmentLength;
     pushHistorySnapshot();
     const mergeTolerance = Math.max(1, currentPixelsPerMeter() * 0.01);
-    const closedPolygonCount = closedWallPolygons(activeScene.walls, mergeTolerance).length;
+    const closedPolygonCount = closedWallPolygons(state.activeScene.walls, mergeTolerance).length;
     const newWalls = uncoveredSegments.map((segment, segmentIndex) => ({
       ...wallDraft,
       id: segmentIndex === 0 ? wallDraft.id : createId("wall"),
       start: segment.start,
       end: segment.end
     }));
-    activeScene.walls.push(...newWalls);
+    state.activeScene.walls.push(...newWalls);
     refreshSplitGeometry();
-    scalePointCount += 1;
+    state.scalePointCount += 1;
     const didCloseWalls =
-      closedWallPolygons(activeScene.walls, mergeTolerance).length > closedPolygonCount;
+      closedWallPolygons(state.activeScene.walls, mergeTolerance).length > closedPolygonCount;
     if (didCloseWalls) {
       resetScaleInteractionState();
     } else {
-      scaleStartPoint = {
+      state.scaleStartPoint = {
         ...snapResult.point
       };
     }
@@ -17682,11 +17506,11 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     }
     return;
   }
-  if (activeTool === "window") {
+  if (state.activeTool === "window") {
     if (!ensureCalibration()) {
       return;
     }
-    const windowWallHit = nearestWall(pointerPlanPoint, activeScene.walls, 18 / viewTransform.zoom);
+    const windowWallHit = nearestWall(pointerPlanPoint, state.activeScene.walls, 18 / state.viewTransform.zoom);
     if (!windowWallHit) {
       showToast("请靠近一段墙体放置窗户。", "error");
       return;
@@ -17701,7 +17525,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       sill: 0.85
     };
     newWindow.t = clampWindowT(windowWallHit.wall, newWindow, currentPixelsPerMeter());
-    activeScene.windows.push(newWindow);
+    state.activeScene.windows.push(newWindow);
     const windowScope = currentLightScope();
     setSelection("window", newWindow.id);
     refreshStudio("architecture");
@@ -17709,11 +17533,11 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     markDocumentDirty();
     return;
   }
-  if (activeTool === "door") {
+  if (state.activeTool === "door") {
     if (!ensureCalibration()) {
       return;
     }
-    const doorWallHit = nearestWall(pointerPlanPoint, activeScene.walls, 18 / viewTransform.zoom);
+    const doorWallHit = nearestWall(pointerPlanPoint, state.activeScene.walls, 18 / state.viewTransform.zoom);
     if (!doorWallHit) {
       showToast("请靠近一段墙体放置门。", "error");
       return;
@@ -17733,7 +17557,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       swing: 1
     };
     newDoor.t = clampWindowT(doorWallHit.wall, newDoor, currentPixelsPerMeter());
-    activeScene.doors.push(newDoor);
+    state.activeScene.doors.push(newDoor);
     const doorScope = currentLightScope();
     setSelection("door", newDoor.id);
     refreshStudio("architecture");
@@ -17741,14 +17565,14 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     markDocumentDirty();
     return;
   }
-  if (activeTool === "railing") {
+  if (state.activeTool === "railing") {
     if (!ensureCalibration()) {
       return;
     }
     const railingWallHit = nearestWall(
       pointerPlanPoint,
-      activeScene.walls,
-      18 / viewTransform.zoom
+      state.activeScene.walls,
+      18 / state.viewTransform.zoom
     );
     if (!railingWallHit) {
       showToast("请靠近一段墙体放置栏杆。", "error");
@@ -17764,7 +17588,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       sill: 0
     };
     newRailing.t = clampWindowT(railingWallHit.wall, newRailing, currentPixelsPerMeter());
-    activeScene.railings.push(newRailing);
+    state.activeScene.railings.push(newRailing);
     const railingScope = currentLightScope();
     setSelection("railing", newRailing.id);
     refreshStudio("architecture");
@@ -17772,7 +17596,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     markDocumentDirty();
     return;
   }
-  if (activeTool === "label") {
+  if (state.activeTool === "label") {
     createSceneItem("planlabel", pointerPlanPoint);
     return;
   }
@@ -17782,7 +17606,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     const originalItemSnapshot = {
       ...downItemHandle.item
     };
-    pointerInteraction =
+    state.pointerInteraction =
       downItemHandle.type === "resize-item"
         ? {
             type: "resize-item",
@@ -17822,7 +17646,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
     if (!canvasPointerEvent.shiftKey) {
       clearSelection();
     }
-    pointerInteraction = {
+    state.pointerInteraction = {
       type: "marquee",
       pointerId: canvasPointerEvent.pointerId,
       start: pointerPlanPoint,
@@ -17842,22 +17666,22 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
   beginExportRender();
   const historySnapshot = hitEntity.kind === "item" ? cloneSceneForHistory() : null;
   const isMultiItemDrag =
-    hitEntity.kind === "item" && multiSelection.length > 0 && isSelected("item", hitEntity.id);
+    hitEntity.kind === "item" && state.multiSelection.length > 0 && isSelected("item", hitEntity.id);
   let draggedItems: any = [];
   let didCopyItems = false;
   if (hitEntity.kind === "item") {
     if (isMultiItemDrag) {
       const multiSelectedItemIds = new Set(
-        multiSelection
+        state.multiSelection
           .filter((filteredSelection: any) => filteredSelection.kind === "item")
           .map((mappedSelection: any) => mappedSelection.id)
       );
-      draggedItems = activeScene.items.filter((selectedIdItem: any) =>
+      draggedItems = state.activeScene.items.filter((selectedIdItem: any) =>
         multiSelectedItemIds.has(selectedIdItem.id)
       );
     } else {
       setSelection("item", hitEntity.id);
-      const hitSceneItem = activeScene.items.find(
+      const hitSceneItem = state.activeScene.items.find(
         (hitItemRecord: any) => hitItemRecord.id === hitEntity.id
       );
       if (hitSceneItem) {
@@ -17870,13 +17694,13 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
         id: createId("item")
       }));
       normalizeLayerNames(clonedItems);
-      activeScene.items.push(...clonedItems);
+      state.activeScene.items.push(...clonedItems);
       draggedItems = clonedItems;
       if (clonedItems.length === 1) {
         setSelection("item", clonedItems[0].id);
       } else {
-        primarySelection = null;
-        multiSelection = clonedItems.map((clonedSelectionItem: any) => ({
+        state.primarySelection = null;
+        state.multiSelection = clonedItems.map((clonedSelectionItem: any) => ({
           kind: "item",
           id: clonedSelectionItem.id
         }));
@@ -17891,7 +17715,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
   requestSceneRefresh(dragScope);
   const previewScope = currentSelectionScope();
   if (hitEntity.kind === "item") {
-    pointerInteraction = {
+    state.pointerInteraction = {
       type: "move-items",
       pointerId: canvasPointerEvent.pointerId,
       start: pointerPlanPoint,
@@ -17906,7 +17730,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       moved: false
     };
   } else if (["window", "door", "railing"].includes(hitEntity.kind)) {
-    pointerInteraction = {
+    state.pointerInteraction = {
       type: "move-opening",
       pointerId: canvasPointerEvent.pointerId,
       start: pointerPlanPoint,
@@ -17915,7 +17739,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
       moved: false
     };
   }
-  if (pointerInteraction) {
+  if (state.pointerInteraction) {
     capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
   } else {
     endExportRender();
@@ -17924,26 +17748,26 @@ function onPlanCanvasPointerDown(canvasPointerEvent: any) {
 function onPlanCanvasPointerMove(moveEvent: any) {
   const moveScreenPoint = canvasPointFromEvent(moveEvent);
   const movePlanPoint = screenToPlan(moveScreenPoint);
-  if (pointerInteraction?.pointerId === moveEvent.pointerId) {
-    if (pointerInteraction.type === "draw-flooropening") {
-      pointerInteraction.current = moveEvent.shiftKey
+  if (state.pointerInteraction?.pointerId === moveEvent.pointerId) {
+    if (state.pointerInteraction.type === "draw-flooropening") {
+      state.pointerInteraction.current = moveEvent.shiftKey
         ? (() => {
-            const pointerDeltaX = movePlanPoint.x - pointerInteraction.start.x;
-            const pointerDeltaY = movePlanPoint.y - pointerInteraction.start.y;
+            const pointerDeltaX = movePlanPoint.x - state.pointerInteraction.start.x;
+            const pointerDeltaY = movePlanPoint.y - state.pointerInteraction.start.y;
             const axisDelta = Math.max(Math.abs(pointerDeltaX), Math.abs(pointerDeltaY));
             return {
-              x: pointerInteraction.start.x + Math.sign(pointerDeltaX || 1) * axisDelta,
-              y: pointerInteraction.start.y + Math.sign(pointerDeltaY || 1) * axisDelta
+              x: state.pointerInteraction.start.x + Math.sign(pointerDeltaX || 1) * axisDelta,
+              y: state.pointerInteraction.start.y + Math.sign(pointerDeltaY || 1) * axisDelta
             };
           })()
         : movePlanPoint;
       renderPlanView();
       return;
     }
-    if (pointerInteraction.type === "marquee") {
-      pointerInteraction.current = movePlanPoint;
-      pointerInteraction.moved =
-        distance(pointerInteraction.start, movePlanPoint) * viewTransform.zoom >= 4;
+    if (state.pointerInteraction.type === "marquee") {
+      state.pointerInteraction.current = movePlanPoint;
+      state.pointerInteraction.moved =
+        distance(state.pointerInteraction.start, movePlanPoint) * state.viewTransform.zoom >= 4;
       if (blitMetricsCanvas()) {
         drawMarqueeOverlay();
       } else {
@@ -17951,14 +17775,14 @@ function onPlanCanvasPointerMove(moveEvent: any) {
       }
       return;
     }
-    if (pointerInteraction.type === "pan") {
+    if (state.pointerInteraction.type === "pan") {
       const rotatedScreenPoint = rotateScreenPoint(moveScreenPoint);
-      viewTransform.offsetX =
-        pointerInteraction.offsetX + rotatedScreenPoint.x - pointerInteraction.screen.x;
-      viewTransform.offsetY =
-        pointerInteraction.offsetY + rotatedScreenPoint.y - pointerInteraction.screen.y;
-      const panDeltaX = moveScreenPoint.x - pointerInteraction.visibleScreen.x;
-      const panDeltaY = moveScreenPoint.y - pointerInteraction.visibleScreen.y;
+      state.viewTransform.offsetX =
+        state.pointerInteraction.offsetX + rotatedScreenPoint.x - state.pointerInteraction.screen.x;
+      state.viewTransform.offsetY =
+        state.pointerInteraction.offsetY + rotatedScreenPoint.y - state.pointerInteraction.screen.y;
+      const panDeltaX = moveScreenPoint.x - state.pointerInteraction.visibleScreen.x;
+      const panDeltaY = moveScreenPoint.y - state.pointerInteraction.visibleScreen.y;
       if (
         !blitMetricsCanvas({
           offsetX: panDeltaX,
@@ -17969,17 +17793,17 @@ function onPlanCanvasPointerMove(moveEvent: any) {
       }
       return;
     }
-    if (pointerInteraction.type === "move-items") {
+    if (state.pointerInteraction.type === "move-items") {
       if (
-        !pointerInteraction.moved &&
-        distance(movePlanPoint, pointerInteraction.start) * viewTransform.zoom < 3
+        !state.pointerInteraction.moved &&
+        distance(movePlanPoint, state.pointerInteraction.start) * state.viewTransform.zoom < 3
       ) {
         return;
       }
       const gridStep = currentPixelsPerMeter() * 0.05;
-      const shouldSnapToGrid = isSnapEnabled() && activeScene.settings.snapGrid !== false;
-      let moveDeltaX = movePlanPoint.x - pointerInteraction.start.x;
-      let moveDeltaY = movePlanPoint.y - pointerInteraction.start.y;
+      const shouldSnapToGrid = isSnapEnabled() && state.activeScene.settings.snapGrid !== false;
+      let moveDeltaX = movePlanPoint.x - state.pointerInteraction.start.x;
+      let moveDeltaY = movePlanPoint.y - state.pointerInteraction.start.y;
       if (moveEvent.shiftKey) {
         if (Math.abs(moveDeltaX) >= Math.abs(moveDeltaY)) {
           moveDeltaY = 0;
@@ -17988,9 +17812,9 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         }
       }
       const itemsById = new Map<any, any>(
-        activeScene.items.map((indexedItem: any) => [indexedItem.id, indexedItem])
+        state.activeScene.items.map((indexedItem: any) => [indexedItem.id, indexedItem])
       );
-      for (const originalItem of pointerInteraction.originals) {
+      for (const originalItem of state.pointerInteraction.originals) {
         const draggedLiveItem = itemsById.get(originalItem.id);
         if (draggedLiveItem) {
           draggedLiveItem.x = shouldSnapToGrid
@@ -18001,7 +17825,7 @@ function onPlanCanvasPointerMove(moveEvent: any) {
             : originalItem.y + moveDeltaY;
         }
       }
-      pointerInteraction.moved = pointerInteraction.originals.some((original: any) => {
+      state.pointerInteraction.moved = state.pointerInteraction.originals.some((original: any) => {
         const comparedLiveItem = itemsById.get(original.id);
         return (
           comparedLiveItem &&
@@ -18012,10 +17836,10 @@ function onPlanCanvasPointerMove(moveEvent: any) {
       renderPlanView();
       return;
     }
-    if (pointerInteraction.type === "resize-item") {
+    if (state.pointerInteraction.type === "resize-item") {
       if (
-        !pointerInteraction.moved &&
-        distance(movePlanPoint, pointerInteraction.handle) * viewTransform.zoom < 3
+        !state.pointerInteraction.moved &&
+        distance(movePlanPoint, state.pointerInteraction.handle) * state.viewTransform.zoom < 3
       ) {
         return;
       }
@@ -18024,7 +17848,7 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         return;
       }
       // 平躺的立柱按平面足迹（宽 × 长）缩放，因此先取带足迹的副本参与缩放，
-      const resizeSourceItem = itemWithPlanFootprint(pointerInteraction.originalItem);
+      const resizeSourceItem = itemWithPlanFootprint(state.pointerInteraction.originalItem);
       const originalHeight = Math.max(finite(resizeSourceItem.height, 0.05), 0.001);
       const minFootprint = itemMinimumFootprint(resizeSourceItem.type);
       const resizeConstraints = moveEvent.shiftKey
@@ -18043,8 +17867,8 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         : undefined;
       const resizedItem = resizeRotatedItemFromCorner(
         resizeSourceItem,
-        pointerInteraction.handle,
-        pointerInteraction.anchor,
+        state.pointerInteraction.handle,
+        state.pointerInteraction.anchor,
         movePlanPoint,
         currentPixelsPerMeter() || 1,
         moveEvent.shiftKey,
@@ -18055,13 +17879,13 @@ function onPlanCanvasPointerMove(moveEvent: any) {
       );
       Object.assign(
         resizedSelectedItem,
-        itemFromPlanFootprintResize(pointerInteraction.originalItem, resizedItem)
+        itemFromPlanFootprintResize(state.pointerInteraction.originalItem, resizedItem)
       );
       if (
         resizedSelectedItem.type === "curtain" &&
         normalizeCurtainTrack(resizedSelectedItem).curtainTrack !== "straight"
       ) {
-        const resizeOriginalItem = pointerInteraction.originalItem;
+        const resizeOriginalItem = state.pointerInteraction.originalItem;
         const dragCurtainTrack = normalizeCurtainTrack(resizeOriginalItem);
         const curtainScaleRatio =
           Math.max(0.2, resizedSelectedItem.depth - 0.18) /
@@ -18076,19 +17900,19 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         );
         resizedSelectedItem.depth = curtainFootprintDepth(resizedSelectedItem);
       }
-      pointerInteraction.moved =
-        Math.abs(resizedSelectedItem.x - pointerInteraction.originalItem.x) > 0.000001 ||
-        Math.abs(resizedSelectedItem.y - pointerInteraction.originalItem.y) > 0.000001 ||
-        Math.abs(resizedSelectedItem.width - pointerInteraction.originalItem.width) > 0.000001 ||
-        Math.abs(resizedSelectedItem.depth - pointerInteraction.originalItem.depth) > 0.000001 ||
-        Math.abs(resizedSelectedItem.height - pointerInteraction.originalItem.height) > 0.000001;
+      state.pointerInteraction.moved =
+        Math.abs(resizedSelectedItem.x - state.pointerInteraction.originalItem.x) > 0.000001 ||
+        Math.abs(resizedSelectedItem.y - state.pointerInteraction.originalItem.y) > 0.000001 ||
+        Math.abs(resizedSelectedItem.width - state.pointerInteraction.originalItem.width) > 0.000001 ||
+        Math.abs(resizedSelectedItem.depth - state.pointerInteraction.originalItem.depth) > 0.000001 ||
+        Math.abs(resizedSelectedItem.height - state.pointerInteraction.originalItem.height) > 0.000001;
       renderPlanView();
       return;
     }
-    if (pointerInteraction.type === "rotate-item") {
+    if (state.pointerInteraction.type === "rotate-item") {
       if (
-        !pointerInteraction.moved &&
-        distance(movePlanPoint, pointerInteraction.startPointer) * viewTransform.zoom < 3
+        !state.pointerInteraction.moved &&
+        distance(movePlanPoint, state.pointerInteraction.startPointer) * state.viewTransform.zoom < 3
       ) {
         return;
       }
@@ -18097,26 +17921,26 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         return;
       }
       rotatedItem.rotation = itemRotationFromPointers(
-        pointerInteraction.originalItem.rotation,
-        pointerInteraction.center,
-        pointerInteraction.startPointer,
+        state.pointerInteraction.originalItem.rotation,
+        state.pointerInteraction.center,
+        state.pointerInteraction.startPointer,
         movePlanPoint,
         moveEvent.shiftKey ? 15 : 0
       );
-      pointerInteraction.moved =
-        Math.abs(rotatedItem.rotation - pointerInteraction.originalItem.rotation) > 0.000001;
+      state.pointerInteraction.moved =
+        Math.abs(rotatedItem.rotation - state.pointerInteraction.originalItem.rotation) > 0.000001;
       renderPlanView();
       return;
     }
-    if (pointerInteraction.type === "move-opening") {
+    if (state.pointerInteraction.type === "move-opening") {
       if (
-        !pointerInteraction.moved &&
-        distance(movePlanPoint, pointerInteraction.start) * viewTransform.zoom < 3
+        !state.pointerInteraction.moved &&
+        distance(movePlanPoint, state.pointerInteraction.start) * state.viewTransform.zoom < 3
       ) {
         return;
       }
       const openingEntity = findSelectedEntity();
-      const openingWall = activeScene.walls.find(
+      const openingWall = state.activeScene.walls.find(
         (openingWallRecord: any) => openingWallRecord.id === openingEntity?.wallId
       );
       if (!openingEntity || !openingWall) {
@@ -18130,17 +17954,17 @@ function onPlanCanvasPointerMove(moveEvent: any) {
         },
         currentPixelsPerMeter()
       );
-      const originalOpening = pointerInteraction.before?.[primarySelection?.kind + "s"]?.find?.(
+      const originalOpening = state.pointerInteraction.before?.[state.primarySelection?.kind + "s"]?.find?.(
         (openingSnapshot: any) => openingSnapshot.id === openingEntity.id
       );
-      pointerInteraction.moved =
+      state.pointerInteraction.moved =
         !originalOpening || Math.abs(openingEntity.t - originalOpening.t) > 0.000001;
       renderPlanView();
       return;
     }
   }
   beginPointerScale(moveEvent);
-  if (floorAlignState || ["scale", "wall", "window", "door", "railing"].includes(activeTool)) {
+  if (state.floorAlignState || ["scale", "wall", "window", "door", "railing"].includes(state.activeTool)) {
     renderPlanView();
   }
 }
@@ -18148,9 +17972,9 @@ function onPlanCanvasPointerMove(moveEvent: any) {
  * 相机手势的合并帧回调：把一帧内的多次指针移动合成一次处理。先清帧句柄再取状态，这样回调过程中再次调度不会被覆盖 ——
  */
 function onCameraGestureFrame() {
-  cameraGestureFrame = 0;
-  const gestureState = cameraGestureState;
-  cameraGestureState = null;
+  state.cameraGestureFrame = 0;
+  const gestureState = state.cameraGestureState;
+  state.cameraGestureState = null;
   if (gestureState) {
     onPlanCanvasPointerMove(gestureState);
   }
@@ -18159,18 +17983,18 @@ function onCameraGestureFrame() {
  * 记录相机手势的最新坐标并安排下一帧处理（节流入口）。只保存最新位置，帧回调取用时天然丢掉中间态 —— 相机跟随不需要
  */
 function updateCameraGestureState(moveTrackingEvent: any) {
-  cameraGestureState = {
+  state.cameraGestureState = {
     clientX: moveTrackingEvent.clientX,
     clientY: moveTrackingEvent.clientY,
     pointerId: moveTrackingEvent.pointerId,
     shiftKey: moveTrackingEvent.shiftKey
   };
-  cameraGestureFrame ||= requestAnimationFrame(onCameraGestureFrame);
+  state.cameraGestureFrame ||= requestAnimationFrame(onCameraGestureFrame);
 }
 function endCameraGesture(pointerId: any) {
-  if (!!cameraGestureState && cameraGestureState.pointerId === pointerId) {
-    if (cameraGestureFrame) {
-      cancelAnimationFrame(cameraGestureFrame);
+  if (!!state.cameraGestureState && state.cameraGestureState.pointerId === pointerId) {
+    if (state.cameraGestureFrame) {
+      cancelAnimationFrame(state.cameraGestureFrame);
     }
     onCameraGestureFrame();
   }
@@ -18180,38 +18004,38 @@ function endCameraGesture(pointerId: any) {
  * @returns {void}
  */
 function onCameraSettleFrame() {
-  cameraSettleFrame = 0;
-  const targetZoom = cameraTargetZoom;
-  const settleTargetPoint = cameraTargetPoint;
-  cameraTargetZoom = 1;
-  cameraTargetPoint = null;
+  state.cameraSettleFrame = 0;
+  const targetZoom = state.cameraTargetZoom;
+  const settleTargetPoint = state.cameraTargetPoint;
+  state.cameraTargetZoom = 1;
+  state.cameraTargetPoint = null;
   if (settleTargetPoint && Math.abs(targetZoom - 1) > 1e-8) {
     zoomViewAt(targetZoom, settleTargetPoint);
   }
 }
 function onPlanCanvasWheel(wheelEvent: any) {
-  cameraTargetZoom *= Math.exp(-wheelEvent.deltaY * 0.0012);
-  cameraTargetPoint = canvasPointFromEvent(wheelEvent);
+  state.cameraTargetZoom *= Math.exp(-wheelEvent.deltaY * 0.0012);
+  state.cameraTargetPoint = canvasPointFromEvent(wheelEvent);
   beginExportRender();
-  cameraSettleFrame ||= requestAnimationFrame(onCameraSettleFrame);
-  window.clearTimeout(cameraSettleTimer);
-  cameraSettleTimer = window.setTimeout(() => {
-    cameraSettleTimer = null;
-    if (cameraSettleFrame) {
-      cancelAnimationFrame(cameraSettleFrame);
+  state.cameraSettleFrame ||= requestAnimationFrame(onCameraSettleFrame);
+  window.clearTimeout(state.cameraSettleTimer);
+  state.cameraSettleTimer = window.setTimeout(() => {
+    state.cameraSettleTimer = null;
+    if (state.cameraSettleFrame) {
+      cancelAnimationFrame(state.cameraSettleFrame);
       onCameraSettleFrame();
     }
     endExportRender();
   }, 90);
 }
 function onPlanCanvasPointerUp(releaseEvent: any) {
-  if (!pointerInteraction || pointerInteraction.pointerId !== releaseEvent.pointerId) {
+  if (!state.pointerInteraction || state.pointerInteraction.pointerId !== releaseEvent.pointerId) {
     return;
   }
-  if (pointerInteraction.type === "draw-flooropening") {
-    const { start: marqueeStartPoint, current: currentPoint } = pointerInteraction;
+  if (state.pointerInteraction.type === "draw-flooropening") {
+    const { start: marqueeStartPoint, current: currentPoint } = state.pointerInteraction;
     releasePointer(planCanvasElement, releaseEvent.pointerId);
-    pointerInteraction = null;
+    state.pointerInteraction = null;
     endExportRender();
     const marqueeWidth = Math.abs(currentPoint.x - marqueeStartPoint.x) / currentPixelsPerMeter();
     const marqueeDepth = Math.abs(currentPoint.y - marqueeStartPoint.y) / currentPixelsPerMeter();
@@ -18232,13 +18056,13 @@ function onPlanCanvasPointerUp(releaseEvent: any) {
     }
     return;
   }
-  if (pointerInteraction.type === "marquee") {
+  if (state.pointerInteraction.type === "marquee") {
     const marqueeScope = currentLightScope();
-    const additiveEntities = pointerInteraction.additive
-      ? [...(primarySelection ? [primarySelection] : []), ...multiSelection]
+    const additiveEntities = state.pointerInteraction.additive
+      ? [...(state.primarySelection ? [state.primarySelection] : []), ...state.multiSelection]
       : [];
-    const marqueeEntities = pointerInteraction.moved
-      ? collectEntitiesInMarquee(pointerInteraction.start, pointerInteraction.current)
+    const marqueeEntities = state.pointerInteraction.moved
+      ? collectEntitiesInMarquee(state.pointerInteraction.start, state.pointerInteraction.current)
       : [];
     const selectedEntities = [
       ...new Map(
@@ -18251,21 +18075,21 @@ function onPlanCanvasPointerUp(releaseEvent: any) {
     if (selectedEntities.length === 1) {
       setSelection(selectedEntities[0].kind, selectedEntities[0].id);
     } else {
-      primarySelection = null;
-      multiSelection = selectedEntities;
+      state.primarySelection = null;
+      state.multiSelection = selectedEntities;
     }
     releasePointer(planCanvasElement, releaseEvent.pointerId);
-    pointerInteraction = null;
+    state.pointerInteraction = null;
     renderInspector();
     renderPlanView();
     requestSceneRefresh(marqueeScope);
     endExportRender();
     return;
   }
-  const interaction = pointerInteraction;
+  const interaction = state.pointerInteraction;
   const didChangeScene = interaction.moved || interaction.copied;
   if (didChangeScene) {
-    pushHistoryEntry(pointerInteraction.before);
+    pushHistoryEntry(state.pointerInteraction.before);
     markDocumentDirty();
   }
   if (["move-items", "resize-item", "rotate-item", "move-opening"].includes(interaction.type)) {
@@ -18286,11 +18110,11 @@ function onPlanCanvasPointerUp(releaseEvent: any) {
         (previewedSelectedItem ? scopeForItem(previewedSelectedItem) : currentSelectionScope())
     });
   }
-  if (pointerInteraction.type === "pan") {
+  if (state.pointerInteraction.type === "pan") {
     planCanvasElement.classList.remove("panning");
   }
   releasePointer(planCanvasElement, releaseEvent.pointerId);
-  pointerInteraction = null;
+  state.pointerInteraction = null;
   if (interaction.type === "pan") {
     renderPlanView();
   }
@@ -18306,7 +18130,7 @@ function onPlanCanvasPointerEnd(endEvent: any) {
 }
 function applyInspectorChanges(entityKind: any) {
   const editingEntity = findSelectedEntity();
-  if (!editingEntity || primarySelection?.kind !== entityKind) {
+  if (!editingEntity || state.primarySelection?.kind !== entityKind) {
     return;
   }
   const inspectorRefreshScope =
@@ -18330,14 +18154,14 @@ function applyInspectorChanges(entityKind: any) {
     editingEntity.opacity =
       selectElement("#wall-opacity-mode").value === "custom"
         ? clamp(
-            finite(selectElement("#wall-opacity").value, activeScene.settings.wallOpacity * 100),
+            finite(selectElement("#wall-opacity").value, state.activeScene.settings.wallOpacity * 100),
             0,
             100
           ) / 100
         : null;
     editingEntity.allowOpenEnd = selectElement("#wall-open-end-mode").value === "allowed";
-    activeScene.settings.wallHeight = editingEntity.height;
-    activeScene.settings.wallThickness = editingEntity.thickness;
+    state.activeScene.settings.wallHeight = editingEntity.height;
+    state.activeScene.settings.wallThickness = editingEntity.thickness;
   } else if (entityKind === "window") {
     editingEntity.width = clamp(
       finite(selectElement("#window-width").value, editingEntity.width),
@@ -18355,7 +18179,7 @@ function applyInspectorChanges(entityKind: any) {
       20
     );
     editingEntity.hasDivider = selectElement("#window-divider").value !== "without";
-    const windowWall = activeScene.walls.find(
+    const windowWall = state.activeScene.walls.find(
       (windowWallRecord: any) => windowWallRecord.id === editingEntity.wallId
     );
     if (windowWall) {
@@ -18380,7 +18204,7 @@ function applyInspectorChanges(entityKind: any) {
       1.8,
       20
     );
-    const doorWall = activeScene.walls.find(
+    const doorWall = state.activeScene.walls.find(
       (doorWallRecord: any) => doorWallRecord.id === editingEntity.wallId
     );
     if (doorWall) {
@@ -18397,7 +18221,7 @@ function applyInspectorChanges(entityKind: any) {
       0.5,
       3
     );
-    const inspectorRailingWall = activeScene.walls.find(
+    const inspectorRailingWall = state.activeScene.walls.find(
       (railingWallRecord: any) => railingWallRecord.id === editingEntity.wallId
     );
     if (inspectorRailingWall) {
@@ -18575,7 +18399,7 @@ function applyInspectorChanges(entityKind: any) {
         );
         editingEntity.lightSourceVisible = itemLightSourceVisibleInput.checked;
       }
-      editingEntity.lightGroupId = activeScene.lightGroups.some(
+      editingEntity.lightGroupId = state.activeScene.lightGroups.some(
         (ownerLightGroup: any) => ownerLightGroup.id === selectElement("#light-group").value
       )
         ? selectElement("#light-group").value
@@ -18617,9 +18441,9 @@ function applyInspectorChanges(entityKind: any) {
  * @returns {void}
  */
 function resetScaleInteractionState() {
-  scaleStartPoint = null;
-  snapEndpointCandidate = null;
-  scalePointCount = 0;
+  state.scaleStartPoint = null;
+  state.snapEndpointCandidate = null;
+  state.scalePointCount = 0;
   finishWallButton.hidden = true;
 }
 /**
@@ -18709,19 +18533,19 @@ planFileInput.addEventListener("change", async () => {
   planFileInput.value = "";
 });
 toggleBackgroundButton.addEventListener("click", () => {
-  if (activeScene.background) {
+  if (state.activeScene.background) {
     pushHistorySnapshot();
-    activeScene.settings.backgroundVisible = !activeScene.settings.backgroundVisible;
+    state.activeScene.settings.backgroundVisible = !state.activeScene.settings.backgroundVisible;
     syncStudioUi();
     renderPlanView();
     markDocumentDirty();
   }
 });
 removePlanButton.addEventListener("click", () => {
-  if (activeScene.background) {
+  if (state.activeScene.background) {
     pushHistorySnapshot();
-    activeScene.background = null;
-    backgroundTexture = null;
+    state.activeScene.background = null;
+    state.backgroundTexture = null;
     refreshStudio();
     fitViewToBounds();
     markDocumentDirty();
@@ -18732,12 +18556,12 @@ removePlanButton.addEventListener("click", () => {
  * @param {HTMLInputElement} input 触发编辑的墙高 / 墙厚 / 墙不透明度输入框。
  */
 function beginWallSettingEdit(input: any) {
-  if (activeWallSettingInput && activeWallSettingInput !== input) {
+  if (state.activeWallSettingInput && state.activeWallSettingInput !== input) {
     commitWallSettingInput();
   }
-  if (!activeWallSettingInput) {
+  if (!state.activeWallSettingInput) {
     pushHistorySnapshot();
-    activeWallSettingInput = input;
+    state.activeWallSettingInput = input;
     beginExportRender();
   }
 }
@@ -18745,8 +18569,8 @@ function beginWallSettingEdit(input: any) {
  * @returns {void} 无返回值。
  */
 function scheduleOverlayRedraw() {
-  overlayRedrawFrame ||= requestAnimationFrame(() => {
-    overlayRedrawFrame = 0;
+  state.overlayRedrawFrame ||= requestAnimationFrame(() => {
+    state.overlayRedrawFrame = 0;
     renderPlanView();
   });
 }
@@ -18755,13 +18579,13 @@ function scheduleOverlayRedraw() {
  * @returns {void} 无返回值。
  */
 function commitWallSettingInput() {
-  window.clearTimeout(wallSettingCommitTimer);
-  wallSettingCommitTimer = null;
-  if (activeWallSettingInput) {
-    activeWallSettingInput = null;
-    syncControlValue(globalWallHeightInput, activeScene.settings.wallHeight.toFixed(2));
-    syncControlValue(globalWallThicknessInput, activeScene.settings.wallThickness.toFixed(2));
-    syncControlValue(globalWallOpacityInput, Math.round(activeScene.settings.wallOpacity * 100));
+  window.clearTimeout(state.wallSettingCommitTimer);
+  state.wallSettingCommitTimer = null;
+  if (state.activeWallSettingInput) {
+    state.activeWallSettingInput = null;
+    syncControlValue(globalWallHeightInput, state.activeScene.settings.wallHeight.toFixed(2));
+    syncControlValue(globalWallThicknessInput, state.activeScene.settings.wallThickness.toFixed(2));
+    syncControlValue(globalWallOpacityInput, Math.round(state.activeScene.settings.wallOpacity * 100));
     renderInspector();
     applySceneRefresh({
       scope: "all"
@@ -18774,25 +18598,25 @@ function commitWallSettingInput() {
  * @param {number} [commitDelayMs=80] 延迟毫秒数，传 0 表示立刻提交。
  */
 function scheduleWallSettingCommit(commitDelayMs = 80) {
-  window.clearTimeout(wallSettingCommitTimer);
-  wallSettingCommitTimer = window.setTimeout(commitWallSettingInput, commitDelayMs);
+  window.clearTimeout(state.wallSettingCommitTimer);
+  state.wallSettingCommitTimer = window.setTimeout(commitWallSettingInput, commitDelayMs);
 }
 /**
  * @returns {void} 无返回值。
  */
 function applyGlobalWallHeight() {
   const nextWallHeight = clamp(
-    finite(globalWallHeightInput.value, activeScene.settings.wallHeight),
+    finite(globalWallHeightInput.value, state.activeScene.settings.wallHeight),
     0.01,
     6
   );
   if (
-    !(Math.abs(nextWallHeight - activeScene.settings.wallHeight) < 1e-8) ||
-    !activeScene.walls.every((heightWall: any) => Math.abs(heightWall.height - nextWallHeight) < 1e-8)
+    !(Math.abs(nextWallHeight - state.activeScene.settings.wallHeight) < 1e-8) ||
+    !state.activeScene.walls.every((heightWall: any) => Math.abs(heightWall.height - nextWallHeight) < 1e-8)
   ) {
     beginWallSettingEdit(globalWallHeightInput);
-    activeScene.settings.wallHeight = nextWallHeight;
-    for (const heightTargetWall of activeScene.walls) {
+    state.activeScene.settings.wallHeight = nextWallHeight;
+    for (const heightTargetWall of state.activeScene.walls) {
       heightTargetWall.height = nextWallHeight;
     }
     markDocumentDirty();
@@ -18804,19 +18628,19 @@ function applyGlobalWallHeight() {
  */
 function applyGlobalWallThickness() {
   const nextWallThickness = clamp(
-    finite(globalWallThicknessInput.value, activeScene.settings.wallThickness),
+    finite(globalWallThicknessInput.value, state.activeScene.settings.wallThickness),
     0.01,
     3
   );
   if (
-    !(Math.abs(nextWallThickness - activeScene.settings.wallThickness) < 1e-8) ||
-    !activeScene.walls.every(
+    !(Math.abs(nextWallThickness - state.activeScene.settings.wallThickness) < 1e-8) ||
+    !state.activeScene.walls.every(
       (thicknessWall: any) => Math.abs(thicknessWall.thickness - nextWallThickness) < 1e-8
     )
   ) {
     beginWallSettingEdit(globalWallThicknessInput);
-    activeScene.settings.wallThickness = nextWallThickness;
-    for (const thicknessTargetWall of activeScene.walls) {
+    state.activeScene.settings.wallThickness = nextWallThickness;
+    for (const thicknessTargetWall of state.activeScene.walls) {
       thicknessTargetWall.thickness = nextWallThickness;
     }
     scheduleOverlayRedraw();
@@ -18829,11 +18653,11 @@ function applyGlobalWallThickness() {
  */
 function applyGlobalWallOpacity() {
   const nextWallOpacity =
-    clamp(finite(globalWallOpacityInput.value, activeScene.settings.wallOpacity * 100), 0, 100) /
+    clamp(finite(globalWallOpacityInput.value, state.activeScene.settings.wallOpacity * 100), 0, 100) /
     100;
-  if (!(Math.abs(nextWallOpacity - activeScene.settings.wallOpacity) < 1e-8)) {
+  if (!(Math.abs(nextWallOpacity - state.activeScene.settings.wallOpacity) < 1e-8)) {
     beginWallSettingEdit(globalWallOpacityInput);
-    activeScene.settings.wallOpacity = nextWallOpacity;
+    state.activeScene.settings.wallOpacity = nextWallOpacity;
     markDocumentDirty();
   }
 }
@@ -18851,22 +18675,22 @@ for (const [wallSettingInput, wallSettingCommitHandler] of [
 }
 toggleFloorEdgeButton.addEventListener("click", () => {
   pushHistorySnapshot();
-  activeScene.settings.floorEdgeVisible = activeScene.settings.floorEdgeVisible === false;
+  state.activeScene.settings.floorEdgeVisible = state.activeScene.settings.floorEdgeVisible === false;
   refreshStudio();
   markDocumentDirty();
 });
 function syncAssetTabVisibility() {
   for (const headingButton of assetHeadingCategoryButtons) {
-    (headingButton as any).hidden = (headingButton as any).dataset.assetHeadingCategory !== activeAssetTab;
+    (headingButton as any).hidden = (headingButton as any).dataset.assetHeadingCategory !== state.activeAssetTab;
   }
   for (const itemTypeButton of itemTypeButtons) {
     const buttonItemType = (itemTypeButton as any).dataset.itemType;
     const isLightItemType = LIGHT_ITEM_TYPES.has(buttonItemType);
     const isApplianceItem = APPLIANCE_ITEM_TYPES.has(buttonItemType);
     const isVisibleForTab =
-      activeAssetTab === "light"
+      state.activeAssetTab === "light"
         ? isLightItemType
-        : activeAssetTab === "appliance"
+        : state.activeAssetTab === "appliance"
           ? isApplianceItem
           : !isApplianceItem && !isLightItemType;
     (itemTypeButton as any).hidden = !isVisibleForTab;
@@ -18876,7 +18700,7 @@ function activateAssetTab(tabName: any) {
   const assetTab = ["home", "appliance", "light"].includes(tabName) ? tabName : "home";
   const tabLightScope = currentLightScope();
   closeLightGroupContextMenu();
-  activeAssetTab = assetTab;
+  state.activeAssetTab = assetTab;
   for (const assetTabButton of assetCategoryButtons) {
     const isActiveCategory = (assetTabButton as any).dataset.assetCategory === assetTab;
     assetTabButton.classList.toggle("active", isActiveCategory);
@@ -18887,13 +18711,13 @@ function activateAssetTab(tabName: any) {
   lightAssetRowElement.hidden = assetTab !== "light";
   const tabSelectedItem = findSelectedEntity();
   const isSelectedLightItem =
-    primarySelection?.kind === "item" &&
+    state.primarySelection?.kind === "item" &&
     tabSelectedItem &&
     LIGHT_ITEM_TYPES.has(tabSelectedItem.type);
-  if (primarySelection && (assetTab === "light") != !!isSelectedLightItem) {
+  if (state.primarySelection && (assetTab === "light") != !!isSelectedLightItem) {
     clearSelection();
   }
-  if (multiSelection.length) {
+  if (state.multiSelection.length) {
     clearSelection();
   }
   activateTool("select");
@@ -18913,9 +18737,9 @@ activateAssetTab("home");
 addLightGroupButton.addEventListener("click", () => {
   pushHistorySnapshot();
   const existingLightGroupNames = new Set(
-    activeScene.lightGroups.map((namedLightGroup: any) => namedLightGroup.name)
+    state.activeScene.lightGroups.map((namedLightGroup: any) => namedLightGroup.name)
   );
-  let newGroupSuffix = activeScene.lightGroups.length + 1;
+  let newGroupSuffix = state.activeScene.lightGroups.length + 1;
   while (existingLightGroupNames.has("灯组 " + newGroupSuffix)) {
     newGroupSuffix += 1;
   }
@@ -18925,8 +18749,8 @@ addLightGroupButton.addEventListener("click", () => {
     enabled: true,
     areaId: null
   };
-  activeScene.lightGroups.push(newLightGroup);
-  activeLightGroupId = newLightGroup.id;
+  state.activeScene.lightGroups.push(newLightGroup);
+  state.activeLightGroupId = newLightGroup.id;
   renderLightGroupList();
   renderInspector();
   markDocumentDirty();
@@ -18940,10 +18764,10 @@ areaRenameFormElement.addEventListener("submit", (areaRenameSubmitEvent: any) =>
     showToast("请输入区域名称。", "error");
     return;
   }
-  if (areaRenameMode === "rename") {
+  if (state.areaRenameMode === "rename") {
     // 按对话框打开时记录的区域 ID 找回待重命名的区域；找不到说明已被删除。
-    const renameTargetArea = (activeScene.areas || []).find(
-      (areaLookupEntry: any) => areaLookupEntry.id === areaRenameId
+    const renameTargetArea = (state.activeScene.areas || []).find(
+      (areaLookupEntry: any) => areaLookupEntry.id === state.areaRenameId
     );
     if (!renameTargetArea) {
       closeAreaRenameDialog();
@@ -18971,7 +18795,7 @@ areaRenameFormElement.addEventListener("submit", (areaRenameSubmitEvent: any) =>
       id: createId("area"),
       name: submittedAreaName
     };
-    (activeScene.areas ||= []).push(createdArea);
+    (state.activeScene.areas ||= []).push(createdArea);
     expandedAreaIds.add(createdArea.id);
     renderLightGroupList();
     markDocumentDirty();
@@ -18981,14 +18805,14 @@ areaRenameFormElement.addEventListener("submit", (areaRenameSubmitEvent: any) =>
 selectElement("#area-rename-close").addEventListener("click", closeAreaRenameDialog);
 selectElement("#area-rename-cancel").addEventListener("click", closeAreaRenameDialog);
 areaRenameDialogElement.addEventListener("cancel", () => {
-  areaRenameMode = "create";
-  areaRenameId = "";
+  state.areaRenameMode = "create";
+  state.areaRenameId = "";
 });
 for (const areaActionButton of areaContextMenuElement.querySelectorAll("[data-area-action]")) {
   areaActionButton.addEventListener("click", () => {
     // 按右键菜单记录的区域 ID 找回目标区域。
-    const menuArea = (activeScene.areas || []).find(
-      (areaLookupEntry: any) => areaLookupEntry.id === areaContextMenuId
+    const menuArea = (state.activeScene.areas || []).find(
+      (areaLookupEntry: any) => areaLookupEntry.id === state.areaContextMenuId
     );
     const areaActionName = areaActionButton.dataset.areaAction;
     closeAreaContextMenu();
@@ -19004,14 +18828,14 @@ for (const areaActionButton of areaContextMenuElement.querySelectorAll("[data-ar
 lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent: any) => {
   lightGroupAreaSubmitEvent.preventDefault();
   // 按对话框记录找回待分配区域的灯组。
-  const assignTargetGroup = (activeScene.lightGroups || []).find(
-    (groupLookupEntry: any) => groupLookupEntry.id === areaAssignGroupId
+  const assignTargetGroup = (state.activeScene.lightGroups || []).find(
+    (groupLookupEntry: any) => groupLookupEntry.id === state.areaAssignGroupId
   );
   if (assignTargetGroup) {
     const nextAreaId = lightGroupAreaSelectElement.value || null;
     if (
       nextAreaId === null ||
-      (activeScene.areas || []).some((areaRef: any) => areaRef.id === nextAreaId)
+      (state.activeScene.areas || []).some((areaRef: any) => areaRef.id === nextAreaId)
     ) {
       if ((assignTargetGroup.areaId || null) !== nextAreaId) {
         pushHistorySnapshot();
@@ -19029,7 +18853,7 @@ lightGroupAreaFormElement.addEventListener("submit", (lightGroupAreaSubmitEvent:
 selectElement("#light-group-area-close").addEventListener("click", closeLightGroupAreaDialog);
 selectElement("#light-group-area-cancel").addEventListener("click", closeLightGroupAreaDialog);
 lightGroupAreaDialogElement.addEventListener("cancel", () => {
-  areaAssignGroupId = "";
+  state.areaAssignGroupId = "";
 });
 selectElement("#light-group-area-create").addEventListener("click", createAreaFromAssignDialog);
 lightGroupAreaNewNameElement.addEventListener("keydown", (areaNewNameKeyEvent: any) => {
@@ -19042,8 +18866,8 @@ for (const lightGroupActionButton of lightGroupContextMenuElement.querySelectorA
   "[data-light-group-action]"
 )) {
   lightGroupActionButton.addEventListener("click", () => {
-    const menuLightGroup = activeScene.lightGroups.find(
-      (menuLightGroupCandidate: any) => menuLightGroupCandidate.id === lightGroupMenuTargetId
+    const menuLightGroup = state.activeScene.lightGroups.find(
+      (menuLightGroupCandidate: any) => menuLightGroupCandidate.id === state.lightGroupMenuTargetId
     );
     const lightGroupActionName = lightGroupActionButton.dataset.lightGroupAction;
     closeLightGroupContextMenu();
@@ -19051,7 +18875,7 @@ for (const lightGroupActionButton of lightGroupContextMenuElement.querySelectorA
       if (lightGroupActionName === "area") {
         openLightGroupAreaDialog(menuLightGroup);
       } else if (lightGroupActionName === "rename") {
-        droppedLightGroupId = menuLightGroup.id;
+        state.droppedLightGroupId = menuLightGroup.id;
         lightGroupRenameInputElement.value = menuLightGroup.name;
         lightGroupRenameDialogElement.showModal();
         requestAnimationFrame(() => lightGroupRenameInputElement.select());
@@ -19065,8 +18889,8 @@ for (const lightGroupActionButton of lightGroupContextMenuElement.querySelectorA
 }
 for (const floorActionButton of floorContextMenuElement.querySelectorAll("[data-floor-action]")) {
   floorActionButton.addEventListener("click", () => {
-    const menuFloorRecord = studioDocument.floors.find(
-      (menuFloorCandidate: any) => menuFloorCandidate.id === floorMenuTargetId
+    const menuFloorRecord = state.studioDocument.floors.find(
+      (menuFloorCandidate: any) => menuFloorCandidate.id === state.floorMenuTargetId
     );
     const floorActionName = floorActionButton.dataset.floorAction;
     closeFloorContextMenu();
@@ -19107,18 +18931,18 @@ document.addEventListener("pointerdown", documentPointerEvent => {
  * @returns {void}
  */
 function closeFloorRenameDialog() {
-  floorMenuTargetId = "";
+  state.floorMenuTargetId = "";
   floorRenameDialogElement.close();
 }
 selectElement("#floor-rename-close").addEventListener("click", closeFloorRenameDialog);
 selectElement("#floor-rename-cancel").addEventListener("click", closeFloorRenameDialog);
 floorRenameDialogElement.addEventListener("cancel", () => {
-  floorMenuTargetId = "";
+  state.floorMenuTargetId = "";
 });
 floorRenameFormElement.addEventListener("submit", (floorRenameSubmitEvent: any) => {
   floorRenameSubmitEvent.preventDefault();
-  const renameTargetFloor = studioDocument.floors.find(
-    (renameFloorEntry: any) => renameFloorEntry.id === floorMenuTargetId
+  const renameTargetFloor = state.studioDocument.floors.find(
+    (renameFloorEntry: any) => renameFloorEntry.id === state.floorMenuTargetId
   );
   if (!renameTargetFloor) {
     closeFloorRenameDialog();
@@ -19152,18 +18976,18 @@ floorDeleteFormElement.addEventListener("submit", (floorDeleteSubmitEvent: any) 
  * @returns {void}
  */
 function closeLightGroupRenameDialog() {
-  droppedLightGroupId = "";
+  state.droppedLightGroupId = "";
   lightGroupRenameDialogElement.close();
 }
 selectElement("#light-group-rename-close").addEventListener("click", closeLightGroupRenameDialog);
 selectElement("#light-group-rename-cancel").addEventListener("click", closeLightGroupRenameDialog);
 lightGroupRenameDialogElement.addEventListener("cancel", () => {
-  droppedLightGroupId = "";
+  state.droppedLightGroupId = "";
 });
 lightGroupRenameFormElement.addEventListener("submit", (lightGroupRenameSubmitEvent: any) => {
   lightGroupRenameSubmitEvent.preventDefault();
-  const renameTargetLightGroup = activeScene.lightGroups.find(
-    (lightGroupLookupEntry: any) => lightGroupLookupEntry.id === droppedLightGroupId
+  const renameTargetLightGroup = state.activeScene.lightGroups.find(
+    (lightGroupLookupEntry: any) => lightGroupLookupEntry.id === state.droppedLightGroupId
   );
   if (!renameTargetLightGroup) {
     closeLightGroupRenameDialog();
@@ -19183,7 +19007,7 @@ lightGroupRenameFormElement.addEventListener("submit", (lightGroupRenameSubmitEv
   closeLightGroupRenameDialog();
 });
 function closeLightPropertyDialog() {
-  activeLightPropertyEdit = null;
+  state.activeLightPropertyEdit = null;
   lightPropertyApplyDialogElement.close();
 }
 /**
@@ -19222,8 +19046,8 @@ function syncLightTargetSelection() {
 function renderLightPropertyTargets(lightPropertyFieldKey: any) {
   lightPropertyTargetListElement.replaceChildren();
   let renderedLightCount = 0;
-  for (const lightTargetGroup of activeScene.lightGroups) {
-    const lightTargetGroupItems = activeScene.items.filter(
+  for (const lightTargetGroup of state.activeScene.lightGroups) {
+    const lightTargetGroupItems = state.activeScene.items.filter(
       (lightTargetGroupItem: any) =>
         LIGHT_ITEM_TYPES.has(lightTargetGroupItem.type) &&
         lightTargetGroupItem.lightGroupId === lightTargetGroup.id
@@ -19284,7 +19108,7 @@ function renderLightPropertyTargets(lightPropertyFieldKey: any) {
         listedLightEntry.type
       );
       lightTargetValueElement.textContent =
-        (listedLightEntry.id === primarySelection?.id ? "当前灯 · " : "") +
+        (listedLightEntry.id === state.primarySelection?.id ? "当前灯 · " : "") +
         "当前 " +
         formatLightFieldValue(lightPropertyFieldKey, sanitizedLightFieldValue);
       lightTargetTextElement.append(lightTargetNameElement, lightTargetValueElement);
@@ -19309,7 +19133,7 @@ for (const lightPropertyApplyButton of lightPropertyApplyButtons) {
     const lightPropertyFieldConfig = (LIGHT_FIELD_CONFIG as any)[lightPropertyFieldName];
     if (
       !lightPropertySelectedEntity ||
-      primarySelection?.kind !== "item" ||
+      state.primarySelection?.kind !== "item" ||
       !LIGHT_ITEM_TYPES.has(lightPropertySelectedEntity.type) ||
       !lightPropertyFieldConfig
     ) {
@@ -19320,7 +19144,7 @@ for (const lightPropertyApplyButton of lightPropertyApplyButtons) {
       selectElement(lightPropertyFieldConfig.input).value,
       lightPropertySelectedEntity.type
     );
-    activeLightPropertyEdit = {
+    state.activeLightPropertyEdit = {
       property: lightPropertyFieldName,
       label: lightPropertyFieldConfig.label,
       value: lightPropertyFieldValue
@@ -19368,11 +19192,11 @@ lightPropertyTargetListElement.addEventListener("change", syncLightTargetSelecti
 selectElement("#light-property-apply-close").addEventListener("click", closeLightPropertyDialog);
 selectElement("#light-property-apply-cancel").addEventListener("click", closeLightPropertyDialog);
 lightPropertyApplyDialogElement.addEventListener("cancel", () => {
-  activeLightPropertyEdit = null;
+  state.activeLightPropertyEdit = null;
 });
 lightPropertyApplyFormElement.addEventListener("submit", (lightPropertyApplySubmitEvent: any) => {
   lightPropertyApplySubmitEvent.preventDefault();
-  if (!activeLightPropertyEdit) {
+  if (!state.activeLightPropertyEdit) {
     closeLightPropertyDialog();
     return;
   }
@@ -19380,7 +19204,7 @@ lightPropertyApplyFormElement.addEventListener("submit", (lightPropertyApplySubm
     property: appliedLightProperty,
     label: appliedLightPropertyLabel,
     value: appliedLightPropertyValue
-  } = activeLightPropertyEdit;
+  } = state.activeLightPropertyEdit;
   const lightPropertyTargetItemIds = new Set(
     collectLightTargetItems()
       .filter(lightPropertyApplyCheckbox => lightPropertyApplyCheckbox.checked)
@@ -19388,7 +19212,7 @@ lightPropertyApplyFormElement.addEventListener("submit", (lightPropertyApplySubm
         lightPropertyTargetItemCheckbox => lightPropertyTargetItemCheckbox.dataset.lightTargetItemId
       )
   );
-  const lightPropertyAffectedItems = activeScene.items.filter(
+  const lightPropertyAffectedItems = state.activeScene.items.filter(
     (lightPropertyAffectedItem: any) =>
       LIGHT_ITEM_TYPES.has(lightPropertyAffectedItem.type) &&
       lightPropertyTargetItemIds.has(lightPropertyAffectedItem.id)
@@ -19429,7 +19253,6 @@ lightPropertyApplyFormElement.addEventListener("submit", (lightPropertyApplySubm
 });
 
 // 墙面批量应用复用灯光批量对话框的结构：默认全选、跳过没有改动的墙，
-let wallPropertyApplyEdit: any = null;
 const wallPropertyApplyDialogElement = selectElement("#wall-property-apply-dialog");
 const wallPropertyApplyFormElement = selectElement("#wall-property-apply-form");
 const wallPropertyApplyTitleElement = selectElement("#wall-property-apply-title");
@@ -19444,7 +19267,7 @@ const wallPropertyApplyButtons = [...document.querySelectorAll("[data-apply-wall
  * @returns {void}
  */
 function closeWallPropertyApplyDialog() {
-  wallPropertyApplyEdit = null;
+  state.wallPropertyApplyEdit = null;
   wallPropertyApplyDialogElement.close();
 }
 /**
@@ -19458,7 +19281,7 @@ function collectWallTargetCheckboxes(wallTargetScopeElement = wallPropertyTarget
  * @returns {number} 0~100 的整数百分比。
  */
 function wallEffectiveOpacityPercent(wallRecord: any) {
-  const globalOpacity = finite(activeScene.settings.wallOpacity, 0.24);
+  const globalOpacity = finite(state.activeScene.settings.wallOpacity, 0.24);
   const customOpacity =
     wallRecord.opacity === null || wallRecord.opacity === undefined
       ? null
@@ -19505,7 +19328,7 @@ function syncWallTargetSelection() {
 }
 function renderWallPropertyTargets(wallPropertyKey: any) {
   wallPropertyTargetListElement.replaceChildren();
-  const listedWalls = activeScene.walls || [];
+  const listedWalls = state.activeScene.walls || [];
   if (!listedWalls.length) {
     const emptyWallTargetsElement = document.createElement("p");
     emptyWallTargetsElement.className = "light-property-target-empty";
@@ -19530,7 +19353,7 @@ function renderWallPropertyTargets(wallPropertyKey: any) {
     wallTargetNameElement.textContent = "墙体 " + (listedWallOrdinal + 1);
     const wallTargetValueElement = document.createElement("small");
     wallTargetValueElement.textContent =
-      (primarySelection?.kind === "wall" && primarySelection.id === listedWall.id
+      (state.primarySelection?.kind === "wall" && state.primarySelection.id === listedWall.id
         ? "当前墙 · "
         : "") +
       "当前 " +
@@ -19546,7 +19369,7 @@ function renderWallPropertyTargets(wallPropertyKey: any) {
 for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
   wallPropertyApplyButton.addEventListener("click", () => {
     const wallPropertySelectedWall =
-      primarySelection?.kind === "wall" ? findSelectedEntity() : null;
+      state.primarySelection?.kind === "wall" ? findSelectedEntity() : null;
     if (!wallPropertySelectedWall) {
       return;
     }
@@ -19556,13 +19379,13 @@ for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
     const wallOpacityPercent = clamp(
       finite(
         selectElement("#wall-opacity").value,
-        finite(activeScene.settings.wallOpacity, 0.24) * 100
+        finite(state.activeScene.settings.wallOpacity, 0.24) * 100
       ),
       0,
       100
     );
     if (wallPropertyKey === "opacityMode") {
-      wallPropertyApplyEdit = {
+      state.wallPropertyApplyEdit = {
         property: "opacityMode",
         mode: wallOpacityMode,
         opacity: clamp(wallOpacityPercent / 100, 0, 1),
@@ -19573,7 +19396,7 @@ for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
             : "单独设置（" + Math.round(wallOpacityPercent) + "%）"
       };
     } else if (wallPropertyKey === "opacity") {
-      wallPropertyApplyEdit = {
+      state.wallPropertyApplyEdit = {
         property: "opacity",
         mode: "custom",
         opacity: clamp(wallOpacityPercent / 100, 0, 1),
@@ -19582,11 +19405,11 @@ for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
       };
     } else if (wallPropertyKey === "height") {
       const wallHeightValue = clamp(
-        finite(selectElement("#wall-height").value, finite(activeScene.settings.wallHeight, 2.8)),
+        finite(selectElement("#wall-height").value, finite(state.activeScene.settings.wallHeight, 2.8)),
         0.01,
         6
       );
-      wallPropertyApplyEdit = {
+      state.wallPropertyApplyEdit = {
         property: "height",
         value: wallHeightValue,
         label: "墙高",
@@ -19596,12 +19419,12 @@ for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
       const wallThicknessValue = clamp(
         finite(
           selectElement("#wall-thickness").value,
-          finite(activeScene.settings.wallThickness, 0.12)
+          finite(state.activeScene.settings.wallThickness, 0.12)
         ),
         0.01,
         3
       );
-      wallPropertyApplyEdit = {
+      state.wallPropertyApplyEdit = {
         property: "thickness",
         value: wallThicknessValue,
         label: "厚度",
@@ -19610,8 +19433,8 @@ for (const wallPropertyApplyButton of wallPropertyApplyButtons) {
     } else {
       return;
     }
-    wallPropertyApplyTitleElement.textContent = "应用" + wallPropertyApplyEdit.label;
-    wallPropertyApplyValueElement.textContent = wallPropertyApplyEdit.valueText;
+    wallPropertyApplyTitleElement.textContent = "应用" + state.wallPropertyApplyEdit.label;
+    wallPropertyApplyValueElement.textContent = state.wallPropertyApplyEdit.valueText;
     renderWallPropertyTargets(wallPropertyKey);
     wallPropertyApplyDialogElement.showModal();
     requestAnimationFrame(() => wallPropertyToggleAllButton.focus());
@@ -19634,11 +19457,11 @@ selectElement("#wall-property-apply-cancel").addEventListener(
   closeWallPropertyApplyDialog
 );
 wallPropertyApplyDialogElement.addEventListener("cancel", () => {
-  wallPropertyApplyEdit = null;
+  state.wallPropertyApplyEdit = null;
 });
 wallPropertyApplyFormElement.addEventListener("submit", (wallPropertyApplySubmitEvent: any) => {
   wallPropertyApplySubmitEvent.preventDefault();
-  const appliedWallEdit = wallPropertyApplyEdit;
+  const appliedWallEdit = state.wallPropertyApplyEdit;
   if (!appliedWallEdit) {
     closeWallPropertyApplyDialog();
     return;
@@ -19654,7 +19477,7 @@ wallPropertyApplyFormElement.addEventListener("submit", (wallPropertyApplySubmit
     wallPropertyCheckedBoxes.map(wallTargetCheckbox => wallTargetCheckbox.dataset.wallTargetItemId)
   );
   const wallPropertyPendingChanges = [];
-  for (const listedWall of activeScene.walls || []) {
+  for (const listedWall of state.activeScene.walls || []) {
     if (!wallPropertyTargetIds.has(listedWall.id)) {
       continue;
     }
@@ -19676,7 +19499,7 @@ wallPropertyApplyFormElement.addEventListener("submit", (wallPropertyApplySubmit
     const currentCustomOpacity =
       listedWall.opacity === null || listedWall.opacity === undefined
         ? null
-        : clamp(finite(listedWall.opacity, finite(activeScene.settings.wallOpacity, 0.24)), 0, 1);
+        : clamp(finite(listedWall.opacity, finite(state.activeScene.settings.wallOpacity, 0.24)), 0, 1);
     const nextOpacity =
       appliedWallEdit.property === "opacityMode" && appliedWallEdit.mode === "global"
         ? null
@@ -19699,9 +19522,9 @@ wallPropertyApplyFormElement.addEventListener("submit", (wallPropertyApplySubmit
       pendingWall[pendingWallKey] = pendingWallValue;
     }
     if (appliedWallEdit.property === "height") {
-      activeScene.settings.wallHeight = appliedWallEdit.value;
+      state.activeScene.settings.wallHeight = appliedWallEdit.value;
     } else if (appliedWallEdit.property === "thickness") {
-      activeScene.settings.wallThickness = appliedWallEdit.value;
+      state.activeScene.settings.wallThickness = appliedWallEdit.value;
     }
     refreshStudio("architecture");
     markDocumentDirty();
@@ -19720,8 +19543,8 @@ for (const paletteItemTypeButton of itemTypeButtons) {
   });
   paletteItemTypeButton.addEventListener("click", () => {
     const paletteDropPoint = screenToPlan({
-      x: viewportWidthPx / 2,
-      y: viewportHeightPx / 2
+      x: state.viewportWidthPx / 2,
+      y: state.viewportHeightPx / 2
     });
     createSceneItem((paletteItemTypeButton as any).dataset.itemType, paletteDropPoint);
   });
@@ -19782,13 +19605,13 @@ fixedOverviewViewInput.addEventListener("click", restoreStoredCameraView);
 exportSaveViewButton.addEventListener("click", saveCurrentCameraView);
 selectElement("#open-export").addEventListener("click", openExportDialog);
 selectElement("#export-close").addEventListener("click", () => {
-  if (!isExportBusy) {
+  if (!state.isExportBusy) {
     exportDialogElement.close();
   }
 });
 exportDialogElement.addEventListener("cancel", (exportDialogCancelEvent: any) => {
   exportDialogCancelEvent.preventDefault();
-  if (!isExportBusy) {
+  if (!state.isExportBusy) {
     exportDialogElement.close();
   }
 });
@@ -19833,9 +19656,9 @@ exportPresetRenameDialogElement.addEventListener("cancel", (presetRenameCancelEv
 });
 exportPresetRenameFormElement.addEventListener("submit", (presetRenameSubmitEvent: any) => {
   presetRenameSubmitEvent.preventDefault();
-  const normalizedExportPresetSlots = normalizeExportPresetSlots(studioDocument?.exportPresets);
+  const normalizedExportPresetSlots = normalizeExportPresetSlots(state.studioDocument?.exportPresets);
   const activeExportPresetIndex = normalizeActiveExportPresetSlot(
-    studioDocument?.activeExportPresetSlot,
+    state.studioDocument?.activeExportPresetSlot,
     normalizedExportPresetSlots.length
   );
   const exportPresetBeingRenamed = normalizedExportPresetSlots[activeExportPresetIndex];
@@ -19852,7 +19675,7 @@ exportPresetRenameFormElement.addEventListener("submit", (presetRenameSubmitEven
     activeExportPresetIndex
   );
   exportPresetBeingRenamed.name = renamedExportPresetName;
-  studioDocument.exportPresets = normalizedExportPresetSlots;
+  state.studioDocument.exportPresets = normalizedExportPresetSlots;
   closePresetRenameDialog();
   renderExportPresetSlots();
   markDocumentDirty();
@@ -19896,7 +19719,7 @@ exportHeightInput.addEventListener("change", () => setExportDimension("height", 
 exportLockRatioInput.addEventListener("change", () => {
   const { width: exportWidthValue, height: exportHeightValue } = exportDimensions();
   if (exportLockRatioInput.checked) {
-    exportAspectRatio = exportWidthValue / exportHeightValue;
+    state.exportAspectRatio = exportWidthValue / exportHeightValue;
   }
   syncExportResolutionLabels();
 });
@@ -19913,15 +19736,15 @@ function postBaseLightingState(lightingStatus = "ready") {
     !!isAutoDiagramEmbed &&
     !!autoDiagramComponentId &&
     window.parent !== window &&
-    !!studioDocument
+    !!state.studioDocument
   ) {
     window.parent.postMessage(
       {
         type: "homeos-floorplan-auto-diagram-base-lighting-state",
         componentId: autoDiagramComponentId,
         status: lightingStatus,
-        lighting: normalizeBaseLighting(baseLighting),
-        savedLighting: normalizeBaseLighting(studioDocument.baseLighting),
+        lighting: normalizeBaseLighting(state.baseLighting),
+        savedLighting: normalizeBaseLighting(state.studioDocument.baseLighting),
         defaults: normalizeBaseLighting(DEFAULT_BASE_LIGHTING)
       },
       window.location.origin
@@ -19933,18 +19756,18 @@ function postFloorStateToParent() {
     !!isAutoDiagramEmbed &&
     !!autoDiagramComponentId &&
     window.parent !== window &&
-    !!studioDocument
+    !!state.studioDocument
   ) {
     window.parent.postMessage(
       {
         type: "homeos-floorplan-auto-diagram-floor-state",
         componentId: autoDiagramComponentId,
-        floors: studioDocument.floors.map((floorSummaryEntry: any) => ({
+        floors: state.studioDocument.floors.map((floorSummaryEntry: any) => ({
           id: floorSummaryEntry.id,
           name: floorSummaryEntry.name
         })),
         floorSelection:
-          currentPreviewFloorMode() === "all" ? "all" : getCurrentFloor()?.id || activeFloorId
+          currentPreviewFloorMode() === "all" ? "all" : getCurrentFloor()?.id || state.activeFloorId
       },
       window.location.origin
     );
@@ -19962,13 +19785,13 @@ window.addEventListener("message", parentWindowMessageEvent => {
   if (!!parentMessagePayload && parentMessagePayload.componentId === autoDiagramComponentId) {
     if (parentMessagePayload.type === "homeos-floorplan-auto-diagram-floor") {
       if (parentMessagePayload.command === "set-floor") {
-        const requestedFloorMatch = studioDocument.floors.find(
+        const requestedFloorMatch = state.studioDocument.floors.find(
           (requestedFloorEntry: any) => requestedFloorEntry.id === parentMessagePayload.value
         );
         const resolvedRequestedFloorId =
-          parentMessagePayload.value === "all" && studioDocument.floors.length > 1
+          parentMessagePayload.value === "all" && state.studioDocument.floors.length > 1
             ? "all"
-            : requestedFloorMatch?.id || getCurrentFloor()?.id || activeFloorId;
+            : requestedFloorMatch?.id || getCurrentFloor()?.id || state.activeFloorId;
         applyExportFloorSelection(resolvedRequestedFloorId);
         postFloorStateToParent();
       }
@@ -19977,7 +19800,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
     if (parentMessagePayload.type === "homeos-floorplan-auto-diagram-base-lighting") {
       if (parentMessagePayload.command === "request-state") {
         baseLightControlsElement.hidden = true;
-        applyBaseLightingSettings(studioDocument.baseLighting);
+        applyBaseLightingSettings(state.studioDocument.baseLighting);
         postBaseLightingState("ready");
       } else if (parentMessagePayload.command === "preview") {
         baseLightControlsElement.hidden = true;
@@ -20058,7 +19881,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
     }
     if (
       parentMessagePayload.type === "homeos-floorplan-auto-diagram-generate" &&
-      !isExportBusy
+      !state.isExportBusy
     ) {
       for (const exportFileCheckbox of exportDialogElement.querySelectorAll(
         "input[data-export-file]"
@@ -20083,7 +19906,7 @@ for (const previewSyncToggleButton of previewSyncButtons) {
     const shouldEnableLivePreview = (previewSyncToggleButton as any).dataset.previewSync !== "manual";
     if (shouldEnableLivePreview !== isLivePreviewEnabled()) {
       pushHistorySnapshot();
-      activeScene.settings.livePreviewEnabled = shouldEnableLivePreview;
+      state.activeScene.settings.livePreviewEnabled = shouldEnableLivePreview;
       markDocumentDirty();
       syncPreviewControls();
       if (shouldEnableLivePreview) {
@@ -20106,12 +19929,12 @@ for (const cameraModeToggleButton of cameraModeButtons) {
     const requestedCameraMode =
       (cameraModeToggleButton as any).dataset.cameraMode === "perspective" ? "perspective" : "orthographic";
     if (requestedCameraMode !== currentCameraMode()) {
-      if (!exportRenderState) {
+      if (!state.exportRenderState) {
         pushHistorySnapshot();
       }
       cameraSettingsSource().cameraMode = requestedCameraMode;
       applyCameraMode(requestedCameraMode);
-      if (exportRenderState) {
+      if (state.exportRenderState) {
         exportStatusElement.textContent =
           requestedCameraMode === "perspective" ? "已切换为透视构图" : "已切换为正交构图";
       } else {
@@ -20125,12 +19948,12 @@ for (const cameraViewToggleButton of cameraViewButtons) {
     const requestedCameraView =
       (cameraViewToggleButton as any).dataset.cameraView === "top" ? "top" : "free";
     if (requestedCameraView !== currentCameraView()) {
-      if (!exportRenderState) {
+      if (!state.exportRenderState) {
         pushHistorySnapshot();
       }
       cameraSettingsSource().cameraView = requestedCameraView;
       applyCameraView(requestedCameraView);
-      if (exportRenderState) {
+      if (state.exportRenderState) {
         exportStatusElement.textContent =
           requestedCameraView === "top" ? "已切换为顶视构图" : "已切换为自由构图";
       } else {
@@ -20142,14 +19965,14 @@ for (const cameraViewToggleButton of cameraViewButtons) {
 for (const cameraRotateTopButton of cameraRotateTopButtons) {
   cameraRotateTopButton.addEventListener("click", () => {
     if (currentCameraView() === "top") {
-      if (!exportRenderState) {
+      if (!state.exportRenderState) {
         pushHistorySnapshot();
       }
       cameraSettingsSource().cameraTopRotation = (currentTopRotationDeg() + 90) % 360;
       applyCameraView("top", {
         force: true
       });
-      if (exportRenderState) {
+      if (state.exportRenderState) {
         exportStatusElement.textContent = "顶视已旋转 " + currentTopRotationDeg() + "°";
       } else {
         markDocumentDirty();
@@ -20168,12 +19991,12 @@ for (const cameraFocalLengthInput of cameraFocalLengthInputs) {
       (syncedFocalLengthInput as any).value = String(Math.round(nextFocalLengthValue));
     }
     if (!(Math.abs(nextFocalLengthValue - currentFocalLength()) < 1e-8)) {
-      if (!exportRenderState) {
+      if (!state.exportRenderState) {
         pushHistorySnapshot();
       }
       cameraSettingsSource().cameraFocalLength = nextFocalLengthValue;
       applyFocalLength();
-      if (exportRenderState) {
+      if (state.exportRenderState) {
         exportStatusElement.textContent = "焦段已设为 " + Math.round(nextFocalLengthValue) + " mm";
       } else {
         markDocumentDirty();
@@ -20203,7 +20026,7 @@ baseLightControlsHeaderElement?.addEventListener("pointerdown", (panelDragStartE
     return;
   }
   const panelStartRect = baseLightControlsElement.getBoundingClientRect();
-  panelResizeState = {
+  state.panelResizeState = {
     pointerId: panelDragStartEvent.pointerId,
     startX: panelDragStartEvent.clientX,
     startY: panelDragStartEvent.clientY,
@@ -20214,43 +20037,43 @@ baseLightControlsHeaderElement?.addEventListener("pointerdown", (panelDragStartE
   capturePointer(baseLightControlsHeaderElement, panelDragStartEvent.pointerId);
 });
 baseLightControlsHeaderElement?.addEventListener("pointermove", (panelDragMoveEvent: any) => {
-  if (!panelResizeState || panelDragMoveEvent.pointerId !== panelResizeState.pointerId) {
+  if (!state.panelResizeState || panelDragMoveEvent.pointerId !== state.panelResizeState.pointerId) {
     return;
   }
-  const panelDragDeltaX = panelDragMoveEvent.clientX - panelResizeState.startX;
-  const panelDragDeltaY = panelDragMoveEvent.clientY - panelResizeState.startY;
-  if (!panelResizeState.moved && Math.hypot(panelDragDeltaX, panelDragDeltaY) < 4) {
+  const panelDragDeltaX = panelDragMoveEvent.clientX - state.panelResizeState.startX;
+  const panelDragDeltaY = panelDragMoveEvent.clientY - state.panelResizeState.startY;
+  if (!state.panelResizeState.moved && Math.hypot(panelDragDeltaX, panelDragDeltaY) < 4) {
     return;
   }
-  panelResizeState.moved = true;
+  state.panelResizeState.moved = true;
   panelDragMoveEvent.preventDefault();
   // 夹取算法与「打开时兜一遍」共用一处：8px 边距、按实测尺寸、清掉 right 只留 left/top。
   moveFloatingPanelIntoBounds({
     panelElement: baseLightControlsElement,
-    leftPx: panelResizeState.startLeft + panelDragDeltaX,
-    topPx: panelResizeState.startTop + panelDragDeltaY
+    leftPx: state.panelResizeState.startLeft + panelDragDeltaX,
+    topPx: state.panelResizeState.startTop + panelDragDeltaY
   });
 });
 const endPanelDrag = (panelDragEndEvent: any) => {
-  if (!!panelResizeState && panelDragEndEvent.pointerId === panelResizeState.pointerId) {
-    panelResizeState = null;
+  if (!!state.panelResizeState && panelDragEndEvent.pointerId === state.panelResizeState.pointerId) {
+    state.panelResizeState = null;
   }
 };
 baseLightControlsHeaderElement?.addEventListener("pointerup", endPanelDrag);
 baseLightControlsHeaderElement?.addEventListener("pointercancel", endPanelDrag);
-lightingChannel?.addEventListener("message", (lightingChannelMessageEvent: any) => {
+state.lightingChannel?.addEventListener("message", (lightingChannelMessageEvent: any) => {
   if (lightingChannelMessageEvent.data?.type !== "base-lighting-saved") {
     return;
   }
   const mirroredBaseLighting = normalizeBaseLighting(lightingChannelMessageEvent.data.lighting);
-  if (studioDocument) {
-    studioDocument.baseLighting = mirroredBaseLighting;
+  if (state.studioDocument) {
+    state.studioDocument.baseLighting = mirroredBaseLighting;
   }
   applyBaseLightingSettings(mirroredBaseLighting);
 });
 snapToggleButton.addEventListener("click", () => {
   pushHistorySnapshot();
-  activeScene.settings.snapEnabled = activeScene.settings.snapEnabled === false;
+  state.activeScene.settings.snapEnabled = state.activeScene.settings.snapEnabled === false;
   syncSnapControls();
   updateSnapIndicator();
   renderPlanView();
@@ -20266,7 +20089,7 @@ snapSettingsPanelElement.addEventListener("pointerdown", (snapSettingsPointerDow
 for (const snapSettingToggleInput of snapSettingInputs) {
   snapSettingToggleInput.addEventListener("change", () => {
     pushHistorySnapshot();
-    activeScene.settings[(snapSettingToggleInput as any).dataset.snapSetting] =
+    state.activeScene.settings[(snapSettingToggleInput as any).dataset.snapSetting] =
       (snapSettingToggleInput as any).checked;
     updateSnapIndicator();
     renderPlanView();
@@ -20278,9 +20101,9 @@ snapToleranceInput.addEventListener("input", () => {
 });
 snapToleranceInput.addEventListener("change", () => {
   const nextSnapTolerancePx = clamp(Math.round(finite(snapToleranceInput.value, 13)), 6, 24);
-  if (nextSnapTolerancePx !== activeScene.settings.snapTolerance) {
+  if (nextSnapTolerancePx !== state.activeScene.settings.snapTolerance) {
     pushHistorySnapshot();
-    activeScene.settings.snapTolerance = nextSnapTolerancePx;
+    state.activeScene.settings.snapTolerance = nextSnapTolerancePx;
     syncSnapControls();
     updateSnapIndicator();
     renderPlanView();
@@ -20290,35 +20113,35 @@ snapToleranceInput.addEventListener("change", () => {
 finishWallButton.addEventListener("click", () => finishWallDrawing());
 deleteSelectionButton.addEventListener("click", deleteSelection);
 selectElement("#scale-close").addEventListener("click", () => {
-  scaleReferenceLine = null;
+  state.scaleReferenceLine = null;
   scaleDialogElement.close();
   renderPlanView();
 });
 selectElement("#scale-cancel").addEventListener("click", () => {
-  scaleReferenceLine = null;
+  state.scaleReferenceLine = null;
   scaleDialogElement.close();
   activateTool("scale");
 });
 scaleFormElement.addEventListener("submit", (scaleSubmitEvent: any) => {
   scaleSubmitEvent.preventDefault();
-  if (!scaleReferenceLine) {
+  if (!state.scaleReferenceLine) {
     return;
   }
   const referenceMeters = finite(referenceMetersInput.value, 0);
-  const referencePixelLength = distance(scaleReferenceLine.start, scaleReferenceLine.end);
+  const referencePixelLength = distance(state.scaleReferenceLine.start, state.scaleReferenceLine.end);
   if (referenceMeters <= 0 || referencePixelLength <= 0) {
     showToast("请输入有效的真实长度。", "error");
     return;
   }
   pushHistorySnapshot();
-  activeScene.calibration = {
+  state.activeScene.calibration = {
     pixelsPerMeter: referencePixelLength / referenceMeters,
     reference: {
-      ...scaleReferenceLine,
+      ...state.scaleReferenceLine,
       meters: referenceMeters
     }
   };
-  scaleReferenceLine = null;
+  state.scaleReferenceLine = null;
   scaleDialogElement.close();
   activateTool("wall");
   refreshStudio();
@@ -20326,7 +20149,7 @@ scaleFormElement.addEventListener("submit", (scaleSubmitEvent: any) => {
   markDocumentDirty();
   const calibrationFloor = getCurrentFloor();
   if (
-    studioDocument.floors.findIndex(
+    state.studioDocument.floors.findIndex(
       (calibrationFloorEntry: any) => calibrationFloorEntry.id === calibrationFloor?.id
     ) > 0 &&
     calibrationFloor?.alignmentPending
@@ -20435,7 +20258,7 @@ shoeCabinetMirrorInput.addEventListener("click", () => {
   const mirrorToggleItem = findSelectedEntity();
   if (
     !!mirrorToggleItem &&
-    primarySelection?.kind === "item" &&
+    state.primarySelection?.kind === "item" &&
     mirrorToggleItem.type === "shoecabinet"
   ) {
     pushHistorySnapshot();
@@ -20451,7 +20274,7 @@ selectElement("#door-hinge").addEventListener("click", () => {
   const hingeToggleDoor = findSelectedEntity();
   if (
     !!hingeToggleDoor &&
-    primarySelection?.kind === "door" &&
+    state.primarySelection?.kind === "door" &&
     !["double", "roller-shutter"].includes(hingeToggleDoor.doorType)
   ) {
     pushHistorySnapshot();
@@ -20464,7 +20287,7 @@ selectElement("#door-swing").addEventListener("click", () => {
   const swingToggleDoor = findSelectedEntity();
   if (
     !!swingToggleDoor &&
-    primarySelection?.kind === "door" &&
+    state.primarySelection?.kind === "door" &&
     swingToggleDoor.doorType !== "frame-only"
   ) {
     pushHistorySnapshot();
@@ -20476,7 +20299,7 @@ selectElement("#door-swing").addEventListener("click", () => {
 for (const rotateButton of document.querySelectorAll("[data-rotate]")) {
   rotateButton.addEventListener("click", () => {
     const rotateTargetItem = findSelectedEntity();
-    if (!rotateTargetItem || primarySelection?.kind !== "item") {
+    if (!rotateTargetItem || state.primarySelection?.kind !== "item") {
       return;
     }
     pushHistorySnapshot();
@@ -20502,11 +20325,11 @@ window.addEventListener("keydown", windowKeyDownEvent => {
     windowKeyDownEvent.target instanceof HTMLTextAreaElement ||
     scaleDialogElement.open;
   if (windowKeyDownEvent.code === "Space" && !isTypingInField) {
-    isPanning = true;
+    state.isPanning = true;
     windowKeyDownEvent.preventDefault();
   }
   if (windowKeyDownEvent.key.toLowerCase() === "s" && !isTypingInField) {
-    isSnapTemporarilyDisabled = true;
+    state.isSnapTemporarilyDisabled = true;
     updateSnapIndicator();
     renderPlanView();
   }
@@ -20515,10 +20338,10 @@ window.addEventListener("keydown", windowKeyDownEvent => {
   }
   if (
     windowKeyDownEvent.key === "Shift" &&
-    !pointerInteraction &&
-    (activeTool === "scale" || activeTool === "wall")
+    !state.pointerInteraction &&
+    (state.activeTool === "scale" || state.activeTool === "wall")
   ) {
-    snapOverridePoint = true;
+    state.snapOverridePoint = true;
     updateSnapIndicator();
     renderPlanView();
   }
@@ -20568,9 +20391,9 @@ window.addEventListener("keydown", windowKeyDownEvent => {
   }[windowKeyDownEvent.key];
   if (arrowNudgeVector && !hasCommandModifier) {
     const nudgeTargetItemIds =
-      primarySelection?.kind === "item"
-        ? [primarySelection.id]
-        : multiSelection
+      state.primarySelection?.kind === "item"
+        ? [state.primarySelection.id]
+        : state.multiSelection
             .filter((nudgeSelectedEntity: any) => nudgeSelectedEntity.kind === "item")
             .map((nudgeSelectedItem: any) => nudgeSelectedItem.id);
     if (nudgeTargetItemIds.length) {
@@ -20582,7 +20405,7 @@ window.addEventListener("keydown", windowKeyDownEvent => {
         (windowKeyDownEvent.altKey ? 0.01 : windowKeyDownEvent.shiftKey ? 0.25 : 0.05) *
         (currentPixelsPerMeter() || 1);
       const nudgeItemIdSet = new Set(nudgeTargetItemIds);
-      for (const nudgeSceneItem of activeScene.items) {
+      for (const nudgeSceneItem of state.activeScene.items) {
         if (nudgeItemIdSet.has(nudgeSceneItem.id)) {
           nudgeSceneItem.x += arrowNudgeVector.x * nudgeStepMeters;
           nudgeSceneItem.y += arrowNudgeVector.y * nudgeStepMeters;
@@ -20594,17 +20417,17 @@ window.addEventListener("keydown", windowKeyDownEvent => {
     }
   }
   if (windowKeyDownEvent.key === "Escape") {
-    if (activeTool === "flooropening" || pointerInteraction?.type === "draw-flooropening") {
+    if (state.activeTool === "flooropening" || state.pointerInteraction?.type === "draw-flooropening") {
       windowKeyDownEvent.preventDefault();
-      if (pointerInteraction?.type === "draw-flooropening") {
-        releasePointer(planCanvasElement, pointerInteraction.pointerId);
-        pointerInteraction = null;
+      if (state.pointerInteraction?.type === "draw-flooropening") {
+        releasePointer(planCanvasElement, state.pointerInteraction.pointerId);
+        state.pointerInteraction = null;
         endExportRender();
       }
       activateTool("select");
       return;
     }
-    if (floorAlignState) {
+    if (state.floorAlignState) {
       windowKeyDownEvent.preventDefault();
       cancelFloorAlignment();
       return;
@@ -20620,26 +20443,26 @@ window.addEventListener("keydown", windowKeyDownEvent => {
 });
 window.addEventListener("keyup", windowKeyUpEvent => {
   if (windowKeyUpEvent.code === "Space") {
-    isPanning = false;
+    state.isPanning = false;
   }
   if (windowKeyUpEvent.key.toLowerCase() === "s") {
-    isSnapTemporarilyDisabled = false;
+    state.isSnapTemporarilyDisabled = false;
     updateSnapIndicator();
     renderPlanView();
   }
   if (windowKeyUpEvent.key === "Shift") {
-    snapOverridePoint = false;
+    state.snapOverridePoint = false;
     updateSnapIndicator();
     renderPlanView();
   }
 });
 window.addEventListener("blur", () => {
-  isPanning = false;
-  snapOverridePoint = false;
-  isSnapTemporarilyDisabled = false;
+  state.isPanning = false;
+  state.snapOverridePoint = false;
+  state.isSnapTemporarilyDisabled = false;
 });
 window.addEventListener("beforeunload", beforeUnloadEvent => {
-  if (changeRevision !== savedRevision) {
+  if (state.changeRevision !== state.savedRevision) {
     beforeUnloadEvent.preventDefault();
     beforeUnloadEvent.returnValue = "";
   }
@@ -20679,7 +20502,7 @@ bindLayoutShortcuts({
 });
 
 window.addEventListener("resize", () => {
-  studioLayoutConstants = null;
+  state.studioLayoutConstants = null;
   studioLayout.refresh();
 });
 
@@ -20698,7 +20521,7 @@ async function waitForLightCacheSettle() {
   const lightCacheWaitDeadline = performance.now() + 1800;
   while (
     isAdaptiveLightCacheEnabled() &&
-    (!isLightCacheReady || needsLightCacheRefresh || lightCacheCanvasElement.hidden) &&
+    (!state.isLightCacheReady || state.needsLightCacheRefresh || lightCacheCanvasElement.hidden) &&
     performance.now() < lightCacheWaitDeadline
   ) {
     await new Promise(requestAnimationFrame);
@@ -20709,11 +20532,11 @@ async function waitForLightCacheSettle() {
  * @returns {object} 舞台控制器对象，暴露相机帧监听、帧循环、楼层切换、灯光状态应用等接口。
  */
 function createStageController() {
-  if (renderer.debug) {
-    renderer.debug.checkShaderErrors = false;
+  if (state.renderer.debug) {
+    state.renderer.debug.checkShaderErrors = false;
   }
   const referenceProjectDocument = normalizeStudioDocument(
-    savedSceneRecord.referenceScene || savedSceneRecord.scene
+    state.savedSceneRecord.referenceScene || state.savedSceneRecord.scene
   );
   let lastRequestedFloorGap: any = null;
   const floorTransitionCacheById = new Map();
@@ -20726,7 +20549,7 @@ function createStageController() {
   let floorCacheEpoch = 0;
   const disposeCachedFloorRecord = (cachedFloorEntry: any) => {
     environmentSceneController?.releaseRoot?.(cachedFloorEntry.node);
-    regionLightController?.releaseRoot?.(cachedFloorEntry.node);
+    state.regionLightController?.releaseRoot?.(cachedFloorEntry.node);
     disposeSceneSubtree(cachedFloorEntry.node);
   };
   /**
@@ -20762,7 +20585,7 @@ function createStageController() {
     retainedFloorRecord.node.updateMatrixWorld(true);
     floorTransitionCacheById.delete(retainedFloorKey);
     floorTransitionCacheById.set(retainedFloorKey, retainedFloorRecord);
-    regionLightController?.retainRoot?.(retainedFloorRecord.node);
+    state.regionLightController?.retainRoot?.(retainedFloorRecord.node);
     environmentSceneController?.retainRoot?.(retainedFloorRecord.node);
     while (floorTransitionCacheById.size > 8) {
       const overflowFloorKey = floorTransitionCacheById.keys().next().value;
@@ -20771,8 +20594,8 @@ function createStageController() {
     }
     return true;
   }
-  lightingChannel?.close();
-  lightingChannel = null;
+  state.lightingChannel?.close();
+  state.lightingChannel = null;
   let environmentSceneController: any = null;
   let environmentAirflowController: any = null;
   let curtainSyncHandler: any = null;
@@ -20825,10 +20648,10 @@ function createStageController() {
       return (
         Math.max(1, poseForHeight.frameSize || 10) /
         poseForHeight.zoom /
-        Math.min(1, Math.max(0.1, previewCamera.userData.viewportAspect || 1))
+        Math.min(1, Math.max(0.1, state.previewCamera.userData.viewportAspect || 1))
       );
     } else {
-      perspectiveBlendCamera.aspect = previewCamera.userData.viewportAspect || 1;
+      perspectiveBlendCamera.aspect = state.previewCamera.userData.viewportAspect || 1;
       perspectiveBlendCamera.zoom = poseForHeight.zoom;
       perspectiveBlendCamera.setFocalLength(poseForHeight.focalLength || 50);
       return (
@@ -20849,12 +20672,12 @@ function createStageController() {
     }
     const blendCameraDistance = Math.max(
       0.000001,
-      previewCamera.position.distanceTo(orbitControls.target)
+      state.previewCamera.position.distanceTo(state.orbitControls.target)
     );
     const blendVisibleHeight = Math.max(0.000001, cameraBlendState.height);
-    const blendViewportAspect = previewCamera.userData.viewportAspect || 1;
+    const blendViewportAspect = state.previewCamera.userData.viewportAspect || 1;
     const blendWeight = cameraBlendState.weight;
-    const cameraViewportState = previewCamera.view;
+    const cameraViewportState = state.previewCamera.view;
     const referenceViewportState = orthographicBlendCamera.view;
     const isViewportStateEqual =
       cameraViewportState === referenceViewportState ||
@@ -20869,15 +20692,15 @@ function createStageController() {
         cameraViewportState.height === referenceViewportState.height);
     if (
       projectionBlendCache.motion === cameraBlendState &&
-      projectionBlendCache.camera === previewCamera &&
+      projectionBlendCache.camera === state.previewCamera &&
       projectionBlendCache.distance === blendCameraDistance &&
       projectionBlendCache.height === blendVisibleHeight &&
       projectionBlendCache.aspect === blendViewportAspect &&
       projectionBlendCache.weight === blendWeight &&
-      projectionBlendCache.near === previewCamera.near &&
-      projectionBlendCache.far === previewCamera.far &&
+      projectionBlendCache.near === state.previewCamera.near &&
+      projectionBlendCache.far === state.previewCamera.far &&
       isViewportStateEqual &&
-      projectionBlendCache.matrix.equals(previewCamera.projectionMatrix)
+      projectionBlendCache.matrix.equals(state.previewCamera.projectionMatrix)
     ) {
       return;
     }
@@ -20886,8 +20709,8 @@ function createStageController() {
       right: (blendVisibleHeight * blendViewportAspect) / 2,
       top: blendVisibleHeight / 2,
       bottom: -blendVisibleHeight / 2,
-      near: previewCamera.near,
-      far: previewCamera.far,
+      near: state.previewCamera.near,
+      far: state.previewCamera.far,
       zoom: 1
     });
     Object.assign(perspectiveBlendCamera, {
@@ -20895,14 +20718,14 @@ function createStageController() {
         Math.atan(blendVisibleHeight / (blendCameraDistance * 2)) * 2
       ),
       aspect: blendViewportAspect,
-      near: previewCamera.near,
-      far: previewCamera.far,
+      near: state.previewCamera.near,
+      far: state.previewCamera.far,
       zoom: 1
     });
     for (const blendCamera of [orthographicBlendCamera, perspectiveBlendCamera]) {
-      blendCamera.view = previewCamera.view
+      blendCamera.view = state.previewCamera.view
         ? {
-            ...previewCamera.view
+            ...state.previewCamera.view
           }
         : null;
       blendCamera.updateProjectionMatrix();
@@ -20910,20 +20733,20 @@ function createStageController() {
     const orthoProjectionElements = orthographicBlendCamera.projectionMatrix.elements;
     const perspectiveProjectionElements = perspectiveBlendCamera.projectionMatrix.elements;
     for (let matrixElementIndex = 0; matrixElementIndex < 16; matrixElementIndex++) {
-      previewCamera.projectionMatrix.elements[matrixElementIndex] =
+      state.previewCamera.projectionMatrix.elements[matrixElementIndex] =
         orthoProjectionElements[matrixElementIndex] * (1 - blendWeight) +
         (perspectiveProjectionElements[matrixElementIndex] / blendCameraDistance) * blendWeight;
     }
-    previewCamera.projectionMatrixInverse.copy(previewCamera.projectionMatrix).invert();
+    state.previewCamera.projectionMatrixInverse.copy(state.previewCamera.projectionMatrix).invert();
     projectionBlendCache.motion = cameraBlendState;
-    projectionBlendCache.camera = previewCamera;
+    projectionBlendCache.camera = state.previewCamera;
     projectionBlendCache.distance = blendCameraDistance;
     projectionBlendCache.height = blendVisibleHeight;
     projectionBlendCache.aspect = blendViewportAspect;
     projectionBlendCache.weight = blendWeight;
-    projectionBlendCache.near = previewCamera.near;
-    projectionBlendCache.far = previewCamera.far;
-    projectionBlendCache.matrix.copy(previewCamera.projectionMatrix);
+    projectionBlendCache.near = state.previewCamera.near;
+    projectionBlendCache.far = state.previewCamera.far;
+    projectionBlendCache.matrix.copy(state.previewCamera.projectionMatrix);
   }
   const lightTransitionsByLight = new Map();
   const lightFadesByGroupKey = new Map();
@@ -20952,21 +20775,21 @@ function createStageController() {
     }
     motionRenderTimeoutHandle = null;
     if (isMotionActive) {
-      if (isMotionRendering) {
+      if (state.isMotionRendering) {
         return;
       }
-      isMotionRendering = true;
-      lastFrameTimestampMs = 0;
+      state.isMotionRendering = true;
+      state.lastFrameTimestampMs = 0;
       updateRenderPixelRatio(true, {
         preserveLightCache: true
       });
-    } else if (isMotionRendering) {
+    } else if (state.isMotionRendering) {
       motionRenderTimeoutHandle = window.setTimeout(() => {
         motionRenderTimeoutHandle = null;
-        isMotionRendering = false;
+        state.isMotionRendering = false;
         assessFrameRateForAdaptive();
-        lastFrameTimestampMs = 0;
-        updateRenderPixelRatio(isCameraMotionActive, {
+        state.lastFrameTimestampMs = 0;
+        updateRenderPixelRatio(state.isCameraMotionActive, {
           preserveLightCache: true
         });
       }, 140);
@@ -21030,13 +20853,13 @@ function createStageController() {
    * @param {boolean} [forceVisibilitySync=false] 是否强制刷新可见性。
    */
   function syncLightTransitionSession(sessionFrameTimeMs: any, forceVisibilitySync = false) {
-    if (lightTransitionSession === lightTransitionSessionToken) {
+    if (state.lightTransitionSession === lightTransitionSessionToken) {
       if (
-        lightSessionModelRoot !== previewModelRoot ||
-        lightSessionFirstChild !== previewModelRoot?.children[0]
+        lightSessionModelRoot !== state.previewModelRoot ||
+        lightSessionFirstChild !== state.previewModelRoot?.children[0]
       ) {
-        lightSessionModelRoot = previewModelRoot;
-        lightSessionFirstChild = previewModelRoot?.children[0];
+        lightSessionModelRoot = state.previewModelRoot;
+        lightSessionFirstChild = state.previewModelRoot?.children[0];
         sessionLightsByItemKey = collectLightsByItemKey();
         previewLightsByItemKey = new Map(
           collectPreviewLights().map((previewLightRecord: any) => [
@@ -21102,7 +20925,7 @@ function createStageController() {
     }
     lightFadeFrameHandle = 0;
     lightFadesByGroupKey.clear();
-    isLightFadeAnimating = false;
+    state.isLightFadeAnimating = false;
   }
   /**
    * 灯光渐变的每帧推进：更新各组亮度、合成为灯光明暗纹理，并在还有渐变时请求下一帧。
@@ -21111,16 +20934,16 @@ function createStageController() {
   function advanceLightFade(fadeTickTimestampMs: any) {
     lightFadeFrameHandle = 0;
     if (
-      !isLightCacheReady ||
-      needsLightCacheRefresh ||
+      !state.isLightCacheReady ||
+      state.needsLightCacheRefresh ||
       lightCacheCanvasElement.hidden ||
-      lightTransitionSession
+      state.lightTransitionSession
     ) {
       cancelLightFade();
       return;
     }
     for (const [fadeGroupKey, fadingEntry] of lightFadesByGroupKey) {
-      brightnessByLightGroupKey.set(
+      state.brightnessByLightGroupKey.set(
         fadeGroupKey,
         sampleLightFade(fadingEntry, fadeTickTimestampMs)
       );
@@ -21128,7 +20951,7 @@ function createStageController() {
         lightFadesByGroupKey.delete(fadeGroupKey);
       }
     }
-    isLightFadeAnimating = lightFadesByGroupKey.size > 0;
+    state.isLightFadeAnimating = lightFadesByGroupKey.size > 0;
     compositeLightCache();
     if (lightFadesByGroupKey.size) {
       lightFadeFrameHandle = requestAnimationFrame(advanceLightFade);
@@ -21140,11 +20963,11 @@ function createStageController() {
    */
   function startGroupLightFades(groupLightEntriesByKey: any, isImmediateFade: any, fadeTransitionOptions: any) {
     if (
-      !isLightCacheReady ||
-      needsLightCacheRefresh ||
-      isLightCacheBuilding ||
+      !state.isLightCacheReady ||
+      state.needsLightCacheRefresh ||
+      state.isLightCacheBuilding ||
       lightCacheCanvasElement.hidden ||
-      lightTransitionSession ||
+      state.lightTransitionSession ||
       isCameraMotionRunning ||
       isControlInteractionActive
     ) {
@@ -21152,14 +20975,14 @@ function createStageController() {
     }
     const fadeableLightEntries = [...groupLightEntriesByKey.values()].filter(
       fadeableLightEntry =>
-        currentPreviewFloorMode() === "all" || fadeableLightEntry.floorId === activeFloorId
+        currentPreviewFloorMode() === "all" || fadeableLightEntry.floorId === state.activeFloorId
     );
     if (
       !fadeableLightEntries.every(
         checkedLightEntry =>
           checkedLightEntry.previousBrightness === checkedLightEntry.item.lightBrightness &&
           checkedLightEntry.previousKelvin === checkedLightEntry.item.lightTemperature &&
-          canvasByLightGroupKey.has(
+          state.canvasByLightGroupKey.has(
             lightGroupScopeKey(checkedLightEntry.floorId, checkedLightEntry.item.lightGroupId)
           )
       )
@@ -21175,7 +20998,7 @@ function createStageController() {
       const gateFadeEntry = lightFadesByGroupKey.get(gateLightGroupKey);
       const fadeFromBrightness = gateFadeEntry
         ? sampleLightFade(gateFadeEntry, fadeStartTimestampMs)
-        : finite(brightnessByLightGroupKey.get(gateLightGroupKey), gateLightEntry.wasOn ? 1 : 0);
+        : finite(state.brightnessByLightGroupKey.get(gateLightGroupKey), gateLightEntry.wasOn ? 1 : 0);
       lightFadesByGroupKey.set(gateLightGroupKey, {
         from: fadeFromBrightness,
         to: gateLightEntry.isOn ? 1 : 0,
@@ -21204,16 +21027,16 @@ function createStageController() {
   function beginLightTransitionSession() {
     const snapshotFadesByGroupKey = new Map(lightFadesByGroupKey);
     cancelLightFade();
-    lightTransitionSession = lightTransitionSessionToken;
+    state.lightTransitionSession = lightTransitionSessionToken;
     if (lightSettleTimeoutHandle !== null) {
       window.clearTimeout(lightSettleTimeoutHandle);
     }
     lightSettleTimeoutHandle = null;
-    window.clearTimeout(lightCacheSettleTimer);
-    lightCacheSettleTimer = null;
-    lightCacheRevision += 1;
-    needsLightCacheRefresh = true;
-    if (!isLightCacheBuilding) {
+    window.clearTimeout(state.lightCacheSettleTimer);
+    state.lightCacheSettleTimer = null;
+    state.lightCacheRevision += 1;
+    state.needsLightCacheRefresh = true;
+    if (!state.isLightCacheBuilding) {
       hideRenderShield();
     }
     setLightCacheVisible(false);
@@ -21225,8 +21048,8 @@ function createStageController() {
         sessionPreviewLight
       ])
     );
-    lightSessionModelRoot = previewModelRoot;
-    lightSessionFirstChild = previewModelRoot?.children[0];
+    lightSessionModelRoot = state.previewModelRoot;
+    lightSessionFirstChild = state.previewModelRoot?.children[0];
     needsLightVisibilitySync = true;
     const sessionStartTimestampMs = performance.now();
     for (const sessionPreviewLightEntry of sessionPreviewLights) {
@@ -21272,22 +21095,22 @@ function createStageController() {
   function endLightTransitionSession() {
     lightSettleTimeoutHandle = null;
     if (
-      !isEnvironmentActive &&
-      !isCurtainMoving &&
-      !isVacuumMoving &&
-      !isBackgroundFrameVisible &&
+      !state.isEnvironmentActive &&
+      !state.isCurtainMoving &&
+      !state.isVacuumMoving &&
+      !state.isBackgroundFrameVisible &&
       !isCameraMotionRunning &&
       !isControlInteractionActive &&
       !lightTransitionsByLight.size &&
-      lightTransitionSession === lightTransitionSessionToken
+      state.lightTransitionSession === lightTransitionSessionToken
     ) {
-      if (isLightCacheBuilding || isMotionRendering) {
+      if (state.isLightCacheBuilding || state.isMotionRendering) {
         lightSettleTimeoutHandle = window.setTimeout(endLightTransitionSession, 60);
         return;
       }
-      lightTransitionSession = null;
+      state.lightTransitionSession = null;
       if (isAdaptiveLightCacheEnabled()) {
-        needsLightCacheRefresh = true;
+        state.needsLightCacheRefresh = true;
         scheduleLightCacheBuild(0);
       }
     }
@@ -21314,7 +21137,7 @@ function createStageController() {
       }
     }
     if (lightWentInvisible) {
-      applyShadowBudget(previewModelRoot, {
+      applyShadowBudget(state.previewModelRoot, {
         rebuildAtlas: false
       });
       scheduleLightPrecompile();
@@ -21324,7 +21147,7 @@ function createStageController() {
       lightTransitionFrameHandle = requestAnimationFrame(advanceLightTransition);
     } else {
       setMotionRenderingActive(false);
-      if (lightTransitionSession === lightTransitionSessionToken) {
+      if (state.lightTransitionSession === lightTransitionSessionToken) {
         lightSettleTimeoutHandle = window.setTimeout(endLightTransitionSession, 180);
       }
     }
@@ -21347,7 +21170,7 @@ function createStageController() {
     lightTransitionFrameHandle = 0;
     lightSettleTimeoutHandle = null;
     motionRenderTimeoutHandle = null;
-    isMotionRendering = false;
+    state.isMotionRendering = false;
     for (const [teardownLightObject, teardownLightTransition] of lightTransitionsByLight) {
       applyTransitionSample(teardownLightObject, {
         ...teardownLightTransition.to,
@@ -21358,8 +21181,8 @@ function createStageController() {
     isControlInteractionActive = false;
     sessionLightsByItemKey.clear();
     previewLightsByItemKey.clear();
-    if (lightTransitionSession === lightTransitionSessionToken) {
-      lightTransitionSession = null;
+    if (state.lightTransitionSession === lightTransitionSessionToken) {
+      state.lightTransitionSession = null;
     }
   }
   const savedItemLightStates = new WeakMap();
@@ -21379,7 +21202,7 @@ function createStageController() {
             editorStateIndexEntry
           ])
       );
-      requestedLightStates = studioDocument.floors.flatMap((editorFloorEntry: any) =>
+      requestedLightStates = state.studioDocument.floors.flatMap((editorFloorEntry: any) =>
         (editorFloorEntry.scene.lightGroups || []).map((editorLightGroupEntry: any) => {
           if (!editorLightGroupStates.has(editorLightGroupEntry)) {
             editorLightGroupStates.set(
@@ -21406,7 +21229,7 @@ function createStageController() {
         ])
       );
       requestedLightStates = [
-        ...studioDocument.floors.flatMap((mergeFloorRecord: any) =>
+        ...state.studioDocument.floors.flatMap((mergeFloorRecord: any) =>
           (mergeFloorRecord.scene.lightGroups || [])
             .filter(
               (mergeLightGroupRecord: any) =>
@@ -21444,7 +21267,7 @@ function createStageController() {
     const changedLightStates = new Map();
     for (const changedLightState of requestedLightStates) {
       const lightEffectState = mapLightEffectState(changedLightState);
-      const lightStateFloorRecord = studioDocument.floors.find(
+      const lightStateFloorRecord = state.studioDocument.floors.find(
         (lightStateFloorEntry: any) => lightStateFloorEntry.id === changedLightState.floorId
       );
       const lightStateGroupRecord = lightStateFloorRecord?.scene.lightGroups.find(
@@ -21530,7 +21353,7 @@ function createStageController() {
     let lightVisibilityChanged = false;
     const lightChangeTimestampMs = performance.now();
     for (const [lightChangeItemKey, lightChangeState] of changedLightStates) {
-      if (currentPreviewFloorMode() !== "all" && lightChangeState.floorId !== activeFloorId) {
+      if (currentPreviewFloorMode() !== "all" && lightChangeState.floorId !== state.activeFloorId) {
         continue;
       }
       const lightChangeLights = currentLightsByItemKey.get(lightChangeItemKey);
@@ -21616,7 +21439,7 @@ function createStageController() {
       syncLightTransitionSession(lightChangeTimestampMs);
     }
     if (lightVisibilityChanged || isAdaptiveLightCacheActive) {
-      applyShadowBudget(previewModelRoot, {
+      applyShadowBudget(state.previewModelRoot, {
         rebuildAtlas: false
       });
     }
@@ -21638,7 +21461,7 @@ function createStageController() {
    * @returns {void} 无返回值。
    */
   function syncPreviewProjection() {
-    renderer.getSize(rendererSizeVector);
+    state.renderer.getSize(rendererSizeVector);
     const rendererWidthPx = Math.max(rendererSizeVector.x || 1, 1);
     const rendererHeightPx = Math.max(rendererSizeVector.y || 1, 1);
     const projectionSignatureKey =
@@ -21648,14 +21471,14 @@ function createStageController() {
       "/" +
       focusViewportRatio +
       "/" +
-      previewCamera.uuid;
+      state.previewCamera.uuid;
     if (projectionSignatureKey === projectionSignatureValue) {
       applyBlendedProjection();
       return;
     }
     projectionSignatureValue = projectionSignatureKey;
     if (focusViewportRatio) {
-      previewCamera.setViewOffset(
+      state.previewCamera.setViewOffset(
         rendererWidthPx,
         rendererHeightPx,
         (rendererWidthPx * focusViewportRatio) / 2,
@@ -21664,7 +21487,7 @@ function createStageController() {
         rendererHeightPx
       );
     } else {
-      previewCamera.clearViewOffset();
+      state.previewCamera.clearViewOffset();
     }
     applyBlendedProjection();
   }
@@ -21673,14 +21496,14 @@ function createStageController() {
    * @returns {void} 无返回值。
    */
   function applyControlConstraints() {
-    orbitControls.enablePan = controlsPanEnabled;
-    orbitControls.enableZoom = controlsZoomEnabled;
+    state.orbitControls.enablePan = controlsPanEnabled;
+    state.orbitControls.enableZoom = controlsZoomEnabled;
     if (rotationConstraintMode === "horizontal") {
-      orbitControls.minPolarAngle = orbitControls.maxPolarAngle = orbitControls.getPolarAngle();
+      state.orbitControls.minPolarAngle = state.orbitControls.maxPolarAngle = state.orbitControls.getPolarAngle();
     }
     if (rotationConstraintMode === "vertical") {
-      orbitControls.minAzimuthAngle = orbitControls.maxAzimuthAngle =
-        orbitControls.getAzimuthalAngle();
+      state.orbitControls.minAzimuthAngle = state.orbitControls.maxAzimuthAngle =
+        state.orbitControls.getAzimuthalAngle();
     }
   }
   /**
@@ -21689,7 +21512,7 @@ function createStageController() {
    * @returns {object|null} Three.js Vector3。
    */
   function worldPointForFloor(worldFloorId: any, worldPlanX: any, worldPlanY: any, worldElevationMeters = 0.1) {
-    const worldFloorRecord = studioDocument.floors.find(
+    const worldFloorRecord = state.studioDocument.floors.find(
       (worldFloorEntry: any) => worldFloorEntry.id === worldFloorId
     );
     if (!worldFloorRecord) {
@@ -21697,7 +21520,7 @@ function createStageController() {
     }
     const worldFloorScale = worldFloorRecord.scene.calibration?.pixelsPerMeter || 1;
     if (currentPreviewFloorMode() === "all") {
-      const floorsByElevation = [...studioDocument.floors].sort(
+      const floorsByElevation = [...state.studioDocument.floors].sort(
         (sortedLeftFloor, sortedRightFloor) =>
           sortedLeftFloor.elevation - sortedRightFloor.elevation
       );
@@ -21707,15 +21530,15 @@ function createStageController() {
       });
       return new threeModuleMin.Vector3(
         worldFloorPoint.x,
-        floorsByElevation.indexOf(worldFloorRecord) * studioDocument.previewFloorGap +
+        floorsByElevation.indexOf(worldFloorRecord) * state.studioDocument.previewFloorGap +
           worldElevationMeters,
         worldFloorPoint.z
       );
     }
-    const activeSceneBeforeFloorBounds = activeScene;
-    activeScene = worldFloorRecord.scene;
+    const activeSceneBeforeFloorBounds = state.activeScene;
+    state.activeScene = worldFloorRecord.scene;
     const worldFloorBounds = computeFloorBounds();
-    activeScene = activeSceneBeforeFloorBounds;
+    state.activeScene = activeSceneBeforeFloorBounds;
     return new threeModuleMin.Vector3(
       (worldPlanX - (worldFloorBounds.minX + worldFloorBounds.maxX) / 2) / worldFloorScale,
       worldElevationMeters,
@@ -21727,11 +21550,11 @@ function createStageController() {
    * @returns {object|null} Three.js Matrix4；楼层不存在时返回 null。
    */
   function floorWorldMatrix(matrixFloorId: any) {
-    if (!studioDocument.floors.some((matrixFloorEntry: any) => matrixFloorEntry.id === matrixFloorId)) {
+    if (!state.studioDocument.floors.some((matrixFloorEntry: any) => matrixFloorEntry.id === matrixFloorId)) {
       return null;
     }
     const matrixFloorScale =
-      studioDocument.floors.find((scaleFloorEntry: any) => scaleFloorEntry.id === matrixFloorId)?.scene
+      state.studioDocument.floors.find((scaleFloorEntry: any) => scaleFloorEntry.id === matrixFloorId)?.scene
         .calibration?.pixelsPerMeter || 1;
     const matrixFloorOrigin = worldPointForFloor(matrixFloorId, 0, 0, 0);
     return new threeModuleMin.Matrix4()
@@ -21748,12 +21571,12 @@ function createStageController() {
    */
   function computeOverviewCenter() {
     const isOverviewAllFloors = currentPreviewFloorMode() === "all";
-    if (isOverviewAllFloors && studioDocument.floors.length < 2) {
+    if (isOverviewAllFloors && state.studioDocument.floors.length < 2) {
       return null;
     }
     const overviewFloorList = isOverviewAllFloors
-      ? studioDocument.floors
-      : studioDocument.floors.filter((overviewFloorEntry: any) => overviewFloorEntry.id === activeFloorId);
+      ? state.studioDocument.floors
+      : state.studioDocument.floors.filter((overviewFloorEntry: any) => overviewFloorEntry.id === state.activeFloorId);
     const overviewBoundsBox = new threeModuleMin.Box3();
     let overviewMaxWallHeight = 0;
     for (const overviewFloorRecord of overviewFloorList) {
@@ -21791,14 +21614,14 @@ function createStageController() {
         (elevationFloorEntry: any) => elevationFloorEntry.elevation
       );
       const overviewStackHeight =
-        studioDocument.uniformOverviewStack === true
+        state.studioDocument.uniformOverviewStack === true
           ? Math.max(...overviewFloorElevations) - Math.min(...overviewFloorElevations)
-          : (studioDocument.floors.length - 1) * studioDocument.previewFloorGap;
+          : (state.studioDocument.floors.length - 1) * state.studioDocument.previewFloorGap;
       overviewCenterPoint.y = overviewStackHeight / 2 + overviewMaxWallHeight / 2;
       return overviewCenterPoint;
     }
     return worldPointForFloor(
-      activeFloorId,
+      state.activeFloorId,
       overviewCenterPoint.x,
       overviewCenterPoint.z,
       overviewMaxWallHeight / 2
@@ -21809,10 +21632,10 @@ function createStageController() {
    * @returns {object} 中心的克隆（Three.js Vector3）。
    */
   function resolveOrbitCenter(fallbackCenterTarget: any) {
-    const orbitCenterFloorKey = currentPreviewFloorMode() === "all" ? "all" : activeFloorId;
+    const orbitCenterFloorKey = currentPreviewFloorMode() === "all" ? "all" : state.activeFloorId;
     if (
-      boundsCacheModelRoot !== previewModelRoot ||
-      boundsCacheSceneRevision !== sceneCacheRevision ||
+      boundsCacheModelRoot !== state.previewModelRoot ||
+      boundsCacheSceneRevision !== state.sceneCacheRevision ||
       boundsCacheFloorKey !== orbitCenterFloorKey
     ) {
       const orbitOverviewCenter = computeOverviewCenter();
@@ -21821,8 +21644,8 @@ function createStageController() {
         : computeSceneBoundingBox({
             excludeModelLayers: boundsExcludedModelLayers
           });
-      boundsCacheModelRoot = previewModelRoot;
-      boundsCacheSceneRevision = sceneCacheRevision;
+      boundsCacheModelRoot = state.previewModelRoot;
+      boundsCacheSceneRevision = state.sceneCacheRevision;
       boundsCacheFloorKey = orbitCenterFloorKey;
       boundsCacheCenter =
         orbitOverviewCenter ||
@@ -21836,19 +21659,19 @@ function createStageController() {
    * @returns {void} 无返回值。
    */
   function installOrbitControlsOverrides() {
-    orbitPivotOverride ||= resolveOrbitCenter(orbitControls.target);
-    if (boundOrbitControls === orbitControls) {
+    orbitPivotOverride ||= resolveOrbitCenter(state.orbitControls.target);
+    if (boundOrbitControls === state.orbitControls) {
       return;
     }
-    const overriddenControls = orbitControls;
-    const overriddenCamera = previewCamera;
+    const overriddenControls = state.orbitControls;
+    const overriddenCamera = state.previewCamera;
     const baseControlsUpdate = overriddenControls.update.bind(overriddenControls);
     boundOrbitControls = overriddenControls;
     /**
      * @returns {void} 无返回值。
      */
     const settleLightTransitionAfterControls = () => {
-      if (lightTransitionSession === lightTransitionSessionToken) {
+      if (state.lightTransitionSession === lightTransitionSessionToken) {
         if (lightSettleTimeoutHandle !== null) {
           window.clearTimeout(lightSettleTimeoutHandle);
         }
@@ -21868,11 +21691,11 @@ function createStageController() {
         if (
           isControlInteractionActive &&
           isAdaptiveLightCacheEnabled() &&
-          lightTransitionSession !== lightTransitionSessionToken
+          state.lightTransitionSession !== lightTransitionSessionToken
         ) {
           beginLightTransitionSession();
           syncLightTransitionSession(performance.now());
-          applyShadowBudget(previewModelRoot, {
+          applyShadowBudget(state.previewModelRoot, {
             rebuildAtlas: false
           });
         }
@@ -21901,8 +21724,8 @@ function createStageController() {
     overriddenControls.update = (controlsUpdateDelta: any) => {
       if (
         isCameraMotionRunning ||
-        overriddenControls !== orbitControls ||
-        overriddenCamera !== previewCamera
+        overriddenControls !== state.orbitControls ||
+        overriddenCamera !== state.previewCamera
       ) {
         return false;
       }
@@ -21951,8 +21774,8 @@ function createStageController() {
       const controlsUpdateResult = baseControlsUpdate(controlsUpdateDelta);
       if (
         isCameraMotionRunning ||
-        overriddenControls !== orbitControls ||
-        overriddenCamera !== previewCamera
+        overriddenControls !== state.orbitControls ||
+        overriddenCamera !== state.previewCamera
       ) {
         return controlsUpdateResult;
       }
@@ -21986,13 +21809,13 @@ function createStageController() {
    */
   function applyBackgroundVisibility() {
     if (
-      backgroundThemeModelRoot !== previewModelRoot ||
-      backgroundThemeFirstChild !== previewModelRoot?.children[0]
+      backgroundThemeModelRoot !== state.previewModelRoot ||
+      backgroundThemeFirstChild !== state.previewModelRoot?.children[0]
     ) {
-      backgroundThemeModelRoot = previewModelRoot;
-      backgroundThemeFirstChild = previewModelRoot?.children[0];
+      backgroundThemeModelRoot = state.previewModelRoot;
+      backgroundThemeFirstChild = state.previewModelRoot?.children[0];
       backgroundRoleObjects = [];
-      previewModelRoot?.traverse((backgroundSceneNode: any) => {
+      state.previewModelRoot?.traverse((backgroundSceneNode: any) => {
         if (["background", "grid"].includes(backgroundSceneNode.userData?.exportRole)) {
           backgroundRoleObjects.push(backgroundSceneNode);
         }
@@ -22009,27 +21832,27 @@ function createStageController() {
   }
   const groundReflectionsController = createGroundReflections({
     THREE: threeModuleMin,
-    renderer: renderer,
-    scene: previewOverlayScene,
-    getRoot: () => previewModelRoot,
-    getSceneRevision: () => sceneCacheRevision,
+    renderer: state.renderer,
+    scene: state.previewOverlayScene,
+    getRoot: () => state.previewModelRoot,
+    getSceneRevision: () => state.sceneCacheRevision,
     floorLighting: isRegionLightingEnabled,
     getFloorCamera: (reflectionFloorCamera: any, reflectionFloorId: any) =>
-      overviewStackController?.reflectionCamera(reflectionFloorCamera, reflectionFloorId) ||
+      state.overviewStackController?.reflectionCamera(reflectionFloorCamera, reflectionFloorId) ||
       reflectionFloorCamera,
     cull: true,
     blur: false,
     syncLighting: (reflectionSyncFloorCamera: any) =>
-      regionLightController?.syncCamera(reflectionSyncFloorCamera),
+      state.regionLightController?.syncCamera(reflectionSyncFloorCamera),
     requestFrame: () => requestRenderFrame(),
     getStateKey: () =>
       [
-        sceneCacheRevision,
-        isEnvironmentActive,
-        studioDocument.uniformOverviewStack === true,
-        isRegionLightingEnabled ? "" : lightCacheRevision,
-        isLightCacheReady,
-        renderer.toneMappingExposure
+        state.sceneCacheRevision,
+        state.isEnvironmentActive,
+        state.studioDocument.uniformOverviewStack === true,
+        isRegionLightingEnabled ? "" : state.lightCacheRevision,
+        state.isLightCacheReady,
+        state.renderer.toneMappingExposure
       ].join("|")
   });
   let areFloorEffectsPaused = false;
@@ -22042,10 +21865,10 @@ function createStageController() {
       });
     },
     shadows(isPresentationMotion) {
-      contactShadowController?.setVisibleFloor?.(
-        currentPreviewFloorMode() === "all" ? null : activeFloorId
+      state.contactShadowController?.setVisibleFloor?.(
+        currentPreviewFloorMode() === "all" ? null : state.activeFloorId
       );
-      contactShadowController?.setMotion?.(isPresentationMotion);
+      state.contactShadowController?.setMotion?.(isPresentationMotion);
     }
   });
   /**
@@ -22055,7 +21878,7 @@ function createStageController() {
    */
   function setEditorEffects(areEditorEffectsPaused: any, isLightPreviewMode: any) {
     const shouldSuspendReflections = areEditorEffectsPaused && !isLightPreviewMode;
-    renderer.domElement.dataset.editorEffects = areEditorEffectsPaused
+    state.renderer.domElement.dataset.editorEffects = areEditorEffectsPaused
       ? isLightPreviewMode
         ? "light-preview"
         : "paused"
@@ -22080,19 +21903,19 @@ function createStageController() {
       areShadowsFrozen = isShadowMotion;
       if (areFloorEffectsFollowed) {
         if (isShadowMotion) {
-          shadowAutoUpdateBefore = renderer.shadowMap.autoUpdate;
+          shadowAutoUpdateBefore = state.renderer.shadowMap.autoUpdate;
         }
-        renderer.shadowMap.autoUpdate = isShadowMotion ? true : shadowAutoUpdateBefore;
-        renderer.shadowMap.needsUpdate = true;
-        regionLightController?.setMotion?.(isShadowMotion, true);
+        state.renderer.shadowMap.autoUpdate = isShadowMotion ? true : shadowAutoUpdateBefore;
+        state.renderer.shadowMap.needsUpdate = true;
+        state.regionLightController?.setMotion?.(isShadowMotion, true);
         return;
       }
       if (isShadowMotion) {
         shadowRestoreStartMs = null;
-        shadowAutoUpdateBefore = renderer.shadowMap.autoUpdate;
-        renderer.shadowMap.autoUpdate = false;
-        renderer.shadowMap.needsUpdate = false;
-        previewOverlayScene.traverse((shadowSceneNode: any) => {
+        shadowAutoUpdateBefore = state.renderer.shadowMap.autoUpdate;
+        state.renderer.shadowMap.autoUpdate = false;
+        state.renderer.shadowMap.needsUpdate = false;
+        state.previewOverlayScene.traverse((shadowSceneNode: any) => {
           if (
             !!shadowSceneNode.isLight &&
             !!shadowSceneNode.castShadow &&
@@ -22108,11 +21931,11 @@ function createStageController() {
           }
         });
       } else {
-        renderer.shadowMap.autoUpdate = shadowAutoUpdateBefore;
-        renderer.shadowMap.needsUpdate = true;
+        state.renderer.shadowMap.autoUpdate = shadowAutoUpdateBefore;
+        state.renderer.shadowMap.needsUpdate = true;
         shadowRestoreStartMs = performance.now();
       }
-      regionLightController?.setMotion?.(isShadowMotion);
+      state.regionLightController?.setMotion?.(isShadowMotion);
     }
   }
   /**
@@ -22144,7 +21967,7 @@ function createStageController() {
   }
   const floorTransitionController = createFloorTransition({
     THREE: threeModuleMin,
-    getRoot: () => previewModelRoot,
+    getRoot: () => state.previewModelRoot,
     dispose: disposeSceneSubtree,
     release: retainCachedFloorRecord,
     suspendReflections: suspendFloorEffects,
@@ -22171,7 +21994,7 @@ function createStageController() {
       );
     }
   });
-  contactShadowController?.setFrameProvider?.((frameProviderFloorId: any) => {
+  state.contactShadowController?.setFrameProvider?.((frameProviderFloorId: any) => {
     const frameProviderRecord = floorTransitionController.records.find(
       frameProviderEntry => frameProviderEntry.id === frameProviderFloorId
     );
@@ -22182,7 +22005,7 @@ function createStageController() {
       return floorWorldMatrix(frameProviderFloorId);
     }
   });
-  regionLightController?.setMotionTransformProvider?.((motionTransformFloorId: any) => {
+  state.regionLightController?.setMotionTransformProvider?.((motionTransformFloorId: any) => {
     const motionTransformRecord = floorTransitionController.records.find(
       motionTransformEntry => motionTransformEntry.id === motionTransformFloorId
     );
@@ -22191,7 +22014,7 @@ function createStageController() {
       return (motionTransformRecord.lightingTransform ||= new threeModuleMin.Matrix4())
         .copy(motionTransformRecord.node.matrixWorld)
         .invert()
-        .premultiply(previewModelRoot.matrixWorld);
+        .premultiply(state.previewModelRoot.matrixWorld);
     } else {
       return null;
     }
@@ -22209,7 +22032,7 @@ function createStageController() {
   globalThis.window?.addEventListener("pagehide", () => groundReflectionsController.dispose(), {
     once: true
   });
-  const overlayOnBeforeRender = previewOverlayScene.onBeforeRender;
+  const overlayOnBeforeRender = state.previewOverlayScene.onBeforeRender;
   const shadowRefreshProbeMesh = new threeModuleMin.Mesh(
     new threeModuleMin.BufferGeometry().setAttribute(
       "position",
@@ -22227,12 +22050,12 @@ function createStageController() {
   shadowRefreshProbeMesh.layers.enableAll();
   shadowRefreshProbeMesh.onBeforeRender = () => {
     if (needsSpotShadowRefresh && !areShadowsFrozen) {
-      needsSpotShadowRefresh = spotShadowAtlasController
-        ? !spotShadowAtlasController.refreshGeometry(previewModelRoot, curtainBoundsBoxes)
+      needsSpotShadowRefresh = state.spotShadowAtlasController
+        ? !state.spotShadowAtlasController.refreshGeometry(state.previewModelRoot, curtainBoundsBoxes)
         : false;
     }
   };
-  previewOverlayScene.add(shadowRefreshProbeMesh);
+  state.previewOverlayScene.add(shadowRefreshProbeMesh);
   globalThis.window?.addEventListener(
     "pagehide",
     () => {
@@ -22244,7 +22067,7 @@ function createStageController() {
       once: true
     }
   );
-  previewOverlayScene.onBeforeRender = function (...overlayRenderArguments: any[]) {
+  state.previewOverlayScene.onBeforeRender = function (...overlayRenderArguments: any[]) {
     if (groundReflectionsController.stats.inCapture) {
       return;
     }
@@ -22255,20 +22078,20 @@ function createStageController() {
     televisionSyncHandler?.();
     if (needsSpotShadowRefresh && !areShadowsFrozen) {
       if (
-        shadowRefreshModelRoot !== previewModelRoot ||
-        shadowRefreshSceneRevision !== sceneCacheRevision
+        shadowRefreshModelRoot !== state.previewModelRoot ||
+        shadowRefreshSceneRevision !== state.sceneCacheRevision
       ) {
-        shadowRefreshModelRoot = previewModelRoot;
-        shadowRefreshSceneRevision = sceneCacheRevision;
+        shadowRefreshModelRoot = state.previewModelRoot;
+        shadowRefreshSceneRevision = state.sceneCacheRevision;
         shadowCastingLights = [];
         curtainBoundsBoxes = [];
-        previewModelRoot?.updateWorldMatrix(true, true);
-        previewModelRoot?.traverse((shadowTraversedNode: any) => {
+        state.previewModelRoot?.updateWorldMatrix(true, true);
+        state.previewModelRoot?.traverse((shadowTraversedNode: any) => {
           if (shadowTraversedNode.userData?.environmentModelType === "curtain") {
             curtainBoundsBoxes.push(new threeModuleMin.Box3().setFromObject(shadowTraversedNode));
           }
         });
-        previewOverlayScene.traverse((sceneLightNode: any) => {
+        state.previewOverlayScene.traverse((sceneLightNode: any) => {
           if (sceneLightNode.isLight && sceneLightNode.castShadow && sceneLightNode.shadow) {
             shadowCastingLights.push(sceneLightNode);
           }
@@ -22277,27 +22100,27 @@ function createStageController() {
       for (const shadowCastingLight of shadowCastingLights) {
         shadowCastingLight.shadow.needsUpdate = true;
       }
-      contactShadowController?.invalidate(contactShadowFloorIds, true);
+      state.contactShadowController?.invalidate(contactShadowFloorIds, true);
     }
     overlayOnBeforeRender?.apply(this, overlayRenderArguments);
     if (!areShadowsFrozen) {
       environmentSceneController?.setRoot(
-        previewModelRoot,
-        sceneCacheRevision + ":" + environmentStructureKey
+        state.previewModelRoot,
+        state.sceneCacheRevision + ":" + state.environmentStructureKey
       );
-      environmentAirflowController?.setRoot(previewModelRoot, sceneCacheRevision);
+      environmentAirflowController?.setRoot(state.previewModelRoot, state.sceneCacheRevision);
     }
     applyBackgroundVisibility();
     syncPreviewProjection();
-    if (!renderer.getRenderTarget()) {
+    if (!state.renderer.getRenderTarget()) {
       groundReflectionsController.render(overlayRenderArguments[2], {
         worldMatricesCurrent: true
       });
       const reflectionStatsJson = JSON.stringify({
         ...groundReflectionsController.stats
       });
-      if (renderer.domElement.dataset.reflectionStats !== reflectionStatsJson) {
-        renderer.domElement.dataset.reflectionStats = reflectionStatsJson;
+      if (state.renderer.domElement.dataset.reflectionStats !== reflectionStatsJson) {
+        state.renderer.domElement.dataset.reflectionStats = reflectionStatsJson;
       }
     }
   };
@@ -22305,37 +22128,37 @@ function createStageController() {
    * 重建轨道控制器（相机被替换时使用）：保留原相机位置与观察目标，并重新套用距离 / 缩放范围与约束。
    * @param {object} [recreatedOrbitTarget=orbitControls.target.clone()] 新的观察目标点。
    */
-  function recreateOrbitControls(recreatedOrbitTarget = orbitControls.target.clone()) {
-    const preservedCameraPosition = previewCamera.position.clone();
-    orbitControls.dispose();
-    orbitControls = createOrbitControls(previewCamera);
-    previewCamera.position.copy(preservedCameraPosition);
-    orbitControls.target.copy(recreatedOrbitTarget);
+  function recreateOrbitControls(recreatedOrbitTarget = state.orbitControls.target.clone()) {
+    const preservedCameraPosition = state.previewCamera.position.clone();
+    state.orbitControls.dispose();
+    state.orbitControls = createOrbitControls(state.previewCamera);
+    state.previewCamera.position.copy(preservedCameraPosition);
+    state.orbitControls.target.copy(recreatedOrbitTarget);
     const preservedOrbitDistance = Math.max(
       preservedCameraPosition.distanceTo(recreatedOrbitTarget),
       0.001
     );
-    orbitControls.minDistance = Math.min(2, preservedOrbitDistance);
-    orbitControls.maxDistance = Math.max(100, preservedOrbitDistance * 2);
-    orbitControls.minZoom = Math.min(0.35, previewCamera.zoom);
-    orbitControls.maxZoom = Math.max(6, previewCamera.zoom);
-    orbitControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE;
-    orbitControls.enableRotate = true;
-    orbitControls.enabled = isCameraInteractionEnabled;
-    orbitControls.update();
+    state.orbitControls.minDistance = Math.min(2, preservedOrbitDistance);
+    state.orbitControls.maxDistance = Math.max(100, preservedOrbitDistance * 2);
+    state.orbitControls.minZoom = Math.min(0.35, state.previewCamera.zoom);
+    state.orbitControls.maxZoom = Math.max(6, state.previewCamera.zoom);
+    state.orbitControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE;
+    state.orbitControls.enableRotate = true;
+    state.orbitControls.enabled = isCameraInteractionEnabled;
+    state.orbitControls.update();
     applyControlConstraints();
     installOrbitControlsOverrides();
   }
   return {
     onCameraChange(cameraFrameListener: any) {
-      const cameraFrameCanvas = renderer.domElement;
+      const cameraFrameCanvas = state.renderer.domElement;
       cameraFrameCanvas.addEventListener("hb-i3d-camera-frame", cameraFrameListener);
       return () =>
         cameraFrameCanvas.removeEventListener("hb-i3d-camera-frame", cameraFrameListener);
     },
     createFrameLoop: (frameLoopOptions: any) => createDemandFrameLoop(frameLoopOptions),
     setPresentedVisible(isStagePresented: any) {
-      renderer.domElement.dispatchEvent?.(
+      state.renderer.domElement.dispatchEvent?.(
         new CustomEvent("hb-i3d-parent-visibility", {
           detail: isStagePresented === true
         })
@@ -22344,7 +22167,7 @@ function createStageController() {
     THREE: threeModuleMin,
     constrainCameraPose: constrainCameraPose,
     container: selectElement("#preview-3d"),
-    canvas: renderer.domElement,
+    canvas: state.renderer.domElement,
     get groundReflections() {
       return groundReflectionsController;
     },
@@ -22352,16 +22175,16 @@ function createStageController() {
       groundReflectionsController.changed(reflectionChangeKey);
     },
     get modelRoot() {
-      return previewModelRoot;
+      return state.previewModelRoot;
     },
     get overlayScene() {
-      return previewOverlayScene;
+      return state.previewOverlayScene;
     },
     get sceneRevision() {
-      return sceneCacheRevision;
+      return state.sceneCacheRevision;
     },
     get environmentRevision() {
-      return sceneCacheRevision + ":" + environmentStructureKey;
+      return state.sceneCacheRevision + ":" + state.environmentStructureKey;
     },
     setEnvironmentScene(environmentSceneSync: any) {
       environmentSceneController = environmentSceneSync;
@@ -22381,8 +22204,8 @@ function createStageController() {
       floorIds: movingCurtainFloorIds = [],
       moving: isCurtainMovingNow
     }: any) {
-      const didCurtainFrameChange = nextCurtainFrameKey !== curtainFrameKey;
-      const wasCurtainMoving = isCurtainMoving;
+      const didCurtainFrameChange = nextCurtainFrameKey !== state.curtainFrameKey;
+      const wasCurtainMoving = state.isCurtainMoving;
       if (!!didCurtainFrameChange || wasCurtainMoving !== isCurtainMovingNow) {
         if (didCurtainFrameChange) {
           try {
@@ -22397,7 +22220,7 @@ function createStageController() {
               }
               return curtainRowsByFloorId;
             };
-            const previousCurtainRows = parseCurtainFrames(curtainFrameKey);
+            const previousCurtainRows = parseCurtainFrames(state.curtainFrameKey);
             const nextCurtainRows = parseCurtainFrames(nextCurtainFrameKey);
             groundReflectionsController.changed(
               [...new Set([...previousCurtainRows.keys(), ...nextCurtainRows.keys()])].filter(
@@ -22410,9 +22233,9 @@ function createStageController() {
             groundReflectionsController.changed(movingCurtainFloorIds);
           }
         }
-        if (nextEnvironmentStructureKey !== environmentStructureKey) {
-          spotShadowAtlasController?.prepareRoot(previewModelRoot);
-          regionLightController?.invalidate();
+        if (nextEnvironmentStructureKey !== state.environmentStructureKey) {
+          state.spotShadowAtlasController?.prepareRoot(state.previewModelRoot);
+          state.regionLightController?.invalidate();
         }
         contactShadowFloorIds = [
           ...new Set([...previousCurtainFloorIds, ...movingCurtainFloorIds])
@@ -22426,13 +22249,13 @@ function createStageController() {
           if (didCurtainFrameChange) {
             needsSpotShadowRefresh = true;
           }
-          lightCacheRevision += 1;
-          needsLightCacheRefresh = true;
+          state.lightCacheRevision += 1;
+          state.needsLightCacheRefresh = true;
           setLightCacheVisible(false);
         }
-        curtainFrameKey = nextCurtainFrameKey;
-        isCurtainMoving = isCurtainMovingNow;
-        environmentStructureKey = nextEnvironmentStructureKey;
+        state.curtainFrameKey = nextCurtainFrameKey;
+        state.isCurtainMoving = isCurtainMovingNow;
+        state.environmentStructureKey = nextEnvironmentStructureKey;
         if (!isCurtainMovingNow) {
           endLightTransitionSession();
         }
@@ -22450,15 +22273,15 @@ function createStageController() {
     },
     backgroundFrame(isBackgroundFrameShown: any) {
       const shouldShowBackground = isBackgroundFrameShown === true;
-      if (shouldShowBackground !== isBackgroundFrameVisible) {
-        isBackgroundFrameVisible = shouldShowBackground;
+      if (shouldShowBackground !== state.isBackgroundFrameVisible) {
+        state.isBackgroundFrameVisible = shouldShowBackground;
         if (!isRegionLightingEnabled) {
           if (shouldShowBackground) {
             beginLightTransitionSession();
             syncLightTransitionSession(performance.now(), true);
           } else {
-            lightCacheRevision++;
-            needsLightCacheRefresh = true;
+            state.lightCacheRevision++;
+            state.needsLightCacheRefresh = true;
             endLightTransitionSession();
           }
         }
@@ -22467,14 +22290,14 @@ function createStageController() {
     },
     setVacuumMoving(isVacuumMovingRequested: any) {
       const shouldVacuumMove = isVacuumMovingRequested === true;
-      if (shouldVacuumMove !== isVacuumMoving) {
-        isVacuumMoving = shouldVacuumMove;
+      if (shouldVacuumMove !== state.isVacuumMoving) {
+        state.isVacuumMoving = shouldVacuumMove;
         if (shouldVacuumMove) {
           beginLightTransitionSession();
           syncLightTransitionSession(performance.now(), true);
         } else {
-          lightCacheRevision++;
-          needsLightCacheRefresh = true;
+          state.lightCacheRevision++;
+          state.needsLightCacheRefresh = true;
           endLightTransitionSession();
         }
         requestRenderFrame();
@@ -22482,7 +22305,7 @@ function createStageController() {
     },
     environmentModelPose(poseFloorId: any, poseModelId: any) {
       let environmentModelRoot: any;
-      previewModelRoot?.traverse((poseSceneNode: any) => {
+      state.previewModelRoot?.traverse((poseSceneNode: any) => {
         if (
           poseSceneNode.userData?.environmentFloorId === poseFloorId &&
           poseSceneNode.userData?.environmentModelId === poseModelId
@@ -22532,12 +22355,12 @@ function createStageController() {
     },
     setEnvironmentActive(isEnvironmentActiveRequested: any) {
       const shouldEnvironmentActivate = isEnvironmentActiveRequested === true;
-      if (shouldEnvironmentActivate !== isEnvironmentActive) {
+      if (shouldEnvironmentActivate !== state.isEnvironmentActive) {
         if (shouldEnvironmentActivate) {
           beginLightTransitionSession();
           syncLightTransitionSession(performance.now(), true);
         }
-        isEnvironmentActive = shouldEnvironmentActivate;
+        state.isEnvironmentActive = shouldEnvironmentActivate;
         if (!shouldEnvironmentActivate) {
           endLightTransitionSession();
         }
@@ -22550,10 +22373,10 @@ function createStageController() {
       pickModelReferences: any = [],
       requestedSampleRadiusPx = 0
     ) {
-      if (!previewModelRoot || !pickModelReferences.length) {
+      if (!state.previewModelRoot || !pickModelReferences.length) {
         return null;
       }
-      const pickCanvasRect = renderer.domElement.getBoundingClientRect();
+      const pickCanvasRect = state.renderer.domElement.getBoundingClientRect();
       if (!pickCanvasRect.width || !pickCanvasRect.height) {
         return null;
       }
@@ -22565,9 +22388,9 @@ function createStageController() {
       const pickModelReferenceByMesh = new Map();
       const pickCandidateMeshes: any = [];
       const curtainPanelModelKeys = new Set();
-      previewModelRoot.updateWorldMatrix(true, true);
-      previewCamera.updateMatrixWorld();
-      previewModelRoot.traverse((pickMeshNode: any) => {
+      state.previewModelRoot.updateWorldMatrix(true, true);
+      state.previewCamera.updateMatrixWorld();
+      state.previewModelRoot.traverse((pickMeshNode: any) => {
         if (!pickMeshNode.isMesh) {
           return;
         }
@@ -22650,10 +22473,10 @@ function createStageController() {
         );
         let nearestPickHit = null;
         for (const [hitFloorId, hitFloorMeshes] of pickMeshesByFloorId) {
-          if (overviewStackController) {
-            overviewStackController.rayForFloor(hitFloorId, samplePointerNdc, pickRaycaster);
+          if (state.overviewStackController) {
+            state.overviewStackController.rayForFloor(hitFloorId, samplePointerNdc, pickRaycaster);
           } else {
-            pickRaycaster.setFromCamera(samplePointerNdc, previewCamera);
+            pickRaycaster.setFromCamera(samplePointerNdc, state.previewCamera);
           }
           for (const pickIntersection of pickRaycaster.intersectObjects(hitFloorMeshes, false)) {
             const pickHitMaterial = Array.isArray(pickIntersection.object.material)
@@ -22675,7 +22498,7 @@ function createStageController() {
       return null;
     },
     get camera() {
-      return previewCamera;
+      return state.previewCamera;
     },
     presentationCamera(cameraFloorOrObject: any) {
       if (typeof cameraFloorOrObject != "string") {
@@ -22694,41 +22517,41 @@ function createStageController() {
           }
         }
       }
-      return overviewStackController?.cameraForFloor(cameraFloorOrObject) || previewCamera;
+      return state.overviewStackController?.cameraForFloor(cameraFloorOrObject) || state.previewCamera;
     },
     presentationRay(presentationRayFloorId: any, presentationRayNdc: any, presentationRaycaster: any) {
-      if (overviewStackController) {
-        return overviewStackController.rayForFloor(
+      if (state.overviewStackController) {
+        return state.overviewStackController.rayForFloor(
           presentationRayFloorId,
           presentationRayNdc,
           presentationRaycaster
         );
       } else {
-        presentationRaycaster.setFromCamera(presentationRayNdc, previewCamera);
+        presentationRaycaster.setFromCamera(presentationRayNdc, state.previewCamera);
         return presentationRaycaster;
       }
     },
     get controls() {
-      return orbitControls;
+      return state.orbitControls;
     },
     get document() {
-      return studioDocument;
+      return state.studioDocument;
     },
     get defaults() {
       return DEFAULT_BASE_LIGHTING;
     },
     get regionLighting() {
-      return regionLightController;
+      return state.regionLightController;
     },
     invalidateRegionLighting() {
-      regionLightController?.sync(previewCamera);
+      state.regionLightController?.sync(state.previewCamera);
       requestRenderFrame();
     },
     transformCamera(transformedCameraState: any, transformedFloorId: any, shouldSwapProject = false) {
       return transformSceneCamera(
         transformedCameraState,
         referenceProjectDocument,
-        studioDocument,
+        state.studioDocument,
         transformedFloorId,
         shouldSwapProject
       );
@@ -22737,7 +22560,7 @@ function createStageController() {
       const pageQueryParams = new URLSearchParams(window.location.search);
       const sceneSyncQueryParams = new URLSearchParams({
         projectId: pageQueryParams.get("projectId") || "",
-        since: savedSceneRecord.syncKey || ""
+        since: state.savedSceneRecord.syncKey || ""
       });
       const sceneSyncResponse = await withRequestTimeout(
         SCENE_REQUEST_TIMEOUT_MS,
@@ -22766,14 +22589,14 @@ function createStageController() {
         return null;
       }
       const incomingUpdatePlan = sceneUpdatePlan(
-        normalizeStudioDocument(savedSceneRecord.scene),
+        normalizeStudioDocument(state.savedSceneRecord.scene),
         normalizeStudioDocument(sceneSyncResponse.scene)
       );
       if (!incomingUpdatePlan.full && !incomingUpdatePlan.floors.length) {
         const incomingStudioDocument = normalizeStudioDocument(sceneSyncResponse.scene);
-        studioDocument.baseLighting = incomingStudioDocument.baseLighting;
+        state.studioDocument.baseLighting = incomingStudioDocument.baseLighting;
         for (const incomingFloorSummary of incomingStudioDocument.floors) {
-          const matchingFloorRecord = studioDocument.floors.find(
+          const matchingFloorRecord = state.studioDocument.floors.find(
             (matchedFloorSummary: any) => matchedFloorSummary.id === incomingFloorSummary.id
           );
           if (matchingFloorRecord) {
@@ -22784,18 +22607,18 @@ function createStageController() {
           releaseFloorCache();
           applyBaseLightingSettings(incomingStudioDocument.baseLighting);
         }
-        savedSceneRecord = sceneSyncResponse;
+        state.savedSceneRecord = sceneSyncResponse;
         return null;
       }
       return sceneSyncResponse;
     },
     get savedScene() {
-      return savedSceneRecord;
+      return state.savedSceneRecord;
     },
     async replaceScene(replacementStudioRecord: any) {
       const replacementDocument = normalizeStudioDocument(replacementStudioRecord.scene);
       const replacementPlan = sceneUpdatePlan(
-        normalizeStudioDocument(savedSceneRecord.scene),
+        normalizeStudioDocument(state.savedSceneRecord.scene),
         replacementDocument
       );
       floorTransitionController.finish();
@@ -22813,11 +22636,11 @@ function createStageController() {
       backgroundThemeModelRoot = null;
       backgroundThemeFirstChild = null;
       if (!replacementPlan.full) {
-        replacementDocument.activeFloorId = activeFloorId;
-        replacementDocument.previewFloorMode = studioDocument.previewFloorMode;
+        replacementDocument.activeFloorId = state.activeFloorId;
+        replacementDocument.previewFloorMode = state.studioDocument.previewFloorMode;
         for (const replacementFloorEntry of replacementDocument.floors) {
           replacementFloorEntry.scene.settings.livePreviewEnabled = true;
-          const existingFloorEntry = studioDocument.floors.find(
+          const existingFloorEntry = state.studioDocument.floors.find(
             (existingFloorMatch: any) => existingFloorMatch.id === replacementFloorEntry.id
           );
           if (existingFloorEntry && !replacementPlan.floors.includes(replacementFloorEntry.id)) {
@@ -22843,12 +22666,12 @@ function createStageController() {
             }
           }
         }
-        studioDocument = replacementDocument;
-        savedSceneRecord = replacementStudioRecord;
+        state.studioDocument = replacementDocument;
+        state.savedSceneRecord = replacementStudioRecord;
         if (uniformOverviewStackOverride !== undefined) {
-          studioDocument.uniformOverviewStack = uniformOverviewStackOverride;
+          state.studioDocument.uniformOverviewStack = uniformOverviewStackOverride;
         }
-        activeScene = getCurrentFloor().scene;
+        state.activeScene = getCurrentFloor().scene;
         switchPreviewFloor(new Set(replacementPlan.floors));
         Promise.allSettled(releaseAllDeferredModels());
         return;
@@ -22857,16 +22680,16 @@ function createStageController() {
       await new Promise(requestAnimationFrame);
       await new Promise(requestAnimationFrame);
       if (uniformOverviewStackOverride !== undefined) {
-        studioDocument.uniformOverviewStack = uniformOverviewStackOverride;
+        state.studioDocument.uniformOverviewStack = uniformOverviewStackOverride;
       }
     },
     coverSceneUpdate() {
       const sceneCoverCanvas = document.createElement("canvas");
-      sceneCoverCanvas.width = renderer.domElement.width;
-      sceneCoverCanvas.height = renderer.domElement.height;
-      renderer.render(previewOverlayScene, previewCamera);
+      sceneCoverCanvas.width = state.renderer.domElement.width;
+      sceneCoverCanvas.height = state.renderer.domElement.height;
+      state.renderer.render(state.previewOverlayScene, state.previewCamera);
       const sceneCoverContext: any = sceneCoverCanvas.getContext("2d");
-      sceneCoverContext.drawImage(renderer.domElement, 0, 0);
+      sceneCoverContext.drawImage(state.renderer.domElement, 0, 0);
       if (!lightCacheCanvasElement.hidden) {
         sceneCoverContext.drawImage(
           lightCacheCanvasElement,
@@ -22876,9 +22699,9 @@ function createStageController() {
           sceneCoverCanvas.height
         );
       }
-      const rendererCanvasVisibility = renderer.domElement.style.visibility;
+      const rendererCanvasVisibility = state.renderer.domElement.style.visibility;
       const lightCacheCanvasVisibility = lightCacheCanvasElement.style.visibility;
-      renderer.domElement.style.visibility = "hidden";
+      state.renderer.domElement.style.visibility = "hidden";
       lightCacheCanvasElement.style.visibility = "hidden";
       Object.assign(sceneCoverCanvas.style, {
         position: "absolute",
@@ -22891,13 +22714,13 @@ function createStageController() {
       sceneCoverCanvas.setAttribute("aria-label", "正在同步户型");
       selectElement("#preview-3d").append(sceneCoverCanvas);
       return () => {
-        renderer.domElement.style.visibility = rendererCanvasVisibility;
+        state.renderer.domElement.style.visibility = rendererCanvasVisibility;
         lightCacheCanvasElement.style.visibility = lightCacheCanvasVisibility;
         sceneCoverCanvas.remove();
       };
     },
     getOrbitCenter() {
-      return resolveOrbitCenter(orbitControls.target).toArray();
+      return resolveOrbitCenter(state.orbitControls.target).toArray();
     },
     setOrbitPivot(orbitPivotPoint: any) {
       orbitPivotOverride = orbitPivotPoint
@@ -22970,7 +22793,7 @@ function createStageController() {
       const shouldBlendProjection =
         blendCameraPose && (cameraBlendState || poseBeforeMotion.mode !== blendCameraMode);
       const blendFromHeight = shouldBlendProjection
-        ? (cameraBlendState?.height ?? measureVisibleHeight(previewCamera, orbitControls.target))
+        ? (cameraBlendState?.height ?? measureVisibleHeight(state.previewCamera, state.orbitControls.target))
         : 0;
       const blendFromWeight =
         cameraBlendState?.weight ?? (poseBeforeMotion.mode === "perspective" ? 1 : 0);
@@ -22980,7 +22803,7 @@ function createStageController() {
       if (isAdaptiveLightCacheEnabled()) {
         beginLightTransitionSession();
         syncLightTransitionSession(performance.now());
-        applyShadowBudget(previewModelRoot, {
+        applyShadowBudget(state.previewModelRoot, {
           rebuildAtlas: false
         });
         requestRenderFrame();
@@ -23032,24 +22855,24 @@ function createStageController() {
       activeCameraSettings.cameraView = appliedCameraPose.view || "free";
       activeCameraSettings.cameraTopRotation = appliedCameraPose.topRotation || 0;
       activeCameraSettings.cameraFocalLength = appliedCameraPose.focalLength || 50;
-      previewCamera.position.fromArray(appliedCameraPose.position);
-      orbitControls.target.fromArray(appliedCameraPose.target);
-      previewCamera.up.fromArray(appliedCameraPose.up || [0, 1, 0]);
-      previewCamera.zoom = appliedCameraPose.zoom;
-      previewCamera.userData.frameSize = appliedCameraPose.frameSize || 10;
-      previewCamera.userData.cameraView = activeCameraSettings.cameraView;
-      previewCamera.userData.topRotation = activeCameraSettings.cameraTopRotation;
-      if (previewCamera.isOrthographicCamera) {
+      state.previewCamera.position.fromArray(appliedCameraPose.position);
+      state.orbitControls.target.fromArray(appliedCameraPose.target);
+      state.previewCamera.up.fromArray(appliedCameraPose.up || [0, 1, 0]);
+      state.previewCamera.zoom = appliedCameraPose.zoom;
+      state.previewCamera.userData.frameSize = appliedCameraPose.frameSize || 10;
+      state.previewCamera.userData.cameraView = activeCameraSettings.cameraView;
+      state.previewCamera.userData.topRotation = activeCameraSettings.cameraTopRotation;
+      if (state.previewCamera.isOrthographicCamera) {
         applyOrthographicFrame(
-          previewCamera.userData.frameSize,
-          previewCamera.userData.viewportAspect || 1
+          state.previewCamera.userData.frameSize,
+          state.previewCamera.userData.viewportAspect || 1
         );
       } else {
         applyFocalLength();
       }
-      previewCamera.lookAt(orbitControls.target);
-      updateCameraClipPlanes(previewCamera, orbitControls.target);
-      previewCamera.updateMatrixWorld();
+      state.previewCamera.lookAt(state.orbitControls.target);
+      updateCameraClipPlanes(state.previewCamera, state.orbitControls.target);
+      state.previewCamera.updateMatrixWorld();
       syncPreviewProjection();
       invalidateRender({
         preserveLightCache: applyPreserveLightCache
@@ -23062,8 +22885,8 @@ function createStageController() {
       finishCameraMotion();
       invalidateRender();
       if (
-        typeof lightTransitionSession !== "undefined" &&
-        lightTransitionSession === lightTransitionSessionToken &&
+        typeof state.lightTransitionSession !== "undefined" &&
+        state.lightTransitionSession === lightTransitionSessionToken &&
         !lightTransitionsByLight.size
       ) {
         if (lightSettleTimeoutHandle !== null) {
@@ -23076,10 +22899,10 @@ function createStageController() {
       uniformOverviewStackOverride =
         typeof uniformOverviewStackFlag == "boolean" ? uniformOverviewStackFlag : undefined;
       const nextUniformOverviewStackFlag =
-        uniformOverviewStackOverride ?? savedSceneRecord.scene.uniformOverviewStack === true;
-      if (studioDocument.uniformOverviewStack !== nextUniformOverviewStackFlag) {
+        uniformOverviewStackOverride ?? state.savedSceneRecord.scene.uniformOverviewStack === true;
+      if (state.studioDocument.uniformOverviewStack !== nextUniformOverviewStackFlag) {
         this.finishFloorTransition();
-        studioDocument.uniformOverviewStack = nextUniformOverviewStackFlag;
+        state.studioDocument.uniformOverviewStack = nextUniformOverviewStackFlag;
         orbitPivotOverride = null;
         boundsCacheModelRoot = null;
         groundReflectionsController.changed();
@@ -23094,19 +22917,19 @@ function createStageController() {
         : null;
       if (clampedFloorGapOrNull !== null || lastRequestedFloorGap !== null) {
         const appliedFloorGapValue =
-          clampedFloorGapOrNull ?? normalizeStudioDocument(savedSceneRecord.scene).previewFloorGap;
-        if (Math.abs(studioDocument.previewFloorGap - appliedFloorGapValue) > 0.000001) {
+          clampedFloorGapOrNull ?? normalizeStudioDocument(state.savedSceneRecord.scene).previewFloorGap;
+        if (Math.abs(state.studioDocument.previewFloorGap - appliedFloorGapValue) > 0.000001) {
           floorTransitionController.finish();
           const isOverviewFloorMode = currentPreviewFloorMode() === "all";
           const detachedFloorRecords = isOverviewFloorMode
             ? floorTransitionController.take(
-                studioDocument.floors.map((gapFloorId: any) => gapFloorId.id),
+                state.studioDocument.floors.map((gapFloorId: any) => gapFloorId.id),
                 floorWorldMatrix,
                 true
               )
             : [];
           try {
-            studioDocument.previewFloorGap = appliedFloorGapValue;
+            state.studioDocument.previewFloorGap = appliedFloorGapValue;
             for (const reusedFloorRecord of detachedFloorRecords) {
               floorTransitionController.reuse(
                 reusedFloorRecord,
@@ -23141,14 +22964,14 @@ function createStageController() {
           ? clamp(appearanceOptions.wallOpacity, 0, 1)
           : null;
       if (
-        nextSceneStyle !== studioSceneStyle ||
-        nextWallOpacityOverride !== wallOpacityOverride
+        nextSceneStyle !== state.studioSceneStyle ||
+        nextWallOpacityOverride !== state.wallOpacityOverride
       ) {
         this.finishFloorTransition();
         releaseFloorCache();
         const poseBeforeStyleChange = this.cameraState();
-        studioSceneStyle = nextSceneStyle;
-        wallOpacityOverride = nextWallOpacityOverride;
+        state.studioSceneStyle = nextSceneStyle;
+        state.wallOpacityOverride = nextWallOpacityOverride;
         rebuildPreviewScene();
         this.restoreCamera(poseBeforeStyleChange);
       }
@@ -23165,10 +22988,10 @@ function createStageController() {
         groundReflectionsController.changed();
       }
       if (groundReflectionsController.configure(appearanceOptions.groundReflection)) {
-        groundReflectionSettingsKey = JSON.stringify(groundReflectionsController.settings);
+        state.groundReflectionSettingsKey = JSON.stringify(groundReflectionsController.settings);
         invalidateRender();
       }
-      regionLightController?.setOverrides(appearanceOptions.lightRegionOverrides || {});
+      state.regionLightController?.setOverrides(appearanceOptions.lightRegionOverrides || {});
       isBaseLightingPreviewActive = !!appearanceOptions.baseLighting;
       const nextRenderScale = clamp(finite(appearanceOptions.renderScale, 1), 0.25, 2);
       const nextMotionRenderScale =
@@ -23176,10 +22999,10 @@ function createStageController() {
         Number.isFinite(appearanceOptions.motionRenderScale)
           ? clamp(appearanceOptions.motionRenderScale, 0.25, 1)
           : null;
-      if (nextRenderScale !== renderScale || nextMotionRenderScale !== motionRenderScale) {
-        renderScale = nextRenderScale;
-        motionRenderScale = nextMotionRenderScale;
-        renderer.setPixelRatio(targetPixelRatio(isCameraMotionActive));
+      if (nextRenderScale !== state.renderScale || nextMotionRenderScale !== state.motionRenderScale) {
+        state.renderScale = nextRenderScale;
+        state.motionRenderScale = nextMotionRenderScale;
+        state.renderer.setPixelRatio(targetPixelRatio(state.isCameraMotionActive));
         handleStageResize();
         invalidateRender();
       }
@@ -23187,18 +23010,18 @@ function createStageController() {
       const nextBackgroundVisible = appearanceOptions.backgroundVisible === true;
       const backgroundVisibilityChanged = isBackgroundVisible !== nextBackgroundVisible;
       const nextBackgroundThemeName = backgroundThemeController?.theme || "grid";
-      const backgroundThemeNameChanged = backgroundTheme !== nextBackgroundThemeName;
-      backgroundTheme = nextBackgroundThemeName;
+      const backgroundThemeNameChanged = state.backgroundTheme !== nextBackgroundThemeName;
+      state.backgroundTheme = nextBackgroundThemeName;
       isBackgroundVisible = nextBackgroundVisible;
       document.body.classList.toggle("is-background-hidden", !isBackgroundVisible);
       applyBackgroundVisibility();
       const nextBaseLightingState = normalizeBaseLighting(
-        appearanceOptions.baseLighting || studioDocument.baseLighting
+        appearanceOptions.baseLighting || state.studioDocument.baseLighting
       );
-      if (regionLightController?.setFloorBrightness(nextBaseLightingState.floorBrightness)) {
+      if (state.regionLightController?.setFloorBrightness(nextBaseLightingState.floorBrightness)) {
         invalidateRender();
       }
-      if (JSON.stringify(nextBaseLightingState) !== JSON.stringify(baseLighting)) {
+      if (JSON.stringify(nextBaseLightingState) !== JSON.stringify(state.baseLighting)) {
         applyBaseLightingSettings(nextBaseLightingState);
       }
       if (backgroundVisibilityChanged || backgroundThemeNameChanged) {
@@ -23236,7 +23059,7 @@ function createStageController() {
       return transformSceneCamera(
         defaultCameraPose,
         referenceProjectDocument,
-        studioDocument,
+        state.studioDocument,
         defaultCameraFloorId
       );
     },
@@ -23245,7 +23068,7 @@ function createStageController() {
     },
     advanceFloorTransition(motionProgress: any, floorMotionPose: any) {
       if (overviewStackAnimation) {
-        overviewStackAmount =
+        state.overviewStackAmount =
           overviewStackAnimation.from +
           (overviewStackAnimation.to - overviewStackAnimation.from) * motionProgress;
       }
@@ -23269,7 +23092,7 @@ function createStageController() {
       floorTransitionController.sample(motionProgress, floorMotionPose, floorMotionSample);
       if (motionProgress >= 1) {
         overviewStackAnimation = null;
-        overviewStackAmount = null;
+        state.overviewStackAmount = null;
       }
     },
     setFloorSlideCameras(slideFromPose: any, slideToPose: any) {
@@ -23298,7 +23121,7 @@ function createStageController() {
     finishFloorTransition() {
       floorTransitionController.finish();
       overviewStackAnimation = null;
-      overviewStackAmount = null;
+      state.overviewStackAmount = null;
     },
     get floorCacheSize() {
       return floorTransitionCacheById.size;
@@ -23307,7 +23130,7 @@ function createStageController() {
       return areFloorEffectsFollowed;
     },
     transitionFloor(transitionTargetFloorId: any) {
-      const floorIdsByElevationOrder = [...studioDocument.floors]
+      const floorIdsByElevationOrder = [...state.studioDocument.floors]
         .sort(
           (elevationLeftFloor, elevationRightFloor) =>
             elevationLeftFloor.elevation - elevationRightFloor.elevation
@@ -23317,7 +23140,7 @@ function createStageController() {
        * @returns {THREE.Matrix4} 该楼层的变换矩阵。
        */
       const floorMatrixForId = (matrixTargetFloorId: any) => {
-        const matrixTargetFloor = studioDocument.floors.find(
+        const matrixTargetFloor = state.studioDocument.floors.find(
           (matrixFloorMatch: any) => matrixFloorMatch.id === matrixTargetFloorId
         );
         const matrixTargetScale = matrixTargetFloor.scene.calibration?.pixelsPerMeter || 1;
@@ -23332,13 +23155,13 @@ function createStageController() {
       };
       const isOverviewStackMode = currentPreviewFloorMode() === "all";
       overviewStackAnimation = {
-        from: overviewStackAmount ?? (isOverviewStackMode ? 1 : 0),
+        from: state.overviewStackAmount ?? (isOverviewStackMode ? 1 : 0),
         to: transitionTargetFloorId === "all" ? 1 : 0
       };
-      overviewStackAmount = overviewStackAnimation.from;
-      const transitionSourceFloorKey = isOverviewStackMode ? "all" : activeFloorId;
+      state.overviewStackAmount = overviewStackAnimation.from;
+      const transitionSourceFloorKey = isOverviewStackMode ? "all" : state.activeFloorId;
       const transitionDetachedRecords = floorTransitionController.take(
-        isOverviewStackMode ? floorIdsByElevationOrder : [activeFloorId],
+        isOverviewStackMode ? floorIdsByElevationOrder : [state.activeFloorId],
         floorMatrixForId,
         isOverviewStackMode
       );
@@ -23370,10 +23193,10 @@ function createStageController() {
       const transitionBoundsSize = transitionBoundsBox.getSize(new threeModuleMin.Vector3());
       const isAdjacentFloorTransition = !isOverviewStackMode && transitionTargetFloorId !== "all";
       const transitionCameraUp = isAdjacentFloorTransition
-        ? new threeModuleMin.Vector3(0, 1, 0).applyQuaternion(previewCamera.quaternion).normalize()
+        ? new threeModuleMin.Vector3(0, 1, 0).applyQuaternion(state.previewCamera.quaternion).normalize()
         : null;
       const transitionVisibleHeight = isAdjacentFloorTransition
-        ? measureVisibleHeight(previewCamera, orbitControls.target) * 1.2
+        ? measureVisibleHeight(state.previewCamera, state.orbitControls.target) * 1.2
         : Math.max(20, transitionBoundsSize.x, transitionBoundsSize.z) * 1.5;
       const sourceFloorScrollPosition =
         transitionDetachedRecords.find((scrollRecordEntry: any) =>
@@ -23437,11 +23260,11 @@ function createStageController() {
       if (reusableTransitionRecords) {
         floorCacheStats.reusedFloors += reusableTransitionCount;
       }
-      renderer.domElement.dataset.floorReuseStats = JSON.stringify(floorCacheStats);
+      state.renderer.domElement.dataset.floorReuseStats = JSON.stringify(floorCacheStats);
       if (reusableTransitionRecords) {
         for (const releasedTransitionRecord of reusableTransitionRecords) {
           environmentSceneController?.releaseRoot?.(releasedTransitionRecord.node);
-          regionLightController?.releaseRoot?.(releasedTransitionRecord.node);
+          state.regionLightController?.releaseRoot?.(releasedTransitionRecord.node);
           floorTransitionCacheById.delete(releasedTransitionRecord.id);
         }
       } else {
@@ -23473,32 +23296,32 @@ function createStageController() {
     },
     setFloor(setFloorId: any, setFloorRecords: any = null, floorMatrixResolver = floorWorldMatrix) {
       const floorRecordForId =
-        studioDocument.floors.find((activeFloorEntry: any) => activeFloorEntry.id === setFloorId) ||
-        studioDocument.floors[0];
+        state.studioDocument.floors.find((activeFloorEntry: any) => activeFloorEntry.id === setFloorId) ||
+        state.studioDocument.floors[0];
       const nextPreviewFloorMode =
-        setFloorId === "all" && studioDocument.floors.length > 1 ? "all" : "active";
+        setFloorId === "all" && state.studioDocument.floors.length > 1 ? "all" : "active";
       if (
         !!setFloorRecords ||
-        activeFloorId !== floorRecordForId.id ||
+        state.activeFloorId !== floorRecordForId.id ||
         currentPreviewFloorMode() !== nextPreviewFloorMode
       ) {
         if (
           lightTransitionsByLight.size ||
-          (typeof lightTransitionSession !== "undefined" &&
-            lightTransitionSession === lightTransitionSessionToken)
+          (typeof state.lightTransitionSession !== "undefined" &&
+            state.lightTransitionSession === lightTransitionSessionToken)
         ) {
           teardownLightTransitions();
         }
         hasReceivedLightStates = false;
         forceLightStateRefresh = true;
-        activeFloorId = floorRecordForId.id;
-        studioDocument.activeFloorId = floorRecordForId.id;
-        activeScene = floorRecordForId.scene;
+        state.activeFloorId = floorRecordForId.id;
+        state.studioDocument.activeFloorId = floorRecordForId.id;
+        state.activeScene = floorRecordForId.scene;
         if (setFloorRecords) {
-          studioDocument.previewFloorMode = nextPreviewFloorMode;
+          state.studioDocument.previewFloorMode = nextPreviewFloorMode;
           syncPreviewFloorButtons();
           syncCameraViewControls();
-          const lowestElevationFloorId = [...studioDocument.floors].sort(
+          const lowestElevationFloorId = [...state.studioDocument.floors].sort(
             (floorSortLeft, floorSortRight) => floorSortLeft.elevation - floorSortRight.elevation
           )[0].id;
           for (const restoredFloorRecord of setFloorRecords) {
@@ -23517,16 +23340,16 @@ function createStageController() {
                 }
               });
           }
-          previewModelRoot.userData.regionFloorId = floorRecordForId.id;
-          if (regionLightController) {
-            previewModelRoot.traverse((lightRegistrarSceneNode: any) => {
+          state.previewModelRoot.userData.regionFloorId = floorRecordForId.id;
+          if (state.regionLightController) {
+            state.previewModelRoot.traverse((lightRegistrarSceneNode: any) => {
               if (
                 !lightRegistrarSceneNode.isLight ||
                 !lightRegistrarSceneNode.userData.lightItemId
               ) {
                 return;
               }
-              const registrableLightItem = studioDocument.floors
+              const registrableLightItem = state.studioDocument.floors
                 .find(
                   (registrableFloorEntry: any) =>
                     registrableFloorEntry.id === lightRegistrarSceneNode.userData.lightFloorId
@@ -23536,11 +23359,11 @@ function createStageController() {
                     registrableLightItemMatch.id === lightRegistrarSceneNode.userData.lightItemId
                 );
               if (registrableLightItem) {
-                regionLightController.register(lightRegistrarSceneNode, registrableLightItem);
+                state.regionLightController.register(lightRegistrarSceneNode, registrableLightItem);
               }
             });
           }
-          applyShadowBudget(previewModelRoot);
+          applyShadowBudget(state.previewModelRoot);
           applyCameraMode(currentCameraMode(), {
             preserveView: false
           });
@@ -23572,8 +23395,8 @@ function createStageController() {
        * @returns {THREE.Vector3|null} 展示坐标点；无控制器时即原值。
        */
       const toPresentationPoint = (presentationWorldPoint: any) =>
-        presentationWorldPoint && overviewStackController
-          ? overviewStackController.presentationPoint(presentationFloorId, presentationWorldPoint)
+        presentationWorldPoint && state.overviewStackController
+          ? state.overviewStackController.presentationPoint(presentationFloorId, presentationWorldPoint)
           : presentationWorldPoint;
       if (!presentationFloorRecord) {
         return toPresentationPoint(
@@ -23585,7 +23408,7 @@ function createStageController() {
           )
         );
       }
-      const presentationFloorEntry = studioDocument.floors.find(
+      const presentationFloorEntry = state.studioDocument.floors.find(
         (presentationFloorMatch: any) => presentationFloorMatch.id === presentationFloorId
       );
       if (!presentationFloorEntry) {
@@ -23612,12 +23435,12 @@ function createStageController() {
         recreateOrbitControls();
       }
       return {
-        position: previewCamera.position.toArray(),
-        target: orbitControls.target.toArray(),
-        zoom: previewCamera.zoom,
-        mode: previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
-        up: previewCamera.up.toArray(),
-        frameSize: previewCamera.userData.frameSize || 10,
+        position: state.previewCamera.position.toArray(),
+        target: state.orbitControls.target.toArray(),
+        zoom: state.previewCamera.zoom,
+        mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
+        up: state.previewCamera.up.toArray(),
+        frameSize: state.previewCamera.userData.frameSize || 10,
         view: currentCameraView(),
         topRotation: currentTopRotationDeg(),
         focalLength: currentFocalLength()
@@ -23658,7 +23481,7 @@ function createStageController() {
       if (interactionChanged) {
         recreateOrbitControls();
       } else {
-        orbitControls.enabled = shouldEnableControls;
+        state.orbitControls.enabled = shouldEnableControls;
       }
       installOrbitControlsOverrides();
     },
@@ -23681,7 +23504,7 @@ function createStageController() {
         await new Promise(requestAnimationFrame);
         applyBackgroundVisibility();
         await waitForLightCacheSettle();
-        renderer.render(previewOverlayScene, previewCamera);
+        state.renderer.render(state.previewOverlayScene, state.previewCamera);
         await new Promise(requestAnimationFrame);
       })();
       return presentedPromise;
@@ -23717,20 +23540,20 @@ function createStageController() {
       applyCameraMode(restoredCameraPose.mode, {
         preserveView: false
       });
-      previewCamera.position.fromArray(restoredCameraPose.position);
+      state.previewCamera.position.fromArray(restoredCameraPose.position);
       if (restoredCameraPose.up) {
-        previewCamera.up.fromArray(restoredCameraPose.up);
+        state.previewCamera.up.fromArray(restoredCameraPose.up);
       }
-      orbitControls.target.fromArray(restoredCameraPose.target);
-      previewCamera.zoom = restoredCameraPose.zoom;
+      state.orbitControls.target.fromArray(restoredCameraPose.target);
+      state.previewCamera.zoom = restoredCameraPose.zoom;
       if (restoredCameraPose.frameSize) {
-        previewCamera.userData.frameSize = restoredCameraPose.frameSize;
+        state.previewCamera.userData.frameSize = restoredCameraPose.frameSize;
       }
-      previewCamera.userData.cameraView = restoredCameraSettings.cameraView;
-      previewCamera.userData.topRotation = restoredCameraSettings.cameraTopRotation;
-      updateCameraClipPlanes(previewCamera, orbitControls.target);
+      state.previewCamera.userData.cameraView = restoredCameraSettings.cameraView;
+      state.previewCamera.userData.topRotation = restoredCameraSettings.cameraTopRotation;
+      updateCameraClipPlanes(state.previewCamera, state.orbitControls.target);
       handleStageResize();
-      recreateOrbitControls(orbitControls.target.clone());
+      recreateOrbitControls(state.orbitControls.target.clone());
       cameraBlendState = restoredCameraFloorId
         ? {
             ...restoredCameraFloorId
