@@ -10,13 +10,13 @@ import {
   renderRegisteredComponent,
   setBuiltinAssetVersions,
   staticAssetImageSource
-} from "../registry.js?v=2609271411";
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271411";
+} from "../registry.js?v=2609271508";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271508";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "../device-profiles.js?v=2609271411";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271411";
+} from "../device-profiles.js?v=2609271508";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271508";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -25,9 +25,9 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../../geometry/effect-geometry.js?v=2609271411";
-import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271411";
-import { isSupportedComponentAction } from "./primitives.js?v=2609271411";
+} from "../../geometry/effect-geometry.js?v=2609271508";
+import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271508";
+import { isSupportedComponentAction } from "./primitives.js?v=2609271508";
 
 export const documentCoreMethods = {
   /**
@@ -162,6 +162,36 @@ export const documentCoreMethods = {
       ...this.document.pages.flatMap(runtimePage => runtimePage.components || [])
     ]);
     this.runtimeStaticImageCache.setSources(allDocumentSources, currentPageSources);
+  },
+  /**
+   * 场景里配置了扫地机 / 摄像头时，后台预挂对应设备控件模块，
+   * 避免首次点击才去拉 vacuum + water-heater（体感比其它设备慢一截）。
+   */
+  preloadInteraction3dDeviceControls(interaction3dComponent) {
+    const stubs = [];
+    if (
+      (interaction3dComponent?.properties?.devices?.vacuums || []).some(
+        vacuumDevice => vacuumDevice.visible !== false && vacuumDevice.entityId
+      )
+    ) {
+      stubs.push({
+        type: "vacuum-control",
+        bindings: { entity: { entityId: "vacuum._preload" } }
+      });
+    }
+    if (
+      (interaction3dComponent?.properties?.security?.cameras || []).some(
+        cameraDevice => cameraDevice.visible !== false && cameraDevice.entityId
+      )
+    ) {
+      stubs.push({
+        type: "camera",
+        bindings: { entity: { entityId: "camera._preload" } }
+      });
+    }
+    if (stubs.length) {
+      void this.prepareDeviceControlsForComponents(stubs);
+    }
   },
   /**
    * 注入实体目录、翻译表与设备目录，随后整体重渲染并重新订阅。
@@ -659,6 +689,7 @@ export const documentCoreMethods = {
         retainedHostElement
           .querySelector(".hb-interaction3d-host")
           ?.updateInteraction3d?.(renderedComponent, this.document);
+        this.preloadInteraction3dDeviceControls(renderedComponent);
       }
       if (renderedComponent.type === "floorplan-auto-diagram") {
         const isDiagramViewMode = renderedComponent.properties?.interactionMode === "view";
@@ -766,7 +797,7 @@ export const documentCoreMethods = {
           previewComponent, cameraPreviewContext, previewElement
         ]),
       openVacuumDetails: (vacuumDetailsComponent, vacuumDetailsContext, vacuumDetailsTarget) =>
-        this.runDeviceControlMethod(["vacuum"], "openInteraction3dVacuumDetails", [
+        this.runDeviceControlMethod(["vacuum", "water-heater"], "openInteraction3dVacuumDetails", [
           vacuumDetailsComponent, vacuumDetailsContext, vacuumDetailsTarget
         ]),
       runVacuumRoom: requestedVacuumRoom =>
@@ -807,6 +838,9 @@ export const documentCoreMethods = {
         }
       }
     };
+    if (renderedComponent.type === "interaction3d") {
+      this.preloadInteraction3dDeviceControls(renderedComponent);
+    }
     if (renderedComponent.type === "icon-button-effect") {
       const renderedEffectLayer = renderIconButtonEffectLayer(renderPowerComponent, renderContext);
       if (renderedEffectLayer) {
@@ -1181,6 +1215,7 @@ export const documentCoreMethods = {
       runtimeHostElement
         .querySelector(".hb-interaction3d-host")
         ?.updateInteraction3d?.(refreshedComponent, this.document);
+      this.preloadInteraction3dDeviceControls(refreshedComponent);
       return;
     }
     this.cleanupRenderedComponent(runtimeComponentId);
@@ -1204,7 +1239,7 @@ export const documentCoreMethods = {
           previewSourceComponent, cameraPreviewOptions, previewTargetElement
         ]),
       openVacuumDetails: (vacuumComponent, vacuumDetailsOptions, vacuumTargetElement) =>
-        this.runDeviceControlMethod(["vacuum"], "openInteraction3dVacuumDetails", [
+        this.runDeviceControlMethod(["vacuum", "water-heater"], "openInteraction3dVacuumDetails", [
           vacuumComponent, vacuumDetailsOptions, vacuumTargetElement
         ]),
       runVacuumRoom: vacuumRoom =>

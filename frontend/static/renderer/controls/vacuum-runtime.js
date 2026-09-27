@@ -2,8 +2,8 @@
  * 扫地机器人控件的状态映射。
  */
 
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271411";
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271411";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609271508";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271508";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,

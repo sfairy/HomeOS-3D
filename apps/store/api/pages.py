@@ -118,9 +118,3 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     if target == root or root not in target.parents or not target.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
     return FileResponse(target, headers={"Cache-Control": "public, max-age=86400"})
-
-
-# 这里曾经是整个「模拟收银台」：GET /store/mock/pay/{order_no} 页面、它的内联 HTML
-# （_cashier_html / _json_for_script）、POST .../mock/pay 与 .../mock/cancel，以及两个守卫。
-# 它不需要任何真实付款就能把订单标成已支付并签发真实授权 —— 只要这套代码存在，
-# 就有被误开到线上的可能。随模拟支付一并删除；本地联调请用支付宝沙箱（见 README 5.5）。

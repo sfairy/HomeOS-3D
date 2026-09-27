@@ -1,8 +1,8 @@
 /**
  * 人体感应控件的状态映射与动画相位计算：把 binary_sensor / device_tracker / 传感器 /
  */
-import { entitySearchTextOf } from "../../utils/entities.js?v=2609271411";
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271411";
+import { entitySearchTextOf } from "../../utils/entities.js?v=2609271508";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271508";
 
 /**
  * 把带单位的时长状态换算成秒。

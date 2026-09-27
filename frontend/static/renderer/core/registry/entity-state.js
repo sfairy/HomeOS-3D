@@ -1,13 +1,13 @@
 /**
  * 实体与控件的活动态判定、状态文案格式化。
  */
-import { entityPowerIsOn } from "../entity-power.js?v=2609271411";
+import { entityPowerIsOn } from "../entity-power.js?v=2609271508";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271411";
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609271411";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609271508";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609271508";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271411";
-import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609271411";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271508";
+import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609271508";
 import {
   climateEffectMode,
   climateIsPoweredOn,
@@ -15,9 +15,9 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "../../controls/climate.js?v=2609271411";
+} from "../../controls/climate.js?v=2609271508";
 // 同门分片：cover-state
-import { coverComponentIsActive } from "./cover-state.js?v=2609271411";
+import { coverComponentIsActive } from "./cover-state.js?v=2609271508";
 
 /**
  * 控件「是否为活动态」的统一入口：cover 域走窗帘逻辑（活动定义与普通开关不同）。

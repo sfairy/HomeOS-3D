@@ -137,12 +137,12 @@ def recount_coupon_slots(session: Session, coupon_id: str) -> int:
     return used
 
 
-def release_coupon(session: Session, order: Order) -> bool:
-    """订单未成交时归还名额（取消 / 超时 / 支付失败）。返回本次是否真的归还过。
+def release_coupon(
+    session: Session, order: Order, *, reason: str = "订单未成交，自动归还名额"
+) -> bool:
+    """订单未成交或全额退款时归还名额。返回本次是否真的归还过。
 
-    **幂等**，而且判据落在核销行上而不是「这个码被用过没有」：重复调用（重复的
-    取消 / 超时批扫 / 后台动作撞在一起）只归还一次，不会把计数越减越少 ——
-    旧实现按码字符串无条件自减，一旦被调用两次，占用数就永久性地少了。
+    **幂等**：重复调用只归还一次，不会把计数越减越少。
     """
     if not order.coupon_code:
         return False
@@ -152,10 +152,9 @@ def release_coupon(session: Session, order: Order) -> bool:
         .where(CouponRedemption.voided_at.is_(None))
     ).first()
     if record is None:
-        # 从未占用过，或已经被归还：两种都是「无需再归还」。
         return False
     record.voided_at = utcnow()
-    record.void_reason = "订单未成交，自动归还名额"
+    record.void_reason = reason[:255]
     session.flush()
     recount_coupon_slots(session, record.coupon_id)
     return True

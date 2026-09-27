@@ -1,9 +1,9 @@
 /**
  * 全局日志上报的启动引导（编辑器 / 面板侧）：早于业务脚本执行，把 global-log.js 接到真实接口上。
  */
-import { setupGlobalLog } from "./global-log.js?v=2609271411";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271411";
-import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
+import { setupGlobalLog } from "./global-log.js?v=2609271508";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271508";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271508";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。

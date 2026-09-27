@@ -1,8 +1,8 @@
 /**
  * 门模型的开合动画：把 lock-state 折出的 doorOpen 翻译成门网格的姿态变化，并逐帧推进。
  */
-import { lockState } from "./lock-state.js?v=2609271411";
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { lockState } from "./lock-state.js?v=2609271508";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271508";
 
 /**
  * 创建门锁动画控制器。

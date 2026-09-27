@@ -228,6 +228,8 @@ class ProjectDraft(Base):
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     document_json: Mapped[str] = mapped_column(Text, nullable=False)
+    #: 草稿引用的 HA 实体 ID 列表（JSON 数组）；NULL 表示尚未索引，需回退全文扫描。
+    entity_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True, default='[]')
     updated_by: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'), nullable=False, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 

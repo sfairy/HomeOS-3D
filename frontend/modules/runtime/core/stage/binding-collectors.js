@@ -6,15 +6,15 @@ import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile,
   isGenericDeviceKind
-} from "../../device/device-profiles.js?v=2609271411";
-import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609271411";
+} from "../../device/device-profiles.js?v=2609271508";
+import { doorModels, lockHinge } from "../../security/lock-state.js?v=2609271508";
 // 温湿度计的缺省落点：没有显式 x / y 时落在楼层几何中心，与工作室放置新标记的口径同源
-import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609271411";
+import { temperatureHumidityFloorCenter } from "../static-helpers.js?v=2609271508";
 // 窗帘组合（一拖多）的归一与舞台条目 id 口径：编辑器的配对候选、组合面板与舞台绑定必须
 import {
   curtainGroupEntryId,
   validCurtainGroups
-} from "../../cover/cover-groups.js?v=2609271411";
+} from "../../cover/cover-groups.js?v=2609271508";
 
 export function createBindingCollectors(ctx) {
   /**

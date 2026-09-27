@@ -186,15 +186,18 @@ def _origin_allowed(request: Request, origin: str) -> bool:
 
 def same_origin_request(request: Request) -> bool:
     """改状态的请求是否来自本商店（CSRF 第二道闸）。
+
+    Cookie 会话写操作必须带 Origin 或 Referer；无 Cookie 的服务端回调走豁免路径。
     """
     origin = request.headers.get("origin", "").strip()
     if origin:
         return _origin_allowed(request, origin)
     referer = request.headers.get("referer", "").strip()
-    if not referer:
-        return True
-    referer_origin = _origin_from_referer(referer)
-    return bool(referer_origin) and _origin_allowed(request, referer_origin)
+    if referer:
+        referer_origin = _origin_from_referer(referer)
+        return bool(referer_origin) and _origin_allowed(request, referer_origin)
+    # 无 Origin/Referer：仅允许无 Cookie 的请求（如已豁免的渠道回调不会走到这里）。
+    return not bool(request.cookies)
 
 
 def _accept_quality(accept: str, target: str) -> float:

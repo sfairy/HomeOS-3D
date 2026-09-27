@@ -233,9 +233,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
-    #: 文档页**永远关闭**：/store-api-docs 会把全部商店与后台端点、参数结构、鉴权方式
-    #: 一次性列给任何人。这里曾经有一个 STORE_EXPOSE_API_DOCS 开关，已删除 —— 一个
-    #: 「本地联调用」的端点清单开关，没有任何理由出现在生产配置里。
+    #: OpenAPI / docs 永远关闭，避免暴露全部端点与鉴权结构。
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
         version=__version__,

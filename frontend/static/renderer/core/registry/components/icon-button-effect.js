@@ -1,14 +1,14 @@
 /**
  * `icon-button-effect` 控件：只负责注册，绘制与色温知识在 `effect-visuals.js`。
  */
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271508";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271508";
 // 同门分片：entity-state
-import { isLightVisualActive } from "../entity-state.js?v=2609271411";
+import { isLightVisualActive } from "../entity-state.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
-import { resolveColor } from "../registry-visuals.js?v=2609271411";
+import { resolveColor } from "../registry-visuals.js?v=2609271508";
 
 // 图标按钮光效控件：把状态色、辉光强度换算成 CSS 变量交给样式表，
 registerComponent("icon-button-effect", {

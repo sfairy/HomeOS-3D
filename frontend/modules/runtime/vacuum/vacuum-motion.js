@@ -1,14 +1,14 @@
 /**
  * 扫地机的实时位姿动画、台词与跟随相机：把 HA 上报的「地图坐标系位姿」换算到 3D 户型坐标、
  */
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609271411";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609271508";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=2609271411";
+} from "./vacuum-map.js?v=2609271508";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);

@@ -2,8 +2,8 @@
  * 小米设备的档案识别与角色实体匹配：用「平台白名单 + 名称关键词打分」把同一台设备的
  */
 // 取域走 `utils/entities.js` 的 `entityDomainOf`。
-import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609271411";
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271411";
+import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=2609271508";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609271508";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);

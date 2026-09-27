@@ -1,7 +1,7 @@
 /**
  * 接口响应的「鉴权判定」与「可上抛错误」：编辑器、舞台页、展示端、授权页与日志引导共用一套口径。
  */
-import { apiErrorMessage } from "./api-error.js?v=2609271411";
+import { apiErrorMessage } from "./api-error.js?v=2609271508";
 
 /**
  * 后端在 403 `detail.code` 里回的授权受限码。

@@ -2,14 +2,14 @@
  * 商店前台的商品目录：卡片/详情渲染、筛选与增购项分组。
  */
 
-import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271411";
-import { $ as $ } from "./store-shared.js?v=2609271411";
-import { $$ as $$ } from "./store-shared.js?v=2609271411";
-import { currentPage as currentPage } from "./store-shared.js?v=2609271411";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271411";
-import { formatCents as money } from "./money.js?v=2609271411";
-import { state as state } from "./store-shared.js?v=2609271411";
-import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271411";
+import { renderAddonTargets, resetCouponPreview, storePageHref } from "./store-shared.js?v=2609271508";
+import { $ as $ } from "./store-shared.js?v=2609271508";
+import { $$ as $$ } from "./store-shared.js?v=2609271508";
+import { currentPage as currentPage } from "./store-shared.js?v=2609271508";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271508";
+import { formatCents as money } from "./money.js?v=2609271508";
+import { state as state } from "./store-shared.js?v=2609271508";
+import { versionedStoreAsset as versionedStoreAsset } from "./store-shared.js?v=2609271508";
 
 export function chooseProduct() {
   if (currentPage() !== 'item') { state.product = null; return; }

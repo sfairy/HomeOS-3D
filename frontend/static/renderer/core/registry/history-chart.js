@@ -1,16 +1,16 @@
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271411";
-import { formatZhDateTime } from "../../../utils/datetime.js?v=2609271411";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271508";
+import { formatZhDateTime } from "../../../utils/datetime.js?v=2609271508";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../controls/line-chart-runtime.js?v=2609271411";
+} from "../../controls/line-chart-runtime.js?v=2609271508";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../controls/weather-chart-runtime.js?v=2609271411";
+} from "../../controls/weather-chart-runtime.js?v=2609271508";
 // 同门分片：registry-visuals
-import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609271411";
+import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609271508";
 
 export function buildHistorySeries(historyContext, historyEntityId, currentStateValue, historyHours = 24) {
   // 先把原始点归一成「毫秒时间戳 + Number 数值」，后面统一按这两个字段比较与排序；

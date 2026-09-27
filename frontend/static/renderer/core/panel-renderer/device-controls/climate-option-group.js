@@ -3,14 +3,14 @@
  */
 
 
-import { randomUuid } from "../../../../utils/random-id.js?v=2609271411";
+import { randomUuid } from "../../../../utils/random-id.js?v=2609271508";
 import {
   climateEffectMode,
   climateIsPoweredOn,
   climateOptionPresentation,
   climatePowerCommand,
 
-} from "../../../controls/climate.js?v=2609271411";
+} from "../../../controls/climate.js?v=2609271508";
      /**
       * 创建一组温控选项控件（模式 / 风速 / 摆风 / 预设等）。
       */

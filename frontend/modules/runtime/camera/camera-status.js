@@ -3,8 +3,8 @@
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271411";
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271508";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
 /**
  * 判断摄像头实体是否在线。
  */

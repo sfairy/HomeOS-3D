@@ -2,7 +2,7 @@
  * 站内统一确认框。
  */
 
-const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609271411";
+const STYLE_HREF = "/static/shared/ui-confirm.css?v=2609271508";
 const DIALOG_ID = "homeos-ui-confirm-dialog";
 
 let stylePromise = null;

@@ -2,9 +2,9 @@
  * 宿主消息处理。
  */
 // 通用设备的六个品类（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）在运行侧也是**合法的模块名**：
-import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271411";
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609271508";
 // 展示态的「模块 / 品类 → 所属页签」归一：与页签清单同一份实现，别在下面再抄一张表。
-import { moduleTabOf } from "./module-tabs.js?v=2609271411";
+import { moduleTabOf } from "./module-tabs.js?v=2609271508";
 export function createHostMessageHandler(ctx) {
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。

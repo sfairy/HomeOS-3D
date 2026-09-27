@@ -319,10 +319,6 @@ def send_verification(
             body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
         elif result.error:
             body["deliveryError"] = result.error
-    # 这里曾经有一整套「回显」分支：mail_mode=echo 或 STORE_EXPOSE_VERIFICATION_CODE 时，
-    # 把验证码明文放进这个响应里（仅限本机访问）。整条通道已删除 —— 那个「仅限本机」的
-    # 判定依赖对端 IP 与转发头，部署形态一变就可能失效，而失效的后果是任何人都能读到
-    # 别人的验证码。现在验证码只可能出现在收件人的邮箱与（显式 log 模式下的）服务端日志里。
     return body
 
 

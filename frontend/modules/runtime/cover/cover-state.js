@@ -14,7 +14,7 @@ import {
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609271411";
+} from "../core/static-helpers.js?v=2609271508";
 const STATE_LABELS = {
   open: "已打开",
   closed: "已关闭",

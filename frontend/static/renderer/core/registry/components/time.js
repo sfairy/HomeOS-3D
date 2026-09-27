@@ -1,12 +1,12 @@
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
-import { formatLocalTime } from "../../../controls/date-time-runtime.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271508";
+import { formatLocalTime } from "../../../controls/date-time-runtime.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609271411";
+} from "../registry-visuals.js?v=2609271508";
 
 // 时间控件：文案由 date-time-runtime 格式化，运行时由 home.js 定时触发重绘。
 registerComponent("time", {

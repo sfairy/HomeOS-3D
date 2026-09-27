@@ -1,7 +1,7 @@
 /**
  * 窗帘组合（一拖多）的控制面板：把组合内两名成员各渲染成一块独立窗帘面板，并排或竖排呈现。
  */
-import { createCoverPanel } from "./cover-panel.js?v=2609271411";
+import { createCoverPanel } from "./cover-panel.js?v=2609271508";
 
 /**
  * 创建窗帘组合面板。

@@ -1,19 +1,19 @@
 /**
  * 人体存在（presence）在 3D 舞台里的角色呈现与地面检测波纹，是 presence 的渲染侧。
  */
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609271411";
+import { resolveStateEntry } from "../core/static-helpers.js?v=2609271508";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271508";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
-import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271411";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
+import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609271508";
 import {
   validPresenceRoute,
   createPresenceTriggers,
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=2609271411";
+} from "./presence-motion.js?v=2609271508";
 /**
  * 创建人体存在角色场景。
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，

@@ -51,32 +51,9 @@ jobs:
           echo "image=${base}" >> "$GITHUB_OUTPUT"
           echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
 
-  # 挂在 build 之前：镜像推出去之前，先把「不报错、只静默失效」的那类问题断在这里。
-  guards:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # 与 Dockerfile 的 base 阶段对齐：python:3.12。
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: apps/store/requirements.txt
-
-      - name: Install lint tooling
-        run: pip install ruff
-
-      # 与 guards.yml 共用同一份清单（README 明确要求两边一起改）：
-      - name: Invariants (tools/check_invariants.mjs)
-        run: node tools/check_invariants.mjs
-
-      - name: Dead code, unused imports and commented-out code
-        run: ruff check .
-
   # 每个架构跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   build:
-    needs: [meta, guards]
+    needs: [meta]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

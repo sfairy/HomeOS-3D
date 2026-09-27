@@ -2,7 +2,7 @@
  * 内置资源的三个索引与 URL 解析：版本戳（`?v=`）、显式 URL、特效裁剪变体。
  */
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271411";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271508";
 
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
 const assetVersionByAssetId = new Map();

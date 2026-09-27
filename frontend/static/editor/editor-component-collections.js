@@ -1,7 +1,7 @@
 /**
  * 编辑器组件集合操作：命名、层级排序与共享组件引用维护。
  */
-import { newId } from "./editor-utils.js?v=2609271411";
+import { newId } from "./editor-utils.js?v=2609271508";
 
 /**
  * 推导组件的显示名。

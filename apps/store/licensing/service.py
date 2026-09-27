@@ -490,6 +490,8 @@ class LicenseAuthority:
         ):
             if not entitlement.active:
                 continue
+            if entitlement.starts_at is not None and entitlement.starts_at > now:
+                continue
             if entitlement.expires_at is not None and entitlement.expires_at <= now:
                 continue
             features.add(entitlement.feature_code)

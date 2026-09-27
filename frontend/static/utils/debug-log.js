@@ -10,7 +10,7 @@ const FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]);
 /**
  * 判断当前是否处于开发（诊断）模式。
  */
-function isFrontendDebugMode(locationObject = globalThis.location) {
+export function isFrontendDebugMode(locationObject = globalThis.location) {
   try {
     const debugSearch = String(locationObject?.search || "");
     if (!debugSearch) {

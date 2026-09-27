@@ -2,19 +2,18 @@
  * 设备控件区块：扫地机详情（地图、清洁模式、耗材与交互式 3D 地图入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271411";
-import { vacuumMapImageSource } from "../../registry.js?v=2609271411";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271411";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271508";
+import { vacuumMapImageSource } from "../../registry.js?v=2609271508";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271508";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271508";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../../../controls/vacuum-runtime.js?v=2609271411";
-import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609271411";
-import { componentDialogTitle } from "../primitives.js?v=2609271411";
-
+} from "../../../controls/vacuum-runtime.js?v=2609271508";
+import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609271508";
+import { componentDialogTitle } from "../primitives.js?v=2609271508";
 export const vacuumDetailsMethods = {
   /**
    * 打开扫地机详情弹窗（地图、清扫控制、耗材与电量）。
@@ -862,6 +861,8 @@ export const vacuumDetailsMethods = {
   },
   /**
    * 从 3D 舞台打开扫地机详情。
+   * 调用方须先 ensure vacuum + water-heater（runDeviceControlMethod 已带上）。
+   * 保持同步返回 {close}，与摄像头预览一致，避免 Promise 占位导致关不掉。
    */
   openInteraction3dVacuumDetails(
     vacuumComponentConfig,

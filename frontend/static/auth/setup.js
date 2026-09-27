@@ -1,8 +1,8 @@
 /**
  * 首次初始化（管理员账号设置）页脚本：后端尚未创建管理员时，/setup 的表单逻辑。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609271411";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271508";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609271508";
 
 const form = document.querySelector("#setup-form"),
   message = document.querySelector("#message"),

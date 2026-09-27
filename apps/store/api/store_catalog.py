@@ -134,11 +134,23 @@ def _image_map(session) -> dict[str, ProductImage]:
 def _bundled_map(session) -> dict[str, Product]:
     return {product.id: product for product in session.scalars(select(Product))}
 def _product_item(session, product: Product) -> dict:
+    from apps.store.core.serializers import json_list
+
     stats = _product_stats(session, {product.id})
+    image = session.scalars(
+        select(ProductImage).where(ProductImage.product_id == product.id).limit(1)
+    ).first()
+    included_ids = [str(item) for item in json_list(product.included_product_ids_json)]
+    bundled: dict[str, Product] = {}
+    if included_ids:
+        bundled = {
+            item.id: item
+            for item in session.scalars(select(Product).where(Product.id.in_(included_ids)))
+        }
     return product_payload(
         product,
-        _image_map(session).get(product.id),
-        bundled=_bundled_map(session),
+        image,
+        bundled=bundled,
         customer_count=int(stats["customer"].get(product.id, 0)),
         purchase_count=int(stats["purchase"].get(product.id, 0)),
     )

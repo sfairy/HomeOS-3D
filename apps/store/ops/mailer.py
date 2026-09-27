@@ -374,8 +374,7 @@ def send_verification_email(
             error=error,
         )
 
-    # 只有**显式**选 log 时才把明文写进日志（那时日志就是投递通道）；smtp 下永远不写，
-    # 否则一次失败就把可用验证码泄进日志。回显（echo / expose）通道已删除。
+    # 只有显式 mail_mode=log 时才记录明文验证码。
     log_plaintext_code = mode == "log"
     if log_plaintext_code:
         logger.warning(

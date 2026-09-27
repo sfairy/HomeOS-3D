@@ -352,6 +352,11 @@ def create_withdrawal(
         .where(
             ReferralWallet.id == wallet.id,
             func.coalesce(ReferralWallet.frozen_centi, 0) == frozen_before,
+            (
+                func.coalesce(ReferralWallet.balance_centi, 0)
+                - func.coalesce(ReferralWallet.frozen_centi, 0)
+            )
+            >= int(points_centi),
         )
         .values(
             frozen_centi=func.coalesce(ReferralWallet.frozen_centi, 0) + int(points_centi)
@@ -359,7 +364,7 @@ def create_withdrawal(
         .execution_options(synchronize_session=False)
     )
     if claimed.rowcount == 0:
-        raise WalletConflictError("钱包刚刚被其它操作改过，请重试。")
+        raise WalletConflictError("可用余额不足，或钱包刚刚被其它操作改过，请重试。")
 
     fee_centi, net_centi = withdraw_fee(points_centi, fee_percent)
     withdrawal = ReferralWithdrawal(

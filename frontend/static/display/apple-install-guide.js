@@ -1,7 +1,7 @@
 /**
  * 苹果设备「添加到主屏幕」引导脚本。
  */
-import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js?v=2609271411";
+import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js?v=2609271508";
 
 // isAddToHomeLaunch 为真表示配对链接带 addToHome=1，这次落地就是引导添加主屏的场景。
 const currentUrl = new URL(location.href),
@@ -24,7 +24,7 @@ if (
   ((guideDialog.className = "apple-install-dialog"),
     guideDialog.setAttribute("aria-labelledby", "apple-install-title"),
     (guideDialog.innerHTML = `
-    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=2609271411" alt="">
+    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=2609271508" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">把 HomeOS 放到主屏幕</h2>
     <p class="apple-install-intro">添加后像 App 一样从桌面全屏打开，面板功能与 App 相同。</p>

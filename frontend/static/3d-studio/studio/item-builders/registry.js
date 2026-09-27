@@ -1,15 +1,15 @@
 /*
  * 物件模型构建分派表。
  */
-import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609271411";
-import { resolveCurtainForm } from "../../loaders/studio-curtain-track.js?v=2609271411";
+import { ALL_ITEM_MODELS } from "../../loaders/studio-external-models.js?v=2609271508";
+import { resolveCurtainForm } from "../../loaders/studio-curtain-track.js?v=2609271508";
 import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
   ROUND_TABLE_TURNTABLE_ITEM_TYPES,
   STAIR_ITEM_TYPES
-} from "../studio-item-types.js?v=2609271411";
+} from "../studio-item-types.js?v=2609271508";
 import {
   buildCurtainItem,
   buildFloorlampItem,
@@ -17,7 +17,7 @@ import {
   buildRollerCurtainItem,
   buildTrackCurtainItem,
   buildWalllampItem
-} from "./curtain-lighting.js?v=2609271411";
+} from "./curtain-lighting.js?v=2609271508";
 import {
   buildCabinetItem,
   buildFeaturewallItem,
@@ -28,17 +28,17 @@ import {
   buildShoecabinetItem,
   buildSideboardItem,
   buildWallcabinetItem
-} from "./storage-cabinets.js?v=2609271411";
+} from "./storage-cabinets.js?v=2609271508";
 import {
   buildExternalModelFallbackItem
-} from "./external-fallback.js?v=2609271411";
+} from "./external-fallback.js?v=2609271508";
 import {
   buildGlasspartitionItem,
   buildPlantItem,
   buildSmallcarItem,
   buildStairItem,
   buildTvItem
-} from "./media-structure.js?v=2609271411";
+} from "./media-structure.js?v=2609271508";
 import {
   buildBarItem,
   buildBedItem,
@@ -47,7 +47,7 @@ import {
   buildRoundTableTurntableItem,
   buildSofaItem,
   buildTableItem
-} from "./seating.js?v=2609271411";
+} from "./seating.js?v=2609271508";
 import {
   buildAquariumItem,
   buildGaswaterheaterItem,
@@ -55,7 +55,7 @@ import {
   buildStoragewaterheaterItem,
   buildTeaBarMachineItem,
   buildWasherDryerItem
-} from "./water-appliances.js?v=2609271411";
+} from "./water-appliances.js?v=2609271508";
 import {
   buildCoffeetableItem,
   buildDeskItem,
@@ -64,11 +64,11 @@ import {
   buildRugItem,
   buildSquarecoffeetableItem,
   buildTvstandItem
-} from "./tables-desks.js?v=2609271411";
+} from "./tables-desks.js?v=2609271508";
 import {
   buildBookcaseItem,
   buildGlasscabinetItem
-} from "./tall-cabinets.js?v=2609271411";
+} from "./tall-cabinets.js?v=2609271508";
 import {
   buildDishwasherItem,
   buildFridgeItem,
@@ -77,7 +77,7 @@ import {
   buildRangehoodItem,
   buildRicecookerItem,
   buildSteamovenItem
-} from "./kitchen.js?v=2609271411";
+} from "./kitchen.js?v=2609271508";
 import {
   buildAirpurifierItem,
   buildCameraPresenceItem,
@@ -85,7 +85,7 @@ import {
   buildNasItem,
   buildRobotvacuumItem,
   buildWallacItem
-} from "./climate-devices.js?v=2609271411";
+} from "./climate-devices.js?v=2609271508";
 import {
   buildBasinItem,
   buildBathtubItem,
@@ -94,7 +94,7 @@ import {
   buildToiletItem,
   buildUrinalItem,
   buildVanityItem
-} from "./bathroom.js?v=2609271411";
+} from "./bathroom.js?v=2609271508";
 
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。

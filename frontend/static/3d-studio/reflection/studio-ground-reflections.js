@@ -1,8 +1,8 @@
 
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609271411";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609271411";
-import { resolveFloorId, isFloorTransitionLeaving, isVisibleWithin } from "./reflection-scene-queries.js?v=2609271411";
-import { createRefractionMaterialResolver } from "./refraction-materials.js?v=2609271411";
+import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609271508";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609271508";
+import { resolveFloorId, isFloorTransitionLeaving, isVisibleWithin } from "./reflection-scene-queries.js?v=2609271508";
+import { createRefractionMaterialResolver } from "./refraction-materials.js?v=2609271508";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  * @param {function(object): void} options.syncLighting 用给定相机同步区域灯 —— 反射通道需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致。 @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），变化即视为需要重拍。

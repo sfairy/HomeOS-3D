@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "同名双份的共享面：apps/server 与 apps/store 是两个可独立部署的项目，各自只 import 自己的包\n（不变量 #43），所以概念共享时实现各留一份。这份清单声明「哪些名字的两份必须是同一份代码面」——\n比较时剥掉注释与 docstring（两侧的「为什么各留一份」说明本来就该各写各的），因此只有真正会走散的\n逻辑/数据才被钉住。加一个面：在 members 里写上两侧的文件与名字，跑 node tools/check_invariants.mjs。",
+  "note": "同名双份的共享面：apps/server 与 apps/store 是两个可独立部署的项目，各自只 import 自己的包，\n所以概念共享时实现各留一份。这份清单声明「哪些名字的两份应对齐」。加一个面：在 members 里写上两侧的文件与名字，并人工核对。",
   "surfaces": [
     {
       "id": "compression-limits",

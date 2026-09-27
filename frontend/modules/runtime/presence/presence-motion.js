@@ -7,7 +7,7 @@ import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609271411";
+} from "../core/static-helpers.js?v=2609271508";
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。
  */

@@ -1,9 +1,9 @@
 /**
  * 编辑器「组件模板」内置模板库：registerComponentTemplate 注册、按作用域列举、
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609271411";
-import { paletteColor } from "../utils/colors.js?v=2609271411";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271411";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609271508";
+import { paletteColor } from "../utils/colors.js?v=2609271508";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271508";
 
 /**
  * 模板里「主控色」的出厂默认值。

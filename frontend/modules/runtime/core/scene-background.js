@@ -2,9 +2,9 @@
  * 场景背景：在「经典网格 / 微光星尘」之上叠加暖阳背景，包住 background-theme.js 并对外
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=2609271411";
+import { createBackgroundTheme } from "./background-theme.js?v=2609271508";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271411";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609271508";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
  */

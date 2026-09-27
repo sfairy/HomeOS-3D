@@ -5,16 +5,16 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=2609271411";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609271411";
+} from "../editor/picker/editor-picker-pagination.js?v=2609271508";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609271508";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
-import { entityDomainOf } from "../utils/entities.js?v=2609271411";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=2609271411";
-import { nasProfiles } from "./nas-catalog.js?v=2609271411";
+import { entityDomainOf } from "../utils/entities.js?v=2609271508";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609271508";
+import { nasProfiles } from "./nas-catalog.js?v=2609271508";
 // 温湿度计的传感器判定与运行侧、后端同一份实现（static 共享层，零依赖）。
-import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609271411";
+import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js?v=2609271508";
 // 门磁读数的词表（含小米 S2 那类「门状态做成枚举传感器」的取值）用运行侧同一份实现：
-import { doorOpenFromText } from "./lock-state-runtime.js?v=2609271411";
+import { doorOpenFromText } from "./lock-state-runtime.js?v=2609271508";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），

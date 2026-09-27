@@ -72,12 +72,9 @@ HomeOS/
 │       ├── assets/         # icons/ manifest/ component-thumbnails/
 │       └── vendor/         # three.js、hls.js、MDI
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时自动同步）
-├── db/migrations/          # Alembic 唯一基线 0001（含 HA 双端点 / 项目名唯一 / 路径别名 / 交互同步）
+├── db/migrations/          # Alembic 唯一基线 0001（含 HA 双端点 / 项目名唯一 / 路径别名 / 交互同步 / 草稿实体索引）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # 静态守卫与建模流水线（只用 Node 内置模块，无 npm 依赖）
-│   ├── paths.mjs           # 仓库路径的**唯一事实来源**：脚本不许自己拼路径（有守卫强制）
-│   └── fixtures/           # 守卫用的固定基线（含 admin 路由基线：拆组时逐项比对注册顺序）
-├── packages/               # 构建期产物与契约清单：contracts/surfaces.json 声明哪些同名双份必须一致
+├── packages/               # 契约清单：contracts/surfaces.json 声明哪些同名双份应对齐
 ├── ops/                    # 运维与部署（只有构建期与本地启动用它，运行期代码不 import 它）
 │   ├── ops/start.py            # 本地开发拉起两个服务：python ops/start.py
 │   ├── ops/container_entrypoint.py  # 容器 ENTRYPOINT：校正数据目录属主，再交给 CMD
@@ -450,7 +447,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），改 JS / CSS / HTML 后按「开发工具」一节的换戳命令全站同戳更新。同一次改动的资源务必用同一个时间戳；`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。**后端渲染页面时拼出来的**静态链接（舞台页 `stage.css`、模拟收银台与支付宝回跳页样式等）改用文件 mtime 现算版本号，见 `apps/server/core/static_revision.py` 与 `apps/store/core/static_revision.py`。
+- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），改 JS / CSS / HTML 后用 `node ops/bump_static_cache_versions.mjs` 全站同戳更新。同一次改动的资源务必用同一个时间戳；`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。**后端渲染页面时拼出来的**静态链接（舞台页 `stage.css`、模拟收银台与支付宝回跳页样式等）改用文件 mtime 现算版本号，见 `apps/server/core/static_revision.py` 与 `apps/store/core/static_revision.py`。
 - mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次（图标地址一律经 `mdiIconUrl` / `applyMdiMask` 取用），后端 `api/icons.py` 从 `static/vendor/mdi/` 目录扫出版本。升级图标库 = 放新版本目录 + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）；`frontend/static/vendor/` 不参与格式化，也不要改其中的 three.js、hls.js、OrbitControls 等第三方文件。界面中文文案保持原词。
 - 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请人工核对引用与后端路径清单（没有打包器，路径写错只在浏览器里变成 404）。
@@ -458,12 +455,12 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 - **Cython 必须钉死 `3.1.6`**：`3.3.0` 的 `AnalyseExpressionsTransform` 在本项目的 `apps/server/observability/global_log.py` 上会崩（`(value or {}).items()` 触发类型推断回归），`3.1.x` / `3.2.x` 正常。升级 Dockerfile 的 `CYTHON_VERSION` 前先用两个 target 各跑一次构建验证。
 - **compose 部署**：同机用 `./ops/deploy/deploy.sh`（`--role all`，叠加 `docker-compose.app.shared.yml`）；分拆两侧各跑 `--role store` / `--role app --license-server …`（客户机公钥落在 `./keys`）。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
-- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它与 `frontend/static/app.css` 共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌（53 对，逐 token 相等，由 `tools/check_invariants.mjs` 的「商店 theme.css 的 `--hb-*` 与 `design/scene/page.css` 的 `--hos-*` 逐 token 相等」一条守着）与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [apps/store/README.md](apps/store/README.md) 的「界面主题」。
+- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它与 `frontend/static/app.css` 共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [apps/store/README.md](apps/store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
 - Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
-- **首屏权重基线（2026-09 实测）**：从 `frontend/index.html` 做引用闭包，冷启动需要 **154 个 `/static` 资源、原始合计 3.95 MB**；其中最大的两块是 `static/editor/home.js` 951 KB（gzip 195 KB）与 `renderer/core/renderer.css` 430 KB（gzip 102 KB）。这两块的拆分**已登记在文件规模台账里但本轮未实施**：拆的时候要顺带量一次首屏资源数与可交互时间。
+- **首屏权重基线（2026-09 实测）**：从 `frontend/index.html` 做引用闭包，冷启动需要 **154 个 `/static` 资源、原始合计 3.95 MB**；其中最大的两块是 `static/editor/home.js` 951 KB（gzip 195 KB）与 `renderer/core/renderer.css` 430 KB（gzip 102 KB）。继续拆分时请顺带量一次首屏资源数与可交互时间。
 - **前端的两棵树不是重复机制，不要合并**：`frontend/static/**` 是公开/资产类资源（`StaticFiles` 挂载 + 匿名白名单，能力码 `assets`）；`frontend/modules/runtime/**` 是**按增量包能力码下发的模块包**（`editor` 或 `module.3d_interaction`，后者可单独售卖），走 `manifest.json` 清单下发，清单同时是可下发集合与安全边界。另外 runtime 树有 8 个文件、36 处写了对 `file:` 的分流（舞台页可被直接打开），相对回退路径按"两棵树是 `frontend/` 下的兄弟目录"算 —— 合进 `/static` 会同时动到授权模型、安全边界与这条契约。
-- **两个项目互相独立，绝不要 import 对方，也不要把同名实现合并成共享模块**：`apps/server/`（主应用，18081）与 `apps/store/`（授权商店 + 授权服务器，18082）是**两个独立项目，可能部署在不同服务器上**。任何一个方向上的 import 都会立刻导致三件事：单独发商店会 ImportError、两侧版本被绑死、无关业务代码被带进授权服务器镜像。因此 `core/static_revision.py`、`core/appearance.py`、`security/body_guard.py` / `compression.py` / `access_log.py` 这些**同名双份是刻意的隔离成本**，不是可以顺手合并的重复代码。要防两边漂移用**清单 + 静态守卫**，而不是运行时共享：`design/scene` 的三份分发副本由 `tools/check_invariants.mjs` 的「design/scene 的五份文件在三处副本里逐字节一致」一条守着；上面这些同名双份里**真的会走散**的名字登记在 `packages/contracts/surfaces.json`，由 `tools/check_invariants.mjs` 的最后一条按「剥掉注释与 docstring 后逐字相同」比较 —— 两侧各写各的模块说明不受影响（哪些该登记、哪些是有意差异，判据见 `packages/contracts/README.md`）。`tools/check_invariants.mjs` 的「两个可独立部署的项目互相 import」一条把「不许 import 对方」这条规则钉死。
+- **两个项目互相独立，绝不要 import 对方，也不要把同名实现合并成共享模块**：`apps/server/`（主应用，18081）与 `apps/store/`（授权商店 + 授权服务器，18082）是**两个独立项目，可能部署在不同服务器上**。任何一个方向上的 import 都会立刻导致三件事：单独发商店会 ImportError、两侧版本被绑死、无关业务代码被带进授权服务器镜像。因此 `core/static_revision.py`、`core/appearance.py`、`security/body_guard.py` / `compression.py` / `access_log.py` 这些**同名双份是刻意的隔离成本**，不是可以顺手合并的重复代码。要防两边漂移用 `packages/contracts/surfaces.json` 清单 + 人工核对（见 `packages/contracts/README.md`），而不是运行时共享模块。
 - **访问日志里已知两类第三方噪音，都不必当成缺陷去查**：① `GET /sm/<sha256>.map` 的 404 —— 浏览器侧第三方脚本按内容哈希取 source map，本项目没有 `/sm/` 路由，这类访问行已由 `AccessLogNoiseFilter` 挡在访问日志外（见 `apps/server/http/access_log.py` 与 `apps/store/security/access_log.py`），首次命中会在 `uvicorn.error` 留一条说明。② 第三方扩展挂钩 XHR 后对 HLS 分片打的 `console.error`，由 `client-log.js` 按前缀丢弃。
 
 ## 注释规范
@@ -483,33 +480,21 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 叙事标记（判定口径、可审阅可修改）：`为什么｜原因｜因为｜所以｜否则｜避免｜曾经｜以前｜原本｜当初｜那时｜后来｜上一轮｜本轮｜踩｜坑｜教训｜历史｜有意｜刻意｜取舍｜代价｜回退｜原先是｜过去｜当年｜why｜because｜histor`
 
-**不参与本规范**：`frontend/static/vendor/**`、`tools/vendor/**`、`node_modules/**`、`*.min.js`、`data/**`、`keys/**`、`design/scene/fonts/**`、`.env.example`（模板注释即配置文档）、`*.md`（文档正文本身就是解释）。
+**不参与本规范**：`frontend/static/vendor/**`、`node_modules/**`、`*.min.js`、`data/**`、`keys/**`、`design/scene/fonts/**`、`.env.example`（模板注释即配置文档）、`*.md`（文档正文本身就是解释）。
 
-**没有自动门禁**：本仓只保留静态可判定的守卫，注释风格靠人工 review。写代码时按上面六条来，不要重新引入「为什么」段落。
+**没有自动门禁**：注释风格靠人工 review。写代码时按上面六条来，不要重新引入「为什么」段落。
 
 ## 开发工具
 
 改 JS / CSS / HTML 后统一换静态资源缓存戳：
 
 ```bash
-# 把全站现有的 ?v= 统一换成同一个新戳（YYMMDDHHMM，本地时间）
-NEW=$(date +%y%m%d%H%M)
-grep -rlE '\?v=[0-9]{10}' frontend apps/store/static design | while read -r f; do
-  sed -E "s/\?v=[0-9]{10}/?v=$NEW/g" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-done
-node tools/check_invariants.mjs   # 守卫会拦「两个戳」与「带戳 / 不带戳混用」
+node ops/bump_static_cache_versions.mjs              # 本地时间 YYMMDDHHMM
+node ops/bump_static_cache_versions.mjs --dry-run    # 只预览
+node ops/bump_static_cache_versions.mjs --version=2609151037
 ```
 
-> **踩过的坑**：戳没变时浏览器直接复用本地缓存，磁盘上的新内容根本不加载 —— 页面「照常打开」，改的规则静默不生效。命令只**替换已有的戳**：新**增**的引用（新文件、新模块）要手工补 `?v=`，漏写的会被守卫的「带戳 / 不带戳混用」一条拦下。新增 / 改名令牌这类改动必须在真实页面复查（换戳后用 `getComputedStyle(document.documentElement).getPropertyValue("--新令牌")`，得到空字符串就是没生效）。
-
-改动前 / 提交前跑一遍不变量护栏（**唯一一道自动守卫**）与静态检查：
-
-```bash
-node tools/check_invariants.mjs
-ruff check .                       # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
-```
-
-`ruff.toml` 只挑上面这几条（F401 / F811 / F841 / F821 / ERA001），因为全仓当前已达标 —— 纳入 CI 即把「已经做到的事」钉成回归护栏。**不要顺手加 RET / UP / SIM / ARG / C4 / PIE 之类的美化规则**：全仓还有 180+ 处未达标，加了会当场拦死出包。复现规模（不要加进 CI）：`ruff check . --select F,ERA,B,SIM,C4,UP,PIE,RET,ARG`。
+> **踩过的坑**：戳没变时浏览器直接复用本地缓存，磁盘上的新内容根本不加载 —— 页面「照常打开」，改的规则静默不生效。命令只**替换已有的戳**：新**增**的引用要手工补 `?v=`。新增 / 改名令牌这类改动必须在真实页面复查（换戳后用 `getComputedStyle(document.documentElement).getPropertyValue("--新令牌")`，得到空字符串就是没生效）。
 
 ### 性能收益实测（可复现）
 
@@ -534,26 +519,14 @@ ruff check .                       # 未使用 import / 重复定义 / 未使用
 **未闭环项**：改后的**真实流量**对比仍缺样本（该实例在改动后没有请求过这个接口）；
 上表「改后」一栏全部来自本地注入延迟的基准，不能当成真实流量结论。
 
-`check_invariants.mjs` 钉住一组「不报错、只静默失效」的不变量，每条都对应一次真实踩坑；引用时一律用条目名而不是序号。归纳如下：
+自动 CI 只剩镜像构建（`.github/workflows/docker.yml`）。模块图、缓存戳、清单与设计分发等靠人工核对与浏览器复验。
 
-- **前端模块与资源**：运行侧裸 `/static/` 静态 import（只能经 `core/static-helpers.js` / `static-helpers-editor.js` 桥，或带 `import.meta.url.startsWith("file:")` 分流的动态 import）；入口页取不存在的 id（`selectElement` / `getElementById` 目标必须在同名 HTML 里存在，动态创建的登记进 `DYNAMIC_IDS`）；缓存戳出现第二个值、或同一模块被「带戳 / 不带戳」两种写法引用（模块表按解析后的 URL 为键，会被当成两份实例，各留一份模块级状态）；import 说明符解析不到真实文件、或 runtime 资源没登记进 `get_resource()` 白名单；`<script src>` / `<link href>` / CSS `url()` / `@import` 指向不存在的资源（按 URL 而非磁盘判定）；`import` 的名字不在目标模块的导出里（含默认导入、命名空间成员、动态解构与 `export { … } from` 转出口）。
-- **后端结构**：`apps/server/**` 跨二级包的新环（只登记了一条例外 `api | modules`）；mdi 图标版本出现第二个值；`theme-color` / webmanifest 写死色值必须等于色板「页面最底层」那一档。
-- **清单一致性**（同一份清单被抄在多处，漏改一处就静默少效果）：模型注册表与 `models/` 目录两端对齐（文件键不许是纯数字戳、注册项类型必须在 `EXTERNAL_MODEL_ITEM_TYPES` / `APPLIANCE_MODEL_ITEM_TYPES` 里）；「环境模型类型」七处清单一致；净化器模型类型三处同源（`sceneModelTypes()` / `collectClimateBindings()` / `PURIFIER_MODEL_TYPES`）；吊柜挂高三处（`model-specs.mjs` / `storage-cabinets.js` / `ITEM_TYPE_DEFINITIONS`）；授权状态文案三处（后端 `labels` / `license-recovery.js` / 编辑器顶栏）；扫地机状态字典含上游全部别名；窗帘面板返回键集合含 `deactivate`；聚焦可用设备清单 `isFocusableDevice` 与上游同集合；前端可派发的 HA 服务都登记进后端 `ALLOWED_SERVICES`；两个项目里**同名双份**的共享面（压缩口径与响应头常量、日志噪音表、`file_revision`、配色令牌白名单、权益码集合）与清单 `packages/contracts/surfaces.json` 一致。
-- **配色类**：JS 写入的自定义属性没人读；`var(--x)d1` 这类令牌后粘十六进制残渣（整个声明无效）；`var()` 兜底值与令牌 canonical 值不一致；八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 契约（0.13 / 0.32）不符；SVG 注释含连续两个连字符（整个文件解析失败、画面空白）；材质风格档位漏角色、或 `auto` 档位角色没有出口（那一块网格退回基础色）。
-- **3D 图纸与模型**：圆形占地的物件在户型图上被画成方角矩形（实测轮廓为圆必须进 `ROUND_FOOTPRINT_ITEM_TYPES`，且名单真的接上外轮廓那一支）；流水线 GLB 的内容与规格 / `scaleBasis` 不自洽；流水线 GLB 之间存在会闪的共面重叠（z-fighting）；既有资产尺寸债务（只探测、不设护栏）；物件构建体用了 context 里没解构的键；素材库页签与类型词表两端错位。
-- **自由变量**：引用了本文件解析不出绑定的名字（`tools/lib/free-variables.mjs` 用 acorn 建真语法树 + 作用域链，只治执行到那一行才 `ReferenceError` 的引用）。
-
-两份工作流共用同一份清单：`.github/workflows/guards.yml`（push / PR 触发，日常改动即校验）与 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前，该工作流仅手动触发）。改清单时**两份都要改**，否则会出现「CI 绿、出包红」的错配。
-
-结构改动只有一部分有自动校验（ESM 说明符、HTML `<script src>` / `<link href>`、CSS `url()` 与 interaction3d 资源白名单已由上面两条覆盖，**不覆盖**页面路由 URL）。以下必须人工过一遍：`apps/server/main.py` 的 `public_static_files`、`<img src>` / `srcset` 与 HTML 内联 `<style>`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、`apps/server/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。前端结构 / 卫生类护栏（死类名与重复规则、控件注册表分片可达、`design/scene` 分发副本一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐、场景小屋缩放等）已全部移除，同样落回人工 review。
-
-**没有 e2e / 冒烟 / 探针**：护栏只覆盖静态可判定的事（引用能否解析、清单与树是否一致、某个策略是否只有一个主人），行为正确性依旧要靠人工走关键路径。后端与商店没有自动冒烟，增删路由没有任何自动信号，改动路由请人工核对 OpenAPI 与调用方。
+**没有 e2e / 冒烟 / 探针**：行为正确性靠人工走关键路径。后端与商店没有自动冒烟，增删路由请人工核对 OpenAPI 与调用方。
 
 ### 资源下发清单是唯一事实来源
 
 3D 交互运行时资源（`frontend/modules/runtime/**`）的"可下发集合"只有一处事实来源：
-`frontend/modules/runtime/manifest.json`。后端 `modules/interaction3d/runtime_manifest.py` 读它，
-`tools/check_invariants.mjs` 也读它做双向核对。
+`frontend/modules/runtime/manifest.json`。后端 `modules/interaction3d/runtime_manifest.py` 读它。
 
 **新增一个运行时模块只改这一处**（清单里加一行），媒体类型按扩展名推导。清单同时是安全边界：
 这条路由按增量包能力码门禁（`editor` 或 `module.3d_interaction`），"文件放进磁盘"不等于"可以被下发" ——
@@ -577,37 +550,21 @@ ruff check .                       # 未使用 import / 重复定义 / 未使用
 多段组会生成 `router` + `router_extra` 两个子路由、各自在原位置 include，以此保持注册顺序；每抽一组都按下面四条验证：
 
 ```bash
-/usr/local/bin/node tools/check_invariants.mjs
-.venv-store/bin/python -m ruff check .                                         # 必须 0 错误，尤其 F821
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18081/health/ready   # 200
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:18082/healthz        # 200
 ```
 
-拆完后 `admin.py` 应移出 `tools/file-size-baseline.json` 台账（或继续降行数），守卫会提醒。
+**硬约束**：`apps/server/` 与 `apps/store/` 是两个独立项目、可能分机部署，绝不互相 import，也不要把同名实现合并成共享模块。
 
-**两条硬约束**：① `apps/server/` 与 `apps/store/` 是两个独立项目、可能分机部署，绝不互相 import，也不要把同名实现合并成共享模块 —— 守卫会拦；② `ruff --fix` 会把「只供再导出」的名字当未使用静默删掉，跨模块再导出要用 `__all__` 固定公开面。
-
-原拆分过程中用到的抽取器与路由基线脚本放在 `/tmp` 下、**不随仓库保存**，重新接手时按上表重建；路由等价性用 `apps/store/app.py` 的实际 `include_router` 展开逐项对账。`node` 不在 PATH 上，用绝对值 `/usr/local/bin/node`；Python 用 `.venv-store/bin/python`。
+原拆分过程中用到的抽取器与路由基线脚本放在 `/tmp` 下、**不随仓库保存**，重新接手时按上表重建；路由等价性用 `apps/store/app.py` 的实际 `include_router` 展开逐项对账。Python 用 `.venv-store/bin/python`。
 
 ### 其它未完成项
 
 | # | 项 | 说明 |
 |---|---|---|
 | 1 | **同名双份防漂移** | `core/static_revision.py`、`core/appearance.py`、`security/body_guard.py` / `compression.py` / `access_log.py`、能力码 `BASE_FEATURES` ↔ `FEATURE_CATALOG` 各两份。做法只能是构建期生成 + 逐字节校验（样板：`design/scene` 的三份分发副本），不许共享运行时实现 |
-| 2 | **首屏按需加载** | `renderer.js` 静态 import 了全部 13 个 `device-controls/*.js`；改完必须在浏览器里验（能开页面、控制台无 404、面板正常）—— 只跑守卫不足以下结论 |
-| 3 | **超标文件** | 台账 `tools/file-size-baseline.json` 里仍有登记项，棘轮守卫保证只减不增 |
-| 4 | **翻译接口真实流量对比** | 见上「性能收益实测」的未闭环项 |
-
-### 本轮新增的三条守卫
-
-- **表达式被静默改写的语法陷阱**：行首残留的「数字 + |」会把紧跟其后的模板串位或成数字。
-  本仓真踩过一次 —— `client-log.js` 里的 `370|` 让**所有慢请求/失败请求的日志消息恒为 `370`**，
-  而它语法合法，acorn、浏览器、ruff 与其余守卫全都不报错。
-- **文件规模预算（棘轮）**：Python 单文件 800 行、JS/MJS 1200 行。超标的既有文件登记在
-  `tools/file-size-baseline.json`，**行数只许减不许增**；拆到限额以内要把那条删掉（守卫会提醒）。
-  要拆就按仓库里已有的缝走：`item-builders/`、`plan/`、`loaders/`、`editor/home/*`、
-  `panel-renderer/device-controls/*`；外提之后必须换一次全站 `?v=` 戳（同模块两枚戳 = 两份实例）。
-- **运行时清单 ↔ 磁盘双向核对**（见上）。
+| 2 | **首屏按需加载** | 设备控件已按需懒加载；改完必须在浏览器里验（能开页面、控制台无 404、面板正常） |
+| 3 | **翻译接口真实流量对比** | 见上「性能收益实测」的未闭环项 |
 
 ## 更新日志
 

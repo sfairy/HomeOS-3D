@@ -2,12 +2,12 @@
  * 概览面板。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271411";
-import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271411";
-import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271411";
-import { api } from "../api.js?v=2609271411";
-import { askConfirm } from "../dialogs.js?v=2609271411";
-import { host } from "../host.js?v=2609271411";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271508";
+import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609271508";
+import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609271508";
+import { api } from "../api.js?v=2609271508";
+import { askConfirm } from "../dialogs.js?v=2609271508";
+import { host } from "../host.js?v=2609271508";
 
 const REVENUE_WINDOW_LABELS = {
   last24h: '近 24 小时',

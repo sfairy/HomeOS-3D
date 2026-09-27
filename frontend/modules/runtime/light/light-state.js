@@ -1,6 +1,6 @@
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=2609271411";
+import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=2609271508";
 /**
  * 判断是否为可用的数值型输入。
  */

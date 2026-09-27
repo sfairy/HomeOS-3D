@@ -433,7 +433,6 @@ def _alipay_settings_updates(data: dict) -> dict:
                 validate_public_key_text(public_key)
             updates["alipay_public_key"] = public_key
 
-        # 沙箱开关已删除：只有生产网关可配。历史请求里带的 alipaySandbox 会被忽略。
     except PaymentError as error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
@@ -517,10 +516,6 @@ def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: Setti
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="全站小时上限要在 1 ~ 100000 之间，或留 0 表示跟随环境变量。",
         )
-
-    # 三态回显开关：字段在请求里就代表运营做了选择，显式传 null 表示清回「跟随环境变量」
-    # 验证码回显开关（expose_verification_code）已整块删除，见 config.py 的说明：
-    # 它依赖「请求来自本机」这道判定，部署形态一变就可能失效，失效即任何人都能读码。
 
     _validate_verification_window(updates, current=current, settings=settings)
     return updates

@@ -2,21 +2,21 @@
  * 设备详情模块的按需加载表。
  */
 
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271411";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271508";
 
 /** 设备种类 -> 加载器。键同时是调用方要声明的「我需要哪几类」。 */
 export const DEVICE_CONTROL_LOADERS = {
-  capability: () => import("./capability.js?v=2609271411"),
-  "air-purifier": () => import("./air-purifier.js?v=2609271411"),
-  "media-player": () => import("./media-player.js?v=2609271411"),
-  light: () => import("./light.js?v=2609271411"),
-  cover: () => import("./cover.js?v=2609271411"),
-  climate: () => import("./climate.js?v=2609271411"),
-  "water-heater": () => import("./water-heater.js?v=2609271411"),
-  "electric-bed": () => import("./electric-bed.js?v=2609271411"),
-  vacuum: () => import("./vacuum.js?v=2609271411"),
-  presence: () => import("./presence.js?v=2609271411"),
-  camera: () => import("./camera.js?v=2609271411")
+  capability: () => import("./capability.js?v=2609271508"),
+  "air-purifier": () => import("./air-purifier.js?v=2609271508"),
+  "media-player": () => import("./media-player.js?v=2609271508"),
+  light: () => import("./light.js?v=2609271508"),
+  cover: () => import("./cover.js?v=2609271508"),
+  climate: () => import("./climate.js?v=2609271508"),
+  "water-heater": () => import("./water-heater.js?v=2609271508"),
+  "electric-bed": () => import("./electric-bed.js?v=2609271508"),
+  vacuum: () => import("./vacuum.js?v=2609271508"),
+  presence: () => import("./presence.js?v=2609271508"),
+  camera: () => import("./camera.js?v=2609271508")
 };
 
 /** 每个种类导出哪张方法表。名字写错会在加载完成时抛错，不会静默少挂几个方法。 */
@@ -84,21 +84,38 @@ export async function ensureDeviceControlMethods(kinds) {
 
 /**
  * 先确保模块就位，再调用它的方法。
+ * 已挂载时同步返回（与摄像头弹窗同路径），避免点击后再 await 空转一帧。
  */
-export async function runDeviceControlMethod(kinds, target, methodName, args, onError) {
-  try {
-    await ensureDeviceControlMethods(kinds);
+export function runDeviceControlMethod(kinds, target, methodName, args, onError) {
+  const invoke = () => {
     if (typeof target[methodName] !== "function") {
       throw new Error("设备控件方法不存在：" + methodName);
     }
     return target[methodName](...args);
-  } catch (error) {
-    if (typeof onError === "function") {
-      onError(error);
-      return undefined;
+  };
+  const needed = [...new Set(kinds)].filter(
+    kind => kind && DEVICE_CONTROL_LOADERS[kind] && !mountedKinds.has(kind)
+  );
+  if (!needed.length) {
+    try {
+      return invoke();
+    } catch (error) {
+      if (typeof onError === "function") {
+        onError(error);
+        return undefined;
+      }
+      throw error;
     }
-    throw error;
   }
+  return ensureDeviceControlMethods(kinds)
+    .then(invoke)
+    .catch(error => {
+      if (typeof onError === "function") {
+        onError(error);
+        return undefined;
+      }
+      throw error;
+    });
 }
 
 /**
@@ -113,14 +130,29 @@ export function detailsDeviceControlKinds(component, deviceProfile) {
   if (type === "presence-sensor") kinds.add("presence");
   if (deviceType === "electric-bed" || type === "electric-bed") kinds.add("electric-bed");
   if (type === "media-player" || domain === "media_player" || deviceType === "media-player") kinds.add("media-player");
-  if (type === "air-purifier") kinds.add("air-purifier");
-  if (type === "vacuum-control" || entityId.startsWith("vacuum.")) kinds.add("vacuum");
+  if (type === "air-purifier" || deviceType === "air-purifier") {
+    kinds.add("air-purifier");
+    // 净化器详情复用 createWaterHeaterExtensionControls 画关联实体扩展区。
+    kinds.add("water-heater");
+  }
+  if (
+    type === "vacuum-control" ||
+    deviceType === "vacuum" ||
+    entityId.startsWith("vacuum.")
+  ) {
+    kinds.add("vacuum");
+    // 扫地机详情同样复用热水器扩展控件方法。
+    kinds.add("water-heater");
+  }
   if (type === "light" || domain === "light") kinds.add("light");
   if (type === "cover" || domain === "cover") kinds.add("cover");
   if (
     type === "air-conditioner" ||
     type === "water-heater" ||
     type === "bath-heater" ||
+    deviceType === "air-conditioner" ||
+    deviceType === "water-heater" ||
+    deviceType === "bath-heater" ||
     ["climate", "water_heater", "fan"].includes(domain)
   ) {
     kinds.add("climate");

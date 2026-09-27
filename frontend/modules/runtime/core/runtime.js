@@ -7,17 +7,17 @@ import {
   resolveStateEntry,
   stateTextOf,
   temperatureHumidityEntities
-} from "./static-helpers.js?v=2609271411";
+} from "./static-helpers.js?v=2609271508";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609271411";
-import { createLightStream } from "../light/light-stream.js?v=2609271411";
-import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609271411";
+} from "./popup-preview.js?v=2609271508";
+import { createLightStream } from "../light/light-stream.js?v=2609271508";
+import { curtainGroupEntryId, validCurtainGroups } from "../cover/cover-groups.js?v=2609271508";
 // 通用设备的品类表：命令闸门要按这张表展开各品类集合下的附加实体。集合名只此一份，
-import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609271411";
+import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles.js?v=2609271508";
 // 通用设备「牵扯到哪些实体」的口径（附加控件 + 电源 + 健康规则）只此一份实现。订阅侧要用它，
-import { deviceEntityIds } from "../device/device-status.js?v=2609271411";
+import { deviceEntityIds } from "../device/device-status.js?v=2609271508";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -1042,7 +1042,7 @@ export function mountInteraction3d(
       );
       if (vacuumItem && runtimeContext.openVacuumDetails) {
         closeVacuumDetailsPopup();
-        vacuumDetailsPopup = runtimeContext.openVacuumDetails(
+        const vacuumOpenResult = runtimeContext.openVacuumDetails(
           vacuumItem,
           () => {
             vacuumDetailsPopup = null;
@@ -1057,6 +1057,14 @@ export function mountInteraction3d(
             getPopupLayout: () => componentProperties.popupLayout?.general
           }
         );
+        // runDeviceControlMethod / openInteraction3dVacuumDetails 可能返回 Promise。
+        if (vacuumOpenResult && typeof vacuumOpenResult.then === "function") {
+          vacuumOpenResult.then(handle => {
+            vacuumDetailsPopup = handle;
+          });
+        } else {
+          vacuumDetailsPopup = vacuumOpenResult;
+        }
       }
     }
     if (

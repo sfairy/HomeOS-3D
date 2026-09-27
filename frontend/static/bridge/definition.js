@@ -1,7 +1,7 @@
 /**
  * 3D 交互组件的类型标识与新建实例的默认模板。
  */
-import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609271411";
+import { withPageAppearancePreset } from "./page-appearance-presets.js?v=2609271508";
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
 const INTERACTION3D_TYPE = "interaction3d",

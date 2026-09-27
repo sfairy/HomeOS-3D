@@ -165,11 +165,6 @@ class StoreSettings:
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
     #: 全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
     verification_global_hourly_limit: int = 500
-    #: 验证码**不再有任何回显通道**：STORE_EXPOSE_VERIFICATION_CODE 与 mail_mode=echo
-    #: 都已删除。它们只在「本机访问」时可读，但那道判定依赖对端 IP 与转发头 ——
-    #: 部署形态一变（同机反代未配可信代理、容器网络）就可能失效，而失效的后果是
-    #: 任何人都能读到别人的验证码。投递只走 SMTP；发不出去就如实报失败。
-    #: 文档页 /store-api-docs 也一并删除：它会一次列出全部端点与参数结构。
 
     # 支付
     payment_provider: str = ""

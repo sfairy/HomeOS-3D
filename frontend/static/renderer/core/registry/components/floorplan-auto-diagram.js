@@ -1,9 +1,9 @@
 // 同门分片：builtin-assets
-import { resolveAssetUrl } from "../builtin-assets.js?v=2609271411";
+import { resolveAssetUrl } from "../builtin-assets.js?v=2609271508";
 // 同门分片：entity-state
-import { isLayerEntityActive } from "../entity-state.js?v=2609271411";
+import { isLayerEntityActive } from "../entity-state.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 
 // 户型图自动导图控件：编辑器里嵌 iframe 实时预览 3D 构图，运行时用底图 + 图层叠加渲染。
 registerComponent("floorplan-auto-diagram", {

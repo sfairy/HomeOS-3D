@@ -2,27 +2,27 @@
  * 电视屏幕的画面渲染。
  */
 
-import { televisionState } from "./television-state.js?v=2609271411";
+import { televisionState } from "./television-state.js?v=2609271508";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：这里原先建键用裸值、
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609271411",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=2609271508",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609271411"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=2609271508"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609271411",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=2609271508",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609271411"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=2609271508"));
 /**
  * 创建电视屏幕控制器。
  */

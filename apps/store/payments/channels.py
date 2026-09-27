@@ -12,14 +12,10 @@ import json
 from apps.store.config import StoreSettings
 from apps.store.core.models import StoreSetting
 
-#: 受支持的支付渠道。**只有真实渠道**：模拟收银台与沙箱环境都已删除。
+#: 受支持的支付渠道。
 PROVIDER_NAMES: tuple[str, ...] = ("alipay", "wechat")
 
-#: 已删除渠道（模拟收银台）留下的显示名。它在库里是历史数据，但继续沿用会让顾客在
-#: 二维码弹窗上看到「模拟支付」而实际要付真钱 —— 所以**读取时**就归一掉，
-#: 同时在后台保存时禁止再写回（见 api/admin_settings.py 的同名校验）。
-#: 放在这个模块而不是 ops/site_settings.py：显示名的解析在本模块，规则不能离它太远
-#: （两个模块各持一份的话，改了一边另一边会静默留着旧规则）。
+#: 历史渠道显示名：读取时归一、后台禁止写回。
 RETIRED_DISPLAY_NAMES = frozenset({"模拟支付", "mock", "模拟"})
 
 #: 各渠道的默认显示名（顾客在二维码弹窗上看到的名字）。
@@ -132,8 +128,6 @@ def display_name_for(
     fallback = CHANNEL_LABELS.get(name, name or "支付")
     custom = (getattr(setting, "payment_display_name", "") or "").strip() if setting else ""
     if not custom or custom in RETIRED_DISPLAY_NAMES:
-        # 已删除渠道留下的名字（「模拟支付」）不再生效：顾客看到它、却要付真钱，
-        # 是最糟的一类误导。
         return fallback
     is_default = default_channel_name(setting, settings) in ("", name)
     return custom if is_default else fallback

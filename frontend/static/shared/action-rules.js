@@ -1,9 +1,9 @@
 /**
  * 组件动作规则（Action Rule）的取值与合法性判定。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=2609271411";
+import { isVirtualEntityId } from "./virtual-entities.js?v=2609271508";
 // 「按 ID 切域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../utils/entities.js?v=2609271411";
+import { entityDomainFromId } from "../utils/entities.js?v=2609271508";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);

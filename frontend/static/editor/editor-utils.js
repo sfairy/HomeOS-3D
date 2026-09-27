@@ -1,9 +1,9 @@
 /**
  * 编辑器通用小工具：ID / 颜色 / 数值格式化。
  */
-import { randomUuid } from "../utils/random-id.js?v=2609271411";
-import { clampNumber } from "../utils/numbers.js?v=2609271411";
-import { hexToRgbOrNull } from "../utils/colors.js?v=2609271411";
+import { randomUuid } from "../utils/random-id.js?v=2609271508";
+import { clampNumber } from "../utils/numbers.js?v=2609271508";
+import { hexToRgbOrNull } from "../utils/colors.js?v=2609271508";
 
 /**
  * 深拷贝一个值。

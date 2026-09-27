@@ -2,13 +2,13 @@
  * 取色器。
  */
 
-import { clampNumber } from "../../utils/numbers.js?v=2609271411";
+import { clampNumber } from "../../utils/numbers.js?v=2609271508";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609271411";
-import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from "../editor-utils.js?v=2609271411";
+} from "../../utils/colors.js?v=2609271508";
+import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from "../editor-utils.js?v=2609271508";
 
 export function createColorPicker(ctx) {
 

@@ -1,12 +1,12 @@
 /**
  * 「照射范围」编辑弹窗：只有「区域覆盖」（region）模式的轻量柔光支持逐区域调整，本模块把 3D 编辑器
  */
-import { mountInteraction3d } from "../core/runtime.js?v=2609271411";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271508";
 import {
   createDomFactory,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609271411";
+} from "../core/static-helpers-editor.js?v=2609271508";
 /**
  * 打开照射范围编辑弹窗。
  */
@@ -32,7 +32,7 @@ export async function openInteraction3dRangeEditor({
   const { el: createElement } = createDomFactory(document);
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=2609271411";
+  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=2609271508";
   document.head.append(stylesheetLink);
   // 复用编辑器与运行时样式，因此类名沿用 i3d-editor。
   const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");

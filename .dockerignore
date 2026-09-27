@@ -27,7 +27,6 @@ image
 !README.md
 docs
 ops/deploy
-tools
 # 依赖目录
 node_modules
 ops/docker/node_modules

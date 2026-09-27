@@ -7,7 +7,7 @@ import {
   capturePointer,
   resolveStateEntry,
   withFixedLightEffects
-} from "../core/static-helpers.js?v=2609271411";
+} from "../core/static-helpers.js?v=2609271508";
 import {
   DEFAULT_BASE_LIGHTING,
   createDomFactory,
@@ -21,33 +21,33 @@ import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess,
   temperatureHumidityFloorCenter
-} from "../core/static-helpers-editor.js?v=2609271411";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609271411";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609271411";
-import { mountInteraction3d } from "../core/runtime.js?v=2609271411";
-import { lightState } from "../light/light-state.js?v=2609271411";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609271411";
-import { nasGroups } from "../nas/nas-panel.js?v=2609271411";
+} from "../core/static-helpers-editor.js?v=2609271508";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609271508";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609271508";
+import { mountInteraction3d } from "../core/runtime.js?v=2609271508";
+import { lightState } from "../light/light-state.js?v=2609271508";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609271508";
+import { nasGroups } from "../nas/nas-panel.js?v=2609271508";
 // 窗帘组合（一拖多）的纯配置运算：配对候选、新建组合、条目 id 口径与归一。
 import {
   createCurtainGroup,
   curtainGroupCandidates,
   curtainGroupEntryId,
   validCurtainGroups
-} from "../cover/cover-groups.js?v=2609271411";
+} from "../cover/cover-groups.js?v=2609271508";
 // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的品类表：与运行侧（舞台 / 设备弹窗）
 import {
   GENERIC_DEVICE_KINDS,
   genericDeviceProfile,
   isGenericDeviceKind
-} from "../device/device-profiles.js?v=2609271411";
+} from "../device/device-profiles.js?v=2609271508";
 // 通用设备的实体目录与能力位适配层：把一台设备的实体枚举成稳定清单，
-import { deviceEntityCatalog, entityCapabilities } from "./device-entity-config.js?v=2609271411";
+import { deviceEntityCatalog, entityCapabilities } from "./device-entity-config.js?v=2609271508";
 // 状态判定的「两种状态 + 中文名」词表（状态灯规则下拉的唯一来源）与规则缺省值。
 import {
   defaultDeviceStatusRule,
   deviceStatusChoices
-} from "../device/device-status.js?v=2609271411";
+} from "../device/device-status.js?v=2609271508";
 // 附加功能（额外控件）的形态词表：extraTypes 给出实体域对应的形态列表，extraLabels
 import {
   extraLabels,
@@ -55,12 +55,12 @@ import {
   // 换绑时判断「是不是换了一台设备」：同一台净化器下换实体不清空附加功能，换设备才清。
   purifierDeviceChanged,
   purifierRelatedEntities
-} from "../climate/purifier-extras.js?v=2609271411";
+} from "../climate/purifier-extras.js?v=2609271508";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609271411";
+} from "../core/editor-save-status.js?v=2609271508";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 const APPEARANCE_GROUPS = [
   [
@@ -258,13 +258,13 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271411";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271508";
   document.head.append(styleSheetLinkElement);
   // 通用设备 / 空气净化器那两块（状态灯规则、附加功能）的专属样式单独一张表：
   const deviceStyleLinkElement = document.createElement("link");
   deviceStyleLinkElement.rel = "stylesheet";
   deviceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/editor/device-editor.css?v=2609271411";
+    "/api/v1/modules/interaction3d/editor/device-editor.css?v=2609271508";
   document.head.append(deviceStyleLinkElement);
   // 附加功能的内联选择器不需要额外样式表：卡片网格随「实时预览弹窗」一起交给舞台渲染，
   const { el: createElement, button: createButton } = createDomFactory(document);
@@ -5564,7 +5564,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271411";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609271508";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   const createPlainElement = (plainTagName, plainText = "") => {

@@ -1,9 +1,9 @@
 /**
  * 窗帘轨道与帘布的生成（含轨道帘、卷帘、梦幻帘）：3D 工作室生成窗帘时的几何构造模块，
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609271411";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609271508";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底（curtain-motion）必须同值，故只定义在
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609271411";
+import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js?v=2609271508";
 
 /**
  * 窗帘形态（curtainForm）取值。

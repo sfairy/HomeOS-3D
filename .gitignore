@@ -6,7 +6,6 @@
 .venv-store/
 __pycache__/
 *.py[cod]
-.ruff_cache/
 data/
 apps/store/data/
 apps/store/keys/local/

@@ -3,7 +3,7 @@
  */
 
 
-import { coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271411";
+import { coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271508";
 
 export function sanitizeRegionOverrides(rawOverrides, context) {
   const { isRegionLightKey, clamp } = context;

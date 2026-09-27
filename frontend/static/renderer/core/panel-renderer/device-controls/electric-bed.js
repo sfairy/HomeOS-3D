@@ -3,10 +3,10 @@
  */
 
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
-import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609271411";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
-import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271411";
-import { componentDialogTitle } from "../primitives.js?v=2609271411";
+import { entityDomainFromId, entityDomainOf } from "../../../../utils/entities.js?v=2609271508";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271508";
+import { entityMetadataIsAvailable } from "../../entity-metadata.js?v=2609271508";
+import { componentDialogTitle } from "../primitives.js?v=2609271508";
 
 export const electricBedDetailsMethods = {
   /**

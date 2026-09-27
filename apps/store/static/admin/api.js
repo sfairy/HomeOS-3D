@@ -2,9 +2,9 @@
  * 后台接口出口。
  */
 
-import { fromResponse } from "../api-error.js?v=2609271411";
-import { $$ } from "./dom.js?v=2609271411";
-import { host } from "./host.js?v=2609271411";
+import { fromResponse } from "../api-error.js?v=2609271508";
+import { $$ } from "./dom.js?v=2609271508";
+import { host } from "./host.js?v=2609271508";
 
 const httpError = (response, data) => fromResponse(response, data);
 

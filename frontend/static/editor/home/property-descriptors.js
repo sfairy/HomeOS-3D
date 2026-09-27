@@ -2,14 +2,14 @@
  * 组件属性描述符。
  */
 
-import { clone, roundField } from "../editor-utils.js?v=2609271411";
-import { findComponent } from "../component-tree.js?v=2609271411";
+import { clone, roundField } from "../editor-utils.js?v=2609271508";
+import { findComponent } from "../component-tree.js?v=2609271508";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609271411";
-import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271411";
+} from "../../utils/colors.js?v=2609271508";
+import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js?v=2609271508";
 
 export function createPropertyDescriptors(ctx) {
 

@@ -1,7 +1,7 @@
 /**
  * 3D 户型工作室的纯几何、吸附与渲染预算工具库（无状态、不碰 DOM、不 import three.js，可直接单测）。
  */
-import { clampNumber } from "../../utils/numbers.js?v=2609271411";
+import { clampNumber } from "../../utils/numbers.js?v=2609271508";
 
 /**
  * 把数值夹到 [lowerBound, upperBound] 闭区间内。

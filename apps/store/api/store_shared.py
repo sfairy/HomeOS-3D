@@ -159,9 +159,8 @@ def _customer_for(session, account: Account) -> Customer:
 # 账号
 
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
-#: 这里曾经有 _client_host / _is_loopback_client / _LOOPBACK_HOSTS —— 它们只为「验证码
-#: 只对本机回显」那一条通道存在。回显通道连同这两个助手一并删除：判定依赖对端 IP 与
-#: 转发头，部署形态一变就可能失效。
+
+
 def _assert_purpose_allowed(
     session, *, purpose: str, email: str, account: Account | None
 ) -> None:

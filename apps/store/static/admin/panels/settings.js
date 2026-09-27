@@ -2,12 +2,12 @@
  * 站点配置与诊断。
  */
 
-import { $, $$, toast } from "../dom.js?v=2609271411";
-import { state } from "../state.js?v=2609271411";
-import { api, withBusy } from "../api.js?v=2609271411";
-import { askConfirm, askPurge } from "../dialogs.js?v=2609271411";
-import { pageState } from "../table.js?v=2609271411";
-import { host } from "../host.js?v=2609271411";
+import { $, $$, toast } from "../dom.js?v=2609271508";
+import { state } from "../state.js?v=2609271508";
+import { api, withBusy } from "../api.js?v=2609271508";
+import { askConfirm, askPurge } from "../dialogs.js?v=2609271508";
+import { pageState } from "../table.js?v=2609271508";
+import { host } from "../host.js?v=2609271508";
 
 /**
  * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
@@ -230,7 +230,6 @@ function loadMailSettings(mail) {
   form.elements.verificationGlobalHourlyLimit.placeholder =
     `跟随环境变量（当前 ${mail.verificationGlobalHourlyLimit}）`;
   form.elements.deliveryEmailEnabled.checked = mail.deliveryEmailEnabled !== false;
-  // 验证码回显开关已整块删除（见 config.py），这里不再有可回填的控件。
   syncMailSecretInput();
   if (!form.elements.mailTestEmail.value.trim()) {
     form.elements.mailTestEmail.value = defaultEmail;
@@ -749,7 +748,6 @@ $('#settings-form').addEventListener('submit', async (event) => {
         // 发货邮件是纯布尔（没有「跟随环境变量」这一态），直接提交勾选状态。
         deliveryEmailEnabled: form.elements.deliveryEmailEnabled.checked,
         ...mailPasswordPayload(form),
-        // 验证码回显开关已删除，不再提交这个字段。
       }),
       });
       toast('站点配置已保存');

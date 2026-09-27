@@ -208,8 +208,6 @@ def payment_configuration_payload(
         "available": available,
         #: 多渠道清单。单个渠道时前台不显示选择器，行为与从前完全一致。
         "channels": channels,
-        #: 这里曾经下发 sandbox 标记，供前台提示「这只是沙箱」。沙箱已整块删除，
-        #: 所以不再需要它 —— 现在**不存在**能在页面上被打开、又看不出来的测试环境。
         "updatedAt": iso(setting.updated_at),
     }
     if include_credentials:

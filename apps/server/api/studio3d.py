@@ -29,7 +29,7 @@ from ..panel.global_popups import global_popups
 from ..core.models import Project, ProjectDraft, StudioInteractionSync
 from ..modules.interaction3d.studio_cleanup import confirmation_token, plan_cleanup
 from ..panel.documents import parse_document
-from ..panel.entity_refs import document_mentions
+from ..panel.entity_refs import document_entity_ids, document_mentions
 from ..core.schemas import Studio3DDraftUpdate
 from ..http.streaming import flush_and_sync, write_stream_in_batches
 
@@ -38,6 +38,10 @@ router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
+
+
+def _serialize_entity_ids(document: dict) -> str:
+    return canonical_json(sorted(document_entity_ids(document)))
 MAX_EXPORT_FILES = 512
 # 「本次删除影响」的确认文案。真保存的 428 与预检（dryRun）的 200 回的是同一件事，
 INTERACTION_CONFIRMATION_MESSAGE = '删除的模型被 3D 控件引用，保存将一并移除这些绑定。'
@@ -312,7 +316,12 @@ def update_studio3d_draft(
             result = database.execute(
                 update(ProjectDraft)
                 .where(ProjectDraft.project_id == draft.project_id, ProjectDraft.revision == draft.revision)
-                .values(document_json=canonical_json(cleaned), revision=ProjectDraft.revision + 1, updated_by=_user.id)
+                .values(
+                    document_json=canonical_json(cleaned),
+                    entity_ids_json=_serialize_entity_ids(cleaned),
+                    revision=ProjectDraft.revision + 1,
+                    updated_by=_user.id,
+                )
                 .execution_options(synchronize_session=False))
             if result.rowcount != 1:
                 # 期间有人改了这份仪表盘：整批回滚，让用户重试，绝不用旧快照做部分覆盖。

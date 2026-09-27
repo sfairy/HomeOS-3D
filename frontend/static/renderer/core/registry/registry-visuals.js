@@ -1,15 +1,15 @@
 /**
  * 控件渲染共用的小工具：颜色校验、字重应用、SVG 建元素、内容尺寸单位换算、图表阈值色带解析。
  */
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271411";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271508";
 import {
   CHART_THRESHOLD_FALLBACK_COLOR,
   CHART_THRESHOLD_FALLBACK_COLORS
-} from "../../controls/weather-chart-runtime.js?v=2609271411";
+} from "../../controls/weather-chart-runtime.js?v=2609271508";
 import {
   paletteColor,
   resolveColor
-} from "../../../utils/colors.js?v=2609271411";
+} from "../../../utils/colors.js?v=2609271508";
 
 export { paletteColor, resolveColor };
 

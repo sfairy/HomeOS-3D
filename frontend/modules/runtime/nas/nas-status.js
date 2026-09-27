@@ -3,11 +3,11 @@
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271411";
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271411";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609271508";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271508";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271508";
 /**
  * 归一化单个 NAS 开关实体。
  */

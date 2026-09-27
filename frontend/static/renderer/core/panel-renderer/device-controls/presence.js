@@ -1,5 +1,5 @@
 
-import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271411";
+import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609271508";
 import {
   formatPresenceDuration,
   presenceHistoryBuckets,
@@ -7,10 +7,10 @@ import {
   presenceSensorPresentation,
   presenceStateTimestamp,
   renderRegisteredComponent
-} from "../../registry.js?v=2609271411";
-import { paletteColor } from "../../../../utils/colors.js?v=2609271411";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271411";
-import { componentDialogTitle } from "../primitives.js?v=2609271411";
+} from "../../registry.js?v=2609271508";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271508";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271508";
+import { componentDialogTitle } from "../primitives.js?v=2609271508";
 
 export const presenceDetailsMethods = {
   /**
@@ -406,7 +406,12 @@ export const presenceDetailsMethods = {
       presenceStateHandlers.set(companionEntityId, [() => renderPresenceState(presenceState)]);
     }
     const presenceRefreshTimer = presenceEventConfig.motionEvent
-      ? window.setInterval(() => renderPresenceState(presenceState), 1000)
+      ? window.setInterval(() => {
+          if (document.hidden || !presenceDialog.open) {
+            return;
+          }
+          renderPresenceState(presenceState);
+        }, 2000)
       : null;
     const presenceDialogLayer = document.createElement("div");
     presenceDialogLayer.className =

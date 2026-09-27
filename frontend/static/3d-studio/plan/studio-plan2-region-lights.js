@@ -1,7 +1,7 @@
 
-// 数值夹取与换算统一走 utils/numbers.js（唯一实现）。
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271411";
-import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js?v=2609271411";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271508";
+import { isFrontendDebugMode } from "../../utils/debug-log.js?v=2609271508";
+import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js?v=2609271508";
 
 // 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
 const clamp = clampNumber;
@@ -1068,7 +1068,7 @@ export function createRegionLightController({
     }
   };
   scene.onBeforeRender = onBeforeRender;
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && isFrontendDebugMode()) {
     window.__plan2Region = controller;
   }
   return controller;

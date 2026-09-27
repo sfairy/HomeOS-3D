@@ -1,4 +1,5 @@
-import { roundToDecimals } from "../../utils/numbers.js?v=2609271411";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609271508";
+import { isFrontendDebugMode } from "../../utils/debug-log.js?v=2609271508";
 import { computeSurfaceLevels, computeLayoutKey, getDepthMaterial, bakeSurfaceLevels } from "./contact-shadow-passes.js";
 
 /**
@@ -1068,8 +1069,7 @@ export function createContactShadowController({
     // 取某楼层的 uniform 对象，供地面材质在构建时直接绑定（名字以 plan2 开头的那组）。
     getUniforms: floorKey => getFloorState(floorKey).uniforms
   };
-  // 调试口子：控制台里可以 __plan2Contact.stats 看缓存命中与烘焙次数。
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && isFrontendDebugMode()) {
     window.__plan2Contact = controller;
   }
   return controller;

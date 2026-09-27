@@ -2,9 +2,9 @@
  * 商店前台的订单与支付流程：下单确认、支付面板、待支付提示、轮询与取消/归档。
  */
 
-import { loadAccount } from "./store.js?v=2609271411";
-import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271411";
-import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271411";
+import { loadAccount } from "./store.js?v=2609271508";
+import { $, api, currentPage, state, toast } from "./store-shared.js?v=2609271508";
+import { formatCentsPlain as moneyAmount } from "./money.js?v=2609271508";
 
 //: 渠道名 → 弹窗标题上那两个字/四个字。取不到就退回渠道自己的显示名。
 const CHANNEL_KICKERS = { alipay: 'Alipay', wechat: 'WeChat Pay' };
@@ -52,7 +52,34 @@ export function showPayment(order) {
   };
   updateCountdown();
   state.paymentCountdownTimer = setInterval(updateCountdown, 1000);
-  state.pollTimer = setInterval(() => pollOrder(order.orderNo, order.lookupToken), 3000);
+  const pollStartedAt = Date.now();
+  const scheduleNextPoll = () => {
+    if (state.pollTimer !== null) {
+      clearTimeout(state.pollTimer);
+      state.pollTimer = null;
+    }
+    const status = state.currentOrder?.status;
+    if (status && status !== 'pending') {
+      return;
+    }
+    const elapsed = Date.now() - pollStartedAt;
+    const delayMs = elapsed < 60_000 ? 3000 : 8000;
+    state.pollTimer = setTimeout(async () => {
+      state.pollTimer = null;
+      if (!document.hidden) {
+        await pollOrder(order.orderNo, order.lookupToken, { reconcile: false });
+      }
+      scheduleNextPoll();
+    }, delayMs);
+  };
+  scheduleNextPoll();
+  const onVisibility = () => {
+    if (!document.hidden && state.currentOrder?.status === 'pending') {
+      pollOrder(order.orderNo, order.lookupToken, { reconcile: false });
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  state._paymentVisibilityHandler = onVisibility;
 }
 
 export function showPendingOrderNotice(order) {
@@ -174,10 +201,11 @@ export async function cancelPendingOrderFrom(button, order) {
 }
 
 // 返回是否成功取到订单状态：手动点「我已完成支付」时要靠它决定要不要提示失败。
-export async function pollOrder(orderNo, token) {
+export async function pollOrder(orderNo, token, { reconcile = true } = {}) {
   let order = null;
   try {
-    order = await api(`/orders/${encodeURIComponent(orderNo)}`, {
+    const query = reconcile ? '?reconcile=1' : '';
+    order = await api(`/orders/${encodeURIComponent(orderNo)}${query}`, {
       headers: token ? { 'X-Order-Token': token } : {},
     });
     const labels = {
@@ -223,9 +251,16 @@ export function orderCountdownText(expiresAt) {
 }
 
 export function stopPaymentTimers() {
-  if (state.pollTimer !== null) clearInterval(state.pollTimer);
+  if (state.pollTimer !== null) {
+    clearTimeout(state.pollTimer);
+    clearInterval(state.pollTimer);
+  }
   if (state.paymentCountdownTimer !== null) clearInterval(state.paymentCountdownTimer);
   state.pollTimer = null;
   state.paymentCountdownTimer = null;
+  if (state._paymentVisibilityHandler) {
+    document.removeEventListener('visibilitychange', state._paymentVisibilityHandler);
+    state._paymentVisibilityHandler = null;
+  }
 }
 

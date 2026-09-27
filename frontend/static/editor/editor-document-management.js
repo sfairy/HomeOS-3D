@@ -1,11 +1,11 @@
 /**
  * 编辑器文档管理：页面路径、页面复制、弹窗模块、拖放排序与「上次打开的仪表盘」。
  */
-import { clone, newId, slugify } from "./editor-utils.js?v=2609271411";
+import { clone, newId, slugify } from "./editor-utils.js?v=2609271508";
 // 整棵子树换新 ID 的递归只有一份实现（component-page-copy.js），这里不再自写一份。
-import { assignFreshComponentIds } from "./component-page-copy.js?v=2609271411";
+import { assignFreshComponentIds } from "./component-page-copy.js?v=2609271508";
 // 「按 ID 切域」只有一份实现：统一走 utils/entities.js 的 entityDomainFromId，
-import { entityDomainFromId } from "../utils/entities.js?v=2609271411";
+import { entityDomainFromId } from "../utils/entities.js?v=2609271508";
 
 /**
  * 「上次打开哪个仪表盘」的会话级记忆键。

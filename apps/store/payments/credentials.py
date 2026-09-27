@@ -59,7 +59,7 @@ def merge_alipay_settings(
     database_notify_url = (setting.alipay_notify_url or "").strip()
     database_return_url = (setting.alipay_return_url or "").strip()
 
-    # 沙箱开关与沙箱网关已删除：这里只有生产网关。留空即用支付宝生产地址。
+    # 留空即用支付宝生产网关。
     gateway = database_gateway or settings.alipay_gateway_url or PRODUCTION_GATEWAY_URL
 
     return replace(

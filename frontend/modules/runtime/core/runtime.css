@@ -1,7 +1,7 @@
 /*
  * 3D 交互控件的外层样式（宿主页侧）。
  */
-@import "/static/bridge/controls.css?v=2609271411";
+@import "/static/bridge/controls.css?v=2609271508";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;

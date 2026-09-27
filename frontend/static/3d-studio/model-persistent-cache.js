@@ -1,10 +1,10 @@
 /**
  * 3D 模型模板的 IndexedDB 持久缓存。
  */
-import { createIdbStore } from "./idb-store.js?v=2609271411";
-import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609271411";
+import { createIdbStore } from "./idb-store.js?v=2609271508";
+import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609271508";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=2609271411";
+import { debugLog } from "../utils/debug-log.js?v=2609271508";
 
 /** 缓存库名。 */
 const MODEL_CACHE_DB_NAME = "homeos-3d-templates";

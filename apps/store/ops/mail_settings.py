@@ -256,12 +256,7 @@ def mail_delivery_summary(
         "verificationGlobalHourlyLimitFromDatabase": bool(
             int(getattr(setting, "verification_global_hourly_limit", 0) or 0)
         ),
-        #: 回显通道已删除，不再下发任何开关 —— 前端也就不可能把它画出来。
-        #: 当前配置下验证码邮件到底能不能真的发出去。这是整个区块最该一眼看到的信息：
-        #: 发货邮件（支付成功后把激活码发到买家邮箱）开关本身也归到这一块：
-        #: 它与验证码共用同一份 SMTP 配置，运营在一个页面上就能看全。
-        #: NULL 也当作「开」：这一项默认必须是开，否则一个空值会静默地把发码邮件
-        #: 关掉 —— 而这条通道的存在意义正是「买家不回站点也能拿到码」。
+        #: 发货邮件与验证码共用 SMTP；NULL 视为开启。
         "deliveryEmailEnabled": _enabled_flag(
             getattr(setting, "delivery_email_enabled", None)
         ),

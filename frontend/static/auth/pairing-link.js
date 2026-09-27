@@ -1,7 +1,7 @@
 /**
  * 配对链接（二维码）的解析与苹果设备引导条件判断。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=2609271411";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609271508";
 
 /**
  * 解析并严格校验配对链接；链接超长、格式不符或字段缺失时抛中文错误文案。

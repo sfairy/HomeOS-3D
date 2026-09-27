@@ -1,9 +1,9 @@
 /**
  * 3D 工作室的输入归一化工具箱。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271411";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271508";
 // 色温换算（含唯一的公式与单通道夹取）共用 utils/colors.js：studio 侧与灯光侧的系数不许各写一份。
-import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609271411";
+import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609271508";
 
 /**
  * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。

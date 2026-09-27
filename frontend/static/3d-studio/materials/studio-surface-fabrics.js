@@ -1,7 +1,7 @@
 /**
  * 逐物件「材质风格」用到的程序化质感贴图（布纹 / 皮革粒纹 / 木纹 / 石纹 / 金属拉丝）。
  */
-import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609271411";
+import { createFeatureWallTexture } from "./studio-surface-textures.js?v=2609271508";
 
 /** 质感族 → 背景墙贴图名。只列有底图的族；不在此表内且没有专属画法的族一律返回 null。 */
 const SURFACE_TEXTURE_ALIAS = Object.freeze({

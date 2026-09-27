@@ -18,7 +18,7 @@ from ..panel.global_popups import clear_popup_references, global_popup_state, gl
 from ..core.models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project, parse_document, require_document
-from ..panel.entity_refs import document_keyed_values
+from ..panel.entity_refs import document_entity_ids, document_keyed_values
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
@@ -27,6 +27,11 @@ router = APIRouter(prefix='/projects', tags=['projects'])
 
 #: 项目名冲突时给用户看的文案。创建、复制、改名三处共用一份，
 NAME_CONFLICT_DETAIL = '仪表盘名称已存在。'
+
+
+def serialize_entity_ids(document: dict) -> str:
+    """把文档引用的实体 ID 写成稳定 JSON 数组，供 HA watch 索引。"""
+    return canonical_json(sorted(document_entity_ids(document)))
 
 #: slug 撞唯一约束时最多重试几次。
 SLUG_CONFLICT_ATTEMPTS = 5
@@ -164,6 +169,7 @@ def insert_project_with_draft(
             schema_version=document['schemaVersion'],
             revision=1,
             document_json=serialize_document(strip_document_popups(document)),
+            entity_ids_json=serialize_entity_ids(document),
             updated_by=created_by,
         )
         savepoint = database.begin_nested()
@@ -451,7 +457,12 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                     referenced_result = database.execute(
                         update(ProjectDraft)
                         .where(ProjectDraft.project_id == referenced_draft.project_id, ProjectDraft.revision == referenced_draft.revision)
-                        .values(document_json=serialize_document(referenced_document), revision=ProjectDraft.revision + 1, updated_by=user.id)
+                        .values(
+                            document_json=serialize_document(referenced_document),
+                            entity_ids_json=serialize_entity_ids(referenced_document),
+                            revision=ProjectDraft.revision + 1,
+                            updated_by=user.id,
+                        )
                         .execution_options(synchronize_session=False)
                     )
                     # 别的仪表盘正好在保存：回滚本次请求，让用户重试，而不是留下半清理状态。
@@ -464,7 +475,13 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         result = database.execute(
             update(ProjectDraft)
             .where(ProjectDraft.project_id == project_id, ProjectDraft.revision == payload.revision)
-            .values(document_json=serialized_document, schema_version=document['schemaVersion'], revision=ProjectDraft.revision + 1, updated_by=user.id)
+            .values(
+                document_json=serialized_document,
+                entity_ids_json=serialize_entity_ids(document),
+                schema_version=document['schemaVersion'],
+                revision=ProjectDraft.revision + 1,
+                updated_by=user.id,
+            )
             .execution_options(synchronize_session=False)
         )
         # rowcount != 1 说明 revision 已被别人推进：回滚并回带当前版本，前端据此提示刷新。

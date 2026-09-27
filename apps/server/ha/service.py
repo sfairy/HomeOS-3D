@@ -2,6 +2,7 @@
 """
 from __future__ import annotations
 import asyncio
+import json
 import time
 import traceback
 from collections import Counter
@@ -194,22 +195,40 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
             return await asyncio.to_thread(operation, *args, **kwargs)
 
     def _load_persistent_entity_ids(self) -> set[str]:
-        """收集「持久引用」的实体：所有项目草稿与全局弹窗里用到的实体。"""
+        """收集「持久引用」的实体：优先读草稿 entity_ids 索引，缺省再 parse 全文。"""
         result = set()
         with self.database.session_factory() as database:
-            documents = database.scalars(select(ProjectDraft.document_json)).all()
-            # 全局弹窗不是草稿文档，这里包成同样形状的字典以复用同一个抽取函数。
-            popup_document = {
-                'customPopups': global_popups(database) }
-            for document_json in documents:
-                # 单份草稿 JSON 损坏不该拖垮整次同步，跳过它继续收集。
+            drafts = database.execute(
+                select(ProjectDraft.document_json, ProjectDraft.entity_ids_json)
+            ).all()
+            for document_json, entity_ids_json in drafts:
+                indexed = self._entity_ids_from_index(entity_ids_json)
+                if indexed is not None:
+                    result.update(indexed)
+                    continue
                 document = parse_document(document_json)
                 if document is None:
                     continue
                 result.update(document_entity_ids(document))
+            popup_document = {'customPopups': global_popups(database)}
             result.update(document_entity_ids(popup_document))
         return result
 
+    @staticmethod
+    def _entity_ids_from_index(entity_ids_json: str | None) -> set[str] | None:
+        """解析草稿上的实体索引；NULL/非法 JSON 返回 None（回退全文扫描）。"""
+        if entity_ids_json is None:
+            return None
+        raw = entity_ids_json.strip()
+        if not raw:
+            return None
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(payload, list):
+            return None
+        return {str(item) for item in payload if isinstance(item, str) and item}
     async def watched_entity_ids(self) -> set[str]:
         """当前需要关注的实体：持久引用（草稿/弹窗）+ 运行期订阅。
         """

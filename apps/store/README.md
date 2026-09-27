@@ -684,8 +684,7 @@ apps/store/
                        #  自研 JS 一律是 ESM（页面用 <script type="module"> 加载）：
                        #  store.js（页面编排）/ store-shared.js（共享状态与请求原语）/
                        #  store-catalog.js（商品目录）/ store-orders.js（订单与支付）/ referrals.js
-                       #  模块之间用带 ?v= 的 import（模块表以含查询串的 URL 为键，不带戳 = 两份实例；
-                       #  tools/check_invariants.mjs 有一条正是防这个）。
+                       #  模块之间用带 ?v= 的 import（模块表以含查询串的 URL 为键，不带戳 = 两份实例）。
                        #  只有三份不是模块：vendor 的 jquery.min.js / jquery.qrcode.min.js，
                        #  以及 auth-bootstrap.js —— 它要在首屏之前给 <html> 打登录提示类，
                        #  模块是延迟执行的，等它跑起来样式已经闪一下了。
@@ -698,7 +697,7 @@ apps/store/
 
 ### 界面主题（暗色 + 琥珀）
 
-主题与主程序同源，但**不是逐字同源**：两边都以 `design/scene/page.css` 为唯一真值（canonical），商店侧通过 `--hb-*` 镜像令牌（53 对，逐 token 相等，由 `tools/check_invariants.mjs` 的镜像令牌条目每次校验）再派生出 `-soft` / `-line` / `-text` 等商店特有的语义档。`theme.css` 文件头写明了这一点 —— 它与 `frontend/static/app.css` 的取值**不再**逐字对齐（app.css 只是把历史令牌名转发到工具面族）。整体仍是**暗色画布 + 单一琥珀强调色**。参考站那份浅色样板表（`bridge-store.css` / `merged.css` / `referrals.css` / `product-packages.css`）与后台的 Bootstrap 5.3 **已全部删除**，不再有「基线样式 + 事后补丁层」这套结构。
+主题与主程序同源，但**不是逐字同源**：两边都以 `design/scene/page.css` 为唯一真值（canonical），商店侧通过 `--hb-*` 镜像令牌再派生出 `-soft` / `-line` / `-text` 等商店特有的语义档。`theme.css` 文件头写明了这一点 —— 它与 `frontend/static/app.css` 的取值**不再**逐字对齐（app.css 只是把历史令牌名转发到工具面族）。整体仍是**暗色画布 + 单一琥珀强调色**。参考站那份浅色样板表（`bridge-store.css` / `merged.css` / `referrals.css` / `product-packages.css`）与后台的 Bootstrap 5.3 **已全部删除**，不再有「基线样式 + 事后补丁层」这套结构。
 
 | 文件 | 作用 | 谁加载 |
 | --- | --- | --- |

@@ -11,7 +11,7 @@ import {
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609271411";
+} from "../core/static-helpers.js?v=2609271508";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 const deepCloneObject = sourceObject => JSON.parse(JSON.stringify(sourceObject || {}));
 const roundToHundredth = numericInput => Math.round(numericInput * 100) / 100;

@@ -2,12 +2,12 @@
  * 空调气流（出风）效果：根据空调 / 风口的模型包围盒自动推导「出风口」位置，挂一片着色器绘制的
  */
 
-import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609271411";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf, AIRFLOW_OTHER_COLOR } from "../core/static-helpers.js?v=2609271508";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609271411";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271411";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609271508";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609271508";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271411";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609271508";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
     顶层求值时样式表可能还没解析完，paletteColor 会把兜底色缓存下来、之后一直用那个。 */
 function flowStateColors() {

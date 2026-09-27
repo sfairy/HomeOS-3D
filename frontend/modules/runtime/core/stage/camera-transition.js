@@ -244,12 +244,16 @@ export function createCameraTransition(ctx) {
         id: focusId
       });
     }
+    // 摄像头 / 扫地机有宿主侧原生弹窗：与镜头过渡并行打开，别等阻尼飞完才出窗
+    // （原先只有 camera 即时开，vacuum 默认 focus-panel 会卡一整段过渡，体感明显偏慢）。
+    const opensHostDevicePopup =
+      focusedBinding.deviceKind === "camera" || focusedBinding.deviceKind === "vacuum";
     beginCameraTransition(focusPose, true, immediateFocus, () => {
-      if (focusedBinding.deviceKind !== "camera") {
+      if (!opensHostDevicePopup) {
         ctx.maybeOpenDevicePopup(focusedBinding);
       }
     });
-    if (focusedBinding.deviceKind === "camera") {
+    if (opensHostDevicePopup) {
       ctx.maybeOpenDevicePopup(focusedBinding);
     }
   }

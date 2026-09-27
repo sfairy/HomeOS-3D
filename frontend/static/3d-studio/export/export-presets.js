@@ -1,7 +1,7 @@
 /**
  * 导出预设的归一化与摘要文案：把后端读回、可能缺字段或被手改过的预设清洗后再用。
  */
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271411";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271508";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;

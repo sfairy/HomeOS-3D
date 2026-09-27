@@ -2,10 +2,10 @@
  * 运行时文档的遍历与实体依赖收集。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609271411";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609271411";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=2609271508";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2609271508";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271411";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271508";
 export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
   const stateObject = resolveStateEntry(stateOrChange);
   if (!stateObject) {

@@ -13,9 +13,9 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from apps.store.commerce import delivery, fulfill, referrals
+from apps.store.commerce import coupons
 from apps.store.ops import site_settings as site_config
-from apps.store.core.deps import AdminAccount, DbSession, SettingsDep, order_or_404
-from apps.store.commerce.expiry import expire_stale_orders
+from apps.store.core.deps import AdminAccount, DbSession, order_or_404
 from apps.store.commerce.order_status import (
     order_status_label,
 )
@@ -83,7 +83,6 @@ router = APIRouter()
 def admin_list_orders(
     session: DbSession,
     _admin: AdminAccount,
-    settings: SettingsDep,
     status_filter: str | None = None,
     keyword: str | None = None,
     needs_review: bool | None = None,
@@ -92,9 +91,8 @@ def admin_list_orders(
     limit: int = 100,
     offset: int = 0,
 ) -> dict:
-    """订单列表（分页 + 筛选）。
+    """订单列表（分页 + 筛选）。过期收尾由支付巡检负责，列表读路径不再同步过期。
     """
-    expire_stale_orders(session, settings)
     base = select(Order)
     wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
     if wanted:
@@ -565,6 +563,7 @@ def _refund_order(
         )
         order.status = "refunded"
         order.refunded_at = utcnow()
+        coupons.release_coupon(session, order, reason="全额退款，归还优惠码名额")
     else:
         order.status = "partially_refunded"
 

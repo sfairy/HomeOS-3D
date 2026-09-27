@@ -3,11 +3,11 @@ import {
   climateIsPoweredOn,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../controls/climate.js?v=2609271411";
+} from "../controls/climate.js?v=2609271508";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271411";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271508";
 // 「按 ID 取域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../../utils/entities.js?v=2609271411";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609271508";
 
 const EMPTY_ENTITY_STATE = { state: "", attributes: {} };
 /**

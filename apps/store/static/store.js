@@ -1,8 +1,8 @@
-import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271411";
-import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271411";
-import { esc as escapeHtml } from "./htmlsafe.js?v=2609271411";
-import { fromResponse } from "./api-error.js?v=2609271411";
-import { HBReferrals } from "./referrals.js?v=2609271411";
+import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js?v=2609271508";
+import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js?v=2609271508";
+import { esc as escapeHtml } from "./htmlsafe.js?v=2609271508";
+import { fromResponse } from "./api-error.js?v=2609271508";
+import { HBReferrals } from "./referrals.js?v=2609271508";
 import { addonProducts, addonTypeLabel, applyProductFilter, availableAddonProducts, chooseProduct, isAddonProduct, isTrialProduct, primaryProductUnavailable, primaryProducts, renderAddons, renderPaymentMethods, renderProduct, renderProducts, requestedUpgradeLicenseId } from "./store-catalog.js";
 import { archiveOrder, cancelPendingOrderFrom, confirmAction, orderCountdownText, orderRemainingSeconds, pollOrder, showPayment, showPendingOrderNotice, stopPaymentTimers } from "./store-orders.js";
 
@@ -410,8 +410,6 @@ function startEmailCooldown(button, seconds) {
 // 这里的 `form` 参数仍然保留：将来若加「把码写进某个隐藏域」也走同一条路径。
 function applyVerificationResponse(form, button, result) {
   startEmailCooldown(button, result.resendAfter || 120);
-  // 回显通道（mail_mode=echo / STORE_EXPOSE_VERIFICATION_CODE）已整块删除，
-  // 所以响应里**不可能**再出现验证码 —— 只有「发出去了」与「没发出去」两种结论。
   if (result.delivered === true) {
     toast('验证码已发送，请检查邮箱。');
     return;

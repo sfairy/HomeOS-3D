@@ -64,7 +64,10 @@ def make_client():
     from fastapi.testclient import TestClient
 
     def build(application):
-        return TestClient(application)
+        # 带同源 Origin，使 Cookie 会话写请求通过 CSRF 闸门。
+        return TestClient(
+            application, headers={"Origin": "http://testserver"}
+        )
 
     return build
 

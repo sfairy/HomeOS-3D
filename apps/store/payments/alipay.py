@@ -608,9 +608,7 @@ class AlipayProvider:
         )
 
         # ---- 运行环境 ---- #
-        #: 沙箱已删除，所以这里只剩一件事可报：网关指向的**不是**支付宝生产域名。
-        #: 这不是「不允许」的配置（网关迁移、代理都可能改它），但它一定值得看一眼 ——
-        #: 指到别人家的地址上，钱和通知都会去别处。
+        #: 网关非生产域名时提示（代理/迁移场景仍可能合法）。
         production_host = PRODUCTION_GATEWAY_HOST
         if gateway_host and gateway_host != production_host:
             checks.append(

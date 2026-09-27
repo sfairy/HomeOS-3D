@@ -1,25 +1,25 @@
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271508";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../../controls/line-chart-runtime.js?v=2609271411";
+} from "../../../controls/line-chart-runtime.js?v=2609271508";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../../controls/weather-chart-runtime.js?v=2609271411";
+} from "../../../controls/weather-chart-runtime.js?v=2609271508";
 import {
   attachChartTooltip,
   buildHistorySeries
-} from "../history-chart.js?v=2609271411";
+} from "../history-chart.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   chartThresholdPalette,
   resolveColor
-} from "../registry-visuals.js?v=2609271411";
+} from "../registry-visuals.js?v=2609271508";
 
 registerComponent("line-chart", {
   render(chartComponent, chartContext) {

@@ -124,8 +124,7 @@ def test_sandbox_is_gone_entirely() -> None:
     columns = {column.name for column in StoreSetting.__table__.columns}
     assert "alipay_sandbox" not in columns
 
-    # 2) 支付模块里没有沙箱网关常量，且**代码**里不再出现沙箱域名
-    #    （注释里保留一句「这里曾经是什么、为什么删」是有意的，所以只看非注释行）
+    # 2) 支付模块里没有沙箱网关常量，且代码里不再出现沙箱域名
     assert not hasattr(alipay_module, "SANDBOX_GATEWAY_URL")
     code_lines = [
         line

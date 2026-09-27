@@ -1,15 +1,15 @@
 /**
  * 舞台页的「提前起跑」入口。
  */
-import { createScenePersistentCache, scenePreparationKey } from "./scene-persistent-cache.js?v=2609271411";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609271411";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=2609271411";
+import { createScenePersistentCache, scenePreparationKey } from "./scene-persistent-cache.js?v=2609271508";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609271508";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=2609271508";
 
 const STAGE_PAGE_PATH = "/api/v1/modules/interaction3d/stage.html";
 /** 场景接口前缀（与 studio-app 里 requestStudioApi 的路径拼接保持一致）。 */
 const SCENE_API_PREFIX = "/modules/interaction3d/scenes/";
 /** 舞台模块地址：与 studio-app 中那次动态 import 用同一条戳，命中同一份模块实例。 */
-const STAGE_MODULE_URL = "/api/v1/modules/interaction3d/core/stage.js?v=2609271411";
+const STAGE_MODULE_URL = "/api/v1/modules/interaction3d/core/stage.js?v=2609271508";
 
 /**
  * 在舞台页发起提前加载。

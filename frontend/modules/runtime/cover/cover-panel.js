@@ -6,14 +6,14 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609271411";
+} from "./cover-state.js?v=2609271508";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent,
   createDomFactory,
   resolveCoverDirection
-} from "../core/static-helpers.js?v=2609271411";
+} from "../core/static-helpers.js?v=2609271508";
 /**
  * 创建窗帘面板。
  */

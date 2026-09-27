@@ -4,8 +4,8 @@
     "apps/server/modules/interaction3d/api.py 的 get_resource 读它：清单里没有的文件一律 404。",
     "为什么是显式清单而不是「扫磁盘全下发」：文件放进磁盘不等于可以被下发 —— 这条路由按",
     "增量包能力码门禁，清单同时是安全边界。漏登记的表现是浏览器里某个模块 404、整条 import 链断掉，",
-    "tools/check_invariants.mjs 的「runtime 白名单 ↔ 磁盘」一条会双向核对，防止两个方向漏改。",
-    "媒体类型按扩展名推导（.js → text/javascript，.css → text/css），不再各写一遍。"
+    "媒体类型按扩展名推导（.js → text/javascript，.css → text/css），不再各写一遍。",
+    "改清单后请对照磁盘文件，漏登记会在浏览器里 404。"
   ],
   "capability": [
     "editor",

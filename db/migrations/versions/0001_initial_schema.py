@@ -231,6 +231,8 @@ def upgrade() -> None:
     sa.Column('schema_version', sa.Integer(), nullable=False),
     sa.Column('revision', sa.Integer(), nullable=False),
     sa.Column('document_json', sa.Text(), nullable=False),
+    # 草稿引用的 HA 实体 ID 列表（JSON 数组）；NULL 表示尚未索引，需回退全文扫描。
+    sa.Column('entity_ids_json', sa.Text(), nullable=True),
     sa.Column('updated_by', sa.String(length=36), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete='CASCADE'),

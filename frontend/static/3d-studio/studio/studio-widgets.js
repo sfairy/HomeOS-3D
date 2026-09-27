@@ -2,11 +2,11 @@
  * 工作室表单控件的外观增强（自定义下拉框与数字步进器）。
  */
 
-import { capturePointer } from "../../utils/pointer-capture.js?v=2609271411";
+import { capturePointer } from "../../utils/pointer-capture.js?v=2609271508";
 import {
   nearestScrollClip,
   resolveDropPlacement
-} from "../../shared/menu-positioning.js?v=2609271411";
+} from "../../shared/menu-positioning.js?v=2609271508";
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();

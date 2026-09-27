@@ -1,22 +1,22 @@
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=2609271411";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
+} from "../../../../utils/numbers.js?v=2609271508";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271508";
 // 同门分片：entity-state
-import { isComponentEntityActive } from "../entity-state.js?v=2609271411";
+import { isComponentEntityActive } from "../entity-state.js?v=2609271508";
 // 同门分片：navigation-effects
 import {
   buildNavigationEffects,
   navigationButtonIsActive
-} from "../navigation-effects.js?v=2609271411";
+} from "../navigation-effects.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
 import {
   navigationContentUnitPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271411";
+} from "../registry-visuals.js?v=2609271508";
 
 // 导航按钮控件：目标页取自三个点击动作里的 navigate，其次才是 properties.targetPage；
 registerComponent("navigation-button", {

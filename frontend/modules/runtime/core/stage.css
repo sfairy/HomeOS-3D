@@ -1,11 +1,11 @@
 /*
  * 3D 舞台（iframe 内）的样式表。
  */
-@import "/static/bridge/controls.css?v=2609271411";
-@import "../nas/nas-panel.css?v=2609271411";
-@import "../climate/climate-panel.css?v=2609271411";
-@import "../cover/cover-panel.css?v=2609271411";
-@import "../device/device-panel.css?v=2609271411";
+@import "/static/bridge/controls.css?v=2609271508";
+@import "../nas/nas-panel.css?v=2609271508";
+@import "../climate/climate-panel.css?v=2609271508";
+@import "../cover/cover-panel.css?v=2609271508";
+@import "../device/device-panel.css?v=2609271508";
 /* ===== 舞台页面骨架 ===== */
 
 html:has(body.interaction3d-stage),

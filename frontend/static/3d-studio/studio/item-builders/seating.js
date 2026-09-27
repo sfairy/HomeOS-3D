@@ -1,7 +1,7 @@
 /*
  * 物件构建器：座具与睡眠
  */
-import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609271411";
+import { isRoundTableTurntableItem } from "../studio-item-types.js?v=2609271508";
 /**
  * 命中：itemSpec.type === "sofa"
  */

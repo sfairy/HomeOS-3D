@@ -2,7 +2,7 @@
  * 设备标记层。
  */
 // 组合条目的 id 口径只有一份实现（cover-groups.js）：拖拽回写要靠它把舞台 id 反查回配置组。
-import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609271411";
+import { curtainGroupEntryId } from "../../cover/cover-groups.js?v=2609271508";
 
 /* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
  */
@@ -564,6 +564,7 @@ export function createMarkerLayer(ctx) {
     if (ctx.isRangeEditorOpen || ctx.isSceneUpdating || ctx.isDisposed) {
       return;
     }
+    const moduleBindings = ctx.collectModuleBindings();
     if (ctx.stageOptions.floorTransitionActive || ctx.cameraTransition) {
       ctx.screenOutlines.pause();
     }
@@ -571,7 +572,7 @@ export function createMarkerLayer(ctx) {
     if (
       ctx.idleSinceTimestamp !== null &&
       performance.now() - ctx.idleSinceTimestamp >= 240 &&
-      !ctx.collectModuleBindings().some(
+      !moduleBindings.some(
         positionedMarkerBinding =>
           positionedMarkerBinding.deviceKind === "vacuum" &&
           ctx.vacuumStatusPresentation(positionedMarkerBinding, ctx.statesByEntityId).active
@@ -632,7 +633,7 @@ export function createMarkerLayer(ctx) {
       layoutSignature !== ctx.markerLayoutSignature
     ) {
       ctx.markerLayoutSignature = layoutSignature;
-      for (const markerBindingEntry of ctx.collectModuleBindings()) {
+      for (const markerBindingEntry of moduleBindings) {
         const markerPositionBinding =
           ctx.markerDragState?.id === markerBindingEntry.id
             ? {
@@ -945,5 +946,34 @@ export function createMarkerLayer(ctx) {
     ctx.syncCameraInteraction();
     updateMarkerPositions(true);
   }
-  return { beginMarkerDrag, cancelMarkerDrag, endMarkerDrag, moveMarkerDrag, renderMarkers, updateMarkerPositions, updateMarkerVisibility };
+
+  let pendingMarkerPositionFrameId = 0;
+  let pendingMarkerForceLayout = false;
+
+  /** 合并同一帧内的多次相机 change，每帧最多投影一次。 */
+  function scheduleMarkerPositionUpdate(forceLayout = false) {
+    if (forceLayout === true) {
+      pendingMarkerForceLayout = true;
+    }
+    if (pendingMarkerPositionFrameId) {
+      return;
+    }
+    pendingMarkerPositionFrameId = requestAnimationFrame(() => {
+      pendingMarkerPositionFrameId = 0;
+      const force = pendingMarkerForceLayout;
+      pendingMarkerForceLayout = false;
+      updateMarkerPositions(force);
+    });
+  }
+
+  return {
+    beginMarkerDrag,
+    cancelMarkerDrag,
+    endMarkerDrag,
+    moveMarkerDrag,
+    renderMarkers,
+    scheduleMarkerPositionUpdate,
+    updateMarkerPositions,
+    updateMarkerVisibility
+  };
 }

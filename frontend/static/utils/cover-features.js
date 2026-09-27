@@ -1,7 +1,7 @@
 /**
  * HA 窗帘（cover）实体的能力位定义与「设备能不能调叶片」的证据判定。
  */
-import { finiteNumberOrNull } from "./numbers.js?v=2609271411";
+import { finiteNumberOrNull } from "./numbers.js?v=2609271508";
 
 export const COVER_FEATURE_OPEN = 1;
 export const COVER_FEATURE_CLOSE = 2;

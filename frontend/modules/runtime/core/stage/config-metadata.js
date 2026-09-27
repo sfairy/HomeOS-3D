@@ -5,11 +5,11 @@ import {
   withFixedLightEffects,
   withPageAppearancePreset,
   withRegionLightingPreset
-} from "../static-helpers.js?v=2609271411";
+} from "../static-helpers.js?v=2609271508";
 // 门模型展开的唯一实现在 lock-state.js（舞台收集门锁绑定、门动画找模型共用同一份）：
-import { doorModels } from "../../security/lock-state.js?v=2609271411";
+import { doorModels } from "../../security/lock-state.js?v=2609271508";
 // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的集合名。它们与 NAS / 电视 / 扫地机
-import { GENERIC_DEVICE_COLLECTIONS } from "../../device/device-profiles.js?v=2609271411";
+import { GENERIC_DEVICE_COLLECTIONS } from "../../device/device-profiles.js?v=2609271508";
 export function createStageMetadata(ctx) {
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。

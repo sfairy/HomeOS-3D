@@ -342,18 +342,13 @@ def create_order(
     return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 
 
-
-
-#: 这里曾经有一个 `GET /orders/lookup/{order_no}?token=` —— 它把**长期有效、还能查
-#: 订单详情**的 lookupToken 从 URL 里收下来。同一个理由已经让收银台与同步跳转页
-#: 放弃了「token 进 URL」（见 apps/store/README.md 第五节 / 审计记录 S53）：URL 会进
-#: 访问日志、Referer 与浏览器历史，漏出一次等于交出订单查询入口。
-#: 取单请用下面这个端点 + `X-Order-Token` 头（账号中心与收银台走的都是它）。
-
-
 @router.get("/orders/{order_no}")
 def get_order(
-    order_no: str, request: Request, session: DbSession, account: CurrentAccount
+    order_no: str,
+    request: Request,
+    session: DbSession,
+    account: CurrentAccount,
+    reconcile: int = 0,
 ) -> Response:
     order = order_or_404(session, order_no)
 
@@ -365,13 +360,10 @@ def get_order(
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
 
-    # 顺序不能反：先查单，再过期。
-    #
-    # 反过来的话，一笔刚跨过 TTL 的订单会先被本地置为 expired（顺带归还库存预留与
-    # 优惠码名额），而查单只处理 pending —— 那次本可以确认收款的主动对账就这样被跳过，
-    # 用户付了钱却只看到「已过期，请到账号中心刷新」。巡检用的是同一个顺序
-    # （见 payments/reconcile.py：先渠道对账，再做本地过期收尾），这里与它对齐。
-    _reconcile_payment(session, request, order)
+    # 默认本地状态（轮询）；reconcile=1 时才主动查渠道（手动确认支付）。
+    # 渠道收款以 notify / sweeper 为准。本地过期收尾始终执行。
+    if int(reconcile or 0):
+        _reconcile_payment(session, request, order)
     expire_stale_orders(session, request.app.state.settings)
     session.refresh(order)
     response = JSONResponse(order_payload(order))
@@ -403,12 +395,13 @@ def cancel_order(
     # ---- 阶段一：先关渠道（网络调用），失败只记日志 ----
     setting = site_config.get_setting(session)
     try:
-        provider = request.app.state.resolve_payment_provider(setting)
+        provider = request.app.state.resolve_payment_provider(
+            setting, name=order.payment_provider or None
+        )
     except PaymentError:
-        # 渠道名非法：没有可关的远端交易，按纯本地取消处理。
         provider = None
     channel_closed = False
-    if provider is not None and getattr(provider, "name", "") == "alipay":
+    if provider is not None and getattr(provider, "name", "") in {"alipay", "wechat"}:
         try:
             outcome = provider.close_payment(request.app.state.settings, order)
         except PaymentError as error:

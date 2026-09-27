@@ -1,15 +1,15 @@
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271508";
 import {
   meteoconUrl,
   weatherVisual
-} from "../../../controls/weather-chart-runtime.js?v=2609271411";
+} from "../../../controls/weather-chart-runtime.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   resolveColor
-} from "../registry-visuals.js?v=2609271411";
+} from "../registry-visuals.js?v=2609271508";
 
 // 天气控件：图标与文案由 weatherVisual 映射，并结合太阳实体判断昼夜切换夜间图标。
 registerComponent("weather", {

@@ -8,9 +8,9 @@ import {
   PRESETS,
   normalizeHex,
   resolveTokens
-} from "../auth/scene/appearance.js?v=2609271411";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609271411";
-import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
+} from "../auth/scene/appearance.js?v=2609271508";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609271508";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271508";
 
 /** 面板用到的元素。全部取自 index.html 的 #appearance-dialog。 */
 const dialog = document.getElementById("appearance-dialog");

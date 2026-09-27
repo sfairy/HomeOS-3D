@@ -1,11 +1,11 @@
 /**
  * 授权页（/license）逻辑：未授权 / 授权失效时由后端跳转至此。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=2609271411";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609271411";
-import { apiAuthChallenge } from "../utils/api-request.js?v=2609271411";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271508";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609271508";
+import { apiAuthChallenge } from "../utils/api-request.js?v=2609271508";
 // 状态文案表由 license-recovery.js 统一持有：授权页与恢复页必须说同一句话，
-import { licenseMessage } from "./license-recovery.js?v=2609271411";
+import { licenseMessage } from "./license-recovery.js?v=2609271508";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),

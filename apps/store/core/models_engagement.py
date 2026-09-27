@@ -60,8 +60,6 @@ class StoreSetting(Base):
     #: 支付宝公钥（验签用）。注意不是应用公钥，两者填反是最高频的配置错误。
     alipay_public_key: Mapped[str] = mapped_column(Text, default="")
     #: 自定义网关。留空即生产网关。
-    #: 这里曾经有 alipay_sandbox —— 沙箱开关连同沙箱网关一起删除：它能下单、能出码，
-    #: 只是钱进不来，而这一点在页面上看不出来。联调改用生产环境的 0.01 元小额自测。
     alipay_gateway_url: Mapped[str] = mapped_column(String(255), default="")
     alipay_notify_url: Mapped[str] = mapped_column(String(512), default="")
     alipay_return_url: Mapped[str] = mapped_column(String(512), default="")
@@ -251,8 +249,8 @@ class RecoveryToken(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-#: 这里曾经有 CashierTicket —— 模拟收银台的短时票据。随模拟收银台一并删除；
-#: 存量库里的 cashier_tickets 表会作为孤儿留下（没有任何代码再读写它，无副作用）。
+
+
 class DeviceReleaseEvent(Base):
     __tablename__ = "device_release_events"
 

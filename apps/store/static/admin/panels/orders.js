@@ -2,13 +2,13 @@
  * 订单面板。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609271411";
-import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271411";
-import { api } from "../api.js?v=2609271411";
-import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271411";
-import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271411";
-import { askConfirm } from "../dialogs.js?v=2609271411";
-import { host } from "../host.js?v=2609271411";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609271508";
+import { PENDING_FILTER_VALUES, actions, cell, menuItem, menuNote, pageState, pagedFetch, renderPager, resetFilters, resetPage, rowMenu } from "../table.js?v=2609271508";
+import { api } from "../api.js?v=2609271508";
+import { dayEndUtc, dayStartUtc, dt, money, statusBadge } from "../format.js?v=2609271508";
+import { LICENSE_ACTION, ORDER_TYPE } from "../vocab.js?v=2609271508";
+import { askConfirm } from "../dialogs.js?v=2609271508";
+import { host } from "../host.js?v=2609271508";
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
 let orderStatusMetaPromise = null;

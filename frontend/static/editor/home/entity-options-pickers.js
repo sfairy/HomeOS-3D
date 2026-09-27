@@ -3,10 +3,10 @@
  */
 
 
-import { TOGGLE_ENTITY_DOMAINS } from "../../shared/action-rules.js?v=2609271411";
-import { entityDomainOf } from "../../utils/entities.js?v=2609271411";
-import { entitySearchTextOf } from "../../utils/entities.js?v=2609271411";
-import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609271411";
+import { TOGGLE_ENTITY_DOMAINS } from "../../shared/action-rules.js?v=2609271508";
+import { entityDomainOf } from "../../utils/entities.js?v=2609271508";
+import { entitySearchTextOf } from "../../utils/entities.js?v=2609271508";
+import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609271508";
 
 export function entityPickerConfig(entityPickerComponentType = "image", context) {
   const { ctx } = context;

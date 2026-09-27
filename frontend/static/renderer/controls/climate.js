@@ -1,7 +1,7 @@
 /**
  * 温控设备的纯计算层：能力探测、模式文案、开关与运行动作（不碰 DOM，也不读控件注册表）。
  */
-import { entityDomainFromId } from "../../utils/entities.js?v=2609271411";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609271508";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);

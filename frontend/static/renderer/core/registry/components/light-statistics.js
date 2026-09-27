@@ -1,16 +1,16 @@
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271411";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271411";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=2609271508";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=2609271508";
 // 「点亮数量」的激活色默认取全站主控色（见 design/scene/page.css）。
-import { paletteColor } from "../../../../utils/colors.js?v=2609271411";
-import { lightStatisticsSummary } from "../../../controls/light-statistics-runtime.js?v=2609271411";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271508";
+import { lightStatisticsSummary } from "../../../controls/light-statistics-runtime.js?v=2609271508";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=2609271411";
+import { registerComponent } from "../registry-core.js?v=2609271508";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=2609271411";
+} from "../registry-visuals.js?v=2609271508";
 
 // 灯光统计控件：把实体列表交给 lightStatisticsSummary 汇总后渲染，
 registerComponent("light-statistics", {

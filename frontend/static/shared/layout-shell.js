@@ -1,8 +1,8 @@
 /**
  * 布局交互层：面板折叠 / 拖拽调宽 / 状态记忆。
  */
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271411";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609271411";
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609271508";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609271508";
 
 /** 存储结构的版本号。字段语义变了就加一：旧值会被当作无效而回落到默认，不做迁移。 */
 const SCHEMA_VERSION = 1;

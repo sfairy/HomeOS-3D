@@ -2,7 +2,7 @@
  * 同源部署下的 Draco 加载器。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609271411";
+import { DRACOLoader } from "/static/vendor/three/0.186.0/DRACOLoader.js?v=2609271508";
 
 function normalizeWorkerError(cause) {
   const errorMessage = String(cause?.message || "").trim();

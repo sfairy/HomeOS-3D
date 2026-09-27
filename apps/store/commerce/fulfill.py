@@ -374,13 +374,7 @@ def upgrade_license_in_place(
     license.access_expires_at = (
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
-    # 这张授权原本可能是后台手动发的（issuance_source="manual"）：用户这次**付费**升级
-    # 之后，它的来源就该变成「支付自动」—— 否则前台继续显示「该授权由后台手动发放，
-    # 因此没有支付订单」，而订单就摆在那里。
-    #
-    # 判据必须用库里真实存在的取值：只有 "manual" 与 "payment_automatic" 两种
-    # （见 api/admin_licenses.py 的手动签发与 api/store_orders.py 的下单路径）。
-    # 这里曾经写的是 "payment_manual" —— 一个没有任何写入方会产生的值，整段是空转。
+    # 付费履约后，手动签发的授权来源改为支付自动。
     if (license.issuance_source or "") == "manual":
         license.issuance_source = "payment_automatic"
     order.license_id = license.id
@@ -722,9 +716,7 @@ def fulfill_order(
 
     order.status = "fulfilled"
     order.fulfilled_at = moment
-    #: 「这一单还占不占预留」的真实来源就是订单行本身（CAS 标记），不靠调用方按状态猜。
-    #: 这里曾经有一个 release_stock 参数供调用方覆盖，但没有任何调用方传过它 ——
-    #: 一个永远为 None 的旁路比没有更糟：读代码的人会以为存在第二种语义。
+    #: 预留是否释放以订单行 CAS 标记为准。
     if order.stock_reservation_released_at is None:
         release_order_reservation(session, order=order, product=product, quantity=1)
     # 发码即售出：哪条路径（正常支付 / 关单后复活补发）都要把这一件从

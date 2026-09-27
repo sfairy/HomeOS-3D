@@ -1,7 +1,7 @@
 /**
  * 弹窗（详情面板）的摆放计算。
  */
-import { clampTypedNumber } from "../utils/numbers.js?v=2609271411";
+import { clampTypedNumber } from "../utils/numbers.js?v=2609271508";
 
 /**
  * 计算弹窗的缩放与位置。
