@@ -500,6 +500,7 @@ import {
   updateRenderPixelRatio
 } from "./studio-render-quality.js";
 import { createLightTransitionController } from "./studio-light-transition.js";
+import { createFloorEffectsController } from "./studio-floor-effects.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -13347,47 +13348,8 @@ function createStageController() {
         !backgroundRoleObject.userData.backgroundThemeHidden;
     }
   }
-  const groundReflectionsController = createGroundReflections({
-    THREE: threeModuleMin,
-    renderer: state.renderer,
-    scene: state.previewOverlayScene,
-    getRoot: () => state.previewModelRoot,
-    getSceneRevision: () => state.sceneCacheRevision,
-    floorLighting: isRegionLightingEnabled,
-    getFloorCamera: (reflectionFloorCamera: any, reflectionFloorId: any) =>
-      state.overviewStackController?.reflectionCamera(reflectionFloorCamera, reflectionFloorId) ||
-      reflectionFloorCamera,
-    cull: true,
-    blur: false,
-    syncLighting: (reflectionSyncFloorCamera: any) =>
-      state.regionLightController?.syncCamera(reflectionSyncFloorCamera),
-    requestFrame: () => requestRenderFrame(),
-    getStateKey: () =>
-      [
-        state.sceneCacheRevision,
-        state.isEnvironmentActive,
-        state.studioDocument.uniformOverviewStack === true,
-        isRegionLightingEnabled ? "" : state.lightCacheRevision,
-        state.isLightCacheReady,
-        state.renderer.toneMappingExposure
-      ].join("|")
-  });
-  let areFloorEffectsPaused = false;
-  let areReflectionsSuspended = false;
-  const motionPresentation = createMotionPresentation({
-    reflections(isPresentationSuspended) {
-      areReflectionsSuspended = isPresentationSuspended;
-      groundReflectionsController.setSuspended?.(areFloorEffectsPaused || isPresentationSuspended, {
-        fade: !areFloorEffectsPaused
-      });
-    },
-    shadows(isPresentationMotion) {
-      state.contactShadowController?.setVisibleFloor?.(
-        currentPreviewFloorMode() === "all" ? null : state.activeFloorId
-      );
-      state.contactShadowController?.setMotion?.(isPresentationMotion);
-    }
-  });
+  const floorEffectsController = createFloorEffectsController();
+
   /**
    * 暂停或恢复编辑器特效（地面反射），并把当前特效状态写到渲染容器的 dataset 便于排查。
    * @param {boolean} areEditorEffectsPaused 是否暂停特效。
@@ -13400,94 +13362,19 @@ function createStageController() {
         ? "light-preview"
         : "paused"
       : "runtime";
-    if (areFloorEffectsPaused !== shouldSuspendReflections) {
-      areFloorEffectsPaused = shouldSuspendReflections;
-      groundReflectionsController.setSuspended?.(areFloorEffectsPaused || areReflectionsSuspended);
+    if (floorEffectsController.areFloorEffectsPaused !== shouldSuspendReflections) {
+      floorEffectsController.areFloorEffectsPaused = shouldSuspendReflections;
+      floorEffectsController.groundReflectionsController.setSuspended?.(floorEffectsController.areFloorEffectsPaused || floorEffectsController.areReflectionsSuspended);
       requestRenderFrame();
     }
   }
-  const areFloorEffectsFollowed = isRegionLightingEnabled;
-  let areShadowsFrozen = false;
-  let shadowRestoreStartMs: any = null;
-  let shadowAutoUpdateBefore = true;
-  const shadowIntensityByShadow = new Map();
-  /**
-   * 切换阴影的运动态与冻结态：运动时打开阴影自动更新，静止后用强度渐变收尾。
-   * @param {boolean} isShadowMotion 是否处于运动状态。
-   */
-  function setMotionShadows(isShadowMotion: any) {
-    if (areShadowsFrozen !== isShadowMotion) {
-      areShadowsFrozen = isShadowMotion;
-      if (areFloorEffectsFollowed) {
-        if (isShadowMotion) {
-          shadowAutoUpdateBefore = state.renderer.shadowMap.autoUpdate;
-        }
-        state.renderer.shadowMap.autoUpdate = isShadowMotion ? true : shadowAutoUpdateBefore;
-        state.renderer.shadowMap.needsUpdate = true;
-        state.regionLightController?.setMotion?.(isShadowMotion, true);
-        return;
-      }
-      if (isShadowMotion) {
-        shadowRestoreStartMs = null;
-        shadowAutoUpdateBefore = state.renderer.shadowMap.autoUpdate;
-        state.renderer.shadowMap.autoUpdate = false;
-        state.renderer.shadowMap.needsUpdate = false;
-        state.previewOverlayScene.traverse((shadowSceneNode: any) => {
-          if (
-            !!shadowSceneNode.isLight &&
-            !!shadowSceneNode.castShadow &&
-            !!shadowSceneNode.shadow
-          ) {
-            if (!shadowIntensityByShadow.has(shadowSceneNode.shadow)) {
-              shadowIntensityByShadow.set(
-                shadowSceneNode.shadow,
-                shadowSceneNode.shadow.intensity ?? 1
-              );
-            }
-            shadowSceneNode.shadow.intensity = 0;
-          }
-        });
-      } else {
-        state.renderer.shadowMap.autoUpdate = shadowAutoUpdateBefore;
-        state.renderer.shadowMap.needsUpdate = true;
-        shadowRestoreStartMs = performance.now();
-      }
-      state.regionLightController?.setMotion?.(isShadowMotion);
-    }
-  }
-  /**
-   * 逐帧把冻结期间被压低的阴影强度恢复回原值，用于运动结束后的收尾动画。
-   * @returns {void} 无返回值。
-   */
-  function restoreShadowIntensity() {
-    if (areShadowsFrozen || shadowRestoreStartMs === null) {
-      return;
-    }
-    const shadowRestoreProgress = Math.min(1, (performance.now() - shadowRestoreStartMs) / 280);
-    for (const [restoringShadow, restoringShadowIntensity] of shadowIntensityByShadow) {
-      restoringShadow.intensity = restoringShadowIntensity * shadowRestoreProgress;
-    }
-    if (shadowRestoreProgress < 1) {
-      requestRenderFrame();
-    } else {
-      shadowIntensityByShadow.clear();
-      shadowRestoreStartMs = null;
-    }
-  }
-  /**
-   * 挂起或恢复楼层相关动效与阴影更新，供楼层切换、导出等需要稳定画面的场景调用。
-   * @param {boolean} isFloorEffectSuspended 是否挂起。
-   */
-  function suspendFloorEffects(isFloorEffectSuspended: any) {
-    motionPresentation.floor(isFloorEffectSuspended);
-    setMotionShadows(isFloorEffectSuspended);
-  }
+
   const floorTransitionController = createFloorTransition({
     THREE: threeModuleMin,
     getRoot: () => state.previewModelRoot,
     dispose: disposeSceneSubtree,
     release: retainCachedFloorRecord,
-    suspendReflections: suspendFloorEffects,
+    suspendReflections: floorEffectsController.suspendFloorEffects,
     invalidate: (isFullSceneInvalidate: any) => {
       if (isFullSceneInvalidate) {
         orbitPivotOverride = null;
@@ -13496,7 +13383,7 @@ function createStageController() {
         boundsCacheCenter = null;
         installOrbitControlsOverrides();
       }
-      if (areFloorEffectsFollowed && !isFullSceneInvalidate) {
+      if (floorEffectsController.areFloorEffectsFollowed && !isFullSceneInvalidate) {
         fitDirectionalShadowCamera();
       }
       invalidateRender(
@@ -13546,7 +13433,7 @@ function createStageController() {
       once: true
     }
   );
-  globalThis.window?.addEventListener("pagehide", () => groundReflectionsController.dispose(), {
+  globalThis.window?.addEventListener("pagehide", () => floorEffectsController.groundReflectionsController.dispose(), {
     once: true
   });
   const overlayOnBeforeRender = state.previewOverlayScene.onBeforeRender;
@@ -13566,7 +13453,7 @@ function createStageController() {
   shadowRefreshProbeMesh.renderOrder = -1000000000;
   shadowRefreshProbeMesh.layers.enableAll();
   shadowRefreshProbeMesh.onBeforeRender = () => {
-    if (needsSpotShadowRefresh && !areShadowsFrozen) {
+    if (needsSpotShadowRefresh && !floorEffectsController.areShadowsFrozen) {
       needsSpotShadowRefresh = state.spotShadowAtlasController
         ? !state.spotShadowAtlasController.refreshGeometry(state.previewModelRoot, curtainBoundsBoxes)
         : false;
@@ -13585,15 +13472,15 @@ function createStageController() {
     }
   );
   state.previewOverlayScene.onBeforeRender = function (...overlayRenderArguments: any[]) {
-    if (groundReflectionsController.stats.inCapture) {
+    if (floorEffectsController.groundReflectionsController.stats.inCapture) {
       return;
     }
-    restoreShadowIntensity();
-    if (!areShadowsFrozen) {
+    floorEffectsController.restoreShadowIntensity();
+    if (!floorEffectsController.areShadowsFrozen) {
       curtainSyncHandler?.();
     }
     televisionSyncHandler?.();
-    if (needsSpotShadowRefresh && !areShadowsFrozen) {
+    if (needsSpotShadowRefresh && !floorEffectsController.areShadowsFrozen) {
       if (
         shadowRefreshModelRoot !== state.previewModelRoot ||
         shadowRefreshSceneRevision !== state.sceneCacheRevision
@@ -13620,7 +13507,7 @@ function createStageController() {
       state.contactShadowController?.invalidate(contactShadowFloorIds, true);
     }
     overlayOnBeforeRender?.apply(this, overlayRenderArguments);
-    if (!areShadowsFrozen) {
+    if (!floorEffectsController.areShadowsFrozen) {
       environmentSceneController?.setRoot(
         state.previewModelRoot,
         state.sceneCacheRevision + ":" + state.environmentStructureKey
@@ -13630,11 +13517,11 @@ function createStageController() {
     applyBackgroundVisibility();
     syncPreviewProjection();
     if (!state.renderer.getRenderTarget()) {
-      groundReflectionsController.render(overlayRenderArguments[2], {
+      floorEffectsController.groundReflectionsController.render(overlayRenderArguments[2], {
         worldMatricesCurrent: true
       });
       const reflectionStatsJson = JSON.stringify({
-        ...groundReflectionsController.stats
+        ...floorEffectsController.groundReflectionsController.stats
       });
       if (state.renderer.domElement.dataset.reflectionStats !== reflectionStatsJson) {
         state.renderer.domElement.dataset.reflectionStats = reflectionStatsJson;
@@ -13686,10 +13573,10 @@ function createStageController() {
     container: selectElement("#preview-3d"),
     canvas: state.renderer.domElement,
     get groundReflections() {
-      return groundReflectionsController;
+      return floorEffectsController.groundReflectionsController;
     },
     invalidateReflections(reflectionChangeKey: any) {
-      groundReflectionsController.changed(reflectionChangeKey);
+      floorEffectsController.groundReflectionsController.changed(reflectionChangeKey);
     },
     get modelRoot() {
       return state.previewModelRoot;
@@ -13739,7 +13626,7 @@ function createStageController() {
             };
             const previousCurtainRows = parseCurtainFrames(state.curtainFrameKey);
             const nextCurtainRows = parseCurtainFrames(nextCurtainFrameKey);
-            groundReflectionsController.changed(
+            floorEffectsController.groundReflectionsController.changed(
               [...new Set([...previousCurtainRows.keys(), ...nextCurtainRows.keys()])].filter(
                 changedCurtainFloorId =>
                   JSON.stringify(previousCurtainRows.get(changedCurtainFloorId)) !==
@@ -13747,7 +13634,7 @@ function createStageController() {
               )
             );
           } catch {
-            groundReflectionsController.changed(movingCurtainFloorIds);
+            floorEffectsController.groundReflectionsController.changed(movingCurtainFloorIds);
           }
         }
         if (nextEnvironmentStructureKey !== state.environmentStructureKey) {
@@ -14303,7 +14190,7 @@ function createStageController() {
       }
     },
     beginCameraMotion(blendCameraMode: any, blendCameraPose: any, motionPhaseKind = "focus") {
-      motionPresentation.camera(!!blendCameraPose, {
+      floorEffectsController.motionPresentation.camera(!!blendCameraPose, {
         live: motionPhaseKind === "focus"
       });
       const poseBeforeMotion = this.cameraState();
@@ -14351,7 +14238,7 @@ function createStageController() {
       const isFocusViewportUnchanged = frameFocusViewportValue === focusViewportRatio;
       focusViewportRatio = frameFocusViewportValue;
       this.applyCameraPose(frameCameraPose, frameProgress, isFocusViewportUnchanged);
-      motionPresentation.advance(frameProgress);
+      floorEffectsController.motionPresentation.advance(frameProgress);
     },
     applyCameraPose(appliedCameraPose: any, appliedProgress = 1, applyPreserveLightCache = true) {
       appliedCameraPose = constrainCameraPose(appliedCameraPose);
@@ -14396,7 +14283,7 @@ function createStageController() {
       });
     },
     endCameraMotion() {
-      motionPresentation.camera(false);
+      floorEffectsController.motionPresentation.camera(false);
       isCameraMotionRunning = false;
       recreateOrbitControls();
       finishCameraMotion();
@@ -14422,7 +14309,7 @@ function createStageController() {
         state.studioDocument.uniformOverviewStack = nextUniformOverviewStackFlag;
         orbitPivotOverride = null;
         boundsCacheModelRoot = null;
-        groundReflectionsController.changed();
+        floorEffectsController.groundReflectionsController.changed();
         invalidateRender({
           scene: true
         });
@@ -14455,7 +14342,7 @@ function createStageController() {
             }
           } finally {
             if (isOverviewFloorMode) {
-              suspendFloorEffects(false);
+              floorEffectsController.suspendFloorEffects(false);
             }
           }
           if (isOverviewFloorMode) {
@@ -14502,10 +14389,10 @@ function createStageController() {
       if (nextAppearanceSignature !== appearanceSignature) {
         releaseFloorCache();
         appearanceSignature = nextAppearanceSignature;
-        groundReflectionsController.changed();
+        floorEffectsController.groundReflectionsController.changed();
       }
-      if (groundReflectionsController.configure(appearanceOptions.groundReflection)) {
-        state.groundReflectionSettingsKey = JSON.stringify(groundReflectionsController.settings);
+      if (floorEffectsController.groundReflectionsController.configure(appearanceOptions.groundReflection)) {
+        state.groundReflectionSettingsKey = JSON.stringify(floorEffectsController.groundReflectionsController.settings);
         invalidateRender();
       }
       state.regionLightController?.setOverrides(appearanceOptions.lightRegionOverrides || {});
@@ -14644,7 +14531,7 @@ function createStageController() {
       return floorTransitionCacheById.size;
     },
     get floorEffectsFollow() {
-      return areFloorEffectsFollowed;
+      return floorEffectsController.areFloorEffectsFollowed;
     },
     transitionFloor(transitionTargetFloorId: any) {
       const floorIdsByElevationOrder = [...state.studioDocument.floors]
