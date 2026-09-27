@@ -11,9 +11,9 @@
 // mountEditorRuntime），舞台要靠它把 activeModule 切到该品类，通用设备的标记才会被收集、
 // 被渲染成 3D 里的按钮。漏掉这张表，品类名会被下面的兜底判成 "light"，
 // 于是「模型选好了但场景里没有按钮」—— 与上游 0.6.5 的同一段（含 ...GENERIC_DEVICE_KINDS）对齐。
-import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609262312";
+import { GENERIC_DEVICE_KINDS } from "../../device/device-profiles.js?v=2609270001";
 // 展示态的「模块 / 品类 → 所属页签」归一：与页签清单同一份实现，别在下面再抄一张表。
-import { moduleTabOf } from "./module-tabs.js?v=2609262312";
+import { moduleTabOf } from "./module-tabs.js?v=2609270001";
 export function createHostMessageHandler(ctx) {
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
