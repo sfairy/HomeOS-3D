@@ -150,6 +150,50 @@ for (const [nm, u] of unitByName) {
 }
 // v2：state 已外部化，所有非 let 单元均可参与搬迁；边界由「依赖闭包」决定。
 const movable = new Set([...unitByName.keys()].filter(n => unitByName.get(n).kind !== "let"));
+
+/* ---------- 4b. 批量闭包评估（--report <file>） ---------- */
+const REPORT = arg("--report", "");
+if (REPORT) {
+  const span0 = n => lineOf(unitByName.get(n).node.getEnd()) - lineOf(unitByName.get(n).node.getStart(sf)) + 1;
+  const closureOf = seedNames => {
+    const batch = new Set(), q = [...seedNames];
+    while (q.length) {
+      const n = q.pop();
+      if (batch.has(n)) continue;
+      for (const m of groupOf.get(n)) batch.add(m);
+      for (const r of refsOf.get(n)) if (movable.has(r)) q.push(r);
+    }
+    return batch;
+  };
+  const rows = [];
+  for (const raw of fs.readFileSync(REPORT, "utf8").split("\n")) {
+    if (!raw.trim() || raw.trim().startsWith("#")) continue;
+    const i = raw.indexOf(":");
+    const label = i >= 0 ? raw.slice(0, i).trim() : "-";
+    const names = (i >= 0 ? raw.slice(i + 1) : raw).split(",").map(s => s.trim()).filter(Boolean);
+    const ok = names.filter(n => movable.has(n));
+    const bad = names.filter(n => !movable.has(n));
+    const batch = closureOf(ok);
+    let lines = 0; for (const n of batch) lines += span0(n);
+    rows.push({ label, seeds: names.length, ok: ok.length, units: batch.size, lines, bad, batch });
+  }
+  rows.sort((a, b) => a.lines - b.lines);
+  console.log("域评估（按闭包行数升序）：\n");
+  for (const r of rows) {
+    console.log(`  ${String(r.lines).padStart(6)} 行 / ${String(r.units).padStart(4)} 单元 / ${String(r.seeds).padStart(3)} seed  ${r.label}`);
+    if (r.bad.length) console.log(`          ⚠ 不可搬 seed: ${r.bad.join(", ")}`);
+  }
+  const overlap = rows.filter(r => r.batch.size > 1);
+  if (overlap.length > 1) {
+    console.log("\n共用单元（重复计入 → 说明这些域应合并或分先后）：");
+    const seen = new Map();
+    for (const r of overlap) for (const n of r.batch) seen.set(n, (seen.get(n) || 0) + 1);
+    const shared = [...seen].filter(([, c]) => c > 1).sort((a, b) => b[1] - a[1]);
+    for (const [n, c] of shared.slice(0, 25)) console.log(`    ×${c}  ${n}`);
+  }
+  process.exit(0);
+}
+
 const badSeeds = SEEDS.filter(s => !movable.has(s));
 if (badSeeds.length) console.log("  ⚠ 剔除不可搬 seed:", badSeeds.map(s => `${s}(${unitByName.get(s)?.kind ?? "?"})`).join(", "));
 const seeds = SEEDS.filter(s => movable.has(s));

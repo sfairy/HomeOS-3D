@@ -10,6 +10,7 @@
  * 并检测多个子簇之间的成员重叠。
  */
 import fs from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(import.meta.dir, "../..");

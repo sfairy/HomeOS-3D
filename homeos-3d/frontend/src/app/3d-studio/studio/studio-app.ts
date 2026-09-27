@@ -569,6 +569,78 @@ import {
   updateCameraClipPlanes
 } from "./studio-camera-presets.js";
 import { createStageRuntimeController } from "./studio-stage-runtime.js";
+import {
+  PLAN_DONE,
+  PLAN_GUIDE,
+  PLAN_PAPER,
+  STUDIO_AURA_FALLBACK,
+  STUDIO_ECO_FALLBACK,
+  STUDIO_PAPER_FALLBACK,
+  convertBetweenFloors,
+  drawFloatingLabel,
+  drawMarqueeOverlay,
+  drawMetricGrid,
+  drawOpenEndpointWarning,
+  drawPlanDoor,
+  drawPlanLine,
+  drawPlanPoint,
+  drawPlanRailing,
+  isSnapClosingSpace,
+  openingPlacementInfo,
+  referenceWallsForAlignment,
+  renderPlanView,
+  rotateScreenPoint,
+  screenToPlan,
+  selectedDoorType,
+  unclosedEndpointsForWalls,
+  zoomValueElement
+} from "./studio-plan-draw.js";
+import {
+  applyCameraMode,
+  applyOrthographicFrame,
+  cameraModeButtons,
+  cameraRotateTopButtons,
+  cameraViewButtons,
+  cloneSceneForHistory,
+  currentCameraMode,
+  pushHistorySnapshot,
+  resetCameraView,
+  restoreStoredCameraView,
+  savedCameraView,
+  syncCameraModeButtons,
+  syncCameraViewButtons,
+  syncFocalLengthInputs,
+  topViewUpVector
+} from "./studio-camera-mode.js";
+import {
+  assetHeadingCategoryButtons,
+  exportSaveViewButton,
+  fixedCameraViewInput,
+  fixedOverviewViewInput,
+  floorCameraActionsElement,
+  itemTypeButtons,
+  overviewCameraActionsElement,
+  previewFloorGapControlElement,
+  previewFloorGapInput,
+  previewFloorUniformControlElement,
+  previewFloorUniformInput,
+  snapIndicatorElement,
+  snapSettingInputs,
+  snapToggleButton,
+  snapToggleStateElement,
+  snapToleranceInput,
+  snapToleranceValueElement,
+  syncAssetTabVisibility,
+  syncCameraViewControls,
+  syncDoorMaterialOptions,
+  syncMaterialStyleOptions,
+  syncSnapControls
+} from "./studio-control-sync.js";
+import {
+  applyCameraSnapshot,
+  applyCameraView,
+  captureCameraSnapshot
+} from "./studio-camera-snapshot.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -580,16 +652,7 @@ loadTiming("module-evaluated");
  * 平面画布（2D planContext）取色。
  */
 // 画布上取不到令牌时的兜底色。四枚各自对应自己的色相 ——
-const STUDIO_AURA_FALLBACK = "#c9a0ff";
-const STUDIO_ECO_FALLBACK = "#5fd0a8";
-/** 吸附点 / 量测读数 / 窗默认描边。 */
-const PLAN_GUIDE = () => paletteColor("--guide", STUDIO_AURA_FALLBACK);
-/** 闭合空间有效。 */
-const PLAN_DONE = () => paletteColor("--done", STUDIO_ECO_FALLBACK);
 
-const STUDIO_PAPER_FALLBACK = "#0b0f12";
-/** 户型画布的「纸」底色（导出与截图时先把整张画布铺满它）。原来是 #0d1319。 */
-const PLAN_PAPER = () => paletteColor("--hos-tool-bg", STUDIO_PAPER_FALLBACK);
 
 // 材质风格（default / warm-wood）与墙体透明度覆盖：两者都由舞台侧通过
 window.addEventListener("pagehide", () => renderCache?.close(), {
@@ -636,15 +699,8 @@ const deleteSelectionButton = selectElement("#delete-selection");
 const activeToolLabelElement = selectElement("#active-tool-label");
 const toolHelpElement = selectElement("#tool-help");
 const cursorPositionElement = selectElement("#cursor-position");
-const snapIndicatorElement = selectElement("#snap-indicator");
-const snapToggleButton = selectElement("#snap-toggle");
-const snapToggleStateElement = selectElement("#snap-toggle-state");
 const snapSettingsToggleButton = selectElement("#snap-settings-toggle");
 const snapSettingsPanelElement = selectElement("#snap-settings-panel");
-const snapSettingInputs = [...document.querySelectorAll("[data-snap-setting]")];
-const snapToleranceInput = selectElement("#snap-tolerance");
-const snapToleranceValueElement = selectElement("#snap-tolerance-value");
-const zoomValueElement = selectElement("#zoom-value");
 const scaleDialogElement = selectElement("#scale-dialog");
 const scaleFormElement = selectElement("#scale-form");
 const referencePixelsElement = selectElement("#reference-pixels");
@@ -702,9 +758,6 @@ const itemDepthLabelElement = selectElement("#item-depth-label");
 const itemHeightLabelElement = selectElement("#item-height-label");
 const sceneCountsElement = selectElement("#scene-counts");
 const previewFloorButtons = [...document.querySelectorAll("[data-preview-floor]")];
-const cameraViewButtons = [...document.querySelectorAll("[data-camera-view]")];
-const cameraRotateTopButtons = [...document.querySelectorAll("[data-camera-rotate-top]")];
-const cameraModeButtons = [...document.querySelectorAll("[data-camera-mode]")];
 const baseLightControlInputs: any[] = [...document.querySelectorAll("[data-base-light-control]")];
 const baseLightControlsElement = selectElement("#base-light-controls");
 const baseLightControlsHeaderElement = baseLightControlsElement?.querySelector(
@@ -721,21 +774,12 @@ if (baseLightControlsElement && baseLightControlsElement.parentElement !== docum
   document.body.append(baseLightControlsElement);
 }
 const saveCameraViewButton = selectElement("#save-camera-view");
-const fixedCameraViewInput = selectElement("#fixed-camera-view");
-const floorCameraActionsElement = selectElement("#floor-camera-actions");
-const overviewCameraActionsElement = selectElement("#overview-camera-actions");
 const saveOverviewViewButton = selectElement("#save-overview-view");
-const fixedOverviewViewInput = selectElement("#fixed-overview-view");
-const previewFloorGapControlElement = selectElement("#preview-floor-gap-control");
-const previewFloorGapInput = selectElement("#preview-floor-gap");
-const previewFloorUniformControlElement = selectElement("#preview-floor-uniform-control");
-const previewFloorUniformInput = selectElement("#preview-floor-uniform");
 const exportPreviewFrameElement = selectElement("#export-preview-frame");
 const exportAspectLabelElement = selectElement("#export-aspect-label");
 const exportResolutionLabelElement = selectElement("#export-resolution-label");
 const exportStatusElement = selectElement("#export-status");
 const exportPackageButton = selectElement("#export-package");
-const exportSaveViewButton = selectElement("#export-save-view");
 const exportGroupFilesInput = selectElement("#export-group-files");
 const exportFloorSelectElement = selectElement("#export-floor-select");
 const exportFloorGapControlElement = selectElement("#export-floor-gap-control");
@@ -860,8 +904,6 @@ function migrateLegacyLayoutSettings() {
    晚于这里生成的卡片会「看得见、点不动」。数据表在 studio-asset-palette.js。 */
 renderStudioAssetPalette(selectElement("#asset-grid"));
 const assetCategoryButtons = [...document.querySelectorAll("[data-asset-category]")];
-const assetHeadingCategoryButtons = [...document.querySelectorAll("[data-asset-heading-category]")];
-const itemTypeButtons = [...document.querySelectorAll("[data-item-type]")];
 const assetGridElement = selectElement("#asset-grid");
 const lightAssetRowElement = selectElement("#light-asset-row");
 const lightLayerPanelElement = selectElement("#light-layer-panel");
@@ -1000,26 +1042,8 @@ function formatLightFieldValue(formattedFieldKey: any, value: any) {
 const isStudioRoute = isStageViewerMode || /^\/3d-studio\/?$/.test(window.location.pathname);
 const metricsCanvas = document.createElement("canvas");
 const metricsContext = metricsCanvas.getContext("2d");
-const {
-  drawMetricGrid: drawMetricGrid,
-  drawLine: drawPlanLine,
-  drawPoint: drawPlanPoint,
-  drawOpenEndpointWarning: drawOpenEndpointWarning,
-  drawFloatingLabel: drawFloatingLabel
-} = createPlanDrawingTools({
-  context: planContext,
-  planToScreen: planToScreen,
-  screenToPlan: screenToPlan,
-  pixelsPerMeter: currentPixelsPerMeter,
-  getCanvasSize: () => ({
-    width: state.viewportWidthPx,
-    height: state.viewportHeightPx
-  }),
-  getViewZoom: () => state.viewTransform.zoom
-});
 
 // 本文件的状态集中在下面这段 let 里（没有状态容器对象）：绘制 / 预览 / 导出三处回调都要
-const selectedDoorType = "solid";
 const expandedAreaIds = new Set();
 // 「稍后处理」：用户先不当场二选一。冲突记录留着（本地内容一点不丢、也绝不静默覆盖），
 // 「本次删除影响」的确认记录：删除模型后保存会让 3D 控件绑定悬空时，服务端不落盘、先要一次确认
@@ -1379,26 +1403,6 @@ async function addFloor() {
   activateTool("select");
 }
 /**
- * 把平面像素点从一层楼层的坐标系换算到另一层。实现是「先转到世界、再转回平面」两步
- */
-function convertBetweenFloors(planPoint: any, fromFloor: any, toFloor: any) {
-  return scenePointToFloorPoint(toFloor, floorPointToScenePoint(fromFloor, planPoint));
-}
-/**
- * 取参照层的墙并换算到当前层坐标系，供对齐时吸附使用。
- */
-function referenceWallsForAlignment() {
-  if (!state.floorAlignState) {
-    return [];
-  }
-  const alignmentFloor = getCurrentFloor();
-  return state.floorAlignState.referenceFloor.scene.walls.map((sourceWall: any) => ({
-    ...sourceWall,
-    start: convertBetweenFloors(sourceWall.start, state.floorAlignState.referenceFloor, alignmentFloor),
-    end: convertBetweenFloors(sourceWall.end, state.floorAlignState.referenceFloor, alignmentFloor)
-  }));
-}
-/**
  * 进入楼层对齐流程的第一阶段（在参照层上点参照点）。参照层固定取楼层列表中的上一层，
  */
 function startFloorAlignment() {
@@ -1544,9 +1548,6 @@ function commitExportFloorGap() {
     exportStatusElement.textContent = "全楼层间距已设为 " + exportGap.toFixed(1) + " m";
     markDocumentDirty();
   }
-}
-function cloneSceneForHistory(sourceScene = state.activeScene) {
-  return structuredClone(sourceScene);
 }
 /**
  * 当前楼层里的电视列表。
@@ -2668,16 +2669,6 @@ function mergeCollinearWalls() {
   state.activeScene.railings = state.activeScene.railings.map(remapMergedAttachment);
   return removedWallCount;
 }
-/**
- * 在改动文档前压入一条撤销快照，并清空重做栈。栈上限 40 步：再多也几乎没人会连点 40 次
- */
-function pushHistorySnapshot() {
-  state.undoStack.push(cloneSceneForHistory());
-  if (state.undoStack.length > 40) {
-    state.undoStack.shift();
-  }
-  state.redoStack = [];
-}
 function pushHistoryEntry(snapshotScene: any) {
   state.undoStack.push(snapshotScene);
   if (state.undoStack.length > 40) {
@@ -3034,32 +3025,6 @@ saveInteractionReopenButton.addEventListener("click", () => {
 });
 saveInteractionConfirmButton.addEventListener("click", confirmSaveInteraction);
 /**
- * 把画布坐标绕视口中心旋转，得到屏幕上实际显示的位置。角度取负：document 里存的是
- */
-function rotateScreenPoint(screenCoordinates: any) {
-  const centerX = state.viewportWidthPx / 2;
-  const centerY = state.viewportHeightPx / 2;
-  const viewRotationRad = (-state.viewTransform.rotation * Math.PI) / 180;
-  const cosRotation = Math.cos(viewRotationRad);
-  const sinRotation = Math.sin(viewRotationRad);
-  const offsetX = screenCoordinates.x - centerX;
-  const offsetY = screenCoordinates.y - centerY;
-  return {
-    x: centerX + offsetX * cosRotation - offsetY * sinRotation,
-    y: centerY + offsetX * sinRotation + offsetY * cosRotation
-  };
-}
-/**
- * 画布坐标 → 平面坐标，是 planToScreen 与 rotateScreenPoint 的联合逆运算。顺序与正向
- */
-function screenToPlan(screenPointToConvert: any) {
-  const rotatedPoint = rotateScreenPoint(screenPointToConvert);
-  return {
-    x: (rotatedPoint.x - state.viewTransform.offsetX) / state.viewTransform.zoom,
-    y: (rotatedPoint.y - state.viewTransform.offsetY) / state.viewTransform.zoom
-  };
-}
-/**
  * 把指针事件的 client 坐标换算成画布局部坐标。用 getBoundingClientRect 而不是
  */
 function canvasPointFromEvent(pointerEvent: any) {
@@ -3156,440 +3121,6 @@ function wallIntersectionsForWalls(intersectionToleranceMeters: any) {
   const intersectionDerived = wallDerivedData(intersectionToleranceMeters);
   intersectionDerived.intersections ||= wallIntersections(state.activeScene.walls);
   return intersectionDerived.intersections;
-}
-/**
- * 取（并缓存）没有闭合的墙端点，用于提示「这一圈墙还没围成房间」。判定依赖楼板多边形：
- */
-function unclosedEndpointsForWalls(endpointToleranceMeters: any) {
-  const endpointDerived = wallDerivedData(endpointToleranceMeters);
-  endpointDerived.unclosedEndpoints ||= unclosedWallEndpoints(
-    state.activeScene.walls,
-    endpointDerived.tolerance,
-    floorPolygonsForWalls(endpointToleranceMeters)
-  );
-  return endpointDerived.unclosedEndpoints;
-}
-/**
- * 算出门 / 窗 / 栏杆在平面上的落位：中心点、两端点与墙方向单位向量。洞口位置以「沿墙比例 t」
- */
-function openingPlacementInfo(opening: any) {
-  const hostWallRecord = state.activeScene.walls.find((hostWall: any) => hostWall.id === opening.wallId);
-  if (!hostWallRecord) {
-    return null;
-  }
-  const deltaX = hostWallRecord.end.x - hostWallRecord.start.x;
-  const deltaY = hostWallRecord.end.y - hostWallRecord.start.y;
-  const wallLengthPlan = Math.hypot(deltaX, deltaY);
-  if (!wallLengthPlan) {
-    return null;
-  }
-  const clampedT = clampWindowT(hostWallRecord, opening, currentPixelsPerMeter() || 1);
-  const position = {
-    x: hostWallRecord.start.x + deltaX * clampedT,
-    y: hostWallRecord.start.y + deltaY * clampedT
-  };
-  const halfWidthPlan = Math.min(
-    (opening.width * (currentPixelsPerMeter() || 1)) / 2,
-    wallLengthPlan / 2
-  );
-  const direction = {
-    x: deltaX / wallLengthPlan,
-    y: deltaY / wallLengthPlan
-  };
-  return {
-    wall: hostWallRecord,
-    center: position,
-    start: {
-      x: position.x - direction.x * halfWidthPlan,
-      y: position.y - direction.y * halfWidthPlan
-    },
-    end: {
-      x: position.x + direction.x * halfWidthPlan,
-      y: position.y + direction.y * halfWidthPlan
-    },
-    unit: direction
-  };
-}
-/**
- * 在平面图上绘制一段栏杆（三层描边 + 两端圆点 + 选中时的浮动标签）。最外层用近黑色、宽度为
- */
-function drawPlanRailing(railing: any, railingOptions: any = {}) {
-  const railingPlacement = openingPlacementInfo(railing);
-  if (!railingPlacement) {
-    return;
-  }
-  const isRailingSelected = isSelected("railing", railing.id);
-  const railingStrokeColor = railingOptions.preview
-    ? "rgba(123, 220, 240, .72)"
-    : isRailingSelected
-      ? PLAN_ACCENT_BRIGHT()
-      : "#8bd7e8";
-  const railingOutlineWidthPx = Math.max(
-    10,
-    railingPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * state.viewTransform.zoom + 5
-  );
-  drawPlanLine(railingPlacement.start, railingPlacement.end, {
-    color: "rgba(7, 16, 21, .94)",
-    width: railingOutlineWidthPx,
-    cap: "butt"
-  });
-  drawPlanLine(railingPlacement.start, railingPlacement.end, {
-    color: railingStrokeColor,
-    width: isRailingSelected ? 5 : 3,
-    cap: "butt"
-  });
-  drawPlanLine(railingPlacement.start, railingPlacement.end, {
-    color: "rgba(224, 250, 255, .72)",
-    width: 1,
-    cap: "butt"
-  });
-  drawPlanPoint(railingPlacement.start, railingStrokeColor, isRailingSelected ? 3 : 2);
-  drawPlanPoint(railingPlacement.end, railingStrokeColor, isRailingSelected ? 3 : 2);
-  if (isRailingSelected && !railingOptions.preview) {
-    drawFloatingLabel(
-      railingPlacement.center,
-      "玻璃栏杆 · " + railing.width.toFixed(2) + " m",
-      "#8bd7e8"
-    );
-  }
-}
-function drawPlanDoor(door: any, doorOptions: any = {}) {
-  const doorPlacement = openingPlacementInfo(door);
-  if (!doorPlacement) {
-    return;
-  }
-  const isDoorSelected = isSelected("door", door.id);
-  const doorType = door.doorType || "solid";
-  const doorStrokeColor = doorOptions.preview
-    ? "rgba(255, 189, 110, .76)"
-    : isDoorSelected
-      ? PLAN_ACCENT_BRIGHT()
-      : ["solid", "double", "entry", "roller-shutter", "frame-only"].includes(doorType)
-        ? "#edf2f7"
-        : "#bfe9ff";
-  const doorOutlineWidthPx = Math.max(
-    10,
-    doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * state.viewTransform.zoom + 5
-  );
-  drawPlanLine(doorPlacement.start, doorPlacement.end, {
-    color: "rgba(7, 16, 21, .94)",
-    width: doorOutlineWidthPx,
-    cap: "butt"
-  });
-  if (doorType === "frame-only") {
-    const frameNormal = {
-      x: -doorPlacement.unit.y,
-      y: doorPlacement.unit.x
-    };
-    const frameJambHalfWidthPx = Math.max(
-      5 / state.viewTransform.zoom,
-      doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.55
-    );
-    for (const frameJambPoint of [doorPlacement.start, doorPlacement.end]) {
-      drawPlanLine(
-        {
-          x: frameJambPoint.x - frameNormal.x * frameJambHalfWidthPx,
-          y: frameJambPoint.y - frameNormal.y * frameJambHalfWidthPx
-        },
-        {
-          x: frameJambPoint.x + frameNormal.x * frameJambHalfWidthPx,
-          y: frameJambPoint.y + frameNormal.y * frameJambHalfWidthPx
-        },
-        {
-          color: doorStrokeColor,
-          width: isDoorSelected ? 4 : 3,
-          cap: "butt"
-        }
-      );
-    }
-    if (isDoorSelected) {
-      drawFloatingLabel(
-        doorPlacement.center,
-        "仅门框 · " + door.width.toFixed(2) + " m",
-        PLAN_ACCENT_BRIGHT()
-      );
-    }
-    return;
-  }
-  if (doorType === "sliding-glass") {
-    const panelNormal = {
-      x: -doorPlacement.unit.y,
-      y: doorPlacement.unit.x
-    };
-    const panelOffsetPx = Math.max(
-      2.5 / state.viewTransform.zoom,
-      doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.16
-    );
-    const openingLengthPx = distance(doorPlacement.start, doorPlacement.end);
-    const hingeDirection = door.hinge === "right" ? 1 : -1;
-    // 两扇门板分别贴在墙的两个面上；「内外翻转」就是交换哪一扇在哪个面。
-    const panelFlipSign = door.swing === -1 ? -1 : 1;
-    const panelCenters = slidingDoorPanelCenters(openingLengthPx, hingeDirection);
-    const panelHalfWidthPx = openingLengthPx * 0.27;
-    for (const [panelCenterOffset, panelSideSign] of [
-      [panelCenters.fixed, -panelFlipSign],
-      [panelCenters.moving, panelFlipSign]
-    ]) {
-      const panelCenterPoint = {
-        x: doorPlacement.center.x + doorPlacement.unit.x * panelCenterOffset,
-        y: doorPlacement.center.y + doorPlacement.unit.y * panelCenterOffset
-      };
-      const panelNormalOffset = {
-        x: panelNormal.x * panelOffsetPx * panelSideSign,
-        y: panelNormal.y * panelOffsetPx * panelSideSign
-      };
-      const panelStartPoint = {
-        x: panelCenterPoint.x - doorPlacement.unit.x * panelHalfWidthPx + panelNormalOffset.x,
-        y: panelCenterPoint.y - doorPlacement.unit.y * panelHalfWidthPx + panelNormalOffset.y
-      };
-      const panelEndPoint = {
-        x: panelCenterPoint.x + doorPlacement.unit.x * panelHalfWidthPx + panelNormalOffset.x,
-        y: panelCenterPoint.y + doorPlacement.unit.y * panelHalfWidthPx + panelNormalOffset.y
-      };
-      drawPlanLine(panelStartPoint, panelEndPoint, {
-        color: doorStrokeColor,
-        width: isDoorSelected ? 4 : 3,
-        cap: "butt"
-      });
-      drawPlanPoint(panelSideSign < 0 ? panelEndPoint : panelStartPoint, doorStrokeColor, 2);
-    }
-    if (isDoorSelected) {
-      drawFloatingLabel(
-        doorPlacement.center,
-        "玻璃推拉门 · " + door.width.toFixed(2) + " m",
-        PLAN_ACCENT_BRIGHT()
-      );
-    }
-    return;
-  }
-  if (doorType === "roller-shutter") {
-    const shutterNormal = {
-      x: -doorPlacement.unit.y,
-      y: doorPlacement.unit.x
-    };
-    const shutterOffsetPx =
-      Math.max(
-        2 / state.viewTransform.zoom,
-        doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.08
-      ) * (door.swing === -1 ? -1 : 1);
-    drawPlanLine(
-      {
-        x: doorPlacement.start.x + shutterNormal.x * shutterOffsetPx,
-        y: doorPlacement.start.y + shutterNormal.y * shutterOffsetPx
-      },
-      {
-        x: doorPlacement.end.x + shutterNormal.x * shutterOffsetPx,
-        y: doorPlacement.end.y + shutterNormal.y * shutterOffsetPx
-      },
-      {
-        color: doorStrokeColor,
-        width: isDoorSelected ? 5 : 4,
-        cap: "butt"
-      }
-    );
-    const shutterLengthPx = distance(doorPlacement.start, doorPlacement.end);
-    const slatCount = Math.max(3, Math.min(18, Math.round(door.width / 0.35)));
-    for (let slatIndex = 1; slatIndex < slatCount; slatIndex += 1) {
-      const slatOffset = shutterLengthPx * (slatIndex / slatCount - 0.5);
-      const slatPoint = {
-        x:
-          doorPlacement.center.x +
-          doorPlacement.unit.x * slatOffset +
-          shutterNormal.x * shutterOffsetPx,
-        y:
-          doorPlacement.center.y +
-          doorPlacement.unit.y * slatOffset +
-          shutterNormal.y * shutterOffsetPx
-      };
-      drawPlanLine(
-        {
-          x: slatPoint.x - (shutterNormal.x * 3) / state.viewTransform.zoom,
-          y: slatPoint.y - (shutterNormal.y * 3) / state.viewTransform.zoom
-        },
-        {
-          x: slatPoint.x + (shutterNormal.x * 3) / state.viewTransform.zoom,
-          y: slatPoint.y + (shutterNormal.y * 3) / state.viewTransform.zoom
-        },
-        {
-          color: "rgba(167, 178, 188, .72)",
-          width: 1,
-          cap: "butt"
-        }
-      );
-    }
-    if (isDoorSelected) {
-      drawFloatingLabel(
-        doorPlacement.center,
-        "卷帘门 · " + door.width.toFixed(2) + " m",
-        PLAN_ACCENT_BRIGHT()
-      );
-    }
-    return;
-  }
-  if (doorType === "entry") {
-    const entryNormal = {
-      x: -doorPlacement.unit.y,
-      y: doorPlacement.unit.x
-    };
-    // 内外翻转 = 把这一对门带以墙中心线镜像，整体换到墙的另一面。
-    const entryFlipSign = door.swing === -1 ? -1 : 1;
-    const entryOffsetPx =
-      Math.max(
-        2 / state.viewTransform.zoom,
-        doorPlacement.wall.thickness * (currentPixelsPerMeter() || 100) * 0.08
-      ) * entryFlipSign;
-    drawPlanLine(
-      {
-        x: doorPlacement.start.x + entryNormal.x * entryOffsetPx,
-        y: doorPlacement.start.y + entryNormal.y * entryOffsetPx
-      },
-      {
-        x: doorPlacement.end.x + entryNormal.x * entryOffsetPx,
-        y: doorPlacement.end.y + entryNormal.y * entryOffsetPx
-      },
-      {
-        color: doorStrokeColor,
-        width: doorOptions.preview ? 3 : isDoorSelected ? 5 : 4,
-        cap: "butt"
-      }
-    );
-    drawPlanLine(
-      {
-        x: doorPlacement.start.x - entryNormal.x * entryOffsetPx,
-        y: doorPlacement.start.y - entryNormal.y * entryOffsetPx
-      },
-      {
-        x: doorPlacement.end.x - entryNormal.x * entryOffsetPx,
-        y: doorPlacement.end.y - entryNormal.y * entryOffsetPx
-      },
-      {
-        color: "rgba(167, 178, 188, .72)",
-        width: 1,
-        cap: "butt"
-      }
-    );
-    const entryHandleDirection = door.hinge === "right" ? -1 : 1;
-    drawPlanPoint(
-      {
-        x: doorPlacement.center.x + doorPlacement.unit.x * door.width * entryHandleDirection * 0.34,
-        y: doorPlacement.center.y + doorPlacement.unit.y * door.width * entryHandleDirection * 0.34
-      },
-      doorStrokeColor,
-      isDoorSelected ? 3 : 2
-    );
-    if (isDoorSelected) {
-      drawFloatingLabel(
-        doorPlacement.center,
-        "入户门（常闭）· " + door.width.toFixed(2) + " m",
-        PLAN_ACCENT_BRIGHT()
-      );
-    }
-    return;
-  }
-  if (doorType === "double") {
-    const doubleDoorNormal = {
-      x: -doorPlacement.unit.y,
-      y: doorPlacement.unit.x
-    };
-    const doubleSwingSign = door.swing === -1 ? -1 : 1;
-    const leafOffsetPx = (distance(doorPlacement.start, doorPlacement.end) / 2) * doubleSwingSign;
-    const firstLeafPoint = {
-      x: doorPlacement.start.x + doubleDoorNormal.x * leafOffsetPx,
-      y: doorPlacement.start.y + doubleDoorNormal.y * leafOffsetPx
-    };
-    const secondLeafPoint = {
-      x: doorPlacement.end.x + doubleDoorNormal.x * leafOffsetPx,
-      y: doorPlacement.end.y + doubleDoorNormal.y * leafOffsetPx
-    };
-    drawPlanLine(doorPlacement.start, firstLeafPoint, {
-      color: doorStrokeColor,
-      width: doorOptions.preview ? 2 : isDoorSelected ? 4 : 3,
-      cap: "butt"
-    });
-    drawPlanLine(doorPlacement.end, secondLeafPoint, {
-      color: doorStrokeColor,
-      width: doorOptions.preview ? 2 : isDoorSelected ? 4 : 3,
-      cap: "butt"
-    });
-    drawPlanPoint(doorPlacement.start, doorStrokeColor, isDoorSelected ? 3.5 : 2.5);
-    drawPlanPoint(doorPlacement.end, doorStrokeColor, isDoorSelected ? 3.5 : 2.5);
-    if (isDoorSelected) {
-      drawFloatingLabel(
-        doorPlacement.center,
-        "双开门 · " + door.width.toFixed(2) + " m",
-        PLAN_ACCENT_BRIGHT()
-      );
-    }
-    return;
-  }
-  const isRightHinged = door.hinge === "right";
-  const hingePoint = isRightHinged ? doorPlacement.end : doorPlacement.start;
-  const freePoint = isRightHinged ? doorPlacement.start : doorPlacement.end;
-  const doorVector = {
-    x: freePoint.x - hingePoint.x,
-    y: freePoint.y - hingePoint.y
-  };
-  const swingSign = door.swing === -1 ? -1 : 1;
-  const swingEndPoint = {
-    x: hingePoint.x - doorVector.y * swingSign,
-    y: hingePoint.y + doorVector.x * swingSign
-  };
-  drawPlanLine(hingePoint, swingEndPoint, {
-    color: doorStrokeColor,
-    width: doorOptions.preview ? 2 : isDoorSelected ? 4 : 3,
-    cap: "butt",
-    dash: doorOptions.preview ? [5, 4] : undefined
-  });
-  if (doorType === "glass") {
-    const glassInsetVector = {
-      x: (doorPlacement.unit.x * 3) / state.viewTransform.zoom,
-      y: (doorPlacement.unit.y * 3) / state.viewTransform.zoom
-    };
-    drawPlanLine(
-      {
-        x: hingePoint.x + glassInsetVector.x,
-        y: hingePoint.y + glassInsetVector.y
-      },
-      {
-        x: swingEndPoint.x + glassInsetVector.x,
-        y: swingEndPoint.y + glassInsetVector.y
-      },
-      {
-        color: "rgba(183, 229, 247, .58)",
-        width: 1,
-        cap: "butt"
-      }
-    );
-  }
-  const hingeScreenPoint = planToScreen(hingePoint);
-  const doorRadiusPx = distance(hingePoint, freePoint) * state.viewTransform.zoom;
-  const doorStartAngleRad = Math.atan2(doorVector.y, doorVector.x);
-  const doorEndAngleRad = doorStartAngleRad + (swingSign * Math.PI) / 2;
-  planContext.save();
-  planContext.strokeStyle = doorStrokeColor;
-  planContext.lineWidth = doorOptions.preview ? 1 : isDoorSelected ? 2 : 1.25;
-  if (doorOptions.preview) {
-    planContext.setLineDash([5, 4]);
-  }
-  planContext.beginPath();
-  planContext.arc(
-    hingeScreenPoint.x,
-    hingeScreenPoint.y,
-    doorRadiusPx,
-    doorStartAngleRad,
-    doorEndAngleRad,
-    swingSign < 0
-  );
-  planContext.stroke();
-  planContext.restore();
-  drawPlanPoint(hingePoint, doorStrokeColor, isDoorSelected ? 3.5 : 2.5);
-  if (isDoorSelected) {
-    drawFloatingLabel(
-      doorPlacement.center,
-      "" + (doorType === "glass" ? "玻璃门 · " : "") + door.width.toFixed(2) + " m",
-      PLAN_ACCENT_BRIGHT()
-    );
-  }
 }
 
 /**
@@ -3858,327 +3389,6 @@ function blitMetricsCanvas({ offsetX: metricsOffsetX = 0, offsetY: metricsOffset
   return true;
 }
 /**
- * 在快照之上叠画框选矩形（只画框，不重绘平面）。与 blitMetricsCanvas 配套：先贴回快照
- */
-function drawMarqueeOverlay() {
-  if (state.pointerInteraction?.type !== "marquee") {
-    return;
-  }
-  const marqueeStartScreen = planToScreen(state.pointerInteraction.start);
-  const marqueeEndScreen = planToScreen(state.pointerInteraction.current);
-  const marqueeLeftPx = Math.min(marqueeStartScreen.x, marqueeEndScreen.x);
-  const marqueeTopPx = Math.min(marqueeStartScreen.y, marqueeEndScreen.y);
-  const marqueeWidthPx = Math.abs(marqueeEndScreen.x - marqueeStartScreen.x);
-  const marqueeHeightPx = Math.abs(marqueeEndScreen.y - marqueeStartScreen.y);
-  planContext.save();
-  planContext.translate(state.viewportWidthPx / 2, state.viewportHeightPx / 2);
-  planContext.rotate((state.viewTransform.rotation * Math.PI) / 180);
-  planContext.translate(-state.viewportWidthPx / 2, -state.viewportHeightPx / 2);
-  planContext.fillStyle = "rgba(255, 157, 46, .10)";
-  planContext.strokeStyle = "rgba(255, 176, 74, .92)";
-  planContext.lineWidth = 1;
-  planContext.setLineDash([6, 4]);
-  planContext.fillRect(marqueeLeftPx, marqueeTopPx, marqueeWidthPx, marqueeHeightPx);
-  planContext.strokeRect(
-    marqueeLeftPx + 0.5,
-    marqueeTopPx + 0.5,
-    Math.max(marqueeWidthPx - 1, 0),
-    Math.max(marqueeHeightPx - 1, 0)
-  );
-  planContext.restore();
-}
-function renderPlanView() {
-  const isLightPlanView = state.activeAssetTab === "light";
-  planContext.clearRect(0, 0, state.viewportWidthPx, state.viewportHeightPx);
-  planContext.fillStyle = PLAN_PAPER();
-  planContext.fillRect(0, 0, state.viewportWidthPx, state.viewportHeightPx);
-  planContext.save();
-  planContext.translate(state.viewportWidthPx / 2, state.viewportHeightPx / 2);
-  planContext.rotate((state.viewTransform.rotation * Math.PI) / 180);
-  planContext.translate(-state.viewportWidthPx / 2, -state.viewportHeightPx / 2);
-  if (state.backgroundTexture && state.activeScene.background && state.activeScene.settings.backgroundVisible) {
-    const planOriginScreen = planToScreen({
-      x: 0,
-      y: 0
-    });
-    planContext.save();
-    planContext.globalAlpha = isLightPlanView ? 0.3 : 0.54;
-    planContext.drawImage(
-      state.backgroundTexture,
-      planOriginScreen.x,
-      planOriginScreen.y,
-      state.activeScene.background.width * state.viewTransform.zoom,
-      state.activeScene.background.height * state.viewTransform.zoom
-    );
-    planContext.restore();
-  }
-  drawMetricGrid();
-  const planRenderPixelsPerMeter = currentPixelsPerMeter() || 100;
-  if (state.floorAlignState) {
-    planContext.save();
-    planContext.globalAlpha = 0.58;
-    for (const alignmentWall of referenceWallsForAlignment()) {
-      drawPlanLine(alignmentWall.start, alignmentWall.end, {
-        color: "#52cfe0",
-        width: Math.max(2, alignmentWall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom),
-        dash: [7, 5],
-        cap: "square"
-      });
-    }
-    planContext.restore();
-    if (state.floorAlignState.referencePoint) {
-      const alignmentReferencePoint = convertBetweenFloors(
-        state.floorAlignState.referencePoint,
-        state.floorAlignState.referenceFloor,
-        getCurrentFloor()
-      );
-      drawPlanPoint(alignmentReferencePoint, "#ffb14f", 4.5);
-      drawFloatingLabel(alignmentReferencePoint, "参照点", "#ffb14f");
-    }
-  }
-  planContext.save();
-  if (isLightPlanView) {
-    planContext.globalAlpha = 0.48;
-  }
-  for (const planWall of state.activeScene.walls) {
-    const isPlanWallSelected = isSelected("wall", planWall.id);
-    const planWallWidthPx = Math.max(
-      planWall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom,
-      4
-    );
-    if (isPlanWallSelected) {
-      drawPlanLine(planWall.start, planWall.end, {
-        color: "rgba(255, 157, 46, .38)",
-        width: planWallWidthPx + 7,
-        cap: "square"
-      });
-    }
-    drawPlanLine(planWall.start, planWall.end, {
-      color: isPlanWallSelected ? "#f1d7b9" : "#c7d0d7",
-      width: planWallWidthPx,
-      cap: "square"
-    });
-    drawPlanLine(planWall.start, planWall.end, {
-      color: "rgba(39, 51, 61, .82)",
-      width: 1
-    });
-    if (state.activeTool === "wall" || isPlanWallSelected) {
-      drawPlanPoint(planWall.start, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
-      drawPlanPoint(planWall.end, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
-    }
-    if (isPlanWallSelected && state.multiSelection.length <= 1) {
-      drawFloatingLabel(
-        {
-          x: (planWall.start.x + planWall.end.x) / 2,
-          y: (planWall.start.y + planWall.end.y) / 2
-        },
-        wallLengthMeters(planWall, planRenderPixelsPerMeter).toFixed(2) + " m",
-        "#ffb14f"
-      );
-    }
-  }
-  for (const planWindow of state.activeScene.windows) {
-    const planWindowPlacement = openingPlacementInfo(planWindow);
-    if (!planWindowPlacement) {
-      continue;
-    }
-    const isPlanWindowSelected = isSelected("window", planWindow.id);
-    drawPlanLine(planWindowPlacement.start, planWindowPlacement.end, {
-      color: "rgba(7, 16, 21, .9)",
-      width: Math.max(
-        10,
-        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom + 5
-      ),
-      cap: "butt"
-    });
-    drawPlanLine(planWindowPlacement.start, planWindowPlacement.end, {
-      color: isPlanWindowSelected ? PLAN_ACCENT_BRIGHT() : PLAN_GUIDE(),
-      width: isPlanWindowSelected ? 5 : 3,
-      cap: "butt"
-    });
-    drawPlanLine(planWindowPlacement.start, planWindowPlacement.end, {
-      color: "rgba(224, 250, 255, .9)",
-      width: 1,
-      cap: "butt"
-    });
-    if (planWindow.hasDivider !== false && planWindow.width > 1.2) {
-      const windowDividerNormal = {
-        x: -planWindowPlacement.unit.y,
-        y: planWindowPlacement.unit.x
-      };
-      const windowDividerHalfWidthPx = Math.max(
-        planWindowPlacement.wall.thickness * planRenderPixelsPerMeter * state.viewTransform.zoom * 0.72,
-        5 / state.viewTransform.zoom
-      );
-      drawPlanLine(
-        {
-          x: planWindowPlacement.center.x - windowDividerNormal.x * windowDividerHalfWidthPx,
-          y: planWindowPlacement.center.y - windowDividerNormal.y * windowDividerHalfWidthPx
-        },
-        {
-          x: planWindowPlacement.center.x + windowDividerNormal.x * windowDividerHalfWidthPx,
-          y: planWindowPlacement.center.y + windowDividerNormal.y * windowDividerHalfWidthPx
-        },
-        {
-          color: isPlanWindowSelected ? PLAN_ACCENT_BRIGHT() : "rgba(224, 250, 255, .9)",
-          width: 1.5,
-          cap: "butt"
-        }
-      );
-    }
-    if (isPlanWindowSelected && state.multiSelection.length <= 1) {
-      drawFloatingLabel(planWindowPlacement.center, planWindow.width.toFixed(2) + " m", PLAN_GUIDE());
-    }
-  }
-  for (const planDoor of state.activeScene.doors) {
-    drawPlanDoor(planDoor);
-  }
-  for (const planRailing of state.activeScene.railings) {
-    drawPlanRailing(planRailing);
-  }
-  if (state.pointerInteraction?.type === "draw-flooropening") {
-    const { start: floorOpeningDragStart, current: floorOpeningDragEnd } = state.pointerInteraction;
-    drawPlanItem({
-      ...ITEM_TYPE_DEFINITIONS.flooropening,
-      type: "flooropening",
-      id: "opening-preview",
-      rotation: 0,
-      x: (floorOpeningDragStart.x + floorOpeningDragEnd.x) / 2,
-      y: (floorOpeningDragStart.y + floorOpeningDragEnd.y) / 2,
-      width: Math.abs(floorOpeningDragEnd.x - floorOpeningDragStart.x) / planRenderPixelsPerMeter,
-      depth: Math.abs(floorOpeningDragEnd.y - floorOpeningDragStart.y) / planRenderPixelsPerMeter
-    });
-  }
-  for (const planItem of state.activeScene.items) {
-    if (!LIGHT_ITEM_TYPES.has(planItem.type)) {
-      drawPlanItem(planItem);
-    }
-  }
-  if (!state.floorAlignState) {
-    const detectedOpenEndpoints = unclosedEndpointsForWalls(planRenderPixelsPerMeter);
-    for (const detectedOpenEndpoint of detectedOpenEndpoints) {
-      drawOpenEndpointWarning(detectedOpenEndpoint);
-      if (detectedOpenEndpoints.length <= 3) {
-        drawFloatingLabel(detectedOpenEndpoint, "未闭合", "#ff766e");
-      }
-    }
-  }
-  planContext.restore();
-  if (isLightPlanView) {
-    for (const planLightItem of state.activeScene.items) {
-      if (LIGHT_ITEM_TYPES.has(planLightItem.type)) {
-        drawPlanItem(planLightItem);
-      }
-    }
-  }
-  const calibrationReference = state.activeScene.calibration?.reference;
-  if (calibrationReference && state.activeTool === "scale") {
-    drawPlanLine(calibrationReference.start, calibrationReference.end, {
-      color: "rgba(255, 157, 46, .72)",
-      width: 2,
-      dash: [7, 5]
-    });
-    drawPlanPoint(calibrationReference.start, PLAN_ACCENT(), 3.5);
-    drawPlanPoint(calibrationReference.end, PLAN_ACCENT(), 3.5);
-    drawFloatingLabel(
-      {
-        x: (calibrationReference.start.x + calibrationReference.end.x) / 2,
-        y: (calibrationReference.start.y + calibrationReference.end.y) / 2
-      },
-      calibrationReference.meters.toFixed(2) + " m 参考",
-      "#ffad45"
-    );
-  }
-  if (state.scalePreviewStart && state.scalePreviewCurrent) {
-    drawPlanLine(state.scalePreviewStart, state.scalePreviewCurrent, {
-      color: PLAN_ACCENT(),
-      width: 2,
-      dash: [7, 5]
-    });
-    drawPlanPoint(state.scalePreviewStart, PLAN_ACCENT());
-    drawPlanPoint(state.scalePreviewCurrent, PLAN_ACCENT());
-  }
-  if (state.scaleStartPoint && state.snapTarget) {
-    const isClosingSpace = isSnapClosingSpace(state.snapTarget);
-    drawPlanLine(state.scaleStartPoint, state.snapTarget.point, {
-      color: PLAN_ACCENT(),
-      width: 2,
-      dash: [7, 5]
-    });
-    drawPlanPoint(state.scaleStartPoint, PLAN_ACCENT());
-    drawPlanPoint(
-      state.snapTarget.point,
-      isClosingSpace ? PLAN_DONE() : state.snapTarget.kind ? PLAN_GUIDE() : PLAN_ACCENT(),
-      isClosingSpace ? 5 : 3.5
-    );
-    const scaleDistanceMeters =
-      distance(state.scaleStartPoint, state.snapTarget.point) / planRenderPixelsPerMeter;
-    drawFloatingLabel(
-      {
-        x: (state.scaleStartPoint.x + state.snapTarget.point.x) / 2,
-        y: (state.scaleStartPoint.y + state.snapTarget.point.y) / 2
-      },
-      scaleDistanceMeters.toFixed(2) + " m",
-      "#ffb04a"
-    );
-    if (isClosingSpace) {
-      drawFloatingLabel(state.snapTarget.point, "点击闭合空间", PLAN_DONE());
-    }
-  } else if (state.snapTarget?.kind && ["wall", "scale"].includes(state.activeTool)) {
-    drawPlanPoint(state.snapTarget.point, PLAN_GUIDE());
-    drawFloatingLabel(state.snapTarget.point, state.snapTarget.label, PLAN_GUIDE());
-  }
-  if (state.activeTool === "window" && state.windowSnapTarget) {
-    const previewWindowRecord = {
-      wallId: state.windowSnapTarget.wall.id,
-      t: state.windowSnapTarget.t,
-      width: 1.4
-    };
-    const previewWindowPlacement = openingPlacementInfo(previewWindowRecord);
-    if (previewWindowPlacement) {
-      drawPlanLine(previewWindowPlacement.start, previewWindowPlacement.end, {
-        color: "rgba(67, 210, 230, .75)",
-        width: 5,
-        dash: [5, 4],
-        cap: "butt"
-      });
-    }
-  }
-  if (state.activeTool === "door" && state.doorSnapTarget) {
-    const doorTypeDimensions = DOOR_TYPE_DIMENSIONS[selectedDoorType] || DOOR_TYPE_DIMENSIONS.solid;
-    drawPlanDoor(
-      {
-        wallId: state.doorSnapTarget.wall.id,
-        t: state.doorSnapTarget.t,
-        width: doorTypeDimensions.width,
-        height: doorTypeDimensions.height,
-        doorType: selectedDoorType,
-        hinge: "left",
-        swing: 1
-      },
-      {
-        preview: true
-      }
-    );
-  }
-  if (state.activeTool === "railing" && state.railingSnapTarget) {
-    drawPlanRailing(
-      {
-        wallId: state.railingSnapTarget.wall.id,
-        t: state.railingSnapTarget.t,
-        width: 2,
-        height: 1.1
-      },
-      {
-        preview: true
-      }
-    );
-  }
-  planContext.restore();
-  drawMarqueeOverlay();
-  zoomValueElement.textContent = Math.round(state.viewTransform.zoom * 100) + "%";
-}
-/**
  * 按 primarySelection 取回被选中的实体对象。单选状态只存 {kind, id}，真正的对象要从当前
  */
 function findSelectedEntity() {
@@ -4366,26 +3576,6 @@ function isSnapEnabled() {
 function setSnapSettingsVisible(isVisible: any) {
   snapSettingsPanelElement.hidden = !isVisible;
   snapSettingsToggleButton.setAttribute("aria-expanded", String(isVisible));
-}
-/**
- * 把吸附设置（总开关、各吸附项、容差）同步到工具栏控件。所有判定都用 !== false：老草稿里这些字段
- */
-function syncSnapControls() {
-  const isSnapOn = state.activeScene.settings.snapEnabled !== false;
-  snapToggleButton.classList.toggle("active", isSnapOn);
-  snapToggleButton.setAttribute("aria-pressed", String(isSnapOn));
-  snapToggleStateElement.textContent = isSnapOn ? "开" : "关";
-  for (const snapSettingInput of snapSettingInputs) {
-    (snapSettingInput as any).checked = state.activeScene.settings[(snapSettingInput as any).dataset.snapSetting] !== false;
-  }
-  syncControlValue(
-    snapToleranceInput,
-    clamp(Math.round(finite(state.activeScene.settings.snapTolerance, 13)), 6, 24)
-  );
-  snapToleranceValueElement.textContent = snapToleranceInput.value + " px";
-  if (!state.scaleAnchorPoint) {
-    snapIndicatorElement.textContent = isSnapOn ? "吸附：开启" : "吸附：关闭";
-  }
 }
 /**
  * 全量刷新工作台界面（墙面全局参数、物件计数、面板比例、相机与灯光控件）。这是「场景数据变化后把 UI
@@ -5380,55 +4570,7 @@ async function uploadPlanImage(file: any) {
     }
   }
 }
-/**
- * 重建「材质风格」下拉的档位。档位随物件类型变化（沙发是布艺组、柜类是木作组、洁具是陶瓷组…），
- */
-function syncMaterialStyleOptions(itemType: any, selectedStyle: any) {
-  const selectControl = selectElement("#material-style");
-  const optionSignature = itemType + ":" + materialStyleOptionsFor(itemType).length;
-  if (selectControl.dataset.optionSignature !== optionSignature) {
-    selectControl.textContent = "";
-    // 「跟随全局风格」永远排最前：它是默认值，也是「这块我不管」的出口。
-    const autoOption = document.createElement("option");
-    autoOption.value = MATERIAL_STYLE_AUTO;
-    autoOption.textContent = materialStyleAutoLabel(itemType);
-    selectControl.append(autoOption);
-    for (const styleOption of materialStyleOptionsFor(itemType)) {
-      const optionElement = document.createElement("option");
-      optionElement.value = styleOption.id;
-      optionElement.textContent = styleOption.label;
-      selectControl.append(optionElement);
-    }
-    selectControl.dataset.optionSignature = optionSignature;
-  }
-  selectControl.value = normalizeMaterialStyle(itemType, selectedStyle);
-  syncStudioSelect(selectControl);
-}
 
-/**
- * 重建「门材质」下拉的档位。档位随门型变化（玻璃门多出清玻 / 茶玻两档，实心门没有），
- */
-function syncDoorMaterialOptions(doorType: any, selectedStyle: any) {
-  const selectControl = selectElement("#door-material");
-  const optionSignature = doorType + ":" + doorMaterialOptionsFor(doorType).length;
-  if (selectControl.dataset.optionSignature !== optionSignature) {
-    selectControl.textContent = "";
-    // 「跟随全局风格」永远排最前：它是默认值，也是「这扇门我不管」的出口。
-    const autoOption = document.createElement("option");
-    autoOption.value = DOOR_MATERIAL_AUTO;
-    autoOption.textContent = doorMaterialAutoLabel();
-    selectControl.append(autoOption);
-    for (const styleOption of doorMaterialOptionsFor(doorType)) {
-      const optionElement = document.createElement("option");
-      optionElement.value = styleOption.id;
-      optionElement.textContent = styleOption.label;
-      selectControl.append(optionElement);
-    }
-    selectControl.dataset.optionSignature = optionSignature;
-  }
-  selectControl.value = normalizeDoorMaterial(doorType, selectedStyle);
-  syncStudioSelect(selectControl);
-}
 
 /**
  * 切换「高阴影质量」档位；降档时把阴影相机视锥还原回升档前的备份。升档前先备份 shadow.camera 的六向
@@ -5568,23 +4710,6 @@ function handleBaseLightControlInput(editedControlInput: any) {
   }
 }
 /**
- * 当前相机投影模式，只有透视与正交两种。用「是不是 perspective」来判断而非白名单校验
- */
-function currentCameraMode() {
-  if (cameraSettingsSource()?.cameraMode === "perspective") {
-    return "perspective";
-  } else {
-    return "orthographic";
-  }
-}
-/**
- * 计算俯视图相机的「上方向」向量，使平面图按相机顶旋角在屏幕上摆正。相机在俯视时 up 取
- */
-function topViewUpVector(rotationDeg = currentTopRotationDeg()) {
-  const rotationAngleRad = threeModuleMin.MathUtils.degToRad(rotationDeg);
-  return new threeModuleMin.Vector3(Math.sin(rotationAngleRad), 0, -Math.cos(rotationAngleRad));
-}
-/**
  * 采集一帧的耗时样本（渲染循环每帧结束时调用）。只在「需要被度量的渲染」里采样：相机运动（或舞台播放动画）才关心帧率，
  */
 function sampleFrameInterval(frameTimestampMs = performance.now()) {
@@ -5610,37 +4735,6 @@ function sampleFrameInterval(frameTimestampMs = performance.now()) {
   if (!(state.recentFrameDurationsMs.length < 24)) {
     assessFrameRateForAdaptive();
     state.recentFrameDurationsMs.splice(0, 12);
-  }
-}
-function syncCameraModeButtons(cameraMode = currentCameraMode()) {
-  for (const cameraModeButton of cameraModeButtons) {
-    cameraModeButton.classList.toggle("active", (cameraModeButton as any).dataset.cameraMode === cameraMode);
-  }
-  syncFocalLengthInputs(cameraMode);
-}
-/**
- * 同步「视角」工具栏的选中态：高亮当前视角按钮，并只在顶视图下启用顶旋按钮。active 类与
- */
-function syncCameraViewButtons(cameraView = currentCameraView()) {
-  for (const cameraViewButton of cameraViewButtons) {
-    const isCameraViewActive = (cameraViewButton as any).dataset.cameraView === cameraView;
-    cameraViewButton.classList.toggle("active", isCameraViewActive);
-    cameraViewButton.setAttribute("aria-pressed", String(isCameraViewActive));
-  }
-  for (const cameraRotateButton of cameraRotateTopButtons) {
-    (cameraRotateButton as any).disabled = cameraView !== "top";
-  }
-}
-/**
- * 把焦距回填到各处的焦距输入框，并按投影模式控制可用性。正交相机没有焦距概念，因此非透视
- */
-function syncFocalLengthInputs(syncCameraMode = currentCameraMode()) {
-  for (const focalLengthInputElement of cameraFocalLengthInputs) {
-    syncControlValue(focalLengthInputElement, Math.round(currentFocalLength()));
-    (focalLengthInputElement as any).disabled = syncCameraMode !== "perspective";
-    focalLengthInputElement
-      .closest(".camera-focal-control")
-      ?.classList.toggle("is-disabled", (focalLengthInputElement as any).disabled);
   }
 }
 const LIGHT_FADE_DURATION_MS = 150;
@@ -5836,46 +4930,6 @@ function endExportRender() {
     }
   }, 120);
 }
-/**
- * 刷新导出侧栏里与「视角」相关的控件可见性与文案（单层视角 / 全楼总览两套）。两种模式互斥：单层模式显示楼层视角操作、
- */
-function syncCameraViewControls() {
-  const hasMultipleFloors = (state.studioDocument?.floors.length || 0) > 1;
-  const isCameraOverviewMode = currentPreviewFloorMode() === "all";
-  floorCameraActionsElement.hidden = isCameraOverviewMode;
-  overviewCameraActionsElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
-  previewFloorGapControlElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
-  syncControlValue(previewFloorGapInput, finite(state.studioDocument?.previewFloorGap, 3).toFixed(1));
-  previewFloorUniformControlElement.hidden = !hasMultipleFloors || !isCameraOverviewMode;
-  previewFloorUniformInput.checked = state.studioDocument?.uniformOverviewStack === true;
-  const hasFloorFixedView = !!state.activeScene.settings?.fixedCameraView;
-  const hasOverviewFixedView = !!state.studioDocument?.combinedFixedCameraView;
-  fixedCameraViewInput.disabled = !hasFloorFixedView;
-  fixedCameraViewInput.classList.toggle("has-saved-view", hasFloorFixedView);
-  fixedOverviewViewInput.disabled = !hasOverviewFixedView;
-  fixedOverviewViewInput.classList.toggle("has-saved-view", hasOverviewFixedView);
-  const hasFixedCameraView = isCameraOverviewMode ? hasOverviewFixedView : hasFloorFixedView;
-  exportSaveViewButton.textContent = isCameraOverviewMode ? "保存总览" : "保存视角";
-  exportSaveViewButton.title = isCameraOverviewMode
-    ? "记录当前导图的全楼角度和投影方式"
-    : "记录当前导图的角度、缩放和投影方式";
-  selectElement("#export-use-fixed").textContent = isCameraOverviewMode ? "恢复总览" : "恢复视角";
-  selectElement("#export-use-fixed").title = isCameraOverviewMode
-    ? "恢复已保存的全楼总览视角"
-    : "恢复当前楼层已保存的视角";
-  selectElement("#export-use-fixed").disabled = !!state.isExportBusy || !hasFixedCameraView;
-  selectElement("#export-use-fixed").classList.toggle("has-saved-view", hasFixedCameraView);
-}
-/**
- * 取当前模式下已保存的固定相机视角快照。总览模式读文档级的 combinedFixedCameraView，
- */
-function savedCameraView() {
-  if (currentPreviewFloorMode() === "all") {
-    return state.studioDocument?.combinedFixedCameraView;
-  } else {
-    return state.activeScene.settings?.fixedCameraView;
-  }
-}
 function storeCameraView(cameraViewSnapshot: any) {
   if (currentPreviewFloorMode() === "all") {
     state.studioDocument.combinedFixedCameraView = cameraViewSnapshot;
@@ -5939,209 +4993,6 @@ async function saveCurrentCameraView() {
     showToast(viewLabel + "已保存。");
   } else {
     showToast(viewLabel + "已记录，正在保存…");
-  }
-}
-function restoreStoredCameraView(restoreViewOptions: any = {}) {
-  const storedView = savedCameraView();
-  if (!storedView || !state.previewCamera || !state.orbitControls) {
-    return;
-  }
-  const modeChanged = storedView.mode !== currentCameraMode();
-  const viewChanged = storedView.view !== currentCameraView();
-  const topRotationChanged = storedView.topRotation !== currentTopRotationDeg();
-  const focalLengthChanged =
-    storedView.focalLength !== null &&
-    Math.abs(storedView.focalLength - currentFocalLength()) > 1e-8;
-  const shouldRecordChange = restoreViewOptions.recordChange !== false;
-  if (
-    (modeChanged || viewChanged || topRotationChanged || focalLengthChanged) &&
-    shouldRecordChange
-  ) {
-    pushHistorySnapshot();
-  }
-  const storedCameraSettings = cameraSettingsSource();
-  storedCameraSettings.cameraMode = storedView.mode;
-  storedCameraSettings.cameraView = storedView.view;
-  storedCameraSettings.cameraTopRotation = storedView.topRotation;
-  if (storedView.focalLength !== null) {
-    storedCameraSettings.cameraFocalLength = storedView.focalLength;
-  }
-  applyCameraMode(storedView.mode, {
-    preserveView: false
-  });
-  const cameraTargetVector = new threeModuleMin.Vector3(
-    storedView.target.x,
-    storedView.target.y,
-    storedView.target.z
-  );
-  state.previewCamera.position.set(storedView.position.x, storedView.position.y, storedView.position.z);
-  state.previewCamera.up.copy(
-    storedView.view === "top"
-      ? topViewUpVector(storedView.topRotation)
-      : new threeModuleMin.Vector3(0, 1, 0)
-  );
-  state.previewCamera.userData.frameSize = storedView.visibleHeight;
-  state.previewCamera.userData.cameraView = storedView.view;
-  state.previewCamera.userData.topRotation = storedView.topRotation;
-  state.previewCamera.userData.viewportAspect ||= Math.max(
-    selectElement("#preview-3d").clientWidth /
-      Math.max(selectElement("#preview-3d").clientHeight, 1),
-    0.1
-  );
-  state.previewCamera.zoom = 1;
-  if (state.previewCamera.isPerspectiveCamera) {
-    state.previewCamera.aspect = state.previewCamera.userData.viewportAspect;
-    if (storedView.focalLength !== null) {
-      applyFocalLength(state.previewCamera, storedView.focalLength);
-    } else {
-      state.previewCamera.fov = storedView.fov;
-      state.previewCamera.updateProjectionMatrix();
-      storedCameraSettings.cameraFocalLength = clamp(state.previewCamera.getFocalLength(), 18, 120);
-    }
-  } else {
-    applyOrthographicFrame(
-      storedView.visibleHeight,
-      state.previewCamera.userData.viewportAspect,
-      state.previewCamera
-    );
-  }
-  updateCameraClipPlanes(state.previewCamera, cameraTargetVector);
-  state.previewCamera.lookAt(cameraTargetVector);
-  state.previewCamera.updateProjectionMatrix();
-  state.orbitControls.target.copy(cameraTargetVector);
-  applyRenderQualityMode();
-  state.orbitControls.update();
-  syncCameraModeButtons(storedView.mode);
-  syncCameraViewButtons(storedView.view);
-  if (
-    (modeChanged || viewChanged || topRotationChanged || focalLengthChanged) &&
-    shouldRecordChange
-  ) {
-    markDocumentDirty();
-  }
-  if (!restoreViewOptions.silent) {
-    const restoreViewLabel = currentPreviewFloorMode() === "all" ? "总览视角" : "当前层视角";
-    showToast("已恢复上次保存的" + restoreViewLabel + "。");
-  }
-}
-/**
- * 切换相机视角（free / top），必要时重排相机位置。顶视图把相机抬到目标上方（透视按可视高度
- */
-function applyCameraView(requestedView: any, viewRequestOptions: any = {}) {
-  const normalizedView = requestedView === "top" ? "top" : "free";
-  const topRotationDeg = currentTopRotationDeg();
-  syncCameraViewButtons(normalizedView);
-  if (!state.previewCamera || !state.orbitControls) {
-    return;
-  }
-  if (
-    state.previewCamera.userData.cameraView === normalizedView &&
-    (normalizedView !== "top" || state.previewCamera.userData.topRotation === topRotationDeg) &&
-    viewRequestOptions.force !== true
-  ) {
-    applyRenderQualityMode();
-    return;
-  }
-  if (normalizedView === "free") {
-    resetCameraView({
-      view: "free"
-    });
-    return;
-  }
-  const cameraTarget = state.orbitControls.target.clone();
-  const visibleHeight = measureVisibleHeight(state.previewCamera, cameraTarget);
-  const targetDistanceToCamera = Math.max(state.previewCamera.position.distanceTo(cameraTarget), 8);
-  state.previewCamera.up.copy(topViewUpVector(topRotationDeg));
-  if (state.previewCamera.isPerspectiveCamera) {
-    applyFocalLength();
-    const topViewFovRad = threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV());
-    const cameraHeight = Math.max(visibleHeight / (Math.tan(topViewFovRad / 2) * 2), 8);
-    state.previewCamera.position.set(cameraTarget.x, cameraTarget.y + cameraHeight, cameraTarget.z);
-  } else {
-    applyOrthographicFrame(
-      visibleHeight,
-      state.previewCamera.userData.viewportAspect || 1,
-      state.previewCamera
-    );
-    state.previewCamera.position.set(
-      cameraTarget.x,
-      cameraTarget.y + targetDistanceToCamera,
-      cameraTarget.z
-    );
-  }
-  state.previewCamera.userData.frameSize = visibleHeight;
-  state.previewCamera.userData.cameraView = "top";
-  state.previewCamera.userData.topRotation = topRotationDeg;
-  updateCameraClipPlanes(state.previewCamera, cameraTarget);
-  state.previewCamera.lookAt(cameraTarget);
-  state.previewCamera.updateProjectionMatrix();
-  state.orbitControls.target.copy(cameraTarget);
-  applyRenderQualityMode();
-  state.orbitControls.update();
-}
-function applyCameraMode(requestedMode: any, modeOptions: any = {}) {
-  const normalizedMode = requestedMode === "perspective" ? "perspective" : "orthographic";
-  syncCameraModeButtons(normalizedMode);
-  if (!state.renderer) {
-    return;
-  }
-  if ((normalizedMode === "perspective") == !!state.previewCamera?.isPerspectiveCamera) {
-    applyFocalLength();
-    applyRenderQualityMode();
-    return;
-  }
-  const shouldPreserveView = modeOptions.preserveView !== false;
-  const previousCamera = state.previewCamera;
-  const orbitTarget = state.orbitControls?.target.clone() || new threeModuleMin.Vector3(0, 0.6, 0);
-  const offsetVector = previousCamera
-    ? previousCamera.position.clone().sub(orbitTarget)
-    : new threeModuleMin.Vector3(1.12, 1.42, 1.2);
-  const offsetLength = Math.max(offsetVector.length(), 2);
-  const cameraDirection =
-    offsetVector.lengthSq() > 1e-8
-      ? offsetVector.normalize()
-      : new threeModuleMin.Vector3(1.12, 1.42, 1.2).normalize();
-  const viewportAspect =
-    previousCamera?.userData.viewportAspect ||
-    Math.max(
-      selectElement("#preview-3d").clientWidth /
-        Math.max(selectElement("#preview-3d").clientHeight, 1),
-      0.1
-    );
-  const currentVisibleHeight =
-    shouldPreserveView && previousCamera
-      ? measureVisibleHeight(previousCamera, orbitTarget)
-      : previousCamera?.userData.frameSize || 10;
-  state.orbitControls?.dispose();
-  if (normalizedMode === "perspective") {
-    state.previewCamera = new threeModuleMin.PerspectiveCamera(36, viewportAspect, 0.02, 200);
-    applyFocalLength(state.previewCamera);
-    const perspectiveDistance =
-      currentVisibleHeight /
-      (Math.tan(threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV()) / 2) * 2);
-    const placementDistance = shouldPreserveView ? perspectiveDistance : offsetLength;
-    state.previewCamera.position
-      .copy(orbitTarget)
-      .addScaledVector(cameraDirection, Math.max(placementDistance, 2));
-  } else {
-    state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.02, 200);
-    state.previewCamera.position.copy(orbitTarget).addScaledVector(cameraDirection, offsetLength);
-    applyOrthographicFrame(currentVisibleHeight, viewportAspect, state.previewCamera);
-  }
-  state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
-  state.previewCamera.userData.viewportAspect = viewportAspect;
-  state.previewCamera.userData.frameSize = currentVisibleHeight;
-  state.previewCamera.userData.cameraView = previousCamera?.userData.cameraView || "free";
-  state.previewCamera.userData.topRotation = previousCamera?.userData.topRotation || 0;
-  state.previewCamera.up.copy(previousCamera?.up || new threeModuleMin.Vector3(0, 1, 0));
-  updateCameraClipPlanes(state.previewCamera, orbitTarget);
-  state.previewCamera.lookAt(orbitTarget);
-  state.previewCamera.updateProjectionMatrix();
-  state.orbitControls = createOrbitControls(state.previewCamera);
-  state.orbitControls.target.copy(orbitTarget);
-  applyRenderQualityMode();
-  if (!isStageViewerMode || modeOptions.deferControlUpdate !== true) {
-    state.orbitControls.update();
   }
 }
 /**
@@ -6464,27 +5315,6 @@ async function initializeStudioStage({ isRetry = false } = {}) {
     }
   }
 }
-/**
- * 按可视高度与视口纵横比设置正交相机的视锥边界。aspect ≥ 1 时以高度为准向两侧扩宽；
- */
-function applyOrthographicFrame(frameVisibleHeight: any, aspect: any, orthoCamera = state.previewCamera) {
-  if (!orthoCamera?.isOrthographicCamera) {
-    return;
-  }
-  const halfHeight = Math.max(frameVisibleHeight, 1) / 2;
-  if (aspect >= 1) {
-    orthoCamera.left = -halfHeight * aspect;
-    orthoCamera.right = halfHeight * aspect;
-    orthoCamera.top = halfHeight;
-    orthoCamera.bottom = -halfHeight;
-  } else {
-    orthoCamera.left = -halfHeight;
-    orthoCamera.right = halfHeight;
-    orthoCamera.top = halfHeight / Math.max(aspect, 0.1);
-    orthoCamera.bottom = -halfHeight / Math.max(aspect, 0.1);
-  }
-  orthoCamera.updateProjectionMatrix();
-}
 function handleStageResize() {
   if (!state.renderer) {
     return;
@@ -6522,62 +5352,6 @@ function handleStageResize() {
     projectionSignature !== state.previewCamera.projectionMatrix.elements.join(",")
   ) {
     invalidateRender();
-  }
-}
-/**
- * 采集当前相机状态快照，供导出 / 打印流程保存与还原。
- */
-function captureCameraSnapshot() {
-  if (!state.previewCamera || !state.orbitControls) {
-    return null;
-  } else {
-    return {
-      mode: state.previewCamera.isPerspectiveCamera ? "perspective" : "orthographic",
-      cameraView: state.previewCamera.userData.cameraView || currentCameraView(),
-      topRotation: state.previewCamera.userData.topRotation || 0,
-      position: state.previewCamera.position.clone(),
-      target: state.orbitControls.target.clone(),
-      up: state.previewCamera.up.clone(),
-      zoom: state.previewCamera.zoom,
-      visibleHeight: measureVisibleHeight(state.previewCamera, state.orbitControls.target),
-      frameSize:
-        state.previewCamera.userData.frameSize ||
-        measureVisibleHeight(state.previewCamera, state.orbitControls.target),
-      viewportAspect: state.previewCamera.userData.viewportAspect || 1,
-      fov: state.previewCamera.isPerspectiveCamera ? state.previewCamera.fov : 36,
-      near: state.previewCamera.near,
-      far: state.previewCamera.far
-    };
-  }
-}
-/**
- * 把相机快照应用到当前相机与控制器（导出 / 打印前的还原入口）。快照里的投影模式可能与当前
- */
-function applyCameraSnapshot(snapshot: any, snapshotAspect = snapshot?.viewportAspect || 1) {
-  if (!!snapshot && !!state.renderer) {
-    applyCameraMode(snapshot.mode, {
-      preserveView: false
-    });
-    state.previewCamera.position.copy(snapshot.position);
-    state.previewCamera.up.copy(snapshot.up);
-    state.previewCamera.zoom = snapshot.zoom || 1;
-    state.previewCamera.near = snapshot.near;
-    state.previewCamera.far = snapshot.far;
-    state.previewCamera.userData.frameSize = snapshot.frameSize;
-    state.previewCamera.userData.viewportAspect = snapshotAspect;
-    state.previewCamera.userData.cameraView = snapshot.cameraView || currentCameraView();
-    state.previewCamera.userData.topRotation = snapshot.topRotation || 0;
-    if (state.previewCamera.isPerspectiveCamera) {
-      state.previewCamera.fov = snapshot.fov;
-      state.previewCamera.aspect = snapshotAspect;
-    } else {
-      applyOrthographicFrame(snapshot.frameSize, snapshotAspect, state.previewCamera);
-    }
-    state.previewCamera.lookAt(snapshot.target);
-    state.previewCamera.updateProjectionMatrix();
-    state.orbitControls.target.copy(snapshot.target);
-    applyRenderQualityMode();
-    state.orbitControls.update();
   }
 }
 /**
@@ -8634,83 +7408,6 @@ function switchPreviewFloor(targetFloorIds: any) {
   applyShadowBudget(switchRootSnapshot);
   fitDirectionalShadowCamera();
 }
-function resetCameraView(cameraViewOptions: any = {}) {
-  if (!state.previewCamera || !state.orbitControls) {
-    return;
-  }
-  const nextView =
-    cameraViewOptions.view === "top"
-      ? "top"
-      : cameraViewOptions.view === "free"
-        ? "free"
-        : currentCameraView();
-  const viewTopRotationDeg = currentTopRotationDeg();
-  const isFloorOverview = currentPreviewFloorMode() === "all";
-  const cameraPixelsPerMeter = currentPixelsPerMeter() || 100;
-  const cameraFloorBounds = computeFloorBounds();
-  const cameraSceneBounds = computeSceneBoundingBox({
-    excludeModelLayers: new Set(["items", "lights"])
-  });
-  const sceneSize =
-    isFloorOverview && !cameraSceneBounds.isEmpty()
-      ? cameraSceneBounds.getSize(new threeModuleMin.Vector3())
-      : null;
-  const sceneCenter = cameraSceneBounds.isEmpty()
-    ? null
-    : cameraSceneBounds.getCenter(new threeModuleMin.Vector3());
-  const orthoFrameSize =
-    isFloorOverview && sceneSize
-      ? clamp(Math.max(sceneSize.x, sceneSize.z), 5, 100)
-      : clamp(
-          Math.max(cameraFloorBounds.width, cameraFloorBounds.height) / cameraPixelsPerMeter,
-          5,
-          35
-        );
-  const maxWallHeight =
-    isFloorOverview && sceneSize
-      ? sceneSize.y
-      : Math.max(0, ...state.activeScene.walls.map((sceneWall: any) => sceneWall.height || 0));
-  const frameExtent = Math.max(orthoFrameSize * 1.18, orthoFrameSize + maxWallHeight * 0.32);
-  state.previewCamera.userData.frameSize = frameExtent;
-  state.previewCamera.userData.cameraView = nextView;
-  state.previewCamera.userData.topRotation = viewTopRotationDeg;
-  const resetTargetPoint = sceneCenter
-    ? new threeModuleMin.Vector3(sceneCenter.x, sceneCenter.y, sceneCenter.z)
-    : new threeModuleMin.Vector3(0, Math.min(0.78, orthoFrameSize * 0.055), 0);
-  let resetCameraDistance;
-  if (state.previewCamera.isPerspectiveCamera) {
-    state.previewCamera.aspect = state.previewCamera.userData.viewportAspect || 1;
-    applyFocalLength();
-    const boundsDiagonal =
-      frameExtent /
-      (Math.tan(threeModuleMin.MathUtils.degToRad(state.previewCamera.getEffectiveFOV()) / 2) * 2);
-    resetCameraDistance = Math.max(boundsDiagonal * 1.04, orthoFrameSize * 1.65, 8);
-  } else {
-    applyOrthographicFrame(frameExtent, state.previewCamera.userData.viewportAspect || 1);
-    resetCameraDistance = Math.max(orthoFrameSize * 3.2, 18);
-  }
-  if (nextView === "top") {
-    state.previewCamera.up.copy(topViewUpVector(viewTopRotationDeg));
-    state.previewCamera.position.set(
-      resetTargetPoint.x,
-      resetTargetPoint.y + resetCameraDistance,
-      resetTargetPoint.z
-    );
-  } else {
-    state.previewCamera.up.set(0, 1, 0);
-    const resetCameraDirection = new threeModuleMin.Vector3(1.08, 1.7, 1.12).normalize();
-    state.previewCamera.position
-      .copy(resetTargetPoint)
-      .addScaledVector(resetCameraDirection, resetCameraDistance);
-  }
-  updateCameraClipPlanes(state.previewCamera, resetTargetPoint);
-  state.previewCamera.zoom = 1;
-  state.previewCamera.lookAt(resetTargetPoint);
-  state.previewCamera.updateProjectionMatrix();
-  state.orbitControls.target.copy(resetTargetPoint);
-  applyRenderQualityMode();
-  state.orbitControls.update();
-}
 function resolveSnapTarget(snapPointInput: any, anchor: any, forceOrthogonal = false) {
   const snapPixelsPerMeter = currentPixelsPerMeter() || 100;
   if (!isSnapEnabled()) {
@@ -8749,19 +7446,6 @@ function resolveSnapTarget(snapPointInput: any, anchor: any, forceOrthogonal = f
     snapAngles: snapSettings.snapAngles !== false,
     snapGrid: snapSettings.snapGrid !== false
   });
-}
-/**
- * @returns {boolean} true 表示吸附到起点、应当闭合。
- */
-function isSnapClosingSpace(snapTargetCandidate = state.snapTarget) {
-  if (!state.snapEndpointCandidate || state.scalePointCount < 2 || !snapTargetCandidate?.point) {
-    return false;
-  }
-  const endpointTolerance = Math.max(1, (currentPixelsPerMeter() || 100) * 0.01);
-  return (
-    snapTargetCandidate.kind === "endpoint" &&
-    distance(snapTargetCandidate.point, state.snapEndpointCandidate) <= endpointTolerance
-  );
 }
 function updateSnapIndicator(shiftKey = state.snapOverridePoint) {
   if (!state.scaleAnchorPoint) {
@@ -10191,23 +8875,6 @@ toggleFloorEdgeButton.addEventListener("click", () => {
   refreshStudio();
   markDocumentDirty();
 });
-function syncAssetTabVisibility() {
-  for (const headingButton of assetHeadingCategoryButtons) {
-    (headingButton as any).hidden = (headingButton as any).dataset.assetHeadingCategory !== state.activeAssetTab;
-  }
-  for (const itemTypeButton of itemTypeButtons) {
-    const buttonItemType = (itemTypeButton as any).dataset.itemType;
-    const isLightItemType = LIGHT_ITEM_TYPES.has(buttonItemType);
-    const isApplianceItem = APPLIANCE_ITEM_TYPES.has(buttonItemType);
-    const isVisibleForTab =
-      state.activeAssetTab === "light"
-        ? isLightItemType
-        : state.activeAssetTab === "appliance"
-          ? isApplianceItem
-          : !isApplianceItem && !isLightItemType;
-    (itemTypeButton as any).hidden = !isVisibleForTab;
-  }
-}
 function activateAssetTab(tabName: any) {
   const assetTab = ["home", "appliance", "light"].includes(tabName) ? tabName : "home";
   const tabLightScope = currentLightScope();

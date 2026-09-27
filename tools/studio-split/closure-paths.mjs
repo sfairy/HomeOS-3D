@@ -1,5 +1,6 @@
 /** 计算模块级依赖闭包中每个单元的「引入路径」，定位真正的入口。 */
 import fs from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(import.meta.dir, "../..");

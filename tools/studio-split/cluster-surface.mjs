@@ -3,6 +3,7 @@
  * 对每个簇成员，找出哪些站位引用它；引用它的站位若不属于簇，即是「对外接口」。
  */
 import fs from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(import.meta.dir, "../..");
