@@ -1353,3 +1353,7 @@ export const ITEM_TYPE_DEFINITIONS = {
     color: "#f2f4f5"
   },
 };
+
+/** 导出画布默认尺寸（px）。 */
+export const DEFAULT_EXPORT_WIDTH = 1852;
+export const DEFAULT_EXPORT_HEIGHT = 1293;

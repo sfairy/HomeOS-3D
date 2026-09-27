@@ -223,6 +223,8 @@ import {
   normalizePoint
 } from "../loaders/studio-normalization.js";
 import {
+  DEFAULT_EXPORT_HEIGHT,
+  DEFAULT_EXPORT_WIDTH,
   DEFAULT_LIGHT_SETTINGS,
   DOOR_TYPE_DIMENSIONS,
   ITEM_TYPE_DEFINITIONS,
@@ -294,6 +296,10 @@ import {
   measureTelevisionBodyFrontZ,
   waitForShaderCompilation
 } from "./studio-mesh-variants.js";
+import {
+  FLOOR_SCENE_SCHEMA_VERSION,
+  createEmptyScene
+} from "./studio-scene-defaults.js";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * @returns {Element|null} 未命中返回 null，调用方需自行判空。
@@ -1099,10 +1105,6 @@ const {
   }),
   getViewZoom: () => viewTransform.zoom
 });
-/**
- * 单层场景数据的结构版本（`floor.scene.schemaVersion`）。
- */
-const FLOOR_SCENE_SCHEMA_VERSION = 6;
 
 /**
  * 窗帘「预览打开」默认值定稿的那一版（= 第 4 版）。
@@ -1203,8 +1205,6 @@ let saveRetryTimer: any = null;
 let overwriteConfirmResolve: any = null;
 let isHighShadowQuality = false;
 let savedShadowCameraBounds: any = null;
-const DEFAULT_EXPORT_WIDTH = 1852;
-const DEFAULT_EXPORT_HEIGHT = 1293;
 let exportAspectRatio = DEFAULT_EXPORT_WIDTH / DEFAULT_EXPORT_HEIGHT;
 let previewOverlayScene: any = null;
 let previewCamera: any = null;
@@ -1286,52 +1286,6 @@ function migrateLegacyCurtainPreview(sourceItemRecord: any, schemaVersion: any) 
         curtainPreview: COVER_DEFAULT_PREVIEW_POSITION
       }
     : sourceItemRecord;
-}
-/**
- * 新建一个空白场景（单层绘制数据）。默认值写死在此而非 UI 层：
- */
-function createEmptyScene() {
-  return {
-    schemaVersion: FLOOR_SCENE_SCHEMA_VERSION,
-    background: null,
-    calibration: null,
-    settings: {
-      wallHeight: 2.4,
-      wallThickness: 0.15,
-      wallOpacity: STUDIO_PALETTE.wallOpacity,
-      floorEdgeVisible: true,
-      planViewRotation: 0,
-      cameraView: "free",
-      cameraTopRotation: 0,
-      cameraMode: "perspective",
-      cameraFocalLength: 50,
-      fixedCameraView: null,
-      livePreviewEnabled: true,
-      backgroundVisible: true,
-      snapEnabled: true,
-      snapEndpoints: true,
-      snapIntersections: true,
-      snapSegments: true,
-      snapOrthogonal: true,
-      snapAngles: true,
-      snapGrid: true,
-      snapTolerance: 13
-    },
-    walls: [],
-    windows: [],
-    doors: [],
-    railings: [],
-    areas: [],
-    lightGroups: [
-      {
-        id: "light-group-default",
-        name: "默认灯组",
-        enabled: true,
-        areaId: null
-      }
-    ],
-    items: []
-  };
 }
 /**
  * 按楼层序号生成默认楼层名（一层…十层，之后用「N层」）。只用于「用户没改过名字」的
