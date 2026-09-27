@@ -210,8 +210,11 @@
 .i3d-cover-visual.is-moving .i3d-cover-visual-panel {
   animation: i3d-cover-panel-shift 0.84s ease-in-out infinite alternate;
 }
-/* 梦幻帘的叶片层：默认隐藏，只有 .is-dream 才启用。 */
+/* 梦幻帘的叶片层：默认隐藏，只有 .is-dream 才启用。
+   --i3d-cover-retract-ratio 是整排叶片的收拢比例（0 = 铺满整窗，1 = 完全收到一侧），
+   由 cover-panel.js 按整体开合位置写入；非梦幻帘恒为 0。 */
 .i3d-cover-visual-slats {
+  --i3d-cover-retract-ratio: 0;
   position: absolute;
   z-index: 4;
   inset: 15px 13px 10px;
@@ -220,12 +223,18 @@
   justify-content: space-between;
   gap: 2px;
 }
-/* 叶片等宽平分。 */
+/* 叶片等宽平分。
+   --i3d-cover-slat-gather 是该叶片「完全收拢」时要沿 x 走的距离（px，由 JS 按方向与序号写入，
+   与 2D 弹窗的 --hb-cover-retracted-shift 同一条公式）；乘以收拢比例后就是当前位移。
+   0.42s 过渡让整体开合（尤其只在少数几次状态推送时才跳变的位置）走起来是滑动而不是瞬移。 */
 .i3d-cover-visual-slat {
+  --i3d-cover-slat-gather: 0px;
   position: relative;
   display: block;
   min-width: 0;
   flex: 1 1 0;
+  transform: translateX(calc(var(--i3d-cover-slat-gather) * var(--i3d-cover-retract-ratio)));
+  transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 /* 叶片顶部的挂钩。 */
 .i3d-cover-visual-slat:before {

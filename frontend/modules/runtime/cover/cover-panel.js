@@ -62,6 +62,9 @@ export function createCoverPanel({
   const visualSlatsElement = createElement("span", "i3d-cover-visual-slats");
   // 叶片数固定 13，与 2D 一致：再密会在 244px 宽的窗洞里糊成一片，再疏则看不出「帘」。
   const visualSlatCount = 13;
+  // 完全收拢时相邻叶片的堆叠步距（px）：与 2D 弹窗（entity-details.js）逐值一致 —— 略小于
+  // 叶片间距，收拢后各片互相压住而不是完全重合，边缘还看得出是「一叠帘片」。
+  const SLAT_GATHER_STEP_PX = 14.5;
   for (let slatIndex = 0; slatIndex < visualSlatCount; slatIndex += 1) {
     const slatElement = createElement("span", "i3d-cover-visual-slat");
     slatElement.append(createElement("i", ""));
@@ -398,15 +401,20 @@ export function createCoverPanel({
   /**
    * 同步设备示意图。
    *
-   * 开合百分比 → 帘布宽度 / 叶片角度的映射与 2D 弹窗逐条相同（宽度用 utils/cover-features.js 的
-   * 线性式，叶片角度固定 1.8°/格，50% 正好是 90°）；数据源复用面板已经算好的 displayPosition，
-   * 不另起一套状态 —— 滑杆拖动时草稿位置会立刻反映到示意图上，场景预览、滑杆、读数是同一份值。
+   * 开合百分比 → 帘布宽度 / 叶片角度 / 整体收拢的映射与 2D 弹窗逐条相同（宽度用
+   * utils/cover-features.js 的线性式，叶片角度固定 1.8°/格，50% 正好是 90°）；数据源复用面板
+   * 已经算好的 displayPosition，不另起一套状态 —— 滑杆拖动时草稿位置会立刻反映到示意图上，
+   * 场景预览、滑杆、读数是同一份值。
    *
-   * 方向类只在方向真的变了才写叶片延迟序号：13 个子节点 × 每次状态推送都写一遍样式，
-   * 在拖动滑杆（每帧一次 render）时是白白的布局开销。
+   * 梦幻帘多一根轴：displayPosition 是**叶片角度**，而整排叶片的收拢由**整体开合位置**
+   * （presentation.position，缺失时用状态推断值）驱动 —— 与 3D 场景里 curtain-motion 的
+   * resolvePoseFallback 同一份口径，否则设备整体收起来了、面板却还铺着一整排叶片。
+   *
+   * 方向类与收拢步距只在方向真的变了才写：13 个子节点 × 每次状态推送都写一遍样式，
+   * 在拖动滑杆（每帧一次 render）时是白白的布局开销；收拢**比例**则每次都要写（它就一个变量）。
    */
   let visualDirection = "";
-  function syncVisual(displayPosition, isDreamCover) {
+  function syncVisual(displayPosition, isDreamCover, presentation) {
     const visualPosition = Math.max(0, Math.min(100, displayPosition ?? 0));
     visualElement.classList.toggle("is-dream", isDreamCover);
     visualElement.classList.toggle("is-tilt-reversed", visualPosition > 50);
@@ -427,12 +435,43 @@ export function createCoverPanel({
             : nextDirection === "split"
               ? Math.abs((visualSlatCount - 1) / 2 - slatIndex)
               : slatIndex;
-        visualSlatsElement.children[slatIndex].style.setProperty(
+        const slatElement = visualSlatsElement.children[slatIndex];
+        slatElement.style.setProperty(
           "--i3d-cover-slat-delay-index",
           String(slatDelayIndex)
         );
+        // 该叶片「完全收拢」时要走的距离（px）：越靠收拢侧的叶片走得越少，收拢后互相压住。
+        // 数值与 2D 弹窗的 --hb-cover-retracted-shift 同一条公式、同一个步距。
+        const slatGatherPx =
+          nextDirection === "left"
+            ? -slatIndex * SLAT_GATHER_STEP_PX
+            : nextDirection === "right"
+              ? (visualSlatCount - 1 - slatIndex) * SLAT_GATHER_STEP_PX
+              : slatIndex <= (visualSlatCount - 1) / 2
+                ? -slatIndex * SLAT_GATHER_STEP_PX
+                : (visualSlatCount - 1 - slatIndex) * SLAT_GATHER_STEP_PX;
+        slatElement.style.setProperty("--i3d-cover-slat-gather", slatGatherPx + "px");
       }
     }
+    // 整体收拢比例（0 铺满整窗，1 完全收到一侧）：只有梦幻帘需要，其余帘型恒为 0。
+    // 位置未知时回落到状态推断值（statePositionHint：open=100 / closed=0），再兜底 0 ——
+    // 与 3D 侧 resolvePoseFallback 的三层优先级同序。
+    //
+    // 必须写在 .i3d-cover-visual-slats 自己身上，而不是外层 .i3d-cover-visual：样式表在
+    // **该元素上**声明了兜底值 0，而自定义属性一旦在元素上声明就**不再继承**父级的值 ——
+    // 写在外层时这里的 `0` 会把传入的比例整个盖掉，叶片只会转角度、永远收不拢（已踩过）。
+    // 写在声明它的同一个元素上，内联样式胜过样式表，比例才生效。
+    const overallPosition = isDreamCover
+      ? Number.isFinite(presentation?.position)
+        ? presentation.position
+        : Number.isFinite(presentation?.statePositionHint)
+          ? presentation.statePositionHint
+          : 0
+      : 0;
+    visualSlatsElement.style.setProperty(
+      "--i3d-cover-retract-ratio",
+      String(Math.max(0, Math.min(1, overallPosition / 100)))
+    );
     visualElement.style.setProperty(
       "--i3d-cover-panel-width",
       coverPanelWidthPercent(visualPosition) + "%"
@@ -585,7 +624,7 @@ export function createCoverPanel({
           : pendingIntent && !pendingIntent.confirmed)
       )
     );
-    syncVisual(displayPosition, isDreamCover);
+    syncVisual(displayPosition, isDreamCover, presentation);
     syncSlider();
   }
   /**
