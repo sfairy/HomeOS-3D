@@ -1,0 +1,93 @@
+/**
+ * 扫地机器人（vacuum）的实体聚合目录。
+ */
+
+import type { PropertyBag } from "../types/document.js";
+
+export type CatalogEntity = PropertyBag & {
+  entityId?: string;
+  disabledBy?: unknown;
+  disabled_by?: unknown;
+  enabled?: unknown;
+  status?: unknown;
+  deviceId?: unknown;
+  device_id?: unknown;
+  name?: unknown;
+};
+
+export type CatalogDevice = PropertyBag & {
+  id?: unknown;
+  deviceId?: unknown;
+  nameByUser?: unknown;
+  name?: unknown;
+};
+
+type VacuumProfile = {
+  deviceId: string;
+  name: unknown;
+  entities: CatalogEntity[];
+  maps: CatalogEntity[];
+  relatedEntityIds: string[];
+};
+
+/**
+ * 把原始实体表聚合成扫地机器人 profile 列表。
+ */
+export function vacuumProfiles(
+  entities: CatalogEntity[] = [],
+  devices: CatalogDevice[] = []
+) {
+  // 先剔除已禁用与已丢失的实体：它们在 HA 里已经离线，留在面板上只会产生无效操作。
+  const enabledEntities = entities.filter(
+    entity =>
+      entity.disabledBy == null &&
+      entity.disabled_by == null &&
+      entity.enabled !== false &&
+      !["missing", "disabled"].includes(String(entity.status))
+  );
+  const profilesByDeviceId = new Map<string, VacuumProfile>();
+  // 只认 HA 原生 vacuum 域；虚拟实体（virtual.*）不参与清扫面板。
+  for (const vacuumEntity of enabledEntities.filter(rawEntity =>
+    /^vacuum\.[a-z0-9_]+$/.test(String(rawEntity.entityId || ""))
+  )) {
+    const entityDeviceId = String(vacuumEntity.deviceId || vacuumEntity.device_id || "");
+    const deviceKey = entityDeviceId || String(vacuumEntity.entityId || "");
+    if (!profilesByDeviceId.has(deviceKey)) {
+      // 用户自定义名称优先于注册表名与实体名：这是面板上唯一用户可辨认的标识。
+      const deviceEntry = devices.find(
+        registryDevice => (registryDevice.id || registryDevice.deviceId) === entityDeviceId
+      );
+      // 同属一个设备的其它实体：有 deviceId 时按设备聚合，没有时只能退回只认这一个实体。
+      const deviceEntities = entityDeviceId
+        ? enabledEntities.filter(
+            deviceEntity =>
+              String(deviceEntity.deviceId || deviceEntity.device_id || "") === entityDeviceId
+          )
+        : [vacuumEntity];
+      // maps 收 camera / image 域（清扫地图），relatedEntityIds 收可操作的辅助实体；
+      profilesByDeviceId.set(deviceKey, {
+        deviceId: deviceKey,
+        name:
+          deviceEntry?.nameByUser ||
+          deviceEntry?.name ||
+          vacuumEntity.name ||
+          vacuumEntity.entityId,
+        entities: [],
+        maps: deviceEntities.filter(mapEntity =>
+          /^(camera|image)\./.test(String(mapEntity.entityId || ""))
+        ),
+        relatedEntityIds: deviceEntities
+          .filter(candidateEntity =>
+            /^(sensor|binary_sensor|select|number|switch|button)\./.test(
+              String(candidateEntity.entityId || "")
+            )
+          )
+          .map(relatedEntity => String(relatedEntity.entityId || ""))
+      });
+    }
+    // 同一设备允许多个 vacuum 实体（例如带多个清扫区域的机型），统一挂到同一 profile 下。
+    profilesByDeviceId.get(deviceKey)!.entities.push(vacuumEntity);
+  }
+  // Map 保持插入顺序，即设备在实体表中的出现顺序，面板直接沿用，不再二次排序。
+  return [...profilesByDeviceId.values()];
+}

@@ -1,0 +1,408 @@
+{
+  "_comment": [
+    "匿名可访问的静态资源清单（唯一事实来源）。",
+    "这些是「未初始化 / 未登录 / 未激活」时也必须能加载的页面入口脚本与图标：漏掉任何一个，",
+    "都会让对应页面在未登录状态下白屏。backend/src/app/middleware.py 的 premium_asset 按它判定",
+    "「这个 /static 资源要不要登录」，不在清单里的 /static 资源一律要求登录 + assets 能力。",
+    "为什么是清单文件而不是写在 Python 里：这份集合同时是安全边界（谁可以匿名取什么），",
+    "它越显式越好核对；而每条后面的 why 说明了「为什么它必须匿名」，改的时候看得见理由。",
+    "不要把公开路径再写回 Python 字面量；以本清单为准。",
+    "alwaysRevalidate 不是\"匿名可访问\"，而是\"入口页自己的 JS/CSS\"：它们内容一变就必须立刻换新，否则前端资源戳与页面会对不上。放在同一份清单里是因为两者都是\"服务端按路径声明静态资源策略\"。"
+  ],
+  "files": [
+    {
+      "path": "/static/logging/client-log.js",
+      "why": "每个页面（含未激活时可访问的 login/setup/pair/license）都会先加载它， 漏掉这个入口会让「未激活」状态反过来把客户端日志上报一起挡掉。"
+    },
+    {
+      "path": "/static/auth/pairing-entry.js",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/fonts.css",
+      "why": "入口页的场景外壳（design/scene CSS/HTML 的分发副本）。这几份必须在匿名白名单里： 未初始化 / 未登录时正是靠它们渲染 /setup、/login、/pair、/license 四个页面， 漏一个就是「页面能打开、样式全丢」——而问题只在未登录时才出现。"
+    },
+    {
+      "path": "/static/auth/scene/page.css",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/scene.css",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/panel.css",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/scene-depth.js",
+      "why": "手持档开关（由 frontend/src/app/auth/scene/scene-depth.ts 构建为 IIFE）。给 <html> 挂 .hos-touch；脚本被 401 挡下时不会报错，只是 iPad + 触控板会滑出静止档。appearance 配色逻辑不放行：只服务登录后的编辑器与商店。"
+    },
+    {
+      "path": "/static/auth/scene/fonts/orbitron-700-latin.woff2",
+      "why": "字体文件同样要放行：@font-face 的请求不带 Cookie 上下文可供白名单判断， 被 401 挡下时页面只剩系统字体回退，肉眼几乎看不出是「字体没加载」。"
+    },
+    {
+      "path": "/static/auth/scene/fonts/exo-2-400-latin.woff2",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/fonts/jetbrains-mono-400-latin.woff2",
+      "why": ""
+    },
+    {
+      "path": "/static/auth/scene/fonts/share-tech-mono-400-latin.woff2",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/manifest/manifest.webmanifest",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/manifest/dashboard.webmanifest",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon.ico",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-16.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-32.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-48.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-180.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-192.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-512.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/manifest/manifest-h3.webmanifest",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/manifest/manifest-h4.webmanifest",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/manifest/manifest-h5.webmanifest",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h3.ico",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h3.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h4.ico",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h4.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h5.ico",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-favicon-h5.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-16-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-16-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-16-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-32-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-32-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-32-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-48-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-48-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-48-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-180-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-180-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-180-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-192-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-192-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-192-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-512-h3.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-512-h4.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-icon-512-h5.png",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-mark-black-orange.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/icons/homeos-mark-white-orange.svg",
+      "why": ""
+    },
+    {
+      "path": "/static/assets/api-error-T9ZwCwjz.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/api-fetch-CWwoR0DR.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/api-request-DoH2LlK7.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/auth-shell-wVczdoVW.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/colors-CqemnV14.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/dashboard-DCFX6RsQ.webmanifest",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/display-BFuvgQ97.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/display-olzbwUW9.css",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/entry-deck-BghxeKLE.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/entry-deck-Z_FZfTlw.css",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/homeos-favicon-h5-BLdXTOVn.ico",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/homeos-favicon-h5-zLXpP-er.svg",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/homeos-icon-180-h5-BRcJ1_B9.png",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/license-epcI8eJK.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/license-recovery-z_--_SAz.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/login-BPLUGca1.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/manifest-h5-LFO0bW0n.webmanifest",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/page-BVS7PVPm.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/page-DtrAh2CK.css",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/pair-BqCzMvmn.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/pairing-link-Ci961ua6.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/setup-LBYk45xd.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/sound-effects-77xzdJb0.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/assets/sound-effects-Bvys521s.css",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    },
+    {
+      "path": "/static/display/display-boot.js",
+      "why": "Vite 构建产物：公开页 HTML 直接引用，必须匿名可加载。"
+    }
+  ],
+  "alwaysRevalidate": [
+    {
+      "path": "/static/assets/api-error-T9ZwCwjz.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/api-fetch-CWwoR0DR.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/api-request-DoH2LlK7.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/auth-shell-wVczdoVW.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/colors-CqemnV14.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/display-BFuvgQ97.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/display-olzbwUW9.css",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/entry-deck-BghxeKLE.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/entry-deck-Z_FZfTlw.css",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/license-epcI8eJK.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/license-recovery-z_--_SAz.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/login-BPLUGca1.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/page-BVS7PVPm.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/page-DtrAh2CK.css",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/pair-BqCzMvmn.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/pairing-link-Ci961ua6.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/setup-LBYk45xd.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/sound-effects-77xzdJb0.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/assets/sound-effects-Bvys521s.css",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/auth/pairing-entry.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/auth/scene/scene-depth.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/display/display-boot.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    },
+    {
+      "path": "/static/logging/client-log.js",
+      "why": "入口页构建产物，内容变化即换 URL/必须回源。"
+    }
+  ]
+}

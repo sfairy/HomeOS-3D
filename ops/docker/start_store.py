@@ -74,10 +74,10 @@ def main() -> None:
 
     os.environ.clear()
     os.environ.update(environment)
-    # 镜像里 apps/store/run 已被编译成原生扩展，``python -m`` 只支持有字节码的模块，
+    # 镜像里 backend/src/run 已被编译成原生扩展，``python -m`` 只支持有字节码的模块，
     os.execvp(
         sys.executable,
-        [sys.executable, "-c", "import apps.store.run as m; m.main()"],
+        [sys.executable, "-c", "import src.run as m; m.main()"],
     )
 
 

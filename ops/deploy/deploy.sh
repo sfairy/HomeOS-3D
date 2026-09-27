@@ -356,12 +356,16 @@ ensure_keys() {
     fi
   done
 
-  config="$COMPOSE_DIR/apps/server/config.py"
+  # 指纹钉死在主应用配置里；compose 目录可能是检出根，也可能是部署副本。
+  config="$COMPOSE_DIR/homeos-3d/backend/src/config.py"
+  if [ ! -f "$config" ]; then
+    config="$COMPOSE_DIR/src/config.py"
+  fi
   if [ -f "$config" ] && [ "$DRY_RUN" -eq 0 ]; then
     expected=$(sed -n "s/.*DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = '\([0-9a-f]*\)'.*/\1/p" "$config" | head -n 1)
     actual=$(sha256_of "$keys_dir/license-public.pem")
     if [ -n "$expected" ] && [ "$expected" != "$actual" ]; then
-      warn "签名公钥与 apps/server/config.py 钉死的指纹不一致（期望 $expected，实际 $actual）—— 密钥轮换后属正常，否则请确认来源"
+      warn "签名公钥与 homeos-3d/backend/src/config.py 钉死的指纹不一致（期望 $expected，实际 $actual）—— 密钥轮换后属正常，否则请确认来源"
     fi
   fi
 }

@@ -1,0 +1,165 @@
+<!doctype html>
+<!--
+  商店首次初始化页（/setup）：创建第一个管理员。
+-->
+<html lang="zh-CN" class="hos-shell">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050912">
+<meta name="description" content="创建 HomeOS 授权商店的第一个管理员账号">
+<title>首次初始化 · HomeOS 授权服务中心</title>
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png">
+<link rel="stylesheet" href="/store-static/scene/fonts.css">
+<link rel="stylesheet" href="/store-static/scene/page.css">
+<link rel="stylesheet" href="/store-static/scene/scene.css">
+<link rel="stylesheet" href="/store-static/scene/panel.css">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。
+     必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+<!--{{APPEARANCE}}-->
+</head>
+<body>
+
+<!-- 一页一色（见 design/scene/page.css 的 tone 表）：初始化 = 居家暖光，
+       薄荷点同色，「账号只存本机」的安全信号就糊进了页面主色里。 -->
+<div class="hos-page hos-tone--lumen">
+  <!--{{SCENE}}-->
+
+  <main class="hos-dock">
+    <section id="setup-page" class="hos-panel hos-rise">
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">本机初始化 · 01/01</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>仅无管理员时可用</span>
+        </div>
+        <h1>给这套授权服务开一个管理员</h1>
+        <p class="hos-panel__desc">
+          这是商店首次启动后的唯一一次初始化：设置管理员邮箱与密码，创建后自动登录后台，本页随即关闭。
+        </p>
+      </div>
+
+      <!-- 状态甲板（读数源：apps/store/api/telemetry.py）。未初始化时库与站点配置都还没有
+           可读的东西，这里只有机制读数。 -->
+      <!--{{DECK}}-->
+
+      <form id="setup-form" class="hos-form" autocomplete="off" data-form-type="other">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="email">管理员邮箱</label></div>
+          <div class="hos-control">
+            <input type="email" id="email" name="email" placeholder="admin@example.com"
+              autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+              data-lpignore="true" data-1p-ignore data-bwignore required>
+          </div>
+        </div>
+
+        <!-- 两枚密码并排：初始化屏是本套里字段最多的一屏（三格输入 + 一段引导密钥说明），
+             各占一行时 1366×768 上坞内要滚动约 85px。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="password">密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input type="password" id="password" name="password" placeholder="至少 8 位"
+                autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required>
+              <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+            </div>
+          </div>
+
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="confirm-password">确认密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input type="password" id="confirm-password" name="confirm_password" placeholder="再次输入密码"
+                autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required>
+              <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 引导密钥那条三行说明改成标签行右侧的一行小字（.hos-hint）：同一句话占的是
+             所以搬走的不只是排版：三处说的都是同一件事。 -->
+        <div class="hos-field">
+          <div class="hos-label-row">
+            <label for="setup-token">引导密钥</label>
+            <span class="hos-hint">本机访问无需填写 · STORE_SETUP_TOKEN</span>
+          </div>
+          <div class="hos-control">
+            <input type="text" id="setup-token" name="setup_token" placeholder="从服务启动日志中查找"
+              autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+              data-lpignore="true" data-1p-ignore data-bwignore>
+          </div>
+        </div>
+
+        <p id="setup-error" class="hos-msg is-err" role="alert" hidden></p>
+
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit" id="setup-submit">创建管理员</button>
+        </div>
+      </form>
+
+      <div class="hos-panel__copy">
+        <div class="hos-panel__meta">
+          <span>仅首启可用</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>远程需引导密钥</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>建议走 HTTPS</span>
+        </div>
+        <p>初始化后本页会自动跳转，请妥善保管管理员密码。</p>
+      </div>
+    </section>
+
+    <section id="setup-redirect" class="hos-panel hos-rise" hidden>
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">Already Set Up</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>无需重复初始化</span>
+        </div>
+        <h1>管理员已经在了</h1>
+        <p class="hos-panel__desc">商店已完成初始化，正在跳转到管理员登录页…</p>
+      </div>
+
+      <!-- 第二处甲板插入点：与上面表单屏用的是**同一份**读数（同一页、同一个访问者），
+           注入时一次全量替换。两处缩进必须一致，见 page_shell._deck_gutter。 -->
+      <!--{{DECK}}-->
+
+      <div class="hos-actions">
+        <a class="hos-btn-primary" href="/admin">前往管理员登录</a>
+      </div>
+
+      <div class="hos-panel__copy">
+        <!-- 同一屏的两个状态（表单 / 已初始化）共用一块 600px 下限的玻璃坞，
+             进来看，坞的下半截比隔壁空出一整行。补上，两块高度与节奏对齐。 -->
+        <div class="hos-panel__meta">
+          <span>已完成初始化</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>创建入口已关闭</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>如需重置请清空数据</span>
+        </div>
+        <p>若这不是你的预期，说明该部署已有人完成初始化。</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 手持档开关（源：frontend/src/scene/scene-depth.ts）。module 脚本：
+     CSP 的 script-src 含 'self'，同源外部脚本不需要 nonce。 -->
+<script type="module" src="/src/scene/scene-depth.ts"></script>
+<script type="module" src="/src/api-error.ts"></script>
+<script type="module" src="/src/setup.ts"></script>
+<!-- 状态甲板的自走读数（源：apps/store/static/entry-deck.js）。它读页面里已有的时间戳，
+     与主应用那份是两份文件、一套 data-* 契约（见该文件头部注释）。 -->
+<script type="module" src="/src/entry-deck.ts"></script>
+</body>
+</html>

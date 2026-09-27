@@ -1,0 +1,229 @@
+/**
+ * 编辑器文档管理：页面路径、页面复制、弹窗模块、拖放排序与「上次打开的仪表盘」。
+ */
+
+type AnyObj = Record<string, any>;
+import { clone, newId, slugify } from "./editor-utils.js";
+// 整棵子树换新 ID 的递归只有一份实现（component-page-copy.js），这里不再自写一份。
+import { assignFreshComponentIds } from "./component-page-copy.js";
+// 「按 ID 切域」只有一份实现：统一走 utils/entities.js 的 entityDomainFromId，
+import { entityDomainFromId } from "../utils/entities.js";
+
+/**
+ * 「上次打开哪个仪表盘」的会话级记忆键。
+ */
+const SELECTED_PROJECT_STORAGE_KEY = "homeos:editor:selected-project";
+
+/**
+ * 记住当前正在编辑的仪表盘。
+ */
+export function rememberEditorProject(projectId: any) {
+  try {
+    sessionStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, String(projectId || ""));
+  } catch {
+    // 忽略：记不住不影响本次编辑，只是下次回到第一项。
+  }
+}
+
+/**
+ * 决定进编辑器时打开哪个仪表盘。
+ */
+export function restoredEditorProject(projects: any, requestedProjectId: any = null) {
+  if (projects.some((listedProject: any) => listedProject.id === requestedProjectId)) {
+    return requestedProjectId;
+  }
+  let rememberedProjectId: any = null;
+  try {
+    rememberedProjectId = sessionStorage.getItem(SELECTED_PROJECT_STORAGE_KEY);
+  } catch {
+    // 读不到就当没记住，走第一项兜底。
+  }
+  return (
+    projects.find((listedProject: any) => listedProject.id === rememberedProjectId)?.id ??
+    projects[0]?.id ??
+    null
+  );
+}
+
+/**
+ * 生成不与现有页面冲突的路径。
+ */
+export function uniquePagePath(pages: any, pageName: any, currentPath: any = "") {
+  const basePath = slugify(pageName);
+  const existingPaths = new Set(
+    (pages || [])
+      .map((existingPage: any) => existingPage.path)
+      .filter((existingPath: any) => existingPath !== currentPath)
+  );
+  let candidatePath = basePath;
+  let pathSuffix = 2;
+  while (existingPaths.has(candidatePath)) {
+    candidatePath = basePath + "-" + pathSuffix++;
+  }
+  return candidatePath;
+}
+
+/**
+ * 复制页面并为其及全部子组件换上新 ID。
+ */
+export function clonePageWithFreshIds(sourcePage: any, targetPageName: any, otherPages: any = []) {
+  const clonedPage = clone(sourcePage);
+  clonedPage.id = newId("page");
+  clonedPage.name = targetPageName;
+  clonedPage.path = uniquePagePath(otherPages, targetPageName);
+  for (const clonedComponent of clonedPage.components || []) {
+    assignFreshComponentIds(clonedComponent, () => newId("component"));
+  }
+  return clonedPage;
+}
+
+/**
+ * 按 ID 查找自定义弹窗定义。
+ */
+export function findCustomPopup(editorDocument: any, popupId: any) {
+  return (editorDocument?.customPopups || []).find((popup: any) => popup.id === popupId) || null;
+}
+
+/**
+ * 取弹窗模块类型的中文名。
+ */
+export function popupModuleTypeLabel(moduleType: any) {
+  const labels: Record<string, string> = {
+      light: "灯光",
+      climate: "空调 / 浴霸",
+      "air-purifier": "空气净化器",
+      "water-heater": "热水器",
+      "media-player": "媒体",
+      "electric-bed": "电动床",
+      switch: "开关 / 按钮",
+      cover: "窗帘",
+      camera: "摄像头",
+      "line-chart": "折线图",
+      generic: "通用设备",
+      "capability-device": "通用设备"
+    };
+  return labels[moduleType] || "通用设备";
+}
+
+// 空调类模块支持的设备类型；未知值一律归一成 "auto"。
+const CLIMATE_DEVICE_TYPES = ["auto", "air-conditioner", "bath-heater"];
+
+/**
+ * 归一弹窗气候模块的设备类型。
+ * @returns {string} 合法类型原样返回，否则为 "auto"。
+ */
+export function normalizedPopupClimateDeviceType(deviceType: any) {
+  if (CLIMATE_DEVICE_TYPES.includes(deviceType)) {
+    return deviceType;
+  } else {
+    return "auto";
+  }
+}
+
+/**
+ * 判断实体是否是某类弹窗模块的推荐实体。
+ */
+export function popupModuleEntityRecommended(entity: any, recommendedModuleType: any) {
+  // entity.domain 缺失时从 entityId 的前缀推导，兼容只带 ID 的瘦实体。
+  const domain = entity?.domain || entityDomainFromId(entity?.entityId);
+  if (recommendedModuleType === "light") {
+    return domain === "light";
+  } else if (recommendedModuleType === "climate") {
+    // 浴霸在 HA 里常挂 fan 域，与 climate 一起算作空调类设备。
+    return ["climate", "fan"].includes(domain);
+  } else if (recommendedModuleType === "air-purifier") {
+    return domain === "fan";
+  } else if (recommendedModuleType === "water-heater") {
+    return domain === "water_heater";
+  } else if (recommendedModuleType === "media-player") {
+    return domain === "media_player";
+  } else if (recommendedModuleType === "electric-bed") {
+    return ["number", "select", "button", "switch"].includes(domain);
+  } else if (recommendedModuleType === "switch") {
+    return ["switch", "input_boolean", "button"].includes(domain);
+  } else if (recommendedModuleType === "cover") {
+    return domain === "cover";
+  } else if (recommendedModuleType === "camera") {
+    return domain === "camera";
+  } else if (recommendedModuleType === "line-chart") {
+    return domain === "sensor";
+  } else {
+    // 通用设备不筛选，任何实体都可选。
+    return true;
+  }
+}
+
+/**
+ * 计算模块拖放后的新顺序。
+ */
+export function reorderedPopupModules(
+  modules: any,
+  moduleId: any,
+  beforeModuleId: any = null,
+  placeAfter: any = false
+) {
+  const reorderedModules = [...(modules || [])];
+  const sourceIndex = reorderedModules.findIndex((module: any) => module.id === moduleId);
+  if (sourceIndex < 0 || moduleId === beforeModuleId) {
+    return reorderedModules;
+  }
+  const [movedModule] = reorderedModules.splice(sourceIndex, 1);
+  if (!beforeModuleId) {
+    reorderedModules.push(movedModule);
+    return reorderedModules;
+  }
+  const targetIndex = reorderedModules.findIndex(
+    targetModule => targetModule.id === beforeModuleId
+  );
+  if (targetIndex < 0) {
+    // 参照模块不在列表里，退回原位，保证拖放失败时顺序不变。
+    reorderedModules.splice(sourceIndex, 0, movedModule);
+    return reorderedModules;
+  } else {
+    reorderedModules.splice(targetIndex + (placeAfter ? 1 : 0), 0, movedModule);
+    return reorderedModules;
+  }
+}
+
+/**
+ * 根据拖放点位置判断插入方向与落点边缘。
+ */
+export function popupModuleDropPosition(rowElement: any, dropEvent: any) {
+  const rowRect = rowElement.getBoundingClientRect();
+  const offsetY = dropEvent.clientY - rowRect.top;
+  // 上下各留一块判定区（最多 48px、行高的 22%），中间横向再分成左右两半。
+  const edgeThresholdPx = Math.min(48, rowRect.height * 0.22);
+  if (offsetY <= edgeThresholdPx) {
+    return {
+      placeAfter: false,
+      edge: "top"
+    };
+  } else if (offsetY >= rowRect.height - edgeThresholdPx) {
+    return {
+      placeAfter: true,
+      edge: "bottom"
+    };
+  } else if (dropEvent.clientX < rowRect.left + rowRect.width / 2) {
+    return {
+      placeAfter: false,
+      edge: "left"
+    };
+  } else {
+    return {
+      placeAfter: true,
+      edge: "right"
+    };
+  }
+}
+
+/**
+ * 求最大公约数（辗转相除法），用于按比例简化尺寸。
+ */
+export function greatestCommonDivisor(firstNumber: any, secondNumber: any) {
+  let leftNumber = Math.abs(Math.trunc(firstNumber));
+  let rightNumber = Math.abs(Math.trunc(secondNumber));
+  while (rightNumber) {
+    [leftNumber, rightNumber] = [rightNumber, leftNumber % rightNumber];
+  }
+  return leftNumber || 1;
+}

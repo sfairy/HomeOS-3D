@@ -31,7 +31,7 @@ A → B：APP_LICENSE_SERVER_URL（HTTPS，走公网）
 # 首次部署后打开 http://<B>:18082/setup 创建管理员
 ```
 
-- 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `apps/store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
+- 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `homeos-store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
 - 公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 用）；分拆部署时服务器 A 由 `deploy.sh` 写入 `./keys`。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
@@ -90,7 +90,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 ## 4. 授权身份：跨机器最硬的一条
 
-- 安装实例指纹由**宿主机机器标识 + 主板 DMI** 派生（`apps/server/license/hardware.py`），商店侧是 **1 授权 : 1 绑定**。
+- 安装实例指纹由**宿主机机器标识 + 主板 DMI** 派生（`backend/src/license/hardware.py`），商店侧是 **1 授权 : 1 绑定**。
 - 换服务器 = 换指纹：
   - 激活会被拒：`409 该授权已绑定其他设备，请先在账号中心解除绑定`；
   - 已经在跑的心跳会被判为**已吊销**（`403 {revoked: true}`），客户端只认结构化 `code`，会**清空本地授权**。

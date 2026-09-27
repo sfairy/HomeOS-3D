@@ -1,0 +1,251 @@
+/**
+ * 平面图叠加层的绘制工具。
+ */
+
+import { paletteColor } from "../../utils/colors.js";
+
+// 端点圆点的**深色实心**：轮廓上的彩色描边要靠它压住，才能在浅色底图与深色底图上都看清。
+const pointFillColor = () => paletteColor("--hos-tool-surface", "#141a20");
+
+/**
+ * 逐字绘制文本以支持字距：Canvas 2D 原生没有字距设置，只能累计游标逐字画。
+ */
+export function drawTrackedText(textContext: CanvasRenderingContext2D, text: unknown, originX: number, originY: number, trackingPx: number, maxWidthPx: number) {
+  const characters = [...String(text || "")];
+  if (!characters.length) {
+    return 0;
+  }
+  const glyphWidths = characters.map(glyph => textContext.measureText(glyph).width);
+  // 总宽 = 各字宽之和 + 字间距 ×（字数 - 1），单字时没有字间距。
+  const totalWidth =
+    glyphWidths.reduce((accumulatedWidth, glyphWidth) => accumulatedWidth + glyphWidth, 0) +
+    Math.max(characters.length - 1, 0) * trackingPx;
+  // 只在超宽时压缩（widthScale 上限为 1），空串或零宽时按 1 处理防止除零。
+  const widthScale = totalWidth > 0 ? Math.min(1, maxWidthPx / totalWidth) : 1;
+  textContext.save();
+  textContext.translate(originX, originY);
+  // 横向缩放交给变换矩阵，字形本身不变形到不可读。
+  textContext.scale(widthScale, 1);
+  textContext.textAlign = "left";
+  textContext.textBaseline = "middle";
+  let cursorX = 0;
+  characters.forEach((character, characterIndex) => {
+    textContext.fillText(character, cursorX, 0);
+    cursorX +=
+      glyphWidths[characterIndex] + (characterIndex < characters.length - 1 ? trackingPx : 0);
+  });
+  textContext.restore();
+  // 返回压缩后的宽度，便于调用方排布相邻元素。
+  return totalWidth * widthScale;
+}
+
+/**
+ * 创建一组绑定到具体画布与坐标转换函数的绘图工具。
+ */
+type PlanPoint = { x: number; y: number };
+type PlanDrawingToolsOptions = {
+  context: CanvasRenderingContext2D;
+  planToScreen: (p: PlanPoint) => PlanPoint;
+  screenToPlan: (p: PlanPoint) => PlanPoint;
+  pixelsPerMeter: () => number;
+  getCanvasSize: () => { width: number; height: number };
+  getViewZoom: () => number;
+};
+
+export function createPlanDrawingTools({
+  context: context,
+  planToScreen: planToScreen,
+  screenToPlan: screenToPlan,
+  pixelsPerMeter: pixelsPerMeter,
+  getCanvasSize: getCanvasSize,
+  getViewZoom: getViewZoom
+}: PlanDrawingToolsOptions) {
+  /**
+   * 绘制米制网格：按当前缩放自适应的步长，只画可见区域内的横纵线。
+   */
+  function drawMetricGrid() {
+    const meterScale = pixelsPerMeter();
+    if (!meterScale) {
+      return;
+    }
+    const { width: canvasWidth, height: canvasHeight } = getCanvasSize();
+    const zoom = getViewZoom();
+    // 基准步长半米，再按缩放把屏幕上的间距收敛到 18~100 像素：
+    let gridStep = meterScale * 0.5;
+    while (gridStep * zoom < 18) {
+      gridStep *= 2;
+    }
+    while (gridStep * zoom > 100) {
+      gridStep /= 2;
+    }
+    // 只有可见区域需要画线，用画布四角反算设计图范围即可。
+    const canvasCorners = [
+      {
+        x: 0,
+        y: 0
+      },
+      {
+        x: canvasWidth,
+        y: 0
+      },
+      {
+        x: canvasWidth,
+        y: canvasHeight
+      },
+      {
+        x: 0,
+        y: canvasHeight
+      }
+    ].map(screenToPlan);
+    const minPlanX = Math.min(...canvasCorners.map(cornerForMinX => cornerForMinX.x));
+    const maxPlanX = Math.max(...canvasCorners.map(cornerForMaxX => cornerForMaxX.x));
+    const minPlanY = Math.min(...canvasCorners.map(cornerForMinY => cornerForMinY.y));
+    const maxPlanY = Math.max(...canvasCorners.map(cornerForMaxY => cornerForMaxY.y));
+    context.save();
+    context.lineWidth = 1;
+    // 起点对齐到步长整数倍，保证缩放时网格线不会整体漂移。
+    for (
+      let gridX = Math.floor(minPlanX / gridStep) * gridStep;
+      gridX <= maxPlanX;
+      gridX += gridStep
+    ) {
+      const screenTop = planToScreen({
+        x: gridX,
+        y: minPlanY
+      });
+      const screenBottom = planToScreen({
+        x: gridX,
+        y: maxPlanY
+      });
+      // 半米索引为偶数即整米线，用更深的颜色区分主次网格。
+      const halfMeterIndexX = Math.round((gridX / meterScale) * 2);
+      context.strokeStyle =
+        halfMeterIndexX % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)";
+      context.beginPath();
+      context.moveTo(screenTop.x, screenTop.y);
+      context.lineTo(screenBottom.x, screenBottom.y);
+      context.stroke();
+    }
+    // 纵线同理；横纵两次绘制分开做，是为了让主次线色能各按各的索引判断。
+    for (
+      let gridY = Math.floor(minPlanY / gridStep) * gridStep;
+      gridY <= maxPlanY;
+      gridY += gridStep
+    ) {
+      const screenLeft = planToScreen({
+        x: minPlanX,
+        y: gridY
+      });
+      const screenRight = planToScreen({
+        x: maxPlanX,
+        y: gridY
+      });
+      const halfMeterIndexY = Math.round((gridY / meterScale) * 2);
+      context.strokeStyle =
+        halfMeterIndexY % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)";
+      context.beginPath();
+      context.moveTo(screenLeft.x, screenLeft.y);
+      context.lineTo(screenRight.x, screenRight.y);
+      context.stroke();
+    }
+    context.restore();
+  }
+
+  /**
+   * 绘制一条设计图线段。
+   */
+  function drawLine(fromPlan: PlanPoint, toPlan: PlanPoint, lineOptions: { color?: string; width?: number; cap?: CanvasLineCap; dash?: number[] } = {}) {
+    const fromScreen = planToScreen(fromPlan);
+    const toScreen = planToScreen(toPlan);
+    context.save();
+    context.strokeStyle = lineOptions.color || "#fff";
+    context.lineWidth = lineOptions.width || 1;
+    // 圆头端点让首尾相接的线段不留缺口。
+    context.lineCap = lineOptions.cap || "round";
+    // 虚线样式由调用方给出（例如用虚线区分参考线），未给则沿用上一段实线设置。
+    if (lineOptions.dash) {
+      context.setLineDash(lineOptions.dash);
+    }
+    context.beginPath();
+    context.moveTo(fromScreen.x, fromScreen.y);
+    context.lineTo(toScreen.x, toScreen.y);
+    context.stroke();
+    context.restore();
+  }
+
+  /**
+   * 绘制一个端点圆点（深色实心 + 彩色描边）。
+   */
+  function drawPoint(planPoint: PlanPoint, strokeColor: string, radiusPx = 4) {
+    const screenPoint = planToScreen(planPoint);
+    context.save();
+    // 深色实心 + 彩色描边，保证在浅色底图与深色底图上都能看清。
+    context.fillStyle = pointFillColor();
+    context.strokeStyle = strokeColor;
+    context.lineWidth = 2;
+    context.beginPath();
+    context.arc(screenPoint.x, screenPoint.y, radiusPx, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.restore();
+  }
+
+  /**
+   * 绘制「墙体未闭合」告警标记（红色发光圈）。
+   */
+  function drawOpenEndpointWarning(endpointPlan: PlanPoint) {
+    const endpointScreen = planToScreen(endpointPlan);
+    context.save();
+    context.globalAlpha = 1;
+    // 红色外发光 + 半透明填充圈 + 中心实心点，共三层以突出「墙体未闭合」的端点。
+    context.shadowColor = "rgba(255, 84, 76, .75)";
+    context.shadowBlur = 12;
+    context.fillStyle = "rgba(255, 84, 76, .18)";
+    context.strokeStyle = "#ff6258";
+    context.lineWidth = 2.5;
+    context.beginPath();
+    context.arc(endpointScreen.x, endpointScreen.y, 9, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.shadowBlur = 0;
+    context.fillStyle = "#ff6258";
+    context.beginPath();
+    context.arc(endpointScreen.x, endpointScreen.y, 3.2, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+  }
+
+  /**
+   * 在锚点正上方绘制带底框的浮标文字标签。
+   */
+  function drawFloatingLabel(anchorPlan: PlanPoint, labelText: string, labelColor = "#dce3e8") {
+    // 空文本直接返回，省掉一次测量与一次绘制。
+    if (!labelText) {
+      return;
+    }
+    const anchorScreen = planToScreen(anchorPlan);
+    context.save();
+    context.font = "600 10px ui-monospace, monospace";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    // 底框宽度跟随文本宽度（左右各留 6 像素内边距）。
+    const labelWidth = context.measureText(labelText).width + 12;
+    context.fillStyle = "rgba(8, 13, 18, .88)";
+    context.strokeStyle = "rgba(255, 255, 255, .11)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(anchorScreen.x - labelWidth / 2, anchorScreen.y - 25, labelWidth, 18, 5);
+    context.fill();
+    context.stroke();
+    context.fillStyle = labelColor;
+    context.fillText(labelText, anchorScreen.x, anchorScreen.y - 16);
+    context.restore();
+  }
+  return {
+    drawMetricGrid: drawMetricGrid,
+    drawLine: drawLine,
+    drawPoint: drawPoint,
+    drawOpenEndpointWarning: drawOpenEndpointWarning,
+    drawFloatingLabel: drawFloatingLabel
+  };
+}

@@ -1,0 +1,154 @@
+<!doctype html>
+<!--
+  首次设置页（/setup）：创建本机唯一的超级管理员账号。
+-->
+<html lang="zh-CN" class="hos-shell">
+  <head>
+    <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
+    <meta charset="utf-8" />
+    <script src="/static/logging/client-log.js"></script>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050912" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HomeOS" />
+    <title>初始化 · HomeOS</title>
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css` 的 <link>。
+         必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+    <!--{{APPEARANCE}}-->
+  </head>
+  <body>
+    <div class="hos-page hos-tone--lumen">
+      <!--{{SCENE}}-->
+
+      <main class="hos-dock">
+        <section class="hos-panel hos-rise">
+          <span class="hos-panel__edge" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+          <!-- 开通路径（读数源：apps/server/http/commissioning.py）。不写死在这份 HTML 里：
+               所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
+          <!--{{STEPS}}-->
+
+          <!-- 状态甲板（读数源：apps/server/http/telemetry.py）。本页落在匿名档：
+               未初始化时库里还没有可读的东西，只给机制读数。 -->
+          <div class="hos-panel__head">
+            <div class="hos-eyebrow-row">
+              <p class="hos-eyebrow">本机初始化 · 01/05</p>
+              <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+            </div>
+            <h1>建立本机管理员</h1>
+            <p class="hos-panel__desc">
+              这台机器的第一个账号，也是唯一的超级管理员。账号与密码只落在本机，
+              不经过任何第三方云。
+            </p>
+          </div>
+
+          <!--{{DECK}}-->
+
+          <form id="setup-form" class="hos-form">
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="setup-username">管理员账号</label></div>
+              <div class="hos-control">
+                <input
+                  id="setup-username"
+                  name="username"
+                  placeholder="输入管理员账号"
+                  autocomplete="username"
+                  minlength="3"
+                  maxlength="64"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- 两枚密码并排：与商店初始化屏同一处分组（那边也是这一屏最长）。
+                 下一格「引导密钥」只在非本机访问时才现身，这里省下的一行正好留给它。 -->
+            <div class="hos-row-2">
+              <div class="hos-field">
+                <div class="hos-label-row"><label for="setup-password">密码</label></div>
+                <div class="hos-control hos-password-field">
+                  <input
+                    id="setup-password"
+                    name="password"
+                    type="password"
+                    placeholder="至少 8 个字符"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="256"
+                    required
+                  />
+                  <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+                </div>
+              </div>
+
+              <div class="hos-field">
+                <div class="hos-label-row"><label for="setup-password-confirmation">再次输入密码</label></div>
+                <div class="hos-control hos-password-field">
+                  <input
+                    id="setup-password-confirmation"
+                    name="passwordConfirmation"
+                    type="password"
+                    placeholder="再次输入密码"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="256"
+                    required
+                  />
+                  <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="hos-field" id="setup-token-field" hidden>
+              <div class="hos-label-row"><label for="setup-token">引导密钥</label></div>
+              <div class="hos-control">
+                <input id="setup-token" name="setupToken" placeholder="见服务启动日志" autocomplete="off" maxlength="256" />
+              </div>
+              <small>非本机访问必须填写；密钥在服务启动日志或 APP_SETUP_TOKEN 中。</small>
+            </div>
+
+            <p id="message" class="hos-msg is-err" role="alert" hidden></p>
+
+            <div class="hos-actions">
+              <button class="hos-btn-primary" type="submit">保存账号并继续</button>
+            </div>
+          </form>
+
+          <div class="hos-panel__copy">
+            <div class="hos-panel__meta">
+              <span>账号 3–64 字符</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>密码至少 8 位</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>非本机访问需引导密钥</span>
+            </div>
+            <p>本页只在首次初始化时出现；完成后会先检查授权，未激活将进入激活页。</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 手持档开关（源：frontend/src/app/auth/scene/scene-depth.ts → IIFE）。普通脚本：不导出
+         任何东西，只给 <html> 挂 .hos-touch（scene.css「静止档」的判据兜底），首帧前跑完。 -->
+    <script src="/static/auth/scene/scene-depth.js"></script>
+    <script type="module" src="/src/app/auth/auth-shell.ts"></script>
+    <script type="module" src="/src/app/auth/setup.ts"></script>
+    <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
+         时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
+    <script type="module" src="/src/app/auth/entry-deck.ts"></script>
+  </body>
+</html>

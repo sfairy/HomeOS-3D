@@ -1,0 +1,68 @@
+/**
+ * 虚拟实体的 ID 生成与解析规则。
+ */
+
+type AnyObj = Record<string, any>;
+const VIRTUAL_ENTITY_PREFIX = "virtual.";
+export const ICON_VISIBILITY_VIRTUAL_KIND = "icon_visibility";
+const ICON_VISIBILITY_VIRTUAL_NAME = "图标·显示隐藏";
+// scope 固定为当前页面：图标显隐状态按页维护，不跨页共享。
+const ICON_VISIBILITY_VIRTUAL_SCOPE = "current_page";
+
+/**
+ * 生成图标显隐虚拟实体的 ID。
+ */
+function iconVisibilityVirtualEntityId() {
+  return (
+    "" + VIRTUAL_ENTITY_PREFIX + ICON_VISIBILITY_VIRTUAL_KIND + "." + ICON_VISIBILITY_VIRTUAL_SCOPE
+  );
+}
+
+/**
+ * 解析虚拟实体 ID。
+ */
+export function parseVirtualEntityId(entityId: any) {
+  const entityIdString = String(entityId || "");
+  if (!entityIdString.startsWith(VIRTUAL_ENTITY_PREFIX)) {
+    return null;
+  }
+  // 只在前缀之后找第一个点号，scope 里允许再出现点号。
+  const separatorIndex = entityIdString.indexOf(".", VIRTUAL_ENTITY_PREFIX.length);
+  if (separatorIndex < 0) {
+    return null;
+  }
+  const kind = entityIdString.slice(VIRTUAL_ENTITY_PREFIX.length, separatorIndex);
+  const scope = entityIdString.slice(separatorIndex + 1);
+  if (kind && scope) {
+    return {
+      kind: kind,
+      scope: scope
+    };
+  } else {
+    // 缺 kind 或 scope 都算非法，防止空串被当成合法虚拟实体。
+    return null;
+  }
+}
+
+/**
+ * 判断是否为合法的虚拟实体 ID。
+ */
+export function isVirtualEntityId(candidateEntityId: any) {
+  return !!parseVirtualEntityId(candidateEntityId);
+}
+
+/**
+ * 构造一个「图标·显示隐藏」虚拟实体，供实体选择器展示与绑定。
+ */
+export function createIconVisibilityVirtualEntity(pagePath: any = "") {
+  // virtual 标记让下游跳过 HA 调用；virtualKind 供运行时区分具体虚拟实体。
+  return {
+    entityId: iconVisibilityVirtualEntityId(),
+    domain: "virtual",
+    name: ICON_VISIBILITY_VIRTUAL_NAME,
+    originalName: ICON_VISIBILITY_VIRTUAL_NAME,
+    virtual: true,
+    virtualKind: ICON_VISIBILITY_VIRTUAL_KIND,
+    pagePath: String(pagePath || "")
+  };
+}

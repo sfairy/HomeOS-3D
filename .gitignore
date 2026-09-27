@@ -6,29 +6,24 @@
 .venv-store/
 __pycache__/
 *.py[cod]
+# 运行时数据 / 私钥（各项目根下；旧路径保留以免残留被误提交）
 data/
-apps/store/data/
-apps/store/keys/local/
+homeos-3d/data/
+homeos-store/data/
+homeos-store/keys/local/
+homeos-store/backend/src/data/
+homeos-store/backend/src/keys/local/
 *-private.pem
 ops/docker/node_modules/
-
-# 本地临时目录：解包发布的旧构建、反混淆产物、用于对照的原项目快照。
-/app/
-.deobf/
-/源代码/
-# 一次性验证脚本的落盘痕迹（跑起来的临时 APP_DATA_DIR / 截图 / cookie）。可随时删。
-.tmp-verify/
-
-# 上游 0.6.5 业务逻辑对照审计的一次性脚手架（反混淆切片、桩测、截图、像素量尺）。
-.audit-scratch/
-.audit2/
-
-# 已迁走的独立前端项目：HomeOS-Activate 有自己的仓库、锁文件与 keys/，不再属于本构建，
-/HomeOS-Activate/
 
 # 本地配置：.env 里是 SMTP 授权码、初始管理员密码等真实凭据，绝不能提交。
 .env
 .env.*
 !.env.example
-# 仓库根的 eslint 依赖（P12 前端静态检查）：只在开发期与 CI 里装，不进任何镜像。
+
+# 前端依赖与构建产物。
 node_modules/
+dist/
+*.tsbuildinfo
+.pytest_cache/
+.ruff_cache/

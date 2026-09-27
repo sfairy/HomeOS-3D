@@ -1,0 +1,27 @@
+{
+  "name": "homeos-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "build": "bun run build:vite && bun run obfuscate",
+    "build:vite": "bun run --cwd homeos-3d build && bun run --cwd homeos-store build",
+    "build:3d": "bun run --cwd homeos-3d build && bun run obfuscate:3d",
+    "build:store": "bun run --cwd homeos-store build && bun run obfuscate:store",
+    "obfuscate": "bun ops/docker/obfuscate_javascript.mjs homeos-3d/dist/static homeos-3d/dist/modules/runtime homeos-store/dist/static",
+    "obfuscate:3d": "bun ops/docker/obfuscate_javascript.mjs homeos-3d/dist/static homeos-3d/dist/modules/runtime",
+    "obfuscate:store": "bun ops/docker/obfuscate_javascript.mjs homeos-store/dist/static",
+    "typecheck": "bun run --cwd homeos-3d typecheck && bun run --cwd homeos-store typecheck",
+    "dev": "python3 ops/start.py",
+    "dev:runtime": "bun run --cwd homeos-3d dev:runtime",
+    "dev:backend": "python3 ops/start.py --backend-only",
+    "dev:3d": "bun run --cwd homeos-3d dev",
+    "dev:store": "bun run --cwd homeos-store dev"
+  },
+  "workspaces": ["homeos-3d", "homeos-store"],
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "javascript-obfuscator": "^4.1.1",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,334 @@
+/**
+ * 电视控制面板（3D 详情弹窗 / 配置预览共用）。
+ */
+import {
+  televisionState,
+  televisionTime,
+  televisionPower,
+  televisionMediaControl
+} from "./television-state.js";
+import { createDomFactory } from "../core/static-helpers.js";
+
+type TelevisionItem = {
+  id: string;
+  entityId?: string;
+  powerEntityId?: string;
+  label?: string;
+  [key: string]: unknown;
+};
+
+type TelevisionViewModel = {
+  item: TelevisionItem;
+  states?: unknown;
+  editing?: boolean;
+  error?: string;
+};
+
+type TelevisionPanelOptions = {
+  element?: HTMLElement | null;
+  onControl?: (command: unknown) => Promise<unknown> | unknown;
+};
+
+/**
+ * 创建电视面板。
+ */
+export function createTelevisionPanel({
+  element: hostElement,
+  onControl: onControl = async () => {}
+}: TelevisionPanelOptions = {}) {
+  const { el: createElement } = createDomFactory(
+    hostElement?.ownerDocument || globalThis.document
+  ) as { el: (tag: string, className?: string, text?: string) => HTMLElement };
+  const rootElement = createElement("div", "i3d-television-panel");
+  // 标题区沿用 NAS 面板的样式类，两个面板在弹窗里外观一致。
+  const headingElement = createElement("div", "i3d-nas-heading");
+  const titleElement = createElement("h3", "");
+  const statusElement = createElement("span", "i3d-tv-status");
+  const contentElement = createElement("div", "i3d-tv-content");
+  // 设备图形：照 2D 的 .hb-media-speaker-visual 移植材质配方（机身渐变、交叉网罩、
+  const visualElement = createElement("div", "i3d-tv-visual");
+  visualElement.setAttribute("aria-hidden", "true");
+  const visualBezelElement = createElement("div", "i3d-tv-visual-bezel");
+  const visualScreenElement = createElement("div", "i3d-tv-visual-screen");
+  const visualGrilleElement = createElement("div", "i3d-tv-visual-grille");
+  const visualLightElement = createElement("span", "i3d-tv-visual-light");
+  const artworkElement = createElement("img", "i3d-tv-artwork") as HTMLImageElement;
+  const detailsElement = createElement("div", "i3d-tv-details");
+  const mediaTitleElement = createElement("strong", "");
+  const mediaMetaElement = createElement("span", "");
+  const progressElement = createElement("progress", "") as HTMLProgressElement;
+  const timeElement = createElement("span", "i3d-tv-time");
+  const powerOnButton = createElement("button", "i3d-tv-power") as HTMLButtonElement;
+  const powerOffButton = createElement("button", "i3d-tv-power") as HTMLButtonElement;
+  const errorElement = createElement("p", "i3d-tv-error");
+  powerOnButton.type = powerOffButton.type = "button";
+  errorElement.setAttribute("role", "status");
+  const actionsElement = createElement("div", "i3d-tv-actions");
+  actionsElement.setAttribute("role", "group");
+  actionsElement.setAttribute("aria-label", "电视播放控制");
+  // 三个媒体按钮共用同一套点击逻辑，只有 action 不同。
+  const mediaButtons = ["previous", "play", "next"].map(action => {
+    const createdButton = createElement("button", "") as HTMLButtonElement;
+    createdButton.type = "button";
+    createdButton.addEventListener("click", async () => {
+      // pendingPower 期间禁用媒体控制：电视正在开关机，媒体状态不可信。
+      if (!viewModel || isDisposed || viewModel.editing || isBusy || pendingPower !== null) {
+        return;
+      }
+      const mediaControl = televisionMediaControl(viewModel.item, viewModel.states, action);
+      if (!mediaControl.enabled) {
+        return;
+      }
+      const instanceAtSend = instanceId;
+      isBusy = true;
+      errorElement.textContent = "";
+      render();
+      try {
+        await onControl(mediaControl.command);
+      } catch (error) {
+        if (!isDisposed && instanceAtSend === instanceId) {
+          errorElement.textContent =
+            error instanceof Error ? error.message || "播放控制失败，请重试。" : "播放控制失败，请重试。";
+        }
+      } finally {
+        if (!isDisposed && instanceAtSend === instanceId) {
+          isBusy = false;
+          render();
+        }
+      }
+    });
+    actionsElement.append(createdButton);
+    return {
+      action: action,
+      button: createdButton
+    };
+  });
+  artworkElement.hidden = true;
+  artworkElement.alt = "正在播放的内容封面";
+  // 封面加载失败（例如代理返回 404）时直接隐藏，不留破图。
+  artworkElement.addEventListener("error", () => {
+    artworkElement.hidden = true;
+  });
+  headingElement.append(titleElement, statusElement, powerOnButton, powerOffButton);
+  detailsElement.append(mediaTitleElement, mediaMetaElement, progressElement, timeElement);
+  visualScreenElement.append(artworkElement);
+  visualBezelElement.append(visualScreenElement, visualGrilleElement, visualLightElement);
+  visualElement.append(visualBezelElement);
+  contentElement.append(detailsElement);
+  // 图形单独占一行（居中），与净化器 / 窗帘 / 灯面板同一套节奏：标题 → 设备图形 → 详情与控件。
+  rootElement.append(headingElement, visualElement, contentElement, actionsElement, errorElement);
+  // 由外部控制显隐，创建时先隐藏以免闪出空面板。
+  rootElement.hidden = true;
+  let viewModel: TelevisionViewModel | null = null;
+  let artworkUrl = "";
+  let progressTimerId: ReturnType<typeof setInterval> | null = null;
+  // 正在等待结果的开关机目标：null 表示空闲，true / false 表示目标状态。
+  let pendingPower: boolean | null = null;
+  let powerTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let instanceId = 0;
+  let isDisposed = false;
+  let isBusy = false;
+  // 命令已被后端受理（但状态尚未回传）的标记，用于提前结束乐观等待。
+  let powerConfirmed = false;
+  /** 清空乐观开关机状态与超时定时器。 */
+  function clearPendingPower() {
+    if (powerTimeoutId !== null) {
+      clearTimeout(powerTimeoutId);
+    }
+    powerTimeoutId = null;
+    pendingPower = null;
+    powerConfirmed = false;
+  }
+  /**
+   * 发送开关机命令（带乐观状态与超时兜底）。
+   */
+  async function sendPower(powerOn: boolean) {
+    if (!viewModel || isDisposed || viewModel.editing || isBusy || pendingPower !== null) {
+      return;
+    }
+    const powerControl = televisionPower(viewModel.item, viewModel.states, powerOn);
+    // 电源不可用或实体不支持开关时静默返回：按钮本该是禁用的，这里再兜一层。
+    if (!powerControl.available || !powerControl.supported) {
+      return;
+    }
+    const powerInstanceAtSend = instanceId;
+    pendingPower = powerOn;
+    powerConfirmed = false;
+    errorElement.textContent = "";
+    render();
+    // 14 秒超时：电视开机需要几秒才会上报新状态，给足时间；
+    powerTimeoutId = setTimeout(() => {
+      if (!isDisposed && instanceId === powerInstanceAtSend) {
+        clearPendingPower();
+        render();
+      }
+    }, 14000);
+    try {
+      await onControl(powerControl.command);
+      if (!isDisposed && powerInstanceAtSend === instanceId) {
+        // 命令已被受理：让下一次 render 尝试用真实状态提前结束等待。
+        powerConfirmed = true;
+        render();
+      }
+    } catch (powerError) {
+      if (!isDisposed && powerInstanceAtSend === instanceId) {
+        clearPendingPower();
+        errorElement.textContent =
+          powerError instanceof Error
+            ? powerError.message || "开关机失败，请重试。"
+            : "开关机失败，请重试。";
+        render();
+      }
+    }
+  }
+  powerOnButton.addEventListener("click", () => {
+    void sendPower(true);
+  });
+  powerOffButton.addEventListener("click", () => {
+    void sendPower(false);
+  });
+  /** 按当前 viewModel 重绘面板。 */
+  function render() {
+    if (!viewModel) {
+      return;
+    }
+    const state = televisionState(viewModel.item, viewModel.states);
+    // 不带目标态调用，取的是「真实电源状态」，用来判断乐观等待是否已经达成。
+    const powerState = televisionPower(viewModel.item, viewModel.states);
+    if (
+      powerConfirmed &&
+      pendingPower !== null &&
+      pendingPower === powerState.on &&
+      powerState.available
+    ) {
+      clearPendingPower();
+    }
+    for (const [powerButton, desiredOn] of [
+      [powerOnButton, true],
+      [powerOffButton, false]
+    ] as const) {
+      const buttonControl = televisionPower(viewModel.item, viewModel.states, desiredOn);
+      powerButton.textContent =
+        pendingPower === desiredOn
+          ? desiredOn
+            ? "开机中…"
+            : "关机中…"
+          : desiredOn
+            ? "开机"
+            : "关机";
+      powerButton.setAttribute("aria-label", desiredOn ? "开启电视" : "关闭电视");
+      // 任一开关机在途时两个按钮都禁用，保证同一时刻只有一条电源命令。
+      powerButton.disabled =
+        !!viewModel.editing ||
+        isBusy ||
+        pendingPower !== null ||
+        !buttonControl.available ||
+        !buttonControl.supported;
+      powerButton.title = viewModel.editing ? "编辑预览不可控制设备" : buttonControl.reason;
+    }
+    rootElement.setAttribute("aria-busy", String(pendingPower !== null));
+    for (const { action: mediaAction, button: mediaButton } of mediaButtons) {
+      const mediaControlState = televisionMediaControl(
+        viewModel.item,
+        viewModel.states,
+        mediaAction
+      );
+      // 「播放 / 暂停」按钮的文案由当前播放状态决定；上一集 / 下一集是固定文案。
+      mediaButton.textContent =
+        mediaAction === "previous"
+          ? "上一集"
+          : mediaAction === "next"
+            ? "下一集"
+            : state.playing
+              ? "暂停"
+              : "播放";
+      mediaButton.setAttribute("aria-label", mediaButton.textContent);
+      mediaButton.disabled =
+        !!viewModel.editing || isBusy || pendingPower !== null || !mediaControlState.enabled;
+      mediaButton.title = mediaControlState.enabled ? "" : "当前设备状态或播放器不支持此操作";
+    }
+    titleElement.textContent = String(state.name);
+    statusElement.textContent = String(state.status);
+    // 设备图形的四种态：开机 / 播放中 / 已暂停 / 关机。与 2D 音箱那三态
+    const isPaused = state.on && state.state === "paused";
+    visualElement.classList.toggle("is-on", !!state.on);
+    visualElement.classList.toggle("is-playing", !!state.playing);
+    visualElement.classList.toggle("is-paused", !!isPaused);
+    visualElement.classList.toggle("is-off", !state.on);
+    // 关机时曲目信息位置显示状态文案（如「电视已关闭」），保持版面不塌陷。
+    mediaTitleElement.textContent = state.on ? String(state.title) : String(state.status);
+    mediaMetaElement.textContent = [state.app, state.artist].filter(Boolean).join(" · ") || "—";
+    mediaMetaElement.hidden = false;
+    // 只有封面地址变化时才动 img：每次 render 重设 src 会让图片反复重载闪烁。
+    if (state.artwork !== artworkUrl) {
+      artworkUrl = state.artwork;
+      artworkElement.hidden = !artworkUrl;
+      if (artworkUrl) {
+        // 新封面先藏起来，等 onload 之后再显示；
+        artworkElement.hidden = true;
+        artworkElement.onload = () => {
+          if (viewModel && artworkUrl === state.artwork) {
+            artworkElement.hidden = false;
+          }
+        };
+        artworkElement.src = artworkUrl;
+      } else {
+        artworkElement.removeAttribute("src");
+      }
+    }
+    progressElement.hidden = timeElement.hidden = false;
+    // max / value 用 1 / 0 兜底：progress 元素在 duration 未知时也需要合法数值。
+    progressElement.max = state.duration || 1;
+    progressElement.value = state.position || 0;
+    timeElement.textContent =
+      televisionTime(state.position ?? NaN) + " / " + televisionTime(state.duration ?? NaN);
+    if (!state.playing && progressTimerId !== null) {
+      clearInterval(progressTimerId);
+      progressTimerId = null;
+    }
+  }
+  return {
+    root: rootElement,
+    /**
+     * 用新的视图模型刷新面板。
+     */
+    update(nextViewModel: TelevisionViewModel) {
+      // 释放后一律忽略：dispose() 已经 remove() 掉根节点并清空 viewModel，而 update()
+      if (isDisposed) {
+        return;
+      }
+      // 换了绑定项：作废在途回包并清空与旧设备相关的状态。
+      if (viewModel?.item.id !== nextViewModel.item.id) {
+        instanceId++;
+        isBusy = false;
+        clearPendingPower();
+        errorElement.textContent = "";
+      }
+      viewModel = nextViewModel;
+      render();
+      // 播放中才需要每秒重绘推进进度；已在计时则不重复创建。
+      if (
+        televisionState(nextViewModel.item, nextViewModel.states).playing &&
+        progressTimerId === null
+      ) {
+        progressTimerId = setInterval(render, 1000);
+      }
+    },
+    hide() {
+      rootElement.hidden = true;
+      if (progressTimerId !== null) {
+        clearInterval(progressTimerId);
+      }
+      progressTimerId = null;
+    },
+    dispose() {
+      isDisposed = true;
+      instanceId++;
+      clearPendingPower();
+      this.hide();
+      viewModel = null;
+      artworkElement.removeAttribute("src");
+      rootElement.remove();
+    }
+  };
+}

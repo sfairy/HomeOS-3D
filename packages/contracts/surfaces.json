@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "同名双份的共享面：apps/server 与 apps/store 是两个可独立部署的项目，各自只 import 自己的包，\n所以概念共享时实现各留一份。这份清单声明「哪些名字的两份应对齐」。加一个面：在 members 里写上两侧的文件与名字，并人工核对。",
+  "note": "同名双份的共享面：homeos-3d/backend/src 与 homeos-store/backend/src 是两个可独立部署的项目，各自只 import 自己的包，\n所以概念共享时实现各留一份。这份清单声明「哪些名字的两份应对齐」。加一个面：在 members 里写上两侧的文件与名字，并人工核对。",
   "surfaces": [
     {
       "id": "compression-limits",
@@ -8,7 +8,7 @@
       "kind": "code",
       "members": [
         {
-          "file": "apps/server/http/compression.py",
+          "file": "homeos-3d/backend/src/http/compression.py",
           "names": [
             "COMPRESSIBLE_CONTENT_TYPES",
             "MINIMUM_SIZE",
@@ -17,7 +17,7 @@
           ]
         },
         {
-          "file": "apps/store/security/compression.py",
+          "file": "homeos-store/backend/src/security/compression.py",
           "names": [
             "COMPRESSIBLE_CONTENT_TYPES",
             "MINIMUM_SIZE",
@@ -33,7 +33,7 @@
       "kind": "code",
       "members": [
         {
-          "file": "apps/server/http/compression.py",
+          "file": "homeos-3d/backend/src/http/compression.py",
           "names": [
             "_HEADER_CONTENT_ENCODING",
             "_HEADER_CONTENT_LENGTH",
@@ -41,7 +41,7 @@
           ]
         },
         {
-          "file": "apps/store/security/compression.py",
+          "file": "homeos-store/backend/src/security/compression.py",
           "names": [
             "_HEADER_CONTENT_ENCODING",
             "_HEADER_CONTENT_LENGTH",
@@ -56,14 +56,14 @@
       "kind": "code",
       "members": [
         {
-          "file": "apps/server/http/access_log.py",
+          "file": "homeos-3d/backend/src/http/access_log.py",
           "names": [
             "NOISY_ACCESS_PATTERNS",
             "_FILTER_NAME"
           ]
         },
         {
-          "file": "apps/store/security/access_log.py",
+          "file": "homeos-store/backend/src/security/access_log.py",
           "names": [
             "NOISY_ACCESS_PATTERNS",
             "_FILTER_NAME"
@@ -77,13 +77,13 @@
       "kind": "code",
       "members": [
         {
-          "file": "apps/server/core/static_revision.py",
+          "file": "homeos-3d/backend/src/core/static_revision.py",
           "names": [
             "file_revision"
           ]
         },
         {
-          "file": "apps/store/core/static_revision.py",
+          "file": "homeos-store/backend/src/core/static_revision.py",
           "names": [
             "file_revision"
           ]
@@ -96,7 +96,7 @@
       "kind": "code",
       "members": [
         {
-          "file": "apps/server/core/appearance.py",
+          "file": "homeos-3d/backend/src/core/appearance.py",
           "names": [
             "_TOKEN_NAME",
             "_TOKEN_NAME_EXTRA",
@@ -108,7 +108,7 @@
           ]
         },
         {
-          "file": "apps/store/ops/appearance.py",
+          "file": "homeos-store/backend/src/ops/appearance.py",
           "names": [
             "_TOKEN_NAME",
             "_TOKEN_NAME_EXTRA",
@@ -130,7 +130,7 @@
       ],
       "members": [
         {
-          "file": "apps/server/license/contracts.py",
+          "file": "homeos-3d/backend/src/license/contracts.py",
           "names": [
             "BASE_FEATURES"
           ],
@@ -140,7 +140,7 @@
           ]
         },
         {
-          "file": "apps/store/ops/features.py",
+          "file": "homeos-store/backend/src/ops/features.py",
           "names": [
             "FEATURE_CATALOG"
           ],

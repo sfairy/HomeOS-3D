@@ -1,0 +1,313 @@
+/**
+ * 地面反射的可见性剔除：逐面镜子渲染反射贴图时，把「不可能出现在镜像画面里的网格」临时隐藏，
+ */
+
+type Vector4Like = {
+  set: (...args: number[]) => Vector4Like;
+  applyMatrix4: (m: unknown) => Vector4Like;
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+};
+
+type Matrix4Like = {
+  copy: (m: unknown) => Matrix4Like;
+  set: (...args: number[]) => Matrix4Like;
+  premultiply: (m: unknown) => Matrix4Like;
+  multiply: (m: unknown) => Matrix4Like;
+  equals: (m: unknown) => boolean;
+};
+
+type Box3Like = {
+  isEmpty: () => boolean;
+  equals: (b: unknown) => boolean;
+  copy: (b: unknown) => Box3Like;
+  applyMatrix4: (m: unknown) => Box3Like;
+  min: { x: number; y: number; z: number };
+  max: { x: number; y: number; z: number };
+};
+
+type FrustumLike = {
+  setFromProjectionMatrix: (m: unknown) => void;
+  intersectsBox: (box: unknown) => boolean;
+};
+
+type ThreeReflection = {
+  Vector4: new () => Vector4Like;
+  Matrix4: new () => Matrix4Like;
+  Frustum: new () => FrustumLike;
+  Box3: new () => Box3Like;
+};
+
+type GeometryLike = {
+  attributes: { position?: { version?: number; data?: { version?: number } } };
+  computeBoundingBox: () => void;
+  boundingBox?: Box3Like | null;
+};
+
+type MeshLike = {
+  isMesh?: boolean;
+  visible: boolean;
+  frustumCulled?: boolean;
+  castShadow?: boolean;
+  children: unknown[];
+  isSkinnedMesh?: boolean;
+  isInstancedMesh?: boolean;
+  morphTargetInfluences?: unknown[];
+  geometry?: GeometryLike;
+  material?: unknown | unknown[];
+  matrixWorld: unknown;
+};
+
+type MaterialCheck = {
+  isShaderMaterial?: boolean;
+  displacementMap?: unknown;
+};
+
+type CaptureLike = {
+  source: MeshLike;
+  matrix: unknown;
+  map: { width: number };
+};
+
+type CameraLike = {
+  projectionMatrix: unknown;
+  matrixWorldInverse: unknown;
+};
+
+
+/**
+ * 创建一套反射剔除器（每个反射控制器一份，内部状态可跨帧复用）。
+ */
+export function createReflectionCulling(THREE: ThreeReflection) {
+  // 三种缓存都用 WeakMap：网格被回收后缓存自动失效，不会随场景编辑无限增长。
+  const boundsCacheByGeometry = new WeakMap();
+  const boxCacheByMesh = new WeakMap();
+  const entryCacheByMesh = new WeakMap();
+  const candidateEntries: { object: MeshLike; box: Box3Like }[] = [];
+  const hiddenMeshes: MeshLike[] = [];
+  const scratchClipVector = new THREE.Vector4();
+  const scratchNdcMatrix = new THREE.Matrix4();
+  const scratchProjectionMatrix = new THREE.Matrix4();
+  const scratchFrustum = new THREE.Frustum();
+  // 统计量暴露给上层做性能观测：受检网格数、被剔数、跳过的整次捕获数。
+  const stats = {
+    tested: 0,
+    culled: 0,
+    skippedCaptures: 0
+  };
+  // 自定义着色器材质无法保证在镜像相机下行为一致（可能读屏幕坐标），
+  const isUnsupportedMaterial = (material: MaterialCheck | null | undefined) =>
+    !material || material.isShaderMaterial || material.displacementMap;
+
+  /**
+   * 取几何的局部包围盒，属性变化时自动重算。
+   */
+  function getGeometryBounds(geometry: GeometryLike) {
+    const positionAttribute = geometry.attributes.position;
+    const cachedBounds = boundsCacheByGeometry.get(geometry);
+    // 同时比对版本号与底层数据版本：只改 attributes 版本可能漏掉 buffer 被整体替换的情况。
+    if (
+      !cachedBounds ||
+      cachedBounds.attribute !== positionAttribute ||
+      cachedBounds.version !== positionAttribute?.version ||
+      cachedBounds.dataVersion !== positionAttribute?.data?.version
+    ) {
+      geometry.computeBoundingBox();
+      boundsCacheByGeometry.set(geometry, {
+        attribute: positionAttribute,
+        version: positionAttribute?.version,
+        dataVersion: positionAttribute?.data?.version
+      });
+    }
+    return geometry.boundingBox;
+  }
+
+  /**
+   * 取网格的世界包围盒，几何或世界矩阵变化时重算。
+   */
+  function getWorldBounds(mesh: MeshLike) {
+    if (!mesh.geometry) {
+      return null;
+    }
+    const localBounds = getGeometryBounds(mesh.geometry);
+    if (!localBounds || localBounds.isEmpty()) {
+      return null;
+    }
+    let cachedBox = boxCacheByMesh.get(mesh);
+    if (!cachedBox) {
+      cachedBox = {
+        box: new THREE.Box3(),
+        local: new THREE.Box3(),
+        matrix: new THREE.Matrix4(),
+        ready: false
+      };
+      boxCacheByMesh.set(mesh, cachedBox);
+    }
+    // 用「局部包围盒 + 世界矩阵」两个比较对象判断是否过期，
+    if (
+      !cachedBox.ready ||
+      !cachedBox.local.equals(localBounds) ||
+      !cachedBox.matrix.equals(mesh.matrixWorld)
+    ) {
+      cachedBox.local.copy(localBounds);
+      cachedBox.matrix.copy(mesh.matrixWorld);
+      cachedBox.box.copy(localBounds).applyMatrix4(mesh.matrixWorld);
+      cachedBox.ready = true;
+    }
+    return cachedBox.box;
+  }
+
+  function reset() {
+    restore();
+    candidateEntries.length = 0;
+    stats.tested = stats.culled = stats.skippedCaptures = 0;
+  }
+
+  /**
+   * 登记一个候选网格（只在满足剔除前提时才登记）。
+   */
+  function add(candidateMesh: MeshLike, skipShadowCasters = false) {
+    // 只有「自带视锥剔除、无子节点、非骨骼 / 非实例化 / 无变形目标」的普通网格才安全：
+    if (
+      !candidateMesh.isMesh ||
+      !candidateMesh.visible ||
+      !candidateMesh.frustumCulled ||
+      (skipShadowCasters && candidateMesh.castShadow) ||
+      candidateMesh.children.length ||
+      candidateMesh.isSkinnedMesh ||
+      candidateMesh.isInstancedMesh ||
+      candidateMesh.morphTargetInfluences?.length ||
+      !candidateMesh.geometry?.attributes.position ||
+      (Array.isArray(candidateMesh.material)
+        ? candidateMesh.material.some(item => isUnsupportedMaterial(item as MaterialCheck))
+        : isUnsupportedMaterial(candidateMesh.material as MaterialCheck | null | undefined))
+    ) {
+      return;
+    }
+    const worldBounds = getWorldBounds(candidateMesh);
+    if (
+      worldBounds &&
+      Number.isFinite(
+        worldBounds.min.x +
+          worldBounds.min.y +
+          worldBounds.min.z +
+          worldBounds.max.x +
+          worldBounds.max.y +
+          worldBounds.max.z
+      )
+    ) {
+      let entry = entryCacheByMesh.get(candidateMesh);
+      if (!entry) {
+        entry = {
+          object: candidateMesh,
+          box: worldBounds
+        };
+        entryCacheByMesh.set(candidateMesh, entry);
+      }
+      candidateEntries.push(entry);
+    }
+  }
+
+  /**
+   * 针对一面镜子开始一轮剔除：把镜面源物体的世界包围盒投影到镜像贴图 UV 空间，得到它实际占用的矩形，
+   * @returns {boolean} 返回 false 表示镜面在贴图上完全不可见，整次反射可以跳过。
+   */
+  function begin(capture: CaptureLike, camera: CameraLike) {
+    restore();
+    const sourceBounds = getWorldBounds(capture.source);
+    let minU = Infinity;
+    let minV = Infinity;
+    let maxU = -Infinity;
+    let maxV = -Infinity;
+    let isInsideFrustum = !!sourceBounds;
+    if (sourceBounds) {
+      // 遍历包围盒八个角点，逐个投影后取并集，得到镜面在 UV 空间的覆盖范围。
+      for (let cornerIndex = 0; cornerIndex < 8; cornerIndex++) {
+        scratchClipVector
+          .set(
+            cornerIndex & 1 ? sourceBounds.max.x : sourceBounds.min.x,
+            cornerIndex & 2 ? sourceBounds.max.y : sourceBounds.min.y,
+            cornerIndex & 4 ? sourceBounds.max.z : sourceBounds.min.z,
+            1
+          )
+          .applyMatrix4(capture.matrix);
+        if (scratchClipVector.w <= 0.00001) {
+          isInsideFrustum = false;
+          break;
+        }
+        const projectedX = scratchClipVector.x / scratchClipVector.w;
+        const projectedY = scratchClipVector.y / scratchClipVector.w;
+        minU = Math.min(minU, projectedX);
+        maxU = Math.max(maxU, projectedX);
+        minV = Math.min(minV, projectedY);
+        maxV = Math.max(maxV, projectedY);
+      }
+    }
+    scratchProjectionMatrix.copy(camera.projectionMatrix);
+    if (isInsideFrustum) {
+      // 边距 = 固定的 14/1024（经验值，覆盖镜面自身的厚度与法线扰动）
+      const edgePadding = 0.013671875 + 2 / capture.map.width;
+      minU = Math.max(0, minU - edgePadding);
+      minV = Math.max(0, minV - edgePadding);
+      maxU = Math.min(1, maxU + edgePadding);
+      maxV = Math.min(1, maxV + edgePadding);
+      // 夹取到画布内仍为空，说明镜面完全在视野外，这次反射不必渲染。
+      if (maxU <= minU || maxV <= minV) {
+        stats.skippedCaptures++;
+        return false;
+      }
+      const uSpan = maxU - minU;
+      const vSpan = maxV - minV;
+      // 该矩阵把 [minU, maxU] × [minV, maxV] 这段 NDC 区域拉伸到整个 [-1, 1]，
+      scratchNdcMatrix.set(
+        1 / uSpan,
+        0,
+        0,
+        -(minU + maxU - 1) / uSpan,
+        0,
+        1 / vSpan,
+        0,
+        -(minV + maxV - 1) / vSpan,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+      );
+      scratchProjectionMatrix.premultiply(scratchNdcMatrix);
+    }
+    // 视锥需要在世界空间判定，因此再左乘视图矩阵的逆（即相机世界矩阵的反向组合）。
+    scratchFrustum.setFromProjectionMatrix(
+      scratchProjectionMatrix.multiply(camera.matrixWorldInverse)
+    );
+    for (const { object: entryObject, box: entryBounds } of candidateEntries) {
+      stats.tested++;
+      if (!scratchFrustum.intersectsBox(entryBounds)) {
+        // 只关 visible 不改进场景图：restore 时原样打开即可，开销最小。
+        hiddenMeshes.push(entryObject);
+        entryObject.visible = false;
+        stats.culled++;
+      }
+    }
+    return true;
+  }
+
+  function restore() {
+    for (const hiddenMesh of hiddenMeshes) {
+      hiddenMesh.visible = true;
+    }
+    hiddenMeshes.length = 0;
+  }
+  return {
+    reset: reset,
+    add: add,
+    begin: begin,
+    restore: restore,
+    stats: stats
+  };
+}

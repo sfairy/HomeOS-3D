@@ -5,7 +5,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import JavaScriptObfuscator from "javascript-obfuscator";
+
+// javascript-obfuscator 在 TTY 下会周期性打 Pro 广告；广告走 advertise()，不受 log:false 控制。
+// CI=1 会让 AdvertisementUtils.shouldShowAdvertisement() 直接返回 false。
+process.env.CI ??= "1";
+
+const { default: JavaScriptObfuscator } = await import("javascript-obfuscator");
 
 const SKIP_DIR_NAMES = new Set(["vendor", "node_modules", ".git"]);
 const SKIP_FILE_SUFFIXES = [".min.js", ".min.mjs"];
@@ -24,6 +29,7 @@ const OBFUSCATOR_OPTIONS = {
   disableConsoleOutput: false,
   identifierNamesGenerator: "hexadecimal",
   ignoreImports: true,
+  log: false,
   numbersToExpressions: true,
   renameGlobals: false,
   renameProperties: false,

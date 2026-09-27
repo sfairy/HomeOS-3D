@@ -20,7 +20,7 @@ upstream homeos_store {
 #
 #   1. **gzip_proxied 默认是 off**。本文件里的每一份响应都来自反代，不写这一行 nginx 一律不压 ——
 #      而「写了几行 gzip 配置、一个字节也没压下去」不会有任何报错，只表现为首屏一直慢着。
-#   2. **应用自己也压**（见 apps/server/http/compression.py 与 apps/store/security/compression.py）。
+#   2. **应用自己也压**（见 backend/src/http/compression.py 与 backend/src/security/compression.py）。
 #      它压过的响应带 Content-Encoding: gzip，nginx 原样透传、不会二次压缩，两边同时开着是
 #      幂等的；反过来，直连 18081 / 18082 的路径（墙面板走局域网、compose 未挂反代）就只有
 #      应用那一层在压，所以这两处都要开。

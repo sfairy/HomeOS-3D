@@ -1,0 +1,922 @@
+/**
+ * 3D 交互编辑器里的各类选择器（picker）组装层：编辑器需要设备 / 图标 / 实体三种选择器，
+ */
+
+type AnyObj = Record<string, any>;
+import {
+  EDITOR_PICKER_PAGE_SIZES,
+  editorEntityPickerInitialPage,
+  editorEntityPickerPage
+} from "../editor/picker/editor-picker-pagination.js";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js";
+// 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
+import { entityDomainOf } from "../utils/entities.js";
+import { vacuumProfiles } from "./vacuum-catalog.js";
+import { nasProfiles } from "./nas-catalog.js";
+// 温湿度计的传感器判定与运行侧、后端同一份实现（static 共享层，零依赖）。
+import { matchesTemperatureHumidityEntity } from "./temperature-humidity.js";
+// 门磁读数的词表（含小米 S2 那类「门状态做成枚举传感器」的取值）用运行侧同一份实现：
+import { doorOpenFromText } from "./lock-state-runtime.js";
+// 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
+const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
+// 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
+const isValidIconId = (iconId: any) =>
+  typeof iconId == "string" && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId);
+/**
+ * 按设备聚合人体传感器实体。
+ */
+function presenceDeviceProfiles(entities: any = [], devices: any = [], lookupState: any = (..._args: any[]) => null) {
+  const devicesById = new Map<any, any>();
+  // 只考虑人体相关的域（binary_sensor / event），并剔除禁用、丢失的实体。
+  for (const entityEntry of entities) {
+    if (
+      entityEntry.disabledBy != null ||
+      entityEntry.disabled_by != null ||
+      entityEntry.enabled === false ||
+      ["missing", "disabled"].includes(entityEntry.status) ||
+      !/^(binary_sensor|event)\.[a-z0-9_]+$/.test(entityEntry.entityId || "")
+    ) {
+      continue;
+    }
+    // device_class 可能来自实体的属性，也可能是 HA 状态里才有；注册表字段缺失时回落到状态查询。
+    const deviceClass =
+      entityEntry.deviceClass ||
+      entityEntry.device_class ||
+      entityEntry.attributes?.device_class ||
+      lookupState(entityEntry.entityId)?.attributes?.device_class;
+    // 三者任一命中即排除：1) 有 device_class 但不在白名单 —— 明确是别的用途；
+    if (
+      (deviceClass && !["occupancy", "presence", "motion"].includes(deviceClass)) ||
+      (!deviceClass &&
+        !/occupancy|presence|motion|(?:^|_)pir(?:_|$)|有人|无人|移动检测|运动检测|人体检测/i.test(
+          entityEntry.entityId + " " + (entityEntry.name || "")
+        )) ||
+      ["diagnostic", "config"].includes(entityEntry.entityCategory || entityEntry.entity_category)
+    ) {
+      continue;
+    }
+    const deviceId = entityEntry.deviceId || entityEntry.device_id;
+    // 没有设备归属的实体无法参与「按设备绑定」，直接跳过。
+    if (!deviceId) {
+      continue;
+    }
+    const registryDevice = devices.find(
+      (candidateDevice: any) => (candidateDevice.id || candidateDevice.deviceId) === deviceId
+    );
+    if (registryDevice?.disabledBy == null && registryDevice?.disabled_by == null) {
+      if (!devicesById.has(deviceId)) {
+        devicesById.set(deviceId, {
+          deviceId: deviceId,
+          name:
+            registryDevice?.nameByUser ||
+            registryDevice?.name_by_user ||
+            registryDevice?.name ||
+            entityEntry.name ||
+            deviceId,
+          entities: []
+        });
+      }
+      devicesById.get(deviceId)!.entities.push({
+        entityId: entityEntry.entityId,
+        name: entityEntry.name || entityEntry.entityId,
+        // rank 决定同设备内多个实体的优先顺序：占用 / 人在最语义正确（0），
+        rank:
+          deviceClass === "occupancy" || deviceClass === "presence"
+            ? 0
+            : deviceClass === "motion"
+              ? 1
+              : 2
+      });
+    }
+  }
+  return [...devicesById.values()].map((profile: any) => ({
+    ...profile,
+    entities: profile.entities.sort(
+      (leftEntity: any, rightEntity: any) =>
+        leftEntity.rank - rightEntity.rank ||
+        leftEntity.entityId.localeCompare(rightEntity.entityId)
+    )
+  }));
+}
+/**
+ * 创建编辑器的选择器集合。
+ */
+export function createInteraction3dEditorPickers({
+  openPicker: openPicker,
+  fetchIcons: fetchIcons,
+  getEntities: getEntities,
+  getState: getState = (..._args: any[]) => null,
+  ensureEntities: ensureEntities,
+  entityPickerText: entityPickerText,
+  elements: elements,
+  deviceKind: deviceKind = "light",
+  fetchAreas: fetchAreas = async () => {
+    const areasResponse = await fetch("/api/v1/ha/areas");
+    if (!areasResponse.ok) {
+      throw new Error("房间目录暂时不可用");
+    }
+    return (await areasResponse.json()).items || [];
+  },
+  fetchDevices: fetchDevices = async () => {
+    const devicesResponse = await fetch("/api/v1/ha/devices");
+    if (!devicesResponse.ok) {
+      throw new Error("设备目录暂时不可用，请稍后重试。");
+    }
+    return (await devicesResponse.json()).items || [];
+  }
+}: AnyObj) {
+  async function loadDeviceProfiles() {
+    // 房间请求单独 catch 成 null：它失败不应让整个设备选择器不可用。
+    const [deviceRecords, areaRecords] = await Promise.all([
+      fetchDevices(),
+      // 区域列表拿不到不阻塞设备选择：退化成「没有区域分组」。
+      fetchAreas().catch(() => null)
+    ]);
+    const areaNamesById = new Map<any, any>(
+      (areaRecords || []).map((areaRecord: any) => [areaRecord.areaId || areaRecord.id, areaRecord.name])
+    );
+    // HA 的设备注册表本身不带「集成名」，只能用实体上的 platform 反推，因此这里扫一遍实体表。
+    const platformsByDeviceId = new Map<any, any>();
+    for (const entityRecord of getEntities()) {
+      const entityDeviceId = entityRecord.deviceId || entityRecord.device_id;
+      if (!!entityDeviceId && !!entityRecord.platform) {
+        if (!platformsByDeviceId.has(entityDeviceId)) {
+          platformsByDeviceId.set(entityDeviceId, new Set());
+        }
+        platformsByDeviceId.get(entityDeviceId)!.add(entityRecord.platform);
+      }
+    }
+    return deviceRecords.map((deviceRecord: any) => ({
+      ...deviceRecord,
+      // 同一设备可能被多个实体带出不同 platform，需要去重后按名排序，展示才稳定。
+      integrationName:
+        [...(platformsByDeviceId.get(deviceRecord.deviceId || deviceRecord.id) || [])]
+          .sort()
+          .join("、") || "未知集成",
+      roomName:
+        areaNamesById.get(deviceRecord.areaId || deviceRecord.area_id) ||
+        (deviceRecord.areaId || deviceRecord.area_id ? "房间名称暂不可用" : "未分配房间")
+    }));
+  }
+  // 房间 / 集成名都要在被补齐过的设备列表里按 deviceId 回查（profile 本身不带这两个字段）。
+  function resolveRoomName(targetDevice: any, targetDeviceList: any) {
+    return (
+      targetDeviceList.find(
+        (roomEntry: any) => (roomEntry.deviceId || roomEntry.id) === targetDevice.deviceId
+      )?.roomName || "未分配房间"
+    );
+  }
+  // 与 resolveRoomName 同源：集成名由实体表反推后挂在设备条目上，这里按 deviceId 回查并兜底。
+  function resolveIntegrationName(integrationDevice: any, integrationDeviceList: any) {
+    return (
+      integrationDeviceList.find(
+        (integrationEntry: any) =>
+          (integrationEntry.deviceId || integrationEntry.id) === integrationDevice.deviceId
+      )?.integrationName || "未知集成"
+    );
+  }
+  // 「房间 · 集成」一行摘要，供设备条目的详情行与「当前选中」卡片共用。
+  const formatDeviceDetail = (deviceProfile: any) =>
+    "房间：" + deviceProfile.roomName + " · 集成：" + deviceProfile.integrationName;
+  // 复用宿主提供的元素工厂，只改写内部两处文本：种类标签与「房间 · 集成」详情。
+  function createDeviceOption(optionProfile: any, currentValue: any, kindLabel: any = "设备") {
+    const optionElement = elements.createEditorEntityPickerOption(optionProfile, currentValue);
+    const kindElement = optionElement.querySelector?.(".inspector-entity-kind");
+    const idElement = optionElement.querySelector?.(".inspector-entity-id");
+    if (kindElement) {
+      kindElement.textContent = "[" + kindLabel + "] ";
+    }
+    if (idElement) {
+      idElement.textContent = formatDeviceDetail(optionProfile);
+    }
+    return optionElement;
+  }
+  // 构造「当前选中设备」的卡片：沿用宿主的当前值组件，只把 ID 行改写成「房间 · 集成」。
+  function createCurrentDeviceOption(currentProfile: any) {
+    const currentElement = elements.createEditorPickerCurrentEntity(currentProfile);
+    // 「当前选中」卡片只显示一行 ID，需要换成更可读的「房间 · 集成」。
+    const currentIdElement = currentElement.querySelector?.(
+      ".editor-paged-picker-current-entity-id"
+    );
+    if (currentIdElement && currentProfile) {
+      currentIdElement.textContent = formatDeviceDetail(currentProfile);
+    }
+    return currentElement;
+  }
+  return {
+    // 只取该设备下已排序的实体列表（编辑器用它渲染「可选实体」下拉）。
+    presenceEntities(presenceDeviceId: any) {
+      return (
+        presenceDeviceProfiles(getEntities(), [], getState).find(
+          matchedPresenceProfile => matchedPresenceProfile.deviceId === presenceDeviceId
+        )?.entities || []
+      );
+    },
+    async presence({
+      trigger: presenceTrigger,
+      current: currentPresenceDeviceId = "",
+      onSelect: onPresenceSelect
+    }: AnyObj) {
+      // 设备目录依赖实体表（集成名靠实体平台反推），因此必须先确保实体已加载。
+      await ensureEntities();
+      const presenceDevices = await loadDeviceProfiles();
+      // 设备 / 房间请求期间用户可能已切走面板，触发按钮脱离 DOM 后不该再弹层。
+      if (!presenceTrigger.isConnected) {
+        return null;
+      }
+      // 设备选择器复用 HA 的 entity 选择器外观：entityId 装的是设备 ID，排序文本里带上房间与集成。
+      const presenceProfiles = presenceDeviceProfiles(getEntities(), presenceDevices, getState);
+      const presenceOptions = presenceProfiles.map((presenceProfile: any) => ({
+        entityId: presenceProfile.deviceId,
+        name: presenceProfile.name,
+        roomName: resolveRoomName(presenceProfile, presenceDevices),
+        integrationName: resolveIntegrationName(presenceProfile, presenceDevices),
+        icon: "mdi:motion-sensor",
+        domain: "binary_sensor"
+      }));
+      return openPicker({
+        kind: "entity",
+        title: "选择人体传感器设备",
+        subtitle: "按设备匹配人在或移动检测实体；多实体可在设备内选择。",
+        searchPlaceholder: "搜索设备名称、房间或集成",
+        triggerButton: presenceTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        itemClass: "entity-list",
+        emptyText: "没有找到可用的人体传感器设备；无设备归属的模板实体可手动绑定。",
+        // 搜索范围覆盖名称、房间、集成与设备 ID，便于按任一线索定位设备。
+        getPage: ({ query: query, page: page }: AnyObj) =>
+          editorEntityPickerPage(
+            presenceOptions.filter((option: any) =>
+              (
+                option.name +
+                " " +
+                (option.roomName || "") +
+                " " +
+                (option.integrationName || "") +
+                " " +
+                option.entityId
+              )
+                .toLowerCase()
+                .includes(String(query || "").toLowerCase())
+            ),
+            page,
+            null
+          ),
+        renderSelectedContent: () => [
+          createCurrentDeviceOption(
+            presenceOptions.find(
+              selectedOption => selectedOption.entityId === currentPresenceDeviceId
+            )
+          )
+        ],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不绑定设备", !currentPresenceDeviceId)
+        ],
+        renderItem: (optionItem: any) => createDeviceOption(optionItem, currentPresenceDeviceId),
+        onSelect: (selectedDeviceId: any) => {
+          const selectedPresenceProfile = presenceProfiles.find(
+            matchedProfile => matchedProfile.deviceId === selectedDeviceId
+          );
+          // 空字符串代表「清除绑定」，同样需要回调；非空但查不到 profile 说明数据已过期，忽略。
+          if (!selectedDeviceId || selectedPresenceProfile) {
+            // 传拷贝而不是内部对象，防止编辑器改动污染随后重新聚合出的 profile。
+            onPresenceSelect(
+              selectedPresenceProfile ? structuredClone(selectedPresenceProfile) : null
+            );
+          }
+        }
+      });
+    },
+    async vacuum({
+      trigger: vacuumTrigger,
+      current: currentVacuumDeviceId = "",
+      onSelect: onVacuumSelect
+    }: AnyObj) {
+      // 与人体传感器同理：先确保实体表就绪，再聚合扫地机 profile。
+      await ensureEntities();
+      const vacuumDevices = await loadDeviceProfiles();
+      // 等待目录期间面板可能已切换，触发器脱离 DOM 就放弃弹层。
+      if (!vacuumTrigger.isConnected) {
+        return null;
+      }
+      // 先把散落的实体聚合成「一台设备一个 profile」，再做设备级绑定。
+      const vacuumDeviceProfiles = vacuumProfiles(getEntities(), vacuumDevices);
+      const vacuumOptions = vacuumDeviceProfiles.map((vacuumProfile: any) => ({
+        entityId: vacuumProfile.deviceId,
+        name: vacuumProfile.name,
+        roomName: resolveRoomName(vacuumProfile, vacuumDevices),
+        integrationName: resolveIntegrationName(vacuumProfile, vacuumDevices),
+        domain: "vacuum",
+        icon: "mdi:robot-vacuum"
+      }));
+      return openPicker({
+        kind: "entity",
+        title: "选择扫地机设备",
+        subtitle: "自动识别主实体、地图和相关状态；支持多台设备独立配置。",
+        searchPlaceholder: "搜索设备名称、房间或集成",
+        triggerButton: vacuumTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        itemClass: "entity-list",
+        emptyText: "没有找到扫地机，请先在 Home Assistant 中接入设备并启用 vacuum 实体。",
+        getPage: ({ query: vacuumQuery, page: vacuumPage }: AnyObj) =>
+          editorEntityPickerPage(
+            vacuumOptions.filter((vacuumOption: any) =>
+              (
+                vacuumOption.name +
+                " " +
+                (vacuumOption.roomName || "") +
+                " " +
+                (vacuumOption.integrationName || "") +
+                " " +
+                vacuumOption.entityId
+              )
+                .toLowerCase()
+                .includes(String(vacuumQuery || "").toLowerCase())
+            ),
+            vacuumPage,
+            null
+          ),
+        renderSelectedContent: () => [
+          createCurrentDeviceOption(
+            vacuumOptions.find(
+              selectedVacuumOption => selectedVacuumOption.entityId === currentVacuumDeviceId
+            )
+          )
+        ],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不绑定设备", !currentVacuumDeviceId)
+        ],
+        renderItem: (vacuumOptionItem: any) => createDeviceOption(vacuumOptionItem, currentVacuumDeviceId),
+        onSelect: (selectedVacuumDeviceId: any) => {
+          const selectedVacuumDevice = vacuumDeviceProfiles.find(
+            matchedVacuumProfile => matchedVacuumProfile.deviceId === selectedVacuumDeviceId
+          );
+          // 空值表示解除绑定；非空但查不到则视为数据已刷新，丢弃该次选择。
+          if (!selectedVacuumDeviceId || selectedVacuumDevice) {
+            onVacuumSelect(selectedVacuumDevice ? structuredClone(selectedVacuumDevice) : null);
+          }
+        }
+      });
+    },
+    // 通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）按整台 HA 设备绑定：候选是设备目录
+    async device({
+      trigger: deviceTrigger,
+      current: currentDeviceId = "",
+      deviceIcon: deviceIconName = "mdi:devices",
+      onSelect: onDeviceSelect,
+      title: devicePickerTitle = "选择设备",
+      deviceFilter: deviceFilterFn = (..._args: any[]) => true
+    }: AnyObj) {
+      // 与扫地机同理：集成名靠实体平台反推，因此必须先确保实体表就绪。
+      await ensureEntities();
+      const deviceRecords = await loadDeviceProfiles();
+      // 等待目录期间面板可能已切换，触发器脱离 DOM 就放弃弹层。
+      if (!deviceTrigger.isConnected) {
+        return null;
+      }
+      const deviceOptions = deviceRecords
+        .filter((deviceRecord: any) =>
+          deviceFilterFn(
+            deviceRecord,
+            getEntities().filter(
+              (entityRecord: any) =>
+                (entityRecord.deviceId || entityRecord.device_id) ===
+                (deviceRecord.deviceId || deviceRecord.id)
+            )
+          )
+        )
+        .map((deviceRecord: any) => ({
+          entityId: deviceRecord.deviceId || deviceRecord.id,
+          name:
+            deviceRecord.nameByUser ||
+            deviceRecord.name_by_user ||
+            deviceRecord.name ||
+            deviceRecord.deviceId ||
+            deviceRecord.id,
+          roomName: deviceRecord.roomName,
+          integrationName: deviceRecord.integrationName,
+          domain: "device",
+          icon: deviceIconName
+        }));
+      // 已配置但目录里查不到（设备被删 / 尚未同步）：仍要显示成「当前未找到」，
+      const currentDeviceOption =
+        deviceOptions.find((deviceOption: any) => deviceOption.entityId === currentDeviceId) ||
+        (currentDeviceId
+          ? {
+              entityId: currentDeviceId,
+              name: currentDeviceId + "（当前未找到）",
+              roomName: "—",
+              integrationName: "—",
+              domain: "device",
+              icon: deviceIconName,
+              status: "missing"
+            }
+          : null);
+      return openPicker({
+        kind: "entity",
+        title: devicePickerTitle,
+        subtitle: "按 HA 设备归属选择相关实体。",
+        searchPlaceholder: "搜索设备、房间或集成",
+        triggerButton: deviceTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        itemClass: "entity-list",
+        emptyText: "暂无设备，请先同步 Home Assistant 设备目录。",
+        // 搜索范围覆盖名称、房间、集成与设备 ID，便于按任一线索定位设备。
+        getPage: ({ query: deviceQuery, page: devicePage }: AnyObj) =>
+          editorEntityPickerPage(
+            deviceOptions.filter((deviceOption: any) =>
+              (
+                deviceOption.name +
+                " " +
+                (deviceOption.roomName || "") +
+                " " +
+                (deviceOption.integrationName || "") +
+                " " +
+                deviceOption.entityId
+              )
+                .toLowerCase()
+                .includes(String(deviceQuery || "").toLowerCase())
+            ),
+            devicePage,
+            null
+          ),
+        renderSelectedContent: () => [createCurrentDeviceOption(currentDeviceOption)],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不绑定设备", !currentDeviceId)
+        ],
+        renderItem: (deviceOptionItem: any) => createDeviceOption(deviceOptionItem, currentDeviceId),
+        onSelect: (selectedDeviceId: any) => {
+          const selectedDeviceOption = deviceOptions.find(
+            (deviceOption: any) => deviceOption.entityId === selectedDeviceId
+          );
+          // 空值表示解除绑定；非空但查不到则视为数据已刷新，丢弃该次选择。
+          if (!selectedDeviceId || selectedDeviceOption) {
+            onDeviceSelect(
+              selectedDeviceOption
+                ? {
+                    deviceId: selectedDeviceId,
+                    name: selectedDeviceOption.name,
+                    entities: getEntities().filter(
+                      (entityRecord: any) =>
+                        (entityRecord.deviceId || entityRecord.device_id) === selectedDeviceId
+                    )
+                  }
+                : null
+            );
+          }
+        }
+      });
+    },
+    async nas({ trigger: nasTrigger, current: currentNasDeviceId = "", onSelect: onNasSelect }: AnyObj) {
+      await ensureEntities();
+      const nasDevices = await loadDeviceProfiles();
+      // 目录请求是异步的，回来时触发器可能已经不在文档里（面板被切走）。
+      if (!nasTrigger.isConnected) {
+        return null;
+      }
+      // NAS 的状态实体同样按设备聚合，用户只需选整台 NAS。
+      const nasDeviceProfiles = nasProfiles(getEntities(), nasDevices);
+      const nasOptions = nasDeviceProfiles.map((nasProfile: any) => ({
+        entityId: nasProfile.deviceId,
+        // 在名称后附上指标数量，让用户直观判断该 NAS 是否已被正确识别。
+        name:
+          nasProfile.name +
+          " · " +
+          (nasProfile.metrics.length ? nasProfile.metrics.length + " 项状态" : "暂无状态指标"),
+        roomName: resolveRoomName(nasProfile, nasDevices),
+        integrationName: resolveIntegrationName(nasProfile, nasDevices),
+        domain: "sensor",
+        icon: "mdi:nas"
+      }));
+      return openPicker({
+        kind: "entity",
+        title: "选择 NAS 数据来源",
+        subtitle: "选择整台 NAS，自动匹配它的状态实体。",
+        searchPlaceholder: "搜索 NAS 名称、房间或集成",
+        triggerButton: nasTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        itemClass: "entity-list",
+        emptyText:
+          "未找到飞牛或群晖设备。请确认 Home Assistant 已接入对应集成，并在 HomeOS 同步设备目录。",
+        getPage: ({ query: nasQuery, page: nasPage }: AnyObj) =>
+          editorEntityPickerPage(
+            nasOptions.filter((nasOption: any) =>
+              (
+                nasOption.name +
+                " " +
+                (nasOption.roomName || "") +
+                " " +
+                (nasOption.integrationName || "") +
+                " " +
+                nasOption.entityId
+              )
+                .toLowerCase()
+                .includes(String(nasQuery || "").toLowerCase())
+            ),
+            nasPage,
+            null
+          ),
+        renderSelectedContent: () => [
+          createCurrentDeviceOption(
+            nasOptions.find((selectedNasOption: any) => selectedNasOption.entityId === currentNasDeviceId)
+          )
+        ],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不使用数据来源", !currentNasDeviceId)
+        ],
+        renderItem: (nasOptionItem: any) => createDeviceOption(nasOptionItem, currentNasDeviceId, "NAS"),
+        onSelect: (selectedNasDeviceId: any) => {
+          const selectedNasDevice = nasDeviceProfiles.find(
+            matchedNasProfile => matchedNasProfile.deviceId === selectedNasDeviceId
+          );
+          // 空值表示「不使用数据来源」，也要回调（传 null）；查不到则忽略这次选择。
+          if (!selectedNasDeviceId || selectedNasDevice) {
+            onNasSelect(selectedNasDevice ? structuredClone(selectedNasDevice) : null);
+          }
+        }
+      });
+    },
+    icon({
+      trigger: iconTrigger,
+      current: currentIcon,
+      onSelect: onIconSelect,
+      deviceKind: resolvedDeviceKind = deviceKind
+    }: AnyObj) {
+      // 未配置图标时按设备类型给一个语义贴切的默认值，而不是统一的灯泡。
+      currentIcon ||=
+        resolvedDeviceKind === "camera"
+          ? "mdi:cctv"
+          : resolvedDeviceKind === "vacuum"
+            ? "mdi:robot-vacuum"
+            : resolvedDeviceKind === "television"
+              ? "mdi:television"
+              : resolvedDeviceKind === "nas"
+                ? "mdi:nas"
+                : resolvedDeviceKind === "cover"
+                  ? "mdi:curtains"
+                  : resolvedDeviceKind === "climate"
+                    ? "mdi:air-conditioner"
+                    : resolvedDeviceKind === "lock"
+                      ? "mdi:door-closed"
+                      : resolvedDeviceKind === "air-purifier"
+                        ? "mdi:air-purifier"
+                        : DEFAULT_LIGHT_ICON;
+      // 图标目录条目里的 name 不带 mdi: 前缀（带前缀的是 slug），而本编辑器的图标 ID
+      const currentIconName = String(currentIcon || "").replace(/^mdi:/, "");
+      return openPicker({
+        kind: "icon",
+        title:
+          resolvedDeviceKind === "camera"
+            ? "选择摄像头按钮图标"
+            : resolvedDeviceKind === "vacuum"
+              ? "选择扫地机按钮图标"
+              : resolvedDeviceKind === "television"
+                ? "选择电视按钮图标"
+                : resolvedDeviceKind === "nas"
+                  ? "选择NAS按钮图标"
+                  : resolvedDeviceKind === "cover"
+                    ? "选择窗帘按钮图标"
+                    : resolvedDeviceKind === "climate"
+                      ? "选择空调按钮图标"
+                      : resolvedDeviceKind === "lock"
+                        ? "选择门按钮图标"
+                        : resolvedDeviceKind === "air-purifier"
+                          ? "选择空气净化器按钮图标"
+                          : "选择灯光按钮图标",
+        searchPlaceholder: "搜索图标名称",
+        triggerButton: iconTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.icon,
+        emptyText: "没有匹配的图标",
+        itemClass: "icon-grid",
+        async getPage({ query: iconQuery, page: iconPage, pageSize: iconPageSize }: AnyObj) {
+          // 图标目录很大，必须交给服务端分页（offset 由页码换算），不能全量下发。
+          const iconsResponse = await fetchIcons(
+            iconQuery,
+            iconPageSize,
+            (iconPage - 1) * iconPageSize
+          );
+          return {
+            items: iconsResponse.items || [],
+            total: Number(iconsResponse.total) || 0
+          };
+        },
+        renderSelectedActions: () => [
+          elements.createEditorPickerCurrentIcon(currentIcon || DEFAULT_LIGHT_ICON)
+        ],
+        renderItem(iconOption: any) {
+          const iconOptionElement = elements.createIconPickerOption(
+            iconOption,
+            currentIconName,
+            "editorPickerValue"
+          );
+          // 取值统一改回带 mdi: 前缀的 slug：元素工厂默认写的是不带前缀的 name，
+          iconOptionElement.dataset.editorPickerValue =
+            iconOption.slug || "mdi:" + iconOption.name;
+          return iconOptionElement;
+        },
+        onSelect: (selectedIconId: any) => {
+          // 选择器的选中值来自服务端，但仍要复检格式：非法 ID 会让渲染阶段拿不到图标。
+          if (isValidIconId(selectedIconId)) {
+            onIconSelect(selectedIconId);
+          }
+        }
+      });
+    },
+    async entity({
+      trigger: entityTrigger,
+      current: currentEntityId = "",
+      onSelect: onEntitySelect,
+      deviceKind: entityDeviceKind = deviceKind,
+      domain: entityDomainName,
+      // 状态灯规则这类「候选由调用方定」的场景：title 覆盖标题，entityFilter 在域白名单
+      title: entityPickerTitle,
+      entityFilter: entityCandidateFilter
+    }: AnyObj) {
+      // 交互语义比「实体域」复杂，这里先把各种特殊情形摊平成布尔量，
+      const isNasEntity = entityDeviceKind === "nas";
+      // device-status：状态灯规则的亮灭依据 / 提醒实体。候选是「调用方给的那批」（按设备
+      const isDeviceStatusEntity = entityDeviceKind === "device-status";
+      // 门锁槽位（开关门检测 / 电量 / 低电量 / 防拆 / 门磁事件）：上游 0.6.5 的安防编辑器也把这
+      const lockSlotKindByDeviceKind = ({
+        "lock-door": { pattern: /^(binary_sensor|sensor)\.[a-z0-9_]+$/ },
+        "lock-battery": { pattern: /^sensor\.[a-z0-9_]+$/ },
+        // 本仓额外的三个槽位（锁本体 / 低电量与防拆 / 门磁事件）不是上游的 deviceKind，
+        lock: { pattern: /^lock\.[a-z0-9_]+$/ },
+        "lock-aux": { pattern: /^binary_sensor\.[a-z0-9_]+$/ },
+        "lock-event": { pattern: /^event\.[a-z0-9_]+$/ }
+      } as AnyObj)[entityDeviceKind];
+      const isLockSlotEntity = Boolean(lockSlotKindByDeviceKind);
+      // 空气净化器：主实体是 HA 的 fan 域，白名单只放 fan.*（与上游 0.6.5 同一条
+      const isAirPurifierEntity = entityDeviceKind === "air-purifier";
+      const isTelevisionEntity = entityDeviceKind === "television";
+      const isTelevisionPowerEntity = entityDeviceKind === "television-power";
+      const isCoverEntity = entityDeviceKind === "cover" || entityDomainName === "cover";
+      const isClimateEntity =
+        !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate");
+      const isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity;
+      // 温湿度计：同一套实体选择器服务两路，deviceKind 上带出「哪一路」，
+      const isTemperatureHumidityEntity =
+        entityDeviceKind === "temperature-humidity-temperature" ||
+        entityDeviceKind === "temperature-humidity-humidity";
+      const meterKind = entityDeviceKind === "temperature-humidity-humidity" ? "humidity" : "temperature";
+      const matchesMeterEntity = (candidateEntity: any) =>
+        matchesTemperatureHumidityEntity(
+          candidateEntity,
+          meterKind,
+          getState(candidateEntity.entityId)
+        );
+      // 实体域白名单：决定「哪些实体有资格出现」。灯光 / 电视电源 / 人在允许任意域，
+      const entityIdPattern =
+        isLockSlotEntity
+          ? lockSlotKindByDeviceKind!.pattern
+          : isLightEntity || isTelevisionPowerEntity || entityDeviceKind === "presence"
+          ? /^[a-z_]+\.[a-z0-9_]+$/
+          : isDeviceStatusEntity
+            ? /^[a-z_]+\.[a-z0-9_]+$/
+            : isTemperatureHumidityEntity
+            ? /^sensor\.[a-z0-9_]+$/
+            : entityDeviceKind === "camera"
+            ? /^camera\.[a-z0-9_]+$/
+            : entityDeviceKind === "vacuum"
+              ? /^vacuum\.[a-z0-9_]+$/
+              : entityDeviceKind === "vacuum-map"
+                ? /^(camera|image)\.[a-z0-9_]+$/
+                : entityDeviceKind === "vacuum-room"
+                  ? /^[a-z_]+\.[a-z0-9_]+$/
+                  : isTelevisionEntity
+                    ? /^media_player\.[a-z0-9_]+$/
+                    : isNasEntity
+                      ? /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/
+                      : isCoverEntity
+                        ? /^cover\.[a-z0-9_]+$/
+                        : isClimateEntity
+                          ? /^climate\.[a-z0-9_]+$/
+                          : isAirPurifierEntity
+                            ? /^fan\.[a-z0-9_]+$/
+                            : /^(light|switch)\.[a-z0-9_]+$/;
+      // 实体条目的 device_class 在哪一层是不定的：目录条目可能自带，也可能只在实时状态的
+      const deviceClassOf = (candidateEntity: any) =>
+        candidateEntity.deviceClass ||
+        candidateEntity.device_class ||
+        candidateEntity.attributes?.device_class ||
+        getState(candidateEntity.entityId)?.attributes?.device_class;
+      // 门锁槽位的排序权重（只决定顺序，候选范围由 entityFilter 决定）：小米 S2 这类门锁的
+      const lockSlotWeight = (candidateEntity: any, lockDeviceKind: any) => {
+        const candidateDeviceClass = deviceClassOf(candidateEntity);
+        if (lockDeviceKind === "lock-door") {
+          if (["door", "opening"].includes(candidateDeviceClass)) {
+            return 2;
+          }
+          if (candidateEntity.entityId.startsWith("binary_sensor.")) {
+            return 1;
+          }
+          return doorOpenFromText(getState(candidateEntity.entityId)?.state) !== null ? 1 : 0;
+        }
+        if (lockDeviceKind === "lock-battery") {
+          return candidateDeviceClass === "battery" ? 2 : 0;
+        }
+        return 0;
+      };
+      const { editorEntityMatches: entityMatches } = createEditorPickerQueries({
+        entityPickerConfig: () => ({
+          // recommended 返回一个粗粒度权重（2 首选 / 1 次选 / 0 其它），只用于排序：
+          recommended: (candidateEntity: any) =>
+            isLightEntity
+              ? candidateEntity.entityId.startsWith("light.")
+                ? 2
+                : candidateEntity.entityId.startsWith("switch.")
+                  ? 1
+                  : 0
+              : isTelevisionPowerEntity
+                ? ["switch.", "media_player.", "binary_sensor.", "input_boolean."].some(
+                    domainPrefix => candidateEntity.entityId.startsWith(domainPrefix)
+                  )
+                  ? 1
+                  : 0
+                : entityDeviceKind === "presence"
+                  ? ["occupancy", "motion", "presence"].includes(
+                      candidateEntity.deviceClass ||
+                        candidateEntity.device_class ||
+                        candidateEntity.attributes?.device_class ||
+                        getState(candidateEntity.entityId)?.attributes?.device_class
+                    )
+                  : isTemperatureHumidityEntity
+                    ? matchesMeterEntity(candidateEntity)
+                      ? 1
+                      : 0
+                    : isDeviceStatusEntity
+                      ? 0
+                      : isLockSlotEntity
+                        ? lockSlotWeight(candidateEntity, entityDeviceKind)
+                        : candidateEntity.entityId.startsWith(
+                            isTelevisionEntity || isTelevisionPowerEntity
+                              ? "media_player."
+                              : isNasEntity || entityDeviceKind === "presence"
+                                ? "binary_sensor."
+                                : isCoverEntity
+                                  ? "cover."
+                                  : isClimateEntity
+                                    ? "climate."
+                                    : entityDeviceKind === "camera"
+                                      ? "camera."
+                                      : isAirPurifierEntity
+                                        ? "fan."
+                                        : "light."
+                          )
+        }),
+        pickerEntitiesForComponentType: () =>
+          getEntities().filter((filteredEntity: any) =>
+            (isTemperatureHumidityEntity
+              ? matchesMeterEntity(filteredEntity)
+              : entityIdPattern.test(filteredEntity.entityId)) &&
+            (typeof entityCandidateFilter === "function"
+              ? entityCandidateFilter(filteredEntity)
+              : true)
+          ),
+        entityPickerText: entityPickerText,
+        entityDomainResolver: entityDomainOf
+      });
+      await ensureEntities();
+      // 打开选择器前用户可能已切走面板，触发器脱离 DOM 时不再弹层。
+      if (!entityTrigger.isConnected) {
+        return null;
+      }
+      // 已绑定但当前实体表里找不到的实体（HA 侧改名、离线或未同步）要保留占位条目，
+      const missingCurrentEntity =
+        currentEntityId &&
+        entityIdPattern.test(currentEntityId) &&
+        !getEntities().some((existingEntity: any) => existingEntity.entityId === currentEntityId)
+          ? {
+              entityId: currentEntityId,
+              name: currentEntityId + "（当前不可选，可清除后重新绑定）"
+            }
+          : null;
+      // 在实体匹配结果后追加「当前未找到」的占位条目；占位项只在自身命中搜索词时出现，
+      const filterEntities = (searchQuery: any) => {
+        const matches = entityMatches("interaction3d", searchQuery);
+        // 占位条目只在自身匹配搜索词时补进结果，保持与正常实体一致的搜索行为。
+        if (
+          missingCurrentEntity &&
+          (!searchQuery ||
+            entityPickerText(missingCurrentEntity)
+              .toLocaleLowerCase("zh-CN")
+              .includes(String(searchQuery).trim().toLocaleLowerCase("zh-CN")))
+        ) {
+          matches.push(missingCurrentEntity);
+        }
+        return matches;
+      };
+      // 门锁槽位的空态文案逐字取自上游 0.6.5 的实体选择器（lock-door / lock-battery 两路），
+      const lockSlotEmptyText =
+        entityDeviceKind === "lock-door"
+          ? "没有匹配的门状态传感器，请检查设备的门/开合实体"
+          : entityDeviceKind === "lock-battery"
+            ? "没有匹配的电量传感器，请检查设备的 battery 实体"
+            : "没有匹配的实体，请先在 Home Assistant 接入设备";
+      const allMatches = filterEntities("");
+      // 当前选中项要从空查询的全量列表里取，选中项必须在总列表中才能被定位到页码。
+      const currentEntity =
+        allMatches.find((matchedEntity: any) => matchedEntity.entityId === currentEntityId) || null;
+      return openPicker({
+        kind: "entity",
+        title:
+          entityPickerTitle ||
+          (isTemperatureHumidityEntity
+            ? meterKind === "humidity"
+              ? "选择湿度实体"
+              : "选择温度实体"
+            : isDeviceStatusEntity
+              ? "选择状态实体"
+              : entityDeviceKind === "camera"
+                ? "选择摄像头实体"
+                : entityDeviceKind === "presence"
+                  ? "选择人在传感器"
+                  : entityDeviceKind === "vacuum"
+                    ? "选择扫地机实体"
+                    : entityDeviceKind === "vacuum-map"
+                      ? "选择扫地机地图"
+                      : entityDeviceKind === "vacuum-room"
+                        ? "选择房间快捷指令"
+                        : isTelevisionEntity
+                          ? "选择电视媒体实体（Apple TV）"
+                          : isTelevisionPowerEntity
+                            ? "选择电视电源状态"
+                            : isNasEntity
+                              ? "选择 NAS 指示灯状态实体"
+                              : isAirPurifierEntity
+                                ? "选择空气净化器实体"
+                                : isCoverEntity
+                                  ? "选择窗帘实体"
+                                  : isClimateEntity
+                                    ? "选择空调实体"
+                                    : "选择灯光实体"),
+        searchPlaceholder: "搜索实体名称或 ID",
+        triggerButton: entityTrigger,
+        pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
+        // 打开时就翻到当前选中项所在页，长列表下不用手动寻找。
+        initialPage: editorEntityPickerInitialPage(
+          allMatches.findIndex((matchEntity: any) => matchEntity.entityId === currentEntityId),
+          null
+        ),
+        selectedText: currentEntityId || "不使用实体",
+        emptyText: isLockSlotEntity
+          ? lockSlotEmptyText
+          : isTemperatureHumidityEntity
+          ? "没有匹配的" +
+            (meterKind === "humidity" ? "湿度" : "温度") +
+            "传感器，可先在 Home Assistant 为其设置 device_class 或单位"
+          : isDeviceStatusEntity
+            ? "这台设备没有可用的实体"
+            : entityDeviceKind === "camera"
+            ? "没有匹配的摄像头实体，请先在 Home Assistant 接入设备"
+            : entityDeviceKind === "presence"
+              ? "没有匹配的人在传感器或移动事件，请先在 Home Assistant 接入设备"
+              : entityDeviceKind.startsWith("vacuum")
+                ? "没有匹配的实体，请先在 Home Assistant 中接入"
+                : isTelevisionEntity
+                  ? "没有匹配的媒体播放器，请先在 Home Assistant 接入 Apple TV"
+                  : isTelevisionPowerEntity
+                    ? "没有匹配的电源状态实体"
+                    : isNasEntity
+                      ? "没有匹配的开关或二元传感器"
+                      : isAirPurifierEntity
+                        ? "没有匹配的风扇（fan）实体，请先在 Home Assistant 接入空气净化器"
+                        : isCoverEntity
+                          ? "没有匹配的窗帘"
+                          : isClimateEntity
+                            ? "没有匹配的空调"
+                            : "没有匹配的灯光或开关",
+        itemClass: "entity-list",
+        getPage: ({ query: entityQuery, page: entityPage }: AnyObj) =>
+          editorEntityPickerPage(filterEntities(entityQuery), entityPage, null),
+        renderSelectedContent: () => [elements.createEditorPickerCurrentEntity(currentEntity)],
+        renderSelectedActions: () => [
+          elements.editorPickerClearAction("不使用实体", !currentEntityId)
+        ],
+        renderItem: (renderedEntity: any) =>
+          elements.createEditorEntityPickerOption(renderedEntity, currentEntityId),
+        onSelect: (selectedEntityId: any) => {
+          // 允许清空；允许重新选中「当前未找到」的占位项；
+          if (
+            !selectedEntityId ||
+            selectedEntityId === missingCurrentEntity?.entityId ||
+            getEntities().some(
+              (knownEntity: any) =>
+                knownEntity.entityId === selectedEntityId && entityIdPattern.test(selectedEntityId)
+            )
+          ) {
+            onEntitySelect(
+              selectedEntityId,
+              // 人在传感器与状态灯规则需要连同实体详情一起回传（前者据此推导 device_class，
+              entityDeviceKind === "presence" || isDeviceStatusEntity
+                ? getEntities().find(
+                    (matchedPresenceEntity: any) => matchedPresenceEntity.entityId === selectedEntityId
+                  )
+                : undefined
+            );
+          }
+        }
+      });
+    }
+  };
+}

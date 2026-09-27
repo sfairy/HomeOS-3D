@@ -1,0 +1,239 @@
+/**
+ * 站点配色设置面板（编辑器官网顶栏的「配色」按钮）。
+ */
+
+type AnyObj = Record<string, any>;
+
+import {
+  CONFIGURABLE,
+  DEFAULT_PRESET,
+  PRESETS,
+  normalizeHex,
+  resolveTokens
+} from "../auth/scene/appearance.js";
+import { apiErrorMessage } from "../utils/api-error.js";
+import { apiFetch } from "../utils/api-fetch.js";
+
+/** 面板用到的元素。全部取自 index.html 的 #appearance-dialog。 */
+const dialog = (document.getElementById("appearance-dialog")) as any;
+const openButton = (document.getElementById("appearance-open")) as any;
+const closeButton = (document.getElementById("appearance-close")) as any;
+const presetList = (document.getElementById("appearance-preset-list")) as any;
+const accentInput = (document.getElementById("appearance-accent")) as any;
+const accentHexInput = (document.getElementById("appearance-accent-hex")) as any;
+const resetButton = (document.getElementById("appearance-reset")) as any;
+const saveButton = (document.getElementById("appearance-save")) as any;
+const messageBox = (document.getElementById("appearance-message")) as any;
+const swatches = new Map(
+  [...document.querySelectorAll("[data-swatch]")].map((node: any) => [node.dataset.swatch, node])
+);
+
+/** 面板当前的工作副本。关掉面板时丢弃；打开时从服务端读回。 */
+let draft = { preset: DEFAULT_PRESET, accent: "" };
+/** 服务端上的值，用于判断「有没有改动」以及「取消了要回到哪儿」。 */
+let saved = { preset: DEFAULT_PRESET, accent: "" };
+/** 预览期间写在 root 上的令牌名，取消 / 关闭时要逐枚摘掉。 */
+const previewKeys = new Set<any>();
+
+function setMessage(text: any, kind: any = "") {
+  if (!messageBox) return;
+  messageBox.hidden = !text;
+  messageBox.textContent = text || "";
+  messageBox.classList.toggle("success", kind === "success");
+  messageBox.classList.toggle("error", kind === "error");
+}
+
+function draftTokens() {
+  return resolveTokens({ presetId: draft.preset, accentColor: draft.accent || undefined });
+}
+
+/**
+ * 把一张令牌表写到 root 上做预览。
+ */
+function applyPreview(tokens: any) {
+  const root = document.documentElement;
+  for (const [name, value] of Object.entries(tokens)) {
+    root.style.setProperty(name, String(value ?? ""));
+    previewKeys.add(name);
+  }
+}
+
+/** 摘掉预览留下的所有内联覆盖：回到「由样式表决定颜色」的状态。 */
+function clearPreview() {
+  for (const name of previewKeys) document.documentElement.style.removeProperty(name);
+  previewKeys.clear();
+}
+
+/** 画预览条：四束光的基色。 */
+function paintSwatches(tokens: any) {
+  for (const name of CONFIGURABLE) {
+    const node = swatches.get(name);
+    if (node) node.style.setProperty("--sw", tokens[`--hos-${name}`] || "transparent");
+  }
+}
+
+/** 重画预设卡片与自定义色输入的选中态。 */
+function paintControls() {
+  for (const button of presetList?.querySelectorAll(".appearance-preset") || []) {
+    button.setAttribute("aria-checked", String(button.dataset.preset === draft.preset));
+  }
+  const tokens = draftTokens();
+  const accent = tokens["--hos-accent"] || "";
+  if (accentInput) accentInput.value = accent;
+  if (accentHexInput && document.activeElement !== accentHexInput) accentHexInput.value = accent;
+  // 自定义色输入只在「主控色被手动改过」时打上标记：这样恢复预设时用户看得见
+  const preset = PRESETS.find((item: any) => item.id === draft.preset);
+  const isCustom = Boolean(draft.accent) && normalizeHex(draft.accent) !== normalizeHex(preset?.colors.accent);
+  accentInput?.closest(".appearance-custom")?.classList.toggle("is-custom", isCustom);
+}
+
+/** 重画整块面板：控件状态 + 预览条 + 即时应用。 */
+function repaint() {
+  const tokens = draftTokens();
+  paintControls();
+  paintSwatches(tokens);
+  applyPreview(tokens);
+}
+
+/**
+ * 给每枚色点染上所属预设的颜色。
+ */
+function paintPresetDots() {
+  for (const button of presetList.querySelectorAll(".appearance-preset")) {
+    const preset = PRESETS.find((item: any) => item.id === button.dataset.preset);
+    if (!preset) continue;
+    for (const dot of button.querySelectorAll("[data-dot]")) {
+      dot.style.setProperty(
+        "--dot",
+        (preset.colors as AnyObj)[dot.dataset.dot] || "transparent"
+      );
+    }
+  }
+}
+
+/** 建预设卡片。只在打开面板时建一次（内容不会变）。 */
+function buildPresetCards() {
+  if (!presetList || presetList.childElementCount) return;
+  presetList.innerHTML = PRESETS.map(
+    (preset: any) => `
+      <button class="appearance-preset" type="button" role="radio" aria-checked="false" data-preset="${preset.id}">
+        <span class="appearance-preset-dots" aria-hidden="true">
+          ${CONFIGURABLE.map((name: any) => `<i data-dot="${name}"></i>`).join("")}
+        </span>
+        <strong>${preset.label}</strong>
+        <small>${preset.hint}</small>
+      </button>`
+  ).join("");
+  paintPresetDots();
+  presetList.addEventListener("click", (event: any) => {
+    const button = event.target.closest(".appearance-preset");
+    if (!button) return;
+    draft.preset = button.dataset.preset;
+    // 换预设 = 放弃自定义色。保留着它会让「点了暖居琥珀，主控色却还是我上次拖的紫」
+    draft.accent = "";
+    setMessage("");
+    repaint();
+  });
+}
+
+/** 从服务端读回已保存的配色。405/404（旧后端）时退回默认值，不让面板整个不可用。 */
+async function loadSaved() {
+  try {
+    const response = await apiFetch("/api/v1/appearance", { method: "GET" });
+    const payload: any = await response.json();
+    const preset = typeof payload?.preset === "string" && payload.preset ? payload.preset : DEFAULT_PRESET;
+    saved = { preset, accent: "" };
+    const stored = payload?.tokens?.["--hos-accent"];
+    const presetAccent = PRESETS.find((item: any) => item.id === preset)?.colors.accent;
+    const storedHex = normalizeHex(stored);
+    if (storedHex && storedHex !== normalizeHex(presetAccent)) saved.accent = storedHex;
+  } catch {
+    saved = { preset: DEFAULT_PRESET, accent: "" };
+  }
+  draft = { ...saved };
+}
+
+async function openDialog() {
+  if (!dialog) return;
+  setMessage("");
+  buildPresetCards();
+  await loadSaved();
+  repaint();
+  dialog.showModal();
+}
+
+/** 关闭：把预览撤掉，页面回到「由样式表决定」的状态（即上次保存的结果）。 */
+function closeDialog() {
+  clearPreview();
+  dialog?.close();
+}
+
+async function save() {
+  if (!saveButton) return;
+  saveButton.disabled = true;
+  setMessage("正在保存…");
+  try {
+    const response = await apiFetch("/api/v1/appearance", {
+      method: "PUT",
+      // 必须显式声明 JSON：apiFetch 只是 fetch 的透传，而 fetch 对字符串 body 的默认
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preset: draft.preset, tokens: draftTokens() }),
+    });
+    const payload: any = await response.json();
+    saved = { ...draft };
+    // 保存后重新灌一次预览：服务端可能归一化了某个值，让界面立刻对齐真实生效的颜色。
+    clearPreview();
+    applyPreview(payload?.tokens && Object.keys(payload.tokens).length ? payload.tokens : draftTokens());
+    paintControls();
+    setMessage("配色已保存，刷新后依然是这套颜色。", "success");
+  } catch (error: any) {
+    setMessage(apiErrorMessage(error, "保存失败，请稍后重试。"), "error");
+  } finally {
+    saveButton.disabled = false;
+  }
+}
+
+if (dialog) {
+  openButton?.addEventListener("click", () => {
+    openDialog();
+  });
+  closeButton?.addEventListener("click", closeDialog);
+  // 点 backdrop 关闭：dialog 的默认行为只把 event.target 指向 dialog 自身。
+  dialog.addEventListener("click", (event: any) => {
+    if (event.target === dialog) closeDialog();
+  });
+  // Esc 也会走到 close 事件：无论从哪条路径关闭，预览都必须撤掉，
+  dialog.addEventListener("close", clearPreview);
+
+  accentInput?.addEventListener("input", () => {
+    draft.accent = accentInput.value;
+    setMessage("");
+    repaint();
+  });
+  accentHexInput?.addEventListener("input", () => {
+    const value = normalizeHex(accentHexInput.value);
+    // 只在写全了才应用：输到一半的 "#ffc" 也是合法三位色，中途应用会让用户
+    accentHexInput.classList.toggle("is-invalid", Boolean(accentHexInput.value) && !value);
+  });
+  accentHexInput?.addEventListener("change", () => {
+    const value = normalizeHex(accentHexInput.value);
+    if (!value) {
+      accentHexInput.value = draftTokens()["--hos-accent"] || "";
+      accentHexInput.classList.remove("is-invalid");
+      return;
+    }
+    accentHexInput.classList.remove("is-invalid");
+    draft.accent = value;
+    setMessage("");
+    repaint();
+  });
+
+  resetButton?.addEventListener("click", () => {
+    draft = { preset: DEFAULT_PRESET, accent: "" };
+    setMessage("");
+    repaint();
+  });
+  saveButton?.addEventListener("click", () => {
+    save();
+  });
+}

@@ -1,0 +1,204 @@
+/**
+ * 天气图表的数据映射与曲线绘制。
+ */
+
+type AnyObj = Record<string, any>;
+
+// 天气条件 → [meteocons 图标名, 中文文案]。文案会直接上屏，与界面约定死的字符串一致。
+const WEATHER_VISUALS_BY_CONDITION: AnyObj = {
+  sunny: ["clear-day", "晴"],
+  "clear-night": ["clear-night", "晴"],
+  partlycloudy: ["partly-cloudy-day", "多云"],
+  cloudy: ["overcast", "阴"],
+  rainy: ["rain", "小雨"],
+  pouring: ["extreme-rain", "大雨"],
+  lightning: ["thunderstorms", "雷电"],
+  "lightning-rainy": ["thunderstorms-rain", "雷雨"],
+  snowy: ["snow", "下雪"],
+  "snowy-rainy": ["sleet", "雨夹雪"],
+  fog: ["fog", "雾"],
+  windy: ["wind", "大风"],
+  "windy-variant": ["wind", "有风"],
+  hail: ["hail", "冰雹"],
+  exceptional: ["code-red", "异常天气"]
+};
+/**
+ * 取天气图标名与文案。
+ */
+export function weatherVisual(condition: any, sunState: any = "") {
+  let normalizedCondition = String(condition || "")
+    .trim()
+    .toLowerCase();
+  const isBelowHorizon = sunState === "below_horizon";
+  if (isBelowHorizon && normalizedCondition === "sunny") {
+    normalizedCondition = "clear-night";
+  }
+  // partlycloudy 单独处理：夜间需要换成 partly-cloudy-night，而它在映射表里没有对应项。
+  if (isBelowHorizon && normalizedCondition === "partlycloudy") {
+    return ["partly-cloudy-night", "多云"];
+  } else {
+    return (
+      WEATHER_VISUALS_BY_CONDITION[normalizedCondition] || [
+        "code-red",
+        // 认不出的条件原样显示（便于排查），只有明确的无效状态才回落到「天气不可用」。
+        normalizedCondition && !["unknown", "unavailable"].includes(normalizedCondition)
+          ? normalizedCondition
+          : "天气不可用"
+      ]
+    );
+  }
+}
+/**
+ * 拼 meteocons 图标地址。
+ */
+export { meteoconUrl } from "../../utils/icon-url.js";
+// 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
+import { resolveColor } from "../../utils/colors.js";
+// 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
+export const CHART_THRESHOLD_FALLBACK_COLORS = ["#88dcbf", "#5fd0a8", "#ff8a65", "#f07a7e"];
+// 单色兜底（「取不到任何阈值」时的那一格）。与 --hos-eco 同值。
+export const CHART_THRESHOLD_FALLBACK_COLOR = "#5fd0a8";
+/**
+ * 在升序数组上按比例取插值样本，相当于一次轻量的分位数查询。
+ */
+function sampleArrayAtRatio(values: any, ratio: any) {
+  if (!values.length) {
+    return NaN;
+  }
+  // 按比例落到的浮点下标：floor / ceil 各取一个端点，再按小数部分线性插值。
+  const scaledIndex = (values.length - 1) * ratio;
+  const lowerIndex = Math.floor(scaledIndex);
+  const upperIndex = Math.ceil(scaledIndex);
+  if (lowerIndex === upperIndex) {
+    return values[lowerIndex];
+  } else {
+    return (
+      values[lowerIndex] + (values[upperIndex] - values[lowerIndex]) * (scaledIndex - lowerIndex)
+    );
+  }
+}
+/**
+ * 归一化用户手填的阈值：丢掉非数值项、校验颜色、按值升序排列。
+ */
+function normalizedThresholds(thresholds: any, defaultColor: any = CHART_THRESHOLD_FALLBACK_COLOR) {
+  return (Array.isArray(thresholds) ? thresholds : [])
+    .filter((entry: any) => Number.isFinite(Number(entry?.value)))
+    .map((threshold: any) => ({
+      value: Number(threshold.value),
+      color: resolveColor(threshold.color, defaultColor)
+    }))
+    .sort((leftEntry, rightEntry) => leftEntry.value - rightEntry.value);
+}
+/**
+ * 由序列自动生成四档阈值。
+ */
+function automaticThresholds(series: any, gradient: any = CHART_THRESHOLD_FALLBACK_COLORS) {
+  // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。
+  const sortedValues = (Array.isArray(series) ? series : [])
+    .map((seriesValue: any) => Number(seriesValue?.value ?? seriesValue))
+    .filter((numericSeriesValue: any) => Number.isFinite(numericSeriesValue))
+    .sort((leftValue, rightValue) => leftValue - rightValue);
+  if (!sortedValues.length) {
+    return [];
+  }
+  let minimumValue = sampleArrayAtRatio(sortedValues, sortedValues.length >= 5 ? 0.05 : 0);
+  let maximumValue = sampleArrayAtRatio(sortedValues, sortedValues.length >= 5 ? 0.95 : 1);
+  if (!Number.isFinite(minimumValue) || !Number.isFinite(maximumValue)) {
+    return [];
+  }
+  if (maximumValue < minimumValue) {
+    [minimumValue, maximumValue] = [maximumValue, minimumValue];
+  }
+  const valueSpan = maximumValue - minimumValue;
+  const spanEpsilon = Math.max(Math.abs(minimumValue), Math.abs(maximumValue), 1) * 1e-9;
+  if (valueSpan <= spanEpsilon) {
+    const padding = Math.max(Math.abs(minimumValue) * 0.01, 0.01);
+    return [
+      {
+        value: minimumValue - padding,
+        color: gradient[0]
+      },
+      {
+        value: minimumValue,
+        color: gradient[1]
+      },
+      {
+        value: minimumValue + padding,
+        color: gradient[2]
+      },
+      {
+        value: minimumValue + padding * 2,
+        color: gradient[3]
+      }
+    ];
+  }
+  // 正常情况：把区间三等分，四个端点各取一种颜色。
+  const step = valueSpan / (gradient.length - 1);
+  return gradient.map((colorScaleColor: any, colorIndex: any) => ({
+    value: minimumValue + step * colorIndex,
+    color: colorScaleColor
+  }));
+}
+/**
+ * 决定最终使用的阈值集合。
+ */
+export function resolvedThresholds(manualThresholds: any, seriesValues: any, thresholdMode: any = "", colors: any = {}) {
+  const { gradient = CHART_THRESHOLD_FALLBACK_COLORS, defaultColor = CHART_THRESHOLD_FALLBACK_COLOR } =
+    colors;
+  const normalizedManualThresholds = normalizedThresholds(manualThresholds, defaultColor);
+  if (thresholdMode === "auto") {
+    return automaticThresholds(seriesValues, gradient);
+  } else if (thresholdMode === "manual" || normalizedManualThresholds.length) {
+    return normalizedManualThresholds;
+  } else {
+    return automaticThresholds(seriesValues, gradient);
+  }
+}
+/**
+ * 取某个数值对应的颜色。
+ */
+export function thresholdColor(sortedThresholds: any, value: any, defaultColor: any = CHART_THRESHOLD_FALLBACK_COLOR) {
+  return (
+    sortedThresholds.filter((candidate: any) => value >= candidate.value).at(-1)?.color ||
+    sortedThresholds[0]?.color ||
+    defaultColor
+  );
+}
+/**
+ * 把点集转成平滑的三次贝塞尔路径。
+ */
+export function smoothChartPath(points: any) {
+  if (!points.length) {
+    return "";
+  }
+  if (points.length === 1) {
+    // 只有一个点画不出线，用一条水平线表达「该值恒定」而不是留白。
+    return "M0 " + points[0].y + " L100 " + points[0].y;
+  }
+  let path = "M" + points[0].x.toFixed(3) + " " + points[0].y.toFixed(3);
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const currentPoint = points[index];
+    const nextPoint = points[index + 1];
+    const previousPoint = points[index - 1] || currentPoint;
+    const afterNextPoint = points[index + 2] || nextPoint;
+    // 1/6 是 Catmull-Rom 转 Bézier 的系数，展开后即相邻两点差的三分之一。
+    const control1X = currentPoint.x + (nextPoint.x - previousPoint.x) / 6;
+    const control1Y = currentPoint.y + (nextPoint.y - previousPoint.y) / 6;
+    const control2X = nextPoint.x - (afterNextPoint.x - currentPoint.x) / 6;
+    const control2Y = nextPoint.y - (afterNextPoint.y - currentPoint.y) / 6;
+    path +=
+      " C" +
+      control1X.toFixed(3) +
+      " " +
+      control1Y.toFixed(3) +
+      " " +
+      control2X.toFixed(3) +
+      " " +
+      control2Y.toFixed(3) +
+      " " +
+      nextPoint.x.toFixed(3) +
+      " " +
+      nextPoint.y.toFixed(3);
+  }
+  return path;
+}

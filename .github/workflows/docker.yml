@@ -45,15 +45,34 @@ jobs:
           exit 1
       - id: meta
         run: |
-          version="$(tr -d '[:space:]' < VERSION)"
+          version="$(tr -d '[:space:]' < VERSION 2>/dev/null || tr -d '[:space:]' < homeos-3d/VERSION)"
           base="${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "image=${base}" >> "$GITHUB_OUTPUT"
           echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
 
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: Install and typecheck
+        run: |
+          bun install --frozen-lockfile
+          bun run typecheck
+          # 迁移进度：仍含 @ts-nocheck 时只告警；清零后改为 fail（计划 Phase 6）
+          # 不用 rg：ubuntu-latest 默认不一定装 ripgrep。
+          leftover="$(grep -RIl --include='*.ts' '^// @ts-nocheck' homeos-3d/frontend/src homeos-store/frontend/src || true)"
+          if [ -n "$leftover" ]; then
+            count="$(printf '%s\n' "$leftover" | wc -l | tr -d ' ')"
+            echo "::warning::frontend/src 仍有 ${count} 个文件带 // @ts-nocheck（类型迁移未完成）"
+          fi
+
   # 每个架构跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   build:
-    needs: [meta]
+    needs: [meta, typecheck]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

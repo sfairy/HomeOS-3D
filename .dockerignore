@@ -9,8 +9,11 @@ __pycache__
 
 # 运行时数据与本地密钥（镜像内由启动脚本按需生成 / 卷挂载）
 data
-apps/store/data
-apps/store/keys/local
+homeos-3d/data
+homeos-store/data
+homeos-store/keys/local
+homeos-store/backend/src/data
+homeos-store/backend/src/keys/local
 .env
 .env.*
 !.env.example
@@ -30,3 +33,7 @@ ops/deploy
 # 依赖目录
 node_modules
 ops/docker/node_modules
+
+# 本地构建产物（镜像内重新 bun run build）
+dist
+*.tsbuildinfo

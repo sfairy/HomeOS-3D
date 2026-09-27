@@ -1,0 +1,62 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@app/*": [
+        "./frontend/src/app/*"
+      ],
+      "@runtime/*": [
+        "./frontend/src/runtime/*"
+      ],
+      "/static/vendor/qrcode-generator/qrcode.js": [
+        "./frontend/src/shims/qrcode.ts"
+      ],
+      "/static/vendor/three/0.186.0/DRACOLoader.js": [
+        "./frontend/src/shims/draco-loader.ts"
+      ],
+      "/static/vendor/three/0.186.0/three.module.min.js": [
+        "./frontend/src/shims/vendor-three-core.ts"
+      ],
+      "/static/vendor/three/0.186.0/OrbitControls.js": [
+        "./frontend/src/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/RoundedBoxGeometry.js": [
+        "./frontend/src/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/BufferGeometryUtils.js": [
+        "./frontend/src/shims/vendor-three-addons.ts"
+      ],
+      "/static/vendor/three/0.186.0/GLTFLoader.js": [
+        "./frontend/src/shims/vendor-three-addons.ts"
+      ],
+      "/api/v1/modules/interaction3d/core/stage.js": [
+        "./frontend/src/shims/interaction3d-stage.ts"
+      ]
+    }
+  },
+  "include": [
+    "frontend/src/**/*.ts",
+    "frontend/vite.config.ts",
+    "frontend/vite.runtime.config.ts",
+    "frontend/src/**/*.d.ts",
+    "frontend/src/vite-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

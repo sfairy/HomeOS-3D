@@ -38,7 +38,7 @@ services:
       # 授权公钥（Ed25519 验签 + X25519 传输）：deploy.sh 会落盘到 ./keys，
       # 手工部署时放两个 PEM 进去并 chmod 644 即可。
       - ./keys:/data/keys:ro
-      # 宿主标识：授权实例指纹的来源（见 apps/server/license/hardware.py）。缺了也能起，
+      # 宿主标识：授权实例指纹的来源（见 backend/src/license/hardware.py）。缺了也能起，
       # 指纹退到 data/ 下的兜底 ID；deploy.sh --host-binds 会自动建这两个符号链接。
       - type: bind
         source: /host/etc/machine-id

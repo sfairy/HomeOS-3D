@@ -1,0 +1,213 @@
+/**
+ * 墙体材质与墙带几何属性工具：3D 工作室生成墙体（含门窗上下的墙带）时决定墙面着色方式与
+ */
+
+/**
+ * 创建一面墙的材质。
+ */
+export function createWallSideMaterial(
+  THREE: any,
+  materialParams: any,
+  enhance: any = true,
+  wallFeatures: any = "",
+  isWarmWood: any = false) {
+  // 特性串用 Set 查询：下面每个特性都要判断一次，线性查找会随特性数退化。
+  const featureSet = new Set(wallFeatures.split(","));
+  const material =
+    enhance && featureSet.has("shader")
+      ? createDedicatedWallMaterial(THREE, materialParams, isWarmWood)
+      : new THREE.MeshPhysicalMaterial(materialParams);
+  // 强制单遍渲染：three.js 对半透明双面材质默认会渲染两遍（正、背面各一次），
+  if (enhance && featureSet.has("single")) {
+    material.forceSinglePass = true;
+  }
+  // 强制写深度：墙体参与遮挡关系，若沿用半透明的默认设置会导致后面的物件透出来。
+  if (enhance && featureSet.has("depth")) {
+    material.depthWrite = true;
+  }
+  // 专用墙体材质已自带渐变与背面处理，无需再注入；只有通用 PBR 材质才需要这段包装。
+  if (!material.userData.hbDedicatedWall && !!enhance) {
+    // 注入墙高渐变：顶点属性 hbWallHeight 透传到片元，用于压暗墙脚。
+    material.onBeforeCompile = (shaderObject: any) => {
+      shaderObject.vertexShader =
+        "attribute float hbWallHeight; varying float vHbWallHeight;\n" + shaderObject.vertexShader;
+      shaderObject.vertexShader = shaderObject.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;"
+      );
+      shaderObject.fragmentShader = "varying float vHbWallHeight;\n" + shaderObject.fragmentShader;
+      shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
+        "#include <clipping_planes_fragment>",
+        "#include <clipping_planes_fragment>\nif (!gl_FrontFacing) discard;"
+      );
+      shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
+        "#include <opaque_fragment>",
+        // 暖阳下墙面提亮到几乎不压暗（0.92），且完全不做透明度补偿 ——
+        "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
+          (isWarmWood ? "0.92" : "0.70") +
+          ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
+          (isWarmWood ? "0.0" : "0.65") +
+          " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>"
+      );
+    };
+    material.customProgramCacheKey = () =>
+      isWarmWood ? "hb-wall-warm-clean-v1-frontface" : "hb-wall-height-gradient-v4-frontface";
+  }
+  return material;
+}
+/**
+ * 创建专用墙体材质（自定义 ShaderMaterial）。
+ */
+function createDedicatedWallMaterial(three: any, wallParams: any, isWarmWood: any = false) {
+  // 顶点侧只需要透传墙高与角距，法线在世界空间里算好传给片元；
+  const shaderMaterial = new three.ShaderMaterial({
+    uniforms: {
+      diffuse: {
+        value: new three.Color(wallParams.color)
+      },
+      opacity: {
+        value: wallParams.opacity
+      }
+    },
+    vertexShader:
+      "\n      attribute float hbWallHeight;\n      attribute vec2 hbWallCornerDistance;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_vertex>\n      void main() {\n        vHbWallHeight = hbWallHeight;\n        vHbWallCornerDistance = hbWallCornerDistance;\n        vHbNormal = normalize(normalMatrix * normal);\n        #include <begin_vertex>\n        #include <project_vertex>\n        #include <clipping_planes_vertex>\n      }",
+    fragmentShader:
+      "\n      uniform vec3 diffuse;\n      uniform float opacity;\n      uniform mat4 plan2ViewToWorld;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_fragment>\n      void main() {\n        #include <clipping_planes_fragment>\n        // These are closed wall volumes. Their opposite surface would show\n        // its displaced bottom edge through the nearer translucent surface.\n        // Keep the camera-facing surface from either side of the wall.\n        if (!gl_FrontFacing) discard;\n        vec3 normal = normalize(vHbNormal) * (gl_FrontFacing ? 1.0 : -1.0);\n        vec3 worldNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n        float up = worldNormal.y * 0.5 + 0.5;\n        float key = max(dot(worldNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        vec3 outgoingLight = diffuse * " +
+      // 暖阳下墙面整体提亮：天光基色更接近白、权重更高，key 光只留一点方向感。
+      (isWarmWood
+        ? "mix(vec3(0.98, 0.98, 0.97), vec3(1.0), up) * (0.66 + 0.16 * up + 0.10 * key)"
+        : "mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key)") +
+      ";\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - " +
+      (isWarmWood ? "0.14" : "0.54") +
+      " * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - " +
+      // 墙角同理：0.08 只保留一点转折暗示。
+      (isWarmWood ? "0.08" : "0.28") +
+      " * cornerShade;\n        gl_FragColor = vec4(outgoingLight, opacity);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+    transparent: wallParams.transparent,
+    depthWrite: wallParams.depthWrite ?? true,
+    depthFunc: wallParams.depthFunc ?? three.LessEqualDepth,
+    side: three.FrontSide,
+    forceSinglePass: false
+  });
+  // 额外挂上 color / opacity 字段：上层可能按普通材质的方式读改颜色，
+  shaderMaterial.color = new three.Color(wallParams.color);
+  shaderMaterial.opacity = wallParams.opacity;
+  shaderMaterial.userData.hbDedicatedWall = true;
+  // 未提供 hbWallCornerDistance 的几何（例如简易墙面）用 [100, 100] 兜底，
+  shaderMaterial.defaultAttributeValues.hbWallCornerDistance = [100, 100];
+  // 固定缓存键：专用墙体着色器源码唯一，所有墙面共用一份已编译的程序。
+  shaderMaterial.customProgramCacheKey = () =>
+    isWarmWood ? "hb-dedicated-wall-warm-clean-v1" : "hb-dedicated-wall-front-corner-balanced-v9";
+  return shaderMaterial;
+}
+/**
+ * 为墙面几何写入 hbWallCornerDistance 属性（到墙角的两个方向距离）。
+ */
+export function setWallCornerDistances(threeNamespace: any, geometry: any, loops: any) {
+  // 先把所有环化成「带方向的边段」列表，后面逐顶点找最近边时直接线性遍历。
+  const edgeSegments = [];
+  for (const loop of loops) {
+    // 相邻重复点（距离小于 1e-7）在后续算方向向量时会除零，先剔掉。
+    let vertices = loop.filter(
+      (point: any, pointIndex: any) =>
+        !pointIndex ||
+        Math.hypot(point.x - loop[pointIndex - 1].x, point.y - loop[pointIndex - 1].y) > 1e-7
+    );
+    if (
+      vertices.length > 1 &&
+      Math.hypot(vertices[0].x - vertices.at(-1).x, vertices[0].y - vertices.at(-1).y) < 1e-7
+    ) {
+      vertices = vertices.slice(0, -1);
+    }
+    // 去掉共线点，只保留真正的拐角：共线点会把一段直墙拆成多条边，
+    vertices = vertices.filter((currentVertex: any, vertexIndex: any, vertexList: any) => {
+      const previousVertex = vertexList[(vertexIndex + vertexList.length - 1) % vertexList.length];
+      const nextVertex = vertexList[(vertexIndex + 1) % vertexList.length];
+      const edgeToCurrentX = currentVertex.x - previousVertex.x;
+      const edgeToCurrentY = currentVertex.y - previousVertex.y;
+      const edgeToNextX = nextVertex.x - currentVertex.x;
+      const edgeToNextY = nextVertex.y - currentVertex.y;
+      return (
+        edgeToCurrentX * edgeToNextX + edgeToCurrentY * edgeToNextY <= 0 ||
+        Math.abs(edgeToCurrentX * edgeToNextY - edgeToCurrentY * edgeToNextX) >
+          Math.hypot(edgeToCurrentX, edgeToCurrentY) *
+            0.000001 *
+            Math.hypot(edgeToNextX, edgeToNextY)
+      );
+    });
+    // 逐边记录起点与单位方向向量，另外带上长度以便把「沿边距离」夹在边内。
+    for (let loopIndex = 0; loopIndex < vertices.length; loopIndex++) {
+      const vertex = vertices[loopIndex];
+      const followingVertex = vertices[(loopIndex + 1) % vertices.length];
+      const edgeLength = Math.hypot(followingVertex.x - vertex.x, followingVertex.y - vertex.y);
+      if (edgeLength > 1e-7) {
+        edgeSegments.push({
+          x: vertex.x,
+          y: vertex.y,
+          tx: (followingVertex.x - vertex.x) / edgeLength,
+          ty: (followingVertex.y - vertex.y) / edgeLength,
+          length: edgeLength
+        });
+      }
+    }
+  }
+  const positionAttribute = geometry.attributes.position;
+  const normalAttribute = geometry.attributes.normal;
+  // 默认填 100：属性是「离角多远」，没有匹配到任何边的顶点应当没有角部阴影。
+  const cornerDistanceBuffer = new Float32Array(positionAttribute.count * 2).fill(100);
+  for (let vertexCursor = 0; vertexCursor < positionAttribute.count; vertexCursor++) {
+    // 只处理竖直面：|法线 Z| 大于 0.5 说明是顶面或底面，谈不上墙角。
+    if (!normalAttribute || Math.abs(normalAttribute.getZ(vertexCursor)) > 0.5) {
+      continue;
+    }
+    let bestDistance = Infinity;
+    // 打分由三部分组成：到该边所在直线的垂距、落在边外时的越界距离、
+    for (const edge of edgeSegments) {
+      const offsetX = positionAttribute.getX(vertexCursor) - edge.x;
+      const offsetY = positionAttribute.getY(vertexCursor) - edge.y;
+      const alongEdge = offsetX * edge.tx + offsetY * edge.ty;
+      const distanceScore =
+        Math.abs(offsetX * edge.ty - offsetY * edge.tx) +
+        Math.max(-alongEdge, 0, alongEdge - edge.length) +
+        Math.abs(
+          normalAttribute.getX(vertexCursor) * edge.tx +
+            normalAttribute.getY(vertexCursor) * edge.ty
+        );
+      if (distanceScore < bestDistance) {
+        bestDistance = distanceScore;
+        cornerDistanceBuffer[vertexCursor * 2] = Math.max(0, Math.min(edge.length, alongEdge));
+        cornerDistanceBuffer[vertexCursor * 2 + 1] =
+          edge.length - cornerDistanceBuffer[vertexCursor * 2];
+      }
+    }
+  }
+  // 两个分量分别是「沿边到本边起点的距离」与「到终点的距离」，着色器取较小者判断离角远近。
+  geometry.setAttribute(
+    "hbWallCornerDistance",
+    new threeNamespace.BufferAttribute(cornerDistanceBuffer, 2)
+  );
+}
+/**
+ * 为墙体几何写入 hbWallHeight 属性（归一化墙高）。
+ */
+export function setWallGradientHeight(threeModule: any, meshGeometry: any, axis: any, offset: any, scale: any, heightSpan: any) {
+  const wallPositionAttribute = meshGeometry.attributes.position;
+  const heightBuffer = new Float32Array(wallPositionAttribute.count);
+  // 墙高下限 0.01 米：极小的 heightSpan 会在归一化时放大成无穷大或 NaN。
+  const clampedHeightSpan = Math.max(0.01, heightSpan);
+  for (
+    let heightVertexIndex = 0;
+    heightVertexIndex < wallPositionAttribute.count;
+    heightVertexIndex++
+  ) {
+    const axisValue =
+      axis === "z"
+        ? wallPositionAttribute.getZ(heightVertexIndex)
+        : wallPositionAttribute.getY(heightVertexIndex);
+    heightBuffer[heightVertexIndex] = Math.max(
+      0,
+      Math.min(1, (offset + scale * axisValue) / clampedHeightSpan)
+    );
+  }
+  meshGeometry.setAttribute("hbWallHeight", new threeModule.BufferAttribute(heightBuffer, 1));
+}

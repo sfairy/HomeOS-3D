@@ -1,35 +1,34 @@
-# syntax=ops/docker/dockerfile:1
+# syntax=docker/dockerfile:1
 
-# Cython 必须钉死版本：3.3.0 的 AnalyseExpressionsTransform 在本项目的
 ARG CYTHON_VERSION=3.1.6
 
-# ─── 前端 / 商店静态资源混淆 ─────────────────────────────────────
-FROM node:20-bookworm-slim AS js-tools
-
-WORKDIR /opt/obfuscate
-COPY ops/docker/package.json ops/docker/package-lock.json ./
-RUN npm ci --omit=dev \
-    && npm cache clean --force
-COPY ops/docker/obfuscate_javascript.mjs ./
-
-
-FROM js-tools AS frontend-protected
+# ─── 前端：Bun + Vite → dist（含 JS 混淆）─────────────────────────
+FROM oven/bun:1.4-debian AS frontend-tools
 
 WORKDIR /work
-COPY frontend ./frontend
-# 混淆必须真的跑过：产物里有十六进制标识符，源文件里不存在这种形态的名字。
-RUN node /opt/obfuscate/obfuscate_javascript.mjs frontend \
-    && grep -q '_0x' frontend/static/logging/global-log-boot.js \
-    && grep -q . frontend/static/vendor/three/0.186.0/three.module.min.js
+COPY package.json bun.lock bunfig.toml ./
+COPY homeos-3d/package.json ./homeos-3d/
+COPY homeos-store/package.json ./homeos-store/
+RUN bun install --frozen-lockfile
+
+COPY ops/docker/obfuscate_javascript.mjs ./ops/docker/obfuscate_javascript.mjs
+COPY homeos-3d ./homeos-3d
+COPY homeos-store ./homeos-store
+RUN bun run build \
+    && grep -q '_0x' homeos-3d/dist/static/logging/client-log.js \
+    && test -f homeos-3d/dist/static/vendor/three/0.186.0/three.module.min.js \
+    && grep -q '_0x' homeos-store/dist/static/auth-bootstrap.js \
+    && test -f homeos-store/dist/static/jquery.min.js \
+    && test -f homeos-3d/dist/index.html \
+    && test -f homeos-store/dist/templates/store.html
 
 
-FROM js-tools AS store-static-protected
-
+FROM frontend-tools AS frontend-protected
 WORKDIR /work
-COPY apps/store/static ./apps/store/static
-RUN node /opt/obfuscate/obfuscate_javascript.mjs apps/store/static \
-    && grep -q '_0x' apps/store/static/store.js \
-    && test -f apps/store/static/jquery.min.js
+
+
+FROM frontend-tools AS store-static-protected
+WORKDIR /work
 
 
 FROM python:3.12-slim-bookworm AS base
@@ -50,17 +49,16 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY apps/store/requirements.txt /tmp/requirements.txt
+COPY homeos-3d/backend/src/requirements.txt /tmp/requirements-app.txt
+COPY homeos-store/backend/src/requirements.txt /tmp/requirements-store.txt
 RUN pip install --upgrade pip \
-    && pip install -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt
+    && pip install -r /tmp/requirements-app.txt -r /tmp/requirements-store.txt \
+    && rm /tmp/requirements-app.txt /tmp/requirements-store.txt
 
 
-# ─── 主应用构建（源码仅存在于此阶段，产出全为 .so 的 /app）─────────
 FROM base AS app-build
 ARG CYTHON_VERSION
 
-# 编译器只装在构建阶段：最终镜像从 base 拷 /app，工具链不进运行镜像。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
@@ -69,27 +67,26 @@ RUN apt-get update \
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
 COPY ops/docker ./ops/docker
-COPY VERSION alembic.ini ./
-COPY apps/server ./apps/server
-COPY --from=frontend-protected /work/frontend ./frontend
-COPY db ./db
+COPY homeos-3d/VERSION ./VERSION
+COPY homeos-3d/alembic.ini ./alembic.ini
+COPY homeos-3d/backend/src ./src
+COPY --from=frontend-protected /work/homeos-3d/dist ./dist
+COPY homeos-3d/db ./db
 COPY keys ./keys
 RUN mkdir -p /app/image \
-    && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs /app/ops/docker/package.json /app/ops/docker/package-lock.json \
-    && rm -rf /app/ops/docker/node_modules \
+    && rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs /app/ops/docker/package.json /app/ops/docker/bun.lock \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/apps/server/main.*.so \
-    && test -f /app/container_entrypoint.*.so \
+    && test -f /app/src/main.*.so \
+    && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/docker/start_app.*.so \
     && test -f /app/db/migrations/env.py \
-    && test -f /app/apps/server/__init__.*.so \
-    && test ! -f /app/apps/server/main.py \
+    && test -f /app/src/__init__.*.so \
+    && test ! -f /app/src/main.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test -z "$(find /app/apps/server /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
+    && test -z "$(find /app/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
 
-# ─── 商店构建（源码仅存在于此阶段，产出全为 .so 的 /app）──────────
 FROM base AS store-build
 ARG CYTHON_VERSION
 
@@ -101,24 +98,22 @@ RUN apt-get update \
 COPY ops/docker/compile_python.py /tmp/compile_python.py
 COPY ops/container_entrypoint.py ./ops/
 COPY ops/docker ./ops/docker
-COPY VERSION ./
-COPY apps/store ./apps/store
-COPY --from=store-static-protected /work/apps/store/static ./apps/store/static
-RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs /app/ops/docker/package.json /app/ops/docker/package-lock.json \
-    && rm -rf /app/ops/docker/node_modules \
+COPY homeos-store/VERSION ./VERSION
+COPY homeos-store/backend/src ./src
+COPY --from=store-static-protected /work/homeos-store/dist ./dist
+RUN rm -f /app/ops/docker/compile_python.py /app/ops/docker/obfuscate_javascript.mjs /app/ops/docker/package.json /app/ops/docker/bun.lock \
     && python /tmp/compile_python.py /app \
     && rm -f /tmp/compile_python.py \
-    && test -f /app/apps/store/app.*.so \
-    && test -f /app/apps/store/run.*.so \
-    && test -f /app/container_entrypoint.*.so \
+    && test -f /app/src/app.*.so \
+    && test -f /app/src/run.*.so \
+    && test -f /app/ops/container_entrypoint.*.so \
     && test -f /app/ops/docker/start_store.*.so \
-    && test -f /app/apps/store/__init__.*.so \
-    && test ! -f /app/apps/store/app.py \
+    && test -f /app/src/__init__.*.so \
+    && test ! -f /app/src/app.py \
     && test ! -f /app/ops/container_entrypoint.py \
-    && test -z "$(find /app/store /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
+    && test -z "$(find /app/src /app/ops/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
 
-# ─── 主应用运行镜像（18081）──────────────────────────────────────
 FROM base AS app
 
 ENV APP_DATA_DIR=/data \
@@ -136,7 +131,6 @@ COPY --from=app-build --chown=homeos:homeos /app /app
 EXPOSE 18081
 VOLUME ["/data", "/run/secrets"]
 
-# 入口脚本已编译成扩展模块，``python -m`` 无法运行扩展模块，故用 import + main()。
 ENTRYPOINT ["/usr/bin/tini", "--", "python", "-c", "import ops.container_entrypoint as m; m.main()"]
 CMD ["python", "-c", "import ops.docker.start_app as m; m.main()"]
 
@@ -144,7 +138,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD curl -fsS "http://127.0.0.1:${APP_PORT:-18081}/health/ready" >/dev/null || exit 1
 
 
-# ─── 商店运行镜像（18082）────────────────────────────────────────
 FROM base AS store
 
 ENV STORE_DATA_DIR=/data \

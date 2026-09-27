@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050912">
+  <meta name="description" content="注册账号、购买授权与管理激活设备">
+  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png">
+  <title>HomeOS 授权服务 - HomeOS 授权中心</title>
+  <link rel="stylesheet" href="/store-static/font.min.css">
+  <link rel="stylesheet" href="/store-static/theme.css">
+  <!-- 场景设计系统的分发产物（源在仓库 design/scene/）。登录 / 注册 / 找回这三块整屏壳
+       用的是它，前台其余分页仍走 theme.css + store.css 的令牌。 -->
+  <link rel="stylesheet" href="/store-static/scene/fonts.css">
+  <link rel="stylesheet" href="/store-static/scene/page.css">
+  <link rel="stylesheet" href="/store-static/scene/scene.css">
+  <link rel="stylesheet" href="/store-static/scene/panel.css">
+  <link rel="stylesheet" href="/store-static/store.css">
+  <!-- 这一份**故意**不是模块：它只做「首屏之前」的事（读 cookie 里的登录提示，给 <html> 打上
+       其余商店脚本都已是 ESM（type="module"）。 -->
+  <script src="/store-static/auth-bootstrap.js"></script>
+  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css` 的 <link>。
+       必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+  <!--{{APPEARANCE}}-->
+</head>
+<body class="hb-store-body hb-store-loading">
+
+<!-- ===================== 顶部导航 ===================== -->
+<header class="hb-topbar">
+  <div class="hb-container hb-topbar__inner">
+    <a class="hb-brand" href="/" aria-label="HomeOS 授权中心 首页">
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg" alt=""></span>
+      <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
+    </a>
+    <nav class="hb-nav" id="navbarNav" aria-label="主导航">
+      <a class="hb-nav__link" data-hb-nav="home" href="/">首页</a>
+      <a class="hb-nav__link" data-hb-nav="purchase" href="/products">购买授权</a>
+      <a class="hb-nav__link hb-auth-only" data-hb-nav="account" href="/user/dashboard/index">账号中心</a>
+      <a class="hb-nav__link hb-auth-only" data-hb-nav="referrals" href="/user/referrals">邀请有礼</a>
+      <!-- 「管理后台」入口只对管理员账号出现：初始就是 hidden，store.js 拿到
+           403 挡回来的按钮。 -->
+      <a class="hb-nav__link" data-hb-nav="admin" data-admin-entry href="/admin" hidden>管理后台</a>
+    </nav>
+    <div class="hb-topbar__actions">
+      <a class="hb-button hb-button--secondary hb-button--sm hb-auth-only" data-hb-nav="account" href="/user/dashboard/index"><i class="fa-duotone fa-regular fa-user"></i> 我的账号</a>
+      <a class="hb-button hb-button--primary hb-button--sm hb-guest-only" data-hb-nav="login" href="/user/authentication/login"><i class="fa-duotone fa-regular fa-right-to-bracket"></i> 登录</a>
+      <button class="hb-store-nav-toggle" type="button" aria-label="展开导航" aria-expanded="false"><i class="fa-duotone fa-regular fa-bars"></i></button>
+    </div>
+  </div>
+</header>
+
+<!-- ===================== 维护模式 ===================== -->
+<main id="store-maintenance" class="hb-maintenance-page" hidden aria-labelledby="store-maintenance-title">
+  <section class="hb-maintenance-card">
+    <div class="hb-maintenance-brand">
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg" alt=""></span>
+      <span><strong id="maintenance-site-name">HomeOS</strong><small>授权服务中心</small></span>
+    </div>
+    <div class="hb-maintenance-visual" aria-hidden="true">
+      <span class="hb-maintenance-orbit"></span>
+      <span class="hb-maintenance-orbit hb-maintenance-orbit--inner"></span>
+      <span class="hb-maintenance-icon"><i class="fa-duotone fa-regular fa-screwdriver-wrench"></i></span>
+    </div>
+    <span class="hb-kicker hb-kicker--plain">Service Notice</span>
+    <h1 id="store-maintenance-title">商城正在维护</h1>
+    <p id="store-maintenance-message">系统正在升级维护，请稍后再试。</p>
+    <div class="hb-maintenance-status"><span class="hb-dot hb-dot--idle"></span>购买与账号服务已暂时关闭</div>
+    <small>给您带来不便，敬请谅解</small>
+  </section>
+</main>
+
+<!-- ===================== 首页 ===================== -->
+<main class="hb-store-main hb-store-main--flush" data-store-page="home" hidden>
+  <section class="hb-hero">
+    <!-- 场景背景层：与入口页/后台登录同出 design/scene 那一套（天空渐变 + 极光 + 星野 + 地平线辉光），
+         文档里重名。山脊与小屋同理不进首页：hero 要放标题和按钮。 -->
+    <div class="hb-hero__fx" aria-hidden="true">
+      <span class="hb-hero__sky"></span>
+      <span class="hb-hero__aurora hb-hero__aurora--a"></span>
+      <span class="hb-hero__aurora hb-hero__aurora--b"></span>
+      <span class="hb-hero__stars hb-hero__stars--far"></span>
+      <span class="hb-hero__stars hb-hero__stars--near"></span>
+      <span class="hb-hero__grid"></span>
+      <span class="hb-hero__glow"></span>
+      <span class="hb-hero__horizon"></span>
+      <span class="hb-hero__sweep"></span>
+    </div>
+    <div class="hb-container hb-hero__inner">
+      <span class="hb-kicker">HomeOS · 全屋智能中控</span>
+      <h1>把整个家，收进一块<strong>3D 中控</strong></h1>
+      <p class="hb-lead">HomeOS 是跑在自己服务器上的全屋智能管家：3D 户型里开关灯与窗帘，统一纳管家电与环境，
+        场景、安防与全屏中控都在同一个界面里完成 —— 数据留在本机，不经过任何第三方云。</p>
+      <div class="hb-hero__actions">
+        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
+        <a class="hb-button hb-button--primary hb-button--lg" id="home-login-link" href="/user/authentication/login">登录账号 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
+        <a class="hb-button hb-button--secondary hb-button--lg" id="home-register-link" href="/user/authentication/register">注册账号</a>
+        <a class="hb-button hb-button--secondary hb-button--lg" id="home-account-link" href="/user/dashboard/index" hidden>进入账号中心</a>
+      </div>
+      <p class="hb-hero__empty" id="home-catalog-empty" hidden>当前暂无主授权或全授权上架，请稍后再来。</p>
+      <ul class="hb-hero__facts">
+        <li><strong>本机部署</strong><small>FastAPI + SQLite，数据自持</small></li>
+        <li><strong>3D 户型中控</strong><small>2D / 3D 双视图，点选即控</small></li>
+        <li><strong>对接 Home Assistant</strong><small>HTTP / WebSocket 双向同步</small></li>
+        <li><strong>买断授权</strong><small>支付确认后自动发码</small></li>
+      </ul>
+      <ol class="hb-flow">
+        <li><span>01</span><div><strong>注册并登录</strong><small>邮箱验证码创建账号</small></div></li>
+        <li><span>02</span><div><strong>扫码完成支付</strong><small>支付结果由服务端确认</small></div></li>
+        <li><span>03</span><div><strong>账号管理授权</strong><small>激活码与设备都在账号中心</small></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 能力矩阵 ===================== -->
+  <section class="hb-section hb-container" aria-labelledby="home-capability-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">Capabilities</span>
+      <h2 id="home-capability-title">一个界面，接管全屋</h2>
+      <p>从户型图到每一盏灯、每一度温度、每一路摄像头，都在同一套界面里编排与操作。</p>
+    </div>
+    <div class="hb-cap-grid">
+      <article class="hb-cap" data-tone="accent">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-cube"></i></span>
+        <h3>3D 户型中控</h3>
+        <p>自建或导入户型模型，按楼层自动导图并回写到仪表盘，墙体与灯光属性可批量套用。</p>
+        <ul class="hb-cap__tags"><li>2D / 3D 双视图</li><li>按房间归类</li><li>批量改属性</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="aura">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-sliders"></i></span>
+        <h3>3D 交互舞台</h3>
+        <p>把控件嵌进户型舞台：在三维视图里直接开关灯、开关、窗帘、空调与电视，状态实时回流。</p>
+        <ul class="hb-cap__tags"><li>点选即控</li><li>草稿快照场景</li><li>展示页共用</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="sensor">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-table-columns"></i></span>
+        <h3>可视化编辑器</h3>
+        <p>页面、控件、实体绑定、弹窗与主题全部可拖拽配置，改完即生效，不需要碰代码。</p>
+        <ul class="hb-cap__tags"><li>控件自由摆放</li><li>弹窗编排</li><li>内置暗色主题</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="cool">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-tv"></i></span>
+        <h3>全屏中控与配对</h3>
+        <p>专门给墙面平板和常亮屏准备的全屏展示页，用 6 位配对码把设备接进来，装完即用。</p>
+        <ul class="hb-cap__tags"><li>常亮展示页</li><li>6 位配对码</li><li>独立浏览器可用</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="heat">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-temperature-half"></i></span>
+        <h3>环境与气候</h3>
+        <p>空调、地暖、新风统一成气候面板，温度、模式与风速在一个控件里调完。</p>
+        <ul class="hb-cap__tags"><li>制冷 / 制热</li><li>风速与摆风</li><li>多房间</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="eco">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-shield-halved"></i></span>
+        <h3>安防与传感器</h3>
+        <p>门窗、人体、水浸等传感器按区域看板汇总，异常状态一眼可见，触发条件可挂联动。</p>
+        <ul class="hb-cap__tags"><li>分区布防</li><li>异常高亮</li><li>联动触发</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="lumen">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-robot"></i></span>
+        <h3>扫地机器人地图</h3>
+        <p>把扫地机的清扫地图和分区搬进中控，指定房间清扫、查看进度都在同一块屏上。</p>
+        <ul class="hb-cap__tags"><li>分区清扫</li><li>进度可视</li><li>地图编辑</li></ul>
+      </article>
+      <article class="hb-cap" data-tone="accent">
+        <span class="hb-cap__icon"><i class="fa-duotone fa-regular fa-house-signal"></i></span>
+        <h3>Home Assistant 直连</h3>
+        <p>用 HTTP 与 WebSocket 同步实体和状态，摄像头与媒体走代理转发，已有 HA 环境直接接管。</p>
+        <ul class="hb-cap__tags"><li>实体同步</li><li>状态推送</li><li>媒体代理</li></ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================== 中控示意 ===================== -->
+  <section class="hb-section hb-container" aria-labelledby="home-console-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">Central Control</span>
+      <h2 id="home-console-title">一块屏幕，看住全屋</h2>
+      <p>户型、设备卡、场景与状态同屏并列，不用在几个 App 之间来回切。</p>
+    </div>
+    <figure class="hb-figure">
+      <div class="hb-console" role="img"
+           aria-label="HomeOS 全屋中控界面示意：左侧为 3D 户型面板并标注各房间的在线设备，右侧为客厅主灯、中央空调与全屋安防三张设备卡。">
+        <div class="hb-console__bar">
+          <span class="hb-console__brand"><i class="fa-duotone fa-regular fa-house-chimney"></i> HomeOS</span>
+          <span class="hb-console__chip hb-console__chip--on"><i class="fa-duotone fa-regular fa-circle-check"></i> 8 台在线</span>
+          <span class="hb-console__chip">回家模式</span>
+          <span class="hb-console__clock">20:41</span>
+        </div>
+        <div class="hb-console__body">
+          <div class="hb-console__plan">
+            <span class="hb-console__room hb-console__room--living" data-tone="lumen">客厅</span>
+            <span class="hb-console__room hb-console__room--kitchen" data-tone="eco">厨房</span>
+            <span class="hb-console__room hb-console__room--bedroom" data-tone="aura">主卧</span>
+            <span class="hb-console__room hb-console__room--balcony" data-tone="accent">阳台</span>
+            <span class="hb-console__node hb-console__node--on hb-console__node--a" data-tone="lumen"></span>
+            <span class="hb-console__node hb-console__node--on hb-console__node--b" data-tone="cool"></span>
+            <span class="hb-console__node hb-console__node--on hb-console__node--c" data-tone="aura"></span>
+            <span class="hb-console__node hb-console__node--off hb-console__node--d"></span>
+            <span class="hb-console__node hb-console__node--on hb-console__node--e" data-tone="eco"></span>
+            <span class="hb-console__node hb-console__node--off hb-console__node--f"></span>
+            <span class="hb-console__legend"><i class="hb-console__dot hb-console__dot--on"></i>开启<i class="hb-console__dot"></i>关闭</span>
+          </div>
+          <div class="hb-console__side">
+            <div class="hb-console__card" data-tone="lumen">
+              <div class="hb-console__card-head"><span>客厅主灯</span><span class="hb-console__badge hb-console__badge--on">已开启</span></div>
+              <div class="hb-console__slider"><i></i></div>
+              <div class="hb-console__card-foot"><small>亮度</small><strong>72%</strong></div>
+            </div>
+            <div class="hb-console__card" data-tone="cool">
+              <div class="hb-console__card-head"><span>中央空调</span><span class="hb-console__badge hb-console__badge--on">制冷</span></div>
+              <div class="hb-console__reading"><strong>22.4</strong><small>°C</small></div>
+              <div class="hb-console__card-foot"><small>目标 24.0°C</small><strong>中风</strong></div>
+            </div>
+            <div class="hb-console__card" data-tone="eco">
+              <div class="hb-console__card-head"><span>全屋安防</span><span class="hb-console__badge hb-console__badge--on">已布防</span></div>
+              <ul class="hb-console__zones">
+                <li><span>门窗</span><b>6 / 6 正常</b></li>
+                <li><span>人体</span><b>3 路在线</b></li>
+                <li><span>水浸</span><b>2 路正常</b></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption class="hb-figure__note">界面示意，实际布局可在编辑器里自由调整。</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===================== 部署流程 ===================== -->
+  <section class="hb-section hb-container" aria-labelledby="home-deploy-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">Getting Started</span>
+      <h2 id="home-deploy-title">四步接手现有的家</h2>
+      <p>已有 Home Assistant 环境可以直接接管，没有也可以从零开始配置。</p>
+    </div>
+    <ol class="hb-steps">
+      <li class="hb-steps__item" data-tone="accent">
+        <span class="hb-steps__index">01</span>
+        <div class="hb-steps__body"><strong>部署服务</strong><small>本机或 NAS 上跑起 HomeOS，默认数据落在本机 SQLite。</small></div>
+      </li>
+      <li class="hb-steps__item" data-tone="aura">
+        <span class="hb-steps__index">02</span>
+        <div class="hb-steps__body"><strong>连接 Home Assistant</strong><small>填入地址与令牌，实体与状态自动同步过来。</small></div>
+      </li>
+      <li class="hb-steps__item" data-tone="lumen">
+        <span class="hb-steps__index">03</span>
+        <div class="hb-steps__body"><strong>激活授权</strong><small>在账号中心拿到激活码，客户端联网确认后即可使用。</small></div>
+      </li>
+      <li class="hb-steps__item" data-tone="eco">
+        <span class="hb-steps__index">04</span>
+        <div class="hb-steps__body"><strong>导入户型并绑定设备</strong><small>户型导图、控件摆放、弹窗与场景按房间逐个配好。</small></div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ===================== 授权版本入口 ===================== -->
+  <section class="hb-section hb-container" aria-labelledby="home-tiers-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">License</span>
+      <h2 id="home-tiers-title">按需要选授权</h2>
+      <p>主授权决定基础能力，增量包按需叠加到已有的永久激活码上，不必重复购买。</p>
+    </div>
+    <div class="hb-tiers">
+      <article class="hb-tier" data-tone="eco">
+        <header class="hb-tier__head">
+          <span class="hb-tier__name">基础版</span>
+          <span class="hb-tier__hint">先把全屋接起来</span>
+        </header>
+        <ul class="hb-tier__list">
+          <li>仪表盘编辑与全屏展示</li>
+          <li>Home Assistant 实体同步</li>
+          <li>中控配对与全局日志</li>
+        </ul>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products">查看价格</a>
+      </article>
+      <article class="hb-tier hb-tier--featured" data-tone="accent">
+        <header class="hb-tier__head">
+          <span class="hb-tier__name">3D 交互版</span>
+          <span class="hb-tier__hint">户型里直接操作</span>
+        </header>
+        <ul class="hb-tier__list">
+          <li>包含基础版的全部能力</li>
+          <li>3D 户型工作室与自动导图</li>
+          <li>3D 交互舞台：灯、窗帘、空调、电视、扫地机</li>
+        </ul>
+        <a class="hb-button hb-button--primary hb-tier__action" href="/products">查看价格</a>
+      </article>
+      <article class="hb-tier" data-tone="aura">
+        <header class="hb-tier__head">
+          <span class="hb-tier__name">增量包</span>
+          <span class="hb-tier__hint">老用户按需升级</span>
+        </header>
+        <ul class="hb-tier__list">
+          <li>挂到已有的永久激活码上</li>
+          <li>单个能力单独购买</li>
+          <li>不影响原授权有效期</li>
+        </ul>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products">查看增量包</a>
+      </article>
+    </div>
+    <p class="hb-tiers__note">具体在售商品与价格以商品列表为准；买错或换机都可以在账号中心自助处理。</p>
+  </section>
+
+  <!-- ===================== 保障 ===================== -->
+  <section class="hb-section hb-container" aria-labelledby="home-trust-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">Assurance</span>
+      <h2 id="home-trust-title">买得清楚，用得踏实</h2>
+    </div>
+    <ul class="hb-trust">
+      <li class="hb-trust__item" data-tone="accent"><i class="fa-duotone fa-regular fa-database"></i><strong>数据留在本机</strong><small>授权校验走自建服务器，家庭数据不上传第三方云。</small></li>
+      <li class="hb-trust__item" data-tone="eco"><i class="fa-duotone fa-regular fa-bolt"></i><strong>支付确认即发码</strong><small>订单由服务端确认，到账后自动签发激活码，无需等人工。</small></li>
+      <li class="hb-trust__item" data-tone="aura"><i class="fa-duotone fa-regular fa-arrows-rotate"></i><strong>设备可自助解绑</strong><small>换机或升级后硬件指纹变化时，可在账号中心自助解绑，每份授权独立计算冷却。</small></li>
+      <li class="hb-trust__item" data-tone="lumen"><i class="fa-duotone fa-regular fa-receipt"></i><strong>订单与授权可查</strong><small>历史订单、激活码、绑定设备与积分流水在账号中心随时可查。</small></li>
+    </ul>
+  </section>
+
+  <!-- ===================== 常见问题 ===================== -->
+  <section class="hb-section hb-container hb-section--last" aria-labelledby="home-faq-title">
+    <div class="hb-section-head">
+      <span class="hb-kicker hb-kicker--plain">FAQ</span>
+      <h2 id="home-faq-title">常见问题</h2>
+    </div>
+    <div class="hb-faq">
+      <details class="hb-faq__item" open>
+        <summary>需要一台公网服务器吗？</summary>
+        <div class="hb-faq__body"><p>不需要。HomeOS 默认跑在自己的电脑或 NAS 上，数据落在本机 SQLite；授权校验是唯一需要联网的环节，客户端会定期心跳续租。</p></div>
+      </details>
+      <details class="hb-faq__item">
+        <summary>已经装了 Home Assistant，还要重新配一遍吗？</summary>
+        <div class="hb-faq__body"><p>不用。填入 HA 地址与长期令牌后，HomeOS 会通过 HTTP 与 WebSocket 把实体和状态同步过来，已有的自动化与设备保持原样。</p></div>
+      </details>
+      <details class="hb-faq__item">
+        <summary>一台授权能绑几台设备？换设备怎么办？</summary>
+        <div class="hb-faq__body"><p>每份授权对应一个激活码，按本机硬件指纹一对一绑定，设备会列在账号中心。换设备时可在线自助解绑；解绑后原设备下次心跳即转吊销，冷却期内不能重新绑定。系统大版本升级后若提示「硬件绑定不匹配」，同样先在账号中心解绑，再回 HomeOS 用原激活码重新激活。</p></div>
+      </details>
+      <details class="hb-faq__item">
+        <summary>买了基础版，之后想升级可以吗？</summary>
+        <div class="hb-faq__body"><p>可以。增量包会直接挂到已有的永久主授权上，不需要重新购买基础版，也不影响原授权的有效期。</p></div>
+      </details>
+      <details class="hb-faq__item">
+        <summary>支付成功后没看到激活码？</summary>
+        <div class="hb-faq__body"><p>先在账号中心的订单里确认状态：已完成的订单会直接展示激活码。若状态仍为待付款，可能是支付结果还没回调，稍等片刻刷新即可；超过一段时间仍未到账，请带上订单号联系客服邮箱。</p></div>
+      </details>
+      <details class="hb-faq__item">
+        <summary>优惠码怎么用？</summary>
+        <div class="hb-faq__body"><p>在结算页填写优惠码后点校验，折扣会立即体现在应付金额上；每个优惠码的适用范围和限用次数由运营配置，校验通过才会计入订单。</p></div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== 商品列表 ===================== -->
+<main class="hb-store-main" data-store-page="products" hidden>
+  <div class="hb-container">
+    <div class="hb-page-head">
+      <div>
+        <div class="hb-page-head__eyebrow">
+          <span class="hb-kicker">License Editions</span>
+          <span class="hb-page-head__path">~/store/products</span>
+        </div>
+        <h1>选择 <strong>HomeOS</strong> 授权版本</h1>
+        <p>主授权决定基础能力，增量包按需叠加到已有的永久激活码上。</p>
+      </div>
+      <div class="hb-page-head__feed">
+        <div><small>交付</small><strong>支付确认后自动发码</strong></div>
+        <div><small>归属</small><strong>激活码绑定下单账号</strong></div>
+        <div><small>解绑</small><strong>每份授权独立计算冷却</strong></div>
+      </div>
+    </div>
+    <div class="hb-filter" role="tablist" aria-label="按类型筛选商品">
+      <button type="button" class="hb-filter__item is-active" data-product-filter="all" role="tab" aria-selected="true">全部 <span class="hb-filter__count" data-product-count="all">0</span></button>
+      <button type="button" class="hb-filter__item" data-product-filter="base" role="tab" aria-selected="false">主授权 <span class="hb-filter__count" data-product-count="base">0</span></button>
+      <button type="button" class="hb-filter__item" data-product-filter="bundle" role="tab" aria-selected="false">全授权 <span class="hb-filter__count" data-product-count="bundle">0</span></button>
+      <button type="button" class="hb-filter__item" data-product-filter="trial" role="tab" aria-selected="false">试用 <span class="hb-filter__count" data-product-count="trial">0</span></button>
+      <button type="button" class="hb-filter__item" data-product-filter="addon" role="tab" aria-selected="false" hidden>增量包 <span class="hb-filter__count" data-product-count="addon">0</span></button>
+    </div>
+    <div id="products-grid" class="hb-addons-grid"></div>
+  </div>
+</main>
+
+<!-- ===================== 商品详情 / 结算 ===================== -->
+<main class="hb-store-main" data-store-page="item" hidden>
+  <div class="hb-container">
+    <section id="store-empty-state" class="hb-empty" hidden>
+      <span><i class="fa-duotone fa-regular fa-box-open"></i></span>
+      <strong>商品不可购买</strong>
+      <p>该商品可能已下架或链接已失效，请返回商品列表重新选择。</p>
+      <a class="hb-button hb-button--secondary" href="/products">返回商品列表</a>
+    </section>
+
+    <div class="hb-checkout-shell" id="store-checkout-shell">
+      <div class="hb-checkout-main">
+        <section class="hb-checkout-card" aria-label="填写购买信息">
+          <div class="hb-checkout-card__header">
+            <div>
+              <span class="hb-kicker">Secure Checkout</span>
+              <h2 id="checkout-card-title">确认并支付</h2>
+            </div>
+            <div class="hb-checkout-price">
+              <small id="store-product-price-label">应付金额</small>
+              <div class="hb-checkout-price__amount">
+                <del id="store-product-original-price" hidden></del>
+                <span class="price" id="store-product-price">--</span>
+              </div>
+            </div>
+          </div>
+
+          <form class="hb-checkout-form" id="purchase-form">
+            <section class="hb-form-section">
+              <div class="hb-form-section__head">
+                <div><strong>购买账号</strong><small>订单、激活码和设备将归属于当前登录账号</small></div>
+              </div>
+              <div class="hb-purchase-account">
+                <span><i class="fa-duotone fa-regular fa-envelope-circle-check"></i></span>
+                <div>
+                  <strong id="purchase-account-email">尚未登录</strong>
+                  <small id="purchase-account-hint">请先登录后购买，未登录不会创建订单</small>
+                </div>
+              </div>
+              <div class="hb-purchase-account-actions">
+                <button type="button" class="hb-button hb-button--primary" id="guest-purchase-trigger">登录后购买</button>
+                <a href="/user/authentication/register" class="hb-button hb-button--secondary" id="purchase-register-link">注册账号</a>
+              </div>
+            </section>
+
+            <section class="hb-form-section" id="addon-target" hidden>
+              <div class="hb-form-section__head">
+                <div><strong>选择原授权</strong><small>增量包将直接添加到选中的激活码</small></div>
+              </div>
+              <select name="targetLicenseId" class="hb-select" aria-label="选择要添加增量包的授权"></select>
+              <small id="addon-target-confirmation" class="hb-form-help" hidden></small>
+              <small id="addon-target-empty" class="hb-form-help" hidden>当前账号没有可添加增量包的永久主授权。</small>
+            </section>
+
+            <section class="hb-form-section" id="coupon-section">
+              <div class="hb-form-section__head">
+                <div><strong>优惠码</strong><small>没有优惠码可留空，输入后自动校验</small></div>
+              </div>
+              <div class="hb-coupon-input">
+                <input type="text" class="hb-input" name="couponCode" placeholder="输入优惠码" autocomplete="off">
+                <small id="coupon-feedback" class="hb-coupon-feedback" aria-live="polite" hidden></small>
+              </div>
+            </section>
+
+            <section class="hb-form-section">
+              <div class="hb-form-section__head">
+                <div><strong>购买数量</strong><small>基础授权每个订单购买 1 份</small></div>
+              </div>
+              <div class="hb-fixed-quantity"><strong>1</strong><span>份授权</span></div>
+            </section>
+
+            <section class="hb-form-section">
+              <div class="hb-form-section__head">
+                <div><strong>选择支付方式</strong><small>支付结果由服务端确认，请勿重复付款</small></div>
+              </div>
+              <!-- 付款按钮**按服务端下发的渠道清单渲染**（见 renderPaymentMethods）：
+                   从前这里写死一个「支付宝付款」，所以微信渠道就算配好了也永远出不来，
+                   而且渠道不可用时它照样是个能点的按钮（点下去 503）。
+                   .hb-payment-methods 本来就是 grid + 12px gap，多个渠道天然竖排，
+                   所以这里不需要新增任何 CSS。 -->
+              <div class="hb-payment-methods" id="payment-methods"></div>
+              <input type="hidden" name="paymentChannel" value="">
+            </section>
+          </form>
+        </section>
+      </div>
+
+      <aside class="hb-product-summary">
+        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg" alt="授权商品"></div>
+        <div class="hb-product-summary__content">
+          <div class="hb-product-summary__badges">
+            <span><i class="fa-duotone fa-regular fa-bolt"></i> <b id="store-delivery-label">自动发货</b></span>
+            <span class="hb-product-summary__status"><i class="hb-dot"></i>授权服务在线</span>
+          </div>
+          <h1 id="hb-checkout-title">正在读取商品</h1>
+          <p id="store-product-description">支付确认后系统自动生成激活码，并在账号中心显示。</p>
+          <p id="store-package-contents" class="hb-package-contents" hidden></p>
+          <dl class="hb-product-facts">
+            <div><dt>交付方式</dt><dd id="store-delivery-fact">账号中心显示激活码</dd></div>
+            <div><dt>库存状态</dt><dd id="store-stock-fact">不限量</dd></div>
+            <div><dt>售后凭证</dt><dd>订单号 + 下单邮箱</dd></div>
+          </dl>
+          <button type="button" class="hb-share-button" id="share-product"><i class="fa-duotone fa-regular fa-share-nodes"></i> 复制商品链接</button>
+        </div>
+      </aside>
+    </div>
+
+    <section class="hb-assurance-grid hb-checkout-assurances" id="store-checkout-assurances">
+      <article data-tone="accent"><i class="fa-duotone fa-regular fa-user-check"></i><div><strong>账号统一管理</strong><p>购买记录、激活码和设备绑定都归属于当前账号。</p></div></article>
+      <article data-tone="eco"><i class="fa-duotone fa-regular fa-clock"></i><div><strong>支付后自动处理</strong><p>支付平台确认后会立即生成或更新授权。</p></div></article>
+      <article data-tone="lumen"><i class="fa-duotone fa-regular fa-headset"></i><div><strong>异常可人工处理</strong><p>保留订单号，管理员可查询并协助处理。</p></div></article>
+    </section>
+  </div>
+</main>
+
+<!-- ===================== 入口分页（登录 / 注册 / 找回） ===================== -->
+<!-- 三块合用一个整页场景壳（与主项目入口页、后台登录同款）：同一份场景标记、同一块玻璃坞，
+     .password / .confirmPassword / .code / .referralCode。 -->
+<!-- 登录 = 主控暖金（一页一色表的锚点）。此前这里没有 tone 类，靠 page.css
+       的默认值兜底 —— 机制与主项目五页不同，读代码的人看不出它是刻意的。 -->
+<div class="hb-auth-stage hos-page hos-tone--accent">
+  <!--{{SCENE}}-->
+
+  <main class="hos-dock">
+    <section class="hos-panel hos-rise" data-store-page="login" hidden>
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">账号 · 01/03</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号即授权</span>
+        </div>
+        <h1>登录后取回你的授权</h1>
+        <p class="hos-panel__desc">
+          订单、激活码、设备绑定与邀请积分都挂在同一个邮箱账号下；换设备登录，购买记录跟人走。
+        </p>
+      </div>
+
+      <!-- 状态甲板（读数源：apps/store/api/telemetry.py）。与主应用同一套机制：按页给读数，
+           匿名访问者只拿机制读数，不给站里的订单与授权规模。 -->
+      <!--{{DECK}}-->
+
+      <form id="store-login-form" class="hos-form">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="store-login-email">邮箱</label></div>
+          <div class="hos-control">
+            <input id="store-login-email" type="email" name="email" autocomplete="email" placeholder="name@example.com" required>
+          </div>
+        </div>
+
+        <div class="hos-field">
+          <div class="hos-label-row">
+            <label for="store-login-password">密码</label>
+            <a class="hos-hint" href="/user/authentication/forget">忘记密码？</a>
+          </div>
+          <div class="hos-control hos-password-field">
+            <input id="store-login-password" type="password" name="password" autocomplete="current-password" placeholder="请输入密码" required>
+            <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+          </div>
+        </div>
+
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit">登录</button>
+        </div>
+      </form>
+
+      <p class="hos-switch">还没有账号？<a href="/user/authentication/register">立即注册</a></p>
+
+      <div class="hos-panel__copy">
+        <div class="hos-panel__meta">
+          <span>登录态失效可重登</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>已授权设备不因重登解绑</span>
+        </div>
+        <p>换浏览器只是重新登录一次，激活码与已绑定的设备仍挂在账号上。</p>
+      </div>
+    </section>
+
+    <section class="hos-panel hos-rise" data-store-page="forget" hidden>
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">账号 · 02/03</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>验证码发到邮箱</span>
+        </div>
+        <h1>换一个能记住的密码</h1>
+        <p class="hos-panel__desc">验证码只会发送到已注册的邮箱，重置成功后请用新密码重新登录。</p>
+      </div>
+
+      <!--{{DECK}}-->
+
+      <form id="store-forget-form" class="hos-form">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="store-forget-email">注册邮箱</label></div>
+          <div class="hos-control">
+            <input id="store-forget-email" type="email" name="email" autocomplete="email" placeholder="name@example.com" required>
+          </div>
+        </div>
+
+        <!-- 验证码与「获取验证码」并排：右边那格用 .hos-field--action 自动对齐左边输入框。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-code">邮箱验证码</label></div>
+            <div class="hos-control">
+              <input id="store-forget-code" type="text" name="code" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required>
+            </div>
+          </div>
+          <div class="hos-field hos-field--action">
+            <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+            <button type="button" class="hos-btn-ghost" id="send-reset-code">获取验证码</button>
+          </div>
+        </div>
+
+        <!-- 两枚密码并排：认证三屏里找回屏同样是最长的一档（四组字段 + 甲板 + 抬头），
+             拆开读反而绕 —— 与注册屏的分组不同，是因为两屏的字段集本来就不同。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-forget-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
+              <button type="button" data-password-toggle aria-label="显示新密码" title="显示新密码">显示</button>
+            </div>
+          </div>
+
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-forget-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
+              <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="hos-msg is-err" data-password-mismatch role="alert" hidden>两次输入的密码不一致。</p>
+
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit">重置密码</button>
+        </div>
+      </form>
+
+      <p class="hos-switch"><a href="/user/authentication/login">返回登录</a></p>
+
+      <div class="hos-panel__copy">
+        <div class="hos-panel__meta">
+          <span>验证码有时效</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>新密码至少 6 位</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>不影响已授权设备</span>
+        </div>
+        <p>已登录客户端的授权不受密码重置影响。</p>
+      </div>
+    </section>
+
+    <section class="hos-panel hos-rise" data-store-page="register" hidden>
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">账号 · 03/03</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>邮箱 + 验证码</span>
+        </div>
+        <h1>开一个订单跟着你的账号</h1>
+        <p class="hos-panel__desc">邮箱验证码通过后设置登录密码，账号建好即可下单。</p>
+      </div>
+
+      <!--{{DECK}}-->
+
+      <form id="store-register-form" class="hos-form">
+        <!-- 邮箱与「获取验证码」同一行：这一步本来就是「填邮箱 → 点发码」一个动作，
+            认证三屏里最长的一屏（四组字段 + 甲板 + 抬头），1366×768 上正好差 70px。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
+            <div class="hos-control">
+              <input id="store-register-email" type="email" name="email" autocomplete="email" placeholder="name@example.com" required>
+            </div>
+          </div>
+          <div class="hos-field hos-field--action">
+            <div class="hos-label-row" aria-hidden="true">&nbsp;</div>
+            <button type="button" class="hos-btn-ghost" id="send-register-code">获取验证码</button>
+          </div>
+        </div>
+
+        <!-- 两枚 6 位码并排：验证码与邀请码是同一形状的短输入（都是 6 位数字），
+            各自独占一行时右边空着近一半的宽度。并排之后四组字段收成三行。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-code">邮箱验证码</label></div>
+            <div class="hos-control">
+              <input id="store-register-code" type="text" name="code" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required>
+            </div>
+          </div>
+          <div class="hos-field">
+            <div class="hos-label-row">
+              <label for="store-register-referral">邀请码（选填）</label>
+              <span class="hos-hint">仅邀请绑定 · 无折扣</span>
+            </div>
+            <div class="hos-control">
+              <input id="store-register-referral" type="text" name="referralCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6 位数字">
+            </div>
+          </div>
+        </div>
+
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-password">密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-register-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
+              <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+            </div>
+          </div>
+
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-register-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
+              <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="hos-msg is-err" data-password-mismatch role="alert" hidden>两次输入的密码不一致。</p>
+
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit">注册</button>
+        </div>
+      </form>
+
+      <p class="hos-switch">已有账号？<a href="/user/authentication/login">立即登录</a></p>
+
+      <div class="hos-panel__copy">
+        <div class="hos-panel__meta">
+          <span>只收邮箱与验证码</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>邀请码选填</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>支付后才发积分</span>
+        </div>
+        <p>账号创建后即可下单，激活码会进入账号中心。</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== 账号中心 ===================== -->
+<main class="hb-store-main" data-store-page="account" hidden>
+  <div class="hb-container">
+    <section class="hb-account-heading">
+      <div>
+        <div class="hb-account-heading__eyebrow">
+          <span class="hb-kicker">My Account</span>
+          <span class="hb-account-heading__path">~/account/licenses</span>
+        </div>
+        <h1>我的<strong>授权中心</strong></h1>
+        <p id="account-email">正在读取账号…</p>
+      </div>
+      <div class="hb-account-heading__actions">
+        <a class="hb-button hb-button--secondary hb-button--sm" href="/user/referrals"><i class="fa-duotone fa-regular fa-gift"></i> 邀请有礼</a>
+        <button type="button" class="hb-button hb-button--secondary hb-button--sm" id="store-logout">退出登录</button>
+      </div>
+    </section>
+
+    <div class="hb-account-shell">
+      <aside class="hb-account-rail">
+        <nav class="hb-account-tabs" role="tablist" aria-label="账号中心分栏">
+          <button type="button" class="hb-account-tabs__item is-active" data-account-tab="licenses" role="tab" aria-selected="true"><i class="fa-duotone fa-regular fa-id-card"></i>我的授权<span data-account-tab-count="licenses">0</span></button>
+          <button type="button" class="hb-account-tabs__item" data-account-tab="addons" role="tab" aria-selected="false"><i class="fa-duotone fa-regular fa-puzzle-piece"></i>增量包<span data-account-tab-count="addons">0</span></button>
+          <button type="button" class="hb-account-tabs__item" data-account-tab="orders" role="tab" aria-selected="false"><i class="fa-duotone fa-regular fa-receipt"></i>我的订单<span data-account-tab-count="orders">0</span></button>
+        </nav>
+
+        <section class="hb-account-stats" aria-label="账号概览">
+          <article data-tone="accent"><small>我的授权</small><strong id="account-stat-licenses">0</strong></article>
+          <article data-tone="aura"><small>已购增量包</small><strong id="account-stat-entitlements">0</strong></article>
+          <article data-tone="eco"><small>订单记录</small><strong id="account-stat-orders">0</strong></article>
+          <article data-tone="lumen"><small>待支付订单</small><strong id="account-stat-pending">0</strong></article>
+        </section>
+      </aside>
+
+      <div class="hb-account-content">
+        <div class="hb-account-panel" data-account-panel="licenses">
+          <p id="account-release-policy" hidden></p>
+          <div id="account-licenses" class="hb-account-list"></div>
+        </div>
+
+        <div class="hb-account-panel" data-account-panel="addons" hidden>
+          <section class="hb-account-section" id="account-entitlements-section" hidden>
+            <div class="hb-section-heading hb-section-heading--compact">
+              <span class="hb-kicker">Add-ons</span>
+              <h2>已购增量包</h2>
+            </div>
+            <div id="account-entitlements" class="hb-account-list"></div>
+          </section>
+          <section class="hb-account-section" id="account-addon-offers-section" hidden>
+            <div class="hb-section-heading hb-section-heading--compact">
+              <span class="hb-kicker">Available Add-ons</span>
+              <h2>可购买增量包</h2>
+            </div>
+            <div id="account-addon-offers" class="hb-addons-grid hb-addons-grid--compact"></div>
+          </section>
+        </div>
+
+        <div class="hb-account-panel" data-account-panel="orders" hidden>
+          <div id="account-orders" class="hb-account-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===================== 邀请有礼 ===================== -->
+<main class="hb-store-main" data-store-page="referrals" hidden>
+  <div class="hb-container">
+    <section class="hb-account-heading">
+      <div>
+        <div class="hb-account-heading__eyebrow">
+          <span class="hb-kicker">Invite &amp; Earn</span>
+          <span class="hb-account-heading__path">~/account/referrals</span>
+        </div>
+        <h1>邀请<strong>有礼</strong></h1>
+        <p>分享 HomeOS，让每一份推荐都有回报。</p>
+      </div>
+      <div class="hb-account-heading__actions">
+        <a class="hb-button hb-button--secondary hb-button--sm" href="/user/dashboard/index">返回账号中心</a>
+      </div>
+    </section>
+
+    <p id="referral-error" role="alert" hidden></p>
+
+    <section class="referral-share">
+      <div>
+        <h2>我的专属邀请</h2>
+        <p id="referral-rate">正在读取邀请规则…</p>
+        <p id="referral-code-text">生成邀请码，开始邀请好友。</p>
+        <div class="referral-actions">
+          <button id="referral-generate" class="hb-button hb-button--primary">生成我的邀请码</button>
+          <button id="referral-copy-code" class="hb-button hb-button--secondary" hidden>复制邀请码</button>
+          <button id="referral-copy-link" class="hb-button hb-button--secondary" hidden>复制邀请链接</button>
+        </div>
+        <input id="referral-link" aria-label="我的邀请链接" readonly hidden>
+      </div>
+      <aside>
+        <strong id="referral-invited">0</strong>
+        <span>已邀请注册</span>
+        <small>新用户注册时绑定，后续每笔实付订单均可奖励。</small>
+      </aside>
+    </section>
+
+    <section id="referral-stats" class="referral-stats" aria-label="我的积分"></section>
+
+    <section class="hb-block">
+      <div class="hb-section-heading hb-section-heading--compact">
+        <h2>积分提现</h2>
+      </div>
+      <p class="hb-lead" id="referral-withdraw-lead">1 积分等于 1 元，达到提现门槛后可申请提现。提交申请后凭申请编号联系客服人工办理。</p>
+      <form id="referral-withdraw-form" class="referral-withdraw-form">
+        <!-- min / placeholder 是「还没拿到服务端设置」时的兜底静态值，referrals.js 拉到
+             settings.withdrawalMinPoints 后会改写它们；文案里的门槛同样由脚本生成。 -->
+        <label>提现积分<input name="points" type="number" min="100" max="100000000" step="0.01" placeholder="至少 100 积分" required></label>
+        <button class="hb-button hb-button--primary" type="submit">申请提现</button>
+      </form>
+      <p id="referral-fee-preview"></p>
+      <p id="referral-application" role="status"></p>
+    </section>
+
+    <section class="hb-block">
+      <div class="referral-history-tabs" role="tablist" aria-label="积分明细与提现记录">
+        <button type="button" data-referral-history="ledger" class="hb-button hb-button--primary">积分明细</button>
+        <button type="button" data-referral-history="withdrawals" class="hb-button hb-button--secondary">提现记录</button>
+      </div>
+      <div id="referral-history"></div>
+      <div class="referral-pagination">
+        <button id="referral-prev" class="hb-button hb-button--secondary hb-button--sm">上一页</button>
+        <span id="referral-page"></span>
+        <button id="referral-next" class="hb-button hb-button--secondary hb-button--sm">下一页</button>
+      </div>
+    </section>
+
+    <section class="hb-block referral-guide">
+      <details>
+        <summary>邀请与提现说明</summary>
+        <ol>
+          <li>生成邀请码或复制邀请链接，分享给还没有注册的好友。邀请码只用于绑定邀请关系，不提供购买折扣；老用户不能补绑。</li>
+          <li id="referral-guide-reward"></li>
+          <li>积分保留两位小数，不足 0.01 积分部分舍去。免费订单不参与邀请奖励。</li>
+          <li id="referral-guide-fee"></li>
+          <li>提交申请后积分暂时冻结。请提供申请编号和账号邮箱，联系客服处理；提现完成后可在记录中查看结果，未通过的申请会退回积分。</li>
+          <li>订单退款视为邀请失败，已发放的奖励积分将退回。</li>
+          <li>不能自邀或更换邀请人。奖励比例以下单时为准，提现手续费以申请时为准，之后调整不影响已有记录。</li>
+        </ol>
+      </details>
+    </section>
+  </div>
+</main>
+
+<!-- ===================== 页脚 ===================== -->
+<footer class="hb-site-footer">
+  <div class="hb-container hb-site-footer__inner">
+    <div class="hb-site-footer__brand">
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg" alt=""></span>
+      <div>
+        <strong id="footer-site-name">HomeOS 授权中心</strong>
+        <p>安全支付，自动发码，账号统一管理。</p>
+      </div>
+    </div>
+    <div class="hb-site-footer__meta">
+      <nav class="hb-site-footer__links">
+        <a href="/">首页</a>
+        <a href="/products">购买授权</a>
+        <a class="hb-guest-only" href="/user/authentication/login">账号登录</a>
+        <a class="hb-auth-only" href="/user/dashboard/index">账号中心</a>
+      </nav>
+      <div class="hb-site-footer__bottom"><span>支付结果以服务端异步通知为准</span></div>
+    </div>
+  </div>
+</footer>
+
+<!-- ===================== 对话框 ===================== -->
+<dialog id="payment-dialog" class="hb-dialog hb-payment-dialog">
+  <div class="hb-dialog__head">
+    <button type="button" class="hb-dialog__close hb-payment-close" data-payment-close aria-label="关闭"><i class="fa-duotone fa-regular fa-xmark"></i></button>
+    <!-- 渠道名与标题**不能写死**：从前这里是「Alipay / 支付宝扫码支付」，
+         微信的二维码会顶着支付宝的标题出现 —— 那是收银台最糟的一类误导。 -->
+    <span class="hb-kicker hb-kicker--plain" id="payment-kicker">Payment</span>
+    <h2 id="payment-title">扫码支付</h2>
+    <p id="payment-product"></p>
+  </div>
+  <div class="hb-dialog__body">
+    <div class="hb-pay-scan">
+      <div id="payment-qr"></div>
+      <p class="hb-pay-scan__hint"><i class="fa-duotone fa-regular fa-mobile-notch"></i><span id="payment-hint">打开支付宝「扫一扫」完成付款</span></p>
+    </div>
+    <div class="hb-pay-amount">
+      <span>应付金额</span>
+      <strong class="hb-pay-amount__value"><i>¥</i><span id="payment-price"></span></strong>
+    </div>
+    <div class="hb-pay-timer">
+      <span class="hb-pay-timer__status"><i class="hb-pay-timer__dot"></i><b id="payment-status">等待支付</b></span>
+      <span class="hb-pay-timer__clock"><i class="fa-duotone fa-regular fa-clock"></i><b id="payment-countdown">02:00</b></span>
+    </div>
+    <p class="hb-pay-note">倒计时结束后订单自动关闭，并释放库存和优惠码。</p>
+    <p class="hb-pay-closed">这张订单已关闭。如果你刚刚已经付款，请点下方「我已完成支付」再确认一次，付款成功的话激活码会自动补发。</p>
+    <div class="hb-pay-order">
+      <span>订单号</span>
+      <code id="payment-order"></code>
+    </div>
+  </div>
+  <div class="hb-dialog__foot hb-dialog__foot--split">
+    <button type="button" class="hb-button hb-button--secondary" id="payment-cancel">取消支付</button>
+    <button type="button" class="hb-button hb-button--primary" id="payment-refresh">我已完成支付</button>
+  </div>
+</dialog>
+
+
+<dialog id="guest-purchase-dialog" class="hb-dialog hb-pending-order-dialog">
+  <div class="hb-dialog__head">
+    <span class="hb-kicker hb-kicker--plain">Login Required</span>
+    <h2>请先登录后购买</h2>
+    <p>未登录可以浏览商品，但不能购买或创建订单。</p>
+  </div>
+  <div class="hb-dialog__foot hb-dialog__foot--split">
+    <button id="guest-purchase-dismiss" type="button" class="hb-button hb-button--secondary">继续浏览</button>
+    <a href="/user/authentication/login" class="hb-button hb-button--primary">去登录</a>
+  </div>
+</dialog>
+
+<dialog id="confirm-dialog" class="hb-dialog hb-confirm-dialog">
+  <div class="hb-dialog__head">
+    <span class="hb-kicker hb-kicker--plain" id="confirm-kicker">Confirm</span>
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-message"></p>
+  </div>
+  <div class="hb-dialog__body">
+    <p class="hb-dialog__status" id="confirm-detail" hidden></p>
+  </div>
+  <div class="hb-dialog__foot hb-dialog__foot--split">
+    <button id="confirm-cancel" type="button" class="hb-button hb-button--secondary">取消</button>
+    <button id="confirm-accept" type="button" class="hb-button hb-button--primary">确定</button>
+  </div>
+</dialog>
+
+<dialog id="pending-order-dialog" class="hb-dialog hb-pending-dialog">
+  <div class="hb-dialog__head">
+    <button type="button" class="hb-dialog__close" data-pending-close aria-label="关闭"><i class="fa-duotone fa-regular fa-xmark"></i></button>
+    <span class="hb-kicker hb-kicker--plain">Pending Order</span>
+    <h2>已有待支付订单</h2>
+    <p>订单「<strong id="pending-order-product"></strong>」尚未完成，可以继续支付或取消后重新下单。</p>
+  </div>
+  <div class="hb-dialog__body">
+    <div class="hb-pay-amount">
+      <span>应付金额</span>
+      <strong class="hb-pay-amount__value"><i>¥</i><span id="pending-order-price"></span></strong>
+    </div>
+    <div class="hb-pay-timer">
+      <span class="hb-pay-timer__status"><i class="hb-pay-timer__dot"></i><b id="pending-order-copy">等待支付，超时后自动关闭</b></span>
+      <span class="hb-pay-timer__clock"><i class="fa-duotone fa-regular fa-clock"></i><b id="pending-order-countdown">02:00</b></span>
+    </div>
+    <p class="hb-pay-note">超时后订单自动关闭，并释放库存和优惠码。</p>
+    <div class="hb-pay-order">
+      <span>订单号</span>
+      <code id="pending-order-no"></code>
+    </div>
+  </div>
+  <div class="hb-dialog__foot hb-dialog__foot--split">
+    <button id="pending-order-cancel" type="button" class="hb-button hb-button--secondary">取消支付</button>
+    <button id="pending-order-continue" type="button" class="hb-button hb-button--primary">继续支付</button>
+  </div>
+</dialog>
+
+<dialog id="release-device-dialog" class="hb-dialog hb-release-dialog">
+  <form id="release-device-form">
+    <div class="hb-dialog__head">
+      <button type="button" class="hb-dialog__close" data-release-close aria-label="关闭"><i class="fa-duotone fa-regular fa-xmark"></i></button>
+      <span class="hb-kicker hb-kicker--plain">Device Security</span>
+      <h2>解除设备绑定</h2>
+    </div>
+    <div class="hb-dialog__body">
+      <p id="release-device-target"></p>
+      <p id="release-device-policy" class="hb-form-hint">正在读取解绑设置…</p>
+      <p class="hb-form-hint">解绑后原设备授权会失效。若因升级/换机出现「硬件绑定不匹配」，解绑完成后再回 HomeOS 激活页重新激活。</p>
+      <p id="release-device-status" class="hb-dialog__status" hidden></p>
+      <label class="hb-field" id="release-device-password"><span>商店登录密码</span><span class="hb-password-field"><input type="password" name="password" autocomplete="current-password" required><button type="button" data-password-toggle aria-label="显示密码">显示</button></span><small class="hb-form-hint">请输入商店账号密码，不是 HomeOS 本机管理员密码。</small></label>
+      <small class="hb-release-error hb-form-error" hidden></small>
+    </div>
+    <div class="hb-dialog__foot hb-dialog__foot--split">
+      <button type="button" class="hb-button hb-button--secondary" data-release-close>取消</button>
+      <button type="submit" class="hb-button hb-button--primary">确认解绑</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="license-label-dialog" class="hb-dialog hb-release-dialog">
+  <form id="license-label-form">
+    <div class="hb-dialog__head">
+      <button type="button" class="hb-dialog__close" data-label-close aria-label="关闭"><i class="fa-duotone fa-regular fa-xmark"></i></button>
+      <span class="hb-kicker hb-kicker--plain">License Label</span>
+      <h2>修改授权备注</h2>
+      <p>备注只用于区分当前账号下的多份授权，不会改变激活码或设备绑定。</p>
+    </div>
+    <div class="hb-dialog__body">
+      <label class="hb-field"><span>授权备注</span><input type="text" name="label" maxlength="50" placeholder="例如：家里主服务器"></label>
+    </div>
+    <div class="hb-dialog__foot hb-dialog__foot--split">
+      <button type="button" class="hb-button hb-button--secondary" data-label-close>取消</button>
+      <button type="submit" class="hb-button hb-button--primary">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="store-toast" class="hb-toast" role="status" aria-live="polite"></div>
+
+<!-- 手持档开关（源：frontend/src/scene/scene-depth.ts）。module 脚本：
+     CSP 的 script-src 含 'self'，同源外部脚本不需要 nonce。 -->
+<script type="module" src="/src/scene/scene-depth.ts"></script>
+<script src="/store-static/jquery.min.js"></script>
+<script src="/store-static/jquery.qrcode.min.js"></script>
+<script type="module" src="/src/htmlsafe.ts"></script>
+<script type="module" src="/src/api-error.ts"></script>
+<script type="module" src="/src/money.ts"></script>
+<script type="module" src="/src/referrals.ts"></script>
+<script type="module" src="/src/store.ts"></script>
+<!-- 状态甲板的自走读数（源：apps/store/static/entry-deck.js）。它读页面里已有的时间戳，
+     其中只有认证三屏有甲板。与主应用那份是两份文件、一套 data-* 契约。 -->
+<script type="module" src="/src/entry-deck.ts"></script>
+</body>
+</html>
