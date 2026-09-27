@@ -5,7 +5,7 @@
 #   1) 共享网络 homeos-3d-net  —— 默认用 http://homeos-3d-store:18082 直连商店；
 #   2) 共享卷 homeos-3d-client-keys —— 商店写入的授权公钥镜像（本服务只读挂载）。
 # 两者都由商店的 compose 文件创建，所以**先起商店，再起本服务**。启动时
-# docker/start_app.py 最多等 120s 让公钥就绪，商店稍慢一点启动也不会失败。
+# ops/docker/start_app.py 最多等 120s 让公钥就绪，商店稍慢一点启动也不会失败。
 #
 # 商店在另一台主机时：
 #   docker network create homeos-3d-net
@@ -13,7 +13,7 @@
 #   把商店的公钥文件（license-public.pem / license-transport-public.pem）放进该卷，
 #   并 chmod 644（跨机器拷贝常留下 root:600，容器里的非 root 用户读不了，
 #   症状是启动即退出或反复重启），最后在 .env 里把 APP_LICENSE_SERVER_URL
-#   指向商店的公网地址。完整清单见 deploy/SPLIT-DEPLOY.md。
+#   指向商店的公网地址。完整清单见 ops/deploy/SPLIT-DEPLOY.md。
 #
 # 用法：
 #   cp .env.example .env      # 需要时只填 APP_* 相关项
@@ -30,7 +30,7 @@
 # 不匹配的处理是按已吊销（403 revoked），客户端会清空本地授权，需要在商店后台解绑
 # 后重新激活一次。
 # 想免掉重新激活，得让新指纹与旧指纹一致，而这取决于旧指纹当初走的是哪条路径
-# （见 backend/license/hardware.py）：
+# （见 apps/server/license/hardware.py）：
 #   - 旧容器里 /etc/machine-id 与主板标识都读到了（走 v1 路径）：把这两个原始值
 #     填进 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID 即可复现（主板值 =
 #     DMI 那几个字段去空、小写、去重、排序后用 “|” 拼接）；
@@ -45,7 +45,7 @@ services:
     image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos-3d:latest}
     container_name: homeos-3d
     # 固定 hostname：授权实例指纹在缺少机器/主板标识时，会把容器 hostname 编进
-    # 「本机封印」（见 backend/license/hardware.py 的 _host_binding_seal）。默认
+    # 「本机封印」（见 apps/server/license/hardware.py 的 _host_binding_seal）。默认
     # hostname 是容器 ID，重建容器就会换封印、换实例 ID，而商店侧对实例不匹配的
     # 处理是**按已吊销**（403 revoked），客户端会清空本地授权。固定它即可避免
     # 「升级重启 = 重新激活」。
@@ -61,7 +61,7 @@ services:
       APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-}
       APP_UPDATE_CHANNEL: docker
       APP_CLIENT_KEYS_DIR: /data/keys
-      # 授权实例指纹的显式覆盖（见 backend/license/hardware.py）。留空 = 由本机
+      # 授权实例指纹的显式覆盖（见 apps/server/license/hardware.py）。留空 = 由本机
       # 机器 / 主板标识派生。显式填一组值就等于**钉住**这台设备的身份：
       #   - 跨服务器迁移时，填成旧机器的同一组值，商店侧就不会判成「换设备」，
       #     免去后台解绑 + 重新激活；
@@ -79,7 +79,7 @@ services:
       - homeos-3d-data:/data
       - homeos-3d-client-keys:/data/keys:ro
       - homeos-3d-secrets:/run/secrets
-      # 宿主标识：授权实例指纹的来源（见 backend/license/hardware.py）。代码里
+      # 宿主标识：授权实例指纹的来源（见 apps/server/license/hardware.py）。代码里
       # 「容器内优先读 /host/...」这条路径要靠这两个挂载才成立 —— 容器内的
       # /etc/machine-id 会随镜像重建而变，宿主那份才是稳定来源；DMI 目录在容器里
       # 本来就能通过 /sys 读到同样的值，挂进来只是让代码的首选路径真正可用。

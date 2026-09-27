@@ -412,7 +412,7 @@
     try {
       const fetchResponse = await originalFetch(requestInput, fetchOptions),
         durationMs = Date.now() - startedAt;
-      // 定级按响应类别，与后端诊断中间件同一口径（见 backend/main.py：5xx 记 error，4xx 记 warning）：
+      // 定级按响应类别，与后端诊断中间件同一口径（见 apps/server/main.py：5xx 记 error，4xx 记 warning）：
       // 4xx 是「这次请求被拒」，其中 409 / 428 更是本应用**预期内**的业务控制流（乐观并发冲突、
       // 删除影响待确认），调用方都会自己处理并重发。把 4xx 一律记成 error，会把预期流程渲染成故障，
       // 还把真正的服务端故障（5xx）淹没在同一片红里；进页面时那次「先撞 4xx 再走确认」的保存
@@ -424,7 +424,7 @@
           (reportEvent(
             fetchResponse.ok || fetchResponse.status < 500 ? "warning" : "error",
             "网络请求",
-   370|            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
+            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
             {
               ...requestInfo,
               status: fetchResponse.status,

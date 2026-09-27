@@ -1,8 +1,8 @@
 /**
  * 接口响应的「鉴权判定」与「可上抛错误」：编辑器、舞台页、展示端、授权页与日志引导共用一套口径。
  *
- * 为什么必须是同一处：后端门禁（`backend/core/dependencies.py` 的 licensed_user / licensed_viewer，
- * 以及 `backend/api/assets.py` 的素材读取）在 403 的 `detail.code` 里回 LICENSE_RESTRICTED，前端据此
+ * 为什么必须是同一处：后端门禁（`apps/server/core/dependencies.py` 的 licensed_user / licensed_viewer，
+ * 以及 `apps/server/api/assets.py` 的素材读取）在 403 的 `detail.code` 里回 LICENSE_RESTRICTED，前端据此
  * 把人引到授权页。这个字面量原先在五个请求入口里各比一次 —— 后端一旦按能力分码（例如「素材受限」
  * 与「接口受限」拆成两个码），只有改到的那几处会引走用户，其余页面会把它当普通业务错误弹句提示
  * 就算了。这种故障最难发现的地方在于：页面没坏，只是不再把人送去能解决问题的页面。
@@ -13,7 +13,7 @@
  * 根本不跳转，只把状态码翻成人话。把这些差异参数化进一个公共函数，只会得到一个每个调用点都在
  * 用不同开关组合的壳子 —— 那比重复更难读。
  */
-import { apiErrorMessage } from "./api-error.js?v=2609270001";
+import { apiErrorMessage } from "./api-error.js?v=2609271208";
 
 /**
  * 后端在 403 `detail.code` 里回的授权受限码。

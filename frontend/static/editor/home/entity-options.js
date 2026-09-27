@@ -14,22 +14,36 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../../shared/action-rules.js?v=2609270001";
-import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609270001";
-import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609270001";
-import { findComponent } from "../component-tree.js?v=2609270001";
+} from "../../shared/action-rules.js?v=2609271208";
+import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609271208";
+import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js?v=2609271208";
+import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609271208";
+import { findComponent } from "../component-tree.js?v=2609271208";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js?v=2609270001";
+} from "../../renderer/core/registry.js?v=2609271208";
 import {
   normalizedPopupClimateDeviceType,
   popupModuleEntityRecommended
-} from "../editor-document-management.js?v=2609270001";
-import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609270001";
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609270001";
+} from "../editor-document-management.js?v=2609271208";
+import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609271208";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609271208";
 
 export function createEntityOptions(ctx) {
+  // 被外提到同目录的新模块（见其文件头）：惰性上下文，调用点传 entityOptionsContext()。
+  const entityOptionsContext = () => ({
+    ctx,
+    entityPickerConfig,
+    selectableEntities,
+    entityOptionLabel,
+    entityKindLabel,
+    entityDisplayName,
+    registerOverflowPreviewRow,
+    iconListState,
+    encodeURIComponent,
+  });
+
 
   // 取实体域统一走 utils/entities.js 的 entityDomainOf：带点号或非字符串的 domain 下，
   // 它与本文件原先那份的切分结果不同，而两边消费方都是拿去查标签表或与裸域名比较，所以只留这一个口径。
@@ -325,295 +339,14 @@ export function createEntityOptions(ctx) {
    * recommended（推荐判定，如灯光效果推荐 light 域）。用 if/else 链而非查表对象，因为每项直接引用模块级 DOM 常量，
    * 查表会在模块初始化时就把所有常量求值一遍；未知类型回落到图片选择器配置。
    */
-  function entityPickerConfig(entityPickerComponentType = "image") {
-    if (entityPickerComponentType === "light-statistics") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.lightStatisticsActionEntityButtonElement,
-        menu: ctx.lightStatisticsActionEntityMenuElement,
-        search: ctx.lightStatisticsActionEntitySearchInputElement,
-        options: ctx.lightStatisticsActionEntityOptionsElement,
-        except: "light-statistics-action-entity",
-        relatedSettings: false,
-        recommended: lightStatisticsEntity =>
-          TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(lightStatisticsEntity)) ? 2 : 0
-      };
-    } else if (entityPickerComponentType === "navigation-button") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.navigationEntityButtonElement,
-        menu: ctx.navigationEntityMenuElement,
-        search: ctx.navigationEntitySearchInputElement,
-        options: ctx.navigationEntityOptionsElement,
-        except: "navigation-entity",
-        recommended: navigationEntity =>
-          navigationEntity?.virtual
-            ? 3
-            : TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(navigationEntity))
-              ? 2
-              : 0
-      };
-    } else if (entityPickerComponentType === "title-button") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.titleButtonEntityButtonElement,
-        menu: ctx.titleButtonEntityMenuElement,
-        search: ctx.titleButtonEntitySearchInputElement,
-        options: ctx.titleButtonEntityOptionsElement,
-        except: "title-button-entity",
-        recommended: titleButtonEntity =>
-          titleButtonEntity?.virtual
-            ? 3
-            : TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(titleButtonEntity))
-              ? 2
-              : 0
-      };
-    } else if (entityPickerComponentType === "vacuum-map") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.vacuumMapEntityButtonElement,
-        menu: ctx.vacuumMapEntityMenuElement,
-        search: ctx.vacuumMapEntitySearchInputElement,
-        options: ctx.vacuumMapEntityOptionsElement,
-        except: "vacuum-map-entity",
-        recommended: vacuumMapEntity =>
-          ["camera", "image"].includes(entityDomainOf(vacuumMapEntity))
-            ? /(?:^|[_.\s-])map(?:$|[_.\s-])|地图/i.test(
-                (vacuumMapEntity.entityId || "") + " " + (vacuumMapEntity.name || "")
-              )
-              ? 2
-              : 1
-            : 0
-      };
-    } else if (entityPickerComponentType === "camera") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.cameraEntityButtonElement,
-        menu: ctx.cameraEntityMenuElement,
-        search: ctx.cameraEntitySearchInputElement,
-        options: ctx.cameraEntityOptionsElement,
-        except: "camera-entity",
-        recommended: cameraEntity => entityDomainOf(cameraEntity) === "camera"
-      };
-    } else if (entityPickerComponentType === "air-conditioner") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.airConditionerEntityButtonElement,
-        menu: ctx.airConditionerEntityMenuElement,
-        search: ctx.airConditionerEntitySearchInputElement,
-        options: ctx.airConditionerEntityOptionsElement,
-        except: "air-conditioner-entity",
-        recommended: airConditionerEntity =>
-          entityDomainOf(airConditionerEntity) === "climate"
-            ? 2
-            : entityDomainOf(airConditionerEntity) === "fan"
-              ? 1
-              : 0
-      };
-    } else if (entityPickerComponentType === "device-button") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.iconButtonEntityButtonElement,
-        menu: ctx.iconButtonEntityMenuElement,
-        search: ctx.iconButtonEntitySearchInputElement,
-        options: ctx.iconButtonEntityOptionsElement,
-        except: "icon-button-entity",
-        recommended: deviceButtonEntity => TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(deviceButtonEntity))
-      };
-    } else if (entityPickerComponentType === "presence-sensor") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.iconButtonEntityButtonElement,
-        menu: ctx.iconButtonEntityMenuElement,
-        search: ctx.iconButtonEntitySearchInputElement,
-        options: ctx.iconButtonEntityOptionsElement,
-        except: "icon-button-entity",
-        recommended: presenceSensorEntity => {
-          // 这四个字段的拼接原先在这里手写了一遍（与 presence-runtime.js 那份逐字相同），
-          // 现在统一走 utils/entities.js 的 entitySearchTextOf：字段清单只有一处定义，
-          // 加字段时不会再漏掉某一个调用点（漏了的表现为「这台设备认不出来」）。
-          const entitySearchBlob = entitySearchTextOf(presenceSensorEntity);
-          const sensorKind = ctx.selectedComponent()?.properties?.sensorKind || "presence";
-          const entityDomainValue = entityDomainOf(presenceSensorEntity);
-          if (entityDomainValue === "event") {
-            if (
-              sensorKind === "presence" &&
-              /motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(entitySearchBlob)
-            ) {
-              return 4;
-            } else {
-              return 0;
-            }
-          } else if (entityDomainValue !== "binary_sensor") {
-            return 0;
-          } else if (sensorKind === "water-leak") {
-            if (/moisture|water|leak|flood|wet|水浸|漏水|积水|湿/i.test(entitySearchBlob)) {
-              return 3;
-            } else {
-              return 1;
-            }
-          } else if (sensorKind === "smoke") {
-            if (/smoke|fire|烟雾|烟感|火警/i.test(entitySearchBlob)) {
-              return 3;
-            } else {
-              return 1;
-            }
-          } else if (sensorKind === "natural-gas") {
-            if (/natural[_ -]?gas|combustible|gas|燃气|天然气|可燃气/i.test(entitySearchBlob)) {
-              return 3;
-            } else {
-              return 1;
-            }
-          } else if (sensorKind === "door-window") {
-            if (/door|window|contact|opening|门|窗|接触/i.test(entitySearchBlob)) {
-              return 3;
-            } else {
-              return 1;
-            }
-          } else if (/presence|occupancy|人在|有人|存在|人体/i.test(entitySearchBlob)) {
-            return 3;
-          } else if (/motion|移动|运动/i.test(entitySearchBlob)) {
-            return 1;
-          } else {
-            return 2;
-          }
-        }
-      };
-    } else if (entityPickerComponentType === "icon-button") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.iconButtonEntityButtonElement,
-        menu: ctx.iconButtonEntityMenuElement,
-        search: ctx.iconButtonEntitySearchInputElement,
-        options: ctx.iconButtonEntityOptionsElement,
-        except: "icon-button-entity",
-        recommended: iconButtonEntity => entityDomainOf(iconButtonEntity) === "light"
-      };
-    } else if (entityPickerComponentType === "icon-button-effect") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.iconButtonEffectEntityButtonElement,
-        menu: ctx.iconButtonEffectEntityMenuElement,
-        search: ctx.iconButtonEffectEntitySearchInputElement,
-        options: ctx.iconButtonEffectEntityOptionsElement,
-        except: "ibe-entity",
-        recommended: iconButtonEffectEntity => entityDomainOf(iconButtonEffectEntity) === "light"
-      };
-    } else if (entityPickerComponentType === "weather") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.weatherEntityButtonElement,
-        menu: ctx.weatherEntityMenuElement,
-        search: ctx.weatherEntitySearchInputElement,
-        options: ctx.weatherEntityOptionsElement,
-        except: "weather-entity",
-        recommended: weatherEntity => entityDomainOf(weatherEntity) === "weather"
-      };
-    } else if (entityPickerComponentType === "line-chart") {
-      return {
-        componentType: entityPickerComponentType,
-        button: ctx.lineChartEntityButtonElement,
-        menu: ctx.lineChartEntityMenuElement,
-        search: ctx.lineChartEntitySearchInputElement,
-        options: ctx.lineChartEntityOptionsElement,
-        except: "line-chart-entity",
-        recommended: lineChartEntity => entityDomainOf(lineChartEntity) === "sensor"
-      };
-    } else {
-      return {
-        componentType: "image",
-        button: ctx.imageEntityButtonElement,
-        menu: ctx.imageEntityMenuElement,
-        search: ctx.imageEntitySearchInputElement,
-        options: ctx.imageEntityOptionsElement,
-        except: "entity",
-        recommended: imageEntity => ["image", "camera"].includes(entityDomainOf(imageEntity))
-      };
-    }
-  }
+  
 
   /**
    * 渲染实体选择器的候选列表：虚拟实体固定 100 分排最前（它们代表图标可见性这类特殊绑定），其余按组件自带的
    * recommended 判定给分（true=1 / false=0），同分保持原始顺序避免抖动。匹配用「显示名 + domain」拼接后做小写包含判断，
    * 输入 light 既能命中域也能命中实体名；选中项用 class 与 aria-selected 双标。
    */
-  function renderEntityPickerOptions(searchQuery = "", componentType = "image") {
-    const pickerConfig = entityPickerConfig(componentType);
-    const selectedEntityId = ctx.selectedComponent()?.bindings?.entity?.entityId || "";
-    const normalizedQuery = searchQuery.trim().toLocaleLowerCase("zh-CN");
-    const sortedEntities = selectableEntities(componentType)
-      .map((entityOption, sourceIndex) => ({
-        entity: entityOption,
-        index: sourceIndex
-      }))
-      .filter(
-        ({ entity: filteredEntity }) =>
-          !normalizedQuery ||
-          (entityOptionLabel(filteredEntity) + " " + entityDomainOf(filteredEntity))
-            .toLocaleLowerCase("zh-CN")
-            .includes(normalizedQuery)
-      )
-      .sort((leftOption, rightOption) => {
-        /**
-         * 给单个实体算排序分：虚拟实体固定最高，其余由配置的 recommended 判定。
-         */
-        const scoreEntity = scoredEntity =>
-          scoredEntity?.virtual ? 100 : Number(pickerConfig.recommended(scoredEntity));
-        return (
-          scoreEntity(rightOption.entity) - scoreEntity(leftOption.entity) ||
-          leftOption.index - rightOption.index
-        );
-      })
-      .map(({ entity: mappedEntity }) => mappedEntity);
-    const clearOptionButton = document.createElement("button");
-    clearOptionButton.type = "button";
-    clearOptionButton.className =
-      "inspector-entity-option inspector-entity-clear" + (selectedEntityId ? "" : " selected");
-    clearOptionButton.dataset.entityId = "";
-    clearOptionButton.setAttribute("role", "option");
-    clearOptionButton.setAttribute("aria-selected", String(!selectedEntityId));
-    clearOptionButton.textContent = "不使用实体";
-    const entityOptionButtons = sortedEntities.map(listedEntity => {
-      const optionButton = document.createElement("button");
-      optionButton.type = "button";
-      optionButton.className =
-        "inspector-entity-option" + (listedEntity.entityId === selectedEntityId ? " selected" : "");
-      optionButton.dataset.entityId = listedEntity.entityId;
-      optionButton.setAttribute("role", "option");
-      optionButton.setAttribute("aria-selected", String(listedEntity.entityId === selectedEntityId));
-      const optionContentElement = document.createElement("span");
-      optionContentElement.className = "inspector-entity-option-content";
-      optionContentElement.title = entityOptionLabel(listedEntity);
-      const nameLineElement = document.createElement("span");
-      nameLineElement.className = "inspector-entity-option-line inspector-entity-name-line";
-      const kindLabelElement = document.createElement("span");
-      kindLabelElement.className = "inspector-entity-kind";
-      kindLabelElement.textContent = "[" + entityKindLabel(listedEntity) + "] ";
-      const nameElement = document.createElement("span");
-      nameElement.className = "inspector-entity-name";
-      nameElement.textContent = entityDisplayName(listedEntity);
-      nameLineElement.append(kindLabelElement, nameElement);
-      const idElement = document.createElement("span");
-      idElement.className = "inspector-entity-option-line inspector-entity-id";
-      idElement.textContent = listedEntity.entityId;
-      idElement.title = listedEntity.entityId;
-      optionContentElement.append(nameLineElement, idElement);
-      registerOverflowPreviewRow(optionButton, nameLineElement);
-      optionButton.append(optionContentElement);
-      return optionButton;
-    });
-    const emptyStateElement = document.createElement("div");
-    emptyStateElement.className = "inspector-picker-empty";
-    if (!sortedEntities.length) {
-      emptyStateElement.textContent = "没有匹配的实体";
-    }
-    pickerConfig.options.replaceChildren(
-      clearOptionButton,
-      ...entityOptionButtons,
-      ...(emptyStateElement.textContent ? [emptyStateElement] : [])
-    );
-    pickerConfig.options.scrollTop = 0;
-  }
+  
 
   /**
    * 把控件当前绑定的实体回填到选择器按钮上（文档 → 表单）。绑定的实体可能已不存在，此时直接显示原始
@@ -621,7 +354,7 @@ export function createEntityOptions(ctx) {
    * 按钮与关联实体配置块 —— 换控件后锚点位置也会变，所以这两步必须放在回填之后。
    */
   function syncEntityPickerValue(component) {
-    const componentPickerConfig = entityPickerConfig(component.type);
+    const componentPickerConfig = entityPickerConfig(component.type, entityOptionsContext());
     const boundEntityId = component.bindings?.entity?.entityId || "";
     const matchedEntity = selectableEntities(component.type).find(
       candidateEntity => candidateEntity.entityId === boundEntityId
@@ -642,7 +375,7 @@ export function createEntityOptions(ctx) {
     componentPickerConfig.button._entityCopySync?.();
     componentPickerConfig.search.value = "";
     if (!componentPickerConfig.menu.hidden) {
-      renderEntityPickerOptions("", component.type);
+      renderEntityPickerOptions("", component.type, entityOptionsContext());
     }
     ctx.updateRelatedPopup(
       component,
@@ -657,7 +390,7 @@ export function createEntityOptions(ctx) {
    * （clamped 宽 / 高度 150~430 / 列表扣 58px）；句柄由 entityPickerConfig 按类型解析。
    */
   function positionEntityPickerMenu(pickerComponentType = "image") {
-    const activePickerConfig = entityPickerConfig(pickerComponentType);
+    const activePickerConfig = entityPickerConfig(pickerComponentType, entityOptionsContext());
     positionFloatingMenu({
       anchorElement: activePickerConfig.button,
       menuElement: activePickerConfig.menu,
@@ -898,81 +631,7 @@ export function createEntityOptions(ctx) {
    * 让在途旧请求作废；首项固定为「不使用图标」；loading / complete 挡掉滚动事件触发的重复请求；
    * 失败时复位 loading 并把异常继续抛出，交给调用方决定提示方式。
    */
-  async function renderIconOptions({
-    optionsElement: iconOptionsHostElement,
-    query: iconSearchQuery = "",
-    currentIcon: currentIconName = "",
-    clearLabel: iconClearLabel = "不使用图标",
-    datasetKey: iconDatasetKey = "iconName",
-    append: appendIconOptions = false
-  }) {
-    const normalizedIconQuery = String(iconSearchQuery || "").trim();
-    const iconState = iconListState(iconOptionsHostElement);
-    if (!appendIconOptions || iconState.query !== normalizedIconQuery) {
-      iconState.query = normalizedIconQuery;
-      iconState.offset = 0;
-      iconState.total = 0;
-      iconState.loading = false;
-      iconState.complete = false;
-      iconState.generation += 1;
-      const iconLoadingElement = document.createElement("div");
-      iconLoadingElement.className = "navigation-icon-load-state";
-      iconLoadingElement.textContent = "正在加载图标…";
-      iconOptionsHostElement.replaceChildren(
-        ctx.createIconPickerClearOption(currentIconName, iconClearLabel, iconDatasetKey),
-        iconLoadingElement
-      );
-      iconOptionsHostElement.scrollTop = 0;
-    }
-    if (iconState.loading || iconState.complete) {
-      return;
-    }
-    const iconRequestGeneration = iconState.generation;
-    const iconLoadStateElement = iconOptionsHostElement.querySelector(".navigation-icon-load-state");
-    iconState.loading = true;
-    if (iconLoadStateElement) {
-      iconLoadStateElement.textContent = iconState.offset ? "正在加载更多图标…" : "正在加载图标…";
-    }
-    try {
-      const iconsResponse = await ctx.requestJson(
-        "/icons?query=" +
-          encodeURIComponent(iconState.query) +
-          "&limit=" +
-          ctx.ICON_PAGE_SIZE +
-          "&offset=" +
-          iconState.offset
-      );
-      if (iconRequestGeneration !== iconState.generation) {
-        return;
-      }
-      const iconItems = iconsResponse.items || [];
-      const iconOptionElements = iconItems.map(iconItem =>
-        ctx.createIconPickerOption(iconItem, currentIconName, iconDatasetKey)
-      );
-      if (iconLoadStateElement && iconOptionElements.length) {
-        iconLoadStateElement.before(...iconOptionElements);
-      }
-      iconState.offset += iconItems.length;
-      iconState.total = Math.max(Number(iconsResponse.total) || 0, iconState.offset);
-      iconState.complete = !iconItems.length || iconState.offset >= iconState.total;
-      iconState.loading = false;
-      if (iconLoadStateElement) {
-        iconLoadStateElement.textContent = iconState.total
-          ? iconState.complete
-            ? "已显示全部 " + iconState.total + " 个图标"
-            : "已加载 " + iconState.offset + " / " + iconState.total + " · 继续向下滚动"
-          : "没有匹配的图标";
-      }
-    } catch (iconLoadError) {
-      if (iconRequestGeneration === iconState.generation) {
-        iconState.loading = false;
-        if (iconLoadStateElement) {
-          iconLoadStateElement.textContent = "图标加载失败，请稍后重试";
-        }
-      }
-      throw iconLoadError;
-    }
-  }
+  
 
   /**
    * 给滚动容器挂上「滚到底部自动加载下一页」的行为。阈值 120px：提前一屏的一小段距离就开始加载，
@@ -1006,7 +665,7 @@ export function createEntityOptions(ctx) {
       query: navigationIconQuery,
       currentIcon: ctx.selectedComponent()?.properties?.icon || "",
       append: appendNavigationIcons
-    });
+    }, entityOptionsContext());
   }
 
   /**
@@ -1021,7 +680,7 @@ export function createEntityOptions(ctx) {
       query: effectIconQuery,
       currentIcon: ctx.selectedComponent()?.properties?.icon || "",
       append: appendEffectIcons
-    });
+    }, entityOptionsContext());
   }
 
   /**
@@ -1039,7 +698,7 @@ export function createEntityOptions(ctx) {
       currentIcon: iconButtonIconComponent?.properties?.icon || "",
       clearLabel: iconButtonIconComponent?.type === "device-button" ? "跟随实体图标" : "不使用图标",
       append: appendIconButtonIcons
-    });
+    }, entityOptionsContext());
   }
 
   /**
@@ -1054,7 +713,7 @@ export function createEntityOptions(ctx) {
       query: titleIconQuery,
       currentIcon: ctx.selectedComponent()?.properties?.icon || "",
       append: appendTitleIcons
-    });
+    }, entityOptionsContext());
   }
 
   /**
@@ -1078,7 +737,7 @@ export function createEntityOptions(ctx) {
       currentIcon: statisticsDefaultIcon,
       datasetKey: "lightStatisticsIconName",
       append: appendStatisticsIcons
-    });
+    }, entityOptionsContext());
   }
 
   /**
@@ -1180,82 +839,7 @@ export function createEntityOptions(ctx) {
    * 渲染统计控件的实体候选列表。排序刻意分三级：支持统计的实体优先，其次是 light 域实体，最后才回到
    * 原始顺序 —— 统计控件只对部分实体有意义，把不可用的沉到后面能少滚几屏。
    */
-  function renderLightStatisticsEntityOptions(entitySearchQuery = "") {
-    if (ctx.selectedComponent()?.type !== "light-statistics") {
-      return;
-    }
-    const normalizedEntityQuery = entitySearchQuery.trim().toLocaleLowerCase("zh-CN");
-    const statisticsOptionElements = selectableEntities("light-statistics")
-      .map((listedStatisticsEntity, statisticsEntityIndex) => ({
-        entity: listedStatisticsEntity,
-        index: statisticsEntityIndex,
-        support: lightStatisticsEntitySupport(listedStatisticsEntity)
-      }))
-      .filter(
-        ({ entity: statisticsEntityItem }) =>
-          !normalizedEntityQuery ||
-          (entityOptionLabel(statisticsEntityItem) + " " + entityDomainOf(statisticsEntityItem))
-            .toLocaleLowerCase("zh-CN")
-            .includes(normalizedEntityQuery)
-      )
-      .sort(
-        (statisticsOptionA, statisticsOptionB) =>
-          Number(statisticsOptionB.support.supported) - Number(statisticsOptionA.support.supported) ||
-          +(entityDomainOf(statisticsOptionB.entity) === "light") -
-            +(entityDomainOf(statisticsOptionA.entity) === "light") ||
-          statisticsOptionA.index - statisticsOptionB.index
-      )
-      .map(({ entity: statisticsOptionEntity, support: statisticsOptionSupport }) => {
-        const statisticsOptionButtonElement = document.createElement("button");
-        statisticsOptionButtonElement.type = "button";
-        statisticsOptionButtonElement.className =
-          "inspector-entity-option" +
-          (statisticsOptionEntity.entityId === ctx.statisticsEntityId ? " selected" : "");
-        statisticsOptionButtonElement.dataset.lightStatisticsEntityId =
-          statisticsOptionEntity.entityId;
-        statisticsOptionButtonElement.setAttribute("role", "option");
-        statisticsOptionButtonElement.setAttribute(
-          "aria-selected",
-          String(statisticsOptionEntity.entityId === ctx.statisticsEntityId)
-        );
-        const statisticsOptionContentElement = document.createElement("span");
-        statisticsOptionContentElement.className = "inspector-entity-option-content";
-        statisticsOptionContentElement.title = entityOptionLabel(statisticsOptionEntity);
-        const statisticsOptionNameLineElement = document.createElement("span");
-        statisticsOptionNameLineElement.className =
-          "inspector-entity-option-line inspector-entity-name-line";
-        const statisticsOptionKindElement = document.createElement("span");
-        statisticsOptionKindElement.className = "inspector-entity-kind";
-        statisticsOptionKindElement.textContent =
-          "[" + entityKindLabel(statisticsOptionEntity) + "] ";
-        const statisticsOptionNameElement = document.createElement("span");
-        statisticsOptionNameElement.className = "inspector-entity-name";
-        statisticsOptionNameElement.textContent = entityDisplayName(statisticsOptionEntity);
-        statisticsOptionNameLineElement.append(
-          statisticsOptionKindElement,
-          statisticsOptionNameElement
-        );
-        const statisticsOptionIdElement = document.createElement("span");
-        statisticsOptionIdElement.className = "inspector-entity-option-line inspector-entity-id";
-        statisticsOptionIdElement.textContent = statisticsOptionEntity.entityId;
-        statisticsOptionIdElement.title = statisticsOptionEntity.entityId;
-        statisticsOptionContentElement.append(
-          statisticsOptionNameLineElement,
-          statisticsOptionIdElement
-        );
-        registerOverflowPreviewRow(statisticsOptionButtonElement, statisticsOptionNameLineElement);
-        statisticsOptionButtonElement.append(statisticsOptionContentElement);
-        return statisticsOptionButtonElement;
-      });
-    if (!statisticsOptionElements.length) {
-      const statisticsOptionsEmptyElement = document.createElement("div");
-      statisticsOptionsEmptyElement.className = "inspector-picker-empty";
-      statisticsOptionsEmptyElement.textContent = "没有匹配的实体";
-      statisticsOptionElements.push(statisticsOptionsEmptyElement);
-    }
-    ctx.lightStatisticsEntityOptionsElement.replaceChildren(...statisticsOptionElements);
-    ctx.lightStatisticsEntityOptionsElement.scrollTop = 0;
-  }
+  
 
   /**
    * 选中候选实体并立即写入统计控件。
@@ -1531,5 +1115,5 @@ export function createEntityOptions(ctx) {
   const HOVER_SCROLL_TARGET_SELECTOR =
     "[data-overflow-scroll-preview], .inspector-picker-value, .inspector-entity-name-line";
 
-  return { HOVER_SCROLL_TARGET_SELECTOR, addLightStatisticsEntity, attachIconTooltip, attachInfiniteScroll, collapseWhitespace, componentEntityIds, componentsInPage, deviceNameForEntity, ensurePickerValueElement, entityDisplayName, entityDisplaySubtitle, entityKindLabel, entityOptionLabel, entityPickerConfig, findOverflowPreviewTarget, findOverflowRow, flattenComponents, hideIconTooltip, hoverScrollStateByRow, iconListState, iconVisibilityVirtualEntities, lightStatisticsEntityStatus, loadIconButtonEffectIconOptions, loadIconButtonIconOptions, loadLightStatisticsIconOptions, loadNavigationIconOptions, loadTitleButtonIconOptions, pickLightStatisticsEntity, popupEntityDisplayName, positionEntityPickerMenu, positionIconButtonEffectIconMenu, positionIconButtonIconMenu, positionImagePickerMenu, positionLightStatisticsEntityMenu, positionLightStatisticsIconMenu, positionNavigationIconMenu, positionTitleButtonIconMenu, previewTargetsByRow, registerOverflowPreviewRow, removeLightStatisticsEntity, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntities, renderLightStatisticsEntityOptions, renderPopupModuleEntityOptions, resetLightStatisticsPicker, selectableEntities, setLightStatisticsMessage, setPickerButtonLabel, showIconTooltip, stopHoverScroll, syncEntityPickerValue, syncPopupEntityInputs, syncPopupModuleDeviceType, syncPopupModuleEntityButton };
+  return { HOVER_SCROLL_TARGET_SELECTOR, addLightStatisticsEntity, attachIconTooltip, attachInfiniteScroll, collapseWhitespace, componentEntityIds, componentsInPage, deviceNameForEntity, ensurePickerValueElement, entityDisplayName, entityDisplaySubtitle, entityKindLabel, entityOptionLabel, entityPickerConfig: (...args) => entityPickerConfig(...args, entityOptionsContext()), findOverflowPreviewTarget, findOverflowRow, flattenComponents, hideIconTooltip, hoverScrollStateByRow, iconListState, iconVisibilityVirtualEntities, lightStatisticsEntityStatus, loadIconButtonEffectIconOptions, loadIconButtonIconOptions, loadLightStatisticsIconOptions, loadNavigationIconOptions, loadTitleButtonIconOptions, pickLightStatisticsEntity, popupEntityDisplayName, positionEntityPickerMenu, positionIconButtonEffectIconMenu, positionIconButtonIconMenu, positionImagePickerMenu, positionLightStatisticsEntityMenu, positionLightStatisticsIconMenu, positionNavigationIconMenu, positionTitleButtonIconMenu, previewTargetsByRow, registerOverflowPreviewRow, removeLightStatisticsEntity, renderEntityPickerOptions: (...args) => renderEntityPickerOptions(...args, entityOptionsContext()), renderIconOptions: (...args) => renderIconOptions(...args, entityOptionsContext()), renderLightStatisticsEntities, renderLightStatisticsEntityOptions: (...args) => renderLightStatisticsEntityOptions(...args, entityOptionsContext()), renderPopupModuleEntityOptions, resetLightStatisticsPicker, selectableEntities, setLightStatisticsMessage, setPickerButtonLabel, showIconTooltip, stopHoverScroll, syncEntityPickerValue, syncPopupEntityInputs, syncPopupModuleDeviceType, syncPopupModuleEntityButton };
 }

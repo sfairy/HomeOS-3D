@@ -2,7 +2,7 @@
   编辑器主界面样式（frontend/index.html 专用）。
   只服务编辑器主页面；显示端与运行期弹窗用 renderer.css、bridge.css（本文件末尾的 .hb-custom-popup-* 是编辑器内的弹窗预览，不是运行期弹窗本体）。
   主题变量：调色板在本文件 :root 里定义（--bg / --surface / --accent 等），运行期由 home.js 注入 --editor-layout-height / --editor-viewport-scale / --component-template-dialog-scale；仓库中没有 --homeos-* 前缀，新增主题色请沿用这里的 -- 变量。
-  尺寸基准：编辑器 UI 设计标称宽 1020px（home.js 的 EDITOR_DESIGN_WIDTH），仪表盘画布 2778×1940（backend/panel/schema.py）；组件坐标与字号按该画布换算，故本文件的 px 一律是 CSS 像素、不做 DPR 换算。
+  尺寸基准：编辑器 UI 设计标称宽 1020px（home.js 的 EDITOR_DESIGN_WIDTH），仪表盘画布 2778×1940（apps/server/panel/schema.py）；组件坐标与字号按该画布换算，故本文件的 px 一律是 CSS 像素、不做 DPR 换算。
   视口放不下时由 home.js 给 html 挂 .editor-viewport-fit 整体等比缩放，而不是重排。
 */
 

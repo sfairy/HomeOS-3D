@@ -19,30 +19,38 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// 仓库路径来自 paths.mjs（唯一事实来源）。
+import {
+  BACKEND_DIR,
+  FRONTEND_DIR,
+  STORE_DIR,
+  STORE_STATIC_DIR,
+} from "./paths.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const TEXT_EXTENSIONS = new Set([".js", ".html", ".css", ".webmanifest", ".py"]);
 
 const SCAN_ROOTS = [
-  path.join(ROOT, "frontend"),
-  path.join(ROOT, "store", "templates"),
-  // store/static 必须和 templates 一起扫：商店是独立构建上下文，`store/static/*.js`
-  // 之间的相对 import 也带 `?v=`。曾经漏掉这一片，于是 `store/static/palette.js` 一直
+  path.join(FRONTEND_DIR),
+  path.join(STORE_DIR, "templates"),
+  // apps/store/static 必须和 templates 一起扫：商店是独立构建上下文，`apps/store/static/*.js`
+  // 之间的相对 import 也带 `?v=`。曾经漏掉这一片，于是 `apps/store/static/palette.js` 一直
   // 停在旧戳上（当时负责比对的护栏也漏了同一片，两边一起沉默，直到那侧补上才暴露）。
   // **本清单即全站戳的唯一来源**：漏一个目录，那里的 `?v=` 会在改动后停在旧戳上，
   // 而没有任何自动检查会发现 —— 这正是本工具存在的理由。
-  path.join(ROOT, "store", "static")
+  path.join(STORE_STATIC_DIR)
 ];
 
 // 这几个 Python 文件**当前一个 ?v= 字面量都没有**：它们渲染的页面里，静态链接的版本号
-// 由文件 mtime 现算（backend/core/static_revision.py、store/core/static_revision.py）。
+// 由文件 mtime 现算（apps/server/core/static_revision.py、apps/store/core/static_revision.py）。
 // 之所以仍列在这里：本清单的价值在于「漏一个文件，那里的字面量就永远停在旧戳上」，
 // 而漏掉一个曾经有过字面量的文件比多扫一个空文件危险得多 —— 万一哪天有人又把
 // ?v=YYMMDDHHMM 写回这些模板，它仍然会被改写、也会被 check_invariants 的单一戳校验看见。
 const EXTRA_FILES = [
-  path.join(ROOT, "store", "api", "pages.py"),
-  path.join(ROOT, "store", "api", "alipay.py"),
-  path.join(ROOT, "backend", "modules", "interaction3d", "api.py")
+  path.join(STORE_DIR, "api", "pages.py"),
+  path.join(STORE_DIR, "api", "alipay.py"),
+  path.join(BACKEND_DIR, "modules", "interaction3d", "api.py")
 ];
 
 const SKIP_DIR_NAMES = new Set([

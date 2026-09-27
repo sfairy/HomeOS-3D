@@ -1,5 +1,5 @@
 /**
- * 主应用侧唯一的「接口失败 → 人话」实现。契约对齐商店侧 `store/static/api-error.js`：两棵树
+ * 主应用侧唯一的「接口失败 → 人话」实现。契约对齐商店侧 `apps/store/static/api-error.js`：两棵树
  * 独立部署、加载方式不同，故刻意镜像而非共用（那份用全局名 `ApiError`）。
  *
  * 对外只有 `apiErrorMessage`：`detail` 或顶层 `message` 是非空字符串就原样用；`detail` 是

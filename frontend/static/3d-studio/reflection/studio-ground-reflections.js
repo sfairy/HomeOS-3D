@@ -8,8 +8,10 @@
  * 反射通道与主渲染共用同一个 renderer，因此本模块必须「先于主渲染」执行（studio-app 里在 renderer.getRenderTarget() 为空时才调 render，正是这个顺序约束）；硬性节流默认 30fps（settings.fps），相机没动、光照没变时直接跳过整次捕获。
  */
 
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609270001";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609270001";
+import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=2609271208";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=2609271208";
+import { resolveFloorId, isFloorTransitionLeaving, isVisibleWithin } from "./reflection-scene-queries.js?v=2609271208";
+import { createRefractionMaterialResolver } from "./refraction-materials.js?v=2609271208";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  * @param {function(object): void} options.syncLighting 用给定相机同步区域灯 —— 反射通道需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致。 @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），变化即视为需要重拍。
@@ -50,14 +52,8 @@ export function createGroundReflections({
     cachedBytes: 0,
     inCapture: false
   };
-  // 反射渲染会临时把半透明 / 折射材质换成「不折射」的克隆：折射材质在镜像相机下
-  // 会做第二次屏幕空间折射，既慢又会产生错误的双层折射。
-  const refractionFreeMaterialBySource = new WeakMap();
-  // 克隆材质 → 它的 dispose 处理器，dispose 时统一注销，避免监听器泄漏。
-  const disposeHandlerByClone = new Map();
-  // 数组材质 → 复用数组：每次渲染都新建数组会让 three.js 误判材质变化，
-  // 这里复用同一个数组对象、只改内容。
-  const materialArrayEntryByInput = new WeakMap();
+  // 折射材质的无折射克隆（缓存与释放都在里面）：唯一实现在 reflection/refraction-materials.js。
+  const { getRefractionFreeMaterials, disposeMaterialClones } = createRefractionMaterialResolver();
   // 源相机 → 镜像相机：相机对象在每帧被复用，clone 一次即可。
   const reflectionCameraBySource = new WeakMap();
   // 下面这些临时对象在闭包里建一次，避免在每帧热路径上反复 new。
@@ -68,97 +64,6 @@ export function createGroundReflections({
   const scratchPlaneVector = new THREE.Vector4();
   const scratchSignVector = new THREE.Vector4();
   const scratchProjectionMatrix = new THREE.Matrix4();
-  /**
-   * 克隆材质，但让所有「渲染目标纹理」uniform 继续指向原贴图。
-   * 为什么不能直接 clone：three.js 的 Material.clone 会把 renderTargetTexture 也复制一份引用（有些版本甚至复制内容），而反射通道要求克隆材质继续用主通道的那张输出贴图；
-   * 因此先临时把 uniform 置 null 再 clone，clone 完两边都还原 —— 这也避免了 clone 期间 texture 被标记为「需要上传」而触发额外的 GPU 上传。
-   */
-  function cloneMaterialSharingRenderTargets(material) {
-    const renderTargetUniforms = [];
-    const uniforms = material.uniforms;
-    if (uniforms) {
-      for (const uniformName of Object.keys(uniforms)) {
-        const uniform = uniforms[uniformName];
-        const texture = uniform?.value;
-        if (texture?.isTexture && texture.isRenderTargetTexture) {
-          renderTargetUniforms.push([uniformName, texture]);
-          uniform.value = null;
-        }
-      }
-    }
-    let clonedMaterial;
-    try {
-      clonedMaterial = material.clone();
-    } finally {
-      for (const [uniformName, texture] of renderTargetUniforms) {
-        uniforms[uniformName].value = texture;
-        if (clonedMaterial?.uniforms?.[uniformName]) {
-          clonedMaterial.uniforms[uniformName].value = texture;
-        }
-      }
-    }
-    return clonedMaterial;
-  }
-  /**
-   * 取（必要时创建）某材质的「无折射」版本。触发条件：有 transmission 的玻璃，或带 alphaWallBand 的渐变墙。
-   * 改动：transmission 置 0、forceSinglePass 打开（折射材质默认双面渲染两次，在只有一张贴图的反射通道里会互相覆盖），并沿用原材质的 onBeforeCompile 与 programCacheKey（否则区域灯注入的代码会丢失 / 程序缓存会串）。
-   * 通过源材质的 dispose 事件自动回收这份克隆：源材质没了，克隆也没有存在的意义。
-   */
-  function getRefractionFreeMaterial(material) {
-    if (!material || (!(material.transmission > 0) && !material.userData.alphaWallBand)) {
-      return material;
-    }
-    if (!refractionFreeMaterialBySource.has(material)) {
-      const refractionFreeMaterial = cloneMaterialSharingRenderTargets(material);
-      refractionFreeMaterial.transmission = 0;
-      refractionFreeMaterial.forceSinglePass = true;
-      refractionFreeMaterial.onBeforeCompile = material.onBeforeCompile;
-      refractionFreeMaterial.customProgramCacheKey = () =>
-        material.customProgramCacheKey() + "|reflection-no-refraction";
-      // 源材质被释放时，连带把克隆体也释放掉：克隆体引用着源材质的贴图与
-      // onBeforeCompile，留着它既不安全也会一直占着显存。
-      const handleMaterialDispose = () => {
-        material.removeEventListener("dispose", handleMaterialDispose);
-        refractionFreeMaterialBySource.delete(material);
-        disposeHandlerByClone.delete(refractionFreeMaterial);
-        refractionFreeMaterial.dispose();
-      };
-      material.addEventListener("dispose", handleMaterialDispose);
-      refractionFreeMaterialBySource.set(material, refractionFreeMaterial);
-      disposeHandlerByClone.set(refractionFreeMaterial, handleMaterialDispose);
-    }
-    return refractionFreeMaterialBySource.get(material);
-  }
-  /**
-   * 处理数组材质：逐项取无折射版本。
-   * 复用同一个「结果数组」对象（cachedArrayEntry.next）并在内容没变时直接返回入参，这样调用方可以安全地用 `!==` 判断「材质有没有被换过」，也避免每帧在 three.js 内部触发材质数组的变化检测。
-   */
-  function getRefractionFreeMaterials(materialInput) {
-    if (!Array.isArray(materialInput)) {
-      return getRefractionFreeMaterial(materialInput);
-    }
-    let cachedArrayEntry = materialArrayEntryByInput.get(materialInput);
-    if (!cachedArrayEntry) {
-      cachedArrayEntry = {
-        next: []
-      };
-      materialArrayEntryByInput.set(materialInput, cachedArrayEntry);
-    }
-    cachedArrayEntry.next.length = materialInput.length;
-    let materialArrayChanged = false;
-    for (let materialIndex = 0; materialIndex < materialInput.length; materialIndex++) {
-      cachedArrayEntry.next[materialIndex] = getRefractionFreeMaterial(
-        materialInput[materialIndex]
-      );
-      materialArrayChanged ||=
-        cachedArrayEntry.next[materialIndex] !== materialInput[materialIndex];
-    }
-    if (materialArrayChanged) {
-      return cachedArrayEntry.next;
-    } else {
-      return materialInput;
-    }
-  }
   // recordList：本帧生效的记录（一块地面一条）；recordsBySource 保留已失效但仍可复用的记录。
   let recordList = [];
   let currentRoot = null;
@@ -189,23 +94,6 @@ export function createGroundReflections({
   const CACHE_BYTE_BUDGET = 33554432;
   let heightByFloorId = new Map();
   let lightsByFloorId = new Map();
-  /**
-   * 沿父链向上找楼层 ID（兼容四种字段名：文档楼层、区域、环境层、灯光层）。
-   * 任一命中即返回，保证反射能把「这块地面属于哪一层」判对，进而只拍本层的地面。
-   */
-  function resolveFloorId(startObject) {
-    for (let currentObject = startObject; currentObject; currentObject = currentObject.parent) {
-      const userDataFloorId =
-        currentObject.userData?.floorId ||
-        currentObject.userData?.regionFloorId ||
-        currentObject.userData?.environmentFloorId ||
-        currentObject.userData?.lightFloorId;
-      if (userDataFloorId) {
-        return String(userDataFloorId);
-      }
-    }
-    return "";
-  }
   const objectIdByObject = new WeakMap();
   let objectIdSequence = 0;
   /**
@@ -222,12 +110,13 @@ export function createGroundReflections({
       return 0;
     }
   }
+
   /**
    * 生成网格几何的内容签名，用于判断记录是否需要重建。
    * 覆盖：几何 uuid、index 与各 attribute 的对象 ID / 版本号 / 数据版本 / 元素个数、drawRange。 之所以同时带上 attribute 的对象 ID 与 data.version：只比 version 会漏掉「整个 buffer 被替换成新对象」的情况，只比对象又会漏掉「原地改数据」。
    * @returns {string} 以 `|` 连接的签名串。
    */
-  function geometrySignature(mesh) {
+    function geometrySignature(mesh) {
     const geometry = mesh.geometry;
     return [
       geometry.uuid,
@@ -244,7 +133,7 @@ export function createGroundReflections({
       geometry.drawRange.count
     ].join("|");
   }
-  /**
+    /**
    * 释放一条记录持有的全部 GPU / 事件资源。
    *
    * 必须先摘 dispose 监听再删记录：否则源几何被销毁时会回调到一条已经释放的记录上。
@@ -330,21 +219,6 @@ export function createGroundReflections({
   // 可见楼层过滤：visibleFloorId 为 null 表示「全部可见」。
   const isOnVisibleFloor = object =>
     visibleFloorId === null || resolveFloorId(object) === visibleFloorId;
-  /**
-   * 判断节点是否处于「正在离场的旧楼层」下（楼层过渡动画）。
-   */
-  function isFloorTransitionLeaving(transitionSource) {
-    for (
-      let transitionNode = transitionSource;
-      transitionNode;
-      transitionNode = transitionNode.parent
-    ) {
-      if (transitionNode.userData?.floorTransitionLeaving) {
-        return true;
-      }
-    }
-    return false;
-  }
   /**
    * 判断「室外背景」面是否属于当前选定的室外楼层。
    * outsideFloorId 为 null 表示不限制；向上找到第一个带楼层字段的祖先再比对，因此背景面即使自己没标楼层也能正确归属。
@@ -590,17 +464,6 @@ export function createGroundReflections({
     trimRecordCache();
     // 结构变了，下一次 render 必须重新捕获（哪怕相机与光照都没变）。
     needsUpdate = true;
-  }
-  /**
-   * 判断节点自身及全部祖先是否可见。
-   */
-  function isVisibleWithin(startNode) {
-    for (let visibilityNode = startNode; visibilityNode; visibilityNode = visibilityNode.parent) {
-      if (!visibilityNode.visible) {
-        return false;
-      }
-    }
-    return true;
   }
   /**
    * 判断某条记录的反射这一帧是否应该显示。
@@ -1288,9 +1151,7 @@ export function createGroundReflections({
       disposeAllRecords();
       blurMesh.geometry.dispose();
       blurMaterial.dispose();
-      for (const disposeListener of [...disposeHandlerByClone.values()]) {
-        disposeListener();
-      }
+      disposeMaterialClones();
       floorChangeCounts.clear();
       heightByFloorId.clear();
       lightsByFloorId.clear();

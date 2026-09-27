@@ -9,8 +9,8 @@ __pycache__
 
 # 运行时数据与本地密钥（镜像内由启动脚本按需生成 / 卷挂载）
 data
-store/data
-store/keys/local
+apps/store/data
+apps/store/keys/local
 .env
 .env.*
 !.env.example
@@ -26,8 +26,8 @@ image
 *.md
 !README.md
 docs
-deploy
+ops/deploy
 tools
 # 依赖目录
 node_modules
-docker/node_modules
+ops/docker/node_modules

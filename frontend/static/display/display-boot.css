@@ -117,7 +117,7 @@
 .display-splash-logo {
   animation: display-boot-logo-breathe 1.9s ease-in-out 1.4s infinite;
 }
-/* 品牌标识取自 store/static/homeos-mark.svg；页面 CSP 为 style-src 'self'，
+/* 品牌标识取自 apps/store/static/homeos-mark.svg；页面 CSP 为 style-src 'self'，
    内联 <style> 会被拦截，故把标识自带动画挪到本外部样式表。 */
 @keyframes stmkHub {
   0%,

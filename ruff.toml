@@ -10,13 +10,13 @@
 target-version = "py312"
 
 # 依赖目录与归档目录不参与扫描。ruff 默认已按 .gitignore 过滤，这里显式再钉一遍：
-# 「源代码/」是历史归档、`docker/node_modules/` 是商店前端依赖，都不是被测代码。
+# 「源代码/」是历史归档、`ops/docker/node_modules/` 是商店前端依赖，都不是被测代码。
 extend-exclude = [
   ".venv",
   ".venv-store",
   "源代码",
   "node_modules",
-  "docker/node_modules",
+  "ops/docker/node_modules",
 ]
 
 [lint]

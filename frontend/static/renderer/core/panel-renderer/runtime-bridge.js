@@ -16,26 +16,26 @@ import {
   presenceMotionEventConfig,
   renderAirConditionerAirflowLayer,
   renderRegisteredComponent
-} from "../registry.js?v=2609270001";
-import { apiErrorMessage } from "../../../utils/api-error.js?v=2609270001";
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609270001";
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609270001";
-import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609270001";
+} from "../registry.js?v=2609271208";
+import { apiErrorMessage } from "../../../utils/api-error.js?v=2609271208";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609271208";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
+import { relatedPopupContext } from "../../../shared/related-entities.js?v=2609271208";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "../entity-power.js?v=2609270001";
+} from "../entity-power.js?v=2609271208";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../../shared/virtual-entities.js?v=2609270001";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609270001";
-import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609270001";
-import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609270001";
-import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609270001";
+} from "../../../shared/virtual-entities.js?v=2609271208";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271208";
+import { effectFadeDuration } from "../../geometry/effect-geometry.js?v=2609271208";
+import { entityMetadataIsAvailable } from "../entity-metadata.js?v=2609271208";
+import { relatedVacuumBatteryEntity } from "../../controls/vacuum-runtime.js?v=2609271208";
 import {
   coverToggleServiceForComponent,
   relatedAirerCurrentPositionSensor,
@@ -49,29 +49,30 @@ import {
   relatedWaterHeaterEntities,
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive
-} from "../../controls/cover-runtime.js?v=2609270001";
+} from "../../controls/cover-runtime.js?v=2609271208";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609270001";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609271208";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "../runtime-caches.js?v=2609270001";
+} from "../runtime-caches.js?v=2609271208";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "../runtime-document.js?v=2609270001";
+} from "../runtime-document.js?v=2609271208";
 import {
   OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS,
   RUNTIME_SUBSCRIPTION_ENTITY_LIMIT,
   componentDialogTitle,
   createOptimisticToggleTimeoutError,
   isSupportedComponentAction
-} from "./primitives.js?v=2609270001";
+} from "./primitives.js?v=2609271208";
+
 
 export const runtimeBridgeMethods = {
   /**
@@ -236,11 +237,7 @@ export const runtimeBridgeMethods = {
       if (!["climate", "fan"].includes(String(climateMetadata?.domain || ""))) {
         continue;
       }
-      const climateLightEntity = relatedDeviceDomainEntity(
-        this.entityMetadata,
-        climateEntityId,
-        "light"
-      );
+      const climateLightEntity = relatedDeviceDomainEntity(this.entityMetadata, climateEntityId, "light");
       if (climateLightEntity?.entityId) {
         subscriptionEntityIds.add(climateLightEntity.entityId);
       }
@@ -409,7 +406,7 @@ export const runtimeBridgeMethods = {
         this.options.onRuntimeStateChange?.(snapshotStates);
         this.tryOpenPendingEntityDetails();
         for (const refreshedState of snapshotStates) {
-          this.refreshVacuumMapEntity(refreshedState.entityId);
+          void this.runDeviceControlMethod(["vacuum"], "refreshVacuumMapEntity", [refreshedState.entityId]);
         }
         if (this.detailsStateSync?.handlers) {
           for (const [detailsHandlerEntityId, handlerCallbacks] of this.detailsStateSync.handlers) {
@@ -464,7 +461,7 @@ export const runtimeBridgeMethods = {
             this.refreshRuntimeComponent(affectedRuntimeComponentId);
           }
         }
-        this.refreshVacuumMapEntity(removedEntityId);
+        void this.runDeviceControlMethod(["vacuum"], "refreshVacuumMapEntity", [removedEntityId]);
       } else if (socketMessage.type === "resync_required") {
         if (socketGenerationId === this.socketGeneration && !this.destroyed) {
           this.connectRuntime({
@@ -480,7 +477,7 @@ export const runtimeBridgeMethods = {
         this.states.set(socketMessage.entityId, socketMessage);
         this.options.onRuntimeStateChange?.([socketMessage]);
         this.tryOpenPendingEntityDetails();
-        this.refreshVacuumMapEntity(socketMessage.entityId);
+        void this.runDeviceControlMethod(["vacuum"], "refreshVacuumMapEntity", [socketMessage.entityId]);
         if (this.detailsStateSync?.handlers?.has(socketMessage.entityId)) {
           for (const changedStateHandler of this.detailsStateSync.handlers.get(
             socketMessage.entityId
@@ -1987,7 +1984,7 @@ export const runtimeBridgeMethods = {
   previewAction(previewActionComponent, previewActionConfig) {
     // 只预览弹窗：toggle 之类的写操作在编辑态直接发出去会真的改动设备状态。
     if (previewActionConfig?.type === "more-info") {
-      this.showActionPopup(previewActionComponent, previewActionConfig, {
+      void this.showActionPopup(previewActionComponent, previewActionConfig, {
         preview: true
       });
     }
@@ -2099,7 +2096,7 @@ export const runtimeBridgeMethods = {
    * 三种来源：custom 打开文档里的组合弹窗（配置的弹窗已删除时报错而非静默无反应）、
    * entity 打开指定实体、current 打开控件自身绑定的实体。
    */
-  showActionPopup(popupSourceComponent, popupActionConfig, { preview: popupPreview = false } = {}) {
+  async showActionPopup(popupSourceComponent, popupActionConfig, { preview: popupPreview = false } = {}) {
     const popupSourceKind = popupActionConfig?.data?.popupSource || "current";
     if (popupSourceKind === "custom") {
       // 按 ID 找文档里的组合弹窗；找不到说明配置引用了已删除的弹窗，下面会抛错提示。
@@ -2152,11 +2149,12 @@ export const runtimeBridgeMethods = {
       throw new Error("该弹窗没有可用实体。");
     }
     if (targetPopupComponent.type === "camera") {
+      await this.prepareDeviceControlsForComponents([targetPopupComponent]);
       this.showCameraPreview(targetPopupComponent, {
         preview: popupPreview
       });
     } else {
-      this.showEntityDetails(targetPopupComponent, {
+      await this.showEntityDetails(targetPopupComponent, {
         preview: popupPreview
       });
     }
@@ -2253,7 +2251,7 @@ export const runtimeBridgeMethods = {
       return;
     }
     if (dispatchConfig.type === "more-info") {
-      this.showActionPopup(dispatchComponent, dispatchConfig);
+      void this.showActionPopup(dispatchComponent, dispatchConfig);
       return;
     }
     if (dispatchConfig.type === "navigate") {

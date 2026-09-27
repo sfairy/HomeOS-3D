@@ -3,7 +3,7 @@
   首次设置页（/setup）：创建本机唯一的超级管理员账号。
   视觉与 /login、/license、/license-recovery、/pair 统一：全屏场景（HomeOS-Activate 激活页同款）
   + 右侧玻璃表单坞，样式来自 /static/auth/scene/ 的分发产物。
-  场景片段由后端注入：本文件里那个独立的场景占位符（见 backend/http/page_shell.py 的
+  场景片段由后端注入：本文件里那个独立的场景占位符（见 apps/server/http/page_shell.py 的
   SCENE_PLACEHOLDER）会被替换成 frontend/static/auth/scene/scene.html 的内容
   （改场景请改设计系统源，别在这里手写）。
   表单约束与后端 SetupAdminRequest 一致：账号 3–64、密码 8–256。
@@ -16,7 +16,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609270001"></script>
+    <script src="/static/logging/client-log.js?v=2609271208"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,16 +24,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>初始化 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609270001" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609270001" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609270001" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609270001" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609270001" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609270001" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609270001" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609270001" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609270001" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609270001` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609271208" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609271208" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609271208" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609271208" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609271208" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609271208" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609271208" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609271208" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609271208` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -49,12 +49,12 @@
           <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
           <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
-          <!-- 开通路径（读数源：backend/http/commissioning.py）。不写死在这份 HTML 里：
+          <!-- 开通路径（读数源：apps/server/http/commissioning.py）。不写死在这份 HTML 里：
                同一页对不同访问者的读数不同（管理员带着会话来，墙面板没有也不该有会话），
                所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
           <!--{{STEPS}}-->
 
-          <!-- 状态甲板（读数源：backend/http/telemetry.py）。本页落在匿名档：
+          <!-- 状态甲板（读数源：apps/server/http/telemetry.py）。本页落在匿名档：
                未初始化时库里还没有可读的东西，只给机制读数。 -->
           <div class="hos-panel__head">
             <div class="hos-eyebrow-row">
@@ -156,11 +156,11 @@
     <!-- auth-shell.js 负责 .hos-password-field 里的密码显隐，必须在 setup.js 之前执行。 -->
     <!-- 手持档开关（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：不导出
          任何东西，只给 <html> 挂 .hos-touch（scene.css「静止档」的判据兜底），首帧前跑完。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609270001"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=2609270001"></script>
-    <script type="module" src="/static/auth/setup.js?v=2609270001"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609271208"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=2609271208"></script>
+    <script type="module" src="/static/auth/setup.js?v=2609271208"></script>
     <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
          时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
-    <script type="module" src="/static/auth/entry-deck.js?v=2609270001"></script>
+    <script type="module" src="/static/auth/entry-deck.js?v=2609271208"></script>
   </body>
 </html>

@@ -10,24 +10,24 @@ import {
   formatLineChartValue,
   mountCameraMedia,
   renderLineChartDetails
-} from "../../registry.js?v=2609270001";
-import { paletteColor } from "../../../../utils/colors.js?v=2609270001";
+} from "../../registry.js?v=2609271208";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609270001";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609270001";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609270001";
-import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609270001";
+} from "../../../../utils/cover-features.js?v=2609271208";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
+import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609271208";
 import {
   bathHeaterModeUsesAirflow,
   climateIsPoweredOn,
   climateModeLabel,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609270001";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609270001";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609270001";
+} from "../../../controls/climate.js?v=2609271208";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271208";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271208";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -43,15 +43,15 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609270001";
+} from "../../../controls/cover-runtime.js?v=2609271208";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609270001";
+} from "../../../controls/cover-direction.js?v=2609271208";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance
-} from "../../runtime-dialog-motion.js?v=2609270001";
-import { syncedLineChartProperties } from "../../runtime-document.js?v=2609270001";
+} from "../../runtime-dialog-motion.js?v=2609271208";
+import { syncedLineChartProperties } from "../../runtime-document.js?v=2609271208";
 import {
   airQualityAccent,
   airQualityAccentSoft,
@@ -59,7 +59,9 @@ import {
   appendAirerVisual,
   createSwitchVisual,
   popupModuleDialogTitle
-} from "../primitives.js?v=2609270001";
+} from "../primitives.js?v=2609271208";
+
+import { ensureDeviceControlMethods } from "./lazy-modules.js?v=2609271208";
 
 export const customPopupMethods = {
   /**
@@ -67,7 +69,7 @@ export const customPopupMethods = {
    * 打开时递增弹窗代数并重新订阅运行期状态：弹窗内可能引用当前页没有的实体，
    * 订阅集合必须覆盖它们，否则弹窗控件拿不到状态推送。
    */
-  showCustomPopup(popupDefinition, { preview: popupPreviewMode = false } = {}) {
+  async showCustomPopup(popupDefinition, { preview: popupPreviewMode = false } = {}) {
     this.closeRuntimeDialog();
     // 代数 +1 让弹窗内上一轮发出的历史曲线请求作废：
     // 关闭或重开弹窗后，旧请求的结果不能写回新弹窗的图表。
@@ -79,6 +81,8 @@ export const customPopupMethods = {
     popupDialogElement.className = "hb-custom-popup-dialog";
     const popupCardElement = document.createElement("div");
     popupCardElement.className = "hb-custom-popup-card";
+    // 同 entity-details：保守预取这一张弹窗可能用到的模块，只此一行。
+    await this.prepareDeviceControlsForPopup(popupDefinition);
     const popupModules = popupDefinition.modules || [];
     const popupMetrics = popupLayoutMetrics(popupModules, popupDefinition.layout);
     const popupWidthPx = popupMetrics.popupWidth;
@@ -1158,11 +1162,7 @@ export const customPopupMethods = {
               accentSoft: accentSoftColorUpdate,
               targetTemperature: targetTemperatureUpdate
             }) => {
-              popupModuleStatusElement.textContent = climateModeLabel(
-                visualModeUpdate,
-                popupClimateDeviceType,
-                popupClimateLabelContext
-              );
+              popupModuleStatusElement.textContent = climateModeLabel(visualModeUpdate, popupClimateDeviceType, popupClimateLabelContext);
               popupModuleStatusElement.classList.toggle("is-live", visualModeChange !== "off");
               popupModuleStatusElement.classList.toggle("is-running", runningUpdate);
               popupModuleStatusElement.style.setProperty("--hb-climate-accent", accentColorUpdate);
@@ -2501,7 +2501,7 @@ export const customPopupMethods = {
       refreshEntityCatalog: () => {
         if (this.detailsDialog === popupDialogElement && !!popupDialogElement.open) {
           if (buildModulesSignature(popupModules) !== modulesSignature) {
-            this.showCustomPopup(popupDefinition, {
+            void this.showCustomPopup(popupDefinition, {
               preview: popupPreviewMode
             });
           }

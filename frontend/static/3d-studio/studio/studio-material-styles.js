@@ -36,7 +36,7 @@ import {
   APPLIANCE_MODEL_ITEM_TYPES,
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
-} from "./studio-item-types.js?v=2609270001";
+} from "./studio-item-types.js?v=2609271208";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
@@ -2030,14 +2030,6 @@ export function normalizeMaterialStyle(itemType, styleValue) {
     return MATERIAL_STYLE_AUTO;
   }
   return findMaterialStyle(itemType, styleValue) ? styleValue : MATERIAL_STYLE_AUTO;
-}
-
-/** 风格档位的中文名，供提示与调试使用；`auto` 与找不到时回退到该类型的 auto 显示名。 */
-export function materialStyleLabel(itemType, styleValue) {
-  if (styleValue === MATERIAL_STYLE_AUTO) {
-    return materialStyleAutoLabel(itemType);
-  }
-  return findMaterialStyle(itemType, styleValue)?.label || materialStyleAutoLabel(itemType);
 }
 
 /**

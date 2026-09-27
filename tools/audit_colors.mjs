@@ -13,7 +13,7 @@
  *      canonical 忘了同步副本」重新变成一个静默失效点：改的人看到自己的页面变对了，
  *      另外两个部署（主应用入口页 / 商店）停在旧色上，且没有任何报错。
  *
- *   2. store/static/theme.css 的 --hb-* 与 design/scene/page.css 的 --hos-* 按镜像表逐 token 相等。
+ *   2. apps/store/static/theme.css 的 --hb-* 与 design/scene/page.css 的 --hos-* 按镜像表逐 token 相等。
  *      theme.css 的文件头写着这条契约，但它是**手写**的，没有自动比对 —— 这正是过去
  *      两个色板能走散几个月的原因（改一侧，另一侧不知道）。
  *
@@ -49,6 +49,11 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+// 仓库路径来自 paths.mjs（唯一事实来源）。
+import {
+  DESIGN_SCENE_DIR,
+} from "./paths.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const JSON_MODE = process.argv.includes("--json");
@@ -331,7 +336,7 @@ const SYNCED_SCENE_FILES = [
 const SCENE_COPIES = [
   "design/scene",
   "frontend/static/auth/scene",
-  "store/static/scene"
+  "apps/store/static/scene"
 ];
 
 function checkSceneSync() {
@@ -418,7 +423,7 @@ function checkTokenMirror(storeTokens, sceneTokens) {
     const sceneSide = sceneTokens.get(sceneName);
     if (storeSide === undefined && sceneSide === undefined) continue;
     if (storeSide === undefined) {
-      problems.push({ file: "store/static/theme.css", detail: `缺少镜像令牌 ${storeName}` });
+      problems.push({ file: "apps/store/static/theme.css", detail: `缺少镜像令牌 ${storeName}` });
       continue;
     }
     if (sceneSide === undefined) {
@@ -434,7 +439,7 @@ function checkTokenMirror(storeTokens, sceneTokens) {
       const normalize = value => (value ?? "").replace(/\s+/g, "");
       if (normalize(storeSide) === normalize(sceneSide)) continue;
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail: `${storeName} = ${storeSide} 与 ${sceneName} = ${sceneSide} 取值不同`
       });
       continue;
@@ -443,7 +448,7 @@ function checkTokenMirror(storeTokens, sceneTokens) {
     const sceneResolved = resolveColor(sceneName, sceneTokens);
     if (!storeResolved || !sceneResolved) {
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail: `${storeName} / ${sceneName} 至少一侧解析不出颜色，无法比对`
       });
       continue;
@@ -455,7 +460,7 @@ function checkTokenMirror(storeTokens, sceneTokens) {
       Math.abs(storeResolved.color.a - sceneResolved.color.a) < 0.001;
     if (!same) {
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail:
           `${storeName} = ${storeResolved.color.a === 1 ? "" : `rgba `}` +
           `(${storeResolved.color.r}, ${storeResolved.color.g}, ${storeResolved.color.b})` +
@@ -491,7 +496,7 @@ function checkTokenMirror(storeTokens, sceneTokens) {
  * 而改 theme.css 单侧会被当场拦下。
  */
 function readAppearanceContract() {
-  const file = path.join(ROOT, "design", "scene", "appearance.js");
+  const file = path.join(DESIGN_SCENE_DIR, "appearance.js");
   if (!fs.existsSync(file)) return null;
   const source = stripScriptComments(read(file));
   const softMatch = /--hb-\$\{name\}-soft`\]\s*=\s*`rgba\(\$\{triplet\},\s*([\d.]+)\)/.exec(source);
@@ -530,20 +535,20 @@ function checkSoftLineContract(storeTokens, appearance) {
       const name = `--hb-${family}-${suffix}`;
       const raw = storeTokens.get(name);
       if (raw === undefined) {
-        problems.push({ file: "store/static/theme.css", detail: `缺少 ${name}` });
+        problems.push({ file: "apps/store/static/theme.css", detail: `缺少 ${name}` });
         continue;
       }
       const match = /^rgba\(\s*var\(\s*--hb-[\w-]+-rgb\s*\)\s*,\s*([\d.]+)\s*\)$/.exec(raw.trim());
       if (!match) {
         problems.push({
-          file: "store/static/theme.css",
+          file: "apps/store/static/theme.css",
           detail: `${name} 应当是 rgba(var(--hb-${family}-rgb), ${expected})，实际是 ${raw}`
         });
         continue;
       }
       if (Math.abs(Number.parseFloat(match[1]) - expected) > 0.0001) {
         problems.push({
-          file: "store/static/theme.css",
+          file: "apps/store/static/theme.css",
           detail:
             `${name} 的 α 是 ${match[1]}，契约（appearance.js 发出、并被 [data-tone] 依赖）是 ${expected}`
         });
@@ -552,7 +557,7 @@ function checkSoftLineContract(storeTokens, appearance) {
     // -text 必须存在，且与同族的 语义别名 指向同一个值。
     const textName = `--hb-${family}-text`;
     if (!storeTokens.has(textName)) {
-      problems.push({ file: "store/static/theme.css", detail: `缺少 ${textName}` });
+      problems.push({ file: "apps/store/static/theme.css", detail: `缺少 ${textName}` });
     }
   }
   // 语义别名（success / danger / warning）必须转发到对应族的 -text，而不是自己写死。
@@ -563,12 +568,12 @@ function checkSoftLineContract(storeTokens, appearance) {
   ]) {
     const raw = storeTokens.get(alias);
     if (raw === undefined) {
-      problems.push({ file: "store/static/theme.css", detail: `缺少 ${alias}` });
+      problems.push({ file: "apps/store/static/theme.css", detail: `缺少 ${alias}` });
       continue;
     }
     if (raw.trim() !== `var(${target})`) {
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail: `${alias} 应写 var(${target})（一族一张脸，改色只改一处），实际是 ${raw}`
       });
     }
@@ -593,21 +598,21 @@ function checkToneTextWiring(storeTokens, storeText) {
     const match = /^var\(--hb-([a-z]+)-text\)$/.exec(value);
     if (!match) {
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail: `--hb-tone-text 应写 var(--hb-<族>-text)，实际是 ${value}`
       });
       continue;
     }
     if (!storeTokens.has(`--hb-${match[1]}-text`)) {
       problems.push({
-        file: "store/static/theme.css",
+        file: "apps/store/static/theme.css",
         detail: `--hb-tone-text 指向不存在的 --hb-${match[1]}-text`
       });
     }
   }
   if (roots.length !== 9) {
     problems.push({
-      file: "store/static/theme.css",
+      file: "apps/store/static/theme.css",
       detail: `--hb-tone-text 应出现 9 次（:root 默认 + 8 个 [data-tone]），实际 ${roots.length} 次`
     });
   }
@@ -736,15 +741,15 @@ const LITERAL_ALLOWLIST = [
     reason: "品牌标识 SVG：独立文件，读不到页面上的 CSS 变量，只能自备色值"
   },
   {
-    file: /^store\/static\/homeos-mark.*\.svg$/,
+    file: /^apps\/store\/static\/homeos-mark.*\.svg$/,
     reason: "同上的商店侧品牌标识"
   },
   {
-    file: /^store\/security\/request_security\.py$/,
+    file: /^apps\/store\/security\/request_security\.py$/,
     reason: "500 错误页：刻意不引 /store-static（500 常常正是静态读取失败导致的），只能自备一套"
   },
   {
-    file: /^store\/ops\/mailer\.py$/,
+    file: /^apps\/store\/ops\/mailer\.py$/,
     reason: "验证码邮件：邮件客户端不执行外部样式表，只能内联色值"
   },
   {
@@ -991,25 +996,25 @@ const TEXT_SURFACES = [
   // ── 商店：不透明面（`--hb-*` 文字落在这些面上）──
   {
     app: "store",
-    name: "store/bg",
+    name: "apps/store/bg",
     reason: "商店前台画布（body 的 --hb-bg）",
     solid: "--hos-sky-deep"
   },
   {
     app: "store",
-    name: "store/surface",
+    name: "apps/store/surface",
     reason: ".hb-block / .hb-card 的渐变暗端",
     solid: "--hos-sky-low"
   },
   {
     app: "store",
-    name: "store/surface-soft",
+    name: "apps/store/surface-soft",
     reason: ".hb-table thead / .hb-tag 的底，卡片渐变亮端",
     solid: "--hos-sky-mid"
   },
   {
     app: "store",
-    name: "store/surface-raised",
+    name: "apps/store/surface-raised",
     reason: ".hb-page-head 渐变 100% 停点（右下角，feed 读数条所在）、.hb-toast、.hb-select option",
     solid: "--hos-sky-high"
   },
@@ -1121,11 +1126,11 @@ const FOREGROUND_CEILING = {
   "--hb-muted-dim": {
     maxLuminance: 0.012,
     reason:
-      "商店自有最暗一档（#6d8797）。上限落在 store/surface-soft(#0d1728, L=.0093) 与 " +
-      "store/surface-raised(#16263c, L=.0188) 之间：前者 4.80:1 达标，后者 4.04:1 不达标。" +
+      "商店自有最暗一档（#6d8797）。上限落在 apps/store/surface-soft(#0d1728, L=.0093) 与 " +
+      "apps/store/surface-raised(#16263c, L=.0188) 之间：前者 4.80:1 达标，后者 4.04:1 不达标。" +
       "**它因此不能出现在 .hb-page-head / .hb-account-heading 里** —— 那两块横幅的渐变 " +
       "100% 停点正是 surface-raised；右下角的 __path 与 __feed small 已改用 --hb-muted（5.03:1）。" +
-      "契约同时写在 store/static/theme.css 的 --hb-muted-dim 定义处。"
+      "契约同时写在 apps/store/static/theme.css 的 --hb-muted-dim 定义处。"
   },
   // ── 工具文字梯的下三档 ──
   // 中性文字梯从 ink 到 hint-dim 跨越 L .96 → .20；最暗的这三档**本来就不该出现在亮面上**，
@@ -1449,8 +1454,8 @@ function clusterLiterals(stylesheets) {
 // ---------------------------------------------------------------------------
 
 const sceneTokens = parseRootTokens(read(path.join(ROOT, "design/scene/page.css")));
-const storeTokens = parseRootTokens(read(path.join(ROOT, "store/static/theme.css")));
-const storeCssText = read(path.join(ROOT, "store/static/theme.css"));
+const storeTokens = parseRootTokens(read(path.join(ROOT, "apps/store/static/theme.css")));
+const storeCssText = read(path.join(ROOT, "apps/store/static/theme.css"));
 
 /**
  * 调色板字面量 → 扮演哪些角色。用于把「与令牌同值」的字面量指出来。
@@ -1490,8 +1495,8 @@ const paletteValues = buildPaletteValues();
 const TOKEN_OWNER_FILES = new Set([
   "design/scene/page.css",
   "frontend/static/auth/scene/page.css",
-  "store/static/scene/page.css",
-  "store/static/theme.css"
+  "apps/store/static/scene/page.css",
+  "apps/store/static/theme.css"
 ]);
 
 function auditStylesheets() {

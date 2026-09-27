@@ -32,9 +32,6 @@ import { materialNameForSlot } from "./model-roles.mjs";
 
 const THREE_BASE = new URL("../../frontend/static/vendor/three/0.186.0/", import.meta.url);
 
-/** 两种产出版本：full 是完整版，lite 是首屏加载的那一份。 */
-export const MODEL_VARIANTS = Object.freeze(["full", "lite"]);
-
 let threeModulePromise = null;
 let gltfExporterPromise = null;
 let geometryUtilsPromise = null;

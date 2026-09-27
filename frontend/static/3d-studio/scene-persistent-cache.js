@@ -16,9 +16,12 @@
  * `combinedCameraSettings` —— 即「已准备场景」的全部零件。库 / 仓库布局见模块底部常量。
  *
  * 与模型缓存同一条底线：IndexedDB 不可用（隐私模式 / 禁用 / 配额满）时所有接口都退化成空操作，
- * 调用方走原本的非缓存路径，不抛错、不产生未处理的 Promise 拒绝。
+ * 调用方走原本的非缓存路径，不抛错、不产生未处理的 Promise 拒绝。这条底线与「超时只降级这一次
+ * 调用」「写入空闲串行化」「LRU 剪枝」都由 `idb-store.js` 统一提供（与模型缓存同一份实现，
+ * 不再各抄一遍）；本模块只负责「键怎么算、什么算可复用、条目里放什么」。
  */
-import { debugLog } from "../utils/debug-log.js?v=2609270001";
+import { createIdbStore } from "./idb-store.js?v=2609271208";
+import { debugLog } from "../utils/debug-log.js?v=2609271208";
 
 /** 场景准备格式版本。归一逻辑或缓存信封一改就动它，旧条目会自动因版本不符而失效。 */
 export const SCENE_PREPARATION_VERSION = "20260923-v1";
@@ -135,10 +138,6 @@ export function createScenePersistentCache({
   env: env = globalThis,
   timeoutMs: timeoutMs = DEFAULT_TIMEOUT_MS
 } = {}) {
-  let openingPromise = null;
-  let database = null;
-  let disabled = false;
-  let writeChain = Promise.resolve();
   // 内存层：preload 读到的条目在这里等 peek，避免同一份文档在一次加载里读两遍 IDB。
   const entryByKey = new Map();
   const preloadByKey = new Map();
@@ -158,86 +157,21 @@ export function createScenePersistentCache({
     log("fallback");
   };
 
-  function isAvailable() {
-    try {
-      return !disabled && !!env.indexedDB;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * 把一次 IDB 操作包进超时：超时或抛错都解析为 null。只降级这一次调用，不把实例标记成
-   * disabled —— 库「暂时慢」与「打不开」是两回事，后者由 open 的 onerror / onblocked 明确标记。
-   */
-  function runWithTimeout(run, duration = timeoutMs, state = null) {
-    return new Promise(resolve => {
-      let settled = false;
-      const settle = value => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        env.clearTimeout(timerId);
-        resolve(value);
-      };
-      const timerId = env.setTimeout(() => {
-        // state 由调用方传入时用来标记「这次是超时」：迟到的成功结果据此不再重复记一次命中。
-        if (state) {
-          state.timedOut = true;
-        }
-        noteFallback();
-        settle(null);
-      }, duration);
-      try {
-        run(settle);
-      } catch {
-        settle(null);
+  const store = createIdbStore({
+    env: env,
+    name: SCENE_CACHE_DB_NAME,
+    version: SCENE_CACHE_DB_VERSION,
+    timeoutMs: timeoutMs,
+    openTimeoutMs: MIN_OPEN_TIMEOUT_MS,
+    onFallback: noteFallback,
+    // 内存层也随页面卸载一起清掉：它只是 IDB 的一次性中转，留着只会让「下次会话」读到过期条目。
+    onPagehide: () => entryByKey.clear(),
+    upgrade: request => {
+      if (!request.result.objectStoreNames.contains(SCENE_STORE)) {
+        request.result.createObjectStore(SCENE_STORE, { keyPath: "key" });
       }
-    });
-  }
-
-  /** 打开数据库（懒加载且只打开一次）；打不开就标记 disabled，后续调用不再反复敲它。 */
-  function openDatabase() {
-    if (!isAvailable()) {
-      return Promise.resolve(null);
     }
-    if (!openingPromise) {
-      openingPromise = runWithTimeout(
-        settle => {
-          const request = env.indexedDB.open(SCENE_CACHE_DB_NAME, SCENE_CACHE_DB_VERSION);
-          request.onupgradeneeded = () => {
-            if (!request.result.objectStoreNames.contains(SCENE_STORE)) {
-              request.result.createObjectStore(SCENE_STORE, { keyPath: "key" });
-            }
-          };
-          request.onerror = request.onblocked = () => {
-            disabled = true;
-            noteFallback();
-            settle(null);
-          };
-          request.onsuccess = () => {
-            const opened = request.result;
-            if (disabled) {
-              opened.close();
-              settle(null);
-              return;
-            }
-            opened.onversionchange = () => {
-              disabled = true;
-              opened.close();
-            };
-            database = opened;
-            settle(opened);
-          };
-        },
-        // 首次建库要跑 onupgradeneeded，比单条读写慢得多，预算必须放宽：这一条超了只表示
-        // 「这次没等到」，连接到了仍然会存下来，`peek()` / `schedule()` 都还能用上。
-        Math.max(timeoutMs, MIN_OPEN_TIMEOUT_MS)
-      );
-    }
-    return openingPromise;
-  }
+  });
 
   /**
    * 预读某个键的缓存条目：读路径最多等一小段（默认 120ms），超时按未命中处理，数据库连接留给
@@ -245,7 +179,7 @@ export function createScenePersistentCache({
    * @returns {Promise<object|null>}
    */
   function preload(key) {
-    if (!key || disabled) {
+    if (!key || store.isDisabled()) {
       return Promise.resolve(null);
     }
     if (entryByKey.has(key)) {
@@ -255,9 +189,9 @@ export function createScenePersistentCache({
       return preloadByKey.get(key);
     }
     const readState = { timedOut: false };
-    const pending = runWithTimeout(settle => {
-      openDatabase().then(opened => {
-        if (!opened || disabled) {
+    const pending = store.runWithTimeout(settle => {
+      store.open().then(opened => {
+        if (!opened || store.isDisabled()) {
           settle(null);
           return;
         }
@@ -268,7 +202,7 @@ export function createScenePersistentCache({
           request.onsuccess = () => {
             const entry = request.result;
             const usable =
-              !disabled &&
+              !store.isDisabled() &&
               entry?.version === SCENE_PREPARATION_VERSION &&
               Date.now() - entry.created < SCENE_CACHE_TTL_MS;
             if (!usable) {
@@ -308,7 +242,7 @@ export function createScenePersistentCache({
    * @param {object} document 归一后的场景文档。
    */
   function schedule(key, record, document) {
-    if (!key || disabled || !record?.syncKey || !isUsablePreparedDocument(document)) {
+    if (!key || store.isDisabled() || !record?.syncKey || !isUsablePreparedDocument(document)) {
       return;
     }
     let entry;
@@ -323,86 +257,54 @@ export function createScenePersistentCache({
     } catch {
       return;
     }
-    writeChain = writeChain.then(
-      () =>
-        new Promise(resolve => {
-          const run = async () => {
-            try {
-              const opened = database || (await openDatabase());
-              if (!opened || disabled) {
-                return;
-              }
-              // 用 UTF-16 码元估算体积（与 IndexedDB 的存储口径同量级即可），超限就不写。
-              entry.bytes = JSON.stringify(entry).length * 2;
-              if (entry.bytes > MAX_SCENE_BYTES) {
-                return;
-              }
-              const stored = await runWithTimeout(settle => {
-                const transaction = opened.transaction(SCENE_STORE, "readwrite");
-                const store = transaction.objectStore(SCENE_STORE);
-                transaction.oncomplete = () => settle(true);
-                transaction.onerror = transaction.onabort = () => settle(false);
-                store.put(entry);
-                const allEntries = store.getAll();
-                allEntries.onsuccess = () => {
-                  const entries = allEntries.result.sort((a, b) => a.created - b.created);
-                  let totalBytes = entries.reduce((sum, item) => sum + (item.bytes || 0), 0);
-                  let count = entries.length;
-                  for (const item of entries) {
-                    if (count <= MAX_SCENE_COUNT && totalBytes <= MAX_TOTAL_BYTES) {
-                      break;
-                    }
-                    store.delete(item.key);
-                    count -= 1;
-                    totalBytes -= item.bytes || 0;
-                  }
-                };
-              }, SCENE_WRITE_TIMEOUT_MS);
-              if (stored) {
-                // 同步内存层：否则本会话再读同一个键只会拿回那份旧条目（或 preloadByKey 里
-                // 已 resolve 的 null —— 它从不清理），刚写进去的条目永远读不回来。
-                entryByKey.set(key, entry);
-                preloadByKey.delete(key);
-                stats.writes += 1;
-                log("stored");
-              } else {
-                // 配额满 / 事务被中止：这是真实的写入失败，过去完全静默、连 fallback 都不记。
-                noteFallback();
-              }
-            } catch {
-              noteFallback();
-            } finally {
-              resolve();
-            }
-          };
-          if (env.requestIdleCallback) {
-            env.requestIdleCallback(run, { timeout: 3000 });
-          } else {
-            env.setTimeout(run, 250);
-          }
-        })
-    );
-  }
-
-  try {
-    env.addEventListener?.(
-      "pagehide",
-      () => {
-        disabled = true;
-        entryByKey.clear();
-        database?.close();
-      },
-      { once: true }
-    );
-  } catch {
-    // 测试替身没有 addEventListener：忽略。
+    store.scheduleIdle(async () => {
+      try {
+        const opened = store.current() || (await store.open());
+        if (!opened || store.isDisabled()) {
+          return;
+        }
+        // 用 UTF-16 码元估算体积（与 IndexedDB 的存储口径同量级即可），超限就不写。
+        entry.bytes = JSON.stringify(entry).length * 2;
+        if (entry.bytes > MAX_SCENE_BYTES) {
+          return;
+        }
+        const stored = await store.runWithTimeout(settle => {
+          const transaction = opened.transaction(SCENE_STORE, "readwrite");
+          const records = transaction.objectStore(SCENE_STORE);
+          transaction.oncomplete = () => settle(true);
+          transaction.onerror = transaction.onabort = () => settle(false);
+          records.put(entry);
+          // 条目自身就带 `bytes` 与 `created`，剪枝直接遍历主仓库即可（模型缓存另有一个
+          // 轻量 metadata 仓库，是因为它的模板体有几 MB、不适合每次都拉进内存）。
+          store.prune({
+            source: records,
+            remove: pruneKey => records.delete(pruneKey),
+            maxCount: MAX_SCENE_COUNT,
+            maxTotalBytes: MAX_TOTAL_BYTES
+          });
+        }, SCENE_WRITE_TIMEOUT_MS);
+        if (stored) {
+          // 同步内存层：否则本会话再读同一个键只会拿回那份旧条目（或 preloadByKey 里
+          // 已 resolve 的 null —— 它从不清理），刚写进去的条目永远读不回来。
+          entryByKey.set(key, entry);
+          preloadByKey.delete(key);
+          stats.writes += 1;
+          log("stored");
+        } else {
+          // 配额满 / 事务被中止：这是真实的写入失败，过去完全静默、连 fallback 都不记。
+          noteFallback();
+        }
+      } catch {
+        noteFallback();
+      }
+    });
   }
 
   return {
     preload,
     peek,
     schedule,
-    whenIdle: () => writeChain,
+    whenIdle: () => store.whenIdle(),
     stats: () => ({ ...stats })
   };
 }

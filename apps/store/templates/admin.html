@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#050912">
+<title>HomeOS 授权商店 · 管理后台</title>
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609271208">
+<link rel="stylesheet" href="/store-static/theme.css?v=2609271208">
+<!-- 场景设计系统的分发产物（源在仓库 design/scene/）：登录屏是整页场景壳，
+     工作台仍走 theme.css + admin.css 的令牌。 -->
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609271208">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609271208">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609271208">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609271208">
+<link rel="stylesheet" href="/store-static/admin.css?v=2609271208">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609271208` 的 <link>。
+     必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+<!--{{APPEARANCE}}-->
+</head>
+<body>
+
+<!-- 登录屏对齐商店认证页：表单刻意不预填，靠 autocomplete / new-password / data-lpignore 等属性 + 脚本里的加载后清空（clearAutofilledLogin）挡住密码扩展。
+     整页场景壳的样式来自 /store-static/scene/，场景标记由 apps/store/api/page_shell.py 注入。 -->
+<div id="admin-login" class="hos-page hos-tone--accent" hidden>
+  <!--{{SCENE}}-->
+
+  <main class="hos-dock">
+    <section class="hos-panel hos-rise">
+      <span class="hos-panel__edge" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+      <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">Admin Console</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>管理员专用</span>
+        </div>
+        <h1>进后台，处理今天的事</h1>
+        <p class="hos-panel__desc">
+          商品上架、订单履约、激活码签发与设备解绑都在后台完成，请用具有管理员权限的账号登录。
+        </p>
+      </div>
+
+      <!-- 状态甲板（读数源：apps/store/api/telemetry.py）。这一屏对匿名访客可见，
+           所以只给机制读数 —— 订单与授权规模要登录之后在概览页看。 -->
+      <!--{{DECK}}-->
+
+      <form id="admin-login-form" class="hos-form" autocomplete="off" data-form-type="other">
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="admin-login-email">管理员邮箱</label></div>
+          <div class="hos-control">
+            <input id="admin-login-email" type="email" name="email" placeholder="admin@example.com"
+              autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+              data-lpignore="true" data-1p-ignore data-bwignore required>
+          </div>
+        </div>
+
+        <div class="hos-field">
+          <div class="hos-label-row"><label for="admin-login-password">密码</label></div>
+          <div class="hos-control hos-password-field">
+            <input id="admin-login-password" type="password" name="password" placeholder="请输入密码"
+              autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required>
+            <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+          </div>
+        </div>
+
+        <p id="admin-login-error" class="hos-msg is-err" role="alert" hidden></p>
+
+        <div class="hos-actions">
+          <button class="hos-btn-primary" type="submit">登录后台</button>
+        </div>
+      </form>
+
+      <p class="hos-switch"><a href="/">返回商店前台</a></p>
+
+      <div class="hos-panel__copy">
+        <div class="hos-panel__meta">
+          <span>订单与退款</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>激活码与绑定</span>
+          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+          <span>站点配置与审计</span>
+        </div>
+        <p>运营后台的每一步操作都会留下审计记录。</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 启动占位：两个主面板默认 hidden，bootstrap 异步跑之前显示，避免刷新时先闪一下登录表单。 -->
+<div id="admin-boot" class="admin-boot">
+  <div class="admin-boot__spinner"></div>
+  <div class="admin-boot__text">正在加载…</div>
+</div>
+
+<div id="admin-app" class="admin-shell" hidden>
+  <aside class="admin-side">
+    <div class="brand">
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609271208" alt=""></span>
+      <div class="brand__text">
+        <strong>HomeOS</strong>
+        <small>授权商店后台</small>
+      </div>
+    </div>
+    <nav class="admin-nav" id="admin-nav">
+      <div class="nav-group open" data-nav-group="operations" data-domain="operations">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">业务运营</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link active" href="#overview" data-admin-page="overview">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="3" y="13.6" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="13.6" width="7.4" height="7.4" rx="2.1"/></svg>
+              <span class="nav-label">概览</span>
+              <span class="nav-badge" data-nav-badge="overview"></span>
+            </a>
+            <a class="nav-link" href="#orders" data-admin-page="orders">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.6"/><path d="M9 8.5h6M9 12.5h6M9 16.5h3.5"/></svg>
+              <span class="nav-label">订单</span>
+              <span class="nav-badge" data-nav-badge="orders"></span>
+            </a>
+            <a class="nav-link" href="#withdrawals" data-admin-page="withdrawals">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.2A2.7 2.7 0 0 1 5.7 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3" y="8.2" width="18" height="10.8" rx="2.6"/><circle cx="16.6" cy="13.6" r="1.2"/></svg>
+              <span class="nav-label">提现审核</span>
+              <span class="nav-badge" data-nav-badge="withdrawals"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="nav-group open" data-nav-group="catalog" data-domain="catalog">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">商品营销</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#products" data-admin-page="products">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 20.3 7.5v9L12 20.8 3.7 16.5v-9z"/><path d="M3.7 7.5 12 11.8l8.3-4.3M12 11.8v9"/></svg>
+              <span class="nav-label">商品</span>
+              <span class="nav-badge" data-nav-badge="products"></span>
+            </a>
+            <a class="nav-link" href="#coupons" data-admin-page="coupons">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z"/><circle cx="8.1" cy="8.1" r="1.4"/></svg>
+              <span class="nav-label">优惠码</span>
+              <span class="nav-badge" data-nav-badge="coupons"></span>
+            </a>          </div>
+        </div>
+      </div>
+      <div class="nav-group open" data-nav-group="licensing" data-domain="licensing">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">授权用户</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#licenses" data-admin-page="licenses">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="12" r="4.3"/><path d="M12.5 12H20M17.4 12v3.3M20 12v2.5"/></svg>
+              <span class="nav-label">激活码</span>
+              <span class="nav-badge" data-nav-badge="licenses"></span>
+            </a>
+            <a class="nav-link" href="#bindings" data-admin-page="bindings">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="12" rx="2.6"/><path d="M9 20h6M12 16.6V20"/></svg>
+              <span class="nav-label">设备绑定</span>
+              <span class="nav-badge" data-nav-badge="bindings"></span>
+            </a>
+            <a class="nav-link" href="#accounts" data-admin-page="accounts">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.4" cy="8.4" r="3.5"/><path d="M3.5 19.6c0-3.3 2.6-5.5 5.9-5.5s5.9 2.2 5.9 5.5"/><path d="M16.6 5.3a3.5 3.5 0 0 1 0 6.2M17.6 14.3c2 .8 3.4 2.5 3.4 4.7"/></svg>
+              <span class="nav-label">账号</span>
+              <span class="nav-badge" data-nav-badge="accounts"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="nav-group open" data-nav-group="records" data-domain="data">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">数据资产</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#entitlements" data-admin-page="entitlements">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 19.4 6v6.2c0 4.3-3 7.4-7.4 8.4-4.4-1-7.4-4.1-7.4-8.4V6z"/><path d="m9.4 12 1.9 1.9 3.6-3.7"/></svg>
+              <span class="nav-label">功能权益</span>
+              <span class="nav-badge" data-nav-badge="entitlements"></span>
+            </a>
+            <a class="nav-link" href="#ledger" data-admin-page="ledger">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.4h14M5 11.4h8M5 16.4h5"/><circle cx="17.4" cy="16.4" r="2.4"/><path d="M17.4 14v2.4l1.6 1"/></svg>
+              <span class="nav-label">积分流水</span>
+              <span class="nav-badge" data-nav-badge="ledger"></span>
+            </a>
+            <a class="nav-link" href="#customers" data-admin-page="customers">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.6"/><circle cx="9" cy="11" r="2.2"/><path d="M5.6 16.4c0-1.9 1.5-3.1 3.4-3.1s3.4 1.2 3.4 3.1"/><path d="M15.4 10h3M15.4 13.4h3"/></svg>
+              <span class="nav-label">客户档案</span>
+              <span class="nav-badge" data-nav-badge="customers"></span>
+            </a>
+            <a class="nav-link" href="#diagnostics" data-admin-page="diagnostics">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 12.4h3.9l2.1-4.7 3 9.2 2-6.1 1.7 3.1h4.5"/></svg>
+              <span class="nav-label">诊断数据</span>
+              <span class="nav-badge" data-nav-badge="diagnostics"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="nav-group open" data-nav-group="system" data-domain="system">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">系统设置</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#settings" data-admin-page="settings">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M18.4 7H20M4 12h3.6M13 12h7M4 17h8M17.6 17H20"/><circle cx="15.7" cy="7" r="2.1"/><circle cx="10.4" cy="12" r="2.1"/><circle cx="15" cy="17" r="2.1"/></svg>
+              <span class="nav-label">站点配置</span>
+              <span class="nav-badge" data-nav-badge="settings"></span>
+            </a>
+            <a class="nav-link" href="#audits" data-admin-page="audits">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2.6"/><path d="M9 5V3.9A1.4 1.4 0 0 1 10.4 2.5h3.2A1.4 1.4 0 0 1 15 3.9V5"/><path d="M9 11.2h6M9 15.2h4"/></svg>
+              <span class="nav-label">审计日志</span>
+              <span class="nav-badge" data-nav-badge="audits"></span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <div class="admin-side__foot">
+      <div class="who">
+        <span class="who__avatar" id="admin-avatar-side">A</span>
+        <span class="who__email" id="admin-identity-side"></span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <!-- 全局顶部条：用户身份 + 快捷操作 -->
+    <header class="admin-topbar">
+      <div class="admin-topbar__left">
+        <span class="who__avatar" id="admin-avatar">A</span>
+        <span class="admin-topbar__email" id="admin-identity"></span>
+        <span class="admin-topbar__tz" id="admin-timezone"></span>
+      </div>
+      <div class="admin-topbar__right">
+        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-change-pw">修改密码</button>
+        <a class="hb-button hb-button--ghost hb-button--sm" href="/" target="_blank" rel="noreferrer">查看商店</a>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-logout">退出登录</button>
+      </div>
+    </header>
+
+    <!-- 概览 -->
+    <section class="admin-panel active" id="panel-overview" data-domain="operations">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>运营概览</h2>
+          <p>营收、订单漏斗、待办与风险项目的经营看板</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
+          <span class="overview-stamp" id="overview-stamp"></span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="overview-refresh">刷新</button>
+        </div>
+      </header>
+
+      <!-- 概览按「看数 / 处理 / 干活」切三段：日常巡检只看第一段，出问题才切后面两段。 -->
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="概览分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="dashboard">经营看板</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="risk">风险与待办</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="tools">维护工具</button>
+      </div>
+
+      <div class="admin-tab-pane" data-tab-pane="dashboard" role="tabpanel">
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>营收</h3>
+            <p>按<b>付款时间</b>归属；净营收 = 实付合计 − 已退款。时间窗是滚动的（近 24 小时 / 近 7 天 / 近 30 天），与服务端时区无关。</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="stat-grid" id="overview-revenue"></div>
+          </div>
+        </div>
+
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>订单漏斗</h3>
+            <p>各状态订单数与金额合计（含未付款订单，所以金额不等于营收）</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="funnel-grid" id="overview-funnel"></div>
+          </div>
+        </div>
+
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>累计</h3>
+            <p>站点开通至今的总量。营收为净营收（已减退款）</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="stat-grid" id="overview-stats"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-pane" data-tab-pane="risk" role="tabpanel">
+        <!-- 支付巡检存活状态：刻意常驻显示（不像待办为 0 就隐藏），巡检坏掉时订单照收、界面无别的信号，等出问题再显示就来不及；文案与配色由后端 health 决定（见 loadOverview）。 -->
+        <div class="hb-card" id="overview-sweep">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>支付巡检 <span class="hb-tag" id="overview-sweep-pill">—</span></strong>
+                <p id="overview-sweep-detail">正在读取巡检状态…</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 资金/履约异常计数：与巡检同理常驻显示，这些异常是刻意吞掉的（对账失败不能把支付页打成 500），只有这里能看见「钱收了、码没发出去」；有异常时多出「确认」按钮清零（计数在进程内）。 -->
+        <div class="hb-card" id="overview-incidents">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>入账异常 <span class="hb-tag" id="overview-incidents-pill">—</span></strong>
+                <p id="overview-incidents-detail">正在读取异常计数…</p>
+              </div>
+              <button class="hb-button hb-button--secondary hb-button--sm" id="overview-incidents-ack" hidden>确认已处理</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 启动期积分口径迁移的结果。与其他卡片不同，这块**只在出问题时出现**：它是启动时
+             一次性动作，正常时没有任何可操作的内容，常驻只会变成一行噪音。但对账不过时旧列会
+             留在库里，那是之后每次下单写入才以 NOT NULL 报错的——等你看到那个报错，
+             早就看不出根因在迁移了，所以必须让它在这里可见。 -->
+        <div class="hb-card" id="overview-points-migration" hidden>
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>积分迁移 <span class="hb-tag hb-tag--danger">未通过</span></strong>
+                <p id="overview-points-migration-detail"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 待办：没有待办时整块隐藏，避免满屏 0 让「有东西要处理」变得看不出来 -->
+        <div class="hb-card overview-todos" id="overview-todos" hidden>
+          <div class="hb-card__head">
+            <h3>需要处理</h3>
+            <p>点任意一项跳到对应列表并带好筛选条件</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="overview-todos__grid" id="overview-todos-grid"></div>
+          </div>
+        </div>
+
+        <div class="overview-cols">
+          <div class="hb-card">
+            <div class="hb-card__head">
+              <h3>库存预警</h3>
+              <p>可售 = 库存 − 已占用预留；已售罄或即将售罄的商品排在最前</p>
+            </div>
+            <div class="table-wrap">
+              <table class="hb-table" id="overview-stock-table">
+                <thead><tr><th>商品</th><th class="nowrap">库存</th><th class="nowrap">预留</th><th class="nowrap">可售</th></tr></thead>
+                <tbody id="overview-stock-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="hb-card">
+            <div class="hb-card__head">
+              <h3>30 天内到期授权</h3>
+              <p>永久授权不在其中；列出最近到期的 20 条，供提前提醒续费</p>
+            </div>
+            <div class="table-wrap">
+              <table class="hb-table" id="overview-expiring-table">
+                <thead><tr><th>授权</th><th>商品</th><th class="nowrap">到期</th></tr></thead>
+                <tbody id="overview-expiring-rows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-tab-pane" data-tab-pane="tools" role="tabpanel">
+        <div class="hb-card">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>维护模式</strong>
+                <p>开启后商店前台显示维护遮罩，下单会被拒绝。</p>
+              </div>
+              <button class="hb-button hb-button--danger hb-button--sm" id="overview-toggle-maintenance">切换维护模式</button>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>重算库存预留</strong>
+                <p>按「仍占用库存的订单」重新统计各商品的预留数。历史版本曾重复扣减预留，
+                导致可用库存虚低甚至误报售罄；发现库存数字对不上时点这里修正。</p>
+              </div>
+              <button class="hb-button hb-button--secondary hb-button--sm" id="overview-recompute-stock">重算库存预留</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商品 -->
+    <section class="admin-panel" id="panel-products" data-domain="catalog">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>商品</h2>
+          <p>定价、有效期与库存；有历史授权或订单的商品只能下架</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">商品</span>
+          <button class="hb-button hb-button--primary hb-button--sm" id="product-new">新增商品</button>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="商品分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">商品列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">新增 / 编辑</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="product-keyword" aria-label="商品名、商品码、功能码或描述关键字" placeholder="商品名 / 商品码 / 功能码">
+          <select class="hb-select" id="product-status" aria-label="按商品状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">已上架</option>
+            <option value="inactive">已下架</option>
+            <option value="soldout">已售罄</option>
+            <option value="lowstock">低库存（可售 ≤ 5）</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="product-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="product-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>名称</th><th>类型</th><th class="nowrap">价格</th><th class="nowrap">有效期</th><th>功能码</th><th class="nowrap">库存</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="product-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="products"></div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="product-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title" id="product-editor-title">新增商品</h3>
+            <form id="product-form" class="admin-grid">
+              <input type="hidden" name="id">
+              <h4 class="admin-grid__section">基本定义</h4>
+              <label class="hb-field"><span>名称</span><input class="hb-input" name="name" required></label>
+              <label class="hb-field">
+                <span>商品码</span>
+                <input class="hb-input is-mono" name="productCode">
+                <span class="admin-field-hint">写进授权的来源标识；留空自动生成。</span>
+              </label>
+              <label class="hb-field"><span>类型</span>
+                <select class="hb-select" name="productType">
+                  <option value="base">base</option><option value="module">module</option><option value="package">package</option>
+                </select>
+              </label>
+              <h4 class="admin-grid__section">定价与有效期</h4>
+              <label class="hb-field"><span>价格（分）</span><input class="hb-input" name="priceCents" type="number" min="0" value="0"></label>
+              <label class="hb-field"><span>划线原价（分，留空不展示）</span><input class="hb-input" name="originalPriceCents" type="number" min="0"></label>
+              <label class="hb-field"><span>有效期（天）</span><input class="hb-input" name="validityDays" type="number" min="1"></label>
+              <label class="hb-field"><span>排序</span><input class="hb-input" name="sortOrder" type="number" value="100"></label>
+              <h4 class="admin-grid__section">能力与交付</h4>
+              <div class="hb-field admin-grid__full">
+                <span>功能码</span>
+                <div class="feature-picker" id="product-features" data-feature-picker data-feature-multiple="true" data-feature-empty="未选择（该商品不发放任何能力）">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>未选择（该商品不发放任何能力）</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCodes" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox" aria-multiselectable="true"></div>
+                  </div>
+                </div>
+                <small class="admin-field-hint">能力码由主程序逐项校验，勾选才会写进授权；未勾的能力客户端会被拦截。</small>
+              </div>
+              <label class="hb-field admin-grid__full"><span>套餐包含商品 ID（逗号分隔）</span><input class="hb-input is-mono" name="includedProductIds"></label>
+              <label class="hb-field"><span>角标文案</span><input class="hb-input" name="badgeText"></label>
+              <label class="hb-field"><span>库存（留空=不限量）</span><input class="hb-input" name="stockQuantity" type="number" min="0"></label>
+              <label class="hb-field"><span>履约</span>
+                <select class="hb-select" name="fulfillmentMode">
+                  <option value="automatic">automatic</option><option value="manual">manual</option>
+                </select>
+              </label>
+              <h4 class="admin-grid__section">上架开关</h4>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="active" id="product-active" checked> 上架</label>
+                <label class="hb-check"><input type="checkbox" name="featured" id="product-featured"> 推荐</label>
+                <label class="hb-check"><input type="checkbox" name="isFullPrice"> 全价商品</label>
+                <label class="hb-check"><input type="checkbox" name="packageContentsLocked"> 锁定套餐内容</label>
+              </div>
+              <!-- 整块用 div 而不是 label：label 会把说明文字也变成勾选热区，
+                   点一下提示就误改了开关。裸 checkbox 也不能直接当 hb-field 的子项 ——
+                   它拿不到 .hb-check 的 16px 方块样式，会以浏览器原生的裸控件飘在
+                   字段右下角，和上面「上架开关」那一排长得完全不一样。 -->
+              <div class="hb-field admin-grid__full">
+                <span>增量包（下单时必须挂到已有授权上）</span>
+                <label class="hb-check"><input type="checkbox" name="requiresLicense"> 启用</label>
+                <span class="admin-field-hint">勾上以后客户端下单要选一张已有授权、增量包的功能码写进那张授权，而不是另发一张新码。商品类型选了 module 也等同于此。</span>
+              </div>
+              <h4 class="admin-grid__section">文案备注</h4>
+              <label class="hb-field admin-grid__full"><span>内部备注（仅后台可见）</span><textarea class="hb-textarea" name="note" rows="2"></textarea></label>
+              <label class="hb-field admin-grid__full"><span>展示描述</span><textarea class="hb-textarea" name="displayDescription" rows="2"></textarea></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="product-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 订单 -->
+    <section class="admin-panel" id="panel-orders" data-domain="operations">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>订单</h2>
+          <p>待支付可取消；已支付请走退款；已取消/已过期且未发码的订单可删除</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
+        </div>
+      </header>
+      <div class="panel-toolbar">
+        <!-- 状态选项由服务端词表填充（`/order-status-meta`）：写死在模板里的那份曾漏掉
+             partially_refunded，从概览漏斗点「部分退款」进来时 select 找不到对应 option，
+             静默退化成「全部状态」—— 筛了个寂寞，还看不出来。 -->
+        <select class="hb-select" id="order-status" aria-label="按订单状态筛选">
+          <option value="">全部状态</option>
+        </select>
+        <input class="hb-input" id="order-keyword" aria-label="订单号或邮箱关键字" placeholder="订单号 / 邮箱">
+        <label class="hb-field panel-toolbar__field">
+          <span class="panel-toolbar__label">下单时间</span>
+          <input class="hb-input" id="order-date-from" type="date" aria-label="下单时间起">
+        </label>
+        <span class="panel-toolbar__sep">–</span>
+        <label class="hb-field panel-toolbar__field">
+          <span class="panel-toolbar__label">至</span>
+          <input class="hb-input" id="order-date-to" type="date" aria-label="下单时间止">
+        </label>
+        <label class="hb-check"><input type="checkbox" id="order-review"> 仅待人工复核</label>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="order-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="order-reset">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th>订单号</th><th class="nowrap">邮箱</th><th>商品</th><th>类型</th><th class="nowrap">金额</th><th class="nowrap">状态</th><th class="nowrap">创建</th><th class="nowrap">操作</th></tr></thead>
+          <tbody id="order-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="orders"></div>
+    </section>
+
+    <!-- 激活码 -->
+    <section class="admin-panel" id="panel-licenses" data-domain="licensing">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>激活码</h2>
+          <p>停用后客户端下次心跳即转吊销；彻底删除需先停用且无活跃绑定</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
+          <button class="hb-button hb-button--primary hb-button--sm" id="license-issue">手动签发</button>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="激活码分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">激活码列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="issue">手动签发</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="patch">修正授权</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="license-keyword" aria-label="激活码、提示码、商品名或备注关键字" placeholder="激活码 / 提示码 / 商品 / 备注">
+          <select class="hb-select" id="license-status" aria-label="按授权状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">启用中</option>
+            <option value="inactive">已停用</option>
+          </select>
+          <select class="hb-select" id="license-expiring" aria-label="按到期时间筛选">
+            <option value="">不限到期</option>
+            <option value="7">7 天内到期</option>
+            <option value="30">30 天内到期</option>
+            <option value="90">90 天内到期</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="license-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="license-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>激活码</th><th>客户</th><th>商品</th><th class="nowrap">有效期</th><th class="nowrap">来源</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="license-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="licenses"></div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="issue" role="tabpanel">
+        <div class="hb-card admin-editor" id="license-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">手动签发激活码</h3>
+            <form id="license-form" class="admin-grid">
+              <label class="hb-field"><span>账号邮箱</span><input class="hb-input" type="email" name="email" required></label>
+              <label class="hb-field admin-grid__wide"><span>商品</span><select class="hb-select" name="productId" id="license-product"></select></label>
+              <label class="hb-field"><span>有效期（天，留空取商品默认）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">签发</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-cancel">取消</button>
+              </div>
+            </form>
+            <div class="admin-result" id="license-issue-result" hidden>
+              <div class="admin-result__head"><strong>签发成功</strong><span id="license-issue-target"></span></div>
+              <div class="admin-result__row">
+                <code class="admin-result__code" id="license-issue-code"></code>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" data-copy-target="#license-issue-code">复制</button>
+              </div>
+              <small class="admin-result__note">激活码只会完整显示这一次，请立即交付给客户；账号中心里也能查到。</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="patch" role="tabpanel">
+        <div class="hb-card admin-editor" id="license-patch-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">修正授权 <span class="mono" id="license-patch-code"></span></h3>
+            <p class="admin-editor__hint">
+              客服处理「客户要延期」「备注写错」用这里。到期时间的三种给法<b>互斥</b>，
+              一次只填一种；留空则保持原值不变。
+            </p>
+            <form id="license-patch-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="licenseId">
+              <label class="hb-field"><span>续期天数（在现有到期时间上顺延）</span><input class="hb-input" type="number" min="1" name="extendDays"></label>
+              <label class="hb-field"><span>新的到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="accessExpiresAt"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="permanent"> 改为永久有效</label>
+              </div>
+              <label class="hb-field"><span>有效天数（按开始时间重算到期）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
+              <label class="hb-field admin-grid__wide"><span>备注（客户/客服可读，清空即删除备注）</span><input class="hb-input" name="userLabel" maxlength="64"></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存修正</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-patch-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 设备绑定 -->
+    <section class="admin-panel" id="panel-bindings" data-domain="licensing">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>设备绑定</h2>
+          <p>解绑后可立即重新激活；冷却只约束下一次解绑</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
+        </div>
+      </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="binding-keyword" aria-label="实例号、客户端版本、IP 或激活码提示关键字" placeholder="实例号 / 版本 / IP / 激活码">
+        <label class="hb-check"><input type="checkbox" id="binding-active-only"> 仅有效</label>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="binding-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="binding-reset">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th>硬件指纹 / 实例 ID</th><th>激活码</th><th class="nowrap">客户端版本</th><th class="nowrap">最近心跳</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+          <tbody id="binding-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="bindings"></div>
+    </section>
+
+    <!-- 优惠码 -->
+    <section class="admin-panel" id="panel-coupons" data-domain="catalog">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>优惠码</h2>
+          <p>「占用」= 此刻仍占着名额（参与上限校验，取消订单会回落）；「历史核销」= 曾占用过的次数（对账凭证，决定能否删除）</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">商品</span>
+          <button class="hb-button hb-button--primary hb-button--sm" id="coupon-new">新增优惠码</button>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="优惠码分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">优惠码列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">新增 / 编辑</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="coupon-keyword" aria-label="优惠码或说明关键字" placeholder="码 / 说明">
+          <select class="hb-select" id="coupon-status" aria-label="按优惠码状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">启用中</option>
+            <option value="inactive">已停用</option>
+            <option value="scheduled">未生效</option>
+            <option value="expired">已失效</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="coupon-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="coupon-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>码</th><th>说明</th><th class="nowrap">折扣</th><th class="nowrap">门槛</th><th class="nowrap">占用/上限</th><th class="nowrap">历史核销</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="coupon-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="coupons"></div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="coupon-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title" id="coupon-editor-title">新增优惠码</h3>
+            <p class="admin-editor__hint" id="coupon-editor-hint">
+              码本身是对外承诺，创建后不可修改；其余字段都能改。时间留空表示不限制。
+            </p>
+            <form id="coupon-form" class="admin-grid">
+              <input type="hidden" name="id">
+              <h4 class="admin-grid__section">识别信息</h4>
+              <label class="hb-field"><span>码（创建后不可改）</span><input class="hb-input is-mono" name="code" required></label>
+              <label class="hb-field"><span>说明</span><input class="hb-input" name="description"></label>
+              <h4 class="admin-grid__section">优惠力度</h4>
+              <label class="hb-field"><span>类型</span>
+                <select class="hb-select" name="discountType"><option value="percent">percent</option><option value="fixed">fixed</option></select>
+              </label>
+              <label class="hb-field"><span>百分比</span><input class="hb-input" type="number" step="0.01" name="percent" value="0"></label>
+              <label class="hb-field"><span>减免(分)</span><input class="hb-input" type="number" name="amountCents" value="0"></label>
+              <label class="hb-field"><span>门槛(分)</span><input class="hb-input" type="number" name="minAmountCents" value="0"></label>
+              <h4 class="admin-grid__section">使用限制</h4>
+              <label class="hb-field"><span>总量上限</span><input class="hb-input" type="number" name="maxRedemptions"></label>
+              <label class="hb-field"><span>每账号</span><input class="hb-input" type="number" name="perAccountLimit" value="1"></label>
+              <label class="hb-field"><span>生效时间（本地时间，空=立即）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
+              <label class="hb-field"><span>失效时间（本地时间，空=不限）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+              <label class="hb-field admin-grid__full"><span>限定商品 ID（逗号分隔，留空=全部商品）</span><input class="hb-input is-mono" name="applicableProductIds"></label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="active" id="coupon-active" checked> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="coupon-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 提现审核 -->
+    <section class="admin-panel" id="panel-withdrawals" data-domain="operations">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>提现审核</h2>
+          <p>待审申请必须通过或驳回以释放冻结积分；已结算的记录可删除</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
+        </div>
+      </header>
+      <div class="panel-toolbar">
+        <select class="hb-select" id="withdrawal-status" aria-label="按提现状态筛选">
+          <option value="">全部</option><option value="pending">待审核</option><option value="paid">已提现</option><option value="rejected">已驳回</option>
+        </select>
+        <input class="hb-input" id="withdrawal-keyword" aria-label="账号邮箱关键字" placeholder="邮箱">
+        <button class="hb-button hb-button--secondary hb-button--sm" id="withdrawal-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="withdrawal-reset">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th>账号</th><th class="nowrap">积分</th><th class="nowrap">手续费</th><th class="nowrap">到账</th><th class="nowrap">状态</th><th class="nowrap">申请时间</th><th class="nowrap">操作</th></tr></thead>
+          <tbody id="withdrawal-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="withdrawals"></div>
+    </section>
+
+    <!-- 账号 -->
+    <section class="admin-panel" id="panel-accounts" data-domain="licensing">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>账号</h2>
+          <p>可改邮箱、角色、重置密码；只有未产生过授权/订单/积分的干净账号才能删除</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="账号分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">账号列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">编辑账号</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="account-keyword" aria-label="邮箱或邀请码关键字" placeholder="邮箱 / 邀请码">
+          <select class="hb-select" id="account-role" aria-label="按角色筛选">
+            <option value="">全部角色</option>
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+          <select class="hb-select" id="account-status" aria-label="按账号状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">已启用</option>
+            <option value="inactive">已停用</option>
+            <option value="unverified">邮箱未验证</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="account-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="account-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>邮箱</th><th class="nowrap">角色</th><th class="nowrap">授权数</th><th class="nowrap">余额</th><th class="nowrap">邀请码</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="account-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="accounts"></div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="account-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">编辑账号 <span class="mono" id="account-editor-email"></span></h3>
+            <p class="admin-editor__hint">
+              改密码会<b>立即踢掉该账号的全部登录会话</b>；审计日志只记录「改过密码」，不记录明文。
+            </p>
+            <form id="account-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="id">
+              <label class="hb-field admin-grid__wide"><span>邮箱</span><input class="hb-input" type="email" name="email" required></label>
+              <label class="hb-field"><span>新密码（留空则不改）</span><input class="hb-input" type="password" name="newPassword" minlength="6" autocomplete="new-password" placeholder="至少 6 位"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="isAdmin"> 管理员</label>
+                <label class="hb-check"><input type="checkbox" name="isActive"> 启用</label>
+                <label class="hb-check"><input type="checkbox" name="emailVerified"> 邮箱已验证</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="account-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 站点配置 -->
+    <section class="admin-panel" id="panel-settings" data-domain="system">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>站点配置</h2>
+          <p>站点信息、支付渠道、维护模式与邀请规则</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">系统</span>
+          <!-- 配置有没有真的读到必须写在界面上：读到之前表单是空的，而「空表单 + 保存」等于把支付渠道清空、各开关关掉（见 setSettingsLoadState）。 -->
+          <span class="admin-status-chip is-muted" id="settings-load-status">正在读取配置…</span>
+          <!-- 保存按钮常驻面板头部：按分区切 tab 后它可能在屏幕外；用 form="settings-form" 让它落在表单外也能提交，且头部不能塞进 form（字段列宽按 form 的 admin-grid--wide 推断）。 -->
+          <button class="hb-button hb-button--primary hb-button--sm" type="submit" form="settings-form" id="settings-save">保存配置</button>
+        </div>
+      </header>
+      <div class="hb-card">
+        <div class="hb-card__body">
+          <form id="settings-form">
+            <!-- 三十来个字段铺一页要滚三屏，故按用途切六段。
+                 字段列宽由下方 #panel-settings .admin-tab-pane 那条规则给（下限 340px），
+                 与 form 自己是不是网格无关 —— 所以第六段「站点配色」能安心留在 form 外
+                 （它走另一个接口，见下），不必为了让 admin-grid__full / __wide 生效
+                 而把它拖进 form 里。tab 条与 pane 也仍然是这个 form 的子元素，
+                 form.elements 才能照常拿到所有 name 字段。 -->
+            <div class="admin-tabs" data-tab-strip role="tablist" aria-label="站点配置分区">
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="site" data-tone="accent">站点信息</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="payment" data-tone="lumen">支付与维护</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="alipay" data-tone="cool">支付宝凭据</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="mail" data-tone="aura">注册邮件</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="invite" data-tone="eco">邀请与解绑</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="palette" data-tone="aura">站点配色</button>
+            </div>
+            <!-- 分区内不再写一个和 tab 名字一模一样的标题：tab 选中态本身就是那一行文字
+                 （还带分区色），标题再念一遍只是把同一句话堆两遍。只有「一段里真的还分几带」
+                 时才用小标题断句（支付宝凭据、注册邮件两段）。 -->
+            <div class="admin-tab-pane" data-tab-pane="site" role="tabpanel" data-tone="accent">
+              <label class="hb-field"><span>站点名</span><input class="hb-input" name="siteName"></label>
+              <label class="hb-field"><span>站点标题</span><input class="hb-input" name="siteTitle"></label>
+              <label class="hb-field"><span>客服邮箱</span><input class="hb-input" name="supportEmail"></label>
+              <label class="hb-field"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
+              <!-- 部署地址是账号中心「一键部署」脚本的托管根地址（脚本名固定为 install.sh）。留空即整块不显示：它没有可回落的默认值，而一个猜出来的地址只会让用户 curl 到一个 404。
+                   与上一行的品牌标识 URL 配成一对（占两列）：两者都是 URL，各自单独占一整行
+                   会在右边空掉两列，整段看着像没铺满。 -->
+              <label class="hb-field admin-grid__wide"><span>一键部署脚本地址（账号中心授权卡展示；留空则不显示，无结尾斜杠）</span><input class="hb-input is-mono" name="deployBaseUrl" placeholder="https://example.com/deploy"></label>
+              <label class="hb-field admin-grid__full"><span>站点描述</span><input class="hb-input" name="description"></label>
+              <label class="hb-field admin-grid__full"><span>公告（前台 toast 展示）</span><input class="hb-input" name="announcement"></label>
+            </div>
+            <div class="admin-tab-pane" data-tab-pane="payment" role="tabpanel" data-tone="lumen">
+              <label class="hb-field"><span>支付渠道</span>
+                <select class="hb-select" name="paymentProvider"><option value="">跟随环境变量</option><option value="mock">mock（需服务端显式开启）</option><option value="alipay">alipay</option></select>
+              </label>
+              <label class="hb-field"><span>支付显示名</span><input class="hb-input" name="paymentDisplayName"></label>
+              <!-- 交易标题的字段名只留「交易标题」。带上那段账单说明后实测 380px，
+                   而本站三列带最窄的一条轨道只有 257px（见 admin.css 里那段预算推算）——
+                   字段名会折成两行，同一带里另外两个控件的输入框就被顶下去、不在一条线上。
+                   按 README §11.10 的规矩，多列带里的长说明写在控件之后。 -->
+              <!-- 两列档的补丁见 admin.css 里那条 .admin-grid__fill-2col：这一带是三个一列字段，
+                   两列时第三个（本行）只能自己占一行、右半边空出来，所以让它在这一档撑满整行。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>交易标题</span>
+                <input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量">
+                <small class="admin-field-hint">出现在支付宝账单的「商品名称」里；留空跟随环境变量。</small>
+              </label>
+              <!-- 两个开关占满整行。以前它们是 240px 宽的一列网格项，两枚勾选框挤在
+                   左边四分之一、右边整片空白，看着像没排完；而且「维护模式」与紧跟着的
+                   「维护文案」被拆到了两行。 -->
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="paymentEnabled" id="setting-payment-enabled"> 启用支付</label>
+                <label class="hb-check"><input type="checkbox" name="maintenanceMode" id="setting-maintenance"> 维护模式</label>
+              </div>
+              <label class="hb-field admin-grid__full"><span>维护文案</span><input class="hb-input" name="maintenanceMessage"></label>
+            </div>
+            <div class="admin-tab-pane" data-tab-pane="alipay" role="tabpanel" data-tone="cool">
+              <!-- 这一段有 11 个字段加一块自检结果，用两个小标题断成三带：
+                   先回答「这套凭据到底能不能用」，再回答「钱回得来吗」。 -->
+              <h4 class="admin-grid__section">凭据与自检</h4>
+              <p class="admin-hint admin-grid__full">
+                留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
+              </p>
+              <div class="admin-form-actions admin-grid__full">
+                <span class="admin-status-chip" id="alipay-credential-status">未配置</span>
+                <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="alipay-test-button">测试凭据</button>
+                <span class="admin-hint" id="alipay-test-result"></span>
+              </div>
+              <!-- 逐项诊断结论：过去只有一句「凭据可用」而从没用过支付宝公钥，「公钥填成应用公钥」会让异步通知全部验签失败、用户付钱订单不到账，所以必须逐项铺开并区分「通过」与「没测到」。 -->
+              <ul class="admin-diagnostic-list admin-grid__full" id="alipay-diagnostic-list"></ul>
+              <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
+              <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
+              <!-- 网关地址从「占两列」收回一列：与 AppID / 卖家 PID 凑成整齐的三个一列，
+                   而它自己那条地址（openapi.alipay.com/gateway.do）418px 也放得下。
+                   留在两列就会独占一行、右边空掉两列。
+                   它是三个一列字段的第三个，所以两列档要靠 admin-grid__fill-2col 撑满整行（见 admin.css）。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
+              <label class="hb-field admin-grid__full"><span>应用私钥（PEM，或密钥工具导出的纯 base64）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayAppPrivateKey" placeholder="留空不改动">
+              </label>
+              <label class="hb-field admin-grid__full"><span>支付宝公钥（开放平台的「支付宝公钥」，不是应用公钥）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayPublicKey" placeholder="留空不改动">
+              </label>
+              <h4 class="admin-grid__section">回调地址</h4>
+              <!-- 「当前生效地址」紧贴它描述的三个字段：它以前夹在网关地址与异步通知之间，
+                   既不属于上面那一带（凭据），也不属于下面那一带（回调），
+                   还把网关地址孤零零地隔在了自己那一行。 -->
+              <p class="admin-hint admin-grid__full" id="alipay-effective-urls"></p>
+              <label class="hb-field admin-grid__full"><span>异步通知地址（支付宝服务器回调的地址，必须是公网可达的 https）</span>
+                <input class="hb-input is-mono" name="alipayNotifyUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+              </label>
+              <label class="hb-field admin-grid__full"><span>同步跳转地址（用户付完款后浏览器回到的页面）</span>
+                <input class="hb-input is-mono" name="alipayReturnUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+              </label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="alipaySandbox" id="setting-alipay-sandbox"> 沙箱环境（网关自动切换到沙箱）</label>
+                <label class="hb-check"><input type="checkbox" name="alipayClearPrivateKey" id="setting-alipay-clear-private"> 清除已保存的应用私钥</label>
+                <label class="hb-check"><input type="checkbox" name="alipayClearPublicKey" id="setting-alipay-clear-public"> 清除已保存的支付宝公钥</label>
+              </div>
+            </div>
+            <div class="admin-tab-pane" data-tab-pane="mail" role="tabpanel" data-tone="aura">
+              <!-- 这一段是全面板最长的一段（17 个字段），小标题把它断成三带：
+                   先「认出邮局并当场验一遍」，再「拿这些参数去发信」，最后「验证码的有效期与频次」。
+                   没有小标题时，17 个字段从「邮箱服务商」一路排到「接口回显验证码」，
+                   中间没有任何停顿，找一项要通读一遍。 -->
+              <h4 class="admin-grid__section">邮箱预设与自检</h4>
+              <p class="admin-hint admin-grid__full">
+                留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
+              </p>
+              <!-- 邮箱预设：填一个邮箱就把服务商 / 加密 / 端口反查填好（填错会静默降级成写日志）；清单来自后端 mail.presets（mail_settings.SMTP_PRESETS），不在这里抄第二份。 -->
+              <!-- 三个控件排成一行：按钮要对齐控件那一行而不是整块居中，否则会比旁边的下拉框高出半个标签、不在同一条基线上（.admin-form-actions--fielded）。 -->
+              <div class="admin-form-actions admin-form-actions--fielded admin-grid__full">
+                <label class="hb-field"><span>邮箱服务商</span>
+                  <select class="hb-select" id="mail-preset-provider">
+                    <option value="">自动识别（按邮箱地址）</option>
+                  </select>
+                </label>
+                <label class="hb-field"><span>邮箱账号</span>
+                  <input class="hb-input is-mono" id="mail-preset-email" placeholder="you@example.com">
+                </label>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="mail-preset-apply">填入预设</button>
+              </div>
+              <p class="admin-hint admin-grid__full" id="mail-preset-hint"></p>
+              <div class="admin-form-actions admin-grid__full">
+                <span class="admin-status-chip" id="mail-delivery-status">未配置</span>
+                <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="mail-test-button">发送测试邮件</button>
+                <span class="admin-hint" id="mail-test-result"></span>
+              </div>
+              <!-- 逐项诊断结论：域名解析、连接与登录握手、授权码是否成对；与支付宝区块同理，「填了 SMTP 但授权码漏了」过去只会静默退化成写日志。 -->
+              <ul class="admin-diagnostic-list admin-grid__full" id="mail-diagnostic-list"></ul>
+              <label class="hb-field admin-grid__full"><span>测试收件邮箱（留空则只做连接诊断，不发信）</span>
+                <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com（留空 = 只诊断，不发信）">
+              </label>
+              <h4 class="admin-grid__section">SMTP 参数</h4>
+              <label class="hb-field"><span>投递方式</span>
+                <select class="hb-select" name="mailMode">
+                  <option value="">跟随环境变量</option>
+                  <option value="log">log · 只写日志</option>
+                  <option value="echo">echo · 回显明文（仅本地）</option>
+                  <option value="smtp">smtp · 真实发信</option>
+                </select>
+              </label>
+              <label class="hb-field"><span>SMTP 加密</span>
+                <select class="hb-select" name="smtpSecurity">
+                  <option value="">跟随环境变量</option>
+                  <option value="ssl">SSL（端口 465）</option>
+                  <option value="starttls">STARTTLS（端口 587）</option>
+                  <option value="plain">不加密（端口 25）</option>
+                </select>
+              </label>
+              <label class="hb-field"><span>SMTP 端口</span>
+                <input class="hb-input" type="number" name="smtpPort" placeholder="留空按加密方式">
+              </label>
+              <label class="hb-field"><span>SMTP 服务器</span>
+                <input class="hb-input is-mono" name="smtpHost" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field"><span>SMTP 用户名</span>
+                <input class="hb-input is-mono" name="smtpUsername" placeholder="跟随环境变量">
+              </label>
+              <!-- 发件人的字段名只留「发件人」：带上那段 `HomeOS <no-reply@…>` 写法说明
+                   会把标签折成两行，这一格里旁边两个字段的输入框就会整体下沉。
+                   按本文件 README 的规矩，多列带里的长说明写在控件之后。 -->
+              <label class="hb-field"><span>发件人</span>
+                <input class="hb-input is-mono" name="mailFrom" placeholder="跟随环境变量">
+                <small class="admin-field-hint">带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code></small>
+              </label>
+              <label class="hb-field admin-grid__full"><span>SMTP 授权码（一般是邮箱的 SMTP 授权码，不是登录密码）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="smtpPassword" placeholder="留空不改动">
+              </label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="smtpClearPassword" id="setting-smtp-clear-password"> 清除已保存的 SMTP 授权码</label>
+              </div>
+              <h4 class="admin-grid__section">验证码策略</h4>
+              <label class="hb-field"><span>验证码有效期（秒）</span>
+                <input class="hb-input" type="number" name="verificationTtlSeconds" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field"><span>重发冷却（秒）</span>
+                <input class="hb-input" type="number" name="verificationCooldownSeconds" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field"><span>接口回显验证码（仅本地联调）</span>
+                <select class="hb-select" name="exposeVerificationCode">
+                  <option value="">跟随环境变量</option>
+                  <option value="false">关闭（生产必须）</option>
+                  <option value="true">开启（危险）</option>
+                </select>
+              </label>
+            </div>
+            <div class="admin-tab-pane" data-tab-pane="invite" role="tabpanel" data-tone="eco">
+              <!-- 邀请有礼是这一段的**总开关**：关掉它，下面三个比例字段就都没有意义了，
+                   所以让它自己占一行（以前它是一列 240px 的网格项，一枚勾选框孤零零挤在
+                   左边四分之一，「奖励比例 %」反倒紧贴在它右边，看着像同一行的第四个控件）。 -->
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="referralEnabled" id="setting-referral"> 邀请有礼</label>
+              </div>
+              <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
+              <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
+              <!-- 三个比例字段是一带，第三个在两列档会剩自己一行；admin-grid__fill-2col 见 admin.css。 -->
+              <label class="hb-field admin-grid__fill-2col"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
+              <label class="hb-field admin-grid__full"><span>解绑冷却（秒）</span>
+                <input class="hb-input" type="number" min="0" name="deviceReleaseCooldownSeconds" placeholder="跟随环境变量">
+                <!-- 这段说明必须留在字段**里面**。它以前是网格的独立一项，于是自动流到
+                     下一行的第一列 —— 屏幕上紧贴在「邀请有礼」勾选框下面、离它真正解释的
+                     「解绑冷却（秒）」隔了三个字段，读起来是在解释邀请开关。
+                     独占整行的字段没有对齐压力，说明放在控件之后即可（见 README 的字段说明两规则）。 -->
+                <small class="admin-field-hint">两次<b>解绑</b>之间的间隔。<b>留空 = 跟随环境变量</b>，填 0 = 不限间隔。解绑之后可以立即重新激活（同机或换机都行）；这个值只约束「下一次解绑」，不拦激活。</small>
+              </label>
+            </div>
+          </form>
+          <!-- 站点配色：单独一个分页，且刻意放在 <form> **之外** ——
+               它不走 /store-admin/v1/settings 那条整表提交，而是即时预览 + 只提交
+               四束光（PUT 到 /store-admin/v1/appearance）。放进表单里会让「保存配置」
+               顺带把它一起提交，而两边的校验口径与失败提示完全不同。 -->
+          <div class="admin-tab-pane" data-tab-pane="palette" role="tabpanel" data-tone="aura">
+            <!-- 这一段落在 form 之外，但栅格跟另外五段是同一条规则给的
+                 （#panel-settings .admin-tab-pane），所以里面每一块都要显式声明占满整行 ——
+                 以前它不是网格，这些 admin-grid__full 全是空转；现在缺一个就会缩成 418px 的一列。
+                 小标题也一并去掉：tab 就叫「站点配色」。 -->
+            <p class="admin-hint admin-grid__full">
+              配色分两层：一个主控色决定「可进入 / 可操作」的暖金，三束居家光分别代表灯光与已激活（暖光）、
+              氛围与恢复（极光紫）、在线与节能（薄荷）。温度与安防的读色不在这里 ——
+              它们编码物理含义，改掉会让「热」看起来像「冷」。改动即时生效，保存后刷新依然是这套颜色。
+            </p>
+            <div id="palette-preset-list" class="admin-palette-presets admin-grid__full" role="radiogroup" aria-label="配色预设"></div>
+            <div class="admin-palette-custom admin-grid__full">
+              <span>自定义主控色</span>
+              <!-- 这两个框的初值由 palette.js 从**当前生效的 --hb-accent** 填
+                   （配色样式表由服务端按已保存的配置生成）。
+                   这里以前写死一枚默认琥珀：登录屏上拿不到配色接口（要管理员身份），
+                   于是无论站点真实主控色是什么，面板里显示的都是默认琥珀 ——
+                   而它正是管理员打开这一页第一眼看到的值。 -->
+              <input id="palette-accent" type="color" aria-label="自定义主控色">
+              <input id="palette-accent-hex" class="hb-input" type="text" inputmode="latin" spellcheck="false" maxlength="7" placeholder="#RRGGBB" aria-label="主控色十六进制值">
+              <small>自定义只换主控色，暖光 / 极光紫 / 薄荷沿用所选预设。</small>
+            </div>
+            <div class="admin-palette-preview admin-grid__full" aria-hidden="true">
+              <span data-swatch="accent"></span>
+              <span data-swatch="lumen"></span>
+              <span data-swatch="aura"></span>
+              <span data-swatch="eco"></span>
+            </div>
+            <p id="palette-message" class="admin-inline-msg admin-grid__full" role="status" hidden></p>
+            <div class="admin-form-actions admin-grid__full">
+              <button class="hb-button" id="palette-reset" type="button">恢复默认</button>
+              <button class="hb-button hb-button--primary" id="palette-save" type="button">保存配色</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- 审计日志 -->
+    <section class="admin-panel" id="panel-audits" data-domain="system">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>审计日志</h2>
+          <p>后台所有写操作的追溯记录，可单条删除或按时间批量清理</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">系统</span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="audit-refresh">刷新</button>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="审计日志分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">审计列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="purge">批量清理</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th>操作人</th><th>动作</th><th>对象</th><th>详情</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="audit-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="audits"></div>
+      </div>
+
+      <div class="admin-tab-pane" data-tab-pane="purge" role="tabpanel">
+        <div class="danger-zone">
+          <h3>批量清理</h3>
+          <p>
+            按天数清理历史审计日志，用于控制表体积。<strong>清理动作本身也会被记录</strong>，
+            但被清掉的记录无法恢复，请先确认天数再执行。
+          </p>
+          <div class="danger-zone__row">
+            <label class="hb-field">
+              <span>清理多少天之前的记录</span>
+              <input class="hb-input purge-days" id="audit-purge-days" type="number" min="1" step="1" value="90">
+            </label>
+            <button class="hb-button hb-button--danger hb-button--sm" id="audit-purge">执行清理</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 功能权益：决定客户端功能开关的那张表 -->
+    <section class="admin-panel" id="panel-entitlements" data-domain="data">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>功能权益</h2>
+          <p>客户端按 <code>feature_code</code> 判断功能开关；这张表过去在后台完全看不到</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-refresh">刷新</button>
+          <button class="hb-button hb-button--primary hb-button--sm" id="entitlement-new">手工补权益</button>
+        </div>
+      </header>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="功能权益分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">权益列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="create">手工补权益</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="patch">改期 / 开关</button>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="entitlement-feature" aria-label="功能码、商品名或授权 ID 关键字" placeholder="功能码 / 商品 / 授权 ID">
+          <select class="hb-select" id="entitlement-status" aria-label="按生效状态筛选">
+            <option value="">全部</option>
+            <option value="active">实际生效中</option>
+            <option value="inactive">未生效 / 已过期</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-search">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="entitlement-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">功能码</th><th>商品</th><th class="nowrap">授权</th><th class="nowrap">开始</th><th class="nowrap">到期</th><th class="nowrap">开关</th><th class="nowrap">实际生效</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="entitlement-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="entitlements"></div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="create" role="tabpanel">
+        <div class="hb-card admin-editor" id="entitlement-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">手工补一条权益</h3>
+            <p class="admin-editor__hint">
+              「开关」是库里的原始值，「实际生效」是叠加有效期后的结果。
+              两者分开看，才能解释「开关明明开着、客户端却没有这个功能」。
+              同一张授权下同一个功能码只能有一条。
+            </p>
+            <form id="entitlement-form" class="admin-grid admin-grid--wide">
+              <label class="hb-field"><span>授权 ID</span><input class="hb-input is-mono" name="licenseId" required></label>
+              <div class="hb-field">
+                <span>功能码</span>
+                <div class="feature-picker" id="entitlement-features" data-feature-picker data-feature-empty="点击选择功能码">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCode" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                  </div>
+                </div>
+              </div>
+              <label class="hb-field"><span>商品名（留空取授权上的商品）</span><input class="hb-input" name="productName"></label>
+              <label class="hb-field">
+                <span>开始时间</span>
+                <input class="hb-input" type="datetime-local" name="startsAt">
+                <span class="admin-field-hint">本地时间；留空即现在。</span>
+              </label>
+              <label class="hb-field">
+                <span>到期时间</span>
+                <input class="hb-input" type="datetime-local" name="expiresAt">
+                <span class="admin-field-hint">本地时间；留空即跟随授权。</span>
+              </label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="active" checked> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">创建</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="admin-tab-pane" data-tab-pane="patch" role="tabpanel">
+        <div class="hb-card admin-editor" id="entitlement-patch-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">改期 / 开关 <span class="mono" id="entitlement-patch-label"></span></h3>
+            <p class="admin-editor__hint">
+              到期时间<b>留空即改为永久有效</b>。功能码改动会即时影响客户端识别，改错等于把功能换了个名字。
+            </p>
+            <form id="entitlement-patch-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="id">
+              <div class="hb-field">
+                <span>功能码</span>
+                <div class="feature-picker" id="entitlement-patch-features" data-feature-picker data-feature-empty="点击选择功能码">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCode" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop popover="manual" hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                  </div>
+                </div>
+              </div>
+              <label class="hb-field"><span>商品名</span><input class="hb-input" name="productName"></label>
+              <label class="hb-field"><span>开始时间（本地时间）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
+              <label class="hb-field"><span>到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="active"> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-patch-cancel">取消</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 积分流水 -->
+    <section class="admin-panel" id="panel-ledger" data-domain="data">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>积分流水</h2>
+          <p>余额由流水汇总而来，这张表是对账的唯一依据；人工调账也必须留痕在这里</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="ledger-refresh">刷新</button>
+        </div>
+      </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="ledger-account" placeholder="账号 ID（从「账号」页的『查看积分流水』带上）">
+        <select class="hb-select" id="ledger-kind">
+          <!-- 选项由接口下发（/referral-ledger 的 kinds），这里只留「全部类型」。
+               写死在模板里就会与后端的取值漂开，而筛选是精确等值匹配。 -->
+          <option value="">全部类型</option>
+        </select>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="ledger-search">查询</button>
+        <button class="hb-button hb-button--warning hb-button--sm" id="ledger-adjust">人工调账</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th class="nowrap">时间</th><th>账号</th><th class="nowrap">类型</th><th class="nowrap">变动</th><th class="nowrap">冻结变动</th><th class="nowrap">余额</th><th>备注</th></tr></thead>
+          <tbody id="ledger-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="ledger"></div>
+    </section>
+
+    <!-- 客户档案 -->
+    <section class="admin-panel" id="panel-customers" data-domain="data">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>客户档案</h2>
+          <p>下单与开票用的客户记录；账号邮箱变更时这里会同步</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="customer-refresh">刷新</button>
+        </div>
+      </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="customer-keyword" placeholder="邮箱 / 姓名关键字">
+        <button class="hb-button hb-button--secondary hb-button--sm" id="customer-search">查询</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th>邮箱</th><th>姓名</th><th class="nowrap">订单数</th><th class="nowrap">授权数</th><th class="nowrap">创建</th></tr></thead>
+          <tbody id="customer-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="customers"></div>
+    </section>
+
+    <!-- 诊断数据 -->
+    <section class="admin-panel" id="panel-diagnostics" data-domain="data">
+      <header class="panel-head">
+        <div class="panel-head__text">
+          <h2>诊断数据</h2>
+          <p>排查「是不是被撞库了」「验证码发没发出去」「冷却该不该放行」时看这里。列表可翻页；日志类可按天数清理（只清过期或已消费的记录，当前有效的永不删）</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="diagnostics-refresh">刷新</button>
+        </div>
+      </header>
+
+      <!-- 七张表铺一页要滚很久，且「会话 / 令牌 / 日志 / 核销」排查场景互斥，故 pane 直接用既有的 .admin-block（一个 tab 可拥有多个 pane），不额外套 div。 -->
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="诊断数据分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="sessions">登录会话</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="tokens">令牌与解绑</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="logs">登录与验证码</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="redeem">优惠码核销</button>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="sessions" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">登录会话</h3>
+            <p class="admin-block__hint">后台与商店前台的网页会话。可单条踢下线 —— 过去只能改密码或停用账号，那会连带踢掉该账号的全部会话。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="sessions">清理已过期…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">令牌提示</th><th>账号</th><th class="nowrap">类型</th><th>IP</th><th class="nowrap">最近活动</th><th class="nowrap">到期</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="session-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="sessions"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="sessions" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">客户端会话</h3>
+            <p class="admin-block__hint">谁在用哪张授权。撤销后该客户端下次心跳会要求重新激活。这张表过去在后台完全没有入口。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="license-sessions">清理已过期…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">会话提示</th><th class="nowrap">激活码</th><th>实例 ID</th><th class="nowrap">绑定状态</th><th class="nowrap">最近使用</th><th class="nowrap">到期</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="license-session-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="license-sessions"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="tokens" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">设备找回令牌</h3>
+            <p class="admin-block__hint">设备丢失后换机用的找回凭证。令牌疑似外泄时在这里作废。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="recovery-tokens">清理已过期…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">令牌提示</th><th class="nowrap">激活码</th><th>实例 ID</th><th class="nowrap">签发时间</th><th class="nowrap">到期</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="recovery-token-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="recovery-tokens"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="logs" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">登录尝试</h3>
+            <p class="admin-block__hint">纯日志，只记 scope 与成败，删了不影响任何判定。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="login-attempts">清理历史…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th>范围</th><th class="nowrap">结果</th></tr></thead>
+            <tbody id="attempt-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="login-attempts"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="logs" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">邮箱验证码</h3>
+            <p class="admin-block__hint">清理时只删「已消费或已过期」的：把用户正在走的注册/改密流程删掉会让他凭空失败。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="email-verifications">清理历史…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th>邮箱</th><th class="nowrap">用途</th><th class="nowrap">尝试次数</th><th class="nowrap">已使用</th><th class="nowrap">到期</th><th class="nowrap">状态</th></tr></thead>
+            <tbody id="verification-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="email-verifications"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="tokens" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">设备解绑历史</h3>
+            <p class="admin-block__hint">自助解绑的冷却判定读的是「每条授权最近一次解绑时间」，所以清理时每条授权的最新一条永远保留。</p>
+          </div>
+          <button class="hb-button hb-button--secondary hb-button--sm" data-purge="device-release-events">清理历史…</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th class="nowrap">激活码</th><th>实例 ID</th><th class="nowrap">来源</th></tr></thead>
+            <tbody id="release-event-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="device-release-events"></div>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="redeem" role="tabpanel">
+        <div class="admin-block__head">
+          <div>
+            <h3 class="admin-block-title">
+              优惠码核销
+              <button type="button" class="admin-filter-chip" id="redemption-filter" hidden></button>
+            </h3>
+            <p class="admin-block__hint">「占用中」才算在每人限用里；「已归还」只是对账凭证。这里没有批量清理 —— 删记录会重新开出名额，所以只能单条作废（会自动重算占用名额并记审计）。</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th class="nowrap">优惠码</th><th>账号</th><th class="nowrap">抵扣</th><th>订单</th><th class="nowrap">名额</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="redemption-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="coupon-redemptions"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 主题化确认弹窗：替代原生 confirm，可展示影响面与守卫原因 -->
+<dialog class="confirm-dialog" id="confirm-dialog">
+  <div class="confirm-dialog__body">
+    <div class="confirm-dialog__icon" id="confirm-icon">!</div>
+    <h2 id="confirm-title">确认操作</h2>
+    <p id="confirm-message"></p>
+    <div class="confirm-dialog__impact" id="confirm-impact" hidden></div>
+  </div>
+  <div class="confirm-dialog__actions">
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="confirm-cancel">取消</button>
+    <button class="hb-button hb-button--danger hb-button--sm" type="button" id="confirm-ok">确认</button>
+  </div>
+</dialog>
+
+<!-- 人工调账：有资金影响，必须填金额 + 备注，且强行走账本（见 admin.py 的 admin_adjust_wallet） -->
+<dialog class="confirm-dialog" id="adjust-dialog">
+  <div class="confirm-dialog__body">
+    <div class="confirm-dialog__icon">¥</div>
+    <h2>人工调账</h2>
+    <p>账号 <span class="mono" id="adjust-account"></span></p>
+    <div class="confirm-dialog__impact">
+      调账一律写入积分账本，余额与流水在同一个事务里更新，不会出现「改了余额对不上流水」。
+      备注必填，它是这笔变动唯一能被后人读懂的解释。
+    </div>
+    <label class="hb-field"><span>余额变动（积分，可为负）</span><input class="hb-input" type="number" step="0.01" id="adjust-delta" value="0"></label>
+    <label class="hb-field"><span>冻结金额变动（积分，一般留 0）</span><input class="hb-input" type="number" step="0.01" id="adjust-frozen" value="0"></label>
+    <label class="hb-field"><span>备注（必填）</span><input class="hb-input" id="adjust-note" maxlength="255" placeholder="例如：客服补偿 / 退回重复扣减"></label>
+  </div>
+  <div class="confirm-dialog__actions">
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="adjust-cancel">取消</button>
+    <button class="hb-button hb-button--warning hb-button--sm" type="button" id="adjust-ok">确认调账</button>
+  </div>
+</dialog>
+
+<dialog class="confirm-dialog" id="purge-dialog">
+  <div class="confirm-dialog__body">
+    <div class="confirm-dialog__icon">⌫</div>
+    <h2 id="purge-title">清理历史数据</h2>
+    <p id="purge-message"></p>
+    <div class="confirm-dialog__impact" id="purge-impact"></div>
+    <label class="hb-field">
+      <span>清理多少天以前的记录（至少 1 天）</span>
+      <input class="hb-input" type="number" min="1" value="30" id="purge-days">
+    </label>
+  </div>
+  <div class="confirm-dialog__actions">
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="purge-cancel">取消</button>
+    <button class="hb-button hb-button--danger hb-button--sm" type="button" id="purge-ok">确认清理</button>
+  </div>
+</dialog>
+
+<!-- 修改密码弹窗 -->
+<dialog class="confirm-dialog" id="change-pw-dialog">
+  <div class="confirm-dialog__body">
+    <div class="confirm-dialog__icon">🔒</div>
+    <h2>修改密码</h2>
+    <p>改密后会踢掉其它设备上的登录会话，只保留当前这个。</p>
+    <label class="hb-field">
+      <span>当前密码</span>
+      <input class="hb-input" type="password" id="pw-old" autocomplete="current-password" placeholder="请输入当前密码">
+    </label>
+    <label class="hb-field">
+      <span>新密码（至少 8 位）</span>
+      <input class="hb-input" type="password" id="pw-new" autocomplete="new-password" placeholder="至少 8 位">
+    </label>
+    <label class="hb-field">
+      <span>确认新密码</span>
+      <input class="hb-input" type="password" id="pw-confirm" autocomplete="new-password" placeholder="再次输入新密码">
+    </label>
+    <div class="admin-alert" id="pw-error" hidden></div>
+  </div>
+  <div class="confirm-dialog__actions">
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="pw-cancel">取消</button>
+    <button class="hb-button hb-button--primary hb-button--sm" type="button" id="pw-submit">确认修改</button>
+  </div>
+</dialog>
+
+<div id="admin-toast"></div>
+
+<!-- 三个共享实现在这里取全局别名，必须在任何 module 之前以普通脚本加载：
+     admin/dom.js → htmlsafe.js 的 esc、admin/format.js → money.js 的 formatCents、
+     admin/api.js → ApiError.fromResponse。都是求值时就读（引用全局，不是 import），
+     少加载一个就整条依赖链 ReferenceError。
+     普通脚本立即执行、module 默认 defer，因此这里排在入口之前即可。
+     顺序与内容对齐 store.html，避免两份入口各写一套。CSP 的 script-src 含 'self'，
+     同源脚本不需要 nonce，这里不带。 -->
+<script type="module" src="/store-static/htmlsafe.js?v=2609271208"></script>
+<script type="module" src="/store-static/api-error.js?v=2609271208"></script>
+<script type="module" src="/store-static/money.js?v=2609271208"></script>
+
+<!-- 后台入口按主题拆在 apps/store/static/admin/ 下。CSP 的 script-src 含 'self'，同源外部脚本
+     不需要 nonce；这里仍然带上，与下方 palette.js 的写法保持一致。 -->
+<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609271208"></script>
+<!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
+     ./scene/appearance.js（预设 / 明暗派生 / 令牌展开的唯一实现）。
+     内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->
+<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609271208"></script>
+<!-- 状态甲板的自走读数（源：apps/store/static/entry-deck.js）。它读页面里已有的时间戳，
+     不发任何请求；没有 .hos-deck 时自行退出 —— 这一页只有后台登录屏有甲板，
+     工作台没有。与主应用那份是两份文件、一套 data-* 契约。 -->
+<script type="module" src="/store-static/entry-deck.js?v=2609271208"></script>
+</body>
+</html>

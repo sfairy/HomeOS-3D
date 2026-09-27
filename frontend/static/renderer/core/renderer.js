@@ -19,34 +19,28 @@
  * 对外形态不变：仍然只导出 PanelRenderer 这一个类，页面依旧 `new PanelRenderer(hostElement, options)`。
  */
 
-import { setBuiltinAssetVersions } from "./registry.js?v=2609270001";
-import { randomUuid } from "../../utils/random-id.js?v=2609270001";
-import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609270001";
+import { setBuiltinAssetVersions } from "./registry.js?v=2609271208";
+import { randomUuid } from "../../utils/random-id.js?v=2609271208";
+import { airflowCanvasOffsetBounds } from "../geometry/transform-geometry.js?v=2609271208";
 import {
   HistoryRefreshCoordinator,
   RuntimeEffectImageLoader,
   RuntimeStaticImageCache,
   RuntimeVacuumMapImagePreloader
-} from "./runtime-caches.js?v=2609270001";
-import { syncedLineChartProperties } from "./runtime-document.js?v=2609270001";
+} from "./runtime-caches.js?v=2609271208";
+import { syncedLineChartProperties } from "./runtime-document.js?v=2609271208";
 
-import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609270001";
-import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609270001";
-import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609270001";
-import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609270001";
-import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609270001";
-import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609270001";
-import { capabilityDetailsMethods } from "./panel-renderer/device-controls/capability.js?v=2609270001";
-import { airPurifierDetailsMethods } from "./panel-renderer/device-controls/air-purifier.js?v=2609270001";
-import { mediaPlayerDetailsMethods } from "./panel-renderer/device-controls/media-player.js?v=2609270001";
-import { lightDetailsMethods } from "./panel-renderer/device-controls/light.js?v=2609270001";
-import { coverDetailsMethods } from "./panel-renderer/device-controls/cover.js?v=2609270001";
-import { climateDetailsMethods } from "./panel-renderer/device-controls/climate.js?v=2609270001";
-import { waterHeaterDetailsMethods } from "./panel-renderer/device-controls/water-heater.js?v=2609270001";
-import { electricBedDetailsMethods } from "./panel-renderer/device-controls/electric-bed.js?v=2609270001";
-import { vacuumDetailsMethods } from "./panel-renderer/device-controls/vacuum.js?v=2609270001";
-import { presenceDetailsMethods } from "./panel-renderer/device-controls/presence.js?v=2609270001";
-import { cameraDetailsMethods } from "./panel-renderer/device-controls/camera.js?v=2609270001";
+import { documentCoreMethods } from "./panel-renderer/document-core.js?v=2609271208";
+import { selectionTransformMethods } from "./panel-renderer/selection-transform.js?v=2609271208";
+import { runtimeBridgeMethods } from "./panel-renderer/runtime-bridge.js?v=2609271208";
+import { runtimeDialogMethods } from "./panel-renderer/runtime-dialogs.js?v=2609271208";
+import {
+  attachDeviceControlPreparers,
+  installDeviceControlMounter,
+  runDeviceControlMethod
+} from "./panel-renderer/device-controls/lazy-modules.js?v=2609271208";
+import { customPopupMethods } from "./panel-renderer/device-controls/custom-popup.js?v=2609271208";
+import { entityDetailsMethods } from "./panel-renderer/device-controls/entity-details.js?v=2609271208";
 
 // 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
 // （transform-geometry.js / asset-version.js 等），这里继续原路径转出，调用方无需改动，
@@ -217,6 +211,18 @@ export class PanelRenderer {
     window.addEventListener("online", this.boundReconnect);
     document.addEventListener("visibilitychange", this.boundVisibilityChange);
   }
+
+  /**
+   * 按需加载某一类设备控件模块，然后调用它的方法（副作用型调用点用）。
+   * 失败走 options.onError：缺模块时宁可报错，也不静默什么都不发生。
+   * @param {Array<string>} kinds 设备种类（见 device-controls/lazy-modules.js）
+   * @param {string} methodName 方法名（由那一类模块提供）
+   * @param {Array<unknown>} args 原样转交的实参
+   * @returns {Promise<unknown>}
+   */
+  runDeviceControlMethod(kinds, methodName, args) {
+    return runDeviceControlMethod(kinds, this, methodName, args, error => this.options.onError?.(error));
+  }
 }
 
 /**
@@ -233,7 +239,12 @@ function definePanelRendererMethods(methodSets) {
   const descriptors = {};
   for (const methods of methodSets) {
     for (const [name, value] of Object.entries(methods)) {
-      if (Object.prototype.hasOwnProperty.call(descriptors, name)) {
+      // 惰性挂载必须与「已经挂在原型上的那一批」一起查重：只查本批的话，
+      // 后加载的模块与前一批重名会静默覆盖（configurable: true），而那正是这段代码要防的。
+      if (
+        Object.prototype.hasOwnProperty.call(descriptors, name) ||
+        Object.prototype.hasOwnProperty.call(PanelRenderer.prototype, name)
+      ) {
         throw new Error(`PanelRenderer 方法 ${name} 被重复定义`);
       }
       descriptors[name] = { value, writable: true, enumerable: false, configurable: true };
@@ -242,22 +253,16 @@ function definePanelRendererMethods(methodSets) {
   Object.defineProperties(PanelRenderer.prototype, descriptors);
 }
 
+// 惰性挂载走同一条挂载路径（同一个重名检查），只是时机推迟到「第一次真的用到那一类」。
+installDeviceControlMounter(methodSets => definePanelRendererMethods(methodSets));
+// 三个「预取入口」也挂到原型上：这样三个枢纽文件的调用点各只要 1 行。
+attachDeviceControlPreparers(PanelRenderer.prototype);
+
 definePanelRendererMethods([
   documentCoreMethods,
   selectionTransformMethods,
   runtimeBridgeMethods,
   runtimeDialogMethods,
   customPopupMethods,
-  entityDetailsMethods,
-  capabilityDetailsMethods,
-  airPurifierDetailsMethods,
-  mediaPlayerDetailsMethods,
-  lightDetailsMethods,
-  coverDetailsMethods,
-  climateDetailsMethods,
-  waterHeaterDetailsMethods,
-  electricBedDetailsMethods,
-  vacuumDetailsMethods,
-  presenceDetailsMethods,
-  cameraDetailsMethods
+  entityDetailsMethods
 ]);

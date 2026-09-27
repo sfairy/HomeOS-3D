@@ -5,15 +5,15 @@
  * 约定：请求一律 cache: "no-store"；401 视为会话失效直接跳登录页；只有带 body 时才声明
  * Content-Type: application/json；超时预算统一由 utils/api-fetch.js 决定。
  */
-import { setupGlobalLog } from "./global-log.js?v=2609270001";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609270001";
-import { apiFetch } from "../utils/api-fetch.js?v=2609270001";
+import { setupGlobalLog } from "./global-log.js?v=2609271208";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609271208";
+import { apiFetch } from "../utils/api-fetch.js?v=2609271208";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。
  * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，否则调用方会一直停在「正在上报」。
  *
- * 只有会话失效分支、没有授权受限分支：日志接口（backend/api/global_logs.py）过的是 CurrentUser /
+ * 只有会话失效分支、没有授权受限分支：日志接口（apps/server/api/global_logs.py）过的是 CurrentUser /
  * CurrentViewer，不过授权门禁 —— 授权坏掉时恰恰最需要收得到日志。
  * 判定与错误形态仍取自 utils/api-request.js（同一套码），只是构造时不挂日志桥：本模块就是日志桥的
  * 传输层，自己上报失败时再回头关联「已上报」标记没有意义。

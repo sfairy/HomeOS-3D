@@ -10,7 +10,8 @@
  */
 
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）。
-import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609270001";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609271208";
+import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js?v=2609271208";
 
 // 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
 // 着色器内建函数** clamp(...)（那些必须逐字保留）—— 把 JS 侧改名只会让 diff 变大、并让后来者
@@ -54,96 +55,7 @@ function isRegionLightKey(keyString) {
  * 键必须能通过 isRegionLightKey（否则整条丢弃）；shape 只允许 circle / square / ellipse / strip；width / depth 必须是有限数且夹到 [0.5, 20] 米； 可选字段若给了就必须是有限数，否则整条丢弃（宁可退回默认形状，也不要用 NaN 去算几何）；heightMin > heightMax 这类自相矛盾的区间直接判非法。
  * 通过的条目会被归一成一份新对象（Object.create(null)，不带原型，避免原型污染），数值全部夹到与着色器编码相容的范围里。
  */
-function sanitizeRegionOverrides(rawOverrides) {
-  const normalizedOverrides = Object.create(null);
-  if (!rawOverrides || typeof rawOverrides != "object" || Array.isArray(rawOverrides)) {
-    return normalizedOverrides;
-  }
-  for (const [regionKey, override] of Object.entries(rawOverrides)) {
-    if (
-      !isRegionLightKey(regionKey) ||
-      !override ||
-      typeof override != "object" ||
-      Array.isArray(override) ||
-      !["circle", "square", "ellipse", "strip"].includes(override.shape) ||
-      !["width", "depth"].every(
-        dimensionField =>
-          typeof override[dimensionField] == "number" && Number.isFinite(override[dimensionField])
-      ) ||
-      ["rotation", "softness"].some(
-        numericField =>
-          override[numericField] !== undefined &&
-          (typeof override[numericField] != "number" || !Number.isFinite(override[numericField]))
-      ) ||
-      ["offsetX", "offsetZ"].some(
-        offsetField =>
-          override[offsetField] !== undefined &&
-          (typeof override[offsetField] != "number" || !Number.isFinite(override[offsetField]))
-      ) ||
-      ["heightAbove", "heightBelow", "heightMin", "heightMax"].some(
-        heightField =>
-          override[heightField] !== undefined &&
-          (typeof override[heightField] != "number" || !Number.isFinite(override[heightField]))
-      ) ||
-      (override.heightMin !== undefined &&
-        override.heightMax !== undefined &&
-        override.heightMin > override.heightMax) ||
-      (override.moveCenterEnabled !== undefined && typeof override.moveCenterEnabled != "boolean")
-    ) {
-      continue;
-    }
-    const rotationDeg = override.rotation ?? 0;
-    // 夹到 [0.5, 20] 米：光斑小于 0.5m 看不出来（且会退化成噪点），
-    // 大于 20m 已超过单个房间尺度，必然是脏数据。
-    const clampedWidth = clamp(override.width, 0.5, 20);
-    normalizedOverrides[regionKey] = {
-      width: clampedWidth,
-      depth: clamp(override.depth, 0.5, 20),
-      // 角度归一化到 [-180, 180)：先取模到 [0,360)，再偏移 540 后取模保证
-      // 负数也能落到正向区间，最后减 180 —— 这样 -370° 会变成 -10°，而不是 350°。
-      rotation: (((rotationDeg % 360) + 540) % 360) - 180,
-      // softness 下限 0.05：等于 0 会让柔化起点与终点重合，产生除零与硬边。
-      softness: clamp(override.softness ?? 1, 0.05, 1),
-      shape: override.shape,
-      ...(override.heightMin !== undefined
-        ? {
-            heightMin: clamp(override.heightMin, 0, 20)
-          }
-        : {}),
-      ...(override.heightMax !== undefined
-        ? {
-            heightMax: clamp(override.heightMax, 0, 20)
-          }
-        : {}),
-      ...(override.heightAbove !== undefined
-        ? {
-            heightAbove: clamp(override.heightAbove, 0, 20)
-          }
-        : {}),
-      ...(override.heightBelow !== undefined
-        ? {
-            heightBelow: clamp(override.heightBelow, 0, 20)
-          }
-        : {}),
-      ...(override.offsetX !== undefined
-        ? {
-            offsetX: clamp(override.offsetX, -100, 100)
-          }
-        : {}),
-      ...(override.offsetZ !== undefined
-        ? {
-            offsetZ: clamp(override.offsetZ, -100, 100)
-          }
-        : {}),
-      ...(override.moveCenterEnabled !== undefined
-        ? {
-            moveCenterEnabled: override.moveCenterEnabled
-          }
-        : {})
-    };
-  }
-  return normalizedOverrides;
-}
+
 /**
  * 沿父链向上查找某个 userData 字段。
  */
@@ -344,6 +256,36 @@ export function createRegionLightController({
   contactShadows: contactShadows = null,
   requestFrame: requestFrame = () => {}
 }) {
+  // 被外提到同目录的新模块（见其文件头）：惰性上下文，调用点传 regionLightContext()。
+  const regionLightContext = () => ({
+    isRegionLightKey,
+    clamp,
+    groupsByKey,
+    viewToWorldUniform,
+    THREE,
+    contactShadows,
+    renderer,
+    alignTo16,
+    RangeError,
+    sourceMaterialByClone,
+    clonesByMaterial,
+    isRegionReceiverMaterial,
+    floorBrightnessUniform,
+    buildShaderChunk,
+    stats,
+    isDisposed,
+    registrationsByLight,
+    shouldRescanStructure,
+    REGION_LIGHT_LAYER,
+    settings,
+    getOverrides,
+    previewKeys,
+    listRegions,
+    registrationsByFloorId,
+    isVisibleWithin,
+    rootObject,
+  });
+
   const registrationsByLight = new Map();
   // listenedNodes：给每个节点挂 childadded / childremoved 监听，用于自动发现结构变化。
   // 用 Set 记录已挂载的节点，避免重复 addEventListener（重复挂会累积调用）。
@@ -424,299 +366,13 @@ export function createRegionLightController({
    * 灯组是 uniform 的载体：同一楼层的同一分类共用一组 uniform，于是同一份克隆材质可以覆盖该分类的所有网格，材质数量被压到很低。
    * 容量变化时要做三件事：重建 slot 数组、按需重建数据纹理、让已缓存的材质 needsUpdate = true —— 因为着色器里的 PLAN2_LIGHT_CAPACITY 变了，必须重新编译才能拿到新的数组长度（three.js 不会自动感知宏变化）。
    */
-  function ensureLightGroup(groupFloorId, requestedKind, lightCount) {
-    const groupKey = groupFloorId + "\0" + requestedKind;
-    let lightGroup = groupsByKey.get(groupKey);
-    if (!lightGroup) {
-      lightGroup = {
-        key: groupKey,
-        floorId: groupFloorId,
-        kind: requestedKind,
-        // capacity：uniform 数组的实际长度（16 的倍数），>= 实际灯数。
-        capacity: 0,
-        // textureMode：超过 fragment uniform 上限时改走数据纹理（见 buildShaderChunk）。
-        textureMode: false,
-        // slots：每盏灯一个 vec4 组（center / extent / color / axis），是 uniform 的底层存储。
-        slots: [],
-        materials: new Set(),
-        uniforms: {
-          plan2LightCount: {
-            value: lightCount
-          },
-          plan2Gain: {
-            value: 1
-          },
-          plan2SunShadowStrength: {
-            value: 0
-          },
-          plan2Centers: {
-            value: []
-          },
-          plan2Extents: {
-            value: []
-          },
-          plan2Colors: {
-            value: []
-          },
-          plan2Axes: {
-            value: []
-          },
-          plan2ViewToWorld: viewToWorldUniform,
-          plan2MotionToLayout: {
-            value: new THREE.Matrix4()
-          },
-          plan2LightData: {
-            value: null
-          }
-        }
-      };
-      if (requestedKind !== "wall" && contactShadows) {
-        // 墙面不接收接触阴影（墙脚本来就不会有贴地阴影），因此不挂它的 uniform。
-        // Object.assign 让两组 uniform 共享同一对象引用：材质注入时一次拿齐。
-        Object.assign(lightGroup.uniforms, contactShadows.getUniforms(groupFloorId));
-      }
-      groupsByKey.set(groupKey, lightGroup);
-    }
-    const capacity = alignTo16(lightCount);
-    if (lightGroup.capacity !== capacity) {
-      lightGroup.capacity = capacity;
-      const maxFragmentUniforms = coercedFiniteNumberOr(renderer?.capabilities?.maxFragmentUniforms, 1024);
-      // 每盏灯 4 个 vec4（占 4 个 uniform 槽），另留 128 给 three.js 自身的 uniform。
-      // 超出上限就只能改用数据纹理 —— 这是低端 / 移动 GPU 上常见的兼容分支。
-      lightGroup.textureMode = capacity * 4 + 128 > maxFragmentUniforms;
-      lightGroup.texture?.dispose();
-      lightGroup.texture = null;
-      lightGroup.slots = Array.from(
-        {
-          length: capacity
-        },
-        () => ({
-          center: new THREE.Vector4(),
-          extent: new THREE.Vector4(),
-          color: new THREE.Vector4(),
-          axis: new THREE.Vector4()
-        })
-      );
-      for (const [uniformName, slotProperty] of [
-        ["plan2Centers", "center"],
-        ["plan2Extents", "extent"],
-        ["plan2Colors", "color"],
-        ["plan2Axes", "axis"]
-      ]) {
-        lightGroup.uniforms[uniformName].value = lightGroup.slots.map(slot => slot[slotProperty]);
-      }
-      if (lightGroup.textureMode) {
-        const maxTextureSize = coercedFiniteNumberOr(renderer?.capabilities?.maxTextureSize, 4096);
-        if (capacity > maxTextureSize) {
-          throw new RangeError(
-            "区域灯数量 " + lightCount + " 超出本机数据纹理容量 " + maxTextureSize
-          );
-        }
-        lightGroup.texture = new THREE.DataTexture(
-          new Float32Array(capacity * 16),
-          4,
-          capacity,
-          THREE.RGBAFormat,
-          THREE.FloatType
-        );
-        // 数据纹理必须用 Nearest 过滤、关掉 mipmap：这是「按 texel 精确取数」的查表，
-        // 任何插值都会把相邻灯的参数混在一起，产生完全不合理的体积。
-        lightGroup.texture.minFilter = lightGroup.texture.magFilter = THREE.NearestFilter;
-        lightGroup.texture.generateMipmaps = false;
-        lightGroup.texture.needsUpdate = true;
-      }
-      lightGroup.uniforms.plan2LightData.value = lightGroup.texture;
-      for (const cachedMaterial of lightGroup.materials) {
-        cachedMaterial.needsUpdate = true;
-      }
-    }
-    lightGroup.uniforms.plan2LightCount.value = lightCount;
-    return lightGroup;
-  }
+  
   /**
    * 取（必要时克隆并注入）区域灯材质。
    * 为什么必须克隆：区域灯是「按楼层 + 分类分组」的，同一份原始材质在不同分组下要绑定不同的 uniform 对象，而 uniform 是挂在材质上的，所以只能一份分组一份克隆；变体键由「楼层 + 分类 + 是否保留细节面 + 是否地面调色」组成，同键复用。 注入内容（onBeforeCompile 里按顺序）：1. 先调用原始材质的 onBeforeCompile，保证不破坏它自己的注入；2. 把灯组 uniform 合并进 shader.uniforms；3. 地面调色额外乘 plan2FloorBrightness（用户在编辑器里调的地面亮度）；
    * 4. 顶点把世界坐标写到 vPlan2WorldPosition（用 viewToWorld 矩阵从 mvPosition 还原）；5. 片元前置 buildShaderChunk，再把区域的贡献加到 indirectDiffuse，墙面走专用分支（只补 diffuse / opacity，不叠间接光）；6. 非墙面灯组还会注入接触阴影采样（opaque_fragment 处乘上遮蔽）；7. 对「不需要细节、非 alpha 墙、非透明」的材质，改用一套廉价的简单光照，把 three.js 的原生光照 chunk 整段删掉，只留我们注入的计算。
    */
-  function getRegionMaterial(
-    sourceMaterial,
-    materialFloorId,
-    materialKind,
-    resultMaterials,
-    isDetailedSurface = false,
-    isFloorTone = false
-  ) {
-    const environmentSourceMaterial = sourceMaterial?.environmentSourceMaterial;
-    // 环境层（天空盒 / 环境贴图代理）用自己的材质参与渲染，不能换成区域灯克隆，
-    // 否则环境会跟着房间亮度一起被压暗。这里只登记、直接返回。
-    if (environmentSourceMaterial && sourceMaterialByClone.has(environmentSourceMaterial)) {
-      resultMaterials.add(environmentSourceMaterial);
-      return sourceMaterial;
-    }
-    sourceMaterial = sourceMaterialByClone.get(sourceMaterial) || sourceMaterial;
-    if (!isRegionReceiverMaterial(sourceMaterial)) {
-      return sourceMaterial;
-    }
-    let materialClones = clonesByMaterial.get(sourceMaterial);
-    if (!materialClones) {
-      materialClones = new Map();
-      clonesByMaterial.set(sourceMaterial, materialClones);
-    }
-    const materialGroupKey = materialFloorId + "\0" + materialKind;
-    // 变体键用 \0 做分隔（与 materialGroupKey 里的一致）：它不可能出现在楼层 ID 或
-    // 材质名里，因此不会出现「A+B|C」和「A|B+C」撞键的情况。
-    const variantKey =
-      materialGroupKey +
-      "\0" +
-      (isDetailedSurface ? "detailed" : "simple") +
-      (isFloorTone ? "-floor-tone" : "");
-    let cloneMaterial = materialClones.get(variantKey);
-    const materialGroup = groupsByKey.get(materialGroupKey);
-    if (!cloneMaterial) {
-      cloneMaterial = sourceMaterial.clone();
-      if (sourceMaterial.userData.hbDedicatedWall) {
-        // 专用墙材质被 clone 后颜色是共享引用，必须再 clone 一次，
-        // 否则调一面墙的颜色会影响所有墙。
-        cloneMaterial.color = sourceMaterial.color.clone();
-      }
-      cloneMaterial.name =
-        (sourceMaterial.name || sourceMaterial.type || "material") + " / region " + materialKind;
-      const originalOnBeforeCompile = sourceMaterial.onBeforeCompile;
-      // 注意用 function 而非箭头函数：three.js 会用 this 指向材质调用它，
-      // 原材质若依赖 this 就会被破坏，因此必须透传。
-      cloneMaterial.onBeforeCompile = function (shader, webglRenderer) {
-        originalOnBeforeCompile?.call(this, shader, webglRenderer);
-        // 关键一步：把灯组的 uniform 对象合并进着色器。因为合并的是「同一批对象引用」，
-        // sync 里改 uniform.value 就等价于改所有共用该灯组的材质。
-        Object.assign(shader.uniforms, materialGroup.uniforms);
-        if (isFloorTone) {
-          // 地面亮度调色：挂在共享的 floorBrightnessUniform 上，
-          // 改一次数值即可让所有楼层的地面同时响应，无需重编译。
-          shader.uniforms.plan2FloorBrightness = floorBrightnessUniform;
-          shader.fragmentShader = "uniform float plan2FloorBrightness;\n" + shader.fragmentShader;
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <color_fragment>",
-            "#include <color_fragment>\ndiffuseColor.rgb *= plan2FloorBrightness;"
-          );
-        }
-        shader.uniforms.plan2ContactViewToWorld = materialGroup.uniforms.plan2ViewToWorld;
-        // 顶点阶段只做一件事：把 mvPosition（已包含实例化 / 骨骼 / 世界变换）乘回 world 矩阵，得到世界坐标交给片元。
-        // 之所以从 mvPosition 反推而不是直接用 position：这样能自然继承 three.js 的全部顶点变换链，不需要自己重算矩阵。
-        shader.vertexShader =
-          "uniform mat4 plan2ViewToWorld;\nvarying vec3 vPlan2WorldPosition;\n" +
-          shader.vertexShader;
-        const PROJECT_VERTEX_INCLUDE = "#include <project_vertex>";
-        if (!shader.vertexShader.includes(PROJECT_VERTEX_INCLUDE)) {
-          // 注入点缺失时立刻报错：静默跳过会导致「区域灯完全不亮」且很难排查，
-          // 多半是 three.js 升级后 chunk 被改名。
-          throw new Error("区域灯材质缺少 project_vertex");
-        }
-        shader.vertexShader = shader.vertexShader.replace(
-          PROJECT_VERTEX_INCLUDE,
-          PROJECT_VERTEX_INCLUDE + "\nvPlan2WorldPosition = (plan2ViewToWorld * mvPosition).xyz;"
-        );
-        shader.fragmentShader = buildShaderChunk(materialGroup) + shader.fragmentShader;
-        if (sourceMaterial.userData.hbDedicatedWall) {
-          // 专用墙材质是自绘的简单着色器，只有 diffuse / opacity 两个 uniform，
-          // 不需要（也不能）叠加间接光，因此注入到此为止。
-          shader.uniforms.diffuse = {
-            value: cloneMaterial.color
-          };
-          shader.uniforms.opacity = {
-            // 用 getter 代理到克隆材质的 opacity：外部改材质透明度时无需重新编译，
-            // 也不会因为快照取值而丢失后续更新。
-            get value() {
-              return cloneMaterial.opacity;
-            }
-          };
-          stats.shaderCompiles += 1;
-          return;
-        }
-        const LIGHTS_FRAGMENT_END_INCLUDE = "#include <lights_fragment_end>";
-        if (!shader.fragmentShader.includes(LIGHTS_FRAGMENT_END_INCLUDE)) {
-          throw new Error("区域灯材质缺少 lights_fragment_end");
-        }
-        // 区域灯的结果叠加在 three.js 算完原生光照之后。plan2ReceivingColor 是「提亮后的反照率」：对 albedo 取平方根再混 60%，等价于 gamma 提亮，让深色家具在区域灯下不至于死黑又保留材质色相。
-        // 车的玻璃饰面（HB_CAR_GLASS_FINISH）另走一条混法，避免把拍摄贴图的打光再叠加一遍造成过曝。
-        const sunShadowSnippet =
-          materialKind === "wall"
-            ? ""
-            : "\n          #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0\n            if (receiveShadow && plan2SunShadowStrength > 0.0 && directionalLightShadows[0].shadowIntensity > 0.0) {\n              // The studio's single shadow-casting directional light is the\n              // first shadow slot. Reuse its resident VSM map; no new capture.\n              DirectionalLightShadow plan2SunShadow = directionalLightShadows[0];\n              plan2ShadowMask = getShadow(directionalShadowMap[0], plan2SunShadow.shadowMapSize,\n                min(1.0, plan2SunShadow.shadowIntensity * plan2SunShadowStrength / 0.18),\n                plan2SunShadow.shadowBias, plan2SunShadow.shadowRadius, vDirectionalShadowCoord[0]);\n            }\n          #endif";
-        shader.fragmentShader = shader.fragmentShader.replace(
-          LIGHTS_FRAGMENT_END_INCLUDE,
-          LIGHTS_FRAGMENT_END_INCLUDE +
-            "\nvec3 plan2ReceivingColor = mix(diffuseColor.rgb, sqrt(max(diffuseColor.rgb, vec3(0.0))), 0.6);\n          #ifdef HB_CAR_GLASS_FINISH\n            // Keep moderate fill on glass while avoiding the full furniture\n            // albedo lift, which exaggerates the atlas' photographed lighting.\n            plan2ReceivingColor = mix(plan2ReceivingColor, diffuseColor.rgb, hbCarGlass * 0.6);\n          #endif\n          float plan2ShadowMask = 1.0;" +
-            sunShadowSnippet +
-            "\n          reflectedLight.indirectDiffuse += plan2ReceivingColor * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain * plan2ShadowMask;"
-        );
-        if (materialKind !== "wall" && contactShadows) {
-          // 接触阴影 uniform 与区域灯一起声明在前置片段里（材质只允许一次前置拼接，
-          // 所以两块内容合并到这里），随后在 opaque_fragment 处把遮蔽乘进最终颜色。
-          shader.fragmentShader =
-            "uniform sampler2D plan2ContactMap;\n            uniform mat4 plan2ContactTransform;\n            uniform vec4 plan2ContactBounds;\n            uniform float plan2ContactY, plan2ContactOpacity;\n            uniform sampler2D plan2SurfaceMap;\n            uniform vec4 plan2SurfaceBounds;\n            uniform sampler2D plan2SurfaceLookup;\n            uniform vec2 plan2SurfaceLayout;\n            uniform mat4 plan2ContactViewToWorld;\n            uniform float plan2SurfaceOpacity;\n" +
-            shader.fragmentShader;
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <opaque_fragment>",
-            "\n            vec3 contactPosition = (plan2ContactTransform * vec4(vPlan2WorldPosition, 1.0)).xyz;\n            vec2 contactUv = (contactPosition.xz - plan2ContactBounds.xy) / plan2ContactBounds.zw;\n            float contactHeight = contactPosition.y - plan2ContactY;\n            if (contactHeight >= -0.015 && contactHeight < 0.12\n                && all(greaterThanEqual(contactUv, vec2(0.0))) && all(lessThanEqual(contactUv, vec2(1.0)))) {\n              // Rugs and the lowest furniture surfaces also receive contact\n              // shading. Fade it over the first 12cm; upper surfaces stay lit.\n              float contactWeight = 1.0 - smoothstep(0.035, 0.12, max(contactHeight, 0.0));\n              outgoingLight *= 1.0 - texture2D(plan2ContactMap, contactUv).r * plan2ContactOpacity * contactWeight;\n            }\n            " +
-              (sourceMaterial.userData?.plan2SurfaceContact === false
-                ? ""
-                : "if (contactHeight > 0.12 && plan2SurfaceOpacity > 0.0) {\n              // These are already baked shadow pixels, not an occluder depth\n              // map. No shadow comparison or light-space projection per frame.\n              vec4 tile = texture2D(plan2SurfaceLookup, vec2(clamp(contactHeight / plan2SurfaceLayout.y, 0.0, 1.0), 0.5));\n              vec2 localUv = (contactPosition.xz - plan2SurfaceBounds.xy) / plan2SurfaceBounds.zw;\n              if (tile.b > 0.5 && all(greaterThanEqual(localUv, vec2(0.0))) && all(lessThanEqual(localUv, vec2(1.0)))) {\n                float upward = smoothstep(0.8, 0.98, normalize(mat3(plan2ContactTransform) * mat3(plan2ContactViewToWorld) * normal).y);\n                vec2 tileOrigin = floor(tile.rg * 255.0 + 0.5);\n                vec2 surfaceUv = (tileOrigin + clamp(localUv, vec2(0.002), vec2(0.998))) / plan2SurfaceLayout.x;\n                outgoingLight *= 1.0 - texture2D(plan2SurfaceMap, surfaceUv).r * plan2SurfaceOpacity * upward;\n              }\n            }") +
-              "\n            #include <opaque_fragment>"
-          );
-        }
-        if (
-          !isDetailedSurface &&
-          // alphaWallBand：带透明渐变的墙（比如玻璃隔断）需要原生光照的透明处理。
-          !sourceMaterial.userData.alphaWallBand &&
-          // 有 transmission 的玻璃必须保留原生管线，否则折射会失效。
-          (sourceMaterial.transmission == null || sourceMaterial.transmission === 0)
-        ) {
-          // 廉价光照分支：把 three.js 的原生光照 chunk 整段删掉，只留一个方向性很弱的半球光近似（上半球偏亮、下半球偏冷，再叠一点主光方向的高光）。
-          // 目的：不参与区域灯的物件（比如没有体积数据的装饰件）仍要有基本明暗，但不为它们付出逐灯计算的代价。
-          shader.fragmentShader = "uniform mat4 plan2ViewToWorld;\n" + shader.fragmentShader;
-          shader.fragmentShader = shader.fragmentShader
-            .replace(
-              "#include <lights_fragment_begin>",
-              "\n              vec3 simpleNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n              float simpleUp = simpleNormal.y * 0.5 + 0.5;\n              float simpleKey = max(dot(simpleNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n              vec3 simpleTint = mix(vec3(0.82, 0.85, 0.91), vec3(1.0, 1.0, 1.0), simpleUp);\n              reflectedLight.indirectDiffuse = diffuseColor.rgb * simpleTint * (0.30 + 0.40 * simpleUp + 0.18 * simpleKey);\n            "
-            )
-            .replace("#include <lights_fragment_maps>", "")
-            .replace("#include <lights_fragment_end>", "");
-        }
-        stats.shaderCompiles += 1;
-      };
-      const baseProgramCacheKey = sourceMaterial.customProgramCacheKey?.call(sourceMaterial) || "";
-      // 缓存键必须把「所有会改变注入代码形态的因素」列全，否则 two 份本应不同的
-      // 着色器会共用同一个已编译程序。版本串（v10-glass-albedo）在改动注入逻辑时手动递增，
-      // 用来强制丢开上一版缓存的程序。
-      cloneMaterial.customProgramCacheKey = () =>
-        baseProgramCacheKey +
-        "|plan2-baked-surface-v10-glass-albedo|" +
-        +(sourceMaterial.userData?.plan2SurfaceContact !== false) +
-        "|" +
-        +!!sourceMaterial.userData.alphaWallBand +
-        "|" +
-        Number(isDetailedSurface) +
-        "|" +
-        Number(isFloorTone) +
-        "|" +
-        materialKind +
-        "|" +
-        materialGroup.capacity +
-        "|" +
-        Number(materialGroup.textureMode) +
-        "|" +
-        !!contactShadows;
-      // 打上标记：后续扫描（重新材质替换 / 清理）靠这两个字段快速识别「这是我们的克隆」，
-      // 也供外部（如统计、导出）区分细节面与普通面。
-      cloneMaterial.userData.plan2RegionMaterial = true;
-      cloneMaterial.userData.plan2DetailedSurface = isDetailedSurface;
-      sourceMaterialByClone.set(cloneMaterial, sourceMaterial);
-      materialClones.set(variantKey, cloneMaterial);
-      materialGroup.materials.add(cloneMaterial);
-    }
-    resultMaterials.add(cloneMaterial);
-    return cloneMaterial;
-  }
+  
   /**
    * 重新扫描整个场景结构（材质替换、分组容量、监听器、统计的唯一重算入口）。
    * 流程：1. 遍历一次收集节点表与网格表，顺带找出已登记的灯；2. 维护 childadded / childremoved 监听（新增节点挂上、消失的摘掉），这样后续结构变化能自动把 shouldRescanStructure 置位； 3. 回填每盏灯的楼层 ID、槽位键与楼层根节点；4. 按「楼层 × 分类」建灯组（容量按实际灯数对齐到 16）；5. 逐网格分类接收面并换材质，收集 liveMaterials；
@@ -799,7 +455,7 @@ export function createRegionLightController({
     }
     for (const [entryFloorId, floorRegistrations] of registrationsByFloorId) {
       for (const groupKindName of REGION_KINDS) {
-        ensureLightGroup(entryFloorId, groupKindName, floorRegistrations.length);
+        ensureLightGroup(entryFloorId, groupKindName, floorRegistrations.length, regionLightContext());
       }
     }
     const liveMaterials = new Set();
@@ -824,7 +480,7 @@ export function createRegionLightController({
         // （否则材质里的 uniform 为 undefined，着色器编译会失败）。
         registrationsByFloorId.set(meshFloorId, []);
         for (const emptyKindName of REGION_KINDS) {
-          ensureLightGroup(meshFloorId, emptyKindName, 0);
+          ensureLightGroup(meshFloorId, emptyKindName, 0, regionLightContext());
         }
       }
       const receiverKind = classifyReceiverKind(mesh);
@@ -841,7 +497,7 @@ export function createRegionLightController({
               liveMaterials,
               shouldPreserveDetailed,
               isFloorReceiver
-            )
+            , regionLightContext())
           )
         : getRegionMaterial(
             material,
@@ -850,7 +506,7 @@ export function createRegionLightController({
             liveMaterials,
             shouldPreserveDetailed,
             isFloorReceiver
-          );
+          , regionLightContext());
       // 只在真的换了材质时才写回：receiverKind / 楼层变了但克隆恰好相同的情况
       // 很常见（比如都是 simple 变体），无条件赋值会让 three.js 误以为材质变了。
       if (
@@ -967,35 +623,7 @@ export function createRegionLightController({
    * 重复登记同一盏灯不会重置已有记录（保留 fullIntensity 的原始基准），只刷新图层并再次标记结构脏 —— 这样「改亮度」不会把基准值也一起改掉。
    * @param {object} lightObject 灯对象（必须 isLight）。
    */
-  function registerLight(lightObject, lightConfig = {}) {
-    if (isDisposed || !lightObject?.isLight) {
-      return;
-    }
-    if (!registrationsByLight.get(lightObject)) {
-      registrationsByLight.set(lightObject, {
-        light: lightObject,
-        item: {
-          ...lightConfig
-        },
-        originalLayers: lightObject.layers.mask,
-        // fullIntensity 是「这盏灯的标称满值」，用于把当前 intensity 归一化成 0~1 的
-        // 点亮比例；取 userData 里的自定义值优先，退回 lightOnIntensity / 当前 intensity。
-        // 用 max(0.00001) 兜底，避免除以 0 得到 Infinity。
-        fullIntensity: Math.max(
-          0.00001,
-          coercedFiniteNumberOr(
-            lightObject.userData?.regionFullIntensity,
-            coercedFiniteNumberOr(lightObject.userData?.lightOnIntensity, lightObject.intensity) || 1
-          )
-        )
-      });
-    }
-    lightObject.layers.set(REGION_LIGHT_LAYER);
-    // 区域灯用自己的光照体积，不需要 three.js 的实时阴影：那套阴影图会随每盏灯
-    // 多一次投影渲染，而这里统一复用场景里唯一那盏平行光的阴影（见 sunShadowSnippet）。
-    lightObject.castShadow = false;
-    shouldRescanStructure = true;
-  }
+  
   /**
    * 记录当前相机的世界矩阵，供注入的着色器把 mvPosition 还原成世界坐标。
    */
@@ -1362,43 +990,14 @@ export function createRegionLightController({
    * 导出一份「本帧区域灯状态」的快照，供调试面板 / 自动化测试读取。
    * 全部是深拷贝（数组手动展开）：调用方拿到的对象不会被下一帧的原地更新悄悄改掉，可以安全地序列化或延迟比较。
    */
-  function inspect() {
-    return {
-      ...stats,
-      settings: {
-        ...settings
-      },
-      overrides: getOverrides(),
-      previewKeys: previewKeys ? [...previewKeys] : null,
-      regions: listRegions(),
-      floors: [...registrationsByFloorId].map(([inspectFloorId, inspectRegistrations]) => ({
-        floorId: inspectFloorId,
-        slots: inspectRegistrations.length,
-        capacity: groupsByKey.get(inspectFloorId + "\0floor")?.capacity,
-        lights: inspectRegistrations.map(inspectEntry => ({
-          id: inspectEntry.item.id || inspectEntry.light.uuid,
-          type: inspectEntry.item.type,
-          intensity: inspectEntry.light.intensity,
-          fullIntensity: inspectEntry.fullIntensity,
-          amount: clamp(
-            coercedFiniteNumberOr(inspectEntry.light.intensity, 0) / inspectEntry.fullIntensity,
-            0,
-            1.5
-          ),
-          effectiveAmount: inspectEntry.region?.amount ?? 0,
-          regionKey: inspectEntry.key,
-          visible: isVisibleWithin(inspectEntry.light, rootObject)
-        }))
-      }))
-    };
-  }
+  
   /**
    * 设置区域覆盖表（编辑器里给某盏灯画的形状）。
    * 先清洗再写入，随后立即同步一次：传入的 save/apply 期望「调用完就生效」，不能等到下一帧。
    * 第二个参数 true 表示跳过结构扫描 —— 形状变化只影响体积参数，不需要重扫场景换材质。
    */
   function setOverrides(rawOverrideInput) {
-    overrides = sanitizeRegionOverrides(rawOverrideInput);
+    overrides = sanitizeRegionOverrides(rawOverrideInput, regionLightContext());
     sync(undefined, true);
     return getOverrides();
   }

@@ -5,7 +5,7 @@
  * 是构建产物、内容长期不变 —— 同一份几何在同一个浏览器里被反复解析上百次。这里把「已准备模板」
  * 按 `modelTemplateKey` 存进 IndexedDB，命中时直接还原成 `{source, size}`，跳过下载与解析。
  *
- * 三个仓库各司其职：
+ * 两个仓库各司其职：
  *   - `templates`：主数据 `{key, template, bytes, created}`，template 是 `model-template-codec`
  *     的信封（含 TypedArray，靠结构化克隆原样存取）。
  *   - `metadata`：只有 `{key, bytes, created}`。剪枝（LRU）只需要体积与时间，读 metadata 就不必把
@@ -13,12 +13,14 @@
  *   - 库版本 2：v1 只有 templates，metadata 是后来加的，升级路径里按需补建。
  *
  * **降级底线**：IndexedDB 不可用（隐私模式 / 禁用 / 配额满 / 打开超时）时全部方法退化成空操作，
- * 调用方照常走真实加载器，不抛错、不产生未处理的 Promise 拒绝。任何一次打开失败都会把实例
- * 标记为 disabled，后续调用直接短路，不再反复敲一个已经打不开的库。
+ * 调用方照常走真实加载器，不抛错、不产生未处理的 Promise 拒绝。这条底线与「超时只降级这一次
+ * 调用」「写入空闲串行化」「LRU 剪枝」都由 `idb-store.js` 统一提供（与场景缓存同一份实现，
+ * 不再各抄一遍）；本模块只负责「存什么、键怎么算、模板怎么打包还原」。
  */
-import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609270001";
+import { createIdbStore } from "./idb-store.js?v=2609271208";
+import { packModelTemplate, unpackModelTemplate } from "./model-template-codec.js?v=2609271208";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=2609270001";
+import { debugLog } from "../utils/debug-log.js?v=2609271208";
 
 /** 缓存库名。 */
 const MODEL_CACHE_DB_NAME = "ha-bridge-3d-templates";
@@ -51,11 +53,11 @@ export function createModelPersistentCache({
   env: env = globalThis,
   timeoutMs: timeoutMs = DEFAULT_TIMEOUT_MS
 } = {}) {
-  let openingPromise = null;
-  let database = null;
+  /**
+   * 「首次 restore 没等到连接」只记一次：记下之后不再为每一次 restore 白等那一小段，
+   * 晚到的连接仍会存进 `idb-store`，供后续的 restore / saveTemplate 直接用。
+   */
   let openAttempted = false;
-  let disabled = false;
-  let writeChain = Promise.resolve();
   const stats = { hits: 0, misses: 0, writes: 0, fallbacks: 0 };
 
   const log = event => {
@@ -66,131 +68,68 @@ export function createModelPersistentCache({
     log("fallback");
   };
 
-  /** 静态可用性判断：显式关掉、没有 indexedDB、或 three 没带 ObjectLoader 时一律不参与。 */
-  function isAvailable() {
-    try {
-      return !disabled && !!env.indexedDB && !!THREE.ObjectLoader;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * 把一次 IDB 操作包进超时。超时或抛错都解析为 null —— 只把这一次调用降级掉，不把实例标记成
-   * disabled：私有模式下 `open()` 有时既不 success 也不 error，没有这一层就会永远等下去；
-   * 但一次读得慢也不该让整个缓存永久失效（下一次调用可能就正常了）。
-   */
-  function runWithTimeout(run, duration = timeoutMs) {
-    return new Promise(resolve => {
-      let settled = false;
-      const settle = value => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        env.clearTimeout(timerId);
-        resolve(value);
-      };
-      const timerId = env.setTimeout(() => {
-        noteFallback();
-        settle(null);
-      }, duration);
-      try {
-        run(settle);
-      } catch {
-        settle(null);
+  const store = createIdbStore({
+    env: env,
+    name: MODEL_CACHE_DB_NAME,
+    version: MODEL_CACHE_DB_VERSION,
+    timeoutMs: timeoutMs,
+    openTimeoutMs: MIN_OPEN_TIMEOUT_MS,
+    // 没有 ObjectLoader 就没有还原能力（unpackModelTemplate 要用它），此时整个缓存不参与。
+    extraAvailable: () => !!THREE.ObjectLoader,
+    onFallback: noteFallback,
+    upgrade: request => {
+      const upgradeTransaction = request.transaction;
+      const freshTemplateStore = !request.result.objectStoreNames.contains(TEMPLATE_STORE);
+      if (freshTemplateStore) {
+        request.result.createObjectStore(TEMPLATE_STORE, { keyPath: "key" });
       }
-    });
-  }
-
-  /** 打开数据库（懒加载且只打开一次）；打不开就标记 disabled，后续调用不再反复敲它。 */
-  function openDatabase() {
-    if (!isAvailable()) {
-      return Promise.resolve(null);
+      const freshMetadataStore = !request.result.objectStoreNames.contains(METADATA_STORE);
+      if (freshMetadataStore) {
+        request.result.createObjectStore(METADATA_STORE, { keyPath: "key" });
+      }
+      // v1 只有 templates：升级到 v2 时把旧条目的体积 / 时间补进 metadata。不补的话这些
+      // 条目既不计入配额、也永远不会被剪枝（剪枝只遍历 metadata），等于旧缓存永久驻留 ——
+      // 文件头的注释承诺了「升级路径里按需补建」，这里兑现它。
+      if (freshMetadataStore && !freshTemplateStore) {
+        const legacyTemplateStore = upgradeTransaction.objectStore(TEMPLATE_STORE);
+        const freshMetadata = upgradeTransaction.objectStore(METADATA_STORE);
+        legacyTemplateStore.openCursor().onsuccess = event => {
+          const cursor = event.target.result;
+          if (!cursor) {
+            return;
+          }
+          const legacyRecord = cursor.value;
+          if (legacyRecord?.key) {
+            freshMetadata.put({
+              key: legacyRecord.key,
+              bytes: Number(legacyRecord.bytes) || 0,
+              created: Number(legacyRecord.created) || Date.now()
+            });
+          }
+          cursor.continue();
+        };
+      }
     }
-    if (!openingPromise) {
-      openingPromise = runWithTimeout(
-        settle => {
-          const request = env.indexedDB.open(MODEL_CACHE_DB_NAME, MODEL_CACHE_DB_VERSION);
-          request.onupgradeneeded = () => {
-            const upgradeTransaction = request.transaction;
-            const freshTemplateStore = !request.result.objectStoreNames.contains(TEMPLATE_STORE);
-            if (freshTemplateStore) {
-              request.result.createObjectStore(TEMPLATE_STORE, { keyPath: "key" });
-            }
-            const freshMetadataStore = !request.result.objectStoreNames.contains(METADATA_STORE);
-            if (freshMetadataStore) {
-              request.result.createObjectStore(METADATA_STORE, { keyPath: "key" });
-            }
-            // v1 只有 templates：升级到 v2 时把旧条目的体积 / 时间补进 metadata。不补的话这些
-            // 条目既不计入配额、也永远不会被剪枝（剪枝只遍历 metadata），等于旧缓存永久驻留 ——
-            // 文件头的注释承诺了「升级路径里按需补建」，这里兑现它。
-            if (freshMetadataStore && !freshTemplateStore) {
-              const legacyTemplateStore = upgradeTransaction.objectStore(TEMPLATE_STORE);
-              const freshMetadata = upgradeTransaction.objectStore(METADATA_STORE);
-              legacyTemplateStore.openCursor().onsuccess = event => {
-                const cursor = event.target.result;
-                if (!cursor) {
-                  return;
-                }
-                const legacyRecord = cursor.value;
-                if (legacyRecord?.key) {
-                  freshMetadata.put({
-                    key: legacyRecord.key,
-                    bytes: Number(legacyRecord.bytes) || 0,
-                    created: Number(legacyRecord.created) || Date.now()
-                  });
-                }
-                cursor.continue();
-              };
-            }
-          };
-          request.onerror = request.onblocked = () => {
-            disabled = true;
-            noteFallback();
-            settle(null);
-          };
-          request.onsuccess = () => {
-            const opened = request.result;
-            if (disabled) {
-              opened.close();
-              settle(null);
-              return;
-            }
-            // 版本变更（别的标签页升级了库）时必须让出连接，否则那边会一直堵塞。
-            opened.onversionchange = () => {
-              disabled = true;
-              opened.close();
-            };
-            database = opened;
-            settle(opened);
-          };
-        },
-        Math.max(timeoutMs, MIN_OPEN_TIMEOUT_MS)
-      );
-    }
-    return openingPromise;
-  }
+  });
 
   /**
    * 取回并还原一份模板。命中返回 `{source, size}`，未命中 / 不可用 / 模板坏掉一律返回 null。
    * 「模板坏掉」还会顺手把这条记录删掉：它会在每次启动时重复失败，留着只会一直白读一遍几 MB。
    */
   async function restore(key) {
-    if (!isAvailable() || (openAttempted && !database)) {
+    if (!store.isAvailable() || (openAttempted && !store.current())) {
       return null;
     }
     // 打开尚未完成时只等一小段（min(timeoutMs, 150)），换成加载器继续，晚到的连接留着给下一次用。
-    const handle =
-      database || (await runWithTimeout(settle => openDatabase().then(settle), Math.min(timeoutMs, 150)));
+    const handle = await store.handleWithin(Math.min(timeoutMs, 150));
     if (!handle) {
       // 这一次没等到连接（首次打开还没完成）：记下「试过了」，后续 restore 不再重复等这一小段。
       openAttempted = true;
     }
-    if (!handle || disabled) {
+    if (!handle || store.isDisabled()) {
       return null;
     }
-    const record = await runWithTimeout(settle => {
+    const record = await store.runWithTimeout(settle => {
       const transaction = handle.transaction(TEMPLATE_STORE, "readonly");
       const request = transaction.objectStore(TEMPLATE_STORE).get(key);
       request.onsuccess = () => settle(request.result);
@@ -223,11 +162,11 @@ export function createModelPersistentCache({
 
   /** 写入一份模板并做 LRU 剪枝（条数 80 / 总量 64MB，按 created 从旧到新删）。 */
   async function saveTemplate(key, modelDefinition) {
-    // 与 restore 同口径：优先用已经拿到的连接。openDatabase() 的 Promise 只结算一次，首次
-    // open 一旦超时就被永久定格成 null，此后即使连接已成功（database 已赋值）也拿不到 ——
-    // 只 await 它会让整个会话的写入静默失效（读还有 database 这条兜底，写没有）。
-    const handle = database || (await openDatabase());
-    if (!handle || disabled) {
+    // 与 restore 同口径：优先用已经拿到的连接。open() 的 Promise 只结算一次，首次 open 一旦
+    // 超时就被永久定格成 null，此后即使连接已成功（store.current() 已有值）也拿不到 ——
+    // 只 await 它会让整个会话的写入静默失效（读还有 current() 这条兜底，写没有）。
+    const handle = store.current() || (await store.open());
+    if (!handle || store.isDisabled()) {
       return;
     }
     let template;
@@ -241,7 +180,7 @@ export function createModelPersistentCache({
     if (template.bytes > MAX_TEMPLATE_BYTES) {
       return;
     }
-    const stored = await runWithTimeout(settle => {
+    const stored = await store.runWithTimeout(settle => {
       const transaction = handle.transaction([TEMPLATE_STORE, METADATA_STORE], "readwrite");
       const templateStore = transaction.objectStore(TEMPLATE_STORE);
       const metadataStore = transaction.objectStore(METADATA_STORE);
@@ -249,21 +188,16 @@ export function createModelPersistentCache({
       transaction.onabort = transaction.onerror = () => settle(false);
       templateStore.put({ key, template, bytes: template.bytes, created: Date.now() });
       metadataStore.put({ key, bytes: template.bytes, created: Date.now() });
-      const allMetadata = metadataStore.getAll();
-      allMetadata.onsuccess = () => {
-        const entries = allMetadata.result.sort((a, b) => a.created - b.created);
-        let totalBytes = entries.reduce((sum, entry) => sum + (entry.bytes || 0), 0);
-        let count = entries.length;
-        for (const entry of entries) {
-          if (count <= MAX_TEMPLATE_COUNT && totalBytes <= MAX_TOTAL_BYTES) {
-            break;
-          }
-          templateStore.delete(entry.key);
-          metadataStore.delete(entry.key);
-          count -= 1;
-          totalBytes -= entry.bytes || 0;
-        }
-      };
+      // 剪枝读的是 metadata（轻量仓库）：命中/未命中只看体积与时间，不必把模板体拉进内存。
+      store.prune({
+        source: metadataStore,
+        remove: pruneKey => {
+          templateStore.delete(pruneKey);
+          metadataStore.delete(pruneKey);
+        },
+        maxCount: MAX_TEMPLATE_COUNT,
+        maxTotalBytes: MAX_TOTAL_BYTES
+      });
     });
     if (stored) {
       stats.writes += 1;
@@ -280,48 +214,22 @@ export function createModelPersistentCache({
    * 阻塞），失败静默 —— 缓存写不进去不该影响任何可见行为。
    */
   function schedule(key, modelDefinition) {
-    if (!isAvailable()) {
+    if (!store.isAvailable()) {
       return;
     }
-    writeChain = writeChain.then(
-      () =>
-        new Promise(resolve => {
-          const run = () => {
-            saveTemplate(key, modelDefinition)
-              .catch(noteFallback)
-              .finally(resolve);
-          };
-          if (env.requestIdleCallback) {
-            env.requestIdleCallback(run, { timeout: 3000 });
-          } else {
-            env.setTimeout(run, 250);
-          }
-        })
-    );
+    store.scheduleIdle(() => saveTemplate(key, modelDefinition));
   }
 
-  log(isAvailable() ? "enabled" : "unavailable");
-  if (isAvailable()) {
+  log(store.isAvailable() ? "enabled" : "unavailable");
+  if (store.isAvailable()) {
     // 提前打开：首次加载时 restore 就能立刻拿到连接，省掉一次 open 的往返。
-    openDatabase();
-  }
-  try {
-    env.addEventListener?.(
-      "pagehide",
-      () => {
-        disabled = true;
-        database?.close();
-      },
-      { once: true }
-    );
-  } catch {
-    // 测试替身没有 addEventListener：忽略。
+    store.open();
   }
 
   return {
     restore,
     schedule,
     stats: () => ({ ...stats }),
-    whenIdle: () => writeChain
+    whenIdle: () => store.whenIdle()
   };
 }

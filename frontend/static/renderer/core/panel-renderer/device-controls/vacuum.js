@@ -2,18 +2,18 @@
  * 设备控件区块：扫地机详情（地图、清洁模式、耗材与交互式 3D 地图入口）。
  */
 
-import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609270001";
-import { vacuumMapImageSource } from "../../registry.js?v=2609270001";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609270001";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609270001";
+import { popupPlacement } from "../../../../bridge/popup-placement.js?v=2609271208";
+import { vacuumMapImageSource } from "../../registry.js?v=2609271208";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271208";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../../../controls/vacuum-runtime.js?v=2609270001";
-import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609270001";
-import { componentDialogTitle } from "../primitives.js?v=2609270001";
+} from "../../../controls/vacuum-runtime.js?v=2609271208";
+import { relatedDeviceEntity } from "../../../controls/cover-runtime.js?v=2609271208";
+import { componentDialogTitle } from "../primitives.js?v=2609271208";
 
 export const vacuumDetailsMethods = {
   /**

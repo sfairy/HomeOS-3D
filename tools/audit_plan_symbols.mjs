@@ -31,10 +31,16 @@ import { fileURLToPath } from "node:url";
 import { isRoundFootprint, roundnessOfGlb } from "./lib/glb-footprint.mjs";
 import { MODEL_DIR_BY_SPEC, MODEL_FILE_KEY_BY_SPEC, MODEL_SPECS } from "./models/model-specs.mjs";
 
+// 仓库路径来自 paths.mjs（唯一事实来源）。
+import {
+  MODELS_DIR,
+  STUDIO_DIR,
+} from "./paths.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const MODELS_ROOT = path.join(ROOT, "frontend", "static", "3d-studio", "models");
-const STUDIO_APP_JS = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
-const STUDIO_TYPES_JS = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-item-types.js");
+const MODELS_ROOT = path.join(MODELS_DIR);
+const STUDIO_APP_JS = path.join(STUDIO_DIR, "studio-app.js");
+const STUDIO_TYPES_JS = path.join(STUDIO_DIR, "studio-item-types.js");
 
 const args = new Set(process.argv.slice(2));
 const ONLY_ROUND = args.has("--only=round");

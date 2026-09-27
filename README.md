@@ -2,132 +2,95 @@
 
 面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.5**（见 `VERSION`）。
 
-提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
-
-本仓库是可本地运行的源码树，也可用 Docker Compose 双容器自托管（主应用 + 授权商店）。**授权校验始终开启**，激活走仓库自带的自建授权商店与授权服务器（`store/`），不连接任何外部厂商节点。
+提供可视化编辑器、3D 户型工作室、全屏展示页与中控配对；后端 FastAPI，前端原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。既可直接跑源码树，也可用 Docker Compose 双容器自托管（主应用 + 授权商店）。**授权校验始终开启**，激活走仓库自带的授权商店与授权服务器（`apps/store/`），不连接任何外部厂商节点。
 
 ## 功能
 
 - 仪表盘编辑：页面、控件、实体绑定、弹窗、主题（内置 `homeos-dark`）
-- 正式展示：`/display/{项目名称}` 打开全屏中控页
-- 中控配对：6 位配对码，适合墙面平板或独立浏览器
-- 3D 户型：建模、导入、按楼层或全楼自动导图并回写到仪表盘；灯光按「区域」归类，墙体与灯光属性可批量应用
-- 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里控制已绑定的灯、开关、窗帘（含卷帘与一拖多组合）、空调、空气净化器与新风机（本体与附加功能）、电视、门锁（门磁与电量只读）与通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的附加功能等；温湿度计、扫地机、NAS、摄像头与人体传感器在舞台里只作状态展示与标记；展示页用 iframe 打开同一舞台
+- 正式展示：`/display/{项目名称}` 打开全屏中控页；中控配对用 6 位配对码，适合墙面平板或独立浏览器
+- 3D 户型：建模 / 导入，按楼层或全楼自动导图并回写仪表盘；灯光按区域归类，墙体与灯光属性可批量应用
+- 3D 交互：控件嵌入户型舞台，控制灯、开关、窗帘（含卷帘与一拖多组合）、空调、空气净化器 / 新风机、电视、门锁（门磁与电量只读）与通用设备（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）的附加功能；温湿度计、扫地机、NAS、摄像头与人体传感器只作状态展示；展示页用 iframe 打开同一舞台
 - Home Assistant：HTTP / WebSocket 同步实体与状态，代理摄像头和媒体
-- 全局日志：按级别、分类和关键词筛选，导出时遮盖敏感信息
-- 授权商店：账号注册 / 登录、邮箱验证码、商品与优惠码、邀请返利与提现、订单查询、设备自助解绑
+- 全局日志：按级别、分类、关键词筛选，导出时遮盖敏感信息
+- 授权商店：账号、邮箱验证码、商品与优惠码、邀请返利与提现、订单查询、设备自助解绑
 - 授权服务器：Ed25519 签名租约 + X25519 加密传输，心跳续租与启动联网确认
 - 运营后台：`/admin` 管理商品、订单、授权、绑定、优惠码、提现、站点配置、版本与审计日志
 
 ## 组件
 
-仓库根目录下同时运行两个服务。本地开发共用 `.venv-store`；生产可用 Docker Compose 各跑一个容器：
+仓库根目录下同时运行两个服务。本地开发共用 `.venv-store`，生产用 Docker Compose 各跑一个容器：
 
 ```text
 HomeOS/
-├── backend + frontend       主应用                http://127.0.0.1:18081
-└── store/                   授权商店与授权服务器   http://127.0.0.1:18082
+├── apps/server + frontend   主应用                http://127.0.0.1:18081
+└── apps/store               授权商店与授权服务器   http://127.0.0.1:18082
 ```
 
-自托管镜像见下方 [Docker](#docker)；一步检查清单见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)。
-
-### 主应用
-
-`backend/`（FastAPI）+ `frontend/`（HTML / 原生 JS）。负责仪表盘编辑、展示、中控配对、Home Assistant 连接、3D 户型工作室与 3D 交互舞台。启动时自动执行 Alembic 迁移。
-
-### 授权商店与授权服务器（`store/`）
-
-一个独立的 FastAPI 应用，在 **18082** 端口同时提供三件事：
-
-1. **授权商店**：账号、商品、订单、优惠码、邀请、账号中心等页面与 `/store/v1/*` API，自研暗色 + 琥珀主题。
-2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
-3. **运营后台**：`/admin` + `/store-admin/v1/*`。
-
-商店与授权服务器共用同一个 SQLite 库 —— 这正是「支付后自动发码并可立即激活」的原因。支付渠道**默认不配置**（未配置渠道时商店拒绝建单，属刻意的 fail-closed；模拟收银台需 `STORE_PAYMENT_PROVIDER=mock` 加 `STORE_ALLOW_MOCK_PAYMENTS=1` 同时显式打开），正式收款请切换为支付宝当面付。完整说明见 [store/README.md](store/README.md)。
+- **主应用**：`apps/server/`（FastAPI）+ `frontend/`（HTML / 原生 JS），负责仪表盘编辑、展示、中控配对、HA 连接、3D 工作室与 3D 交互舞台。启动时自动执行 Alembic 迁移。
+- **授权商店与授权服务器**（`apps/store/`）：独立 FastAPI 应用，在 **18082** 同时提供 ① 授权商店（账号 / 商品 / 订单 / 优惠码 / 邀请，`/store/v1/*`）② 授权服务器（`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，Ed25519 签发租约 + X25519 加密）③ 运营后台（`/admin` + `/store-admin/v1/*`）。三者共用同一个 SQLite 库，所以「支付后自动发码并可立即激活」。支付渠道**默认不配置**（未配置时拒绝建单，刻意 fail-closed；模拟收银台需同时 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），正式收款切换支付宝当面付。完整说明见 [apps/store/README.md](apps/store/README.md)。
 
 ## 仓库结构
 
-工程在仓库根目录，不再套一层 `app/`：后端是 `backend/`，商店是 `store/`，两者平级。
+工程在仓库根目录：两个可独立部署的应用在 `apps/server/` 与 `apps/store/`（平级、互不 import），运维与部署脚本在 `ops/`，Alembic 脚本在 `db/migrations/`，构建期生成的合约件与「同名双份」的契约面清单在 `packages/`。不再套一层 `app/`。
 
 ```text
 HomeOS/
-├── backend/                # FastAPI 应用（PYTHONPATH 指向仓库根，启动为 backend.main:app）
-│   ├── core/               # 数据库 / ORM 模型 / 请求响应模型 / 迁移 / 画布与地址常量、静态资源版本（design·ha_url·static_revision）
-│   ├── security/           # 身份会话、请求级认证授权依赖（dependencies）、限流、来源与同源校验、初始化守卫
-│   ├── http/               # 请求体上限、缓存响应头、流式落盘
-│   ├── observability/      # 全局事件日志与版本更新检查
-│   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控（更新检查在 observability）
-│   ├── ha/                 # HA 客户端、同步、状态推送
-│   ├── panel/              # 仪表盘文档与校验（含全局弹窗定义）
-│   ├── modules/            # 增量能力（3D 交互）
-│   ├── license/            # 客户端授权：租约验签、心跳、能力门禁
-│   ├── config.py           # 运行期配置（仓库根路径解析、授权默认值）
-│   └── main.py             # 应用装配（uvicorn backend.main:app）
-├── frontend/               # 页面与静态资源
+├── apps/                       # 两个可独立部署的应用：互不 import、可能分机部署（第 43 条守卫强制）
+│   ├── server/                 # 主应用 FastAPI（PYTHONPATH 指向仓库根，启动为 apps.server.main:app）
+│   │   ├── core/               # 数据库 / ORM 模型 / 请求响应模型 / 迁移 / 画布与地址常量
+│   │   ├── security/           # 会话、认证授权依赖、限流、来源与同源校验、初始化守卫
+│   │   ├── http/               # 请求体上限、缓存响应头、流式落盘、访问日志过滤
+│   │   ├── observability/      # 全局事件日志、版本更新检查
+│   │   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控
+│   │   ├── ha/                 # HA 客户端、同步、状态推送
+│   │   ├── panel/              # 仪表盘文档与校验（含全局弹窗）
+│   │   ├── modules/            # 增量能力（3D 交互）
+│   │   ├── license/            # 客户端授权：租约验签、心跳、能力门禁
+│   │   ├── app/                # 装配层：lifespan / middleware / pages / errors / request_context
+│   │   └── config.py main.py   # main.py 只剩 create_app 的接线与模块级 app（102 行）
+│   └── store/                  # 授权商店 + 授权服务器 + 运营后台
+│       ├── app.py run.py config.py
+│       ├── core/               # 连接 / 表 / 请求响应模型 / 序列化 / 公共依赖 / 启动默认数据
+│       ├── security/           # 口令会话、来源与同源校验、失败限流、初始化守卫、请求体上限、库结构守卫
+│       ├── commerce/           # 商品 · 订单 · 履约 · 优惠码 · 积分与邀请
+│       ├── ops/                # 站点配置、邮件、发布信息、能力码目录、可达性探测、异常计数
+│       ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py setup.py pages.py
+│       ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
+│       ├── payments/           # base / mock / alipay / 统一入账
+│       ├── templates/ static/  # store.html + admin.html；theme.css / store.css / admin.css / admin/
+│       ├── keys/local/         # 授权私钥（不入库）
+│       └── data/               # 商店 SQLite 与商品图（不入库）
+├── frontend/
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
-│   ├── modules/runtime/    # 3D 交互舞台与编辑器，按功能域细分（经 /api/v1/modules/interaction3d 下发）
-│   │   ├── core/           # 舞台 / 运行入口 / 共享桥（两份，见下）/ 场景同步 / 空闲轮转 / 弹窗预览
-│   │   ├── camera climate cover light nas television vacuum presence environment security/
+│   ├── modules/runtime/    # 3D 交互舞台与编辑器，按功能域细分（经 interaction3d 下发）
+│   │   ├── core/ camera climate cover light nas television vacuum presence environment security/
 │   │   └── editor/         # 配置编辑器与量程对话框
 │   └── static/             # 挂载为 /static
-│       ├── app.css         # 唯一全局样式表（保留在挂载根）
-│       ├── bridge/         # 3D 交互编辑器桥接、场景渲染助手、封面、定义
-│       ├── editor/         # 仪表盘编辑器：home.js 为装配层 + 15 个分节绑定，home/ 按域外提的模块与分节注册器，picker/ 为控件/资源选择器
-│       ├── renderer/       # 控件运行时：core/（渲染主体与共享基建）· controls/（按域）· geometry/
-│       ├── display/        # 中控展示页脚本与样式
-│       ├── auth/           # 登录 / 初始化 / 配对 / 激活页脚本与样式
-│       ├── shared/         # 编辑器与运行时共用（动作规则、确认框、实体域、弹窗布局、浮动菜单定位）
-│       ├── logging/        # 客户端日志与全局日志面板
-│       ├── assets/         # icons/（favicon / 触屏图标 / 品牌图）· manifest/（webmanifest）
-│       ├── utils/          # 与业务无关的纯工具（颜色 / 数值 / 日期 / 实体域等）
-│       ├── 3d-studio/      # 户型工作室（入口 studio/studio-app.js，models/ 为模型素材）
-│       │   ├── studio/     # 编排层、相机/过渡/呈现、场景样式、控件、studio.css
-│       │   ├── plan/       # 底图与户型几何：比例、开洞、窗洞、平面绘制与光影
-│       │   ├── reflection/ # 地面反射与剔除：渲染目标分辨率、逐房间裁剪、反射体
-│       │   ├── materials/  # 程序化材质：墙面/石材与布艺贴图/电视玻璃与海报/暖阳植被
-│       │   ├── loaders/    # 外部模型装载、规范化、安防模型、窗帘轨道
-│       │   └── export/     # 出图与导出：预设、工具、Draco 解码器与同源 Worker
-│       ├── templates/      # 控件模板
-│       └── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
-├── store/                  # 授权商店 + 授权服务器 + 运营后台
-│   ├── app.py run.py config.py
-│   ├── core/               # 连接/表/请求体模型/序列化/公共依赖/.env/启动默认数据
-│   ├── security/           # 口令会话、来源与同源校验、失败限流、初始化守卫、请求体上限、库结构守卫
-│   ├── commerce/           # 商品·订单·履约·优惠码·积分与邀请（含 money/catalog/order_status）
-│   ├── ops/                # 站点配置、邮件、发布信息、能力码目录、可达性探测、异常计数
-│   ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py setup.py pages.py
-│   ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
-│   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
-│   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 15 个 panel）
-│   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css + 字体·图标·JS
-│   │   └── admin/          # 后台入口 app.js + host.js（外壳窄接口）+ 9 个基础域模块 + panels/ 10 个面板
-│   ├── keys/local/         # 授权私钥（不入库）
-│   └── data/               # 商店 SQLite 与商品图（不入库）
-├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
-├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）/ 0004（3D 交互同步）
+│       ├── app.css         # 唯一全局样式表
+│       ├── bridge/ editor/ renderer/ display/ auth/ shared/ logging/ utils/ templates/
+│       ├── 3d-studio/      # 户型工作室（studio/ plan/ reflection/ materials/ loaders/ export/）
+│       ├── assets/         # icons/ manifest/ component-thumbnails/
+│       └── vendor/         # three.js、hls.js、MDI
+├── keys/                   # 客户端默认读取的公钥镜像（启动时自动同步）
+├── db/migrations/          # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）/ 0004（3D 交互同步）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # 静态守卫与审计（只用 Node 内置模块，无 npm 依赖）
-│   ├── bump_static_cache_versions.mjs  # 缓存戳同戳刷新
-│   ├── check_invariants.mjs            # 静默失效不变量护栏，见「前端结构卫生」一节
-│   ├── audit_plan_symbols.mjs          # 平面符号形状对账：实测 GLB 俯视轮廓的圆度，钉住「圆形占地的物件被画成方角矩形」
-│   ├── audit_colors.mjs                # 配色审计：字面量分类 / 对比度 / 调色板副本一致 / 镜像令牌 / 颜色簇
-│   ├── audit_model_glb.mjs             # 模型 GLB 内容审计：流水线产物真值校验 + 既有资产尺寸债务探测
-│   ├── audit_coplanar_faces.mjs        # 流水线 GLB 的共面重叠探测（z-fighting，单张截图看不出）
-│   ├── models/                         # 建模流水线：generate-models.mjs + 规格 / 材质角色 / 素材库
-│   └── lib/  vendor/                   # 守卫共用（glb-footprint.mjs 俯视轮廓栅格化等）· acorn
-├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
-├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
+├── tools/                  # 静态守卫与建模流水线（只用 Node 内置模块，无 npm 依赖）
+│   ├── paths.mjs           # 仓库路径的**唯一事实来源**：脚本不许自己拼路径（有守卫强制）
+│   └── fixtures/           # 守卫用的固定基线（含 admin 路由基线：拆组时逐项比对注册顺序）
+├── packages/               # 构建期产物与契约清单：contracts/surfaces.json 声明哪些同名双份必须一致
+├── ops/                    # 运维与部署（只有构建期与本地启动用它，运行期代码不 import 它）
+│   ├── ops/start.py            # 本地开发拉起两个服务：python ops/start.py
+│   ├── ops/container_entrypoint.py  # 容器 ENTRYPOINT：校正数据目录属主，再交给 CMD
+│   ├── ops/docker/             # 容器启动器与构建期保护（Cython 编译 py / 混淆 js）
+│   └── ops/deploy/             # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
-├── .env.example            # 环境变量模板（复制为 .env；A 区为部署常改项）
-├── Dockerfile              # 多目标：app（主应用）与 store（商店）
-├── docker-compose.store.yml # 授权商店独立项目（创建共享网络与公钥卷）
-├── docker-compose.app.yml   # 主应用独立项目（加入共享网络，只读挂公钥卷）
-└── alembic.ini  VERSION  start.py  container_entrypoint.py
+├── .env.example Dockerfile docker-compose.app.yml docker-compose.store.yml
+└── alembic.ini VERSION
 ```
 
 不要删除 `frontend/`。内置素材目录 `image/` 可自行增删，编辑器里也可改用用户上传图片。
 
-以下内容已写入 `.gitignore`：`data/`、`store/data/`、`store/keys/local/`、`.env` 与 `.env.*`（`.env.example` 除外）、`.venv/`、`.venv-store/`、`*-private.pem`，以及本地临时目录 `/app/`（解包旧构建）、`.deobf/`（反混淆产物）、`原项目/`（对照快照）。
+以下已写入 `.gitignore`：`data/`、`apps/store/data/`、`apps/store/keys/local/`、`.env` 与 `.env.*`（`.env.example` 除外）、`.venv/`、`.venv-store/`、`*-private.pem`，以及本地临时目录 `/app/`（解包旧构建）、`.deobf/`（反混淆产物）、`原项目/`（对照快照）。
 
 ## 环境
 
@@ -135,29 +98,23 @@ HomeOS/
 - 本机同时跑两个进程：主应用 **18081**、授权商店 **18082**
 - 连接 Home Assistant 时，主应用需要能访问 HA 的 HTTP 与 WebSocket
 
-依赖见 [store/requirements.txt](store/requirements.txt)：FastAPI、Uvicorn、SQLAlchemy、Pydantic、httpx、cryptography、python-multipart。主应用与商店共用同一份依赖。
-
-其中 `watchfiles` 只服务本地热重载：`start.py` 会给商店设 `STORE_RELOAD=1`，`store/run.py` 据此以 uvicorn reload 模式启动并监听 `store/` 目录。缺这个包时，改了商店模块级常量（例如模拟收银台的内联 HTML 与静态资源版本戳）必须手动重启才会生效。
+依赖见 [apps/store/requirements.txt](apps/store/requirements.txt)：FastAPI、Uvicorn、SQLAlchemy、Pydantic、httpx、cryptography、python-multipart（主应用与商店共用）。其中 `watchfiles` 只服务本地热重载：`ops/start.py` 会给商店设 `STORE_RELOAD=1`，`apps/store/run.py` 据此以 uvicorn reload 模式监听 `apps/store/` 目录。
 
 ## 本地启动
 
 仓库根目录一条命令：
 
 ```bash
-python3 start.py
+python3 ops/start.py
 ```
 
-生产或容器部署请改走 [Docker](#docker)，不必用 `start.py`。
+生产或容器部署请改走 [Docker](#docker)，不必用 `ops/start.py`。
 
-`start.py` 会：
+`ops/start.py` 会：① 缺失时创建 `.venv-store` 并按 `apps/store/requirements.txt` 安装依赖；② 读取根目录 `.env`（已存在的真实环境变量优先）；③ 依次拉起授权商店 **18082** 与主应用 **18081**（主应用带 `--reload`）。
 
-1. 缺失时创建 `.venv-store` 并按 `store/requirements.txt` 安装依赖；
-2. 读取根目录 `.env`（已存在的真实环境变量优先）；
-3. 依次拉起授权商店 **18082** 与主应用 **18081**（主应用带 `--reload`）。
+首次启动**不需要任何准备命令**：`ops/start.py` 会先在 `apps/store/keys/local/` 生成缺失的授权密钥，并把公钥镜像到仓库根 `keys/`（客户端信任锚），商店启动时再幂等补齐商品目录与站点配置。
 
-首次启动**不需要任何准备命令**：`start.py` 会先在 `store/keys/local/` 生成缺失的授权密钥并把公钥镜像到仓库根 `keys/`（客户端信任锚），商店启动时再幂等补齐商品目录与站点配置。
-
-> 公钥镜像 `keys/` 与 `store/keys/local/` 必须**逐字节一致**：客户端按 PEM 文件字节校验 sha256。镜像由启动时的密钥准备流程自动同步，不要手工只覆盖其中一处，否则激活会因指纹不匹配而失败。
+> 公钥镜像 `keys/` 与 `apps/store/keys/local/` 必须**逐字节一致**：客户端按 PEM 文件字节校验 sha256。镜像由启动时自动同步，不要手工只覆盖其中一处，否则激活会因指纹不匹配而失败。
 
 主应用打开 <http://127.0.0.1:18081/setup>，商店打开 <http://127.0.0.1:18082/>。
 
@@ -170,7 +127,7 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 ## 首次使用
 
 1. 打开 `/setup` 创建管理员（用户名 3–64 个字符，密码至少 8 位）。从**本机**（`localhost` / `127.0.0.1`）打开时直接填账号密码；从其它地址打开时页面多出「引导密钥」一栏，需填服务启动日志里打印的那一串 —— 见下方[首次设置窗口](#首次设置窗口)。
-2. 打开 <http://127.0.0.1:18082/>：首次部署会先经 `/admin` 跳到 `/setup` 创建**商店管理员**；随后注册商店账号（本地联调默认 `STORE_MAIL_MODE=echo`，验证码直接回显），选择商品并用模拟收银台完成支付（`start.py` 已自动带上 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），账号中心会发放激活码。
+2. 打开 <http://127.0.0.1:18082/>：首次部署会先经 `/admin` 跳到 `/setup` 创建**商店管理员**；随后注册商店账号（本地联调默认 `STORE_MAIL_MODE=echo`，验证码直接回显），选择商品并用模拟收银台完成支付（`ops/start.py` 已自动带上 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），账号中心会发放激活码。
 3. 回到主应用登录后进入 `/license`，用「激活码 + 购买邮箱」激活。未激活时编辑器会跳到 `/license`，展示页和受保护静态资源返回 401 / 403。
 4. 在编辑器里配置 Home Assistant 的地址和长期访问令牌，然后创建空白仪表盘。
 5. 使用 3D 交互：先在 `/3d-studio` 保存户型，再在编辑器添加「3D 交互」控件并载入户型快照，绑定 `light.*` / `switch.*` 等实体后即可在舞台里控制。
@@ -180,9 +137,9 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 
 ### 首次设置窗口
 
-`/api/v1/setup/admin` 不能要求登录（此时还没有账号），所以必须自己把「谁有资格创建管理员」管住，否则任何能连上这台机器的人都能抢先建掉管理员并当场拿到会话。当前规则：
+`/api/v1/setup/admin` 不能要求登录（此时还没有账号），所以必须自己管住「谁有资格创建管理员」，否则任何能连上这台机器的人都能抢先建掉管理员并当场拿到会话：
 
-- **本机直连放行**：三个条件同时成立 —— TCP 对端是 `127.0.0.1` / `::1`、`Host` 头的主机名也是 `127.0.0.1` / `::1` / `localhost`、且请求不带任何转发头（`X-Forwarded-*`、`Forwarded`）。带转发头说明前面还有代理，对端地址不再代表真实来源；`Host` 那一条专门挡**同机反向代理** —— nginx 默认连转发头都不补、对端又是 `127.0.0.1`，只看前两条时一个「公网域名 → `127.0.0.1`」的反代与运维坐在本机操作完全一样（`kubectl port-forward`、`ssh -L`、`socat` 同理）。Caddy / Traefik / `proxy_set_header Host $host` 的 nginx 会把访问者用的域名原样透传，因此这类请求不再被当成本机。**从本机操作请用 `localhost` 或 `127.0.0.1` 打开**，用域名打开则要填引导密钥。
+- **本机直连放行**：三个条件同时成立 —— TCP 对端是 `127.0.0.1` / `::1`、`Host` 头的主机名也是 `127.0.0.1` / `::1` / `localhost`、且请求不带任何转发头（`X-Forwarded-*`、`Forwarded`）。带转发头说明前面还有代理；`Host` 那条专门挡**同机反向代理**（nginx 默认连转发头都不补、对端又是 `127.0.0.1`）。**从本机操作请用 `localhost` 或 `127.0.0.1` 打开**，用域名打开则要填引导密钥。
 - **其它来源必须带引导密钥**：`APP_SETUP_TOKEN` 的值，或首次启动时自动生成的那一串。生成的密钥写在 `$APP_DATA_DIR/setup-token`（权限 `0600`）并打印到启动日志 / 容器日志：
 
   ```text
@@ -191,11 +148,8 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
     密钥内容: 1Bv...（32 字节随机串）
   ```
 
-  取用方式：`docker logs <容器>`，或 `cat $APP_DATA_DIR/setup-token`。
-
-  自动生成的那份会**另留一个 `setup-token.generated`**（同目录、`0600`）记录密钥指纹，用来在重启时区分「上次没走完的窗口留下的」与「运维自己预置的恢复手段」——只有前者会被清理。自己往 `setup-token` 放密钥时不要放这个文件，那份就会被当作运维预置而一直保留。
-- 失败会计入限流（与登录共用限流器），成功与失败都写审计日志。
-- 初始化成功后密钥立即作废（自动生成的那份文件会被删除），窗口关闭。重置账号（删除 `data/admin-account.json` 后重启）会重新打开窗口并重新生成密钥。
+  取用方式：`docker logs <容器>`，或 `cat $APP_DATA_DIR/setup-token`。自动生成的那份会**另留一个 `setup-token.generated`**（同目录、`0600`）记录密钥指纹，用来在重启时区分「上次没走完的窗口留下的」与「运维自己预置的恢复手段」——只有前者会被清理。自己往 `setup-token` 放密钥时不要放这个文件。
+- 失败会计入限流（与登录共用限流器），成功与失败都写审计日志；初始化成功后密钥立即作废（自动生成的那份文件会被删除），窗口关闭。重置账号（删除 `data/admin-account.json` 后重启）会重新打开窗口并重新生成密钥。
 
 忘记主应用管理员账号或密码：停掉进程，删除 `data/admin-account.json` 再启动，系统回到设置页。户型、HA 配置、授权和中控配对不会被删。
 
@@ -203,67 +157,19 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 
 以下是代码里已生效的默认行为，不需要额外配置；只有反向代理部署才需要补一对变量。两条硬边界：**授权校验不能通过环境变量关闭**，**首次设置的窗口不会长期敞开**。
 
-### 请求来源：谁在代理、能不能信转发头
-
-`backend/security/http_security.py` 与 `store/security/request_security.py` 是同一套逻辑的两份实现（两个服务独立部署、刻意不互相 import）。限流、审计与首次设置的放行都建立在「请求到底来自哪个 IP」上，而 `X-Forwarded-For` 是客户端可以自己写的：
-
-- **默认不信任任何转发头**（`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 留空）：一律按 TCP 对端地址统计，伪造 `X-Forwarded-For` 换不来新的限流桶。
-- **配了可信代理**（逗号分隔的 IP / CIDR）后，仍只在这条连接确实来自代理时才从转发链里取真实来源。代理没传转发头时地址是共享的，按 IP 那一档限流会主动让位，否则一个人的失败会锁掉所有人。
-- **还有一层在 uvicorn 上**：`--forwarded-allow-ips` 决定 uvicorn 会不会拿 `X-Forwarded-For` 改写对端地址，而上面两条规则的前提正是「对端不可伪造」。容器启动器与 Compose 默认 `127.0.0.1,::1`（只信回环）；**不要填 `*`**，否则登录限流、配对码枚举预算与审计来源 IP 会同时变成「客户端自己说了算」。前面确有反向代理时，填成**代理自身的地址或网段**。
-- 检测到转发头却没配可信代理时，启动日志会警告一次（只记一次）。
-
-### 会话与 Cookie
-
-| 机制 | 行为 |
-| --- | --- |
-| Cookie `Secure` | 按请求自动判定，任一成立即加：显式 `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` → `APP_BASE_URL` / `STORE_BASE_URL` 是 https → 可信代理转发了 `X-Forwarded-Proto: https` → 连接本身是 https。漏配开关不会让会话 Cookie 明文下发，纯 http 局域网也不会误加（误加会让浏览器直接丢弃 Cookie） |
-| 登录会话 | 滑动有效期 `APP_SESSION_MAX_AGE_SECONDS`（默认 8 小时）+ 绝对寿命 `APP_SESSION_HARD_MAX_AGE_SECONDS`（默认 30 天），后者不能被续期突破 |
-| 会话列表与撤销 | `GET /api/v1/auth/sessions` 列出全部登录会话（只回令牌哈希），`DELETE /api/v1/auth/sessions/{id}` 踢掉单个，`DELETE /api/v1/auth/sessions` 一键退出其它设备 |
-| 中控令牌 | 滑动有效期 `APP_DISPLAY_TOKEN_TTL_SECONDS`（默认 180 天，活跃即续期，带 5 分钟节流）+ 可选硬上限 `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS`（`0` = 不设）。基准是「最近一次活跃」而不是「配对时刻」，常年挂墙的平板不会被定期赶去重配 |
-| 中控设备列表 | 附带 `expiresAt` / `expired`；过期设备仍然可见，管理员可手动解绑 |
-
-### CSRF：改状态的请求必须同源
-
-SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Origin / Referer 校验：
-
-- 主应用拦所有非 GET 的 `/api/*`；商店拦非 GET 的 `/store/v1/*` 与 `/store-admin/v1/*`。
-- 只认「裸的 `scheme://host`」：`http://evil@本机地址/`、带路径或查询串的写法一律不算同源。
-- GET / HEAD / OPTIONS 不拦。
-- 两类豁免：`/v2/*` 授权端点（程序调用，报文加密封套 + 签名，本就没有浏览器 Origin）与支付宝异步回调（服务器直连，真伪由签名校验）。
-
-### 首次设置
-
-未初始化实例的「先到先得」问题由主应用与商店各自的守卫兜住：`backend/security/setup_guard.py`（规则见上方[首次设置窗口](#首次设置窗口)）与 `store/security/setup_guard.py`（本机直连放行 + 远程引导密钥 + 限流，再用一条 `INSERT ... WHERE NOT EXISTS` 由数据库定胜负，见 [store/README.md](store/README.md)）。两者是两个服务独立部署下刻意保留的两份实现，不互相 import。
-
-### 配对、上传与日志
-
-- **配对码生命周期**：6 位码不再可无限复用。两档限流（按 IP + 跨来源总预算，后者防「换 IP 继续枚举」），被拦返回 429 + `Retry-After`；配对码已被在用设备占用时返回 409，必须先在后台解绑才能重配；配对前校验授权允许 `display`。
-- **上传体积上限**：`POST /api/v1/assets/user` 先按 `Content-Length` 早拒，再按逐块累计字节数兜底（分块传输 / 不带长度也拦得住）：SVG 5 MB、位图 64 MB，超限 413 且不留垃圾文件。
-- **全局日志不放大**：写盘移交给唯一的后台写线程（请求路径零磁盘 I/O），同一处刷屏折叠成一条并累加 `repeatCount`，超限裁剪带最小间隔（最密 10 秒一次），应用关闭时刷盘并回收线程。
-
-### 归属与出网
-
-- **3D 导出与效果变体按项目归属**：中控设备只能读自己仪表盘引用的导出图 / 效果变体，跨项目 403，文件不存在统一 404（不泄露存在性）；管理员不受限。
-- **HA 换址确认**：改 `baseUrl` 但不重输令牌时返回 409 与错误码 `HA_URL_CHANGED_TOKEN_REUSE`，必须显式带 `reuseTokenForNewUrl: true` 确认新地址可信；被拒时库里的地址不会被改动。
-- **云元数据地址拒绝**：`169.254.169.254`（含 `::ffff:` 映射写法）等云元数据地址在 `/api/v1/ha/test` 直接 422，链路本地地址会单独提示。
-
-### 商店侧
-
-- **商品字段取值收敛**：`product_type` 与 `fulfillment_mode` 由 `store/commerce/catalog.py` 统一校验（取值与后台两个 `<select>` 一致）。过去没有校验，拼错一个字母会让「手工发卡」静默变成自动发卡，或让增量包被当成基础授权买走。
-- **订单终态保护**：`cancelled` / `expired` / `refunded` 的订单不能再被标记支付或履约。
-- **待复核标记**：`needs_review` 目前只由「订单超时关闭后款项才到账」的复活单产生，后台可用 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，结论追加进 `review_note` 而不覆盖原原因。
-- **营收口径**：后台「标记支付」只放行订单、**不计入营收**；人工确认收款走 `settle-offline`。详见 [store/README.md](store/README.md) 的「订单与营收口径」。
-- **可观测性**：支付巡检状态、入账异常计数与启动期积分口径迁移结果都能在后台概览与 `GET /healthz` 读到（非零即 `degraded`）。详见 [store/README.md](store/README.md) 的「巡检与入账异常」。
-- **商品图格式按内容判定**：按魔数识别 PNG / JPEG / GIF / WebP，SVG 明确 422（它是能内嵌脚本的 XML，而商品图是按后缀回 `Content-Type` 的同源资源）；落盘后缀由真实内容决定，换格式不留孤儿文件。
-- **前端转义只有一份实现**：后台、前台与邀请页统一走 `store/static/htmlsafe.js` 的 `HtmlSafe.esc`（用 `&#39;` 而非 `&apos;`）。少转一个字符不会有任何报错，只会让某个拼接点变成注入点。
-- **改库前的备份真的能还原**：商店的库跑在 WAL 模式，直接复制主库文件得到的 `.bak` 是空壳（新行还在 `store.db-wal` 里）。现改用 `VACUUM INTO` 取一致快照。
-- **能力码清单只有一处定义**：由 `store/ops/features.py` 的能力目录派生，校验直接读主项目 `backend/` 的 `BASE_FEATURES` 对账，并静态扫描防止别处再抄一份。
+- **请求来源**：默认不信任任何转发头（`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 留空），一律按 TCP 对端地址统计，伪造 `X-Forwarded-For` 换不来新的限流桶；配了可信代理后，也只在这条连接确实来自代理时才从转发链里取真实来源。uvicorn 的 `--forwarded-allow-ips` 默认 `127.0.0.1,::1`（只信回环），**不要填 `*`**，否则登录限流、配对码枚举预算与审计来源 IP 会同时变成「客户端自己说了算」；前面确有反代时填代理自身的地址或网段。
+- **会话与 Cookie**：Cookie `Secure` 按请求自动判定（显式开关 / `*_BASE_URL` 是 https / 可信代理转发了 `X-Forwarded-Proto: https` / 连接本身是 https，任一成立即加），漏配不会明文下发，纯 http 局域网也不会误加。登录会话为滑动有效期 `APP_SESSION_MAX_AGE_SECONDS`（默认 8 小时）+ 绝对寿命（默认 30 天），后者不能被续期突破；会话列表与撤销见 `/api/v1/auth/sessions`。中控令牌默认滑动 180 天（活跃即续期），可选硬上限。
+- **CSRF**：非 GET 的 `/api/*`（商店为 `/store/v1/*` 与 `/store-admin/v1/*`）做显式 Origin / Referer 同源校验，只认「裸的 `scheme://host`」；GET / HEAD / OPTIONS 不拦。豁免 `/v2/*` 授权端点（加密封套 + 签名）与支付宝异步回调（真伪由签名校验）。
+- **首次设置**：主应用 `apps/server/security/setup_guard.py` 与商店 `apps/store/security/setup_guard.py` 各一份（两个服务独立部署、刻意不互相 import）；商店侧再用一条 `INSERT ... WHERE NOT EXISTS` 由数据库定胜负。
+- **配对 / 上传 / 日志**：配对码两档限流（按 IP + 跨来源总预算），被在用设备占用返回 409，配对前校验授权允许 `display`；上传按 `Content-Length` 早拒 + 逐块累计兜底（SVG 5 MB / 位图 64 MB，超限 413 且不留垃圾文件）；全局日志写盘移交给唯一的后台写线程，同处刷屏折叠成一条并累加 `repeatCount`。
+- **归属与出网**：3D 导出与效果变体按项目归属（跨项目 403，文件不存在统一 404）；改 HA 地址但不重输令牌返回 409 `HA_URL_CHANGED_TOKEN_REUSE`；云元数据地址（`169.254.169.254` 等）在 `/api/v1/ha/test` 直接 422。
+- **商店侧**：商品字段取值由 `apps/store/commerce/catalog.py` 收敛；订单终态保护（`cancelled` / `expired` / `refunded` 不能再被标记支付或履约）；商品图按魔数识别（SVG 明确 422）；改库前用 `VACUUM INTO` 取一致快照（WAL 模式直接复制主库会得到空壳）；能力码清单只在 `apps/store/ops/features.py` 定义。详见 [apps/store/README.md](apps/store/README.md)。
 
 ## 授权体系
 
 ### 零配置指向自建授权服务器
 
-客户端默认值写在 `backend/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像 `keys/` 及其 sha256，**密钥 id 由公钥文件字节派生**（形如 `hb-3f2a…`；服务端与客户端各自从自己那份镜像算出同一个值，因此不需要人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license` 激活。厂商生产节点与生产公钥已从代码中彻底移除。
+客户端默认值写在 `apps/server/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像 `keys/` 及其 sha256，**密钥 id 由公钥文件字节派生**（形如 `hb-3f2a…`），服务端与客户端各自从自己那份镜像算出同一个值，无需人工同步字符串。**不设任何环境变量**，起服务后即可在 `/license` 激活。
 
 整个体系是「服务端签发 Ed25519 签名租约 → 客户端离线验签 → 定期心跳续租」：租约 7 天有效，客户端每 300 秒续租一次；传输层为 X25519 ECDH → HKDF-SHA256 → AES-256-GCM，端点路径本身也参与派生与认证。
 
@@ -277,26 +183,12 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE=/path/to/license-transport-public.p
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文件字节的 sha256>
 ```
 
-- 只设 `APP_LICENSE_SERVER_URL` 时，客户端会把批次收敛为单条 `direct`，不会散到其它节点。
-- 需要多批次时用 `APP_LICENSE_SERVER_BATCHES='esa=;eo=;direct=http://127.0.0.1:18082|http://127.0.0.1:18083'`（`;` 分隔批次，`|` 分隔组内地址，空组表示禁用）。
-- `APP_LICENSE_TRUSTED_PUBLIC_KEYS='keyId:公钥路径:sha256|keyId2:路径:sha256'` 可整体替换可信公钥表。
-
-#### 密钥轮换与重叠窗口
-
-`keyId` 由公钥文件派生，所以**重新生成密钥一定会换 id**。直接覆盖密钥会让旧客户端当场全部失效；要平滑过渡：
-
-1. 把当前四件套（`license-private.pem` / `license-public.pem` / `license-transport-private.pem` / `license-transport-public.pem`）改名成 `*.previous.pem`；
-2. 生成新四件套并镜像到 `keys/`。
-
-服务端据此把两代都装进密钥环，**按请求里的 keyId 选代解密并用同一代签名** —— 旧客户端在窗口内照旧心跳；客户端也会自动多信任一条上一代记录（`keys/license-public.previous.pem` 存在才登记），因此「客户端先升级、服务端后轮换」也不中断。窗口是一次轮换的长度，删掉四个 `*.previous.pem`（缺一不可）即立即关闭。
+- 只设 `APP_LICENSE_SERVER_URL` 时，客户端会把批次收敛为单条 `direct`，不会散到其它节点；多批次用 `APP_LICENSE_SERVER_BATCHES='esa=;eo=;direct=http://127.0.0.1:18082|http://127.0.0.1:18083'`（`;` 分隔批次，`|` 分隔组内地址，空组禁用）。
+- **密钥轮换**：`keyId` 由公钥派生，重新生成密钥必然换 id，直接覆盖会让旧客户端当场失效。平滑过渡：把当前四件套改名成 `*.previous.pem`，再生成新四件套并镜像到 `keys/`；服务端按请求 keyId 选代解密并用同一代签名，客户端也会自动多信任上一代（`keys/license-public.previous.pem` 存在才登记）。删掉四个 `*.previous.pem`（缺一不可）即立即关闭窗口。
 
 ### 能力码
 
-租约携带的能力码决定主应用各部分是否可用（`LicenseService.allows`）：
-
-`api`、`assets`、`editor`、`display`、`ha.sync`、`ha.configure`、`ha.control`、`projects.write`、`runtime.websocket`、`module.3d_interaction`。
-
-首次启动自动补齐的三条商品与能力码对应关系：
+租约携带的能力码决定主应用各部分是否可用（`LicenseService.allows`）：`api`、`assets`、`editor`、`display`、`ha.sync`、`ha.configure`、`ha.control`、`projects.write`、`runtime.websocket`、`module.3d_interaction`。首次启动自动补齐三条商品与能力码对应关系：
 
 | 商品 | 类型 | 能力码 |
 | --- | --- | --- |
@@ -304,18 +196,14 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | 3D交互包 | `module` | `module.3d_interaction` |
 | 编辑器+绘制工具+3D交互 | `package` | 基础能力 + `module.3d_interaction` |
 
-### 重启时的联网确认
+### 重启联网确认与吊销
 
-客户端启动时会先做一次 `recover` 联网确认，失败按性质分流：
+客户端启动时先做一次 `recover` 联网确认，失败按性质分流：
 
 - **确认吊销**（403 且响应含结构化 `code=REVOKED` / `revoked: true`）→ 保持拦截，清空本地授权，状态 `REVOKED`。
-- **其余失败**（网络不可达、服务端 5xx）→ 不锁死：租约未过期则 `CONNECTION_WARNING`（门禁放行），已过期则 `LEASE_EXPIRED`（拦截）。
+- **其余失败**（网络不可达、服务端 5xx）→ 不锁死：租约未过期则 `CONNECTION_WARNING`（门禁放行），已过期则 `LEASE_EXPIRED`（拦截）。心跳循环持续重试，服务器恢复后自动续租回到 `ACTIVE`。
 
-心跳循环持续重试，服务器恢复后自动续租回到 `ACTIVE`。
-
-### 吊销语义（客户端契约）
-
-运营后台「停用设备绑定 / 停用授权」后，端点返回 `403 {"detail": "...", "revoked": true, "code": "REVOKED"}`。客户端只认结构化 `code`（`REVOKED` / `LICENSE_REVOKED`）或 `revoked: true`，才判定为确认吊销并清空本地授权；其余 401/403（无上述字段）视为瞬时故障（保留本地授权继续重试）。详见 `backend/license/service.py` 的 `is_confirmed_revocation`。
+运营后台「停用设备绑定 / 停用授权」后，端点返回 `403 {"detail": "...", "revoked": true, "code": "REVOKED"}`。客户端只认结构化 `code`（`REVOKED` / `LICENSE_REVOKED`）或 `revoked: true`，才判定为确认吊销并清空本地授权；其余 401/403（无上述字段）视为瞬时故障（保留本地授权继续重试）。详见 `apps/server/license/service.py` 的 `is_confirmed_revocation`。
 
 ## 3D 户型工作室
 
@@ -326,46 +214,26 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | 工具 | 说明 |
 | --- | --- |
 | 选择 | 单击精确选择，空白处拖拽框选；移动时 `Shift` 锁轴、缩放时 `Shift` 等比例，`Option`/`Alt` 拖动复制，`⌘`/`Ctrl+C`、`V` 复制粘贴 |
-| 平移 | 按住左键拖动平移画布 |
-| 参考线 | 依次单击两个端点，用于确定真实比例；按住 `Shift` 强制锁定水平或垂直 |
-| 墙体 | 逐点绘制并回到起点闭合空间；未闭合不会生成地面，按住 `Shift` 锁轴，`Esc` 结束 |
-| 窗户 | 靠近墙体单击，自动吸附并生成真实窗洞 |
-| 门 | 靠近墙体单击，自动吸附并生成门洞；选中后可翻转开启方向 |
-| 栏杆 | 靠近墙体单击，玻璃栏杆吸附到墙段并替换对应的实体墙 |
-| 铭牌 | 单击画布放置户型铭牌；选中后可修改文字、拖动、缩放和旋转 |
-| 楼板洞口 | 位于工具栏右侧，拖出矩形洞口；仅切除当前层楼板 |
+| 平移 | 按住左键拖动平移画布（只改视角，不写入草稿、不进撤销栈） |
+| 参考线 | 依次单击两个端点确定真实比例； `Shift` 强制锁定水平或垂直 |
+| 墙体 | 逐点绘制并回到起点闭合空间；未闭合不生成地面，按住 `Shift` 锁轴，`Esc` 结束 |
+| 窗户 / 门 / 栏杆 | 靠近墙体单击自动吸附，分别生成真实窗洞 / 门洞 / 玻璃栏杆（替换对应的实体墙） |
+| 铭牌 | 单击画布放置户型铭牌，选中后可改文字、拖动、缩放和旋转 |
+| 楼板洞口 | 位于工具栏右侧，拖出矩形洞口，仅切除当前层楼板 |
 
-「平移」只改变画布视角，不修改户型，因此既不写入草稿也不进入撤销栈。它与既有操作共用同一套平移逻辑：滚轮缩放、中键拖动、按住空格拖动在任何工具下都可用。
-
-切到「灯光」分类后户型会锁定，只能使用「选择」工具，点击其他工具会提示先切回家居或电器，避免在灯光编辑中误改墙体。
+滚轮缩放、中键拖动、按住空格拖动在任何工具下都可用。切到「灯光」分类后户型会锁定，只能使用「选择」工具，点击其他工具会提示先切回家居或电器。
 
 ### 灯光区域与灯组
 
-「灯光」分类下会出现图层面板（区域 → 灯组的二级树），顶部有三个操作：`全关`、`新建区域`、`新建灯组`。
+「灯光」分类下会出现图层面板（区域 → 灯组的二级树），顶部有 `全关`、`新建区域`、`新建灯组`。
 
-- **区域**用于按房间或空间给灯组分类，只有名称（最长 16 字，同层不可重名），可随时重命名或删除。
-- **灯组**包含名称（最长 24 字）、启用状态和所属区域；未归入任何区域的灯组显示为「未分类」。
-- **拖入区域**：拖动灯组行到目标区域标题上即可移入，标题会高亮提示；拖到另一个灯组行上则是在区域内调整顺序。
-- **右键菜单**：灯组行可选 `设置区域` / `重命名` / `复制灯组` / `删除`；区域标题可选 `重命名区域` / `删除区域`。`设置区域` 弹窗里除了选择已有区域，也可以直接输入新名称就地新建，选「未分类」则移出区域。
-- **删除区域不会删除灯组**，组内灯组会回到「未分类」。
-- 区域和归属按楼层保存，展开／收起状态只在当前会话内有效。
+- **区域**用于按房间或空间给灯组分类，只有名称（最长 16 字，同层不可重名），可重命名或删除。
+- **灯组**包含名称（最长 24 字）、启用状态和所属区域；未归入任何区域的显示为「未分类」。
+- **拖入区域**：拖动灯组行到目标区域标题上即可移入（标题高亮提示）；拖到另一个灯组行上则是在区域内调整顺序。
+- **右键菜单**：灯组行可选 `设置区域` / `重命名` / `复制灯组` / `删除`；区域标题可选 `重命名区域` / `删除区域`。`设置区域` 弹窗里也可直接输入新名称就地新建，选「未分类」则移出区域。
+- **删除区域不会删除灯组**，组内灯组会回到「未分类」。区域和归属按楼层保存，展开／收起状态只在当前会话内有效。
 
-### 模型库：壁画、背景墙与柱子
-
-| 模型 | 分类 | 默认尺寸 | 可选样式 |
-| --- | --- | --- | --- |
-| 壁画 | 客厅常用 | 1.20 × 0.80 m，离地 0.90 m | 画面风格：包豪斯几何、柔和色域、极简线条、硬边色块、水墨意象、水磨石纹 |
-| 背景墙 | 客厅常用 | 3.00 × 2.40 m | 墙面材质：大理石、木纹、格栅条、岩板、微水泥、布纹、金属拉丝 |
-
-两者都由程序化生成（画布纹理加几何体），不依赖外部模型文件，因此不会出现模型加载失败。背景墙的「格栅条」样式会额外出真实 3D 格栅。
-
-柱子位于「结构与特殊物件」分类，默认 0.45 × 0.45 m：
-
-- **形状**：方形、圆形、半圆形、1/4 圆形、1/4 圆形（内弧）。
-- **布置方向**：垂直（站立）或水平（躺放）。躺放时平面占位改为「宽 × 长」，平面符号改用内轮廓表示，3D 中绕轴旋转 90° 后重新贴地，检查器里的「高（m）」相应改名为「长（m）」。
-- **轻量 GLB**：非方形柱子使用轻量模型 `pillar-*-lite.glb`，加载失败时自动回退到完整模型；方形柱子回退到程序化几何体。轻量与完整的选择是自动的，界面没有开关。
-
-### 墙体属性与「应用到所有」
+### 墙体属性与批量应用
 
 选中墙体后，检查器里每一项都可以单独修改，其中四项各自带一个 `应用到所有` 按钮：
 
@@ -378,20 +246,13 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | 透明度（%） | 0–100 | 仅在「单独设置」下生效 |
 | 开放端点提醒 | 自动判断 / 允许开放端点 | — |
 
-点击 `应用到所有` 会打开「应用墙体属性」弹窗（`APPLY TO WALLS`）：上方显示将要应用的值，下方是带复选框的墙体列表，每行标注该墙的当前值，当前选中的那面墙会标出「当前墙」；可以 `全选` / `取消全选`，确认按钮为 `应用所选`。
+点击 `应用到所有` 打开「应用墙体属性」弹窗：上方显示将要应用的值，下方是带复选框的墙体列表（每行标注当前值，当前墙标「当前墙」），可 `全选` / `取消全选`，确认按钮为 `应用所选`。作用范围是**当前楼层**，只改所选这一项属性，整批只产生一次撤销快照；应用墙高 / 厚度时本层的默认值也会同步更新。灯光的色温、亮度、照射范围、照射角度、离地使用同一套批量入口；左侧顶部的「墙体」卡片（高 / 厚 / 透明度）不弹选择框，会直接覆盖当前楼层的所有墙体。
 
-- 作用范围是**当前楼层**，不会影响其他楼层。
-- 只改所选的这一项属性，其他属性保持不变。
-- 整批应用只产生一次撤销快照。
-- 应用墙高 / 厚度时，本层的默认墙高 / 墙厚也会同步更新，之后新画的墙会继承新值。
+### 模型库与草稿
 
-灯光的色温、亮度、照射范围、照射角度、离地使用同一套批量入口。此外，左侧顶部的「墙体」卡片（高 / 厚 / 透明度）是另一种更直接的方式：它不弹选择框，会直接覆盖当前楼层的所有墙体。
-
-### 草稿保存
-
-编辑是自动保存的：停止操作约 650 ms 后写入草稿，状态依次为「有未保存修改」、「正在保存…」、「已自动保存」，失败会提示 `3D 草稿保存失败。`。草稿落在 `data/studio3d/draft.json`。
-
-如果同一份草稿已在另一个页面被修改，会弹出版本冲突提示（「其他页面已经修改了户型」），此时自动保存暂停，需要选择 `加载服务器版本` 或 `使用当前页面覆盖`。
+- **壁画**（1.20 × 0.80 m，离地 0.90 m）与**背景墙**（3.00 × 2.40 m）都由程序化生成（画布纹理加几何体），不依赖外部模型文件，因此不会出现模型加载失败；背景墙的「格栅条」样式会额外出真实 3D 格栅。
+- **柱子**（默认 0.45 × 0.45 m，位于「结构与特殊物件」分类）：形状支持方形 / 圆形 / 半圆形 / 1/4 圆形（含内弧），可垂直站立或水平躺放；非方形柱子使用轻量模型 `pillar-*-lite.glb`，加载失败时自动回退到完整模型，方形柱子回退到程序化几何体。
+- **草稿保存**是自动的：停止操作约 650 ms 后写入 `data/studio3d/draft.json`，状态依次为「有未保存修改」「正在保存…」「已自动保存」。同一份草稿已在另一个页面被修改时会弹出版本冲突提示，自动保存暂停，需选择 `加载服务器版本` 或 `使用当前页面覆盖`。
 
 ## 页面与接口
 
@@ -409,16 +270,13 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `/health/live` · `/health/ready` | 进程存活 · 数据库就绪 |
 | `/api/v1/auth/*` | 初始化、登录、登出、当前用户；`/auth/sessions` 列出 / 撤销登录会话 |
 | `/api/v1/projects/*` | 仪表盘项目与草稿（`projects.write`） |
-| `/api/v1/ha/*` | HA 连接、实体、翻译、历史、区域、设备、同步、健康、服务调用、媒体浏览 |
-| `/api/v1/ha/*` 子集 | `ha.configure` / `ha.sync` / `ha.control` 分别门禁 |
+| `/api/v1/ha/*` | HA 连接、实体、翻译、历史、区域、设备、同步、健康、服务调用、媒体浏览；`ha.configure` / `ha.sync` / `ha.control` 分别门禁 |
 | `/api/v1/displays/*` | 中控设备与配对码 |
 | `/api/v1/assets/*` | 内置素材、用户图片、灯光效果变体、户型导出 |
-| `/api/v1/icons` | 图标目录 |
-| `/api/v1/studio3d/*` | 3D 草稿与导出 |
+| `/api/v1/icons` · `/api/v1/studio3d/*` | 图标目录 · 3D 草稿与导出 |
 | `/api/v1/modules/interaction3d/*` | 3D 交互：场景快照、舞台页、灯光缓存、配置编辑脚本 |
-| `/api/v1/logs` | 全局日志（列表、导出、上报、清空） |
+| `/api/v1/logs` · `/api/v1/updates` | 全局日志（列表、导出、上报、清空）· 版本更新检查 |
 | `/api/v1/license/status` · `/api/v1/license/activate` | 授权状态与激活 |
-| `/api/v1/updates` | 版本更新检查 |
 | `/api/v1/ws/runtime` | 实时状态 WebSocket（需 `runtime.websocket`） |
 | `/api/camera_hls/*`、`/api/camera_proxy/*`、`/api/hls/*` 等 | 摄像头与媒体代理（反向代理需一并转发） |
 | `/static/*` | 前端静态资源（按功能域分区：`/static/editor/home.js`、`/static/app.css`） |
@@ -435,7 +293,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `/user/authentication/login` · `register` · `forget` | 登录、注册、找回密码 |
 | `/user/dashboard/index` · `/user/index/query` · `/user/referrals` | 账号中心、订单查询、邀请返利 |
 | `/admin` | 运营后台 |
-| `/setup` | 商店首次部署：创建管理员（非本机直连需带引导密钥，见「首次设置窗口」） |
+| `/setup` | 商店首次部署：创建管理员（非本机直连需带引导密钥） |
 | `/store/v1/setup/status` · `/store/v1/setup/admin` | 初始化状态与创建管理员接口 |
 | `/store/v1/*` | 商店 API：验证码、账号、商品、订单、优惠码、邀请、提现 |
 | `/v2/activate` · `/v2/heartbeat` · `/v2/recover` | 授权服务器端点（加密封套） |
@@ -453,8 +311,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | --- | --- |
 | `app.db` | 主应用 SQLite 主库 |
 | `admin-account.json` | 独立管理员账号 |
-| `instance-id` | 当前硬件派生的安装实例 ID（缓存；真相源是硬件指纹） |
-| `hardware-fallback-id` | 硬件不全时的本机封印兜底熵（拷到别的机器会失效） |
+| `instance-id` / `hardware-fallback-id` | 安装实例 ID（缓存；真相源是硬件指纹）/ 硬件不全时的本机封印兜底熵（拷到别的机器会失效） |
 | `secrets/` | HA、配对、授权密钥 |
 | `assets/` | 用户上传图片 |
 | `studio3d/` | 3D 草稿 |
@@ -463,29 +320,27 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `logs/` | 全局事件日志 |
 | `cache/effect-variants/` | 灯光效果变体缓存 |
 
-授权商店数据在 `store/data/`：`store.db` 与商品图。授权私钥在 `store/keys/local/`。**不要提交这些文件。**
+授权商店数据在 `apps/store/data/`：`store.db` 与商品图。授权私钥在 `apps/store/keys/local/`。**不要提交这些文件。**
 
 ### 升级与迁移
 
 - 数据库结构由基线 `0001` 加增量 `0002`（项目名唯一）/ `0003`（展示地址别名）/ `0004`（3D 交互同步）建立，主应用启动时自动执行并在动结构前留一份可还原快照。若库内记录的是更早构建的 revision，会先认领基线再升级（不改动任何业务数据）。
-- 邀请积分从 `FLOAT`（积分）改为 `INTEGER` **厘**（1 积分 = 100 厘）：原先靠 `round(x, 2)` 维持两位小数，而 SQLite 的 `round()` 是 half-away、Python 的是 half-even，落在 `.xx5` 上时两侧给出不同分币值。**升级不需要手工执行任何命令**，商店启动时自动按「补列 → 回填 + 逐行对账 → 退役旧列」完成，动手前先备份一份 `store.db.pre-centi-<时间戳>.bak`；对账有任何一行不一致就保留新旧列并存并打印差异，不会丢数据。对外 JSON 契约没变（仍是 `"10.05"` 这样的两位小数字符串）。
-
-详见 [store/README.md](store/README.md) 的「升级与迁移」。
+- 邀请积分从 `FLOAT`（积分）改为 `INTEGER` **厘**（1 积分 = 100 厘）：原先靠 `round(x, 2)` 维持两位小数，而 SQLite 的 `round()` 是 half-away、Python 的是 half-even，落在 `.xx5` 上两侧会给出不同分币值。**升级不需要手工执行任何命令**：商店启动时自动按「补列 → 回填 + 逐行对账 → 退役旧列」完成，动手前先备份 `store.db.pre-centi-<时间戳>.bak`；对账有任何一行不一致就保留新旧列并存并打印差异，不会丢数据。对外 JSON 契约没变（仍是 `"10.05"` 这样的两位小数字符串）。详见 [apps/store/README.md](apps/store/README.md)。
 
 ## 环境变量
 
-主应用与商店的变量统一写进仓库根目录的 `.env`：把 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。
+主应用与商店的变量统一写进仓库根目录的 `.env`：把 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `ops/start.py` 默认值**。
 
 模板按用途分区，**多数部署只需改 A 区**：
 
 | 区 | 内容 |
 | --- | --- |
 | **A. 部署常改** | 公网域名、可信反代、Cookie Secure、模拟支付总闸 |
-| **B. 主应用** | 数据目录、会话 / 中控寿命、HA / 授权超时与密钥路径（默认即可） |
-| **C. 商店基础设施** | 监听、数据目录、租约 TTL、巡检间隔等（后台改不了的项） |
-| **D. 首次初始化** | 两个 `/setup` 页面创建管理员用的引导口令：主应用 `APP_SETUP_TOKEN` → `data/setup-token`、商店 `STORE_SETUP_TOKEN` → `store/data/setup-token`；都不设时首次启动自动生成并打印到启动日志 |
+| **B. 主应用** | 数据目录、会话 / 中控寿命、HA / 授权超时与密钥路径 |
+| **C. 商店基础设施** | 监听、数据目录、租约 TTL、巡检间隔、限流等后台改不了的项 |
+| **D. 首次初始化** | 两个 `/setup` 页面的引导口令（`APP_SETUP_TOKEN` / `STORE_SETUP_TOKEN`），不设则首次启动自动生成并打印 |
 
-站点名、公告、客服、维护、邀请提现、解绑冷却、验证码 TTL、**邮件 / SMTP、支付渠道、支付宝商户与回调**等请到商店 `/admin`「站点配置」改（**保存即生效、免重启**）。`.env.example` 故意不再罗列这些项，避免和生产后台双源配置打架。
+站点名、公告、客服、维护、邀请提现、解绑冷却、验证码 TTL、**邮件 / SMTP、支付渠道、支付宝商户与回调**等请到商店 `/admin`「站点配置」改（**保存即生效、免重启**）。`.env.example` 有意不再罗列这些项，避免和生产后台双源配置打架。
 
 ### 部署常改（A 区）
 
@@ -493,17 +348,11 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | --- | --- | --- |
 | `APP_BASE_URL` | 空 | 主应用对外根地址；反代时建议设置，供 WebSocket 校验 Origin |
 | `APP_LICENSE_SERVER_URL` | 本地 `http://127.0.0.1:18082`；Compose 默认 `http://homeos-3d-store:18082` | 授权服务器地址；同 Compose 网络通常不用改 |
-| `APP_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
-| `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1`（Compose 与容器启动器） | uvicorn 允许改写对端地址的来源范围。**不要填 `*`**：那会让限流与审计的来源 IP 由客户端自己决定；前面有反代时填代理自身地址 / 网段 |
-| `APP_COOKIE_SECURE` | `false` | 强制会话 Cookie 加 `Secure`；不设时按请求自动判定 https |
+| `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
+| `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1`（Compose 与容器启动器） | uvicorn 允许改写对端地址的来源范围。**不要填 `*`**，否则限流与审计来源 IP 由客户端自己决定；前面有反代时填代理自身地址 / 网段 |
+| `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` | `false` | 强制会话 Cookie 加 `Secure`；不设时按请求自动判定 https |
 | `STORE_BASE_URL` | 由请求推导 | 商店对外基址（支付二维码 / 回调链接） |
-| `STORE_TRUSTED_PROXIES` | 空 | 商店侧可信反代，语义同主应用 |
-| `STORE_COOKIE_SECURE` | `false` | 商店会话 Cookie 的强制 `Secure` |
 | `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 模拟收银台总闸；**仅本地联调**，生产保持关闭 |
-
-管理员不走环境变量：首次部署后访问 `http://<商店地址>:18082/setup` 创建（早期版本的 `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` 预置路径已移除，它等于给每个照文档部署的实例留一个公开默认账号）。
-
-Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）、`APP_PUBLISH_PORT` / `STORE_PUBLISH_PORT`（宿主机映射，默认 18081 / 18082）。
 
 ### 主应用常用（B 区摘要）
 
@@ -513,70 +362,38 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | `APP_PORT` | `18081` | 容器监听端口 |
 | `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话滑动时长（8 小时）；必须为正整数，配成 0 / 负数启动即报错 |
 | `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天）；`0` = 不设绝对上限 |
-| `APP_SETUP_TOKEN` | 空 | 首次引导密钥；留空则首次启动自动生成（见「首次设置窗口」） |
-| `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` | `15552000` | 中控 Cookie 浏览器侧有效期（180 天） |
-| `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌滑动有效期（活跃即续期） |
+| `APP_SETUP_TOKEN` | 空 | 首次引导密钥；留空则首次启动自动生成 |
+| `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` / `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控 Cookie / 令牌滑动有效期（180 天） |
 | `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` = 不设 |
-| `APP_UPDATE_CHANNEL` | `docker` | 更新检查渠道 |
-| `APP_UPDATE_CHECKS` | `0`（关闭） | 打开版本更新检查（`1`/`true`）；开启后每 6 小时向发布端点外发一次本机版本与渠道 |
-| `APP_UPDATE_ENDPOINTS` | 留空（内置厂商端点） | 逗号分隔的发布端点；自建部署应指向自建商店的 `/store/v1/updates/latest` |
-| `APP_UPDATE_WIKI_URL` | 留空（内置厂商说明页） | 更新说明页地址 |
-| `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住 keyId；默认派生，轮换密钥后自动改变 |
-| `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名公钥 |
-| `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥 |
-| `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` | 留空（由宿主标识派生） | 显式钉住授权实例指纹：宿主机拿不到稳定标识、或跨服务器迁移时沿用旧身份用（改动等于换设备，商店侧 1 授权 : 1 绑定会拒绝，须先解绑） |
-| `APP_HA_CREDENTIAL_FILE` 等 | 数据目录内默认路径 | HA / 中控 / 授权凭据密钥文件 |
+| `APP_UPDATE_CHECKS` | `0`（关闭） | 打开版本更新检查；开启后每 6 小时向发布端点外发一次本机版本与渠道 |
+| `APP_UPDATE_ENDPOINTS` / `APP_UPDATE_WIKI_URL` | 内置厂商端点 | 自建部署应指向自建商店的 `/store/v1/updates/latest` |
+| `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` / `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名 / 传输公钥及其指纹 |
+| `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` | 留空（由宿主标识派生） | 显式钉住授权实例指纹，用于宿主标识不稳或跨服务器迁移；改动等于换设备，商店侧 1 授权 : 1 绑定会拒绝，须先解绑 |
 
-授权校验始终开启（`license_required=True`），不能通过环境变量关闭。激活只连接自建授权服务器。
+授权校验始终开启（`license_required=True`），不能通过环境变量关闭；激活只连接自建授权服务器。
 
 ### 授权商店常用（C 区摘要）
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `STORE_HOST` / `STORE_PORT` | `0.0.0.0` / `18082` | 监听地址（`start.py` 下为 `127.0.0.1`） |
-| `STORE_DATA_DIR` | `store/data`（容器 `/data`） | SQLite 与商品图目录 |
-| `STORE_LICENSE_KEYS_DIR` | `store/keys/local`（容器 `/data/license-keys`） | 授权私钥目录 |
-| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住签发租约与传输密钥的 keyId；轮换后自动改变 |
-| （轮换窗口） | 无 | 目录里存在 `license-*.previous.pem` 四件套即自动开启：旧客户端在窗口内仍可解密与验签 |
+| `STORE_HOST` / `STORE_PORT` | `0.0.0.0` / `18082`（`ops/start.py` 下为 `127.0.0.1`） | 监听地址 |
+| `STORE_DATA_DIR` / `STORE_LICENSE_KEYS_DIR` | `apps/store/data` / `apps/store/keys/local`（容器 `/data` 与 `/data/license-keys`） | 数据目录 / 授权私钥目录 |
 | `STORE_COOKIE_NAME` | `ha_bridge_store_session` | 商店会话 Cookie 名 |
 | `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时）。⚠ 该值同时是「离线可用时长」与「吊销生效上界」：对持续离线的客户端，停用授权最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
-| `STORE_LICENSE_SESSION_IP_HOURLY_LIMIT` | `3600` | `/v2/heartbeat` 与 `/v2/recover` 的来源 IP 小时配额（`/v2/activate` 固定 60/小时）。额度按 NAT 出口地址算，多设备共用出口时调大 |
+| `STORE_LICENSE_SESSION_IP_HOURLY_LIMIT` | `3600` | `/v2/heartbeat` 与 `/v2/recover` 的来源 IP 小时配额（`/v2/activate` 固定 60/小时）；按 NAT 出口地址算，多设备共用出口时调大 |
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款须调大） |
 | `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 支付巡检间隔与每轮上限 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
 | `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 接口是否回显验证码（生产必须 false） |
 
-本地 `start.py` 会临时打开 `STORE_PAYMENT_PROVIDER=mock`、`STORE_ALLOW_MOCK_PAYMENTS=1` 与 `STORE_MAIL_MODE=echo`，方便联调；Docker 生产路径不会自动打开这些开关。
-
-后台「站点配置」口径：留空 / 填 `0` 表示跟随环境变量，填了值就以后台为准。SMTP 授权码只显示打码值；支付宝回调不能填 `localhost` / 内网地址。完整变量、支付宝接入与排障见 [store/README.md](store/README.md)。
+商店这一节的数值 / 布尔变量在启动时**严格解析**：写错（如 `STORE_ORDER_TTL_SECONDS=12o`）会让进程带着一条点名变量的错误拒绝启动，只有「不写 / 留空」才用默认值。本地 `ops/start.py` 会临时打开 `STORE_PAYMENT_PROVIDER=mock`、`STORE_ALLOW_MOCK_PAYMENTS=1` 与 `STORE_MAIL_MODE=echo`；Docker 生产路径不会自动打开。后台「站点配置」口径：留空 / 填 `0` 表示跟随环境变量，填了值就以后台为准。完整变量、支付宝接入与排障见 [apps/store/README.md](apps/store/README.md)。
 
 ## Docker
 
-双容器分别跑主应用（**18081**）与授权商店 / 授权服务器（**18082**）。GitHub Actions 构建两个 GHCR 镜像：
+双容器分别跑主应用（**18081**）与授权商店 / 授权服务器（**18082**）。GitHub Actions 手动触发构建两个 GHCR 镜像：`ghcr.io/sfairy/homeos-3d`（Dockerfile target `app`）与 `ghcr.io/sfairy/homeos-3d-store`（target `store`）；从 `main` 手动运行打 `latest` 与 `VERSION` 标签，从 `v*` tag 手动运行打 semver。
 
-- `ghcr.io/sfairy/homeos-3d`（Dockerfile target `app`）
-- `ghcr.io/sfairy/homeos-3d-store`（Dockerfile target `store`）
-
-该 workflow **只支持手动触发**（在 Actions 页面 Run workflow），不在 `push` / PR 上自动构建。从 `main` 手动运行时打 `latest` 与 `VERSION` 标签，从 `v*` tag 手动运行时打 semver。
-
-最终运行镜像**不包含可读业务源码**：
-
-- **Python**：构建阶段用 **Cython** 把 `backend/`、`store/`、`docker/` 与 `container_entrypoint.py` 下的全部 `.py`（含各包 `__init__.py`）编译成原生扩展 `.so`，随后删除 `.py`。镜像里只剩机器码，读不到源码也反编译不回去。
-- **JavaScript**：`javascript-obfuscator` 混淆（跳过 `vendor/` 与 `*.min.js`）。
-
-镜像内不含构建脚本、`node_modules`，也不残留 `__pycache__` / `.pyc` / Cython 中间产物 `.c`。
-
-唯一保留源码的是 `migrations/`（`env.py` + 各 revision）：Alembic 按文件路径读取源码执行（`load_python_file`），编译成 `.so` 后无法加载。这些文件只有建表 DDL，不含业务逻辑。
-
-编译期约束（`docker/compile_python.py`）：
-
-- 入口脚本已编译成扩展模块，`python -m` 不能运行扩展模块，因此容器 `ENTRYPOINT` / `CMD` 与 `docker/start_store.py` 都用 `python -c "import ... as m; m.main()"` 拉起。
-- Cython 版本在 `Dockerfile` 里钉死（`ARG CYTHON_VERSION=3.1.6`）。**3.3.0 有回归**：在 `backend/observability/global_log.py` 的 `for key, item in (value or {}).items()` 上类型推断崩溃，导致构建失败。升级该 ARG 前请先用两个 target 各构建一次验证。
-- Cython 并行 `cythonize` 偶发崩溃，脚本默认并行、失败自动回退单进程重试。
-- 需要 `gcc` + `libc6-dev` + `cython` / `setuptools`，只在构建阶段安装，不进运行镜像。原生扩展按平台编译，所以 CI 不再用 QEMU 模拟：`amd64` / `arm64` 各跑在原生 runner 上按 digest 推送，再由 `merge` job 合并 manifest list（见 `.github/workflows/docker.yml`）。
-
-生产清单与反代示例见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)、[deploy/Caddyfile.example](deploy/Caddyfile.example)、[deploy/nginx.conf.example](deploy/nginx.conf.example)。
+最终运行镜像**不包含可读业务源码**：构建阶段用 **Cython** 把 `apps/server/`、`apps/store/`、`ops/docker/` 与 `ops/container_entrypoint.py` 下的全部 `.py`（含各包 `__init__.py`）编译成原生扩展 `.so` 后删除 `.py`，业务 JS 用 `javascript-obfuscator` 混淆（跳过 `vendor/` 与 `*.min.js`）。唯一保留源码的是 `db/migrations/`（Alembic 按文件路径读取执行，只有建表 DDL，不含业务逻辑）。编译期约束：入口脚本已编译成扩展模块，容器用 `python -c "import ... as m; m.main()"` 拉起；Cython 版本在 `Dockerfile` 钉死（`ARG CYTHON_VERSION=3.1.6`，3.3.0 有回归会导致构建失败，升级前请两个 target 各构建一次验证）；原生扩展按平台编译，`amd64` / `arm64` 各跑原生 runner 后由 `merge` job 合并 manifest list（见 `.github/workflows/docker.yml`）。
 
 ### 快速启动
 
@@ -586,24 +403,15 @@ cp .env.example .env
 # 管理员账号首次部署时在浏览器打开 :18082/setup 创建，不走环境变量
 
 # 两个 compose 项目各自独立：必须先起商店（它创建共享网络与公钥卷）
-docker compose -f docker-compose.store.yml pull
-docker compose -f docker-compose.store.yml up -d
-
-docker compose -f docker-compose.app.yml pull
-docker compose -f docker-compose.app.yml up -d
+docker compose -f docker-compose.store.yml pull && docker compose -f docker-compose.store.yml up -d
+docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
 ```
 
-不需要构建镜像：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 默认拉 GHCR 预构建镜像。要自己出包见 [Dockerfile](Dockerfile) 的 `--target app` / `--target store`。
+默认拉取 GHCR 预构建镜像，不需要本地构建；要自己出包见 [Dockerfile](Dockerfile) 的 `--target app` / `--target store`。
 
-容器启动后：**先 `docker logs homeos-3d` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问 `http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是 `172.17.0.1` 这类网关地址），因此这一步不能省。
+容器启动后：**先 `docker logs homeos-3d` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问 `http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是 `172.17.0.1` 这类网关地址），因此这一步不能省。商店首次部署同样在 `http://<主机>:18082/setup` 创建管理员。
 
-商店默认映射 **18082**，主应用默认 `APP_LICENSE_SERVER_URL=http://homeos-3d-store:18082`（可在 `.env` 覆盖）。首次部署还需要在其中**任一**容器里创建管理员账号：访问 `http://<主机>:18082/setup`，用启动日志里的引导口令（或容器内 `data/setup-token`）填入。
-
-启动顺序与密钥：
-
-1. `homeos-3d-store`：生成或复用授权私钥（`/data/license-keys`），同步公钥到共享卷 `/data/keys`
-2. `homeos-3d`：等待共享公钥就绪后，再启动 uvicorn
-3. `container_entrypoint.py`：root 校正目录属主后降权为 `homeos` 用户
+启动顺序与密钥：① `homeos-3d-store` 生成或复用授权私钥（`/data/license-keys`）并同步公钥到共享卷 `/data/keys`；② `homeos-3d` 等待共享公钥就绪后再启动 uvicorn；③ `ops/container_entrypoint.py` root 校正目录属主后降权为 `homeos` 用户。
 
 容器内默认路径：
 
@@ -616,9 +424,7 @@ docker compose -f docker-compose.app.yml up -d
 | 首次设置引导密钥 | `homeos-3d` | `/data/setup-token`（初始化成功后自动删除） |
 | HA / 中控 / 授权凭据密钥 | `homeos-3d` | `/run/secrets/*.key` |
 
-健康检查：主应用 `/health/ready`，商店 `/healthz`。
-
-反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true` / `STORE_COOKIE_SECURE=true`，并配置 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES`。
+健康检查：主应用 `/health/ready`，商店 `/healthz`。反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径；站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true` / `STORE_COOKIE_SECURE=true`，并配置 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES`。
 
 主应用还会读**宿主**的机器标识来做授权实例指纹，`docker-compose.app.yml` 挂了 `/host/etc/machine-id` 与 `/host/sys/class/dmi/id` 两个只读入口，宿主上准备一次即可（不准备也能启动，指纹退到 `data/` 下的兜底 ID）：
 
@@ -628,449 +434,114 @@ sudo ln -sfn /etc/machine-id /host/etc/machine-id
 sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 ```
 
-### 两台服务器分开部署
+升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。注意前四个带 compose 项目名前缀：主应用的仍是 `homeos-3d_*`，商店的变成 `homeos-3d-store_*`；只有共享公钥卷用了固定名 `homeos-3d-client-keys`。
 
-商店与主应用可以放在不同服务器上，但要人工补三件事：共享网络与公钥卷需要 `docker network create` / `docker volume create`，两个 PEM 需要手工搬过去并 `chmod 644`，`APP_LICENSE_SERVER_URL` 要改成商店的公网地址。授权实例指纹派生自宿主硬件，换机器会被商店判成「换设备」（心跳按已吊销处理），想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。
-
-完整清单、拆开后的反代示例（两台各一份 nginx / Caddy）与限流注意事项见 [deploy/SPLIT-DEPLOY.md](deploy/SPLIT-DEPLOY.md)。
-
-升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。注意前四个带 compose 项目名前缀：主应用的仍是 `homeos-3d_*`（项目名沿用 `homeos-3d`），商店的变成 `homeos-3d-store_*`；只有共享公钥卷用了固定名 `homeos-3d-client-keys`。从旧的单文件 `docker-compose.yml`（项目名 `homeos-3d`）迁过来的部署需要先改名或重建商店那两个卷，否则会各读各的空卷。
-
-### GitHub Actions
-
-[`.github/workflows/docker.yml`](.github/workflows/docker.yml) **仅手动触发**，多架构构建推送 GHCR。
-
-可选远端部署：在仓库 Secrets 配置 `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` / `DEPLOY_PATH`（可选 `DEPLOY_PORT`），然后在 Actions 里手动运行 **Docker** workflow 并勾选「构建推送后 SSH 拉取并重启远端 compose」。远端目录需已放好本仓库的 `docker-compose.store.yml` 与 `docker-compose.app.yml`（以及 `.env`；镜像名已由 workflow 通过 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 覆盖）。
-
-从运行中的主应用容器导出应用目录：
-
-```bash
-docker exec homeos-3d tar -czf /tmp/app.tar.gz -C /app .
-docker cp homeos-3d:/tmp/app.tar.gz ~/Desktop/
-docker exec homeos-3d rm /tmp/app.tar.gz
-```
+**两台服务器分开部署**：商店与主应用可放在不同服务器，但需人工补共享网络与公钥卷（`docker network create` / `docker volume create`）、手工搬运两个 PEM 并 `chmod 644`、把 `APP_LICENSE_SERVER_URL` 改成商店公网地址。授权实例指纹派生自宿主硬件，换机器会被判成「换设备」，想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。完整清单与拆开后的反代示例见 [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)；生产清单与反代示例见 [ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)。
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
-  这条约定只针对**前端之间互相引用**的资源（同值是为了不让同一模块被当成两份）。**后端渲染页面时拼出来的**静态链接（舞台页注入的 `stage.css`、模拟收银台与支付宝回跳页里的 `scene/*.css`、配色样式表）改用文件 mtime 现算版本号，见 `backend/core/static_revision.py` 与 `store/core/static_revision.py`：那些 URL 之间没有同值要求，用 mtime 就不必再让任何人记得同步字面量（也少一个「忘了跑 bump」的静默失效点）。`tools/bump_static_cache_versions.mjs` 的 `EXTRA_FILES` 仍保留这几个 Python 文件，是为了万一有人把字面量写回去时仍能发现。
-- mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次：图标地址（含舞台标记与编辑器图标按钮的遮罩）一律经 `mdiIconUrl` / `applyMdiMask` 取用，后端 `api/icons.py` 从 `static/vendor/mdi/` 目录里扫出版本。升级图标库 = 把新版本目录放进 `vendor/mdi/` + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址，`check_invariants.mjs` 会核对全站只有一个版本值且目录存在。
-- 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
-- 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
-- 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
+- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），改 JS / CSS / HTML 后跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新。同一次改动的资源务必用同一个时间戳；`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。**后端渲染页面时拼出来的**静态链接（舞台页 `stage.css`、模拟收银台与支付宝回跳页样式等）改用文件 mtime 现算版本号，见 `apps/server/core/static_revision.py` 与 `apps/store/core/static_revision.py`。
+- mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次（图标地址一律经 `mdiIconUrl` / `applyMdiMask` 取用），后端 `api/icons.py` 从 `static/vendor/mdi/` 目录扫出版本。升级图标库 = 放新版本目录 + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址。
+- 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）；`frontend/static/vendor/` 不参与格式化，也不要改其中的 three.js、hls.js、OrbitControls 等第三方文件。界面中文文案保持原词。
 - 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请人工核对引用与后端路径清单（没有打包器，路径写错只在浏览器里变成 404）。
-- `migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from backend.core.database import Base`），不要写成相对导入，否则会重复注册表。
+- `db/migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from apps.server.core.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
-- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它**不再与 `frontend/static/app.css` 逐字对齐**（那曾是 0.5 时代的状态，`theme.css` 文件头已明确否认）：两边现在共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌（53 对，逐 token 相等并经 `tools/audit_colors.mjs` 校验）与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [store/README.md](store/README.md) 的「界面主题」。
+- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前。它与 `frontend/static/app.css` 共享同一份 canonical 调色板 `design/scene/page.css`，商店侧由 `--hb-*` 镜像令牌（53 对，逐 token 相等并经 `tools/audit_colors.mjs` 校验）与派生的 `-soft` / `-line` / `-text` 组成自己的语义层。详见 [apps/store/README.md](apps/store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
 - Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
+- **首屏权重基线（2026-09 实测）**：从 `frontend/index.html` 做引用闭包，冷启动需要 **154 个 `/static` 资源、原始合计 3.95 MB**；其中最大的两块是 `static/editor/home.js` 951 KB（gzip 195 KB）与 `renderer/core/renderer.css` 430 KB（gzip 102 KB）。这两块的拆分**已登记在文件规模台账里但本轮未实施**：拆的时候要顺带量一次首屏资源数与可交互时间。
+- **前端的两棵树不是重复机制，不要合并**：`frontend/static/**` 是公开/资产类资源（`StaticFiles` 挂载 + 匿名白名单，能力码 `assets`）；`frontend/modules/runtime/**` 是**按增量包能力码下发的模块包**（`editor` 或 `module.3d_interaction`，后者可单独售卖），走 `manifest.json` 清单下发，清单同时是可下发集合与安全边界。另外 runtime 树有 8 个文件、36 处写了对 `file:` 的分流（舞台页可被直接打开），相对回退路径按"两棵树是 `frontend/` 下的兄弟目录"算 —— 合进 `/static` 会同时动到授权模型、安全边界与这条契约。
+- **两个项目互相独立，绝不要 import 对方，也不要把同名实现合并成共享模块**：`apps/server/`（主应用，18081）与 `apps/store/`（授权商店 + 授权服务器，18082）是**两个独立项目，可能部署在不同服务器上**。任何一个方向上的 import 都会立刻导致三件事：单独发商店会 ImportError、两侧版本被绑死、无关业务代码被带进授权服务器镜像。因此 `core/static_revision.py`、`core/appearance.py`、`security/body_guard.py` / `compression.py` / `access_log.py` 这些**同名双份是刻意的隔离成本**，不是可以顺手合并的重复代码。要防两边漂移用**清单 + 静态守卫**，而不是运行时共享：`design/scene` 的三份分发副本由 `tools/audit_colors.mjs` 逐字节守着；上面这些同名双份里**真的会走散**的名字登记在 `packages/contracts/surfaces.json`，由 `tools/check_invariants.mjs` 的最后一条按「剥掉注释与 docstring 后逐字相同」比较 —— 两侧各写各的模块说明不受影响（哪些该登记、哪些是有意差异，判据见 `packages/contracts/README.md`）。`tools/check_invariants.mjs` 的「两个可独立部署的项目互相 import」一条把「不许 import 对方」这条规则钉死。
+- **访问日志里已知两类第三方噪音，都不必当成缺陷去查**：① `GET /sm/<sha256>.map` 的 404 —— 浏览器侧第三方脚本按内容哈希取 source map，本项目没有 `/sm/` 路由，这类访问行已由 `AccessLogNoiseFilter` 挡在访问日志外（见 `apps/server/http/access_log.py` 与 `apps/store/security/access_log.py`），首次命中会在 `uvicorn.error` 留一条说明。② 第三方扩展挂钩 XHR 后对 HLS 分片打的 `console.error`，由 `client-log.js` 按前缀丢弃。
 
 ## 开发工具
 
 改 JS / CSS / HTML 后统一 bump 静态资源缓存戳：
 
 ```bash
-node tools/bump_static_cache_versions.mjs
+node tools/bump_static_cache_versions.mjs   # 可选 --dry-run 只列出改动；--version=YYMMDDHHMM 指定戳
 ```
 
-可选参数：`--dry-run` 只列出会改哪些文件与处数（不写盘）、`--version=YYMMDDHHMM` 指定戳而不取当前本地时间。
+> **踩过的坑**：戳没变时浏览器直接复用本地缓存，磁盘上的新内容根本不加载 —— 页面「照常打开」，改的规则静默不生效。新增 / 改名令牌这类改动必须在真实页面复查（先 bump，再用 `getComputedStyle(document.documentElement).getPropertyValue("--新令牌")`，得到空字符串就是没生效）。另外戳是分钟级的，同一分钟内连跑两次会算出同一个戳并静默空转（输出 `Updated 0 file(s)`），此时隔一分钟再跑或用 `--version=` 指定更靠后的戳。
 
-> **踩过的坑：改完静态资源忘了 bump，页面「照常打开」，但改的那条规则静默不生效。**
-> `?v=` 没变时浏览器直接复用本地缓存，磁盘上的新内容根本不加载。这次的具体表现是：给色板副本
-> `auth/scene/page.css` 加了一枚新令牌 `--hos-tool-control-line`，页面看着一切正常，只是新令牌
-> 解析为**空** —— 而 `border-color: var(--未定义)` 不会「没有边框」，它会退回 `currentColor`
-> （边框变成文字的颜色）。所以**新增令牌 / 改名令牌这类改动必须在真实页面复查**：先 bump，
-> 再在页面上读 `getComputedStyle(document.documentElement).getPropertyValue("--新令牌")`，
-> 得到空字符串就是没生效。`tools/check_invariants.mjs` 钉的是「戳出现第二个值」，
-> 钉不住「戳还是唯一值、已经过期」——后者没法从文件内容静态判定，只能靠这一步人工复查。
->
-> **同一个坑还有第二层：戳是分钟级的，同一分钟内连跑两次 bump 会算出同一个戳、静默空转**
-> （输出 `Updated 0 file(s)`），而 HTML 里正好已经是这个值 —— 于是「刚改的 CSS 」和
-> 「页面正在用的缓存键」完全撞在一起，护栏也看不见。改完静态资源后如果 bump 报 0 处，
-> 先看 `date +%y%m%d%H%M` 是不是还等于当前戳：相等就说明这一分钟的改动没被区分出来，
-> 隔一分钟再跑，或用 `--version=` 指定一个更靠后的戳。
-
-改动前/提交前跑一遍不变量护栏（**这是现在唯一的一道自动守卫**）：
+改动前 / 提交前跑一遍不变量护栏（**唯一一道自动守卫**）：
 
 ```bash
+
+### 性能收益实测（可复现）
+
+/api/v1/ha/translations 是全站慢请求的绝对大头，改动（内存 + 磁盘 + 同键并发去重）之后
+该实例**没有该接口的新流量**：真实流量只能给出改前基线，改后收益由 `ops/bench_translations.py`
+用真实缓存实现 + 注入固定回源延迟跑确定性基准，回源次数与落盘都被断言钉住（不是打印数字给人看）：
+
+```bash
+.venv-store/bin/python ops/bench_translations.py
+.venv-store/bin/python ops/bench_translations.py --logs data/logs/global-events.jsonl   # 只提取真实基线
+```
+
+| 口径 | 结果 |
+| --- | --- |
+| 真实基线（`data/logs`，UTC 2026-09-20 → 09-26） | 慢请求 1714 条，本接口 **1691 条（98.7%）**；中位 2896 ms / p90 3616 ms / 最大 23158 ms |
+| 真实基线：5 秒内 ≥2 次的批次 | **570** 个（最大一批 9 次）—— 多个客户端同时冷启动时各自回源一遍 |
+| 改后（本地基准，8 并发同键，注入 50 ms 回源） | 上游回源 **1 次** / 墙钟 52 ms |
+| 改前（反事实，同参数） | 上游 **8 次**往返 / 顺序回源墙钟 409 ms（**8× 上游负载**） |
+| 磁盘缓存（新实例 = 进程重启） | 命中，**0 次**回源；落盘 128 字节 |
+| `clear()`（HA 连接重建） | 内存清空 + 磁盘删除 + 在途回源不写回（代次生效） |
+
+**未闭环项**：改后的**真实流量**对比仍缺样本（该实例在改动后没有请求过这个接口）；
+上表「改后」一栏全部来自本地注入延迟的基准，不能当成真实流量结论。
 node tools/check_invariants.mjs
+node tools/audit_dead_code.mjs     # 只读报告，永远退出码 0；--strict 有发现时置 1（人工排查用）
+ruff check .                       # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
 ```
 
-它钉住一组「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里。
-**下文的引用一律用条目名而不是序号**（早先写「第 6 条」「第 9 条」，中间插进新条目后全指向了别处）：
+`check_invariants.mjs` 钉住一组「不报错、只静默失效」的不变量，每条都对应一次真实踩坑；引用时一律用条目名而不是序号。归纳如下：
 
-- **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
-  （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
-  导入方）。合法写法只有两种：经 `core/static-helpers.js`（显示路径）或 `core/static-helpers-editor.js`
-  （编辑器路径）的桥取用；或动态 `import("/static/…")` 且同文件有 `import.meta.url.startsWith("file:")`
-  分流。`/static/vendor/` 的动态导入例外放行（第三方库只做懒加载，没有相对路径副本可供回退）。
-- **入口页取不存在的 id**：`selectElement("#x")` / `getElementById("x")` 的目标必须在同名 HTML 里存在。
-  取到 `null` 之后 `if (el)` 会静默跳过、`el?.addEventListener` 会静默不挂载，表现是「按钮点了没反应」。
-  确实由脚本动态创建的元素登记在脚本的 `DYNAMIC_IDS` 里，**登记必须连同创建点一起写明**，否则这个集合
-  会退化成误报垃圾桶。
-- **缓存戳出现第二个值，或同一模块被「带戳 / 不带戳」两种写法引用**：无打包器，`?v=` 是唯一的缓存
-  失效手段；同模块一处带戳一处不带会被当成两个模块、各留一份模块级状态（两份控件注册表就是这么来的）。
-  后半句是**模块身份**问题：模块表以解析后的 URL 为键，查询串参与其中，所以 `./host.js` 与
-  `./host.js?v=…` 是两份实例 —— `store/static/admin/app.js` 就漏过一次，它往自己那份
-  `Object.assign(host, …)` 装配方法，其余 11 个面板拿到的那份始终是空对象，84 处 `host.xxx()`
-  全在调用时抛 `TypeError`。判定同时覆盖静态 import、re-export、动态 import 与入口 HTML 的
-  `type="module"` 脚本；开发态旁路 `new URL("./x.js", import.meta.url)` 与生产分支互斥，不算。
-- **后端包之间的新环**：`backend/**` 的跨二级包 import 会按文件解析出包级图，出现环即失败。
-  Python 的包级环通常不报错 —— 谁先被导入、环上的名字此刻是否已初始化全看启动顺序，改一圈 import
-  就可能在某个部署路径下变成空模块。上一轮把 `core.schemas → panel.documents`（画布常量）与
-  `core.schemas → ha.client`（HA 地址规则）分别下沉到 `core/design.py`、`core/ha_url.py`，
-  `core.dependencies` 也从 `core/` 挪到 `security/dependencies.py`（它是认证授权门禁，被 `api`、
-  `modules`、`observability` 三处共用，留在 `core` 或 `api` 都会成环）。
-  目前**只登记了一条例外**：`backend.api | backend.modules`（项目保存/删除要调 3D 模块的授权门禁与
-  快照回收，3D 路由反过来要调 `api/ha.py` 的 `call_service`；拆掉它得先把那段校验从路由里提成普通函数）。
-  例外写在脚本的 `ALLOWED_BACKEND_CYCLES` 里并附理由，**新增别的环会直接失败**。
-- **mdi 图标版本出现第二个值**：版本号只该有一份前端来源（`frontend/static/utils/icon-url.js` 的
-  `MDI_VERSION`），后端 `api/icons.py` 改成从 `static/vendor/mdi/` 目录扫出来，CSS 里那三条遮罩地址
-  只能跟着目录名走。守卫会核对全站只有一个版本值、且该版本的 `meta.json` 真的存在 ——
-  漏改一处的表现是舞台灯光素材图标空白或整套图标 404，都不会报错。
-- **import 说明符解析不到真实文件 / runtime 资源没登记进白名单**：`frontend/**` 与 `store/**` 里
-  `from "./x.js"` / `import("../x.js")` 的说明符按导入方所在目录解析到真实文件，解析不到即失败；
-  `/static/...`、`/store-static/...`、`/api/v1/modules/interaction3d/...` 这类绝对说明符也判，
-  后两者按**服务端口径**换算（前两个是 StaticFiles 挂载点，第三个还要过 `get_resource()` 白名单，
-  文件放进磁盘不等于能被下发），其余绝对路径按路由放过。外提模块时最容易漏这一步：
-  文件换了目录、层数没跟着改（`editor/home/` 那批外提文件就少写了一层 `../`），浏览器里表现为
-  导入方所在的整棵模块树加载失败，而控制台只指向那一行。这条同时双向核对 runtime 白名单与磁盘
-  （少登记 → 请求 404；多登记 → 文件已删）；**不判导出符号**（那需要「允许新文件先落地再接线」的宽容度）。
-- **物件构建体用了 context 的键却没解构**：`3d-studio/studio/item-builders/*.js` 的每个构建体顶部那行
-  `const { … } = context;` 是它的完整外部依赖清单，用到了清单外的键即失败。这是外提时的对应漏项：
-  `buildItemModel` 那条 5744 行 if/else 链拆成 62 个构建体时，函数的**签名依赖**随函数搬走了，
-  但函数体里对 `furnitureDarkColor` 这类配色别名的取用点没跟着补进解构列表，表现是
-  `ReferenceError: furnitureDarkColor is not defined`，且只在**该物件类型被渲染时**才炸 ——
-  窗帘、蹲便器、壁灯、落地灯几类各少一个名字，不点开那几类就永远看不见。
-  键表由 `studio-app.js` 的 `ITEM_BUILDER_DEPS` 与 `itemBuilderContext` 现读，给上下文加键不需要同步脚本。
-- **HTML 属性 / CSS `url()` 指向不存在的资源**：`<script src>`、`<link href>`、CSS 的 `url(...)` 与
-  `@import "..."` 都会换算到磁盘核对。判定**按 URL 而不是按磁盘**：商店把 `store/static/fonts`
-  同时挂在 `/fonts` 下，所以 `/store-static/font.min.css` 里写 `../fonts/font.woff2` 在磁盘上
-  「跳出挂载点」、在浏览器里却是合法的 `/fonts/...`。`{{ }}` 占位、`data:`、`url(#fragment)`、
-  以及 HTML 里的相对引用（相对的是文档 URL，由路由决定，算不出唯一答案）一律放过。
-- **`import` 的名字不在目标模块的导出里**：静态命名导入、默认导入、命名空间成员（`ns.foo`）、
-  动态解构（`const { a } = await import(...)`，桥文件整套写法）以及 `export { a } from "…"`
-  的转出口都判。失败发生在**解析期**：`does not provide an export named`，整棵模块树起不来，
-  而报错只指向导入处、不指出该补什么 —— 大文件拆分（`buildItemModel` / `PanelRenderer` /
-  `mountStage`）之后最容易漏的就是原处那个导出名。裸说明符（`three` 之类）与 `vendor/` 下的
-  压缩产物不判：前者是本仓之外的约定，后者是一整行的打包结果、文本扫描读不出导出表。
-  **同一条里原本还有另一半**「调用的名字在本文件没有任何绑定」（漏搬 import 的另一种症状，
-只在执行到那一行时 `ReferenceError`）—— 实测后放弃，见脚本文件头「import 的名字不在目标模块的导出里」那条的说明与实测数字。
+- **前端模块与资源**：运行侧裸 `/static/` 静态 import（只能经 `core/static-helpers.js` / `static-helpers-editor.js` 桥，或带 `import.meta.url.startsWith("file:")` 分流的动态 import）；入口页取不存在的 id（`selectElement` / `getElementById` 目标必须在同名 HTML 里存在，动态创建的登记进 `DYNAMIC_IDS`）；缓存戳出现第二个值、或同一模块被「带戳 / 不带戳」两种写法引用（模块表按解析后的 URL 为键，会被当成两份实例，各留一份模块级状态）；import 说明符解析不到真实文件、或 runtime 资源没登记进 `get_resource()` 白名单；`<script src>` / `<link href>` / CSS `url()` / `@import` 指向不存在的资源（按 URL 而非磁盘判定）；`import` 的名字不在目标模块的导出里（含默认导入、命名空间成员、动态解构与 `export { … } from` 转出口）。
+- **后端结构**：`apps/server/**` 跨二级包的新环（只登记了一条例外 `api | modules`）；mdi 图标版本出现第二个值；`theme-color` / webmanifest 写死色值必须等于色板「页面最底层」那一档。
+- **清单一致性**（同一份清单被抄在多处，漏改一处就静默少效果）：模型注册表与 `models/` 目录两端对齐（文件键不许是纯数字戳、注册项类型必须在 `EXTERNAL_MODEL_ITEM_TYPES` / `APPLIANCE_MODEL_ITEM_TYPES` 里）；「环境模型类型」七处清单一致；净化器模型类型三处同源（`sceneModelTypes()` / `collectClimateBindings()` / `PURIFIER_MODEL_TYPES`）；吊柜挂高三处（`model-specs.mjs` / `storage-cabinets.js` / `ITEM_TYPE_DEFINITIONS`）；授权状态文案三处（后端 `labels` / `license-recovery.js` / 编辑器顶栏）；扫地机状态字典含上游全部别名；窗帘面板返回键集合含 `deactivate`；聚焦可用设备清单 `isFocusableDevice` 与上游同集合；前端可派发的 HA 服务都登记进后端 `ALLOWED_SERVICES`；两个项目里**同名双份**的共享面（压缩口径与响应头常量、日志噪音表、`file_revision`、配色令牌白名单、权益码集合）与清单 `packages/contracts/surfaces.json` 一致。
+- **配色类**：JS 写入的自定义属性没人读；`var(--x)d1` 这类令牌后粘十六进制残渣（整个声明无效）；`var()` 兜底值与令牌 canonical 值不一致；八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 契约（0.13 / 0.32）不符；SVG 注释含连续两个连字符（整个文件解析失败、画面空白）；材质风格档位漏角色、或 `auto` 档位角色没有出口（那一块网格退回基础色）。
+- **3D 图纸与模型**：圆形占地的物件在户型图上被画成方角矩形（实测轮廓为圆必须进 `ROUND_FOOTPRINT_ITEM_TYPES`，且名单真的接上外轮廓那一支）；流水线 GLB 的内容与规格 / `scaleBasis` 不自洽；流水线 GLB 之间存在会闪的共面重叠（z-fighting）；既有资产尺寸债务（只探测、不设护栏）；物件构建体用了 context 里没解构的键；素材库页签与类型词表两端错位。
+- **自由变量**：引用了本文件解析不出绑定的名字（`tools/lib/free-variables.mjs` 用 acorn 建真语法树 + 作用域链，只治执行到那一行才 `ReferenceError` 的引用）。
 
-上面九条之外，2026-09 起又补进五条**配色类**的静默失效（都是「浏览器零报错、画面上只是不太对」）：
+两份工作流共用同一份清单：`.github/workflows/guards.yml`（push / PR 触发，日常改动即校验）与 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前，该工作流仅手动触发）。改清单时**两份都要改**，否则会出现「CI 绿、出包红」的错配。
 
-- **JS 写入的自定义属性没人读**：`style.setProperty("--x", …)` 只在有人 `var(--x)` 或
-  `getPropertyValue("--x")` 时才有效果；写错名字、或样式表里那条取用点后来被删掉，机制就整段空转，
-  页面上只是「这个功能没反应」。原列的 10 枚已逐条修完，豁免名单现在是空的 —— 新增这类写入直接报错。
-- **令牌引用后面粘着十六进制残渣**（`var(--x)d1`）：起因是「按 6 位色值做子串替换」把 8 位十六进制的
-  α 位切在了外面。浏览器判**整条声明无效**，该属性静默回落到默认值。
-  扫描按**括号配对**走 `var()` 的收尾，所以带兜底的形态（`var(--x, #5fd0a8)ad`）也能拦住 ——
-  那种写法**今天碰巧是对的**（兜底值与色板同值，替换后又拼回合法的 8 位色），
-  但色板一改就变成 9 位十六进制、整条失效。「今天不报错」正是它最难发现的地方。
-- **`var()` 兜底值与令牌 canonical 值不一致**：平时不生效（令牌在时永不落到兜底），所以既不会被评审
-  拦下、也不在浏览器里露头；一旦主题变量缺失（独立打开的 SVG、渲染容器）就渲染出另一套颜色。
-  三种写法都查：`var(--x, #…)`、`paletteColor("--x", "#…")`、以及数据形态的
-  `{ token, fallback }` 成对常量。
-- **八族可配置光的 `-soft` / `-line` α 与 `appearance.js` 的契约不符**：契约是 0.13 / 0.32，
-  脚本按族逐条比对 —— 一个 `-soft` 写成 0.12，肉眼几乎看不出，但它决定了「灯灭时那一层光的强度」。
-- **SVG 注释里含连续两个连字符**：XML 非法，**整个文件解析失败、画面空白**（不是只丢一行）。
+结构改动只有一部分有自动校验（ESM 说明符、HTML `<script src>` / `<link href>`、CSS `url()` 与 interaction3d 资源白名单已由上面两条覆盖，**不覆盖**页面路由 URL）。以下必须人工过一遍：`apps/server/main.py` 的 `public_static_files`、`<img src>` / `srcset` 与 HTML 内联 `<style>`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、`apps/server/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。前端结构 / 卫生类护栏（死类名与重复规则、控件注册表分片可达、`design/scene` 分发副本一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐、场景小屋缩放等）已全部移除，同样落回人工 review。
 
-另有一条不属于「静默失效」但同样钉住的：**`theme-color` / webmanifest 的写死色值必须等于色板里
-「页面最底层」那一档**（`--hos-sky-deep` 或 `--hos-tool-bg`）。这几个属性吃不了 CSS 变量，只能写字面量，
-所以最容易在改主题时漏掉 —— 表现是手机浏览器地址栏与新装 PWA 的启动底色与页面不是一回事。
+**没有 e2e / 冒烟 / 探针**：护栏只覆盖静态可判定的事（引用能否解析、清单与树是否一致、某个策略是否只有一个主人），行为正确性依旧要靠人工走关键路径。后端与商店没有自动冒烟，增删路由没有任何自动信号，改动路由请人工核对 OpenAPI 与调用方。
 
-2026-09 又补进一批**清单一致性**类、**产物内容**类与**图纸形状**类。前者治的是同一个病根：**同一份清单被抄在多处，漏改一处就静默少效果**。
+### 资源下发清单是唯一事实来源
 
-- **模型注册表与 `models/` 目录两端不对齐**：`loaders/studio-external-models.js` 里 `defineHomeItemModel` /
-  `defineApplianceItemModel` 的第一参是**文件名键**、第二参是兜底版本号（旧版签名里第二参才是版本戳，
-  换戳脚本曾按老签名改写，把 `furniture/armchair.glb` 改成了 `furniture/2609240238.glb`，全站模型 404）。
-  这条双向核对：注册表引用的 GLB 必须在磁盘上（含 `-lite` 简化版）、磁盘上的 GLB 必须被引用
-  （多出来是白占体积、少一个则加载失败）、文件键不许是纯数字戳。表现面是**加载失败只退回过程几何盒体**，
-  浏览器零报错，只有服务器日志里那一行 404 能看出来。
-  同一条里还查一个反方向：**注册了模型、类型却不在 `EXTERNAL_MODEL_ITEM_TYPES` /
-  `APPLIANCE_MODEL_ITEM_TYPES` 里**。模型加载的收尾判据就是这两张名单，落在名单外的类型永远走过程几何
-  ——注册条目和它的 GLB 一起空转，两头对账照样全绿（`sofa` 就这么挂了一版，画面上一直是那版没有腿的
-  程序化方块）。`curtain_*` / `pillar_*` / `tv_*` / `rounddiningtable_turntable` 是 `modelTypeForItem`
-  派生出来的键，不参与这条判据。存量里原本还有一批**有意不加载**的（建筑本体的 `smallcar` / `elevator` /
-  楼梯，以及原样搬进来的第三方 `piano`），逐个记在脚本的 `KNOWN_UNREACHABLE_MODEL_TYPES` 里；
-  **2026-09 这批已全部迁进流水线并接上加载路径，那份名单现在是空的** —— 保留它是为了新出现的孤儿
-  条目仍会被拦下（清单为空时，任何「注册了却没人加载」的类型都会当场报错，不再有地方挂账）。
-- **「环境模型类型」七处清单不一致**：新风机 / 温控面板这类环境设备同时出现在 `environment-scene.js` 的
-  `MODEL_TYPE_TO_PAGE`、`MODEL_TYPE_TO_DEVICE_KIND`、`environment-halos.js` 的描边清单，以及
-  `studio-app.js` 里四处内联清单，合计七处。漏一处 = 该设备没有 HA 绑定、或缺描边高亮、或不被批处理，
-  全都不报错；`DOORBELL` 这类「有模型但不进环境描边」的类型要显式写在豁免说明里。
-- **「材质风格」下拉能选、选了没反应**：档位表声明了颜色，却没有覆盖换色分支真正读的键。家具按明度分档读
-  `furniture` / `furnitureLight` / `furnitureSoft` / `furnitureDark`（即 `LUMINANCE_BANDED_ITEM_TYPES`
-  那一批），家电走 `appliance` / `applianceSoft` / `applianceDark`；档位只写了其中一两档时，落进其余档位的
-  部件仍取基础调色板，「跟随全局风格」与选中档位只差一小块（甚至完全相同）。四档的补齐统一由
-  `completeFurnitureRamp` 派生，所以**写档位时只需要给一个基准色**，别自己只补一半。
-- **流水线 GLB 的内容与规格 / `scaleBasis` 不自洽**：`tools/models/generate-models.mjs` 只在校验通过时写盘，
-  但**改了 `model-specs.mjs` 的 `size` 后忘了重跑导出**，磁盘上留下的还是旧尺寸。运行侧按
-  `scale = 物件尺寸 / scaleBasis` 分轴缩放，两边不一致就会把成品拉扁或拔高 —— 浏览器里只表现为
-  「看着有点歪」，零报错。这条直接解析 GLB 容器（只用 Node 内置能力，不引 three），逐件核对包围盒 /
-  底面 `y = 0` / 占地居中 / 材质名（`material-<槽位号>`，带角色时为 `material-<槽位号>-<角色>`）/ lite 是否真的更轻。**作用域限于
-  `model-specs.mjs` 登记的流水线产物**：外部既有资产是别的工具链导出的，材质名走的是另一套
-  **同样被运行侧支持**的子串约定（`cushion` / `foliage` / `-soft` / `-light` / `-dark`），
-  按流水线判据判就是纯误报。
-- **流水线 GLB 之间存在会闪的共面重叠**（z-fighting）：两块**不同槽位**的面落在同一平面、而且在
-  平面上有重叠时，GPU 按图元顺序抢同一像素、逐帧抖动，画面上是一片闪动的条纹。它不报错、不崩、
-  不进控制台，连单张截图都看不出来（触发条件与相机距离、浮点精度有关），只有真正转起来才显形 ——
-  2026-09 全库清出 87 处（面板贴在机身前脸上、顶盖与机身一起顶到同一标高、玻璃门与柜体同宽同面、
-  踏板两条长边与斜梁逐面齐平）。守卫复用 `tools/audit_coplanar_faces.mjs`（同一份 GLB 读取与法向
-  分类，避免两套口径）：只报**同向**与**背靠背但两侧沾到玻璃**的（`glass` 角色是
-  `DoubleSide + depthWrite:false`，背面剔不掉）；背靠背且两件都是单面材质的不计 —— 那是正常叠放
-  （顶盖坐在箱体上、层板贴在背板前），从外侧看朝内那块被背面剔除丢掉，不闪。
-  **修法不是把面推开**：外表面撑住包围盒，生成器的规格校验只给 1mm 余量；要让**非极值的那一件**
-  退让 2~5mm（嵌进母体、或收到相邻件的内表面之内）。改完必须重跑 `generate-models.mjs` 导出，
-  否则守卫判的还是磁盘上的旧几何。逐件看清用 `node tools/audit_coplanar_faces.mjs`
-  （`--model=<类型>` 单件、`--all-faces` 连无害的背靠背一起列）。
-- **既有资产的尺寸债务**（不设护栏，只探测）：外部既有 GLB 的可见包围盒与声明的 `scaleBasis`
-  大多不一致，而平面图画占地框用的是声明值 —— 2026-09 实测曾到过 69 个里 44 个占地方向偏差 >5%，
-  `tv_standard` 深 72%、`plant` 深 50%、`shower` 宽 49%。修它要先决定方向 —— 改 `scaleBasis` 会把
-  物件拉到声明尺寸、重新生成会换掉现有外观 —— 属于产品决策，所以不设成护栏，只用
-  `node tools/audit_model_glb.mjs` 列明细（只报告、不进 CI）。
-  **这条债的下坡路就是「把资产逐件迁进建模流水线」，而 2026-09 已经走完**：迁一件，它就从
-  「债务探测」进到「真值校验」（衣柜 → 床 → 洁具 → 家电 → 构件 → 车辆，一路 69 → 0）。
-  现在那一节的外部件数是 0，它退化成探测器 —— 谁再往注册表里放回一件自有产线的 GLB，明细会重新出现。
-- **「档位即组合」漏了角色**：风格档位（`JOINERY_STYLES` 之类）要为该类型**用到的每个材质角色**
-  都给出配方（`joineryCombo` / `fabricCombo` 这类构造器会把「扶手跟随主体、封边跟随柜体」这层
-  从属关系补成默认值，所以只需写要区分的那几个）。缺一个角色，那一块网格就退回基础色 ——
-  现象是「这个档位下别的地方都变了，就某一块没变」，混在旧行为里几乎判不出来；角色名拼错
-  （`leg` 写成 `legg`）是同一个下场，所以角色名必须落在 `tools/models/model-roles.mjs` 的词表里，
-  且**不得以 `-soft` / `-dark` / `-light` 结尾**（那三个后缀是既有资产的亮度分档约定，撞上会被
-  运行侧当成亮度分档去取色）。配方里还可以用 `slab` 指**石材整图**的色号（`marble` / `marble-dark`），
-  色号写错也不会报错，只会让那块网格退化成一块没纹路的纯色，所以色号同样要在这条守卫里对账。
-  判据同样从两端源码里取（规格里声明的角色、档位里构造器的返回值），不在这里再抄一份。
-- **素材库页签与类型词表两端错位**：素材库的分组显隐走两条**互不知情**的数据 —— 卡片自己的
-  `data-asset-category`（来自 `studio-asset-palette.js` 里那一组的 `category`）决定分组标题是否可见，
-  而 `studio-app.js` 的 `syncAssetTabVisibility` 用 `APPLIANCE_ITEM_TYPES` 决定**卡片**是否可见。
-  两条数据一错开，卡片就挂在上一个仍可见的家居标题下面（即「家电跑进了结构与特殊物件 / 卫浴那一组」），
-  不报错，只有人盯着素材栏才发现。同一份名单还决定兜底盒体的取色（`external-fallback.js`：家电取电器色、
-  其余取家具色），所以漏一个会连带让加载中的占位几何变成另一个颜色。脚本**双向对账**：「电器」组的卡片
-  必须都在名单里（少了就是漏到家居页签）、「家居」组的必须都不在（多了就是家居卡片跑进电器页签）。
-- **默认档位的角色没有出口**（`MATERIAL_STYLE_AUTO`，「跟随全局风格」）：与上一条同源，但换在另一头 ——
-  非 `auto` 档位由 `studio-material-styles.js` 的构造器按角色给配方，`auto` 档位则要落到
-  `loaders/studio-external-models.js` 的 `applyFurniturePalette` 里由角色分流。缺了出口的角色会掉进
-  最早的「按明度分档」兜底，静默染上柜体木色：书柜里的书、鞋柜里的鞋、镜子、拉手都成了同色木块
-  （现象是「换了风格也一样、就是某几块不对」，浏览器零报错）。规格里出现的每个角色必须**恰好**登记在
-  `CARCASS_MATERIAL_ROLE_SET`（跟主料三档）/ `AUTHORED_COLOR_MATERIAL_ROLE_RECIPES`（内容物与镜面
-  保留规格原色）/ `NON_CARCASS_MATERIAL_ROLE_SET`（五金 / 玻璃 / 软包等另有专管）之一，三份名单
-  不得重叠。新加角色时先想清楚它属于哪一类：「不跟木色走」的角色在 `studio-material-styles.js` 的
-  `joineryCombo` 里也要各有一条配方，两处成对。
-- **圆形占地的物件在户型图上被画成方角矩形**：平面符号是手绘的（`studio-app.js` 的 `drawPlanItem`），
-  3D 早已换成流水线规格，两者不会互相牵引 —— 0.9 × 0.9 的圆茶几、圆桶加湿器、圆面吧凳画成兜底的
-  圆角矩形，画面上「对不上」但浏览器零报错，只能逐件用眼睛过。这条把它变成可测的：
-  `tools/lib/glb-footprint.mjs` 把 GLB 的俯视轮廓栅格化，**格数比 ≈ π/4 且各向半径等长**即判为圆
-  （两条必须一起看：单看格数比会把中间挖空的方框误判成圆）；判出来是圆的类型必须进
-  `studio-item-types.js` 的 `ROUND_FOOTPRINT_ITEM_TYPES`，由运行侧那个分支画椭圆，圆里的一两个
-  **同心圈**（网罩圈 / 踏脚圈 / 台面收边）的半径比写在 `ROUND_PLAN_RING_RATIOS_BY_TYPE` 里，
-  逐条注明取自规格的哪个半径。**两个方向都判**：实测是圆却没进名单（那一件在图上是个方块）、
-  名单里有但实测不是圆（规格改成方料了，名单该收）；另加一道「名单有没有真的接上外轮廓那一支」——
-  只导出名单不去用是这类改动最典型的半成品状态，画面上一点变化都没有，而两个方向的判据全绿
-  （这条判据要精确到「那一支里调了 `fill()`」：圆里那一圈同心圈同样带 `ellipse()`，只看 `ellipse`
-  会被它蒙混过去，实测过）。阈值取在「圆」与「方」实测间隔的中间（0.7 < 格数比 < 0.86 且
-  径向变异 < 0.05，源自 126 件的实测分布），贴着任一侧都会让判据在规格微调后反复跳。
-  逐件明细用 `node tools/audit_plan_symbols.mjs`（`--only=round` 只看圆的那一批、`--regress` 只对账）。
-- **引用了本文件解析不出绑定的名字**：判定在 `tools/lib/free-variables.mjs`（`tools/vendor/acorn`
-  建真语法树 + 作用域链，零 npm 依赖），护栏只多一层浏览器 / Worker 宿主全局白名单。这类引用
-  **没有任何静态报错**，只有执行到那一行才 `ReferenceError` —— 两处真实案例都是「把一段代码搬进
-  另一个函数」时漏掉参数或改错名字留下的：`studio-app.js` 的 `drawPlanItem` 画钢 / 玻璃楼梯时写
-  `itemWidth` / `itemDepth`（本函数只有像素版 `itemWidthPx` / `itemDepthPx` 与米制 `planFootprint`，
-  症状是「户型图上放钢梯 / 玻璃梯就整张图不刷新」），`studio-external-models.js` 的
-  `applyAppliancePalette` 里写 `materialPalette`（函数内的绑定叫 `appliancePalette`，那个名字只在
-  唯一调用点的**实参**位置存在，症状是「小车一走家电调色板就炸」）。修法只有两种：补上它该来自的
-  绑定（形参 / 解构 / import），或改用同作用域里已有的名字 —— **不要**往白名单里加业务名字，
-  那张表只收宿主自带全局，否则这条会退化成「把误报一条条塞进去」的垃圾桶。上游同一件事按行级
-  正则试过、跑出 7996 条 GLSL 误报后被放弃，所以这里必须靠语法树；判据边界（`typeof 裸名字`
-  不报、`with` 体内不报、只认取用不认对象字面量的键与成员名）写在 `free-variables.mjs` 的注释里。
-- **净化器模型类型三处白名单不同源**：`airpurifier` / `freshair` 这份类型表同时出现在
-  `config-editor.js` 的 `sceneModelTypes()`、`binding-collectors.js` 的 `collectClimateBindings()`
-  与 `purifier.py` 的 `PURIFIER_MODEL_TYPES`。借空调那套（`wallac` / `floorac` / `airoutlet`）
-  会让每一台净化器都绑不上模型（`modelAvailable` 恒为 false），而配置校验与浏览器控制台都不报错。
-  三处必须逐类型成对，删类型同理。
-- **窗帘面板返回对象少了 `deactivate`**：漏了它，`cover-group-panel.js` 只能写 `panel.deactivate?.()`
-  兜底 —— 方法名写错也没人知道（代价只是静默少清一次场）。语义是「仅在拖动预览生效时才撤回」，
-  调用侧不许再用 `?.()`。
-- **扫地机状态字典缺上游别名**：`vacuum-map.js` 的 `vacuumRawState` 文案字典要含上游全部别名
-  （`returning_to_base` / `returning_home` / `standby` / `ready` / `stopped` / `off` / `mop_washing` /
-  `self_washing` / `cleaning_mop` / `mop_drying` / `drying_mop`）。漏一条不会报错，那个状态直接掉进
-  兜底文案「状态更新中」；同义别名的文案还必须逐字相同。
-- **吊柜挂高三处不同源**：`model-specs.mjs` 的 `wallcabinet.mountHeight`、
-  `item-builders/storage-cabinets.js` 的 `wallCabinetMountHeight`、以及
-  `ITEM_TYPE_DEFINITIONS.wallcabinet`（**不能**有 `elevation`，原版那一格是 0）。改一处必须三处一起改，
-  并让 `HOME_LITE_MODEL_VERSION` 前进一格 —— 模型文件名没变，不换戳浏览器与持久缓存会继续喂旧几何。
-- **聚焦可用设备清单与上游不同集合**：`geometry.js` 的 `isFocusableDevice` 漏一类，那类绑定就会落到
-  「有 `modelId` → 空调」那一支，点一下门锁 / 冰箱就给上次看过的那台空调发 `turn_on`（命令照发、零报错）。
-- **授权状态文案三处不同源**：后端 `license/service.py` 的 `labels` 是状态枚举的唯一出处，
-  `auth/license-recovery.js` 的 `STATUS_MESSAGES` 与 `editor/home.js` 的 `licenseStatusLabelByCode`
-  各是它的一份展示文案，三处键集必须逐码相同（漏一条该状态就原样显示英文码或空白）。
-- **前端可派发的 HA 服务没登记进后端 `ALLOWED_SERVICES`**：`backend/api/ha.py` 的 `ALLOWED_SERVICES`
-  是 `ha/services/call` 的唯一准入表。本仓已因此连踩三次：`vacuum.stop` / `vacuum.locate` /
-  `vacuum.clean_spot`（扫地机开得动、停不下来）与 `climate.set_swing_horizontal_mode`（空调
-  「水平摆风」整组每次点都 403）。前端按 `supported_features` 把按钮渲染出来、后端却没登记那条服务，
-  失败只回显一句笼统提示、控制台零报错。守卫扫前端的分发位置（`service: "x"`、
-  `callEntityService("d", "x")`、`invoke*Service("d", "x")`、媒体动作按钮、扫地机动作定义表），
-  **只核对服务名是否存在**（前端域名常是变量），不核对「域 + 服务」的确切组合 —— 这能挡住整条服务名
-  缺失（三次踩坑都是这种），挡不住「域写错」。
+3D 交互运行时资源（`frontend/modules/runtime/**`）的"可下发集合"只有一处事实来源：
+`frontend/modules/runtime/manifest.json`。后端 `modules/interaction3d/runtime_manifest.py` 读它，
+`tools/check_invariants.mjs` 与 `tools/audit_dead_code.mjs` 也读它做双向核对。
 
-**两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
-`.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
+**新增一个运行时模块只改这一处**（清单里加一行），媒体类型按扩展名推导。清单同时是安全边界：
+这条路由按增量包能力码门禁（`editor` 或 `module.3d_interaction`），"文件放进磁盘"不等于"可以被下发" ——
+所以清单是**显式 allowlist**，不是"扫磁盘全下发"。漏登记的旧表现是浏览器里那个模块 404、整条 import 链断掉。
 
-**结构改动只有一部分有自动校验**（原先的 `check_structure_refs.mjs` 已移除，且不打算恢复）。前端没有打包器，
-路径写错只在浏览器里变成 404，所以下面这些必须人工过一遍：`backend/main.py` 的 `public_static_files`、
-`<img src>` / `srcset` 与 HTML 内联 `<style>`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、
-`backend/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。
-（ESM 说明符、HTML 的 `<script src>`/`<link href>`、CSS 的 `url()`，以及 interaction3d 资源白名单与
-`frontend/modules/runtime/` 的对应，已由上面「import 说明符解析」「HTML 属性 / CSS url()」两条不变量自动核对；**不覆盖**页面路由 URL。）
-
-**在 `frontend/modules/runtime/` 下新增文件时**：该目录的文件全部经
-`/api/v1/modules/interaction3d/{filename:path}` 下发，白名单在 `backend/modules/interaction3d/api.py`
-的 `get_resource()` 里。**漏登记不报错，只表现为浏览器里某个模块 404、整条 import 链断掉** ——
-「import 说明符解析不到真实文件 / runtime 资源没登记进白名单」那条不变量现在双向核对白名单与磁盘（少登记、登记了但文件已删，都会当场报出来）。
-
-**前端结构 / 卫生护栏已全部移除**（原先的 `check_frontend_hygiene.mjs` / `check_studio_palette.mjs` /
-`check_registry_split.mjs` / `check_esm_exports.mjs` / `check_scene_sync.mjs` / `check_entry_pages.mjs`
-六道守卫与本目录的场景分发工具 `sync_scene_assets.mjs` 一起删去）。它们把关的都是**不报错、只静默
-失效**的那一类问题，所以下面这些不变量现在全部落回人工 review：
-
-- **死类名 / 重复规则**：删一条 CSS 规则前先 grep 类名；跨文件同名规则、重复 `@keyframes`、
-  与令牌逐字节同值的 hex 都要人工看。
-- **3D 工作室素材卡**（`3d-studio/studio/studio-asset-palette.js`）：渲染结果必须与拆分前的 HTML
-  逐字一致（缩进、属性顺序、`i`/`span`/`small` 顺序都算数），改完请人工比对结构与字段。
-- **控件注册表分片**（`renderer/core/registry.js`）：注册是 import 副作用，漏引入一个
-  `registry/components/<类型>.js` 不会报错、不会 404，只会在页面上变成「控件尚未实现」。
-- **design/scene 分发副本**：`design/scene/` 下的 `scene.css` / `panel.css` / `page.css` /
-  `fonts.css` / `appearance.js` / `scene-depth.js` / `scene.html` 各有三份分发副本
-  （`frontend/static/auth/scene/`、`store/static/scene/`、`store/templates/_scene.html`），改动必须
-  手工同步到每一份；商店 `theme.css` 的 `--hb-*` 与设计源 `--hos-*` 令牌要逐个相等；两侧 HTML
-  转义集（`utils/html-escape.js` 与 `store/static/htmlsafe.js`）必须逐字节相同。
-- **场景里那间小屋的缩放**（`scene.html` 里整组那行 `translate(...) scale(...)`）：锚点钉在整组
-  bbox 的左上角，所以放大只往**右下**长 —— 左边沿与塔顶原地不动，才既不会把四个亮着的窗推进左栏
-  那张档案表的文字行，也不会让塔身从坞的玻璃面板底下穿出来。换算 `tx = 371.8 − 10S`、
-  `ty = 591.5 − 14S`：只改倍数、不改这两个分量，房子会贴着自己的左上角漂，页面照常渲染，
-  只是窗子压到字上、塔身钻进面板，没有任何断言会拦。四条约束的推导写在 `scene.html` 那处注释里。
-
-**五个入口页**（`/setup` → `/login` → `/license` → `/pair` → 进中控）的轨道读数不在 HTML 里，
-由 `backend/http/commissioning.py` 按**访问者**填：同一条 `/pair` 对管理员（带着会话）与一台
-墙面板（不走登录、键盘都没有）读数是两种，写死在页面上必然对其中一种撒谎。改「页面 ↔ 读数分支 ↔
-CSS 状态名」任一处都要人工核对三者是否还互相对得上 —— 走散不会报错，只会让某一步安静地不亮、
-或者亮错一格。
-
-**入口页左栏**那四行字（页面标题 / 标语 / 表的抬头 / 四行档案表）同样不在 HTML 里，
-占位符是 `{{TITLE}}` / `{{TAGLINE}}` / `{{DOSSIER_LABEL}}` / `{{DOSSIER}}`，取值分两处，
-两边都**按模板分页**：主应用在 `backend/http/page_shell.py` 的 `SCENE_VALUES_BY_PAGE`（五页各一份），
-商店在 `store/api/page_shell.py` 的同名字典（`store.html` / `setup.html` / `admin.html` 各一份 ——
-登录 / 找回 / 注册三屏看着像三个入口，其实是同一个文档、只注入一次场景，所以那三屏共用一份，
-而 `/setup` 与 `/admin` 是另外两份文档、各有各的门，用商店前台的文案说「注册、下单、拿码」
-等于左栏在讲另一道门）。两边都取不到页面名时不回落到默认文案，直接抛 —— 默认值正是这个
-模块反复躲开的那种坏法：新加一页忘了登记，页面照常返回，只是左栏变回通用句子，没有地方会报错。
-
-分工是钉死的：左栏说「这道门是什么」（客观事实），右栏坞头的 h1 / desc 说「你要做什么」，
-坞脚的 `.hos-panel__meta` 说「这一页怎么运作」，甲板说「这台机器现在什么样」，字段自己那一行
-右侧的小字（`.hos-hint`）说「这一格怎么填」。**任何两句能互换位置，就说明有一处该删** ——
-五处都在说同一件事时，页面看起来更满，读起来什么都没有。这条规则不只是洁癖：矮窗口（648px
-高）里坞内只剩五百来像素，重复的那一句往往就是压出滚动条的那几十像素 —— 激活屏坞脚那句
-「换机…先解绑」说的是激活码字段底下那行小字的同一件事，商店 `/setup` 引导密钥下面那三行说明
-在标签行右侧一行也说得下（「密钥在启动日志里」本就写在输入框的 placeholder 上），删掉的都是
-这种「同一件事占了两次纵向空间」。
-
-漏填会 500（`_scene_markup` 里那条 `missing` 断言），不会把 `{{TITLE}}` 直接印在用户脸上。
-唯一**刻意写死**的是顶栏那一行品牌：`HomeOS` 与它右侧的定位语「全屋智能家居」（`.hos-scene__label`）
-不走占位符，因为这一页无论在哪一道门、主应用还是商店回答的都是同一句 —— 它是「这套东西是什么」，
-不是「这一页说什么」。占位符留给按页变化的东西（`SHELL_NAME` 的「本机中控 / 授权中心」就是）。
-左栏那张表压在山脊的雾与暖光上，宽度因此写死 `470px` 而不是 `min(100%, 470px)`：百分比会让
-`/license` 这种短标题页的表窄到 364px，五个页面的右边缘在各页之间来回跳。
-
-**状态甲板**（坞里那四格 `.hos-deck` 读数）的标记由 `backend/http/telemetry.py`（商店侧
-`store/api/telemetry.py`）产出，经 `<!--{{DECK}}-->` 插入点进页面 —— 与 `{{SCENE}}` / `{{STEPS}}`
-同一套严格度：占位符要是被写进 HTML 注释里，`page_shell._COMMENT_TRAPS` 会在渲染时当场抛错，
-不静默少一块。三条规则改任何一条，都会把这块甲板从资产变成负债：
-
-1. **不发新请求、不新增公开接口。** 读数在渲染这一页时就从进程内状态与站点配置里算完；
-   入口页在未登录时就能打开，多一个匿名可读的接口就多一处要审的攻击面，而甲板要的只是几个布尔。
-2. **档位按访问者判，不按页面判。** 有管理员会话或已配对设备 Cookie 的人拿真读数（HA 连接、
-   纳管实体、项目与设备数、授权状态）；两者都没有的人只拿机制读数（服务就绪、数据不出本机、
-   运行时长），口径与 `/api/v1/setup/status` 只回 `initialized` / `version` 一致。`/login` 与
-   `/setup` 天生只有匿名访客，但 `/pair` 与恢复页也在 `main.public_page_paths` 里、任何浏览器
-   输地址就能打开 —— 按页面判的那一版，会让未登录的人在 `/pair` 上读到「纳管实体 1,646 个」。
-3. **时间类读数在客户端自走。** 时钟与运行时长由后端注入**绝对时刻**（`data-since`）而不是
-   渲染时的相对值，由 `frontend/static/auth/entry-deck.js` 与 `store/static/entry-deck.js`
-   负责把它变成「多久之前」。两份文件、一套契约：`data-deck` 与 `data-since` 两个属性名必须
-   逐字相同（商店是独立构建上下文，import 不到应用侧那一份），改一处就要改另一处 —— 走散的
-   后果是某一侧的四格安静地停在服务端注入的破折号上。
-
-甲板固定四格：坞宽 `min(600px, 47%)` 扣掉内边距后一行正好放下四格等宽数字，第五格开始换行，
-而折成两行的甲板就从「一排仪表」退化成「一张表」—— 那是另一种组件。`deck_markup` 里那条
-`len(tiles) != 4` 的断言就是钉住这件事的。
-
-Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全仓已达标的那几条，边界写在该文件注释里）：
+### 死代码盘点
 
 ```bash
-ruff check .                                      # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
+node tools/audit_dead_code.mjs            # 只读报告，永远退出码 0
+node tools/audit_dead_code.mjs --json     # 机器可读
 ```
 
-**两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 静默失效不变量，此后逐轮加条）：
+从入口（页面 HTML、运行时清单、Python 可执行入口）建引用闭包报告走不到的文件，并按"名字在全仓只出现一次"
+报告只有定义、没有任何引用的顶层定义。判不准的一律放过（模板拼出来的路径、`import(变量)`、
+alembic 按目录扫的 `db/migrations/versions/*`），结论都在输出里写明边界。**刻意不进 CI**：
+本类审计的误报模型是"要不要删由人判"，接进 CI 只能靠白名单堆人肉豁免。
 
-- `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
-- `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
-  `workflow_dispatch`（仓库有意不在 push 上自动构建、也不向 GHCR 推未打算发布的镜像），
-  所以它是出包前那道。
+### 本轮新增的三条守卫
 
-两份工作流共用同一份清单，改时**两份都要改**，否则会出现「CI 绿、出包红」这种最难查的错配。
-
-**HTML 转义**由 `frontend/static/utils/html-escape.js`（应用侧）与 `store/static/htmlsafe.js`
-（商店侧）各一份提供 —— 商店是独立构建上下文（`store/app.py` 只挂 `/store-static` 与 `/fonts`，
-拿不到 `/static`），它 import 不到应用侧那份，只能各留一份。转义集不一致**不会报错**，只会让
-同一个值在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」），
-原先由 `check_scene_sync.mjs` 比对两份映射表，现在必须人工同步 —— 不一致不会报错，只会让同一个值
-在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」）。
-
-**ESM 导出的三类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在由「import 的名字不在目标模块的导出里」那条不变量接手）：
-
-- **分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向**导入方**
-  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。→ 该条直接报在导入处。
-- **导出方把「只在 `export {}` 里出现的名字」当本地变量读**：`export { clampNumber as clamp } from
-  "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块作用域建绑定**，于是同文件里那些
-  `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数（`geometry.js` 的
-  `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。换成
-  `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
-  两种写法都要靠人认出来。→ 该条判「转出口里的名字在本文件被取用」（当前全仓 2 处纯转出口，
-  都在 `renderer/core/`）。
-- 运行时树通往 `/static/` 的两份共享桥
-  `modules/runtime/core/static-helpers.js`（显示路径）与 `static-helpers-editor.js`（编辑器路径）。
-  桥写的是 `const { a, b } = await (… ? import(相对路径) : import("/static/…"))`，既不是
-  `import … from` 也不是 `export const { … }`。→ 该条现在**两种朝向都看**：桥自己解构出的名字
-  必须在两个分支目标的导出里（漏登记/改错目标会报），导入方从桥里引的名字也必须在桥的
-  `export { … }` 里（漏转出会报）。仍然只能人工核对的只剩「两个分支必须指向同一个文件」这一条，
-  加名字到桥里时请照旧核对：
-  解构出的每个名字都得是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }`
-  必须与解构出的名字集合逐字相同（桥自己的「登记表」纪律）。
-
-  为什么是两份而不是一份：`static-helpers.js` 在**显示热路径**上（`stage.js` 直接 import 它），所以
-  只登记零依赖工具；`bridge/bridge.js` 的授权与视图登记接口**有模块级状态**（一个授权监视器 + 两张
-  按组件 ID 索引的 Map），一旦并进前者，纯展示页也要付这份开销。于是按「哪些模块会加载它」拆开：
-  只有用户真的打开 3D 编辑器才走到的模块，import `static-helpers-editor.js`。
-
-`utils/state-entry.js` 的契约（**已无自动断言**）：状态文本归一
-（`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责
-「哪些词算活动」。要小心 `stateTextOf` 里那个 `?? ""`：改成 `|| ""` 之后 `state: 0` 与
-`state: ""` 会一起塌成空串，而 `0` / `1` 正是 HA 开关量的常见写法 —— 现场表现只是「离线设备显示成
-未知」，不报错、不 404。同一处还要保证 `normalizedTextOf` 真被复用，而不是在 `stateTextOf` 里又手写
-一遍归一。
-
-后端与商店**目前没有自动冒烟**：`smoke_backend.py`（导入 `backend.main` / `store.app` + 路由清单双向
-比对 + 关键路径状态码）已在清理中移除，连同它的快照 `tools/routes.snapshot.txt`。移除的代价要说清楚 ——
-它是**唯一的路由清单校验**，此后增删路由没有任何自动信号，改动路由请人工核对 OpenAPI 与调用方。
-
-几处口径值得记住：
-
-- **CSS 的相对 `url(...)` 按 URL 而非磁盘目录解析**：`/store-static/font.min.css` 里的 `url(../fonts/font.woff2)` 实际请求 `/fonts/font.woff2`，由 `store/app.py` 的 `/fonts` 根挂载提供。这条检查因此同时钉住字体文件与那个挂载。
-- **有若干路径是在 Python 里拼出来的**，不在 `public_static_files` 清单里：`/static` 挂载本身、两个 apple-touch-icon 路由、`static/vendor/mdi` 图标根。`frontend_dir / …` 链逐段验证字面前缀存在。
-- **注释里写到的文件路径按「可 grep 到」判定**（容忍省略前缀，如 `interaction3d/config.py`），只报 basename 仍存在却已不成后缀的失效引用 —— 因此历史叙述里对已删文件的**故意**提及不会被误报。
-- **缓存戳检查钉三处**：模块 import、HTML 的 `<script src>` / `<link href>`、商店模板里非压缩的 `/store-static/…` 引用，外加「全站只许有一个戳」。
-
-`/static/renderer|editor|bridge|utils/**` 不是 `no-store`（只有页面、`/api/v1/`、`/static/display/display.js|css` 与 `/static/3d-studio/` 是），所以对这些模块来说 `?v=` 是唯一的缓存失效手段：漏戳会让改动在浏览器里迟迟不生效，而「同模块一处带戳一处不带」会让浏览器当成两个模块、各留一份模块级状态。
+- **表达式被静默改写的语法陷阱**：行首残留的「数字 + |」会把紧跟其后的模板串位或成数字。
+  本仓真踩过一次 —— `client-log.js` 里的 `370|` 让**所有慢请求/失败请求的日志消息恒为 `370`**，
+  而它语法合法，acorn、浏览器、ruff 与其余守卫全都不报错。
+- **文件规模预算（棘轮）**：Python 单文件 800 行、JS/MJS 1200 行。超标的既有文件登记在
+  `tools/file-size-baseline.json`，**行数只许减不许增**；拆到限额以内要把那条删掉（守卫会提醒）。
+  要拆就按仓库里已有的缝走：`item-builders/`、`plan/`、`loaders/`、`editor/home/*`、
+  `panel-renderer/device-controls/*`；外提之后必须跑一次 `bump_static_cache_versions.mjs`。
+- **运行时清单 ↔ 磁盘双向核对**（见上）。
 
 ## 更新日志
 
@@ -1078,212 +549,26 @@ ruff check .                                      # 未使用 import / 重复定
 
 ### v0.6.5
 
-本版对齐上游 0.6.5 的业务能力：**交互对象从 8 类扩到 16 类**（新增冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植 / 空气净化器 / 门锁含门磁 / 温湿度计），动画体系补上卷帘与全类型门。落地方式遵循本仓既有目录约定，不是路径级照搬（见文末「与上游的结构差异」）。
+对齐上游 0.6.5 的业务能力：**交互对象从 8 类扩到 16 类**（新增冰箱 / 洗碗机 / 洗衣机 / 烘干机 / 绿植 / 空气净化器 / 门锁含门磁 / 温湿度计），动画体系补上卷帘与全类型门。落地方式遵循本仓既有目录约定，不是路径级照搬。
 
-**新增设备品类**
-
-- **通用设备弹窗（冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植）**：后端新模块 `device.py`（`DEVICE_PROFILES`、`GENERIC_DEVICE_COLLECTIONS`、`validate_device_bindings()`、`require_device_model()`）；前端 `device-profiles.js`（`GENERIC_DEVICE_KINDS` / `genericDeviceProfile`）、`device-status.js`、`device-panel.js`、`device-entity-config.js`。六类设备不推断主实体 —— 绑定必须写 `deviceId` / `deviceName`，实体由设备归属反查，因此配置里不允许出现 `entityId`。弹窗内容由 `statusRules`（状态灯规则）与 `extraControls`（附加功能）两块配置决定，绿植的 `statusIndicator` 为 false，编辑器不再提供状态规则。
-- **空气净化器**：后端 `purifier.py`（`EXTRA_TYPES`、`validate_purifier_command()`、`validate_extra_command()`），支持 `switch / input_boolean / light / select / input_select / number / input_number / button / input_button / sensor / binary_sensor`。前端 `purifier-extras.js` 渲染附加功能卡片；`climate-state.js` 扩展风机与净化器能力位（`oscillating` / `oscillatingSupported` / `directionSupported` / `percentageStep` / `preset_modes` 等 10 项），命令域走 `fan`。运行时净化器与空调**同属 climate 模块**（`deviceKind: "climate"`），靠实体域 `fan` 决定渲染净化器控件；场景里它是独立外观 `airpurifier`，模型类型清单七处同步点已一并登记，气流从顶盖向上吹（与空调的水平风道不同）。模板默认值新增 `environment.airPurifiers: []`。**新风机（`freshair`）按需求算作净化器的一种**：HA 里两者都是 `fan` 域，面板与能力位同形，所以「可绑定的场景模型类型」这份白名单三处同源 —— `config-editor.js` 的 `sceneModelTypes()`（模型选择器的候选）、`binding-collectors.js` 的 `collectClimateBindings()`（运行时绑定）、`purifier.py` 的 `PURIFIER_MODEL_TYPES`（命令侧的模型存在性复核）；借空调那套白名单（`wallac` / `floorac` / `airoutlet`）会让每一台净化器都绑不上模型，而配置校验与浏览器控制台都不报错。新风机是壁挂机型（离地 2.2m），编辑器「按钮位置」里「高度（米）」的缺省值必须与运行时绑定同一口径（`离地 + 机身高度 / 2`）：`config-metadata.js` 的 `plan.items` 给的是机体原值，缺省高度由 `config-editor.js` 的 `floorSceneModels()` 现推（`airConditioners` / `curtains` / `televisions` / `nas` / `vacuums` 那几张元数据集合早就把结果算进了 `height`）；不补这一步，缺省落点会恒为 0，新风机这类高离地机型偏得最明显。新增不变量第 30 条把三处白名单钉死。
-- **门锁与门磁**：后端 `lock.py`（`validate_lock_bindings()` / `require_lock_model()` / `validate_lock_command()`），按 `supported_features` / `code` / `code_format` 能力位校验 `lock` / `unlock` / `open`。前端 `lock-panel.js`、`lock-state.js`、`lock-motion.js`、`lock-state-runtime.js`。门扇动画按 rig 分支：平开（铰链轴 + 开合角）、推拉（滑移轴 + 行程）、卷帘门（上下卷收）、入户门；门事件源支持 `sensor` / `single-event` / `dual-event` 三种（参考实现里的 `always` 在本项目后端会被判非法，编辑器亦不提供，故不实现）。
-- **温湿度计卡片**：`temperature-humidity.js` 由 `environment-scene.js` 接入，按实体名（`/温湿度(?:计|传感器)?/`、`/温度/`、`/湿度/`）、`thermometer`、`relative_humidity` 与 `device_class` 识别温度 / 湿度两路实体。模板默认值新增 `environment.temperatureHumidity: []`。
-- **窗帘组合控制**：`cover-groups.js`（`createCurtainGroup` / `validCurtainGroups` / `curtainGroupEntryId` / `isCurtainGroup` / `curtainGroupCandidates`）与 `cover-group-panel.js`；后端新增 `curtainGroups` 字段与 `curtain-group:` 前缀。组合入口统一管理隐藏方式与聚焦视角，成员各自保留目标位置与反馈。
-- **卷帘**：窗帘类型新增 `roller`。帘型默认取户型模型属性 `curtainForm`（工作室的「窗帘形态」写入，`config-metadata.js` 原样透传给编辑器与运行时；历史草稿里的字段名 `curtainStyle` 仍兼容读取）；在编辑器里显式改过则置 `coverKindOverride`，让交互配置的 `coverKind` 胜出 —— 与上游 0.6.5 的 `coverKindOverride` / `curtainForm` 派生同一口径。`coverKind` 取值随之放开为 `standard / roller / dream`，后端 `config.py` 的字段白名单与取值枚举同步。`curtain-motion.js` 按解析后的 `binding.coverKind === 'roller'` 分支返回卷收 rig（0% 完全放下、100% 完全卷起），控制沿用普通窗帘。
-- **模型库新增「1 字型悬空楼梯」**：`floating-stairs.glb` 与 `floating-stairs-lite.glb`，10 级悬臂踏步确定性生成；素材库条目数随之 +1（按调色板动态推导，未硬编码计数）。
-
-**光影：两档并存，灯效量程固定**
-
-- `definition.js` 的 `INTERACTION3D_LIGHTING_MODES` 保留 `standard`（标准光影，原生灯光 + 实时阴影）与 `region`（轻量柔光，二维光照图 + 接触阴影）两档，**默认 standard**，非法值与缺省一律折算成 standard；切档等于换渲染管线，提交前过确认流程（`performance-warning.js` 在 region → standard 时提示绘制开销）。
-- 灯效量程不再随布光算法逐灯推算，改为固定档：新增 `light-effect-policy.js`（`LIGHT_EFFECT_RANGE` / `LIGHT_EFFECT_DEFAULTS` / `withFixedLightEffects()`）、`region-lighting-presets.js`、`page-appearance-presets.js`。**亮度区间固定为 1~100%**：渲染层把这个值直接当百分比乘进光强，允许到 150% 会把满亮度的灯抬到 1.5 倍而集体过曝，故上限锁在 100。
-- 与上游的差异（有意为之）：上游 0.6.5 把光影收敛为「轻量柔光」单档并允许亮度预设到 150%；本仓为保住标准光影的自然观感与不过曝的默认亮度，保留两档且把量程收回 1~100%。
-
-**3D 模型缓存与首次加载**
-
-- 新增 `model-persistent-cache.js`（IndexedDB `ha-bridge-3d-templates`）、`scene-persistent-cache.js`（`ha-bridge-3d-scenes`，`SCENE_PREPARATION_VERSION` + 7 天 TTL）、`model-template-codec.js`（three.js 模板序列化）、`stage-startup.js`（预热舞台、接管 studio 入口）。三者均带三重校验（版本 + `syncKey` + TTL），任一不符即回落为正常生成，命中时避免首次进入编辑器后户型偶发重新生成。
-
-**删除模型后的级联清理（含提醒与撤销）**
-
-- 后端新模块 `studio_cleanup.py`（`plan_cleanup()` / `identities()` / `confirmation_token()`）——**只清理 3D 交互绑定，不删除任何 HA 实体**。覆盖 `lights`、`environment.*`、`devices.*`、`security.*`、`floors[].items` / `lightGroups`。
-- 迁移 `0004_studio_interaction_sync` 建表 `studio_interaction_sync(document_json)`，模型 `StudioInteractionSync` 承载「待下发交付 + 可撤销删除记录」；`Studio3DDraftUpdate` 新增 `interactionConfirmation`（最长 64）；`studio3d.py` 增 `_deliver_pending()` 与存储锁。前端先弹「本次删除影响」确认（展示受影响仪表盘），凭 `confirmation_token` 才同步清理，撤销可恢复刚移除的模型或灯组。
-
-**修复**
-
-- **折线图状态重试定时器**：切到隐藏页时除短路外还 `clearTimeout` 并把 `historyRetryTimer` 置 0，可见后重建 —— 此前隐藏期间排定的重试不会被取消，恢复可见后可能与新建定时器叠加。
-- **未绑定实体的灯光在仪表盘中错误点亮**：`entity-power.js` 的判定补入显式 `'true'` 判据。
-- **2D 热水器弹窗空数据**：实体目录未就绪时不再直接弹窗，改为 `deferEntityDetailsUntilReady()` 挂起，待目录就绪后重试渲染。
-- **未配置实体时无法保存 3D 控件**：放宽保存校验并给出显式报错文案。
-- **实时连接恢复后状态无法及时补齐**：订阅队列满时由 `state_hub.py` 压入 `resync_required`，前端丢弃增量并重建/重拉全量快照，另配 `runtimeHydrationRetryTimer` 补齐折线图状态；断线重连走指数退避。
-
-**编辑器**
-
-- 编辑器模型选中态更明显：新增 `.i3d-editor-selection` 与 `.i3d-focus-actions`。
-- 设备编辑器补齐状态灯规则、附加功能与净化器实体选择三节，并新增跨域批量应用（可一键应用到其他同类设备 / 温湿度计）。
-
-**对齐复核修正（后续轮次）**
-
-对上游 0.6.5 做了一轮全量复核：文件级差分 + 中文串差分 + 分域业务逻辑审读，结论逐条回源（含反汇编上游产物）后才采纳。修掉以下几类「不报错、只静默失效」的缺陷：
-
-- **门锁与门磁 4 处**：① 门扇动画补 `hinge` 三级兜底（配置显式值 → 门模型 → 左开），与 `binding-collectors` 同口径 —— 编辑器刻意不写 `hinge` 并断言兜底在收集侧，而动画路径没合并门模型 hinge，于是入户口 / 玻璃门拿不到门轴，右开门整体平移一个门宽、入户口还反向开启；② 双事件门磁单边缺失或未知改为一律返回 `null`（与自身契约一致）—— 此前返回确定值会把门永久钉死，且判据与 `eventTimestamp` 的可用性判定不同源，`unknown` 会漏过；③ 事件型门磁的 `doorLabel` 不再恒为「未绑定门磁」（事件源会清空 `doorEntityId`，旧判据只看它）；④ 门复位改取关闭姿态 —— 此前取烘焙的半开**编辑**姿态（双开 / 玻璃门 `0.42π`），移除门模型时整层门会齐刷刷弹开。
-- **3D 持久缓存 4 处**：⑤ `saveTemplate` 改为复用 `database || await openDatabase()` —— `openDatabase()` 一旦超时，其 Promise 永久定格为 `null`，读路径有 `database` 兜底而写路径没有，表现为本会话「读得到、写不进」且完全静默；⑥ `v1→v2` 升级时回填 `metadata`（注释早已承诺）—— 否则旧条目既不计配额也永不被 LRU 剪枝；⑦ 场景缓存在 `schedule()` 写入后同步内存层（`entryByKey` 此前只在 `preload` 写、`preloadByKey` 从不清理）—— 否则刚写入的条目本会话读不回来；⑧ 统计口径补 `misses`、超时后迟到结果不再重复记命中、写事务失败上报 `noteFallback()`；`packModelTemplate` 的 `bytes` 计入序列化信封，否则 64MB 配额被低估。
-- **服务白名单补齐 7 条**：`ha.ALLOWED_SERVICES` 漏登记 `lock.lock` / `lock.unlock` / `lock.open`（门锁面板三个动作全部 403）与 `input_button` / `input_boolean` / `input_select`（附加功能卡片里 `input_*` 域的命令必然 403）。机理是 `interaction3d/api.py` 的 lock 与 device-extra 分支校验通过后仍要落到 `ha.call_service`，而两条白名单不同源；`switch` / `light` / `number` / `select` 另有同名条目，所以缺口只在 `input_*` 与 `lock` 上显形，长期没被发现。补齐后该表与上游反汇编出的版本逐条一致（58 条）。
-- **宿主命令闸门补齐 3 类实体**：`runtime.js` 的 `control` 闸门只列绑定实体的顶层清单，`security.locks`、净化器 `environment.airPurifiers[].extraControls`、通用设备 `devices[<品类>][].extraControls` 三类不在内，命令在到达后端之前就被判成「此实体未绑定到当前 3D 控件」（门锁因此完全点不动）。舞台侧本就要求命令实体必须在本机 `extraControls` / 本控件绑定表里，闸门与之同口径，判定并未放松，后端仍是权威校验。
-- **状态订阅补齐同一批实体（闸门的另一半）**：上一条只修了闸门，订阅侧的钱包并没有跟着补。宿主对同一批「非顶层绑定」实体有两处展开——命令闸门（决定 `control` 能否下发）与状态订阅（`collectTrackedEntities` / `additionalEntityIds`，决定舞台收不收得到读数），上游两处都列了门锁与附加实体，本仓两处都漏了。`lightStream` 只推订阅集内的实体（服务端按订阅报文过滤），没订上的实体读数是**永久空值**：门锁面板恒显「门锁状态不可用」、门磁 `doorOpen` 恒为 `null`（门保持原姿态、不报错），附加功能卡片恒显「该实体当前不可用」且命令永远发不出去。修复按上游 `_0x56df7e` 主清单与 `_0x2c712f` 补充清单的口径补入门锁 8 个字段（锁本体 / 门磁实体型与事件型 / 开合两事件 / 电量 / 低电量 / 防拆）、通用设备（附加控件 + `statusRules.power` + 健康规则，直接复用舞台侧 `device-status.js` 的 `deviceEntityIds` 以免再分叉）、净化器附加控件；`lock` / `select` / `number` / `input_*` 不在 `lightStream` 主白名单正则内，必须同时进 `additionalEntityIds` 才能订上。同时新增不变量第 25 条把两端口径钉死（见下）。
-
-- **门锁槽位的候选口径回归上游 + 枚举型门状态（「找不到实体」）**：症状是小米 S2 这类门锁在安防面板里**一条「开关门检测」候选都选不上**（面板上只剩一个空选择器，点开就是空列表）。三处成因：① `lockEntityMatchesField` 写成「device_class 已知就只信 `lockEntityRole`」——这类门锁的门状态是 `sensor.*_door_state`（device_class `enum`，值 `已上锁 / 已开锁 / 门未关 / 门虚掩`），而角色判定只认 `binary_sensor` 的 door / opening，于是候选恒为空；上游的 `entityFilter` 是「角色命中就收，认不出才退回域白名单」，且门磁槽位的白名单**刻意包含 `sensor` 域**（反汇编原文即 `['binary_sensor','sensor']`），本仓现按上游逐条对齐（`LOCK_FIELD_DOMAINS.doorEntityId` 同补 `sensor`）。② 门磁读数词表原先只有 `on/off`、`open/closed` 与中英文口语，`已上锁 / 门未关` 这类枚举值一个都不认 —— 绑上了也是 `doorOpen: null`（门扇保持原姿态、零报错）。词表收进 `DOOR_STATE_TEXTS`（`doorOpenFromText`）成为唯一口径，`doorOpenState` 与 `lockState` 共用：`已上锁 / 已开锁` 说的是锁舌、门扇当时是关着的（判 `false`），`门未关 / 门虚掩` 判 `true`，英文 `locked / unlocked` 刻意不收（含义在设备间不一致，猜错会让门自己乱动）。③ 本仓多出的那一档（自动识别 / 选设备回填）补认这类枚举门状态，判据是「域是 `sensor` + 名字含「门」+ 当前读数落在词表里」，且只在设备名下**恰好一支**时才回填（与 `identifyLockEntities` 同一条纪律）；两个槽位的候选另加推荐分（标准门磁 → 枚举门状态 / `binary_sensor` → 其余 `sensor`），否则六支 `sensor` 里得挨个读名字。同时补上**编辑侧**的状态订阅：`collectEntityIds` 此前只展开 `security.presenceSensors`，门锁那 8 个字段不在内 —— `editorRenderer.states` 里没有门锁读数，编辑器状态行恒显「电量 —」、device_class 与推荐分也只能退回目录字段（舞台侧那半边见上文「状态订阅补齐同一批实体」）。验证：`security-lock.mjs` 新增 5 组断言（枚举词表 / 候选的域兜底 / 排序 / 小米型门锁的回填 / 订阅清单），不变量照过。
-- **门牌（门锁标记标签）配色回归场景皮肤**：「门名 + 开合状态 · 电量」那块标签此前是**不透明的米白纸卡**（`#fbf7ef` 底 + 暖金描边 + 暖褐字），而它周围的一切 —— 标记底座、摄像头 / 人体传感器标签、温湿度计卡片 —— 都是深色玻璃（`#1b2029dc` 底 + 浅色字）。暗场里门牌成了画面里唯一一块亮色，与旁边深色标签摆在一起就是「卡片配色和整体不协调」。现在底 / 正文改回与标记底座、安防标签**逐字同值**（`#1b2029dc` / `#f2eee7`，靠「同源」而非硬编码来防止日后再落单），暖金只保留在两处识别位上：比底座更金一档的描边（`#c9a76c66`，底座是 `#aa967455`）与门图标（`var(--hos-accent, #ffc46a)`，即主题主控金）；第二行门开合 / 电量用暖灰 `#c0b199` 而不是摄像头那枚偏绿的 `#b5c9bc`，让整块标签偏暖一度。米白纸卡没删，移到**暖阳原木主题**下（那里全场标签本来就是米白），并且补齐了「底 / 第二行 / 图标」三件套 —— 原先只覆盖了底与描边，正文与图标会继承暗场规则，纸卡上是浅色字，等于没写完。验证：`security-lock.mjs` 新增配色契约（底色 / 正文与标记底座、安防标签同值 + 暖阳三件套齐全 + 底色必须是带透明度的 8 位色，防止纸卡回潮）。
-- **环境页面归一表补登温湿度计**：`environment-scene.js` 的 `pageDimming` 把「模块 ID」归一成「页面 ID」，本仓 0.6.5 新加的「温湿度计」页签漏登 —— 归不出来时该页签既不在页面白名单里（压暗 / 降饱和整段不生效），又会把 `pageModelBindings` 的页面筛成 `"temperature-humidity"`（环境模型既不描边、也不合成展示绑定），症状是「切到温湿度计页，环境设备全部失去高亮」且浏览器零报错。按上游 `pageDimming` 反混淆口径补上 `"temperature-humidity": "environment"`；同时新增不变量第 27 条把这个别名表钉死（上游同表还有 `purifier` 与通用设备品类，本仓因净化器并入环境页、通用设备不是独立模块而**故意不登记**）。注意上游的 `resolvePageBehavior`（`static/bridge/page-behavior.js`）别名表**不含** `temperature-humidity`，两处故意不一致，别顺手对齐。
-
-- **运行期面板行为层补三处（P1）+ 补齐被收窄的导出面**：① `cover-panel.js` 的返回对象补上游 0.6.5 的 `deactivate()`（语义是「仅在拖动预览生效时才撤回」，面板继续用），`cover-group-panel.js` 里两处 `panel.deactivate?.()` 与那段「本项目暂无该方法」的注释一并清掉 —— 兜底写法的代价是「方法在不在」永远没人知道，漏了只是静默少清一次场；② `vacuum-map.js` 状态字典补上游 11 条别名（`returning_to_base` / `returning_home` → 回充中、`standby` / `ready` → 待机、`stopped` / `off` → 已停止、`mop_washing` / `self_washing` / `cleaning_mop` → 清洗拖布、`mop_drying` / `drying_mop` → 烘干拖布），别名漏登的读数是恒显「状态更新中」，零报错；③ `climate-state.js` 的 `climatePowerControl` 补净化器 `fan` 域早返回，与已有的 `purifierControl` 同口径 —— 本仓此前对净化器恒返回 `domain:"climate"`，只因调用方自己先分支才没炸，属潜伏陷阱。另补 5 个被收窄成私有的导出（`nasMetricValue` / `planFurniture` / `resizeRegionDimensions` / `regionHeightPatch` / `mountRangeFormControls`），目前无消费者，纯 API 面对齐。新增不变量第 31 条钉住窗帘面板的返回键集合（含 `deactivate` 与「仅在拖动中才动手」的守卫、调用侧不许再出现 `?.()`）、第 32 条钉住扫地机状态字典与文案同源。
-- **3D 面板设备图形与外壳精修**：把 2D 弹窗里的设备插画按净化器 / 空调已验证的口径移植进运行期面板 —— 从 `renderer.css` 一比一取材质配方、类名换 `i3d-` 前缀、**居中独占一行**插在标题行之后、控件之前，外壳从固定高度改为同一套 `max-height`（`calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2)`）+ `overflow-y: auto` + 细滚动条（灯光弹窗除外，它随后整体回退，见下）。本轮补的是有 2D 插画可移植的那几类：窗帘（含梦幻帘的 `.is-dream` 叶片角度变体）、电视（材质配方沿用 2D 音箱的机身渐变 / 网罩交叉重复渐变 / 呼吸指示灯，形态按电视屏框重画，封面继续走既有 `i3d-tv-artwork` 的加载与失败逻辑）。**灯（灯光弹窗）本轮先照 2D 口径提到 1.0、居中独占一行，随后按用户要求整体回退到原样**：`.i3d-lamp-drawing` 恢复 `scale(0.64)` 的右上角标版式、`.i3d-power` 回到 144×128 绝对定位、`header` 回到 `flex: 0 0 112px` 的固定两栏（右侧留 132px 给图形），外壳也回退到固定高度（`.i3d-light-panel.has-light-controls { height: 400px }` / `.i3d-light-panel.has-error:not(.has-light-controls) { height: 210px }`），不再走内容自适应 + 滚动；回退时同步删掉了只在那一版用到的 `.i3d-light-panel.is-light-panel` 宿主类与其 `stage.js` 挂类。尺寸口径沿用「2D 图形超出面板内容区（360px 面板 − 40px padding = 320px）才等比缩小」：只有空调（2D 406px）需要缩放，窗帘 244px / 电视 240px 直接用 2D 原尺寸（灯本轮已回退，不在此口径内）。**居中必须用 `margin: … auto` 而不是只写 `align-self: center`**：电视面板根不是 flex 容器（它只是外壳里的一个 flex 项），父级是 block 时 `align-self` 完全不生效，实测图形偏左 39px。
-  外壳侧另修三处：**门锁**的宿主类 `is-lock-panel` 此前全仓没有任何对应 CSS 规则，面板掉回默认外壳 `height:160px; overflow:hidden`，密码框与动作按钮有被裁切的风险，现补 `.i3d-light-panel.is-lock-panel { height:auto; min-height:240px; … }` 与同一套上限 + 滚动；**NAS** 从固定 `400px` 改成 `min(400px, 同一套上限)` —— 它的指标网格是内部滚动区（`min-height:0; overflow:auto`）且标题要始终留在原位，若照搬别的面板改成 `auto` 会让整块一起滚、标题被指标顶出视野，`min()` 在高视口下取到的仍是原来的 400px，行为不变、只在放不下时收缩；**通用设备**把标题 / 状态行的节奏对齐气候面板（2D 里 fridge / washer / dryer / plant 零命中，故不加图形）。扫地机与摄像头本就委托宿主 2D 渲染器出图，本轮只核对委托口径与上游一致，不动。
-
-复核中另有三项**判定为误报、故未改动**（依据是「与上游同款行为不擅自加严或放宽」）：`lock.py` 不拒绝未知字段、净化器附加卡片的 pending / 定时器写法、number 卡用字符串精确比较确认 —— 三者上游皆同源，其中后两者的上游反混淆原文与本仓逐字一致。
-
-**再一轮后端业务逻辑对齐（授权 / 校验 / 草稿，同为静默失效）**
-
-- **净化器附加实体补「与本体同一台 HA 设备」守卫**：`interaction3d/api.py` 的 `purifier-extra` 分支在上游是「校验通过后再查主实体 `device_id`，不同即 403」。缺这一查，宿主实体换绑到别的设备后命令仍照发到旧设备上的实体 —— 界面照常、零报错，只是打到了别的房间。失败文案与上游一致（「附加实体已不属于当前空气净化器，请重新绑定。」）。
-- **授权错误码不再被 `getattr(error,'code',None)` 抹平**：`license/service.py` 的心跳与恢复两处重抛改用 `code=self._error_code` —— `_mark_failure` 归一化出的 `NETWORK_UNAVAILABLE` / `RECOVERY_TOKEN_INVALID` 原本会在这里退化成通用码，`api/license.py` 的「可重试」判定随之失效（终态被报成 503）。
-- **无恢复凭证改判终态**：`_recover_unlocked` 在凭证缺失时补 `code='CREDENTIAL_MISSING'`。此前全仓无任何路径产出这个码，`_mark_failure` 里读它的分支成了死代码、落入「网络失败」的无限重试，本该是 `RECOVERY_REQUIRED` 的终态永远等不到。
-- **`_mark_failure` 释放启动校验门禁**：补 `self._startup_validation_pending = False` 并统一走 `_record_status(state.status)`。少这一步，持有有效租约的离线用户会被钉在 `STARTUP_VALIDATION_REQUIRED` 宽限态。同处补状态报文 `errorCode` 的按状态兜底表（上游 `:1231`），避免前端拿到 `null`。
-- **`extraControls.type` 允许只读覆盖**：`interaction3d/config.py` 改回上游口径「`type` 须是五种之一，非 `state` 时才须等于域默认」。此前把 `select/number/switch/button` 实体配成 `type:"state"` 只读渲染会 422 ——「只想显示、不想给按钮」这个正当用法被挡下。
-- **组合窗帘补合成 id 撞名检查**：`curtainGroups` 校验并入 `f'curtain-group:{id}' in curtain_ids`（与 `floorId == 'all'` 那条分开计）。
-- **另四处取值收窄回上游**：门锁 `_text` 上限 128 → 255；`studio_cleanup.py` 还原路径补「两成员不得同实体」；`api/ha.py` WebSocket 异常优先级改为「常规断开不覆盖真实异常」；匿名客户端日志配额 10 → 30（`api/global_logs.py`）。契约侧 `interactionConfirmation` 128 → 64、`lease_sequence` 补 `server_default='0'`。
-- **前端三处**：扫地机状态词典先 `trim()` + `toLowerCase()` 再查表（`"Cleaning"` / 带空白原会静默落「状态更新中」）、中文判定收窄为 `[\u3400-\u9fff]`；授权卡「生效」白名单补 `STARTUP_VALIDATION_REQUIRED`（否则宽限态下卡片详情整块隐藏）；编辑器顶栏补 `RECOVERY_RETRY` / `RECOVERY_REQUIRED` / `REMOTE_REJECTED` 三条文案并把 `INVALID` 并入 `hideReactivate`；音效开关回读旧键 `ha-bridge-dashboard-sound-enabled`（升级后静音失效）。
-- **`studio3d` 草稿恢复上游完整顺序**：写 `{'archive','pending'}` → 先 `commit()` → 再由 `_deliver_pending()` 落盘，`GET /studio3d` 与 `PUT /studio3d` 入口各补一次自愈。此前先落盘再提交，进程在中间被杀会留下「磁盘已换、库里还是旧档」的分叉。
-- **新增两条不变量**：第 33 条钉住「聚焦可用设备清单」与上游同集合（`isFocusableDevice` 少一类会让点击穿透到气候兜底分支，误开上一台空调 / 净化器）；第 34 条钉住授权状态文案在「后端 labels / `license-recovery.js` / 编辑器顶栏」三处逐字同源。
-
-**与上游的结构差异（有意为之）**
-
-- 上游的运行期前端在 `frontend/modules/interaction3d/`、编辑器前端在 `frontend/static/modules/interaction3d/`；本仓按自身既有约定落位：运行期模块进 `frontend/modules/runtime/<域>/`，跨端小模块进 `frontend/static/bridge/`（如 `temperature-humidity.js`、`lock-state-runtime.js`、`load-timing.js`）。业务语义与上游一致，路径不同、也不新增「上游式」的目录。
-- 摄像头生命周期与鉴权文案未照搬上游字符串：本仓在 `visibilitychange` + `pause` + 监听回收处收口，401 / 403 集中由 `utils/api-request.js` 处置（跳 `/login` / `/license`），属等价实现。
-- 净化器气流未取上游的专用调色板令牌（本仓调色板只有 cool / heat / other），回落为中性灰，避免为单个特效新增设计令牌。
-- **未移植上游两个性能模块**：反射通道的几何 LOD（上游 `studio-reflection-detail.js` + `-worker.js` + `vendor/meshoptimizer` 的 `meshopt_simplifier`，把网格简化到 45% 三角形）与运行时家具合批（上游 `studio-runtime-furniture.js`，按材质合并几何以减 draw call）。两者在上游 0.6.3 与 0.6.5 均存在、不属 0.6.5 业务功能，故按「对齐业务能力」的范围落在外面；本仓对应能力由「可配置分辨率渲染目标 + 逐房间裁剪」（`reflection/studio-ground-reflections.js` + `studio-reflection-culling.js`）与 `mergeGeometries` 静态批处理（`studio-app.js`：墙带 / 静态批次 / 阴影 / 轮廓）覆盖。移植需引入含 WebAssembly 的 meshopt 与新增 Worker、控制器约 400 行并接入反射捕获路径，属渲染性能优化而非功能缺口。
-- **「环境模型类型」七处清单以本仓素材库为准，不与上游逐项相同**：本仓素材库比上游多出新风机 / 温控面板 / 加湿器 / 除湿器 / 门铃 / 取暖器 / 天花机 / 吊扇 / 吸尘器 / 洗地机等环境家电模型，七处清单（`environment-scene.js` 两张表、`environment-halos.js` 描边资格、`studio-app.js` 四处内联清单）相应多出这 10 类；反过来，上游把冰箱 / 冰柜 / 洗碗机 / 洗衣机 / 烘干机 / 绿植这 6 个「通用设备」品类也算作环境模型类型（其注册表按 `genericDeviceProfile(kind).modelType` 展开进类型表与描边清单），本仓这些通用设备走 `devices` 模块的实体绑定与状态灯（`device-status.js`），不进环境描边清单。两套清单因此不逐项相同 —— 判定基准是本仓素材库与模块划分，不是上游的类型表；谁要改动都请连带跑 `check_invariants.mjs` 的「环境模型类型七处」一条。
-- **净化器模型有效性校验为本仓加严**：`purifier.py` 的 `require_purifier_model`（对应 `climate.py` 的 `require_air_conditioner_model`）在上游没有同款 —— 上游只在校验阶段检查净化器绑定，本仓额外拒绝「模型已被移除」的净化器命令，失败文案「空气净化器模型已失联，请在环境配置中重新选择模型。」。属安全加固、不放宽既有行为。
-- **3D 配置编辑器（设备 / 环境 / 安防）的弹窗形态与文案按 0.6.5 逐字对齐**：换设备 / 换净化器 / 组合窗帘三处子弹窗沿用上游的 `settings-dialog i3d-add-dialog`（组合窗帘没有标题栏与右上「×」，退出走底部「取消」或 Esc）；「绑定设备」与净化器主实体走 `.i3d-picker-button` 的设备 / 实体选择器；「退出」与 Esc 一律直接释放编辑器，不再弹「配置尚未保存，确定退出？」（该确认与 `EDITOR_SAVE_STATUS.dirtyExitConfirm` 一并删除，上游同口径）。判定为有意保留、与上游仍不同的只有三处：① **实体选择器的空态文案** —— 温湿度计与状态灯选择器各有一条更准确的空态（上游没有这两个分支，无候选时统一落到「没有匹配的灯光或开关」）；② **门锁槽位比上游多，但默认视图与上游逐行一致** —— 「实体来源」分区整段照上游：分区标题「实体来源」→ 未绑定时按钮作「选择设备」（绑过作设备名，纯按钮、居中、无箭头，选中后按同一份 `identifyLockEntities` 回填槽位）→ `开关门检测：<实体>` 与 `电量：<实体>` 两个弹窗选择器按钮（`pickers.entity` 的 `lock-door` / `lock-battery`，未选设备时禁用，槽位外观照抄上游 `.i3d-lock-entity-picker`；候选收口也与上游逐字同序 —— 当前值恒可见 → 只留本设备名下的实体 → 角色命中即收、认不出才退回域白名单，其中门磁槽位的白名单含 `sensor` 域，正是「门状态做成枚举传感器」的门锁唯一进得来的入口。与上游的差别只有两处，都写在上面那条修复里：**没绑设备时**上游一律拒绝，本仓为多出的三个槽位放行；候选的**排序推荐分**是本仓加的，只改顺序不改范围）。本仓多出来的能力（实时状态行、锁实体直选、低电量 / 防拆槽位、三种门磁来源、自动识别）收进紧随其后的折叠块「更多槽位与门磁来源」，默认折叠；门锁的按钮图标选择器标题仍按上游作「选择门按钮图标」；③ **电视待机说明的品牌**写作 HOMEOS 海报（上游为 HA BRIDGE 海报）。
-- **梦幻帘无独立叶片反馈时不设整体状态门禁**：`cover-state.js` 的 `coverCanAdjustBlades` 第 ② 支与后端 `cover.py` 的 `validate_cover_command` 都不再用 `opening` / `closing` / `estimate>0` 挡下调整（上游此处理论上 409 / 返回 `false`）—— HA 的 state 可能是长期不刷新的陈旧值（实测客厅那台停在 `closing` + `current_position: 50` 数十分钟），拿它当门禁会把叶片滑杆永久禁用、提示「暂不可调节叶片」。命令能否落地交给设备与 HA 裁决，属有意放宽。
-- **新建 3D 交互控件的画布默认透明**：`bridge/definition.js` 的 `backgroundVisible` 为 `false`（上游 `true`），新控件不画背景平面与网格，3D 户型直接浮在宿主卡片上；存量控件按各自存下的值渲染，不受影响。
-- **不恢复上游的旧展示地址**：上游还有 `/display/{project_id}` 与 `/habridge/{项目名}` 两个入口，本仓只保留 `/display/{项目名}`（`backend/api/displays.py` 下发的 `targetUrl` 同口径）。本仓是首次发布、不维护从上游数据库升级的路径（见 `migrations/versions/0001_initial_schema.py` 的说明），旧地址不会指向任何本仓数据。
-- **更新检查的产品标识放行两种写法**：`observability/updates.py` 的 `release_value` 接受 `product` 为 `homeos` 或 `ha-bridge` —— 自建商店返回前者，内置厂商端点目前仍返回后者；只认一种会让默认端点永远校验失败（开关打开却永远查不到更新、且零报错）。开关默认关闭（`APP_UPDATE_CHECKS=0`），端点与说明页可用 `APP_UPDATE_ENDPOINTS` / `APP_UPDATE_WIKI_URL` 指向自建。
-
-**数据库**
-
-- 新增迁移 `0004_studio_interaction_sync`：建表 `studio_interaction_sync(document_json, updated_at)`，配合模型 `StudioInteractionSync` 承载「待下发交付 + 可撤销删除记录」两件事（删除模型后的同步清理见上文）。请求模型 `Studio3DDraftUpdate` 新增 `interactionConfirmation`（最长 64），是级联清理的确认令牌 —— 它只是请求字段，不落库，因此不在本迁移里。
+- **新增品类**：通用设备弹窗（`device.py` + `device-profiles.js` 等，六类设备不推断主实体，绑定必须写 `deviceId`）；空气净化器（`purifier.py`，**新风机按需求算作净化器的一种**，运行时与空调同属 climate 模块，靠实体域 `fan` 决定渲染）；门锁与门磁（`lock.py`，门扇按平开 / 推拉 / 卷帘 / 入户门分支，事件源支持 `sensor` / `single-event` / `dual-event`）；温湿度计卡片；窗帘组合控制；卷帘（`coverKind` 支持 `standard / roller / dream`）；「1 字型悬空楼梯」模型。
+- **光影**：保留 `standard`（标准光影，原生灯光 + 实时阴影）与 `region`（轻量柔光）两档，**默认 standard**；灯效量程固定 1~100%（上游允许 150%，本仓为不过曝有意收回）。
+- **3D 缓存与清理**：新增 IndexedDB 模型 / 场景持久缓存（`model-persistent-cache.js` / `scene-persistent-cache.js`，版本 + `syncKey` + TTL 三重校验，7 天），避免首次进入编辑器后户型偶发重新生成；删除模型后的级联清理（`studio_cleanup.py`，**只清理 3D 交互绑定、不删除任何 HA 实体**），凭 `confirmation_token` 才同步清理并可撤销。
+- **修复**：折线图状态重试定时器、未绑定实体灯光误亮、2D 热水器弹窗空数据、未配置实体无法保存 3D 控件、实时连接恢复后状态补齐。另对上游做全量复核（文件级差分 + 中文串差分 + 分域业务逻辑审读），修掉门锁 / 门磁、3D 持久缓存、服务白名单（补齐 `lock.*` 与 `input_*`）、状态订阅、门牌配色、环境页面归一、运行期面板行为等多处「不报错、只静默失效」的缺陷，并新增不变量第 25 / 27 / 30–34 条。
+- **有意与上游不同**：运行期 / 编辑器前端按本仓既有目录约定落位（`frontend/modules/runtime/<域>/` 与 `frontend/static/bridge/`）；未移植反射几何 LOD 与运行时家具合批两个性能模块（本仓由可配置分辨率反射 + 静态批处理覆盖）；环境模型类型清单以本仓素材库为准；净化器模型有效性校验为本仓加严；新建 3D 控件默认透明；只保留 `/display/{项目名}` 一个展示入口。
 
 ### v0.6.3
 
-**质量清理（这一版的主体）**
-
-- 零引用代码清零：无人引用的具名导出 168 处（含 `renderer.js` / `registry.js` 两个 barrel 中转的 89 处）、死函数 3 处、未使用导入 1 处；各树里只在本文件内使用的函数摘掉 `export`。护栏随之补上 allow-list 说明，避免为了「保持 API 面」把无人用的名字再堆回来。
-- 删除调试与测试残留：`studio-app.js` 三块自检钩子（245 行）、5 个无门禁调试参数与配套的诊断 / HUD 子系统（583 行）、4 个 smoke 脚本与孤儿 `tools/routes.snapshot.txt`、只写不读的帧统计钩子。
-- 重复实现逐族收敛到单一实现：`clamp` / `hexToRgb`（`frontend/static/utils/`）、数值换算（`utils/numbers.js`）、复合模型键（`modules/runtime/core/scene-model-key.js`）、`prefers-reduced-motion`（`core/motion-preference.js`）、401 / 403 处置（`utils/api-request.js`）、指针捕获（`utils/pointer-capture.js`）。HTML 转义此前应用侧**一份都没有** —— 83 处 `innerHTML` 全靠人工判断插值来源，唯一实现是 `studio-asset-palette.js` 里的私有副本；现在归入 `utils/html-escape.js`，转义集与商店侧 `htmlsafe.js` 由 `check_scene_sync.mjs` 逐字节比对（商店是另一个构建上下文、`/static` 根本挂不到，两边必须各留一份，但语义不能分叉：同一个值在两个页面显示成不同的东西比缺转义更难发现）。
-- 静默失败不再无从判断：指针捕获的 41 处调用此前分成「裸调 / `try{}catch{}` / `?.`」三种写法，且 12 个 `catch` 是空的 —— 现在收口成 `utils/pointer-capture.js`，把容忍的失败写在文件头；其余 JS 空 `catch`、`.catch(() => {})` 与 Python `except: pass` 逐处补上「为什么可以吞」。顺带修掉 `display.js` 一处被自动改写弄花的单飞表达式（多余括号 + 两条语句挤在一行）。
-- `window.__haBridge*` 全局改为 ESM 显式导入导出：跨树通信不再经全局对象，删掉一半时能由 import 图直接发现，而不是等到运行时才报 undefined。
-
-**3D 运行时修复**
-
-- `climate.turn_on` 的三层契约（服务名 / 允许列表 / 调用点）此前互相对不上，开空调会落进静默失败。
-- 释放路径加固：`pagehide` 关键释放前置兜错、两个 `window` 监听回收、`handleHostMessage` / `televisionPanel` / `nasPanel` 的释放守卫。
-- `didReplaceScene` 置位时机改到替换成功之后，回滚失败不再吞掉原始错误；`vacuum-map-editor` 的 `resizeObserver` TDZ 隐患。
-
-**安全**
-
-- 未鉴权入口补请求体上限：主应用与商店各一层（默认 1 MiB，流式请求放行）。此前未鉴权端点可以先让进程把请求体读进内存。
-- 商店首次初始化的「本机直连放行」补 `Host` 校验：只认本机地址还不够，伪造 `Host` 就能命中。
-- **匿名静态白名单闭环**：`/static/` 下未列名的文件一律 401，而 `auth/license.js`（未登录也要加载）所 import 的 `utils/api-request.js` 漏列 —— 未登录打开 `/license` 时那个 import 被挡下，ESM 图整页不执行：HTML 与样式都在，页面只是永远不活。已补齐（当时新增的护栏随本版回归网收缩一并移除）。
-
-**回归网：短暂恢复后整体移除**
-
-- 一度新增 `.github/workflows/guards.yml`（push / PR 触发）与 `ruff.toml`；`check_structure_refs.mjs` 加三条「单例所有权」检查：`LICENSE_RESTRICTED` 字面量、`setPointerCapture` / `releasePointerCapture`、匿名模块图闭合。每条都用「把修好的东西弄坏一次、确认断言变红」验证过。
-- 随后这些守卫又被整体移除：`check_structure_refs.mjs`、`check_esm_exports.mjs`、`check_registry_split.mjs`、`check_studio_palette.mjs`、`check_frontend_hygiene.mjs`、`check_scene_sync.mjs`、`check_entry_pages.mjs`，以及场景分发工具 `tools/sync_scene_assets.mjs`（`tools/bump_static_cache_versions.mjs` 保留）。`guards.yml` 与 `docker.yml` 的清单同步收缩为 `ruff check .` 一道，两份仍共用，改时两份都要改。
-- **移除的代价**：这些脚本把关的都是「不报错、只静默失效」的那类问题 —— 结构引用能否解析、ESM 具名导出、控件注册表分片可达、design/scene 分发副本与令牌一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐。它们不再是自动的，全部落回人工 review；README「开发工具」一节改为逐条列出要人工核对的不变量。
-- 运行时报错提示里指向已删脚本的指引（`backend/http/page_shell.py`、`store/api/page_shell.py` 的「请先运行 node tools/sync_scene_assets.mjs」）改为「请从 design/scene/scene.html 同步分发副本」—— 否则排障时会被指去跑一个并不存在的命令；另同步清理约 40 处指向已删脚本的注释与文档引用，并移除 `.cursor/rules/temp-dir-cleanup.mdc`。
-- 口径仍然明确：**没有 e2e / 冒烟 / 探针**。护栏只覆盖静态可判定的事 —— 引用能否解析、清单与树是否一致、某个策略是否只有一个主人；行为正确性依旧要靠人工走关键路径。
-
-**文档**
-
-- README「开发工具」一节重写：写清七道 Node 守卫各自把关什么；此前列为「故意没纳入」的两条（前端卫生 `--strict`、场景同步）已转入清单。也写清运行时冒烟的**移除代价** —— `smoke_backend.py` 连同它的路由快照一起删了，**后端与商店目前没有自动冒烟**，`check_registry_split.mjs` 是分片可达性唯一的一道证明。
-- `docker.yml` 的守卫清单同步为「七道 Node 守卫 + ruff」，并写明「改动即校验」由 push / PR 触发的 `guards.yml` 承担、本工作流只在手动出包时跑；README 与注释里对已删脚本的引用一并修正。
-
-**数据库**
-
-- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
+以质量清理为主体：零引用代码清零（具名导出 168 处、死函数 3 处）、删除调试与测试残留、重复实现逐族收敛（`clamp` / `hexToRgb` / 数值换算 / HTML 转义 / 指针捕获等）、`window.__haBridge*` 全局改为 ESM 显式导入导出。修复 3D 运行时 `climate.turn_on` 三层契约不一致、释放路径与 `didReplaceScene` 时序；安全上补未鉴权入口请求体上限、商店本机直连补 `Host` 校验、匿名静态白名单闭环。回归网一度恢复后整体移除（见「开发工具」）。
 
 ### v0.6.2
 
-**授权恢复与重试**
-
-- 新增 `POST /api/v1/license/retry`：立即发起一轮授权恢复并清掉端点黑名单 —— 「重新连接」不必再等下一个心跳周期，也不会被上一轮失败留下的冷却直接挡回。管理员会话拿完整状态，中控设备只拿脱敏摘要（`availability()` 的白名单字段），展示端既不需要、也不该看到授权标识与凭证。
-- 新增匿名可读的 `GET /api/v1/license/availability`，并把连接状态页挂到已有的展示入口上：`allows('display')` 为假时 `/pair` 与 `/display/*` 直接渲染 `frontend/license-recovery.html`，而不是落 403 错误页。不新增路由是有意的 —— 设备刷新后仍停在自己的地址上，授权一恢复就能进画面，也避免「授权不可用反而要先去登录」这种死路。页面打开即自检、每 5 秒复查、`online` 事件立刻复查，网络恢复后无需人工操作；已有项目与设备配对不受影响。
-- 授权失败分级处置：区分「等一会儿再来」（网络抖动 / 5xx）与「再点也没用」（要求人工重新激活、刚点过被节流），把结论（`canRetry` / `nextRetryAt` / `retryAttempt` / `retrying`）交给前端决定是否继续显示重试按钮，而不是让前端从状态码猜。端点拉黑时长与重试节奏对齐为 120 秒：黑名单若比重试节奏还长，每一轮自动重试都会整轮撞在冷却里。
-- 授权租约凭证写入加跨进程文件锁（`backend/license/process_lock.py`）：同一数据目录只允许一个「凭证写入者」，第二个实例启动即失败并说明原因。用文件锁而不是「建锁文件 + 退出删除」，是因为内核会在进程结束（含被 kill）时自动释放，不存在要人来清理的陈旧锁；取非阻塞语义是有意的 —— 抢不到锁意味着确实已有实例在跑，正确行为是立刻失败而不是排队等一个永远不会结束的对方。
-- 编辑器授权卡片新增「重新连接授权后台」：与授权页、恢复页共用同一份状态文案（`frontend/static/auth/license-recovery.js`），三处不再各说各话；完整状态行仍只显示一次错误原文，重试倒计时另起一行，两者不互相覆盖。
-
-**修复**
-
-- 户型自动导图底图分辨率改为「保留控件宽高比、面积对齐画布」换算（`frontend/static/editor/floorplan-auto-diagram-layout.js`）：此前直接按画布尺寸导出，底图与预览不同比，放进控件框会被拉伸 / 留边，表现为「导图与预览位置对不上」。面积对齐保证渲染像素量与画布同级，宽高比一致保证不产生偏移。
-- 导图生成完成改为可关闭的浮层：它铺满整个编辑区，所以「点得掉」是硬要求 —— 完成按钮、关闭按钮、背景点击、Esc 四个出口都在，并在 `pagehide` 时兜底移除（浮层挂在 `body` 上，残留监听会一直引用旧 DOM）。置换失败改为恢复预览图元并提示「请重试」，不再静默留下一个已隐藏的图元。
-- 展示端授权受限（403 `LICENSE_RESTRICTED`）改为刷新当前页并把原因交给启动层：墙面屏前通常没人能填激活码，让后端门禁重新判定、把页面换成连接状态页才是可自愈的路径；启动失败时 `online` 事件自动重试一次。
-
-**数据库**
-
-- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
+授权恢复与重试：新增 `POST /api/v1/license/retry` 与匿名可读的 `GET /api/v1/license/availability`，受限时 `/pair` 与 `/display/*` 渲染恢复页而不是 403；失败分级（等一会儿再来 / 再点也没用 / 被节流）；租约凭证写入加跨进程文件锁。修复户型导图底图分辨率换算、导图浮层出口、展示端 403 自愈。
 
 ### v0.6.1
 
-**安全与质量审计（P1–P12）**
-
-- 对主应用与授权商店做了一次全量深度审计（含三路并行探索与逐行复核，审计台账为时间点记录、不随仓库分发），发现项按「项目 → 严重度」编号并逐批修复，各批都带「把修好的东西弄坏一次确认断言会变红」的牙齿验证。修复面覆盖商店 `S1–S58`、主应用后端 `B1–B66`、前端 `W1–W30` 与代码质量专项。
-- **商店（S1–S58）**：首次初始化守卫（引导密钥 + 本机直连放行 + 原子写入）、验证码回显只对本机、数据库依赖改为 `scope="function"`（下单与支付宝通知在响应送出前完成提交）、心跳校验 `instanceId`、支付宝回跳 `force` 只对持订单凭证者生效、邀请积分整数厘、配置严格校验、唯一索引去重（存量库合并重复行）、收银台 URL 改短时票据、人工补记与营收口径、入账异常计数与支付巡检状态上报。
-- **主应用后端（B1–B66）**：媒体代理按实体归属校验（跨项目 403）、转发头默认只信回环、凭据解析收敛到 `backend/security/access.py`、阻塞端点移出事件循环（导出 ZIP / 素材落盘 / 授权服务查库）、上传与导出改为流式落盘、先查后写的并发冲突落 409/422、项目名唯一（迁移 `0002`）与展示地址别名（迁移 `0003`）、素材总量配额与孤儿回收、全局日志写入线程化、授权轮询配额按端点分桶 + 429 退避且不降级状态、网关时钟容差与租约序号自愈。
-- **前端（W1–W30）**：接口超时预算只留一个主人（`utils/api-fetch.js`）、按钮复位一律进 `finally`、展示页横幅按槽位分语义、WS 断开给可见提示、未激活页面（`pair` / `setup` / `license`）的出口、编辑器启动分片失败聚合、草稿快照只留要救的东西、乐观开关仅在真回滚时上报、ESC 逐层收口、挂载失败带原因、保存冲突留出口、弹窗模态语义与焦点、共享模块单份实例、缓存上限只认常量。
-- **代码质量（P9–P12）**：删除零引用符号与模块级死导出，重复实现收敛到 `utils/`（`numbers` / `colors` / `entities` / `datetime` / `icon-url` / `state-entry` / `api-error` / `device-profiles` 等）。
-- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 曾按静态可判定的部分恢复护栏，同一版又整体移除，见该版本的「回归网」一节 —— e2e / 冒烟 / 探针始终没有回来。）
-
-**数据库**
-
-- 新增迁移 `0002_project_name_unique`：项目名同时是展示地址 `/display/{名称}` 的路径段，此前只在应用层「先查后写」查重，并发创建会产生同名行；现加唯一索引，并对历史重名行按 `(created_at, id)` 做确定性改名（保留最早那一行）。迁移只向前：`downgrade` 只删索引、不还原名字。
-- 新增迁移 `0003_project_path_aliases`：项目改名后，已配对墙面平板手里的旧展示地址不再永久 404 —— 旧名称 → 项目的别名表让旧地址 303 跳到当前地址。只建表、不回填：过去发生的改名本就没有被记录。
-
-**新增**
-
-- 编辑器记住「上次打开的仪表盘」（`sessionStorage`，随标签页存活；记忆项已被删除时回落到列表第一项）。
-- 商店新增首次部署初始化页 `/setup`（引导密钥 + 本机直连放行），管理员一律在浏览器创建；后台新增修改密码与右上角全局操作栏；商品目录与站点配置在启动时幂等补齐。
-- 摄像头 HLS 初始化失败时补一条全局日志（并在 `?debug=1` 下给控制台告警）：此前会静默降级到 MJPEG，用户只看到「能播了」，无从知道 HLS 在哪些设备上根本起不来。
-- 3D 导出档位的悬停提示补上摘要（分辨率 · 楼层 · 投影）：档位名由用户自起，名字随意时只有这些信息能说明它导的是什么。
-
-**修复**
-
-- 全站静态资源缓存戳统一（`?v=` 同戳），并补齐此前遗漏的 19 处（含两组「一处带戳一处不带」，会让浏览器把同一模块实例化两份、各留一份模块级状态）。
-
-**目录结构分包**（路径明细见上方「仓库结构」）
-
-- `backend/` 扁平根模块按主题分包：`core/`、`security/`、`http/`、`observability/`，`global_popups.py` 并入 `panel/`。`main.py` / `config.py` 留在根部：前者是启动契约与 `Dockerfile` 构建期断言，后者的 `PROJECT_ROOT = parents[1]` 决定仓库根解析。
-- `store/` 同样分包：`core/`、`security/`、`commerce/`、`ops/`。`app.py` / `run.py` / `config.py` 留在根部（`python -m store.run`、`store.app:create_app` 与 `STORE_ROOT = parents[0]`）。
-- `frontend/modules/runtime` 按功能域细分，下发路由由 `/api/v1/modules/interaction3d/{filename}` 改为 `{filename:path}`（白名单键改成含子目录的相对路径）；`frontend/static/3d-studio`、`static/assets`、`static/renderer`、`static/editor` 同步按语义细分。
-- `tools/check_structure_refs.mjs` 增加多项检查（见「开发工具」），并修掉 38 处注释里的过期路径、补齐 19 处缺失的静态资源缓存戳。
-
-**测试与死代码清理**
-
-- 不再内置任何自动化测试 / 探针：删除 `.github/workflows/ci.yml`、`docker-compose.smoke.yml`、`backend/tools/*`（冒烟、前端探针、API 错误探针）与 `store/tools/{smoke,e2e,*probe}`；`docker.yml` 去掉 `smoke` job，只保留多架构构建与可选远端部署。**仓库此后没有自动化回归网，改动请人工走关键路径。**
-- 删除运维脚本 `store/tools/{seed,gen_keys,migrate_points}.py`：密钥准备改由 `docker/license_keys.py`（`start.py` 与容器启动共用）完成，商品目录 / 站点配置由 `store/core/bootstrap.py` 启动时幂等补齐，积分迁移在启动时自动执行。同步删除 `ruff.toml`、`eslint.config.mjs`、根 `package.json` / `package-lock.json`（`docker/package*.json` 保留）。`tools/bump_static_cache_versions.mjs` **保留**（只用 Node 内置模块，不依赖被删的根 `package.json`）。
-- 清理死代码与重复实现，新增 `backend/core/canonical_json.py`、`backend/http/http_cache.py`、`frontend/static/utils/{icon-url,datetime,interaction-pages}.js` 收敛此前逐处手写的规范 JSON、Cache-Control、图标 URL、时间格式与交互页面清单。
-- 资金路径上的重复释放收敛为 `store/commerce/fulfill.py` 的 `close_pending_order()`（CAS 抢 `pending` 后推进终态，「用户取消 / 后台取消 / 模拟收银台取消 / 超时过期 / 渠道对账兜底」五处共用）与同文件的 `release_order_effects()`（归还预占 + 名额）。原先这段在十余处各写一遍，抄漏一处就会让 `reserved_stock` 虚高或优惠码名额被永久占用。
-- 首次管理员只剩 `/setup` 一条路径：`STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` 的预置分支（解析后从未被消费）连同 README / `.env.example` / 启动提示里的说明一并移除。
-- 3D 工作室的 `dataset` 诊断属性（约 60 处写入）**保留**：它们不是残留死代码，而是浏览器里排查阴影 / 合批 / 预编译状态的唯一观测面。同一批的 `?material-test` / `?instance-test` / `?model-export` 三块自检钩子曾只要求 `?debug=1`，后续清理中已**整体删除** —— 它们是被动探针（打开页面自己跑一遍再打印结论），不构成产品能力，留着就是一条生产可达的调试旁路。
-- 更新 README / store/README 与产品代码注释里对已删脚本、已删断言的全部引用。
+P1–P12 全量深度审计：商店 `S1–S58`、主应用后端 `B1–B66`、前端 `W1–W30` 与代码质量专项，逐批修复并带「把修好的东西弄坏一次确认断言变红」验证。新增迁移 `0002`（项目名唯一）/ `0003`（展示地址别名）；`apps/server/` 与 `apps/store/` 按主题分包，`frontend/modules/runtime` 按功能域细分；不再内置任何自动化测试 / 探针。
 
 ### v0.5.6
 
-**自托管 Docker**
-
-- 双容器 Compose：`homeos-3d`（主应用 18081）+ `homeos-3d-store`（商店 / 授权服务器 18082），共享公钥卷、独立数据卷与授权私钥卷。
-- 多目标 Dockerfile：target `app` / `store`；构建期用 Cython 把 Python 编译成原生 `.so`、用 `javascript-obfuscator` 混淆业务 JS，运行镜像不含源码（`migrations/` 除外，Alembic 需要）；GHCR 镜像 `ghcr.io/sfairy/homeos-3d` 与 `…-store`。
-- 商店容器启动时生成或复用授权密钥并同步公钥；主应用等待公钥就绪后再起；首次管理员在 `/setup` 页面创建。
-- 新增 `deploy/PRODUCTION.md`、Caddy / nginx 反代示例，以及 `.github/workflows/docker.yml`（多架构推送 + 可选 SSH 远端重启）。
-- `.env.example` 收敛为 A/B/C/D 分区：部署常改项置顶，SMTP / 支付 / 站点文案改到 `/admin` 配置，避免双源。
-- 移除已过时的 `frontend/NAMING.md` 与根目录 `COMMENTING.md`。
-- 客户端「检查更新」发布记录写入 `store/ops/release_info.py`（`CURRENT_UPGRADE_NOTES`），启动时幂等补写 / 同步到 `releases` 表。
-
-**破坏性变更**
-
-- 授权传输协议标识与产品标识改名（`ha-bridge-license-transport-v1` → `homeos-license-transport-v1`，`PRODUCT` → `homeos`）。两者参与 HKDF / AES-GCM AAD，服务端只认新标识：**必须先升级客户端、再升级服务端**，老客户端会在解密阶段直接失败、没有降级路径。
+自托管 Docker：双容器 Compose + 多目标 Dockerfile（Cython 编译 Python、`javascript-obfuscator` 混淆 JS，运行镜像不含源码）；GHCR 镜像；`ops/deploy/PRODUCTION.md` 与 Caddy / nginx 示例；`.env.example` 收敛为 A/B/C/D 分区。**破坏性变更**：授权传输协议与产品标识改名（`homeos-license-transport-v1` / `homeos`），两者参与 HKDF / AES-GCM AAD，必须先升级客户端、再升级服务端。

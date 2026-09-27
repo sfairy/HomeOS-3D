@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "文件规模预算的既欠账。tools/check_invariants.mjs 的「文件规模预算」守卫读它：",
+    "超过上限的文件必须在这里登记，且行数只能减不能增；拆到限额以内之后，",
+    "请把这一条删掉（守卫会提醒）。新增超标文件不会被接受。",
+    "tools/ 下的脚本刻意不纳入本规则：它们是一份可以线性浏览的清单，拆开反而更难核对。"
+  ],
+  "limits": {
+    "py": 800,
+    "js": 1200
+  },
+  "over": {
+    "frontend/static/3d-studio/studio/studio-app.js": 28304,
+    "frontend/static/editor/home.js": 22672,
+    "frontend/modules/runtime/editor/config-editor.js": 6237,
+    "frontend/modules/runtime/core/stage.js": 4695,
+    "frontend/static/renderer/core/panel-renderer/selection-transform.js": 3359,
+    "frontend/static/3d-studio/loaders/studio-external-models.js": 3269,
+    "frontend/static/bridge/editor.js": 2634,
+    "frontend/static/renderer/core/panel-renderer/device-controls/custom-popup.js": 2567,
+    "frontend/modules/runtime/security/security-editor.js": 2518,
+    "frontend/static/3d-studio/plan/geometry.js": 2445,
+    "frontend/static/editor/home/property-descriptors.js": 2404,
+    "frontend/static/renderer/core/panel-renderer/runtime-bridge.js": 2303,
+    "frontend/static/templates/component-templates.js": 2104,
+    "frontend/static/3d-studio/studio/studio-material-styles.js": 2074,
+    "frontend/modules/runtime/core/runtime.js": 2009,
+    "frontend/modules/runtime/light/light-range-editor.js": 2008,
+    "frontend/static/renderer/core/panel-renderer/document-core.js": 1882,
+    "frontend/static/renderer/core/panel-renderer/device-controls/entity-details.js": 1782,
+    "frontend/modules/runtime/presence/presence-editor.js": 1355
+  }
+}

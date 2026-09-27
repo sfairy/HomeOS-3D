@@ -38,7 +38,7 @@
  *      **值**是唯一的、前半句校验通过，漏掉的只是其中一处没写戳 —— 模块表以含查询串的 URL
  *      为键，`./host.js` 与 `./host.js?v=…` 就是两份实例。商店后台真踩过：`admin/app.js`
  *      漏写戳，装配好的 84 个 `host.xxx()` 回调全落在面板看不见的那份对象上。
- *   4. 后端包之间出现新的环（`backend/api → backend/modules → backend/api` 这类）。
+ *   4. 后端包之间出现新的环（`apps/server/api → apps/server/modules → apps/server/api` 这类）。
  *      Python 的包级环通常**不报错**：谁先被导入、环上那个名字此刻是不是已初始化，全看
  *      启动顺序，改一圈 import 就可能在某个部署路径下变成 `AttributeError`/空模块。
  *      上一轮把 `core` 的双向依赖（`core.schemas → panel.documents`、`core.schemas → ha.client`）
@@ -110,10 +110,28 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+
+// 仓库路径一律来自 paths.mjs（唯一事实来源，见那个文件的模块头）。
+// rel() 本文件自带一份同义实现：它只做展示格式转换，不涉及"路径从哪来"这件事。
+import {
+  BACKEND_DIR,
+  DESIGN_DIR,
+  DESIGN_SCENE_DIR,
+  FRONTEND_DIR,
+  ITEM_BUILDERS_DIR,
+  MODELS_DIR,
+  ROOT,
+  RUNTIME_MODULES_DIR,
+  STATIC_DIR,
+  STORE_DIR,
+  STORE_STATIC_DIR,
+  STUDIO_DIR,
+  TOOLS_DIR,
+} from "./paths.mjs";
 import { MODEL_SLOT_ROLES, MODEL_SLOT_ROLE_SUFFIX_RE } from "./models/model-roles.mjs";
 import { measureFootprints } from "./audit_plan_symbols.mjs";
+import { parse as parseModuleForDeclarations } from "./vendor/acorn/acorn.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const SKIP_DIRS = new Set([
   "vendor",
@@ -167,7 +185,6 @@ const rel = file => path.relative(ROOT, file);
 // 1) 运行侧不得写裸 /static/ 静态 import
 // ---------------------------------------------------------------------------
 
-const RUNTIME_DIR = path.join(ROOT, "frontend", "modules", "runtime");
 
 /**
  * 声明式 ESM `import` / `export`：`import ... from "/static/..."`、`export ... from "/static/..."`、
@@ -193,7 +210,7 @@ const STATIC_DYN_RE = /\bimport\s*\(\s*["']\/static\/([\w./@+-]+)/g;
  */
 function checkRuntimeImports() {
   const problems = [];
-  for (const file of walk(RUNTIME_DIR, new Set([".js"]))) {
+  for (const file of walk(RUNTIME_MODULES_DIR, new Set([".js"]))) {
     const text = fs.readFileSync(file, "utf8");
     const lineAt = index => text.slice(0, index).split("\n").length;
 
@@ -230,7 +247,7 @@ const ID_QUERY_RES = [
 
 function collectHtml() {
   const htmlFiles = [];
-  for (const file of walk(path.join(ROOT, "frontend"), new Set([".html"]))) {
+  for (const file of walk(path.join(FRONTEND_DIR), new Set([".html"]))) {
     const text = fs.readFileSync(file, "utf8");
     const ids = new Set();
     for (const match of text.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)) {
@@ -249,7 +266,7 @@ function checkElementIds(htmlFiles) {
     for (const id of html.ids) allIds.add(id);
   }
 
-  for (const file of walk(path.join(ROOT, "frontend"), new Set([".js"]))) {
+  for (const file of walk(path.join(FRONTEND_DIR), new Set([".js"]))) {
     const text = fs.readFileSync(file, "utf8");
     const wanted = new Map();
     for (const re of ID_QUERY_RES) {
@@ -281,19 +298,19 @@ function checkElementIds(htmlFiles) {
 // ---------------------------------------------------------------------------
 
 /**
- * 与 bump 工具保持同一份扫描面：`store/static` 必须和 `store/templates` 一起扫，
+ * 与 bump 工具保持同一份扫描面：`apps/store/static` 必须和 `apps/store/templates` 一起扫，
  * 否则商店静态目录里的第二个戳永远看不见（历史上正是这样沉默了很久）。
  */
 const STAMP_SCAN_ROOTS = [
-  path.join(ROOT, "frontend"),
-  path.join(ROOT, "store", "templates"),
-  path.join(ROOT, "store", "static")
+  path.join(FRONTEND_DIR),
+  path.join(STORE_DIR, "templates"),
+  path.join(STORE_STATIC_DIR)
 ];
 
 const STAMP_EXTRA_FILES = [
-  path.join(ROOT, "store", "api", "pages.py"),
-  path.join(ROOT, "store", "api", "alipay.py"),
-  path.join(ROOT, "backend", "modules", "interaction3d", "api.py")
+  path.join(STORE_DIR, "api", "pages.py"),
+  path.join(STORE_DIR, "api", "alipay.py"),
+  path.join(BACKEND_DIR, "modules", "interaction3d", "api.py")
 ];
 
 const STAMP_TEXT_EXTENSIONS = new Set([".js", ".html", ".css", ".webmanifest", ".py"]);
@@ -305,7 +322,7 @@ const QUERY_V_RE = /\?v=[^"'`\s)]+/g;
  * 上一条只比「`?v=` 的值有几个」，看不见**根本没写戳**的那种引用：同一个文件被
  * `./host.js` 与 `./host.js?v=…` 两处引用时，值是唯一的、校验通过，而浏览器按 URL 认模块，
  * 这是**两份实例**（模块表以解析后的 URL 为键，查询串参与其中）。真踩过一次：
- * `store/static/admin/app.js` 用不带戳的写法 import `host.js`，其余 11 个面板都带戳 ——
+ * `apps/store/static/admin/app.js` 用不带戳的写法 import `host.js`，其余 11 个面板都带戳 ——
  * app.js 往自己那份 `Object.assign(host, …)` 装配方法，面板拿到的那份始终是空对象，
  * 84 处 `host.xxx()` 全在调用时抛 `TypeError`。
  *
@@ -315,8 +332,8 @@ const QUERY_V_RE = /\?v=[^"'`\s)]+/g;
  *   - 同一文件的全 `?v=` 值不同：上一条已经在全站层面拦住了。
  */
 const MODULE_REF_SCAN_ROOTS = [
-  path.join(ROOT, "frontend"),
-  path.join(ROOT, "store", "static")
+  path.join(FRONTEND_DIR),
+  path.join(STORE_STATIC_DIR)
 ];
 
 /** 静态 import / 副作用 import / re-export / 动态 import：都取说明符。 */
@@ -437,7 +454,7 @@ function checkSingleStamp() {
 /**
  * 已知且**暂时接受**的环，按「成员包名排序后用 | 连接」登记。
  *
- * - `backend.api | backend.modules`：`api/projects.py` 在删项目时调 3D 模块的
+ * - `apps.server.api | apps.server.modules`：`api/projects.py` 在删项目时调 3D 模块的
  *   `sweep_scenes_for_app`、保存文档时调 `require_document_changes`（3D 授权门禁要插在
  *   项目保存路径上）；反向 `modules/interaction3d/api.py` 又调 `api/ha.py` 的 `call_service`
  *   与 `api/assets.py` 的 `user_asset_file`。两者都是**路由层互调**，要拆干净得先把
@@ -446,11 +463,10 @@ function checkSingleStamp() {
  *   也不存在「导入期就读对方属性」，因此只是方向不干净，不会静默失效。
  *   新增这条以外的环会直接失败；把这两处拆掉后请一并删掉本条目。
  */
-const ALLOWED_BACKEND_CYCLES = new Set(["backend.api|backend.modules"]);
+const ALLOWED_BACKEND_CYCLES = new Set(["apps.server.api|apps.server.modules"]);
 
-const BACKEND_DIR = path.join(ROOT, "backend");
 
-/** 文件路径 → 点分模块名（`backend/api/ha.py` → `backend.api.ha`）。 */
+/** 文件路径 → 点分模块名（`apps/server/api/ha.py` → `apps.server.api.ha`）。 */
 function backendModuleName(file) {
   return rel(file)
     .replace(/\.py$/, "")
@@ -458,7 +474,7 @@ function backendModuleName(file) {
     .replace(/\.__init__$/, "");
 }
 
-/** 取二级包名：`backend.api.ha` → `backend.api`。 */
+/** 取二级包名：`apps.server.api.ha` → `apps.server.api`。 */
 const backendPackageOf = moduleName => moduleName.split(".").slice(0, 2).join(".");
 
 const PY_IMPORT_RE = /^[ \t]*(?:from\s+([.\w]+)\s+import|import\s+([.\w]+))/gm;
@@ -487,7 +503,7 @@ function checkBackendPackageCycles() {
         const ups = spec.match(/^\.+/)[0].length;
         const rest = spec.slice(ups).split(".").filter(Boolean);
         target = [...parts.slice(0, parts.length - ups), ...rest].join(".");
-      } else if (spec.startsWith("backend.")) {
+      } else if (spec.startsWith("apps.server.")) {
         target = spec;
       } else {
         continue; // 标准库 / 第三方
@@ -553,7 +569,7 @@ const MDI_VERSION_REF_RES = [
   /MDI_VERSION\s*=\s*["']([^"']+)["']/g
 ];
 
-const MDI_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "backend")];
+const MDI_SCAN_ROOTS = [path.join(FRONTEND_DIR), path.join(BACKEND_DIR)];
 
 function checkMdiVersion() {
   const byVersion = new Map();
@@ -585,7 +601,7 @@ function checkMdiVersion() {
     }
   }
   for (const version of byVersion.keys()) {
-    const dir = path.join(ROOT, "frontend", "static", "vendor", "mdi", version);
+    const dir = path.join(STATIC_DIR, "vendor", "mdi", version);
     if (fs.existsSync(path.join(dir, "meta.json"))) continue;
     problems.push({
       file: "frontend/static/vendor/mdi",
@@ -624,31 +640,44 @@ const MODULE_DYN_IMPORT_RE = /\bimport\s*\(\s*["']([./][^"']*)["']/g;
 
 /** StaticFiles 挂载点 → 磁盘根。只登记真正下发 JS/CSS 的两个（商店的 `/fonts` 只发字体）。 */
 const STATIC_MOUNTS = [
-  ["/static/", path.join(ROOT, "frontend", "static")],
-  ["/store-static/", path.join(ROOT, "store", "static")]
+  ["/static/", path.join(STATIC_DIR)],
+  ["/store-static/", path.join(STORE_STATIC_DIR)]
 ];
 
-/** 运行侧资源路由前缀：URL 里这段之后与 `RUNTIME_DIR`（见第 1 条）一一对应，但**要过白名单**。 */
+/** 运行侧资源路由前缀：URL 里这段之后与 `RUNTIME_MODULES_DIR`（见第 1 条）一一对应，但**要过白名单**。 */
 const RUNTIME_RESOURCE_PREFIX = "/api/v1/modules/interaction3d/";
-const INTERACTION3D_API = path.join(ROOT, "backend", "modules", "interaction3d", "api.py");
+//: 3D 交互运行时模块的磁盘根。它的"可下发集合"以同目录的 manifest.json 为唯一事实来源
+//: （后端 runtime_manifest.py 与 tools/audit_dead_code.mjs 读的是同一份）。
 
 /**
  * 读 `get_resource()` 里的白名单。现读而不在这里抄一份：抄一份就等于给「新增一个 runtime 模块」
  * 留了个必须手工同步的步骤，而漏同步的后果正是本守卫要拦的（浏览器 404、import 链断在第一跳）。
  */
+/**
+ * 读 3D 交互运行时资源的可下发清单。
+ *
+ * 它是 ``frontend/modules/runtime/manifest.json`` —— 这条路由的可下发集合与安全边界只有这一个
+ * 事实来源（后端 runtime_manifest.py 读同一份）。原先这里是从 api.py 里正则抠那份 Python 字面量，
+ * "清单"因此横跨两种语言、两处维护；改成清单文件之后，新增模块只改一处。
+ *
+ * 清单读不到时返回 ``null``（而不是空集合）：空集合会让下面那条"清单 ↔ 磁盘"判成
+ * "磁盘上的文件全是多余的"，报出一堆假问题 —— 读不到本身就该单独报一条。
+ */
 function readRuntimeResourceWhitelist() {
-  if (!fs.existsSync(INTERACTION3D_API)) return new Set();
-  const text = fs.readFileSync(INTERACTION3D_API, "utf8");
-  const start = text.indexOf("media_types = {");
-  const end = text.indexOf("if filename not in media_types", start);
-  if (start === -1 || end === -1) return new Set();
-  const names = new Set();
-  for (const match of text.slice(start, end).matchAll(/'([^']+\.[a-z]+)'/g)) names.add(match[1]);
-  return names;
+  const manifestPath = path.join(RUNTIME_MODULES_DIR, "manifest.json");
+  if (!fs.existsSync(manifestPath)) return null;
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(payload?.files)) return null;
+  return new Set(payload.files.filter(item => typeof item === "string"));
 }
 
 /** 扫描面与第 3 条的 `?v=` 戳一致：前端与商店的 JS 都可能被静态服务直接喂给浏览器。 */
-const MODULE_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "store")];
+const MODULE_SCAN_ROOTS = [path.join(FRONTEND_DIR), path.join(STORE_DIR)];
 
 /** 行号查询表：按换行位建一次索引，避免对 home.js（近 1MB）每条 import 都重切一遍全文。 */
 function makeLineCounter(text) {
@@ -672,26 +701,32 @@ function checkModuleSpecifiers() {
   const problems = [];
   const runtimeWhitelist = readRuntimeResourceWhitelist();
 
-  // runtime 白名单与磁盘必须一一对应，两个方向都会造成「不报错、只在浏览器里 404」：
+  // runtime 清单与磁盘必须一一对应，两个方向都会造成「不报错、只在浏览器里 404」：
   // 少登记 → 文件在磁盘上却不被下发；多登记 → 文件已删/改名，要等有人 import 到才暴露。
-  if (runtimeWhitelist.size > 0) {
-    const apiFile = rel(INTERACTION3D_API);
+  const manifestFile = rel(path.join(RUNTIME_MODULES_DIR, "manifest.json"));
+  if (runtimeWhitelist === null) {
+    problems.push({
+      file: manifestFile,
+      line: 0,
+      detail: "读不到 3D 交互资源清单（缺文件或不是合法 JSON）—— 这条判定整体失效，请先修好它"
+    });
+  } else {
     for (const name of runtimeWhitelist) {
-      if (!fs.existsSync(path.join(RUNTIME_DIR, name))) {
+      if (!fs.existsSync(path.join(RUNTIME_MODULES_DIR, name))) {
         problems.push({
-          file: apiFile,
+          file: manifestFile,
           line: 0,
-          detail: `白名单里的 "${name}" 在 frontend/modules/runtime 下已经不存在`
+          detail: `清单里的 "${name}" 在 frontend/modules/runtime 下已经不存在`
         });
       }
     }
-    for (const file of walk(RUNTIME_DIR, new Set([".js", ".css"]))) {
-      const name = path.relative(RUNTIME_DIR, file).split(path.sep).join("/");
+    for (const file of walk(RUNTIME_MODULES_DIR, new Set([".js", ".css"]))) {
+      const name = path.relative(RUNTIME_MODULES_DIR, file).split(path.sep).join("/");
       if (!runtimeWhitelist.has(name)) {
         problems.push({
-          file: apiFile,
+          file: manifestFile,
           line: 0,
-          detail: `frontend/modules/runtime/${name} 没登记进 get_resource() 白名单（请求它只会 404）`
+          detail: `frontend/modules/runtime/${name} 没登记进 manifest.json（请求它只会 404）`
         });
       }
     }
@@ -716,7 +751,7 @@ function checkModuleSpecifiers() {
             disk = path.join(mount[1], target.slice(mount[0].length));
           } else if (target.startsWith(RUNTIME_RESOURCE_PREFIX)) {
             const name = target.slice(RUNTIME_RESOURCE_PREFIX.length);
-            disk = path.join(RUNTIME_DIR, name);
+            disk = path.join(RUNTIME_MODULES_DIR, name);
             unlisted = !runtimeWhitelist.has(name);
           } else {
             return;
@@ -733,7 +768,7 @@ function checkModuleSpecifiers() {
           //
           // 所以：runtime 文件里的相对说明符必须**仍留在 runtime 前缀内**。要取 /static 下的
           // 东西只能经 core/static-helpers.js 的桥（桥内部用绝对路径，与层数、前缀都无关）。
-          const runtimeName = path.relative(RUNTIME_DIR, file);
+          const runtimeName = path.relative(RUNTIME_MODULES_DIR, file);
           const insideRuntime =
             runtimeName !== "" && !runtimeName.startsWith("..") && !path.isAbsolute(runtimeName);
           if (insideRuntime) {
@@ -756,7 +791,7 @@ function checkModuleSpecifiers() {
               }
               return;
             }
-            disk = path.join(RUNTIME_DIR, url.slice(RUNTIME_RESOURCE_PREFIX.length));
+            disk = path.join(RUNTIME_MODULES_DIR, url.slice(RUNTIME_RESOURCE_PREFIX.length));
           } else {
             disk = path.resolve(path.dirname(file), target);
           }
@@ -789,22 +824,11 @@ function checkModuleSpecifiers() {
 // 7) 物件构建体必须解构它用到的每个 context 键
 // ---------------------------------------------------------------------------
 
-const STUDIO_APP = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
-const ITEM_BUILDERS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "item-builders");
-const MATERIAL_STYLES_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
-  "3d-studio",
-  "studio",
+const STUDIO_APP = path.join(STUDIO_DIR, "studio-app.js");
+const MATERIAL_STYLES_JS = path.join(STUDIO_DIR,
   "studio-material-styles.js"
 );
-const ITEM_TYPES_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
-  "3d-studio",
-  "studio",
+const ITEM_TYPES_JS = path.join(STUDIO_DIR,
   "studio-item-types.js"
 );
 
@@ -997,7 +1021,7 @@ function checkBuilderContextKeys() {
 // ---------------------------------------------------------------------------
 
 /** 扫描面与第 3、6 条一致：前端与商店的 HTML/CSS 都会被浏览器直接加载。 */
-const ASSET_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "store")];
+const ASSET_SCAN_ROOTS = [path.join(FRONTEND_DIR), path.join(STORE_DIR)];
 
 /** `<script src>` / `<link href>`：两种标签共用一条，属性值可以跨行。 */
 const HTML_ASSET_RE = /<(?:script|link)\b[^>]*?\b(?:src|href)\s*=\s*["']([^"']+)["']/gi;
@@ -1012,14 +1036,14 @@ const NON_FILE_PREFIX_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
  * URL 挂载表：`[URL 前缀, 磁盘根, 是否要过 runtime 白名单]`，按磁盘根由长到短排列。
  *
  * 与第 6 条的 `STATIC_MOUNTS` 分开，因为这里多了一条**靠目录别名存在、而不是前缀直连**的挂载点：
- * 商店把 `store/static/fonts` 同时挂在 `/fonts` 下，于是 `/store-static/font.min.css` 里写
+ * 商店把 `apps/store/static/fonts` 同时挂在 `/fonts` 下，于是 `/store-static/font.min.css` 里写
  * `../fonts/font.woff2` 在磁盘上「不存在」、在浏览器里却正中 `/fonts`。
  */
 const URL_MOUNTS = [
-  ["/api/v1/modules/interaction3d/", RUNTIME_DIR, true],
-  ["/fonts/", path.join(ROOT, "store", "static", "fonts"), false],
-  ["/store-static/", path.join(ROOT, "store", "static"), false],
-  ["/static/", path.join(ROOT, "frontend", "static"), false]
+  ["/api/v1/modules/interaction3d/", RUNTIME_MODULES_DIR, true],
+  ["/fonts/", path.join(STORE_STATIC_DIR, "fonts"), false],
+  ["/store-static/", path.join(STORE_STATIC_DIR), false],
+  ["/static/", path.join(STATIC_DIR), false]
 ];
 
 /** 相对引用按 URL 语义折叠 `.`/`..`，与浏览器一致。 */
@@ -1049,7 +1073,7 @@ function fileToUrl(file) {
  * 一条资源引用换算成磁盘路径；算不出来（该由人工/路由保证）返回 null。
  *
  * 这里**按 URL 而不是按文件系统**解析：引用是浏览器按**被引用文件自己的 URL** 解析的，
- * 磁盘上的相对关系只是碰巧一致，越出挂载点的写法（`store/static/font.min.css` 里写
+ * 磁盘上的相对关系只是碰巧一致，越出挂载点的写法（`apps/store/static/font.min.css` 里写
  * `../fonts/font.woff2` → `/fonts/font.woff2`）在磁盘上 "不存在"、在浏览器里却正中另一个挂载点。
  */
 function resolveAssetRef(spec, fromUrl, runtimeWhitelist) {
@@ -1147,6 +1171,30 @@ function braceDepth(chunk) {
  * 缩进过的行（函数体里的动态 import 之类）不算声明级，交给下面按正则单独处理。
  */
 function readModuleDeclarations(text) {
+  // 用真语法树切顶层声明：按行数花括号会被字符串 / 模板串里的括号带偏（shader 字符串一多就漏声明，
+  // 于是「import 的名字不在导出里」误报）。解析不了（故意写坏的样本）才退回下面的按行实现。
+  try {
+    const tree = parseModuleForDeclarations(text, { ecmaVersion: "latest", sourceType: "module", locations: true });
+    const declarations = [];
+    for (const stmt of tree.body) {
+      const isImport = stmt.type === "ImportDeclaration";
+      const isExport = stmt.type === "ExportNamedDeclaration" || stmt.type === "ExportDefaultDeclaration" || stmt.type === "ExportAllDeclaration";
+      if (!isImport && !isExport) continue;
+      declarations.push({
+        text: text.slice(stmt.start, stmt.end),
+        line: stmt.loc.start.line,
+        start: stmt.start,
+        end: stmt.end
+      });
+    }
+    return declarations;
+  } catch {
+    /* 退回下面的按行切分 */
+  }
+  return readModuleDeclarationsByLines(text);
+}
+
+function readModuleDeclarationsByLines(text) {
   const lines = text.split("\n");
   const lineStarts = [];
   let offset = 0;
@@ -1489,9 +1537,9 @@ const PROP_READ_RES = [
 ];
 
 const PROP_SCAN_ROOTS = [
-  path.join(ROOT, "frontend"),
-  path.join(ROOT, "store"),
-  path.join(ROOT, "design")
+  path.join(FRONTEND_DIR),
+  path.join(STORE_DIR),
+  path.join(DESIGN_DIR)
 ];
 
 /** 全站自定义属性的读取点集合（`--x` → 首次出现的 file:line）。 */
@@ -1595,9 +1643,9 @@ function checkUnreadCustomProps() {
  * 兜底值里再嵌 color-mix()/渐变也照样能扫到。
  */
 const CSS_SCAN_ROOTS = [
-  path.join(ROOT, "frontend"),
-  path.join(ROOT, "store"),
-  path.join(ROOT, "design")
+  path.join(FRONTEND_DIR),
+  path.join(STORE_DIR),
+  path.join(DESIGN_DIR)
 ];
 
 /**
@@ -1746,7 +1794,7 @@ const TOKEN_FALLBACK_PAIR_RE =
 
 function collectPaletteColors() {
   const text = fs
-    .readFileSync(path.join(ROOT, "design", "scene", "page.css"), "utf8")
+    .readFileSync(path.join(DESIGN_SCENE_DIR, "page.css"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "");
   const raw = new Map();
   for (const m of text.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
@@ -1931,15 +1979,11 @@ function checkSoftLineAlpha() {
 
 // ---------------------------------------------------------------------------
 
-const EXTERNAL_MODELS_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
+const EXTERNAL_MODELS_JS = path.join(STATIC_DIR,
   "3d-studio",
   "loaders",
   "studio-external-models.js"
 );
-const MODELS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "models");
 /**
  * 注册表条目：`类型: defineHomeItemModel("子目录", "文件基名", {`。
  * 允许换行写法 —— rounddiningtable_turntable 就是拆成三行的，只认单行会漏掉它。
@@ -2036,7 +2080,7 @@ function readGlbSummary(file) {
  */
 const { PIPELINE_MODEL_SPECS, PIPELINE_LITE_VERTEX_BUDGET_RATIO } = await (async () => {
   try {
-    const module = await import(path.join(ROOT, "tools", "models", "model-specs.mjs"));
+    const module = await import(path.join(TOOLS_DIR, "models", "model-specs.mjs"));
     return {
       PIPELINE_MODEL_SPECS: module.MODEL_SPECS,
       // lite 顶点预算的缺省上限比例与生成器取同一个来源；这里不抄一个 0.9，两端各写一份
@@ -2224,14 +2268,8 @@ function checkModelGlbIntegrity() {
   return problems;
 }
 
-const STUDIO_APP_JS = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
-const STORAGE_CABINETS_BUILDER_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
-  "3d-studio",
-  "studio",
-  "item-builders",
+const STUDIO_APP_JS = path.join(STUDIO_DIR, "studio-app.js");
+const STORAGE_CABINETS_BUILDER_JS = path.join(ITEM_BUILDERS_DIR,
   "storage-cabinets.js"
 );
 
@@ -2359,7 +2397,7 @@ function checkCoplanarOverlaps() {
   let payload;
   try {
     payload = JSON.parse(
-      execFileSync(process.execPath, [path.join(ROOT, "tools", "audit_coplanar_faces.mjs"), "--json"], {
+      execFileSync(process.execPath, [path.join(TOOLS_DIR, "audit_coplanar_faces.mjs"), "--json"], {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024
       })
@@ -2522,19 +2560,11 @@ function checkModelAssetUrls() {
   return problems;
 }
 
-const ENVIRONMENT_SCENE_JS = path.join(
-  ROOT,
-  "frontend",
-  "modules",
-  "runtime",
+const ENVIRONMENT_SCENE_JS = path.join(RUNTIME_MODULES_DIR,
   "environment",
   "environment-scene.js"
 );
-const ENVIRONMENT_HALOS_JS = path.join(
-  ROOT,
-  "frontend",
-  "modules",
-  "runtime",
+const ENVIRONMENT_HALOS_JS = path.join(RUNTIME_MODULES_DIR,
   "environment",
   "environment-halos.js"
 );
@@ -3497,10 +3527,7 @@ function readObjectLiteralStrings(sourceText, name) {
  * 读不到（改名 / 结构变化）时返回 null，本条子校验整体跳过 —— 不误报比多报一条更重要。
  */
 function readStoneSlabFlavors() {
-  const surfaceTexturesPath = path.join(
-    ROOT,
-    "frontend",
-    "static",
+  const surfaceTexturesPath = path.join(STATIC_DIR,
     "3d-studio",
     "materials",
     "studio-surface-textures.js"
@@ -3526,12 +3553,7 @@ function readStoneSlabFlavors() {
   return flavors.size ? flavors : null;
 }
 
-const ASSET_PALETTE_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
-  "3d-studio",
-  "studio",
+const ASSET_PALETTE_JS = path.join(STUDIO_DIR,
   "studio-asset-palette.js"
 );
 
@@ -3994,7 +4016,10 @@ function checkCurtainKindContract() {
   const problems = [];
   const cases = [
     {
-      file: "backend/modules/interaction3d/config.py",
+      files: [
+        "apps/server/modules/interaction3d/config.py",
+        "apps/server/modules/interaction3d/config_domains.py"
+      ],
       tests: [
         [
           /not in \('standard', 'dream', 'roller'\)/,
@@ -4092,17 +4117,19 @@ function checkCurtainKindContract() {
     }
   ];
   for (const testCase of cases) {
-    const full = path.join(ROOT, testCase.file);
+    // 一个出口可能横跨多个文件（后端校验按域拆到了 config_domains.py）：判据是「这些必须
+    // 同手在场的文本出现在这一侧的某个文件里」，而不是把它们钉死在某一份文件里。
+    const fulls = (testCase.files ?? [testCase.file]).map((item) => path.join(ROOT, item));
     let text = "";
     try {
-      text = fs.readFileSync(full, "utf8");
+      text = fulls.map((item) => fs.readFileSync(item, "utf8")).join("\n");
     } catch {
-      problems.push({ file: rel(full), line: 0, detail: "读不到文件，守卫无法判定" });
+      problems.push({ file: rel(fulls[0]), line: 0, detail: "读不到文件，守卫无法判定" });
       continue;
     }
     for (const [pattern, detail] of testCase.tests) {
       if (!pattern.test(text)) {
-        problems.push({ file: rel(full), line: 0, detail });
+        problems.push({ file: rel(fulls[0]), line: 0, detail });
       }
     }
   }
@@ -4231,7 +4258,7 @@ function checkPurifierModelTypes() {
       }
     },
     {
-      file: "backend/modules/interaction3d/purifier.py",
+      file: "apps/server/modules/interaction3d/purifier.py",
       where: "PURIFIER_MODEL_TYPES",
       read: text => /PURIFIER_MODEL_TYPES\s*=\s*frozenset\(\{([^}]*)\}\)/s.exec(text)?.[1] ?? null
     }
@@ -4452,8 +4479,8 @@ function checkVacuumStateAliases() {
 }
 
 const FREE_IDENTIFIER_SCAN_ROOTS = [
-  path.join(ROOT, "frontend", "modules"),
-  path.join(ROOT, "frontend", "static")
+  path.join(FRONTEND_DIR, "modules"),
+  path.join(STATIC_DIR)
 ];
 
 const freeIdentifiers = await import("./lib/free-variables.mjs");
@@ -4577,7 +4604,7 @@ function checkLicenseStatusLabelSets() {
   // 任一处的键集落后，就会在该状态上原样显示英文码 / 显示空白提示。
   const sources = [
     {
-      file: "backend/license/service.py",
+      file: "apps/server/license/service.py",
       marker: "labels = {",
       pattern: /'([A-Z][A-Z0-9_]+)'\s*:/g
     },
@@ -4662,7 +4689,7 @@ const NON_HA_SERVICE_LITERALS = new Set([]);
 function checkFrontendHaServicesAllowed() {
   const problems = [];
   const lineOf = (text, index) => text.slice(0, index).split("\n").length;
-  const haFile = path.join(ROOT, "backend", "api", "ha.py");
+  const haFile = path.join(BACKEND_DIR, "api", "ha.py");
   let haText;
   try {
     haText = fs.readFileSync(haFile, "utf8");
@@ -4743,6 +4770,649 @@ function checkFrontendHaServicesAllowed() {
   return problems;
 }
 
+/**
+ * 第 37 条：附加实体的「域 → 卡片形态」词表两端同源。
+ *
+ * 前端渲染附加功能卡片时读的是 purifier-extras.js 的 extraTypes()，后端复核命令读的是
+ * purifier.py 的 EXTRA_TYPES —— 前者决定「这张卡长成开关 / 下拉 / 数值 / 按钮 / 只读状态」，
+ * 后者决定「这条命令放不放行」。两边错开的失效方式恰好是本项目最忌讳的那一类：
+ *
+ *   · 前端多认一个域（例如把 cover 当开关渲染）→ 卡片可点、命令必被 422 拒，
+ *     浏览器零报错，用户只看到「点了没反应」；
+ *   · 后端多认一个域 → 前端永远渲染不出那张卡，是一条谁也用不到的死条目。
+ *
+ * 判据：两端都只取「可写」的域（前端各形态对应的键，后端 kind != "state" 的键），双向比对。
+ * 编辑器侧那份候选词表（device-entity-config.js 的 DOMAIN_CAPABILITIES）不参与 ——
+ * 它的消费者已随最近一次重构删除，现在只有这两处是真正的契约出口。
+ */
+function checkExtraEntityDomainParity() {
+  const runtimeFile = "frontend/modules/runtime/climate/purifier-extras.js";
+  const backendFile = "apps/server/modules/interaction3d/purifier.py";
+  const readText = relativePath => {
+    try {
+      return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const runtimeText = readText(runtimeFile);
+  if (runtimeText === null) {
+    return [{ file: runtimeFile, line: 0, detail: "读不到文件，守卫无法判定" }];
+  }
+  const backendText = readText(backendFile);
+  if (backendText === null) {
+    return [{ file: backendFile, line: 0, detail: "读不到文件，守卫无法判定" }];
+  }
+
+  const runtimeBody = objectLiteralBody(runtimeText, "const mapped = {");
+  if (!runtimeBody) {
+    return [
+      { file: runtimeFile, line: 0, detail: "找不到 extraTypes 里的 const mapped = { … } 词表（守卫失效）" }
+    ];
+  }
+  const runtimeDomains = new Set([...runtimeBody.matchAll(/([a-z_]+)\s*:/g)].map(match => match[1]));
+
+  const backendBody = objectLiteralBody(backendText, "EXTRA_TYPES");
+  if (!backendBody) {
+    return [{ file: backendFile, line: 0, detail: "找不到 EXTRA_TYPES 字面量（守卫失效）" }];
+  }
+  const backendDomains = new Set(
+    [...backendBody.matchAll(/"([a-z_]+)"\s*:\s*"([a-z_]+)"/g)]
+      .filter(match => match[2] !== "state")
+      .map(match => match[1])
+  );
+
+  const problems = [];
+  for (const domain of runtimeDomains) {
+    if (!backendDomains.has(domain)) {
+      problems.push({
+        file: backendFile,
+        line: 0,
+        detail: `前端按可写渲染 ${domain}，后端 EXTRA_TYPES 却没登记（那张卡片可点、命令必被 422 拒）`
+      });
+    }
+  }
+  for (const domain of backendDomains) {
+    if (!runtimeDomains.has(domain)) {
+      problems.push({
+        file: runtimeFile,
+        line: 0,
+        detail: `后端放行 ${domain}，前端 extraTypes 却不认识它（那张卡永远渲染不出来，是死条目）`
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 38 条：表达式被静默改写的语法陷阱。
+ *
+ * 起因是一次真实事故：``frontend/static/logging/client-log.js`` 里混进了一个残留的行号前缀
+ * ``370|``，那一行成了
+ *
+ *     370|            `${ok ? "请求耗时较长" : "请求失败"}：${method} ${path}`,
+ *
+ * ``number | string`` 是**位或**：字符串先转数字得 NaN、再按 0 算，于是整个表达式的值恒为数字
+ * ``370``。后果是**每一条「慢请求 / 请求失败」的客户端日志都丢掉了消息体**（data/logs 里
+ * 23 条 ``"message":"370"``，真实信息只剩在 context 里），而它语法合法 —— acorn 通过、浏览器
+ * 不报错、ruff 与其余 37 条守卫全都看不见。这正是本仓最忌讳的「不报错、只静默失效」。
+ *
+ * 两种形态都判，都只判**确定是错的**写法：
+ *
+ *   1. **行首残留行号**（``^\s*\d+|``）：正常 JS 里不会有一行以「数字 + 竖线」开头 ——
+ *      就算真要写位或，也不会把它放在语句开头。CSS 的竖线也不会出现在行首。
+ *   2. **数字与字符串/模板串做位或**（``370 | "x"`` / ``"y" | 5``）：字符串参与位或永远不是
+ *      本意（``| 0`` 这种 ToInt32 惯用法不涉及字符串，不会误报）。
+ *
+ * 扫描范围刻意排除 ``vendor/``：压缩过的第三方代码里 ``1|0`` 这类位标志很常见，
+ * 而它们不涉及字符串字面量，本判据本来也不会命中 —— 排除是为了把"看得懂的那部分"钉死。
+ */
+function checkSilentExpressionRewrite() {
+  const problems = [];
+  const lineNumberResidue = /^\s*[0-9]+\s*\|/;
+  const stringBitwiseOr = /(?:[0-9]\s*\|\s*[\`"']|[\`"']\s*\|\s*[0-9])/;
+  const roots = [FRONTEND_DIR, STORE_DIR, BACKEND_DIR, TOOLS_DIR];
+  const extensions = new Set([".js", ".mjs", ".css"]);
+  for (const root of roots) {
+    for (const file of walk(root, extensions)) {
+      const relative = rel(file);
+      if (relative.includes("/vendor/") || relative.startsWith("tools/vendor/")) continue;
+      let raw;
+      try {
+        raw = fs.readFileSync(file, "utf8");
+      } catch {
+        continue;
+      }
+      // 先剥注释再扫：本守卫的文档注释里就引用了这两个坏形态（\`370|\` 与 \`370 | "x"\`），
+      // 不剥就会自己报自己。stripComments 保留换行，行号仍然对得上。
+      const lines = stripComments(raw).split("\n");
+      for (const [index, line] of lines.entries()) {
+        if (lineNumberResidue.test(line)) {
+          problems.push({
+            file: relative,
+            line: index + 1,
+            detail: `行首出现「数字 + |」的残留行号：${line.trim().slice(0, 60)}（表达式会被静默改写）`
+          });
+          continue;
+        }
+        if (extensions.has(path.extname(file)) && path.extname(file) !== ".css" && stringBitwiseOr.test(line)) {
+          problems.push({
+            file: relative,
+            line: index + 1,
+            detail: `数字与字符串/模板串做位或（值会被静默转成数字）：${line.trim().slice(0, 60)}`
+          });
+        }
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 39 条：文件规模预算（棘轮式：只许减、不许增）。
+ *
+ * 一个文件长到几千行之后，"改一处"就变成了"先读完半个文件"：定位成本、审查成本、
+ * 冲突概率全都随行数涨，而它对**运行时**没有任何好处 —— 它是纯粹的维护性债务，
+ * 而且没有任何工具会替你报警。这条守卫就是那个报警器。
+ *
+ * 采用**棘轮**而不是一刀切，是因为现状里有 38 个超标文件（最大的 studio-app.js 28304 行）。
+ * 一次性要求全达标等于把守卫关掉；只要求"不再变差"才是可执行的：
+ *
+ *   - 超过限额且**没登记**在 tools/file-size-baseline.json → 失败（新增债务）；
+ *   - 登记了但**行数比记录还多** → 失败（旧债又涨了）；
+ *   - 已经拆到限额以内、台账里还留着 → 失败（请删掉那一条，台账只能缩）；
+ *   - 台账里的文件已经不存在 → 失败（改名或删除后要同步台账）。
+ *
+ * tools/ 下的脚本刻意不纳入：它们是"一份可以线性浏览的清单"（守卫本身 5264 行、
+ * 配色审计 1873 行），按域拆开反而更难核对。压缩过的 *.min.js 同理 —— 那不是我们的代码。
+ */
+function checkFileSizeBudget() {
+  const problems = [];
+  const baselinePath = path.join(TOOLS_DIR, "file-size-baseline.json");
+  let baseline;
+  try {
+    baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  } catch (error) {
+    return [{ file: rel(baselinePath), line: 0, detail: `读不到或解析不了台账：${error}` }];
+  }
+  const limits = baseline.limits || {};
+  const recorded = baseline.over || {};
+  const limitFor = extension => (extension === ".py" ? limits.py : limits.js);
+  const seen = new Set();
+
+  for (const root of [BACKEND_DIR, STORE_DIR, FRONTEND_DIR]) {
+    for (const file of walk(root, new Set([".py", ".js", ".mjs"]))) {
+      const relative = rel(file);
+      if (relative.includes("/vendor/") || relative.endsWith(".min.js")) continue;
+      const limit = limitFor(path.extname(file));
+      if (!limit) continue;
+      let lineCount;
+      try {
+        // 与编辑器显示的"行数"对齐：文件以换行结尾时 split 会多出一个空串，先去掉再数。
+        const lines = fs.readFileSync(file, "utf8").split("\n");
+        if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+        lineCount = lines.length;
+      } catch {
+        continue;
+      }
+      const budget = recorded[relative];
+      if (budget !== undefined) seen.add(relative);
+      if (lineCount > limit) {
+        if (budget === undefined) {
+          problems.push({
+            file: relative,
+            line: 0,
+            detail: `${lineCount} 行，超过 ${limit} 行预算且没有登记（新增债务）。请按功能域拆开，或确有理由时登记进 tools/file-size-baseline.json`
+          });
+        } else if (lineCount > budget) {
+          problems.push({
+            file: relative,
+            line: 0,
+            detail: `${lineCount} 行，比台账登记的 ${budget} 行还多（旧债又涨了）。台账只许减：拆完再更新它`
+          });
+        }
+        continue;
+      }
+      if (budget !== undefined) {
+        problems.push({
+          file: relative,
+          line: 0,
+          detail: `${lineCount} 行，已经回到 ${limit} 行预算以内，请从 tools/file-size-baseline.json 删掉这条（台账只许缩）`
+        });
+      }
+    }
+  }
+  for (const relative of Object.keys(recorded)) {
+    if (!seen.has(relative)) {
+      problems.push({
+        file: relative,
+        line: 0,
+        detail: "台账里登记的文件不存在（已改名或已删除），请同步 tools/file-size-baseline.json"
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 41 条：仓库路径不许在脚本里重复推导。
+ *
+ * 起因是真实踩到的一处：本文件里 frontend/modules/runtime 被定义了两次
+ * （RUNTIME_DIR 与 RUNTIME_MODULES_DIR），两个名字同一路径、各拼各的。改路径时漏掉一处，
+ * 结果就是**守卫看着是绿的，实际查了一个空目录** —— 这类"检查本身失效"比不检查更危险。
+ *
+ * 判据（两条都只判确定的形态，不猜）：
+ *
+ *   1. tools/paths.mjs 已经导出的目录，不许在别的脚本里再 path.join(ROOT, "a", "b") 拼一遍；
+ *   2. 仓库根本身不许自己算（path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")）——
+ *      一律从 paths.mjs 取 ROOT。
+ *
+ * paths.mjs 自己不受这两条约束（它就是那个"一处"）。
+ */
+function checkPathConstantsHaveOneSource() {
+  const problems = [];
+  const pathsFile = path.join(TOOLS_DIR, "paths.mjs");
+  const source = fs.readFileSync(pathsFile, "utf8");
+
+  // 1) 从 paths.mjs 解出「常量名 → 相对段」。
+  const exported = [];
+  for (const match of source.matchAll(/export const ([A-Z_]+) = join\(([^)]*)\);/g)) {
+    const segments = [...match[2].matchAll(/"([^"]+)"/g)].map(item => item[1]);
+    if (segments.length) exported.push({ name: match[1], segments });
+  }
+  if (!exported.length) {
+    return [{ file: rel(pathsFile), line: 0, detail: "解不出任何导出常量 —— 本判据整体失效，先修 paths.mjs" }];
+  }
+
+  const escapeRe = value => value.replace(/[.*+?^$@{}()|[\]\\]/g, "\\$&");
+  const matchers = exported.map(item => ({
+    name: item.name,
+    segments: item.segments,
+    // path.join(ROOT, "a", "b")：允许换行与任意空白（本仓 printWidth=100，长路径必然折行）。
+    // 结尾用 (?=\s*[,)]) 而不是 \)：path.join(STATIC_DIR, "editor") 这种
+    // "在导出目录下再取一段子目录"同样是重复推导，只是多带了一段。
+    pattern: new RegExp(
+      "path\\.join\\(\\s*ROOT\\s*,"
+        + item.segments.map(seg => '\\s*"' + escapeRe(seg) + '"').join("\\s*,")
+        + "(?=\\s*[,)])"
+    )
+  }));
+  const rootPattern =
+    /path\.resolve\(\s*path\.dirname\(\s*fileURLToPath\(\s*import\.meta\.url\s*\)\s*\)\s*,\s*"\."\s*\)/;
+
+  for (const entry of fs.readdirSync(TOOLS_DIR, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith(".mjs") || entry.name === "paths.mjs") continue;
+    const file = path.join(TOOLS_DIR, entry.name);
+    const text = fs.readFileSync(file, "utf8");
+    const lineAt = makeLineCounter(text);
+    for (const matcher of matchers) {
+      for (const match of text.matchAll(new RegExp(matcher.pattern.source, "g"))) {
+        problems.push({
+          file: rel(file),
+          line: lineAt(match.index),
+          detail:
+            "又拼了一遍 paths.mjs 里的 " + matcher.name + "（" + matcher.segments.join("/")
+            + "）—— 改成 import 那个常量"
+        });
+      }
+    }
+    const rootMatch = rootPattern.exec(text);
+    if (rootMatch) {
+      problems.push({
+        file: rel(file),
+        line: lineAt(rootMatch.index),
+        detail: '自己算了一遍仓库根 —— 改成 import { ROOT } from "./paths.mjs"'
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 42 条：匿名可访问的静态资源清单必须是清单文件，不许写回 Python 字面量。
+ *
+ * 这份集合同时是**安全边界**：它决定"谁可以匿名取到什么"。原先它是中间件里的 63 行
+ * Python 字面量 —— 改的时候既要翻代码又要判断哪些条目还活着，而漏掉一个入口脚本的表现是
+ * "未登录页面白屏"，只能在浏览器里才发现。现在它是 frontend/public-static.json，
+ * 每条还能带一句"为什么它必须匿名"。
+ *
+ * 判据三条：
+ *
+ *   1. 装配层不许再出现**指向具体资源文件**的 /static 字面量（形如 /static/x/y.css）；
+ *      单纯的前缀判断 startswith("/static/") 不算 —— 那是路由分流，不是白名单条目；
+ *   2. 清单里的每个路径都必须在磁盘上真实存在（写错一个字符 = 那条永久失效、静默 401）；
+ *   3. 清单必须是合法 JSON 且 files 是数组（读不出来时服务端会直接 500，这里提前报）。
+ *
+ * 反向（"磁盘上的公开资源都登记了"）刻意不判：这是一份白名单，不是完整清单 ——
+ * 绝大多数 /static 资源本来就该要求登录。
+ */
+function checkPublicAssetManifest() {
+  const problems = [];
+  const manifestFile = path.join(FRONTEND_DIR, "public-static.json");
+  let payload;
+  try {
+    payload = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+  } catch (error) {
+    return [{ file: rel(manifestFile), line: 0, detail: "读不到或解析不了公开静态资源清单：" + error }];
+  }
+  if (!Array.isArray(payload?.files)) {
+    return [{ file: rel(manifestFile), line: 0, detail: "files 必须是数组" }];
+  }
+
+  // 2) 每条都要在磁盘上存在
+  for (const item of payload.files) {
+    const value = typeof item === "string" ? item : item?.path;
+    if (typeof value !== "string" || !value.startsWith("/static/")) {
+      problems.push({
+        file: rel(manifestFile),
+        line: 0,
+        detail: "非法条目（必须是以 /static/ 开头的字符串）：" + String(value)
+      });
+      continue;
+    }
+    const onDisk = path.join(STATIC_DIR, value.replace("/static/", ""));
+    if (!fs.existsSync(onDisk)) {
+      problems.push({
+        file: rel(manifestFile),
+        line: 0,
+        detail: "清单里的 " + value + " 在磁盘上不存在（请求它只会 404 / 401，而白名单本身看不出问题）"
+      });
+    }
+  }
+
+  // 1) 装配层不许再写具体资源路径
+  const assetLiteral = /["']\/static\/[A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]+["']/;
+  const seen = new Set();
+  for (const file of walk(path.join(BACKEND_DIR, "app"), new Set([".py"]))) {
+    const relative = rel(file);
+    if (seen.has(relative) || relative.endsWith("app/public_assets.py")) continue;
+    seen.add(relative);
+    const text = stripComments(fs.readFileSync(file, "utf8"));
+    const lineAt = makeLineCounter(text);
+    for (const match of text.matchAll(new RegExp(assetLiteral.source, "g"))) {
+      problems.push({
+        file: relative,
+        line: lineAt(match.index),
+        detail: "写死的静态资源路径 " + match[0] + " —— 匿名白名单只许来自 frontend/public-static.json"
+      });
+    }
+  }
+  return problems;
+}
+
+/**
+ * 第 43 条：两个可独立部署的项目（apps/server / store）不得互相 import。
+ *
+ * 它们是**两个独立项目**，可能部署在不同的服务器上：主应用（18081）与授权商店 / 授权服务器
+ * （18082）。一旦一方 import 另一方，就出现三个立刻成立的后果：
+ *
+ *   1. 单独部署商店（只发 apps/store/）会 ImportError —— 而"商店独立部署"正是它存在的理由；
+ *   2. 两侧被迫同版本发布，主应用的任何一次改动都会卡住商店的发布；
+ *   3. 商店镜像里会连主应用的业务代码一起带进去（授权服务器不需要、也不该有它们）。
+ *
+ * 因此本仓明确允许**同名双份实现**（core/static_revision.py、core/appearance.py、
+ * security/body_guard.py / compression.py / access_log.py 等），每份由各自项目独立维护 ——
+ * 这份"重复"是刻意的隔离成本，不是可以顺手合并的重复代码。要保证两边不漂移，
+ * 用**构建期生成 + 逐字节校验**（design/scene 的三份分发副本就是这个模式的样板），
+ * 绝不是在运行时 import 对方。
+ *
+ * 判据：只在真正的代码里找（先剥注释与字符串，所以文档里写到对方的名字不算）。
+ */
+function checkDeployablesStayIndependent() {
+  const problems = [];
+  const directions = [
+    { root: BACKEND_DIR, other: "apps\\.store", from: "主应用（apps/server）", to: "授权商店（apps/store）" },
+    { root: STORE_DIR, other: "apps\\.server", from: "授权商店（apps/store）", to: "主应用（apps/server）" }
+  ];
+  const pattern = /^\s*(?:from|import)\s+OTHER(?:\.|\s|$)/m;
+  for (const direction of directions) {
+    const matcher = new RegExp(pattern.source.replace("OTHER", direction.other), "gm");
+    for (const file of walk(direction.root, new Set([".py"]))) {
+      const relative = rel(file);
+      if (relative.includes("/__pycache__/")) continue;
+      // 剥字符串与注释：只在真代码里判，文档/注释里提到对方不算。
+      const text = stripCommentsAndStrings(fs.readFileSync(file, "utf8"));
+      const lineAt = makeLineCounter(text);
+      for (const match of text.matchAll(matcher)) {
+        problems.push({
+          file: relative,
+          line: lineAt(match.index),
+          detail:
+            direction.from + " import 了 " + direction.to + " —— 两者是独立项目、可能分机部署，"
+            + "一旦互相依赖就无法单独发版。要共用实现请用构建期生成 + 逐字节校验（见 design/scene 的模式）"
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// 44) 同名双份的共享面走散（两份实现看起来一样，改一边另一边静默不变）
+// ---------------------------------------------------------------------------
+
+/**
+ * apps/server 与 apps/store 互不 import（不变量 #43），概念共享时实现各留一份。
+ * 清单 packages/contracts/surfaces.json 声明「哪些名字的两份必须是同一份代码面」。
+ *
+ * 比较时剥掉整行注释与 docstring：两侧的「为什么各留一份」说明本来就该各写各的，
+ * 只有真正会走散的数据与逻辑才被钉住。kind=set 的面比的是两侧的字符串集合
+ * （商店的 FEATURE_CATALOG 里取 code 字段，主应用侧按 serverExtra 补上它独有的码）。
+ */
+function extractSurface(text, name) {
+  const lines = text.split("\n");
+  const out = [];
+  let capturing = false;
+  for (const line of lines) {
+    if (!capturing) {
+      const isDef =
+        new RegExp("^(?:async\\s+)?def\\s+" + name + "\\b").test(line) ||
+        new RegExp("^class\\s+" + name + "\\b").test(line) ||
+        new RegExp("^" + name + "\\s*(?::[^=\\n]*)?=").test(line);
+      if (isDef) {
+        capturing = true;
+        out.push(line);
+      }
+      continue;
+    }
+    if (line === "") {
+      out.push(line);
+      continue;
+    }
+    if (/^\S/.test(line)) break;
+    out.push(line);
+  }
+  return out.length ? out.join("\n") : null;
+}
+
+function stripCommentsAndDocstrings(text) {
+  const withoutDocstrings = text
+    .replace(/^\s*[rubfRUBF]*"""[\s\S]*?"""/gm, "")
+    .replace(/^\s*[rubfRUBF]*'''[\s\S]*?'''/gm, "");
+  return withoutDocstrings
+    .split("\n")
+    .filter((line) => line.trim() !== "" && !line.trim().startsWith("#"))
+    .map((line) => line.replace(/\s+$/, ""))
+    .join("\n")
+    .trim();
+}
+
+function surfaceLiterals(text, mode) {
+  const found = new Set();
+  if (mode === "code-field") {
+    for (const match of text.matchAll(/["']code["']\s*:\s*["']([^"']+)["']/g)) {
+      found.add(match[1]);
+    }
+    return found;
+  }
+  for (const match of text.matchAll(/'([^'\n]*)'|"([^"\n]*)"/g)) {
+    found.add(match[1] ?? match[2]);
+  }
+  return found;
+}
+
+function checkContractSurfaces() {
+  const problems = [];
+  const manifestPath = path.join(ROOT, "packages/contracts/surfaces.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return [{ file: rel(manifestPath), line: 0, detail: "读不到或解析不了契约面清单" }];
+  }
+  for (const surface of manifest.surfaces ?? []) {
+    if (surface.kind === "set") {
+      const sets = [];
+      for (const member of surface.members ?? []) {
+        const full = path.join(ROOT, member.file);
+        let text;
+        try {
+          text = fs.readFileSync(full, "utf8");
+        } catch {
+          problems.push({ file: rel(full), line: 0, detail: "契约面 " + surface.id + " 读不到文件" });
+          continue;
+        }
+        const chunk = (member.names ?? []).map((name) => extractSurface(text, name)).filter(Boolean).join("\n");
+        const items = surfaceLiterals(chunk, member.extract ?? "string-literals");
+        for (const extra of member.extra ?? []) items.add(extra);
+        sets.push({ file: member.file, items });
+      }
+      if (sets.length < 2) continue;
+      const [first, ...rest] = sets;
+      for (const other of rest) {
+        const missing = [...first.items].filter((item) => !other.items.has(item));
+        const extra = [...other.items].filter((item) => !first.items.has(item));
+        if (missing.length || extra.length) {
+          problems.push({
+            file: other.file,
+            line: 0,
+            detail:
+              "契约面 " + surface.id + " 两侧集合不同源：" +
+              (missing.length ? first.file + " 有而这里没有 → " + missing.join(", ") + "；" : "") +
+              (extra.length ? "这里有而 " + first.file + " 没有 → " + extra.join(", ") : "")
+          });
+        }
+      }
+      continue;
+    }
+    const seen = [];
+    for (const member of surface.members ?? []) {
+      const full = path.join(ROOT, member.file);
+      let text;
+      try {
+        text = fs.readFileSync(full, "utf8");
+      } catch {
+        problems.push({ file: rel(full), line: 0, detail: "契约面 " + surface.id + " 读不到文件" });
+        continue;
+      }
+      const missing = [];
+      const chunks = [];
+      for (const name of member.names ?? []) {
+        const chunk = extractSurface(text, name);
+        if (!chunk) {
+          missing.push(name);
+          continue;
+        }
+        chunks.push(stripCommentsAndDocstrings(chunk));
+      }
+      if (missing.length) {
+        problems.push({
+          file: rel(full),
+          line: 0,
+          detail: "契约面 " + surface.id + " 在这里找不到：" + missing.join(", ")
+        });
+        continue;
+      }
+      seen.push({ file: member.file, text: chunks.join("\n\n") });
+    }
+    if (seen.length < 2) continue;
+    const [first, ...rest] = seen;
+    for (const other of rest) {
+      if (other.text !== first.text) {
+        problems.push({
+          file: other.file,
+          line: 0,
+          detail:
+            "契约面 " + surface.id + " 的两份实现已经走散（" + first.file + " 与这里不同）。" +
+            (surface.why ? " 走散的后果：" + surface.why : "")
+        });
+      }
+    }
+  }
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// 45) 自研 JS 默认是 ESM：出现未登记的经典脚本就报错
+// ---------------------------------------------------------------------------
+
+/**
+ * 本仓默认 ESM（<script type="module"> + import/export）。仍保持经典脚本的只有少数几份，
+ * 每一份都必须登记在 tools/classic-scripts.json 并写明「为什么必须是经典脚本」——它们是
+ * 「首帧前执行 / 必须最先执行 / 是 Worker」这类靠时序或宿主机制成立的文件，顺手转成模块会静默坏掉。
+ *
+ * 两种放行：文件里有 import/export；或被某个页面用 type="module" 加载（模块可以不导出任何东西）。
+ * 清单里的条目反过来也要对账：文件被转成模块后要把它删掉，否则这份清单会变成过期文档。
+ */
+function checkClassicScriptsRegistered() {
+  const problems = [];
+  const manifestPath = path.join(TOOLS_DIR, "classic-scripts.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch {
+    return [{ file: rel(manifestPath), line: 0, detail: "读不到或解析不了经典脚本清单" }];
+  }
+  const classic = new Map((manifest.classic || []).map(entry => [entry.file, entry]));
+  const moduleNoExports = new Map((manifest.moduleNoExports || []).map(entry => [entry.file, entry]));
+
+  // paths.mjs 导出的就是绝对路径，不要再 join(ROOT)。
+  const roots = [STATIC_DIR, RUNTIME_MODULES_DIR, STORE_STATIC_DIR, DESIGN_SCENE_DIR];
+  const seen = new Set();
+  const bug = (file, message) => problems.push({ file, line: 0, detail: message });
+
+  const walk = dir => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "vendor" || entry.name === "__pycache__") continue;
+        walk(full);
+        continue;
+      }
+      if (!entry.name.endsWith(".js") || entry.name.endsWith(".min.js")) continue;
+      const relative = rel(full);
+      if (seen.has(relative)) continue;
+      seen.add(relative);
+      const hasImportExport = /^\s*(import\s|export\s)/m.test(fs.readFileSync(full, "utf8"));
+      const documentedClassic = classic.has(relative);
+      const documentedModule = moduleNoExports.has(relative);
+      if (hasImportExport) {
+        if (documentedClassic || documentedModule) {
+          bug(relative, "这份已经是普通模块了（文件里有 import/export），请把它从 tools/classic-scripts.json 里删掉 —— 清单只收「现在仍是例外」的文件");
+        }
+        continue;
+      }
+      if (documentedClassic || documentedModule) continue;
+      bug(relative, "未登记的例外：文件里没有 import/export，看着像经典脚本。本仓默认 ESM，请写成模块" +
+        "（<script type=\"module\"> + import/export）；确实必须是经典脚本（首帧前执行 / 必须最先执行 / 是 Worker）" +
+        "登记进 classic，已经是模块只是不需要 import/export 的登记进 moduleNoExports，两处都要写 why");
+    }
+  };
+  for (const root of roots) walk(root);
+  for (const [file, entry] of [...classic, ...moduleNoExports]) {
+    if (!seen.has(file)) bug(file, "清单里登记了但扫描没走到（路径写错了？）");
+    else if (!entry.why || !entry.why.trim()) bug(file, "清单条目没有 why：写清为什么它是例外");
+  }
+  return problems;
+}
+
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -4766,12 +5436,12 @@ const checks = [
   },
   {
     title: "mdi 图标版本出现多个值，或与 vendor 目录对不上",
-    hint: "只改 frontend/static/utils/icon-url.js 的 MDI_VERSION、backend 侧自动跟随目录；studio.css 里那三条遮罩地址与 vendor 目录名要同步",
+    hint: "只改 frontend/static/utils/icon-url.js 的 MDI_VERSION、apps/server 侧自动跟随目录；studio.css 里那三条遮罩地址与 vendor 目录名要同步",
     run: checkMdiVersion
   },
   {
     title: "import 说明符解析不到真实文件 / runtime 资源没登记进白名单",
-      hint: "相对路径按导入方所在目录重算层数（文件深一层，`./x` 写成 `../x`、`../x` 写成 `../../x`）；**runtime 资源（frontend/modules/runtime/**）的相对说明符按 URL 语义判、且必须留在 /api/v1/modules/interaction3d/ 前缀内** —— 它的 URL 前缀比磁盘路径深一层，跨出去取 /static 只能走 core/static-helpers.js 的桥；绝对路径只判能算出服务端口径的（/static、/store-static、/api/v1/modules/interaction3d），后者新增文件必须同时登记进 backend/modules/interaction3d/api.py 的 get_resource() 白名单",
+      hint: "相对路径按导入方所在目录重算层数（文件深一层，`./x` 写成 `../x`、`../x` 写成 `../../x`）；**runtime 资源（frontend/modules/runtime/**）的相对说明符按 URL 语义判、且必须留在 /api/v1/modules/interaction3d/ 前缀内** —— 它的 URL 前缀比磁盘路径深一层，跨出去取 /static 只能走 core/static-helpers.js 的桥；绝对路径只判能算出服务端口径的（/static、/store-static、/api/v1/modules/interaction3d），后者新增文件必须同时登记进 apps/server/modules/interaction3d/api.py 的 get_resource() 白名单",
     run: checkModuleSpecifiers
   },
   {
@@ -4984,7 +5654,8 @@ const checks = [
           "帘型默认取户型模型的形态（模型侧字段名与取值照搬上游 0.6.5：curtainForm " +
           "standard / roller，历史草稿里的 curtainStyle / cloth 仍要读得出），编辑器显式改过时置 " +
           "coverKindOverride 让交互配置的 coverKind 胜出（上游 0.6.5 同口径）。各出口必须同时在场：" +
-          "后端 config.py 的 coverKind 取值枚举要含 'roller'、字段白名单要含 'coverKindOverride' 并做" +
+          "后端（config.py 及其 config_domains.py 域校验段）的 coverKind 取值枚举要含 'roller'、" +
+    "字段白名单要含 'coverKindOverride' 并做" +
           "布尔校验；config-editor.js 的「窗帘类型」下拉要含 [\"roller\", \"卷帘\"]、选择回调要放行 " +
           "roller 且置 coverKindOverride、归一白名单要含 roller、模型帘型要按 curtainForm 读（兼容 " +
           "curtainStyle）；config-metadata.js 要透传 curtainForm；geometry.js 的 resolveCurtainGeometry " +
@@ -5081,7 +5752,75 @@ const checks = [
           "登记进 NON_HA_SERVICE_LITERALS 并写明理由，别放宽匹配式。本守卫只核对服务名存在性" +
           "（前端域名常是变量），不核对「域 + 服务」组合",
         run: checkFrontendHaServicesAllowed
-      }
+      },
+      {
+        title: "附加实体「域 → 卡片形态」词表两端不同源（前端渲染得出、后端必拒，或后端条目无人能触发）",
+        hint:
+          "前端唯一出口是 frontend/modules/runtime/climate/purifier-extras.js 的 extraTypes() 里那张 " +
+          "mapped 词表，后端唯一出口是 apps/server/modules/interaction3d/purifier.py 的 EXTRA_TYPES。" +
+          "两者只按「可写域」比对：新增一个可编辑的域要两边一起加，且 EXTRA_TYPES 那侧的值不能是 " +
+          '"state"（那是它表达「只读」的写法）。改完顺手核对 device-panel.js 的 deviceKind ' +
+          "（通用设备是 device-extra、净化器是 purifier-extra），/control 靠它分流到不同的校验分支",
+        run: checkExtraEntityDomainParity
+      },
+      {
+        title: "表达式被静默改写的语法陷阱（行号残留 / 数字与字符串做位或）",
+        hint:
+          "行首的「数字 + |」是复制粘贴残留的行号，紧跟在它后面的模板串会被位或吃成数字（" +
+          "本仓真实踩过一次：client-log.js 的 370| 让所有慢请求日志的 message 恒为 370）。" +
+          "删掉那截残留即可；若确实要写位或，把它放进括号并让两个操作数都是数字",
+        run: checkSilentExpressionRewrite
+      },
+      {
+        title: "文件规模预算（棘轮：只许减不许增）",
+        hint:
+          "Python 单文件 800 行、JS/MJS 单文件 1200 行。超标的既有文件登记在 tools/file-size-baseline.json，" +
+          "行数只能往下走；拆到限额以内之后请把那条删掉（守卫会提醒）。要拆的话按本仓已有的缝走：" +
+          "item-builders/、plan/、loaders/、editor/home/*、panel-renderer/device-controls/* —— " +
+          "外提之后必须跑一次 node tools/bump_static_cache_versions.mjs（同模块两枚戳 = 两份实例）。" +
+          "tools/ 下的脚本与压缩过的 *.min.js 不纳入本条",
+        run: checkFileSizeBudget
+      },
+      {
+        title: "仓库路径不许在脚本里重复推导（paths.mjs 是唯一事实来源）",
+        hint:
+          "任何脚本要用仓库里的目录，从 tools/paths.mjs import；那里没有的，先加进去。" +
+          "同一路径被拼两遍的后果是「改路径漏掉一处 → 守卫查了个空目录还是绿的」——这比不检查更危险。" +
+          "仓库根也不要自己算，一律用 paths.mjs 的 ROOT",
+        run: checkPathConstantsHaveOneSource
+      },
+      {
+        title: "匿名静态白名单必须来自清单文件（不许写回 Python 字面量）",
+        hint:
+          "匿名可访问的 /static 资源清单只有一处事实来源：frontend/public-static.json（读它的是 apps/server/app/public_assets.py）。" +
+          "往装配层里写死 /static/xxx.css 这类具体资源路径会被拒；纯前缀判断 startswith('/static/') 不算。" +
+          "清单里的每条都必须在磁盘上存在 —— 写错一个字符，那条就永久失效且只能靠浏览器白屏发现",
+        run: checkPublicAssetManifest
+      },
+      {
+        title: "两个可独立部署的项目（apps/server / apps/store）互相 import",
+        hint:
+          "主应用与授权商店是两个独立项目、可能部署在不同服务器上，任何一方 import 另一方都会让「单独部署」失效、" +
+          "把两侧版本绑死，并把无关业务代码带进授权服务器镜像。同名双份实现是**刻意的隔离成本**，" +
+          "要防漂移就用构建期生成 + 逐字节校验（design/scene 的三份分发副本就是这个模式），不要在运行时 import 对方",
+        run: checkDeployablesStayIndependent
+      },
+  {
+    title: "同名双份的共享面走散（两份实现看起来一样，改一边另一边静默不变）",
+    hint:
+      "改这一条时同手改另一侧；两侧的注释与模块说明可以各写各的（比较时会剥掉注释与 " +
+      "docstring），但数据与逻辑必须逐字一致。清单与「该不该登记」的判据见 " +
+      "packages/contracts/README.md（判据是「走散会不会静默失效」，有意的差异不要登记）",
+    run: checkContractSurfaces
+  },
+  {
+    title: "未登记的经典脚本（本仓默认 ESM；首帧前执行 / Worker 这类必须登记的例外）",
+    hint:
+      "默认写成模块（<script type=\"module\"> + import/export）；确实必须是经典脚本（首帧前要跑、" +
+      "必须最先执行、是 Worker）就登记进 tools/classic-scripts.json 的 classic 并写明理由。" +
+      "反过来：把例外转成模块后要把它从清单里删掉，守卫会对账。",
+    run: checkClassicScriptsRegistered
+  }
     ];
 
 let failed = false;

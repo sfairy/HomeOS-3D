@@ -7,14 +7,16 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609270001";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609271208";
+// hls.js 按需加载：它只在真正要播 HLS 时才被拉进来（见 hls-loader.js 的说明）。
+import { loadHls } from "./hls-loader.js?v=2609271208";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../../utils/debug-log.js?v=2609270001";
+import { debugLog } from "../../../utils/debug-log.js?v=2609271208";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   resolveColor
-} from "./registry-visuals.js?v=2609270001";
+} from "./registry-visuals.js?v=2609271208";
 
 /**
  * 取摄像头圆形裁剪的半径比例。
@@ -517,21 +519,27 @@ export function mountCameraMedia({
       }
       mediaContainer.dataset.cameraHlsSource = hlsSourceUrl;
       mediaContainer.dataset.cameraTransport = "hls";
-      if (window.Hls?.isSupported?.()) {
-        hlsInstance = new window.Hls({
+      // 按需拉 hls.js（首次播放才下载 605 KB 的那份库）。取源本身也是异步的，这里再 await
+      // 一次不会多占一帧；回来之后同样要按 playbackGeneration 复核，控件可能已经卸载或换源。
+      const HlsApi = await loadHls();
+      if (isMediaDisposed || isMediaSuspended || playbackGeneration !== mediaGeneration) {
+        return;
+      }
+      if (HlsApi?.isSupported?.()) {
+        hlsInstance = new HlsApi({
           lowLatencyMode: true,
           backBufferLength: 15,
           maxBufferLength: 15
         });
-        hlsInstance.on(window.Hls.Events.MEDIA_ATTACHED, () =>
+        hlsInstance.on(HlsApi.Events.MEDIA_ATTACHED, () =>
           hlsInstance?.loadSource(hlsSourceUrl)
         );
-        hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        hlsInstance.on(HlsApi.Events.MANIFEST_PARSED, () => {
           mediaContainer.dataset.cameraState = "manifest-parsed";
           // 自动播放被浏览器策略拦下是预期结果（要等用户交互），不该冒出未处理的拒绝。
           cameraVideoElement.play().catch(() => {});
         });
-        hlsInstance.on(window.Hls.Events.ERROR, (hlsEventName, hlsEventData) => {
+        hlsInstance.on(HlsApi.Events.ERROR, (hlsEventName, hlsEventData) => {
           if (!isMediaDisposed && !isMediaSuspended && playbackGeneration === mediaGeneration) {
             if (hlsEventData?.fatal) {
               cameraSourceCache.delete(String(mediaEntityId || "").trim());

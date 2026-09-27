@@ -18,15 +18,15 @@ import {
   renderRegisteredComponent,
   setBuiltinAssetVersions,
   staticAssetImageSource
-} from "../registry.js?v=2609270001";
+} from "../registry.js?v=2609271208";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
 // （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609270001";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609271208";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "../device-profiles.js?v=2609270001";
-import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609270001";
+} from "../device-profiles.js?v=2609271208";
+import { airflowLayerGeometry } from "../../geometry/transform-geometry.js?v=2609271208";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -35,9 +35,9 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../../geometry/effect-geometry.js?v=2609270001";
-import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609270001";
-import { isSupportedComponentAction } from "./primitives.js?v=2609270001";
+} from "../../geometry/effect-geometry.js?v=2609271208";
+import { collectComponents, collectEntityIds } from "../runtime-document.js?v=2609271208";
+import { isSupportedComponentAction } from "./primitives.js?v=2609271208";
 
 export const documentCoreMethods = {
   /**
@@ -282,7 +282,7 @@ export const documentCoreMethods = {
         }
         window.clearTimeout(pendingDetails.timer);
         this.pendingEntityDetails = null;
-        this.showEntityDetails(pendingDetails.component, {
+        void this.showEntityDetails(pendingDetails.component, {
           preview: pendingDetails.preview
         });
       };
@@ -333,7 +333,7 @@ export const documentCoreMethods = {
     } else {
       window.clearTimeout(activePendingDetails.timer);
       this.pendingEntityDetails = null;
-      this.showEntityDetails(activePendingDetails.component, {
+      void this.showEntityDetails(activePendingDetails.component, {
         preview: activePendingDetails.preview
       });
       return true;
@@ -806,13 +806,13 @@ export const documentCoreMethods = {
       callEntityService: (...forwardedServiceArgs) =>
         this.callEntityService(...forwardedServiceArgs),
       openCameraPreview: (previewComponent, cameraPreviewContext, previewElement) =>
-        this.openInteraction3dCameraPreview(previewComponent, cameraPreviewContext, previewElement),
+        this.runDeviceControlMethod(["camera"], "openInteraction3dCameraPreview", [
+          previewComponent, cameraPreviewContext, previewElement
+        ]),
       openVacuumDetails: (vacuumDetailsComponent, vacuumDetailsContext, vacuumDetailsTarget) =>
-        this.openInteraction3dVacuumDetails(
-          vacuumDetailsComponent,
-          vacuumDetailsContext,
-          vacuumDetailsTarget
-        ),
+        this.runDeviceControlMethod(["vacuum"], "openInteraction3dVacuumDetails", [
+          vacuumDetailsComponent, vacuumDetailsContext, vacuumDetailsTarget
+        ]),
       runVacuumRoom: requestedVacuumRoom =>
         this.dispatchAction(
           {
@@ -1253,17 +1253,13 @@ export const documentCoreMethods = {
       navigate: requestedPagePath => this.navigate(requestedPagePath),
       callEntityService: (...serviceArgs) => this.callEntityService(...serviceArgs),
       openCameraPreview: (previewSourceComponent, cameraPreviewOptions, previewTargetElement) =>
-        this.openInteraction3dCameraPreview(
-          previewSourceComponent,
-          cameraPreviewOptions,
-          previewTargetElement
-        ),
+        this.runDeviceControlMethod(["camera"], "openInteraction3dCameraPreview", [
+          previewSourceComponent, cameraPreviewOptions, previewTargetElement
+        ]),
       openVacuumDetails: (vacuumComponent, vacuumDetailsOptions, vacuumTargetElement) =>
-        this.openInteraction3dVacuumDetails(
-          vacuumComponent,
-          vacuumDetailsOptions,
-          vacuumTargetElement
-        ),
+        this.runDeviceControlMethod(["vacuum"], "openInteraction3dVacuumDetails", [
+          vacuumComponent, vacuumDetailsOptions, vacuumTargetElement
+        ]),
       runVacuumRoom: vacuumRoom =>
         this.dispatchAction(
           {

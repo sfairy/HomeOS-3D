@@ -1,16 +1,16 @@
 /**
  * 编辑器「组件模板」内置模板库：registerComponentTemplate 注册、按作用域列举、
  * createComponentFromTemplate 实例化、normalizeDashboardDocument 打开项目时补齐存量文档。
- * 模板只描述出厂默认值，create() 产出的对象就是 backend/panel/schema.py 中 PanelComponent 的 JSON 形态
+ * 模板只描述出厂默认值，create() 产出的对象就是 apps/server/panel/schema.py 中 PanelComponent 的 JSON 形态
  * （id / type / componentVersion / position / bindings / properties / style / actions / children），
  * 模板本身不持久化，只在组件上留 templateRef。
  * 约定：设计标称画布 2778×1940（与 schema.Canvas 同源），position 的 x / y / width / height 为该画布像素；
  * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
  * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609270001";
-import { paletteColor } from "../utils/colors.js?v=2609270001";
-import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609270001";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609271208";
+import { paletteColor } from "../utils/colors.js?v=2609271208";
+import { AIRFLOW_OTHER_COLOR } from "../utils/airflow-colors.js?v=2609271208";
 
 /**
  * 模板里「主控色」的出厂默认值。

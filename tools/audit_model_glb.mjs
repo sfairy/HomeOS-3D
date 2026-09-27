@@ -56,13 +56,16 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// 仓库路径来自 paths.mjs（唯一事实来源）。
+import {
+  MODELS_DIR,
+  STATIC_DIR,
+  TOOLS_DIR,
+} from "./paths.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const rel = file => path.relative(ROOT, file);
-const MODELS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "models");
-const EXTERNAL_MODELS_JS = path.join(
-  ROOT,
-  "frontend",
-  "static",
+const EXTERNAL_MODELS_JS = path.join(STATIC_DIR,
   "3d-studio",
   "loaders",
   "studio-external-models.js"
@@ -328,7 +331,7 @@ function auditExternalAssetsWithoutBasis(specs) {
 }
 
 const { MODEL_SPECS, DEFAULT_LITE_VERTEX_BUDGET_RATIO } = await import(
-  path.join(ROOT, "tools", "models", "model-specs.mjs")
+  path.join(TOOLS_DIR, "models", "model-specs.mjs")
 );
 
 const pipeline = auditPipeline(MODEL_SPECS);

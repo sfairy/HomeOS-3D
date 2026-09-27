@@ -9,14 +9,14 @@ import {
   COVER_POSITION_EPSILON_PERCENT,
   formatLineChartValue,
   renderLineChartDetails
-} from "../../registry.js?v=2609270001";
-import { paletteColor } from "../../../../utils/colors.js?v=2609270001";
+} from "../../registry.js?v=2609271208";
+import { paletteColor } from "../../../../utils/colors.js?v=2609271208";
 import {
   coverPanelWidthPercent,
   coverSinglePanelWidthPercent
-} from "../../../../utils/cover-features.js?v=2609270001";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609270001";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609270001";
+} from "../../../../utils/cover-features.js?v=2609271208";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609271208";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609271208";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -27,10 +27,10 @@ import {
   normalizeClimateCapabilities,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../../../controls/climate.js?v=2609270001";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609270001";
-import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609270001";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609270001";
+} from "../../../controls/climate.js?v=2609271208";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609271208";
+import { selectedRelatedEntityIds } from "../../../../shared/related-entities.js?v=2609271208";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609271208";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -46,16 +46,17 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609270001";
+} from "../../../controls/cover-runtime.js?v=2609271208";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609270001";
+} from "../../../controls/cover-direction.js?v=2609271208";
 import {
   airerPositionLabel,
   appendAirerVisual,
   componentDialogTitle,
   createSwitchVisual
-} from "../primitives.js?v=2609270001";
+} from "../primitives.js?v=2609271208";
+
 
 export const entityDetailsMethods = {
   /**
@@ -63,7 +64,7 @@ export const entityDetailsMethods = {
    * 各类设备的详情差异全部收敛在这里，因此是本文件里最大的分支树；数据未就绪的设备（热水器等）交由 deferEntityDetailsUntilReady 挂起后重试。
    * @throws {Error} 组件没有绑定实体。
    */
-  showEntityDetails(detailsComponent, { preview: detailsPreview = false } = {}) {
+  async showEntityDetails(detailsComponent, { preview: detailsPreview = false } = {}) {
     const detailsEntityId = detailsComponent.bindings?.entity?.entityId;
     if (!detailsEntityId) {
       throw new Error("该控件没有关联实体。");
@@ -75,6 +76,9 @@ export const entityDetailsMethods = {
     const isElectricBedDevice =
       detailsComponent.properties?.deviceType === "electric-bed" ||
       deviceProfile?.deviceType === "electric-bed";
+    // 按控件与设备画像保守预取这一屏可能用到的设备控件模块（宁可多取一类，也不漏）。
+    // 只此一行：逐分支 await 会让本文件超出「台账只许减」的预算。
+    await this.prepareDeviceControlsForDetails(detailsComponent, deviceProfile);
     if (!this.entityCatalogReady) {
       this.deferEntityDetailsUntilReady(
         {
@@ -1321,11 +1325,7 @@ export const entityDetailsMethods = {
                 entityCoverVisual.classList.toggle("is-curtain-moving", curtainMoving);
                 entityCoverVisual.dataset.curtainRetracted = String(curtainRetracted);
                 if (isDreamCover) {
-                  coverStatusText.textContent = dreamCurtainStatusFromRetraction(
-                    curtainRetracted,
-                    curtainMoving,
-                    coverOpenPosition
-                  );
+                  coverStatusText.textContent = dreamCurtainStatusFromRetraction(curtainRetracted, curtainMoving, coverOpenPosition);
                   coverStatusText.classList.toggle("is-on", curtainRetracted);
                 }
               }
@@ -1384,7 +1384,7 @@ export const entityDetailsMethods = {
     const refreshRelatedExtensions =
       isClimateDetails &&
       (resolvedClimateDeviceType === "water-heater" || selectedRelatedIds !== null)
-        ? () => {
+        ? async () => {
             const previousExtensionIds = relatedExtensionEntityIds;
             const extensionControls = this.createWaterHeaterExtensionControls(
               resolvedDetailsEntityId,

@@ -518,25 +518,6 @@ function plantLeafBaseForTop(topY, tilt, length) {
 }
 
 /**
- * 一段枝 / 干：圆柱沿 `rot` 立起来后的姿态与叶片同一套（下倾角为负即向上斜出）。
- * 与叶片同样用 centered 定位，`at` 给的是这一段的中点。
- */
-function plantStem({ azimuth, tilt, base, length, radiusBottom, radiusTop, segments = 10, slot = 2 }) {
-  const tiltRadians = (tilt * Math.PI) / 180;
-  const azimuthRadians = (azimuth * Math.PI) / 180;
-  const axis = [
-    -Math.cos(tiltRadians) * Math.sin(azimuthRadians),
-    -Math.sin(tiltRadians),
-    -Math.cos(tiltRadians) * Math.cos(azimuthRadians)
-  ];
-  return ctaper(slot, radiusBottom, radiusTop, length, segments, [
-    base[0] + (axis[0] * length) / 2,
-    base[1] + (axis[1] * length) / 2,
-    base[2] + (axis[2] * length) / 2
-  ], { centered: true, align: "center", rot: [-90 - tilt, azimuth, 0] });
-}
-
-/**
  * 绿植的树冠：一层层「环列的叶片」。
  *
  * 三条来由：

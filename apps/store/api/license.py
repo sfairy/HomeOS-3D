@@ -1,0 +1,188 @@
+"""授权服务器端点：``/v2/activate``、``/v2/heartbeat``、``/v2/recover``。
+
+这三个端点与 `/store/v1` 的协议完全不同：请求与响应都是加密封套，
+且错误响应是**明文** ``{"detail": "..."}``；确认吊销时额外带
+``"revoked": true, "code": "REVOKED"``（客户端只认结构化字段）。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, Response
+
+from apps.store.licensing.crypto import LicenseServerError
+from apps.store.security.limiter import SlidingWindowLimiter
+from apps.store.security.request_security import resolve_client_ip
+
+logger = logging.getLogger("apps.store.license.api")
+
+router = APIRouter(tags=["license"])
+
+#: ``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流既是 CPU 耗尽的放大器，也让
+#: 「猜激活码」变得廉价（激活码就是授权凭据本身）。三个维度对应三类流量：**按来源 IP（activate）**
+#: 兜住单机暴力猜码；**按来源 IP（heartbeat / recover）**兜住 CPU 洪水但额度必须放得很宽 —— 这两个
+#: 端点收的是高熵会话/恢复令牌、不构成枚举面，却承载常态心跳与授权页轮询，额度太紧会让轮询打满自己
+#: 的配额而被自己的限流挡住（429 → 拿不到确认 → 继续轮询），故做成可配置；**按激活码**兜住换 IP 集中猜同一个码。
+_LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
+_LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
+
+#: heartbeat / recover 的 IP 桶按 ``limit`` 缓存实例（见下）。
+_LICENSE_SESSION_IP_LIMITERS: dict[int, SlidingWindowLimiter] = {}
+
+
+def _session_ip_limiter(limit: int) -> SlidingWindowLimiter:
+    """heartbeat / recover 的来源 IP 配额。
+
+    上限来自配置，所以按 ``limit`` 缓存一份实例 —— ``SlidingWindowLimiter`` 的计数
+    在内部持有，每次请求都新建一个等于没有限流。缓存不会无限增长：``limit`` 来自
+    进程启动时解析的环境变量，一个进程里只有一个值。与 ``apps/store/api/store.py`` 的
+    ``_verification_global_limiter`` 是同一取舍。
+    """
+    bounded = max(1, int(limit))
+    cached = _LICENSE_SESSION_IP_LIMITERS.get(bounded)
+    if cached is None:
+        cached = SlidingWindowLimiter(limit=bounded, window_seconds=3600.0)
+        _LICENSE_SESSION_IP_LIMITERS[bounded] = cached
+    return cached
+
+
+def _retry_after_value(seconds: float | None) -> str:
+    """把剩余等待时间格式化成 ``Retry-After`` 的值（至少 1 秒）。
+
+    回的是**剩余**时间而不是整段窗口：客户端已经等了一会儿，不该被要求从头再等一遍
+    （与登录限流同一口径）。
+    """
+    return str(max(1, int(seconds or 0) or 1))
+
+
+def _rate_limited(retry_after: float | None) -> JSONResponse:
+    """429 响应：形状与业务错误一致（明文 ``{"detail": ...}``），并回带 ``Retry-After``。
+
+    客户端只认结构化字段，所以限流不能改协议形状；``Retry-After`` 则是它做退避的依据。
+    """
+    return JSONResponse(
+        {"detail": "请求过于频繁，请稍后再试。"},
+        status_code=429,
+        headers={"Retry-After": _retry_after_value(retry_after)},
+    )
+
+
+def _run_in_worker(
+    authority, method: str, body, path: str, client_ip: str | None
+) -> tuple[dict | None, LicenseServerError | None, str]:
+    """在线程池里跑完「解密 → 业务 → 加密」，返回 ``(响应体, 错误, 阶段)``。
+    必须挪出事件循环：解封套/签名是 RSA/X25519 运算、业务还要开 SQLite 会话（写锁争用时 ``busy_timeout``
+    会阻塞到 5 秒），跑在事件循环上会连同健康检查与静态资源一起冻结。同步 ``def`` 不能改是因为请求体是
+    JSON；``stage`` 复现一致的日志与状态码；按激活码限流只能在这里做，且必须先按 keyId 选代再解密。
+    """
+    stage = "decrypt"
+    try:
+        generation = authority.keyring.find((body or {}).get("keyId"))
+        if generation is None:
+            # 与 ``TransportCipher.decrypt_request`` 里那条同文案：对客户端来说
+            # 「keyId 不认识」与「解不开」是同一类问题，没必要区分。
+            raise LicenseServerError("授权传输 keyId 不匹配。", status_code=400)
+        payload, key = generation.transport.decrypt_request(body, path)
+        stage = "dispatch"
+        code = str((payload or {}).get("activationCode") or "").strip().upper()
+        if code and not _LICENSE_CODE_LIMITER.allow(f"code:{code}"):
+            logger.warning("授权端点限流：激活码维度触顶 path=%s", path)
+            return (
+                None,
+                LicenseServerError(
+                    "请求过于频繁，请稍后再试。",
+                    status_code=429,
+                    retry_after=_LICENSE_CODE_LIMITER.retry_after(f"code:{code}"),
+                ),
+                "dispatch",
+            )
+        result = getattr(authority, method)(payload, ip=client_ip, generation=generation)
+    except LicenseServerError as error:
+        return None, error, stage
+    except Exception:  # noqa: BLE001 - 见 docstring：解密阶段的意外异常按「格式无效」处理
+        if stage == "decrypt":
+            return None, None, "invalid"
+        raise
+    return generation.transport.encrypt_response(result, path, key), None, ""
+
+
+async def _dispatch(request: Request, method: str) -> Response:
+    authority = request.app.state.license_authority
+    path = request.url.path
+
+    # 按来源 IP 限流，放在读请求体之前，「连解析都不做」就能挡掉洪水。桶按端点选：
+    # activate 可枚举、额度紧，heartbeat / recover 收高熵令牌、额度宽（共用一个是
+    # 自锁成因）。IP 取 resolve_client_ip 结果，与验证码回显、登录限流同一套来源判定。
+    try:
+        address = resolve_client_ip(request)
+    except Exception:  # noqa: BLE001 - 解析异常不该让授权端点整体不可用
+        address = None
+    if address is not None and address.per_client and address.ip:
+        if method == "activate":
+            limiter = _LICENSE_ACTIVATE_IP_LIMITER
+        else:
+            limiter = _session_ip_limiter(
+                request.app.state.settings.license_session_ip_hourly_limit
+            )
+        ip_key = f"ip:{address.ip}"
+        if not limiter.allow(ip_key):
+            logger.warning("授权端点限流：来源 IP 触顶 path=%s ip=%s", path, address.ip)
+            return _rate_limited(limiter.retry_after(ip_key))
+
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 - 非法 JSON 一律 400
+        return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
+
+    # 走统一解析：配了可信反向代理就取真实客户端地址，否则用 TCP 对端地址。
+    # 授权记录里的 IP 是「这台机器在哪」的证据，代理后面取错等于全部记成同一个地址。
+    client_ip = resolve_client_ip(request).ip or None
+    try:
+        response_body, error, stage = await asyncio.to_thread(
+            _run_in_worker, authority, method, body, path, client_ip
+        )
+    except Exception:  # noqa: BLE001 - 服务端异常按 500 返回，客户端会切换端点重试
+        logger.exception("授权端点内部错误 path=%s", path)
+        return JSONResponse({"detail": "授权服务内部错误，请稍后重试。"}, status_code=500)
+
+    if stage == "invalid":
+        return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
+    if error is not None:
+        if stage == "decrypt":
+            logger.warning("授权请求解密失败 path=%s detail=%s", path, error.detail)
+        else:
+            logger.info(
+                "授权请求被拒绝 path=%s status=%s detail=%s",
+                path,
+                error.status_code,
+                error.detail,
+            )
+        return JSONResponse(
+            error.as_body(),
+            status_code=error.status_code,
+            headers=(
+                {"Retry-After": _retry_after_value(error.retry_after)}
+                if error.retry_after is not None
+                else None
+            ),
+        )
+
+    return JSONResponse(response_body)
+
+
+@router.post("/v2/activate")
+async def activate(request: Request) -> Response:
+    return await _dispatch(request, "activate")
+
+
+@router.post("/v2/heartbeat")
+async def heartbeat(request: Request) -> Response:
+    return await _dispatch(request, "heartbeat")
+
+
+@router.post("/v2/recover")
+async def recover(request: Request) -> Response:
+    return await _dispatch(request, "recover")

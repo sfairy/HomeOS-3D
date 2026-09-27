@@ -5,13 +5,13 @@
    ## 为什么这份逻辑在前端而不是后端
 
    主应用与商店是两个独立的 Docker 构建上下文（Dockerfile 只 COPY frontend/ 或只
-   COPY store/），后端代码无法互相 import；把同一段 HSL 派生写两份 Python，再靠一个
+   COPY apps/store/），后端代码无法互相 import；把同一段 HSL 派生写两份 Python，再靠一个
    比对脚本来维持一致，是这份仓库里已经有过的坏味道（见 theme.css 顶部的历史注释）。
 
    而「改一个主控色」这件事本身就需要**即时预览**：管理员拖色轮时页面要立刻变，等一次
    网络往返才知道效果是不可用的。既然前端必须有一份派生逻辑，就不该再有第二份 ——
    所以前端算完整张令牌表，后端只做「白名单 + 取值格式」校验后原样存下来（见
-   backend/core/appearance.py 与 store/ops/appearance.py 的 validate_tokens）。
+   apps/server/core/appearance.py 与 apps/store/ops/appearance.py 的 validate_tokens）。
 
    这不等同于「后端信任前端」：能调用这两个接口的都是已登录的管理员，他们本来就能改
    站点名与公告。后端要防的是**把样式表写坏**（注入选择器、关掉自己的样式、撑爆 CSP），
@@ -71,7 +71,7 @@ export const DEFAULT_PRESET = "amber";
    normalizeHex / hexToRgb 与 utils/colors.js 里那几个同名工具**不是漏合并**，失败语义也刻意不同：
    本模块用于配色派生（管理员拖色轮 → 实时算令牌表），非法色必须**抛错**让配置错误立刻暴露；
    那边服务的是「显示路径」，要的是拿不到就兜底 / 返回 null。
-   三份副本（design/scene、frontend/static/auth/scene、store/static/scene）必须逐字一致。 */
+   三份副本（design/scene、frontend/static/auth/scene、apps/store/static/scene）必须逐字一致。 */
 
 /** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`；无法解析时返回 null。 */
 export function normalizeHex(input) {

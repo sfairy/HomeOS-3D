@@ -12,11 +12,11 @@
  *
  * 还有两份**故意不在本模块**的颜色工具，别当成漏合并的重复：
  *   - `design/scene/appearance.js`（及其 distribution 副本 frontend/static/auth/scene/ 与
- *     store/static/scene/）里的 `normalizeHex` / `hexToRgb`：那份是构建隔离的独立副本（主应用与商店
+ *     apps/store/static/scene/）里的 `normalizeHex` / `hexToRgb`：那份是构建隔离的独立副本（主应用与商店
  *     各自只 COPY 自己的目录），且失败语义是**抛错** —— 配色派生遇到非法色必须立刻暴露。
  *   - `utils/numbers.js` 里的数值夹取：本模块只做颜色，不重新实现。
  */
-import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609270001";
+import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609271208";
 
 /**
  * 读取全站调色板（design/scene/page.css）里某个自定义属性的**实际色值**。

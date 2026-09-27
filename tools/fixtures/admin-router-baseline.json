@@ -1,0 +1,506 @@
+[
+  {
+    "path": "/store-admin/v1/overview",
+    "methods": [
+      "GET"
+    ],
+    "name": "overview"
+  },
+  {
+    "path": "/store-admin/v1/maintenance/recompute-stock",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_recompute_stock"
+  },
+  {
+    "path": "/store-admin/v1/incidents/ack",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_ack_incidents"
+  },
+  {
+    "path": "/store-admin/v1/feature-codes",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_feature_codes"
+  },
+  {
+    "path": "/store-admin/v1/products",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_products"
+  },
+  {
+    "path": "/store-admin/v1/products",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_create_product"
+  },
+  {
+    "path": "/store-admin/v1/products/{product_id}",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "admin_update_product"
+  },
+  {
+    "path": "/store-admin/v1/products/{product_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_product"
+  },
+  {
+    "path": "/store-admin/v1/products/{product_id}/image",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_upload_product_image"
+  },
+  {
+    "path": "/store-admin/v1/order-status-meta",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_order_status_meta"
+  },
+  {
+    "path": "/store-admin/v1/orders",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_orders"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/mark-paid",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_mark_paid"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/settle-offline",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_settle_offline"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/fulfill",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_fulfill"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/review",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_review_order"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/refund",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_refund"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/refunds",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_order_refunds"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}/cancel",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_cancel"
+  },
+  {
+    "path": "/store-admin/v1/orders/{order_no}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_order"
+  },
+  {
+    "path": "/store-admin/v1/licenses",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_licenses"
+  },
+  {
+    "path": "/store-admin/v1/licenses",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_issue_license"
+  },
+  {
+    "path": "/store-admin/v1/licenses/{license_id}/deactivate",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_deactivate_license"
+  },
+  {
+    "path": "/store-admin/v1/licenses/{license_id}/activate",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_activate_license"
+  },
+  {
+    "path": "/store-admin/v1/licenses/{license_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_license"
+  },
+  {
+    "path": "/store-admin/v1/bindings",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_bindings"
+  },
+  {
+    "path": "/store-admin/v1/bindings/{binding_id}/release",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_release_binding"
+  },
+  {
+    "path": "/store-admin/v1/coupons",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_coupons"
+  },
+  {
+    "path": "/store-admin/v1/coupons",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_create_coupon"
+  },
+  {
+    "path": "/store-admin/v1/coupons/{coupon_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_coupon"
+  },
+  {
+    "path": "/store-admin/v1/coupons/{coupon_id}",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "admin_patch_coupon"
+  },
+  {
+    "path": "/store-admin/v1/withdrawals",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_withdrawals"
+  },
+  {
+    "path": "/store-admin/v1/withdrawals/{withdrawal_id}/resolve",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_resolve_withdrawal"
+  },
+  {
+    "path": "/store-admin/v1/withdrawals/{withdrawal_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_withdrawal"
+  },
+  {
+    "path": "/store-admin/v1/settings",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_get_settings"
+  },
+  {
+    "path": "/store-admin/v1/settings",
+    "methods": [
+      "PUT"
+    ],
+    "name": "admin_update_settings"
+  },
+  {
+    "path": "/store-admin/v1/settings/alipay/test",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_test_alipay_credentials"
+  },
+  {
+    "path": "/store-admin/v1/settings/mail/test",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_test_mail_delivery"
+  },
+  {
+    "path": "/store-admin/v1/accounts",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_accounts"
+  },
+  {
+    "path": "/store-admin/v1/accounts/{account_id}/activate",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_activate_account"
+  },
+  {
+    "path": "/store-admin/v1/accounts/{account_id}/deactivate",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_deactivate_account"
+  },
+  {
+    "path": "/store-admin/v1/accounts/{account_id}",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "admin_patch_account"
+  },
+  {
+    "path": "/store-admin/v1/accounts/{account_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_account"
+  },
+  {
+    "path": "/store-admin/v1/licenses/{license_id}",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "admin_patch_license"
+  },
+  {
+    "path": "/store-admin/v1/entitlements",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_entitlements"
+  },
+  {
+    "path": "/store-admin/v1/entitlements",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_create_entitlement"
+  },
+  {
+    "path": "/store-admin/v1/entitlements/{entitlement_id}",
+    "methods": [
+      "PATCH"
+    ],
+    "name": "admin_patch_entitlement"
+  },
+  {
+    "path": "/store-admin/v1/entitlements/{entitlement_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_entitlement"
+  },
+  {
+    "path": "/store-admin/v1/referral-wallets/{account_id}/adjust",
+    "methods": [
+      "POST"
+    ],
+    "name": "admin_adjust_wallet"
+  },
+  {
+    "path": "/store-admin/v1/products/{product_id}/image",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_product_image"
+  },
+  {
+    "path": "/store-admin/v1/bindings/{binding_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_binding"
+  },
+  {
+    "path": "/store-admin/v1/sessions",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_sessions"
+  },
+  {
+    "path": "/store-admin/v1/sessions/{ref}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_revoke_session"
+  },
+  {
+    "path": "/store-admin/v1/sessions",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_sessions"
+  },
+  {
+    "path": "/store-admin/v1/referral-ledger",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_referral_ledger"
+  },
+  {
+    "path": "/store-admin/v1/coupon-redemptions",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_coupon_redemptions"
+  },
+  {
+    "path": "/store-admin/v1/coupon-redemptions/{redemption_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_void_coupon_redemption"
+  },
+  {
+    "path": "/store-admin/v1/customers",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_customers"
+  },
+  {
+    "path": "/store-admin/v1/login-attempts",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_login_attempts"
+  },
+  {
+    "path": "/store-admin/v1/login-attempts",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_login_attempts"
+  },
+  {
+    "path": "/store-admin/v1/email-verifications",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_email_verifications"
+  },
+  {
+    "path": "/store-admin/v1/email-verifications",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_email_verifications"
+  },
+  {
+    "path": "/store-admin/v1/device-release-events",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_device_release_events"
+  },
+  {
+    "path": "/store-admin/v1/device-release-events",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_device_release_events"
+  },
+  {
+    "path": "/store-admin/v1/license-sessions",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_license_sessions"
+  },
+  {
+    "path": "/store-admin/v1/license-sessions/{ref}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_revoke_license_session"
+  },
+  {
+    "path": "/store-admin/v1/license-sessions",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_license_sessions"
+  },
+  {
+    "path": "/store-admin/v1/recovery-tokens",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_list_recovery_tokens"
+  },
+  {
+    "path": "/store-admin/v1/recovery-tokens/{ref}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_revoke_recovery_token"
+  },
+  {
+    "path": "/store-admin/v1/recovery-tokens",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_recovery_tokens"
+  },
+  {
+    "path": "/store-admin/v1/audit-logs",
+    "methods": [
+      "GET"
+    ],
+    "name": "admin_audit_logs"
+  },
+  {
+    "path": "/store-admin/v1/audit-logs/{log_id}",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_delete_audit_log"
+  },
+  {
+    "path": "/store-admin/v1/audit-logs",
+    "methods": [
+      "DELETE"
+    ],
+    "name": "admin_purge_audit_logs"
+  }
+]

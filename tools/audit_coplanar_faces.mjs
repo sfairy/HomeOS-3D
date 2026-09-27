@@ -37,13 +37,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// 仓库路径来自 paths.mjs（唯一事实来源）。
+import {
+  MODELS_DIR,
+  STATIC_DIR,
+} from "./paths.mjs";
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..");
-const MODELS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "models");
-const REGISTRY_PATH = path.join(
-  ROOT,
-  "frontend",
-  "static",
+const REGISTRY_PATH = path.join(STATIC_DIR,
   "3d-studio",
   "loaders",
   "studio-external-models.js"

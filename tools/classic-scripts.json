@@ -1,0 +1,55 @@
+{
+  "_comment": "「看起来不像模块」的 JS 文件清单（唯一事实来源）。守卫 tools/check_invariants.mjs 的最后一条读它。\n\n本仓默认 ESM：自研 JS 一律 <script type=\"module\"> + import/export。扫描只能看到文件内容，看不到\nscript 标签，所以有两类需要登记：\n  classic         —— 刻意保持经典脚本的文件（转了会静默坏掉：首帧前要执行 / 必须最先执行 / 是 Worker）\n  moduleNoExports —— 已经是模块、但内容里没有 import/export（扫描认不出，故显式列出）\n两边都要写 why。新增例外先登记；把例外转成模块（或给 moduleNoExports 里的文件加上 import/export）后\n把条目删掉，守卫会对账。",
+  "classic": [
+    {
+      "file": "frontend/static/logging/client-log.js",
+      "why": "包裹 window.fetch 并暴露 window.HABridgeLog，必须在其它脚本之前安装才能收到早期异常与资源加载失败；模块是延迟执行的，等它跑起来早期错误已经漏收。"
+    },
+    {
+      "file": "frontend/static/display/display-boot.js",
+      "why": "head 里不加 defer：首帧之前读画布背景把明暗主题写到 <html>，晚了会看到主题跳变、启动图先闪一次错误配色（frontend/display.html 有同款说明）。"
+    },
+    {
+      "file": "frontend/static/auth/pairing-entry.js",
+      "why": "必须是被打开页面的第一个脚本：它要在其它脚本读地址栏之前把配对参数收走（frontend/pair.html 有同款说明）。"
+    },
+    {
+      "file": "frontend/static/auth/scene/scene-depth.js",
+      "why": "手持档开关：只给 <html> 挂 .hos-touch，不导出任何东西；页面里就地执行的普通脚本。"
+    },
+    {
+      "file": "design/scene/scene-depth.js",
+      "why": "上面那份的 canonical 源（由 design/scene 分发/内联成普通脚本），改了要连同分发副本一起改。"
+    },
+    {
+      "file": "design/scene/viewport-shell.js",
+      "why": "视口缩放壳的 canonical 源，被内联成签发页里的普通 <script>；转模块要同时改内联与分发机制。"
+    },
+    {
+      "file": "frontend/static/3d-studio/export/draco-decoder-worker.js",
+      "why": "Worker 脚本（按 URL 由 draco-loader 构造）。要变模块得把构造点改成 { type: \"module\" }，属于另一次改动。"
+    },
+    {
+      "file": "apps/store/static/auth-bootstrap.js",
+      "why": "商店前台首屏之前的样式提示：读 cookie 给 <html> 打登录/授权类，模块延迟执行会先闪一次未登录样式（apps/store/templates/store.html 有同款说明）。"
+    }
+  ],
+  "moduleNoExports": [
+    {
+      "file": "frontend/static/auth/auth-shell.js",
+      "why": "共用密码显隐绑定，已按 type=\"module\" 加载、但不需要 import/export。"
+    },
+    {
+      "file": "frontend/static/auth/entry-deck.js",
+      "why": "状态甲板自走读数，已按 type=\"module\" 加载、但不需要 import/export。"
+    },
+    {
+      "file": "apps/store/static/entry-deck.js",
+      "why": "商店侧同一件事的另一份，已按 type=\"module\" 加载、但不需要 import/export。"
+    },
+    {
+      "file": "apps/store/static/scene/scene-depth.js",
+      "why": "商店侧的手持档开关，已按 type=\"module\" 加载、但不需要 import/export。"
+    }
+  ]
+}

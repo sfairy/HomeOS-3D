@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "note": "同名双份的共享面：apps/server 与 apps/store 是两个可独立部署的项目，各自只 import 自己的包\n（不变量 #43），所以概念共享时实现各留一份。这份清单声明「哪些名字的两份必须是同一份代码面」——\n比较时剥掉注释与 docstring（两侧的「为什么各留一份」说明本来就该各写各的），因此只有真正会走散的\n逻辑/数据才被钉住。加一个面：在 members 里写上两侧的文件与名字，跑 node tools/check_invariants.mjs。",
+  "surfaces": [
+    {
+      "id": "compression-limits",
+      "why": "两侧的压缩口径必须一致：阈值或级别改一边，同一个响应在主应用与商店会被压成不同结果，而症状只是「某个服务偶尔更慢」。",
+      "kind": "code",
+      "members": [
+        {
+          "file": "apps/server/http/compression.py",
+          "names": [
+            "COMPRESSIBLE_CONTENT_TYPES",
+            "MINIMUM_SIZE",
+            "_COMPRESSION_LEVEL",
+            "_GZIP_WBITS"
+          ]
+        },
+        {
+          "file": "apps/store/security/compression.py",
+          "names": [
+            "COMPRESSIBLE_CONTENT_TYPES",
+            "MINIMUM_SIZE",
+            "_COMPRESSION_LEVEL",
+            "_GZIP_WBITS"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compression-header-constants",
+      "why": "逐块压缩靠这几个字节常量比对响应头；两侧写成不同的字面量（大小写、拼写）都会静默地不再压缩。",
+      "kind": "code",
+      "members": [
+        {
+          "file": "apps/server/http/compression.py",
+          "names": [
+            "_HEADER_CONTENT_ENCODING",
+            "_HEADER_CONTENT_LENGTH",
+            "_HEADER_CONTENT_TYPE"
+          ]
+        },
+        {
+          "file": "apps/store/security/compression.py",
+          "names": [
+            "_HEADER_CONTENT_ENCODING",
+            "_HEADER_CONTENT_LENGTH",
+            "_HEADER_CONTENT_TYPE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "access-noise-patterns",
+      "why": "访问日志噪音表：两侧的正则与过滤名必须一致，否则同一个第三方脚本只在一边被挡掉，「日志里少了什么」变得不可预期。",
+      "kind": "code",
+      "members": [
+        {
+          "file": "apps/server/http/access_log.py",
+          "names": [
+            "NOISY_ACCESS_PATTERNS",
+            "_FILTER_NAME"
+          ]
+        },
+        {
+          "file": "apps/store/security/access_log.py",
+          "names": [
+            "NOISY_ACCESS_PATTERNS",
+            "_FILTER_NAME"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "static-revision",
+      "why": "file_revision 是「读不到就退化成 '0'」的宽容口径；一侧改成抛异常，那个服务的页面会在换目录/权限问题时整个 500。",
+      "kind": "code",
+      "members": [
+        {
+          "file": "apps/server/core/static_revision.py",
+          "names": [
+            "file_revision"
+          ]
+        },
+        {
+          "file": "apps/store/core/static_revision.py",
+          "names": [
+            "file_revision"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appearance-token-surfaces",
+      "why": "令牌白名单与取值形状是配色保存的闸门：两侧正则不同源时，「主应用存得下的配色、商店存不下」会表现为 422，排查时看不出是两份实现。",
+      "kind": "code",
+      "members": [
+        {
+          "file": "apps/server/core/appearance.py",
+          "names": [
+            "_TOKEN_NAME",
+            "_TOKEN_NAME_EXTRA",
+            "_HEX",
+            "_SOFT_PATTERN",
+            "_VALUE_PATTERNS",
+            "_VALUE_DEFAULT",
+            "_VALUE_GRADIENT"
+          ]
+        },
+        {
+          "file": "apps/store/ops/appearance.py",
+          "names": [
+            "_TOKEN_NAME",
+            "_TOKEN_NAME_EXTRA",
+            "_HEX",
+            "_SOFT_PATTERN",
+            "_VALUE_PATTERNS",
+            "_VALUE_DEFAULT",
+            "_VALUE_GRADIENT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "feature-codes",
+      "why": "商店的 FEATURE_CATALOG 是权益码的唯一定义处，主应用按 BASE_FEATURES 展开 'all'；两者不同源时，租约里会出现客户端认不出的功能码（或后台卖得出、运行时永远关着的码）。",
+      "kind": "set",
+      "serverExtra": [
+        "module.3d_interaction"
+      ],
+      "members": [
+        {
+          "file": "apps/server/license/contracts.py",
+          "names": [
+            "BASE_FEATURES"
+          ],
+          "extract": "string-literals",
+          "extra": [
+            "module.3d_interaction"
+          ]
+        },
+        {
+          "file": "apps/store/ops/features.py",
+          "names": [
+            "FEATURE_CATALOG"
+          ],
+          "extract": "code-field"
+        }
+      ]
+    }
+  ]
+}
