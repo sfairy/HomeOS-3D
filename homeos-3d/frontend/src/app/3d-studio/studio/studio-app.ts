@@ -568,6 +568,7 @@ import {
   startCameraMotion,
   updateCameraClipPlanes
 } from "./studio-camera-presets.js";
+import { createStageRuntimeController } from "./studio-stage-runtime.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -12050,7 +12051,7 @@ function createStageController() {
     state.savedSceneRecord.referenceScene || state.savedSceneRecord.scene
   );
   let lastRequestedFloorGap: any = null;
-  const floorCacheController = createFloorCacheController();
+
   const floorCacheStats = {
     reusedTransitions: 0,
     rebuiltTransitions: 0,
@@ -12072,143 +12073,17 @@ function createStageController() {
   let previousCurtainFloorIds: any = [];
   let contactShadowFloorIds: any = [];
   const stageBackgroundController = createStageBackgroundController();
-  let isCameraInteractionEnabled = false;
 
   let presentedPromise;
-  let orbitPivotOverride;
-  let boundOrbitControls: any;
+
   let isBaseLightingPreviewActive = false;
-  let boundsCacheModelRoot: any;
-  let boundsCacheSceneRevision: any;
-  let boundsCacheFloorKey: any;
-  let boundsCacheCenter: any = null;
+
   let uniformOverviewStackOverride: any;
   let overviewStackAnimation: any = null;
-  const boundsExcludedModelLayers = new Set(["items", "lights"]);
-  let rotationConstraintMode = "free";
-  let controlsPanEnabled = true;
-  let controlsZoomEnabled = true;
+
   let isCameraMotionRunning = false;
   let isControlInteractionActive = false;
-  let focusViewportRatio = 0;
-  let projectionSignatureValue = "";
-  let cameraBlendState: any = null;
-  const orthographicBlendCamera = new threeModuleMin.OrthographicCamera();
-  const perspectiveBlendCamera = new threeModuleMin.PerspectiveCamera();
-  const projectionBlendCache: any = {
-    matrix: new threeModuleMin.Matrix4()
-  };
-  const rendererSizeVector = new threeModuleMin.Vector2();
-  /**
-   * 按给定相机位姿估算其可见世界高度，用于正交与透视相机之间的过渡混合。
-   * @param {object} poseForHeight 相机位姿：正交看 frameSize/zoom，透视看 focalLength/position/target。
-   * @returns {number} 该位姿下的可见高度（米）。
-   */
-  function measurePoseVisibleHeight(poseForHeight: any) {
-    if (poseForHeight.mode !== "perspective") {
-      return (
-        Math.max(1, poseForHeight.frameSize || 10) /
-        poseForHeight.zoom /
-        Math.min(1, Math.max(0.1, state.previewCamera.userData.viewportAspect || 1))
-      );
-    } else {
-      perspectiveBlendCamera.aspect = state.previewCamera.userData.viewportAspect || 1;
-      perspectiveBlendCamera.zoom = poseForHeight.zoom;
-      perspectiveBlendCamera.setFocalLength(poseForHeight.focalLength || 50);
-      return (
-        new threeModuleMin.Vector3()
-          .fromArray(poseForHeight.position)
-          .distanceTo(new threeModuleMin.Vector3().fromArray(poseForHeight.target)) *
-        2 *
-        Math.tan(threeModuleMin.MathUtils.degToRad(perspectiveBlendCamera.getEffectiveFOV()) / 2)
-      );
-    }
-  }
-  /**
-   * @returns {void} 无返回值。
-   */
-  function applyBlendedProjection() {
-    if (!cameraBlendState) {
-      return;
-    }
-    const blendCameraDistance = Math.max(
-      0.000001,
-      state.previewCamera.position.distanceTo(state.orbitControls.target)
-    );
-    const blendVisibleHeight = Math.max(0.000001, cameraBlendState.height);
-    const blendViewportAspect = state.previewCamera.userData.viewportAspect || 1;
-    const blendWeight = cameraBlendState.weight;
-    const cameraViewportState = state.previewCamera.view;
-    const referenceViewportState = orthographicBlendCamera.view;
-    const isViewportStateEqual =
-      cameraViewportState === referenceViewportState ||
-      (cameraViewportState &&
-        referenceViewportState &&
-        cameraViewportState.enabled === referenceViewportState.enabled &&
-        cameraViewportState.fullWidth === referenceViewportState.fullWidth &&
-        cameraViewportState.fullHeight === referenceViewportState.fullHeight &&
-        cameraViewportState.offsetX === referenceViewportState.offsetX &&
-        cameraViewportState.offsetY === referenceViewportState.offsetY &&
-        cameraViewportState.width === referenceViewportState.width &&
-        cameraViewportState.height === referenceViewportState.height);
-    if (
-      projectionBlendCache.motion === cameraBlendState &&
-      projectionBlendCache.camera === state.previewCamera &&
-      projectionBlendCache.distance === blendCameraDistance &&
-      projectionBlendCache.height === blendVisibleHeight &&
-      projectionBlendCache.aspect === blendViewportAspect &&
-      projectionBlendCache.weight === blendWeight &&
-      projectionBlendCache.near === state.previewCamera.near &&
-      projectionBlendCache.far === state.previewCamera.far &&
-      isViewportStateEqual &&
-      projectionBlendCache.matrix.equals(state.previewCamera.projectionMatrix)
-    ) {
-      return;
-    }
-    Object.assign(orthographicBlendCamera, {
-      left: (-blendVisibleHeight * blendViewportAspect) / 2,
-      right: (blendVisibleHeight * blendViewportAspect) / 2,
-      top: blendVisibleHeight / 2,
-      bottom: -blendVisibleHeight / 2,
-      near: state.previewCamera.near,
-      far: state.previewCamera.far,
-      zoom: 1
-    });
-    Object.assign(perspectiveBlendCamera, {
-      fov: threeModuleMin.MathUtils.radToDeg(
-        Math.atan(blendVisibleHeight / (blendCameraDistance * 2)) * 2
-      ),
-      aspect: blendViewportAspect,
-      near: state.previewCamera.near,
-      far: state.previewCamera.far,
-      zoom: 1
-    });
-    for (const blendCamera of [orthographicBlendCamera, perspectiveBlendCamera]) {
-      blendCamera.view = state.previewCamera.view
-        ? {
-            ...state.previewCamera.view
-          }
-        : null;
-      blendCamera.updateProjectionMatrix();
-    }
-    const orthoProjectionElements = orthographicBlendCamera.projectionMatrix.elements;
-    const perspectiveProjectionElements = perspectiveBlendCamera.projectionMatrix.elements;
-    for (let matrixElementIndex = 0; matrixElementIndex < 16; matrixElementIndex++) {
-      state.previewCamera.projectionMatrix.elements[matrixElementIndex] =
-        orthoProjectionElements[matrixElementIndex] * (1 - blendWeight) +
-        (perspectiveProjectionElements[matrixElementIndex] / blendCameraDistance) * blendWeight;
-    }
-    state.previewCamera.projectionMatrixInverse.copy(state.previewCamera.projectionMatrix).invert();
-    projectionBlendCache.motion = cameraBlendState;
-    projectionBlendCache.camera = state.previewCamera;
-    projectionBlendCache.distance = blendCameraDistance;
-    projectionBlendCache.height = blendVisibleHeight;
-    projectionBlendCache.aspect = blendViewportAspect;
-    projectionBlendCache.weight = blendWeight;
-    projectionBlendCache.near = state.previewCamera.near;
-    projectionBlendCache.far = state.previewCamera.far;
-    projectionBlendCache.matrix.copy(state.previewCamera.projectionMatrix);
-  }
+
   const lightTransitionController = createLightTransitionController({
     isCameraMotionRunning: () => isCameraMotionRunning,
     isControlInteractionActive: {
@@ -12218,235 +12093,16 @@ function createStageController() {
       }
     }
   });
-
-  /**
-   * 同步预览投影：渲染尺寸 / 聚焦视口 / 相机变化时重设 viewOffset，未变化则只更新混合投影。
-   * @returns {void} 无返回值。
-   */
-  function syncPreviewProjection() {
-    state.renderer.getSize(rendererSizeVector);
-    const rendererWidthPx = Math.max(rendererSizeVector.x || 1, 1);
-    const rendererHeightPx = Math.max(rendererSizeVector.y || 1, 1);
-    const projectionSignatureKey =
-      rendererWidthPx +
-      "/" +
-      rendererHeightPx +
-      "/" +
-      focusViewportRatio +
-      "/" +
-      state.previewCamera.uuid;
-    if (projectionSignatureKey === projectionSignatureValue) {
-      applyBlendedProjection();
-      return;
-    }
-    projectionSignatureValue = projectionSignatureKey;
-    if (focusViewportRatio) {
-      state.previewCamera.setViewOffset(
-        rendererWidthPx,
-        rendererHeightPx,
-        (rendererWidthPx * focusViewportRatio) / 2,
-        0,
-        rendererWidthPx,
-        rendererHeightPx
-      );
-    } else {
-      state.previewCamera.clearViewOffset();
-    }
-    applyBlendedProjection();
-  }
-  /**
-   * 把当前控制约束（平移 / 缩放开关与旋转轴向锁定）应用到轨道控制器。
-   * @returns {void} 无返回值。
-   */
-  function applyControlConstraints() {
-    state.orbitControls.enablePan = controlsPanEnabled;
-    state.orbitControls.enableZoom = controlsZoomEnabled;
-    if (rotationConstraintMode === "horizontal") {
-      state.orbitControls.minPolarAngle = state.orbitControls.maxPolarAngle = state.orbitControls.getPolarAngle();
-    }
-    if (rotationConstraintMode === "vertical") {
-      state.orbitControls.minAzimuthAngle = state.orbitControls.maxAzimuthAngle =
-        state.orbitControls.getAzimuthalAngle();
-    }
-  }
-  /**
-   * 取轨道旋转中心：按模型根 / 场景版本号 / 楼层键做缓存，失效时用总览中心或场景包围盒中心重算。
-   * @returns {object} 中心的克隆（Three.js Vector3）。
-   */
-  function resolveOrbitCenter(fallbackCenterTarget: any) {
-    const orbitCenterFloorKey = currentPreviewFloorMode() === "all" ? "all" : state.activeFloorId;
-    if (
-      boundsCacheModelRoot !== state.previewModelRoot ||
-      boundsCacheSceneRevision !== state.sceneCacheRevision ||
-      boundsCacheFloorKey !== orbitCenterFloorKey
-    ) {
-      const orbitOverviewCenter = computeOverviewCenter();
-      const orbitSceneBounds = orbitOverviewCenter
-        ? null
-        : computeSceneBoundingBox({
-            excludeModelLayers: boundsExcludedModelLayers
-          });
-      boundsCacheModelRoot = state.previewModelRoot;
-      boundsCacheSceneRevision = state.sceneCacheRevision;
-      boundsCacheFloorKey = orbitCenterFloorKey;
-      boundsCacheCenter =
-        orbitOverviewCenter ||
-        (orbitSceneBounds.isEmpty()
-          ? null
-          : orbitSceneBounds.getCenter(new threeModuleMin.Vector3()));
-    }
-    return (boundsCacheCenter || fallbackCenterTarget).clone();
-  }
-  /**
-   * @returns {void} 无返回值。
-   */
-  function installOrbitControlsOverrides() {
-    orbitPivotOverride ||= resolveOrbitCenter(state.orbitControls.target);
-    if (boundOrbitControls === state.orbitControls) {
-      return;
-    }
-    const overriddenControls = state.orbitControls;
-    const overriddenCamera = state.previewCamera;
-    const baseControlsUpdate = overriddenControls.update.bind(overriddenControls);
-    boundOrbitControls = overriddenControls;
-    /**
-     * @returns {void} 无返回值。
-     */
-    const settleLightTransitionAfterControls = () => {
-      if (state.lightTransitionSession === lightTransitionController.lightTransitionSessionToken) {
-        if (lightTransitionController.lightSettleTimeoutHandle !== null) {
-          window.clearTimeout(lightTransitionController.lightSettleTimeoutHandle);
-        }
-        lightTransitionController.lightSettleTimeoutHandle = null;
-        if (!isControlInteractionActive) {
-          lightTransitionController.lightSettleTimeoutHandle = window.setTimeout(lightTransitionController.endLightTransitionSession, 180);
-        }
+  const stageRuntimeController = createStageRuntimeController({
+    isCameraMotionRunning: () => isCameraMotionRunning,
+    isControlInteractionActive: {
+      get: () => isControlInteractionActive,
+      set: (next: any) => {
+        isControlInteractionActive = next;
       }
-    };
-    overriddenControls.addEventListener("start", () => {
-      if (!isCameraMotionRunning) {
-        isControlInteractionActive = true;
-      }
-    });
-    overriddenControls.addEventListener("change", () => {
-      if (!isCameraMotionRunning) {
-        if (
-          isControlInteractionActive &&
-          isAdaptiveLightCacheEnabled() &&
-          state.lightTransitionSession !== lightTransitionController.lightTransitionSessionToken
-        ) {
-          lightTransitionController.beginLightTransitionSession();
-          lightTransitionController.syncLightTransitionSession(performance.now());
-          applyShadowBudget(state.previewModelRoot, {
-            rebuildAtlas: false
-          });
-        }
-        settleLightTransitionAfterControls();
-      }
-    });
-    overriddenControls.addEventListener("end", () => {
-      if (!isCameraMotionRunning) {
-        isControlInteractionActive = false;
-        settleLightTransitionAfterControls();
-      }
-    });
-    let storedControlsEnabled = overriddenControls.enabled;
-    Object.defineProperty(overriddenControls, "enabled", {
-      configurable: true,
-      get: () => isCameraInteractionEnabled && !isCameraMotionRunning && storedControlsEnabled,
-      set: nextControlsEnabled => {
-        storedControlsEnabled = nextControlsEnabled === true;
-      }
-    });
-    Object.defineProperty(overriddenControls, "enableRotate", {
-      configurable: true,
-      get: () => true,
-      set() {}
-    });
-    overriddenControls.update = (controlsUpdateDelta: any) => {
-      if (
-        isCameraMotionRunning ||
-        overriddenControls !== state.orbitControls ||
-        overriddenCamera !== state.previewCamera
-      ) {
-        return false;
-      }
-      /**
-       * 本次更新使用的轨道中心：首次调用时以当前目标点解析并缓存为覆盖中心。
-       * @returns {object} Three.js Vector3 形式的旋转中心。
-       */
-      const updatedOrbitCenter = (orbitPivotOverride ||= resolveOrbitCenter(
-        overriddenControls.target
-      ));
-      const preUpdateQuaternion = overriddenCamera.quaternion.clone();
-      if (
-        currentCameraView() === "top" &&
-        (overriddenControls._sphericalDelta.theta || overriddenControls._sphericalDelta.phi)
-      ) {
-        const targetCameraOffset = overriddenCamera.position.clone().sub(overriddenControls.target);
-        const targetOffsetLength = Math.max(targetCameraOffset.length(), 0.001);
-        if (
-          Math.hypot(targetCameraOffset.x, targetCameraOffset.z) < targetOffsetLength * 0.00001 &&
-          targetCameraOffset.y > 0
-        ) {
-          const projectedUpDirection = new threeModuleMin.Vector3(0, 1, 0).applyQuaternion(
-            overriddenCamera.quaternion
-          );
-          projectedUpDirection.y = 0;
-          projectedUpDirection.normalize();
-          targetCameraOffset.set(
-            -projectedUpDirection.x * targetOffsetLength * 0.000001,
-            targetOffsetLength,
-            -projectedUpDirection.z * targetOffsetLength * 0.000001
-          );
-          overriddenCamera.position.copy(overriddenControls.target).add(targetCameraOffset);
-        }
-        overriddenCamera.up.set(0, 1, 0);
-        overriddenControls._quat.identity();
-        overriddenControls._quatInverse.identity();
-        overriddenControls._spherical.setFromVector3(targetCameraOffset);
-        overriddenControls.minPolarAngle = 0;
-        overriddenControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE;
-        overriddenControls.minAzimuthAngle = -Infinity;
-        overriddenControls.maxAzimuthAngle = Infinity;
-        cameraSettingsSource().cameraView = "free";
-        overriddenCamera.userData.cameraView = "free";
-        applyControlConstraints();
-      }
-      const controlsUpdateResult = baseControlsUpdate(controlsUpdateDelta);
-      if (
-        isCameraMotionRunning ||
-        overriddenControls !== state.orbitControls ||
-        overriddenCamera !== state.previewCamera
-      ) {
-        return controlsUpdateResult;
-      }
-      if (
-        isCameraInteractionEnabled &&
-        preUpdateQuaternion.angleTo(overriddenCamera.quaternion) > 1e-7
-      ) {
-        const cameraRotationDelta = overriddenCamera.quaternion
-          .clone()
-          .multiply(preUpdateQuaternion.invert());
-        const orbitPivotOffset = updatedOrbitCenter.clone().sub(overriddenControls.target);
-        const orbitDriftCompensation = orbitPivotOffset
-          .clone()
-          .sub(orbitPivotOffset.applyQuaternion(cameraRotationDelta));
-        overriddenCamera.position.add(orbitDriftCompensation);
-        overriddenControls.target.add(orbitDriftCompensation);
-        constrainCameraPosition(overriddenCamera.position, overriddenControls.target);
-        overriddenCamera.lookAt(overriddenControls.target);
-        overriddenCamera.updateMatrixWorld();
-        overriddenControls.dispatchEvent({
-          type: "change"
-        });
-        return true;
-      }
-      return controlsUpdateResult;
-    };
-  }
-
-  const floorEffectsController = createFloorEffectsController();
+    },
+    lightTransitionController: () => lightTransitionController
+  });
 
   /**
    * 暂停或恢复编辑器特效（地面反射），并把当前特效状态写到渲染容器的 dataset 便于排查。
@@ -12460,44 +12116,15 @@ function createStageController() {
         ? "light-preview"
         : "paused"
       : "runtime";
-    if (floorEffectsController.areFloorEffectsPaused !== shouldSuspendReflections) {
-      floorEffectsController.areFloorEffectsPaused = shouldSuspendReflections;
-      floorEffectsController.groundReflectionsController.setSuspended?.(floorEffectsController.areFloorEffectsPaused || floorEffectsController.areReflectionsSuspended);
+    if (stageRuntimeController.floorEffectsController.areFloorEffectsPaused !== shouldSuspendReflections) {
+      stageRuntimeController.floorEffectsController.areFloorEffectsPaused = shouldSuspendReflections;
+      stageRuntimeController.floorEffectsController.groundReflectionsController.setSuspended?.(stageRuntimeController.floorEffectsController.areFloorEffectsPaused || stageRuntimeController.floorEffectsController.areReflectionsSuspended);
       requestRenderFrame();
     }
   }
 
-  const floorTransitionController = createFloorTransition({
-    THREE: threeModuleMin,
-    getRoot: () => state.previewModelRoot,
-    dispose: disposeSceneSubtree,
-    release: floorCacheController.retainCachedFloorRecord,
-    suspendReflections: floorEffectsController.suspendFloorEffects,
-    invalidate: (isFullSceneInvalidate: any) => {
-      if (isFullSceneInvalidate) {
-        orbitPivotOverride = null;
-        boundsCacheModelRoot = null;
-        boundsCacheSceneRevision = undefined;
-        boundsCacheCenter = null;
-        installOrbitControlsOverrides();
-      }
-      if (floorEffectsController.areFloorEffectsFollowed && !isFullSceneInvalidate) {
-        fitDirectionalShadowCamera();
-      }
-      invalidateRender(
-        isFullSceneInvalidate
-          ? {
-              scene: true,
-              shadows: true
-            }
-          : {
-              preserveLightCache: true
-            }
-      );
-    }
-  });
   state.contactShadowController?.setFrameProvider?.((frameProviderFloorId: any) => {
-    const frameProviderRecord = floorTransitionController.records.find(
+    const frameProviderRecord = stageRuntimeController.floorTransitionController.records.find(
       frameProviderEntry => frameProviderEntry.id === frameProviderFloorId
     );
     if (frameProviderRecord) {
@@ -12508,7 +12135,7 @@ function createStageController() {
     }
   });
   state.regionLightController?.setMotionTransformProvider?.((motionTransformFloorId: any) => {
-    const motionTransformRecord = floorTransitionController.records.find(
+    const motionTransformRecord = stageRuntimeController.floorTransitionController.records.find(
       motionTransformEntry => motionTransformEntry.id === motionTransformFloorId
     );
     if (motionTransformRecord) {
@@ -12524,14 +12151,14 @@ function createStageController() {
   globalThis.window?.addEventListener(
     "pagehide",
     () => {
-      floorTransitionController.finish();
-      floorCacheController.releaseFloorCache();
+      stageRuntimeController.floorTransitionController.finish();
+      stageRuntimeController.floorCacheController.releaseFloorCache();
     },
     {
       once: true
     }
   );
-  globalThis.window?.addEventListener("pagehide", () => floorEffectsController.groundReflectionsController.dispose(), {
+  globalThis.window?.addEventListener("pagehide", () => stageRuntimeController.floorEffectsController.groundReflectionsController.dispose(), {
     once: true
   });
   const overlayOnBeforeRender = state.previewOverlayScene.onBeforeRender;
@@ -12551,7 +12178,7 @@ function createStageController() {
   shadowRefreshProbeMesh.renderOrder = -1000000000;
   shadowRefreshProbeMesh.layers.enableAll();
   shadowRefreshProbeMesh.onBeforeRender = () => {
-    if (needsSpotShadowRefresh && !floorEffectsController.areShadowsFrozen) {
+    if (needsSpotShadowRefresh && !stageRuntimeController.floorEffectsController.areShadowsFrozen) {
       needsSpotShadowRefresh = state.spotShadowAtlasController
         ? !state.spotShadowAtlasController.refreshGeometry(state.previewModelRoot, curtainBoundsBoxes)
         : false;
@@ -12570,15 +12197,15 @@ function createStageController() {
     }
   );
   state.previewOverlayScene.onBeforeRender = function (...overlayRenderArguments: any[]) {
-    if (floorEffectsController.groundReflectionsController.stats.inCapture) {
+    if (stageRuntimeController.floorEffectsController.groundReflectionsController.stats.inCapture) {
       return;
     }
-    floorEffectsController.restoreShadowIntensity();
-    if (!floorEffectsController.areShadowsFrozen) {
+    stageRuntimeController.floorEffectsController.restoreShadowIntensity();
+    if (!stageRuntimeController.floorEffectsController.areShadowsFrozen) {
       curtainSyncHandler?.();
     }
     televisionSyncHandler?.();
-    if (needsSpotShadowRefresh && !floorEffectsController.areShadowsFrozen) {
+    if (needsSpotShadowRefresh && !stageRuntimeController.floorEffectsController.areShadowsFrozen) {
       if (
         shadowRefreshModelRoot !== state.previewModelRoot ||
         shadowRefreshSceneRevision !== state.sceneCacheRevision
@@ -12605,52 +12232,28 @@ function createStageController() {
       state.contactShadowController?.invalidate(contactShadowFloorIds, true);
     }
     overlayOnBeforeRender?.apply(this, overlayRenderArguments);
-    if (!floorEffectsController.areShadowsFrozen) {
-      floorCacheController.environmentSceneController?.setRoot(
+    if (!stageRuntimeController.floorEffectsController.areShadowsFrozen) {
+      stageRuntimeController.floorCacheController.environmentSceneController?.setRoot(
         state.previewModelRoot,
         state.sceneCacheRevision + ":" + state.environmentStructureKey
       );
       environmentAirflowController?.setRoot(state.previewModelRoot, state.sceneCacheRevision);
     }
     stageBackgroundController.applyBackgroundVisibility();
-    syncPreviewProjection();
+    stageRuntimeController.syncPreviewProjection();
     if (!state.renderer.getRenderTarget()) {
-      floorEffectsController.groundReflectionsController.render(overlayRenderArguments[2], {
+      stageRuntimeController.floorEffectsController.groundReflectionsController.render(overlayRenderArguments[2], {
         worldMatricesCurrent: true
       });
       const reflectionStatsJson = JSON.stringify({
-        ...floorEffectsController.groundReflectionsController.stats
+        ...stageRuntimeController.floorEffectsController.groundReflectionsController.stats
       });
       if (state.renderer.domElement.dataset.reflectionStats !== reflectionStatsJson) {
         state.renderer.domElement.dataset.reflectionStats = reflectionStatsJson;
       }
     }
   };
-  /**
-   * 重建轨道控制器（相机被替换时使用）：保留原相机位置与观察目标，并重新套用距离 / 缩放范围与约束。
-   * @param {object} [recreatedOrbitTarget=orbitControls.target.clone()] 新的观察目标点。
-   */
-  function recreateOrbitControls(recreatedOrbitTarget = state.orbitControls.target.clone()) {
-    const preservedCameraPosition = state.previewCamera.position.clone();
-    state.orbitControls.dispose();
-    state.orbitControls = createOrbitControls(state.previewCamera);
-    state.previewCamera.position.copy(preservedCameraPosition);
-    state.orbitControls.target.copy(recreatedOrbitTarget);
-    const preservedOrbitDistance = Math.max(
-      preservedCameraPosition.distanceTo(recreatedOrbitTarget),
-      0.001
-    );
-    state.orbitControls.minDistance = Math.min(2, preservedOrbitDistance);
-    state.orbitControls.maxDistance = Math.max(100, preservedOrbitDistance * 2);
-    state.orbitControls.minZoom = Math.min(0.35, state.previewCamera.zoom);
-    state.orbitControls.maxZoom = Math.max(6, state.previewCamera.zoom);
-    state.orbitControls.maxPolarAngle = MAX_CAMERA_POLAR_ANGLE;
-    state.orbitControls.enableRotate = true;
-    state.orbitControls.enabled = isCameraInteractionEnabled;
-    state.orbitControls.update();
-    applyControlConstraints();
-    installOrbitControlsOverrides();
-  }
+
   return {
     onCameraChange(cameraFrameListener: any) {
       const cameraFrameCanvas = state.renderer.domElement;
@@ -12671,10 +12274,10 @@ function createStageController() {
     container: selectElement("#preview-3d"),
     canvas: state.renderer.domElement,
     get groundReflections() {
-      return floorEffectsController.groundReflectionsController;
+      return stageRuntimeController.floorEffectsController.groundReflectionsController;
     },
     invalidateReflections(reflectionChangeKey: any) {
-      floorEffectsController.groundReflectionsController.changed(reflectionChangeKey);
+      stageRuntimeController.floorEffectsController.groundReflectionsController.changed(reflectionChangeKey);
     },
     get modelRoot() {
       return state.previewModelRoot;
@@ -12689,7 +12292,7 @@ function createStageController() {
       return state.sceneCacheRevision + ":" + state.environmentStructureKey;
     },
     setEnvironmentScene(environmentSceneSync: any) {
-      floorCacheController.environmentSceneController = environmentSceneSync;
+      stageRuntimeController.floorCacheController.environmentSceneController = environmentSceneSync;
     },
     setEnvironmentAirflow(environmentAirflowSync: any) {
       environmentAirflowController = environmentAirflowSync;
@@ -12724,7 +12327,7 @@ function createStageController() {
             };
             const previousCurtainRows = parseCurtainFrames(state.curtainFrameKey);
             const nextCurtainRows = parseCurtainFrames(nextCurtainFrameKey);
-            floorEffectsController.groundReflectionsController.changed(
+            stageRuntimeController.floorEffectsController.groundReflectionsController.changed(
               [...new Set([...previousCurtainRows.keys(), ...nextCurtainRows.keys()])].filter(
                 changedCurtainFloorId =>
                   JSON.stringify(previousCurtainRows.get(changedCurtainFloorId)) !==
@@ -12732,7 +12335,7 @@ function createStageController() {
               )
             );
           } catch {
-            floorEffectsController.groundReflectionsController.changed(movingCurtainFloorIds);
+            stageRuntimeController.floorEffectsController.groundReflectionsController.changed(movingCurtainFloorIds);
           }
         }
         if (nextEnvironmentStructureKey !== state.environmentStructureKey) {
@@ -13106,7 +12709,7 @@ function createStageController() {
           }
         }
         if (incomingUpdatePlan.lighting && !isBaseLightingPreviewActive) {
-          floorCacheController.releaseFloorCache();
+          stageRuntimeController.floorCacheController.releaseFloorCache();
           applyBaseLightingSettings(incomingStudioDocument.baseLighting);
         }
         state.savedSceneRecord = sceneSyncResponse;
@@ -13123,16 +12726,16 @@ function createStageController() {
         normalizeStudioDocument(state.savedSceneRecord.scene),
         replacementDocument
       );
-      floorTransitionController.finish();
-      floorCacheController.releaseFloorCache(
+      stageRuntimeController.floorTransitionController.finish();
+      stageRuntimeController.floorCacheController.releaseFloorCache(
         replacementPlan.full || replacementPlan.lighting ? null : new Set(replacementPlan.floors)
       );
       lightTransitionController.teardownLightTransitions();
       presentedPromise = null;
-      orbitPivotOverride = null;
-      boundsCacheModelRoot = null;
-      boundsCacheSceneRevision = undefined;
-      boundsCacheCenter = null;
+      stageRuntimeController.orbitPivotOverride = null;
+      stageRuntimeController.boundsCacheModelRoot = null;
+      stageRuntimeController.boundsCacheSceneRevision = undefined;
+      stageRuntimeController.boundsCacheCenter = null;
       lightTransitionController.hasReceivedLightStates = false;
       lightTransitionController.forceLightStateRefresh = true;
       stageBackgroundController.backgroundThemeModelRoot = null;
@@ -13222,13 +12825,13 @@ function createStageController() {
       };
     },
     getOrbitCenter() {
-      return resolveOrbitCenter(state.orbitControls.target).toArray();
+      return stageRuntimeController.resolveOrbitCenter(state.orbitControls.target).toArray();
     },
     setOrbitPivot(orbitPivotPoint: any) {
-      orbitPivotOverride = orbitPivotPoint
+      stageRuntimeController.orbitPivotOverride = orbitPivotPoint
         ? new threeModuleMin.Vector3().fromArray(orbitPivotPoint)
         : null;
-      installOrbitControlsOverrides();
+      stageRuntimeController.installOrbitControlsOverrides();
     },
     orbitCameraPose(sourceCameraPose: any, pivotRotationRad: any) {
       const rotatedCameraPose = structuredClone(sourceCameraPose);
@@ -13239,7 +12842,7 @@ function createStageController() {
       ) {
         return rotatedCameraPose;
       }
-      orbitPivotOverride ||= resolveOrbitCenter(
+      stageRuntimeController.orbitPivotOverride ||= stageRuntimeController.resolveOrbitCenter(
         new threeModuleMin.Vector3().fromArray(sourceCameraPose.target)
       );
       const orbitRotationQuaternion = new threeModuleMin.Quaternion().setFromAxisAngle(
@@ -13249,9 +12852,9 @@ function createStageController() {
       for (const poseFieldName of ["position", "target"]) {
         rotatedCameraPose[poseFieldName] = new threeModuleMin.Vector3()
           .fromArray(sourceCameraPose[poseFieldName])
-          .sub(orbitPivotOverride)
+          .sub(stageRuntimeController.orbitPivotOverride)
           .applyQuaternion(orbitRotationQuaternion)
-          .add(orbitPivotOverride)
+          .add(stageRuntimeController.orbitPivotOverride)
           .toArray();
       }
       let poseUpVector = new threeModuleMin.Vector3().fromArray(sourceCameraPose.up || [0, 1, 0]);
@@ -13279,27 +12882,27 @@ function createStageController() {
     },
     setFocusViewport(focusViewportValue: any) {
       const clampedFocusViewport = clamp(finite(focusViewportValue, 0), 0, 0.7);
-      if (clampedFocusViewport !== focusViewportRatio) {
-        focusViewportRatio = clampedFocusViewport;
-        syncPreviewProjection();
+      if (clampedFocusViewport !== stageRuntimeController.focusViewportRatio) {
+        stageRuntimeController.focusViewportRatio = clampedFocusViewport;
+        stageRuntimeController.syncPreviewProjection();
         invalidateRender({
           preserveLightCache: false
         });
       }
     },
     beginCameraMotion(blendCameraMode: any, blendCameraPose: any, motionPhaseKind = "focus") {
-      floorEffectsController.motionPresentation.camera(!!blendCameraPose, {
+      stageRuntimeController.floorEffectsController.motionPresentation.camera(!!blendCameraPose, {
         live: motionPhaseKind === "focus"
       });
       const poseBeforeMotion = this.cameraState();
       const shouldBlendProjection =
-        blendCameraPose && (cameraBlendState || poseBeforeMotion.mode !== blendCameraMode);
+        blendCameraPose && (stageRuntimeController.cameraBlendState || poseBeforeMotion.mode !== blendCameraMode);
       const blendFromHeight = shouldBlendProjection
-        ? (cameraBlendState?.height ?? measureVisibleHeight(state.previewCamera, state.orbitControls.target))
+        ? (stageRuntimeController.cameraBlendState?.height ?? measureVisibleHeight(state.previewCamera, state.orbitControls.target))
         : 0;
       const blendFromWeight =
-        cameraBlendState?.weight ?? (poseBeforeMotion.mode === "perspective" ? 1 : 0);
-      cameraBlendState = null;
+        stageRuntimeController.cameraBlendState?.weight ?? (poseBeforeMotion.mode === "perspective" ? 1 : 0);
+      stageRuntimeController.cameraBlendState = null;
       isCameraMotionRunning = true;
       isControlInteractionActive = false;
       if (isAdaptiveLightCacheEnabled()) {
@@ -13314,13 +12917,13 @@ function createStageController() {
         preserveView: true,
         deferControlUpdate: true
       });
-      recreateOrbitControls();
-      installOrbitControlsOverrides();
+      stageRuntimeController.recreateOrbitControls();
+      stageRuntimeController.installOrbitControlsOverrides();
       startCameraMotion();
       if (shouldBlendProjection) {
-        cameraBlendState = {
+        stageRuntimeController.cameraBlendState = {
           fromHeight: blendFromHeight,
-          toHeight: measurePoseVisibleHeight(blendCameraPose),
+          toHeight: stageRuntimeController.measurePoseVisibleHeight(blendCameraPose),
           height: blendFromHeight,
           fromWeight: blendFromWeight,
           toWeight: blendCameraMode === "perspective" ? 1 : 0,
@@ -13333,23 +12936,23 @@ function createStageController() {
     },
     applyCameraFrame(frameCameraPose: any, frameProgress: any, frameFocusViewport: any) {
       const frameFocusViewportValue = clamp(finite(frameFocusViewport, 0), 0, 0.7);
-      const isFocusViewportUnchanged = frameFocusViewportValue === focusViewportRatio;
-      focusViewportRatio = frameFocusViewportValue;
+      const isFocusViewportUnchanged = frameFocusViewportValue === stageRuntimeController.focusViewportRatio;
+      stageRuntimeController.focusViewportRatio = frameFocusViewportValue;
       this.applyCameraPose(frameCameraPose, frameProgress, isFocusViewportUnchanged);
-      floorEffectsController.motionPresentation.advance(frameProgress);
+      stageRuntimeController.floorEffectsController.motionPresentation.advance(frameProgress);
     },
     applyCameraPose(appliedCameraPose: any, appliedProgress = 1, applyPreserveLightCache = true) {
       appliedCameraPose = constrainCameraPose(appliedCameraPose);
-      if (cameraBlendState) {
+      if (stageRuntimeController.cameraBlendState) {
         if (appliedProgress >= 1) {
-          cameraBlendState = null;
+          stageRuntimeController.cameraBlendState = null;
         } else {
-          cameraBlendState.height =
-            cameraBlendState.fromHeight +
-            (cameraBlendState.toHeight - cameraBlendState.fromHeight) * appliedProgress;
-          cameraBlendState.weight =
-            cameraBlendState.fromWeight +
-            (cameraBlendState.toWeight - cameraBlendState.fromWeight) * appliedProgress;
+          stageRuntimeController.cameraBlendState.height =
+            stageRuntimeController.cameraBlendState.fromHeight +
+            (stageRuntimeController.cameraBlendState.toHeight - stageRuntimeController.cameraBlendState.fromHeight) * appliedProgress;
+          stageRuntimeController.cameraBlendState.weight =
+            stageRuntimeController.cameraBlendState.fromWeight +
+            (stageRuntimeController.cameraBlendState.toWeight - stageRuntimeController.cameraBlendState.fromWeight) * appliedProgress;
         }
       }
       handleCameraMotionMoved();
@@ -13375,15 +12978,15 @@ function createStageController() {
       state.previewCamera.lookAt(state.orbitControls.target);
       updateCameraClipPlanes(state.previewCamera, state.orbitControls.target);
       state.previewCamera.updateMatrixWorld();
-      syncPreviewProjection();
+      stageRuntimeController.syncPreviewProjection();
       invalidateRender({
         preserveLightCache: applyPreserveLightCache
       });
     },
     endCameraMotion() {
-      floorEffectsController.motionPresentation.camera(false);
+      stageRuntimeController.floorEffectsController.motionPresentation.camera(false);
       isCameraMotionRunning = false;
-      recreateOrbitControls();
+      stageRuntimeController.recreateOrbitControls();
       finishCameraMotion();
       invalidateRender();
       if (
@@ -13405,9 +13008,9 @@ function createStageController() {
       if (state.studioDocument.uniformOverviewStack !== nextUniformOverviewStackFlag) {
         this.finishFloorTransition();
         state.studioDocument.uniformOverviewStack = nextUniformOverviewStackFlag;
-        orbitPivotOverride = null;
-        boundsCacheModelRoot = null;
-        floorEffectsController.groundReflectionsController.changed();
+        stageRuntimeController.orbitPivotOverride = null;
+        stageRuntimeController.boundsCacheModelRoot = null;
+        stageRuntimeController.floorEffectsController.groundReflectionsController.changed();
         invalidateRender({
           scene: true
         });
@@ -13421,10 +13024,10 @@ function createStageController() {
         const appliedFloorGapValue =
           clampedFloorGapOrNull ?? normalizeStudioDocument(state.savedSceneRecord.scene).previewFloorGap;
         if (Math.abs(state.studioDocument.previewFloorGap - appliedFloorGapValue) > 0.000001) {
-          floorTransitionController.finish();
+          stageRuntimeController.floorTransitionController.finish();
           const isOverviewFloorMode = currentPreviewFloorMode() === "all";
           const detachedFloorRecords = isOverviewFloorMode
-            ? floorTransitionController.take(
+            ? stageRuntimeController.floorTransitionController.take(
                 state.studioDocument.floors.map((gapFloorId: any) => gapFloorId.id),
                 floorWorldMatrix,
                 true
@@ -13433,19 +13036,19 @@ function createStageController() {
           try {
             state.studioDocument.previewFloorGap = appliedFloorGapValue;
             for (const reusedFloorRecord of detachedFloorRecords) {
-              floorTransitionController.reuse(
+              stageRuntimeController.floorTransitionController.reuse(
                 reusedFloorRecord,
                 floorWorldMatrix(reusedFloorRecord.id)
               );
             }
           } finally {
             if (isOverviewFloorMode) {
-              floorEffectsController.suspendFloorEffects(false);
+              stageRuntimeController.floorEffectsController.suspendFloorEffects(false);
             }
           }
           if (isOverviewFloorMode) {
-            orbitPivotOverride = null;
-            boundsCacheModelRoot = null;
+            stageRuntimeController.orbitPivotOverride = null;
+            stageRuntimeController.boundsCacheModelRoot = null;
             fitDirectionalShadowCamera();
             invalidateRender({
               scene: true,
@@ -13470,7 +13073,7 @@ function createStageController() {
         nextWallOpacityOverride !== state.wallOpacityOverride
       ) {
         this.finishFloorTransition();
-        floorCacheController.releaseFloorCache();
+        stageRuntimeController.floorCacheController.releaseFloorCache();
         const poseBeforeStyleChange = this.cameraState();
         state.studioSceneStyle = nextSceneStyle;
         state.wallOpacityOverride = nextWallOpacityOverride;
@@ -13485,12 +13088,12 @@ function createStageController() {
         nextWallOpacityOverride
       ]);
       if (nextAppearanceSignature !== appearanceSignature) {
-        floorCacheController.releaseFloorCache();
+        stageRuntimeController.floorCacheController.releaseFloorCache();
         appearanceSignature = nextAppearanceSignature;
-        floorEffectsController.groundReflectionsController.changed();
+        stageRuntimeController.floorEffectsController.groundReflectionsController.changed();
       }
-      if (floorEffectsController.groundReflectionsController.configure(appearanceOptions.groundReflection)) {
-        state.groundReflectionSettingsKey = JSON.stringify(floorEffectsController.groundReflectionsController.settings);
+      if (stageRuntimeController.floorEffectsController.groundReflectionsController.configure(appearanceOptions.groundReflection)) {
+        state.groundReflectionSettingsKey = JSON.stringify(stageRuntimeController.floorEffectsController.groundReflectionsController.settings);
         invalidateRender();
       }
       state.regionLightController?.setOverrides(appearanceOptions.lightRegionOverrides || {});
@@ -13566,7 +13169,7 @@ function createStageController() {
       );
     },
     get floorTransitionActive() {
-      return floorTransitionController.active;
+      return stageRuntimeController.floorTransitionController.active;
     },
     advanceFloorTransition(motionProgress: any, floorMotionPose: any) {
       if (overviewStackAnimation) {
@@ -13576,13 +13179,13 @@ function createStageController() {
       }
       const floorMotionSample = floorMotionPose
         ? {
-            height: cameraBlendState
-              ? cameraBlendState.fromHeight +
-                (cameraBlendState.toHeight - cameraBlendState.fromHeight) * motionProgress
-              : measurePoseVisibleHeight(floorMotionPose),
-            weight: cameraBlendState
-              ? cameraBlendState.fromWeight +
-                (cameraBlendState.toWeight - cameraBlendState.fromWeight) * motionProgress
+            height: stageRuntimeController.cameraBlendState
+              ? stageRuntimeController.cameraBlendState.fromHeight +
+                (stageRuntimeController.cameraBlendState.toHeight - stageRuntimeController.cameraBlendState.fromHeight) * motionProgress
+              : stageRuntimeController.measurePoseVisibleHeight(floorMotionPose),
+            weight: stageRuntimeController.cameraBlendState
+              ? stageRuntimeController.cameraBlendState.fromWeight +
+                (stageRuntimeController.cameraBlendState.toWeight - stageRuntimeController.cameraBlendState.fromWeight) * motionProgress
               : floorMotionPose.mode === "perspective"
                 ? 1
                 : 0,
@@ -13591,7 +13194,7 @@ function createStageController() {
               .distanceTo(new threeModuleMin.Vector3().fromArray(floorMotionPose.target))
           }
         : null;
-      floorTransitionController.sample(motionProgress, floorMotionPose, floorMotionSample);
+      stageRuntimeController.floorTransitionController.sample(motionProgress, floorMotionPose, floorMotionSample);
       if (motionProgress >= 1) {
         overviewStackAnimation = null;
         state.overviewStackAmount = null;
@@ -13607,29 +13210,29 @@ function createStageController() {
         new threeModuleMin.Vector3()
           .fromArray(measuredPose.position)
           .distanceTo(new threeModuleMin.Vector3().fromArray(measuredPose.target));
-      floorTransitionController.setSlideCameras(slideFromPose, slideToPose, {
+      stageRuntimeController.floorTransitionController.setSlideCameras(slideFromPose, slideToPose, {
         from: {
-          height: cameraBlendState?.fromHeight ?? measurePoseVisibleHeight(slideFromPose),
-          weight: cameraBlendState?.fromWeight ?? (slideFromPose.mode === "perspective" ? 1 : 0),
+          height: stageRuntimeController.cameraBlendState?.fromHeight ?? stageRuntimeController.measurePoseVisibleHeight(slideFromPose),
+          weight: stageRuntimeController.cameraBlendState?.fromWeight ?? (slideFromPose.mode === "perspective" ? 1 : 0),
           distance: poseCameraDistance(slideFromPose)
         },
         to: {
-          height: measurePoseVisibleHeight(slideToPose),
+          height: stageRuntimeController.measurePoseVisibleHeight(slideToPose),
           weight: slideToPose.mode === "perspective" ? 1 : 0,
           distance: poseCameraDistance(slideToPose)
         }
       });
     },
     finishFloorTransition() {
-      floorTransitionController.finish();
+      stageRuntimeController.floorTransitionController.finish();
       overviewStackAnimation = null;
       state.overviewStackAmount = null;
     },
     get floorCacheSize() {
-      return floorCacheController.floorTransitionCacheById.size;
+      return stageRuntimeController.floorCacheController.floorTransitionCacheById.size;
     },
     get floorEffectsFollow() {
-      return floorEffectsController.areFloorEffectsFollowed;
+      return stageRuntimeController.floorEffectsController.areFloorEffectsFollowed;
     },
     transitionFloor(transitionTargetFloorId: any) {
       const floorIdsByElevationOrder = [...state.studioDocument.floors]
@@ -13662,14 +13265,14 @@ function createStageController() {
       };
       state.overviewStackAmount = overviewStackAnimation.from;
       const transitionSourceFloorKey = isOverviewStackMode ? "all" : state.activeFloorId;
-      const transitionDetachedRecords = floorTransitionController.take(
+      const transitionDetachedRecords = stageRuntimeController.floorTransitionController.take(
         isOverviewStackMode ? floorIdsByElevationOrder : [state.activeFloorId],
         floorMatrixForId,
         isOverviewStackMode
       );
       for (const transitionDetachedRecord of transitionDetachedRecords) {
         transitionDetachedRecord.cacheKey ||= transitionSourceFloorKey;
-        transitionDetachedRecord.cacheEpoch ??= floorCacheController.floorCacheEpoch;
+        transitionDetachedRecord.cacheEpoch ??= stageRuntimeController.floorCacheController.floorCacheEpoch;
       }
       const transitionBoundsBox = new threeModuleMin.Box3();
       for (const boundsTraversedRecord of transitionDetachedRecords) {
@@ -13725,8 +13328,8 @@ function createStageController() {
           transitionDetachedRecords.find(
             (matchedTransitionRecord: any) =>
               matchedTransitionRecord.id === mappedFloorId &&
-              matchedTransitionRecord.cacheEpoch === floorCacheController.floorCacheEpoch
-          ) || floorCacheController.floorTransitionCacheById.get(mappedFloorId)
+              matchedTransitionRecord.cacheEpoch === stageRuntimeController.floorCacheController.floorCacheEpoch
+          ) || stageRuntimeController.floorCacheController.floorTransitionCacheById.get(mappedFloorId)
       );
       const reusableTransitionCount = transitionRecordList.filter(Boolean).length;
       if (isAdjacentFloorTransition) {
@@ -13739,14 +13342,14 @@ function createStageController() {
             continue;
           }
           this.setFloor(transitionFloorIdList[capturedFloorIndex]);
-          const capturedFloorRecord = floorTransitionController.capture(
+          const capturedFloorRecord = stageRuntimeController.floorTransitionController.capture(
             [transitionFloorIdList[capturedFloorIndex]],
             floorMatrixForId,
             false
           )[0];
           capturedFloorRecord.frame = capturedFloorRecord.baseFrame.clone();
           capturedFloorRecord.cacheKey = transitionFloorIdList[capturedFloorIndex];
-          capturedFloorRecord.cacheEpoch = floorCacheController.floorCacheEpoch;
+          capturedFloorRecord.cacheEpoch = stageRuntimeController.floorCacheController.floorCacheEpoch;
           capturedFloorRecord.node.removeFromParent();
           transitionRecordList[capturedFloorIndex] = capturedFloorRecord;
         }
@@ -13765,25 +13368,25 @@ function createStageController() {
       state.renderer.domElement.dataset.floorReuseStats = JSON.stringify(floorCacheStats);
       if (reusableTransitionRecords) {
         for (const releasedTransitionRecord of reusableTransitionRecords) {
-          floorCacheController.environmentSceneController?.releaseRoot?.(releasedTransitionRecord.node);
+          stageRuntimeController.floorCacheController.environmentSceneController?.releaseRoot?.(releasedTransitionRecord.node);
           state.regionLightController?.releaseRoot?.(releasedTransitionRecord.node);
-          floorCacheController.floorTransitionCacheById.delete(releasedTransitionRecord.id);
+          stageRuntimeController.floorCacheController.floorTransitionCacheById.delete(releasedTransitionRecord.id);
         }
       } else {
-        floorCacheController.releaseFloorCache(new Set(transitionFloorIdList));
+        stageRuntimeController.floorCacheController.releaseFloorCache(new Set(transitionFloorIdList));
       }
       this.setFloor(transitionTargetFloorId, reusableTransitionRecords, floorMatrixForId);
       const destinationOrbitCenter = this.getOrbitCenter();
-      const destinationFloorRecords = floorTransitionController.capture(
+      const destinationFloorRecords = stageRuntimeController.floorTransitionController.capture(
         transitionFloorIdList,
         floorMatrixForId,
         transitionTargetFloorId === "all" || transitionFloorIdList.length > 1
       );
       for (const positionedFloorRecord of destinationFloorRecords) {
         positionedFloorRecord.cacheKey = transitionTargetFloorId;
-        positionedFloorRecord.cacheEpoch = floorCacheController.floorCacheEpoch;
+        positionedFloorRecord.cacheEpoch = stageRuntimeController.floorCacheController.floorCacheEpoch;
       }
-      floorTransitionController.begin(
+      stageRuntimeController.floorTransitionController.begin(
         transitionDetachedRecords,
         destinationFloorRecords,
         floorIdsByElevationOrder,
@@ -13827,7 +13430,7 @@ function createStageController() {
             (floorSortLeft, floorSortRight) => floorSortLeft.elevation - floorSortRight.elevation
           )[0].id;
           for (const restoredFloorRecord of setFloorRecords) {
-            floorTransitionController
+            stageRuntimeController.floorTransitionController
               .reuse(restoredFloorRecord, floorMatrixResolver(restoredFloorRecord.id))
               .traverse((restoreSceneNode: any) => {
                 if (["background", "grid"].includes(restoreSceneNode.userData?.exportRole)) {
@@ -13880,7 +13483,7 @@ function createStageController() {
             persist: false
           });
         }
-        orbitPivotOverride = null;
+        stageRuntimeController.orbitPivotOverride = null;
       }
     },
     worldPoint: worldPointForFloor,
@@ -13890,7 +13493,7 @@ function createStageController() {
       presentationPlanY: any,
       presentationElevationMeters = 0.1
     ) {
-      const presentationFloorRecord = floorTransitionController.records.find(
+      const presentationFloorRecord = stageRuntimeController.floorTransitionController.records.find(
         presentationRecordMatch => presentationRecordMatch.id === presentationFloorId
       );
       /**
@@ -13934,7 +13537,7 @@ function createStageController() {
     lightEffectColorHex: (mappedKelvin: any) => lightEffectColorHex(mappedKelvin),
     cameraState(shouldResetOrbitControls = false) {
       if (shouldResetOrbitControls) {
-        recreateOrbitControls();
+        stageRuntimeController.recreateOrbitControls();
       }
       return {
         position: state.previewCamera.position.toArray(),
@@ -13955,7 +13558,7 @@ function createStageController() {
         preserveView: true,
         deferControlUpdate: true
       });
-      recreateOrbitControls();
+      stageRuntimeController.recreateOrbitControls();
     },
     setCameraFocalLength(focalLengthValue: any) {
       cameraSettingsSource().cameraFocalLength = clamp(finite(focalLengthValue, 50), 18, 120);
@@ -13972,20 +13575,20 @@ function createStageController() {
       const shouldEnablePan = interactionOptions.panEnabled !== false;
       const shouldEnableZoom = interactionOptions.zoomEnabled !== false;
       const interactionChanged =
-        isCameraInteractionEnabled !== shouldEnableControls ||
-        rotationConstraintMode !== controlRotationMode ||
-        controlsPanEnabled !== shouldEnablePan ||
-        controlsZoomEnabled !== shouldEnableZoom;
-      isCameraInteractionEnabled = shouldEnableControls;
-      rotationConstraintMode = controlRotationMode;
-      controlsPanEnabled = shouldEnablePan;
-      controlsZoomEnabled = shouldEnableZoom;
+        stageRuntimeController.isCameraInteractionEnabled !== shouldEnableControls ||
+        stageRuntimeController.rotationConstraintMode !== controlRotationMode ||
+        stageRuntimeController.controlsPanEnabled !== shouldEnablePan ||
+        stageRuntimeController.controlsZoomEnabled !== shouldEnableZoom;
+      stageRuntimeController.isCameraInteractionEnabled = shouldEnableControls;
+      stageRuntimeController.rotationConstraintMode = controlRotationMode;
+      stageRuntimeController.controlsPanEnabled = shouldEnablePan;
+      stageRuntimeController.controlsZoomEnabled = shouldEnableZoom;
       if (interactionChanged) {
-        recreateOrbitControls();
+        stageRuntimeController.recreateOrbitControls();
       } else {
         state.orbitControls.enabled = shouldEnableControls;
       }
-      installOrbitControlsOverrides();
+      stageRuntimeController.installOrbitControlsOverrides();
     },
     whenPresented() {
       presentedPromise ||= (async () => {
@@ -14018,9 +13621,9 @@ function createStageController() {
       });
     },
     getCameraMotionState() {
-      if (cameraBlendState) {
+      if (stageRuntimeController.cameraBlendState) {
         return {
-          ...cameraBlendState
+          ...stageRuntimeController.cameraBlendState
         };
       } else {
         return null;
@@ -14028,10 +13631,10 @@ function createStageController() {
     },
     restoreCamera(restoredCameraPose: any, restoredCameraFloorId: any = null) {
       restoredCameraPose = constrainCameraPose(restoredCameraPose);
-      cameraBlendState = null;
+      stageRuntimeController.cameraBlendState = null;
       if (!restoredCameraPose) {
         resetCameraView();
-        recreateOrbitControls();
+        stageRuntimeController.recreateOrbitControls();
         return;
       }
       const restoredCameraSettings = cameraSettingsSource();
@@ -14055,13 +13658,13 @@ function createStageController() {
       state.previewCamera.userData.topRotation = restoredCameraSettings.cameraTopRotation;
       updateCameraClipPlanes(state.previewCamera, state.orbitControls.target);
       handleStageResize();
-      recreateOrbitControls(state.orbitControls.target.clone());
-      cameraBlendState = restoredCameraFloorId
+      stageRuntimeController.recreateOrbitControls(state.orbitControls.target.clone());
+      stageRuntimeController.cameraBlendState = restoredCameraFloorId
         ? {
             ...restoredCameraFloorId
           }
         : null;
-      syncPreviewProjection();
+      stageRuntimeController.syncPreviewProjection();
       invalidateRender();
     },
     topView() {
