@@ -1,9 +1,9 @@
 /**
- * 舞台灯光过渡：灯光开关的淡入淡出、灯光模型会话与灯光缓存协调。
+ * 地板特效：地面反射、阴影运动态与楼层动效的挂起 / 恢复。
  *
  * 自 studio-app.ts 的 createStageController 内簇工厂化外提。
  * 对 studio-app.ts 内部零依赖（模块级依赖为 0），故不存在循环引用；
- * 簇内可变状态经 getter/setter 暴露；相机运动标志由调用方经 deps 注入。
+ * 簇内可变状态经 getter/setter 暴露。
  */
 import { requestRenderFrame } from "./studio-render-pipeline.js";
 import { state } from "./studio-state.js";

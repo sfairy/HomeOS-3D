@@ -501,6 +501,8 @@ import {
 } from "./studio-render-quality.js";
 import { createLightTransitionController } from "./studio-light-transition.js";
 import { createFloorEffectsController } from "./studio-floor-effects.js";
+import { createFloorCacheController } from "./studio-floor-cache.js";
+import { createStageBackgroundController } from "./studio-stage-background.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -12876,64 +12878,17 @@ function createStageController() {
     state.savedSceneRecord.referenceScene || state.savedSceneRecord.scene
   );
   let lastRequestedFloorGap: any = null;
-  const floorTransitionCacheById = new Map();
+  const floorCacheController = createFloorCacheController();
   const floorCacheStats = {
     reusedTransitions: 0,
     rebuiltTransitions: 0,
     reusedFloors: 0
   };
   let appearanceSignature = "";
-  let floorCacheEpoch = 0;
-  const disposeCachedFloorRecord = (cachedFloorEntry: any) => {
-    environmentSceneController?.releaseRoot?.(cachedFloorEntry.node);
-    state.regionLightController?.releaseRoot?.(cachedFloorEntry.node);
-    disposeSceneSubtree(cachedFloorEntry.node);
-  };
-  /**
-   * @param {Set<string>|null} [keptFloorIdSet=null] 需要保留的楼层 ID 集合。
-   */
-  const releaseFloorCache = (keptFloorIdSet: any = null) => {
-    if (!keptFloorIdSet) {
-      floorCacheEpoch++;
-    }
-    for (const [evictedFloorId, evictedFloorRecord] of floorTransitionCacheById) {
-      if (!keptFloorIdSet || !!keptFloorIdSet.has(evictedFloorId)) {
-        disposeCachedFloorRecord(evictedFloorRecord);
-        floorTransitionCacheById.delete(evictedFloorId);
-      }
-    }
-  };
-  /**
-   * 把上一帧构建好的楼层记录放回缓存复用，并重置其变换、做容量回收。
-   * @returns {boolean} 缓存键缺失或 epoch 不匹配时返回 false，表示不可复用。
-   */
-  function retainCachedFloorRecord(retainedFloorRecord: any) {
-    if (!retainedFloorRecord.cacheKey || retainedFloorRecord.cacheEpoch !== floorCacheEpoch) {
-      return false;
-    }
-    const retainedFloorKey = retainedFloorRecord.id;
-    const staleFloorRecord = floorTransitionCacheById.get(retainedFloorKey);
-    if (staleFloorRecord && staleFloorRecord.node !== retainedFloorRecord.node) {
-      disposeCachedFloorRecord(staleFloorRecord);
-    }
-    retainedFloorRecord.node.position.set(0, 0, 0);
-    retainedFloorRecord.node.quaternion.identity();
-    retainedFloorRecord.node.scale.set(1, 1, 1);
-    retainedFloorRecord.node.updateMatrixWorld(true);
-    floorTransitionCacheById.delete(retainedFloorKey);
-    floorTransitionCacheById.set(retainedFloorKey, retainedFloorRecord);
-    state.regionLightController?.retainRoot?.(retainedFloorRecord.node);
-    environmentSceneController?.retainRoot?.(retainedFloorRecord.node);
-    while (floorTransitionCacheById.size > 8) {
-      const overflowFloorKey = floorTransitionCacheById.keys().next().value;
-      disposeCachedFloorRecord(floorTransitionCacheById.get(overflowFloorKey));
-      floorTransitionCacheById.delete(overflowFloorKey);
-    }
-    return true;
-  }
+
   state.lightingChannel?.close();
   state.lightingChannel = null;
-  let environmentSceneController: any = null;
+
   let environmentAirflowController: any = null;
   let curtainSyncHandler: any = null;
   let televisionSyncHandler: any = null;
@@ -12944,12 +12899,9 @@ function createStageController() {
   let curtainBoundsBoxes: any = [];
   let previousCurtainFloorIds: any = [];
   let contactShadowFloorIds: any = [];
-  let isBackgroundVisible = true;
+  const stageBackgroundController = createStageBackgroundController();
   let isCameraInteractionEnabled = false;
-  let backgroundThemeModelRoot: any;
-  let backgroundThemeFirstChild: any;
-  let backgroundRoleObjects: any = [];
-  let backgroundThemeController: any = null;
+
   let presentedPromise;
   let orbitPivotOverride;
   let boundOrbitControls: any;
@@ -13321,33 +13273,7 @@ function createStageController() {
       return controlsUpdateResult;
     };
   }
-  /**
-   * 按背景可见性开关同步背景与网格对象的显隐，并兼顾主题控制器与楼层背景的例外规则。
-   * @returns {void} 无返回值。
-   */
-  function applyBackgroundVisibility() {
-    if (
-      backgroundThemeModelRoot !== state.previewModelRoot ||
-      backgroundThemeFirstChild !== state.previewModelRoot?.children[0]
-    ) {
-      backgroundThemeModelRoot = state.previewModelRoot;
-      backgroundThemeFirstChild = state.previewModelRoot?.children[0];
-      backgroundRoleObjects = [];
-      state.previewModelRoot?.traverse((backgroundSceneNode: any) => {
-        if (["background", "grid"].includes(backgroundSceneNode.userData?.exportRole)) {
-          backgroundRoleObjects.push(backgroundSceneNode);
-        }
-      });
-    }
-    backgroundThemeController?.sync(backgroundRoleObjects, isBackgroundVisible);
-    for (const backgroundRoleObject of backgroundRoleObjects) {
-      backgroundRoleObject.visible =
-        isBackgroundVisible &&
-        (!backgroundRoleObject.userData.floorBackgroundHidden ||
-          backgroundRoleObject.userData.backgroundThemeKeepVisible === true) &&
-        !backgroundRoleObject.userData.backgroundThemeHidden;
-    }
-  }
+
   const floorEffectsController = createFloorEffectsController();
 
   /**
@@ -13373,7 +13299,7 @@ function createStageController() {
     THREE: threeModuleMin,
     getRoot: () => state.previewModelRoot,
     dispose: disposeSceneSubtree,
-    release: retainCachedFloorRecord,
+    release: floorCacheController.retainCachedFloorRecord,
     suspendReflections: floorEffectsController.suspendFloorEffects,
     invalidate: (isFullSceneInvalidate: any) => {
       if (isFullSceneInvalidate) {
@@ -13427,7 +13353,7 @@ function createStageController() {
     "pagehide",
     () => {
       floorTransitionController.finish();
-      releaseFloorCache();
+      floorCacheController.releaseFloorCache();
     },
     {
       once: true
@@ -13508,13 +13434,13 @@ function createStageController() {
     }
     overlayOnBeforeRender?.apply(this, overlayRenderArguments);
     if (!floorEffectsController.areShadowsFrozen) {
-      environmentSceneController?.setRoot(
+      floorCacheController.environmentSceneController?.setRoot(
         state.previewModelRoot,
         state.sceneCacheRevision + ":" + state.environmentStructureKey
       );
       environmentAirflowController?.setRoot(state.previewModelRoot, state.sceneCacheRevision);
     }
-    applyBackgroundVisibility();
+    stageBackgroundController.applyBackgroundVisibility();
     syncPreviewProjection();
     if (!state.renderer.getRenderTarget()) {
       floorEffectsController.groundReflectionsController.render(overlayRenderArguments[2], {
@@ -13591,7 +13517,7 @@ function createStageController() {
       return state.sceneCacheRevision + ":" + state.environmentStructureKey;
     },
     setEnvironmentScene(environmentSceneSync: any) {
-      environmentSceneController = environmentSceneSync;
+      floorCacheController.environmentSceneController = environmentSceneSync;
     },
     setEnvironmentAirflow(environmentAirflowSync: any) {
       environmentAirflowController = environmentAirflowSync;
@@ -13672,8 +13598,8 @@ function createStageController() {
       });
     },
     setBackgroundTheme(backgroundThemeSyncController: any) {
-      backgroundThemeController = backgroundThemeSyncController;
-      applyBackgroundVisibility();
+      stageBackgroundController.backgroundThemeController = backgroundThemeSyncController;
+      stageBackgroundController.applyBackgroundVisibility();
     },
     backgroundFrame(isBackgroundFrameShown: any) {
       const shouldShowBackground = isBackgroundFrameShown === true;
@@ -14008,7 +13934,7 @@ function createStageController() {
           }
         }
         if (incomingUpdatePlan.lighting && !isBaseLightingPreviewActive) {
-          releaseFloorCache();
+          floorCacheController.releaseFloorCache();
           applyBaseLightingSettings(incomingStudioDocument.baseLighting);
         }
         state.savedSceneRecord = sceneSyncResponse;
@@ -14026,7 +13952,7 @@ function createStageController() {
         replacementDocument
       );
       floorTransitionController.finish();
-      releaseFloorCache(
+      floorCacheController.releaseFloorCache(
         replacementPlan.full || replacementPlan.lighting ? null : new Set(replacementPlan.floors)
       );
       lightTransitionController.teardownLightTransitions();
@@ -14037,8 +13963,8 @@ function createStageController() {
       boundsCacheCenter = null;
       lightTransitionController.hasReceivedLightStates = false;
       lightTransitionController.forceLightStateRefresh = true;
-      backgroundThemeModelRoot = null;
-      backgroundThemeFirstChild = null;
+      stageBackgroundController.backgroundThemeModelRoot = null;
+      stageBackgroundController.backgroundThemeFirstChild = null;
       if (!replacementPlan.full) {
         replacementDocument.activeFloorId = state.activeFloorId;
         replacementDocument.previewFloorMode = state.studioDocument.previewFloorMode;
@@ -14372,7 +14298,7 @@ function createStageController() {
         nextWallOpacityOverride !== state.wallOpacityOverride
       ) {
         this.finishFloorTransition();
-        releaseFloorCache();
+        floorCacheController.releaseFloorCache();
         const poseBeforeStyleChange = this.cameraState();
         state.studioSceneStyle = nextSceneStyle;
         state.wallOpacityOverride = nextWallOpacityOverride;
@@ -14387,7 +14313,7 @@ function createStageController() {
         nextWallOpacityOverride
       ]);
       if (nextAppearanceSignature !== appearanceSignature) {
-        releaseFloorCache();
+        floorCacheController.releaseFloorCache();
         appearanceSignature = nextAppearanceSignature;
         floorEffectsController.groundReflectionsController.changed();
       }
@@ -14412,13 +14338,13 @@ function createStageController() {
       }
       // 画布默认透明：缺字段（老实例 / 未设置）一律当作不画背景，只有显式 true 才显示。
       const nextBackgroundVisible = appearanceOptions.backgroundVisible === true;
-      const backgroundVisibilityChanged = isBackgroundVisible !== nextBackgroundVisible;
-      const nextBackgroundThemeName = backgroundThemeController?.theme || "grid";
+      const backgroundVisibilityChanged = stageBackgroundController.isBackgroundVisible !== nextBackgroundVisible;
+      const nextBackgroundThemeName = stageBackgroundController.backgroundThemeController?.theme || "grid";
       const backgroundThemeNameChanged = state.backgroundTheme !== nextBackgroundThemeName;
       state.backgroundTheme = nextBackgroundThemeName;
-      isBackgroundVisible = nextBackgroundVisible;
-      document.body.classList.toggle("is-background-hidden", !isBackgroundVisible);
-      applyBackgroundVisibility();
+      stageBackgroundController.isBackgroundVisible = nextBackgroundVisible;
+      document.body.classList.toggle("is-background-hidden", !stageBackgroundController.isBackgroundVisible);
+      stageBackgroundController.applyBackgroundVisibility();
       const nextBaseLightingState = normalizeBaseLighting(
         appearanceOptions.baseLighting || state.studioDocument.baseLighting
       );
@@ -14528,7 +14454,7 @@ function createStageController() {
       state.overviewStackAmount = null;
     },
     get floorCacheSize() {
-      return floorTransitionCacheById.size;
+      return floorCacheController.floorTransitionCacheById.size;
     },
     get floorEffectsFollow() {
       return floorEffectsController.areFloorEffectsFollowed;
@@ -14571,7 +14497,7 @@ function createStageController() {
       );
       for (const transitionDetachedRecord of transitionDetachedRecords) {
         transitionDetachedRecord.cacheKey ||= transitionSourceFloorKey;
-        transitionDetachedRecord.cacheEpoch ??= floorCacheEpoch;
+        transitionDetachedRecord.cacheEpoch ??= floorCacheController.floorCacheEpoch;
       }
       const transitionBoundsBox = new threeModuleMin.Box3();
       for (const boundsTraversedRecord of transitionDetachedRecords) {
@@ -14627,8 +14553,8 @@ function createStageController() {
           transitionDetachedRecords.find(
             (matchedTransitionRecord: any) =>
               matchedTransitionRecord.id === mappedFloorId &&
-              matchedTransitionRecord.cacheEpoch === floorCacheEpoch
-          ) || floorTransitionCacheById.get(mappedFloorId)
+              matchedTransitionRecord.cacheEpoch === floorCacheController.floorCacheEpoch
+          ) || floorCacheController.floorTransitionCacheById.get(mappedFloorId)
       );
       const reusableTransitionCount = transitionRecordList.filter(Boolean).length;
       if (isAdjacentFloorTransition) {
@@ -14648,7 +14574,7 @@ function createStageController() {
           )[0];
           capturedFloorRecord.frame = capturedFloorRecord.baseFrame.clone();
           capturedFloorRecord.cacheKey = transitionFloorIdList[capturedFloorIndex];
-          capturedFloorRecord.cacheEpoch = floorCacheEpoch;
+          capturedFloorRecord.cacheEpoch = floorCacheController.floorCacheEpoch;
           capturedFloorRecord.node.removeFromParent();
           transitionRecordList[capturedFloorIndex] = capturedFloorRecord;
         }
@@ -14667,12 +14593,12 @@ function createStageController() {
       state.renderer.domElement.dataset.floorReuseStats = JSON.stringify(floorCacheStats);
       if (reusableTransitionRecords) {
         for (const releasedTransitionRecord of reusableTransitionRecords) {
-          environmentSceneController?.releaseRoot?.(releasedTransitionRecord.node);
+          floorCacheController.environmentSceneController?.releaseRoot?.(releasedTransitionRecord.node);
           state.regionLightController?.releaseRoot?.(releasedTransitionRecord.node);
-          floorTransitionCacheById.delete(releasedTransitionRecord.id);
+          floorCacheController.floorTransitionCacheById.delete(releasedTransitionRecord.id);
         }
       } else {
-        releaseFloorCache(new Set(transitionFloorIdList));
+        floorCacheController.releaseFloorCache(new Set(transitionFloorIdList));
       }
       this.setFloor(transitionTargetFloorId, reusableTransitionRecords, floorMatrixForId);
       const destinationOrbitCenter = this.getOrbitCenter();
@@ -14683,7 +14609,7 @@ function createStageController() {
       );
       for (const positionedFloorRecord of destinationFloorRecords) {
         positionedFloorRecord.cacheKey = transitionTargetFloorId;
-        positionedFloorRecord.cacheEpoch = floorCacheEpoch;
+        positionedFloorRecord.cacheEpoch = floorCacheController.floorCacheEpoch;
       }
       floorTransitionController.begin(
         transitionDetachedRecords,
@@ -14737,7 +14663,7 @@ function createStageController() {
                     nextPreviewFloorMode === "all" &&
                     restoredFloorRecord.id !== lowestElevationFloorId;
                   restoreSceneNode.visible =
-                    isBackgroundVisible &&
+                    stageBackgroundController.isBackgroundVisible &&
                     (!restoreSceneNode.userData.floorBackgroundHidden ||
                       restoreSceneNode.userData.backgroundThemeKeepVisible === true) &&
                     !restoreSceneNode.userData.backgroundThemeHidden;
@@ -14906,7 +14832,7 @@ function createStageController() {
         forcePreviewRebuild();
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        applyBackgroundVisibility();
+        stageBackgroundController.applyBackgroundVisibility();
         await waitForLightCacheSettle();
         state.renderer.render(state.previewOverlayScene, state.previewCamera);
         await new Promise(requestAnimationFrame);
