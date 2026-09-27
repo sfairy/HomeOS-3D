@@ -7,6 +7,14 @@ on:
         description: "构建推送后 SSH 拉取并重启远端 compose（需已配置 Deploy secrets）"
         type: boolean
         default: false
+      deploy_role:
+        description: "deploy 时部署哪一侧：store（厂商机，默认）/ app（客户机）/ all（同机）"
+        type: choice
+        options:
+          - store
+          - app
+          - all
+        default: store
 
 permissions:
   contents: read
@@ -28,6 +36,13 @@ jobs:
       store_image: ${{ steps.meta.outputs.store_image }}
     steps:
       - uses: actions/checkout@v4
+      # 裸的 VERSION tag 只在默认分支推送（见 merge job 的 enable={{is_default_branch}}）：
+      # 非默认分支勾了 deploy 会去拉一个不存在的 tag，这里提前挡住。
+      - name: Deploy 只在默认分支可用
+        if: ${{ inputs.deploy && github.ref_name != github.event.repository.default_branch }}
+        run: |
+          echo "::error::deploy 只能在默认分支（${{ github.event.repository.default_branch }}）上运行；当前 ${{ github.ref_name }} 不会推送 VERSION tag"
+          exit 1
       - id: meta
         run: |
           version="$(tr -d '[:space:]' < VERSION)"
@@ -244,12 +259,13 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-            export HOMEOS_IMAGE="${{ needs.meta.outputs.image }}:${{ needs.meta.outputs.version }}"
-            export HOMEOS_STORE_IMAGE="${{ needs.meta.outputs.store_image }}:${{ needs.meta.outputs.version }}"
-            echo "Pulling ${HOMEOS_IMAGE} and ${HOMEOS_STORE_IMAGE}"
-            # 先商店（它创建共享网络与公钥卷），再主应用
-            docker compose -f docker-compose.store.yml pull
-            docker compose -f docker-compose.store.yml up -d
-            docker compose -f docker-compose.app.yml pull
-            docker compose -f docker-compose.app.yml up -d
+            # 先更新检出：compose 与 deploy.sh 都从这里读，服务器不 pull 就会用旧编排
+            if [ -d .git ]; then
+              git fetch --prune --depth=1 origin "${{ github.ref_name }}"
+              git checkout --force FETCH_HEAD
+              echo "检出已更新到 ${{ github.sha }}"
+            else
+              echo "DEPLOY_PATH 不是 git 检出：跳过更新，compose / deploy.sh 可能是旧的"
+            fi
+            ./ops/deploy/deploy.sh --role "${{ inputs.deploy_role || 'store' }}" --version "${{ needs.meta.outputs.version }}" --yes
             docker image prune -f

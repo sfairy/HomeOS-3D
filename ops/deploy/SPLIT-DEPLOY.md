@@ -4,10 +4,12 @@
 
 | 文件 | 项目名 | 服务 |
 | --- | --- | --- |
-| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店 18082（**先起**，它创建共享网络与公钥卷） |
-| `docker-compose.app.yml` | `homeos-3d` | 主应用 18081（加入同一网络、只读挂载公钥卷） |
+| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店 18082（厂商机；自建网络与公钥卷） |
+| `docker-compose.app.yml` | `homeos-3d` | 主应用 18081（客户机，**可单独运行**：自带 `./keys` 公钥挂载） |
+| `docker-compose.app.shared.yml` | 叠加到 `homeos-3d` | 仅同机部署时用：加入商店的网络与公钥卷 |
 
-同机部署按各自文件里的注释依次 `up -d` 即可；**跨服务器**时下面这些前提不会自动满足，需要人工处理。
+两种拓扑都由 `ops/deploy/deploy.sh` 收口：同机 `--role all`（自动叠加 shared 文件），
+跨服务器各跑一次 `--role store` 与 `--role app --license-server https://pay.example.com`。
 
 ```
 [服务器 A]  homeos-3d        :18081  ←  反代 https://homeos.example.com
@@ -25,7 +27,7 @@ A → B：APP_LICENSE_SERVER_URL（HTTPS，走公网）
 ## 1. 服务器 B：先起商店
 
 ```bash
-docker compose -f docker-compose.store.yml up -d
+./ops/deploy/deploy.sh --role store     # 拉镜像 + 起容器 + 等健康 + 打印公钥 sha256
 # 首次部署后打开 http://<B>:18082/setup 创建管理员
 ```
 
@@ -33,9 +35,13 @@ docker compose -f docker-compose.store.yml up -d
 - 公钥会被同步到共享卷 `homeos-3d-client-keys`，等着被搬到服务器 A（下一步）。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
-## 2. 把两个公钥搬到服务器 A
+## 2. 服务器 A 的公钥（通常不用手工搬）
 
-共享卷不出机器，这一步必须手工做：
+主应用启动时要读两个公钥，**独立部署时由脚本自动解决**：`deploy.sh --role app` 会把
+`keys/license-public.pem` 与 `keys/license-transport-public.pem` 落到服务器 A 的 `./keys/`
+（优先用本地已有的；没有就按 `--version` 对应的 tag 从仓库取，并打印 sha256 供与商店侧核对）。
+
+只有「商店自己轮换过密钥」或「服务器 A 没有仓库检出」这类情况才需要手工搬：
 
 ```bash
 # —— 服务器 B：打包
@@ -56,9 +62,6 @@ docker run --rm -v homeos-3d-client-keys:/keys alpine ls -l /keys
 ## 3. 服务器 A：再起主应用
 
 ```bash
-docker network create homeos-3d-net   # 文件里是 external: true，不会自动创建
-docker volume create homeos-3d-client-keys
-
 # .env 至少要有这几项（其余见 .env.example 的 A 区）：
 #   APP_LICENSE_SERVER_URL=https://pay.example.com
 #   APP_BASE_URL=https://homeos.example.com
@@ -66,9 +69,13 @@ docker volume create homeos-3d-client-keys
 #   APP_TRUSTED_PROXIES=<反代地址或网段>
 #   UVICORN_FORWARDED_ALLOW_IPS=<反代地址或网段>   # 不要填 *
 
-docker compose -f docker-compose.app.yml up -d
+./ops/deploy/deploy.sh --role app --license-server https://pay.example.com
 docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data/setup-token）
 ```
+
+独立部署用的 `docker-compose.app.yml` **不再**声明 external 网络与共享卷，所以不需要先
+`docker network create` / `docker volume create`；只有同机部署（`--role all`）才通过
+`docker-compose.app.shared.yml` 加入商店的网络与公钥卷。
 
 - **`APP_LICENSE_SERVER_URL` 不设是静默故障。** 镜像 ENV 默认写死了 `http://homeos-3d-store:18082`，跨机器解析不了；因为离线租约默认 72h，表现是「启动只有一条 CONNECTION_WARNING，三天后才拦截」。
 - **宿主标识准备一次**（`docker-compose.app.yml` 里的两个 `/host/...` 挂载靠它生效）：

@@ -4732,6 +4732,59 @@ function checkStoreTokenMirror() {
   return problems;
 }
 
+// ---------------------------------------------------------------------------
+// 47) compose 默认镜像名与 origin 仓库不一致
+// ---------------------------------------------------------------------------
+
+/**
+ * 一键部署靠 compose 里的 `image: ${VAR:-<默认>}` 拉 GHCR 镜像，而 workflow 的镜像名是从
+ * `github.repository` 现算的。两者靠约定对齐：换仓库地址或做 fork 时默认值不跟着改，
+ * deploy.sh 就会去拉一个不存在的镜像 —— 报错只有 docker 那句 manifest unknown，
+ * 看不出是「名字算错」。
+ */
+const COMPOSE_IMAGE_RE = /^[ \t]*image:[ \t]*\$\{[A-Z0-9_]+:-([^}]+)\}[ \t]*$/m;
+
+function checkComposeImageNames() {
+  const problems = [];
+  let origin = "";
+  try {
+    origin = execFileSync("git", ["-C", ROOT, "remote", "get-url", "origin"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+  } catch {
+    return problems;
+  }
+  const slugMatch = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/i.exec(origin);
+  if (!slugMatch) return problems;
+  const slug = (slugMatch[1] + "/" + slugMatch[2]).toLowerCase();
+  const expected = new Map([
+    ["docker-compose.app.yml", "ghcr.io/" + slug],
+    ["docker-compose.store.yml", "ghcr.io/" + slug + "-store"]
+  ]);
+  for (const [file, wanted] of expected) {
+    const full = path.join(ROOT, file);
+    if (!fs.existsSync(full)) {
+      problems.push({ file, line: 0, detail: "compose 文件不存在（deploy.sh 依赖它）" });
+      continue;
+    }
+    const text = fs.readFileSync(full, "utf8");
+    const found = COMPOSE_IMAGE_RE.exec(text);
+    if (!found) {
+      problems.push({ file, line: 0, detail: "解不出 image: 变量加默认值 的形式" });
+      continue;
+    }
+    const image = found[1].trim().replace(/:[^/:]+$/, "");
+    if (image.toLowerCase() === wanted) continue;
+    problems.push({
+      file,
+      line: text.slice(0, found.index).split("\n").length,
+      detail: "默认镜像名 " + image + " 与 origin 仓库推导出的 " + wanted + " 不一致"
+    });
+  }
+  return problems;
+}
+
 const checks = [
   {
     title: "运行侧裸 /static/ 静态 import（file: 打开时整棵模块树加载失败）",
@@ -5155,6 +5208,14 @@ const checks = [
       "同名不同字是本仓的既定契约）。新增令牌时在表里补一行；漏补的令牌这条检查看不到。" +
       "取值不同时先判断是哪一侧写错，改完两边一起跑一次",
     run: checkStoreTokenMirror
+  },
+  {
+    title: "compose 默认镜像名与 origin 仓库不一致（fork / 改名后一键部署会拉不存在的镜像）",
+    hint:
+      "两个 compose 的 image 默认值必须等于从 origin 仓库名推导出的 GHCR 名字" +
+      "（ghcr.io/<owner>/<repo> 与 …-store，全小写）。fork 或改仓库地址时，" +
+      "同步改这里的默认值，并在 .env 里用 HOMEOS_IMAGE / HOMEOS_STORE_IMAGE 覆盖实际拉取目标",
+    run: checkComposeImageNames
   }
     ];
 

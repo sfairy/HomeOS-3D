@@ -1,0 +1,28 @@
+# HomeOS 主应用 —— 与授权商店同机时的叠加文件
+#
+#   docker compose -f docker-compose.app.yml -f docker-compose.app.shared.yml up -d
+#
+# 只做两件事：加入商店创建的网络（走容器内网直连 18082），并把授权公钥改挂商店
+# 写出的共享卷。分开挂到不同容器路径，避免与基础文件的 ./keys 抢同一个挂载点。
+
+services:
+  homeos-3d:
+    environment:
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
+      APP_CLIENT_KEYS_DIR: /shared-keys
+    volumes:
+      - homeos-3d-client-keys:/shared-keys:ro
+    networks:
+      - homeos-3d-net
+
+networks:
+  # 由商店那份 compose 创建；这里只加入，不持有。
+  homeos-3d-net:
+    name: homeos-3d-net
+    external: true
+
+volumes:
+  # 由商店那份 compose 创建并写入；这里只读挂载，不持有。
+  homeos-3d-client-keys:
+    name: homeos-3d-client-keys
+    external: true

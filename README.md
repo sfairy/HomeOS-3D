@@ -397,21 +397,30 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 ### 快速启动
 
-```bash
-cp .env.example .env
-# 多数部署不用改；生产填 APP_BASE_URL / STORE_BASE_URL / *_TRUSTED_PROXIES / *_COOKIE_SECURE
-# 管理员账号首次部署时在浏览器打开 :18082/setup 创建，不走环境变量
+两个项目可**独立部署**，各一条命令（脚本见 [ops/deploy/deploy.sh](ops/deploy/deploy.sh)）：
 
-# 两个 compose 项目各自独立：必须先起商店（它创建共享网络与公钥卷）
-docker compose -f docker-compose.store.yml pull && docker compose -f docker-compose.store.yml up -d
-docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
+```bash
+git clone https://github.com/sfairy/HomeOS-3D.git && cd HomeOS-3D
+
+./ops/deploy/deploy.sh --role app --license-server https://pay.example.com   # 客户机：只部署主应用
+./ops/deploy/deploy.sh --role store                                          # 厂商机：只部署授权商店
+./ops/deploy/deploy.sh                                                       # 同机：先起商店，再起主应用
 ```
 
+脚本依次做：解析 tag（`--version` → `HOMEOS_VERSION` → 仓库 `VERSION` 文件 → `latest`）→ 缺失时
+从 `.env.example` 生成 `.env` → `--role app` 时把两个授权公钥落到 `./keys` 并校验指纹 → 备好宿主标识
+符号链接 → 按角色 `docker compose pull` + `up -d` → 等健康检查 → 打印访问地址与引导密钥取法。
+
+常用开关：`--version 0.6.5` 钉版本、`--dry-run` 只打印将要执行的命令、`--host-binds skip` 跳过宿主标识、
+`--dir DIR` 指定 compose 目录。**`--role app` 必须给 `--license-server`**：留空会退回
+`http://127.0.0.1:18082`（容器里没人监听），表现为授权一直连不上。
+
 默认拉取 GHCR 预构建镜像，不需要本地构建；要自己出包见 [Dockerfile](Dockerfile) 的 `--target app` / `--target store`。
+tag 规则：默认分支手动跑打 `latest` 与本仓 `VERSION`；`v*` tag 手动跑打 semver；amd64 / arm64 已合并成同一个 tag。
 
 容器启动后：**先 `docker logs homeos-3d` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问 `http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是 `172.17.0.1` 这类网关地址），因此这一步不能省。商店首次部署同样在 `http://<主机>:18082/setup` 创建管理员。
 
-启动顺序与密钥：① `homeos-3d-store` 生成或复用授权私钥（`/data/license-keys`）并同步公钥到共享卷 `/data/keys`；② `homeos-3d` 等待共享公钥就绪后再启动 uvicorn；③ `ops/container_entrypoint.py` root 校正目录属主后降权为 `homeos` 用户。
+启动顺序与密钥：① `homeos-3d-store` 生成或复用授权私钥（`/data/license-keys`）并同步公钥到共享卷；② `homeos-3d` 等待 `/data/keys` 里两个 PEM 就绪后再启动 uvicorn（超时 120s 会直接退出并说明原因）；③ `ops/container_entrypoint.py` root 校正目录属主后降权为 `homeos` 用户。独立部署（`--role app`）时没有商店：公钥由脚本落到宿主 `./keys` 并只读挂进 `/data/keys`。
 
 容器内默认路径：
 
@@ -420,13 +429,13 @@ docker compose -f docker-compose.app.yml pull && docker compose -f docker-compos
 | 主应用数据 | `homeos-3d` | `/data` |
 | 商店数据 | `homeos-3d-store` | `/data` |
 | 授权私钥 | `homeos-3d-store` | `/data/license-keys`（独立卷） |
-| 授权公钥镜像 | 两者共享 | `/data/keys`（商店写入，主应用只读挂载） |
+| 授权公钥 | 主应用 | `/data/keys`（同机＝商店写入的共享卷；独立部署＝宿主 `./keys` 只读挂载） |
 | 首次设置引导密钥 | `homeos-3d` | `/data/setup-token`（初始化成功后自动删除） |
 | HA / 中控 / 授权凭据密钥 | `homeos-3d` | `/run/secrets/*.key` |
 
 健康检查：主应用 `/health/ready`，商店 `/healthz`。反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径；站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true` / `STORE_COOKIE_SECURE=true`，并配置 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES`。
 
-主应用还会读**宿主**的机器标识来做授权实例指纹，`docker-compose.app.yml` 挂了 `/host/etc/machine-id` 与 `/host/sys/class/dmi/id` 两个只读入口，宿主上准备一次即可（不准备也能启动，指纹退到 `data/` 下的兜底 ID）：
+主应用还会读**宿主**的机器标识来做授权实例指纹，`docker-compose.app.yml` 挂了 `/host/etc/machine-id` 与 `/host/sys/class/dmi/id` 两个只读入口。`deploy.sh` 会自动建这两个符号链接（`--host-binds auto|force|skip`）；手工部署时准备一次：
 
 ```bash
 sudo mkdir -p /host/etc /host/sys/class/dmi
@@ -434,9 +443,13 @@ sudo ln -sfn /etc/machine-id /host/etc/machine-id
 sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 ```
 
+**顺序要紧**：宿主路径不存在时 docker 会把它建成**目录**，之后再建符号链接就会失败 —— 所以先准备、再 `up`。不准备也能启动，指纹退到 `data/` 下的兜底 ID。
+
 升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。注意前四个带 compose 项目名前缀：主应用的仍是 `homeos-3d_*`，商店的变成 `homeos-3d-store_*`；只有共享公钥卷用了固定名 `homeos-3d-client-keys`。
 
-**两台服务器分开部署**：商店与主应用可放在不同服务器，但需人工补共享网络与公钥卷（`docker network create` / `docker volume create`）、手工搬运两个 PEM 并 `chmod 644`、把 `APP_LICENSE_SERVER_URL` 改成商店公网地址。授权实例指纹派生自宿主硬件，换机器会被判成「换设备」，想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。完整清单与拆开后的反代示例见 [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)；生产清单与反代示例见 [ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)。
+**两台服务器分开部署**：两侧各跑一次脚本 —— `--role store`（厂商机）、`--role app --license-server https://pay.example.com`（客户机）。主应用侧**不再需要**共享网络与共享卷：`docker-compose.app.yml` 自带 `./keys` 公钥挂载，脚本按 tag 从仓库 `keys/` 取两个 PEM（与 `apps/server/config.py` 钉死的指纹一致）；要手工搬时把它们放进 `./keys` 并 `chmod 644`。同机部署用 `--role all`，脚本会叠加 `docker-compose.app.shared.yml` 让主应用加入商店的网络与公钥卷。授权实例指纹派生自宿主硬件，换机器会被判成「换设备」，想平滑迁移要用 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` 钉住身份。完整清单与反代示例见 [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md) 与 [ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)。
+
+原先那份单文件 `docker-compose.yml` **已删除**：它的商店数据卷与授权私钥卷名与这里不同（`homeos-3d_homeos-3d-*` vs `homeos-3d-store_homeos-3d-*`），混用会以空库启动、让已激活客户端全部失效。若曾用它跑过，先 `docker compose -f docker-compose.yml down` 再按上面的命令迁移。
 
 ## 开发注意
 

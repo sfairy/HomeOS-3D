@@ -9,17 +9,21 @@
 #       管理员不走环境变量：两个 /setup 页面创建（见第 6、7 步）。
 #
 # [ ] 2. 宿主准备（授权实例指纹读的是宿主标识；一次即可）
+#       ./ops/deploy/deploy.sh 会自动做这一步（--host-binds auto|force|skip）；手工等价命令：
 #       sudo mkdir -p /host/etc /host/sys/class/dmi
 #       sudo ln -sfn /etc/machine-id /host/etc/machine-id
 #       sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
+#       顺序要紧：docker 启动时宿主路径不存在会被建成目录，之后再建符号链接就失败。
 #       跳过也能启动，只是指纹退到 data/ 下的兜底 ID。
 #       注意：已在跑的旧部署升级到这份 compose 后指纹可能变一次，商店侧对实例不匹配
 #       是按已吊销处理（客户端清空本地授权），需要在后台解绑后重新激活；想避免就先
 #       把旧值写进 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID。
 #
-# [ ] 3. 拉起（商店先起：它创建共享网络与公钥卷）
-#       docker compose -f docker-compose.store.yml pull && docker compose -f docker-compose.store.yml up -d
-#       docker compose -f docker-compose.app.yml   pull && docker compose -f docker-compose.app.yml   up -d
+# [ ] 3. 拉起（一条命令；脚本按角色拉镜像、等健康、打印地址）
+#       同机：       ./ops/deploy/deploy.sh
+#       只有商店：   ./ops/deploy/deploy.sh --role store
+#       只有主应用： ./ops/deploy/deploy.sh --role app --license-server https://pay.example.com
+#       钉版本加 --version 0.6.5；只看命令加 --dry-run
 #
 # [ ] 4. 确认健康
 #       docker compose -f docker-compose.store.yml ps
@@ -59,8 +63,8 @@
 #
 # [ ] 9. 升级
 #       不要删 volume
-#       docker compose -f docker-compose.store.yml pull && docker compose -f docker-compose.store.yml up -d
-#       docker compose -f docker-compose.app.yml   pull && docker compose -f docker-compose.app.yml   up -d
+#       先 git pull（若部署目录是检出），再跑与首次相同的那条 deploy.sh；钉版本用 --version
 #
-# 两台服务器分开部署（商店与主应用不同机）时，共享网络 / 公钥卷 / PEM 拷贝 /
-# 公网地址 / 实例指纹这几项需要人工补：见 ops/deploy/SPLIT-DEPLOY.md。
+# 两台服务器分开部署：两侧各跑一次 deploy.sh（--role store / --role app --license-server ...）。
+# 主应用侧的公钥由脚本落盘到 ./keys，不再需要共享卷与手工搬 PEM；
+# 其余人工项（公网地址、实例指纹）见 ops/deploy/SPLIT-DEPLOY.md。

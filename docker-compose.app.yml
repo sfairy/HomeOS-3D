@@ -1,4 +1,8 @@
-# HomeOS 主应用 —— 独立 compose 项目
+# HomeOS 主应用 —— 独立部署（给客户的机器，可单独跑，不需要商店在同一台机器）
+#
+#   ./ops/deploy/deploy.sh --role app --license-server https://pay.example.com
+#
+# 与商店同机部署时叠加 docker-compose.app.shared.yml（deploy.sh --role all 会自动加）。
 
 name: homeos-3d
 
@@ -6,7 +10,8 @@ services:
   homeos-3d:
     image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos-3d:latest}
     container_name: homeos-3d
-    # 固定 hostname：授权实例指纹在缺少机器/主板标识时，会把容器 hostname 编进
+    # 固定 hostname：授权实例指纹在缺少机器/主板标识时会把容器 hostname 编进去，
+    # 换掉它等于换设备。
     hostname: homeos-3d
     restart: unless-stopped
     ports:
@@ -19,18 +24,22 @@ services:
       APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-}
       APP_UPDATE_CHANNEL: docker
       APP_CLIENT_KEYS_DIR: /data/keys
-      # 授权实例指纹的显式覆盖（见 apps/server/license/hardware.py）。留空 = 由本机
       APP_HARDWARE_MACHINE_ID: ${APP_HARDWARE_MACHINE_ID:-}
       APP_HARDWARE_BOARD_ID: ${APP_HARDWARE_BOARD_ID:-}
-      # 默认走「商店创建的共享网络」；商店在别处时在 .env 覆盖成公网地址
-      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
-      # uvicorn 的转发头信任范围。默认只信回环：本服务把 18081 发布到宿主机，任何
+      # 厂商授权服务器的公网地址。留空会退回 http://127.0.0.1:18082（容器内没人监听），
+      # 表现为授权一直连不上，所以独立部署必须填。
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-}
+      # uvicorn 的转发头信任范围。默认只信回环：默认桥接网络下网关地址（172.17.0.1）
+      # 也算远程来源，反代在宿主机上时要显式放宽。
       UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
     volumes:
       - homeos-3d-data:/data
-      - homeos-3d-client-keys:/data/keys:ro
       - homeos-3d-secrets:/run/secrets
-      # 宿主标识：授权实例指纹的来源（见 apps/server/license/hardware.py）。代码里
+      # 授权公钥（Ed25519 验签 + X25519 传输）：deploy.sh 会落盘到 ./keys，
+      # 手工部署时放两个 PEM 进去并 chmod 644 即可。
+      - ./keys:/data/keys:ro
+      # 宿主标识：授权实例指纹的来源（见 apps/server/license/hardware.py）。缺了也能起，
+      # 指纹退到 data/ 下的兜底 ID；deploy.sh --host-binds 会自动建这两个符号链接。
       - type: bind
         source: /host/etc/machine-id
         target: /host/etc/machine-id
@@ -39,8 +48,6 @@ services:
         source: /host/sys/class/dmi/id
         target: /host/sys/class/dmi/id
         read_only: true
-    networks:
-      - homeos-3d-net
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18081/health/ready"]
       interval: 30s
@@ -48,16 +55,6 @@ services:
       retries: 5
       start_period: 60s
 
-networks:
-  # 由商店那份 compose 文件创建；这里只加入，不持有。
-  homeos-3d-net:
-    name: homeos-3d-net
-    external: true
-
 volumes:
   homeos-3d-data:
-  # 由商店那份 compose 文件创建；这里只读挂载，不持有。
-  homeos-3d-client-keys:
-    name: homeos-3d-client-keys
-    external: true
   homeos-3d-secrets:
