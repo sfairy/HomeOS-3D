@@ -488,6 +488,17 @@ import {
   syncPreviewControls,
   updateModelLoadingStatus
 } from "./studio-render-pipeline.js";
+import {
+  assessFrameRateForAdaptive,
+  enableAdaptiveRender,
+  exportDimensions,
+  exportHeightInput,
+  exportPixelRatio,
+  exportPreviewStageElement,
+  exportWidthInput,
+  targetPixelRatio,
+  updateRenderPixelRatio
+} from "./studio-render-quality.js";
 /**
  * 首屏分段埋点（`?debug=1` 或 `?performance-diagnostics=1` 时才输出）。
  */
@@ -662,11 +673,8 @@ const previewFloorUniformControlElement = selectElement("#preview-floor-uniform-
 const previewFloorUniformInput = selectElement("#preview-floor-uniform");
 const exportDialogElement = selectElement("#export-dialog");
 const exportPreviewFrameElement = selectElement("#export-preview-frame");
-const exportPreviewStageElement = selectElement("#export-preview-stage");
 const exportPresetEmptyStateElement = selectElement("#export-preset-empty-state");
 const exportPresetEmptyTitleElement = selectElement("#export-preset-empty-title");
-const exportWidthInput = selectElement("#export-width");
-const exportHeightInput = selectElement("#export-height");
 const exportLockRatioInput = selectElement("#export-lock-ratio");
 const exportAspectLabelElement = selectElement("#export-aspect-label");
 const exportResolutionLabelElement = selectElement("#export-resolution-label");
@@ -6068,44 +6076,6 @@ function currentFocalLength() {
   return clamp(finite(cameraSettingsSource()?.cameraFocalLength, 50), 18, 120);
 }
 /**
- * 打开自适应渲染（切到光照缓存路径）。只有帧率评估确认「确实撑不住」（sufficient）时才允许开启且不重复开启。
- */
-function enableAdaptiveRender(frameAssessment: any) {
-  if (!state.isAdaptiveRenderActive && !!frameAssessment?.sufficient) {
-    state.isAdaptiveRenderActive = true;
-    state.hasAdaptiveRenderProbe = true;
-    state.adaptiveRenderCost = measureLightRenderCost().cost;
-    state.lightCacheRevision += 1;
-    state.needsLightCacheRefresh = true;
-    applyRenderQualityMode();
-  }
-}
-/**
- * 依据最近的帧间隔判断是否该降级到光照缓存。判据是「连续几帧慢」而非单帧：阈值随灯光开销与设备预算之
- */
-function assessFrameRateForAdaptive() {
-  if (state.isAdaptiveRenderActive) {
-    return;
-  }
-  const frameStats = assessAdaptiveRenderFrames(state.recentFrameDurationsMs);
-  if (!frameStats.sufficient) {
-    return;
-  }
-  const lightCacheRenderCost = measureLightRenderCost();
-  const costBudgetRatio = lightCacheRenderCost.cost / Math.max(lightCacheRenderCost.budget, 1);
-  const slowStreakThreshold = costBudgetRatio >= 1.8 ? 3 : costBudgetRatio >= 1 ? 4 : 5;
-  if (frameStats.severe) {
-    state.slowFrameStreak = slowStreakThreshold;
-  } else if (frameStats.slow) {
-    state.slowFrameStreak += 1;
-  } else if (frameStats.smooth) {
-    state.slowFrameStreak = 0;
-  }
-  if (state.slowFrameStreak >= slowStreakThreshold) {
-    enableAdaptiveRender(frameStats);
-  }
-}
-/**
  * 采集一帧的耗时样本（渲染循环每帧结束时调用）。只在「需要被度量的渲染」里采样：相机运动（或舞台播放动画）才关心帧率，
  */
 function sampleFrameInterval(frameTimestampMs = performance.now()) {
@@ -6171,38 +6141,6 @@ function applyFocalLength(targetCamera = state.previewCamera, focalLength = curr
   if (targetCamera?.isPerspectiveCamera) {
     targetCamera.setFocalLength(clamp(finite(focalLength, 50), 18, 120));
   }
-}
-function targetPixelRatio(isMotionRender = false) {
-  if (
-    isStageViewerMode &&
-    isMotionRender &&
-    state.motionRenderScale !== null &&
-    (!state.isMotionRendering || state.isCameraMotionActive)
-  ) {
-    return Math.min(window.devicePixelRatio || 1, 1.6) * state.renderScale * state.motionRenderScale;
-  }
-  if (isRegionLightingEnabled) {
-    const regionPixelRatio = Math.min(window.devicePixelRatio || 1, 1.6) * state.renderScale;
-    if (isMotionRender) {
-      return Math.min(regionPixelRatio, 1);
-    } else {
-      return regionPixelRatio;
-    }
-  }
-  const isStageMotionRender = isStageViewerMode && state.isMotionRendering;
-  let adaptivePixelRatio =
-    Math.min(window.devicePixelRatio || 1, isMotionRender ? 1 : 1.6) *
-    (isStageViewerMode ? state.renderScale : 1);
-  if (isStageViewerMode && (isMotionRender || isStageMotionRender)) {
-    const { cost: motionRenderCost, budget: motionRenderBudget } = measureLightRenderCost();
-    if (motionRenderCost > motionRenderBudget) {
-      adaptivePixelRatio = Math.min(
-        adaptivePixelRatio,
-        clamp(Math.sqrt(motionRenderBudget / motionRenderCost) * 0.85, 0.5, 0.85)
-      );
-    }
-  }
-  return adaptivePixelRatio;
 }
 const LIGHT_FADE_DURATION_MS = 150;
 function fadeLightGroups(groupIds: any, durationMs = LIGHT_FADE_DURATION_MS) {
@@ -6396,26 +6334,6 @@ function endExportRender() {
       schedulePreviewRebuild();
     }
   }, 120);
-}
-/**
- * 把渲染器像素比调整到当前模式（预览 / 导出、运动 / 静止）应使用的值。相机运动期间降采样是
- */
-function updateRenderPixelRatio(
-  shouldUseMotionRatio: any,
-  { preserveLightCache: preserveLightCache = false } = {}
-) {
-  if (!state.renderer || (state.exportRenderState && !isAutoDiagramEmbed)) {
-    return;
-  }
-  const targetRatio = state.exportRenderState
-    ? exportPixelRatio(shouldUseMotionRatio)
-    : targetPixelRatio(shouldUseMotionRatio);
-  if (Math.abs(state.renderer.getPixelRatio() - targetRatio) > 0.000001) {
-    state.renderer.setPixelRatio(targetRatio);
-  }
-  invalidateRender({
-    preserveLightCache: preserveLightCache
-  });
 }
 function startCameraMotion() {
   window.clearTimeout(state.pixelRatioRestoreTimer);
@@ -7333,12 +7251,6 @@ function applyCameraSnapshot(snapshot: any, snapshotAspect = snapshot?.viewportA
     state.orbitControls.update();
   }
 }
-function exportDimensions() {
-  return {
-    width: Math.round(clamp(finite(exportWidthInput.value, DEFAULT_EXPORT_WIDTH), 320, 4096)),
-    height: Math.round(clamp(finite(exportHeightInput.value, DEFAULT_EXPORT_HEIGHT), 320, 4096))
-  };
-}
 /**
  * 刷新导出面板的分辨率与比例文案，并用宽高比驱动预览框形状。宽高比用内联的最大公约数（辗转相除）约分，得到
  */
@@ -7361,22 +7273,6 @@ function syncExportResolutionLabels() {
     "--export-aspect",
     String(exportWidthPx / exportHeightPx)
   );
-}
-function exportPixelRatio(limitRatio = false) {
-  const basePixelRatio = window.devicePixelRatio || 1;
-  if (!isAutoDiagramEmbed || !exportPreviewStageElement) {
-    return basePixelRatio;
-  }
-  const { width: stageExportWidthPx, height: stageExportHeightPx } = exportDimensions();
-  const exportStageWidthPx = Math.max(exportPreviewStageElement.clientWidth, 1);
-  const exportStageHeightPx = Math.max(exportPreviewStageElement.clientHeight, 1);
-  const requiredPixelRatio = Math.max(
-    basePixelRatio,
-    stageExportWidthPx / exportStageWidthPx,
-    stageExportHeightPx / exportStageHeightPx,
-    1.5
-  );
-  return Math.min(requiredPixelRatio, limitRatio ? 2 : 4);
 }
 /**
  * 在导出预览态下把渲染器与相机适配到预览框，使最终产物构图与屏幕预览一致。准入条件缺一不可：已进入导出态、导出任务不在
