@@ -21,6 +21,7 @@ from .contracts import (
     LOGGER,
 )
 from .endpoints import HAEndpoint
+from ..core.ha_url import HAClientError
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
 from ..core.time_utils import utc_now
 from ..observability.global_log import _safe_text
@@ -31,6 +32,12 @@ if TYPE_CHECKING:
     from .state_hub import StateHub
     from ..config import Settings
     from ..core.database import Database
+
+
+#: 同一个失败原因连续出现时，摘要日志的最小续报间隔（秒）。
+#: 刻意大于重连退避上限（60s）：否则退避到达上限后每次重试都会补一行，又变成刷屏。
+#: 这个间隔只决定「还在重试」的心跳频率，不丢失任何信息（原因变化仍会立刻完整重记）。
+CYCLE_FAILURE_RELOG_SECONDS = 300
 
 
 class HALiveMixin:
@@ -44,6 +51,9 @@ class HALiveMixin:
         _connected: bool
         _runtime_error: str | None
         _known_entity_ids: set[tuple[str, str]]
+        _failure_signature: str | None
+        _failure_count: int
+        _failure_logged_at: float
 
         def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None: ...
         def _safe_record_error(self, connection_id: str, message: str) -> None: ...
@@ -77,6 +87,47 @@ class HALiveMixin:
             timeout = HA_ENDPOINT_PROBE_TIMEOUT_SECONDS,
             websocket_max_size_bytes = self.settings.ha_websocket_max_size_bytes,
         ).test_connection()
+
+    def _log_cycle_failure(self, error: BaseException) -> None:
+        """按「同因去重」记一次连接周期失败。
+
+        内网/外网都连不上属于运维态而非代码缺陷，而且往往持续很久。若每轮重试都打一遍
+        完整堆栈，终端会被同一段文字刷屏，真正的新问题反而被埋掉。这里的口径：
+        - 失败原因变化时立刻完整记一次，转折点不会被漏掉；
+        - 同一原因连续失败则静默到 DEBUG，每隔 CYCLE_FAILURE_RELOG_SECONDS 续报一行摘要，
+          保留「仍在重试」的可见性；
+        - 预期内的 HAClientError 不带堆栈（堆栈只是重复调用链，读不出额外信息）；
+          意外异常仍带堆栈，便于定位真实缺陷。
+        """
+        # 压成一行：错误里可能带换行，多行会破坏「一条日志一行」的聚合。
+        reason = _safe_text(' '.join(str(error).split()), limit = 2000)
+        now = time.monotonic()
+        if reason != self._failure_signature:
+            # 原因变了（或本轮首次失败）：完整记一次，转折点不能被去重吞掉。
+            self._failure_signature = reason
+            self._failure_count = 1
+            self._failure_logged_at = now
+            if isinstance(error, HAClientError):
+                LOGGER.error('HA 连接周期失败：%s', reason)
+            else:
+                LOGGER.error(
+                    'HA 连接周期失败（意外异常，附堆栈）：%s\n%s',
+                    reason,
+                    _safe_text(traceback.format_exc(), limit = 12000),
+                )
+            return
+        self._failure_count += 1
+        if now - self._failure_logged_at >= CYCLE_FAILURE_RELOG_SECONDS:
+            self._failure_logged_at = now
+            LOGGER.warning('HA 连接仍失败（已连续 %s 次）：%s', self._failure_count, reason)
+        else:
+            LOGGER.debug('HA 连接仍失败（第 %s 次）：%s', self._failure_count, reason)
+
+    def _reset_failure_streak(self) -> None:
+        """成功一轮后清空失败记账：下次再失败要重新完整记一次。"""
+        self._failure_signature = None
+        self._failure_count = 0
+
     async def _run(self) -> None:
         """连接器主循环：连接 → 全量同步 → 长连收事件 → 断开后重连。
         """
@@ -99,6 +150,7 @@ class HALiveMixin:
                 await self._live_connection(connection_id)
                 # 长连正常结束（对端关闭）也算一次成功周期，重置退避。
                 backoff = 1
+                self._reset_failure_streak()
             except asyncio.CancelledError:
                 # 必须原样抛出：stop() 依赖它来结束这个任务。
                 raise
@@ -111,13 +163,10 @@ class HALiveMixin:
                 transient = established and is_transient_disconnect(error)
                 if transient:
                     self._log_event('warning', '连接', f'Home Assistant 连接已断开，正在重连：{error}')
-                    LOGGER.warning(
-                        'HA connector link dropped, reconnecting: %s',
-                        _safe_text(str(error), limit = 2000),
-                    )
+                    LOGGER.warning('HA 实时链路已断开，正在重连：%s', _safe_text(str(error), limit = 2000))
                 else:
                     self._log_event('error', '连接', f'Home Assistant 连接异常：{error}', details = traceback.format_exc())
-                    LOGGER.error('HA connector cycle failed\n%s', _safe_text(traceback.format_exc(), limit = 12000))
+                    self._log_cycle_failure(error)
                 if connection_id:
                     await self._run_database(self._safe_record_error, connection_id, str(error))
                 await asyncio.sleep(backoff)

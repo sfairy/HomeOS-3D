@@ -116,6 +116,10 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         self._endpoint_probed_at = 0.0
         # 单飞：并发请求同时发现缓存过期时只探一轮，不叠加成 N 轮探测。
         self._endpoint_lock = asyncio.Lock()
+        # 连接周期失败的「同因去重」记账：见 HALiveMixin._log_cycle_failure。
+        self._failure_signature: str | None = None
+        self._failure_count = 0
+        self._failure_logged_at = 0.0
 
     def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None:
         """写一条事件日志；event_log 缺失时静默跳过。"""

@@ -82,6 +82,24 @@ def is_transient_disconnect(error: BaseException) -> bool:
     return False
 
 
+def transport_error_reason(error: BaseException) -> str:
+    """把传输层异常转成可读原因。
+
+    httpx 的超时/连接类异常 ``str()`` 常常是空串，直接拼进日志会变成
+    「无法连接 Home Assistant：」这种断句 —— 看不出是超时还是被拒绝，
+    也就无从判断该去查网络还是查 HA 服务本身。这里给空串补上分类原因。
+    """
+    text = str(error).strip()
+    if text:
+        return text
+    if isinstance(error, httpx.TimeoutException):
+        # 常见于内网地址不可达：探活超时，见 HA_ENDPOINT_PROBE_TIMEOUT_SECONDS。
+        return '连接超时'
+    if isinstance(error, httpx.ConnectError):
+        return '无法建立连接（地址或端口不通）'
+    return type(error).__name__
+
+
 #: 翻译表分批并发时每批的命令数。太大不够礼貌（同时在途几十条命令），太小又会退化回串行。
 TRANSLATION_FETCH_BATCH_SIZE = 8
 
@@ -206,7 +224,7 @@ class HAClient:
                 raise HAClientError('Home Assistant Token 无效或权限不足。') from error
             raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'无法连接 Home Assistant：{error}') from error
+            raise HAClientError(f'无法连接 Home Assistant：{transport_error_reason(error)}') from error
         return {
             'version': str(config.get('version', '')),
             'locationName': str(config.get('location_name', 'Home Assistant')),
@@ -247,7 +265,7 @@ class HAClient:
                             raise HAClientError('Home Assistant Token 无效或权限不足。') from error
                         raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
                     except (httpx.HTTPError, ValueError) as error:
-                        raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{error}') from error
+                        raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{transport_error_reason(error)}') from error
                     # 兜底类型判断：HA 某些错误页返回 JSON 字符串/数组，放进状态表会污染下游，当没取到。
                     return payload if isinstance(payload, dict) else None
 
@@ -548,7 +566,7 @@ class HAClient:
                 f'Home Assistant 服务调用返回 HTTP {error.response.status_code}。'
             ) from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'Home Assistant 服务调用失败：{error}') from error
+            raise HAClientError(f'Home Assistant 服务调用失败：{transport_error_reason(error)}') from error
 
     async def browse_media(
         self,
@@ -591,7 +609,7 @@ class HAClient:
                 f'Home Assistant 历史数据返回 HTTP {error.response.status_code}。'
             ) from error
         except (httpx.HTTPError, ValueError) as error:
-            raise HAClientError(f'无法读取 Home Assistant 历史数据：{error}') from error
+            raise HAClientError(f'无法读取 Home Assistant 历史数据：{transport_error_reason(error)}') from error
         if not isinstance(payload, list) or not payload or not isinstance(payload[0], list):
             return []
         return [item for item in payload[0] if isinstance(item, dict)]
