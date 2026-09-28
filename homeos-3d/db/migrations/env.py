@@ -11,9 +11,8 @@ if str(_BACKEND) not in sys.path:
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-from src.core.database import Base
 from src.core import models  # noqa: F401 - registers the mapped tables
+from src.core.database import BUSY_TIMEOUT_SECONDS, Base
 
 config = context.config
 
@@ -29,11 +28,26 @@ def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        #: 迁移期间可能还有别的进程在读写同一个库文件。没有等待上限时一次锁冲突就直接
+        #: 报 "database is locked"，把一次可自愈的启动变成起不来。
+        connect_args={"timeout": BUSY_TIMEOUT_SECONDS},
     )
     with connectable.connect() as connection:
+        #: **显式关掉外键强制**，这是迁移连接与运行期连接的关键差别：迁移里会用
+        #: ``batch_alter_table`` 重建表（CREATE 新表 → 拷数据 → DROP 旧表 → RENAME），
+        #: 开着外键时 DROP 会按 CASCADE 连带删掉子表数据 —— 那是不可逆的数据损失。
+        connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+        #: **这一行是承重的。** SQLite 的 ``transactional_ddl`` 是 False，于是
+        #: ``begin_transaction()`` 返回的是 ``nullcontext()`` —— 那个 with 块什么都没管。
+        #: ``upgrade`` 之所以能落库，是因为它逐条迁移时走的是
+        #: ``begin_transaction(_per_migration=True)``（那条路径会真的开事务并提交）；
+        #: 而 ``stamp`` 不经过那条路径，它写 alembic_version 用的是连接的隐式事务，
+        #: 出了 ``with connection`` 就被回滚 —— 表现为「stamp 报成功、库里版本表却是空的」。
+        #: 本仓库目前只在启动时 ``upgrade``，所以还没踩到；显式提交一次把两条路径拉平。
+        connection.commit()
 
 
 # 只支持在线模式。alembic 的离线模式（``--sql``：不连库、只打印 SQL）在这里没有调用方：

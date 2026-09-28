@@ -1,5 +1,6 @@
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
 revision = '0001'
 down_revision = None
 branch_labels = None
@@ -261,7 +262,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_display_devices_revoked_at'), 'display_devices', ['revoked_at'], unique=False)
     op.create_index(op.f('ix_display_devices_token_hash'), 'display_devices', ['token_hash'], unique=True)
     # ### end Alembic commands ###
-    return None
 
 
 def downgrade() -> None:
@@ -316,4 +316,3 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_ha_connections_is_active'), table_name='ha_connections')
     op.drop_table('ha_connections')
     # ### end Alembic commands ###
-    return None
