@@ -2,11 +2,10 @@
 """
 import itertools
 import re
-from typing import Callable, NoReturn
-
+from collections.abc import Callable
+from typing import NoReturn
 
 from .purifier import EXTRA_TYPES
-
 
 
 def _validate_cameras(fail: Callable[[], NoReturn], number, security, text, validate_camera):
@@ -44,7 +43,7 @@ def _validate_cameras(fail: Callable[[], NoReturn], number, security, text, vali
         if item['floorId'] == 'all':
             fail()
         # 只接受 camera.* 域的实体：别的域放进来会渲染出取不到流的状态。
-        if not isinstance(item.get('entityId', ''), str) or item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId']):
+        if not isinstance(item.get('entityId', ''), str) or (item.get('entityId') and not re.fullmatch('camera\\.[a-z0-9_]+', item['entityId'])):
             fail()
         if not text(item.get('label', '')) or not text(item.get('icon', '')):
             fail()
@@ -112,7 +111,7 @@ def _validate_presence(fail: Callable[[], NoReturn], key, number, security, text
                 fail()
             presence_models.add(model_key)
         # 允许空串：人形可以先把位置摆好，实体稍后再绑；
-        if not isinstance(person.get('entityId'), str) or person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId']):
+        if not isinstance(person.get('entityId'), str) or (person['entityId'] and not re.fullmatch('[a-z_]+\\.[a-z0-9_]{1,200}', person['entityId'])):
             fail()
         if person.get('character', 'traveler') not in ('traveler', 'bean', 'glow') or person.get('color', 'cyan') not in ('cyan', 'orange'):
             fail()
@@ -126,7 +125,7 @@ def _validate_presence(fail: Callable[[], NoReturn], key, number, security, text
         if 'triggerThreshold' in person and not number(person['triggerThreshold'], -1000000, 1000000):
             fail()
         # 事件类触发（equals / change，或 auto 且实体属于 event 域）才需要停留时长；
-        event_sensor = trigger_mode in ('equals', 'change') or trigger_mode == 'auto' and person['entityId'].startswith('event.')
+        event_sensor = trigger_mode in ('equals', 'change') or (trigger_mode == 'auto' and person['entityId'].startswith('event.'))
         if not number(person.get('displayDuration', 30 if event_sensor else 0), 1 if event_sensor else 0, 3600):
             fail()
         # 展示页范围：'all' 表示全部页面；给列表时要求 1~6 个、都在已知页面集合内且不重复。
@@ -513,7 +512,7 @@ def _validate_environment(fail: Callable[[], NoReturn], high, low, number, posit
         # 两路实体都允许先留空（先把卡片摆好，实体稍后再绑）；一旦填了就必须是 sensor.* 域，
         for key in ('temperatureEntityId', 'humidityEntityId'):
             entity = item.get(key, '')
-            if not isinstance(entity, str) or entity and not re.fullmatch('sensor\\.[a-z0-9_]+', entity):
+            if not isinstance(entity, str) or (entity and not re.fullmatch('sensor\\.[a-z0-9_]+', entity)):
                 fail()
         if any(key in item and not number(item[key], low, high) for key, low, high in (('x', -1000000, 1000000), ('y', -1000000, 1000000))):
             fail()

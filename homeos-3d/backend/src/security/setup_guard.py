@@ -168,11 +168,11 @@ class SetupGuard:
         """
         try:
             if not self.path.is_file():
-                return None
+                return
             on_disk = read_token_file(self.path.read_text(encoding='utf-8'))
             if not self._is_ours(on_disk):
                 self.warn_durable('检测到预置的引导密钥文件（不是本服务生成的），已保留')
-                return None
+                return
             self.path.unlink()
             # 标记跟着一起走：留着它只会让下一个人对着一个来历不明的文件猜。
             self.marker_path.unlink(missing_ok=True)
@@ -226,7 +226,7 @@ class SetupGuard:
             return
         try:
             self._event_log.append(level, '系统后台', '账号', message, context=context or {})
-        except Exception:  # noqa: BLE001 - 审计失败不该改变接口结论
+        except Exception:
             pass
 
     def warn_durable(self, message: str) -> None:

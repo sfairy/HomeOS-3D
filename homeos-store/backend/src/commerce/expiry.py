@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 

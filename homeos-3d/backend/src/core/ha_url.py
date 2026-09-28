@@ -9,7 +9,6 @@ from urllib.parse import urlparse, urlunparse
 class HAClientError(RuntimeError):
     """与 Home Assistant 交互失败（地址非法、鉴权失败、网络异常、返回超限等）。
     """
-    pass
 
 
 #: 云元数据端点：SSRF 里最经典的目标，任何情况下都不该被当成 HA 地址。

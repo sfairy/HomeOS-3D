@@ -42,10 +42,9 @@ def cache_lock(root: Path, *, shared: bool = False):
     """
     root.mkdir(parents=True, exist_ok=True)
     # 锁文件常驻且用 'a+b'（不截断）：它只作为加锁句柄，不存内容。
-    with (root / '.lock').open('a+b') as lock:
-        with file_lock(lock, shared=shared):
-            # 异常路径也要解锁：file_lock 的 finally 会负责释放。
-            yield
+    with (root / '.lock').open('a+b') as lock, file_lock(lock, shared=shared):
+        # 异常路径也要解锁：file_lock 的 finally 会负责释放。
+        yield
 
 
 def read_cache(path: Path) -> bytes | None:

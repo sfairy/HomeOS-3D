@@ -18,15 +18,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..core.database import Base
-from ..security.security import utcnow
-
 from .models_engagement import (
+    DEFAULT_SUPPORT_EMAIL,
     AccountSession,
     AuditLog,
     Coupon,
     CouponRedemption,
-    DEFAULT_SUPPORT_EMAIL,
     DeviceReleaseEvent,
     EmailVerification,
     LicenseSession,
@@ -40,9 +37,8 @@ from .models_engagement import (
     StoreSetting,
     _id,
 )
-
-
-
+from ..core.database import Base
+from ..security.security import utcnow
 
 
 # 账号
@@ -64,7 +60,7 @@ class Account(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
-    customer: Mapped["Customer | None"] = relationship(
+    customer: Mapped[Customer | None] = relationship(
         back_populates="account", uselist=False, cascade="all, delete-orphan"
     )
 
@@ -118,7 +114,7 @@ class Product(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
-    images: Mapped[list["ProductImage"]] = relationship(
+    images: Mapped[list[ProductImage]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
 
@@ -230,7 +226,7 @@ class Order(Base):
     stock_reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     #: Order 与 License 互相持有外键，必须显式指定 join 条件并用 post_update 打破写入循环
-    license: Mapped["License | None"] = relationship(
+    license: Mapped[License | None] = relationship(
         "License", foreign_keys=[license_id], post_update=True
     )
 
@@ -275,10 +271,10 @@ class License(Base):
         Index("ix_licenses_product_active", "product_id", "active"),
     )
 
-    binding: Mapped["DeviceBinding | None"] = relationship(
+    binding: Mapped[DeviceBinding | None] = relationship(
         back_populates="license", uselist=False, cascade="all, delete-orphan"
     )
-    entitlements: Mapped[list["Entitlement"]] = relationship(
+    entitlements: Mapped[list[Entitlement]] = relationship(
         back_populates="license", cascade="all, delete-orphan"
     )
 
@@ -373,13 +369,13 @@ class DeviceBinding(Base):
     )
 
 __all__ = [
+    'DEFAULT_SUPPORT_EMAIL',
     'Account',
     'AccountSession',
     'AuditLog',
     'Coupon',
     'CouponRedemption',
     'Customer',
-    'DEFAULT_SUPPORT_EMAIL',
     'DeviceBinding',
     'DeviceReleaseEvent',
     'EmailVerification',

@@ -23,8 +23,10 @@ from sqlalchemy import select, update
 
 from ..commerce import delivery, fulfill
 from ..core.models import Order, Product
-from ..ops import incidents, site_settings as site_config
-from ..payments import normalize_provider_name, wechat as wechat_module
+from ..ops import incidents
+from ..ops import site_settings as site_config
+from ..payments import normalize_provider_name
+from ..payments import wechat as wechat_module
 from ..payments.base import PaymentError
 from ..payments.settlement import settle_paid_order
 from ..security.security import utcnow

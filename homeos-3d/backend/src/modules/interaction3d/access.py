@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 
-from ...license.crypto import LicenseCryptoError
 from .config import validate_config
+from ...license.crypto import LicenseCryptoError
 
 # 本增量包自己的能力码；与编辑器的 'editor' 一起构成双重门禁。
 FEATURE = 'module.3d_interaction'
@@ -32,7 +32,6 @@ def require_access(request: Request, *, database=None) -> None:
             'code': 'INTERACTION3D_RESTRICTED',
             'message': '当前授权未开通 3D 交互功能增量包，或该权益已失效。',
         })
-    return None
 
 
 def access_grant(request: Request) -> dict:
@@ -87,7 +86,6 @@ def validate_module_component(component: dict) -> None:
     if component.get('bindings') or component.get('actions') or component.get('children'):
         raise HTTPException(422, detail='当前版本的 3D 交互控件不支持此设备绑定、交互动作或子控件配置。')
     validate_config(component.get('properties', {}))
-    return None
 
 
 def require_document_changes(request: Request, document: dict, previous: dict | None = None, *, database=None) -> None:
@@ -95,12 +93,12 @@ def require_document_changes(request: Request, document: dict, previous: dict | 
     """
     incoming = list(module_components(document))
     if not incoming:
-        return None
+        return
     if allowed(request, database=database):
         # 有授权：逐个控件校验配置合法性，不比较差异（怎么改都行）。
         for _, component in incoming:
             validate_module_component(component)
-        return None
+        return
     # 未授权：先按旧文档建立「路径 → 受保护配置」索引，再逐控件比对。
     old = dict(module_components(previous or {}))
     for path, component in incoming:
@@ -113,7 +111,7 @@ def require_document_changes(request: Request, document: dict, previous: dict | 
         prior = old_pages.get(page.get('id'), {})
         if (set(page.get('sharedComponentIds', [])) & ids) - set(prior.get('sharedComponentIds', [])):
             require_access(request, database=database)
-    return None
+    return
 
 
 def protected_config(component):

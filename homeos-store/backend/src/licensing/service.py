@@ -9,13 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from ..ops import site_settings as site_config
 from ..config import StoreSettings
-from ..licensing.crypto import (
-    KeyGeneration,
-    KeyRegistry,
-    LicenseServerError,
-)
 from ..core.models import (
     Customer,
     DeviceBinding,
@@ -27,13 +21,19 @@ from ..core.models import (
     RecoveryToken,
     utcnow,
 )
+from ..core.serializers import json_list
+from ..licensing.crypto import (
+    KeyGeneration,
+    KeyRegistry,
+    LicenseServerError,
+)
+from ..ops import site_settings as site_config
 from ..security.security import (
     iso_z,
     new_token,
     new_uuid,
     token_hash,
 )
-from ..core.serializers import json_list
 
 logger = logging.getLogger("src.license")
 

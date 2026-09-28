@@ -7,10 +7,6 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
-from ..security.access import admin_token_from, check_admin_session
-from ..security.admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
-from ..security.dependencies import CurrentUser, DatabaseSession, require_admin
-from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..core.models import LoginSession, User
 from ..core.schemas import (
     LoginRequest,
@@ -20,6 +16,11 @@ from ..core.schemas import (
     SetupStatusResponse,
     UserResponse,
 )
+from ..core.time_utils import ensure_aware
+from ..security.access import admin_token_from, check_admin_session
+from ..security.admin_account import EXTERNAL_PASSWORD_SENTINEL, AdminAccountConflict
+from ..security.dependencies import CurrentUser, DatabaseSession, require_admin
+from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..security.security import (
     hash_password,
     new_session_token,
@@ -27,7 +28,6 @@ from ..security.security import (
     session_token_hash,
     verify_password,
 )
-from ..core.time_utils import ensure_aware
 
 # 整组路由不带 prefix：路径里的 /setup/* 与 /auth/* 是与前端约定死的，别改。
 router = APIRouter(tags=["authentication"])
@@ -418,7 +418,7 @@ def revoke_session(
         )
     )
     if record is None:
-        return None
+        return
     database.delete(record)
     database.commit()
     if session_id == _current_session_hash(request):

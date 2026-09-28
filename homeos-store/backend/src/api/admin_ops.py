@@ -38,7 +38,6 @@ from .admin_shared import (
     _resolve_by_hash_hint,
 )
 
-
 router = APIRouter()
 
 

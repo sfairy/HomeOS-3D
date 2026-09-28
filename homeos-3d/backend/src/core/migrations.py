@@ -11,8 +11,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from ..config import Settings
 from .file_lock import locked_file
+from ..config import Settings
 
 #: 迁移锁文件名（与库文件同目录）。内核在进程结束时自动释放，因此进程被 kill 之后
 MIGRATION_LOCK_SUFFIX = '.migrate.lock'
@@ -131,4 +131,3 @@ def run_migrations(settings: Settings) -> None:
             # 剪枝排在新快照**写成功之后**：顺序反了会在「新快照写不出来」的那次启动里
             prune_database_backups(database_path)
         command.upgrade(config, 'head')
-    return None

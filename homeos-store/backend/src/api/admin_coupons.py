@@ -17,13 +17,13 @@ from ..core.schemas import (
     AdminCouponPatch,
     AdminCouponRequest,
 )
-from ..security.security import (
-    iso,
-    utcnow,
-)  # noqa: F401
 from ..core.serializers import (
     json_list,
     list_json,
+)
+from ..security.security import (
+    iso,
+    utcnow,
 )
 
 logger = logging.getLogger("src.admin")
@@ -37,7 +37,6 @@ from .admin_shared import (
     _naive_utc,
     _page_bounds,
 )
-
 
 router = APIRouter()
 

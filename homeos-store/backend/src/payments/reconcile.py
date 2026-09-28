@@ -13,8 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..commerce import fulfill
-from ..config import StoreSettings
 from ..commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
+from ..config import StoreSettings
 from ..core.models import Order, Product, StoreSetting, utcnow
 from ..payments import PROVIDER_NAMES, normalize_provider_name, resolve_provider
 from ..payments.base import PaymentError

@@ -10,9 +10,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 
+from ..api import page_shell
 from ..core.deps import DbSession
 from ..core.models import Account, ProductImage
-from ..api import page_shell
 from ..security.request_security import render_template
 
 logger = logging.getLogger("src.pages")
@@ -48,7 +48,7 @@ def _render_store_page(request: Request, session: DbSession) -> HTMLResponse:
 def _home(request: Request, session: DbSession) -> Response:
     # 首次部署无管理员时，首页跳 /admin，再由 /admin 跳 /setup。
     admin_count = session.scalar(
-        select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712
+        select(func.count()).select_from(Account).where(Account.is_admin == True)
     )
     if (admin_count or 0) == 0:
         return RedirectResponse(url="/admin", status_code=302)
@@ -78,7 +78,7 @@ router.add_api_route("/user/referrals", _home, methods=["GET"], include_in_schem
 def admin_page(request: Request, session: DbSession) -> Response:
     # 无管理员时跳初始化页：部署者直接访问 /admin 不会看到一个用不了的登录表单。
     admin_count = session.scalar(
-        select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712
+        select(func.count()).select_from(Account).where(Account.is_admin == True)
     )
     if (admin_count or 0) == 0:
         return RedirectResponse(url="/setup", status_code=302)

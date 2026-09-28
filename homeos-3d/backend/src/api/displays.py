@@ -12,17 +12,17 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..core.conflicts import is_unique_violation
-from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
-from ..security.display_access import display_path, display_token_expired, display_token_expires_at
-from ..security.http_security import resolve_client_ip, secure_cookies_enabled
-from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..core.models import DisplayDevice, DisplayPairingCode, Project
 from ..core.schemas import (
     DisplayDeviceUpdateRequest,
-    DisplayPairRequest,
     DisplayPairingCodeRequest,
     DisplayPairingCodeUpdateRequest,
+    DisplayPairRequest,
 )
+from ..ha.crypto import CredentialCipher, CredentialCipherError
+from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
+from ..security.display_access import display_path, display_token_expired, display_token_expires_at
+from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..security.security import new_session_token, session_token_hash, set_display_cookie
 
 router = APIRouter(prefix='/displays', tags=['displays'])
@@ -331,7 +331,6 @@ def delete_pairing_code(pairing_id: str, database: DatabaseSession, user: Licens
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
     database.delete(pairing)
     database.commit()
-    return None
 
 
 @router.post('/pair', status_code=status.HTTP_201_CREATED)
@@ -497,4 +496,3 @@ def revoke_display_device(device_id: str, database: DatabaseSession, user: Licen
     # 软删除：依赖层只认未吊销的设备，写入时间戳即可让令牌立即失效。
     device.revoked_at = datetime.now(timezone.utc)
     database.commit()
-    return None

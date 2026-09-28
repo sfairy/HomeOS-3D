@@ -11,21 +11,19 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from ..commerce import fulfill, money, referrals
-from ..ops import features, incidents, site_settings as site_config
-from ..core.deps import AdminAccount, DbSession, SettingsDep
 from ..commerce.expiry import expire_stale_orders
-from ..commerce.order_status import (
-    ORDER_ATTENTION_STATUSES,
-    ORDER_STATUS_LABELS,
-    ORDER_STATUS_CHOICES,
-)
 from ..commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
 from ..commerce.order_status import (
+    ORDER_ATTENTION_STATUSES,
+    ORDER_STATUS_CHOICES,
+    ORDER_STATUS_LABELS,
+)
+from ..commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from ..payments.sweeper import sweep_status
+from ..core.deps import AdminAccount, DbSession, SettingsDep
 from ..core.models import (
     Account,
     DeviceBinding,
@@ -40,30 +38,35 @@ from ..core.schemas import (
     AdminLicensePatch,
     AdminWalletAdjustRequest,
 )
+from ..ops import features, incidents
+from ..ops import site_settings as site_config
+from ..payments.sweeper import sweep_status
 from ..security.security import (
     iso_z,
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
 
 # 共享助手在 admin_shared.py；这里再导入一次，
-from . import admin_coupons
-from . import admin_accounts
-from . import admin_licenses
-from . import admin_entitlements
-from . import admin_ops
-from . import admin_compliance
-from . import admin_withdrawals
-from . import admin_bindings
-from . import admin_orders
-from . import admin_products
-from . import admin_settings
+from . import (
+    admin_accounts,
+    admin_bindings,
+    admin_compliance,
+    admin_coupons,
+    admin_entitlements,
+    admin_licenses,
+    admin_ops,
+    admin_orders,
+    admin_products,
+    admin_settings,
+    admin_withdrawals,
+)
 from .admin_shared import (
+    _OVERVIEW_WINDOWS,
     OVERVIEW_EXPIRING_DAYS,
     PAID_MONEY_STATUSES,
-    _OVERVIEW_WINDOWS,
     _admin_actor,
     _audit,
     _billable_money_clause,

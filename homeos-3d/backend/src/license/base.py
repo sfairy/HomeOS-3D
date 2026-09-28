@@ -23,17 +23,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    import httpx
     from contextlib import AbstractAsyncContextManager
+
+    import httpx
     from sqlalchemy.orm import Session
 
+    from .crypto import LeaseVerifier, LicenseTransportCipher, SecretCipher
+    from .endpoints import LicenseEndpointPool
+    from .process_lock import LicenseProcessLock
     from ..config import Settings
     from ..core.database import Database
     from ..core.models import LicenseState
     from ..observability.global_log import GlobalLogStore
-    from .crypto import LeaseVerifier, LicenseTransportCipher, SecretCipher
-    from .endpoints import LicenseEndpointPool
-    from .process_lock import LicenseProcessLock
 
 
 class LicenseServiceBase(Protocol):

@@ -8,8 +8,10 @@ import re
 NOISY_ACCESS_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         re.compile(r'"[A-Z]+ /sm/'),
-        '浏览器侧第三方脚本按内容哈希取 source map（/sm/<sha256>.map）；'
-        '本项目没有 /sm/ 路由，对它的响应是一条未知路径 404',
+        (
+            '浏览器侧第三方脚本按内容哈希取 source map（/sm/<sha256>.map）；'
+            '本项目没有 /sm/ 路由，对它的响应是一条未知路径 404'
+        ),
     ),
 )
 
@@ -29,7 +31,7 @@ class AccessLogNoiseFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             message = record.getMessage()
-        except Exception:  # noqa: BLE001 - 日志参数畸形不该让整条日志丢失
+        except Exception:
             return True
         for pattern, reason in self._patterns:
             if not pattern.search(message):

@@ -135,9 +135,9 @@ def display_name_for(
 
 __all__ = [
     "CHANNEL_LABELS",
+    "PROVIDER_NAMES",
     "RETIRED_DISPLAY_NAMES",
     "SPECIAL_PROVIDER_LABELS",
-    "PROVIDER_NAMES",
     "channel_label",
     "default_channel_name",
     "display_name_for",

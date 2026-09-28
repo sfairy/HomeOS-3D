@@ -29,7 +29,6 @@ class Base(DeclarativeBase):
     """所有 ORM 模型的声明基类。
     """
 
-    pass
 
 
 class Database:

@@ -16,8 +16,8 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Request, Response
 
-from ..security.dependencies import CurrentUser
 from ..http.http_cache import NO_STORE
+from ..security.dependencies import CurrentUser
 
 router = APIRouter()
 RELEASE_ENDPOINTS = (
@@ -146,32 +146,31 @@ class UpdateChecker:
     async def check_once(self) -> bool:
         """尝试所有端点，任一成功即写缓存并返回 True。
         """
-        async with self.lock:
-            async with httpx.AsyncClient(
-                timeout=5, transport=self.transport, follow_redirects=False
-            ) as client:
-                for endpoint in self.endpoints:
-                    # 这一轮取发布信息失败（网络异常 / 结构不符）：跳过，等下一个检查周期。
-                    try:
-                        async with client.stream(
-                            "GET",
-                            endpoint,
-                            params={"channel": self.channel},
-                            headers={"Accept": "application/json"},
-                        ) as response:
-                            response.raise_for_status()
-                            # 用流式读取并逐块累计长度：不等整包落地就能
-                            body = bytearray()
-                            async for chunk in response.aiter_bytes():
-                                body.extend(chunk)
-                                if len(body) > MAX_RESPONSE_BYTES:
-                                    raise ValueError("Release response too large")
-                        release = release_value(json.loads(body), self.channel)
-                    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
-                        continue
-                    self.release, self.checked_at = release, self.clock()
-                    self._save_cache()
-                    return True
+        async with self.lock, httpx.AsyncClient(
+            timeout=5, transport=self.transport, follow_redirects=False
+        ) as client:
+            for endpoint in self.endpoints:
+                # 这一轮取发布信息失败（网络异常 / 结构不符）：跳过，等下一个检查周期。
+                try:
+                    async with client.stream(
+                        "GET",
+                        endpoint,
+                        params={"channel": self.channel},
+                        headers={"Accept": "application/json"},
+                    ) as response:
+                        response.raise_for_status()
+                        # 用流式读取并逐块累计长度：不等整包落地就能
+                        body = bytearray()
+                        async for chunk in response.aiter_bytes():
+                            body.extend(chunk)
+                            if len(body) > MAX_RESPONSE_BYTES:
+                                raise ValueError("Release response too large")
+                    release = release_value(json.loads(body), self.channel)
+                except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+                    continue
+                self.release, self.checked_at = release, self.clock()
+                self._save_cache()
+                return True
         return False
 
     def _save_cache(self):

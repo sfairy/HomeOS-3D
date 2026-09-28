@@ -40,7 +40,6 @@ def document_keyed_values(
         elif isinstance(item, list):
             for child in item:
                 walk(child)
-        return None
 
     walk(value)
     return found
@@ -97,7 +96,6 @@ def document_entity_ids(value: Any) -> set[str]:
         elif isinstance(item, list):
             for child in item:
                 walk_for_implicit_sun(child)
-        return None
 
     walk_for_implicit_sun(value)
     return result

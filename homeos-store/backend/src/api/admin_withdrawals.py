@@ -18,7 +18,7 @@ from ..core.schemas import (
 )
 from ..security.security import (
     iso_z,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
@@ -30,7 +30,6 @@ from .admin_shared import (
     _count_rows,
     _page_bounds,
 )
-
 
 router = APIRouter()
 

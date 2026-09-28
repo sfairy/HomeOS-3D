@@ -10,15 +10,14 @@ from fastapi import HTTPException, Request
 from pydantic import Field
 from sqlalchemy import select
 
-from ...core.canonical_json import canonical_json_bytes
-from ...security.dependencies import require_viewer_project
-from ...core.models import HAEntity, ProjectDraft
-from ...panel.documents import parse_document
-from ...core.schemas import HAServiceCallRequest
 from .access import module_components, require_access
 from .device import DEVICE_PROFILES
 from .scene_store import scenes_dir
-
+from ...core.canonical_json import canonical_json_bytes
+from ...core.models import HAEntity, ProjectDraft
+from ...core.schemas import HAServiceCallRequest
+from ...panel.documents import parse_document
+from ...security.dependencies import require_viewer_project
 
 #: 舞台页的 ``<body>`` 开标签。匹配整枚标签而不是写死 ``'<body>'``：舞台页与工作室
 _BODY_TAG_PATTERN = re.compile(r'<body(?P<attributes>[^>]*)>', re.IGNORECASE)
@@ -82,7 +81,7 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
     require_access(request)
     # 管理员不受项目限制，也不校验引用关系：后台需要能预览任意快照。
     if viewer.is_admin_session:
-        return None
+        return
     require_viewer_project(viewer, project_id)
     # 关键一步：快照文件躺在共享目录里，必须确认当前项目的文档确实引用了它，
     draft = database.get(ProjectDraft, project_id)
@@ -93,14 +92,13 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
         for _, c in module_components(document or {})
     ):
         raise HTTPException(403, detail='此户型未配置到当前仪表盘。')
-    return None
+    return
 def require_scene_transfer(request, viewer, scene_id, project_id):
     """require_scene_viewer 的「自建会话」版本，供同步路由直接调用。
     """
     database = request.app.state.database.session_factory()
     with database:
         require_scene_viewer(request, database, viewer, scene_id, project_id)
-    return None
 def control_component(database, project_id: str, component_id: str) -> dict:
     """取出某个 3D 交互控件的配置块（电视 / 空调窗帘 / 灯光开关三个分支共用）。
     """

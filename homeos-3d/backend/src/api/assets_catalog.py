@@ -1,8 +1,9 @@
 """素材目录的进程内缓存与扫描：AssetCatalog、孤儿素材清扫、3D 工作室导出索引。
 """
 from __future__ import annotations
-import json
+
 import hashlib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -10,19 +11,19 @@ from threading import RLock
 from time import time
 from urllib.parse import quote
 from uuid import uuid4
+
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
-from ..core.canonical_json import canonical_json
-from ..panel.documents import parse_document
-from ..panel.entity_refs import document_mentioned_values, document_mentions
-from ..core.models import ProjectDraft
-from ..panel.global_popups import global_popups
 
 from .assets_uploads import (
     SUPPORTED_IMAGE_SUFFIXES,
     UPLOAD_IMAGE_SUFFIXES,
 )
-
+from ..core.canonical_json import canonical_json
+from ..core.models import ProjectDraft
+from ..panel.documents import parse_document
+from ..panel.entity_refs import document_mentioned_values, document_mentions
+from ..panel.global_popups import global_popups
 
 # 用户素材目录的**总量**上限：单文件上限挡不住「一直传」，而盘满之后先坏的是数据库与日志。
 MAX_USER_ASSET_TOTAL_BYTES = 1000 * 1000 * 1000
@@ -68,7 +69,7 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
 def effect_variant_cache_key(full_asset_id: str, version: str) -> str:
     """变体缓存的键：素材 ID 与版本号的哈希。
     """
-    return hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
+    return hashlib.sha256(f'{full_asset_id}\x00{version}'.encode()).hexdigest()
 def directory_bytes(directory: Path) -> int:
     """递归统计目录占用的字节数；读不到的条目按 0 计。
     """
@@ -315,20 +316,20 @@ class AssetCatalog:
         try:
             generated = effect_variant_payload(path, str(payload['assetId']), str(payload['version']), self.effect_variants_root)
             if generated is None:
-                return None
+                return
             (metadata, variant_path) = generated
             payload['effectVariant'] = metadata
             self._effect_variant_paths[str(payload['assetId'])] = variant_path
         # 生成变体失败（IO 错误等）不影响主流程：少一个可选字段而已。
         except OSError:
-            return None
+            return
 
     def _load_builtin(self) -> None:
         """懒加载内置素材目录，建立 assetId → 条目与相对路径 → 文件路径两张索引。"""
         with self.mutation_lock:
             # 双检：多线程同时首次访问时，后到的直接返回。
             if self._builtin_loaded:
-                return None
+                return
             for path in self.built_in_root.rglob('*'):
                 if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
                     continue
@@ -361,7 +362,7 @@ class AssetCatalog:
         """
         with self.mutation_lock:
             if self._user_loaded:
-                return None
+                return
             for directory in self.user_root.iterdir():
                 path = user_asset_file(self.user_root, directory.name)
                 if path is None:

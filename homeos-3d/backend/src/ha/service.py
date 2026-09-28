@@ -1,6 +1,7 @@
 """Home Assistant 连接器服务：同步、实时事件与状态分发的主循环。
 """
 from __future__ import annotations
+
 import asyncio
 import json
 import time
@@ -9,19 +10,22 @@ from collections import Counter
 from collections.abc import Callable
 from contextvars import copy_context
 from typing import Any
+
 from sqlalchemy import func, select
-from ..config import Settings
-from ..core.database import Database
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft
-from ..core.time_utils import utc_now
-from ..panel.global_popups import global_popups
-from ..observability.global_log import GlobalLogStore, _safe_text, event_context
-from ..panel.documents import parse_document
-from ..panel.entity_refs import document_entity_ids
+
 from .client import HAClient, HAClientError
 from .crypto import CredentialCipher
 from .endpoints import HAEndpoint, connection_endpoints, endpoint_signature
 from .state_hub import StateHub
+from ..config import Settings
+from ..core.database import Database
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft
+from ..core.time_utils import utc_now
+from ..observability.global_log import GlobalLogStore, _safe_text, event_context
+from ..panel.documents import parse_document
+from ..panel.entity_refs import document_entity_ids
+from ..panel.global_popups import global_popups
+
 # 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
 HA_ENDPOINT_RECHECK_SECONDS = 60
 # 补拉状态的重试退避（秒）：共尝试 3 次（首次 + 两次重试），
@@ -55,8 +59,9 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
 from .contracts import (
     LOGGER,
 )
-from .registry import HARegistryMixin
 from .live import HALiveMixin
+from .registry import HARegistryMixin
+
 
 class HAConnectorService(HARegistryMixin, HALiveMixin):
     """HA 连接器的生命周期与同步逻辑。

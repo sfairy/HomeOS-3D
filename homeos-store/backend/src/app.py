@@ -12,16 +12,16 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from .ops import incidents
 from .api import admin as admin_api
 from .api import alipay as alipay_api
-from .api import wechat as wechat_api
 from .api import appearance as appearance_api
 from .api import license as license_api
 from .api import pages as pages_api
 from .api import setup as setup_api
 from .api import store as store_api
+from .api import wechat as wechat_api
 from .config import PROJECT_ROOT, StoreSettings, load_settings
+from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.database import Database
 from .licensing import keys
 from .licensing.crypto import (
@@ -31,6 +31,10 @@ from .licensing.crypto import (
     TransportCipher,
 )
 from .licensing.service import LicenseAuthority
+from .ops import incidents
+from .ops.appearance import AppearanceStore
+from .ops.release_info import CURRENT_VERSION, ensure_current_release
+from .ops.site_settings import get_setting
 from .payments import resolve_provider
 from .payments.sweeper import (
     configure_sweep_loop,
@@ -38,9 +42,6 @@ from .payments.sweeper import (
     sweep_round,
     sweep_status,
 )
-from .core.bootstrap import ensure_default_products, ensure_default_settings
-from .ops.appearance import AppearanceStore
-from .ops.release_info import CURRENT_VERSION, ensure_current_release
 from .security.access_log import install_access_log_noise_filter
 from .security.body_guard import RequestBodyGuard
 from .security.compression import SelectiveGZipMiddleware
@@ -55,7 +56,6 @@ from .security.request_security import (
 )
 from .security.schema_guard import ensure_schema
 from .security.setup_guard import SetupGuard, announce_setup_window
-from .ops.site_settings import get_setting
 
 logger = logging.getLogger("src")
 
@@ -205,7 +205,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 delay = interval
                 try:
                     await asyncio.to_thread(sweep_round, database, settings, generation)
-                except Exception:  # noqa: BLE001 - 单轮异常不能让巡检整体退出
+                except Exception:
                     logger.exception("支付巡检本轮失败，将在 %d 秒后重试", interval)
         finally:
             mark_sweep_loop_stopped(generation)
@@ -268,9 +268,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         #: 也没有 Referer（若有代理补了一个，反而会被这道闸门拒掉）。
         #: 安全性由各渠道自己的验签负责 —— 那才是回调的信任根。
         callback_paths = frozenset({alipay_api.NOTIFY_PATH, wechat_api.NOTIFY_PATH})
-        guarded = (
-            path.startswith("/store/v1/") or path.startswith("/store-admin/v1/")
-        ) and path not in callback_paths
+        guarded = path.startswith(("/store/v1/", "/store-admin/v1/")) and path not in callback_paths
         if (
             guarded
             and request.method not in {"GET", "HEAD", "OPTIONS"}

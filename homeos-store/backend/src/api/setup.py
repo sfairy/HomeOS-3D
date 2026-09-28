@@ -41,7 +41,7 @@ def admin_exists(session) -> bool:
     """库里是否已有管理员。"""
     return (
         session.scalar(
-            select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712
+            select(func.count()).select_from(Account).where(Account.is_admin == True)
         )
         or 0
     ) > 0
@@ -130,7 +130,7 @@ def setup_admin(
                 literal(moment, DateTime),
             ).where(
                 ~exists(
-                    select(Account.id).where(Account.is_admin == True)  # noqa: E712
+                    select(Account.id).where(Account.is_admin == True)
                 )
             ),
         )

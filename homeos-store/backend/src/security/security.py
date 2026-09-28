@@ -120,8 +120,8 @@ def code_hash(code: str, salt: str = "") -> str:
     """
     text = (code or "").strip()
     if not salt:
-        return hashlib.sha256(f"hb-store-verification:{text}".encode("utf-8")).hexdigest()
-    return hashlib.sha256(f"{salt}\x1f{text}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"hb-store-verification:{text}".encode()).hexdigest()
+    return hashlib.sha256(f"{salt}\x1f{text}".encode()).hexdigest()
 
 
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:

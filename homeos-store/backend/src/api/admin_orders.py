@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from ..commerce import delivery, fulfill, referrals
-from ..commerce import coupons
-from ..ops import incidents, site_settings as site_config
-from ..core.deps import AdminAccount, DbSession, order_or_404
-from ..commerce.order_status import (
-    order_status_label,
-)
+from ..commerce import coupons, delivery, fulfill, referrals
 from ..commerce.order_status import (
     FAILURE_MARKABLE_STATUSES as ORDER_FAILURE_MARKABLE_STATUSES,
 )
@@ -26,19 +20,11 @@ from ..commerce.order_status import (
 from ..commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from ..commerce.order_status import refundable_cents
-from ..payments import PROVIDER_NAMES, normalize_provider_name
-from ..payments.channels import provider_label
-from ..payments.base import PaymentError
-from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
-#: 退款的三个助手（锁 / 额度 CAS / 流水留痕）住在 payments/refunds.py：它们是
-#: 「渠道侧真的动过钱」之后的记账口径，与本文件的接口层职责不同，也该能单独被
-#: 回调与巡检路径复用。
-from ..payments.refunds import (
-    claim_refund_amount,
-    record_refund_audit,
-    refund_lock,
+from ..commerce.order_status import (
+    order_status_label,
+    refundable_cents,
 )
+from ..core.deps import AdminAccount, DbSession, order_or_404
 from ..core.models import (
     DeviceBinding,
     Entitlement,
@@ -52,13 +38,28 @@ from ..core.schemas import (
     AdminOrderActionRequest,
     AdminOrderReviewRequest,
 )
+from ..core.serializers import (
+    order_payload,
+)
+from ..ops import incidents
+from ..ops import site_settings as site_config
+from ..payments import PROVIDER_NAMES, normalize_provider_name
+from ..payments.base import PaymentError
+from ..payments.channels import provider_label
+from ..payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
+
+#: 退款的三个助手（锁 / 额度 CAS / 流水留痕）住在 payments/refunds.py：它们是
+#: 「渠道侧真的动过钱」之后的记账口径，与本文件的接口层职责不同，也该能单独被
+#: 回调与巡检路径复用。
+from ..payments.refunds import (
+    claim_refund_amount,
+    record_refund_audit,
+    refund_lock,
+)
 from ..security.security import (
     iso_z,
     new_uuid,
     utcnow,
-)  # noqa: F401
-from ..core.serializers import (
-    order_payload,
 )
 
 logger = logging.getLogger("src.admin")
@@ -72,7 +73,6 @@ from .admin_shared import (
     _naive_utc,
     _page,
 )
-
 
 router = APIRouter()
 
@@ -142,7 +142,7 @@ def _fulfill_with_failure_state(
     try:
         with session.begin_nested():
             fulfill.fulfill_order(session, order=order, setting=setting)
-    except Exception as error:  # noqa: BLE001 - 兜底转成可运营的状态
+    except Exception as error:
         reason = str(error).strip() or error.__class__.__name__
         # 守卫**必须**与入账路径同一口径（payments/settlement.py 的 _mark_fulfillment_failed）：
         # 两套判据会让「同一张单从哪个入口点进去行为不同」，而这里过去只排除 refunded。

@@ -2,39 +2,36 @@
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
-
-from .request_context import active_display, browser_authorized, initialized, signed_in
-
-
 import asyncio
 from urllib.parse import quote
 
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import text
 
-from ..security.access import (
-    display_token_from,
-)
-from ..http.http_cache import set_public_immutable_cache
+from .request_context import active_display, browser_authorized, initialized, signed_in
 from ..api.assets import read_builtin_asset
 from ..api.ha_proxy import (
     router as ha_proxy_router,
 )
+from ..app.middleware import record_request_diagnostics
+from ..config import Settings
+from ..core.models import Project
 from ..http.body_guard import RequestBodyGuard
 from ..http.commissioning import has_rail, rail_states
 from ..http.compression import SelectiveGZipMiddleware
+from ..http.http_cache import set_public_immutable_cache
 from ..http.page_shell import APPEARANCE_PATH, render_shell_page
 from ..http.telemetry import deck_tiles, has_deck
-from ..app.middleware import record_request_diagnostics
-from ..config import Settings
+from ..security.access import (
+    display_token_from,
+)
+from ..security.display_access import display_path, resolve_display_project
 from ..security.http_security import (
     is_direct_local,
 )
-from ..security.display_access import display_path, resolve_display_project
-from ..core.models import Project
 from ..security.security import set_display_cookie
+
 
 def install_page_routes(app: FastAPI, settings: Settings) -> None:
     """注册页面、内置素材与保留路径。"""

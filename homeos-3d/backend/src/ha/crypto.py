@@ -1,7 +1,9 @@
 """Home Assistant 长期访问令牌的加密存储。
 """
 from __future__ import annotations
+
 from pathlib import Path
+
 from cryptography.fernet import Fernet, InvalidToken
 
 from ..security.secret_key_file import load_or_create_secret_key
@@ -10,7 +12,6 @@ from ..security.secret_key_file import load_or_create_secret_key
 class CredentialCipherError(RuntimeError):
     """凭据加解密失败。
     """
-    pass
 
 
 class CredentialCipher:

@@ -18,7 +18,7 @@ def callback_url_error(text: str, *, label: str, channel: str) -> str:
     if not text:
         return ""
     lowered = text.lower()
-    if not (lowered.startswith("http://") or lowered.startswith("https://")):
+    if not lowered.startswith(("http://", "https://")):
         return (
             f"{label}必须以 http:// 或 https:// 开头（要填完整的外部可达地址，"
             "不能只填路径）。"

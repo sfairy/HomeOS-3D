@@ -35,8 +35,7 @@ def json_nesting_depth(payload: bytes) -> int:
             in_string = True
         elif byte in (0x7B, 0x5B):
             depth += 1
-            if depth > deepest:
-                deepest = depth
+            deepest = max(deepest, depth)
         elif byte in (0x7D, 0x5D):
             depth -= 1
     return deepest

@@ -7,16 +7,16 @@ from typing import NoReturn
 
 from fastapi import HTTPException, status
 
-from ...core.canonical_json import canonical_json
+from .config_domains import (
+    _validate_cameras,
+    _validate_environment,
+    _validate_lights,
+    _validate_presence,
+)
 from .device import DEVICE_PROFILES, GENERIC_DEVICE_COLLECTIONS, validate_device_bindings
 from .lock import validate_lock_bindings
 from .numbers import as_finite_number
-from .config_domains import (
-    _validate_cameras,
-    _validate_presence,
-    _validate_lights,
-    _validate_environment,
-)
+from ...core.canonical_json import canonical_json
 
 
 def validate_config(properties: dict) -> None:
@@ -44,7 +44,7 @@ def validate_config(properties: dict) -> None:
         """校验相机参数对象；None 表示未配置，直接放行。
         """
         if camera is None:
-            return None
+            return
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
@@ -66,7 +66,7 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        return None
+        return
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
     if not isinstance(properties, dict) or set(properties) - {
@@ -664,7 +664,7 @@ def validate_config(properties: dict) -> None:
                 fail()
             if not text(source['deviceId']) or not source['deviceId'] or not text(source['name']) or source['platform'] not in ('fnos', 'synology_dsm'):
                 fail()
-            if not isinstance(source['primaryEntityId'], str) or source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId']):
+            if not isinstance(source['primaryEntityId'], str) or (source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId'])):
                 fail()
             if not isinstance(source['metrics'], list):
                 fail()
@@ -682,7 +682,7 @@ def validate_config(properties: dict) -> None:
                 metric_ids.add(entity_id)
                 if not text(metric['label']) or metric['group'] not in ('system', 'storage', 'network', 'health') or metric['kind'] not in ('number', 'status', 'problem', 'timestamp'):
                     fail()
-            if metric_ids and source['primaryEntityId'] not in metric_ids or not metric_ids and source['primaryEntityId'] != '':
+            if (metric_ids and source['primaryEntityId'] not in metric_ids) or (not metric_ids and source['primaryEntityId'] != ''):
                 fail()
             # visibleMetrics 是展示白名单：必须是 metrics 的子集且不重复。
             if 'visibleMetrics' in source:
@@ -698,4 +698,3 @@ def validate_config(properties: dict) -> None:
             fail()
         validate_camera(item.get('focusCamera'))
     validate_camera(properties.get('camera'))
-    return None

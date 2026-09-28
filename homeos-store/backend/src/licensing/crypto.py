@@ -6,9 +6,10 @@ from __future__ import annotations
 import base64
 import json
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
@@ -112,7 +113,7 @@ class TransportCipher:
         try:
             plaintext = AESGCM(key).decrypt(iv, ciphertext, aad)
             payload = json.loads(plaintext)
-        except Exception as error:  # noqa: BLE001 - 解密失败一律视为非法请求
+        except Exception as error:
             raise LicenseServerError("授权请求无法解密或已被篡改。", status_code=400) from error
         if not isinstance(payload, dict):
             raise LicenseServerError("授权请求内容无效。", status_code=400)

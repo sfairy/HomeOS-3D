@@ -80,7 +80,7 @@ def require_purifier_model(bindings: list, entity_id: str, scene: dict) -> None:
         # 同 ID 的模型必须恰好一个：出现重复时无法确定控制哪一台，宁可不放行。
         models = [item for item in floor.get('scene', {}).get('items', []) if item.get('id') == binding.get('modelId')]
         if len(models) == 1 and models[0].get('type') in PURIFIER_MODEL_TYPES:
-            return None
+            return
     raise HTTPException(409, detail='空气净化器模型已失联，请在环境配置中重新选择模型。')
 
 

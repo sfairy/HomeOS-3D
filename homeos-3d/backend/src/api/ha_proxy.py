@@ -11,13 +11,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from ..core.database import Database
-from ..security.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
-from ..ha.client import HAClientError
-from ..ha.crypto import CredentialCipherError
-from ..http.http_cache import PRIVATE_BRIEF_IMMUTABLE_CACHE
 from .ha_shared import active_connection, load_active_connection_snapshot
-
 from .media_proxy_support import (
     CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES,
     HLS_SCOPE_RECHECK_SECONDS,
@@ -28,6 +22,11 @@ from .media_proxy_support import (
     hls_stream_token,
     rewrite_location,
 )
+from ..core.database import Database
+from ..ha.client import HAClientError
+from ..ha.crypto import CredentialCipherError
+from ..http.http_cache import PRIVATE_BRIEF_IMMUTABLE_CACHE
+from ..security.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
 
 router = APIRouter(include_in_schema=False)
 # 转发给 HA 前要剥掉的请求头：逐跳头、浏览器凭据（cookie / authorization）与

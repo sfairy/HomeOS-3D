@@ -31,7 +31,7 @@ def require_air_conditioner_model(bindings: list, entity_id: str, scene: dict) -
         # 同 ID 的模型必须恰好一个：出现重复时无法确定控制哪一台，宁可不放行。
         models = [item for item in floor.get('scene', {}).get('items', []) if item.get('id') == binding.get('modelId')]
         if len(models) == 1 and models[0].get('type') in {'wallac', 'floorac', 'airoutlet'}:
-            return None
+            return
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调模型已失联，请在环境配置中重新选择模型。')
 
 
@@ -74,7 +74,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='空调未提供有效的开机能力。'
             )
-        return None
+        return
     attributes = state.get('attributes')
     if not isinstance(attributes, dict):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调能力尚未载入，请稍后重试。')
@@ -105,8 +105,8 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         # abs_tol=1e-6 容忍浮点误差（26.5 这类值在二进制下无法精确表示）。
         if not (math.isfinite(increments) and math.isclose(increments, round(increments), abs_tol=1e-06)):
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='目标温度不符合空调支持的调节步长。')
-        return None
+        return
     choices = attributes.get({'hvac_mode': 'hvac_modes', 'fan_mode': 'fan_modes', 'swing_mode': 'swing_modes'}[parameter])
     if not isinstance(value, str) or not isinstance(choices, list) or not value or value not in choices:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='该模式不在空调当前支持的选项中。')
-    return None
+    return

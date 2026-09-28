@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Iterator
+from collections.abc import Iterator
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..core.models import Account, AccountSession, Order
 from ..config import StoreSettings
+from ..core.models import Account, AccountSession, Order
 from ..security.security import token_hash, utcnow
 
 #: ``last_seen_at`` 的写入节流窗口（秒）。诊断页要回答"这个会话现在还有人用吗"，

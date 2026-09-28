@@ -8,11 +8,11 @@ from fastapi import Request
 from sqlalchemy import select
 
 from ..core.database import Database
-from ..security.dependencies import DatabaseSession, ViewerPrincipal, require_viewer_entity
-from ..ha.client import HAClient, HAClientError
-from ..ha.endpoints import HAEndpoint
-from ..ha.crypto import CredentialCipherError
 from ..core.models import HAConnection, HAEntity
+from ..ha.client import HAClient, HAClientError
+from ..ha.crypto import CredentialCipherError
+from ..ha.endpoints import HAEndpoint
+from ..security.dependencies import DatabaseSession, ViewerPrincipal, require_viewer_entity
 
 
 def active_connection(database: DatabaseSession) -> HAConnection | None:

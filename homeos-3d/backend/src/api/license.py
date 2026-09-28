@@ -6,10 +6,10 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..security.dependencies import CurrentUser, CurrentViewer
-from ..license import LicenseClientError
-from ..security.http_security import same_origin_request
 from ..core.schemas import LicenseActivateRequest
+from ..license import LicenseClientError
+from ..security.dependencies import CurrentUser, CurrentViewer
+from ..security.http_security import same_origin_request
 
 router = APIRouter(prefix='/license', tags=['license'])
 

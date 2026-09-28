@@ -17,8 +17,8 @@ from .access import (
     display_token_from,
 )
 from .display_access import active_display_device
-from ..panel.global_popups import hydrate_document_popups
 from .http_security import secure_cookies_enabled
+from .security import set_display_cookie
 from ..core.models import (
     DisplayDevice,
     HAConnection,
@@ -26,10 +26,10 @@ from ..core.models import (
     ProjectDraft,
     User,
 )
+from ..core.time_utils import ensure_aware
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids
-from .security import set_display_cookie
-from ..core.time_utils import ensure_aware
+from ..panel.global_popups import hydrate_document_popups
 
 #: 中控设备心跳的续期节流窗口（秒）：活跃到这个间隔才回写 ``last_seen_at`` 并续期 Cookie。
 DISPLAY_HEARTBEAT_THROTTLE_SECONDS = 300
@@ -137,7 +137,6 @@ def require_admin(user: User, *, detail: str) -> None:
     """
     if user.role != 'admin':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-    return None
 
 
 def licensed_user(request: Request, user: CurrentUser) -> User:
@@ -233,7 +232,6 @@ def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="该中控设备未绑定此仪表盘。",
         )
-    return None
 
 
 def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dict:
@@ -350,45 +348,45 @@ def viewer_entity_ids(
                 )
                 and (
                     # 风扇 / 空调设备上的指示灯。
-                    source.domain in {"fan", "climate"}
-                    and candidate_domain == "light"
+                    (source.domain in {"fan", "climate"}
+                    and candidate_domain == "light")
                     # 热水器的控制按钮与数值 / 选择项。
-                    or source.domain == "water_heater"
+                    or (source.domain == "water_heater"
                     and candidate_domain
-                    in {"button", "number", "select", "switch"}
+                    in {"button", "number", "select", "switch"})
                     # 扫地机的清洁模式与电量。
-                    or source.domain == "vacuum"
+                    or (source.domain == "vacuum"
                     and (
-                        candidate_domain == "select"
+                        (candidate_domain == "select"
                         and (
                             candidate.translation_key == "cleaning_mode"
                             or "cleaning_mode" in identity
-                        )
-                        or candidate_domain == "sensor"
+                        ))
+                        or (candidate_domain == "sensor"
                         and (
                             candidate.translation_key == "battery"
                             or "battery" in identity
                             or "电量" in identity
-                        )
-                    )
+                        ))
+                    ))
                     # 人体传感器：event 域本体是"有人移动"，
-                    or source.domain == "event"
+                    or (source.domain == "event"
                     and candidate_domain == "sensor"
                     and (
                         "no_motion" in identity
                         or "no motion" in identity
                         or "无移动" in identity
                         or "无人移动" in identity
-                    )
+                    ))
                     # 窗帘电机的反向开关。
-                    or source.domain == "cover"
+                    or (source.domain == "cover"
                     and candidate_domain in {"select", "switch"}
                     and (
                         "motor_reverse" in identity
                         or "电机反向" in identity
-                    )
+                    ))
                     # 晾衣机：本体是 cover，它的照明是 light，
-                    or source.domain == "cover"
+                    or (source.domain == "cover"
                     and candidate_domain in {"light", "switch"}
                     and any(
                         marker
@@ -424,9 +422,9 @@ def viewer_entity_ids(
                                 "晾衣架 灯",
                             )
                         )
-                    )
+                    ))
                     # 晾衣机的升降设定值与当前位置。
-                    or source.domain == "cover"
+                    or (source.domain == "cover"
                     and candidate_domain in {"number", "sensor"}
                     and any(
                         marker
@@ -464,12 +462,12 @@ def viewer_entity_ids(
                             "当前位置",
                             "当前高度",
                         )
-                    )
+                    ))
                     # 扫地机的工作状态传感器。
-                    or source.domain == "sensor"
+                    or (source.domain == "sensor"
                     and source.translation_key
                     in {"state", "status", "task_status"}
-                    and candidate_domain == "vacuum"
+                    and candidate_domain == "vacuum")
                 )
                 for source in sources
             )
@@ -536,7 +534,6 @@ def require_viewer_entity(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="该实体不属于当前中控仪表盘。",
         )
-    return None
 
 
 def viewer_user_asset_ids(
@@ -578,7 +575,6 @@ def require_viewer_studio3d_asset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="该图片不属于当前中控仪表盘。",
         )
-    return None
 
 
 def require_viewer_user_asset(
@@ -590,4 +586,3 @@ def require_viewer_user_asset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="该图片不属于当前中控仪表盘。",
         )
-    return None

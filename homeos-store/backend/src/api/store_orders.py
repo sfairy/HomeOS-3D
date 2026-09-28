@@ -9,43 +9,6 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
-from ..commerce import coupons, fulfill
-from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
-from ..commerce.expiry import expire_stale_orders
-from ..core.models import (
-    License,
-    Order,
-    Product,
-)
-from ..core.schemas import (
-    CreateOrderRequest,
-)
-from ..security.security import (
-    new_order_no,
-    new_token,
-    token_matches,
-    utcnow,
-)
-from ..core.serializers import (
-    is_sold_out,
-    order_payload,
-)
-from ..ops import site_settings as site_config
-from ..payments import (
-    channel_label,
-    enabled_channel_names,
-    is_known_provider,
-    normalize_provider_name,
-)
-from ..payments.base import PaymentError
-
-
-from .store_shared import (
-    _base_url,
-    _customer_for,
-    _require_verified,
-    logger,
-)
 from .store_catalog import (
     ACCOUNT_ORDER_PAGE_SIZE,
     _account_license_state,
@@ -59,7 +22,41 @@ from .store_catalog import (
     _reconcile_payment,
     _resolve_upgrade_target,
 )
-
+from .store_shared import (
+    _base_url,
+    _customer_for,
+    _require_verified,
+    logger,
+)
+from ..commerce import coupons, fulfill
+from ..commerce.expiry import expire_stale_orders
+from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
+from ..core.models import (
+    License,
+    Order,
+    Product,
+)
+from ..core.schemas import (
+    CreateOrderRequest,
+)
+from ..core.serializers import (
+    is_sold_out,
+    order_payload,
+)
+from ..ops import site_settings as site_config
+from ..payments import (
+    channel_label,
+    enabled_channel_names,
+    is_known_provider,
+    normalize_provider_name,
+)
+from ..payments.base import PaymentError
+from ..security.security import (
+    new_order_no,
+    new_token,
+    token_matches,
+    utcnow,
+)
 
 router = APIRouter()
 

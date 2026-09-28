@@ -10,12 +10,31 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from ..ops import incidents, mail_settings, mailer
-from ..security import password_gate
-from ..security.limiter import SlidingWindowLimiter
+from . import store_auth, store_orders, store_referrals
+from .admin_shared import _drop_account_sessions
+from .store_catalog import (
+    _bundled_map,
+    _center_payload,
+    _evaluate_coupon_limited,
+    _image_map,
+    _product_item,
+    _product_or_404,
+    _product_stats,
+    _release_snapshot_conflict,
+)
+from .store_shared import (
+    MAX_VERIFICATION_SENDS_PER_HOUR,
+    _assert_purpose_allowed,
+    _consume_verification,
+    _enforce_password_confirmation_gate,
+    _enforce_verification_send_quota,
+    _note_password_confirmation_failure,
+    _require_verified,
+    logger,
+)
+from ..commerce import delivery
 from ..config import StoreSettings
 from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
-from ..commerce import delivery
 from ..core.models import (
     Account,
     Customer,
@@ -27,7 +46,6 @@ from ..core.models import (
     Product,
     Release,
 )
-from .admin_shared import _drop_account_sessions
 from ..core.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,
@@ -36,45 +54,23 @@ from ..core.schemas import (
     VerificationRequest,
     VerifyEmailRequest,
 )
+from ..core.serializers import (
+    device_release_policy,
+    product_payload,
+)
+from ..ops import incidents, mail_settings, mailer
+from ..ops import site_settings as site_config
+from ..security import password_gate
+from ..security.limiter import SlidingWindowLimiter
 from ..security.security import (
     code_hash,
-    new_code_salt,
     is_valid_email,
+    new_code_salt,
     new_verification_code,
     token_hash,
     utcnow,
     verify_password,
 )
-from ..core.serializers import (
-    device_release_policy,
-    product_payload,
-)
-from ..ops import site_settings as site_config
-
-
-from .store_shared import (
-    MAX_VERIFICATION_SENDS_PER_HOUR,
-    _assert_purpose_allowed,
-    _consume_verification,
-    _enforce_password_confirmation_gate,
-    _enforce_verification_send_quota,
-    _note_password_confirmation_failure,
-    _require_verified,
-    logger,
-)
-from .store_catalog import (
-    _bundled_map,
-    _center_payload,
-    _evaluate_coupon_limited,
-    _image_map,
-    _product_item,
-    _product_or_404,
-    _product_stats,
-    _release_snapshot_conflict,
-)
-from . import store_auth
-from . import store_orders
-from . import store_referrals
 
 router = APIRouter(prefix="/store/v1", tags=["store"])
 

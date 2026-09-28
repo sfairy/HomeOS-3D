@@ -2,42 +2,41 @@
 """
 from __future__ import annotations
 
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .api.auth import router as auth_router
+from .api.appearance import router as appearance_router
 from .api.assets import router as assets_router
+from .api.auth import router as auth_router
 from .api.displays import (
     router as displays_router,
 )
-from .api.ha_translations import (
-    EntityTranslationCache,
-    TRANSLATION_CACHE_FILENAME,
-)
+from .api.global_logs import router as global_logs_router
 from .api.ha import (
     router as ha_router,
 )
 from .api.ha_runtime import (
     runtime_router,
 )
+from .api.ha_translations import (
+    TRANSLATION_CACHE_FILENAME,
+    EntityTranslationCache,
+)
+from .api.icons import router as icons_router
+from .api.license import router as license_router
 from .api.media_proxy_support import (
     MediaProxyCaches,
 )
-from .api.global_logs import router as global_logs_router
-from .api.appearance import router as appearance_router
-from .api.icons import router as icons_router
-from .api.license import router as license_router
-from .modules.interaction3d.api import router as interaction3d_router
-from .modules.interaction3d.scene_store import LiveSceneCache
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
+from .app.errors import install_exception_handlers
 from .app.lifespan import build_lifespan
 from .app.middleware import install_middlewares
-from .config import Settings, load_settings
-from .observability.updates import router as updates_router
-from .app.errors import install_exception_handlers
 from .app.pages import install_page_routes
+from .config import Settings, load_settings
+from .modules.interaction3d.api import router as interaction3d_router
+from .modules.interaction3d.scene_store import LiveSceneCache
+from .observability.updates import router as updates_router
 
 
 def create_app(settings: Settings | None = None, license_transport = None, license_endpoint_pool = None) -> FastAPI:

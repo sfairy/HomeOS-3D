@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+
 def _default_env_file() -> Path:
     """单体仓库根 ``.env``；独立拆库后回落到项目根。"""
     here = Path(__file__).resolve()

@@ -12,8 +12,8 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..core.canonical_json import canonical_json
-from ..security.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..observability.global_log import event_context, safe_context
+from ..security.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..security.http_security import resolve_client_ip, same_origin_request
 from ..security.sliding_window import KeyedWindows, SlidingWindow
 

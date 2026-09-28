@@ -7,7 +7,6 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import and_, or_, select
 
-from ..ops import features
 from ..core.deps import AdminAccount, DbSession
 from ..core.models import (
     Entitlement,
@@ -17,9 +16,10 @@ from ..core.schemas import (
     AdminEntitlementPatch,
     AdminEntitlementRequest,
 )
+from ..ops import features
 from ..security.security import (
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
@@ -32,7 +32,6 @@ from .admin_shared import (
     _naive_utc,
     _page,
 )
-
 
 router = APIRouter()
 

@@ -10,34 +10,16 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from sqlalchemy import select
-
-from ...core.canonical_json import canonical_json_bytes
-from ...core.static_revision import file_revision
-from ...security.dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
-from ...core.models import HAEntity, ProjectDraft
-from ...panel.documents import require_document
-from ...http.http_cache import NO_STORE
-from ...api.ha import call_service
-from ...api.ha_shared import active_connection
-from ...api.assets_catalog import user_asset_file
-from ...api.assets_uploads import UPLOAD_CONTENT_TYPES
-from .access import access_grant, module_components, require_access
-from .climate import require_air_conditioner_model, validate_climate_command
-from .cover import require_curtain_model, validate_cover_command
-from .device import require_device_model
-from .lock import require_lock_model, validate_lock_command
-from .purifier import require_purifier_model, validate_extra_command, validate_purifier_command
-from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
-from .runtime_manifest import load_runtime_manifest
-from .scene_store import scenes_dir, sweep_scenes_for_app
 from starlette.concurrency import run_in_threadpool
+
+from .access import access_grant, module_components, require_access
 
 # 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
 from .api_support import (
-    Interaction3dControlRequest,
     _BODY_TAG_PATTERN,
+    Interaction3dControlRequest,
     _active_entity,
     _background_asset_ids,
     _find_device_extra,
@@ -48,6 +30,24 @@ from .api_support import (
     require_scene_viewer,
     scene_path,
 )
+from .climate import require_air_conditioner_model, validate_climate_command
+from .cover import require_curtain_model, validate_cover_command
+from .device import require_device_model
+from .lock import require_lock_model, validate_lock_command
+from .purifier import require_purifier_model, validate_extra_command, validate_purifier_command
+from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
+from .runtime_manifest import load_runtime_manifest
+from .scene_store import scenes_dir, sweep_scenes_for_app
+from ...api.assets_catalog import user_asset_file
+from ...api.assets_uploads import UPLOAD_CONTENT_TYPES
+from ...api.ha import call_service
+from ...api.ha_shared import active_connection
+from ...core.canonical_json import canonical_json_bytes
+from ...core.models import HAEntity, ProjectDraft
+from ...core.static_revision import file_revision
+from ...http.http_cache import NO_STORE
+from ...panel.documents import require_document
+from ...security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
@@ -92,7 +92,7 @@ def snapshot_scene(request: Request, _user: LicensedUser):
     # 冻结成功后顺带回收一轮：只碰「没有任何仪表盘引用、且已过保留期」的快照。
     try:
         sweep_scenes_for_app(request.app)
-    except Exception as error:  # noqa: BLE001 - 清理是附加工作，绝不能连累冻结本身
+    except Exception as error:
         request.app.state.global_log.append(
             'warning', '3D 舞台', '系统', f'户型快照回收失败：{error}',
         )
@@ -198,7 +198,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
     """
     require_access(request)
     if payload.device_kind == 'television' or payload.domain == 'media_player':
-        component, properties = control_scope(database, payload, viewer, '电视')
+        _component, properties = control_scope(database, payload, viewer, '电视')
         # 取控件配置：实体必须真配在这个控件的电视列表里（properties.devices.televisions）。
         bindings = properties.get('devices', {}).get('televisions', [])
         # 开关机走 powerEntityId 字段：电视的电源实体常常与媒体播放器不是同一个。
@@ -235,7 +235,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         # domain 必须是 switch 或 media_player；data 必须为空（电视控制不接受透传参数）；
         if payload.domain not in {
             'switch',
-            'media_player'} or payload.service not in media_features or payload.data or payload.domain == 'switch' and not power_command:
+            'media_player'} or payload.service not in media_features or payload.data or (payload.domain == 'switch' and not power_command):
             raise HTTPException(422, detail='电视不支持此控制操作或参数。')
         states = await request.app.state.ha_connector.state_hub.snapshot({payload.entity_id})
         state = states[0] if states else {}
@@ -258,7 +258,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         return await call_service(payload, request, viewer)
     elif payload.domain == 'lock' or payload.device_kind == 'lock':
         # 门锁：先证明这把锁真的配在当前控件上，再证明它绑定的门模型还在场景里。
-        component, properties = control_scope(database, payload, viewer, '门锁')
+        _component, properties = control_scope(database, payload, viewer, '门锁')
         bindings = properties.get('security', {}).get('locks', [])
         matches = [item for item in bindings if item.get('entityId') == payload.entity_id]
         if not matches:
@@ -297,7 +297,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         # 设备附加实体（开关 / 下拉 / 数值 / 按钮）：这些实体不属于控件的绑定表本身，
         is_purifier = payload.device_kind == 'purifier-extra'
         name = '附加实体'
-        component, properties = control_scope(database, payload, viewer, name)
+        _component, properties = control_scope(database, payload, viewer, name)
         host, model_type, extra = _find_device_extra(properties, payload.entity_id, purifier=is_purifier)
         if extra is None:
             detail = '附加实体已不属于当前空气净化器，请重新绑定。' if is_purifier else '此实体不属于当前绑定设备，请重新选择。'
@@ -344,7 +344,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         # 设备名只用于拼提示文案，不参与任何判断。
         name = '窗帘' if is_cover else '空调'
         # 空调 / 窗帘同样要定位到控件，才能核对环境配置里的实体绑定。
-        component, properties = control_scope(database, payload, viewer, name)
+        _component, properties = control_scope(database, payload, viewer, name)
         bindings = properties.get('environment', {}).get('curtains' if is_cover else 'airConditioners', [])
         # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
         if not any(item.get('entityId') == payload.entity_id for item in bindings):
@@ -382,7 +382,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         return await call_service(payload, request, viewer)
     elif payload.domain == 'fan':
         # 空气净化器本体（校验见 purifier.py）：实体配在 environment.airPurifiers 下，
-        component, properties = control_scope(database, payload, viewer, '空气净化器')
+        _component, properties = control_scope(database, payload, viewer, '空气净化器')
         bindings = properties.get('environment', {}).get('airPurifiers', [])
         # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
         if not any(item.get('entityId') == payload.entity_id for item in bindings):
@@ -421,7 +421,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
         # 与前三个分支同一口径：中控设备必须证明这个实体**真的配在当前控件上**。少了这一步，
         if not viewer.is_admin_session:
-            component, _properties = control_scope(database, payload, viewer, '设备')
+            _component, _properties = control_scope(database, payload, viewer, '设备')
             # 灯光表里 entityId 可以为空（纯装饰的灯），因此这里比的是「有没有一条绑到它」。
             if not any(item.get('entityId') == payload.entity_id for item in _properties.get('lights', [])):
                 raise HTTPException(403, detail='此设备未配置到当前 3D 交互控件。')

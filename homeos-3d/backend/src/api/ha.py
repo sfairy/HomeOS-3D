@@ -9,19 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select
 
-from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_admin, viewer_entity_ids
-from ..ha.client import HAClientError
-from ..ha.endpoints import endpoint_candidates
-from ..ha.crypto import CredentialCipherError
-from ..core.models import HAArea, HADevice, HAEntity, HASyncState
-from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
-from ..core.schemas import HABrowseMediaRequest, HAServiceCallRequest, HATestRequest
-
-
-from .ha_translations import (
-    load_translation_context,
-)
-
+from . import ha_connection
 from .ha_shared import (
     active_connection,
     failed_endpoint_summary,
@@ -30,7 +18,16 @@ from .ha_shared import (
     load_authorized_entity_context,
     probe_endpoints,
 )
-from . import ha_connection
+from .ha_translations import (
+    load_translation_context,
+)
+from ..core.models import HAArea, HADevice, HAEntity, HASyncState
+from ..core.schemas import HABrowseMediaRequest, HAServiceCallRequest, HATestRequest
+from ..ha.client import HAClientError
+from ..ha.crypto import CredentialCipherError
+from ..ha.endpoints import endpoint_candidates
+from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
+from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_admin, viewer_entity_ids
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 HA_TEST_LIMIT = (20, 60, 120)
@@ -86,7 +83,7 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('media_player', 'media_play'): set(),
     ('media_player', 'media_pause'): set(),
     ('media_player', 'media_stop'): set(),
-    **{
+    
         ('media_player', 'media_previous_track'): set(),
         ('media_player', 'media_next_track'): set(),
         ('media_player', 'volume_set'): {'volume_level'},
@@ -106,8 +103,8 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
         ('vacuum', 'turn_on'): set(),
         ('vacuum', 'turn_off'): set(),
         ('vacuum', 'set_fan_speed'): {'fan_speed'},
-        ('select', 'select_option'): {'option'},
-    },
+        ('select', 'select_option'): {'option'}
+    ,
 }
 
 

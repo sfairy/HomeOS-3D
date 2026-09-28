@@ -1,8 +1,8 @@
 """HA 连接器的共享常量：事件类型白名单、增量落库间隔、注册表防抖与探活超时、logger。
 """
 from __future__ import annotations
-import logging
 
+import logging
 
 LOGGER = logging.getLogger(__name__)
 # 需要订阅的实时事件；三个 *_registry_updated 用于增量维护元数据（改名、换区、禁用）。

@@ -21,7 +21,7 @@ from ..core.models import (
 from ..security.security import (
     iso,
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
@@ -37,7 +37,6 @@ from .admin_shared import (
     _purge_rows,
     _resolve_by_hash_hint,
 )
-
 
 router = APIRouter()
 

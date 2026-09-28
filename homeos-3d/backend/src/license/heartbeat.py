@@ -9,21 +9,19 @@ from abc import ABC
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-
-from ..core.models import LicenseState
-from ..core.time_utils import ensure_aware
 from .base import LicenseServiceBase
-from .crypto import LicenseCryptoError
-
-
 from .contracts import (
     EXPIRED_LEASE_RETRY_SECONDS,
-    LicenseClientError,
     MANUAL_RETRY_THROTTLE_SECONDS,
     REAUTH_REQUIRED,
     RETRY_DELAYS,
     TERMINAL_STATES,
+    LicenseClientError,
 )
+from .crypto import LicenseCryptoError
+from ..core.models import LicenseState
+from ..core.time_utils import ensure_aware
+
 
 class LicenseHeartbeatMixin(LicenseServiceBase, ABC):
     """心跳与重试：等多久、什么时候可以重试、失败怎么记账"""
@@ -35,7 +33,7 @@ class LicenseHeartbeatMixin(LicenseServiceBase, ABC):
         """记下这次 429 的冷却。
         """
         seconds = error.retry_after_seconds
-        self._rate_limited_until = time.monotonic() + (seconds if seconds else 120.0)
+        self._rate_limited_until = time.monotonic() + (seconds or 120.0)
     def _log_event(self, level: str, message: str) -> None:
         """写一条授权事件日志。
         """

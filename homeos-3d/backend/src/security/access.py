@@ -2,16 +2,16 @@
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Mapping
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .display_access import active_display_device
-from ..core.models import DisplayDevice, LoginSession, User
 from .security import session_token_hash
+from ..core.models import DisplayDevice, LoginSession, User
 from ..core.time_utils import ensure_aware
 
 #: 会话滑动续期的写库节流窗口（秒）。展示页与编辑器的轮询是秒级的，
@@ -85,7 +85,7 @@ def _positive_seconds(value) -> int:
         seconds = int(value)
     except (TypeError, ValueError):
         return 0
-    return seconds if seconds > 0 else 0
+    return max(0, seconds)
 
 
 def check_admin_session(

@@ -1,32 +1,32 @@
 """授权链路的密码学原语。
 """
 from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
 import json
 import os
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from collections.abc import Mapping
 from typing import Any
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from ..core.canonical_json import canonical_json_bytes
-from ..security.secret_key_file import load_or_create_secret_key
 from ..core.time_utils import ensure_aware
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from ..security.secret_key_file import load_or_create_secret_key
 
 
 class LicenseCryptoError(RuntimeError):
     """授权相关的密码学错误：格式非法、指纹不符、验签失败、解密失败等一律用它表达。"""
-    pass
 
 
 class LicenseTransportCipher:

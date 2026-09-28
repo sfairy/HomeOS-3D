@@ -50,7 +50,7 @@ def require_curtain_model(bindings: list, entity_id: str, scene: dict) -> None:
         models = [item for item in floors[0].get('scene', {}).get('items', []) if item.get('id') == binding['modelId']]
         # 模型同样必须唯一，且类型是普通窗帘。
         if len(models) == 1 and models[0].get('type') == 'curtain':
-            return None
+            return
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘模型已失联，请在环境配置中重新选择普通窗帘模型。')
 
 
@@ -99,10 +99,10 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         has_tilt = as_finite_number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
         # 没有独立叶片通道时，这台风帘只有一个可控轴（位置），整体状态门禁一律不设：
         if not has_tilt:
-            return None
+            return
         # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
         if state.get('state') != 'closed' or (
             attributes.get('current_position') is not None and as_finite_number(attributes.get('current_position')) != 0
         ):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
-    return None
+    return

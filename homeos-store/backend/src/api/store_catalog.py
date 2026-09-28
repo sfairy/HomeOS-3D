@@ -9,8 +9,6 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from ..commerce import coupons, money
-from ..ops import incidents
-from ..security import password_gate
 from ..commerce.expiry import expire_stale_orders
 from ..core.models import (
     Account,
@@ -30,22 +28,24 @@ from ..core.models import (
 from ..core.schemas import (
     ReleaseDeviceRequest,
 )
-from ..security.security import (
-    iso,
-    utcnow,
-)
 from ..core.serializers import (
     account_center_payload,
     binding_version,
     json_list,
     product_payload,
 )
+from ..ops import incidents
 from ..ops import site_settings as site_config
 from ..payments.reconcile import reconcile_channel_order
-
+from ..security import password_gate
+from ..security.security import (
+    iso,
+    utcnow,
+)
 
 HISTORY_PAGE_SIZE = 20
 from .store_shared import logger, record_attempt_in_new_session
+
 
 def _account_license_state(session, account: Account) -> tuple[bool, bool]:
     """返回 (是否有永久授权, 是否有期限授权)。"""
@@ -382,7 +382,7 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
             settings=request.app.state.settings,
             setting=setting,
         )
-    except Exception as error:  # noqa: BLE001 - 对账出问题绝不能把轮询接口打成 500
+    except Exception as error:
         # 查单失败不影响这一轮响应（用户下次轮询还会再查），但它是「订单可能永远
         # 停在待支付」的早期信号，所以除了日志也计入计数。
         incidents.note("reconcile.poll", order_no=order.order_no, error=error)

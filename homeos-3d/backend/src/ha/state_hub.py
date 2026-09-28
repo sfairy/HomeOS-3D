@@ -108,7 +108,7 @@ class StateHub:
         """删除单个实体并广播 state_removed（实体被 HA 移除时调用）。"""
         normalized = str(entity_id or "")
         if not normalized:
-            return None
+            return
         async with self._lock:
             self._states.pop(normalized, None)
         await self.publish({"type": "state_removed", "entityId": normalized})
@@ -132,7 +132,7 @@ class StateHub:
         """限制某个订阅者能收到的增量状态事件。
         """
         if queue not in self._subscribers:
-            return None
+            return
         self._subscriber_entities[queue] = set(entity_ids)
         # 队列已空：这个循环本来就靠 QueueEmpty 退出，属预期终止而非异常。
         try:
@@ -140,7 +140,7 @@ class StateHub:
                 queue.get_nowait()
         except asyncio.QueueEmpty:
             pass
-        return None
+        return
 
     async def publish(self, event: dict[str, Any]) -> None:
         """把事件分发给所有订阅者。

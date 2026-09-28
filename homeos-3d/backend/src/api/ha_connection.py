@@ -7,15 +7,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
-from ..ha.client import HAClientError, link_local_address
-from ..ha.endpoints import endpoint_candidates
-from ..ha.crypto import CredentialCipherError
-from ..core.models import HAConnection
-from ..core.schemas import HAConnectionInput
-
-
-
 from .ha_shared import (
     active_connection,
     addresses_label,
@@ -23,7 +14,12 @@ from .ha_shared import (
     failed_endpoint_summary,
     probe_endpoints,
 )
-
+from ..core.models import HAConnection
+from ..core.schemas import HAConnectionInput
+from ..ha.client import HAClientError, link_local_address
+from ..ha.crypto import CredentialCipherError
+from ..ha.endpoints import endpoint_candidates
+from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
 
 router = APIRouter()
 
@@ -68,7 +64,6 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
         await connector.restart()
     # 删除连接属于高影响操作，用 warning 级别留痕。
     request.app.state.global_log.append('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
-    return None
 
 
 @router_extra.put('/connection')

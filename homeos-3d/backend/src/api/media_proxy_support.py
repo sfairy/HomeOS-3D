@@ -14,10 +14,10 @@ import httpx
 from fastapi.responses import Response
 from sqlalchemy import select
 
+from .ha_shared import load_active_connection_snapshot
 from ..core.database import Database
 from ..core.models import ProjectDraft
 from ..http.http_cache import PRIVATE_NO_STORE
-from .ha_shared import load_active_connection_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class MediaProxyCaches:
         """
         if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
             self.snapshots.pop(key, None)
-            return None
+            return
         # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉，
         while self.snapshots:
             replaced = self.snapshots.get(key)
@@ -133,7 +133,7 @@ class MediaProxyCaches:
             content_type=content_type or 'image/jpeg',
             created_at=monotonic(),
         )
-        return None
+        return
 
     def pending_refresh(self, key: str) -> asyncio.Task[None] | None:
         """同一个 key 正在跑的刷新任务；没有则 None。"""
@@ -150,11 +150,11 @@ class MediaProxyCaches:
         """安排一次后台快照刷新（同一个 key 去重：多个看板同时请求只回源一次）。"""
         existing = self.refreshes.get(key)
         if existing and not existing.done():
-            return None
+            return
         self.refreshes[key] = asyncio.create_task(
             self._refresh_snapshot(key, target, headers, verify_tls, timeout)
         )
-        return None
+        return
 
     async def _refresh_snapshot(
         self,
@@ -280,7 +280,7 @@ class CameraStreamWarmer:
                     last_error = None
                 except asyncio.CancelledError:
                     raise
-                except Exception as error:  # noqa: BLE001 - 保温尽力而为，只影响这一个实体
+                except Exception as error:
                     warmed = False
                     last_error = error
                 failures = 0 if warmed else failures + 1

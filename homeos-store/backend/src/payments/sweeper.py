@@ -11,10 +11,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, update
 
 from ..commerce import fulfill
-from ..ops import incidents, site_settings as site_config
 from ..config import StoreSettings
 from ..core.database import Database
 from ..core.models import Order, utcnow
+from ..ops import incidents
+from ..ops import site_settings as site_config
 from ..payments.reconcile import SweepResult, reconcile_due_orders
 from ..security.security import iso_z
 
@@ -255,7 +256,7 @@ def _retry_failed_fulfillments(
             try:
                 with session.begin_nested():
                     fulfill.fulfill_order(session, order=order, setting=setting)
-            except Exception as error:  # noqa: BLE001 - 单笔失败不能让整轮巡检退出
+            except Exception as error:
                 incidents.note("fulfillment.retry", order_no=order.order_no, error=error)
                 logger.warning("履约重试仍失败 order=%s：%s", order.order_no, error)
                 session.refresh(order)

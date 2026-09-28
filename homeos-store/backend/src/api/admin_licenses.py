@@ -8,11 +8,10 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, or_, select
 
-from ..commerce import fulfill
-from ..ops import site_settings as site_config
 from ..api.store_catalog import (
     _license_meta,
 )
+from ..commerce import fulfill
 from ..core.deps import AdminAccount, DbSession, SettingsDep
 from ..core.models import (
     Account,
@@ -24,13 +23,14 @@ from ..core.schemas import (
     AdminLicenseRequest,
     AdminOrderActionRequest,
 )
+from ..core.serializers import (
+    license_payload,
+)
+from ..ops import site_settings as site_config
 from ..security.security import (
     activation_code_hint,
     iso_z,
     utcnow,
-)  # noqa: F401
-from ..core.serializers import (
-    license_payload,
 )
 
 logger = logging.getLogger("src.admin")
@@ -45,7 +45,6 @@ from .admin_shared import (
     _page_bounds,
     _product_or_404,
 )
-
 
 router = APIRouter()
 

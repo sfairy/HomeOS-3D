@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
-from ..core.design import DESIGN_HEIGHT, DESIGN_WIDTH
 from .schema import validate_panel_document
+from ..core.design import DESIGN_HEIGHT, DESIGN_WIDTH
 
 if TYPE_CHECKING:
     from ..core.models import ProjectDraft
@@ -25,7 +25,7 @@ def parse_document(value: object) -> dict | None:
     return document if isinstance(document, dict) else None
 
 
-def require_document(draft: 'ProjectDraft', *, on_error: str) -> dict:
+def require_document(draft: ProjectDraft, *, on_error: str) -> dict:
     """读出草稿文档，损坏时按 422 回 ``on_error``。
     """
     document = parse_document(draft.document_json)

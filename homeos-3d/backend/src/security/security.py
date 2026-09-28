@@ -43,7 +43,7 @@ def _verify_against_dummy(password: str) -> None:
     try:
         password_hasher.verify(DUMMY_PASSWORD_HASH, password)
     except (InvalidHashError, VerifyMismatchError):
-        return None
+        return
 
 
 #: 一条口令未知的 argon2 哈希，用来把「没有哈希可校验」的路径也变成一次真的校验。

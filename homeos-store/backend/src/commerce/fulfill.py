@@ -12,8 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..commerce import coupons, referrals
+from ..commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
 from ..config import StoreSettings
-from ..ops import incidents
 from ..core.models import (
     Customer,
     Entitlement,
@@ -22,13 +22,13 @@ from ..core.models import (
     Product,
     StoreSetting,
 )
-from ..commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
+from ..core.serializers import json_list
+from ..ops import incidents
 from ..security.security import (
     activation_code_hint,
     new_activation_code,
     utcnow,
 )
-from ..core.serializers import json_list
 
 logger = logging.getLogger("src.commerce.fulfill")
 
@@ -734,7 +734,7 @@ def fulfill_order(
                 rate_percent=float(setting.referral_rate_percent or 0.0),
                 enabled=bool(setting.referral_enabled),
             )
-    except Exception as error:  # noqa: BLE001 - 奖励失败不能拖垮发码
+    except Exception as error:
         incidents.note("referral.reward", order_no=order.order_no, error=error)
         logger.exception("邀请奖励发放失败（不影响已签发的授权）order=%s", order.order_no)
         reward = 0

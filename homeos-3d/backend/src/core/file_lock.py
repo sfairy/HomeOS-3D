@@ -40,6 +40,5 @@ def locked_file(path: Path, *, shared: bool = False):
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     # 'a+b' 不截断：这个文件只用来加锁，不存内容。用 with 保证句柄一定被关闭。
-    with path.open('a+b') as handle:
-        with file_lock(handle, shared=shared):
-            yield
+    with path.open('a+b') as handle, file_lock(handle, shared=shared):
+        yield

@@ -10,13 +10,15 @@ from ..core.models import StoreSetting
 from ..payments import wechat_signing as signing
 from ..payments.alipay import (
     PaymentError,
-    public_key_error,
     private_key_error,
+    public_key_error,
     validate_callback_url,
     validate_gateway_url,
 )
+
 #: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
 from ..payments.wechat import WeChatPayProvider
+
 #: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，见上面的支付宝分支。
 from ..security.secret_fields import (
     MASK_PREFIX,
@@ -32,12 +34,12 @@ __all__ = [
     "mask_secret",
     "merge_alipay_settings",
     "merge_wechat_settings",
-    "wechat_credentials_summary",
     "resolve_secret_input",
     "validate_callback_url",
     "validate_gateway_url",
     "validate_private_key_text",
     "validate_public_key_text",
+    "wechat_credentials_summary",
 ]
 
 #: 支付宝正式网关（站点配置与环境变量都没给时的最终兜底）

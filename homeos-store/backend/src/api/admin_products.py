@@ -8,7 +8,6 @@ import secrets
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import or_, select
 
-from ..ops import features
 from ..commerce import catalog
 from ..core.deps import AdminAccount, DbSession, SettingsDep
 from ..core.models import (
@@ -19,12 +18,13 @@ from ..core.schemas import (
     AdminProductPatch,
     AdminProductRequest,
 )
-from ..security.security import (
-    utcnow,
-)  # noqa: F401
 from ..core.serializers import (
     json_list,
     list_json,
+)
+from ..ops import features
+from ..security.security import (
+    utcnow,
 )
 
 logger = logging.getLogger("src.admin")
@@ -42,7 +42,6 @@ from .admin_shared import (
     _product_or_404,
     _safe_image_target,
 )
-
 
 router = APIRouter()
 

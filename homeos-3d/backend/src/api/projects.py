@@ -14,15 +14,27 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.canonical_json import canonical_json
 from ..core.conflicts import is_unique_violation
-from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, license_restricted_detail, require_viewer_project
-from ..panel.global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..core.models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
+from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
+from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project, parse_document, require_document
 from ..panel.entity_refs import document_entity_ids, document_keyed_values
+from ..panel.global_popups import (
+    clear_popup_references,
+    global_popup_state,
+    global_popups,
+    hydrate_document_popups,
+    strip_document_popups,
+)
 from ..panel.schema import validate_panel_document
-from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
-from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
+from ..security.dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    license_restricted_detail,
+    require_viewer_project,
+)
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 

@@ -13,7 +13,8 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
-
+from .public_assets import load_always_revalidate, load_public_static_files
+from .request_context import asset_denial_status
 from ..config import Settings
 from ..http.http_cache import NO_STORE, set_no_store_with_revalidation, set_versioned_private_cache
 from ..observability.global_log import event_context
@@ -21,10 +22,6 @@ from ..security.http_security import (
     forwarded_headers_present,
     same_origin_request,
 )
-from .public_assets import load_always_revalidate, load_public_static_files
-from .request_context import asset_denial_status
-
-
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000
@@ -76,10 +73,7 @@ def install_middlewares(app: FastAPI, settings: Settings) -> None:
         app_surface = (
             path == '/'
             or path in public_page_paths
-            or path.startswith('/api/v1/')
-            or path.startswith('/static/')
-            or path.startswith('/assets/builtin/')
-            or path.startswith('/display/')
+            or path.startswith(('/api/v1/', '/static/', '/assets/builtin/', '/display/'))
         )
         if app_surface:
             embedded_auto_diagram = path == '/3d-studio' and request.query_params.get('auto-diagram-embed') == '1'
@@ -107,8 +101,7 @@ def install_middlewares(app: FastAPI, settings: Settings) -> None:
         elif (
             path in public_or_entry_page_paths
             or (path.startswith('/api/v1/') and not immutable_private_asset(path))
-            or path.startswith('/display/')
-            or path.startswith('/static/3d-studio/')
+            or path.startswith(('/display/', '/static/3d-studio/'))
             or path in entry_page_assets
         ):
             set_no_store_with_revalidation(response)

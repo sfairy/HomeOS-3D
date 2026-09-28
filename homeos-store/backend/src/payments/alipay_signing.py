@@ -18,7 +18,6 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from ..payments import urls as payment_urls
 from ..payments.base import PaymentError
 
-
 CHINA_TZ = timezone(timedelta(hours=8))
 
 
@@ -35,7 +34,7 @@ def yuan_from_cents(cents: int) -> str:
 def cents_from_yuan(value: object) -> int | None:
     """元转分；解析失败返回 None（调用方必须把 None 当校验失败，不能当 0）。"""
     try:
-        return int((Decimal(str(value).strip()) * 100).quantize(Decimal("1")))
+        return int((Decimal(str(value).strip()) * 100).quantize(Decimal(1)))
     except (InvalidOperation, ValueError, TypeError):
         return None
 

@@ -340,9 +340,7 @@ class StoreSettings:
         """
         if self.mail_mode != "smtp" or not self.smtp_host:
             return False
-        if self.smtp_username and not self.smtp_password:
-            return False
-        return True
+        return not (self.smtp_username and not self.smtp_password)
 
     @property
     def smtp_misconfigured(self) -> bool:

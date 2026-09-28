@@ -1,6 +1,7 @@
 """硬件指纹：把机器与主板标识派生成稳定的安装实例 ID。
 """
 from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -10,6 +11,7 @@ import secrets
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
 # 各家主板 / 虚拟机固件写死的默认值或占位文案；这些值在大量机器上重复出现，
 INVALID_IDENTIFIERS = {
     '',
@@ -249,15 +251,15 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
     if used_fallback:
         material = (
             f'homeos-hardware-v2\x00machine={machine}\x00board={board}\x00host={host_extra}'
-        ).encode('utf-8')
+        ).encode()
     else:
-        material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode('utf-8')
+        material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode()
     return HardwareIdentity(
         # 组合哈希：机器或主板任一变化都会改变实例 ID，从而触发重新绑定。
         instance_id=hashlib.sha256(material).hexdigest(),
         # 两类标识各自单独哈希，仅用于诊断定位，不参与门禁判定。
-        machine_id=hashlib.sha256(f'homeos-machine-v1\x00{machine}'.encode('utf-8')).hexdigest(),
-        board_id=hashlib.sha256(f'homeos-board-v1\x00{board}'.encode('utf-8')).hexdigest())
+        machine_id=hashlib.sha256(f'homeos-machine-v1\x00{machine}'.encode()).hexdigest(),
+        board_id=hashlib.sha256(f'homeos-board-v1\x00{board}'.encode()).hexdigest())
 
 
 def hardware_instance_id(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> str:

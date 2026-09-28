@@ -23,7 +23,7 @@ from ..security.security import (
     is_valid_email,
     normalize_email,
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
@@ -38,7 +38,6 @@ from .admin_shared import (
     _guard_self_lockout,
     _page,
 )
-
 
 router = APIRouter()
 

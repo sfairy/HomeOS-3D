@@ -10,12 +10,11 @@ from uuid import uuid4
 from anyio import create_task_group
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ..observability.global_log import event_context
 from ..security.access import admin_token_from, discard_expired_session, display_token_from, resolve_principal
 from ..security.dependencies import ViewerPrincipal, viewer_entity_ids
 from ..security.display_access import active_display_device
 from ..security.http_security import origin_allowed
-from ..observability.global_log import event_context
-
 
 # 实时连接单独一个 router：不带 /ha 前缀，挂在 /api/v1/ws/runtime 下。
 runtime_router = APIRouter(tags=['runtime'])
@@ -91,21 +90,19 @@ async def run_tasks_until_first_completes(*operations) -> None:
             nonlocal failure
             try:
                 await operation()
-            except Exception as error:  # noqa: BLE001 - 要按类型分流，不能直接往外抛
+            except Exception as error:
                 # 真正的异常要保留，先到的优先（后到的那一路此刻已被取消）。
                 # WebSocketDisconnect 是「客户端主动断开」的常规信号，不让它盖住真正的异常。
                 if failure is None or not isinstance(error, WebSocketDisconnect):
                     failure = error
             finally:
                 tasks.cancel_scope.cancel()
-            return None
 
         for operation in operations:
             tasks.start_soon(run, operation)
     # 异常在任务组退出后再抛出：此时两路任务都已收尾，不会有并发写入。
     if failure is not None:
         raise failure
-    return None
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
     """校验 WebSocket 握手的 Origin 是否来自本应用主机。
     """
@@ -138,7 +135,6 @@ async def runtime_websocket(websocket: WebSocket) -> None:
         raise
     finally:
         event_context.reset(token)
-    return None
 def _runtime_log(
     websocket: WebSocket,
     level: str,
@@ -158,7 +154,6 @@ def _runtime_log(
             else ('仪表盘编辑器' if context.get('actor') else '系统后台')
         )
         log.append(level, source, '实时连接', message, context=context, details=details)
-    return None
 async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
     """安全地发一条 JSON；连接已关闭时转成 WebSocketDisconnect。
     """
@@ -172,7 +167,6 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
         }:
             raise WebSocketDisconnect(code=1006) from error
         raise
-    return None
 async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     """实时状态连接的主流程。
     """
@@ -186,17 +180,16 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             {**context, 'code': str(code), 'phase': 'rejected'},
         )
         await websocket.close(code=code, reason=reason if send_reason else None)
-        return None
 
     if not websocket_origin_allowed(websocket):
         await close_with_log(4403, 'origin not allowed')
-        return None
+        return
     # 同步查库放到线程里，别阻塞事件循环。
     viewer = await asyncio.to_thread(websocket_viewer, websocket)
     if viewer is None:
         # 4401 表示未认证，客户端应引导用户去登录或完成配对。
         await close_with_log(4401, 'authentication required', send_reason=False)
-        return None
+        return
     # 把身份写进上下文：这条连接后续产生的日志都能标出是谁在看。
     if viewer.user is not None:
         context['actor'] = getattr(viewer.user, 'username', None)
@@ -209,7 +202,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     # 实时推送是独立能力码：没有它时看板仍可用 HTTP 轮询，只是没有推送。
     if not await asyncio.to_thread(websocket.app.state.license_service.allows, 'runtime.websocket'):
         await close_with_log(4403, 'license restricted', send_reason=False)
-        return None
+        return
     await websocket.accept()
     _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
     # 每条连接一个订阅队列，广播由 state_hub 统一分发。
@@ -223,7 +216,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
         if subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
             await close_with_log(4400, 'subscribe message required')
-            return None
+            return
         entity_ids = {str(value) for value in subscribe['entityIds'] if isinstance(value, str)}
         if viewer.project_id is not None:
 
@@ -238,7 +231,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         # 订阅上限：一次连接关心上千个实体基本是异常用法。
         if len(entity_ids) > MAX_RUNTIME_ENTITIES:
             await close_with_log(4400, 'too many entities')
-            return None
+            return
         websocket.app.state.ha_connector.state_hub.set_subscription_entities(queue, entity_ids)
         await websocket.app.state.ha_connector.add_runtime_entity_watch(entity_ids, ensure_states=False)
         watching = True
@@ -255,21 +248,21 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             while True:
                 if not await binding_guard.matches():
                     await close_with_log(4401, 'display pairing changed')
-                    return None
+                    return
                 try:
                     # 展示设备用 5 秒心跳（要更快发现改绑），编辑器用 25 秒减少无意义唤醒。
                     event = await asyncio.wait_for(queue.get(), timeout=5 if viewer.display else 25)
                 except TimeoutError:
                     if not await binding_guard.matches():
                         await close_with_log(4401, 'display pairing changed')
-                        return None
+                        return
                     await _runtime_send_json(websocket, {'type': 'ping'})
                     continue
                 if not await binding_guard.matches():
                     await close_with_log(4401, 'display pairing changed')
-                    return None
+                    return
                 await _runtime_send_json(websocket, event)
-            return None
+            return
 
         async def receive_disconnect() -> None:
             """另一路任务只负责感知客户端断开。"""
@@ -303,4 +296,4 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 await websocket.app.state.ha_connector.remove_runtime_entity_watch(entity_ids)
         finally:
             websocket.app.state.ha_connector.state_hub.unsubscribe(queue)
-    return None
+    return

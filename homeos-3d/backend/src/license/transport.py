@@ -12,18 +12,17 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
-from ..core.canonical_json import canonical_json
-from ..core.models import LicenseState
-from ..core.time_utils import ensure_aware
 from .base import LicenseServiceBase
-from .crypto import LicenseCryptoError, parse_timestamp
-from .hardware import hardware_instance_id
-
-
 from .contracts import (
     BASE_FEATURES,
     LicenseClientError,
 )
+from .crypto import LicenseCryptoError, parse_timestamp
+from .hardware import hardware_instance_id
+from ..core.canonical_json import canonical_json
+from ..core.models import LicenseState
+from ..core.time_utils import ensure_aware
+
 
 class LicenseTransportMixin(LicenseServiceBase, ABC):
     """HTTP 传输与响应落地：发请求、解析错误、把状态写进 self._state"""
@@ -139,8 +138,7 @@ class LicenseTransportMixin(LicenseServiceBase, ABC):
         """
         if payload_sequence < state.lease_sequence:
             return False
-        if payload_sequence > state.lease_sequence:
-            state.lease_sequence = payload_sequence
+        state.lease_sequence = max(state.lease_sequence, payload_sequence)
         return True
     def _validate_saved_state(self, state: LicenseState, database) -> None:
         """启动时的离线校验：只信签名租约，不信库里的 status。

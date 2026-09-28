@@ -88,8 +88,7 @@ def validate_lock_bindings(items, validate_camera) -> None:
         model_id = item.get("modelId")
         if isinstance(model_id, str) and model_id:
             raw_model_id = model_id
-            if raw_model_id.startswith("door:"):
-                raw_model_id = raw_model_id[5:]
+            raw_model_id = raw_model_id.removeprefix("door:")
             # 反复剥前缀，兼容早期写成 door:door:xxx 的配置。
             while raw_model_id.startswith("door:"):
                 raw_model_id = raw_model_id[5:]

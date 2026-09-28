@@ -6,17 +6,15 @@ import asyncio
 import json
 import os
 import time
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Awaitable, Callable
 
 from sqlalchemy import select
 
+from .ha_shared import active_connection
 from ..core.database import Database
 from ..core.models import HAConnection, HAEntity
 
-
-
-from .ha_shared import active_connection
 
 def load_translation_context(database_manager: Database) -> tuple[HAConnection | None, set[str]]:
     """取活跃连接，以及需要向其请求实体翻译的集成名集合。

@@ -27,12 +27,12 @@ from ..payments.credentials import (
 from ..payments.wechat import WeChatPayProvider
 
 __all__ = [
-    "AlipayProvider",
     "CHANNEL_LABELS",
+    "PROVIDER_NAMES",
+    "AlipayProvider",
     "PaymentError",
     "PaymentIntent",
     "PaymentProvider",
-    "PROVIDER_NAMES",
     "WeChatPayProvider",
     "alipay_credentials_summary",
     "channel_label",

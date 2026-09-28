@@ -7,11 +7,9 @@ from datetime import timedelta
 
 from fastapi import HTTPException, Request, Response, status
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from ..security import password_gate
 from ..config import StoreSettings
 from ..core.models import (
     Account,
@@ -19,6 +17,7 @@ from ..core.models import (
     Customer,
     EmailVerification,
 )
+from ..security import password_gate
 from ..security.limiter import SlidingWindowLimiter
 from ..security.request_security import resolve_client_ip, secure_cookies_required
 from ..security.security import (
@@ -28,7 +27,6 @@ from ..security.security import (
     token_matches,
     utcnow,
 )
-
 
 logger = logging.getLogger("src.api")
 #: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。

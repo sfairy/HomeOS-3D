@@ -9,13 +9,13 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..commerce import coupons, fulfill
-from ..ops import incidents
-from ..core.models import Order, StoreSetting
 from ..commerce.order_status import (
     FAILURE_MARKABLE_STATUSES,
     RESERVING_STATUSES,
     order_status_label,
 )
+from ..core.models import Order, StoreSetting
+from ..ops import incidents
 from ..security.security import utcnow
 
 logger = logging.getLogger("src.payments.settlement")
@@ -109,7 +109,7 @@ def settle_paid_order(
                     order=order,
                     setting=setting,
                 )
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             # 不能把 500 抛给支付宝：那会让它无限重推通知，而每次重推都会再走
             # 一遍同样的失败。这里把订单显式推到 fulfillment_failed 交后台人工
             # 处理（重试或退款），并把失败原因写进复核备注。

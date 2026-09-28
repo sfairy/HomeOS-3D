@@ -1,11 +1,13 @@
 """授权服务器端点池：三批地址的选路、洗牌与失败拉黑。
 """
 from __future__ import annotations
+
 import random
 import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+
 # 一轮计划重试的间隔下限（秒）。端点拉黑时长与它对齐：黑名单若比重试节奏还长，
 LICENSE_RETRY_SECONDS = 120
 # 失败地址拉黑时长。与重试间隔取同一枚常量，保证每轮重试都至少有机会重新探测所有地址。
@@ -46,7 +48,7 @@ class LicenseEndpointPool:
         """归一化配置：校验批次名、清洗地址、全局去重。
         """
         # 先把三个批次键都建好（即使一个地址都没配），后续取值不必再判 None。
-        normalized = {name: () for name in LICENSE_ENDPOINT_BATCH_NAMES}
+        normalized: dict[str, tuple[str, ...]] = dict.fromkeys(LICENSE_ENDPOINT_BATCH_NAMES, ())
         seen = set()
         for raw_name, raw_urls in batches:
             # 批次名大小写不敏感、容忍首尾空格：配置里写 'ESA ' 也能命中。

@@ -79,7 +79,7 @@ def _run_in_worker(
         result = getattr(authority, method)(payload, ip=client_ip, generation=generation)
     except LicenseServerError as error:
         return None, error, stage
-    except Exception:  # noqa: BLE001 - 见 docstring：解密阶段的意外异常按「格式无效」处理
+    except Exception:
         if stage == "decrypt":
             return None, None, "invalid"
         raise
@@ -93,7 +93,7 @@ async def _dispatch(request: Request, method: str) -> Response:
     # 按来源 IP 限流，放在读请求体之前，「连解析都不做」就能挡掉洪水。桶按端点选：
     try:
         address = resolve_client_ip(request)
-    except Exception:  # noqa: BLE001 - 解析异常不该让授权端点整体不可用
+    except Exception:
         address = None
     if address is not None and address.per_client and address.ip:
         if method == "activate":
@@ -109,7 +109,7 @@ async def _dispatch(request: Request, method: str) -> Response:
 
     try:
         body = await request.json()
-    except Exception:  # noqa: BLE001 - 非法 JSON 一律 400
+    except Exception:
         return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
 
     client_ip = resolve_client_ip(request).ip or None
@@ -117,7 +117,7 @@ async def _dispatch(request: Request, method: str) -> Response:
         response_body, error, stage = await asyncio.to_thread(
             _run_in_worker, authority, method, body, path, client_ip
         )
-    except Exception:  # noqa: BLE001 - 服务端异常按 500 返回，客户端会切换端点重试
+    except Exception:
         logger.exception("授权端点内部错误 path=%s", path)
         return JSONResponse({"detail": "授权服务内部错误，请稍后重试。"}, status_code=500)
 
@@ -194,7 +194,7 @@ def public_keys(request: Request) -> Response:
     settings = request.app.state.settings
     try:
         address = resolve_client_ip(request)
-    except Exception:  # noqa: BLE001 - 解析异常不该让公钥分发整体不可用
+    except Exception:
         address = None
     if address is not None and address.per_client and address.ip:
         ip_key = f"ip:{address.ip}"

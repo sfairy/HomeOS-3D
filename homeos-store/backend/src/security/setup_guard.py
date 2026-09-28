@@ -201,11 +201,11 @@ class SetupGuard:
         """
         try:
             if not self.path.is_file():
-                return None
+                return
             on_disk = read_token_file(self.path.read_text(encoding="utf-8"))
             if not self._is_ours(on_disk):
                 logger.warning("检测到预置的引导密钥文件（不是本商店生成的），已保留：%s", self.path)
-                return None
+                return
             self.path.unlink()
             # 标记跟着一起走：留着它只会让下一个人对着一个来历不明的文件猜。
             self.marker_path.unlink(missing_ok=True)

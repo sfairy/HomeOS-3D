@@ -14,20 +14,19 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 
+from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from ..config import Settings
 from ..core.database import Database
-from ..observability.global_log import GlobalLogStore
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
-from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
+from ..observability.global_log import GlobalLogStore
 
 logger = logging.getLogger(__name__)
 from .endpoints import LicenseEndpointPool
-from .process_lock import LicenseProcessLock
-from .trust import verify_license_trust_anchors
 from .heartbeat import LicenseHeartbeatMixin
+from .process_lock import LicenseProcessLock
 from .transport import LicenseTransportMixin
-
+from .trust import verify_license_trust_anchors
 
 #: 本机拿不出可用激活凭证时返回的错误码，前端据此展开手动激活表单。
 MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
@@ -35,8 +34,8 @@ MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
 
 from .contracts import (
     BASE_FEATURES,
-    LicenseClientError,
     TERMINAL_STATES,
+    LicenseClientError,
 )
 
 
@@ -221,7 +220,7 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
                 await asyncio.to_thread(self._clear_startup_validation)
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 - 后台任务里的未捕获异常只会变成
+        except Exception:
             # "Task exception was never retrieved" 告警，而这一步本来就是可重试的：
             # 记一条 warning 留痕，把判定交回心跳循环。
             logger.warning('授权服务的启动联网确认失败，交由心跳循环重试', exc_info = True)
@@ -539,5 +538,5 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
             if state is None or state.instance_id != self._instance_id():
                 return False
             return self._verified_access(state, feature)
-        with self.database.session_factory() as database:
-            return self._verified_access(self._state(database), feature)
+        with self.database.session_factory() as session:
+            return self._verified_access(self._state(session), feature)

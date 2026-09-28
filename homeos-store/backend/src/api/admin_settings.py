@@ -9,18 +9,26 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..config import ALIPAY_ORDER_TTL_FLOOR_SECONDS
-from ..ops import site_settings as site_config
-from ..ops import mail_settings, mailer
 from ..core.deps import AdminAccount, DbSession, SettingsDep
+from ..core.models import (
+    DEFAULT_SUPPORT_EMAIL,
+    StoreSetting,
+)
+from ..core.schemas import (
+    AdminMailTestRequest,
+    AdminSettingsRequest,
+)
+from ..ops import mail_settings, mailer
+from ..ops import site_settings as site_config
 from ..payments import (
     PROVIDER_NAMES,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
 )
-from ..payments.base import PaymentError
 from ..payments import urls as payment_urls
 from ..payments import wechat_signing as signing
+from ..payments.base import PaymentError
 from ..payments.credentials import (
     alipay_credentials_summary,
     resolve_secret_input,
@@ -30,19 +38,11 @@ from ..payments.credentials import (
     validate_public_key_text,
     wechat_credentials_summary,
 )
-from ..core.models import (
-    DEFAULT_SUPPORT_EMAIL,
-    StoreSetting,
-)
-from ..core.schemas import (
-    AdminMailTestRequest,
-    AdminSettingsRequest,
-)
 from ..security.security import (
     is_valid_email,
     normalize_email,
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 

@@ -3,17 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
+import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-import os
-import sys
-import traceback
-
-
-from ..security.admin_account import AdminAccountStore
-from ..security.dependencies import DISPLAY_HEARTBEAT_THROTTLE_SECONDS
 from ..api.assets_catalog import AssetCatalog, sweep_user_assets_for_app
 from ..api.displays import (
     PAIRING_CODE_KEYS,
@@ -25,29 +21,31 @@ from ..api.ha import (
     HA_TEST_KEYS,
     HA_TEST_LIMIT,
 )
-from ..api.media_proxy_support import (
-    CameraStreamWarmer,
-    dashboard_camera_entity_ids,
-)
 from ..api.license import (
     LICENSE_ACTIVATION_KEYS,
     LICENSE_ACTIVATION_LIMIT,
 )
-from ..core.appearance import AppearanceStore
-from ..security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
-from ..http.access_log import install_access_log_noise_filter
+from ..api.media_proxy_support import (
+    CameraStreamWarmer,
+    dashboard_camera_entity_ids,
+)
 from ..config import Settings
+from ..core.appearance import AppearanceStore
 from ..core.database import Database
+from ..core.migrations import run_migrations
 from ..ha.service import HAConnectorService
+from ..http.access_log import install_access_log_noise_filter
+from ..license import LicenseService
+from ..observability.global_log import GlobalLogStore, RepeatedErrorTally, _safe_text
+from ..observability.updates import UpdateChecker, endpoint_hosts
+from ..security.admin_account import AdminAccountStore
+from ..security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+from ..security.dependencies import DISPLAY_HEARTBEAT_THROTTLE_SECONDS
 from ..security.http_security import (
     configured_base_origin,
     forwarded_allow_ips_warning,
     parse_trusted_proxies,
 )
-from ..license import LicenseService
-from ..observability.updates import UpdateChecker, endpoint_hosts
-from ..core.migrations import run_migrations
-from ..observability.global_log import GlobalLogStore, RepeatedErrorTally, _safe_text
 from ..security.setup_guard import SetupGuard, announce_setup_window
 
 
@@ -174,7 +172,7 @@ def build_lifespan(settings: Settings, license_transport = None, license_endpoin
             async def _sweep_user_assets() -> None:
                 try:
                     await asyncio.to_thread(sweep_user_assets_for_app, app)
-                except Exception as error:  # noqa: BLE001 - 巡检是附加工作，启动不能因它失败
+                except Exception as error:
                     app.state.global_log.append('warning', '系统后台', '存储', f'用户素材巡检失败：{error}')
 
             app.state.user_asset_sweep_task = asyncio.create_task(
@@ -209,7 +207,7 @@ def build_lifespan(settings: Settings, license_transport = None, license_endpoin
                 app.state.camera_warmer.want_all(
                     await asyncio.to_thread(dashboard_camera_entity_ids, app.state.database)
                 )
-            except Exception as error:  # noqa: BLE001 - 预热登记是附加工作，失败不阻断启动
+            except Exception as error:
                 app.state.global_log.append(
                     'warning', '系统后台', '存储', f'摄像头流预热登记失败：{error}')
             app.state.update_checker = UpdateChecker(

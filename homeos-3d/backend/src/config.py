@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+
 def _detect_project_root() -> Path:
     """源码布局 ``homeos-3d/backend/src`` 或镜像布局 ``/app/src``。"""
     here = Path(__file__).resolve()

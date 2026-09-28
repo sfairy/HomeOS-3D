@@ -8,8 +8,8 @@ from urllib.parse import quote
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from ..core.models import DisplayDevice, DisplayPairingCode, Project, ProjectPathAlias
 from .security import session_token_hash
+from ..core.models import DisplayDevice, DisplayPairingCode, Project, ProjectPathAlias
 from ..core.time_utils import ensure_aware
 
 

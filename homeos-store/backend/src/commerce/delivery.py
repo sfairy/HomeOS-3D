@@ -14,7 +14,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.database import Database
 from ..core.models import License, Order, StoreSetting, utcnow
-from ..ops import incidents, mail_settings, mailer, site_settings as site_config
+from ..ops import incidents, mail_settings, mailer
+from ..ops import site_settings as site_config
 
 logger = logging.getLogger("src.commerce.delivery")
 
@@ -133,7 +134,7 @@ def notify_license_issued(
                 "mode": result.mode,
                 "error": result.error,
             }
-    except Exception as error:  # noqa: BLE001 - 投递绝不能把调用方一起带走
+    except Exception as error:
         incidents.note("delivery", order_no=order_id, error=error)
         logger.exception("发货邮件流程异常 order=%s", order_id)
         return {"sent": False, "reason": "exception", "error": str(error)[:200]}

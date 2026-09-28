@@ -1,24 +1,28 @@
 """素材（图片）的目录、上传与读取接口。
 """
 from __future__ import annotations
+
 import asyncio
 import json
 import os
 import shutil
-from xml.etree import ElementTree
 from pathlib import Path
 from urllib.parse import unquote
 from uuid import uuid4
+from xml.etree import ElementTree
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
-from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_capability, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
-from ..http.http_cache import set_private_immutable_cache, set_versioned_private_cache
-from ..panel.documents import parse_document
-from ..core.models import Project, ProjectDraft
-from ..panel.global_popups import global_popups
-from ..http.streaming import size_limit_guard, write_stream_in_batches
 
+from .assets_catalog import (
+    MAX_USER_ASSET_TOTAL_BYTES,
+    USER_ASSET_WARN_BYTES,
+    document_uses_asset,
+    studio3d_export_file,
+    sweep_user_assets_for_app,
+    user_asset_file,
+)
 from .assets_uploads import (
     MAX_UPLOAD_BYTES,
     MAX_UPLOAD_PIXELS,
@@ -29,14 +33,21 @@ from .assets_uploads import (
     XLINK_NAMESPACE,
     validate_uploaded_image,
 )
-
-from .assets_catalog import (
-    MAX_USER_ASSET_TOTAL_BYTES,
-    USER_ASSET_WARN_BYTES,
-    document_uses_asset,
-    studio3d_export_file,
-    sweep_user_assets_for_app,
-    user_asset_file,
+from ..core.models import Project, ProjectDraft
+from ..http.http_cache import set_private_immutable_cache, set_versioned_private_cache
+from ..http.streaming import size_limit_guard, write_stream_in_batches
+from ..panel.documents import parse_document
+from ..panel.global_popups import global_popups
+from ..security.dependencies import (
+    DatabaseSession,
+    LicensedUser,
+    LicensedViewer,
+    authenticated_short_lived_viewer,
+    licensed_viewer,
+    require_capability,
+    require_viewer_studio3d_asset,
+    require_viewer_user_asset,
+    viewer_user_asset_ids,
 )
 
 router = APIRouter(prefix = '/assets', tags = [
@@ -92,7 +103,7 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
     except (UnicodeError, ValueError) as error:
         raise HTTPException(status_code = 422, detail = '图片文件名无效。') from error
     # 文件名白名单校验：点开头、含路径分隔符、含控制字符或超长的一律拒绝，URL 编码解出来也不放过。
-    if not filename or filename in frozenset({'.', '..'}) or filename.startswith('.') or Path(filename).name != filename or '/' in filename or '\\' in filename or any((ord(character) < 32 or ord(character) == 127 for character in filename)) or len(filename.encode('utf-8')) > 240:
+    if not filename or filename in frozenset({'.', '..'}) or filename.startswith('.') or Path(filename).name != filename or '/' in filename or '\\' in filename or any(ord(character) < 32 or ord(character) == 127 for character in filename) or len(filename.encode('utf-8')) > 240:
         raise HTTPException(status_code = 422, detail = '图片文件名无效，请保留普通文件名后重试。')
     suffix = Path(filename).suffix.lower()
     if suffix not in UPLOAD_IMAGE_SUFFIXES:

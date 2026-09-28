@@ -42,7 +42,7 @@ class PaymentProvider(Protocol):
         out_request_no: str,
         settings: StoreSettings,
         setting: StoreSetting,
-    ) -> "RefundResult": ...
+    ) -> RefundResult: ...
 
     # 对账层（payments/reconcile.py）只认下面这一组渠道无关方法，详见各 provider
     # 里的说明。它们不参与发起 / 退款，所以放在主流程之外。
@@ -56,7 +56,7 @@ class PaymentProvider(Protocol):
 
     def paid_cents_of(self, node: dict) -> int | None: ...
 
-    def close_payment(self, settings: StoreSettings, order: Order) -> "CloseResult": ...
+    def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult: ...
 
 
 @dataclass(frozen=True)

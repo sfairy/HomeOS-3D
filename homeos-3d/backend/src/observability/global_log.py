@@ -79,7 +79,7 @@ def _safe_text(value: Any, *, limit: int) -> str:
             lambda match: f"{match.group(1)}***" if match.lastindex else "***", text
         )
     # URL 的查询串可能带令牌，整段打码，只保留？之前的部分。
-    text = re.sub("((?:https?|rtsps?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.I)
+    text = re.sub("((?:https?|rtsps?)://[^\\s?#]+)[?#][^\\s]*", "\\1?***", text, flags=re.IGNORECASE)
     # HLS 流地址里的 token 参数由路径携带，统一收敛成一个占位符再进日志。
     text = re.sub('/api/hls/[^\\s\\"\'<>]*', "/api/hls/[stream]", text)
     return text[:limit]
@@ -243,11 +243,11 @@ class GlobalLogStore:
                         self._expire_recent_locked()
                     if stopping and not self._pending:
                         return
-            except Exception as error:  # noqa: BLE001 —— 写线程绝不能因异常静默死掉
+            except Exception as error:
                 try:
                     with self._lock:
                         self._io_failure(error)
-                except Exception:  # noqa: BLE001 —— 连告警都失败时只能放弃这一轮
+                except Exception:
                     pass
 
     def _expire_recent_locked(self) -> None:

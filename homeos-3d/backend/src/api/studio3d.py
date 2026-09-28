@@ -25,14 +25,14 @@ from starlette.concurrency import run_in_threadpool
 from .assets_uploads import MAX_UPLOAD_DIMENSION, MAX_UPLOAD_PIXELS
 from ..core.body_limits import MAX_SCENE_DOCUMENT_BYTES
 from ..core.canonical_json import canonical_json, canonical_json_bytes
-from ..security.dependencies import DatabaseSession, LicensedUser
-from ..panel.global_popups import global_popups
 from ..core.models import Project, ProjectDraft, StudioInteractionSync
+from ..core.schemas import Studio3DDraftUpdate
+from ..http.streaming import flush_and_sync, size_limit_guard, write_stream_in_batches
 from ..modules.interaction3d.studio_cleanup import confirmation_token, plan_cleanup
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids, document_mentions
-from ..core.schemas import Studio3DDraftUpdate
-from ..http.streaming import flush_and_sync, size_limit_guard, write_stream_in_batches
+from ..panel.global_popups import global_popups
+from ..security.dependencies import DatabaseSession, LicensedUser
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 # 各条上限都是「防御性天花板」：正常户型图远小于这些值，设上限是为了挡住前端 bug 或
@@ -71,8 +71,8 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
             output.flush()
             # 先 flush 再 fsync：只有真落到磁盘，断电后才不会留下被截断的草稿。
             os.fsync(output.fileno())
-        # 384 = 0o600，创建后立刻收紧权限 —— 草稿里有完整的户型与家具布局。
-        temporary_path.chmod(384)
+        # 0o600，创建后立刻收紧权限 —— 草稿里有完整的户型与家具布局。
+        temporary_path.chmod(0o600)
         os.replace(temporary_path, path)
     finally:
         # 成功路径下临时文件已被 rename 走，这里只清理失败时的残留。
@@ -110,8 +110,8 @@ def _folder_name(request: Request) -> str:
         or name in frozenset({'.', '..'})
         or name.startswith('.')
         or name.endswith(('.', ' '))
-        or any((character in invalid_characters for character in name))
-        or any((ord(character) < 32 or ord(character) == 127 for character in name))
+        or any(character in invalid_characters for character in name)
+        or any(ord(character) < 32 or ord(character) == 127 for character in name)
         # 按字节限长：中文一个字占 3 字节，而 NAS 的路径长度限制按字节算。
         or len(name.encode('utf-8')) > 180
         # 兜底再确认一次「只剩文件名」，挡住用 '..' 拼出的路径穿越。
@@ -395,9 +395,8 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
             with zipfile.ZipFile(temporary_archive) as archive:
                 for entry in entries:
                     output_path = staging / entry.filename
-                    with archive.open(entry) as source:
-                        with output_path.open('xb') as output:
-                            shutil.copyfileobj(source, output)
+                    with archive.open(entry) as source, output_path.open('xb') as output:
+                        shutil.copyfileobj(source, output)
                     output_path.chmod(384)
             # 原始 ZIP 也留在文件夹里，便于用户回下载或做整体备份。
             archive_name = f'{folder_name}.zip'
@@ -477,7 +476,7 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
             'folderName': folder_name,
             'relativePath': f'exports/{folder_name}',
             'overwritten': target_exists,
-            'files': sorted([entry.filename for entry in entries]) + [f'{folder_name}.zip'],
+            'files': [*sorted(entry.filename for entry in entries), f'{folder_name}.zip'],
         }
     finally:
         # 无论成功失败都清掉上传临时文件，不给导出目录留下垃圾。

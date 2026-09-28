@@ -21,6 +21,7 @@ from ..ops.net_probe import (
     host_from_url,
     probe_tls,
 )
+
 # CloseResult 曾定义在本模块里；现在住在 base.py（微信支付用同一套关单语义）。
 from ..payments import channels
 from ..payments.base import (
@@ -727,17 +728,17 @@ from .alipay_signing import (
 )
 
 __all__ = [
-    'AlipayNotification',
-    'AlipayProvider',
     'CLOSE_ALREADY_PAID_SUB_CODES',
     'CLOSE_IDEMPOTENT_SUB_CODES',
     'CREDENTIAL_ERROR_SUB_CODES',
-    'CloseResult',
-    'ResponseSignatureInvalid',
-    'ResponseSignatureMissing',
     'PRODUCTION_GATEWAY_HOST',
     'SUCCESS_TRADE_STATUSES',
     'TRADE_NOT_EXIST_SUB_CODES',
+    'AlipayNotification',
+    'AlipayProvider',
+    'CloseResult',
+    'ResponseSignatureInvalid',
+    'ResponseSignatureMissing',
     '_callback_check',
     '_url_port',
     'alipay_timestamp',

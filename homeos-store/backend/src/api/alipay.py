@@ -11,17 +11,18 @@ from fastapi import APIRouter, BackgroundTasks, Body, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy import select, update
 
-from ..commerce import delivery, fulfill
-from ..ops import incidents, site_settings as site_config
 from ..api.page_shell import APPEARANCE_PLACEHOLDER, inject_scene
+from ..commerce import delivery, fulfill
 from ..core.deps import DbSession
-from ..security.limiter import SlidingWindowLimiter
 from ..core.models import Order, Product
 from ..core.static_revision import file_revision
+from ..ops import incidents
+from ..ops import site_settings as site_config
 from ..payments.alipay import cents_from_yuan, public_key_error
 from ..payments.base import PaymentError
 from ..payments.reconcile import reconcile_channel_order
 from ..payments.settlement import settle_paid_order
+from ..security.limiter import SlidingWindowLimiter
 from ..security.request_security import resolve_client_ip
 from ..security.security import token_matches, utcnow
 
@@ -316,7 +317,7 @@ def alipay_return(
                     setting=setting,
                     force=owns_order,
                 )
-            except Exception as error:  # noqa: BLE001 - 对账失败不能挡住跳转页
+            except Exception as error:
                 # 用户就站在这张页面上等结果，所以不能失败；但要留下计数，否则后台没有任何痕迹。
                 incidents.note("reconcile.return", order_no=order.order_no, error=error)
                 logger.exception("同步跳转页对账失败 order=%s", order.order_no)

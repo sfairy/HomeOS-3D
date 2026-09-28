@@ -69,7 +69,7 @@ class TemplateReference(ExtensibleModel):
     version: int = Field(default=1, ge=1)
 
     @model_validator(mode="after")
-    def validate_ids(self) -> 'TemplateReference':
+    def validate_ids(self) -> TemplateReference:
         """模板 ID 必须符合通用标识符规则，防止前端拼出不安全的名字。"""
         if not IDENTIFIER.fullmatch(self.template_id):
             raise ValueError("控件或弹窗模板来源无效。")
@@ -98,7 +98,7 @@ class EntityBinding(ExtensibleModel):
     required: bool = False
 
     @model_validator(mode="after")
-    def validate_entity_id(self) -> 'EntityBinding':
+    def validate_entity_id(self) -> EntityBinding:
         """校验实体 ID 格式；未绑定（None）与空串都视为合法的未配置状态。"""
         if self.entity_id and not valid_entity_id(self.entity_id):
             raise ValueError(f"无效实体 ID：{self.entity_id}")
@@ -145,7 +145,7 @@ class CustomPopupModule(ExtensibleModel):
     height: int = Field(default=1, ge=1, le=8)
 
     @model_validator(mode="after")
-    def validate_module(self) -> 'CustomPopupModule':
+    def validate_module(self) -> CustomPopupModule:
         """校验模块 ID 规范性与实体 ID 格式。"""
         if not IDENTIFIER.fullmatch(self.id):
             raise ValueError(f"无效弹窗模块 ID：{self.id}")
@@ -166,7 +166,7 @@ class CustomPopup(ExtensibleModel):
     )
 
     @model_validator(mode="after")
-    def validate_popup(self) -> 'CustomPopup':
+    def validate_popup(self) -> CustomPopup:
         """校验弹窗 ID，并保证同一弹窗内模块 ID 不重复。"""
         if not IDENTIFIER.fullmatch(self.id):
             raise ValueError(f"无效组合弹窗 ID：{self.id}")
@@ -195,10 +195,10 @@ class PanelComponent(ExtensibleModel):
     # 事件名 -> 动作，例如 {"tap": ComponentAction(...)}。
     actions: dict[str, ComponentAction] = Field(default_factory=dict)
     # 子组件（成组控件），通过字符串前向引用指回自身类型。
-    children: list['PanelComponent'] = Field(default_factory=list)
+    children: list[PanelComponent] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_id(self) -> 'PanelComponent':
+    def validate_id(self) -> PanelComponent:
         """组件 ID 必须符合通用标识符规则。"""
         if not IDENTIFIER.fullmatch(self.id):
             raise ValueError(f"无效组件 ID：{self.id}")
@@ -218,7 +218,7 @@ class PanelPage(ExtensibleModel):
     components: list[PanelComponent] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_identifiers(self) -> 'PanelPage':
+    def validate_identifiers(self) -> PanelPage:
         """页面 ID 与路径都必须符合通用标识符规则。"""
         if not IDENTIFIER.fullmatch(self.id) or not IDENTIFIER.fullmatch(self.path):
             raise ValueError(f"无效页面 ID 或路径：{self.id}/{self.path}")
@@ -256,7 +256,7 @@ class PanelDocument(ExtensibleModel):
         return value.strip() or None
 
     @model_validator(mode="after")
-    def validate_structure(self) -> 'PanelDocument':
+    def validate_structure(self) -> PanelDocument:
         """跨字段的引用完整性校验。
         """
         def walk(items: list[PanelComponent]):

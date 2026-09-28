@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import math
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 #: 1 积分 = 100 厘。
 CENTI_PER_POINT = 100
@@ -25,7 +26,7 @@ def _decimal(value: object) -> Decimal:
     elif isinstance(value, int):
         candidate = Decimal(value)
     elif isinstance(value, float):
-        if value != value or value in (float("inf"), float("-inf")):
+        if math.isnan(value) or math.isinf(value):
             raise ValueError(f"金额不是有限数：{value!r}")
         candidate = Decimal(str(value))
     elif isinstance(value, str):
