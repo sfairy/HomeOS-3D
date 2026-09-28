@@ -31,3 +31,7 @@ dist/
 *.tsbuildinfo
 .pytest_cache/
 .ruff_cache/
+
+# IDE：JetBrains 的本地索引与个人配置不参与版本管理。
+# （.vscode/settings.json 是有意提交的——它钉死类型检查档位，见 pyrightconfig.json）
+.idea/
