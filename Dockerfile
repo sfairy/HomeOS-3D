@@ -2,7 +2,7 @@
 
 #: 镜像版本号来自仓库根 package.json 的 version（CI 用 --build-arg HOMEOS_VERSION 传同一个值）：
 #: 构建期写成 src/_version.py 再随源码一起编译，镜像里不再有 VERSION 文件。
-ARG CYTHON_VERSION=3.1.6
+ARG CYTHON_VERSION=3.2.9
 #: 内置反代的 Caddy 二进制来源。Caddy 官方镜像是静态编译的 Go 二进制（/usr/bin/caddy），
 #: 直接把它拷进 Debian 基础镜像即可运行。这里钉住小版本以保证可复现；升级时改这一行，
 #: 或用 --build-arg CADDY_IMAGE=... 覆盖（也可换成 digest）。
@@ -32,7 +32,7 @@ RUN bun run build \
     && test -f homeos-store/dist/templates/store.html
 
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

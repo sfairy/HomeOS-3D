@@ -20,8 +20,8 @@
   },
   "workspaces": ["homeos-3d", "homeos-store"],
   "devDependencies": {
-    "@types/node": "^24.5.2",
+    "@types/node": "^26.6.2",
     "javascript-obfuscator": "^4.1.1",
-    "typescript": "^5.9.2"
+    "typescript": "^6.0.2"
   }
 }

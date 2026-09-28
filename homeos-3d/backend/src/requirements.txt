@@ -1,13 +1,13 @@
-fastapi>=0.115
-uvicorn>=0.30
-sqlalchemy>=2.0
-alembic>=1.13
-cryptography>=42
-argon2-cffi>=23.1
-pydantic>=2.7
-httpx>=0.27
-websockets>=12.0
-Pillow>=10.0
-python-multipart>=0.0.9
+fastapi>=0.141
+uvicorn>=0.53
+sqlalchemy>=2.0.36
+alembic>=1.20
+cryptography>=50
+argon2-cffi>=25.1
+pydantic>=2.13
+httpx>=0.28
+websockets>=17
+Pillow>=12
+python-multipart>=0.0.32
 # 本地热重载：ops/start.py / uvicorn reload 用；镜像构建可不依赖。
-watchfiles>=1.0
+watchfiles>=1.2
