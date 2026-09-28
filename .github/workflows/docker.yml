@@ -27,17 +27,23 @@ concurrency:
 env:
   REGISTRY: ghcr.io
 
+# runner 与 action 版本都显式钉住，不跟随浮动标签：
+# - runner 不用 ubuntu-latest：该标签自 2026-10-19 起迁往 Ubuntu 26，钉 24.04 可避免
+#   迁移当天的意外，也与 arm64 侧既有的 ubuntu-24.04-arm 保持一致。
+# - action 全部选使用 Node 24 运行时的大版本。GitHub 已弃用 Node 20，
+#   checkout@v4 / setup-buildx@v3 / login@v3 / build-push@v6 均已触发告警；
+#   以下版本起改用 Node 24（已逐个核对本流程用到的全部输入在新版中仍然存在）。
 jobs:
   # 只算一次版本与镜像名，后续 build / merge / deploy 全部复用。
   meta:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.meta.outputs.version }}
       image: ${{ steps.meta.outputs.image }}
       tag: ${{ steps.meta.outputs.tag }}
       release: ${{ steps.meta.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # 裸的版本 tag 只在默认分支推送：非默认分支勾了 deploy 会去拉一个不存在的 tag，这里提前挡住。
       - name: Deploy 只在默认分支可用
@@ -72,9 +78,9 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   typecheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -83,7 +89,7 @@ jobs:
           bun install --frozen-lockfile
           bun run typecheck
           # 零 @ts-nocheck 门禁（Phase 6：迁移已清零，改为硬失败，不再只是告警）。
-          # 不用 rg：ubuntu-latest 默认不一定装 ripgrep。
+          # 不用 rg：runner 默认不保证装了 ripgrep，grep 更稳。
           # 扫 frontend 全目录而非仅 src：vite.config.ts / vite-quiet-logger.ts 等同样在 tsconfig 内。
           # 允许前导空白，避免缩进写的 pragma 逃过检查。
           leftovers="$(
@@ -113,7 +119,7 @@ jobs:
             suffix: ""
             platform: linux/amd64
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - target: app
             suffix: ""
             platform: linux/arm64
@@ -123,26 +129,26 @@ jobs:
             suffix: "-store"
             platform: linux/amd64
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - target: store
             suffix: "-store"
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.target }} / ${{ matrix.arch }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -164,7 +170,7 @@ jobs:
   # 把 <tag>-amd64 与 <tag>-arm64 合成为一个 manifest list：docker pull 时按宿主架构自动选。
   merge:
     needs: [meta, build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -172,10 +178,10 @@ jobs:
           - suffix: ""
           - suffix: "-store"
     steps:
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -199,7 +205,7 @@ jobs:
   deploy:
     needs: [meta, merge]
     if: github.event_name == 'workflow_dispatch' && inputs.deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Require deploy secrets
         run: |
