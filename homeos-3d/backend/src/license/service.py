@@ -9,6 +9,7 @@ import threading
 import time
 from collections.abc import Collection
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from sqlalchemy import select
@@ -249,7 +250,7 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
         self._startup_validation_task = None
         self._process_lock.release()
 
-    async def activate(self, activation_code: str, email: str | None = None) -> dict:
+    async def activate(self, activation_code: str, email: str | None = None) -> dict[str, Any]:
         """用激活码激活当前安装。
         """
         # 同步查库（可能新建那一行状态）放线程池，别占着事件循环。
@@ -287,7 +288,7 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
         self._schedule_changed.set()
         return result
 
-    async def reactivate(self) -> dict:
+    async def reactivate(self) -> dict[str, Any]:
         '''用户主动触发的「重新激活」，返回与 ``/license/activate`` 同构的状态。
         '''
         # 同步查库放线程池：授权路径上的每一段同步读写都不留在事件循环里。
@@ -315,14 +316,14 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
 
 
 
-    async def recover(self) -> dict:
+    async def recover(self) -> dict[str, Any]:
         """对外恢复入口：串行化，与心跳共用同一把锁。"""
         async with self._credential_operation():
             return await self._recover_unlocked()
 
 
 
-    async def _recover_unlocked(self) -> dict:
+    async def _recover_unlocked(self) -> dict[str, Any]:
         """用恢复令牌重新换取租约（调用方须已持有 _heartbeat_lock）。"""
         (encrypted, instance_id, lease_sequence) = await asyncio.to_thread(self._recovery_credentials)
         if not encrypted:
@@ -420,7 +421,7 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
             self._record_status(state.status)
         self._schedule_changed.set()
 
-    def status(self) -> dict:
+    def status(self) -> dict[str, Any]:
         """取当前状态（开一个短事务，读单行状态后组装成字典）。"""
         with self.database.session_factory() as database:
             return self._payload(self._state(database))
@@ -446,7 +447,7 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
     #: availability() 对外暴露的字段白名单。用白名单而不是黑名单，是为了日后往 status()
     AVAILABILITY_FIELDS = ('status', 'errorCode', 'retryable', 'canRetry', 'retrying', 'retryAttempt', 'nextRetryAt')
 
-    def availability(self) -> dict:
+    def availability(self) -> dict[str, Any]:
         '''公开的可用性摘要：给恢复页与展示端，不含任何标识、凭证或原始错误。
         '''
         result = self.status()

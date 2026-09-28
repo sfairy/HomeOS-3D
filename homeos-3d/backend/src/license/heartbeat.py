@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import secrets
 import time
+from abc import ABC
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
+from .base import LicenseServiceBase
 from .crypto import LicenseCryptoError
 
 
@@ -22,7 +25,7 @@ from .contracts import (
     TERMINAL_STATES,
 )
 
-class LicenseHeartbeatMixin:
+class LicenseHeartbeatMixin(LicenseServiceBase, ABC):
     """心跳与重试：等多久、什么时候可以重试、失败怎么记账"""
 
     def _rate_limit_remaining(self) -> float:
@@ -105,11 +108,11 @@ class LicenseHeartbeatMixin:
         with self.database.session_factory() as database:
             state = self._state(database)
             return (state.encrypted_session_token, state.lease_sequence, state.instance_id)
-    async def heartbeat(self) -> dict:
+    async def heartbeat(self) -> dict[str, Any]:
         # 走凭证临界区而不是只取 _heartbeat_lock：续租会写凭证，必须在「本进程唯一写入者」
         async with self._credential_operation():
             return await self._heartbeat_unlocked()
-    async def _heartbeat_unlocked(self) -> dict:
+    async def _heartbeat_unlocked(self) -> dict[str, Any]:
         """心跳的实际实现（调用方须已持有 _heartbeat_lock）。
         """
         # 同步查库放线程池：心跳也会被请求路径 await，不能让读写占着事件循环。
@@ -154,7 +157,7 @@ class LicenseHeartbeatMixin:
             await asyncio.to_thread(self._mark_failure, error)
             # 错误码必须取 _mark_failure 归一化后的值：直接透传异常自身的 code 会丢掉
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=self._error_code) from error
-    async def retry_now(self) -> dict:
+    async def retry_now(self) -> dict[str, Any]:
         '''用户 / 展示端显式触发的「立刻重试」，返回最新状态。
         '''
         if self._retry_task is not None and not self._retry_task.done():

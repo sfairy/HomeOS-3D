@@ -1,0 +1,22 @@
+{
+  // 开发用的是仓库根的 .venv-store（见 ops/start.py 的 VENV_DIR）。它的名字不是
+  // .venv / venv / env，Pylance 的自动发现认不出来，不在这里点名就会退回系统
+  // Python —— 那里没有 httpx / sqlalchemy / fastapi / cryptography，于是
+  // backend 里每个第三方 import 都报无法解析，并连带一片属性错误。
+  "venvPath": ".",
+  "venv": ".venv-store",
+
+  // ops/ 下的脚本在运行时会自行把两个后端目录注入 sys.path（见 ops/start.py、
+  // ops/docker/start_*.py），静态分析看不到这一步，于是 src.* 一律报
+  // reportMissingImports。
+  //
+  // 这里只给 ops/ 补搜索路径：两个后端都有同名的 src 包，若全局放开，
+  // 后端代码里写错的 src.* 导入可能被另一个后端的同名模块“接住”而不再报错。
+  // "." 是为了让 ops.docker.* 仍按仓库根解析。
+  "executionEnvironments": [
+    {
+      "root": "ops",
+      "extraPaths": [".", "homeos-store/backend", "homeos-3d/backend"]
+    }
+  ]
+}

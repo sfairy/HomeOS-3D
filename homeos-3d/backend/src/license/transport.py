@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+from abc import ABC
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 from sqlalchemy import select
@@ -13,6 +15,7 @@ from sqlalchemy import select
 from ..core.canonical_json import canonical_json
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
+from .base import LicenseServiceBase
 from .crypto import LicenseCryptoError, parse_timestamp
 from .hardware import hardware_instance_id
 
@@ -22,7 +25,7 @@ from .contracts import (
     LicenseClientError,
 )
 
-class LicenseTransportMixin:
+class LicenseTransportMixin(LicenseServiceBase, ABC):
     """HTTP 传输与响应落地：发请求、解析错误、把状态写进 self._state"""
 
     @staticmethod
@@ -170,7 +173,7 @@ class LicenseTransportMixin:
             self._record_failure('本地校验', error, sensitive_values=(state.signed_lease,))
         database.commit()
         self._record_status(state.status)
-    async def _post(self, path: str, payload: dict) -> dict:
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         """向授权服务发送加密请求，按候选列表依次重试。
         """
         candidates = self._endpoint_pool.candidates()
@@ -260,7 +263,7 @@ class LicenseTransportMixin:
             return detail, None
         except ValueError:
             return '授权服务器拒绝请求。', None
-    def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
+    def _apply_response(self, response: dict[str, Any], *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict[str, Any]:
         """把一次成功的授权响应落库（验签通过后才算成功）。
         """
         # 缺字段时留空串，交给 verifier 统一按「格式无效」拒绝。
@@ -282,24 +285,28 @@ class LicenseTransportMixin:
             now = datetime.now(timezone.utc)
             if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
                 # 签发时间明显超前本机 → 时钟偏慢或服务端异常，到期判断不可信，先要求校准时间。
+                # 先落到局部变量：state.last_error 是可空列，直接拿去构造异常会被静态检查判成 str | None。
+                message = '授权服务器时间明显晚于本机时间，请先校准系统时间。'
                 state.status = 'CLOCK_ROLLBACK'
-                state.last_error = '授权服务器时间明显晚于本机时间，请先校准系统时间。'
+                state.last_error = message
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(message)
             if self._lease_expired(expires_at, now=now):
+                message = '授权服务器返回了已到期租约。'
                 state.status = 'LEASE_EXPIRED'
-                state.last_error = '授权服务器返回了已到期租约。'
+                state.last_error = message
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(message)
             if payload['activationCodeId'] == state.license_id and lease_sequence <= state.lease_sequence and state.signed_lease != signed_lease:
                 # 序号须递增防重放；只有内容完全相同的重试响应才允许相等。
+                message = '授权服务器返回了未递增的租约序号。'
                 state.status = 'INVALID'
-                state.last_error = '授权服务器返回了未递增的租约序号。'
+                state.last_error = message
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(message)
             state.license_id = payload['activationCodeId']
             state.lease_id = payload['leaseId']
             state.session_id = payload['sessionId']
@@ -315,11 +322,12 @@ class LicenseTransportMixin:
             features = payload.get('features')
             # 权益必须是字符串数组，类型不对说明响应被篡改，整体置 INVALID 而不放行看不懂的权益。
             if not isinstance(features, list) or not all(isinstance(item, str) for item in features):
+                message = '授权服务器返回的权益列表无效。'
                 state.status = 'INVALID'
-                state.last_error = '授权服务器返回的权益列表无效。'
+                state.last_error = message
                 database.commit()
                 self._record_status(state.status, state.last_error)
-                raise LicenseClientError(state.last_error)
+                raise LicenseClientError(message)
             # 紧凑序列化存库：内容由验签通过的租约决定，不需要可读性。
             state.feature_set = canonical_json(features)
             # 0 表示不限；配额目前由租约权益控制，不再单独下发数字。
@@ -350,7 +358,7 @@ class LicenseTransportMixin:
             # 联网成功即视为通过启动确认，门禁恢复常规判定。
             self._startup_validation_pending = False
             return self._payload(state)
-    def _payload(self, state: LicenseState) -> dict:
+    def _payload(self, state: LicenseState) -> dict[str, Any]:
         """组装对外状态字典（字段名与前端约定死，逐字不可改）。
         """
         effective_status = state.status
