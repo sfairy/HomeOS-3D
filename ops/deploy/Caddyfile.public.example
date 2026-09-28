@@ -1,0 +1,48 @@
+# 公网接入示例（Caddy 2）—— 授权商店用真实域名 + 自动签发的可信证书
+#
+# 与 docker-compose.store.public.yml 配套使用：
+#
+#   STORE_DOMAIN=store.example.com ACME_EMAIL=you@example.com \
+#   docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up -d
+#
+# 原理：
+#   - 域名解析到本机公网 IP，Caddy 用 ACME（HTTP-01 / TLS-ALPN）自动申请并续期证书；
+#   - 证书是公共 CA 签的，所以**客户机里的主应用也能正常校验**（这一点与镜像内置反代
+#     用的 Caddy 内部 CA 自签证书不同：自签在跨机 HTTPS 时会被 httpx/urllib 拒绝）；
+#   - 反代在商店容器**之外**（另一个容器），终止 TLS 后按内网明文转给商店的 8802。
+#
+# 因此商店侧必须放宽可信代理（见 overlay 里的 STORE_TRUSTED_PROXIES /
+# UVICORN_FORWARDED_ALLOW_IPS）：否则 uvicorn 会把反代容器当成客户端本人，
+# 真实来源 IP、登录限流与审计一起失真。收敛到 docker 网段即可，别填 *。
+#
+# 域名与邮箱都走环境变量，本文件不用改。
+
+{
+	admin off
+	# ACME 账号邮箱（证书到期/吊销通知用）。**必填**：Caddy 的 email 不接受空值，
+	# 留空会让配置解析失败（compose overlay 里因此也把它设成必填）。
+	email {$ACME_EMAIL}
+	log {
+		level ERROR
+		format console
+	}
+}
+
+# 裸域名站点：Caddy 按 {$STORE_DOMAIN} 自动匹配并申请证书。
+{$STORE_DOMAIN} {
+	encode zstd gzip
+
+	# 上游固定为同项目内的商店服务名（compose 网络内解析）。
+	reverse_proxy homeos-3d-store:8802 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# 说明：
+# - 支付回调（/store/v1/payments/alipay/notify 等）就是这个域名下的路径，
+#   只要 STORE_BASE_URL 是本域名即可自动推导，无需在本文件另加规则。
+# - 想同时保留 IP 直连调试，可临时加一个 :80 站点；公网环境不建议暴露明文。
+# - 若前置已有负载均衡 / CDN 终止 TLS，就别用本文件与 overlay，直接按你的入口配置
+#   转发到商店 8802，并把可信代理改成那一层入口的地址。

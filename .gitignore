@@ -35,3 +35,6 @@ dist/
 # IDE：JetBrains 的本地索引与个人配置不参与版本管理。
 # （.vscode/settings.json 是有意提交的——它钉死类型检查档位，见 pyrightconfig.json）
 .idea/
+
+# 本地构建产物：客户分发包（ops/deploy/pack-customer.sh 默认输出到 build/customer-pack）。
+/build/

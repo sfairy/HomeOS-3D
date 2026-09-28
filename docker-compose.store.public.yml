@@ -1,0 +1,58 @@
+# HomeOS 授权商店 —— 公网接入叠加文件（真实域名 + 可信证书 HTTPS）
+#
+# 必须与基础文件一起用（单独用会因为缺少商店服务与网络定义而失败）：
+#
+#   docker compose -f docker-compose.store.yml -f docker-compose.store.public.yml up -d
+#
+# 前提（详见 ops/deploy/PUBLIC-ACCESS.md）：
+#   - 域名 A/AAAA 记录已指向本机公网 IP；
+#   - 公网放行 80 与 443（自动申请证书要用）；
+#   - 商店自身的宿主机端口收到回环，别直接暴露到公网：
+#       STORE_PUBLISH_PORT=127.0.0.1:8802
+#       STORE_PROXY_PUBLISH_PORT=127.0.0.1:8804
+#   - 在 .env 里设好：
+#       STORE_DOMAIN=store.example.com
+#       STORE_BASE_URL=https://store.example.com
+#       ACME_EMAIL=you@example.com
+#
+# 接入后：浏览器与客户机统一用 https://<STORE_DOMAIN>（443），不再用 8802 / 8804。
+
+services:
+  homeos-3d-store:
+    environment:
+      # 公网访问地址：支付回调按它推导（也可另设 STORE_ALIPAY_/WECHAT_NOTIFY_URL 覆盖）。
+      # 显式必填，避免忘了设导致回调地址推导成内网地址。
+      STORE_BASE_URL: ${STORE_BASE_URL:?公网接入必须设置 STORE_BASE_URL=https://<商店域名>}
+      # 反代在镜像之外（下面的 caddy-public 容器）：uvicorn 必须信任这一层，否则真实来源 IP
+      # 会退化成反代容器地址，登录限流、配对码枚举预算与审计一起失真。收敛到 docker 网段
+      # 比填 * 安全；若宿主 docker 网段改过，按实际网段调整。
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-172.16.0.0/12}
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-172.16.0.0/12}
+      # 公网只走 HTTPS：会话 Cookie 必须带 Secure。
+      STORE_COOKIE_SECURE: "true"
+
+  # 只做 TLS 终止与转发，不碰商店数据；证书落在自己的卷里。
+  caddy-public:
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    container_name: homeos-3d-store-caddy
+    restart: unless-stopped
+    depends_on:
+      - homeos-3d-store
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      STORE_DOMAIN: ${STORE_DOMAIN:?公网接入必须设置 STORE_DOMAIN=<商店域名>}
+      # Caddy 的 email 指令不接受空值（空会让配置解析失败），所以这里也必填。
+      ACME_EMAIL: ${ACME_EMAIL:?公网接入必须设置 ACME_EMAIL=<证书到期通知邮箱>}
+    volumes:
+      - ./ops/deploy/Caddyfile.public.example:/etc/caddy/Caddyfile:ro
+      # 证书与 ACME 账号数据：容器重建不丢，删卷会重新申请（可能触发 ACME 限流）。
+      - caddy-public-data:/data
+      - caddy-public-config:/config
+    networks:
+      - homeos-3d-net
+
+volumes:
+  caddy-public-data:
+  caddy-public-config:

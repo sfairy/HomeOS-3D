@@ -36,3 +36,7 @@ ops/deploy
 node_modules
 dist
 *.tsbuildinfo
+
+# 客户分发包输出目录（pack-customer.sh 产出，内含源码副本与 tar 包）。
+# 只锚定仓库根，避免误伤前端源码里可能存在的同名目录。
+/build
