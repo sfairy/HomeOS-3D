@@ -49,12 +49,49 @@ export function isWebglContextCreationFailure(stageInitError: any) {
 }
 
 /**
- * 上下文创建失败的重试退避（毫秒）：第 N 次重试前等这么久。
- * GPU 进程刚崩、正在重启，或显存一时腾不出来时，上下文会短暂创建不出来
- * （Chromium 表现为 `BindToCurrentSequence failed`、GPU 通道建不起来）。
- * 这种情况等一会儿往往就能成功，所以给几次退避重试，而不是失败一次就放弃。
+ * 创建 WebGL 上下文的尝试档位，按「要求从高到低」排列。
+ *
+ * 背景：`GL_VENDOR/RENDERER = Disabled` + `BindToCurrentSequence failed` 表示
+ * Chromium 的 GPU 通道建不起来（GPU 进程刚崩、正在重启、被降级，或嵌入式 iframe
+ * 里申请高性能独显被拒）。此时继续用同一套高要求参数重试只会一直失败，
+ * 而是应该逐档放松要求：先去掉独显要求，再去掉抗锯齿，通常就能建出来。
  */
-const WEBGL_CREATION_RETRY_DELAYS_MS = [800, 2000, 4000];
+const WEBGL_CONTEXT_ATTEMPTS: Array<{
+  antialias: boolean;
+  powerPreference: "high-performance" | "default";
+}> = [
+  { antialias: true, powerPreference: "high-performance" },
+  { antialias: true, powerPreference: "default" },
+  { antialias: false, powerPreference: "default" }
+];
+
+/**
+ * 每档之间的退避（毫秒）：第 N 档失败后，进入第 N+1 档前等这么久。
+ * GPU 进程刚崩时上下文会短暂创建不出来，等一会儿往往自愈，所以给一点时间。
+ */
+const WEBGL_CREATION_RETRY_DELAYS_MS = [800, 2000];
+
+/**
+ * 清理一次失败的舞台初始化留下的半成品。
+ *
+ * 只要渲染器已经建起来（失败点在后半段），画布就已经挂进 `#preview-3d`、上下文也已经
+ * 占用。此时若直接重试，会再建一个渲染器 + 一块新画布，把旧的那份连同它的 WebGL
+ * 上下文一起晾在原地——既漏上下文，也会出现两块画布叠着。所以重试前必须先清干净。
+ */
+function disposePartialStageInit() {
+  if (!state.renderer) {
+    return;
+  }
+  try {
+    state.orbitControls?.dispose?.();
+    state.renderer.domElement.remove();
+    state.renderer.dispose();
+  } catch (stageCleanupError) {
+    debugLog("warn", stageCleanupError);
+  }
+  state.renderer = null;
+  state.orbitControls = null;
+}
 
 export async function initializeStudioStage({ attempt = 0 } = {}) {
   const stageContainer = selectElement("#preview-3d");
@@ -62,13 +99,14 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
     state.previewOverlayScene = new threeModuleMin.Scene();
     state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.05, 200);
     state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
-    // 首次用高配参数（抗锯齿 + 高性能 GPU）；重试时退到保守参数——GPU 状态不佳或被
-    // 降级时，抗锯齿与 high-performance 这类额外要求更容易被拒绝，退一步反而建得出来。
-    const useHighEndContext = attempt === 0;
+    // 逐档放松上下文要求：首次要高配（抗锯齿 + 高性能），失败后依次退到默认 GPU、
+    // 关抗锯齿，直到建出来为止（档位表见 WEBGL_CONTEXT_ATTEMPTS）。
+    const contextAttempt =
+      WEBGL_CONTEXT_ATTEMPTS[Math.min(attempt, WEBGL_CONTEXT_ATTEMPTS.length - 1)];
     state.renderer = new threeModuleMin.WebGLRenderer({
-      antialias: useHighEndContext,
+      antialias: contextAttempt.antialias,
       alpha: true,
-      powerPreference: useHighEndContext ? "high-performance" : "default"
+      powerPreference: contextAttempt.powerPreference
     });
     state.renderer.setPixelRatio(targetPixelRatio());
     state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
@@ -379,28 +417,52 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
       wakeFrameLoop();
     }
   } catch (webglInitError) {
-    // 建不出上下文先退避重试：GPU 进程刚重启、或显存一时腾不出来时（macOS 上尤其常见），
-    // 上下文会短暂创建不出来，等一会儿通常就能建出来，所以退避重试若干次而不是一次就放弃。
+    // 上下文建不出来时逐档放松要求重试（去独显要求 → 关抗锯齿）：GPU 进程刚崩、
+    // 正在重启或被降级时会短暂建不出来，等一会儿并降低要求通常就能建出来。
     if (
-      !state.renderer &&
       isWebglContextCreationFailure(webglInitError) &&
-      attempt < WEBGL_CREATION_RETRY_DELAYS_MS.length
+      !state.renderer &&
+      attempt < WEBGL_CONTEXT_ATTEMPTS.length - 1
     ) {
+      debugLog("warn", "studio-webgl-context-retry", attempt + 1, webglInitError);
       await new Promise(resolveStageRetry =>
-        window.setTimeout(resolveStageRetry, WEBGL_CREATION_RETRY_DELAYS_MS[attempt])
+        window.setTimeout(resolveStageRetry, WEBGL_CREATION_RETRY_DELAYS_MS[attempt] ?? 0)
       );
       await initializeStudioStage({
         attempt: attempt + 1
       });
       return;
     }
-    selectElement("#webgl-message").hidden = false;
+    const webglMessageElement = selectElement("#webgl-message");
+    webglMessageElement.hidden = false;
     window.HABridgeLog?.error?.(webglInitError, {
       phase: "studio-webgl-init"
     });
     debugLog("error", webglInitError);
     // 渲染器根本没建起来时这一页后面每一步都直接用 renderer，继续往下跑只会以
     if (!state.renderer) {
+      // 给一个页内重试入口：GPU 进程缓过来（用户关掉其它 3D 页面、或系统恢复）之后，
+      // 不必刷新整页就能重试。
+      webglMessageElement.textContent =
+        "当前浏览器无法创建 3D 画面（显卡资源不足、GPU 进程异常，或已被其它 3D 页面占用）。" +
+        "点击此处重试；若仍失败，请关闭其它 3D 页面或重启浏览器。";
+      webglMessageElement.setAttribute("role", "button");
+      webglMessageElement.setAttribute("tabindex", "0");
+      const retryStageInit = () => {
+        webglMessageElement.hidden = true;
+        webglMessageElement.onclick = null;
+        webglMessageElement.onkeydown = null;
+        // 防御：万一前一次失败还留着画布 / 上下文，先清掉再重建，避免叠出第二块画布。
+        disposePartialStageInit();
+        void initializeStudioStage();
+      };
+      webglMessageElement.onclick = retryStageInit;
+      webglMessageElement.onkeydown = (retryKeyEvent: any) => {
+        if (retryKeyEvent.key === "Enter" || retryKeyEvent.key === " ") {
+          retryKeyEvent.preventDefault();
+          retryStageInit();
+        }
+      };
       throw new Error("当前浏览器无法创建 3D 画面，可能是显卡资源不足或已被其它 3D 页面占用，请关闭后重试。");
     }
   }
