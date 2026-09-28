@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
@@ -269,7 +270,7 @@ def _entitlement_payload(entry: Entitlement) -> dict:
 
 
 # —— 批量查询与清理助手 ——
-def _by_ids(session: Session, model, ids) -> dict[str, object]:
+def _by_ids(session: Session, model, ids) -> dict[str, Any]:
     """按主键批量取行，返回 ``{主键: 行}``；空集合直接返回空字典。
     """
     wanted = {item for item in ids if item}

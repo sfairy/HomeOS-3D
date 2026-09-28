@@ -192,6 +192,10 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         password_gate.clear(session, ip_scope)
     password_gate.record_attempt(session, account_scope, succeeded=True)
 
+    # 走到这里 ``ok`` 必为真，意味着上面对 ``account`` 的 ``is None`` 分支已被排除，
+    # 此处显式收窄给静态检查看（运行期不变量，不改任何业务路径）。
+    assert account is not None
+
     token = _create_session(session, request, account)
     session.commit()
     permanent, temporary = _account_license_state(session, account)

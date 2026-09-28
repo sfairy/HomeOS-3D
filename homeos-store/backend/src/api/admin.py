@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
@@ -111,7 +112,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     )
 
     # —— 时间窗营收 ——
-    revenue = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
+    revenue: dict[str, Any] = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
                "totalRefundCents": total_refunded, "totalManualCents": total_manual,
                "currency": "CNY", "windows": []}
     for key, span in _OVERVIEW_WINDOWS:

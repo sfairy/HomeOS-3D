@@ -2,13 +2,14 @@
 """
 import itertools
 import re
+from typing import Callable, NoReturn
 
 
 from .purifier import EXTRA_TYPES
 
 
 
-def _validate_cameras(fail, number, security, text, validate_camera):
+def _validate_cameras(fail: Callable[[], NoReturn], number, security, text, validate_camera):
     fields = high = item = key = low = None
     cameras = security.get('cameras', [])
     if not isinstance(cameras, list):
@@ -59,7 +60,7 @@ def _validate_cameras(fail, number, security, text, validate_camera):
     return fields, high, item, key, low
 
 
-def _validate_presence(fail, key, number, security, text, validate_camera):
+def _validate_presence(fail: Callable[[], NoReturn], key, number, security, text, validate_camera):
     people = security.get('presenceSensors', [])
     if not isinstance(people, list):
         fail()
@@ -154,7 +155,7 @@ def _validate_presence(fail, key, number, security, text, validate_camera):
             fail()
 
 
-def _validate_lights(fail, key, number, positive_number, properties, text, validate_camera):
+def _validate_lights(fail: Callable[[], NoReturn], key, number, positive_number, properties, text, validate_camera):
     entity = fields = high = low = None
     lights = properties.get('lights', [])
     if not isinstance(lights, list):
@@ -233,7 +234,7 @@ def _validate_lights(fail, key, number, positive_number, properties, text, valid
     return entity, fields, high, low
 
 
-def _validate_environment(fail, high, low, number, positive_number, properties, text, validate_camera):
+def _validate_environment(fail: Callable[[], NoReturn], high, low, number, positive_number, properties, text, validate_camera):
     entity = fields = item = key = model = None
     environment = properties.get('environment', {})
     if not isinstance(environment, dict) or set(environment) - {
@@ -576,6 +577,8 @@ def _validate_environment(fail, high, low, number, positive_number, properties, 
             for member in members
         ):
             fail()
+        # any(...) 检查已保证两副帘都非 None（comprehension 无法窄化列表元素，需显式断言）。
+        assert members[0] is not None and members[1] is not None
         if members[0].get('entityId') and members[0].get('entityId') == members[1].get('entityId'):
             fail()
         if f'curtain-group:{item["id"]}' in curtain_by_id:

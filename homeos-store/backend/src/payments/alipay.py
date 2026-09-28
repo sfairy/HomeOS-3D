@@ -262,7 +262,7 @@ class AlipayProvider:
             or settings.alipay_transaction_description
             or "HomeOS 授权"
         )
-        biz_content = {
+        biz_content: dict[str, object] = {
             "out_trade_no": order.order_no,
             "total_amount": yuan_from_cents(order.amount_cents),
             "subject": subject[:256],

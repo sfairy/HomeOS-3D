@@ -6,6 +6,15 @@
   "venvPath": ".",
   "venv": ".venv-store",
 
+  // 只保留会暴露真实缺陷的规则。不固定档位时分析器会跑到高严格档，
+  // 把 reportAny / reportUnknown* / reportMissingTypeArgument /
+  // reportUnannotatedClassAttribute / reportUninitializedInstanceVariable /
+  // reportImportCycles 等建议类规则全量上报，IDE 里就是一片红。
+  "typeCheckingMode": "basic",
+
+  // 虚拟环境与缓存目录里有大量第三方源码，不该参与本仓库的诊断。
+  "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],
+
   // ops/ 下的脚本在运行时会自行把两个后端目录注入 sys.path（见 ops/start.py、
   // ops/docker/start_*.py），静态分析看不到这一步，于是 src.* 一律报
   // reportMissingImports。

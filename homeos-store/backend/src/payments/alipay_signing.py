@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
@@ -200,7 +201,7 @@ def _callback_check(
 
 
 # 签名
-def build_sign_content(params: dict[str, object], *, excluded: frozenset[str]) -> str:
+def build_sign_content(params: Mapping[str, object], *, excluded: frozenset[str]) -> str:
     """拼接待签名字符串：按 key 字典序，跳过空值和 excluded。"""
     items = [
         (str(key), str(value))

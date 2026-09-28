@@ -8,7 +8,7 @@ import ssl
 import urllib.request
 from dataclasses import dataclass
 from ipaddress import ip_address
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
@@ -111,7 +111,7 @@ def is_ipv6_literal(base_url: str) -> bool:
         return False
 
 
-def websocket_proxy(base_url: str) -> str | bool | None:
+def websocket_proxy(base_url: str) -> str | Literal[True] | None:
     """给出连接 HA WebSocket 时应传的 ``proxy`` 参数。
     """
     parsed = urlparse(base_url)

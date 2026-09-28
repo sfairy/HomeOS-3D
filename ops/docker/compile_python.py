@@ -71,9 +71,9 @@ def _clean_caches(root: Path) -> None:
 
 
 def _compile(root: Path, sources: list[Path], jobs: int) -> None:
-    from Cython.Build import cythonize
-    from setuptools import Distribution, Extension
-    from setuptools.command.build_ext import build_ext
+    from Cython.Build import cythonize  # type: ignore[import-not-found]  # 构建期依赖，仅在 Docker 编译容器内可用
+    from setuptools import Distribution, Extension  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
+    from setuptools.command.build_ext import build_ext  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
 
     extensions = [Extension(_module_name(path, root), [str(path)]) for path in sources]
     print(f"Cython 编译 {len(sources)} 个模块（-j{jobs}）…", flush=True)

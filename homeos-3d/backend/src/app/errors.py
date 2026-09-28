@@ -71,7 +71,8 @@ def _validation_error_message(errors: list[dict]) -> str:
         error_type = str(item.get('type') or '')
         reason = _VALIDATION_REASON_TEXT.get(error_type, '取值不合法')
         bound = _VALIDATION_BOUND_TEXT.get(error_type)
-        context = item.get('ctx') if isinstance(item.get('ctx'), dict) else {}
+        ctx = item.get('ctx')
+        context = ctx if isinstance(ctx, dict) else {}
         if bound and bound[0] in context:
             reason = f'{reason}（{bound[1]} {context[bound[0]]}{bound[2]}）'
         parts.append(f'参数 {field} {reason}' if field else reason)
@@ -106,6 +107,6 @@ def install_exception_handlers(app: FastAPI) -> None:
             for item in error.errors()
         ]
         response = await request_validation_exception_handler(request, error)
-        body = json.loads(response.body)
-        body['message'] = _validation_error_message(error.errors())
+        body = json.loads(bytes(response.body))
+        body['message'] = _validation_error_message(list(error.errors()))
         return JSONResponse(status_code=response.status_code, content=body)

@@ -33,7 +33,7 @@ def _insert_product_if_absent(
             guard
         ),
     )
-    return bool(session.execute(statement).rowcount)
+    return bool(session.execute(statement).rowcount)  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
 def ensure_default_products(session: Session) -> None:
@@ -105,5 +105,5 @@ def ensure_default_settings(session: Session) -> None:
         ["id"],
         select(literal(1)).where(~exists(select(StoreSetting.id).where(StoreSetting.id == 1))),
     )
-    if session.execute(statement).rowcount:
+    if session.execute(statement).rowcount:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         logger.info("已补齐默认站点配置。")

@@ -143,7 +143,7 @@ async def _send_error(send, status_code: int, detail: str) -> None:
     response = JSONResponse(
         {'detail': detail}, status_code=status_code, headers={'cache-control': NO_STORE}
     )
-    await response({'type': 'http'}, None, send)
+    await response({'type': 'http'}, None, send)  # type: ignore[reportArgumentType]  # JSONResponse 不读 receive，传 None 在运行期安全
 
 
 class RequestBodyGuard:

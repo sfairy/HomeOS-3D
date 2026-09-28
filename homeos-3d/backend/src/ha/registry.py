@@ -5,7 +5,7 @@ import asyncio
 import json
 import time
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
 from ..core.time_utils import utc_now
@@ -17,9 +17,38 @@ from .contracts import (
     REGISTRY_REFRESH_DEBOUNCE_SECONDS,
 )
 
+if TYPE_CHECKING:
+    # Mixin 契约：HARegistryMixin 不持有这些属性，由 host 类 HAConnectorService 提供。
+    from ..config import Settings
+    from ..core.database import Database
+    from .client import HAClient
+    from .state_hub import StateHub
+
 
 class HARegistryMixin:
     """实体注册表与增量状态落地：注册表事件/快照怎么并进本地缓存"""
+
+    if TYPE_CHECKING:
+        # 以下属性/方法均由 HAConnectorService（host 类）提供，详见 ha/service.py。
+        settings: Settings
+        database: Database
+        state_hub: StateHub
+        _connected: bool
+        _runtime_error: str | None
+        _sync_lock: asyncio.Lock
+        _known_entity_ids: set[tuple[str, str]]
+        _incremental_flushed_at: dict[str, float]
+        _registry_refresh_tasks: dict[str, asyncio.Task[None]]
+
+        def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None: ...
+        def _load_connection(self, connection_id: str) -> HAConnection: ...
+        def _apply_registry_snapshot(self, connection_id: str, entities: list[dict[str, Any]] | None, devices: list[dict[str, Any]] | None, areas: list[dict[str, Any]] | None) -> dict[str, int] | None: ...
+        @staticmethod
+        def _status(disabled_by: str | None) -> str: ...
+        @staticmethod
+        def _active_catalog_counts(database: Any, connection_id: str) -> dict[str, int]: ...
+        async def _run_database(self, operation: Any, *args: Any, **kwargs: Any) -> Any: ...
+        async def client_for(self, connection: HAConnection) -> HAClient: ...
 
     async def _debounced_registry_refresh(self, connection_id: str) -> None:
         """防抖计时结束后真正拉取三份注册表并落库。
@@ -56,7 +85,8 @@ class HARegistryMixin:
         if action not in frozenset({'create', 'remove', 'update'}):
             return None
         now = utc_now()
-        changes = event_data.get('changes') if isinstance(event_data.get('changes'), dict) else { }
+        raw_changes = event_data.get('changes')
+        changes = raw_changes if isinstance(raw_changes, dict) else { }
         with self.database.session_factory() as database:
             if event_type == 'entity_registry_updated':
                 entity_id = str(event_data.get('entity_id') or '')

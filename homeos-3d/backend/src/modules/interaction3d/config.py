@@ -3,6 +3,7 @@
 import json
 import math
 import re
+from typing import NoReturn
 
 from fastapi import HTTPException, status
 
@@ -22,7 +23,7 @@ def validate_config(properties: dict) -> None:
     """校验一份 3D 交互控件的 properties。
     """
 
-    def fail():
+    def fail() -> NoReturn:
         """统一的 422 出口：文案固定，不把内部字段名暴露给前端。"""
         raise HTTPException(422, detail='3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
 

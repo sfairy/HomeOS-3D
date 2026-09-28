@@ -73,7 +73,7 @@ async def _send_too_large(send, limit: int) -> None:
         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
         headers={"Cache-Control": "no-store"},
     )
-    await response({"type": "http"}, None, send)
+    await response({"type": "http"}, None, send)  # type: ignore[reportArgumentType]  # ASGI Response 发送预构建响应时不读 receive，传 None 是运行期约定
 
 
 class RequestBodyGuard:

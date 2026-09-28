@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 from ..config import StoreSettings
 from ..core.models import Order, StoreSetting
@@ -43,6 +43,20 @@ class PaymentProvider(Protocol):
         settings: StoreSettings,
         setting: StoreSetting,
     ) -> "RefundResult": ...
+
+    # 对账层（payments/reconcile.py）只认下面这一组渠道无关方法，详见各 provider
+    # 里的说明。它们不参与发起 / 退款，所以放在主流程之外。
+    def query_payment(self, settings: StoreSettings, order: Order) -> dict[str, Any] | None: ...
+
+    def is_success_node(self, node: dict) -> bool: ...
+
+    def trade_state_of(self, node: dict) -> str: ...
+
+    def trade_no_of(self, node: dict) -> str: ...
+
+    def paid_cents_of(self, node: dict) -> int | None: ...
+
+    def close_payment(self, settings: StoreSettings, order: Order) -> "CloseResult": ...
 
 
 @dataclass(frozen=True)

@@ -60,7 +60,7 @@ def settle_paid_order(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         session.refresh(order)
         if order.status in {"refunded", "partially_refunded"}:
             logger.error(

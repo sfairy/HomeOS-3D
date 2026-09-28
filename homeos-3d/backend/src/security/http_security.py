@@ -160,7 +160,7 @@ def resolve_client_ip(request: Request) -> ClientAddress:
     return ClientAddress(ip=peer, per_client=False, via_proxy=True)
 
 
-def _settings(request: Request) -> Settings:
+def _settings(request: Request) -> Settings | None:
     """取出应用配置；测试里可能用 SimpleNamespace 造请求，因此用 getattr 兜底。"""
     state = getattr(request, 'app', None)
     return getattr(getattr(state, 'state', None), 'settings', None)

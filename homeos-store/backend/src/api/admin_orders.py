@@ -272,7 +272,7 @@ def _manual_payment(
         )
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         session.refresh(order)
         logger.info("标记支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
         return order_payload(order)

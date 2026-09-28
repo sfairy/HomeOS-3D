@@ -77,8 +77,8 @@ class DisplayBindingGuard:
             )
             return bool(
                 current is not None
-                and current.id == self._viewer.display.id
-                and current.project_id == self._viewer.display.project_id
+                and current.id == self._viewer.display.id  # type: ignore[reportOptionalMemberAccess]  # current is not None 已保证
+                and current.project_id == self._viewer.display.project_id  # type: ignore[reportOptionalMemberAccess]  # current is not None 已保证
             )
 async def run_tasks_until_first_completes(*operations) -> None:
     """并行跑几路任务，任一路结束后取消其余，并把真正的异常原样抛出。
@@ -112,7 +112,7 @@ def websocket_origin_allowed(websocket: WebSocket) -> bool:
     origin = websocket.headers.get('origin', '').strip()
     if not origin:
         return False
-    return origin_allowed(websocket, origin)
+    return origin_allowed(websocket, origin)  # type: ignore[reportArgumentType]  # WebSocket 与 Request 共享 headers/app/url，origin_allowed 运行期兼容
 @runtime_router.websocket('/ws/runtime')
 async def runtime_websocket(websocket: WebSocket) -> None:
     """实时状态推送 WebSocket 的入口壳：建上下文、兜异常、还原上下文。

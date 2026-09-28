@@ -302,6 +302,9 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if extra is None:
             detail = '附加实体已不属于当前空气净化器，请重新绑定。' if is_purifier else '此实体不属于当前绑定设备，请重新选择。'
             raise HTTPException(403, detail=detail)
+        # _find_device_extra 的不变式：extra 不为 None 时 host 与 model_type 必定不为 None。
+        assert host is not None
+        assert model_type is not None
         def validate_extra_model(scene) -> None:
             """附加实体该用哪套「模型还在不在」的判据，取决于它挂在净化器还是通用设备上。"""
             if is_purifier:

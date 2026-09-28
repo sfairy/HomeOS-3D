@@ -2,7 +2,7 @@
 """
 from __future__ import annotations
 
-from ipaddress import ip_address
+from ipaddress import IPv6Address, ip_address
 from urllib.parse import urlparse, urlunparse
 
 
@@ -32,7 +32,7 @@ def metadata_address(base_url: str) -> str:
     if host is None:
         return ''
     candidates = {str(host)}
-    if host.version == 6 and host.ipv4_mapped is not None:
+    if isinstance(host, IPv6Address) and host.ipv4_mapped is not None:
         candidates.add(str(host.ipv4_mapped))
     for candidate in candidates:
         if candidate in METADATA_HOSTS:

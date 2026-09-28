@@ -93,7 +93,7 @@ def redeem_coupon(
         )
         statement = statement.where(used_subquery < int(coupon.per_account_limit))
     result = session.execute(statement)
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         if coupon.per_account_limit and (
             active_redemption_count(session, coupon_id=coupon.id, account_id=account.id)
             >= int(coupon.per_account_limit)

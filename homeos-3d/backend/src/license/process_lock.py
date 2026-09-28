@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import errno
 import os
+import sys
 from pathlib import Path
 
-if os.name == 'nt':
+# 用 sys.platform 而不是 os.name 判断：os.name 的类型是 str，静态分析无法收窄，
+# 条件导入的 msvcrt / fcntl 会被判成「可能未绑定」；sys.platform 是字面量联合，
+# 分析器能按平台收窄到唯一分支。
+if sys.platform == 'win32':
     import msvcrt
 else:
     import fcntl
@@ -15,7 +19,7 @@ else:
 def _lock(fd: int) -> None:
     """对 ``fd`` 取**非阻塞**排他锁；已被别的进程持有时抛 OSError。
     """
-    if os.name == 'nt':
+    if sys.platform == 'win32':
         os.lseek(fd, 0, os.SEEK_SET)
         msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
     else:

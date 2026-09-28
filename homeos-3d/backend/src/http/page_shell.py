@@ -11,7 +11,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, Response
 
 from .commissioning import rail_markup
-from .telemetry import DECK_PLACEHOLDER, deck_markup
+from .telemetry import DECK_PLACEHOLDER, Tile, deck_markup
 
 #: 页面模板里的场景插入点。用 HTML 注释包起来，这样直接用浏览器打开
 SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
@@ -236,7 +236,7 @@ def _render_page_cached(
     with_scene: bool,
     page: str,
     rail: tuple[str, ...] | None,
-    deck: tuple[tuple[str, ...], ...] | None,
+    deck: tuple[Tile, ...] | None,
 ) -> str:
     """渲染结果缓存。
     """

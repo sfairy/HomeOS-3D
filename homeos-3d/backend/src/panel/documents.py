@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 def parse_document(value: object) -> dict | None:
     """把库里存的文档 JSON 解析成字典；坏了或不是对象时回 ``None``。
     """
+    if not isinstance(value, (str, bytes, bytearray)):
+        return None
     try:
         document = json.loads(value)
     except (TypeError, ValueError):

@@ -285,20 +285,22 @@ def admin_list_customers(
         #: 两个计数改成**每页两条**聚合查询（``GROUP BY customer_id``），而不是每行两条：
         customer_ids = {row.id for row in rows}
         scope_ids = customer_ids or {""}
-        order_counts = dict(
-            session.execute(
+        order_counts = {
+            row[0]: row[1]
+            for row in session.execute(
                 select(Order.customer_id, func.count(Order.id))
                 .where(Order.customer_id.in_(scope_ids))
                 .group_by(Order.customer_id)
             ).all()
-        )
-        license_counts = dict(
-            session.execute(
+        }
+        license_counts = {
+            row[0]: row[1]
+            for row in session.execute(
                 select(License.customer_id, func.count(License.id))
                 .where(License.customer_id.in_(scope_ids))
                 .group_by(License.customer_id)
             ).all()
-        )
+        }
         return [
             {
                 "id": customer.id,

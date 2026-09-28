@@ -392,7 +392,7 @@ class GlobalLogStore:
         normalized_level = (
             level if level in frozenset({"info", "error", "success", "warning"}) else "info"
         )
-        event = {
+        event: dict[str, Any] = {
             "id": str(uuid4()),
             "timestamp": utc_now().isoformat(),
             "level": normalized_level,

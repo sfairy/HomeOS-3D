@@ -180,7 +180,7 @@ def _apply_wallet_delta(
         .values(**values)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         raise WalletGuardError(
             "这次记账会让钱包余额或冻结额变成负数，已拒绝写入。"
         )
@@ -367,7 +367,7 @@ def create_withdrawal(
         )
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:
+    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         raise WalletConflictError("可用余额不足，或钱包刚刚被其它操作改过，请重试。")
 
     fee_centi, net_centi = withdraw_fee(points_centi, fee_percent)
@@ -421,7 +421,7 @@ def resolve_withdrawal(
         .values(status=target_status, note=note, resolved_at=utcnow())
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:
+    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         #: 别人刚刚处理完这笔；刷新一次让调用方看到真实终态，但绝不再记账。
         session.refresh(withdrawal)
         return withdrawal

@@ -5,7 +5,7 @@ import asyncio
 import json
 import time
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
 from ..core.time_utils import utc_now
@@ -19,9 +19,47 @@ from .contracts import (
     LOGGER,
 )
 
+if TYPE_CHECKING:
+    # Mixin 契约：HALiveMixin 不持有这些属性，由 host 类 HAConnectorService 提供。
+    # 在类型检查期声明契约，让 self.<attr> 的访问能被识别；运行期不影响。
+    from ..config import Settings
+    from ..core.database import Database
+    from .state_hub import StateHub
+
 
 class HALiveMixin:
     """实时连接与快照：WebSocket 生命周期、事件分派与整表快照"""
+
+    if TYPE_CHECKING:
+        # 以下属性/方法均由 HAConnectorService（host 类）提供，详见 ha/service.py。
+        settings: Settings
+        database: Database
+        state_hub: StateHub
+        _connected: bool
+        _runtime_error: str | None
+        _known_entity_ids: set[tuple[str, str]]
+
+        def _log_event(self, level: str, category: str, message: str, *, details: str | None = None) -> None: ...
+        def _safe_record_error(self, connection_id: str, message: str) -> None: ...
+        def _load_connection(self, connection_id: str) -> HAConnection: ...
+        def invalidate_endpoint(self) -> None: ...
+        def active_connection(self) -> HAConnection | None: ...
+        def catalog_counts(self, connection_id: str) -> dict[str, int]: ...
+        def _schedule_registry_refresh(self, connection_id: str) -> None: ...
+        def _apply_incremental_state(self, connection_id: str, raw_state: dict[str, Any]) -> bool: ...
+        def _apply_registry_event(self, connection_id: str, event_type: str, event_data: dict[str, Any]) -> str | None: ...
+        def _apply_registry_snapshot(self, connection_id: str, entities: list[dict[str, Any]] | None, devices: list[dict[str, Any]] | None, areas: list[dict[str, Any]] | None) -> dict[str, int] | None: ...
+        def _record_error(self, connection_id: str, message: str) -> None: ...
+        def _mark_connected(self, connection_id: str) -> None: ...
+        @staticmethod
+        def _device_registry_metadata(item: dict) -> str: ...
+        @staticmethod
+        def _status(disabled_by: str | None) -> str: ...
+        async def _run_database(self, operation: Any, *args: Any, **kwargs: Any) -> Any: ...
+        async def client_for(self, connection: HAConnection) -> HAClient: ...
+        async def refresh_persistent_entity_ids(self, *, ensure_states: bool = True) -> set[str]: ...
+        async def sync_once(self, connection_id: str | None = None, reconciled: bool = False) -> dict[str, int]: ...
+        async def watched_entity_ids(self) -> set[str]: ...
 
     async def _probe_endpoint(self, connection: HAConnection, endpoint: HAEndpoint, token: str) -> None:
         """探一次端点是否可用（REST /api/config，带令牌）。不可用则抛 HAClientError。
@@ -148,7 +186,8 @@ class HALiveMixin:
                 if event_type == 'entity_registry_updated':
                     action = str(event_data.get('action') or 'update')
                     entity_id = str(event_data.get('entity_id') or '')
-                    changes = event_data.get('changes') if isinstance(event_data.get('changes'), dict) else { }
+                    raw_changes = event_data.get('changes')
+                    changes = raw_changes if isinstance(raw_changes, dict) else { }
                     # HA 的 changes 放的是「变更前的旧值」，因此 entity_id 出现在这里
                     old_entity_id = str(changes.get('entity_id') or '')
                     removed_entity_ids = set()

@@ -26,8 +26,9 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
         if connection is None:
             return None, set()
         # 同平台只需要一次，因此用 SQL 的 distinct 去重后再转集合。
-        integrations = set(
-            database.scalars(
+        # SQL 已过滤 platform.is_not(None)，comprehension 里的 is not None 是给类型检查器看的。
+        integrations = {
+            platform for platform in database.scalars(
                 select(HAEntity.platform)
                 .where(
                     HAEntity.connection_id == connection.id,
@@ -37,7 +38,8 @@ def load_translation_context(database_manager: Database) -> tuple[HAConnection |
                 )
                 .distinct()
             )
-        )
+            if platform is not None
+        }
         database.expunge(connection)
         return connection, integrations
 #: 实体翻译表的缓存时长（秒）。翻译内容由 HA 的集成版本决定，进程生命周期内几乎不变，

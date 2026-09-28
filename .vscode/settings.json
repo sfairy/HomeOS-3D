@@ -1,0 +1,8 @@
+{
+  // Cursor 内置的 Python 类型检查器（anysphere.cursorpyright）默认档位是 off，
+  // 但编辑器设置一旦把它抬高就会覆盖 pyrightconfig.json 的档位，导致同一份代码
+  // 在不同机器上诊断结果不一致。这里显式钉死，与 pyrightconfig.json 对齐：
+  // 只报真问题，不报 reportAny / reportUnknown* 这类建议类告警。
+  "cursorpyright.analysis.typeCheckingMode": "basic",
+  "cursorpyright.analysis.diagnosticMode": "openFilesOnly"
+}

@@ -146,7 +146,7 @@ FROM base AS app
 ENV APP_DATA_DIR=/data \
     APP_PORT=8801 \
     APP_CLIENT_KEYS_DIR=/data/client-keys \
-    APP_LICENSE_SERVER_URL= \
+    APP_LICENSE_SERVER_URL=\
     APP_UPDATE_CHANNEL=docker \
     PYTHONPATH=/app
 

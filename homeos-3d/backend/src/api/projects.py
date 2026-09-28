@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 from contextlib import nullcontext
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
@@ -72,7 +73,7 @@ def validate_document_assets(request: Request, document: dict) -> set[str]:
     return user_asset_ids
 
 
-def serialize_document(document: dict) -> str:
+def serialize_document(document) -> str:
     """把文档序列化成落库字符串。
     """
     return canonical_json(document)
@@ -81,7 +82,7 @@ def serialize_document(document: dict) -> str:
 def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict:
     """把项目行拼成前端使用的 JSON（camelCase 出）。
     """
-    payload = {
+    payload: dict[str, Any] = {
         'id': project.id,
         'name': project.name,
         'slug': project.slug,
@@ -383,14 +384,14 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     if not payload.global_popups_dirty:
         document_value['customPopups'] = stored_global_popups
     submitted_popup_ids = {
-        popup.get('id')
+        popup_id
         for popup in (document_value.get('customPopups') or [])
-        if isinstance(popup, dict) and isinstance(popup.get('id'), str)
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
     }
     stored_popup_ids = {
-        popup.get('id')
+        popup_id
         for popup in stored_global_popups
-        if isinstance(popup, dict) and isinstance(popup.get('id'), str)
+        if isinstance(popup, dict) and isinstance((popup_id := popup.get('id')), str)
     }
     # 本次被删掉的全局弹窗 = **库里有、提交里没有**的那些，要给引用它们的草稿做级联清理。
     removed_popup_ids = (
@@ -438,7 +439,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 .values(popups_json=serialize_document(submitted_popups), revision=GlobalCustomPopupState.revision + 1, updated_by=user.id)
                 .execution_options(synchronize_session=False)
             )
-            if popup_result.rowcount != 1:
+            if popup_result.rowcount != 1:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 运行期存在，pyright 存根未声明
                 database.rollback()
                 current_popup_revision = database.scalar(select(GlobalCustomPopupState.revision).where(GlobalCustomPopupState.id == 1))
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
@@ -466,7 +467,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                         .execution_options(synchronize_session=False)
                     )
                     # 别的仪表盘正好在保存：回滚本次请求，让用户重试，而不是留下半清理状态。
-                    if referenced_result.rowcount != 1:
+                    if referenced_result.rowcount != 1:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 运行期存在，pyright 存根未声明
                         database.rollback()
                         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                             'code': 'PROJECT_REVISION_CONFLICT',
@@ -485,7 +486,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             .execution_options(synchronize_session=False)
         )
         # rowcount != 1 说明 revision 已被别人推进：回滚并回带当前版本，前端据此提示刷新。
-        if result.rowcount != 1:
+        if result.rowcount != 1:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 运行期存在，pyright 存根未声明
             database.rollback()
             current_revision = database.scalar(select(ProjectDraft.revision).where(ProjectDraft.project_id == project_id))
             if current_revision is None:
@@ -503,6 +504,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
             renamed = previous_name is not None and previous_name != document['name']
             if renamed:
+                assert previous_name is not None  # renamed 为 True 当且仅当 previous_name is not None
                 record_project_path_alias(database, project_id, previous_name)
             database.commit()
         except IntegrityError as error:
@@ -522,6 +524,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     # 清掉会话缓存，下面重新查一次草稿才能读到刚提交的新 revision。
     database.expire_all()
     draft = database.get(ProjectDraft, project_id)
+    assert draft is not None  # 刚成功保存草稿，必然存在；若为 None 说明数据库已损坏
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f"仪表盘已保存：{document['name']}（修订 {draft.revision}）")
     # 回给编辑器的文档带完整弹窗：编辑器要能编辑所有组合弹窗，而不只是被引用到的那些。
     hydrated_document = hydrate_document_popups(

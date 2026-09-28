@@ -85,4 +85,6 @@ def _read_or_create_secret_key(
             raise error_factory(
                 f'无法写入密钥文件 {path}：{error.strerror or error}'
             ) from error
+    # for 循环每次迭代都 return 或 raise，走到这里不可达。
+    raise error_factory(f'密钥文件创建未完成：{path}')
 

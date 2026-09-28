@@ -91,6 +91,8 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         if (
             not has_temperature
             or not all(_number(item) for item in (minimum, maximum, step))
+            or minimum is None
+            or maximum is None
             or minimum >= maximum
             or step <= 0
         ):

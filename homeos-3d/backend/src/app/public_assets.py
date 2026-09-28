@@ -10,8 +10,8 @@ from fastapi import HTTPException
 #: 清单相对 ``frontend/`` 的路径。
 MANIFEST_RELATIVE_PATH = 'public-static.json'
 
-#: (清单路径, mtime_ns) → 路径集合。
-_manifest_cache: dict[tuple[str, int], frozenset[str]] = {}
+#: (清单路径, mtime_ns, 字段) → 路径集合。
+_manifest_cache: dict[tuple[str, int, str], frozenset[str]] = {}
 
 
 def public_static_manifest_path(frontend_dir: Path) -> Path:

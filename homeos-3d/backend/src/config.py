@@ -7,6 +7,7 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 def _detect_project_root() -> Path:
     """源码布局 ``homeos-3d/backend/src`` 或镜像布局 ``/app/src``。"""
@@ -123,7 +124,7 @@ def _environment_batches(name: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     if not value:
         return ()
     # 先声明成 list 再转 tuple：Settings 是 frozen dataclass，内部用可变类型更易拼装。
-    groups: list[tuple[str, tuple[str, ...]], ...] = []
+    groups: list[tuple[str, tuple[str, ...]]] = []
     for chunk in value.split(';'):
         chunk = chunk.strip()
         if not chunk:
@@ -346,7 +347,7 @@ class Settings:
                 trusted[previous_key_id] = (previous, None)
             return trusted
         keys_dir = self._keys_dir()
-        trusted: dict[str, tuple[Path, str | None]] = {
+        trusted = {
             self.license_key_id: (
                 keys_dir / DEFAULT_LICENSE_PUBLIC_KEY_FILENAME,
                 self.license_public_key_sha256 or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
@@ -410,7 +411,10 @@ def load_settings() -> Settings:
         for piece in os.getenv('APP_UPDATE_ENDPOINTS', '').split(',')
         if piece.strip()
     )
-    return Settings(**{
+    # 显式标注为 dict[str, Any]：这个展开字典的值类型天然是异构的，
+    # 不标注会被推断成「所有取值类型的联合」，** 展开时逐项对着 Settings
+    # 的形参报 reportArgumentType（一处几十条）。标注后由构造期负责校验。
+    params: dict[str, Any] = {
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
         # 会话时长：滑动有效期必须为正 —— 0 / 负数会让 expires_at 被写成「当前时刻」，
@@ -459,4 +463,5 @@ def load_settings() -> Settings:
         'license_secret_key_path_override': Path(license_key_path).expanduser().resolve() if license_key_path else None,
         # 首次初始化的引导密钥；留空则由服务端自动生成一份（见 SetupGuard）。
         'setup_token': os.getenv('APP_SETUP_TOKEN', '').strip(),
-    })
+    }
+    return Settings(**params)

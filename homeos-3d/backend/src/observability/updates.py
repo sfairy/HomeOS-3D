@@ -34,14 +34,15 @@ MAX_CACHE_AGE = 86400
 MAX_RESPONSE_BYTES = 32768
 
 
-def stable_version(value: str) -> tuple[int, int, int] | None:
+def stable_version(value: str | None) -> tuple[int, int, int] | None:
     """把 "1.2.3" / "v1.2.3" 解析成可比较的元组；非稳定版返回 None。
     """
     if not isinstance(value, str) or not re.fullmatch(
         r"v?(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})", value
     ):
         return None
-    return tuple(map(int, value.removeprefix("v").split(".")))
+    parts = value.removeprefix("v").split(".")
+    return (int(parts[0]), int(parts[1]), int(parts[2]))
 
 
 def release_value(payload: dict, channel: str) -> dict | None:
@@ -210,7 +211,7 @@ class UpdateChecker:
             if fresh
             else None,
             "logUrl": f"{self.wiki_url}?release={release['id']}#changelog"
-            if available
+            if release and available
             else f"{self.wiki_url}#changelog",
         }
 

@@ -239,7 +239,7 @@ class HAConnectionInput(BaseModel):
 class HATestRequest(HAConnectionInput):
     """测试连接：与保存不同，这里必须提供令牌才能真的连一次。"""
 
-    access_token: str = Field(alias='accessToken', min_length=1, max_length=4096)
+    access_token: str = Field(alias='accessToken', min_length=1, max_length=4096)  # type: ignore[reportIncompatibleVariableOverride]  # 子类收窄令牌为必填，pydantic 合法但 pyright 视为不兼容覆盖
 
 
 class HAServiceCallRequest(BaseModel):

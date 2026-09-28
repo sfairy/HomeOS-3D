@@ -84,7 +84,7 @@ def notify_license_issued(
                 .values(license_email_attempts=Order.license_email_attempts + 1)
                 .execution_options(synchronize_session=False)
             )
-            if claimed.rowcount == 0:
+            if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
                 return {
                     "sent": False,
                     "reason": "already_sent" if already_sent else "attempts_exhausted",

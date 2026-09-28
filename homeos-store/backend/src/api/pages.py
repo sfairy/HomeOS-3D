@@ -75,7 +75,7 @@ router.add_api_route("/user/referrals", _home, methods=["GET"], include_in_schem
 
 
 @router.get("/admin", include_in_schema=False)
-def admin_page(request: Request, session: DbSession) -> HTMLResponse:
+def admin_page(request: Request, session: DbSession) -> Response:
     # 无管理员时跳初始化页：部署者直接访问 /admin 不会看到一个用不了的登录表单。
     admin_count = session.scalar(
         select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712

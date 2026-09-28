@@ -116,7 +116,9 @@ def spawn(
     kwargs: dict = {'cwd': str(cwd or ROOT), 'env': environment}
     if IS_WINDOWS:
         # 独立进程组，便于父进程接管 Ctrl+C 后干净终止子进程。
-        kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+        # CREATE_NEW_PROCESS_GROUP 是 Windows 专属常量，POSIX 上不存在；
+        # 这里只在 IS_WINDOWS 分支取，用 getattr 做可移植兜底给静态检查。
+        kwargs['creationflags'] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     return subprocess.Popen(command, **kwargs)
 
 

@@ -7,6 +7,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import TypedDict
 
 from ..core.models import utcnow
 from ..security.security import iso_z
@@ -91,10 +92,23 @@ def note(
         logger.exception("异常计数失败 kind=%s（计数本身出错，不影响主流程）", kind)
 
 
+class _KindRow(TypedDict):
+    """后台巡检列表里的一行。原先用裸 dict 拼接，取值类型被合并成联合，
+    lambda 里的 ``-item["count"]`` 与 ``sum(item["count"] ...)`` 都无法做算术。
+    """
+
+    kind: str
+    label: str
+    count: int
+    lastAt: str | None
+    lastOrderNo: str
+    lastError: str
+
+
 def status() -> dict:
     """当前快照。字段命名与巡检状态保持一致，前端可以复用同一套渲染思路。"""
     with _LOCK:
-        kinds = [
+        kinds: list[_KindRow] = [
             {
                 "kind": kind,
                 "label": KINDS.get(kind, kind),

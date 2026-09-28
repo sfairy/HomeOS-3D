@@ -7,6 +7,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .core.env import load_dotenv
 from .licensing import keys as license_keys
@@ -379,7 +380,10 @@ def load_settings(**overrides) -> StoreSettings:
     # 先吃 .env（真实环境变量优先），这样 SMTP 授权码等本地密钥不必写进代码或 shell
     load_dotenv()
 
-    values = {
+    # 显式标注为 dict[str, Any]：展开字典的值类型天然异构，不标注会被推断成
+    # 取值类型联合，** 展开时逐项对着 StoreSettings 形参报 reportArgumentType。
+    # 标注后交给 StoreSettings 构造期与下面的 _validate_settings 校验。
+    values: dict[str, Any] = {
         "data_dir": _env_path("STORE_DATA_DIR", PROJECT_ROOT / "data"),
         "host": _env_str("STORE_HOST", DEFAULT_HOST) or DEFAULT_HOST,
         "port": _env_int("STORE_PORT", DEFAULT_PORT, minimum=1, maximum=65535),

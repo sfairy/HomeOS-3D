@@ -458,7 +458,7 @@ class LicenseAuthority:
         """
         table = License.__table__
         sequence = session.execute(
-            table.update()
+            table.update()  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy Table.update()（__table__ 运行期为 Table）
             .where(table.c.id == license.id)
             .values(lease_sequence=func.coalesce(table.c.lease_sequence, 0) + 1)
             .returning(table.c.lease_sequence)

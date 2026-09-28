@@ -7,6 +7,7 @@ import json
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
@@ -134,7 +135,7 @@ async def record_request_diagnostics(request: Request, call_next):
     """
     started = time.monotonic()
     diagnostic_path = '/api/hls/[stream]' if request.url.path.startswith('/api/hls/') else request.url.path
-    context = {'requestId': uuid4().hex, 'method': request.method, 'path': diagnostic_path}
+    context: dict[str, Any] = {'requestId': uuid4().hex, 'method': request.method, 'path': diagnostic_path}
     request.state.log_context = context
     # 放进 ContextVar，深层代码 append 日志时会自动带上这些字段。
     token = event_context.set(context)

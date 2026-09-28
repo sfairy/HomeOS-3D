@@ -78,7 +78,7 @@ def _parse_moment(value: object) -> datetime | None:
 
 
 def has_other_live_grant(
-    session: Session, *, order: Order, license_id: str, product_id: str | None
+    session: Session, *, order: Order, license_id: str | None, product_id: str | None
 ) -> bool:
     """除了这张订单，还有别的**仍然有效**的订单也在给同一个商品付款吗？
 
@@ -486,7 +486,7 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
         .values(reserved_stock=Product.reserved_stock - amount)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         # 预留本来就是 0：多半是同一次预留被归还了两次。负数预留会让
         clamped = session.execute(
             update(Product)
@@ -495,7 +495,7 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
             .values(reserved_stock=0)
             .execution_options(synchronize_session=False)
         )
-        if clamped.rowcount:
+        if clamped.rowcount:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
             logger.warning("商品 %s 的预留已被归还过，已夹到 0（请核对订单状态）", product.id)
     session.expire(product, ["reserved_stock"])
     session.flush()
@@ -525,7 +525,7 @@ def reserve_stock(session: Session, product: Product, quantity: int = 1) -> bool
     result = session.execute(statement)
     session.expire(product, ["reserved_stock"])
     session.flush()
-    return result.rowcount > 0
+    return result.rowcount > 0  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
 def consume_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
@@ -543,7 +543,7 @@ def consume_stock(session: Session, product: Product | None, quantity: int = 1) 
         .values(stock_quantity=Product.stock_quantity - amount)
         .execution_options(synchronize_session=False)
     )
-    if result.rowcount == 0:
+    if result.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         # 只可能是「订单关掉后又被支付复活」这类越卖；夹到 0 让商品直接显示售罄。
         session.execute(
             update(Product)
@@ -579,7 +579,7 @@ def release_order_reservation(
         .values(stock_reservation_released_at=utcnow())
         .execution_options(synchronize_session=False)
     )
-    if claim.rowcount == 0:
+    if claim.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         return False
     release_reserved_stock(session, product, quantity)
     session.expire(order, ["stock_reservation_released_at"])
@@ -613,7 +613,7 @@ def close_pending_order(
         .values(status=status, cancelled_at=moment or utcnow())
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:
+    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         return False
     release_order_effects(session, order=order, product=product)
     return True
@@ -668,7 +668,7 @@ def fulfill_order(
         .values(fulfilled_at=moment)
         .execution_options(synchronize_session=False)
     )
-    if claimed.rowcount == 0:
+    if claimed.rowcount == 0:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
         session.refresh(order)
         if order.status == "refunded":
             raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")

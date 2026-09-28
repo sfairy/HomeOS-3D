@@ -422,7 +422,7 @@ def pair_display_device(
             .values(**fields)
             .execution_options(synchronize_session=False)
         )
-        if updated.rowcount != 1:
+        if updated.rowcount != 1:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 运行期存在，pyright 存根未声明
             database.rollback()
             raise device_already_bound()
     database.commit()
@@ -482,6 +482,7 @@ def update_display_device(
             pairing.updated_at = datetime.now(timezone.utc)
     database.commit()
     database.refresh(device)
+    assert project is not None  # 改绑分支已校验非 None；未改绑分支由设备已绑定项目保证
     return device_payload(device, project, request.app.state.settings)
 
 

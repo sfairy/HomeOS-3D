@@ -13,6 +13,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
+from typing import Any
 from urllib.parse import unquote
 from uuid import uuid4
 
@@ -235,12 +236,12 @@ def _interaction_archive(state: StudioInteractionSync | None) -> list:
     return archive if isinstance(archive, list) else []
 
 
-def _interaction_project_labels(database: DatabaseSession, impacts: list[dict]) -> list[str]:
+def _interaction_project_labels(database: DatabaseSession, impacts: list[dict[str, Any]]) -> list[str]:
     """把影响记录里的 projectId 换成人看得懂的项目名，供确认弹窗直接展示。
     """
     names = {project.id: project.name for project in database.scalars(select(Project)).all()}
     seen = dict.fromkeys(impact['projectId'] for impact in impacts)
-    return [names.get(project_id, project_id) for project_id in seen]
+    return [names.get(project_id, project_id) for project_id in seen]  # type: ignore[reportReturnType]  # impacts 已声明 dict[str, Any]，projectId 实际为 str，names.get 返回 str；pyright 因 SQLAlchemy scalars 存根保守推断为 str | None
 
 
 @router.put('')
@@ -323,7 +324,7 @@ def update_studio3d_draft(
                     updated_by=_user.id,
                 )
                 .execution_options(synchronize_session=False))
-            if result.rowcount != 1:
+            if result.rowcount != 1:  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 运行期存在，pyright 存根未声明
                 # 期间有人改了这份仪表盘：整批回滚，让用户重试，绝不用旧快照做部分覆盖。
                 database.rollback()
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={

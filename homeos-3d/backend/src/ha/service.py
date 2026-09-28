@@ -87,7 +87,7 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         # 串行化数据库操作，见 _run_database。
         self._database_lock = asyncio.Lock()
         self._connected = False
-        self._runtime_error = None
+        self._runtime_error: str | None = None
         # 已落库的 (connection_id, entity_id) 集合，用于判断事件是不是新实体。
         self._known_entity_ids = set()
         # connection_id -> 上次增量写库的时间戳（time.monotonic），实现写入节流。

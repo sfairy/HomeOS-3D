@@ -375,7 +375,7 @@ def ensure_schema(engine: Engine) -> list[str]:
         for constraint in table.constraints:
             if constraint.__class__.__name__ != "UniqueConstraint":
                 continue
-            columns = tuple(sorted(column.name for column in constraint.columns))
+            columns = tuple(sorted(column.name for column in constraint.columns))  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy UniqueConstraint.columns 动态属性
             if columns and columns not in unique_columns:
                 logger.warning(
                     "表 %s 缺少唯一约束 %s%s；SQLite 无法在线追加，请人工重建该表。",

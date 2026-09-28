@@ -7,6 +7,7 @@ import logging
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from sqlalchemy import func, update
 from sqlalchemy.exc import SQLAlchemyError
@@ -47,7 +48,17 @@ def record_refund_in_new_session(session: Session, refund: OrderRefund) -> bool:
 #: 按订单号的进程内互斥锁表（值 = [锁, 持有者计数]）。
 #: 放在这里而不是接口层：退款是**渠道侧会真的动钱**的操作，同一订单的两笔并发退款
 #: 会让累计额度算错，所以这道锁与退款记账属于同一个关注点。
-_refund_locks: dict[str, list] = {}
+@dataclass
+class _RefundLock:
+    """一把锁加上等待它的持锁者计数。原先写成 ``[Lock(), 0]``，被推断成
+    ``list[Lock | int]``，``holders + 1`` / ``entry[1] <= 1`` 都会报运算符错误。
+    """
+
+    lock: threading.Lock
+    holders: int
+
+
+_refund_locks: dict[str, _RefundLock] = {}
 _refund_locks_guard = threading.Lock()
 
 
@@ -57,10 +68,10 @@ def refund_lock(order_no: str) -> Iterator[None]:
     with _refund_locks_guard:
         entry = _refund_locks.get(order_no)
         if entry is None:
-            entry = [threading.Lock(), 0]
+            entry = _RefundLock(threading.Lock(), 0)
             _refund_locks[order_no] = entry
-        lock, holders = entry[0], entry[1]
-        entry[1] = holders + 1
+        lock = entry.lock
+        entry.holders += 1
     lock.acquire()
     try:
         yield
@@ -69,11 +80,11 @@ def refund_lock(order_no: str) -> Iterator[None]:
         with _refund_locks_guard:
             entry = _refund_locks.get(order_no)
             #: 只在「还是同一把锁」时才动计数：期间可能有人把表项删掉重建了。
-            if entry is not None and entry[0] is lock:
-                if entry[1] <= 1:
+            if entry is not None and entry.lock is lock:
+                if entry.holders <= 1:
                     del _refund_locks[order_no]
                 else:
-                    entry[1] -= 1
+                    entry.holders -= 1
 
 
 def claim_refund_amount(session: Session, order, *, seen_cents: int, add_cents: int) -> bool:
@@ -89,7 +100,7 @@ def claim_refund_amount(session: Session, order, *, seen_cents: int, add_cents: 
         .values(refund_amount_cents=seen_cents + add_cents)
         .execution_options(synchronize_session=False)
     )
-    return claimed.rowcount == 1
+    return claimed.rowcount == 1  # type: ignore[reportAttributeAccessIssue]  # SQLAlchemy CursorResult.rowcount 动态属性
 
 
 def record_refund_audit(session: Session, refund: OrderRefund) -> bool:
