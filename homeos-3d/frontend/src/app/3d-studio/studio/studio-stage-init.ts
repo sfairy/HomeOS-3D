@@ -16,6 +16,7 @@ import {
 import {
   applyBaseLighting,
   externalModelManager,
+  invalidateRender,
   precompiledLightSignatures,
   requestRenderFrame,
   scheduleLightCacheBuild,
@@ -58,13 +59,6 @@ export async function initializeStudioStage({ isRetry = false } = {}) {
       alpha: true,
       powerPreference: "high-performance"
     });
-    if (isStageViewerMode) {
-      state.renderer.domElement.addEventListener("webglcontextrestored", () => {
-        state.appliedLightPrecompileSignature = "";
-        precompiledLightSignatures.clear();
-        scheduleLightPrecompile();
-      });
-    }
     state.renderer.setPixelRatio(targetPixelRatio());
     state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
     state.renderer.toneMapping = threeModuleMin.NeutralToneMapping;
@@ -255,7 +249,8 @@ export async function initializeStudioStage({ isRetry = false } = {}) {
     const wakeFrameLoop = () => state.demandFrameLoop.wake();
     const syncFrameLoopAvailability = () => {
       lastFrameTimeMs = performance.now();
-      const frameLoopEnabled = !document.hidden && state.isFrameLoopAvailable;
+      const frameLoopEnabled =
+        !document.hidden && state.isFrameLoopAvailable && !state.isWebglContextLost;
       state.demandFrameLoop.setAvailable(frameLoopEnabled);
       if (frameLoopEnabled) {
         requestRenderFrame();
@@ -267,6 +262,37 @@ export async function initializeStudioStage({ isRetry = false } = {}) {
         state.lightCacheSettleTimer = null;
       }
     };
+    /**
+     * WebGL 上下文丢失。
+     * 必须 `preventDefault()`：不取消该事件浏览器就不会恢复上下文，画布会永久黑掉。
+     * 同时停掉帧循环，避免继续往已失效的上下文里提交绘制。
+     */
+    state.renderer.domElement.addEventListener("webglcontextlost", (webglContextLostEvent: any) => {
+      webglContextLostEvent.preventDefault();
+      state.isWebglContextLost = true;
+      syncFrameLoopAvailability();
+      debugLog("warn", "studio-webgl-context-lost");
+    });
+    /**
+     * WebGL 上下文恢复。
+     * 上下文丢失会作废全部 GPU 侧资源，而本应用自建的派生缓存不会跟着重建，
+     * 不主动作废就会出现「画面能出、但灯光与阴影不对」这类坏状态。
+     * 这里按 `invalidateRender` 的标准口径把场景 / 阴影 / 自适应灯光缓存一次性作废并重算，
+     * 灯光预编译签名也一并清掉（它记的是「哪套灯已烘焙到位」，此时已不可信）。
+     */
+    state.renderer.domElement.addEventListener("webglcontextrestored", () => {
+      state.isWebglContextLost = false;
+      state.appliedLightPrecompileSignature = "";
+      precompiledLightSignatures.clear();
+      invalidateRender({
+        scene: true,
+        shadows: true
+      });
+      scheduleLightPrecompile();
+      syncFrameLoopAvailability();
+      wakeFrameLoop();
+      debugLog("info", "studio-webgl-context-restored");
+    });
     if (isStageViewerMode) {
       const handleParentVisibilityChange = (visibilityEvent: any) => {
         state.isFrameLoopAvailable = visibilityEvent.detail === true;

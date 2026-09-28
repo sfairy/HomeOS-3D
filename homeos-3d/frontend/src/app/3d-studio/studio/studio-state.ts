@@ -191,6 +191,7 @@ export const state = {
   lightPrecompilePassCount: 0,
   lightPrecompileTimer: null as any,
   isPageUnloading: false,
+  isWebglContextLost: false,
   appliedLightPrecompileSignature: "",
   historyBusy: !1,
   activeCacheWriteHandle: null as any,
