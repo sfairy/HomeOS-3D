@@ -23,6 +23,7 @@ from .api import wechat as wechat_api
 from .config import PROJECT_ROOT, StoreSettings, load_settings
 from .core.bootstrap import ensure_default_products, ensure_default_settings
 from .core.database import Database
+from .core.migrations import run_migrations
 from .licensing import keys
 from .licensing.crypto import (
     KeyGeneration,
@@ -54,7 +55,7 @@ from .security.request_security import (
     same_origin_request,
     security_headers,
 )
-from .security.schema_guard import ensure_schema
+from .security.schema_guard import inspect_schema, log_drift
 from .security.setup_guard import SetupGuard, announce_setup_window
 
 logger = logging.getLogger("src")
@@ -168,13 +169,18 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "限流与授权记录会按反向代理地址统计，建议按部署方式配置。"
         )
 
-    database = Database(settings)
-    database.create_all()
+    # 库结构由迁移负责，且**必须先于**任何查库动作：存量库会被认领成基线、再把之后的
+    # 增量逐个应用（见 core/migrations.py）。这里不再有 create_all —— 按 ORM 建表的
+    # 兜底入口会让基线迁移漏掉的表被悄悄补上，本地正常、换台机器就少一张表。
+    for step in run_migrations(settings):
+        logger.info("数据库迁移：%s", step)
 
-    # create_all 只建缺的表，对已存在的表**不会加列**。新增字段必须在这里补上，
-    applied = ensure_schema(database.engine)
-    if applied:
-        logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
+    database = Database(settings)
+
+    # 迁移跑通 ≠ 结构等于 ORM：脚本可能漏写了某一列，而那类偏差要等到相关查询在运行期
+    # 被调用才会报错。这里做一次**只读**自检，把它在启动时就变成一个可见的状态。
+    schema_drift = inspect_schema(database.engine)
+    log_drift(schema_drift)
 
     # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。
     with database.session() as session:
@@ -245,6 +251,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     app.state.settings = settings
     app.state.database = database
+    app.state.schema_drift = schema_drift
     app.state.license_authority = authority
     app.state.setup_guard = setup_guard
     # 商店站点配色：一个 JSON 文件，没有迁移、也没有表。失败只退回默认配色 ——
@@ -347,12 +354,20 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         # status 只表示「进程活着」，探活机器不会被巡检状态带偏；巡检与 incidents
+        # 结构异常只放在 schema 里，**刻意不改 status**：探活失败会被编排器重启，而
+        # 「库里有几列历史遗留」重启一百次也不会变 —— 那是要告警给人看的，不是要自愈的。
+        drift = app.state.schema_drift
         return {
             "status": "ok",
             "version": __version__,
             "port": settings.port,
             "paymentSweep": sweep_status(),
             "incidents": incidents.status(),
+            "schema": {
+                "ok": drift.clean,
+                "summary": drift.summary(),
+                "drift": None if drift.clean else drift.as_dict(),
+            },
         }
 
     @app.exception_handler(Exception)

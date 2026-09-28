@@ -49,18 +49,17 @@ def create_store_engine(settings: StoreSettings) -> Engine:
 
 
 class Database:
-    """轻量封装：持有 engine 并提供会话上下文。"""
+    """轻量封装：持有 engine 并提供会话上下文。
+
+    注意这里**没有** ``create_all``：库结构由 Alembic 迁移负责（``core/migrations.py``）。
+    保留一个「按 ORM 建表」的入口会让基线迁移漏掉的东西被悄悄兜住 —— 本地看起来一切正常，
+    换一台机器启动就少一张表。
+    """
 
     def __init__(self, settings: StoreSettings) -> None:
         self.settings = settings
         self.engine = create_store_engine(settings)
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
-
-    def create_all(self) -> None:
-        # 副作用导入：把 ORM 模型注册进 Base.metadata。
-        from ..core import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
-
-        Base.metadata.create_all(self.engine)
 
     @contextmanager
     def session(self) -> Generator[Session, None, None]:

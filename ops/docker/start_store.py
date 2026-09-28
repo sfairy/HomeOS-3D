@@ -16,7 +16,7 @@ from ops.docker.proxy import run_with_proxy
 
 
 def _check_admin_exists(data_dir: Path) -> bool:
-    """快速探测数据库里是否已有管理员（只读打开，不触发 create_all）。"""
+    """快速探测数据库里是否已有管理员（只读打开，不跑迁移）。"""
     import sqlite3
 
     db_path = data_dir / "store.db"
