@@ -48,16 +48,27 @@ export function isWebglContextCreationFailure(stageInitError: any) {
   return /Error creating WebGL context/.test(String(stageInitError?.message || ""));
 }
 
-export async function initializeStudioStage({ isRetry = false } = {}) {
+/**
+ * 上下文创建失败的重试退避（毫秒）：第 N 次重试前等这么久。
+ * GPU 进程刚崩、正在重启，或显存一时腾不出来时，上下文会短暂创建不出来
+ * （Chromium 表现为 `BindToCurrentSequence failed`、GPU 通道建不起来）。
+ * 这种情况等一会儿往往就能成功，所以给几次退避重试，而不是失败一次就放弃。
+ */
+const WEBGL_CREATION_RETRY_DELAYS_MS = [800, 2000, 4000];
+
+export async function initializeStudioStage({ attempt = 0 } = {}) {
   const stageContainer = selectElement("#preview-3d");
   try {
     state.previewOverlayScene = new threeModuleMin.Scene();
     state.previewCamera = new threeModuleMin.OrthographicCamera(-5, 5, 5, -5, 0.05, 200);
     state.previewCamera.layers.enable(PREVIEW_OBJECT_LAYER);
+    // 首次用高配参数（抗锯齿 + 高性能 GPU）；重试时退到保守参数——GPU 状态不佳或被
+    // 降级时，抗锯齿与 high-performance 这类额外要求更容易被拒绝，退一步反而建得出来。
+    const useHighEndContext = attempt === 0;
     state.renderer = new threeModuleMin.WebGLRenderer({
-      antialias: true,
+      antialias: useHighEndContext,
       alpha: true,
-      powerPreference: "high-performance"
+      powerPreference: useHighEndContext ? "high-performance" : "default"
     });
     state.renderer.setPixelRatio(targetPixelRatio());
     state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
@@ -368,11 +379,18 @@ export async function initializeStudioStage({ isRetry = false } = {}) {
       wakeFrameLoop();
     }
   } catch (webglInitError) {
-    // 建不出上下文先重试一次（只一次）：GPU 进程刚重启、或显存一时腾不出来时（macOS 上
-    if (!state.renderer && !isRetry && isWebglContextCreationFailure(webglInitError)) {
-      await new Promise(resolveStageRetry => window.setTimeout(resolveStageRetry, 1000));
+    // 建不出上下文先退避重试：GPU 进程刚重启、或显存一时腾不出来时（macOS 上尤其常见），
+    // 上下文会短暂创建不出来，等一会儿通常就能建出来，所以退避重试若干次而不是一次就放弃。
+    if (
+      !state.renderer &&
+      isWebglContextCreationFailure(webglInitError) &&
+      attempt < WEBGL_CREATION_RETRY_DELAYS_MS.length
+    ) {
+      await new Promise(resolveStageRetry =>
+        window.setTimeout(resolveStageRetry, WEBGL_CREATION_RETRY_DELAYS_MS[attempt])
+      );
       await initializeStudioStage({
-        isRetry: true
+        attempt: attempt + 1
       });
       return;
     }
