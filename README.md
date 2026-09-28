@@ -20,12 +20,14 @@ HomeOS/
 │   ├── frontend/              # 前端源码
 │   ├── dist/                  # 构建产物（构建进镜像）
 │   ├── data/                  # 运行时（不入库；STORE_DATA_DIR）
+│   ├── db/ alembic.ini        # 结构迁移（与主应用各自独立的一套）
 │   ├── keys/local/            # 本地联调用的授权私钥（不入库）
 │   └── package.json
 ├── ops/                       # 本地联调 start.py、部署、Docker 构建辅助
 │   ├── caddy/                 # 镜像内置反代配置（app / store 各一份）
 │   ├── docker/                # 容器启动器、Cython 编译、JS 混淆
 │   ├── deploy/                # deploy.sh 与部署文档
+│   ├── check_schema.py        # 库结构门禁：迁移脚本 ↔ ORM 元数据一致性
 │   └── start.py               # 本地开发一键启动（不是部署脚本）
 ├── keys/                      # 仅本地联调用的开发公钥（生产商店会自生成新密钥对；容器不用）
 ├── packages/                  # 契约清单

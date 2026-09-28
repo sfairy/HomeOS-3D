@@ -87,11 +87,34 @@ jobs:
           fi
           echo "零 @ts-nocheck：通过"
 
+  # 库结构门禁：确认「迁移脚本 = ORM 元数据 = 实际结构」（ops/check_schema.py）。
+  # 放在 build 之前是刻意的：结构漂移的表现是「本地全新库一切正常、存量部署才报错」，
+  # 它不会在任何一条类型检查或前端检查里露头，而一旦随镜像发出去，用户是唯一的
+  # 发现者。坏迁移在这里拦下，就不会被推成镜像。
+  schema:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # 与 Dockerfile 的 python:3.14-slim-bookworm 对齐：迁移脚本要在生产同版本上验证过。
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r homeos-3d/backend/src/requirements.txt \
+                      -r homeos-store/backend/src/requirements.txt
+
+      - name: Check schema
+        run: python ops/check_schema.py
+
   # 两个架构各跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   # 编译成 per-arch 的 .so，模拟执行会慢到不可用。
   # 每个矩阵项只推一个 <tag>-<arch> 单架构镜像，manifest list 交给 merge 合成。
   build:
-    needs: [meta, typecheck]
+    needs: [meta, typecheck, schema]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
