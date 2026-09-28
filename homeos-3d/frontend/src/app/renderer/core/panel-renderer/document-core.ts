@@ -1823,6 +1823,8 @@ export const documentCoreMethods: Record<string, (...args: any[]) => any> & This
     window.visualViewport?.removeEventListener("resize", this.boundResize);
     window.removeEventListener("orientationchange", this.boundResize);
     window.removeEventListener("online", this.boundReconnect);
+    window.removeEventListener("pagehide", this.boundPageHide);
+    window.removeEventListener("pageshow", this.boundPageShow);
     document.removeEventListener("visibilitychange", this.boundVisibilityChange);
     this.container.removeEventListener("click", this.boundRuntimeButtonSound, true);
     this.container.replaceChildren();

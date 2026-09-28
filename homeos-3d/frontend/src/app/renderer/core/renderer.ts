@@ -174,10 +174,32 @@ export class PanelRenderer {
         this.historyRetryTimer = 0;
       }
     };
+    // 进入 bfcache 前主动断开：不关的话浏览器会强制掐断连接，控制台报
+    // “WebSocket connection ... failed: Page entered Back-Forward Cache”，
+    // 恢复后连接也不会自动回来。
+    this.boundPageHide = (pageHideEvent: any) => {
+      if (pageHideEvent?.persisted) {
+        this.disconnectRuntime();
+      }
+    };
+    // 从 bfcache 恢复：连接在 pagehide 时已断开，这里补一次重连。
+    // visibilitychange 可能已抢先重连，那就跳过，避免连开两条。
+    this.boundPageShow = (pageShowEvent: any) => {
+      if (pageShowEvent?.persisted && !this.destroyed && this.document) {
+        if (!this.socket || this.socket.readyState >= WebSocket.CLOSING) {
+          this.connectRuntime({
+            force: true
+          });
+          this.refreshHistorySeries();
+        }
+      }
+    };
     this.historyPollTimer = window.setInterval(() => this.refreshHistorySeries(), 30000);
     window.visualViewport?.addEventListener("resize", this.boundResize);
     window.addEventListener("orientationchange", this.boundResize);
     window.addEventListener("online", this.boundReconnect);
+    window.addEventListener("pagehide", this.boundPageHide);
+    window.addEventListener("pageshow", this.boundPageShow);
     document.addEventListener("visibilitychange", this.boundVisibilityChange);
   }
 
