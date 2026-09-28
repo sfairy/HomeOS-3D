@@ -93,6 +93,45 @@ function disposePartialStageInit() {
   state.orbitControls = null;
 }
 
+/**
+ * 舞台的 WebGL 上下文是否已被主动释放。
+ * 释放后不再处理上下文丢失 / 恢复：此时页面正在离开，宿主会在 pageshow 时重载本 iframe，
+ * 重建旧场景没有意义，反而会对着失效的 GPU 句柄发 delete。
+ */
+let isStageWebglReleased = false;
+
+/**
+ * 主动释放舞台的 WebGL 上下文。
+ *
+ * 页面离开时不主动释放的话，浏览器会自己强制丢失上下文（控制台报
+ * `CONTEXT_LOST_WEBGL: loseContext: context lost`），恢复时再走一次 three 的
+ * 上下文恢复 + 应用侧重建；而重建会 dispose 掉一批「属于丢失前那个上下文」的 GPU
+ * 资源，three 对这些失效句柄发出的 delete 会报
+ * `INVALID_OPERATION: delete: object does not belong to this context`。
+ *
+ * 主动释放把这次丢失变成单向的：上下文由扩展显式丢失后浏览器不会再自动恢复，
+ * 于是没有恢复也就没有那一串报错（阶段页的上下文丢失由浏览器引起，第一条 loseContext
+ * 与 three 的 “Context Lost.” 属信息性输出，无法也不应由应用侧消除）。
+ *
+ * 释放后所有 GL 调用都会变成空操作，因此后续 pagehide 清理里对 GPU 资源的 dispose
+ * 不再有副作用，跨文件的监听顺序也就不再重要。
+ */
+function releaseStageWebglContext() {
+  if (isStageWebglReleased || !state.renderer) {
+    return;
+  }
+  isStageWebglReleased = true;
+  const releasedRenderer = state.renderer;
+  try {
+    // 顺序有讲究：先 dispose（此时上下文仍然有效，three 能正常回收自己的资源），
+    // 再用 WEBGL_lose_context 显式丢失，避免产生「对着已丢失上下文发 delete」。
+    releasedRenderer.dispose();
+    releasedRenderer.forceContextLoss();
+  } catch (stageWebglReleaseError) {
+    debugLog("warn", stageWebglReleaseError);
+  }
+}
+
 export async function initializeStudioStage({ attempt = 0 } = {}) {
   const stageContainer = selectElement("#preview-3d");
   try {
@@ -108,6 +147,8 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
       alpha: true,
       powerPreference: contextAttempt.powerPreference
     });
+    // 新建渲染器：清掉上一次释放留下的标记，否则新上下文的丢失 / 恢复会被误当成「已释放」跳过。
+    isStageWebglReleased = false;
     state.renderer.setPixelRatio(targetPixelRatio());
     state.renderer.outputColorSpace = threeModuleMin.SRGBColorSpace;
     state.renderer.toneMapping = threeModuleMin.NeutralToneMapping;
@@ -317,6 +358,10 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
      * 同时停掉帧循环，避免继续往已失效的上下文里提交绘制。
      */
     state.renderer.domElement.addEventListener("webglcontextlost", (webglContextLostEvent: any) => {
+      // 已主动释放（页面正在离开）：不再申请恢复；恢复也没有意义，宿主会重载本 iframe。
+      if (isStageWebglReleased) {
+        return;
+      }
       webglContextLostEvent.preventDefault();
       state.isWebglContextLost = true;
       syncFrameLoopAvailability();
@@ -330,6 +375,11 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
      * 灯光预编译签名也一并清掉（它记的是「哪套灯已烘焙到位」，此时已不可信）。
      */
     state.renderer.domElement.addEventListener("webglcontextrestored", () => {
+      // 已主动释放：不做恢复后的重建。重建会 dispose 一批属于丢失前那代上下文的 GPU
+      // 资源，three 对失效句柄发 delete 正是控制台那条 INVALID_OPERATION 的来源。
+      if (isStageWebglReleased) {
+        return;
+      }
       state.isWebglContextLost = false;
       state.appliedLightPrecompileSignature = "";
       precompiledLightSignatures.clear();
@@ -391,6 +441,9 @@ export async function initializeStudioStage({ attempt = 0 } = {}) {
           ]) {
             state.renderer.domElement.removeEventListener(cleanupEventName, wakeFrameLoop);
           }
+          // 最后释放 WebGL 上下文：上面这些 dispose 仍然在有效上下文上正常回收，
+          // 释放之后浏览器不会再自己丢失 + 恢复，也就不会再有恢复后的失效 delete。
+          releaseStageWebglContext();
         },
         {
           once: true
