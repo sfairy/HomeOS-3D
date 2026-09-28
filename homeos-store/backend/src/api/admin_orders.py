@@ -2,8 +2,6 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime
 from typing import Callable
@@ -14,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..commerce import delivery, fulfill, referrals
 from ..commerce import coupons
-from ..ops import site_settings as site_config
+from ..ops import incidents, site_settings as site_config
 from ..core.deps import AdminAccount, DbSession, order_or_404
 from ..commerce.order_status import (
     order_status_label,
@@ -409,26 +407,36 @@ def _refund_order(
     total_cents = max(0, int(order.amount_cents or 0))
     refunded_cents = max(0, int(order.refund_amount_cents or 0))
     remaining_cents = refundable_cents(total_cents, refunded_cents)
-    if remaining_cents <= 0:
+    # 免费单（0 元商品 / 100% 优惠码）没有可退资金，但退款仍承担「撤销」语义：
+    # 要收回授权、归还优惠码名额并把订单置为已退款，不能被「可退余额为 0」挡死在外面。
+    free_order = total_cents == 0
+    if remaining_cents <= 0 and not free_order:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"该订单已全额退款 ¥{refunded_cents / 100:.2f}，没有可退余额。",
         )
 
-    amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
-    if amount_cents > remaining_cents:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=(
-                f"退款金额超出可退余额：本次最多可退 ¥{remaining_cents / 100:.2f}"
-                f"（订单 ¥{total_cents / 100:.2f}，已退 ¥{refunded_cents / 100:.2f}）。"
-            ),
-        )
+    if free_order:
+        amount_cents = 0
+    else:
+        amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
+        if amount_cents > remaining_cents:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"退款金额超出可退余额：本次最多可退 ¥{remaining_cents / 100:.2f}"
+                    f"（订单 ¥{total_cents / 100:.2f}，已退 ¥{refunded_cents / 100:.2f}）。"
+                ),
+            )
 
     refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
 
     #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退交易，
     forced_offline = _offline_refund_reason(order)
+    if free_order:
+        # 免费单即使建单时冻结过渠道名，也从未产生真实交易：强制线下记账，
+        # 绝不允许拿 FREE 开头的伪交易号去调用渠道退款 API。
+        forced_offline = "免费订单无渠道交易"
     offline_refund = bool(payload.offline) or bool(forced_offline)
     if forced_offline and not payload.offline:
         logger.warning(
@@ -487,7 +495,7 @@ def _refund_order(
         # 渠道只退了一部分时按实际金额入账，并把差额如实告诉运营 ——
         settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
 
-    if settled_cents <= 0:
+    if settled_cents <= 0 and not free_order:
         refund.status = "succeeded"
         refund.amount_cents = 0
         refund.trade_no = refund_trade_no
@@ -555,12 +563,27 @@ def _refund_order(
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_order_reservation(session, order=order, product=product)
 
-    fully_refunded = total_cents > 0 and cumulative_cents >= total_cents
+    # 付费单与旧口径一致（累计达到订单额即全额）；免费单累计恒为 0，同样成立，
+    # 从而走到下面的授权收回 / 优惠码归还 / 状态置 refunded 分支。
+    fully_refunded = cumulative_cents >= total_cents
+    reversed_centi = 0
+    referral_shortfall_centi = 0
     if fully_refunded:
         _revoke_order_entitlements(session, order)
-        referrals.reverse_order_reward(
+        reversed_centi, referral_shortfall_centi = referrals.reverse_order_reward(
             session, order=order, note=f"订单 {order.order_no} 退款，奖励退回"
         )
+        if referral_shortfall_centi > 0:
+            # 推荐人钱包余额不足时只能扣回部分：台账明细已留「请人工追偿」，
+            # 这里必须再登记运营事件，不能让短差只躺在台账文本里。
+            incidents.note(
+                "referral.reversal_shortfall",
+                order_no=order.order_no,
+                error=(
+                    f"邀请奖励扣回短差 {referral_shortfall_centi / 100:.2f} 积分，"
+                    "推荐人钱包余额不足，需人工追偿"
+                ),
+            )
         order.status = "refunded"
         order.refunded_at = utcnow()
         coupons.release_coupon(session, order, reason="全额退款，归还优惠码名额")
@@ -580,6 +603,12 @@ def _refund_order(
             + (f" 幂等号 {out_request_no}" if not offline_refund else "")
             + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else "")
             + (f" {refund_detail}" if refund_detail else "")
+            + (f" 邀请奖励已扣回 {reversed_centi / 100:.2f} 积分" if (reversed_centi or referral_shortfall_centi) else "")
+            + (
+                f"，另有 {referral_shortfall_centi / 100:.2f} 积分余额不足，已登记人工追偿"
+                if referral_shortfall_centi
+                else ""
+            )
             + (f" 备注：{refund_reason}" if (payload.note or forced_offline) else "")
         ),
     )
@@ -687,17 +716,52 @@ def admin_list_order_refunds(
 
 @router.post("/orders/{order_no}/cancel")
 def admin_cancel(
-    order_no: str, payload: AdminOrderActionRequest, session: DbSession, admin: AdminAccount
+    order_no: str,
+    payload: AdminOrderActionRequest,
+    request: Request,
+    session: DbSession,
+    admin: AdminAccount,
 ) -> dict:
     order = order_or_404(session, order_no)
     if order.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
+
+    # 与买家自助取消（store_orders.cancel_order）同一口径：先 best-effort 关渠道，
+    # 再做本地收尾。否则旧二维码在巡检关单前（最长 CLOSE_LOOKBACK_HOURS）仍可被支付，
+    # 一笔迟到的成功付款会把已取消单「复活」并自动发码，管理员的取消意图被静默推翻。
+    setting = site_config.get_setting(session)
+    try:
+        provider = request.app.state.resolve_payment_provider(
+            setting, name=order.payment_provider or None
+        )
+    except PaymentError:
+        provider = None
+    channel_closed = False
+    if provider is not None and getattr(provider, "name", "") in {"alipay", "wechat"}:
+        try:
+            outcome = provider.close_payment(request.app.state.settings, order)
+        except PaymentError as error:
+            logger.warning(
+                "后台取消订单时关单失败 order=%s 错误=%s（留给巡检重试）",
+                order.order_no,
+                error,
+            )
+        else:
+            if outcome.already_paid:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="该订单已有付款记录，无法取消；请改用退款流程。",
+                )
+            channel_closed = bool(outcome.closed)
+
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：取消与超时扫描/支付入账可能同时发生，只有把订单从
     if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
+    if channel_closed:
+        order.channel_closed_at = utcnow()
     session.flush()
     _audit(session, _admin_actor(admin), "order.cancel", order.order_no, payload.note)
     session.refresh(order)

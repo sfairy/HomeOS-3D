@@ -52,7 +52,13 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     if set(data) != expected_fields:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 空调控制不支持此服务或参数。')
     # unknown / unavailable 与空状态同等对待，不去猜设备的真实状态。
-    if not state or state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
+    # 与 lock/purifier/cover 同一口径：非 dict（含 None）、available=False、残缺 state 一律 409。
+    if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (
+        None,
+        '',
+        'unknown',
+        'unavailable',
+    ):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调状态暂不可用，请等待设备重新连接。')
     # 无参数服务（当前只有 turn_on）：上游要求设备自己声明开机能力 ——
     if parameter is None:

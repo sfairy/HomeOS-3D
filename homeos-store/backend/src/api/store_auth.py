@@ -2,8 +2,6 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import secrets
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -19,6 +17,7 @@ from ..core.models import (
     AccountSession,
     ReferralWallet,
 )
+from .admin_shared import _drop_account_sessions
 from ..security.request_security import resolve_client_ip
 from ..core.schemas import (
     ChangePasswordRequest,
@@ -269,11 +268,7 @@ def change_password(
     # 踢掉其它设备的会话，只保留当前这一个。改密码就是为了止损，
     settings: StoreSettings = request.app.state.settings
     current = token_hash(request.cookies.get(settings.cookie_name) or "")
-    for record in session.scalars(
-        select(AccountSession).where(AccountSession.account_id == account.id)
-    ):
-        if record.id_hash != current:
-            session.delete(record)
+    _drop_account_sessions(session, account.id, keep_hash=current)
 
     session.commit()
     logger.info("密码已修改 account=%s", account.id)
@@ -294,9 +289,6 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
 
     account.password_hash = hash_password(payload.password)
     # 重置密码后强制所有会话下线
-    for record in session.scalars(
-        select(AccountSession).where(AccountSession.account_id == account.id)
-    ):
-        session.delete(record)
+    _drop_account_sessions(session, account.id)
     session.commit()
     return {"email": email, "reset": True}

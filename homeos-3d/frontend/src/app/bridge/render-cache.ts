@@ -9,7 +9,7 @@ export const RENDER_CACHE_VERSION = "i3d-light-delta-20260923-three-r186-v9";
  * 生成「键序无关」的 JSON 文本。
  */
 export function stableCacheJSON(payload: any) {
-  return JSON.stringify(payload, (key, rawValue) =>
+  return JSON.stringify(payload, (_key, rawValue) =>
     rawValue && typeof rawValue == "object" && !Array.isArray(rawValue)
       ? Object.fromEntries(
           Object.keys(rawValue)

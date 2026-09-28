@@ -1,552 +1,111 @@
 /**
  * 3D 户型工作室主脚本，全工作室唯一的编排层：平面绘制、three.js 三维呈现、
  */
-import {
-  normalizeCurtainTrack,
-  curtainFootprintDepth,
-  createCurtainTrack,
-  curtainPanelRanges,
-  addRollerCurtain,
-  addTrackCurtain
-} from "../loaders/studio-curtain-track.js";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js";
 import { capturePointer, releasePointer } from "../../utils/pointer-capture.js";
 // 浮动菜单的统一定位（按实测尺寸夹进视口 / 翻转），与编辑器共用一份。
 import {
   moveFloatingPanelIntoBounds,
-  positionPointMenu
 } from "../../shared/menu-positioning.js";
-import { paletteColor } from "../../utils/colors.js";
-import { roundToDecimals } from "../../utils/numbers.js";
 // 未绑定窗帘的默认开合度：与运行时的未绑定兜底同值，只定义在 utils/cover-features.js 一处。
-import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js";
 import {
-  APPLIANCE_ITEM_TYPES,
-  APPLIANCE_MODEL_ITEM_TYPES,
-  BATCH_OPTIMIZED_ITEM_TYPES,
-  EXTERNAL_MODEL_ITEM_TYPES,
-  HOME_ITEM_TYPES,
-  JOINERY_ITEM_TYPES,
   LIGHT_ITEM_TYPES,
-  ROUND_FOOTPRINT_ITEM_TYPES,
-  ROUND_TABLE_TURNTABLE_ITEM_TYPES,
-  SQUARE_EDGE_ITEM_TYPES,
-  STAIR_DIRECTION_ITEM_TYPES,
-  STAIR_ITEM_TYPES,
-  isRoundTableTurntableItem
 } from "./studio-item-types.js";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js";
-import {
-  FEATURE_WALL_STYLE_MATERIAL,
-  normalizeMuralArtStyle,
-  normalizeFeatureWallStyle,
-  createMuralArtTexture,
-  createFeatureWallTexture,
-  createStoneSlabTexture
-} from "../materials/studio-surface-textures.js";
-import {
-  createMaterialSurfaceTexture,
-  hasMaterialSurfaceTexture
-} from "../materials/studio-surface-fabrics.js";
-import { createOverviewStack } from "./studio-overview-stack.js";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js";
-import {
-  MAX_CAMERA_POLAR_ANGLE,
-  constrainCameraPosition,
-  constrainCameraPose
-} from "./studio-camera-constraints.js";
-import { addSecurityModel } from "../loaders/studio-security-models.js";
-import { createFloorTransition } from "./studio-floor-transition.js";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js";
-import { createMotionPresentation } from "./studio-motion-presentation.js";
 import { renderStudioAssetPalette } from "./studio-asset-palette.js";
-import {
-  createWallSideMaterial,
-  setWallGradientHeight,
-  setWallCornerDistances
-} from "../materials/studio-wall-materials.js";
-import {
-  WARM_HOME_STYLE,
-  WARM_WOOD_STYLE,
-  applyItemFinish,
-  decorateWarmFloor
-} from "./studio-scene-style.js";
 // 逐物件「材质风格」属性：色卡覆盖 + 质感族。解析顺序是「基础色卡 → applyItemFinish → 这一层」，
-import {
-  MATERIAL_STYLE_AUTO,
-  MATERIAL_STYLE_ITEM_TYPES,
-  isMaterialStyleCapable,
-  materialStyleOptionsFor,
-  materialStyleAutoLabel,
-  normalizeMaterialStyle,
-  applyMaterialStyle
-} from "./studio-material-styles.js";
-import {
-  DOOR_MATERIAL_AUTO,
-  doorMaterialAutoLabel,
-  doorMaterialOptionsFor,
-  findDoorMaterial,
-  normalizeDoorMaterial
-} from "./studio-door-materials.js";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js";
-import {
-  RENDER_CACHE_VERSION,
-  createRenderCache,
-  cacheSceneDescriptor,
-  sha256,
-  stableCacheJSON
-} from "../../bridge/render-cache.js";
-import { transformSceneCamera } from "../../bridge/scene-frame.js";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js";
-import { withRequestTimeout } from "../../utils/request-timeout.js";
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js";
-import { debugLog } from "../../utils/debug-log.js";
 // 首屏分段埋点（`[3D-load]`）：开关与出口都在 utils/debug-log.js，本文件只负责在链上打点。
-import { createLoadTiming } from "../../bridge/load-timing.js";
 // 舞台页的提前起跑（舞台页里非 null）：它已经替我们读过场景持久缓存、发过场景接口请求、
-import { stageStartup } from "../stage-startup.js";
 // 场景持久缓存：把「归一后的场景文档」跨会话存起来，舞台页二次打开时跳过整段逐层归一。
-import { prepareSceneDocument } from "../scene-persistent-cache.js";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js";
-import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.186.0/OrbitControls.js";
-import { RoundedBoxGeometry } from "/static/vendor/three/0.186.0/RoundedBoxGeometry.js";
-import { mergeGeometries } from "/static/vendor/three/0.186.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js";
 import { SameOriginDRACOLoader } from "../export/draco-loader.js";
 import {
-  createLightTransition,
-  sampleLightTransition,
-  lightTransitionDurationMs,
-  mapLightEffectState,
-  lightEffectColorHex
-} from "../../bridge/light-motion.js";
-import {
-  adaptiveDeviceLightBudget,
-  adaptiveLightRenderCost,
-  assessAdaptiveRenderFrames,
-  axisLockedPoint,
-  canonicalPolygonKey,
   clamp,
-  clampWindowT,
-  closedWallFloorPolygons,
-  closedWallPolygons,
   distance,
-  doorLeafRotation,
-  itemRotationFromPointers,
-  localSpotShadowSettings,
-  mergeCollinearWallSegments,
-  modelBounds,
-  nearestWall,
-  pointInRotatedRectangle,
-  pointInPolygon,
-  planLabelProjectionMetrics,
-  polygonArea,
-  projectPointToSegment,
-  resizeRotatedItemFromCorner,
-  remapWallAttachment,
-  selectShadowCastingLightIds,
-  segmentIntersection,
-  slidingDoorPanelCenters,
-  spotShadowTextureUnitLimit,
-  spotLightBrightnessResponse,
-  splitWallSegments,
-  snapPoint,
-  uncoveredCollinearWallSegments,
-  unclosedWallEndpoints,
-  subtractPolygonLoops,
-  validatedUnionPolygonLoops,
-  wallLengthMeters,
-  wallIntersections,
-  wallJoinExtensions,
-  wallSolidPieces
 } from "../plan/geometry.js";
-import {
-  buildLightDeltaPixels,
-  buildStoredZip,
-  EXPORT_IMAGE_EXTENSION,
-  EXPORT_IMAGE_MIME_TYPE,
-  EXPORT_IMAGE_QUALITY,
-  EXPORT_RENDER_SCALE,
-  scaledExportResolution
-} from "../export/export-utils.js";
 // 布局层（折叠 / 拖拽调宽 / 状态记忆）与折叠快捷键都在 shared/ 下，与 /index 编辑器共用同一份
 import {
-  createLayoutController,
   bindLayoutControls
 } from "../../shared/layout-shell.js";
 import { bindLayoutShortcuts } from "../../shared/layout-shortcuts.js";
 import {
-  MAX_EXPORT_PRESET_COUNT,
-  exportPresetIsEmpty,
-  exportPresetSummary,
   normalizeActiveExportPresetSlot,
-  normalizeExportPreset,
   normalizeExportPresetSlots
 } from "../export/export-presets.js";
-import { reorderFloors } from "../plan/floor-order.js";
-import { syncControlValue } from "./ui-controls.js";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
-  syncStudioSelect
 } from "./studio-widgets.js";
-import {
-  createExternalModelManager,
-  ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js";
-import {
-  createPlanDrawingTools,
-  drawTrackedText
-} from "../plan/studio-plan-drawing.js";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
-  itemMinimumHeight,
-  itemMinimumFootprint,
-  kelvinToRgbHex,
-  normalizeCameraSettings,
   normalizeBaseLighting,
-  normalizeFixedCameraView,
   normalizeFullRotation,
   normalizeLabelText,
-  normalizePoint
 } from "../loaders/studio-normalization.js";
 import {
-  DEFAULT_EXPORT_HEIGHT,
-  DEFAULT_EXPORT_WIDTH,
-  DEFAULT_LIGHT_SETTINGS,
-  DOOR_TYPE_DIMENSIONS,
-  ITEM_TYPE_DEFINITIONS,
   LIGHT_FIELD_CONFIG,
-  LIGHT_TYPE_BRIGHTNESS_SCALE,
-  LIGHT_TYPE_MAX_ANGLE_DEG,
-  MOBILE_TV_MOUNT_DIMENSIONS,
-  ROUND_PLAN_RING_RATIOS_BY_TYPE,
-  SELF_LIT_ITEM_TYPES,
-  STUDIO_PALETTE,
-  TELEVISION_MOUNT_DEPTHS,
-  TELEVISION_MOUNT_ELEVATIONS,
-  TELEVISION_PLAN_MIN_DEPTH,
-  TOOL_HELP_TEXT,
-  TV_MOUNT_STYLES
 } from "./studio-config-tables.js";
 import {
-  BATCH_MERGE_ITEM_TYPES,
-  INSTANCE_MERGE_ITEM_TYPES,
-  addBoxMesh,
-  addCylinderMesh,
-  bakeMergedItemMeshes,
-  buildMergedWallGeometry,
-  buildRugGeometry,
-  collectMeshDescendants,
-  collectMeshDescriptors,
-  computeGeometrySignature,
-  computeMaterialKey,
-  computeMaterialSignature,
-  disposeSceneSubtree,
-  mergedWallBandGeometryCache,
-  normalizePartSpec,
-  resolveRugMaterial,
-  rugGeometryBySizeKey,
-  rugMaterialByColorKey,
-  shareGeometryAndMaterials
-} from "./studio-mesh-geometry.js";
-import {
-  ITEM_AXES,
-  appendPillarOutlineArc,
-  applyItemOrientation,
-  applyItemPosture,
-  buildPillarOutline,
-  buildPolygonShapes,
-  buildWallFootprint,
   createId,
-  itemAxisSet,
-  itemFromPlanFootprintResize,
-  itemPlanFootprint,
-  normalizePillarAxis,
-  normalizeStripAxis,
-  offsetPolygonOutward,
-  pillarIsLying,
-  pointInBounds,
-  polygonLoopToPath,
-  scenePointToFloorPoint,
-  segmentIntersectsBounds,
-  splitWallsWithOpenings,
-  stripIsStanding,
-  tracePillarPlanPath
 } from "./studio-plan-geometry.js";
-import {
-  LIGHT_PRECOMPILE_TIMEOUT_MS,
-  addChairModel,
-  addVehicleChargingEffect,
-  buildCurtainGeometry,
-  computeTelevisionBodyMetrics,
-  countMaterialTextures,
-  measureTelevisionBodyFrontZ,
-  waitForShaderCompilation
-} from "./studio-mesh-variants.js";
-import {
-  FLOOR_SCENE_SCHEMA_VERSION,
-  createEmptyScene
-} from "./studio-scene-defaults.js";
 import { state } from "./studio-state.js";
 import {
-  CURTAIN_PREVIEW_DEFAULT_SCHEMA_VERSION,
-  PILLAR_SHAPES,
-  applyDoorMaterialStyle,
-  captureLegacyLayoutSeed,
-  materialStyleSnapshotFields,
-  maxLightAngleForType,
-  migrateLegacyCurtainPreview,
-  normalizePillarShape,
   normalizeScene,
-  pillarShapeSet
 } from "./studio-scene-normalize.js";
 import {
-  PREVIEW_OBJECT_LAYER,
-  WALL_RUNTIME_PROFILE,
-  addFloorContactShadow,
-  addPlanBandMesh,
-  addWallBandMesh,
-  addWallExtrusion,
-  addWindowFrameMeshes,
-  buildArchitectureLayer,
-  createInvisibleWallMaterial,
-  createWallTopMaterial,
-  doorMaterialRecipeColor,
-  doorMaterialRecipeOptions,
-  isRegionLightingEnabled,
-  isSelected,
   isStageViewerMode,
-  isWallShaderTrialEnabled,
-  makeWallSideMaterial,
-  materialByRenderKey,
-  resolveSharedWallMaterial,
-  studioMaxTextureAnisotropy,
-  studioPalette,
-  wallDerivedCacheByScene,
-  wallDerivedData,
-  wallJoinExtensionsForWalls
 } from "./studio-architecture.js";
 import {
-  PLAN_ACCENT,
-  PLAN_ACCENT_BRIGHT,
-  PLAN_HANDLE,
-  PLAN_LABEL,
-  STUDIO_ACCENT_BRIGHT_FALLBACK,
-  STUDIO_ACCENT_FALLBACK,
-  STUDIO_HANDLE_FALLBACK,
-  STUDIO_LABEL_FALLBACK,
-  collectActiveLights,
-  collectPreviewLights,
   currentPixelsPerMeter,
   currentPreviewFloorMode,
-  drawPlanItem,
-  floorGroupKey,
-  floorItemKey,
   getCurrentFloor,
   isAdaptiveLightCacheEnabled,
-  isLightEnabled,
-  lightCacheCanvasElement,
-  lightGroupForItem,
-  lightGroupForItemInScene,
-  lightGroupScopeKey,
-  measureLightRenderCost,
   planCanvasElement,
-  planContext,
-  planToScreen,
   selectElement,
-  setLightCacheVisible,
-  updateAdaptiveRenderState
 } from "./studio-plan-render.js";
 import {
-  computeFloorBounds,
-  computeOverviewCenter,
-  floorPointToScenePoint,
-  floorWorldMatrix,
-  worldPointForFloor
-} from "./studio-overview-center.js";
-import {
-  FALLBACK_MAX_TEXTURE_SIZE,
-  ITEM_BUILDER_DEPS,
-  MAX_PRECOMPILE_PLAN_COUNT,
-  MAX_SPOT_SHADOW_TEXTURE_UNITS,
-  MIN_SHADOW_CAMERA_MARGIN,
-  RECT_AREA_LIGHT_TEXTURE_UNITS,
-  RESERVED_TEXTURE_UNITS,
-  activeLightItemKeys,
-  addExternalItemModel,
-  addFloorEdgeOutline,
-  addFloorGrid,
-  addFloorGroundShadow,
-  addLightFixtureToScene,
-  addMissingLightModels,
-  addRugMeshes,
-  addStripLightPreview,
-  addTelevisionScreenMeshes,
   applyBaseLighting,
-  applyLightVisibility,
   applyRenderQualityMode,
   applySceneRefresh,
-  applyShadowBudget,
-  batchRepeatedItemMeshes,
-  buildFeatureWallItemMeshGroup,
-  buildItemModel,
-  buildLightCache,
-  buildLightPrecompilePlan,
-  buildMuralItemMeshGroup,
-  buildPillarItemMeshGroup,
-  buildPillarSolidGeometry,
-  buildPlanLabelMesh,
   cameraSettingsSource,
-  clearPreviewModel,
-  collectExternalModelSignatures,
-  collectLightsByItemKey,
-  collectShadowCastingLightIds,
-  collectSpotShadowCandidates,
-  compositeLightCache,
-  computeFloorPlanContext,
-  computeSceneBoundingBox,
-  createStyledPillarMaterial,
-  createTelevisionPosterTexture,
   currentCameraView,
-  deferModelTypeForLater,
-  drawRenderShield,
-  ensureLightModels,
-  externalModelManager,
-  fitDirectionalShadowCamera,
-  floorPolygonsForWalls,
-  getMarbleTableTopTexture,
-  getStoneSlabTexture,
   gltfLoader,
-  hasPendingRenderWork,
-  hideRenderShield,
-  highlightSelectedModel,
-  homePalette,
   invalidateRender,
   isAutoDiagramEmbed,
-  isCameraGestureActive,
-  isItemTypeInUse,
-  isLightPrecompilePending,
   isLivePreviewEnabled,
-  isObjectInExcludedLayer,
-  lightConfigurationSignature,
-  loadExternalItemModel,
-  markAsLightSourcePreview,
-  maxTexturesPerMesh,
-  mergeStaticItemMeshes,
-  modelLoadingStatusElement,
-  modelTypeForItem,
-  nextPaint,
-  paletteForItemType,
-  pendingSceneUpdateScopes,
-  positionLightFromAngles,
-  precompiledLightSignatures,
-  precompiledModelSignatures,
-  previewQualityStatusElement,
-  previewRenderShieldElement,
   previewSyncButtons,
-  publishExternalMaterialStats,
-  queryMaxTextureUnits,
-  readCanvasPixels,
-  rebuildArchitectureRoot,
-  rebuildLightModelsPreservingCache,
-  rebuildModelLayer,
-  rebuildPreviewScene,
-  refreshItemsLayer,
-  refreshLightsLayer,
   refreshPreviewButton,
   refreshPreviewScene,
-  refreshSceneScopes,
-  releaseDeferredModels,
-  removeModelLayer,
   renderCache,
-  renderPreviewFrames,
-  requestRenderFrame,
-  resolveShadowMapSize,
-  sceneCacheDescriptor,
-  scheduleCacheWrite,
-  scheduleDeferredModelLoad,
   scheduleLightCacheBuild,
   scheduleLightPrecompile,
-  scheduleModelPrecompile,
-  schedulePreviewRebuild,
-  setLightModelVisibility,
-  settleStageLightCache,
-  stoneSlabTextureByFlavor,
   syncPreviewControls,
-  updateModelLoadingStatus
 } from "./studio-render-pipeline.js";
 import {
-  assessFrameRateForAdaptive,
-  enableAdaptiveRender,
   exportDimensions,
   exportHeightInput,
-  exportPixelRatio,
-  exportPreviewStageElement,
   exportWidthInput,
-  targetPixelRatio,
-  updateRenderPixelRatio
 } from "./studio-render-quality.js";
-import { createLightTransitionController } from "./studio-light-transition.js";
-import { createFloorEffectsController } from "./studio-floor-effects.js";
-import { createFloorCacheController } from "./studio-floor-cache.js";
-import { createStageBackgroundController } from "./studio-stage-background.js";
 import {
-  cloneStudioDocument,
   createFloor,
-  documentBindingIdentities,
-  floorNameForIndex,
-  handleSaveConflict,
-  handleSaveInteractionConfirmation,
   markDocumentDirty,
   normalizeStudioDocument,
   openSaveConflictDialog,
   openSaveInteractionDialog,
-  putStudioScene,
-  renderSaveInteractionDialog,
-  requestInteractionConfirmationIfNeeded,
-  requestStudioApi,
   resolveSaveInteraction,
   saveConflictDialogElement,
   saveConflictReopenButton,
   saveInteractionDialogElement,
-  saveInteractionImpactsElement,
-  saveInteractionMessageElement,
-  saveInteractionProjectsElement,
   saveInteractionReopenButton,
-  saveInteractionSummaryElement,
-  saveStateElement,
   saveStudioDraft,
-  sceneRemovedBindingTargets,
   setSaveConflictPendingUi,
   setSaveInteractionPendingUi,
   setSaveState,
   showToast,
-  snapshotDocumentForSave,
-  toastElement,
-  updateOnboardingSteps
 } from "./studio-document-save.js";
 import {
-  CAMERA_NEAR_DISTANCE_RATIO,
-  MAX_CAMERA_NEAR,
-  MIN_CAMERA_NEAR,
   applyFocalLength,
-  buildExportPreset,
   cameraFocalLengthInputs,
-  collectCheckedExportFileKeys,
-  createOrbitControls,
   currentFocalLength,
   currentTopRotationDeg,
   exportDialogElement,
@@ -554,50 +113,18 @@ import {
   exportLockRatioInput,
   exportPresetAddButton,
   exportPresetDeleteButton,
-  exportPresetEmptyStateElement,
-  exportPresetEmptyTitleElement,
   exportPresetLabel,
   exportPresetRenameButton,
   exportPresetSlotsElement,
-  finishCameraMotion,
-  handleCameraMotionMoved,
-  measureVisibleHeight,
   renderExportPresetSlots,
-  saveActiveExportPreset,
   scheduleExportPresetSave,
-  startCameraMotion,
-  updateCameraClipPlanes
 } from "./studio-camera-presets.js";
-import { createStageRuntimeController } from "./studio-stage-runtime.js";
 import {
-  PLAN_DONE,
-  PLAN_GUIDE,
-  PLAN_PAPER,
-  STUDIO_AURA_FALLBACK,
-  STUDIO_ECO_FALLBACK,
-  STUDIO_PAPER_FALLBACK,
-  convertBetweenFloors,
-  drawFloatingLabel,
-  drawMarqueeOverlay,
-  drawMetricGrid,
-  drawOpenEndpointWarning,
-  drawPlanDoor,
-  drawPlanLine,
-  drawPlanPoint,
-  drawPlanRailing,
-  isSnapClosingSpace,
-  openingPlacementInfo,
-  referenceWallsForAlignment,
   renderPlanView,
-  rotateScreenPoint,
   screenToPlan,
-  selectedDoorType,
-  unclosedEndpointsForWalls,
-  zoomValueElement
 } from "./studio-plan-draw.js";
 import {
   applyCameraMode,
-  applyOrthographicFrame,
   cameraModeButtons,
   cameraRotateTopButtons,
   cameraViewButtons,
@@ -606,163 +133,68 @@ import {
   pushHistorySnapshot,
   resetCameraView,
   restoreStoredCameraView,
-  savedCameraView,
-  syncCameraModeButtons,
-  syncCameraViewButtons,
-  syncFocalLengthInputs,
-  topViewUpVector
 } from "./studio-camera-mode.js";
 import {
-  assetHeadingCategoryButtons,
   exportSaveViewButton,
   fixedCameraViewInput,
   fixedOverviewViewInput,
-  floorCameraActionsElement,
   itemTypeButtons,
-  overviewCameraActionsElement,
-  previewFloorGapControlElement,
   previewFloorGapInput,
-  previewFloorUniformControlElement,
   previewFloorUniformInput,
-  snapIndicatorElement,
   snapSettingInputs,
   snapToggleButton,
-  snapToggleStateElement,
   snapToleranceInput,
   snapToleranceValueElement,
-  syncAssetTabVisibility,
-  syncCameraViewControls,
-  syncDoorMaterialOptions,
-  syncMaterialStyleOptions,
   syncSnapControls
 } from "./studio-control-sync.js";
 import {
   applyCameraSnapshot,
   applyCameraView,
-  captureCameraSnapshot
 } from "./studio-camera-snapshot.js";
 import {
-  LIGHT_FADE_DURATION_MS,
-  STUDIO_LAYOUT_STORAGE_KEY,
   activateFloor,
-  activeToolLabelElement,
   addAreaButton,
   addLightGroupButton,
   alignFloorButton,
   areaContextMenuElement,
-  canvasEmptyElement,
   carItems,
-  clearFloorDropIndicators,
-  clearLightGroupDropIndicators,
   clearSelection,
-  collectItemModelTypes,
-  createAreaSection,
-  createCarChargingLayerRow,
-  createLightGroupRow,
-  createTelevisionLayerRow,
-  currentFloorModelTypes,
-  curtainPositionFieldElement,
   deleteSelectionButton,
-  detailsPanelElement,
-  detailsResizerElement,
-  doorFieldsElement,
-  ensureActiveLightGroup,
   expandedAreaIds,
-  fadeLightGroups,
-  featureWallStyleFieldElement,
-  findLightGroup,
   findSelectedEntity,
   finishWallButton,
   fitViewToBounds,
   floorContextMenuElement,
-  floorListElement,
-  fridgeStyleFieldElement,
   fridgeStyleRadioInputs,
   globalWallHeightInput,
   globalWallOpacityInput,
   globalWallThicknessInput,
-  inspectorEmptyElement,
-  itemDepthLabelElement,
-  itemElevationFieldElement,
-  itemFieldsElement,
-  itemHeightFieldElement,
-  itemHeightLabelElement,
-  itemLightSourceVisibilityFieldElement,
   itemLightSourceVisibleInput,
-  itemRotationActionsElement,
-  itemRotationFieldElement,
-  itemStripOrientationHeadingElement,
-  itemStripRollFieldElement,
   itemStripRollInput,
-  itemVerticalRotationFieldElement,
-  itemVerticalRotationLabelElement,
-  itemWidthLabelElement,
-  labelTextFieldsElement,
-  libraryPanelElement,
-  libraryResizerElement,
-  lightFieldsElement,
   lightGroupContextMenuElement,
-  lightGroupListElement,
   lightGroupsOffButton,
-  lightLayerActionsElement,
-  lightLayerPanelElement,
-  lightPreviewNoteElement,
   lightPropertyApplyButtons,
   loadBackgroundTexture,
-  materialStyleFieldElement,
-  measurePanelLimits,
-  migrateLegacyLayoutSettings,
-  moveLightGroupToArea,
-  muralStyleFieldElement,
-  openAreaContextMenu,
-  openFloorContextMenu,
-  openLightGroupContextMenu,
-  pillarAxisFieldElement,
-  pillarShapeFieldElement,
   previewFloorButtons,
-  railingFieldsElement,
-  readStudioLayoutLength,
   refreshStudio,
-  releaseAllDeferredModels,
   removePlanButton,
   renderFloorList,
   renderInspector,
   renderLightGroupList,
-  renderLightGroupSelect,
-  reorderFloorList,
   resetScaleInteractionState,
-  roundTableTurntableFieldElement,
-  sceneCountsElement,
-  sceneModelBounds,
-  selectionHeadingElement,
-  selectionIdElement,
   selectionInspectorElement,
-  shoeCabinetActionsElement,
   shoeCabinetMirrorInput,
-  stairDirectionFieldElement,
-  stripAxisFieldElement,
   studioLayout,
-  studioLayoutMetrics,
-  studioShellElement,
   syncPreviewFloorButtons,
   syncStudioUi,
   televisionItems,
-  toggleAreaExpanded,
   toggleBackgroundButton,
   toggleFloorEdgeButton,
-  toolHelpElement,
-  transitionLightGroups,
-  tvMountStyleFieldElement,
-  updateFloorAlignmentControls,
   updateLightGroupsEnabled,
-  wallFieldsElement,
-  windowFieldsElement
 } from "./studio-ui-refresh.js";
 import {
   applyBaseLightingSettings,
   applyExportFloorSelection,
-  applyExportPreset,
-  applyPresetCamera,
   autoDiagramComponentId,
   baseLightControlInputs,
   baseLightControlsElement,
@@ -770,103 +202,46 @@ import {
   closeExportDialog,
   closePresetDeleteDialog,
   closePresetRenameDialog,
-  collectCars,
-  collectLightGroups,
-  collectTelevisions,
   deleteActiveExportPreset,
-  ensureAutoDiagramFrame,
-  exportAspectLabelElement,
-  exportFloorGapControlElement,
   exportFloorGapInput,
   exportFloorSelectElement,
-  exportFolderName,
-  exportGroupFilesInput,
   exportPackageButton,
   exportPresetDeleteDialogElement,
-  exportPresetDeleteNameElement,
   exportPresetRenameDialogElement,
   exportPresetRenameInputElement,
-  exportPreviewFrameElement,
-  exportResolutionLabelElement,
   exportStatusElement,
-  floorSelectionParam,
-  handleStageResize,
   openExportDialog,
   openPresetDeleteDialog,
   openPresetRenameDialog,
   populateExportGroupFiles,
-  previewFloors,
-  refreshExportPreview,
-  renderExportFloorOptions,
-  renderExportPreviewFrames,
-  resizeExportStage,
   restoreExportCamera,
-  sanitizeFileName,
   syncBaseLightControlInputs,
   syncExportResolutionLabels
 } from "./studio-export-dialogs.js";
 import {
   activateTool,
-  assignCarLayerNames,
-  assignTelevisionLayerNames,
-  beginExportRender,
-  beginPointerScale,
-  blitMetricsCanvas,
-  boundsFromPoints,
   cancelFloorAlignment,
   canvasPointFromEvent,
-  collectEntitiesInMarquee,
   createSceneItem,
   currentLightScope,
   currentSelectionScope,
-  cursorPositionElement,
-  endCameraGesture,
   endExportRender,
-  ensureCalibration,
-  handleFloorAlignClick,
-  hitTestEntityAt,
-  hitTestItemHandle,
-  isSnapEnabled,
-  itemControlHandles,
-  itemFootprintSwapped,
-  itemWithPlanFootprint,
-  lightScopeForSelection,
-  metricsCanvas,
-  metricsContext,
-  normalizeLayerNames,
   onCameraGestureFrame,
-  onCameraSettleFrame,
   onPlanCanvasPointerDown,
   onPlanCanvasPointerEnd,
-  onPlanCanvasPointerMove,
-  onPlanCanvasPointerUp,
   onPlanCanvasWheel,
-  pushHistoryEntry,
   referenceMetersInput,
-  referencePixelsElement,
-  refreshSplitGeometry,
   requestSceneRefresh,
-  resolveSnapTarget,
-  rotateLocalToPlan,
   scaleDialogElement,
   scopeForItem,
-  scopeForSelection,
-  setSelection,
-  syncMetricsCanvas,
   toolButtons,
   updateSnapIndicator,
-  wallIntersectionsForWalls,
   zoomViewAt
 } from "./studio-plan-interaction.js";
-import {
-  mergeCollinearWalls,
-  sampleFrameInterval
-} from "./studio-geometry-utils.js";
 import {
   openBaseLightingPanel,
   postBaseLightingState,
   saveBaseLighting,
-  setHighShadowQuality
 } from "./studio-base-lighting.js";
 import {
   areaNameTaken,
@@ -877,19 +252,11 @@ import {
   lightGroupAreaNewNameElement,
   lightGroupAreaSelectElement,
   normalizeAreaName,
-  projectAnchorToFloorPlan,
   startFloorAlignment,
-  switchPreviewFloor,
   syncAreaAssignOptions
 } from "./studio-floor-switch.js";
 import {
   addExportPresetSlot,
-  buildExportedLight,
-  canvasToBlob,
-  captureStageImage,
-  composeBackgroundBlob,
-  compositeLightGroupShadows,
-  floorExportOffset,
   selectExportPresetSlot,
   setExportDimension,
   uniqueExportPresetName
@@ -897,13 +264,10 @@ import {
 import {
   activateAssetTab,
   assetCategoryButtons,
-  assetGridElement,
   closeLightGroupContextMenu,
-  collectClipboardItems,
   copySelectionToClipboard,
   deleteSelection,
   duplicateSelection,
-  lightAssetRowElement,
   pasteClipboardItems
 } from "./studio-selection-ops.js";
 import {
@@ -913,72 +277,40 @@ import {
   collectWallTargetCheckboxes,
   commitWallSettingInput,
   formatLightFieldValue,
-  lightPropertySelectionCountElement,
   lightPropertyTargetListElement,
   lightPropertyToggleAllButton,
   renderLightPropertyTargets,
   renderWallPropertyTargets,
   sanitizeLightFieldValue,
-  scheduleOverlayRedraw,
   syncLightTargetSelection,
   syncWallTargetSelection,
-  wallEffectiveOpacityPercent,
-  wallPropertyCurrentText,
-  wallPropertySelectionCountElement,
   wallPropertyTargetListElement,
   wallPropertyToggleAllButton
 } from "./studio-property-panels.js";
 import {
   applyInspectorChanges,
-  snapTelevisionMountDimensions
 } from "./studio-inspector-apply.js";
 import {
-  initializeStudioStage,
-  isWebglContextCreationFailure
-} from "./studio-stage-init.js";
-import {
   confirmSaveInteraction,
-  forcePreviewRebuild,
   importPlanButton,
   loadStudioRecord,
   loadTiming,
   planStageElement,
   resizePlanCanvas,
   saveCurrentCameraView,
-  storeCameraView,
   uploadPlanImage
 } from "./studio-document-io.js";
 import {
-  createStageController,
   setPreviewFloorMode,
-  waitForLightCacheSettle
 } from "./studio-stage-controller.js";
 import {
-  buildExportCameraState,
-  composeTelevisionLayerBlob,
   exportCompleteDialogElement,
-  exportCompleteMessageElement,
-  exportCompletePathElement,
-  exportCompleteTitleElement,
   exportOverwriteDialogElement,
-  exportOverwriteNameElement,
-  findLightAnchor,
-  isolateExportVisibility,
-  notifyExportStopped,
-  readFileBytes,
-  requestOverwriteDecision,
-  reserveExportFileName,
   runStudioExport,
-  setExportBusy,
-  setExportRoleVisibility,
   settleOverwriteChoice,
-  showEmbeddedOverwriteDialog,
-  showExportCompleteDialog
 } from "./studio-export.js";
 import {
   initializeStudio,
-  isStudioRoute,
-  projectNameElement
 } from "./studio-bootstrap.js";
 // 模块求值本身也是一个可观测的节点：它与进口的下载 / 解析是一体的，出现异常长间隔说明模块树变重了。
 loadTiming("module-evaluated");

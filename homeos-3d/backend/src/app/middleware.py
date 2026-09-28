@@ -13,9 +13,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 
-
-
-
 from ..config import Settings
 from ..http.http_cache import NO_STORE, set_no_store_with_revalidation, set_versioned_private_cache
 from ..observability.global_log import event_context

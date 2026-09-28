@@ -2,7 +2,6 @@
  * 3D 交互组件的聚焦让位布局：舞台页进入聚焦（点击组件、进入视图编辑）时，同页面的其它组件
  */
 
-type AnyObj = Record<string, any>;
 // 以画布元素为键的状态表：用 WeakMap 是为了让画布被移除后状态能随之回收。
 const layoutStateByCanvas = new WeakMap();
 // 每 1 个 amount 单位消耗 580ms：动画时长与位移量成正比，

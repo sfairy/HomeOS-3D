@@ -148,6 +148,14 @@ export class SameOriginDRACOLoader extends (DRACOLoader as unknown as new (
             for (const failingTask of Object.values(worker._callbacks)) {
               failingTask.reject(fatalError);
             }
+            worker._callbacks = {};
+            // 毒化 worker 必须立刻出池并销毁：否则它永久占着槽位，池满后
+            // _getWorker 只会反复选到它并抛 _fatalError，再也没有重建机会。
+            const poolIndex = this.workerPool.indexOf(worker);
+            if (poolIndex >= 0) {
+              this.workerPool.splice(poolIndex, 1);
+            }
+            worker.terminate();
             // 阻止浏览器把错误再冒泡成全局未捕获异常。
             errorEvent.preventDefault?.();
           };

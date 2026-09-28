@@ -10,12 +10,12 @@ import threading
 import time
 from collections import deque
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from ..core.time_utils import ensure_aware
+from ..core.time_utils import ensure_aware, utc_now
 
 # 请求级上下文：中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
 event_context: ContextVar[dict[str, Any] | None] = ContextVar("global_log_context", default=None)
@@ -57,12 +57,6 @@ _SECRET_PATTERNS = (
     re.compile('(?i)\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b'),
     re.compile('\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b'),
 )
-
-
-def utc_now() -> datetime:
-    """统一的时间来源：日志内所有时间戳都必须是 UTC aware。
-    """
-    return datetime.now(timezone.utc)
 
 
 def _storage_diagnostic(message: str) -> None:

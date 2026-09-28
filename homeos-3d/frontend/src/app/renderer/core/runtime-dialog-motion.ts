@@ -2,7 +2,6 @@
  * 运行时弹窗与设备入场的动画补丁，只在「3D 运行时」这类全屏场景使用，编辑器不加载。
  */
 
-type AnyObj = Record<string, any>;
 
 /**
  * 判断当前浏览器是否为「非 Chromium 的 Safari / WebKit」。

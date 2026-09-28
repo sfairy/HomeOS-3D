@@ -2,7 +2,6 @@
  * 仪表盘画布尺寸调整：把整份文档从旧分辨率换算到新分辨率。
  */
 
-type AnyObj = Record<string, any>;
 
 // 保留 6 位小数，既压掉浮点误差，又不至于让坐标精度不足。
 const roundToMicroPrecision = (rawValue: any) => Math.round(Number(rawValue) * 1e6) / 1e6;

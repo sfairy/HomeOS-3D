@@ -2,7 +2,6 @@
  * 组件树的查找与定位工具。
  */
 
-type AnyObj = Record<string, any>;
 
 /**
  * 递归在组件数组中查找指定 ID 的组件。

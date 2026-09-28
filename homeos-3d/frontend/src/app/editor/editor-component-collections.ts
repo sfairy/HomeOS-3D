@@ -2,7 +2,6 @@
  * 编辑器组件集合操作：命名、层级排序与共享组件引用维护。
  */
 
-type AnyObj = Record<string, any>;
 import { newId } from "./editor-utils.js";
 
 /**

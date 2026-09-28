@@ -71,19 +71,6 @@ ENTITY_PATH_MEDIA_PREFIXES = (
 )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def upstream_path(request: Request) -> str:
     """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。"""
     path = request.url.path
@@ -101,8 +88,6 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
     }
 
 
-
-
 def media_proxy_entity_id(path: str) -> str | None:
     """从「路径里带实体」的媒体前缀取出实体 ID；不是那四条前缀时返回 None。
     """
@@ -112,8 +97,6 @@ def media_proxy_entity_id(path: str) -> str | None:
             entity_id = unquote(segment).strip()
             return entity_id or None
     return None
-
-
 
 
 def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, entity_id: str) -> None:
@@ -167,10 +150,6 @@ async def require_media_proxy_scope(
     )
 
 
-
-
-
-
 def versioned_image_proxy_cache_control(path: str, query: str, status_code: int) -> str | None:
     """为「带版本参数」的 HA 图片给出可长期缓存的 Cache-Control。
     """
@@ -186,10 +165,6 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
         # 摄像头快照等实时图片没有 hb 参数，返回 None 以免被浏览器缓存住。
         return PRIVATE_BRIEF_IMMUTABLE_CACHE if versioned else None
     return None
-
-
-
-
 
 
 def load_authorized_camera_connection(

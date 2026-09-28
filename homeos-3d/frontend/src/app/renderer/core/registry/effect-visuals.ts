@@ -2,7 +2,6 @@
  * 图标按钮特效的视觉知识：色温基准、亮度到透明度、特效层的绘制。
  */
 
-type AnyObj = Record<string, any>;
 import { lightRealtimeCapabilities } from "../../controls/light-runtime.js";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
 import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js";

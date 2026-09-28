@@ -132,6 +132,14 @@ def require_capability(request: Request, capability: str, message: str) -> None:
         )
 
 
+def require_admin(user: User, *, detail: str) -> None:
+    """管理员角色门禁：非 admin 一律 403；各业务路由传自己的拒绝文案。
+    """
+    if user.role != 'admin':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+    return None
+
+
 def licensed_user(request: Request, user: CurrentUser) -> User:
     require_capability(request, "api", "当前授权状态不允许执行此操作。")
     return user

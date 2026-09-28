@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 // 同门分片：builtin-assets
 import { resolveAssetUrl } from "../builtin-assets.js";
 // 同门分片：entity-state
@@ -10,7 +9,6 @@ import { registerComponent } from "../registry-core.js";
 // 户型图自动导图控件：编辑器里嵌 iframe 实时预览 3D 构图，运行时用底图 + 图层叠加渲染。
 registerComponent("floorplan-auto-diagram", {
   render(diagramComponent: any, diagramContext: any = {}) {
-    const _ctx: any = diagramContext;
     const diagramProperties = diagramComponent.properties || {};
     const diagramElement = document.createElement("div");
     diagramElement.className = "hb-floorplan-auto-diagram";

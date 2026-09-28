@@ -3,7 +3,7 @@
  */
 
 /** 图集里车灯灯罩的多边形（700×700 像素坐标）：前三枚前大灯、后三枚尾灯。 */
-export const CAR_LAMP_LENSES = {
+const CAR_LAMP_LENSES = {
   front: [
     [
       [208, 193],
@@ -47,7 +47,7 @@ export const CAR_LAMP_LENSES = {
 };
 
 /** 图集里车窗玻璃岛的区域（`[x0, y0, x1, y1]`，同一套 700×700 像素坐标）。 */
-export const CAR_GLASS_ATLAS_REGIONS = [
+const CAR_GLASS_ATLAS_REGIONS = [
   [0.3, 0.655, 0.96, 0.975],
   [0.38, 0.395, 0.81, 0.49]
 ];
@@ -203,7 +203,7 @@ const CAR_FINISH_CACHE_KEY = "hb-car-finish-v8-pearl-shadow";
 /**
  * 按位置合并重合顶点后重算法线，修掉「按平面烘焙」带来的硬棱线。
  */
-export function smoothCarSurfaceNormals(THREE: any, inputGeometry: any) {
+function smoothCarSurfaceNormals(THREE: any, inputGeometry: any) {
   const positionAttribute = inputGeometry?.attributes?.position;
   const normalAttribute = inputGeometry?.attributes?.normal;
   if (

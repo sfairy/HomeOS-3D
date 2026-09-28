@@ -2,7 +2,6 @@
  * 空调气流层：按模式与风速画出可动的气流示意。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../utils/numbers.js";
 // 「其它」档的中性灰：与编辑器侧共用同一枚定义，原先这里写的是 #ffffff、其余四处写 #dce2e6。
 import { AIRFLOW_OTHER_COLOR } from "../../../utils/airflow-colors.js";
@@ -57,7 +56,7 @@ function buildAirflowSvg(airflowProperties: any = {}, airflowClimateMode: any = 
     {
       length: airflowStrandCount
     },
-    (strandElement, strandIndex) => {
+    (_strandElement, strandIndex) => {
       const strandRatio = airflowStrandCount === 1 ? 0.5 : strandIndex / (airflowStrandCount - 1);
       const strandJitter =
         (pseudoRandomUnit(strandIndex + 3) - 0.5) * 10 * airflowIrregularityRatio;
@@ -102,7 +101,7 @@ function buildAirflowSvg(airflowProperties: any = {}, airflowClimateMode: any = 
       {
         length: airflowWispCount
       },
-      (wispElement, wispIndex) => {
+      (_wispElement, wispIndex) => {
         const wispSeed = strandPathIndex * 41 + wispIndex * 67 + 11;
         const wispLength = Math.max(
           8,

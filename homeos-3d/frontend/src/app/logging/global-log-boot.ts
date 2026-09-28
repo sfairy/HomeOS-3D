@@ -2,7 +2,6 @@
  * 全局日志上报的启动引导（编辑器 / 面板侧）：早于业务脚本执行，把 global-log.js 接到真实接口上。
  */
 
-type AnyObj = Record<string, any>;
 import { setupGlobalLog } from "./global-log.js";
 import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js";
 import { apiFetch } from "../utils/api-fetch.js";

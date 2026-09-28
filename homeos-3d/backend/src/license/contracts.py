@@ -2,13 +2,6 @@
 """
 from __future__ import annotations
 
-import logging
-
-
-
-logger = logging.getLogger(__name__)
-
-
 #: 服务端结构化吊销码；仅凭 ``code`` / ``revoked`` 判定「确认吊销」。
 CONFIRMED_REVOCATION_CODES = frozenset({'REVOKED', 'LICENSE_REVOKED'})
 #: 服务端只发中文文案、不发结构化 code 时的吊销文案。仅作 ``code`` 之外的兜底：

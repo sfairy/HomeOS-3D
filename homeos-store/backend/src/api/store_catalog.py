@@ -126,16 +126,20 @@ def _product_stats(session, product_ids=None) -> dict[str, dict]:
         "purchase": purchase_counts,
         "customer": customer_counts,
     }
+
+
 def _image_map(session) -> dict[str, ProductImage]:
     return {
         image.product_id: image
         for image in session.scalars(select(ProductImage))
     }
+
+
 def _bundled_map(session) -> dict[str, Product]:
     return {product.id: product for product in session.scalars(select(Product))}
-def _product_item(session, product: Product) -> dict:
-    from ..core.serializers import json_list
 
+
+def _product_item(session, product: Product) -> dict:
     stats = _product_stats(session, {product.id})
     image = session.scalars(
         select(ProductImage).where(ProductImage.product_id == product.id).limit(1)
@@ -383,6 +387,8 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
         # 停在待支付」的早期信号，所以除了日志也计入计数。
         incidents.note("reconcile.poll", order_no=order.order_no, error=error)
         logger.exception("订单查单对账失败 order=%s", order.order_no)
+
+
 # 邀请有礼
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
     if wallet is None:
@@ -395,6 +401,8 @@ def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
         "earned": money.format_centi(wallet.earned_centi),
         "withdrawn": money.format_centi(wallet.withdrawn_centi),
     }
+
+
 def _withdrawal_payload(withdrawal: ReferralWithdrawal) -> dict:
     return {
         "id": withdrawal.id,

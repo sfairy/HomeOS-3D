@@ -1,4 +1,3 @@
-type AnyObj = Record<string, any>;
 /*
  * 区块四：运行期弹窗外壳。
  */
@@ -17,6 +16,23 @@ import {
 
 // 弹窗标题 id 的自增序号 —— aria-labelledby 要的是一个稳定且唯一的 id，
 let runtimeDialogTitleSerial = 0;
+
+/**
+ * 拆除一个缩放上下文的全部副作用：取消待执行帧、断开 ResizeObserver、撤销入场动画、
+ * 去掉缩放样式类。register 覆写旧上下文与 clear 注销都走这一份，避免其中一条路径漏清理。
+ */
+function teardownRuntimeDialogScaleContext(dialogScaleContext: any) {
+  if (!dialogScaleContext) {
+    return;
+  }
+  window.cancelAnimationFrame(dialogScaleContext.measureFrame || 0);
+  dialogScaleContext.layoutObserver?.disconnect();
+  for (const entranceAnimation of dialogScaleContext.entranceAnimations || []) {
+    entranceAnimation.cancel();
+  }
+  dialogScaleContext.dialog?.classList.remove("hb-runtime-scaled-dialog");
+}
+
 export const runtimeDialogMethods = {
   /**
    * 登记当前弹窗并接管它的缩放：按设计尺寸固定宽度，再整体缩放到可用区域。
@@ -45,6 +61,9 @@ export const runtimeDialogMethods = {
       layoutObserver: null as any,
       entranceAnimations: [] as any[]
     };
+    // 覆写前先清掉旧上下文：否则旧 ResizeObserver 仍挂在孤儿弹窗上、
+    // 旧 rAF 与入场动画全部泄漏（弹窗连续打开/切换时必现）。
+    teardownRuntimeDialogScaleContext(this.runtimeDialogScaleContext);
     this.runtimeDialogScaleContext = dialogScaleContext;
     dialogElement.classList.add("hb-runtime-scaled-dialog");
     dialogElement.style.width = dialogScaleContext.designWidth + "px";
@@ -181,12 +200,7 @@ export const runtimeDialogMethods = {
    */
   clearRuntimeDialogScale(this: any, clearedDialogElement: any) {
     if (this.runtimeDialogScaleContext?.dialog === clearedDialogElement) {
-      window.cancelAnimationFrame(this.runtimeDialogScaleContext.measureFrame || 0);
-      this.runtimeDialogScaleContext.layoutObserver?.disconnect();
-      for (const entranceAnimation of this.runtimeDialogScaleContext.entranceAnimations || []) {
-        entranceAnimation.cancel();
-      }
-      clearedDialogElement.classList.remove("hb-runtime-scaled-dialog");
+      teardownRuntimeDialogScaleContext(this.runtimeDialogScaleContext);
       this.runtimeDialogScaleContext = null;
     }
   },

@@ -4,19 +4,16 @@ type AnyObj = Record<string, any>;
  */
 
 import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js";
-import { randomUuid } from "../../../../utils/random-id.js";
 import { mixHexColors, paletteColor } from "../../../../utils/colors.js";
 import { entityDomainFromId } from "../../../../utils/entities.js";
 import {
   climateControlStructureKey,
   climateEffectMode,
-  climateIsPoweredOn,
   climateIsRunning,
   climateModeIcon,
   climateModeLabel,
   climateOperationModeValues,
   climateOptionPresentation,
-  climatePowerCommand,
   climatePresentationMode,
   climateSwingModeLabel,
   normalizeClimateCapabilities,

@@ -2,9 +2,9 @@
 """
 from __future__ import annotations
 
-import math
-
 from fastapi import HTTPException
+
+from .numbers import as_finite_number
 
 # 域 -> 附加实体支持的控制类型。'state' 表示只读：能显示状态，不能下命令。
 EXTRA_TYPES: dict[str, str] = {
@@ -22,10 +22,6 @@ EXTRA_TYPES: dict[str, str] = {
 }
 
 
-def _finite_number(value) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
-
-
 def validate_extra_command(extra: dict, domain: str, service: str, data, state) -> None:
     """复核发往附加实体的命令。
     """
@@ -33,9 +29,13 @@ def validate_extra_command(extra: dict, domain: str, service: str, data, state) 
     # 配置里记的实体域必须和本次调用的域一致：对不上说明前端拿错了绑定。
     if (extra and extra.get("entityId", "").split(".")[0] != domain) or kind == "state":
         raise HTTPException(422, detail="此实体不支持配置的控制类型。")
-    if state and (
-        state.get("available") is False
-        or state.get("state") in (None, "", "unknown", "unavailable")
+    # 与 lock/climate/cover 同一口径：state 为 None / 非 dict / 空映射时直接 409，
+    # 不做乐观转发（StateHub 首轮同步前、HA 重连期都可能拿到空状态）。
+    if not isinstance(state, dict) or state.get("available") is False or state.get("state") in (
+        None,
+        "",
+        "unknown",
+        "unavailable",
     ):
         raise HTTPException(409, detail="附加实体当前不可用。")
     attrs = state.get("attributes") or {}
@@ -57,7 +57,7 @@ def validate_extra_command(extra: dict, domain: str, service: str, data, state) 
             attrs.get("max"),
             attrs.get("step", 1),
         )
-        if all(_finite_number(candidate) for candidate in (value, low, high, step)) and step > 0:
+        if all(as_finite_number(candidate, from_text=False) is not None for candidate in (value, low, high, step)) and step > 0:
             if low <= value <= high and abs((value - low) / step - round((value - low) / step)) < 1e-5:
                 return
     raise HTTPException(422, detail="附加实体不支持此操作或参数。")
@@ -87,9 +87,7 @@ def require_purifier_model(bindings: list, entity_id: str, scene: dict) -> None:
 def validate_purifier_command(service: str, data, state) -> None:
     """复核发往空气净化器本身的命令。
     """
-    if state and (
-        state.get("available") is False or state.get("state") not in ("on", "off")
-    ):
+    if not isinstance(state, dict) or state.get("available") is False or state.get("state") not in ("on", "off"):
         raise HTTPException(409, detail="空气净化器当前不可用。")
     attrs = state.get("attributes") or {}
     features = attrs.get("supported_features", 0)
@@ -123,7 +121,7 @@ def validate_purifier_command(service: str, data, state) -> None:
     # 风速百分比：bit 0（PERCENTAGE）；没上报能力位时看设备是否给过 percentage 属性。
     if service == "set_percentage" and set(data) == {"percentage"}:
         value = data["percentage"]
-        if _finite_number(value) and 0 <= value <= 100:
+        if as_finite_number(value, from_text=False) is not None and 0 <= value <= 100:
             if "supported_features" in attrs:
                 if features & 1:
                     return

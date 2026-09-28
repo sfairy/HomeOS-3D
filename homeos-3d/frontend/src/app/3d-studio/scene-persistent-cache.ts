@@ -31,7 +31,7 @@ import { createIdbStore } from "./idb-store.js";
 import { debugLog } from "../utils/debug-log.js";
 
 /** 场景准备格式版本。归一逻辑或缓存信封一改就动它，旧条目会自动因版本不符而失效。 */
-export const SCENE_PREPARATION_VERSION = "20260923-v1";
+const SCENE_PREPARATION_VERSION = "20260923-v1";
 
 /** 缓存库名。 */
 const SCENE_CACHE_DB_NAME = "homeos-3d-scenes";
@@ -90,7 +90,7 @@ function isUsablePreparedDocument(document: PreparedDocument | null | undefined)
  * @param {object} preparedEntry `preload()` / `peek()` 返回的条目。
  * @param {{syncKey?: string}} options 当前草稿（`{scene, syncKey}`）。
  */
-export function reusableScenePreparation(preparedEntry: PreparedEntry | null | undefined, options: { syncKey?: string } | null | undefined): boolean {
+function reusableScenePreparation(preparedEntry: PreparedEntry | null | undefined, options: { syncKey?: string } | null | undefined): boolean {
   return (
     !!preparedEntry &&
     preparedEntry.version === SCENE_PREPARATION_VERSION &&

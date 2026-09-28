@@ -1,6 +1,7 @@
 import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js";
 import { isFrontendDebugMode } from "../../utils/debug-log.js";
 import { sanitizeRegionOverrides, ensureLightGroup, getRegionMaterial, registerLight, inspect } from "./region-light-passes.js";
+import { findUserDataInAncestors, isVisibleWithin } from "../scene-tree-utils.js";
 
 // 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
 const clamp = clampNumber;
@@ -33,16 +34,6 @@ function isRegionLightKey(keyString: any) {
   }
 }
 
-/**
- * 沿父链向上查找某个 userData 字段。
- */
-function findAncestorUserData(startObject: any, userDataKey: any) {
-  for (let ancestorObject = startObject; ancestorObject; ancestorObject = ancestorObject.parent) {
-    if (ancestorObject.userData?.[userDataKey] !== undefined) {
-      return ancestorObject.userData[userDataKey];
-    }
-  }
-}
 function isRegionReceiverMaterial(materialCandidate: any) {
   return (
     materialCandidate &&
@@ -53,26 +44,12 @@ function isRegionReceiverMaterial(materialCandidate: any) {
       materialCandidate.isMeshLambertMaterial)
   );
 }
-/**
- * 判断 startNode 在 rootNode 子树内且沿途都可见。
- */
-function isVisibleWithin(startNode: any, rootNode: any) {
-  for (let currentNode = startNode; currentNode; currentNode = currentNode.parent) {
-    if (currentNode.visible === false) {
-      return false;
-    }
-    if (currentNode === rootNode) {
-      return true;
-    }
-  }
-  return false;
-}
 function classifyReceiverKind(candidateMesh: any) {
-  const declaredKind = findAncestorUserData(candidateMesh, "regionReceiverKind");
+  const declaredKind = findUserDataInAncestors(candidateMesh, "regionReceiverKind");
   if (REGION_KINDS.includes(declaredKind)) {
     return declaredKind;
   }
-  const modelLayer = findAncestorUserData(candidateMesh, "modelLayer");
+  const modelLayer = findUserDataInAncestors(candidateMesh, "modelLayer");
   if (modelLayer === "items" || modelLayer === "lights") {
     return "furniture";
   }
@@ -357,8 +334,8 @@ export function createRegionLightController({
       registration.floorId = String(
         registration.light.userData?.regionFloorId ??
           registration.light.userData?.lightFloorId ??
-          findAncestorUserData(registration.light, "regionFloorId") ??
-          findAncestorUserData(registration.light, "floorId") ??
+          findUserDataInAncestors(registration.light, "regionFloorId") ??
+          findUserDataInAncestors(registration.light, "floorId") ??
           "default"
       );
       registration.id = String(registration.item.id ?? registration.light.uuid);
@@ -399,14 +376,14 @@ export function createRegionLightController({
       // 辅助物件（背景、网格线、轮廓、灯的示意外观）不接收区域光：
       if (
         ["background", "grid", "outline", "light-source-preview"].includes(
-          findAncestorUserData(mesh, "exportRole")
+          findUserDataInAncestors(mesh, "exportRole")
         )
       ) {
         continue;
       }
       const meshFloorId = String(
-        findAncestorUserData(mesh, "regionFloorId") ??
-          findAncestorUserData(mesh, "floorId") ??
+        findUserDataInAncestors(mesh, "regionFloorId") ??
+          findUserDataInAncestors(mesh, "floorId") ??
           defaultFloorId
       );
       if (!registrationsByFloorId.has(meshFloorId)) {
@@ -419,8 +396,8 @@ export function createRegionLightController({
       const receiverKind = classifyReceiverKind(mesh);
       const material = mesh.material;
       // 外部模型需要保留自己的 PBR 细节，用这个字段声明后跳过「廉价光照」分支。
-      const shouldPreserveDetailed = findAncestorUserData(mesh, "preserveDetailedSurface") === true;
-      const isFloorReceiver = findAncestorUserData(mesh, "regionReceiverKind") === "floor";
+      const shouldPreserveDetailed = findUserDataInAncestors(mesh, "preserveDetailedSurface") === true;
+      const isFloorReceiver = findUserDataInAncestors(mesh, "regionReceiverKind") === "floor";
       const assignedMaterial = Array.isArray(material)
         ? material.map((sourceMaterialItem: any) =>
             getRegionMaterial(

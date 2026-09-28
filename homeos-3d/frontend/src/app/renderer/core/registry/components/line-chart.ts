@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import {
   formatLineChartValue,
@@ -95,6 +94,12 @@ registerComponent("line-chart", {
     chartSvg.classList.add("hb-line-chart-graph");
     if (chartSamples.length) {
       const chartGeometry = lineChartGeometry(chartSamples);
+      // 空序列契约：lineChartGeometry 返回 null（当前由 chartSamples.length 护挡住，
+      // 这里是防御性兜底，交回一个只带加载态的空图骨架）。
+      if (!chartGeometry) {
+        chartElement.classList.add("history-loading");
+        return chartElement;
+      }
       const {
         minimum: chartMinimum,
         maximum: chartMaximum,

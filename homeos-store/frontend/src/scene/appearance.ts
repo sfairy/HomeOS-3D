@@ -5,14 +5,6 @@ export type ColorName = "accent" | "lumen" | "aura" | "eco";
 
 export const CONFIGURABLE: readonly ColorName[] = ["accent", "lumen", "aura", "eco"];
 
-/** 中文名，给设置界面用（后端也要报错文案，故与 PRESETS 分开导出）。 */
-export const COLOR_LABELS: Record<ColorName, string> = {
-  accent: "主控色",
-  lumen: "暖光",
-  aura: "极光紫",
-  eco: "生态薄荷",
-};
-
 export type ShadePair = {
   bright: string;
   deep: string;
@@ -77,14 +69,14 @@ function hexToRgb(hex: string): number[] {
   return [1, 3, 5].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16));
 }
 
-export function rgbTriplet(hex: string): string {
+function rgbTriplet(hex: string): string {
   return hexToRgb(hex).join(", ");
 }
 
 /**
  * 由一个基色推出 `-bright` 与 `-deep`。
  */
-export function deriveShades(hex: string): ShadePair {
+function deriveShades(hex: string): ShadePair {
   const [r, g, b] = hexToRgb(hex).map((channel) => channel / 255);
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -164,11 +156,6 @@ export function appearanceTokens(colors: Partial<AppearanceColors>): Record<stri
   return tokens;
 }
 
-/** 预设 id → 展开好的令牌表；未知 id 回落到默认预设而不是抛错（后端存了旧值时仍要能出图）。 */
-export function presetTokens(presetId: string): Record<string, string> {
-  return resolveTokens({ presetId });
-}
-
 export type ResolveTokensInput = {
   presetId?: string;
   accentColor?: string | null;
@@ -193,24 +180,4 @@ export function resolveTokens({ presetId, accentColor }: ResolveTokensInput = {}
     delete colors.accentShades;
   }
   return appearanceTokens(colors);
-}
-
-/** 令牌表 → `:root{…}` 样式表正文。令牌名固定以 `--` 开头，故不需要转义。 */
-export function tokensToCss(tokens: Record<string, string>): string {
-  const body = Object.entries(tokens)
-    .map(([name, value]) => `  ${name}: ${value};`)
-    .join("\n");
-  return `/* HomeOS 站点配色（由设置界面的配色项生成，勿手改） */\n:root {\n${body}\n}\n`;
-}
-
-/** 与 `appearanceTokens` 的键集一致的令牌名清单，供后端做白名单校验。 */
-export function tokenNames(): string[] {
-  return Object.keys(presetTokens(DEFAULT_PRESET));
-}
-
-/**
- * CSS 变量名（含 `--`）→ 去前缀的 kebab 名，供 `style.setProperty()` 用。
- */
-export function cssVariableName(token: string): string {
-  return token.startsWith("--") ? token : `--${token}`;
 }

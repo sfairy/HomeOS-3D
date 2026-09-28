@@ -1,4 +1,5 @@
 import { describe } from "./api-error.js";
+import { bindPasswordToggles } from "./password-toggle.js";
 
 const form = document.getElementById('setup-form') as HTMLFormElement | null;
 const errorBox = document.getElementById('setup-error');
@@ -20,6 +21,13 @@ const fragmentToken = tokenFromFragment();
 if (fragmentToken) {
   const tokenInput = document.getElementById('setup-token') as HTMLInputElement | null;
   if (tokenInput && !tokenInput.value) tokenInput.value = fragmentToken;
+  // 引导密钥只应活在输入框/请求头里：预填后立即抹掉地址栏 fragment，
+  // 避免刷新、转发链接、浏览器历史与截屏把 token 泄漏出去（不刷新页面）。
+  try {
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch {
+    /* 某些隐私模式下 replaceState 会抛错：保留功能优先，token 留在地址栏可接受 */
+  }
 }
 
 fetch('/store/v1/setup/status', {
@@ -38,18 +46,8 @@ fetch('/store/v1/setup/status', {
   })
   .catch(() => { /* 静默：出错就让用户手动提交 */ });
 
-// 密码显隐切换
-document.querySelectorAll('[data-password-toggle]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const input = btn.parentElement?.querySelector<HTMLInputElement>(
-      'input[type="password"], input[type="text"]',
-    );
-    if (!input) return;
-    const isPw = input.type === 'password';
-    input.type = isPw ? 'text' : 'password';
-    btn.textContent = isPw ? '隐藏' : '显示';
-  });
-});
+// 密码显隐切换（setup 页只切按钮文案：模板里的 aria-label/title 保持静态，与商店、后台入口的差异保留）
+bindPasswordToggles(document, { ariaLabel: false });
 
 function showError(msg: string) {
   if (!errorBox) return;

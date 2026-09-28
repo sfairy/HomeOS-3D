@@ -2,7 +2,6 @@
  * 控件类型注册表本体：`componentsByType` 与它的两个入口。
  */
 
-type AnyObj = Record<string, any>;
 
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 const componentsByType = new Map<any, any>();

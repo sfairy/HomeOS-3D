@@ -1117,13 +1117,13 @@ function stoneSlabSpecFor(materialPalette: any, modelType: any, materialName: an
 /**
  * 各柜类「门板 / 抽屉面板」的判据：`material-<槽位>-door` 就是门板。
  */
-function isCabinetDoorMaterial(modelType: any, materialName: any) {
+function isCabinetDoorMaterial(materialName: any) {
   return parseMaterialSlotAndRole(materialName).role === "door";
 }
 /**
  * 「暖阳原木」主题下的台面判据：`material-<槽位>-top` 就是台面。
  */
-function isWarmCountertopMaterial(modelType: any, materialName: any) {
+function isWarmCountertopMaterial(materialName: any) {
   return parseMaterialSlotAndRole(materialName).role === "top";
 }
 /**
@@ -1241,7 +1241,7 @@ export function createExternalModelManager({
     const loadFromUrl = (resourceUrl: any) =>
       Promise.race([
         loader.loadAsync(resourceUrl),
-        new Promise((resolveTimeout, rejectTimeout) => {
+        new Promise((_resolveTimeout, rejectTimeout) => {
           timeoutId = setTimeout(
             () => rejectTimeout(new Error("模型 " + modelTypeLabel + " 加载超时")),
             effectiveTimeoutMs
@@ -1837,7 +1837,7 @@ export function createExternalModelManager({
     let isWarmSteelPanel = false;
     if (isWarmJoinery) {
       const joineryMaterialRole = parseMaterialSlotAndRole(materialName).role;
-      isWarmCountertop = isWarmCountertopMaterial(furnitureItemType, materialName);
+      isWarmCountertop = isWarmCountertopMaterial(materialName);
       if (["kitchensink", "kitchencooktop"].includes(furnitureItemType)) {
         chosenColor = paletteColors.wood;
       }
@@ -1876,7 +1876,7 @@ export function createExternalModelManager({
     }
     // 柜门统一刷白：门板是独立材质，单独取白色，柜体仍是木料，「木柜体 + 白门」才成立。
     const isCabinetDoor =
-      paletteColors.warmFurniture && isCabinetDoorMaterial(furnitureItemType, materialName);
+      paletteColors.warmFurniture && isCabinetDoorMaterial(materialName);
     if (isCabinetDoor) {
       chosenColor = paletteColors.cabinetDoor ?? 16777215;
     }
@@ -2419,7 +2419,7 @@ export function createExternalModelManager({
       preparedMaterial.emissiveIntensity = preparedMaterial.userData.warmDiningFabric ? 0.1 : 0.05;
     }
     // 暖阳原木：柜门侧面（回边）在侧光下会亮成一条白边，注入一段着色器按法线朝向压暗。
-    if (materialPalette.warmFurniture && isCabinetDoorMaterial(modelTypeName, inputMaterial.name)) {
+    if (materialPalette.warmFurniture && isCabinetDoorMaterial(inputMaterial.name)) {
       preparedMaterial.onBeforeCompile = (warmDoorReturnShader: any) => {
         warmDoorReturnShader.vertexShader = warmDoorReturnShader.vertexShader
           .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")

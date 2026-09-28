@@ -8,8 +8,8 @@ import { COVER_DEFAULT_PREVIEW_POSITION } from "../../utils/cover-features.js";
 /**
  * 窗帘形态（curtainForm）取值。
  */
-export const CURTAIN_FORM_STANDARD = "standard";
-export const CURTAIN_FORM_ROLLER = "roller";
+const CURTAIN_FORM_STANDARD = "standard";
+const CURTAIN_FORM_ROLLER = "roller";
 
 export function resolveCurtainForm(inputOptions: any = {}) {
   const rawCurtainForm = inputOptions.curtainForm;

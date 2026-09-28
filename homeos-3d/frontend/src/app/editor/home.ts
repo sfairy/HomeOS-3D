@@ -75,11 +75,7 @@ import { confirmAction } from "../shared/ui-confirm.js";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 import { licenseMessage } from "../auth/license-recovery.js";
 import { createEditorPickerElements } from "./picker/editor-picker-elements.js";
-import {
-  EDITOR_PICKER_PAGE_SIZES,
-  editorEntityPickerInitialPage,
-  editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js";
+import { EDITOR_PICKER_PAGE_SIZES } from "./picker/editor-picker-pagination.js";
 import { createEditorPickerQueries } from "./picker/editor-picker-queries.js";
 import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js";
 
@@ -87,7 +83,6 @@ import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js";
 import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js";
 import {
   ACTION_TYPES,
-  TOGGLE_ENTITY_DOMAINS,
   actionNeedsCurrentEntity,
   actionPopupData,
   componentActionIsSupported,
@@ -2076,9 +2071,7 @@ const homeParts = {
     }
 };
 const {
-  airConditionerDefaults,
   airConditionerPropertyDefinitions,
-  cameraDefaults,
   cameraPropertyDefinitions,
   collectAirConditionerChangedProperties,
   collectCameraChangedProperties,
@@ -2104,21 +2097,12 @@ const {
   getNavigationStyleValue,
   getPanelFrameStyleValue,
   getTitleButtonPropertyValue,
-  iconButtonDefaults,
-  iconButtonEffectDefaults,
   iconButtonEffectPropertyDefinitions,
-  iconButtonPropertyDefinitions,
-  lineChartDefaults,
   lineChartPropertyDefinitions,
-  navigationStyleDefaults,
-  panelFrameStyleDefaults,
   panelFrameStylePropertyDefinitions,
-  presenceSensorPropertyDefinitions,
-  presenceSensorPropertyKeys,
   resolveIconButtonPropertyDefinition,
   resolveSensorKind,
   resolveSensorKindLabel,
-  titleButtonDefaults,
   titleButtonPropertyDefinitions
 } = createPropertyDescriptors(homeParts);
 const {
@@ -2130,7 +2114,6 @@ const {
   applyPanelFrameStyleChange,
   applyStyleChangeToComponent,
   applyTitleButtonStyleChange,
-  createStyleApplyOption,
   openAirConditionerStyleApplyDialog,
   openCameraStyleApplyDialog,
   openIconButtonEffectStyleApplyDialog,
@@ -2139,31 +2122,21 @@ const {
   openNavigationStyleApplyDialog,
   openPanelFrameStyleApplyDialog,
   openTitleButtonStyleApplyDialog,
-  renderStyleApplyTargets
 } = createStyleApplyDialogs(homeParts);
 const {
-  HOVER_SCROLL_TARGET_SELECTOR,
   addLightStatisticsEntity,
   attachIconTooltip,
   attachInfiniteScroll,
   collapseWhitespace,
-  componentEntityIds,
-  componentsInPage,
-  deviceNameForEntity,
   ensurePickerValueElement,
   entityDisplayName,
-  entityDisplaySubtitle,
   entityKindLabel,
   entityOptionLabel,
   entityPickerConfig,
   findOverflowPreviewTarget,
   findOverflowRow,
-  flattenComponents,
-  hideIconTooltip,
   hoverScrollStateByRow,
-  iconListState,
   iconVisibilityVirtualEntities,
-  lightStatisticsEntityStatus,
   loadIconButtonEffectIconOptions,
   loadIconButtonIconOptions,
   loadLightStatisticsIconOptions,
@@ -2179,11 +2152,9 @@ const {
   positionLightStatisticsIconMenu,
   positionNavigationIconMenu,
   positionTitleButtonIconMenu,
-  previewTargetsByRow,
   registerOverflowPreviewRow,
   removeLightStatisticsEntity,
   renderEntityPickerOptions,
-  renderIconOptions,
   renderLightStatisticsEntities,
   renderLightStatisticsEntityOptions,
   renderPopupModuleEntityOptions,
@@ -2191,7 +2162,6 @@ const {
   selectableEntities,
   setLightStatisticsMessage,
   setPickerButtonLabel,
-  showIconTooltip,
   stopHoverScroll,
   syncEntityPickerValue,
   syncPopupEntityInputs,
@@ -2199,10 +2169,7 @@ const {
   syncPopupModuleEntityButton
 } = createEntityOptions(homeParts);
 const {
-  ENTITY_PICKER_HINT,
   bindEntityPicker,
-  closeActiveEditorPicker,
-  deferUntilEntitiesLoaded,
   openEditorPickerDialog,
   openEntityPicker,
   openIconPicker,
@@ -2218,21 +2185,16 @@ const {
   closePageActionsMenu,
   closePopupActionsMenu,
   closeProjectActionsMenu,
-  enhanceNativeSelect,
   enhanceNativeSelectsIn,
   enhanceNumberInputsIn,
-  positionCustomSelectMenu,
   syncCustomSelect
 } = createFormWidgets(homeParts);
 const {
   closeColorPicker,
-  colorPickerHostFor,
   commitColorPickerFromRgb,
   commitColorPickerHsv,
   enhanceColorInputsIn,
-  openColorPickerForInput,
   positionColorPicker,
-  returnColorPickerToBody,
   syncColorPickerFromHex,
   syncOpenColorPicker,
   updateColorPickerFromPointer
@@ -9569,7 +9531,7 @@ function ensureEditorRenderer() {
           duplicateComponent(duplicateDraftDocument, sourceComponentId, copiedComponent, false);
         });
       },
-      onComponentsDuplicate(copiedComponentEntries: any, draggedComponentId: any, draggedCopyId: any) {
+      onComponentsDuplicate(copiedComponentEntries: any, draggedCopyId: any) {
         const copiedComponentIds = copiedComponentEntries.map(
           (copiedComponentEntry: any) => copiedComponentEntry.copiedComponent.id
         );
@@ -10444,7 +10406,7 @@ function openProjectDialog(dialogMode = "create") {
     projectCanvasHintElement.textContent =
       "默认会同步调整所有页面、控件和弹窗；勾选“锁定控件大小及位置”后只改变画布，内容本身不会缩放或重新定位。";
     renderAspectRatio();
-    syncAspectLockButton(false);
+    syncAspectLockButton();
   }
   setSettingsMessage(projectMessageElement, "");
   projectDialogElement.showModal();
@@ -10470,7 +10432,7 @@ function renderAspectRatio() {
   projectAspectRatioElement.textContent =
     ratioWidthBase / ratioDivisor + " : " + ratioHeightBase / ratioDivisor;
 }
-function syncAspectLockButton(locked: any = null) {
+function syncAspectLockButton() {
   const isAspectLockActive = isAspectLocked;
   projectAspectLockButtonElement.disabled = false;
   projectAspectLockButtonElement.setAttribute("aria-pressed", String(isAspectLockActive));
@@ -14005,6 +13967,12 @@ function bindPointerSection() {
       hoveredRowElement.classList.add("hover-scrolling");
       const hoverScrollStartTime = performance.now();
       const stepHoverScroll = (hoverScrollTimestamp: any) => {
+        // 行节点可能在滚动过程中被重渲染摘除：脱离 DOM 立即收尾，
+        // 否则 rAF 继续向游离节点写 scrollLeft，hoverScrollStateByRow 里还留下死条目。
+        if (!hoveredRowElement.isConnected) {
+          stopHoverScroll(hoveredRowElement);
+          return;
+        }
         const elapsedScrollPx = (hoverScrollTimestamp - hoverScrollStartTime) * 0.04;
         hoveredRowElement.scrollLeft = Math.min(overflowScrollDistance, elapsedScrollPx);
         if (elapsedScrollPx < overflowScrollDistance) {
@@ -14344,7 +14312,7 @@ function bindProjectSection() {
       lockedCanvasHeight = inputHeightValue;
     }
     setSettingsMessage(projectMessageElement, "");
-    syncAspectLockButton(false);
+    syncAspectLockButton();
   });
   on(projectResizeWarningCloseButtonElement, "click", function onProjectResizeWarningCloseButtonClick() { return settleCanvasResizeWarning(false); }
   );

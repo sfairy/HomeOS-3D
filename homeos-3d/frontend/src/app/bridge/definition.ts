@@ -5,7 +5,6 @@ import { withPageAppearancePreset } from "./page-appearance-presets.js";
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
 const INTERACTION3D_TYPE = "interaction3d",
-  INTERACTION3D_FEATURE = "module.3d_interaction",
   INTERACTION3D_LIGHTING_MODES = [
     ["standard", "标准光影"],
     ["region", "轻量柔光"]

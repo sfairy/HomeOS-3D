@@ -289,19 +289,23 @@ def grant_order_reward(
 
 def reverse_order_reward(
     session: Session, *, order: Order, note: str = "订单退款，奖励退回"
-) -> int:
-    """退款时把已发放的奖励扣回。返回**实际扣回的积分（厘）**。
+) -> tuple[int, int]:
+    """退款时把已发放的奖励扣回。
+
+    返回 ``(deductible, shortfall)``：分别是**实际扣回的积分（厘）**与
+    **钱包余额不足、无法扣回的短差（厘）**。短差已留在订单台账字段与台账
+    明细里（``请人工追偿``），调用方应据此登记运营事件，不能静默吞掉。
     """
     if not order.referral_reward_points_centi or order.referral_reward_points_centi <= 0:
-        return 0
+        return 0, 0
     if not order.account_id:
-        return 0
+        return 0, 0
     buyer = session.get(Account, order.account_id)
     if buyer is None or not buyer.referred_by_account_id:
-        return 0
+        return 0, 0
     referrer = session.get(Account, buyer.referred_by_account_id)
     if referrer is None:
-        return 0
+        return 0, 0
     wallet = get_or_create_wallet(session, referrer)
     points_centi = int(order.referral_reward_points_centi)
     deductible = min(points_centi, available_points_centi(wallet))
@@ -322,7 +326,7 @@ def reverse_order_reward(
     #: 只把**真正扣回的部分**结清：还有短差时保留短差，而不是清零。
     order.referral_reward_points_centi = shortfall
     session.flush()
-    return deductible
+    return deductible, shortfall
 
 
 def withdraw_fee(points_centi: int, fee_percent: float) -> tuple[int, int]:

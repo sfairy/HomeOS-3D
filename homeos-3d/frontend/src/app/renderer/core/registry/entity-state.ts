@@ -2,7 +2,6 @@
  * 实体与控件的活动态判定、状态文案格式化。
  */
 
-type AnyObj = Record<string, any>;
 import { entityPowerIsOn } from "../entity-power.js";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
 import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js";
@@ -167,47 +166,41 @@ export function formatEntityState(rawState: any, formattedEntityId: any = "", fo
 }
 
 /**
+ * 「绑定单个实体」的视觉控件活动态判定（文件内私有共享实现）：
+ * 编辑态优先看 previewState（on/off 直接短路），其余情况委托
+ * isComponentEntityActive 查实体实时状态。灯光与设备按钮共用这一份逻辑。
+ */
+function isBoundEntityVisualActive(activeComponent: any, activeContext: any) {
+  if (activeContext.editable && activeContext.previewState === "on") {
+    return true;
+  }
+  if (activeContext.editable && activeContext.previewState === "off") {
+    return false;
+  }
+  const activeEntityId = activeComponent.bindings?.entity?.entityId || "";
+  return (
+    !!activeEntityId &&
+    !!isComponentEntityActive(
+      activeComponent,
+      activeEntityId,
+      activeContext.states?.get(activeEntityId),
+      activeContext
+    )
+  );
+}
+
+/**
  * 灯光类控件的活动态判定。
  */
 export function isLightVisualActive(visualComponent: any, visualContext: any) {
-  if (visualContext.editable && visualContext.previewState === "on") {
-    return true;
-  }
-  if (visualContext.editable && visualContext.previewState === "off") {
-    return false;
-  }
-  const visualEntityId = visualComponent.bindings?.entity?.entityId || "";
-  return (
-    !!visualEntityId &&
-    !!isComponentEntityActive(
-      visualComponent,
-      visualEntityId,
-      visualContext.states?.get(visualEntityId),
-      visualContext
-    )
-  );
+  return isBoundEntityVisualActive(visualComponent, visualContext);
 }
 
 /**
  * 设备按钮的活动态判定（逻辑与灯光一致，编辑器走预览、运行时看实体）。
  */
 export function isDeviceButtonVisualActive(buttonPreviewComponent: any, buttonPreviewContext: any) {
-  if (buttonPreviewContext.editable && buttonPreviewContext.previewState === "on") {
-    return true;
-  }
-  if (buttonPreviewContext.editable && buttonPreviewContext.previewState === "off") {
-    return false;
-  }
-  const buttonPreviewEntityId = buttonPreviewComponent.bindings?.entity?.entityId || "";
-  return (
-    !!buttonPreviewEntityId &&
-    !!isComponentEntityActive(
-      buttonPreviewComponent,
-      buttonPreviewEntityId,
-      buttonPreviewContext.states?.get(buttonPreviewEntityId),
-      buttonPreviewContext
-    )
-  );
+  return isBoundEntityVisualActive(buttonPreviewComponent, buttonPreviewContext);
 }
 
 /**

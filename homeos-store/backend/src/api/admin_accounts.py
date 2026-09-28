@@ -2,8 +2,6 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import logging
 
 from fastapi import APIRouter, HTTPException, status
@@ -151,6 +149,9 @@ def admin_patch_account(
         ).first()
         if customer is not None:
             customer.email = email
+        # 邮箱是登录身份：管理员改邮箱等同于身份接管处置，旧持有者（或被盗会话）的
+        # 全部会话必须立刻失效——与停用/重置密码/删除账号及用户自助改邮箱同一口径。
+        _drop_account_sessions(session, account.id)
         changed.append("email")
 
     if data.get("is_admin") is False and bool(account.is_admin):

@@ -1,4 +1,3 @@
-type AnyObj = Record<string, any>;
 /*
  * 设备控件区块：电动床详情（升降姿态、预设位与加载中的占位弹窗）。
  */
@@ -292,7 +291,7 @@ export const electricBedDetailsMethods = {
     /**
      * 把角度实体的状态换算成 0~100 的百分比，用于驱动床模型的倾斜幅度。
      */
-    const bedAnglePercent = (angleRoleId: any, angleEntityState: any) => {
+    const bedAnglePercent = (_angleRoleId: any, angleEntityState: any) => {
       const angleStateValue = Number(angleEntityState?.state);
       const angleMinValue = Number(angleEntityState?.attributes?.min);
       const angleMaxValue = Number(angleEntityState?.attributes?.max);
@@ -417,7 +416,7 @@ export const electricBedDetailsMethods = {
   /**
    * 打开电动床的「加载中」占位弹窗。
    */
-  showElectricBedLoadingDetails(this: any, bedLoadingComponent: any, { preview: bedLoadingPreview = false } = {}) {
+  showElectricBedLoadingDetails(this: any, bedLoadingComponent: any) {
     if (!bedLoadingComponent.bindings?.entity?.entityId) {
       return;
     }

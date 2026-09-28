@@ -2,18 +2,14 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
-
-
-def utc_now() -> datetime:
-    """所有时间列的默认值来源，保证入库时间带 UTC 时区。"""
-    return datetime.now(timezone.utc)
+from .time_utils import utc_now
 
 
 class User(Base):

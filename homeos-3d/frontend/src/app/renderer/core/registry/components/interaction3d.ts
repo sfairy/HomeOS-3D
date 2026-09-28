@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { renderInteraction3d } from "../../../../bridge/bridge.js";
 // 同门分片：registry-core
 import { registerComponent } from "../registry-core.js";

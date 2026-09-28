@@ -2,6 +2,7 @@
  * 会话与令牌类诊断表。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { actions, cell, pageState, pagedFetch, renderPager } from "../table.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import { dt, money, num, pill } from "../format.js";
@@ -85,17 +86,13 @@ type RedemptionFilter = {
   couponCode?: string;
 };
 
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '读取失败';
-}
-
 export async function loadSessions() {
   const cursor = pageState('sessions');
   let data: { items?: SessionRow[] } | null;
   try {
     data = (await pagedFetch('sessions', '/sessions')) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -130,7 +127,7 @@ export async function loadLicenseSessions() {
   try {
     data = (await pagedFetch('license-sessions', '/license-sessions')) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -164,7 +161,7 @@ export async function loadRecoveryTokens() {
   try {
     data = (await pagedFetch('recovery-tokens', '/recovery-tokens')) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -198,7 +195,7 @@ export async function loadLoginAttempts() {
   try {
     data = (await pagedFetch('login-attempts', '/login-attempts')) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -229,7 +226,7 @@ export async function loadEmailVerifications() {
       '/email-verifications',
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -264,7 +261,7 @@ export async function loadReleaseEvents() {
       '/device-release-events',
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -298,7 +295,7 @@ export async function loadRedemptions() {
       filter?.couponId ? { coupon_id: filter.couponId } : {},
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '读取失败'), 'danger');
     return;
   }
   if (!data) return;

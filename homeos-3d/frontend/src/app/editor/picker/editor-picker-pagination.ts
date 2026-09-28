@@ -2,7 +2,6 @@
  * 编辑器选择器分页：图标 / 实体 / 素材三类列表的每页条数与切片计算。
  */
 
-type AnyObj = Record<string, any>;
 
 // 三类列表的每页条数按网格布局排布，数值与 CSS 网格列数绑定，不要随意改。
 export const EDITOR_PICKER_PAGE_SIZES = Object.freeze({ icon: 84, entity: 33, asset: 16 });

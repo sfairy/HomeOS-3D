@@ -1752,7 +1752,7 @@ function unionPolygonLoops(
     edgeIndicesByStartKey.get(listedEdge.start.key).push(listedEdgeIndex);
   });
   const unvisitedEdges = new Set(
-    boundaryEdges.map((mappedEdge, mappedEdgeIndex) => mappedEdgeIndex)
+    boundaryEdges.map((_mappedEdge, mappedEdgeIndex) => mappedEdgeIndex)
   );
   const resultPolygons = [];
   while (unvisitedEdges.size) {

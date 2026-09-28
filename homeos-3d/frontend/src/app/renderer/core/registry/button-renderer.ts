@@ -2,7 +2,6 @@
  * `icon-button` / `device-button` 共用的按钮渲染器：图标、状态文案、配色与点击反馈。
  */
 
-type AnyObj = Record<string, any>;
 import {
   clampCoercedNumber,
   clampNumber

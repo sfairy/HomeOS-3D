@@ -16,6 +16,7 @@ import { loadAudits, loadEntitlements } from "./panels/content.js";
 import { loadDiagnostics, loadSettings } from "./panels/settings.js";
 import { loadEmailVerifications, loadLicenseSessions, loadLoginAttempts, loadRecoveryTokens, loadRedemptions, loadReleaseEvents, loadSessions } from "./panels/sessions.js";
 import { host } from "./host.js";
+import { handlePasswordToggleClick } from "../password-toggle.js";
 import type { ApiError } from "../api-error.js";
 
 type TabItem = {
@@ -29,24 +30,6 @@ type TabTree = {
   items: TabItem[];
   byKey: Map<string, TabItem>;
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // --------------------------------------------------------------------------- //
 // 导航待办计数
@@ -86,20 +69,8 @@ window.addEventListener('load', clearAutofilledLogin);
 window.addEventListener('pageshow', clearAutofilledLogin);
 [0, 60, 200, 600, 1500].forEach((delay) => setTimeout(clearAutofilledLogin, delay));
 
-// 密码显示 / 隐藏：与商店认证页、setup 页同一交互。
-loginForm?.addEventListener('click', (event) => {
-  const target = event.target;
-  if (!(target instanceof Element)) return;
-  const toggle = target.closest('[data-password-toggle]');
-  if (!toggle) return;
-  // 按「按钮的父元素」找输入框，而不是按某个字段类名：后台登录用的是场景设计系统的
-  const input = toggle.parentElement?.querySelector('input') as HTMLInputElement | null;
-  if (!input) return;
-  const show = input.type === 'password';
-  input.type = show ? 'text' : 'password';
-  toggle.textContent = show ? '隐藏' : '显示';
-  toggle.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
-});
+// 密码显示 / 隐藏：与商店认证页、setup 页同一交互（共享实现见 password-toggle.js）。
+loginForm?.addEventListener('click', handlePasswordToggleClick);
 
 function showLogin(message = '') {
   const boot = $('#admin-boot');
@@ -135,7 +106,9 @@ async function resolveAdminSession() {
     me = await storeApi('/auth/me') as { account?: { email?: string } };
   } catch (error) {
     const err = error as ApiError;
-    if (err.status === 401) return null;
+    // 401=会话失效，403=根本不是管理员会话：对后台而言都按「未登录」回到登录页，
+    // 不要把 403 渲染成「无法确认登录状态」把用户挡在登录框外。
+    if (err.status === 401 || err.status === 403) return null;
     throw new Error(`无法确认登录状态：${err.message}`);
   }
   if (!me.account) return null;
@@ -143,9 +116,9 @@ async function resolveAdminSession() {
   try {
     await api('/overview');
   } catch (error) {
-    // 会话恰好在这两次请求之间过期，同样属于「未登录」，按未登录处理。
+    // 会话过期（401）或探测到不是管理员（403），统一按「未登录」处理。
     const err = error as ApiError;
-    if (err.status === 401) return null;
+    if (err.status === 401 || err.status === 403) return null;
     throw error;
   }
   return me.account;
@@ -459,27 +432,9 @@ $('#admin-nav')?.addEventListener('click', (event) => {
   activate(page);
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 // --------------------------------------------------------------------------- //
 // 积分流水
 // --------------------------------------------------------------------------- //
-
-
-
-
-
 
 // 游标变化后要重新拉的那一支数据。key 与 data-pager / data-page 一一对应。
 const PAGED_LOADERS = {

@@ -1,7 +1,7 @@
+import { $, api, toast } from "./store-shared.js";
 import { esc } from "./htmlsafe.js";
 import { formatPoints, formatCentsPlain } from "./money.js";
 
-const $ = (s: string) => document.querySelector(s) as HTMLElement | null;
 const storageKey = 'hb_invite_v1';
 try {
   // 存储不可用 / 值被改坏时只是不预填邀请码，注册流程本身不依赖它。
@@ -52,8 +52,20 @@ const table = (heads: string[], rows: string[][]) =>
     ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map((x) => `<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((x) => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
     : '<p class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>';
 
-type ReferralApi = (path: string, options?: RequestInit) => Promise<any>;
-type ToastFn = (message: string, tone?: string) => void;
+// 提现手续费唯一口径，必须与后端 commerce/money.py 的 withdraw_fee_centi 一致：
+// 输入积分与百分比，内部转「厘」与「基点」；fee=floor(cents*bps/10000)，不足 0.01 舍去。
+// 设置或输入缺失/非数时一律按 0 处理，绝不把 NaN 渲染进文案。
+const withdrawFeeBreakdown = (pointsValue: unknown, percent: unknown) => {
+  const cents = Math.max(0, Math.round((Number(pointsValue) || 0) * 100));
+  const bps = Math.max(0, Math.round((Number(percent) || 0) * 100));
+  // 与后端 withdraw_fee_centi 同款钳制：bps>=10000（费率≥100%）视为配置错误，全额扣除。
+  const fee = cents > 0 ? (bps >= 10000 ? cents : Math.floor((cents * bps) / 10000)) : 0;
+  return { cents, fee, net: Math.max(0, cents - fee) };
+};
+
+// 历史分页页大小：必须与后端 store_catalog.HISTORY_PAGE_SIZE 保持一致
+// （store_referrals 的 ledger/withdrawals 两个列表都按它 offset/limit）。
+const HISTORY_PAGE_SIZE = 20;
 
 type ReferralData = {
   invitedCount?: number;
@@ -80,7 +92,7 @@ export const HBReferrals = {
       /* ignore */
     }
   },
-  async init(api: ReferralApi, toast: ToastFn) {
+  async init() {
     let data: ReferralData | undefined;
     let kind = 'ledger';
     let page = 1;
@@ -101,13 +113,14 @@ export const HBReferrals = {
     const preview = () => {
       const form = $('#referral-withdraw-form') as HTMLFormElement | null;
       const pointsEl = form?.elements.namedItem('points') as HTMLInputElement | null;
-      const raw = pointsEl?.value;
-      const cents = Math.round(Number(raw || minPoints() || 0) * 100);
-      const bps = Math.round(Number(data?.settings?.withdrawalFeePercent) * 100);
-      const fee = Math.floor((cents * bps) / 10000);
+      const feePercent = Number(data?.settings?.withdrawalFeePercent) || 0;
+      const { fee, net } = withdrawFeeBreakdown(
+        pointsEl?.value || minPoints(),
+        feePercent,
+      );
       const feeBox = $('#referral-fee-preview');
       if (feeBox) {
-        feeBox.textContent = `手续费 ${data?.settings?.withdrawalFeePercent}%：${formatPoints(fee)} 积分；预计到账 ${formatCentsPlain(Math.max(0, cents - fee))} 元。`;
+        feeBox.textContent = `手续费 ${feePercent}%：${formatPoints(fee)} 积分；预计到账 ${formatCentsPlain(net)} 元。`;
       }
     };
     async function refresh() {
@@ -170,7 +183,9 @@ export const HBReferrals = {
       }
       const guideFee = $('#referral-guide-fee');
       if (guideFee) {
-        guideFee.textContent = `1 积分等于 1 元，满 ${minPoints()} 积分可以申请提现。当前手续费 ${s?.withdrawalFeePercent}%，申请 ${minPoints()} 积分，扣除 ${s?.withdrawalFeePercent} 积分手续费，实际到账 ${(minPoints() - Number(s?.withdrawalFeePercent)).toFixed(2)} 元。手续费不足 0.01 部分舍去。`;
+        const feePercent = Number(s?.withdrawalFeePercent) || 0;
+        const guideCalc = withdrawFeeBreakdown(minPoints(), feePercent);
+        guideFee.textContent = `1 积分等于 1 元，满 ${minPoints()} 积分可以申请提现。当前手续费 ${feePercent}%，申请 ${minPoints()} 积分，扣除 ${formatPoints(guideCalc.fee)} 积分手续费，实际到账 ${formatCentsPlain(guideCalc.net)} 元。手续费不足 0.01 部分舍去。`;
       }
       // 输入框的下限同样跟服务端走：模板里的 min/placeholder 是给「还没拿到设置」时兜底的静态值。
       const form = $('#referral-withdraw-form') as HTMLFormElement | null;
@@ -232,7 +247,7 @@ export const HBReferrals = {
       const prev = $('#referral-prev') as HTMLButtonElement | null;
       if (prev) prev.disabled = page === 1;
       const next = $('#referral-next') as HTMLButtonElement | null;
-      if (next) next.disabled = page * 20 >= result.total;
+      if (next) next.disabled = page * HISTORY_PAGE_SIZE >= result.total;
     }
     const copy = async (text: string) => {
       try {

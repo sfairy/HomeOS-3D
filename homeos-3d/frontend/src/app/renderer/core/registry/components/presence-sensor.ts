@@ -2,7 +2,6 @@
  * `presence-sensor` 控件：人体感应，附带门磁 / 水浸 / 烟感 / 燃气四种传感器专题绘制。
  */
 
-type AnyObj = Record<string, any>;
 import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js";
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import {

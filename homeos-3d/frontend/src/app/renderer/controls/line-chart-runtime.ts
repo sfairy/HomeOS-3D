@@ -2,7 +2,6 @@
  * 折线图几何与数值格式化。
  */
 
-type AnyObj = Record<string, any>;
 
 /**
  * 把时间序列映射到给定绘图区的坐标。
@@ -14,6 +13,11 @@ export function lineChartGeometry(
   plotWidth: any = 100,
   plotHeight: any = 59
 ) {
+  // 空序列没有极值也没有时间锚点，强行展开只会得到 Infinity/NaN（series[0] 直接是 undefined）：
+  // 交回 null 由调用方走「暂无数据」分支；两个现有调用点在调用前均已判空。
+  if (!Array.isArray(series) || series.length === 0) {
+    return null;
+  }
   const dataMin = Math.min(...series.map((datapoint: any) => datapoint.value));
   const dataMax = Math.max(...series.map((seriesPoint: any) => seriesPoint.value));
   const valueSpan = dataMax - dataMin;

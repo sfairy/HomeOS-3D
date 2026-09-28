@@ -1,15 +1,10 @@
 
-type AnyObj = Record<string, any>;
 /*
  * 取色器。
  */
 
 import { clampNumber } from "../../utils/numbers.js";
-import {
-  hexColorOrEmpty,
-  paletteColor,
-  strictHexColorOrEmpty
-} from "../../utils/colors.js";
+import { hexColorOrEmpty } from "../../utils/colors.js";
 import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from "../editor-utils.js";
 
 export function createColorPicker(ctx: any) {

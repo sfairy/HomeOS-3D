@@ -28,11 +28,6 @@ from .heartbeat import LicenseHeartbeatMixin
 from .transport import LicenseTransportMixin
 
 
-
-
-
-
-
 #: 本机拿不出可用激活凭证时返回的错误码，前端据此展开手动激活表单。
 MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
 
@@ -174,20 +169,6 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
                 self._log_event('warning', f'联网确认绑定失败（已吊销）：{error}')
             # 网络 / 临时故障 / 限流：保留离线租约，等心跳循环重试。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def _begin_startup_validation(self) -> bool:
         """启动期离线校验（同步，调用方放进工作线程）；返回是否还需联网确认。
         """
@@ -267,13 +248,6 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
         self._retry_task = None
         self._startup_validation_task = None
         self._process_lock.release()
-
-
-
-
-
-
-
 
     async def activate(self, activation_code: str, email: str | None = None) -> dict:
         """用激活码激活当前安装。
@@ -446,12 +420,6 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
             self._record_status(state.status)
         self._schedule_changed.set()
 
-
-
-
-
-
-
     def status(self) -> dict:
         """取当前状态（开一个短事务，读单行状态后组装成字典）。"""
         with self.database.session_factory() as database:
@@ -486,10 +454,6 @@ class LicenseService(LicenseHeartbeatMixin, LicenseTransportMixin):
         # displayAllowed 现算而不是从 status 里取：它由签名租约 + 权益集合共同决定，
         output['displayAllowed'] = self.allows('display')
         return output
-
-
-
-
 
     def _verified_access(self, state: LicenseState, feature: str | None = None) -> bool:
         """重新校验签名租约，而不是信任可被改写的 SQLite 状态字段。

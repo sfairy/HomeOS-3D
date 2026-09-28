@@ -2,7 +2,6 @@
  * `camera` 控件：注册 `registry/camera.js` 的挂载函数。
  */
 
-type AnyObj = Record<string, any>;
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
 import { resolveStateEntry } from "../../../../utils/state-entry.js";
 // 同门分片：camera

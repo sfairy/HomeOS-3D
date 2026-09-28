@@ -1,7 +1,5 @@
-"""商店接口的 connection 资源组（从 api/store.py 拆出）。
+"""Home Assistant 连接管理的 connection 资源组。
 """
-from __future__ import annotations
-
 from __future__ import annotations
 
 import asyncio
@@ -9,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..security.dependencies import DatabaseSession, LicensedUser
+from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
 from ..ha.client import HAClientError, link_local_address
 from ..ha.endpoints import endpoint_candidates
 from ..ha.crypto import CredentialCipherError
@@ -24,7 +22,6 @@ from .ha_shared import (
     connection_payload,
     failed_endpoint_summary,
     probe_endpoints,
-    require_admin_for_ha,
 )
 
 
@@ -44,7 +41,7 @@ def get_connection(request: Request, database: DatabaseSession, _user: LicensedU
 async def delete_connection(request: Request, database: DatabaseSession, user: LicensedUser) -> None:
     """删除 HA 连接配置（需管理员 + 授权允许 api）。
     """
-    require_admin_for_ha(user)
+    require_admin(user, detail='仅管理员可以修改 Home Assistant 连接。')
     connection = active_connection(database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Home Assistant 连接不存在。')
@@ -86,7 +83,7 @@ async def save_connection(
     # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.configure'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
-    require_admin_for_ha(user)
+    require_admin(user, detail='仅管理员可以修改 Home Assistant 连接。')
     connector = request.app.state.ha_connector
     connection = active_connection(database)
     endpoints = endpoint_candidates(

@@ -137,11 +137,6 @@ def mail_from_error(value: str) -> str:
     return ""
 
 
-def site_name_error(value: str) -> str:
-    """站点名会进邮件主题，校验口径与其它邮件头字段一致。"""
-    return header_text_error(value, label="站点名称")
-
-
 def _render_plain(code: str, copy: _Copy, site: str, ttl_minutes: int) -> str:
     return (
         "您好，\n\n"

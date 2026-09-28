@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import {
   clampCoercedNumber,
   clampNumber

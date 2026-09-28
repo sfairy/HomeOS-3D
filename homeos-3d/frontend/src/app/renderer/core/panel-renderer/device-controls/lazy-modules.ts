@@ -7,7 +7,7 @@ type AnyObj = Record<string, any>;
 import { entityDomainFromId } from "../../../../utils/entities.js";
 
 /** 设备种类 -> 加载器。键同时是调用方要声明的「我需要哪几类」。 */
-export const DEVICE_CONTROL_LOADERS: AnyObj = {
+const DEVICE_CONTROL_LOADERS: AnyObj = {
   capability: () => import("./capability.js"),
   "air-purifier": () => import("./air-purifier.js"),
   "media-player": () => import("./media-player.js"),
@@ -123,7 +123,7 @@ export function runDeviceControlMethod(kinds: any, target: any, methodName: any,
 /**
  * 由「控件 + 设备画像」推出这一屏可能要用的种类。
  */
-export function detailsDeviceControlKinds(component: any, deviceProfile: any) {
+function detailsDeviceControlKinds(component: any, deviceProfile: any) {
   const kinds = new Set<any>();
   const type = String(component?.type || "");
   const deviceType = String(component?.properties?.deviceType || deviceProfile?.deviceType || "");
@@ -165,7 +165,7 @@ export function detailsDeviceControlKinds(component: any, deviceProfile: any) {
 }
 
 /** 由一批控件推出种类（摄像头 / 扫地机预览等按控件派发的调用点用）。 */
-export function componentsDeviceControlKinds(components: any) {
+function componentsDeviceControlKinds(components: any) {
   const kinds = new Set<any>();
   for (const component of components || []) {
     for (const kind of detailsDeviceControlKinds(component, null)) kinds.add(kind);
@@ -176,7 +176,7 @@ export function componentsDeviceControlKinds(components: any) {
 /**
  * 由弹窗定义推出种类。
  */
-export function popupDeviceControlKinds(popupDefinition: any) {
+function popupDeviceControlKinds(popupDefinition: any) {
   const kinds = new Set<any>();
   for (const module of popupDefinition?.modules || []) {
     const component = module?.component || module;

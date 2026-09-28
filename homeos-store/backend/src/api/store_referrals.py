@@ -2,11 +2,10 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from ..commerce import money, referrals
 from ..core.deps import AuthedAccount, DbSession
@@ -92,14 +91,8 @@ def referral_history(
         )
         items = [
             {
-                "id": row.id,
-                "points": money.format_centi(row.points_centi),
-                "feePoints": money.format_centi(row.fee_points_centi),
-                "feePercent": money.format_centi(row.fee_bps).rstrip("0").rstrip("."),
-                "netPoints": money.format_centi(row.net_points_centi),
-                "status": row.status,
+                **_withdrawal_payload(row),
                 "note": row.note,
-                "createdAt": iso(row.created_at),
                 "resolvedAt": iso(row.resolved_at),
             }
             for row in rows
@@ -208,4 +201,20 @@ def request_withdrawal(
             status_code=status.HTTP_409_CONFLICT,
             detail="钱包刚刚有其它操作，请刷新后重试。",
         ) from None
+    except IntegrityError:
+        # request_key 是全局唯一索引：两个账号（或同账号双击）并发用同一请求键提交时，
+        # 上面的 SELECT 查重挡不住，败者在 flush 时撞键。回滚后复查，把裸 500 换成
+        # 业务口径（别人的键→409；自己的键→幂等返回既有单）；其它完整性错误照旧抛出。
+        session.rollback()
+        clashing = session.scalars(
+            select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == payload.request_key)
+        ).first()
+        if clashing is not None:
+            if clashing.wallet_id == wallet.id:
+                return _withdrawal_payload(clashing)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="该请求号已被占用，请更换后重试。",
+            ) from None
+        raise
     return _withdrawal_payload(withdrawal)

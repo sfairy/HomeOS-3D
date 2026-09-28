@@ -9,7 +9,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import func, or_, select
 
-from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, viewer_entity_ids
+from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_admin, viewer_entity_ids
 from ..ha.client import HAClientError
 from ..ha.endpoints import endpoint_candidates
 from ..ha.crypto import CredentialCipherError
@@ -29,7 +29,6 @@ from .ha_shared import (
     load_active_connection_snapshot,
     load_authorized_entity_context,
     probe_endpoints,
-    require_admin_for_ha,
 )
 from . import ha_connection
 
@@ -112,33 +111,15 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # connection 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(ha_connection.router)
-
-
-
-
-
-
 
 
 @router.post('/test')
 async def test_connection(payload: HATestRequest, request: Request, user: LicensedUser) -> dict[str, Any]:
     """用请求里给的地址与 Token 试连 HA（需管理员 + 授权允许 api）。
     """
-    require_admin_for_ha(user)
+    require_admin(user, detail='仅管理员可以修改 Home Assistant 连接。')
     # 限流键用账号 id：本端点要求管理员，而它唯一能被滥用的方式就是「同一个管理员反复点」——
     limiter = request.app.state.ha_test_limiter
     remaining = limiter.retry_after(user.id)
@@ -246,12 +227,6 @@ def list_entities(
     }
 
 
-
-
-
-
-
-
 @router.get('/translations')
 async def entity_translations(
     request: Request,
@@ -316,8 +291,6 @@ async def entity_history(
         step = len(points) / 480
         points = [points[min(len(points) - 1, int(index * step))] for index in range(480)]
     return {'entityId': entity_id, 'hours': hours, 'points': points}
-
-
 
 
 @router.get('/areas')
@@ -421,7 +394,7 @@ async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
-    require_admin_for_ha(user)
+    require_admin(user, detail='仅管理员可以修改 Home Assistant 连接。')
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
@@ -572,19 +545,3 @@ async def browse_media(
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
     return {'ok': True, 'result': result}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

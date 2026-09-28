@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 
 /**
  * 取控件级的电机方向设置：是否反转。

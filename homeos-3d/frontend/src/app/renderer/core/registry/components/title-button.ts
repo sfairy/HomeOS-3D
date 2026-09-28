@@ -2,7 +2,6 @@
  * `title-button` 控件：标题 / 副标题 / 图标与字号，支持模板变量替换。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import { mdiIconUrl } from "../../../../utils/icon-url.js";
 // 标记点默认色取全站主控色（见 design/scene/page.css）。

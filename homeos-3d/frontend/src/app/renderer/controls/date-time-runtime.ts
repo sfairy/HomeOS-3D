@@ -2,7 +2,6 @@
  * 日期 / 时间控件的格式化工具。
  */
 
-type AnyObj = Record<string, any>;
 
 /**
  * 把日期格式化成时间文案。

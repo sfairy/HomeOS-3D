@@ -136,8 +136,11 @@ export async function pagedFetch(
       if (seq === cursor.seq) {
         const message = error instanceof Error ? error.message : '请稍后重试';
         setTableState(key, 'error', message);
+        throw error;
       }
-      throw error;
+      // 本请求已被更新的翻页/筛选请求取代：静默吞掉拒绝（返回与成功过期路径一致的 null），
+      // 否则快速翻页时旧请求的 reject 会从 pagedFetch 冒泡，额外弹一个错误 toast。
+      return null;
     }
     // 拿到数据就把压暗去掉；行内容由各 loader 自己填（它们才知道列怎么排）。
     if (seq !== cursor.seq) return null;

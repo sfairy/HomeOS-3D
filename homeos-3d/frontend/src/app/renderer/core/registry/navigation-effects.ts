@@ -2,7 +2,6 @@
  * 导航按钮的特效层与高亮判定。
  */
 
-type AnyObj = Record<string, any>;
 import { randomUuid } from "../../../utils/random-id.js";
 import { clampCoercedNumber } from "../../../utils/numbers.js";
 // 同门分片：registry-visuals

@@ -16,8 +16,6 @@ import {
   validCurtainGroups
 } from "../../cover/cover-groups.js";
 
-type AnyObj = Record<string, any>;
-
 
 export function createBindingCollectors(ctx: any) {
   /**

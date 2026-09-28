@@ -511,7 +511,7 @@ export function mountCameraMedia({
           // 自动播放被浏览器策略拦下是预期结果（要等用户交互），不该冒出未处理的拒绝。
           cameraVideoElement.play().catch(() => {});
         });
-        hlsInstance.on(HlsApi.Events.ERROR, (hlsEventName: any, hlsEventData: any) => {
+        hlsInstance.on(HlsApi.Events.ERROR, (_hlsEventName: any, hlsEventData: any) => {
           if (!isMediaDisposed && !isMediaSuspended && playbackGeneration === mediaGeneration) {
             if (hlsEventData?.fatal) {
               cameraSourceCache.delete(String(mediaEntityId || "").trim());

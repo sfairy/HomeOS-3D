@@ -9,7 +9,7 @@
 // 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
 import { escapeHtml } from "../../utils/html-escape.js";
 
-export const STUDIO_ASSET_PALETTE = [
+const STUDIO_ASSET_PALETTE = [
   {
     category: "home",
     label: "客厅常用",

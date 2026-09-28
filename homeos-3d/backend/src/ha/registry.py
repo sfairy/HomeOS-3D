@@ -7,37 +7,9 @@ import time
 import traceback
 from typing import Any
 from sqlalchemy import select
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, utc_now
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
+from ..core.time_utils import utc_now
 from ..observability.global_log import _safe_text
-# 当前端点的复用窗口（秒）。在用的这一路每隔这么久复探一次：内网可能已经恢复（回家、
-HA_ENDPOINT_RECHECK_SECONDS = 60
-# 补拉状态的重试退避（秒）：共尝试 3 次（首次 + 两次重试），
-STATE_FETCH_RETRY_DELAYS = (0.2, 0.6)
-HISTORY_FETCH_CONCURRENCY = 2
-HISTORY_CACHE_SECONDS = 30
-# 判断「状态是否不完整、值得再拉一次」的关键属性表。HA 启动初期或集成重载时会先返回
-STATE_FETCH_REQUIRED_ATTRIBUTES = {
-    'climate': {
-        'fan_modes',
-        'hvac_modes',
-        'swing_modes',
-        'temperature',
-        'preset_modes',
-        'supported_features',
-        'current_temperature'} }
-
-def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
-    """判断某个实体的状态是否缺失或残缺、需要重新拉取。"""
-    domain = entity_id.partition('.')[0]
-    required_attributes = STATE_FETCH_REQUIRED_ATTRIBUTES.get(domain)
-    if required_attributes is None:
-        if state is None:
-            return True
-        # 不在白名单里的域只要有状态就算完整；sensor 例外：unknown / unavailable 是
-        return domain == 'sensor' and str(state.get('state') or '').strip().casefold() in frozenset({'unknown', 'unavailable'})
-    attributes = state.get('attributes') if isinstance(state, dict) else None
-    # 属性表缺失，或必备属性一个都没有 —— 两种情况都按残缺处理。
-    return not isinstance(attributes, dict) or not required_attributes.intersection(attributes)
 
 from .contracts import (
     INCREMENTAL_FLUSH_SECONDS,

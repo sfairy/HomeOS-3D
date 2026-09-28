@@ -2,6 +2,7 @@
  * 概览面板。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import { PENDING_FILTER_VALUES, resetPage } from "../table.js";
 import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js";
@@ -71,10 +72,6 @@ export const OVERVIEW_TODOS: Array<{
     jump: { page: 'products', filter: '#product-status', value: 'lowstock' },
   },
 ];
-
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
 
 // 概览里的跳转统一走这里：先设筛选、再切面板，切面板时 loaders 会带着新筛选重新拉。
 export function jumpFromOverview(target: OverviewJump | null | undefined) {
@@ -376,7 +373,7 @@ $('#panel-overview')?.addEventListener('click', (event) => {
 });
 
 $('#overview-refresh')?.addEventListener('click', () =>
-  loadOverview().catch((error) => toast(errMsg(error), 'danger')),
+  loadOverview().catch((error) => toast(errorMessage(error, '操作失败'), 'danger')),
 );
 
 $('#overview-toggle-maintenance')?.addEventListener('click', async () => {
@@ -390,7 +387,7 @@ $('#overview-toggle-maintenance')?.addEventListener('click', async () => {
     toast(next ? '已开启维护模式' : '已关闭维护模式');
     await loadOverview();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -417,7 +414,7 @@ $('#overview-recompute-stock')?.addEventListener('click', async () => {
     );
     await Promise.all([loadOverview(), host.loadProducts?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -446,6 +443,6 @@ $('#overview-incidents-ack')?.addEventListener('click', async () => {
     );
     renderIncidents(result.incidents);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

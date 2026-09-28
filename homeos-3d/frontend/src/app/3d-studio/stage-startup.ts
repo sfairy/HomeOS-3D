@@ -31,7 +31,7 @@ type StageStartupOptions = {
 /**
  * 在舞台页发起提前加载。
  */
-export function beginStageStartup({
+function beginStageStartup({
   env: env = globalThis as unknown as StageEnv,
   loadModule: loadModule = () => import(/* @vite-ignore */ STAGE_MODULE_URL),
   createCache: createCache = createScenePersistentCache as unknown as StageStartupOptions["createCache"]

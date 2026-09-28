@@ -15,7 +15,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.schema import Column
 
 from ..core.database import Base
-from ..core import models
+from ..core import models  # noqa: F401  # 副作用：把 ORM 模型注册进 Base.metadata
 
 logger = logging.getLogger("src.schema")
 

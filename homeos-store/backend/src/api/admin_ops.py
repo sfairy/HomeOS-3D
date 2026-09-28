@@ -2,13 +2,10 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import logging
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
 
 from ..commerce import coupons, money, referrals
 from ..core.deps import AdminAccount, DbSession
@@ -26,12 +23,10 @@ from ..core.models import (
 from ..security.security import (
     iso,
     utcnow,
-)  # noqa: F401
+)
 
 logger = logging.getLogger("src.admin")
 
-
-# 共享助手在 admin_shared.py；这里再导入一次，
 from .admin_shared import (
     _admin_actor,
     _audit,
@@ -231,25 +226,6 @@ def admin_list_coupon_redemptions(
     )
 
 
-def _recount_coupon_redemptions(session: Session, coupon: Coupon | None) -> int:
-    """把 ``coupon.redeemed_count`` 按「仍占用名额」的核销记录重算。
-    """
-    if coupon is None:
-        return 0
-    used = int(
-        session.execute(
-            select(func.count(CouponRedemption.id))
-            .outerjoin(Order, Order.id == CouponRedemption.order_id)
-            .where(CouponRedemption.coupon_id == coupon.id)
-            .where(*coupons.holds_slot_conditions())
-        ).scalar_one()
-        or 0
-    )
-    coupon.redeemed_count = used
-    session.flush()
-    return used
-
-
 @router.delete("/coupon-redemptions/{redemption_id}")
 def admin_void_coupon_redemption(
     redemption_id: str, session: DbSession, admin: AdminAccount
@@ -269,7 +245,7 @@ def admin_void_coupon_redemption(
         record.voided_at = utcnow()
         record.void_reason = f"后台作废（{_admin_actor(admin)}）"
         session.flush()
-    used = _recount_coupon_redemptions(session, coupon)
+    used = coupons.recount_coupon_slots(session, record.coupon_id)
     if not already:
         _audit(
             session,

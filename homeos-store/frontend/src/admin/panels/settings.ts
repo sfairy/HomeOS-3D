@@ -2,6 +2,7 @@
  * 站点配置与诊断。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, $$, toast } from "../dom.js";
 import { state } from "../state.js";
 import { api, withBusy } from "../api.js";
@@ -196,10 +197,6 @@ type SettingsPayload = {
   [key: string]: unknown;
 };
 
-function errMsg(error: unknown): string {
-  return error instanceof Error ? error.message : String(error || '操作失败');
-}
-
 function settingsForm(): SettingsForm {
   const form = $('#settings-form') as SettingsForm | null;
   if (!form) throw new Error('settings form missing');
@@ -250,7 +247,7 @@ export async function loadSettings() {
   try {
     data = await api('/settings') as SettingsPayload;
   } catch (error) {
-    setSettingsLoadState('error', errMsg(error));
+    setSettingsLoadState('error', errorMessage(error, '操作失败'));
     throw error;
   }
   state.settings = data;
@@ -969,7 +966,7 @@ settingsForm().addEventListener('submit', async (event) => {
       toast('站点配置已保存');
       await Promise.all([loadSettings(), host.loadOverview?.()]);
     }, '保存中…');
-  } catch (error) { toast(errMsg(error), 'danger'); }
+  } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
   finally {
     // 忙状态结束后必须按闸门重新校准：上面的 loadSettings() 失败时已经关掉了保存
     syncSettingsGate();
@@ -997,9 +994,9 @@ async function runChannelProbe(event: Event, { channel, resultId, listId }: { ch
     renderDiagnostics(listId, result.checks || []);
     toast(result.ok ? '凭据可用' : '凭据不可用', result.ok ? 'success' : 'danger');
   } catch (error) {
-    output.textContent = errMsg(error);
+    output.textContent = errorMessage(error, '操作失败');
     output.className = 'admin-hint is-danger';
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   } finally {
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -1052,9 +1049,9 @@ $('#mail-test-button')?.addEventListener('click', async (event) => {
       result.ok ? 'success' : 'danger',
     );
   } catch (error) {
-    output.textContent = errMsg(error);
+    output.textContent = errorMessage(error, '操作失败');
     output.className = 'admin-hint is-danger';
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   } finally {
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -1122,7 +1119,7 @@ export async function runPurge(key: string) {
     toast(result.deleted ? `已清理 ${result.deleted} 条` : '没有符合条件的记录，未做改动', result.deleted ? 'success' : 'warning');
     pageState(key).offset = 0;
     await spec.reload();
-  } catch (error) { toast(errMsg(error), 'danger'); }
+  } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
 }
 
 export async function loadDiagnostics() {
@@ -1166,7 +1163,7 @@ $('#panel-diagnostics')?.addEventListener('click', async (event) => {
       await api(`/sessions/${encodeURIComponent(String(kick.dataset.sessionRevoke || ''))}`, { method: 'DELETE' });
       toast('会话已撤销');
       await host.loadSessions?.();
-    } catch (error) { toast(errMsg(error), 'danger'); }
+    } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
     return;
   }
 
@@ -1184,7 +1181,7 @@ $('#panel-diagnostics')?.addEventListener('click', async (event) => {
       await api(`/license-sessions/${encodeURIComponent(String(licenseKick.dataset.licenseSessionRevoke || ''))}`, { method: 'DELETE' });
       toast('客户端会话已撤销');
       await host.loadLicenseSessions?.();
-    } catch (error) { toast(errMsg(error), 'danger'); }
+    } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
     return;
   }
 
@@ -1201,7 +1198,7 @@ $('#panel-diagnostics')?.addEventListener('click', async (event) => {
       await api(`/recovery-tokens/${encodeURIComponent(String(tokenKick.dataset.recoveryTokenRevoke || ''))}`, { method: 'DELETE' });
       toast('找回令牌已作废');
       await host.loadRecoveryTokens?.();
-    } catch (error) { toast(errMsg(error), 'danger'); }
+    } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
     return;
   }
 
@@ -1218,7 +1215,7 @@ $('#panel-diagnostics')?.addEventListener('click', async (event) => {
       const result = await api(`/coupon-redemptions/${voidRow.dataset.redemptionVoid}`, { method: 'DELETE' }) as { alreadyVoided?: boolean; redeemedCount?: number };
       toast(result.alreadyVoided ? '该记录此前已作废过' : `已作废，该优惠码当前占用 ${result.redeemedCount} 个名额`);
       await Promise.all([host.loadRedemptions?.(), host.loadCoupons?.()]);
-    } catch (error) { toast(errMsg(error), 'danger'); }
+    } catch (error) { toast(errorMessage(error, '操作失败'), 'danger'); }
     return;
   }
 });

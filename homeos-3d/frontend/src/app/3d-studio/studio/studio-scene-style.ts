@@ -42,7 +42,7 @@ export const WARM_HOME_STYLE = Object.freeze({
   glass: 9226677,
   frame: 10257502
 });
-export const WARM_SCENE_STYLE = Object.freeze({
+const WARM_SCENE_STYLE = Object.freeze({
   // 门窗框与门扇：暖白到浅木色的一族。
   windowFrame: 10726055,
   doorFrame: 10725279,

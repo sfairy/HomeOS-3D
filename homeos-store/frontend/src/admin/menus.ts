@@ -3,10 +3,7 @@
  */
 
 import { $, $$ } from "./dom.js";
-
-export const MENU_GAP = 5;
-
-export const MENU_MARGIN = 8;
+import { placePopover } from "./popover-place.js";
 
 type PopoverElement = HTMLElement & {
   showPopover?: () => void;
@@ -36,26 +33,8 @@ function placeRowMenu(menu: HTMLElement) {
   const pop = $('.menu__pop', menu);
   const toggle = $('[data-menu-toggle]', menu);
   if (!pop || !toggle) return;
-  // 先挪到原点量真实尺寸；此时已经是 fixed，量到的就是最终尺寸，不用等下一帧
-  pop.style.top = '0px';
-  pop.style.left = '0px';
-  const size = pop.getBoundingClientRect();
-  const anchor = toggle.getBoundingClientRect();
-  let top = anchor.bottom + MENU_GAP;
-  if (top + size.height > window.innerHeight - MENU_MARGIN) {
-    top = anchor.top - MENU_GAP - size.height;
-  }
-  top = Math.min(
-    Math.max(MENU_MARGIN, top),
-    Math.max(MENU_MARGIN, window.innerHeight - MENU_MARGIN - size.height),
-  );
-  // 右边缘与「⋯」对齐，同样夹进视口
-  const left = Math.min(
-    Math.max(MENU_MARGIN, anchor.right - size.width),
-    Math.max(MENU_MARGIN, window.innerWidth - MENU_MARGIN - size.width),
-  );
-  pop.style.top = `${Math.round(top)}px`;
-  pop.style.left = `${Math.round(left)}px`;
+  // 右边缘与「⋯」对齐；GAP/MARGIN 夹取算法与功能码选择器共用一份。
+  placePopover(pop, toggle);
 }
 
 export function openRowMenu(menu: HTMLElement) {

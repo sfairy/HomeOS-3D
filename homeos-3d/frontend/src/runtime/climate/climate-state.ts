@@ -107,7 +107,7 @@ export function purifierSpeedLevels(percentageStep: unknown) {
     return [];
   }
   const levelLabels = PURIFIER_SPEED_LEVEL_LABELS[levelCount];
-  return Array.from({ length: levelCount }, (levelUnused, levelIndex) => ({
+  return Array.from({ length: levelCount }, (_levelUnused, levelIndex) => ({
     label: levelLabels ? levelLabels[levelIndex] : levelIndex + 1 + " 档",
     percentage: Math.floor((100 * (levelIndex + 1)) / levelCount)
   }));

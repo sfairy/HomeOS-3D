@@ -1,21 +1,7 @@
-import { roundToDecimals } from "../../utils/numbers.js";
 import { isFrontendDebugMode } from "../../utils/debug-log.js";
-import { computeSurfaceLevels, computeLayoutKey, getDepthMaterial, bakeSurfaceLevels } from "./contact-shadow-passes.js";
+import { computeLayoutKey, getDepthMaterial, bakeSurfaceLevels } from "./contact-shadow-passes.js";
+import { findUserDataInAncestors } from "../scene-tree-utils.js";
 
-/**
- * 沿父链向上查找某个 userData 字段，返回第一个存在的值。
- */
-function findUserDataInAncestors(startObject3d: any, userDataKey: any) {
-  for (
-    let ancestorObject3d = startObject3d;
-    ancestorObject3d;
-    ancestorObject3d = ancestorObject3d.parent
-  ) {
-    if (ancestorObject3d.userData?.[userDataKey] !== undefined) {
-      return ancestorObject3d.userData[userDataKey];
-    }
-  }
-}
 /**
  * 判断对象自身及其全部祖先是否都可见。
  */

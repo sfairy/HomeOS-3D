@@ -2,7 +2,6 @@
  * 户型图自动导图：导出分辨率换算。
  */
 
-type AnyObj = Record<string, any>;
 
 // 导出尺寸的上下限：最小边不低于 320px（再小会糊），最大边不超过 4096（超过没有收益且拖慢渲染）。
 const MIN_EXPORT_EDGE = 320;

@@ -17,7 +17,7 @@ export const presenceDetailsMethods = {
   /**
    * 打开人体存在传感器详情弹窗（活动曲线、停留时长、触发事件）。
    */
-  showPresenceDetails(this: any, presenceComponent: any, { preview: presencePreview = false } = {}) {
+  showPresenceDetails(this: any, presenceComponent: any) {
     const presenceEntityId = presenceComponent.bindings?.entity?.entityId;
     if (!presenceEntityId) {
       throw new Error("该控件没有关联实体。");

@@ -2,7 +2,6 @@
  * 控件渲染共用的小工具：颜色校验、字重应用、SVG 建元素、内容尺寸单位换算、图表阈值色带解析。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../utils/numbers.js";
 import {
   CHART_THRESHOLD_FALLBACK_COLOR,

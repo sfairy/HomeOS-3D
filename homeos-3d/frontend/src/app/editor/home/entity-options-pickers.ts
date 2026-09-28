@@ -402,7 +402,7 @@ export function renderLightStatisticsEntityOptions(entitySearchQuery: any = "", 
             +(entityDomainOf(statisticsOptionA.entity) === "light") ||
           statisticsOptionA.index - statisticsOptionB.index
       )
-      .map(({ entity: statisticsOptionEntity, support: statisticsOptionSupport  }: AnyObj) => {
+      .map(({ entity: statisticsOptionEntity }: AnyObj) => {
         const statisticsOptionButtonElement = document.createElement("button");
         statisticsOptionButtonElement.type = "button";
         statisticsOptionButtonElement.className =

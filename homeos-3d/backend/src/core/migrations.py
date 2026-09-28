@@ -14,8 +14,6 @@ from alembic.script import ScriptDirectory
 from ..config import Settings
 from .file_lock import locked_file
 
-#: 唯一基线迁移（= head）。项目按首个发布版本维护，不兼容更早 revision。
-BASE_REVISION = '0001'
 #: 迁移锁文件名（与库文件同目录）。内核在进程结束时自动释放，因此进程被 kill 之后
 MIGRATION_LOCK_SUFFIX = '.migrate.lock'
 #: 迁移前快照的标签，出现在文件名里（``<库名>.pre-<标签>-<时间戳>.bak``）。

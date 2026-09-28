@@ -589,7 +589,6 @@ export function buildArchitectureLayer({
       const footprint = buildWallFootprint(
         loopedWall,
         loopedSolidPiece,
-        architecturePixelsPerMeter,
         architectureToWorld,
         joinExtensionsByWallId[loopedWall.id]
       );

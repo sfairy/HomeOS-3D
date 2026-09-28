@@ -112,65 +112,72 @@ function initializeDecoder(options: any): Promise<{ draco: any }> {
 function decodeGeometry(draco: any, decoder: any, encodedData: any, taskConfig: any) {
   const attributeIds = taskConfig.attributeIDs;
   const attributeTypes = taskConfig.attributeTypes;
-  let dracoGeometry;
-  let decodeResult;
-  const geometryType = decoder.GetEncodedGeometryType(encodedData);
-  // Draco 只承载三角网格与点云两种几何，分别走不同的解码入口。
-  if (geometryType === draco.TRIANGULAR_MESH) {
-    dracoGeometry = new draco.Mesh();
-    decodeResult = decoder.DecodeArrayToMesh(encodedData, encodedData.byteLength, dracoGeometry);
-  } else if (geometryType === draco.POINT_CLOUD) {
-    dracoGeometry = new draco.PointCloud();
-    decodeResult = decoder.DecodeArrayToPointCloud(
-      encodedData,
-      encodedData.byteLength,
-      dracoGeometry
-    );
-  } else {
-    // 文案与上游 THREE.DRACOLoader 逐字一致，便于按上游报错检索。
-    throw new Error("THREE.DRACOLoader: Unexpected geometry type.");
-  }
-  // ptr 为 0 表示 WASM 侧对象已失效，此时再取属性会读到野指针。
-  if (!decodeResult.ok() || dracoGeometry.ptr === 0) {
-    throw new Error("THREE.DRACOLoader: Decoding failed: " + decodeResult.error_msg());
-  }
+  let dracoGeometry: any;
+  let decodeResult: any;
   const geometryData: { index: any; attributes: any[] } = {
     index: null,
     attributes: []
   };
-  for (const attributeKey in attributeIds) {
-    const attributeType = (self as any)[attributeTypes[attributeKey]];
-    let dracoAttribute;
-    // useUniqueIDs 为真说明导出端用的是稳定唯一 id，按 id 取更可靠；
-    if (taskConfig.useUniqueIDs) {
-      dracoAttribute = decoder.GetAttributeByUniqueId(dracoGeometry, attributeIds[attributeKey]);
+  // geometry 由 WASM 侧持有：解码失败以及后续属性/索引提取阶段的任何抛错都必须销毁它，
+  // 否则每解一个坏模型就在解码器堆里泄漏一个 Mesh/PointCloud（成功路径同样在 finally 里销毁）。
+  try {
+    const geometryType = decoder.GetEncodedGeometryType(encodedData);
+    // Draco 只承载三角网格与点云两种几何，分别走不同的解码入口。
+    if (geometryType === draco.TRIANGULAR_MESH) {
+      dracoGeometry = new draco.Mesh();
+      decodeResult = decoder.DecodeArrayToMesh(encodedData, encodedData.byteLength, dracoGeometry);
+    } else if (geometryType === draco.POINT_CLOUD) {
+      dracoGeometry = new draco.PointCloud();
+      decodeResult = decoder.DecodeArrayToPointCloud(
+        encodedData,
+        encodedData.byteLength,
+        dracoGeometry
+      );
     } else {
-      const attributeId = decoder.GetAttributeId(dracoGeometry, draco[attributeIds[attributeKey]]);
-      if (attributeId === -1) {
-        continue;
+      // 文案与上游 THREE.DRACOLoader 逐字一致，便于按上游报错检索。
+      throw new Error("THREE.DRACOLoader: Unexpected geometry type.");
+    }
+    // ptr 为 0 表示 WASM 侧对象已失效，此时再取属性会读到野指针。
+    if (!decodeResult.ok() || dracoGeometry.ptr === 0) {
+      throw new Error("THREE.DRACOLoader: Decoding failed: " + decodeResult.error_msg());
+    }
+    for (const attributeKey in attributeIds) {
+      const attributeType = (self as any)[attributeTypes[attributeKey]];
+      let dracoAttribute;
+      // useUniqueIDs 为真说明导出端用的是稳定唯一 id，按 id 取更可靠；
+      if (taskConfig.useUniqueIDs) {
+        dracoAttribute = decoder.GetAttributeByUniqueId(dracoGeometry, attributeIds[attributeKey]);
+      } else {
+        const attributeId = decoder.GetAttributeId(dracoGeometry, draco[attributeIds[attributeKey]]);
+        if (attributeId === -1) {
+          continue;
+        }
+        dracoAttribute = decoder.GetAttribute(dracoGeometry, attributeId);
       }
-      dracoAttribute = decoder.GetAttribute(dracoGeometry, attributeId);
+      const decodedAttribute = decodeAttribute(
+        draco,
+        decoder,
+        dracoGeometry,
+        attributeKey,
+        attributeType,
+        dracoAttribute
+      );
+      // 顶点色在不同 glTF 导出器里可能是线性空间也可能是 sRGB，把主线程的判定结果带回，
+      if (attributeKey === "color") {
+        decodedAttribute.vertexColorSpace = taskConfig.vertexColorSpace;
+      }
+      geometryData.attributes.push(decodedAttribute);
     }
-    const decodedAttribute = decodeAttribute(
-      draco,
-      decoder,
-      dracoGeometry,
-      attributeKey,
-      attributeType,
-      dracoAttribute
-    );
-    // 顶点色在不同 glTF 导出器里可能是线性空间也可能是 sRGB，把主线程的判定结果带回，
-    if (attributeKey === "color") {
-      decodedAttribute.vertexColorSpace = taskConfig.vertexColorSpace;
+    // 点云没有拓扑，只有三角网格才有索引。
+    if (geometryType === draco.TRIANGULAR_MESH) {
+      geometryData.index = decodeIndex(draco, decoder, dracoGeometry);
     }
-    geometryData.attributes.push(decodedAttribute);
+    return geometryData;
+  } finally {
+    if (dracoGeometry) {
+      draco.destroy(dracoGeometry);
+    }
   }
-  // 点云没有拓扑，只有三角网格才有索引。
-  if (geometryType === draco.TRIANGULAR_MESH) {
-    geometryData.index = decodeIndex(draco, decoder, dracoGeometry);
-  }
-  draco.destroy(dracoGeometry);
-  return geometryData;
 }
 
 /**
@@ -180,14 +187,18 @@ function decodeIndex(dracoLib: any, meshDecoder: any, mesh: any) {
   const indexCount = mesh.num_faces() * 3;
   const indexByteLength = indexCount * 4;
   const indexPointer = dracoLib._malloc(indexByteLength);
-  meshDecoder.GetTrianglesUInt32Array(mesh, indexByteLength, indexPointer);
-  // 堆内存里的索引按 Float32 视图读出即可（同一块 ArrayBuffer，仅视图类型不同）。
-  const indexArray = new Uint32Array(dracoLib.HEAPF32.buffer, indexPointer, indexCount).slice();
-  dracoLib._free(indexPointer);
-  return {
-    array: indexArray,
-    itemSize: 1
-  };
+  try {
+    meshDecoder.GetTrianglesUInt32Array(mesh, indexByteLength, indexPointer);
+    // 堆内存里的索引按 Float32 视图读出即可（同一块 ArrayBuffer，仅视图类型不同）。
+    const indexArray = new Uint32Array(dracoLib.HEAPF32.buffer, indexPointer, indexCount).slice();
+    return {
+      array: indexArray,
+      itemSize: 1
+    };
+  } finally {
+    // GetTrianglesUInt32Array / 视图构造抛错时也必须归还堆块，否则 WASM 堆逐次泄漏。
+    dracoLib._free(indexPointer);
+  }
 }
 
 /**
@@ -210,46 +221,50 @@ function decodeAttribute(
   const dataByteLength = pointCount * componentByteLength;
   const paddedByteLength = pointCount * alignedByteLength;
   const dataPointer = dracoApi._malloc(dataByteLength);
-  attributeDecoder.GetAttributeDataArrayForAllPoints(
-    meshOrPointCloud,
-    sourceAttribute,
-    dracoDataType,
-    dataByteLength,
-    dataPointer
-  );
-  const rawAttributeArray = new arrayType(
-    dracoApi.HEAPF32.buffer,
-    dataPointer,
-    dataByteLength / arrayType.BYTES_PER_ELEMENT
-  );
-  let packedAttributeArray;
-  if (componentByteLength === alignedByteLength) {
-    // 本身已对齐，直接拷一份带走，不需要逐点重排。
-    packedAttributeArray = rawAttributeArray.slice();
-  } else {
-    packedAttributeArray = new arrayType(paddedByteLength / arrayType.BYTES_PER_ELEMENT);
-    let targetOffset = 0;
-    // 逐点把有效分量搬到紧凑数组里，丢弃对齐填充。
-    for (
-      let sourceOffset = 0;
-      sourceOffset < rawAttributeArray.length;
-      sourceOffset += componentCount
-    ) {
-      for (let componentIndex = 0; componentIndex < componentCount; componentIndex += 1) {
-        packedAttributeArray[targetOffset + componentIndex] =
-          rawAttributeArray[sourceOffset + componentIndex];
+  try {
+    attributeDecoder.GetAttributeDataArrayForAllPoints(
+      meshOrPointCloud,
+      sourceAttribute,
+      dracoDataType,
+      dataByteLength,
+      dataPointer
+    );
+    const rawAttributeArray = new arrayType(
+      dracoApi.HEAPF32.buffer,
+      dataPointer,
+      dataByteLength / arrayType.BYTES_PER_ELEMENT
+    );
+    let packedAttributeArray;
+    if (componentByteLength === alignedByteLength) {
+      // 本身已对齐，直接拷一份带走，不需要逐点重排。
+      packedAttributeArray = rawAttributeArray.slice();
+    } else {
+      packedAttributeArray = new arrayType(paddedByteLength / arrayType.BYTES_PER_ELEMENT);
+      let targetOffset = 0;
+      // 逐点把有效分量搬到紧凑数组里，丢弃对齐填充。
+      for (
+        let sourceOffset = 0;
+        sourceOffset < rawAttributeArray.length;
+        sourceOffset += componentCount
+      ) {
+        for (let componentIndex = 0; componentIndex < componentCount; componentIndex += 1) {
+          packedAttributeArray[targetOffset + componentIndex] =
+            rawAttributeArray[sourceOffset + componentIndex];
+        }
+        targetOffset += alignedComponentCount;
       }
-      targetOffset += alignedComponentCount;
     }
+    return {
+      name: attributeName,
+      count: pointCount,
+      itemSize: componentCount,
+      array: packedAttributeArray,
+      stride: alignedComponentCount
+    };
+  } finally {
+    // 取数或重排抛错时同样归还堆块（_free(0) 在 Emscripten 里等同 free(NULL)，安全）。
+    dracoApi._free(dataPointer);
   }
-  dracoApi._free(dataPointer);
-  return {
-    name: attributeName,
-    count: pointCount,
-    itemSize: componentCount,
-    array: packedAttributeArray,
-    stride: alignedComponentCount
-  };
 }
 
 /**

@@ -295,10 +295,6 @@ export function createLayoutController(options: any) {
     return referencePx > 0 ? (signedDeltaPx / referencePx) * 100 : 0;
   }
 
-  function axisKeyboardStepSize(axis: any) {
-    return Math.abs(axisPixelDeltaToSizeDelta(axis, KEYBOARD_STEP_PX));
-  }
-
   for (const separator of separatorConfigs) {
     const separatorElement = separator.element;
     if (!separatorElement) {

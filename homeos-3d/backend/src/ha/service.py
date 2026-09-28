@@ -12,7 +12,8 @@ from typing import Any
 from sqlalchemy import func, select
 from ..config import Settings
 from ..core.database import Database
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft
+from ..core.time_utils import utc_now
 from ..panel.global_popups import global_popups
 from ..observability.global_log import GlobalLogStore, _safe_text, event_context
 from ..panel.documents import parse_document
@@ -483,9 +484,6 @@ class HAConnectorService(HARegistryMixin, HALiveMixin):
         if current is not None and not current.done():
             current.cancel()
         self._registry_refresh_tasks[connection_id] = asyncio.create_task(self._debounced_registry_refresh(connection_id), name = f'ha-registry-refresh-{connection_id}')
-
-
-
 
     def _mark_sync_started(self, connection_id: str) -> None:
         with self.database.session_factory() as database:

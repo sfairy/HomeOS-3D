@@ -2,6 +2,7 @@
  * 商品面板。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   closeFeaturePickers,
@@ -79,10 +80,6 @@ type ProductForm = HTMLFormElement & {
     requiresLicense: HTMLInputElement;
   };
 };
-
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
 
 // --------------------------------------------------------------------------- //
 // 商品
@@ -194,7 +191,7 @@ export async function loadProducts() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -281,7 +278,7 @@ $('#product-rows')?.addEventListener('click', async (event) => {
       toast('商品图已移除');
       await Promise.all([loadProductCatalog(), loadProducts()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -318,7 +315,7 @@ $('#product-rows')?.addEventListener('click', async (event) => {
         host.loadOverview?.(),
       ]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
   }
 });
@@ -344,7 +341,7 @@ $('#product-rows')?.addEventListener('change', async (event) => {
     toast('商品图已更新');
     await loadProducts();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -379,6 +376,6 @@ $('#product-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

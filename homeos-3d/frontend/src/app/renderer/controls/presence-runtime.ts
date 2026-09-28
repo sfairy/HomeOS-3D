@@ -2,7 +2,6 @@
  * 人体感应控件的状态映射与动画相位计算：把 binary_sensor / device_tracker / 传感器 /
  */
 
-type AnyObj = Record<string, any>;
 import { entitySearchTextOf } from "../../utils/entities.js";
 import { resolveStateEntry } from "../../utils/state-entry.js";
 
@@ -213,9 +212,13 @@ export function presenceSensorPresentation(
       1,
       Number(presentationOptions.motionTimeoutSeconds) || 60
     );
-    const elapsedSinceChangeMs = Number.isFinite(motionStateTimestamp)
+    const rawElapsedSinceChangeMs = Number.isFinite(motionStateTimestamp)
       ? nowMs - motionStateTimestamp
       : null;
+    // 时钟回拨 / 对端时间戳落在未来会算出负数：按 0 钳制，
+    // 不能把「刚刚发生移动」误判成「早已超时」而立即翻成无人。
+    const elapsedSinceChangeMs =
+      rawElapsedSinceChangeMs === null ? null : Math.max(0, rawElapsedSinceChangeMs);
     // 「无移动持续时间」是比事件本身更权威的走人信号，但它必须比事件更新才算数
     const noMotionSeconds = Number(presentationOptions.noMotionSeconds);
     const noMotionTimestamp: any = Number(presentationOptions.noMotionStateTimestamp);
@@ -229,7 +232,7 @@ export function presenceSensorPresentation(
         ? !noMotionIsFresh || noMotionSeconds < motionTimeoutSeconds
         : Number.isFinite(motionStateTimestamp)) &&
       (elapsedSinceChangeMs === null ||
-        (elapsedSinceChangeMs >= 0 && elapsedSinceChangeMs <= motionTimeoutSeconds * 1000))
+        elapsedSinceChangeMs <= motionTimeoutSeconds * 1000)
     ) {
       return {
         key: "occupied",

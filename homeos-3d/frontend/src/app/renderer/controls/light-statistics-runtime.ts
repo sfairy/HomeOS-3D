@@ -2,7 +2,6 @@
  * 灯光统计控件的数据汇总。
  */
 
-type AnyObj = Record<string, any>;
 
 import {
   readFromMapOrRecord,

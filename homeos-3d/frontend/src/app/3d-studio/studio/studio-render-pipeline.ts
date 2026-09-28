@@ -159,6 +159,34 @@ import { floorOpeningPolygon } from "../plan/studio-floor-openings.js";
 import { GLTFLoader } from "/static/vendor/three/0.186.0/GLTFLoader.js";
 import { roundToDecimals } from "../../utils/numbers.js";
 
+/**
+ * 舞台模式（isStageViewerMode）下视为“环境设备”的 20 种物品类型：
+ * 放置时挂 environmentModel* userData，且在合批/实例化阶段跳过。
+ * 历史上本文件内有四份逐字相同的数组副本，统一收敛到这一份常量。
+ */
+const STAGE_ENVIRONMENT_ITEM_TYPES: readonly string[] = [
+  "wallac",
+  "floorac",
+  "airoutlet",
+  "airpurifier",
+  "curtain",
+  "freshair",
+  "thermostat",
+  "humidifier",
+  "dehumidifier",
+  "nas",
+  "camera",
+  "presence",
+  "tv",
+  "robotvacuum",
+  "doorbell",
+  "heater",
+  "ceilingac",
+  "ceilingfan",
+  "vacuumcleaner",
+  "floorwasher"
+];
+
 export const renderCache = isStageViewerMode
   ? createRenderCache({
       sceneId: new URLSearchParams(window.location.search).get("sceneId"),
@@ -1318,7 +1346,7 @@ export async function buildLightCache() {
   }
   const cacheRevision = state.lightCacheRevision;
   const cachePreviewLights = collectPreviewLights().filter(
-    ({ item: cacheLightItem, group: cacheLightGroup }: any) =>
+    ({ item: cacheLightItem }: any) =>
       finite(cacheLightItem.lightBrightness, 0) > 0
   );
   const cacheCanvasElement = state.renderer.domElement;
@@ -2593,28 +2621,7 @@ export function batchRepeatedItemMeshes(instanceRoot: any, instanceItemEntries: 
     if (
       SELF_LIT_ITEM_TYPES.has(instanceItemSpec.type) ||
       (isStageViewerMode &&
-        [
-          "wallac",
-          "floorac",
-          "airoutlet",
-          "airpurifier",
-          "curtain",
-          "freshair",
-          "thermostat",
-          "humidifier",
-          "dehumidifier",
-          "nas",
-          "camera",
-          "presence",
-          "tv",
-          "robotvacuum",
-          "doorbell",
-          "heater",
-          "ceilingac",
-          "ceilingfan",
-          "vacuumcleaner",
-          "floorwasher"
-        ].includes(instanceItemSpec.type)) ||
+        STAGE_ENVIRONMENT_ITEM_TYPES.includes(instanceItemSpec.type)) ||
       isSelected("item", instanceItemSpec.id)
     ) {
       continue;
@@ -2744,28 +2751,7 @@ export function mergeStaticItemMeshes(staticBatchRoot: any, staticItemEntries: a
       staticItemGroup.parent === staticBatchRoot &&
       !SELF_LIT_ITEM_TYPES.has(staticItemSpec.type) &&
       (!isStageViewerMode ||
-        ![
-          "wallac",
-          "floorac",
-          "airoutlet",
-          "airpurifier",
-          "curtain",
-          "freshair",
-          "thermostat",
-          "humidifier",
-          "dehumidifier",
-          "nas",
-          "camera",
-          "presence",
-          "tv",
-          "robotvacuum",
-          "doorbell",
-          "heater",
-          "ceilingac",
-          "ceilingfan",
-          "vacuumcleaner",
-          "floorwasher"
-        ].includes(staticItemSpec.type)) &&
+        !STAGE_ENVIRONMENT_ITEM_TYPES.includes(staticItemSpec.type)) &&
       !isSelected("item", staticItemSpec.id)
     ) {
       staticItemGroup.traverse((batchedSourceMesh: any) => {
@@ -3528,7 +3514,7 @@ export function addFloorGrid(gridSize: any, gridPalette: any, gridHeightY: any) 
       );
     gridHelper.material.userData.depthFadeShader = shader;
   };
-  gridHelper.onBeforeRender = (shaderMaterial: any, renderedScene: any, activeCamera: any) => {
+  gridHelper.onBeforeRender = (_shaderMaterial: any, _renderedScene: any, activeCamera: any) => {
     const depthFadeShader = gridHelper.material.userData.depthFadeShader;
     if (!depthFadeShader) {
       return;
@@ -3849,28 +3835,7 @@ export function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCa
     }
     if (
       isStageViewerMode &&
-      [
-        "wallac",
-        "floorac",
-        "airoutlet",
-        "airpurifier",
-        "curtain",
-        "freshair",
-        "thermostat",
-        "humidifier",
-        "dehumidifier",
-        "nas",
-        "camera",
-        "presence",
-        "tv",
-        "robotvacuum",
-        "doorbell",
-        "heater",
-        "ceilingac",
-        "ceilingfan",
-        "vacuumcleaner",
-        "floorwasher"
-      ].includes(placedItemSpec.type)
+      STAGE_ENVIRONMENT_ITEM_TYPES.includes(placedItemSpec.type)
     ) {
       placedItemModel.userData.environmentModelId = placedItemSpec.id;
       placedItemModel.userData.environmentModelType = placedItemSpec.type;
@@ -4058,28 +4023,7 @@ export function rebuildModelLayer(
     }
     if (
       isStageViewerMode &&
-      [
-        "wallac",
-        "floorac",
-        "airoutlet",
-        "airpurifier",
-        "curtain",
-        "freshair",
-        "thermostat",
-        "humidifier",
-        "dehumidifier",
-        "nas",
-        "camera",
-        "presence",
-        "tv",
-        "robotvacuum",
-        "doorbell",
-        "heater",
-        "ceilingac",
-        "ceilingfan",
-        "vacuumcleaner",
-        "floorwasher"
-      ].includes(layerItemSpec.type)
+      STAGE_ENVIRONMENT_ITEM_TYPES.includes(layerItemSpec.type)
     ) {
       layerItemModel.userData.environmentModelId = layerItemSpec.id;
       layerItemModel.userData.environmentModelType = layerItemSpec.type;

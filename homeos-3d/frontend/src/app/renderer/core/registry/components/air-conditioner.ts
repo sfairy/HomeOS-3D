@@ -2,7 +2,6 @@
  * `air-conditioner` 控件：温控主体，气流层在 `airflow.js`。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import {
   climateDefaultIcon,

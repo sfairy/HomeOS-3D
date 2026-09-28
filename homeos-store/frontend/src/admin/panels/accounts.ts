@@ -2,6 +2,7 @@
  * 提现与账号。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   actions,
@@ -54,10 +55,6 @@ type AccountForm = HTMLFormElement & {
   };
 };
 
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
-
 // --------------------------------------------------------------------------- //
 // 提现
 // --------------------------------------------------------------------------- //
@@ -76,7 +73,7 @@ export async function loadWithdrawals() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -149,7 +146,7 @@ $('#withdrawal-rows')?.addEventListener('click', async (event) => {
       toast('提现记录已删除');
       await Promise.all([loadWithdrawals(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -174,7 +171,7 @@ $('#withdrawal-rows')?.addEventListener('click', async (event) => {
     toast(approve ? '已通过提现' : '已驳回并退回积分');
     await Promise.all([loadWithdrawals(), host.loadOverview?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -198,7 +195,7 @@ export async function loadAccounts() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -298,7 +295,7 @@ $('#account-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -351,7 +348,7 @@ $('#account-rows')?.addEventListener('click', async (event) => {
       toast('账号已删除');
       await loadAccounts();
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
   }
 });

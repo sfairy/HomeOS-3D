@@ -2,7 +2,6 @@
  * 面板按钮点击音效。
  */
 
-type AnyObj = Record<string, any>;
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
   BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3";
 

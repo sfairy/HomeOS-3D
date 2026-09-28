@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -15,8 +14,6 @@ from ..core.canonical_json import canonical_json
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
 from .crypto import LicenseCryptoError, parse_timestamp
-
-logger = logging.getLogger(__name__)
 from .hardware import hardware_instance_id
 
 

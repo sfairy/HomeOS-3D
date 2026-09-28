@@ -2,7 +2,6 @@
  * `icon-button-effect` 控件：只负责注册，绘制与色温知识在 `effect-visuals.js`。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import { mdiIconUrl } from "../../../../utils/icon-url.js";
 // 同门分片：entity-state

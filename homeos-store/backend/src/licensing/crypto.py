@@ -188,14 +188,6 @@ class KeyRegistry:
         """新签发用的一代（列表第一项）。"""
         return self._generations[0]
 
-    @property
-    def previous(self) -> KeyGeneration | None:
-        """重叠窗口里的上一代；没有上一代时为 ``None``。"""
-        return self._generations[1] if len(self._generations) > 1 else None
-
-    def key_ids(self) -> tuple[str, ...]:
-        return tuple(generation.transport_key_id for generation in self._generations)
-
     def find(self, transport_key_id: Any) -> KeyGeneration | None:
         if not isinstance(transport_key_id, str):
             return None

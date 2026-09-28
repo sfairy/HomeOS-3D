@@ -2,6 +2,7 @@
  * 优惠码。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   actions,
@@ -56,10 +57,6 @@ type CouponForm = HTMLFormElement & {
   };
 };
 
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
-
 // --------------------------------------------------------------------------- //
 // 优惠码
 // --------------------------------------------------------------------------- //
@@ -78,7 +75,7 @@ export async function loadCoupons() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -212,7 +209,7 @@ $('#coupon-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -254,7 +251,7 @@ $('#coupon-rows')?.addEventListener('click', async (event) => {
       toast(next ? '优惠码已启用' : '优惠码已停用');
       await loadCoupons();
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -285,6 +282,6 @@ $('#coupon-rows')?.addEventListener('click', async (event) => {
     );
     await loadCoupons();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

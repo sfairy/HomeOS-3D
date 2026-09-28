@@ -2,6 +2,7 @@
  * 授权与设备绑定。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   actions,
@@ -55,10 +56,6 @@ type LicenseForm = HTMLFormElement & {
   };
 };
 
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
-
 // --------------------------------------------------------------------------- //
 // 激活码
 // --------------------------------------------------------------------------- //
@@ -79,7 +76,7 @@ export async function loadLicenses() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -196,7 +193,7 @@ $('#license-form')?.addEventListener('submit', async (event) => {
       '签发中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -244,7 +241,7 @@ $('#license-patch-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -291,7 +288,7 @@ $('#license-rows')?.addEventListener('click', async (event) => {
       toast(`授权已删除（连带清理 ${result.bindings ?? 0} 条绑定记录）`);
       await Promise.all([loadLicenses(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -319,7 +316,7 @@ $('#license-rows')?.addEventListener('click', async (event) => {
     );
     await loadLicenses();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -342,7 +339,7 @@ export async function loadBindings() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -406,7 +403,7 @@ $('#binding-rows')?.addEventListener('click', async (event) => {
     toast('绑定记录已删除');
     await Promise.all([loadBindings(), host.loadOverview?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -431,6 +428,6 @@ $('#binding-rows')?.addEventListener('click', async (event) => {
     toast('已强制解绑');
     await Promise.all([loadBindings(), host.loadOverview?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

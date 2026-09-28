@@ -5,7 +5,7 @@
 
 import { roundToDecimals } from "../../utils/numbers.js";
 
-export function computeSurfaceLevels(threeLib: any, meshList: any, floorY: any, levelLimit: any = 32, context: any = null) {
+export function computeSurfaceLevels(threeLib: any, meshList: any, floorY: any, levelLimit: any = 32) {
   const levelsByHeightKey = new Map();
   const vertexA = new threeLib.Vector3();
   const vertexB = new threeLib.Vector3();
@@ -281,7 +281,7 @@ export function getDepthMaterial(sourceMaterial: any, isSurfaceBake: any = false
 export function bakeSurfaceLevels(surfaceEntry: any, casterMeshes: any, overrideByCaster: any, renderScene: any, casterBounds: any, floorBaseY: any, fallbackMaterial: any, context: any) {
   const { THREE, settings, placeholderTexture, renderer, stats, trimMaterialCache, blurMaterial, isContactCasterMaterial, blurScene, blurCamera } = context;
 
-    const levels = computeSurfaceLevels(THREE, casterMeshes, floorBaseY, settings.maxSurfaceLevels, context);
+    const levels = computeSurfaceLevels(THREE, casterMeshes, floorBaseY, settings.maxSurfaceLevels);
     const levelHeights = levels.map((levelInfo: any) => levelInfo.height);
     // 先把浓度压到 0：烘焙期间旧图集可能正在被采样，若内容已对不上会出现闪烁，
     surfaceEntry.uniforms.plan2SurfaceOpacity.value = 0;

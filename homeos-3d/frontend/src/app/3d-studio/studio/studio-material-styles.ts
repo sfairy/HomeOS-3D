@@ -6,6 +6,7 @@ import {
   EXTERNAL_MODEL_ITEM_TYPES,
   HOME_ITEM_TYPES
 } from "./studio-item-types.js";
+import { shadeColor } from "./studio-color-utils.js";
 
 /** 默认值：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
@@ -25,7 +26,7 @@ export function materialStyleAutoLabel(itemType: any) {
 /**
  * 不参与「材质风格」的类型：
  */
-export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
+const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
   new Set([
     "mural",
     "featurewall",
@@ -41,7 +42,7 @@ export const MATERIAL_STYLE_EXCLUDED_ITEM_TYPES = Object.freeze(
 /**
  * 支持「材质风格」的全部类型：家居（含软装 / 家电 / 洁具）+ 可被外部模型替换的类型 + 家电模型类型，
  */
-export const MATERIAL_STYLE_ITEM_TYPES = new Set(
+const MATERIAL_STYLE_ITEM_TYPES = new Set(
   [...HOME_ITEM_TYPES, ...EXTERNAL_MODEL_ITEM_TYPES, ...APPLIANCE_MODEL_ITEM_TYPES].filter(
     itemType => !MATERIAL_STYLE_EXCLUDED_ITEM_TYPES.has(itemType)
   )
@@ -79,21 +80,6 @@ const SURFACE_METALNESS = Object.freeze({
   none: null
 });
 
-/**
- * 把颜色朝白（amount > 0）或朝黑（amount < 0）插值。纯整数运算，不引 THREE。
- * @param {number} color 0xRRGGBB。
- * @param {number} amount -1..1。
- * @returns {number} 0xRRGGBB。
- */
-function shadeColor(color: any, amount: any) {
-  const target = amount >= 0 ? 255 : 0;
-  const weight = Math.abs(amount);
-  const channel = (shift: any) => {
-    const value = (color >> shift) & 255;
-    return Math.round(value + (target - value) * weight);
-  };
-  return (channel(16) << 16) | (channel(8) << 8) | channel(0);
-}
 /**
  * 补齐 furniture* 四档中缺失的键。
  * @param {object} colors 风格显式声明的覆盖键。
@@ -1729,7 +1715,7 @@ export function isMaterialStyleCapable(itemType: any) {
 }
 
 /** 取某个风格档位定义；`auto` 或非法 id 返回 null。 */
-export function findMaterialStyle(itemType: any, styleId: any) {
+function findMaterialStyle(itemType: any, styleId: any) {
   if (!styleId || styleId === MATERIAL_STYLE_AUTO) {
     return null;
   }

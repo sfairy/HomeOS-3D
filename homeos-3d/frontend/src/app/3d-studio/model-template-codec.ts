@@ -1,6 +1,6 @@
 
 /** 模板信封版本。序列化字段一变就动它，旧条目会自动因版本不符而失效。 */
-export const MODEL_TEMPLATE_REVISION = "20260923-prepared-v2";
+const MODEL_TEMPLATE_REVISION = "20260923-prepared-v2";
 
 /** 允许进缓存的节点类型。这三种足以覆盖全部静态家具 / 家电模型。 */
 const STATIC_NODE_TYPES = ["Group", "Object3D", "Mesh"];

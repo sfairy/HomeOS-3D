@@ -2,7 +2,6 @@
  * 运行时文档的遍历与实体依赖收集。
  */
 
-type AnyObj = Record<string, any>;
 
 import { selectedRelatedEntityIds } from "../../shared/related-entities.js";
 import { isVirtualEntityId } from "../../shared/virtual-entities.js";

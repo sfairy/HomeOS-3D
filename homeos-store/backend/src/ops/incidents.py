@@ -17,10 +17,24 @@ logger = logging.getLogger("src.ops.incidents")
 KINDS: dict[str, str] = {
     # 钱已到账、订单已置为已支付，但发码/扣库存/记邀请奖励那一段抛了异常（最重的一档）。
     "fulfillment": "入账后履约失败",
+    "fulfillment.retry": "履约失败重试仍异常",
     # 用户在同步跳转页上被对账（查单）失败：这一笔可能停在待支付，异步通知与巡检还会再试。
     "reconcile.return": "跳转页查单失败",
     # 账号中心轮询订单时查单失败：同上，只是入口不同。
     "reconcile.poll": "轮询查单失败",
+    # 支付渠道异步回调到达，但站点凭据未配置/不完整。
+    "alipay.config": "支付宝回调配置缺失",
+    "wechat.config": "微信回调配置缺失",
+    # 渠道侧已真实退款，本地退款流水的独立事务却写入失败，必须人工对账。
+    "refund.ledger": "退款流水写入失败",
+    # 退款扣回邀请奖励时推荐人钱包余额不足，短差需人工追偿。
+    "referral.reversal_shortfall": "退款扣回邀请积分余额不足",
+    # 发码主链路里邀请奖励入账失败（不影响已签发的授权）。
+    "referral.reward": "邀请奖励入账失败",
+    # 发货通知邮件/验证码邮件投递或投递结果落库失败。
+    "delivery": "发货通知投递异常",
+    "delivery.record": "发货投递结果记录失败",
+    "verification.delivery_record": "验证码投递结果落库失败",
 }
 
 HEALTH_OK = "ok"

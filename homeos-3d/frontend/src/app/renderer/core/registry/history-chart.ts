@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../utils/numbers.js";
 import { formatZhDateTime } from "../../../utils/datetime.js";
 import {
@@ -292,6 +291,10 @@ export function renderLineChartDetails(detailsComponent: any, detailsContext: an
     detailsPlotRect.width,
     detailsPlotRect.height
   );
+  // 防御性兜底：空序列在函数入口已提前 return，此处 null 理论不可达。
+  if (!detailsGeometry) {
+    return detailsElement;
+  }
   const detailsSvg = appendSvgElement(detailsElement, "svg", {
     viewBox: "0 0 " + detailsViewBoxWidth + " " + detailsViewBoxHeight,
     preserveAspectRatio: "xMidYMid meet",

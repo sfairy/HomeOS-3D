@@ -9,7 +9,7 @@ from sqlalchemy import delete, select, text
 
 from ..security.access import admin_token_from, check_admin_session
 from ..security.admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
-from ..security.dependencies import CurrentUser, DatabaseSession
+from ..security.dependencies import CurrentUser, DatabaseSession, require_admin
 from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..core.models import LoginSession, User
 from ..core.schemas import (
@@ -36,12 +36,6 @@ router = APIRouter(tags=["authentication"])
 def public_user(user: User) -> UserResponse:
     """把 User 行裁剪成对外字段（不含口令哈希与 auth_externalized 等内部标记）。"""
     return UserResponse(id=user.id, username=user.username, role=user.role)
-
-
-def require_admin_account(user: User) -> None:
-    if user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可以管理登录会话。")
-    return None
 
 
 def request_metadata(request: Request) -> tuple[str, str]:
@@ -349,7 +343,7 @@ def list_sessions(
 ) -> LoginSessionListResponse:
     """列出当前管理员的全部登录会话（最近活跃在前）。
     """
-    require_admin_account(user)
+    require_admin(user, detail='仅管理员可以管理登录会话。')
     now = datetime.now(timezone.utc)
     settings = request.app.state.settings
     records = list(
@@ -381,7 +375,7 @@ def revoke_other_sessions(
 ) -> None:
     """退出其他所有设备，只保留当前这条会话，返回 204。
     """
-    require_admin_account(user)
+    require_admin(user, detail='仅管理员可以管理登录会话。')
     # 「只保留当前这条会话」的前提是知道当前这条是哪条：复用与认证依赖完全同一个判据，
     session = check_admin_session(
         database,
@@ -415,7 +409,7 @@ def revoke_session(
 ) -> None:
     """撤销指定的登录会话，返回 204（幂等：不存在也算成功）。
     """
-    require_admin_account(user)
+    require_admin(user, detail='仅管理员可以管理登录会话。')
     record = database.scalar(
         select(LoginSession).where(
             LoginSession.id_hash == session_id,

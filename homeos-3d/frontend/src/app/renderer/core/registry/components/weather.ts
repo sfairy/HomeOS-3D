@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import {
   meteoconUrl,

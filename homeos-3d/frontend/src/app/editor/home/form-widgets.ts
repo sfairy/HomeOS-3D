@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 /*
  * 表单控件增强。
  */

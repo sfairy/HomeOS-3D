@@ -6,11 +6,7 @@ type AnyObj = Record<string, any>;
 
 import { clone, roundField } from "../editor-utils.js";
 import { findComponent } from "../component-tree.js";
-import {
-  hexColorOrEmpty,
-  paletteColor,
-  strictHexColorOrEmpty
-} from "../../utils/colors.js";
+import { paletteColor } from "../../utils/colors.js";
 import { AIRFLOW_OTHER_COLOR } from "../../utils/airflow-colors.js";
 
 export function createPropertyDescriptors(ctx: any) {

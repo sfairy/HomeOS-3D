@@ -101,11 +101,20 @@ def write_cache(path: Path, content: bytes) -> None:
         now = time.time()
         # 写入进程被杀时会留下临时文件，超过 1 小时即回收。
         for candidate in root.glob('*/*.tmp'):
-            if now - candidate.stat().st_mtime > 3600:
+            # glob 与 stat/unlink 之间文件可能正被并发清理删掉：当作已消失跳过，
+            # 不能让一个 FileNotFoundError 中断整轮回收。
+            try:
+                stale = now - candidate.stat().st_mtime > 3600
+            except FileNotFoundError:
+                continue
+            if stale:
                 candidate.unlink(missing_ok=True)
         entries = []
         for candidate in root.glob('*/*.png'):
-            stat = candidate.stat()
+            try:
+                stat = candidate.stat()
+            except FileNotFoundError:
+                continue
             # 先按时间淘汰过期条目，不进入后面的容量统计。
             if now - stat.st_mtime > MAX_AGE_SECONDS:
                 candidate.unlink(missing_ok=True)

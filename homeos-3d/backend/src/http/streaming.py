@@ -7,8 +7,25 @@ import os
 from collections.abc import AsyncIterator, Callable
 from typing import BinaryIO
 
+from fastapi import HTTPException
+
 #: 攒够这么多字节才落盘一次。取 1 MiB：ASGI 分块通常是 64 KiB 上下，攒批把
 BATCH_BYTES = 1 << 20
+
+
+def size_limit_guard(*limits: tuple[int, str]) -> Callable[[int], None]:
+    """构造 ``write_stream_in_batches`` 的 before_write 回调。
+
+    按声明顺序逐档比对「截至当前实收字节数」，超过任一档（``received > ceiling``）
+    即抛 413 并回传该档文案；多档用于「单文件上限 + 账号总配额」这类串联判定。
+    """
+
+    def _reject_oversized(received: int) -> None:
+        for ceiling, detail in limits:
+            if received > ceiling:
+                raise HTTPException(status_code=413, detail=detail)
+
+    return _reject_oversized
 
 
 def flush_and_sync(descriptor: BinaryIO) -> None:

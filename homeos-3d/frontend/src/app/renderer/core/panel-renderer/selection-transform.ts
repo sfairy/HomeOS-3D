@@ -1261,7 +1261,6 @@ export const selectionTransformMethods: Record<string, (...args: any[]) => any> 
           });
           this.options.onComponentsDuplicate?.(
             copiedComponentEntries,
-            draggedComponent.id,
             draggedCopyId
           );
         } else if (dragRecords.length > 1) {

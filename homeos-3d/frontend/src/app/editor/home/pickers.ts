@@ -6,10 +6,7 @@ type AnyObj = Record<string, any>;
 
 import {
   ACTION_TYPES,
-  TOGGLE_ENTITY_DOMAINS,
   actionNeedsCurrentEntity,
-  actionPopupData,
-  componentActionIsSupported,
   entityIdSupportsToggle
 } from "../../shared/action-rules.js";
 import {
@@ -22,18 +19,7 @@ import { createEditorPickerLifecycle } from "../picker/editor-picker-lifecycle.j
 import { entityDomainOf } from "../../utils/entities.js";
 import { findComponent } from "../component-tree.js";
 import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js";
-import {
-  RELATED_ENTITY_DOMAIN_LABELS,
-  legacyRelatedEntityIds,
-  manualRelatedEntityConfig,
-  relatedEntityIsAvailable,
-  relatedEntityLabel,
-  relatedEntityNeedsConfirmation,
-  relatedPopupCandidates,
-  relatedPopupContext,
-  relatedPopupSelectionLimit,
-  selectedRelatedEntityIds
-} from "../../shared/related-entities.js";
+import { manualRelatedEntityConfig, relatedPopupContext } from "../../shared/related-entities.js";
 import { popupModuleEntityRecommended } from "../editor-document-management.js";
 
 export function createPickers(ctx: any) {

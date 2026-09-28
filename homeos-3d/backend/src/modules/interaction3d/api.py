@@ -52,29 +52,6 @@ from .api_support import (
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @router.post('/scenes', status_code=status.HTTP_201_CREATED)
 def snapshot_scene(request: Request, _user: LicensedUser):
     """把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。

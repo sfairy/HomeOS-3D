@@ -2,7 +2,6 @@
  * 编辑器的分节绑定。
  */
 
-type AnyObj = Record<string, any>;
 export function createSectionRegistry() {
   const disposers = new Map<any, any>();
 

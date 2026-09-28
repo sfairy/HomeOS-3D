@@ -58,8 +58,6 @@ import {
   popupModuleDialogTitle
 } from "../primitives.js";
 
-import { ensureDeviceControlMethods } from "./lazy-modules.js";
-
 export const customPopupMethods = {
   /**
    * 打开文档里定义的组合弹窗（customPopup）。
@@ -414,7 +412,7 @@ export const customPopupMethods = {
            */
           const renderBedAngleReadout = (
             bedAngleRole: any,
-            bedAngleModelElement: any,
+            _bedAngleModelElement: any,
             bedAngleReadoutValueElement: any
           ) => {
             const bedAngleDegrees = bedAngleValueFor((bedAngleStates as Record<string, any>)[bedAngleRole]);

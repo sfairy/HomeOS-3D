@@ -21,3 +21,9 @@ def ensure_aware(value: datetime | None) -> datetime | None:
     if value is None or value.tzinfo is not None:
         return value
     return value.replace(tzinfo=timezone.utc)
+
+
+def utc_now() -> datetime:
+    """统一的 UTC 时间来源：入库列默认值与日志时间戳共用，保证全部带时区。
+    """
+    return datetime.now(timezone.utc)

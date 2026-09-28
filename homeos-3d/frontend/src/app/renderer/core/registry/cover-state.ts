@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
 import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js";
 import {

@@ -358,6 +358,3 @@ def alipay_timestamp(moment: datetime | None = None) -> str:
     return (moment or datetime.now(CHINA_TZ)).astimezone(CHINA_TZ).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
-
-
-# 通知解析结果

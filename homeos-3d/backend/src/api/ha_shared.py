@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 from sqlalchemy import select
 
 from ..core.database import Database
@@ -12,15 +12,9 @@ from ..security.dependencies import DatabaseSession, ViewerPrincipal, require_vi
 from ..ha.client import HAClient, HAClientError
 from ..ha.endpoints import HAEndpoint
 from ..ha.crypto import CredentialCipherError
-from ..core.models import HAConnection, HAEntity, User
+from ..core.models import HAConnection, HAEntity
 
 
-
-
-def require_admin_for_ha(user: User) -> None:
-    if user.role != 'admin':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以修改 Home Assistant 连接。')
-    return None
 def active_connection(database: DatabaseSession) -> HAConnection | None:
     """取当前活跃的 HA 连接；未配置返回 None。
     """

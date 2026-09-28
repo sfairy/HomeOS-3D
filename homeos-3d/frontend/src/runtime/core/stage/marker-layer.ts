@@ -4,8 +4,6 @@
 // 组合条目的 id 口径只有一份实现（cover-groups.js）：拖拽回写要靠它把舞台 id 反查回配置组。
 import { curtainGroupEntryId } from "../../cover/cover-groups.js";
 
-type AnyObj = Record<string, any>;
-
 
 /* 标记上文字（安防标签、扫地机状态卡、扫地机房间名）的「设计画布倍数」。
  */

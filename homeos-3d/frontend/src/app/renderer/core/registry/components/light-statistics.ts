@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import { mdiIconUrl } from "../../../../utils/icon-url.js";
 // 「点亮数量」的激活色默认取全站主控色（见 design/scene/page.css）。

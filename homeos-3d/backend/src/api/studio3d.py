@@ -31,7 +31,7 @@ from ..modules.interaction3d.studio_cleanup import confirmation_token, plan_clea
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids, document_mentions
 from ..core.schemas import Studio3DDraftUpdate
-from ..http.streaming import flush_and_sync, write_stream_in_batches
+from ..http.streaming import flush_and_sync, size_limit_guard, write_stream_in_batches
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 # 各条上限都是「防御性天花板」：正常户型图远小于这些值，设上限是为了挡住前端 bug 或
@@ -449,12 +449,14 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     try:
         # 'xb' 独占创建：万一同名临时文件存在就直接失败，不做覆盖。
         with temporary_archive.open('xb') as output:
-            def _reject_oversized(received: int) -> None:
-                # 边收边计数，超过压缩包上限立刻中断，不等整个流收完。
-                if received > MAX_EXPORT_ARCHIVE_BYTES:
-                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='导出 ZIP 超过 NAS 保存上限。')
-
-            written = await write_stream_in_batches(request.stream(), output, before_write=_reject_oversized)
+            # 边收边计数，超过压缩包上限立刻中断，不等整个流收完。
+            written = await write_stream_in_batches(
+                request.stream(),
+                output,
+                before_write=size_limit_guard(
+                    (MAX_EXPORT_ARCHIVE_BYTES, '导出 ZIP 超过 NAS 保存上限。')
+                ),
+            )
             # flush + fsync 真的等存储设备回应（NAS 上可能到秒级），不能占着事件循环。
             await asyncio.to_thread(flush_and_sync, output)
         # 384 = 0o600，导出包可能含用户私有素材，权限与草稿保持一致。

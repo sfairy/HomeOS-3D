@@ -1,13 +1,13 @@
 import { $, $$, api, currentPage, onAccountLoaded, resetCouponPreview, state, storePageHref, toast, versionedStoreAsset } from "./store-shared.js";
-import { formatCents as money, formatCentsPlain as moneyAmount } from "./money.js";
+import { formatCents as money } from "./money.js";
 import { esc as escapeHtml } from "./htmlsafe.js";
-import { fromResponse } from "./api-error.js";
 import type { ApiError } from "./api-error.js";
+import { errorMessage } from "./store-types.js";
+import { bindPasswordToggles } from "./password-toggle.js";
 import { HBReferrals } from "./referrals.js";
 import { addonProducts, addonTypeLabel, applyProductFilter, availableAddonProducts, chooseProduct, isAddonProduct, isTrialProduct, primaryProductUnavailable, primaryProducts, renderAddons, renderPaymentMethods, renderProduct, renderProducts, requestedUpgradeLicenseId } from "./store-catalog.js";
 import { archiveOrder, cancelPendingOrderFrom, confirmAction, orderCountdownText, orderRemainingSeconds, pollOrder, showPayment, showPendingOrderNotice, stopPaymentTimers } from "./store-orders.js";
 import type {
-  DeviceReleasePolicy,
   StoreLicense,
   StoreOrder,
   StoreProduct,
@@ -29,18 +29,6 @@ function asInput(node: Element | RadioNodeList | null | undefined): HTMLInputEle
 function asButton(node: Element | null | undefined): HTMLButtonElement | null {
   return node as HTMLButtonElement | null;
 }
-function errMsg(error: unknown, fallback = '请求失败') {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
-
-
-// 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图；这里复用页面已
-let storeStaticVersion;
-
-
-
-
-
 // 页面可见性切换（三张表单共用一块玻璃坞）。原先在 store-shared.js，因要用到本层的
 function showPage() {
   const page = currentPage();
@@ -350,9 +338,6 @@ async function createOrder(event: Event) {
     const channel = asInput(form.elements.namedItem('paymentChannel'))?.value;
     if (channel) payload.paymentChannel = channel;
     const order = await api('/orders', { method: 'POST', body: JSON.stringify(payload) }) as StoreOrder;
-    if (order.orderNo && order.lookupToken) {
-      localStorage.setItem(`hb-order-${order.orderNo}`, String(order.lookupToken));
-    }
     showPayment(order);
   } catch (error) {
     const err = error as ApiError;
@@ -364,7 +349,7 @@ async function createOrder(event: Event) {
         return;
       }
     }
-    toast(errMsg(error), 'err');
+    toast(errorMessage(error), 'err');
   }
   finally { if (submit) submit.disabled = false; }
 }
@@ -424,14 +409,7 @@ function showGuestPurchaseNotice() {
 
 function bindPasswordControls(form: HTMLFormElement | null) {
   if (!form) return;
-  form.querySelectorAll('[data-password-toggle]').forEach((button) => button.addEventListener('click', () => {
-    const input = button.parentElement?.querySelector('input') as HTMLInputElement | null;
-    if (!input) return;
-    const visible = input.type === 'text';
-    input.type = visible ? 'password' : 'text';
-    button.textContent = visible ? '显示' : '隐藏';
-    button.setAttribute('aria-label', visible ? '显示密码' : '隐藏密码');
-  }));
+  bindPasswordToggles(form);
   const password = asInput(form.elements.namedItem('password'));
   const confirmation = asInput(form.elements.namedItem('confirmPassword'));
   const message = form.querySelector('[data-password-mismatch]') as HTMLElement | null;
@@ -485,7 +463,7 @@ function startEmailCooldown(button: HTMLButtonElement | null, seconds: number) {
 // 它说话：以前无论信发没发出去都提示「验证码已发送」，用户对着收件箱干等，而服务端
 // 其实根本没发出那封信 —— 注册就这样彻底卡死。
 // 这里的 `form` 参数仍然保留：将来若加「把码写进某个隐藏域」也走同一条路径。
-function applyVerificationResponse(form: HTMLFormElement | null, button: HTMLButtonElement | null, result: any) {
+function applyVerificationResponse(_form: HTMLFormElement | null, button: HTMLButtonElement | null, result: any) {
   startEmailCooldown(button, result.resendAfter || 120);
   if (result.delivered === true) {
     toast('验证码已发送，请检查邮箱。');
@@ -848,7 +826,7 @@ async function accountAction(event: Event) {
       if (result.sent) toast(`激活码已发往 ${result.email}。`);
       else toast(result.deliveryError || '邮件未能发出，请稍后再试或联系客服。', 'err');
     } catch (error) {
-      toast(errMsg(error, '重发失败，请稍后再试。'), 'err');
+      toast(errorMessage(error, '重发失败，请稍后再试。'), 'err');
     } finally {
       resend.disabled = false;
       resend.textContent = original;
@@ -916,7 +894,7 @@ async function accountAction(event: Event) {
       password?.focus();
     }
   } catch (error) {
-    toast(errMsg(error), 'err');
+    toast(errorMessage(error), 'err');
   } finally {
     state.releaseOpening = false;
     release.disabled = false;
@@ -942,7 +920,7 @@ async function saveLicenseLabel(event: Event) {
     toast('授权备注已保存。');
     await loadAccount();
   } catch (error) {
-    toast(errMsg(error), 'err');
+    toast(errorMessage(error), 'err');
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -975,7 +953,7 @@ async function accountOrderAction(event: Event) {
     try {
       await archiveOrder(archive.dataset.orderArchive || '');
     } catch (error) {
-      toast(errMsg(error), 'err');
+      toast(errorMessage(error), 'err');
       archive.disabled = false;
     }
   }
@@ -1008,12 +986,12 @@ async function releaseDevice(event: Event) {
   } catch (error) {
     const err = error as ApiError;
     if (errorNode) {
-      errorNode.textContent = errMsg(error);
+      errorNode.textContent = errorMessage(error);
       errorNode.hidden = false;
     }
     if (err.status === 409) {
       asDialog($('#release-device-dialog'))?.close();
-      toast(errMsg(error), 'err');
+      toast(errorMessage(error), 'err');
       await loadAccount().catch(() => null);
     } else if (err.status === 429) {
       await loadAccount().catch(() => null);
@@ -1116,19 +1094,19 @@ async function init() {
     if (couponInput.value.trim()) previewCoupon();
   });
   $('#store-login-form')?.addEventListener('submit', (event) =>
-    login(event).catch((error) => toast(errMsg(error), 'err')),
+    login(event).catch((error) => toast(errorMessage(error), 'err')),
   );
   $('#send-register-code')?.addEventListener('click', () =>
-    sendRegisterCode().catch((error) => toast(errMsg(error), 'err')),
+    sendRegisterCode().catch((error) => toast(errorMessage(error), 'err')),
   );
   $('#store-register-form')?.addEventListener('submit', (event) =>
-    register(event).catch((error) => toast(errMsg(error), 'err')),
+    register(event).catch((error) => toast(errorMessage(error), 'err')),
   );
   $('#send-reset-code')?.addEventListener('click', () =>
-    sendResetCode().catch((error) => toast(errMsg(error), 'err')),
+    sendResetCode().catch((error) => toast(errorMessage(error), 'err')),
   );
   $('#store-forget-form')?.addEventListener('submit', (event) =>
-    resetPassword(event).catch((error) => toast(errMsg(error), 'err')),
+    resetPassword(event).catch((error) => toast(errorMessage(error), 'err')),
   );
   $('#account-licenses')?.addEventListener('click', accountAction);
   $('#account-orders')?.addEventListener('click', (event) => {
@@ -1136,9 +1114,9 @@ async function init() {
     const target = event.target;
     if (!(target instanceof Element)) return;
     if (target.closest('[data-orders-more]')) {
-      return loadMoreAccountOrders().catch((error) => toast(errMsg(error), 'err'));
+      return loadMoreAccountOrders().catch((error) => toast(errorMessage(error), 'err'));
     }
-    return accountOrderAction(event).catch((error) => toast(errMsg(error), 'err'));
+    return accountOrderAction(event).catch((error) => toast(errorMessage(error), 'err'));
   });
   $('#release-device-form')?.addEventListener('submit', releaseDevice);
   $('#license-label-form')?.addEventListener('submit', saveLicenseLabel);
@@ -1161,7 +1139,7 @@ async function init() {
     }),
   );
   $('#store-logout')?.addEventListener('click', () =>
-    logout().catch((error) => toast(errMsg(error), 'err')),
+    logout().catch((error) => toast(errorMessage(error), 'err')),
   );
   bindPasswordControls(asForm($('#store-login-form')));
   bindPasswordControls(asForm($('#store-register-form')));
@@ -1229,7 +1207,7 @@ async function init() {
     }
     renderProduct();
     applyAccountUi();
-    if (currentPage() === 'referrals') await HBReferrals.init(api, toast);
+    if (currentPage() === 'referrals') await HBReferrals.init();
     if (currentPage() === 'account') {
       if (accountOverview) renderAccount(accountOverview);
       else await loadAccount();
@@ -1237,7 +1215,7 @@ async function init() {
   } catch (error) {
     document.body.classList.remove('hb-store-loading');
     if (!document.body.classList.contains('hb-maintenance-active')) showPage();
-    toast(errMsg(error), 'err');
+    toast(errorMessage(error), 'err');
   }
 }
 

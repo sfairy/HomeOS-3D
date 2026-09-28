@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -12,8 +11,6 @@ from datetime import datetime, timedelta, timezone
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
 from .crypto import LicenseCryptoError
-
-logger = logging.getLogger(__name__)
 
 
 from .contracts import (

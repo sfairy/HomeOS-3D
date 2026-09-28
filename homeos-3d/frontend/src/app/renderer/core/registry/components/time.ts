@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import { formatLocalTime } from "../../../controls/date-time-runtime.js";
 // 同门分片：registry-core

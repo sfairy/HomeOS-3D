@@ -312,13 +312,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             return resolve_provider(settings, setting, name_override=name)
         return resolve_provider(settings, setting)
 
-    def payment_provider_from_db():
-        with database.session() as session:
-            setting = get_setting(session)
-            return setting.payment_provider or settings.payment_provider
-
     app.state.resolve_payment_provider = resolve_payment_provider
-    app.state.payment_provider_from_db = payment_provider_from_db
 
         # 静态资源
     static_dir = settings.static_dir

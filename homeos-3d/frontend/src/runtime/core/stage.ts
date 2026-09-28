@@ -1119,12 +1119,10 @@ export function mountStage(stageOptions: StageHostOptions) {
     collectLockBindings,
     collectModuleBindings,
     collectNasBindings,
-    collectOverviewBindings,
     collectPresenceBindings,
     collectPreviewCovers,
     collectTelevisionBindings,
     collectVacuumBindings,
-    collectVacuumRoomShortcuts,
     resolveModuleBindings
   } = createBindingCollectors(ctx as any);
   const {
@@ -1139,7 +1137,7 @@ export function mountStage(stageOptions: StageHostOptions) {
   const { makeElement: makeElementStrict, postToHost } = createDomAndHostBridge(ctx as any);
   const makeElement = ((tagName: any, className?: any, textContent?: any) =>
     makeElementStrict(tagName, className, textContent)) as (...args: any[]) => any;
-  const { applyLightStates, lightStateForBinding, readLightState, resolveLightState } = createLightStateReaders(ctx as any);
+  const { applyLightStates, readLightState, resolveLightState } = createLightStateReaders(ctx as any);
   const {
     settleClimateRequest,
     settleCoverRequest,
@@ -1155,10 +1153,7 @@ export function mountStage(stageOptions: StageHostOptions) {
   } = createCoverPresentation(ctx as any);
   const { layoutPresenceHitBoxes } = createPresenceHitBoxes(ctx as any);
   const {
-    beginMarkerDrag,
     cancelMarkerDrag,
-    endMarkerDrag,
-    moveMarkerDrag,
     renderMarkers,
     scheduleMarkerPositionUpdate,
     updateMarkerPositions,

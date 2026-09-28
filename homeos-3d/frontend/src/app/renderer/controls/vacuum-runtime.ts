@@ -1,4 +1,3 @@
-type AnyObj = Record<string, any>;
 /**
  * 扫地机器人控件的状态映射。
  */

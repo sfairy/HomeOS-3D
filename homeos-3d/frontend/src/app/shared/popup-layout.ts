@@ -2,7 +2,6 @@
  * 弹窗布局排版：把弹窗模块按网格排布并算出整体尺寸。
  */
 
-type AnyObj = Record<string, any>;
 const MIN_POPUP_COLUMNS = 2;
 const MAX_POPUP_COLUMNS = 4;
 const DEFAULT_POPUP_COLUMNS = 3;
@@ -50,7 +49,7 @@ function popupModuleColumnSpan(moduleSpec: any) {
 /**
  * 计算模块占用的行数。
  */
-function popupModuleRowSpan(rowModuleSpec: any) {
+function popupModuleRowSpan(_rowModuleSpec: any) {
   return 1;
 }
 
@@ -79,12 +78,12 @@ function placeModules(modules: any, columnLimit: any) {
             {
               length: rowSpan
             },
-            (unusedRowIndex, rowOffset) =>
+            (_unusedRowIndex, rowOffset) =>
               Array.from(
                 {
                   length: columnSpan
                 },
-                (unusedColumnIndex, columnOffset) =>
+                (_unusedColumnIndex, columnOffset) =>
                   !occupied[row + rowOffset]?.[column + columnOffset]
               ).every(Boolean)
           ).every(Boolean)

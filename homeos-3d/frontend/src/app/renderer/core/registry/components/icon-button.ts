@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 // 同门分片：button-renderer
 import { buttonRenderer } from "../button-renderer.js";
 // 同门分片：registry-core

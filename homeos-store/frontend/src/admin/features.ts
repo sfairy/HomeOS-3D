@@ -4,7 +4,8 @@
 
 import { state } from "./state.js";
 import { $, $$, esc, toast } from "./dom.js";
-import { MENU_GAP, MENU_MARGIN, closeRowMenus, hidePopoverIfOpen } from "./menus.js";
+import { closeRowMenus, hidePopoverIfOpen } from "./menus.js";
+import { placePopover } from "./popover-place.js";
 import { api } from "./api.js";
 
 type FeatureCatalogItem = {
@@ -202,26 +203,14 @@ function placeFeaturePicker(root: HTMLElement) {
   const pop = $('[data-feature-pop]', root);
   const toggle = $('[data-feature-toggle]', root);
   if (!pop || !toggle) return;
-  pop.style.top = '0px';
-  pop.style.left = '0px';
-  const anchor = toggle.getBoundingClientRect();
-  // 字段是整行宽，弹层跟着等宽会拉出一行超长的说明文字，这里夹到一档易读的宽度。
-  pop.style.width = `${Math.round(Math.min(Math.max(anchor.width, 300), 460))}px`;
-  const size = pop.getBoundingClientRect();
-  let top = anchor.bottom + MENU_GAP;
-  if (top + size.height > window.innerHeight - MENU_MARGIN) {
-    top = anchor.top - MENU_GAP - size.height;
-  }
-  top = Math.min(
-    Math.max(MENU_MARGIN, top),
-    Math.max(MENU_MARGIN, window.innerHeight - MENU_MARGIN - size.height),
-  );
-  const left = Math.min(
-    Math.max(MENU_MARGIN, anchor.left),
-    Math.max(MENU_MARGIN, window.innerWidth - MENU_MARGIN - size.width),
-  );
-  pop.style.top = `${Math.round(top)}px`;
-  pop.style.left = `${Math.round(left)}px`;
+  placePopover(pop, toggle, {
+    align: 'left',
+    // 字段是整行宽，弹层跟着等宽会拉出一行超长的说明文字，这里夹到一档易读的宽度。
+    prepare: (node) => {
+      const anchorWidth = toggle.getBoundingClientRect().width;
+      node.style.width = `${Math.round(Math.min(Math.max(anchorWidth, 300), 460))}px`;
+    },
+  });
 }
 
 export function openFeaturePicker(root: HTMLElement) {

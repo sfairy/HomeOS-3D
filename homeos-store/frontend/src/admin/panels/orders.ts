@@ -2,6 +2,7 @@
  * 订单面板。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   PENDING_FILTER_VALUES,
@@ -49,10 +50,6 @@ type AdminOrder = {
   manualSettlement?: boolean;
   [key: string]: unknown;
 };
-
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
 
 // 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
 let orderStatusMetaPromise: Promise<OrderStatusMeta> | null = null;
@@ -147,7 +144,7 @@ export async function loadOrders() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -300,7 +297,7 @@ $('#order-rows')?.addEventListener('click', async (event) => {
       toast('已按线下收款入账');
       await Promise.all([loadOrders(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -323,7 +320,7 @@ $('#order-rows')?.addEventListener('click', async (event) => {
       toast('已标记为处理完成');
       await Promise.all([loadOrders(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -340,7 +337,7 @@ $('#order-rows')?.addEventListener('click', async (event) => {
       toast('订单已删除');
       await Promise.all([loadOrders(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -361,7 +358,7 @@ $('#order-rows')?.addEventListener('click', async (event) => {
       toast('订单已取消');
       await Promise.all([loadOrders(), host.loadOverview?.()]);
     } catch (error) {
-      toast(errMsg(error), 'danger');
+      toast(errorMessage(error, '操作失败'), 'danger');
     }
     return;
   }
@@ -383,20 +380,17 @@ $('#order-rows')?.addEventListener('click', async (event) => {
     if (!ok) return;
   }
   if (action === 'refund') {
-    // 人工标记支付的订单在渠道侧没有交易，服务端按**线下退款**记账；必须把话说全，
+    // 是否线下退款的**唯一裁决方在服务端**（admin_orders._offline_refund_reason：
+    // manual / 空渠道 / 历史失效渠道才线下；alipay、wechat 必须走渠道真实退款）。
+    // 这里只按同一口径计算弹窗文案，请求体不再传 offline，避免前端误判导致只记账不退钱。
     const provider = String(orderProvider || '').toLowerCase();
-    // 只认「已知的真实渠道」：其余（空、manual，以及历史数据里遗留的 mock）都按线下退款处理。
-    // Original: offlineRefund = !['', 'alipay'].includes(provider);
-    // Wait - looking at original again: offlineRefund = !['alipay', 'wechat'].includes? 
-    // Original line 257: offlineRefund = !['', 'alipay'].includes(provider);
-    // That seems like a bug (wechat would be offlineRefund=true) but preserve behavior:
-    offlineRefund = !['', 'alipay'].includes(provider);
+    offlineRefund = !['alipay', 'wechat'].includes(provider);
     const ok = await askConfirm({
       title: offlineRefund ? '订单退款（线下）' : '订单退款',
       message: `确认对订单 ${orderNo} 退款？`,
       impact: offlineRefund
-        ? '该订单是<b>后台人工标记支付</b>的：渠道侧没有交易，系统不会（也无法）把钱退回去。' +
-          '确认后按<b>线下退款</b>记账 —— 请先自行在渠道外把钱退给用户。' +
+        ? '该订单在支付渠道侧没有可退交易（人工标记支付 / 未记录下单渠道 / 历史失效渠道）：' +
+          '系统不会（也无法）把钱退回去。确认后按<b>线下退款</b>记账 —— 请先自行在渠道外把钱退给用户。' +
           '同时会<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。'
         : '将同时<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。',
       okText: offlineRefund ? '确认已线下退款' : '确认退款',
@@ -404,15 +398,16 @@ $('#order-rows')?.addEventListener('click', async (event) => {
     if (!ok) return;
   }
   try {
+    // offline 不传：由后端按订单渠道权威判定是否线下（schema 默认 false）。
     await api(`/orders/${orderNo}/${action}`, {
       method: 'POST',
-      body: JSON.stringify({ note: '后台操作', offline: offlineRefund }),
+      body: JSON.stringify({ note: '后台操作' }),
     });
     toast(
       `订单已${action === 'mark-paid' ? '标记支付（不计营收）' : action === 'fulfill' ? '履约' : offlineRefund ? '按线下退款记账' : '退款'}`,
     );
     await Promise.all([loadOrders(), host.loadOverview?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

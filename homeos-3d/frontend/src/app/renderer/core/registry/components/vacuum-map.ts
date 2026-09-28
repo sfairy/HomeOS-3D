@@ -2,7 +2,6 @@
  * `vacuum-map` 控件：扫地机地图与路径，底图走内置资源解析。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
 import { resolveStateEntry } from "../../../../utils/state-entry.js";

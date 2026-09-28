@@ -4,22 +4,11 @@ type AnyObj = Record<string, any>;
  * 实体选项与列表。
  */
 
-import {
-  ACTION_TYPES,
-  TOGGLE_ENTITY_DOMAINS,
-  actionNeedsCurrentEntity,
-  actionPopupData,
-  componentActionIsSupported,
-  entityIdSupportsToggle
-} from "../../shared/action-rules.js";
 import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js";
 import { entityPickerConfig, renderEntityPickerOptions, renderIconOptions, renderLightStatisticsEntityOptions } from "./entity-options-pickers.js";
-import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js";
+import { entityDomainOf } from "../../utils/entities.js";
 import { findComponent } from "../component-tree.js";
-import {
-  lightStatisticsEntityStateStatus,
-  lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js";
+import { lightStatisticsEntityStateStatus } from "../../renderer/core/registry.js";
 import {
   normalizedPopupClimateDeviceType,
   popupModuleEntityRecommended
@@ -241,7 +230,7 @@ export function createEntityOptions(ctx: any) {
   /**
    * 列出某类选择器可选的实体（真实实体 + 虚拟实体）。
    */
-  function selectableEntities(entityQueryType: any = "image") {
+  function selectableEntities(_entityQueryType: any = "image") {
     return [...ctx.entities, ...iconVisibilityVirtualEntities()];
   }
 

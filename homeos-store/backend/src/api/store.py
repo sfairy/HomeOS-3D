@@ -18,7 +18,6 @@ from ..core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from ..commerce import delivery
 from ..core.models import (
     Account,
-    AccountSession,
     Customer,
     DeviceBinding,
     DeviceReleaseEvent,
@@ -28,6 +27,7 @@ from ..core.models import (
     Product,
     Release,
 )
+from .admin_shared import _drop_account_sessions
 from ..core.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,
@@ -299,7 +299,12 @@ def send_verification(
         session.commit()
     except SQLAlchemyError as error:
         session.rollback()
-        incidents.note("verification.delivery_record", email=email, error=error)
+        # incidents.note 只接受 order_no/error：邮箱拼进 error 文本，不能传不存在的
+        # email= 关键字（那会在这个 except 分支里再抛 TypeError，把原异常盖掉）。
+        incidents.note(
+            "verification.delivery_record",
+            error=f"email={email} {error}",
+        )
         logger.exception("验证码投递结果落库失败，验证码本身仍然有效 email=%s", email)
 
     body = {
@@ -407,11 +412,7 @@ def change_account_email(
     # 登录标识变了：把其它设备上的会话全部踢下线，只保留当前这一个。
     settings: StoreSettings = request.app.state.settings
     current = token_hash(request.cookies.get(settings.cookie_name) or "")
-    for record in session.scalars(
-        select(AccountSession).where(AccountSession.account_id == account.id)
-    ):
-        if record.id_hash != current:
-            session.delete(record)
+    _drop_account_sessions(session, account.id, keep_hash=current)
 
     session.commit()
     logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)

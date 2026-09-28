@@ -2,7 +2,6 @@
  * `panel-frame` 控件：面板框与标题条。
  */
 
-type AnyObj = Record<string, any>;
 import {
   clampCoercedNumber,
   clampNumber

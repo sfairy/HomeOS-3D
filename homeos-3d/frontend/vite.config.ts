@@ -46,6 +46,11 @@ const classicEntries: Record<string, string> = {
   "display/display-boot": path.join(frontendRoot, "src/app/display/display-boot.ts"),
   "auth/pairing-entry": path.join(frontendRoot, "src/app/auth/pairing-entry.ts"),
   "auth/scene/scene-depth": path.join(frontendRoot, "src/app/auth/scene/scene-depth.ts"),
+  // 零依赖经典 Worker（不能打成 ESM）：studio-app 以字面量 URL 经 new Worker 加载。
+  "3d-studio/export/draco-decoder-worker": path.join(
+    frontendRoot,
+    "src/app/3d-studio/export/draco-decoder-worker.ts"
+  ),
 };
 
 const THREE_VENDOR = "/static/vendor/three/0.186.0/three.module.min.js";

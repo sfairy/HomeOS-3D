@@ -2,6 +2,7 @@
  * 审计与权益。
  */
 
+import { errorMessage } from "../../store-types.js";
 import { $, emptyRow, esc, toast } from "../dom.js";
 import {
   actions,
@@ -60,10 +61,6 @@ type EntitlementForm = HTMLFormElement & {
   };
 };
 
-function errMsg(error: unknown) {
-  return error instanceof Error ? error.message : '操作失败';
-}
-
 // --------------------------------------------------------------------------- //
 // 审计日志
 // --------------------------------------------------------------------------- //
@@ -73,7 +70,7 @@ export async function loadAudits() {
   try {
     data = (await pagedFetch('audits', '/audit-logs')) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -123,7 +120,7 @@ $('#audit-rows')?.addEventListener('click', async (event) => {
     toast('审计记录已删除');
     await loadAudits();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -153,7 +150,7 @@ $('#audit-purge')?.addEventListener('click', async () => {
     );
     await Promise.all([loadAudits(), host.loadOverview?.()]);
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -174,7 +171,7 @@ export async function loadEntitlements() {
       Object.fromEntries(params),
     )) as typeof data;
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
     return;
   }
   if (!data) return;
@@ -296,7 +293,7 @@ $('#entitlement-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -327,7 +324,7 @@ $('#entitlement-patch-form')?.addEventListener('submit', async (event) => {
       '保存中…',
     );
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });
 
@@ -356,6 +353,6 @@ $('#entitlement-rows')?.addEventListener('click', async (event) => {
     toast('权益已删除');
     await loadEntitlements();
   } catch (error) {
-    toast(errMsg(error), 'danger');
+    toast(errorMessage(error, '操作失败'), 'danger');
   }
 });

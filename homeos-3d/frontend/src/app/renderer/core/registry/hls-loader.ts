@@ -2,7 +2,6 @@
  * hls.js 的按需加载。
  */
 
-type AnyObj = Record<string, any>;
 const HLS_SCRIPT_URL = "/static/vendor/hls.js/1.7.3/hls.min.js";
 
 let hlsLoadingPromise: any = null;

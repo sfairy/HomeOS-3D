@@ -106,7 +106,7 @@ const DOOR_MATERIAL_STYLES = Object.freeze([
 ]);
 
 /** 该门型是不是玻璃门扇（glass / sliding-glass）。 */
-export function isGlassDoorType(doorType: unknown): boolean {
+function isGlassDoorType(doorType: unknown): boolean {
   return GLASS_DOOR_TYPE_SET.has(doorType as string);
 }
 

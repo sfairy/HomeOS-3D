@@ -94,11 +94,6 @@ class StateHub:
                 )
             return deepcopy(list(values))
 
-    async def entity_ids(self) -> set[str]:
-        """当前内存里所有实体 ID 的副本。"""
-        async with self._lock:
-            return set(self._states)
-
     async def retain(self, entity_ids: set[str]) -> None:
         """只保留给定实体，其余从内存丢弃（不发 state_removed）。
         """

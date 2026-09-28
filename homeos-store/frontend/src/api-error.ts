@@ -1,7 +1,6 @@
 /*
  * 前端唯一的「接口失败 → 人话」实现：把 FastAPI 422 的 detail 数组、`{msg}` /
  */
-export const DEFAULT_FALLBACK = '请求失败。';
 
 type DetailEntry = {
   loc?: unknown;
@@ -22,7 +21,7 @@ function describeEntry(entry: unknown): string {
 }
 
 export function describe(detail: unknown, fallback?: string): string {
-  const text = fallback || DEFAULT_FALLBACK;
+  const text = fallback || '请求失败。';
   if (!detail) return text;
   if (typeof detail === 'string') return detail;
   if (Array.isArray(detail)) {

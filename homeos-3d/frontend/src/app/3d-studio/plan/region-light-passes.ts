@@ -357,7 +357,7 @@ export function getRegionMaterial(sourceMaterial: any, materialFloorId: any, mat
   }
 
 export function registerLight(lightObject: any, lightConfig: any = {}, context: any) {
-  const { isDisposed, registrationsByLight, shouldRescanStructure, REGION_LIGHT_LAYER } = context;
+  const { isDisposed, registrationsByLight, REGION_LIGHT_LAYER } = context;
 
     if (isDisposed || !lightObject?.isLight) {
       return;

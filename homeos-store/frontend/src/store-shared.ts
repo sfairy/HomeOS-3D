@@ -9,10 +9,8 @@ import type {
   TimerHandle,
 } from "./store-types.js";
 
-export const STORE_PAGE_REVISION = '20260909-referrals-v1';
-
 export const storePageHref = (path: string) =>
-  `${path}${path.includes('?') ? '&' : '?'}v=${STORE_PAGE_REVISION}`;
+  `${path}${path.includes('?') ? '&' : '?'}v=20260909-referrals-v1`;
 
 export function resetCouponPreview(clearInput = false) {
   clearTimeout(state.couponPreviewTimer ?? undefined);

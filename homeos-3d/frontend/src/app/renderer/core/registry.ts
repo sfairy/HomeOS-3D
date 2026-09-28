@@ -2,7 +2,6 @@
  * 控件注册表与内置控件渲染器的**唯一入口**（barrel）。
  */
 
-type AnyObj = Record<string, any>;
 // 注册是 import 副作用：漏一个分片，对应控件类型会静默变成「控件尚未实现」；
 import "./registry/components/air-conditioner.js";
 import "./registry/components/camera.js";

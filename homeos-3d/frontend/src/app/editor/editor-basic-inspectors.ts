@@ -17,7 +17,7 @@ export function setInspectorToggle(toggleElement: any, isPressed: any) {
 /**
  * 归一图标按钮特效的编辑层参数。
  */
-export function iconButtonEffectInspectorLayer(component: any = {}, requestedLayer: any = "") {
+export function iconButtonEffectInspectorLayer(_component: any = {}, requestedLayer: any = "") {
   if (requestedLayer === "button" || requestedLayer === "effect") {
     return requestedLayer;
   } else {

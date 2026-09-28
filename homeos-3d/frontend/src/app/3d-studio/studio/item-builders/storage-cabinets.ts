@@ -1,22 +1,8 @@
 /*
  * 物件构建器：储物与墙面造型
  */
-/**
- * 把颜色朝白（amount > 0）或朝黑（amount < 0）插值。纯整数运算。
- * @param {number} color 0xRRGGBB
- * @param {number} amount -1..1
- * @returns {number} 0xRRGGBB
- */
 import type { ItemBuilderContext } from "./item-builder-context.js";
-function shadeColor(color: any, amount: any) {
-  const target = amount >= 0 ? 255 : 0;
-  const weight = Math.abs(amount);
-  const channel = (shift: any) => {
-    const value = (color >> shift) & 255;
-    return Math.round(value + (target - value) * weight);
-  };
-  return (channel(16) << 16) | (channel(8) << 8) | channel(0);
-}
+import { shadeColor } from "../studio-color-utils.js";
 /**
  * 命中：itemSpec.type === "planlabel"
  */

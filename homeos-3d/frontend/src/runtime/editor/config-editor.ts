@@ -2509,25 +2509,6 @@ export async function openInteraction3dEditor({
   }
   // ---- 通用设备 / 净化器：实体目录、状态灯规则、附加功能 ----
 
-  // 设备目录：编辑器只拿得到实体表（/ha/entities），拿不到 /ha/devices 的设备名，
-  function deviceCatalog() {
-    const entitiesByDeviceId = new Map<string, any>();
-    for (const entityRecord of entities) {
-      const deviceId = entityRecord.deviceId || entityRecord.device_id;
-      if (!deviceId) {
-        continue;
-      }
-      if (!entitiesByDeviceId.has(deviceId)) {
-        entitiesByDeviceId.set(deviceId, []);
-      }
-      entitiesByDeviceId.get(deviceId).push(entityRecord);
-    }
-    return [...entitiesByDeviceId.entries()].map(([deviceId, deviceEntities]) => ({
-      deviceId,
-      name: deviceEntities[0].name || deviceEntities[0].entityId,
-      entityCount: deviceEntities.length
-    }));
-  }
   // 某个实体属于哪台设备；查不到时返回空串。
   const deviceIdOfEntity = (entityId: any) =>
     (entities.find((entityRecord: any) => entityRecord.entityId === entityId)?.deviceId ||

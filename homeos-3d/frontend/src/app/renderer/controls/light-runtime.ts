@@ -2,7 +2,6 @@
  * 灯光控件的纯计算层：能力探测、颜色空间转换、服务数据拼装与预设确认状态机。
  */
 
-type AnyObj = Record<string, any>;
 
 import { entityDomainFromId } from "../../utils/entities.js";
 // 「属性里有没有可用数值」的唯一口径（空串 / 布尔算缺失）：与特效层共用同一份实现。

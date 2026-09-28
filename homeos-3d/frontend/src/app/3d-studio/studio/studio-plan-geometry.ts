@@ -402,7 +402,6 @@ export function applyItemOrientation(itemGroupObject: any, orientedItemSpec: any
 export function buildWallFootprint(
   footprintWall: any,
   wallSolidPiece: any,
-  footprintPixelsPerMeter: any,
   footprintToWorld: any,
   extensions: any = {}
 ) {

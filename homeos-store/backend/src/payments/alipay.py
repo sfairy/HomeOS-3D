@@ -30,10 +30,6 @@ from ..payments.base import (
     RefundResult,
 )
 
-# 凭据与签名层在 alipay_signing.py；这里再导入一次，
-
-
-
 logger = logging.getLogger("src.payments.alipay")
 
 #: 沙箱（openapi-sandbox.dl.alipaydev.com）与它的开关已**整块删除**。理由与模拟收银台同源：

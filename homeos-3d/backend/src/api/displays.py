@@ -12,11 +12,11 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..core.conflicts import is_unique_violation
-from ..security.dependencies import DatabaseSession, LicensedUser
+from ..security.dependencies import DatabaseSession, LicensedUser, require_admin
 from ..security.display_access import display_path, display_token_expired, display_token_expires_at
 from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..ha.crypto import CredentialCipher, CredentialCipherError
-from ..core.models import DisplayDevice, DisplayPairingCode, Project, User
+from ..core.models import DisplayDevice, DisplayPairingCode, Project
 from ..core.schemas import (
     DisplayDeviceUpdateRequest,
     DisplayPairRequest,
@@ -43,12 +43,6 @@ PAIRING_CODE_LIMIT = (5, 900, 900)
 #: 按码计数器的键上限：键是「被尝试的码」的哈希，属外部可控输入，必须封顶。
 PAIRING_CODE_KEYS = 1024
 PAIRING_SHARED_ADDRESS_LIMIT = (40, 300, 120)
-
-
-def require_admin_for_displays(user: User) -> None:
-    if user.role != 'admin':
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以管理中控设备。')
-    return None
 
 
 def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool = True) -> tuple:
@@ -171,7 +165,7 @@ def unique_pairing_code(database: DatabaseSession, requested: str | None = None)
 def list_display_devices(request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     """列出所有在用（未吊销）的中控设备。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     devices = list(
         database.scalars(
             select(DisplayDevice)
@@ -210,7 +204,7 @@ def list_pairing_codes(
 ) -> dict:
     """列出中控配对码（可按仪表盘过滤），并带上各自已配对出的设备。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     query = select(DisplayPairingCode).order_by(DisplayPairingCode.created_at.desc())
     # projectId 只是可选过滤条件：不传就返回全部配对码。
     if project_id is not None:
@@ -262,7 +256,7 @@ def create_pairing_code(
 ) -> dict:
     """为指定仪表盘创建一个中控配对码。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     # 能力码之上再加一层：api 只说明能调接口，新增中控设备还需要 display 能力。
     if not request.app.state.license_service.allows('display'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许添加中控设备。')
@@ -298,7 +292,7 @@ def update_pairing_code(
 ) -> dict:
     """修改配对码的名称、启用状态或改绑到另一个仪表盘。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     pairing = database.get(DisplayPairingCode, pairing_id)
     if pairing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
@@ -331,7 +325,7 @@ def update_pairing_code(
 def delete_pairing_code(pairing_id: str, database: DatabaseSession, user: LicensedUser) -> None:
     """删除一个配对码，返回 204。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     pairing = database.get(DisplayPairingCode, pairing_id)
     if pairing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
@@ -461,7 +455,7 @@ def update_display_device(
 ) -> dict:
     """修改中控设备的名称或改绑到另一个仪表盘。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     # 能力码：与 POST /pair 同一条口径。授权收回 display 之后还能改绑/改名，
     if not request.app.state.license_service.allows('display'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许管理展示设备。')
@@ -495,7 +489,7 @@ def update_display_device(
 def revoke_display_device(device_id: str, database: DatabaseSession, user: LicensedUser) -> None:
     """吊销一台中控设备，返回 204（软删除）。
     """
-    require_admin_for_displays(user)
+    require_admin(user, detail='仅管理员可以管理中控设备。')
     device = database.get(DisplayDevice, device_id)
     if device is None or device.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='中控设备不存在。')

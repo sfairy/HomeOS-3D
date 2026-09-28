@@ -2,9 +2,13 @@
  * 场景树查询原语：沿父链问「这块地面属于哪一层」「是否在离场的旧楼层里」「在祖先链上可见吗」，
  */
 
+import { isVisibleWithin as isVisibleWithinSceneTree } from "../scene-tree-utils.js";
+
 type SceneNodeLike = {
   parent?: SceneNodeLike | null;
-  visible?: boolean;
+  // 必填布尔：与 THREE.Object3D.visible 同构。这使「!visible」与「visible === false」
+  // 两种谓词在类型域严格等价（boolean 二值真值表相同），共享实现统一用后者。
+  visible: boolean;
   userData?: {
     floorId?: unknown;
     regionFloorId?: unknown;
@@ -50,12 +54,8 @@ export function isFloorTransitionLeaving(transitionSource: SceneNodeLike | null 
 
 /**
  * 判断节点自身及全部祖先是否可见。
+ * 无边界版的共享实现见 ../scene-tree-utils.js（区域灯侧以 rootNode 夹取边界复用同一份）。
  */
 export function isVisibleWithin(startNode: SceneNodeLike | null | undefined): boolean {
-  for (let visibilityNode = startNode; visibilityNode; visibilityNode = visibilityNode.parent) {
-    if (!visibilityNode.visible) {
-      return false;
-    }
-  }
-  return true;
+  return isVisibleWithinSceneTree(startNode);
 }

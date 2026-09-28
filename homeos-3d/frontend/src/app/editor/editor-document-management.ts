@@ -2,7 +2,6 @@
  * 编辑器文档管理：页面路径、页面复制、弹窗模块、拖放排序与「上次打开的仪表盘」。
  */
 
-type AnyObj = Record<string, any>;
 import { clone, newId, slugify } from "./editor-utils.js";
 // 整棵子树换新 ID 的递归只有一份实现（component-page-copy.js），这里不再自写一份。
 import { assignFreshComponentIds } from "./component-page-copy.js";

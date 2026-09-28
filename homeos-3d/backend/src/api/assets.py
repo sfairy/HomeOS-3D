@@ -17,7 +17,7 @@ from ..http.http_cache import set_private_immutable_cache, set_versioned_private
 from ..panel.documents import parse_document
 from ..core.models import Project, ProjectDraft
 from ..panel.global_popups import global_popups
-from ..http.streaming import write_stream_in_batches
+from ..http.streaming import size_limit_guard, write_stream_in_batches
 
 from .assets_uploads import (
     MAX_UPLOAD_BYTES,
@@ -43,35 +43,6 @@ router = APIRouter(prefix = '/assets', tags = [
     'assets'])
 ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 @router.get('/builtin')
@@ -150,15 +121,16 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
     temporary = directory / f'.upload-{asset_id}{suffix}'
     try:
         with temporary.open('xb') as descriptor:
-            def _reject_oversized(received: int) -> None:
-                # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
-                if received > byte_limit:
-                    raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
-                # 总量配额也要按实收字节再判一次：没有长度头时上面那一档判不了。
-                if used_bytes + received > MAX_USER_ASSET_TOTAL_BYTES:
-                    raise HTTPException(status_code = 413, detail = quota_detail)
-
-            received = await write_stream_in_batches(request.stream(), descriptor, before_write = _reject_oversized)
+            # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它；
+            # 总量配额也要按实收字节再判一次（第二档 ceiling 用剩余配额）。
+            received = await write_stream_in_batches(
+                request.stream(),
+                descriptor,
+                before_write=size_limit_guard(
+                    (byte_limit, f'图片不能超过 {size_hint}，请压缩后重试。'),
+                    (MAX_USER_ASSET_TOTAL_BYTES - used_bytes, quota_detail),
+                ),
+            )
             # 最后留在 Python 缓冲里的不足一批（至多 BATCH_BYTES），同样别占着事件循环。
             await asyncio.to_thread(descriptor.flush)
         if received == 0:

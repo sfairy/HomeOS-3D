@@ -14,9 +14,7 @@ from ..config import StoreSettings
 from ..licensing.crypto import (
     KeyGeneration,
     KeyRegistry,
-    LeaseSigner,
     LicenseServerError,
-    TransportCipher,
 )
 from ..core.models import (
     Customer,
@@ -60,16 +58,6 @@ class LicenseAuthority:
         self.settings = settings
         self.database = database
         self.keyring = keyring
-
-    @property
-    def signer(self) -> LeaseSigner:
-        """当前一代签名器。只应在「不确定请求用哪一代」的内部路径上使用。"""
-        return self.keyring.active.signer
-
-    @property
-    def transport(self) -> TransportCipher:
-        """当前一代传输密钥。同上；请求路径应按 keyId 选代。"""
-        return self.keyring.active.transport
 
         # 端点
     def activate(

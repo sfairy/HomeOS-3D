@@ -100,7 +100,7 @@ import type { ItemBuilderContext } from "./item-builder-context.js";
 /**
  * 分派表：每条 { match, build, terminal }，顺序即优先级。
  */
-export const ITEM_MODEL_BUILDERS = [
+const ITEM_MODEL_BUILDERS = [
   {
     match: ({ itemSpec }: ItemBuilderContext) => itemSpec.type === "curtain" &&
       itemSpec.offlineModelExport !== true &&

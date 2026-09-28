@@ -2,7 +2,6 @@
  * 门窗控件的透视变换：把属性里的 8 个角点（归一化坐标）换算成 CSS matrix3d，
  */
 
-type AnyObj = Record<string, any>;
 
 // 默认不形变：四个角分别落在矩形四角。
 const DEFAULT_PERSPECTIVE_CORNERS = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1]);

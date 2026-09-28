@@ -341,8 +341,8 @@ export function orderCountdownText(expiresAt?: string | null) {
 
 export function stopPaymentTimers() {
   if (state.pollTimer !== null) {
+    // pollTimer 的唯一赋值点是 setTimeout（见本文件启动轮询处），clearInterval 是冗余误用。
     clearTimeout(state.pollTimer);
-    clearInterval(state.pollTimer);
   }
   if (state.paymentCountdownTimer !== null) {
     clearInterval(state.paymentCountdownTimer);

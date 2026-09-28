@@ -2,7 +2,6 @@
  * 虚拟实体的 ID 生成与解析规则。
  */
 
-type AnyObj = Record<string, any>;
 const VIRTUAL_ENTITY_PREFIX = "virtual.";
 export const ICON_VISIBILITY_VIRTUAL_KIND = "icon_visibility";
 const ICON_VISIBILITY_VIRTUAL_NAME = "图标·显示隐藏";

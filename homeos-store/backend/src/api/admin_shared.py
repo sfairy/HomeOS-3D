@@ -2,10 +2,9 @@
 """
 from __future__ import annotations
 
-from __future__ import annotations
-
 import logging
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
@@ -18,19 +17,20 @@ from ..core.models import (
     Account,
     AccountSession,
     AuditLog,
+    Entitlement,
     License,
     Order,
     Product,
     ReferralWallet,
     StoreSetting,
 )
-from ..security.security import (
-    iso,
-)  # noqa: F401
+from ..security.security import iso, iso_z, utcnow
+from ..core.serializers import license_payload, product_payload
 from ..commerce.order_status import ORDER_STATUS_LABELS
 from ..commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
+from ..api.store_catalog import _image_map, _license_meta, _product_stats
 
 
 logger = logging.getLogger(__name__)
@@ -115,14 +115,21 @@ def _account_payload(session, account: Account) -> dict:
     }
 
 
-def _drop_account_sessions(session, account_id: str) -> int:
-    """清掉某个账号的全部登录会话，返回删除条数。"""
+def _drop_account_sessions(session, account_id: str, *, keep_hash: str | None = None) -> int:
+    """清掉某个账号的全部登录会话，返回删除条数。
+
+    keep_hash 给定时保留该会话（改密码 / 改邮箱只踢其它设备，当前设备不下线）。
+    """
     records = list(
         session.scalars(select(AccountSession).where(AccountSession.account_id == account_id))
     )
+    removed = 0
     for record in records:
+        if keep_hash is not None and record.id_hash == keep_hash:
+            continue
         session.delete(record)
-    return len(records)
+        removed += 1
+    return removed
 
 
 def _cooldown(setting: StoreSetting, settings: SettingsDep) -> int:
@@ -241,9 +248,6 @@ def _license_detail(session, settings, license: License) -> dict:
         last_released_at=meta.get(license.id, {}).get("last_released_at"),
     )
 
-# _license_detail 依赖的两个名字（从 licenses 组的导入块里对齐过来的）。
-from ..api.store_catalog import _license_meta
-from ..core.serializers import license_payload
 
 def _entitlement_payload(entry: Entitlement) -> dict:
     now = utcnow()
@@ -263,10 +267,6 @@ def _entitlement_payload(entry: Entitlement) -> dict:
         "createdAt": iso_z(entry.created_at),
     }
 
-# _entitlement_payload 依赖的三个名字。
-from ..core.models import Entitlement
-from ..security.security import utcnow
-from ..security.security import iso_z
 
 # —— 批量查询与清理助手 ——
 def _by_ids(session: Session, model, ids) -> dict[str, object]:
@@ -359,10 +359,6 @@ def _resolve_by_hash_hint(session: Session, model, hint: str, label: str):
         )
     return rows[0]
 
-from pathlib import Path
-from ..api.store_catalog import _image_map
-from ..api.store_catalog import _product_stats
-from ..core.serializers import product_payload
 
 # 商品
 def _product_delete_refs(session) -> tuple[dict[str, int], dict[str, int]]:

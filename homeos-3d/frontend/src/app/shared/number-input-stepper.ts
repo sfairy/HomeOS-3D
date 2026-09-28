@@ -1,5 +1,4 @@
 
-type AnyObj = Record<string, any>;
 // 夹取统一走 utils/numbers.js（唯一实现）。
 import { clampNumber } from "../utils/numbers.js";
 

@@ -210,9 +210,9 @@ def validate_lock_command(service: str, data, state) -> None:
     """
     if service not in frozenset({"lock", "open", "unlock"}) or not isinstance(data, dict) or set(data) - {"code"}:
         raise HTTPException(422, detail="不支持的门锁操作或参数。")
-    if state and (
-        state.get("available") is False
-        or state.get("state") in frozenset({None, "", "unknown", "unavailable"})
+    # 状态缺失（None / 非 dict / 空映射）/ unknown / unavailable 一律按不可用处理，不做乐观转发。
+    if not isinstance(state, dict) or state.get("available") is False or state.get("state") in frozenset(
+        {None, "", "unknown", "unavailable"}
     ):
         raise HTTPException(409, detail="门锁状态不可用。")
     # 正在动作时再发命令，设备端会互相覆盖；这里等它稳定。

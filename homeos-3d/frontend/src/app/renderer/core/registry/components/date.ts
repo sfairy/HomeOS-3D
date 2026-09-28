@@ -2,7 +2,6 @@
  * `date` 控件：本地日期与农历。
  */
 
-type AnyObj = Record<string, any>;
 import { clampCoercedNumber } from "../../../../utils/numbers.js";
 import {
   formatLocalDate,
