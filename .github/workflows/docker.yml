@@ -1,20 +1,9 @@
 name: Docker
 
 on:
+  # 本工作流只负责「构建并推送镜像」。部署不在 CI 里做：镜像推到 GHCR 后，
+  # 在目标机上跑 ops/deploy/deploy.sh（三种形态与跨机拓扑见 ops/deploy/SPLIT-DEPLOY.md）。
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: "构建推送后 SSH 拉取并重启远端 compose（需已配置 Deploy secrets）"
-        type: boolean
-        default: false
-      deploy_role:
-        description: "deploy 时部署哪一侧：store（厂商机，默认）/ app（客户机）/ all（同机）"
-        type: choice
-        options:
-          - store
-          - app
-          - all
-        default: store
 
 permissions:
   contents: read
@@ -34,7 +23,7 @@ env:
 #   checkout@v4 / setup-buildx@v3 / login@v3 / build-push@v6 均已触发告警；
 #   以下版本起改用 Node 24（已逐个核对本流程用到的全部输入在新版中仍然存在）。
 jobs:
-  # 只算一次版本与镜像名，后续 build / merge / deploy 全部复用。
+  # 只算一次版本与镜像名，后续 build / merge 全部复用。
   meta:
     runs-on: ubuntu-24.04
     outputs:
@@ -44,13 +33,6 @@ jobs:
       release: ${{ steps.meta.outputs.release }}
     steps:
       - uses: actions/checkout@v7
-
-      # 裸的版本 tag 只在默认分支推送：非默认分支勾了 deploy 会去拉一个不存在的 tag，这里提前挡住。
-      - name: Deploy 只在默认分支可用
-        if: ${{ inputs.deploy && github.ref_name != github.event.repository.default_branch }}
-        run: |
-          echo "::error::deploy 只能在默认分支（${{ github.event.repository.default_branch }}）上运行；当前 ${{ github.ref_name }} 不会推送版本 tag"
-          exit 1
 
       # 版本号唯一来源：仓库根 package.json 的 version（不再是 VERSION 文件）。
       # 发布标签只有两个：该版本号（如 1.0.0）与 latest，且只在默认分支推送，
@@ -201,45 +183,3 @@ jobs:
 
       - name: Inspect image
         run: docker buildx imagetools inspect "${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}"
-
-  deploy:
-    needs: [meta, merge]
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Require deploy secrets
-        run: |
-          missing=0
-          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do
-            if [ -z "${!name:-}" ]; then
-              echo "Missing secret: $name"
-              missing=1
-            fi
-          done
-          exit "$missing"
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          script: |
-            set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
-            # 先更新检出：compose 与 deploy.sh 都从这里读，服务器不 pull 就会用旧编排
-            if [ -d .git ]; then
-              git fetch --prune --depth=1 origin "${{ github.ref_name }}"
-              git checkout --force FETCH_HEAD
-              echo "检出已更新到 ${{ github.sha }}"
-            else
-              echo "DEPLOY_PATH 不是 git 检出：跳过更新，compose / deploy.sh 可能是旧的"
-            fi
-            ./ops/deploy/deploy.sh --role "${{ inputs.deploy_role || 'store' }}" --version "${{ needs.meta.outputs.version }}" --yes
-            docker image prune -f
