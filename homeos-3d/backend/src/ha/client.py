@@ -259,7 +259,7 @@ class HAClient:
         """
         if not websocket_url(self.base_url).startswith('wss://'):
             return None
-        return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()
+        return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()  # noqa: S323  # 仅在用户显式关闭 verify_tls 时生效，默认 True
 
     async def _authenticate(self, websocket) -> None:
         """完成 HA WebSocket 的握手鉴权。

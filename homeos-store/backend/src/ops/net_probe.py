@@ -87,7 +87,7 @@ def resolve_host(host: str) -> tuple[bool, str, tuple[str, ...]]:
         infos = socket.getaddrinfo(text, None, proto=socket.IPPROTO_TCP)
     except socket.gaierror as error:
         return False, f"域名解析失败：{error}（请检查是否拼写错误，或该域名在公网不存在）。", ()
-    except OSError as error:  # noqa: BLE001 - 解析器的其它故障同样不该炸掉自检
+    except OSError as error:  # 解析器的其它故障同样不该炸掉自检
         return False, f"域名解析失败：{error}", ()
     addresses = tuple(sorted({str(info[4][0]) for info in infos if info[4]}))
     if not addresses:
@@ -179,7 +179,7 @@ def probe_tls(
         return False, f"TLS 证书校验失败：{error}"
     except ssl.SSLError as error:
         return False, f"TLS 握手失败：{error}"
-    except (socket.timeout, TimeoutError):
+    except TimeoutError:
         return False, f"连接 {text}:{port} 超时。"
     except OSError as error:
         return False, f"连接 {text}:{port} 失败：{error}"

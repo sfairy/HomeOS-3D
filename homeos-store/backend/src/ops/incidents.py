@@ -88,7 +88,7 @@ def note(
             record.order_no = order_no or ""
             record.error = text
             _STATE.counts[kind] = record
-    except Exception:  # noqa: BLE001 - 见 docstring：这里绝不能影响调用方
+    except Exception:  # 见 docstring：这里绝不能影响调用方
         logger.exception("异常计数失败 kind=%s（计数本身出错，不影响主流程）", kind)
 
 

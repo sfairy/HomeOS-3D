@@ -114,9 +114,9 @@ def _check_fingerprint(payload: dict, field: str, actual: str, label: str) -> No
 def fetch_license_keys(license_server_url: str) -> dict:
     """向授权服务器取一份公钥响应（明文 GET，见模块文档）。"""
     url = f"{license_server_url.rstrip('/')}{KEYS_PATH}"
-    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})  # noqa: S310  # 同上：URL 来自配置，非外部输入
     try:
-        with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(request, timeout=FETCH_TIMEOUT_SECONDS) as response:  # noqa: S310  # URL 来自配置的授权服务器地址，非外部输入
             raw = response.read()
     except urllib.error.HTTPError as error:
         detail = ""
@@ -124,7 +124,7 @@ def fetch_license_keys(license_server_url: str) -> dict:
             body = json.loads(error.read().decode("utf-8"))
             if isinstance(body, dict):
                 detail = str(body.get("detail", "")).strip()
-        except Exception:  # noqa: BLE001 - 错误体不是 JSON 也不该盖住原始错误
+        except Exception:  # 错误体不是 JSON 也不该盖住原始错误
             detail = ""
         raise LicenseKeyFetchError(
             f"授权服务器拒绝公钥请求（HTTP {error.code}）"
@@ -172,13 +172,12 @@ def apply_license_keys(directory: Path, payload: dict, *, log: Callable[[str], N
         current_sha256 = public_key_sha256(signing_path)
         if current_sha256 == signing_sha256:
             changed = False
-        else:
-            # 连续性：允许换新的唯一凭据是「服务器把本地这把认作上一代公钥」。
-            if previous_bytes is None or hashlib.sha256(previous_bytes).hexdigest() != current_sha256:
-                raise LicenseKeyFetchError(
-                    "授权服务器给出的签名公钥与本地已固定的不是同一把，且没有把本地这把列为上一代公钥："
-                    "拒绝替换（可能是密钥被换或请求被劫持）。"
-                )
+        # 连续性：允许换新的唯一凭据是「服务器把本地这把认作上一代公钥」。
+        elif previous_bytes is None or hashlib.sha256(previous_bytes).hexdigest() != current_sha256:
+            raise LicenseKeyFetchError(
+                "授权服务器给出的签名公钥与本地已固定的不是同一把，且没有把本地这把列为上一代公钥："
+                "拒绝替换（可能是密钥被换或请求被劫持）。"
+            )
 
     directory.mkdir(parents=True, exist_ok=True)
     # 只写内容真的变了的文件：避免每次重启都刷新 mtime / 触发无谓的告警。

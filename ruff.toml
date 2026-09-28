@@ -1,0 +1,43 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+  "E", "F", "I", "UP", "B", "SIM", "PIE", "RET", "RUF", "C4", "FURB", "ISC", "PL",
+  "S",  # bandit 安全检查：硬编码密钥、弱哈希、不安全反序列化等
+]
+ignore = [
+  "B008",  # FastAPI 依赖注入在默认参数调用 File/Depends 是标准模式
+  "E501",  # 行长由格式化工具管，不硬拦
+  "E701",  # 单行 if 多语句与项目既有风格冲突
+  "E712",  # SQLAlchemy 查询里 column == False 是正常的
+  "E711",  # SQLAlchemy 查询里 column == None 是正常的
+  "RUF001", "RUF002", "RUF003",  # 中文项目里"歧义 Unicode 字符"告警是噪音
+  "RUF012",  # 可变类属性默认值在 Pydantic/SQLAlchemy 模型里是正常的
+  "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917", "PLR2004",  # 复杂度/魔法值/位置参数在业务代码里噪音过大
+  "PLR1714",  # 重排 if-elif-else 链尾else有时影响可读性
+  "PLC0415",  # 延迟导入在避免循环依赖/按需加载时是有意的
+  "PLW0603",  # global 语句在单例/缓存模式里是有意的
+  "ISC001",  # 隐式字符串拼接在列表里是可读的
+  "SIM108",  # 三元替换 if-else 有时降低可读性
+  "SIM105",  # contextlib.suppress 有时不如 try-except 清晰
+  "SIM102",  # 嵌套 if 中间有注释/日志时不应合并
+  "RET504", "RET505", "RET506", "RET507",  # 早返回风格与项目既有风格冲突
+  "PLW2901",  # 循环变量重赋值在有清理逻辑时是合理的
+  "E402",  # 模块级导入不在文件顶部：延迟导入/条件导入是项目既有模式
+  # —— bandit S 类：逐条核对后确认以下规则在本项目里全是结构性问题，非安全缺陷 ——
+  "S101",  # assert 仅用于「显式收窄给静态检查看」，且从不以 python -O 运行，断言不会被剥离
+  "S104",  # 监听 0.0.0.0 是容器/局域网部署的设计意图（见 ops/ 与 docker-compose）
+  "S105",  # 误报：命中的都是哨兵值/状态常量/CSS 令牌名，不是凭据（如 EXTERNAL_PASSWORD_SENTINEL、LEVEL_PASS）
+  "S110",  # try-except-pass 均为「日志/埋点不能影响主流程」的有意兜底
+  "S311",  # 伪随机仅用于重试抖动，非密码学用途
+  "S603",  # ops/ 脚本调用的是写死的已知命令，不含外部输入
+  "S606",  # 容器入口不以 shell 启动进程，正是期望行为
+]
+
+[lint.per-file-ignores]
+"*/alembic/versions/*" = ["E", "UP"]
+"tests/*" = ["S", "PLR", "SIM"]
+
+[lint.isort]
+relative-imports-order = "closest-to-furthest"

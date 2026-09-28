@@ -4,9 +4,8 @@ import errno
 import os
 import pwd
 import sys
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Mapping, MutableMapping, Sequence
-
 
 RUN_AS_USER = "homeos"
 

@@ -1,30 +1,36 @@
 """实时连接与快照：WebSocket 生命周期、事件分派与整表快照
 """
+# pyright: reportUninitializedInstanceVariable=false
+# 本模块是混入类（mixin）：属性由宿主类 HAConnectorService 提供，下面只用
+# TYPE_CHECKING 契约向类型检查器声明，因此必然「有声明、不在本文件初始化」。
+# 这是该规则设计之外的场景，按文件关闭；其它文件仍受该规则保护。
 from __future__ import annotations
+
 import asyncio
 import json
 import time
 import traceback
 from typing import TYPE_CHECKING, Any
-from sqlalchemy import select
-from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
-from ..core.time_utils import utc_now
-from ..observability.global_log import _safe_text
-from .client import HAClient, HASnapshot, is_transient_disconnect
-from .endpoints import HAEndpoint
 
+from sqlalchemy import select
+
+from .client import HAClient, HASnapshot, is_transient_disconnect
 from .contracts import (
     HA_ENDPOINT_PROBE_TIMEOUT_SECONDS,
     LIVE_EVENT_TYPES,
     LOGGER,
 )
+from .endpoints import HAEndpoint
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState
+from ..core.time_utils import utc_now
+from ..observability.global_log import _safe_text
 
 if TYPE_CHECKING:
     # Mixin 契约：HALiveMixin 不持有这些属性，由 host 类 HAConnectorService 提供。
     # 在类型检查期声明契约，让 self.<attr> 的访问能被识别；运行期不影响。
+    from .state_hub import StateHub
     from ..config import Settings
     from ..core.database import Database
-    from .state_hub import StateHub
 
 
 class HALiveMixin:

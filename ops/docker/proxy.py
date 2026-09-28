@@ -23,8 +23,9 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 CADDY_BINARY = 'caddy'
 CADDY_CONFIG = Path('/etc/caddy/Caddyfile')

@@ -321,7 +321,7 @@ def render_shell_page(
         rail,
         deck,
     )
-    etag = f'"{hashlib.sha1(rendered.encode("utf-8")).hexdigest()[:32]}"'
+    etag = f'"{hashlib.sha1(rendered.encode("utf-8")).hexdigest()[:32]}"'  # noqa: S324  # 仅作 ETag 缓存校验键，非安全用途
     if request is not None and request.headers.get('if-none-match') == etag:
         # 304 不带 body，也不该带 Content-Type。
         return Response(status_code = 304, headers = {'ETag': etag})

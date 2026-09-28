@@ -31,8 +31,10 @@ for _path in (str(STORE_BACKEND), str(ROOT)):
     if _path not in sys.path:
         sys.path.insert(0, _path)
 
-from ops.docker.license_keys import ensure_store_license_keys  # noqa: E402
-from src.core.env import load_dotenv  # noqa: E402
+from src.core.env import load_dotenv
+
+from ops.docker.license_keys import ensure_store_license_keys
+
 IS_WINDOWS = sys.platform == 'win32'
 
 # 端口
@@ -322,7 +324,7 @@ def main() -> None:
     if host not in LOOPBACK_BIND_HOSTS:
         # 不要在这条分支里再重复打印回环地址：--lan 下运维要复制给对方设备的是局域网地址，
         lan_address = primary_lan_address()
-        print('', flush=True)
+        print(flush=True)
         print(f'已绑定 {host}，同网段设备用下面的地址访问（Host 与 Origin 会随之校验，无需额外配置）：', flush=True)
         if lan_address:
             if not backend_only:

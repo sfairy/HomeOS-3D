@@ -5,17 +5,18 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Mapping
 
 from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import Column
 
+# 副作用导入：把 ORM 模型注册进 Base.metadata。
+from ..core import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from ..core.database import Base
-from ..core import models  # noqa: F401  # 副作用：把 ORM 模型注册进 Base.metadata
 
 logger = logging.getLogger("src.schema")
 
@@ -91,7 +92,7 @@ def backup_database(
     try:
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             connection.exec_driver_sql("VACUUM INTO ?", (str(destination),))
-    except Exception as error:  # noqa: BLE001 - 备份失败不能带走调用方，但要留痕
+    except Exception as error:
         #: 半截文件比没有文件更危险（文件名、大小都像那么回事）。宁可删掉让运维确认。
         destination.unlink(missing_ok=True)
         logger.error(
@@ -352,7 +353,7 @@ def ensure_schema(engine: Engine) -> list[str]:
             try:
                 with engine.begin() as connection:
                     connection.exec_driver_sql(ddl)
-            except Exception as error:  # noqa: BLE001
+            except Exception as error:
                 # 建索引失败绝不能炸掉启动：存量库已有违反唯一性的数据时 CREATE UNIQUE INDEX
                 # 会直接抛错，而这只是结构清理步骤。只报警，并把「怎么修」写清楚。
                 logger.warning(

@@ -1,13 +1,14 @@
 """素材上传的校验与清洗：后缀/像素/体积上限、SVG 白名单净化、图片格式校验。
 """
 from __future__ import annotations
+
 import math
 import re
 import warnings
-from xml.etree import ElementTree
 from pathlib import Path
-from PIL import Image, UnidentifiedImageError
+from xml.etree import ElementTree
 
+from PIL import Image, UnidentifiedImageError
 
 # 内置素材目录里认得的图片后缀，比允许上传的多一个 .gif（动图只读不处理）。
 SUPPORTED_IMAGE_SUFFIXES = {
@@ -91,7 +92,7 @@ def svg_style_is_safe(value: str) -> bool:
     """判断一段 CSS 文本是否安全：先过黑名单，再逐个检查 url(...) 引用。"""
     if SVG_UNSAFE_STYLE.search(value):
         return False
-    return all((svg_reference_is_safe(match.group(2)) for match in SVG_URL.finditer(value)))
+    return all(svg_reference_is_safe(match.group(2)) for match in SVG_URL.finditer(value))
 def parse_svg_length(value: str | None) -> float | None:
     """把 SVG 的长度字符串解析成像素值；非法、非有限或非正数返回 None。"""
     if not value:
@@ -113,7 +114,7 @@ def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
             parts = [float(part) for part in re.split('[\\s,]+', raw_view_box.strip()) if part]
         except ValueError:
             parts = []
-        if len(parts) == 4 and all((math.isfinite(part) for part in parts)) and parts[2] > 0 and parts[3] > 0:
+        if len(parts) == 4 and all(math.isfinite(part) for part in parts) and parts[2] > 0 and parts[3] > 0:
             view_box = (parts[2], parts[3])
     # 只缺一边时按 viewBox 比例补出另一边。
     width = parse_svg_length(root.attrib.get('width'))
@@ -144,7 +145,7 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
         raise ValueError('SVG 不允许包含文档类型或实体声明。')
     # 解析失败即文件损坏或并非 XML，统一转成中文错误文案。
     try:
-        root = ElementTree.fromstring(source)
+        root = ElementTree.fromstring(source)  # noqa: S314  # 解析前已拒绝 DOCTYPE/ENTITY（见上），defusedxml 可作进一步加固
     except ElementTree.ParseError as error:
         raise ValueError('SVG 文件已损坏或无法解析。') from error
     # 根元素必须是 svg：扩展名可以随便改，内容骗不过这一关。

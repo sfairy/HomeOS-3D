@@ -6,11 +6,29 @@
   "venvPath": ".",
   "venv": ".venv-store",
 
-  // 只保留会暴露真实缺陷的规则。不固定档位时分析器会跑到高严格档，
+  // 基础档位挡住大面积的「类型严谨度建议」噪音。不固定档位时分析器会跑到高严格档，
   // 把 reportAny / reportUnknown* / reportMissingTypeArgument /
-  // reportUnannotatedClassAttribute / reportUninitializedInstanceVariable /
-  // reportImportCycles 等建议类规则全量上报，IDE 里就是一片红。
+  // reportUnannotatedClassAttribute 等全量上报（实测 9000+ 条），信号被淹没。
   "typeCheckingMode": "basic",
+
+  // 但 basic 会连带关掉一批「能抓到真 bug」的规则，这里按项决定去留。
+  // 依据：全仓实测打开后多报 47 条，逐条核对的结果如下。
+  //
+  // 保留（本仓确有真问题或零误报）：
+  "reportDeprecated": "warning",  // 命中 3 处：@contextmanager 用 Iterator 标注已弃用 → 已改为 Generator
+  "reportImportCycles": "warning",  // 命中 7 处 payments/* 之间的环：真实架构信号，保留可见
+  "reportUninitializedInstanceVariable": "error",  // 属性从未初始化 → 运行期 AttributeError
+  "reportPossiblyUnboundVariable": "error",  // 条件分支里可能未赋值 → UnboundLocalError
+  "reportUnusedImport": "warning",  // 死导入
+  //
+  // 关闭（实测 100% 是本仓结构导致的误报，开着只会训练人忽略告警）：
+  //   reportUnreachable       —— 6 处全为误报：闭包内赋值（run() 里改 failure）、
+  //                              pyright 对 dict 取值的窄化、以及不认识 stdlib 会抛异常。
+  //   reportUnnecessaryComparison —— 9 处全为「防守式 None 判断」：类型标注偏窄
+  //                              （DB 列实际可空、字段延迟初始化），代码本身是对的。
+  //                              要根治得放宽模型标注，是另一件事，不该用告警替代。
+  //   reportAttributeAccessIssue / reportArgumentType —— 即使显式设为 error，在 basic
+  //                              底座下也复现不出，说明它们只在 reportUnknown* 开启时涌现。
 
   // 虚拟环境与缓存目录里有大量第三方源码，不该参与本仓库的诊断。
   "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],

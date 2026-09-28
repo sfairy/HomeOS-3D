@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Iterator
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -57,12 +57,13 @@ class Database:
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
 
     def create_all(self) -> None:
-        from ..core import models  # noqa: F401
+        # 副作用导入：把 ORM 模型注册进 Base.metadata。
+        from ..core import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
 
         Base.metadata.create_all(self.engine)
 
     @contextmanager
-    def session(self) -> Iterator[Session]:
+    def session(self) -> Generator[Session, None, None]:
         session = self.session_factory()
         try:
             yield session

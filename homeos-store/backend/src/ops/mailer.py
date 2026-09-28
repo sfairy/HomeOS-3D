@@ -10,15 +10,15 @@ import smtplib
 import socket
 import ssl
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from email.message import EmailMessage
 from email.utils import parseaddr
-from typing import Iterator
 
-from ..ops import mail_settings, net_probe
 from ..config import StoreSettings
 from ..core.models import StoreSetting
+from ..ops import mail_settings, net_probe
 from ..ops.net_probe import check_result
 from ..security.security import is_valid_email, new_verification_code
 
@@ -221,7 +221,7 @@ def _is_transient(error: BaseException) -> bool:
 @contextmanager
 def _connect_smtp(
     settings: StoreSettings, *, deadline: float | None = None
-) -> Iterator[smtplib.SMTP]:
+) -> Generator[smtplib.SMTP, None, None]:
     """建立到 SMTP 的连接并完成 TLS / 登录握手，**不发信**。
     """
     timeout = max(1, int(settings.smtp_timeout_seconds or 15))
@@ -272,7 +272,7 @@ def _send_smtp(
             plain=plain,
             rich=rich,
         )
-    except Exception as error:  # noqa: BLE001 - email 库对非法邮件头抛 ValueError
+    except Exception as error:  # email 库对非法邮件头抛 ValueError
         # 构造失败是**配置错误**（例如发件人里混进了换行）。它以前会冒到路由层变成
         # 500，而那是最坏的形态：信没发出去，也没告诉任何人为什么。这里如实报告未投递。
         logger.error("验证码邮件构造失败（多半是发件人配置不合法）：%s", error)
@@ -292,7 +292,7 @@ def _send_smtp(
         tries = attempt
         try:
             _send_smtp_once(settings, message=message, email=email, deadline=deadline)
-        except Exception as error:  # noqa: BLE001 - 需要覆盖 smtplib 与 socket 的全部异常
+        except Exception as error:  # 需要覆盖 smtplib 与 socket 的全部异常
             last_error = f"{error.__class__.__name__}: {error}"[:250]
             logger.warning(
                 "SMTP 投递失败（第 %d/%d 次）收件人=%s：%s",
@@ -696,7 +696,7 @@ def diagnose_mail(
             try:
                 with _connect_smtp(settings):
                     pass
-            except Exception as error:  # noqa: BLE001 - 诊断要覆盖 smtplib/socket/ssl 全部异常
+            except Exception as error:  # 诊断要覆盖 smtplib/socket/ssl 全部异常
                 checks.append(
                     check_result("connect", "连接与登录", net_probe.LEVEL_FAIL, _describe_smtp_error(error))
                 )

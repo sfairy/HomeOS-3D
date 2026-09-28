@@ -21,9 +21,9 @@ def _lock(fd: int) -> None:
     """
     if sys.platform == 'win32':
         os.lseek(fd, 0, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)  # pyright: ignore[reportPossiblyUnboundVariable]  # 本行只在 win32 分支内执行，msvcrt 必然已导入
     else:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)  # pyright: ignore[reportPossiblyUnboundVariable]  # 同理，只在非 win32 分支执行
 
 
 class LicenseProcessLock:

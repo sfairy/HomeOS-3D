@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from ops.docker.license_keys import ensure_store_license_keys  # noqa: E402
-from ops.docker.proxy import run_with_proxy  # noqa: E402
+from ops.docker.license_keys import ensure_store_license_keys
+from ops.docker.proxy import run_with_proxy
 
 
 def _check_admin_exists(data_dir: Path) -> bool:

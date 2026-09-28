@@ -72,8 +72,13 @@ def _clean_caches(root: Path) -> None:
 
 def _compile(root: Path, sources: list[Path], jobs: int) -> None:
     from Cython.Build import cythonize  # type: ignore[import-not-found]  # 构建期依赖，仅在 Docker 编译容器内可用
-    from setuptools import Distribution, Extension  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
-    from setuptools.command.build_ext import build_ext  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
+    from setuptools import (  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
+        Distribution,
+        Extension,
+    )
+    from setuptools.command.build_ext import (
+        build_ext,  # type: ignore[import-untyped]  # 构建期依赖，仅在 Docker 编译容器内可用
+    )
 
     extensions = [Extension(_module_name(path, root), [str(path)]) for path in sources]
     print(f"Cython 编译 {len(sources)} 个模块（-j{jobs}）…", flush=True)
@@ -154,7 +159,7 @@ def compile_tree(root: Path, jobs: int | None = None) -> None:
     if jobs > 1:
         try:
             _compile(root, sources, jobs)
-        except Exception as error:  # noqa: BLE001 — Cython 并行模式在本项目上偶尔崩溃
+        except Exception as error:  # Cython 并行模式在本项目上偶尔崩溃
             print(f"并行编译失败（{type(error).__name__}: {error}），改用单进程重试…", flush=True)
             _discard_artifacts(root, sources)
             _compile(root, sources, 1)
