@@ -33,17 +33,26 @@
   // 虚拟环境与缓存目录里有大量第三方源码，不该参与本仓库的诊断。
   "exclude": [".venv-store", "**/node_modules", "**/__pycache__", "dist"],
 
-  // ops/ 下的脚本在运行时会自行把两个后端目录注入 sys.path（见 ops/start.py、
-  // ops/docker/start_*.py），静态分析看不到这一步，于是 src.* 一律报
-  // reportMissingImports。
+  // ops/ 与两个 db/migrations/ 下的脚本在运行时会自行把后端目录注入 sys.path
+  // （见 ops/start.py、ops/docker/start_*.py、db/migrations/env.py），静态分析看不到
+  // 这一步，于是 src.* 一律报 reportMissingImports。
   //
-  // 这里只给 ops/ 补搜索路径：两个后端都有同名的 src 包，若全局放开，
+  // 这里只补这几处搜索路径：两个后端都有同名的 src 包，若全局放开，
   // 后端代码里写错的 src.* 导入可能被另一个后端的同名模块“接住”而不再报错。
-  // "." 是为了让 ops.docker.* 仍按仓库根解析。
+  // 同理，两个 db/ 也各自只挂自己的后端 —— 商店的迁移脚本不该能看见主应用的 src。
+  // ops 的 "." 是为了让 ops.docker.* 仍按仓库根解析。
   "executionEnvironments": [
     {
       "root": "ops",
       "extraPaths": [".", "homeos-store/backend", "homeos-3d/backend"]
+    },
+    {
+      "root": "homeos-store/db",
+      "extraPaths": ["homeos-store/backend"]
+    },
+    {
+      "root": "homeos-3d/db",
+      "extraPaths": ["homeos-3d/backend"]
     }
   ]
 }

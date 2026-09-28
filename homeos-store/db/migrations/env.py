@@ -18,10 +18,12 @@ if str(_BACKEND) not in sys.path:
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.exc import SAWarning
-from src.core import (
-    models,  # noqa: F401 - registers the mapped tables
-    models_engagement,  # noqa: F401 - registers the mapped tables
-)
+
+#: 副作用导入：这两个模块**必须**被导入到，否则 ORM 映射表不会注册进
+#: ``Base.metadata``，``alembic check`` 会以为那些表是「库里多出来的」，进而
+#: 自动生成把它们删掉的迁移。ruff（F401）与 pyright（reportUnusedImport）都看不出
+#: 「导入即副作用」，所以两边各挂一个抑制 —— 它们是这类导入的标准写法，不是遗漏。
+from src.core import models, models_engagement  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from src.core.database import BUSY_TIMEOUT_SECONDS, Base
 
 config = context.config

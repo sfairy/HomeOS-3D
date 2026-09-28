@@ -11,7 +11,10 @@ if str(_BACKEND) not in sys.path:
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-from src.core import models  # noqa: F401 - registers the mapped tables
+
+#: 副作用导入：必须导入到，否则 ORM 映射表不会注册进 ``Base.metadata``，
+#: ``alembic check`` 会以为那些表是「库里多出来的」而生成删除迁移。
+from src.core import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from src.core.database import BUSY_TIMEOUT_SECONDS, Base
 
 config = context.config

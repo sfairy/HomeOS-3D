@@ -17,10 +17,7 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
 #: 副作用导入：把 ORM 模型注册进 Base.metadata。
-from ..core import (
-    models,  # noqa: F401
-    models_engagement,  # noqa: F401
-)
+from ..core import models, models_engagement  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from ..core.database import Base
 
 logger = logging.getLogger("src.schema")
@@ -131,10 +128,14 @@ def inspect_schema(engine: Engine) -> SchemaDrift:
             f"{table.name}.{name}" for name in sorted(live_columns - expected_columns)
         )
 
+        #: 用 ``:=`` 让过滤条件与取值是**同一个**表达式，静态分析才能把 ``None`` 摘掉；
+        #: 写成 ``if index.get("name")`` + ``index["name"]`` 是两个表达式，它就摘不掉了。
+        #: 变量特意叫 ``index_name``：推导式里的 ``:=`` 会把名字泄漏到**函数作用域**，
+        #: 若叫 ``name`` 就会覆盖下面几处 ``for name in ...`` 的语义，留下隐雷。
         live_indexes = {
-            index["name"]
+            index_name
             for index in inspector.get_indexes(table.name)
-            if index.get("name")
+            if (index_name := index.get("name"))
         }
         expected_indexes = {index.name for index in table.indexes if index.name}
         missing_indexes.extend(

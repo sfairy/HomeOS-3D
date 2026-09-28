@@ -20,7 +20,8 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from . import models  # noqa: F401 - 副作用导入：把 ORM 表注册进 Base.metadata
+#: 副作用导入：把 ORM 表注册进 ``Base.metadata``（``0002`` 与只读自检都依赖它）。
+from . import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from .database import Base
 from .file_lock import locked_file
 from ..config import StoreSettings
