@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""主应用容器启动器：等待商店同步的公钥后启动 uvicorn。"""
+"""主应用容器启动器：准备授权公钥后启动 uvicorn。
+
+授权公钥不用人工投放（见 ``ops/docker/bootstrap_keys.py``）：本地没有时向授权服务器
+``GET /v2/keys`` 取回并落到数据卷，之后离线也能启动；同机部署改挂商店写出的共享卷，
+那条路径由 ``wait_for_client_keys`` 等商店写完即可。
+"""
 from __future__ import annotations
 
 import os
@@ -11,16 +16,20 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from ops.docker.bootstrap_keys import (  # noqa: E402
+    FIRST_FETCH_WAIT_SECONDS,
+    PUBLIC_KEY_MARKER,
+    derive_key_id,
+    ensure_client_keys,
+)
 from ops.docker.license_keys import apply_client_key_env  # noqa: E402
+from ops.docker.proxy import run_with_proxy  # noqa: E402
 from src.security.http_security import (  # noqa: E402  (必须晚于 sys.path 注入)
     forwarded_allow_ips_warning,
 )
 
 #: 默认只信任回环：容器里没有反向代理时，TCP 对端就是客户端本人，任何人都伪造不了
 DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
-
-#: 授权公钥（Ed25519 与 X25519）都是 SubjectPublicKeyInfo，PEM 头一致。
-PUBLIC_KEY_MARKER = b'-----BEGIN PUBLIC KEY-----'
 
 
 def _inspect_client_key(path: Path) -> tuple[bool, str]:
@@ -31,8 +40,8 @@ def _inspect_client_key(path: Path) -> tuple[bool, str]:
     except OSError as error:
         raise SystemExit(
             f'授权公钥 {path} 存在但读不了（{error.strerror or error}）。'
-            '跨服务器拷贝请确认权限为 644（chmod 644 <两个 pem>），'
-            '且运行时用户（uid 1000 homeos）可读。'
+            '目录与两个 PEM 的权限须为 644 且运行时用户（uid 1000 homeos）可读；'
+            '手工投放请 chmod 644 <两个 pem>。'
         ) from error
     if not content:
         return False, '内容为空（可能正在写入）'
@@ -65,9 +74,9 @@ def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) 
             detail = '；'.join(f'{name}：{reason}' for name, reason in reasons.items())
             raise SystemExit(
                 f'等待授权公钥超时（{timeout_seconds:.0f}s）：{client_keys_dir}（{detail}）。'
-                '分拆部署请确认 deploy.sh 已把 PEM 落到 ./keys（或 APP_CLIENT_KEYS_DIR）；'
+                '分拆部署请确认主应用能访问 APP_LICENSE_SERVER_URL（启动时会自动取回公钥）；'
                 '同机部署请确认商店已启动且 docker-compose.app.shared.yml 挂载了共享公钥卷；'
-                '权限须为 644（chmod 644 <两个 pem>）。'
+                '目录与 PEM 权限须为 644。'
             )
         time.sleep(0.5)
 
@@ -76,21 +85,35 @@ def main() -> None:
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(ROOT)
     environment.setdefault("APP_DATA_DIR", "/data")
-    environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/keys")
+    # 可写目录，落在数据卷里：公钥由本项目向授权服务器取回后缓存于此，重启不必再取。
+    environment.setdefault("APP_CLIENT_KEYS_DIR", "/data/client-keys")
     environment.setdefault("APP_UPDATE_CHANNEL", "docker")
     if not (environment.get("APP_LICENSE_SERVER_URL") or "").strip():
         raise SystemExit(
             '未设置 APP_LICENSE_SERVER_URL。'
-            '分拆部署请传 --license-server https://pay.example.com；'
+            '分拆部署请传 --license-server http://<商店IP>:8802；'
             '同机部署请用 --role all（会叠加 docker-compose.app.shared.yml 注入商店内网地址）。'
         )
 
-    app_port = environment.get("APP_PORT", "18081").strip() or "18081"
+    app_port = environment.get("APP_PORT", "8801").strip() or "8801"
     client_keys_dir = Path(environment["APP_CLIENT_KEYS_DIR"]).expanduser()
     Path(environment["APP_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
 
+    def log(message: str) -> None:
+        print(f'授权公钥：{message}', flush=True)
+
+    # 先自举：本地没有公钥时向授权服务器取回（只读共享卷不动，交给商店侧）。
+    ensure_client_keys(
+        client_keys_dir,
+        license_server_url=environment["APP_LICENSE_SERVER_URL"],
+        environment=environment,
+        retry_seconds=FIRST_FETCH_WAIT_SECONDS,
+        log=log,
+    )
+    # 兜底：同机共享卷由商店容器写出，可能比本容器晚一点就绪。
     wait_for_client_keys(client_keys_dir)
     environment = apply_client_key_env(environment, client_keys_dir)
+    log(f'就绪目录 {client_keys_dir}（签名 keyId={derive_key_id(client_keys_dir / "license-public.pem")}）')
 
     # 转发头信任范围：默认回环，只有显式配置才放宽。取成通配时在 uvicorn 起来之前
     forwarded_allow_ips = (
@@ -102,25 +125,31 @@ def main() -> None:
         print(f'警告：{forwarded_warning}', file=sys.stderr, flush=True)
 
     print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/setup", flush=True)
+    print("主应用 HTTPS    https://<本机局域网IP>:8803/setup（镜像内置反代，自签证书首次需放行）", flush=True)
     print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
 
     os.environ.clear()
     os.environ.update(environment)
-    os.execvp(
-        sys.executable,
-        [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "src.main:app",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            app_port,
-            "--proxy-headers",
-            "--forwarded-allow-ips",
-            forwarded_allow_ips,
-        ],
+    # 内置反代（Caddy，/etc/caddy/Caddyfile）与 uvicorn 同容器守护：反代对端固定是
+    # 回环，所以 --forwarded-allow-ips 保持默认回环即可，不必放宽到 docker 网段。
+    raise SystemExit(
+        run_with_proxy(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "src.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                app_port,
+                "--proxy-headers",
+                "--forwarded-allow-ips",
+                forwarded_allow_ips,
+            ],
+            data_dir=Path(environment["APP_DATA_DIR"]),
+            service_label="主应用",
+        )
     )
 
 

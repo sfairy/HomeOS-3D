@@ -7,26 +7,35 @@ services:
     image: ${HOMEOS_STORE_IMAGE:-ghcr.io/sfairy/homeos-3d-store:latest}
     container_name: homeos-3d-store
     restart: unless-stopped
+    # 容器内先转 SIGTERM 给商店进程（优雅关连接）再停 Caddy，最多各 10s；
+    # 比 docker 默认的 10s 宽裕，避免收尾未完成就被 SIGKILL。
+    stop_grace_period: 30s
     ports:
-      - "${STORE_PUBLISH_PORT:-18082}:18082"
+      # 8802：HTTP 直连备用；8804：镜像内置 Caddy 的内网 HTTPS 入口。
+      - "${STORE_PUBLISH_PORT:-8802}:8802"
+      - "${STORE_PROXY_PUBLISH_PORT:-8804}:8804"
     environment:
       STORE_DATA_DIR: /data
       STORE_LICENSE_KEYS_DIR: /data/license-keys
-      APP_CLIENT_KEYS_DIR: /data/keys
+      # 公钥镜像目录：只读挂给主应用（同机部署），分拆部署则由主应用向 /v2/keys 取回。
+      APP_CLIENT_KEYS_DIR: /data/client-keys
       STORE_HOST: 0.0.0.0
-      STORE_PORT: "18082"
+      STORE_PORT: "8802"
       STORE_BASE_URL: ${STORE_BASE_URL:-}
       STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
-      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-}
+      # 商店自身的可信代理网段：与主应用同理，只有同容器回环上的内置反代能作为对端。
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-127.0.0.1,::1}
       # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
     volumes:
       - homeos-3d-store-data:/data
       - homeos-3d-license-keys:/data/license-keys
-      - homeos-3d-client-keys:/data/keys
+      - homeos-3d-client-keys:/data/client-keys
     networks:
       - homeos-3d-net
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18082/healthz"]
+      # 与镜像内 HEALTHCHECK 对齐：商店和镜像内置反代都要活着才算健康
+      # （HTTP 直连端口此时可能仍然可用，所以必须单独探一次 HTTPS）。
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8802/healthz >/dev/null && curl -fsSk https://localhost:8804/healthz >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 5

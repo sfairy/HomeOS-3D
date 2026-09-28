@@ -1,3 +1,4 @@
+# 版本控制与开发环境
 .git
 .github
 .venv
@@ -7,33 +8,31 @@ __pycache__
 **/*.py[cod]
 .DS_Store
 
-# 运行时数据与本地密钥（镜像内由启动脚本按需生成 / 卷挂载）
+# 运行时数据与本地私钥（镜像内由启动脚本按需生成，或由卷 / 宿主机注入）
 data
 homeos-3d/data
 homeos-store/data
 homeos-store/keys/local
 homeos-store/backend/src/data
 homeos-store/backend/src/keys/local
+
+# 授权公钥不进构建上下文：主应用启动时从授权服务器 `GET /v2/keys` 取回并落到数据卷，
+# 同机部署则由商店写出的共享卷注入，不在镜像里烘焙。
+/keys
+
+# 构建期由 Dockerfile 生成的版本模块（唯一来源是仓库根 package.json 的 version）。
+**/_version.py
+
 .env
 .env.*
 !.env.example
 
-# 本地临时目录、旧构建与对照源
-/app
-.deobf
-原项目
-源代码
-image
-
-# 文档与开发产物（不进运行镜像）
+# 文档与部署清单（不进运行镜像）
 *.md
-!README.md
 docs
 ops/deploy
-# 依赖目录
-node_modules
-ops/docker/node_modules
 
-# 本地构建产物（镜像内重新 bun run build）
+# 依赖目录与本地构建产物（镜像内重新 bun run build）
+node_modules
 dist
 *.tsbuildinfo

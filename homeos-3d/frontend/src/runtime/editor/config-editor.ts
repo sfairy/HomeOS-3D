@@ -194,7 +194,7 @@ export async function openInteraction3dEditor({
         : isGenericDeviceMode
           ? genericDeviceProfile(deviceKind)?.label
           : isAirPurifierMode
-            ? // 上游 0.6.5 的 kindLabel 用整名「空气净化器」：模型列表的「添加…」、
+            ? // 上游 1.0.0 的 kindLabel 用整名「空气净化器」：模型列表的「添加…」、
               // 「关联…模型」、「点击…」等处都拼这个词，与「环境类别」下拉里的取值一致。
               "空气净化器"
             : isDeviceKind
@@ -206,7 +206,7 @@ export async function openInteraction3dEditor({
                   : isClimateMode
                     ? "空调"
                     : "灯光";
-    // 弹窗标题按 0.6.5 的 value14 取值：环境（空调 / 空气净化器 / 窗帘 / 温湿度计）、
+    // 弹窗标题按 1.0.0 的 value14 取值：环境（空调 / 空气净化器 / 窗帘 / 温湿度计）、
     editorKindTitle = isEnvironmentKind
       ? "环境"
       : isDeviceKind
@@ -1168,7 +1168,7 @@ export async function openInteraction3dEditor({
         closeAuxDialog();
         refreshEditorPreview();
         renderPanel();
-        // 与 0.6.5 dist 的两处字面量逐字一致：温湿度计走「个温湿度计」，其余走「个目标」
+        // 与 1.0.0 dist 的两处字面量逐字一致：温湿度计走「个温湿度计」，其余走「个目标」
         saveStatusElement.textContent =
           "已应用到 " +
           updatedTargetItems.length +
@@ -1401,7 +1401,7 @@ export async function openInteraction3dEditor({
     });
     batchDialogElement.showModal();
   }
-  // 新建「双层帘」组合的弹窗。与 0.6.5 dist 的结构与文案逐字一致：一句继承说明、
+  // 新建「双层帘」组合的弹窗。与 1.0.0 dist 的结构与文案逐字一致：一句继承说明、
   function openCurtainGroupDialog(sourceItem: any) {
     if (auxDialogElement || isDisposed || !isAccessAllowed) {
       return;
@@ -1414,7 +1414,7 @@ export async function openInteraction3dEditor({
     const dialogElement = createElement("dialog", "settings-dialog i3d-add-dialog");
     auxDialogElement = dialogElement;
     dialogElement.setAttribute("aria-label", "组合窗帘");
-    // 0.6.5 这一支没有 dialog-heading（也没有右上角 ×）：标题就是正文容器里的第一个 h2，
+    // 1.0.0 这一支没有 dialog-heading（也没有右上角 ×）：标题就是正文容器里的第一个 h2，
     const dialogBodyElement = createElement("div", "i3d-add-dialog-body");
     dialogBodyElement.append(
       createElement("h2", "", "组合窗帘"),
@@ -1520,7 +1520,7 @@ export async function openInteraction3dEditor({
       document.dispatchEvent(new Event("hb-i3d-preview-scope"));
     }
   };
-  // 退出：0.6.5 的「退出」（以及 dialog 的 cancel）就是直接释放编辑器，没有二次确认 ——
+  // 退出：1.0.0 的「退出」（以及 dialog 的 cancel）就是直接释放编辑器，没有二次确认 ——
   const saveStatusElement = createElement("span", "i3d-save-status");
   saveStatusElement.setAttribute("role", "status");
   // 保存：先冻结草稿快照再提交，提交期间禁止重复点击；
@@ -1704,7 +1704,7 @@ export async function openInteraction3dEditor({
     onNumberChange: any,
     inputType = "number"
   ) {
-    // 与 0.6.5 的 fn29 同一条特例：标签以「高度（米）」结尾的行（高度（米） / 离地高度（米））
+    // 与 1.0.0 的 fn29 同一条特例：标签以「高度（米）」结尾的行（高度（米） / 离地高度（米））
     const isHeightRow = numberLabel.endsWith("高度（米）");
     const formatNumberValue = (value: any) =>
       isHeightRow && Number.isFinite(Number(value)) ? Number(value).toFixed(1) : String(value);
@@ -2852,10 +2852,10 @@ export async function openInteraction3dEditor({
   }
   // 状态灯（可选）：电源状态一条、提醒条件若干条。没有绑定设备时不渲染控件，
   function renderStatusRuleSection(item: any) {
-    // i3d-status-settings 是这块「指示灯设置」的标记类（与 0.6.5 同一口径），整块的纵向
+    // i3d-status-settings 是这块「指示灯设置」的标记类（与 1.0.0 同一口径），整块的纵向
     const statusSectionElement = createConfigSection("状态灯（可选）");
     statusSectionElement.className += " i3d-status-settings";
-    // 与 0.6.5 dist 逐字一致：先讲清「有没有电源状态」对指示灯颜色的影响，再出控件。
+    // 与 1.0.0 dist 逐字一致：先讲清「有没有电源状态」对指示灯颜色的影响，再出控件。
     statusSectionElement.append(
       createElement(
         "p",
@@ -2873,7 +2873,7 @@ export async function openInteraction3dEditor({
       );
       return;
     }
-    // 净化器那支已不可达：0.6.5 的「状态灯（可选）」整块以「设备驱动」为条件，净化器走
+    // 净化器那支已不可达：1.0.0 的「状态灯（可选）」整块以「设备驱动」为条件，净化器走
     if (isAirPurifierMode && !item.entityId) {
       statusSectionElement.append(
         createElement("p", "i3d-note is-empty", "请先绑定空气净化器实体")
@@ -2920,7 +2920,7 @@ export async function openInteraction3dEditor({
       addHealthRuleButtonElement.disabled = !item.deviceId;
       statusSectionElement.append(addHealthRuleButtonElement);
     }
-    // 与 0.6.5 dist 逐字一致（原文紧跟「＋ 添加提醒」之后）。
+    // 与 1.0.0 dist 逐字一致（原文紧跟「＋ 添加提醒」之后）。
     statusSectionElement.append(
       createElement(
         "p",
@@ -2929,7 +2929,7 @@ export async function openInteraction3dEditor({
       )
     );
   }
-  // 附加功能（额外控件）：0.6.5 的形态是「预览按钮 + 说明 + 内联 details 选择器」——
+  // 附加功能（额外控件）：1.0.0 的形态是「预览按钮 + 说明 + 内联 details 选择器」——
   function renderExtraControlsSection(item: any) {
     const extraSectionElement = createConfigSection("附加功能");
     // 目录的归属设备：通用设备就是绑定的 deviceId；净化器的主实体是它自己的 fan 实体，
@@ -2984,7 +2984,7 @@ export async function openInteraction3dEditor({
       entityListElement.replaceChildren();
       chooserCheckboxes.clear();
       const query = searchInputElement.value.trim().toLowerCase();
-      // 已配置但不在目录里的实体（设备换过 / 实体被删）：照 0.6.5 的做法补一行
+      // 已配置但不在目录里的实体（设备换过 / 实体被删）：照 1.0.0 的做法补一行
       const missingEntries = (item.extraControls || [])
         .filter(
           (extraEntry: any) =>
@@ -3076,7 +3076,7 @@ export async function openInteraction3dEditor({
               );
           refreshEditorPreview();
           syncChooserState();
-          // 勾一下就把预览弹窗上的卡片增删跟上（0.6.5 同口径）。
+          // 勾一下就把预览弹窗上的卡片增删跟上（1.0.0 同口径）。
           void previewDevicePanel();
         });
         optionRowElement.append(optionCheckboxElement, optionTextElement);
@@ -3087,14 +3087,14 @@ export async function openInteraction3dEditor({
     renderEntityList();
     chooserElement.append(searchInputElement, entityListElement);
     extraSectionElement.append(chooserElement);
-    // 展开选择器本身就说明用户想看弹窗内容，顺手把预览打开（0.6.5 同口径）。
+    // 展开选择器本身就说明用户想看弹窗内容，顺手把预览打开（1.0.0 同口径）。
     chooserElement.addEventListener("toggle", () => {
       if (chooserElement.open) {
         void previewDevicePanel();
       }
     });
   }
-  // 通用设备绑定：整台 HA 设备一个绑定，走设备选择器（与 0.6.5 的 pickers.device 同一契约）。
+  // 通用设备绑定：整台 HA 设备一个绑定，走设备选择器（与 1.0.0 的 pickers.device 同一契约）。
   function renderGenericDeviceBindingSection(item: any, parentSectionElement: any, openDevicePicker: any) {
     const bindingSectionElement = parentSectionElement ?? createConfigSection("绑定设备");
     const deviceButtonElement = createButton(
@@ -3123,7 +3123,7 @@ export async function openInteraction3dEditor({
     );
     purifierEntityButton.setAttribute("aria-label", "选择空气净化器实体");
     createSettingRow(purifierSectionElement, "绑定实体", purifierEntityButton);
-    // 只画这一行：0.6.5 的净化器绑定下面没有说明段落（本仓曾加过两句解释，已按原版删掉）。
+    // 只画这一行：1.0.0 的净化器绑定下面没有说明段落（本仓曾加过两句解释，已按原版删掉）。
     return purifierSectionElement;
   }
   // ---- 窗帘组合（一拖多）：组合入口的独立编辑面板 ----
@@ -3562,7 +3562,7 @@ export async function openInteraction3dEditor({
         createSelectRow(
           currentContainer,
           "环境类别",
-          // 选项顺序与上游 0.6.5 逐字一致：空调 / 窗帘 / 空气净化器 / 温湿度计。
+          // 选项顺序与上游 1.0.0 逐字一致：空调 / 窗帘 / 空气净化器 / 温湿度计。
           [
             ["climate", "空调"],
             ["cover", "窗帘"],
@@ -3895,7 +3895,7 @@ export async function openInteraction3dEditor({
               Object.hasOwn(temperatureHumidityPickerKinds, targetField);
             const pickerMethod = pickers?.[isEntityField ? "entity" : targetField];
             if (!pickerMethod) {
-              // 两条文案都在上游 0.6.5 里：实体选择器单独一条，其余选择器一条。
+              // 两条文案都在上游 1.0.0 里：实体选择器单独一条，其余选择器一条。
               throw new Error(
                 isEntityField
                   ? "实体选择器尚未准备好，请刷新页面。"
@@ -3927,7 +3927,7 @@ export async function openInteraction3dEditor({
                   !!getItemList().includes(selectedItem)
                 ) {
                   if (targetField === "device") {
-                    // 0.6.5 口径：换设备 / 解绑一律清掉附加功能与状态灯规则 —— 两者都挂在
+                    // 1.0.0 口径：换设备 / 解绑一律清掉附加功能与状态灯规则 —— 两者都挂在
                     const applyPickedDevice = () => {
                       if (selectedItem.deviceId !== (pickedFieldValue?.deviceId || "")) {
                         delete selectedItem.extraControls;
@@ -3957,7 +3957,7 @@ export async function openInteraction3dEditor({
                       selectedItem.deviceId &&
                       selectedItem.deviceId !== (pickedFieldValue?.deviceId || "")
                     ) {
-                      // 换设备确认：0.6.5 用的是编辑器自己的 settings-dialog（h2 + p +
+                      // 换设备确认：1.0.0 用的是编辑器自己的 settings-dialog（h2 + p +
                       const deviceChangeDialogElement = createElement(
                         "dialog",
                         "settings-dialog i3d-add-dialog"
@@ -4085,7 +4085,7 @@ export async function openInteraction3dEditor({
                       purifierDeviceChanged(entities, selectedItem.entityId, pickedFieldValue || "") &&
                       ((selectedItem.extraControls || []).length || selectedItem.statusRules)
                     ) {
-                      // 与通用设备换绑同款弹窗，但照 0.6.5 换净化器那一支的写法：
+                      // 与通用设备换绑同款弹窗，但照 1.0.0 换净化器那一支的写法：
                       const purifierChangeDialogElement = createElement(
                         "dialog",
                         "settings-dialog i3d-add-dialog"
@@ -4312,7 +4312,7 @@ export async function openInteraction3dEditor({
               refreshEditorPreview();
             }
           );
-          // 模型自带帘布时默认以模型为准，但仍允许在这里覆写 —— 与 0.6.5 的
+          // 模型自带帘布时默认以模型为准，但仍允许在这里覆写 —— 与 1.0.0 的
           curtainFabricSelect.title = "仅修改当前3D交互的帘布，不改变户型模型或2D导图";
           if (floorCurtainModel?.curtainFabric) {
             currentContainer.append(
@@ -4372,7 +4372,7 @@ export async function openInteraction3dEditor({
               createElement("p", "i3d-note", "开合状态跟随绑定实体；解除绑定后恢复预设的展示状态。")
             );
           } else {
-            // 上游 0.6.5 的口径：基准只有「关闭 / 半开 / 全开」三档，**当前值不在这三档里**时
+            // 上游 1.0.0 的口径：基准只有「关闭 / 半开 / 全开」三档，**当前值不在这三档里**时
             const unboundPositionOptions = [
               ["0", "关闭"],
               ["50", "半开"],
@@ -4406,7 +4406,7 @@ export async function openInteraction3dEditor({
           const selectedCurtainGroup = findCurtainGroupOf(selectedItem.id);
           if (selectedCurtainGroup) {
             const groupMemberSectionElement = createConfigSection("组合成员");
-            // 上游 0.6.5 把「组合成员」排在「基础绑定」**之前**（成员说明 + 返回入口按钮先出，
+            // 上游 1.0.0 把「组合成员」排在「基础绑定」**之前**（成员说明 + 返回入口按钮先出，
             bindingContainer.before(groupMemberSectionElement);
             groupMemberSectionElement.append(
               createElement(
@@ -4424,7 +4424,7 @@ export async function openInteraction3dEditor({
               })
             );
           } else {
-            // 未组合：与 0.6.5 一致，只留一个「组合另一扇窗帘」入口 + 一句说明，配对候选挪进
+            // 未组合：与 1.0.0 一致，只留一个「组合另一扇窗帘」入口 + 一句说明，配对候选挪进
             const partnerCandidates = curtainGroupCandidates(
               draftProperties.environment,
               selectedItem.id
@@ -4654,7 +4654,7 @@ export async function openInteraction3dEditor({
             )
           );
         }
-        // 通用设备 / 净化器的绑定行与弹窗内容。与 0.6.5 同序：绑定行落在「基础绑定」里，
+        // 通用设备 / 净化器的绑定行与弹窗内容。与 1.0.0 同序：绑定行落在「基础绑定」里，
         if (isGenericDeviceMode) {
           // 同净化器：选择器只能在本层打开（openItemPicker 是本函数的局部函数），
           renderGenericDeviceBindingSection(
@@ -4670,7 +4670,7 @@ export async function openInteraction3dEditor({
             (purifierPickerTrigger: any) => void openItemPicker("purifier", purifierPickerTrigger)
           );
         }
-        // 状态灯（可选）只属于通用设备：0.6.5 里「绑定设备 + 状态灯」整块以「设备驱动」为
+        // 状态灯（可选）只属于通用设备：1.0.0 里「绑定设备 + 状态灯」整块以「设备驱动」为
         if (isGenericDeviceMode) {
           if ((genericDeviceProfile(deviceKind) as any)?.statusIndicator === false) {
             delete selectedItem.statusRules;
@@ -4806,7 +4806,7 @@ export async function openInteraction3dEditor({
             );
             createSettingRow(itemAppearanceRowElement, "图标", itemIconPickerButton);
           }
-          // 组合成员到此为止：上游 0.6.5 在这里 `return`（渲染函数内），后面那一段全部不再出，
+          // 组合成员到此为止：上游 1.0.0 在这里 `return`（渲染函数内），后面那一段全部不再出，
           if (isCoverMode && findCurtainGroupOf(selectedItem.id)) {
             const memberBindingManageSectionElement = createConfigSection("绑定管理");
             memberBindingManageSectionElement.append(
@@ -4862,7 +4862,7 @@ export async function openInteraction3dEditor({
                 ? // 温湿度计把「摆在哪」和「多大」合成一节（上游同构）。它的卡片不跟随场景
                   // 模型，所以这一节只配锚点与尺寸，没有「跟随模型」这一说。
                   "位置与大小"
-                : // 上游 0.6.5 的模型绑定分支只有卷帘机改叫「标签位置」，其余（含通用设备与
+                : // 上游 1.0.0 的模型绑定分支只有卷帘机改叫「标签位置」，其余（含通用设备与
                   // 空气净化器）一律「按钮位置」——位置段配的就是这个点击按钮的锚点，
                   // 不另起「弹窗锚点位置」这个名字。
                   "按钮位置"
@@ -4977,7 +4977,7 @@ export async function openInteraction3dEditor({
             batchCountElement
           );
           const lightBatchApplyButton = createButton(
-            // 温湿度计与 0.6.5 dist 的字面量逐字一致（其余类型仍按当前类型名拼）。
+            // 温湿度计与 1.0.0 dist 的字面量逐字一致（其余类型仍按当前类型名拼）。
             isTemperatureHumidityMode ? "一键应用到其他温湿度计" : "一键应用到其他" + kindLabel,
             () => openBatchApplyDialog(selectedItem)
           );
@@ -4991,7 +4991,7 @@ export async function openInteraction3dEditor({
                     temperatureSiblingProbe.floorId === selectedItem.floorId
                 ).length + " 个同层目标"
               : lightChangeCount + " 项修改";
-            // 与 0.6.5 的 fn44 同口径：这颗按钮只受权限与相机忙两道闸约束，
+            // 与 1.0.0 的 fn44 同口径：这颗按钮只受权限与相机忙两道闸约束，
             lightBatchApplyButton.disabled =
               !isAccessAllowed || isCameraEditing || isCameraCommandPending;
           };
@@ -5059,7 +5059,7 @@ export async function openInteraction3dEditor({
           refreshBatchButtons = () => {
             const effectChangeCount = listChangedFields(selectedItem).length;
             effectBatchCountElement.textContent = effectChangeCount + " 项修改";
-            // 同设备分支：只看权限 / 相机忙 / 范围编辑器占用，不看改动数（0.6.5 的
+            // 同设备分支：只看权限 / 相机忙 / 范围编辑器占用，不看改动数（1.0.0 的
             effectBatchApplyButton.disabled =
               !isAccessAllowed ||
               isCameraEditing ||
@@ -5245,7 +5245,7 @@ export async function openInteraction3dEditor({
           }
         }
         const bindingManageSectionElement = createConfigSection("绑定管理");
-        // 这里只剩「删除此<控件>」这一颗按钮（上游 0.6.5 的收尾「绑定管理」同样只有它）。
+        // 这里只剩「删除此<控件>」这一颗按钮（上游 1.0.0 的收尾「绑定管理」同样只有它）。
         bindingManageSectionElement.append(removeItemButton);
       } else {
         currentContainer.append(

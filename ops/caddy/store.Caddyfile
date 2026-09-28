@@ -1,0 +1,38 @@
+# HomeOS 授权商店 —— 镜像内置的内网 HTTPS 反代（Caddy 内置 CA，按需自签证书）
+#
+# 由 ops/docker/start_store.py 在容器内与商店同容器拉起：监听 :8804，
+# 反代到同容器的 127.0.0.1:8802。因为反代就在应用旁边：
+#   - 不要求把 8802 先发布到宿主机；
+#   - uvicorn 的转发头信任范围保持默认回环（127.0.0.1,::1）即可，无需放宽到 docker 网段。
+# Dockerfile 会在构建时把本文件复制为 /etc/caddy/Caddyfile。
+#
+#   - 裸 :8804 站点 + tls internal { on_demand }：任意局域网 IP / 主机名都能用
+#     HTTPS，证书按连入地址动态签发（浏览器用 IP 访问时 SNI 为空也能匹配）；
+#   - HTTP 备用：继续直连容器发布的 8802，不经本反代；
+#   - WebSocket 由 Caddy v2 reverse_proxy 默认自动升级。
+{
+	skip_install_trust
+	admin off
+	auto_https disable_redirects
+	# 控制台只打错误；证书维护 / GOMAXPROCS 等 info 刷屏关掉
+	log {
+		level ERROR
+		format console
+	}
+	# h1 支持 WebSocket 升级，h2 用于常规 HTTP/2
+	servers :8804 {
+		protocols h1 h2
+	}
+}
+
+# 裸 :8804 匹配任意主机名 / IP；按需内网证书覆盖空 SNI 的 IP 直连
+:8804 {
+	tls internal {
+		on_demand
+	}
+
+	reverse_proxy 127.0.0.1:8802 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}

@@ -212,13 +212,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 8805,
     strictPort: true,
     proxy: {
-      "/api": { target: "http://127.0.0.1:18081", changeOrigin: true },
-      "/static": { target: "http://127.0.0.1:18081", changeOrigin: true },
-      "/health": { target: "http://127.0.0.1:18081", changeOrigin: true },
-      "/ws": { target: "ws://127.0.0.1:18081", ws: true },
+      "/api": { target: "http://127.0.0.1:8801", changeOrigin: true },
+      "/static": { target: "http://127.0.0.1:8801", changeOrigin: true },
+      "/health": { target: "http://127.0.0.1:8801", changeOrigin: true },
+      "/ws": { target: "ws://127.0.0.1:8801", ws: true },
     },
   },
   build: {

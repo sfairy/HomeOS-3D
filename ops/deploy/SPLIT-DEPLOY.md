@@ -4,22 +4,30 @@
 
 | 文件 | 项目名 | 服务 |
 | --- | --- | --- |
-| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店 18082（厂商机；自建网络与公钥卷） |
-| `docker-compose.app.yml` | `homeos-3d` | 主应用 18081（客户机，**可单独运行**：自带 `./keys` 公钥挂载） |
+| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店 8802（厂商机；自建网络与公钥卷） |
+| `docker-compose.app.yml` | `homeos-3d` | 主应用 8801（客户机，**可单独运行**：启动时自动从商店取回授权公钥） |
 | `docker-compose.app.shared.yml` | 叠加到 `homeos-3d` | 仅同机部署时用：加入商店的网络与公钥卷 |
 
 两种拓扑都由 `ops/deploy/deploy.sh` 收口：同机 `--role all`（自动叠加 shared 文件），
-跨服务器各跑一次 `--role store` 与 `--role app --license-server https://pay.example.com`。
+跨服务器各跑一次 `--role store` 与 `--role app --license-server http://<商店IP>:8802`。
 
 ```
-[服务器 A]  homeos-3d        :18081  ←  反代 https://homeos.example.com
-[服务器 B]  homeos-3d-store  :18082  ←  反代 https://pay.example.com
-A → B：APP_LICENSE_SERVER_URL（HTTPS，走公网）
+[服务器 A]  homeos-3d        :8801  ←  内置反代 https://<A的IP>:8803
+[服务器 B]  homeos-3d-store  :8802  ←  内置反代 https://<B的IP>:8804
+A → B：APP_LICENSE_SERVER_URL=http://<B的IP>:8802   ← 跨机直连用商店的 HTTP 端口
 ```
+
+全程走局域网，不需要公网域名或真实证书；HTTPS 由镜像内置的 Caddy 自签证书提供（见第 5 节）。
+
+> **跨服务器务必用 `http://<B的IP>:8802`，不要用 `https://<B的IP>:8804`。** 商店内置反代用的是
+> Caddy 内部 CA 的自签证书（`skip_install_trust`，不写系统信任库），主应用容器的 httpx / 取公钥
+> 的 urllib 都会按系统 CA 校验而失败 —— 表现是「无法连接授权服务器」+「取回授权公钥超时」。
+> 想要 HTTPS，需在镜像外上一套带真实证书（或自建 CA 并显式分发）的反代，见第 5 节。
+> 同机部署（`--role all`）走容器内网 `http://homeos-3d-store:8802`，不受此限。
 
 ## 0. 两台机器共同的前提
 
-- **同一份提交。** 两份镜像独立构建，授权协议里的 `keyId`（由公钥字节派生）、`generation`、`clientVersion` 都是运行期才校验的，版本漂移不会在构建期报错。两边都用同一个 tag，并核对镜像里的 `VERSION`。
+- **同一份提交。** 两份镜像独立构建，授权协议里的 `keyId`（由公钥字节派生）、`generation`、`clientVersion` 都是运行期才校验的，版本漂移不会在构建期报错。两边都用同一个 tag（该 tag 由仓库根 `package.json` 的 `version` 决定）。
 - **架构要各自匹配。** 镜像里的 Python 已被 Cython 编译成 `.so`，是 per-arch 产物，amd64 / arm64 不能互相搬镜像。
 - **时钟同步。** 租约、会话、令牌全部按时间判定；两台机器时钟偏移大了会表现为「刚发的租约已过期」。
 - 构建只需 `Dockerfile`（`--target app` / `--target store`）或直接用 GHCR 镜像；**不需要**在两台机器上各自跑 compose 构建。
@@ -27,49 +35,70 @@ A → B：APP_LICENSE_SERVER_URL（HTTPS，走公网）
 ## 1. 服务器 B：先起商店
 
 ```bash
-./ops/deploy/deploy.sh --role store     # 拉镜像 + 起容器 + 等健康 + 打印公钥 sha256
-# 首次部署后打开 http://<B>:18082/setup 创建管理员
+./ops/deploy/deploy.sh --role store              # 拉镜像 + 起容器 + 等健康 + 打印公钥 sha256
+# 首次部署后打开 http://<B的IP>:8802/setup 创建管理员
 ```
 
 - 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `homeos-store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
-- 公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 用）；分拆部署时服务器 A 由 `deploy.sh` 写入 `./keys`。
+- **商店首次启动是随机生成密钥对**（`Ed25519PrivateKey.generate()`），所以它的公钥和仓库里 `keys/` 的开发公钥**不一样**。公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 直接挂它）；分拆部署时由服务器 A 启动时通过 `GET /v2/keys` 自动取回，见下一节。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
-## 2. 服务器 A 的公钥
+## 2. 服务器 A 的公钥：全自动，无需人工投放
 
-主应用启动时要读两个公钥，**独立部署时由脚本自动解决**：`deploy.sh --role app` 会把
-`keys/license-public.pem` 与 `keys/license-transport-public.pem` 落到服务器 A 的 `./keys/`
-（优先用本地已有的；没有就按 `--version` 对应的 tag 从仓库取，并打印 sha256 供与商店侧核对）。
+主应用自己**不生成**密钥，它需要**目标商店自己的**两个公钥。这件事现在是自动的：
 
-附录——仅密钥轮换或无仓库检出时才需要手工灌卷：
+- 主应用容器启动时（`ops/docker/start_app.py` → `ops/docker/bootstrap_keys.py`）向
+  `APP_LICENSE_SERVER_URL` 的 **`GET /v2/keys`** 取一份公钥，校验指纹后落到自己的数据卷
+  `/data/client-keys`，之后即使商店暂时不可达也能离线启动。
+- 同机部署（`--role all`）走另一条路：`docker-compose.app.shared.yml` 把商店写出的公钥卷
+  以**只读**挂到 `/shared-keys`，启动器不联网、也不写盘。
+
+仓库里的 `keys/` 只是本地联调用的开发公钥（`ops/start.py` 用），容器部署不读它 —— 因此
+不会有「误用开发公钥、激活必然失败」这个坑。
+
+**为什么可以明文取公钥：** 公钥不是秘密（租约真伪由 Ed25519 验签保证），而首次启动时双方
+还没有共享传输公钥（X25519 请求体加密依赖它），只能直接读。真正要防的是「被换成别的密钥对」，
+启动器因此做了两道校验：
+
+1. **指纹相符**：返回的 PEM 必须与它声明的 sha256 一致；
+2. **连续性**：本地已固定某把签名公钥时，只有当服务器把这把列为**上一代公钥**，才允许换成
+   新的（这是合法轮换的必然特征）。否则拒绝替换并保留原样。
+
+所以：**商店轮换密钥时不需要动服务器 A** —— 把上一代四件套（`license-*.previous.pem`）按
+商店文档放好开启重叠窗口：分拆部署时 A 下次启动就会自动跟进；同机部署（`--role all`）则由
+商店启动器把上一代公钥一起镜像进共享卷（`ops/docker/license_keys.py`），不必人工搬运。
+两种情况都会把这把旧公钥一起落盘继续参与验签，窗口结束后自动清理。
+
+想人工核对（可选）：`deploy.sh --role store` 结束前会打印两个 sha256，A 端启动日志里也会打印
+取回后的 `keyId` 与指纹，对比一下即可。
 
 ```bash
-# —— 服务器 B：打包
-docker run --rm -v homeos-3d-client-keys:/keys -v "$PWD":/out alpine \
-  tar -C /keys -czf /out/client-keys.tgz .
+# 服务器 B：看一眼商店当前公钥
+docker exec homeos-3d-store sha256sum /data/client-keys/*.pem
 
-# —— 服务器 A：先建出同名卷，再灌进去
-docker volume create homeos-3d-client-keys
-docker run --rm -v homeos-3d-client-keys:/keys -v "$PWD":/in alpine \
-  sh -c 'tar -C /keys -xzf /in/client-keys.tgz && chmod 755 /keys && chmod 644 /keys/*.pem'
-docker run --rm -v homeos-3d-client-keys:/keys alpine ls -l /keys
+# 服务器 A：看一眼取回结果（启动日志）
+docker logs homeos-3d | grep 授权公钥
 ```
 
+**要手工指定公钥**（离线盘点、或从别处恢复数据卷）时，把两个 PEM 放进
+`APP_CLIENT_KEYS_DIR`（默认 `/data/client-keys`）并 `chmod 644`，再把
+`APP_CLIENT_KEYS_FETCH=off` 即可，启动器就不再联网。
+
 - 两个文件缺一不可：`license-public.pem`（Ed25519，验签租约）、`license-transport-public.pem`（X25519，加密请求体）。
-- **权限是最常见的坑。** 容器里跑的是 uid 1000（`homeos`），而 `scp` / `docker cp` 常见结果是 `root:600`；公钥须 `chmod 644`，否则启动器会直接退出并说明原因。
-- **密钥轮换**：商店侧的 `license-*.previous.pem` 是旧客户端的宽限窗口，轮换期间要一起搬，漏搬会让旧客户端验签失败。
+- 轮换重叠窗口内再加一个 `license-public.previous.pem`（上一代签名公钥），主应用会自动认它，不必配环境变量。
+- **权限是最常见的坑。** 容器里跑的是 uid 1000（`homeos`），而 `scp` / `docker cp` 常见结果是 `root:600`；公钥须 `chmod 644`。
+- 该端点按来源 IP 限流（240 / 小时），响应带 `Cache-Control: no-store`。
 
 ## 3. 服务器 A：再起主应用
 
 ```bash
 # .env 至少要有这几项（其余见 .env.example 的 A 区）：
-#   APP_LICENSE_SERVER_URL=https://pay.example.com
-#   APP_BASE_URL=https://homeos.example.com
-#   APP_COOKIE_SECURE=true
-#   APP_TRUSTED_PROXIES=<反代地址或网段>
-#   UVICORN_FORWARDED_ALLOW_IPS=<反代地址或网段>   # 不要填 *
+#   APP_LICENSE_SERVER_URL=http://<B的IP>:8802   # 跨机就用商店 HTTP 端口（别用自签的 8804）
+#   APP_COOKIE_SECURE=false                       # 要让 HTTP / HTTPS 都能登录就用 false
+#   APP_TRUSTED_PROXIES=127.0.0.1,::1             # 内置反代在容器回环上，保持默认
+#   UVICORN_FORWARDED_ALLOW_IPS=127.0.0.1,::1     # 保持默认，不要填 *
 
-./ops/deploy/deploy.sh --role app --license-server https://pay.example.com
+./ops/deploy/deploy.sh --role app --license-server http://<B的IP>:8802
 docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data/setup-token）
 ```
 
@@ -78,6 +107,7 @@ docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data
 `docker-compose.app.shared.yml` 加入商店的网络与公钥卷。
 
 - **`APP_LICENSE_SERVER_URL` 必须显式设置**（`deploy.sh --license-server` 或 `.env`）。未设置时启动器直接退出；同机 `--role all` 由 `docker-compose.app.shared.yml` 注入内网地址。
+- **`APP_BASE_URL` 可留空。** 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；只有在需要固定访问地址时才填。
 - **宿主标识准备一次**（`docker-compose.app.yml` 里的两个 `/host/...` 挂载靠它生效）：
 
 ```bash
@@ -99,99 +129,57 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
   - 解绑之后**可以立即重新激活**（同机换机都行），不需要等冷却：`STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` 约束的是**两次解绑之间**的间隔（默认 8 小时），用来给「反复换机」减速，不是激活的前置条件。所以维护窗口要留的时间是「后台解绑 + 新机激活」，不是「解绑 + 等 8 小时」。
 - `docker-compose.app.yml` 固定了 `hostname` 并挂了 `/host/...`；改这些或换机器会改变指纹，需解绑后重新激活。
 
-## 5. 反向代理：两台各一份
+## 5. 反向代理：内网 HTTPS 已内置在镜像里
 
-原来的 `Caddyfile.example` / `nginx.conf.example` 是**同机**拓扑（两个域名、upstream 都是 `127.0.0.1`），跨机器要拆开。
+**不需要任何额外操作**：主应用与商店的镜像各自内置了 Caddy 反代，与应用同容器、同镜像 tag，
+容器一启动就有 HTTPS。
 
-### 服务器 B（商店，nginx）
+| 拓扑 | 主应用 | 商店 |
+| --- | --- | --- |
+| 分拆（A 跑 app、B 跑 store） | `https://<A的IP>:8803` | `https://<B的IP>:8804` |
+| 同机（`--role all`） | `https://<本机IP>:8803` | `https://<本机IP>:8804` |
 
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name pay.example.com;
+镜像内反代的原理：
 
-    ssl_certificate     /etc/ssl/certs/pay.example.com.fullchain.pem;
-    ssl_certificate_key /etc/ssl/private/pay.example.com.key;
+- Caddy 用**内置 CA**；裸站点 + `tls internal { on_demand }`，按连入地址**动态签发自签证书**。任意局域网 IP / 主机名都能直接访问，不用准备证书（浏览器用 IP 访问时 SNI 为空也能匹配）。
+- 两条站点各自只反代**同容器回环**：主应用 `:8803 → 127.0.0.1:8801`，商店 `:8804 → 127.0.0.1:8802`。反代与应用同容器，因此不要求先把应用端口发布到宿主机。
+- 浏览器首次访问会提示自签证书不受信任，手动放行即可（`skip_install_trust`）。
+- **HTTP 备用不经反代**：直接访问服务自己发布的 `8801` / `8802`。
+- WebSocket 与媒体（`/api/v1/ws/runtime`、`/api/hls/`、`/api/camera_proxy/`）由 Caddy v2 `reverse_proxy` 默认转发。
+- 自签证书落在各自的数据卷（容器内 `/data/caddy`）：容器重建不丢，`docker compose down -v` 才会丢。
+- 想换成镜像外自建的 Caddy / Nginx：参考 `ops/deploy/Caddyfile.intranet.example`（那里列了反代在镜像外时必须补的信任配置）。
 
-    client_max_body_size 16m;
-
-    location / {
-        proxy_pass http://127.0.0.1:18082;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-```
-
-### 服务器 A（主应用，nginx）
-
-```nginx
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name homeos.example.com;
-
-    ssl_certificate     /etc/ssl/certs/homeos.example.com.fullchain.pem;
-    ssl_certificate_key /etc/ssl/private/homeos.example.com.key;
-
-    client_max_body_size 64m;
-
-    location / {
-        proxy_pass http://127.0.0.1:18081;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        # 运行态 WebSocket 与 HLS / 摄像头转发的长连接
-        proxy_read_timeout 3600s;
-        proxy_buffering off;
-    }
-}
-```
-
-### 服务器 B（商店，Caddy）
+镜像内的配置（`ops/caddy/app.Caddyfile` / `ops/caddy/store.Caddyfile`）在构建时复制到 `/etc/caddy/Caddyfile`：
 
 ```
-pay.example.com {
-	encode gzip
-	reverse_proxy 127.0.0.1:18082 {
+{
+	skip_install_trust
+	admin off
+	auto_https disable_redirects
+	log { level ERROR; format console }
+	servers :8803 { protocols h1 h2 }   # 商店镜像是 :8804
+}
+
+:8803 {
+	tls internal { on_demand }
+	reverse_proxy 127.0.0.1:8801 {      # 商店镜像是 127.0.0.1:8802
 		header_up Host {host}
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
 	}
 }
 ```
 
-### 服务器 A（主应用，Caddy）
-
-```
-homeos.example.com {
-	encode gzip
-	reverse_proxy 127.0.0.1:18081 {
-		header_up Host {host}
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-For {remote_host}
-		transport http {
-			read_buffer 64kb
-		}
-	}
-}
-```
-
-主应用侧要转发的路径：WebSocket `/api/v1/ws/runtime`，媒体 `/api/hls/`、`/api/camera_proxy/`（上面用 `location /` 一并覆盖）。
+- **双协议登录**：`APP_COOKIE_SECURE` 与 `STORE_COOKIE_SECURE` 是布尔，没有 `auto`。要让 HTTPS 与 HTTP 都能登录，设为 `false`；只走 HTTPS 就设 `true`。
+- **商店反代端口固定是 8804**（不再随角色变化）：分拆部署时 A 的 8803 与 B 的 8804 本来就不冲突。
+- **宿主发布端口**在 `.env` 里改：`APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` / `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT`；容器内监听端口固定（8801/8803、8802/8804），只有宿主机映射会变。
 
 ## 6. 可信代理与限流
 
-- 两台机器各自配自己的反代网段：主应用 `APP_TRUSTED_PROXIES` + `UVICORN_FORWARDED_ALLOW_IPS`，商店 `STORE_TRUSTED_PROXIES`。**都不要填 `*`**：那等于把来源 IP 交给客户端自己填，登录限流、配对码枚举预算与审计一起失效。
-- 商店侧不配 `STORE_TRUSTED_PROXIES` 的后果更隐蔽：`resolve_client_ip` 会忽略 `X-Forwarded-For`，所有请求的来源被算成反代自己的地址，限流桶合并、审计里的 IP 失真。
+- 反代在**同容器回环**上，所以两个可信代理列表都收敛到回环：`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES=127.0.0.1,::1`（compose 的默认值，`.env` 不写就是它），`UVICORN_FORWARDED_ALLOW_IPS` 同样保持 `127.0.0.1,::1`。
+- **不要**改成 `*`：那等于把来源 IP 交给客户端自己填，登录限流、配对码枚举预算与审计一起失效。
+- **不要**把 `172.16.0.0/12` 之类的 docker 网段填进来：反代在容器回环上，这个值会让 uvicorn 连回环都不信，所有请求的来源退化成同一个 `127.0.0.1`，限流桶合并、审计里的 IP 失真。
+- 留空**也能跑**（uvicorn 的 proxy-headers 会先把对端改写成真实客户端），但 `APP_TRUSTED_PROXIES` 为空时启动与首个带转发头的请求都会各记一条「未配置可信代理」告警，且应用层不会自己解析转发链 —— 所以别留空。
+- 只有把反代放到**镜像之外**（自建 Caddy / Nginx，见 `Caddyfile.intranet.example`）时，才需要把它改成那一层代理的地址或网段。
 - 限流按**解析后的来源 IP**统计：
   - `/v2/activate` 固定 60 / 小时；
   - `/v2/heartbeat`、`/v2/recover` 用 `STORE_LICENSE_SESSION_IP_HOURLY_LIMIT`（默认 3600 / 小时）。
@@ -204,11 +192,11 @@ homeos.example.com {
 
 | 卷 | 归属 |
 | --- | --- |
-| `homeos-3d_homeos-3d-data` | 服务器 A 主应用数据（含 `data/`） |
+| `homeos-3d_homeos-3d-data` | 服务器 A 主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
 | `homeos-3d_homeos-3d-secrets` | 服务器 A HA / 配对 / 授权凭据密钥 |
 | `homeos-3d-store_homeos-3d-store-data` | 服务器 B 商店数据库与商品图 |
 | `homeos-3d-store_homeos-3d-license-keys` | 服务器 B 授权私钥（最关键，单独备） |
-| `homeos-3d-client-keys` | 共享公钥（固定名） |
+| `homeos-3d-client-keys` | 共享公钥卷（同机 `--role all` 用；分拆部署不依赖它） |
 
 升级照旧是拉新镜像 + `up -d`，**先 B 后 A**：
 
@@ -219,4 +207,4 @@ docker compose -f docker-compose.store.yml pull && docker compose -f docker-comp
 docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
 ```
 
-A 端的 `start_app` 会等公钥就绪，B 稍慢一点启动不会导致 A 失败。
+A 端的 `start_app` 会自己向 B 取回公钥（本地已有缓存时也能离线启动），B 稍慢一点启动不会导致 A 失败。

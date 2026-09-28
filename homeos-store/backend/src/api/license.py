@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
@@ -17,6 +19,8 @@ router = APIRouter(tags=["license"])
 
 _LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
 _LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
+#: 公钥分发只是读文件，配额给得宽一些，够挡住脚本刷。
+_LICENSE_KEYS_IP_LIMITER = SlidingWindowLimiter(limit=240, window_seconds=3600.0)
 
 #: heartbeat / recover 的 IP 桶按 ``limit`` 缓存实例（见下）。
 _LICENSE_SESSION_IP_LIMITERS: dict[int, SlidingWindowLimiter] = {}
@@ -155,3 +159,74 @@ async def heartbeat(request: Request) -> Response:
 @router.post("/v2/recover")
 async def recover(request: Request) -> Response:
     return await _dispatch(request, "recover")
+
+
+def _read_public_pem(path: Path) -> tuple[str, str] | None:
+    """读 PEM 公钥，返回 ``(文本, 文件字节的 sha256)``；缺失或不是 PEM 时返回 ``None``。
+
+    指纹按**文件字节**算，与 ``keyId`` 的派生口径（``licensing.keys.key_id_from_public``）
+    一致；主应用拿它做首次固定的信任锚。
+    """
+    try:
+        payload = path.read_bytes()
+    except OSError:
+        return None
+    if b"-----BEGIN PUBLIC KEY-----" not in payload:
+        return None
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    return text, hashlib.sha256(payload).hexdigest()
+
+
+@router.get("/v2/keys")
+def public_keys(request: Request) -> Response:
+    """分发授权公钥（Ed25519 验签 + X25519 传输），供主应用自举信任锚。
+
+    这是**唯一**的明文授权端点：主应用首次启动时还没有传输公钥，无法加解密，
+    只能直接读。公钥不是秘密 —— 租约真伪由 Ed25519 验签保证，泄露公钥不构成风险；
+    响应里只有 PEM 与指纹，绝不涉及私钥。
+
+    ``licensePublicKeyPrevious`` 是密钥轮换时上一代签名公钥（没有则为 ``null``），
+    主应用会一并落盘，让「客户端先升级、服务端后轮换」的窗口内旧租约仍能验签。
+    """
+    settings = request.app.state.settings
+    try:
+        address = resolve_client_ip(request)
+    except Exception:  # noqa: BLE001 - 解析异常不该让公钥分发整体不可用
+        address = None
+    if address is not None and address.per_client and address.ip:
+        ip_key = f"ip:{address.ip}"
+        if not _LICENSE_KEYS_IP_LIMITER.allow(ip_key):
+            logger.warning("公钥分发限流：来源 IP 触顶 ip=%s", address.ip)
+            return _rate_limited(_LICENSE_KEYS_IP_LIMITER.retry_after(ip_key))
+
+    signing = _read_public_pem(settings.public_key_path)
+    transport = _read_public_pem(settings.transport_public_key_path)
+    if signing is None or transport is None:
+        # 密钥还没准备好：回 503 让主应用按网络故障重试，而不是缓存一份残缺结果。
+        logger.warning("公钥分发失败：密钥文件缺失或不是 PEM %s", settings.license_keys_dir)
+        return JSONResponse(
+            {"detail": "授权公钥尚未就绪，请稍后重试。"},
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    signing_text, signing_sha256 = signing
+    transport_text, transport_sha256 = transport
+    previous = _read_public_pem(settings.previous_public_key_path)
+    return JSONResponse(
+        {
+            "product": "homeos",
+            "keyId": settings.license_key_id,
+            "transportKeyId": settings.license_transport_key_id,
+            "licensePublicKey": signing_text,
+            "licenseTransportPublicKey": transport_text,
+            "licensePublicKeySha256": signing_sha256,
+            "licenseTransportPublicKeySha256": transport_sha256,
+            # 轮换重叠窗口内才非空。
+            "licensePublicKeyPrevious": previous[0] if previous else None,
+        },
+        headers={"Cache-Control": "no-store"},
+    )

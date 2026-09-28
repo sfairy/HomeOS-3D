@@ -2,13 +2,13 @@
 #
 #   docker compose -f docker-compose.app.yml -f docker-compose.app.shared.yml up -d
 #
-# 只做两件事：加入商店创建的网络（走容器内网直连 18082），并把授权公钥改挂商店
-# 写出的共享卷。分开挂到不同容器路径，避免与基础文件的 ./keys 抢同一个挂载点。
+# 只做两件事：加入商店创建的网络（走容器内网直连 8802），并把授权公钥改挂商店
+# 写出的共享卷（只读）。商店那份 compose 会一直把它写全，所以这条路径不联网、也不写盘。
 
 services:
   homeos-3d:
     environment:
-      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:8802}
       APP_CLIENT_KEYS_DIR: /shared-keys
     volumes:
       - homeos-3d-client-keys:/shared-keys:ro

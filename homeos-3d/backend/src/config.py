@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,8 +23,38 @@ def _detect_project_root() -> Path:
 PROJECT_ROOT = _detect_project_root()
 # 单体仓库根（含共享 keys/）；独立拆库后与 PROJECT_ROOT 相同。
 REPO_ROOT = PROJECT_ROOT.parent if (PROJECT_ROOT.parent / 'homeos-store').is_dir() else PROJECT_ROOT
-# 授权服务器：本项目自带的 ``backend/src/`` 应用（默认监听 18082），不依赖任何外部厂商节点。
-SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:18082'
+
+
+def _read_baked_version() -> str:
+    """构建期烘进镜像的版本号（Dockerfile 生成 ``src/_version.py`` 后编译成扩展）。
+
+    源码运行时这个模块不存在，返回空串让调用方回落到 ``package.json``。
+    """
+    try:
+        from ._version import __version__ as baked  # type: ignore[import-not-found]
+    except ImportError:
+        return ''
+    return str(baked).strip()
+
+
+def _read_package_version() -> str:
+    """仓库根 ``package.json`` 的 ``version`` —— 版本号的唯一权威源。"""
+    for candidate in (REPO_ROOT / 'package.json', PROJECT_ROOT / 'package.json'):
+        try:
+            payload = json.loads(candidate.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        version = payload.get('version') if isinstance(payload, dict) else None
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+    return ''
+
+
+#: 当前版本号：镜像取构建期烘入值，源码取仓库根 package.json；都拿不到才退到 '0'。
+VERSION = _read_baked_version() or _read_package_version() or '0'
+
+# 授权服务器：本项目自带的 ``backend/src/`` 应用（默认监听 8802），不依赖任何外部厂商节点。
+SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:8802'
 # 单条 direct 批次：只访问自建服务器，不会散到其它节点。
 DEFAULT_LICENSE_SERVER_BATCHES = (('direct', (SELF_HOSTED_LICENSE_SERVER_URL,)),)
 # keyId **由公钥文件派生**（见 `_derive_key_id`），不是身份真相源。这两个常量只在公钥文件
@@ -304,7 +335,16 @@ class Settings:
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}
         if self.license_public_key_path_override is not None:
-            return {self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)}
+            trusted: dict[str, tuple[Path, str | None]] = {
+                self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)
+            }
+            # 上一代签名公钥与当前公钥同目录（容器里由启动器落盘，见 ops/docker/bootstrap_keys.py）：
+            # 少了它，服务端轮换密钥后的宽限窗口内旧租约会全部验签失败。
+            previous = self.license_public_key_path_override.parent / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
+            previous_key_id = _derive_key_id(previous)
+            if previous_key_id and previous_key_id != self.license_key_id:
+                trusted[previous_key_id] = (previous, None)
+            return trusted
         keys_dir = self._keys_dir()
         trusted: dict[str, tuple[Path, str | None]] = {
             self.license_key_id: (
@@ -330,11 +370,8 @@ class Settings:
 
     @property
     def version(self) -> str:
-        """当前版本号：项目 VERSION，否则单体仓库根 VERSION。"""
-        for candidate in (self.project_root / 'VERSION', REPO_ROOT / 'VERSION'):
-            if candidate.is_file():
-                return candidate.read_text(encoding='utf-8').strip()
-        return '0'
+        """当前版本号（见模块级 ``VERSION``：构建期烘入值 → 仓库根 package.json → '0'）。"""
+        return VERSION
 
 
 def _env_default(field_name: str) -> str:
@@ -351,7 +388,7 @@ def load_settings() -> Settings:
     display_pairing_key_path = os.getenv('APP_DISPLAY_PAIRING_KEY_FILE', '').strip()
     license_key_path = os.getenv('APP_LICENSE_CREDENTIAL_FILE', '').strip()
 
-    # 授权服务器指向：默认即项目自带的自建授权服务器（backend/src/，18082）；
+    # 授权服务器指向：默认即项目自带的自建授权服务器（backend/src/，8802）；
     custom_license_url = os.getenv('APP_LICENSE_SERVER_URL', '').strip().rstrip('/')
     custom_license_batches = _environment_batches('APP_LICENSE_SERVER_BATCHES')
     if custom_license_batches:

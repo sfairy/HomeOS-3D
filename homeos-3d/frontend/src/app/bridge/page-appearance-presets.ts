@@ -18,7 +18,7 @@ const PAGE_DIM_STRENGTH = Object.freeze({
     vacuum: 100,
     security: 100
   }),
-  // 聚焦态的变暗与暗角统一为 0：0.6.3 起聚焦只做相机推近，不再叠画面压暗。
+  // 聚焦态的变暗与暗角统一为 0：1.0.0 起聚焦只做相机推近，不再叠画面压暗。
   PRESET_VALUES = Object.freeze({
     pageDimStrength: PAGE_DIM_STRENGTH,
     pageSaturation: PAGE_SATURATION,

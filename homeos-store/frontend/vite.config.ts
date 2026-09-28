@@ -94,13 +94,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: 8806,
     strictPort: true,
     proxy: {
-      "/v2": { target: "http://127.0.0.1:18082", changeOrigin: true },
-      "/store-static": { target: "http://127.0.0.1:18082", changeOrigin: true },
-      "/healthz": { target: "http://127.0.0.1:18082", changeOrigin: true },
-      "/fonts": { target: "http://127.0.0.1:18082", changeOrigin: true },
+      "/v2": { target: "http://127.0.0.1:8802", changeOrigin: true },
+      "/store-static": { target: "http://127.0.0.1:8802", changeOrigin: true },
+      "/healthz": { target: "http://127.0.0.1:8802", changeOrigin: true },
+      "/fonts": { target: "http://127.0.0.1:8802", changeOrigin: true },
     },
   },
   build: {

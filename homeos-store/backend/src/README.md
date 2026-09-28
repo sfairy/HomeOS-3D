@@ -1,6 +1,6 @@
 # 授权商店与授权服务器（backend/src/）
 
-端口 **18082**，同一进程提供：
+端口 **8802**，同一进程提供：
 
 1. **商店** — 账号、商品、订单、优惠码、邀请（`/store/v1/*`）
 2. **授权服务器** — `/v2/activate`、`/v2/heartbeat`、`/v2/recover`（Ed25519 租约 + X25519 传输）
@@ -14,7 +14,7 @@
 
 ```bash
 python3 ops/start.py
-# 商店: http://127.0.0.1:18082/
+# 商店: http://127.0.0.1:8802/
 ```
 
 只起商店：
@@ -75,7 +75,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 | 变量 | 说明 |
 | --- | --- |
-| `STORE_HOST` / `STORE_PORT` | 默认 `0.0.0.0:18082` |
+| `STORE_HOST` / `STORE_PORT` | 默认 `0.0.0.0:8802` |
 | `STORE_BASE_URL` | 支付二维码 / 回调基址 |
 | `STORE_DATA_DIR` / `STORE_LICENSE_KEYS_DIR` | 数据与私钥目录 |
 | `STORE_MAIL_MODE` / `STORE_SMTP_*` | 邮件 |
@@ -89,7 +89,7 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 ## 授权与密钥
 
-- 客户端默认连 `http://127.0.0.1:18082`，公钥在仓库根 `keys/`。
+- 客户端默认连 `http://127.0.0.1:8802`，公钥在仓库根 `keys/`。
 - 仓库根 `keys/` 与 `homeos-store/keys/local/` 公钥必须逐字节一致。
 - 轮换：旧四件套改名 `*.previous.pem` 再生成新钥；删四个 `*.previous.pem` 关闭重叠窗口。
 - 吊销响应必须带 `code=REVOKED`（或 `LICENSE_REVOKED`）/ `revoked: true`；客户端只认结构化字段。

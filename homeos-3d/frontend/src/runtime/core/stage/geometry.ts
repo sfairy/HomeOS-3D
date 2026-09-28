@@ -6,7 +6,7 @@
 import { isGenericDeviceKind } from "../../device/device-profiles.js";
 
 /**
- * 窗帘帘型取值，与上游 0.6.5 同集合：standard 普通窗帘 / roller 卷帘 / dream 梦幻帘。
+ * 窗帘帘型取值，与上游 1.0.0 同集合：standard 普通窗帘 / roller 卷帘 / dream 梦幻帘。
  */
 const CURTAIN_COVER_KINDS = ["standard", "roller", "dream"] as const;
 

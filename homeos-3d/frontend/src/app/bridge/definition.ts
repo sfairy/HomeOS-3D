@@ -81,7 +81,7 @@ const INTERACTION3D_TYPE = "interaction3d",
           environment: {
             dimStrength: 70,
             airConditioners: [],
-            // 空气净化器与温湿度计都是 0.6.5 新增的环境集合：模板里显式给出空数组，
+            // 空气净化器与温湿度计都是 1.0.0 新增的环境集合：模板里显式给出空数组，
             airPurifiers: [],
             curtains: [],
             temperatureHumidity: []

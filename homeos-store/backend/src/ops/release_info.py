@@ -10,27 +10,36 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..core.models import Release
+from .. import __version__ as _package_version
 
 logger = logging.getLogger("src.ops.release_info")
 
-CURRENT_VERSION = "0.6.2"
-CURRENT_RELEASE_DATE = "2026-09-20"
+#: 当前发布记录对应的版本号：与镜像版本（仓库根 package.json）同源，不再单独维护。
+CURRENT_VERSION = _package_version
+CURRENT_RELEASE_DATE = "2026-09-28"
 CURRENT_UPGRADE_NOTES = (
-    "1. 授权恢复链路重做：新增 ``POST /api/v1/license/retry``（立即发起一轮恢复并跳过端点"
-    "冷却）与匿名可读的 ``GET /api/v1/license/availability``；授权不可用时 /pair 与 /display/* "
-    "会就地渲染连接状态页（不新增路由、不要求登录）。展示端在授权受限时不再跳到需要登录的"
-    "管理员激活页，而是留在原地自动重试，网络恢复后无需人工操作。\n"
-    "2. 授权失败改为分级处置：网络类故障按指数退避自动重试，并把「可重试 / 需人工介入」的"
-    "结论（canRetry / nextRetryAt / retryAttempt）交给前端决定是否继续显示重试按钮；端点"
-    "拉黑时长与重试节奏对齐为 120 秒，避免每一轮重试都撞在冷却里。\n"
-    "3. 授权租约凭证写入增加跨进程文件锁（backend/src/license/process_lock.py）：同一数据目录"
-    "只允许一个实例续租，第二个实例启动即失败并说明原因，不再出现两个进程互相把对方写成"
-    "重放而各自锁死。\n"
-    "4. 户型自动导图：底图分辨率改为「保留控件宽高比、面积对齐画布」换算，修复导图与预览"
-    "比例不一致导致的位置偏移；生成完成改为可关闭的浮层（完成 / 关闭 / 背景点击 / Esc），"
-    "置换失败时恢复预览并提示重试。\n"
-    "5. 无数据库结构变更、无迁移；升级只需替换镜像并保留全部数据卷 / 数据目录"
-    "（homeos-3d-data / homeos-3d-store-data / homeos-3d-license-keys / homeos-3d-client-keys）。"
+    f"HomeOS 首个正式版本（{CURRENT_VERSION}）。全新首发，没有历史版本升级路径，也不需要任何数据迁移："
+    "首次启动即自动建库并生成授权密钥。\n"
+    "1. 主应用 homeos-3d（容器 ``homeos-3d``，HTTP ``:8801`` / 内置 HTTPS ``:8803``）："
+    "面向 Home Assistant 的本机仪表盘与中控。含首次设置 ``/setup``、账号与登录会话、"
+    "HA 集成与设备控制、编辑器与展示端、设备配对、授权激活 ``/license``，以及 3D 户型工作室 "
+    "``/3d-studio``。\n"
+    "2. 授权商店 homeos-store（容器 ``homeos-3d-store``，HTTP ``:8802`` / 内置 HTTPS ``:8804``）："
+    "商店前台、运营后台 ``/admin`` 与授权服务器（Ed25519 租约 + X25519 传输）三合一。支付支持"
+    "支付宝当面付与微信支付 Native 扫码；未配置支付渠道时下单直接 503，不会回落到任何免费通道。\n"
+    "3. 一键部署：``ops/deploy/deploy.sh`` 收口三种形态 —— 同机（默认）、只商店"
+    "（``--role store``）、只主应用（``--role app --license-server ...``）。脚本按角色拉取 GHCR "
+    "镜像、准备宿主标识、等待健康检查并打印访问地址；授权公钥无需人工投放 —— 同机部署由主应用"
+    "只读挂载商店写出的共享卷，分拆部署由主应用启动时向授权服务器 ``GET /v2/keys`` 自动取回并"
+    "落盘（首次取回后指纹即固定）。Caddy 反向代理内置在镜像中，"
+    "开箱即有内网 HTTPS（自签证书，首次访问需手动放行），无需单独的反代容器。\n"
+    "4. 安全默认：管理员账号只能在浏览器 ``/setup`` 创建，不走环境变量；验证码没有回显通道"
+    "（联调用 ``STORE_MAIL_MODE=log`` 看日志，生产配 SMTP）；可信代理收敛到容器回环 "
+    "``127.0.0.1,::1``，限流与审计按解析后的真实来源 IP 统计；HTTP 与 HTTPS 都要能登录时，"
+    "把 ``APP_COOKIE_SECURE`` / ``STORE_COOKIE_SECURE`` 设为 ``false``。\n"
+    "5. 数据落盘：数据库、授权私钥与自签证书都在下列卷 / 目录中，升级（替换镜像并重启）与跨机"
+    "迁移时务必保留（``homeos-3d-data`` / ``homeos-3d-secrets`` / ``homeos-3d-store-data`` / "
+    "``homeos-3d-license-keys`` / ``homeos-3d-client-keys``）。"
 )
 
 

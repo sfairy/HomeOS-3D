@@ -5,7 +5,7 @@
 /* ===== 状态灯（可选） ===== */
 
 /* 整块是「标签 + 规则行 + 添加按钮」的纵向流；间距由这里统一给，
-   规则行 / 标签不再各自写 margin（与 0.6.5 的 .i3d-status-settings 同口径）。 */
+   规则行 / 标签不再各自写 margin（与 1.0.0 的 .i3d-status-settings 同口径）。 */
 .i3d-status-settings {
   display: grid;
   gap: 8px;
@@ -119,14 +119,14 @@
 
 /* ===== 附加功能 ===== */
 
-/* 「实时预览弹窗」按钮 + 说明 + 内联 details 选择器，三段与 0.6.5 同序。
+/* 「实时预览弹窗」按钮 + 说明 + 内联 details 选择器，三段与 1.0.0 同序。
    卡片网格本身不在这里：它随「实时预览弹窗」交给舞台渲染，样式在 climate-panel.css。 */
 .i3d-extra-chooser summary {
   padding: 8px 0;
   cursor: pointer;
 }
 
-/* 候选清单：等高行 + 自身滚动（上限与 0.6.5 一致），
+/* 候选清单：等高行 + 自身滚动（上限与 1.0.0 一致），
    面板高度不随实体数量变化，搜索时也不会把整页顶下去。 */
 .i3d-extra-entity-list {
   max-height: 320px;

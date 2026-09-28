@@ -44,7 +44,8 @@
       <div class="brand-lockup">
         <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg" alt="" /><strong
           >HomeOS</strong
-        ><span class="version">0.6.5</span>
+        ><!-- 版本号由后端按仓库根 package.json 的 version 填充（http/page_shell.py），别在这里写死 -->
+        <span class="version">{{VERSION}}</span>
       </div>
       <div class="header-actions">
         <button id="ha-open" class="ha-status" type="button"><i></i><span>HA 未配置</span></button

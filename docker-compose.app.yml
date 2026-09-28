@@ -1,6 +1,6 @@
 # HomeOS 主应用 —— 独立部署（给客户的机器，可单独跑，不需要商店在同一台机器）
 #
-#   ./ops/deploy/deploy.sh --role app --license-server https://pay.example.com
+#   ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802
 #
 # 与商店同机部署时叠加 docker-compose.app.shared.yml（deploy.sh --role all 会自动加）。
 
@@ -14,30 +14,41 @@ services:
     # 换掉它等于换设备。
     hostname: homeos-3d
     restart: unless-stopped
+    # 容器内先转 SIGTERM 给 uvicorn（优雅关连接）再停 Caddy，最多各 10s；
+    # 比 docker 默认的 10s 宽裕，避免收尾未完成就被 SIGKILL。
+    stop_grace_period: 30s
     ports:
-      - "${APP_PUBLISH_PORT:-18081}:18081"
+      # 8801：HTTP 直连备用；8803：镜像内置 Caddy 的内网 HTTPS 入口。
+      - "${APP_PUBLISH_PORT:-8801}:8801"
+      - "${APP_PROXY_PUBLISH_PORT:-8803}:8803"
     environment:
       APP_DATA_DIR: /data
-      APP_PORT: "18081"
+      APP_PORT: "8801"
       APP_BASE_URL: ${APP_BASE_URL:-}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
-      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-}
+      # 应用自身的可信代理网段：只有同容器回环上的内置反代能作为对端，故固定收敛到回环。
+      # 放宽到 docker 网段等于让同网段任何容器都能伪造来源 IP（限流与审计会一起失效）。
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-127.0.0.1,::1}
       APP_UPDATE_CHANNEL: docker
-      APP_CLIENT_KEYS_DIR: /data/keys
+      # 授权公钥目录：落在数据卷里，主应用启动时向授权服务器取回后缓存于此（离线也能起）。
+      APP_CLIENT_KEYS_DIR: /data/client-keys
+      # 关掉自动取回就填 off（此时必须由共享卷或预先放好的 PEM 提供公钥）。
+      APP_CLIENT_KEYS_FETCH: ${APP_CLIENT_KEYS_FETCH:-auto}
       APP_HARDWARE_MACHINE_ID: ${APP_HARDWARE_MACHINE_ID:-}
       APP_HARDWARE_BOARD_ID: ${APP_HARDWARE_BOARD_ID:-}
-      # 厂商授权服务器的公网地址。留空会退回 http://127.0.0.1:18082（容器内没人监听），
+      # 厂商授权服务器的公网地址。留空会退回 http://127.0.0.1:8802（容器内没人监听），
       # 表现为授权一直连不上，所以独立部署必须填。
       APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-}
-      # uvicorn 的转发头信任范围。默认只信回环：默认桥接网络下网关地址（172.17.0.1）
-      # 也算远程来源，反代在宿主机上时要显式放宽。
+      # uvicorn 的转发头信任范围。内置反代（Caddy）就在同容器的回环上，默认只信
+      # 回环即可；不要为「反代在别处」把它放宽到 docker 网段——那等于让同网段
+      # 任何容器都能改写来源 IP，限流与审计会一起失效。
       UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
     volumes:
       - homeos-3d-data:/data
       - homeos-3d-secrets:/run/secrets
-      # 授权公钥（Ed25519 验签 + X25519 传输）：deploy.sh 会落盘到 ./keys，
-      # 手工部署时放两个 PEM 进去并 chmod 644 即可。
-      - ./keys:/data/keys:ro
+      # 授权公钥不再由宿主目录提供：主应用启动时从授权服务器 `GET /v2/keys` 取回，
+      # 落到数据卷 /data/client-keys；同机部署改由 docker-compose.app.shared.yml
+      # 挂商店写出的共享卷（只读）。
       # 宿主标识：授权实例指纹的来源（见 backend/src/license/hardware.py）。缺了也能起，
       # 指纹退到 data/ 下的兜底 ID；deploy.sh --host-binds 会自动建这两个符号链接。
       - type: bind
@@ -49,7 +60,9 @@ services:
         target: /host/sys/class/dmi/id
         read_only: true
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18081/health/ready"]
+      # 与镜像内 HEALTHCHECK 对齐：应用和镜像内置反代都要活着才算健康
+      # （HTTP 直连端口此时可能仍然可用，所以必须单独探一次 HTTPS）。
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8801/health/ready >/dev/null && curl -fsSk https://localhost:8803/health/ready >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 5

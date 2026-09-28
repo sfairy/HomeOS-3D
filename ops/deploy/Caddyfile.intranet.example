@@ -1,0 +1,80 @@
+# 内网反代示例（Caddy 2）—— 局域网 IP / 主机名 + Caddy 内置 CA 自签证书
+#
+# 原理与镜像内置的反代相同：
+#   裸站点 + `tls internal { on_demand }`，按连入地址动态签发自签证书，
+#   任意局域网 IP / 主机名都能直接访问，无需准备证书。
+#
+# 主应用与商店都走反代。两者是独立站点、不能共用一个监听端口：
+#   单服务机器（--role app / --role store）站点在 :8803；
+#   同机部署（--role all）主应用在 :8803、商店在 :8804。本示例给的是同机两站点。
+#
+# 本仓库有两种落地方式：
+#
+#   1) 镜像内置反代（默认，推荐）：Caddy 与应用同容器，主应用监听 :8803、
+#      商店监听 :8804，上游固定是同容器回环 127.0.0.1:8801 / :8802。
+#      无需任何手工操作，./ops/deploy/deploy.sh 起容器就带 HTTPS。
+#
+#   2) 手工在镜像外再起一个 Caddy（本文件就是给这种场景的示例）：
+#        # 前提：应用容器已把 8801 / 8802 发布到宿主机
+#        docker run -d --name homeos-3d-caddy --restart unless-stopped \
+#          --add-host=host.docker.internal:host-gateway \
+#          -p 8803:8803 -p 8804:8804 \
+#          -v "$PWD/ops/deploy/Caddyfile.intranet.example:/etc/caddy/Caddyfile:ro" \
+#          -v caddy-data:/data -v caddy-config:/config \
+#          caddy:2-alpine
+#
+#      这时反代在镜像之外，而 uvicorn 默认只信回环的转发头，会把你这一层代理
+#      当成客户端本人（来源 IP、限流、审计都退化），需要显式放宽来源地址：
+#        APP_TRUSTED_PROXIES / STORE_TRUSTED_PROXIES = <caddy 所在网段，例如 172.16.0.0/12>
+#        UVICORN_FORWARDED_ALLOW_IPS = <同上>
+#
+#   APP_COOKIE_SECURE / STORE_COOKIE_SECURE：false = HTTPS 与 HTTP 都能登录；
+#                                            true  = 只有 HTTPS 能登录（本项目是布尔，没有 auto）
+#   APP_BASE_URL / STORE_BASE_URL 留空：局域网没有固定地址，应用按请求 Host 判断同源
+#
+# 双协议：
+#   - HTTPS :8803 → Caddy 反代 → 主应用；:8804 → 商店（Caddy 默认带 X-Forwarded-Proto: https）
+#   - HTTP  :8801 / :8802 → 直连发布端口（无转发头）
+#   要同时能登录，就把 APP_COOKIE_SECURE / STORE_COOKIE_SECURE 设为 false。
+
+{
+	skip_install_trust
+	admin off
+	auto_https disable_redirects
+	# 控制台只打错误；证书维护 / GOMAXPROCS 等 info 刷屏关掉
+	log {
+		level ERROR
+		format console
+	}
+	# h1 支持 WebSocket 升级，h2 用于常规 HTTP/2
+	servers :8803 {
+		protocols h1 h2
+	}
+	servers :8804 {
+		protocols h1 h2
+	}
+}
+
+# 主应用：裸 :8803 匹配任意主机名/IP；按需内网证书覆盖空 SNI 的 IP 直连
+:8803 {
+	tls internal {
+		on_demand
+	}
+
+	reverse_proxy host.docker.internal:8801 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# 授权商店：裸 :8804（同机部署时与主应用分开端口）
+:8804 {
+	tls internal {
+		on_demand
+	}
+
+	reverse_proxy host.docker.internal:8802 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}

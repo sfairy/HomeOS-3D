@@ -35,7 +35,7 @@ REPO_ROOT = (
     else PROJECT_ROOT
 )
 
-DEFAULT_PORT = 18082
+DEFAULT_PORT = 8802
 DEFAULT_HOST = "0.0.0.0"
 
 #: 待支付订单有效期（秒）。

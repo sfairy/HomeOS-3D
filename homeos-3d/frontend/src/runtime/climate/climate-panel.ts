@@ -610,7 +610,7 @@ export function createClimatePanel({
     }
     // ===== 净化器（fan 域）控件 =====
     if (deviceState.purifier) {
-      // 摆动：单个开关式按钮，不成组 —— 结构照抄上游 0.6.5（section 下直接挂一个按钮，
+      // 摆动：单个开关式按钮，不成组 —— 结构照抄上游 1.0.0（section 下直接挂一个按钮，
       if (deviceState.oscillatingSupported) {
         const oscillateGroupElement = createElement("section", "i3d-climate-option-group");
         oscillateGroupElement.append(createElement("h4", "", "摆动"));

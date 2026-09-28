@@ -28,28 +28,48 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # 只算一次版本与镜像名，后续 build / merge / deploy 全部复用。
   meta:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
       image: ${{ steps.meta.outputs.image }}
-      store_image: ${{ steps.meta.outputs.store_image }}
+      tag: ${{ steps.meta.outputs.tag }}
+      release: ${{ steps.meta.outputs.release }}
     steps:
       - uses: actions/checkout@v4
-      # 裸的 VERSION tag 只在默认分支推送（见 merge job 的 enable={{is_default_branch}}）：
-      # 非默认分支勾了 deploy 会去拉一个不存在的 tag，这里提前挡住。
+
+      # 裸的版本 tag 只在默认分支推送：非默认分支勾了 deploy 会去拉一个不存在的 tag，这里提前挡住。
       - name: Deploy 只在默认分支可用
         if: ${{ inputs.deploy && github.ref_name != github.event.repository.default_branch }}
         run: |
-          echo "::error::deploy 只能在默认分支（${{ github.event.repository.default_branch }}）上运行；当前 ${{ github.ref_name }} 不会推送 VERSION tag"
+          echo "::error::deploy 只能在默认分支（${{ github.event.repository.default_branch }}）上运行；当前 ${{ github.ref_name }} 不会推送版本 tag"
           exit 1
+
+      # 版本号唯一来源：仓库根 package.json 的 version（不再是 VERSION 文件）。
+      # 发布标签只有两个：该版本号（如 1.0.0）与 latest，且只在默认分支推送，
+      # 避免分支构建覆盖发布指针；非默认分支退化为 sha-<short>。
       - id: meta
         run: |
-          version="$(tr -d '[:space:]' < VERSION 2>/dev/null || tr -d '[:space:]' < homeos-3d/VERSION)"
+          version="$(sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -n 1)"
+          if [ -z "$version" ]; then
+            echo "::error::package.json 里没有 version，无法确定镜像 tag"
+            exit 1
+          fi
           base="${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "image=${base}" >> "$GITHUB_OUTPUT"
-          echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            tag="$version"
+            release=true
+          else
+            tag="sha-${GITHUB_SHA::7}"
+            release=false
+          fi
+          {
+            echo "version=${version}"
+            echo "image=${base}"
+            echo "tag=${tag}"
+            echo "release=${release}"
+          } >> "$GITHUB_OUTPUT"
 
   typecheck:
     runs-on: ubuntu-latest
@@ -79,7 +99,9 @@ jobs:
           fi
           echo "零 @ts-nocheck：通过"
 
-  # 每个架构跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
+  # 两个架构各跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
+  # 编译成 per-arch 的 .so，模拟执行会慢到不可用。
+  # 每个矩阵项只推一个 <tag>-<arch> 单架构镜像，manifest list 交给 merge 合成。
   build:
     needs: [meta, typecheck]
     runs-on: ${{ matrix.runner }}
@@ -88,22 +110,22 @@ jobs:
       matrix:
         include:
           - target: app
-            image_output: image
+            suffix: ""
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-latest
           - target: app
-            image_output: image
+            suffix: ""
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
           - target: store
-            image_output: store_image
+            suffix: "-store"
             platform: linux/amd64
             arch: amd64
             runner: ubuntu-latest
           - target: store
-            image_output: store_image
+            suffix: "-store"
             platform: linux/arm64
             arch: arm64
             runner: ubuntu-24.04-arm
@@ -113,86 +135,43 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve image
-        id: image
-        run: |
-          if [ "${{ matrix.image_output }}" = "store_image" ]; then
-            echo "name=${{ needs.meta.outputs.store_image }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=${{ needs.meta.outputs.image }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Docker metadata
-        id: docker_meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.image.outputs.name }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.meta.outputs.version }},enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=ref,event=pr
-
-      - name: Build and push by digest
-        id: build
+      - name: Build and push ${{ matrix.target }} / ${{ matrix.arch }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           target: ${{ matrix.target }}
           platforms: ${{ matrix.platform }}
-          labels: ${{ steps.docker_meta.outputs.labels }}
-          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          push: true
+          # 与 package.json 同源的版本号：镜像里由 src/_version.py 携带。
+          build-args: |
+            HOMEOS_VERSION=${{ needs.meta.outputs.version }}
+          tags: ${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}-${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}-${{ matrix.arch }}
           provenance: false
 
-      # 文件名去掉 sha256: 前缀，merge 阶段才能用 `@sha256:%s` 拼回完整引用。
-      - name: Export digest
-        if: github.event_name != 'pull_request'
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: digests-${{ matrix.target }}-${{ matrix.arch }}
-          path: /tmp/digests
-          if-no-files-found: error
-          retention-days: 1
-
+  # 把 <tag>-amd64 与 <tag>-arm64 合成为一个 manifest list：docker pull 时按宿主架构自动选。
   merge:
     needs: [meta, build]
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: app
-            image_output: image
-          - target: store
-            image_output: store_image
+          - suffix: ""
+          - suffix: "-store"
     steps:
-      - name: Download digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-          pattern: digests-${{ matrix.target }}-*
-          merge-multiple: true
-
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
@@ -202,36 +181,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve image
-        id: image
+      - name: Create manifest list
         run: |
-          if [ "${{ matrix.image_output }}" = "store_image" ]; then
-            echo "name=${{ needs.meta.outputs.store_image }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=${{ needs.meta.outputs.image }}" >> "$GITHUB_OUTPUT"
+          name="${{ needs.meta.outputs.image }}${{ matrix.suffix }}"
+          tag="${{ needs.meta.outputs.tag }}"
+          args=(-t "${name}:${tag}")
+          if [ "${{ needs.meta.outputs.release }}" = "true" ]; then
+            args+=(-t "${name}:latest")
           fi
-
-      - name: Docker metadata
-        id: docker_meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ steps.image.outputs.name }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ needs.meta.outputs.version }},enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ steps.image.outputs.name }}@sha256:%s ' *)
+          docker buildx imagetools create "${args[@]}" \
+            "${name}:${tag}-amd64" \
+            "${name}:${tag}-arm64"
 
       - name: Inspect image
-        run: docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.docker_meta.outputs.version }}
+        run: docker buildx imagetools inspect "${{ needs.meta.outputs.image }}${{ matrix.suffix }}:${{ needs.meta.outputs.tag }}"
 
   deploy:
     needs: [meta, merge]

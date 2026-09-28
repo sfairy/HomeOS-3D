@@ -242,6 +242,8 @@ def _render_page_cached(
     """
     page_path = Path(page_file)
     text = page_path.read_text(encoding = 'utf-8')
+    # 版本号只有仓库根 package.json 一个来源（settings.version），页面里写 {{VERSION}} 即可。
+    text = text.replace('{{VERSION}}', version)
     _require_placeholder(
         page_path,
         text,

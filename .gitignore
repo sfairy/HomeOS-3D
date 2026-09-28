@@ -14,7 +14,11 @@ homeos-store/keys/local/
 homeos-store/backend/src/data/
 homeos-store/backend/src/keys/local/
 *-private.pem
-ops/docker/node_modules/
+
+# 版本模块是构建期由 Dockerfile 生成的（唯一来源是仓库根 package.json 的 version），
+# 提交进来会让源码运行读到过期版本号。
+homeos-3d/backend/src/_version.py
+homeos-store/backend/src/_version.py
 
 # 本地配置：.env 里是 SMTP 授权码、初始管理员密码等真实凭据，绝不能提交。
 .env

@@ -55,7 +55,7 @@ const LOCK_FIELD_DOMAINS = {
 };
 // 门型 → 用哪套「动作」控件（与 lock-motion.js 的 rig 划分一致）：
 const LOCK_HINGE_DOOR_TYPES = ["entry", "solid", "glass"];
-// 「批量设置」的字段描述表：与 0.6.5 参考实现同一张表 —— 摄像头走图标 / 尺寸组，
+// 「批量设置」的字段描述表：与 1.0.0 参考实现同一张表 —— 摄像头走图标 / 尺寸组，
 const CAMERA_BATCH_FIELDS = [
   ["icon", "图标", "mdi:cctv"],
   ["size", "标签大小", 44],
@@ -541,7 +541,7 @@ export async function openSecurityEditor({
       if (!isDisposed) {
         savedDraftSignature = serializeEditorDraft(draftProperties);
         isDirty = false;
-        // 与 0.6.5 dist 的门锁保存回执逐字一致：这一步只把改动落到编辑器草稿，
+        // 与 1.0.0 dist 的门锁保存回执逐字一致：这一步只把改动落到编辑器草稿，
         setSaveResultMessage("已应用到编辑器，请保存仪表盘。");
       }
     } catch (saveError: any) {
@@ -781,7 +781,7 @@ export async function openSecurityEditor({
     entity?.disabled_by != null ||
     entity?.enabled === false ||
     ["missing", "disabled"].includes(entity?.status);
-  // 单个实体能不能填某个槽位：逐条对应上游 0.6.5 安防编辑器里那段 entityFilter 的收口部分 ——
+  // 单个实体能不能填某个槽位：逐条对应上游 1.0.0 安防编辑器里那段 entityFilter 的收口部分 ——
   const lockEntityMatchesField = (entity: any, field: any) => {
     if (isLockEntityDisabled(entity)) {
       return false;
@@ -830,7 +830,7 @@ export async function openSecurityEditor({
       matchedDoorStateSensors[0].entityId || matchedDoorStateSensors[0].entity_id;
     return true;
   };
-  // 「选择设备」入口：与上游 0.6.5 「实体来源」里那一行同一条契约（pickers.device，
+  // 「选择设备」入口：与上游 1.0.0 「实体来源」里那一行同一条契约（pickers.device，
   function createLockDevicePickerButton(item: any) {
     const deviceButtonElement = createButton(item.deviceName || "选择设备", async () => {
       const devicePickerGeneration = ++pickerGeneration;
@@ -889,7 +889,7 @@ export async function openSecurityEditor({
     deviceButtonElement.setAttribute("aria-label", "选择门设备");
     return deviceButtonElement;
   }
-  // 槽位候选的第二道闸（第一道是实体选择器按 deviceKind 给的域白名单）：与上游 0.6.5 的
+  // 槽位候选的第二道闸（第一道是实体选择器按 deviceKind 给的域白名单）：与上游 1.0.0 的
   const lockSlotEntityFilter = (field: any, item: any) => (candidateEntity: any) => {
     const candidateEntityId = candidateEntity?.entityId || candidateEntity?.entity_id || "";
     if (candidateEntityId === item[field]) {
@@ -903,7 +903,7 @@ export async function openSecurityEditor({
     }
     return lockEntityMatchesField(candidateEntity, field);
   };
-  // 槽位选择按钮：与上游 0.6.5 的「开关门检测：<实体>」「电量：<实体>」同款 —— 按钮文字是
+  // 槽位选择按钮：与上游 1.0.0 的「开关门检测：<实体>」「电量：<实体>」同款 —— 按钮文字是
   function createLockEntityPickerButton(
     labelText: any,
     field: any,
@@ -1047,7 +1047,7 @@ export async function openSecurityEditor({
   function renderLockBindingPanel(item: any) {
     const doorModel = findDoorModelForItem(item);
     const doorType = doorModel?.doorType || "solid";
-    // 实体来源：与上游 0.6.5 逐行同构 —— 分区标题 + 「选择设备 / <门设备名>」整台设备入口，
+    // 实体来源：与上游 1.0.0 逐行同构 —— 分区标题 + 「选择设备 / <门设备名>」整台设备入口，
     createSectionHeading("实体来源");
     currentContainerElement.append(createLockDevicePickerButton(item));
     createLockEntityPickerButton("开关门检测", "doorEntityId", item, {
@@ -1326,7 +1326,7 @@ export async function openSecurityEditor({
         (nextAxisValue: any) => {
           item[axisName] = nextAxisValue;
         },
-        // 与上游 0.6.5 逐字一致：坐标按 0.01 步进（离地高度仍 0.1）。
+        // 与上游 1.0.0 逐字一致：坐标按 0.01 步进（离地高度仍 0.1）。
         0.01
       );
     }

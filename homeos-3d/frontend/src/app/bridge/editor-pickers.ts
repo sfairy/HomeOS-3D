@@ -636,7 +636,7 @@ export function createInteraction3dEditorPickers({
       const isNasEntity = entityDeviceKind === "nas";
       // device-status：状态灯规则的亮灭依据 / 提醒实体。候选是「调用方给的那批」（按设备
       const isDeviceStatusEntity = entityDeviceKind === "device-status";
-      // 门锁槽位（开关门检测 / 电量 / 低电量 / 防拆 / 门磁事件）：上游 0.6.5 的安防编辑器也把这
+      // 门锁槽位（开关门检测 / 电量 / 低电量 / 防拆 / 门磁事件）：上游 1.0.0 的安防编辑器也把这
       const lockSlotKindByDeviceKind = ({
         "lock-door": { pattern: /^(binary_sensor|sensor)\.[a-z0-9_]+$/ },
         "lock-battery": { pattern: /^sensor\.[a-z0-9_]+$/ },
@@ -646,7 +646,7 @@ export function createInteraction3dEditorPickers({
         "lock-event": { pattern: /^event\.[a-z0-9_]+$/ }
       } as AnyObj)[entityDeviceKind];
       const isLockSlotEntity = Boolean(lockSlotKindByDeviceKind);
-      // 空气净化器：主实体是 HA 的 fan 域，白名单只放 fan.*（与上游 0.6.5 同一条
+      // 空气净化器：主实体是 HA 的 fan 域，白名单只放 fan.*（与上游 1.0.0 同一条
       const isAirPurifierEntity = entityDeviceKind === "air-purifier";
       const isTelevisionEntity = entityDeviceKind === "television";
       const isTelevisionPowerEntity = entityDeviceKind === "television-power";
@@ -806,7 +806,7 @@ export function createInteraction3dEditorPickers({
         }
         return matches;
       };
-      // 门锁槽位的空态文案逐字取自上游 0.6.5 的实体选择器（lock-door / lock-battery 两路），
+      // 门锁槽位的空态文案逐字取自上游 1.0.0 的实体选择器（lock-door / lock-battery 两路），
       const lockSlotEmptyText =
         entityDeviceKind === "lock-door"
           ? "没有匹配的门状态传感器，请检查设备的门/开合实体"

@@ -3,9 +3,12 @@
 # HomeOS 一键部署：拉取 GHCR 镜像并按角色起容器。
 #
 #   ops/deploy/deploy.sh                                  同机：先商店，再主应用
-#   ops/deploy/deploy.sh --role app --license-server https://pay.example.com
+#   ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802
 #                                                         客户机：只起主应用
 #   ops/deploy/deploy.sh --role store                     厂商机：只起商店
+#
+# 授权公钥全程无需人工投放：同机部署由主应用只读挂载商店写出的共享卷；分拆部署由主应用
+# 启动时向授权服务器 ``GET /v2/keys`` 自动取回并缓存到自己的数据卷。
 #
 # 部署机需要 docker + compose v2；客户机不需要先有商店。
 set -euo pipefail
@@ -16,7 +19,6 @@ REPO_DIR=$(cd "$SCRIPT_DIR/../.." && pwd)
 ROLE=all
 VERSION_ARG=
 LICENSE_SERVER=
-KEYS_FROM=
 TARGET_DIR=
 HOST_BINDS=auto
 DRY_RUN=0
@@ -39,20 +41,29 @@ usage() {
                         app   = 客户机，只部署主应用（可独立运行）
                         store = 厂商机，只部署授权商店
                         all   = 同机部署两者，先起商店
-  --license-server URL  厂商授权服务器的公网地址；--role app 必填
+  --license-server URL  厂商授权服务器的地址（局域网即可）；--role app 必填
                         会写进 .env 的 APP_LICENSE_SERVER_URL
-  --version TAG         镜像 tag（默认：环境变量 HOMEOS_VERSION → 仓库 VERSION 文件 → latest）
-  --keys-from SRC       公钥来源：目录或 URL（默认：本地 keys/ → 本仓库 raw）
+  --version TAG         镜像 tag（默认：环境变量 HOMEOS_VERSION → 仓库 package.json 的 version → latest）
   --dir DIR             compose 与 .env 所在目录（默认：脚本所在的仓库根）
   --host-binds MODE     宿主标识符号链接：auto | force | skip（默认 auto）
   --dry-run             只打印将要执行的命令，不写文件、不调用 docker
   --yes                 非交互（CI 用）：不提问，sudo 只用 sudo -n
   -h, --help            显示本帮助
 
+反代（Caddy）内置在镜像里，没有开关可关；它的上游固定是同容器回环，不可覆盖。
+宿主发布端口改 .env：APP_PUBLISH_PORT（默认 8801）、APP_PROXY_PUBLISH_PORT（8803）、
+STORE_PUBLISH_PORT（8802）、STORE_PROXY_PUBLISH_PORT（8804）。
+
+授权公钥（无需人工投放）：
+  all   —— 主应用只读挂载商店写出的共享卷（docker-compose.app.shared.yml），开箱即用。
+  app   —— 主应用启动时向 APP_LICENSE_SERVER_URL 的 ``GET /v2/keys`` 取回公钥并缓存到
+           自己的数据卷，之后即使商店暂时不可达也能离线启动；商店轮换密钥时按连续性
+           校验自动跟进。
+
 例：
-  ./ops/deploy/deploy.sh --role app --license-server https://pay.example.com --version 0.6.5
+  ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802 --version 1.0.0
   ./ops/deploy/deploy.sh --role store
-  ./ops/deploy/deploy.sh --role all --dry-run
+  ./ops/deploy/deploy.sh --role all
 USAGE
 }
 
@@ -66,8 +77,6 @@ while [ $# -gt 0 ]; do
     --license-server=*) LICENSE_SERVER=${1#*=}; shift ;;
     --version)       [ $# -ge 2 ] || die "--version 缺少取值"; VERSION_ARG=$2; shift 2 ;;
     --version=*)     VERSION_ARG=${1#*=}; shift ;;
-    --keys-from)     [ $# -ge 2 ] || die "--keys-from 缺少取值"; KEYS_FROM=$2; shift 2 ;;
-    --keys-from=*)   KEYS_FROM=${1#*=}; shift ;;
     --dir)           [ $# -ge 2 ] || die "--dir 缺少取值"; TARGET_DIR=$2; shift 2 ;;
     --dir=*)         TARGET_DIR=${1#*=}; shift ;;
     --host-binds)    [ $# -ge 2 ] || die "--host-binds 缺少取值"; HOST_BINDS=$2; shift 2 ;;
@@ -81,20 +90,11 @@ done
 
 case "$ROLE" in
   all|store|app) ;;
-  *) die "--role 只能是 all / store / app（收到：$ROLE）" ;;
+  *) die "--role 只能是 all / store / app（收到：${ROLE}）" ;;
 esac
 case "$HOST_BINDS" in
   auto|force|skip) ;;
-  *) die "--host-binds 只能是 auto / force / skip（收到：$HOST_BINDS）" ;;
-esac
-
-# 目录型 --keys-from 先在原 cwd 下归一成绝对路径：脚本稍后会 cd 到 compose 目录
-case "$KEYS_FROM" in
-  ""|http://*|https://*) ;;
-  *)
-    [ -d "$KEYS_FROM" ] || die "--keys-from 目录不存在：$KEYS_FROM"
-    KEYS_FROM=$(cd "$KEYS_FROM" && pwd)
-    ;;
+  *) die "--host-binds 只能是 auto / force / skip（收到：${HOST_BINDS}）" ;;
 esac
 
 # ---------------------------------------------------------------- 运行封装
@@ -123,12 +123,6 @@ maybe_sudo() {
   return 127
 }
 
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
-  else shasum -a 256 "$1" | cut -d' ' -f1
-  fi
-}
-
 env_value() {
   [ -f "$ENV_FILE" ] || return 0
   awk -F= -v key="$1" '$1 == key { sub("^[^=]*=", ""); value=$0 } END { if (value != "") print value }' "$ENV_FILE"
@@ -152,6 +146,17 @@ env_set() {
   info ".env 已写入 $key=$value"
 }
 
+# 宿主发布端口的取值顺序与 docker compose 一致：真实环境变量 > .env > 内置默认。
+# 只用于把提示里的地址打准，compose 自己仍按同样的顺序解析。
+publish_port() {
+  key=$1
+  fallback=$2
+  value=${!key:-}
+  [ -n "$value" ] || value=$(env_value "$key")
+  [ -n "$value" ] || value=$fallback
+  printf '%s' "$value"
+}
+
 # ---------------------------------------------------------------- 目录与参数归一
 
 resolve_dir() {
@@ -171,28 +176,19 @@ resolve_dir() {
   die "找不到 compose 文件：需要 docker-compose.app.yml 与 docker-compose.store.yml 与脚本同目录，或用 --dir 指定"
 }
 
+# 版本号唯一来源：仓库根 package.json 的 version（与镜像构建期烘入的值同源）。
+package_version() {
+  file="$COMPOSE_DIR/package.json"
+  [ -f "$file" ] || return 0
+  sed -n 's/^  "version":[[:space:]]*"\([^"]*\)".*/\1/p' "$file" | head -n 1
+}
+
 resolve_tag() {
   if [ -n "$VERSION_ARG" ]; then printf '%s' "$VERSION_ARG"; return; fi
   if [ -n "${HOMEOS_VERSION:-}" ]; then printf '%s' "$HOMEOS_VERSION"; return; fi
-  if [ -f "$COMPOSE_DIR/VERSION" ]; then
-    tr -d '[:space:]' < "$COMPOSE_DIR/VERSION"
-    return
-  fi
+  version=$(package_version)
+  if [ -n "$version" ]; then printf '%s' "$version"; return; fi
   printf 'latest'
-}
-
-detect_raw_base() {
-  origin=""
-  if [ -d "$COMPOSE_DIR/.git" ] && command -v git >/dev/null 2>&1; then
-    origin=$(git -C "$COMPOSE_DIR" remote get-url origin 2>/dev/null || true)
-  fi
-  case "$origin" in
-    https://github.com/*) path=${origin#https://github.com/} ;;
-    git@github.com:*)     path=${origin#git@github.com:} ;;
-    *)                    path="sfairy/HomeOS-3D.git" ;;
-  esac
-  path=${path%.git}
-  printf 'https://raw.githubusercontent.com/%s' "$path"
 }
 
 # ---------------------------------------------------------------- 前置检查
@@ -250,7 +246,7 @@ require_license_server() {
   [ "$ROLE" = "app" ] || return 0
   current=$(env_value APP_LICENSE_SERVER_URL)
   case "$current" in
-    ""|http://homeos-3d-store:18082|http://127.0.0.1:18082) current="" ;;
+    ""|http://homeos-3d-store:8802|http://127.0.0.1:8802) current="" ;;
   esac
   if [ -n "$current" ]; then
     info "授权服务器：$current"
@@ -263,112 +259,11 @@ require_license_server() {
   die "--role app 是独立部署，必须指定厂商授权服务器地址：--license-server https://<商店域名>，或在 .env 里写 APP_LICENSE_SERVER_URL=https://<商店域名>"
 }
 
-# ---------------------------------------------------------------- 公钥
+# ---------------------------------------------------------------- 授权公钥
 
-verify_key() {
-  [ -s "$1" ] || return 1
-  grep -q -- '-----BEGIN PUBLIC KEY-----' "$1"
-}
-
-try_download() {
-  name=$1
-  dest=$2
-  url=$3
-  if [ "$DRY_RUN" -eq 1 ]; then
-    printf '+ curl -fsSL %s -o %s\n' "$url" "$dest"
-    return 0
-  fi
-  if curl -fsSL "$url" -o "$dest.tmp" 2>/dev/null; then
-    mv "$dest.tmp" "$dest"
-    return 0
-  fi
-  rm -f "$dest.tmp"
-  return 1
-}
-
-download_keys() {
-  mode=$1
-  base=$2
-  for name in license-public.pem license-transport-public.pem; do
-    ok=0
-    if [ "$mode" = "raw" ]; then
-      tried=" "
-      for ref in "$KEYS_REF" main; do
-        case "$tried" in *" $ref "*) continue ;; esac
-        tried="$tried$ref "
-        if try_download "$name" "$keys_dir/$name" "$base/$ref/keys/$name"; then
-          info "已下载 $name（ref=$ref）"
-          ok=1
-          break
-        fi
-      done
-    else
-      if try_download "$name" "$keys_dir/$name" "$base/$name"; then
-        info "已下载 $name"
-        ok=1
-      fi
-    fi
-    [ "$ok" = "1" ] || return 1
-  done
-  return 0
-}
-
-ensure_keys() {
-  [ "$ROLE" = "app" ] || return 0
-  keys_dir="$COMPOSE_DIR/keys"
-  run mkdir -p "$keys_dir"
-
-  need=0
-  for name in license-public.pem license-transport-public.pem; do
-    verify_key "$keys_dir/$name" || need=1
-  done
-  if [ "$need" -eq 0 ]; then
-    info "复用已有公钥：$keys_dir"
-  else
-    case "$KEYS_FROM" in
-      "")
-        case "$TAG" in
-          [0-9]*) KEYS_REF="v$TAG" ;;
-          *)      KEYS_REF="main" ;;
-        esac
-        command -v curl >/dev/null 2>&1 || [ "$DRY_RUN" -eq 1 ] || die "需要 curl 下载授权公钥；也可以把两个 PEM 手工放进 $keys_dir，或用 --keys-from 指定目录"
-        download_keys raw "$(detect_raw_base)" || die "下载授权公钥失败：把两个 PEM 手工放进 $keys_dir，或用 --keys-from 指定目录"
-        ;;
-      http://*|https://*)
-        command -v curl >/dev/null 2>&1 || [ "$DRY_RUN" -eq 1 ] || die "需要 curl 下载授权公钥"
-        download_keys url "${KEYS_FROM%/}" || die "从 $KEYS_FROM 下载授权公钥失败"
-        ;;
-      *)
-        [ -d "$KEYS_FROM" ] || die "--keys-from 目录不存在：$KEYS_FROM"
-        for name in license-public.pem license-transport-public.pem; do
-          run cp "$KEYS_FROM/$name" "$keys_dir/$name"
-        done
-        info "已从 $KEYS_FROM 复制公钥"
-        ;;
-    esac
-  fi
-
-  for name in license-public.pem license-transport-public.pem; do
-    run chmod 644 "$keys_dir/$name"
-    if [ "$DRY_RUN" -eq 0 ]; then
-      verify_key "$keys_dir/$name" || die "$keys_dir/$name 不是 PEM 公钥"
-      info "$name  sha256=$(sha256_of "$keys_dir/$name")"
-    fi
-  done
-
-  # 指纹钉死在主应用配置里；compose 目录可能是检出根，也可能是部署副本。
-  config="$COMPOSE_DIR/homeos-3d/backend/src/config.py"
-  if [ ! -f "$config" ]; then
-    config="$COMPOSE_DIR/src/config.py"
-  fi
-  if [ -f "$config" ] && [ "$DRY_RUN" -eq 0 ]; then
-    expected=$(sed -n "s/.*DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = '\([0-9a-f]*\)'.*/\1/p" "$config" | head -n 1)
-    actual=$(sha256_of "$keys_dir/license-public.pem")
-    if [ -n "$expected" ] && [ "$expected" != "$actual" ]; then
-      warn "签名公钥与 homeos-3d/backend/src/config.py 钉死的指纹不一致（期望 $expected，实际 $actual）—— 密钥轮换后属正常，否则请确认来源"
-    fi
-  fi
-}
+# 公钥不再由本脚本投放：同机部署时主应用只读挂载商店写出的共享卷，分拆部署时主应用
+# 启动自己向授权服务器 ``GET /v2/keys`` 取回（见 ops/docker/bootstrap_keys.py）。
+# 这里只在商店部署完成后打印一次指纹，供跨机核对。
 
 # ---------------------------------------------------------------- 宿主标识
 
@@ -380,7 +275,7 @@ ensure_one_bind() {
       info "$target → $source 已就绪"
       return 0
     fi
-    warn "$target 已指向 $(readlink "$target")（不是 $source），保持不动"
+    warn "$target 已指向 $(readlink "$target")（不是 ${source}），保持不动"
     return 0
   fi
   if [ -d "$target" ]; then
@@ -390,7 +285,7 @@ ensure_one_bind() {
     fi
     run mkdir -p "$(dirname "$target")"
     if ! maybe_sudo rmdir "$target"; then
-      warn "无法删除目录 $target（需要 root）：sudo rmdir $target && sudo ln -sfn $source $target"
+      warn "无法删除目录 ${target}（需要 root）：sudo rmdir $target && sudo ln -sfn $source $target"
       return 0
     fi
   fi
@@ -399,7 +294,7 @@ ensure_one_bind() {
     info "$target → $source 已建立"
     return 0
   fi
-  warn "无法建立 $target（需要 root）：sudo mkdir -p $(dirname "$target") && sudo ln -sfn $source $target"
+  warn "无法建立 ${target}（需要 root）：sudo mkdir -p $(dirname "$target") && sudo ln -sfn $source $target"
   return 0
 }
 
@@ -417,9 +312,43 @@ ensure_host_binds() {
   ensure_one_bind /host/sys/class/dmi/id /sys/class/dmi/id
 }
 
-# ---------------------------------------------------------------- compose 操作
+# ---------------------------------------------------------------- 反向代理（Caddy）
 
-compose_app() { run "$@" docker compose -f docker-compose.app.yml $APP_EXTRA_FILES; }
+# 反代已内置进镜像：Caddy 与应用同容器（ops/docker/proxy.py），主应用监听 :8803、
+# 商店监听 :8804，上游固定是同容器回环（127.0.0.1:8801 / :8802）。
+# 宿主侧只剩把反代端口发布出去这一件事，端口在 .env 里配（APP_PROXY_PUBLISH_PORT /
+# STORE_PROXY_PUBLISH_PORT，见 .env.example 的 G 区）。
+
+start_proxy() {
+  log ""
+  log "③ 镜像内置反向代理（Caddy，自签证书）"
+  info "反代随应用容器一起启动，无需单独拉取 caddy 镜像或挂载 Caddyfile"
+  # 端口由 compose 从 .env 解析；这里读一遍只为把提示里的地址打准。
+  app_https=$(publish_port APP_PROXY_PUBLISH_PORT 8803)
+  app_http=$(publish_port APP_PUBLISH_PORT 8801)
+  store_https=$(publish_port STORE_PROXY_PUBLISH_PORT 8804)
+  store_http=$(publish_port STORE_PUBLISH_PORT 8802)
+  case "$ROLE" in
+    app)
+      info "主应用 HTTPS：https://<本机局域网IP>:${app_https}（自签证书，首次需手动放行）"
+      info "主应用 HTTP 备用：http://<本机局域网IP>:${app_http}"
+      ;;
+    store)
+      info "商店 HTTPS：https://<本机局域网IP>:${store_https}（自签证书，首次需手动放行）"
+      info "商店 HTTP 备用：http://<本机局域网IP>:${store_http}"
+      ;;
+    all)
+      info "主应用 HTTPS：https://<本机局域网IP>:${app_https}（自签证书，首次需手动放行）"
+      info "商店 HTTPS：https://<本机局域网IP>:${store_https}（自签证书，首次需手动放行）"
+      info "HTTP 备用：主应用 http://<本机局域网IP>:${app_http} / 商店 http://<本机局域网IP>:${store_http}"
+      ;;
+  esac
+  if [ "$ROLE" != "store" ]; then
+    info "两端口都要能登录时把 APP_COOKIE_SECURE 设为 false（商店侧同理）"
+  fi
+}
+
+# ---------------------------------------------------------------- compose 操作
 
 diagnose_pull_failure() {
   warn "拉取镜像失败，原始输出："
@@ -449,7 +378,7 @@ wait_healthy() {
     sleep 3
     elapsed=$((elapsed + 3))
   done
-  warn "$container 在 ${timeout}s 内没有变成 healthy（最后状态：$status）"
+  warn "$container 在 ${timeout}s 内没有变成 healthy（最后状态：${status}）"
   docker logs --tail 50 "$container" >&2 2>&1 || true
   return 1
 }
@@ -459,9 +388,12 @@ deploy_store() {
   if ! run_log docker compose -f docker-compose.store.yml pull; then diagnose_pull_failure; return 1; fi
   run docker compose -f docker-compose.store.yml up -d
   wait_healthy homeos-3d-store 180 || return 1
-  info "商店：http://<主机>:${STORE_PUBLISH_PORT:-18082}/setup（首次部署在此建管理员）"
+  store_http=$(publish_port STORE_PUBLISH_PORT 8802)
+  store_https=$(publish_port STORE_PROXY_PUBLISH_PORT 8804)
+  info "商店：http://<主机>:${store_http}/setup（HTTPS：https://<主机>:${store_https}/setup；首次部署在此建管理员）"
   if [ "$DRY_RUN" -eq 0 ]; then
-    docker exec homeos-3d-store sha256sum /data/keys/license-public.pem /data/keys/license-transport-public.pem 2>/dev/null | sed 's/^/    /' || true
+    info "授权公钥指纹（主应用会自动取回；跨机部署可用它核对）："
+    docker exec homeos-3d-store sha256sum /data/client-keys/license-public.pem /data/client-keys/license-transport-public.pem 2>/dev/null | sed 's/^/    /' || true
   fi
   return 0
 }
@@ -485,21 +417,30 @@ deploy_app() {
 }
 
 summary() {
-  port="${APP_PUBLISH_PORT:-18081}"
   log ""
   log "完成。"
+  # 只列本次真正部署过的那一侧，避免 --role store 时打印空的 app 项目。
   if [ "$DRY_RUN" -eq 0 ]; then
-    docker compose -f docker-compose.app.yml $APP_EXTRA_FILES ps 2>/dev/null || true
+    case "$ROLE" in
+      store) docker compose -f docker-compose.store.yml ps 2>/dev/null || true ;;
+      app)   docker compose -f docker-compose.app.yml $APP_EXTRA_FILES ps 2>/dev/null || true ;;
+      all)
+        docker compose -f docker-compose.store.yml ps 2>/dev/null || true
+        docker compose -f docker-compose.app.yml $APP_EXTRA_FILES ps 2>/dev/null || true
+        ;;
+    esac
   fi
   if [ "$ROLE" != "store" ]; then
-    info "主应用：http://<主机>:$port/setup"
+    app_https=$(publish_port APP_PROXY_PUBLISH_PORT 8803)
+    app_http=$(publish_port APP_PUBLISH_PORT 8801)
+    info "主应用 setup：https://<主机>:${app_https}/setup（HTTP 备用 http://<主机>:${app_http}/setup）"
     info "首次设置的引导密钥：docker logs homeos-3d | head （容器内 /data/setup-token）"
     if [ "$ROLE" = "app" ]; then
       info "授权服务器：$(env_value APP_LICENSE_SERVER_URL)"
     fi
   fi
   info "升级＝先 git pull（若为检出）再跑同一条命令；不要删数据卷"
-  info "授权公钥卷 / 数据卷：不要执行 docker compose down -v"
+  info "数据卷（含授权公钥缓存）：不要执行 docker compose down -v"
 }
 
 # ---------------------------------------------------------------- 主流程
@@ -520,7 +461,6 @@ info "镜像 tag：$TAG"
 if [ -n "${HOMEOS_IMAGE:-}" ]; then info "主应用镜像：$HOMEOS_IMAGE"; fi
 if [ -n "${HOMEOS_STORE_IMAGE:-}" ]; then info "商店镜像：$HOMEOS_STORE_IMAGE"; fi
 require_license_server
-ensure_keys
 ensure_host_binds
 
 log ""
@@ -533,5 +473,7 @@ case "$ROLE" in
     deploy_app   || exit 1
     ;;
 esac
+
+start_proxy
 
 summary

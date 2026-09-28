@@ -3,7 +3,7 @@
 
 默认同时拉起：
   - 主应用 / 商店后端（热重载）
-  - Vite HMR（5173 / 5174）
+  - Vite HMR（8805 / 8806）
 
 改 ``frontend/src/runtime`` 时另开：``bun run --cwd homeos-3d dev:runtime``
 仅后端：``python3 ops/start.py --backend-only``
@@ -36,10 +36,10 @@ from src.core.env import load_dotenv  # noqa: E402
 IS_WINDOWS = sys.platform == 'win32'
 
 # 端口
-APP_PORT = '18081'
-STORE_PORT = '18082'
-VITE_3D_PORT = '5173'
-VITE_STORE_PORT = '5174'
+APP_PORT = '8801'
+STORE_PORT = '8802'
+VITE_3D_PORT = '8805'
+VITE_STORE_PORT = '8806'
 #: 本脚本要拉起的两个服务端口及其中文名：预检报错与启动提示共用同一份，
 BACKEND_PORTS = ((APP_PORT, '主应用 API'), (STORE_PORT, '授权商店 API'))
 FRONTEND_PORTS = ((VITE_3D_PORT, '主应用 Vite'), (VITE_STORE_PORT, '授权商店 Vite'))
