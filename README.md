@@ -127,34 +127,55 @@ bun run --cwd homeos-3d dev:runtime
 生产走 **GHCR 镜像 + `ops/deploy/deploy.sh` 一键部署**。**不要**用 `ops/start.py`：那是开发脚本（热重载、只绑回环、验证码 log 模式）。
 
 - 完整最小检查清单：[ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md)
-- 两台服务器分拆部署：[ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)
+- 中心商店 + 多客户机拓扑、授权身份与迁移：[ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)
+- 商店公网接入（域名 + 真实证书 HTTPS）：[ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md)
+- 客户机安装指南（发给客户）：[ops/deploy/CUSTOMER.md](ops/deploy/CUSTOMER.md)
+- 升级 / 回滚：[ops/deploy/UPGRADE.md](ops/deploy/UPGRADE.md)
 
 ### 部署形态
 
-两个项目相互独立，三种形态都由同一个脚本收口：
+**生产形态是「中心商店 + 多台客户机」**：商店是厂商侧唯一一台，主应用一个客户一台，各自
+指向中心商店。同机形态只用于开发 / 自测。
 
 | 形态 | 命令 | 适用场景 |
 | --- | --- | --- |
-| 同机（默认） | `./ops/deploy/deploy.sh` | 一台机器同时跑商店 + 主应用；先起商店，再叠加共享网络与公钥卷起主应用 |
-| 只部署商店 | `./ops/deploy/deploy.sh --role store` | 厂商机，签发授权 |
-| 只部署主应用 | `./ops/deploy/deploy.sh --role app --license-server http://<商店IP>:8802` | 客户机；**必须**显式给出商店地址 |
+| 中心商店（唯一） | `./ops/deploy/deploy.sh --role store` | 厂商机，签发授权（生产第一步） |
+| 客户机（多台） | `./ops/deploy/deploy.sh --role app --license-server http://<中心商店>:8802` | 每个客户各一次；**必须**显式给出商店地址 |
+| 同机（仅自测） | `./ops/deploy/deploy.sh` | 一台机器同时跑商店 + 主应用；开发 / 自测，**不用于客户交付** |
 
-分拆部署的拓扑（全程局域网，不需要公网域名或真实证书）：
+分拆部署的拓扑（内网形态不需要公网域名；跨公网见 PUBLIC-ACCESS.md）：
 
 ```text
-[服务器 A]  homeos-3d        :8801  ←  内置反代 https://<A的IP>:8803
-[服务器 B]  homeos-3d-store  :8802  ←  内置反代 https://<B的IP>:8804
-A → B：APP_LICENSE_SERVER_URL=http://<B的IP>:8802   ← 跨机直连用商店的 HTTP 端口；
-        商店内置反代 https://<B的IP>:8804 是自签证书，容器之间默认不互信，别拿它当授权地址
+      ┌──────────── 厂商机（唯一）────────────┐
+      │  homeos-3d-store  :8802 / :8804       │
+      └──────────────────┬────────────────────┘
+   /v2/keys ⟵────────────┼────────────⟶ /v2/activate · /v2/heartbeat
+     ┌───────────────────┼───────────────────┐
+     ▼                   ▼                   ▼
+客户机 homeos-3d    客户机 homeos-3d    客户机 homeos-3d
+  :8801 / :8803       :8801 / :8803       :8801 / :8803
+客户机 → 商店：APP_LICENSE_SERVER_URL=http://<中心商店>:8802   ← 跨机直连用商店 HTTP 端口；
+        商店内置反代 https://<中心商店>:8804 是自签证书，容器之间默认不互信，别拿它当授权地址
 ```
+
+### 客户机精简分发包
+
+`ops/deploy/pack-customer.sh` 产出**只含主应用侧文件**的压缩包（不含商店源码与密钥）：
+
+```bash
+./ops/deploy/pack-customer.sh     # → build/customer-pack/homeos-3d-app-<版本>.tar.gz
+```
+
+客户机解包后一条命令安装：`./install.sh --license-server http://<中心商店>:8802`。
+详见 [ops/deploy/CUSTOMER.md](ops/deploy/CUSTOMER.md)。
 
 ### 前置条件
 
 - **部署机**：Docker Engine + Compose v2（compose 文件用了 `name:` 字段，需要 >= 2.3.3）。`deploy.sh` 会在启动前检查 docker、compose v2 与守护进程。
 - **架构匹配**：镜像里的 Python 已被 Cython 编译成 per-arch 的 `.so`，amd64 / arm64 镜像不能互搬。GHCR 同时发布两种架构，`docker pull` 会自动选。
 - **能拉 GHCR**：包若为私有，先 `docker login ghcr.io`（PAT 需 `read:packages`）。
-- **部署目录**：`deploy.sh` 需要与 `docker-compose.*.yml` 同目录（默认取脚本所在的仓库根，可用 `--dir` 指定）。
-- **分拆部署**：两台机器保持时钟同步（租约、会话、令牌都按时间判定），并使用同一镜像 tag。
+- **部署目录**：`deploy.sh` 需要与 `docker-compose.app.yml` 同目录（默认取脚本所在的仓库根，可用 `--dir` 指定）。`--role app` 时不要求 `docker-compose.store.yml`（客户精简包就只有 app 侧文件）；`--role store` / `all` 才需要 store 编排。
+- **中心 + 客户机**：所有机器保持时钟同步（租约、会话、令牌都按时间判定），并使用同一镜像 tag（`deploy.sh` 会写回 `.env` 钉住）。
 
 管理员账号**不走环境变量**：容器起来后在浏览器打开各服务的 `/setup` 创建。
 
@@ -175,21 +196,21 @@ cp .env.example .env
 | `APP_BASE_URL` / `STORE_BASE_URL` | 空 | 局域网 IP 不固定时留空，应用按请求 `Host` 判断同源；需要固定地址时才填 |
 | `APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` | `8801` / `8803` | 主应用宿主发布端口 |
 | `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT` | `8802` / `8804` | 商店宿主发布端口 |
-| `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。也可用 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 钉死完整镜像地址 |
+| `HOMEOS_VERSION` | 仓库 `package.json` 的 `version` | 镜像 tag；等价于 `--version`。优先级：`--version` > 真实环境变量 > `.env` > `package.json`。`deploy.sh` 会把解析结果写回 `.env`（连同 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`）**钉住版本**，让中心与各客户机不会漂到 `latest` |
 
 商店侧仍有邮件 / 支付 / 站点文案等配置，登录 `/admin` 在后台改（免重启），见 `.env.example` 的 C/D/E 区与商店 README。
 
 ### 二、一键部署
 
 ```bash
-# 同机：商店 + 主应用
-./ops/deploy/deploy.sh
-
-# 厂商机：只起商店
+# ① 厂商机：起中心商店（生产第一步，唯一一次）
 ./ops/deploy/deploy.sh --role store
 
-# 客户机：只起主应用，并给出商店的局域网地址（授权公钥自动取回）
+# ② 每台客户机：起主应用，并给出中心商店地址（授权公钥自动取回）
 ./ops/deploy/deploy.sh --role app --license-server http://192.168.1.20:8802
+
+# ③ 开发 / 自测：同机跑商店 + 主应用（不用于客户交付）
+./ops/deploy/deploy.sh
 
 # 钉版本 / 只看将执行的命令（不写文件、不调用 docker）
 ./ops/deploy/deploy.sh --version 1.0.0
@@ -199,7 +220,7 @@ cp .env.example .env
 脚本会按顺序完成：
 
 1. 解析 compose 目录，缺 `.env` 时从 `.env.example` 生成；
-2. 解析镜像 tag（取仓库根 `package.json` 的 `version`），导出 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`；
+2. 解析镜像 tag（取仓库根 `package.json` 的 `version`），导出 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`，并把版本写回 `.env` 钉住；
 3. `--role app` / `all` 时准备宿主标识符号链接（`/host/etc/machine-id`、`/host/sys/class/dmi/id`，授权实例指纹读它）；
 4. `docker compose pull` → `up -d`，按角色轮询健康检查（商店最长 180s，主应用最长 300s）；
 5. 打印访问地址与 `./setup` 入口。
@@ -210,9 +231,9 @@ cp .env.example .env
 
 | 参数 | 说明 |
 | --- | --- |
-| `--role all\|store\|app` | 部署形态，默认 `all` |
+| `--role all\|store\|app` | 部署形态，默认 `all`。生产：厂商机 `store`、每台客户机 `app`；`all`（同机）仅开发 / 自测 |
 | `--license-server URL` | 商店地址，写进 `.env` 的 `APP_LICENSE_SERVER_URL`；`--role app` 必填 |
-| `--version TAG` | 镜像 tag（默认：`HOMEOS_VERSION` → 仓库 `package.json` 的 `version` → `latest`） |
+| `--version TAG` | 镜像 tag。优先级：`--version` > 真实环境变量 > `.env` > `package.json` 的 `version` > `latest`；解析结果写回 `.env` 钉住 |
 | `--dir DIR` | compose 与 `.env` 所在目录 |
 | `--host-binds auto\|force\|skip` | 宿主标识符号链接策略，默认 `auto` |
 | `--dry-run` | 只打印命令，不写文件、不调 docker |
@@ -254,6 +275,7 @@ docker logs homeos-3d | head
 - 自签证书落在各自的数据卷（容器内 `/data/caddy`），容器重建不丢。
 - 反代在容器回环上，所以两个可信代理列表都保持默认 `127.0.0.1,::1`；真实客户端 IP 由应用层按转发链解析（限流与审计按它统计）。**不要**改成 `*` 或 docker 网段。
 - 要在镜像外再套一层自建 Caddy / Nginx（例如要真实公网证书），参考 [ops/deploy/Caddyfile.intranet.example](ops/deploy/Caddyfile.intranet.example)，并相应放宽可信代理配置。
+- **客户机跨公网**接入中心商店时不要用自签：用 [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) 的（`docker-compose.store.public.yml` + 域名自动签发可信证书）。
 
 ### 六、构建镜像（可选）
 
@@ -282,6 +304,7 @@ HOMEOS_IMAGE=homeos-3d:local HOMEOS_STORE_IMAGE=homeos-3d-store:local \
 | `homeos-3d-store_homeos-3d-store-data` | 商店 | 库与商品资源 |
 | `homeos-3d-store_homeos-3d-license-keys` | 商店 | **授权私钥（最关键，单独备份）** |
 | `homeos-3d-client-keys` | 共享（固定名） | 公钥卷（仅同机 `--role all` 使用；分拆部署不需要它） |
+| `homeos-3d-store_caddy-public-data` | 商店公网接入（overlay） | Caddy 证书与 ACME 账号数据（用了 `docker-compose.store.public.yml` 才有） |
 
 ```bash
 # 示例：备份主应用数据卷（各卷按需重复）
@@ -295,15 +318,19 @@ docker run --rm -v homeos-3d_homeos-3d-data:/data \
 
 ### 八、升级与回滚
 
-升级＝拉新镜像 + `up -d`，与首次部署是同一条命令；**不要** `docker compose down -v`（会删卷）。分拆部署**先商店、后主应用**：
+升级＝拉新镜像 + `up -d`，**先中心商店、后客户机**，两头用同一个 tag；**不要**
+`docker compose down -v`（会删卷）。用 `ops/deploy/upgrade.sh` 更省事（会显式钉版本）：
 
 ```bash
-git pull                       # 若部署目录是检出：更新 compose 与 deploy.sh
-./ops/deploy/deploy.sh --role store
-./ops/deploy/deploy.sh --role app --license-server http://<商店IP>:8802
+# ① 厂商机：先升中心商店
+./ops/deploy/upgrade.sh --role store --version 1.0.1
+# ② 每台客户机：逐个升到同一版本
+./ops/deploy/upgrade.sh --role app --version 1.0.1
 ```
 
-钉版本（便于回滚或灰度）：`./ops/deploy/deploy.sh --version 1.0.0`。跨机迁移与硬件指纹处理见 [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)。
+升级前可先核对各机版本：`./ops/deploy/upgrade.sh --check`。完整清单、客户通知模板与回滚
+见 [ops/deploy/UPGRADE.md](ops/deploy/UPGRADE.md)。跨机迁移与硬件指纹处理见
+[ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md)。
 
 ### 九、常见问题
 
@@ -313,6 +340,8 @@ git pull                       # 若部署目录是检出：更新 compose 与 d
 | `manifest unknown` / `not found` | 该 tag 还没构建：到 GitHub Actions 手动 Run workflow，或改用 `--version latest` |
 | `no matching manifest` | 宿主架构缺镜像层：确认宿主是 amd64 / arm64，CI 两种都已发布 |
 | 主应用启动即退出、提示取回授权公钥超时 | 主应用连不上 `APP_LICENSE_SERVER_URL`：确认商店已启动、客户机能访问该地址与端口（防火墙 / 端口映射）。同机部署检查商店是否 healthy。 |
+| 客户机连不上、且地址写的是 `https://…:8804` | 那是商店内置反代的自签证书，客户机不信任：改用 `http://<商店>:8802`，或按 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) 上真实证书域名 |
+| 公网证书一直申请不下来 | 检查域名解析、公网 80/443 是否可达；见 [PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) |
 | 激活报「租约使用了不受信任的授权公钥」 | 主应用公钥与该商店不匹配（例如数据卷是别台机器搬来的）。删掉主应用数据卷里的 `client-keys` 后重启即会重新取回；同机部署检查公钥卷是否被手工覆盖 |
 | 公钥取回被拒（日志「拒绝替换」） | 商店公钥换了却没有把本地这把列为上一代公钥：确认是不是真换了密钥对；是的话按商店的轮换流程（保留 `license-*.previous.pem`）重来 |
 | 已激活的客户端被判「换设备」 | `/host` 挂载或主机名变了导致实例指纹改变：先在商店后台解绑，再重新激活；或钉住 `APP_HARDWARE_MACHINE_ID` / `APP_HARDWARE_BOARD_ID` |
@@ -322,6 +351,9 @@ git pull                       # 若部署目录是检出：更新 compose 与 d
 ### 参考
 
 - [ops/deploy/PRODUCTION.md](ops/deploy/PRODUCTION.md) — 生产最小检查清单
-- [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md) — 两台服务器分拆部署、授权身份与迁移
+- [ops/deploy/SPLIT-DEPLOY.md](ops/deploy/SPLIT-DEPLOY.md) — 中心商店 + 多客户机拓扑、授权身份与迁移
+- [ops/deploy/PUBLIC-ACCESS.md](ops/deploy/PUBLIC-ACCESS.md) — 商店公网接入（域名 + 真实证书 HTTPS、支付回调）
+- [ops/deploy/CUSTOMER.md](ops/deploy/CUSTOMER.md) — 客户机安装指南（随精简发包分发）
+- [ops/deploy/UPGRADE.md](ops/deploy/UPGRADE.md) — 升级 / 回滚清单与客户通知模板
 - [homeos-store/backend/src/README.md](homeos-store/backend/src/README.md) — 商店 / 授权服务器细节
 - `.env.example` — 全部环境变量（按 A–G 分区注释）

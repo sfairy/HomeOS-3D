@@ -1,5 +1,19 @@
 # 生产最小检查清单
 #
+# 先对号入座（形态决定后文怎么读）：
+#
+#   中心商店 + 多台客户机   ←── 生产默认形态
+#     厂商机（唯一一台）：deploy.sh --role store
+#       要跨公网 / 要卖授权时，再叠加 docker-compose.store.public.yml 上真实证书 HTTPS
+#     每台客户机（各一次）：deploy.sh --role app --license-server <中心商店地址>
+#       可直接用客户精简包（ops/deploy/pack-customer.sh 产出，见 CUSTOMER.md）
+#
+#   同机商店 + 主应用      ←── 仅开发 / 自测，不要用于客户交付
+#     一台机器：deploy.sh --role all
+#
+# 配套文档：SPLIT-DEPLOY.md（拓扑与授权身份）、PUBLIC-ACCESS.md（公网接入）、
+#          CUSTOMER.md（客户机安装）、UPGRADE.md（升级 / 回滚）。
+#
 # [ ] 1. 复制环境文件并填写
 #       cp .env.example .env
 #       - APP_TRUSTED_PROXIES / STORE_TRUSTED_PROXIES：反代已内置在容器回环上，保持默认 127.0.0.1,::1
@@ -18,9 +32,10 @@
 #       换主机名 / 改 /host 挂载会改变指纹；跨机迁移用 APP_HARDWARE_MACHINE_ID / APP_HARDWARE_BOARD_ID 钉住身份。
 #
 # [ ] 3. 拉起（一条命令；脚本按角色拉镜像、等健康、打印地址）
-#       同机：       ./ops/deploy/deploy.sh
-#       只有商店：   ./ops/deploy/deploy.sh --role store
-#       只有主应用： ./ops/deploy/deploy.sh --role app --license-server http://<商店IP>:8802
+#       中心商店：   ./ops/deploy/deploy.sh --role store
+#       客户机：     ./ops/deploy/deploy.sh --role app --license-server http://<中心商店>:8802
+#       开发 / 自测： ./ops/deploy/deploy.sh          # 同机 all，不要用于客户交付
+#       版本会写回 .env 钉住（HOMEOS_VERSION / HOMEOS_IMAGE），中心与各客户机用同一个 tag。
 #       内网 HTTPS 开箱即用：反代（Caddy）内置在镜像里，主应用 https://<IP>:8803、商店 https://<IP>:8804
 #       钉版本加 --version 1.0.0；只看命令加 --dry-run
 #
@@ -54,9 +69,9 @@
 #       配置邮件 SMTP、支付渠道（支付宝）、站点文案
 #       确认支付渠道是 alipay 且填了真实 APPID / 密钥（模拟收银台已删除）
 #
-# [ ] 7. 主应用
+# [ ] 7. 主应用（每台客户机）
 #       http://<主机IP>:8801/setup（HTTPS：https://<主机IP>:8803/setup）→ 建管理员
-#       /license 用商店发放的激活码激活
+#       /license 用商店发放的激活码激活（1 激活码 : 1 设备，见 SPLIT-DEPLOY.md 授权身份）
 #
 # [ ] 8. 加固
 #       备份 volume（两个 compose 文件各自带项目名前缀）：
@@ -69,9 +84,15 @@
 #
 # [ ] 9. 升级
 #       不要删 volume
-#       先 git pull（若部署目录是检出），再跑与首次相同的那条 deploy.sh；钉版本用 --version
+#       先中心商店、后客户机；中心与所有客户机用同一个 tag（deploy.sh 会把它写进 .env）
+#       ops/deploy/upgrade.sh --role store --version <tag>     # 厂商机
+#       ops/deploy/upgrade.sh --role app   --version <tag>     # 每台客户机
+#       完整清单、通知模板与回滚见 ops/deploy/UPGRADE.md
 #
-# 两台服务器分开部署：两侧各跑一次 deploy.sh（--role store / --role app --license-server ...）。
-# 主应用侧的公钥是自动的：A 启动时向 B 的 GET /v2/keys 取回并缓存到数据卷，B 侧轮换密钥也无需人工搬运。
+# 中心 + 客户机分开部署：厂商机跑一次 --role store，每台客户机各跑一次
+# --role app --license-server <中心商店地址>。
+# 客户机侧的公钥是自动的：启动时向中心商店的 GET /v2/keys 取回并缓存到数据卷，
+# 中心轮换密钥也无需人工搬运。
 # 手工投放仅在离线盘点/恢复数据卷时需要：把两个 PEM 放进 APP_CLIENT_KEYS_DIR 并设 APP_CLIENT_KEYS_FETCH=off。
-# 其余人工项（商店局域网地址、实例指纹、内网反代）见 ops/deploy/SPLIT-DEPLOY.md。
+# 其余人工项（商店地址、实例指纹、内网反代、公网接入）见 ops/deploy/SPLIT-DEPLOY.md
+# 与 ops/deploy/PUBLIC-ACCESS.md。

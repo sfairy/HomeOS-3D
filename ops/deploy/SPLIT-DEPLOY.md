@@ -1,49 +1,68 @@
-# 主应用与授权商店分两台服务器部署
+# 部署拓扑：中心商店 + 多台客户机
 
-本仓库把两个容器拆成了两个独立的 compose 项目：
+**生产形态**：授权商店是**厂商侧唯一一台**（你的服务器），主应用**一个客户一台**，各自
+指向中心商店。客户机不需要商店的代码或密钥。
 
-| 文件 | 项目名 | 服务 |
-| --- | --- | --- |
-| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店 8802（厂商机；自建网络与公钥卷） |
-| `docker-compose.app.yml` | `homeos-3d` | 主应用 8801（客户机，**可单独运行**：启动时自动从商店取回授权公钥） |
-| `docker-compose.app.shared.yml` | 叠加到 `homeos-3d` | 仅同机部署时用：加入商店的网络与公钥卷 |
+**开发 / 自测形态**：一台机器同时跑商店与主应用（`--role all`），仅用于本地验证，**不用于
+客户交付**。
 
-两种拓扑都由 `ops/deploy/deploy.sh` 收口：同机 `--role all`（自动叠加 shared 文件），
-跨服务器各跑一次 `--role store` 与 `--role app --license-server http://<商店IP>:8802`。
+| 文件 | 项目名 | 角色 | 部署到 |
+| --- | --- | --- | --- |
+| `docker-compose.store.yml` | `homeos-3d-store` | 授权商店（中心，唯一）：网络与公钥卷的持有者 | 厂商机 |
+| `docker-compose.app.yml` | `homeos-3d` | 主应用：**可单独运行**，启动时从中心取回公钥 | 每台客户机 |
+| `docker-compose.app.shared.yml` | 叠加到 `homeos-3d` | 仅同机（开发 / 自测）时用：加入商店的网络与公钥卷 | 开发机 |
+| `docker-compose.store.public.yml` | 叠加到商店 | 仅跨公网时用：真实域名 + 可信证书 HTTPS | 厂商机（公网） |
 
 ```
-[服务器 A]  homeos-3d        :8801  ←  内置反代 https://<A的IP>:8803
-[服务器 B]  homeos-3d-store  :8802  ←  内置反代 https://<B的IP>:8804
-A → B：APP_LICENSE_SERVER_URL=http://<B的IP>:8802   ← 跨机直连用商店的 HTTP 端口
+                  ┌────────────── 厂商机（唯一）──────────────┐
+                  │  homeos-3d-store   :8802 / :8804          │
+                  └───────────────────┬───────────────────────┘
+                      /v2/keys  ⟵─────┼─────⟶  /v2/activate /v2/heartbeat
+      ┌───────────────────────────────┼───────────────────────────────┐
+      ▼                               ▼                               ▼
+ 客户机 A  homeos-3d            客户机 B  homeos-3d            客户机 C  homeos-3d
+  :8801 / :8803                  :8801 / :8803                  :8801 / :8803
 ```
 
-全程走局域网，不需要公网域名或真实证书；HTTPS 由镜像内置的 Caddy 自签证书提供（见第 5 节）。
+所有机器上的操作都由 `ops/deploy/deploy.sh` 收口：
 
-> **跨服务器务必用 `http://<B的IP>:8802`，不要用 `https://<B的IP>:8804`。** 商店内置反代用的是
+```bash
+# 厂商机：中心商店（唯一一次）
+ops/deploy/deploy.sh --role store
+# 每台客户机（各一次）
+ops/deploy/deploy.sh --role app --license-server http://<中心商店>:8802
+# 开发 / 自测（同机，不用于客户交付）
+ops/deploy/deploy.sh --role all
+```
+
+> **跨机直连用 `http://<中心商店>:8802`，不要用 `https://<中心商店>:8804`。** 商店内置反代用的是
 > Caddy 内部 CA 的自签证书（`skip_install_trust`，不写系统信任库），主应用容器的 httpx / 取公钥
 > 的 urllib 都会按系统 CA 校验而失败 —— 表现是「无法连接授权服务器」+「取回授权公钥超时」。
-> 想要 HTTPS，需在镜像外上一套带真实证书（或自建 CA 并显式分发）的反代，见第 5 节。
 > 同机部署（`--role all`）走容器内网 `http://homeos-3d-store:8802`，不受此限。
 
-## 0. 两台机器共同的前提
+**要跨公网 / 要卖授权**：别用自签，见 [PUBLIC-ACCESS.md](PUBLIC-ACCESS.md)（域名 + 真实证书
+反代，支付宝 / 微信回调也要求它）。**客户机分发**见 [pack-customer.sh](pack-customer.sh) 与
+[CUSTOMER.md](CUSTOMER.md)；**升级 / 回滚**见 [UPGRADE.md](UPGRADE.md)。
+
+## 0. 所有机器共同的前提
 
 - **同一份提交。** 两份镜像独立构建，授权协议里的 `keyId`（由公钥字节派生）、`generation`、`clientVersion` 都是运行期才校验的，版本漂移不会在构建期报错。两边都用同一个 tag（该 tag 由仓库根 `package.json` 的 `version` 决定）。
 - **架构要各自匹配。** 镜像里的 Python 已被 Cython 编译成 `.so`，是 per-arch 产物，amd64 / arm64 不能互相搬镜像。
 - **时钟同步。** 租约、会话、令牌全部按时间判定；两台机器时钟偏移大了会表现为「刚发的租约已过期」。
 - 构建只需 `Dockerfile`（`--target app` / `--target store`）或直接用 GHCR 镜像；**不需要**在两台机器上各自跑 compose 构建。
 
-## 1. 服务器 B：先起商店
+## 1. 中心商店（厂商机）：先起商店
 
 ```bash
 ./ops/deploy/deploy.sh --role store              # 拉镜像 + 起容器 + 等健康 + 打印公钥 sha256
-# 首次部署后打开 http://<B的IP>:8802/setup 创建管理员
+# 首次部署后打开 http://<厂商机IP>:8802/setup 创建管理员
 ```
 
 - 授权私钥**只在这台机器上**：镜像不含私钥（`.dockerignore` 排除了 `homeos-store/keys/local/`），首次启动生成到卷 `homeos-3d-store_homeos-3d-license-keys`。**这个卷丢了等于所有已激活客户端失效**，单独备份。
-- **商店首次启动是随机生成密钥对**（`Ed25519PrivateKey.generate()`），所以它的公钥和仓库里 `keys/` 的开发公钥**不一样**。公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 直接挂它）；分拆部署时由服务器 A 启动时通过 `GET /v2/keys` 自动取回，见下一节。
+- **商店首次启动是随机生成密钥对**（`Ed25519PrivateKey.generate()`），所以它的公钥和仓库里 `keys/` 的开发公钥**不一样**。公钥会同步到共享卷 `homeos-3d-client-keys`（同机 overlay 直接挂它）；分拆部署时由客户机启动时通过 `GET /v2/keys` 自动取回，见下一节。
 - 站点配置（邮件 / 支付 / 文案）在 `/admin` 改，不走环境变量。
 
-## 2. 服务器 A 的公钥：全自动，无需人工投放
+## 2. 客户机的公钥：全自动，无需人工投放
 
 主应用自己**不生成**密钥，它需要**目标商店自己的**两个公钥。这件事现在是自动的：
 
@@ -64,19 +83,19 @@ A → B：APP_LICENSE_SERVER_URL=http://<B的IP>:8802   ← 跨机直连用商�
 2. **连续性**：本地已固定某把签名公钥时，只有当服务器把这把列为**上一代公钥**，才允许换成
    新的（这是合法轮换的必然特征）。否则拒绝替换并保留原样。
 
-所以：**商店轮换密钥时不需要动服务器 A** —— 把上一代四件套（`license-*.previous.pem`）按
+所以：**商店轮换密钥时不需要动客户机** —— 把上一代四件套（`license-*.previous.pem`）按
 商店文档放好开启重叠窗口：分拆部署时 A 下次启动就会自动跟进；同机部署（`--role all`）则由
 商店启动器把上一代公钥一起镜像进共享卷（`ops/docker/license_keys.py`），不必人工搬运。
 两种情况都会把这把旧公钥一起落盘继续参与验签，窗口结束后自动清理。
 
-想人工核对（可选）：`deploy.sh --role store` 结束前会打印两个 sha256，A 端启动日志里也会打印
+想人工核对（可选）：`deploy.sh --role store` 结束前会打印两个 sha256，客户机端启动日志里也会打印
 取回后的 `keyId` 与指纹，对比一下即可。
 
 ```bash
-# 服务器 B：看一眼商店当前公钥
+# 中心商店：看一眼当前公钥
 docker exec homeos-3d-store sha256sum /data/client-keys/*.pem
 
-# 服务器 A：看一眼取回结果（启动日志）
+# 客户机：看一眼取回结果（启动日志）
 docker logs homeos-3d | grep 授权公钥
 ```
 
@@ -89,16 +108,16 @@ docker logs homeos-3d | grep 授权公钥
 - **权限是最常见的坑。** 容器里跑的是 uid 1000（`homeos`），而 `scp` / `docker cp` 常见结果是 `root:600`；公钥须 `chmod 644`。
 - 该端点按来源 IP 限流（240 / 小时），响应带 `Cache-Control: no-store`。
 
-## 3. 服务器 A：再起主应用
+## 3. 客户机：再起主应用
 
 ```bash
 # .env 至少要有这几项（其余见 .env.example 的 A 区）：
-#   APP_LICENSE_SERVER_URL=http://<B的IP>:8802   # 跨机就用商店 HTTP 端口（别用自签的 8804）
+#   APP_LICENSE_SERVER_URL=http://<中心商店IP>:8802   # 跨机就用商店 HTTP 端口（别用自签的 8804）
 #   APP_COOKIE_SECURE=false                       # 要让 HTTP / HTTPS 都能登录就用 false
 #   APP_TRUSTED_PROXIES=127.0.0.1,::1             # 内置反代在容器回环上，保持默认
 #   UVICORN_FORWARDED_ALLOW_IPS=127.0.0.1,::1     # 保持默认，不要填 *
 
-./ops/deploy/deploy.sh --role app --license-server http://<B的IP>:8802
+./ops/deploy/deploy.sh --role app --license-server http://<中心商店IP>:8802
 docker logs homeos-3d | head     # 取首次设置引导密钥（容器内 /data/setup-token）
 ```
 
@@ -136,8 +155,12 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 | 拓扑 | 主应用 | 商店 |
 | --- | --- | --- |
-| 分拆（A 跑 app、B 跑 store） | `https://<A的IP>:8803` | `https://<B的IP>:8804` |
+| 分拆（厂商机跑 store、客户机跑 app） | `https://<客户机IP>:8803` | `https://<厂商机IP>:8804` |
 | 同机（`--role all`） | `https://<本机IP>:8803` | `https://<本机IP>:8804` |
+
+> 这一节讲的是**内网自签 HTTPS**（浏览器手动放行即可）。要是客户机跨公网连中心商店，
+> 自签会被客户机里的主应用拒绝，改用 [PUBLIC-ACCESS.md](PUBLIC-ACCESS.md) 的域名 + 真实
+> 证书方案。
 
 镜像内反代的原理：
 
@@ -170,7 +193,7 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 ```
 
 - **双协议登录**：`APP_COOKIE_SECURE` 与 `STORE_COOKIE_SECURE` 是布尔，没有 `auto`。要让 HTTPS 与 HTTP 都能登录，设为 `false`；只走 HTTPS 就设 `true`。
-- **商店反代端口固定是 8804**（不再随角色变化）：分拆部署时 A 的 8803 与 B 的 8804 本来就不冲突。
+- **商店反代端口固定是 8804**（不再随角色变化）：分拆部署时厂商机的 8804 与客户机的 8803 本来就不冲突。
 - **宿主发布端口**在 `.env` 里改：`APP_PUBLISH_PORT` / `APP_PROXY_PUBLISH_PORT` / `STORE_PUBLISH_PORT` / `STORE_PROXY_PUBLISH_PORT`；容器内监听端口固定（8801/8803、8802/8804），只有宿主机映射会变。
 
 ## 6. 可信代理与限流
@@ -192,19 +215,24 @@ sudo ln -sfn /sys/class/dmi/id /host/sys/class/dmi/id
 
 | 卷 | 归属 |
 | --- | --- |
-| `homeos-3d_homeos-3d-data` | 服务器 A 主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
-| `homeos-3d_homeos-3d-secrets` | 服务器 A HA / 配对 / 授权凭据密钥 |
-| `homeos-3d-store_homeos-3d-store-data` | 服务器 B 商店数据库与商品图 |
-| `homeos-3d-store_homeos-3d-license-keys` | 服务器 B 授权私钥（最关键，单独备） |
+| `homeos-3d_homeos-3d-data` | 客户机主应用数据（含自动取回的公钥缓存 `/data/client-keys`） |
+| `homeos-3d_homeos-3d-secrets` | 客户机 HA / 配对 / 授权凭据密钥 |
+| `homeos-3d-store_homeos-3d-store-data` | 中心商店数据库与商品图 |
+| `homeos-3d-store_homeos-3d-license-keys` | 中心商店授权私钥（最关键，单独备） |
 | `homeos-3d-client-keys` | 共享公钥卷（同机 `--role all` 用；分拆部署不依赖它） |
 
-升级照旧是拉新镜像 + `up -d`，**先 B 后 A**：
+升级照旧是拉新镜像 + `up -d`，**先中心商店、后客户机**（完整清单、通知模板与回滚见
+[UPGRADE.md](UPGRADE.md)）：
 
 ```bash
-# B
+# 中心商店（厂商机）
 docker compose -f docker-compose.store.yml pull && docker compose -f docker-compose.store.yml up -d
-# A
+# 客户机（每台各一次）
 docker compose -f docker-compose.app.yml pull && docker compose -f docker-compose.app.yml up -d
 ```
 
-A 端的 `start_app` 会自己向 B 取回公钥（本地已有缓存时也能离线启动），B 稍慢一点启动不会导致 A 失败。
+> 用 `ops/deploy/upgrade.sh --role store|app --version <tag>` 更稳：它会钉住版本，
+> 并在商店是公网接入（`.env` 里有 `STORE_DOMAIN`）时自动带上
+> `docker-compose.store.public.yml`——上面那条裸命令漏掉叠加文件会让商店退回内网设置。
+
+客户机端的 `start_app` 会自己向中心商店取回公钥（本地已有缓存时也能离线启动），中心商店稍慢一点启动不会导致客户机失败。
