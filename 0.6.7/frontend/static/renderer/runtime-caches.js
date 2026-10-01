@@ -1,14 +1,14 @@
-const l = 512;
+const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
-export function historySeriesCacheKey(arg1, arg2) {
-  return String(arg1 || "") + ":" + (Number(arg2) || 0);
+export function historySeriesCacheKey(cacheEntityId, hours) {
+  return String(cacheEntityId || "") + ":" + (Number(hours) || 0);
 }
-export function cacheHistorySeries(arg3, arg4, arg5) {
-  if (Array.isArray(arg5?.points))
-    for (arg3.set(historySeriesCacheKey(arg4, arg5.hours), arg5); arg3.size > 512;) {
-      const value1 = arg3.keys().next().value;
-      if (!value1) break;
-      arg3.delete(value1);
+export function cacheHistorySeries(cache, entityId, series) {
+  if (Array.isArray(series?.points))
+    for (cache.set(historySeriesCacheKey(entityId, series.hours), series); cache.size > 512;) {
+      const oldestKey = cache.keys().next().value;
+      if (!oldestKey) break;
+      cache.delete(oldestKey);
     }
 }
 export class HistoryRefreshCoordinator {
@@ -18,26 +18,27 @@ export class HistoryRefreshCoordinator {
       (this.pendingKey = null),
       (this.pendingRun = null));
   }
-  ["request"](arg6, arg7) {
+  ["request"](requestKey, run) {
     if (this.running)
       return (
-        arg6 === this.currentKey
+        requestKey === this.currentKey
           ? ((this.pendingKey = null), (this.pendingRun = null))
-          : arg6 !== this.pendingKey && ((this.pendingKey = arg6), (this.pendingRun = arg7)),
+          : requestKey !== this.pendingKey &&
+            ((this.pendingKey = requestKey), (this.pendingRun = run)),
         this.running
       );
-    ((this.pendingKey = arg6), (this.pendingRun = arg7));
-    const fn1 = async () => {
+    ((this.pendingKey = requestKey), (this.pendingRun = run));
+    const drainPendingRuns = async () => {
       for (; this.pendingRun;) {
-        const value2 = this.pendingRun;
+        const pendingRun = this.pendingRun;
         ((this.currentKey = this.pendingKey),
           (this.pendingKey = null),
           (this.pendingRun = null),
-          await value2());
+          await pendingRun());
       }
     };
     return (
-      (this.running = fn1().finally(() => {
+      (this.running = drainPendingRuns().finally(() => {
         ((this.running = null), (this.currentKey = null));
       })),
       this.running
@@ -46,21 +47,21 @@ export class HistoryRefreshCoordinator {
 }
 export class RuntimeStaticImageCache {
   constructor({
-    maxConcurrent: arg8 = 2,
-    maxDecoded: arg9 = 32,
-    idleDelay: arg10 = 120,
-    loadTimeout: arg11 = 15000,
-    createImage: arg12 = () => new Image(),
-    setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),
-    clearTimer: arg14 = (arg17) => globalThis.clearTimeout(arg17),
+    maxConcurrent: maxConcurrent = 2,
+    maxDecoded: maxDecoded = 32,
+    idleDelay: idleDelay = 120,
+    loadTimeout: loadTimeout = 15000,
+    createImage: createImage = () => new Image(),
+    setTimer: setTimer = (timerCallback, delayMs) => globalThis.setTimeout(timerCallback, delayMs),
+    clearTimer: clearTimer = (timerHandle) => globalThis.clearTimeout(timerHandle),
   } = {}) {
-    ((this.maxConcurrent = Math.max(1, Number(arg8) || 1)),
-      (this.maxDecoded = Math.max(1, Number(arg9) || 1)),
-      (this.idleDelay = Math.max(0, Number(arg10) || 0)),
-      (this.loadTimeout = Math.max(1000, Number(arg11) || 15000)),
-      (this.createImage = arg12),
-      (this.setTimer = arg13),
-      (this.clearTimer = arg14),
+    ((this.maxConcurrent = Math.max(1, Number(maxConcurrent) || 1)),
+      (this.maxDecoded = Math.max(1, Number(maxDecoded) || 1)),
+      (this.idleDelay = Math.max(0, Number(idleDelay) || 0)),
+      (this.loadTimeout = Math.max(1000, Number(loadTimeout) || 15000)),
+      (this.createImage = createImage),
+      (this.setTimer = setTimer),
+      (this.clearTimer = clearTimer),
       (this.desiredSources = new Set()),
       (this.prioritySources = new Set()),
       (this.loadedSources = new Set()),
@@ -72,147 +73,159 @@ export class RuntimeStaticImageCache {
       (this.sequence = 0),
       (this.stopped = false));
   }
-  ["setSources"](arg18 = [], arg19 = []) {
+  ["setSources"](sources = [], prioritySources = []) {
     if (!this.stopped) {
       ((this.desiredSources = new Set(
-        (arg18 || []).map((arg20) => String(arg20 || "")).filter(Boolean),
+        (sources || []).map((desiredSource) => String(desiredSource || "")).filter(Boolean),
       )),
         (this.prioritySources = new Set(
-          (arg19 || [])
-            .map((arg21) => String(arg21 || ""))
-            .filter((arg22) => this.desiredSources.has(arg22)),
+          (prioritySources || [])
+            .map((prioritySource) => String(prioritySource || ""))
+            .filter((isDesiredSource) => this.desiredSources.has(isDesiredSource)),
         )),
-        (this.queue = this.queue.filter(({ source: arg23 }) => this.desiredSources.has(arg23))));
-      for (const [value3, { image: value4, cancel: value5 }] of [...this.activeLoads])
-        this.desiredSources.has(value3) || (value4.removeAttribute?.("src"), value5());
-      for (const value6 of [...this.loadedSources])
-        this.desiredSources.has(value6) || this.loadedSources.delete(value6);
-      for (const value7 of [...this.decodedImages.keys()])
-        this.desiredSources.has(value7) || this.decodedImages.delete(value7);
-      for (const value8 of this.prioritySources)
-        if (this.decodedImages.has(value8)) {
-          const value9 = this.decodedImages.get(value8);
-          (this.decodedImages.delete(value8), this.decodedImages.set(value8, value9));
+        (this.queue = this.queue.filter(({ source: removedSource }) =>
+          this.desiredSources.has(removedSource),
+        )));
+      for (const [activeSource, { image: activeImage, cancel: cancelActiveLoad }] of [
+        ...this.activeLoads,
+      ])
+        this.desiredSources.has(activeSource) ||
+          (activeImage.removeAttribute?.("src"), cancelActiveLoad());
+      for (const loadedSource of [...this.loadedSources])
+        this.desiredSources.has(loadedSource) || this.loadedSources.delete(loadedSource);
+      for (const decodedSourceKey of [...this.decodedImages.keys()])
+        this.desiredSources.has(decodedSourceKey) || this.decodedImages.delete(decodedSourceKey);
+      for (const retainedPrioritySource of this.prioritySources)
+        if (this.decodedImages.has(retainedPrioritySource)) {
+          const retainedImage = this.decodedImages.get(retainedPrioritySource);
+          (this.decodedImages.delete(retainedPrioritySource),
+            this.decodedImages.set(retainedPrioritySource, retainedImage));
         } else
-          this.enqueue(value8, {
+          this.enqueue(retainedPrioritySource, {
             active: true,
           });
-      for (const value10 of this.desiredSources) this.enqueue(value10);
+      for (const nextDesiredSource of this.desiredSources) this.enqueue(nextDesiredSource);
       this.trimDecodedImages();
     }
   }
-  ["enqueue"](arg24, { active: arg25 = false } = {}) {
-    const value11 = String(arg24 || "");
+  ["enqueue"](source, { active: isActive = false } = {}) {
+    const normalizedSource = String(source || "");
     if (
       this.stopped ||
-      !value11 ||
-      !this.desiredSources.has(value11) ||
-      this.decodedImages.has(value11) ||
-      this.activeLoads.has(value11) ||
-      (this.loadedSources.has(value11) && !arg25)
+      !normalizedSource ||
+      !this.desiredSources.has(normalizedSource) ||
+      this.decodedImages.has(normalizedSource) ||
+      this.activeLoads.has(normalizedSource) ||
+      (this.loadedSources.has(normalizedSource) && !isActive)
     )
       return false;
-    const value12 = this.queue.find((arg26) => arg26.source === value11);
-    return value12
-      ? ((value12.active = value12.active || !!arg25),
-        this.schedule(value12.active ? 0 : this.idleDelay),
+    const staticQueuedEntry = this.queue.find(
+      (staticQueueCandidate) => staticQueueCandidate.source === normalizedSource,
+    );
+    return staticQueuedEntry
+      ? ((staticQueuedEntry.active = staticQueuedEntry.active || !!isActive),
+        this.schedule(staticQueuedEntry.active ? 0 : this.idleDelay),
         false)
       : (this.queue.push({
-          source: value11,
-          active: !!arg25,
+          source: normalizedSource,
+          active: !!isActive,
           sequence: this.sequence++,
         }),
-        this.schedule(arg25 ? 0 : this.idleDelay),
+        this.schedule(isActive ? 0 : this.idleDelay),
         true);
   }
-  ["schedule"](arg27 = 0) {
+  ["schedule"](staticScheduleDelayMs = 0) {
     if (this.stopped) return;
-    const value13 = Math.max(0, Number(arg27) || 0),
-      value14 = Date.now() + value13;
-    (this.timer !== null && value14 >= this.timerDueAt) ||
+    const normalizedDelay = Math.max(0, Number(staticScheduleDelayMs) || 0),
+      dueAt = Date.now() + normalizedDelay;
+    (this.timer !== null && dueAt >= this.timerDueAt) ||
       (this.timer !== null && this.clearTimer(this.timer),
-      (this.timerDueAt = value14),
+      (this.timerDueAt = dueAt),
       (this.timer = this.setTimer(() => {
         ((this.timer = null), (this.timerDueAt = 0), this.drain());
-      }, value13)));
+      }, normalizedDelay)));
   }
   ["drain"]() {
     if (!this.stopped)
       for (
         this.queue.sort(
-          (arg28, arg29) =>
-            Number(arg29.active) - Number(arg28.active) || arg28.sequence - arg29.sequence,
+          (leftQueuedEntry, rightQueuedEntry) =>
+            Number(rightQueuedEntry.active) - Number(leftQueuedEntry.active) ||
+            leftQueuedEntry.sequence - rightQueuedEntry.sequence,
         );
         this.activeLoads.size < this.maxConcurrent && this.queue.length;
       ) {
-        const value15 = this.queue.shift();
-        !this.desiredSources.has(value15.source) ||
-          this.decodedImages.has(value15.source) ||
-          this.start(value15);
+        const drainEntry = this.queue.shift();
+        !this.desiredSources.has(drainEntry.source) ||
+          this.decodedImages.has(drainEntry.source) ||
+          this.start(drainEntry);
       }
   }
-  ["start"]({ source: arg30, active: arg31 }) {
-    if (this.stopped || !arg30) return;
-    const value16 = this.createImage();
-    let value17 = false,
-      value18 = false,
-      value19 = null;
-    const fn2 = (arg32) => {
-        value17 ||
-          ((value17 = true),
-          value19 !== null && this.clearTimer(value19),
-          value16.removeEventListener?.("load", fn3),
-          value16.removeEventListener?.("error", fn4),
-          this.activeLoads.delete(arg30),
-          arg32 &&
-            this.desiredSources.has(arg30) &&
-            (this.loadedSources.add(arg30),
-            this.decodedImages.delete(arg30),
-            this.decodedImages.set(arg30, value16),
+  ["start"]({ source: loadingSource, active: activeRequest }) {
+    if (this.stopped || !loadingSource) return;
+    const staticImage = this.createImage();
+    let isSettled = false,
+      hasDecodeStarted = false,
+      timeoutHandle = null;
+    const finishStaticLoad = (loaded) => {
+        isSettled ||
+          ((isSettled = true),
+          timeoutHandle !== null && this.clearTimer(timeoutHandle),
+          staticImage.removeEventListener?.("load", handleStaticLoad),
+          staticImage.removeEventListener?.("error", handleStaticError),
+          this.activeLoads.delete(loadingSource),
+          loaded &&
+            this.desiredSources.has(loadingSource) &&
+            (this.loadedSources.add(loadingSource),
+            this.decodedImages.delete(loadingSource),
+            this.decodedImages.set(loadingSource, staticImage),
             this.trimDecodedImages()),
           this.drain());
       },
-      fn3 = () => {
-        if (value18) return;
-        value18 = true;
-        let value20 = null;
+      handleStaticLoad = () => {
+        if (hasDecodeStarted) return;
+        hasDecodeStarted = true;
+        let decodePromise = null;
         try {
-          value20 = typeof value16.decode == "function" ? value16.decode() : null;
+          decodePromise = typeof staticImage.decode == "function" ? staticImage.decode() : null;
         } catch {
-          value20 = null;
+          decodePromise = null;
         }
-        value20?.then
-          ? Promise.resolve(value20)
+        decodePromise?.then
+          ? Promise.resolve(decodePromise)
               .catch(() => {})
-              .finally(() => fn2(true))
-          : fn2(true);
+              .finally(() => finishStaticLoad(true))
+          : finishStaticLoad(true);
       },
-      fn4 = () => fn2(false);
-    ((value16.decoding = "async"),
-      (value16.fetchPriority = arg31 ? "high" : "low"),
-      value16.addEventListener?.("load", fn3, {
+      handleStaticError = () => finishStaticLoad(false);
+    ((staticImage.decoding = "async"),
+      (staticImage.fetchPriority = activeRequest ? "high" : "low"),
+      staticImage.addEventListener?.("load", handleStaticLoad, {
         once: true,
       }),
-      value16.addEventListener?.("error", fn4, {
+      staticImage.addEventListener?.("error", handleStaticError, {
         once: true,
       }),
-      this.activeLoads.set(arg30, {
-        image: value16,
-        cancel: () => fn2(false),
+      this.activeLoads.set(loadingSource, {
+        image: staticImage,
+        cancel: () => finishStaticLoad(false),
       }),
-      (value16.src = arg30),
-      (value19 = this.setTimer(() => {
-        (value16.removeAttribute?.("src"), fn2(false));
+      (staticImage.src = loadingSource),
+      (timeoutHandle = this.setTimer(() => {
+        (staticImage.removeAttribute?.("src"), finishStaticLoad(false));
       }, this.loadTimeout)),
-      value16.complete && Number(value16.naturalWidth || 0) > 0 && Promise.resolve().then(fn3));
+      staticImage.complete &&
+        Number(staticImage.naturalWidth || 0) > 0 &&
+        Promise.resolve().then(handleStaticLoad));
   }
   ["trimDecodedImages"]() {
     for (; this.decodedImages.size > this.maxDecoded;) {
-      const value21 =
-        [...this.decodedImages.keys()].find((arg33) => !this.prioritySources.has(arg33)) ||
-        this.decodedImages.keys().next().value;
-      if (!value21) break;
-      this.decodedImages.delete(value21);
+      const evictedSource =
+        [...this.decodedImages.keys()].find(
+          (candidateDecodedSource) => !this.prioritySources.has(candidateDecodedSource),
+        ) || this.decodedImages.keys().next().value;
+      if (!evictedSource) break;
+      this.decodedImages.delete(evictedSource);
     }
   }
   ["reset"]() {
@@ -224,8 +237,8 @@ export class RuntimeStaticImageCache {
       (this.timer = null),
       (this.timerDueAt = 0),
       (this.queue.length = 0));
-    for (const { image: value22, cancel: value23 } of [...this.activeLoads.values()])
-      (value22.removeAttribute?.("src"), value23());
+    for (const { image: stoppedImage, cancel: cancelLoadedImage } of [...this.activeLoads.values()])
+      (stoppedImage.removeAttribute?.("src"), cancelLoadedImage());
     (this.activeLoads.clear(),
       this.desiredSources.clear(),
       this.prioritySources.clear(),
@@ -235,17 +248,19 @@ export class RuntimeStaticImageCache {
 }
 export class RuntimeEffectImageLoader {
   constructor({
-    maxConcurrent: arg34 = 4,
-    idleDelay: arg35 = 160,
-    loadTimeout: arg36 = 15000,
-    setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),
-    clearTimer: arg38 = (arg41) => globalThis.clearTimeout(arg41),
+    maxConcurrent: effectMaxConcurrent = 4,
+    idleDelay: effectIdleDelay = 160,
+    loadTimeout: effectLoadTimeout = 15000,
+    setTimer: effectSetTimer = (effectTimerCallback, effectDelayMs) =>
+      globalThis.setTimeout(effectTimerCallback, effectDelayMs),
+    clearTimer: effectClearTimer = (effectTimerHandle) =>
+      globalThis.clearTimeout(effectTimerHandle),
   } = {}) {
-    ((this.maxConcurrent = Math.max(1, Number(arg34) || 1)),
-      (this.idleDelay = Math.max(0, Number(arg35) || 0)),
-      (this.loadTimeout = Math.max(1000, Number(arg36) || 15000)),
-      (this.setTimer = arg37),
-      (this.clearTimer = arg38),
+    ((this.maxConcurrent = Math.max(1, Number(effectMaxConcurrent) || 1)),
+      (this.idleDelay = Math.max(0, Number(effectIdleDelay) || 0)),
+      (this.loadTimeout = Math.max(1000, Number(effectLoadTimeout) || 15000)),
+      (this.setTimer = effectSetTimer),
+      (this.clearTimer = effectClearTimer),
       (this.queue = []),
       (this.inFlight = 0),
       (this.sequence = 0),
@@ -255,119 +270,132 @@ export class RuntimeEffectImageLoader {
       (this.loadedSources = new Set()),
       (this.stopped = false));
   }
-  ["enqueue"](arg42, arg43, { active: arg44 = false } = {}) {
-    const value24 = String(arg43 || "");
-    if (this.stopped || !arg42 || !value24) return;
+  ["enqueue"](imageElement, requestedSource, { active: isPriority = false } = {}) {
+    const effectSource = String(requestedSource || "");
+    if (this.stopped || !imageElement || !effectSource) return;
     if (
-      (arg42.dataset || (arg42.dataset = {}),
-      (arg42.dataset.effectPendingSource = value24),
-      arg42.dataset.effectLoadedSource === value24)
+      (imageElement.dataset || (imageElement.dataset = {}),
+      (imageElement.dataset.effectPendingSource = effectSource),
+      imageElement.dataset.effectLoadedSource === effectSource)
     ) {
-      delete arg42.dataset.effectPendingSource;
+      delete imageElement.dataset.effectPendingSource;
       return;
     }
-    if (this.loadedSources.has(value24)) {
-      ((arg42.dataset.effectLoadedSource = value24),
-        delete arg42.dataset.effectPendingSource,
-        (arg42.src = value24));
+    if (this.loadedSources.has(effectSource)) {
+      ((imageElement.dataset.effectLoadedSource = effectSource),
+        delete imageElement.dataset.effectPendingSource,
+        (imageElement.src = effectSource));
       return;
     }
-    const value25 = this.queue.find((arg45) => arg45.image === arg42 && arg45.source === value24);
-    (value25
-      ? (value25.active = value25.active || !!arg44)
+    const effectQueuedEntry = this.queue.find(
+      (effectQueueCandidate) =>
+        effectQueueCandidate.image === imageElement && effectQueueCandidate.source === effectSource,
+    );
+    (effectQueuedEntry
+      ? (effectQueuedEntry.active = effectQueuedEntry.active || !!isPriority)
       : this.queue.push({
-          image: arg42,
-          source: value24,
-          active: !!arg44,
+          image: imageElement,
+          source: effectSource,
+          active: !!isPriority,
           sequence: this.sequence++,
         }),
-      arg44 ? this.drain(true) : this.schedule(this.idleDelay));
+      isPriority ? this.drain(true) : this.schedule(this.idleDelay));
   }
-  ["schedule"](arg46 = 0) {
+  ["schedule"](effectScheduleDelayMs = 0) {
     if (this.stopped) return;
-    const value26 = Math.max(0, Number(arg46) || 0),
-      value27 = Date.now() + value26;
-    (this.timer !== null && value27 >= this.timerDueAt) ||
+    const effectNormalizedDelay = Math.max(0, Number(effectScheduleDelayMs) || 0),
+      effectDueAt = Date.now() + effectNormalizedDelay;
+    (this.timer !== null && effectDueAt >= this.timerDueAt) ||
       (this.timer !== null && this.clearTimer(this.timer),
-      (this.timerDueAt = value27),
+      (this.timerDueAt = effectDueAt),
       (this.timer = this.setTimer(() => {
         ((this.timer = null), (this.timerDueAt = 0), this.drain());
-      }, value26)));
+      }, effectNormalizedDelay)));
   }
-  ["drain"](arg47 = false) {
+  ["drain"](activeOnly = false) {
     if (!this.stopped)
       for (
         this.queue.sort(
-          (arg48, arg49) =>
-            Number(arg49.active) - Number(arg48.active) || arg48.sequence - arg49.sequence,
+          (leftPendingEntry, rightPendingEntry) =>
+            Number(rightPendingEntry.active) - Number(leftPendingEntry.active) ||
+            leftPendingEntry.sequence - rightPendingEntry.sequence,
         );
         this.inFlight < this.maxConcurrent;
       ) {
-        const value28 = this.queue.findIndex(
-          ({ image: arg50, source: arg51, active: arg52 }) =>
-            arg50 &&
-            arg50.dataset?.effectPendingSource === arg51 &&
-            !arg50.dataset?.effectLoadingSource &&
-            (!arg47 || arg52) &&
-            (arg50.isConnected === undefined || arg50.isConnected),
+        const queueIndex = this.queue.findIndex(
+          ({ image: drainImage, source: entrySource, active: entryActive }) =>
+            drainImage &&
+            drainImage.dataset?.effectPendingSource === entrySource &&
+            !drainImage.dataset?.effectLoadingSource &&
+            (!activeOnly || entryActive) &&
+            (drainImage.isConnected === undefined || drainImage.isConnected),
         );
-        if (value28 < 0) break;
-        const [value29] = this.queue.splice(value28, 1);
-        this.start(value29);
+        if (queueIndex < 0) break;
+        const [queueEntry] = this.queue.splice(queueIndex, 1);
+        this.start(queueEntry);
       }
   }
-  ["start"]({ image: arg53, source: arg54 }) {
-    if (this.stopped || !arg53 || arg53.dataset?.effectPendingSource !== arg54) return;
-    ((this.inFlight += 1), (arg53.dataset.effectLoadingSource = arg54));
-    let value30 = false,
-      value31 = null;
-    const fn5 = (arg55) => {
-        value30 ||
-          ((value30 = true),
-          value31 !== null && this.clearTimer(value31),
-          arg53.removeEventListener?.("load", fn6),
-          arg53.removeEventListener?.("error", fn7),
-          this.activeLoads.delete(arg53),
-          arg53.dataset?.effectLoadingSource === arg54 && delete arg53.dataset.effectLoadingSource,
-          arg55 &&
-            arg53.dataset?.effectPendingSource === arg54 &&
-            ((arg53.dataset.effectLoadedSource = arg54),
-            delete arg53.dataset.effectPendingSource,
-            this.loadedSources.add(arg54)),
+  ["start"]({ image: pendingImage, source: pendingSource }) {
+    if (
+      this.stopped ||
+      !pendingImage ||
+      pendingImage.dataset?.effectPendingSource !== pendingSource
+    )
+      return;
+    ((this.inFlight += 1), (pendingImage.dataset.effectLoadingSource = pendingSource));
+    let isEffectSettled = false,
+      effectTimeoutHandle = null;
+    const finishEffectLoad = (effectLoaded) => {
+        isEffectSettled ||
+          ((isEffectSettled = true),
+          effectTimeoutHandle !== null && this.clearTimer(effectTimeoutHandle),
+          pendingImage.removeEventListener?.("load", handleEffectLoad),
+          pendingImage.removeEventListener?.("error", handleEffectError),
+          this.activeLoads.delete(pendingImage),
+          pendingImage.dataset?.effectLoadingSource === pendingSource &&
+            delete pendingImage.dataset.effectLoadingSource,
+          effectLoaded &&
+            pendingImage.dataset?.effectPendingSource === pendingSource &&
+            ((pendingImage.dataset.effectLoadedSource = pendingSource),
+            delete pendingImage.dataset.effectPendingSource,
+            this.loadedSources.add(pendingSource)),
           (this.inFlight = Math.max(0, this.inFlight - 1)),
           this.drain());
       },
-      fn6 = () => fn5(true),
-      fn7 = () => fn5(false);
-    (arg53.addEventListener?.("load", fn6, {
+      handleEffectLoad = () => finishEffectLoad(true),
+      handleEffectError = () => finishEffectLoad(false);
+    (pendingImage.addEventListener?.("load", handleEffectLoad, {
       once: true,
     }),
-      arg53.addEventListener?.("error", fn7, {
+      pendingImage.addEventListener?.("error", handleEffectError, {
         once: true,
       }),
-      this.activeLoads.set(arg53, () => fn5(false)),
-      (arg53.src = arg54),
-      (value31 = this.setTimer(() => {
-        (arg53.removeAttribute?.("src"), fn5(false));
+      this.activeLoads.set(pendingImage, () => finishEffectLoad(false)),
+      (pendingImage.src = pendingSource),
+      (effectTimeoutHandle = this.setTimer(() => {
+        (pendingImage.removeAttribute?.("src"), finishEffectLoad(false));
       }, this.loadTimeout)),
-      arg53.complete && Number(arg53.naturalWidth || 0) > 0 && Promise.resolve().then(fn6));
+      pendingImage.complete &&
+        Number(pendingImage.naturalWidth || 0) > 0 &&
+        Promise.resolve().then(handleEffectLoad));
   }
-  ["promote"](arg56) {
-    const value32 = arg56?.dataset?.effectPendingSource || arg56?.dataset?.effectSource || "";
-    value32 &&
-      this.enqueue(arg56, value32, {
+  ["promote"](promotedImage) {
+    const promotedSource =
+      promotedImage?.dataset?.effectPendingSource || promotedImage?.dataset?.effectSource || "";
+    promotedSource &&
+      this.enqueue(promotedImage, promotedSource, {
         active: true,
       });
   }
   ["pruneDisconnected"]() {
     this.queue = this.queue.filter(
-      ({ image: arg57, source: arg58 }) =>
-        arg57 &&
-        arg57.dataset?.effectPendingSource === arg58 &&
-        (arg57.isConnected === undefined || arg57.isConnected),
+      ({ image: queuedImage, source: prunedSource }) =>
+        queuedImage &&
+        queuedImage.dataset?.effectPendingSource === prunedSource &&
+        (queuedImage.isConnected === undefined || queuedImage.isConnected),
     );
-    for (const [value33, value34] of [...this.activeLoads])
-      value33.isConnected === false && value34();
+    for (const [prunedImage, cancelEffectLoad] of [...this.activeLoads])
+      prunedImage.isConnected === false && cancelEffectLoad();
   }
   ["reset"]() {
     (this.timer !== null && this.clearTimer(this.timer),
@@ -384,21 +412,21 @@ export class RuntimeEffectImageLoader {
       (this.timer = null),
       (this.timerDueAt = 0),
       (this.queue.length = 0));
-    for (const value35 of [...this.activeLoads.values()]) value35();
+    for (const cancelStoppedLoad of [...this.activeLoads.values()]) cancelStoppedLoad();
     (this.activeLoads.clear(), (this.inFlight = 0), this.loadedSources.clear());
   }
 }
 export class RuntimeVacuumMapImagePreloader {
   constructor({
-    maxConcurrent: arg59 = 1,
-    retryDelay: arg60 = 15000,
-    createImage: arg61 = () => new Image(),
-    now: arg62 = () => Date.now(),
+    maxConcurrent: vacuumMaxConcurrent = 1,
+    retryDelay: retryDelay = 15000,
+    createImage: vacuumCreateImage = () => new Image(),
+    now: now = () => Date.now(),
   } = {}) {
-    ((this.maxConcurrent = Math.max(1, Number(arg59) || 1)),
-      (this.retryDelay = Math.max(1000, Number(arg60) || 15000)),
-      (this.createImage = arg61),
-      (this.now = arg62),
+    ((this.maxConcurrent = Math.max(1, Number(vacuumMaxConcurrent) || 1)),
+      (this.retryDelay = Math.max(1000, Number(retryDelay) || 15000)),
+      (this.createImage = vacuumCreateImage),
+      (this.now = now),
       (this.queue = []),
       (this.queuedSources = new Set()),
       (this.loadedSources = new Set()),
@@ -407,34 +435,36 @@ export class RuntimeVacuumMapImagePreloader {
       (this.activeLoads = new Map()),
       (this.stopped = false));
   }
-  ["enqueue"](arg63) {
-    const value36 = String(arg63 || ""),
-      value37 = value36.split("?", 1)[0];
+  ["enqueue"](candidateSource) {
+    const vacuumSource = String(candidateSource || ""),
+      sourceKey = vacuumSource.split("?", 1)[0];
     if (
       this.stopped ||
-      !value36 ||
-      this.loadedSources.has(value36) ||
-      this.queuedSources.has(value36) ||
-      this.activeLoads.has(value36)
+      !vacuumSource ||
+      this.loadedSources.has(vacuumSource) ||
+      this.queuedSources.has(vacuumSource) ||
+      this.activeLoads.has(vacuumSource)
     )
       return false;
-    const value38 = Number(this.failedAt.get(value36) || 0);
-    if (value38 && this.now() - value38 < this.retryDelay) return false;
-    for (const value40 of this.failedAt.keys())
-      value40 !== value36 && value40.split("?", 1)[0] === value37 && this.failedAt.delete(value40);
-    const value39 = this.queue.findIndex((arg64) => arg64.key === value37);
+    const failedAt = Number(this.failedAt.get(vacuumSource) || 0);
+    if (failedAt && this.now() - failedAt < this.retryDelay) return false;
+    for (const failedSource of this.failedAt.keys())
+      failedSource !== vacuumSource &&
+        failedSource.split("?", 1)[0] === sourceKey &&
+        this.failedAt.delete(failedSource);
+    const queuedIndex = this.queue.findIndex((queuedEntry) => queuedEntry.key === sourceKey);
     return (
-      value39 >= 0
-        ? (this.queuedSources.delete(this.queue[value39].source),
-          (this.queue[value39] = {
-            key: value37,
-            source: value36,
+      queuedIndex >= 0
+        ? (this.queuedSources.delete(this.queue[queuedIndex].source),
+          (this.queue[queuedIndex] = {
+            key: sourceKey,
+            source: vacuumSource,
           }))
         : this.queue.push({
-            key: value37,
-            source: value36,
+            key: sourceKey,
+            source: vacuumSource,
           }),
-      this.queuedSources.add(value36),
+      this.queuedSources.add(vacuumSource),
       this.drain(),
       true
     );
@@ -442,48 +472,52 @@ export class RuntimeVacuumMapImagePreloader {
   ["drain"]() {
     if (!this.stopped)
       for (; this.activeLoads.size < this.maxConcurrent && this.queue.length;) {
-        const { key: value41, source: value42 } = this.queue.shift();
-        (this.queuedSources.delete(value42), this.start(value41, value42));
+        const { key: entryKey, source: drainSource } = this.queue.shift();
+        (this.queuedSources.delete(drainSource), this.start(entryKey, drainSource));
       }
   }
-  ["start"](arg65, arg66) {
-    if (this.stopped || !arg66) return;
-    const value43 = this.createImage();
-    let value44 = false;
-    const fn8 = (arg67) => {
-        if (!value44) {
+  ["start"](loadKey, preloadSource) {
+    if (this.stopped || !preloadSource) return;
+    const preloaderImage = this.createImage();
+    let isVacuumSettled = false;
+    const finishVacuumLoad = (vacuumLoaded) => {
+        if (!isVacuumSettled) {
           if (
-            ((value44 = true),
-            value43.removeEventListener?.("load", fn9),
-            value43.removeEventListener?.("error", fn10),
-            this.activeLoads.delete(arg66),
-            arg67)
+            ((isVacuumSettled = true),
+            preloaderImage.removeEventListener?.("load", handleVacuumLoad),
+            preloaderImage.removeEventListener?.("error", handleVacuumError),
+            this.activeLoads.delete(preloadSource),
+            vacuumLoaded)
           ) {
-            const value45 = this.loadedSourceByKey.get(arg65);
-            (value45 && value45 !== arg66 && this.loadedSources.delete(value45),
-              this.loadedSourceByKey.set(arg65, arg66),
-              this.loadedSources.add(arg66),
-              this.failedAt.delete(arg66));
-          } else this.failedAt.set(arg66, this.now());
+            const previousSource = this.loadedSourceByKey.get(loadKey);
+            (previousSource &&
+              previousSource !== preloadSource &&
+              this.loadedSources.delete(previousSource),
+              this.loadedSourceByKey.set(loadKey, preloadSource),
+              this.loadedSources.add(preloadSource),
+              this.failedAt.delete(preloadSource));
+          } else this.failedAt.set(preloadSource, this.now());
           this.drain();
         }
       },
-      fn9 = () => fn8(true),
-      fn10 = () => fn8(false);
-    ((value43.decoding = "async"),
-      (value43.fetchPriority = "low"),
-      value43.addEventListener?.("load", fn9, {
+      handleVacuumLoad = () => finishVacuumLoad(true),
+      handleVacuumError = () => finishVacuumLoad(false);
+    ((preloaderImage.decoding = "async"),
+      (preloaderImage.fetchPriority = "low"),
+      preloaderImage.addEventListener?.("load", handleVacuumLoad, {
         once: true,
       }),
-      value43.addEventListener?.("error", fn10, {
+      preloaderImage.addEventListener?.("error", handleVacuumError, {
         once: true,
       }),
-      this.activeLoads.set(arg66, {
-        image: value43,
-        cancel: () => fn8(false),
+      this.activeLoads.set(preloadSource, {
+        image: preloaderImage,
+        cancel: () => finishVacuumLoad(false),
       }),
-      (value43.src = arg66),
-      value43.complete && Number(value43.naturalWidth || 0) > 0 && Promise.resolve().then(fn9));
+      (preloaderImage.src = preloadSource),
+      preloaderImage.complete &&
+        Number(preloaderImage.naturalWidth || 0) > 0 &&
+        Promise.resolve().then(handleVacuumLoad));
   }
   ["reset"]() {
     ((this.queue.length = 0),
@@ -493,47 +527,50 @@ export class RuntimeVacuumMapImagePreloader {
   }
   ["stop"]() {
     ((this.stopped = true), (this.queue.length = 0), this.queuedSources.clear());
-    for (const { image: value46, cancel: value47 } of [...this.activeLoads.values()])
-      (value46.removeAttribute?.("src"), value47());
+    for (const { image: loadingImage, cancel: cancelVacuumLoad } of [...this.activeLoads.values()])
+      (loadingImage.removeAttribute?.("src"), cancelVacuumLoad());
     (this.activeLoads.clear(),
       this.loadedSources.clear(),
       this.loadedSourceByKey.clear(),
       this.failedAt.clear());
   }
 }
-export function historyRequestStillRelevant(arg68, arg69) {
-  return arg68.documentGeneration !== arg69.documentGeneration
+export function historyRequestStillRelevant(requestOptions, currentOptions) {
+  return requestOptions.documentGeneration !== currentOptions.documentGeneration
     ? false
-    : arg68.shared || (arg68.pagePath !== null && arg68.pagePath === arg69.pagePath)
+    : requestOptions.shared ||
+        (requestOptions.pagePath !== null && requestOptions.pagePath === currentOptions.pagePath)
       ? true
-      : arg68.popupId !== null &&
-        arg68.popupId === arg69.popupId &&
-        arg68.popupGeneration === arg69.popupGeneration;
+      : requestOptions.popupId !== null &&
+        requestOptions.popupId === currentOptions.popupId &&
+        requestOptions.popupGeneration === currentOptions.popupGeneration;
 }
 export class EntityRequestPolicy {
   constructor() {
     ((this.entries = new Map()), (this.authBlocked = false));
   }
-  ["canRequest"](arg70, arg71 = Date.now()) {
-    const value48 = this.entries.get(arg70);
-    return !this.authBlocked && (!value48 || (!value48.blocked && arg71 >= value48.nextAt));
-  }
-  ["success"](arg72) {
-    this.entries.delete(arg72);
-  }
-  ["failure"](arg73, arg74 = 0, arg75 = Date.now()) {
-    const value49 = (this.entries.get(arg73)?.attempts || 0) + 1,
-      value50 = [401, 403, 404, 410].includes(arg74);
-    arg74 === 401 && (this.authBlocked = true);
-    const value51 = Math.min(300000, 1000 * 2 ** Math.min(value49 - 1, 9));
+  ["canRequest"](requestEntityId, nowMs = Date.now()) {
+    const entityEntry = this.entries.get(requestEntityId);
     return (
-      this.entries.set(arg73, {
-        attempts: value49,
-        blocked: value50,
-        status: arg74,
-        nextAt: value50 ? Infinity : arg75 + value51,
+      !this.authBlocked && (!entityEntry || (!entityEntry.blocked && nowMs >= entityEntry.nextAt))
+    );
+  }
+  ["success"](succeededEntityId) {
+    this.entries.delete(succeededEntityId);
+  }
+  ["failure"](failedEntityId, statusCode = 0, timestampMs = Date.now()) {
+    const attempts = (this.entries.get(failedEntityId)?.attempts || 0) + 1,
+      isBlocked = [401, 403, 404, 410].includes(statusCode);
+    statusCode === 401 && (this.authBlocked = true);
+    const retryDelayMs = Math.min(300000, 1000 * 2 ** Math.min(attempts - 1, 9));
+    return (
+      this.entries.set(failedEntityId, {
+        attempts: attempts,
+        blocked: isBlocked,
+        status: statusCode,
+        nextAt: isBlocked ? Infinity : timestampMs + retryDelayMs,
       }),
-      value50 ? Infinity : value51
+      isBlocked ? Infinity : retryDelayMs
     );
   }
   ["resume"]() {
@@ -541,10 +578,11 @@ export class EntityRequestPolicy {
   }
   ["authenticated"]() {
     this.authBlocked = false;
-    for (const [value52, value53] of this.entries)
-      value53.status === 401 && this.entries.delete(value52);
+    for (const [expiredEntityId, expiredEntry] of this.entries)
+      expiredEntry.status === 401 && this.entries.delete(expiredEntityId);
   }
-  ["retain"](arg76) {
-    for (const value54 of this.entries.keys()) arg76.has(value54) || this.entries.delete(value54);
+  ["retain"](retainedEntityIdSet) {
+    for (const retainedEntityId of this.entries.keys())
+      retainedEntityIdSet.has(retainedEntityId) || this.entries.delete(retainedEntityId);
   }
 }

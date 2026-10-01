@@ -68,11 +68,18 @@ const ast = parser.parse(code, { sourceType: 'module' });
 
 /** Every binding declared in the file, keyed by its declaration site. */
 const declared = [];
+const seenDeclarations = new Set();
 traverse(ast, {
   Scope(p) {
     for (const [name, binding] of Object.entries(p.scope.bindings)) {
       const node = binding.identifier;
-      if (!node || !node.loc) continue;
+      if (!node || node.start === undefined || !node.loc) continue;
+      // A named class registers its own binding in both the enclosing scope and the
+      // class scope, pointing at the same identifier node; dedupe by declaration
+      // start so the two do not look like a same-line collision.
+      const declarationKey = `${name}@${node.start}`;
+      if (seenDeclarations.has(declarationKey)) continue;
+      seenDeclarations.add(declarationKey);
       declared.push({ name, line: node.loc.start.line, column: node.loc.start.column });
     }
   },

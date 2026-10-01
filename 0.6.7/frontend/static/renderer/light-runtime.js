@@ -1,252 +1,328 @@
-export function relativeLightColorTemperature(arg1, arg2, arg3) {
-  const value1 = Number(arg1),
-    value2 = Number(arg2),
-    value3 = Math.max(0, Math.min(100, Number(arg3) || 0)) / 100;
-  return !Number.isFinite(value1) || !Number.isFinite(value2) || value2 <= value1
-    ? Number.isFinite(value1)
-      ? value1
+export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, relativePercent) {
+  const parsedMinimumKelvin = Number(minimumKelvin),
+    parsedMaximumKelvin = Number(maximumKelvin),
+    relativeRatio = Math.max(0, Math.min(100, Number(relativePercent) || 0)) / 100;
+  return !Number.isFinite(parsedMinimumKelvin) ||
+    !Number.isFinite(parsedMaximumKelvin) ||
+    parsedMaximumKelvin <= parsedMinimumKelvin
+    ? Number.isFinite(parsedMinimumKelvin)
+      ? parsedMinimumKelvin
       : 2700
-    : value1 + (value2 - value1) * value3;
+    : parsedMinimumKelvin + (parsedMaximumKelvin - parsedMinimumKelvin) * relativeRatio;
 }
-export function lightVisualValueForCapability(arg4, arg5, arg6) {
-  const value4 = Number(arg5);
-  return arg4 && Number.isFinite(value4) ? value4 : Number(arg6);
+export function lightVisualValueForCapability(
+  isCapabilitySupported,
+  capabilityValue,
+  fallbackValue,
+) {
+  const numericCapabilityValue = Number(capabilityValue);
+  return isCapabilitySupported && Number.isFinite(numericCapabilityValue)
+    ? numericCapabilityValue
+    : Number(fallbackValue);
 }
-const x = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
-function p(arg7 = {}) {
-  const value5 = Array.isArray(arg7?.supported_color_modes)
-    ? arg7.supported_color_modes
-        .map((arg8) =>
-          String(arg8 || "")
+const colorModeSet = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
+function resolveSupportedColorModes(attributes = {}) {
+  const normalizedColorModes = Array.isArray(attributes?.supported_color_modes)
+    ? attributes.supported_color_modes
+        .map((declaredMode) =>
+          String(declaredMode || "")
             .trim()
             .toLowerCase(),
         )
         .filter(Boolean)
     : [];
-  return value5.length ? value5 : lightColorHs(arg7) ? ["hs"] : value5;
+  return normalizedColorModes.length
+    ? normalizedColorModes
+    : lightColorHs(attributes)
+      ? ["hs"]
+      : normalizedColorModes;
 }
-const d = (arg9, arg10) =>
-  Array.isArray(arg9) &&
-  arg9.length === arg10 &&
-  arg9.every(
-    (arg11) => typeof arg11 == "number" && Number.isFinite(arg11) && arg11 >= 0 && arg11 <= 255,
+const isByteChannelArray = (channelArray, expectedLength) =>
+  Array.isArray(channelArray) &&
+  channelArray.length === expectedLength &&
+  channelArray.every(
+    (channelByte) =>
+      typeof channelByte == "number" &&
+      Number.isFinite(channelByte) &&
+      channelByte >= 0 &&
+      channelByte <= 255,
   );
-export function lightKelvinRgb(arg12) {
-  const value6 = Math.max(1000, Math.min(40000, Number(arg12) || 2700)) / 100;
+export function lightKelvinRgb(kelvinValue) {
+  const scaledKelvin = Math.max(1000, Math.min(40000, Number(kelvinValue) || 2700)) / 100;
   return [
-    value6 <= 66 ? 255 : 329.698727446 * (value6 - 60) ** -0.1332047592,
-    value6 <= 66
-      ? 99.4708025861 * Math.log(value6) - 161.1195681661
-      : 288.1221695283 * (value6 - 60) ** -0.0755148492,
-    value6 >= 66 ? 255 : value6 <= 19 ? 0 : 138.5177312231 * Math.log(value6 - 10) - 305.0447927307,
-  ].map((arg13) => Math.max(0, Math.min(255, arg13)));
+    scaledKelvin <= 66 ? 255 : 329.698727446 * (scaledKelvin - 60) ** -0.1332047592,
+    scaledKelvin <= 66
+      ? 99.4708025861 * Math.log(scaledKelvin) - 161.1195681661
+      : 288.1221695283 * (scaledKelvin - 60) ** -0.0755148492,
+    scaledKelvin >= 66
+      ? 255
+      : scaledKelvin <= 19
+        ? 0
+        : 138.5177312231 * Math.log(scaledKelvin - 10) - 305.0447927307,
+  ].map((clampedChannel) => Math.max(0, Math.min(255, clampedChannel)));
 }
-export function lightColorRgb(arg14 = {}) {
-  const value7 = arg14,
-    value8 = value7.color_mode;
-  if (value8 === "white") return [255, 255, 255];
-  if (["color_temp", "onoff", "brightness", "unknown"].includes(value8)) return null;
-  const fn1 = () =>
-      Array.isArray(value7.hs_color) &&
-      value7.hs_color.length === 2 &&
-      value7.hs_color.every((arg15) => typeof arg15 == "number" && Number.isFinite(arg15))
-        ? hsToRgbColor(value7.hs_color)
+export function lightColorRgb(colorAttributes = {}) {
+  const colorState = colorAttributes,
+    colorMode = colorState.color_mode;
+  if (colorMode === "white") return [255, 255, 255];
+  if (["color_temp", "onoff", "brightness", "unknown"].includes(colorMode)) return null;
+  const resolveHsColor = () =>
+      Array.isArray(colorState.hs_color) &&
+      colorState.hs_color.length === 2 &&
+      colorState.hs_color.every(
+        (hsColorComponent) =>
+          typeof hsColorComponent == "number" && Number.isFinite(hsColorComponent),
+      )
+        ? hsToRgbColor(colorState.hs_color)
         : null,
-    fn2 = () => (d(value7.rgb_color, 3) ? [...value7.rgb_color] : null),
-    fn3 = (arg16, arg17) => {
-      if (!d(value7[arg16], arg17)) return null;
-      const value9 = value7[arg16];
-      let list1 = [value9[3], value9[3], value9[3]];
-      if (arg17 === 5) {
-        const [value12, value13] = value9.slice(3),
-          value14 = Number(value7.min_color_temp_kelvin) || 2700,
-          value15 = Number(value7.max_color_temp_kelvin) || 6500,
-          value16 = value12 + value13 ? value13 / (value12 + value13) : 0.5,
-          value17 =
-            1000000 / (1000000 / value15 + value16 * (1000000 / value14 - 1000000 / value15));
-        list1 = lightKelvinRgb(value17).map((arg18) => (arg18 * Math.max(value12, value13)) / 255);
+    resolveRgbColor = () =>
+      isByteChannelArray(colorState.rgb_color, 3) ? [...colorState.rgb_color] : null,
+    resolveRgbwColor = (colorAttributeName, componentCount) => {
+      if (!isByteChannelArray(colorState[colorAttributeName], componentCount)) return null;
+      const rawColorComponents = colorState[colorAttributeName];
+      let baseChannels = [rawColorComponents[3], rawColorComponents[3], rawColorComponents[3]];
+      if (componentCount === 5) {
+        const [firstWhiteChannel, secondWhiteChannel] = rawColorComponents.slice(3),
+          minimumColorTemperatureKelvin = Number(colorState.min_color_temp_kelvin) || 2700,
+          maximumColorTemperatureKelvin = Number(colorState.max_color_temp_kelvin) || 6500,
+          whiteMixRatio =
+            firstWhiteChannel + secondWhiteChannel
+              ? secondWhiteChannel / (firstWhiteChannel + secondWhiteChannel)
+              : 0.5,
+          interpolatedKelvin =
+            1000000 /
+            (1000000 / maximumColorTemperatureKelvin +
+              whiteMixRatio *
+                (1000000 / minimumColorTemperatureKelvin -
+                  1000000 / maximumColorTemperatureKelvin));
+        baseChannels = lightKelvinRgb(interpolatedKelvin).map(
+          (kelvinChannel) =>
+            (kelvinChannel * Math.max(firstWhiteChannel, secondWhiteChannel)) / 255,
+        );
       }
-      const value10 = value9.slice(0, 3).map((arg19, arg20) => arg19 + list1[arg20]),
-        value11 = Math.max(...value10) ? Math.max(...value9) / Math.max(...value10) : 0;
-      return value10.map((arg21) => Math.round(arg21 * value11));
+      const combinedChannels = rawColorComponents
+          .slice(0, 3)
+          .map((baseChannel, channelIndex) => baseChannel + baseChannels[channelIndex]),
+        channelScale = Math.max(...combinedChannels)
+          ? Math.max(...rawColorComponents) / Math.max(...combinedChannels)
+          : 0;
+      return combinedChannels.map((scaledChannel) => Math.round(scaledChannel * channelScale));
     },
-    fn4 = () => {
+    resolveXyColor = () => {
       if (
-        !Array.isArray(value7.xy_color) ||
-        value7.xy_color.length !== 2 ||
-        !value7.xy_color.every((arg22) => typeof arg22 == "number" && Number.isFinite(arg22))
+        !Array.isArray(colorState.xy_color) ||
+        colorState.xy_color.length !== 2 ||
+        !colorState.xy_color.every(
+          (xyComponent) => typeof xyComponent == "number" && Number.isFinite(xyComponent),
+        )
       )
         return null;
-      const [value18, value19] = value7.xy_color;
-      if (value18 < 0 || value19 <= 0 || value18 + value19 > 1.00001) return null;
-      const value20 = value18 / value19,
-        value21 = (1 - value18 - value19) / value19,
-        value22 = [
-          1.656492 * value20 - 0.354851 - 0.255038 * value21,
-          -0.707196 * value20 + 1.655397 + 0.036152 * value21,
-          0.051713 * value20 - 0.121364 + 1.01153 * value21,
-        ].map((arg23) =>
-          arg23 <= 0.0031308
-            ? Math.max(0, arg23) * 12.92
-            : 1.055 * Math.pow(arg23, 1 / 2.4) - 0.055,
+      const [chromaticityX, chromaticityY] = colorState.xy_color;
+      if (chromaticityX < 0 || chromaticityY <= 0 || chromaticityX + chromaticityY > 1.00001)
+        return null;
+      const chromaticityRatioX = chromaticityX / chromaticityY,
+        chromaticityRatioY = (1 - chromaticityX - chromaticityY) / chromaticityY,
+        linearRgbChannels = [
+          1.656492 * chromaticityRatioX - 0.354851 - 0.255038 * chromaticityRatioY,
+          -0.707196 * chromaticityRatioX + 1.655397 + 0.036152 * chromaticityRatioY,
+          0.051713 * chromaticityRatioX - 0.121364 + 1.01153 * chromaticityRatioY,
+        ].map((linearChannel) =>
+          linearChannel <= 0.0031308
+            ? Math.max(0, linearChannel) * 12.92
+            : 1.055 * Math.pow(linearChannel, 1 / 2.4) - 0.055,
         ),
-        value23 = Math.max(...value22, 1);
-      return value22.map((arg24) => Math.round((arg24 / value23) * 255));
+        componentMaximum = Math.max(...linearRgbChannels, 1);
+      return linearRgbChannels.map((normalizedChannel) =>
+        Math.round((normalizedChannel / componentMaximum) * 255),
+      );
     };
-  return value8 === "hs"
-    ? fn1() || fn2()
-    : value8 === "xy"
-      ? fn2() || fn4() || fn1()
-      : value8 === "rgbw"
-        ? fn2() || fn3("rgbw_color", 4) || fn1()
-        : value8 === "rgbww"
-          ? fn2() || fn3("rgbww_color", 5) || fn1()
-          : value8 === "rgb"
-            ? fn2() || fn1()
-            : fn2() || fn3("rgbw_color", 4) || fn3("rgbww_color", 5) || fn1() || fn4();
+  return colorMode === "hs"
+    ? resolveHsColor() || resolveRgbColor()
+    : colorMode === "xy"
+      ? resolveRgbColor() || resolveXyColor() || resolveHsColor()
+      : colorMode === "rgbw"
+        ? resolveRgbColor() || resolveRgbwColor("rgbw_color", 4) || resolveHsColor()
+        : colorMode === "rgbww"
+          ? resolveRgbColor() || resolveRgbwColor("rgbww_color", 5) || resolveHsColor()
+          : colorMode === "rgb"
+            ? resolveRgbColor() || resolveHsColor()
+            : resolveRgbColor() ||
+              resolveRgbwColor("rgbw_color", 4) ||
+              resolveRgbwColor("rgbww_color", 5) ||
+              resolveHsColor() ||
+              resolveXyColor();
 }
-export function lightColorHs(arg25 = {}) {
+export function lightColorHs(hsAttributes = {}) {
   if (
-    (!arg25.color_mode || arg25.color_mode === "hs") &&
-    Array.isArray(arg25.hs_color) &&
-    arg25.hs_color.length === 2 &&
-    arg25.hs_color.every((arg26) => typeof arg26 == "number" && Number.isFinite(arg26))
+    (!hsAttributes.color_mode || hsAttributes.color_mode === "hs") &&
+    Array.isArray(hsAttributes.hs_color) &&
+    hsAttributes.hs_color.length === 2 &&
+    hsAttributes.hs_color.every(
+      (hsPairComponent) => typeof hsPairComponent == "number" && Number.isFinite(hsPairComponent),
+    )
   )
-    return [((arg25.hs_color[0] % 360) + 360) % 360, Math.max(0, Math.min(100, arg25.hs_color[1]))];
-  const value24 = lightColorRgb(arg25);
-  return value24 ? rgbToHsColor(value24) : null;
+    return [
+      ((hsAttributes.hs_color[0] % 360) + 360) % 360,
+      Math.max(0, Math.min(100, hsAttributes.hs_color[1])),
+    ];
+  const computedRgbColor = lightColorRgb(hsAttributes);
+  return computedRgbColor ? rgbToHsColor(computedRgbColor) : null;
 }
-export function lightControlModes(arg27 = {}) {
-  const value25 = p(arg27);
+export function lightControlModes(modeAttributes = {}) {
+  const resolvedColorModes = resolveSupportedColorModes(modeAttributes);
   return [
-    ...(value25.some((arg28) => x.has(arg28)) ? ["color"] : []),
-    ...(value25.includes("color_temp") ? ["temperature"] : []),
-    ...(value25.includes("white") ? ["white"] : []),
+    ...(resolvedColorModes.some((colorModeName) => colorModeSet.has(colorModeName))
+      ? ["color"]
+      : []),
+    ...(resolvedColorModes.includes("color_temp") ? ["temperature"] : []),
+    ...(resolvedColorModes.includes("white") ? ["white"] : []),
   ];
 }
-export function lightControlMode(arg29, arg30) {
-  const value26 = arg29 === "color_temp" ? "temperature" : arg29 === "white" ? "white" : "color";
-  return arg30.includes(value26) ? value26 : arg30[0] || "temperature";
+export function lightControlMode(reportedColorMode, availableModes) {
+  const normalizedControlMode =
+    reportedColorMode === "color_temp"
+      ? "temperature"
+      : reportedColorMode === "white"
+        ? "white"
+        : "color";
+  return availableModes.includes(normalizedControlMode)
+    ? normalizedControlMode
+    : availableModes[0] || "temperature";
 }
-export function lightSupportsColor(arg31 = {}) {
-  return p(arg31).some((arg32) => x.has(arg32));
+export function lightSupportsColor(entityAttributes = {}) {
+  return resolveSupportedColorModes(entityAttributes).some((supportedColorMode) =>
+    colorModeSet.has(supportedColorMode),
+  );
 }
-export function lightRealtimeCapabilities(arg33 = "", arg34 = {}) {
-  const value27 = arg34?.newState || arg34 || {},
-    value28 = value27?.attributes || {},
-    value29 =
-      String(arg33 || value27.entityId || value27.domain || "").split(".", 1)[0] === "light",
-    value30 = Array.isArray(value28.supported_color_modes) ? value28.supported_color_modes : [],
-    value31 = Number(value28.supported_features || 0),
-    fn5 = (arg35) =>
-      value28[arg35] !== null &&
-      value28[arg35] !== undefined &&
-      Number.isFinite(Number(value28[arg35]));
+export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
+  const stateObject = entityState?.newState || entityState || {},
+    stateAttributes = stateObject?.attributes || {},
+    isLightEntity =
+      String(entityId || stateObject.entityId || stateObject.domain || "").split(".", 1)[0] ===
+      "light",
+    declaredColorModes = Array.isArray(stateAttributes.supported_color_modes)
+      ? stateAttributes.supported_color_modes
+      : [],
+    supportedFeatures = Number(stateAttributes.supported_features || 0),
+    hasNumericAttribute = (attributeName) =>
+      stateAttributes[attributeName] !== null &&
+      stateAttributes[attributeName] !== undefined &&
+      Number.isFinite(Number(stateAttributes[attributeName]));
   return {
     brightness:
-      value29 &&
-      (fn5("brightness") || value30.some((arg36) => arg36 !== "onoff") || (value31 & 1) === 1),
+      isLightEntity &&
+      (hasNumericAttribute("brightness") ||
+        declaredColorModes.some((supportedMode) => supportedMode !== "onoff") ||
+        (supportedFeatures & 1) === 1),
     colorTemperature:
-      value29 &&
-      (value30.includes("color_temp") ||
-        fn5("color_temp_kelvin") ||
-        fn5("min_color_temp_kelvin") ||
-        fn5("max_color_temp_kelvin") ||
-        fn5("color_temp") ||
-        (value31 & 2) === 2),
+      isLightEntity &&
+      (declaredColorModes.includes("color_temp") ||
+        hasNumericAttribute("color_temp_kelvin") ||
+        hasNumericAttribute("min_color_temp_kelvin") ||
+        hasNumericAttribute("max_color_temp_kelvin") ||
+        hasNumericAttribute("color_temp") ||
+        (supportedFeatures & 2) === 2),
   };
 }
-export function rgbToHsColor(arg37) {
-  if (!Array.isArray(arg37) || arg37.length < 3) return null;
-  const value32 = arg37
+export function rgbToHsColor(rgbColor) {
+  if (!Array.isArray(rgbColor) || rgbColor.length < 3) return null;
+  const normalizedChannels = rgbColor
       .slice(0, 3)
-      .map((arg38) => Math.max(0, Math.min(255, Number(arg38) || 0)) / 255),
-    value33 = Math.max(...value32),
-    value34 = Math.min(...value32),
-    value35 = value33 - value34;
-  let value36 = 0;
-  (value35 > 0 &&
-    (value33 === value32[0]
-      ? (value36 = 60 * (((value32[1] - value32[2]) / value35) % 6))
-      : value33 === value32[1]
-        ? (value36 = 60 * ((value32[2] - value32[0]) / value35 + 2))
-        : (value36 = 60 * ((value32[0] - value32[1]) / value35 + 4))),
-    value36 < 0 && (value36 += 360));
-  const value37 = value33 <= 0 ? 0 : value35 / value33;
-  return [value36, value37 * 100];
+      .map((channelValue) => Math.max(0, Math.min(255, Number(channelValue) || 0)) / 255),
+    maximumChannel = Math.max(...normalizedChannels),
+    minimumChannel = Math.min(...normalizedChannels),
+    channelRange = maximumChannel - minimumChannel;
+  let hueDegrees = 0;
+  (channelRange > 0 &&
+    (maximumChannel === normalizedChannels[0]
+      ? (hueDegrees = 60 * (((normalizedChannels[1] - normalizedChannels[2]) / channelRange) % 6))
+      : maximumChannel === normalizedChannels[1]
+        ? (hueDegrees = 60 * ((normalizedChannels[2] - normalizedChannels[0]) / channelRange + 2))
+        : (hueDegrees = 60 * ((normalizedChannels[0] - normalizedChannels[1]) / channelRange + 4))),
+    hueDegrees < 0 && (hueDegrees += 360));
+  const saturationRatio = maximumChannel <= 0 ? 0 : channelRange / maximumChannel;
+  return [hueDegrees, saturationRatio * 100];
 }
-export function hsToRgbColor(arg39) {
-  if (!Array.isArray(arg39) || arg39.length < 2) return null;
-  const value38 = (((Number(arg39[0]) || 0) % 360) + 360) % 360,
-    value39 = Math.max(0, Math.min(100, Number(arg39[1]) || 0)) / 100,
-    value40 = 1,
-    value41 = value40 * value39,
-    value42 = value38 / 60,
-    value43 = value41 * (1 - Math.abs((value42 % 2) - 1)),
-    value44 = value40 - value41,
-    [value45, value46, value47] =
-      value42 < 1
-        ? [value41, value43, 0]
-        : value42 < 2
-          ? [value43, value41, 0]
-          : value42 < 3
-            ? [0, value41, value43]
-            : value42 < 4
-              ? [0, value43, value41]
-              : value42 < 5
-                ? [value43, 0, value41]
-                : [value41, 0, value43];
-  return [value45, value46, value47].map((arg40) => Math.round((arg40 + value44) * 255));
+export function hsToRgbColor(hsColor) {
+  if (!Array.isArray(hsColor) || hsColor.length < 2) return null;
+  const normalizedHue = (((Number(hsColor[0]) || 0) % 360) + 360) % 360,
+    normalizedSaturation = Math.max(0, Math.min(100, Number(hsColor[1]) || 0)) / 100,
+    maximumValue = 1,
+    chroma = maximumValue * normalizedSaturation,
+    hueSector = normalizedHue / 60,
+    secondaryComponent = chroma * (1 - Math.abs((hueSector % 2) - 1)),
+    minimumValue = maximumValue - chroma,
+    [redComponent, greenComponent, blueComponent] =
+      hueSector < 1
+        ? [chroma, secondaryComponent, 0]
+        : hueSector < 2
+          ? [secondaryComponent, chroma, 0]
+          : hueSector < 3
+            ? [0, chroma, secondaryComponent]
+            : hueSector < 4
+              ? [0, secondaryComponent, chroma]
+              : hueSector < 5
+                ? [secondaryComponent, 0, chroma]
+                : [chroma, 0, secondaryComponent];
+  return [redComponent, greenComponent, blueComponent].map((componentValue) =>
+    Math.round((componentValue + minimumValue) * 255),
+  );
 }
-export function lightColorPickerHsFromPoint(arg41, arg42, arg43 = 1) {
-  const value48 = Math.max(0, Math.min(1, Number(arg41) || 0)),
-    value49 = Math.max(0, Math.min(1, Number(arg42) || 0)),
-    value50 = value48 - 0.5,
-    value51 = value49 - 0.5,
-    value52 = Math.max(Math.abs(value50), Math.abs(value51)) * 2,
-    value53 = Number.isFinite(arg43) && arg43 > 0 ? arg43 : 1;
+export function lightColorPickerHsFromPoint(normalizedX, normalizedY, aspectRatio = 1) {
+  const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0)),
+    clampedY = Math.max(0, Math.min(1, Number(normalizedY) || 0)),
+    offsetX = clampedX - 0.5,
+    offsetY = clampedY - 0.5,
+    radialDistance = Math.max(Math.abs(offsetX), Math.abs(offsetY)) * 2,
+    effectiveAspectRatio = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   return [
-    ((((Math.atan2(value51, value50 * value53) * 180) / Math.PI + 360) % 360) + 90) % 360,
-    value52 * 100,
+    ((((Math.atan2(offsetY, offsetX * effectiveAspectRatio) * 180) / Math.PI + 360) % 360) + 90) %
+      360,
+    radialDistance * 100,
   ];
 }
-export function lightColorPickerPointFromHs(arg44, arg45 = 1) {
-  const value54 = (((Number(arg44?.[0]) || 0) % 360) + 360) % 360,
-    value55 = Math.max(0, Math.min(100, Number(arg44?.[1]) || 0)) / 100,
-    value56 = ((value54 - 90) * Math.PI) / 180,
-    value57 = Number.isFinite(arg45) && arg45 > 0 ? arg45 : 1,
-    value58 = Math.cos(value56) / value57,
-    value59 = Math.sin(value56),
-    value60 = (value55 * 0.5) / Math.max(Math.abs(value58), Math.abs(value59));
+export function lightColorPickerPointFromHs(hueSaturation, pickerAspectRatio = 1) {
+  const pickerHueDegrees = (((Number(hueSaturation?.[0]) || 0) % 360) + 360) % 360,
+    pickerSaturationRatio = Math.max(0, Math.min(100, Number(hueSaturation?.[1]) || 0)) / 100,
+    hueRadians = ((pickerHueDegrees - 90) * Math.PI) / 180,
+    effectivePickerAspectRatio =
+      Number.isFinite(pickerAspectRatio) && pickerAspectRatio > 0 ? pickerAspectRatio : 1,
+    cosineScale = Math.cos(hueRadians) / effectivePickerAspectRatio,
+    sineValue = Math.sin(hueRadians),
+    pointRadius =
+      (pickerSaturationRatio * 0.5) / Math.max(Math.abs(cosineScale), Math.abs(sineValue));
   return {
-    x: Math.max(0, Math.min(1, 0.5 + value58 * value60)),
-    y: Math.max(0, Math.min(1, 0.5 + value59 * value60)),
+    x: Math.max(0, Math.min(1, 0.5 + cosineScale * pointRadius)),
+    y: Math.max(0, Math.min(1, 0.5 + sineValue * pointRadius)),
   };
 }
-export function lightColorServiceData(arg46, arg47) {
-  const value61 = p(arg46),
-    list2 = [
-      Math.round((((Number(arg47?.[0]) || 0) % 360) + 360) % 360),
-      Math.round(Math.max(0, Math.min(100, Number(arg47?.[1]) || 0))),
+export function lightColorServiceData(lightAttributes, hsColorPair) {
+  const colorModes = resolveSupportedColorModes(lightAttributes),
+    roundedHsColor = [
+      Math.round((((Number(hsColorPair?.[0]) || 0) % 360) + 360) % 360),
+      Math.round(Math.max(0, Math.min(100, Number(hsColorPair?.[1]) || 0))),
     ];
-  return value61.includes("hs") || value61.includes("xy") || !value61.includes("rgb")
+  return colorModes.includes("hs") || colorModes.includes("xy") || !colorModes.includes("rgb")
     ? {
-        hs_color: list2,
+        hs_color: roundedHsColor,
       }
     : {
-        rgb_color: hsToRgbColor(list2),
+        rgb_color: hsToRgbColor(roundedHsColor),
       };
 }
 export const UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN = 4600,
   UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
-export function lightPresetBrightnessServiceData(arg48) {
-  const value62 = Math.max(1, Math.min(100, Math.round(Number(arg48) || 1)));
-  return value62 === 100
+export function lightPresetBrightnessServiceData(brightnessPercent) {
+  const clampedBrightnessPercent = Math.max(
+    1,
+    Math.min(100, Math.round(Number(brightnessPercent) || 1)),
+  );
+  return clampedBrightnessPercent === 100
     ? {
         brightness: 255,
       }
     : {
-        brightness_pct: value62,
+        brightness_pct: clampedBrightnessPercent,
       };
 }
 export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([
@@ -272,12 +348,14 @@ export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([
   LIGHT_PRESET_MINIMUM_HOLD_MS = 8000,
   LIGHT_PRESET_STABLE_CONFIRMATION_MS = 1200,
   LIGHT_PRESET_MAXIMUM_HOLD_MS = 12000;
-export function lightPresetPendingDecision(arg49, arg50 = Date.now()) {
-  if (!arg49) return "idle";
-  const value63 = Number(arg50) || 0;
-  if (value63 >= Number(arg49.expiresAt || 0)) return "timeout";
-  if (!arg49.latestMatches || !Number.isFinite(Number(arg49.matchStartedAt))) return "hold";
-  const value64 = value63 >= Number(arg49.minimumHoldUntil || 0),
-    value65 = value63 - Number(arg49.matchStartedAt) >= LIGHT_PRESET_STABLE_CONFIRMATION_MS;
-  return value64 && value65 ? "confirmed" : "hold";
+export function lightPresetPendingDecision(pendingPreset, nowMs = Date.now()) {
+  if (!pendingPreset) return "idle";
+  const currentTimeMs = Number(nowMs) || 0;
+  if (currentTimeMs >= Number(pendingPreset.expiresAt || 0)) return "timeout";
+  if (!pendingPreset.latestMatches || !Number.isFinite(Number(pendingPreset.matchStartedAt)))
+    return "hold";
+  const hasReachedMinimumHold = currentTimeMs >= Number(pendingPreset.minimumHoldUntil || 0),
+    isStableConfirmationElapsed =
+      currentTimeMs - Number(pendingPreset.matchStartedAt) >= LIGHT_PRESET_STABLE_CONFIRMATION_MS;
+  return hasReachedMinimumHold && isStableConfirmationElapsed ? "confirmed" : "hold";
 }

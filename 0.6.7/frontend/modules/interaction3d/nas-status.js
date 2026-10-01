@@ -1,168 +1,206 @@
-export function nasState(arg1, arg2) {
-  const value1 = arg2?.newState || arg2 || {},
-    value2 = String(value1.state || "")
+export function nasState(entityId, state) {
+  const stateObject = state?.newState || state || {},
+    stateValue = String(stateObject.state || "")
       .trim()
       .toLowerCase(),
-    value3 =
-      /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/.test(arg1 || "") &&
-      value1.available !== false &&
-      ["on", "off"].includes(value2);
+    available =
+      /^(binary_sensor|switch|input_boolean)\.[a-z0-9_]+$/.test(entityId || "") &&
+      stateObject.available !== false &&
+      ["on", "off"].includes(stateValue);
   return {
-    available: value3,
-    on: value3 && value2 === "on",
-    name: value1.attributes?.friendly_name || arg1 || "NAS",
+    available: available,
+    on: available && stateValue === "on",
+    name: stateObject.attributes?.friendly_name || entityId || "NAS",
   };
 }
-export function nasDeviceState(arg3, arg4 = {}) {
-  const fn1 = (arg5) => (arg4 instanceof Map ? arg4.get(arg5) : arg4[arg5]);
-  if (arg3.entityId) return nasState(arg3.entityId, fn1(arg3.entityId));
-  const value4 = [
+export function nasDeviceState(nasItem, stateSources = {}) {
+  const readStateEntry = (stateEntityId) =>
+    stateSources instanceof Map ? stateSources.get(stateEntityId) : stateSources[stateEntityId];
+  if (nasItem.entityId) return nasState(nasItem.entityId, readStateEntry(nasItem.entityId));
+  const hasActiveMetric = [
     ...new Set([
-      arg3.statusSource?.primaryEntityId,
-      ...(arg3.statusSource?.metrics || []).map((arg6) => arg6.entityId),
+      nasItem.statusSource?.primaryEntityId,
+      ...(nasItem.statusSource?.metrics || []).map((metricSource) => metricSource.entityId),
     ]),
-  ].some((arg7) => {
-    const value5 = fn1(arg7)?.newState || fn1(arg7);
+  ].some((metricEntityId) => {
+    const metricState = readStateEntry(metricEntityId)?.newState || readStateEntry(metricEntityId);
     return (
-      !!arg7 &&
-      value5?.available !== false &&
-      value5?.state != null &&
-      !["", "unknown", "unavailable", "none"].includes(String(value5.state).trim().toLowerCase())
+      !!metricEntityId &&
+      metricState?.available !== false &&
+      metricState?.state != null &&
+      !["", "unknown", "unavailable", "none"].includes(
+        String(metricState.state).trim().toLowerCase(),
+      )
     );
   });
   return {
-    available: value4,
-    on: value4,
-    name: arg3.statusSource?.name || "NAS",
+    available: hasActiveMetric,
+    on: hasActiveMetric,
+    name: nasItem.statusSource?.name || "NAS",
   };
 }
 export function createNasStatus({
-  THREE: arg8,
-  requestFrame: arg9 = () => {},
-  modelType: arg10 = "nas",
-  readState: arg11 = nasDeviceState,
+  THREE: THREE,
+  requestFrame: requestFrame = () => {},
+  modelType: modelType = "nas",
+  readState: readState = nasDeviceState,
 }) {
-  const map1 = new Map(),
-    value6 = new arg8.PlaneGeometry(1, 1);
-  let value7,
-    value8,
-    value9,
-    value10 = false,
-    value11 = false,
-    value12 = -Infinity;
-  const fn2 = () => value13?.matches === true,
-    fn3 = (arg12) => {
-      for (let value14 = arg12; value14; value14 = value14.parent) {
-        if (value14.visible === false) return false;
-        if (value14 === value7) return true;
+  const meshesByBindingId = new Map(),
+    planeGeometry = new THREE.PlaneGeometry(1, 1);
+  let syncedRoot,
+    syncedRevision,
+    syncedBindingsSignature,
+    isDisposed = false,
+    hasVisibleIndicator = false,
+    lastTickMs = -Infinity;
+  const prefersReducedMotionNow = () => reducedMotionQuery?.matches === true,
+    isNodeVisible = (sceneNode) => {
+      for (
+        let visibleAncestor = sceneNode;
+        visibleAncestor;
+        visibleAncestor = visibleAncestor.parent
+      ) {
+        if (visibleAncestor.visible === false) return false;
+        if (visibleAncestor === syncedRoot) return true;
       }
       return false;
     },
-    fn4 = () => {
-      if (value11) {
-        for (const value15 of map1.values())
-          if (value15.breathing && fn3(value15.mesh)) return true;
+    hasVisibleBreathingIndicator = () => {
+      if (hasVisibleIndicator) {
+        for (const visibleEntry of meshesByBindingId.values())
+          if (visibleEntry.breathing && isNodeVisible(visibleEntry.mesh)) return true;
       }
       return false;
     },
-    value13 =
+    reducedMotionQuery =
       globalThis.matchMedia?.("(prefers-reduced-motion: reduce)") ??
       globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)"),
-    fn5 = () => {
-      !value10 && fn4() && arg9();
+    requestFrameIfBreathing = () => {
+      !isDisposed && hasVisibleBreathingIndicator() && requestFrame();
     };
-  value13?.addEventListener?.("change", fn5);
-  const fn6 = (arg13, arg14) => JSON.stringify([arg13 || "", arg14 || ""]);
-  function fn7(arg15) {
-    for (const [value16, value17] of arg15.indicators) value16.visible = value17;
-    (arg15.mesh.removeFromParent(), arg15.mesh.material.dispose());
+  reducedMotionQuery?.addEventListener?.("change", requestFrameIfBreathing);
+  const sceneModelKey = (floorId, modelId) => JSON.stringify([floorId || "", modelId || ""]);
+  function releaseEntry(entry) {
+    for (const [indicator, wasVisible] of entry.indicators) indicator.visible = wasVisible;
+    (entry.mesh.removeFromParent(), entry.mesh.material.dispose());
   }
-  function fn8(arg16) {
-    const value18 = new arg8.Box3();
-    function fn12(arg17, arg18) {
+  function modelWorldBounds(modelRoot) {
+    const accumulatedBounds = new THREE.Box3();
+    function accumulateBounds(node, parentMatrix) {
       if (
-        !arg17.userData?.environmentEffect &&
-        !(arg17 !== arg16 && arg17.userData?.environmentModelId != null)
+        !node.userData?.environmentEffect &&
+        !(node !== modelRoot && node.userData?.environmentModelId != null)
       ) {
-        arg17.isMesh &&
-          arg17.geometry &&
-          (arg17.geometry.boundingBox || arg17.geometry.computeBoundingBox(),
-          arg17.geometry.boundingBox &&
-            value18.union(arg17.geometry.boundingBox.clone().applyMatrix4(arg18)));
-        for (const value19 of arg17.children || [])
-          (value19.matrixAutoUpdate && value19.updateMatrix(),
-            fn12(value19, new arg8.Matrix4().multiplyMatrices(arg18, value19.matrix)));
+        node.isMesh &&
+          node.geometry &&
+          (node.geometry.boundingBox || node.geometry.computeBoundingBox(),
+          node.geometry.boundingBox &&
+            accumulatedBounds.union(node.geometry.boundingBox.clone().applyMatrix4(parentMatrix)));
+        for (const childNode of node.children || [])
+          (childNode.matrixAutoUpdate && childNode.updateMatrix(),
+            accumulateBounds(
+              childNode,
+              new THREE.Matrix4().multiplyMatrices(parentMatrix, childNode.matrix),
+            ));
       }
     }
-    return (fn12(arg16, new arg8.Matrix4()), value18);
+    return (accumulateBounds(modelRoot, new THREE.Matrix4()), accumulatedBounds);
   }
-  function fn9(arg19) {
-    let value20 = null;
-    function fn13(arg20, arg21) {
+  function findNasStatusAnchor(anchorModelRoot) {
+    let resolvedAnchorPosition = null;
+    function visitAnchorNode(anchorNode, anchorParentMatrix) {
       if (
-        value20 ||
-        arg20.userData?.environmentEffect ||
-        (arg20 !== arg19 && arg20.userData?.environmentModelId != null)
+        resolvedAnchorPosition ||
+        anchorNode.userData?.environmentEffect ||
+        (anchorNode !== anchorModelRoot && anchorNode.userData?.environmentModelId != null)
       )
         return;
-      const value21 = arg20.userData?.nasStatusAnchor;
-      if (Array.isArray(value21) && value21.length === 3 && value21.every(Number.isFinite)) {
-        value20 = new arg8.Vector3().fromArray(value21).applyMatrix4(arg21);
+      const anchorCoordinates = anchorNode.userData?.nasStatusAnchor;
+      if (
+        Array.isArray(anchorCoordinates) &&
+        anchorCoordinates.length === 3 &&
+        anchorCoordinates.every(Number.isFinite)
+      ) {
+        resolvedAnchorPosition = new THREE.Vector3()
+          .fromArray(anchorCoordinates)
+          .applyMatrix4(anchorParentMatrix);
         return;
       }
-      for (const value22 of arg20.children || [])
-        (value22.matrixAutoUpdate && value22.updateMatrix(),
-          fn13(value22, new arg8.Matrix4().multiplyMatrices(arg21, value22.matrix)));
+      for (const anchorChildNode of anchorNode.children || [])
+        (anchorChildNode.matrixAutoUpdate && anchorChildNode.updateMatrix(),
+          visitAnchorNode(
+            anchorChildNode,
+            new THREE.Matrix4().multiplyMatrices(anchorParentMatrix, anchorChildNode.matrix),
+          ));
     }
-    return (fn13(arg19, new arg8.Matrix4()), value20);
+    return (visitAnchorNode(anchorModelRoot, new THREE.Matrix4()), resolvedAnchorPosition);
   }
-  function fn10({
-    root: arg22,
-    revision: arg23,
-    bindings: arg24 = [],
-    states: arg25 = {},
-    enabled: arg26 = false,
-    sizeScale: arg27 = 1,
-    brightness: arg28 = 1,
+  function sync({
+    root: root,
+    revision: revision,
+    bindings: bindings = [],
+    states: states = {},
+    enabled: enabled = false,
+    sizeScale: sizeScale = 1,
+    brightness: brightness = 1,
   }) {
-    if (value10) return;
-    const value23 = JSON.stringify(arg24.map((arg29) => [arg29.id, arg29.floorId, arg29.modelId]));
-    if (value7 !== arg22 || value8 !== arg23 || value9 !== value23) {
-      ((value7 = arg22), (value8 = arg23), (value9 = value23));
-      const map2 = new Map();
-      value7?.traverse((arg30) => {
-        if (arg30.userData?.environmentModelType !== arg10) return;
-        let value25 = arg30.userData.environmentFloorId;
-        for (let value26 = arg30.parent; value25 == null && value26; value26 = value26.parent)
-          value25 = value26.userData.environmentFloorId;
-        map2.set(fn6(value25, arg30.userData.environmentModelId), arg30);
+    if (isDisposed) return;
+    const bindingsSignature = JSON.stringify(
+      bindings.map((bindingConfig) => [
+        bindingConfig.id,
+        bindingConfig.floorId,
+        bindingConfig.modelId,
+      ]),
+    );
+    if (
+      syncedRoot !== root ||
+      syncedRevision !== revision ||
+      syncedBindingsSignature !== bindingsSignature
+    ) {
+      ((syncedRoot = root),
+        (syncedRevision = revision),
+        (syncedBindingsSignature = bindingsSignature));
+      const modelsByLocation = new Map();
+      syncedRoot?.traverse((sceneObject) => {
+        if (sceneObject.userData?.environmentModelType !== modelType) return;
+        let ancestorFloorId = sceneObject.userData.environmentFloorId;
+        for (
+          let ancestor = sceneObject.parent;
+          ancestorFloorId == null && ancestor;
+          ancestor = ancestor.parent
+        )
+          ancestorFloorId = ancestor.userData.environmentFloorId;
+        modelsByLocation.set(
+          sceneModelKey(ancestorFloorId, sceneObject.userData.environmentModelId),
+          sceneObject,
+        );
       });
-      const set1 = new Set();
-      for (const value27 of arg24) {
-        const value28 = map2.get(fn6(value27.floorId, value27.modelId));
-        if (!value28) continue;
-        set1.add(value27.id);
-        let value29 = map1.get(value27.id);
-        if (value29?.model !== value28) {
-          value29 && fn7(value29);
-          const value30 = fn8(value28);
-          if (value30.isEmpty()) {
-            map1.delete(value27.id);
+      const activeBindingIdSet = new Set();
+      for (const binding of bindings) {
+        const matchedModel = modelsByLocation.get(sceneModelKey(binding.floorId, binding.modelId));
+        if (!matchedModel) continue;
+        activeBindingIdSet.add(binding.id);
+        let existing = meshesByBindingId.get(binding.id);
+        if (existing?.model !== matchedModel) {
+          existing && releaseEntry(existing);
+          const modelBounds = modelWorldBounds(matchedModel);
+          if (modelBounds.isEmpty()) {
+            meshesByBindingId.delete(binding.id);
             continue;
           }
-          const value31 = value30.getSize(new arg8.Vector3()),
-            value32 = value30.getCenter(new arg8.Vector3()),
-            value33 = new arg8.ShaderMaterial({
+          const modelSize = modelBounds.getSize(new THREE.Vector3()),
+            modelCenter = modelBounds.getCenter(new THREE.Vector3()),
+            ledMaterial = new THREE.ShaderMaterial({
               transparent: true,
               depthTest: false,
               depthWrite: false,
               toneMapped: false,
               uniforms: {
                 indicatorColor: {
-                  value: new arg8.Color("#0fff33"),
+                  value: new THREE.Color("#0fff33"),
                 },
                 customColor: {
-                  value: arg10 !== "nas" ? 1 : 0,
+                  value: modelType !== "nas" ? 1 : 0,
                 },
                 pulse: {
                   value: 1,
@@ -182,109 +220,125 @@ export function createNasStatus({
               fragmentShader:
                 "varying vec2 ledUv; uniform float pulse; uniform float brightness; uniform vec3 indicatorColor; uniform float customColor; void main(){float r=length(ledUv-0.5)*2.0;float core=1.0-smoothstep(0.28,0.50,r);float halo=pow(max(0.0,1.0-r),1.7)*0.8;float a=min((core+halo)*pulse,1.0)*brightness;if(a<0.005)discard;gl_FragColor=vec4(mix(vec3(0.06,1.0,0.20),vec3(0.48,1.0,0.60),core)*(1.0-customColor)+indicatorColor*customColor,a);}",
             }),
-            value34 = new arg8.Mesh(value6, value33);
-          ((value34.name = "nas-status-" + value27.id),
-            Object.assign(value34.userData, {
+            ledMesh = new THREE.Mesh(planeGeometry, ledMaterial);
+          ((ledMesh.name = "nas-status-" + binding.id),
+            Object.assign(ledMesh.userData, {
               environmentEffect: true,
               nasStatus: true,
               externalModelSharedGeometry: true,
               externalModelSharedMaterial: true,
             }),
-            (value34.raycast = () => {}),
-            (value34.renderOrder = 100));
-          const value35 = new arg8.Vector2();
-          value34.onBeforeRender = (arg31) => {
-            value33.uniforms.viewportHeight.value = arg31.getSize(value35).y;
+            (ledMesh.raycast = () => {}),
+            (ledMesh.renderOrder = 100));
+          const viewportSize = new THREE.Vector2();
+          ledMesh.onBeforeRender = (renderer) => {
+            ledMaterial.uniforms.viewportHeight.value = renderer.getSize(viewportSize).y;
           };
-          const value36 = Math.max(0.025, Math.min(0.075, value31.x * 0.22));
-          (value34.scale.set(value36, value36, value36),
-            value34.position.set(
-              value32.x + value31.x * 0.36,
-              value30.min.y + value31.y * 0.26,
-              value30.max.z + 0.003,
+          const indicatorSize = Math.max(0.025, Math.min(0.075, modelSize.x * 0.22));
+          (ledMesh.scale.set(indicatorSize, indicatorSize, indicatorSize),
+            ledMesh.position.set(
+              modelCenter.x + modelSize.x * 0.36,
+              modelBounds.min.y + modelSize.y * 0.26,
+              modelBounds.max.z + 0.003,
             ),
-            (arg10 === "storagewaterheater" || arg10 === "gaswaterheater") &&
-              value34.position.set(
-                value32.x,
-                value30.min.y + value31.y * (arg10 === "gaswaterheater" ? 0.67 : 0.53),
-                value30.max.z + 0.003,
+            (modelType === "storagewaterheater" || modelType === "gaswaterheater") &&
+              ledMesh.position.set(
+                modelCenter.x,
+                modelBounds.min.y + modelSize.y * (modelType === "gaswaterheater" ? 0.67 : 0.53),
+                modelBounds.max.z + 0.003,
               ));
-          const value37 = arg10 === "nas" ? fn9(value28) : null;
-          value37 && value34.position.copy(value37);
-          const map3 = new Map();
-          (value28.traverse((arg32) => {
-            if (!arg32.isMesh || arg32 === value34 || arg32.userData?.environmentEffect) return;
-            const value38 = Array.isArray(arg32.material) ? arg32.material : [arg32.material];
-            (arg32.userData?.nasIndicator ||
-              value38.some((arg33) => /^nas-material-4(?:$|\s)/.test(arg33?.name || ""))) &&
-              (map3.set(arg32, arg32.visible), (arg32.visible = false));
+          const anchorPosition = modelType === "nas" ? findNasStatusAnchor(matchedModel) : null;
+          anchorPosition && ledMesh.position.copy(anchorPosition);
+          const suppressedVisibilityByNode = new Map();
+          (matchedModel.traverse((child) => {
+            if (!child.isMesh || child === ledMesh || child.userData?.environmentEffect) return;
+            const childMaterials = Array.isArray(child.material)
+              ? child.material
+              : [child.material];
+            (child.userData?.nasIndicator ||
+              childMaterials.some((childMaterial) =>
+                /^nas-material-4(?:$|\s)/.test(childMaterial?.name || ""),
+              )) &&
+              (suppressedVisibilityByNode.set(child, child.visible), (child.visible = false));
           }),
-            value28.add(value34),
-            (value29 = {
-              model: value28,
-              mesh: value34,
-              indicators: map3,
+            matchedModel.add(ledMesh),
+            (existing = {
+              model: matchedModel,
+              mesh: ledMesh,
+              indicators: suppressedVisibilityByNode,
             }),
-            map1.set(value27.id, value29));
+            meshesByBindingId.set(binding.id, existing));
         }
       }
-      for (const [value39, value40] of map1)
-        set1.has(value39) || (fn7(value40), map1.delete(value39));
+      for (const [bindingId, staleEntry] of meshesByBindingId)
+        activeBindingIdSet.has(bindingId) ||
+          (releaseEntry(staleEntry), meshesByBindingId.delete(bindingId));
     }
-    value11 = false;
-    let value24 = false;
-    for (const value41 of arg24) {
-      const value42 = map1.get(value41.id);
-      if (!value42) continue;
-      const value43 = value42.mesh.material.uniforms;
-      ((value24 ||= value43.sizeScale.value !== arg27 || value43.brightness.value !== arg28),
-        (value43.sizeScale.value = arg27),
-        (value43.brightness.value = arg28));
-      const value44 = arg11(value41, arg25);
-      value44.color &&
-        ((value24 ||= value42.color !== value44.color),
-        (value42.color = value44.color),
-        value43.indicatorColor.value.set(value44.color));
-      const value45 = arg10 !== "nas" && value44.color !== "#43ce82" ? 1 : 0;
-      ((value24 ||= value43.customColor.value !== value45), (value43.customColor.value = value45));
-      const value46 =
-        arg26 && (arg10 === "nas" ? value44.on : value44.visible && value44.status !== "off");
-      ((value24 ||= value42.mesh.visible !== value46),
-        (value42.mesh.visible = value46),
-        (value42.breathing =
-          value46 &&
-          (arg10 === "nas" || value44.status === "normal" || value44.status === "warning")),
-        value42.breathing
-          ? (value11 = true)
-          : ((value24 ||= value43.pulse.value !== 1), (value43.pulse.value = 1)));
+    hasVisibleIndicator = false;
+    let shouldRender = false;
+    for (const activeBinding of bindings) {
+      const bindingEntry = meshesByBindingId.get(activeBinding.id);
+      if (!bindingEntry) continue;
+      const uniforms = bindingEntry.mesh.material.uniforms;
+      ((shouldRender ||=
+        uniforms.sizeScale.value !== sizeScale || uniforms.brightness.value !== brightness),
+        (uniforms.sizeScale.value = sizeScale),
+        (uniforms.brightness.value = brightness));
+      const deviceState = readState(activeBinding, states);
+      deviceState.color &&
+        ((shouldRender ||= bindingEntry.color !== deviceState.color),
+        (bindingEntry.color = deviceState.color),
+        uniforms.indicatorColor.value.set(deviceState.color));
+      const customColor = modelType !== "nas" && deviceState.color !== "#43ce82" ? 1 : 0;
+      ((shouldRender ||= uniforms.customColor.value !== customColor),
+        (uniforms.customColor.value = customColor));
+      const shouldShow =
+        enabled &&
+        (modelType === "nas"
+          ? deviceState.on
+          : deviceState.visible && deviceState.status !== "off");
+      ((shouldRender ||= bindingEntry.mesh.visible !== shouldShow),
+        (bindingEntry.mesh.visible = shouldShow),
+        (bindingEntry.breathing =
+          shouldShow &&
+          (modelType === "nas" ||
+            deviceState.status === "normal" ||
+            deviceState.status === "warning")),
+        bindingEntry.breathing
+          ? (hasVisibleIndicator = true)
+          : ((shouldRender ||= uniforms.pulse.value !== 1), (uniforms.pulse.value = 1)));
     }
-    (value24 || value11) && arg9();
+    (shouldRender || hasVisibleIndicator) && requestFrame();
   }
-  function fn11(arg34) {
-    if (value10 || !fn4()) return ((value12 = -Infinity), false);
-    const value47 = fn2();
-    if (!value47 && arg34 - value12 < 1000 / 30) return true;
-    value12 = arg34;
-    const value48 = value47
+  function tick(nowMs) {
+    if (isDisposed || !hasVisibleBreathingIndicator()) return ((lastTickMs = -Infinity), false);
+    const reducedMotion = prefersReducedMotionNow();
+    if (!reducedMotion && nowMs - lastTickMs < 1000 / 30) return true;
+    lastTickMs = nowMs;
+    const pulse = reducedMotion
       ? 1
-      : 0.14 + 0.86 * (0.5 - 0.5 * Math.cos((arg34 / 1400) * Math.PI * 2));
-    let value49 = false;
-    for (const value50 of map1.values())
-      value50.breathing &&
-        fn3(value50.mesh) &&
-        ((value49 ||= value50.mesh.material.uniforms.pulse.value !== value48),
-        (value50.mesh.material.uniforms.pulse.value = value48));
-    return (value49 && arg9(), !value47);
+      : 0.14 + 0.86 * (0.5 - 0.5 * Math.cos((nowMs / 1400) * Math.PI * 2));
+    let hasChanged = false;
+    for (const meshEntry of meshesByBindingId.values())
+      meshEntry.breathing &&
+        isNodeVisible(meshEntry.mesh) &&
+        ((hasChanged ||= meshEntry.mesh.material.uniforms.pulse.value !== pulse),
+        (meshEntry.mesh.material.uniforms.pulse.value = pulse));
+    return (hasChanged && requestFrame(), !reducedMotion);
   }
   return {
-    sync: fn10,
-    tick: fn11,
-    nextDelay: () => (!value10 && fn4() && !fn2() ? 1000 / 30 : Infinity),
+    sync: sync,
+    tick: tick,
+    nextDelay: () =>
+      !isDisposed && hasVisibleBreathingIndicator() && !prefersReducedMotionNow()
+        ? 1000 / 30
+        : Infinity,
     dispose() {
-      if (!value10) {
-        ((value10 = true), value13?.removeEventListener?.("change", fn5));
-        for (const value51 of map1.values()) fn7(value51);
-        (map1.clear(), value6.dispose());
+      if (!isDisposed) {
+        ((isDisposed = true),
+          reducedMotionQuery?.removeEventListener?.("change", requestFrameIfBreathing));
+        for (const disposedEntry of meshesByBindingId.values()) releaseEntry(disposedEntry);
+        (meshesByBindingId.clear(), planeGeometry.dispose());
       }
     },
   };

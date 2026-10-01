@@ -1,206 +1,265 @@
-const p = new WeakMap(),
-  F = 580,
-  h = 24,
-  v = ".hb-interaction3d-host, iframe, video, audio, object, embed",
-  y = ["translate", "opacity", "transition", "willChange", "pointerEvents"];
-function S(arg1) {
+const layoutStateByCanvas = new WeakMap(),
+  ANIMATION_MS_PER_UNIT = 580,
+  BASE_DISTANCE_PX = 24,
+  EXCLUDED_CONTENT_SELECTOR = ".hb-interaction3d-host, iframe, video, audio, object, embed",
+  TRACKED_STYLE_PROPS = ["translate", "opacity", "transition", "willChange", "pointerEvents"];
+function getSharedComponentIds(layoutClient) {
   return (
     (
-      arg1.context.document?.pages?.find((arg2) => arg2.id === arg1.context.page?.id) ||
-      arg1.context.page
+      layoutClient.context.document?.pages?.find(
+        (resolvedPage) => resolvedPage.id === layoutClient.context.page?.id,
+      ) || layoutClient.context.page
     )?.sharedComponentIds || []
   );
 }
-function L(arg3) {
-  let value1 = arg3;
-  for (let value2 = 0; value2 < 8; value2++)
-    value1 = Math.max(
+function easeProgress(progress) {
+  let curveParam = progress;
+  for (let iterationIndex = 0; iterationIndex < 8; iterationIndex++)
+    curveParam = Math.max(
       0,
       Math.min(
         1,
-        value1 -
-          (0.6 * value1 - 0.6 * value1 * value1 + value1 * value1 * value1 - arg3) /
-            (0.6 - 1.2 * value1 + 3 * value1 * value1),
+        curveParam -
+          (0.6 * curveParam -
+            0.6 * curveParam * curveParam +
+            curveParam * curveParam * curveParam -
+            progress) /
+            (0.6 - 1.2 * curveParam + 3 * curveParam * curveParam),
       ),
     );
-  return value1 * value1 * (3 - 2 * value1);
+  return curveParam * curveParam * (3 - 2 * curveParam);
 }
-function z(arg4) {
-  return !arg4 || arg4 === "none"
+function parseTranslateValue(translateValue) {
+  return !translateValue || translateValue === "none"
     ? ["0px", "0px"]
-    : arg4.match(/(?:calc\([^)]*\)|[^\s])+/g) || ["0px", "0px"];
+    : translateValue.match(/(?:calc\([^)]*\)|[^\s])+/g) || ["0px", "0px"];
 }
-const N =
+const FOCUSABLE_SELECTOR =
     "a[href], area[href], button, input, select, textarea, [tabindex], [contenteditable], summary",
-  x = ["pointerdown", "click", "dblclick", "contextmenu", "keydown", "focusin"];
-function E(arg5, arg6) {
-  const list1 = [arg5, ...arg5.querySelectorAll(N)];
-  for (const value3 of list1)
-    value3.tabIndex >= 0 &&
-      !arg6.tabStops.has(value3) &&
-      (arg6.tabStops.set(value3, value3.getAttribute("tabindex")),
-      value3.setAttribute("tabindex", "-1"));
+  GUARD_EVENT_TYPES = ["pointerdown", "click", "dblclick", "contextmenu", "keydown", "focusin"];
+function suspendTabStops(subtreeRootElement, memberState) {
+  const tabbableElements = [
+    subtreeRootElement,
+    ...subtreeRootElement.querySelectorAll(FOCUSABLE_SELECTOR),
+  ];
+  for (const tabbableElement of tabbableElements)
+    tabbableElement.tabIndex >= 0 &&
+      !memberState.tabStops.has(tabbableElement) &&
+      (memberState.tabStops.set(tabbableElement, tabbableElement.getAttribute("tabindex")),
+      tabbableElement.setAttribute("tabindex", "-1"));
 }
-function A(arg7, arg8, arg9) {
-  if (arg8.hidden === arg9) return;
-  if (((arg8.hidden = arg9), arg9))
-    (E(arg7, arg8),
-      arg7.contains(arg7.ownerDocument.activeElement) && arg7.ownerDocument.activeElement.blur(),
-      (arg7.style.pointerEvents = "none"));
+function applyHiddenState(memberElement, memberRecordElement, isHidden) {
+  if (memberRecordElement.hidden === isHidden) return;
+  if (((memberRecordElement.hidden = isHidden), isHidden))
+    (suspendTabStops(memberElement, memberRecordElement),
+      memberElement.contains(memberElement.ownerDocument.activeElement) &&
+        memberElement.ownerDocument.activeElement.blur(),
+      (memberElement.style.pointerEvents = "none"));
   else {
-    for (const [value5, value6] of arg8.tabStops)
-      value6 === null
-        ? value5.removeAttribute("tabindex")
-        : value5.setAttribute("tabindex", value6);
-    (arg8.tabStops.clear(), (arg7.style.pointerEvents = arg8.style.pointerEvents));
+    for (const [tabStopElement, previousTabIndex] of memberRecordElement.tabStops)
+      previousTabIndex === null
+        ? tabStopElement.removeAttribute("tabindex")
+        : tabStopElement.setAttribute("tabindex", previousTabIndex);
+    (memberRecordElement.tabStops.clear(),
+      (memberElement.style.pointerEvents = memberRecordElement.style.pointerEvents));
   }
-  const value4 = arg9 ? "true" : arg8.ariaHidden;
-  arg7.getAttribute("aria-hidden") !== value4 &&
-    (value4 === null
-      ? arg7.removeAttribute("aria-hidden")
-      : arg7.setAttribute("aria-hidden", value4));
+  const ariaHiddenValue = isHidden ? "true" : memberRecordElement.ariaHidden;
+  memberElement.getAttribute("aria-hidden") !== ariaHiddenValue &&
+    (ariaHiddenValue === null
+      ? memberElement.removeAttribute("aria-hidden")
+      : memberElement.setAttribute("aria-hidden", ariaHiddenValue));
 }
-function w(arg10, arg11, arg12, arg13) {
-  const [value7, value9 = "0px", value8] = arg12.translate;
-  ((arg11.style.translate =
+function applyMemberMotion(layoutState, motionElement, memberSnapshot, amount) {
+  const [translateX, translateY = "0px", translateZ] = memberSnapshot.translate;
+  ((motionElement.style.translate =
     "calc(" +
-    value7 +
+    translateX +
     " - " +
-    arg10.distance * arg13 +
+    layoutState.distance * amount +
     "px) " +
-    value9 +
-    (value8 ? " " + value8 : "")),
-    (arg11.style.opacity = String(arg12.opacity * (1 - arg13))),
-    A(arg11, arg12, arg13 > 0 || (arg10.owners.size > 0 && arg10.targets.has(arg11))));
+    translateY +
+    (translateZ ? " " + translateZ : "")),
+    (motionElement.style.opacity = String(memberSnapshot.opacity * (1 - amount))),
+    applyHiddenState(
+      motionElement,
+      memberSnapshot,
+      amount > 0 || (layoutState.owners.size > 0 && layoutState.targets.has(motionElement)),
+    ));
 }
-function M(arg14, arg15, arg16) {
-  for (const value10 of y) arg15.style[value10] = arg16.style[value10];
-  (A(arg15, arg16, false), arg14.members.delete(arg15), arg14.targets.delete(arg15));
+function detachMember(layout, detachedElement, detachedMemberState) {
+  for (const styleProperty of TRACKED_STYLE_PROPS)
+    detachedElement.style[styleProperty] = detachedMemberState.style[styleProperty];
+  (applyHiddenState(detachedElement, detachedMemberState, false),
+    layout.members.delete(detachedElement),
+    layout.targets.delete(detachedElement));
 }
-function I(arg17) {
-  (arg17.frame !== null && arg17.view.cancelAnimationFrame(arg17.frame), (arg17.frame = null));
+function cancelMotionFrame(frameOwner) {
+  (frameOwner.frame !== null && frameOwner.view.cancelAnimationFrame(frameOwner.frame),
+    (frameOwner.frame = null));
 }
-function b(arg18) {
-  for (const value11 of arg18.targets) {
-    const value12 = arg18.members.get(value11);
-    value12 && w(arg18, value11, value12, arg18.amount);
+function renderMembers(renderingLayout) {
+  for (const renderedElement of renderingLayout.targets) {
+    const renderedMemberState = renderingLayout.members.get(renderedElement);
+    renderedMemberState &&
+      applyMemberMotion(
+        renderingLayout,
+        renderedElement,
+        renderedMemberState,
+        renderingLayout.amount,
+      );
   }
 }
-function D(arg19, arg20, arg21 = true) {
-  if (arg19.to === arg20 && ((arg21 && arg19.frame !== null) || arg19.amount === arg20)) {
-    b(arg19);
-    return;
-  }
-  I(arg19);
-  const value13 = arg19.amount;
+function animateAmount(animatingLayout, targetAmount, shouldAnimate = true) {
   if (
-    ((arg19.to = arg20),
-    !arg21 || arg19.view.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+    animatingLayout.to === targetAmount &&
+    ((shouldAnimate && animatingLayout.frame !== null) || animatingLayout.amount === targetAmount)
   ) {
-    ((arg19.amount = arg20), b(arg19));
+    renderMembers(animatingLayout);
     return;
   }
-  const value14 = arg19.view.performance.now(),
-    value15 = F * Math.abs(arg20 - value13),
-    fn1 = (arg22) => {
-      arg19.frame = null;
-      const value16 = value15 ? Math.max(0, Math.min(1, (arg22 - value14) / value15)) : 1;
-      ((arg19.amount = value13 + (arg20 - value13) * L(value16)),
-        b(arg19),
-        value16 < 1 && (arg19.frame = arg19.view.requestAnimationFrame(fn1)));
+  cancelMotionFrame(animatingLayout);
+  const fromAmount = animatingLayout.amount;
+  if (
+    ((animatingLayout.to = targetAmount),
+    !shouldAnimate || animatingLayout.view.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
+  ) {
+    ((animatingLayout.amount = targetAmount), renderMembers(animatingLayout));
+    return;
+  }
+  const startTimeMs = animatingLayout.view.performance.now(),
+    durationMs = ANIMATION_MS_PER_UNIT * Math.abs(targetAmount - fromAmount),
+    advanceMotion = (timestampMs) => {
+      animatingLayout.frame = null;
+      const elapsedFraction = durationMs
+        ? Math.max(0, Math.min(1, (timestampMs - startTimeMs) / durationMs))
+        : 1;
+      ((animatingLayout.amount =
+        fromAmount + (targetAmount - fromAmount) * easeProgress(elapsedFraction)),
+        renderMembers(animatingLayout),
+        elapsedFraction < 1 &&
+          (animatingLayout.frame = animatingLayout.view.requestAnimationFrame(advanceMotion)));
     };
-  arg19.frame = arg19.view.requestAnimationFrame(fn1);
+  animatingLayout.frame = animatingLayout.view.requestAnimationFrame(advanceMotion);
 }
-function g(arg23) {
-  const list2 = [...arg23.clients],
-    set1 = new Set(list2.flatMap(S)),
-    set2 = new Set([...arg23.owners].flatMap(S)),
-    value17 = [...arg23.canvas.children].filter((arg24) => {
-      const value21 =
-        arg24.dataset?.componentId || arg24.dataset?.effectFor || arg24.dataset?.airflowFor;
+function updateLayout(canvasLayout) {
+  const clientRegistrations = [...canvasLayout.clients],
+    clientComponentIdSet = new Set(clientRegistrations.flatMap(getSharedComponentIds)),
+    ownerComponentIdSet = new Set([...canvasLayout.owners].flatMap(getSharedComponentIds)),
+    componentElements = [...canvasLayout.canvas.children].filter((canvasChildElement) => {
+      const componentId =
+        canvasChildElement.dataset?.componentId ||
+        canvasChildElement.dataset?.effectFor ||
+        canvasChildElement.dataset?.airflowFor;
       return (
-        set1.has(value21) &&
-        !list2.some((arg25) => arg24.contains(arg25.root)) &&
-        !arg24.matches?.(v) &&
-        !arg24.querySelector?.(v)
+        clientComponentIdSet.has(componentId) &&
+        !clientRegistrations.some((clientEntry) => canvasChildElement.contains(clientEntry.root)) &&
+        !canvasChildElement.matches?.(EXCLUDED_CONTENT_SELECTOR) &&
+        !canvasChildElement.querySelector?.(EXCLUDED_CONTENT_SELECTOR)
       );
     }),
-    set3 = new Set(value17);
-  for (const [value22, value23] of arg23.members) set3.has(value22) || M(arg23, value22, value23);
-  const value18 = arg23.canvas.getBoundingClientRect(),
-    value19 = value18.width / arg23.canvas.clientWidth || 1;
-  let value20 = h;
-  for (const value24 of value17) {
-    let value25 = arg23.members.get(value24);
-    const value26 = value24.getBoundingClientRect();
+    componentElementSet = new Set(componentElements);
+  for (const [trackedElement, trackedMemberState] of canvasLayout.members)
+    componentElementSet.has(trackedElement) ||
+      detachMember(canvasLayout, trackedElement, trackedMemberState);
+  const canvasRect = canvasLayout.canvas.getBoundingClientRect(),
+    canvasScale = canvasRect.width / canvasLayout.canvas.clientWidth || 1;
+  let distancePx = BASE_DISTANCE_PX;
+  for (const childElement of componentElements) {
+    let childMemberState = canvasLayout.members.get(childElement);
+    const childRect = childElement.getBoundingClientRect();
     if (
-      ((value20 = Math.max(
-        value20,
-        (value26.right - value18.left) / value19 +
-          h +
-          (value25 && arg23.targets.has(value24) ? arg23.distance * arg23.amount : 0),
+      ((distancePx = Math.max(
+        distancePx,
+        (childRect.right - canvasRect.left) / canvasScale +
+          BASE_DISTANCE_PX +
+          (childMemberState && canvasLayout.targets.has(childElement)
+            ? canvasLayout.distance * canvasLayout.amount
+            : 0),
       )),
-      !value25)
+      !childMemberState)
     ) {
-      const value27 = arg23.view.getComputedStyle(value24);
-      ((value25 = {
-        style: Object.fromEntries(y.map((arg26) => [arg26, value24.style[arg26] || ""])),
-        opacity: Number(value27.opacity),
-        translate: z(value27.translate),
+      const computedStyle = canvasLayout.view.getComputedStyle(childElement);
+      ((childMemberState = {
+        style: Object.fromEntries(
+          TRACKED_STYLE_PROPS.map((trackedProperty) => [
+            trackedProperty,
+            childElement.style[trackedProperty] || "",
+          ]),
+        ),
+        opacity: Number(computedStyle.opacity),
+        translate: parseTranslateValue(computedStyle.translate),
         hidden: false,
         tabStops: new Map(),
-        ariaHidden: value24.getAttribute("aria-hidden"),
+        ariaHidden: childElement.getAttribute("aria-hidden"),
       }),
-        arg23.members.set(value24, value25),
-        (value24.style.transition = "none"),
-        (value24.style.willChange = [value25.style.willChange, "opacity", "translate"]
-          .filter((arg27) => arg27 && arg27 !== "auto")
+        canvasLayout.members.set(childElement, childMemberState),
+        (childElement.style.transition = "none"),
+        (childElement.style.willChange = [childMemberState.style.willChange, "opacity", "translate"]
+          .filter((styleValue) => styleValue && styleValue !== "auto")
           .join(",")),
-        w(arg23, value24, value25, 0));
+        applyMemberMotion(canvasLayout, childElement, childMemberState, 0));
     }
   }
-  if (((arg23.distance = value20), arg23.owners.size)) {
-    const set4 = new Set(
-      value17.filter((arg28) =>
-        set2.has(arg28.dataset.componentId || arg28.dataset.effectFor || arg28.dataset.airflowFor),
+  if (((canvasLayout.distance = distancePx), canvasLayout.owners.size)) {
+    const newTargetSet = new Set(
+      componentElements.filter((ownerComponentElement) =>
+        ownerComponentIdSet.has(
+          ownerComponentElement.dataset.componentId ||
+            ownerComponentElement.dataset.effectFor ||
+            ownerComponentElement.dataset.airflowFor,
+        ),
       ),
     );
-    for (const value28 of arg23.targets)
-      !set4.has(value28) &&
-        arg23.members.has(value28) &&
-        (arg23.targets.delete(value28), w(arg23, value28, arg23.members.get(value28), 0));
-    arg23.targets = set4;
+    for (const staleTarget of canvasLayout.targets)
+      !newTargetSet.has(staleTarget) &&
+        canvasLayout.members.has(staleTarget) &&
+        (canvasLayout.targets.delete(staleTarget),
+        applyMemberMotion(canvasLayout, staleTarget, canvasLayout.members.get(staleTarget), 0));
+    canvasLayout.targets = newTargetSet;
   }
-  b(arg23);
+  renderMembers(canvasLayout);
 }
-function C(arg29, arg30) {
-  if ((arg29.owners.delete(arg30), arg29.clients.delete(arg30), arg29.clients.size))
-    (g(arg29), D(arg29, arg29.owners.size ? 1 : 0, false));
+function releaseLayout(releasedLayout, clientRegistration) {
+  if (
+    (releasedLayout.owners.delete(clientRegistration),
+    releasedLayout.clients.delete(clientRegistration),
+    releasedLayout.clients.size)
+  )
+    (updateLayout(releasedLayout),
+      animateAmount(releasedLayout, releasedLayout.owners.size ? 1 : 0, false));
   else {
-    (I(arg29), arg29.observer.disconnect());
-    for (const value29 of x) arg29.canvas.removeEventListener(value29, arg29.guard, true);
-    for (const [value30, value31] of arg29.members) M(arg29, value30, value31);
-    p.get(arg29.canvas) === arg29 && p.delete(arg29.canvas);
+    (cancelMotionFrame(releasedLayout), releasedLayout.observer.disconnect());
+    for (const eventName of GUARD_EVENT_TYPES)
+      releasedLayout.canvas.removeEventListener(eventName, releasedLayout.guard, true);
+    for (const [releasedElement, releasedMemberState] of releasedLayout.members)
+      detachMember(releasedLayout, releasedElement, releasedMemberState);
+    layoutStateByCanvas.get(releasedLayout.canvas) === releasedLayout &&
+      layoutStateByCanvas.delete(releasedLayout.canvas);
   }
 }
-export function createInteraction3dFocusLayout(arg31, arg32 = {}) {
-  const object1 = {
-    root: arg31,
-    context: arg32,
+export function createInteraction3dFocusLayout(rootElement, focusOptions = {}) {
+  const registration = {
+    root: rootElement,
+    context: focusOptions,
   };
-  let value32 = null,
-    value33 = false,
-    value34 = false;
-  const fn2 = () => {
-    if (value34 || arg32.editable) return;
-    const value35 = arg31.closest(".hb-renderer-canvas");
-    if (value32?.canvas !== value35) {
-      if ((value32 && C(value32, object1), (value32 = null), !value35)) return;
-      if (((value32 = p.get(value35)), !value32)) {
-        const value36 = value35.ownerDocument.defaultView;
-        value32 = {
-          canvas: value35,
-          view: value36,
+  let activeLayout = null,
+    isActive = false,
+    isDisposed = false;
+  const refreshLayout = () => {
+    if (isDisposed || focusOptions.editable) return;
+    const canvasElement = rootElement.closest(".hb-renderer-canvas");
+    if (activeLayout?.canvas !== canvasElement) {
+      if (
+        (activeLayout && releaseLayout(activeLayout, registration),
+        (activeLayout = null),
+        !canvasElement)
+      )
+        return;
+      if (((activeLayout = layoutStateByCanvas.get(canvasElement)), !activeLayout)) {
+        const canvasView = canvasElement.ownerDocument.defaultView;
+        activeLayout = {
+          canvas: canvasElement,
+          view: canvasView,
           clients: new Set(),
           owners: new Set(),
           members: new Map(),
@@ -208,43 +267,52 @@ export function createInteraction3dFocusLayout(arg31, arg32 = {}) {
           frame: null,
           amount: 0,
           to: 0,
-          distance: h,
+          distance: BASE_DISTANCE_PX,
         };
-        const value37 = value32;
-        value32.guard = (arg33) => {
-          for (const [value38, value39] of value37.members)
-            if (value39.hidden && value38.contains(arg33.target)) {
-              (arg33.preventDefault(),
-                arg33.stopImmediatePropagation(),
-                arg33.type === "focusin" && arg33.target.blur());
+        const capturedLayout = activeLayout;
+        activeLayout.guard = (event) => {
+          for (const [blockedElement, blockingMemberStateElement] of capturedLayout.members)
+            if (blockingMemberStateElement.hidden && blockedElement.contains(event.target)) {
+              (event.preventDefault(),
+                event.stopImmediatePropagation(),
+                event.type === "focusin" && event.target.blur());
               return;
             }
         };
-        for (const value40 of x) value35.addEventListener(value40, value32.guard, true);
-        ((value32.observer = new value36.MutationObserver((arg34) => {
-          arg34.some((arg35) => arg35.target === value35) && g(value37);
-          for (const [value41, value42] of value37.members) value42.hidden && E(value41, value42);
+        for (const eventType of GUARD_EVENT_TYPES)
+          canvasElement.addEventListener(eventType, activeLayout.guard, true);
+        ((activeLayout.observer = new canvasView.MutationObserver((mutationRecords) => {
+          mutationRecords.some((mutationRecord) => mutationRecord.target === canvasElement) &&
+            updateLayout(capturedLayout);
+          for (const [hiddenElement, hiddenMemberStateElement] of capturedLayout.members)
+            hiddenMemberStateElement.hidden &&
+              suspendTabStops(hiddenElement, hiddenMemberStateElement);
         })),
-          value32.observer.observe(value35, {
+          activeLayout.observer.observe(canvasElement, {
             childList: true,
             subtree: true,
           }),
-          p.set(value35, value32));
+          layoutStateByCanvas.set(canvasElement, activeLayout));
       }
-      value32.clients.add(object1);
+      activeLayout.clients.add(registration);
     }
-    value32 &&
-      (value33 ? value32.owners.add(object1) : value32.owners.delete(object1),
-      g(value32),
-      D(value32, value32.owners.size ? 1 : 0));
+    activeLayout &&
+      (isActive ? activeLayout.owners.add(registration) : activeLayout.owners.delete(registration),
+      updateLayout(activeLayout),
+      animateAmount(activeLayout, activeLayout.owners.size ? 1 : 0));
   };
   return {
-    refresh: fn2,
-    setActive(arg36) {
-      value34 || arg32.editable || ((value33 = arg36 === true), fn2());
+    refresh: refreshLayout,
+    setActive(shouldActivate) {
+      isDisposed ||
+        focusOptions.editable ||
+        ((isActive = shouldActivate === true), refreshLayout());
     },
     dispose() {
-      value34 || ((value34 = true), value32 && C(value32, object1), (value32 = null));
+      isDisposed ||
+        ((isDisposed = true),
+        activeLayout && releaseLayout(activeLayout, registration),
+        (activeLayout = null));
     },
   };
 }

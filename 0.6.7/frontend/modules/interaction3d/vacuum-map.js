@@ -1,4 +1,4 @@
-const { vacuumStatus: j } = await (import.meta.url.startsWith("file:")
+const { vacuumStatus: resolveVacuumStatus } = await (import.meta.url.startsWith("file:")
     ? import(new URL("../../static/renderer/vacuum-runtime.js", import.meta.url))
     : import(
         new URL(
@@ -8,7 +8,7 @@ const { vacuumStatus: j } = await (import.meta.url.startsWith("file:")
       )),
   {
     vacuumMapAvailable: N,
-    vacuumMapSource: D,
+    vacuumMapSource: resolveVacuumMapSource,
     createVacuumMapImageLoader: $,
   } = await (import.meta.url.startsWith("file:")
     ? import(new URL("../../static/renderer/vacuum-map-state.js", import.meta.url))
@@ -19,364 +19,417 @@ const { vacuumStatus: j } = await (import.meta.url.startsWith("file:")
         )
       ));
 export { N as vacuumMapAvailable, $ as createVacuumMapImageLoader };
-export function vacuumMapIdentity(arg1, arg2) {
-  const value1 = (arg1?.newState || arg1)?.attributes || {},
-    value2 = (arg2?.newState || arg2)?.attributes || {},
-    fn1 = (arg3) =>
-      (typeof arg3 == "string" && arg3) || (typeof arg3 == "number" && Number.isFinite(arg3));
-  for (const value3 of [value1.saved_map_id, value1.selected_map_id, value2.selected_map_id])
-    if (fn1(value3)) return "saved:" + value3;
-  if (fn1(value1.map_index)) return "index:" + value1.map_index;
-  for (const value4 of ["map_id", "current_map_id", "map_index", "selected_map_id"]) {
-    const value5 = value1[value4];
+export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
+  const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {},
+    vacuumIdentityAttributes = (vacuumEntityEntry?.newState || vacuumEntityEntry)?.attributes || {},
+    isUsableIdValue = (idValue) =>
+      (typeof idValue == "string" && idValue) ||
+      (typeof idValue == "number" && Number.isFinite(idValue));
+  for (const savedMapIdCandidate of [
+    mapIdentityAttributes.saved_map_id,
+    mapIdentityAttributes.selected_map_id,
+    vacuumIdentityAttributes.selected_map_id,
+  ])
+    if (isUsableIdValue(savedMapIdCandidate)) return "saved:" + savedMapIdCandidate;
+  if (isUsableIdValue(mapIdentityAttributes.map_index))
+    return "index:" + mapIdentityAttributes.map_index;
+  for (const mapIdKey of ["map_id", "current_map_id", "map_index", "selected_map_id"]) {
+    const mapIdValue = mapIdentityAttributes[mapIdKey];
     if (
-      (typeof value5 == "string" && value5) ||
-      (typeof value5 == "number" && Number.isFinite(value5))
+      (typeof mapIdValue == "string" && mapIdValue) ||
+      (typeof mapIdValue == "number" && Number.isFinite(mapIdValue))
     )
-      return String(value5);
+      return String(mapIdValue);
   }
   return "";
 }
-export function vacuumBindingsForMap(arg4, arg5) {
-  return arg4.flatMap((arg6) => {
-    const value6 = arg5[arg6.map?.entityId],
-      value7 = arg5[arg6.entityId],
-      value8 = (value6?.newState || value6)?.attributes || {},
-      value9 = (value7?.newState || value7)?.attributes || {},
-      value10 = vacuumMapIdentity(value6, value7),
-      value11 = arg6.map?.sourceMapId,
-      value12 = arg4.some(
-        (arg7) =>
-          arg7 !== arg6 &&
-          arg7.floorId !== arg6.floorId &&
-          arg7.entityId === arg6.entityId &&
-          arg7.map?.entityId === arg6.map?.entityId,
+export function vacuumBindingsForMap(bindings, statesByEntityId) {
+  return bindings.flatMap((binding) => {
+    const mapEntityState = statesByEntityId[binding.map?.entityId],
+      vacuumEntityState = statesByEntityId[binding.entityId],
+      mapAttributes = (mapEntityState?.newState || mapEntityState)?.attributes || {},
+      vacuumStateAttributes = (vacuumEntityState?.newState || vacuumEntityState)?.attributes || {},
+      mapIdentity = vacuumMapIdentity(mapEntityState, vacuumEntityState),
+      sourceMapId = binding.map?.sourceMapId,
+      hasSiblingBinding = bindings.some(
+        (sibling) =>
+          sibling !== binding &&
+          sibling.floorId !== binding.floorId &&
+          sibling.entityId === binding.entityId &&
+          sibling.map?.entityId === binding.map?.entityId,
       );
-    if (!value11) return value12 ? [] : [arg6];
-    if (value11 === value10) return [arg6];
-    const value13 = !value11.includes(":");
-    return value13 && String(value8.map_id ?? value8.current_map_id ?? "") === value11
-      ? [arg6]
-      : value13 && !value12 && value9.multi_floor_map === false && value10.startsWith("saved:")
+    if (!sourceMapId) return hasSiblingBinding ? [] : [binding];
+    if (sourceMapId === mapIdentity) return [binding];
+    const isPlainSourceMapId = !sourceMapId.includes(":");
+    return isPlainSourceMapId &&
+      String(mapAttributes.map_id ?? mapAttributes.current_map_id ?? "") === sourceMapId
+      ? [binding]
+      : isPlainSourceMapId &&
+          !hasSiblingBinding &&
+          vacuumStateAttributes.multi_floor_map === false &&
+          mapIdentity.startsWith("saved:")
         ? [
             {
-              ...arg6,
+              ...binding,
               map: {
-                ...arg6.map,
-                sourceMapId: value10,
+                ...binding.map,
+                sourceMapId: mapIdentity,
               },
             },
           ]
         : [];
   });
 }
-export function mapCorners(arg8) {
-  const value14 = ((arg8.rotation || 0) * Math.PI) / 180,
-    value15 = Math.cos(value14),
-    value16 = Math.sin(value14);
+export function mapCorners(mapConfig) {
+  const rotationRad = ((mapConfig.rotation || 0) * Math.PI) / 180,
+    cosRotation = Math.cos(rotationRad),
+    sinRotation = Math.sin(rotationRad);
   return [
     [-0.5, -0.5],
     [0.5, -0.5],
     [0.5, 0.5],
     [-0.5, 0.5],
-  ].map(([arg9, arg10]) => ({
-    x: arg8.x + arg9 * arg8.width * value15 - arg10 * arg8.depth * value16,
-    y: arg8.y + arg9 * arg8.width * value16 + arg10 * arg8.depth * value15,
+  ].map(([unitX, unitY]) => ({
+    x: mapConfig.x + unitX * mapConfig.width * cosRotation - unitY * mapConfig.depth * sinRotation,
+    y: mapConfig.y + unitX * mapConfig.width * sinRotation + unitY * mapConfig.depth * cosRotation,
   }));
 }
-export function mapSource(arg11, arg12 = Date.now()) {
-  return D(arg11, arg12);
+export function mapSource(entityId, cacheBustTimestamp = Date.now()) {
+  return resolveVacuumMapSource(entityId, cacheBustTimestamp);
 }
-export function createVacuumMaps(arg13, arg14) {
-  const { THREE: value17 } = arg13,
-    map1 = new Map();
-  let value18 = false,
-    value19 = false,
-    value20 = null,
-    text1 = "",
-    value21 = 5000,
-    value22 = -Infinity,
-    value23 = Infinity;
-  const fn2 = (arg15, arg16) => {
-    const value24 = arg16[arg15.map?.entityId],
-      value25 = value24?.newState || value24 || {},
-      value26 = value25.attributes || {},
-      value27 = arg16[arg15.entityId],
-      value28 = value27?.newState || value27 || {};
+export function createVacuumMaps(sceneHost, requestRender) {
+  const { THREE: THREE } = sceneHost,
+    entriesByItemId = new Map();
+  let isActive = false,
+    isDisposed = false,
+    refreshTimerId = null,
+    cachedSelectionKey = "",
+    refreshIntervalMs = 5000,
+    lastLoadTimestamp = -Infinity,
+    nextRefreshAt = Infinity;
+  const buildRevisionKey = (keyItem, revisionStates) => {
+    const revisionMapState = revisionStates[keyItem.map?.entityId],
+      mapState = revisionMapState?.newState || revisionMapState || {},
+      revisionAttributes = mapState.attributes || {},
+      revisionVacuumState = revisionStates[keyItem.entityId],
+      vacuumState = revisionVacuumState?.newState || revisionVacuumState || {};
     return JSON.stringify([
-      value25.state,
-      value25.last_updated,
-      value26.entity_picture,
-      value26.image_last_updated,
-      value26.vacuum_position,
-      value26.robot_position,
-      value26.charger_position,
-      value28.state,
-      value28.last_updated,
+      mapState.state,
+      mapState.last_updated,
+      revisionAttributes.entity_picture,
+      revisionAttributes.image_last_updated,
+      revisionAttributes.vacuum_position,
+      revisionAttributes.robot_position,
+      revisionAttributes.charger_position,
+      vacuumState.state,
+      vacuumState.last_updated,
     ]);
   };
-  function fn3(arg17) {
-    if (!value18 || value19 || document.hidden || !map1.size) return;
-    const value29 = performance.now() + arg17;
-    (value20 !== null && value23 <= value29) ||
-      (clearTimeout(value20), (value23 = value29), (value20 = setTimeout(fn11, arg17)));
+  function scheduleRefreshIn(delayMs) {
+    if (!isActive || isDisposed || document.hidden || !entriesByItemId.size) return;
+    const scheduledAt = performance.now() + delayMs;
+    (refreshTimerId !== null && nextRefreshAt <= scheduledAt) ||
+      (clearTimeout(refreshTimerId),
+      (nextRefreshAt = scheduledAt),
+      (refreshTimerId = setTimeout(loadVisibleMaps, delayMs)));
   }
-  const fn4 = () => fn3(Math.max(0, 1000 - (performance.now() - value22))),
-    fn5 = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
-    fn6 = (arg18) => {
-      (arg18.generation++,
-        clearTimeout(arg18.timeout),
-        (arg18.timeout = null),
-        arg18.image &&
-          ((arg18.image.onload = arg18.image.onerror = null),
-          arg18.loading && (arg18.image.src = "")),
-        (arg18.loading = false));
+  const rescheduleRefresh = () =>
+      scheduleRefreshIn(Math.max(0, 1000 - (performance.now() - lastLoadTimestamp))),
+    prefersReducedMotion = () =>
+      globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
+    cancelImageLoad = (loadingEntry) => {
+      (loadingEntry.generation++,
+        clearTimeout(loadingEntry.timeout),
+        (loadingEntry.timeout = null),
+        loadingEntry.image &&
+          ((loadingEntry.image.onload = loadingEntry.image.onerror = null),
+          loadingEntry.loading && (loadingEntry.image.src = "")),
+        (loadingEntry.loading = false));
     },
-    fn7 = (arg19) => {
-      ((arg19.mesh.visible = false),
-        (arg19.fading = false),
-        arg19.mesh.material.map?.dispose(),
-        (arg19.mesh.material.map = null),
-        (arg19.mesh.material.needsUpdate = true));
+    hideAndReleaseTexture = (clearedEntry) => {
+      ((clearedEntry.mesh.visible = false),
+        (clearedEntry.fading = false),
+        clearedEntry.mesh.material.map?.dispose(),
+        (clearedEntry.mesh.material.map = null),
+        (clearedEntry.mesh.material.needsUpdate = true));
     },
-    fn8 = (arg20) => {
-      (fn6(arg20),
-        arg20.mesh.removeFromParent(),
-        arg20.mesh.geometry.dispose(),
-        arg20.mesh.material.map?.dispose(),
-        arg20.mesh.material.dispose());
+    disposeMapEntry = (disposalTarget) => {
+      (cancelImageLoad(disposalTarget),
+        disposalTarget.mesh.removeFromParent(),
+        disposalTarget.mesh.geometry.dispose(),
+        disposalTarget.mesh.material.map?.dispose(),
+        disposalTarget.mesh.material.dispose());
     };
-  function fn9(arg21) {
-    const value30 = mapCorners(arg21.map).map((arg22) =>
-      arg13.worldPoint(arg21.floorId, arg22.x, arg22.y, arg21.height),
+  function positionMesh(positionedEntry) {
+    const worldCorners = mapCorners(positionedEntry.map).map((corner) =>
+      sceneHost.worldPoint(positionedEntry.floorId, corner.x, corner.y, positionedEntry.height),
     );
-    if (value30.some((arg23) => !arg23)) return false;
-    const value31 = arg21.mesh.geometry.attributes.position;
+    if (worldCorners.some((validCorner) => !validCorner)) return false;
+    const positionAttribute = positionedEntry.mesh.geometry.attributes.position;
     return (
-      value30.forEach((arg24, arg25) => value31.setXYZ(arg25, arg24.x, arg24.y, arg24.z)),
-      (value31.needsUpdate = true),
-      arg21.mesh.geometry.computeBoundingBox(),
-      arg21.mesh.geometry.computeBoundingSphere(),
+      worldCorners.forEach((cornerPoint, cornerIndex) =>
+        positionAttribute.setXYZ(cornerIndex, cornerPoint.x, cornerPoint.y, cornerPoint.z),
+      ),
+      (positionAttribute.needsUpdate = true),
+      positionedEntry.mesh.geometry.computeBoundingBox(),
+      positionedEntry.mesh.geometry.computeBoundingSphere(),
       true
     );
   }
-  function fn10(arg26) {
-    ((arg26.mesh.visible = value18 && arg26.positioned && !!arg26.mesh.material.map),
-      arg26.mesh.visible &&
-        ((arg26.mesh.material.opacity = fn5() ? arg26.opacity : 0),
-        (arg26.fadeStart = null),
-        (arg26.fading = arg26.mesh.material.opacity < arg26.opacity)));
+  function applyVisibility(visibilityEntry) {
+    ((visibilityEntry.mesh.visible =
+      isActive && visibilityEntry.positioned && !!visibilityEntry.mesh.material.map),
+      visibilityEntry.mesh.visible &&
+        ((visibilityEntry.mesh.material.opacity = prefersReducedMotion()
+          ? visibilityEntry.opacity
+          : 0),
+        (visibilityEntry.fadeStart = null),
+        (visibilityEntry.fading =
+          visibilityEntry.mesh.material.opacity < visibilityEntry.opacity)));
   }
-  function fn11() {
+  function loadVisibleMaps() {
     if (
-      (clearTimeout(value20),
-      (value20 = null),
-      (value23 = Infinity),
-      !(!value18 || value19 || document.hidden))
+      (clearTimeout(refreshTimerId),
+      (refreshTimerId = null),
+      (nextRefreshAt = Infinity),
+      !(!isActive || isDisposed || document.hidden))
     ) {
-      for (const value32 of map1.values()) {
-        if (value32.loading) continue;
-        ((value32.loading = true), (value32.pending = false), (value22 = performance.now()));
-        const value33 = ++value32.generation,
-          image1 = new Image();
-        ((value32.image = image1),
-          (image1.onload = () => {
-            if (value19 || !value18 || value33 !== value32.generation) return;
-            (clearTimeout(value32.timeout), (value32.timeout = null), (value32.loading = false));
-            const value34 = !!value32.mesh.material.map;
-            value32.mesh.material.map?.dispose();
-            const value35 = new value17.Texture(image1);
-            ((value35.colorSpace = value17.SRGBColorSpace),
-              (value35.needsUpdate = true),
-              (value32.mesh.material.map = value35),
-              (value32.mesh.material.needsUpdate = true),
-              value34 || fn10(value32),
-              value32.pending && fn4(),
-              arg14());
+      for (const refreshEntry of entriesByItemId.values()) {
+        if (refreshEntry.loading) continue;
+        ((refreshEntry.loading = true),
+          (refreshEntry.pending = false),
+          (lastLoadTimestamp = performance.now()));
+        const generation = ++refreshEntry.generation,
+          mapImage = new Image();
+        ((refreshEntry.image = mapImage),
+          (mapImage.onload = () => {
+            if (isDisposed || !isActive || generation !== refreshEntry.generation) return;
+            (clearTimeout(refreshEntry.timeout),
+              (refreshEntry.timeout = null),
+              (refreshEntry.loading = false));
+            const hasExistingTexture = !!refreshEntry.mesh.material.map;
+            refreshEntry.mesh.material.map?.dispose();
+            const texture = new THREE.Texture(mapImage);
+            ((texture.colorSpace = THREE.SRGBColorSpace),
+              (texture.needsUpdate = true),
+              (refreshEntry.mesh.material.map = texture),
+              (refreshEntry.mesh.material.needsUpdate = true),
+              hasExistingTexture || applyVisibility(refreshEntry),
+              refreshEntry.pending && rescheduleRefresh(),
+              requestRender());
           }),
-          (image1.onerror = () => {
-            value19 ||
-              !value18 ||
-              value33 !== value32.generation ||
-              (fn6(value32), fn7(value32), value32.pending && fn4(), arg14());
+          (mapImage.onerror = () => {
+            isDisposed ||
+              !isActive ||
+              generation !== refreshEntry.generation ||
+              (cancelImageLoad(refreshEntry),
+              hideAndReleaseTexture(refreshEntry),
+              refreshEntry.pending && rescheduleRefresh(),
+              requestRender());
           }),
-          (value32.timeout = setTimeout(() => image1.onerror?.(), 15000)),
-          (image1.src = mapSource(value32.entityId)));
+          (refreshEntry.timeout = setTimeout(() => mapImage.onerror?.(), 15000)),
+          (mapImage.src = mapSource(refreshEntry.entityId)));
       }
-      fn3(value21);
+      scheduleRefreshIn(refreshIntervalMs);
     }
   }
   return {
     diagnostics() {
-      let value36 = 0,
-        value37 = 0;
-      for (const value38 of map1.values()) {
-        const value39 = value38.mesh.material.map?.image;
-        value39 &&
-          (value37++,
-          (value36 +=
-            (value39.naturalWidth || value39.width || 0) *
-            (value39.naturalHeight || value39.height || 0)));
+      let mapPixels = 0,
+        mapTextures = 0;
+      for (const measuredEntry of entriesByItemId.values()) {
+        const entryImage = measuredEntry.mesh.material.map?.image;
+        entryImage &&
+          (mapTextures++,
+          (mapPixels +=
+            (entryImage.naturalWidth || entryImage.width || 0) *
+            (entryImage.naturalHeight || entryImage.height || 0)));
       }
       return {
-        mapPixels: value36,
-        mapTextures: value37,
+        mapPixels: mapPixels,
+        mapTextures: mapTextures,
       };
     },
-    sync(arg27, arg28, arg29, arg30 = {}) {
-      if (!!!(arg28 && !value19 && !document.hidden)) {
-        if (value18) {
-          (clearTimeout(value20), (value20 = null), (value23 = Infinity));
-          for (const value45 of map1.values())
-            (fn6(value45), (value45.mesh.visible = false), (value45.fading = false));
-          arg14();
+    sync(items, isEnabled, floorFilter, syncStates = {}) {
+      if (!!!(isEnabled && !isDisposed && !document.hidden)) {
+        if (isActive) {
+          (clearTimeout(refreshTimerId), (refreshTimerId = null), (nextRefreshAt = Infinity));
+          for (const hiddenEntry of entriesByItemId.values())
+            (cancelImageLoad(hiddenEntry),
+              (hiddenEntry.mesh.visible = false),
+              (hiddenEntry.fading = false));
+          requestRender();
         }
-        value18 = false;
+        isActive = false;
         return;
       }
-      const value40 = !value18;
-      ((value18 = true),
-        (value21 = arg27.some((arg31) => vacuumStatusPresentation(arg31, arg30).active)
+      const isInactive = !isActive;
+      ((isActive = true),
+        (refreshIntervalMs = items.some(
+          (listedItem) => vacuumStatusPresentation(listedItem, syncStates).active,
+        )
           ? 1000
           : 5000));
-      const value41 = arg27.filter(
-          (arg32) =>
-            N(arg30[arg32.map?.entityId]) &&
-            arg32.visible !== false &&
-            arg32.modelAvailable !== false &&
-            arg32.map?.visible !== false &&
-            mapSource(arg32.map?.entityId) &&
-            arg32.map.width > 0 &&
-            arg32.map.depth > 0 &&
-            (arg29 === "all" || arg32.floorId === arg29),
+      const visibleItems = items.filter(
+          (candidateItem) =>
+            N(syncStates[candidateItem.map?.entityId]) &&
+            candidateItem.visible !== false &&
+            candidateItem.modelAvailable !== false &&
+            candidateItem.map?.visible !== false &&
+            mapSource(candidateItem.map?.entityId) &&
+            candidateItem.map.width > 0 &&
+            candidateItem.map.depth > 0 &&
+            (floorFilter === "all" || candidateItem.floorId === floorFilter),
         ),
-        value42 = JSON.stringify([
-          arg13.sceneRevision,
-          arg29,
-          value41.map((arg33) => [arg33.id, arg33.floorId, arg33.map]),
+        selectionKey = JSON.stringify([
+          sceneHost.sceneRevision,
+          floorFilter,
+          visibleItems.map((mappedItem) => [mappedItem.id, mappedItem.floorId, mappedItem.map]),
         ]),
-        value43 = value42 !== text1;
-      if (value43) {
-        (clearTimeout(value20), (value20 = null), (value23 = Infinity));
-        for (const value46 of map1.values()) fn8(value46);
-        (map1.clear(),
-          (text1 = value42),
-          value41.forEach((arg34, arg35) => {
-            const value47 = new value17.BufferGeometry();
-            (value47.setAttribute(
+        hasSelectionChanged = selectionKey !== cachedSelectionKey;
+      if (hasSelectionChanged) {
+        (clearTimeout(refreshTimerId), (refreshTimerId = null), (nextRefreshAt = Infinity));
+        for (const staleEntry of entriesByItemId.values()) disposeMapEntry(staleEntry);
+        (entriesByItemId.clear(),
+          (cachedSelectionKey = selectionKey),
+          visibleItems.forEach((visibleItem, itemIndex) => {
+            const geometry = new THREE.BufferGeometry();
+            (geometry.setAttribute(
               "position",
-              new value17.Float32BufferAttribute(new Float32Array(12), 3),
+              new THREE.Float32BufferAttribute(new Float32Array(12), 3),
             ),
-              value47.setAttribute(
+              geometry.setAttribute(
                 "uv",
-                new value17.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2),
+                new THREE.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2),
               ),
-              value47.setIndex([0, 2, 1, 0, 3, 2]));
-            const value48 = new value17.MeshBasicMaterial({
+              geometry.setIndex([0, 2, 1, 0, 3, 2]));
+            const material = new THREE.MeshBasicMaterial({
                 transparent: true,
                 opacity: 0,
                 depthWrite: false,
-                side: value17.DoubleSide,
+                side: THREE.DoubleSide,
                 polygonOffset: true,
                 polygonOffsetFactor: -1,
                 polygonOffsetUnits: -1,
                 toneMapped: false,
               }),
-              value49 = new value17.Mesh(value47, value48);
-            ((value49.name = "vacuum-map-overlay"),
-              (value49.userData.environmentEffect = true),
-              (value49.raycast = () => {}),
-              (value49.visible = false),
-              arg13.overlayScene.add(value49));
-            const object1 = {
-              mesh: value49,
+              mapMesh = new THREE.Mesh(geometry, material);
+            ((mapMesh.name = "vacuum-map-overlay"),
+              (mapMesh.userData.environmentEffect = true),
+              (mapMesh.raycast = () => {}),
+              (mapMesh.visible = false),
+              sceneHost.overlayScene.add(mapMesh));
+            const mapEntry = {
+              mesh: mapMesh,
               image: null,
-              entityId: arg34.map.entityId,
+              entityId: visibleItem.map.entityId,
               generation: 0,
               loading: false,
-              revision: fn2(arg34, arg30),
+              revision: buildRevisionKey(visibleItem, syncStates),
               pending: false,
-              floorId: arg34.floorId,
-              map: arg34.map,
-              height: 0.025 + arg35 * 0.001,
-              opacity: (arg34.map.opacity ?? 45) / 100,
+              floorId: visibleItem.floorId,
+              map: visibleItem.map,
+              height: 0.025 + itemIndex * 0.001,
+              opacity: (visibleItem.map.opacity ?? 45) / 100,
               fading: false,
             };
-            ((object1.positioned = fn9(object1)), map1.set(arg34.id, object1));
+            ((mapEntry.positioned = positionMesh(mapEntry)),
+              entriesByItemId.set(visibleItem.id, mapEntry));
           }));
       } else {
-        if (value40) {
-          for (const value50 of map1.values()) ((value50.positioned = fn9(value50)), fn7(value50));
+        if (isInactive) {
+          for (const restoredEntry of entriesByItemId.values())
+            ((restoredEntry.positioned = positionMesh(restoredEntry)),
+              hideAndReleaseTexture(restoredEntry));
         }
       }
-      let value44 = false;
-      for (const value51 of value41) {
-        const value52 = map1.get(value51.id),
-          value53 = fn2(value51, arg30);
-        value52 &&
-          value52.revision !== value53 &&
-          ((value52.revision = value53), (value52.pending = true), (value44 = true));
+      let hasPendingRevision = false;
+      for (const changedItem of visibleItems) {
+        const existingEntry = entriesByItemId.get(changedItem.id),
+          revisionKey = buildRevisionKey(changedItem, syncStates);
+        existingEntry &&
+          existingEntry.revision !== revisionKey &&
+          ((existingEntry.revision = revisionKey),
+          (existingEntry.pending = true),
+          (hasPendingRevision = true));
       }
-      value43 || value40 ? (fn11(), arg14()) : value44 ? fn4() : fn3(value21);
+      hasSelectionChanged || isInactive
+        ? (loadVisibleMaps(), requestRender())
+        : hasPendingRevision
+          ? rescheduleRefresh()
+          : scheduleRefreshIn(refreshIntervalMs);
     },
-    tick(arg36) {
-      if (!value18 || value19) return false;
-      let value54 = false,
-        value55 = false;
-      for (const value56 of map1.values())
-        if (value56.fading) {
-          value56.fadeStart === null && (value56.fadeStart = arg36);
-          const value57 = fn5() ? 1 : Math.max(0, Math.min(1, (arg36 - value56.fadeStart) / 280)),
-            value58 = value56.opacity * value57 * value57 * (3 - 2 * value57);
-          ((value55 ||= value56.mesh.material.opacity !== value58),
-            (value56.mesh.material.opacity = value58),
-            (value56.fading = value57 < 1),
-            (value54 ||= value56.fading));
+    tick(timestampMs) {
+      if (!isActive || isDisposed) return false;
+      let isFading = false,
+        hasFaded = false;
+      for (const fadingEntry of entriesByItemId.values())
+        if (fadingEntry.fading) {
+          fadingEntry.fadeStart === null && (fadingEntry.fadeStart = timestampMs);
+          const fadeRatio = prefersReducedMotion()
+              ? 1
+              : Math.max(0, Math.min(1, (timestampMs - fadingEntry.fadeStart) / 280)),
+            fadeOpacity = fadingEntry.opacity * fadeRatio * fadeRatio * (3 - 2 * fadeRatio);
+          ((hasFaded ||= fadingEntry.mesh.material.opacity !== fadeOpacity),
+            (fadingEntry.mesh.material.opacity = fadeOpacity),
+            (fadingEntry.fading = fadeRatio < 1),
+            (isFading ||= fadingEntry.fading));
         }
-      return (value55 && arg14(), value54);
+      return (hasFaded && requestRender(), isFading);
     },
     dispose() {
-      ((value19 = true), (value18 = false), clearTimeout(value20));
-      for (const value59 of map1.values()) fn8(value59);
-      map1.clear();
+      ((isDisposed = true), (isActive = false), clearTimeout(refreshTimerId));
+      for (const disposedEntry of entriesByItemId.values()) disposeMapEntry(disposedEntry);
+      entriesByItemId.clear();
     },
   };
 }
-export function vacuumStatusPresentation(arg37, arg38 = {}) {
-  const fn12 = (arg39) => arg39?.newState || arg39 || null,
-    value60 = fn12(arg38[arg37.entityId]),
-    value61 = value60?.attributes || {},
-    value62 = (arg37.relatedEntityIds || []).map((arg40) => ({
-      entityId: arg40,
-      role: arg37.statusEntityRoles ? arg37.statusEntityRoles[arg40] || "" : undefined,
-      state: arg38[arg40],
+export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
+  const resolveEntityState = (entityEntry) => entityEntry?.newState || entityEntry || null,
+    vacuumStateEntry = resolveEntityState(statusStates[statusBinding.entityId]),
+    vacuumAttributes = vacuumStateEntry?.attributes || {},
+    statusRelatedEntities = (statusBinding.relatedEntityIds || []).map((statusEntityId) => ({
+      entityId: statusEntityId,
+      role: statusBinding.statusEntityRoles
+        ? statusBinding.statusEntityRoles[statusEntityId] || ""
+        : undefined,
+      state: statusStates[statusEntityId],
     })),
-    value63 = j(value60, value62),
-    { available: value64 } = value63,
-    value65 = (arg37.relatedEntityIds || [])
-      .filter((arg41) => arg41.startsWith("sensor."))
-      .map((arg42) => ({
-        id: arg42,
-        state: fn12(arg38[arg42]),
+    statusPresentation = resolveVacuumStatus(vacuumStateEntry, statusRelatedEntities),
+    { available: isAvailable } = statusPresentation,
+    relatedSensors = (statusBinding.relatedEntityIds || [])
+      .filter((relatedEntityId) => relatedEntityId.startsWith("sensor."))
+      .map((sensorEntityId) => ({
+        id: sensorEntityId,
+        state: resolveEntityState(statusStates[sensorEntityId]),
       })),
-    value66 =
-      value65.find((arg43) => arg43.state?.attributes?.device_class === "battery") ||
-      value65.find(
-        (arg44) =>
-          /(?:^|[._])battery(?:_|$)/.test(arg44.id) &&
-          !/filter|brush|mop|life|consumable/.test(arg44.id),
+    batterySensor =
+      relatedSensors.find(
+        (batteryCandidate) => batteryCandidate.state?.attributes?.device_class === "battery",
+      ) ||
+      relatedSensors.find(
+        (batteryNameCandidate) =>
+          /(?:^|[._])battery(?:_|$)/.test(batteryNameCandidate.id) &&
+          !/filter|brush|mop|life|consumable/.test(batteryNameCandidate.id),
       ),
-    fn13 = (arg45) =>
-      arg45 == null || String(arg45).trim() === "" || !Number.isFinite(parseFloat(arg45))
+    parseBatteryPercent = (rawBatteryValue) =>
+      rawBatteryValue == null ||
+      String(rawBatteryValue).trim() === "" ||
+      !Number.isFinite(parseFloat(rawBatteryValue))
         ? null
-        : Math.max(0, Math.min(100, parseFloat(arg45))),
-    value67 = value64
-      ? ([value61.battery_level, value61.battery_percentage, value61.battery, value66?.state?.state]
-          .map(fn13)
-          .find((arg46) => arg46 !== null) ?? null)
+        : Math.max(0, Math.min(100, parseFloat(rawBatteryValue))),
+    batteryPercent = isAvailable
+      ? ([
+          vacuumAttributes.battery_level,
+          vacuumAttributes.battery_percentage,
+          vacuumAttributes.battery,
+          batterySensor?.state?.state,
+        ]
+          .map(parseBatteryPercent)
+          .find((percentValue) => percentValue !== null) ?? null)
       : null;
   return {
-    ...value63,
-    battery: value67 === null ? "电量 —" : Math.round(value67) + "%",
+    ...statusPresentation,
+    battery: batteryPercent === null ? "电量 —" : Math.round(batteryPercent) + "%",
   };
 }

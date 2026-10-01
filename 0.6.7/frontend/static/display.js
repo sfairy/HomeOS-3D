@@ -2,68 +2,68 @@ import { PanelRenderer } from "./renderer/renderer.js?v=20260909-curtain-action-
 import { ensureUiPackRuntime } from "./ui-packs/loader.js?v=20260811-water-heater-popup-v44-20260824-light-statistics-v4-20260828-count-statistics-v1-20260824-load-optimization-v1-20260902-camera-popup-ready-v1-20260902-floorplan-auto-diagram-v12-20260908-environment-v1-20260908-lighting-mode-v1-20260926-scene-mode-v3-20260930-flow-line-sign-v1-20260930-percentage-text-offset-v1";
 import { createButtonSound } from "./sound-effects.js?v=20260826-button-sound-v2";
 import { syncAppleDisplaySurface } from "./display-surface.js?v=20260914-ios-pwa-surface-v1";
-const E = document.querySelector("#display-root"),
-  C = document.querySelector("#display-shell"),
-  q = new URLSearchParams(window.location.search).get("capturePreview") === "1";
-document.documentElement.classList.toggle("capture-preview", q);
-let m = null,
-  R = null,
-  N = null,
-  d = null;
-const x = createButtonSound();
-let p = null,
-  B = [],
-  P = null,
-  A = [],
-  I = [],
-  D = {},
-  g = null,
-  S = null,
-  $ = false,
-  U = null,
-  y = 0,
-  h = null;
-const H = window.self !== window.top;
-let f = null;
-function K() {
-  const value1 = navigator.userAgent || "";
+const displayRootElement = document.querySelector("#display-root"),
+  displayShellElement = document.querySelector("#display-shell"),
+  isCapturePreview = new URLSearchParams(window.location.search).get("capturePreview") === "1";
+document.documentElement.classList.toggle("capture-preview", isCapturePreview);
+let project = null,
+  lastRevision = null,
+  lastGlobalPopupRevision = null,
+  panelRenderer = null;
+const buttonSound = createButtonSound();
+let refreshPromise = null,
+  uiPacks = [],
+  loadedAssetsVersion = null,
+  entityRecords = [],
+  deviceRecords = [],
+  translationResources = {},
+  syncPromise = null,
+  lastSyncFingerprint = null,
+  hasTranslations = false,
+  lastCatalogFingerprint = null,
+  lastAssetsCheckAt = 0,
+  assetsVersion = null;
+const isEmbeddedFrame = window.self !== window.top;
+let visibleBounds = null;
+function isAppleMobile() {
+  const userAgent = navigator.userAgent || "";
   return (
-    /iPad|iPhone|iPod/i.test(value1) ||
-    (/Macintosh/i.test(value1) && Number(navigator.maxTouchPoints || 0) > 1)
+    /iPad|iPhone|iPod/i.test(userAgent) ||
+    (/Macintosh/i.test(userAgent) && Number(navigator.maxTouchPoints || 0) > 1)
   );
 }
-function b() {
-  const value2 = !H && K();
-  let value3 = Math.round(
-      Number(value2 ? window.screen?.width : window.visualViewport?.width) ||
+function syncViewportSize() {
+  const shouldUseScreenSize = !isEmbeddedFrame && isAppleMobile();
+  let widthPx = Math.round(
+      Number(shouldUseScreenSize ? window.screen?.width : window.visualViewport?.width) ||
         Number(window.innerWidth) ||
         Number(document.documentElement.clientWidth),
     ),
-    value4 = Math.round(
-      Number(value2 ? window.screen?.height : window.visualViewport?.height) ||
+    heightPx = Math.round(
+      Number(shouldUseScreenSize ? window.screen?.height : window.visualViewport?.height) ||
         Number(window.innerHeight) ||
         Number(document.documentElement.clientHeight),
     );
-  (value2 &&
-    window.innerWidth >= window.innerHeight !== value3 >= value4 &&
-    ([value3, value4] = [value4, value3]),
-    !(!value3 || !value4) &&
-      (H &&
-        f &&
-        ((value3 = Math.min(value3, f.width)),
-        (value4 = Math.min(value4, f.height)),
-        (C.style.left = f.left + "px"),
-        (C.style.top = f.top + "px")),
-      (C.style.width = value3 + "px"),
-      (C.style.height = value4 + "px"),
-      d?.resize(),
-      value2 &&
-        ((document.documentElement.style.width = value3 + "px"),
-        (document.documentElement.style.height = value4 + "px"),
-        (document.body.style.width = value3 + "px"),
-        (document.body.style.height = value4 + "px"))));
+  (shouldUseScreenSize &&
+    window.innerWidth >= window.innerHeight !== widthPx >= heightPx &&
+    ([widthPx, heightPx] = [heightPx, widthPx]),
+    !(!widthPx || !heightPx) &&
+      (isEmbeddedFrame &&
+        visibleBounds &&
+        ((widthPx = Math.min(widthPx, visibleBounds.width)),
+        (heightPx = Math.min(heightPx, visibleBounds.height)),
+        (displayShellElement.style.left = visibleBounds.left + "px"),
+        (displayShellElement.style.top = visibleBounds.top + "px")),
+      (displayShellElement.style.width = widthPx + "px"),
+      (displayShellElement.style.height = heightPx + "px"),
+      panelRenderer?.resize(),
+      shouldUseScreenSize &&
+        ((document.documentElement.style.width = widthPx + "px"),
+        (document.documentElement.style.height = heightPx + "px"),
+        (document.body.style.width = widthPx + "px"),
+        (document.body.style.height = heightPx + "px"))));
 }
-function z() {
+function buildPairUrl() {
   return (
     "/pair?" +
     (window.HABridgeEmbed ||
@@ -77,333 +77,388 @@ function z() {
     )
   );
 }
-async function a(arg1) {
-  const value5 = arg1.includes("?") ? "&" : "?",
-    value6 = window.HABridgeDisplayStartup?.take(arg1),
-    value7 = value6?.controller || new AbortController(),
-    value8 = value6 ? null : window.setTimeout(() => value7.abort(), 20000);
+async function apiRequest(path) {
+  const separator = path.includes("?") ? "&" : "?",
+    startupEntry = window.HABridgeDisplayStartup?.take(path),
+    abortController = startupEntry?.controller || new AbortController(),
+    abortTimeoutId = startupEntry ? null : window.setTimeout(() => abortController.abort(), 20000);
   try {
-    const value9 = value6
-        ? (await value6.result).response
-        : await fetch("/api/v1" + arg1 + value5 + "_=" + Date.now(), {
+    const response = startupEntry
+        ? (await startupEntry.result).response
+        : await fetch("/api/v1" + path + separator + "_=" + Date.now(), {
             cache: "no-store",
             headers: {
               "Cache-Control": "no-cache",
             },
-            signal: value7.signal,
+            signal: abortController.signal,
           }),
-      value10 = value6
-        ? (await value6.result).payload
-        : value9.status === 204
+      payload = startupEntry
+        ? (await startupEntry.result).payload
+        : response.status === 204
           ? null
-          : await value9.json().catch((arg2) => {
-              if (value7.signal.aborted) throw arg2;
+          : await response.json().catch((parseError) => {
+              if (abortController.signal.aborted) throw parseError;
               return {};
             });
     if (
-      value9.status === 401 ||
-      (value9.status === 403 && value10?.detail?.code === "DISPLAY_PROJECT_UNPAIRED")
+      response.status === 401 ||
+      (response.status === 403 && payload?.detail?.code === "DISPLAY_PROJECT_UNPAIRED")
     )
-      return (window.location.assign(z()), null);
-    if (value9.status === 403 && value10?.detail?.code === "LICENSE_RESTRICTED") {
+      return (window.location.assign(buildPairUrl()), null);
+    if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
       window.location.reload();
-      const error1 = new Error(value10.detail.message || "授权后台正在验证，请稍后重试。");
-      throw ((error1.code = "LICENSE_RESTRICTED"), error1);
+      const licenseRestrictedError = new Error(
+        payload.detail.message || "授权后台正在验证，请稍后重试。",
+      );
+      throw ((licenseRestrictedError.code = "LICENSE_RESTRICTED"), licenseRestrictedError);
     }
-    if (!value9.ok) {
-      const value11 = value10?.detail,
-        error2 = new Error(typeof value11 == "string" ? value11 : value11?.message || "请求失败。");
+    if (!response.ok) {
+      const errorDetail = payload?.detail,
+        requestError = new Error(
+          typeof errorDetail == "string" ? errorDetail : errorDetail?.message || "请求失败。",
+        );
       throw (
-        (error2.code = value11?.code || ""),
-        window.HABridgeLog?.linkError(error2, value9) || error2
+        (requestError.code = errorDetail?.code || ""),
+        window.HABridgeLog?.linkError(requestError, response) || requestError
       );
     }
-    return value10;
-  } catch (error3) {
-    throw value7.signal.aborted ? new Error("仪表盘更新请求超时，请检查网络连接。") : error3;
+    return payload;
+  } catch (caughtError) {
+    throw abortController.signal.aborted
+      ? new Error("仪表盘更新请求超时，请检查网络连接。")
+      : caughtError;
   } finally {
-    window.clearTimeout(value8);
+    window.clearTimeout(abortTimeoutId);
   }
 }
-async function J(arg3) {
-  const value12 = arg3?.uiPack?.id || "ui.base";
-  let value13 = B.find((arg4) => arg4.id === value12);
-  if (!value13) {
-    const value14 = await a("/ui-packs?_=" + Date.now());
-    if (!value14) return null;
-    ((B = value14.items || []), (value13 = B.find((arg5) => arg5.id === value12)));
+async function resolveUiPack(displayDocument) {
+  const uiPackId = displayDocument?.uiPack?.id || "ui.base";
+  let selectedUiPack = uiPacks.find((uiPackCandidate) => uiPackCandidate.id === uiPackId);
+  if (!selectedUiPack) {
+    const uiPackResponse = await apiRequest("/ui-packs?_=" + Date.now());
+    if (!uiPackResponse) return null;
+    ((uiPacks = uiPackResponse.items || []),
+      (selectedUiPack = uiPacks.find((foundUiPack) => foundUiPack.id === uiPackId)));
   }
-  if (!value13?.allowed) {
-    const error4 = new Error("当前授权尚未解锁该 UI 方案。");
-    throw ((error4.code = "UI_PACK_RESTRICTED"), error4);
+  if (!selectedUiPack?.allowed) {
+    const uiPackRestrictedError = new Error("当前授权尚未解锁该 UI 方案。");
+    throw ((uiPackRestrictedError.code = "UI_PACK_RESTRICTED"), uiPackRestrictedError);
   }
-  return (await ensureUiPackRuntime(value13), value13);
+  return (await ensureUiPackRuntime(selectedUiPack), selectedUiPack);
 }
-async function F() {
+async function refreshCatalog() {
   return (
-    g ||
-    ((g = (async () => {
-      const value15 = await a("/ha/sync/status");
-      if (!value15) return;
-      const value16 = value15.configured
+    syncPromise ||
+    ((syncPromise = (async () => {
+      const syncStatus = await apiRequest("/ha/sync/status");
+      if (!syncStatus) return;
+      const fingerprint = syncStatus.configured
           ? JSON.stringify([
-              Number.isFinite(Number(value15.catalogRevision))
-                ? Number(value15.catalogRevision)
-                : value15.lastFullSyncAt || "",
-              Number(value15.counts?.entities || 0),
-              Number(value15.counts?.devices || 0),
-              Number(value15.counts?.areas || 0),
+              Number.isFinite(Number(syncStatus.catalogRevision))
+                ? Number(syncStatus.catalogRevision)
+                : syncStatus.lastFullSyncAt || "",
+              Number(syncStatus.counts?.entities || 0),
+              Number(syncStatus.counts?.devices || 0),
+              Number(syncStatus.counts?.areas || 0),
             ])
           : "not-configured",
-        value17 = value16 !== S,
-        value18 = !!(value15.configured && value15.connected && (!$ || value17));
-      if (!(!value17 && !value18)) {
-        if (!value15.configured) {
-          ((A = []), (I = []), (D = {}), (S = value16), ($ = true), T());
+        hasCatalogChange = fingerprint !== lastSyncFingerprint,
+        shouldRefreshTranslations = !!(
+          syncStatus.configured &&
+          syncStatus.connected &&
+          (!hasTranslations || hasCatalogChange)
+        );
+      if (!(!hasCatalogChange && !shouldRefreshTranslations)) {
+        if (!syncStatus.configured) {
+          ((entityRecords = []),
+            (deviceRecords = []),
+            (translationResources = {}),
+            (lastSyncFingerprint = fingerprint),
+            (hasTranslations = true),
+            pushCatalogToRenderer());
           return;
         }
-        if (value17) {
-          const list1 = [];
-          let value19 = 0,
-            value20 = 0;
+        if (hasCatalogChange) {
+          const entityAccumulator = [];
+          let offset = 0,
+            total = 0;
           do {
-            const value22 = await a("/ha/entities?limit=500&offset=" + value19);
-            if (!value22) return;
-            (list1.push(...(value22.items || [])),
-              (value20 = Number(value22.total || 0)),
-              (value19 += Number(value22.limit || 500)));
-          } while (list1.length < value20);
-          A = list1;
-          const value21 = await a("/ha/devices").catch(() => null);
-          (value21 && (I = value21.items || []), (S = value16));
+            const entityPage = await apiRequest("/ha/entities?limit=500&offset=" + offset);
+            if (!entityPage) return;
+            (entityAccumulator.push(...(entityPage.items || [])),
+              (total = Number(entityPage.total || 0)),
+              (offset += Number(entityPage.limit || 500)));
+          } while (entityAccumulator.length < total);
+          entityRecords = entityAccumulator;
+          const deviceResponse = await apiRequest("/ha/devices").catch(() => null);
+          (deviceResponse && (deviceRecords = deviceResponse.items || []),
+            (lastSyncFingerprint = fingerprint));
         }
-        if (value18) {
-          const value23 = await a("/ha/translations").catch(() => null);
-          value23 ? ((D = value23.resources || {}), ($ = true)) : ($ = false);
+        if (shouldRefreshTranslations) {
+          const translationResponse = await apiRequest("/ha/translations").catch(() => null);
+          translationResponse
+            ? ((translationResources = translationResponse.resources || {}),
+              (hasTranslations = true))
+            : (hasTranslations = false);
         }
-        T();
+        pushCatalogToRenderer();
       }
     })().finally(() => {
-      g = null;
+      syncPromise = null;
     })),
-    g)
+    syncPromise)
   );
 }
-function G() {
-  const value24 = A.map((arg6) => [
-      arg6.entityId || "",
-      arg6.domain || "",
-      arg6.name || "",
-      arg6.icon || "",
-      arg6.deviceId || "",
-      arg6.platform || "",
-      arg6.translationKey || "",
-      arg6.uniqueId || "",
-      arg6.originalName || "",
-      arg6.status || "",
-      arg6.disabledBy || "",
+function buildCatalogFingerprint() {
+  const entityRows = entityRecords.map((entity) => [
+      entity.entityId || "",
+      entity.domain || "",
+      entity.name || "",
+      entity.icon || "",
+      entity.deviceId || "",
+      entity.platform || "",
+      entity.translationKey || "",
+      entity.uniqueId || "",
+      entity.originalName || "",
+      entity.status || "",
+      entity.disabledBy || "",
     ]),
-    value25 = I.map((arg7) => [
-      arg7.deviceId || "",
-      arg7.name || "",
-      arg7.manufacturer || "",
-      arg7.model || "",
-      arg7.status || "",
+    deviceRows = deviceRecords.map((device) => [
+      device.deviceId || "",
+      device.name || "",
+      device.manufacturer || "",
+      device.model || "",
+      device.status || "",
     ]),
-    value26 = Object.entries(D).sort(([arg8], [arg9]) => arg8.localeCompare(arg9));
-  return JSON.stringify([value24, value25, value26]);
+    translationEntries = Object.entries(translationResources).sort(
+      ([firstLocale], [secondLocale]) => firstLocale.localeCompare(secondLocale),
+    );
+  return JSON.stringify([entityRows, deviceRows, translationEntries]);
 }
-function T() {
-  if (!d) return;
-  const value27 = G();
-  value27 !== U && ((U = value27), d.setEntityCatalog(A, D, I));
+function pushCatalogToRenderer() {
+  if (!panelRenderer) return;
+  const catalogFingerprint = buildCatalogFingerprint();
+  catalogFingerprint !== lastCatalogFingerprint &&
+    ((lastCatalogFingerprint = catalogFingerprint),
+    panelRenderer.setEntityCatalog(entityRecords, translationResources, deviceRecords));
 }
-async function Y() {
-  const value28 = window.HABridgeEmbed?.path || window.location.pathname;
-  if (value28.startsWith("/display/"))
+async function resolveProject() {
+  const pathname = window.HABridgeEmbed?.path || window.location.pathname;
+  if (pathname.startsWith("/display/"))
     return {
-      id: decodeURIComponent(value28.slice(9)),
+      id: decodeURIComponent(pathname.slice(9)),
       name: "",
     };
-  if (!value28.startsWith("/habridge/")) throw new Error("仪表盘地址无效。");
-  const value29 = decodeURIComponent(value28.slice(10)).trim();
-  if (!value29) throw new Error("仪表盘名称不能为空。");
-  const value30 = await a("/projects");
-  if (!value30) return null;
-  const value31 = (value30.items || []).filter((arg10) => arg10.name === value29);
-  if (!value31.length) throw new Error("找不到仪表盘“" + value29 + "”。");
-  if (value31.length > 1) throw new Error("仪表盘名称“" + value29 + "”重复，请先在编辑器中改名。");
-  return value31[0];
+  if (!pathname.startsWith("/habridge/")) throw new Error("仪表盘地址无效。");
+  const projectName = decodeURIComponent(pathname.slice(10)).trim();
+  if (!projectName) throw new Error("仪表盘名称不能为空。");
+  const projectsResponse = await apiRequest("/projects");
+  if (!projectsResponse) return null;
+  const projectMatches = (projectsResponse.items || []).filter(
+    (projectCandidate) => projectCandidate.name === projectName,
+  );
+  if (!projectMatches.length) throw new Error("找不到仪表盘“" + projectName + "”。");
+  if (projectMatches.length > 1)
+    throw new Error("仪表盘名称“" + projectName + "”重复，请先在编辑器中改名。");
+  return projectMatches[0];
 }
-async function _() {
-  if (m)
+async function refreshDisplay() {
+  if (project)
     return (
-      p ||
-      ((p = (async () => {
-        F().catch(() => null);
-        const value32 = d
+      refreshPromise ||
+      ((refreshPromise = (async () => {
+        refreshCatalog().catch(() => null);
+        const assetsPromise = panelRenderer
           ? null
-          : Promise.all([a("/assets/version"), a("/assets/builtin"), a("/assets/user")])
-              .then(([arg11, arg12, arg13]) => ({
-                versions: arg11,
-                builtin: arg12,
-                user: arg13,
+          : Promise.all([
+              apiRequest("/assets/version"),
+              apiRequest("/assets/builtin"),
+              apiRequest("/assets/user"),
+            ])
+              .then(([versionResponse, builtinResponse, userResponse]) => ({
+                versions: versionResponse,
+                builtin: builtinResponse,
+                user: userResponse,
               }))
-              .catch((arg14) => ({
-                error: arg14,
+              .catch((assetsError) => ({
+                error: assetsError,
               }));
-        let value33 = null,
-          value34 = P !== h;
-        if (d) {
+        let revisionResponse = null,
+          hasAssetsChange = loadedAssetsVersion !== assetsVersion;
+        if (panelRenderer) {
           if (
-            ((value33 = await a("/projects/" + encodeURIComponent(m.id) + "/revision")), !value33)
+            ((revisionResponse = await apiRequest(
+              "/projects/" + encodeURIComponent(project.id) + "/revision",
+            )),
+            !revisionResponse)
           )
             return;
-          const value41 = Date.now();
-          if (value41 - y >= 30000) {
-            const value42 = await a("/assets/version");
-            if (!value42) return;
-            const value43 = (value42.builtin || "") + ":" + (value42.user || "");
-            ((value34 = P !== value43), (h = value43), (y = value41));
+          const now = Date.now();
+          if (now - lastAssetsCheckAt >= 30000) {
+            const assetsVersionResponse = await apiRequest("/assets/version");
+            if (!assetsVersionResponse) return;
+            const assetsKey =
+              (assetsVersionResponse.builtin || "") + ":" + (assetsVersionResponse.user || "");
+            ((hasAssetsChange = loadedAssetsVersion !== assetsKey),
+              (assetsVersion = assetsKey),
+              (lastAssetsCheckAt = now));
           }
-          if (!value34 && value33.revision === R && value33.globalPopupRevision === N) return;
+          if (
+            !hasAssetsChange &&
+            revisionResponse.revision === lastRevision &&
+            revisionResponse.globalPopupRevision === lastGlobalPopupRevision
+          )
+            return;
         }
-        const value35 = await a("/projects/" + encodeURIComponent(m.id) + "/draft");
-        if (!value35) return;
-        (window.HABridgeDisplayBoot?.setDocument(value35.document),
-          syncAppleDisplaySurface(value35.document),
-          x.setEnabled(value35.document?.soundEnabled !== false),
-          await J(value35.document));
-        let value36 = h,
-          value37 = null,
-          value38 = null;
-        if (!d && value32) {
-          const value44 = await value32;
-          if (value44.error) throw value44.error;
-          const value45 = value44.versions;
-          ((value36 = (value45?.builtin || "") + ":" + (value45?.user || "")),
-            (h = value36),
-            (y = Date.now()),
-            (value37 = value44.builtin),
-            (value38 = value44.user));
+        const draftResponse = await apiRequest(
+          "/projects/" + encodeURIComponent(project.id) + "/draft",
+        );
+        if (!draftResponse) return;
+        (window.HABridgeDisplayBoot?.setDocument(draftResponse.document),
+          syncAppleDisplaySurface(draftResponse.document),
+          buttonSound.setEnabled(draftResponse.document?.soundEnabled !== false),
+          await resolveUiPack(draftResponse.document));
+        let targetAssetsVersion = assetsVersion,
+          builtinAssets = null,
+          userAssets = null;
+        if (!panelRenderer && assetsPromise) {
+          const assetsBundle = await assetsPromise;
+          if (assetsBundle.error) throw assetsBundle.error;
+          const versionsPayload = assetsBundle.versions;
+          ((targetAssetsVersion =
+            (versionsPayload?.builtin || "") + ":" + (versionsPayload?.user || "")),
+            (assetsVersion = targetAssetsVersion),
+            (lastAssetsCheckAt = Date.now()),
+            (builtinAssets = assetsBundle.builtin),
+            (userAssets = assetsBundle.user));
         } else {
-          if (value34 || P !== value36) {
-            const value46 = h ? null : await a("/assets/version");
+          if (hasAssetsChange || loadedAssetsVersion !== targetAssetsVersion) {
+            const fetchedAssetsVersion = assetsVersion ? null : await apiRequest("/assets/version");
             if (
-              ((value36 = value46 ? (value46.builtin || "") + ":" + (value46.user || "") : value36),
-              (h = value36),
-              (y = Date.now()),
-              ([value37, value38] = await Promise.all([a("/assets/builtin"), a("/assets/user")])),
-              !value37 || !value38)
+              ((targetAssetsVersion = fetchedAssetsVersion
+                ? (fetchedAssetsVersion.builtin || "") + ":" + (fetchedAssetsVersion.user || "")
+                : targetAssetsVersion),
+              (assetsVersion = targetAssetsVersion),
+              (lastAssetsCheckAt = Date.now()),
+              ([builtinAssets, userAssets] = await Promise.all([
+                apiRequest("/assets/builtin"),
+                apiRequest("/assets/user"),
+              ])),
+              !builtinAssets || !userAssets)
             )
               return;
           }
         }
-        const value39 = m.name || value35.document?.name || "HA Bridge";
+        const title = project.name || draftResponse.document?.name || "HA Bridge";
         if (
-          ((document.title = value39 + " · HA Bridge"),
-          d ||
-            ((d = new PanelRenderer(E, {
+          ((document.title = title + " · HA Bridge"),
+          panelRenderer ||
+            ((panelRenderer = new PanelRenderer(displayRootElement, {
               scaleMode: "contain",
               onRuntimeButtonPress() {
-                x.play();
+                buttonSound.play();
               },
             })),
-            T()),
-          value37 &&
-            value38 &&
-            (d.refreshBuiltinAssets([...(value37.items || []), ...(value38.items || [])]),
-            (P = value36)),
-          R === value35.revision && N === value35.globalPopupRevision)
+            pushCatalogToRenderer()),
+          builtinAssets &&
+            userAssets &&
+            (panelRenderer.refreshBuiltinAssets([
+              ...(builtinAssets.items || []),
+              ...(userAssets.items || []),
+            ]),
+            (loadedAssetsVersion = targetAssetsVersion)),
+          lastRevision === draftResponse.revision &&
+            lastGlobalPopupRevision === draftResponse.globalPopupRevision)
         )
           return;
-        const value40 = d.page?.path || null;
-        (d.setDocument(value35.document, value40),
-          window.HABridgeDisplayBoot?.ready(E),
-          (R = value35.revision),
-          (N = value35.globalPopupRevision));
+        const currentPagePath = panelRenderer.page?.path || null;
+        (panelRenderer.setDocument(draftResponse.document, currentPagePath),
+          window.HABridgeDisplayBoot?.ready(displayRootElement),
+          (lastRevision = draftResponse.revision),
+          (lastGlobalPopupRevision = draftResponse.globalPopupRevision));
       })().finally(() => {
-        p = null;
+        refreshPromise = null;
       })),
-      p)
+      refreshPromise)
     );
 }
-async function Q() {
-  (b(),
-    (m = await Y()),
+async function bootstrap() {
+  (syncViewportSize(),
+    (project = await resolveProject()),
     window.HABridgeLog?.setContext({
-      projectId: m?.id || "",
+      projectId: project?.id || "",
     }),
-    m && (await _()));
+    project && (await refreshDisplay()));
 }
-function k() {
-  document.visibilityState === "visible" && (window.HABridgeDisplayBoot?.failed || _().catch(V));
+function refreshIfVisible() {
+  document.visibilityState === "visible" &&
+    (window.HABridgeDisplayBoot?.failed || refreshDisplay().catch(handleDisplayError));
 }
-function L() {
-  document.visibilityState === "visible" && ((y = 0), k());
+function handleLifecycleResume() {
+  document.visibilityState === "visible" && ((lastAssetsCheckAt = 0), refreshIfVisible());
 }
-function V(arg15) {
+function handleDisplayError(displayError) {
   if (
-    (window.HABridgeLog?.error(arg15, {
+    (window.HABridgeLog?.error(displayError, {
       phase: "display-refresh",
     }),
-    window.HABridgeDisplayBoot?.fail(arg15),
-    arg15?.code !== "UI_PACK_RESTRICTED")
+    window.HABridgeDisplayBoot?.fail(displayError),
+    displayError?.code !== "UI_PACK_RESTRICTED")
   )
     return;
-  (d?.destroy(), (d = null), (R = null));
-  const value47 = document.createElement("p");
-  ((value47.className = "display-error"),
-    (value47.textContent = arg15.message),
-    E.replaceChildren(value47));
+  (panelRenderer?.destroy(), (panelRenderer = null), (lastRevision = null));
+  const displayErrorElement = document.createElement("p");
+  ((displayErrorElement.className = "display-error"),
+    (displayErrorElement.textContent = displayError.message),
+    displayRootElement.replaceChildren(displayErrorElement));
 }
 if (
-  (window.addEventListener("pageshow", L),
-  document.addEventListener("visibilitychange", L),
-  window.addEventListener("online", L),
-  window.addEventListener("resize", b),
-  window.visualViewport?.addEventListener("resize", b),
-  window.addEventListener("orientationchange", () => window.setTimeout(b, 100)),
-  H && typeof IntersectionObserver == "function")
+  (window.addEventListener("pageshow", handleLifecycleResume),
+  document.addEventListener("visibilitychange", handleLifecycleResume),
+  window.addEventListener("online", handleLifecycleResume),
+  window.addEventListener("resize", syncViewportSize),
+  window.visualViewport?.addEventListener("resize", syncViewportSize),
+  window.addEventListener("orientationchange", () => window.setTimeout(syncViewportSize, 100)),
+  isEmbeddedFrame && typeof IntersectionObserver == "function")
 ) {
-  const t = new IntersectionObserver(
-    (arg16) => {
-      const value48 = arg16[arg16.length - 1];
+  const viewportObserver = new IntersectionObserver(
+    (observerEntries) => {
+      const lastEntry = observerEntries[observerEntries.length - 1];
       if (
-        !value48?.isIntersecting ||
-        value48.intersectionRect.width < 1 ||
-        value48.intersectionRect.height < 1
+        !lastEntry?.isIntersecting ||
+        lastEntry.intersectionRect.width < 1 ||
+        lastEntry.intersectionRect.height < 1
       )
         return;
-      const value49 = value48.intersectionRect;
-      ((f = {
-        width: value49.width,
-        height: value49.height,
-        left: value49.left,
-        top: value49.top,
+      const intersectionRect = lastEntry.intersectionRect;
+      ((visibleBounds = {
+        width: intersectionRect.width,
+        height: intersectionRect.height,
+        left: intersectionRect.left,
+        top: intersectionRect.top,
       }),
-        b());
+        syncViewportSize());
     },
     {
       threshold: Array.from(
         {
           length: 101,
         },
-        (arg17, arg18) => arg18 / 100,
+        (thresholdItem, thresholdIndex) => thresholdIndex / 100,
       ),
     },
   );
-  (t.observe(document.documentElement),
-    window.addEventListener("pagehide", () => t.disconnect(), {
+  (viewportObserver.observe(document.documentElement),
+    window.addEventListener("pagehide", () => viewportObserver.disconnect(), {
       once: true,
     }),
-    window.addEventListener("pageshow", () => t.observe(document.documentElement)));
+    window.addEventListener("pageshow", () => viewportObserver.observe(document.documentElement)));
 }
-(window.setInterval(k, 10000),
-  Q().catch((arg19) => {
-    if ((V(arg19), arg19?.code === "UI_PACK_RESTRICTED")) return;
-    const value50 = document.createElement("p");
-    ((value50.className = "display-error"),
-      (value50.textContent = arg19.message),
-      E.replaceChildren(value50));
+(window.setInterval(refreshIfVisible, 10000),
+  bootstrap().catch((bootstrapError) => {
+    if ((handleDisplayError(bootstrapError), bootstrapError?.code === "UI_PACK_RESTRICTED")) return;
+    const bootstrapErrorElement = document.createElement("p");
+    ((bootstrapErrorElement.className = "display-error"),
+      (bootstrapErrorElement.textContent = bootstrapError.message),
+      displayRootElement.replaceChildren(bootstrapErrorElement));
   }));
