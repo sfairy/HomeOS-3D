@@ -1,77 +1,111 @@
 import { percentageBarSeries } from "../percentage-bar-model.js?v=20260930-percentage-text-offset-v1";
 import { selectedRelatedEntityIds } from "../related-entities.js?v=20260825-bath-heater-primary-v1";
 import { isVirtualEntityId } from "../virtual-entities.js?v=20260822-icon-visibility-v1";
-export function lineChartRuntimeStateNeedsHydration(arg1) {
-  const value1 = arg1?.newState || arg1;
-  if (!value1) return true;
-  const value2 = String(value1.state ?? "")
+export function lineChartRuntimeStateNeedsHydration(runtimeState) {
+  const resolvedState = runtimeState?.newState || runtimeState;
+  if (!resolvedState) return true;
+  const normalizedState = String(resolvedState.state ?? "")
     .trim()
     .toLowerCase();
-  return value2 === "" || value2 === "unknown" || value2 === "unavailable";
+  return (
+    normalizedState === "" || normalizedState === "unknown" || normalizedState === "unavailable"
+  );
 }
-export function collectEntityIds(arg2, arg3 = new Set()) {
-  for (const value3 of arg2 || []) {
-    for (const value4 of Object.values(value3.bindings || {}))
-      value4?.entityId && !isVirtualEntityId(value4.entityId) && arg3.add(value4.entityId);
-    if (value3.type === "interaction3d") {
-      for (const value5 of value3.properties?.devices?.vacuums || [])
-        for (const value6 of [
-          value5.entityId,
-          value5.map?.entityId,
-          ...(value5.relatedEntityIds || []),
-          ...(value5.shortcuts || []).map((arg4) => arg4.entityId),
+export function collectEntityIds(components, entityIdSet = new Set()) {
+  for (const component of components || []) {
+    for (const binding of Object.values(component.bindings || {}))
+      binding?.entityId &&
+        !isVirtualEntityId(binding.entityId) &&
+        entityIdSet.add(binding.entityId);
+    if (component.type === "interaction3d") {
+      for (const vacuumDevice of component.properties?.devices?.vacuums || [])
+        for (const vacuumEntityId of [
+          vacuumDevice.entityId,
+          vacuumDevice.map?.entityId,
+          ...(vacuumDevice.relatedEntityIds || []),
+          ...(vacuumDevice.shortcuts || []).map((shortcut) => shortcut.entityId),
         ])
-          value6 && !isVirtualEntityId(value6) && arg3.add(value6);
+          vacuumEntityId && !isVirtualEntityId(vacuumEntityId) && entityIdSet.add(vacuumEntityId);
     }
-    if (value3.type === "interaction3d") {
-      for (const value7 of value3.properties?.security?.presenceSensors || [])
-        value7.entityId && !isVirtualEntityId(value7.entityId) && arg3.add(value7.entityId);
+    if (component.type === "interaction3d") {
+      for (const presenceSensor of component.properties?.security?.presenceSensors || [])
+        presenceSensor.entityId &&
+          !isVirtualEntityId(presenceSensor.entityId) &&
+          entityIdSet.add(presenceSensor.entityId);
     }
-    if (value3.type === "light-statistics") {
-      for (const value8 of Array.isArray(value3.properties?.entityIds)
-        ? value3.properties.entityIds
+    if (component.type === "light-statistics") {
+      for (const statisticsEntityId of Array.isArray(component.properties?.entityIds)
+        ? component.properties.entityIds
         : [])
-        value8 && !isVirtualEntityId(value8) && arg3.add(String(value8));
+        statisticsEntityId &&
+          !isVirtualEntityId(statisticsEntityId) &&
+          entityIdSet.add(String(statisticsEntityId));
     }
-    if (value3.type === "percentage-bar") {
-      for (const { entityId: value9 } of percentageBarSeries(value3))
-        value9 && !isVirtualEntityId(value9) && arg3.add(String(value9));
+    if (component.type === "percentage-bar") {
+      for (const { entityId: seriesEntityId } of percentageBarSeries(component))
+        seriesEntityId &&
+          !isVirtualEntityId(seriesEntityId) &&
+          entityIdSet.add(String(seriesEntityId));
     }
-    value3.type === "weather" && arg3.add(value3.bindings?.sun?.entityId || "sun.sun");
-    for (const value10 of Object.values(value3.actions || {}))
-      value10?.type === "more-info" &&
-        value10.data?.popupSource === "entity" &&
-        value10.data?.entityId &&
-        !isVirtualEntityId(value10.data.entityId) &&
-        arg3.add(value10.data.entityId);
-    for (const value11 of selectedRelatedEntityIds(value3) || []) arg3.add(value11);
-    collectEntityIds(value3.children, arg3);
+    component.type === "weather" && entityIdSet.add(component.bindings?.sun?.entityId || "sun.sun");
+    for (const actionConfig of Object.values(component.actions || {}))
+      actionConfig?.type === "more-info" &&
+        actionConfig.data?.popupSource === "entity" &&
+        actionConfig.data?.entityId &&
+        !isVirtualEntityId(actionConfig.data.entityId) &&
+        entityIdSet.add(actionConfig.data.entityId);
+    for (const relatedEntityId of selectedRelatedEntityIds(component) || [])
+      entityIdSet.add(relatedEntityId);
+    collectEntityIds(component.children, entityIdSet);
   }
-  return arg3;
+  return entityIdSet;
 }
-export function collectComponents(arg5, arg6, arg7 = []) {
-  for (const value12 of arg5 || [])
-    (arg6(value12) && arg7.push(value12), collectComponents(value12.children, arg6, arg7));
-  return arg7;
+export function collectComponents(componentList, matchesComponent, matchedComponents = []) {
+  for (const childComponent of componentList || [])
+    (matchesComponent(childComponent) && matchedComponents.push(childComponent),
+      collectComponents(childComponent.children, matchesComponent, matchedComponents));
+  return matchedComponents;
 }
-export function matchingLineChartComponent(arg8, arg9, arg10) {
-  const fn1 = (arg11) => arg11.type === "line-chart" && arg11.bindings?.entity?.entityId === arg10,
-    value13 = collectComponents(arg9?.components || [], fn1)[0];
-  if (value13) return value13;
-  const map1 = new Map((arg8?.sharedComponents || []).map((arg12) => [arg12.id, arg12])),
-    value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),
-    value15 = collectComponents(value14, fn1)[0];
-  if (value15) return value15;
-  for (const value16 of arg8?.pages || []) {
-    if (value16 === arg9) continue;
-    const value17 = collectComponents(value16.components || [], fn1)[0];
-    if (value17) return value17;
+export function matchingLineChartComponent(runtimeDocument, activePage, targetEntityId) {
+  const matchesTargetComponent = (candidateComponent) =>
+      candidateComponent.type === "line-chart" &&
+      candidateComponent.bindings?.entity?.entityId === targetEntityId,
+    matchedPageComponent = collectComponents(
+      activePage?.components || [],
+      matchesTargetComponent,
+    )[0];
+  if (matchedPageComponent) return matchedPageComponent;
+  const sharedComponentsById = new Map(
+      (runtimeDocument?.sharedComponents || []).map((sharedComponent) => [
+        sharedComponent.id,
+        sharedComponent,
+      ]),
+    ),
+    sharedComponentList = (activePage?.sharedComponentIds || [])
+      .map((sharedComponentId) => sharedComponentsById.get(sharedComponentId))
+      .filter(Boolean),
+    matchedSharedComponent = collectComponents(sharedComponentList, matchesTargetComponent)[0];
+  if (matchedSharedComponent) return matchedSharedComponent;
+  for (const otherPage of runtimeDocument?.pages || []) {
+    if (otherPage === activePage) continue;
+    const matchedOtherPageComponent = collectComponents(
+      otherPage.components || [],
+      matchesTargetComponent,
+    )[0];
+    if (matchedOtherPageComponent) return matchedOtherPageComponent;
   }
-  return collectComponents(arg8?.sharedComponents || [], fn1)[0] || null;
+  return (
+    collectComponents(runtimeDocument?.sharedComponents || [], matchesTargetComponent)[0] || null
+  );
 }
-export function syncedLineChartProperties(arg14, arg15, arg16, arg17 = {}) {
+export function syncedLineChartProperties(
+  sourceDocument,
+  sourcePage,
+  sourceEntityId,
+  propertyOverrides = {},
+) {
   return {
-    ...(matchingLineChartComponent(arg14, arg15, arg16)?.properties || {}),
-    ...(arg17 || {}),
+    ...(matchingLineChartComponent(sourceDocument, sourcePage, sourceEntityId)?.properties || {}),
+    ...(propertyOverrides || {}),
   };
 }

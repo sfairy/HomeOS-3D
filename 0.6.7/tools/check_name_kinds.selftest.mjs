@@ -39,7 +39,12 @@ const SOURCE = [
   '  value9.style.scale = 1;',
   '  const value10 = document.createElement("div");',
   '  value10.style.left = "0px";',
-  '  return { value1, value2, value3, value4, value5, value6, value7, value8 };',
+  '  const value11 = object3d;',
+  '  value11.removeEventListener("childadded", noop);',
+  '  const value12 = geometry;',
+  '  value12.setAttribute("length", 1);',
+  '  value12.getAttribute("length");',
+  '  return { value1, value2, value3, value4, value5, value6, value7, value8, value11, value12 };',
   '}',
   '',
 ].join('\n');
@@ -79,6 +84,20 @@ const cases = [
     name: 'an opaque binding used as a node still has to say what it is',
     map: { 'sample.js': { 'value3@5': 'panelContent' } },
     expect: { code: 1, contains: ['holds an element', 'uses append'] },
+  },
+  {
+    // three.js Object3D has addEventListener/removeEventListener and remove, so a
+    // lone listener call is not proof of a DOM node (render-light-index.js
+    // subscribes to three.js's own childadded/childremoved events).
+    name: 'a three.js object listening to its own events is not forced into a node name',
+    map: { 'sample.js': { 'value11@17': 'traversedObject' } },
+    expect: { code: 0, contains: ['errors=0', 'PASS'] },
+  },
+  {
+    // Two independent weak signals still add up to a node.
+    name: 'two weak signals still say the binding is a node',
+    map: { 'sample.js': { 'value12@19': 'lengthValue' } },
+    expect: { code: 1, contains: ['holds an element', 'uses setAttribute/getAttribute'] },
   },
   {
     name: 'a Map named By<Key> passes',

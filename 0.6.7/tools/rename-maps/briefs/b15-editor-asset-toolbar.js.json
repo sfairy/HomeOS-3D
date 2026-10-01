@@ -1,0 +1,637 @@
+{
+  "file": "frontend/static/editor-asset-toolbar.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 84,
+  "counts": {
+    "entries": 32,
+    "renameable": 32,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "e@1",
+      "name": "e",
+      "line": 1,
+      "column": 35,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function editorAssetFolders(e) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>"
+        }
+      ]
+    },
+    {
+      "key": "t@2:36",
+      "name": "t",
+      "line": 2,
+      "column": 36,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>",
+      "references": [
+        {
+          "line": 2,
+          "text": "return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>"
+        }
+      ]
+    },
+    {
+      "key": "t@2:76",
+      "name": "t",
+      "line": 2,
+      "column": 76,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>",
+      "references": [
+        {
+          "line": 3,
+          "text": "t.localeCompare(b, \"zh-CN\"),"
+        }
+      ]
+    },
+    {
+      "key": "b@2",
+      "name": "b",
+      "line": 2,
+      "column": 79,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>",
+      "references": [
+        {
+          "line": 3,
+          "text": "t.localeCompare(b, \"zh-CN\"),"
+        }
+      ]
+    },
+    {
+      "key": "e@6",
+      "name": "e",
+      "line": 6,
+      "column": 42,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function editorAssetSelectedFolder(e, t) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "return t.includes(e) ? e : t[0] || \"\";"
+        }
+      ]
+    },
+    {
+      "key": "t@6",
+      "name": "t",
+      "line": 6,
+      "column": 45,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function editorAssetSelectedFolder(e, t) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "return t.includes(e) ? e : t[0] || \"\";"
+        }
+      ]
+    },
+    {
+      "key": "e@10",
+      "name": "e",
+      "line": 10,
+      "column": 18,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "documentObject: e,",
+      "references": [
+        {
+          "line": 21,
+          "text": "const i = e.createElement(\"div\");"
+        },
+        {
+          "line": 29,
+          "text": "const l = e.createElement(\"button\");"
+        },
+        {
+          "line": 44,
+          "text": "const a = e.createElement(\"select\");"
+        },
+        {
+          "line": 54,
+          "text": "const o = e.createElement(\"button\");"
+        }
+      ]
+    },
+    {
+      "key": "t@11",
+      "name": "t",
+      "line": 11,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "getSource: t,",
+      "references": [
+        {
+          "line": 70,
+          "text": "const r = t(s);"
+        }
+      ]
+    },
+    {
+      "key": "b@12",
+      "name": "b",
+      "line": 12,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "setSource: b,",
+      "references": [
+        {
+          "line": 34,
+          "text": "b(s, r);"
+        }
+      ]
+    },
+    {
+      "key": "f@13",
+      "name": "f",
+      "line": 13,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "getFolder: f,",
+      "references": [
+        {
+          "line": 36,
+          "text": "(A(s, editorAssetSelectedFolder(f(s), n)),"
+        },
+        {
+          "line": 74,
+          "text": "l = f(s);"
+        }
+      ]
+    },
+    {
+      "key": "A@14",
+      "name": "A",
+      "line": 14,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "setFolder: A,",
+      "references": [
+        {
+          "line": 36,
+          "text": "(A(s, editorAssetSelectedFolder(f(s), n)),"
+        },
+        {
+          "line": 48,
+          "text": "(A(s, a.value),"
+        }
+      ]
+    },
+    {
+      "key": "E@15",
+      "name": "E",
+      "line": 15,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "getAssets: E,",
+      "references": [
+        {
+          "line": 35,
+          "text": "const n = editorAssetFolders(E(r));"
+        },
+        {
+          "line": 73,
+          "text": "const p = editorAssetFolders(E(r)),"
+        }
+      ]
+    },
+    {
+      "key": "h@16",
+      "name": "h",
+      "line": 16,
+      "column": 18,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "getUploadInput: h,",
+      "references": [
+        {
+          "line": 67,
+          "text": "d.addEventListener(\"click\", () => h(s).click()),"
+        }
+      ]
+    },
+    {
+      "key": "m@17",
+      "name": "m",
+      "line": 17,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "canDeleteFolder: m,",
+      "references": [
+        {
+          "line": 78,
+          "text": "(o.hidden = !m?.(r, l)),"
+        }
+      ]
+    },
+    {
+      "key": "v@18",
+      "name": "v",
+      "line": 18,
+      "column": 18,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "onDeleteFolder: v,",
+      "references": [
+        {
+          "line": 60,
+          "text": "o.addEventListener(\"click\", () => v?.(s, a.value)));"
+        }
+      ]
+    },
+    {
+      "key": "s@20",
+      "name": "s",
+      "line": 20,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return function (s, { toolbar: y, controller: c }) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "b(s, r);"
+        },
+        {
+          "line": 36,
+          "text": "(A(s, editorAssetSelectedFolder(f(s), n)),"
+        },
+        {
+          "line": 48,
+          "text": "(A(s, a.value),"
+        },
+        {
+          "line": 60,
+          "text": "o.addEventListener(\"click\", () => v?.(s, a.value)));"
+        }
+      ]
+    },
+    {
+      "key": "y@20",
+      "name": "y",
+      "line": 20,
+      "column": 33,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return function (s, { toolbar: y, controller: c }) {",
+      "references": [
+        {
+          "line": 68,
+          "text": "y.append(i, u, d),"
+        }
+      ]
+    },
+    {
+      "key": "c@20",
+      "name": "c",
+      "line": 20,
+      "column": 48,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "return function (s, { toolbar: y, controller: c }) {",
+      "references": [
+        {
+          "line": 37,
+          "text": "c.syncAssetToolbar?.(),"
+        },
+        {
+          "line": 38,
+          "text": "c.refresh({"
+        },
+        {
+          "line": 49,
+          "text": "c.syncAssetToolbar?.(),"
+        },
+        {
+          "line": 50,
+          "text": "c.refresh({"
+        }
+      ]
+    },
+    {
+      "key": "i@21",
+      "name": "i",
+      "line": 21,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = e.createElement(\"div\");",
+      "references": [
+        {
+          "line": 22,
+          "text": "((i.className = \"asset-source-tabs\"),"
+        },
+        {
+          "line": 23,
+          "text": "i.setAttribute(\"role\", \"tablist\"),"
+        },
+        {
+          "line": 24,
+          "text": "i.setAttribute(\"aria-label\", \"图片来源\"));"
+        },
+        {
+          "line": 42,
+          "text": "i.append(l));"
+        }
+      ]
+    },
+    {
+      "key": "r@25",
+      "name": "r",
+      "line": 25,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const [r, p] of [",
+      "references": [
+        {
+          "line": 32,
+          "text": "(l.dataset.editorAssetSource = r),"
+        },
+        {
+          "line": 34,
+          "text": "b(s, r);"
+        },
+        {
+          "line": 35,
+          "text": "const n = editorAssetFolders(E(r));"
+        }
+      ]
+    },
+    {
+      "key": "p@25",
+      "name": "p",
+      "line": 25,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const [r, p] of [",
+      "references": [
+        {
+          "line": 31,
+          "text": "(l.textContent = p),"
+        }
+      ]
+    },
+    {
+      "key": "l@29",
+      "name": "l",
+      "line": 29,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = e.createElement(\"button\");",
+      "references": [
+        {
+          "line": 30,
+          "text": "((l.type = \"button\"),"
+        },
+        {
+          "line": 31,
+          "text": "(l.textContent = p),"
+        },
+        {
+          "line": 32,
+          "text": "(l.dataset.editorAssetSource = r),"
+        },
+        {
+          "line": 33,
+          "text": "l.addEventListener(\"click\", () => {"
+        }
+      ]
+    },
+    {
+      "key": "n@35",
+      "name": "n",
+      "line": 35,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const n = editorAssetFolders(E(r));",
+      "references": [
+        {
+          "line": 36,
+          "text": "(A(s, editorAssetSelectedFolder(f(s), n)),"
+        }
+      ]
+    },
+    {
+      "key": "a@44",
+      "name": "a",
+      "line": 44,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const a = e.createElement(\"select\");",
+      "references": [
+        {
+          "line": 45,
+          "text": "((a.className = \"editor-paged-picker-folder\"),"
+        },
+        {
+          "line": 46,
+          "text": "a.setAttribute(\"aria-label\", \"选择图片文件夹\"),"
+        },
+        {
+          "line": 47,
+          "text": "a.addEventListener(\"change\", () => {"
+        },
+        {
+          "line": 48,
+          "text": "(A(s, a.value),"
+        }
+      ]
+    },
+    {
+      "key": "o@54",
+      "name": "o",
+      "line": 54,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const o = e.createElement(\"button\");",
+      "references": [
+        {
+          "line": 55,
+          "text": "((o.type = \"button\"),"
+        },
+        {
+          "line": 56,
+          "text": "(o.className = \"asset-folder-delete\"),"
+        },
+        {
+          "line": 57,
+          "text": "(o.textContent = \"删除\"),"
+        },
+        {
+          "line": 58,
+          "text": "o.setAttribute(\"aria-label\", \"删除当前自动导图文件夹\"),"
+        }
+      ]
+    },
+    {
+      "key": "u@61",
+      "name": "u",
+      "line": 61,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const u = e.createElement(\"div\");",
+      "references": [
+        {
+          "line": 62,
+          "text": "((u.className = \"editor-paged-picker-folder-row\"), u.append(a, o));"
+        },
+        {
+          "line": 68,
+          "text": "y.append(i, u, d),"
+        },
+        {
+          "line": 77,
+          "text": "(u.hidden = !p.length),"
+        }
+      ]
+    },
+    {
+      "key": "d@63",
+      "name": "d",
+      "line": 63,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const d = e.createElement(\"button\");",
+      "references": [
+        {
+          "line": 64,
+          "text": "((d.type = \"button\"),"
+        },
+        {
+          "line": 65,
+          "text": "(d.className = \"asset-upload-button\"),"
+        },
+        {
+          "line": 66,
+          "text": "(d.textContent = \"上传\"),"
+        },
+        {
+          "line": 67,
+          "text": "d.addEventListener(\"click\", () => h(s).click()),"
+        }
+      ]
+    },
+    {
+      "key": "r@70",
+      "name": "r",
+      "line": 70,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const r = t(s);",
+      "references": [
+        {
+          "line": 72,
+          "text": "n.classList.toggle(\"active\", n.dataset.editorAssetSource === r);"
+        },
+        {
+          "line": 73,
+          "text": "const p = editorAssetFolders(E(r)),"
+        },
+        {
+          "line": 78,
+          "text": "(o.hidden = !m?.(r, l)),"
+        },
+        {
+          "line": 79,
+          "text": "(d.hidden = r !== \"user\"));"
+        }
+      ]
+    },
+    {
+      "key": "n@71",
+      "name": "n",
+      "line": 71,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const n of i.querySelectorAll(\"[data-editor-asset-source]\"))",
+      "references": [
+        {
+          "line": 72,
+          "text": "n.classList.toggle(\"active\", n.dataset.editorAssetSource === r);"
+        }
+      ]
+    },
+    {
+      "key": "p@73",
+      "name": "p",
+      "line": 73,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const p = editorAssetFolders(E(r)),",
+      "references": [
+        {
+          "line": 75,
+          "text": "(a.replaceChildren(...p.map((n) => new Option(n === \".\" ? \"根目录\" : n, n))),"
+        },
+        {
+          "line": 77,
+          "text": "(u.hidden = !p.length),"
+        }
+      ]
+    },
+    {
+      "key": "l@74",
+      "name": "l",
+      "line": 74,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "l = f(s);",
+      "references": [
+        {
+          "line": 76,
+          "text": "(a.value = l),"
+        },
+        {
+          "line": 78,
+          "text": "(o.hidden = !m?.(r, l)),"
+        }
+      ]
+    },
+    {
+      "key": "n@75",
+      "name": "n",
+      "line": 75,
+      "column": 37,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "(a.replaceChildren(...p.map((n) => new Option(n === \".\" ? \"根目录\" : n, n))),",
+      "references": [
+        {
+          "line": 75,
+          "text": "(a.replaceChildren(...p.map((n) => new Option(n === \".\" ? \"根目录\" : n, n))),"
+        }
+      ]
+    }
+  ]
+}

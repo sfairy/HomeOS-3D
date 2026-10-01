@@ -1,0 +1,547 @@
+{
+  "file": "frontend/static/3d-studio/studio-normalization.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 153,
+  "counts": {
+    "entries": 30,
+    "renameable": 30,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "i@5",
+      "name": "i",
+      "line": 5,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function i(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 43,
+          "text": "const value3 = i(finite(arg14, 3000), 2200, 6500) / 100,"
+        },
+        {
+          "line": 55,
+          "text": "fn1 = (arg15) => Math.round(i(arg15, 0, 255));"
+        },
+        {
+          "line": 61,
+          "text": "x: i(finite(arg16.position?.x), -500, 500),"
+        },
+        {
+          "line": 62,
+          "text": "y: i(finite(arg16.position?.y), -500, 500),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@5",
+      "name": "arg1",
+      "line": 5,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function i(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@5",
+      "name": "arg2",
+      "line": 5,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function i(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@5",
+      "name": "arg3",
+      "line": 5,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function i(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@8",
+      "name": "arg4",
+      "line": 8,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function finite(arg4, arg5 = 0) {",
+      "references": [
+        {
+          "line": 9,
+          "text": "const value1 = Number(arg4);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@8",
+      "name": "arg5",
+      "line": 8,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function finite(arg4, arg5 = 0) {",
+      "references": [
+        {
+          "line": 10,
+          "text": "return Number.isFinite(value1) ? value1 : arg5;"
+        }
+      ]
+    },
+    {
+      "key": "value1@9",
+      "name": "value1",
+      "line": 9,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Number(arg4);",
+      "references": [
+        {
+          "line": 10,
+          "text": "return Number.isFinite(value1) ? value1 : arg5;"
+        }
+      ]
+    },
+    {
+      "key": "arg6@12",
+      "name": "arg6",
+      "line": 12,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeFullRotation(arg6, arg7 = 0) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "const value2 = finite(arg6, arg7);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@12",
+      "name": "arg7",
+      "line": 12,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeFullRotation(arg6, arg7 = 0) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "const value2 = finite(arg6, arg7);"
+        }
+      ]
+    },
+    {
+      "key": "value2@13",
+      "name": "value2",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = finite(arg6, arg7);",
+      "references": [
+        {
+          "line": 14,
+          "text": "return value2 >= 0 && value2 <= 360 ? value2 : ((value2 % 360) + 360) % 360;"
+        }
+      ]
+    },
+    {
+      "key": "arg8@16",
+      "name": "arg8",
+      "line": 16,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function itemMinimumFootprint(arg8) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "return [\"presence\", \"smart-socket-86\"].includes(arg8) ? 0.01 : 0.1;"
+        }
+      ]
+    },
+    {
+      "key": "arg9@19",
+      "name": "arg9",
+      "line": 19,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function itemMinimumHeight(arg9) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "return arg9?.startsWith(\"courtyard-\")"
+        },
+        {
+          "line": 22,
+          "text": ": arg9 === \"planlabel\""
+        },
+        {
+          "line": 24,
+          "text": ": arg9 === \"rug\""
+        }
+      ]
+    },
+    {
+      "key": "arg10@28",
+      "name": "arg10",
+      "line": 28,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizePoint(arg10) {",
+      "references": [
+        {
+          "line": 30,
+          "text": "x: finite(arg10?.x),"
+        },
+        {
+          "line": 31,
+          "text": "y: finite(arg10?.y),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@34",
+      "name": "arg11",
+      "line": 34,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeLabelText(arg11, arg12, arg13) {",
+      "references": [
+        {
+          "line": 36,
+          "text": "String(arg11 ?? \"\")"
+        }
+      ]
+    },
+    {
+      "key": "arg12@34",
+      "name": "arg12",
+      "line": 34,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeLabelText(arg11, arg12, arg13) {",
+      "references": [
+        {
+          "line": 39,
+          "text": ".slice(0, arg13) || arg12"
+        }
+      ]
+    },
+    {
+      "key": "arg13@34",
+      "name": "arg13",
+      "line": 34,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeLabelText(arg11, arg12, arg13) {",
+      "references": [
+        {
+          "line": 39,
+          "text": ".slice(0, arg13) || arg12"
+        }
+      ]
+    },
+    {
+      "key": "arg14@42",
+      "name": "arg14",
+      "line": 42,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function kelvinToRgbHex(arg14) {",
+      "references": [
+        {
+          "line": 43,
+          "text": "const value3 = i(finite(arg14, 3000), 2200, 6500) / 100,"
+        }
+      ]
+    },
+    {
+      "key": "value3@43",
+      "name": "value3",
+      "line": 43,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = i(finite(arg14, 3000), 2200, 6500) / 100,",
+      "references": [
+        {
+          "line": 44,
+          "text": "value4 = value3 <= 66 ? 255 : 329.698727446 * (value3 - 60) ** -0.1332047592,"
+        },
+        {
+          "line": 46,
+          "text": "value3 <= 66"
+        },
+        {
+          "line": 47,
+          "text": "? 99.4708025861 * Math.log(value3) - 161.1195681661"
+        },
+        {
+          "line": 48,
+          "text": ": 288.1221695283 * (value3 - 60) ** -0.0755148492,"
+        }
+      ]
+    },
+    {
+      "key": "value4@44",
+      "name": "value4",
+      "line": 44,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = value3 <= 66 ? 255 : 329.698727446 * (value3 - 60) ** -0.1332047592,",
+      "references": [
+        {
+          "line": 56,
+          "text": "return (fn1(value4) << 16) | (fn1(value5) << 8) | fn1(value6);"
+        }
+      ]
+    },
+    {
+      "key": "value5@45",
+      "name": "value5",
+      "line": 45,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 =",
+      "references": [
+        {
+          "line": 56,
+          "text": "return (fn1(value4) << 16) | (fn1(value5) << 8) | fn1(value6);"
+        }
+      ]
+    },
+    {
+      "key": "value6@49",
+      "name": "value6",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 =",
+      "references": [
+        {
+          "line": 56,
+          "text": "return (fn1(value4) << 16) | (fn1(value5) << 8) | fn1(value6);"
+        }
+      ]
+    },
+    {
+      "key": "fn1@55",
+      "name": "fn1",
+      "line": 55,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg15) => Math.round(i(arg15, 0, 255));",
+      "references": [
+        {
+          "line": 56,
+          "text": "return (fn1(value4) << 16) | (fn1(value5) << 8) | fn1(value6);"
+        }
+      ]
+    },
+    {
+      "key": "arg15@55",
+      "name": "arg15",
+      "line": 55,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg15) => Math.round(i(arg15, 0, 255));",
+      "references": [
+        {
+          "line": 55,
+          "text": "fn1 = (arg15) => Math.round(i(arg15, 0, 255));"
+        }
+      ]
+    },
+    {
+      "key": "arg16@58",
+      "name": "arg16",
+      "line": 58,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeFixedCameraView(arg16) {",
+      "references": [
+        {
+          "line": 59,
+          "text": "if (!arg16 || typeof arg16 != \"object\") return null;"
+        },
+        {
+          "line": 61,
+          "text": "x: i(finite(arg16.position?.x), -500, 500),"
+        },
+        {
+          "line": 62,
+          "text": "y: i(finite(arg16.position?.y), -500, 500),"
+        },
+        {
+          "line": 63,
+          "text": "z: i(finite(arg16.position?.z), -500, 500),"
+        }
+      ]
+    },
+    {
+      "key": "object1@60",
+      "name": "object1",
+      "line": 60,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 70,
+          "text": "if (Math.hypot(object1.x - object2.x, object1.y - object2.y, object1.z - object2.z) < 0.1)"
+        },
+        {
+          "line": 76,
+          "text": "position: object1,"
+        }
+      ]
+    },
+    {
+      "key": "object2@65",
+      "name": "object2",
+      "line": 65,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object2 = {",
+      "references": [
+        {
+          "line": 70,
+          "text": "if (Math.hypot(object1.x - object2.x, object1.y - object2.y, object1.z - object2.z) < 0.1)"
+        },
+        {
+          "line": 77,
+          "text": "target: object2,"
+        }
+      ]
+    },
+    {
+      "key": "object3@72",
+      "name": "object3",
+      "line": 72,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object3 = {",
+      "references": [
+        {
+          "line": 90,
+          "text": "(object3.frameSize = i(finite(arg16.frameSize, 10), 1, 100)),"
+        },
+        {
+          "line": 91,
+          "text": "object3"
+        }
+      ]
+    },
+    {
+      "key": "arg17@94",
+      "name": "arg17",
+      "line": 94,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeCameraSettings(arg17) {",
+      "references": [
+        {
+          "line": 96,
+          "text": "cameraView: arg17?.cameraView === \"top\" ? \"top\" : \"free\","
+        },
+        {
+          "line": 98,
+          "text": "(((Math.round(finite(arg17?.cameraTopRotation, 0) / 90) * 90) % 360) + 360) % 360,"
+        },
+        {
+          "line": 99,
+          "text": "cameraMode: arg17?.cameraMode === \"orthographic\" ? \"orthographic\" : \"perspective\","
+        },
+        {
+          "line": 100,
+          "text": "cameraFocalLength: i(finite(arg17?.cameraFocalLength, 50), 18, 120),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@118",
+      "name": "arg18",
+      "line": 118,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeBaseLighting(arg18) {",
+      "references": [
+        {
+          "line": 119,
+          "text": "const value7 = arg18 && typeof arg18 == \"object\" ? arg18 : {};"
+        }
+      ]
+    },
+    {
+      "key": "value7@119",
+      "name": "value7",
+      "line": 119,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg18 && typeof arg18 == \"object\" ? arg18 : {};",
+      "references": [
+        {
+          "line": 121,
+          "text": "exposure: i(finite(value7.exposure, DEFAULT_BASE_LIGHTING.exposure), 0.5, 2),"
+        },
+        {
+          "line": 122,
+          "text": "...(value7.floorBrightness !== undefined"
+        },
+        {
+          "line": 124,
+          "text": "floorBrightness: i(finite(value7.floorBrightness, 100), 50, 150),"
+        },
+        {
+          "line": 128,
+          "text": "finite(value7.hemisphereIntensity, DEFAULT_BASE_LIGHTING.hemisphereIntensity),"
+        }
+      ]
+    }
+  ]
+}

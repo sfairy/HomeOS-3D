@@ -1,4 +1,4 @@
-const m = [
+const VIEW_SETTING_KEYS = [
     "planViewRotation",
     "cameraView",
     "cameraTopRotation",
@@ -18,7 +18,7 @@ const m = [
     "previewPanelRatio",
     "detailsPanelWidthRatio",
   ],
-  f = [
+  FLOOR_SHARED_KEYS = [
     "activeFloorId",
     "previewFloorMode",
     "combinedCameraSettings",
@@ -27,42 +27,55 @@ const m = [
     "exportPresets",
     "activeExportPresetSlot",
   ];
-function s(arg1, arg2) {
-  const object1 = {
-    ...arg1,
+function omitKeys(source, excludedKeys) {
+  const result = {
+    ...source,
   };
-  for (const value1 of arg2) delete object1[value1];
-  return object1;
+  for (const key of excludedKeys) delete result[key];
+  return result;
 }
-function r(arg3) {
-  return Array.isArray(arg3)
-    ? arg3.map(r)
-    : arg3 && typeof arg3 == "object"
+function sortDeep(value) {
+  return Array.isArray(value)
+    ? value.map(sortDeep)
+    : value && typeof value == "object"
       ? Object.fromEntries(
-          Object.keys(arg3)
+          Object.keys(value)
             .sort()
-            .map((arg4) => [arg4, r(arg3[arg4])]),
+            .map((nestedKey) => [nestedKey, sortDeep(value[nestedKey])]),
         )
-      : arg3;
+      : value;
 }
-const o = (arg5) => JSON.stringify(r(arg5)),
-  g = (arg6) => ({
-    ...arg6.scene,
-    settings: s(arg6.scene?.settings, m),
+const stableStringify = (input) => JSON.stringify(sortDeep(input)),
+  floorComparisonShape = (floor) => ({
+    ...floor.scene,
+    settings: omitKeys(floor.scene?.settings, VIEW_SETTING_KEYS),
   }),
-  p = (arg7) => s(arg7, ["scene", "name", "aligned", "alignmentPending"]);
-export function sceneUpdatePlan(arg8, arg9) {
-  const map1 = new Map(arg8.floors.map((arg10) => [arg10.id, arg10])),
-    fn1 = (arg11) => s(arg11, [...f, "floors", "baseLighting"]),
-    value2 = o(fn1(arg8)) !== o(fn1(arg9)) || o(arg8.floors.map(p)) !== o(arg9.floors.map(p)),
-    value3 = arg9.floors
-      .filter((arg12) => !map1.has(arg12.id) || o(g(map1.get(arg12.id))) !== o(g(arg12)))
-      .map((arg13) => arg13.id),
-    value4 = o(arg8.baseLighting) !== o(arg9.baseLighting);
+  floorIdentityShape = (sourceFloor) =>
+    omitKeys(sourceFloor, ["scene", "name", "aligned", "alignmentPending"]);
+export function sceneUpdatePlan(previousScene, nextScene) {
+  const previousFloorsById = new Map(
+      previousScene.floors.map((listedFloor) => [listedFloor.id, listedFloor]),
+    ),
+    sharedSceneShape = (scene) => omitKeys(scene, [...FLOOR_SHARED_KEYS, "floors", "baseLighting"]),
+    isSceneChanged =
+      stableStringify(sharedSceneShape(previousScene)) !==
+        stableStringify(sharedSceneShape(nextScene)) ||
+      stableStringify(previousScene.floors.map(floorIdentityShape)) !==
+        stableStringify(nextScene.floors.map(floorIdentityShape)),
+    changedFloorIds = nextScene.floors
+      .filter(
+        (candidateFloor) =>
+          !previousFloorsById.has(candidateFloor.id) ||
+          stableStringify(floorComparisonShape(previousFloorsById.get(candidateFloor.id))) !==
+            stableStringify(floorComparisonShape(candidateFloor)),
+      )
+      .map((changedFloor) => changedFloor.id),
+    isLightingChanged =
+      stableStringify(previousScene.baseLighting) !== stableStringify(nextScene.baseLighting);
   return {
-    full: value2,
-    floors: value3,
-    lighting: value4,
-    visual: value2 || value3.length > 0 || value4,
+    full: isSceneChanged,
+    floors: changedFloorIds,
+    lighting: isLightingChanged,
+    visual: isSceneChanged || changedFloorIds.length > 0 || isLightingChanged,
   };
 }

@@ -1,36 +1,38 @@
-const o = "ha-bridge-dashboard-sound-enabled",
-  u = "/bridge-static/audio/button-click.mp3?v=20260826-button-sound-v1";
-function r() {
+const ENABLED_STORAGE_KEY = "ha-bridge-dashboard-sound-enabled",
+  CLICK_SOUND_URL = "/bridge-static/audio/button-click.mp3?v=20260826-button-sound-v1";
+function readEnabledSetting() {
   try {
-    const t = window.localStorage.getItem(o);
-    return t === null ? true : t !== "0";
+    const storedValue = window.localStorage.getItem(ENABLED_STORAGE_KEY);
+    return storedValue === null ? true : storedValue !== "0";
   } catch {
     return true;
   }
 }
 export function createButtonSound() {
-  let t = r();
-  const e = typeof Audio == "function" ? new Audio(u) : null;
+  let soundEnabled = readEnabledSetting();
+  const audioElement = typeof Audio == "function" ? new Audio(CLICK_SOUND_URL) : null;
   return (
-    e && ((e.preload = "auto"), (e.volume = 0.42)),
+    audioElement && ((audioElement.preload = "auto"), (audioElement.volume = 0.42)),
     {
       isEnabled() {
-        return t;
+        return soundEnabled;
       },
-      setEnabled(n) {
-        t = !!n;
+      setEnabled(nextEnabledValue) {
+        soundEnabled = !!nextEnabledValue;
         try {
-          window.localStorage.setItem(o, t ? "1" : "0");
+          window.localStorage.setItem(ENABLED_STORAGE_KEY, soundEnabled ? "1" : "0");
         } catch {}
-        return t;
+        return soundEnabled;
       },
       toggle() {
-        return this.setEnabled(!t);
+        return this.setEnabled(!soundEnabled);
       },
       play() {
-        if (!t || !e) return;
-        const n = e.cloneNode(true);
-        ((n.volume = e.volume), (n.currentTime = 0), n.play().catch(() => {}));
+        if (!soundEnabled || !audioElement) return;
+        const audioClip = audioElement.cloneNode(true);
+        ((audioClip.volume = audioElement.volume),
+          (audioClip.currentTime = 0),
+          audioClip.play().catch(() => {}));
       },
     }
   );

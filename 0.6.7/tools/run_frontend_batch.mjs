@@ -79,6 +79,31 @@ const files = Object.keys(map);
 if (files.length === 0) throw new Error('map declares no files');
 console.log(`batch ${batchId}: ${files.length} file(s), ${files.reduce((n, f) => n + Object.keys(map[f]).length, 0)} binding(s)`);
 
+/**
+ * Put the batch's declared files back the way the rollback snapshot found them.
+ *
+ * The snapshot is taken in step 3, before the applier writes anything, so this is
+ * the exact "before" of this batch.  It runs automatically when the oracles or the
+ * gate reject the batch: without it a rejected batch stays half-applied, and
+ * re-running with a corrected map fails on names that no longer exist - which
+ * looks like a broken map rather than a tree that needed rolling back first.
+ */
+function rollback(reason) {
+  const dir = path.join(ROOT, '.restore/batch-snapshots', batchId);
+  if (!fs.existsSync(dir)) {
+    console.error(`   rollback unavailable: ${path.relative(ROOT, dir)} is missing`);
+    return;
+  }
+  let restored = 0;
+  for (const file of files) {
+    const copy = path.join(dir, file);
+    if (!fs.existsSync(copy)) continue;
+    fs.copyFileSync(copy, path.join(ROOT, file));
+    restored += 1;
+  }
+  console.log(`   rolled back ${restored} file(s) after ${reason}`);
+}
+
 const recovered = sh(`node tools/verify_frontend_batch_delta.mjs recover .restore/batch-pre/${batchId}.json`);
 if (arg('recover')) {
   step('recover');
@@ -100,10 +125,27 @@ fs.writeFileSync(
 );
 console.log(files.join('\n'));
 
-step('3/8 rollback snapshot');
-r = sh(`node tools/verify_frontend_batch_snapshots.mjs --take ${batchId}`);
-console.log(r.out.trim());
-if (r.code !== 0) process.exit(1);
+step('3/9 rollback snapshot');
+// A rejected batch is rolled back and then re-run with a corrected map, so the
+// same batch id comes round again.  If the tree already matches the snapshot, that
+// snapshot is still this batch's correct "before" - reuse it rather than making
+// the operator invent a new id, which would also break the ledger's 1:1 id<->file
+// mapping.  A snapshot that does *not* match means we are not at the pre-batch
+// state, and taking a second one would silently bless the difference.
+const snapshotDir = path.join(ROOT, '.restore/batch-snapshots', batchId);
+const sameAsSnapshot = () =>
+  fs.existsSync(snapshotDir) &&
+  files.every((f) => {
+    const copy = path.join(snapshotDir, f);
+    return fs.existsSync(copy) && fs.readFileSync(copy).equals(fs.readFileSync(path.join(ROOT, f)));
+  });
+if (sameAsSnapshot()) {
+  console.log(`# reusing .restore/batch-snapshots/${batchId} - the tree already matches it`);
+} else {
+  r = sh(`node tools/verify_frontend_batch_snapshots.mjs --take ${batchId}`);
+  console.log(r.out.trim());
+  if (r.code !== 0) process.exit(1);
+}
 
 step('4/8 apply + format');
 r = sh(`node tools/apply_frontend_renames.mjs ${mapPath}`);
@@ -145,7 +187,10 @@ for (const file of files) {
   }
 }
 console.log(oracleErrors ? `${oracleErrors} oracle error(s) - fix the map and re-run` : 'all oracles clean');
-if (oracleErrors) process.exit(1);
+if (oracleErrors) {
+  rollback(`${oracleErrors} oracle error(s)`);
+  process.exit(1);
+}
 
 step(`7/8 gate (${files.length} file(s), ${jobs} at a time)`);
 const pre = `.restore/batch-pre/${batchId}.json`;
@@ -168,10 +213,37 @@ await Promise.all(
 const failedFiles = results.filter((x) => x.failed !== 0 || x.passed <= 0);
 if (failedFiles.length) {
   console.log(`\n${failedFiles.length} file(s) failed the gate`);
+  rollback(`${failedFiles.length} gate failure(s)`);
   process.exit(1);
 }
 
-step('8/8 ratchet + ledger');
+step('8/9 residue check');
+// The gate is per-file and per-chunk, so it is happy with a map that covers only
+// part of a file's residue - by design, that is what keeps the giants renameable
+// in chunks.  The cost is that a batch which simply *forgot* some bindings looks
+// exactly like a batch that was complete: 24/24, ratchet down, ledger written.
+// That happened: batch 11 was mapped from briefs generated before the classifier
+// correction, so flow-line.js kept 19 `v10`-style names and still went green.
+// Chunked giant batches pass --allow-partial to opt out.
+const report = JSON.parse(sh('node tools/report_frontend_names.mjs --json').out);
+const residual = new Map((report.files || []).map((f) => [f.rel, f.mechanical + f.short]));
+const leftovers = files
+  .map((file) => ({ file, left: residual.get(file) || 0 }))
+  .filter((x) => x.left > 0);
+if (leftovers.length) {
+  for (const l of leftovers) console.log(`   ${l.left} binding(s) still residue: ${l.file}`);
+  if (!arg('allow-partial')) {
+    console.log(`\n${leftovers.length} declared file(s) are not fully renamed`);
+    console.log('   the batch applied cleanly - this is a map that missed bindings, not a bad rename.');
+    console.log('   top the files up in a follow-up batch, or pass --allow-partial for a chunked giant.');
+    process.exit(1);
+  }
+  console.log('   (--allow-partial: accepted)');
+} else {
+  console.log('every declared file reached zero residue');
+}
+
+step('9/9 ratchet + ledger');
 r = sh('node tools/ratchet_frontend_names.mjs');
 console.log(r.out.trim());
 if (r.code !== 0) process.exit(1);

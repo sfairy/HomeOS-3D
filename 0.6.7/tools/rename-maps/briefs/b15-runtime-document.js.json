@@ -1,0 +1,641 @@
+{
+  "file": "frontend/static/renderer/runtime-document.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 78,
+  "counts": {
+    "entries": 36,
+    "renameable": 36,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@4",
+      "name": "arg1",
+      "line": 4,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartRuntimeStateNeedsHydration(arg1) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "const value1 = arg1?.newState || arg1;"
+        }
+      ]
+    },
+    {
+      "key": "value1@5",
+      "name": "value1",
+      "line": 5,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1?.newState || arg1;",
+      "references": [
+        {
+          "line": 6,
+          "text": "if (!value1) return true;"
+        },
+        {
+          "line": 7,
+          "text": "const value2 = String(value1.state ?? \"\")"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = String(value1.state ?? \"\")",
+      "references": [
+        {
+          "line": 10,
+          "text": "return value2 === \"\" || value2 === \"unknown\" || value2 === \"unavailable\";"
+        }
+      ]
+    },
+    {
+      "key": "arg2@12",
+      "name": "arg2",
+      "line": 12,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function collectEntityIds(arg2, arg3 = new Set()) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "for (const value3 of arg2 || []) {"
+        }
+      ]
+    },
+    {
+      "key": "arg3@12",
+      "name": "arg3",
+      "line": 12,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function collectEntityIds(arg2, arg3 = new Set()) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "value4?.entityId && !isVirtualEntityId(value4.entityId) && arg3.add(value4.entityId);"
+        },
+        {
+          "line": 24,
+          "text": "value6 && !isVirtualEntityId(value6) && arg3.add(value6);"
+        },
+        {
+          "line": 28,
+          "text": "value7.entityId && !isVirtualEntityId(value7.entityId) && arg3.add(value7.entityId);"
+        },
+        {
+          "line": 34,
+          "text": "value8 && !isVirtualEntityId(value8) && arg3.add(String(value8));"
+        }
+      ]
+    },
+    {
+      "key": "value3@13",
+      "name": "value3",
+      "line": 13,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value3 of arg2 || []) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "for (const value4 of Object.values(value3.bindings || {}))"
+        },
+        {
+          "line": 16,
+          "text": "if (value3.type === \"interaction3d\") {"
+        },
+        {
+          "line": 17,
+          "text": "for (const value5 of value3.properties?.devices?.vacuums || [])"
+        },
+        {
+          "line": 26,
+          "text": "if (value3.type === \"interaction3d\") {"
+        }
+      ]
+    },
+    {
+      "key": "value4@14",
+      "name": "value4",
+      "line": 14,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value4 of Object.values(value3.bindings || {}))",
+      "references": [
+        {
+          "line": 15,
+          "text": "value4?.entityId && !isVirtualEntityId(value4.entityId) && arg3.add(value4.entityId);"
+        }
+      ]
+    },
+    {
+      "key": "value5@17",
+      "name": "value5",
+      "line": 17,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value5 of value3.properties?.devices?.vacuums || [])",
+      "references": [
+        {
+          "line": 19,
+          "text": "value5.entityId,"
+        },
+        {
+          "line": 20,
+          "text": "value5.map?.entityId,"
+        },
+        {
+          "line": 21,
+          "text": "...(value5.relatedEntityIds || []),"
+        },
+        {
+          "line": 22,
+          "text": "...(value5.shortcuts || []).map((arg4) => arg4.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "value6@18",
+      "name": "value6",
+      "line": 18,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of [",
+      "references": [
+        {
+          "line": 24,
+          "text": "value6 && !isVirtualEntityId(value6) && arg3.add(value6);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@22",
+      "name": "arg4",
+      "line": 22,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "...(value5.shortcuts || []).map((arg4) => arg4.entityId),",
+      "references": [
+        {
+          "line": 22,
+          "text": "...(value5.shortcuts || []).map((arg4) => arg4.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "value7@27",
+      "name": "value7",
+      "line": 27,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of value3.properties?.security?.presenceSensors || [])",
+      "references": [
+        {
+          "line": 28,
+          "text": "value7.entityId && !isVirtualEntityId(value7.entityId) && arg3.add(value7.entityId);"
+        }
+      ]
+    },
+    {
+      "key": "value8@31",
+      "name": "value8",
+      "line": 31,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value8 of Array.isArray(value3.properties?.entityIds)",
+      "references": [
+        {
+          "line": 34,
+          "text": "value8 && !isVirtualEntityId(value8) && arg3.add(String(value8));"
+        }
+      ]
+    },
+    {
+      "key": "value9@37",
+      "name": "value9",
+      "line": 37,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { entityId: value9 } of percentageBarSeries(value3))",
+      "references": [
+        {
+          "line": 38,
+          "text": "value9 && !isVirtualEntityId(value9) && arg3.add(String(value9));"
+        }
+      ]
+    },
+    {
+      "key": "value10@41",
+      "name": "value10",
+      "line": 41,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value10 of Object.values(value3.actions || {}))",
+      "references": [
+        {
+          "line": 42,
+          "text": "value10?.type === \"more-info\" &&"
+        },
+        {
+          "line": 43,
+          "text": "value10.data?.popupSource === \"entity\" &&"
+        },
+        {
+          "line": 44,
+          "text": "value10.data?.entityId &&"
+        },
+        {
+          "line": 45,
+          "text": "!isVirtualEntityId(value10.data.entityId) &&"
+        }
+      ]
+    },
+    {
+      "key": "value11@47",
+      "name": "value11",
+      "line": 47,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value11 of selectedRelatedEntityIds(value3) || []) arg3.add(value11);",
+      "references": [
+        {
+          "line": 47,
+          "text": "for (const value11 of selectedRelatedEntityIds(value3) || []) arg3.add(value11);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@52",
+      "name": "arg5",
+      "line": 52,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function collectComponents(arg5, arg6, arg7 = []) {",
+      "references": [
+        {
+          "line": 53,
+          "text": "for (const value12 of arg5 || [])"
+        }
+      ]
+    },
+    {
+      "key": "arg6@52",
+      "name": "arg6",
+      "line": 52,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function collectComponents(arg5, arg6, arg7 = []) {",
+      "references": [
+        {
+          "line": 54,
+          "text": "(arg6(value12) && arg7.push(value12), collectComponents(value12.children, arg6, arg7));"
+        }
+      ]
+    },
+    {
+      "key": "arg7@52",
+      "name": "arg7",
+      "line": 52,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function collectComponents(arg5, arg6, arg7 = []) {",
+      "references": [
+        {
+          "line": 54,
+          "text": "(arg6(value12) && arg7.push(value12), collectComponents(value12.children, arg6, arg7));"
+        },
+        {
+          "line": 55,
+          "text": "return arg7;"
+        }
+      ]
+    },
+    {
+      "key": "value12@53",
+      "name": "value12",
+      "line": 53,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value12 of arg5 || [])",
+      "references": [
+        {
+          "line": 54,
+          "text": "(arg6(value12) && arg7.push(value12), collectComponents(value12.children, arg6, arg7));"
+        }
+      ]
+    },
+    {
+      "key": "arg8@57",
+      "name": "arg8",
+      "line": 57,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function matchingLineChartComponent(arg8, arg9, arg10) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "const map1 = new Map((arg8?.sharedComponents || []).map((arg12) => [arg12.id, arg12])),"
+        },
+        {
+          "line": 65,
+          "text": "for (const value16 of arg8?.pages || []) {"
+        },
+        {
+          "line": 70,
+          "text": "return collectComponents(arg8?.sharedComponents || [], fn1)[0] || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg9@57",
+      "name": "arg9",
+      "line": 57,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function matchingLineChartComponent(arg8, arg9, arg10) {",
+      "references": [
+        {
+          "line": 59,
+          "text": "value13 = collectComponents(arg9?.components || [], fn1)[0];"
+        },
+        {
+          "line": 62,
+          "text": "value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),"
+        },
+        {
+          "line": 66,
+          "text": "if (value16 === arg9) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg10@57",
+      "name": "arg10",
+      "line": 57,
+      "column": 55,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function matchingLineChartComponent(arg8, arg9, arg10) {",
+      "references": [
+        {
+          "line": 58,
+          "text": "const fn1 = (arg11) => arg11.type === \"line-chart\" && arg11.bindings?.entity?.entityId === arg10,"
+        }
+      ]
+    },
+    {
+      "key": "fn1@58",
+      "name": "fn1",
+      "line": 58,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg11) => arg11.type === \"line-chart\" && arg11.bindings?.entity?.entityId === arg10,",
+      "references": [
+        {
+          "line": 59,
+          "text": "value13 = collectComponents(arg9?.components || [], fn1)[0];"
+        },
+        {
+          "line": 63,
+          "text": "value15 = collectComponents(value14, fn1)[0];"
+        },
+        {
+          "line": 67,
+          "text": "const value17 = collectComponents(value16.components || [], fn1)[0];"
+        },
+        {
+          "line": 70,
+          "text": "return collectComponents(arg8?.sharedComponents || [], fn1)[0] || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg11@58",
+      "name": "arg11",
+      "line": 58,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg11) => arg11.type === \"line-chart\" && arg11.bindings?.entity?.entityId === arg10,",
+      "references": [
+        {
+          "line": 58,
+          "text": "const fn1 = (arg11) => arg11.type === \"line-chart\" && arg11.bindings?.entity?.entityId === arg10,"
+        }
+      ]
+    },
+    {
+      "key": "value13@59",
+      "name": "value13",
+      "line": 59,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = collectComponents(arg9?.components || [], fn1)[0];",
+      "references": [
+        {
+          "line": 60,
+          "text": "if (value13) return value13;"
+        }
+      ]
+    },
+    {
+      "key": "map1@61",
+      "name": "map1",
+      "line": 61,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map((arg8?.sharedComponents || []).map((arg12) => [arg12.id, arg12])),",
+      "references": [
+        {
+          "line": 62,
+          "text": "value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@61",
+      "name": "arg12",
+      "line": 61,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map((arg8?.sharedComponents || []).map((arg12) => [arg12.id, arg12])),",
+      "references": [
+        {
+          "line": 61,
+          "text": "const map1 = new Map((arg8?.sharedComponents || []).map((arg12) => [arg12.id, arg12])),"
+        }
+      ]
+    },
+    {
+      "key": "value14@62",
+      "name": "value14",
+      "line": 62,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),",
+      "references": [
+        {
+          "line": 63,
+          "text": "value15 = collectComponents(value14, fn1)[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg13@62",
+      "name": "arg13",
+      "line": 62,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),",
+      "references": [
+        {
+          "line": 62,
+          "text": "value14 = (arg9?.sharedComponentIds || []).map((arg13) => map1.get(arg13)).filter(Boolean),"
+        }
+      ]
+    },
+    {
+      "key": "value15@63",
+      "name": "value15",
+      "line": 63,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = collectComponents(value14, fn1)[0];",
+      "references": [
+        {
+          "line": 64,
+          "text": "if (value15) return value15;"
+        }
+      ]
+    },
+    {
+      "key": "value16@65",
+      "name": "value16",
+      "line": 65,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value16 of arg8?.pages || []) {",
+      "references": [
+        {
+          "line": 66,
+          "text": "if (value16 === arg9) continue;"
+        },
+        {
+          "line": 67,
+          "text": "const value17 = collectComponents(value16.components || [], fn1)[0];"
+        }
+      ]
+    },
+    {
+      "key": "value17@67",
+      "name": "value17",
+      "line": 67,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = collectComponents(value16.components || [], fn1)[0];",
+      "references": [
+        {
+          "line": 68,
+          "text": "if (value17) return value17;"
+        }
+      ]
+    },
+    {
+      "key": "arg14@72",
+      "name": "arg14",
+      "line": 72,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function syncedLineChartProperties(arg14, arg15, arg16, arg17 = {}) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "...(matchingLineChartComponent(arg14, arg15, arg16)?.properties || {}),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@72",
+      "name": "arg15",
+      "line": 72,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function syncedLineChartProperties(arg14, arg15, arg16, arg17 = {}) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "...(matchingLineChartComponent(arg14, arg15, arg16)?.properties || {}),"
+        }
+      ]
+    },
+    {
+      "key": "arg16@72",
+      "name": "arg16",
+      "line": 72,
+      "column": 56,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function syncedLineChartProperties(arg14, arg15, arg16, arg17 = {}) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "...(matchingLineChartComponent(arg14, arg15, arg16)?.properties || {}),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@72",
+      "name": "arg17",
+      "line": 72,
+      "column": 63,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function syncedLineChartProperties(arg14, arg15, arg16, arg17 = {}) {",
+      "references": [
+        {
+          "line": 75,
+          "text": "...(arg17 || {}),"
+        }
+      ]
+    }
+  ]
+}

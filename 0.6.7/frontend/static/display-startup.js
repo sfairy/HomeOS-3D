@@ -1,80 +1,85 @@
 (() => {
   if (window.HABridgeDisplayStartup) return;
-  const s = window.HABridgeEmbed?.path || location.pathname;
-  if (!s.startsWith("/habridge/") && !s.startsWith("/display/")) return;
-  let o;
+  const basePath = window.HABridgeEmbed?.path || location.pathname;
+  if (!basePath.startsWith("/habridge/") && !basePath.startsWith("/display/")) return;
+  let projectName;
   try {
-    o = decodeURIComponent(s.slice(s.indexOf("/", 1) + 1)).trim();
+    projectName = decodeURIComponent(basePath.slice(basePath.indexOf("/", 1) + 1)).trim();
   } catch {
     return;
   }
-  if (!o) return;
-  const n = new Map(),
-    c = new Set();
-  let d = false;
-  const a = (t) => {
-    if (d) return null;
-    if (n.has(t)) return n.get(t);
-    const e = new AbortController(),
-      r = setTimeout(() => e.abort(), 20000);
-    c.add(e);
-    const i = (async () => {
+  if (!projectName) return;
+  const requestsByKey = new Map(),
+    activeControllerSet = new Set();
+  let isDisposed = false;
+  const loadEndpoint = (endpoint) => {
+    if (isDisposed) return null;
+    if (requestsByKey.has(endpoint)) return requestsByKey.get(endpoint);
+    const abortController = new AbortController(),
+      abortTimer = setTimeout(() => abortController.abort(), 20000);
+    activeControllerSet.add(abortController);
+    const pendingResult = (async () => {
       try {
-        const l = await fetch(`/api/v1${t}?_=${Date.now()}`, {
+        const fetchResponse = await fetch(`/api/v1${endpoint}?_=${Date.now()}`, {
             cache: "no-store",
             headers: {
               "Cache-Control": "no-cache",
             },
-            signal: e.signal,
+            signal: abortController.signal,
           }),
-          h =
-            l.status === 204
+          payload =
+            fetchResponse.status === 204
               ? null
-              : await l.json().catch((f) => {
-                  if (e.signal.aborted) throw f;
+              : await fetchResponse.json().catch((parseError) => {
+                  if (abortController.signal.aborted) throw parseError;
                   return {};
                 });
         return {
-          response: l,
-          payload: h,
+          response: fetchResponse,
+          payload: payload,
         };
       } finally {
-        (clearTimeout(r), c.delete(e));
+        (clearTimeout(abortTimer), activeControllerSet.delete(abortController));
       }
     })();
-    i.catch(() => {});
-    const u = {
-      controller: e,
-      result: i,
+    pendingResult.catch(() => {});
+    const requestRecord = {
+      controller: abortController,
+      result: pendingResult,
     };
-    return (n.set(t, u), u);
+    return (requestsByKey.set(endpoint, requestRecord), requestRecord);
   };
   ((window.HABridgeDisplayStartup = {
-    take(t) {
-      const e = t.replace(/\?_=[0-9]+$/, ""),
-        r = n.get(e);
-      return (n.delete(e), r);
+    take(requestUrl) {
+      const cacheKey = requestUrl.replace(/\?_=[0-9]+$/, ""),
+        cachedRecord = requestsByKey.get(cacheKey);
+      return (requestsByKey.delete(cacheKey), cachedRecord);
     },
   }),
     window.addEventListener(
       "pagehide",
       () => {
-        d = true;
-        for (const t of c) t.abort();
-        n.clear();
+        isDisposed = true;
+        for (const controller of activeControllerSet) controller.abort();
+        requestsByKey.clear();
       },
       {
         once: true,
       },
     ),
-    s.startsWith("/habridge/")
-      ? a("/projects")
-          .result.then(({ response: t, payload: e }) => {
-            if (!t.ok) return;
-            const r = (e?.items || []).filter((i) => i.name === o);
-            r.length === 1 && r[0].id && a(`/projects/${encodeURIComponent(r[0].id)}/draft`);
+    basePath.startsWith("/habridge/")
+      ? loadEndpoint("/projects")
+          .result.then(({ response: response, payload: draftPayload }) => {
+            if (!response.ok) return;
+            const matchedProjects = (draftPayload?.items || []).filter(
+              (projectEntry) => projectEntry.name === projectName,
+            );
+            matchedProjects.length === 1 &&
+              matchedProjects[0].id &&
+              loadEndpoint(`/projects/${encodeURIComponent(matchedProjects[0].id)}/draft`);
           })
           .catch(() => {})
-      : a(`/projects/${encodeURIComponent(o)}/draft`));
-  for (const t of ["/assets/version", "/assets/builtin", "/assets/user", "/ui-packs"]) a(t);
+      : loadEndpoint(`/projects/${encodeURIComponent(projectName)}/draft`));
+  for (const assetEndpoint of ["/assets/version", "/assets/builtin", "/assets/user", "/ui-packs"])
+    loadEndpoint(assetEndpoint);
 })();

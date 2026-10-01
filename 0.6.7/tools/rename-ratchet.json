@@ -1,10 +1,10 @@
 {
   "version": 1,
   "note": "Single source of truth for the frontend rename/format ceilings. Written ONLY by tools/ratchet_frontend_names.mjs (down-only unless --allow-increase). Read by tools/verify_frontend_batch.sh, tools/verify_0.6.5.sh and tools/verify_all.sh through tools/print_rename_ratchet.mjs, which emits : \"${HB_MAX_*:=n}\" so the environment still overrides every value. Before this file existed the same four numbers were hard-coded in three scripts and had already drifted by 80/2.",
-  "mechanical": 25500,
-  "short": 3809,
+  "mechanical": 24675,
+  "short": 3515,
   "unformatted": 0,
-  "updatedAt": "2026-10-01T04:05:20.263Z",
+  "updatedAt": "2026-10-01T04:46:17.801Z",
   "history": [
     {
       "at": "2026-09-30T07:35:00+08:00",
@@ -159,6 +159,48 @@
       "short": 3809,
       "unformatted": 0,
       "note": "classifier correction, not a regression: name-buckets.mjs was missing ~25 role prefixes and every counter-only binding shape (v10, f02, _10), so ~7,800 bindings in the four minified giants plus 2 already-finished files were filed as semantic. Re-derived by measurement over frontend/** and pinned in name-buckets.selftest.mjs. True residue at the 0.6.7 wave start was ~21,600, not 18,419."
+    },
+    {
+      "at": "2026-10-01T04:10:01.991Z",
+      "mechanical": 25491,
+      "short": 3809,
+      "unformatted": 0,
+      "note": "mechanical 25500 -> 25491"
+    },
+    {
+      "at": "2026-10-01T04:18:02.405Z",
+      "mechanical": 25371,
+      "short": 3693,
+      "unformatted": 0,
+      "note": "mechanical 25491 -> 25371, short 3809 -> 3693"
+    },
+    {
+      "at": "2026-10-01T04:29:27.609Z",
+      "mechanical": 25352,
+      "short": 3692,
+      "unformatted": 0,
+      "note": "mechanical 25371 -> 25352, short 3693 -> 3692"
+    },
+    {
+      "at": "2026-10-01T04:34:14.449Z",
+      "mechanical": 25209,
+      "short": 3629,
+      "unformatted": 0,
+      "note": "mechanical 25352 -> 25209, short 3692 -> 3629"
+    },
+    {
+      "at": "2026-10-01T04:40:30.922Z",
+      "mechanical": 25048,
+      "short": 3560,
+      "unformatted": 0,
+      "note": "mechanical 25209 -> 25048, short 3629 -> 3560"
+    },
+    {
+      "at": "2026-10-01T04:46:17.801Z",
+      "mechanical": 24675,
+      "short": 3515,
+      "unformatted": 0,
+      "note": "mechanical 25048 -> 24675, short 3560 -> 3515"
     }
   ]
 }

@@ -1,0 +1,33 @@
+{
+  "frontend/static/modules/interaction3d/frame-loop.js": {
+    "g@1": "earlyFrameToleranceMs",
+    "arg1@3": "step",
+    "arg2@4": "onWake",
+    "arg3@5": "now",
+    "arg4@6": "maxFps",
+    "arg5@7": "requestFrame",
+    "arg9@7": "onAnimationFrame",
+    "arg6@8": "cancelFrame",
+    "arg10@8": "animationFrameHandle",
+    "arg7@9": "schedule",
+    "arg11@9": "onTimeout",
+    "arg12@9": "timeoutDelayMs",
+    "arg8@10": "cancel",
+    "arg13@10": "timeoutHandle",
+    "value1@12": "animationFrameId",
+    "value2@13": "timeoutId",
+    "value3@14": "isAvailable",
+    "value4@15": "isDisposed",
+    "value5@16": "isStepping",
+    "value6@17": "hasPendingWake",
+    "value7@18": "nextFrameTimeMs",
+    "value8@19": "frameIntervalMs",
+    "object1@21": "frameStats",
+    "fn1@25": "clearPendingHandles",
+    "fn2@28": "wakeLoop",
+    "fn3@39": "runFrameTick",
+    "arg14@39": "frameTimestamp",
+    "value9@49": "nextDelayMs",
+    "arg15@70": "nextAvailable"
+  }
+}

@@ -1,0 +1,734 @@
+{
+  "file": "frontend/static/renderer/light-statistics-runtime.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 122,
+  "counts": {
+    "entries": 39,
+    "renameable": 39,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "S@1",
+      "name": "S",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const S = new Set([\"light\", \"switch\", \"input_boolean\", \"fan\", \"humidifier\", \"siren\"]),",
+      "references": [
+        {
+          "line": 30,
+          "text": ": S.has(value3)"
+        }
+      ]
+    },
+    {
+      "key": "p@2",
+      "name": "p",
+      "line": 2,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "p = new Set([\"climate\", \"water_heater\"]);",
+      "references": [
+        {
+          "line": 35,
+          "text": ": p.has(value3)"
+        },
+        {
+          "line": 65,
+          "text": "return value5 === \"off\" ? \"off\" : value5 === \"on\" || p.has(value4) ? \"on\" : \"abnormal\";"
+        }
+      ]
+    },
+    {
+      "key": "f@3",
+      "name": "f",
+      "line": 3,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function f(arg1) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "f(arg2) === \"sensor\" &&"
+        },
+        {
+          "line": 19,
+          "text": "const value3 = f(arg3);"
+        },
+        {
+          "line": 52,
+          "text": "const value4 = f(arg4),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function f(arg1) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "const value1 = typeof arg1 == \"string\" ? arg1 : String(arg1?.entityId || arg1?.entity_id || \"\");"
+        },
+        {
+          "line": 6,
+          "text": "String(typeof arg1 == \"string\" ? \"\" : arg1?.domain || \"\")"
+        }
+      ]
+    },
+    {
+      "key": "value1@4",
+      "name": "value1",
+      "line": 4,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = typeof arg1 == \"string\" ? arg1 : String(arg1?.entityId || arg1?.entity_id || \"\");",
+      "references": [
+        {
+          "line": 8,
+          "text": ".toLowerCase() || value1.split(\".\", 1)[0].toLowerCase()"
+        }
+      ]
+    },
+    {
+      "key": "g@11",
+      "name": "g",
+      "line": 11,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function g(arg2) {",
+      "references": [
+        {
+          "line": 40,
+          "text": ": g(arg3)"
+        },
+        {
+          "line": 57,
+          "text": "if (g(arg4)) {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@11",
+      "name": "arg2",
+      "line": 11,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function g(arg2) {",
+      "references": [
+        {
+          "line": 12,
+          "text": "const value2 = typeof arg2 == \"string\" ? arg2 : String(arg2?.entityId || arg2?.entity_id || \"\");"
+        },
+        {
+          "line": 14,
+          "text": "f(arg2) === \"sensor\" &&"
+        }
+      ]
+    },
+    {
+      "key": "value2@12",
+      "name": "value2",
+      "line": 12,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = typeof arg2 == \"string\" ? arg2 : String(arg2?.entityId || arg2?.entity_id || \"\");",
+      "references": [
+        {
+          "line": 15,
+          "text": "/(?:^|_)bt_online_status(?:_p_\\d+_\\d+)?(?:_\\d+)?$/i.test(value2.split(\".\").slice(1).join(\".\"))"
+        }
+      ]
+    },
+    {
+      "key": "arg3@18",
+      "name": "arg3",
+      "line": 18,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsEntitySupport(arg3) {",
+      "references": [
+        {
+          "line": 19,
+          "text": "const value3 = f(arg3);"
+        },
+        {
+          "line": 20,
+          "text": "return value3 === \"virtual\" || arg3?.virtual"
+        },
+        {
+          "line": 40,
+          "text": ": g(arg3)"
+        }
+      ]
+    },
+    {
+      "key": "value3@19",
+      "name": "value3",
+      "line": 19,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = f(arg3);",
+      "references": [
+        {
+          "line": 20,
+          "text": "return value3 === \"virtual\" || arg3?.virtual"
+        },
+        {
+          "line": 25,
+          "text": ": value3 === \"group\""
+        },
+        {
+          "line": 30,
+          "text": ": S.has(value3)"
+        },
+        {
+          "line": 35,
+          "text": ": p.has(value3)"
+        }
+      ]
+    },
+    {
+      "key": "arg4@50",
+      "name": "arg4",
+      "line": 50,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsEntityStateStatus(arg4, arg5) {",
+      "references": [
+        {
+          "line": 51,
+          "text": "if (!lightStatisticsEntitySupport(arg4).supported) return \"abnormal\";"
+        },
+        {
+          "line": 52,
+          "text": "const value4 = f(arg4),"
+        },
+        {
+          "line": 57,
+          "text": "if (g(arg4)) {"
+        }
+      ]
+    },
+    {
+      "key": "arg5@50",
+      "name": "arg5",
+      "line": 50,
+      "column": 55,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsEntityStateStatus(arg4, arg5) {",
+      "references": [
+        {
+          "line": 53,
+          "text": "value5 = String(arg5?.state ?? arg5 ?? \"\")"
+        }
+      ]
+    },
+    {
+      "key": "value4@52",
+      "name": "value4",
+      "line": 52,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = f(arg4),",
+      "references": [
+        {
+          "line": 65,
+          "text": "return value5 === \"off\" ? \"off\" : value5 === \"on\" || p.has(value4) ? \"on\" : \"abnormal\";"
+        }
+      ]
+    },
+    {
+      "key": "value5@53",
+      "name": "value5",
+      "line": 53,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = String(arg5?.state ?? arg5 ?? \"\")",
+      "references": [
+        {
+          "line": 56,
+          "text": "if (!value5 || [\"unknown\", \"unavailable\"].includes(value5)) return \"abnormal\";"
+        },
+        {
+          "line": 58,
+          "text": "const value6 = value5.replace(/^设备\\s*\\d+\\s*-\\s*/, \"\");"
+        },
+        {
+          "line": 65,
+          "text": "return value5 === \"off\" ? \"off\" : value5 === \"on\" || p.has(value4) ? \"on\" : \"abnormal\";"
+        }
+      ]
+    },
+    {
+      "key": "value6@58",
+      "name": "value6",
+      "line": 58,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = value5.replace(/^设备\\s*\\d+\\s*-\\s*/, \"\");",
+      "references": [
+        {
+          "line": 59,
+          "text": "return [\"在线\", \"online\", \"on\"].includes(value6)"
+        },
+        {
+          "line": 61,
+          "text": ": [\"离线\", \"offline\", \"off\"].includes(value6)"
+        }
+      ]
+    },
+    {
+      "key": "h@67",
+      "name": "h",
+      "line": 67,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function h(arg6, arg7) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "const value11 = h(arg12, arg13) || {},"
+        }
+      ]
+    },
+    {
+      "key": "arg6@67",
+      "name": "arg6",
+      "line": 67,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function h(arg6, arg7) {",
+      "references": [
+        {
+          "line": 68,
+          "text": "return typeof arg6?.get == \"function\""
+        },
+        {
+          "line": 69,
+          "text": "? arg6.get(arg7) || null"
+        },
+        {
+          "line": 70,
+          "text": ": (arg6 && typeof arg6 == \"object\" && arg6[arg7]) || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg7@67",
+      "name": "arg7",
+      "line": 67,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function h(arg6, arg7) {",
+      "references": [
+        {
+          "line": 69,
+          "text": "? arg6.get(arg7) || null"
+        },
+        {
+          "line": 70,
+          "text": ": (arg6 && typeof arg6 == \"object\" && arg6[arg7]) || null;"
+        }
+      ]
+    },
+    {
+      "key": "d@72",
+      "name": "d",
+      "line": 72,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function d(arg8, arg9) {",
+      "references": [
+        {
+          "line": 89,
+          "text": "value12 = d(arg11, arg13),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@72",
+      "name": "arg8",
+      "line": 72,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function d(arg8, arg9) {",
+      "references": [
+        {
+          "line": 73,
+          "text": "const value7 = typeof arg8?.get == \"function\" ? arg8.get(arg9) : arg8?.[arg9];"
+        }
+      ]
+    },
+    {
+      "key": "arg9@72",
+      "name": "arg9",
+      "line": 72,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function d(arg8, arg9) {",
+      "references": [
+        {
+          "line": 73,
+          "text": "const value7 = typeof arg8?.get == \"function\" ? arg8.get(arg9) : arg8?.[arg9];"
+        }
+      ]
+    },
+    {
+      "key": "value7@73",
+      "name": "value7",
+      "line": 73,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = typeof arg8?.get == \"function\" ? arg8.get(arg9) : arg8?.[arg9];",
+      "references": [
+        {
+          "line": 74,
+          "text": "return value7 &&"
+        },
+        {
+          "line": 75,
+          "text": "typeof value7 == \"object\" &&"
+        },
+        {
+          "line": 76,
+          "text": "Object.prototype.hasOwnProperty.call(value7, \"newState\")"
+        },
+        {
+          "line": 77,
+          "text": "? value7.newState || null"
+        }
+      ]
+    },
+    {
+      "key": "arg10@80",
+      "name": "arg10",
+      "line": 80,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsSummary(arg10, arg11 = new Map(), arg12 = new Map()) {",
+      "references": [
+        {
+          "line": 83,
+          "text": "for (const value9 of Array.isArray(arg10) ? arg10 : []) {"
+        }
+      ]
+    },
+    {
+      "key": "arg11@80",
+      "name": "arg11",
+      "line": 80,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsSummary(arg10, arg11 = new Map(), arg12 = new Map()) {",
+      "references": [
+        {
+          "line": 89,
+          "text": "value12 = d(arg11, arg13),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@80",
+      "name": "arg12",
+      "line": 80,
+      "column": 65,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lightStatisticsSummary(arg10, arg11 = new Map(), arg12 = new Map()) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "const value11 = h(arg12, arg13) || {},"
+        }
+      ]
+    },
+    {
+      "key": "list1@81",
+      "name": "list1",
+      "line": 81,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [],",
+      "references": [
+        {
+          "line": 85,
+          "text": "!value10 || set1.has(value10) || (set1.add(value10), list1.push(value10));"
+        },
+        {
+          "line": 87,
+          "text": "const value8 = list1.map((arg13) => {"
+        }
+      ]
+    },
+    {
+      "key": "set1@82",
+      "name": "set1",
+      "line": 82,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set();",
+      "references": [
+        {
+          "line": 85,
+          "text": "!value10 || set1.has(value10) || (set1.add(value10), list1.push(value10));"
+        }
+      ]
+    },
+    {
+      "key": "value9@83",
+      "name": "value9",
+      "line": 83,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value9 of Array.isArray(arg10) ? arg10 : []) {",
+      "references": [
+        {
+          "line": 84,
+          "text": "const value10 = String(value9 || \"\").trim();"
+        }
+      ]
+    },
+    {
+      "key": "value10@84",
+      "name": "value10",
+      "line": 84,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = String(value9 || \"\").trim();",
+      "references": [
+        {
+          "line": 85,
+          "text": "!value10 || set1.has(value10) || (set1.add(value10), list1.push(value10));"
+        }
+      ]
+    },
+    {
+      "key": "value8@87",
+      "name": "value8",
+      "line": 87,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = list1.map((arg13) => {",
+      "references": [
+        {
+          "line": 115,
+          "text": "total: value8.length,"
+        },
+        {
+          "line": 116,
+          "text": "on: value8.filter((arg14) => arg14.status === \"on\").length,"
+        },
+        {
+          "line": 117,
+          "text": "off: value8.filter((arg15) => arg15.status === \"off\").length,"
+        },
+        {
+          "line": 118,
+          "text": "abnormal: value8.filter((arg16) => arg16.status === \"abnormal\").length,"
+        }
+      ]
+    },
+    {
+      "key": "arg13@87",
+      "name": "arg13",
+      "line": 87,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = list1.map((arg13) => {",
+      "references": [
+        {
+          "line": 88,
+          "text": "const value11 = h(arg12, arg13) || {},"
+        },
+        {
+          "line": 89,
+          "text": "value12 = d(arg11, arg13),"
+        },
+        {
+          "line": 95,
+          "text": "entityId: arg13,"
+        },
+        {
+          "line": 100,
+          "text": "entityId: arg13,"
+        }
+      ]
+    },
+    {
+      "key": "value11@88",
+      "name": "value11",
+      "line": 88,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = h(arg12, arg13) || {},",
+      "references": [
+        {
+          "line": 94,
+          "text": "...value11,"
+        },
+        {
+          "line": 99,
+          "text": "...value11,"
+        },
+        {
+          "line": 107,
+          "text": "value12?.attributes?.friendly_name || value11.name || value11.originalName || arg13,"
+        }
+      ]
+    },
+    {
+      "key": "value12@89",
+      "name": "value12",
+      "line": 89,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = d(arg11, arg13),",
+      "references": [
+        {
+          "line": 90,
+          "text": "value13 = String(value12?.state || \"\")"
+        },
+        {
+          "line": 102,
+          "text": "value12,"
+        },
+        {
+          "line": 107,
+          "text": "value12?.attributes?.friendly_name || value11.name || value11.originalName || arg13,"
+        }
+      ]
+    },
+    {
+      "key": "value13@90",
+      "name": "value13",
+      "line": 90,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = String(value12?.state || \"\")",
+      "references": [
+        {
+          "line": 109,
+          "text": "state: value13,"
+        }
+      ]
+    },
+    {
+      "key": "value14@93",
+      "name": "value14",
+      "line": 93,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = lightStatisticsEntitySupport({",
+      "references": [
+        {
+          "line": 111,
+          "text": "message: value15 === \"abnormal\" && value14.supported ? \"当前状态无法判断\" : value14.message,"
+        }
+      ]
+    },
+    {
+      "key": "value15@97",
+      "name": "value15",
+      "line": 97,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = lightStatisticsEntityStateStatus(",
+      "references": [
+        {
+          "line": 110,
+          "text": "status: value15,"
+        },
+        {
+          "line": 111,
+          "text": "message: value15 === \"abnormal\" && value14.supported ? \"当前状态无法判断\" : value14.message,"
+        }
+      ]
+    },
+    {
+      "key": "arg14@116",
+      "name": "arg14",
+      "line": 116,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "on: value8.filter((arg14) => arg14.status === \"on\").length,",
+      "references": [
+        {
+          "line": 116,
+          "text": "on: value8.filter((arg14) => arg14.status === \"on\").length,"
+        }
+      ]
+    },
+    {
+      "key": "arg15@117",
+      "name": "arg15",
+      "line": 117,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "off: value8.filter((arg15) => arg15.status === \"off\").length,",
+      "references": [
+        {
+          "line": 117,
+          "text": "off: value8.filter((arg15) => arg15.status === \"off\").length,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@118",
+      "name": "arg16",
+      "line": 118,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "abnormal: value8.filter((arg16) => arg16.status === \"abnormal\").length,",
+      "references": [
+        {
+          "line": 118,
+          "text": "abnormal: value8.filter((arg16) => arg16.status === \"abnormal\").length,"
+        }
+      ]
+    }
+  ]
+}

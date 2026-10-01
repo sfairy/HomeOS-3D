@@ -1,0 +1,738 @@
+{
+  "file": "frontend/static/3d-studio/studio-security-models.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 111,
+  "counts": {
+    "entries": 39,
+    "renameable": 39,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function addSecurityModel(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "shell: new arg1.MeshStandardMaterial({"
+        },
+        {
+          "line": 8,
+          "text": "trim: new arg1.MeshStandardMaterial({"
+        },
+        {
+          "line": 12,
+          "text": "dark: new arg1.MeshStandardMaterial({"
+        },
+        {
+          "line": 17,
+          "text": "lens: new arg1.MeshStandardMaterial({"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function addSecurityModel(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 30,
+          "text": "arg2.add(value4),"
+        },
+        {
+          "line": 103,
+          "text": "for (const value10 of arg2.children)"
+        },
+        {
+          "line": 107,
+          "text": "const set1 = new Set(arg2.children.map((arg23) => arg23.material));"
+        },
+        {
+          "line": 109,
+          "text": "return arg2;"
+        }
+      ]
+    },
+    {
+      "key": "arg3@1",
+      "name": "arg3",
+      "line": 1,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function addSecurityModel(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const { width: value1, depth: value2, height: value3 } = arg3,"
+        },
+        {
+          "line": 38,
+          "text": "if (arg3.type === \"camera\") {"
+        },
+        {
+          "line": 102,
+          "text": "if (arg3.type === \"presence\") {"
+        }
+      ]
+    },
+    {
+      "key": "arg4@1",
+      "name": "arg4",
+      "line": 1,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function addSecurityModel(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "color: arg4.applianceSoft ?? arg4.furnitureLight,"
+        },
+        {
+          "line": 9,
+          "text": "color: arg4.appliance ?? arg4.furniture,"
+        },
+        {
+          "line": 13,
+          "text": "color: arg4.applianceDark ?? arg4.furnitureDark,"
+        },
+        {
+          "line": 18,
+          "text": "color: arg4.furnitureDark,"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { width: value1, depth: value2, height: value3 } = arg3,",
+      "references": [
+        {
+          "line": 39,
+          "text": "(fn2(value1 * 0.35, value1 * 0.36, value3 * 0.075, value3 * 0.0375, \"trim\"),"
+        },
+        {
+          "line": 40,
+          "text": "fn2(value1 * 0.27, value1 * 0.4, value3 * 0.35, value3 * 0.245),"
+        },
+        {
+          "line": 41,
+          "text": "fn3(\"shell\", 0, value3 * 0.71, 0, value1 * 0.49, value3 * 0.29, value2 * 0.48),"
+        },
+        {
+          "line": 42,
+          "text": "fn3(\"dark\", 0, value3 * 0.71, value2 * 0.34, value1 * 0.385, value3 * 0.215, value2 * 0.16));"
+        }
+      ]
+    },
+    {
+      "key": "value2@2",
+      "name": "value2",
+      "line": 2,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { width: value1, depth: value2, height: value3 } = arg3,",
+      "references": [
+        {
+          "line": 41,
+          "text": "fn3(\"shell\", 0, value3 * 0.71, 0, value1 * 0.49, value3 * 0.29, value2 * 0.48),"
+        },
+        {
+          "line": 42,
+          "text": "fn3(\"dark\", 0, value3 * 0.71, value2 * 0.34, value1 * 0.385, value3 * 0.215, value2 * 0.16));"
+        },
+        {
+          "line": 45,
+          "text": "new arg1.CylinderGeometry(value1 * 0.115, value1 * 0.115, value2 * 0.065, 20),"
+        },
+        {
+          "line": 49,
+          "text": "value2 * 0.485,"
+        }
+      ]
+    },
+    {
+      "key": "value3@2",
+      "name": "value3",
+      "line": 2,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { width: value1, depth: value2, height: value3 } = arg3,",
+      "references": [
+        {
+          "line": 39,
+          "text": "(fn2(value1 * 0.35, value1 * 0.36, value3 * 0.075, value3 * 0.0375, \"trim\"),"
+        },
+        {
+          "line": 40,
+          "text": "fn2(value1 * 0.27, value1 * 0.4, value3 * 0.35, value3 * 0.245),"
+        },
+        {
+          "line": 41,
+          "text": "fn3(\"shell\", 0, value3 * 0.71, 0, value1 * 0.49, value3 * 0.29, value2 * 0.48),"
+        },
+        {
+          "line": 42,
+          "text": "fn3(\"dark\", 0, value3 * 0.71, value2 * 0.34, value1 * 0.385, value3 * 0.215, value2 * 0.16));"
+        }
+      ]
+    },
+    {
+      "key": "object1@3",
+      "name": "object1",
+      "line": 3,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value4 = new arg1.Mesh(arg5, object1[arg6]);"
+        },
+        {
+          "line": 108,
+          "text": "for (const value11 of Object.values(object1)) set1.has(value11) || value11.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "fn1@23",
+      "name": "fn1",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        },
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        },
+        {
+          "line": 44,
+          "text": "const value7 = fn1("
+        },
+        {
+          "line": 52,
+          "text": "const value8 = fn1("
+        }
+      ]
+    },
+    {
+      "key": "arg5@23",
+      "name": "arg5",
+      "line": 23,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value4 = new arg1.Mesh(arg5, object1[arg6]);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@23",
+      "name": "arg6",
+      "line": 23,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value4 = new arg1.Mesh(arg5, object1[arg6]);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@23",
+      "name": "arg7",
+      "line": 23,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 26,
+          "text": "value4.position.set(arg7, arg8, arg9),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@23",
+      "name": "arg8",
+      "line": 23,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 26,
+          "text": "value4.position.set(arg7, arg8, arg9),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@23",
+      "name": "arg9",
+      "line": 23,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 26,
+          "text": "value4.position.set(arg7, arg8, arg9),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@23",
+      "name": "arg10",
+      "line": 23,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5, arg6, arg7, arg8, arg9, arg10) => {",
+      "references": [
+        {
+          "line": 27,
+          "text": "arg10 && value4.scale.set(...arg10),"
+        }
+      ]
+    },
+    {
+      "key": "value4@24",
+      "name": "value4",
+      "line": 24,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = new arg1.Mesh(arg5, object1[arg6]);",
+      "references": [
+        {
+          "line": 26,
+          "text": "value4.position.set(arg7, arg8, arg9),"
+        },
+        {
+          "line": 27,
+          "text": "arg10 && value4.scale.set(...arg10),"
+        },
+        {
+          "line": 28,
+          "text": "(value4.castShadow = true),"
+        },
+        {
+          "line": 29,
+          "text": "(value4.receiveShadow = true),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@34",
+      "name": "fn2",
+      "line": 34,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 39,
+          "text": "(fn2(value1 * 0.35, value1 * 0.36, value3 * 0.075, value3 * 0.0375, \"trim\"),"
+        },
+        {
+          "line": 40,
+          "text": "fn2(value1 * 0.27, value1 * 0.4, value3 * 0.35, value3 * 0.245),"
+        },
+        {
+          "line": 79,
+          "text": "(fn2(value1 * 0.09, value1 * 0.49, value3 * 0.31, value3 * 0.155),"
+        },
+        {
+          "line": 80,
+          "text": "fn2(value1 * 0.065, value1 * 0.065, value3 * 0.18, value3 * 0.38, \"trim\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@34",
+      "name": "arg11",
+      "line": 34,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@34",
+      "name": "arg12",
+      "line": 34,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@34",
+      "name": "arg13",
+      "line": 34,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@34",
+      "name": "arg14",
+      "line": 34,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@34",
+      "name": "arg15",
+      "line": 34,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg11, arg12, arg13, arg14, arg15 = \"shell\") =>",
+      "references": [
+        {
+          "line": 35,
+          "text": "fn1(new arg1.CylinderGeometry(arg11, arg12, arg13, 24), arg15, 0, arg14, 0),"
+        }
+      ]
+    },
+    {
+      "key": "fn3@36",
+      "name": "fn3",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 41,
+          "text": "fn3(\"shell\", 0, value3 * 0.71, 0, value1 * 0.49, value3 * 0.29, value2 * 0.48),"
+        },
+        {
+          "line": 42,
+          "text": "fn3(\"dark\", 0, value3 * 0.71, value2 * 0.34, value1 * 0.385, value3 * 0.215, value2 * 0.16));"
+        },
+        {
+          "line": 60,
+          "text": "fn3("
+        }
+      ]
+    },
+    {
+      "key": "arg16@36",
+      "name": "arg16",
+      "line": 36,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg17@36",
+      "name": "arg17",
+      "line": 36,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg18@36",
+      "name": "arg18",
+      "line": 36,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg19@36",
+      "name": "arg19",
+      "line": 36,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg20@36",
+      "name": "arg20",
+      "line": 36,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg21@36",
+      "name": "arg21",
+      "line": 36,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "arg22@36",
+      "name": "arg22",
+      "line": 36,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16, arg17, arg18, arg19, arg20, arg21, arg22) =>",
+      "references": [
+        {
+          "line": 37,
+          "text": "fn1(new arg1.SphereGeometry(1, 24, 16), arg16, arg17, arg18, arg19, [arg20, arg21, arg22]);"
+        }
+      ]
+    },
+    {
+      "key": "value6@43",
+      "name": "value6",
+      "line": 43,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of [-value1 * 0.145, value1 * 0.145]) {",
+      "references": [
+        {
+          "line": 47,
+          "text": "value6,"
+        },
+        {
+          "line": 55,
+          "text": "value6,"
+        },
+        {
+          "line": 62,
+          "text": "value6 - value1 * 0.018,"
+        }
+      ]
+    },
+    {
+      "key": "value7@44",
+      "name": "value7",
+      "line": 44,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = fn1(",
+      "references": [
+        {
+          "line": 51,
+          "text": "value7.rotation.x = Math.PI / 2;"
+        }
+      ]
+    },
+    {
+      "key": "value8@52",
+      "name": "value8",
+      "line": 52,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = fn1(",
+      "references": [
+        {
+          "line": 59,
+          "text": "((value8.rotation.x = Math.PI / 2),"
+        }
+      ]
+    },
+    {
+      "key": "value5@70",
+      "name": "value5",
+      "line": 70,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = fn1(",
+      "references": [
+        {
+          "line": 77,
+          "text": "value5.rotation.x = 0.1;"
+        }
+      ]
+    },
+    {
+      "key": "value9@84",
+      "name": "value9",
+      "line": 84,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = fn1(",
+      "references": [
+        {
+          "line": 100,
+          "text": "value9.scale.z = value2 / value1;"
+        }
+      ]
+    },
+    {
+      "key": "value10@103",
+      "name": "value10",
+      "line": 103,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value10 of arg2.children)",
+      "references": [
+        {
+          "line": 104,
+          "text": "(value10.geometry?.type !== \"CylinderGeometry\" || !value10.geometry.parameters.openEnded) &&"
+        },
+        {
+          "line": 105,
+          "text": "(value10.scale.z = value2 / value1);"
+        }
+      ]
+    },
+    {
+      "key": "set1@107",
+      "name": "set1",
+      "line": 107,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set(arg2.children.map((arg23) => arg23.material));",
+      "references": [
+        {
+          "line": 108,
+          "text": "for (const value11 of Object.values(object1)) set1.has(value11) || value11.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "arg23@107",
+      "name": "arg23",
+      "line": 107,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set(arg2.children.map((arg23) => arg23.material));",
+      "references": [
+        {
+          "line": 107,
+          "text": "const set1 = new Set(arg2.children.map((arg23) => arg23.material));"
+        }
+      ]
+    },
+    {
+      "key": "value11@108",
+      "name": "value11",
+      "line": 108,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value11 of Object.values(object1)) set1.has(value11) || value11.dispose();",
+      "references": [
+        {
+          "line": 108,
+          "text": "for (const value11 of Object.values(object1)) set1.has(value11) || value11.dispose();"
+        }
+      ]
+    }
+  ]
+}

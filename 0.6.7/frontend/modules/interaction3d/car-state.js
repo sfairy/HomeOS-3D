@@ -1,29 +1,35 @@
-const g = (arg1, arg2) => {
-    const value1 = arg1?.get?.(arg2) ?? arg1?.[arg2];
-    return value1?.newState ?? value1;
+const readEntityState = (stateSource, entityId) => {
+    const resolvedEntityState = stateSource?.get?.(entityId) ?? stateSource?.[entityId];
+    return resolvedEntityState?.newState ?? resolvedEntityState;
   },
-  b = (arg3) =>
-    arg3 &&
-    arg3.available !== false &&
-    arg3.state != null &&
+  hasUsableState = (entityState) =>
+    entityState &&
+    entityState.available !== false &&
+    entityState.state != null &&
     !["", "unknown", "unavailable", "none", "null"].includes(
-      String(arg3.state).trim().toLowerCase(),
+      String(entityState.state).trim().toLowerCase(),
     );
-export function carChargingMappingError(arg4) {
-  const list1 = [arg4?.inactive, arg4?.active];
-  return list1.some((arg5) => typeof arg5 != "string" || !arg5.trim())
+export function carChargingMappingError(chargingStateConfig) {
+  const rawStateValues = [chargingStateConfig?.inactive, chargingStateConfig?.active];
+  return rawStateValues.some(
+    (rawStateValue) => typeof rawStateValue != "string" || !rawStateValue.trim(),
+  )
     ? "自定义时，请同时填写不充电和充电的原始状态值；两项都留空可恢复自动识别。"
-    : list1.some((arg6) => arg6.length > 120 || /[\r\n]/.test(arg6))
+    : rawStateValues.some(
+          (rawStateText) => rawStateText.length > 120 || /[\r\n]/.test(rawStateText),
+        )
       ? "每个输入框只填一个原始状态值，不超过 120 个字符。"
-      : list1.some((arg7) =>
-            ["unknown", "unavailable", "none", "null"].includes(arg7.trim().toLowerCase()),
+      : rawStateValues.some((normalizedStateValue) =>
+            ["unknown", "unavailable", "none", "null"].includes(
+              normalizedStateValue.trim().toLowerCase(),
+            ),
           )
         ? "unknown、unavailable、none、null 表示未知或不可用，不能用作充电或不充电的状态值。"
-        : arg4.active.trim() === arg4.inactive.trim()
+        : chargingStateConfig.active.trim() === chargingStateConfig.inactive.trim()
           ? "充电和不充电的状态值不能相同。"
           : "";
 }
-const y = {
+const chargingStateLabels = {
   charging: "充电中",
   not_charging: "未充电",
   disconnected: "未连接",
@@ -33,35 +39,40 @@ const y = {
   paused: "充电暂停",
   idle: "空闲",
 };
-export function carState(arg8, arg9 = {}) {
-  const value2 = g(arg9, arg8.batteryEntityId),
-    value3 = g(arg9, arg8.chargingEntityId),
-    value4 =
-      b(value2) && /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(value2.state).trim())
-        ? Number(value2.state)
+export function carState(carConfig, entityStateStore = {}) {
+  const batteryState = readEntityState(entityStateStore, carConfig.batteryEntityId),
+    chargingState = readEntityState(entityStateStore, carConfig.chargingEntityId),
+    batteryLevel =
+      hasUsableState(batteryState) &&
+      /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(String(batteryState.state).trim())
+        ? Number(batteryState.state)
         : NaN,
-    value5 = value2?.attributes?.unit_of_measurement,
-    value6 = Number.isFinite(value4) && value4 >= 0 && value4 <= 100 && (!value5 || value5 === "%"),
-    value7 = arg8.chargingStates,
-    value8 = b(value3) ? String(value3.state).trim() : "",
-    value9 = arg8.chargingEntityId?.startsWith("binary_sensor."),
-    value10 = value8.toLowerCase(),
-    value11 = value8
-      ? value7
-        ? carChargingMappingError(value7)
+    unitOfMeasurement = batteryState?.attributes?.unit_of_measurement,
+    isBatteryLevelValid =
+      Number.isFinite(batteryLevel) &&
+      batteryLevel >= 0 &&
+      batteryLevel <= 100 &&
+      (!unitOfMeasurement || unitOfMeasurement === "%"),
+    chargingStateMapping = carConfig.chargingStates,
+    rawChargingState = hasUsableState(chargingState) ? String(chargingState.state).trim() : "",
+    isBinarySensor = carConfig.chargingEntityId?.startsWith("binary_sensor."),
+    normalizedChargingState = rawChargingState.toLowerCase(),
+    isCharging = rawChargingState
+      ? chargingStateMapping
+        ? carChargingMappingError(chargingStateMapping)
           ? null
-          : value8 === value7.active.trim()
+          : rawChargingState === chargingStateMapping.active.trim()
             ? true
-            : value8 === value7.inactive.trim()
+            : rawChargingState === chargingStateMapping.inactive.trim()
               ? false
               : null
-        : value9
-          ? value10 === "on"
+        : isBinarySensor
+          ? normalizedChargingState === "on"
             ? true
-            : value10 === "off"
+            : normalizedChargingState === "off"
               ? false
               : null
-          : ["charging", "充电中", "正在充电"].includes(value10)
+          : ["charging", "充电中", "正在充电"].includes(normalizedChargingState)
             ? true
             : [
                   "not_charging",
@@ -75,49 +86,50 @@ export function carState(arg8, arg9 = {}) {
                   "充电完成",
                   "未连接",
                   "充电暂停",
-                ].includes(value10)
+                ].includes(normalizedChargingState)
               ? false
               : null
       : null,
-    value12 =
-      value3?.available === false || String(value3?.state).trim().toLowerCase() === "unavailable",
-    value13 = value8
-      ? value9 && value11 !== null
-        ? value11
+    isChargingUnavailable =
+      chargingState?.available === false ||
+      String(chargingState?.state).trim().toLowerCase() === "unavailable",
+    chargingStatusText = rawChargingState
+      ? isBinarySensor && isCharging !== null
+        ? isCharging
           ? "充电中"
           : "未充电"
-        : !value7 && Object.hasOwn(y, value10)
-          ? y[value10]
-          : value8
-      : value12
+        : !chargingStateMapping && Object.hasOwn(chargingStateLabels, normalizedChargingState)
+          ? chargingStateLabels[normalizedChargingState]
+          : rawChargingState
+      : isChargingUnavailable
         ? "充电状态不可用"
         : "充电状态未知";
   return {
-    battery: value6 ? value4 : null,
-    batteryAvailable: value6,
-    charging: value11,
-    chargingRaw: value8,
-    available: value6 || !!value8,
-    on: value11 === true,
-    batteryText: value6 ? Math.round(value4 * 10) / 10 + "%" : "—",
-    status: value13,
+    battery: isBatteryLevelValid ? batteryLevel : null,
+    batteryAvailable: isBatteryLevelValid,
+    charging: isCharging,
+    chargingRaw: rawChargingState,
+    available: isBatteryLevelValid || !!rawChargingState,
+    on: isCharging === true,
+    batteryText: isBatteryLevelValid ? Math.round(batteryLevel * 10) / 10 + "%" : "—",
+    status: chargingStatusText,
   };
 }
-export function standardCarBindings(arg10 = []) {
-  const fn1 = (arg11, arg12) => {
-    const value14 = arg10.filter(
-      (arg13) =>
-        arg13.entityId?.startsWith(arg11 + ".") &&
-        arg13.attributes?.device_class === arg12 &&
-        arg13.enabled !== false &&
-        !arg13.disabledBy &&
-        !arg13.disabled_by &&
-        !["missing", "disabled"].includes(arg13.status),
+export function standardCarBindings(entities = []) {
+  const findEntityId = (entityDomain, deviceClass) => {
+    const matchingEntities = entities.filter(
+      (entityConfig) =>
+        entityConfig.entityId?.startsWith(entityDomain + ".") &&
+        entityConfig.attributes?.device_class === deviceClass &&
+        entityConfig.enabled !== false &&
+        !entityConfig.disabledBy &&
+        !entityConfig.disabled_by &&
+        !["missing", "disabled"].includes(entityConfig.status),
     );
-    return value14.length === 1 ? value14[0].entityId : "";
+    return matchingEntities.length === 1 ? matchingEntities[0].entityId : "";
   };
   return {
-    batteryEntityId: fn1("sensor", "battery"),
-    chargingEntityId: fn1("binary_sensor", "battery_charging"),
+    batteryEntityId: findEntityId("sensor", "battery"),
+    chargingEntityId: findEntityId("binary_sensor", "battery_charging"),
   };
 }

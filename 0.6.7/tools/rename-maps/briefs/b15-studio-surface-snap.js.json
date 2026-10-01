@@ -1,0 +1,613 @@
+{
+  "file": "frontend/static/3d-studio/studio-surface-snap.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 116,
+  "counts": {
+    "entries": 32,
+    "renameable": 32,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "O@1",
+      "name": "O",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const O = new Set([",
+      "references": [
+        {
+          "line": 45,
+          "text": "!O.has(arg2.type) ||"
+        }
+      ]
+    },
+    {
+      "key": "j@16",
+      "name": "j",
+      "line": 16,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "j = new Set([",
+      "references": [
+        {
+          "line": 76,
+          "text": "if (value10.id === arg2.id || !j.has(value10.type)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg1@34",
+      "name": "arg1",
+      "line": 34,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "THREE: arg1,",
+      "references": [
+        {
+          "line": 70,
+          "text": "value5 = new arg1.Raycaster(),"
+        },
+        {
+          "line": 71,
+          "text": "value6 = new arg1.Matrix3(),"
+        },
+        {
+          "line": 72,
+          "text": "value7 = new arg1.Vector3(),"
+        },
+        {
+          "line": 73,
+          "text": "value8 = new arg1.Vector3(0, -1, 0);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@35",
+      "name": "arg2",
+      "line": 35,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "item: arg2,",
+      "references": [
+        {
+          "line": 40,
+          "text": "movingIds: arg7 = [arg2.id],"
+        },
+        {
+          "line": 45,
+          "text": "!O.has(arg2.type) ||"
+        },
+        {
+          "line": 47,
+          "text": "!(arg2.width > 0 && arg2.depth > 0)"
+        },
+        {
+          "line": 50,
+          "text": "const value1 = ((arg2.rotation || 0) * Math.PI) / 180,"
+        }
+      ]
+    },
+    {
+      "key": "arg3@36",
+      "name": "arg3",
+      "line": 36,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "items: arg3,",
+      "references": [
+        {
+          "line": 75,
+          "text": "for (const value10 of arg3) {"
+        }
+      ]
+    },
+    {
+      "key": "arg4@37",
+      "name": "arg4",
+      "line": 37,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "pixelsPerMeter: arg4,",
+      "references": [
+        {
+          "line": 46,
+          "text": "!(arg4 > 0) ||"
+        },
+        {
+          "line": 77,
+          "text": "const value11 = (value10.x - arg2.x) / arg4,"
+        },
+        {
+          "line": 78,
+          "text": "value12 = (value10.y - arg2.y) / arg4;"
+        }
+      ]
+    },
+    {
+      "key": "arg5@38",
+      "name": "arg5",
+      "line": 38,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "mountModel: arg5,",
+      "references": [
+        {
+          "line": 81,
+          "text": "if (!arg5(value13, value10)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg6@39",
+      "name": "arg6",
+      "line": 39,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "enabled: arg6 = true,",
+      "references": [
+        {
+          "line": 43,
+          "text": "!arg6 ||"
+        }
+      ]
+    },
+    {
+      "key": "arg7@40",
+      "name": "arg7",
+      "line": 40,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "movingIds: arg7 = [arg2.id],",
+      "references": [
+        {
+          "line": 44,
+          "text": "arg7.length !== 1 ||"
+        }
+      ]
+    },
+    {
+      "key": "value1@50",
+      "name": "value1",
+      "line": 50,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = ((arg2.rotation || 0) * Math.PI) / 180,",
+      "references": [
+        {
+          "line": 51,
+          "text": "value2 = Math.cos(value1),"
+        },
+        {
+          "line": 52,
+          "text": "value3 = Math.sin(value1),"
+        }
+      ]
+    },
+    {
+      "key": "value2@51",
+      "name": "value2",
+      "line": 51,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = Math.cos(value1),",
+      "references": [
+        {
+          "line": 67,
+          "text": "[arg8 * value2 - arg9 * value3, arg8 * value3 + arg9 * value2]"
+        }
+      ]
+    },
+    {
+      "key": "value3@52",
+      "name": "value3",
+      "line": 52,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = Math.sin(value1),",
+      "references": [
+        {
+          "line": 67,
+          "text": "[arg8 * value2 - arg9 * value3, arg8 * value3 + arg9 * value2]"
+        }
+      ]
+    },
+    {
+      "key": "value4@53",
+      "name": "value4",
+      "line": 53,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = [",
+      "references": [
+        {
+          "line": 91,
+          "text": "for (const [value16, value17] of value4) {"
+        },
+        {
+          "line": 105,
+          "text": "if (list2.length !== value4.length) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg8@64",
+      "name": "arg8",
+      "line": 64,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg8, arg9]) => (",
+      "references": [
+        {
+          "line": 67,
+          "text": "[arg8 * value2 - arg9 * value3, arg8 * value3 + arg9 * value2]"
+        }
+      ]
+    },
+    {
+      "key": "arg9@64",
+      "name": "arg9",
+      "line": 64,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg8, arg9]) => (",
+      "references": [
+        {
+          "line": 67,
+          "text": "[arg8 * value2 - arg9 * value3, arg8 * value3 + arg9 * value2]"
+        }
+      ]
+    },
+    {
+      "key": "value5@70",
+      "name": "value5",
+      "line": 70,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = new arg1.Raycaster(),",
+      "references": [
+        {
+          "line": 92,
+          "text": "value5.set(new arg1.Vector3(value16, value14.max.y + 0.1, value17), value8);"
+        },
+        {
+          "line": 93,
+          "text": "const value18 = value5.intersectObjects(list1, false)[0];"
+        }
+      ]
+    },
+    {
+      "key": "value6@71",
+      "name": "value6",
+      "line": 71,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = new arg1.Matrix3(),",
+      "references": [
+        {
+          "line": 98,
+          "text": ".applyMatrix3(value6.getNormalMatrix(value18.object.matrixWorld))"
+        }
+      ]
+    },
+    {
+      "key": "value7@72",
+      "name": "value7",
+      "line": 72,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = new arg1.Vector3(),",
+      "references": [
+        {
+          "line": 96,
+          "text": "(value7"
+        },
+        {
+          "line": 100,
+          "text": "value7.y < 0.999 || value18.point.y < 0.05 || value18.point.y > 6)"
+        }
+      ]
+    },
+    {
+      "key": "value8@73",
+      "name": "value8",
+      "line": 73,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = new arg1.Vector3(0, -1, 0);",
+      "references": [
+        {
+          "line": 92,
+          "text": "value5.set(new arg1.Vector3(value16, value14.max.y + 0.1, value17), value8);"
+        }
+      ]
+    },
+    {
+      "key": "value9@74",
+      "name": "value9",
+      "line": 74,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value9 = null;",
+      "references": [
+        {
+          "line": 108,
+          "text": "((!value9 || value15 > value9.elevation) &&"
+        },
+        {
+          "line": 114,
+          "text": "return (value9 && (arg2.elevation = value9.elevation), value9);"
+        }
+      ]
+    },
+    {
+      "key": "value10@75",
+      "name": "value10",
+      "line": 75,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value10 of arg3) {",
+      "references": [
+        {
+          "line": 76,
+          "text": "if (value10.id === arg2.id || !j.has(value10.type)) continue;"
+        },
+        {
+          "line": 77,
+          "text": "const value11 = (value10.x - arg2.x) / arg4,"
+        },
+        {
+          "line": 78,
+          "text": "value12 = (value10.y - arg2.y) / arg4;"
+        },
+        {
+          "line": 79,
+          "text": "if (Math.hypot(value11, value12) > Math.hypot(value10.width, value10.depth) / 2) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value11@77",
+      "name": "value11",
+      "line": 77,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = (value10.x - arg2.x) / arg4,",
+      "references": [
+        {
+          "line": 79,
+          "text": "if (Math.hypot(value11, value12) > Math.hypot(value10.width, value10.depth) / 2) continue;"
+        },
+        {
+          "line": 82,
+          "text": "(value13.position.set(value11, value10.elevation || 0, value12),"
+        }
+      ]
+    },
+    {
+      "key": "value12@78",
+      "name": "value12",
+      "line": 78,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = (value10.y - arg2.y) / arg4;",
+      "references": [
+        {
+          "line": 79,
+          "text": "if (Math.hypot(value11, value12) > Math.hypot(value10.width, value10.depth) / 2) continue;"
+        },
+        {
+          "line": 82,
+          "text": "(value13.position.set(value11, value10.elevation || 0, value12),"
+        }
+      ]
+    },
+    {
+      "key": "value13@80",
+      "name": "value13",
+      "line": 80,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = new arg1.Group();",
+      "references": [
+        {
+          "line": 81,
+          "text": "if (!arg5(value13, value10)) continue;"
+        },
+        {
+          "line": 82,
+          "text": "(value13.position.set(value11, value10.elevation || 0, value12),"
+        },
+        {
+          "line": 83,
+          "text": "(value13.rotation.y = (-(value10.rotation || 0) * Math.PI) / 180),"
+        },
+        {
+          "line": 84,
+          "text": "value13.updateMatrixWorld(true));"
+        }
+      ]
+    },
+    {
+      "key": "list1@85",
+      "name": "list1",
+      "line": 85,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [];",
+      "references": [
+        {
+          "line": 87,
+          "text": "arg10.isMesh && list1.push(arg10);"
+        },
+        {
+          "line": 93,
+          "text": "const value18 = value5.intersectObjects(list1, false)[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg10@86",
+      "name": "arg10",
+      "line": 86,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13.traverseVisible((arg10) => {",
+      "references": [
+        {
+          "line": 87,
+          "text": "arg10.isMesh && list1.push(arg10);"
+        }
+      ]
+    },
+    {
+      "key": "value14@89",
+      "name": "value14",
+      "line": 89,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = new arg1.Box3().setFromObject(value13),",
+      "references": [
+        {
+          "line": 92,
+          "text": "value5.set(new arg1.Vector3(value16, value14.max.y + 0.1, value17), value8);"
+        }
+      ]
+    },
+    {
+      "key": "list2@90",
+      "name": "list2",
+      "line": 90,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2 = [];",
+      "references": [
+        {
+          "line": 103,
+          "text": "list2.push(value18.point.y);"
+        },
+        {
+          "line": 105,
+          "text": "if (list2.length !== value4.length) continue;"
+        },
+        {
+          "line": 106,
+          "text": "const value15 = Math.max(...list2);"
+        },
+        {
+          "line": 107,
+          "text": "value15 - Math.min(...list2) > 0.005 ||"
+        }
+      ]
+    },
+    {
+      "key": "value16@91",
+      "name": "value16",
+      "line": 91,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value16, value17] of value4) {",
+      "references": [
+        {
+          "line": 92,
+          "text": "value5.set(new arg1.Vector3(value16, value14.max.y + 0.1, value17), value8);"
+        }
+      ]
+    },
+    {
+      "key": "value17@91",
+      "name": "value17",
+      "line": 91,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value16, value17] of value4) {",
+      "references": [
+        {
+          "line": 92,
+          "text": "value5.set(new arg1.Vector3(value16, value14.max.y + 0.1, value17), value8);"
+        }
+      ]
+    },
+    {
+      "key": "value18@93",
+      "name": "value18",
+      "line": 93,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = value5.intersectObjects(list1, false)[0];",
+      "references": [
+        {
+          "line": 95,
+          "text": "!value18?.face ||"
+        },
+        {
+          "line": 97,
+          "text": ".copy(value18.face.normal)"
+        },
+        {
+          "line": 98,
+          "text": ".applyMatrix3(value6.getNormalMatrix(value18.object.matrixWorld))"
+        },
+        {
+          "line": 100,
+          "text": "value7.y < 0.999 || value18.point.y < 0.05 || value18.point.y > 6)"
+        }
+      ]
+    },
+    {
+      "key": "value15@106",
+      "name": "value15",
+      "line": 106,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = Math.max(...list2);",
+      "references": [
+        {
+          "line": 107,
+          "text": "value15 - Math.min(...list2) > 0.005 ||"
+        },
+        {
+          "line": 108,
+          "text": "((!value9 || value15 > value9.elevation) &&"
+        },
+        {
+          "line": 110,
+          "text": "elevation: value15,"
+        }
+      ]
+    }
+  ]
+}

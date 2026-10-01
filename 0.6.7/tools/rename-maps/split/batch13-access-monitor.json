@@ -1,0 +1,30 @@
+{
+  "frontend/static/modules/interaction3d/access-monitor.js": {
+    "M@1": "MAX_GRANT_MS",
+    "h@2": "MAX_REFRESH_DELAY_MS",
+    "R@3": "RETRY_DELAY_MS",
+    "arg1@5": "requestGrant",
+    "arg2@6": "now",
+    "arg3@7": "setTimer",
+    "arg4@8": "clearTimer",
+    "set1@10": "subscriberSet",
+    "value1@11": "generation",
+    "value2@12": "refreshTimer",
+    "value3@13": "expiryTimer",
+    "fn1@14": "checkingState",
+    "value4@19": "currentState",
+    "value5@20": "isSuspended",
+    "fn2@21": "publishState",
+    "arg5@21": "state",
+    "value6@23": "listener",
+    "fn3@25": "clearTimers",
+    "fn4@28": "refreshGrant",
+    "value7@30": "requestGeneration",
+    "value8@31": "startedAt",
+    "value9@33": "grant",
+    "value10@35": "validFor",
+    "value11@40": "remainingMs",
+    "error1@57": "grantError",
+    "arg6@80": "subscriber"
+  }
+}

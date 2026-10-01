@@ -1,0 +1,28 @@
+{
+  "frontend/static/3d-studio/studio-floor-cache-budget.js": {
+    "arg1@2": "retainedFloors",
+    "arg2@3": "onFloorEvicted",
+    "arg3@4": "maxEntries",
+    "arg4@4": "maxBytes",
+    "map1@6": "refCountByBuffer",
+    "map2@7": "buffersByFloor",
+    "value1@8": "totalBufferBytes",
+    "value2@9": "floorKey",
+    "value3@9": "floorEntry",
+    "set1@10": "floorBufferSet",
+    "fn1@11": "collectBufferRefs",
+    "arg5@11": "attribute",
+    "value4@12": "buffer",
+    "arg6@15": "object",
+    "value5@16": "geometry",
+    "value6@19": "geometryAttribute",
+    "value7@20": "morphAttributes",
+    "value8@21": "morphAttribute",
+    "value9@26": "trackedBuffer",
+    "value10@27": "refCount",
+    "value11@31": "evictedFloorKey",
+    "value12@31": "evictedFloorEntry",
+    "value13@34": "releasedBuffer",
+    "value14@35": "remainingRefs"
+  }
+}

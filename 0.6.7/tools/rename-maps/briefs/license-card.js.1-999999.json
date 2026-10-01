@@ -1,0 +1,574 @@
+{
+  "file": "frontend/static/license-card.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 84,
+  "counts": {
+    "entries": 27,
+    "renameable": 27,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "s@1",
+      "name": "s",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const s = {",
+      "references": [
+        {
+          "line": 45,
+          "text": "c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];"
+        }
+      ]
+    },
+    {
+      "key": "y@7",
+      "name": "y",
+      "line": 7,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function y(e) {",
+      "references": [
+        {
+          "line": 59,
+          "text": "validity: y(l || i[0]),"
+        }
+      ]
+    },
+    {
+      "key": "e@7",
+      "name": "e",
+      "line": 7,
+      "column": 11,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function y(e) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "if (!e) return \"以商城授权记录为准\";"
+        },
+        {
+          "line": 9,
+          "text": "if (e.expiresAt === null) return \"永久\";"
+        },
+        {
+          "line": 10,
+          "text": "if (!e.expiresAt) return \"以商城授权记录为准\";"
+        },
+        {
+          "line": 11,
+          "text": "const t = new Date(e.expiresAt);"
+        }
+      ]
+    },
+    {
+      "key": "t@11",
+      "name": "t",
+      "line": 11,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = new Date(e.expiresAt);",
+      "references": [
+        {
+          "line": 12,
+          "text": "return Number.isFinite(t.getTime())"
+        },
+        {
+          "line": 13,
+          "text": "? `${t.toLocaleString(\"zh-CN\", {"
+        }
+      ]
+    },
+    {
+      "key": "e@18",
+      "name": "e",
+      "line": 18,
+      "column": 32,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function licenseCardData(e = {}) {",
+      "references": [
+        {
+          "line": 19,
+          "text": "const t = !!e.activationCodeId,"
+        },
+        {
+          "line": 20,
+          "text": "i = Array.isArray(e.products)"
+        },
+        {
+          "line": 21,
+          "text": "? e.products.filter((n) => n && typeof n.name == \"string\" && n.type !== \"template\")"
+        },
+        {
+          "line": 23,
+          "text": "a = new Set(Array.isArray(e.features) ? e.features : []),"
+        },
+        {
+          "line": 26,
+          "text": "e.allowed !== false &&"
+        },
+        {
+          "line": 27,
+          "text": "[\"ACTIVE\", \"CONNECTION_WARNING\", \"STARTUP_VALIDATION_REQUIRED\"].includes(e.status),"
+        }
+      ]
+    },
+    {
+      "key": "t@19",
+      "name": "t",
+      "line": 19,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = !!e.activationCodeId,",
+      "references": [
+        {
+          "line": 25,
+          "text": "t &&"
+        },
+        {
+          "line": 37,
+          "text": "enabled: t && !!d.editor,"
+        },
+        {
+          "line": 41,
+          "text": "enabled: t && !!d.interaction3d,"
+        },
+        {
+          "line": 47,
+          "text": "licensed: t,"
+        }
+      ]
+    },
+    {
+      "key": "i@20",
+      "name": "i",
+      "line": 20,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "i = Array.isArray(e.products)",
+      "references": [
+        {
+          "line": 44,
+          "text": "l = i.find((n) => [\"base\", \"bundle\", \"package\"].includes(n.type)),"
+        },
+        {
+          "line": 45,
+          "text": "c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];"
+        },
+        {
+          "line": 55,
+          "text": "i"
+        },
+        {
+          "line": 59,
+          "text": "validity: y(l || i[0]),"
+        },
+        {
+          "line": 60,
+          "text": "validityNote: i.length > 1 ? \"有效期为主授权期限，附加包以各自授权期限为准。\" : \"\","
+        }
+      ]
+    },
+    {
+      "key": "n@21",
+      "name": "n",
+      "line": 21,
+      "column": 27,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "? e.products.filter((n) => n && typeof n.name == \"string\" && n.type !== \"template\")",
+      "references": [
+        {
+          "line": 21,
+          "text": "? e.products.filter((n) => n && typeof n.name == \"string\" && n.type !== \"template\")"
+        }
+      ]
+    },
+    {
+      "key": "a@23",
+      "name": "a",
+      "line": 23,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "a = new Set(Array.isArray(e.features) ? e.features : []),",
+      "references": [
+        {
+          "line": 29,
+          "text": "editor: r && (a.has(\"editor\") || a.has(\"all\")),"
+        },
+        {
+          "line": 30,
+          "text": "interaction3d: r && a.has(\"module.3d_interaction\"),"
+        },
+        {
+          "line": 32,
+          "text": "r && [...a].some((n) => typeof n == \"string\" && n.startsWith(\"ui.\") && n !== \"ui.base\"),"
+        }
+      ]
+    },
+    {
+      "key": "r@24",
+      "name": "r",
+      "line": 24,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "r =",
+      "references": [
+        {
+          "line": 29,
+          "text": "editor: r && (a.has(\"editor\") || a.has(\"all\")),"
+        },
+        {
+          "line": 30,
+          "text": "interaction3d: r && a.has(\"module.3d_interaction\"),"
+        },
+        {
+          "line": 32,
+          "text": "r && [...a].some((n) => typeof n == \"string\" && n.startsWith(\"ui.\") && n !== \"ui.base\"),"
+        }
+      ]
+    },
+    {
+      "key": "d@28",
+      "name": "d",
+      "line": 28,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "d = e.featureAccess || {",
+      "references": [
+        {
+          "line": 37,
+          "text": "enabled: t && !!d.editor,"
+        },
+        {
+          "line": 41,
+          "text": "enabled: t && !!d.interaction3d,"
+        },
+        {
+          "line": 51,
+          "text": ": o.every((n) => n.enabled) && d.uiPack"
+        }
+      ]
+    },
+    {
+      "key": "n@32",
+      "name": "n",
+      "line": 32,
+      "column": 26,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "r && [...a].some((n) => typeof n == \"string\" && n.startsWith(\"ui.\") && n !== \"ui.base\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "r && [...a].some((n) => typeof n == \"string\" && n.startsWith(\"ui.\") && n !== \"ui.base\"),"
+        }
+      ]
+    },
+    {
+      "key": "o@34",
+      "name": "o",
+      "line": 34,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "o = [",
+      "references": [
+        {
+          "line": 51,
+          "text": ": o.every((n) => n.enabled) && d.uiPack"
+        },
+        {
+          "line": 61,
+          "text": "rights: o,"
+        }
+      ]
+    },
+    {
+      "key": "l@44",
+      "name": "l",
+      "line": 44,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "l = i.find((n) => [\"base\", \"bundle\", \"package\"].includes(n.type)),",
+      "references": [
+        {
+          "line": 49,
+          "text": "l?.type === \"package\""
+        },
+        {
+          "line": 59,
+          "text": "validity: y(l || i[0]),"
+        }
+      ]
+    },
+    {
+      "key": "n@44",
+      "name": "n",
+      "line": 44,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "l = i.find((n) => [\"base\", \"bundle\", \"package\"].includes(n.type)),",
+      "references": [
+        {
+          "line": 44,
+          "text": "l = i.find((n) => [\"base\", \"bundle\", \"package\"].includes(n.type)),"
+        }
+      ]
+    },
+    {
+      "key": "c@45",
+      "name": "c",
+      "line": 45,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];",
+      "references": [
+        {
+          "line": 50,
+          "text": "? c.join(\" + \")"
+        },
+        {
+          "line": 53,
+          "text": ": c.join(\" + \") || \"主授权\","
+        }
+      ]
+    },
+    {
+      "key": "n@45",
+      "name": "n",
+      "line": 45,
+      "column": 27,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];",
+      "references": [
+        {
+          "line": 45,
+          "text": "c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];"
+        }
+      ]
+    },
+    {
+      "key": "n@51",
+      "name": "n",
+      "line": 51,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ": o.every((n) => n.enabled) && d.uiPack",
+      "references": [
+        {
+          "line": 51,
+          "text": ": o.every((n) => n.enabled) && d.uiPack"
+        }
+      ]
+    },
+    {
+      "key": "n@56",
+      "name": "n",
+      "line": 56,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".map((n) => n.name.trim())",
+      "references": [
+        {
+          "line": 56,
+          "text": ".map((n) => n.name.trim())"
+        }
+      ]
+    },
+    {
+      "key": "e@64",
+      "name": "e",
+      "line": 64,
+      "column": 44,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function createLicenseCard({ dialog: e }) {",
+      "references": [
+        {
+          "line": 65,
+          "text": "const t = (i) => e.querySelector(`#license-${i}`);"
+        }
+      ]
+    },
+    {
+      "key": "t@65",
+      "name": "t",
+      "line": 65,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = (i) => e.querySelector(`#license-${i}`);",
+      "references": [
+        {
+          "line": 69,
+          "text": "((t(\"card-details\").hidden = !a.licensed),"
+        },
+        {
+          "line": 70,
+          "text": "(t(\"card-type\").textContent = a.type),"
+        },
+        {
+          "line": 71,
+          "text": "(t(\"card-name\").textContent = a.name),"
+        },
+        {
+          "line": 72,
+          "text": "(t(\"card-validity\").textContent = a.validity),"
+        },
+        {
+          "line": 73,
+          "text": "(t(\"validity-note\").textContent = a.validityNote),"
+        },
+        {
+          "line": 74,
+          "text": "(t(\"validity-note\").hidden = !a.validityNote),"
+        }
+      ]
+    },
+    {
+      "key": "i@65",
+      "name": "i",
+      "line": 65,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = (i) => e.querySelector(`#license-${i}`);",
+      "references": [
+        {
+          "line": 65,
+          "text": "const t = (i) => e.querySelector(`#license-${i}`);"
+        }
+      ]
+    },
+    {
+      "key": "i@67",
+      "name": "i",
+      "line": 67,
+      "column": 11,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "render(i) {",
+      "references": [
+        {
+          "line": 68,
+          "text": "const a = licenseCardData(i);"
+        }
+      ]
+    },
+    {
+      "key": "a@68",
+      "name": "a",
+      "line": 68,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const a = licenseCardData(i);",
+      "references": [
+        {
+          "line": 69,
+          "text": "((t(\"card-details\").hidden = !a.licensed),"
+        },
+        {
+          "line": 70,
+          "text": "(t(\"card-type\").textContent = a.type),"
+        },
+        {
+          "line": 71,
+          "text": "(t(\"card-name\").textContent = a.name),"
+        },
+        {
+          "line": 72,
+          "text": "(t(\"card-validity\").textContent = a.validity),"
+        },
+        {
+          "line": 73,
+          "text": "(t(\"validity-note\").textContent = a.validityNote),"
+        },
+        {
+          "line": 74,
+          "text": "(t(\"validity-note\").hidden = !a.validityNote),"
+        }
+      ]
+    },
+    {
+      "key": "r@75",
+      "name": "r",
+      "line": 75,
+      "column": 26,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "a.rights.forEach((r, d) => {",
+      "references": [
+        {
+          "line": 77,
+          "text": "(o.classList.toggle(\"enabled\", r.enabled),"
+        },
+        {
+          "line": 78,
+          "text": "(o.querySelector(\"[data-right-icon]\").textContent = r.enabled ? \"✓\" : \"—\"),"
+        },
+        {
+          "line": 79,
+          "text": "(o.querySelector(\"[data-right-state]\").textContent = r.enabled ? \"已开通\" : \"未开通\"));"
+        }
+      ]
+    },
+    {
+      "key": "d@75",
+      "name": "d",
+      "line": 75,
+      "column": 29,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "a.rights.forEach((r, d) => {",
+      "references": [
+        {
+          "line": 76,
+          "text": "const o = t(`right-${d}`);"
+        }
+      ]
+    },
+    {
+      "key": "o@76",
+      "name": "o",
+      "line": 76,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const o = t(`right-${d}`);",
+      "references": [
+        {
+          "line": 77,
+          "text": "(o.classList.toggle(\"enabled\", r.enabled),"
+        },
+        {
+          "line": 78,
+          "text": "(o.querySelector(\"[data-right-icon]\").textContent = r.enabled ? \"✓\" : \"—\"),"
+        },
+        {
+          "line": 79,
+          "text": "(o.querySelector(\"[data-right-state]\").textContent = r.enabled ? \"已开通\" : \"未开通\"));"
+        }
+      ]
+    }
+  ]
+}

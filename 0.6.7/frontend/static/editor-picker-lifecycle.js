@@ -1,33 +1,33 @@
 export function createEditorPickerLifecycle({
-  getEntitiesLoaded: i,
-  getEntityLoadPromise: t,
-  loadEntities: s,
-  reportError: a,
+  getEntitiesLoaded: getEntitiesLoaded,
+  getEntityLoadPromise: getEntityLoadPromise,
+  loadEntities: loadEntities,
+  reportError: reportError,
 }) {
-  const n = new WeakSet();
-  function c(e, d, o = () => true) {
-    if (i()) return false;
-    if (n.has(e)) return true;
-    const r = t(),
-      u = !!r,
-      f = r || s();
+  const deferredHostSet = new WeakSet();
+  function deferUntilEntitiesLoaded(hostElement, onReady, canProceed = () => true) {
+    if (getEntitiesLoaded()) return false;
+    if (deferredHostSet.has(hostElement)) return true;
+    const existingPromise = getEntityLoadPromise(),
+      hasExistingPromise = !!existingPromise,
+      loadPromise = existingPromise || loadEntities();
     return (
-      n.add(e),
-      e?.setAttribute("aria-busy", "true"),
-      Promise.resolve(f)
+      deferredHostSet.add(hostElement),
+      hostElement?.setAttribute("aria-busy", "true"),
+      Promise.resolve(loadPromise)
         .then(() => {
-          !i() || !e?.isConnected || !o() || d();
+          !getEntitiesLoaded() || !hostElement?.isConnected || !canProceed() || onReady();
         })
-        .catch((l) => {
-          u || a(l);
+        .catch((loadError) => {
+          hasExistingPromise || reportError(loadError);
         })
         .finally(() => {
-          (n.delete(e), e?.removeAttribute("aria-busy"));
+          (deferredHostSet.delete(hostElement), hostElement?.removeAttribute("aria-busy"));
         }),
       true
     );
   }
   return {
-    deferUntilEntitiesLoaded: c,
+    deferUntilEntitiesLoaded: deferUntilEntitiesLoaded,
   };
 }

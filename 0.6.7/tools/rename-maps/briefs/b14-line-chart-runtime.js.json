@@ -1,0 +1,582 @@
+{
+  "file": "frontend/static/renderer/line-chart-runtime.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 56,
+  "counts": {
+    "entries": 31,
+    "renameable": 31,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartGeometry(arg1, arg2 = 0, arg3 = 5, arg4 = 100, arg5 = 59) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = Math.min(...arg1.map((arg6) => arg6.value)),"
+        },
+        {
+          "line": 3,
+          "text": "value2 = Math.max(...arg1.map((arg7) => arg7.value)),"
+        },
+        {
+          "line": 10,
+          "text": "value9 = arg1[0].timestamp,"
+        },
+        {
+          "line": 11,
+          "text": "value10 = Math.max(value9 + 1, arg1.at(-1).timestamp),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartGeometry(arg1, arg2 = 0, arg3 = 5, arg4 = 100, arg5 = 59) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "x: arg2 + ((arg8.timestamp - value9) / (value10 - value9)) * arg4,"
+        }
+      ]
+    },
+    {
+      "key": "arg3@1",
+      "name": "arg3",
+      "line": 1,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartGeometry(arg1, arg2 = 0, arg3 = 5, arg4 = 100, arg5 = 59) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "y: arg3 + ((value7 - arg8.value) / value8) * arg5,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@1",
+      "name": "arg4",
+      "line": 1,
+      "column": 60,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartGeometry(arg1, arg2 = 0, arg3 = 5, arg4 = 100, arg5 = 59) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "x: arg2 + ((arg8.timestamp - value9) / (value10 - value9)) * arg4,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@1",
+      "name": "arg5",
+      "line": 1,
+      "column": 72,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function lineChartGeometry(arg1, arg2 = 0, arg3 = 5, arg4 = 100, arg5 = 59) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "y: arg3 + ((value7 - arg8.value) / value8) * arg5,"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Math.min(...arg1.map((arg6) => arg6.value)),",
+      "references": [
+        {
+          "line": 4,
+          "text": "value3 = value2 - value1,"
+        },
+        {
+          "line": 5,
+          "text": "value4 = Math.max(Math.abs(value1), Math.abs(value2), 0.001),"
+        },
+        {
+          "line": 7,
+          "text": "value6 = value1 - value5,"
+        },
+        {
+          "line": 18,
+          "text": "dataMin: value1,"
+        }
+      ]
+    },
+    {
+      "key": "arg6@2",
+      "name": "arg6",
+      "line": 2,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Math.min(...arg1.map((arg6) => arg6.value)),",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = Math.min(...arg1.map((arg6) => arg6.value)),"
+        }
+      ]
+    },
+    {
+      "key": "value2@3",
+      "name": "value2",
+      "line": 3,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = Math.max(...arg1.map((arg7) => arg7.value)),",
+      "references": [
+        {
+          "line": 4,
+          "text": "value3 = value2 - value1,"
+        },
+        {
+          "line": 5,
+          "text": "value4 = Math.max(Math.abs(value1), Math.abs(value2), 0.001),"
+        },
+        {
+          "line": 8,
+          "text": "value7 = value2 + value5,"
+        },
+        {
+          "line": 19,
+          "text": "dataMax: value2,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@3",
+      "name": "arg7",
+      "line": 3,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = Math.max(...arg1.map((arg7) => arg7.value)),",
+      "references": [
+        {
+          "line": 3,
+          "text": "value2 = Math.max(...arg1.map((arg7) => arg7.value)),"
+        }
+      ]
+    },
+    {
+      "key": "value3@4",
+      "name": "value3",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = value2 - value1,",
+      "references": [
+        {
+          "line": 6,
+          "text": "value5 = Math.max(0.0001, value3 * 0.12, value4 * 0.02),"
+        }
+      ]
+    },
+    {
+      "key": "value4@5",
+      "name": "value4",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = Math.max(Math.abs(value1), Math.abs(value2), 0.001),",
+      "references": [
+        {
+          "line": 6,
+          "text": "value5 = Math.max(0.0001, value3 * 0.12, value4 * 0.02),"
+        }
+      ]
+    },
+    {
+      "key": "value5@6",
+      "name": "value5",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = Math.max(0.0001, value3 * 0.12, value4 * 0.02),",
+      "references": [
+        {
+          "line": 7,
+          "text": "value6 = value1 - value5,"
+        },
+        {
+          "line": 8,
+          "text": "value7 = value2 + value5,"
+        }
+      ]
+    },
+    {
+      "key": "value6@7",
+      "name": "value6",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = value1 - value5,",
+      "references": [
+        {
+          "line": 9,
+          "text": "value8 = Math.max(0.000001, value7 - value6),"
+        },
+        {
+          "line": 20,
+          "text": "minimum: value6,"
+        }
+      ]
+    },
+    {
+      "key": "value7@8",
+      "name": "value7",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = value2 + value5,",
+      "references": [
+        {
+          "line": 9,
+          "text": "value8 = Math.max(0.000001, value7 - value6),"
+        },
+        {
+          "line": 15,
+          "text": "y: arg3 + ((value7 - arg8.value) / value8) * arg5,"
+        },
+        {
+          "line": 21,
+          "text": "maximum: value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@9",
+      "name": "value8",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = Math.max(0.000001, value7 - value6),",
+      "references": [
+        {
+          "line": 15,
+          "text": "y: arg3 + ((value7 - arg8.value) / value8) * arg5,"
+        },
+        {
+          "line": 22,
+          "text": "span: value8,"
+        }
+      ]
+    },
+    {
+      "key": "value9@10",
+      "name": "value9",
+      "line": 10,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = arg1[0].timestamp,",
+      "references": [
+        {
+          "line": 11,
+          "text": "value10 = Math.max(value9 + 1, arg1.at(-1).timestamp),"
+        },
+        {
+          "line": 14,
+          "text": "x: arg2 + ((arg8.timestamp - value9) / (value10 - value9)) * arg4,"
+        },
+        {
+          "line": 23,
+          "text": "firstTime: value9,"
+        }
+      ]
+    },
+    {
+      "key": "value10@11",
+      "name": "value10",
+      "line": 11,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = Math.max(value9 + 1, arg1.at(-1).timestamp),",
+      "references": [
+        {
+          "line": 14,
+          "text": "x: arg2 + ((arg8.timestamp - value9) / (value10 - value9)) * arg4,"
+        },
+        {
+          "line": 24,
+          "text": "lastTime: value10,"
+        }
+      ]
+    },
+    {
+      "key": "value11@12",
+      "name": "value11",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = arg1.map((arg8) => ({",
+      "references": [
+        {
+          "line": 25,
+          "text": "points: value11,"
+        }
+      ]
+    },
+    {
+      "key": "arg8@12",
+      "name": "arg8",
+      "line": 12,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = arg1.map((arg8) => ({",
+      "references": [
+        {
+          "line": 13,
+          "text": "...arg8,"
+        },
+        {
+          "line": 14,
+          "text": "x: arg2 + ((arg8.timestamp - value9) / (value10 - value9)) * arg4,"
+        },
+        {
+          "line": 15,
+          "text": "y: arg3 + ((value7 - arg8.value) / value8) * arg5,"
+        }
+      ]
+    },
+    {
+      "key": "arg9@28",
+      "name": "arg9",
+      "line": 28,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizedStatePrecision(arg9) {",
+      "references": [
+        {
+          "line": 29,
+          "text": "if (arg9 == null || arg9 === \"\" || arg9 === \"auto\") return \"auto\";"
+        },
+        {
+          "line": 30,
+          "text": "const value12 = Number(arg9);"
+        }
+      ]
+    },
+    {
+      "key": "value12@30",
+      "name": "value12",
+      "line": 30,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = Number(arg9);",
+      "references": [
+        {
+          "line": 31,
+          "text": "return Number.isInteger(value12) && value12 >= 0 && value12 <= 4 ? value12 : \"auto\";"
+        }
+      ]
+    },
+    {
+      "key": "arg10@33",
+      "name": "arg10",
+      "line": 33,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function automaticNumericPrecision(arg10) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "const value13 = Math.abs(Number(arg10));"
+        }
+      ]
+    },
+    {
+      "key": "value13@34",
+      "name": "value13",
+      "line": 34,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = Math.abs(Number(arg10));",
+      "references": [
+        {
+          "line": 35,
+          "text": "return !Number.isFinite(value13) || value13 === 0 || value13 >= 100"
+        },
+        {
+          "line": 37,
+          "text": ": value13 >= 10"
+        },
+        {
+          "line": 39,
+          "text": ": value13 >= 1"
+        },
+        {
+          "line": 41,
+          "text": ": value13 >= 0.01"
+        }
+      ]
+    },
+    {
+      "key": "arg11@45",
+      "name": "arg11",
+      "line": 45,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatNumericValue(arg11, arg12 = \"auto\") {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value14 = Number(arg11);"
+        }
+      ]
+    },
+    {
+      "key": "arg12@45",
+      "name": "arg12",
+      "line": 45,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatNumericValue(arg11, arg12 = \"auto\") {",
+      "references": [
+        {
+          "line": 48,
+          "text": "const value15 = normalizedStatePrecision(arg12),"
+        }
+      ]
+    },
+    {
+      "key": "value14@46",
+      "name": "value14",
+      "line": 46,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = Number(arg11);",
+      "references": [
+        {
+          "line": 47,
+          "text": "if (!Number.isFinite(value14)) return \"--\";"
+        },
+        {
+          "line": 49,
+          "text": "value16 = value15 === \"auto\" ? automaticNumericPrecision(value14) : value15,"
+        },
+        {
+          "line": 50,
+          "text": "value17 = value14.toFixed(value16);"
+        }
+      ]
+    },
+    {
+      "key": "value15@48",
+      "name": "value15",
+      "line": 48,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = normalizedStatePrecision(arg12),",
+      "references": [
+        {
+          "line": 49,
+          "text": "value16 = value15 === \"auto\" ? automaticNumericPrecision(value14) : value15,"
+        },
+        {
+          "line": 51,
+          "text": "return value15 === \"auto\" ? String(Number(value17)) : value17;"
+        }
+      ]
+    },
+    {
+      "key": "value16@49",
+      "name": "value16",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = value15 === \"auto\" ? automaticNumericPrecision(value14) : value15,",
+      "references": [
+        {
+          "line": 50,
+          "text": "value17 = value14.toFixed(value16);"
+        }
+      ]
+    },
+    {
+      "key": "value17@50",
+      "name": "value17",
+      "line": 50,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = value14.toFixed(value16);",
+      "references": [
+        {
+          "line": 51,
+          "text": "return value15 === \"auto\" ? String(Number(value17)) : value17;"
+        }
+      ]
+    },
+    {
+      "key": "arg13@53",
+      "name": "arg13",
+      "line": 53,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLineChartValue(arg13, arg14 = \"auto\") {",
+      "references": [
+        {
+          "line": 54,
+          "text": "return formatNumericValue(arg13, arg14);"
+        }
+      ]
+    },
+    {
+      "key": "arg14@53",
+      "name": "arg14",
+      "line": 53,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLineChartValue(arg13, arg14 = \"auto\") {",
+      "references": [
+        {
+          "line": 54,
+          "text": "return formatNumericValue(arg13, arg14);"
+        }
+      ]
+    }
+  ]
+}

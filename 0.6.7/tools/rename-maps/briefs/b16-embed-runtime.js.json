@@ -1,0 +1,741 @@
+{
+  "file": "frontend/static/embed-runtime.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 176,
+  "counts": {
+    "entries": 41,
+    "renameable": 41,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "fn1@1",
+      "name": "fn1",
+      "line": 1,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn1() {",
+      "references": [
+        {
+          "line": 33,
+          "text": "return fn1();"
+        },
+        {
+          "line": 53,
+          "text": "})(fn1, 469264),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@35",
+      "name": "arg1",
+      "line": 35,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((function (arg1, arg2) {",
+      "references": [
+        {
+          "line": 36,
+          "text": "const list2 = arg1();"
+        }
+      ]
+    },
+    {
+      "key": "arg2@35",
+      "name": "arg2",
+      "line": 35,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((function (arg1, arg2) {",
+      "references": [
+        {
+          "line": 47,
+          "text": "if (v1 === arg2) break;"
+        }
+      ]
+    },
+    {
+      "key": "list2@36",
+      "name": "list2",
+      "line": 36,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list2 = arg1();",
+      "references": [
+        {
+          "line": 48,
+          "text": "else list2.push(list2.shift());"
+        },
+        {
+          "line": 50,
+          "text": "list2.push(list2.shift());"
+        }
+      ]
+    },
+    {
+      "key": "v1@39",
+      "name": "v1",
+      "line": 39,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v1 =",
+      "references": [
+        {
+          "line": 47,
+          "text": "if (v1 === arg2) break;"
+        }
+      ]
+    },
+    {
+      "key": "v2@49",
+      "name": "v2",
+      "line": 49,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "} catch (v2) {",
+      "references": []
+    },
+    {
+      "key": "v3@57",
+      "name": "v3",
+      "line": 57,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v3 = exec[0],",
+      "references": [
+        {
+          "line": 68,
+          "text": ": ((uRL.pathname = v3 + uRL.pathname), uRL.length);"
+        },
+        {
+          "line": 74,
+          "text": "prefix: v3,"
+        },
+        {
+          "line": 75,
+          "text": "path: location.pathname.slice(v3.pathname),"
+        }
+      ]
+    },
+    {
+      "key": "v4@58",
+      "name": "v4",
+      "line": 58,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v4 = (arg3) => {",
+      "references": [
+        {
+          "line": 76,
+          "text": "url: v4,"
+        },
+        {
+          "line": 81,
+          "text": "const v6 = v4(arg4.innerHTML);"
+        },
+        {
+          "line": 83,
+          "text": "} else arg4 = v4(arg4);"
+        },
+        {
+          "line": 88,
+          "text": "return open.call(this, arg6, v4(arg7), ...v7);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@58",
+      "name": "arg3",
+      "line": 58,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v4 = (arg3) => {",
+      "references": [
+        {
+          "line": 59,
+          "text": "if (typeof arg3 != \"string\" && !(arg3 instanceof URL)) return arg3;"
+        },
+        {
+          "line": 61,
+          "text": "const uRL = new URL(String(arg3), location.href);"
+        },
+        {
+          "line": 67,
+          "text": "? arg3"
+        },
+        {
+          "line": 70,
+          "text": "return arg3;"
+        }
+      ]
+    },
+    {
+      "key": "v5@78",
+      "name": "v5",
+      "line": 78,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v5 = window[\"112290RshRRt\"];",
+      "references": [
+        {
+          "line": 84,
+          "text": "return v5.call(this, arg4, arg5);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@79",
+      "name": "arg4",
+      "line": 79,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "window.fetch = function (arg4, arg5) {",
+      "references": [
+        {
+          "line": 80,
+          "text": "if (arg4 instanceof Request) {"
+        },
+        {
+          "line": 81,
+          "text": "const v6 = v4(arg4.innerHTML);"
+        },
+        {
+          "line": 82,
+          "text": "v6 !== arg4.innerHTML && (arg4 = new Request(v6, arg4));"
+        },
+        {
+          "line": 83,
+          "text": "} else arg4 = v4(arg4);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@79",
+      "name": "arg5",
+      "line": 79,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "window.fetch = function (arg4, arg5) {",
+      "references": [
+        {
+          "line": 84,
+          "text": "return v5.call(this, arg4, arg5);"
+        }
+      ]
+    },
+    {
+      "key": "v6@81",
+      "name": "v6",
+      "line": 81,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v6 = v4(arg4.innerHTML);",
+      "references": [
+        {
+          "line": 82,
+          "text": "v6 !== arg4.innerHTML && (arg4 = new Request(v6, arg4));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@87",
+      "name": "arg6",
+      "line": 87,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "XMLHttpRequest.prototype.open = function (arg6, arg7, ...v7) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "return open.call(this, arg6, v4(arg7), ...v7);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@87",
+      "name": "arg7",
+      "line": 87,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "XMLHttpRequest.prototype.open = function (arg6, arg7, ...v7) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "return open.call(this, arg6, v4(arg7), ...v7);"
+        }
+      ]
+    },
+    {
+      "key": "v7@87",
+      "name": "v7",
+      "line": 87,
+      "column": 61,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "XMLHttpRequest.prototype.open = function (arg6, arg7, ...v7) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "return open.call(this, arg6, v4(arg7), ...v7);"
+        }
+      ]
+    },
+    {
+      "key": "v8@90",
+      "name": "v8",
+      "line": 90,
+      "column": 15,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const v8 of [\"WebSocket\", \"Worker\"])",
+      "references": [
+        {
+          "line": 91,
+          "text": "window[v8] &&"
+        },
+        {
+          "line": 92,
+          "text": "(window[v8] = new Proxy(window[v8], {"
+        }
+      ]
+    },
+    {
+      "key": "arg8@93",
+      "name": "arg8",
+      "line": 93,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "construct(arg8, arg9) {",
+      "references": [
+        {
+          "line": 94,
+          "text": "return Reflect.construct(arg8, [v4(arg9[0]), ...arg9.slice(1)]);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@93",
+      "name": "arg9",
+      "line": 93,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "construct(arg8, arg9) {",
+      "references": [
+        {
+          "line": 94,
+          "text": "return Reflect.construct(arg8, [v4(arg9[0]), ...arg9.slice(1)]);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@99",
+      "name": "arg10",
+      "line": 99,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "Element.href.setAttribute = function (arg10, arg11) {",
+      "references": [
+        {
+          "line": 102,
+          "text": "arg10,"
+        },
+        {
+          "line": 103,
+          "text": "set.has(String(arg10).toLowerCase()) ? v4(arg11) : arg11,"
+        }
+      ]
+    },
+    {
+      "key": "arg11@99",
+      "name": "arg11",
+      "line": 99,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "Element.href.setAttribute = function (arg10, arg11) {",
+      "references": [
+        {
+          "line": 103,
+          "text": "set.has(String(arg10).toLowerCase()) ? v4(arg11) : arg11,"
+        }
+      ]
+    },
+    {
+      "key": "v9@106",
+      "name": "v9",
+      "line": 106,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const [v9, v10] of [",
+      "references": [
+        {
+          "line": 115,
+          "text": "const v11 = Object[\"2218568iIRKCz\"](v9.prototype, v10);"
+        },
+        {
+          "line": 118,
+          "text": "Object.defineProperty(v9.prototype, v10, {"
+        }
+      ]
+    },
+    {
+      "key": "v10@106",
+      "name": "v10",
+      "line": 106,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [v9, v10] of [",
+      "references": [
+        {
+          "line": 115,
+          "text": "const v11 = Object[\"2218568iIRKCz\"](v9.prototype, v10);"
+        },
+        {
+          "line": 118,
+          "text": "Object.defineProperty(v9.prototype, v10, {"
+        }
+      ]
+    },
+    {
+      "key": "v11@115",
+      "name": "v11",
+      "line": 115,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v11 = Object[\"2218568iIRKCz\"](v9.prototype, v10);",
+      "references": [
+        {
+          "line": 116,
+          "text": "!v11?.set ||"
+        },
+        {
+          "line": 117,
+          "text": "!v11.configurable ||"
+        },
+        {
+          "line": 119,
+          "text": "...v11,"
+        },
+        {
+          "line": 121,
+          "text": "v11.webkitMaskImage.call(this, v4(arg12));"
+        }
+      ]
+    },
+    {
+      "key": "arg12@120",
+      "name": "arg12",
+      "line": 120,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set(arg12) {",
+      "references": [
+        {
+          "line": 121,
+          "text": "v11.webkitMaskImage.call(this, v4(arg12));"
+        }
+      ]
+    },
+    {
+      "key": "v12@125",
+      "name": "v12",
+      "line": 125,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v12 = Object[\"2218568iIRKCz\"](Element.prototype, \"replace\");",
+      "references": [
+        {
+          "line": 126,
+          "text": "v12?.set &&"
+        },
+        {
+          "line": 127,
+          "text": "v12.configurable &&"
+        },
+        {
+          "line": 129,
+          "text": "...v12,"
+        },
+        {
+          "line": 138,
+          "text": "v12.webkitMaskImage.call(this, ownPropertyDescriptor);"
+        }
+      ]
+    },
+    {
+      "key": "arg13@130",
+      "name": "arg13",
+      "line": 130,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set(arg13) {",
+      "references": [
+        {
+          "line": 132,
+          "text": "typeof arg13 == \"string\""
+        },
+        {
+          "line": 133,
+          "text": "? arg13.getOwnPropertyDescriptor("
+        },
+        {
+          "line": 137,
+          "text": ": arg13;"
+        }
+      ]
+    },
+    {
+      "key": "arg14@135",
+      "name": "arg14",
+      "line": 135,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg14, arg15, arg16) => arg15 + v4(arg16),",
+      "references": []
+    },
+    {
+      "key": "arg15@135",
+      "name": "arg15",
+      "line": 135,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg14, arg15, arg16) => arg15 + v4(arg16),",
+      "references": [
+        {
+          "line": 135,
+          "text": "(arg14, arg15, arg16) => arg15 + v4(arg16),"
+        }
+      ]
+    },
+    {
+      "key": "arg16@135",
+      "name": "arg16",
+      "line": 135,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg14, arg15, arg16) => arg15 + v4(arg16),",
+      "references": [
+        {
+          "line": 135,
+          "text": "(arg14, arg15, arg16) => arg15 + v4(arg16),"
+        }
+      ]
+    },
+    {
+      "key": "v13@141",
+      "name": "v13",
+      "line": 141,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v13 = (arg17) =>",
+      "references": [
+        {
+          "line": 150,
+          "text": "return setProperty.call(this, arg21, v13(arg22), arg23);"
+        },
+        {
+          "line": 171,
+          "text": "v15.set.call(this, v13(arg24));"
+        }
+      ]
+    },
+    {
+      "key": "arg17@141",
+      "name": "arg17",
+      "line": 141,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v13 = (arg17) =>",
+      "references": [
+        {
+          "line": 142,
+          "text": "typeof arg17 == \"string\""
+        },
+        {
+          "line": 143,
+          "text": "? arg17.replace("
+        },
+        {
+          "line": 147,
+          "text": ": arg17,"
+        }
+      ]
+    },
+    {
+      "key": "arg18@145",
+      "name": "arg18",
+      "line": 145,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg18, arg19, arg20) => \"url(\" + arg19 + v4(arg20) + arg19 + \")\",",
+      "references": []
+    },
+    {
+      "key": "arg19@145",
+      "name": "arg19",
+      "line": 145,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg18, arg19, arg20) => \"url(\" + arg19 + v4(arg20) + arg19 + \")\",",
+      "references": [
+        {
+          "line": 145,
+          "text": "(arg18, arg19, arg20) => \"url(\" + arg19 + v4(arg20) + arg19 + \")\","
+        }
+      ]
+    },
+    {
+      "key": "arg20@145",
+      "name": "arg20",
+      "line": 145,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg18, arg19, arg20) => \"url(\" + arg19 + v4(arg20) + arg19 + \")\",",
+      "references": [
+        {
+          "line": 145,
+          "text": "(arg18, arg19, arg20) => \"url(\" + arg19 + v4(arg20) + arg19 + \")\","
+        }
+      ]
+    },
+    {
+      "key": "arg21@149",
+      "name": "arg21",
+      "line": 149,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "CSSStyleDeclaration.href[\"8cJFPil\"] = function (arg21, arg22, arg23) {",
+      "references": [
+        {
+          "line": 150,
+          "text": "return setProperty.call(this, arg21, v13(arg22), arg23);"
+        }
+      ]
+    },
+    {
+      "key": "arg22@149",
+      "name": "arg22",
+      "line": 149,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "CSSStyleDeclaration.href[\"8cJFPil\"] = function (arg21, arg22, arg23) {",
+      "references": [
+        {
+          "line": 150,
+          "text": "return setProperty.call(this, arg21, v13(arg22), arg23);"
+        }
+      ]
+    },
+    {
+      "key": "arg23@149",
+      "name": "arg23",
+      "line": 149,
+      "column": 66,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "CSSStyleDeclaration.href[\"8cJFPil\"] = function (arg21, arg22, arg23) {",
+      "references": [
+        {
+          "line": 150,
+          "text": "return setProperty.call(this, arg21, v13(arg22), arg23);"
+        }
+      ]
+    },
+    {
+      "key": "v14@152",
+      "name": "v14",
+      "line": 152,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const v14 of [",
+      "references": [
+        {
+          "line": 165,
+          "text": "const v15 = Object[\"2218568iIRKCz\"](CSSStyleDeclaration.prototype, v14);"
+        },
+        {
+          "line": 168,
+          "text": "Object.set(CSSStyleDeclaration.prototype, v14, {"
+        }
+      ]
+    },
+    {
+      "key": "v15@165",
+      "name": "v15",
+      "line": 165,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v15 = Object[\"2218568iIRKCz\"](CSSStyleDeclaration.prototype, v14);",
+      "references": [
+        {
+          "line": 166,
+          "text": "v15?.set &&"
+        },
+        {
+          "line": 167,
+          "text": "v15.configurable &&"
+        },
+        {
+          "line": 169,
+          "text": "...v15,"
+        },
+        {
+          "line": 171,
+          "text": "v15.set.call(this, v13(arg24));"
+        }
+      ]
+    },
+    {
+      "key": "arg24@170",
+      "name": "arg24",
+      "line": 170,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set(arg24) {",
+      "references": [
+        {
+          "line": 171,
+          "text": "v15.set.call(this, v13(arg24));"
+        }
+      ]
+    }
+  ]
+}

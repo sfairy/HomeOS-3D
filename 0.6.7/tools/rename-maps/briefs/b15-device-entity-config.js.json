@@ -1,0 +1,669 @@
+{
+  "file": "frontend/modules/interaction3d/device-entity-config.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 104,
+  "counts": {
+    "entries": 36,
+    "renameable": 36,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "d@1",
+      "name": "d",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const d = {",
+      "references": [
+        {
+          "line": 35,
+          "text": "list1 = [...(value5?.capabilities || d[value2] || [])],"
+        }
+      ]
+    },
+    {
+      "key": "o@18",
+      "name": "o",
+      "line": 18,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "o = new Map();",
+      "references": [
+        {
+          "line": 22,
+          "text": ": (o.set(String(arg1), arg2), () => o.delete(String(arg1)));"
+        },
+        {
+          "line": 25,
+          "text": "return o.get(String(arg3 || \"\")) || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg1@19",
+      "name": "arg1",
+      "line": 19,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function registerDeviceCapabilityAdapter(arg1, arg2) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "return !arg1 || !arg2 || typeof arg2 != \"object\""
+        },
+        {
+          "line": 22,
+          "text": ": (o.set(String(arg1), arg2), () => o.delete(String(arg1)));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@19",
+      "name": "arg2",
+      "line": 19,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function registerDeviceCapabilityAdapter(arg1, arg2) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "return !arg1 || !arg2 || typeof arg2 != \"object\""
+        },
+        {
+          "line": 22,
+          "text": ": (o.set(String(arg1), arg2), () => o.delete(String(arg1)));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@24",
+      "name": "arg3",
+      "line": 24,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceCapabilityAdapter(arg3) {",
+      "references": [
+        {
+          "line": 25,
+          "text": "return o.get(String(arg3 || \"\")) || null;"
+        }
+      ]
+    },
+    {
+      "key": "u@27",
+      "name": "u",
+      "line": 27,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const u = new Set([\"control\", \"state\", \"status\"]),",
+      "references": [
+        {
+          "line": 81,
+          "text": "return !u.has(arg18?.role) || set1.has(value7) || !map1.has(arg18.entityId)"
+        }
+      ]
+    },
+    {
+      "key": "p@28",
+      "name": "p",
+      "line": 28,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "p = (arg4) => String(arg4 || \"\").split(\".\")[0];",
+      "references": [
+        {
+          "line": 31,
+          "text": "value2 = arg5?.domain || p(value1),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@28",
+      "name": "arg4",
+      "line": 28,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "p = (arg4) => String(arg4 || \"\").split(\".\")[0];",
+      "references": [
+        {
+          "line": 28,
+          "text": "p = (arg4) => String(arg4 || \"\").split(\".\")[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg5@29",
+      "name": "arg5",
+      "line": 29,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityCapabilities(arg5, arg6 = null) {",
+      "references": [
+        {
+          "line": 30,
+          "text": "const value1 = arg5?.entityId || arg5?.entity_id || \"\","
+        },
+        {
+          "line": 31,
+          "text": "value2 = arg5?.domain || p(value1),"
+        },
+        {
+          "line": 33,
+          "text": "value4 = value3.attributes || arg5?.attributes || {},"
+        },
+        {
+          "line": 40,
+          "text": "deviceId: arg5?.deviceId || arg5?.device_id || \"\","
+        }
+      ]
+    },
+    {
+      "key": "arg6@29",
+      "name": "arg6",
+      "line": 29,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityCapabilities(arg5, arg6 = null) {",
+      "references": [
+        {
+          "line": 32,
+          "text": "value3 = arg6?.newState || arg6 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value1@30",
+      "name": "value1",
+      "line": 30,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg5?.entityId || arg5?.entity_id || \"\",",
+      "references": [
+        {
+          "line": 31,
+          "text": "value2 = arg5?.domain || p(value1),"
+        },
+        {
+          "line": 38,
+          "text": "entityId: value1,"
+        },
+        {
+          "line": 44,
+          "text": "name: arg5?.name || arg5?.friendlyName || value4.friendly_name || value1,"
+        }
+      ]
+    },
+    {
+      "key": "value2@31",
+      "name": "value2",
+      "line": 31,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg5?.domain || p(value1),",
+      "references": [
+        {
+          "line": 34,
+          "text": "value5 = deviceCapabilityAdapter(value2),"
+        },
+        {
+          "line": 35,
+          "text": "list1 = [...(value5?.capabilities || d[value2] || [])],"
+        },
+        {
+          "line": 39,
+          "text": "domain: value2,"
+        }
+      ]
+    },
+    {
+      "key": "value3@32",
+      "name": "value3",
+      "line": 32,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = arg6?.newState || arg6 || {},",
+      "references": [
+        {
+          "line": 33,
+          "text": "value4 = value3.attributes || arg5?.attributes || {},"
+        },
+        {
+          "line": 46,
+          "text": "value3.available !== false &&"
+        },
+        {
+          "line": 47,
+          "text": "![\"unknown\", \"unavailable\"].includes(String(value3.state || \"\").toLowerCase()),"
+        }
+      ]
+    },
+    {
+      "key": "value4@33",
+      "name": "value4",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = value3.attributes || arg5?.attributes || {},",
+      "references": [
+        {
+          "line": 36,
+          "text": "value6 = value4.supported_features;"
+        },
+        {
+          "line": 44,
+          "text": "name: arg5?.name || arg5?.friendlyName || value4.friendly_name || value1,"
+        },
+        {
+          "line": 51,
+          "text": "attributes: value4,"
+        }
+      ]
+    },
+    {
+      "key": "value5@34",
+      "name": "value5",
+      "line": 34,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = deviceCapabilityAdapter(value2),",
+      "references": [
+        {
+          "line": 35,
+          "text": "list1 = [...(value5?.capabilities || d[value2] || [])],"
+        },
+        {
+          "line": 53,
+          "text": "adapter: value5?.name || null,"
+        }
+      ]
+    },
+    {
+      "key": "list1@35",
+      "name": "list1",
+      "line": 35,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [...(value5?.capabilities || d[value2] || [])],",
+      "references": [
+        {
+          "line": 48,
+          "text": "capabilities: list1,"
+        },
+        {
+          "line": 49,
+          "text": "writable: list1.length > 0,"
+        }
+      ]
+    },
+    {
+      "key": "value6@36",
+      "name": "value6",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = value4.supported_features;",
+      "references": [
+        {
+          "line": 52,
+          "text": "supportedFeatures: Number.isInteger(value6) ? value6 : 0,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@56",
+      "name": "arg7",
+      "line": 56,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceEntityCatalog(arg7 = [], arg8 = \"\", arg9 = new Map()) {",
+      "references": [
+        {
+          "line": 58,
+          "text": "? arg7"
+        }
+      ]
+    },
+    {
+      "key": "arg8@56",
+      "name": "arg8",
+      "line": 56,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceEntityCatalog(arg7 = [], arg8 = \"\", arg9 = new Map()) {",
+      "references": [
+        {
+          "line": 57,
+          "text": "return arg8"
+        },
+        {
+          "line": 59,
+          "text": ".filter((arg10) => (arg10.deviceId || arg10.device_id) === arg8)"
+        }
+      ]
+    },
+    {
+      "key": "arg9@56",
+      "name": "arg9",
+      "line": 56,
+      "column": 58,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceEntityCatalog(arg7 = [], arg8 = \"\", arg9 = new Map()) {",
+      "references": [
+        {
+          "line": 63,
+          "text": "arg9 instanceof Map ? arg9.get(arg11.entityId) : (arg9 || {})[arg11.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "arg10@59",
+      "name": "arg10",
+      "line": 59,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg10) => (arg10.deviceId || arg10.device_id) === arg8)",
+      "references": [
+        {
+          "line": 59,
+          "text": ".filter((arg10) => (arg10.deviceId || arg10.device_id) === arg8)"
+        }
+      ]
+    },
+    {
+      "key": "arg11@60",
+      "name": "arg11",
+      "line": 60,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg11) =>",
+      "references": [
+        {
+          "line": 62,
+          "text": "arg11,"
+        },
+        {
+          "line": 63,
+          "text": "arg9 instanceof Map ? arg9.get(arg11.entityId) : (arg9 || {})[arg11.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "arg12@66",
+      "name": "arg12",
+      "line": 66,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg12) => arg12.entityId)",
+      "references": [
+        {
+          "line": 66,
+          "text": ".filter((arg12) => arg12.entityId)"
+        }
+      ]
+    },
+    {
+      "key": "arg13@68",
+      "name": "arg13",
+      "line": 68,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg13, arg14) =>",
+      "references": [
+        {
+          "line": 69,
+          "text": "arg13.domain.localeCompare(arg14.domain) ||"
+        },
+        {
+          "line": 70,
+          "text": "arg13.name.localeCompare(arg14.name) ||"
+        },
+        {
+          "line": 71,
+          "text": "arg13.entityId.localeCompare(arg14.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@68",
+      "name": "arg14",
+      "line": 68,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg13, arg14) =>",
+      "references": [
+        {
+          "line": 69,
+          "text": "arg13.domain.localeCompare(arg14.domain) ||"
+        },
+        {
+          "line": 70,
+          "text": "arg13.name.localeCompare(arg14.name) ||"
+        },
+        {
+          "line": 71,
+          "text": "arg13.entityId.localeCompare(arg14.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@75",
+      "name": "arg15",
+      "line": 75,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeDeviceEntitySelection(arg15 = [], arg16 = []) {",
+      "references": [
+        {
+          "line": 78,
+          "text": "return arg15"
+        }
+      ]
+    },
+    {
+      "key": "arg16@75",
+      "name": "arg16",
+      "line": 75,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizeDeviceEntitySelection(arg15 = [], arg16 = []) {",
+      "references": [
+        {
+          "line": 76,
+          "text": "const map1 = new Map(arg16.map((arg17) => [arg17.entityId, arg17])),"
+        }
+      ]
+    },
+    {
+      "key": "map1@76",
+      "name": "map1",
+      "line": 76,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map(arg16.map((arg17) => [arg17.entityId, arg17])),",
+      "references": [
+        {
+          "line": 81,
+          "text": "return !u.has(arg18?.role) || set1.has(value7) || !map1.has(arg18.entityId)"
+        },
+        {
+          "line": 86,
+          "text": "const value8 = map1.get(arg19.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@76",
+      "name": "arg17",
+      "line": 76,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map(arg16.map((arg17) => [arg17.entityId, arg17])),",
+      "references": [
+        {
+          "line": 76,
+          "text": "const map1 = new Map(arg16.map((arg17) => [arg17.entityId, arg17])),"
+        }
+      ]
+    },
+    {
+      "key": "set1@77",
+      "name": "set1",
+      "line": 77,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set();",
+      "references": [
+        {
+          "line": 81,
+          "text": "return !u.has(arg18?.role) || set1.has(value7) || !map1.has(arg18.entityId)"
+        },
+        {
+          "line": 83,
+          "text": ": (set1.add(value7), true);"
+        }
+      ]
+    },
+    {
+      "key": "arg18@79",
+      "name": "arg18",
+      "line": 79,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg18) => {",
+      "references": [
+        {
+          "line": 80,
+          "text": "const value7 = arg18?.entityId + \":\" + arg18?.role;"
+        },
+        {
+          "line": 81,
+          "text": "return !u.has(arg18?.role) || set1.has(value7) || !map1.has(arg18.entityId)"
+        }
+      ]
+    },
+    {
+      "key": "value7@80",
+      "name": "value7",
+      "line": 80,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg18?.entityId + \":\" + arg18?.role;",
+      "references": [
+        {
+          "line": 81,
+          "text": "return !u.has(arg18?.role) || set1.has(value7) || !map1.has(arg18.entityId)"
+        },
+        {
+          "line": 83,
+          "text": ": (set1.add(value7), true);"
+        }
+      ]
+    },
+    {
+      "key": "arg19@85",
+      "name": "arg19",
+      "line": 85,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg19) => {",
+      "references": [
+        {
+          "line": 86,
+          "text": "const value8 = map1.get(arg19.entityId),"
+        },
+        {
+          "line": 87,
+          "text": "value9 = arg19.role === \"control\" && !value8.writable ? \"state\" : arg19.role;"
+        }
+      ]
+    },
+    {
+      "key": "value8@86",
+      "name": "value8",
+      "line": 86,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = map1.get(arg19.entityId),",
+      "references": [
+        {
+          "line": 87,
+          "text": "value9 = arg19.role === \"control\" && !value8.writable ? \"state\" : arg19.role;"
+        },
+        {
+          "line": 89,
+          "text": "entityId: value8.entityId,"
+        },
+        {
+          "line": 91,
+          "text": "capabilities: [...value8.capabilities],"
+        }
+      ]
+    },
+    {
+      "key": "value9@87",
+      "name": "value9",
+      "line": 87,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = arg19.role === \"control\" && !value8.writable ? \"state\" : arg19.role;",
+      "references": [
+        {
+          "line": 90,
+          "text": "role: value9,"
+        }
+      ]
+    },
+    {
+      "key": "arg20@95",
+      "name": "arg20",
+      "line": 95,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceEntityRoleLabel(arg20) {",
+      "references": [
+        {
+          "line": 101,
+          "text": "}[arg20] || \"不显示\""
+        }
+      ]
+    }
+  ]
+}

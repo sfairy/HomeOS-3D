@@ -1,78 +1,85 @@
-const g = "https://wiki.habridge.cn/updates.html#changelog";
-export function applyUpdateNotice(arg1, arg2, arg3) {
-  let value1;
+const UPDATE_WIKI_URL = "https://wiki.habridge.cn/updates.html#changelog";
+export function applyUpdateNotice(noticeLink, noticeBadge, notice) {
+  let logUrl;
   try {
-    value1 = new URL(arg3?.logUrl);
+    logUrl = new URL(notice?.logUrl);
   } catch {}
-  const value2 =
-    arg3?.updateAvailable === true &&
-    typeof arg3.latestVersion == "string" &&
-    value1?.origin === "https://wiki.habridge.cn" &&
-    value1.pathname === "/updates.html" &&
-    !value1.username &&
-    !value1.password;
-  ((arg2.hidden = !value2),
-    (arg1.href = value2 ? value1.href : g),
-    (arg1.title = value2
-      ? "当前 " + arg3.currentVersion + "，最新 " + arg3.latestVersion + "，查看更新日志和升级说明"
+  const isTrustedNotice =
+    notice?.updateAvailable === true &&
+    typeof notice.latestVersion == "string" &&
+    logUrl?.origin === "https://wiki.habridge.cn" &&
+    logUrl.pathname === "/updates.html" &&
+    !logUrl.username &&
+    !logUrl.password;
+  ((noticeBadge.hidden = !isTrustedNotice),
+    (noticeLink.href = isTrustedNotice ? logUrl.href : UPDATE_WIKI_URL),
+    (noticeLink.title = isTrustedNotice
+      ? "当前 " +
+        notice.currentVersion +
+        "，最新 " +
+        notice.latestVersion +
+        "，查看更新日志和升级说明"
       : "查看开发计划与更新日志"),
-    value2
-      ? arg1.setAttribute("aria-label", "开发计划与更新日志，有新版本 " + arg3.latestVersion)
-      : arg1.removeAttribute("aria-label"));
+    isTrustedNotice
+      ? noticeLink.setAttribute(
+          "aria-label",
+          "开发计划与更新日志，有新版本 " + notice.latestVersion,
+        )
+      : noticeLink.removeAttribute("aria-label"));
 }
 export function startUpdateNotice(
-  arg4,
-  arg5,
+  linkElement,
+  badgeElement,
   {
-    fetcher: arg6 = fetch,
-    page: arg7 = document,
-    schedule: arg8 = setInterval,
-    cancel: arg9 = clearInterval,
+    fetcher: fetcher = fetch,
+    page: pageNode = document,
+    schedule: schedule = setInterval,
+    cancel: cancel = clearInterval,
   } = {},
 ) {
-  let value3 = false,
-    value4 = false,
-    value5;
-  async function fn1() {
-    if (value3 || value4 || arg7.hidden) return;
-    ((value3 = true), (value5 = new AbortController()));
-    const value7 = setTimeout(() => value5.abort(), 5000);
+  let isFetching = false,
+    isDisposed = false,
+    abortController;
+  async function refreshNotice() {
+    if (isFetching || isDisposed || pageNode.hidden) return;
+    ((isFetching = true), (abortController = new AbortController()));
+    const abortTimer = setTimeout(() => abortController.abort(), 5000);
     try {
-      const value8 = await arg6("/api/v1/updates", {
-        signal: value5.signal,
+      const response = await fetcher("/api/v1/updates", {
+        signal: abortController.signal,
         credentials: "same-origin",
         cache: "no-store",
       });
-      if (value8.ok && !value4) {
-        const value9 = await value8.json();
-        value4 || applyUpdateNotice(arg4, arg5, value9);
-      } else value4 || applyUpdateNotice(arg4, arg5, null);
+      if (response.ok && !isDisposed) {
+        const payload = await response.json();
+        isDisposed || applyUpdateNotice(linkElement, badgeElement, payload);
+      } else isDisposed || applyUpdateNotice(linkElement, badgeElement, null);
     } catch {
-      value4 || applyUpdateNotice(arg4, arg5, null);
+      isDisposed || applyUpdateNotice(linkElement, badgeElement, null);
     } finally {
-      (clearTimeout(value7), (value3 = false));
+      (clearTimeout(abortTimer), (isFetching = false));
     }
   }
-  const value6 = arg8(fn1, 60 * 1000);
+  const timerId = schedule(refreshNotice, 60 * 1000);
   return (
-    arg7.addEventListener("visibilitychange", fn1),
-    fn1(),
+    pageNode.addEventListener("visibilitychange", refreshNotice),
+    refreshNotice(),
     () => {
-      ((value4 = true),
-        value5?.abort(),
-        arg9(value6),
-        arg7.removeEventListener("visibilitychange", fn1));
+      ((isDisposed = true),
+        abortController?.abort(),
+        cancel(timerId),
+        pageNode.removeEventListener("visibilitychange", refreshNotice));
     }
   );
 }
-const c = globalThis.document?.querySelector("#product-updates-link"),
-  u = globalThis.document?.querySelector("#product-update-badge");
-if (c && u) {
-  let e = startUpdateNotice(c, u);
+const updatesLinkElement = globalThis.document?.querySelector("#product-updates-link"),
+  updateBadgeElement = globalThis.document?.querySelector("#product-update-badge");
+if (updatesLinkElement && updateBadgeElement) {
+  let stopNotice = startUpdateNotice(updatesLinkElement, updateBadgeElement);
   (window.addEventListener("pagehide", () => {
-    (e?.(), (e = null));
+    (stopNotice?.(), (stopNotice = null));
   }),
     window.addEventListener("pageshow", () => {
-      e || (e = startUpdateNotice(c, u));
+      stopNotice || (stopNotice = startUpdateNotice(updatesLinkElement, updateBadgeElement));
     }));
 }

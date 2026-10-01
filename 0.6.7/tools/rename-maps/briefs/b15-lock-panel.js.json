@@ -1,0 +1,780 @@
+{
+  "file": "frontend/modules/interaction3d/lock-panel.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 138,
+  "counts": {
+    "entries": 37,
+    "renameable": 37,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createLockPanel({ onControl: arg1 }) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "(await arg1({"
+        }
+      ]
+    },
+    {
+      "key": "fn1@3",
+      "name": "fn1",
+      "line": 3,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3 = \"\") => {",
+      "references": [
+        {
+          "line": 7,
+          "text": "value1 = fn1(\"section\"),"
+        },
+        {
+          "line": 8,
+          "text": "value2 = fn1(\"div\"),"
+        },
+        {
+          "line": 9,
+          "text": "value3 = fn1(\"h3\"),"
+        },
+        {
+          "line": 10,
+          "text": "value4 = fn1(\"p\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@3",
+      "name": "arg2",
+      "line": 3,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3 = \"\") => {",
+      "references": [
+        {
+          "line": 4,
+          "text": "const value16 = document.createElement(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@3",
+      "name": "arg3",
+      "line": 3,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3 = \"\") => {",
+      "references": [
+        {
+          "line": 5,
+          "text": "return ((value16.textContent = arg3), value16);"
+        }
+      ]
+    },
+    {
+      "key": "value16@4",
+      "name": "value16",
+      "line": 4,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = document.createElement(arg2);",
+      "references": [
+        {
+          "line": 5,
+          "text": "return ((value16.textContent = arg3), value16);"
+        }
+      ]
+    },
+    {
+      "key": "value1@7",
+      "name": "value1",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1 = fn1(\"section\"),",
+      "references": [
+        {
+          "line": 16,
+          "text": "((value1.className = \"i3d-lock-panel i3d-nas-panel\"),"
+        },
+        {
+          "line": 108,
+          "text": "value1.append(value2, value5, value6, value8, value7, value9),"
+        },
+        {
+          "line": 110,
+          "text": "root: value1,"
+        },
+        {
+          "line": 130,
+          "text": "(value1.hidden = true));"
+        }
+      ]
+    },
+    {
+      "key": "value2@8",
+      "name": "value2",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = fn1(\"div\"),",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value2.className = \"i3d-nas-heading\"),"
+        },
+        {
+          "line": 107,
+          "text": "value2.append(value3, value4),"
+        },
+        {
+          "line": 108,
+          "text": "value1.append(value2, value5, value6, value8, value7, value9),"
+        }
+      ]
+    },
+    {
+      "key": "value3@9",
+      "name": "value3",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = fn1(\"h3\"),",
+      "references": [
+        {
+          "line": 107,
+          "text": "value2.append(value3, value4),"
+        },
+        {
+          "line": 121,
+          "text": "(value3.textContent = arg5.label || \"门\"),"
+        }
+      ]
+    },
+    {
+      "key": "value4@10",
+      "name": "value4",
+      "line": 10,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = fn1(\"p\"),",
+      "references": [
+        {
+          "line": 18,
+          "text": "(value4.className = \"i3d-nas-meta\"),"
+        },
+        {
+          "line": 91,
+          "text": "(value4.textContent = value15.available"
+        },
+        {
+          "line": 107,
+          "text": "value2.append(value3, value4),"
+        }
+      ]
+    },
+    {
+      "key": "value5@11",
+      "name": "value5",
+      "line": 11,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = fn1(\"p\"),",
+      "references": [
+        {
+          "line": 19,
+          "text": "(value5.className = \"i3d-nas-status\"),"
+        },
+        {
+          "line": 80,
+          "text": "((value5.textContent = value10?.entityId"
+        },
+        {
+          "line": 108,
+          "text": "value1.append(value2, value5, value6, value8, value7, value9),"
+        }
+      ]
+    },
+    {
+      "key": "value6@12",
+      "name": "value6",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = fn1(\"div\"),",
+      "references": [
+        {
+          "line": 20,
+          "text": "(value6.className = \"i3d-lock-details\"),"
+        },
+        {
+          "line": 83,
+          "text": "value6.replaceChildren("
+        },
+        {
+          "line": 108,
+          "text": "value1.append(value2, value5, value6, value8, value7, value9),"
+        }
+      ]
+    },
+    {
+      "key": "value7@13",
+      "name": "value7",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = fn1(\"div\"),",
+      "references": [
+        {
+          "line": 21,
+          "text": "(value7.className = \"i3d-focus-actions\"),"
+        },
+        {
+          "line": 43,
+          "text": "value7.append(value19),"
+        },
+        {
+          "line": 108,
+          "text": "value1.append(value2, value5, value6, value8, value7, value9),"
+        }
+      ]
+    },
+    {
+      "key": "value8@14",
+      "name": "value8",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = fn1(\"input\"),",
+      "references": [
+        {
+          "line": 23,
+          "text": "(value8.type = \"password\"),"
+        },
+        {
+          "line": 24,
+          "text": "(value8.autocomplete = \"off\"),"
+        },
+        {
+          "line": 25,
+          "text": "(value8.maxLength = 128),"
+        },
+        {
+          "line": 26,
+          "text": "(value8.placeholder = \"门密码（仅本次操作）\"),"
+        }
+      ]
+    },
+    {
+      "key": "value9@15",
+      "name": "value9",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = fn1(\"p\");",
+      "references": [
+        {
+          "line": 22,
+          "text": "value9.setAttribute(\"role\", \"status\"),"
+        },
+        {
+          "line": 47,
+          "text": "((text1 = value17), (value9.textContent = \"确认要\" + value18 + \"吗？再次点击执行。\"));"
+        },
+        {
+          "line": 70,
+          "text": "(value9.textContent = \"指令已提交，状态以门反馈为准。\"));"
+        },
+        {
+          "line": 72,
+          "text": "!value13 && value20 === value14 && (value9.textContent = error1.message || \"操作失败。\");"
+        }
+      ]
+    },
+    {
+      "key": "value10@28",
+      "name": "value10",
+      "line": 28,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value10 = null,",
+      "references": [
+        {
+          "line": 45,
+          "text": "if (value11 || value12 || !value10) return;"
+        },
+        {
+          "line": 52,
+          "text": "value21 = value10;"
+        },
+        {
+          "line": 80,
+          "text": "((value5.textContent = value10?.entityId"
+        },
+        {
+          "line": 84,
+          "text": "...[value10?.batteryEntityId ? \"电量 \" + value15.battery : \"\"]"
+        }
+      ]
+    },
+    {
+      "key": "value11@29",
+      "name": "value11",
+      "line": 29,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = true,",
+      "references": [
+        {
+          "line": 45,
+          "text": "if (value11 || value12 || !value10) return;"
+        },
+        {
+          "line": 100,
+          "text": "value11 ||"
+        }
+      ]
+    },
+    {
+      "key": "value12@30",
+      "name": "value12",
+      "line": 30,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = false,",
+      "references": [
+        {
+          "line": 45,
+          "text": "if (value11 || value12 || !value10) return;"
+        },
+        {
+          "line": 101,
+          "text": "value12 ||"
+        }
+      ]
+    },
+    {
+      "key": "value13@31",
+      "name": "value13",
+      "line": 31,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = false,",
+      "references": [
+        {
+          "line": 68,
+          "text": "!value13 &&"
+        },
+        {
+          "line": 72,
+          "text": "!value13 && value20 === value14 && (value9.textContent = error1.message || \"操作失败。\");"
+        },
+        {
+          "line": 74,
+          "text": "!value13 && value20 === value14 && ((value12 = false), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "text1@32",
+      "name": "text1",
+      "line": 32,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "text1 = \"\",",
+      "references": [
+        {
+          "line": 46,
+          "text": "if (value17 !== \"lock\" && text1 !== value17) {"
+        }
+      ]
+    },
+    {
+      "key": "value14@33",
+      "name": "value14",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = 0;",
+      "references": [
+        {
+          "line": 51,
+          "text": "const value20 = value14,"
+        },
+        {
+          "line": 69,
+          "text": "value20 === value14 &&"
+        },
+        {
+          "line": 72,
+          "text": "!value13 && value20 === value14 && (value9.textContent = error1.message || \"操作失败。\");"
+        },
+        {
+          "line": 74,
+          "text": "!value13 && value20 === value14 && ((value12 = false), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "map1@34",
+      "name": "map1",
+      "line": 34,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map();",
+      "references": [
+        {
+          "line": 42,
+          "text": "map1.set(value17, value19),"
+        },
+        {
+          "line": 97,
+          "text": "for (const [value24, value25] of map1)"
+        }
+      ]
+    },
+    {
+      "key": "value17@35",
+      "name": "value17",
+      "line": 35,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value17, value18] of [",
+      "references": [
+        {
+          "line": 42,
+          "text": "map1.set(value17, value19),"
+        },
+        {
+          "line": 46,
+          "text": "if (value17 !== \"lock\" && text1 !== value17) {"
+        },
+        {
+          "line": 47,
+          "text": "((text1 = value17), (value9.textContent = \"确认要\" + value18 + \"吗？再次点击执行。\"));"
+        },
+        {
+          "line": 64,
+          "text": "service: value17,"
+        }
+      ]
+    },
+    {
+      "key": "value18@35",
+      "name": "value18",
+      "line": 35,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value17, value18] of [",
+      "references": [
+        {
+          "line": 40,
+          "text": "const value19 = fn1(\"button\", value18);"
+        },
+        {
+          "line": 47,
+          "text": "((text1 = value17), (value9.textContent = \"确认要\" + value18 + \"吗？再次点击执行。\"));"
+        }
+      ]
+    },
+    {
+      "key": "value19@40",
+      "name": "value19",
+      "line": 40,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = fn1(\"button\", value18);",
+      "references": [
+        {
+          "line": 41,
+          "text": "((value19.type = \"button\"),"
+        },
+        {
+          "line": 42,
+          "text": "map1.set(value17, value19),"
+        },
+        {
+          "line": 43,
+          "text": "value7.append(value19),"
+        },
+        {
+          "line": 44,
+          "text": "value19.addEventListener(\"click\", async () => {"
+        }
+      ]
+    },
+    {
+      "key": "value20@51",
+      "name": "value20",
+      "line": 51,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = value14,",
+      "references": [
+        {
+          "line": 69,
+          "text": "value20 === value14 &&"
+        },
+        {
+          "line": 72,
+          "text": "!value13 && value20 === value14 && (value9.textContent = error1.message || \"操作失败。\");"
+        },
+        {
+          "line": 74,
+          "text": "!value13 && value20 === value14 && ((value12 = false), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "value21@52",
+      "name": "value21",
+      "line": 52,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = value10;",
+      "references": [
+        {
+          "line": 65,
+          "text": "entityId: value21.entityId,"
+        }
+      ]
+    },
+    {
+      "key": "value22@54",
+      "name": "value22",
+      "line": 54,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = value8.value",
+      "references": [
+        {
+          "line": 66,
+          "text": "data: value22,"
+        }
+      ]
+    },
+    {
+      "key": "error1@71",
+      "name": "error1",
+      "line": 71,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "} catch (error1) {",
+      "references": [
+        {
+          "line": 72,
+          "text": "!value13 && value20 === value14 && (value9.textContent = error1.message || \"操作失败。\");"
+        }
+      ]
+    },
+    {
+      "key": "value15@78",
+      "name": "value15",
+      "line": 78,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value15 = lockState({});",
+      "references": [
+        {
+          "line": 81,
+          "text": "? value15.label + \" · \" + value15.doorLabel"
+        },
+        {
+          "line": 82,
+          "text": ": value15.label),"
+        },
+        {
+          "line": 84,
+          "text": "...[value10?.batteryEntityId ? \"电量 \" + value15.battery : \"\"]"
+        },
+        {
+          "line": 91,
+          "text": "(value4.textContent = value15.available"
+        }
+      ]
+    },
+    {
+      "key": "fn2@79",
+      "name": "fn2",
+      "line": 79,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2() {",
+      "references": [
+        {
+          "line": 53,
+          "text": "fn2();"
+        },
+        {
+          "line": 74,
+          "text": "!value13 && value20 === value14 && ((value12 = false), fn2());"
+        },
+        {
+          "line": 122,
+          "text": "fn2());"
+        }
+      ]
+    },
+    {
+      "key": "arg4@86",
+      "name": "arg4",
+      "line": 86,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg4) => {",
+      "references": [
+        {
+          "line": 87,
+          "text": "const value23 = fn1(\"span\", arg4);"
+        }
+      ]
+    },
+    {
+      "key": "value23@87",
+      "name": "value23",
+      "line": 87,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = fn1(\"span\", arg4);",
+      "references": [
+        {
+          "line": 88,
+          "text": "return ((value23.className = \"i3d-lock-detail\"), value23);"
+        }
+      ]
+    },
+    {
+      "key": "value24@97",
+      "name": "value24",
+      "line": 97,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value24, value25] of map1)",
+      "references": [
+        {
+          "line": 98,
+          "text": "((value25.hidden = !value10?.entityId || (value24 === \"open\" && !value15.canOpen)),"
+        },
+        {
+          "line": 104,
+          "text": "(value24 === \"lock\" && value15.state === \"locked\")));"
+        }
+      ]
+    },
+    {
+      "key": "value25@97",
+      "name": "value25",
+      "line": 97,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value24, value25] of map1)",
+      "references": [
+        {
+          "line": 98,
+          "text": "((value25.hidden = !value10?.entityId || (value24 === \"open\" && !value15.canOpen)),"
+        },
+        {
+          "line": 99,
+          "text": "(value25.disabled ="
+        }
+      ]
+    },
+    {
+      "key": "arg5@111",
+      "name": "arg5",
+      "line": 111,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update({ item: arg5, states: arg6, editing: arg7 }) {",
+      "references": [
+        {
+          "line": 112,
+          "text": "(value10?.id !== arg5.id &&"
+        },
+        {
+          "line": 118,
+          "text": "(value10 = arg5),"
+        },
+        {
+          "line": 120,
+          "text": "(value15 = lockState(arg5, arg6)),"
+        },
+        {
+          "line": 121,
+          "text": "(value3.textContent = arg5.label || \"门\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@111",
+      "name": "arg6",
+      "line": 111,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update({ item: arg5, states: arg6, editing: arg7 }) {",
+      "references": [
+        {
+          "line": 120,
+          "text": "(value15 = lockState(arg5, arg6)),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@111",
+      "name": "arg7",
+      "line": 111,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update({ item: arg5, states: arg6, editing: arg7 }) {",
+      "references": [
+        {
+          "line": 119,
+          "text": "(value11 = arg7),"
+        }
+      ]
+    }
+  ]
+}

@@ -1,41 +1,44 @@
 export function trimRetainedFloors(
-  arg1,
-  arg2,
-  { maxEntries: arg3 = 8, maxBytes: arg4 = 32 * 1024 * 1024 } = {},
+  retainedFloors,
+  onFloorEvicted,
+  { maxEntries: maxEntries = 8, maxBytes: maxBytes = 32 * 1024 * 1024 } = {},
 ) {
-  const map1 = new Map(),
-    map2 = new Map();
-  let value1 = 0;
-  for (const [value2, value3] of arg1) {
-    const set1 = new Set(),
-      fn1 = (arg5) => {
-        const value4 = arg5?.isInterleavedBufferAttribute ? arg5.data : arg5;
-        value4?.array?.byteLength && set1.add(value4);
+  const refCountByBuffer = new Map(),
+    buffersByFloor = new Map();
+  let totalBufferBytes = 0;
+  for (const [floorKey, floorEntry] of retainedFloors) {
+    const floorBufferSet = new Set(),
+      collectBufferRefs = (attribute) => {
+        const buffer = attribute?.isInterleavedBufferAttribute ? attribute.data : attribute;
+        buffer?.array?.byteLength && floorBufferSet.add(buffer);
       };
-    (value3.node.traverse((arg6) => {
-      const value5 = arg6.geometry;
-      if (value5) {
-        fn1(value5.index);
-        for (const value6 of Object.values(value5.attributes)) fn1(value6);
-        for (const value7 of Object.values(value5.morphAttributes))
-          for (const value8 of value7) fn1(value8);
+    (floorEntry.node.traverse((object) => {
+      const geometry = object.geometry;
+      if (geometry) {
+        collectBufferRefs(geometry.index);
+        for (const geometryAttribute of Object.values(geometry.attributes))
+          collectBufferRefs(geometryAttribute);
+        for (const morphAttributes of Object.values(geometry.morphAttributes))
+          for (const morphAttribute of morphAttributes) collectBufferRefs(morphAttribute);
       }
-      (fn1(arg6.instanceMatrix), fn1(arg6.instanceColor));
+      (collectBufferRefs(object.instanceMatrix), collectBufferRefs(object.instanceColor));
     }),
-      map2.set(value2, set1));
-    for (const value9 of set1) {
-      const value10 = map1.get(value9) || 0;
-      (value10 || (value1 += value9.array.byteLength), map1.set(value9, value10 + 1));
+      buffersByFloor.set(floorKey, floorBufferSet));
+    for (const trackedBuffer of floorBufferSet) {
+      const refCount = refCountByBuffer.get(trackedBuffer) || 0;
+      (refCount || (totalBufferBytes += trackedBuffer.array.byteLength),
+        refCountByBuffer.set(trackedBuffer, refCount + 1));
     }
   }
-  for (const [value11, value12] of arg1) {
-    if (arg1.size <= arg3 && value1 <= arg4) break;
-    arg1.delete(value11);
-    for (const value13 of map2.get(value11)) {
-      const value14 = map1.get(value13) - 1;
-      (map1.set(value13, value14), value14 || (value1 -= value13.array.byteLength));
+  for (const [evictedFloorKey, evictedFloorEntry] of retainedFloors) {
+    if (retainedFloors.size <= maxEntries && totalBufferBytes <= maxBytes) break;
+    retainedFloors.delete(evictedFloorKey);
+    for (const releasedBuffer of buffersByFloor.get(evictedFloorKey)) {
+      const remainingRefs = refCountByBuffer.get(releasedBuffer) - 1;
+      (refCountByBuffer.set(releasedBuffer, remainingRefs),
+        remainingRefs || (totalBufferBytes -= releasedBuffer.array.byteLength));
     }
-    arg2(value12);
+    onFloorEvicted(evictedFloorEntry);
   }
-  return value1;
+  return totalBufferBytes;
 }

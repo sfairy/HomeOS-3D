@@ -1,0 +1,68 @@
+{
+  "file": "frontend/static/3d-studio/studio-motion-buffer.js",
+  "seed": "b15-studio-motion-buffer.js",
+  "size": 6,
+  "candidates": 38,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/function-or-class",
+      "newName": "requestedScale",
+      "declaration": "function fn3(???) {",
+      "references": [
+        "L65: return !value9 && value8 && text1 === fn1(???).key;"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "widthPx",
+      "declaration": "const ??? = Math.floor(value1.x * arg4),",
+      "references": [
+        "L47: value14 = ??? * value12 * 4 * (value13 ? 1 + 2 * value13 : 2);",
+        "L49: width: ???,",
+        "L53: key: ??? + \"/\" + value12 + \"/\" + value13 + \"/\" + arg2.outputColorSpace,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "isDisposed",
+      "declaration": "??? = false,",
+      "references": [
+        "L65: return !??? && value8 && text1 === fn1(arg5).key;",
+        "L68: if (??? || arg2.getRenderTarget() || value10) return false;",
+        "L116: if (!value8 || ??? || arg2.getRenderTarget()) {"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/function-or-class",
+      "newName": "prepareTarget",
+      "declaration": "function ???(arg6) {",
+      "references": [
+        "L154: prepare: ???,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "webgl",
+      "declaration": "const ??? = arg2.getContext?.();",
+      "references": [
+        "L90: if (???) {",
+        "L95: ???.checkFramebufferStatus(???.FRAMEBUFFER) ===",
+        "L96: ???.FRAMEBUFFER_COMPLETE));"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "previousScissor",
+      "declaration": "??? = arg2.getScissor(new arg1.Vector4()),",
+      "references": [
+        "L141: arg2.setScissor(???),"
+      ]
+    }
+  ]
+}

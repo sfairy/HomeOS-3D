@@ -53,10 +53,37 @@ function argValue(name, fallback) {
 /** Methods whose receiver is, with no further evidence, a DOM node. */
 const ELEMENT_CALLS = new Set([
   'append', 'appendChild', 'prepend', 'insertBefore', 'removeChild', 'replaceChildren',
-  'setAttribute', 'removeAttribute', 'getAttribute', 'hasAttribute', 'addEventListener',
-  'removeEventListener', 'cloneNode', 'querySelector', 'querySelectorAll', 'closest',
-  'getBoundingClientRect', 'focus', 'blur', 'remove', 'contains', 'matches',
+  'removeAttribute', 'hasAttribute', 'cloneNode', 'querySelector', 'querySelectorAll',
+  'closest', 'getBoundingClientRect', 'focus', 'blur', 'contains', 'matches',
 ]);
+
+/**
+ * Methods and properties that DOM nodes have but so does something else in this
+ * codebase, so one occurrence on an otherwise opaque binding is not enough.
+ *
+ *   - `setAttribute` / `getAttribute`: three.js carries them too.  A
+ *     `BufferGeometry` is built with `geometry.setAttribute('hbVehicleLength', …)`
+ *     (studio-vehicle-models.js) exactly as an element is, and counting that as
+ *     DOM evidence forces the geometry to be called `geometryElement` - a name
+ *     that is simply wrong.
+ *   - `children`: component and page records have it.  `item.children` walks a
+ *     component tree in component-tree.js and renderer.js, so treating it as
+ *     DOM-exclusive makes every tree node "an element".
+ *   - `addEventListener` / `removeEventListener` / `remove`: three.js `Object3D`
+ *     has all three.  render-light-index.js subscribes to three.js's own
+ *     `childadded` / `childremoved` events on the objects it traverses, and
+ *     `value4.removeEventListener(...)` in that file is an `Object3D`, not a
+ *     node; calling it an element would be simply wrong.
+ *
+ * Two independent weak signals still count, which keeps the signal for a node
+ * that is touched only this way.  Same trade as `.style` above, and the same
+ * reason: this oracle is sound-before-complete, and a false error costs a real
+ * name and teaches nothing.
+ */
+const ELEMENT_CALLS_WEAK = new Set([
+  'setAttribute', 'getAttribute', 'addEventListener', 'removeEventListener', 'remove',
+]);
+const ELEMENT_PROPS_WEAK = new Set(['children']);
 // 'style' is deliberately NOT here.  It is not DOM-exclusive: this codebase's
 // component records are plain objects that carry `.style.scale`, so a lone
 // `.style` read/write on an otherwise opaque binding is not evidence of a DOM
@@ -67,7 +94,7 @@ const ELEMENT_CALLS = new Set([
 // opaque factory and touched only through `.style` is now left alone.
 const ELEMENT_PROPS = new Set([
   'classList', 'dataset', 'innerHTML', 'disabled', 'checked', 'hidden',
-  'children', 'firstChild', 'lastChild', 'parentElement', 'clientWidth', 'clientHeight',
+  'firstChild', 'lastChild', 'parentElement', 'clientWidth', 'clientHeight',
   'offsetWidth', 'offsetHeight', 'scrollTop',
 ]);
 const BOOLEAN_CALLS = new Set(['includes', 'startsWith', 'endsWith', 'test', 'isFinite', 'isInteger', 'isArray']);
@@ -203,7 +230,11 @@ function main() {
           binding.path && binding.path.node && binding.path.node.type === 'VariableDeclarator' ? binding.path.node : null;
         const described = describeInit(declarator ? declarator.init : null, code, factories);
         const uses = [];
-        let elementUse = false;
+        let strongUses = 0;
+        // Distinct weak signals, not weak *occurrences*: an Object3D that
+        // subscribes to both `childadded` and `childremoved` calls
+        // removeEventListener twice, and that is still one signal, not two.
+        const weakProps = new Set();
         for (const ref of binding.referencePaths || []) {
           const memberPath = ref.parentPath;
           const parent = memberPath && memberPath.node;
@@ -220,11 +251,14 @@ function main() {
           const callPath = memberPath.parentPath;
           const isCalled =
             !!callPath && callPath.type === 'CallExpression' && callPath.node.callee === parent;
-          if (ELEMENT_PROPS.has(prop) || (ELEMENT_CALLS.has(prop) && isCalled)) {
-            elementUse = true;
-            if (!uses.includes(prop)) uses.push(prop);
-          }
+          const isStrong = ELEMENT_PROPS.has(prop) || (ELEMENT_CALLS.has(prop) && isCalled);
+          const isWeak = ELEMENT_PROPS_WEAK.has(prop) || (ELEMENT_CALLS_WEAK.has(prop) && isCalled);
+          if (isStrong) strongUses += 1;
+          else if (isWeak) weakProps.add(prop);
+          if ((isStrong || isWeak) && !uses.includes(prop)) uses.push(prop);
         }
+        // One strong signal, or two independent weak ones.  See ELEMENT_*_WEAK.
+        const elementUse = strongUses > 0 || weakProps.size >= 2;
         evidence.set(key, { kind: described.kind, text: described.text, uses, elementUse });
       }
     },

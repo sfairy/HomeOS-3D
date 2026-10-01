@@ -1,0 +1,31 @@
+{
+  "frontend/static/modules/interaction3d/scene-update.js": {
+    "m@1": "VIEW_SETTING_KEYS",
+    "f@21": "FLOOR_SHARED_KEYS",
+    "s@30": "omitKeys",
+    "arg1@30": "source",
+    "arg2@30": "excludedKeys",
+    "object1@31": "result",
+    "value1@34": "key",
+    "r@37": "sortDeep",
+    "arg3@37": "value",
+    "arg4@44": "nestedKey",
+    "o@48": "stableStringify",
+    "arg5@48": "input",
+    "g@49": "floorComparisonShape",
+    "arg6@49": "floor",
+    "p@53": "floorIdentityShape",
+    "arg7@53": "sourceFloor",
+    "arg8@54": "previousScene",
+    "arg9@54": "nextScene",
+    "map1@55": "previousFloorsById",
+    "arg10@55": "listedFloor",
+    "fn1@56": "sharedSceneShape",
+    "arg11@56": "scene",
+    "value2@57": "isSceneChanged",
+    "value3@58": "changedFloorIds",
+    "arg12@59": "candidateFloor",
+    "arg13@60": "changedFloor",
+    "value4@61": "isLightingChanged"
+  }
+}

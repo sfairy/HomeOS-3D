@@ -1,0 +1,12 @@
+{
+  "frontend/static/sound-effects.js": {
+    "o@1": "ENABLED_STORAGE_KEY",
+    "u@2": "CLICK_SOUND_URL",
+    "r@3": "readEnabledSetting",
+    "t@5": "storedValue",
+    "t@12": "soundEnabled",
+    "e@13": "audioElement",
+    "n@20": "nextEnabledValue",
+    "n@32": "audioClip"
+  }
+}

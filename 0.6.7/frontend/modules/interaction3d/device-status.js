@@ -1,4 +1,4 @@
-const f = {
+const deviceClassLabels = {
     door: ["打开", "关闭"],
     garage_door: ["打开", "关闭"],
     window: ["打开", "关闭"],
@@ -27,7 +27,7 @@ const f = {
     cold: ["过冷", "正常"],
     update: ["有更新", "无更新"],
   },
-  p = {
+  stateLabels = {
     on: "开启",
     off: "关闭",
     open: "打开",
@@ -38,14 +38,15 @@ const f = {
     fault: "故障",
     error: "错误",
   };
-export function deviceStatusChoices(arg1 = {}, arg2) {
-  const value1 = arg2?.newState || arg2,
-    value2 = (arg1.entityId || arg1.entity_id || "").split(".")[0],
-    object1 = {
-      ...arg1.attributes,
-      ...value1?.attributes,
+export function deviceStatusChoices(entityDescriptor = {}, stateUpdate) {
+  const newState = stateUpdate?.newState || stateUpdate,
+    entityDomain = (entityDescriptor.entityId || entityDescriptor.entity_id || "").split(".")[0],
+    stateAttributes = {
+      ...entityDescriptor.attributes,
+      ...newState?.attributes,
     },
-    value3 = object1.device_class || arg1.deviceClass || arg1.device_class;
+    deviceClass =
+      stateAttributes.device_class || entityDescriptor.deviceClass || entityDescriptor.device_class;
   if (
     [
       "binary_sensor",
@@ -56,104 +57,118 @@ export function deviceStatusChoices(arg1 = {}, arg2) {
       "remote",
       "siren",
       "humidifier",
-    ].includes(value2)
+    ].includes(entityDomain)
   ) {
-    const value5 = value2 === "binary_sensor" ? f[value3] || ["开启", "关闭"] : ["开启", "关闭"];
+    const choiceLabels =
+      entityDomain === "binary_sensor"
+        ? deviceClassLabels[deviceClass] || ["开启", "关闭"]
+        : ["开启", "关闭"];
     return {
-      options: ["on", "off"].map((arg3, arg4) => ({
-        value: arg3,
-        label: value5[arg4],
+      options: ["on", "off"].map((choiceValue, choiceIndex) => ({
+        value: choiceValue,
+        label: choiceLabels[choiceIndex],
       })),
       reminderValue:
-        value2 === "binary_sensor" && ["connectivity", "plug", "power"].includes(value3)
+        entityDomain === "binary_sensor" && ["connectivity", "plug", "power"].includes(deviceClass)
           ? "off"
           : "on",
     };
   }
-  const value4 = object1.options;
-  return !Array.isArray(value4) ||
-    value4.length !== 2 ||
-    new Set(value4).size !== 2 ||
-    value4.some(
-      (arg5) =>
-        typeof arg5 != "string" || !arg5.trim() || ["unknown", "unavailable"].includes(arg5),
+  const optionValues = stateAttributes.options;
+  return !Array.isArray(optionValues) ||
+    optionValues.length !== 2 ||
+    new Set(optionValues).size !== 2 ||
+    optionValues.some(
+      (candidateOption) =>
+        typeof candidateOption != "string" ||
+        !candidateOption.trim() ||
+        ["unknown", "unavailable"].includes(candidateOption),
     )
     ? null
     : {
-        options: value4.map((arg6) => ({
-          value: arg6,
-          label: p[arg6] || arg6,
+        options: optionValues.map((optionValue) => ({
+          value: optionValue,
+          label: stateLabels[optionValue] || optionValue,
         })),
-        reminderValue: value4[0],
+        reminderValue: optionValues[0],
       };
 }
-export function defaultDeviceStatusRule(arg7, arg8, arg9) {
-  const value6 = deviceStatusChoices(arg7, arg8);
-  if (!value6) return null;
-  const value7 = arg9 === "health" ? value6.reminderValue : value6.options[0].value;
+export function defaultDeviceStatusRule(entityRule, currentState, ruleKind) {
+  const statusChoices = deviceStatusChoices(entityRule, currentState);
+  if (!statusChoices) return null;
+  const activeValue =
+    ruleKind === "health" ? statusChoices.reminderValue : statusChoices.options[0].value;
   return {
-    entityId: arg7.entityId,
-    active: value7,
-    inactive: value6.options.find((arg10) => arg10.value !== value7).value,
+    entityId: entityRule.entityId,
+    active: activeValue,
+    inactive: statusChoices.options.find((choiceOption) => choiceOption.value !== activeValue)
+      .value,
   };
 }
-export function deviceStatus(arg11, arg12 = {}) {
-  const value8 = arg11?.statusRules,
-    value9 = Array.isArray(value8?.health) ? value8.health : value8?.health ? [value8.health] : [];
-  if (!value8?.power?.entityId && !value9.some((arg13) => arg13?.entityId))
+export function deviceStatus(device, entityStates = {}) {
+  const statusRules = device?.statusRules,
+    healthRules = Array.isArray(statusRules?.health)
+      ? statusRules.health
+      : statusRules?.health
+        ? [statusRules.health]
+        : [];
+  if (!statusRules?.power?.entityId && !healthRules.some((healthRule) => healthRule?.entityId))
     return {
       visible: false,
       available: true,
       on: false,
       status: "none",
     };
-  const fn1 = (arg14) => {
-      if (!arg14?.entityId) return null;
-      const value13 = arg12 instanceof Map ? arg12.get(arg14.entityId) : arg12[arg14.entityId],
-        value14 = value13?.newState || value13,
-        value15 = String(value14?.state ?? "");
-      return !value14 ||
-        value14.available === false ||
-        ["", "unknown", "unavailable"].includes(value15)
+  const resolveRuleStatus = (statusRule) => {
+      if (!statusRule?.entityId) return null;
+      const stateEntry =
+          entityStates instanceof Map
+            ? entityStates.get(statusRule.entityId)
+            : entityStates[statusRule.entityId],
+        entityState = stateEntry?.newState || stateEntry,
+        stateValue = String(entityState?.state ?? "");
+      return !entityState ||
+        entityState.available === false ||
+        ["", "unknown", "unavailable"].includes(stateValue)
         ? "unknown"
-        : value15 === arg14.active
+        : stateValue === statusRule.active
           ? "active"
-          : value15 === arg14.inactive
+          : stateValue === statusRule.inactive
             ? "inactive"
             : "unknown";
     },
-    value10 = value9.map(fn1),
-    value11 = fn1(value8.power),
-    value12 = value10.includes("active")
+    healthRuleStatuses = healthRules.map(resolveRuleStatus),
+    powerRuleStatus = resolveRuleStatus(statusRules.power),
+    overallStatus = healthRuleStatuses.includes("active")
       ? "warning"
-      : value10.includes("unknown") || value11 === "unknown"
+      : healthRuleStatuses.includes("unknown") || powerRuleStatus === "unknown"
         ? "unknown"
-        : value11 === "inactive"
+        : powerRuleStatus === "inactive"
           ? "off"
           : "normal";
   return {
     visible: true,
-    available: value12 !== "unknown",
-    on: value12 === "normal",
-    status: value12,
+    available: overallStatus !== "unknown",
+    on: overallStatus === "normal",
+    status: overallStatus,
     color: {
       normal: "#43ce82",
       warning: "#efa33d",
       unknown: "#89929b",
       off: "#89929b",
-    }[value12],
+    }[overallStatus],
   };
 }
-export function deviceEntityIds(arg15) {
-  const value16 = Array.isArray(arg15?.statusRules?.health)
-    ? arg15.statusRules.health
-    : [arg15?.statusRules?.health];
+export function deviceEntityIds(component) {
+  const healthRuleEntries = Array.isArray(component?.statusRules?.health)
+    ? component.statusRules.health
+    : [component?.statusRules?.health];
   return [
     ...new Set(
       [
-        ...(arg15?.extraControls || []).map((arg16) => arg16.entityId),
-        arg15?.statusRules?.power?.entityId,
-        ...value16.map((arg17) => arg17?.entityId),
+        ...(component?.extraControls || []).map((extraControl) => extraControl.entityId),
+        component?.statusRules?.power?.entityId,
+        ...healthRuleEntries.map((healthRuleEntry) => healthRuleEntry?.entityId),
       ].filter(Boolean),
     ),
   ];

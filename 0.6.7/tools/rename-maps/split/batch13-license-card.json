@@ -1,0 +1,31 @@
+{
+  "frontend/static/license-card.js": {
+    "s@1": "LICENSE_TYPE_LABELS",
+    "y@7": "formatValidity",
+    "e@7": "record",
+    "t@11": "expiresDate",
+    "e@18": "license",
+    "t@19": "isActivated",
+    "i@20": "products",
+    "n@21": "product",
+    "a@23": "featureSet",
+    "r@24": "isActive",
+    "d@28": "featureAccess",
+    "n@32": "featureName",
+    "o@34": "rights",
+    "l@44": "primaryProduct",
+    "n@44": "candidateProduct",
+    "c@45": "typeLabels",
+    "n@45": "mappedProduct",
+    "n@51": "rightEntry",
+    "n@56": "productEntry",
+    "e@64": "dialogElement",
+    "t@65": "findNode",
+    "i@65": "selectorId",
+    "i@67": "licenseInput",
+    "a@68": "card",
+    "r@75": "rightRow",
+    "d@75": "rightIndex",
+    "o@76": "rightNode"
+  }
+}

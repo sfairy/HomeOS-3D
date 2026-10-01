@@ -1,0 +1,12 @@
+{
+  "frontend/static/apple-install-guide.js": {
+    "o@1": "needsAppleInstallGuide",
+    "a@2": "pageUrl",
+    "s@3": "shouldAutoOpen",
+    "i@10": "isChromeIos",
+    "t@11": "triggerButton",
+    "e@13": "dialogElement",
+    "l@29": "openDialog",
+    "n@39": "bootObserver"
+  }
+}

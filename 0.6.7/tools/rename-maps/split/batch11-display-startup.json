@@ -1,0 +1,27 @@
+{
+  "frontend/static/display-startup.js": {
+    "s@3": "basePath",
+    "o@5": "projectName",
+    "n@12": "requestsByKey",
+    "c@13": "activeControllerSet",
+    "d@14": "isDisposed",
+    "a@15": "loadEndpoint",
+    "t@15": "endpoint",
+    "e@18": "abortController",
+    "r@19": "abortTimer",
+    "i@21": "pendingResult",
+    "l@23": "fetchResponse",
+    "h@30": "payload",
+    "f@33": "parseError",
+    "u@46": "requestRecord",
+    "t@53": "requestUrl",
+    "e@54": "cacheKey",
+    "r@55": "cachedRecord",
+    "t@63": "controller",
+    "t@72": "response",
+    "e@72": "draftPayload",
+    "r@74": "matchedProjects",
+    "i@74": "projectEntry",
+    "t@79": "assetEndpoint"
+  }
+}

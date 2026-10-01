@@ -1,82 +1,100 @@
-const s = {
+const LICENSE_TYPE_LABELS = {
   base: "主授权",
   module: "功能增量包",
   bundle: "全授权",
   package: "自定义套餐",
 };
-function y(e) {
-  if (!e) return "以商城授权记录为准";
-  if (e.expiresAt === null) return "永久";
-  if (!e.expiresAt) return "以商城授权记录为准";
-  const t = new Date(e.expiresAt);
-  return Number.isFinite(t.getTime())
-    ? `${t.toLocaleString("zh-CN", {
+function formatValidity(record) {
+  if (!record) return "以商城授权记录为准";
+  if (record.expiresAt === null) return "永久";
+  if (!record.expiresAt) return "以商城授权记录为准";
+  const expiresDate = new Date(record.expiresAt);
+  return Number.isFinite(expiresDate.getTime())
+    ? `${expiresDate.toLocaleString("zh-CN", {
         hour12: false,
       })} \u5230\u671F`
     : "以商城授权记录为准";
 }
-export function licenseCardData(e = {}) {
-  const t = !!e.activationCodeId,
-    i = Array.isArray(e.products)
-      ? e.products.filter((n) => n && typeof n.name == "string" && n.type !== "template")
+export function licenseCardData(license = {}) {
+  const isActivated = !!license.activationCodeId,
+    products = Array.isArray(license.products)
+      ? license.products.filter(
+          (product) => product && typeof product.name == "string" && product.type !== "template",
+        )
       : [],
-    a = new Set(Array.isArray(e.features) ? e.features : []),
-    r =
-      t &&
-      e.allowed !== false &&
-      ["ACTIVE", "CONNECTION_WARNING", "STARTUP_VALIDATION_REQUIRED"].includes(e.status),
-    d = e.featureAccess || {
-      editor: r && (a.has("editor") || a.has("all")),
-      interaction3d: r && a.has("module.3d_interaction"),
+    featureSet = new Set(Array.isArray(license.features) ? license.features : []),
+    isActive =
+      isActivated &&
+      license.allowed !== false &&
+      ["ACTIVE", "CONNECTION_WARNING", "STARTUP_VALIDATION_REQUIRED"].includes(license.status),
+    featureAccess = license.featureAccess || {
+      editor: isActive && (featureSet.has("editor") || featureSet.has("all")),
+      interaction3d: isActive && featureSet.has("module.3d_interaction"),
       uiPack:
-        r && [...a].some((n) => typeof n == "string" && n.startsWith("ui.") && n !== "ui.base"),
+        isActive &&
+        [...featureSet].some(
+          (featureName) =>
+            typeof featureName == "string" &&
+            featureName.startsWith("ui.") &&
+            featureName !== "ui.base",
+        ),
     },
-    o = [
+    rights = [
       {
         name: "HA Bridge 编辑器",
-        enabled: t && !!d.editor,
+        enabled: isActivated && !!featureAccess.editor,
       },
       {
         name: "3D 交互功能增量包",
-        enabled: t && !!d.interaction3d,
+        enabled: isActivated && !!featureAccess.interaction3d,
       },
     ],
-    l = i.find((n) => ["base", "bundle", "package"].includes(n.type)),
-    c = [...new Set(i.map((n) => s[n.type]).filter(Boolean))];
+    primaryProduct = products.find((candidateProduct) =>
+      ["base", "bundle", "package"].includes(candidateProduct.type),
+    ),
+    typeLabels = [
+      ...new Set(
+        products.map((mappedProduct) => LICENSE_TYPE_LABELS[mappedProduct.type]).filter(Boolean),
+      ),
+    ];
   return {
-    licensed: t,
+    licensed: isActivated,
     type:
-      l?.type === "package"
-        ? c.join(" + ")
-        : o.every((n) => n.enabled) && d.uiPack
+      primaryProduct?.type === "package"
+        ? typeLabels.join(" + ")
+        : rights.every((rightEntry) => rightEntry.enabled) && featureAccess.uiPack
           ? "全授权"
-          : c.join(" + ") || "主授权",
+          : typeLabels.join(" + ") || "主授权",
     name:
-      i
-        .map((n) => n.name.trim())
+      products
+        .map((productEntry) => productEntry.name.trim())
         .filter(Boolean)
         .join(" · ") || "HA Bridge 编辑器",
-    validity: y(l || i[0]),
-    validityNote: i.length > 1 ? "有效期为主授权期限，附加包以各自授权期限为准。" : "",
-    rights: o,
+    validity: formatValidity(primaryProduct || products[0]),
+    validityNote: products.length > 1 ? "有效期为主授权期限，附加包以各自授权期限为准。" : "",
+    rights: rights,
   };
 }
-export function createLicenseCard({ dialog: e }) {
-  const t = (i) => e.querySelector(`#license-${i}`);
+export function createLicenseCard({ dialog: dialogElement }) {
+  const findNode = (selectorId) => dialogElement.querySelector(`#license-${selectorId}`);
   return {
-    render(i) {
-      const a = licenseCardData(i);
-      ((t("card-details").hidden = !a.licensed),
-        (t("card-type").textContent = a.type),
-        (t("card-name").textContent = a.name),
-        (t("card-validity").textContent = a.validity),
-        (t("validity-note").textContent = a.validityNote),
-        (t("validity-note").hidden = !a.validityNote),
-        a.rights.forEach((r, d) => {
-          const o = t(`right-${d}`);
-          (o.classList.toggle("enabled", r.enabled),
-            (o.querySelector("[data-right-icon]").textContent = r.enabled ? "✓" : "—"),
-            (o.querySelector("[data-right-state]").textContent = r.enabled ? "已开通" : "未开通"));
+    render(licenseInput) {
+      const card = licenseCardData(licenseInput);
+      ((findNode("card-details").hidden = !card.licensed),
+        (findNode("card-type").textContent = card.type),
+        (findNode("card-name").textContent = card.name),
+        (findNode("card-validity").textContent = card.validity),
+        (findNode("validity-note").textContent = card.validityNote),
+        (findNode("validity-note").hidden = !card.validityNote),
+        card.rights.forEach((rightRow, rightIndex) => {
+          const rightNode = findNode(`right-${rightIndex}`);
+          (rightNode.classList.toggle("enabled", rightRow.enabled),
+            (rightNode.querySelector("[data-right-icon]").textContent = rightRow.enabled
+              ? "✓"
+              : "—"),
+            (rightNode.querySelector("[data-right-state]").textContent = rightRow.enabled
+              ? "已开通"
+              : "未开通"));
         }));
     },
   };

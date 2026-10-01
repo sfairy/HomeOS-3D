@@ -1,0 +1,897 @@
+{
+  "file": "frontend/static/3d-studio/studio-device-batching.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 137,
+  "counts": {
+    "entries": 44,
+    "renameable": 44,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "w@2",
+      "name": "w",
+      "line": 2,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const w = new Set([",
+      "references": [
+        {
+          "line": 25,
+          "text": "if (!w.has(arg3)) return object1;"
+        }
+      ]
+    },
+    {
+      "key": "arg1@20",
+      "name": "arg1",
+      "line": 20,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function compactStaticDeviceParts(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 47,
+          "text": "value2.onAfterRender !== arg1.Object3D.prototype.onAfterRender ||"
+        },
+        {
+          "line": 79,
+          "text": "value15.setAttribute(\"color\", new arg1.BufferAttribute(float32Array1, 3));"
+        },
+        {
+          "line": 88,
+          "text": "const value14 = new arg1.Mesh(value11, value13);"
+        },
+        {
+          "line": 127,
+          "text": "arg14.onBeforeRender === arg1.Object3D.prototype.onBeforeRender &&"
+        }
+      ]
+    },
+    {
+      "key": "arg2@20",
+      "name": "arg2",
+      "line": 20,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function compactStaticDeviceParts(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 29,
+          "text": "arg2.traverse((arg5) => {"
+        },
+        {
+          "line": 108,
+          "text": "arg2.traverse((arg13) => {"
+        },
+        {
+          "line": 116,
+          "text": "arg2.traverse((arg14) => {"
+        },
+        {
+          "line": 133,
+          "text": "(arg2.userData.staticDeviceBatchStats = object1),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@20",
+      "name": "arg3",
+      "line": 20,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function compactStaticDeviceParts(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 25,
+          "text": "if (!w.has(arg3)) return object1;"
+        },
+        {
+          "line": 30,
+          "text": "!arg5.isMesh && (arg3 !== \"airer\" || arg5.name === \"moving-rack\") && list1.push(arg5);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@20",
+      "name": "arg4",
+      "line": 20,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function compactStaticDeviceParts(arg1, arg2, arg3, arg4) {",
+      "references": [
+        {
+          "line": 55,
+          "text": "value5 = arg4(value2, true, value4);"
+        }
+      ]
+    },
+    {
+      "key": "object1@21",
+      "name": "object1",
+      "line": 21,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 25,
+          "text": "if (!w.has(arg3)) return object1;"
+        },
+        {
+          "line": 105,
+          "text": "(value1.add(value14), (object1.before += value8.length), object1.after++);"
+        },
+        {
+          "line": 133,
+          "text": "(arg2.userData.staticDeviceBatchStats = object1),"
+        },
+        {
+          "line": 134,
+          "text": "object1"
+        }
+      ]
+    },
+    {
+      "key": "list1@26",
+      "name": "list1",
+      "line": 26,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [],",
+      "references": [
+        {
+          "line": 30,
+          "text": "!arg5.isMesh && (arg3 !== \"airer\" || arg5.name === \"moving-rack\") && list1.push(arg5);"
+        },
+        {
+          "line": 32,
+          "text": "for (const value1 of list1) {"
+        }
+      ]
+    },
+    {
+      "key": "set1@27",
+      "name": "set1",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set(),",
+      "references": [
+        {
+          "line": 103,
+          "text": "value19.userData.externalModelSharedGeometry || set1.add(value19.geometry),"
+        },
+        {
+          "line": 109,
+          "text": "set1.delete(arg13.geometry);"
+        },
+        {
+          "line": 113,
+          "text": "for (const value21 of set1) value21.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "set2@28",
+      "name": "set2",
+      "line": 28,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set();",
+      "references": [
+        {
+          "line": 104,
+          "text": "value19.userData.externalModelSharedMaterial || set2.add(value19.material));"
+        },
+        {
+          "line": 111,
+          "text": "set2.delete(value20);"
+        },
+        {
+          "line": 114,
+          "text": "for (const value22 of set2) value22.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "arg5@29",
+      "name": "arg5",
+      "line": 29,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg2.traverse((arg5) => {",
+      "references": [
+        {
+          "line": 30,
+          "text": "!arg5.isMesh && (arg3 !== \"airer\" || arg5.name === \"moving-rack\") && list1.push(arg5);"
+        }
+      ]
+    },
+    {
+      "key": "value1@32",
+      "name": "value1",
+      "line": 32,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value1 of list1) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "for (const value2 of value1.children) {"
+        },
+        {
+          "line": 102,
+          "text": "(value1.remove(value19),"
+        },
+        {
+          "line": 105,
+          "text": "(value1.add(value14), (object1.before += value8.length), object1.after++);"
+        }
+      ]
+    },
+    {
+      "key": "map1@33",
+      "name": "map1",
+      "line": 33,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map();",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.has(value7) || map1.set(value7, []), map1.get(value7).push(value2));"
+        },
+        {
+          "line": 68,
+          "text": "for (const value8 of map1.values()) {"
+        }
+      ]
+    },
+    {
+      "key": "value2@34",
+      "name": "value2",
+      "line": 34,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value2 of value1.children) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "const value3 = value2.geometry;"
+        },
+        {
+          "line": 37,
+          "text": "!value2.isMesh ||"
+        },
+        {
+          "line": 38,
+          "text": "value2.isInstancedMesh ||"
+        },
+        {
+          "line": 39,
+          "text": "value2.children.length ||"
+        }
+      ]
+    },
+    {
+      "key": "value3@35",
+      "name": "value3",
+      "line": 35,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value2.geometry;",
+      "references": [
+        {
+          "line": 41,
+          "text": "!value3?.attributes.position ||"
+        },
+        {
+          "line": 42,
+          "text": "Object.keys(value3.morphAttributes).length ||"
+        },
+        {
+          "line": 43,
+          "text": "value3.drawRange.start !== 0 ||"
+        },
+        {
+          "line": 44,
+          "text": "value3.drawRange.count !== Infinity ||"
+        }
+      ]
+    },
+    {
+      "key": "arg6@49",
+      "name": "arg6",
+      "line": 49,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg6) => !/^externalModelShared(Geometry|Material|Textures)$/.test(arg6),",
+      "references": [
+        {
+          "line": 49,
+          "text": "(arg6) => !/^externalModelShared(Geometry|Material|Textures)$/.test(arg6),"
+        }
+      ]
+    },
+    {
+      "key": "value4@54",
+      "name": "value4",
+      "line": 54,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = !value2.material?.vertexColors,",
+      "references": [
+        {
+          "line": 55,
+          "text": "value5 = arg4(value2, true, value4);"
+        },
+        {
+          "line": 65,
+          "text": "value7 = JSON.stringify([value5, !!value3.index, value6, value2.frustumCulled, value4]);"
+        }
+      ]
+    },
+    {
+      "key": "value5@55",
+      "name": "value5",
+      "line": 55,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = arg4(value2, true, value4);",
+      "references": [
+        {
+          "line": 56,
+          "text": "if (!value5) continue;"
+        },
+        {
+          "line": 65,
+          "text": "value7 = JSON.stringify([value5, !!value3.index, value6, value2.frustumCulled, value4]);"
+        }
+      ]
+    },
+    {
+      "key": "value6@57",
+      "name": "value6",
+      "line": 57,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = Object.entries(value3.attributes)",
+      "references": [
+        {
+          "line": 65,
+          "text": "value7 = JSON.stringify([value5, !!value3.index, value6, value2.frustumCulled, value4]);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@58",
+      "name": "arg7",
+      "line": 58,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort(([arg7], [arg8]) => arg7.localeCompare(arg8))",
+      "references": [
+        {
+          "line": 58,
+          "text": ".sort(([arg7], [arg8]) => arg7.localeCompare(arg8))"
+        }
+      ]
+    },
+    {
+      "key": "arg8@58",
+      "name": "arg8",
+      "line": 58,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort(([arg7], [arg8]) => arg7.localeCompare(arg8))",
+      "references": [
+        {
+          "line": 58,
+          "text": ".sort(([arg7], [arg8]) => arg7.localeCompare(arg8))"
+        }
+      ]
+    },
+    {
+      "key": "arg9@59",
+      "name": "arg9",
+      "line": 59,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map(([arg9, arg10]) => [",
+      "references": [
+        {
+          "line": 60,
+          "text": "arg9,"
+        }
+      ]
+    },
+    {
+      "key": "arg10@59",
+      "name": "arg10",
+      "line": 59,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map(([arg9, arg10]) => [",
+      "references": [
+        {
+          "line": 61,
+          "text": "arg10.itemSize,"
+        },
+        {
+          "line": 62,
+          "text": "arg10.normalized,"
+        },
+        {
+          "line": 63,
+          "text": "arg10.array?.constructor.name,"
+        }
+      ]
+    },
+    {
+      "key": "value7@65",
+      "name": "value7",
+      "line": 65,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = JSON.stringify([value5, !!value3.index, value6, value2.frustumCulled, value4]);",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.has(value7) || map1.set(value7, []), map1.get(value7).push(value2));"
+        }
+      ]
+    },
+    {
+      "key": "value8@68",
+      "name": "value8",
+      "line": 68,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value8 of map1.values()) {",
+      "references": [
+        {
+          "line": 69,
+          "text": "if (value8.length < 2) continue;"
+        },
+        {
+          "line": 70,
+          "text": "const value9 = !value8[0].material.vertexColors,"
+        },
+        {
+          "line": 71,
+          "text": "value10 = value8.map((arg11) => {"
+        },
+        {
+          "line": 85,
+          "text": "const value12 = value8[0],"
+        }
+      ]
+    },
+    {
+      "key": "value9@70",
+      "name": "value9",
+      "line": 70,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = !value8[0].material.vertexColors,",
+      "references": [
+        {
+          "line": 73,
+          "text": "if (value9) {"
+        },
+        {
+          "line": 86,
+          "text": "value13 = value9 ? value12.material.clone() : value12.material;"
+        },
+        {
+          "line": 87,
+          "text": "value9 && (value13.color.setRGB(1, 1, 1), (value13.vertexColors = true));"
+        },
+        {
+          "line": 98,
+          "text": "!value9 && value12.userData.externalModelSharedMaterial === true),"
+        }
+      ]
+    },
+    {
+      "key": "value10@71",
+      "name": "value10",
+      "line": 71,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = value8.map((arg11) => {",
+      "references": [
+        {
+          "line": 83,
+          "text": "value11 = mergeGeometries(value10);"
+        },
+        {
+          "line": 84,
+          "text": "if ((value10.forEach((arg12) => arg12.dispose()), !value11)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg11@71",
+      "name": "arg11",
+      "line": 71,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = value8.map((arg11) => {",
+      "references": [
+        {
+          "line": 72,
+          "text": "const value15 = arg11.geometry.clone().applyMatrix4(arg11.matrix);"
+        },
+        {
+          "line": 76,
+          "text": "value17 = arg11.material.color;"
+        }
+      ]
+    },
+    {
+      "key": "value15@72",
+      "name": "value15",
+      "line": 72,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = arg11.geometry.clone().applyMatrix4(arg11.matrix);",
+      "references": [
+        {
+          "line": 74,
+          "text": "const value16 = value15.attributes.position.count,"
+        },
+        {
+          "line": 79,
+          "text": "value15.setAttribute(\"color\", new arg1.BufferAttribute(float32Array1, 3));"
+        },
+        {
+          "line": 81,
+          "text": "return value15;"
+        }
+      ]
+    },
+    {
+      "key": "value16@74",
+      "name": "value16",
+      "line": 74,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = value15.attributes.position.count,",
+      "references": [
+        {
+          "line": 75,
+          "text": "float32Array1 = new Float32Array(value16 * 3),"
+        },
+        {
+          "line": 77,
+          "text": "for (let value18 = 0; value18 < value16; value18++)"
+        }
+      ]
+    },
+    {
+      "key": "float32Array1@75",
+      "name": "float32Array1",
+      "line": 75,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "float32Array1 = new Float32Array(value16 * 3),",
+      "references": [
+        {
+          "line": 78,
+          "text": "float32Array1.set([value17.r, value17.g, value17.b], value18 * 3);"
+        },
+        {
+          "line": 79,
+          "text": "value15.setAttribute(\"color\", new arg1.BufferAttribute(float32Array1, 3));"
+        }
+      ]
+    },
+    {
+      "key": "value17@76",
+      "name": "value17",
+      "line": 76,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = arg11.material.color;",
+      "references": [
+        {
+          "line": 78,
+          "text": "float32Array1.set([value17.r, value17.g, value17.b], value18 * 3);"
+        }
+      ]
+    },
+    {
+      "key": "value18@77",
+      "name": "value18",
+      "line": 77,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value18 = 0; value18 < value16; value18++)",
+      "references": [
+        {
+          "line": 77,
+          "text": "for (let value18 = 0; value18 < value16; value18++)"
+        },
+        {
+          "line": 78,
+          "text": "float32Array1.set([value17.r, value17.g, value17.b], value18 * 3);"
+        }
+      ]
+    },
+    {
+      "key": "value11@83",
+      "name": "value11",
+      "line": 83,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = mergeGeometries(value10);",
+      "references": [
+        {
+          "line": 84,
+          "text": "if ((value10.forEach((arg12) => arg12.dispose()), !value11)) continue;"
+        },
+        {
+          "line": 88,
+          "text": "const value14 = new arg1.Mesh(value11, value13);"
+        }
+      ]
+    },
+    {
+      "key": "arg12@84",
+      "name": "arg12",
+      "line": 84,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if ((value10.forEach((arg12) => arg12.dispose()), !value11)) continue;",
+      "references": [
+        {
+          "line": 84,
+          "text": "if ((value10.forEach((arg12) => arg12.dispose()), !value11)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value12@85",
+      "name": "value12",
+      "line": 85,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = value8[0],",
+      "references": [
+        {
+          "line": 86,
+          "text": "value13 = value9 ? value12.material.clone() : value12.material;"
+        },
+        {
+          "line": 92,
+          "text": "(value14.castShadow = value12.castShadow),"
+        },
+        {
+          "line": 93,
+          "text": "(value14.receiveShadow = value12.receiveShadow),"
+        },
+        {
+          "line": 94,
+          "text": "(value14.renderOrder = value12.renderOrder),"
+        }
+      ]
+    },
+    {
+      "key": "value13@86",
+      "name": "value13",
+      "line": 86,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = value9 ? value12.material.clone() : value12.material;",
+      "references": [
+        {
+          "line": 87,
+          "text": "value9 && (value13.color.setRGB(1, 1, 1), (value13.vertexColors = true));"
+        },
+        {
+          "line": 88,
+          "text": "const value14 = new arg1.Mesh(value11, value13);"
+        }
+      ]
+    },
+    {
+      "key": "value14@88",
+      "name": "value14",
+      "line": 88,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = new arg1.Mesh(value11, value13);",
+      "references": [
+        {
+          "line": 89,
+          "text": "((value14.name = \"static-device-parts\"),"
+        },
+        {
+          "line": 90,
+          "text": "(value14.userData.reflectionSimplifiable = true),"
+        },
+        {
+          "line": 91,
+          "text": "(value14.userData.runtimeDetail = true),"
+        },
+        {
+          "line": 92,
+          "text": "(value14.castShadow = value12.castShadow),"
+        }
+      ]
+    },
+    {
+      "key": "value19@101",
+      "name": "value19",
+      "line": 101,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value19 of value8)",
+      "references": [
+        {
+          "line": 102,
+          "text": "(value1.remove(value19),"
+        },
+        {
+          "line": 103,
+          "text": "value19.userData.externalModelSharedGeometry || set1.add(value19.geometry),"
+        },
+        {
+          "line": 104,
+          "text": "value19.userData.externalModelSharedMaterial || set2.add(value19.material));"
+        }
+      ]
+    },
+    {
+      "key": "arg13@108",
+      "name": "arg13",
+      "line": 108,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg2.traverse((arg13) => {",
+      "references": [
+        {
+          "line": 109,
+          "text": "set1.delete(arg13.geometry);"
+        },
+        {
+          "line": 110,
+          "text": "for (const value20 of Array.isArray(arg13.material) ? arg13.material : [arg13.material])"
+        }
+      ]
+    },
+    {
+      "key": "value20@110",
+      "name": "value20",
+      "line": 110,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value20 of Array.isArray(arg13.material) ? arg13.material : [arg13.material])",
+      "references": [
+        {
+          "line": 111,
+          "text": "set2.delete(value20);"
+        }
+      ]
+    },
+    {
+      "key": "value21@113",
+      "name": "value21",
+      "line": 113,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value21 of set1) value21.dispose();",
+      "references": [
+        {
+          "line": 113,
+          "text": "for (const value21 of set1) value21.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "value22@114",
+      "name": "value22",
+      "line": 114,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value22 of set2) value22.dispose();",
+      "references": [
+        {
+          "line": 114,
+          "text": "for (const value22 of set2) value22.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "arg14@116",
+      "name": "arg14",
+      "line": 116,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg2.traverse((arg14) => {",
+      "references": [
+        {
+          "line": 117,
+          "text": "arg14.isMesh &&"
+        },
+        {
+          "line": 118,
+          "text": "arg14.userData.externalModelSharedGeometry &&"
+        },
+        {
+          "line": 119,
+          "text": "!arg14.children.length &&"
+        },
+        {
+          "line": 120,
+          "text": "Object.keys(arg14.userData).every("
+        }
+      ]
+    },
+    {
+      "key": "arg15@121",
+      "name": "arg15",
+      "line": 121,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg15) =>",
+      "references": [
+        {
+          "line": 122,
+          "text": "/^externalModelShared(Geometry|Material|Textures)$/.test(arg15) ||"
+        },
+        {
+          "line": 123,
+          "text": "arg15 === \"furnitureBatchCompiled\","
+        }
+      ]
+    }
+  ]
+}

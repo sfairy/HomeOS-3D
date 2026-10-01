@@ -59,7 +59,7 @@ export function percentageBarDimensions(overrides = {}, barCount = 1) {
       ? Math.max(minValue, Math.min(maxValue, Number(options[optionKey])))
       : percentageBarDefaults[optionKey];
   const num = options.valueVisible ? options.valueSize + options.valueGap : 0,
-    num2 = options.labelVisible ? options.labelGap + options.labelSize * 2.9 : 0;
+    labelSpan = options.labelVisible ? options.labelGap + options.labelSize * 2.9 : 0;
   return options.orientation === "horizontal"
     ? {
         width:
@@ -78,7 +78,7 @@ export function percentageBarDimensions(overrides = {}, barCount = 1) {
           ) +
           (barCount - 1) * (options.thickness + options.gap) +
           16,
-        height: options.length + num + num2,
+        height: options.length + num + labelSpan,
       };
 }
 export function refitPercentageBar(refitComponent, nextOptions, refitBarCount) {
@@ -87,23 +87,23 @@ export function refitPercentageBar(refitComponent, nextOptions, refitBarCount) {
       refitComponent.properties,
       percentageBarSeries(refitComponent).length,
     ),
-    options2 = refitComponent.position || {},
-    width = Number(options2.width) || percentageBarDimensions2.width,
-    height = Number(options2.height) || percentageBarDimensions2.height,
+    currentPosition = refitComponent.position || {},
+    width = Number(currentPosition.width) || percentageBarDimensions2.width,
+    height = Number(currentPosition.height) || percentageBarDimensions2.height,
     min = Math.min(
       width / percentageBarDimensions2.width,
       height / percentageBarDimensions2.height,
     );
   refitComponent.position = {
-    ...options2,
+    ...currentPosition,
     width: percentageBarDimensions3.width * min,
     height: percentageBarDimensions3.height * min,
-    x: (Number(options2.x) || 0) + (width - percentageBarDimensions3.width * min) / 2,
-    y: (Number(options2.y) || 0) + (height - percentageBarDimensions3.height * min) / 2,
+    x: (Number(currentPosition.x) || 0) + (width - percentageBarDimensions3.width * min) / 2,
+    y: (Number(currentPosition.y) || 0) + (height - percentageBarDimensions3.height * min) / 2,
   };
 }
 export function applyPercentageBarChange(editedComponent, change, viewport = {}) {
-  const options3 = {
+  const mergedOptions = {
       ...percentageBarDefaults,
       ...editedComponent.properties,
     },
@@ -114,7 +114,7 @@ export function applyPercentageBarChange(editedComponent, change, viewport = {})
   let shouldRefit = false;
   if (
     ((editedComponent.properties = {
-      ...options3,
+      ...mergedOptions,
       series: map,
     }),
     (editedComponent.style = {
@@ -150,13 +150,13 @@ export function applyPercentageBarChange(editedComponent, change, viewport = {})
             });
     } else {
       if (change.property) {
-        let v10 = change.value;
-        const v11 = percentageBarNumbers[change.property];
-        if (v11) {
-          if (!Number.isFinite(Number(v10))) return;
-          v10 = Math.max(v11[0], Math.min(v11[1], Number(v10)));
+        let nextValue = change.value;
+        const numericRange = percentageBarNumbers[change.property];
+        if (numericRange) {
+          if (!Number.isFinite(Number(nextValue))) return;
+          nextValue = Math.max(numericRange[0], Math.min(numericRange[1], Number(nextValue)));
         }
-        ((editedComponent.properties[change.property] = v10),
+        ((editedComponent.properties[change.property] = nextValue),
           (shouldRefit = [
             "orientation",
             "thickness",
@@ -171,19 +171,20 @@ export function applyPercentageBarChange(editedComponent, change, viewport = {})
           ].includes(change.property)));
       } else {
         if (change.geometry) {
-          const v12 = Number(change.value);
-          if (!Number.isFinite(v12)) return;
+          const numericValue = Number(change.value);
+          if (!Number.isFinite(numericValue)) return;
           (change.geometry === "left" &&
             (editedComponent.position.x =
-              ((viewport.width || 2778) * v12) / 100 - editedComponent.position.width / 2),
+              ((viewport.width || 2778) * numericValue) / 100 - editedComponent.position.width / 2),
             change.geometry === "top" &&
               (editedComponent.position.y =
-                ((viewport.height || 1940) * v12) / 100 - editedComponent.position.height / 2),
-            change.geometry === "scale" && (editedComponent.style.scale = v12 / 100),
-            change.geometry === "rotation" && (editedComponent.position.rotation = v12));
+                ((viewport.height || 1940) * numericValue) / 100 -
+                editedComponent.position.height / 2),
+            change.geometry === "scale" && (editedComponent.style.scale = numericValue / 100),
+            change.geometry === "rotation" && (editedComponent.position.rotation = numericValue));
         }
       }
     }
   }
-  shouldRefit && refitPercentageBar(editedComponent, options3, seriesCount);
+  shouldRefit && refitPercentageBar(editedComponent, mergedOptions, seriesCount);
 }

@@ -1,0 +1,68 @@
+{
+  "file": "frontend/modules/interaction3d/lock-panel.js",
+  "seed": "b15-lock-panel.js",
+  "size": 6,
+  "candidates": 37,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "detailText",
+      "declaration": ".map((???) => {",
+      "references": [
+        "L87: const value23 = fn1(\"span\", ???);"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-or-class",
+      "newName": "refreshPanel",
+      "declaration": "function ???() {",
+      "references": [
+        "L53: ???();",
+        "L74: !value13 && value20 === value14 && ((value12 = false), ???());",
+        "L122: ???());"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "createdElement",
+      "declaration": "const ??? = document.createElement(arg2);",
+      "references": [
+        "L5: return ((???.textContent = arg3), ???);"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "submittedComponent",
+      "declaration": "??? = value10;",
+      "references": [
+        "L65: entityId: ???.entityId,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "submitEpoch",
+      "declaration": "const ??? = value14,",
+      "references": [
+        "L69: ??? === value14 &&",
+        "L72: !value13 && ??? === value14 && (value9.textContent = error1.message || \"操作失败。\");",
+        "L74: !value13 && ??? === value14 && ((value12 = false), fn2());"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "panelElement",
+      "declaration": "??? = fn1(\"section\"),",
+      "references": [
+        "L16: ((???.className = \"i3d-lock-panel i3d-nas-panel\"),",
+        "L108: ???.append(value2, value5, value6, value8, value7, value9),",
+        "L110: root: ???,"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,540 @@
+{
+  "file": "frontend/static/modules/interaction3d/access-monitor.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 104,
+  "counts": {
+    "entries": 26,
+    "renameable": 26,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "M@1",
+      "name": "M",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const M = 60000,",
+      "references": []
+    },
+    {
+      "key": "h@2",
+      "name": "h",
+      "line": 2,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "h = 30000,",
+      "references": []
+    },
+    {
+      "key": "R@3",
+      "name": "R",
+      "line": 3,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "R = 30000;",
+      "references": []
+    },
+    {
+      "key": "arg1@5",
+      "name": "arg1",
+      "line": 5,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "requestGrant: arg1,",
+      "references": [
+        {
+          "line": 33,
+          "text": "const value9 = await arg1();"
+        }
+      ]
+    },
+    {
+      "key": "arg2@6",
+      "name": "arg2",
+      "line": 6,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "now: arg2 = () => performance.now(),",
+      "references": [
+        {
+          "line": 31,
+          "text": "value8 = arg2();"
+        },
+        {
+          "line": 40,
+          "text": "const value11 = value10 - (arg2() - value8);"
+        },
+        {
+          "line": 54,
+          "text": "deadline: arg2() + value11,"
+        }
+      ]
+    },
+    {
+      "key": "arg3@7",
+      "name": "arg3",
+      "line": 7,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg3 = setTimeout,",
+      "references": [
+        {
+          "line": 43,
+          "text": "(value3 = arg3(() => {"
+        },
+        {
+          "line": 56,
+          "text": "(value2 = arg3(fn4, Math.min(30000, Math.max(100, value11 / 2)))));"
+        },
+        {
+          "line": 76,
+          "text": "(value2 = arg3(fn4, 30000)));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@8",
+      "name": "arg4",
+      "line": 8,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "clearTimer: arg4 = clearTimeout,",
+      "references": [
+        {
+          "line": 26,
+          "text": "((value1 += 1), arg4(value2), arg4(value3));"
+        },
+        {
+          "line": 42,
+          "text": "(arg4(value3),"
+        },
+        {
+          "line": 59,
+          "text": "(arg4(value3),"
+        }
+      ]
+    },
+    {
+      "key": "set1@10",
+      "name": "set1",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set();",
+      "references": [
+        {
+          "line": 23,
+          "text": "for (const value6 of set1) value6(value4);"
+        },
+        {
+          "line": 29,
+          "text": "if (!set1.size || value5) return;"
+        },
+        {
+          "line": 34,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        },
+        {
+          "line": 58,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        },
+        {
+          "line": 82,
+          "text": "set1.add(arg6),"
+        },
+        {
+          "line": 84,
+          "text": "set1.size === 1 && fn4(),"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1 = 0,",
+      "references": [
+        {
+          "line": 30,
+          "text": "const value7 = ++value1,"
+        },
+        {
+          "line": 34,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        },
+        {
+          "line": 58,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        }
+      ]
+    },
+    {
+      "key": "value2@12",
+      "name": "value2",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2,",
+      "references": [
+        {
+          "line": 26,
+          "text": "((value1 += 1), arg4(value2), arg4(value3));"
+        }
+      ]
+    },
+    {
+      "key": "value3@13",
+      "name": "value3",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3;",
+      "references": [
+        {
+          "line": 26,
+          "text": "((value1 += 1), arg4(value2), arg4(value3));"
+        },
+        {
+          "line": 42,
+          "text": "(arg4(value3),"
+        },
+        {
+          "line": 59,
+          "text": "(arg4(value3),"
+        }
+      ]
+    },
+    {
+      "key": "fn1@14",
+      "name": "fn1",
+      "line": 14,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => ({",
+      "references": [
+        {
+          "line": 19,
+          "text": "let value4 = fn1(),"
+        },
+        {
+          "line": 86,
+          "text": "(set1.delete(arg6), set1.size || (fn3(), (value4 = fn1())));"
+        },
+        {
+          "line": 100,
+          "text": "((value5 = false), fn3(), fn2(fn1()), fn4());"
+        }
+      ]
+    },
+    {
+      "key": "value4@19",
+      "name": "value4",
+      "line": 19,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value4 = fn1(),",
+      "references": [
+        {
+          "line": 23,
+          "text": "for (const value6 of set1) value6(value4);"
+        },
+        {
+          "line": 83,
+          "text": "arg6(value4),"
+        }
+      ]
+    },
+    {
+      "key": "value5@20",
+      "name": "value5",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = false;",
+      "references": [
+        {
+          "line": 29,
+          "text": "if (!set1.size || value5) return;"
+        },
+        {
+          "line": 34,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        },
+        {
+          "line": 58,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        }
+      ]
+    },
+    {
+      "key": "fn2@21",
+      "name": "fn2",
+      "line": 21,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg5) => {",
+      "references": [
+        {
+          "line": 44,
+          "text": "fn2({"
+        },
+        {
+          "line": 50,
+          "text": "fn2({"
+        },
+        {
+          "line": 60,
+          "text": "fn2("
+        },
+        {
+          "line": 93,
+          "text": "fn2({"
+        },
+        {
+          "line": 100,
+          "text": "((value5 = false), fn3(), fn2(fn1()), fn4());"
+        }
+      ]
+    },
+    {
+      "key": "arg5@21",
+      "name": "arg5",
+      "line": 21,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg5) => {",
+      "references": [
+        {
+          "line": 22,
+          "text": "value4 = arg5;"
+        }
+      ]
+    },
+    {
+      "key": "value6@23",
+      "name": "value6",
+      "line": 23,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of set1) value6(value4);",
+      "references": [
+        {
+          "line": 23,
+          "text": "for (const value6 of set1) value6(value4);"
+        }
+      ]
+    },
+    {
+      "key": "fn3@25",
+      "name": "fn3",
+      "line": 25,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3() {",
+      "references": [
+        {
+          "line": 86,
+          "text": "(set1.delete(arg6), set1.size || (fn3(), (value4 = fn1())));"
+        },
+        {
+          "line": 92,
+          "text": "fn3(),"
+        },
+        {
+          "line": 100,
+          "text": "((value5 = false), fn3(), fn2(fn1()), fn4());"
+        }
+      ]
+    },
+    {
+      "key": "fn4@28",
+      "name": "fn4",
+      "line": 28,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn4() {",
+      "references": [
+        {
+          "line": 56,
+          "text": "(value2 = arg3(fn4, Math.min(30000, Math.max(100, value11 / 2)))));"
+        },
+        {
+          "line": 76,
+          "text": "(value2 = arg3(fn4, 30000)));"
+        },
+        {
+          "line": 84,
+          "text": "set1.size === 1 && fn4(),"
+        },
+        {
+          "line": 100,
+          "text": "((value5 = false), fn3(), fn2(fn1()), fn4());"
+        }
+      ]
+    },
+    {
+      "key": "value7@30",
+      "name": "value7",
+      "line": 30,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = ++value1,",
+      "references": [
+        {
+          "line": 34,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        },
+        {
+          "line": 58,
+          "text": "if (value7 !== value1 || !set1.size || value5) return;"
+        }
+      ]
+    },
+    {
+      "key": "value8@31",
+      "name": "value8",
+      "line": 31,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = arg2();",
+      "references": [
+        {
+          "line": 40,
+          "text": "const value11 = value10 - (arg2() - value8);"
+        }
+      ]
+    },
+    {
+      "key": "value9@33",
+      "name": "value9",
+      "line": 33,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = await arg1();",
+      "references": [
+        {
+          "line": 35,
+          "text": "const value10 = Math.min(60000, Number(value9?.validForSeconds) * 1000);"
+        },
+        {
+          "line": 36,
+          "text": "if (value9?.allowed !== true || !Number.isFinite(value10) || value10 <= 0)"
+        }
+      ]
+    },
+    {
+      "key": "value10@35",
+      "name": "value10",
+      "line": 35,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = Math.min(60000, Number(value9?.validForSeconds) * 1000);",
+      "references": [
+        {
+          "line": 36,
+          "text": "if (value9?.allowed !== true || !Number.isFinite(value10) || value10 <= 0)"
+        },
+        {
+          "line": 40,
+          "text": "const value11 = value10 - (arg2() - value8);"
+        }
+      ]
+    },
+    {
+      "key": "value11@40",
+      "name": "value11",
+      "line": 40,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = value10 - (arg2() - value8);",
+      "references": [
+        {
+          "line": 41,
+          "text": "if (value11 <= 0) throw new Error(\"grant response arrived too late\");"
+        },
+        {
+          "line": 49,
+          "text": "}, value11)),"
+        },
+        {
+          "line": 54,
+          "text": "deadline: arg2() + value11,"
+        },
+        {
+          "line": 56,
+          "text": "(value2 = arg3(fn4, Math.min(30000, Math.max(100, value11 / 2)))));"
+        }
+      ]
+    },
+    {
+      "key": "error1@57",
+      "name": "error1",
+      "line": 57,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "} catch (error1) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "error1?.status === 403"
+        },
+        {
+          "line": 71,
+          "text": "error1?.status === 401"
+        }
+      ]
+    },
+    {
+      "key": "arg6@80",
+      "name": "arg6",
+      "line": 80,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "subscribe(arg6) {",
+      "references": [
+        {
+          "line": 82,
+          "text": "set1.add(arg6),"
+        },
+        {
+          "line": 83,
+          "text": "arg6(value4),"
+        },
+        {
+          "line": 86,
+          "text": "(set1.delete(arg6), set1.size || (fn3(), (value4 = fn1())));"
+        }
+      ]
+    }
+  ]
+}

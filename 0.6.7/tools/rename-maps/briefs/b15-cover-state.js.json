@@ -1,0 +1,717 @@
+{
+  "file": "frontend/modules/interaction3d/cover-state.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 124,
+  "counts": {
+    "entries": 32,
+    "renameable": 32,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "d@1",
+      "name": "d",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const d = (arg1) =>",
+      "references": [
+        {
+          "line": 33,
+          "text": "value5 = d(value3.current_position),"
+        },
+        {
+          "line": 34,
+          "text": "value6 = d(value3.current_tilt_position),"
+        },
+        {
+          "line": 36,
+          "text": "value8 = d(value3.supported_features),"
+        },
+        {
+          "line": 105,
+          "text": "const value17 = d(arg12);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const d = (arg1) =>",
+      "references": [
+        {
+          "line": 2,
+          "text": "[\"number\", \"string\"].includes(typeof arg1) &&"
+        },
+        {
+          "line": 3,
+          "text": "!(typeof arg1 == \"string\" && arg1.trim() === \"\") &&"
+        },
+        {
+          "line": 4,
+          "text": "Number.isFinite(Number(arg1))"
+        },
+        {
+          "line": 5,
+          "text": "? Number(arg1)"
+        }
+      ]
+    },
+    {
+      "key": "m@7",
+      "name": "m",
+      "line": 7,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "m = {",
+      "references": [
+        {
+          "line": 14,
+          "text": "return Object.hasOwn(m, arg2) ? m[arg2] : \"设备不可用\";"
+        },
+        {
+          "line": 50,
+          "text": "/^cover\\.[a-z0-9_]+$/.test(arg5) && value2.available !== false && Object.hasOwn(m, value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@13",
+      "name": "arg2",
+      "line": 13,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverStateLabel(arg2) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "return Object.hasOwn(m, arg2) ? m[arg2] : \"设备不可用\";"
+        }
+      ]
+    },
+    {
+      "key": "arg3@16",
+      "name": "arg3",
+      "line": 16,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverIconIsOn(arg3, arg4) {",
+      "references": [
+        {
+          "line": 19,
+          "text": "arg3?.airer || arg3?.coverKind === \"airer\""
+        },
+        {
+          "line": 25,
+          "text": "return !!(arg3?.iconStateReversed === true ? !value1 : value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@16",
+      "name": "arg4",
+      "line": 16,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverIconIsOn(arg3, arg4) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "if (!arg4?.available) return false;"
+        },
+        {
+          "line": 20,
+          "text": "? arg4.closing ||"
+        },
+        {
+          "line": 21,
+          "text": "(arg4.position !== null && arg4.position !== undefined"
+        },
+        {
+          "line": 22,
+          "text": "? arg4.position < 100"
+        }
+      ]
+    },
+    {
+      "key": "value1@18",
+      "name": "value1",
+      "line": 18,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 =",
+      "references": [
+        {
+          "line": 25,
+          "text": "return !!(arg3?.iconStateReversed === true ? !value1 : value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@27",
+      "name": "arg5",
+      "line": 27,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverState(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "/^cover\\.[a-z0-9_]+$/.test(arg5) && value2.available !== false && Object.hasOwn(m, value4);"
+        },
+        {
+          "line": 52,
+          "text": "entityId: arg5,"
+        },
+        {
+          "line": 57,
+          "text": "name: String(value3.friendly_name || arg5 || \"窗帘\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@27",
+      "name": "arg6",
+      "line": 27,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverState(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 28,
+          "text": "const value2 = arg6?.newState || arg6 || {},"
+        }
+      ]
+    },
+    {
+      "key": "arg7@27",
+      "name": "arg7",
+      "line": 27,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverState(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "value7 = arg7.coverKind === \"dream\","
+        }
+      ]
+    },
+    {
+      "key": "value2@28",
+      "name": "value2",
+      "line": 28,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = arg6?.newState || arg6 || {},",
+      "references": [
+        {
+          "line": 29,
+          "text": "value3 = value2.attributes || {},"
+        },
+        {
+          "line": 30,
+          "text": "value4 = String(value2.state || \"\")"
+        },
+        {
+          "line": 50,
+          "text": "/^cover\\.[a-z0-9_]+$/.test(arg5) && value2.available !== false && Object.hasOwn(m, value4);"
+        },
+        {
+          "line": 53,
+          "text": "raw: value2,"
+        }
+      ]
+    },
+    {
+      "key": "value3@29",
+      "name": "value3",
+      "line": 29,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = value2.attributes || {},",
+      "references": [
+        {
+          "line": 33,
+          "text": "value5 = d(value3.current_position),"
+        },
+        {
+          "line": 34,
+          "text": "value6 = d(value3.current_tilt_position),"
+        },
+        {
+          "line": 36,
+          "text": "value8 = d(value3.supported_features),"
+        },
+        {
+          "line": 57,
+          "text": "name: String(value3.friendly_name || arg5 || \"窗帘\"),"
+        }
+      ]
+    },
+    {
+      "key": "value4@30",
+      "name": "value4",
+      "line": 30,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = String(value2.state || \"\")",
+      "references": [
+        {
+          "line": 40,
+          "text": "value12 = value11 ? value4 : \"unknown\","
+        },
+        {
+          "line": 50,
+          "text": "/^cover\\.[a-z0-9_]+$/.test(arg5) && value2.available !== false && Object.hasOwn(m, value4);"
+        }
+      ]
+    },
+    {
+      "key": "value5@33",
+      "name": "value5",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = d(value3.current_position),",
+      "references": [
+        {
+          "line": 42,
+          "text": "? value5 === null"
+        },
+        {
+          "line": 46,
+          "text": ": Math.max(0, Math.min(100, value5))"
+        },
+        {
+          "line": 48,
+          "text": "value14 = value10 ? value6 : value5,"
+        },
+        {
+          "line": 61,
+          "text": "positionReported: value11 && value5 !== null,"
+        }
+      ]
+    },
+    {
+      "key": "value6@34",
+      "name": "value6",
+      "line": 34,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = d(value3.current_tilt_position),",
+      "references": [
+        {
+          "line": 38,
+          "text": "value10 = value6 !== null || !!(value9 & 240),"
+        },
+        {
+          "line": 48,
+          "text": "value14 = value10 ? value6 : value5,"
+        }
+      ]
+    },
+    {
+      "key": "value7@35",
+      "name": "value7",
+      "line": 35,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = arg7.coverKind === \"dream\",",
+      "references": [
+        {
+          "line": 39,
+          "text": "value11 = !value7 || value10,"
+        },
+        {
+          "line": 55,
+          "text": "dream: value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@36",
+      "name": "value8",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = d(value3.supported_features),",
+      "references": [
+        {
+          "line": 37,
+          "text": "value9 = Number.isSafeInteger(value8) && value8 >= 0 ? value8 : 0,"
+        }
+      ]
+    },
+    {
+      "key": "value9@37",
+      "name": "value9",
+      "line": 37,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = Number.isSafeInteger(value8) && value8 >= 0 ? value8 : 0,",
+      "references": [
+        {
+          "line": 38,
+          "text": "value10 = value6 !== null || !!(value9 & 240),"
+        },
+        {
+          "line": 62,
+          "text": "features: value9,"
+        },
+        {
+          "line": 70,
+          "text": "openSupported: !!(value9 & 1),"
+        },
+        {
+          "line": 71,
+          "text": "closeSupported: !!(value9 & 2),"
+        }
+      ]
+    },
+    {
+      "key": "value10@38",
+      "name": "value10",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = value6 !== null || !!(value9 & 240),",
+      "references": [
+        {
+          "line": 39,
+          "text": "value11 = !value7 || value10,"
+        },
+        {
+          "line": 48,
+          "text": "value14 = value10 ? value6 : value5,"
+        },
+        {
+          "line": 75,
+          "text": "bladeSupported: !!(value9 & 128) || (!value10 && !!(value9 & 4)),"
+        }
+      ]
+    },
+    {
+      "key": "value11@39",
+      "name": "value11",
+      "line": 39,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = !value7 || value10,",
+      "references": [
+        {
+          "line": 40,
+          "text": "value12 = value11 ? value4 : \"unknown\","
+        },
+        {
+          "line": 41,
+          "text": "value13 = value11"
+        },
+        {
+          "line": 56,
+          "text": "overallFeedbackAvailable: value11,"
+        },
+        {
+          "line": 61,
+          "text": "positionReported: value11 && value5 !== null,"
+        }
+      ]
+    },
+    {
+      "key": "value12@40",
+      "name": "value12",
+      "line": 40,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = value11 ? value4 : \"unknown\",",
+      "references": [
+        {
+          "line": 43,
+          "text": "? value12 === \"closed\""
+        },
+        {
+          "line": 58,
+          "text": "state: value12,"
+        },
+        {
+          "line": 63,
+          "text": "closedConfirmed: value15 && value11 && value12 === \"closed\" && value13 === 0,"
+        },
+        {
+          "line": 66,
+          "text": "opening: value15 && value12 === \"opening\","
+        }
+      ]
+    },
+    {
+      "key": "value13@41",
+      "name": "value13",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = value11",
+      "references": [
+        {
+          "line": 59,
+          "text": "position: value13,"
+        },
+        {
+          "line": 60,
+          "text": "positionKnown: value13 !== null,"
+        },
+        {
+          "line": 63,
+          "text": "closedConfirmed: value15 && value11 && value12 === \"closed\" && value13 === 0,"
+        },
+        {
+          "line": 69,
+          "text": "on: value15 && (value12 === \"opening\" || (value13 !== null ? value13 > 0 : value12 === \"open\")),"
+        }
+      ]
+    },
+    {
+      "key": "value14@48",
+      "name": "value14",
+      "line": 48,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = value10 ? value6 : value5,",
+      "references": [
+        {
+          "line": 64,
+          "text": "tiltPosition: value14 === null ? null : Math.max(0, Math.min(100, value14)),"
+        },
+        {
+          "line": 65,
+          "text": "tiltPositionKnown: value14 !== null,"
+        }
+      ]
+    },
+    {
+      "key": "value15@49",
+      "name": "value15",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 =",
+      "references": [
+        {
+          "line": 54,
+          "text": "available: value15,"
+        },
+        {
+          "line": 63,
+          "text": "closedConfirmed: value15 && value11 && value12 === \"closed\" && value13 === 0,"
+        },
+        {
+          "line": 66,
+          "text": "opening: value15 && value12 === \"opening\","
+        },
+        {
+          "line": 67,
+          "text": "closing: value15 && value12 === \"closing\","
+        }
+      ]
+    },
+    {
+      "key": "arg8@78",
+      "name": "arg8",
+      "line": 78,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverCanAdjustBlades(arg8, arg9 = arg8) {",
+      "references": [
+        {
+          "line": 78,
+          "text": "export function coverCanAdjustBlades(arg8, arg9 = arg8) {"
+        },
+        {
+          "line": 79,
+          "text": "return !arg8.available || !arg8.bladeSupported"
+        },
+        {
+          "line": 81,
+          "text": ": arg8.overallFeedbackAvailable"
+        },
+        {
+          "line": 83,
+          "text": ": arg9.moving || [\"opening\", \"closing\"].includes(arg8.raw?.state)"
+        }
+      ]
+    },
+    {
+      "key": "arg9@78",
+      "name": "arg9",
+      "line": 78,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverCanAdjustBlades(arg8, arg9 = arg8) {",
+      "references": [
+        {
+          "line": 82,
+          "text": "? arg9.closedConfirmed === true"
+        },
+        {
+          "line": 83,
+          "text": ": arg9.moving || [\"opening\", \"closing\"].includes(arg8.raw?.state)"
+        },
+        {
+          "line": 85,
+          "text": ": !(arg9.estimated && arg9.position > 0);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@87",
+      "name": "arg10",
+      "line": 87,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverControl(arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "if (!arg10.available) throw new Error(\"窗帘当前不可用。\");"
+        },
+        {
+          "line": 96,
+          "text": "if (!value16 || !arg10[value16]) throw new Error(\"设备不支持此窗帘操作。\");"
+        },
+        {
+          "line": 98,
+          "text": "arg10.dream &&"
+        },
+        {
+          "line": 100,
+          "text": "!coverCanAdjustBlades(arg10)"
+        }
+      ]
+    },
+    {
+      "key": "arg11@87",
+      "name": "arg11",
+      "line": 87,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverControl(arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 95,
+          "text": "}[arg11];"
+        },
+        {
+          "line": 99,
+          "text": "[\"set_cover_position\", \"set_cover_tilt_position\"].includes(arg11) &&"
+        },
+        {
+          "line": 104,
+          "text": "if (arg11 === \"set_cover_position\" || arg11 === \"set_cover_tilt_position\") {"
+        },
+        {
+          "line": 109,
+          "text": "arg11 === \"set_cover_tilt_position\""
+        }
+      ]
+    },
+    {
+      "key": "arg12@87",
+      "name": "arg12",
+      "line": 87,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function coverControl(arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 105,
+          "text": "const value17 = d(arg12);"
+        }
+      ]
+    },
+    {
+      "key": "value16@89",
+      "name": "value16",
+      "line": 89,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = {",
+      "references": [
+        {
+          "line": 96,
+          "text": "if (!value16 || !arg10[value16]) throw new Error(\"设备不支持此窗帘操作。\");"
+        }
+      ]
+    },
+    {
+      "key": "object1@103",
+      "name": "object1",
+      "line": 103,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let object1 = {};",
+      "references": [
+        {
+          "line": 121,
+          "text": "data: object1,"
+        }
+      ]
+    },
+    {
+      "key": "value17@105",
+      "name": "value17",
+      "line": 105,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = d(arg12);",
+      "references": [
+        {
+          "line": 106,
+          "text": "if (!Number.isInteger(value17) || value17 < 0 || value17 > 100)"
+        },
+        {
+          "line": 111,
+          "text": "tilt_position: value17,"
+        },
+        {
+          "line": 114,
+          "text": "position: value17,"
+        }
+      ]
+    }
+  ]
+}

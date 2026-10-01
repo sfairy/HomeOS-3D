@@ -1,0 +1,877 @@
+{
+  "file": "frontend/static/renderer/vacuum-map-state.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 146,
+  "counts": {
+    "entries": 44,
+    "renameable": 44,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function vacuumMapAvailable(arg1) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg1 && Object.hasOwn(arg1, \"newState\") ? arg1.newState : arg1;"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1 && Object.hasOwn(arg1, \"newState\") ? arg1.newState : arg1;",
+      "references": [
+        {
+          "line": 3,
+          "text": "if (!value1 || [\"unavailable\", \"unknown\"].includes(String(value1.state || \"\").toLowerCase()))"
+        },
+        {
+          "line": 5,
+          "text": "const value2 = value1.attributes || {};"
+        }
+      ]
+    },
+    {
+      "key": "value2@5",
+      "name": "value2",
+      "line": 5,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = value1.attributes || {};",
+      "references": [
+        {
+          "line": 6,
+          "text": "if (value2.is_empty === true || value2.empty_map === true) return false;"
+        },
+        {
+          "line": 7,
+          "text": "if (Object.hasOwn(value2, \"calibration_points\")) {"
+        },
+        {
+          "line": 8,
+          "text": "const value3 = value2.calibration_points;"
+        }
+      ]
+    },
+    {
+      "key": "value3@8",
+      "name": "value3",
+      "line": 8,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value2.calibration_points;",
+      "references": [
+        {
+          "line": 9,
+          "text": "if (!Array.isArray(value3) || value3.length < 3) return false;"
+        },
+        {
+          "line": 10,
+          "text": "const [value4, value5, value6] = value3;"
+        }
+      ]
+    },
+    {
+      "key": "value4@10",
+      "name": "value4",
+      "line": 10,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value4, value5, value6] = value3;",
+      "references": [
+        {
+          "line": 13,
+          "text": "![value4, value5, value6].every("
+        },
+        {
+          "line": 19,
+          "text": "(value5[value7].x - value4[value7].x) * (value6[value7].y - value4[value7].y) -"
+        },
+        {
+          "line": 20,
+          "text": "(value5[value7].y - value4[value7].y) * (value6[value7].x - value4[value7].x);"
+        }
+      ]
+    },
+    {
+      "key": "value5@10",
+      "name": "value5",
+      "line": 10,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value4, value5, value6] = value3;",
+      "references": [
+        {
+          "line": 13,
+          "text": "![value4, value5, value6].every("
+        },
+        {
+          "line": 19,
+          "text": "(value5[value7].x - value4[value7].x) * (value6[value7].y - value4[value7].y) -"
+        },
+        {
+          "line": 20,
+          "text": "(value5[value7].y - value4[value7].y) * (value6[value7].x - value4[value7].x);"
+        }
+      ]
+    },
+    {
+      "key": "value6@10",
+      "name": "value6",
+      "line": 10,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value4, value5, value6] = value3;",
+      "references": [
+        {
+          "line": 13,
+          "text": "![value4, value5, value6].every("
+        },
+        {
+          "line": 19,
+          "text": "(value5[value7].x - value4[value7].x) * (value6[value7].y - value4[value7].y) -"
+        },
+        {
+          "line": 20,
+          "text": "(value5[value7].y - value4[value7].y) * (value6[value7].x - value4[value7].x);"
+        }
+      ]
+    },
+    {
+      "key": "value7@11",
+      "name": "value7",
+      "line": 11,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of [\"map\", \"vacuum\"]) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "(arg2) => Number.isFinite(arg2?.[value7]?.x) && Number.isFinite(arg2?.[value7]?.y),"
+        },
+        {
+          "line": 19,
+          "text": "(value5[value7].x - value4[value7].x) * (value6[value7].y - value4[value7].y) -"
+        },
+        {
+          "line": 20,
+          "text": "(value5[value7].y - value4[value7].y) * (value6[value7].x - value4[value7].x);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@14",
+      "name": "arg2",
+      "line": 14,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg2) => Number.isFinite(arg2?.[value7]?.x) && Number.isFinite(arg2?.[value7]?.y),",
+      "references": [
+        {
+          "line": 14,
+          "text": "(arg2) => Number.isFinite(arg2?.[value7]?.x) && Number.isFinite(arg2?.[value7]?.y),"
+        }
+      ]
+    },
+    {
+      "key": "value8@18",
+      "name": "value8",
+      "line": 18,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 =",
+      "references": [
+        {
+          "line": 21,
+          "text": "if (Math.abs(value8) < 1e-9) return false;"
+        }
+      ]
+    },
+    {
+      "key": "arg3@26",
+      "name": "arg3",
+      "line": 26,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function vacuumMapSource(arg3, arg4 = Date.now()) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "return /^(camera|image)\\.[a-z0-9_]+$/.test(arg3 || \"\")"
+        },
+        {
+          "line": 29,
+          "text": "(arg3.startsWith(\"camera.\") ? \"camera\" : \"image\") +"
+        },
+        {
+          "line": 31,
+          "text": "encodeURIComponent(arg3) +"
+        }
+      ]
+    },
+    {
+      "key": "arg4@26",
+      "name": "arg4",
+      "line": 26,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function vacuumMapSource(arg3, arg4 = Date.now()) {",
+      "references": [
+        {
+          "line": 33,
+          "text": "encodeURIComponent(arg4) +"
+        }
+      ]
+    },
+    {
+      "key": "arg5@38",
+      "name": "arg5",
+      "line": 38,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "entityId: arg5,",
+      "references": [
+        {
+          "line": 108,
+          "text": "(image1.src = vacuumMapSource(arg5, Date.now() + \"-\" + value18)));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@39",
+      "name": "arg6",
+      "line": 39,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "getState: arg6,",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn2 = () => !value9 && arg7() && vacuumMapAvailable(arg6()),"
+        },
+        {
+          "line": 113,
+          "text": "value20 = arg6(),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@40",
+      "name": "arg7",
+      "line": 40,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "isActive: arg7,",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn2 = () => !value9 && arg7() && vacuumMapAvailable(arg6()),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@41",
+      "name": "arg8",
+      "line": 41,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onFrame: arg8,",
+      "references": [
+        {
+          "line": 95,
+          "text": "(arg11 ? ((value15 = 0), arg8(image1)) : ((image1.src = \"\"), value15++, arg9()),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@42",
+      "name": "arg9",
+      "line": 42,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onUnavailable: arg9,",
+      "references": [
+        {
+          "line": 95,
+          "text": "(arg11 ? ((value15 = 0), arg8(image1)) : ((image1.src = \"\"), value15++, arg9()),"
+        },
+        {
+          "line": 127,
+          "text": "(fn1(), (value10 = false), (text1 = value23), arg9());"
+        },
+        {
+          "line": 142,
+          "text": "((value9 = true), fn1(), arg9());"
+        }
+      ]
+    },
+    {
+      "key": "value9@44",
+      "name": "value9",
+      "line": 44,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value9 = false,",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn2 = () => !value9 && arg7() && vacuumMapAvailable(arg6()),"
+        },
+        {
+          "line": 83,
+          "text": "if (!(value9 || value18 !== value14)) {"
+        },
+        {
+          "line": 111,
+          "text": "if (value9) return;"
+        }
+      ]
+    },
+    {
+      "key": "value10@45",
+      "name": "value10",
+      "line": 45,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = false,",
+      "references": [
+        {
+          "line": 130,
+          "text": "const value24 = !value10,"
+        }
+      ]
+    },
+    {
+      "key": "value11@46",
+      "name": "value11",
+      "line": 46,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = null,",
+      "references": [
+        {
+          "line": 59,
+          "text": "value11 &&"
+        },
+        {
+          "line": 60,
+          "text": "((value11.onload = value11.onerror = null), (value11.src = \"\"), (value11 = null)));"
+        },
+        {
+          "line": 74,
+          "text": "if (value11) {"
+        },
+        {
+          "line": 137,
+          "text": "(value11 ? (value17 = true) : fn3(Math.max(0, 1000 - (Date.now() - value16)))));"
+        }
+      ]
+    },
+    {
+      "key": "value12@47",
+      "name": "value12",
+      "line": 47,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = null,",
+      "references": [
+        {
+          "line": 56,
+          "text": "clearTimeout(value12),"
+        },
+        {
+          "line": 64,
+          "text": "(clearTimeout(value12),"
+        }
+      ]
+    },
+    {
+      "key": "value13@48",
+      "name": "value13",
+      "line": 48,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = null,",
+      "references": [
+        {
+          "line": 57,
+          "text": "clearTimeout(value13),"
+        },
+        {
+          "line": 86,
+          "text": "clearTimeout(value13),"
+        }
+      ]
+    },
+    {
+      "key": "value14@49",
+      "name": "value14",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = 0,",
+      "references": [
+        {
+          "line": 55,
+          "text": "(value14++,"
+        },
+        {
+          "line": 80,
+          "text": "value18 = ++value14;"
+        },
+        {
+          "line": 83,
+          "text": "if (!(value9 || value18 !== value14)) {"
+        },
+        {
+          "line": 85,
+          "text": "(value14++,"
+        }
+      ]
+    },
+    {
+      "key": "value15@50",
+      "name": "value15",
+      "line": 50,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = 0,",
+      "references": [
+        {
+          "line": 95,
+          "text": "(arg11 ? ((value15 = 0), arg8(image1)) : ((image1.src = \"\"), value15++, arg9()),"
+        },
+        {
+          "line": 101,
+          "text": ": Math.min(30000, 1000 * 2 ** Math.min(value15 - 1, 5)),"
+        }
+      ]
+    },
+    {
+      "key": "text1@51",
+      "name": "text1",
+      "line": 51,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "text1 = \"\",",
+      "references": [
+        {
+          "line": 131,
+          "text": "value25 = text1 !== value23;"
+        }
+      ]
+    },
+    {
+      "key": "value16@52",
+      "name": "value16",
+      "line": 52,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = -Infinity,",
+      "references": [
+        {
+          "line": 98,
+          "text": "? Math.max(0, 1000 - (Date.now() - value16))"
+        },
+        {
+          "line": 137,
+          "text": "(value11 ? (value17 = true) : fn3(Math.max(0, 1000 - (Date.now() - value16)))));"
+        }
+      ]
+    },
+    {
+      "key": "value17@53",
+      "name": "value17",
+      "line": 53,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = false;",
+      "references": [
+        {
+          "line": 97,
+          "text": "value17"
+        }
+      ]
+    },
+    {
+      "key": "fn1@54",
+      "name": "fn1",
+      "line": 54,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => {",
+      "references": [
+        {
+          "line": 127,
+          "text": "(fn1(), (value10 = false), (text1 = value23), arg9());"
+        },
+        {
+          "line": 142,
+          "text": "((value9 = true), fn1(), arg9());"
+        }
+      ]
+    },
+    {
+      "key": "fn2@62",
+      "name": "fn2",
+      "line": 62,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = () => !value9 && arg7() && vacuumMapAvailable(arg6()),",
+      "references": [
+        {
+          "line": 70,
+          "text": "if (!fn2()) {"
+        },
+        {
+          "line": 90,
+          "text": "!fn2())"
+        },
+        {
+          "line": 112,
+          "text": "const value19 = fn2(),"
+        }
+      ]
+    },
+    {
+      "key": "fn3@63",
+      "name": "fn3",
+      "line": 63,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg10) => {",
+      "references": [
+        {
+          "line": 96,
+          "text": "fn3("
+        },
+        {
+          "line": 137,
+          "text": "(value11 ? (value17 = true) : fn3(Math.max(0, 1000 - (Date.now() - value16)))));"
+        }
+      ]
+    },
+    {
+      "key": "arg10@63",
+      "name": "arg10",
+      "line": 63,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg10) => {",
+      "references": [
+        {
+          "line": 67,
+          "text": "}, arg10)));"
+        }
+      ]
+    },
+    {
+      "key": "fn4@69",
+      "name": "fn4",
+      "line": 69,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4() {",
+      "references": [
+        {
+          "line": 66,
+          "text": "((value12 = null), fn4());"
+        },
+        {
+          "line": 135,
+          "text": "? ((value15 = 0), fn4())"
+        }
+      ]
+    },
+    {
+      "key": "image1@79",
+      "name": "image1",
+      "line": 79,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const image1 = new Image(),",
+      "references": [
+        {
+          "line": 81,
+          "text": "value11 = image1;"
+        },
+        {
+          "line": 89,
+          "text": "(image1.onload = image1.onerror = null),"
+        },
+        {
+          "line": 92,
+          "text": "((image1.src = \"\"), fn5());"
+        },
+        {
+          "line": 95,
+          "text": "(arg11 ? ((value15 = 0), arg8(image1)) : ((image1.src = \"\"), value15++, arg9()),"
+        }
+      ]
+    },
+    {
+      "key": "value18@80",
+      "name": "value18",
+      "line": 80,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = ++value14;",
+      "references": [
+        {
+          "line": 83,
+          "text": "if (!(value9 || value18 !== value14)) {"
+        },
+        {
+          "line": 108,
+          "text": "(image1.src = vacuumMapSource(arg5, Date.now() + \"-\" + value18)));"
+        }
+      ]
+    },
+    {
+      "key": "fn6@82",
+      "name": "fn6",
+      "line": 82,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn6 = (arg11) => {",
+      "references": [
+        {
+          "line": 105,
+          "text": "((image1.onload = () => fn6(true)),"
+        },
+        {
+          "line": 106,
+          "text": "(image1.onerror = () => fn6(false)),"
+        },
+        {
+          "line": 107,
+          "text": "(value13 = setTimeout(() => fn6(false), 15000)),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@82",
+      "name": "arg11",
+      "line": 82,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn6 = (arg11) => {",
+      "references": [
+        {
+          "line": 95,
+          "text": "(arg11 ? ((value15 = 0), arg8(image1)) : ((image1.src = \"\"), value15++, arg9()),"
+        },
+        {
+          "line": 99,
+          "text": ": arg11"
+        }
+      ]
+    },
+    {
+      "key": "fn5@110",
+      "name": "fn5",
+      "line": 110,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5() {",
+      "references": [
+        {
+          "line": 71,
+          "text": "fn5();"
+        },
+        {
+          "line": 92,
+          "text": "((image1.src = \"\"), fn5());"
+        },
+        {
+          "line": 140,
+          "text": "sync: fn5,"
+        }
+      ]
+    },
+    {
+      "key": "value19@112",
+      "name": "value19",
+      "line": 112,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = fn2(),",
+      "references": [
+        {
+          "line": 126,
+          "text": "if (!value19) {"
+        }
+      ]
+    },
+    {
+      "key": "value20@113",
+      "name": "value20",
+      "line": 113,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = arg6(),",
+      "references": [
+        {
+          "line": 114,
+          "text": "value21 = value20?.newState || value20 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value21@114",
+      "name": "value21",
+      "line": 114,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = value20?.newState || value20 || {},",
+      "references": [
+        {
+          "line": 115,
+          "text": "value22 = value21.attributes || {},"
+        },
+        {
+          "line": 117,
+          "text": "value21.state,"
+        },
+        {
+          "line": 118,
+          "text": "value21.updatedAt,"
+        },
+        {
+          "line": 119,
+          "text": "value21.last_updated,"
+        }
+      ]
+    },
+    {
+      "key": "value22@115",
+      "name": "value22",
+      "line": 115,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = value21.attributes || {},",
+      "references": [
+        {
+          "line": 120,
+          "text": "value22.image_last_updated,"
+        },
+        {
+          "line": 121,
+          "text": "value22.frame_id,"
+        },
+        {
+          "line": 122,
+          "text": "value22.map_id,"
+        },
+        {
+          "line": 123,
+          "text": "value22.calibration_points,"
+        }
+      ]
+    },
+    {
+      "key": "value23@116",
+      "name": "value23",
+      "line": 116,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = JSON.stringify([",
+      "references": [
+        {
+          "line": 127,
+          "text": "(fn1(), (value10 = false), (text1 = value23), arg9());"
+        },
+        {
+          "line": 131,
+          "text": "value25 = text1 !== value23;"
+        },
+        {
+          "line": 133,
+          "text": "(text1 = value23),"
+        }
+      ]
+    },
+    {
+      "key": "value24@130",
+      "name": "value24",
+      "line": 130,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = !value10,",
+      "references": [
+        {
+          "line": 134,
+          "text": "value24"
+        }
+      ]
+    },
+    {
+      "key": "value25@131",
+      "name": "value25",
+      "line": 131,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value25 = text1 !== value23;",
+      "references": [
+        {
+          "line": 136,
+          "text": ": value25 &&"
+        }
+      ]
+    }
+  ]
+}

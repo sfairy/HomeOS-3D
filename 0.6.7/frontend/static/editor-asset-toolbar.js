@@ -1,83 +1,94 @@
-export function editorAssetFolders(e) {
-  return [...new Set((e || []).map((t) => t.folder).filter(Boolean))].sort((t, b) =>
-    t.localeCompare(b, "zh-CN"),
+export function editorAssetFolders(assets) {
+  return [...new Set((assets || []).map((asset) => asset.folder).filter(Boolean))].sort(
+    (folderName, otherFolderName) => folderName.localeCompare(otherFolderName, "zh-CN"),
   );
 }
-export function editorAssetSelectedFolder(e, t) {
-  return t.includes(e) ? e : t[0] || "";
+export function editorAssetSelectedFolder(selectedFolderName, folders) {
+  return folders.includes(selectedFolderName) ? selectedFolderName : folders[0] || "";
 }
 export function createEditorAssetToolbar({
-  documentObject: e,
-  getSource: t,
-  setSource: b,
-  getFolder: f,
-  setFolder: A,
-  getAssets: E,
-  getUploadInput: h,
-  canDeleteFolder: m,
-  onDeleteFolder: v,
+  documentObject: ownerDocument,
+  getSource: getSource,
+  setSource: setSource,
+  getFolder: getFolder,
+  setFolder: setFolder,
+  getAssets: getAssets,
+  getUploadInput: getUploadInput,
+  canDeleteFolder: canDeleteFolder,
+  onDeleteFolder: onDeleteFolder,
 }) {
-  return function (s, { toolbar: y, controller: c }) {
-    const i = e.createElement("div");
-    ((i.className = "asset-source-tabs"),
-      i.setAttribute("role", "tablist"),
-      i.setAttribute("aria-label", "图片来源"));
-    for (const [r, p] of [
+  return function (state, { toolbar: toolbarElement, controller: controller }) {
+    const sourceTabsElement = ownerDocument.createElement("div");
+    ((sourceTabsElement.className = "asset-source-tabs"),
+      sourceTabsElement.setAttribute("role", "tablist"),
+      sourceTabsElement.setAttribute("aria-label", "图片来源"));
+    for (const [sourceId, sourceLabel] of [
       ["user", "我的图片"],
       ["builtin", "栖光素材"],
     ]) {
-      const l = e.createElement("button");
-      ((l.type = "button"),
-        (l.textContent = p),
-        (l.dataset.editorAssetSource = r),
-        l.addEventListener("click", () => {
-          b(s, r);
-          const n = editorAssetFolders(E(r));
-          (A(s, editorAssetSelectedFolder(f(s), n)),
-            c.syncAssetToolbar?.(),
-            c.refresh({
+      const sourceTabButton = ownerDocument.createElement("button");
+      ((sourceTabButton.type = "button"),
+        (sourceTabButton.textContent = sourceLabel),
+        (sourceTabButton.dataset.editorAssetSource = sourceId),
+        sourceTabButton.addEventListener("click", () => {
+          setSource(state, sourceId);
+          const sourceFolders = editorAssetFolders(getAssets(sourceId));
+          (setFolder(state, editorAssetSelectedFolder(getFolder(state), sourceFolders)),
+            controller.syncAssetToolbar?.(),
+            controller.refresh({
               resetPage: true,
             }));
         }),
-        i.append(l));
+        sourceTabsElement.append(sourceTabButton));
     }
-    const a = e.createElement("select");
-    ((a.className = "editor-paged-picker-folder"),
-      a.setAttribute("aria-label", "选择图片文件夹"),
-      a.addEventListener("change", () => {
-        (A(s, a.value),
-          c.syncAssetToolbar?.(),
-          c.refresh({
+    const folderSelectElement = ownerDocument.createElement("select");
+    ((folderSelectElement.className = "editor-paged-picker-folder"),
+      folderSelectElement.setAttribute("aria-label", "选择图片文件夹"),
+      folderSelectElement.addEventListener("change", () => {
+        (setFolder(state, folderSelectElement.value),
+          controller.syncAssetToolbar?.(),
+          controller.refresh({
             resetPage: true,
           }));
       }));
-    const o = e.createElement("button");
-    ((o.type = "button"),
-      (o.className = "asset-folder-delete"),
-      (o.textContent = "删除"),
-      o.setAttribute("aria-label", "删除当前自动导图文件夹"),
-      (o.title = "删除当前自动导图文件夹"),
-      o.addEventListener("click", () => v?.(s, a.value)));
-    const u = e.createElement("div");
-    ((u.className = "editor-paged-picker-folder-row"), u.append(a, o));
-    const d = e.createElement("button");
-    ((d.type = "button"),
-      (d.className = "asset-upload-button"),
-      (d.textContent = "上传"),
-      d.addEventListener("click", () => h(s).click()),
-      y.append(i, u, d),
-      (c.syncAssetToolbar = () => {
-        const r = t(s);
-        for (const n of i.querySelectorAll("[data-editor-asset-source]"))
-          n.classList.toggle("active", n.dataset.editorAssetSource === r);
-        const p = editorAssetFolders(E(r)),
-          l = f(s);
-        (a.replaceChildren(...p.map((n) => new Option(n === "." ? "根目录" : n, n))),
-          (a.value = l),
-          (u.hidden = !p.length),
-          (o.hidden = !m?.(r, l)),
-          (d.hidden = r !== "user"));
+    const deleteFolderButton = ownerDocument.createElement("button");
+    ((deleteFolderButton.type = "button"),
+      (deleteFolderButton.className = "asset-folder-delete"),
+      (deleteFolderButton.textContent = "删除"),
+      deleteFolderButton.setAttribute("aria-label", "删除当前自动导图文件夹"),
+      (deleteFolderButton.title = "删除当前自动导图文件夹"),
+      deleteFolderButton.addEventListener("click", () =>
+        onDeleteFolder?.(state, folderSelectElement.value),
+      ));
+    const folderRowElement = ownerDocument.createElement("div");
+    ((folderRowElement.className = "editor-paged-picker-folder-row"),
+      folderRowElement.append(folderSelectElement, deleteFolderButton));
+    const uploadButton = ownerDocument.createElement("button");
+    ((uploadButton.type = "button"),
+      (uploadButton.className = "asset-upload-button"),
+      (uploadButton.textContent = "上传"),
+      uploadButton.addEventListener("click", () => getUploadInput(state).click()),
+      toolbarElement.append(sourceTabsElement, folderRowElement, uploadButton),
+      (controller.syncAssetToolbar = () => {
+        const activeSourceId = getSource(state);
+        for (const tabButton of sourceTabsElement.querySelectorAll("[data-editor-asset-source]"))
+          tabButton.classList.toggle(
+            "active",
+            tabButton.dataset.editorAssetSource === activeSourceId,
+          );
+        const currentFolders = editorAssetFolders(getAssets(activeSourceId)),
+          currentFolderName = getFolder(state);
+        (folderSelectElement.replaceChildren(
+          ...currentFolders.map(
+            (mappedFolderName) =>
+              new Option(mappedFolderName === "." ? "根目录" : mappedFolderName, mappedFolderName),
+          ),
+        ),
+          (folderSelectElement.value = currentFolderName),
+          (folderRowElement.hidden = !currentFolders.length),
+          (deleteFolderButton.hidden = !canDeleteFolder?.(activeSourceId, currentFolderName)),
+          (uploadButton.hidden = activeSourceId !== "user"));
       }),
-      c.syncAssetToolbar());
+      controller.syncAssetToolbar());
   };
 }

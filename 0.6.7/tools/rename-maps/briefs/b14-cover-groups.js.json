@@ -1,0 +1,514 @@
+{
+  "file": "frontend/modules/interaction3d/cover-groups.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 56,
+  "counts": {
+    "entries": 27,
+    "renameable": 27,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export const curtainGroupEntryId = (arg1) => \"curtain-group:\" + arg1.id;",
+      "references": [
+        {
+          "line": 1,
+          "text": "export const curtainGroupEntryId = (arg1) => \"curtain-group:\" + arg1.id;"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function validCurtainGroups(arg2 = {}) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "const map1 = new Map((arg2.curtains || []).map((arg3) => [arg3.id, arg3])),"
+        },
+        {
+          "line": 5,
+          "text": "return (arg2.curtainGroups || []).filter((arg4) => {"
+        }
+      ]
+    },
+    {
+      "key": "map1@3",
+      "name": "map1",
+      "line": 3,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map((arg2.curtains || []).map((arg3) => [arg3.id, arg3])),",
+      "references": [
+        {
+          "line": 9,
+          "text": "const value2 = value1.map((arg5) => map1.get(arg5));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@3",
+      "name": "arg3",
+      "line": 3,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map((arg2.curtains || []).map((arg3) => [arg3.id, arg3])),",
+      "references": [
+        {
+          "line": 3,
+          "text": "const map1 = new Map((arg2.curtains || []).map((arg3) => [arg3.id, arg3])),"
+        }
+      ]
+    },
+    {
+      "key": "set1@4",
+      "name": "set1",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set();",
+      "references": [
+        {
+          "line": 12,
+          "text": "!arg6 || arg6.floorId !== arg4.floorId || arg6.coverKind === \"dream\" || set1.has(arg6.id),"
+        },
+        {
+          "line": 16,
+          "text": ": (value1.forEach((arg7) => set1.add(arg7)), true);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@5",
+      "name": "arg4",
+      "line": 5,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (arg2.curtainGroups || []).filter((arg4) => {",
+      "references": [
+        {
+          "line": 6,
+          "text": "const value1 = arg4.memberIds;"
+        },
+        {
+          "line": 7,
+          "text": "if (!arg4.id || !Array.isArray(value1) || value1.length !== 2 || value1[0] === value1[1])"
+        },
+        {
+          "line": 12,
+          "text": "!arg6 || arg6.floorId !== arg4.floorId || arg6.coverKind === \"dream\" || set1.has(arg6.id),"
+        }
+      ]
+    },
+    {
+      "key": "value1@6",
+      "name": "value1",
+      "line": 6,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg4.memberIds;",
+      "references": [
+        {
+          "line": 7,
+          "text": "if (!arg4.id || !Array.isArray(value1) || value1.length !== 2 || value1[0] === value1[1])"
+        },
+        {
+          "line": 9,
+          "text": "const value2 = value1.map((arg5) => map1.get(arg5));"
+        },
+        {
+          "line": 16,
+          "text": ": (value1.forEach((arg7) => set1.add(arg7)), true);"
+        }
+      ]
+    },
+    {
+      "key": "value2@9",
+      "name": "value2",
+      "line": 9,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = value1.map((arg5) => map1.get(arg5));",
+      "references": [
+        {
+          "line": 10,
+          "text": "return value2.some("
+        },
+        {
+          "line": 14,
+          "text": "(value2[0].entityId && value2[0].entityId === value2[1].entityId)"
+        }
+      ]
+    },
+    {
+      "key": "arg5@9",
+      "name": "arg5",
+      "line": 9,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = value1.map((arg5) => map1.get(arg5));",
+      "references": [
+        {
+          "line": 9,
+          "text": "const value2 = value1.map((arg5) => map1.get(arg5));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@11",
+      "name": "arg6",
+      "line": 11,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg6) =>",
+      "references": [
+        {
+          "line": 12,
+          "text": "!arg6 || arg6.floorId !== arg4.floorId || arg6.coverKind === \"dream\" || set1.has(arg6.id),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@16",
+      "name": "arg7",
+      "line": 16,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": (value1.forEach((arg7) => set1.add(arg7)), true);",
+      "references": [
+        {
+          "line": 16,
+          "text": ": (value1.forEach((arg7) => set1.add(arg7)), true);"
+        }
+      ]
+    },
+    {
+      "key": "arg8@19",
+      "name": "arg8",
+      "line": 19,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function curtainGroupCandidates(arg8, arg9) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "const value3 = arg8?.curtains?.find((arg10) => arg10.id === arg9),"
+        },
+        {
+          "line": 21,
+          "text": "set2 = new Set(validCurtainGroups(arg8).flatMap((arg11) => arg11.memberIds));"
+        },
+        {
+          "line": 24,
+          "text": ": arg8.curtains.filter("
+        }
+      ]
+    },
+    {
+      "key": "arg9@19",
+      "name": "arg9",
+      "line": 19,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function curtainGroupCandidates(arg8, arg9) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "const value3 = arg8?.curtains?.find((arg10) => arg10.id === arg9),"
+        }
+      ]
+    },
+    {
+      "key": "value3@20",
+      "name": "value3",
+      "line": 20,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = arg8?.curtains?.find((arg10) => arg10.id === arg9),",
+      "references": [
+        {
+          "line": 22,
+          "text": "return !value3?.floorId || value3.coverKind === \"dream\" || set2.has(value3.id)"
+        },
+        {
+          "line": 26,
+          "text": "arg12.id !== value3.id &&"
+        },
+        {
+          "line": 27,
+          "text": "arg12.floorId === value3.floorId &&"
+        },
+        {
+          "line": 30,
+          "text": "(!value3.entityId || arg12.entityId !== value3.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@20",
+      "name": "arg10",
+      "line": 20,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = arg8?.curtains?.find((arg10) => arg10.id === arg9),",
+      "references": [
+        {
+          "line": 20,
+          "text": "const value3 = arg8?.curtains?.find((arg10) => arg10.id === arg9),"
+        }
+      ]
+    },
+    {
+      "key": "set2@21",
+      "name": "set2",
+      "line": 21,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set(validCurtainGroups(arg8).flatMap((arg11) => arg11.memberIds));",
+      "references": [
+        {
+          "line": 22,
+          "text": "return !value3?.floorId || value3.coverKind === \"dream\" || set2.has(value3.id)"
+        },
+        {
+          "line": 29,
+          "text": "!set2.has(arg12.id) &&"
+        }
+      ]
+    },
+    {
+      "key": "arg11@21",
+      "name": "arg11",
+      "line": 21,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set(validCurtainGroups(arg8).flatMap((arg11) => arg11.memberIds));",
+      "references": [
+        {
+          "line": 21,
+          "text": "set2 = new Set(validCurtainGroups(arg8).flatMap((arg11) => arg11.memberIds));"
+        }
+      ]
+    },
+    {
+      "key": "arg12@25",
+      "name": "arg12",
+      "line": 25,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg12) =>",
+      "references": [
+        {
+          "line": 26,
+          "text": "arg12.id !== value3.id &&"
+        },
+        {
+          "line": 27,
+          "text": "arg12.floorId === value3.floorId &&"
+        },
+        {
+          "line": 28,
+          "text": "arg12.coverKind !== \"dream\" &&"
+        },
+        {
+          "line": 29,
+          "text": "!set2.has(arg12.id) &&"
+        }
+      ]
+    },
+    {
+      "key": "arg13@33",
+      "name": "arg13",
+      "line": 33,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createCurtainGroup(arg13, arg14, arg15, arg16) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "const value4 = arg13.curtains.find((arg17) => arg17.id === arg14);"
+        },
+        {
+          "line": 35,
+          "text": "if (!curtainGroupCandidates(arg13, arg14).some((arg18) => arg18.id === arg15))"
+        }
+      ]
+    },
+    {
+      "key": "arg14@33",
+      "name": "arg14",
+      "line": 33,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createCurtainGroup(arg13, arg14, arg15, arg16) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "const value4 = arg13.curtains.find((arg17) => arg17.id === arg14);"
+        },
+        {
+          "line": 35,
+          "text": "if (!curtainGroupCandidates(arg13, arg14).some((arg18) => arg18.id === arg15))"
+        },
+        {
+          "line": 41,
+          "text": "memberIds: [arg14, arg15],"
+        }
+      ]
+    },
+    {
+      "key": "arg15@33",
+      "name": "arg15",
+      "line": 33,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createCurtainGroup(arg13, arg14, arg15, arg16) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (!curtainGroupCandidates(arg13, arg14).some((arg18) => arg18.id === arg15))"
+        },
+        {
+          "line": 41,
+          "text": "memberIds: [arg14, arg15],"
+        }
+      ]
+    },
+    {
+      "key": "arg16@33",
+      "name": "arg16",
+      "line": 33,
+      "column": 56,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createCurtainGroup(arg13, arg14, arg15, arg16) {",
+      "references": [
+        {
+          "line": 38,
+          "text": "id: arg16,"
+        }
+      ]
+    },
+    {
+      "key": "value4@34",
+      "name": "value4",
+      "line": 34,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = arg13.curtains.find((arg17) => arg17.id === arg14);",
+      "references": [
+        {
+          "line": 40,
+          "text": "floorId: value4.floorId,"
+        },
+        {
+          "line": 42,
+          "text": "size: value4.size ?? 44,"
+        },
+        {
+          "line": 43,
+          "text": "iconSize: value4.iconSize ?? 26,"
+        },
+        {
+          "line": 44,
+          "text": "hitSize: value4.hitSize ?? Math.max(44, value4.size ?? 44),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@34",
+      "name": "arg17",
+      "line": 34,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = arg13.curtains.find((arg17) => arg17.id === arg14);",
+      "references": [
+        {
+          "line": 34,
+          "text": "const value4 = arg13.curtains.find((arg17) => arg17.id === arg14);"
+        }
+      ]
+    },
+    {
+      "key": "arg18@35",
+      "name": "arg18",
+      "line": 35,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if (!curtainGroupCandidates(arg13, arg14).some((arg18) => arg18.id === arg15))",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (!curtainGroupCandidates(arg13, arg14).some((arg18) => arg18.id === arg15))"
+        }
+      ]
+    },
+    {
+      "key": "object1@37",
+      "name": "object1",
+      "line": 37,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 53,
+          "text": "value4[value5] !== undefined && (object1[value5] = structuredClone(value4[value5]));"
+        },
+        {
+          "line": 54,
+          "text": "return object1;"
+        }
+      ]
+    },
+    {
+      "key": "value5@52",
+      "name": "value5",
+      "line": 52,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value5 of [\"x\", \"y\", \"height\", \"focusCamera\"])",
+      "references": [
+        {
+          "line": 53,
+          "text": "value4[value5] !== undefined && (object1[value5] = structuredClone(value4[value5]));"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "frontend/static/pair.js": {
+    "h@1": "parsePairingLink",
+    "l@1": "needsAppleInstallGuide",
+    "b@3": "validEmbedUrl",
+    "w@4": "rememberEmbedSession",
+    "y@5": "resumeEmbedSession",
+    "f@6": "embeddedCookieAvailable",
+    "r@8": "pairFormElement",
+    "n@9": "messageElement",
+    "a@10": "codeFieldElement",
+    "S@11": "isScanMode",
+    "i@12": "isEmbedded",
+    "c@13": "nextUrl",
+    "s@14": "projectId",
+    "m@22": "applyPairingLink",
+    "o@23": "pairingHash",
+    "t@31": "pairing",
+    "t@38": "linkError",
+    "o@44": "submitButtonElement",
+    "t@47": "redirectUrl",
+    "o@57": "submitEvent",
+    "t@59": "activeSubmitButtonElement",
+    "d@62": "response",
+    "e@81": "payload",
+    "u@88": "canUseCookie",
+    "p@93": "shouldAddToHome",
+    "d@95": "submitError"
+  }
+}

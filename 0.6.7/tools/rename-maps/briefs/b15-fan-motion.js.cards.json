@@ -1,0 +1,68 @@
+{
+  "file": "frontend/modules/interaction3d/fan-motion.js",
+  "seed": "b15-fan-motion.js",
+  "size": 6,
+  "candidates": 32,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "resetYawRotations",
+      "declaration": "??? = () =>",
+      "references": [
+        "L42: (???(),",
+        "L96: ((value7 = true), ???(), (list1 = []), (value4 = null), (value6 = false), (value8 = null));"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "fanPartNode",
+      "declaration": "(arg10.traverse((???) => {",
+      "references": [
+        "L55: ???.userData?.fanPart && (object1[???.userData.fanPart] = ???);"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "fanModel",
+      "declaration": "const ??? = {",
+      "references": [
+        "L55: arg11.userData?.fanPart && (???[arg11.userData.fanPart] = arg11);",
+        "L57: list1.push(???));"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "entityState",
+      "declaration": "export function fanMotionState(???) {",
+      "references": [
+        "L2: ??? = ????.newState || ??? || {};",
+        "L3: const value1 = ???.attributes || {},",
+        "L4: value2 = ???.available !== false && ???.state === \"on\","
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/arrow",
+      "newName": "onRequestFrame",
+      "declaration": "requestFrame: ??? = () => {},",
+      "references": [
+        "L70: value10 && ???();",
+        "L89: return (value6 && ???(), value6);"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/function-parameter",
+      "newName": "binding",
+      "declaration": "(???) =>",
+      "references": [
+        "L63: ???.floorId === value11.model.userData.environmentFloorId &&",
+        "L64: ???.modelId === value11.model.userData.environmentModelId,"
+      ]
+    }
+  ]
+}

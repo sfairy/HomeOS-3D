@@ -1,0 +1,513 @@
+{
+  "file": "frontend/modules/interaction3d/bath-heater.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 66,
+  "counts": {
+    "entries": 28,
+    "renameable": 28,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@5",
+      "name": "arg1",
+      "line": 5,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "bathRawState = (arg1, arg2) => {",
+      "references": [
+        {
+          "line": 6,
+          "text": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];"
+        }
+      ]
+    },
+    {
+      "key": "arg2@5",
+      "name": "arg2",
+      "line": 5,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "bathRawState = (arg1, arg2) => {",
+      "references": [
+        {
+          "line": 6,
+          "text": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];"
+        }
+      ]
+    },
+    {
+      "key": "v1@6",
+      "name": "v1",
+      "line": 6,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];",
+      "references": [
+        {
+          "line": 7,
+          "text": "return v1?.newState || v1;"
+        }
+      ]
+    },
+    {
+      "key": "u@9",
+      "name": "u",
+      "line": 9,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const u = (arg3) =>",
+      "references": [
+        {
+          "line": 14,
+          "text": "arg4 && arg4.available !== false && ![\"\", \"unknown\", \"unavailable\"].includes(u(arg4.state)),"
+        },
+        {
+          "line": 16,
+          "text": "[\"off\", \"idle\", \"standby\", \"unknown\", \"unavailable\", \"待机\", \"关闭\", \"停止\"].includes(u(arg5)),"
+        },
+        {
+          "line": 17,
+          "text": "y = (arg6) => [\"light\", \"light_only\", \"lighting\", \"照明\", \"仅照明\", \"灯光\"].includes(u(arg6)),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@9",
+      "name": "arg3",
+      "line": 9,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const u = (arg3) =>",
+      "references": [
+        {
+          "line": 10,
+          "text": "String(arg3 ?? \"\")"
+        }
+      ]
+    },
+    {
+      "key": "c@13",
+      "name": "c",
+      "line": 13,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c = (arg4) =>",
+      "references": [
+        {
+          "line": 25,
+          "text": "c2 = c(bathRawState2) && !v(bathRawState2.state);"
+        },
+        {
+          "line": 27,
+          "text": "if (c(bathRawState2)) {"
+        },
+        {
+          "line": 37,
+          "text": "if (!c(bathRawState3)) continue;"
+        },
+        {
+          "line": 47,
+          "text": ".filter(c);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@13",
+      "name": "arg4",
+      "line": 13,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "c = (arg4) =>",
+      "references": [
+        {
+          "line": 14,
+          "text": "arg4 && arg4.available !== false && ![\"\", \"unknown\", \"unavailable\"].includes(u(arg4.state)),"
+        }
+      ]
+    },
+    {
+      "key": "v@15",
+      "name": "v",
+      "line": 15,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v = (arg5) =>",
+      "references": [
+        {
+          "line": 25,
+          "text": "c2 = c(bathRawState2) && !v(bathRawState2.state);"
+        },
+        {
+          "line": 33,
+          "text": "!some && !v(v4) && !set2.has(\"fan\") && set.add(\"fan\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg5@15",
+      "name": "arg5",
+      "line": 15,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v = (arg5) =>",
+      "references": [
+        {
+          "line": 16,
+          "text": "[\"off\", \"idle\", \"standby\", \"unknown\", \"unavailable\", \"待机\", \"关闭\", \"停止\"].includes(u(arg5)),"
+        }
+      ]
+    },
+    {
+      "key": "y@17",
+      "name": "y",
+      "line": 17,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "y = (arg6) => [\"light\", \"light_only\", \"lighting\", \"照明\", \"仅照明\", \"灯光\"].includes(u(arg6)),",
+      "references": [
+        {
+          "line": 30,
+          "text": "some = [bathRawState2.state, bathRawState2.attributes?.preset_mode, v4].some(y);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@17",
+      "name": "arg6",
+      "line": 17,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "y = (arg6) => [\"light\", \"light_only\", \"lighting\", \"照明\", \"仅照明\", \"灯光\"].includes(u(arg6)),",
+      "references": [
+        {
+          "line": 17,
+          "text": "y = (arg6) => [\"light\", \"light_only\", \"lighting\", \"照明\", \"仅照明\", \"灯光\"].includes(u(arg6)),"
+        }
+      ]
+    },
+    {
+      "key": "w@18",
+      "name": "w",
+      "line": 18,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "w = (arg7) =>",
+      "references": [
+        {
+          "line": 24,
+          "text": "set2 = new Set(list.map((arg9) => w(arg9.effect))),"
+        },
+        {
+          "line": 41,
+          "text": "const w2 = w(v5.effect);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@18",
+      "name": "arg7",
+      "line": 18,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "w = (arg7) =>",
+      "references": [
+        {
+          "line": 19,
+          "text": "[\"heat\", \"fan\", \"exhaust\"].includes(arg7) ? \"fan\" : arg7 === \"light\" ? \"light\" : \"\";"
+        }
+      ]
+    },
+    {
+      "key": "arg8@20",
+      "name": "arg8",
+      "line": 20,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function bathHeaterState(arg8, v2 = {}) {",
+      "references": [
+        {
+          "line": 21,
+          "text": "const bathRawState2 = bathRawState(v2, arg8.entityId),"
+        },
+        {
+          "line": 22,
+          "text": "list = arg8.bathEffects || [],"
+        },
+        {
+          "line": 44,
+          "text": "const filter = (arg8.extraControls || [])"
+        }
+      ]
+    },
+    {
+      "key": "v2@20",
+      "name": "v2",
+      "line": 20,
+      "column": 38,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function bathHeaterState(arg8, v2 = {}) {",
+      "references": [
+        {
+          "line": 21,
+          "text": "const bathRawState2 = bathRawState(v2, arg8.entityId),"
+        },
+        {
+          "line": 36,
+          "text": "const bathRawState3 = bathRawState(v2, v5.entityId);"
+        },
+        {
+          "line": 46,
+          "text": ".map((arg11) => bathRawState(v2, arg11.entityId))"
+        }
+      ]
+    },
+    {
+      "key": "set2@24",
+      "name": "set2",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set(list.map((arg9) => w(arg9.effect))),",
+      "references": [
+        {
+          "line": 32,
+          "text": "(some && !set2.has(\"light\") && set.add(\"light\"),"
+        },
+        {
+          "line": 33,
+          "text": "!some && !v(v4) && !set2.has(\"fan\") && set.add(\"fan\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg9@24",
+      "name": "arg9",
+      "line": 24,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set(list.map((arg9) => w(arg9.effect))),",
+      "references": [
+        {
+          "line": 24,
+          "text": "set2 = new Set(list.map((arg9) => w(arg9.effect))),"
+        }
+      ]
+    },
+    {
+      "key": "c2@25",
+      "name": "c2",
+      "line": 25,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c2 = c(bathRawState2) && !v(bathRawState2.state);",
+      "references": [
+        {
+          "line": 31,
+          "text": "c2 &&"
+        },
+        {
+          "line": 49,
+          "text": "const some2 = set.size > 0 || c2 || filter.some((arg12) => arg12.state === \"on\"),"
+        }
+      ]
+    },
+    {
+      "key": "v3@26",
+      "name": "v3",
+      "line": 26,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "let v3 = false;",
+      "references": [
+        {
+          "line": 52,
+          "text": "available: v3,"
+        },
+        {
+          "line": 59,
+          "text": ": v3"
+        }
+      ]
+    },
+    {
+      "key": "v4@29",
+      "name": "v4",
+      "line": 29,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v4 = bathRawState2.attributes?.hvac_action,",
+      "references": [
+        {
+          "line": 30,
+          "text": "some = [bathRawState2.state, bathRawState2.attributes?.preset_mode, v4].some(y);"
+        },
+        {
+          "line": 33,
+          "text": "!some && !v(v4) && !set2.has(\"fan\") && set.add(\"fan\"));"
+        }
+      ]
+    },
+    {
+      "key": "v5@35",
+      "name": "v5",
+      "line": 35,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const v5 of list) {",
+      "references": [
+        {
+          "line": 36,
+          "text": "const bathRawState3 = bathRawState(v2, v5.entityId);"
+        },
+        {
+          "line": 38,
+          "text": "const state = v5.attribute ? bathRawState3.attributes?.[v5.attribute] : bathRawState3.state;"
+        },
+        {
+          "line": 41,
+          "text": "const w2 = w(v5.effect);"
+        },
+        {
+          "line": 42,
+          "text": "String(state) === v5.value && w2 && set.add(w2);"
+        }
+      ]
+    },
+    {
+      "key": "w2@41",
+      "name": "w2",
+      "line": 41,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const w2 = w(v5.effect);",
+      "references": [
+        {
+          "line": 42,
+          "text": "String(state) === v5.value && w2 && set.add(w2);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@45",
+      "name": "arg10",
+      "line": 45,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg10) => ![\"button\", \"input_button\", \"event\"].includes(arg10.entityId.split(\".\")[0]))",
+      "references": [
+        {
+          "line": 45,
+          "text": ".filter((arg10) => ![\"button\", \"input_button\", \"event\"].includes(arg10.entityId.split(\".\")[0]))"
+        }
+      ]
+    },
+    {
+      "key": "arg11@46",
+      "name": "arg11",
+      "line": 46,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg11) => bathRawState(v2, arg11.entityId))",
+      "references": [
+        {
+          "line": 46,
+          "text": ".map((arg11) => bathRawState(v2, arg11.entityId))"
+        }
+      ]
+    },
+    {
+      "key": "arg12@49",
+      "name": "arg12",
+      "line": 49,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const some2 = set.size > 0 || c2 || filter.some((arg12) => arg12.state === \"on\"),",
+      "references": [
+        {
+          "line": 49,
+          "text": "const some2 = set.size > 0 || c2 || filter.some((arg12) => arg12.state === \"on\"),"
+        }
+      ]
+    },
+    {
+      "key": "filter2@50",
+      "name": "filter2",
+      "line": 50,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "filter2 = Object.keys(bathEffects).filter((arg13) => set.has(arg13));",
+      "references": [
+        {
+          "line": 54,
+          "text": "active: filter2,"
+        },
+        {
+          "line": 57,
+          "text": "label: filter2.length"
+        },
+        {
+          "line": 58,
+          "text": "? filter2.map((arg14) => bathEffects[arg14]).join(\" · \")"
+        }
+      ]
+    },
+    {
+      "key": "arg13@50",
+      "name": "arg13",
+      "line": 50,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "filter2 = Object.keys(bathEffects).filter((arg13) => set.has(arg13));",
+      "references": [
+        {
+          "line": 50,
+          "text": "filter2 = Object.keys(bathEffects).filter((arg13) => set.has(arg13));"
+        }
+      ]
+    },
+    {
+      "key": "arg14@58",
+      "name": "arg14",
+      "line": 58,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "? filter2.map((arg14) => bathEffects[arg14]).join(\" · \")",
+      "references": [
+        {
+          "line": 58,
+          "text": "? filter2.map((arg14) => bathEffects[arg14]).join(\" · \")"
+        }
+      ]
+    }
+  ]
+}

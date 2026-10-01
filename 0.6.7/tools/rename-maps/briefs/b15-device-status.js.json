@@ -1,0 +1,700 @@
+{
+  "file": "frontend/modules/interaction3d/device-status.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 161,
+  "counts": {
+    "entries": 37,
+    "renameable": 37,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "f@1",
+      "name": "f",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const f = {",
+      "references": [
+        {
+          "line": 61,
+          "text": "const value5 = value2 === \"binary_sensor\" ? f[value3] || [\"开启\", \"关闭\"] : [\"开启\", \"关闭\"];"
+        }
+      ]
+    },
+    {
+      "key": "p@30",
+      "name": "p",
+      "line": 30,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "p = {",
+      "references": [
+        {
+          "line": 85,
+          "text": "label: p[arg6] || arg6,"
+        }
+      ]
+    },
+    {
+      "key": "arg1@41",
+      "name": "arg1",
+      "line": 41,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceStatusChoices(arg1 = {}, arg2) {",
+      "references": [
+        {
+          "line": 43,
+          "text": "value2 = (arg1.entityId || arg1.entity_id || \"\").split(\".\")[0],"
+        },
+        {
+          "line": 45,
+          "text": "...arg1.attributes,"
+        },
+        {
+          "line": 48,
+          "text": "value3 = object1.device_class || arg1.deviceClass || arg1.device_class;"
+        }
+      ]
+    },
+    {
+      "key": "arg2@41",
+      "name": "arg2",
+      "line": 41,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceStatusChoices(arg1 = {}, arg2) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "const value1 = arg2?.newState || arg2,"
+        }
+      ]
+    },
+    {
+      "key": "value1@42",
+      "name": "value1",
+      "line": 42,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg2?.newState || arg2,",
+      "references": [
+        {
+          "line": 46,
+          "text": "...value1?.attributes,"
+        }
+      ]
+    },
+    {
+      "key": "value2@43",
+      "name": "value2",
+      "line": 43,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = (arg1.entityId || arg1.entity_id || \"\").split(\".\")[0],",
+      "references": [
+        {
+          "line": 59,
+          "text": "].includes(value2)"
+        },
+        {
+          "line": 61,
+          "text": "const value5 = value2 === \"binary_sensor\" ? f[value3] || [\"开启\", \"关闭\"] : [\"开启\", \"关闭\"];"
+        },
+        {
+          "line": 68,
+          "text": "value2 === \"binary_sensor\" && [\"connectivity\", \"plug\", \"power\"].includes(value3)"
+        }
+      ]
+    },
+    {
+      "key": "object1@44",
+      "name": "object1",
+      "line": 44,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {",
+      "references": [
+        {
+          "line": 48,
+          "text": "value3 = object1.device_class || arg1.deviceClass || arg1.device_class;"
+        },
+        {
+          "line": 73,
+          "text": "const value4 = object1.options;"
+        }
+      ]
+    },
+    {
+      "key": "value3@48",
+      "name": "value3",
+      "line": 48,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = object1.device_class || arg1.deviceClass || arg1.device_class;",
+      "references": [
+        {
+          "line": 61,
+          "text": "const value5 = value2 === \"binary_sensor\" ? f[value3] || [\"开启\", \"关闭\"] : [\"开启\", \"关闭\"];"
+        },
+        {
+          "line": 68,
+          "text": "value2 === \"binary_sensor\" && [\"connectivity\", \"plug\", \"power\"].includes(value3)"
+        }
+      ]
+    },
+    {
+      "key": "value5@61",
+      "name": "value5",
+      "line": 61,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = value2 === \"binary_sensor\" ? f[value3] || [\"开启\", \"关闭\"] : [\"开启\", \"关闭\"];",
+      "references": [
+        {
+          "line": 65,
+          "text": "label: value5[arg4],"
+        }
+      ]
+    },
+    {
+      "key": "arg3@63",
+      "name": "arg3",
+      "line": 63,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "options: [\"on\", \"off\"].map((arg3, arg4) => ({",
+      "references": [
+        {
+          "line": 64,
+          "text": "value: arg3,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@63",
+      "name": "arg4",
+      "line": 63,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "options: [\"on\", \"off\"].map((arg3, arg4) => ({",
+      "references": [
+        {
+          "line": 65,
+          "text": "label: value5[arg4],"
+        }
+      ]
+    },
+    {
+      "key": "value4@73",
+      "name": "value4",
+      "line": 73,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = object1.options;",
+      "references": [
+        {
+          "line": 74,
+          "text": "return !Array.isArray(value4) ||"
+        },
+        {
+          "line": 75,
+          "text": "value4.length !== 2 ||"
+        },
+        {
+          "line": 76,
+          "text": "new Set(value4).size !== 2 ||"
+        },
+        {
+          "line": 77,
+          "text": "value4.some("
+        }
+      ]
+    },
+    {
+      "key": "arg5@78",
+      "name": "arg5",
+      "line": 78,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg5) =>",
+      "references": [
+        {
+          "line": 79,
+          "text": "typeof arg5 != \"string\" || !arg5.trim() || [\"unknown\", \"unavailable\"].includes(arg5),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@83",
+      "name": "arg6",
+      "line": 83,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "options: value4.map((arg6) => ({",
+      "references": [
+        {
+          "line": 84,
+          "text": "value: arg6,"
+        },
+        {
+          "line": 85,
+          "text": "label: p[arg6] || arg6,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@90",
+      "name": "arg7",
+      "line": 90,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function defaultDeviceStatusRule(arg7, arg8, arg9) {",
+      "references": [
+        {
+          "line": 91,
+          "text": "const value6 = deviceStatusChoices(arg7, arg8);"
+        },
+        {
+          "line": 95,
+          "text": "entityId: arg7.entityId,"
+        }
+      ]
+    },
+    {
+      "key": "arg8@90",
+      "name": "arg8",
+      "line": 90,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function defaultDeviceStatusRule(arg7, arg8, arg9) {",
+      "references": [
+        {
+          "line": 91,
+          "text": "const value6 = deviceStatusChoices(arg7, arg8);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@90",
+      "name": "arg9",
+      "line": 90,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function defaultDeviceStatusRule(arg7, arg8, arg9) {",
+      "references": [
+        {
+          "line": 93,
+          "text": "const value7 = arg9 === \"health\" ? value6.reminderValue : value6.options[0].value;"
+        }
+      ]
+    },
+    {
+      "key": "value6@91",
+      "name": "value6",
+      "line": 91,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = deviceStatusChoices(arg7, arg8);",
+      "references": [
+        {
+          "line": 92,
+          "text": "if (!value6) return null;"
+        },
+        {
+          "line": 93,
+          "text": "const value7 = arg9 === \"health\" ? value6.reminderValue : value6.options[0].value;"
+        },
+        {
+          "line": 97,
+          "text": "inactive: value6.options.find((arg10) => arg10.value !== value7).value,"
+        }
+      ]
+    },
+    {
+      "key": "value7@93",
+      "name": "value7",
+      "line": 93,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg9 === \"health\" ? value6.reminderValue : value6.options[0].value;",
+      "references": [
+        {
+          "line": 96,
+          "text": "active: value7,"
+        },
+        {
+          "line": 97,
+          "text": "inactive: value6.options.find((arg10) => arg10.value !== value7).value,"
+        }
+      ]
+    },
+    {
+      "key": "arg10@97",
+      "name": "arg10",
+      "line": 97,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "inactive: value6.options.find((arg10) => arg10.value !== value7).value,",
+      "references": [
+        {
+          "line": 97,
+          "text": "inactive: value6.options.find((arg10) => arg10.value !== value7).value,"
+        }
+      ]
+    },
+    {
+      "key": "arg11@100",
+      "name": "arg11",
+      "line": 100,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceStatus(arg11, arg12 = {}) {",
+      "references": [
+        {
+          "line": 101,
+          "text": "const value8 = arg11?.statusRules,"
+        }
+      ]
+    },
+    {
+      "key": "arg12@100",
+      "name": "arg12",
+      "line": 100,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceStatus(arg11, arg12 = {}) {",
+      "references": [
+        {
+          "line": 112,
+          "text": "const value13 = arg12 instanceof Map ? arg12.get(arg14.entityId) : arg12[arg14.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "value8@101",
+      "name": "value8",
+      "line": 101,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = arg11?.statusRules,",
+      "references": [
+        {
+          "line": 102,
+          "text": "value9 = Array.isArray(value8?.health) ? value8.health : value8?.health ? [value8.health] : [];"
+        },
+        {
+          "line": 103,
+          "text": "if (!value8?.power?.entityId && !value9.some((arg13) => arg13?.entityId))"
+        },
+        {
+          "line": 126,
+          "text": "value11 = fn1(value8.power),"
+        }
+      ]
+    },
+    {
+      "key": "value9@102",
+      "name": "value9",
+      "line": 102,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = Array.isArray(value8?.health) ? value8.health : value8?.health ? [value8.health] : [];",
+      "references": [
+        {
+          "line": 103,
+          "text": "if (!value8?.power?.entityId && !value9.some((arg13) => arg13?.entityId))"
+        },
+        {
+          "line": 125,
+          "text": "value10 = value9.map(fn1),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@103",
+      "name": "arg13",
+      "line": 103,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if (!value8?.power?.entityId && !value9.some((arg13) => arg13?.entityId))",
+      "references": [
+        {
+          "line": 103,
+          "text": "if (!value8?.power?.entityId && !value9.some((arg13) => arg13?.entityId))"
+        }
+      ]
+    },
+    {
+      "key": "fn1@110",
+      "name": "fn1",
+      "line": 110,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg14) => {",
+      "references": [
+        {
+          "line": 125,
+          "text": "value10 = value9.map(fn1),"
+        },
+        {
+          "line": 126,
+          "text": "value11 = fn1(value8.power),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@110",
+      "name": "arg14",
+      "line": 110,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg14) => {",
+      "references": [
+        {
+          "line": 111,
+          "text": "if (!arg14?.entityId) return null;"
+        },
+        {
+          "line": 112,
+          "text": "const value13 = arg12 instanceof Map ? arg12.get(arg14.entityId) : arg12[arg14.entityId],"
+        },
+        {
+          "line": 119,
+          "text": ": value15 === arg14.active"
+        },
+        {
+          "line": 121,
+          "text": ": value15 === arg14.inactive"
+        }
+      ]
+    },
+    {
+      "key": "value13@112",
+      "name": "value13",
+      "line": 112,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = arg12 instanceof Map ? arg12.get(arg14.entityId) : arg12[arg14.entityId],",
+      "references": [
+        {
+          "line": 113,
+          "text": "value14 = value13?.newState || value13,"
+        }
+      ]
+    },
+    {
+      "key": "value14@113",
+      "name": "value14",
+      "line": 113,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = value13?.newState || value13,",
+      "references": [
+        {
+          "line": 114,
+          "text": "value15 = String(value14?.state ?? \"\");"
+        },
+        {
+          "line": 115,
+          "text": "return !value14 ||"
+        },
+        {
+          "line": 116,
+          "text": "value14.available === false ||"
+        }
+      ]
+    },
+    {
+      "key": "value15@114",
+      "name": "value15",
+      "line": 114,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = String(value14?.state ?? \"\");",
+      "references": [
+        {
+          "line": 117,
+          "text": "[\"\", \"unknown\", \"unavailable\"].includes(value15)"
+        },
+        {
+          "line": 119,
+          "text": ": value15 === arg14.active"
+        },
+        {
+          "line": 121,
+          "text": ": value15 === arg14.inactive"
+        }
+      ]
+    },
+    {
+      "key": "value10@125",
+      "name": "value10",
+      "line": 125,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = value9.map(fn1),",
+      "references": [
+        {
+          "line": 127,
+          "text": "value12 = value10.includes(\"active\")"
+        },
+        {
+          "line": 129,
+          "text": ": value10.includes(\"unknown\") || value11 === \"unknown\""
+        }
+      ]
+    },
+    {
+      "key": "value11@126",
+      "name": "value11",
+      "line": 126,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = fn1(value8.power),",
+      "references": [
+        {
+          "line": 129,
+          "text": ": value10.includes(\"unknown\") || value11 === \"unknown\""
+        },
+        {
+          "line": 131,
+          "text": ": value11 === \"inactive\""
+        }
+      ]
+    },
+    {
+      "key": "value12@127",
+      "name": "value12",
+      "line": 127,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = value10.includes(\"active\")",
+      "references": [
+        {
+          "line": 136,
+          "text": "available: value12 !== \"unknown\","
+        },
+        {
+          "line": 137,
+          "text": "on: value12 === \"normal\","
+        },
+        {
+          "line": 138,
+          "text": "status: value12,"
+        },
+        {
+          "line": 144,
+          "text": "}[value12],"
+        }
+      ]
+    },
+    {
+      "key": "arg15@147",
+      "name": "arg15",
+      "line": 147,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function deviceEntityIds(arg15) {",
+      "references": [
+        {
+          "line": 148,
+          "text": "const value16 = Array.isArray(arg15?.statusRules?.health)"
+        },
+        {
+          "line": 149,
+          "text": "? arg15.statusRules.health"
+        },
+        {
+          "line": 150,
+          "text": ": [arg15?.statusRules?.health];"
+        },
+        {
+          "line": 154,
+          "text": "...(arg15?.extraControls || []).map((arg16) => arg16.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "value16@148",
+      "name": "value16",
+      "line": 148,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = Array.isArray(arg15?.statusRules?.health)",
+      "references": [
+        {
+          "line": 156,
+          "text": "...value16.map((arg17) => arg17?.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg16@154",
+      "name": "arg16",
+      "line": 154,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "...(arg15?.extraControls || []).map((arg16) => arg16.entityId),",
+      "references": [
+        {
+          "line": 154,
+          "text": "...(arg15?.extraControls || []).map((arg16) => arg16.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@156",
+      "name": "arg17",
+      "line": 156,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "...value16.map((arg17) => arg17?.entityId),",
+      "references": [
+        {
+          "line": 156,
+          "text": "...value16.map((arg17) => arg17?.entityId),"
+        }
+      ]
+    }
+  ]
+}

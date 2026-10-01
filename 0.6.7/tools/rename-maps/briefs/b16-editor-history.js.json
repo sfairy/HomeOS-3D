@@ -1,0 +1,852 @@
+{
+  "file": "frontend/static/editor-history.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 109,
+  "counts": {
+    "entries": 45,
+    "renameable": 45,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "l@1",
+      "name": "l",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = new Set([\"actions\", \"bindings\", \"position\", \"properties\", \"style\"]);",
+      "references": [
+        {
+          "line": 53,
+          "text": "l.has(value9) || value9 === \"children\" || (object1[value9] = value10);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg1,",
+      "references": [
+        {
+          "line": 11,
+          "text": "((value1 = null), value3 && arg1(value3));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@4",
+      "name": "arg2",
+      "line": 4,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ delay: arg2 = 200, setTimer: arg3 = setTimeout, clearTimer: arg4 = clearTimeout } = {},",
+      "references": [
+        {
+          "line": 17,
+          "text": "value2 === null && (value2 = arg3(fn1, arg2)));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@4",
+      "name": "arg3",
+      "line": 4,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ delay: arg2 = 200, setTimer: arg3 = setTimeout, clearTimer: arg4 = clearTimeout } = {},",
+      "references": [
+        {
+          "line": 17,
+          "text": "value2 === null && (value2 = arg3(fn1, arg2)));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@4",
+      "name": "arg4",
+      "line": 4,
+      "column": 64,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ delay: arg2 = 200, setTimer: arg3 = setTimeout, clearTimer: arg4 = clearTimeout } = {},",
+      "references": [
+        {
+          "line": 9,
+          "text": "(value2 !== null && arg4(value2), (value2 = null));"
+        },
+        {
+          "line": 23,
+          "text": "((value1 = null), value2 !== null && arg4(value2), (value2 = null));"
+        }
+      ]
+    },
+    {
+      "key": "value1@6",
+      "name": "value1",
+      "line": 6,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1 = null,",
+      "references": [
+        {
+          "line": 10,
+          "text": "const value3 = value1;"
+        },
+        {
+          "line": 15,
+          "text": "(value1 && value1.projectId !== arg5.projectId && fn1(),"
+        },
+        {
+          "line": 21,
+          "text": "!value1 ||"
+        },
+        {
+          "line": 22,
+          "text": "value1.projectId !== arg6 ||"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = null;",
+      "references": [
+        {
+          "line": 9,
+          "text": "(value2 !== null && arg4(value2), (value2 = null));"
+        },
+        {
+          "line": 17,
+          "text": "value2 === null && (value2 = arg3(fn1, arg2)));"
+        },
+        {
+          "line": 23,
+          "text": "((value1 = null), value2 !== null && arg4(value2), (value2 = null));"
+        }
+      ]
+    },
+    {
+      "key": "fn1@8",
+      "name": "fn1",
+      "line": 8,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => {",
+      "references": [
+        {
+          "line": 15,
+          "text": "(value1 && value1.projectId !== arg5.projectId && fn1(),"
+        },
+        {
+          "line": 17,
+          "text": "value2 === null && (value2 = arg3(fn1, arg2)));"
+        },
+        {
+          "line": 19,
+          "text": "flush: fn1,"
+        }
+      ]
+    },
+    {
+      "key": "value3@10",
+      "name": "value3",
+      "line": 10,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value1;",
+      "references": [
+        {
+          "line": 11,
+          "text": "((value1 = null), value3 && arg1(value3));"
+        }
+      ]
+    },
+    {
+      "key": "arg5@14",
+      "name": "arg5",
+      "line": 14,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "schedule(arg5) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "(value1 && value1.projectId !== arg5.projectId && fn1(),"
+        },
+        {
+          "line": 16,
+          "text": "(value1 = arg5),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@20",
+      "name": "arg6",
+      "line": 20,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "cancel(arg6) {",
+      "references": [
+        {
+          "line": 22,
+          "text": "value1.projectId !== arg6 ||"
+        }
+      ]
+    },
+    {
+      "key": "arg7@27",
+      "name": "arg7",
+      "line": 27,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function editorComponentEntries(arg7) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "for (const value6 of arg7?.sharedComponents || []) fn2(value6, \"shared\", \"\", null);"
+        },
+        {
+          "line": 43,
+          "text": "for (const value7 of arg7?.pages || [])"
+        }
+      ]
+    },
+    {
+      "key": "map1@28",
+      "name": "map1",
+      "line": 28,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map(),",
+      "references": [
+        {
+          "line": 33,
+          "text": "(map1.set(value4, {"
+        },
+        {
+          "line": 46,
+          "text": "entries: map1,"
+        }
+      ]
+    },
+    {
+      "key": "list1@29",
+      "name": "list1",
+      "line": 29,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [],",
+      "references": [
+        {
+          "line": 39,
+          "text": "list1.push(arg9 + \":\" + (arg10 || \"\") + \":\" + (arg11 || \"\") + \":\" + value4));"
+        },
+        {
+          "line": 47,
+          "text": "order: list1,"
+        }
+      ]
+    },
+    {
+      "key": "fn2@30",
+      "name": "fn2",
+      "line": 30,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg8, arg9, arg10, arg11 = null) => {",
+      "references": [
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        },
+        {
+          "line": 42,
+          "text": "for (const value6 of arg7?.sharedComponents || []) fn2(value6, \"shared\", \"\", null);"
+        },
+        {
+          "line": 44,
+          "text": "for (const value8 of value7.components || []) fn2(value8, \"page\", value7.path, null);"
+        }
+      ]
+    },
+    {
+      "key": "arg8@30",
+      "name": "arg8",
+      "line": 30,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg8, arg9, arg10, arg11 = null) => {",
+      "references": [
+        {
+          "line": 31,
+          "text": "if (!arg8?.id) return;"
+        },
+        {
+          "line": 32,
+          "text": "const value4 = String(arg8.id);"
+        },
+        {
+          "line": 34,
+          "text": "component: arg8,"
+        },
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@30",
+      "name": "arg9",
+      "line": 30,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg8, arg9, arg10, arg11 = null) => {",
+      "references": [
+        {
+          "line": 35,
+          "text": "scope: arg9,"
+        },
+        {
+          "line": 39,
+          "text": "list1.push(arg9 + \":\" + (arg10 || \"\") + \":\" + (arg11 || \"\") + \":\" + value4));"
+        },
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@30",
+      "name": "arg10",
+      "line": 30,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg8, arg9, arg10, arg11 = null) => {",
+      "references": [
+        {
+          "line": 36,
+          "text": "pagePath: arg10,"
+        },
+        {
+          "line": 39,
+          "text": "list1.push(arg9 + \":\" + (arg10 || \"\") + \":\" + (arg11 || \"\") + \":\" + value4));"
+        },
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg11@30",
+      "name": "arg11",
+      "line": 30,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg8, arg9, arg10, arg11 = null) => {",
+      "references": [
+        {
+          "line": 37,
+          "text": "parentId: arg11,"
+        },
+        {
+          "line": 39,
+          "text": "list1.push(arg9 + \":\" + (arg10 || \"\") + \":\" + (arg11 || \"\") + \":\" + value4));"
+        }
+      ]
+    },
+    {
+      "key": "value4@32",
+      "name": "value4",
+      "line": 32,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = String(arg8.id);",
+      "references": [
+        {
+          "line": 33,
+          "text": "(map1.set(value4, {"
+        },
+        {
+          "line": 39,
+          "text": "list1.push(arg9 + \":\" + (arg10 || \"\") + \":\" + (arg11 || \"\") + \":\" + value4));"
+        },
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        }
+      ]
+    },
+    {
+      "key": "value5@40",
+      "name": "value5",
+      "line": 40,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);",
+      "references": [
+        {
+          "line": 40,
+          "text": "for (const value5 of arg8.children || []) fn2(value5, arg9, arg10, value4);"
+        }
+      ]
+    },
+    {
+      "key": "value6@42",
+      "name": "value6",
+      "line": 42,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of arg7?.sharedComponents || []) fn2(value6, \"shared\", \"\", null);",
+      "references": [
+        {
+          "line": 42,
+          "text": "for (const value6 of arg7?.sharedComponents || []) fn2(value6, \"shared\", \"\", null);"
+        }
+      ]
+    },
+    {
+      "key": "value7@43",
+      "name": "value7",
+      "line": 43,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of arg7?.pages || [])",
+      "references": [
+        {
+          "line": 44,
+          "text": "for (const value8 of value7.components || []) fn2(value8, \"page\", value7.path, null);"
+        }
+      ]
+    },
+    {
+      "key": "value8@44",
+      "name": "value8",
+      "line": 44,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value8 of value7.components || []) fn2(value8, \"page\", value7.path, null);",
+      "references": [
+        {
+          "line": 44,
+          "text": "for (const value8 of value7.components || []) fn2(value8, \"page\", value7.path, null);"
+        }
+      ]
+    },
+    {
+      "key": "arg12@50",
+      "name": "arg12",
+      "line": 50,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function editorComponentStructure(arg12) {",
+      "references": [
+        {
+          "line": 52,
+          "text": "for (const [value9, value10] of Object.entries(arg12 || {}))"
+        },
+        {
+          "line": 55,
+          "text": "(object1.children = (arg12?.children || []).map((arg13) => arg13.id)),"
+        }
+      ]
+    },
+    {
+      "key": "object1@51",
+      "name": "object1",
+      "line": 51,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {};",
+      "references": [
+        {
+          "line": 53,
+          "text": "l.has(value9) || value9 === \"children\" || (object1[value9] = value10);"
+        },
+        {
+          "line": 55,
+          "text": "(object1.children = (arg12?.children || []).map((arg13) => arg13.id)),"
+        },
+        {
+          "line": 56,
+          "text": "JSON.stringify(object1)"
+        }
+      ]
+    },
+    {
+      "key": "value9@52",
+      "name": "value9",
+      "line": 52,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value9, value10] of Object.entries(arg12 || {}))",
+      "references": [
+        {
+          "line": 53,
+          "text": "l.has(value9) || value9 === \"children\" || (object1[value9] = value10);"
+        }
+      ]
+    },
+    {
+      "key": "value10@52",
+      "name": "value10",
+      "line": 52,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value9, value10] of Object.entries(arg12 || {}))",
+      "references": [
+        {
+          "line": 53,
+          "text": "l.has(value9) || value9 === \"children\" || (object1[value9] = value10);"
+        }
+      ]
+    },
+    {
+      "key": "arg13@55",
+      "name": "arg13",
+      "line": 55,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(object1.children = (arg12?.children || []).map((arg13) => arg13.id)),",
+      "references": [
+        {
+          "line": 55,
+          "text": "(object1.children = (arg12?.children || []).map((arg13) => arg13.id)),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@59",
+      "name": "arg14",
+      "line": 59,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function editorDocumentFrameSignature(arg14) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "...(arg14 || {}),"
+        }
+      ]
+    },
+    {
+      "key": "object2@60",
+      "name": "object2",
+      "line": 60,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object2 = {",
+      "references": [
+        {
+          "line": 64,
+          "text": "(object2.sharedComponents = []),"
+        },
+        {
+          "line": 65,
+          "text": "object2.pages &&"
+        },
+        {
+          "line": 66,
+          "text": "(object2.pages = object2.pages.map((arg15) => ({"
+        },
+        {
+          "line": 70,
+          "text": "documentSignature(object2)"
+        }
+      ]
+    },
+    {
+      "key": "arg15@66",
+      "name": "arg15",
+      "line": 66,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(object2.pages = object2.pages.map((arg15) => ({",
+      "references": [
+        {
+          "line": 67,
+          "text": "...arg15,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@73",
+      "name": "arg16",
+      "line": 73,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function documentSignature(arg16) {",
+      "references": [
+        {
+          "line": 104,
+          "text": "return JSON.stringify(fn4(arg16 || null));"
+        }
+      ]
+    },
+    {
+      "key": "fn3@74",
+      "name": "fn3",
+      "line": 74,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn3 = (arg17) => {",
+      "references": [
+        {
+          "line": 96,
+          "text": "const value11 = fn3(arg18[arg21]);"
+        }
+      ]
+    },
+    {
+      "key": "arg17@74",
+      "name": "arg17",
+      "line": 74,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn3 = (arg17) => {",
+      "references": [
+        {
+          "line": 75,
+          "text": "if (!arg17 || !arg17.type || arg17.type === \"none\") return null;"
+        },
+        {
+          "line": 77,
+          "text": "...arg17,"
+        }
+      ]
+    },
+    {
+      "key": "object3@76",
+      "name": "object3",
+      "line": 76,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object3 = {",
+      "references": [
+        {
+          "line": 80,
+          "text": "(!object3.data || !Object.keys(object3.data).length) && delete object3.data,"
+        },
+        {
+          "line": 81,
+          "text": "object3.type !== \"navigate\" && delete object3.target,"
+        },
+        {
+          "line": 82,
+          "text": "delete object3.domain,"
+        },
+        {
+          "line": 83,
+          "text": "delete object3.service,"
+        }
+      ]
+    },
+    {
+      "key": "fn4@87",
+      "name": "fn4",
+      "line": 87,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg18, arg19 = \"\") =>",
+      "references": [
+        {
+          "line": 84,
+          "text": "fn4(object3)"
+        },
+        {
+          "line": 89,
+          "text": "? arg18.map((arg20) => fn4(arg20))"
+        },
+        {
+          "line": 101,
+          "text": ".map((arg22) => [arg22, fn4(arg18[arg22], arg22)]),"
+        },
+        {
+          "line": 104,
+          "text": "return JSON.stringify(fn4(arg16 || null));"
+        }
+      ]
+    },
+    {
+      "key": "arg18@87",
+      "name": "arg18",
+      "line": 87,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg18, arg19 = \"\") =>",
+      "references": [
+        {
+          "line": 88,
+          "text": "Array.isArray(arg18)"
+        },
+        {
+          "line": 89,
+          "text": "? arg18.map((arg20) => fn4(arg20))"
+        },
+        {
+          "line": 90,
+          "text": ": arg18 && typeof arg18 == \"object\""
+        },
+        {
+          "line": 93,
+          "text": "? Object.keys(arg18)"
+        }
+      ]
+    },
+    {
+      "key": "arg19@87",
+      "name": "arg19",
+      "line": 87,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg18, arg19 = \"\") =>",
+      "references": [
+        {
+          "line": 92,
+          "text": "arg19 === \"actions\""
+        }
+      ]
+    },
+    {
+      "key": "arg20@89",
+      "name": "arg20",
+      "line": 89,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "? arg18.map((arg20) => fn4(arg20))",
+      "references": [
+        {
+          "line": 89,
+          "text": "? arg18.map((arg20) => fn4(arg20))"
+        }
+      ]
+    },
+    {
+      "key": "arg21@95",
+      "name": "arg21",
+      "line": 95,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".flatMap((arg21) => {",
+      "references": [
+        {
+          "line": 96,
+          "text": "const value11 = fn3(arg18[arg21]);"
+        },
+        {
+          "line": 97,
+          "text": "return value11 ? [[arg21, value11]] : [];"
+        }
+      ]
+    },
+    {
+      "key": "value11@96",
+      "name": "value11",
+      "line": 96,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = fn3(arg18[arg21]);",
+      "references": [
+        {
+          "line": 97,
+          "text": "return value11 ? [[arg21, value11]] : [];"
+        }
+      ]
+    },
+    {
+      "key": "arg22@101",
+      "name": "arg22",
+      "line": 101,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg22) => [arg22, fn4(arg18[arg22], arg22)]),",
+      "references": [
+        {
+          "line": 101,
+          "text": ".map((arg22) => [arg22, fn4(arg18[arg22], arg22)]),"
+        }
+      ]
+    },
+    {
+      "key": "arg23@106",
+      "name": "arg23",
+      "line": 106,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function recoveryStorageKey(arg23, arg24) {",
+      "references": [
+        {
+          "line": 107,
+          "text": "return \"\" + arg23 + arg24;"
+        }
+      ]
+    },
+    {
+      "key": "arg24@106",
+      "name": "arg24",
+      "line": 106,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function recoveryStorageKey(arg23, arg24) {",
+      "references": [
+        {
+          "line": 107,
+          "text": "return \"\" + arg23 + arg24;"
+        }
+      ]
+    }
+  ]
+}

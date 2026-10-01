@@ -1,2 +1,13 @@
 # Files this batch declares it will rewrite. One repo-relative path per line.
-frontend/static/3d-studio/studio-fan.js
+frontend/modules/interaction3d/car-state.js
+frontend/modules/interaction3d/cover-state.js
+frontend/modules/interaction3d/fan-motion.js
+frontend/static/3d-studio/studio-surface-snap.js
+frontend/static/editor-asset-toolbar.js
+frontend/modules/interaction3d/speaker-ring.js
+frontend/modules/interaction3d/device-entity-config.js
+frontend/static/renderer/runtime-document.js
+frontend/modules/interaction3d/device-status.js
+frontend/modules/interaction3d/lock-panel.js
+frontend/static/3d-studio/studio-motion-buffer.js
+frontend/static/3d-studio/studio-background-cache.js

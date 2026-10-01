@@ -1,18 +1,18 @@
-const e = (arg1, arg2) => {
-  const value1 = Number(arg1);
-  return Number.isFinite(value1) && value1 > 0 ? value1 : arg2;
+const numberOrFallback = (candidate, fallback) => {
+  const parsed = Number(candidate);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
-export function floorplanAutoDiagramExportResolution(arg3 = {}, arg4 = {}) {
-  const value2 = e(arg4.width, 2778),
-    value3 = e(arg4.height, 1940),
-    value4 = e(arg3.width, value2),
-    value5 = e(arg3.height, value3),
-    value6 = Math.sqrt((value2 * value3) / (value4 * value5)),
-    value7 = Math.max(320 / value4, 320 / value5),
-    value8 = Math.min(4096 / value4, 4096 / value5),
-    value9 = value7 <= value8 ? Math.max(value7, Math.min(value8, value6)) : value8;
+export function floorplanAutoDiagramExportResolution(target = {}, reference = {}) {
+  const referenceWidth = numberOrFallback(reference.width, 2778),
+    referenceHeight = numberOrFallback(reference.height, 1940),
+    targetWidth = numberOrFallback(target.width, referenceWidth),
+    targetHeight = numberOrFallback(target.height, referenceHeight),
+    areaRatio = Math.sqrt((referenceWidth * referenceHeight) / (targetWidth * targetHeight)),
+    minScale = Math.max(320 / targetWidth, 320 / targetHeight),
+    maxScale = Math.min(4096 / targetWidth, 4096 / targetHeight),
+    scale = minScale <= maxScale ? Math.max(minScale, Math.min(maxScale, areaRatio)) : maxScale;
   return {
-    width: Math.max(1, Math.round(value4 * value9)),
-    height: Math.max(1, Math.round(value5 * value9)),
+    width: Math.max(1, Math.round(targetWidth * scale)),
+    height: Math.max(1, Math.round(targetHeight * scale)),
   };
 }

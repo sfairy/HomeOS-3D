@@ -1,66 +1,76 @@
-const c = (e) => `ha-bridge:embed:${e.split("?")[0]}`;
-export function validEmbedUrl(e, t) {
-  if (typeof e != "string") return false;
-  const o = /^\/embed\/[A-Za-z0-9_-]{43}\/display\/([A-Za-z0-9_-]+)\?embed=1$/.exec(e);
-  return !!(o && (!t || o[1] === t));
+const buildEmbedSessionKey = (keySource) => `ha-bridge:embed:${keySource.split("?")[0]}`;
+export function validEmbedUrl(candidateUrl, expectedDisplayName) {
+  if (typeof candidateUrl != "string") return false;
+  const urlMatch = /^\/embed\/[A-Za-z0-9_-]{43}\/display\/([A-Za-z0-9_-]+)\?embed=1$/.exec(
+    candidateUrl,
+  );
+  return !!(urlMatch && (!expectedDisplayName || urlMatch[1] === expectedDisplayName));
 }
-function a() {
-  const e = [];
-  for (const t of ["localStorage", "sessionStorage"])
+function collectAvailableStorages() {
+  const availableStorages = [];
+  for (const storageName of ["localStorage", "sessionStorage"])
     try {
-      window[t] && e.push(window[t]);
+      window[storageName] && availableStorages.push(window[storageName]);
     } catch {}
-  return e;
+  return availableStorages;
 }
-export function rememberEmbedSession(e, t) {
-  if (validEmbedUrl(e))
-    for (const o of a())
-      for (const n of t.filter(Boolean))
+export function rememberEmbedSession(embedUrl, displayNames) {
+  if (validEmbedUrl(embedUrl))
+    for (const writableStorage of collectAvailableStorages())
+      for (const displayName of displayNames.filter(Boolean))
         try {
-          o.setItem(c(n), e);
+          writableStorage.setItem(buildEmbedSessionKey(displayName), embedUrl);
         } catch {}
 }
-export async function resumeEmbedSession(e, t = fetch, o) {
-  if (!/^\/(?:display|habridge)\//.test(e)) return "";
-  for (const n of a()) {
-    let r;
+export async function resumeEmbedSession(pageUrl, fetchImpl = fetch, providedDisplayName) {
+  if (!/^\/(?:display|habridge)\//.test(pageUrl)) return "";
+  for (const readableStorage of collectAvailableStorages()) {
+    let storedEmbedUrl;
     try {
-      r = n.getItem(c(e));
+      storedEmbedUrl = readableStorage.getItem(buildEmbedSessionKey(pageUrl));
     } catch {
       continue;
     }
-    const l = o || /^\/display\/([A-Za-z0-9_-]+)(?:\?|$)/.exec(e)?.[1];
-    if (!validEmbedUrl(r, l)) continue;
-    const [f, u] = r.split("/display/"),
-      i = new AbortController(),
-      m = setTimeout(() => i.abort(), 10000);
+    const resolvedDisplayName =
+      providedDisplayName || /^\/display\/([A-Za-z0-9_-]+)(?:\?|$)/.exec(pageUrl)?.[1];
+    if (!validEmbedUrl(storedEmbedUrl, resolvedDisplayName)) continue;
+    const [serverOrigin, projectIdWithQuery] = storedEmbedUrl.split("/display/"),
+      requestAbortController = new AbortController(),
+      requestTimeoutId = setTimeout(() => requestAbortController.abort(), 10000);
     try {
-      const s = await t(`${f}/api/v1/projects/${u.split("?")[0]}`, {
-        cache: "no-store",
-        signal: i.signal,
-      });
-      if (s.ok) return r;
-      (s.status === 401 || s.status === 403 || s.status === 404) && n.removeItem(c(e));
+      const response = await fetchImpl(
+        `${serverOrigin}/api/v1/projects/${projectIdWithQuery.split("?")[0]}`,
+        {
+          cache: "no-store",
+          signal: requestAbortController.signal,
+        },
+      );
+      if (response.ok) return storedEmbedUrl;
+      (response.status === 401 || response.status === 403 || response.status === 404) &&
+        readableStorage.removeItem(buildEmbedSessionKey(pageUrl));
     } catch {
     } finally {
-      clearTimeout(m);
+      clearTimeout(requestTimeoutId);
     }
   }
   return "";
 }
-export async function embeddedCookieAvailable(e, t = fetch) {
-  const o = new AbortController(),
-    n = setTimeout(() => o.abort(), 10000);
+export async function embeddedCookieAvailable(projectId, statusFetchImpl = fetch) {
+  const statusAbortController = new AbortController(),
+    statusTimeoutId = setTimeout(() => statusAbortController.abort(), 10000);
   try {
     return (
-      await t(`/api/v1/displays/embed-status?projectId=${encodeURIComponent(e)}`, {
-        cache: "no-store",
-        signal: o.signal,
-      })
+      await statusFetchImpl(
+        `/api/v1/displays/embed-status?projectId=${encodeURIComponent(projectId)}`,
+        {
+          cache: "no-store",
+          signal: statusAbortController.signal,
+        },
+      )
     ).ok;
   } catch {
     return false;
   } finally {
-    clearTimeout(n);
+    clearTimeout(statusTimeoutId);
   }
 }

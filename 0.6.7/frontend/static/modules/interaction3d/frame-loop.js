@@ -1,82 +1,90 @@
-const g = 1.5;
+const earlyFrameToleranceMs = 1.5;
 export function createDemandFrameLoop({
-  step: arg1,
-  onWake: arg2 = () => {},
-  now: arg3 = () => performance.now(),
-  maxFps: arg4 = 60,
-  requestFrame: arg5 = (arg9) => requestAnimationFrame(arg9),
-  cancelFrame: arg6 = (arg10) => cancelAnimationFrame(arg10),
-  schedule: arg7 = (arg11, arg12) => setTimeout(arg11, arg12),
-  cancel: arg8 = (arg13) => clearTimeout(arg13),
+  step: step,
+  onWake: onWake = () => {},
+  now: now = () => performance.now(),
+  maxFps: maxFps = 60,
+  requestFrame: requestFrame = (onAnimationFrame) => requestAnimationFrame(onAnimationFrame),
+  cancelFrame: cancelFrame = (animationFrameHandle) => cancelAnimationFrame(animationFrameHandle),
+  schedule: schedule = (onTimeout, timeoutDelayMs) => setTimeout(onTimeout, timeoutDelayMs),
+  cancel: cancel = (timeoutHandle) => clearTimeout(timeoutHandle),
 }) {
-  let value1 = null,
-    value2 = null,
-    value3 = true,
-    value4 = false,
-    value5 = false,
-    value6 = false,
-    value7 = -Infinity;
-  const value8 =
-      arg4 === Infinity ? 0 : 1000 / (Number.isFinite(arg4) && arg4 > 0 ? Math.min(arg4, 60) : 60),
-    object1 = {
+  let animationFrameId = null,
+    timeoutId = null,
+    isAvailable = true,
+    isDisposed = false,
+    isStepping = false,
+    hasPendingWake = false,
+    nextFrameTimeMs = -Infinity;
+  const frameIntervalMs =
+      maxFps === Infinity
+        ? 0
+        : 1000 / (Number.isFinite(maxFps) && maxFps > 0 ? Math.min(maxFps, 60) : 60),
+    frameStats = {
       frames: 0,
       deadlines: 0,
     };
-  function fn1() {
-    (value1 !== null && arg6(value1), value2 !== null && arg8(value2), (value1 = value2 = null));
+  function clearPendingHandles() {
+    (animationFrameId !== null && cancelFrame(animationFrameId),
+      timeoutId !== null && cancel(timeoutId),
+      (animationFrameId = timeoutId = null));
   }
-  function fn2() {
-    if (!(value4 || !value3)) {
-      if (value5) {
-        value6 = true;
+  function wakeLoop() {
+    if (!(isDisposed || !isAvailable)) {
+      if (isStepping) {
+        hasPendingWake = true;
         return;
       }
-      (value2 !== null && arg8(value2),
-        (value2 = null),
-        value1 === null && (arg2(), (value1 = arg5(fn3))));
+      (timeoutId !== null && cancel(timeoutId),
+        (timeoutId = null),
+        animationFrameId === null && (onWake(), (animationFrameId = requestFrame(runFrameTick))));
     }
   }
-  function fn3(arg14 = arg3()) {
-    if (((value1 = null), value4 || !value3)) return;
-    if (arg14 + 1.5 < value7) {
-      value1 = arg5(fn3);
+  function runFrameTick(frameTimestamp = now()) {
+    if (((animationFrameId = null), isDisposed || !isAvailable)) return;
+    if (frameTimestamp + 1.5 < nextFrameTimeMs) {
+      animationFrameId = requestFrame(runFrameTick);
       return;
     }
-    ((value7 = arg14 - value7 >= value8 ? arg14 + value8 : value7 + value8),
-      (value5 = true),
-      (value6 = false),
-      object1.frames++);
-    let value9 = Infinity;
+    ((nextFrameTimeMs =
+      frameTimestamp - nextFrameTimeMs >= frameIntervalMs
+        ? frameTimestamp + frameIntervalMs
+        : nextFrameTimeMs + frameIntervalMs),
+      (isStepping = true),
+      (hasPendingWake = false),
+      frameStats.frames++);
+    let nextDelayMs = Infinity;
     try {
-      value9 = arg1(arg14);
+      nextDelayMs = step(frameTimestamp);
     } finally {
-      value5 = false;
+      isStepping = false;
     }
-    value4 ||
-      !value3 ||
-      (value6 || value9 <= 0
-        ? (value1 = arg5(fn3))
-        : Number.isFinite(value9) &&
-          (value2 = arg7(() => {
-            ((value2 = null), object1.deadlines++, fn2());
-          }, value9)));
+    isDisposed ||
+      !isAvailable ||
+      (hasPendingWake || nextDelayMs <= 0
+        ? (animationFrameId = requestFrame(runFrameTick))
+        : Number.isFinite(nextDelayMs) &&
+          (timeoutId = schedule(() => {
+            ((timeoutId = null), frameStats.deadlines++, wakeLoop());
+          }, nextDelayMs)));
   }
   return {
-    wake: fn2,
-    stats: object1,
+    wake: wakeLoop,
+    stats: frameStats,
     wakeAnimation() {
-      value5 || fn2();
+      isStepping || wakeLoop();
     },
-    setAvailable(arg15) {
-      value4 ||
-        value3 === !!arg15 ||
-        ((value3 = !!arg15), value3 ? fn2() : (fn1(), (value7 = -Infinity)));
+    setAvailable(nextAvailable) {
+      isDisposed ||
+        isAvailable === !!nextAvailable ||
+        ((isAvailable = !!nextAvailable),
+        isAvailable ? wakeLoop() : (clearPendingHandles(), (nextFrameTimeMs = -Infinity)));
     },
     dispose() {
-      ((value4 = true), fn1());
+      ((isDisposed = true), clearPendingHandles());
     },
     get pending() {
-      return value1 !== null || value2 !== null;
+      return animationFrameId !== null || timeoutId !== null;
     },
   };
 }

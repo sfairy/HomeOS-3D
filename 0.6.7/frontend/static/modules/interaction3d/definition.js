@@ -1,4 +1,4 @@
-import { withPageAppearancePreset as s } from "./page-appearance-presets.js?v=20260918-page-presets-v3-review-1234";
+import { withPageAppearancePreset as withPageAppearancePreset } from "./page-appearance-presets.js?v=20260918-page-presets-v3-review-1234";
 export const INTERACTION3D_TYPE = "interaction3d",
   INTERACTION3D_FEATURE = "module.3d_interaction",
   INTERACTION3D_LIGHTING_MODES = [["region", "轻量柔光"]],
@@ -7,33 +7,34 @@ export const INTERACTION3D_TYPE = "interaction3d",
     ["grid", "经典网格"],
     ["dots", "微光星尘"],
   ],
-  normalizeBackgroundTheme = (e) => (e === "dots" || e === "contours" ? "dots" : "grid"),
+  normalizeBackgroundTheme = (themeId) =>
+    themeId === "dots" || themeId === "contours" ? "dots" : "grid",
   interaction3dTemplate = {
     id: INTERACTION3D_TYPE,
     type: INTERACTION3D_TYPE,
     name: "3D 交互",
     description: "在 3D 户型中查看和控制灯光、设备。",
     scopes: ["page"],
-    create({ id: e, instanceName: t = "3D 交互", canvas: o }) {
-      const i = Number(o?.width || 2778),
-        n = Number(o?.height || 1940),
-        r = i * 0.56,
-        a = n * 0.56;
+    create({ id: componentId, instanceName: instanceName = "3D 交互", canvas: canvas }) {
+      const canvasWidth = Number(canvas?.width || 2778),
+        canvasHeight = Number(canvas?.height || 1940),
+        componentWidth = canvasWidth * 0.56,
+        componentHeight = canvasHeight * 0.56;
       return {
-        id: e,
+        id: componentId,
         type: INTERACTION3D_TYPE,
         componentVersion: 1,
         position: {
-          x: (i - r) / 2,
-          y: (n - a) / 2,
-          width: r,
-          height: a,
+          x: (canvasWidth - componentWidth) / 2,
+          y: (canvasHeight - componentHeight) / 2,
+          width: componentWidth,
+          height: componentHeight,
           rotation: 0,
           zIndex: 1,
         },
         properties: {
-          label: t,
-          instanceName: t,
+          label: instanceName,
+          instanceName: instanceName,
           layoutMode: "free",
           backgroundVisible: true,
           backgroundTheme: "grid",
@@ -47,7 +48,7 @@ export const INTERACTION3D_TYPE = "interaction3d",
             resolution: 512,
             strength: 0.18,
           },
-          ...s({}),
+          ...withPageAppearancePreset({}),
           popupOpacity: 74,
           interaction: {
             rotationMode: "free",

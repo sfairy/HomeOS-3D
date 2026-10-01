@@ -2,451 +2,367 @@
   "file": "frontend/static/renderer/flow-line.js",
   "declStart": 1,
   "declEnd": 999999,
-  "totalLines": 149,
+  "totalLines": 159,
   "counts": {
-    "entries": 23,
-    "renameable": 23,
+    "entries": 19,
+    "renameable": 19,
     "frozen": 0
   },
   "entries": [
     {
-      "key": "arg1@7",
-      "name": "arg1",
-      "line": 7,
-      "column": 31,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "export function renderFlowLine(arg1, v1 = {}) {",
-      "references": [
-        {
-          "line": 8,
-          "text": "const v2 = normalizeFlowLine2(arg1.properties),"
-        },
-        {
-          "line": 14,
-          "text": "const v3 = flowClamp2(arg1.position?.width, 1, 20000, 600),"
-        },
-        {
-          "line": 15,
-          "text": "v4 = flowClamp2(arg1.position?.height, 1, 20000, 300),"
-        },
-        {
-          "line": 49,
-          "text": "text = arg1.bindings?.entity?.entityId || \"\","
-        }
-      ]
-    },
-    {
-      "key": "v1@7",
-      "name": "v1",
-      "line": 7,
-      "column": 37,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "export function renderFlowLine(arg1, v1 = {}) {",
-      "references": [
-        {
-          "line": 50,
-          "text": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);"
-        },
-        {
-          "line": 51,
-          "text": "let v15 = flowLineMotion2(v2, v14(v1.states?.get(text))),"
-        },
-        {
-          "line": 118,
-          "text": "!v20 && v15.running && !document.hidden && v19 && v1.animate !== false"
-        },
-        {
-          "line": 130,
-          "text": "v2.controlMode === \"entity-sign\" && text && v1.registerRuntimeStateHandler?.(text, v27));"
-        },
-        {
-          "line": 147,
-          "text": "return ((element.destroyFlowLine = v28), v1.cleanup?.(v28), element);"
-        }
-      ]
-    },
-    {
-      "key": "v2@8",
-      "name": "v2",
-      "line": 8,
-      "column": 8,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "const v2 = normalizeFlowLine2(arg1.properties),",
-      "references": [
-        {
-          "line": 12,
-          "text": "(element.style.opacity = String(v2.opacity)),"
-        },
-        {
-          "line": 26,
-          "text": "if (v2.points.length < 2) return element;"
-        },
-        {
-          "line": 27,
-          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
-        },
-        {
-          "line": 40,
-          "text": "v2.baseVisible &&"
-        },
-        {
-          "line": 42,
-          "text": "stroke: v2.baseColor,"
-        },
-        {
-          "line": 43,
-          "text": "\"stroke-width\": v2.width,"
-        }
-      ]
-    },
-    {
-      "key": "v3@14",
-      "name": "v3",
-      "line": 14,
-      "column": 8,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "const v3 = flowClamp2(arg1.position?.width, 1, 20000, 600),",
-      "references": [
-        {
-          "line": 22,
-          "text": "viewBox: \"0 0 \" + v3 + \" \" + v4,"
-        },
-        {
-          "line": 27,
-          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
-        }
-      ]
-    },
-    {
-      "key": "v4@15",
-      "name": "v4",
-      "line": 15,
-      "column": 4,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "v4 = flowClamp2(arg1.position?.height, 1, 20000, 300),",
-      "references": [
-        {
-          "line": 22,
-          "text": "viewBox: \"0 0 \" + v3 + \" \" + v4,"
-        },
-        {
-          "line": 27,
-          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
-        }
-      ]
-    },
-    {
-      "key": "v5@16",
-      "name": "v5",
-      "line": 16,
-      "column": 4,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
-      "references": [
-        {
-          "line": 21,
-          "text": "v9 = v5(\"svg\", {"
-        },
-        {
-          "line": 29,
-          "text": "v5("
-        },
-        {
-          "line": 66,
-          "text": "const v18 = v5("
-        }
-      ]
-    },
-    {
-      "key": "arg2@16",
-      "name": "arg2",
-      "line": 16,
-      "column": 10,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
-      "references": [
-        {
-          "line": 17,
-          "text": "const elementNS = document.createElementNS(\"http://www.w3.org/2000/svg\", arg2);"
-        }
-      ]
-    },
-    {
-      "key": "arg3@16",
-      "name": "arg3",
-      "line": 16,
-      "column": 16,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
-      "references": [
-        {
-          "line": 18,
-          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
-        }
-      ]
-    },
-    {
-      "key": "v6@16",
-      "name": "v6",
-      "line": 16,
-      "column": 22,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
-      "references": [
-        {
-          "line": 19,
-          "text": "return (v6.append(elementNS), elementNS);"
-        }
-      ]
-    },
-    {
-      "key": "v7@18",
-      "name": "v7",
-      "line": 18,
-      "column": 18,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));",
-      "references": [
-        {
-          "line": 18,
-          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
-        }
-      ]
-    },
-    {
-      "key": "v8@18",
-      "name": "v8",
-      "line": 18,
-      "column": 22,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));",
-      "references": [
-        {
-          "line": 18,
-          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
-        }
-      ]
-    },
-    {
-      "key": "v9@21",
-      "name": "v9",
-      "line": 21,
-      "column": 4,
-      "kind": "short",
-      "frozen": false,
-      "declaration": "v9 = v5(\"svg\", {",
-      "references": [
-        {
-          "line": 28,
-          "text": "v11 = (arg4, v12 = v9) =>"
-        },
-        {
-          "line": 53,
-          "text": "function fn1(arg6, v16 = () => 0, v17 = v9) {"
-        },
-        {
-          "line": 71,
-          "text": "v9,"
-        }
-      ]
-    },
-    {
-      "key": "arg4@28",
-      "name": "arg4",
+      "key": "v10@28",
+      "name": "v10",
       "line": 28,
-      "column": 11,
+      "column": 8,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "v11 = (arg4, v12 = v9) =>",
+      "declaration": "const v10 = flowLinePath2(",
       "references": [
         {
-          "line": 36,
-          "text": "...arg4,"
+          "line": 39,
+          "text": "d: v10,"
         }
       ]
     },
     {
-      "key": "arg5@50",
-      "name": "arg5",
-      "line": 50,
-      "column": 11,
+      "key": "v11@35",
+      "name": "v11",
+      "line": 35,
+      "column": 4,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);",
+      "declaration": "v11 = (pathAttributes, v12 = svgElement) =>",
       "references": [
         {
-          "line": 50,
-          "text": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);"
-        }
-      ]
-    },
-    {
-      "key": "fn1@53",
-      "name": "fn1",
-      "line": 53,
-      "column": 11,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "function fn1(arg6, v16 = () => 0, v17 = v9) {",
-      "references": [
-        {
-          "line": 74,
-          "text": "fn1("
-        },
-        {
-          "line": 85,
-          "text": "fn1("
-        },
-        {
-          "line": 95,
-          "text": "fn1({"
-        }
-      ]
-    },
-    {
-      "key": "arg6@53",
-      "name": "arg6",
-      "line": 53,
-      "column": 15,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "function fn1(arg6, v16 = () => 0, v17 = v9) {",
-      "references": [
-        {
-          "line": 54,
-          "text": "const element2 = v11(arg6, v17);"
-        }
-      ]
-    },
-    {
-      "key": "element2@54",
-      "name": "element2",
-      "line": 54,
-      "column": 10,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "const element2 = v11(arg6, v17);",
-      "references": [
-        {
-          "line": 56,
-          "text": "element2.classList.add(\"hb-flow-line-stream\"),"
-        },
-        {
-          "line": 58,
-          "text": "node: element2,"
-        },
-        {
-          "line": 61,
-          "text": "(element2.style.animationDuration = max / Math.max(1, v2.speed) + \"s\"),"
+          "line": 48,
+          "text": "v11({"
         },
         {
           "line": 62,
-          "text": "element2"
+          "text": "const streamPathElement = v11(strokeAttributes, v17);"
         }
       ]
     },
     {
-      "key": "arg7@80",
-      "name": "arg7",
-      "line": 80,
-      "column": 9,
+      "key": "v12@35",
+      "name": "v12",
+      "line": 35,
+      "column": 27,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "(arg7) => (arg7 === 1 ? v2.tail : 0),",
+      "declaration": "v11 = (pathAttributes, v12 = svgElement) =>",
       "references": [
         {
-          "line": 80,
-          "text": "(arg7) => (arg7 === 1 ? v2.tail : 0),"
+          "line": 45,
+          "text": "v12,"
         }
       ]
     },
     {
-      "key": "arg8@92",
-      "name": "arg8",
-      "line": 92,
-      "column": 7,
+      "key": "v13@54",
+      "name": "v13",
+      "line": 54,
+      "column": 4,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "(arg8) => (arg8 === 1 ? (num + 1) * v13 : -num * v13),",
+      "declaration": "v13 = settings.tail / 14,",
       "references": [
         {
-          "line": 92,
-          "text": "(arg8) => (arg8 === 1 ? (num + 1) * v13 : -num * v13),"
-        }
-      ]
-    },
-    {
-      "key": "element3@103",
-      "name": "element3",
-      "line": 103,
-      "column": 23,
-      "kind": "mechanical",
-      "frozen": false,
-      "declaration": "for (const { node: element3, offset: v22 } of list) {",
-      "references": [
-        {
-          "line": 105,
-          "text": "(element3.style.setProperty(\"--flow-from\", String(v23)),"
+          "line": 98,
+          "text": "\"stroke-dasharray\": v13 + \" \" + (max - v13),"
         },
         {
-          "line": 106,
-          "text": "element3.style.setProperty(\"--flow-to\", String(v23 - direction * max)));"
+          "line": 100,
+          "text": "(ringPhase) => (ringPhase === 1 ? (num + 1) * v13 : -num * v13),"
         }
       ]
     },
     {
-      "key": "arg9@123",
-      "name": "arg9",
-      "line": 123,
-      "column": 11,
+      "key": "v14@57",
+      "name": "v14",
+      "line": 57,
+      "column": 4,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "v27 = (arg9) => {",
+      "declaration": "v14 = (guardRuntimeState) =>",
       "references": [
         {
-          "line": 125,
-          "text": "((v15 = flowLineMotion2(v2, v14(arg9))),"
+          "line": 59,
+          "text": "let v15 = flowLineMotion2(settings, v14(runtimeHost.states?.get(text))),"
+        },
+        {
+          "line": 133,
+          "text": "((v15 = flowLineMotion2(settings, v14(runtimeState))),"
         }
       ]
     },
     {
-      "key": "arg10@133",
-      "name": "arg10",
-      "line": 133,
-      "column": 34,
+      "key": "v15@59",
+      "name": "v15",
+      "line": 59,
+      "column": 6,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "? new IntersectionObserver((arg10) => {",
+      "declaration": "let v15 = flowLineMotion2(settings, v14(runtimeHost.states?.get(text))),",
       "references": [
+        {
+          "line": 60,
+          "text": "direction = v15.direction;"
+        },
+        {
+          "line": 120,
+          "text": "if (v24 !== v15.running) {"
+        },
+        {
+          "line": 121,
+          "text": "v24 = v15.running;"
+        },
+        {
+          "line": 126,
+          "text": "!v20 && v15.running && !document.hidden && v19 && runtimeHost.animate !== false"
+        },
         {
           "line": 134,
-          "text": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());"
+          "text": "v15.running && v15.direction !== direction && ((direction = v15.direction), v21()),"
         }
       ]
     },
     {
-      "key": "arg11@134",
-      "name": "arg11",
-      "line": 134,
-      "column": 30,
+      "key": "v16@61",
+      "name": "v16",
+      "line": 61,
+      "column": 39,
       "kind": "mechanical",
       "frozen": false,
-      "declaration": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());",
+      "declaration": "function addStream(strokeAttributes, v16 = () => 0, v17 = svgElement) {",
       "references": [
         {
+          "line": 67,
+          "text": "offset: v16,"
+        }
+      ]
+    },
+    {
+      "key": "v17@61",
+      "name": "v17",
+      "line": 61,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function addStream(strokeAttributes, v16 = () => 0, v17 = svgElement) {",
+      "references": [
+        {
+          "line": 62,
+          "text": "const streamPathElement = v11(strokeAttributes, v17);"
+        }
+      ]
+    },
+    {
+      "key": "v18@74",
+      "name": "v18",
+      "line": 74,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v18 = createSvgNode(",
+      "references": [
+        {
+          "line": 81,
+          "text": "((v18.style.filter = \"blur(\" + (1 + settings.glow / 16) + \"px)\"),"
+        },
+        {
+          "line": 89,
+          "text": "v18,"
+        }
+      ]
+    },
+    {
+      "key": "v19@108",
+      "name": "v19",
+      "line": 108,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let v19 = true,",
+      "references": [
+        {
+          "line": 126,
+          "text": "!v20 && v15.running && !document.hidden && v19 && runtimeHost.animate !== false"
+        }
+      ]
+    },
+    {
+      "key": "v20@109",
+      "name": "v20",
+      "line": 109,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v20 = false;",
+      "references": [
+        {
+          "line": 126,
+          "text": "!v20 && v15.running && !document.hidden && v19 && runtimeHost.animate !== false"
+        },
+        {
+          "line": 132,
+          "text": "v20 ||"
+        },
+        {
+          "line": 151,
+          "text": "v20 ||"
+        }
+      ]
+    },
+    {
+      "key": "v21@110",
+      "name": "v21",
+      "line": 110,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v21 = () => {",
+      "references": [
+        {
+          "line": 117,
+          "text": "v21();"
+        },
+        {
           "line": 134,
-          "text": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());"
+          "text": "v15.running && v15.direction !== direction && ((direction = v15.direction), v21()),"
+        }
+      ]
+    },
+    {
+      "key": "v22@111",
+      "name": "v22",
+      "line": 111,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { node: streamNode, offset: v22 } of list) {",
+      "references": [
+        {
+          "line": 112,
+          "text": "const v23 = v22(direction);"
+        }
+      ]
+    },
+    {
+      "key": "v23@112",
+      "name": "v23",
+      "line": 112,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v23 = v22(direction);",
+      "references": [
+        {
+          "line": 113,
+          "text": "(streamNode.style.setProperty(\"--flow-from\", String(v23)),"
+        },
+        {
+          "line": 114,
+          "text": "streamNode.style.setProperty(\"--flow-to\", String(v23 - direction * max)));"
+        }
+      ]
+    },
+    {
+      "key": "v24@118",
+      "name": "v24",
+      "line": 118,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let v24;",
+      "references": [
+        {
+          "line": 120,
+          "text": "if (v24 !== v15.running) {"
+        },
+        {
+          "line": 122,
+          "text": "for (const { node: v26 } of list) v26.style.visibility = v24 ? \"\" : \"hidden\";"
+        }
+      ]
+    },
+    {
+      "key": "v25@119",
+      "name": "v25",
+      "line": 119,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v25 = () => {",
+      "references": [
+        {
+          "line": 135,
+          "text": "v25());"
+        },
+        {
+          "line": 144,
+          "text": "((v19 = observerEntries.some((observerEntry) => observerEntry.isIntersecting)), v25());"
+        },
+        {
+          "line": 148,
+          "text": "document.addEventListener(\"visibilitychange\", v25),"
+        },
+        {
+          "line": 149,
+          "text": "v25());"
+        },
+        {
+          "line": 154,
+          "text": "document.removeEventListener(\"visibilitychange\", v25),"
+        }
+      ]
+    },
+    {
+      "key": "v26@122",
+      "name": "v26",
+      "line": 122,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { node: v26 } of list) v26.style.visibility = v24 ? \"\" : \"hidden\";",
+      "references": [
+        {
+          "line": 122,
+          "text": "for (const { node: v26 } of list) v26.style.visibility = v24 ? \"\" : \"hidden\";"
+        }
+      ]
+    },
+    {
+      "key": "v27@131",
+      "name": "v27",
+      "line": 131,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v27 = (runtimeState) => {",
+      "references": [
+        {
+          "line": 137,
+          "text": "((element.syncFlowLineState = v27),"
+        },
+        {
+          "line": 140,
+          "text": "runtimeHost.registerRuntimeStateHandler?.(text, v27));"
+        }
+      ]
+    },
+    {
+      "key": "v28@150",
+      "name": "v28",
+      "line": 150,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v28 = () => {",
+      "references": [
+        {
+          "line": 157,
+          "text": "return ((element.destroyFlowLine = v28), runtimeHost.cleanup?.(v28), element);"
         }
       ]
     }

@@ -1,0 +1,780 @@
+{
+  "file": "frontend/static/renderer/door-window-runtime.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 51,
+  "counts": {
+    "entries": 41,
+    "renameable": 41,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "_@1",
+      "name": "_",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const _ = Object.freeze([0, 0, 1, 0, 1, 1, 0, 1]),",
+      "references": [
+        {
+          "line": 13,
+          "text": "return (Array.isArray(arg1) && arg1.length === 8 ? arg1 : _).map((arg2, arg3) => {"
+        },
+        {
+          "line": 15,
+          "text": "value2 = _[arg3],"
+        }
+      ]
+    },
+    {
+      "key": "F@2",
+      "name": "F",
+      "line": 2,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "F = Object.freeze([",
+      "references": [
+        {
+          "line": 16,
+          "text": "[value3, value4] = F[arg3];"
+        }
+      ]
+    },
+    {
+      "key": "arg1@12",
+      "name": "arg1",
+      "line": 12,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function doorWindowPerspectiveCorners(arg1) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "return (Array.isArray(arg1) && arg1.length === 8 ? arg1 : _).map((arg2, arg3) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@13",
+      "name": "arg2",
+      "line": 13,
+      "column": 68,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (Array.isArray(arg1) && arg1.length === 8 ? arg1 : _).map((arg2, arg3) => {",
+      "references": [
+        {
+          "line": 14,
+          "text": "const value1 = Number(arg2),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@13",
+      "name": "arg3",
+      "line": 13,
+      "column": 74,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (Array.isArray(arg1) && arg1.length === 8 ? arg1 : _).map((arg2, arg3) => {",
+      "references": [
+        {
+          "line": 15,
+          "text": "value2 = _[arg3],"
+        },
+        {
+          "line": 16,
+          "text": "[value3, value4] = F[arg3];"
+        }
+      ]
+    },
+    {
+      "key": "value1@14",
+      "name": "value1",
+      "line": 14,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Number(arg2),",
+      "references": [
+        {
+          "line": 17,
+          "text": "return Math.max(value3, Math.min(value4, Number.isFinite(value1) ? value1 : value2));"
+        }
+      ]
+    },
+    {
+      "key": "value2@15",
+      "name": "value2",
+      "line": 15,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = _[arg3],",
+      "references": [
+        {
+          "line": 17,
+          "text": "return Math.max(value3, Math.min(value4, Number.isFinite(value1) ? value1 : value2));"
+        }
+      ]
+    },
+    {
+      "key": "value3@16",
+      "name": "value3",
+      "line": 16,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value3, value4] = F[arg3];",
+      "references": [
+        {
+          "line": 17,
+          "text": "return Math.max(value3, Math.min(value4, Number.isFinite(value1) ? value1 : value2));"
+        }
+      ]
+    },
+    {
+      "key": "value4@16",
+      "name": "value4",
+      "line": 16,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value3, value4] = F[arg3];",
+      "references": [
+        {
+          "line": 17,
+          "text": "return Math.max(value3, Math.min(value4, Number.isFinite(value1) ? value1 : value2));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@20",
+      "name": "arg4",
+      "line": 20,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function doorWindowPerspectiveMatrix(arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 21,
+          "text": "const value5 = Math.max(1, Number(arg4) || 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@20",
+      "name": "arg5",
+      "line": 20,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function doorWindowPerspectiveMatrix(arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 22,
+          "text": "value6 = Math.max(1, Number(arg5) || 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@20",
+      "name": "arg6",
+      "line": 20,
+      "column": 56,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function doorWindowPerspectiveMatrix(arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 23,
+          "text": "value7 = doorWindowPerspectiveCorners(arg6),"
+        }
+      ]
+    },
+    {
+      "key": "value5@21",
+      "name": "value5",
+      "line": 21,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = Math.max(1, Number(arg4) || 1),",
+      "references": [
+        {
+          "line": 25,
+          "text": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),"
+        },
+        {
+          "line": 37,
+          "text": "value25 = (value10 - value8 + value23 * value10) / value5,"
+        },
+        {
+          "line": 39,
+          "text": "value27 = (value11 - value9 + value23 * value11) / value5,"
+        },
+        {
+          "line": 41,
+          "text": "value29 = value23 / value5,"
+        }
+      ]
+    },
+    {
+      "key": "value6@22",
+      "name": "value6",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = Math.max(1, Number(arg5) || 1),",
+      "references": [
+        {
+          "line": 25,
+          "text": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),"
+        },
+        {
+          "line": 38,
+          "text": "value26 = (value14 - value8 + value24 * value14) / value6,"
+        },
+        {
+          "line": 40,
+          "text": "value28 = (value15 - value9 + value24 * value15) / value6,"
+        },
+        {
+          "line": 42,
+          "text": "value30 = value24 / value6;"
+        }
+      ]
+    },
+    {
+      "key": "value7@23",
+      "name": "value7",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = doorWindowPerspectiveCorners(arg6),",
+      "references": [
+        {
+          "line": 24,
+          "text": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map("
+        }
+      ]
+    },
+    {
+      "key": "value8@24",
+      "name": "value8",
+      "line": 24,
+      "column": 5,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 29,
+          "text": "value18 = value8 - value10 + value12 - value14,"
+        },
+        {
+          "line": 37,
+          "text": "value25 = (value10 - value8 + value23 * value10) / value5,"
+        },
+        {
+          "line": 38,
+          "text": "value26 = (value14 - value8 + value24 * value14) / value6,"
+        },
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value9@24",
+      "name": "value9",
+      "line": 24,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 32,
+          "text": "value21 = value9 - value11 + value13 - value15,"
+        },
+        {
+          "line": 39,
+          "text": "value27 = (value11 - value9 + value23 * value11) / value5,"
+        },
+        {
+          "line": 40,
+          "text": "value28 = (value15 - value9 + value24 * value15) / value6,"
+        },
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value10@24",
+      "name": "value10",
+      "line": 24,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 27,
+          "text": "value16 = value10 - value12,"
+        },
+        {
+          "line": 29,
+          "text": "value18 = value8 - value10 + value12 - value14,"
+        },
+        {
+          "line": 37,
+          "text": "value25 = (value10 - value8 + value23 * value10) / value5,"
+        }
+      ]
+    },
+    {
+      "key": "value11@24",
+      "name": "value11",
+      "line": 24,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 30,
+          "text": "value19 = value11 - value13,"
+        },
+        {
+          "line": 32,
+          "text": "value21 = value9 - value11 + value13 - value15,"
+        },
+        {
+          "line": 39,
+          "text": "value27 = (value11 - value9 + value23 * value11) / value5,"
+        }
+      ]
+    },
+    {
+      "key": "value12@24",
+      "name": "value12",
+      "line": 24,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 27,
+          "text": "value16 = value10 - value12,"
+        },
+        {
+          "line": 28,
+          "text": "value17 = value14 - value12,"
+        },
+        {
+          "line": 29,
+          "text": "value18 = value8 - value10 + value12 - value14,"
+        }
+      ]
+    },
+    {
+      "key": "value13@24",
+      "name": "value13",
+      "line": 24,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 30,
+          "text": "value19 = value11 - value13,"
+        },
+        {
+          "line": 31,
+          "text": "value20 = value15 - value13,"
+        },
+        {
+          "line": 32,
+          "text": "value21 = value9 - value11 + value13 - value15,"
+        }
+      ]
+    },
+    {
+      "key": "value14@24",
+      "name": "value14",
+      "line": 24,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 28,
+          "text": "value17 = value14 - value12,"
+        },
+        {
+          "line": 29,
+          "text": "value18 = value8 - value10 + value12 - value14,"
+        },
+        {
+          "line": 38,
+          "text": "value26 = (value14 - value8 + value24 * value14) / value6,"
+        }
+      ]
+    },
+    {
+      "key": "value15@24",
+      "name": "value15",
+      "line": 24,
+      "column": 66,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value8, value9, value10, value11, value12, value13, value14, value15] = value7.map(",
+      "references": [
+        {
+          "line": 31,
+          "text": "value20 = value15 - value13,"
+        },
+        {
+          "line": 32,
+          "text": "value21 = value9 - value11 + value13 - value15,"
+        },
+        {
+          "line": 40,
+          "text": "value28 = (value15 - value9 + value24 * value15) / value6,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@25",
+      "name": "arg7",
+      "line": 25,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),",
+      "references": [
+        {
+          "line": 25,
+          "text": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@25",
+      "name": "arg8",
+      "line": 25,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),",
+      "references": [
+        {
+          "line": 25,
+          "text": "(arg7, arg8) => arg7 * (arg8 % 2 === 0 ? value5 : value6),"
+        }
+      ]
+    },
+    {
+      "key": "value16@27",
+      "name": "value16",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = value10 - value12,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value22 = value16 * value20 - value17 * value19;"
+        },
+        {
+          "line": 36,
+          "text": "value24 = (value16 * value21 - value18 * value19) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value17@28",
+      "name": "value17",
+      "line": 28,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = value14 - value12,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value22 = value16 * value20 - value17 * value19;"
+        },
+        {
+          "line": 35,
+          "text": "const value23 = (value18 * value20 - value17 * value21) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value18@29",
+      "name": "value18",
+      "line": 29,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = value8 - value10 + value12 - value14,",
+      "references": [
+        {
+          "line": 35,
+          "text": "const value23 = (value18 * value20 - value17 * value21) / value22,"
+        },
+        {
+          "line": 36,
+          "text": "value24 = (value16 * value21 - value18 * value19) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value19@30",
+      "name": "value19",
+      "line": 30,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = value11 - value13,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value22 = value16 * value20 - value17 * value19;"
+        },
+        {
+          "line": 36,
+          "text": "value24 = (value16 * value21 - value18 * value19) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value20@31",
+      "name": "value20",
+      "line": 31,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = value15 - value13,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value22 = value16 * value20 - value17 * value19;"
+        },
+        {
+          "line": 35,
+          "text": "const value23 = (value18 * value20 - value17 * value21) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value21@32",
+      "name": "value21",
+      "line": 32,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = value9 - value11 + value13 - value15,",
+      "references": [
+        {
+          "line": 35,
+          "text": "const value23 = (value18 * value20 - value17 * value21) / value22,"
+        },
+        {
+          "line": 36,
+          "text": "value24 = (value16 * value21 - value18 * value19) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value22@33",
+      "name": "value22",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = value16 * value20 - value17 * value19;",
+      "references": [
+        {
+          "line": 34,
+          "text": "if (Math.abs(value22) < 0.000001) return \"matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)\";"
+        },
+        {
+          "line": 35,
+          "text": "const value23 = (value18 * value20 - value17 * value21) / value22,"
+        },
+        {
+          "line": 36,
+          "text": "value24 = (value16 * value21 - value18 * value19) / value22,"
+        }
+      ]
+    },
+    {
+      "key": "value23@35",
+      "name": "value23",
+      "line": 35,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = (value18 * value20 - value17 * value21) / value22,",
+      "references": [
+        {
+          "line": 37,
+          "text": "value25 = (value10 - value8 + value23 * value10) / value5,"
+        },
+        {
+          "line": 39,
+          "text": "value27 = (value11 - value9 + value23 * value11) / value5,"
+        },
+        {
+          "line": 41,
+          "text": "value29 = value23 / value5,"
+        }
+      ]
+    },
+    {
+      "key": "value24@36",
+      "name": "value24",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 = (value16 * value21 - value18 * value19) / value22,",
+      "references": [
+        {
+          "line": 38,
+          "text": "value26 = (value14 - value8 + value24 * value14) / value6,"
+        },
+        {
+          "line": 40,
+          "text": "value28 = (value15 - value9 + value24 * value15) / value6,"
+        },
+        {
+          "line": 42,
+          "text": "value30 = value24 / value6;"
+        }
+      ]
+    },
+    {
+      "key": "value25@37",
+      "name": "value25",
+      "line": 37,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value25 = (value10 - value8 + value23 * value10) / value5,",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value26@38",
+      "name": "value26",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value26 = (value14 - value8 + value24 * value14) / value6,",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value27@39",
+      "name": "value27",
+      "line": 39,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value27 = (value11 - value9 + value23 * value11) / value5,",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value28@40",
+      "name": "value28",
+      "line": 40,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value28 = (value15 - value9 + value24 * value15) / value6,",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value29@41",
+      "name": "value29",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = value23 / value5,",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "value30@42",
+      "name": "value30",
+      "line": 42,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value30 = value24 / value6;",
+      "references": [
+        {
+          "line": 45,
+          "text": "[value25, value27, 0, value29, value26, value28, 0, value30, 0, 0, 1, 0, value8, value9, 0, 1]"
+        }
+      ]
+    },
+    {
+      "key": "arg9@46",
+      "name": "arg9",
+      "line": 46,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg9) => (Math.abs(arg9) < 1e-8 ? 0 : Number(arg9.toFixed(8))))",
+      "references": [
+        {
+          "line": 46,
+          "text": ".map((arg9) => (Math.abs(arg9) < 1e-8 ? 0 : Number(arg9.toFixed(8))))"
+        }
+      ]
+    }
+  ]
+}

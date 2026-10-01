@@ -24,12 +24,12 @@ export function bathEffectEditor({
     ),
     list = item.bathEffects || [],
     isEffectControl = (effectControl) => ["heat", "fan", "exhaust"].includes(effectControl.effect),
-    filter2 = list.filter(isEffectControl),
+    effectControls = list.filter(isEffectControl),
     some =
-      filter2.length === 1 &&
-      !filter2[0].attribute &&
-      filter2[0].value === "on" &&
-      filter.some((entity) => entity.entityId === filter2[0].entityId),
+      effectControls.length === 1 &&
+      !effectControls[0].attribute &&
+      effectControls[0].value === "on" &&
+      filter.some((entity) => entity.entityId === effectControls[0].entityId),
     options = [
       ["", item.entityId ? "主实体（自动）" : "请选择开关或运行状态"],
       ...filter.map((optionEntity) => [
@@ -37,12 +37,12 @@ export function bathEffectEditor({
         optionEntity.name || optionEntity.entityId,
       ]),
     ];
-  filter2.length && !some && options.push(["legacy", "保留原有运行绑定"]);
+  effectControls.length && !some && options.push(["legacy", "保留原有运行绑定"]);
   const element = createSelect(
     hostElement,
     "出风跟随",
     options,
-    filter2.length ? (some ? filter2[0].entityId : "legacy") : "",
+    effectControls.length ? (some ? effectControls[0].entityId : "legacy") : "",
     (selectedEntityId) => {
       selectedEntityId !== "legacy" &&
         ((item.bathEffects = [
@@ -62,7 +62,7 @@ export function bathEffectEditor({
         redraw());
     },
   );
-  ((element.disabled = !filter2.length && list.length >= 12),
+  ((element.disabled = !effectControls.length && list.length >= 12),
     element.disabled && (element.title = "原有绑定已达到数量上限"),
     !item.entityId &&
       !filter.length &&
@@ -70,10 +70,11 @@ export function bathEffectEditor({
         createNode("p", "i3d-note", "先在附加功能中选好浴霸的运行开关，再来选择。"),
       ));
   const statusNoteElement = createNode("p", "i3d-note"),
-    v10 = () => {
-      const v11 = bathHeaterState2(item, readStates());
+    refreshStatus = () => {
+      const heaterState = bathHeaterState2(item, readStates());
       statusNoteElement.textContent =
-        "出风状态：" + (v11.available ? (v11.running ? "出风中" : "已停止") : "状态未知");
+        "出风状态：" +
+        (heaterState.available ? (heaterState.running ? "出风中" : "已停止") : "状态未知");
     };
-  return (hostElement.append(statusNoteElement), v10(), v10);
+  return (hostElement.append(statusNoteElement), refreshStatus(), refreshStatus);
 }

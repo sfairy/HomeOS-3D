@@ -1,0 +1,609 @@
+{
+  "file": "frontend/static/modules/interaction3d/performance-warning.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 79,
+  "counts": {
+    "entries": 28,
+    "renameable": 28,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "E@1",
+      "name": "E",
+      "line": 1,
+      "column": 38,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "import { normalizeGroundReflection as E } from \"./reflection-settings.js?v=20260918-reflection-user-settings-v1-20260918-review-1234-v2\";",
+      "references": [
+        {
+          "line": 13,
+          "text": "const f = E(a.groundReflection),"
+        },
+        {
+          "line": 14,
+          "text": "t = E(e.groundReflection),"
+        }
+      ]
+    },
+    {
+      "key": "a@2",
+      "name": "a",
+      "line": 2,
+      "column": 36,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function performanceWarnings(a, e) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "e.renderScale > (a.renderScale ?? 1) &&"
+        },
+        {
+          "line": 9,
+          "text": "e.motionRenderScale > (a.motionRenderScale ?? 0) &&"
+        },
+        {
+          "line": 13,
+          "text": "const f = E(a.groundReflection),"
+        }
+      ]
+    },
+    {
+      "key": "e@2",
+      "name": "e",
+      "line": 2,
+      "column": 39,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function performanceWarnings(a, e) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "(e.renderScale > 1 &&"
+        },
+        {
+          "line": 6,
+          "text": "e.renderScale > (a.renderScale ?? 1) &&"
+        },
+        {
+          "line": 8,
+          "text": "e.motionRenderScale >= 0.8 &&"
+        },
+        {
+          "line": 9,
+          "text": "e.motionRenderScale > (a.motionRenderScale ?? 0) &&"
+        }
+      ]
+    },
+    {
+      "key": "n@3",
+      "name": "n",
+      "line": 3,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const n = [];",
+      "references": [
+        {
+          "line": 7,
+          "text": "n.push(\"高清渲染需要处理更多画面像素。\"),"
+        },
+        {
+          "line": 10,
+          "text": "n.push(\"较高的转动分辨率会增加旋转和聚焦过渡时的绘制开销。\"),"
+        },
+        {
+          "line": 19,
+          "text": "n.push(o === 2 ? \"室内和室外同时反射，需要额外绘制两组倒影。\" : \"地面反射需要额外绘制倒影。\"),"
+        },
+        {
+          "line": 23,
+          "text": "n.push(\"高反射清晰度会增加倒影的绘制开销和显存占用。\"));"
+        }
+      ]
+    },
+    {
+      "key": "f@13",
+      "name": "f",
+      "line": 13,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const f = E(a.groundReflection),",
+      "references": [
+        {
+          "line": 16,
+          "text": "r = s(f),"
+        },
+        {
+          "line": 22,
+          "text": "(t.resolution > f.resolution || !r) &&"
+        }
+      ]
+    },
+    {
+      "key": "t@14",
+      "name": "t",
+      "line": 14,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "t = E(e.groundReflection),",
+      "references": [
+        {
+          "line": 17,
+          "text": "o = s(t);"
+        },
+        {
+          "line": 21,
+          "text": "t.resolution > 512 &&"
+        },
+        {
+          "line": 22,
+          "text": "(t.resolution > f.resolution || !r) &&"
+        }
+      ]
+    },
+    {
+      "key": "s@15",
+      "name": "s",
+      "line": 15,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "s = (i) => (i.strength === 0 || i.mode === \"off\" ? 0 : i.mode === \"all\" ? 2 : 1),",
+      "references": [
+        {
+          "line": 16,
+          "text": "r = s(f),"
+        },
+        {
+          "line": 17,
+          "text": "o = s(t);"
+        }
+      ]
+    },
+    {
+      "key": "i@15",
+      "name": "i",
+      "line": 15,
+      "column": 11,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "s = (i) => (i.strength === 0 || i.mode === \"off\" ? 0 : i.mode === \"all\" ? 2 : 1),",
+      "references": [
+        {
+          "line": 15,
+          "text": "s = (i) => (i.strength === 0 || i.mode === \"off\" ? 0 : i.mode === \"all\" ? 2 : 1),"
+        }
+      ]
+    },
+    {
+      "key": "r@16",
+      "name": "r",
+      "line": 16,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "r = s(f),",
+      "references": [
+        {
+          "line": 18,
+          "text": "(o > r &&"
+        },
+        {
+          "line": 22,
+          "text": "(t.resolution > f.resolution || !r) &&"
+        }
+      ]
+    },
+    {
+      "key": "o@17",
+      "name": "o",
+      "line": 17,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "o = s(t);",
+      "references": [
+        {
+          "line": 18,
+          "text": "(o > r &&"
+        },
+        {
+          "line": 19,
+          "text": "n.push(o === 2 ? \"室内和室外同时反射，需要额外绘制两组倒影。\" : \"地面反射需要额外绘制倒影。\"),"
+        },
+        {
+          "line": 20,
+          "text": "o &&"
+        }
+      ]
+    },
+    {
+      "key": "a@27",
+      "name": "a",
+      "line": 27,
+      "column": 42,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function confirmPerformanceWarning(a, { document: e = document, signal: n } = {}) {",
+      "references": [
+        {
+          "line": 28,
+          "text": "return a.length"
+        },
+        {
+          "line": 40,
+          "text": "for (const d of a) {"
+        }
+      ]
+    },
+    {
+      "key": "e@27",
+      "name": "e",
+      "line": 27,
+      "column": 57,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function confirmPerformanceWarning(a, { document: e = document, signal: n } = {}) {",
+      "references": [
+        {
+          "line": 32,
+          "text": "const t = e.createElement(\"dialog\");"
+        },
+        {
+          "line": 36,
+          "text": "const s = e.createElement(\"h2\");"
+        },
+        {
+          "line": 38,
+          "text": "const r = e.createElement(\"div\");"
+        },
+        {
+          "line": 41,
+          "text": "const b = e.createElement(\"p\");"
+        }
+      ]
+    },
+    {
+      "key": "n@27",
+      "name": "n",
+      "line": 27,
+      "column": 79,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function confirmPerformanceWarning(a, { document: e = document, signal: n } = {}) {",
+      "references": [
+        {
+          "line": 29,
+          "text": "? n?.aborted"
+        },
+        {
+          "line": 61,
+          "text": "u || ((u = true), n?.removeEventListener(\"abort\", p), t.close(), t.remove(), f(d));"
+        },
+        {
+          "line": 70,
+          "text": "n?.addEventListener(\"abort\", p, {"
+        }
+      ]
+    },
+    {
+      "key": "f@31",
+      "name": "f",
+      "line": 31,
+      "column": 21,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ": new Promise((f) => {",
+      "references": [
+        {
+          "line": 61,
+          "text": "u || ((u = true), n?.removeEventListener(\"abort\", p), t.close(), t.remove(), f(d));"
+        }
+      ]
+    },
+    {
+      "key": "t@32",
+      "name": "t",
+      "line": 32,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = e.createElement(\"dialog\");",
+      "references": [
+        {
+          "line": 33,
+          "text": "((t.className = \"settings-dialog i3d-performance-dialog\"),"
+        },
+        {
+          "line": 34,
+          "text": "t.setAttribute(\"aria-labelledby\", \"i3d-performance-title\"),"
+        },
+        {
+          "line": 35,
+          "text": "t.setAttribute(\"aria-describedby\", \"i3d-performance-description\"));"
+        },
+        {
+          "line": 58,
+          "text": "t.append(s, r, i));"
+        }
+      ]
+    },
+    {
+      "key": "s@36",
+      "name": "s",
+      "line": 36,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const s = e.createElement(\"h2\");",
+      "references": [
+        {
+          "line": 37,
+          "text": "((s.id = \"i3d-performance-title\"), (s.textContent = \"画质与流畅度提示\"));"
+        },
+        {
+          "line": 58,
+          "text": "t.append(s, r, i));"
+        }
+      ]
+    },
+    {
+      "key": "r@38",
+      "name": "r",
+      "line": 38,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const r = e.createElement(\"div\");",
+      "references": [
+        {
+          "line": 39,
+          "text": "r.id = \"i3d-performance-description\";"
+        },
+        {
+          "line": 42,
+          "text": "((b.textContent = d), r.append(b));"
+        },
+        {
+          "line": 48,
+          "text": "r.append(o));"
+        },
+        {
+          "line": 58,
+          "text": "t.append(s, r, i));"
+        }
+      ]
+    },
+    {
+      "key": "d@40",
+      "name": "d",
+      "line": 40,
+      "column": 21,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const d of a) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "((b.textContent = d), r.append(b));"
+        }
+      ]
+    },
+    {
+      "key": "b@41",
+      "name": "b",
+      "line": 41,
+      "column": 18,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const b = e.createElement(\"p\");",
+      "references": [
+        {
+          "line": 42,
+          "text": "((b.textContent = d), r.append(b));"
+        }
+      ]
+    },
+    {
+      "key": "o@44",
+      "name": "o",
+      "line": 44,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const o = e.createElement(\"p\");",
+      "references": [
+        {
+          "line": 45,
+          "text": "((o.className = \"i3d-performance-note\"),"
+        },
+        {
+          "line": 46,
+          "text": "(o.textContent ="
+        },
+        {
+          "line": 48,
+          "text": "r.append(o));"
+        }
+      ]
+    },
+    {
+      "key": "i@49",
+      "name": "i",
+      "line": 49,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = e.createElement(\"div\");",
+      "references": [
+        {
+          "line": 50,
+          "text": "i.className = \"dialog-actions\";"
+        },
+        {
+          "line": 57,
+          "text": "i.append(c, l),"
+        },
+        {
+          "line": 58,
+          "text": "t.append(s, r, i));"
+        }
+      ]
+    },
+    {
+      "key": "c@51",
+      "name": "c",
+      "line": 51,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const c = e.createElement(\"button\"),",
+      "references": [
+        {
+          "line": 53,
+          "text": "((c.type = l.type = \"button\"),"
+        },
+        {
+          "line": 54,
+          "text": "(c.textContent = \"取消\"),"
+        },
+        {
+          "line": 57,
+          "text": "i.append(c, l),"
+        },
+        {
+          "line": 64,
+          "text": "(c.addEventListener(\"click\", p),"
+        }
+      ]
+    },
+    {
+      "key": "l@52",
+      "name": "l",
+      "line": 52,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "l = e.createElement(\"button\");",
+      "references": [
+        {
+          "line": 53,
+          "text": "((c.type = l.type = \"button\"),"
+        },
+        {
+          "line": 55,
+          "text": "(l.textContent = \"继续应用\"),"
+        },
+        {
+          "line": 56,
+          "text": "(l.className = \"primary\"),"
+        },
+        {
+          "line": 57,
+          "text": "i.append(c, l),"
+        }
+      ]
+    },
+    {
+      "key": "u@59",
+      "name": "u",
+      "line": 59,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "let u = false;",
+      "references": [
+        {
+          "line": 61,
+          "text": "u || ((u = true), n?.removeEventListener(\"abort\", p), t.close(), t.remove(), f(d));"
+        }
+      ]
+    },
+    {
+      "key": "m@60",
+      "name": "m",
+      "line": 60,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const m = (d) => {",
+      "references": [
+        {
+          "line": 63,
+          "text": "p = () => m(false);"
+        },
+        {
+          "line": 65,
+          "text": "l.addEventListener(\"click\", () => m(true)),"
+        },
+        {
+          "line": 67,
+          "text": "(d.preventDefault(), m(false));"
+        },
+        {
+          "line": 69,
+          "text": "t.addEventListener(\"close\", () => m(false)),"
+        }
+      ]
+    },
+    {
+      "key": "d@60",
+      "name": "d",
+      "line": 60,
+      "column": 21,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const m = (d) => {",
+      "references": [
+        {
+          "line": 61,
+          "text": "u || ((u = true), n?.removeEventListener(\"abort\", p), t.close(), t.remove(), f(d));"
+        }
+      ]
+    },
+    {
+      "key": "p@63",
+      "name": "p",
+      "line": 63,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "p = () => m(false);",
+      "references": [
+        {
+          "line": 61,
+          "text": "u || ((u = true), n?.removeEventListener(\"abort\", p), t.close(), t.remove(), f(d));"
+        },
+        {
+          "line": 64,
+          "text": "(c.addEventListener(\"click\", p),"
+        },
+        {
+          "line": 70,
+          "text": "n?.addEventListener(\"abort\", p, {"
+        }
+      ]
+    },
+    {
+      "key": "d@66",
+      "name": "d",
+      "line": 66,
+      "column": 42,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "t.addEventListener(\"cancel\", (d) => {",
+      "references": [
+        {
+          "line": 67,
+          "text": "(d.preventDefault(), m(false));"
+        }
+      ]
+    }
+  ]
+}

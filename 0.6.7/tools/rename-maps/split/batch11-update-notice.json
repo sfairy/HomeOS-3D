@@ -1,0 +1,27 @@
+{
+  "frontend/static/update-notice.js": {
+    "g@1": "UPDATE_WIKI_URL",
+    "arg1@2": "noticeLink",
+    "arg2@2": "noticeBadge",
+    "arg3@2": "notice",
+    "value1@3": "logUrl",
+    "value2@7": "isTrustedNotice",
+    "arg4@24": "linkElement",
+    "arg5@25": "badgeElement",
+    "arg6@27": "fetcher",
+    "arg7@28": "pageNode",
+    "arg8@29": "schedule",
+    "arg9@30": "cancel",
+    "value3@33": "isFetching",
+    "value4@34": "isDisposed",
+    "value5@35": "abortController",
+    "fn1@36": "refreshNotice",
+    "value7@39": "abortTimer",
+    "value8@41": "response",
+    "value9@47": "payload",
+    "value6@56": "timerId",
+    "c@68": "updatesLinkElement",
+    "u@69": "updateBadgeElement",
+    "e@71": "stopNotice"
+  }
+}

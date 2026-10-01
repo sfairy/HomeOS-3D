@@ -1,58 +1,58 @@
-export function findComponentInItems(arg1, arg2) {
-  for (const value1 of arg1 || []) {
-    if (value1.id === arg2) return value1;
-    const value2 = findComponentInItems(value1.children, arg2);
-    if (value2) return value2;
+export function findComponentInItems(items, targetId) {
+  for (const item of items || []) {
+    if (item.id === targetId) return item;
+    const matchedChild = findComponentInItems(item.children, targetId);
+    if (matchedChild) return matchedChild;
   }
   return null;
 }
-export function findComponent(arg3, arg4) {
-  if (!arg3 || !arg4) return null;
-  const value3 = findComponentInItems(arg3.sharedComponents, arg4);
-  if (value3)
+export function findComponent(project, componentId) {
+  if (!project || !componentId) return null;
+  const sharedMatch = findComponentInItems(project.sharedComponents, componentId);
+  if (sharedMatch)
     return {
-      component: value3,
+      component: sharedMatch,
       scope: "shared",
     };
-  for (const value4 of arg3.pages || []) {
-    const value5 = findComponentInItems(value4.components, arg4);
-    if (value5)
+  for (const page of project.pages || []) {
+    const pageMatch = findComponentInItems(page.components, componentId);
+    if (pageMatch)
       return {
-        component: value5,
+        component: pageMatch,
         scope: "page",
-        page: value4,
+        page: page,
       };
   }
   return null;
 }
-export function findComponentLocation(arg5, arg6) {
-  if (!arg5 || !arg6) return null;
-  const fn1 = (arg7, arg8, arg9 = null, arg10 = false) => {
-      for (let value7 = 0; value7 < (arg7 || []).length; value7 += 1) {
-        const value8 = arg7[value7];
-        if (value8.id === arg6)
+export function findComponentLocation(projectTree, lookupId) {
+  if (!projectTree || !lookupId) return null;
+  const locateInItems = (siblings, scopeName, ownerPage = null, isRoot = false) => {
+      for (let itemIndex = 0; itemIndex < (siblings || []).length; itemIndex += 1) {
+        const childItem = siblings[itemIndex];
+        if (childItem.id === lookupId)
           return {
-            component: value8,
-            collection: arg7,
-            index: value7,
-            scope: arg8,
-            page: arg9,
-            root: arg10,
+            component: childItem,
+            collection: siblings,
+            index: itemIndex,
+            scope: scopeName,
+            page: ownerPage,
+            root: isRoot,
           };
-        const value9 = fn1(value8.children, arg8, arg9, false);
-        if (value9) return value9;
+        const nestedMatch = locateInItems(childItem.children, scopeName, ownerPage, false);
+        if (nestedMatch) return nestedMatch;
       }
       return null;
     },
-    value6 = fn1(arg5.sharedComponents, "shared", null, true);
-  if (value6) return value6;
-  for (const value10 of arg5.pages || []) {
-    const value11 = fn1(value10.components, "page", value10, true);
-    if (value11) return value11;
+    sharedLocation = locateInItems(projectTree.sharedComponents, "shared", null, true);
+  if (sharedLocation) return sharedLocation;
+  for (const listedPage of projectTree.pages || []) {
+    const pageLocation = locateInItems(listedPage.components, "page", listedPage, true);
+    if (pageLocation) return pageLocation;
   }
   return null;
 }
-export function componentDirectLocation(arg11, arg12) {
-  const value12 = findComponentLocation(arg11, arg12);
-  return value12?.root ? value12 : null;
+export function componentDirectLocation(sourceProject, wantedId) {
+  const location = findComponentLocation(sourceProject, wantedId);
+  return location?.root ? location : null;
 }

@@ -1,78 +1,97 @@
-import { normalizeGroundReflection as E } from "./reflection-settings.js?v=20260918-reflection-user-settings-v1-20260918-review-1234-v2";
-export function performanceWarnings(a, e) {
-  const n = [];
+import { normalizeGroundReflection as normalizeGroundReflection } from "./reflection-settings.js?v=20260918-reflection-user-settings-v1-20260918-review-1234-v2";
+export function performanceWarnings(currentProperties, nextProperties) {
+  const warningMessages = [];
   if (
-    (e.renderScale > 1 &&
-      e.renderScale > (a.renderScale ?? 1) &&
-      n.push("高清渲染需要处理更多画面像素。"),
-    e.motionRenderScale >= 0.8 &&
-      e.motionRenderScale > (a.motionRenderScale ?? 0) &&
-      n.push("较高的转动分辨率会增加旋转和聚焦过渡时的绘制开销。"),
-    e.groundReflection)
+    (nextProperties.renderScale > 1 &&
+      nextProperties.renderScale > (currentProperties.renderScale ?? 1) &&
+      warningMessages.push("高清渲染需要处理更多画面像素。"),
+    nextProperties.motionRenderScale >= 0.8 &&
+      nextProperties.motionRenderScale > (currentProperties.motionRenderScale ?? 0) &&
+      warningMessages.push("较高的转动分辨率会增加旋转和聚焦过渡时的绘制开销。"),
+    nextProperties.groundReflection)
   ) {
-    const f = E(a.groundReflection),
-      t = E(e.groundReflection),
-      s = (i) => (i.strength === 0 || i.mode === "off" ? 0 : i.mode === "all" ? 2 : 1),
-      r = s(f),
-      o = s(t);
-    (o > r &&
-      n.push(o === 2 ? "室内和室外同时反射，需要额外绘制两组倒影。" : "地面反射需要额外绘制倒影。"),
-      o &&
-        t.resolution > 512 &&
-        (t.resolution > f.resolution || !r) &&
-        n.push("高反射清晰度会增加倒影的绘制开销和显存占用。"));
+    const currentReflection = normalizeGroundReflection(currentProperties.groundReflection),
+      nextReflection = normalizeGroundReflection(nextProperties.groundReflection),
+      resolveReflectionLevel = (reflectionSettings) =>
+        reflectionSettings.strength === 0 || reflectionSettings.mode === "off"
+          ? 0
+          : reflectionSettings.mode === "all"
+            ? 2
+            : 1,
+      currentReflectionLevel = resolveReflectionLevel(currentReflection),
+      nextReflectionLevel = resolveReflectionLevel(nextReflection);
+    (nextReflectionLevel > currentReflectionLevel &&
+      warningMessages.push(
+        nextReflectionLevel === 2
+          ? "室内和室外同时反射，需要额外绘制两组倒影。"
+          : "地面反射需要额外绘制倒影。",
+      ),
+      nextReflectionLevel &&
+        nextReflection.resolution > 512 &&
+        (nextReflection.resolution > currentReflection.resolution || !currentReflectionLevel) &&
+        warningMessages.push("高反射清晰度会增加倒影的绘制开销和显存占用。"));
   }
-  return n;
+  return warningMessages;
 }
-export function confirmPerformanceWarning(a, { document: e = document, signal: n } = {}) {
-  return a.length
-    ? n?.aborted
+export function confirmPerformanceWarning(
+  warningLines,
+  { document: contentDocument = document, signal: abortSignal } = {},
+) {
+  return warningLines.length
+    ? abortSignal?.aborted
       ? Promise.resolve(false)
-      : new Promise((f) => {
-          const t = e.createElement("dialog");
-          ((t.className = "settings-dialog i3d-performance-dialog"),
-            t.setAttribute("aria-labelledby", "i3d-performance-title"),
-            t.setAttribute("aria-describedby", "i3d-performance-description"));
-          const s = e.createElement("h2");
-          ((s.id = "i3d-performance-title"), (s.textContent = "画质与流畅度提示"));
-          const r = e.createElement("div");
-          r.id = "i3d-performance-description";
-          for (const d of a) {
-            const b = e.createElement("p");
-            ((b.textContent = d), r.append(b));
+      : new Promise((resolve) => {
+          const dialogElement = contentDocument.createElement("dialog");
+          ((dialogElement.className = "settings-dialog i3d-performance-dialog"),
+            dialogElement.setAttribute("aria-labelledby", "i3d-performance-title"),
+            dialogElement.setAttribute("aria-describedby", "i3d-performance-description"));
+          const titleElement = contentDocument.createElement("h2");
+          ((titleElement.id = "i3d-performance-title"),
+            (titleElement.textContent = "画质与流畅度提示"));
+          const descriptionElement = contentDocument.createElement("div");
+          descriptionElement.id = "i3d-performance-description";
+          for (const warningText of warningLines) {
+            const paragraphElement = contentDocument.createElement("p");
+            ((paragraphElement.textContent = warningText),
+              descriptionElement.append(paragraphElement));
           }
-          const o = e.createElement("p");
-          ((o.className = "i3d-performance-note"),
-            (o.textContent =
+          const noteElement = contentDocument.createElement("p");
+          ((noteElement.className = "i3d-performance-note"),
+            (noteElement.textContent =
               "手机、iPad 或性能较低的设备可能出现掉帧、发热或耗电增加。如果不够流畅，可以降低画质或关闭反射。"),
-            r.append(o));
-          const i = e.createElement("div");
-          i.className = "dialog-actions";
-          const c = e.createElement("button"),
-            l = e.createElement("button");
-          ((c.type = l.type = "button"),
-            (c.textContent = "取消"),
-            (l.textContent = "继续应用"),
-            (l.className = "primary"),
-            i.append(c, l),
-            t.append(s, r, i));
-          let u = false;
-          const m = (d) => {
-              u || ((u = true), n?.removeEventListener("abort", p), t.close(), t.remove(), f(d));
+            descriptionElement.append(noteElement));
+          const actionsElement = contentDocument.createElement("div");
+          actionsElement.className = "dialog-actions";
+          const cancelButton = contentDocument.createElement("button"),
+            confirmButton = contentDocument.createElement("button");
+          ((cancelButton.type = confirmButton.type = "button"),
+            (cancelButton.textContent = "取消"),
+            (confirmButton.textContent = "继续应用"),
+            (confirmButton.className = "primary"),
+            actionsElement.append(cancelButton, confirmButton),
+            dialogElement.append(titleElement, descriptionElement, actionsElement));
+          let isSettled = false;
+          const handleDecision = (shouldApply) => {
+              isSettled ||
+                ((isSettled = true),
+                abortSignal?.removeEventListener("abort", handleCancel),
+                dialogElement.close(),
+                dialogElement.remove(),
+                resolve(shouldApply));
             },
-            p = () => m(false);
-          (c.addEventListener("click", p),
-            l.addEventListener("click", () => m(true)),
-            t.addEventListener("cancel", (d) => {
-              (d.preventDefault(), m(false));
+            handleCancel = () => handleDecision(false);
+          (cancelButton.addEventListener("click", handleCancel),
+            confirmButton.addEventListener("click", () => handleDecision(true)),
+            dialogElement.addEventListener("cancel", (cancelEvent) => {
+              (cancelEvent.preventDefault(), handleDecision(false));
             }),
-            t.addEventListener("close", () => m(false)),
-            n?.addEventListener("abort", p, {
+            dialogElement.addEventListener("close", () => handleDecision(false)),
+            abortSignal?.addEventListener("abort", handleCancel, {
               once: true,
             }),
-            e.body.append(t),
-            t.showModal(),
-            c.focus());
+            contentDocument.body.append(dialogElement),
+            dialogElement.showModal(),
+            cancelButton.focus());
         })
     : Promise.resolve(true);
 }
