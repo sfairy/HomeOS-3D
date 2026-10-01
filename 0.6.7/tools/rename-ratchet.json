@@ -1,10 +1,10 @@
 {
   "version": 1,
   "note": "Single source of truth for the frontend rename/format ceilings. Written ONLY by tools/ratchet_frontend_names.mjs (down-only unless --allow-increase). Read by tools/verify_frontend_batch.sh, tools/verify_0.6.5.sh and tools/verify_all.sh through tools/print_rename_ratchet.mjs, which emits : \"${HB_MAX_*:=n}\" so the environment still overrides every value. Before this file existed the same four numbers were hard-coded in three scripts and had already drifted by 80/2.",
-  "mechanical": 12363,
-  "short": 1456,
+  "mechanical": 0,
+  "short": 3,
   "unformatted": 0,
-  "updatedAt": "2026-10-01T05:49:50.864Z",
+  "updatedAt": "2026-10-01T10:14:41.544Z",
   "history": [
     {
       "at": "2026-09-30T07:35:00+08:00",
@@ -229,6 +229,41 @@
       "short": 1456,
       "unformatted": 0,
       "note": "mechanical 14526 -> 12363, short 1718 -> 1456"
+    },
+    {
+      "at": "2026-10-01T06:02:47.843Z",
+      "mechanical": 11201,
+      "short": 1260,
+      "unformatted": 0,
+      "note": "mechanical 12363 -> 11201, short 1456 -> 1260"
+    },
+    {
+      "at": "2026-10-01T08:28:41.485Z",
+      "mechanical": 10638,
+      "short": 1125,
+      "unformatted": 0,
+      "note": "mechanical 11201 -> 10638, short 1260 -> 1125"
+    },
+    {
+      "at": "2026-10-01T09:21:20.645Z",
+      "mechanical": 8663,
+      "short": 1053,
+      "unformatted": 0,
+      "note": "mechanical 10638 -> 8663, short 1125 -> 1053"
+    },
+    {
+      "at": "2026-10-01T09:25:41.874Z",
+      "mechanical": 8385,
+      "short": 1036,
+      "unformatted": 0,
+      "note": "mechanical 8663 -> 8385, short 1053 -> 1036"
+    },
+    {
+      "at": "2026-10-01T10:14:41.544Z",
+      "mechanical": 0,
+      "short": 3,
+      "unformatted": 0,
+      "note": "mechanical 8385 -> 0, short 1036 -> 3"
     }
   ]
 }
