@@ -4,8 +4,8 @@ import {
 } from "./flow-line-model.js?v=20260930-flow-line-sign-v1";
 import { inspectorComponentMetrics as inspectorComponentMetrics2 } from "./editor-basic-inspectors.js?v=20260901-editor-basic-inspectors-v4";
 import { openFlowLinePathEditor as openFlowLinePathEditor2 } from "./flow-line-editor.js?v=20260930-flow-line-sign-v1";
-const $ = new WeakMap(),
-  v = {
+const inspectorStateByHost = new WeakMap(),
+  numericRangeByProperty = {
     width: [1, 40, 1],
     speed: [0, 500, 1],
     tail: [2, 300, 1],
@@ -15,7 +15,7 @@ const $ = new WeakMap(),
     opacity: [0, 100, 100],
     baseOpacity: [0, 100, 100],
   },
-  P = {
+  geometryRangeByProperty = {
     left: [0, 100],
     top: [0, 100],
     widthPercent: [0.1, 100],
@@ -23,276 +23,329 @@ const $ = new WeakMap(),
     scale: [1, 500],
     rotation: [-360, 360],
   };
-export function flowLineGeometryChange(arg1, arg2, arg3, arg4) {
-  const v1 = inspectorComponentMetrics2(arg1, {
-      canvas: arg2,
+export function flowLineGeometryChange(
+  geometryComponent,
+  documentCanvas,
+  geometryProperty,
+  numericValue,
+) {
+  const componentMetrics = inspectorComponentMetrics2(geometryComponent, {
+      canvas: documentCanvas,
     }),
-    options = arg1.position || {},
-    num = Number(arg2?.width) || 2778,
-    num2 = Number(arg2?.height) || 1940,
-    v2 = Number(options.x || 0) + v1.width / 2,
-    v3 = Number(options.y || 0) + v1.height / 2;
-  return arg3 === "left"
+    options = geometryComponent.position || {},
+    num = Number(documentCanvas?.width) || 2778,
+    canvasHeightPx = Number(documentCanvas?.height) || 1940,
+    centerXPx = Number(options.x || 0) + componentMetrics.width / 2,
+    centerYPx = Number(options.y || 0) + componentMetrics.height / 2;
+  return geometryProperty === "left"
     ? {
         position: {
-          x: (num * arg4) / 100 - v1.width / 2,
+          x: (num * numericValue) / 100 - componentMetrics.width / 2,
         },
       }
-    : arg3 === "top"
+    : geometryProperty === "top"
       ? {
           position: {
-            y: (num2 * arg4) / 100 - v1.height / 2,
+            y: (canvasHeightPx * numericValue) / 100 - componentMetrics.height / 2,
           },
         }
-      : arg3 === "widthPercent"
+      : geometryProperty === "widthPercent"
         ? {
             position: {
-              x: v2 - (num * arg4) / 200,
-              width: (num * arg4) / 100,
+              x: centerXPx - (num * numericValue) / 200,
+              width: (num * numericValue) / 100,
             },
           }
-        : arg3 === "heightPercent"
+        : geometryProperty === "heightPercent"
           ? {
               position: {
-                y: v3 - (num2 * arg4) / 200,
-                height: (num2 * arg4) / 100,
+                y: centerYPx - (canvasHeightPx * numericValue) / 200,
+                height: (canvasHeightPx * numericValue) / 100,
               },
             }
-          : arg3 === "scale"
+          : geometryProperty === "scale"
             ? {
                 style: {
-                  scale: arg4 / 100,
+                  scale: numericValue / 100,
                 },
               }
             : {
                 position: {
-                  rotation: arg4,
+                  rotation: numericValue,
                 },
               };
 }
-export function renderFlowLineInspector(arg5, arg6, arg7) {
-  let v4 = $.get(arg5);
-  if (!v4) {
+export function renderFlowLineInspector(hostElement, inspectorComponent, inspectorOptions) {
+  let inspectorState = inspectorStateByHost.get(hostElement);
+  if (!inspectorState) {
     const element = document.createElement("form");
     ((element.id = "flow-line-inspector"),
       (element.className = "inspector-form"),
-      arg5.append(element),
-      (v4 = {
+      hostElement.append(element),
+      (inspectorState = {
         form: element,
         fields: new Map(),
         component: null,
         options: null,
       }),
-      $.set(arg5, v4));
-    const v5 = (arg8) => {
-        const element2 = document.createElement("section");
-        element2.className = "inspector-section";
-        const element3 = document.createElement("h3");
+      inspectorStateByHost.set(hostElement, inspectorState));
+    const createInspectorSection = (sectionTitle) => {
+        const sectionElement = document.createElement("section");
+        sectionElement.className = "inspector-section";
+        const headingElement = document.createElement("h3");
         return (
-          (element3.textContent = arg8),
-          element2.append(element3),
-          element.append(element2),
-          element2
+          (headingElement.textContent = sectionTitle),
+          sectionElement.append(headingElement),
+          element.append(sectionElement),
+          sectionElement
         );
       },
-      v6 = (arg9) => {
-        const element4 = document.createElement("div");
+      createInspectorGrid = (sectionContainer) => {
+        const gridElement = document.createElement("div");
         return (
-          (element4.className = "inspector-grid two-columns"),
-          arg9.append(element4),
-          element4
+          (gridElement.className = "inspector-grid two-columns"),
+          sectionContainer.append(gridElement),
+          gridElement
         );
       },
-      v7 = (arg10, arg11, arg12, v8 = "number", v9 = []) => {
-        const element5 = document.createElement("label");
-        element5.append(document.createTextNode(arg12));
-        const element6 = document.createElement(v8 === "select" ? "select" : "input");
-        if (((element6.id = "flow-line-" + arg11), (element6.name = arg11), v8 === "select"))
-          for (const [v10, v11] of v9) {
-            const element7 = document.createElement("option");
-            ((element7.value = v10), (element7.textContent = v11), element6.append(element7));
+      createInspectorField = (
+        fieldContainer,
+        controlKey,
+        fieldLabel,
+        controlType = "number",
+        selectOptions = [],
+      ) => {
+        const fieldLabelElement = document.createElement("label");
+        fieldLabelElement.append(document.createTextNode(fieldLabel));
+        const controlElement = document.createElement(
+          controlType === "select" ? "select" : "input",
+        );
+        if (
+          ((controlElement.id = "flow-line-" + controlKey),
+          (controlElement.name = controlKey),
+          controlType === "select")
+        )
+          for (const [optionValue, optionLabel] of selectOptions) {
+            const optionElement = document.createElement("option");
+            ((optionElement.value = optionValue),
+              (optionElement.textContent = optionLabel),
+              controlElement.append(optionElement));
           }
-        else element6.type = v8;
-        if (v8 === "number") {
-          const v12 = v[arg11] || P[arg11];
-          ((element6.min = v12[0]),
-            (element6.max = v12[1]),
-            (element6.step = v[arg11] ? "1" : "0.1"));
+        else controlElement.type = controlType;
+        if (controlType === "number") {
+          const fieldRange =
+            numericRangeByProperty[controlKey] || geometryRangeByProperty[controlKey];
+          ((controlElement.min = fieldRange[0]),
+            (controlElement.max = fieldRange[1]),
+            (controlElement.step = numericRangeByProperty[controlKey] ? "1" : "0.1"));
         }
         return (
-          v8 === "text" && (element6.maxLength = 128),
-          element5.append(element6),
-          arg10.append(element5),
-          v4.fields.set(arg11, element6),
-          element6
+          controlType === "text" && (controlElement.maxLength = 128),
+          fieldLabelElement.append(controlElement),
+          fieldContainer.append(fieldLabelElement),
+          inspectorState.fields.set(controlKey, controlElement),
+          controlElement
         );
       },
-      v13 = v6(v5("基础")),
-      v14 = v7(v13, "type", "类型", "text");
-    ((v14.readOnly = true), (v14.value = "流水线条"), v7(v13, "label", "备注 / 名称", "text"));
-    const v15 = v5("路径"),
-      element8 = document.createElement("button");
-    ((element8.type = "button"),
-      (element8.textContent = "绘制 / 编辑路径"),
-      (element8.dataset.flowPathEditor = ""),
-      v15.append(element8),
-      (v4.count = document.createElement("p")),
-      (v4.count.className = "field-note"),
-      v15.append(v4.count),
-      (element8.onclick = () => {
-        const component = v4.component,
-          options2 = v4.options;
+      basicSection = createInspectorGrid(createInspectorSection("基础")),
+      typeControlElement = createInspectorField(basicSection, "type", "类型", "text");
+    ((typeControlElement.readOnly = true),
+      (typeControlElement.value = "流水线条"),
+      createInspectorField(basicSection, "label", "备注 / 名称", "text"));
+    const pathSection = createInspectorSection("路径"),
+      editPathButton = document.createElement("button");
+    ((editPathButton.type = "button"),
+      (editPathButton.textContent = "绘制 / 编辑路径"),
+      (editPathButton.dataset.flowPathEditor = ""),
+      pathSection.append(editPathButton),
+      (inspectorState.count = document.createElement("p")),
+      (inspectorState.count.className = "field-note"),
+      pathSection.append(inspectorState.count),
+      (editPathButton.onclick = () => {
+        const component = inspectorState.component,
+          pathEditorOptions = inspectorState.options;
         if (component)
           try {
             openFlowLinePathEditor2(component, {
-              ...options2.pathEditorContext?.(),
-              onSave: (arg13) => options2.onChange(component.id, arg13),
-              onError: options2.onError,
+              ...pathEditorOptions.pathEditorContext?.(),
+              onSave: (savedPath) => pathEditorOptions.onChange(component.id, savedPath),
+              onError: pathEditorOptions.onError,
             });
-          } catch (v16) {
-            options2.onError?.(v16);
+          } catch (caughtError) {
+            pathEditorOptions.onError?.(caughtError);
           }
       }));
-    const v17 = v6(v15);
-    (v7(v17, "shape", "路径形态", "select", [
+    const pathGrid = createInspectorGrid(pathSection);
+    (createInspectorField(pathGrid, "shape", "路径形态", "select", [
       ["straight", "折线"],
       ["rounded", "圆角"],
       ["curve", "曲线"],
     ]),
-      v7(v17, "radius", "转角半径"));
-    const v18 = v5("效果"),
-      v19 = v6(v18);
-    (v7(v19, "effect", "效果风格", "select", [
+      createInspectorField(pathGrid, "radius", "转角半径"));
+    const effectSection = createInspectorSection("效果"),
+      effectGrid = createInspectorGrid(effectSection);
+    (createInspectorField(effectGrid, "effect", "效果风格", "select", [
       ["water", "水流"],
       ["energy", "能量"],
     ]),
-      v7(v19, "opacity", "整体透明度（%）"));
-    const v20 = (arg14, arg15, arg16, v21 = "显示", v22 = "隐藏") => {
-        const element9 = document.createElement("div");
-        ((element9.className = "navigation-property-group"), arg14.append(element9));
-        const element10 = document.createElement("div");
-        ((element10.className = "navigation-property-heading"), element9.append(element10));
-        const element11 = document.createElement("strong");
-        if (((element11.textContent = arg15), element10.append(element11), arg16)) {
-          const element12 = document.createElement("button");
-          ((element12.type = "button"),
-            (element12.id = "flow-line-" + arg16),
-            (element12.className = "inspector-visibility-toggle compact"),
-            (element12.dataset.onLabel = v21),
-            (element12.dataset.offLabel = v22),
-            element12.setAttribute("aria-label", arg15),
-            element10.append(element12),
-            v4.fields.set(arg16, element12),
-            (element12.onclick = () => {
-              const component2 = v4.component,
-                options3 = v4.options;
+      createInspectorField(effectGrid, "opacity", "整体透明度（%）"));
+    const createPropertyGroup = (
+        groupContainer,
+        groupLabel,
+        visibilityKey,
+        enabledLabel = "显示",
+        disabledLabel = "隐藏",
+      ) => {
+        const propertyGroupElement = document.createElement("div");
+        ((propertyGroupElement.className = "navigation-property-group"),
+          groupContainer.append(propertyGroupElement));
+        const headingWrapper = document.createElement("div");
+        ((headingWrapper.className = "navigation-property-heading"),
+          propertyGroupElement.append(headingWrapper));
+        const headingTitle = document.createElement("strong");
+        if (
+          ((headingTitle.textContent = groupLabel),
+          headingWrapper.append(headingTitle),
+          visibilityKey)
+        ) {
+          const visibilityToggle = document.createElement("button");
+          ((visibilityToggle.type = "button"),
+            (visibilityToggle.id = "flow-line-" + visibilityKey),
+            (visibilityToggle.className = "inspector-visibility-toggle compact"),
+            (visibilityToggle.dataset.onLabel = enabledLabel),
+            (visibilityToggle.dataset.offLabel = disabledLabel),
+            visibilityToggle.setAttribute("aria-label", groupLabel),
+            headingWrapper.append(visibilityToggle),
+            inspectorState.fields.set(visibilityKey, visibilityToggle),
+            (visibilityToggle.onclick = () => {
+              const component2 = inspectorState.component,
+                visibilityOptions = inspectorState.options;
               component2 &&
                 Promise.resolve(
-                  options3.onChange(component2.id, {
+                  visibilityOptions.onChange(component2.id, {
                     properties: {
-                      [arg16]: !normalizeFlowLine2(component2.properties)[arg16],
+                      [visibilityKey]: !normalizeFlowLine2(component2.properties)[visibilityKey],
                     },
                   }),
-                ).catch((arg17) => options3.onError?.(arg17));
+                ).catch((toggleError) => visibilityOptions.onError?.(toggleError));
             }));
         }
-        return v6(element9);
+        return createInspectorGrid(propertyGroupElement);
       },
-      v23 = v20(v18, "流光");
-    (v7(v23, "color", "颜色", "color"),
-      v7(v23, "width", "线宽"),
-      v7(v23, "tail", "光尾长度"),
-      v7(v23, "glow", "发光强度（%）"));
-    const v24 = v20(v18, "底线", "baseVisible");
-    (v7(v24, "baseColor", "颜色", "color"), v7(v24, "baseOpacity", "透明度（%）"));
-    const v25 = v20(v18, "光点", "headVisible");
-    (v7(v25, "headColor", "颜色", "color"), v7(v25, "spacing", "光点间距"));
-    const v26 = v20(v18, "流动动画", "animated", "开启", "关闭");
-    v7(v26, "controlMode", "控制方式", "select", [
+      glowGrid = createPropertyGroup(effectSection, "流光");
+    (createInspectorField(glowGrid, "color", "颜色", "color"),
+      createInspectorField(glowGrid, "width", "线宽"),
+      createInspectorField(glowGrid, "tail", "光尾长度"),
+      createInspectorField(glowGrid, "glow", "发光强度（%）"));
+    const baseLineGrid = createPropertyGroup(effectSection, "底线", "baseVisible");
+    (createInspectorField(baseLineGrid, "baseColor", "颜色", "color"),
+      createInspectorField(baseLineGrid, "baseOpacity", "透明度（%）"));
+    const headDotGrid = createPropertyGroup(effectSection, "光点", "headVisible");
+    (createInspectorField(headDotGrid, "headColor", "颜色", "color"),
+      createInspectorField(headDotGrid, "spacing", "光点间距"));
+    const animationGrid = createPropertyGroup(
+      effectSection,
+      "流动动画",
+      "animated",
+      "开启",
+      "关闭",
+    );
+    createInspectorField(animationGrid, "controlMode", "控制方式", "select", [
       ["manual", "手动"],
       ["entity-sign", "实体自动"],
     ]);
-    const element13 = document.createElement("label");
-    ((element13.textContent = "数值实体"), v26.append(element13), (v4.entityLabel = element13));
-    const element14 = document.createElement("button");
-    ((element14.type = "button"),
-      (element14.className = "inspector-picker-button"),
-      (element14.id = "flow-line-entity"),
-      element13.append(element14),
-      (v4.entityButton = element14),
-      (element14.onclick = () => {
-        const component3 = v4.component,
-          options4 = v4.options;
+    const entityPickerLabel = document.createElement("label");
+    ((entityPickerLabel.textContent = "数值实体"),
+      animationGrid.append(entityPickerLabel),
+      (inspectorState.entityLabel = entityPickerLabel));
+    const entityPickerButton = document.createElement("button");
+    ((entityPickerButton.type = "button"),
+      (entityPickerButton.className = "inspector-picker-button"),
+      (entityPickerButton.id = "flow-line-entity"),
+      entityPickerLabel.append(entityPickerButton),
+      (inspectorState.entityButton = entityPickerButton),
+      (entityPickerButton.onclick = () => {
+        const component3 = inspectorState.component,
+          entityPickerOptions = inspectorState.options;
         component3 &&
           Promise.resolve(
-            options4.pickEntity?.(element14, component3.bindings?.entity?.entityId || "", (arg18) =>
-              options4.onChange(component3.id, {
-                bindings: {
-                  entity: {
-                    entityId: arg18 || null,
+            entityPickerOptions.pickEntity?.(
+              entityPickerButton,
+              component3.bindings?.entity?.entityId || "",
+              (selectedEntityId) =>
+                entityPickerOptions.onChange(component3.id, {
+                  bindings: {
+                    entity: {
+                      entityId: selectedEntityId || null,
+                    },
                   },
-                },
-              }),
+                }),
             ),
-          ).catch((arg19) => options4.onError?.(arg19));
+          ).catch((entityPickerError) => entityPickerOptions.onError?.(entityPickerError));
       }),
-      (v4.directionLabel = v7(v26, "direction", "方向", "select", [
-        ["1", "正向"],
-        ["-1", "反向"],
-      ]).parentElement),
-      v7(v26, "speed", "流速"),
-      (v4.motionNote = document.createElement("p")),
-      (v4.motionNote.className = "field-note"),
-      v18.append(v4.motionNote));
-    const v27 = v6(v5("位置"));
-    for (const [v28, v29] of [
+      (inspectorState.directionLabel = createInspectorField(
+        animationGrid,
+        "direction",
+        "方向",
+        "select",
+        [
+          ["1", "正向"],
+          ["-1", "反向"],
+        ],
+      ).parentElement),
+      createInspectorField(animationGrid, "speed", "流速"),
+      (inspectorState.motionNote = document.createElement("p")),
+      (inspectorState.motionNote.className = "field-note"),
+      effectSection.append(inspectorState.motionNote));
+    const positionGrid = createInspectorGrid(createInspectorSection("位置"));
+    for (const [positionKey, positionLabel] of [
       ["left", "左侧（%）"],
       ["top", "顶部（%）"],
     ])
-      v7(v27, v28, v29);
-    const v30 = v6(v5("尺寸与变换"));
-    for (const [v31, v32] of [
+      createInspectorField(positionGrid, positionKey, positionLabel);
+    const sizeTransformGrid = createInspectorGrid(createInspectorSection("尺寸与变换"));
+    for (const [transformKey, transformLabel] of [
       ["widthPercent", "宽度（%）"],
       ["heightPercent", "高度（%）"],
       ["scale", "缩放（%）"],
       ["rotation", "旋转（°）"],
     ])
-      v7(v30, v31, v32);
-    const element15 = v5("批量应用");
-    (element15.classList.add("navigation-batch-section"),
-      (v4.applyCount = document.createElement("span")),
-      (v4.applyCount.id = "flow-line-apply-count"),
-      element15.querySelector("h3").append(" ", v4.applyCount));
-    const element16 = document.createElement("button");
-    ((element16.type = "button"),
-      (element16.id = "flow-line-apply-style"),
-      (element16.textContent = "一键应用到同类型控件"),
-      (element16.onclick = () => v4.options.onApplyStyle?.()),
-      element15.append(element16),
-      (v4.apply = element16),
-      element.addEventListener("submit", (arg20) => arg20.preventDefault()));
-    const v33 = (arg21, arg22) => {
-      const target = arg21.target,
-        v34 = target.name,
-        component4 = v4.component,
-        options5 = v4.options;
-      if (!component4 || !v4.fields.has(v34) || v34 === "type") return;
+      createInspectorField(sizeTransformGrid, transformKey, transformLabel);
+    const batchSection = createInspectorSection("批量应用");
+    (batchSection.classList.add("navigation-batch-section"),
+      (inspectorState.applyCount = document.createElement("span")),
+      (inspectorState.applyCount.id = "flow-line-apply-count"),
+      batchSection.querySelector("h3").append(" ", inspectorState.applyCount));
+    const applyStyleButton = document.createElement("button");
+    ((applyStyleButton.type = "button"),
+      (applyStyleButton.id = "flow-line-apply-style"),
+      (applyStyleButton.textContent = "一键应用到同类型控件"),
+      (applyStyleButton.onclick = () => inspectorState.options.onApplyStyle?.()),
+      batchSection.append(applyStyleButton),
+      (inspectorState.apply = applyStyleButton),
+      element.addEventListener("submit", (submitEvent) => submitEvent.preventDefault()));
+    const handleFieldChange = (changeEvent, isPreview) => {
+      const target = changeEvent.target,
+        fieldName = target.name,
+        component4 = inspectorState.component,
+        changeOptions = inspectorState.options;
+      if (!component4 || !inspectorState.fields.has(fieldName) || fieldName === "type") return;
       let checked = target.type === "checkbox" ? target.checked : target.value,
-        v35;
-      if (v[v34] || P[v34]) {
+        changePayload;
+      if (numericRangeByProperty[fieldName] || geometryRangeByProperty[fieldName]) {
         if (checked === "" || !Number.isFinite(Number(checked))) return;
-        const v36 = v[v34] || P[v34];
-        ((checked = flowClamp2(checked, v36[0], v36[1])),
-          (v35 = P[v34]
-            ? flowLineGeometryChange(component4, options5.document?.canvas, v34, checked)
+        const clampRange = numericRangeByProperty[fieldName] || geometryRangeByProperty[fieldName];
+        ((checked = flowClamp2(checked, clampRange[0], clampRange[1])),
+          (changePayload = geometryRangeByProperty[fieldName]
+            ? flowLineGeometryChange(component4, changeOptions.document?.canvas, fieldName, checked)
             : {
                 properties: {
-                  [v34]: checked / (v36[2] || 1),
+                  [fieldName]: checked / (clampRange[2] || 1),
                 },
               }));
       } else
-        v34 === "effect"
-          ? (v35 = {
+        fieldName === "effect"
+          ? (changePayload = {
               properties:
                 checked === "energy"
                   ? {
@@ -316,82 +369,96 @@ export function renderFlowLineInspector(arg5, arg6, arg7) {
                       glow: 55,
                     },
             })
-          : (v35 = {
+          : (changePayload = {
               properties: {
-                [v34]: v34 === "direction" ? Number(checked) : checked,
+                [fieldName]: fieldName === "direction" ? Number(checked) : checked,
               },
             });
-      arg22
-        ? options5.onPreview?.(component4.id, v35)
-        : Promise.resolve(options5.onChange(component4.id, v35)).catch((arg23) =>
-            options5.onError?.(arg23),
+      isPreview
+        ? changeOptions.onPreview?.(component4.id, changePayload)
+        : Promise.resolve(changeOptions.onChange(component4.id, changePayload)).catch(
+            (changeError) => changeOptions.onError?.(changeError),
           );
     };
-    (element.addEventListener("input", (arg24) => v33(arg24, true)),
-      element.addEventListener("change", (arg25) => v33(arg25, false)),
-      arg7.enhanceControls?.(element));
+    (element.addEventListener("input", (inputEvent) => handleFieldChange(inputEvent, true)),
+      element.addEventListener("change", (fieldChangeEvent) =>
+        handleFieldChange(fieldChangeEvent, false),
+      ),
+      inspectorOptions.enhanceControls?.(element));
   }
   if (
-    ((v4.component = arg6),
-    (v4.options = arg7),
-    (v4.form.hidden = arg6?.type !== "flow-line"),
-    v4.form.hidden)
+    ((inspectorState.component = inspectorComponent),
+    (inspectorState.options = inspectorOptions),
+    (inspectorState.form.hidden = inspectorComponent?.type !== "flow-line"),
+    inspectorState.form.hidden)
   )
     return;
-  v4.form.dataset.componentId = arg6.id;
-  const v37 = normalizeFlowLine2(arg6.properties),
-    v38 = inspectorComponentMetrics2(arg6, arg7.document);
-  for (const [v39, element17] of v4.fields) {
-    if (v39 === "type") continue;
+  inspectorState.form.dataset.componentId = inspectorComponent.id;
+  const normalizedProperties = normalizeFlowLine2(inspectorComponent.properties),
+    currentMetrics = inspectorComponentMetrics2(inspectorComponent, inspectorOptions.document);
+  for (const [fieldKey, fieldControl] of inspectorState.fields) {
+    if (fieldKey === "type") continue;
     const text =
-      v39 === "label"
-        ? arg6.properties?.label || arg6.properties?.instanceName || ""
-        : P[v39]
-          ? v38[v39]
-          : v[v39]
-            ? v37[v39] * (v[v39][2] || 1)
-            : v37[v39];
-    element17.tagName === "BUTTON"
-      ? (element17.setAttribute("aria-pressed", String(text)),
-        (element17.textContent = text ? element17.dataset.onLabel : element17.dataset.offLabel))
-      : (element17.value = text);
+      fieldKey === "label"
+        ? inspectorComponent.properties?.label || inspectorComponent.properties?.instanceName || ""
+        : geometryRangeByProperty[fieldKey]
+          ? currentMetrics[fieldKey]
+          : numericRangeByProperty[fieldKey]
+            ? normalizedProperties[fieldKey] * (numericRangeByProperty[fieldKey][2] || 1)
+            : normalizedProperties[fieldKey];
+    fieldControl.tagName === "BUTTON"
+      ? (fieldControl.setAttribute("aria-pressed", String(text)),
+        (fieldControl.textContent = text
+          ? fieldControl.dataset.onLabel
+          : fieldControl.dataset.offLabel))
+      : (fieldControl.value = text);
   }
-  v4.count.textContent = v37.points.length + " 个节点 · 拖动时按 Shift 锁轴";
-  const text2 = arg6.bindings?.entity?.entityId || "",
-    v40 = arg7.entities?.find((arg26) => arg26.entityId === text2);
-  ((v4.entityLabel.hidden = v37.controlMode !== "entity-sign"),
-    (v4.directionLabel.hidden = v37.controlMode === "entity-sign"),
-    (v4.entityButton.textContent = v40?.name || text2 || "选择数值实体"),
-    (v4.entityButton.title = text2),
-    (v4.motionNote.hidden = v37.controlMode !== "entity-sign"),
-    (v4.motionNote.textContent =
+  inspectorState.count.textContent =
+    normalizedProperties.points.length + " 个节点 · 拖动时按 Shift 锁轴";
+  const boundEntityId = inspectorComponent.bindings?.entity?.entityId || "",
+    boundEntity = inspectorOptions.entities?.find(
+      (candidateEntity) => candidateEntity.entityId === boundEntityId,
+    );
+  ((inspectorState.entityLabel.hidden = normalizedProperties.controlMode !== "entity-sign"),
+    (inspectorState.directionLabel.hidden = normalizedProperties.controlMode === "entity-sign"),
+    (inspectorState.entityButton.textContent =
+      boundEntity?.name || boundEntityId || "选择数值实体"),
+    (inspectorState.entityButton.title = boundEntityId),
+    (inspectorState.motionNote.hidden = normalizedProperties.controlMode !== "entity-sign"),
+    (inspectorState.motionNote.textContent =
       "绑定后自动读取：正数从路径起点流向终点，负数反向，0 或不可用时只显示底线。"),
-    (v4.applyCount.textContent = (arg7.styleChangeCount || 0) + " 项修改"),
-    (v4.apply.disabled = !arg7.hasStyleChanges));
-  for (const v41 of ["widthPercent", "heightPercent"])
-    v4.fields.get(v41).disabled = !!arg7.multipleSelected;
-  arg7.syncControls?.(v4.form);
+    (inspectorState.applyCount.textContent = (inspectorOptions.styleChangeCount || 0) + " 项修改"),
+    (inspectorState.apply.disabled = !inspectorOptions.hasStyleChanges));
+  for (const percentFieldKey of ["widthPercent", "heightPercent"])
+    inspectorState.fields.get(percentFieldKey).disabled = !!inspectorOptions.multipleSelected;
+  inspectorOptions.syncControls?.(inspectorState.form);
 }
-export function previewFlowLineInspectorTransform(arg27, arg28, arg29, arg30) {
-  const v42 = $.get(arg27);
-  if (!v42 || v42.form.hidden) return;
-  const options6 = {
-      ...arg28,
+export function previewFlowLineInspectorTransform(
+  previewHostElement,
+  componentOptions,
+  canvasElement,
+  transformDelta,
+) {
+  const activeInspectorState = inspectorStateByHost.get(previewHostElement);
+  if (!activeInspectorState || activeInspectorState.form.hidden) return;
+  const previewOptions = {
+      ...componentOptions,
       position: {
-        ...arg28.position,
-        ...arg30,
+        ...componentOptions.position,
+        ...transformDelta,
       },
       style: {
-        ...arg28.style,
-        ...(Number.isFinite(arg30.scale)
+        ...componentOptions.style,
+        ...(Number.isFinite(transformDelta.scale)
           ? {
-              scale: arg30.scale,
+              scale: transformDelta.scale,
             }
           : {}),
       },
     },
-    v43 = inspectorComponentMetrics2(options6, {
-      canvas: arg29,
+    previewMetrics = inspectorComponentMetrics2(previewOptions, {
+      canvas: canvasElement,
     });
-  for (const v44 of Object.keys(P)) v42.fields.get(v44).value = v43[v44];
+  for (const geometryKey of Object.keys(geometryRangeByProperty))
+    activeInspectorState.fields.get(geometryKey).value = previewMetrics[geometryKey];
 }

@@ -41,59 +41,74 @@ export const FLOW_LINE_DEFAULTS = Object.freeze({
     animated: "流动动画",
     radius: "转角半径",
   };
-const y = (arg1, arg2) =>
-  Number.isFinite(Number(arg1)) && arg1 !== null && arg1 !== "" ? Number(arg1) : arg2;
-export const flowClamp = (arg3, arg4, arg5, v1 = arg4) =>
-  Math.max(arg4, Math.min(arg5, y(arg3, v1)));
-const b = (arg6, arg7) => (/^#[\da-f]{6}$/i.test(String(arg6)) ? arg6 : arg7);
-export function normalizeFlowLine(v2 = {}) {
+const toFiniteNumber = (inputValue, fallbackValue) =>
+  Number.isFinite(Number(inputValue)) && inputValue !== null && inputValue !== ""
+    ? Number(inputValue)
+    : fallbackValue;
+export const flowClamp = (valueToClamp, minValue, maxValue, nonFiniteFallback = minValue) =>
+  Math.max(minValue, Math.min(maxValue, toFiniteNumber(valueToClamp, nonFiniteFallback)));
+const sanitizeHexColor = (candidateColor, fallbackColor) =>
+  /^#[\da-f]{6}$/i.test(String(candidateColor)) ? candidateColor : fallbackColor;
+export function normalizeFlowLine(rawConfig = {}) {
   const FLOW_LINE_DEFAULTS2 = FLOW_LINE_DEFAULTS,
-    v3 = v2,
-    map = Array.isArray(v3.points)
-      ? v3.points
+    config = rawConfig,
+    map = Array.isArray(config.points)
+      ? config.points
           .slice(0, 256)
           .filter(
-            (arg8) =>
-              Array.isArray(arg8) &&
-              arg8.length >= 2 &&
-              arg8.slice(0, 2).every((arg9) => typeof arg9 == "number" && Number.isFinite(arg9)),
+            (rawPointPair) =>
+              Array.isArray(rawPointPair) &&
+              rawPointPair.length >= 2 &&
+              rawPointPair
+                .slice(0, 2)
+                .every(
+                  (coordinateValue) =>
+                    typeof coordinateValue == "number" && Number.isFinite(coordinateValue),
+                ),
           )
-          .map((arg10) => arg10.slice(0, 2).map((arg11) => flowClamp(arg11, 0, 1)))
-      : FLOW_LINE_DEFAULTS2.points.map((arg12) => [...arg12]);
+          .map((pointPair) =>
+            pointPair.slice(0, 2).map((clampedCoordinate) => flowClamp(clampedCoordinate, 0, 1)),
+          )
+      : FLOW_LINE_DEFAULTS2.points.map((defaultPoint) => [...defaultPoint]);
   return {
-    effect: v3.effect === "energy" ? "energy" : "water",
-    shape: ["straight", "rounded", "curve"].includes(v3.shape)
-      ? v3.shape
+    effect: config.effect === "energy" ? "energy" : "water",
+    shape: ["straight", "rounded", "curve"].includes(config.shape)
+      ? config.shape
       : FLOW_LINE_DEFAULTS2.shape,
     points: map,
-    color: b(v3.color, FLOW_LINE_DEFAULTS2.color),
-    headColor: b(v3.headColor, FLOW_LINE_DEFAULTS2.headColor),
-    baseColor: b(v3.baseColor, FLOW_LINE_DEFAULTS2.baseColor),
-    width: flowClamp(v3.width, 1, 40, FLOW_LINE_DEFAULTS2.width),
-    speed: flowClamp(v3.speed, 0, 500, FLOW_LINE_DEFAULTS2.speed),
-    direction: Number(v3.direction) === -1 ? -1 : 1,
-    controlMode: v3.controlMode === "entity-sign" ? "entity-sign" : "manual",
-    tail: flowClamp(v3.tail, 2, 300, FLOW_LINE_DEFAULTS2.tail),
-    spacing: flowClamp(v3.spacing, 10, 600, FLOW_LINE_DEFAULTS2.spacing),
-    glow: flowClamp(v3.glow, 0, 100, FLOW_LINE_DEFAULTS2.glow),
-    opacity: flowClamp(v3.opacity, 0, 1, FLOW_LINE_DEFAULTS2.opacity),
-    baseOpacity: flowClamp(v3.baseOpacity, 0, 1, FLOW_LINE_DEFAULTS2.baseOpacity),
-    radius: flowClamp(v3.radius, 0, 150, FLOW_LINE_DEFAULTS2.radius),
-    baseVisible: v3.baseVisible !== false,
-    headVisible: v3.headVisible !== false,
-    animated: v3.animated !== false,
+    color: sanitizeHexColor(config.color, FLOW_LINE_DEFAULTS2.color),
+    headColor: sanitizeHexColor(config.headColor, FLOW_LINE_DEFAULTS2.headColor),
+    baseColor: sanitizeHexColor(config.baseColor, FLOW_LINE_DEFAULTS2.baseColor),
+    width: flowClamp(config.width, 1, 40, FLOW_LINE_DEFAULTS2.width),
+    speed: flowClamp(config.speed, 0, 500, FLOW_LINE_DEFAULTS2.speed),
+    direction: Number(config.direction) === -1 ? -1 : 1,
+    controlMode: config.controlMode === "entity-sign" ? "entity-sign" : "manual",
+    tail: flowClamp(config.tail, 2, 300, FLOW_LINE_DEFAULTS2.tail),
+    spacing: flowClamp(config.spacing, 10, 600, FLOW_LINE_DEFAULTS2.spacing),
+    glow: flowClamp(config.glow, 0, 100, FLOW_LINE_DEFAULTS2.glow),
+    opacity: flowClamp(config.opacity, 0, 1, FLOW_LINE_DEFAULTS2.opacity),
+    baseOpacity: flowClamp(config.baseOpacity, 0, 1, FLOW_LINE_DEFAULTS2.baseOpacity),
+    radius: flowClamp(config.radius, 0, 150, FLOW_LINE_DEFAULTS2.radius),
+    baseVisible: config.baseVisible !== false,
+    headVisible: config.headVisible !== false,
+    animated: config.animated !== false,
   };
 }
-export function flowLineMotion(arg13, arg14) {
-  const normalizeFlowLine2 = normalizeFlowLine(arg13),
-    v4 = arg14?.newState || arg14;
+export function flowLineMotion(inputConfig, stateEvent) {
+  const normalizeFlowLine2 = normalizeFlowLine(inputConfig),
+    resolvedState = stateEvent?.newState || stateEvent;
   let num = 1;
   if (normalizeFlowLine2.controlMode === "entity-sign") {
-    const v5 = v4?.state,
-      trim = typeof v5 == "number" || typeof v5 == "string" ? String(v5).trim() : "",
+    const rawStateValue = resolvedState?.state,
+      trim =
+        typeof rawStateValue == "number" || typeof rawStateValue == "string"
+          ? String(rawStateValue).trim()
+          : "",
       NaN2 = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(trim) ? Number(trim) : NaN;
     num =
-      v4?.available === false || arg14?.available === false || !Number.isFinite(NaN2)
+      resolvedState?.available === false ||
+      stateEvent?.available === false ||
+      !Number.isFinite(NaN2)
         ? 0
         : Math.sign(NaN2);
   }
@@ -103,100 +118,146 @@ export function flowLineMotion(arg13, arg14) {
     running: normalizeFlowLine2.animated && normalizeFlowLine2.speed > 0 && num !== 0,
   };
 }
-export function constrainFlowPoint(arg15, arg16, arg17, v6 = null, v7 = [1, 1]) {
-  const map2 = arg15.map((arg18) => flowClamp(arg18, 0, 1));
-  if (!arg17 || !arg16)
+export function constrainFlowPoint(
+  inputPoint,
+  anchorPoint,
+  shouldConstrain,
+  lockedAxis = null,
+  axisWeights = [1, 1],
+) {
+  const clampedPoint = inputPoint.map((pointCoordinate) => flowClamp(pointCoordinate, 0, 1));
+  if (!shouldConstrain || !anchorPoint)
     return {
-      point: map2,
+      point: clampedPoint,
       axis: null,
     };
-  const abs = Math.abs(map2[0] - arg16[0]),
-    abs2 = Math.abs(map2[1] - arg16[1]);
-  return !v6 && Math.max(abs, abs2) < 0.003
+  const abs = Math.abs(clampedPoint[0] - anchorPoint[0]),
+    abs2 = Math.abs(clampedPoint[1] - anchorPoint[1]);
+  return !lockedAxis && Math.max(abs, abs2) < 0.003
     ? {
-        point: [...arg16],
+        point: [...anchorPoint],
         axis: null,
       }
-    : ((v6 ||= abs * v7[0] >= abs2 * v7[1] ? "x" : "y"),
+    : ((lockedAxis ||= abs * axisWeights[0] >= abs2 * axisWeights[1] ? "x" : "y"),
       {
-        point: v6 === "x" ? [map2[0], arg16[1]] : [arg16[0], map2[1]],
-        axis: v6,
+        point:
+          lockedAxis === "x"
+            ? [clampedPoint[0], anchorPoint[1]]
+            : [anchorPoint[0], clampedPoint[1]],
+        axis: lockedAxis,
       });
 }
-export function flowLinePath(arg19, v8 = "rounded", v9 = 900, v10 = 520, v11 = 28) {
-  const map3 = arg19.map(([v12, v13]) => [v12 * v9, v13 * v10]);
-  if (!map3.length) return "";
-  let v14 = "M " + map3[0];
-  if (map3.length < 2) return v14;
-  if (v8 === "straight")
+export function flowLinePath(
+  normalizedPoints,
+  shape = "rounded",
+  canvasWidth = 900,
+  canvasHeight = 520,
+  cornerRadius = 28,
+) {
+  const scaledPoints = normalizedPoints.map(([normalizedX, normalizedY]) => [
+    normalizedX * canvasWidth,
+    normalizedY * canvasHeight,
+  ]);
+  if (!scaledPoints.length) return "";
+  let pathString = "M " + scaledPoints[0];
+  if (scaledPoints.length < 2) return pathString;
+  if (shape === "straight")
     return (
-      v14 +
-      map3
+      pathString +
+      scaledPoints
         .slice(1)
-        .map((arg20) => " L " + arg20)
+        .map((pathPoint) => " L " + pathPoint)
         .join("")
     );
-  if (v8 === "curve") {
-    for (let num2 = 0; num2 < map3.length - 1; num2++) {
-      const v15 = map3[Math.max(0, num2 - 1)],
-        v16 = map3[num2],
-        v17 = map3[num2 + 1],
-        v18 = map3[Math.min(map3.length - 1, num2 + 2)];
-      v14 +=
+  if (shape === "curve") {
+    for (let curveIndex = 0; curveIndex < scaledPoints.length - 1; curveIndex++) {
+      const previousPoint = scaledPoints[Math.max(0, curveIndex - 1)],
+        currentPoint = scaledPoints[curveIndex],
+        nextPoint = scaledPoints[curveIndex + 1],
+        followingPoint = scaledPoints[Math.min(scaledPoints.length - 1, curveIndex + 2)];
+      pathString +=
         " C " +
-        v16.map((arg21, arg22) => arg21 + (v17[arg22] - v15[arg22]) / 6) +
+        currentPoint.map(
+          (currentCoordinate, currentAxisIndex) =>
+            currentCoordinate + (nextPoint[currentAxisIndex] - previousPoint[currentAxisIndex]) / 6,
+        ) +
         " " +
-        v17.map((arg23, arg24) => arg23 - (v18[arg24] - v16[arg24]) / 6) +
+        nextPoint.map(
+          (nextCoordinate, nextAxisIndex) =>
+            nextCoordinate - (followingPoint[nextAxisIndex] - currentPoint[nextAxisIndex]) / 6,
+        ) +
         " " +
-        v17;
+        nextPoint;
     }
-    return v14;
+    return pathString;
   }
-  for (let num3 = 1; num3 < map3.length - 1; num3++) {
-    const v19 = map3[num3 - 1],
-      v20 = map3[num3],
-      v21 = map3[num3 + 1],
-      hypot = Math.hypot(v20[0] - v19[0], v20[1] - v19[1]),
-      hypot2 = Math.hypot(v21[0] - v20[0], v21[1] - v20[1]),
-      min = Math.min(v11, hypot / 2, hypot2 / 2);
-    v14 +=
+  for (let vertexIndex = 1; vertexIndex < scaledPoints.length - 1; vertexIndex++) {
+    const previousVertex = scaledPoints[vertexIndex - 1],
+      currentVertex = scaledPoints[vertexIndex],
+      nextVertex = scaledPoints[vertexIndex + 1],
+      hypot = Math.hypot(
+        currentVertex[0] - previousVertex[0],
+        currentVertex[1] - previousVertex[1],
+      ),
+      hypot2 = Math.hypot(nextVertex[0] - currentVertex[0], nextVertex[1] - currentVertex[1]),
+      min = Math.min(cornerRadius, hypot / 2, hypot2 / 2);
+    pathString +=
       " L " +
-      v20.map((arg25, arg26) => arg25 + ((v19[arg26] - arg25) * min) / (hypot || 1)) +
+      currentVertex.map(
+        (vertexCoordinate, vertexAxisIndex) =>
+          vertexCoordinate +
+          ((previousVertex[vertexAxisIndex] - vertexCoordinate) * min) / (hypot || 1),
+      ) +
       " Q " +
-      v20 +
+      currentVertex +
       " " +
-      v20.map((arg27, arg28) => arg27 + ((v21[arg28] - arg27) * min) / (hypot2 || 1));
+      currentVertex.map(
+        (nextVertexCoordinate, nextVertexAxisIndex) =>
+          nextVertexCoordinate +
+          ((nextVertex[nextVertexAxisIndex] - nextVertexCoordinate) * min) / (hypot2 || 1),
+      );
   }
-  return v14 + (" L " + map3.at(-1));
+  return pathString + (" L " + scaledPoints.at(-1));
 }
-export function applyFlowLineStyle(arg29, arg30, arg31) {
-  const normalizeFlowLine3 = normalizeFlowLine(arg29.properties);
-  arg30.properties = {
-    ...arg30.properties,
+export function applyFlowLineStyle(styleSource, styleTarget, changedFields) {
+  const normalizeFlowLine3 = normalizeFlowLine(styleSource.properties);
+  styleTarget.properties = {
+    ...styleTarget.properties,
   };
-  for (const v22 of arg31)
-    Object.hasOwn(FLOW_LINE_FIELDS, v22) && (arg30.properties[v22] = normalizeFlowLine3[v22]);
+  for (const fieldKey of changedFields)
+    Object.hasOwn(FLOW_LINE_FIELDS, fieldKey) &&
+      (styleTarget.properties[fieldKey] = normalizeFlowLine3[fieldKey]);
 }
-export function fitFlowLinePath(arg32, arg33) {
-  const options = arg32.position || {},
-    num4 = Number(options.width) || 600,
-    num5 = Number(options.height) || 300,
-    min2 = Math.min(...arg33.map((arg34) => arg34[0])),
-    min3 = Math.min(...arg33.map((arg35) => arg35[1])),
-    max = Math.max(1, Math.max(...arg33.map((arg36) => arg36[0])) - min2),
-    max2 = Math.max(1, Math.max(...arg33.map((arg37) => arg37[1])) - min3),
-    v23 = ((Number(options.rotation) || 0) * Math.PI) / 180,
-    max3 = Math.max(0.01, Math.min(5, Number(arg32.style?.scale) || 1)),
-    v24 = (min2 + max / 2 - num4 / 2) * max3,
-    v25 = (min3 + max2 / 2 - num5 / 2) * max3;
+export function fitFlowLinePath(flowEntity, flowPoints) {
+  const options = flowEntity.position || {},
+    layoutWidth = Number(options.width) || 600,
+    layoutHeight = Number(options.height) || 300,
+    minX = Math.min(...flowPoints.map((sampleX) => sampleX[0])),
+    minY = Math.min(...flowPoints.map((sampleY) => sampleY[1])),
+    max = Math.max(1, Math.max(...flowPoints.map((maxSampleX) => maxSampleX[0])) - minX),
+    spanY = Math.max(1, Math.max(...flowPoints.map((maxSampleY) => maxSampleY[1])) - minY),
+    rotationRad = ((Number(options.rotation) || 0) * Math.PI) / 180,
+    scaleFactor = Math.max(0.01, Math.min(5, Number(flowEntity.style?.scale) || 1)),
+    rotatedOffsetX = (minX + max / 2 - layoutWidth / 2) * scaleFactor,
+    rotatedOffsetY = (minY + spanY / 2 - layoutHeight / 2) * scaleFactor;
   return {
     position: {
-      x: (Number(options.x) || 0) + num4 / 2 + v24 * Math.cos(v23) - v25 * Math.sin(v23) - max / 2,
-      y: (Number(options.y) || 0) + num5 / 2 + v24 * Math.sin(v23) + v25 * Math.cos(v23) - max2 / 2,
+      x:
+        (Number(options.x) || 0) +
+        layoutWidth / 2 +
+        rotatedOffsetX * Math.cos(rotationRad) -
+        rotatedOffsetY * Math.sin(rotationRad) -
+        max / 2,
+      y:
+        (Number(options.y) || 0) +
+        layoutHeight / 2 +
+        rotatedOffsetX * Math.sin(rotationRad) +
+        rotatedOffsetY * Math.cos(rotationRad) -
+        spanY / 2,
       width: max,
-      height: max2,
+      height: spanY,
     },
-    points: arg33.map(([v26, v27]) => [(v26 - min2) / max, (v27 - min3) / max2]),
-    origin: [min2, min3],
+    points: flowPoints.map(([pointX, pointY]) => [(pointX - minX) / max, (pointY - minY) / spanY]),
+    origin: [minX, minY],
   };
 }

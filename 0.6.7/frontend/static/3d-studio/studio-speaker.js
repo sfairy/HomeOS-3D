@@ -1,110 +1,135 @@
-const D = new WeakMap();
-function I(arg1) {
-  let value1 = D.get(arg1);
+const canvasCacheByDocument = new WeakMap();
+function getCanvasCache(contentDocument) {
+  let cacheEntry = canvasCacheByDocument.get(contentDocument);
   return (
-    value1 ||
-      ((value1 = {
+    cacheEntry ||
+      ((cacheEntry = {
         weave: null,
         grilles: new Map(),
       }),
-      D.set(arg1, value1)),
-    value1
+      canvasCacheByDocument.set(contentDocument, cacheEntry)),
+    cacheEntry
   );
 }
-function Y(arg2) {
-  const value2 = I(arg2);
-  if (value2.weave) return value2.weave;
-  const value3 = arg2.createElement("canvas");
-  ((value3.width = 512), (value3.height = 512));
-  const value4 = value3.getContext("2d"),
-    value5 = value4.createImageData(512, 512);
-  for (let value6 = 0; value6 < 512; value6++)
-    for (let value7 = 0; value7 < 512; value7++) {
-      const value8 = (value7 / 512) * Math.PI * 2 * 64,
-        value9 = (value6 / 512) * Math.PI * 2 * 64,
-        value10 = Math.round(
-          128 + 55 * Math.sin(value8) * Math.sin(value9) + 20 * Math.cos(value8 * 2 + value9),
+function createWeaveCanvas(weaveDocument) {
+  const canvasCache = getCanvasCache(weaveDocument);
+  if (canvasCache.weave) return canvasCache.weave;
+  const weaveCanvas = weaveDocument.createElement("canvas");
+  ((weaveCanvas.width = 512), (weaveCanvas.height = 512));
+  const weavePainter = weaveCanvas.getContext("2d"),
+    weavePixels = weavePainter.createImageData(512, 512);
+  for (let sampleRowIndex = 0; sampleRowIndex < 512; sampleRowIndex++)
+    for (let sampleColumnIndex = 0; sampleColumnIndex < 512; sampleColumnIndex++) {
+      const sampleUAngle = (sampleColumnIndex / 512) * Math.PI * 2 * 64,
+        sampleVAngle = (sampleRowIndex / 512) * Math.PI * 2 * 64,
+        grayLevel = Math.round(
+          128 +
+            55 * Math.sin(sampleUAngle) * Math.sin(sampleVAngle) +
+            20 * Math.cos(sampleUAngle * 2 + sampleVAngle),
         ),
-        value11 = (value6 * 512 + value7) * 4;
-      ((value5.data[value11] = value5.data[value11 + 1] = value5.data[value11 + 2] = value10),
-        (value5.data[value11 + 3] = 255));
+        pixelOffset = (sampleRowIndex * 512 + sampleColumnIndex) * 4;
+      ((weavePixels.data[pixelOffset] =
+        weavePixels.data[pixelOffset + 1] =
+        weavePixels.data[pixelOffset + 2] =
+          grayLevel),
+        (weavePixels.data[pixelOffset + 3] = 255));
     }
-  return (value4.putImageData(value5, 0, 0), (value2.weave = value3), value3);
+  return (
+    weavePainter.putImageData(weavePixels, 0, 0),
+    (canvasCache.weave = weaveCanvas),
+    weaveCanvas
+  );
 }
-function z(arg3, arg4, arg5) {
-  const value12 = I(arg3),
-    value13 = arg4 + "|" + arg5;
-  if (value12.grilles.has(value13)) return value12.grilles.get(value13);
-  const value14 = arg3.createElement("canvas");
-  ((value14.width = 2048), (value14.height = 1024));
-  const value15 = value14.getContext("2d"),
-    fn1 = (arg6) => "#" + arg6.toString(16).padStart(6, "0");
-  ((value15.fillStyle = fn1(arg4)),
-    value15.fillRect(0, 0, 2048, 1024),
-    (value15.fillStyle = fn1(arg5)));
-  for (let value16 = 0; value16 < 48; value16++)
-    for (let value17 = 0; value17 < 128; value17++) {
-      const value18 = 0.042 + value16 * 0.00345;
-      (value15.beginPath(),
-        value15.ellipse(
-          (value17 + (value16 % 2) * 0.5) * 16,
-          1024 * (1 - value18 / 0.227),
+function createGrilleCanvas(grilleDocument, backgroundColorHex, holeColorHex) {
+  const documentCache = getCanvasCache(grilleDocument),
+    grilleCacheKey = backgroundColorHex + "|" + holeColorHex;
+  if (documentCache.grilles.has(grilleCacheKey)) return documentCache.grilles.get(grilleCacheKey);
+  const grilleCanvas = grilleDocument.createElement("canvas");
+  ((grilleCanvas.width = 2048), (grilleCanvas.height = 1024));
+  const grillePainter = grilleCanvas.getContext("2d"),
+    toHexColor = (colorCode) => "#" + colorCode.toString(16).padStart(6, "0");
+  ((grillePainter.fillStyle = toHexColor(backgroundColorHex)),
+    grillePainter.fillRect(0, 0, 2048, 1024),
+    (grillePainter.fillStyle = toHexColor(holeColorHex)));
+  for (let holeRowIndex = 0; holeRowIndex < 48; holeRowIndex++)
+    for (let holeColumnIndex = 0; holeColumnIndex < 128; holeColumnIndex++) {
+      const holeRowRatio = 0.042 + holeRowIndex * 0.00345;
+      (grillePainter.beginPath(),
+        grillePainter.ellipse(
+          (holeColumnIndex + (holeRowIndex % 2) * 0.5) * 16,
+          1024 * (1 - holeRowRatio / 0.227),
           2.2,
           2.5,
           0,
           0,
           Math.PI * 2,
         ),
-        value15.fill());
+        grillePainter.fill());
     }
   return (
-    value12.grilles.size >= 2 && value12.grilles.delete(value12.grilles.keys().next().value),
-    value12.grilles.set(value13, value14),
-    value14
+    documentCache.grilles.size >= 2 &&
+      documentCache.grilles.delete(documentCache.grilles.keys().next().value),
+    documentCache.grilles.set(grilleCacheKey, grilleCanvas),
+    grilleCanvas
   );
 }
-export function createSpeakerModel(arg7, arg8, arg9) {
-  const value19 = !!arg9.warmWood,
-    value20 = Y(document),
-    value21 = new arg7.CanvasTexture(value20);
-  ((value21.wrapS = value21.wrapT = arg7.RepeatWrapping), value21.repeat.set(1, 1));
-  const fn2 = (arg10, arg11 = 0.65, arg12 = 0) =>
-      new arg7.MeshStandardMaterial({
-        color: arg10,
-        roughness: arg11,
-        metalness: arg12,
+export function createSpeakerModel(three, dimensions, options) {
+  const isWarmWood = !!options.warmWood,
+    speakerWeaveCanvas = createWeaveCanvas(document),
+    weaveTexture = new three.CanvasTexture(speakerWeaveCanvas);
+  ((weaveTexture.wrapS = weaveTexture.wrapT = three.RepeatWrapping), weaveTexture.repeat.set(1, 1));
+  const createMaterial = (baseColor, roughness = 0.65, metalness = 0) =>
+      new three.MeshStandardMaterial({
+        color: baseColor,
+        roughness: roughness,
+        metalness: metalness,
       }),
-    value22 = fn2(value19 ? arg9.furnitureLight : arg9.appliance, 0.92);
-  ((value22.bumpMap = value21), (value22.bumpScale = 0.00022), (value21.anisotropy = 4));
-  const value23 = fn2(value19 ? arg9.wood : arg9.applianceDark, 0.52, 0.08),
-    value24 = fn2(value19 ? arg9.appliance : arg9.applianceDark, 0.53, 0.05),
-    value25 = fn2(arg9.applianceDark, 0.8),
-    value26 = fn2(value19 ? arg9.woodDark : arg9.applianceSoft, 0.5),
-    value27 = new arg7.Group();
-  function fn3(arg13, arg14, arg15 = 0, arg16 = 0, arg17 = 0) {
-    const value36 = new arg7.Mesh(arg13, arg14);
+    bodyMaterial = createMaterial(isWarmWood ? options.furnitureLight : options.appliance, 0.92);
+  ((bodyMaterial.bumpMap = weaveTexture),
+    (bodyMaterial.bumpScale = 0.00022),
+    (weaveTexture.anisotropy = 4));
+  const footRingMaterial = createMaterial(
+      isWarmWood ? options.wood : options.applianceDark,
+      0.52,
+      0.08,
+    ),
+    topPlateMaterial = createMaterial(
+      isWarmWood ? options.appliance : options.applianceDark,
+      0.53,
+      0.05,
+    ),
+    darkMaterial = createMaterial(options.applianceDark, 0.8),
+    accentMaterial = createMaterial(isWarmWood ? options.woodDark : options.applianceSoft, 0.5),
+    speakerGroup = new three.Group();
+  function addMesh(meshGeometry, meshMaterial, positionX = 0, positionY = 0, positionZ = 0) {
+    const partMesh = new three.Mesh(meshGeometry, meshMaterial);
     return (
-      value36.position.set(arg15, arg16, arg17),
-      (value36.castShadow = true),
-      (value36.receiveShadow = false),
-      value27.add(value36),
-      value36
+      partMesh.position.set(positionX, positionY, positionZ),
+      (partMesh.castShadow = true),
+      (partMesh.receiveShadow = false),
+      speakerGroup.add(partMesh),
+      partMesh
     );
   }
-  function fn4(arg18, arg19) {
-    return fn3(
-      new arg7.LatheGeometry(
-        arg18.map(([arg20, arg21]) => new arg7.Vector2(arg20, arg21)),
+  function addLatheMesh(profilePoints, latheMaterial) {
+    return addMesh(
+      new three.LatheGeometry(
+        profilePoints.map(([pointX, pointY]) => new three.Vector2(pointX, pointY)),
         96,
       ),
-      arg19,
+      latheMaterial,
     );
   }
-  function fn5(arg22, arg23, arg24, arg25) {
-    return fn3(new arg7.CylinderGeometry(arg22, arg22, arg23, 96), arg25, 0, arg24);
+  function addCylinder(radius, height, offsetY, cylinderMaterial) {
+    return addMesh(
+      new three.CylinderGeometry(radius, radius, height, 96),
+      cylinderMaterial,
+      0,
+      offsetY,
+    );
   }
-  (fn5(0.069, 0.006, 0.004, value25),
-    fn4(
+  (addCylinder(0.069, 0.006, 0.004, darkMaterial),
+    addLatheMesh(
       [
         [0, 0.006],
         [0.069, 0.006],
@@ -115,9 +140,9 @@ export function createSpeakerModel(arg7, arg8, arg9) {
         [0.081, 0.03],
         [0, 0.03],
       ],
-      value23,
+      footRingMaterial,
     ),
-    fn4(
+    addLatheMesh(
       [
         [0, 0.024],
         [0.077, 0.024],
@@ -132,66 +157,80 @@ export function createSpeakerModel(arg7, arg8, arg9) {
         [0.0698, 0.227],
         [0.0698, 0.223],
       ],
-      value22,
+      bodyMaterial,
     ));
-  const value28 = z(
+  const speakerGrilleCanvas = createGrilleCanvas(
       document,
-      value19 ? arg9.furnitureLight : arg9.appliance,
-      value19 ? arg9.solidDoorFrame : arg9.applianceDark,
+      isWarmWood ? options.furnitureLight : options.appliance,
+      isWarmWood ? options.solidDoorFrame : options.applianceDark,
     ),
-    value29 = new arg7.CanvasTexture(value28);
-  ((value29.colorSpace = arg7.SRGBColorSpace), (value29.anisotropy = 4));
-  const value30 = value27.children[value27.children.length - 1],
-    value31 = value30.geometry.attributes.position,
-    value32 = value30.geometry.attributes.uv;
-  for (let value37 = 0; value37 < value32.count; value37++)
-    value32.setY(value37, value31.getY(value37) / 0.227);
-  ((value32.needsUpdate = true),
-    (value22.map = value29),
-    value22.color.setRGB(1, 1, 1),
-    fn5(0.0715, 0.002, 0.2278, value25));
-  function fn6(arg26) {
-    const value38 = new arg7.TorusGeometry(0.0709, arg26, 12, 160),
-      value39 = value38.attributes.position,
-      list1 = [],
-      value40 = new arg7.Color();
-    for (let value41 = 0; value41 < value39.count; value41++) {
-      const value42 =
-        (Math.atan2(value39.getY(value41), value39.getX(value41)) / (Math.PI * 2) + 1) % 1;
-      (value40.setHSL(value42, 0.95, 0.48), list1.push(value40.r, value40.g, value40.b));
+    grilleTexture = new three.CanvasTexture(speakerGrilleCanvas);
+  ((grilleTexture.colorSpace = three.SRGBColorSpace), (grilleTexture.anisotropy = 4));
+  const topPlateMesh = speakerGroup.children[speakerGroup.children.length - 1],
+    platePositionAttribute = topPlateMesh.geometry.attributes.position,
+    plateUvAttribute = topPlateMesh.geometry.attributes.uv;
+  for (let uvIndex = 0; uvIndex < plateUvAttribute.count; uvIndex++)
+    plateUvAttribute.setY(uvIndex, platePositionAttribute.getY(uvIndex) / 0.227);
+  ((plateUvAttribute.needsUpdate = true),
+    (bodyMaterial.map = grilleTexture),
+    bodyMaterial.color.setRGB(1, 1, 1),
+    addCylinder(0.0715, 0.002, 0.2278, darkMaterial));
+  function createRingGeometry(tubeRadius) {
+    const ringGeometry = new three.TorusGeometry(0.0709, tubeRadius, 12, 160),
+      ringPositionAttribute = ringGeometry.attributes.position,
+      colorComponents = [],
+      ringColor = new three.Color();
+    for (
+      let ringVertexIndex = 0;
+      ringVertexIndex < ringPositionAttribute.count;
+      ringVertexIndex++
+    ) {
+      const hue =
+        (Math.atan2(
+          ringPositionAttribute.getY(ringVertexIndex),
+          ringPositionAttribute.getX(ringVertexIndex),
+        ) /
+          (Math.PI * 2) +
+          1) %
+        1;
+      (ringColor.setHSL(hue, 0.95, 0.48),
+        colorComponents.push(ringColor.r, ringColor.g, ringColor.b));
     }
-    return (value38.setAttribute("color", new arg7.Float32BufferAttribute(list1, 3)), value38);
+    return (
+      ringGeometry.setAttribute("color", new three.Float32BufferAttribute(colorComponents, 3)),
+      ringGeometry
+    );
   }
-  const value33 = new arg7.MeshBasicMaterial({
+  const ringMaterial = new three.MeshBasicMaterial({
       color: 16777215,
       vertexColors: true,
       toneMapped: false,
     }),
-    value34 = fn3(fn6(0.0016), value33, 0, 0.232, 0);
-  ((value34.rotation.x = Math.PI / 2), (value34.castShadow = false));
-  const value35 = [0.0025, 0.004, 0.006].map((arg27, arg28) => {
-    const value43 = new arg7.MeshBasicMaterial({
+    ringMesh = addMesh(createRingGeometry(0.0016), ringMaterial, 0, 0.232, 0);
+  ((ringMesh.rotation.x = Math.PI / 2), (ringMesh.castShadow = false));
+  const haloRings = [0.0025, 0.004, 0.006].map((haloRadius, haloIndex) => {
+    const haloMaterial = new three.MeshBasicMaterial({
         color: 16777215,
         vertexColors: true,
         transparent: true,
         opacity: 0,
         depthWrite: false,
-        blending: arg7.AdditiveBlending,
+        blending: three.AdditiveBlending,
         toneMapped: false,
       }),
-      value44 = fn3(fn6(arg27), value43, 0, 0.232, 0);
+      haloMesh = addMesh(createRingGeometry(haloRadius), haloMaterial, 0, 0.232, 0);
     return (
-      (value44.rotation.x = Math.PI / 2),
-      (value44.castShadow = false),
-      (value44.renderOrder = 2 + arg28),
+      (haloMesh.rotation.x = Math.PI / 2),
+      (haloMesh.castShadow = false),
+      (haloMesh.renderOrder = 2 + haloIndex),
       {
-        mesh: value44,
-        material: value43,
-        peak: [0.3, 0.14, 0.06][arg28],
+        mesh: haloMesh,
+        material: haloMaterial,
+        peak: [0.3, 0.14, 0.06][haloIndex],
       }
     );
   });
-  fn4(
+  addLatheMesh(
     [
       [0, 0.229],
       [0.066, 0.229],
@@ -200,28 +239,41 @@ export function createSpeakerModel(arg7, arg8, arg9) {
       [0.0675, 0.232],
       [0, 0.232],
     ],
-    value24,
+    topPlateMaterial,
   );
-  const fn7 = (arg29, arg30, arg31, arg32) => {
-    const value45 = fn3(new arg7.BoxGeometry(arg29, 0.0006, arg30), value26, arg31, 0.2324, arg32);
-    return ((value45.castShadow = false), value45);
+  const addTopBox = (boxWidth, boxDepth, boxX, boxZ) => {
+    const detailMesh = addMesh(
+      new three.BoxGeometry(boxWidth, 0.0006, boxDepth),
+      accentMaterial,
+      boxX,
+      0.2324,
+      boxZ,
+    );
+    return ((detailMesh.castShadow = false), detailMesh);
   };
-  (fn7(0.01, 0.0015, -0.034, 0),
-    fn7(0.0015, 0.00425, -0.034, -0.002875),
-    fn7(0.0015, 0.00425, -0.034, 0.002875),
-    fn7(0.01, 0.0015, 0.034, 0),
-    fn7(0.0017, 0.009, -0.0024, 0),
-    fn7(0.0017, 0.009, 0.0024, 0));
-  for (const value46 of [-0.029, 0.029])
-    for (const value47 of [-0.037, 0.037]) {
-      const value48 = fn5(0.0011, 0.0005, 0.2324, value25);
-      (value48.position.set(value46, 0.2324, value47), (value48.castShadow = false));
+  (addTopBox(0.01, 0.0015, -0.034, 0),
+    addTopBox(0.0015, 0.00425, -0.034, -0.002875),
+    addTopBox(0.0015, 0.00425, -0.034, 0.002875),
+    addTopBox(0.01, 0.0015, 0.034, 0),
+    addTopBox(0.0017, 0.009, -0.0024, 0),
+    addTopBox(0.0017, 0.009, 0.0024, 0));
+  for (const screwX of [-0.029, 0.029])
+    for (const screwZ of [-0.037, 0.037]) {
+      const pinMesh = addCylinder(0.0011, 0.0005, 0.2324, darkMaterial);
+      (pinMesh.position.set(screwX, 0.2324, screwZ), (pinMesh.castShadow = false));
     }
-  (fn3(new arg7.BoxGeometry(0.013, 0.004, 0.0018), value25, 0, 0.017, -0.083),
-    fn3(new arg7.BoxGeometry(0.009, 0.0013, 0.0019), value26, 0, 0.017, -0.084),
-    (value34.userData.speakerRing = true),
-    (value34.visible = false));
-  for (const value49 of value35)
-    ((value49.mesh.userData.speakerHalo = value49.peak), (value49.mesh.visible = false));
-  return (value27.scale.set(arg8.width / 0.17, arg8.height / 0.2336, arg8.depth / 0.17), value27);
+  (addMesh(new three.BoxGeometry(0.013, 0.004, 0.0018), darkMaterial, 0, 0.017, -0.083),
+    addMesh(new three.BoxGeometry(0.009, 0.0013, 0.0019), accentMaterial, 0, 0.017, -0.084),
+    (ringMesh.userData.speakerRing = true),
+    (ringMesh.visible = false));
+  for (const haloRing of haloRings)
+    ((haloRing.mesh.userData.speakerHalo = haloRing.peak), (haloRing.mesh.visible = false));
+  return (
+    speakerGroup.scale.set(
+      dimensions.width / 0.17,
+      dimensions.height / 0.2336,
+      dimensions.depth / 0.17,
+    ),
+    speakerGroup
+  );
 }

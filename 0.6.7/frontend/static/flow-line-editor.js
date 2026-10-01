@@ -5,78 +5,79 @@ import {
   fitFlowLinePath as fitFlowLinePath2,
 } from "./flow-line-model.js?v=20260930-flow-line-sign-v1";
 import { renderFlowLine as renderFlowLine2 } from "./renderer/flow-line.js?v=20260930-flow-line-sign-v1";
-let I = null;
+let activeEditorInstance = null;
 export function openFlowLinePathEditor(
-  arg1,
+  flowLineItem,
   {
-    canvas: v1,
-    host: v2,
-    container: v3,
-    states: v4,
-    lockTargets: v5 = [],
-    enhancePathSelect: v6,
-    onLayoutChange: v7,
-    onSave: v8,
-    onError: v9,
-    onClose: v10,
+    canvas: canvasElement,
+    host: hostElement,
+    container: containerElement,
+    states: sceneStates,
+    lockTargets: lockTargetElements = [],
+    enhancePathSelect: enhancePathSelect,
+    onLayoutChange: onLayoutChange,
+    onSave: onSave,
+    onError: onError,
+    onClose: onClose,
   } = {},
 ) {
-  if (!v1?.isConnected || !v2?.isConnected || !v3?.isConnected)
+  if (!canvasElement?.isConnected || !hostElement?.isConnected || !containerElement?.isConnected)
     throw new Error("请先在仪表盘编辑画布选择流水线条。");
-  I?.close();
-  const v11 = normalizeFlowLine2(arg1.properties),
-    clientWidth = v1.clientWidth,
-    clientHeight = v1.clientHeight,
-    num = Number(arg1.position?.width) || 600,
-    num2 = Number(arg1.position?.height) || 300;
+  activeEditorInstance?.close();
+  const flowLineProperties = normalizeFlowLine2(flowLineItem.properties),
+    clientWidth = canvasElement.clientWidth,
+    clientHeight = canvasElement.clientHeight,
+    num = Number(flowLineItem.position?.width) || 600,
+    flowHeight = Number(flowLineItem.position?.height) || 300;
   let list = [],
-    v12 = false,
+    isDrawing = false,
     value = null,
-    v13 = -1,
-    value2 = null,
-    v14 = false,
-    value3 = null,
-    value4 = null,
-    list2 = [],
-    v15 = false,
-    v16 = false;
-  const element2 = document.createElement("div");
-  ((element2.className = "flow-line-canvas-editor"),
-    element2.setAttribute("role", "region"),
-    element2.setAttribute("aria-label", "画布路径编辑"),
-    (element2.innerHTML =
+    selectedNodeIndex = -1,
+    pointerPoint = null,
+    isShiftPressed = false,
+    activeDragState = null,
+    previewNode = null,
+    historyEntries = [],
+    isSaving = false,
+    isDestroyed = false;
+  const editorRootElement = document.createElement("div");
+  ((editorRootElement.className = "flow-line-canvas-editor"),
+    editorRootElement.setAttribute("role", "region"),
+    editorRootElement.setAttribute("aria-label", "画布路径编辑"),
+    (editorRootElement.innerHTML =
       '<div class="flow-line-draw-stage"><div data-preview></div><svg tabindex="0" aria-label="仪表盘路径画布"></svg></div><div class="flow-line-draw-tools"><strong>绘制流水线条</strong><button type="button" data-draw>重新绘制</button><button type="button" data-finish>完成绘制</button><button type="button" data-undo>撤销</button><button type="button" data-insert>插入节点</button><button type="button" data-delete>删除节点</button><label>路径形态 <select data-shape id="flow-line-path-shape" aria-label="路径形态"><option value="straight">折线</option><option value="rounded">圆角</option><option value="curve">曲线</option></select></label><button type="button" data-cancel>取消</button><button type="button" data-save>确认路径</button><p data-hint></p><p data-error role="alert" hidden></p><span data-count></span></div>'));
-  const v17 = (arg2) => element2.querySelector(arg2),
-    element3 = v17("svg"),
-    element4 = v17(".flow-line-draw-stage");
-  (element3.setAttribute("viewBox", "0 0 " + clientWidth + " " + clientHeight),
-    element3.setAttribute("preserveAspectRatio", "none"),
-    Object.assign(element4.style, {
+  const queryEditor = (selector) => editorRootElement.querySelector(selector),
+    drawingSvgElement = queryEditor("svg"),
+    drawStageElement = queryEditor(".flow-line-draw-stage");
+  (drawingSvgElement.setAttribute("viewBox", "0 0 " + clientWidth + " " + clientHeight),
+    drawingSvgElement.setAttribute("preserveAspectRatio", "none"),
+    Object.assign(drawStageElement.style, {
       width: clientWidth + "px",
       height: clientHeight + "px",
     }),
-    v3.append(element2),
-    v3.classList.add("flow-line-path-editing"));
-  const propertyValue = v3.style.getPropertyValue("--flow-line-toolbar-space");
-  function fn1() {
-    const v18 = v17(".flow-line-draw-tools").offsetHeight + 20 + "px";
-    v3.style.getPropertyValue("--flow-line-toolbar-space") !== v18 &&
-      (v3.style.setProperty("--flow-line-toolbar-space", v18), v7?.());
+    containerElement.append(editorRootElement),
+    containerElement.classList.add("flow-line-path-editing"));
+  const propertyValue = containerElement.style.getPropertyValue("--flow-line-toolbar-space");
+  function syncToolbarSpace() {
+    const toolbarSpaceValue = queryEditor(".flow-line-draw-tools").offsetHeight + 20 + "px";
+    containerElement.style.getPropertyValue("--flow-line-toolbar-space") !== toolbarSpaceValue &&
+      (containerElement.style.setProperty("--flow-line-toolbar-space", toolbarSpaceValue),
+      onLayoutChange?.());
   }
-  const v19 = () => {
-    (v3.classList.remove("flow-line-path-editing"),
+  const restoreEditingLayout = () => {
+    (containerElement.classList.remove("flow-line-path-editing"),
       propertyValue
-        ? v3.style.setProperty("--flow-line-toolbar-space", propertyValue)
-        : v3.style.removeProperty("--flow-line-toolbar-space"),
-      v7?.());
+        ? containerElement.style.setProperty("--flow-line-toolbar-space", propertyValue)
+        : containerElement.style.removeProperty("--flow-line-toolbar-space"),
+      onLayoutChange?.());
   };
-  fn1();
-  function fn2() {
-    const boundingClientRect = v1.getBoundingClientRect(),
-      boundingClientRect2 = element2.getBoundingClientRect();
-    Object.assign(element4.style, {
-      left: boundingClientRect.left - boundingClientRect2.left + "px",
-      top: boundingClientRect.top - boundingClientRect2.top + "px",
+  syncToolbarSpace();
+  function syncStageTransform() {
+    const boundingClientRect = canvasElement.getBoundingClientRect(),
+      editorRect = editorRootElement.getBoundingClientRect();
+    Object.assign(drawStageElement.style, {
+      left: boundingClientRect.left - editorRect.left + "px",
+      top: boundingClientRect.top - editorRect.top + "px",
       transform:
         "scale(" +
         boundingClientRect.width / clientWidth +
@@ -84,16 +85,16 @@ export function openFlowLinePathEditor(
         boundingClientRect.height / clientHeight +
         ")",
     });
-    const num3 =
+    const scaleFactor =
       Math.min(boundingClientRect.width / clientWidth, boundingClientRect.height / clientHeight) ||
       1;
-    for (const element5 of element3.querySelectorAll(".flow-line-draw-node"))
-      (element5.children[0].setAttribute("r", 14 / num3),
-        element5.children[1].setAttribute("r", 5 / num3));
+    for (const nodeElement of drawingSvgElement.querySelectorAll(".flow-line-draw-node"))
+      (nodeElement.children[0].setAttribute("r", 14 / scaleFactor),
+        nodeElement.children[1].setAttribute("r", 5 / scaleFactor));
   }
-  fn2();
+  syncStageTransform();
   const elementNS = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  (elementNS.setAttribute("viewBox", "0 0 " + num + " " + num2),
+  (elementNS.setAttribute("viewBox", "0 0 " + num + " " + flowHeight),
     elementNS.setAttribute("preserveAspectRatio", "none"),
     Object.assign(elementNS.style, {
       position: "absolute",
@@ -103,101 +104,117 @@ export function openFlowLinePathEditor(
       pointerEvents: "none",
       visibility: "hidden",
     }),
-    v2.append(elementNS));
-  const hidden = v2.hidden;
-  v2.hidden = false;
-  let v20, v21;
+    hostElement.append(elementNS));
+  const hidden = hostElement.hidden;
+  hostElement.hidden = false;
+  let canvasToOverlayTransform, overlayToCanvasTransform;
   try {
-    ((v20 = element3.getScreenCTM().inverse().multiply(elementNS.getScreenCTM())),
-      (v21 = v20.inverse()));
-  } catch (v22) {
-    throw (element2.remove(), v19(), v22);
+    ((canvasToOverlayTransform = drawingSvgElement
+      .getScreenCTM()
+      .inverse()
+      .multiply(elementNS.getScreenCTM())),
+      (overlayToCanvasTransform = canvasToOverlayTransform.inverse()));
+  } catch (error) {
+    throw (editorRootElement.remove(), restoreEditingLayout(), error);
   } finally {
-    (elementNS.remove(), (v2.hidden = hidden));
+    (elementNS.remove(), (hostElement.hidden = hidden));
   }
-  const v23 = (arg3, arg4) => {
-    const matrixTransform = new DOMPoint(...arg3).matrixTransform(arg4);
+  const transformPoint = (sourcePoint, transformMatrix) => {
+    const matrixTransform = new DOMPoint(...sourcePoint).matrixTransform(transformMatrix);
     return [matrixTransform.x, matrixTransform.y];
   };
-  list = v11.points.map(([v24, v25]) =>
-    v23([v24 * num, v25 * num2], v20).map((arg5, arg6) => arg5 / [clientWidth, clientHeight][arg6]),
+  list = flowLineProperties.points.map(([storedPointX, storedPointY]) =>
+    transformPoint([storedPointX * num, storedPointY * flowHeight], canvasToOverlayTransform).map(
+      (coordinateValue, axisIndex) => coordinateValue / [clientWidth, clientHeight][axisIndex],
+    ),
   );
   const stringify = JSON.stringify(list),
-    visibility = v2.style.visibility,
+    visibility = hostElement.style.visibility,
     activeElement = document.activeElement;
-  v2.style.visibility = "hidden";
-  const map = v5.filter(Boolean).map((arg7) => ({
-    element: arg7,
-    inert: arg7.inert,
+  hostElement.style.visibility = "hidden";
+  const map = lockTargetElements.filter(Boolean).map((lockTargetElement) => ({
+    element: lockTargetElement,
+    inert: lockTargetElement.inert,
   }));
-  map.forEach(({ element: v26 }) => (v26.inert = true));
-  const v27 = (arg8, arg9, v28 = element3) => {
-      const elementNS2 = document.createElementNS("http://www.w3.org/2000/svg", arg8);
-      for (const [v29, v30] of Object.entries(arg9)) elementNS2.setAttribute(v29, String(v30));
-      return (v28.append(elementNS2), elementNS2);
+  map.forEach(({ element: inertTargetNode }) => (inertTargetNode.inert = true));
+  const createSvgElement = (tagName, attributes, parentElement = drawingSvgElement) => {
+      const elementNS2 = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+      for (const [attributeName, attributeValue] of Object.entries(attributes))
+        elementNS2.setAttribute(attributeName, String(attributeValue));
+      return (parentElement.append(elementNS2), elementNS2);
     },
-    element6 = v27("path", {
+    axisGuidePathElement = createSvgElement("path", {
       class: "flow-line-axis-guide",
       fill: "none",
     }),
-    element7 = v27("path", {
+    drawGhostPathElement = createSvgElement("path", {
       class: "flow-line-draw-ghost",
       fill: "none",
     }),
-    element8 = v27("g", {}),
-    v31 = (arg10) => {
-      const matrixTransform2 = new DOMPoint(arg10.clientX, arg10.clientY).matrixTransform(
-        element3.getScreenCTM().inverse(),
-      );
+    nodeGroupElement = createSvgElement("g", {}),
+    toNormalizedPoint = (pointerEvent) => {
+      const matrixTransform2 = new DOMPoint(
+        pointerEvent.clientX,
+        pointerEvent.clientY,
+      ).matrixTransform(drawingSvgElement.getScreenCTM().inverse());
       return [matrixTransform2.x / clientWidth, matrixTransform2.y / clientHeight];
     },
-    v32 = () => {
-      (list2.push({
-        points: list.map((arg11) => [...arg11]),
-        shape: v11.shape,
+    pushUndoSnapshot = () => {
+      (historyEntries.push({
+        points: list.map((undoPoint) => [...undoPoint]),
+        shape: flowLineProperties.shape,
       }),
-        list2.length > 100 && list2.shift());
+        historyEntries.length > 100 && historyEntries.shift());
     },
-    v33 = (arg12, arg13) =>
-      element6.setAttribute(
+    updateAxisGuide = (guideAnchorPoint, guideAxis) =>
+      axisGuidePathElement.setAttribute(
         "d",
-        !arg12 || !arg13
+        !guideAnchorPoint || !guideAxis
           ? ""
-          : arg13 === "x"
-            ? "M 0 " + arg12[1] * clientHeight + " H " + clientWidth
-            : "M " + arg12[0] * clientWidth + " 0 V " + clientHeight,
+          : guideAxis === "x"
+            ? "M 0 " + guideAnchorPoint[1] * clientHeight + " H " + clientWidth
+            : "M " + guideAnchorPoint[0] * clientWidth + " 0 V " + clientHeight,
       ),
-    v34 = () =>
+    buildFittedPath = () =>
       fitFlowLinePath2(
-        arg1,
-        list.map(([v35, v36]) => v23([v35 * clientWidth, v36 * clientHeight], v21)),
+        flowLineItem,
+        list.map(([fitPointX, fitPointY]) =>
+          transformPoint(
+            [fitPointX * clientWidth, fitPointY * clientHeight],
+            overlayToCanvasTransform,
+          ),
+        ),
       );
-  function fn3() {
-    if ((value4?.destroyFlowLine?.(), v17("[data-preview]").replaceChildren(), list.length)) {
-      const v37 = v34(),
-        translate = v20.translate(...v37.origin);
-      ((value4 = renderFlowLine2(
+  function renderEditorPreview() {
+    if (
+      (previewNode?.destroyFlowLine?.(),
+      queryEditor("[data-preview]").replaceChildren(),
+      list.length)
+    ) {
+      const fittedPath = buildFittedPath(),
+        translate = canvasToOverlayTransform.translate(...fittedPath.origin);
+      ((previewNode = renderFlowLine2(
         {
-          ...arg1,
+          ...flowLineItem,
           position: {
-            ...arg1.position,
-            ...v37.position,
+            ...flowLineItem.position,
+            ...fittedPath.position,
           },
           properties: {
-            ...v11,
-            points: v37.points,
+            ...flowLineProperties,
+            points: fittedPath.points,
           },
         },
         {
-          states: v4,
+          states: sceneStates,
         },
       )),
-        Object.assign(value4.style, {
+        Object.assign(previewNode.style, {
           position: "absolute",
           left: "0",
           top: "0",
-          width: v37.position.width + "px",
-          height: v37.position.height + "px",
+          width: fittedPath.position.width + "px",
+          height: fittedPath.position.height + "px",
           transformOrigin: "0 0",
           transform:
             "matrix(" +
@@ -214,360 +231,433 @@ export function openFlowLinePathEditor(
             translate.f +
             ")",
         }),
-        v17("[data-preview]").append(value4));
+        queryEditor("[data-preview]").append(previewNode));
     }
     if (
-      ((v17("[data-count]").textContent = list.length + " / 256 个节点"),
-      (v17("[data-hint]").textContent = v12
+      ((queryEditor("[data-count]").textContent = list.length + " / 256 个节点"),
+      (queryEditor("[data-hint]").textContent = isDrawing
         ? "直接在底图上点击加点，双击 / Enter 完成；Shift 锁轴，Backspace 撤回，Esc 取消重画。"
         : "拖动节点调整，Shift 锁轴，方向键微调；确认路径后可用编辑历史撤销。"),
-      (v17("[data-finish]").hidden = !v12),
-      (v17("[data-draw]").hidden = v12),
-      (v17("[data-finish]").disabled = list.length < 2),
-      (v17("[data-delete]").disabled = v12 || v13 < 0 || list.length <= 2),
-      (v17("[data-insert]").disabled = v12 || v13 < 0 || list.length >= 256),
-      (v17("[data-undo]").disabled = v12 ? !list.length : !list2.length),
-      (v17("[data-save]").disabled = v15 || v12 || list.length < 2),
-      element3.classList.toggle("drawing", v12),
-      (element8.style.pointerEvents = v12 ? "none" : ""),
-      [...element8.children].forEach((arg14, arg15) => {
-        (arg14.setAttribute(
+      (queryEditor("[data-finish]").hidden = !isDrawing),
+      (queryEditor("[data-draw]").hidden = isDrawing),
+      (queryEditor("[data-finish]").disabled = list.length < 2),
+      (queryEditor("[data-delete]").disabled =
+        isDrawing || selectedNodeIndex < 0 || list.length <= 2),
+      (queryEditor("[data-insert]").disabled =
+        isDrawing || selectedNodeIndex < 0 || list.length >= 256),
+      (queryEditor("[data-undo]").disabled = isDrawing ? !list.length : !historyEntries.length),
+      (queryEditor("[data-save]").disabled = isSaving || isDrawing || list.length < 2),
+      drawingSvgElement.classList.toggle("drawing", isDrawing),
+      (nodeGroupElement.style.pointerEvents = isDrawing ? "none" : ""),
+      [...nodeGroupElement.children].forEach((nodeMarkerElement, nodeMarkerIndex) => {
+        (nodeMarkerElement.setAttribute(
           "transform",
-          "translate(" + list[arg15][0] * clientWidth + " " + list[arg15][1] * clientHeight + ")",
+          "translate(" +
+            list[nodeMarkerIndex][0] * clientWidth +
+            " " +
+            list[nodeMarkerIndex][1] * clientHeight +
+            ")",
         ),
-          arg14.classList.toggle("selected", v13 === arg15));
+          nodeMarkerElement.classList.toggle("selected", selectedNodeIndex === nodeMarkerIndex));
       }),
-      v12 && value2 && list.length)
+      isDrawing && pointerPoint && list.length)
     ) {
-      const v38 = constrainFlowPoint2(value2, list.at(-1), v14, null, [clientWidth, clientHeight]);
-      (element7.setAttribute(
+      const constrainedPoint = constrainFlowPoint2(
+        pointerPoint,
+        list.at(-1),
+        isShiftPressed,
+        null,
+        [clientWidth, clientHeight],
+      );
+      (drawGhostPathElement.setAttribute(
         "d",
-        flowLinePath2([...list, v38.point], v11.shape, clientWidth, clientHeight, v11.radius),
+        flowLinePath2(
+          [...list, constrainedPoint.point],
+          flowLineProperties.shape,
+          clientWidth,
+          clientHeight,
+          flowLineProperties.radius,
+        ),
       ),
-        v33(list.at(-1), v38.axis));
-    } else (element7.setAttribute("d", ""), v33(null, null));
+        updateAxisGuide(list.at(-1), constrainedPoint.axis));
+    } else (drawGhostPathElement.setAttribute("d", ""), updateAxisGuide(null, null));
   }
-  function fn4() {
-    (element8.replaceChildren(),
-      list.forEach((arg16, arg17) => {
-        const element9 = v27(
+  function rebuildNodeHandles() {
+    (nodeGroupElement.replaceChildren(),
+      list.forEach((nodePoint, nodeIndex) => {
+        const draggableNodeElement = createSvgElement(
           "g",
           {
             role: "button",
             tabindex: "0",
-            "aria-label": "路径节点 " + (arg17 + 1),
+            "aria-label": "路径节点 " + (nodeIndex + 1),
             class: "flow-line-draw-node",
           },
-          element8,
+          nodeGroupElement,
         );
-        (v27(
+        (createSvgElement(
           "circle",
           {
             r: 14,
             fill: "transparent",
           },
-          element9,
+          draggableNodeElement,
         ),
-          v27(
+          createSvgElement(
             "circle",
             {
               r: 5,
               class: "flow-line-node-handle",
               "vector-effect": "non-scaling-stroke",
             },
-            element9,
+            draggableNodeElement,
           ),
-          element9.addEventListener("pointerdown", (arg18) => {
-            v12 ||
-              arg18.button !== 0 ||
-              v15 ||
-              (arg18.preventDefault(),
-              arg18.stopPropagation(),
-              (v13 = arg17),
-              (value3 = {
-                index: arg17,
-                id: arg18.pointerId,
-                node: element9,
-                origin: [...list[arg17]],
-                raw: [...list[arg17]],
+          draggableNodeElement.addEventListener("pointerdown", (pointerDownEvent) => {
+            isDrawing ||
+              pointerDownEvent.button !== 0 ||
+              isSaving ||
+              (pointerDownEvent.preventDefault(),
+              pointerDownEvent.stopPropagation(),
+              (selectedNodeIndex = nodeIndex),
+              (activeDragState = {
+                index: nodeIndex,
+                id: pointerDownEvent.pointerId,
+                node: draggableNodeElement,
+                origin: [...list[nodeIndex]],
+                raw: [...list[nodeIndex]],
                 axis: null,
                 remembered: false,
               }),
-              element9.setPointerCapture(arg18.pointerId),
-              element9.focus(),
-              fn3());
+              draggableNodeElement.setPointerCapture(pointerDownEvent.pointerId),
+              draggableNodeElement.focus(),
+              renderEditorPreview());
           }),
-          element9.addEventListener("pointermove", (arg19) => {
-            !value3 ||
-              value3.id !== arg19.pointerId ||
-              ((value3.raw = v31(arg19)), (v14 = arg19.shiftKey), fn5());
+          draggableNodeElement.addEventListener("pointermove", (pointerMoveEvent) => {
+            !activeDragState ||
+              activeDragState.id !== pointerMoveEvent.pointerId ||
+              ((activeDragState.raw = toNormalizedPoint(pointerMoveEvent)),
+              (isShiftPressed = pointerMoveEvent.shiftKey),
+              updateDragPoint());
           }));
-        const v39 = (arg20) => {
-          value3?.id === arg20.pointerId &&
-            (value3.remembered &&
-              list[value3.index].every(
-                (arg21, arg22) => Math.abs(arg21 - value3.origin[arg22]) < 1e-9,
+        const finishDrag = (releaseEvent) => {
+          activeDragState?.id === releaseEvent.pointerId &&
+            (activeDragState.remembered &&
+              list[activeDragState.index].every(
+                (movedPointValue, movedAxisIndex) =>
+                  Math.abs(movedPointValue - activeDragState.origin[movedAxisIndex]) < 1e-9,
               ) &&
-              (list2.pop(), fn3()),
-            (value3 = null),
-            v33(null, null));
+              (historyEntries.pop(), renderEditorPreview()),
+            (activeDragState = null),
+            updateAxisGuide(null, null));
         };
-        (element9.addEventListener("pointerup", v39),
-          element9.addEventListener("pointercancel", v39),
-          element9.addEventListener("lostpointercapture", v39),
-          element9.addEventListener("focus", () => {
-            ((v13 = arg17), fn3());
+        (draggableNodeElement.addEventListener("pointerup", finishDrag),
+          draggableNodeElement.addEventListener("pointercancel", finishDrag),
+          draggableNodeElement.addEventListener("lostpointercapture", finishDrag),
+          draggableNodeElement.addEventListener("focus", () => {
+            ((selectedNodeIndex = nodeIndex), renderEditorPreview());
           }));
       }),
-      fn2(),
-      fn3());
+      syncStageTransform(),
+      renderEditorPreview());
   }
-  function fn5() {
-    const v40 = constrainFlowPoint2(value3.raw, value3.origin, v14, value3.axis, [
-      clientWidth,
-      clientHeight,
-    ]);
-    ((value3.axis = v40.axis),
-      v40.point.some((arg23, arg24) => Math.abs(arg23 - list[value3.index][arg24]) > 1e-9) &&
-        (value3.remembered || (v32(), (value3.remembered = true)),
-        (list[value3.index] = v40.point),
-        fn3()),
-      v33(value3.origin, v40.axis));
+  function updateDragPoint() {
+    const constrainedDragPoint = constrainFlowPoint2(
+      activeDragState.raw,
+      activeDragState.origin,
+      isShiftPressed,
+      activeDragState.axis,
+      [clientWidth, clientHeight],
+    );
+    ((activeDragState.axis = constrainedDragPoint.axis),
+      constrainedDragPoint.point.some(
+        (dragPointValue, dragAxisIndex) =>
+          Math.abs(dragPointValue - list[activeDragState.index][dragAxisIndex]) > 1e-9,
+      ) &&
+        (activeDragState.remembered || (pushUndoSnapshot(), (activeDragState.remembered = true)),
+        (list[activeDragState.index] = constrainedDragPoint.point),
+        renderEditorPreview()),
+      updateAxisGuide(activeDragState.origin, constrainedDragPoint.axis));
   }
-  function fn6() {
+  function finishDrawing() {
     list.length < 2 ||
-      ((v12 = false), (value2 = null), (v13 = list.length - 1), fn4(), element3.focus());
+      ((isDrawing = false),
+      (pointerPoint = null),
+      (selectedNodeIndex = list.length - 1),
+      rebuildNodeHandles(),
+      drawingSvgElement.focus());
   }
-  function fn7() {
-    v12 ||
-      v13 < 0 ||
+  function deleteSelectedNode() {
+    isDrawing ||
+      selectedNodeIndex < 0 ||
       list.length <= 2 ||
-      (v32(), list.splice(v13, 1), (v13 = Math.min(v13, list.length - 1)), fn4());
+      (pushUndoSnapshot(),
+      list.splice(selectedNodeIndex, 1),
+      (selectedNodeIndex = Math.min(selectedNodeIndex, list.length - 1)),
+      rebuildNodeHandles());
   }
-  function fn8() {
-    if (v12) list.pop();
+  function undoLastStep() {
+    if (isDrawing) list.pop();
     else {
-      const pop = list2.pop();
+      const pop = historyEntries.pop();
       if (!pop) return;
       ((list = pop.points),
-        (v11.shape = pop.shape),
-        (v17("[data-shape]").value = pop.shape),
-        v44?.sync());
+        (flowLineProperties.shape = pop.shape),
+        (queryEditor("[data-shape]").value = pop.shape),
+        pathSelectEnhancer?.sync());
     }
-    ((v13 = -1), fn4(), element3.focus());
+    ((selectedNodeIndex = -1), rebuildNodeHandles(), drawingSvgElement.focus());
   }
-  ((v17("[data-draw]").onclick = () => {
+  ((queryEditor("[data-draw]").onclick = () => {
     ((value = {
-      points: list.map((arg25) => [...arg25]),
-      shape: v11.shape,
-      undo: list2.slice(),
+      points: list.map((snapshotPoint) => [...snapshotPoint]),
+      shape: flowLineProperties.shape,
+      undo: historyEntries.slice(),
     }),
-      v32(),
-      (v12 = true),
+      pushUndoSnapshot(),
+      (isDrawing = true),
       (list = []),
-      (v13 = -1),
-      (value2 = null),
-      fn4(),
-      element3.focus());
+      (selectedNodeIndex = -1),
+      (pointerPoint = null),
+      rebuildNodeHandles(),
+      drawingSvgElement.focus());
   }),
-    (v17("[data-finish]").onclick = fn6),
-    (v17("[data-undo]").onclick = fn8),
-    (v17("[data-delete]").onclick = fn7),
-    (v17("[data-insert]").onclick = () => {
-      if (v13 < 0 || list.length >= 256) return;
-      v32();
-      const v41 = list[v13],
-        v42 = list[v13 + 1] || list[Math.max(0, v13 - 1)],
-        v43 = v13 === list.length - 1 ? v13 : v13 + 1;
+    (queryEditor("[data-finish]").onclick = finishDrawing),
+    (queryEditor("[data-undo]").onclick = undoLastStep),
+    (queryEditor("[data-delete]").onclick = deleteSelectedNode),
+    (queryEditor("[data-insert]").onclick = () => {
+      if (selectedNodeIndex < 0 || list.length >= 256) return;
+      pushUndoSnapshot();
+      const insertBasePoint = list[selectedNodeIndex],
+        insertAnchorPoint = list[selectedNodeIndex + 1] || list[Math.max(0, selectedNodeIndex - 1)],
+        insertIndex =
+          selectedNodeIndex === list.length - 1 ? selectedNodeIndex : selectedNodeIndex + 1;
       (list.splice(
-        v43,
+        insertIndex,
         0,
-        v41.map((arg26, arg27) => (arg26 + v42[arg27]) / 2),
+        insertBasePoint.map(
+          (averagePointValue, averageAxisIndex) =>
+            (averagePointValue + insertAnchorPoint[averageAxisIndex]) / 2,
+        ),
       ),
-        (v13 = v43),
-        fn4());
+        (selectedNodeIndex = insertIndex),
+        rebuildNodeHandles());
     }),
-    (v17("[data-shape]").value = v11.shape),
-    (v17("[data-shape]").onchange = (arg28) => {
-      v15 || (v32(), (v11.shape = arg28.target.value), fn3());
+    (queryEditor("[data-shape]").value = flowLineProperties.shape),
+    (queryEditor("[data-shape]").onchange = (shapeSelectEvent) => {
+      isSaving ||
+        (pushUndoSnapshot(),
+        (flowLineProperties.shape = shapeSelectEvent.target.value),
+        renderEditorPreview());
     }));
-  const v44 = v6?.(v17("[data-shape]"));
-  (element3.addEventListener("pointermove", (arg29) => {
-    !v12 || v15 || ((value2 = v31(arg29)), (v14 = arg29.shiftKey), fn3());
+  const pathSelectEnhancer = enhancePathSelect?.(queryEditor("[data-shape]"));
+  (drawingSvgElement.addEventListener("pointermove", (svgPointerEvent) => {
+    !isDrawing ||
+      isSaving ||
+      ((pointerPoint = toNormalizedPoint(svgPointerEvent)),
+      (isShiftPressed = svgPointerEvent.shiftKey),
+      renderEditorPreview());
   }),
-    element3.addEventListener("pointerleave", () => {
-      v12 && ((value2 = null), fn3());
+    drawingSvgElement.addEventListener("pointerleave", () => {
+      isDrawing && ((pointerPoint = null), renderEditorPreview());
     }),
-    element3.addEventListener("click", (arg30) => {
-      if (!v12 || v15 || arg30.button !== 0 || arg30.detail > 1 || list.length >= 256) return;
-      const point = constrainFlowPoint2(v31(arg30), list.at(-1), arg30.shiftKey, null, [
-        clientWidth,
-        clientHeight,
-      ]).point;
+    drawingSvgElement.addEventListener("click", (svgClickEvent) => {
+      if (
+        !isDrawing ||
+        isSaving ||
+        svgClickEvent.button !== 0 ||
+        svgClickEvent.detail > 1 ||
+        list.length >= 256
+      )
+        return;
+      const point = constrainFlowPoint2(
+        toNormalizedPoint(svgClickEvent),
+        list.at(-1),
+        svgClickEvent.shiftKey,
+        null,
+        [clientWidth, clientHeight],
+      ).point;
       (list.length &&
         Math.hypot(
           (point[0] - list.at(-1)[0]) * clientWidth,
           (point[1] - list.at(-1)[1]) * clientHeight,
         ) < 2) ||
-        (list.push(point), (value2 = null), fn4(), element3.focus());
+        (list.push(point), (pointerPoint = null), rebuildNodeHandles(), drawingSvgElement.focus());
     }),
-    element3.addEventListener("dblclick", (arg31) => {
-      v12 && (arg31.preventDefault(), fn6());
+    drawingSvgElement.addEventListener("dblclick", (svgDoubleClickEvent) => {
+      isDrawing && (svgDoubleClickEvent.preventDefault(), finishDrawing());
     }));
-  function fn9(arg32) {
-    if ((arg32.stopImmediatePropagation(), v15)) {
-      arg32.preventDefault();
+  function handleDocumentKeyDown(keyEvent) {
+    if ((keyEvent.stopImmediatePropagation(), isSaving)) {
+      keyEvent.preventDefault();
       return;
     }
-    if (v44?.keydown(arg32)) return;
-    if (arg32.key === "Escape") {
-      (arg32.preventDefault(),
-        v12
+    if (pathSelectEnhancer?.keydown(keyEvent)) return;
+    if (keyEvent.key === "Escape") {
+      (keyEvent.preventDefault(),
+        isDrawing
           ? ((list = value.points),
-            (v11.shape = value.shape),
-            (list2 = value.undo),
-            (v17("[data-shape]").value = v11.shape),
-            v44?.sync(),
-            (v12 = false),
-            (v13 = -1),
-            (value2 = null),
-            fn4())
-          : fn11());
+            (flowLineProperties.shape = value.shape),
+            (historyEntries = value.undo),
+            (queryEditor("[data-shape]").value = flowLineProperties.shape),
+            pathSelectEnhancer?.sync(),
+            (isDrawing = false),
+            (selectedNodeIndex = -1),
+            (pointerPoint = null),
+            rebuildNodeHandles())
+          : destroyEditor());
       return;
     }
     if (
-      (arg32.key === "Shift" && ((v14 = true), value3 ? fn5() : v12 && fn3()),
-      arg32.target.closest("input,select,textarea"))
+      (keyEvent.key === "Shift" &&
+        ((isShiftPressed = true),
+        activeDragState ? updateDragPoint() : isDrawing && renderEditorPreview()),
+      keyEvent.target.closest("input,select,textarea"))
     )
       return;
-    if ((arg32.metaKey || arg32.ctrlKey) && arg32.key.toLowerCase() === "z") {
-      (arg32.preventDefault(), fn8());
+    if ((keyEvent.metaKey || keyEvent.ctrlKey) && keyEvent.key.toLowerCase() === "z") {
+      (keyEvent.preventDefault(), undoLastStep());
       return;
     }
-    (arg32.key === "Enter" && arg32.target === element3 && v12 && (arg32.preventDefault(), fn6()),
-      ["Delete", "Backspace"].includes(arg32.key) &&
-        arg32.target.closest("svg") &&
-        (arg32.preventDefault(), v12 ? (list.pop(), fn4()) : fn7()));
-    const v45 = {
+    (keyEvent.key === "Enter" &&
+      keyEvent.target === drawingSvgElement &&
+      isDrawing &&
+      (keyEvent.preventDefault(), finishDrawing()),
+      ["Delete", "Backspace"].includes(keyEvent.key) &&
+        keyEvent.target.closest("svg") &&
+        (keyEvent.preventDefault(),
+        isDrawing ? (list.pop(), rebuildNodeHandles()) : deleteSelectedNode()));
+    const arrowKeyDelta = {
       ArrowLeft: [-1, 0],
       ArrowRight: [1, 0],
       ArrowUp: [0, -1],
       ArrowDown: [0, 1],
-    }[arg32.key];
-    if (v45 && !v12 && v13 >= 0 && arg32.target.closest("svg")) {
-      arg32.preventDefault();
-      const num4 = arg32.shiftKey ? 10 : 1,
+    }[keyEvent.key];
+    if (arrowKeyDelta && !isDrawing && selectedNodeIndex >= 0 && keyEvent.target.closest("svg")) {
+      keyEvent.preventDefault();
+      const moveStepPx = keyEvent.shiftKey ? 10 : 1,
         point2 = constrainFlowPoint2(
           [
-            list[v13][0] + (v45[0] * num4) / clientWidth,
-            list[v13][1] + (v45[1] * num4) / clientHeight,
+            list[selectedNodeIndex][0] + (arrowKeyDelta[0] * moveStepPx) / clientWidth,
+            list[selectedNodeIndex][1] + (arrowKeyDelta[1] * moveStepPx) / clientHeight,
           ],
           null,
           false,
         ).point;
-      point2.some((arg33, arg34) => arg33 !== list[v13][arg34]) &&
-        (v32(), (list[v13] = point2), fn3());
+      point2.some(
+        (nudgedValue, nudgedAxisIndex) => nudgedValue !== list[selectedNodeIndex][nudgedAxisIndex],
+      ) && (pushUndoSnapshot(), (list[selectedNodeIndex] = point2), renderEditorPreview());
     }
   }
-  function fn10(arg35) {
-    (arg35.stopImmediatePropagation(),
-      arg35.key === "Shift" && ((v14 = false), value3 ? fn5() : fn3()));
+  function handleDocumentKeyUp(keyUpEvent) {
+    (keyUpEvent.stopImmediatePropagation(),
+      keyUpEvent.key === "Shift" &&
+        ((isShiftPressed = false), activeDragState ? updateDragPoint() : renderEditorPreview()));
   }
-  const v46 = () => {
-      ((v14 = false), (value3 = null), v33(null, null));
+  const resetInteraction = () => {
+      ((isShiftPressed = false), (activeDragState = null), updateAxisGuide(null, null));
     },
     resizeObserver = new ResizeObserver(() => {
-      (fn1(), fn2());
+      (syncToolbarSpace(), syncStageTransform());
     });
-  (resizeObserver.observe(v1),
-    resizeObserver.observe(v3),
-    resizeObserver.observe(v17(".flow-line-draw-tools")));
-  const mutationObserver = new MutationObserver(fn2);
-  mutationObserver.observe(v1, {
+  (resizeObserver.observe(canvasElement),
+    resizeObserver.observe(containerElement),
+    resizeObserver.observe(queryEditor(".flow-line-draw-tools")));
+  const mutationObserver = new MutationObserver(syncStageTransform);
+  mutationObserver.observe(canvasElement, {
     attributes: true,
     attributeFilter: ["style"],
   });
   const mutationObserver2 = new MutationObserver(() => {
-    !v15 && (!v1.isConnected || !v2.isConnected || !element2.isConnected) && fn11();
+    !isSaving &&
+      (!canvasElement.isConnected || !hostElement.isConnected || !editorRootElement.isConnected) &&
+      destroyEditor();
   });
-  (mutationObserver2.observe(v3, {
+  (mutationObserver2.observe(containerElement, {
     childList: true,
     subtree: true,
   }),
-    document.addEventListener("keydown", fn9, true),
-    document.addEventListener("keyup", fn10, true),
-    window.addEventListener("blur", v46),
-    window.addEventListener("resize", fn2));
-  function fn11() {
-    v15 ||
-      v16 ||
-      ((v16 = true),
-      v44?.destroy(),
-      value4?.destroyFlowLine?.(),
+    document.addEventListener("keydown", handleDocumentKeyDown, true),
+    document.addEventListener("keyup", handleDocumentKeyUp, true),
+    window.addEventListener("blur", resetInteraction),
+    window.addEventListener("resize", syncStageTransform));
+  function destroyEditor() {
+    isSaving ||
+      isDestroyed ||
+      ((isDestroyed = true),
+      pathSelectEnhancer?.destroy(),
+      previewNode?.destroyFlowLine?.(),
       resizeObserver.disconnect(),
       mutationObserver.disconnect(),
       mutationObserver2.disconnect(),
-      document.removeEventListener("keydown", fn9, true),
-      document.removeEventListener("keyup", fn10, true),
-      window.removeEventListener("blur", v46),
-      window.removeEventListener("resize", fn2),
-      (v2.style.visibility = visibility),
-      map.forEach(({ element: v47, inert: v48 }) => (v47.inert = v48)),
-      element2.remove(),
-      v19(),
-      (I = null),
+      document.removeEventListener("keydown", handleDocumentKeyDown, true),
+      document.removeEventListener("keyup", handleDocumentKeyUp, true),
+      window.removeEventListener("blur", resetInteraction),
+      window.removeEventListener("resize", syncStageTransform),
+      (hostElement.style.visibility = visibility),
+      map.forEach(
+        ({ element: restoredNodeElement, inert: savedInert }) =>
+          (restoredNodeElement.inert = savedInert),
+      ),
+      editorRootElement.remove(),
+      restoreEditingLayout(),
+      (activeEditorInstance = null),
       activeElement?.isConnected &&
         activeElement.focus({
           preventScroll: true,
         }),
-      v10?.());
+      onClose?.());
   }
   return (
-    (v17("[data-cancel]").onclick = fn11),
-    (v17("[data-save]").onclick = async () => {
-      if (v15 || v12 || list.length < 2) return;
+    (queryEditor("[data-cancel]").onclick = destroyEditor),
+    (queryEditor("[data-save]").onclick = async () => {
+      if (isSaving || isDrawing || list.length < 2) return;
       if (
-        list.every((arg36) => Math.hypot(arg36[0] - list[0][0], arg36[1] - list[0][1]) < 0.00001)
+        list.every(
+          (savedPoint) =>
+            Math.hypot(savedPoint[0] - list[0][0], savedPoint[1] - list[0][1]) < 0.00001,
+        )
       ) {
-        ((v17("[data-error]").hidden = false),
-          (v17("[data-error]").textContent = "请至少绘制两个不同位置的节点。"));
+        ((queryEditor("[data-error]").hidden = false),
+          (queryEditor("[data-error]").textContent = "请至少绘制两个不同位置的节点。"));
         return;
       }
       const options =
         JSON.stringify(list) === stringify
           ? {
               properties: {
-                points: v11.points,
-                shape: v11.shape,
+                points: flowLineProperties.points,
+                shape: flowLineProperties.shape,
               },
             }
           : (() => {
-              const v49 = v34();
+              const fittedSaveOptions = buildFittedPath();
               return {
-                position: v49.position,
+                position: fittedSaveOptions.position,
                 properties: {
-                  points: v49.points,
-                  shape: v11.shape,
+                  points: fittedSaveOptions.points,
+                  shape: flowLineProperties.shape,
                 },
               };
             })();
-      ((v15 = true), fn3(), (v17(".flow-line-draw-tools").inert = true));
+      ((isSaving = true),
+        renderEditorPreview(),
+        (queryEditor(".flow-line-draw-tools").inert = true));
       try {
-        (await v8?.(options), (v15 = false), fn11());
-      } catch (v50) {
-        ((v15 = false),
-          (v17(".flow-line-draw-tools").inert = false),
-          (v17("[data-error]").hidden = false),
-          (v17("[data-error]").textContent = v50.message || "保存失败，请重试。"),
-          v9?.(v50),
-          fn3());
+        (await onSave?.(options), (isSaving = false), destroyEditor());
+      } catch (saveError) {
+        ((isSaving = false),
+          (queryEditor(".flow-line-draw-tools").inert = false),
+          (queryEditor("[data-error]").hidden = false),
+          (queryEditor("[data-error]").textContent = saveError.message || "保存失败，请重试。"),
+          onError?.(saveError),
+          renderEditorPreview());
       }
     }),
-    (I = {
-      close: fn11,
+    (activeEditorInstance = {
+      close: destroyEditor,
     }),
-    fn4(),
-    element3.focus(),
-    I
+    rebuildNodeHandles(),
+    drawingSvgElement.focus(),
+    activeEditorInstance
   );
 }

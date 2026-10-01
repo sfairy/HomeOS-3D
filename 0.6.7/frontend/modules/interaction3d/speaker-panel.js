@@ -1,378 +1,452 @@
 import { speakerState, speakerCommand } from "./speaker-state.js?v=20260926-speaker-v1";
 import { televisionTime } from "./television-state.js?v=20260914-tv-power-poster-v1";
 export function createSpeakerPanel({
-  onControl: arg1 = async () => {},
-  fetchMedia: arg2 = (...arg3) => fetch(...arg3),
+  onControl: sendCommand = async () => {},
+  fetchMedia: fetchMedia = (...fetchArgs) => fetch(...fetchArgs),
 } = {}) {
-  const fn1 = (arg4, arg5 = "", arg6 = "") => {
-      const value47 = document.createElement(arg4);
-      return ((value47.className = arg5), (value47.textContent = arg6), value47);
-    },
-    value1 = fn1("div", "i3d-television-panel i3d-speaker-panel");
-  value1.hidden = true;
-  const value2 = fn1("div", "i3d-nas-heading"),
-    value3 = fn1("h3"),
-    value4 = fn1("span", "i3d-tv-status"),
-    value5 = fn1("div", "i3d-popup-heading-text");
-  (value5.append(value3, value4), value2.append(value5));
-  const value6 = fn1("div", "i3d-tv-content"),
-    value7 = fn1("img", "i3d-tv-artwork"),
-    value8 = fn1("div", "i3d-tv-details"),
-    value9 = fn1("strong"),
-    value10 = fn1("span"),
-    value11 = fn1("span"),
-    value12 = fn1("span", "i3d-tv-time");
-  ((value7.alt = "正在播放的内容封面"), (value7.hidden = true));
-  const value13 = fn1("progress"),
-    value14 = fn1("input");
-  ((value14.type = "range"),
-    (value14.min = "0"),
-    (value14.step = "1"),
-    value14.setAttribute("aria-label", "播放进度"),
-    value8.append(value9, value10, value11, value13, value14, value12),
-    value6.append(value7, value8));
-  const value15 = fn1("div", "i3d-tv-actions i3d-speaker-actions"),
-    value16 = fn1("div", "i3d-speaker-settings"),
-    value17 = fn1("p", "i3d-tv-error");
-  value17.setAttribute("role", "status");
-  const value18 = fn1("div", "i3d-popup-body");
-  (value18.append(value6, value15, value16, value17), value1.append(value2, value18));
-  let value19 = null,
-    value20 = 0,
-    value21 = false,
-    value22 = null,
-    value23 = null,
-    list1 = [],
-    text1 = "";
-  const list2 = [],
-    map1 = new Map(),
-    fn2 = (arg7) =>
-      ["media_play", "media_pause"].includes(arg7)
-        ? "playback"
-        : ["volume_set", "volume_up", "volume_down"].includes(arg7)
-          ? "volume"
-          : ["turn_on", "turn_off"].includes(arg7)
-            ? "power"
-            : arg7,
-    fn3 = (arg8) => map1.has(fn2(arg8)),
-    fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));
-  async function fn5(arg11, arg12 = {}, arg13 = value17) {
-    if (!value19 || value21 || value19.editing || fn3(arg11)) return;
-    const value48 = speakerCommand(value19.item, value19.states, arg11, arg12);
-    if (!value48.enabled) return;
-    const value49 = value20,
-      value50 = fn2(arg11),
-      object1 = {};
-    (map1.set(value50, object1), (arg13.textContent = ""), fn11());
-    try {
-      return (await arg1(value48.command), !value21 && value49 === value20);
-    } catch (error1) {
+  const createElement = (tagName, className = "", labelText = "") => {
+      const createdElement = document.createElement(tagName);
       return (
-        value49 === value20 &&
-          !value21 &&
-          (arg13.textContent = error1?.message || "媒体控制失败，请重试。"),
+        (createdElement.className = className),
+        (createdElement.textContent = labelText),
+        createdElement
+      );
+    },
+    panelElement = createElement("div", "i3d-television-panel i3d-speaker-panel");
+  panelElement.hidden = true;
+  const headingElement = createElement("div", "i3d-nas-heading"),
+    titleElement = createElement("h3"),
+    statusElement = createElement("span", "i3d-tv-status"),
+    headingTextElement = createElement("div", "i3d-popup-heading-text");
+  (headingTextElement.append(titleElement, statusElement),
+    headingElement.append(headingTextElement));
+  const contentElement = createElement("div", "i3d-tv-content"),
+    artworkImage = createElement("img", "i3d-tv-artwork"),
+    detailsElement = createElement("div", "i3d-tv-details"),
+    trackTitleElement = createElement("strong"),
+    artistElement = createElement("span"),
+    albumElement = createElement("span"),
+    timeElement = createElement("span", "i3d-tv-time");
+  ((artworkImage.alt = "正在播放的内容封面"), (artworkImage.hidden = true));
+  const progressElement = createElement("progress"),
+    seekInput = createElement("input");
+  ((seekInput.type = "range"),
+    (seekInput.min = "0"),
+    (seekInput.step = "1"),
+    seekInput.setAttribute("aria-label", "播放进度"),
+    detailsElement.append(
+      trackTitleElement,
+      artistElement,
+      albumElement,
+      progressElement,
+      seekInput,
+      timeElement,
+    ),
+    contentElement.append(artworkImage, detailsElement));
+  const actionsElement = createElement("div", "i3d-tv-actions i3d-speaker-actions"),
+    settingsElement = createElement("div", "i3d-speaker-settings"),
+    errorElement = createElement("p", "i3d-tv-error");
+  errorElement.setAttribute("role", "status");
+  const bodyElement = createElement("div", "i3d-popup-body");
+  (bodyElement.append(contentElement, actionsElement, settingsElement, errorElement),
+    panelElement.append(headingElement, bodyElement));
+  let activeEntity = null,
+    revisionCount = 0,
+    isDisposed = false,
+    refreshIntervalId = null,
+    browseAbortController = null,
+    breadcrumbPath = [],
+    artworkUrl = "";
+  const controlBindings = [],
+    pendingCommandMap = new Map(),
+    resolveServiceGroup = (serviceName) =>
+      ["media_play", "media_pause"].includes(serviceName)
+        ? "playback"
+        : ["volume_set", "volume_up", "volume_down"].includes(serviceName)
+          ? "volume"
+          : ["turn_on", "turn_off"].includes(serviceName)
+            ? "power"
+            : serviceName,
+    isServicePending = (checkedService) =>
+      pendingCommandMap.has(resolveServiceGroup(checkedService)),
+    isControlDisabled = (stateSnapshot, guardService) =>
+      !activeEntity ||
+      activeEntity.editing ||
+      !stateSnapshot.available ||
+      (guardService && isServicePending(guardService));
+  async function executeCommand(targetService, serviceData = {}, messageElement = errorElement) {
+    if (!activeEntity || isDisposed || activeEntity.editing || isServicePending(targetService))
+      return;
+    const commandSpec = speakerCommand(
+      activeEntity.item,
+      activeEntity.states,
+      targetService,
+      serviceData,
+    );
+    if (!commandSpec.enabled) return;
+    const revisionAtStart = revisionCount,
+      serviceGroup = resolveServiceGroup(targetService),
+      pendingToken = {};
+    (pendingCommandMap.set(serviceGroup, pendingToken),
+      (messageElement.textContent = ""),
+      renderPanel());
+    try {
+      return (
+        await sendCommand(commandSpec.command),
+        !isDisposed && revisionAtStart === revisionCount
+      );
+    } catch (controlError) {
+      return (
+        revisionAtStart === revisionCount &&
+          !isDisposed &&
+          (messageElement.textContent = controlError?.message || "媒体控制失败，请重试。"),
         false
       );
     } finally {
-      value49 === value20 &&
-        !value21 &&
-        (map1.get(value50) === object1 && map1.delete(value50), fn11());
+      revisionAtStart === revisionCount &&
+        !isDisposed &&
+        (pendingCommandMap.get(serviceGroup) === pendingToken &&
+          pendingCommandMap.delete(serviceGroup),
+        renderPanel());
     }
   }
-  function fn6(arg14, arg15, arg16, arg17 = value15) {
-    const value51 = fn1("button", "", arg14);
+  function createControlButton(
+    buttonLabel,
+    controlService,
+    payloadBuilder,
+    hostElement = actionsElement,
+  ) {
+    const controlButton = createElement("button", "", buttonLabel);
     return (
-      (value51.type = "button"),
-      value51.addEventListener("click", () => {
-        const value52 = speakerState(value19.item, value19.states);
-        fn5(typeof arg15 == "function" ? arg15(value52) : arg15, arg16 ? arg16(value52) : {});
+      (controlButton.type = "button"),
+      controlButton.addEventListener("click", () => {
+        const buttonState = speakerState(activeEntity.item, activeEntity.states);
+        executeCommand(
+          typeof controlService == "function" ? controlService(buttonState) : controlService,
+          payloadBuilder ? payloadBuilder(buttonState) : {},
+        );
       }),
-      arg17.append(value51),
-      list2.push({
-        element: value51,
-        service: arg15,
+      hostElement.append(controlButton),
+      controlBindings.push({
+        element: controlButton,
+        service: controlService,
       }),
-      value51
+      controlButton
     );
   }
-  const value24 = fn1("div", "i3d-popup-power-actions");
-  (value2.append(value24),
-    (fn6("开机", "turn_on", null, value24).className = "i3d-tv-power"),
-    (fn6("关机", "turn_off", null, value24).className = "i3d-tv-power"),
-    fn6("上一首", "media_previous_track"));
-  const value25 = fn6("播放", (arg18) => (arg18.playing ? "media_pause" : "media_play"));
-  (fn6("下一首", "media_next_track"), fn6("停止", "media_stop"));
-  const value26 = fn1("div", "i3d-speaker-volume");
-  value16.append(value26);
-  const value27 = fn1("label", "i3d-speaker-field i3d-volume-slider"),
-    value28 = fn1("span", "", "音量"),
-    value29 = fn1("input", "i3d-control-range");
-  ((value29.type = "range"),
-    (value29.min = "0"),
-    (value29.max = "100"),
-    (value29.step = "1"),
-    value29.setAttribute("aria-label", "音量"),
-    value27.append(value28, value29),
-    value26.append(value27),
-    list2.push({
-      element: value27,
-      input: value29,
+  const powerActionsElement = createElement("div", "i3d-popup-power-actions");
+  (headingElement.append(powerActionsElement),
+    (createControlButton("开机", "turn_on", null, powerActionsElement).className = "i3d-tv-power"),
+    (createControlButton("关机", "turn_off", null, powerActionsElement).className = "i3d-tv-power"),
+    createControlButton("上一首", "media_previous_track"));
+  const playPauseButton = createControlButton("播放", (playbackState) =>
+    playbackState.playing ? "media_pause" : "media_play",
+  );
+  (createControlButton("下一首", "media_next_track"), createControlButton("停止", "media_stop"));
+  const volumeContainer = createElement("div", "i3d-speaker-volume");
+  settingsElement.append(volumeContainer);
+  const volumeField = createElement("label", "i3d-speaker-field i3d-volume-slider"),
+    volumeLabel = createElement("span", "", "音量"),
+    volumeInput = createElement("input", "i3d-control-range");
+  ((volumeInput.type = "range"),
+    (volumeInput.min = "0"),
+    (volumeInput.max = "100"),
+    (volumeInput.step = "1"),
+    volumeInput.setAttribute("aria-label", "音量"),
+    volumeField.append(volumeLabel, volumeInput),
+    volumeContainer.append(volumeField),
+    controlBindings.push({
+      element: volumeField,
+      input: volumeInput,
       service: "volume_set",
     }),
-    value29.addEventListener("input", () => {
-      value28.textContent = "音量 " + Math.round(Number(value29.value)) + "%";
+    volumeInput.addEventListener("input", () => {
+      volumeLabel.textContent = "音量 " + Math.round(Number(volumeInput.value)) + "%";
     }),
-    value29.addEventListener(
+    volumeInput.addEventListener(
       "change",
       () =>
-        void fn5("volume_set", {
-          volume_level: Number(value29.value) / 100,
+        void executeCommand("volume_set", {
+          volume_level: Number(volumeInput.value) / 100,
         }),
     ),
-    value14.addEventListener(
+    seekInput.addEventListener(
       "change",
       () =>
-        void fn5("media_seek", {
-          seek_position: Number(value14.value),
+        void executeCommand("media_seek", {
+          seek_position: Number(seekInput.value),
         }),
     ));
-  const value30 = fn1("div", "i3d-speaker-actions");
-  value26.append(value30);
-  const value31 = fn6("音量−", "volume_down", null, value30),
-    value32 = fn6("音量＋", "volume_up", null, value30),
-    value33 = fn6(
+  const volumeActions = createElement("div", "i3d-speaker-actions");
+  volumeContainer.append(volumeActions);
+  const volumeDownButton = createControlButton("音量−", "volume_down", null, volumeActions),
+    volumeUpButton = createControlButton("音量＋", "volume_up", null, volumeActions),
+    muteButton = createControlButton(
       "静音",
       "volume_mute",
-      (arg19) => ({
-        is_volume_muted: arg19.attributes.is_volume_muted !== true,
+      (muteState) => ({
+        is_volume_muted: muteState.attributes.is_volume_muted !== true,
       }),
-      value26,
+      volumeContainer,
     ),
-    value34 = fn6(
+    shuffleButton = createControlButton(
       "随机播放",
       "shuffle_set",
-      (arg20) => ({
-        shuffle: arg20.attributes.shuffle !== true,
+      (shuffleState) => ({
+        shuffle: shuffleState.attributes.shuffle !== true,
       }),
-      value16,
+      settingsElement,
     ),
-    list3 = [];
-  for (const [value53, value54, value55, value56] of [
+    selectControls = [];
+  for (const [fieldLabel, fieldService, attributeName, choicesAttribute] of [
     ["来源", "select_source", "source", "source_list"],
     ["音效", "select_sound_mode", "sound_mode", "sound_mode_list"],
     ["循环", "repeat_set", "repeat", null],
   ]) {
-    const value57 = fn1("label", "i3d-speaker-field"),
-      value58 = fn1("select");
-    (value57.append(fn1("span", "", value53), value58),
-      value16.append(value57),
-      value58.setAttribute("aria-label", value53),
-      value58.addEventListener(
+    const controlField = createElement("label", "i3d-speaker-field"),
+      selectElement = createElement("select");
+    (controlField.append(createElement("span", "", fieldLabel), selectElement),
+      settingsElement.append(controlField),
+      selectElement.setAttribute("aria-label", fieldLabel),
+      selectElement.addEventListener(
         "change",
         () =>
-          void fn5(value54, {
-            [value55]: value58.value,
+          void executeCommand(fieldService, {
+            [attributeName]: selectElement.value,
           }),
       ),
-      list3.push({
-        select: value58,
-        attribute: value55,
-        choices: value56,
+      selectControls.push({
+        select: selectElement,
+        attribute: attributeName,
+        choices: choicesAttribute,
         signature: "",
       }),
-      list2.push({
-        element: value57,
-        input: value58,
-        service: value54,
+      controlBindings.push({
+        element: controlField,
+        input: selectElement,
+        service: fieldService,
       }));
   }
-  const value35 = fn1("button", "i3d-speaker-browse"),
-    value36 = fn1("button", "", "返回上级"),
-    value37 = fn1("h3", "", "媒体库"),
-    value38 = fn1("div", "i3d-speaker-media-list");
-  ((value35.title = "浏览媒体"),
-    value35.setAttribute("aria-label", "浏览媒体"),
-    (value35.innerHTML =
+  const browseButton = createElement("button", "i3d-speaker-browse"),
+    backButton = createElement("button", "", "返回上级"),
+    libraryHeading = createElement("h3", "", "媒体库"),
+    mediaListElement = createElement("div", "i3d-speaker-media-list");
+  ((browseButton.title = "浏览媒体"),
+    browseButton.setAttribute("aria-label", "浏览媒体"),
+    (browseButton.innerHTML =
       '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h10M4 10h10M4 15h5M17 18V5l4-1v4l-4 1"/><ellipse cx="14" cy="18" rx="3" ry="2.5"/></svg>'),
-    value6.append(value35));
-  const value39 = fn1("dialog", "i3d-speaker-media-dialog"),
-    value40 = fn1("div", "i3d-speaker-media-heading"),
-    value41 = fn1("button", "", "关闭"),
-    value42 = fn1("button", "", "重新加载"),
-    value43 = fn1("button", "", "播放当前内容"),
-    value44 = fn1("div", "i3d-speaker-media-toolbar"),
-    value45 = fn1("p", "i3d-tv-error");
-  (value39.setAttribute("aria-label", "选择播放媒体"),
-    value45.setAttribute("role", "status"),
-    value41.setAttribute("aria-label", "关闭媒体库"));
-  for (const value59 of [value35, value36, value41, value42, value43]) value59.type = "button";
-  ((value36.hidden = value43.hidden = true),
-    value40.append(value37, value41),
-    value44.append(value36, value42, value43),
-    value39.append(value40, value44, value38, value45),
-    value1.append(value39));
-  let value46 = null;
-  function fn7() {
-    (fn9(),
-      value39.open && value39.close(),
-      value38.replaceChildren(),
-      (value45.textContent = ""),
-      value19 && !value21 && fn11());
+    contentElement.append(browseButton));
+  const mediaDialog = createElement("dialog", "i3d-speaker-media-dialog"),
+    mediaHeadingElement = createElement("div", "i3d-speaker-media-heading"),
+    closeButton = createElement("button", "", "关闭"),
+    reloadButton = createElement("button", "", "重新加载"),
+    playCurrentButton = createElement("button", "", "播放当前内容"),
+    mediaToolbarElement = createElement("div", "i3d-speaker-media-toolbar"),
+    mediaErrorElement = createElement("p", "i3d-tv-error");
+  (mediaDialog.setAttribute("aria-label", "选择播放媒体"),
+    mediaErrorElement.setAttribute("role", "status"),
+    closeButton.setAttribute("aria-label", "关闭媒体库"));
+  for (const actionButton of [
+    browseButton,
+    backButton,
+    closeButton,
+    reloadButton,
+    playCurrentButton,
+  ])
+    actionButton.type = "button";
+  ((backButton.hidden = playCurrentButton.hidden = true),
+    mediaHeadingElement.append(libraryHeading, closeButton),
+    mediaToolbarElement.append(backButton, reloadButton, playCurrentButton),
+    mediaDialog.append(
+      mediaHeadingElement,
+      mediaToolbarElement,
+      mediaListElement,
+      mediaErrorElement,
+    ),
+    panelElement.append(mediaDialog));
+  let currentLibrary = null;
+  function closeLibrary() {
+    (abortBrowse(),
+      mediaDialog.open && mediaDialog.close(),
+      mediaListElement.replaceChildren(),
+      (mediaErrorElement.textContent = ""),
+      activeEntity && !isDisposed && renderPanel());
   }
-  (value41.addEventListener("click", fn7),
-    value39.addEventListener("keydown", (arg21) => {
-      arg21.key === "Escape" && (arg21.preventDefault(), arg21.stopPropagation(), fn7());
+  (closeButton.addEventListener("click", closeLibrary),
+    mediaDialog.addEventListener("keydown", (keyEvent) => {
+      keyEvent.key === "Escape" &&
+        (keyEvent.preventDefault(), keyEvent.stopPropagation(), closeLibrary());
     }),
-    value39.addEventListener("cancel", (arg22) => {
-      (arg22.preventDefault(), fn7());
+    mediaDialog.addEventListener("cancel", (cancelEvent) => {
+      (cancelEvent.preventDefault(), closeLibrary());
     }),
-    value39.addEventListener("close", () => {
-      value39.open || fn9();
+    mediaDialog.addEventListener("close", () => {
+      mediaDialog.open || abortBrowse();
     }),
-    value35.addEventListener("click", () => {
-      !value19 ||
-        value21 ||
-        value19.editing ||
-        !speakerState(value19.item, value19.states).available ||
-        (value39.open || value39.showModal(), fn10(null, []));
+    browseButton.addEventListener("click", () => {
+      !activeEntity ||
+        isDisposed ||
+        activeEntity.editing ||
+        !speakerState(activeEntity.item, activeEntity.states).available ||
+        (mediaDialog.open || mediaDialog.showModal(), loadMediaLibrary(null, []));
     }),
-    value36.addEventListener("click", () => {
-      const value60 = list1.slice(0, -1);
-      fn10(value60.at(-1) || null, value60.slice(0, -1));
+    backButton.addEventListener("click", () => {
+      const parentBreadcrumbPath = breadcrumbPath.slice(0, -1);
+      loadMediaLibrary(parentBreadcrumbPath.at(-1) || null, parentBreadcrumbPath.slice(0, -1));
     }),
-    value42.addEventListener("click", () => void fn10(list1.at(-1) || null, list1.slice(0, -1))));
-  async function fn8(arg23) {
-    (await fn5(
+    reloadButton.addEventListener(
+      "click",
+      () => void loadMediaLibrary(breadcrumbPath.at(-1) || null, breadcrumbPath.slice(0, -1)),
+    ));
+  async function playMedia(mediaItem) {
+    (await executeCommand(
       "play_media",
       {
-        media_content_id: arg23.media_content_id,
-        media_content_type: arg23.media_content_type,
+        media_content_id: mediaItem.media_content_id,
+        media_content_type: mediaItem.media_content_type,
       },
-      value45,
-    )) && fn7();
+      mediaErrorElement,
+    )) && closeLibrary();
   }
-  value43.addEventListener("click", () => {
-    value46 && fn8(value46);
+  playCurrentButton.addEventListener("click", () => {
+    currentLibrary && playMedia(currentLibrary);
   });
-  function fn9() {
-    (value23?.abort(), (value23 = null));
+  function abortBrowse() {
+    (browseAbortController?.abort(), (browseAbortController = null));
   }
-  async function fn10(arg24, arg25) {
+  async function loadMediaLibrary(folderItem, ancestorTrail) {
     if (
-      !value19 ||
-      value21 ||
-      value19.editing ||
-      !speakerState(value19.item, value19.states).available
+      !activeEntity ||
+      isDisposed ||
+      activeEntity.editing ||
+      !speakerState(activeEntity.item, activeEntity.states).available
     )
       return;
-    fn9();
-    const abortController1 = new AbortController();
-    value23 = abortController1;
-    const value61 = value20;
-    ((value45.textContent = ""),
-      value38.replaceChildren(),
-      (value37.textContent = "正在加载…"),
-      (value43.hidden = true),
-      fn11());
+    abortBrowse();
+    const abortController = new AbortController();
+    browseAbortController = abortController;
+    const revisionBeforeLoad = revisionCount;
+    ((mediaErrorElement.textContent = ""),
+      mediaListElement.replaceChildren(),
+      (libraryHeading.textContent = "正在加载…"),
+      (playCurrentButton.hidden = true),
+      renderPanel());
     try {
-      const value62 = await arg2("/api/v1/ha/media/browse", {
+      const response = await fetchMedia("/api/v1/ha/media/browse", {
           method: "POST",
           credentials: "same-origin",
           headers: {
             "content-type": "application/json",
           },
-          signal: abortController1.signal,
+          signal: abortController.signal,
           body: JSON.stringify({
             playerLibrary: true,
-            entityId: value19.item.entityId,
-            mediaContentId: arg24?.media_content_id || "",
-            mediaContentType: arg24?.media_content_type || "",
+            entityId: activeEntity.item.entityId,
+            mediaContentId: folderItem?.media_content_id || "",
+            mediaContentType: folderItem?.media_content_type || "",
           }),
         }),
-        value63 = await value62.json();
-      if (!value62.ok || value63.ok === false)
-        throw new Error(value63.detail || value63.error || "媒体库加载失败");
-      if (value21 || value61 !== value20 || abortController1.signal.aborted) return;
-      const value64 = value63.result || {};
-      ((value46 = value64),
-        (value43.hidden =
-          !value64.can_play || !speakerState(value19.item, value19.states).supports("play_media")),
-        (list1 = arg24 ? [...arg25, arg24] : []),
-        (value36.hidden = list1.length === 0),
-        (value37.textContent = value64.title || "媒体库"));
-      for (const value65 of value64.children || []) {
-        const value66 = fn1("div", "i3d-speaker-media-row");
+        responseBody = await response.json();
+      if (!response.ok || responseBody.ok === false)
+        throw new Error(responseBody.detail || responseBody.error || "媒体库加载失败");
+      if (isDisposed || revisionBeforeLoad !== revisionCount || abortController.signal.aborted)
+        return;
+      const libraryResult = responseBody.result || {};
+      ((currentLibrary = libraryResult),
+        (playCurrentButton.hidden =
+          !libraryResult.can_play ||
+          !speakerState(activeEntity.item, activeEntity.states).supports("play_media")),
+        (breadcrumbPath = folderItem ? [...ancestorTrail, folderItem] : []),
+        (backButton.hidden = breadcrumbPath.length === 0),
+        (libraryHeading.textContent = libraryResult.title || "媒体库"));
+      for (const libraryItem of libraryResult.children || []) {
+        const mediaRow = createElement("div", "i3d-speaker-media-row");
         if (
-          (value66.append(fn1("span", "", value65.title || value65.media_content_id || "媒体")),
-          value65.can_expand)
+          (mediaRow.append(
+            createElement("span", "", libraryItem.title || libraryItem.media_content_id || "媒体"),
+          ),
+          libraryItem.can_expand)
         ) {
-          const value67 = fn1("button", "", "打开");
-          ((value67.type = "button"),
-            (value67.onclick = () => void fn10(value65, list1)),
-            value66.append(value67));
+          const openButton = createElement("button", "", "打开");
+          ((openButton.type = "button"),
+            (openButton.onclick = () => void loadMediaLibrary(libraryItem, breadcrumbPath)),
+            mediaRow.append(openButton));
         }
-        if (value65.can_play && speakerState(value19.item, value19.states).supports("play_media")) {
-          const value68 = fn1("button", "", "播放");
-          ((value68.type = "button"),
-            (value68.onclick = () => void fn8(value65)),
-            value66.append(value68));
+        if (
+          libraryItem.can_play &&
+          speakerState(activeEntity.item, activeEntity.states).supports("play_media")
+        ) {
+          const libraryItemPlayButton = createElement("button", "", "播放");
+          ((libraryItemPlayButton.type = "button"),
+            (libraryItemPlayButton.onclick = () => void playMedia(libraryItem)),
+            mediaRow.append(libraryItemPlayButton));
         }
-        value38.append(value66);
+        mediaListElement.append(mediaRow);
       }
-      value38.childElementCount || value38.append(fn1("p", "", "暂无可浏览的媒体"));
-    } catch (error2) {
-      value61 === value20 &&
-        !value21 &&
-        !abortController1.signal.aborted &&
-        ((value37.textContent = "媒体库"),
-        (value45.textContent = error2?.message || "媒体库加载失败，请重试。"));
+      mediaListElement.childElementCount ||
+        mediaListElement.append(createElement("p", "", "暂无可浏览的媒体"));
+    } catch (browseError) {
+      revisionBeforeLoad === revisionCount &&
+        !isDisposed &&
+        !abortController.signal.aborted &&
+        ((libraryHeading.textContent = "媒体库"),
+        (mediaErrorElement.textContent = browseError?.message || "媒体库加载失败，请重试。"));
     } finally {
-      value23 === abortController1 && ((value23 = null), value19 && fn11());
+      browseAbortController === abortController &&
+        ((browseAbortController = null), activeEntity && renderPanel());
     }
   }
-  function fn11() {
-    if (!value19 || value21) return;
-    const value69 = speakerState(value19.item, value19.states);
+  function renderPanel() {
+    if (!activeEntity || isDisposed) return;
+    const entityState = speakerState(activeEntity.item, activeEntity.states);
     if (
-      ((value3.textContent = value69.name),
-      (value3.title = value69.name),
-      (value4.textContent = value69.status),
-      (value4.title = value69.status),
-      (value9.textContent = value69.on ? value69.title : value69.status),
-      (value10.textContent = value69.artist),
-      (value11.textContent = value69.album),
-      (value10.hidden = !value69.artist),
-      (value11.hidden = !value69.album),
-      text1 !== value69.artwork)
+      ((titleElement.textContent = entityState.name),
+      (titleElement.title = entityState.name),
+      (statusElement.textContent = entityState.status),
+      (statusElement.title = entityState.status),
+      (trackTitleElement.textContent = entityState.on ? entityState.title : entityState.status),
+      (artistElement.textContent = entityState.artist),
+      (albumElement.textContent = entityState.album),
+      (artistElement.hidden = !entityState.artist),
+      (albumElement.hidden = !entityState.album),
+      artworkUrl !== entityState.artwork)
     ) {
-      ((text1 = value69.artwork), (value7.hidden = true));
-      const value72 = value20;
-      ((value7.onload = () => {
-        !value21 &&
-          value72 === value20 &&
-          value19 &&
-          text1 === value69.artwork &&
-          (value7.hidden = false);
+      ((artworkUrl = entityState.artwork), (artworkImage.hidden = true));
+      const artworkRevision = revisionCount;
+      ((artworkImage.onload = () => {
+        !isDisposed &&
+          artworkRevision === revisionCount &&
+          activeEntity &&
+          artworkUrl === entityState.artwork &&
+          (artworkImage.hidden = false);
       }),
-        (value7.onerror = () => {
-          value7.hidden = true;
+        (artworkImage.onerror = () => {
+          artworkImage.hidden = true;
         }),
-        value69.artwork ? (value7.src = value69.artwork) : value7.removeAttribute("src"));
+        entityState.artwork
+          ? (artworkImage.src = entityState.artwork)
+          : artworkImage.removeAttribute("src"));
     }
-    value25.textContent = value69.playing ? "暂停" : "播放";
-    for (const value73 of list2) {
-      const value74 =
-        typeof value73.service == "function" ? value73.service(value69) : value73.service;
-      ((value73.element.hidden = !value69.supports(value74)),
-        (value73.input || value73.element).setAttribute("aria-busy", String(fn3(value74))),
-        ((value73.input || value73.element).disabled =
-          fn4(value69, value74) || !speakerCommand(value19.item, value19.states, value74).enabled));
+    playPauseButton.textContent = entityState.playing ? "暂停" : "播放";
+    for (const controlBinding of controlBindings) {
+      const resolvedService =
+        typeof controlBinding.service == "function"
+          ? controlBinding.service(entityState)
+          : controlBinding.service;
+      ((controlBinding.element.hidden = !entityState.supports(resolvedService)),
+        (controlBinding.input || controlBinding.element).setAttribute(
+          "aria-busy",
+          String(isServicePending(resolvedService)),
+        ),
+        ((controlBinding.input || controlBinding.element).disabled =
+          isControlDisabled(entityState, resolvedService) ||
+          !speakerCommand(activeEntity.item, activeEntity.states, resolvedService).enabled));
     }
-    ((value31.hidden ||= value69.supports("volume_set")),
-      (value32.hidden ||= value69.supports("volume_set")),
-      (value30.hidden = value31.hidden && value32.hidden),
-      (value26.hidden = value27.hidden && value30.hidden && value33.hidden),
-      (value16.hidden = ![
+    ((volumeDownButton.hidden ||= entityState.supports("volume_set")),
+      (volumeUpButton.hidden ||= entityState.supports("volume_set")),
+      (volumeActions.hidden = volumeDownButton.hidden && volumeUpButton.hidden),
+      (volumeContainer.hidden = volumeField.hidden && volumeActions.hidden && muteButton.hidden),
+      (settingsElement.hidden = ![
         "volume_set",
         "volume_up",
         "volume_down",
@@ -381,93 +455,111 @@ export function createSpeakerPanel({
         "select_source",
         "select_sound_mode",
         "repeat_set",
-      ].some((arg26) => value69.supports(arg26))));
-    const value70 = value69.duration !== null && value69.position !== null;
-    ((value13.hidden = !value70 || value69.supports("media_seek")),
-      (value14.hidden = !value70 || !value69.supports("media_seek")),
-      (value12.hidden = !value70),
-      (value13.max = value14.max = value69.duration || 1),
-      (value13.value = value69.position || 0),
-      document.activeElement !== value14 && (value14.value = value69.position || 0),
-      (value14.disabled = fn4(value69, "media_seek") || !value69.on),
-      (value12.textContent =
-        televisionTime(value69.position) + " / " + televisionTime(value69.duration)));
-    const value71 = value69.attributes.volume_level;
-    (document.activeElement !== value29 &&
-      ((value29.value = Number.isFinite(value71) ? value71 * 100 : 0),
-      (value28.textContent = Number.isFinite(value71)
-        ? "音量 " + Math.round(value71 * 100) + "%"
+      ].some((supportedService) => entityState.supports(supportedService))));
+    const hasTimeline = entityState.duration !== null && entityState.position !== null;
+    ((progressElement.hidden = !hasTimeline || entityState.supports("media_seek")),
+      (seekInput.hidden = !hasTimeline || !entityState.supports("media_seek")),
+      (timeElement.hidden = !hasTimeline),
+      (progressElement.max = seekInput.max = entityState.duration || 1),
+      (progressElement.value = entityState.position || 0),
+      document.activeElement !== seekInput && (seekInput.value = entityState.position || 0),
+      (seekInput.disabled = isControlDisabled(entityState, "media_seek") || !entityState.on),
+      (timeElement.textContent =
+        televisionTime(entityState.position) + " / " + televisionTime(entityState.duration)));
+    const volumeLevel = entityState.attributes.volume_level;
+    (document.activeElement !== volumeInput &&
+      ((volumeInput.value = Number.isFinite(volumeLevel) ? volumeLevel * 100 : 0),
+      (volumeLabel.textContent = Number.isFinite(volumeLevel)
+        ? "音量 " + Math.round(volumeLevel * 100) + "%"
         : "音量")),
-      (value33.textContent = value69.attributes.is_volume_muted === true ? "取消静音" : "静音"),
-      value33.setAttribute("aria-pressed", String(value69.attributes.is_volume_muted === true)),
-      value34.setAttribute("aria-pressed", String(value69.attributes.shuffle === true)));
-    for (const value75 of list3) {
-      const value76 = value75.choices
-          ? value69.attributes[value75.choices] || []
+      (muteButton.textContent =
+        entityState.attributes.is_volume_muted === true ? "取消静音" : "静音"),
+      muteButton.setAttribute(
+        "aria-pressed",
+        String(entityState.attributes.is_volume_muted === true),
+      ),
+      shuffleButton.setAttribute("aria-pressed", String(entityState.attributes.shuffle === true)));
+    for (const selectControl of selectControls) {
+      const choiceValues = selectControl.choices
+          ? entityState.attributes[selectControl.choices] || []
           : ["off", "all", "one"],
-        value77 = JSON.stringify(value76);
-      if (value75.signature !== value77) {
-        ((value75.signature = value77), value75.select.replaceChildren());
-        for (const value78 of value76) {
-          if (typeof value78 != "string") continue;
-          const value79 = fn1(
+        choiceSignature = JSON.stringify(choiceValues);
+      if (selectControl.signature !== choiceSignature) {
+        ((selectControl.signature = choiceSignature), selectControl.select.replaceChildren());
+        for (const choiceValue of choiceValues) {
+          if (typeof choiceValue != "string") continue;
+          const optionElement = createElement(
             "option",
             "",
-            value75.attribute === "repeat"
+            selectControl.attribute === "repeat"
               ? {
                   off: "关闭循环",
                   all: "列表循环",
                   one: "单曲循环",
-                }[value78]
-              : value78,
+                }[choiceValue]
+              : choiceValue,
           );
-          ((value79.value = value78), value75.select.append(value79));
+          ((optionElement.value = choiceValue), selectControl.select.append(optionElement));
         }
       }
-      ((value75.select.value = value69.attributes[value75.attribute] || ""),
-        (value75.select.disabled ||= value76.length === 0));
+      ((selectControl.select.value = entityState.attributes[selectControl.attribute] || ""),
+        (selectControl.select.disabled ||= choiceValues.length === 0));
     }
-    ((value35.hidden = !value69.supports("browse_media")),
-      (value35.disabled = fn4(value69) || !!value23),
-      !value69.supports("browse_media") && value39.open && fn7());
-    for (const value80 of [value36, value42, ...value38.querySelectorAll("button")])
-      value80.disabled =
-        fn4(value69) || !!value23 || (value80.textContent === "播放" && fn3("play_media"));
-    ((value43.disabled = fn4(value69, "play_media") || !!value23),
-      value39.setAttribute("aria-busy", String(!!value23)),
-      !value69.playing && value22 !== null && (clearInterval(value22), (value22 = null)),
-      value69.playing && value22 === null && !value1.hidden && (value22 = setInterval(fn11, 1000)));
+    ((browseButton.hidden = !entityState.supports("browse_media")),
+      (browseButton.disabled = isControlDisabled(entityState) || !!browseAbortController),
+      !entityState.supports("browse_media") && mediaDialog.open && closeLibrary());
+    for (const mediaButton of [
+      backButton,
+      reloadButton,
+      ...mediaListElement.querySelectorAll("button"),
+    ])
+      mediaButton.disabled =
+        isControlDisabled(entityState) ||
+        !!browseAbortController ||
+        (mediaButton.textContent === "播放" && isServicePending("play_media"));
+    ((playCurrentButton.disabled =
+      isControlDisabled(entityState, "play_media") || !!browseAbortController),
+      mediaDialog.setAttribute("aria-busy", String(!!browseAbortController)),
+      !entityState.playing &&
+        refreshIntervalId !== null &&
+        (clearInterval(refreshIntervalId), (refreshIntervalId = null)),
+      entityState.playing &&
+        refreshIntervalId === null &&
+        !panelElement.hidden &&
+        (refreshIntervalId = setInterval(renderPanel, 1000)));
   }
-  function fn12() {
-    (value20++,
-      fn7(),
-      (value46 = null),
-      map1.clear(),
-      value22 !== null && clearInterval(value22),
-      (value22 = null),
-      (list1 = []),
-      value38.replaceChildren(),
-      (value37.textContent = ""),
-      (value36.hidden = true),
-      (value17.textContent = ""),
-      (text1 = ""),
-      value7.removeAttribute("src"),
-      (value7.hidden = true));
+  function resetPanel() {
+    (revisionCount++,
+      closeLibrary(),
+      (currentLibrary = null),
+      pendingCommandMap.clear(),
+      refreshIntervalId !== null && clearInterval(refreshIntervalId),
+      (refreshIntervalId = null),
+      (breadcrumbPath = []),
+      mediaListElement.replaceChildren(),
+      (libraryHeading.textContent = ""),
+      (backButton.hidden = true),
+      (errorElement.textContent = ""),
+      (artworkUrl = ""),
+      artworkImage.removeAttribute("src"),
+      (artworkImage.hidden = true));
   }
   return {
-    root: value1,
-    update(arg27) {
-      value21 ||
-        ((value19?.item.id !== arg27.item.id || value19?.item.entityId !== arg27.item.entityId) &&
-          fn12(),
-        (value19 = arg27),
-        fn11());
+    root: panelElement,
+    update(nextEntity) {
+      isDisposed ||
+        ((activeEntity?.item.id !== nextEntity.item.id ||
+          activeEntity?.item.entityId !== nextEntity.item.entityId) &&
+          resetPanel(),
+        (activeEntity = nextEntity),
+        renderPanel());
     },
     hide() {
-      (!value19 && value1.hidden) || ((value1.hidden = true), fn12(), (value19 = null));
+      (!activeEntity && panelElement.hidden) ||
+        ((panelElement.hidden = true), resetPanel(), (activeEntity = null));
     },
     dispose() {
-      value21 || (this.hide(), (value21 = true), value1.remove());
+      isDisposed || (this.hide(), (isDisposed = true), panelElement.remove());
     },
   };
 }

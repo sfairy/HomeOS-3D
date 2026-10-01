@@ -1,17 +1,17 @@
-function J(arg1) {
+function scheduleIdleWork(workCallback) {
   if (globalThis.requestIdleCallback) {
-    const value2 = requestIdleCallback(arg1, {
+    const idleCallbackHandle = requestIdleCallback(workCallback, {
       timeout: 250,
     });
-    return () => cancelIdleCallback(value2);
+    return () => cancelIdleCallback(idleCallbackHandle);
   }
-  const value1 = setTimeout(arg1, 0);
-  return () => clearTimeout(value1);
+  const timeoutId = setTimeout(workCallback, 0);
+  return () => clearTimeout(timeoutId);
 }
 export function createReflectionDetail({
-  THREE: arg2,
-  requestFrame: arg3 = () => {},
-  makeWorker: arg4 = () =>
+  THREE: three,
+  requestFrame: requestFrame = () => {},
+  makeWorker: makeWorker = () =>
     new Worker(
       new URL(
         "./studio-reflection-detail-worker.js?v=20260928-overview-detail-v1",
@@ -21,24 +21,24 @@ export function createReflectionDetail({
         type: "module",
       },
     ),
-  scheduleWork: arg5 = J,
-  maxBytes: arg6 = 16 * 1024 * 1024,
-  worldError: arg7 = 0.02,
-  ratio: arg8 = 0.35,
-  includeRuntime: arg9 = true,
-  runtimeWorldError: arg10 = arg7,
+  scheduleWork: scheduleWork = scheduleIdleWork,
+  maxBytes: maxBytes = 16 * 1024 * 1024,
+  worldError: worldError = 0.02,
+  ratio: targetRatio = 0.35,
+  includeRuntime: shouldIncludeRuntime = true,
+  runtimeWorldError: runtimeWorldError = worldError,
 }) {
-  const map1 = new Map(),
-    list1 = [],
-    value3 = new arg2.Vector3();
-  let value4,
-    value5 = null,
-    value6 = null,
-    value7 = 0,
-    value8 = false,
-    value9 = false,
-    value10 = false;
-  const object1 = {
+  const recordsByGeometry = new Map(),
+    prepareQueue = [],
+    scaleVector = new three.Vector3();
+  let worker,
+    inFlightRecord = null,
+    cancelScheduledWork = null,
+    nextRecordId = 0,
+    isDisposed = false,
+    hasFailed = false,
+    hasNewDetail = false;
+  const stats = {
       prepared: 0,
       pending: 0,
       failed: 0,
@@ -46,271 +46,324 @@ export function createReflectionDetail({
       detailTriangles: 0,
       bytes: 0,
     },
-    fn1 = (arg11) =>
-      [["index", arg11.index], ...Object.entries(arg11.attributes)].map(([arg12, arg13]) => ({
-        name: arg12,
-        attribute: arg13,
-        version: arg13.version,
-        dataVersion: arg13.data?.version,
-        count: arg13.count,
-      })),
-    fn2 = (arg14) =>
-      Object.keys(arg14.source.attributes).length + 1 === arg14.signature.length &&
-      arg14.signature.every((arg15) => {
-        const value11 =
-          arg15.name === "index" ? arg14.source.index : arg14.source.attributes[arg15.name];
+    buildGeometrySignature = (signatureGeometry) =>
+      [["index", signatureGeometry.index], ...Object.entries(signatureGeometry.attributes)].map(
+        ([attributeKey, signatureAttribute]) => ({
+          name: attributeKey,
+          attribute: signatureAttribute,
+          version: signatureAttribute.version,
+          dataVersion: signatureAttribute.data?.version,
+          count: signatureAttribute.count,
+        }),
+      ),
+    isSignatureCurrent = (record) =>
+      Object.keys(record.source.attributes).length + 1 === record.signature.length &&
+      record.signature.every((signatureEntry) => {
+        const liveAttribute =
+          signatureEntry.name === "index"
+            ? record.source.index
+            : record.source.attributes[signatureEntry.name];
         return (
-          value11 === arg15.attribute &&
-          value11.version === arg15.version &&
-          value11.data?.version === arg15.dataVersion &&
-          value11.count === arg15.count
+          liveAttribute === signatureEntry.attribute &&
+          liveAttribute.version === signatureEntry.version &&
+          liveAttribute.data?.version === signatureEntry.dataVersion &&
+          liveAttribute.count === signatureEntry.count
         );
       }),
-    fn3 = (arg16) => {
-      const value12 = arg16.material,
-        value13 = arg16.geometry;
+    isReflectionSimplifiable = (mesh) => {
+      const meshMaterial = mesh.material,
+        meshGeometry = mesh.geometry;
       return (
-        arg16.isMesh &&
-        arg16.userData?.reflectionSimplifiable &&
-        (arg9 || !arg16.userData.runtimeDetail) &&
-        !arg16.isSkinnedMesh &&
-        !arg16.isInstancedMesh &&
-        !arg16.isBatchedMesh &&
-        !arg16.morphTargetInfluences?.length &&
-        !Object.keys(value13?.morphAttributes || {}).length &&
-        value12?.isMeshStandardMaterial &&
-        !value12.transparent &&
-        !value12.alphaTest &&
-        !value12.displacementMap &&
-        !(value12.transmission > 0) &&
-        !arg16.customDepthMaterial &&
-        !arg16.customDistanceMaterial &&
-        value13?.drawRange.start === 0 &&
-        value13.drawRange.count === Infinity
+        mesh.isMesh &&
+        mesh.userData?.reflectionSimplifiable &&
+        (shouldIncludeRuntime || !mesh.userData.runtimeDetail) &&
+        !mesh.isSkinnedMesh &&
+        !mesh.isInstancedMesh &&
+        !mesh.isBatchedMesh &&
+        !mesh.morphTargetInfluences?.length &&
+        !Object.keys(meshGeometry?.morphAttributes || {}).length &&
+        meshMaterial?.isMeshStandardMaterial &&
+        !meshMaterial.transparent &&
+        !meshMaterial.alphaTest &&
+        !meshMaterial.displacementMap &&
+        !(meshMaterial.transmission > 0) &&
+        !mesh.customDepthMaterial &&
+        !mesh.customDistanceMaterial &&
+        meshGeometry?.drawRange.start === 0 &&
+        meshGeometry.drawRange.count === Infinity
       );
     },
-    fn4 = (arg17) =>
-      [...new Set(Object.values(arg17.attributes).map((arg18) => arg18.array))].reduce(
-        (arg19, arg20) => arg19 + arg20.byteLength,
-        0,
-      ),
-    fn5 = () => {
-      object1.pending = list1.length + (value5 && map1.get(value5.source) === value5 ? 1 : 0);
+    computeGeometryBytes = (measuredGeometry) =>
+      [
+        ...new Set(
+          Object.values(measuredGeometry.attributes).map(
+            (geometryAttribute) => geometryAttribute.array,
+          ),
+        ),
+      ].reduce((byteSum, attributeArray) => byteSum + attributeArray.byteLength, 0),
+    updatePendingCount = () => {
+      stats.pending =
+        prepareQueue.length +
+        (inFlightRecord && recordsByGeometry.get(inFlightRecord.source) === inFlightRecord ? 1 : 0);
     };
-  function fn6(arg21) {
-    const value14 = map1.get(arg21);
-    if (!value14) return;
-    (arg21.removeEventListener("dispose", value14.release), map1.delete(arg21));
-    const value15 = list1.indexOf(value14);
-    (value15 !== -1 && list1.splice(value15, 1),
-      value14.geometry &&
-        (value14.geometry.dispose(),
-        (object1.bytes -= value14.bytes),
-        object1.prepared--,
-        (object1.sourceTriangles -= value14.sourceTriangles),
-        (object1.detailTriangles -= value14.detailTriangles)),
-      fn5());
+  function releaseRecord(sourceGeometry) {
+    const releasedRecord = recordsByGeometry.get(sourceGeometry);
+    if (!releasedRecord) return;
+    (sourceGeometry.removeEventListener("dispose", releasedRecord.release),
+      recordsByGeometry.delete(sourceGeometry));
+    const queueIndex = prepareQueue.indexOf(releasedRecord);
+    (queueIndex !== -1 && prepareQueue.splice(queueIndex, 1),
+      releasedRecord.geometry &&
+        (releasedRecord.geometry.dispose(),
+        (stats.bytes -= releasedRecord.bytes),
+        stats.prepared--,
+        (stats.sourceTriangles -= releasedRecord.sourceTriangles),
+        (stats.detailTriangles -= releasedRecord.detailTriangles)),
+      updatePendingCount());
   }
-  function fn7() {
-    ((value9 = true),
-      (object1.failed += list1.length + (value5 ? 1 : 0)),
-      (list1.length = 0),
-      (value5 = null),
-      fn5(),
-      value4?.terminate(),
-      (value4 = null),
-      value10 && !value8 && ((value10 = false), arg3()));
+  function handleWorkerError() {
+    ((hasFailed = true),
+      (stats.failed += prepareQueue.length + (inFlightRecord ? 1 : 0)),
+      (prepareQueue.length = 0),
+      (inFlightRecord = null),
+      updatePendingCount(),
+      worker?.terminate(),
+      (worker = null),
+      hasNewDetail && !isDisposed && ((hasNewDetail = false), requestFrame()));
   }
-  function fn8() {
-    if ((fn5(), !(value8 || value9 || value5 || value6))) {
-      if (!list1.length) {
-        value10 && ((value10 = false), arg3());
+  function scheduleNextPrepare() {
+    if (
+      (updatePendingCount(), !(isDisposed || hasFailed || inFlightRecord || cancelScheduledWork))
+    ) {
+      if (!prepareQueue.length) {
+        hasNewDetail && ((hasNewDetail = false), requestFrame());
         return;
       }
-      value6 = arg5(() => {
-        ((value6 = null), fn10());
+      cancelScheduledWork = scheduleWork(() => {
+        ((cancelScheduledWork = null), processNextRecord());
       });
     }
   }
-  function fn9() {
-    if (!(value4 || value9))
+  function ensureWorker() {
+    if (!(worker || hasFailed))
       try {
-        ((value4 = arg4()),
-          (value4.onerror = fn7),
-          (value4.onmessage = ({ data: arg22 }) => {
-            if (value8 || !value5 || arg22.id !== value5.id) return;
-            const value16 = value5;
-            ((value5 = null), fn5());
+        ((worker = makeWorker()),
+          (worker.onerror = handleWorkerError),
+          (worker.onmessage = ({ data: workerMessage }) => {
+            if (isDisposed || !inFlightRecord || workerMessage.id !== inFlightRecord.id) return;
+            const processingRecord = inFlightRecord;
+            ((inFlightRecord = null), updatePendingCount());
             try {
-              if (map1.get(value16.source) !== value16) return;
-              if (!fn2(value16)) {
-                fn6(value16.source);
+              if (recordsByGeometry.get(processingRecord.source) !== processingRecord) return;
+              if (!isSignatureCurrent(processingRecord)) {
+                releaseRecord(processingRecord.source);
                 return;
               }
-              if (arg22.failed) {
-                object1.failed++;
+              if (workerMessage.failed) {
+                stats.failed++;
                 return;
               }
               if (
-                !arg22.indices?.length ||
-                arg22.indices.length >= value16.source.index.count * 0.9
+                !workerMessage.indices?.length ||
+                workerMessage.indices.length >= processingRecord.source.index.count * 0.9
               )
                 return;
-              const value17 = fn4(value16.source) + arg22.indices.byteLength;
-              if (object1.bytes + value17 > arg6) return;
-              const value18 = value16.source.clone();
-              (value18.setIndex(new arg2.BufferAttribute(arg22.indices, 1)),
-                (value16.geometry = value18),
-                (value16.bytes = value17),
-                (object1.bytes += value17),
-                object1.prepared++,
-                (value16.sourceTriangles = value16.source.index.count / 3),
-                (value16.detailTriangles = arg22.indices.length / 3),
-                (object1.sourceTriangles += value16.sourceTriangles),
-                (object1.detailTriangles += value16.detailTriangles),
-                (value10 = true));
+              const totalBytes =
+                computeGeometryBytes(processingRecord.source) + workerMessage.indices.byteLength;
+              if (stats.bytes + totalBytes > maxBytes) return;
+              const simplifiedGeometry = processingRecord.source.clone();
+              (simplifiedGeometry.setIndex(new three.BufferAttribute(workerMessage.indices, 1)),
+                (processingRecord.geometry = simplifiedGeometry),
+                (processingRecord.bytes = totalBytes),
+                (stats.bytes += totalBytes),
+                stats.prepared++,
+                (processingRecord.sourceTriangles = processingRecord.source.index.count / 3),
+                (processingRecord.detailTriangles = workerMessage.indices.length / 3),
+                (stats.sourceTriangles += processingRecord.sourceTriangles),
+                (stats.detailTriangles += processingRecord.detailTriangles),
+                (hasNewDetail = true));
             } finally {
-              fn8();
+              scheduleNextPrepare();
             }
           }));
       } catch {
-        fn7();
+        handleWorkerError();
       }
   }
-  function fn10() {
-    if (value8 || value9 || value5) return;
-    const value19 = list1.shift();
-    if ((fn5(), !value19)) {
-      fn8();
+  function processNextRecord() {
+    if (isDisposed || hasFailed || inFlightRecord) return;
+    const queuedRecord = prepareQueue.shift();
+    if ((updatePendingCount(), !queuedRecord)) {
+      scheduleNextPrepare();
       return;
     }
-    const value20 = value19.source;
-    if (!fn2(value19)) {
-      (fn6(value20), fn8());
+    const recordGeometry = queuedRecord.source;
+    if (!isSignatureCurrent(queuedRecord)) {
+      (releaseRecord(recordGeometry), scheduleNextPrepare());
       return;
     }
-    if (object1.bytes + fn4(value20) + value20.index.count * 4 > arg6) {
-      fn8();
+    if (
+      stats.bytes + computeGeometryBytes(recordGeometry) + recordGeometry.index.count * 4 >
+      maxBytes
+    ) {
+      scheduleNextPrepare();
       return;
     }
-    if (((value5 = value19), fn5(), fn9(), !!value4))
+    if (((inFlightRecord = queuedRecord), updatePendingCount(), ensureWorker(), !!worker))
       try {
-        const value21 = ["position", "normal", "color", "uv", "runtimeSurface"].filter(
-            (arg23) => value20.attributes[arg23],
+        const packedAttributeNames = ["position", "normal", "color", "uv", "runtimeSurface"].filter(
+            (attributeName) => recordGeometry.attributes[attributeName],
           ),
-          value22 = Object.fromEntries(
-            value21.map((arg24) => {
-              const value27 = value20.attributes[arg24],
-                float32Array2 = new Float32Array(value27.count * value27.itemSize),
-                list3 = ["getX", "getY", "getZ", "getW"];
-              for (let value28 = 0; value28 < value27.count; value28++)
-                for (let value29 = 0; value29 < value27.itemSize; value29++)
-                  float32Array2[value28 * value27.itemSize + value29] =
-                    value27[list3[value29]](value28);
-              return [arg24, float32Array2];
+          attributeCopies = Object.fromEntries(
+            packedAttributeNames.map((packedAttributeName) => {
+              const sourceAttribute = recordGeometry.attributes[packedAttributeName],
+                attributeCopy = new Float32Array(sourceAttribute.count * sourceAttribute.itemSize),
+                componentGetterNames = ["getX", "getY", "getZ", "getW"];
+              for (
+                let sourceVertexIndex = 0;
+                sourceVertexIndex < sourceAttribute.count;
+                sourceVertexIndex++
+              )
+                for (
+                  let componentIndex = 0;
+                  componentIndex < sourceAttribute.itemSize;
+                  componentIndex++
+                )
+                  attributeCopy[sourceVertexIndex * sourceAttribute.itemSize + componentIndex] =
+                    sourceAttribute[componentGetterNames[componentIndex]](sourceVertexIndex);
+              return [packedAttributeName, attributeCopy];
             }),
           ),
-          value23 = value21.filter((arg25) => arg25 !== "position"),
-          value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),
-          float32Array1 = new Float32Array(value20.attributes.position.count * value24),
-          list2 = [];
-        let value25 = 0;
-        for (const value30 of value23) {
-          const value31 = value20.attributes[value30].itemSize;
-          for (let value32 = 0; value32 < value31; value32++)
-            list2.push(value30 === "normal" ? 0.2 : value30 === "color" ? 1 : 2);
-          for (let value33 = 0; value33 < value20.attributes.position.count; value33++)
-            float32Array1.set(
-              value22[value30].subarray(value33 * value31, (value33 + 1) * value31),
-              value33 * value24 + value25,
+          interleavedAttributeNames = packedAttributeNames.filter(
+            (remainingAttributeName) => remainingAttributeName !== "position",
+          ),
+          vertexStride = interleavedAttributeNames.reduce(
+            (strideSum, strideAttributeName) =>
+              strideSum + recordGeometry.attributes[strideAttributeName].itemSize,
+            0,
+          ),
+          interleavedAttributes = new Float32Array(
+            recordGeometry.attributes.position.count * vertexStride,
+          ),
+          attributeWeights = [];
+        let attributeOffset = 0;
+        for (const interleavedName of interleavedAttributeNames) {
+          const attributeItemSize = recordGeometry.attributes[interleavedName].itemSize;
+          for (let weightIndex = 0; weightIndex < attributeItemSize; weightIndex++)
+            attributeWeights.push(
+              interleavedName === "normal" ? 0.2 : interleavedName === "color" ? 1 : 2,
             );
-          value25 += value31;
+          for (
+            let targetVertexIndex = 0;
+            targetVertexIndex < recordGeometry.attributes.position.count;
+            targetVertexIndex++
+          )
+            interleavedAttributes.set(
+              attributeCopies[interleavedName].subarray(
+                targetVertexIndex * attributeItemSize,
+                (targetVertexIndex + 1) * attributeItemSize,
+              ),
+              targetVertexIndex * vertexStride + attributeOffset,
+            );
+          attributeOffset += attributeItemSize;
         }
-        const uint32Array1 = new Uint32Array(value20.index.array),
-          value26 = value22.position;
-        value4.postMessage(
+        const sourceIndices = new Uint32Array(recordGeometry.index.array),
+          sourcePositions = attributeCopies.position;
+        worker.postMessage(
           {
-            id: value19.id,
-            indices: uint32Array1,
-            positions: value26,
-            attributes: float32Array1,
-            stride: value24,
-            weights: list2,
-            error: value19.error,
-            ratio: arg8,
+            id: queuedRecord.id,
+            indices: sourceIndices,
+            positions: sourcePositions,
+            attributes: interleavedAttributes,
+            stride: vertexStride,
+            weights: attributeWeights,
+            error: queuedRecord.error,
+            ratio: targetRatio,
           },
-          [uint32Array1.buffer, value26.buffer, float32Array1.buffer],
+          [sourceIndices.buffer, sourcePositions.buffer, interleavedAttributes.buffer],
         );
       } catch {
-        (object1.failed++, (value5 = null), fn8());
+        (stats.failed++, (inFlightRecord = null), scheduleNextPrepare());
       }
   }
-  function fn11(arg28) {
-    if (value8 || value9) return;
-    const set1 = new Set();
-    arg28.traverse((arg29) => {
-      fn3(arg29) && set1.add(arg29.geometry);
+  function prepareRecords(sceneRoot) {
+    if (isDisposed || hasFailed) return;
+    const sceneGeometrySet = new Set();
+    sceneRoot.traverse((existingMesh) => {
+      isReflectionSimplifiable(existingMesh) && sceneGeometrySet.add(existingMesh.geometry);
     });
-    for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);
-    (arg28.traverse((arg30) => {
-      const value35 = arg30.geometry;
+    for (const staleGeometry of recordsByGeometry.keys())
+      sceneGeometrySet.has(staleGeometry) || releaseRecord(staleGeometry);
+    (sceneRoot.traverse((traversedMesh) => {
+      const geometry = traversedMesh.geometry;
       if (
-        !fn3(arg30) ||
-        !value35.index ||
-        !value35.attributes.position ||
-        value35.index.count < 900
+        !isReflectionSimplifiable(traversedMesh) ||
+        !geometry.index ||
+        !geometry.attributes.position ||
+        geometry.index.count < 900
       )
         return;
-      const value36 = map1.get(value35);
-      value36 && !fn2(value36) && fn6(value35);
-      const value37 = new arg2.Vector3();
-      arg30.getWorldScale(value37);
-      const value38 = Math.max(
-          Math.abs(value37.x),
-          Math.abs(value37.y),
-          Math.abs(value37.z),
+      const existingRecord = recordsByGeometry.get(geometry);
+      existingRecord && !isSignatureCurrent(existingRecord) && releaseRecord(geometry);
+      const worldScaleVector = new three.Vector3();
+      traversedMesh.getWorldScale(worldScaleVector);
+      const maxWorldScale = Math.max(
+          Math.abs(worldScaleVector.x),
+          Math.abs(worldScaleVector.y),
+          Math.abs(worldScaleVector.z),
           0.001,
         ),
-        value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;
+        scaledErrorTolerance =
+          (traversedMesh.userData.runtimeDetail ? runtimeWorldError : worldError) / maxWorldScale;
       if (
-        (map1.has(value35) && map1.get(value35).error > value39 * 1.000001 && fn6(value35),
-        map1.has(value35))
+        (recordsByGeometry.has(geometry) &&
+          recordsByGeometry.get(geometry).error > scaledErrorTolerance * 1.000001 &&
+          releaseRecord(geometry),
+        recordsByGeometry.has(geometry))
       )
         return;
-      const object2 = {
-        id: ++value7,
-        source: value35,
-        signature: fn1(value35),
+      const createdRecord = {
+        id: ++nextRecordId,
+        source: geometry,
+        signature: buildGeometrySignature(geometry),
         geometry: null,
         bytes: 0,
-        maxScale: value38,
-        error: value39,
-        release: () => fn6(value35),
+        maxScale: maxWorldScale,
+        error: scaledErrorTolerance,
+        release: () => releaseRecord(geometry),
       };
-      (value35.addEventListener("dispose", object2.release),
-        map1.set(value35, object2),
-        list1.push(object2));
+      (geometry.addEventListener("dispose", createdRecord.release),
+        recordsByGeometry.set(geometry, createdRecord),
+        prepareQueue.push(createdRecord));
     }),
-      fn8());
+      scheduleNextPrepare());
   }
   return {
-    stats: object1,
-    prepare: fn11,
-    get(arg31) {
-      if (!fn3(arg31)) return null;
-      const value40 = map1.get(arg31.geometry);
-      if (!value40 || !fn2(value40)) return null;
-      const value41 = value3.setFromMatrixScale(arg31.matrixWorld);
-      return Math.max(Math.abs(value41.x), Math.abs(value41.y), Math.abs(value41.z)) *
-        value40.error <=
-        (arg31.userData.runtimeDetail ? arg10 : arg7) * 1.000001
-        ? value40.geometry
+    stats: stats,
+    prepare: prepareRecords,
+    get(queryMesh) {
+      if (!isReflectionSimplifiable(queryMesh)) return null;
+      const cachedRecord = recordsByGeometry.get(queryMesh.geometry);
+      if (!cachedRecord || !isSignatureCurrent(cachedRecord)) return null;
+      const meshScaleVector = scaleVector.setFromMatrixScale(queryMesh.matrixWorld);
+      return Math.max(
+        Math.abs(meshScaleVector.x),
+        Math.abs(meshScaleVector.y),
+        Math.abs(meshScaleVector.z),
+      ) *
+        cachedRecord.error <=
+        (queryMesh.userData.runtimeDetail ? runtimeWorldError : worldError) * 1.000001
+        ? cachedRecord.geometry
         : null;
     },
     dispose() {
-      ((value8 = true), value6?.(), (value6 = null), value4?.terminate(), (value5 = null));
-      for (const value42 of [...map1.keys()]) fn6(value42);
-      ((list1.length = 0), fn5());
+      ((isDisposed = true),
+        cancelScheduledWork?.(),
+        (cancelScheduledWork = null),
+        worker?.terminate(),
+        (inFlightRecord = null));
+      for (const disposedGeometry of [...recordsByGeometry.keys()]) releaseRecord(disposedGeometry);
+      ((prepareQueue.length = 0), updatePendingCount());
     },
   };
 }

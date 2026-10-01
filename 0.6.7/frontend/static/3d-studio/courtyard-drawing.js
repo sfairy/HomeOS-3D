@@ -6,10 +6,11 @@ import {
   modelBounds,
 } from "./geometry.js";
 export const COURTYARD_DRAWING_TYPES = ["courtyard-area", "courtyard-path", "courtyard-fence"],
-  isCourtyardDrawing = (arg1) => COURTYARD_DRAWING_TYPES.includes(arg1?.type),
-  courtyardSurfaceRise = (arg2) =>
-    arg2?.type === "courtyard-area" && arg2.drawing?.style !== "lawn"
-      ? Math.max(0, Number(arg2.height) || 0)
+  isCourtyardDrawing = (candidateDrawing) =>
+    COURTYARD_DRAWING_TYPES.includes(candidateDrawing?.type),
+  courtyardSurfaceRise = (riseDrawing) =>
+    riseDrawing?.type === "courtyard-area" && riseDrawing.drawing?.style !== "lawn"
+      ? Math.max(0, Number(riseDrawing.height) || 0)
       : 0,
   DRAWING_STYLES = {
     "courtyard-area": {
@@ -30,1013 +31,1299 @@ export const COURTYARD_DRAWING_TYPES = ["courtyard-area", "courtyard-path", "cou
       hedge: "连续绿篱",
     },
   };
-const w = (arg3, arg4, arg5) => Math.max(arg4, Math.min(arg5, arg3)),
-  b = (arg6, arg7) => (Number.isFinite(Number(arg6)) ? Number(arg6) : arg7);
-export function normalizeCourtyardDrawing(arg8) {
-  if (!isCourtyardDrawing(arg8)) return {};
-  const fn1 = (arg9) =>
-    Array.isArray(arg9)
-      ? arg9
+const clamp = (valueToClamp, lowerLimit, upperLimit) =>
+    Math.max(lowerLimit, Math.min(upperLimit, valueToClamp)),
+  finiteOr = (valueToCheck, defaultNumber) =>
+    Number.isFinite(Number(valueToCheck)) ? Number(valueToCheck) : defaultNumber;
+export function normalizeCourtyardDrawing(drawingInput) {
+  if (!isCourtyardDrawing(drawingInput)) return {};
+  const normalizePoints = (pointSource) =>
+    Array.isArray(pointSource)
+      ? pointSource
           .slice(0, 128)
-          .filter((arg10) => Number.isFinite(arg10?.x) && Number.isFinite(arg10?.y))
-          .map((arg11) => ({
-            x: w(arg11.x, -1, 1),
-            y: w(arg11.y, -1, 1),
+          .filter(
+            (filteredPoint) =>
+              Number.isFinite(filteredPoint?.x) && Number.isFinite(filteredPoint?.y),
+          )
+          .map((clampedPoint) => ({
+            x: clamp(clampedPoint.x, -1, 1),
+            y: clamp(clampedPoint.y, -1, 1),
           }))
       : [];
   return {
     drawing: {
       style:
-        Object.hasOwn(DRAWING_STYLES[arg8.type], arg8.drawing?.style) ||
-        (arg8.type === "courtyard-fence" &&
-          ["brick", "metal", "lattice"].includes(arg8.drawing?.style))
-          ? arg8.drawing.style
-          : Object.keys(DRAWING_STYLES[arg8.type])[0],
-      points: fn1(arg8.drawing?.points),
-      holes: Array.isArray(arg8.drawing?.holes)
-        ? arg8.drawing.holes
+        Object.hasOwn(DRAWING_STYLES[drawingInput.type], drawingInput.drawing?.style) ||
+        (drawingInput.type === "courtyard-fence" &&
+          ["brick", "metal", "lattice"].includes(drawingInput.drawing?.style))
+          ? drawingInput.drawing.style
+          : Object.keys(DRAWING_STYLES[drawingInput.type])[0],
+      points: normalizePoints(drawingInput.drawing?.points),
+      holes: Array.isArray(drawingInput.drawing?.holes)
+        ? drawingInput.drawing.holes
             .slice(0, 16)
-            .map(fn1)
-            .filter((arg12) => arg12.length >= 3)
+            .map(normalizePoints)
+            .filter((holePoints) => holePoints.length >= 3)
         : [],
-      closed: arg8.type === "courtyard-area" || arg8.drawing?.closed === true,
-      curve: arg8.type === "courtyard-path" && arg8.drawing?.curve === true,
-      spacing: w(b(arg8.drawing?.spacing, arg8.type === "courtyard-fence" ? 1.8 : 0.8), 0.2, 5),
-      hedgeSpacing: w(b(arg8.drawing?.hedgeSpacing, 0.4), 0.2, 5),
-      thickness: w(b(arg8.drawing?.thickness, 0.18), 0.06, 0.8),
-      stoneWidth: w(b(arg8.drawing?.stoneWidth, 0.6), 0.15, 1.5),
-      stoneDepth: w(b(arg8.drawing?.stoneDepth, 0.42), 0.15, 1.5),
-      patternWidth: w(
-        b(arg8.drawing?.patternWidth, arg8.drawing?.style === "deck" ? 0.16 : 0.6),
+      closed: drawingInput.type === "courtyard-area" || drawingInput.drawing?.closed === true,
+      curve: drawingInput.type === "courtyard-path" && drawingInput.drawing?.curve === true,
+      spacing: clamp(
+        finiteOr(
+          drawingInput.drawing?.spacing,
+          drawingInput.type === "courtyard-fence" ? 1.8 : 0.8,
+        ),
+        0.2,
+        5,
+      ),
+      hedgeSpacing: clamp(finiteOr(drawingInput.drawing?.hedgeSpacing, 0.4), 0.2, 5),
+      thickness: clamp(finiteOr(drawingInput.drawing?.thickness, 0.18), 0.06, 0.8),
+      stoneWidth: clamp(finiteOr(drawingInput.drawing?.stoneWidth, 0.6), 0.15, 1.5),
+      stoneDepth: clamp(finiteOr(drawingInput.drawing?.stoneDepth, 0.42), 0.15, 1.5),
+      patternWidth: clamp(
+        finiteOr(
+          drawingInput.drawing?.patternWidth,
+          drawingInput.drawing?.style === "deck" ? 0.16 : 0.6,
+        ),
         0.08,
         2,
       ),
-      patternLength: w(b(arg8.drawing?.patternLength, 0.9), 0.1, 3),
-      angle: w(b(arg8.drawing?.angle, 0), -180, 180),
-      gateWidth: w(b(arg8.drawing?.gateWidth, 0), 0, 4),
-      gateOffset: w(b(arg8.drawing?.gateOffset, 1), 0, 200),
+      patternLength: clamp(finiteOr(drawingInput.drawing?.patternLength, 0.9), 0.1, 3),
+      angle: clamp(finiteOr(drawingInput.drawing?.angle, 0), -180, 180),
+      gateWidth: clamp(finiteOr(drawingInput.drawing?.gateWidth, 0), 0, 4),
+      gateOffset: clamp(finiteOr(drawingInput.drawing?.gateOffset, 1), 0, 200),
     },
   };
 }
-export function localPoints(arg13, arg14 = arg13.drawing.points) {
-  return arg14.map((arg15) => ({
-    x: arg15.x * arg13.width,
-    y: arg15.y * arg13.depth,
+export function localPoints(drawing, sourcePoints = drawing.drawing.points) {
+  return sourcePoints.map((normalizedPoint) => ({
+    x: normalizedPoint.x * drawing.width,
+    y: normalizedPoint.y * drawing.depth,
   }));
 }
-export function drawingPlanPoints(arg16, arg17, arg18 = arg16.drawing.points) {
-  const value1 = ((arg16.rotation || 0) * Math.PI) / 180,
-    value2 = Math.cos(value1),
-    value3 = Math.sin(value1);
-  return localPoints(arg16, arg18).map((arg19) => ({
-    x: arg16.x + (arg19.x * value2 - arg19.y * value3) * arg17,
-    y: arg16.y + (arg19.x * value3 + arg19.y * value2) * arg17,
+export function drawingPlanPoints(
+  planDrawing,
+  pixelScale,
+  drawingPoints = planDrawing.drawing.points,
+) {
+  const rotationRad = ((planDrawing.rotation || 0) * Math.PI) / 180,
+    rotationCos = Math.cos(rotationRad),
+    rotationSin = Math.sin(rotationRad);
+  return localPoints(planDrawing, drawingPoints).map((localPoint) => ({
+    x: planDrawing.x + (localPoint.x * rotationCos - localPoint.y * rotationSin) * pixelScale,
+    y: planDrawing.y + (localPoint.x * rotationSin + localPoint.y * rotationCos) * pixelScale,
   }));
 }
-export function packDrawingPoints(arg20, arg21, arg22 = []) {
-  const value4 = arg20.map((arg23) => arg23.x),
-    value5 = arg20.map((arg24) => arg24.y),
-    value6 = (Math.min(...value4) + Math.max(...value4)) / 2,
-    value7 = (Math.min(...value5) + Math.max(...value5)) / 2,
-    value8 = Math.max(0.1, (Math.max(...value4) - Math.min(...value4)) / arg21),
-    value9 = Math.max(0.1, (Math.max(...value5) - Math.min(...value5)) / arg21),
-    fn2 = (arg25) =>
-      arg25.map((arg26) => ({
-        x: (arg26.x - value6) / arg21 / value8,
-        y: (arg26.y - value7) / arg21 / value9,
+export function packDrawingPoints(planPoints, pixelsPerMeter, holePointLists = []) {
+  const xValues = planPoints.map((pointForX) => pointForX.x),
+    yValues = planPoints.map((pointForY) => pointForY.y),
+    centerX = (Math.min(...xValues) + Math.max(...xValues)) / 2,
+    centerY = (Math.min(...yValues) + Math.max(...yValues)) / 2,
+    normalizedWidth = Math.max(0.1, (Math.max(...xValues) - Math.min(...xValues)) / pixelsPerMeter),
+    normalizedDepth = Math.max(0.1, (Math.max(...yValues) - Math.min(...yValues)) / pixelsPerMeter),
+    packPointList = (pointsToPack) =>
+      pointsToPack.map((pointToPack) => ({
+        x: (pointToPack.x - centerX) / pixelsPerMeter / normalizedWidth,
+        y: (pointToPack.y - centerY) / pixelsPerMeter / normalizedDepth,
       }));
   return {
-    x: value6,
-    y: value7,
-    width: value8,
-    depth: value9,
+    x: centerX,
+    y: centerY,
+    width: normalizedWidth,
+    depth: normalizedDepth,
     rotation: 0,
-    points: fn2(arg20),
-    holes: arg22.map(fn2),
+    points: packPointList(planPoints),
+    holes: holePointLists.map(packPointList),
   };
 }
-export function inside(arg27, arg28) {
-  let value10 = false;
-  for (let value11 = 0, value12 = arg28.length - 1; value11 < arg28.length; value12 = value11++) {
-    const value13 = arg28[value11],
-      value14 = arg28[value12];
-    value13.y > arg27.y != value14.y > arg27.y &&
-      arg27.x <
-        ((value14.x - value13.x) * (arg27.y - value13.y)) / (value14.y - value13.y) + value13.x &&
-      (value10 = !value10);
+export function inside(testPoint, polygonLoop) {
+  let isInsidePolygon = false;
+  for (
+    let currentIndex = 0, previousIndex = polygonLoop.length - 1;
+    currentIndex < polygonLoop.length;
+    previousIndex = currentIndex++
+  ) {
+    const currentPoint = polygonLoop[currentIndex],
+      previousPoint = polygonLoop[previousIndex];
+    currentPoint.y > testPoint.y != previousPoint.y > testPoint.y &&
+      testPoint.x <
+        ((previousPoint.x - currentPoint.x) * (testPoint.y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y) +
+          currentPoint.x &&
+      (isInsidePolygon = !isInsidePolygon);
   }
-  return value10;
+  return isInsidePolygon;
 }
-export function segmentDistance(arg29, arg30, arg31) {
-  const value15 = arg31.x - arg30.x,
-    value16 = arg31.y - arg30.y,
-    value17 = w(
-      ((arg29.x - arg30.x) * value15 + (arg29.y - arg30.y) * value16) /
-        (value15 * value15 + value16 * value16 || 1),
+export function segmentDistance(distancePoint, segmentStart, segmentEnd) {
+  const deltaX = segmentEnd.x - segmentStart.x,
+    deltaY = segmentEnd.y - segmentStart.y,
+    projectionRatio = clamp(
+      ((distancePoint.x - segmentStart.x) * deltaX + (distancePoint.y - segmentStart.y) * deltaY) /
+        (deltaX * deltaX + deltaY * deltaY || 1),
       0,
       1,
     );
-  return Math.hypot(arg29.x - arg30.x - value15 * value17, arg29.y - arg30.y - value16 * value17);
+  return Math.hypot(
+    distancePoint.x - segmentStart.x - deltaX * projectionRatio,
+    distancePoint.y - segmentStart.y - deltaY * projectionRatio,
+  );
 }
-function F(arg32, arg33, arg34) {
-  return (arg33.x - arg32.x) * (arg34.y - arg32.y) - (arg33.y - arg32.y) * (arg34.x - arg32.x);
+function crossProduct2d(originPoint, pointA, pointB) {
+  return (
+    (pointA.x - originPoint.x) * (pointB.y - originPoint.y) -
+    (pointA.y - originPoint.y) * (pointB.x - originPoint.x)
+  );
 }
-function W(arg35, arg36, arg37, arg38) {
-  const list1 = [
-    F(arg35, arg36, arg37),
-    F(arg35, arg36, arg38),
-    F(arg37, arg38, arg35),
-    F(arg37, arg38, arg36),
+function doSegmentsIntersect(segmentStartA, segmentEndA, segmentStartB, segmentEndB) {
+  const crossValues = [
+    crossProduct2d(segmentStartA, segmentEndA, segmentStartB),
+    crossProduct2d(segmentStartA, segmentEndA, segmentEndB),
+    crossProduct2d(segmentStartB, segmentEndB, segmentStartA),
+    crossProduct2d(segmentStartB, segmentEndB, segmentEndA),
   ];
-  return list1[0] * list1[1] < -1e-10 && list1[2] * list1[3] < -1e-10
+  return crossValues[0] * crossValues[1] < -1e-10 && crossValues[2] * crossValues[3] < -1e-10
     ? true
-    : (Math.abs(list1[0]) < 1e-8 && segmentDistance(arg37, arg35, arg36) < 1e-8) ||
-        (Math.abs(list1[1]) < 1e-8 && segmentDistance(arg38, arg35, arg36) < 1e-8) ||
-        (Math.abs(list1[2]) < 1e-8 && segmentDistance(arg35, arg37, arg38) < 1e-8) ||
-        (Math.abs(list1[3]) < 1e-8 && segmentDistance(arg36, arg37, arg38) < 1e-8);
+    : (Math.abs(crossValues[0]) < 1e-8 &&
+        segmentDistance(segmentStartB, segmentStartA, segmentEndA) < 1e-8) ||
+        (Math.abs(crossValues[1]) < 1e-8 &&
+          segmentDistance(segmentEndB, segmentStartA, segmentEndA) < 1e-8) ||
+        (Math.abs(crossValues[2]) < 1e-8 &&
+          segmentDistance(segmentStartA, segmentStartB, segmentEndB) < 1e-8) ||
+        (Math.abs(crossValues[3]) < 1e-8 &&
+          segmentDistance(segmentEndA, segmentStartB, segmentEndB) < 1e-8);
 }
-export function validLoop(arg39) {
-  if (arg39.length < 3 || arg39.length > 128) return false;
-  let value18 = 0;
-  for (let value19 = 0; value19 < arg39.length; value19++) {
-    const value20 = arg39[value19],
-      value21 = arg39[(value19 + 1) % arg39.length];
-    if (Math.hypot(value21.x - value20.x, value21.y - value20.y) < 0.00001) return false;
-    value18 += value20.x * value21.y - value21.x * value20.y;
-    for (let value22 = value19 + 2; value22 < arg39.length; value22++)
+export function validLoop(loopToValidate) {
+  if (loopToValidate.length < 3 || loopToValidate.length > 128) return false;
+  let areaAccumulator = 0;
+  for (let loopIndex = 0; loopIndex < loopToValidate.length; loopIndex++) {
+    const edgeStartPoint = loopToValidate[loopIndex],
+      edgeEndPoint = loopToValidate[(loopIndex + 1) % loopToValidate.length];
+    if (Math.hypot(edgeEndPoint.x - edgeStartPoint.x, edgeEndPoint.y - edgeStartPoint.y) < 0.00001)
+      return false;
+    areaAccumulator += edgeStartPoint.x * edgeEndPoint.y - edgeEndPoint.x * edgeStartPoint.y;
+    for (let compareIndex = loopIndex + 2; compareIndex < loopToValidate.length; compareIndex++)
       if (
-        !(value19 === 0 && value22 === arg39.length - 1) &&
-        W(value20, value21, arg39[value22], arg39[(value22 + 1) % arg39.length])
+        !(loopIndex === 0 && compareIndex === loopToValidate.length - 1) &&
+        doSegmentsIntersect(
+          edgeStartPoint,
+          edgeEndPoint,
+          loopToValidate[compareIndex],
+          loopToValidate[(compareIndex + 1) % loopToValidate.length],
+        )
       )
         return false;
   }
-  return Math.abs(value18) > 0.00001;
+  return Math.abs(areaAccumulator) > 0.00001;
 }
-export function validHole(arg40, arg41, arg42 = []) {
-  if (!validLoop(arg40) || !arg40.every((arg43) => inside(arg43, arg41))) return false;
-  for (const value23 of [arg41, ...arg42])
-    for (let value24 = 0; value24 < arg40.length; value24++)
-      for (let value25 = 0; value25 < value23.length; value25++)
+export function validHole(holeLoop, outlineLoop, otherHoleLoops = []) {
+  if (!validLoop(holeLoop) || !holeLoop.every((holePoint) => inside(holePoint, outlineLoop)))
+    return false;
+  for (const compareLoop of [outlineLoop, ...otherHoleLoops])
+    for (let holeIndex = 0; holeIndex < holeLoop.length; holeIndex++)
+      for (let compareLoopIndex = 0; compareLoopIndex < compareLoop.length; compareLoopIndex++)
         if (
-          W(
-            arg40[value24],
-            arg40[(value24 + 1) % arg40.length],
-            value23[value25],
-            value23[(value25 + 1) % value23.length],
+          doSegmentsIntersect(
+            holeLoop[holeIndex],
+            holeLoop[(holeIndex + 1) % holeLoop.length],
+            compareLoop[compareLoopIndex],
+            compareLoop[(compareLoopIndex + 1) % compareLoop.length],
           )
         )
           return false;
-  return !arg42.some((arg44) => inside(arg40[0], arg44) || inside(arg44[0], arg40));
+  return !otherHoleLoops.some(
+    (otherHole) => inside(holeLoop[0], otherHole) || inside(otherHole[0], holeLoop),
+  );
 }
-export function pathPoints(arg45) {
-  const value26 = localPoints(arg45),
-    list2 = [];
-  if (!arg45.drawing.curve || value26.length < 3)
-    return arg45.drawing.closed ? [...value26, value26[0]] : value26;
-  for (let value27 = 0; value27 < value26.length - 1; value27++) {
-    const value28 = value26[Math.max(value27 - 1, 0)],
-      value29 = value26[value27],
-      value30 = value26[value27 + 1],
-      value31 = value26[Math.min(value27 + 2, value26.length - 1)],
-      value32 = w(
-        Math.ceil(Math.hypot(value30.x - value29.x, value30.y - value29.y) / 0.12),
+export function pathPoints(pathDrawing) {
+  const localPathPoints = localPoints(pathDrawing),
+    curvedPoints = [];
+  if (!pathDrawing.drawing.curve || localPathPoints.length < 3)
+    return pathDrawing.drawing.closed ? [...localPathPoints, localPathPoints[0]] : localPathPoints;
+  for (let segmentIndex = 0; segmentIndex < localPathPoints.length - 1; segmentIndex++) {
+    const priorPoint = localPathPoints[Math.max(segmentIndex - 1, 0)],
+      segmentStartPoint = localPathPoints[segmentIndex],
+      segmentEndPoint = localPathPoints[segmentIndex + 1],
+      followingPoint = localPathPoints[Math.min(segmentIndex + 2, localPathPoints.length - 1)],
+      subdivisionCount = clamp(
+        Math.ceil(
+          Math.hypot(
+            segmentEndPoint.x - segmentStartPoint.x,
+            segmentEndPoint.y - segmentStartPoint.y,
+          ) / 0.12,
+        ),
         4,
         40,
       );
-    for (let value33 = 0; value33 < value32; value33++) {
-      const value34 = value33 / value32,
-        value35 = value34 * value34,
-        value36 = value35 * value34,
-        fn3 = (arg46) =>
+    for (let subdivisionIndex = 0; subdivisionIndex < subdivisionCount; subdivisionIndex++) {
+      const subdivisionRatio = subdivisionIndex / subdivisionCount,
+        subdivisionRatioSquared = subdivisionRatio * subdivisionRatio,
+        subdivisionRatioCubed = subdivisionRatioSquared * subdivisionRatio,
+        splineComponent = (axisKey) =>
           0.5 *
-          (2 * value29[arg46] +
-            (-value28[arg46] + value30[arg46]) * value34 +
-            (2 * value28[arg46] - 5 * value29[arg46] + 4 * value30[arg46] - value31[arg46]) *
-              value35 +
-            (-value28[arg46] + 3 * value29[arg46] - 3 * value30[arg46] + value31[arg46]) * value36);
-      list2.push({
-        x: fn3("x"),
-        y: fn3("y"),
+          (2 * segmentStartPoint[axisKey] +
+            (-priorPoint[axisKey] + segmentEndPoint[axisKey]) * subdivisionRatio +
+            (2 * priorPoint[axisKey] -
+              5 * segmentStartPoint[axisKey] +
+              4 * segmentEndPoint[axisKey] -
+              followingPoint[axisKey]) *
+              subdivisionRatioSquared +
+            (-priorPoint[axisKey] +
+              3 * segmentStartPoint[axisKey] -
+              3 * segmentEndPoint[axisKey] +
+              followingPoint[axisKey]) *
+              subdivisionRatioCubed);
+      curvedPoints.push({
+        x: splineComponent("x"),
+        y: splineComponent("y"),
       });
     }
   }
-  return (list2.push(value26.at(-1)), list2);
+  return (curvedPoints.push(localPathPoints.at(-1)), curvedPoints);
 }
-export function samplePath(arg47, arg48) {
-  const list3 = [];
-  let value37 = 0,
-    value38 = 0;
-  for (let value39 = 1; value39 < arg47.length; value39++) {
-    const value40 = arg47[value39 - 1],
-      value41 = arg47[value39],
-      value42 = Math.hypot(value41.x - value40.x, value41.y - value40.y);
-    if (!(value42 < 1e-8)) {
-      for (; value38 <= value37 + value42 + 1e-8 && list3.length < 1200;) {
-        const value43 = w((value38 - value37) / value42, 0, 1);
-        (list3.push({
-          x: value40.x + (value41.x - value40.x) * value43,
-          y: value40.y + (value41.y - value40.y) * value43,
-          angle: Math.atan2(value41.y - value40.y, value41.x - value40.x),
+export function samplePath(pathPointList, stepLength) {
+  const sampledPoints = [];
+  let segmentStartDistance = 0,
+    sampleDistance = 0;
+  for (let pathSegmentIndex = 1; pathSegmentIndex < pathPointList.length; pathSegmentIndex++) {
+    const sampleSegmentStart = pathPointList[pathSegmentIndex - 1],
+      sampleSegmentEnd = pathPointList[pathSegmentIndex],
+      segmentLength = Math.hypot(
+        sampleSegmentEnd.x - sampleSegmentStart.x,
+        sampleSegmentEnd.y - sampleSegmentStart.y,
+      );
+    if (!(segmentLength < 1e-8)) {
+      for (
+        ;
+        sampleDistance <= segmentStartDistance + segmentLength + 1e-8 &&
+        sampledPoints.length < 1200;
+      ) {
+        const sampleRatio = clamp((sampleDistance - segmentStartDistance) / segmentLength, 0, 1);
+        (sampledPoints.push({
+          x: sampleSegmentStart.x + (sampleSegmentEnd.x - sampleSegmentStart.x) * sampleRatio,
+          y: sampleSegmentStart.y + (sampleSegmentEnd.y - sampleSegmentStart.y) * sampleRatio,
+          angle: Math.atan2(
+            sampleSegmentEnd.y - sampleSegmentStart.y,
+            sampleSegmentEnd.x - sampleSegmentStart.x,
+          ),
         }),
-          (value38 += arg48));
+          (sampleDistance += stepLength));
       }
-      value37 += value42;
+      segmentStartDistance += segmentLength;
     }
   }
-  return list3;
+  return sampledPoints;
 }
-export function hitDrawing(arg49, arg50, arg51, arg52, arg53 = []) {
-  const value44 = (-(arg49.rotation || 0) * Math.PI) / 180,
-    value45 = (arg50.x - arg49.x) / arg51,
-    value46 = (arg50.y - arg49.y) / arg51,
-    object1 = {
-      x: value45 * Math.cos(value44) - value46 * Math.sin(value44),
-      y: value45 * Math.sin(value44) + value46 * Math.cos(value44),
+export function hitDrawing(
+  targetDrawing,
+  hitPoint,
+  hitPixelsPerMeter,
+  toleranceMeters,
+  obstacleLoops = [],
+) {
+  const inverseRotationRad = (-(targetDrawing.rotation || 0) * Math.PI) / 180,
+    offsetX = (hitPoint.x - targetDrawing.x) / hitPixelsPerMeter,
+    offsetY = (hitPoint.y - targetDrawing.y) / hitPixelsPerMeter,
+    localHitPoint = {
+      x: offsetX * Math.cos(inverseRotationRad) - offsetY * Math.sin(inverseRotationRad),
+      y: offsetX * Math.sin(inverseRotationRad) + offsetY * Math.cos(inverseRotationRad),
     };
-  if (arg49.type === "courtyard-area")
-    return surfaceRegions(arg49, arg53).some(
-      (arg54) =>
-        inside(object1, arg54.outline) && !arg54.holes.some((arg55) => inside(object1, arg55)),
+  if (targetDrawing.type === "courtyard-area")
+    return surfaceRegions(targetDrawing, obstacleLoops).some(
+      (region) =>
+        inside(localHitPoint, region.outline) &&
+        !region.holes.some((regionHole) => inside(localHitPoint, regionHole)),
     );
-  const value47 = pathPoints(arg49),
-    value48 = Math.max(
-      arg52 / arg51,
-      arg49.type === "courtyard-path" ? arg49.drawing.stoneWidth / 2 : arg49.drawing.thickness / 2,
+  const hitPathPoints = pathPoints(targetDrawing),
+    hitRadius = Math.max(
+      toleranceMeters / hitPixelsPerMeter,
+      targetDrawing.type === "courtyard-path"
+        ? targetDrawing.drawing.stoneWidth / 2
+        : targetDrawing.drawing.thickness / 2,
     );
-  return value47.some(
-    (arg56, arg57) => arg57 > 0 && segmentDistance(object1, value47[arg57 - 1], arg56) <= value48,
+  return hitPathPoints.some(
+    (hitSegmentEnd, pointIndex) =>
+      pointIndex > 0 &&
+      segmentDistance(localHitPoint, hitPathPoints[pointIndex - 1], hitSegmentEnd) <= hitRadius,
   );
 }
-export function clippedLine(arg58, arg59, arg60) {
-  const value49 = arg59.x - arg58.x,
-    value50 = arg59.y - arg58.y,
-    list4 = [0, 1];
-  for (const value51 of arg60)
-    for (let value52 = 0; value52 < value51.length; value52++) {
-      const value53 = value51[value52],
-        value54 = value51[(value52 + 1) % value51.length],
-        value55 = value54.x - value53.x,
-        value56 = value54.y - value53.y,
-        value57 = value49 * value56 - value50 * value55;
-      if (Math.abs(value57) < 1e-10) continue;
-      const value58 = ((value53.x - arg58.x) * value56 - (value53.y - arg58.y) * value55) / value57,
-        value59 = ((value53.x - arg58.x) * value50 - (value53.y - arg58.y) * value49) / value57;
-      value58 > 0 && value58 < 1 && value59 >= 0 && value59 <= 1 && list4.push(value58);
+export function clippedLine(lineStart, lineEnd, clipLoops) {
+  const lineDeltaX = lineEnd.x - lineStart.x,
+    lineDeltaY = lineEnd.y - lineStart.y,
+    intersectionRatios = [0, 1];
+  for (const clipLoop of clipLoops)
+    for (let edgeIndex = 0; edgeIndex < clipLoop.length; edgeIndex++) {
+      const edgeStart = clipLoop[edgeIndex],
+        edgeEnd = clipLoop[(edgeIndex + 1) % clipLoop.length],
+        edgeDeltaX = edgeEnd.x - edgeStart.x,
+        edgeDeltaY = edgeEnd.y - edgeStart.y,
+        directionCross = lineDeltaX * edgeDeltaY - lineDeltaY * edgeDeltaX;
+      if (Math.abs(directionCross) < 1e-10) continue;
+      const lineRatio =
+          ((edgeStart.x - lineStart.x) * edgeDeltaY - (edgeStart.y - lineStart.y) * edgeDeltaX) /
+          directionCross,
+        edgeRatio =
+          ((edgeStart.x - lineStart.x) * lineDeltaY - (edgeStart.y - lineStart.y) * lineDeltaX) /
+          directionCross;
+      lineRatio > 0 &&
+        lineRatio < 1 &&
+        edgeRatio >= 0 &&
+        edgeRatio <= 1 &&
+        intersectionRatios.push(lineRatio);
     }
-  list4.sort((arg61, arg62) => arg61 - arg62);
-  const list5 = [];
-  for (let value60 = 1; value60 < list4.length; value60++) {
-    if (list4[value60] - list4[value60 - 1] < 0.000001) continue;
-    const value61 = (list4[value60] + list4[value60 - 1]) / 2,
-      object2 = {
-        x: arg58.x + value61 * value49,
-        y: arg58.y + value61 * value50,
+  intersectionRatios.sort((firstRatio, secondRatio) => firstRatio - secondRatio);
+  const clippedSegments = [];
+  for (let ratioIndex = 1; ratioIndex < intersectionRatios.length; ratioIndex++) {
+    if (intersectionRatios[ratioIndex] - intersectionRatios[ratioIndex - 1] < 0.000001) continue;
+    const midRatio = (intersectionRatios[ratioIndex] + intersectionRatios[ratioIndex - 1]) / 2,
+      midPoint = {
+        x: lineStart.x + midRatio * lineDeltaX,
+        y: lineStart.y + midRatio * lineDeltaY,
       };
-    inside(object2, arg60[0]) &&
-      !arg60.slice(1).some((arg63) => inside(object2, arg63)) &&
-      list5.push([
+    inside(midPoint, clipLoops[0]) &&
+      !clipLoops.slice(1).some((otherClipLoop) => inside(midPoint, otherClipLoop)) &&
+      clippedSegments.push([
         {
-          x: arg58.x + list4[value60 - 1] * value49,
-          y: arg58.y + list4[value60 - 1] * value50,
+          x: lineStart.x + intersectionRatios[ratioIndex - 1] * lineDeltaX,
+          y: lineStart.y + intersectionRatios[ratioIndex - 1] * lineDeltaY,
         },
         {
-          x: arg58.x + list4[value60] * value49,
-          y: arg58.y + list4[value60] * value50,
+          x: lineStart.x + intersectionRatios[ratioIndex] * lineDeltaX,
+          y: lineStart.y + intersectionRatios[ratioIndex] * lineDeltaY,
         },
       ]);
   }
-  return list5;
+  return clippedSegments;
 }
-export function buildingFootprints(arg64, arg65, arg66) {
-  const value62 = arg65.map((arg67) =>
-    arg67.map((arg68) => ({
-      ...arg68,
+export function buildingFootprints(wallList, baseFootprintLoops, wallPixelsPerMeter) {
+  const footprintLoops = baseFootprintLoops.map((footprintLoop) =>
+    footprintLoop.map((footprintPoint) => ({
+      ...footprintPoint,
     })),
   );
-  for (const value63 of arg64) {
-    const value64 = value63.start,
-      value65 = value63.end,
-      value66 = Math.hypot(value65.x - value64.x, value65.y - value64.y);
-    if (value66 < 0.000001) continue;
-    const value67 = (value63.thickness * arg66) / 2,
-      object3 = {
-        x: (-(value65.y - value64.y) / value66) * value67,
-        y: ((value65.x - value64.x) / value66) * value67,
+  for (const wall of wallList) {
+    const wallStart = wall.start,
+      wallEnd = wall.end,
+      wallLength = Math.hypot(wallEnd.x - wallStart.x, wallEnd.y - wallStart.y);
+    if (wallLength < 0.000001) continue;
+    const halfThickness = (wall.thickness * wallPixelsPerMeter) / 2,
+      thicknessOffset = {
+        x: (-(wallEnd.y - wallStart.y) / wallLength) * halfThickness,
+        y: ((wallEnd.x - wallStart.x) / wallLength) * halfThickness,
       };
-    value62.push([
+    footprintLoops.push([
       {
-        x: value64.x + object3.x,
-        y: value64.y + object3.y,
+        x: wallStart.x + thicknessOffset.x,
+        y: wallStart.y + thicknessOffset.y,
       },
       {
-        x: value65.x + object3.x,
-        y: value65.y + object3.y,
+        x: wallEnd.x + thicknessOffset.x,
+        y: wallEnd.y + thicknessOffset.y,
       },
       {
-        x: value65.x - object3.x,
-        y: value65.y - object3.y,
+        x: wallEnd.x - thicknessOffset.x,
+        y: wallEnd.y - thicknessOffset.y,
       },
       {
-        x: value64.x - object3.x,
-        y: value64.y - object3.y,
+        x: wallStart.x - thicknessOffset.x,
+        y: wallStart.y - thicknessOffset.y,
       },
     ]);
   }
-  return value62;
+  return footprintLoops;
 }
-export function localBuildingFootprints(arg69, arg70, arg71) {
-  const value68 = (-(arg69.rotation || 0) * Math.PI) / 180,
-    value69 = Math.cos(value68),
-    value70 = Math.sin(value68);
-  return arg70.map((arg72) =>
-    arg72.map((arg73) => {
-      const value71 = (arg73.x - arg69.x) / arg71,
-        value72 = (arg73.y - arg69.y) / arg71;
+export function localBuildingFootprints(localDrawing, worldFootprintLoops, localPixelsPerMeter) {
+  const negativeRotationRad = (-(localDrawing.rotation || 0) * Math.PI) / 180,
+    localRotationCos = Math.cos(negativeRotationRad),
+    localRotationSin = Math.sin(negativeRotationRad);
+  return worldFootprintLoops.map((worldFootprintLoop) =>
+    worldFootprintLoop.map((worldFootprintPoint) => {
+      const localOffsetX = (worldFootprintPoint.x - localDrawing.x) / localPixelsPerMeter,
+        localOffsetY = (worldFootprintPoint.y - localDrawing.y) / localPixelsPerMeter;
       return {
-        x: value71 * value69 - value72 * value70,
-        y: value71 * value70 + value72 * value69,
+        x: localOffsetX * localRotationCos - localOffsetY * localRotationSin,
+        y: localOffsetX * localRotationSin + localOffsetY * localRotationCos,
       };
     }),
   );
 }
-export function snapToWallFace(arg74, arg75, arg76, arg77) {
-  let value73 = null;
-  for (const value74 of arg75) {
-    const value75 = value74.start,
-      value76 = value74.end,
-      value77 = value76.x - value75.x,
-      value78 = value76.y - value75.y,
-      value79 = Math.hypot(value77, value78);
-    if (!value79) continue;
-    const value80 = w(
-        ((arg74.x - value75.x) * value77 + (arg74.y - value75.y) * value78) / (value79 * value79),
+export function snapToWallFace(probePoint, snapWalls, snapPixelsPerMeter, snapDistanceLimit) {
+  let nearestSnap = null;
+  for (const candidateWall of snapWalls) {
+    const candidateWallStart = candidateWall.start,
+      candidateWallEnd = candidateWall.end,
+      wallDeltaX = candidateWallEnd.x - candidateWallStart.x,
+      wallDeltaY = candidateWallEnd.y - candidateWallStart.y,
+      candidateWallLength = Math.hypot(wallDeltaX, wallDeltaY);
+    if (!candidateWallLength) continue;
+    const wallProjectionRatio = clamp(
+        ((probePoint.x - candidateWallStart.x) * wallDeltaX +
+          (probePoint.y - candidateWallStart.y) * wallDeltaY) /
+          (candidateWallLength * candidateWallLength),
         0,
         1,
       ),
-      value81 = value77 * (arg74.y - value75.y) - value78 * (arg74.x - value75.x) >= 0 ? 1 : -1,
-      value82 = (value74.thickness * arg76) / 2,
-      object4 = {
-        x: value75.x + value80 * value77 - (value78 / value79) * value82 * value81,
-        y: value75.y + value80 * value78 + (value77 / value79) * value82 * value81,
+      sideSign =
+        wallDeltaX * (probePoint.y - candidateWallStart.y) -
+          wallDeltaY * (probePoint.x - candidateWallStart.x) >=
+        0
+          ? 1
+          : -1,
+      wallHalfThickness = (candidateWall.thickness * snapPixelsPerMeter) / 2,
+      facePoint = {
+        x:
+          candidateWallStart.x +
+          wallProjectionRatio * wallDeltaX -
+          (wallDeltaY / candidateWallLength) * wallHalfThickness * sideSign,
+        y:
+          candidateWallStart.y +
+          wallProjectionRatio * wallDeltaY +
+          (wallDeltaX / candidateWallLength) * wallHalfThickness * sideSign,
       },
-      value83 = Math.hypot(arg74.x - object4.x, arg74.y - object4.y);
-    value83 <= arg77 &&
-      (!value73 || value83 < value73.distance) &&
-      (value73 = {
-        point: object4,
-        distance: value83,
+      pointDistance = Math.hypot(probePoint.x - facePoint.x, probePoint.y - facePoint.y);
+    pointDistance <= snapDistanceLimit &&
+      (!nearestSnap || pointDistance < nearestSnap.distance) &&
+      (nearestSnap = {
+        point: facePoint,
+        distance: pointDistance,
       });
   }
-  return value73;
+  return nearestSnap;
 }
-const v = new Map();
-export function surfaceRegions(arg78, arg79 = []) {
-  const value84 = localPoints(arg78);
-  if (!validLoop(value84)) return [];
-  const list6 = [];
-  for (const value89 of arg78.drawing.holes.map((arg80) => localPoints(arg78, arg80)))
-    validHole(value89, value84, list6) && list6.push(value89);
-  const value85 = arg79.filter(
-    (arg81) =>
-      arg81.some(
-        (arg82) =>
-          arg82.x >= -arg78.width / 2 &&
-          arg82.x <= arg78.width / 2 &&
-          arg82.y >= -arg78.depth / 2 &&
-          arg82.y <= arg78.depth / 2,
+const regionCacheMap = new Map();
+export function surfaceRegions(surfaceDrawing, exclusionLoops = []) {
+  const outlinePoints = localPoints(surfaceDrawing);
+  if (!validLoop(outlinePoints)) return [];
+  const holeLoops = [];
+  for (const validHoleLoop of surfaceDrawing.drawing.holes.map((rawHole) =>
+    localPoints(surfaceDrawing, rawHole),
+  ))
+    validHole(validHoleLoop, outlinePoints, holeLoops) && holeLoops.push(validHoleLoop);
+  const overlappingLoops = exclusionLoops.filter(
+    (exclusionLoop) =>
+      exclusionLoop.some(
+        (overlapExclusionPoint) =>
+          overlapExclusionPoint.x >= -surfaceDrawing.width / 2 &&
+          overlapExclusionPoint.x <= surfaceDrawing.width / 2 &&
+          overlapExclusionPoint.y >= -surfaceDrawing.depth / 2 &&
+          overlapExclusionPoint.y <= surfaceDrawing.depth / 2,
       ) ||
-      value84.some((arg83) => inside(arg83, arg81)) ||
-      arg81.some((arg84, arg85) =>
-        value84.some((arg86, arg87) =>
-          W(arg84, arg81[(arg85 + 1) % arg81.length], arg86, value84[(arg87 + 1) % value84.length]),
+      outlinePoints.some((outlinePoint) => inside(outlinePoint, exclusionLoop)) ||
+      exclusionLoop.some((overlapPoint, overlapIndex) =>
+        outlinePoints.some((outlineEdgePoint, outlineEdgeIndex) =>
+          doSegmentsIntersect(
+            overlapPoint,
+            exclusionLoop[(overlapIndex + 1) % exclusionLoop.length],
+            outlineEdgePoint,
+            outlinePoints[(outlineEdgeIndex + 1) % outlinePoints.length],
+          ),
         ),
       ),
   );
-  if (!value85.length)
+  if (!overlappingLoops.length)
     return [
       {
-        outline: value84,
-        holes: list6,
+        outline: outlinePoints,
+        holes: holeLoops,
       },
     ];
-  const value86 = JSON.stringify([value84, list6, value85]);
-  if (v.has(value86)) return v.get(value86);
-  const value87 = subtractPolygonLoops([value84], [...list6, ...value85]),
-    value88 = value87
-      .filter((arg88) => polygonArea(arg88) > 0)
-      .map((arg89) => ({
-        outline: arg89,
+  const cacheKey = JSON.stringify([outlinePoints, holeLoops, overlappingLoops]);
+  if (regionCacheMap.has(cacheKey)) return regionCacheMap.get(cacheKey);
+  const subtractedLoops = subtractPolygonLoops(
+      [outlinePoints],
+      [...holeLoops, ...overlappingLoops],
+    ),
+    positiveRegionList = subtractedLoops
+      .filter((regionLoop) => polygonArea(regionLoop) > 0)
+      .map((positiveLoop) => ({
+        outline: positiveLoop,
         holes: [],
       }));
-  for (const value90 of value87.filter((arg90) => polygonArea(arg90) < 0)) {
-    const value91 = value88
-      .filter((arg91) => inside(value90[0], arg91.outline))
+  for (const negativeLoop of subtractedLoops.filter(
+    (negativeRegionLoop) => polygonArea(negativeRegionLoop) < 0,
+  )) {
+    const parentRegion = positiveRegionList
+      .filter((candidateRegion) => inside(negativeLoop[0], candidateRegion.outline))
       .sort(
-        (arg92, arg93) =>
-          Math.abs(polygonArea(arg92.outline)) - Math.abs(polygonArea(arg93.outline)),
+        (regionA, regionB) =>
+          Math.abs(polygonArea(regionA.outline)) - Math.abs(polygonArea(regionB.outline)),
       )[0];
-    value91 && value91.holes.push(value90);
+    parentRegion && parentRegion.holes.push(negativeLoop);
   }
-  return (v.size > 32 && v.delete(v.keys().next().value), v.set(value86, value88), value88);
+  return (
+    regionCacheMap.size > 32 && regionCacheMap.delete(regionCacheMap.keys().next().value),
+    regionCacheMap.set(cacheKey, positiveRegionList),
+    positiveRegionList
+  );
 }
-export function courtyardBoundaryPoints(arg94, arg95) {
-  const value92 = (arg94.walls || [])
-    .flatMap((arg96) => [arg96.start, arg96.end])
-    .filter((arg97) => Number.isFinite(arg97?.x) && Number.isFinite(arg97?.y));
-  for (const value93 of arg94.items || [])
-    isCourtyardDrawing(value93) && value92.push(...drawingPlanPoints(value93, arg95));
-  return value92;
+export function courtyardBoundaryPoints(sceneModel, boundaryPixelsPerMeter) {
+  const boundaryPoints = (sceneModel.walls || [])
+    .flatMap((sceneWall) => [sceneWall.start, sceneWall.end])
+    .filter(
+      (boundaryPoint) => Number.isFinite(boundaryPoint?.x) && Number.isFinite(boundaryPoint?.y),
+    );
+  for (const sceneItem of sceneModel.items || [])
+    isCourtyardDrawing(sceneItem) &&
+      boundaryPoints.push(...drawingPlanPoints(sceneItem, boundaryPixelsPerMeter));
+  return boundaryPoints;
 }
-export function courtyardFootprintLoops(arg98, arg99, arg100, arg101, arg102 = []) {
-  const value94 = arg98.map((arg103) =>
-    arg103.map((arg104) => ({
-      x: arg104.x,
-      y: arg104.z,
+export function courtyardFootprintLoops(
+  baseLoops,
+  sceneItems,
+  footprintPixelsPerMeter,
+  toGroundPoint,
+  walls = [],
+) {
+  const resultLoops = baseLoops.map((baseLoop) =>
+    baseLoop.map((basePoint) => ({
+      x: basePoint.x,
+      y: basePoint.z,
     })),
   );
-  let value95 = false;
-  for (const value96 of arg99) {
-    if (value96.type !== "courtyard-area" && value96.type !== "courtyard-fence") continue;
-    const value97 = drawingPlanPoints(value96, arg100)
-      .map(arg101)
-      .map((arg105) => ({
-        x: arg105.x,
-        y: arg105.z,
+  let hasCourtyardDrawing = false;
+  for (const courtyardItem of sceneItems) {
+    if (courtyardItem.type !== "courtyard-area" && courtyardItem.type !== "courtyard-fence")
+      continue;
+    const plannedPoints = drawingPlanPoints(courtyardItem, footprintPixelsPerMeter)
+      .map(toGroundPoint)
+      .map((groundProjectedPoint) => ({
+        x: groundProjectedPoint.x,
+        y: groundProjectedPoint.z,
       }));
-    if (value96.type === "courtyard-fence") {
-      const value98 = value96.drawing.thickness * (value96.drawing.style === "hedge" ? 1.5 : 0.6),
-        value99 = value96.drawing.closed ? [...value97, value97[0]] : value97;
-      for (let value100 = 1; value100 < value99.length; value100++) {
-        const value101 = value99[value100 - 1],
-          value102 = value99[value100],
-          value103 = Math.hypot(value102.x - value101.x, value102.y - value101.y);
-        if (value103 < 1e-7) continue;
-        const value104 = (value102.x - value101.x) / value103,
-          value105 = (value102.y - value101.y) / value103;
-        (value94.push([
+    if (courtyardItem.type === "courtyard-fence") {
+      const fenceHalfWidth =
+          courtyardItem.drawing.thickness * (courtyardItem.drawing.style === "hedge" ? 1.5 : 0.6),
+        fencePathPoints = courtyardItem.drawing.closed
+          ? [...plannedPoints, plannedPoints[0]]
+          : plannedPoints;
+      for (let fenceIndex = 1; fenceIndex < fencePathPoints.length; fenceIndex++) {
+        const fenceStart = fencePathPoints[fenceIndex - 1],
+          fenceEnd = fencePathPoints[fenceIndex],
+          fenceSegmentLength = Math.hypot(fenceEnd.x - fenceStart.x, fenceEnd.y - fenceStart.y);
+        if (fenceSegmentLength < 1e-7) continue;
+        const fenceDirectionX = (fenceEnd.x - fenceStart.x) / fenceSegmentLength,
+          fenceDirectionY = (fenceEnd.y - fenceStart.y) / fenceSegmentLength;
+        (resultLoops.push([
           {
-            x: value101.x - value104 * value98 - value105 * value98,
-            y: value101.y - value105 * value98 + value104 * value98,
+            x: fenceStart.x - fenceDirectionX * fenceHalfWidth - fenceDirectionY * fenceHalfWidth,
+            y: fenceStart.y - fenceDirectionY * fenceHalfWidth + fenceDirectionX * fenceHalfWidth,
           },
           {
-            x: value102.x + value104 * value98 - value105 * value98,
-            y: value102.y + value105 * value98 + value104 * value98,
+            x: fenceEnd.x + fenceDirectionX * fenceHalfWidth - fenceDirectionY * fenceHalfWidth,
+            y: fenceEnd.y + fenceDirectionY * fenceHalfWidth + fenceDirectionX * fenceHalfWidth,
           },
           {
-            x: value102.x + value104 * value98 + value105 * value98,
-            y: value102.y + value105 * value98 - value104 * value98,
+            x: fenceEnd.x + fenceDirectionX * fenceHalfWidth + fenceDirectionY * fenceHalfWidth,
+            y: fenceEnd.y + fenceDirectionY * fenceHalfWidth - fenceDirectionX * fenceHalfWidth,
           },
           {
-            x: value101.x - value104 * value98 + value105 * value98,
-            y: value101.y - value105 * value98 - value104 * value98,
+            x: fenceStart.x - fenceDirectionX * fenceHalfWidth + fenceDirectionY * fenceHalfWidth,
+            y: fenceStart.y - fenceDirectionY * fenceHalfWidth - fenceDirectionX * fenceHalfWidth,
           },
         ]),
-          (value95 = true));
+          (hasCourtyardDrawing = true));
       }
-      if (!value96.drawing.closed) continue;
+      if (!courtyardItem.drawing.closed) continue;
     }
-    if (!validLoop(value97)) continue;
-    const list8 = [];
-    if (value96.type === "courtyard-area")
-      for (const value106 of value96.drawing.holes || []) {
-        const value107 = drawingPlanPoints(value96, arg100, value106)
-          .map(arg101)
-          .map((arg106) => ({
-            x: arg106.x,
-            y: arg106.z,
+    if (!validLoop(plannedPoints)) continue;
+    const acceptedHoleLoops = [];
+    if (courtyardItem.type === "courtyard-area")
+      for (const courtyardHole of courtyardItem.drawing.holes || []) {
+        const plannedHolePoints = drawingPlanPoints(
+          courtyardItem,
+          footprintPixelsPerMeter,
+          courtyardHole,
+        )
+          .map(toGroundPoint)
+          .map((projectedHolePoint) => ({
+            x: projectedHolePoint.x,
+            y: projectedHolePoint.z,
           }));
-        validHole(value107, value97, list8) && list8.push(value107);
+        validHole(plannedHolePoints, plannedPoints, acceptedHoleLoops) &&
+          acceptedHoleLoops.push(plannedHolePoints);
       }
-    if (list8.length) {
-      const value108 = [value97, ...list8].map((arg107) =>
-          arg107.map((arg108) => new Vector2(arg108.x, arg108.y)),
+    if (acceptedHoleLoops.length) {
+      const vectorLoops = [plannedPoints, ...acceptedHoleLoops].map((loopToVectorize) =>
+          loopToVectorize.map((loopPoint) => new Vector2(loopPoint.x, loopPoint.y)),
         ),
-        value109 = value108.flat();
-      value94.push(
-        ...ShapeUtils.triangulateShape(value108[0], value108.slice(1)).map((arg109) =>
-          arg109.map((arg110) => value109[arg110]),
+        flatVertexList = vectorLoops.flat();
+      resultLoops.push(
+        ...ShapeUtils.triangulateShape(vectorLoops[0], vectorLoops.slice(1)).map((triangle) =>
+          triangle.map((triangleVertexIndex) => flatVertexList[triangleVertexIndex]),
         ),
       );
-    } else value94.push(value97);
-    value95 = true;
+    } else resultLoops.push(plannedPoints);
+    hasCourtyardDrawing = true;
   }
-  if (!value95) return value94;
-  const list7 = [...value94];
-  if (arg98.length) {
-    for (const value110 of buildingFootprints(arg102, [], arg100))
-      list7.push(
-        value110.map(arg101).map((arg111) => ({
-          x: arg111.x,
-          y: arg111.z,
+  if (!hasCourtyardDrawing) return resultLoops;
+  const combinedLoops = [...resultLoops];
+  if (baseLoops.length) {
+    for (const buildingLoop of buildingFootprints(walls, [], footprintPixelsPerMeter))
+      combinedLoops.push(
+        buildingLoop.map(toGroundPoint).map((buildingPoint) => ({
+          x: buildingPoint.x,
+          y: buildingPoint.z,
         })),
       );
   }
-  for (const value111 of [list7, value94])
-    for (const value112 of [1e-7, 0.00001]) {
-      const value113 = validatedUnionPolygonLoops(value111, value112);
-      if (value113.length) return value113;
+  for (const loopsToUnion of [combinedLoops, resultLoops])
+    for (const unionTolerance of [1e-7, 0.00001]) {
+      const unionedLoops = validatedUnionPolygonLoops(loopsToUnion, unionTolerance);
+      if (unionedLoops.length) return unionedLoops;
     }
   return [];
 }
-export function courtyardPerimeterLoops(arg112, arg113, arg114, arg115, arg116 = []) {
-  return arg113.some(
-    (arg117) => arg117.type === "courtyard-area" || arg117.type === "courtyard-fence",
+export function courtyardPerimeterLoops(
+  perimeterBaseLoops,
+  perimeterSceneItems,
+  perimeterPixelsPerMeter,
+  perimeterToGroundPoint,
+  perimeterWalls = [],
+) {
+  return perimeterSceneItems.some(
+    (perimeterItem) =>
+      perimeterItem.type === "courtyard-area" || perimeterItem.type === "courtyard-fence",
   )
-    ? courtyardFootprintLoops(arg112, arg113, arg114, arg115, arg116)
-        .filter((arg118) => polygonArea(arg118) > 0)
-        .map((arg119) =>
-          arg119.map((arg120) => ({
-            x: arg120.x,
-            z: arg120.y,
+    ? courtyardFootprintLoops(
+        perimeterBaseLoops,
+        perimeterSceneItems,
+        perimeterPixelsPerMeter,
+        perimeterToGroundPoint,
+        perimeterWalls,
+      )
+        .filter((perimeterRegionLoop) => polygonArea(perimeterRegionLoop) > 0)
+        .map((loopToConvert) =>
+          loopToConvert.map((convertedPoint) => ({
+            x: convertedPoint.x,
+            z: convertedPoint.y,
           })),
         )
-    : arg112;
+    : perimeterBaseLoops;
 }
-export function outerPerimeterLine(arg121, arg122 = 0.025) {
-  const value114 = polygonArea(arg121) >= 0 ? 1 : -1;
-  return arg121.map((arg123, arg124) => {
-    const value115 = arg121[(arg124 + arg121.length - 1) % arg121.length],
-      value116 = arg121[(arg124 + 1) % arg121.length],
-      value117 = Math.hypot(arg123.x - value115.x, arg123.y - value115.y) || 1,
-      value118 = Math.hypot(value116.x - arg123.x, value116.y - arg123.y) || 1,
-      object5 = {
-        x: ((arg123.y - value115.y) / value117) * value114,
-        y: (-(arg123.x - value115.x) / value117) * value114,
+export function outerPerimeterLine(perimeterLoop, offsetDistance = 0.025) {
+  const windingSign = polygonArea(perimeterLoop) >= 0 ? 1 : -1;
+  return perimeterLoop.map((vertexPoint, vertexIndex) => {
+    const previousVertex =
+        perimeterLoop[(vertexIndex + perimeterLoop.length - 1) % perimeterLoop.length],
+      nextVertex = perimeterLoop[(vertexIndex + 1) % perimeterLoop.length],
+      previousEdgeLength =
+        Math.hypot(vertexPoint.x - previousVertex.x, vertexPoint.y - previousVertex.y) || 1,
+      nextEdgeLength = Math.hypot(nextVertex.x - vertexPoint.x, nextVertex.y - vertexPoint.y) || 1,
+      previousOffsetNormal = {
+        x: ((vertexPoint.y - previousVertex.y) / previousEdgeLength) * windingSign,
+        y: (-(vertexPoint.x - previousVertex.x) / previousEdgeLength) * windingSign,
       },
-      object6 = {
-        x: ((value116.y - arg123.y) / value118) * value114,
-        y: (-(value116.x - arg123.x) / value118) * value114,
+      nextOffsetNormal = {
+        x: ((nextVertex.y - vertexPoint.y) / nextEdgeLength) * windingSign,
+        y: (-(nextVertex.x - vertexPoint.x) / nextEdgeLength) * windingSign,
       },
-      value119 = 1 + object5.x * object6.x + object5.y * object6.y;
-    let value120 =
-        value119 > 0.000001 ? ((object5.x + object6.x) * arg122) / value119 : object6.x * arg122,
-      value121 =
-        value119 > 0.000001 ? ((object5.y + object6.y) * arg122) / value119 : object6.y * arg122;
-    const value122 = Math.hypot(value120, value121);
+      normalDotProductPlusOne =
+        1 +
+        previousOffsetNormal.x * nextOffsetNormal.x +
+        previousOffsetNormal.y * nextOffsetNormal.y;
+    let outerOffsetX =
+        normalDotProductPlusOne > 0.000001
+          ? ((previousOffsetNormal.x + nextOffsetNormal.x) * offsetDistance) /
+            normalDotProductPlusOne
+          : nextOffsetNormal.x * offsetDistance,
+      outerOffsetY =
+        normalDotProductPlusOne > 0.000001
+          ? ((previousOffsetNormal.y + nextOffsetNormal.y) * offsetDistance) /
+            normalDotProductPlusOne
+          : nextOffsetNormal.y * offsetDistance;
+    const offsetLength = Math.hypot(outerOffsetX, outerOffsetY);
     return (
-      value122 > arg122 * 3 &&
-        ((value120 *= (arg122 * 3) / value122), (value121 *= (arg122 * 3) / value122)),
+      offsetLength > offsetDistance * 3 &&
+        ((outerOffsetX *= (offsetDistance * 3) / offsetLength),
+        (outerOffsetY *= (offsetDistance * 3) / offsetLength)),
       {
-        x: arg123.x + value120,
-        z: arg123.y + value121,
+        x: vertexPoint.x + outerOffsetX,
+        z: vertexPoint.y + outerOffsetY,
       }
     );
   });
 }
-export function courtyardContentBounds(arg125, arg126) {
-  const value123 = courtyardBoundaryPoints(arg125, arg126);
-  if (!value123.length) return modelBounds(arg125);
-  const value124 = Math.min(...value123.map((arg127) => arg127.x)),
-    value125 = Math.min(...value123.map((arg128) => arg128.y)),
-    value126 = Math.max(...value123.map((arg129) => arg129.x)),
-    value127 = Math.max(...value123.map((arg130) => arg130.y));
+export function courtyardContentBounds(contentSceneModel, contentPixelsPerMeter) {
+  const contentBoundaryPoints = courtyardBoundaryPoints(contentSceneModel, contentPixelsPerMeter);
+  if (!contentBoundaryPoints.length) return modelBounds(contentSceneModel);
+  const minX = Math.min(...contentBoundaryPoints.map((xBoundaryPoint) => xBoundaryPoint.x)),
+    minY = Math.min(...contentBoundaryPoints.map((yBoundaryPoint) => yBoundaryPoint.y)),
+    maxX = Math.max(...contentBoundaryPoints.map((maxXBoundaryPoint) => maxXBoundaryPoint.x)),
+    maxY = Math.max(...contentBoundaryPoints.map((maxYBoundaryPoint) => maxYBoundaryPoint.y));
   return {
-    minX: value124,
-    minY: value125,
-    maxX: value126,
-    maxY: value127,
-    width: Math.max(1, value126 - value124),
-    height: Math.max(1, value127 - value125),
+    minX: minX,
+    minY: minY,
+    maxX: maxX,
+    maxY: maxY,
+    width: Math.max(1, maxX - minX),
+    height: Math.max(1, maxY - minY),
   };
 }
-export function sceneContentBounds(arg131) {
-  return (arg131.items || []).some(isCourtyardDrawing)
-    ? courtyardContentBounds(arg131, arg131.calibration?.pixelsPerMeter || 100)
-    : arg131.walls?.length
+export function sceneContentBounds(boundsSceneModel) {
+  return (boundsSceneModel.items || []).some(isCourtyardDrawing)
+    ? courtyardContentBounds(boundsSceneModel, boundsSceneModel.calibration?.pixelsPerMeter || 100)
+    : boundsSceneModel.walls?.length
       ? modelBounds({
           background: null,
-          walls: arg131.walls,
+          walls: boundsSceneModel.walls,
           items: [],
         })
-      : arg131.items?.length
+      : boundsSceneModel.items?.length
         ? modelBounds({
             background: null,
             walls: [],
-            items: arg131.items,
+            items: boundsSceneModel.items,
           })
-        : modelBounds(arg131);
+        : modelBounds(boundsSceneModel);
 }
-export function sceneModelOrigin(arg132, arg133 = {}) {
-  if (!arg132.walls?.length && (arg132.items || []).some(isCourtyardDrawing))
+export function sceneModelOrigin(originSceneModel, originFallback = {}) {
+  if (!originSceneModel.walls?.length && (originSceneModel.items || []).some(isCourtyardDrawing))
     return {
-      x: b(arg133?.originX, 0),
-      y: b(arg133?.originY, 0),
+      x: finiteOr(originFallback?.originX, 0),
+      y: finiteOr(originFallback?.originY, 0),
     };
-  const value128 = arg132.walls?.length
+  const bounds = originSceneModel.walls?.length
     ? modelBounds({
         background: null,
-        walls: arg132.walls,
+        walls: originSceneModel.walls,
         items: [],
       })
-    : sceneContentBounds(arg132);
+    : sceneContentBounds(originSceneModel);
   return {
-    x: (value128.minX + value128.maxX) / 2,
-    y: (value128.minY + value128.maxY) / 2,
+    x: (bounds.minX + bounds.maxX) / 2,
+    y: (bounds.minY + bounds.maxY) / 2,
   };
 }
-export const isCourtyardGate = (arg134) =>
-  ["garden-gate", "garden-gate-solid", "garden-gate-arch"].includes(arg134?.type);
-export function anchorGate(arg135, arg136, arg137, arg138) {
-  if (!isCourtyardGate(arg135)) return false;
-  let value129 = null;
-  for (const value130 of arg136.filter((arg139) => arg139.type === "courtyard-fence")) {
-    const value131 = drawingPlanPoints(value130, arg137);
-    value130.drawing.closed && value131.push(value131[0]);
-    let value132 = 0;
-    const value133 = value131
+export const isCourtyardGate = (gateItem) =>
+  ["garden-gate", "garden-gate-solid", "garden-gate-arch"].includes(gateItem?.type);
+export function anchorGate(
+  anchorGateItem,
+  gateSceneItems,
+  gatePixelsPerMeter,
+  gateSnapDistanceLimit,
+) {
+  if (!isCourtyardGate(anchorGateItem)) return false;
+  let nearestAnchor = null;
+  for (const fenceItem of gateSceneItems.filter(
+    (candidateFence) => candidateFence.type === "courtyard-fence",
+  )) {
+    const gateFencePoints = drawingPlanPoints(fenceItem, gatePixelsPerMeter);
+    fenceItem.drawing.closed && gateFencePoints.push(gateFencePoints[0]);
+    let travelledDistance = 0;
+    const fenceTotalLength = gateFencePoints
       .slice(1)
       .reduce(
-        (arg140, arg141, arg142) =>
-          arg140 + Math.hypot(arg141.x - value131[arg142].x, arg141.y - value131[arg142].y),
+        (accumulatedLength, pathPoint, fencePointIndex) =>
+          accumulatedLength +
+          Math.hypot(
+            pathPoint.x - gateFencePoints[fencePointIndex].x,
+            pathPoint.y - gateFencePoints[fencePointIndex].y,
+          ),
         0,
       );
-    for (let value134 = 1; value134 < value131.length; value134++) {
-      const value135 = value131[value134 - 1],
-        value136 = value131[value134],
-        value137 = value136.x - value135.x,
-        value138 = value136.y - value135.y,
-        value139 = Math.hypot(value137, value138);
-      if (value139 < arg135.width * arg137) {
-        value132 += value139;
+    for (let gateFenceIndex = 1; gateFenceIndex < gateFencePoints.length; gateFenceIndex++) {
+      const gateFenceStart = gateFencePoints[gateFenceIndex - 1],
+        gateFenceEnd = gateFencePoints[gateFenceIndex],
+        segDeltaX = gateFenceEnd.x - gateFenceStart.x,
+        segDeltaY = gateFenceEnd.y - gateFenceStart.y,
+        segLength = Math.hypot(segDeltaX, segDeltaY);
+      if (segLength < anchorGateItem.width * gatePixelsPerMeter) {
+        travelledDistance += segLength;
         continue;
       }
-      const value140 = w(
-          ((arg135.x - value135.x) * value137 + (arg135.y - value135.y) * value138) /
-            (value139 * value139),
-          (arg135.width * arg137) / 2 / value139,
-          1 - (arg135.width * arg137) / 2 / value139,
+      const gateProjectionRatio = clamp(
+          ((anchorGateItem.x - gateFenceStart.x) * segDeltaX +
+            (anchorGateItem.y - gateFenceStart.y) * segDeltaY) /
+            (segLength * segLength),
+          (anchorGateItem.width * gatePixelsPerMeter) / 2 / segLength,
+          1 - (anchorGateItem.width * gatePixelsPerMeter) / 2 / segLength,
         ),
-        object7 = {
-          x: value135.x + value140 * value137,
-          y: value135.y + value140 * value138,
+        projectedPoint = {
+          x: gateFenceStart.x + gateProjectionRatio * segDeltaX,
+          y: gateFenceStart.y + gateProjectionRatio * segDeltaY,
         },
-        value141 = Math.hypot(arg135.x - object7.x, arg135.y - object7.y);
-      (value141 <= arg138 &&
-        (!value129 || value141 < value129.distance) &&
-        (value129 = {
-          fenceId: value130.id,
-          fraction: (value132 + value140 * value139) / value133,
-          distance: value141,
+        gateDistance = Math.hypot(
+          anchorGateItem.x - projectedPoint.x,
+          anchorGateItem.y - projectedPoint.y,
+        );
+      (gateDistance <= gateSnapDistanceLimit &&
+        (!nearestAnchor || gateDistance < nearestAnchor.distance) &&
+        (nearestAnchor = {
+          fenceId: fenceItem.id,
+          fraction: (travelledDistance + gateProjectionRatio * segLength) / fenceTotalLength,
+          distance: gateDistance,
         }),
-        (value132 += value139));
+        (travelledDistance += segLength));
     }
   }
-  return value129
-    ? ((arg135.courtyardGate = {
-        fenceId: value129.fenceId,
-        fraction: value129.fraction,
+  return nearestAnchor
+    ? ((anchorGateItem.courtyardGate = {
+        fenceId: nearestAnchor.fenceId,
+        fraction: nearestAnchor.fraction,
       }),
       syncCourtyardGates(
         [
-          ...arg136.filter((arg143) => arg143 !== arg135 && arg143.type === "courtyard-fence"),
-          arg135,
+          ...gateSceneItems.filter(
+            (otherItem) => otherItem !== anchorGateItem && otherItem.type === "courtyard-fence",
+          ),
+          anchorGateItem,
         ],
-        arg137,
+        gatePixelsPerMeter,
       ),
       true)
-    : (delete arg135.courtyardGate, false);
+    : (delete anchorGateItem.courtyardGate, false);
 }
-export function syncCourtyardGates(arg144, arg145) {
-  for (const value142 of arg144.filter(isCourtyardGate)) {
-    if (!value142.courtyardGate) continue;
-    const value143 = arg144.find(
-      (arg146) => arg146.id === value142.courtyardGate.fenceId && arg146.type === "courtyard-fence",
+export function syncCourtyardGates(syncSceneItems, syncPixelsPerMeter) {
+  for (const syncedGate of syncSceneItems.filter(isCourtyardGate)) {
+    if (!syncedGate.courtyardGate) continue;
+    const linkedFence = syncSceneItems.find(
+      (candidateItem) =>
+        candidateItem.id === syncedGate.courtyardGate.fenceId &&
+        candidateItem.type === "courtyard-fence",
     );
-    if (!value143) {
-      delete value142.courtyardGate;
+    if (!linkedFence) {
+      delete syncedGate.courtyardGate;
       continue;
     }
-    const value144 = drawingPlanPoints(value143, arg145);
-    value143.drawing.closed && value144.push(value144[0]);
-    const value145 = value144
+    const linkedFencePoints = drawingPlanPoints(linkedFence, syncPixelsPerMeter);
+    linkedFence.drawing.closed && linkedFencePoints.push(linkedFencePoints[0]);
+    const segmentLengths = linkedFencePoints
       .slice(1)
-      .map((arg147, arg148) =>
-        Math.hypot(arg147.x - value144[arg148].x, arg147.y - value144[arg148].y),
+      .map((pathSegmentEnd, segmentStartIndex) =>
+        Math.hypot(
+          pathSegmentEnd.x - linkedFencePoints[segmentStartIndex].x,
+          pathSegmentEnd.y - linkedFencePoints[segmentStartIndex].y,
+        ),
       );
-    let value146 =
-      value145.reduce((arg149, arg150) => arg149 + arg150, 0) * value142.courtyardGate.fraction;
-    for (let value147 = 0; value147 < value145.length; value147++) {
-      if (value146 > value145[value147] && value147 < value145.length - 1) {
-        value146 -= value145[value147];
+    let targetDistance =
+      segmentLengths.reduce((sumLength, lengthSummand) => sumLength + lengthSummand, 0) *
+      syncedGate.courtyardGate.fraction;
+    for (let segmentCursor = 0; segmentCursor < segmentLengths.length; segmentCursor++) {
+      if (
+        targetDistance > segmentLengths[segmentCursor] &&
+        segmentCursor < segmentLengths.length - 1
+      ) {
+        targetDistance -= segmentLengths[segmentCursor];
         continue;
       }
-      const value148 = value144[value147],
-        value149 = value144[value147 + 1],
-        value150 = w(value146 / (value145[value147] || 1), 0, 1);
-      ((value142.x = value148.x + (value149.x - value148.x) * value150),
-        (value142.y = value148.y + (value149.y - value148.y) * value150),
-        (value142.rotation =
-          (Math.atan2(value149.y - value148.y, value149.x - value148.x) * 180) / Math.PI),
-        (value142.elevation = value143.elevation || 0));
+      const fenceSegmentStart = linkedFencePoints[segmentCursor],
+        fenceSegmentEnd = linkedFencePoints[segmentCursor + 1],
+        positionRatio = clamp(targetDistance / (segmentLengths[segmentCursor] || 1), 0, 1);
+      ((syncedGate.x =
+        fenceSegmentStart.x + (fenceSegmentEnd.x - fenceSegmentStart.x) * positionRatio),
+        (syncedGate.y =
+          fenceSegmentStart.y + (fenceSegmentEnd.y - fenceSegmentStart.y) * positionRatio),
+        (syncedGate.rotation =
+          (Math.atan2(
+            fenceSegmentEnd.y - fenceSegmentStart.y,
+            fenceSegmentEnd.x - fenceSegmentStart.x,
+          ) *
+            180) /
+          Math.PI),
+        (syncedGate.elevation = linkedFence.elevation || 0));
       break;
     }
   }
 }
-export function fenceOpenings(arg151, arg152) {
-  const value151 = pathPoints(arg151),
-    value152 = value151
+export function fenceOpenings(openingFence, openingSceneItems) {
+  const openingFencePoints = pathPoints(openingFence),
+    openingFenceLength = openingFencePoints
       .slice(1)
       .reduce(
-        (arg153, arg154, arg155) =>
-          arg153 + Math.hypot(arg154.x - value151[arg155].x, arg154.y - value151[arg155].y),
+        (runningLength, openingPathPoint, openingPointIndex) =>
+          runningLength +
+          Math.hypot(
+            openingPathPoint.x - openingFencePoints[openingPointIndex].x,
+            openingPathPoint.y - openingFencePoints[openingPointIndex].y,
+          ),
         0,
       );
-  return arg152
-    .filter((arg156) => isCourtyardGate(arg156) && arg156.courtyardGate?.fenceId === arg151.id)
-    .map((arg157) => ({
-      offset: Math.max(0, value152 * arg157.courtyardGate.fraction - arg157.width / 2),
-      width: arg157.width,
+  return openingSceneItems
+    .filter(
+      (candidateGate) =>
+        isCourtyardGate(candidateGate) && candidateGate.courtyardGate?.fenceId === openingFence.id,
+    )
+    .map((openingGate) => ({
+      offset: Math.max(
+        0,
+        openingFenceLength * openingGate.courtyardGate.fraction - openingGate.width / 2,
+      ),
+      width: openingGate.width,
     }));
 }
-export function surfaceExclusions(arg158, arg159, arg160, arg161) {
-  const value153 = localBuildingFootprints(arg158, arg160, arg161),
-    value154 = arg159.findIndex((arg162) => arg162.id === arg158.id);
-  for (const value155 of arg159.slice(value154 + 1)) {
+export function surfaceExclusions(
+  exclusionSurfaceDrawing,
+  exclusionSceneItems,
+  buildingLoops,
+  exclusionPixelsPerMeter,
+) {
+  const exclusionFootprints = localBuildingFootprints(
+      exclusionSurfaceDrawing,
+      buildingLoops,
+      exclusionPixelsPerMeter,
+    ),
+    surfaceIndex = exclusionSceneItems.findIndex(
+      (indexedItem) => indexedItem.id === exclusionSurfaceDrawing.id,
+    );
+  for (const otherSurface of exclusionSceneItems.slice(surfaceIndex + 1)) {
     if (
-      value155.type !== "courtyard-area" ||
+      otherSurface.type !== "courtyard-area" ||
       Math.abs(
-        (value155.elevation || 0) +
-          courtyardSurfaceRise(value155) -
-          (arg158.elevation || 0) -
-          courtyardSurfaceRise(arg158),
+        (otherSurface.elevation || 0) +
+          courtyardSurfaceRise(otherSurface) -
+          (exclusionSurfaceDrawing.elevation || 0) -
+          courtyardSurfaceRise(exclusionSurfaceDrawing),
       ) > 0.003
     )
       continue;
-    const value156 = drawingPlanPoints(value155, arg161),
-      value157 = value155.drawing.holes.map((arg163) =>
-        drawingPlanPoints(value155, arg161, arg163),
+    const otherOutlinePoints = drawingPlanPoints(otherSurface, exclusionPixelsPerMeter),
+      otherHolePointLists = otherSurface.drawing.holes.map((exclusionHole) =>
+        drawingPlanPoints(otherSurface, exclusionPixelsPerMeter, exclusionHole),
       );
-    if (!validLoop(value156)) continue;
-    const value158 = value157.filter((arg164, arg165) =>
+    if (!validLoop(otherOutlinePoints)) continue;
+    const validHoleLoops = otherHolePointLists.filter((holeLoopCandidate, holeCandidateIndex) =>
         validHole(
-          arg164,
-          value156,
-          value157.filter((arg166, arg167) => arg165 !== arg167),
+          holeLoopCandidate,
+          otherOutlinePoints,
+          otherHolePointLists.filter(
+            (compareHoleLoop, compareHoleIndex) => holeCandidateIndex !== compareHoleIndex,
+          ),
         ),
       ),
-      value159 = [value156, ...value158].map((arg168) =>
-        arg168.map((arg169) => new Vector2(arg169.x, arg169.y)),
+      exclusionVectorLoops = [otherOutlinePoints, ...validHoleLoops].map(
+        (exclusionLoopToVectorize) =>
+          exclusionLoopToVectorize.map(
+            (exclusionLoopPoint) => new Vector2(exclusionLoopPoint.x, exclusionLoopPoint.y),
+          ),
       ),
-      value160 = value159.flat(),
-      value161 = ShapeUtils.triangulateShape(value159[0], value159.slice(1)).map((arg170) =>
-        arg170.map((arg171) => value160[arg171]),
+      exclusionFlatVertices = exclusionVectorLoops.flat(),
+      triangulatedTriangles = ShapeUtils.triangulateShape(
+        exclusionVectorLoops[0],
+        exclusionVectorLoops.slice(1),
+      ).map((exclusionTriangle) =>
+        exclusionTriangle.map(
+          (exclusionVertexIndex) => exclusionFlatVertices[exclusionVertexIndex],
+        ),
       );
-    value153.push(...localBuildingFootprints(arg158, value161, arg161));
+    exclusionFootprints.push(
+      ...localBuildingFootprints(
+        exclusionSurfaceDrawing,
+        triangulatedTriangles,
+        exclusionPixelsPerMeter,
+      ),
+    );
   }
-  return value153;
+  return exclusionFootprints;
 }
-export function fenceSegments(arg172, arg173 = []) {
-  const value162 = pathPoints(arg172),
-    list9 = [
-      ...arg173,
-      ...(arg172.drawing.gateWidth > 0
+export function fenceSegments(segmentFence, gateOpenings = []) {
+  const segmentFencePoints = pathPoints(segmentFence),
+    openingRanges = [
+      ...gateOpenings,
+      ...(segmentFence.drawing.gateWidth > 0
         ? [
             {
-              offset: arg172.drawing.gateOffset,
-              width: arg172.drawing.gateWidth,
+              offset: segmentFence.drawing.gateOffset,
+              width: segmentFence.drawing.gateWidth,
             },
           ]
         : []),
     ],
-    list10 = [];
-  let value163 = 0;
-  for (let value164 = 1; value164 < value162.length; value164++) {
-    const value165 = value162[value164 - 1],
-      value166 = value162[value164],
-      value167 = Math.hypot(value166.x - value165.x, value166.y - value165.y);
-    if (value167 < 1e-8) continue;
-    const list11 = [0, value167];
-    for (const value168 of list9)
-      for (const value169 of [value168.offset, value168.offset + value168.width])
-        value169 > value163 && value169 < value163 + value167 && list11.push(value169 - value163);
-    list11.sort((arg174, arg175) => arg174 - arg175);
-    const fn4 = (arg176) => ({
-      x: value165.x + ((value166.x - value165.x) * arg176) / value167,
-      y: value165.y + ((value166.y - value165.y) * arg176) / value167,
+    keptSegments = [];
+  let coveredDistance = 0;
+  for (
+    let segmentPointIndex = 1;
+    segmentPointIndex < segmentFencePoints.length;
+    segmentPointIndex++
+  ) {
+    const currentSegmentStart = segmentFencePoints[segmentPointIndex - 1],
+      currentSegmentEnd = segmentFencePoints[segmentPointIndex],
+      currentSegmentLength = Math.hypot(
+        currentSegmentEnd.x - currentSegmentStart.x,
+        currentSegmentEnd.y - currentSegmentStart.y,
+      );
+    if (currentSegmentLength < 1e-8) continue;
+    const cutDistances = [0, currentSegmentLength];
+    for (const opening of openingRanges)
+      for (const cutDistance of [opening.offset, opening.offset + opening.width])
+        cutDistance > coveredDistance &&
+          cutDistance < coveredDistance + currentSegmentLength &&
+          cutDistances.push(cutDistance - coveredDistance);
+    cutDistances.sort((distanceA, distanceB) => distanceA - distanceB);
+    const pointAtDistance = (distanceAlongSegment) => ({
+      x:
+        currentSegmentStart.x +
+        ((currentSegmentEnd.x - currentSegmentStart.x) * distanceAlongSegment) /
+          currentSegmentLength,
+      y:
+        currentSegmentStart.y +
+        ((currentSegmentEnd.y - currentSegmentStart.y) * distanceAlongSegment) /
+          currentSegmentLength,
     });
-    for (let value170 = 1; value170 < list11.length; value170++) {
-      const value171 = value163 + (list11[value170 - 1] + list11[value170]) / 2;
-      list9.some((arg177) => value171 > arg177.offset && value171 < arg177.offset + arg177.width) ||
-        list10.push([fn4(list11[value170 - 1]), fn4(list11[value170])]);
+    for (let cutIndex = 1; cutIndex < cutDistances.length; cutIndex++) {
+      const midDistance =
+        coveredDistance + (cutDistances[cutIndex - 1] + cutDistances[cutIndex]) / 2;
+      openingRanges.some(
+        (openingToTest) =>
+          midDistance > openingToTest.offset &&
+          midDistance < openingToTest.offset + openingToTest.width,
+      ) ||
+        keptSegments.push([
+          pointAtDistance(cutDistances[cutIndex - 1]),
+          pointAtDistance(cutDistances[cutIndex]),
+        ]);
     }
-    value163 += value167;
+    coveredDistance += currentSegmentLength;
   }
-  return list10;
+  return keptSegments;
 }
-export function remapCourtyardAttachments(arg178, arg179) {
-  const map1 = new Map(arg178.map((arg180, arg181) => [arg180.id, arg179[arg181].id]));
-  for (const value172 of arg179) {
-    if (!value172.courtyardGate) continue;
-    const value173 = map1.get(value172.courtyardGate.fenceId);
-    value173
-      ? (value172.courtyardGate = {
-          ...value172.courtyardGate,
-          fenceId: value173,
+export function remapCourtyardAttachments(previousItems, nextItems) {
+  const newIdByOldId = new Map(
+    previousItems.map((previousItem, itemIndex) => [previousItem.id, nextItems[itemIndex].id]),
+  );
+  for (const nextItem of nextItems) {
+    if (!nextItem.courtyardGate) continue;
+    const remappedFenceId = newIdByOldId.get(nextItem.courtyardGate.fenceId);
+    remappedFenceId
+      ? (nextItem.courtyardGate = {
+          ...nextItem.courtyardGate,
+          fenceId: remappedFenceId,
         })
-      : delete value172.courtyardGate;
+      : delete nextItem.courtyardGate;
   }
 }
-export function hedgeSamples(arg182, arg183 = []) {
-  const list12 = [],
-    set1 = new Set(),
-    value174 = w(b(arg182.drawing.hedgeSpacing, 0.4), 0.2, 5);
-  for (const [value175, value176] of fenceSegments(arg182, arg183)) {
-    const value177 = Math.hypot(value176.x - value175.x, value176.y - value175.y),
-      value178 = Math.min(arg182.drawing.thickness * 1.5, value177 / 2),
-      fn5 = (arg184) => ({
-        x: value175.x + ((value176.x - value175.x) * arg184) / value177,
-        y: value175.y + ((value176.y - value175.y) * arg184) / value177,
+export function hedgeSamples(hedgeFence, hedgeGateOpenings = []) {
+  const hedgePoints = [],
+    emittedPointKeysSet = new Set(),
+    hedgeSpacing = clamp(finiteOr(hedgeFence.drawing.hedgeSpacing, 0.4), 0.2, 5);
+  for (const [hedgeSegmentStart, hedgeSegmentEnd] of fenceSegments(hedgeFence, hedgeGateOpenings)) {
+    const hedgeSegmentLength = Math.hypot(
+        hedgeSegmentEnd.x - hedgeSegmentStart.x,
+        hedgeSegmentEnd.y - hedgeSegmentStart.y,
+      ),
+      endInset = Math.min(hedgeFence.drawing.thickness * 1.5, hedgeSegmentLength / 2),
+      pointAlongHedge = (distanceAlong) => ({
+        x:
+          hedgeSegmentStart.x +
+          ((hedgeSegmentEnd.x - hedgeSegmentStart.x) * distanceAlong) / hedgeSegmentLength,
+        y:
+          hedgeSegmentStart.y +
+          ((hedgeSegmentEnd.y - hedgeSegmentStart.y) * distanceAlong) / hedgeSegmentLength,
       }),
-      value179 =
-        value177 <= value178 * 2 + 0.000001
-          ? [fn5(value177 / 2)]
-          : samplePath([fn5(value178), fn5(value177 - value178)], value174);
-    for (const value180 of value179) {
-      const value181 = value180.x.toFixed(4) + ":" + value180.y.toFixed(4);
-      if (!set1.has(value181) && (set1.add(value181), list12.push(value180), list12.length >= 1200))
-        return list12;
+      hedgeSamplePoints =
+        hedgeSegmentLength <= endInset * 2 + 0.000001
+          ? [pointAlongHedge(hedgeSegmentLength / 2)]
+          : samplePath(
+              [pointAlongHedge(endInset), pointAlongHedge(hedgeSegmentLength - endInset)],
+              hedgeSpacing,
+            );
+    for (const hedgeSamplePoint of hedgeSamplePoints) {
+      const sampleKey = hedgeSamplePoint.x.toFixed(4) + ":" + hedgeSamplePoint.y.toFixed(4);
+      if (
+        !emittedPointKeysSet.has(sampleKey) &&
+        (emittedPointKeysSet.add(sampleKey),
+        hedgePoints.push(hedgeSamplePoint),
+        hedgePoints.length >= 1200)
+      )
+        return hedgePoints;
     }
   }
-  return list12;
+  return hedgePoints;
 }
 export function snapCourtyardPoint(
-  arg185,
+  snapPoint,
   {
-    base: arg186,
-    walls: arg189 = [],
-    items: arg190 = [],
-    draft: arg191 = [],
-    ppm: arg192 = 100,
-    tolerance: arg193 = 12,
-    enabled: arg194 = true,
-    anchor: arg187,
-    forceAxis: arg195 = false,
-    excludeId: arg188,
-    settings: arg196 = {},
+    base: baseSnap,
+    walls: snapWallList = [],
+    items: snapSceneItems = [],
+    draft: draftPoints = [],
+    ppm: snapScalePixelsPerMeter = 100,
+    tolerance: tolerancePixels = 12,
+    enabled: isSnapEnabled = true,
+    anchor: anchorPoint,
+    forceAxis: shouldForceAxis = false,
+    excludeId: excludeItemId,
+    settings: snapSettings = {},
   },
 ) {
-  if (!arg194) return arg186;
-  const value182 = arg190
+  if (!isSnapEnabled) return baseSnap;
+  const snapTargets = snapSceneItems
       .filter(isCourtyardDrawing)
-      .filter((arg197) => arg197.id !== arg188)
-      .flatMap((arg198) => [
+      .filter((snapCandidateItem) => snapCandidateItem.id !== excludeItemId)
+      .flatMap((snapDrawingItem) => [
         {
-          points: drawingPlanPoints(arg198, arg192),
-          closed: arg198.type === "courtyard-area" || arg198.drawing.closed,
+          points: drawingPlanPoints(snapDrawingItem, snapScalePixelsPerMeter),
+          closed: snapDrawingItem.type === "courtyard-area" || snapDrawingItem.drawing.closed,
         },
-        ...arg198.drawing.holes.map((arg199) => ({
-          points: drawingPlanPoints(arg198, arg192, arg199),
+        ...snapDrawingItem.drawing.holes.map((snapHolePoints) => ({
+          points: drawingPlanPoints(snapDrawingItem, snapScalePixelsPerMeter, snapHolePoints),
           closed: true,
         })),
       ]),
-    value183 = buildingFootprints(arg189, [], arg192),
-    fn6 = (arg200) =>
-      !arg195 ||
-      !arg187 ||
-      (Math.abs(arg186.point.x - arg187.x) < 0.000001
-        ? Math.abs(arg200.x - arg187.x) < 0.000001
-        : Math.abs(arg200.y - arg187.y) < 0.000001),
-    fn7 = (arg201) =>
-      arg201
-        .filter((arg202) => fn6(arg202.point))
-        .map((arg203) => ({
-          ...arg203,
-          distance: Math.hypot(arg203.point.x - arg185.x, arg203.point.y - arg185.y),
+    wallFootprints = buildingFootprints(snapWallList, [], snapScalePixelsPerMeter),
+    matchesAxis = (candidatePoint) =>
+      !shouldForceAxis ||
+      !anchorPoint ||
+      (Math.abs(baseSnap.point.x - anchorPoint.x) < 0.000001
+        ? Math.abs(candidatePoint.x - anchorPoint.x) < 0.000001
+        : Math.abs(candidatePoint.y - anchorPoint.y) < 0.000001),
+    nearestTarget = (targetList) =>
+      targetList
+        .filter((target) => matchesAxis(target.point))
+        .map((targetWithDistance) => ({
+          ...targetWithDistance,
+          distance: Math.hypot(
+            targetWithDistance.point.x - snapPoint.x,
+            targetWithDistance.point.y - snapPoint.y,
+          ),
         }))
-        .filter((arg204) => arg204.distance <= arg193)
-        .sort((arg205, arg206) => arg205.distance - arg206.distance)[0];
-  if (arg196.snapEndpoints !== false) {
-    const list13 = [
-        ...arg191.map((arg207, arg208) => ({
-          point: arg207,
+        .filter((nearTarget) => nearTarget.distance <= tolerancePixels)
+        .sort((targetA, targetB) => targetA.distance - targetB.distance)[0];
+  if (snapSettings.snapEndpoints !== false) {
+    const endpointTargets = [
+        ...draftPoints.map((draftPoint, draftIndex) => ({
+          point: draftPoint,
           kind: "endpoint",
-          label: arg208 === 0 && arg191.length >= 3 ? "点击闭合地面" : "绘制节点",
+          label: draftIndex === 0 && draftPoints.length >= 3 ? "点击闭合地面" : "绘制节点",
         })),
-        ...value182.flatMap((arg209) =>
-          arg209.points.map((arg210) => ({
-            point: arg210,
+        ...snapTargets.flatMap((snapTarget) =>
+          snapTarget.points.map((snapTargetPoint) => ({
+            point: snapTargetPoint,
             kind: "endpoint",
             label: "庭院节点",
           })),
         ),
-        ...value183.flatMap((arg211) =>
-          arg211.map((arg212) => ({
-            point: arg212,
+        ...wallFootprints.flatMap((wallFootprint) =>
+          wallFootprint.map((wallFootprintPoint) => ({
+            point: wallFootprintPoint,
             kind: "endpoint",
             label: "墙面端点",
           })),
         ),
       ],
-      value184 = fn7(list13);
-    if (value184) return value184;
+      endpointSnap = nearestTarget(endpointTargets);
+    if (endpointSnap) return endpointSnap;
   }
-  if (arg196.snapSegments !== false) {
-    const list14 = [];
-    for (const value186 of [
-      ...value182,
-      ...value183.map((arg213) => ({
-        points: arg213,
+  if (snapSettings.snapSegments !== false) {
+    const segmentTargets = [];
+    for (const snapGeometry of [
+      ...snapTargets,
+      ...wallFootprints.map((wallLoop) => ({
+        points: wallLoop,
         closed: true,
         wall: true,
       })),
     ])
       for (
-        let value187 = 0;
-        value187 < value186.points.length - (value186.closed ? 0 : 1);
-        value187++
+        let segmentPointCursor = 0;
+        segmentPointCursor < snapGeometry.points.length - (snapGeometry.closed ? 0 : 1);
+        segmentPointCursor++
       ) {
-        const value188 = value186.points[value187],
-          value189 = value186.points[(value187 + 1) % value186.points.length],
-          value190 = value189.x - value188.x,
-          value191 = value189.y - value188.y,
-          value192 = value190 * value190 + value191 * value191;
-        if (!value192) continue;
-        let value193 = w(
-          ((arg185.x - value188.x) * value190 + (arg185.y - value188.y) * value191) / value192,
+        const snapSegmentStart = snapGeometry.points[segmentPointCursor],
+          snapSegmentEnd =
+            snapGeometry.points[(segmentPointCursor + 1) % snapGeometry.points.length],
+          segmentDeltaX = snapSegmentEnd.x - snapSegmentStart.x,
+          segmentDeltaY = snapSegmentEnd.y - snapSegmentStart.y,
+          segmentLengthSquared = segmentDeltaX * segmentDeltaX + segmentDeltaY * segmentDeltaY;
+        if (!segmentLengthSquared) continue;
+        let snapProjectionRatio = clamp(
+          ((snapPoint.x - snapSegmentStart.x) * segmentDeltaX +
+            (snapPoint.y - snapSegmentStart.y) * segmentDeltaY) /
+            segmentLengthSquared,
           0,
           1,
         );
-        if (arg195 && arg187) {
-          const value194 = Math.abs(arg186.point.x - arg187.x) < 0.000001,
-            value195 = value194 ? value190 : value191;
+        if (shouldForceAxis && anchorPoint) {
+          const isVerticalAxis = Math.abs(baseSnap.point.x - anchorPoint.x) < 0.000001,
+            axisDelta = isVerticalAxis ? segmentDeltaX : segmentDeltaY;
           if (
-            Math.abs(value195) > 1e-8 &&
-            ((value193 =
-              ((value194 ? arg187.x : arg187.y) - (value194 ? value188.x : value188.y)) / value195),
-            value193 < 0 || value193 > 1)
+            Math.abs(axisDelta) > 1e-8 &&
+            ((snapProjectionRatio =
+              ((isVerticalAxis ? anchorPoint.x : anchorPoint.y) -
+                (isVerticalAxis ? snapSegmentStart.x : snapSegmentStart.y)) /
+              axisDelta),
+            snapProjectionRatio < 0 || snapProjectionRatio > 1)
           )
             continue;
         }
-        list14.push({
+        segmentTargets.push({
           point: {
-            x: value188.x + value193 * value190,
-            y: value188.y + value193 * value191,
+            x: snapSegmentStart.x + snapProjectionRatio * segmentDeltaX,
+            y: snapSegmentStart.y + snapProjectionRatio * segmentDeltaY,
           },
           kind: "segment",
-          label: value186.wall ? "墙面" : "庭院边线",
+          label: snapGeometry.wall ? "墙面" : "庭院边线",
         });
       }
-    const value185 = fn7(list14);
-    if (value185) return value185;
+    const segmentSnap = nearestTarget(segmentTargets);
+    if (segmentSnap) return segmentSnap;
   }
-  return arg186;
+  return baseSnap;
 }
-export function trimCourtyardArea(arg214, arg215, arg216, arg217, arg218) {
-  const value196 = drawingPlanPoints(arg214, arg218),
-    value197 = arg214.drawing.holes.map((arg219) => drawingPlanPoints(arg214, arg218, arg219)),
-    value198 = arg216.x - arg215.x,
-    value199 = arg216.y - arg215.y,
-    value200 = Math.hypot(value198, value199);
-  if (value200 < arg218 * 0.01) return null;
-  const value201 = Math.sign(value198 * (arg217.y - arg215.y) - value199 * (arg217.x - arg215.x));
-  if (!value201) return null;
-  const value202 =
+export function trimCourtyardArea(areaDrawing, cutStart, cutEnd, cutSidePoint, trimPixelsPerMeter) {
+  const areaOutlinePoints = drawingPlanPoints(areaDrawing, trimPixelsPerMeter),
+    areaHolePointLists = areaDrawing.drawing.holes.map((areaHole) =>
+      drawingPlanPoints(areaDrawing, trimPixelsPerMeter, areaHole),
+    ),
+    cutDeltaX = cutEnd.x - cutStart.x,
+    cutDeltaY = cutEnd.y - cutStart.y,
+    cutLength = Math.hypot(cutDeltaX, cutDeltaY);
+  if (cutLength < trimPixelsPerMeter * 0.01) return null;
+  const trimSideSign = Math.sign(
+    cutDeltaX * (cutSidePoint.y - cutStart.y) - cutDeltaY * (cutSidePoint.x - cutStart.x),
+  );
+  if (!trimSideSign) return null;
+  const trimExtent =
       Math.max(
-        ...value196.map((arg220) => Math.hypot(arg220.x - arg215.x, arg220.y - arg215.y)),
-        value200,
-        arg218,
+        ...areaOutlinePoints.map((areaOutlinePoint) =>
+          Math.hypot(areaOutlinePoint.x - cutStart.x, areaOutlinePoint.y - cutStart.y),
+        ),
+        cutLength,
+        trimPixelsPerMeter,
       ) * 4,
-    object8 = {
-      x: (value198 / value200) * value202,
-      y: (value199 / value200) * value202,
+    alongCutOffset = {
+      x: (cutDeltaX / cutLength) * trimExtent,
+      y: (cutDeltaY / cutLength) * trimExtent,
     },
-    object9 = {
-      x: (-value199 / value200) * value202 * value201,
-      y: (value198 / value200) * value202 * value201,
+    perpendicularOffset = {
+      x: (-cutDeltaY / cutLength) * trimExtent * trimSideSign,
+      y: (cutDeltaX / cutLength) * trimExtent * trimSideSign,
     },
-    list15 = [
+    cutQuadLoop = [
       {
-        x: arg215.x - object8.x,
-        y: arg215.y - object8.y,
+        x: cutStart.x - alongCutOffset.x,
+        y: cutStart.y - alongCutOffset.y,
       },
       {
-        x: arg215.x + object8.x,
-        y: arg215.y + object8.y,
+        x: cutStart.x + alongCutOffset.x,
+        y: cutStart.y + alongCutOffset.y,
       },
       {
-        x: arg215.x + object8.x + object9.x,
-        y: arg215.y + object8.y + object9.y,
+        x: cutStart.x + alongCutOffset.x + perpendicularOffset.x,
+        y: cutStart.y + alongCutOffset.y + perpendicularOffset.y,
       },
       {
-        x: arg215.x - object8.x + object9.x,
-        y: arg215.y - object8.y + object9.y,
+        x: cutStart.x - alongCutOffset.x + perpendicularOffset.x,
+        y: cutStart.y - alongCutOffset.y + perpendicularOffset.y,
       },
     ],
-    value203 = subtractPolygonLoops([value196], [...value197, list15]),
-    value204 = value203
-      .filter((arg221) => polygonArea(arg221) > 0)
-      .map((arg222) => ({
-        outline: arg222,
+    trimSubtractedLoops = subtractPolygonLoops(
+      [areaOutlinePoints],
+      [...areaHolePointLists, cutQuadLoop],
+    ),
+    trimRegionList = trimSubtractedLoops
+      .filter((trimRegionLoop) => polygonArea(trimRegionLoop) > 0)
+      .map((trimPositiveLoop) => ({
+        outline: trimPositiveLoop,
         holes: [],
       }));
-  for (const value205 of value203.filter((arg223) => polygonArea(arg223) < 0)) {
-    const value206 = value204
-      .filter((arg224) => inside(value205[0], arg224.outline))
+  for (const trimNegativeLoop of trimSubtractedLoops.filter(
+    (trimNegativeRegionLoop) => polygonArea(trimNegativeRegionLoop) < 0,
+  )) {
+    const trimParentRegion = trimRegionList
+      .filter((trimCandidateRegion) => inside(trimNegativeLoop[0], trimCandidateRegion.outline))
       .sort(
-        (arg225, arg226) =>
-          Math.abs(polygonArea(arg225.outline)) - Math.abs(polygonArea(arg226.outline)),
+        (trimRegionA, trimRegionB) =>
+          Math.abs(polygonArea(trimRegionA.outline)) - Math.abs(polygonArea(trimRegionB.outline)),
       )[0];
-    value206 && value206.holes.push(value205);
+    trimParentRegion && trimParentRegion.holes.push(trimNegativeLoop);
   }
-  return value204;
+  return trimRegionList;
 }

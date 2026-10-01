@@ -1,0 +1,2174 @@
+{
+  "file": "frontend/static/3d-studio/studio-reflection-detail.js",
+  "declStart": 1,
+  "declEnd": 99999,
+  "totalLines": 317,
+  "counts": {
+    "entries": 95,
+    "renameable": 95,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "J@1",
+      "name": "J",
+      "line": 1,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function J(arg1) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "scheduleWork: arg5 = J,"
+        }
+      ]
+    },
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function J(arg1) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "const value2 = requestIdleCallback(arg1, {"
+        },
+        {
+          "line": 8,
+          "text": "const value1 = setTimeout(arg1, 0);"
+        }
+      ]
+    },
+    {
+      "key": "value2@3",
+      "name": "value2",
+      "line": 3,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = requestIdleCallback(arg1, {",
+      "references": [
+        {
+          "line": 6,
+          "text": "return () => cancelIdleCallback(value2);"
+        }
+      ]
+    },
+    {
+      "key": "value1@8",
+      "name": "value1",
+      "line": 8,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = setTimeout(arg1, 0);",
+      "references": [
+        {
+          "line": 9,
+          "text": "return () => clearTimeout(value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@12",
+      "name": "arg2",
+      "line": 12,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "THREE: arg2,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value3 = new arg2.Vector3();"
+        },
+        {
+          "line": 162,
+          "text": "(value18.setIndex(new arg2.BufferAttribute(arg22.indices, 1)),"
+        },
+        {
+          "line": 266,
+          "text": "const value37 = new arg2.Vector3();"
+        }
+      ]
+    },
+    {
+      "key": "arg3@13",
+      "name": "arg3",
+      "line": 13,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "requestFrame: arg3 = () => {},",
+      "references": [
+        {
+          "line": 122,
+          "text": "value10 && !value8 && ((value10 = false), arg3()));"
+        },
+        {
+          "line": 127,
+          "text": "value10 && ((value10 = false), arg3());"
+        }
+      ]
+    },
+    {
+      "key": "arg4@14",
+      "name": "arg4",
+      "line": 14,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "makeWorker: arg4 = () =>",
+      "references": [
+        {
+          "line": 138,
+          "text": "((value4 = arg4()),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@24",
+      "name": "arg5",
+      "line": 24,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "scheduleWork: arg5 = J,",
+      "references": [
+        {
+          "line": 130,
+          "text": "value6 = arg5(() => {"
+        }
+      ]
+    },
+    {
+      "key": "arg6@25",
+      "name": "arg6",
+      "line": 25,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxBytes: arg6 = 16 * 1024 * 1024,",
+      "references": [
+        {
+          "line": 160,
+          "text": "if (object1.bytes + value17 > arg6) return;"
+        },
+        {
+          "line": 192,
+          "text": "if (object1.bytes + fn4(value20) + value20.index.count * 4 > arg6) {"
+        }
+      ]
+    },
+    {
+      "key": "arg7@26",
+      "name": "arg7",
+      "line": 26,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "worldError: arg7 = 0.02,",
+      "references": [
+        {
+          "line": 29,
+          "text": "runtimeWorldError: arg10 = arg7,"
+        },
+        {
+          "line": 274,
+          "text": "value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;"
+        },
+        {
+          "line": 306,
+          "text": "(arg31.userData.runtimeDetail ? arg10 : arg7) * 1.000001"
+        }
+      ]
+    },
+    {
+      "key": "arg8@27",
+      "name": "arg8",
+      "line": 27,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "ratio: arg8 = 0.35,",
+      "references": [
+        {
+          "line": 240,
+          "text": "ratio: arg8,"
+        }
+      ]
+    },
+    {
+      "key": "arg9@28",
+      "name": "arg9",
+      "line": 28,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "includeRuntime: arg9 = true,",
+      "references": [
+        {
+          "line": 75,
+          "text": "(arg9 || !arg16.userData.runtimeDetail) &&"
+        }
+      ]
+    },
+    {
+      "key": "arg10@29",
+      "name": "arg10",
+      "line": 29,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "runtimeWorldError: arg10 = arg7,",
+      "references": [
+        {
+          "line": 274,
+          "text": "value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;"
+        },
+        {
+          "line": 306,
+          "text": "(arg31.userData.runtimeDetail ? arg10 : arg7) * 1.000001"
+        }
+      ]
+    },
+    {
+      "key": "map1@31",
+      "name": "map1",
+      "line": 31,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map(),",
+      "references": [
+        {
+          "line": 98,
+          "text": "object1.pending = list1.length + (value5 && map1.get(value5.source) === value5 ? 1 : 0);"
+        },
+        {
+          "line": 101,
+          "text": "const value14 = map1.get(arg21);"
+        },
+        {
+          "line": 103,
+          "text": "(arg21.removeEventListener(\"dispose\", value14.release), map1.delete(arg21));"
+        },
+        {
+          "line": 145,
+          "text": "if (map1.get(value16.source) !== value16) return;"
+        },
+        {
+          "line": 254,
+          "text": "for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);"
+        },
+        {
+          "line": 264,
+          "text": "const value36 = map1.get(value35);"
+        },
+        {
+          "line": 276,
+          "text": "(map1.has(value35) && map1.get(value35).error > value39 * 1.000001 && fn6(value35),"
+        },
+        {
+          "line": 277,
+          "text": "map1.has(value35))"
+        }
+      ]
+    },
+    {
+      "key": "list1@32",
+      "name": "list1",
+      "line": 32,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [],",
+      "references": [
+        {
+          "line": 98,
+          "text": "object1.pending = list1.length + (value5 && map1.get(value5.source) === value5 ? 1 : 0);"
+        },
+        {
+          "line": 104,
+          "text": "const value15 = list1.indexOf(value14);"
+        },
+        {
+          "line": 105,
+          "text": "(value15 !== -1 && list1.splice(value15, 1),"
+        },
+        {
+          "line": 116,
+          "text": "(object1.failed += list1.length + (value5 ? 1 : 0)),"
+        },
+        {
+          "line": 117,
+          "text": "(list1.length = 0),"
+        },
+        {
+          "line": 126,
+          "text": "if (!list1.length) {"
+        },
+        {
+          "line": 182,
+          "text": "const value19 = list1.shift();"
+        },
+        {
+          "line": 292,
+          "text": "list1.push(object2));"
+        }
+      ]
+    },
+    {
+      "key": "value3@33",
+      "name": "value3",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = new arg2.Vector3();",
+      "references": [
+        {
+          "line": 303,
+          "text": "const value41 = value3.setFromMatrixScale(arg31.matrixWorld);"
+        }
+      ]
+    },
+    {
+      "key": "value4@34",
+      "name": "value4",
+      "line": 34,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value4,",
+      "references": [
+        {
+          "line": 120,
+          "text": "value4?.terminate(),"
+        },
+        {
+          "line": 136,
+          "text": "if (!(value4 || value9))"
+        },
+        {
+          "line": 139,
+          "text": "(value4.onerror = fn7),"
+        },
+        {
+          "line": 140,
+          "text": "(value4.onmessage = ({ data: arg22 }) => {"
+        },
+        {
+          "line": 196,
+          "text": "if (((value5 = value19), fn5(), fn9(), !!value4))"
+        },
+        {
+          "line": 231,
+          "text": "value4.postMessage("
+        },
+        {
+          "line": 311,
+          "text": "((value8 = true), value6?.(), (value6 = null), value4?.terminate(), (value5 = null));"
+        }
+      ]
+    },
+    {
+      "key": "value5@35",
+      "name": "value5",
+      "line": 35,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = null,",
+      "references": [
+        {
+          "line": 98,
+          "text": "object1.pending = list1.length + (value5 && map1.get(value5.source) === value5 ? 1 : 0);"
+        },
+        {
+          "line": 116,
+          "text": "(object1.failed += list1.length + (value5 ? 1 : 0)),"
+        },
+        {
+          "line": 125,
+          "text": "if ((fn5(), !(value8 || value9 || value5 || value6))) {"
+        },
+        {
+          "line": 141,
+          "text": "if (value8 || !value5 || arg22.id !== value5.id) return;"
+        },
+        {
+          "line": 142,
+          "text": "const value16 = value5;"
+        },
+        {
+          "line": 181,
+          "text": "if (value8 || value9 || value5) return;"
+        }
+      ]
+    },
+    {
+      "key": "value6@36",
+      "name": "value6",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = null,",
+      "references": [
+        {
+          "line": 125,
+          "text": "if ((fn5(), !(value8 || value9 || value5 || value6))) {"
+        },
+        {
+          "line": 311,
+          "text": "((value8 = true), value6?.(), (value6 = null), value4?.terminate(), (value5 = null));"
+        }
+      ]
+    },
+    {
+      "key": "value7@37",
+      "name": "value7",
+      "line": 37,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = 0,",
+      "references": [
+        {
+          "line": 281,
+          "text": "id: ++value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@38",
+      "name": "value8",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = false,",
+      "references": [
+        {
+          "line": 122,
+          "text": "value10 && !value8 && ((value10 = false), arg3()));"
+        },
+        {
+          "line": 125,
+          "text": "if ((fn5(), !(value8 || value9 || value5 || value6))) {"
+        },
+        {
+          "line": 141,
+          "text": "if (value8 || !value5 || arg22.id !== value5.id) return;"
+        },
+        {
+          "line": 181,
+          "text": "if (value8 || value9 || value5) return;"
+        },
+        {
+          "line": 249,
+          "text": "if (value8 || value9) return;"
+        }
+      ]
+    },
+    {
+      "key": "value9@39",
+      "name": "value9",
+      "line": 39,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = false,",
+      "references": [
+        {
+          "line": 125,
+          "text": "if ((fn5(), !(value8 || value9 || value5 || value6))) {"
+        },
+        {
+          "line": 136,
+          "text": "if (!(value4 || value9))"
+        },
+        {
+          "line": 181,
+          "text": "if (value8 || value9 || value5) return;"
+        },
+        {
+          "line": 249,
+          "text": "if (value8 || value9) return;"
+        }
+      ]
+    },
+    {
+      "key": "value10@40",
+      "name": "value10",
+      "line": 40,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = false;",
+      "references": [
+        {
+          "line": 122,
+          "text": "value10 && !value8 && ((value10 = false), arg3()));"
+        },
+        {
+          "line": 127,
+          "text": "value10 && ((value10 = false), arg3());"
+        }
+      ]
+    },
+    {
+      "key": "object1@41",
+      "name": "object1",
+      "line": 41,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 98,
+          "text": "object1.pending = list1.length + (value5 && map1.get(value5.source) === value5 ? 1 : 0);"
+        },
+        {
+          "line": 108,
+          "text": "(object1.bytes -= value14.bytes),"
+        },
+        {
+          "line": 109,
+          "text": "object1.prepared--,"
+        },
+        {
+          "line": 110,
+          "text": "(object1.sourceTriangles -= value14.sourceTriangles),"
+        },
+        {
+          "line": 111,
+          "text": "(object1.detailTriangles -= value14.detailTriangles)),"
+        },
+        {
+          "line": 116,
+          "text": "(object1.failed += list1.length + (value5 ? 1 : 0)),"
+        },
+        {
+          "line": 151,
+          "text": "object1.failed++;"
+        },
+        {
+          "line": 160,
+          "text": "if (object1.bytes + value17 > arg6) return;"
+        }
+      ]
+    },
+    {
+      "key": "fn1@49",
+      "name": "fn1",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg11) =>",
+      "references": [
+        {
+          "line": 283,
+          "text": "signature: fn1(value35),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@49",
+      "name": "arg11",
+      "line": 49,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg11) =>",
+      "references": [
+        {
+          "line": 50,
+          "text": "[[\"index\", arg11.index], ...Object.entries(arg11.attributes)].map(([arg12, arg13]) => ({"
+        }
+      ]
+    },
+    {
+      "key": "arg12@50",
+      "name": "arg12",
+      "line": 50,
+      "column": 74,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[[\"index\", arg11.index], ...Object.entries(arg11.attributes)].map(([arg12, arg13]) => ({",
+      "references": [
+        {
+          "line": 51,
+          "text": "name: arg12,"
+        }
+      ]
+    },
+    {
+      "key": "arg13@50",
+      "name": "arg13",
+      "line": 50,
+      "column": 81,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[[\"index\", arg11.index], ...Object.entries(arg11.attributes)].map(([arg12, arg13]) => ({",
+      "references": [
+        {
+          "line": 52,
+          "text": "attribute: arg13,"
+        },
+        {
+          "line": 53,
+          "text": "version: arg13.version,"
+        },
+        {
+          "line": 54,
+          "text": "dataVersion: arg13.data?.version,"
+        },
+        {
+          "line": 55,
+          "text": "count: arg13.count,"
+        }
+      ]
+    },
+    {
+      "key": "fn2@57",
+      "name": "fn2",
+      "line": 57,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg14) =>",
+      "references": [
+        {
+          "line": 146,
+          "text": "if (!fn2(value16)) {"
+        },
+        {
+          "line": 188,
+          "text": "if (!fn2(value19)) {"
+        },
+        {
+          "line": 265,
+          "text": "value36 && !fn2(value36) && fn6(value35);"
+        },
+        {
+          "line": 302,
+          "text": "if (!value40 || !fn2(value40)) return null;"
+        }
+      ]
+    },
+    {
+      "key": "arg14@57",
+      "name": "arg14",
+      "line": 57,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg14) =>",
+      "references": [
+        {
+          "line": 58,
+          "text": "Object.keys(arg14.source.attributes).length + 1 === arg14.signature.length &&"
+        },
+        {
+          "line": 59,
+          "text": "arg14.signature.every((arg15) => {"
+        },
+        {
+          "line": 61,
+          "text": "arg15.name === \"index\" ? arg14.source.index : arg14.source.attributes[arg15.name];"
+        }
+      ]
+    },
+    {
+      "key": "arg15@59",
+      "name": "arg15",
+      "line": 59,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg14.signature.every((arg15) => {",
+      "references": [
+        {
+          "line": 61,
+          "text": "arg15.name === \"index\" ? arg14.source.index : arg14.source.attributes[arg15.name];"
+        },
+        {
+          "line": 63,
+          "text": "value11 === arg15.attribute &&"
+        },
+        {
+          "line": 64,
+          "text": "value11.version === arg15.version &&"
+        },
+        {
+          "line": 65,
+          "text": "value11.data?.version === arg15.dataVersion &&"
+        },
+        {
+          "line": 66,
+          "text": "value11.count === arg15.count"
+        }
+      ]
+    },
+    {
+      "key": "value11@60",
+      "name": "value11",
+      "line": 60,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 =",
+      "references": [
+        {
+          "line": 63,
+          "text": "value11 === arg15.attribute &&"
+        },
+        {
+          "line": 64,
+          "text": "value11.version === arg15.version &&"
+        },
+        {
+          "line": 65,
+          "text": "value11.data?.version === arg15.dataVersion &&"
+        },
+        {
+          "line": 66,
+          "text": "value11.count === arg15.count"
+        }
+      ]
+    },
+    {
+      "key": "fn3@69",
+      "name": "fn3",
+      "line": 69,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16) => {",
+      "references": [
+        {
+          "line": 252,
+          "text": "fn3(arg29) && set1.add(arg29.geometry);"
+        },
+        {
+          "line": 258,
+          "text": "!fn3(arg30) ||"
+        },
+        {
+          "line": 300,
+          "text": "if (!fn3(arg31)) return null;"
+        }
+      ]
+    },
+    {
+      "key": "arg16@69",
+      "name": "arg16",
+      "line": 69,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg16) => {",
+      "references": [
+        {
+          "line": 70,
+          "text": "const value12 = arg16.material,"
+        },
+        {
+          "line": 71,
+          "text": "value13 = arg16.geometry;"
+        },
+        {
+          "line": 73,
+          "text": "arg16.isMesh &&"
+        },
+        {
+          "line": 74,
+          "text": "arg16.userData?.reflectionSimplifiable &&"
+        },
+        {
+          "line": 75,
+          "text": "(arg9 || !arg16.userData.runtimeDetail) &&"
+        },
+        {
+          "line": 76,
+          "text": "!arg16.isSkinnedMesh &&"
+        },
+        {
+          "line": 77,
+          "text": "!arg16.isInstancedMesh &&"
+        },
+        {
+          "line": 78,
+          "text": "!arg16.isBatchedMesh &&"
+        }
+      ]
+    },
+    {
+      "key": "value12@70",
+      "name": "value12",
+      "line": 70,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = arg16.material,",
+      "references": [
+        {
+          "line": 81,
+          "text": "value12?.isMeshStandardMaterial &&"
+        },
+        {
+          "line": 82,
+          "text": "!value12.transparent &&"
+        },
+        {
+          "line": 83,
+          "text": "!value12.alphaTest &&"
+        },
+        {
+          "line": 84,
+          "text": "!value12.displacementMap &&"
+        },
+        {
+          "line": 85,
+          "text": "!(value12.transmission > 0) &&"
+        }
+      ]
+    },
+    {
+      "key": "value13@71",
+      "name": "value13",
+      "line": 71,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = arg16.geometry;",
+      "references": [
+        {
+          "line": 80,
+          "text": "!Object.keys(value13?.morphAttributes || {}).length &&"
+        },
+        {
+          "line": 88,
+          "text": "value13?.drawRange.start === 0 &&"
+        },
+        {
+          "line": 89,
+          "text": "value13.drawRange.count === Infinity"
+        }
+      ]
+    },
+    {
+      "key": "fn4@92",
+      "name": "fn4",
+      "line": 92,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg17) =>",
+      "references": [
+        {
+          "line": 159,
+          "text": "const value17 = fn4(value16.source) + arg22.indices.byteLength;"
+        },
+        {
+          "line": 192,
+          "text": "if (object1.bytes + fn4(value20) + value20.index.count * 4 > arg6) {"
+        }
+      ]
+    },
+    {
+      "key": "arg17@92",
+      "name": "arg17",
+      "line": 92,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg17) =>",
+      "references": [
+        {
+          "line": 93,
+          "text": "[...new Set(Object.values(arg17.attributes).map((arg18) => arg18.array))].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg18@93",
+      "name": "arg18",
+      "line": 93,
+      "column": 55,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[...new Set(Object.values(arg17.attributes).map((arg18) => arg18.array))].reduce(",
+      "references": [
+        {
+          "line": 93,
+          "text": "[...new Set(Object.values(arg17.attributes).map((arg18) => arg18.array))].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg19@94",
+      "name": "arg19",
+      "line": 94,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg19, arg20) => arg19 + arg20.byteLength,",
+      "references": [
+        {
+          "line": 94,
+          "text": "(arg19, arg20) => arg19 + arg20.byteLength,"
+        }
+      ]
+    },
+    {
+      "key": "arg20@94",
+      "name": "arg20",
+      "line": 94,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg19, arg20) => arg19 + arg20.byteLength,",
+      "references": [
+        {
+          "line": 94,
+          "text": "(arg19, arg20) => arg19 + arg20.byteLength,"
+        }
+      ]
+    },
+    {
+      "key": "fn5@97",
+      "name": "fn5",
+      "line": 97,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn5 = () => {",
+      "references": [
+        {
+          "line": 112,
+          "text": "fn5());"
+        },
+        {
+          "line": 119,
+          "text": "fn5(),"
+        },
+        {
+          "line": 125,
+          "text": "if ((fn5(), !(value8 || value9 || value5 || value6))) {"
+        },
+        {
+          "line": 143,
+          "text": "((value5 = null), fn5());"
+        },
+        {
+          "line": 183,
+          "text": "if ((fn5(), !value19)) {"
+        },
+        {
+          "line": 196,
+          "text": "if (((value5 = value19), fn5(), fn9(), !!value4))"
+        },
+        {
+          "line": 313,
+          "text": "((list1.length = 0), fn5());"
+        }
+      ]
+    },
+    {
+      "key": "fn6@100",
+      "name": "fn6",
+      "line": 100,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg21) {",
+      "references": [
+        {
+          "line": 147,
+          "text": "fn6(value16.source);"
+        },
+        {
+          "line": 189,
+          "text": "(fn6(value20), fn8());"
+        },
+        {
+          "line": 254,
+          "text": "for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);"
+        },
+        {
+          "line": 265,
+          "text": "value36 && !fn2(value36) && fn6(value35);"
+        },
+        {
+          "line": 276,
+          "text": "(map1.has(value35) && map1.get(value35).error > value39 * 1.000001 && fn6(value35),"
+        },
+        {
+          "line": 288,
+          "text": "release: () => fn6(value35),"
+        },
+        {
+          "line": 312,
+          "text": "for (const value42 of [...map1.keys()]) fn6(value42);"
+        }
+      ]
+    },
+    {
+      "key": "arg21@100",
+      "name": "arg21",
+      "line": 100,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg21) {",
+      "references": [
+        {
+          "line": 101,
+          "text": "const value14 = map1.get(arg21);"
+        },
+        {
+          "line": 103,
+          "text": "(arg21.removeEventListener(\"dispose\", value14.release), map1.delete(arg21));"
+        }
+      ]
+    },
+    {
+      "key": "value14@101",
+      "name": "value14",
+      "line": 101,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = map1.get(arg21);",
+      "references": [
+        {
+          "line": 102,
+          "text": "if (!value14) return;"
+        },
+        {
+          "line": 103,
+          "text": "(arg21.removeEventListener(\"dispose\", value14.release), map1.delete(arg21));"
+        },
+        {
+          "line": 104,
+          "text": "const value15 = list1.indexOf(value14);"
+        },
+        {
+          "line": 106,
+          "text": "value14.geometry &&"
+        },
+        {
+          "line": 107,
+          "text": "(value14.geometry.dispose(),"
+        },
+        {
+          "line": 108,
+          "text": "(object1.bytes -= value14.bytes),"
+        },
+        {
+          "line": 110,
+          "text": "(object1.sourceTriangles -= value14.sourceTriangles),"
+        },
+        {
+          "line": 111,
+          "text": "(object1.detailTriangles -= value14.detailTriangles)),"
+        }
+      ]
+    },
+    {
+      "key": "value15@104",
+      "name": "value15",
+      "line": 104,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = list1.indexOf(value14);",
+      "references": [
+        {
+          "line": 105,
+          "text": "(value15 !== -1 && list1.splice(value15, 1),"
+        }
+      ]
+    },
+    {
+      "key": "fn7@114",
+      "name": "fn7",
+      "line": 114,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn7() {",
+      "references": [
+        {
+          "line": 139,
+          "text": "(value4.onerror = fn7),"
+        },
+        {
+          "line": 177,
+          "text": "fn7();"
+        }
+      ]
+    },
+    {
+      "key": "fn8@124",
+      "name": "fn8",
+      "line": 124,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn8() {",
+      "references": [
+        {
+          "line": 173,
+          "text": "fn8();"
+        },
+        {
+          "line": 184,
+          "text": "fn8();"
+        },
+        {
+          "line": 189,
+          "text": "(fn6(value20), fn8());"
+        },
+        {
+          "line": 193,
+          "text": "fn8();"
+        },
+        {
+          "line": 245,
+          "text": "(object1.failed++, (value5 = null), fn8());"
+        },
+        {
+          "line": 294,
+          "text": "fn8());"
+        }
+      ]
+    },
+    {
+      "key": "fn9@135",
+      "name": "fn9",
+      "line": 135,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn9() {",
+      "references": [
+        {
+          "line": 196,
+          "text": "if (((value5 = value19), fn5(), fn9(), !!value4))"
+        }
+      ]
+    },
+    {
+      "key": "arg22@140",
+      "name": "arg22",
+      "line": 140,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value4.onmessage = ({ data: arg22 }) => {",
+      "references": [
+        {
+          "line": 141,
+          "text": "if (value8 || !value5 || arg22.id !== value5.id) return;"
+        },
+        {
+          "line": 150,
+          "text": "if (arg22.failed) {"
+        },
+        {
+          "line": 155,
+          "text": "!arg22.indices?.length ||"
+        },
+        {
+          "line": 156,
+          "text": "arg22.indices.length >= value16.source.index.count * 0.9"
+        },
+        {
+          "line": 159,
+          "text": "const value17 = fn4(value16.source) + arg22.indices.byteLength;"
+        },
+        {
+          "line": 162,
+          "text": "(value18.setIndex(new arg2.BufferAttribute(arg22.indices, 1)),"
+        },
+        {
+          "line": 168,
+          "text": "(value16.detailTriangles = arg22.indices.length / 3),"
+        }
+      ]
+    },
+    {
+      "key": "value16@142",
+      "name": "value16",
+      "line": 142,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = value5;",
+      "references": [
+        {
+          "line": 145,
+          "text": "if (map1.get(value16.source) !== value16) return;"
+        },
+        {
+          "line": 146,
+          "text": "if (!fn2(value16)) {"
+        },
+        {
+          "line": 147,
+          "text": "fn6(value16.source);"
+        },
+        {
+          "line": 156,
+          "text": "arg22.indices.length >= value16.source.index.count * 0.9"
+        },
+        {
+          "line": 159,
+          "text": "const value17 = fn4(value16.source) + arg22.indices.byteLength;"
+        },
+        {
+          "line": 161,
+          "text": "const value18 = value16.source.clone();"
+        },
+        {
+          "line": 163,
+          "text": "(value16.geometry = value18),"
+        },
+        {
+          "line": 164,
+          "text": "(value16.bytes = value17),"
+        }
+      ]
+    },
+    {
+      "key": "value17@159",
+      "name": "value17",
+      "line": 159,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = fn4(value16.source) + arg22.indices.byteLength;",
+      "references": [
+        {
+          "line": 160,
+          "text": "if (object1.bytes + value17 > arg6) return;"
+        },
+        {
+          "line": 164,
+          "text": "(value16.bytes = value17),"
+        },
+        {
+          "line": 165,
+          "text": "(object1.bytes += value17),"
+        }
+      ]
+    },
+    {
+      "key": "value18@161",
+      "name": "value18",
+      "line": 161,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = value16.source.clone();",
+      "references": [
+        {
+          "line": 162,
+          "text": "(value18.setIndex(new arg2.BufferAttribute(arg22.indices, 1)),"
+        },
+        {
+          "line": 163,
+          "text": "(value16.geometry = value18),"
+        }
+      ]
+    },
+    {
+      "key": "fn10@180",
+      "name": "fn10",
+      "line": 180,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn10() {",
+      "references": [
+        {
+          "line": 131,
+          "text": "((value6 = null), fn10());"
+        }
+      ]
+    },
+    {
+      "key": "value19@182",
+      "name": "value19",
+      "line": 182,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = list1.shift();",
+      "references": [
+        {
+          "line": 183,
+          "text": "if ((fn5(), !value19)) {"
+        },
+        {
+          "line": 187,
+          "text": "const value20 = value19.source;"
+        },
+        {
+          "line": 188,
+          "text": "if (!fn2(value19)) {"
+        },
+        {
+          "line": 196,
+          "text": "if (((value5 = value19), fn5(), fn9(), !!value4))"
+        },
+        {
+          "line": 233,
+          "text": "id: value19.id,"
+        },
+        {
+          "line": 239,
+          "text": "error: value19.error,"
+        }
+      ]
+    },
+    {
+      "key": "value20@187",
+      "name": "value20",
+      "line": 187,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = value19.source;",
+      "references": [
+        {
+          "line": 189,
+          "text": "(fn6(value20), fn8());"
+        },
+        {
+          "line": 192,
+          "text": "if (object1.bytes + fn4(value20) + value20.index.count * 4 > arg6) {"
+        },
+        {
+          "line": 199,
+          "text": "(arg23) => value20.attributes[arg23],"
+        },
+        {
+          "line": 203,
+          "text": "const value27 = value20.attributes[arg24],"
+        },
+        {
+          "line": 214,
+          "text": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),"
+        },
+        {
+          "line": 215,
+          "text": "float32Array1 = new Float32Array(value20.attributes.position.count * value24),"
+        },
+        {
+          "line": 219,
+          "text": "const value31 = value20.attributes[value30].itemSize;"
+        },
+        {
+          "line": 222,
+          "text": "for (let value33 = 0; value33 < value20.attributes.position.count; value33++)"
+        }
+      ]
+    },
+    {
+      "key": "value21@198",
+      "name": "value21",
+      "line": 198,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 = [\"position\", \"normal\", \"color\", \"uv\", \"runtimeSurface\"].filter(",
+      "references": [
+        {
+          "line": 202,
+          "text": "value21.map((arg24) => {"
+        },
+        {
+          "line": 213,
+          "text": "value23 = value21.filter((arg25) => arg25 !== \"position\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg23@199",
+      "name": "arg23",
+      "line": 199,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg23) => value20.attributes[arg23],",
+      "references": [
+        {
+          "line": 199,
+          "text": "(arg23) => value20.attributes[arg23],"
+        }
+      ]
+    },
+    {
+      "key": "value22@201",
+      "name": "value22",
+      "line": 201,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = Object.fromEntries(",
+      "references": [
+        {
+          "line": 224,
+          "text": "value22[value30].subarray(value33 * value31, (value33 + 1) * value31),"
+        },
+        {
+          "line": 230,
+          "text": "value26 = value22.position;"
+        }
+      ]
+    },
+    {
+      "key": "arg24@202",
+      "name": "arg24",
+      "line": 202,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21.map((arg24) => {",
+      "references": [
+        {
+          "line": 203,
+          "text": "const value27 = value20.attributes[arg24],"
+        },
+        {
+          "line": 210,
+          "text": "return [arg24, float32Array2];"
+        }
+      ]
+    },
+    {
+      "key": "value27@203",
+      "name": "value27",
+      "line": 203,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value27 = value20.attributes[arg24],",
+      "references": [
+        {
+          "line": 204,
+          "text": "float32Array2 = new Float32Array(value27.count * value27.itemSize),"
+        },
+        {
+          "line": 206,
+          "text": "for (let value28 = 0; value28 < value27.count; value28++)"
+        },
+        {
+          "line": 207,
+          "text": "for (let value29 = 0; value29 < value27.itemSize; value29++)"
+        },
+        {
+          "line": 208,
+          "text": "float32Array2[value28 * value27.itemSize + value29] ="
+        },
+        {
+          "line": 209,
+          "text": "value27[list3[value29]](value28);"
+        }
+      ]
+    },
+    {
+      "key": "float32Array2@204",
+      "name": "float32Array2",
+      "line": 204,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "float32Array2 = new Float32Array(value27.count * value27.itemSize),",
+      "references": [
+        {
+          "line": 208,
+          "text": "float32Array2[value28 * value27.itemSize + value29] ="
+        },
+        {
+          "line": 210,
+          "text": "return [arg24, float32Array2];"
+        }
+      ]
+    },
+    {
+      "key": "list3@205",
+      "name": "list3",
+      "line": 205,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3 = [\"getX\", \"getY\", \"getZ\", \"getW\"];",
+      "references": [
+        {
+          "line": 209,
+          "text": "value27[list3[value29]](value28);"
+        }
+      ]
+    },
+    {
+      "key": "value28@206",
+      "name": "value28",
+      "line": 206,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value28 = 0; value28 < value27.count; value28++)",
+      "references": [
+        {
+          "line": 206,
+          "text": "for (let value28 = 0; value28 < value27.count; value28++)"
+        },
+        {
+          "line": 208,
+          "text": "float32Array2[value28 * value27.itemSize + value29] ="
+        },
+        {
+          "line": 209,
+          "text": "value27[list3[value29]](value28);"
+        }
+      ]
+    },
+    {
+      "key": "value29@207",
+      "name": "value29",
+      "line": 207,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value29 = 0; value29 < value27.itemSize; value29++)",
+      "references": [
+        {
+          "line": 207,
+          "text": "for (let value29 = 0; value29 < value27.itemSize; value29++)"
+        },
+        {
+          "line": 208,
+          "text": "float32Array2[value28 * value27.itemSize + value29] ="
+        },
+        {
+          "line": 209,
+          "text": "value27[list3[value29]](value28);"
+        }
+      ]
+    },
+    {
+      "key": "value23@213",
+      "name": "value23",
+      "line": 213,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = value21.filter((arg25) => arg25 !== \"position\"),",
+      "references": [
+        {
+          "line": 214,
+          "text": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),"
+        },
+        {
+          "line": 218,
+          "text": "for (const value30 of value23) {"
+        }
+      ]
+    },
+    {
+      "key": "arg25@213",
+      "name": "arg25",
+      "line": 213,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = value21.filter((arg25) => arg25 !== \"position\"),",
+      "references": [
+        {
+          "line": 213,
+          "text": "value23 = value21.filter((arg25) => arg25 !== \"position\"),"
+        }
+      ]
+    },
+    {
+      "key": "value24@214",
+      "name": "value24",
+      "line": 214,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),",
+      "references": [
+        {
+          "line": 215,
+          "text": "float32Array1 = new Float32Array(value20.attributes.position.count * value24),"
+        },
+        {
+          "line": 225,
+          "text": "value33 * value24 + value25,"
+        },
+        {
+          "line": 237,
+          "text": "stride: value24,"
+        }
+      ]
+    },
+    {
+      "key": "arg26@214",
+      "name": "arg26",
+      "line": 214,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),",
+      "references": [
+        {
+          "line": 214,
+          "text": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg27@214",
+      "name": "arg27",
+      "line": 214,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),",
+      "references": [
+        {
+          "line": 214,
+          "text": "value24 = value23.reduce((arg26, arg27) => arg26 + value20.attributes[arg27].itemSize, 0),"
+        }
+      ]
+    },
+    {
+      "key": "float32Array1@215",
+      "name": "float32Array1",
+      "line": 215,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "float32Array1 = new Float32Array(value20.attributes.position.count * value24),",
+      "references": [
+        {
+          "line": 223,
+          "text": "float32Array1.set("
+        },
+        {
+          "line": 236,
+          "text": "attributes: float32Array1,"
+        },
+        {
+          "line": 242,
+          "text": "[uint32Array1.buffer, value26.buffer, float32Array1.buffer],"
+        }
+      ]
+    },
+    {
+      "key": "list2@216",
+      "name": "list2",
+      "line": 216,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2 = [];",
+      "references": [
+        {
+          "line": 221,
+          "text": "list2.push(value30 === \"normal\" ? 0.2 : value30 === \"color\" ? 1 : 2);"
+        },
+        {
+          "line": 238,
+          "text": "weights: list2,"
+        }
+      ]
+    },
+    {
+      "key": "value25@217",
+      "name": "value25",
+      "line": 217,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value25 = 0;",
+      "references": [
+        {
+          "line": 225,
+          "text": "value33 * value24 + value25,"
+        }
+      ]
+    },
+    {
+      "key": "value30@218",
+      "name": "value30",
+      "line": 218,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value30 of value23) {",
+      "references": [
+        {
+          "line": 219,
+          "text": "const value31 = value20.attributes[value30].itemSize;"
+        },
+        {
+          "line": 221,
+          "text": "list2.push(value30 === \"normal\" ? 0.2 : value30 === \"color\" ? 1 : 2);"
+        },
+        {
+          "line": 224,
+          "text": "value22[value30].subarray(value33 * value31, (value33 + 1) * value31),"
+        }
+      ]
+    },
+    {
+      "key": "value31@219",
+      "name": "value31",
+      "line": 219,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value31 = value20.attributes[value30].itemSize;",
+      "references": [
+        {
+          "line": 220,
+          "text": "for (let value32 = 0; value32 < value31; value32++)"
+        },
+        {
+          "line": 224,
+          "text": "value22[value30].subarray(value33 * value31, (value33 + 1) * value31),"
+        },
+        {
+          "line": 227,
+          "text": "value25 += value31;"
+        }
+      ]
+    },
+    {
+      "key": "value32@220",
+      "name": "value32",
+      "line": 220,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value32 = 0; value32 < value31; value32++)",
+      "references": [
+        {
+          "line": 220,
+          "text": "for (let value32 = 0; value32 < value31; value32++)"
+        }
+      ]
+    },
+    {
+      "key": "value33@222",
+      "name": "value33",
+      "line": 222,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value33 = 0; value33 < value20.attributes.position.count; value33++)",
+      "references": [
+        {
+          "line": 222,
+          "text": "for (let value33 = 0; value33 < value20.attributes.position.count; value33++)"
+        },
+        {
+          "line": 224,
+          "text": "value22[value30].subarray(value33 * value31, (value33 + 1) * value31),"
+        },
+        {
+          "line": 225,
+          "text": "value33 * value24 + value25,"
+        }
+      ]
+    },
+    {
+      "key": "uint32Array1@229",
+      "name": "uint32Array1",
+      "line": 229,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const uint32Array1 = new Uint32Array(value20.index.array),",
+      "references": [
+        {
+          "line": 234,
+          "text": "indices: uint32Array1,"
+        },
+        {
+          "line": 242,
+          "text": "[uint32Array1.buffer, value26.buffer, float32Array1.buffer],"
+        }
+      ]
+    },
+    {
+      "key": "value26@230",
+      "name": "value26",
+      "line": 230,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value26 = value22.position;",
+      "references": [
+        {
+          "line": 235,
+          "text": "positions: value26,"
+        },
+        {
+          "line": 242,
+          "text": "[uint32Array1.buffer, value26.buffer, float32Array1.buffer],"
+        }
+      ]
+    },
+    {
+      "key": "fn11@248",
+      "name": "fn11",
+      "line": 248,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn11(arg28) {",
+      "references": [
+        {
+          "line": 298,
+          "text": "prepare: fn11,"
+        }
+      ]
+    },
+    {
+      "key": "arg28@248",
+      "name": "arg28",
+      "line": 248,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn11(arg28) {",
+      "references": [
+        {
+          "line": 251,
+          "text": "arg28.traverse((arg29) => {"
+        },
+        {
+          "line": 255,
+          "text": "(arg28.traverse((arg30) => {"
+        }
+      ]
+    },
+    {
+      "key": "set1@250",
+      "name": "set1",
+      "line": 250,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set();",
+      "references": [
+        {
+          "line": 252,
+          "text": "fn3(arg29) && set1.add(arg29.geometry);"
+        },
+        {
+          "line": 254,
+          "text": "for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);"
+        }
+      ]
+    },
+    {
+      "key": "arg29@251",
+      "name": "arg29",
+      "line": 251,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg28.traverse((arg29) => {",
+      "references": [
+        {
+          "line": 252,
+          "text": "fn3(arg29) && set1.add(arg29.geometry);"
+        }
+      ]
+    },
+    {
+      "key": "value34@254",
+      "name": "value34",
+      "line": 254,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);",
+      "references": [
+        {
+          "line": 254,
+          "text": "for (const value34 of map1.keys()) set1.has(value34) || fn6(value34);"
+        }
+      ]
+    },
+    {
+      "key": "arg30@255",
+      "name": "arg30",
+      "line": 255,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg28.traverse((arg30) => {",
+      "references": [
+        {
+          "line": 256,
+          "text": "const value35 = arg30.geometry;"
+        },
+        {
+          "line": 258,
+          "text": "!fn3(arg30) ||"
+        },
+        {
+          "line": 267,
+          "text": "arg30.getWorldScale(value37);"
+        },
+        {
+          "line": 274,
+          "text": "value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;"
+        }
+      ]
+    },
+    {
+      "key": "value35@256",
+      "name": "value35",
+      "line": 256,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value35 = arg30.geometry;",
+      "references": [
+        {
+          "line": 259,
+          "text": "!value35.index ||"
+        },
+        {
+          "line": 260,
+          "text": "!value35.attributes.position ||"
+        },
+        {
+          "line": 261,
+          "text": "value35.index.count < 900"
+        },
+        {
+          "line": 264,
+          "text": "const value36 = map1.get(value35);"
+        },
+        {
+          "line": 265,
+          "text": "value36 && !fn2(value36) && fn6(value35);"
+        },
+        {
+          "line": 276,
+          "text": "(map1.has(value35) && map1.get(value35).error > value39 * 1.000001 && fn6(value35),"
+        },
+        {
+          "line": 277,
+          "text": "map1.has(value35))"
+        },
+        {
+          "line": 282,
+          "text": "source: value35,"
+        }
+      ]
+    },
+    {
+      "key": "value36@264",
+      "name": "value36",
+      "line": 264,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value36 = map1.get(value35);",
+      "references": [
+        {
+          "line": 265,
+          "text": "value36 && !fn2(value36) && fn6(value35);"
+        }
+      ]
+    },
+    {
+      "key": "value37@266",
+      "name": "value37",
+      "line": 266,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value37 = new arg2.Vector3();",
+      "references": [
+        {
+          "line": 267,
+          "text": "arg30.getWorldScale(value37);"
+        },
+        {
+          "line": 269,
+          "text": "Math.abs(value37.x),"
+        },
+        {
+          "line": 270,
+          "text": "Math.abs(value37.y),"
+        },
+        {
+          "line": 271,
+          "text": "Math.abs(value37.z),"
+        }
+      ]
+    },
+    {
+      "key": "value38@268",
+      "name": "value38",
+      "line": 268,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value38 = Math.max(",
+      "references": [
+        {
+          "line": 274,
+          "text": "value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;"
+        },
+        {
+          "line": 286,
+          "text": "maxScale: value38,"
+        }
+      ]
+    },
+    {
+      "key": "value39@274",
+      "name": "value39",
+      "line": 274,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value39 = (arg30.userData.runtimeDetail ? arg10 : arg7) / value38;",
+      "references": [
+        {
+          "line": 276,
+          "text": "(map1.has(value35) && map1.get(value35).error > value39 * 1.000001 && fn6(value35),"
+        },
+        {
+          "line": 287,
+          "text": "error: value39,"
+        }
+      ]
+    },
+    {
+      "key": "object2@280",
+      "name": "object2",
+      "line": 280,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object2 = {",
+      "references": [
+        {
+          "line": 290,
+          "text": "(value35.addEventListener(\"dispose\", object2.release),"
+        },
+        {
+          "line": 291,
+          "text": "map1.set(value35, object2),"
+        },
+        {
+          "line": 292,
+          "text": "list1.push(object2));"
+        }
+      ]
+    },
+    {
+      "key": "arg31@299",
+      "name": "arg31",
+      "line": 299,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "get(arg31) {",
+      "references": [
+        {
+          "line": 300,
+          "text": "if (!fn3(arg31)) return null;"
+        },
+        {
+          "line": 301,
+          "text": "const value40 = map1.get(arg31.geometry);"
+        },
+        {
+          "line": 303,
+          "text": "const value41 = value3.setFromMatrixScale(arg31.matrixWorld);"
+        },
+        {
+          "line": 306,
+          "text": "(arg31.userData.runtimeDetail ? arg10 : arg7) * 1.000001"
+        }
+      ]
+    },
+    {
+      "key": "value40@301",
+      "name": "value40",
+      "line": 301,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value40 = map1.get(arg31.geometry);",
+      "references": [
+        {
+          "line": 302,
+          "text": "if (!value40 || !fn2(value40)) return null;"
+        },
+        {
+          "line": 305,
+          "text": "value40.error <="
+        },
+        {
+          "line": 307,
+          "text": "? value40.geometry"
+        }
+      ]
+    },
+    {
+      "key": "value41@303",
+      "name": "value41",
+      "line": 303,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value41 = value3.setFromMatrixScale(arg31.matrixWorld);",
+      "references": [
+        {
+          "line": 304,
+          "text": "return Math.max(Math.abs(value41.x), Math.abs(value41.y), Math.abs(value41.z)) *"
+        }
+      ]
+    },
+    {
+      "key": "value42@312",
+      "name": "value42",
+      "line": 312,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value42 of [...map1.keys()]) fn6(value42);",
+      "references": [
+        {
+          "line": 312,
+          "text": "for (const value42 of [...map1.keys()]) fn6(value42);"
+        }
+      ]
+    }
+  ]
+}

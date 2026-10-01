@@ -1,0 +1,1437 @@
+{
+  "file": "frontend/static/3d-studio/studio-runtime-furniture.js",
+  "declStart": 1,
+  "declEnd": 99999,
+  "totalLines": 203,
+  "counts": {
+    "entries": 60,
+    "renameable": 60,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@26",
+      "name": "arg1",
+      "line": 26,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg1,",
+      "references": [
+        {
+          "line": 42,
+          "text": "arg1.updateMatrixWorld(true);"
+        },
+        {
+          "line": 43,
+          "text": "const value1 = arg1.matrixWorld.clone().invert();"
+        },
+        {
+          "line": 46,
+          "text": "value3.parent !== arg1 ||"
+        },
+        {
+          "line": 71,
+          "text": "for (let value10 = arg6; value10 && value10 !== arg1; value10 = value10.parent)"
+        },
+        {
+          "line": 183,
+          "text": "arg1.add(value16));"
+        },
+        {
+          "line": 186,
+          "text": "arg1.traverse((arg18) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@27",
+      "name": "arg2",
+      "line": 27,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg2,",
+      "references": [
+        {
+          "line": 44,
+          "text": "for (const { item: value2, group: value3 } of arg2)"
+        }
+      ]
+    },
+    {
+      "key": "arg3@28",
+      "name": "arg3",
+      "line": 28,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ THREE: arg3, mergeGeometries: arg4, materialKey: arg5 },",
+      "references": [
+        {
+          "line": 64,
+          "text": "arg6.onAfterRender !== arg3.Object3D.prototype.onAfterRender ||"
+        },
+        {
+          "line": 95,
+          "text": "value18 = new arg3.BufferGeometry(),"
+        },
+        {
+          "line": 104,
+          "text": "value18.setAttribute(value22, new arg3.BufferAttribute(float32Array3, 3));"
+        },
+        {
+          "line": 119,
+          "text": "(value18.setAttribute(\"color\", new arg3.BufferAttribute(float32Array1, 3)),"
+        },
+        {
+          "line": 120,
+          "text": "value18.setAttribute(\"runtimeSurface\", new arg3.BufferAttribute(float32Array2, 2)));"
+        },
+        {
+          "line": 125,
+          "text": "value18.setIndex(new arg3.BufferAttribute(uint32Array1, 1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@28",
+      "name": "arg4",
+      "line": 28,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ THREE: arg3, mergeGeometries: arg4, materialKey: arg5 },",
+      "references": [
+        {
+          "line": 129,
+          "text": "value13 = arg4(value12);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@28",
+      "name": "arg5",
+      "line": 28,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ THREE: arg3, mergeGeometries: arg4, materialKey: arg5 },",
+      "references": [
+        {
+          "line": 66,
+          "text": "!arg5(arg6, true, true) ||"
+        },
+        {
+          "line": 82,
+          "text": "const value9 = arg5(value8, true, false);"
+        }
+      ]
+    },
+    {
+      "key": "map1@30",
+      "name": "map1",
+      "line": 30,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map1 = new Map(),",
+      "references": [
+        {
+          "line": 84,
+          "text": "(map1.has(value9) || map1.set(value9, []),"
+        },
+        {
+          "line": 85,
+          "text": "map1.get(value9).push({"
+        },
+        {
+          "line": 91,
+          "text": "for (const value11 of map1.values()) {"
+        }
+      ]
+    },
+    {
+      "key": "map2@31",
+      "name": "map2",
+      "line": 31,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "map2 = new Map(),",
+      "references": [
+        {
+          "line": 73,
+          "text": "let value7 = map2.get(value4);"
+        },
+        {
+          "line": 79,
+          "text": "map2.set(value4, value7));"
+        },
+        {
+          "line": 132,
+          "text": "value15 = map2.get(value14.material).clone();"
+        },
+        {
+          "line": 185,
+          "text": "for (const value29 of map2.values()) value29.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "set1@32",
+      "name": "set1",
+      "line": 32,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set(),",
+      "references": [
+        {
+          "line": 172,
+          "text": ") || set1.add(value27.geometry),"
+        },
+        {
+          "line": 187,
+          "text": "arg18.geometry && set1.delete(arg18.geometry);"
+        },
+        {
+          "line": 195,
+          "text": "for (const value31 of set1) value31.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "set2@33",
+      "name": "set2",
+      "line": 33,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set2 = new Set(),",
+      "references": [
+        {
+          "line": 175,
+          "text": ") || set2.add(value27.material));"
+        },
+        {
+          "line": 193,
+          "text": "set2.delete(value30);"
+        },
+        {
+          "line": 196,
+          "text": "for (const value32 of set2) value32.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "object1@34",
+      "name": "object1",
+      "line": 34,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {",
+      "references": [
+        {
+          "line": 176,
+          "text": "((object1.before += value11.length),"
+        },
+        {
+          "line": 177,
+          "text": "object1.after++,"
+        },
+        {
+          "line": 178,
+          "text": "(object1.triangles += value13.index.count / 3),"
+        },
+        {
+          "line": 179,
+          "text": "(object1.vertexBytes += Object.values(value13.attributes).reduce("
+        },
+        {
+          "line": 198,
+          "text": "(object1.types = [...set3]),"
+        },
+        {
+          "line": 199,
+          "text": "(arg1.userData.runtimeFurnitureBatchStats = object1),"
+        }
+      ]
+    },
+    {
+      "key": "set3@41",
+      "name": "set3",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set3 = new Set();",
+      "references": [
+        {
+          "line": 168,
+          "text": "(set3.add(value28),"
+        },
+        {
+          "line": 198,
+          "text": "(object1.types = [...set3]),"
+        }
+      ]
+    },
+    {
+      "key": "value1@43",
+      "name": "value1",
+      "line": 43,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.matrixWorld.clone().invert();",
+      "references": [
+        {
+          "line": 126,
+          "text": "value18.applyMatrix4(new arg3.Matrix4().multiplyMatrices(value1, arg8.matrixWorld))"
+        }
+      ]
+    },
+    {
+      "key": "value2@44",
+      "name": "value2",
+      "line": 44,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { item: value2, group: value3 } of arg2)",
+      "references": [
+        {
+          "line": 45,
+          "text": "!RUNTIME_FURNITURE_TYPES.has(value2.type) ||"
+        },
+        {
+          "line": 87,
+          "text": "type: value2.type,"
+        },
+        {
+          "line": 88,
+          "text": "id: value2.id,"
+        }
+      ]
+    },
+    {
+      "key": "value3@44",
+      "name": "value3",
+      "line": 44,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { item: value2, group: value3 } of arg2)",
+      "references": [
+        {
+          "line": 46,
+          "text": "value3.parent !== arg1 ||"
+        },
+        {
+          "line": 47,
+          "text": "value3.traverse((arg6) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg6@47",
+      "name": "arg6",
+      "line": 47,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3.traverse((arg6) => {",
+      "references": [
+        {
+          "line": 48,
+          "text": "const value4 = arg6.material,"
+        },
+        {
+          "line": 49,
+          "text": "value5 = arg6.geometry,"
+        },
+        {
+          "line": 52,
+          "text": "!arg6.isMesh ||"
+        },
+        {
+          "line": 53,
+          "text": "arg6.isInstancedMesh ||"
+        },
+        {
+          "line": 54,
+          "text": "arg6.children.length ||"
+        },
+        {
+          "line": 60,
+          "text": "arg6.matrixWorld.determinant() <= 0 ||"
+        }
+      ]
+    },
+    {
+      "key": "value4@48",
+      "name": "value4",
+      "line": 48,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = arg6.material,",
+      "references": [
+        {
+          "line": 65,
+          "text": "value4?.anisotropy > 0 ||"
+        },
+        {
+          "line": 67,
+          "text": "Object.values(value4).some((arg7) => arg7?.isTexture) ||"
+        },
+        {
+          "line": 68,
+          "text": "(value4.vertexColors && value5.attributes.color?.itemSize !== 3)"
+        },
+        {
+          "line": 73,
+          "text": "let value7 = map2.get(value4);"
+        },
+        {
+          "line": 75,
+          "text": "((value7 = value4.clone()),"
+        },
+        {
+          "line": 79,
+          "text": "map2.set(value4, value7));"
+        }
+      ]
+    },
+    {
+      "key": "value5@49",
+      "name": "value5",
+      "line": 49,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = arg6.geometry,",
+      "references": [
+        {
+          "line": 50,
+          "text": "value6 = (value5?.index?.count ?? value5?.attributes.position?.count ?? 0) / 3;"
+        },
+        {
+          "line": 55,
+          "text": "!value5?.attributes.position ||"
+        },
+        {
+          "line": 56,
+          "text": "!value5.attributes.normal ||"
+        },
+        {
+          "line": 58,
+          "text": "value5.drawRange.start !== 0 ||"
+        },
+        {
+          "line": 59,
+          "text": "value5.drawRange.count !== Infinity ||"
+        },
+        {
+          "line": 63,
+          "text": "Object.keys(value5.morphAttributes).length ||"
+        }
+      ]
+    },
+    {
+      "key": "value6@50",
+      "name": "value6",
+      "line": 50,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = (value5?.index?.count ?? value5?.attributes.position?.count ?? 0) / 3;",
+      "references": [
+        {
+          "line": 57,
+          "text": "value6 > 512 ||"
+        }
+      ]
+    },
+    {
+      "key": "arg7@67",
+      "name": "arg7",
+      "line": 67,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "Object.values(value4).some((arg7) => arg7?.isTexture) ||",
+      "references": [
+        {
+          "line": 67,
+          "text": "Object.values(value4).some((arg7) => arg7?.isTexture) ||"
+        }
+      ]
+    },
+    {
+      "key": "value10@71",
+      "name": "value10",
+      "line": 71,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value10 = arg6; value10 && value10 !== arg1; value10 = value10.parent)",
+      "references": [
+        {
+          "line": 71,
+          "text": "for (let value10 = arg6; value10 && value10 !== arg1; value10 = value10.parent)"
+        },
+        {
+          "line": 72,
+          "text": "if (!value10.visible) return;"
+        }
+      ]
+    },
+    {
+      "key": "value7@73",
+      "name": "value7",
+      "line": 73,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value7 = map2.get(value4);",
+      "references": [
+        {
+          "line": 74,
+          "text": "value7 ||"
+        },
+        {
+          "line": 76,
+          "text": "value7.color.setRGB(1, 1, 1),"
+        },
+        {
+          "line": 77,
+          "text": "(value7.vertexColors = true),"
+        },
+        {
+          "line": 78,
+          "text": "(value7.roughness = value7.metalness = 1),"
+        },
+        {
+          "line": 79,
+          "text": "map2.set(value4, value7));"
+        },
+        {
+          "line": 81,
+          "text": "value8.material = value7;"
+        }
+      ]
+    },
+    {
+      "key": "value8@80",
+      "name": "value8",
+      "line": 80,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = Object.create(arg6);",
+      "references": [
+        {
+          "line": 81,
+          "text": "value8.material = value7;"
+        },
+        {
+          "line": 82,
+          "text": "const value9 = arg5(value8, true, false);"
+        }
+      ]
+    },
+    {
+      "key": "value9@82",
+      "name": "value9",
+      "line": 82,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = arg5(value8, true, false);",
+      "references": [
+        {
+          "line": 83,
+          "text": "value9 &&"
+        },
+        {
+          "line": 84,
+          "text": "(map1.has(value9) || map1.set(value9, []),"
+        },
+        {
+          "line": 85,
+          "text": "map1.get(value9).push({"
+        }
+      ]
+    },
+    {
+      "key": "value11@91",
+      "name": "value11",
+      "line": 91,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value11 of map1.values()) {",
+      "references": [
+        {
+          "line": 92,
+          "text": "if (value11.length < 2) continue;"
+        },
+        {
+          "line": 93,
+          "text": "const value12 = value11.map(({ mesh: arg8 }) => {"
+        },
+        {
+          "line": 131,
+          "text": "const value14 = value11[0].mesh,"
+        },
+        {
+          "line": 161,
+          "text": "(value16.userData.runtimeFurnitureItemIds = value11.map((arg11) => arg11.id)),"
+        },
+        {
+          "line": 163,
+          "text": "before: value11.length,"
+        },
+        {
+          "line": 167,
+          "text": "for (const { mesh: value27, type: value28 } of value11)"
+        }
+      ]
+    },
+    {
+      "key": "value12@93",
+      "name": "value12",
+      "line": 93,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = value11.map(({ mesh: arg8 }) => {",
+      "references": [
+        {
+          "line": 129,
+          "text": "value13 = arg4(value12);"
+        },
+        {
+          "line": 130,
+          "text": "if ((value12.forEach((arg9) => arg9.dispose()), !value13)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg8@93",
+      "name": "arg8",
+      "line": 93,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = value11.map(({ mesh: arg8 }) => {",
+      "references": [
+        {
+          "line": 94,
+          "text": "const value17 = arg8.geometry,"
+        },
+        {
+          "line": 108,
+          "text": "value20 = arg8.material,"
+        },
+        {
+          "line": 126,
+          "text": "value18.applyMatrix4(new arg3.Matrix4().multiplyMatrices(value1, arg8.matrixWorld))"
+        }
+      ]
+    },
+    {
+      "key": "value17@94",
+      "name": "value17",
+      "line": 94,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = arg8.geometry,",
+      "references": [
+        {
+          "line": 96,
+          "text": "value19 = value17.attributes.position.count;"
+        },
+        {
+          "line": 98,
+          "text": "const value23 = value17.attributes[value22],"
+        },
+        {
+          "line": 109,
+          "text": "value21 = value17.attributes.color;"
+        },
+        {
+          "line": 121,
+          "text": "const uint32Array1 = new Uint32Array(value17.index ? value17.index.count : value19);"
+        },
+        {
+          "line": 123,
+          "text": "uint32Array1[value26] = value17.index ? value17.index.getX(value26) : value26;"
+        }
+      ]
+    },
+    {
+      "key": "value18@95",
+      "name": "value18",
+      "line": 95,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = new arg3.BufferGeometry(),",
+      "references": [
+        {
+          "line": 104,
+          "text": "value18.setAttribute(value22, new arg3.BufferAttribute(float32Array3, 3));"
+        },
+        {
+          "line": 119,
+          "text": "(value18.setAttribute(\"color\", new arg3.BufferAttribute(float32Array1, 3)),"
+        },
+        {
+          "line": 120,
+          "text": "value18.setAttribute(\"runtimeSurface\", new arg3.BufferAttribute(float32Array2, 2)));"
+        },
+        {
+          "line": 125,
+          "text": "value18.setIndex(new arg3.BufferAttribute(uint32Array1, 1)),"
+        },
+        {
+          "line": 126,
+          "text": "value18.applyMatrix4(new arg3.Matrix4().multiplyMatrices(value1, arg8.matrixWorld))"
+        }
+      ]
+    },
+    {
+      "key": "value19@96",
+      "name": "value19",
+      "line": 96,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = value17.attributes.position.count;",
+      "references": [
+        {
+          "line": 99,
+          "text": "float32Array3 = new Float32Array(value19 * 3);"
+        },
+        {
+          "line": 100,
+          "text": "for (let value24 = 0; value24 < value19; value24++)"
+        },
+        {
+          "line": 106,
+          "text": "const float32Array1 = new Float32Array(value19 * 3),"
+        },
+        {
+          "line": 107,
+          "text": "float32Array2 = new Float32Array(value19 * 2),"
+        },
+        {
+          "line": 110,
+          "text": "for (let value25 = 0; value25 < value19; value25++)"
+        },
+        {
+          "line": 121,
+          "text": "const uint32Array1 = new Uint32Array(value17.index ? value17.index.count : value19);"
+        }
+      ]
+    },
+    {
+      "key": "value22@97",
+      "name": "value22",
+      "line": 97,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value22 of [\"position\", \"normal\"]) {",
+      "references": [
+        {
+          "line": 98,
+          "text": "const value23 = value17.attributes[value22],"
+        },
+        {
+          "line": 104,
+          "text": "value18.setAttribute(value22, new arg3.BufferAttribute(float32Array3, 3));"
+        }
+      ]
+    },
+    {
+      "key": "value23@98",
+      "name": "value23",
+      "line": 98,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = value17.attributes[value22],",
+      "references": [
+        {
+          "line": 101,
+          "text": "((float32Array3[value24 * 3] = value23.getX(value24)),"
+        },
+        {
+          "line": 102,
+          "text": "(float32Array3[value24 * 3 + 1] = value23.getY(value24)),"
+        },
+        {
+          "line": 103,
+          "text": "(float32Array3[value24 * 3 + 2] = value23.getZ(value24)));"
+        }
+      ]
+    },
+    {
+      "key": "float32Array3@99",
+      "name": "float32Array3",
+      "line": 99,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "float32Array3 = new Float32Array(value19 * 3);",
+      "references": [
+        {
+          "line": 101,
+          "text": "((float32Array3[value24 * 3] = value23.getX(value24)),"
+        },
+        {
+          "line": 102,
+          "text": "(float32Array3[value24 * 3 + 1] = value23.getY(value24)),"
+        },
+        {
+          "line": 103,
+          "text": "(float32Array3[value24 * 3 + 2] = value23.getZ(value24)));"
+        },
+        {
+          "line": 104,
+          "text": "value18.setAttribute(value22, new arg3.BufferAttribute(float32Array3, 3));"
+        }
+      ]
+    },
+    {
+      "key": "value24@100",
+      "name": "value24",
+      "line": 100,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value24 = 0; value24 < value19; value24++)",
+      "references": [
+        {
+          "line": 100,
+          "text": "for (let value24 = 0; value24 < value19; value24++)"
+        },
+        {
+          "line": 101,
+          "text": "((float32Array3[value24 * 3] = value23.getX(value24)),"
+        },
+        {
+          "line": 102,
+          "text": "(float32Array3[value24 * 3 + 1] = value23.getY(value24)),"
+        },
+        {
+          "line": 103,
+          "text": "(float32Array3[value24 * 3 + 2] = value23.getZ(value24)));"
+        }
+      ]
+    },
+    {
+      "key": "float32Array1@106",
+      "name": "float32Array1",
+      "line": 106,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const float32Array1 = new Float32Array(value19 * 3),",
+      "references": [
+        {
+          "line": 111,
+          "text": "((float32Array1[value25 * 3] ="
+        },
+        {
+          "line": 113,
+          "text": "(float32Array1[value25 * 3 + 1] ="
+        },
+        {
+          "line": 115,
+          "text": "(float32Array1[value25 * 3 + 2] ="
+        },
+        {
+          "line": 119,
+          "text": "(value18.setAttribute(\"color\", new arg3.BufferAttribute(float32Array1, 3)),"
+        }
+      ]
+    },
+    {
+      "key": "float32Array2@107",
+      "name": "float32Array2",
+      "line": 107,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "float32Array2 = new Float32Array(value19 * 2),",
+      "references": [
+        {
+          "line": 117,
+          "text": "(float32Array2[value25 * 2] = value20.roughness),"
+        },
+        {
+          "line": 118,
+          "text": "(float32Array2[value25 * 2 + 1] = value20.metalness));"
+        },
+        {
+          "line": 120,
+          "text": "value18.setAttribute(\"runtimeSurface\", new arg3.BufferAttribute(float32Array2, 2)));"
+        }
+      ]
+    },
+    {
+      "key": "value20@108",
+      "name": "value20",
+      "line": 108,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = arg8.material,",
+      "references": [
+        {
+          "line": 112,
+          "text": "value20.color.r * (value20.vertexColors ? value21.getX(value25) : 1)),"
+        },
+        {
+          "line": 114,
+          "text": "value20.color.g * (value20.vertexColors ? value21.getY(value25) : 1)),"
+        },
+        {
+          "line": 116,
+          "text": "value20.color.b * (value20.vertexColors ? value21.getZ(value25) : 1)),"
+        },
+        {
+          "line": 117,
+          "text": "(float32Array2[value25 * 2] = value20.roughness),"
+        },
+        {
+          "line": 118,
+          "text": "(float32Array2[value25 * 2 + 1] = value20.metalness));"
+        }
+      ]
+    },
+    {
+      "key": "value21@109",
+      "name": "value21",
+      "line": 109,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = value17.attributes.color;",
+      "references": [
+        {
+          "line": 112,
+          "text": "value20.color.r * (value20.vertexColors ? value21.getX(value25) : 1)),"
+        },
+        {
+          "line": 114,
+          "text": "value20.color.g * (value20.vertexColors ? value21.getY(value25) : 1)),"
+        },
+        {
+          "line": 116,
+          "text": "value20.color.b * (value20.vertexColors ? value21.getZ(value25) : 1)),"
+        }
+      ]
+    },
+    {
+      "key": "value25@110",
+      "name": "value25",
+      "line": 110,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value25 = 0; value25 < value19; value25++)",
+      "references": [
+        {
+          "line": 110,
+          "text": "for (let value25 = 0; value25 < value19; value25++)"
+        },
+        {
+          "line": 111,
+          "text": "((float32Array1[value25 * 3] ="
+        },
+        {
+          "line": 112,
+          "text": "value20.color.r * (value20.vertexColors ? value21.getX(value25) : 1)),"
+        },
+        {
+          "line": 113,
+          "text": "(float32Array1[value25 * 3 + 1] ="
+        },
+        {
+          "line": 114,
+          "text": "value20.color.g * (value20.vertexColors ? value21.getY(value25) : 1)),"
+        },
+        {
+          "line": 115,
+          "text": "(float32Array1[value25 * 3 + 2] ="
+        }
+      ]
+    },
+    {
+      "key": "uint32Array1@121",
+      "name": "uint32Array1",
+      "line": 121,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const uint32Array1 = new Uint32Array(value17.index ? value17.index.count : value19);",
+      "references": [
+        {
+          "line": 122,
+          "text": "for (let value26 = 0; value26 < uint32Array1.length; value26++)"
+        },
+        {
+          "line": 123,
+          "text": "uint32Array1[value26] = value17.index ? value17.index.getX(value26) : value26;"
+        },
+        {
+          "line": 125,
+          "text": "value18.setIndex(new arg3.BufferAttribute(uint32Array1, 1)),"
+        }
+      ]
+    },
+    {
+      "key": "value26@122",
+      "name": "value26",
+      "line": 122,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value26 = 0; value26 < uint32Array1.length; value26++)",
+      "references": [
+        {
+          "line": 122,
+          "text": "for (let value26 = 0; value26 < uint32Array1.length; value26++)"
+        },
+        {
+          "line": 123,
+          "text": "uint32Array1[value26] = value17.index ? value17.index.getX(value26) : value26;"
+        }
+      ]
+    },
+    {
+      "key": "value13@129",
+      "name": "value13",
+      "line": 129,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = arg4(value12);",
+      "references": [
+        {
+          "line": 130,
+          "text": "if ((value12.forEach((arg9) => arg9.dispose()), !value13)) continue;"
+        },
+        {
+          "line": 151,
+          "text": "const value16 = new arg3.Mesh(value13, value15);"
+        },
+        {
+          "line": 165,
+          "text": "triangles: value13.index.count / 3,"
+        },
+        {
+          "line": 178,
+          "text": "(object1.triangles += value13.index.count / 3),"
+        },
+        {
+          "line": 179,
+          "text": "(object1.vertexBytes += Object.values(value13.attributes).reduce("
+        },
+        {
+          "line": 181,
+          "text": "value13.index.array.byteLength,"
+        }
+      ]
+    },
+    {
+      "key": "arg9@130",
+      "name": "arg9",
+      "line": 130,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if ((value12.forEach((arg9) => arg9.dispose()), !value13)) continue;",
+      "references": [
+        {
+          "line": 130,
+          "text": "if ((value12.forEach((arg9) => arg9.dispose()), !value13)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value14@131",
+      "name": "value14",
+      "line": 131,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = value11[0].mesh,",
+      "references": [
+        {
+          "line": 132,
+          "text": "value15 = map2.get(value14.material).clone();"
+        },
+        {
+          "line": 154,
+          "text": "(value16.castShadow = value14.castShadow),"
+        },
+        {
+          "line": 155,
+          "text": "(value16.receiveShadow = value14.receiveShadow),"
+        },
+        {
+          "line": 156,
+          "text": "(value16.renderOrder = value14.renderOrder),"
+        },
+        {
+          "line": 157,
+          "text": "(value16.layers.mask = value14.layers.mask),"
+        }
+      ]
+    },
+    {
+      "key": "value15@132",
+      "name": "value15",
+      "line": 132,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = map2.get(value14.material).clone();",
+      "references": [
+        {
+          "line": 133,
+          "text": "((value15.onBeforeCompile = (arg10) => {"
+        },
+        {
+          "line": 150,
+          "text": "(value15.customProgramCacheKey = () => \"runtime-furniture-surface-v1\"));"
+        },
+        {
+          "line": 151,
+          "text": "const value16 = new arg3.Mesh(value13, value15);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@133",
+      "name": "arg10",
+      "line": 133,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((value15.onBeforeCompile = (arg10) => {",
+      "references": [
+        {
+          "line": 134,
+          "text": "((arg10.vertexShader ="
+        },
+        {
+          "line": 135,
+          "text": "\"attribute vec2 runtimeSurface;\\nvarying vec2 vRuntimeSurface;\\n\" + arg10.vertexShader),"
+        },
+        {
+          "line": 136,
+          "text": "(arg10.vertexShader = arg10.vertexShader.replace("
+        },
+        {
+          "line": 140,
+          "text": "(arg10.fragmentShader = \"varying vec2 vRuntimeSurface;\\n\" + arg10.fragmentShader),"
+        },
+        {
+          "line": 141,
+          "text": "(arg10.fragmentShader = arg10.fragmentShader.replace("
+        },
+        {
+          "line": 145,
+          "text": "(arg10.fragmentShader = arg10.fragmentShader.replace("
+        }
+      ]
+    },
+    {
+      "key": "value16@151",
+      "name": "value16",
+      "line": 151,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = new arg3.Mesh(value13, value15);",
+      "references": [
+        {
+          "line": 152,
+          "text": "((value16.name = \"runtime-compact-furniture\"),"
+        },
+        {
+          "line": 153,
+          "text": "(value16.matrixAutoUpdate = false),"
+        },
+        {
+          "line": 154,
+          "text": "(value16.castShadow = value14.castShadow),"
+        },
+        {
+          "line": 155,
+          "text": "(value16.receiveShadow = value14.receiveShadow),"
+        },
+        {
+          "line": 156,
+          "text": "(value16.renderOrder = value14.renderOrder),"
+        },
+        {
+          "line": 157,
+          "text": "(value16.layers.mask = value14.layers.mask),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@161",
+      "name": "arg11",
+      "line": 161,
+      "column": 63,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value16.userData.runtimeFurnitureItemIds = value11.map((arg11) => arg11.id)),",
+      "references": [
+        {
+          "line": 161,
+          "text": "(value16.userData.runtimeFurnitureItemIds = value11.map((arg11) => arg11.id)),"
+        }
+      ]
+    },
+    {
+      "key": "value27@167",
+      "name": "value27",
+      "line": 167,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { mesh: value27, type: value28 } of value11)",
+      "references": [
+        {
+          "line": 169,
+          "text": "value27.removeFromParent(),"
+        },
+        {
+          "line": 170,
+          "text": "Object.entries(value27.userData).some("
+        },
+        {
+          "line": 172,
+          "text": ") || set1.add(value27.geometry),"
+        },
+        {
+          "line": 173,
+          "text": "Object.entries(value27.userData).some("
+        },
+        {
+          "line": 175,
+          "text": ") || set2.add(value27.material));"
+        }
+      ]
+    },
+    {
+      "key": "value28@167",
+      "name": "value28",
+      "line": 167,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { mesh: value27, type: value28 } of value11)",
+      "references": [
+        {
+          "line": 168,
+          "text": "(set3.add(value28),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@171",
+      "name": "arg12",
+      "line": 171,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg12, arg13]) => arg12.endsWith(\"SharedGeometry\") && arg13,",
+      "references": [
+        {
+          "line": 171,
+          "text": "([arg12, arg13]) => arg12.endsWith(\"SharedGeometry\") && arg13,"
+        }
+      ]
+    },
+    {
+      "key": "arg13@171",
+      "name": "arg13",
+      "line": 171,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg12, arg13]) => arg12.endsWith(\"SharedGeometry\") && arg13,",
+      "references": [
+        {
+          "line": 171,
+          "text": "([arg12, arg13]) => arg12.endsWith(\"SharedGeometry\") && arg13,"
+        }
+      ]
+    },
+    {
+      "key": "arg14@174",
+      "name": "arg14",
+      "line": 174,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg14, arg15]) => arg14.endsWith(\"SharedMaterial\") && arg15,",
+      "references": [
+        {
+          "line": 174,
+          "text": "([arg14, arg15]) => arg14.endsWith(\"SharedMaterial\") && arg15,"
+        }
+      ]
+    },
+    {
+      "key": "arg15@174",
+      "name": "arg15",
+      "line": 174,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "([arg14, arg15]) => arg14.endsWith(\"SharedMaterial\") && arg15,",
+      "references": [
+        {
+          "line": 174,
+          "text": "([arg14, arg15]) => arg14.endsWith(\"SharedMaterial\") && arg15,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@180",
+      "name": "arg16",
+      "line": 180,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg16, arg17) => arg16 + arg17.array.byteLength,",
+      "references": [
+        {
+          "line": 180,
+          "text": "(arg16, arg17) => arg16 + arg17.array.byteLength,"
+        }
+      ]
+    },
+    {
+      "key": "arg17@180",
+      "name": "arg17",
+      "line": 180,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg16, arg17) => arg16 + arg17.array.byteLength,",
+      "references": [
+        {
+          "line": 180,
+          "text": "(arg16, arg17) => arg16 + arg17.array.byteLength,"
+        }
+      ]
+    },
+    {
+      "key": "value29@185",
+      "name": "value29",
+      "line": 185,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value29 of map2.values()) value29.dispose();",
+      "references": [
+        {
+          "line": 185,
+          "text": "for (const value29 of map2.values()) value29.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "arg18@186",
+      "name": "arg18",
+      "line": 186,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg1.traverse((arg18) => {",
+      "references": [
+        {
+          "line": 187,
+          "text": "arg18.geometry && set1.delete(arg18.geometry);"
+        },
+        {
+          "line": 188,
+          "text": "for (const value30 of Array.isArray(arg18.material)"
+        },
+        {
+          "line": 189,
+          "text": "? arg18.material"
+        },
+        {
+          "line": 190,
+          "text": ": arg18.material"
+        },
+        {
+          "line": 191,
+          "text": "? [arg18.material]"
+        }
+      ]
+    },
+    {
+      "key": "value30@188",
+      "name": "value30",
+      "line": 188,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value30 of Array.isArray(arg18.material)",
+      "references": [
+        {
+          "line": 193,
+          "text": "set2.delete(value30);"
+        }
+      ]
+    },
+    {
+      "key": "value31@195",
+      "name": "value31",
+      "line": 195,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value31 of set1) value31.dispose();",
+      "references": [
+        {
+          "line": 195,
+          "text": "for (const value31 of set1) value31.dispose();"
+        }
+      ]
+    },
+    {
+      "key": "value32@196",
+      "name": "value32",
+      "line": 196,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value32 of set2) value32.dispose();",
+      "references": [
+        {
+          "line": 196,
+          "text": "for (const value32 of set2) value32.dispose();"
+        }
+      ]
+    }
+  ]
+}

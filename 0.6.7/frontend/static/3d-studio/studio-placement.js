@@ -3,185 +3,205 @@ import {
   isCourtyardGate,
   syncCourtyardGates,
 } from "./courtyard-drawing.js?v=20260927-drawing-v6";
-const h = 0.001,
-  d = (arg1, arg2, arg3, arg4) => Math.min(arg2, arg4) - Math.max(arg1, arg3);
-function x(arg5, arg6, arg7, arg8, arg9, arg10, arg11) {
-  const value1 = Math.cos(arg9),
-    value2 = Math.sin(arg9);
+const overlapEpsilon = 0.001,
+  overlapLength = (startA, endA, startB, endB) => Math.min(endA, endB) - Math.max(startA, startB);
+function createOrientedBox(
+  centerX,
+  centerY,
+  boxWidth,
+  boxDepth,
+  angleRad,
+  bottomElevation,
+  boxHeight,
+) {
+  const cosAngle = Math.cos(angleRad),
+    sinAngle = Math.sin(angleRad);
   return {
-    x: arg5,
-    y: arg6,
-    width: arg7,
-    depth: arg8,
+    x: centerX,
+    y: centerY,
+    width: boxWidth,
+    depth: boxDepth,
     axes: [
       {
-        x: value1,
-        y: value2,
+        x: cosAngle,
+        y: sinAngle,
       },
       {
-        x: -value2,
-        y: value1,
+        x: -sinAngle,
+        y: cosAngle,
       },
     ],
-    bottom: arg10,
-    top: arg10 + arg11,
+    bottom: bottomElevation,
+    top: bottomElevation + boxHeight,
   };
 }
-function m(arg12, arg13, arg14 = false) {
+function boxOverlapArea(boxA, boxB, isFencePair = false) {
   if (
-    arg14 &&
-    Math.abs(arg12.axes[0].x * arg13.axes[0].y - arg12.axes[0].y * arg13.axes[0].x) > 0.001
+    isFencePair &&
+    Math.abs(boxA.axes[0].x * boxB.axes[0].y - boxA.axes[0].y * boxB.axes[0].x) > 0.001
   )
     return 0;
-  const value3 = d(arg12.bottom, arg12.top, arg13.bottom, arg13.top);
-  if (value3 <= h) return 0;
-  let value4 = Infinity;
-  for (const value5 of [...arg12.axes, ...arg13.axes]) {
-    const fn1 = (arg15) =>
-        (Math.abs(value5.x * arg15.axes[0].x + value5.y * arg15.axes[0].y) * arg15.width) / 2 +
-        (Math.abs(value5.x * arg15.axes[1].x + value5.y * arg15.axes[1].y) * arg15.depth) / 2,
-      value6 = arg12.x * value5.x + arg12.y * value5.y,
-      value7 = arg13.x * value5.x + arg13.y * value5.y,
-      value8 = d(
-        value6 - fn1(arg12),
-        value6 + fn1(arg12),
-        value7 - fn1(arg13),
-        value7 + fn1(arg13),
+  const verticalOverlap = overlapLength(boxA.bottom, boxA.top, boxB.bottom, boxB.top);
+  if (verticalOverlap <= overlapEpsilon) return 0;
+  let minLateralOverlap = Infinity;
+  for (const axis of [...boxA.axes, ...boxB.axes]) {
+    const halfExtentOnAxis = (box) =>
+        (Math.abs(axis.x * box.axes[0].x + axis.y * box.axes[0].y) * box.width) / 2 +
+        (Math.abs(axis.x * box.axes[1].x + axis.y * box.axes[1].y) * box.depth) / 2,
+      projectionA = boxA.x * axis.x + boxA.y * axis.y,
+      projectionB = boxB.x * axis.x + boxB.y * axis.y,
+      lateralOverlap = overlapLength(
+        projectionA - halfExtentOnAxis(boxA),
+        projectionA + halfExtentOnAxis(boxA),
+        projectionB - halfExtentOnAxis(boxB),
+        projectionB + halfExtentOnAxis(boxB),
       );
-    if (value8 <= h) return 0;
-    value4 = Math.min(value4, value8);
+    if (lateralOverlap <= overlapEpsilon) return 0;
+    minLateralOverlap = Math.min(minLateralOverlap, lateralOverlap);
   }
-  return value4 * value3;
+  return minLateralOverlap * verticalOverlap;
 }
-function k(arg16, arg17) {
-  const list1 = [],
-    map1 = new Map((arg16.walls || []).map((arg18) => [arg18.id, arg18]));
-  for (const value9 of ["doors", "windows", "railings"])
-    for (const value10 of arg16[value9] || []) {
-      const value11 = map1.get(value10.wallId);
-      if (!value11) continue;
-      const value12 = value11.end.x - value11.start.x,
-        value13 = value11.end.y - value11.start.y,
-        value14 = Math.hypot(value12, value13) / arg17;
-      if (!value14) continue;
-      const value15 = Math.min(value10.width / 2, value14 / 2),
-        value16 = Math.max(value15 / value14, Math.min(1 - value15 / value14, value10.t || 0));
-      list1.push({
-        key: value9 + ":" + value10.id,
+function buildPlacementGroups(scene, ppm) {
+  const placementGroups = [],
+    wallsById = new Map((scene.walls || []).map((wall) => [wall.id, wall]));
+  for (const openingKind of ["doors", "windows", "railings"])
+    for (const opening of scene[openingKind] || []) {
+      const openingWall = wallsById.get(opening.wallId);
+      if (!openingWall) continue;
+      const wallDeltaX = openingWall.end.x - openingWall.start.x,
+        wallDeltaY = openingWall.end.y - openingWall.start.y,
+        wallLength = Math.hypot(wallDeltaX, wallDeltaY) / ppm;
+      if (!wallLength) continue;
+      const halfOpeningWidth = Math.min(opening.width / 2, wallLength / 2),
+        openingRatio = Math.max(
+          halfOpeningWidth / wallLength,
+          Math.min(1 - halfOpeningWidth / wallLength, opening.t || 0),
+        );
+      placementGroups.push({
+        key: openingKind + ":" + opening.id,
         group: "opening",
         parts: [
-          x(
-            (value11.start.x + value12 * value16) / arg17,
-            (value11.start.y + value13 * value16) / arg17,
-            value10.width,
-            value11.thickness || 0.2,
-            Math.atan2(value13, value12),
-            value10.sill || 0,
-            value10.height,
+          createOrientedBox(
+            (openingWall.start.x + wallDeltaX * openingRatio) / ppm,
+            (openingWall.start.y + wallDeltaY * openingRatio) / ppm,
+            opening.width,
+            openingWall.thickness || 0.2,
+            Math.atan2(wallDeltaY, wallDeltaX),
+            opening.sill || 0,
+            opening.height,
           ),
         ],
       });
     }
-  for (const value17 of arg16.items || []) {
+  for (const item of scene.items || []) {
     if (
-      (isCourtyardGate(value17) &&
-        list1.push({
-          key: "items:" + value17.id,
+      (isCourtyardGate(item) &&
+        placementGroups.push({
+          key: "items:" + item.id,
           group: "gate",
           parts: [
-            x(
-              value17.x / arg17,
-              value17.y / arg17,
-              value17.width,
-              value17.depth || 0.22,
-              ((value17.rotation || 0) * Math.PI) / 180,
-              value17.elevation || 0,
-              value17.height || 1.55,
+            createOrientedBox(
+              item.x / ppm,
+              item.y / ppm,
+              item.width,
+              item.depth || 0.22,
+              ((item.rotation || 0) * Math.PI) / 180,
+              item.elevation || 0,
+              item.height || 1.55,
             ),
           ],
         }),
-      value17.type !== "courtyard-fence")
+      item.type !== "courtyard-fence")
     )
       continue;
-    const value18 = drawingPlanPoints(value17, arg17);
-    value17.drawing.closed && value18.length && value18.push(value18[0]);
-    const list2 = [];
-    for (let value19 = 1; value19 < value18.length; value19++) {
-      const value20 = value18[value19 - 1],
-        value21 = value18[value19],
-        value22 = value21.x - value20.x,
-        value23 = value21.y - value20.y,
-        value24 = Math.hypot(value22, value23) / arg17;
-      value24 <= h ||
-        list2.push(
-          x(
-            (value20.x + value21.x) / 2 / arg17,
-            (value20.y + value21.y) / 2 / arg17,
-            value24,
-            (value17.drawing.thickness || 0.18) * (value17.drawing.style === "hedge" ? 3 : 1),
-            Math.atan2(value23, value22),
-            value17.elevation || 0,
-            value17.height || 1.2,
+    const planPoints = drawingPlanPoints(item, ppm);
+    item.drawing.closed && planPoints.length && planPoints.push(planPoints[0]);
+    const segmentParts = [];
+    for (let pointIndex = 1; pointIndex < planPoints.length; pointIndex++) {
+      const segmentStart = planPoints[pointIndex - 1],
+        segmentEnd = planPoints[pointIndex],
+        segmentDeltaX = segmentEnd.x - segmentStart.x,
+        segmentDeltaY = segmentEnd.y - segmentStart.y,
+        segmentLength = Math.hypot(segmentDeltaX, segmentDeltaY) / ppm;
+      segmentLength <= overlapEpsilon ||
+        segmentParts.push(
+          createOrientedBox(
+            (segmentStart.x + segmentEnd.x) / 2 / ppm,
+            (segmentStart.y + segmentEnd.y) / 2 / ppm,
+            segmentLength,
+            (item.drawing.thickness || 0.18) * (item.drawing.style === "hedge" ? 3 : 1),
+            Math.atan2(segmentDeltaY, segmentDeltaX),
+            item.elevation || 0,
+            item.height || 1.2,
           ),
         );
     }
-    list1.push({
-      key: "items:" + value17.id,
+    placementGroups.push({
+      key: "items:" + item.id,
       group: "fence",
-      parts: list2,
+      parts: segmentParts,
     });
   }
-  return list1;
+  return placementGroups;
 }
-function g(arg19, arg20) {
-  const value25 = k(arg19, arg20),
-    map2 = new Map();
-  for (let value26 = 0; value26 < value25.length; value26++)
-    for (let value27 = value26; value27 < value25.length; value27++) {
-      const value28 = value25[value26],
-        value29 = value25[value27];
-      if (value28.group !== value29.group || (value26 === value27 && value28.group !== "fence"))
+function collectSceneOverlaps(overlapScene, overlapPpm) {
+  const groups = buildPlacementGroups(overlapScene, overlapPpm),
+    overlapsByPair = new Map();
+  for (let groupIndexA = 0; groupIndexA < groups.length; groupIndexA++)
+    for (let groupIndexB = groupIndexA; groupIndexB < groups.length; groupIndexB++) {
+      const groupA = groups[groupIndexA],
+        groupB = groups[groupIndexB];
+      if (
+        groupA.group !== groupB.group ||
+        (groupIndexA === groupIndexB && groupA.group !== "fence")
+      )
         continue;
-      let value30 = 0;
-      for (let value31 = 0; value31 < value28.parts.length; value31++)
+      let overlapAmount = 0;
+      for (let partIndexA = 0; partIndexA < groupA.parts.length; partIndexA++)
         for (
-          let value32 = value26 === value27 ? value31 + 1 : 0;
-          value32 < value29.parts.length;
-          value32++
+          let partIndexB = groupIndexA === groupIndexB ? partIndexA + 1 : 0;
+          partIndexB < groupB.parts.length;
+          partIndexB++
         )
-          value30 += m(value28.parts[value31], value29.parts[value32], value28.group === "fence");
-      value30 > 0 &&
-        map2.set(JSON.stringify([value28.key, value29.key].sort()), {
-          amount: value30,
-          group: value28.group,
+          overlapAmount += boxOverlapArea(
+            groupA.parts[partIndexA],
+            groupB.parts[partIndexB],
+            groupA.group === "fence",
+          );
+      overlapAmount > 0 &&
+        overlapsByPair.set(JSON.stringify([groupA.key, groupB.key].sort()), {
+          amount: overlapAmount,
+          group: groupA.group,
         });
     }
-  return map2;
+  return overlapsByPair;
 }
-export function placementConflict(arg21, arg22, arg23 = 100) {
-  const value33 = g(arg21, arg23);
-  for (const [value34, value35] of g(arg22, arg23))
-    if (!(value35.amount <= (value33.get(value34)?.amount || 0) + 1e-8))
-      return value35.group === "opening"
+export function placementConflict(baselineScene, candidateScene, conflictPpm = 100) {
+  const baselineOverlaps = collectSceneOverlaps(baselineScene, conflictPpm);
+  for (const [pairKey, overlapEntry] of collectSceneOverlaps(candidateScene, conflictPpm))
+    if (!(overlapEntry.amount <= (baselineOverlaps.get(pairKey)?.amount || 0) + 1e-8))
+      return overlapEntry.group === "opening"
         ? "该位置与已有门、窗户或栏杆重叠，请调整位置或尺寸。"
-        : value35.group === "gate"
+        : overlapEntry.group === "gate"
           ? "该位置与已有庭院门重叠，请调整位置或尺寸。"
           : "围挡与已有围挡或自身线段重叠，请调整路线、位置或尺寸。";
   return "";
 }
-export function restorePlacementScene(arg24, arg25) {
-  for (const value36 of ["items", "walls", "doors", "windows", "railings"]) {
-    if (!arg25[value36]) continue;
-    const map3 = new Map((arg24[value36] || []).map((arg26) => [arg26.id, arg26]));
-    arg24[value36] = arg25[value36].map((arg27) => {
-      const value37 = map3.get(arg27.id) || {};
-      for (const value38 of Object.keys(value37)) delete value37[value38];
-      return Object.assign(value37, structuredClone(arg27));
+export function restorePlacementScene(targetScene, sourceScene) {
+  for (const collectionKey of ["items", "walls", "doors", "windows", "railings"]) {
+    if (!sourceScene[collectionKey]) continue;
+    const existingById = new Map(
+      (targetScene[collectionKey] || []).map((targetEntry) => [targetEntry.id, targetEntry]),
+    );
+    targetScene[collectionKey] = sourceScene[collectionKey].map((sourceEntry) => {
+      const currentEntry = existingById.get(sourceEntry.id) || {};
+      for (const propertyKey of Object.keys(currentEntry)) delete currentEntry[propertyKey];
+      return Object.assign(currentEntry, structuredClone(sourceEntry));
     });
   }
 }
-export function validatePlacementChange(arg28, arg29, arg30 = 100) {
-  syncCourtyardGates(arg29.items || [], arg30);
-  const value39 = placementConflict(arg28, arg29, arg30);
-  return (value39 && restorePlacementScene(arg29, arg28), value39);
+export function validatePlacementChange(savedScene, draftScene, changePpm = 100) {
+  syncCourtyardGates(draftScene.items || [], changePpm);
+  const conflictMessage = placementConflict(savedScene, draftScene, changePpm);
+  return (conflictMessage && restorePlacementScene(draftScene, savedScene), conflictMessage);
 }

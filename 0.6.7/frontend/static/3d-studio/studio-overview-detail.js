@@ -1,182 +1,254 @@
 import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260929-runtime-surface-v1-20260928-overview-detail-v1";
-function T(arg1) {
+function createFloorMetric(metricThree) {
   return {
-    matrix: new arg1.Matrix4(),
-    sphere: new arg1.Sphere(),
+    matrix: new metricThree.Matrix4(),
+    sphere: new metricThree.Sphere(),
     lengths: [0, 0],
     wr: 0,
   };
 }
-function H(arg2, arg3) {
-  const value1 = arg2.matrix.multiplyMatrices(
-    arg3.projectionMatrix,
-    arg3.matrixWorldInverse,
+function refreshFloorMetric(floorMetric, viewCamera) {
+  const projectionElements = floorMetric.matrix.multiplyMatrices(
+    viewCamera.projectionMatrix,
+    viewCamera.matrixWorldInverse,
   ).elements;
-  arg2.wr = Math.hypot(value1[3], value1[7], value1[11]);
-  for (let value2 = 0; value2 < 2; value2++)
-    arg2.lengths[value2] = Math.hypot(value1[value2], value1[value2 + 4], value1[value2 + 8]);
-  return arg2;
+  floorMetric.wr = Math.hypot(projectionElements[3], projectionElements[7], projectionElements[11]);
+  for (let axisIndex = 0; axisIndex < 2; axisIndex++)
+    floorMetric.lengths[axisIndex] = Math.hypot(
+      projectionElements[axisIndex],
+      projectionElements[axisIndex + 4],
+      projectionElements[axisIndex + 8],
+    );
+  return floorMetric;
 }
-function I(arg4, arg5, arg6, arg7, arg8) {
-  const value3 = arg4.geometry;
-  value3.boundingSphere || value3.computeBoundingSphere();
-  const value4 = arg5.sphere.copy(value3.boundingSphere).applyMatrix4(arg4.matrixWorld),
-    value5 = arg5.matrix.elements,
-    value6 = value4.center,
-    value7 = arg5.wr,
-    value8 = value5[3] * value6.x + value5[7] * value6.y + value5[11] * value6.z + value5[15],
-    value9 = Math.abs(value8) - value4.radius * value7;
-  if (value9 <= 0.001) return Infinity;
-  const fn1 = (arg9, arg10) => {
-    const value10 = arg5.lengths[arg9],
-      value11 =
+function computeMeshPixelError(errorMesh, errorMetric, viewportWidth, viewportHeight, worldError) {
+  const meshGeometry = errorMesh.geometry;
+  meshGeometry.boundingSphere || meshGeometry.computeBoundingSphere();
+  const worldSphere = errorMetric.sphere
+      .copy(meshGeometry.boundingSphere)
+      .applyMatrix4(errorMesh.matrixWorld),
+    frustumElements = errorMetric.matrix.elements,
+    sphereCenter = worldSphere.center,
+    wRowLength = errorMetric.wr,
+    viewDepth =
+      frustumElements[3] * sphereCenter.x +
+      frustumElements[7] * sphereCenter.y +
+      frustumElements[11] * sphereCenter.z +
+      frustumElements[15],
+    depthMargin = Math.abs(viewDepth) - worldSphere.radius * wRowLength;
+  if (depthMargin <= 0.001) return Infinity;
+  const axisPixelError = (axis, viewportExtent) => {
+    const axisLength = errorMetric.lengths[axis],
+      axisExtent =
         Math.abs(
-          value5[arg9] * value6.x +
-            value5[arg9 + 4] * value6.y +
-            value5[arg9 + 8] * value6.z +
-            value5[arg9 + 12],
+          frustumElements[axis] * sphereCenter.x +
+            frustumElements[axis + 4] * sphereCenter.y +
+            frustumElements[axis + 8] * sphereCenter.z +
+            frustumElements[axis + 12],
         ) +
-        value4.radius * value10;
-    return arg10 * 0.5 * arg8 * (value10 / value9 + (value11 * value7) / (value9 * value9));
+        worldSphere.radius * axisLength;
+    return (
+      viewportExtent *
+      0.5 *
+      worldError *
+      (axisLength / depthMargin + (axisExtent * wRowLength) / (depthMargin * depthMargin))
+    );
   };
-  return Math.max(fn1(0, arg6), fn1(1, arg7));
+  return Math.max(axisPixelError(0, viewportWidth), axisPixelError(1, viewportHeight));
 }
-export function detailPixelError(arg11, arg12, arg13, arg14, arg15, arg16) {
-  return I(arg12, H(T(arg11), arg13), arg14, arg15, arg16);
+export function detailPixelError(
+  detailThree,
+  targetMesh,
+  detailCamera,
+  outputWidth,
+  outputHeight,
+  pixelWorldError,
+) {
+  return computeMeshPixelError(
+    targetMesh,
+    refreshFloorMetric(createFloorMetric(detailThree), detailCamera),
+    outputWidth,
+    outputHeight,
+    pixelWorldError,
+  );
 }
 export function createOverviewDetail({
-  THREE: arg17,
-  renderer: arg18,
-  scene: arg19,
-  getCamera: arg20,
-  getFloorCamera: arg23 = (arg26, arg27) => arg27,
-  getFloorId: arg24 = () => "",
-  enabled: arg21,
-  requestFrame: arg25 = () => {},
-  detail: arg22,
+  THREE: three,
+  renderer: renderer,
+  scene: scene,
+  getCamera: getCamera,
+  getFloorCamera: getFloorCamera = (floorMesh, floorCamera) => floorCamera,
+  getFloorId: getFloorId = () => "",
+  enabled: isEnabled,
+  requestFrame: requestFrame = () => {},
+  detail: detail,
 }) {
-  const value12 =
-      arg22 ||
+  const reflectionDetail =
+      detail ||
       createReflectionDetail({
-        THREE: arg17,
+        THREE: three,
         worldError: 0.003,
         ratio: 0.55,
         maxBytes: 8388608,
-        requestFrame: arg25,
+        requestFrame: requestFrame,
       }),
-    value13 = arg18.render,
-    value14 = arg18.renderBufferDirect;
-  let weakSet1 = new WeakSet();
-  const map1 = new Map(),
-    fn2 = () => {
-      weakSet1 = new WeakSet();
+    originalRender = renderer.render,
+    originalRenderBufferDirect = renderer.renderBufferDirect;
+  let renderedGeometrySet = new WeakSet();
+  const savedGeometryByMesh = new Map(),
+    resetRenderedGeometrySet = () => {
+      renderedGeometrySet = new WeakSet();
     };
-  arg18.domElement?.addEventListener?.("webglcontextlost", fn2);
-  let list1 = [],
-    value15,
-    value16,
-    value17 = false;
-  const object1 = {
+  renderer.domElement?.addEventListener?.("webglcontextlost", resetRenderedGeometrySet);
+  let simplifiableMeshes = [],
+    lastPreparedScene,
+    lastPreparedCamera,
+    isDisposed = false;
+  const stats = {
       active: false,
       meshes: 0,
       savedTriangles: 0,
-      cache: value12.stats,
+      cache: reflectionDetail.stats,
     },
-    value18 = new arg17.Vector2(),
-    map2 = new Map();
-  let value19 = 0;
-  function fn3() {
-    for (const [value20, value21] of map1) value20.geometry = value21;
-    map1.clear();
+    drawingBufferSize = new three.Vector2(),
+    metricByFloorId = new Map();
+  let frameCount = 0;
+  function restoreSavedGeometries() {
+    for (const [cachedMesh, cachedGeometry] of savedGeometryByMesh)
+      cachedMesh.geometry = cachedGeometry;
+    savedGeometryByMesh.clear();
   }
   return (
-    (arg18.render = function (...arg28) {
-      const value22 = [...map1].map(([arg29, arg30]) => [arg29, arg30, arg29.geometry]);
-      fn3();
+    (renderer.render = function (...renderArgs) {
+      const savedGeometrySnapshot = [...savedGeometryByMesh].map(
+        ([snapshotMesh, snapshotGeometry]) => [
+          snapshotMesh,
+          snapshotGeometry,
+          snapshotMesh.geometry,
+        ],
+      );
+      restoreSavedGeometries();
       try {
-        return value13.apply(this, arg28);
+        return originalRender.apply(this, renderArgs);
       } finally {
-        fn3();
-        for (const [value23, value24, value25] of value22)
-          (map1.set(value23, value24), (value23.geometry = value25));
+        restoreSavedGeometries();
+        for (const [
+          restoreMesh,
+          restoreSavedGeometry,
+          restoreOriginalGeometry,
+        ] of savedGeometrySnapshot)
+          (savedGeometryByMesh.set(restoreMesh, restoreSavedGeometry),
+            (restoreMesh.geometry = restoreOriginalGeometry));
       }
     }),
-    (arg18.renderBufferDirect = function (arg31, arg32, arg33, arg34, arg35, arg36) {
-      const value26 = map1.get(arg35);
-      value26 && (arg34.isMeshDepthMaterial || arg34.isMeshDistanceMaterial) && (arg33 = value26);
-      const value27 = value14.call(this, arg31, arg32, arg33, arg34, arg35, arg36);
-      return (!value26 && arg35.geometry === arg33 && weakSet1.add(arg33), value27);
+    (renderer.renderBufferDirect = function (
+      drawCamera,
+      drawScene,
+      drawGeometry,
+      drawMaterial,
+      renderObject,
+      renderGroup,
+    ) {
+      const savedMeshGeometry = savedGeometryByMesh.get(renderObject);
+      savedMeshGeometry &&
+        (drawMaterial.isMeshDepthMaterial || drawMaterial.isMeshDistanceMaterial) &&
+        (drawGeometry = savedMeshGeometry);
+      const renderResult = originalRenderBufferDirect.call(
+        this,
+        drawCamera,
+        drawScene,
+        drawGeometry,
+        drawMaterial,
+        renderObject,
+        renderGroup,
+      );
+      return (
+        !savedMeshGeometry &&
+          renderObject.geometry === drawGeometry &&
+          renderedGeometrySet.add(drawGeometry),
+        renderResult
+      );
     }),
     {
-      stats: object1,
-      prepare(arg37, arg38) {
-        value17 ||
-          (arg37 === value15 && arg38 === value16) ||
-          ((value15 = arg37),
-          (value16 = arg38),
-          (list1 = []),
-          map2.clear(),
-          arg37?.traverse((arg39) => {
-            arg39.userData?.reflectionSimplifiable &&
-              arg39.isMesh &&
-              list1.push({
-                mesh: arg39,
-                floor: arg24(arg39),
+      stats: stats,
+      prepare(prepareScene, prepareCamera) {
+        isDisposed ||
+          (prepareScene === lastPreparedScene && prepareCamera === lastPreparedCamera) ||
+          ((lastPreparedScene = prepareScene),
+          (lastPreparedCamera = prepareCamera),
+          (simplifiableMeshes = []),
+          metricByFloorId.clear(),
+          prepareScene?.traverse((sceneChild) => {
+            sceneChild.userData?.reflectionSimplifiable &&
+              sceneChild.isMesh &&
+              simplifiableMeshes.push({
+                mesh: sceneChild,
+                floor: getFloorId(sceneChild),
               });
           }),
-          arg37 && value12.prepare(arg37));
+          prepareScene && reflectionDetail.prepare(prepareScene));
       },
-      begin(arg40) {
+      begin(beginCamera) {
         if (
-          (fn3(),
-          (object1.active = false),
-          (object1.meshes = object1.savedTriangles = 0),
-          (object1.ready = 0),
-          (object1.near = 0),
-          (object1.enabled = arg21()),
-          !(value17 || arg40 !== arg20() || !object1.enabled))
+          (restoreSavedGeometries(),
+          (stats.active = false),
+          (stats.meshes = stats.savedTriangles = 0),
+          (stats.ready = 0),
+          (stats.near = 0),
+          (stats.enabled = isEnabled()),
+          !(isDisposed || beginCamera !== getCamera() || !stats.enabled))
         ) {
-          (arg18.getDrawingBufferSize(value18), value19++);
-          for (const { mesh: value28, floor: value29 } of list1) {
-            if (!weakSet1.has(value28.geometry)) continue;
-            let value30 = true;
-            for (let value34 = value28; value34; value34 = value34.parent)
-              if (!value34.visible) {
-                value30 = false;
+          (renderer.getDrawingBufferSize(drawingBufferSize), frameCount++);
+          for (const { mesh: candidateMesh, floor: candidateFloorId } of simplifiableMeshes) {
+            if (!renderedGeometrySet.has(candidateMesh.geometry)) continue;
+            let isVisible = true;
+            for (let scopeNode = candidateMesh; scopeNode; scopeNode = scopeNode.parent)
+              if (!scopeNode.visible) {
+                isVisible = false;
                 break;
               }
-            if (!value30) continue;
-            const value31 = value12.get(value28);
-            if (!value31) continue;
-            object1.ready++;
-            let value32 = map2.get(value29);
+            if (!isVisible) continue;
+            const detailGeometry = reflectionDetail.get(candidateMesh);
+            if (!detailGeometry) continue;
+            stats.ready++;
+            let cachedFloorMetric = metricByFloorId.get(candidateFloorId);
             if (
-              (value32 || ((value32 = T(arg17)), map2.set(value29, value32)),
-              value32.frame !== value19 &&
-                (H(value32, arg23(value28, arg40)), (value32.frame = value19)),
-              I(value28, value32, value18.x, value18.y, 0.003) > 0.55)
+              (cachedFloorMetric ||
+                ((cachedFloorMetric = createFloorMetric(three)),
+                metricByFloorId.set(candidateFloorId, cachedFloorMetric)),
+              cachedFloorMetric.frame !== frameCount &&
+                (refreshFloorMetric(cachedFloorMetric, getFloorCamera(candidateMesh, beginCamera)),
+                (cachedFloorMetric.frame = frameCount)),
+              computeMeshPixelError(
+                candidateMesh,
+                cachedFloorMetric,
+                drawingBufferSize.x,
+                drawingBufferSize.y,
+                0.003,
+              ) > 0.55)
             ) {
-              object1.near++;
+              stats.near++;
               continue;
             }
-            const value33 = value28.geometry;
-            (map1.set(value28, value33),
-              (value28.geometry = value31),
-              object1.meshes++,
-              (object1.savedTriangles += (value33.index.count - value31.index.count) / 3));
+            const originalMeshGeometry = candidateMesh.geometry;
+            (savedGeometryByMesh.set(candidateMesh, originalMeshGeometry),
+              (candidateMesh.geometry = detailGeometry),
+              stats.meshes++,
+              (stats.savedTriangles +=
+                (originalMeshGeometry.index.count - detailGeometry.index.count) / 3));
           }
-          object1.active = object1.meshes > 0;
+          stats.active = stats.meshes > 0;
         }
       },
       dispose() {
-        ((value17 = true),
-          fn3(),
-          value12.dispose(),
-          (list1 = []),
-          map2.clear(),
-          arg18.domElement?.removeEventListener?.("webglcontextlost", fn2),
-          (arg18.render = value13),
-          (arg18.renderBufferDirect = value14));
+        ((isDisposed = true),
+          restoreSavedGeometries(),
+          reflectionDetail.dispose(),
+          (simplifiableMeshes = []),
+          metricByFloorId.clear(),
+          renderer.domElement?.removeEventListener?.("webglcontextlost", resetRenderedGeometrySet),
+          (renderer.render = originalRender),
+          (renderer.renderBufferDirect = originalRenderBufferDirect));
       },
     }
   );

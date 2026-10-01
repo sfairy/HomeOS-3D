@@ -1,5 +1,5 @@
 import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260901-renderer-entity-metadata-v1";
-const _ = Object.freeze({
+const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
   turn_off: 2,
   pause: 4,
@@ -9,36 +9,45 @@ const _ = Object.freeze({
   clean_spot: 1024,
   start: 8192,
 });
-export function vacuumSupportedActions(arg1) {
-  const value1 = arg1?.attributes?.supported_features;
-  if (value1 == null || value1 === "") return ["start", "pause", "return_to_base"];
-  const value2 = Number(value1);
-  if (!Number.isFinite(value2)) return ["start", "pause", "return_to_base"];
-  const list1 = [];
+export function vacuumSupportedActions(vacuumState) {
+  const supportedFeatures = vacuumState?.attributes?.supported_features;
+  if (supportedFeatures == null || supportedFeatures === "")
+    return ["start", "pause", "return_to_base"];
+  const numericFeatures = Number(supportedFeatures);
+  if (!Number.isFinite(numericFeatures)) return ["start", "pause", "return_to_base"];
+  const actions = [];
   return (
-    (value2 & _.start || value2 & _.turn_on) && list1.push("start"),
-    value2 & _.pause && list1.push("pause"),
-    (value2 & _.stop || value2 & _.turn_off) && list1.push("stop"),
-    value2 & _.return_to_base && list1.push("return_to_base"),
-    value2 & _.locate && list1.push("locate"),
-    value2 & _.clean_spot && list1.push("clean_spot"),
-    list1
+    (numericFeatures & VACUUM_FEATURE_FLAGS.start ||
+      numericFeatures & VACUUM_FEATURE_FLAGS.turn_on) &&
+      actions.push("start"),
+    numericFeatures & VACUUM_FEATURE_FLAGS.pause && actions.push("pause"),
+    (numericFeatures & VACUUM_FEATURE_FLAGS.stop ||
+      numericFeatures & VACUUM_FEATURE_FLAGS.turn_off) &&
+      actions.push("stop"),
+    numericFeatures & VACUUM_FEATURE_FLAGS.return_to_base && actions.push("return_to_base"),
+    numericFeatures & VACUUM_FEATURE_FLAGS.locate && actions.push("locate"),
+    numericFeatures & VACUUM_FEATURE_FLAGS.clean_spot && actions.push("clean_spot"),
+    actions
   );
 }
-export function vacuumActionService(arg2, arg3) {
-  const value3 = Number(arg2?.attributes?.supported_features);
-  return Number.isFinite(value3)
-    ? arg3 === "start" && !(value3 & _.start) && value3 & _.turn_on
+export function vacuumActionService(vacuumEntity, actionName) {
+  const featureFlags = Number(vacuumEntity?.attributes?.supported_features);
+  return Number.isFinite(featureFlags)
+    ? actionName === "start" &&
+      !(featureFlags & VACUUM_FEATURE_FLAGS.start) &&
+      featureFlags & VACUUM_FEATURE_FLAGS.turn_on
       ? "turn_on"
-      : arg3 === "stop" && !(value3 & _.stop) && value3 & _.turn_off
+      : actionName === "stop" &&
+          !(featureFlags & VACUUM_FEATURE_FLAGS.stop) &&
+          featureFlags & VACUUM_FEATURE_FLAGS.turn_off
         ? "turn_off"
-        : arg3
-    : arg3;
+        : actionName
+    : actionName;
 }
-function w(arg4) {
-  return arg4?.newState || arg4 || null;
+function resolveStateEntry(stateEntryOrChange) {
+  return stateEntryOrChange?.newState || stateEntryOrChange || null;
 }
-const v = {
+const statusLabels = {
     cleaning: "清扫中",
     sweeping: "扫地中",
     mopping: "拖地中",
@@ -122,7 +131,7 @@ const v = {
     unavailable: "设备离线",
     unknown: "等待状态",
   },
-  K = {
+  statusAliases = {
     vacuuming: "cleaning",
     standby: "idle",
     ready: "idle",
@@ -170,18 +179,18 @@ const v = {
     power_off: "stopped",
     pet_finding: "finding_pet",
   },
-  R = new Set(
+  movingStatusSet = new Set(
     "cleaning sweeping mopping sweeping_and_mopping mopping_after_sweeping spot_cleaning zone_cleaning segment_cleaning auto_cleaning second_cleaning extra_cleaning heading_to_extra_cleaning initial_deep_cleaning returning returning_to_wash returning_auto_empty returning_install_mop returning_remove_mop returning_to_drain intelligent_recharging mapping remote_control monitoring finding_pet human_following pet_guarding clean_summon shortcut floor_maintaining remote_pickup arranging_items assisted_cleaning entering_dock leaving_dock navigating_to_climber docking_to_climber climber_navigating climbing_stairs climber_leaving_dock".split(
       " ",
     ),
   ),
-  T = new Set(
+  stationWorkingStatusSet = new Set(
     "washing drying auto_emptying station_cleaning station_reset clean_add_water water_check draining auto_water_draining emptying dust_bag_drying installing_mop uninstalling_mop changing_mop sanitizing sanitizing_with_dry".split(
       " ",
     ),
   ),
-  b = new Set(["docked", "charging", "charging_completed", "smart_charging"]),
-  W = [
+  dockedStatusSet = new Set(["docked", "charging", "charging_completed", "smart_charging"]),
+  statusRoleFields = [
     "self_wash_base_status",
     "auto_empty_status",
     "charging_status",
@@ -189,93 +198,116 @@ const v = {
     "state",
     "status",
   ],
-  y = (arg5) => {
-    const value4 = String(arg5 ?? "")
+  normalizeStatusKey = (rawStatus) => {
+    const normalizedStatus = String(rawStatus ?? "")
       .trim()
       .toLowerCase()
       .replace(/[\s-]+/g, "_");
-    return K[value4] || value4;
+    return statusAliases[normalizedStatus] || normalizedStatus;
   },
-  u = (arg6) =>
-    arg6 === true || arg6 === 1 || ["true", "on", "1"].includes(String(arg6).toLowerCase());
-export function vacuumStatusRole(arg7 = {}) {
-  if ((arg7.domain || arg7.entityId?.split(".")[0]) !== "sensor") return "";
-  const value5 = arg7.translationKey || arg7.translation_key;
-  return value5
-    ? W.includes(value5)
-      ? value5
+  isTruthyFlag = (rawFlagValue) =>
+    rawFlagValue === true ||
+    rawFlagValue === 1 ||
+    ["true", "on", "1"].includes(String(rawFlagValue).toLowerCase());
+export function vacuumStatusRole(entity = {}) {
+  if ((entity.domain || entity.entityId?.split(".")[0]) !== "sensor") return "";
+  const translationKey = entity.translationKey || entity.translation_key;
+  return translationKey
+    ? statusRoleFields.includes(translationKey)
+      ? translationKey
       : ""
-    : W.find((arg8) =>
-        new RegExp("(?:^|_)" + arg8 + "(?:_\\d+)?$").test(arg7.entityId?.split(".")[1] || ""),
+    : statusRoleFields.find((roleCandidate) =>
+        new RegExp("(?:^|_)" + roleCandidate + "(?:_\\d+)?$").test(
+          entity.entityId?.split(".")[1] || "",
+        ),
       ) || "";
 }
-export function relatedVacuumStatusEntities(arg9, arg10) {
-  const value6 = arg9?.get(arg10);
-  return value6?.deviceId
-    ? [...arg9.values()].filter(
-        (arg11) =>
-          arg11.deviceId === value6.deviceId &&
-          entityMetadataIsAvailable(arg11) &&
-          !arg11.disabled_by &&
-          arg11.enabled !== false &&
-          vacuumStatusRole(arg11),
+export function relatedVacuumStatusEntities(metadataByEntityId, vacuumEntityId) {
+  const vacuumMetadata = metadataByEntityId?.get(vacuumEntityId);
+  return vacuumMetadata?.deviceId
+    ? [...metadataByEntityId.values()].filter(
+        (sensorMetadata) =>
+          sensorMetadata.deviceId === vacuumMetadata.deviceId &&
+          entityMetadataIsAvailable(sensorMetadata) &&
+          !sensorMetadata.disabled_by &&
+          sensorMetadata.enabled !== false &&
+          vacuumStatusRole(sensorMetadata),
       )
     : [];
 }
-export function vacuumStatusBinding(arg12, arg13) {
-  const value7 = relatedVacuumStatusEntities(arg13, arg12.entityId);
-  return !value7.length && !arg13?.get(arg12.entityId)?.deviceId
-    ? arg12
+export function vacuumStatusBinding(binding, relatedMetadataByEntityId) {
+  const relatedStatusEntities = relatedVacuumStatusEntities(
+    relatedMetadataByEntityId,
+    binding.entityId,
+  );
+  return !relatedStatusEntities.length &&
+    !relatedMetadataByEntityId?.get(binding.entityId)?.deviceId
+    ? binding
     : {
-        ...arg12,
+        ...binding,
         relatedEntityIds: [
-          ...new Set([...(arg12.relatedEntityIds || []), ...value7.map((arg14) => arg14.entityId)]),
+          ...new Set([
+            ...(binding.relatedEntityIds || []),
+            ...relatedStatusEntities.map((relatedMetadata) => relatedMetadata.entityId),
+          ]),
         ],
         statusEntityRoles: Object.fromEntries(
-          value7.map((arg15) => [arg15.entityId, vacuumStatusRole(arg15)]),
+          relatedStatusEntities.map((relatedEntity) => [
+            relatedEntity.entityId,
+            vacuumStatusRole(relatedEntity),
+          ]),
         ),
       };
 }
-export function vacuumStatus(arg16, arg17 = []) {
-  const value8 = w(arg16),
-    value9 = value8?.attributes || {},
-    value10 = y(value8?.state || "unknown"),
-    value11 = !["unknown", "unavailable"].includes(value10),
-    object1 = {},
-    set1 = new Set();
-  for (const value27 of arg17) {
-    const value28 = value27.role === undefined ? vacuumStatusRole(value27) : value27.role,
-      value29 = w(value27.state),
-      value30 = y(value29?.state);
-    !value28 ||
-      !value30 ||
-      ["unknown", "unavailable"].includes(value30) ||
-      (["state", "status", "task_status"].includes(value28) &&
-        !v[value30] &&
-        !/[\u3400-\u9fff]/.test(value30)) ||
-      (object1[value28] && object1[value28] !== value30
-        ? set1.add(value28)
-        : (object1[value28] = value30));
+export function vacuumStatus(vacuumStateOrChange, relatedEntities = []) {
+  const stateEntry = resolveStateEntry(vacuumStateOrChange),
+    stateAttributes = stateEntry?.attributes || {},
+    entityStatusKey = normalizeStatusKey(stateEntry?.state || "unknown"),
+    isAvailable = !["unknown", "unavailable"].includes(entityStatusKey),
+    statusByRole = {},
+    conflictingRoleSet = new Set();
+  for (const relatedEntityEntry of relatedEntities) {
+    const relatedRole =
+        relatedEntityEntry.role === undefined
+          ? vacuumStatusRole(relatedEntityEntry)
+          : relatedEntityEntry.role,
+      relatedStateEntry = resolveStateEntry(relatedEntityEntry.state),
+      relatedStatusKey = normalizeStatusKey(relatedStateEntry?.state);
+    !relatedRole ||
+      !relatedStatusKey ||
+      ["unknown", "unavailable"].includes(relatedStatusKey) ||
+      (["state", "status", "task_status"].includes(relatedRole) &&
+        !statusLabels[relatedStatusKey] &&
+        !/[\u3400-\u9fff]/.test(relatedStatusKey)) ||
+      (statusByRole[relatedRole] && statusByRole[relatedRole] !== relatedStatusKey
+        ? conflictingRoleSet.add(relatedRole)
+        : (statusByRole[relatedRole] = relatedStatusKey));
   }
-  for (const value31 of set1) delete object1[value31];
-  const fn1 = (arg18) => {
-      const value32 = y(arg18);
-      return !["unknown", "unavailable"].includes(value32) &&
-        (v[value32] || /[\u3400-\u9fff]/.test(value32))
-        ? value32
+  for (const conflictingRole of conflictingRoleSet) delete statusByRole[conflictingRole];
+  const normalizeKnownStatus = (candidateStatus) => {
+      const knownStatus = normalizeStatusKey(candidateStatus);
+      return !["unknown", "unavailable"].includes(knownStatus) &&
+        (statusLabels[knownStatus] || /[\u3400-\u9fff]/.test(knownStatus))
+        ? knownStatus
         : "";
     },
-    value12 = fn1(value9.vacuum_state) || object1.state,
-    value13 = value12 || fn1(value9.status) || object1.status || object1.task_status;
-  let value14 = value13 || value10;
-  const value15 = object1.self_wash_base_status || y(value9.self_wash_base_status),
-    value16 =
-      !!value13 &&
-      (T.has(value14) ||
-        value14 === "paused" ||
-        value14.endsWith("_paused") ||
-        (R.has(value14) && !["cleaning", "returning"].includes(value14)) ||
-        (value12 &&
+    vacuumStateKey = normalizeKnownStatus(stateAttributes.vacuum_state) || statusByRole.state,
+    resolvedStatusKey =
+      vacuumStateKey ||
+      normalizeKnownStatus(stateAttributes.status) ||
+      statusByRole.status ||
+      statusByRole.task_status;
+  let statusKey = resolvedStatusKey || entityStatusKey;
+  const selfWashBaseStatus =
+      statusByRole.self_wash_base_status ||
+      normalizeStatusKey(stateAttributes.self_wash_base_status),
+    isTaskRunning =
+      !!resolvedStatusKey &&
+      (stationWorkingStatusSet.has(statusKey) ||
+        statusKey === "paused" ||
+        statusKey.endsWith("_paused") ||
+        (movingStatusSet.has(statusKey) && !["cleaning", "returning"].includes(statusKey)) ||
+        (vacuumStateKey &&
           [
             "idle",
             "stopped",
@@ -284,154 +316,191 @@ export function vacuumStatus(arg16, arg17 = []) {
             "charging_completed",
             "smart_charging",
             "upgrading",
-          ].includes(value14))),
-    value17 = !value16 || value10 === "paused",
-    value18 = ["returning", "returning_for_wash", "returning_for_dry_mop"].includes(value15),
-    value19 =
-      value14 === "returning_to_wash" || (!value16 && (u(value9.returning_to_wash) || value18)),
-    value20 = value17 && u(value9.returning_to_wash_paused),
-    value21 =
-      value14 === "washing_paused" ||
-      (value17 && (u(value9.washing_paused) || value15 === "paused")),
-    value22 =
-      value10 === "paused" ||
-      value14 === "paused" ||
-      value21 ||
-      value14.endsWith("_paused") ||
-      (value17 && (u(value9.paused) || value20 || u(value9.returning_paused)));
-  value11
-    ? value10 === "error" || value14 === "error" || u(value9.has_error)
-      ? (value14 = "error")
-      : value20 || (value22 && value19)
-        ? (value14 = "returning_to_wash_paused")
-        : value21
-          ? (value14 = "washing_paused")
-          : value22
-            ? (value14 =
-                value14.endsWith("_paused") && v[value14]
-                  ? value14
-                  : u(value9.returning_paused)
+          ].includes(statusKey))),
+    isPauseApplicable = !isTaskRunning || entityStatusKey === "paused",
+    isReturningForWashBase = ["returning", "returning_for_wash", "returning_for_dry_mop"].includes(
+      selfWashBaseStatus,
+    ),
+    isReturningToWash =
+      statusKey === "returning_to_wash" ||
+      (!isTaskRunning &&
+        (isTruthyFlag(stateAttributes.returning_to_wash) || isReturningForWashBase)),
+    isReturningToWashPaused =
+      isPauseApplicable && isTruthyFlag(stateAttributes.returning_to_wash_paused),
+    isWashingPaused =
+      statusKey === "washing_paused" ||
+      (isPauseApplicable &&
+        (isTruthyFlag(stateAttributes.washing_paused) || selfWashBaseStatus === "paused")),
+    isPaused =
+      entityStatusKey === "paused" ||
+      statusKey === "paused" ||
+      isWashingPaused ||
+      statusKey.endsWith("_paused") ||
+      (isPauseApplicable &&
+        (isTruthyFlag(stateAttributes.paused) ||
+          isReturningToWashPaused ||
+          isTruthyFlag(stateAttributes.returning_paused)));
+  isAvailable
+    ? entityStatusKey === "error" ||
+      statusKey === "error" ||
+      isTruthyFlag(stateAttributes.has_error)
+      ? (statusKey = "error")
+      : isReturningToWashPaused || (isPaused && isReturningToWash)
+        ? (statusKey = "returning_to_wash_paused")
+        : isWashingPaused
+          ? (statusKey = "washing_paused")
+          : isPaused
+            ? (statusKey =
+                statusKey.endsWith("_paused") && statusLabels[statusKey]
+                  ? statusKey
+                  : isTruthyFlag(stateAttributes.returning_paused)
                     ? "returning_paused"
                     : "paused")
-            : !value16 && value19
-              ? (value14 = "returning_to_wash")
-              : !value16 && u(value9.draining)
-                ? (value14 = "draining")
-                : value16 ||
-                  (u(value9.washing) || value15 === "washing"
-                    ? (value14 = "washing")
-                    : u(value9.drying) || value15 === "drying"
-                      ? (value14 = "drying")
-                      : T.has(value15)
-                        ? (value14 = value15)
+            : !isTaskRunning && isReturningToWash
+              ? (statusKey = "returning_to_wash")
+              : !isTaskRunning && isTruthyFlag(stateAttributes.draining)
+                ? (statusKey = "draining")
+                : isTaskRunning ||
+                  (isTruthyFlag(stateAttributes.washing) || selfWashBaseStatus === "washing"
+                    ? (statusKey = "washing")
+                    : isTruthyFlag(stateAttributes.drying) || selfWashBaseStatus === "drying"
+                      ? (statusKey = "drying")
+                      : stationWorkingStatusSet.has(selfWashBaseStatus)
+                        ? (statusKey = selfWashBaseStatus)
                         : ["active", "emptying", "auto_emptying"].includes(
-                              object1.auto_empty_status || y(value9.auto_empty_status),
+                              statusByRole.auto_empty_status ||
+                                normalizeStatusKey(stateAttributes.auto_empty_status),
                             )
-                          ? (value14 = "auto_emptying")
-                          : u(value9.mapping)
-                            ? (value14 = "mapping")
-                            : u(value9.returning) && (!value13 || value14 === "returning")
-                              ? (value14 = "returning")
-                              : b.has(value10) &&
-                                (!value13 || b.has(value14)) &&
-                                b.has(object1.charging_status) &&
-                                (value14 = object1.charging_status))
-    : (value14 = value10);
-  const value23 =
-      !value11 || value14 === "error" || value14 === "paused" || value14.endsWith("_paused"),
-    value24 = !value23 && R.has(value14),
-    value25 = !value23 && T.has(value14),
-    value26 =
-      value11 &&
-      !value24 &&
-      (b.has(value14) ||
-        value25 ||
+                          ? (statusKey = "auto_emptying")
+                          : isTruthyFlag(stateAttributes.mapping)
+                            ? (statusKey = "mapping")
+                            : isTruthyFlag(stateAttributes.returning) &&
+                                (!resolvedStatusKey || statusKey === "returning")
+                              ? (statusKey = "returning")
+                              : dockedStatusSet.has(entityStatusKey) &&
+                                (!resolvedStatusKey || dockedStatusSet.has(statusKey)) &&
+                                dockedStatusSet.has(statusByRole.charging_status) &&
+                                (statusKey = statusByRole.charging_status))
+    : (statusKey = entityStatusKey);
+  const isPausedOrError =
+      !isAvailable ||
+      statusKey === "error" ||
+      statusKey === "paused" ||
+      statusKey.endsWith("_paused"),
+    isMoving = !isPausedOrError && movingStatusSet.has(statusKey),
+    isStationWorking = !isPausedOrError && stationWorkingStatusSet.has(statusKey),
+    isDocked =
+      isAvailable &&
+      !isMoving &&
+      (dockedStatusSet.has(statusKey) ||
+        isStationWorking ||
         [
           "washing_paused",
           "drying_paused",
           "dust_bag_drying_paused",
           "changing_mop_paused",
-        ].includes(value14) ||
-        b.has(value10) ||
-        (!value22 && (u(value9.docked) || u(value9.charging))));
+        ].includes(statusKey) ||
+        dockedStatusSet.has(entityStatusKey) ||
+        (!isPaused &&
+          (isTruthyFlag(stateAttributes.docked) || isTruthyFlag(stateAttributes.charging))));
   return {
-    key: value14,
+    key: statusKey,
     status:
-      v[value14] ||
-      (/[\u3400-\u9fff]/.test(value14) ? String(value13 || value8?.state).trim() : "状态更新中"),
-    available: value11,
-    active: !value23 && (value24 || value25),
-    moving: value24,
-    stationWorking: value25,
-    docked: value26,
-    paused: value11 && value14 !== "error" && (value14 === "paused" || value14.endsWith("_paused")),
-    returning: value24 && (value14.startsWith("returning") || value14 === "intelligent_recharging"),
+      statusLabels[statusKey] ||
+      (/[\u3400-\u9fff]/.test(statusKey)
+        ? String(resolvedStatusKey || stateEntry?.state).trim()
+        : "状态更新中"),
+    available: isAvailable,
+    active: !isPausedOrError && (isMoving || isStationWorking),
+    moving: isMoving,
+    stationWorking: isStationWorking,
+    docked: isDocked,
+    paused:
+      isAvailable &&
+      statusKey !== "error" &&
+      (statusKey === "paused" || statusKey.endsWith("_paused")),
+    returning:
+      isMoving && (statusKey.startsWith("returning") || statusKey === "intelligent_recharging"),
   };
 }
-function z(arg19) {
-  if (arg19 == null || String(arg19).trim() === "") return null;
-  const value33 = Number.parseFloat(String(arg19));
-  return Number.isFinite(value33) ? Math.max(0, Math.min(100, value33)) : null;
+function parsePercent(rawPercent) {
+  if (rawPercent == null || String(rawPercent).trim() === "") return null;
+  const parsedPercent = Number.parseFloat(String(rawPercent));
+  return Number.isFinite(parsedPercent) ? Math.max(0, Math.min(100, parsedPercent)) : null;
 }
-export function vacuumBatteryPercent(arg20, arg21 = null) {
-  const value34 = w(arg20)?.attributes || {};
-  for (const value35 of [value34.battery_level, value34.battery_percentage, value34.battery]) {
-    const value36 = z(value35);
-    if (value36 !== null) return value36;
+export function vacuumBatteryPercent(batterySourceState, batterySensor = null) {
+  const batteryAttributes = resolveStateEntry(batterySourceState)?.attributes || {};
+  for (const batteryAttribute of [
+    batteryAttributes.battery_level,
+    batteryAttributes.battery_percentage,
+    batteryAttributes.battery,
+  ]) {
+    const batteryPercent = parsePercent(batteryAttribute);
+    if (batteryPercent !== null) return batteryPercent;
   }
-  return z(w(arg21)?.state);
+  return parsePercent(resolveStateEntry(batterySensor)?.state);
 }
-export function relatedVacuumBatteryEntity(arg22, arg23, arg24) {
-  const value37 = arg22.get(arg24);
+export function relatedVacuumBatteryEntity(
+  batteryMetadataByEntityId,
+  statesByEntityId,
+  batteryVacuumEntityId,
+) {
+  const batteryVacuumMetadata = batteryMetadataByEntityId.get(batteryVacuumEntityId);
   return (
-    (value37?.deviceId &&
-      [...arg22.values()]
+    (batteryVacuumMetadata?.deviceId &&
+      [...batteryMetadataByEntityId.values()]
         .filter(
-          (arg25) =>
-            arg25.deviceId === value37.deviceId &&
-            arg25.domain === "sensor" &&
-            entityMetadataIsAvailable(arg25),
+          (candidateSensorMetadata) =>
+            candidateSensorMetadata.deviceId === batteryVacuumMetadata.deviceId &&
+            candidateSensorMetadata.domain === "sensor" &&
+            entityMetadataIsAvailable(candidateSensorMetadata),
         )
-        .map((arg26) => {
-          const value38 = w(arg23.get(arg26.entityId)),
-            value39 = value38?.attributes || {},
-            value40 = (
-              (arg26.entityId || "") +
+        .map((candidateEntityMetadata) => {
+          const candidateStateEntry = resolveStateEntry(
+              statesByEntityId.get(candidateEntityMetadata.entityId),
+            ),
+            candidateAttributes = candidateStateEntry?.attributes || {},
+            searchText = (
+              (candidateEntityMetadata.entityId || "") +
               " " +
-              (arg26.name || "") +
+              (candidateEntityMetadata.name || "") +
               " " +
-              (arg26.originalName || "") +
+              (candidateEntityMetadata.originalName || "") +
               " " +
-              (arg26.translationKey || "") +
+              (candidateEntityMetadata.translationKey || "") +
               " " +
-              (arg26.icon || "")
+              (candidateEntityMetadata.icon || "")
             ).toLowerCase(),
-            value41 = String(value39.device_class || "").toLowerCase(),
-            value42 = String(value39.unit_of_measurement || "").trim();
-          let value43 = 0;
+            deviceClass = String(candidateAttributes.device_class || "").toLowerCase(),
+            measurementUnit = String(candidateAttributes.unit_of_measurement || "").trim();
+          let batteryScore = 0;
           return (
-            value41 === "battery" && (value43 += 240),
-            String(arg26.translationKey || "").toLowerCase() === "battery" && (value43 += 210),
+            deviceClass === "battery" && (batteryScore += 240),
+            String(candidateEntityMetadata.translationKey || "").toLowerCase() === "battery" &&
+              (batteryScore += 210),
             /(?:^|[._\s-])battery(?:_level|_percentage)?(?:$|[._\s-])|电池电量|剩余电量|电量/.test(
-              value40,
-            ) && (value43 += 150),
-            /mdi:battery/.test(value40) && (value43 += 60),
-            value42 === "%" && (value43 += 25),
-            /filter|brush|mop|consumable|life|尘袋|滤芯|主刷|边刷|拖布|耗材/.test(value40) &&
-              (value43 -= 260),
-            z(value38?.state) === null && (value43 -= 40),
+              searchText,
+            ) && (batteryScore += 150),
+            /mdi:battery/.test(searchText) && (batteryScore += 60),
+            measurementUnit === "%" && (batteryScore += 25),
+            /filter|brush|mop|consumable|life|尘袋|滤芯|主刷|边刷|拖布|耗材/.test(searchText) &&
+              (batteryScore -= 260),
+            parsePercent(candidateStateEntry?.state) === null && (batteryScore -= 40),
             {
-              item: arg26,
-              score: value43,
+              item: candidateEntityMetadata,
+              score: batteryScore,
             }
           );
         })
-        .filter(({ score: arg27 }) => arg27 > 0)
+        .filter(({ score: candidateScore }) => candidateScore > 0)
         .sort(
-          (arg28, arg29) =>
-            arg29.score - arg28.score ||
-            String(arg28.item.entityId || "").length - String(arg29.item.entityId || "").length ||
-            String(arg28.item.entityId || "").localeCompare(String(arg29.item.entityId || "")),
+          (leftCandidate, rightCandidate) =>
+            rightCandidate.score - leftCandidate.score ||
+            String(leftCandidate.item.entityId || "").length -
+              String(rightCandidate.item.entityId || "").length ||
+            String(leftCandidate.item.entityId || "").localeCompare(
+              String(rightCandidate.item.entityId || ""),
+            ),
         )[0]?.item) ||
     null
   );
