@@ -1,0 +1,1029 @@
+{
+  "file": "frontend/modules/interaction3d/television-state.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 169,
+  "counts": {
+    "entries": 52,
+    "renameable": 52,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "v@1",
+      "name": "v",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = v(arg6, arg5.entityId),"
+        },
+        {
+          "line": 105,
+          "text": "value22 = v(arg11, value20),"
+        },
+        {
+          "line": 136,
+          "text": "const value30 = v(arg14, arg13.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);",
+      "references": [
+        {
+          "line": 1,
+          "text": "const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);",
+      "references": [
+        {
+          "line": 1,
+          "text": "const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@2",
+      "name": "arg3",
+      "line": 2,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionArtwork(arg3 = {}) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "[arg3.entity_picture_local, arg3.entity_picture, arg3.media_image_url].find("
+        }
+      ]
+    },
+    {
+      "key": "arg4@5",
+      "name": "arg4",
+      "line": 5,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg4) =>",
+      "references": [
+        {
+          "line": 6,
+          "text": "typeof arg4 == \"string\" && /^\\/api\\/(?:media_player_proxy|image_proxy)\\/[^\\s]+$/.test(arg4),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@10",
+      "name": "arg5",
+      "line": 10,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionState(arg5, arg6 = {}, arg7 = Date.now()) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = v(arg6, arg5.entityId),"
+        },
+        {
+          "line": 16,
+          "text": "!!arg5.entityId &&"
+        },
+        {
+          "line": 20,
+          "text": "value7 = televisionPower(arg5, arg6),"
+        },
+        {
+          "line": 21,
+          "text": "value8 = arg5.powerEntityId ? value7.available : value5,"
+        }
+      ]
+    },
+    {
+      "key": "arg6@10",
+      "name": "arg6",
+      "line": 10,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionState(arg5, arg6 = {}, arg7 = Date.now()) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = v(arg6, arg5.entityId),"
+        },
+        {
+          "line": 20,
+          "text": "value7 = televisionPower(arg5, arg6),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@10",
+      "name": "arg7",
+      "line": 10,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionState(arg5, arg6 = {}, arg7 = Date.now()) {",
+      "references": [
+        {
+          "line": 31,
+          "text": "? Math.max(0, (arg7 - value13) / 1000)"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = v(arg6, arg5.entityId),",
+      "references": [
+        {
+          "line": 12,
+          "text": "value2 = value1?.newState || value1 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value2@12",
+      "name": "value2",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = value1?.newState || value1 || {},",
+      "references": [
+        {
+          "line": 13,
+          "text": "value3 = value2.attributes || {},"
+        },
+        {
+          "line": 14,
+          "text": "value4 = String(value2.state || \"unknown\").toLowerCase(),"
+        },
+        {
+          "line": 17,
+          "text": "value2.available !== false &&"
+        },
+        {
+          "line": 94,
+          "text": "updated: value2.updatedAt || value2.last_updated || \"\","
+        }
+      ]
+    },
+    {
+      "key": "value3@13",
+      "name": "value3",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = value2.attributes || {},",
+      "references": [
+        {
+          "line": 26,
+          "text": "value11 = fn1(value3.media_duration),"
+        },
+        {
+          "line": 27,
+          "text": "value12 = fn1(value3.media_position),"
+        },
+        {
+          "line": 28,
+          "text": "value13 = Date.parse(value3.media_position_updated_at || \"\"),"
+        },
+        {
+          "line": 33,
+          "text": "let value15 = value9 && !value10 ? televisionArtwork(value3) : \"\";"
+        }
+      ]
+    },
+    {
+      "key": "value4@14",
+      "name": "value4",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = String(value2.state || \"unknown\").toLowerCase(),",
+      "references": [
+        {
+          "line": 18,
+          "text": "![\"unknown\", \"unavailable\", \"\"].includes(value4),"
+        },
+        {
+          "line": 19,
+          "text": "value6 = value5 && ![\"off\", \"standby\"].includes(value4),"
+        },
+        {
+          "line": 23,
+          "text": "value10 = value9 && (!value6 || [\"on\", \"idle\"].includes(value4)),"
+        },
+        {
+          "line": 30,
+          "text": "value9 && value4 === \"playing\" && Number.isFinite(value13)"
+        }
+      ]
+    },
+    {
+      "key": "value5@15",
+      "name": "value5",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 =",
+      "references": [
+        {
+          "line": 19,
+          "text": "value6 = value5 && ![\"off\", \"standby\"].includes(value4),"
+        },
+        {
+          "line": 21,
+          "text": "value8 = arg5.powerEntityId ? value7.available : value5,"
+        },
+        {
+          "line": 56,
+          "text": "mediaAvailable: value5,"
+        }
+      ]
+    },
+    {
+      "key": "value6@19",
+      "name": "value6",
+      "line": 19,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = value5 && ![\"off\", \"standby\"].includes(value4),",
+      "references": [
+        {
+          "line": 22,
+          "text": "value9 = arg5.powerEntityId ? value7.on : value6,"
+        },
+        {
+          "line": 23,
+          "text": "value10 = value9 && (!value6 || [\"on\", \"idle\"].includes(value4)),"
+        },
+        {
+          "line": 57,
+          "text": "playing: value9 && value6 && value4 === \"playing\","
+        },
+        {
+          "line": 65,
+          "text": ": value9 && !value6"
+        }
+      ]
+    },
+    {
+      "key": "value7@20",
+      "name": "value7",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = televisionPower(arg5, arg6),",
+      "references": [
+        {
+          "line": 21,
+          "text": "value8 = arg5.powerEntityId ? value7.available : value5,"
+        },
+        {
+          "line": 22,
+          "text": "value9 = arg5.powerEntityId ? value7.on : value6,"
+        }
+      ]
+    },
+    {
+      "key": "value8@21",
+      "name": "value8",
+      "line": 21,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = arg5.powerEntityId ? value7.available : value5,",
+      "references": [
+        {
+          "line": 53,
+          "text": "available: value8,"
+        },
+        {
+          "line": 62,
+          "text": ": value8"
+        }
+      ]
+    },
+    {
+      "key": "value9@22",
+      "name": "value9",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = arg5.powerEntityId ? value7.on : value6,",
+      "references": [
+        {
+          "line": 23,
+          "text": "value10 = value9 && (!value6 || [\"on\", \"idle\"].includes(value4)),"
+        },
+        {
+          "line": 30,
+          "text": "value9 && value4 === \"playing\" && Number.isFinite(value13)"
+        },
+        {
+          "line": 33,
+          "text": "let value15 = value9 && !value10 ? televisionArtwork(value3) : \"\";"
+        },
+        {
+          "line": 54,
+          "text": "on: value9,"
+        }
+      ]
+    },
+    {
+      "key": "value10@23",
+      "name": "value10",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = value9 && (!value6 || [\"on\", \"idle\"].includes(value4)),",
+      "references": [
+        {
+          "line": 33,
+          "text": "let value15 = value9 && !value10 ? televisionArtwork(value3) : \"\";"
+        },
+        {
+          "line": 55,
+          "text": "idle: value10,"
+        },
+        {
+          "line": 77,
+          "text": "title: value10"
+        }
+      ]
+    },
+    {
+      "key": "fn1@24",
+      "name": "fn1",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg8) =>",
+      "references": [
+        {
+          "line": 26,
+          "text": "value11 = fn1(value3.media_duration),"
+        },
+        {
+          "line": 27,
+          "text": "value12 = fn1(value3.media_position),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@24",
+      "name": "arg8",
+      "line": 24,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg8) =>",
+      "references": [
+        {
+          "line": 25,
+          "text": "arg8 !== null && arg8 !== \"\" && Number.isFinite(Number(arg8)) ? Number(arg8) : null,"
+        }
+      ]
+    },
+    {
+      "key": "value11@26",
+      "name": "value11",
+      "line": 26,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = fn1(value3.media_duration),",
+      "references": [
+        {
+          "line": 89,
+          "text": "duration: value11 > 0 ? value11 : null,"
+        },
+        {
+          "line": 92,
+          "text": "? Math.min(value11 > 0 ? value11 : Infinity, Math.max(0, value12 + value14))"
+        }
+      ]
+    },
+    {
+      "key": "value12@27",
+      "name": "value12",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = fn1(value3.media_position),",
+      "references": [
+        {
+          "line": 91,
+          "text": "value12 !== null"
+        },
+        {
+          "line": 92,
+          "text": "? Math.min(value11 > 0 ? value11 : Infinity, Math.max(0, value12 + value14))"
+        }
+      ]
+    },
+    {
+      "key": "value13@28",
+      "name": "value13",
+      "line": 28,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = Date.parse(value3.media_position_updated_at || \"\"),",
+      "references": [
+        {
+          "line": 30,
+          "text": "value9 && value4 === \"playing\" && Number.isFinite(value13)"
+        },
+        {
+          "line": 31,
+          "text": "? Math.max(0, (arg7 - value13) / 1000)"
+        }
+      ]
+    },
+    {
+      "key": "value14@29",
+      "name": "value14",
+      "line": 29,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 =",
+      "references": [
+        {
+          "line": 92,
+          "text": "? Math.min(value11 > 0 ? value11 : Infinity, Math.max(0, value12 + value14))"
+        }
+      ]
+    },
+    {
+      "key": "value15@33",
+      "name": "value15",
+      "line": 33,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value15 = value9 && !value10 ? televisionArtwork(value3) : \"\";",
+      "references": [
+        {
+          "line": 34,
+          "text": "if (value15) {"
+        },
+        {
+          "line": 49,
+          "text": "value15 += (value15.includes(\"?\") ? \"&\" : \"?\") + \"hb_i3d=\" + (value17 >>> 0).toString(36);"
+        },
+        {
+          "line": 88,
+          "text": "artwork: value15,"
+        }
+      ]
+    },
+    {
+      "key": "value16@35",
+      "name": "value16",
+      "line": 35,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = JSON.stringify([",
+      "references": [
+        {
+          "line": 47,
+          "text": "for (let value18 = 0; value18 < value16.length; value18++)"
+        },
+        {
+          "line": 48,
+          "text": "value17 = Math.imul(value17 ^ value16.charCodeAt(value18), 16777619);"
+        }
+      ]
+    },
+    {
+      "key": "value17@46",
+      "name": "value17",
+      "line": 46,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value17 = 2166136261;",
+      "references": [
+        {
+          "line": 48,
+          "text": "value17 = Math.imul(value17 ^ value16.charCodeAt(value18), 16777619);"
+        },
+        {
+          "line": 49,
+          "text": "value15 += (value15.includes(\"?\") ? \"&\" : \"?\") + \"hb_i3d=\" + (value17 >>> 0).toString(36);"
+        }
+      ]
+    },
+    {
+      "key": "value18@47",
+      "name": "value18",
+      "line": 47,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value18 = 0; value18 < value16.length; value18++)",
+      "references": [
+        {
+          "line": 47,
+          "text": "for (let value18 = 0; value18 < value16.length; value18++)"
+        },
+        {
+          "line": 48,
+          "text": "value17 = Math.imul(value17 ^ value16.charCodeAt(value18), 16777619);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@97",
+      "name": "arg9",
+      "line": 97,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionTime(arg9) {",
+      "references": [
+        {
+          "line": 98,
+          "text": "if (!Number.isFinite(arg9)) return \"—\";"
+        },
+        {
+          "line": 99,
+          "text": "const value19 = Math.max(0, Math.floor(arg9));"
+        }
+      ]
+    },
+    {
+      "key": "value19@99",
+      "name": "value19",
+      "line": 99,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = Math.max(0, Math.floor(arg9));",
+      "references": [
+        {
+          "line": 100,
+          "text": "return Math.floor(value19 / 60) + \":\" + String(value19 % 60).padStart(2, \"0\");"
+        }
+      ]
+    },
+    {
+      "key": "arg10@102",
+      "name": "arg10",
+      "line": 102,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionPower(arg10, arg11 = {}, arg12) {",
+      "references": [
+        {
+          "line": 103,
+          "text": "const value20 = arg10.powerEntityId || arg10.entityId || \"\","
+        }
+      ]
+    },
+    {
+      "key": "arg11@102",
+      "name": "arg11",
+      "line": 102,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionPower(arg10, arg11 = {}, arg12) {",
+      "references": [
+        {
+          "line": 105,
+          "text": "value22 = v(arg11, value20),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@102",
+      "name": "arg12",
+      "line": 102,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionPower(arg10, arg11 = {}, arg12) {",
+      "references": [
+        {
+          "line": 113,
+          "text": "value26 = typeof arg12 == \"boolean\" ? arg12 : !value25,"
+        }
+      ]
+    },
+    {
+      "key": "value20@103",
+      "name": "value20",
+      "line": 103,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = arg10.powerEntityId || arg10.entityId || \"\",",
+      "references": [
+        {
+          "line": 104,
+          "text": "value21 = value20.split(\".\")[0],"
+        },
+        {
+          "line": 105,
+          "text": "value22 = v(arg11, value20),"
+        },
+        {
+          "line": 108,
+          "text": "!!value20 &&"
+        },
+        {
+          "line": 119,
+          "text": "entityId: value20,"
+        }
+      ]
+    },
+    {
+      "key": "value21@104",
+      "name": "value21",
+      "line": 104,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = value20.split(\".\")[0],",
+      "references": [
+        {
+          "line": 117,
+          "text": "value21 === \"switch\" || (value21 === \"media_player\" && !!(value28 & (value26 ? 128 : 256)));"
+        },
+        {
+          "line": 120,
+          "text": "domain: value21,"
+        },
+        {
+          "line": 128,
+          "text": "domain: value21,"
+        }
+      ]
+    },
+    {
+      "key": "value22@105",
+      "name": "value22",
+      "line": 105,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = v(arg11, value20),",
+      "references": [
+        {
+          "line": 106,
+          "text": "value23 = value22?.newState || value22 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value23@106",
+      "name": "value23",
+      "line": 106,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = value22?.newState || value22 || {},",
+      "references": [
+        {
+          "line": 109,
+          "text": "value23.available !== false &&"
+        },
+        {
+          "line": 110,
+          "text": "typeof value23.state == \"string\" &&"
+        },
+        {
+          "line": 111,
+          "text": "![\"unknown\", \"unavailable\", \"\"].includes(value23.state),"
+        },
+        {
+          "line": 112,
+          "text": "value25 = value24 && ![\"off\", \"standby\"].includes(value23.state),"
+        }
+      ]
+    },
+    {
+      "key": "value24@107",
+      "name": "value24",
+      "line": 107,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 =",
+      "references": [
+        {
+          "line": 112,
+          "text": "value25 = value24 && ![\"off\", \"standby\"].includes(value23.state),"
+        },
+        {
+          "line": 122,
+          "text": "available: value24,"
+        },
+        {
+          "line": 125,
+          "text": "reason: value24 ? (value29 ? \"\" : \"此实体不支持开关机\") : \"电源状态不可用\","
+        }
+      ]
+    },
+    {
+      "key": "value25@112",
+      "name": "value25",
+      "line": 112,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value25 = value24 && ![\"off\", \"standby\"].includes(value23.state),",
+      "references": [
+        {
+          "line": 113,
+          "text": "value26 = typeof arg12 == \"boolean\" ? arg12 : !value25,"
+        },
+        {
+          "line": 121,
+          "text": "on: value25,"
+        }
+      ]
+    },
+    {
+      "key": "value26@113",
+      "name": "value26",
+      "line": 113,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value26 = typeof arg12 == \"boolean\" ? arg12 : !value25,",
+      "references": [
+        {
+          "line": 114,
+          "text": "value27 = value26 ? \"turn_on\" : \"turn_off\","
+        },
+        {
+          "line": 117,
+          "text": "value21 === \"switch\" || (value21 === \"media_player\" && !!(value28 & (value26 ? 128 : 256)));"
+        }
+      ]
+    },
+    {
+      "key": "value27@114",
+      "name": "value27",
+      "line": 114,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value27 = value26 ? \"turn_on\" : \"turn_off\",",
+      "references": [
+        {
+          "line": 124,
+          "text": "service: value27,"
+        },
+        {
+          "line": 129,
+          "text": "service: value27,"
+        }
+      ]
+    },
+    {
+      "key": "value28@115",
+      "name": "value28",
+      "line": 115,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value28 = Number(value23.attributes?.supported_features) || 0,",
+      "references": [
+        {
+          "line": 117,
+          "text": "value21 === \"switch\" || (value21 === \"media_player\" && !!(value28 & (value26 ? 128 : 256)));"
+        }
+      ]
+    },
+    {
+      "key": "value29@116",
+      "name": "value29",
+      "line": 116,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 =",
+      "references": [
+        {
+          "line": 123,
+          "text": "supported: value29,"
+        },
+        {
+          "line": 125,
+          "text": "reason: value24 ? (value29 ? \"\" : \"此实体不支持开关机\") : \"电源状态不可用\","
+        }
+      ]
+    },
+    {
+      "key": "arg13@135",
+      "name": "arg13",
+      "line": 135,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionMediaControl(arg13, arg14, arg15) {",
+      "references": [
+        {
+          "line": 136,
+          "text": "const value30 = v(arg14, arg13.entityId),"
+        },
+        {
+          "line": 138,
+          "text": "value32 = televisionState(arg13, arg14),"
+        },
+        {
+          "line": 162,
+          "text": "entityId: arg13.entityId,"
+        }
+      ]
+    },
+    {
+      "key": "arg14@135",
+      "name": "arg14",
+      "line": 135,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionMediaControl(arg13, arg14, arg15) {",
+      "references": [
+        {
+          "line": 136,
+          "text": "const value30 = v(arg14, arg13.entityId),"
+        },
+        {
+          "line": 138,
+          "text": "value32 = televisionState(arg13, arg14),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@135",
+      "name": "arg15",
+      "line": 135,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function televisionMediaControl(arg13, arg14, arg15) {",
+      "references": [
+        {
+          "line": 141,
+          "text": "arg15 === \"previous\""
+        },
+        {
+          "line": 143,
+          "text": ": arg15 === \"next\""
+        }
+      ]
+    },
+    {
+      "key": "value30@136",
+      "name": "value30",
+      "line": 136,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value30 = v(arg14, arg13.entityId),",
+      "references": [
+        {
+          "line": 137,
+          "text": "value31 = value30?.newState || value30 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value31@137",
+      "name": "value31",
+      "line": 137,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value31 = value30?.newState || value30 || {},",
+      "references": [
+        {
+          "line": 139,
+          "text": "value33 = Number(value31.attributes?.supported_features) || 0,"
+        }
+      ]
+    },
+    {
+      "key": "value32@138",
+      "name": "value32",
+      "line": 138,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value32 = televisionState(arg13, arg14),",
+      "references": [
+        {
+          "line": 145,
+          "text": ": value32.playing"
+        },
+        {
+          "line": 156,
+          "text": "value32.on &&"
+        },
+        {
+          "line": 157,
+          "text": "value32.mediaAvailable &&"
+        },
+        {
+          "line": 158,
+          "text": "![\"off\", \"standby\"].includes(value32.state) &&"
+        }
+      ]
+    },
+    {
+      "key": "value33@139",
+      "name": "value33",
+      "line": 139,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value33 = Number(value31.attributes?.supported_features) || 0,",
+      "references": [
+        {
+          "line": 159,
+          "text": "!!(value33 & value35),"
+        }
+      ]
+    },
+    {
+      "key": "value34@140",
+      "name": "value34",
+      "line": 140,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value34 =",
+      "references": [
+        {
+          "line": 153,
+          "text": "}[value34];"
+        },
+        {
+          "line": 163,
+          "text": "service: value34,"
+        }
+      ]
+    },
+    {
+      "key": "value35@148",
+      "name": "value35",
+      "line": 148,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value35 = {",
+      "references": [
+        {
+          "line": 159,
+          "text": "!!(value33 & value35),"
+        }
+      ]
+    }
+  ]
+}

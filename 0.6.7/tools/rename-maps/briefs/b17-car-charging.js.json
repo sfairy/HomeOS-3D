@@ -1,0 +1,1059 @@
+{
+  "file": "frontend/modules/interaction3d/car-charging.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 166,
+  "counts": {
+    "entries": 54,
+    "renameable": 54,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createCarCharging({ requestFrame: arg1 = () => {} } = {}) {",
+      "references": [
+        {
+          "line": 38,
+          "text": "value10 && arg1();"
+        },
+        {
+          "line": 146,
+          "text": "value20.on.value !== value22 && ((value20.on.value = value22), arg1());"
+        },
+        {
+          "line": 156,
+          "text": "return (value3 && arg1(), value3);"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1,",
+      "references": [
+        {
+          "line": 24,
+          "text": "if (value8 === value1) return true;"
+        },
+        {
+          "line": 49,
+          "text": "value1 !== arg6 ||"
+        },
+        {
+          "line": 63,
+          "text": "value1?.traverse((arg14) => {"
+        }
+      ]
+    },
+    {
+      "key": "value2@4",
+      "name": "value2",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2,",
+      "references": [
+        {
+          "line": 50,
+          "text": "value2 !== arg7 ||"
+        }
+      ]
+    },
+    {
+      "key": "list1@5",
+      "name": "list1",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [],",
+      "references": [
+        {
+          "line": 51,
+          "text": "list1.length !== arg8.length ||"
+        },
+        {
+          "line": 52,
+          "text": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])"
+        }
+      ]
+    },
+    {
+      "key": "list2@6",
+      "name": "list2",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2 = [],",
+      "references": [
+        {
+          "line": 12,
+          "text": "for (const value6 of list2) fn3(value6);"
+        },
+        {
+          "line": 34,
+          "text": "for (const value11 of list2) {"
+        },
+        {
+          "line": 55,
+          "text": "((list2 = list2.filter((arg13) => {"
+        },
+        {
+          "line": 66,
+          "text": "list2.some((arg15) => arg15.model === arg14)"
+        }
+      ]
+    },
+    {
+      "key": "value3@7",
+      "name": "value3",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = false,",
+      "references": [
+        {
+          "line": 156,
+          "text": "return (value3 && arg1(), value3);"
+        },
+        {
+          "line": 159,
+          "text": "return value3 ? 1000 / 30 : Infinity;"
+        }
+      ]
+    },
+    {
+      "key": "value4@8",
+      "name": "value4",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = false,",
+      "references": [
+        {
+          "line": 31,
+          "text": "if (value4 || value9 === value5) return;"
+        },
+        {
+          "line": 47,
+          "text": "if (!value4) {"
+        },
+        {
+          "line": 162,
+          "text": "value4 || ((value4 = true), fn2(), (value1 = null), (list1 = []));"
+        }
+      ]
+    },
+    {
+      "key": "value5@9",
+      "name": "value5",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = 1;",
+      "references": [
+        {
+          "line": 31,
+          "text": "if (value4 || value9 === value5) return;"
+        },
+        {
+          "line": 145,
+          "text": "const value22 = value20.charging ? value5 : 0;"
+        }
+      ]
+    },
+    {
+      "key": "fn1@10",
+      "name": "fn1",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => globalThis.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches === true,",
+      "references": [
+        {
+          "line": 155,
+          "text": "((value23.time.value = fn1() ? 1.4 : arg21 / 1000), (value3 ||= !fn1()));"
+        }
+      ]
+    },
+    {
+      "key": "fn2@11",
+      "name": "fn2",
+      "line": 11,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = () => {",
+      "references": [
+        {
+          "line": 162,
+          "text": "value4 || ((value4 = true), fn2(), (value1 = null), (list1 = []));"
+        }
+      ]
+    },
+    {
+      "key": "value6@12",
+      "name": "value6",
+      "line": 12,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of list2) fn3(value6);",
+      "references": [
+        {
+          "line": 12,
+          "text": "for (const value6 of list2) fn3(value6);"
+        }
+      ]
+    },
+    {
+      "key": "fn3@15",
+      "name": "fn3",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg2) => {",
+      "references": [
+        {
+          "line": 12,
+          "text": "for (const value6 of list2) fn3(value6);"
+        },
+        {
+          "line": 58,
+          "text": "return (fn3(arg13), false);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@15",
+      "name": "arg2",
+      "line": 15,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg2) => {",
+      "references": [
+        {
+          "line": 16,
+          "text": "arg2.on.value = 0;"
+        },
+        {
+          "line": 17,
+          "text": "for (const value7 of arg2.parts)"
+        }
+      ]
+    },
+    {
+      "key": "value7@17",
+      "name": "value7",
+      "line": 17,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of arg2.parts)",
+      "references": [
+        {
+          "line": 18,
+          "text": "(value7.mesh.material === value7.replacement && (value7.mesh.material = value7.original),"
+        },
+        {
+          "line": 19,
+          "text": "value7.materials.forEach((arg3) => arg3.dispose()));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@19",
+      "name": "arg3",
+      "line": 19,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7.materials.forEach((arg3) => arg3.dispose()));",
+      "references": [
+        {
+          "line": 19,
+          "text": "value7.materials.forEach((arg3) => arg3.dispose()));"
+        }
+      ]
+    },
+    {
+      "key": "fn4@21",
+      "name": "fn4",
+      "line": 21,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg4) => {",
+      "references": [
+        {
+          "line": 154,
+          "text": "fn4(value23.model) &&"
+        }
+      ]
+    },
+    {
+      "key": "arg4@21",
+      "name": "arg4",
+      "line": 21,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg4) => {",
+      "references": [
+        {
+          "line": 22,
+          "text": "for (let value8 = arg4; value8; value8 = value8.parent) {"
+        }
+      ]
+    },
+    {
+      "key": "value8@22",
+      "name": "value8",
+      "line": 22,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value8 = arg4; value8; value8 = value8.parent) {",
+      "references": [
+        {
+          "line": 22,
+          "text": "for (let value8 = arg4; value8; value8 = value8.parent) {"
+        },
+        {
+          "line": 23,
+          "text": "if (value8.visible === false) return false;"
+        },
+        {
+          "line": 24,
+          "text": "if (value8 === value1) return true;"
+        }
+      ]
+    },
+    {
+      "key": "arg5@29",
+      "name": "arg5",
+      "line": 29,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setPresentationGain(arg5) {",
+      "references": [
+        {
+          "line": 30,
+          "text": "const value9 = Number.isFinite(arg5) ? Math.min(1, Math.max(0, arg5)) : 1;"
+        }
+      ]
+    },
+    {
+      "key": "value9@30",
+      "name": "value9",
+      "line": 30,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = Number.isFinite(arg5) ? Math.min(1, Math.max(0, arg5)) : 1;",
+      "references": [
+        {
+          "line": 31,
+          "text": "if (value4 || value9 === value5) return;"
+        },
+        {
+          "line": 32,
+          "text": "((value5 = value9), value9 === 0 && (value3 = false));"
+        },
+        {
+          "line": 35,
+          "text": "const value12 = value11.charging ? value9 : 0;"
+        }
+      ]
+    },
+    {
+      "key": "value10@33",
+      "name": "value10",
+      "line": 33,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value10 = false;",
+      "references": [
+        {
+          "line": 38,
+          "text": "value10 && arg1();"
+        }
+      ]
+    },
+    {
+      "key": "value11@34",
+      "name": "value11",
+      "line": 34,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value11 of list2) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "const value12 = value11.charging ? value9 : 0;"
+        },
+        {
+          "line": 36,
+          "text": "value11.on.value !== value12 && ((value11.on.value = value12), (value10 = true));"
+        }
+      ]
+    },
+    {
+      "key": "value12@35",
+      "name": "value12",
+      "line": 35,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = value11.charging ? value9 : 0;",
+      "references": [
+        {
+          "line": 36,
+          "text": "value11.on.value !== value12 && ((value11.on.value = value12), (value10 = true));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@41",
+      "name": "arg6",
+      "line": 41,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "root: arg6,",
+      "references": [
+        {
+          "line": 49,
+          "text": "value1 !== arg6 ||"
+        },
+        {
+          "line": 54,
+          "text": "const set1 = new Set([arg6, ...arg8].filter(Boolean));"
+        },
+        {
+          "line": 60,
+          "text": "(value1 = arg6),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@42",
+      "name": "arg7",
+      "line": 42,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "revision: arg7,",
+      "references": [
+        {
+          "line": 50,
+          "text": "value2 !== arg7 ||"
+        },
+        {
+          "line": 61,
+          "text": "(value2 = arg7),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@43",
+      "name": "arg8",
+      "line": 43,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "retainedRoots: arg8 = [],",
+      "references": [
+        {
+          "line": 51,
+          "text": "list1.length !== arg8.length ||"
+        },
+        {
+          "line": 52,
+          "text": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])"
+        },
+        {
+          "line": 54,
+          "text": "const set1 = new Set([arg6, ...arg8].filter(Boolean));"
+        },
+        {
+          "line": 62,
+          "text": "(list1 = [...arg8]),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@44",
+      "name": "arg9",
+      "line": 44,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "bindings: arg9 = [],",
+      "references": [
+        {
+          "line": 135,
+          "text": "const value21 = arg9.find("
+        }
+      ]
+    },
+    {
+      "key": "arg10@45",
+      "name": "arg10",
+      "line": 45,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "states: arg10 = {},",
+      "references": [
+        {
+          "line": 143,
+          "text": "carState(value21, arg10).charging === true"
+        }
+      ]
+    },
+    {
+      "key": "arg11@52",
+      "name": "arg11",
+      "line": 52,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])",
+      "references": [
+        {
+          "line": 52,
+          "text": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])"
+        }
+      ]
+    },
+    {
+      "key": "arg12@52",
+      "name": "arg12",
+      "line": 52,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])",
+      "references": [
+        {
+          "line": 52,
+          "text": "list1.some((arg11, arg12) => arg11 !== arg8[arg12])"
+        }
+      ]
+    },
+    {
+      "key": "set1@54",
+      "name": "set1",
+      "line": 54,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set([arg6, ...arg8].filter(Boolean));",
+      "references": [
+        {
+          "line": 57,
+          "text": "if (set1.has(value13)) return true;"
+        }
+      ]
+    },
+    {
+      "key": "arg13@55",
+      "name": "arg13",
+      "line": 55,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((list2 = list2.filter((arg13) => {",
+      "references": [
+        {
+          "line": 56,
+          "text": "for (let value13 = arg13.model; value13; value13 = value13.parent)"
+        },
+        {
+          "line": 58,
+          "text": "return (fn3(arg13), false);"
+        }
+      ]
+    },
+    {
+      "key": "value13@56",
+      "name": "value13",
+      "line": 56,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value13 = arg13.model; value13; value13 = value13.parent)",
+      "references": [
+        {
+          "line": 56,
+          "text": "for (let value13 = arg13.model; value13; value13 = value13.parent)"
+        },
+        {
+          "line": 57,
+          "text": "if (set1.has(value13)) return true;"
+        }
+      ]
+    },
+    {
+      "key": "arg14@63",
+      "name": "arg14",
+      "line": 63,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1?.traverse((arg14) => {",
+      "references": [
+        {
+          "line": 65,
+          "text": "arg14.userData?.environmentModelType !== \"smallcar\" ||"
+        },
+        {
+          "line": 66,
+          "text": "list2.some((arg15) => arg15.model === arg14)"
+        },
+        {
+          "line": 70,
+          "text": "model: arg14,"
+        },
+        {
+          "line": 79,
+          "text": "(arg14.traverse((arg16) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg15@66",
+      "name": "arg15",
+      "line": 66,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2.some((arg15) => arg15.model === arg14)",
+      "references": [
+        {
+          "line": 66,
+          "text": "list2.some((arg15) => arg15.model === arg14)"
+        }
+      ]
+    },
+    {
+      "key": "object1@69",
+      "name": "object1",
+      "line": 69,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 96,
+          "text": "(arg18.uniforms.hbChargeOn = object1.on),"
+        },
+        {
+          "line": 97,
+          "text": "(arg18.uniforms.hbChargeTime = object1.time),"
+        },
+        {
+          "line": 124,
+          "text": "object1.parts.push({"
+        },
+        {
+          "line": 131,
+          "text": "list2.push(object1));"
+        }
+      ]
+    },
+    {
+      "key": "arg16@79",
+      "name": "arg16",
+      "line": 79,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg14.traverse((arg16) => {",
+      "references": [
+        {
+          "line": 80,
+          "text": "if (!arg16.isMesh || !arg16.material) return;"
+        },
+        {
+          "line": 81,
+          "text": "const value14 = arg16.material,"
+        },
+        {
+          "line": 83,
+          "text": "value15 = !!arg16.geometry?.getAttribute(\"hbVehicleLength\"),"
+        },
+        {
+          "line": 123,
+          "text": "((arg16.material = value16),"
+        }
+      ]
+    },
+    {
+      "key": "value14@81",
+      "name": "value14",
+      "line": 81,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = arg16.material,",
+      "references": [
+        {
+          "line": 122,
+          "text": "value16 = Array.isArray(value14) ? value14.map(fn5) : fn5(value14);"
+        },
+        {
+          "line": 126,
+          "text": "original: value14,"
+        }
+      ]
+    },
+    {
+      "key": "list3@82",
+      "name": "list3",
+      "line": 82,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3 = [],",
+      "references": [
+        {
+          "line": 118,
+          "text": "list3.push(value17),"
+        },
+        {
+          "line": 128,
+          "text": "materials: list3,"
+        }
+      ]
+    },
+    {
+      "key": "value15@83",
+      "name": "value15",
+      "line": 83,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = !!arg16.geometry?.getAttribute(\"hbVehicleLength\"),",
+      "references": [
+        {
+          "line": 99,
+          "text": "(value15 ? \"attribute float hbVehicleLength;\\n\" : \"\") +"
+        },
+        {
+          "line": 105,
+          "text": "(value15 ? \"hbVehicleLength\" : \"-position.y\") +"
+        },
+        {
+          "line": 117,
+          "text": "value19 + \"|hb-car-charge-surface-v2:\" + Number(value15)),"
+        }
+      ]
+    },
+    {
+      "key": "fn5@84",
+      "name": "fn5",
+      "line": 84,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn5 = (arg17) => {",
+      "references": [
+        {
+          "line": 122,
+          "text": "value16 = Array.isArray(value14) ? value14.map(fn5) : fn5(value14);"
+        }
+      ]
+    },
+    {
+      "key": "arg17@84",
+      "name": "arg17",
+      "line": 84,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn5 = (arg17) => {",
+      "references": [
+        {
+          "line": 85,
+          "text": "if (!arg17.isMeshStandardMaterial) return arg17;"
+        },
+        {
+          "line": 86,
+          "text": "const value17 = arg17.clone(),"
+        },
+        {
+          "line": 87,
+          "text": "value18 = arg17.onBeforeCompile,"
+        },
+        {
+          "line": 88,
+          "text": "value19 = arg17.customProgramCacheKey?.call(arg17) || \"\";"
+        }
+      ]
+    },
+    {
+      "key": "value17@86",
+      "name": "value17",
+      "line": 86,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = arg17.clone(),",
+      "references": [
+        {
+          "line": 90,
+          "text": "Object.defineProperty(value17, \"runtimeSourceMaterial\", {"
+        },
+        {
+          "line": 94,
+          "text": "(value17.onBeforeCompile = function (arg18, arg19) {"
+        },
+        {
+          "line": 116,
+          "text": "(value17.customProgramCacheKey = () =>"
+        },
+        {
+          "line": 118,
+          "text": "list3.push(value17),"
+        }
+      ]
+    },
+    {
+      "key": "value18@87",
+      "name": "value18",
+      "line": 87,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = arg17.onBeforeCompile,",
+      "references": [
+        {
+          "line": 95,
+          "text": "(value18?.call(this, arg18, arg19),"
+        }
+      ]
+    },
+    {
+      "key": "value19@88",
+      "name": "value19",
+      "line": 88,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = arg17.customProgramCacheKey?.call(arg17) || \"\";",
+      "references": [
+        {
+          "line": 117,
+          "text": "value19 + \"|hb-car-charge-surface-v2:\" + Number(value15)),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@94",
+      "name": "arg18",
+      "line": 94,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value17.onBeforeCompile = function (arg18, arg19) {",
+      "references": [
+        {
+          "line": 95,
+          "text": "(value18?.call(this, arg18, arg19),"
+        },
+        {
+          "line": 96,
+          "text": "(arg18.uniforms.hbChargeOn = object1.on),"
+        },
+        {
+          "line": 97,
+          "text": "(arg18.uniforms.hbChargeTime = object1.time),"
+        },
+        {
+          "line": 98,
+          "text": "(arg18.vertexShader ="
+        }
+      ]
+    },
+    {
+      "key": "arg19@94",
+      "name": "arg19",
+      "line": 94,
+      "column": 66,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value17.onBeforeCompile = function (arg18, arg19) {",
+      "references": [
+        {
+          "line": 95,
+          "text": "(value18?.call(this, arg18, arg19),"
+        }
+      ]
+    },
+    {
+      "key": "value16@122",
+      "name": "value16",
+      "line": 122,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = Array.isArray(value14) ? value14.map(fn5) : fn5(value14);",
+      "references": [
+        {
+          "line": 123,
+          "text": "((arg16.material = value16),"
+        },
+        {
+          "line": 127,
+          "text": "replacement: value16,"
+        }
+      ]
+    },
+    {
+      "key": "value20@134",
+      "name": "value20",
+      "line": 134,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value20 of list2) {",
+      "references": [
+        {
+          "line": 137,
+          "text": "arg20.floorId === value20.model.userData.environmentFloorId &&"
+        },
+        {
+          "line": 138,
+          "text": "arg20.modelId === value20.model.userData.environmentModelId,"
+        },
+        {
+          "line": 140,
+          "text": "value20.charging = !!("
+        },
+        {
+          "line": 145,
+          "text": "const value22 = value20.charging ? value5 : 0;"
+        }
+      ]
+    },
+    {
+      "key": "value21@135",
+      "name": "value21",
+      "line": 135,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 = arg9.find(",
+      "references": [
+        {
+          "line": 141,
+          "text": "value21 &&"
+        },
+        {
+          "line": 142,
+          "text": "value21.visible !== false &&"
+        },
+        {
+          "line": 143,
+          "text": "carState(value21, arg10).charging === true"
+        }
+      ]
+    },
+    {
+      "key": "arg20@136",
+      "name": "arg20",
+      "line": 136,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg20) =>",
+      "references": [
+        {
+          "line": 137,
+          "text": "arg20.floorId === value20.model.userData.environmentFloorId &&"
+        },
+        {
+          "line": 138,
+          "text": "arg20.modelId === value20.model.userData.environmentModelId,"
+        }
+      ]
+    },
+    {
+      "key": "value22@145",
+      "name": "value22",
+      "line": 145,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = value20.charging ? value5 : 0;",
+      "references": [
+        {
+          "line": 146,
+          "text": "value20.on.value !== value22 && ((value20.on.value = value22), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg21@150",
+      "name": "arg21",
+      "line": 150,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "tick(arg21) {",
+      "references": [
+        {
+          "line": 155,
+          "text": "((value23.time.value = fn1() ? 1.4 : arg21 / 1000), (value3 ||= !fn1()));"
+        }
+      ]
+    },
+    {
+      "key": "value23@152",
+      "name": "value23",
+      "line": 152,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value23 of list2)",
+      "references": [
+        {
+          "line": 153,
+          "text": "value23.on.value &&"
+        },
+        {
+          "line": 154,
+          "text": "fn4(value23.model) &&"
+        },
+        {
+          "line": 155,
+          "text": "((value23.time.value = fn1() ? 1.4 : arg21 / 1000), (value3 ||= !fn1()));"
+        }
+      ]
+    }
+  ]
+}

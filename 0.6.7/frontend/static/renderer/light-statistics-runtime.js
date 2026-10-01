@@ -1,43 +1,51 @@
-const S = new Set(["light", "switch", "input_boolean", "fan", "humidifier", "siren"]),
-  p = new Set(["climate", "water_heater"]);
-function f(arg1) {
-  const value1 = typeof arg1 == "string" ? arg1 : String(arg1?.entityId || arg1?.entity_id || "");
+const onOffDomainSet = new Set(["light", "switch", "input_boolean", "fan", "humidifier", "siren"]),
+  runningStateDomainSet = new Set(["climate", "water_heater"]);
+function resolveEntityDomain(entityRef) {
+  const resolvedEntityId =
+    typeof entityRef == "string"
+      ? entityRef
+      : String(entityRef?.entityId || entityRef?.entity_id || "");
   return (
-    String(typeof arg1 == "string" ? "" : arg1?.domain || "")
+    String(typeof entityRef == "string" ? "" : entityRef?.domain || "")
       .trim()
-      .toLowerCase() || value1.split(".", 1)[0].toLowerCase()
+      .toLowerCase() || resolvedEntityId.split(".", 1)[0].toLowerCase()
   );
 }
-function g(arg2) {
-  const value2 = typeof arg2 == "string" ? arg2 : String(arg2?.entityId || arg2?.entity_id || "");
+function isBluetoothOnlineStatusSensor(sensorEntityRef) {
+  const sensorEntityId =
+    typeof sensorEntityRef == "string"
+      ? sensorEntityRef
+      : String(sensorEntityRef?.entityId || sensorEntityRef?.entity_id || "");
   return (
-    f(arg2) === "sensor" &&
-    /(?:^|_)bt_online_status(?:_p_\d+_\d+)?(?:_\d+)?$/i.test(value2.split(".").slice(1).join("."))
+    resolveEntityDomain(sensorEntityRef) === "sensor" &&
+    /(?:^|_)bt_online_status(?:_p_\d+_\d+)?(?:_\d+)?$/i.test(
+      sensorEntityId.split(".").slice(1).join("."),
+    )
   );
 }
-export function lightStatisticsEntitySupport(arg3) {
-  const value3 = f(arg3);
-  return value3 === "virtual" || arg3?.virtual
+export function lightStatisticsEntitySupport(supportEntity) {
+  const entityDomain = resolveEntityDomain(supportEntity);
+  return entityDomain === "virtual" || supportEntity?.virtual
     ? {
         supported: true,
         message: "虚拟实体按当前显示状态统计。",
       }
-    : value3 === "group"
+    : entityDomain === "group"
       ? {
           supported: true,
           message: "群组将作为 1 个实体统计。",
         }
-      : S.has(value3)
+      : onOffDomainSet.has(entityDomain)
         ? {
             supported: true,
             message: "按开启/关闭状态统计。",
           }
-        : p.has(value3)
+        : runningStateDomainSet.has(entityDomain)
           ? {
               supported: true,
               message: "按关闭/运行状态统计。",
             }
-          : g(arg3)
+          : isBluetoothOnlineStatusSensor(supportEntity)
             ? {
                 supported: true,
                 message: "按在线/离线状态统计，在线计入数量。",
@@ -47,75 +55,92 @@ export function lightStatisticsEntitySupport(arg3) {
                 message: "该实体没有明确的开启/关闭状态。",
               };
 }
-export function lightStatisticsEntityStateStatus(arg4, arg5) {
-  if (!lightStatisticsEntitySupport(arg4).supported) return "abnormal";
-  const value4 = f(arg4),
-    value5 = String(arg5?.state ?? arg5 ?? "")
+export function lightStatisticsEntityStateStatus(statusEntity, stateSource) {
+  if (!lightStatisticsEntitySupport(statusEntity).supported) return "abnormal";
+  const statusEntityDomain = resolveEntityDomain(statusEntity),
+    normalizedState = String(stateSource?.state ?? stateSource ?? "")
       .trim()
       .toLowerCase();
-  if (!value5 || ["unknown", "unavailable"].includes(value5)) return "abnormal";
-  if (g(arg4)) {
-    const value6 = value5.replace(/^设备\s*\d+\s*-\s*/, "");
-    return ["在线", "online", "on"].includes(value6)
+  if (!normalizedState || ["unknown", "unavailable"].includes(normalizedState)) return "abnormal";
+  if (isBluetoothOnlineStatusSensor(statusEntity)) {
+    const sensorState = normalizedState.replace(/^设备\s*\d+\s*-\s*/, "");
+    return ["在线", "online", "on"].includes(sensorState)
       ? "on"
-      : ["离线", "offline", "off"].includes(value6)
+      : ["离线", "offline", "off"].includes(sensorState)
         ? "off"
         : "abnormal";
   }
-  return value5 === "off" ? "off" : value5 === "on" || p.has(value4) ? "on" : "abnormal";
+  return normalizedState === "off"
+    ? "off"
+    : normalizedState === "on" || runningStateDomainSet.has(statusEntityDomain)
+      ? "on"
+      : "abnormal";
 }
-function h(arg6, arg7) {
-  return typeof arg6?.get == "function"
-    ? arg6.get(arg7) || null
-    : (arg6 && typeof arg6 == "object" && arg6[arg7]) || null;
+function readLookupEntry(lookupStore, lookupKey) {
+  return typeof lookupStore?.get == "function"
+    ? lookupStore.get(lookupKey) || null
+    : (lookupStore && typeof lookupStore == "object" && lookupStore[lookupKey]) || null;
 }
-function d(arg8, arg9) {
-  const value7 = typeof arg8?.get == "function" ? arg8.get(arg9) : arg8?.[arg9];
-  return value7 &&
-    typeof value7 == "object" &&
-    Object.prototype.hasOwnProperty.call(value7, "newState")
-    ? value7.newState || null
-    : value7 || null;
+function readEntityState(stateStore, stateKey) {
+  const rawStateEntry =
+    typeof stateStore?.get == "function" ? stateStore.get(stateKey) : stateStore?.[stateKey];
+  return rawStateEntry &&
+    typeof rawStateEntry == "object" &&
+    Object.prototype.hasOwnProperty.call(rawStateEntry, "newState")
+    ? rawStateEntry.newState || null
+    : rawStateEntry || null;
 }
-export function lightStatisticsSummary(arg10, arg11 = new Map(), arg12 = new Map()) {
-  const list1 = [],
-    set1 = new Set();
-  for (const value9 of Array.isArray(arg10) ? arg10 : []) {
-    const value10 = String(value9 || "").trim();
-    !value10 || set1.has(value10) || (set1.add(value10), list1.push(value10));
+export function lightStatisticsSummary(
+  entityIds,
+  stateByEntityId = new Map(),
+  metadataByEntityId = new Map(),
+) {
+  const uniqueEntityIds = [],
+    seenEntityIdSet = new Set();
+  for (const rawEntityId of Array.isArray(entityIds) ? entityIds : []) {
+    const candidateEntityId = String(rawEntityId || "").trim();
+    !candidateEntityId ||
+      seenEntityIdSet.has(candidateEntityId) ||
+      (seenEntityIdSet.add(candidateEntityId), uniqueEntityIds.push(candidateEntityId));
   }
-  const value8 = list1.map((arg13) => {
-    const value11 = h(arg12, arg13) || {},
-      value12 = d(arg11, arg13),
-      value13 = String(value12?.state || "")
+  const entitySummaries = uniqueEntityIds.map((entityId) => {
+    const metadataEntry = readLookupEntry(metadataByEntityId, entityId) || {},
+      stateEntry = readEntityState(stateByEntityId, entityId),
+      stateText = String(stateEntry?.state || "")
         .trim()
         .toLowerCase(),
-      value14 = lightStatisticsEntitySupport({
-        ...value11,
-        entityId: arg13,
+      supportResult = lightStatisticsEntitySupport({
+        ...metadataEntry,
+        entityId: entityId,
       }),
-      value15 = lightStatisticsEntityStateStatus(
+      stateStatus = lightStatisticsEntityStateStatus(
         {
-          ...value11,
-          entityId: arg13,
+          ...metadataEntry,
+          entityId: entityId,
         },
-        value12,
+        stateEntry,
       );
     return {
-      entityId: arg13,
+      entityId: entityId,
       label: String(
-        value12?.attributes?.friendly_name || value11.name || value11.originalName || arg13,
+        stateEntry?.attributes?.friendly_name ||
+          metadataEntry.name ||
+          metadataEntry.originalName ||
+          entityId,
       ),
-      state: value13,
-      status: value15,
-      message: value15 === "abnormal" && value14.supported ? "当前状态无法判断" : value14.message,
+      state: stateText,
+      status: stateStatus,
+      message:
+        stateStatus === "abnormal" && supportResult.supported
+          ? "当前状态无法判断"
+          : supportResult.message,
     };
   });
   return {
-    total: value8.length,
-    on: value8.filter((arg14) => arg14.status === "on").length,
-    off: value8.filter((arg15) => arg15.status === "off").length,
-    abnormal: value8.filter((arg16) => arg16.status === "abnormal").length,
-    items: value8,
+    total: entitySummaries.length,
+    on: entitySummaries.filter((onEntry) => onEntry.status === "on").length,
+    off: entitySummaries.filter((offEntry) => offEntry.status === "off").length,
+    abnormal: entitySummaries.filter((abnormalEntry) => abnormalEntry.status === "abnormal").length,
+    items: entitySummaries,
   };
 }

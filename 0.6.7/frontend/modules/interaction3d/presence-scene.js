@@ -6,36 +6,36 @@ import {
   sampleClosedPath,
   presenceVisibleOnPage,
 } from "./presence-motion.js?v=20260911-presence-pages-v2-detection-triggers-v1";
-export function createPresenceScene(arg1, arg2 = () => {}, arg3) {
-  const map1 = new Map(),
-    map2 = new Map();
-  let value1 = 0;
-  const value2 = createPresenceTriggers(arg3);
-  let value3 = false,
-    value4 = null;
-  function fn1() {
-    if (!value4) {
-      const uint8Array1 = new Uint8Array(16384);
-      for (let value13 = 0; value13 < 64; value13++)
-        for (let value14 = 0; value14 < 64; value14++) {
-          const value15 = Math.hypot(
-            ((value14 + 0.5) / 64) * 2 - 1,
-            ((value13 + 0.5) / 64) * 2 - 1,
+export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowProvider) {
+  const actorsByBindingId = new Map(),
+    progressByBindingId = new Map();
+  let elapsedSeconds = 0;
+  const triggers = createPresenceTriggers(nowProvider);
+  let hasDirtyReflections = false,
+    footShadowAssets = null;
+  function createFootShadow() {
+    if (!footShadowAssets) {
+      const shadowPixels = new Uint8Array(16384);
+      for (let pixelY = 0; pixelY < 64; pixelY++)
+        for (let pixelX = 0; pixelX < 64; pixelX++) {
+          const radialDistance = Math.hypot(
+            ((pixelX + 0.5) / 64) * 2 - 1,
+            ((pixelY + 0.5) / 64) * 2 - 1,
           );
-          uint8Array1[(value13 * 64 + value14) * 4 + 3] = Math.round(
-            255 * Math.max(0, 1 - value15 * value15) ** 2,
+          shadowPixels[(pixelY * 64 + pixelX) * 4 + 3] = Math.round(
+            255 * Math.max(0, 1 - radialDistance * radialDistance) ** 2,
           );
         }
-      const value12 = new arg1.THREE.DataTexture(uint8Array1, 64, 64);
-      ((value12.magFilter = value12.minFilter = arg1.THREE.LinearFilter),
-        (value12.needsUpdate = true),
-        (value4 = {
-          texture: value12,
-          geometry: new arg1.THREE.PlaneGeometry(1.05, 0.8),
+      const shadowTexture = new sceneOptions.THREE.DataTexture(shadowPixels, 64, 64);
+      ((shadowTexture.magFilter = shadowTexture.minFilter = sceneOptions.THREE.LinearFilter),
+        (shadowTexture.needsUpdate = true),
+        (footShadowAssets = {
+          texture: shadowTexture,
+          geometry: new sceneOptions.THREE.PlaneGeometry(1.05, 0.8),
         }));
     }
-    const value10 = new arg1.THREE.MeshBasicMaterial({
-        map: value4.texture,
+    const shadowMaterial = new sceneOptions.THREE.MeshBasicMaterial({
+        map: footShadowAssets.texture,
         transparent: true,
         opacity: 0.62,
         depthWrite: false,
@@ -44,609 +44,678 @@ export function createPresenceScene(arg1, arg2 = () => {}, arg3) {
         polygonOffsetUnits: -1,
         toneMapped: false,
       }),
-      value11 = new arg1.THREE.Mesh(value4.geometry, value10);
+      shadowMesh = new sceneOptions.THREE.Mesh(footShadowAssets.geometry, shadowMaterial);
     return (
-      (value11.name = "presence-foot-shadow"),
-      (value11.rotation.x = -Math.PI / 2),
-      (value11.renderOrder = 2),
-      (value11.userData.environmentEffect = true),
-      (value11.raycast = () => {}),
-      value11
+      (shadowMesh.name = "presence-foot-shadow"),
+      (shadowMesh.rotation.x = -Math.PI / 2),
+      (shadowMesh.renderOrder = 2),
+      (shadowMesh.userData.environmentEffect = true),
+      (shadowMesh.raycast = () => {}),
+      shadowMesh
     );
   }
-  function fn2() {
-    value3 && ((value3 = false), arg1.requestRender?.());
+  function flushReflectionFloors() {
+    hasDirtyReflections && ((hasDirtyReflections = false), sceneOptions.requestRender?.());
   }
-  function fn3(arg4, arg5) {
-    arg4.opacity = arg5;
-    for (const [value16, value17] of arg4.materials) {
-      ((value16.opacity = value17.opacity * arg5),
-        (value16.depthWrite = arg5 < 1 ? false : value17.depthWrite));
-      const value18 = value17.transparent || arg5 < 1;
-      value16.transparent !== value18 &&
-        ((value16.transparent = value18), (value16.needsUpdate = true));
+  function applyActorOpacity(actor, targetOpacity) {
+    actor.opacity = targetOpacity;
+    for (const [material, originalMaterialState] of actor.materials) {
+      ((material.opacity = originalMaterialState.opacity * targetOpacity),
+        (material.depthWrite = targetOpacity < 1 ? false : originalMaterialState.depthWrite));
+      const shouldBeTransparent = originalMaterialState.transparent || targetOpacity < 1;
+      material.transparent !== shouldBeTransparent &&
+        ((material.transparent = shouldBeTransparent), (material.needsUpdate = true));
     }
-    ((arg4.shadow.material.opacity = 0.62 * arg5), (value3 = true));
+    ((actor.shadow.material.opacity = 0.62 * targetOpacity), (hasDirtyReflections = true));
   }
-  function fn4(arg6) {
-    const value19 = new arg1.THREE.Box3();
-    arg6.root.updateWorldMatrix(true, true);
-    for (const value20 of arg6.root.children)
-      value20 !== arg6.shadow && value19.expandByObject(value20);
-    return value19;
+  function measureActorBounds(measuredActor) {
+    const bounds = new sceneOptions.THREE.Box3();
+    measuredActor.root.updateWorldMatrix(true, true);
+    for (const childObject of measuredActor.root.children)
+      childObject !== measuredActor.shadow && bounds.expandByObject(childObject);
+    return bounds;
   }
-  const value5 = new arg1.THREE.Vector3();
-  let value6,
-    value7,
-    value8,
-    value9,
-    list1 = [];
-  function fn5(arg7, arg8) {
+  const scratchFootPosition = new sceneOptions.THREE.Vector3();
+  let cachedSceneModelRoot,
+    cachedSceneRevision,
+    cachedBackgroundFloor,
+    cachedDocument,
+    rugPlacements = [];
+  function resolveGroundHeight(samplePoint, sampleFloorId) {
     if (
-      value6 !== arg1.modelRoot ||
-      value7 !== arg1.sceneRevision ||
-      value8 !== arg1.backgroundFloor ||
-      value9 !== arg1.document
+      cachedSceneModelRoot !== sceneOptions.modelRoot ||
+      cachedSceneRevision !== sceneOptions.sceneRevision ||
+      cachedBackgroundFloor !== sceneOptions.backgroundFloor ||
+      cachedDocument !== sceneOptions.document
     ) {
-      ((value6 = arg1.modelRoot),
-        (value7 = arg1.sceneRevision),
-        (value8 = arg1.backgroundFloor),
-        (value9 = arg1.document),
-        (list1 = []));
-      for (const value22 of arg1.document?.floors || [])
-        for (const value23 of value22.scene?.items || []) {
-          if (value23.type !== "rug") continue;
-          const value24 = value22.scene.calibration?.pixelsPerMeter || 1,
-            value25 = ((value23.rotation || 0) * Math.PI) / 180,
-            value26 = Math.cos(value25),
-            value27 = Math.sin(value25),
-            value28 = arg1.worldPoint(value22.id, value23.x, value23.y, value23.elevation || 0),
-            value29 = arg1.worldPoint(
-              value22.id,
-              value23.x + value26 * value24,
-              value23.y + value27 * value24,
-              value23.elevation || 0,
+      ((cachedSceneModelRoot = sceneOptions.modelRoot),
+        (cachedSceneRevision = sceneOptions.sceneRevision),
+        (cachedBackgroundFloor = sceneOptions.backgroundFloor),
+        (cachedDocument = sceneOptions.document),
+        (rugPlacements = []));
+      for (const floor of sceneOptions.document?.floors || [])
+        for (const sceneItem of floor.scene?.items || []) {
+          if (sceneItem.type !== "rug") continue;
+          const pixelsPerMeter = floor.scene.calibration?.pixelsPerMeter || 1,
+            rotationRad = ((sceneItem.rotation || 0) * Math.PI) / 180,
+            cosRotation = Math.cos(rotationRad),
+            sinRotation = Math.sin(rotationRad),
+            rugCenter = sceneOptions.worldPoint(
+              floor.id,
+              sceneItem.x,
+              sceneItem.y,
+              sceneItem.elevation || 0,
             ),
-            value30 = arg1.worldPoint(
-              value22.id,
-              value23.x - value27 * value24,
-              value23.y + value26 * value24,
-              value23.elevation || 0,
+            rugXAxisPoint = sceneOptions.worldPoint(
+              floor.id,
+              sceneItem.x + cosRotation * pixelsPerMeter,
+              sceneItem.y + sinRotation * pixelsPerMeter,
+              sceneItem.elevation || 0,
+            ),
+            rugZAxisPoint = sceneOptions.worldPoint(
+              floor.id,
+              sceneItem.x - sinRotation * pixelsPerMeter,
+              sceneItem.y + cosRotation * pixelsPerMeter,
+              sceneItem.elevation || 0,
             );
-          !value28 ||
-            !value29 ||
-            !value30 ||
-            list1.push({
-              floorId: value22.id,
-              center: value28,
-              x: value29.sub(value28).normalize(),
-              z: value30.sub(value28).normalize(),
-              width: value23.width,
-              depth: value23.depth,
-              height: Math.max(0.004, Math.min(0.018, value23.height ?? 0.012)) + 0.001,
+          !rugCenter ||
+            !rugXAxisPoint ||
+            !rugZAxisPoint ||
+            rugPlacements.push({
+              floorId: floor.id,
+              center: rugCenter,
+              x: rugXAxisPoint.sub(rugCenter).normalize(),
+              z: rugZAxisPoint.sub(rugCenter).normalize(),
+              width: sceneItem.width,
+              depth: sceneItem.depth,
+              height: Math.max(0.004, Math.min(0.018, sceneItem.height ?? 0.012)) + 0.001,
             });
         }
     }
-    let value21 = arg7.y;
-    for (const value31 of list1) {
-      if (value31.floorId !== arg8) continue;
-      const value32 = arg7.x - value31.center.x,
-        value33 = arg7.z - value31.center.z;
+    let groundHeightY = samplePoint.y;
+    for (const rugPlacement of rugPlacements) {
+      if (rugPlacement.floorId !== sampleFloorId) continue;
+      const offsetX = samplePoint.x - rugPlacement.center.x,
+        offsetZ = samplePoint.z - rugPlacement.center.z;
       if (
-        Math.abs(value32 * value31.x.x + value33 * value31.x.z) > value31.width / 2 ||
-        Math.abs(value32 * value31.z.x + value33 * value31.z.z) > value31.depth / 2
+        Math.abs(offsetX * rugPlacement.x.x + offsetZ * rugPlacement.x.z) >
+          rugPlacement.width / 2 ||
+        Math.abs(offsetX * rugPlacement.z.x + offsetZ * rugPlacement.z.z) > rugPlacement.depth / 2
       )
         continue;
-      const value34 = value31.center.y + value31.height;
-      value34 >= value21 && value34 - arg7.y <= 0.05 && (value21 = value34);
+      const rugTopY = rugPlacement.center.y + rugPlacement.height;
+      rugTopY >= groundHeightY && rugTopY - samplePoint.y <= 0.05 && (groundHeightY = rugTopY);
     }
-    return value21;
+    return groundHeightY;
   }
-  const fn6 = (arg9) => {
-    const value35 = map1.get(arg9);
-    (map2.set(arg9, {
-      key: value35.progressKey,
-      distance: value35.distance,
+  const removeActor = (removalBindingId) => {
+    const removedActor = actorsByBindingId.get(removalBindingId);
+    (progressByBindingId.set(removalBindingId, {
+      key: removedActor.progressKey,
+      distance: removedActor.distance,
     }),
-      (value3 = true),
-      value35.shadow.removeFromParent(),
-      value35.shadow.material.dispose(),
-      disposeWalker(value35.root),
-      value35.routeLine &&
-        (value35.routeLine.geometry.dispose(),
-        value35.routeLine.material.dispose(),
-        value35.routeLine.removeFromParent()),
-      map1.delete(arg9));
+      (hasDirtyReflections = true),
+      removedActor.shadow.removeFromParent(),
+      removedActor.shadow.material.dispose(),
+      disposeWalker(removedActor.root),
+      removedActor.routeLine &&
+        (removedActor.routeLine.geometry.dispose(),
+        removedActor.routeLine.material.dispose(),
+        removedActor.routeLine.removeFromParent()),
+      actorsByBindingId.delete(removalBindingId));
   };
-  function fn7(arg10) {
-    const value36 = sampleClosedPath(arg10.path, arg10.distance);
-    if (!value36) return;
-    const value37 = fn5(value36, arg10.floorId);
-    (arg10.root.position.set(value36.x, value37, value36.z),
-      (arg10.root.rotation.y = value36.heading),
-      animateWalker(arg10.root, (arg10.distance / arg10.size) * 12, arg10.preview ? 0 : 1, value1),
-      arg10.root.updateMatrixWorld(true));
-    const value38 = Math.min(
-      ...arg10.root.userData.parts.legs.map(
-        (arg11) => (
-          arg11.foot.getWorldPosition(value5),
-          value5.y - arg10.root.userData.soleHeight * arg10.size
+  function placeActor(placedActor) {
+    const pathSample = sampleClosedPath(placedActor.path, placedActor.distance);
+    if (!pathSample) return;
+    const resolvedGroundY = resolveGroundHeight(pathSample, placedActor.floorId);
+    (placedActor.root.position.set(pathSample.x, resolvedGroundY, pathSample.z),
+      (placedActor.root.rotation.y = pathSample.heading),
+      animateWalker(
+        placedActor.root,
+        (placedActor.distance / placedActor.size) * 12,
+        placedActor.preview ? 0 : 1,
+        elapsedSeconds,
+      ),
+      placedActor.root.updateMatrixWorld(true));
+    const groundOffsetY = Math.min(
+      ...placedActor.root.userData.parts.legs.map(
+        (legRig) => (
+          legRig.foot.getWorldPosition(scratchFootPosition),
+          scratchFootPosition.y - placedActor.root.userData.soleHeight * placedActor.size
         ),
       ),
     );
-    ((arg10.root.position.y += value37 + 0.014 * arg10.size - value38),
-      (arg10.shadow.position.y = (value37 + 0.008 - arg10.root.position.y) / arg10.size));
+    ((placedActor.root.position.y += resolvedGroundY + 0.014 * placedActor.size - groundOffsetY),
+      (placedActor.shadow.position.y =
+        (resolvedGroundY + 0.008 - placedActor.root.position.y) / placedActor.size));
   }
-  function fn8(arg12, arg13, arg14, arg15) {
-    const value39 = arg13.getBoundingClientRect(),
-      list2 = [];
-    for (const [value40, value41] of map1) {
-      const value42 = arg14.find((arg16) => arg16.id === value40);
-      if (!value42?.clickToFocus || value41.exiting || value41.opacity <= 0) continue;
-      const value43 = fn4(value41),
-        list3 = [];
-      for (const value53 of [value43.min.x, value43.max.x])
-        for (const value54 of [value43.min.y, value43.max.y])
-          for (const value55 of [value43.min.z, value43.max.z])
-            list3.push(new arg1.THREE.Vector3(value53, value54, value55).project(arg12));
-      if (list3.every((arg17) => arg17.z < -1 || arg17.z > 1)) continue;
-      const value44 = list3.map((arg18) => value39.left + ((arg18.x + 1) * value39.width) / 2),
-        value45 = list3.map((arg19) => value39.top + ((1 - arg19.y) * value39.height) / 2),
-        value46 = Math.min(...value44),
-        value47 = Math.min(...value45),
-        value48 = Math.max(...value44) - value46,
-        value49 = Math.max(...value45) - value47,
-        value50 = value42.hitPadding ?? 8,
-        value51 = arg15?.width > 0 ? value39.width / arg15.width : 1,
-        value52 = arg15?.height > 0 ? value39.height / arg15.height : 1;
-      list2.push({
-        id: value40,
-        left: value46,
-        top: value47,
-        width: value48,
-        height: value49,
-        padding: value50,
-        scaleX: value51,
-        scaleY: value52,
+  function computeHitRects(renderCamera, hitCanvasElement, sensorBindings, layoutSize) {
+    const hitCanvasRect = hitCanvasElement.getBoundingClientRect(),
+      hitRects = [];
+    for (const [hitBindingId, hitActor] of actorsByBindingId) {
+      const hitBinding = sensorBindings.find((hitProbe) => hitProbe.id === hitBindingId);
+      if (!hitBinding?.clickToFocus || hitActor.exiting || hitActor.opacity <= 0) continue;
+      const actorBounds = measureActorBounds(hitActor),
+        projectedCorners = [];
+      for (const boundX of [actorBounds.min.x, actorBounds.max.x])
+        for (const boundY of [actorBounds.min.y, actorBounds.max.y])
+          for (const boundZ of [actorBounds.min.z, actorBounds.max.z])
+            projectedCorners.push(
+              new sceneOptions.THREE.Vector3(boundX, boundY, boundZ).project(renderCamera),
+            );
+      if (projectedCorners.every((cornerPoint) => cornerPoint.z < -1 || cornerPoint.z > 1))
+        continue;
+      const screenXList = projectedCorners.map(
+          (cornerForX) => hitCanvasRect.left + ((cornerForX.x + 1) * hitCanvasRect.width) / 2,
+        ),
+        screenYList = projectedCorners.map(
+          (cornerForY) => hitCanvasRect.top + ((1 - cornerForY.y) * hitCanvasRect.height) / 2,
+        ),
+        leftPx = Math.min(...screenXList),
+        topPx = Math.min(...screenYList),
+        widthPx = Math.max(...screenXList) - leftPx,
+        heightPx = Math.max(...screenYList) - topPx,
+        paddingPx = hitBinding.hitPadding ?? 8,
+        scaleX = layoutSize?.width > 0 ? hitCanvasRect.width / layoutSize.width : 1,
+        scaleY = layoutSize?.height > 0 ? hitCanvasRect.height / layoutSize.height : 1;
+      hitRects.push({
+        id: hitBindingId,
+        left: leftPx,
+        top: topPx,
+        width: widthPx,
+        height: heightPx,
+        padding: paddingPx,
+        scaleX: scaleX,
+        scaleY: scaleY,
       });
     }
-    return list2;
+    return hitRects;
   }
   return {
     sync(
-      arg20 = [],
-      arg21 = {},
-      arg22 = false,
-      arg23 = "all",
-      arg24 = false,
-      arg25 = false,
-      arg26 = "light",
+      bindings = [],
+      states = {},
+      enabled = false,
+      floorId = "all",
+      isEditing = false,
+      isPreviewWalk = false,
+      activeModule = "light",
     ) {
-      value2.sync(arg20, arg21);
-      const set1 = new Set();
-      let value56 = false;
-      if (arg1.overlayScene && arg1.worldPoint)
-        for (const value57 of arg20) {
+      triggers.sync(bindings, states);
+      const liveBindingIdSet = new Set();
+      let hasSceneChanges = false;
+      if (sceneOptions.overlayScene && sceneOptions.worldPoint)
+        for (const binding of bindings) {
           if (
-            value57.routeClosed === false ||
-            (!arg24 && !value57.entityId) ||
-            !validPresenceRoute(value57.route) ||
-            !arg22 ||
-            (arg23 !== "all" && value57.floorId !== arg23) ||
-            (!arg24 && (!value2.visible(value57.id) || !presenceVisibleOnPage(value57, arg26)))
+            binding.routeClosed === false ||
+            (!isEditing && !binding.entityId) ||
+            !validPresenceRoute(binding.route) ||
+            !enabled ||
+            (floorId !== "all" && binding.floorId !== floorId) ||
+            (!isEditing &&
+              (!triggers.visible(binding.id) || !presenceVisibleOnPage(binding, activeModule)))
           )
             continue;
-          const value58 = value57.route.map((arg27) =>
-            arg1.worldPoint(value57.floorId, arg27.x, arg27.y, 0),
+          const worldPoints = binding.route.map((routePoint) =>
+            sceneOptions.worldPoint(binding.floorId, routePoint.x, routePoint.y, 0),
           );
           if (
-            value58.some((arg28) => !arg28 || ![arg28.x, arg28.y, arg28.z].every(Number.isFinite))
+            worldPoints.some(
+              (pointProbe) =>
+                !pointProbe || ![pointProbe.x, pointProbe.y, pointProbe.z].every(Number.isFinite),
+            )
           )
             continue;
-          const value59 = JSON.stringify([value57, value58, arg24, arg25]);
-          let value60 = map1.get(value57.id);
+          const actorSignature = JSON.stringify([binding, worldPoints, isEditing, isPreviewWalk]);
+          let actorRecord = actorsByBindingId.get(binding.id);
           if (
-            (value60 && value60.signature !== value59 && (fn6(value57.id), (value60 = null)),
-            !value60)
+            (actorRecord &&
+              actorRecord.signature !== actorSignature &&
+              (removeActor(binding.id), (actorRecord = null)),
+            !actorRecord)
           ) {
-            const value61 = createWalker(
-                arg1.THREE,
-                value57.color === "orange" ? 15376452 : 5421233,
-                value57.character,
+            const walkerRoot = createWalker(
+                sceneOptions.THREE,
+                binding.color === "orange" ? 15376452 : 5421233,
+                binding.character,
               ),
-              set2 = new Set();
-            value61.traverse((arg29) => {
-              arg29.isMesh && set2.add(arg29.material);
+              actorMaterialSet = new Set();
+            walkerRoot.traverse((meshObject) => {
+              meshObject.isMesh && actorMaterialSet.add(meshObject.material);
             });
-            for (const value65 of set2)
-              value65.emissive?.getHex() ||
-                (value65.emissive.copy(value65.color), (value65.emissiveIntensity = 0.55));
-            const value62 = value57.size ?? 1;
-            (value61.scale.setScalar(value62),
-              (value61.userData.presenceId = value57.id),
-              (value61.userData.environmentFloorId = value57.floorId),
-              arg1.overlayScene.add(value61));
-            const value63 = JSON.stringify([
-                value57.entityId,
-                value57.floorId,
-                value57.route,
-                arg24,
+            for (const actorMaterial of actorMaterialSet)
+              actorMaterial.emissive?.getHex() ||
+                (actorMaterial.emissive.copy(actorMaterial.color),
+                (actorMaterial.emissiveIntensity = 0.55));
+            const walkerSize = binding.size ?? 1;
+            (walkerRoot.scale.setScalar(walkerSize),
+              (walkerRoot.userData.presenceId = binding.id),
+              (walkerRoot.userData.environmentFloorId = binding.floorId),
+              sceneOptions.overlayScene.add(walkerRoot));
+            const progressSignature = JSON.stringify([
+                binding.entityId,
+                binding.floorId,
+                binding.route,
+                isEditing,
               ]),
-              value64 = map2.get(value57.id);
+              savedProgress = progressByBindingId.get(binding.id);
             if (
-              ((value60 = {
-                root: value61,
-                size: value62,
-                floorId: value57.floorId,
-                shadow: fn1(),
+              ((actorRecord = {
+                root: walkerRoot,
+                size: walkerSize,
+                floorId: binding.floorId,
+                shadow: createFootShadow(),
                 materials: new Map(
-                  [...set2].map((arg30) => [
-                    arg30,
+                  [...actorMaterialSet].map((materialItem) => [
+                    materialItem,
                     {
-                      opacity: arg30.opacity,
-                      transparent: arg30.transparent,
-                      depthWrite: arg30.depthWrite,
+                      opacity: materialItem.opacity,
+                      transparent: materialItem.transparent,
+                      depthWrite: materialItem.depthWrite,
                     },
                   ]),
                 ),
                 opacity: 1,
                 exiting: false,
-                path: closedPath(value58),
-                distance: value64?.key === value63 ? value64.distance : 0,
-                progressKey: value63,
-                speed: value57.speed ?? 0.45,
-                signature: value59,
-                simulated: arg24,
-                preview: arg24 && !arg25,
+                path: closedPath(worldPoints),
+                distance: savedProgress?.key === progressSignature ? savedProgress.distance : 0,
+                progressKey: progressSignature,
+                speed: binding.speed ?? 0.45,
+                signature: actorSignature,
+                simulated: isEditing,
+                preview: isEditing && !isPreviewWalk,
               }),
-              value61.add(value60.shadow),
-              fn3(value60, arg24 ? 1 : 0),
-              arg24)
+              walkerRoot.add(actorRecord.shadow),
+              applyActorOpacity(actorRecord, isEditing ? 1 : 0),
+              isEditing)
             ) {
-              const value66 = [...value58, value58[0]].map(
-                (arg31) => new arg1.THREE.Vector3(arg31.x, arg31.y + 0.025, arg31.z),
+              const routeLinePoints = [...worldPoints, worldPoints[0]].map(
+                (linePoint) =>
+                  new sceneOptions.THREE.Vector3(linePoint.x, linePoint.y + 0.025, linePoint.z),
               );
-              ((value60.routeLine = new arg1.THREE.Line(
-                new arg1.THREE.BufferGeometry().setFromPoints(value66),
-                new arg1.THREE.LineBasicMaterial({
-                  color: value57.color === "orange" ? 15376452 : 5421233,
+              ((actorRecord.routeLine = new sceneOptions.THREE.Line(
+                new sceneOptions.THREE.BufferGeometry().setFromPoints(routeLinePoints),
+                new sceneOptions.THREE.LineBasicMaterial({
+                  color: binding.color === "orange" ? 15376452 : 5421233,
                   depthTest: true,
                 }),
               )),
-                (value60.routeLine.name = "presence-route-preview"),
-                (value60.routeLine.userData.environmentFloorId = value57.floorId),
-                (value60.routeLine.userData.environmentEffect = true),
-                arg1.overlayScene.add(value60.routeLine));
+                (actorRecord.routeLine.name = "presence-route-preview"),
+                (actorRecord.routeLine.userData.environmentFloorId = binding.floorId),
+                (actorRecord.routeLine.userData.environmentEffect = true),
+                sceneOptions.overlayScene.add(actorRecord.routeLine));
             }
-            (map1.set(value57.id, value60), fn7(value60), (value56 = true));
+            (actorsByBindingId.set(binding.id, actorRecord),
+              placeActor(actorRecord),
+              (hasSceneChanges = true));
           }
-          (value60.exiting && ((value60.exiting = false), (value56 = true)), set1.add(value57.id));
+          (actorRecord.exiting && ((actorRecord.exiting = false), (hasSceneChanges = true)),
+            liveBindingIdSet.add(binding.id));
         }
-      for (const [value67, value68] of map1)
-        if (!set1.has(value67)) {
-          const value69 = arg20.find((arg32) => arg32.id === value67);
-          !arg24 &&
-          arg22 &&
-          value69 &&
-          value2.visible(value67) &&
-          (arg23 === "all" || value68.floorId === arg23) &&
-          !presenceVisibleOnPage(value69, arg26)
-            ? value68.exiting || ((value68.exiting = true), (value56 = true))
-            : (fn6(value67), (value56 = true));
+      for (const [staleBindingId, staleActor] of actorsByBindingId)
+        if (!liveBindingIdSet.has(staleBindingId)) {
+          const bindingMatch = bindings.find((bindingProbe) => bindingProbe.id === staleBindingId);
+          !isEditing &&
+          enabled &&
+          bindingMatch &&
+          triggers.visible(staleBindingId) &&
+          (floorId === "all" || staleActor.floorId === floorId) &&
+          !presenceVisibleOnPage(bindingMatch, activeModule)
+            ? staleActor.exiting || ((staleActor.exiting = true), (hasSceneChanges = true))
+            : (removeActor(staleBindingId), (hasSceneChanges = true));
         }
-      for (const value70 of map2.keys())
-        (!arg20.some((arg33) => arg33.id === value70) || (!arg24 && !value2.visible(value70))) &&
-          map2.delete(value70);
-      (fn2(), value56 && (arg1.requestRender?.(), arg2()));
+      for (const progressBindingId of progressByBindingId.keys())
+        (!bindings.some((bindingEntry) => bindingEntry.id === progressBindingId) ||
+          (!isEditing && !triggers.visible(progressBindingId))) &&
+          progressByBindingId.delete(progressBindingId);
+      (flushReflectionFloors(),
+        hasSceneChanges && (sceneOptions.requestRender?.(), wakeFrameLoop()));
     },
-    tick(arg34) {
-      const value71 = Math.max(0, Math.min(0.1, Number(arg34) || 0));
-      value1 += value71;
-      let value72 = false;
-      for (const value74 of map1.keys())
-        !map1.get(value74).simulated &&
-          !value2.visible(value74) &&
-          (fn6(value74), map2.delete(value74), (value72 = true));
-      for (const [value75, value76] of map1) {
-        const value77 = value76.exiting ? 0 : 1;
+    tick(deltaSeconds) {
+      const stepSeconds = Math.max(0, Math.min(0.1, Number(deltaSeconds) || 0));
+      elapsedSeconds += stepSeconds;
+      let shouldRender = false;
+      for (const trackedBindingId of actorsByBindingId.keys())
+        !actorsByBindingId.get(trackedBindingId).simulated &&
+          !triggers.visible(trackedBindingId) &&
+          (removeActor(trackedBindingId),
+          progressByBindingId.delete(trackedBindingId),
+          (shouldRender = true));
+      for (const [actorBindingId, tickedActor] of actorsByBindingId) {
+        const fadeTargetOpacity = tickedActor.exiting ? 0 : 1;
         if (
-          (value76.opacity !== value77 &&
-            value71 > 0 &&
-            fn3(
-              value76,
-              value77 > value76.opacity
-                ? Math.min(1, value76.opacity + value71 / 0.22)
-                : Math.max(0, value76.opacity - value71 / 0.22),
+          (tickedActor.opacity !== fadeTargetOpacity &&
+            stepSeconds > 0 &&
+            applyActorOpacity(
+              tickedActor,
+              fadeTargetOpacity > tickedActor.opacity
+                ? Math.min(1, tickedActor.opacity + stepSeconds / 0.22)
+                : Math.max(0, tickedActor.opacity - stepSeconds / 0.22),
             ),
-          value76.exiting)
+          tickedActor.exiting)
         ) {
-          value76.opacity === 0 && fn6(value75);
+          tickedActor.opacity === 0 && removeActor(actorBindingId);
           continue;
         }
-        value76.preview ||
-          value71 === 0 ||
-          ((value76.distance = (value76.distance + value71 * value76.speed) % value76.path.length),
-          fn7(value76),
-          (value3 = true));
+        tickedActor.preview ||
+          stepSeconds === 0 ||
+          ((tickedActor.distance =
+            (tickedActor.distance + stepSeconds * tickedActor.speed) % tickedActor.path.length),
+          placeActor(tickedActor),
+          (hasDirtyReflections = true));
       }
-      const value73 = [...map1.values()].some((arg35) => !arg35.preview || arg35.opacity !== 1);
-      return (fn2(), (value73 || value72) && arg1.requestRender?.(), value73);
+      const isAnimating = [...actorsByBindingId.values()].some(
+        (trackedActor) => !trackedActor.preview || trackedActor.opacity !== 1,
+      );
+      return (
+        flushReflectionFloors(),
+        (isAnimating || shouldRender) && sceneOptions.requestRender?.(),
+        isAnimating
+      );
     },
-    anchor(arg36) {
-      const value78 = map1.get(arg36);
-      return value78
+    anchor(bindingId) {
+      const anchoredActor = actorsByBindingId.get(bindingId);
+      return anchoredActor
         ? {
             center: [
-              value78.root.position.x,
-              value78.root.position.y + 0.7 * value78.size,
-              value78.root.position.z,
+              anchoredActor.root.position.x,
+              anchoredActor.root.position.y + 0.7 * anchoredActor.size,
+              anchoredActor.root.position.z,
             ],
           }
         : null;
     },
-    hitRects: fn8,
-    pick(arg37, arg38, arg39, arg40, arg41, arg42) {
-      const value79 = arg40.getBoundingClientRect();
-      if (!value79.width || !value79.height) return null;
-      const value80 = [...map1.entries()].filter(
-          ([arg43, arg44]) =>
-            !arg44.exiting &&
-            arg44.opacity > 0 &&
-            arg41.find((arg45) => arg45.id === arg43)?.clickToFocus === true,
+    hitRects: computeHitRects,
+    pick(clientX, clientY, camera, canvasElement, pickBindings, pickLayoutSize) {
+      const pickCanvasRect = canvasElement.getBoundingClientRect();
+      if (!pickCanvasRect.width || !pickCanvasRect.height) return null;
+      const clickableActors = [...actorsByBindingId.entries()].filter(
+          ([pickBindingId, entryActor]) =>
+            !entryActor.exiting &&
+            entryActor.opacity > 0 &&
+            pickBindings.find((clickBinding) => clickBinding.id === pickBindingId)?.clickToFocus ===
+              true,
         ),
-        value81 = new arg1.THREE.Raycaster();
-      value81.setFromCamera(
-        new arg1.THREE.Vector2(
-          ((arg37 - value79.left) / value79.width) * 2 - 1,
-          1 - ((arg38 - value79.top) / value79.height) * 2,
+        raycaster = new sceneOptions.THREE.Raycaster();
+      raycaster.setFromCamera(
+        new sceneOptions.THREE.Vector2(
+          ((clientX - pickCanvasRect.left) / pickCanvasRect.width) * 2 - 1,
+          1 - ((clientY - pickCanvasRect.top) / pickCanvasRect.height) * 2,
         ),
-        arg39,
+        camera,
       );
-      for (const [, value83] of value80) value83.root.updateMatrixWorld(true);
-      const value82 = value81.intersectObjects(
-        value80.map(([, arg46]) => arg46.root),
+      for (const [, clickableActor] of clickableActors) clickableActor.root.updateMatrixWorld(true);
+      const intersections = raycaster.intersectObjects(
+        clickableActors.map(([, raycastActor]) => raycastActor.root),
         true,
       );
-      if (value82.length)
+      if (intersections.length)
         return (
-          value80.find(([, arg47]) => {
-            let value84 = value82[0].object;
-            for (; value84;) {
-              if (value84 === arg47.root) return true;
-              value84 = value84.parent;
+          clickableActors.find(([, candidateActor]) => {
+            let sceneNode = intersections[0].object;
+            for (; sceneNode;) {
+              if (sceneNode === candidateActor.root) return true;
+              sceneNode = sceneNode.parent;
             }
             return false;
           })?.[0] || null
         );
-      const list4 = [];
+      const paddingHits = [];
       for (const {
-        id: value85,
-        left: value86,
-        top: value87,
-        width: value88,
-        height: value89,
-        padding: value90,
-        scaleX: value91,
-        scaleY: value92,
-      } of fn8(arg39, arg40, arg41, arg42)) {
-        if (!value90) continue;
-        const value93 = Math.max(value86 - arg37, 0, arg37 - value86 - value88),
-          value94 = Math.max(value87 - arg38, 0, arg38 - value87 - value89),
-          value95 = Math.hypot(value93 / value91, value94 / value92);
-        value95 <= value90 &&
-          list4.push({
-            id: value85,
-            distance: value95,
+        id: rectId,
+        left: rectLeft,
+        top: rectTop,
+        width: rectWidth,
+        height: rectHeight,
+        padding: rectPadding,
+        scaleX: rectScaleX,
+        scaleY: rectScaleY,
+      } of computeHitRects(camera, canvasElement, pickBindings, pickLayoutSize)) {
+        if (!rectPadding) continue;
+        const dxPx = Math.max(rectLeft - clientX, 0, clientX - rectLeft - rectWidth),
+          dyPx = Math.max(rectTop - clientY, 0, clientY - rectTop - rectHeight),
+          distancePx = Math.hypot(dxPx / rectScaleX, dyPx / rectScaleY);
+        distancePx <= rectPadding &&
+          paddingHits.push({
+            id: rectId,
+            distance: distancePx,
           });
       }
-      return list4.sort((arg48, arg49) => arg48.distance - arg49.distance)[0]?.id || null;
+      return (
+        paddingHits.sort((firstHit, secondHit) => firstHit.distance - secondHit.distance)[0]?.id ||
+        null
+      );
     },
     dispose() {
-      for (const value96 of map1.keys()) fn6(value96);
-      (map2.clear(),
-        fn2(),
-        value4?.geometry.dispose(),
-        value4?.texture.dispose(),
-        (value4 = null),
-        (list1 = []),
-        (value6 = null),
-        (value7 = null),
-        (value9 = null),
-        (value8 = null));
+      for (const disposedBindingId of actorsByBindingId.keys()) removeActor(disposedBindingId);
+      (progressByBindingId.clear(),
+        flushReflectionFloors(),
+        footShadowAssets?.geometry.dispose(),
+        footShadowAssets?.texture.dispose(),
+        (footShadowAssets = null),
+        (rugPlacements = []),
+        (cachedSceneModelRoot = null),
+        (cachedSceneRevision = null),
+        (cachedDocument = null),
+        (cachedBackgroundFloor = null));
     },
   };
 }
-export function createPresenceWaves(arg50, arg51 = () => {}) {
-  const { THREE: value97 } = arg50,
-    map3 = new Map(),
-    value98 = new value97.RingGeometry(0.965, 1, 48);
-  value98.rotateX(-Math.PI / 2);
-  let value99,
-    value100,
-    text1 = "",
-    value101 = false,
-    value102 = false;
-  const fn9 = () => {
-      (arg50.requestRender?.(), arg51());
+export function createPresenceWaves(waveOptions, wakeWaveFrameLoop = () => {}) {
+  const { THREE: THREE } = waveOptions,
+    waveRecordsByBindingId = new Map(),
+    ringGeometry = new THREE.RingGeometry(0.965, 1, 48);
+  ringGeometry.rotateX(-Math.PI / 2);
+  let cachedWaveModelRoot,
+    cachedRevision,
+    cachedSignature = "",
+    isDisposed = false,
+    hasVisibleWave = false;
+  const requestWaveRender = () => {
+      (waveOptions.requestRender?.(), wakeWaveFrameLoop());
     },
-    value103 =
+    reducedMotionQuery =
       globalThis.matchMedia?.("(prefers-reduced-motion: reduce)") ??
       globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)"),
-    fn10 = () => {
-      !value101 && value102 && fn9();
+    handleMotionPreferenceChange = () => {
+      !isDisposed && hasVisibleWave && requestWaveRender();
     };
-  value103?.addEventListener?.("change", fn10);
-  const fn11 = (arg52) => {
-      for (let value104 = arg52; value104; value104 = value104.parent) {
-        if (value104.visible === false) return false;
-        if (value104 === value99) return true;
+  reducedMotionQuery?.addEventListener?.("change", handleMotionPreferenceChange);
+  const isNodeVisibleInModel = (probedModel) => {
+      for (let ancestorNode = probedModel; ancestorNode; ancestorNode = ancestorNode.parent) {
+        if (ancestorNode.visible === false) return false;
+        if (ancestorNode === cachedWaveModelRoot) return true;
       }
       return false;
     },
-    fn12 = (arg53) => {
-      (arg53.group.removeFromParent(), arg53.rings.forEach((arg54) => arg54.material.dispose()));
+    removeWaveRecord = (removedWave) => {
+      (removedWave.group.removeFromParent(),
+        removedWave.rings.forEach((disposedRing) => disposedRing.material.dispose()));
     };
-  function fn13({
-    bindings: arg55 = [],
-    states: arg56 = {},
-    enabled: arg57 = false,
-    floorId: arg58 = "",
-    preview: arg59 = false,
+  function syncWaves({
+    bindings: waveBindings = [],
+    states: waveStates = {},
+    enabled: wavesEnabled = false,
+    floorId: waveFloorId = "",
+    preview: wavePreview = false,
   }) {
-    if (value101) return;
-    let value105 = false;
-    const value106 = arg50.environmentRevision ?? arg50.sceneRevision,
-      value107 = JSON.stringify(
-        arg55.map((arg60) => [
-          arg60.id,
-          arg60.floorId,
-          arg60.modelId,
-          arg60.width,
-          arg60.height,
-          arg60.depth,
+    if (isDisposed) return;
+    let hasWaveChanges = false;
+    const revision = waveOptions.environmentRevision ?? waveOptions.sceneRevision,
+      bindingSignature = JSON.stringify(
+        waveBindings.map((waveBinding) => [
+          waveBinding.id,
+          waveBinding.floorId,
+          waveBinding.modelId,
+          waveBinding.width,
+          waveBinding.height,
+          waveBinding.depth,
         ]),
       );
-    if (value99 !== arg50.modelRoot || value100 !== value106 || text1 !== value107) {
-      ((value99 = arg50.modelRoot), (value100 = value106), (text1 = value107));
-      const map4 = new Map();
-      value99?.traverse((arg61) => {
-        arg61.userData?.environmentModelType === "presence" &&
-          map4.set(
-            JSON.stringify([arg61.userData.environmentFloorId, arg61.userData.environmentModelId]),
-            arg61,
+    if (
+      cachedWaveModelRoot !== waveOptions.modelRoot ||
+      cachedRevision !== revision ||
+      cachedSignature !== bindingSignature
+    ) {
+      ((cachedWaveModelRoot = waveOptions.modelRoot),
+        (cachedRevision = revision),
+        (cachedSignature = bindingSignature));
+      const presenceModelsByKey = new Map();
+      cachedWaveModelRoot?.traverse((modelNode) => {
+        modelNode.userData?.environmentModelType === "presence" &&
+          presenceModelsByKey.set(
+            JSON.stringify([
+              modelNode.userData.environmentFloorId,
+              modelNode.userData.environmentModelId,
+            ]),
+            modelNode,
           );
       });
-      const set3 = new Set();
-      for (const value108 of arg55) {
-        const value109 = map4.get(JSON.stringify([value108.floorId, value108.modelId]));
-        if (!value109 || !arg50.overlayScene) continue;
-        set3.add(value108.id);
-        let value110 = map3.get(value108.id);
-        if (value110?.model !== value109) {
-          ((value105 = true), value110 && fn12(value110));
-          const value114 = new value97.Group();
-          ((value114.name = "presence-waves-" + value108.id),
-            (value114.matrixAutoUpdate = false),
-            (value114.userData.environmentEffect = true));
-          const value115 = Array.from(
+      const visibleBindingIdSet = new Set();
+      for (const waveBindingItem of waveBindings) {
+        const matchedModelNode = presenceModelsByKey.get(
+          JSON.stringify([waveBindingItem.floorId, waveBindingItem.modelId]),
+        );
+        if (!matchedModelNode || !waveOptions.overlayScene) continue;
+        visibleBindingIdSet.add(waveBindingItem.id);
+        let waveRecord = waveRecordsByBindingId.get(waveBindingItem.id);
+        if (waveRecord?.model !== matchedModelNode) {
+          ((hasWaveChanges = true), waveRecord && removeWaveRecord(waveRecord));
+          const waveGroup = new THREE.Group();
+          ((waveGroup.name = "presence-waves-" + waveBindingItem.id),
+            (waveGroup.matrixAutoUpdate = false),
+            (waveGroup.userData.environmentEffect = true));
+          const ringMeshes = Array.from(
             {
               length: 3,
             },
             () => {
-              const value116 = new value97.Mesh(
-                value98,
-                new value97.MeshBasicMaterial({
+              const createdRingMesh = new THREE.Mesh(
+                ringGeometry,
+                new THREE.MeshBasicMaterial({
                   color: 12838102,
                   transparent: true,
                   opacity: 0,
-                  side: value97.DoubleSide,
+                  side: THREE.DoubleSide,
                   depthWrite: false,
                   toneMapped: false,
                 }),
               );
-              return ((value116.raycast = () => {}), value114.add(value116), value116);
+              return (
+                (createdRingMesh.raycast = () => {}),
+                waveGroup.add(createdRingMesh),
+                createdRingMesh
+              );
             },
           );
-          (arg50.overlayScene.add(value114),
-            (value110 = {
-              group: value114,
-              rings: value115,
-              model: value109,
+          (waveOptions.overlayScene.add(waveGroup),
+            (waveRecord = {
+              group: waveGroup,
+              rings: ringMeshes,
+              model: matchedModelNode,
             }),
-            map3.set(value108.id, value110));
+            waveRecordsByBindingId.set(waveBindingItem.id, waveRecord));
         }
-        const value111 = Math.max(0.02, (value108.width || 0.16) * 0.5),
-          value112 = (value108.depth || value108.width || 0.16) / (value108.width || 0.16),
-          value113 = (value108.height || 0.2) * 0.755;
-        ((value110.radius !== value111 ||
-          value110.depthRatio !== value112 ||
-          value110.rings[0].position.y !== value113) &&
-          (value105 = true),
-          (value110.radius = value111),
-          (value110.depthRatio = value112));
-        for (const value117 of value110.rings) value117.position.y = value113;
+        const radius = Math.max(0.02, (waveBindingItem.width || 0.16) * 0.5),
+          depthRatio =
+            (waveBindingItem.depth || waveBindingItem.width || 0.16) /
+            (waveBindingItem.width || 0.16),
+          ringHeight = (waveBindingItem.height || 0.2) * 0.755;
+        ((waveRecord.radius !== radius ||
+          waveRecord.depthRatio !== depthRatio ||
+          waveRecord.rings[0].position.y !== ringHeight) &&
+          (hasWaveChanges = true),
+          (waveRecord.radius = radius),
+          (waveRecord.depthRatio = depthRatio));
+        for (const ringMesh of waveRecord.rings) ringMesh.position.y = ringHeight;
       }
-      for (const [value118, value119] of map3)
-        set3.has(value118) || ((value105 = true), fn12(value119), map3.delete(value118));
+      for (const [waveBindingId, staleWave] of waveRecordsByBindingId)
+        visibleBindingIdSet.has(waveBindingId) ||
+          ((hasWaveChanges = true),
+          removeWaveRecord(staleWave),
+          waveRecordsByBindingId.delete(waveBindingId));
     }
-    value102 = false;
-    for (const value120 of arg55) {
-      const value121 = map3.get(value120.id);
-      if (!value121) continue;
-      const value122 = Number.isFinite(value120.waveScale)
-          ? Math.max(0.25, Math.min(3, value120.waveScale))
+    hasVisibleWave = false;
+    for (const waveBindingEntry of waveBindings) {
+      const activeWaveRecord = waveRecordsByBindingId.get(waveBindingEntry.id);
+      if (!activeWaveRecord) continue;
+      const waveScale = Number.isFinite(waveBindingEntry.waveScale)
+          ? Math.max(0.25, Math.min(3, waveBindingEntry.waveScale))
           : 1,
-        value123 = Number.isFinite(value120.waveOpacity)
-          ? Math.max(0, Math.min(100, value120.waveOpacity)) / 100
+        waveOpacity = Number.isFinite(waveBindingEntry.waveOpacity)
+          ? Math.max(0, Math.min(100, waveBindingEntry.waveOpacity)) / 100
           : 0.68;
-      ((value121.scale !== value122 || value121.opacity !== value123) && (value105 = true),
-        (value121.scale = value122),
-        (value121.opacity = value123));
-      const value124 = arg56?.get?.(value120.entityId) ?? arg56[value120.entityId],
-        value125 = value124?.newState || value124,
-        value126 =
-          value125?.available !== false &&
-          !!value125?.state &&
-          !["unknown", "unavailable"].includes(value125.state);
-      value121.enabled =
-        arg57 &&
-        value120.waveEnabled !== false &&
-        value121.opacity > 0 &&
-        (arg59 || value126) &&
-        value120.floorId === arg58;
-      const value127 = value121.enabled && fn11(value121.model);
-      (value121.group.visible !== value127 && (value105 = true),
-        (value121.group.visible = value127),
-        (value102 ||= value121.enabled));
+      ((activeWaveRecord.scale !== waveScale || activeWaveRecord.opacity !== waveOpacity) &&
+        (hasWaveChanges = true),
+        (activeWaveRecord.scale = waveScale),
+        (activeWaveRecord.opacity = waveOpacity));
+      const stateEntry =
+          waveStates?.get?.(waveBindingEntry.entityId) ?? waveStates[waveBindingEntry.entityId],
+        resolvedState = stateEntry?.newState || stateEntry,
+        isActiveState =
+          resolvedState?.available !== false &&
+          !!resolvedState?.state &&
+          !["unknown", "unavailable"].includes(resolvedState.state);
+      activeWaveRecord.enabled =
+        wavesEnabled &&
+        waveBindingEntry.waveEnabled !== false &&
+        activeWaveRecord.opacity > 0 &&
+        (wavePreview || isActiveState) &&
+        waveBindingEntry.floorId === waveFloorId;
+      const isWaveActive = activeWaveRecord.enabled && isNodeVisibleInModel(activeWaveRecord.model);
+      (activeWaveRecord.group.visible !== isWaveActive && (hasWaveChanges = true),
+        (activeWaveRecord.group.visible = isWaveActive),
+        (hasVisibleWave ||= activeWaveRecord.enabled));
     }
-    value105 && fn9();
+    hasWaveChanges && requestWaveRender();
   }
-  function fn14(arg62) {
-    if (value101 || !value102) return false;
-    const value128 = value103?.matches === true;
-    let value129 = false,
-      value130 = false;
-    for (const value131 of map3.values()) {
-      const value132 = value131.enabled && fn11(value131.model);
+  function tickWaves(elapsedMs) {
+    if (isDisposed || !hasVisibleWave) return false;
+    const isReducedMotion = reducedMotionQuery?.matches === true;
+    let hasRingChanges = false,
+      shouldAnimate = false;
+    for (const visibleWave of waveRecordsByBindingId.values()) {
+      const isWaveVisible = visibleWave.enabled && isNodeVisibleInModel(visibleWave.model);
       if (
-        (value131.group.visible !== value132 &&
-          ((value131.group.visible = value132), (value129 = true)),
-        !!value132)
+        (visibleWave.group.visible !== isWaveVisible &&
+          ((visibleWave.group.visible = isWaveVisible), (hasRingChanges = true)),
+        !!isWaveVisible)
       ) {
-        ((value130 ||= !value128),
-          value131.model.updateWorldMatrix(true, false),
-          value131.group.matrix.equals(value131.model.matrixWorld) ||
-            (value131.group.matrix.copy(value131.model.matrixWorld),
-            (value131.group.matrixWorldNeedsUpdate = true),
-            (value129 = true)));
-        for (let value133 = 0; value133 < value131.rings.length; value133++) {
-          const value134 = value128 ? 0.35 : (arg62 / 2400 + value133 / 3) % 1,
-            value135 = value131.radius * (1.05 + value134 * 20) * value131.scale,
-            value136 = value131.rings[value133],
-            value137 = !value128 || value133 === 0,
-            value138 = value131.opacity * Math.pow(1 - value134, 0.7),
-            value139 = value135 * value131.depthRatio;
-          ((value136.visible !== value137 ||
-            value136.scale.x !== value135 ||
-            value136.scale.z !== value139 ||
-            value136.material.opacity !== value138) &&
-            (value129 = true),
-            (value136.visible = value137),
-            value136.scale.set(value135, 1, value139),
-            (value136.material.opacity = value138));
+        ((shouldAnimate ||= !isReducedMotion),
+          visibleWave.model.updateWorldMatrix(true, false),
+          visibleWave.group.matrix.equals(visibleWave.model.matrixWorld) ||
+            (visibleWave.group.matrix.copy(visibleWave.model.matrixWorld),
+            (visibleWave.group.matrixWorldNeedsUpdate = true),
+            (hasRingChanges = true)));
+        for (let ringIndex = 0; ringIndex < visibleWave.rings.length; ringIndex++) {
+          const ringPhase = isReducedMotion ? 0.35 : (elapsedMs / 2400 + ringIndex / 3) % 1,
+            ringScale = visibleWave.radius * (1.05 + ringPhase * 20) * visibleWave.scale,
+            ringObject = visibleWave.rings[ringIndex],
+            isRingVisible = !isReducedMotion || ringIndex === 0,
+            ringOpacity = visibleWave.opacity * Math.pow(1 - ringPhase, 0.7),
+            ringScaleZ = ringScale * visibleWave.depthRatio;
+          ((ringObject.visible !== isRingVisible ||
+            ringObject.scale.x !== ringScale ||
+            ringObject.scale.z !== ringScaleZ ||
+            ringObject.material.opacity !== ringOpacity) &&
+            (hasRingChanges = true),
+            (ringObject.visible = isRingVisible),
+            ringObject.scale.set(ringScale, 1, ringScaleZ),
+            (ringObject.material.opacity = ringOpacity));
         }
       }
     }
-    return (value129 && fn9(), value130);
+    return (hasRingChanges && requestWaveRender(), shouldAnimate);
   }
   return {
-    sync: fn13,
-    tick: fn14,
+    sync: syncWaves,
+    tick: tickWaves,
     dispose() {
-      if (!value101) {
-        ((value101 = true), value103?.removeEventListener?.("change", fn10));
-        for (const value140 of map3.values()) fn12(value140);
-        (map3.clear(), value98.dispose());
+      if (!isDisposed) {
+        ((isDisposed = true),
+          reducedMotionQuery?.removeEventListener?.("change", handleMotionPreferenceChange));
+        for (const disposedWave of waveRecordsByBindingId.values()) removeWaveRecord(disposedWave);
+        (waveRecordsByBindingId.clear(), ringGeometry.dispose());
       }
     },
   };

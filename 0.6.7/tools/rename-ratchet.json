@@ -1,10 +1,10 @@
 {
   "version": 1,
   "note": "Single source of truth for the frontend rename/format ceilings. Written ONLY by tools/ratchet_frontend_names.mjs (down-only unless --allow-increase). Read by tools/verify_frontend_batch.sh, tools/verify_0.6.5.sh and tools/verify_all.sh through tools/print_rename_ratchet.mjs, which emits : \"${HB_MAX_*:=n}\" so the environment still overrides every value. Before this file existed the same four numbers were hard-coded in three scripts and had already drifted by 80/2.",
-  "mechanical": 24675,
-  "short": 3515,
+  "mechanical": 14526,
+  "short": 1718,
   "unformatted": 0,
-  "updatedAt": "2026-10-01T04:46:17.801Z",
+  "updatedAt": "2026-10-01T05:34:49.704Z",
   "history": [
     {
       "at": "2026-09-30T07:35:00+08:00",
@@ -201,6 +201,27 @@
       "short": 3515,
       "unformatted": 0,
       "note": "mechanical 25048 -> 24675, short 3560 -> 3515"
+    },
+    {
+      "at": "2026-10-01T05:01:03.567Z",
+      "mechanical": 24121,
+      "short": 3480,
+      "unformatted": 0,
+      "note": "mechanical 24675 -> 24121, short 3515 -> 3480"
+    },
+    {
+      "at": "2026-10-01T05:09:12.121Z",
+      "mechanical": 23375,
+      "short": 3442,
+      "unformatted": 0,
+      "note": "mechanical 24121 -> 23375, short 3480 -> 3442"
+    },
+    {
+      "at": "2026-10-01T05:34:49.704Z",
+      "mechanical": 14526,
+      "short": 1718,
+      "unformatted": 0,
+      "note": "mechanical 23375 -> 14526, short 3442 -> 1718"
     }
   ]
 }

@@ -1,0 +1,1046 @@
+{
+  "file": "frontend/static/modules/interaction3d/bridge.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 206,
+  "counts": {
+    "entries": 51,
+    "renameable": 51,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "abortController1@5",
+      "name": "abortController1",
+      "line": 5,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const abortController1 = new AbortController(),",
+      "references": [
+        {
+          "line": 6,
+          "text": "value1 = setTimeout(() => abortController1.abort(), 5000);"
+        },
+        {
+          "line": 11,
+          "text": "signal: abortController1.signal,"
+        }
+      ]
+    },
+    {
+      "key": "value1@6",
+      "name": "value1",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1 = setTimeout(() => abortController1.abort(), 5000);",
+      "references": [
+        {
+          "line": 34,
+          "text": "clearTimeout(value1);"
+        }
+      ]
+    },
+    {
+      "key": "value2@8",
+      "name": "value2",
+      "line": 8,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = await fetch(\"/api/v1/modules/interaction3d/access\", {",
+      "references": [
+        {
+          "line": 13,
+          "text": "if (!value2.ok) {"
+        },
+        {
+          "line": 15,
+          "text": "value2.status === 403"
+        },
+        {
+          "line": 17,
+          "text": ": value2.status === 401"
+        },
+        {
+          "line": 21,
+          "text": "throw ((error1.status = value2.status), error1);"
+        }
+      ]
+    },
+    {
+      "key": "error1@14",
+      "name": "error1",
+      "line": 14,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const error1 = new Error(",
+      "references": [
+        {
+          "line": 21,
+          "text": "throw ((error1.status = value2.status), error1);"
+        }
+      ]
+    },
+    {
+      "key": "value3@23",
+      "name": "value3",
+      "line": 23,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = await value2.json();",
+      "references": [
+        {
+          "line": 25,
+          "text": "value3?.allowed !== true ||"
+        },
+        {
+          "line": 26,
+          "text": "!Number.isFinite(Number(value3.validForSeconds)) ||"
+        },
+        {
+          "line": 27,
+          "text": "Number(value3.validForSeconds) <= 0"
+        },
+        {
+          "line": 30,
+          "text": "throw ((error2.status = value3?.allowed === false ? 403 : 502), error2);"
+        }
+      ]
+    },
+    {
+      "key": "error2@29",
+      "name": "error2",
+      "line": 29,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const error2 = new Error(\"暂时无法验证 3D 交互授权，请稍候重试。\");",
+      "references": [
+        {
+          "line": 30,
+          "text": "throw ((error2.status = value3?.allowed === false ? 403 : 502), error2);"
+        }
+      ]
+    },
+    {
+      "key": "l@37",
+      "name": "l",
+      "line": 37,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "let l;",
+      "references": [
+        {
+          "line": 69,
+          "text": "l ||"
+        },
+        {
+          "line": 74,
+          "text": "document.hidden ? l.suspend() : l.resume(),"
+        },
+        {
+          "line": 76,
+          "text": "window.addEventListener(\"pagehide\", () => l.suspend()),"
+        },
+        {
+          "line": 78,
+          "text": "document.hidden || l.resume();"
+        }
+      ]
+    },
+    {
+      "key": "g@38",
+      "name": "g",
+      "line": 38,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const g = new Map(),",
+      "references": [
+        {
+          "line": 44,
+          "text": "return g.get(arg3);"
+        },
+        {
+          "line": 52,
+          "text": "const value6 = g.get(arg4);"
+        },
+        {
+          "line": 62,
+          "text": "for (const [value7, value8] of g)"
+        },
+        {
+          "line": 117,
+          "text": "g.get(arg10.id) === value14 && g.delete(arg10.id),"
+        }
+      ]
+    },
+    {
+      "key": "c@39",
+      "name": "c",
+      "line": 39,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c = new Map();",
+      "references": [
+        {
+          "line": 41,
+          "text": "for (const value4 of c.get(arg1) || []) value4(arg2);"
+        },
+        {
+          "line": 49,
+          "text": "(clearTimeout(value5), c.get(arg4)?.delete(fn2), c.get(arg4)?.size || c.delete(arg4));"
+        },
+        {
+          "line": 58,
+          "text": "(c.has(arg4) || c.set(arg4, new Set()), c.get(arg4).add(fn2), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "m@40",
+      "name": "m",
+      "line": 40,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function m(arg1, arg2) {",
+      "references": [
+        {
+          "line": 118,
+          "text": "value10 || m(arg10.id, new Error(\"3D 户型暂不可用，请检查授权或重新载入。\")),"
+        },
+        {
+          "line": 151,
+          "text": "arg11.editable && m(arg10.id));"
+        },
+        {
+          "line": 172,
+          "text": "(value17.refresh(), arg11.editable && m(arg10.id));"
+        },
+        {
+          "line": 175,
+          "text": "arg11.editable && m(arg10.id, arg16);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@40",
+      "name": "arg1",
+      "line": 40,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function m(arg1, arg2) {",
+      "references": [
+        {
+          "line": 41,
+          "text": "for (const value4 of c.get(arg1) || []) value4(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@40",
+      "name": "arg2",
+      "line": 40,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function m(arg1, arg2) {",
+      "references": [
+        {
+          "line": 41,
+          "text": "for (const value4 of c.get(arg1) || []) value4(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "value4@41",
+      "name": "value4",
+      "line": 41,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value4 of c.get(arg1) || []) value4(arg2);",
+      "references": [
+        {
+          "line": 41,
+          "text": "for (const value4 of c.get(arg1) || []) value4(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@43",
+      "name": "arg3",
+      "line": 43,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function getInteraction3dEditorView(arg3) {",
+      "references": [
+        {
+          "line": 44,
+          "text": "return g.get(arg3);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@46",
+      "name": "arg4",
+      "line": 46,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function waitInteraction3dEditorView(arg4) {",
+      "references": [
+        {
+          "line": 49,
+          "text": "(clearTimeout(value5), c.get(arg4)?.delete(fn2), c.get(arg4)?.size || c.delete(arg4));"
+        },
+        {
+          "line": 52,
+          "text": "const value6 = g.get(arg4);"
+        },
+        {
+          "line": 58,
+          "text": "(c.has(arg4) || c.set(arg4, new Set()), c.get(arg4).add(fn2), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "arg5@47",
+      "name": "arg5",
+      "line": 47,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return new Promise((arg5, arg6) => {",
+      "references": [
+        {
+          "line": 53,
+          "text": "arg7 ? (fn1(), arg6(arg7)) : value6?.ready && value6.metadata && (fn1(), arg5(value6));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@47",
+      "name": "arg6",
+      "line": 47,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return new Promise((arg5, arg6) => {",
+      "references": [
+        {
+          "line": 53,
+          "text": "arg7 ? (fn1(), arg6(arg7)) : value6?.ready && value6.metadata && (fn1(), arg5(value6));"
+        },
+        {
+          "line": 56,
+          "text": "(fn1(), arg6(new Error(\"户型准备较慢，请稍候重试。\")));"
+        }
+      ]
+    },
+    {
+      "key": "fn1@48",
+      "name": "fn1",
+      "line": 48,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => {",
+      "references": [
+        {
+          "line": 53,
+          "text": "arg7 ? (fn1(), arg6(arg7)) : value6?.ready && value6.metadata && (fn1(), arg5(value6));"
+        },
+        {
+          "line": 56,
+          "text": "(fn1(), arg6(new Error(\"户型准备较慢，请稍候重试。\")));"
+        }
+      ]
+    },
+    {
+      "key": "fn2@51",
+      "name": "fn2",
+      "line": 51,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg7) => {",
+      "references": [
+        {
+          "line": 49,
+          "text": "(clearTimeout(value5), c.get(arg4)?.delete(fn2), c.get(arg4)?.size || c.delete(arg4));"
+        },
+        {
+          "line": 58,
+          "text": "(c.has(arg4) || c.set(arg4, new Set()), c.get(arg4).add(fn2), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "arg7@51",
+      "name": "arg7",
+      "line": 51,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg7) => {",
+      "references": [
+        {
+          "line": 53,
+          "text": "arg7 ? (fn1(), arg6(arg7)) : value6?.ready && value6.metadata && (fn1(), arg5(value6));"
+        }
+      ]
+    },
+    {
+      "key": "value6@52",
+      "name": "value6",
+      "line": 52,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = g.get(arg4);",
+      "references": [
+        {
+          "line": 53,
+          "text": "arg7 ? (fn1(), arg6(arg7)) : value6?.ready && value6.metadata && (fn1(), arg5(value6));"
+        }
+      ]
+    },
+    {
+      "key": "value5@55",
+      "name": "value5",
+      "line": 55,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = setTimeout(() => {",
+      "references": [
+        {
+          "line": 49,
+          "text": "(clearTimeout(value5), c.get(arg4)?.delete(fn2), c.get(arg4)?.size || c.delete(arg4));"
+        }
+      ]
+    },
+    {
+      "key": "arg8@61",
+      "name": "arg8",
+      "line": 61,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cancelOtherInteraction3dViews(arg8) {",
+      "references": [
+        {
+          "line": 63,
+          "text": "(value7 !== arg8 && value8.viewEditing && value8.setViewEditing(false),"
+        },
+        {
+          "line": 64,
+          "text": "value7 !== arg8 && value8.closePopupLayoutPreview?.(),"
+        },
+        {
+          "line": 65,
+          "text": "value7 !== arg8 && value8.rangeEditing && value8.closeRangeEditor?.());"
+        }
+      ]
+    },
+    {
+      "key": "value7@62",
+      "name": "value7",
+      "line": 62,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value7, value8] of g)",
+      "references": [
+        {
+          "line": 63,
+          "text": "(value7 !== arg8 && value8.viewEditing && value8.setViewEditing(false),"
+        },
+        {
+          "line": 64,
+          "text": "value7 !== arg8 && value8.closePopupLayoutPreview?.(),"
+        },
+        {
+          "line": 65,
+          "text": "value7 !== arg8 && value8.rangeEditing && value8.closeRangeEditor?.());"
+        }
+      ]
+    },
+    {
+      "key": "value8@62",
+      "name": "value8",
+      "line": 62,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value7, value8] of g)",
+      "references": [
+        {
+          "line": 63,
+          "text": "(value7 !== arg8 && value8.viewEditing && value8.setViewEditing(false),"
+        },
+        {
+          "line": 64,
+          "text": "value7 !== arg8 && value8.closePopupLayoutPreview?.(),"
+        },
+        {
+          "line": 65,
+          "text": "value7 !== arg8 && value8.rangeEditing && value8.closeRangeEditor?.());"
+        }
+      ]
+    },
+    {
+      "key": "L@67",
+      "name": "L",
+      "line": 67,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function L() {",
+      "references": [
+        {
+          "line": 85,
+          "text": "return L().subscribe(arg9);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@84",
+      "name": "arg9",
+      "line": 84,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function subscribeInteraction3dAccess(arg9) {",
+      "references": [
+        {
+          "line": 85,
+          "text": "return L().subscribe(arg9);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@87",
+      "name": "arg10",
+      "line": 87,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function renderInteraction3d(arg10, arg11 = {}) {",
+      "references": [
+        {
+          "line": 101,
+          "text": "(value9.classList.toggle(\"is-background-hidden\", arg10.properties?.backgroundVisible === false),"
+        },
+        {
+          "line": 107,
+          "text": "arg10.properties?.backgroundVisible === false,"
+        },
+        {
+          "line": 109,
+          "text": "value14?.update(arg10.properties || {}, undefined, null, arg10),"
+        },
+        {
+          "line": 117,
+          "text": "g.get(arg10.id) === value14 && g.delete(arg10.id),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@87",
+      "name": "arg11",
+      "line": 87,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function renderInteraction3d(arg10, arg11 = {}) {",
+      "references": [
+        {
+          "line": 95,
+          "text": "value15 = arg11.prewarmStage !== true;"
+        },
+        {
+          "line": 100,
+          "text": "const value17 = createInteraction3dFocusLayout(value9, arg11);"
+        },
+        {
+          "line": 104,
+          "text": "(arg11.document = arg14),"
+        },
+        {
+          "line": 151,
+          "text": "arg11.editable && m(arg10.id));"
+        }
+      ]
+    },
+    {
+      "key": "value9@88",
+      "name": "value9",
+      "line": 88,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = document.createElement(\"section\");",
+      "references": [
+        {
+          "line": 89,
+          "text": "((value9.className = \"hb-interaction3d-host\"), value9.setAttribute(\"aria-label\", \"3D 交互\"));"
+        },
+        {
+          "line": 96,
+          "text": "value9.setInteraction3dPageVisible = (arg12) => {"
+        },
+        {
+          "line": 100,
+          "text": "const value17 = createInteraction3dFocusLayout(value9, arg11);"
+        },
+        {
+          "line": 101,
+          "text": "(value9.classList.toggle(\"is-background-hidden\", arg10.properties?.backgroundVisible === false),"
+        }
+      ]
+    },
+    {
+      "key": "value10@90",
+      "name": "value10",
+      "line": 90,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value10 = false,",
+      "references": [
+        {
+          "line": 118,
+          "text": "value10 || m(arg10.id, new Error(\"3D 户型暂不可用，请检查授权或重新载入。\")),"
+        },
+        {
+          "line": 128,
+          "text": "if (value10) return;"
+        },
+        {
+          "line": 160,
+          "text": "if (value10 || value19 !== value13 || document.hidden) return;"
+        },
+        {
+          "line": 185,
+          "text": "if (!value10 && value19 === value13) {"
+        }
+      ]
+    },
+    {
+      "key": "value11@91",
+      "name": "value11",
+      "line": 91,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = false,",
+      "references": [
+        {
+          "line": 154,
+          "text": "if (value11) return;"
+        }
+      ]
+    },
+    {
+      "key": "value12@92",
+      "name": "value12",
+      "line": 92,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = false,",
+      "references": [
+        {
+          "line": 136,
+          "text": "((value9.dataset.access = \"pending\"), value9.setAttribute(\"aria-busy\", \"true\"), !value12)"
+        },
+        {
+          "line": 147,
+          "text": "if (value12) {"
+        }
+      ]
+    },
+    {
+      "key": "value13@93",
+      "name": "value13",
+      "line": 93,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = 0,",
+      "references": [
+        {
+          "line": 156,
+          "text": "const value19 = ++value13;"
+        },
+        {
+          "line": 160,
+          "text": "if (value10 || value19 !== value13 || document.hidden) return;"
+        },
+        {
+          "line": 185,
+          "text": "if (!value10 && value19 === value13) {"
+        },
+        {
+          "line": 196,
+          "text": "value19 === value13 && (value11 = false);"
+        }
+      ]
+    },
+    {
+      "key": "value14@94",
+      "name": "value14",
+      "line": 94,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14,",
+      "references": [
+        {
+          "line": 97,
+          "text": "((value15 = arg12 !== false), value14?.setPageVisible?.(value15));"
+        },
+        {
+          "line": 109,
+          "text": "value14?.update(arg10.properties || {}, undefined, null, arg10),"
+        },
+        {
+          "line": 117,
+          "text": "g.get(arg10.id) === value14 && g.delete(arg10.id),"
+        },
+        {
+          "line": 119,
+          "text": "value14?.(),"
+        }
+      ]
+    },
+    {
+      "key": "value15@95",
+      "name": "value15",
+      "line": 95,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = arg11.prewarmStage !== true;",
+      "references": [
+        {
+          "line": 97,
+          "text": "((value15 = arg12 !== false), value14?.setPageVisible?.(value15));"
+        },
+        {
+          "line": 179,
+          "text": "value14.setPageVisible?.(value15),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@96",
+      "name": "arg12",
+      "line": 96,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9.setInteraction3dPageVisible = (arg12) => {",
+      "references": [
+        {
+          "line": 97,
+          "text": "((value15 = arg12 !== false), value14?.setPageVisible?.(value15));"
+        }
+      ]
+    },
+    {
+      "key": "value16@99",
+      "name": "value16",
+      "line": 99,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value16;",
+      "references": [
+        {
+          "line": 121,
+          "text": "value16?.remove(),"
+        },
+        {
+          "line": 162,
+          "text": "(value16.rel = \"stylesheet\"),"
+        },
+        {
+          "line": 163,
+          "text": "(value16.href ="
+        },
+        {
+          "line": 165,
+          "text": "value9.append(value16));"
+        }
+      ]
+    },
+    {
+      "key": "value17@100",
+      "name": "value17",
+      "line": 100,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = createInteraction3dFocusLayout(value9, arg11);",
+      "references": [
+        {
+          "line": 110,
+          "text": "value17.refresh());"
+        },
+        {
+          "line": 113,
+          "text": "(value17.setActive(false),"
+        },
+        {
+          "line": 172,
+          "text": "(value17.refresh(), arg11.editable && m(arg10.id));"
+        },
+        {
+          "line": 177,
+          "text": "onFocusChange: (arg17) => value17.setActive(arg17),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@102",
+      "name": "arg13",
+      "line": 102,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value9.updateInteraction3d = (arg13, arg14) => {",
+      "references": [
+        {
+          "line": 103,
+          "text": "((arg10 = arg13),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@102",
+      "name": "arg14",
+      "line": 102,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value9.updateInteraction3d = (arg13, arg14) => {",
+      "references": [
+        {
+          "line": 104,
+          "text": "(arg11.document = arg14),"
+        }
+      ]
+    },
+    {
+      "key": "fn3@112",
+      "name": "fn3",
+      "line": 112,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3() {",
+      "references": [
+        {
+          "line": 130,
+          "text": "if (arg15.status === \"denied\") return fn3(arg15.message);"
+        },
+        {
+          "line": 201,
+          "text": "((value10 = true), value18(), fn3(\"3D 交互已停止。\"), value17.dispose());"
+        }
+      ]
+    },
+    {
+      "key": "value18@127",
+      "name": "value18",
+      "line": 127,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = subscribeInteraction3dAccess(async (arg15) => {",
+      "references": [
+        {
+          "line": 201,
+          "text": "((value10 = true), value18(), fn3(\"3D 交互已停止。\"), value17.dispose());"
+        }
+      ]
+    },
+    {
+      "key": "arg15@127",
+      "name": "arg15",
+      "line": 127,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = subscribeInteraction3dAccess(async (arg15) => {",
+      "references": [
+        {
+          "line": 129,
+          "text": "if (!arg15.allowed) {"
+        },
+        {
+          "line": 130,
+          "text": "if (arg15.status === \"denied\") return fn3(arg15.message);"
+        },
+        {
+          "line": 132,
+          "text": "value9.setAttribute(\"aria-busy\", arg15.status === \"checking\" ? \"true\" : \"false\");"
+        }
+      ]
+    },
+    {
+      "key": "value20@139",
+      "name": "value20",
+      "line": 139,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 140,
+          "text": "((value20.className = \"i3d-access-pending\"),"
+        },
+        {
+          "line": 141,
+          "text": "value20.setAttribute(\"role\", \"status\"),"
+        },
+        {
+          "line": 142,
+          "text": "value20.setAttribute(\"aria-label\", \"正在准备 3D 户型\"),"
+        },
+        {
+          "line": 143,
+          "text": "value9.replaceChildren(value20));"
+        }
+      ]
+    },
+    {
+      "key": "value19@156",
+      "name": "value19",
+      "line": 156,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = ++value13;",
+      "references": [
+        {
+          "line": 160,
+          "text": "if (value10 || value19 !== value13 || document.hidden) return;"
+        },
+        {
+          "line": 185,
+          "text": "if (!value10 && value19 === value13) {"
+        },
+        {
+          "line": 196,
+          "text": "value19 === value13 && (value11 = false);"
+        }
+      ]
+    },
+    {
+      "key": "value21@158",
+      "name": "value21",
+      "line": 158,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 =",
+      "references": [
+        {
+          "line": 168,
+          "text": "(value14 = value21.mountInteraction3d(value22, {"
+        }
+      ]
+    },
+    {
+      "key": "value22@166",
+      "name": "value22",
+      "line": 166,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 167,
+          "text": "(value9.replaceChildren(value16, value22),"
+        },
+        {
+          "line": 168,
+          "text": "(value14 = value21.mountInteraction3d(value22, {"
+        }
+      ]
+    },
+    {
+      "key": "arg16@174",
+      "name": "arg16",
+      "line": 174,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onLoadError: (arg16) => {",
+      "references": [
+        {
+          "line": 175,
+          "text": "arg11.editable && m(arg10.id, arg16);"
+        }
+      ]
+    },
+    {
+      "key": "arg17@177",
+      "name": "arg17",
+      "line": 177,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onFocusChange: (arg17) => value17.setActive(arg17),",
+      "references": [
+        {
+          "line": 177,
+          "text": "onFocusChange: (arg17) => value17.setActive(arg17),"
+        }
+      ]
+    },
+    {
+      "key": "value23@187",
+      "name": "value23",
+      "line": 187,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 188,
+          "text": "((value23.className = \"i3d-access-pending\"),"
+        },
+        {
+          "line": 189,
+          "text": "(value23.textContent = \"户型暂时无法载入，请稍候重试。\"),"
+        },
+        {
+          "line": 190,
+          "text": "value23.setAttribute(\"role\", \"status\"),"
+        },
+        {
+          "line": 191,
+          "text": "value9.replaceChildren(value23),"
+        }
+      ]
+    }
+  ]
+}

@@ -1,68 +1,77 @@
-const v = (arg1, arg2) => (arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2]);
-export function televisionArtwork(arg3 = {}) {
+const readEntityState = (stateSource, entityId) =>
+  stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
+export function televisionArtwork(artworkAttributes = {}) {
   return (
-    [arg3.entity_picture_local, arg3.entity_picture, arg3.media_image_url].find(
-      (arg4) =>
-        typeof arg4 == "string" && /^\/api\/(?:media_player_proxy|image_proxy)\/[^\s]+$/.test(arg4),
+    [
+      artworkAttributes.entity_picture_local,
+      artworkAttributes.entity_picture,
+      artworkAttributes.media_image_url,
+    ].find(
+      (candidateArtworkUrl) =>
+        typeof candidateArtworkUrl == "string" &&
+        /^\/api\/(?:media_player_proxy|image_proxy)\/[^\s]+$/.test(candidateArtworkUrl),
     ) || ""
   );
 }
-export function televisionState(arg5, arg6 = {}, arg7 = Date.now()) {
-  const value1 = v(arg6, arg5.entityId),
-    value2 = value1?.newState || value1 || {},
-    value3 = value2.attributes || {},
-    value4 = String(value2.state || "unknown").toLowerCase(),
-    value5 =
-      !!arg5.entityId &&
-      value2.available !== false &&
-      !["unknown", "unavailable", ""].includes(value4),
-    value6 = value5 && !["off", "standby"].includes(value4),
-    value7 = televisionPower(arg5, arg6),
-    value8 = arg5.powerEntityId ? value7.available : value5,
-    value9 = arg5.powerEntityId ? value7.on : value6,
-    value10 = value9 && (!value6 || ["on", "idle"].includes(value4)),
-    fn1 = (arg8) =>
-      arg8 !== null && arg8 !== "" && Number.isFinite(Number(arg8)) ? Number(arg8) : null,
-    value11 = fn1(value3.media_duration),
-    value12 = fn1(value3.media_position),
-    value13 = Date.parse(value3.media_position_updated_at || ""),
-    value14 =
-      value9 && value4 === "playing" && Number.isFinite(value13)
-        ? Math.max(0, (arg7 - value13) / 1000)
+export function televisionState(televisionConfig, entityStateStore = {}, nowMs = Date.now()) {
+  const stateEntry = readEntityState(entityStateStore, televisionConfig.entityId),
+    entityState = stateEntry?.newState || stateEntry || {},
+    stateAttributes = entityState.attributes || {},
+    normalizedState = String(entityState.state || "unknown").toLowerCase(),
+    isMediaAvailable =
+      !!televisionConfig.entityId &&
+      entityState.available !== false &&
+      !["unknown", "unavailable", ""].includes(normalizedState),
+    isMediaOn = isMediaAvailable && !["off", "standby"].includes(normalizedState),
+    powerState = televisionPower(televisionConfig, entityStateStore),
+    isAvailable = televisionConfig.powerEntityId ? powerState.available : isMediaAvailable,
+    isOn = televisionConfig.powerEntityId ? powerState.on : isMediaOn,
+    isIdle = isOn && (!isMediaOn || ["on", "idle"].includes(normalizedState)),
+    parseFiniteNumber = (rawInput) =>
+      rawInput !== null && rawInput !== "" && Number.isFinite(Number(rawInput))
+        ? Number(rawInput)
+        : null,
+    mediaDurationSeconds = parseFiniteNumber(stateAttributes.media_duration),
+    mediaPositionSeconds = parseFiniteNumber(stateAttributes.media_position),
+    mediaPositionUpdatedAtMs = Date.parse(stateAttributes.media_position_updated_at || ""),
+    mediaPositionElapsedSeconds =
+      isOn && normalizedState === "playing" && Number.isFinite(mediaPositionUpdatedAtMs)
+        ? Math.max(0, (nowMs - mediaPositionUpdatedAtMs) / 1000)
         : 0;
-  let value15 = value9 && !value10 ? televisionArtwork(value3) : "";
-  if (value15) {
-    const value16 = JSON.stringify([
-      value3.media_content_id,
-      value3.media_title,
-      value3.media_series_title,
-      value3.media_season,
-      value3.media_episode,
-      value3.media_album_name,
-      value3.media_artist,
-      value3.app_name,
-      value3.source,
+  let artworkUrl = isOn && !isIdle ? televisionArtwork(stateAttributes) : "";
+  if (artworkUrl) {
+    const artworkIdentityJson = JSON.stringify([
+      stateAttributes.media_content_id,
+      stateAttributes.media_title,
+      stateAttributes.media_series_title,
+      stateAttributes.media_season,
+      stateAttributes.media_episode,
+      stateAttributes.media_album_name,
+      stateAttributes.media_artist,
+      stateAttributes.app_name,
+      stateAttributes.source,
     ]);
-    let value17 = 2166136261;
-    for (let value18 = 0; value18 < value16.length; value18++)
-      value17 = Math.imul(value17 ^ value16.charCodeAt(value18), 16777619);
-    value15 += (value15.includes("?") ? "&" : "?") + "hb_i3d=" + (value17 >>> 0).toString(36);
+    let artworkHash = 2166136261;
+    for (let charIndex = 0; charIndex < artworkIdentityJson.length; charIndex++)
+      artworkHash = Math.imul(artworkHash ^ artworkIdentityJson.charCodeAt(charIndex), 16777619);
+    artworkUrl +=
+      (artworkUrl.includes("?") ? "&" : "?") + "hb_i3d=" + (artworkHash >>> 0).toString(36);
   }
   return {
-    state: value4,
-    available: value8,
-    on: value9,
-    idle: value10,
-    mediaAvailable: value5,
-    playing: value9 && value6 && value4 === "playing",
-    name: arg5.label || value3.friendly_name || "电视",
+    state: normalizedState,
+    available: isAvailable,
+    on: isOn,
+    idle: isIdle,
+    mediaAvailable: isMediaAvailable,
+    playing: isOn && isMediaOn && normalizedState === "playing",
+    name: televisionConfig.label || stateAttributes.friendly_name || "电视",
     status:
-      !arg5.entityId && !arg5.powerEntityId
+      !televisionConfig.entityId && !televisionConfig.powerEntityId
         ? "尚未绑定媒体实体"
-        : value8
-          ? !value9 && arg5.powerEntityId
+        : isAvailable
+          ? !isOn && televisionConfig.powerEntityId
             ? "电视已关闭"
-            : value9 && !value6
+            : isOn && !isMediaOn
               ? "已开启"
               : {
                   playing: "播放中",
@@ -72,95 +81,99 @@ export function televisionState(arg5, arg6 = {}, arg7 = Date.now()) {
                   on: "已开启",
                   off: "已关闭",
                   standby: "待机",
-                }[value4] || value4
+                }[normalizedState] || normalizedState
           : "设备不可用",
-    title: value10
+    title: isIdle
       ? "暂无播放内容"
       : String(
-          value3.media_title ||
-            value3.media_series_title ||
-            value3.app_name ||
-            value3.source ||
+          stateAttributes.media_title ||
+            stateAttributes.media_series_title ||
+            stateAttributes.app_name ||
+            stateAttributes.source ||
             "暂无播放内容",
         ),
-    app: String(value3.app_name || value3.source || ""),
-    artist: String(value3.media_artist || ""),
-    artwork: value15,
-    duration: value11 > 0 ? value11 : null,
+    app: String(stateAttributes.app_name || stateAttributes.source || ""),
+    artist: String(stateAttributes.media_artist || ""),
+    artwork: artworkUrl,
+    duration: mediaDurationSeconds > 0 ? mediaDurationSeconds : null,
     position:
-      value12 !== null
-        ? Math.min(value11 > 0 ? value11 : Infinity, Math.max(0, value12 + value14))
+      mediaPositionSeconds !== null
+        ? Math.min(
+            mediaDurationSeconds > 0 ? mediaDurationSeconds : Infinity,
+            Math.max(0, mediaPositionSeconds + mediaPositionElapsedSeconds),
+          )
         : null,
-    updated: value2.updatedAt || value2.last_updated || "",
+    updated: entityState.updatedAt || entityState.last_updated || "",
   };
 }
-export function televisionTime(arg9) {
-  if (!Number.isFinite(arg9)) return "—";
-  const value19 = Math.max(0, Math.floor(arg9));
-  return Math.floor(value19 / 60) + ":" + String(value19 % 60).padStart(2, "0");
+export function televisionTime(totalSeconds) {
+  if (!Number.isFinite(totalSeconds)) return "—";
+  const wholeSeconds = Math.max(0, Math.floor(totalSeconds));
+  return Math.floor(wholeSeconds / 60) + ":" + String(wholeSeconds % 60).padStart(2, "0");
 }
-export function televisionPower(arg10, arg11 = {}, arg12) {
-  const value20 = arg10.powerEntityId || arg10.entityId || "",
-    value21 = value20.split(".")[0],
-    value22 = v(arg11, value20),
-    value23 = value22?.newState || value22 || {},
-    value24 =
-      !!value20 &&
-      value23.available !== false &&
-      typeof value23.state == "string" &&
-      !["unknown", "unavailable", ""].includes(value23.state),
-    value25 = value24 && !["off", "standby"].includes(value23.state),
-    value26 = typeof arg12 == "boolean" ? arg12 : !value25,
-    value27 = value26 ? "turn_on" : "turn_off",
-    value28 = Number(value23.attributes?.supported_features) || 0,
-    value29 =
-      value21 === "switch" || (value21 === "media_player" && !!(value28 & (value26 ? 128 : 256)));
+export function televisionPower(powerConfig, powerStateStore = {}, desiredOn) {
+  const targetEntityId = powerConfig.powerEntityId || powerConfig.entityId || "",
+    entityDomain = targetEntityId.split(".")[0],
+    powerStateEntry = readEntityState(powerStateStore, targetEntityId),
+    powerEntityState = powerStateEntry?.newState || powerStateEntry || {},
+    isPowerAvailable =
+      !!targetEntityId &&
+      powerEntityState.available !== false &&
+      typeof powerEntityState.state == "string" &&
+      !["unknown", "unavailable", ""].includes(powerEntityState.state),
+    isPowerOn = isPowerAvailable && !["off", "standby"].includes(powerEntityState.state),
+    shouldTurnOn = typeof desiredOn == "boolean" ? desiredOn : !isPowerOn,
+    powerService = shouldTurnOn ? "turn_on" : "turn_off",
+    powerSupportedFeatures = Number(powerEntityState.attributes?.supported_features) || 0,
+    canTogglePower =
+      entityDomain === "switch" ||
+      (entityDomain === "media_player" && !!(powerSupportedFeatures & (shouldTurnOn ? 128 : 256)));
   return {
-    entityId: value20,
-    domain: value21,
-    on: value25,
-    available: value24,
-    supported: value29,
-    service: value27,
-    reason: value24 ? (value29 ? "" : "此实体不支持开关机") : "电源状态不可用",
+    entityId: targetEntityId,
+    domain: entityDomain,
+    on: isPowerOn,
+    available: isPowerAvailable,
+    supported: canTogglePower,
+    service: powerService,
+    reason: isPowerAvailable ? (canTogglePower ? "" : "此实体不支持开关机") : "电源状态不可用",
     command: {
-      entityId: value20,
-      domain: value21,
-      service: value27,
+      entityId: targetEntityId,
+      domain: entityDomain,
+      service: powerService,
       data: {},
       deviceKind: "television",
     },
   };
 }
-export function televisionMediaControl(arg13, arg14, arg15) {
-  const value30 = v(arg14, arg13.entityId),
-    value31 = value30?.newState || value30 || {},
-    value32 = televisionState(arg13, arg14),
-    value33 = Number(value31.attributes?.supported_features) || 0,
-    value34 =
-      arg15 === "previous"
+export function televisionMediaControl(mediaConfig, mediaStateStore, mediaAction) {
+  const mediaStateEntry = readEntityState(mediaStateStore, mediaConfig.entityId),
+    mediaEntityState = mediaStateEntry?.newState || mediaStateEntry || {},
+    televisionSnapshot = televisionState(mediaConfig, mediaStateStore),
+    mediaSupportedFeatures = Number(mediaEntityState.attributes?.supported_features) || 0,
+    mediaService =
+      mediaAction === "previous"
         ? "media_previous_track"
-        : arg15 === "next"
+        : mediaAction === "next"
           ? "media_next_track"
-          : value32.playing
+          : televisionSnapshot.playing
             ? "media_pause"
             : "media_play",
-    value35 = {
+    requiredFeatureMask = {
       media_previous_track: 16,
       media_next_track: 32,
       media_pause: 1,
       media_play: 16384,
-    }[value34];
+    }[mediaService];
   return {
     enabled:
-      value32.on &&
-      value32.mediaAvailable &&
-      !["off", "standby"].includes(value32.state) &&
-      !!(value33 & value35),
+      televisionSnapshot.on &&
+      televisionSnapshot.mediaAvailable &&
+      !["off", "standby"].includes(televisionSnapshot.state) &&
+      !!(mediaSupportedFeatures & requiredFeatureMask),
     command: {
       domain: "media_player",
-      entityId: arg13.entityId,
-      service: value34,
+      entityId: mediaConfig.entityId,
+      service: mediaService,
       data: {},
       deviceKind: "television",
     },

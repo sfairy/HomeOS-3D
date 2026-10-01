@@ -1,150 +1,174 @@
 import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260907-focus-work-v1";
-const ye = 1;
-function q(arg1, arg2 = 0) {
-  const value1 = Math.floor(Number(arg1));
-  return Number.isFinite(value1) && value1 > 0 ? value1 : arg2;
+const DEFAULT_TILE_GUTTER = 1;
+function toPositiveInt(input, fallback = 0) {
+  const parsed = Math.floor(Number(input));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
-function Me(arg3) {
-  let value2 = 1;
-  const value3 = Math.max(1, Math.ceil(Number(arg3) || 1));
-  for (; value2 < value3;) value2 *= 2;
-  return value2;
+function nextPowerOfTwo(requestedValue) {
+  let result = 1;
+  const powerOfTwo = Math.max(1, Math.ceil(Number(requestedValue) || 1));
+  for (; result < powerOfTwo;) result *= 2;
+  return result;
 }
-function _e(arg4, arg5, arg6) {
-  let value4 = arg6,
-    value5 = arg6,
-    value6 = 0;
-  const list1 = [];
-  for (const value7 of arg4) {
-    const value8 = value7.size;
+function packTilesIntoAtlas(tiles, atlasSize, gutter) {
+  let cursorX = gutter,
+    cursorY = gutter,
+    rowHeight = 0;
+  const placed = [];
+  for (const tile of tiles) {
+    const tileSize = tile.size;
     if (
-      (value4 + value8 + arg6 > arg5 &&
-        ((value4 = arg6), (value5 += value6 + arg6 * 2), (value6 = 0)),
-      value5 + value8 + arg6 > arg5)
+      (cursorX + tileSize + gutter > atlasSize &&
+        ((cursorX = gutter), (cursorY += rowHeight + gutter * 2), (rowHeight = 0)),
+      cursorY + tileSize + gutter > atlasSize)
     )
       return null;
-    (list1.push({
-      ...value7,
-      x: value4,
-      y: value5,
+    (placed.push({
+      ...tile,
+      x: cursorX,
+      y: cursorY,
     }),
-      (value4 += value8 + arg6 * 2),
-      (value6 = Math.max(value6, value8)));
+      (cursorX += tileSize + gutter * 2),
+      (rowHeight = Math.max(rowHeight, tileSize)));
   }
-  return list1;
+  return placed;
 }
-export function packSpotShadowAtlasTiles(arg7 = [], arg8 = 4096, arg9 = ye) {
-  const value9 = q(arg8, 4096),
-    value10 = Math.max(0, Math.floor(Number(arg9) || 0)),
-    value11 = arg7
-      .map((arg10, arg11) => ({
-        index: arg11,
-        size: q(arg10),
+export function packSpotShadowAtlasTiles(
+  tileSizes = [],
+  maxAtlasSize = 4096,
+  tileGutter = DEFAULT_TILE_GUTTER,
+) {
+  const atlasLimit = toPositiveInt(maxAtlasSize, 4096),
+    gutterPx = Math.max(0, Math.floor(Number(tileGutter) || 0)),
+    entries = tileSizes
+      .map((size, index) => ({
+        index: index,
+        size: toPositiveInt(size),
       }))
-      .filter((arg12) => arg12.size > 0 && arg12.size + value10 * 2 <= value9)
-      .sort((arg13, arg14) => arg14.size - arg13.size || arg13.index - arg14.index);
-  if (value11.length !== arg7.length) return null;
-  if (!value11.length)
+      .filter((entry) => entry.size > 0 && entry.size + gutterPx * 2 <= atlasLimit)
+      .sort((entryA, entryB) => entryB.size - entryA.size || entryA.index - entryB.index);
+  if (entries.length !== tileSizes.length) return null;
+  if (!entries.length)
     return {
       size: 1,
       tiles: [],
     };
-  const value12 = value11.reduce((arg15, arg16) => arg15 + (arg16.size + value10 * 2) ** 2, 0);
-  let value13 = Me(Math.max(value11[0].size + value10 * 2, Math.sqrt(value12)));
-  for (; value13 <= value9;) {
-    const value14 = _e(value11, value13, value10);
-    if (value14) {
-      const list2 = Array(arg7.length);
-      for (const value15 of value14) list2[value15.index] = value15;
+  const totalArea = entries.reduce(
+    (sum, tileEntry) => sum + (tileEntry.size + gutterPx * 2) ** 2,
+    0,
+  );
+  let atlasSizeCandidate = nextPowerOfTwo(
+    Math.max(entries[0].size + gutterPx * 2, Math.sqrt(totalArea)),
+  );
+  for (; atlasSizeCandidate <= atlasLimit;) {
+    const candidateLayout = packTilesIntoAtlas(entries, atlasSizeCandidate, gutterPx);
+    if (candidateLayout) {
+      const orderedTiles = Array(tileSizes.length);
+      for (const placedTile of candidateLayout) orderedTiles[placedTile.index] = placedTile;
       return {
-        size: value13,
-        tiles: list2,
+        size: atlasSizeCandidate,
+        tiles: orderedTiles,
       };
     }
-    value13 *= 2;
+    atlasSizeCandidate *= 2;
   }
   return null;
 }
-function O(arg17) {
-  const value16 = String(arg17?.userData?.lightFloorId || ""),
-    value17 = String(arg17?.userData?.lightItemId || "");
-  return value17 ? value16 + ":" + value17 : "";
+function spotLightKey(lightObject) {
+  const floorId = String(lightObject?.userData?.lightFloorId || ""),
+    itemId = String(lightObject?.userData?.lightItemId || "");
+  return itemId ? floorId + ":" + itemId : "";
 }
-function Z(arg18, { includeHidden: arg19 = true } = {}) {
-  const list3 = [];
+function collectShadowLights(searchRoot, { includeHidden: includeHidden = true } = {}) {
+  const lights = [];
   return (
-    arg18?.traverse((arg20) => {
-      !arg20.isSpotLight ||
-        arg20.userData?.shadowCandidate !== true ||
-        !O(arg20) ||
-        (!arg19 && arg20.visible === false) ||
-        (Number(arg20.userData?.lightBrightness || 0) <= 0 &&
-          arg20.userData?.prewarmShadow !== true) ||
-        list3.push(arg20);
+    searchRoot?.traverse((object) => {
+      !object.isSpotLight ||
+        object.userData?.shadowCandidate !== true ||
+        !spotLightKey(object) ||
+        (!includeHidden && object.visible === false) ||
+        (Number(object.userData?.lightBrightness || 0) <= 0 &&
+          object.userData?.prewarmShadow !== true) ||
+        lights.push(object);
     }),
-    list3
+    lights
   );
 }
-function ne(arg21) {
+function isShadowableMaterial(material) {
   return !!(
-    arg21 &&
-    (arg21.isMeshStandardMaterial ||
-      arg21.isMeshPhysicalMaterial ||
-      arg21.isMeshLambertMaterial ||
-      arg21.isMeshPhongMaterial ||
-      arg21.isMeshToonMaterial)
+    material &&
+    (material.isMeshStandardMaterial ||
+      material.isMeshPhysicalMaterial ||
+      material.isMeshLambertMaterial ||
+      material.isMeshPhongMaterial ||
+      material.isMeshToonMaterial)
   );
 }
-function be() {
+function buildAtlasFragmentChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform sampler2D userSpotShadowAtlas;\n  uniform float userSpotShadowAtlasEnabled;\n  uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n\n  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {\n    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;\n    shadowCoord.xyz /= shadowCoord.w;\n    shadowCoord.z += shadowParams.x;\n    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0\n      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;\n    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;\n    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;\n    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;\n    float mean = distribution.x;\n    // The stock VSM Chebyshev tail turns half-float depth steps from a\n    // 256px local-light map into several visible contour rings. Preserve the\n    // authored VSM blur, but use its deviation only to size one bounded edge\n    // transition. This keeps the same single texture sample and removes the\n    // long probability tail that made furniture shadows look layered.\n    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );\n    // A slope-scaled receiver guard keeps the newly bounded edge from\n    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.\n    // It changes only the depth comparison, not the map resolution or sample\n    // count, and is capped tightly so real contact shadows stay attached.\n    // Cover the complete soft transition at equal depth, then add only a\n    // small slope allowance. This prevents the half-float map's depth bands\n    // from reappearing on large floors or through transparent glass, while\n    // keeping the allowance proportional to the authored penumbra.\n    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );\n    #ifdef USE_REVERSED_DEPTH_BUFFER\n      float occludedDistance = mean - shadowCoord.z;\n    #else\n      float occludedDistance = shadowCoord.z - mean;\n    #endif\n    // The atlas contains only solid architectural occluders. Once a receiver\n    // is safely behind a wall, collapse the remaining VSM depth transition\n    // quickly instead of letting it extend through nearby cabinet backs and\n    // reveal half-float depth rows. The authored blur in atlas UV space still\n    // keeps the wall silhouette soft; this only removes light bleeding behind\n    // the blocker. Equality and the complete receiver guard remain lit.\n    float blockerTransition = max( softness * 0.5, 0.00035 );\n    float shadow = 1.0 - smoothstep(\n      receiverGuard,\n      receiverGuard + blockerTransition,\n      occludedDistance\n    );\n    return mix( 1.0, shadow, shadowParams.y );\n  }\n#endif\n";
 }
-function Te() {
+function buildAtlasVertexParsChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform mat4 userSpotShadowMatrix[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n#endif\n";
 }
-function Pe() {
+function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
 }
-export function guardZeroContributionSpotLights(arg22) {
-  const value18 = arg22.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )"),
-    value19 = arg22.indexOf("#if ( NUM_DIR_LIGHTS > 0 )", value18),
-    text1 =
+export function guardZeroContributionSpotLights(lightsShader) {
+  const spotBlockStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )"),
+    nextLightBlock = lightsShader.indexOf("#if ( NUM_DIR_LIGHTS > 0 )", spotBlockStart),
+    directLightCall =
       "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",
-    value20 = arg22.slice(value18, value19);
-  if (value18 < 0 || value19 < 0 || value20.split(text1).length !== 2)
+    spotLightBranch = lightsShader.slice(spotBlockStart, nextLightBlock);
+  if (
+    spotBlockStart < 0 ||
+    nextLightBlock < 0 ||
+    spotLightBranch.split(directLightCall).length !== 2
+  )
     throw new Error("当前 Three.js 聚光灯反射 Shader 与零贡献优化不兼容。");
-  const value21 =
+  const guardedCall =
     "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      if ( any( notEqual( directLight.color, vec3( 0.0 ) ) ) ) {\n    #endif\n      " +
-    text1 +
+    directLightCall +
     "\n    #ifdef HB_SKIP_ZERO_SPOT_LIGHT\n      }\n    #endif";
-  return arg22.slice(0, value18) + value20.replace(text1, value21) + arg22.slice(value19);
+  return (
+    lightsShader.slice(0, spotBlockStart) +
+    spotLightBranch.replace(directLightCall, guardedCall) +
+    lightsShader.slice(nextLightBlock)
+  );
 }
-function Ue(arg23) {
-  const text2 =
+function patchLightsFragmentBegin(THREE) {
+  const spotShadowLoopSnippet =
       "\n\t\t#if defined( USE_SHADOWMAP ) && ( UNROLLED_LOOP_INDEX < NUM_SPOT_LIGHT_SHADOWS )",
-    text3 =
+    atlasShadowPatch =
       "\n    #if defined( USE_USER_SPOT_SHADOW_ATLAS )\n      directLight.color *= ( directLight.visible && receiveShadow )\n        ? getUserSpotAtlasShadow( userSpotShadowRect[ i ], userSpotShadowParams[ i ], vUserSpotShadowCoord[ i ] )\n        : 1.0;\n    #endif\n",
-    value22 = arg23.ShaderChunk.lights_fragment_begin;
-  if (!value22.includes(text2)) throw new Error("当前 Three.js 灯光 Shader 与阴影图集不兼容。");
-  return guardZeroContributionSpotLights(value22.replace(text2, "" + text3 + text2));
+    lightsFragmentBegin = THREE.ShaderChunk.lights_fragment_begin;
+  if (!lightsFragmentBegin.includes(spotShadowLoopSnippet))
+    throw new Error("当前 Three.js 灯光 Shader 与阴影图集不兼容。");
+  return guardZeroContributionSpotLights(
+    lightsFragmentBegin.replace(
+      spotShadowLoopSnippet,
+      "" + atlasShadowPatch + spotShadowLoopSnippet,
+    ),
+  );
 }
-function Ce(arg24) {
-  (arg24?.shadow?.map?.dispose?.(),
-    arg24?.shadow?.mapPass?.dispose?.(),
-    arg24?.shadow && ((arg24.shadow.map = null), (arg24.shadow.mapPass = null)));
+function disposeShadowTargets(disposedLight) {
+  (disposedLight?.shadow?.map?.dispose?.(),
+    disposedLight?.shadow?.mapPass?.dispose?.(),
+    disposedLight?.shadow &&
+      ((disposedLight.shadow.map = null), (disposedLight.shadow.mapPass = null)));
 }
 export function createSpotShadowAtlasController({
-  THREE: arg25,
-  renderer: arg26,
-  scene: arg27,
-  camera: arg28,
-  requestFrame: arg29 = () => {},
-  canBuild: arg30 = () => true,
-  buildDelay: arg31 = 80,
-  syncBeforeRender: arg32 = false,
+  THREE: three,
+  renderer: renderer,
+  scene: scene,
+  camera: camera,
+  requestFrame: requestFrame = () => {},
+  canBuild: canBuild = () => true,
+  buildDelay: buildDelay = 80,
+  syncBeforeRender: syncBeforeRender = false,
 } = {}) {
-  if (!arg25 || !arg26 || !arg27 || !arg28)
+  if (!three || !renderer || !scene || !camera)
     throw new Error("创建阴影图集时缺少 Three.js 渲染上下文。");
-  const object1 = {
+  const uniforms = {
       userSpotShadowAtlas: {
         value: null,
       },
@@ -161,504 +185,555 @@ export function createSpotShadowAtlasController({
         value: [],
       },
     },
-    value23 = Ue(arg25),
-    map1 = new Map();
-  let value24 = null,
-    value25 = null,
-    weakSet1 = new WeakSet(),
-    value26 = null,
-    value27 = 0,
-    value28 = 0,
-    value29 = false,
-    value30 = false,
-    value31 = false,
-    value32 = false,
-    value33 = true,
-    value34 = null,
-    list4 = [],
-    list5 = [],
-    list6 = [];
-  const value35 = new arg25.Matrix4(),
-    value36 = new arg25.Vector4(),
-    value37 = arg32 ? createRenderLightIndex() : null;
-  let text4 = "";
-  function fn1(arg33) {
-    object1.userSpotShadowAtlasEnabled.value = arg33 && value33 && map1.size ? 1 : 0;
+    patchedLightsFragment = patchLightsFragmentBegin(three),
+    entryByLightKey = new Map();
+  let atlasTarget = null,
+    scratchTarget = null,
+    preparedMaterialSet = new WeakSet(),
+    pendingRoot = null,
+    buildTimer = 0,
+    revision = 0,
+    isBuilding = false,
+    isDirty = false,
+    isDisposed = false,
+    isWebglLost = false,
+    isEnabled = true,
+    syncedLights = null,
+    syncedEntries = [],
+    previousLights = [],
+    previousEntries = [];
+  const scratchMatrix = new three.Matrix4(),
+    scratchVector = new three.Vector4(),
+    lightIndex = syncBeforeRender ? createRenderLightIndex() : null;
+  let lastLightIndexStats = "";
+  function setAtlasEnabled(enabled) {
+    uniforms.userSpotShadowAtlasEnabled.value =
+      enabled && isEnabled && entryByLightKey.size ? 1 : 0;
   }
-  function fn2(arg34) {
-    if (!ne(arg34) || weakSet1.has(arg34)) return;
+  function prepareMaterial(materialToPrepare) {
+    if (!isShadowableMaterial(materialToPrepare) || preparedMaterialSet.has(materialToPrepare))
+      return;
     if (
-      arg34.environmentSourceMaterial &&
-      weakSet1.has(arg34.environmentSourceMaterial) &&
-      arg34.defines?.USE_USER_SPOT_SHADOW_ATLAS === 1
+      materialToPrepare.environmentSourceMaterial &&
+      preparedMaterialSet.has(materialToPrepare.environmentSourceMaterial) &&
+      materialToPrepare.defines?.USE_USER_SPOT_SHADOW_ATLAS === 1
     ) {
-      weakSet1.add(arg34);
+      preparedMaterialSet.add(materialToPrepare);
       return;
     }
-    weakSet1.add(arg34);
-    const value41 = arg34.onBeforeCompile,
-      value42 = arg34.customProgramCacheKey?.bind(arg34);
-    ((arg34.defines = {
-      ...(arg34.defines || {}),
+    preparedMaterialSet.add(materialToPrepare);
+    const previousOnBeforeCompile = materialToPrepare.onBeforeCompile,
+      previousCacheKey = materialToPrepare.customProgramCacheKey?.bind(materialToPrepare);
+    ((materialToPrepare.defines = {
+      ...(materialToPrepare.defines || {}),
       USE_USER_SPOT_SHADOW_ATLAS: 1,
     }),
-      arg32 && arg34.isMeshStandardMaterial && (arg34.defines.HB_SKIP_ZERO_SPOT_LIGHT = 1),
-      (arg34.onBeforeCompile = (arg35, arg36) => {
-        (value41?.call(arg34, arg35, arg36),
-          Object.assign(arg35.uniforms, object1),
-          (arg35.vertexShader = arg35.vertexShader
+      syncBeforeRender &&
+        materialToPrepare.isMeshStandardMaterial &&
+        (materialToPrepare.defines.HB_SKIP_ZERO_SPOT_LIGHT = 1),
+      (materialToPrepare.onBeforeCompile = (shader, rendererInstance) => {
+        (previousOnBeforeCompile?.call(materialToPrepare, shader, rendererInstance),
+          Object.assign(shader.uniforms, uniforms),
+          (shader.vertexShader = shader.vertexShader
             .replace(
               "#include <shadowmap_pars_vertex>",
-              "#include <shadowmap_pars_vertex>\n" + Te(),
+              "#include <shadowmap_pars_vertex>\n" + buildAtlasVertexParsChunk(),
             )
             .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>")
-            .replace("#include <shadowmap_vertex>", "#include <shadowmap_vertex>\n" + Pe())),
-          (arg35.fragmentShader = arg35.fragmentShader
+            .replace(
+              "#include <shadowmap_vertex>",
+              "#include <shadowmap_vertex>\n" + buildAtlasVertexChunk(),
+            )),
+          (shader.fragmentShader = shader.fragmentShader
             .replace(
               "#include <shadowmap_pars_fragment>",
-              "#include <shadowmap_pars_fragment>\n" + be(),
+              "#include <shadowmap_pars_fragment>\n" + buildAtlasFragmentChunk(),
             )
-            .replace("#include <lights_fragment_begin>", value23)));
+            .replace("#include <lights_fragment_begin>", patchedLightsFragment)));
       }),
-      (arg34.customProgramCacheKey = () =>
-        (value42?.() || "") + "|user-spot-shadow-atlas-v7-zero-contribution"),
-      (arg34.needsUpdate = true));
+      (materialToPrepare.customProgramCacheKey = () =>
+        (previousCacheKey?.() || "") + "|user-spot-shadow-atlas-v7-zero-contribution"),
+      (materialToPrepare.needsUpdate = true));
   }
-  const weakMap1 = new WeakMap(),
-    set1 = new Set();
-  function fn3(arg37) {
-    if (!ne(arg37) || set1.has(arg37)) return arg37;
-    let value43 = weakMap1.get(arg37);
+  const materialCloneBySource = new WeakMap(),
+    materialCloneSet = new Set();
+  function cloneSharedMaterial(sourceMaterial) {
+    if (!isShadowableMaterial(sourceMaterial) || materialCloneSet.has(sourceMaterial))
+      return sourceMaterial;
+    let materialClone = materialCloneBySource.get(sourceMaterial);
     return (
-      value43 ||
-        ((value43 = arg37.clone()),
-        (value43.onBeforeCompile = arg37.onBeforeCompile),
-        (value43.customProgramCacheKey = arg37.customProgramCacheKey),
-        weakMap1.set(arg37, value43),
-        set1.add(value43)),
-      value43
+      materialClone ||
+        ((materialClone = sourceMaterial.clone()),
+        (materialClone.onBeforeCompile = sourceMaterial.onBeforeCompile),
+        (materialClone.customProgramCacheKey = sourceMaterial.customProgramCacheKey),
+        materialCloneBySource.set(sourceMaterial, materialClone),
+        materialCloneSet.add(materialClone)),
+      materialClone
     );
   }
-  function fn4(arg38) {
-    value31 ||
-      arg38?.traverse((arg39) => {
-        if (!arg39.isMesh || arg39.receiveShadow === false) return;
-        (arg39.userData.externalModelSharedMaterial ||
-          arg39.userData.sofaSharedMaterial ||
-          arg39.userData.rugSharedMaterial ||
-          arg39.userData.architectureSharedMaterial) &&
-          (arg39.material = Array.isArray(arg39.material)
-            ? arg39.material.map(fn3)
-            : fn3(arg39.material));
-        const value44 = Array.isArray(arg39.material)
-          ? arg39.material
-          : arg39.material
-            ? [arg39.material]
+  function prepareRoot(root) {
+    isDisposed ||
+      root?.traverse((child) => {
+        if (!child.isMesh || child.receiveShadow === false) return;
+        (child.userData.externalModelSharedMaterial ||
+          child.userData.sofaSharedMaterial ||
+          child.userData.rugSharedMaterial ||
+          child.userData.architectureSharedMaterial) &&
+          (child.material = Array.isArray(child.material)
+            ? child.material.map(cloneSharedMaterial)
+            : cloneSharedMaterial(child.material));
+        const materials = Array.isArray(child.material)
+          ? child.material
+          : child.material
+            ? [child.material]
             : [];
-        for (const value45 of value44) fn2(value45);
+        for (const candidateMaterial of materials) prepareMaterial(candidateMaterial);
       });
   }
-  function fn5(arg40) {
-    return Z(arg40, {
+  function collectActiveLights(activeRoot) {
+    return collectShadowLights(activeRoot, {
       includeHidden: false,
     });
   }
-  function fn6(arg41 = value26) {
-    if (value31) return 0;
-    (fn4(arg41), (value34 = null));
-    const value46 = object1.userSpotShadowMatrix.value,
-      value47 = object1.userSpotShadowRect.value,
-      value48 = object1.userSpotShadowParams.value;
-    ((value46.length = 0), (value47.length = 0), (value48.length = 0));
-    for (const value50 of fn5(arg41)) {
-      const value51 = map1.get(O(value50));
-      (value46.push(value51?.matrix || new arg25.Matrix4()),
-        value47.push(value51?.rect || new arg25.Vector4()),
-        value48.push(
-          value51
-            ? new arg25.Vector4(value51.bias, value51.intensity, 1, value51.normalBias)
-            : new arg25.Vector4(0, 0, 0, 0),
+  function syncUniforms(syncRoot = pendingRoot) {
+    if (isDisposed) return 0;
+    (prepareRoot(syncRoot), (syncedLights = null));
+    const matrixUniforms = uniforms.userSpotShadowMatrix.value,
+      rectUniforms = uniforms.userSpotShadowRect.value,
+      paramUniforms = uniforms.userSpotShadowParams.value;
+    ((matrixUniforms.length = 0), (rectUniforms.length = 0), (paramUniforms.length = 0));
+    for (const light of collectActiveLights(syncRoot)) {
+      const lightEntry = entryByLightKey.get(spotLightKey(light));
+      (matrixUniforms.push(lightEntry?.matrix || new three.Matrix4()),
+        rectUniforms.push(lightEntry?.rect || new three.Vector4()),
+        paramUniforms.push(
+          lightEntry
+            ? new three.Vector4(lightEntry.bias, lightEntry.intensity, 1, lightEntry.normalBias)
+            : new three.Vector4(0, 0, 0, 0),
         ),
-        (value50.castShadow = false));
+        (light.castShadow = false));
     }
-    ((object1.userSpotShadowAtlas.value = value24?.texture || null), fn1(true));
-    const value49 = value48.filter((arg42) => arg42.z > 0.5).length;
-    return ((arg26.domElement.dataset.activeSpotShadows = String(value49)), value49);
+    ((uniforms.userSpotShadowAtlas.value = atlasTarget?.texture || null), setAtlasEnabled(true));
+    const enabledLightCount = paramUniforms.filter((lightParam) => lightParam.z > 0.5).length;
+    return (
+      (renderer.domElement.dataset.activeSpotShadows = String(enabledLightCount)),
+      enabledLightCount
+    );
   }
-  function fn7(arg43, arg44) {
-    if (value31 || !arg32 || !arg43) return;
-    const value52 = list5,
-      value53 = list6;
-    value52.length = value53.length = 0;
-    for (const value59 of value37.read(arg43, arg44)) value52.push(value59);
-    const value54 = value37.stats.builds + ":" + value37.stats.sorts;
-    value54 !== text4 &&
-      ((text4 = value54),
-      (arg26.domElement.dataset.lightIndexBuilds = String(value37.stats.builds)),
-      (arg26.domElement.dataset.lightIndexSorts = String(value37.stats.sorts)));
-    let value55 = value34?.length === value52.length;
-    for (let value60 = 0; value60 < value52.length; value60++)
-      (value53.push(map1.get(O(value52[value60]))),
-        (value52[value60] !== value34?.[value60] || value53[value60] !== list4[value60]) &&
-          (value55 = false));
-    if (value55) return;
-    ((list5 = value34 || []), (list6 = list4), (value34 = value52), (list4 = value53));
-    const value56 = object1.userSpotShadowMatrix.value,
-      value57 = object1.userSpotShadowRect.value,
-      value58 = object1.userSpotShadowParams.value;
-    value56.length = value57.length = value58.length = 0;
-    for (const value61 of value53)
-      (value56.push(value61?.matrix || value35),
-        value57.push(value61?.rect || value36),
-        value58.push(
-          value61
-            ? (value61.uniformParams ||= new arg25.Vector4(
-                value61.bias,
-                value61.intensity,
+  function syncRenderLights(renderedScene, renderedCamera) {
+    if (isDisposed || !syncBeforeRender || !renderedScene) return;
+    const renderLights = previousLights,
+      renderEntries = previousEntries;
+    renderLights.length = renderEntries.length = 0;
+    for (const renderLight of lightIndex.read(renderedScene, renderedCamera))
+      renderLights.push(renderLight);
+    const lightIndexStats = lightIndex.stats.builds + ":" + lightIndex.stats.sorts;
+    lightIndexStats !== lastLightIndexStats &&
+      ((lastLightIndexStats = lightIndexStats),
+      (renderer.domElement.dataset.lightIndexBuilds = String(lightIndex.stats.builds)),
+      (renderer.domElement.dataset.lightIndexSorts = String(lightIndex.stats.sorts)));
+    let isSame = syncedLights?.length === renderLights.length;
+    for (let changeIndex = 0; changeIndex < renderLights.length; changeIndex++)
+      (renderEntries.push(entryByLightKey.get(spotLightKey(renderLights[changeIndex]))),
+        (renderLights[changeIndex] !== syncedLights?.[changeIndex] ||
+          renderEntries[changeIndex] !== syncedEntries[changeIndex]) &&
+          (isSame = false));
+    if (isSame) return;
+    ((previousLights = syncedLights || []),
+      (previousEntries = syncedEntries),
+      (syncedLights = renderLights),
+      (syncedEntries = renderEntries));
+    const matrixValues = uniforms.userSpotShadowMatrix.value,
+      rectValues = uniforms.userSpotShadowRect.value,
+      paramValues = uniforms.userSpotShadowParams.value;
+    matrixValues.length = rectValues.length = paramValues.length = 0;
+    for (const lightSource of renderEntries)
+      (matrixValues.push(lightSource?.matrix || scratchMatrix),
+        rectValues.push(lightSource?.rect || scratchVector),
+        paramValues.push(
+          lightSource
+            ? (lightSource.uniformParams ||= new three.Vector4(
+                lightSource.bias,
+                lightSource.intensity,
                 1,
-                value61.normalBias,
+                lightSource.normalBias,
               ))
-            : value36,
+            : scratchVector,
         ));
   }
-  function fn8(arg45) {
-    const value62 = new arg25.WebGLRenderTarget(arg45, arg45, {
-      format: arg25.RGFormat,
-      type: arg25.HalfFloatType,
-      minFilter: arg25.LinearFilter,
-      magFilter: arg25.LinearFilter,
+  function createAtlasTarget(targetSize) {
+    const textureTarget = new three.WebGLRenderTarget(targetSize, targetSize, {
+      format: three.RGFormat,
+      type: three.HalfFloatType,
+      minFilter: three.LinearFilter,
+      magFilter: three.LinearFilter,
       depthBuffer: false,
       stencilBuffer: false,
     });
     return (
-      (value62.texture.name = "HA Bridge shared spot shadow atlas"),
-      (value62.texture.generateMipmaps = false),
-      value62
+      (textureTarget.texture.name = "HA Bridge shared spot shadow atlas"),
+      (textureTarget.texture.generateMipmaps = false),
+      textureTarget
     );
   }
-  function fn9(arg46) {
-    const value63 = arg26.getRenderTarget(),
-      value64 = arg26.getClearColor(new arg25.Color()).clone(),
-      value65 = arg26.getClearAlpha();
-    (arg26.setRenderTarget(arg46),
-      arg26.setClearColor(16777215, 1),
-      arg26.clear(true, false, false),
-      arg26.setRenderTarget(value63),
-      arg26.setClearColor(value64, value65));
+  function clearAtlasTarget(target) {
+    const previousTarget = renderer.getRenderTarget(),
+      previousClearColor = renderer.getClearColor(new three.Color()).clone(),
+      previousClearAlpha = renderer.getClearAlpha();
+    (renderer.setRenderTarget(target),
+      renderer.setClearColor(16777215, 1),
+      renderer.clear(true, false, false),
+      renderer.setRenderTarget(previousTarget),
+      renderer.setClearColor(previousClearColor, previousClearAlpha));
   }
-  async function fn10() {
+  async function yieldToScheduler() {
     return globalThis.scheduler?.yield
       ? globalThis.scheduler.yield()
-      : new Promise((arg47) => setTimeout(arg47, 0));
+      : new Promise((resolve) => setTimeout(resolve, 0));
   }
-  async function fn11(arg48, arg49) {
-    if (value31 || value32 || value29 || arg49 !== value28) return;
-    if (!arg48) {
-      value30 = false;
+  async function rebuildAtlas(buildRoot, buildRevision) {
+    if (isDisposed || isWebglLost || isBuilding || buildRevision !== revision) return;
+    if (!buildRoot) {
+      isDirty = false;
       return;
     }
-    if (!arg30()) {
-      fn12(160);
+    if (!canBuild()) {
+      scheduleBuild(160);
       return;
     }
-    value30 = false;
-    const value66 = Z(arg48);
-    if (!value66.length) {
-      (map1.clear(),
-        value24?.dispose?.(),
-        (value24 = null),
-        (object1.userSpotShadowAtlas.value = null),
-        fn1(false),
-        arg29());
+    isDirty = false;
+    const shadowLights = collectShadowLights(buildRoot);
+    if (!shadowLights.length) {
+      (entryByLightKey.clear(),
+        atlasTarget?.dispose?.(),
+        (atlasTarget = null),
+        (uniforms.userSpotShadowAtlas.value = null),
+        setAtlasEnabled(false),
+        requestFrame());
       return;
     }
-    const value67 = q(arg26.capabilities?.maxTextureSize, 4096),
-      value68 = value66.map((arg50) => q(arg50.shadow?.mapSize?.x, 256)),
-      value69 = packSpotShadowAtlasTiles(value68, value67);
-    if (!value69)
+    const maxTextureSize = toPositiveInt(renderer.capabilities?.maxTextureSize, 4096),
+      lightMapSizes = shadowLights.map((shadowLight) =>
+        toPositiveInt(shadowLight.shadow?.mapSize?.x, 256),
+      ),
+      layout = packSpotShadowAtlasTiles(lightMapSizes, maxTextureSize);
+    if (!layout)
       throw new Error(
-        "当前设备最大阴影图集 " + value67 + "px 无法容纳 " + value66.length + " 盏灯。",
+        "当前设备最大阴影图集 " + maxTextureSize + "px 无法容纳 " + shadowLights.length + " 盏灯。",
       );
-    let value70 = null;
-    const map2 = new Map(),
-      value71 = arg26.getRenderTarget(),
-      value72 = value66.map((arg51) => ({
-        light: arg51,
-        visible: arg51.visible,
-        intensity: arg51.intensity,
-        castShadow: arg51.castShadow,
+    let nextAtlasTarget = null;
+    const nextEntryByLightKey = new Map(),
+      previousRenderTarget = renderer.getRenderTarget(),
+      lightStates = shadowLights.map((capturedLight) => ({
+        light: capturedLight,
+        visible: capturedLight.visible,
+        intensity: capturedLight.intensity,
+        castShadow: capturedLight.castShadow,
       }));
-    value29 = true;
+    isBuilding = true;
     try {
-      (fn4(arg48),
-        (value70 = fn8(value69.size)),
-        arg26.initRenderTarget(value70),
-        fn9(value70),
-        (value25 ||= new arg25.WebGLRenderTarget(1, 1, {
+      (prepareRoot(buildRoot),
+        (nextAtlasTarget = createAtlasTarget(layout.size)),
+        renderer.initRenderTarget(nextAtlasTarget),
+        clearAtlasTarget(nextAtlasTarget),
+        (scratchTarget ||= new three.WebGLRenderTarget(1, 1, {
           depthBuffer: true,
           stencilBuffer: false,
         })),
-        fn1(false));
-      for (const value74 of value72)
-        ((value74.light.visible = false), (value74.light.castShadow = false));
-      for (let value75 = 0; value75 < value66.length; value75 += 1) {
-        if (arg49 !== value28) return;
-        const value76 = value66[value75],
-          value77 = value69.tiles[value75];
-        ((value76.visible = true),
-          (value76.intensity = Math.max(
-            Number(value76.userData?.lightOnIntensity || value76.intensity || 1),
+        setAtlasEnabled(false));
+      for (const lightState of lightStates)
+        ((lightState.light.visible = false), (lightState.light.castShadow = false));
+      for (let lightCursor = 0; lightCursor < shadowLights.length; lightCursor += 1) {
+        if (buildRevision !== revision) return;
+        const activeLight = shadowLights[lightCursor],
+          targetTile = layout.tiles[lightCursor];
+        ((activeLight.visible = true),
+          (activeLight.intensity = Math.max(
+            Number(activeLight.userData?.lightOnIntensity || activeLight.intensity || 1),
             0.001,
           )),
-          fn6(arg48),
-          fn1(false),
-          (value76.castShadow = true),
-          (value76.shadow.autoUpdate = false),
-          (value76.shadow.needsUpdate = true),
-          arg26.setRenderTarget(value25),
-          arg26.render(arg27, arg28));
-        const value78 = value76.shadow?.map?.texture;
-        if (!value78) throw new Error("灯光 " + O(value76) + " 未生成阴影贴图。");
-        arg26.copyTextureToTexture(
-          value78,
-          value70.texture,
-          new arg25.Box2(new arg25.Vector2(0, 0), new arg25.Vector2(value77.size, value77.size)),
-          new arg25.Vector2(value77.x, value77.y),
-        );
-        const value79 = 0.5;
-        (map2.set(O(value76), {
-          tile: {
-            ...value77,
-          },
-          matrix: value76.shadow.matrix.clone(),
-          rect: new arg25.Vector4(
-            (value77.x + value79) / value69.size,
-            (value77.y + value79) / value69.size,
-            Math.max(0, value77.size - value79 * 2) / value69.size,
-            Math.max(0, value77.size - value79 * 2) / value69.size,
+          syncUniforms(buildRoot),
+          setAtlasEnabled(false),
+          (activeLight.castShadow = true),
+          (activeLight.shadow.autoUpdate = false),
+          (activeLight.shadow.needsUpdate = true),
+          renderer.setRenderTarget(scratchTarget),
+          renderer.render(scene, camera));
+        const shadowTexture = activeLight.shadow?.map?.texture;
+        if (!shadowTexture)
+          throw new Error("灯光 " + spotLightKey(activeLight) + " 未生成阴影贴图。");
+        renderer.copyTextureToTexture(
+          shadowTexture,
+          nextAtlasTarget.texture,
+          new three.Box2(
+            new three.Vector2(0, 0),
+            new three.Vector2(targetTile.size, targetTile.size),
           ),
-          bias: Number(value76.shadow.bias || 0),
-          normalBias: Number(value76.shadow.normalBias || 0),
-          intensity: Number(value76.shadow.intensity ?? 1),
+          new three.Vector2(targetTile.x, targetTile.y),
+        );
+        const halfPixelInset = 0.5;
+        (nextEntryByLightKey.set(spotLightKey(activeLight), {
+          tile: {
+            ...targetTile,
+          },
+          matrix: activeLight.shadow.matrix.clone(),
+          rect: new three.Vector4(
+            (targetTile.x + halfPixelInset) / layout.size,
+            (targetTile.y + halfPixelInset) / layout.size,
+            Math.max(0, targetTile.size - halfPixelInset * 2) / layout.size,
+            Math.max(0, targetTile.size - halfPixelInset * 2) / layout.size,
+          ),
+          bias: Number(activeLight.shadow.bias || 0),
+          normalBias: Number(activeLight.shadow.normalBias || 0),
+          intensity: Number(activeLight.shadow.intensity ?? 1),
         }),
-          (value76.castShadow = false),
-          (value76.visible = false),
-          Ce(value76),
-          await fn10());
+          (activeLight.castShadow = false),
+          (activeLight.visible = false),
+          disposeShadowTargets(activeLight),
+          await yieldToScheduler());
       }
-      if (arg49 !== value28) return;
-      (value24?.dispose?.(), (value24 = value70), map1.clear());
-      for (const [value80, value81] of map2) map1.set(value80, value81);
-      object1.userSpotShadowAtlas.value = value24.texture;
-      const value73 = arg26.domElement;
-      ((value73.dataset.spotShadowMode = "atlas"),
-        (value73.dataset.spotShadowAtlasSize = String(value69.size)),
-        (value73.dataset.spotShadowAtlasLights = String(map1.size)));
+      if (buildRevision !== revision) return;
+      (atlasTarget?.dispose?.(), (atlasTarget = nextAtlasTarget), entryByLightKey.clear());
+      for (const [lightKey, atlasEntry] of nextEntryByLightKey)
+        entryByLightKey.set(lightKey, atlasEntry);
+      uniforms.userSpotShadowAtlas.value = atlasTarget.texture;
+      const domElement = renderer.domElement;
+      ((domElement.dataset.spotShadowMode = "atlas"),
+        (domElement.dataset.spotShadowAtlasSize = String(layout.size)),
+        (domElement.dataset.spotShadowAtlasLights = String(entryByLightKey.size)));
     } finally {
-      arg26.setRenderTarget(value71);
-      for (const value82 of value72)
-        ((value82.light.visible = value82.visible),
-          (value82.light.intensity = value82.intensity),
-          (value82.light.castShadow = false));
-      (value24 !== value70 && value70?.dispose(),
-        (value29 = false),
-        value31 || value32 ? fn16() : (fn6(value26), value30 && !value27 && fn12(0), arg29()));
+      renderer.setRenderTarget(previousRenderTarget);
+      for (const previousState of lightStates)
+        ((previousState.light.visible = previousState.visible),
+          (previousState.light.intensity = previousState.intensity),
+          (previousState.light.castShadow = false));
+      (atlasTarget !== nextAtlasTarget && nextAtlasTarget?.dispose(),
+        (isBuilding = false),
+        isDisposed || isWebglLost
+          ? disposeAtlases()
+          : (syncUniforms(pendingRoot),
+            isDirty && !buildTimer && scheduleBuild(0),
+            requestFrame()));
     }
   }
-  function fn12(arg52) {
-    value31 ||
-      value32 ||
-      !value30 ||
-      (clearTimeout(value27),
-      (value27 = setTimeout(
+  function scheduleBuild(delay) {
+    isDisposed ||
+      isWebglLost ||
+      !isDirty ||
+      (clearTimeout(buildTimer),
+      (buildTimer = setTimeout(
         () => {
-          ((value27 = 0),
-            !(value31 || value29 || !value30) &&
-              fn11(value26, value28).catch((arg53) => {
-                value31 ||
-                  (console.error(arg53), (arg26.domElement.dataset.spotShadowMode = "fallback"));
+          ((buildTimer = 0),
+            !(isDisposed || isBuilding || !isDirty) &&
+              rebuildAtlas(pendingRoot, revision).catch((error) => {
+                isDisposed ||
+                  (console.error(error), (renderer.domElement.dataset.spotShadowMode = "fallback"));
               }));
         },
-        Math.max(0, Number(arg52) || 0),
+        Math.max(0, Number(delay) || 0),
       )));
   }
-  function fn13(arg54, { delay: arg55 = arg31 } = {}) {
-    if (value31) return 0;
-    if (((value26 = arg54), value32)) return ((value30 = !!arg54), 0);
-    fn4(arg54);
-    for (const value83 of Z(arg54)) value83.castShadow = false;
-    return (fn6(arg54), (value28 += 1), (value30 = true), fn12(arg55), Z(arg54).length);
+  function schedule(scheduledRoot, { delay: scheduleDelay = buildDelay } = {}) {
+    if (isDisposed) return 0;
+    if (((pendingRoot = scheduledRoot), isWebglLost)) return ((isDirty = !!scheduledRoot), 0);
+    prepareRoot(scheduledRoot);
+    for (const scheduledLight of collectShadowLights(scheduledRoot))
+      scheduledLight.castShadow = false;
+    return (
+      syncUniforms(scheduledRoot),
+      (revision += 1),
+      (isDirty = true),
+      scheduleBuild(scheduleDelay),
+      collectShadowLights(scheduledRoot).length
+    );
   }
-  let value38 = null,
-    value39 = -1,
-    value40 = -1,
-    list7 = [];
-  function fn14(arg56 = value26, arg57 = null) {
-    if (value31) return true;
-    if (value29 || value27 || value30) return false;
-    if (!value24 || !map1.size) return true;
-    const value84 = value37?.stats.builds || 0;
-    (value38 !== arg56 || value39 !== value28 || value40 !== value84) &&
-      ((value38 = arg56),
-      (value39 = value28),
-      (value40 = value84),
-      (list7 = []),
-      arg56?.traverse((arg58) => {
-        arg58.isSpotLight && arg58.shadow && map1.has(O(arg58)) && list7.push(arg58);
+  let lastRoot = null,
+    lastRevision = -1,
+    lastLightIndexBuilds = -1,
+    trackedLights = [];
+  function refreshGeometry(refreshRoot = pendingRoot, viewBoxes = null) {
+    if (isDisposed) return true;
+    if (isBuilding || buildTimer || isDirty) return false;
+    if (!atlasTarget || !entryByLightKey.size) return true;
+    const lightIndexBuilds = lightIndex?.stats.builds || 0;
+    (lastRoot !== refreshRoot ||
+      lastRevision !== revision ||
+      lastLightIndexBuilds !== lightIndexBuilds) &&
+      ((lastRoot = refreshRoot),
+      (lastRevision = revision),
+      (lastLightIndexBuilds = lightIndexBuilds),
+      (trackedLights = []),
+      refreshRoot?.traverse((trackedLight) => {
+        trackedLight.isSpotLight &&
+          trackedLight.shadow &&
+          entryByLightKey.has(spotLightKey(trackedLight)) &&
+          trackedLights.push(trackedLight);
       }));
-    const value85 =
-        arg57 === null ? null : arg57.filter((arg59) => arg59?.isBox3 && !arg59.isEmpty()),
-      list8 = [];
-    arg56?.updateWorldMatrix(true, true);
-    for (const value86 of list7) {
-      const value87 = map1.get(O(value86));
-      value87?.tile &&
-        (value86.target?.updateWorldMatrix(true, false),
-        value86.shadow.updateMatrices(value86),
-        !(value85 && !value85.some((arg60) => value86.shadow.getFrustum().intersectsBox(arg60))) &&
-          list8.push({
-            light: value86,
-            entry: value87,
-            matrix: value86.shadow.matrix.clone(),
-            cast: value86.castShadow,
-            visible: value86.visible,
-            autoUpdate: value86.shadow.autoUpdate,
-            needsUpdate: value86.shadow.needsUpdate,
-            map: value86.shadow.map,
-            mapPass: value86.shadow.mapPass,
+    const frustumBoxes =
+        viewBoxes === null ? null : viewBoxes.filter((box) => box?.isBox3 && !box.isEmpty()),
+      updates = [];
+    refreshRoot?.updateWorldMatrix(true, true);
+    for (const updateLight of trackedLights) {
+      const geometryEntry = entryByLightKey.get(spotLightKey(updateLight));
+      geometryEntry?.tile &&
+        (updateLight.target?.updateWorldMatrix(true, false),
+        updateLight.shadow.updateMatrices(updateLight),
+        !(
+          frustumBoxes &&
+          !frustumBoxes.some((viewBox) => updateLight.shadow.getFrustum().intersectsBox(viewBox))
+        ) &&
+          updates.push({
+            light: updateLight,
+            entry: geometryEntry,
+            matrix: updateLight.shadow.matrix.clone(),
+            cast: updateLight.castShadow,
+            visible: updateLight.visible,
+            autoUpdate: updateLight.shadow.autoUpdate,
+            needsUpdate: updateLight.shadow.needsUpdate,
+            map: updateLight.shadow.map,
+            mapPass: updateLight.shadow.mapPass,
           }));
     }
-    if (!list8.length) return true;
-    const object2 = {
-      target: arg26.getRenderTarget(),
-      face: arg26.getActiveCubeFace(),
-      mip: arg26.getActiveMipmapLevel(),
-      viewport: arg26.getViewport(new arg25.Vector4()),
-      scissor: arg26.getScissor(new arg25.Vector4()),
-      scissorTest: arg26.getScissorTest(),
-      clear: arg26.getClearColor(new arg25.Color()),
-      alpha: arg26.getClearAlpha(),
-      enabled: arg26.shadowMap.enabled,
-      autoUpdate: arg26.shadowMap.autoUpdate,
-      needsUpdate: arg26.shadowMap.needsUpdate,
+    if (!updates.length) return true;
+    const rendererState = {
+      target: renderer.getRenderTarget(),
+      face: renderer.getActiveCubeFace(),
+      mip: renderer.getActiveMipmapLevel(),
+      viewport: renderer.getViewport(new three.Vector4()),
+      scissor: renderer.getScissor(new three.Vector4()),
+      scissorTest: renderer.getScissorTest(),
+      clear: renderer.getClearColor(new three.Color()),
+      alpha: renderer.getClearAlpha(),
+      enabled: renderer.shadowMap.enabled,
+      autoUpdate: renderer.shadowMap.autoUpdate,
+      needsUpdate: renderer.shadowMap.needsUpdate,
     };
     try {
-      arg26.shadowMap.enabled = true;
-      for (const value88 of list8) {
-        const { light: value89 } = value88;
+      renderer.shadowMap.enabled = true;
+      for (const update of updates) {
+        const { light: refreshLight } = update;
         try {
           if (
-            ((value89.castShadow = true),
-            (value89.visible = true),
-            (value89.shadow.autoUpdate = false),
-            (value89.shadow.needsUpdate = true),
-            (arg26.shadowMap.needsUpdate = true),
-            arg26.shadowMap.render([value89], arg27, arg28),
-            !value89.shadow.map?.texture)
+            ((refreshLight.castShadow = true),
+            (refreshLight.visible = true),
+            (refreshLight.shadow.autoUpdate = false),
+            (refreshLight.shadow.needsUpdate = true),
+            (renderer.shadowMap.needsUpdate = true),
+            renderer.shadowMap.render([refreshLight], scene, camera),
+            !refreshLight.shadow.map?.texture)
           )
             return false;
-          ((value88.texture = value89.shadow.map.texture),
-            value88.matrix.copy(value89.shadow.matrix));
+          ((update.texture = refreshLight.shadow.map.texture),
+            update.matrix.copy(refreshLight.shadow.matrix));
         } finally {
-          ((value89.castShadow = value88.cast), (value89.visible = value88.visible));
+          ((refreshLight.castShadow = update.cast), (refreshLight.visible = update.visible));
         }
       }
-      for (const { texture: value90, entry: value91, matrix: value92 } of list8) {
-        const value93 = value91.tile;
-        (arg26.copyTextureToTexture(
-          value90,
-          value24.texture,
-          new arg25.Box2(new arg25.Vector2(0, 0), new arg25.Vector2(value93.size, value93.size)),
-          new arg25.Vector2(value93.x, value93.y),
+      for (const { texture: texture, entry: updatedEntry, matrix: lightMatrix } of updates) {
+        const tileDefinition = updatedEntry.tile;
+        (renderer.copyTextureToTexture(
+          texture,
+          atlasTarget.texture,
+          new three.Box2(
+            new three.Vector2(0, 0),
+            new three.Vector2(tileDefinition.size, tileDefinition.size),
+          ),
+          new three.Vector2(tileDefinition.x, tileDefinition.y),
         ),
-          value91.matrix.copy(value92));
+          updatedEntry.matrix.copy(lightMatrix));
       }
     } finally {
-      for (const value94 of list8) {
-        const { light: value95 } = value94;
-        ((value95.castShadow = value94.cast),
-          (value95.visible = value94.visible),
-          (value95.shadow.autoUpdate = value94.autoUpdate),
-          (value95.shadow.needsUpdate = value94.needsUpdate),
-          value95.shadow.map !== value94.map && value95.shadow.map?.dispose(),
-          value95.shadow.mapPass !== value94.mapPass && value95.shadow.mapPass?.dispose(),
-          (value95.shadow.map = value94.map),
-          (value95.shadow.mapPass = value94.mapPass));
+      for (const previousUpdate of updates) {
+        const { light: restoreLight } = previousUpdate;
+        ((restoreLight.castShadow = previousUpdate.cast),
+          (restoreLight.visible = previousUpdate.visible),
+          (restoreLight.shadow.autoUpdate = previousUpdate.autoUpdate),
+          (restoreLight.shadow.needsUpdate = previousUpdate.needsUpdate),
+          restoreLight.shadow.map !== previousUpdate.map && restoreLight.shadow.map?.dispose(),
+          restoreLight.shadow.mapPass !== previousUpdate.mapPass &&
+            restoreLight.shadow.mapPass?.dispose(),
+          (restoreLight.shadow.map = previousUpdate.map),
+          (restoreLight.shadow.mapPass = previousUpdate.mapPass));
       }
-      ((arg26.shadowMap.enabled = object2.enabled),
-        (arg26.shadowMap.autoUpdate = object2.autoUpdate),
-        (arg26.shadowMap.needsUpdate = object2.needsUpdate),
-        arg26.setViewport(object2.viewport),
-        arg26.setScissor(object2.scissor),
-        arg26.setScissorTest(object2.scissorTest),
-        arg26.setRenderTarget(object2.target, object2.face, object2.mip),
-        arg26.setClearColor(object2.clear, object2.alpha));
+      ((renderer.shadowMap.enabled = rendererState.enabled),
+        (renderer.shadowMap.autoUpdate = rendererState.autoUpdate),
+        (renderer.shadowMap.needsUpdate = rendererState.needsUpdate),
+        renderer.setViewport(rendererState.viewport),
+        renderer.setScissor(rendererState.scissor),
+        renderer.setScissorTest(rendererState.scissorTest),
+        renderer.setRenderTarget(rendererState.target, rendererState.face, rendererState.mip),
+        renderer.setClearColor(rendererState.clear, rendererState.alpha));
     }
     return (
-      (arg26.domElement.dataset.curtainShadowUpdates = String(
-        Number(arg26.domElement.dataset.curtainShadowUpdates || 0) + 1,
+      (renderer.domElement.dataset.curtainShadowUpdates = String(
+        Number(renderer.domElement.dataset.curtainShadowUpdates || 0) + 1,
       )),
       true
     );
   }
-  function fn15(arg61) {
-    value31 || ((value33 = arg61 !== false), fn1(true), arg29());
+  function setEnabled(nextEnabled) {
+    isDisposed || ((isEnabled = nextEnabled !== false), setAtlasEnabled(true), requestFrame());
   }
-  function fn16() {
-    (value24?.dispose(),
-      value25?.dispose(),
-      (value24 = null),
-      (value25 = null),
-      map1.clear(),
-      (object1.userSpotShadowAtlas.value = null),
-      fn1(false));
+  function disposeAtlases() {
+    (atlasTarget?.dispose(),
+      scratchTarget?.dispose(),
+      (atlasTarget = null),
+      (scratchTarget = null),
+      entryByLightKey.clear(),
+      (uniforms.userSpotShadowAtlas.value = null),
+      setAtlasEnabled(false));
   }
-  function fn17(arg62) {
-    value31 ||
-      value32 === !!arg62 ||
-      ((value32 = !!arg62),
-      value32
-        ? ((value28 += 1), (value30 = !!value26), clearTimeout(value27), (value27 = 0), fn16())
-        : value26 &&
-          fn13(value26, {
+  function setWebglLost(webglLost) {
+    isDisposed ||
+      isWebglLost === !!webglLost ||
+      ((isWebglLost = !!webglLost),
+      isWebglLost
+        ? ((revision += 1),
+          (isDirty = !!pendingRoot),
+          clearTimeout(buildTimer),
+          (buildTimer = 0),
+          disposeAtlases())
+        : pendingRoot &&
+          schedule(pendingRoot, {
             delay: 0,
           }));
   }
-  function fn18() {
-    if (!value31) {
-      ((value31 = true), (value28 += 1), (value30 = false));
-      for (const value96 of set1) value96.dispose();
-      (set1.clear(),
-        clearTimeout(value27),
-        (value27 = 0),
-        (value26 = null),
-        value37?.dispose(),
-        (value38 = null),
-        (list7 = []),
-        (value34 = null),
-        (list4 = []),
-        (list5 = []),
-        (list6 = []),
-        value29 || fn16());
+  function dispose() {
+    if (!isDisposed) {
+      ((isDisposed = true), (revision += 1), (isDirty = false));
+      for (const clonedMaterial of materialCloneSet) clonedMaterial.dispose();
+      (materialCloneSet.clear(),
+        clearTimeout(buildTimer),
+        (buildTimer = 0),
+        (pendingRoot = null),
+        lightIndex?.dispose(),
+        (lastRoot = null),
+        (trackedLights = []),
+        (syncedLights = null),
+        (syncedEntries = []),
+        (previousLights = []),
+        (previousEntries = []),
+        isBuilding || disposeAtlases());
     }
   }
-  if (arg32) {
-    const value97 = arg27.onBeforeRender;
-    arg27.onBeforeRender = function (...arg63) {
-      (value97?.apply(this, arg63), fn7(arg63[1] || arg27, arg63[2] || arg28));
+  if (syncBeforeRender) {
+    const previousOnBeforeRender = scene.onBeforeRender;
+    scene.onBeforeRender = function (...args) {
+      (previousOnBeforeRender?.apply(this, args),
+        syncRenderLights(args[1] || scene, args[2] || camera));
     };
   }
   return {
-    prepareRoot: fn4,
-    refreshGeometry: fn14,
-    schedule: fn13,
-    sync: fn6,
-    setEnabled: fn15,
-    setContextLost: fn17,
-    dispose: fn18,
-    activeCount: () => map1.size,
-    isBuilding: () => value29,
-    isPending: () => !!value27 || value30,
-    releaseRenderIndex: () => value37?.dispose(),
+    prepareRoot: prepareRoot,
+    refreshGeometry: refreshGeometry,
+    schedule: schedule,
+    sync: syncUniforms,
+    setEnabled: setEnabled,
+    setContextLost: setWebglLost,
+    dispose: dispose,
+    activeCount: () => entryByLightKey.size,
+    isBuilding: () => isBuilding,
+    isPending: () => !!buildTimer || isDirty,
+    releaseRenderIndex: () => lightIndex?.dispose(),
   };
 }

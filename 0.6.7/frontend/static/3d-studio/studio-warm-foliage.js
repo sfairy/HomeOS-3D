@@ -1,86 +1,111 @@
-export function enlargeWarmLeaves(arg1, arg2, arg3 = 1.85) {
-  const value1 = arg1.attributes.position;
-  if (!value1) return arg1;
-  const value2 = arg1.index,
-    value3 = arg1.groups.length
-      ? arg1.groups
+export function enlargeWarmLeaves(sourceGeometry, materials, enlargeFactor = 1.85) {
+  const positionAttribute = sourceGeometry.attributes.position;
+  if (!positionAttribute) return sourceGeometry;
+  const indexAttribute = sourceGeometry.index,
+    geometryGroups = sourceGeometry.groups.length
+      ? sourceGeometry.groups
       : [
           {
             start: 0,
-            count: value2?.count ?? value1.count,
+            count: indexAttribute?.count ?? positionAttribute.count,
             materialIndex: 0,
           },
         ],
-    map1 = new Map(),
-    fn1 = (arg4) => {
-      let value7 = arg4;
-      for (; map1.get(value7) !== value7;) value7 = map1.get(value7);
-      for (; arg4 !== value7;) {
-        const value8 = map1.get(arg4);
-        (map1.set(arg4, value7), (arg4 = value8));
+    parentVertexMap = new Map(),
+    resolveRootIndex = (vertexIndex) => {
+      let currentRootIndex = vertexIndex;
+      for (; parentVertexMap.get(currentRootIndex) !== currentRootIndex;)
+        currentRootIndex = parentVertexMap.get(currentRootIndex);
+      for (; vertexIndex !== currentRootIndex;) {
+        const parentVertexIndex = parentVertexMap.get(vertexIndex);
+        (parentVertexMap.set(vertexIndex, currentRootIndex), (vertexIndex = parentVertexIndex));
       }
-      return value7;
+      return currentRootIndex;
     },
-    fn2 = (arg5, arg6) => {
-      map1.set(fn1(arg5), fn1(arg6));
+    unionVertices = (firstVertexIndex, secondVertexIndex) => {
+      parentVertexMap.set(resolveRootIndex(firstVertexIndex), resolveRootIndex(secondVertexIndex));
     },
-    map2 = new Map();
-  for (const value9 of value3)
-    if (/foliage/i.test(arg2[value9.materialIndex]?.name ?? ""))
-      for (let value10 = value9.start; value10 < value9.start + value9.count; value10 += 3) {
-        const list1 = [];
-        for (let value11 = 0; value11 < 3; value11++) {
-          const value12 = value2 ? value2.getX(value10 + value11) : value10 + value11;
-          if (!map1.has(value12)) {
-            map1.set(value12, value12);
-            const value13 = [value1.getX(value12), value1.getY(value12), value1.getZ(value12)]
-              .map((arg7) => Math.round(arg7 * 10000))
+    vertexIndexByPositionKey = new Map();
+  for (const geometryGroup of geometryGroups)
+    if (/foliage/i.test(materials[geometryGroup.materialIndex]?.name ?? ""))
+      for (
+        let triangleStartIndex = geometryGroup.start;
+        triangleStartIndex < geometryGroup.start + geometryGroup.count;
+        triangleStartIndex += 3
+      ) {
+        const triangleVertexIndices = [];
+        for (let triangleCornerIndex = 0; triangleCornerIndex < 3; triangleCornerIndex++) {
+          const cornerVertexIndex = indexAttribute
+            ? indexAttribute.getX(triangleStartIndex + triangleCornerIndex)
+            : triangleStartIndex + triangleCornerIndex;
+          if (!parentVertexMap.has(cornerVertexIndex)) {
+            parentVertexMap.set(cornerVertexIndex, cornerVertexIndex);
+            const positionKey = [
+              positionAttribute.getX(cornerVertexIndex),
+              positionAttribute.getY(cornerVertexIndex),
+              positionAttribute.getZ(cornerVertexIndex),
+            ]
+              .map((coordinateComponent) => Math.round(coordinateComponent * 10000))
               .join(",");
-            map2.has(value13) ? fn2(value12, map2.get(value13)) : map2.set(value13, value12);
+            vertexIndexByPositionKey.has(positionKey)
+              ? unionVertices(cornerVertexIndex, vertexIndexByPositionKey.get(positionKey))
+              : vertexIndexByPositionKey.set(positionKey, cornerVertexIndex);
           }
-          list1.push(value12);
+          triangleVertexIndices.push(cornerVertexIndex);
         }
-        (fn2(list1[0], list1[1]), fn2(list1[1], list1[2]));
+        (unionVertices(triangleVertexIndices[0], triangleVertexIndices[1]),
+          unionVertices(triangleVertexIndices[1], triangleVertexIndices[2]));
       }
-  if (!map1.size) return arg1;
-  const map3 = new Map();
-  for (const value14 of map1.keys()) {
-    const value15 = fn1(value14);
-    (map3.has(value15) || map3.set(value15, []), map3.get(value15).push(value14));
+  if (!parentVertexMap.size) return sourceGeometry;
+  const vertexIndicesByRoot = new Map();
+  for (const sourceVertexIndex of parentVertexMap.keys()) {
+    const rootVertexIndex = resolveRootIndex(sourceVertexIndex);
+    (vertexIndicesByRoot.has(rootVertexIndex) || vertexIndicesByRoot.set(rootVertexIndex, []),
+      vertexIndicesByRoot.get(rootVertexIndex).push(sourceVertexIndex));
   }
-  const value4 = arg1.clone(),
-    value5 = value4.attributes.position;
-  let value6 = 0;
-  for (const value16 of map3.values()) {
-    const list2 = [Infinity, Infinity, Infinity],
-      list3 = [-Infinity, -Infinity, -Infinity];
-    for (const value21 of value16) {
-      const list4 = [value1.getX(value21), value1.getY(value21), value1.getZ(value21)];
-      for (let value22 = 0; value22 < 3; value22++)
-        ((list2[value22] = Math.min(list2[value22], list4[value22])),
-          (list3[value22] = Math.max(list3[value22], list4[value22])));
+  const enlargedGeometry = sourceGeometry.clone(),
+    enlargedPositionAttribute = enlargedGeometry.attributes.position;
+  let groupCounter = 0;
+  for (const groupVertexIndices of vertexIndicesByRoot.values()) {
+    const minBounds = [Infinity, Infinity, Infinity],
+      maxBounds = [-Infinity, -Infinity, -Infinity];
+    for (const memberVertexIndex of groupVertexIndices) {
+      const vertexCoordinates = [
+        positionAttribute.getX(memberVertexIndex),
+        positionAttribute.getY(memberVertexIndex),
+        positionAttribute.getZ(memberVertexIndex),
+      ];
+      for (let axisIndex = 0; axisIndex < 3; axisIndex++)
+        ((minBounds[axisIndex] = Math.min(minBounds[axisIndex], vertexCoordinates[axisIndex])),
+          (maxBounds[axisIndex] = Math.max(maxBounds[axisIndex], vertexCoordinates[axisIndex])));
     }
-    const value17 = list2.map((arg8, arg9) => (arg8 + list3[arg9]) * 0.5),
-      value18 = (((value6++ % 3) - 1) * Math.PI) / 3,
-      value19 = Math.cos(value18),
-      value20 = Math.sin(value18);
-    for (const value23 of value16) {
-      const value24 = (value1.getX(value23) - value17[0]) * arg3,
-        value25 = (value1.getZ(value23) - value17[2]) * arg3;
-      value5.setXYZ(
-        value23,
-        value17[0] + value24 * value19 - value25 * value20,
-        value17[1] + (value1.getY(value23) - value17[1]) * arg3,
-        value17[2] + value24 * value20 + value25 * value19,
+    const groupCenter = minBounds.map(
+        (minBoundCoordinate, boundAxisIndex) =>
+          (minBoundCoordinate + maxBounds[boundAxisIndex]) * 0.5,
+      ),
+      rotationAngle = (((groupCounter++ % 3) - 1) * Math.PI) / 3,
+      rotationCos = Math.cos(rotationAngle),
+      rotationSin = Math.sin(rotationAngle);
+    for (const targetVertexIndex of groupVertexIndices) {
+      const centerOffsetX =
+          (positionAttribute.getX(targetVertexIndex) - groupCenter[0]) * enlargeFactor,
+        centerOffsetZ =
+          (positionAttribute.getZ(targetVertexIndex) - groupCenter[2]) * enlargeFactor;
+      enlargedPositionAttribute.setXYZ(
+        targetVertexIndex,
+        groupCenter[0] + centerOffsetX * rotationCos - centerOffsetZ * rotationSin,
+        groupCenter[1] +
+          (positionAttribute.getY(targetVertexIndex) - groupCenter[1]) * enlargeFactor,
+        groupCenter[2] + centerOffsetX * rotationSin + centerOffsetZ * rotationCos,
       );
     }
   }
   return (
-    (value5.needsUpdate = true),
-    value4.computeVertexNormals(),
-    value4.computeBoundingBox(),
-    value4.computeBoundingSphere(),
-    (value4.userData.warmLeafCount = map3.size),
-    value4
+    (enlargedPositionAttribute.needsUpdate = true),
+    enlargedGeometry.computeVertexNormals(),
+    enlargedGeometry.computeBoundingBox(),
+    enlargedGeometry.computeBoundingSphere(),
+    (enlargedGeometry.userData.warmLeafCount = vertexIndicesByRoot.size),
+    enlargedGeometry
   );
 }

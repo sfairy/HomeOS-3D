@@ -1,0 +1,975 @@
+{
+  "file": "frontend/static/3d-studio/studio-widgets.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 215,
+  "counts": {
+    "entries": 46,
+    "renameable": 46,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "c@1",
+      "name": "c",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const c = new Map();",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = c.get(arg2);"
+        },
+        {
+          "line": 50,
+          "text": "if (!arg5 || c.has(arg5)) return;"
+        },
+        {
+          "line": 65,
+          "text": "(value6.id = (arg5.id || \"studio-select-\" + (c.size + 1)) + \"-menu\"),"
+        },
+        {
+          "line": 76,
+          "text": "(c.set(arg5, object1),"
+        }
+      ]
+    },
+    {
+      "key": "i@2",
+      "name": "i",
+      "line": 2,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "let i = null;",
+      "references": [
+        {
+          "line": 3,
+          "text": "function u(arg1 = i) {"
+        },
+        {
+          "line": 8,
+          "text": "i === arg1 && (i = null));"
+        },
+        {
+          "line": 79,
+          "text": "if (i === object1) {"
+        },
+        {
+          "line": 103,
+          "text": "value8 && (i === value8 && u(value8), value8.observer.disconnect(), c.delete(value7));"
+        }
+      ]
+    },
+    {
+      "key": "u@3",
+      "name": "u",
+      "line": 3,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function u(arg1 = i) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "u(value1),"
+        },
+        {
+          "line": 47,
+          "text": "arg2.disabled && u(value1));"
+        },
+        {
+          "line": 80,
+          "text": "u(object1);"
+        },
+        {
+          "line": 83,
+          "text": "(u(),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function u(arg1 = i) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "arg1 &&"
+        },
+        {
+          "line": 5,
+          "text": "(arg1.wrapper.classList.remove(\"open\"),"
+        },
+        {
+          "line": 6,
+          "text": "arg1.trigger.setAttribute(\"aria-expanded\", \"false\"),"
+        },
+        {
+          "line": 7,
+          "text": "(arg1.menu.hidden = true),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@10",
+      "name": "arg2",
+      "line": 10,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function syncStudioSelect(arg2) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = c.get(arg2);"
+        },
+        {
+          "line": 13,
+          "text": "const value2 = arg2.selectedOptions?.[0] || arg2.options[arg2.selectedIndex] || arg2.options[0];"
+        },
+        {
+          "line": 15,
+          "text": "(value1.trigger.disabled = arg2.disabled),"
+        },
+        {
+          "line": 16,
+          "text": "value1.trigger.setAttribute(\"aria-disabled\", String(arg2.disabled)),"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = c.get(arg2);",
+      "references": [
+        {
+          "line": 12,
+          "text": "if (!value1) return;"
+        },
+        {
+          "line": 14,
+          "text": "((value1.trigger.textContent = value2?.textContent || \"请选择\"),"
+        },
+        {
+          "line": 15,
+          "text": "(value1.trigger.disabled = arg2.disabled),"
+        },
+        {
+          "line": 16,
+          "text": "value1.trigger.setAttribute(\"aria-disabled\", String(arg2.disabled)),"
+        }
+      ]
+    },
+    {
+      "key": "value2@13",
+      "name": "value2",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = arg2.selectedOptions?.[0] || arg2.options[arg2.selectedIndex] || arg2.options[0];",
+      "references": [
+        {
+          "line": 14,
+          "text": "((value1.trigger.textContent = value2?.textContent || \"请选择\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@18",
+      "name": "arg3",
+      "line": 18,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "...[...arg2.options].map((arg3) => {",
+      "references": [
+        {
+          "line": 23,
+          "text": "(value3.textContent = arg3.textContent),"
+        },
+        {
+          "line": 24,
+          "text": "(value3.dataset.value = arg3.value),"
+        },
+        {
+          "line": 25,
+          "text": "(value3.disabled = arg3.disabled),"
+        },
+        {
+          "line": 27,
+          "text": "value3.setAttribute(\"aria-selected\", String(arg3.value === arg2.value)),"
+        }
+      ]
+    },
+    {
+      "key": "value3@19",
+      "name": "value3",
+      "line": 19,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 21,
+          "text": "(value3.type = \"button\"),"
+        },
+        {
+          "line": 22,
+          "text": "(value3.className = \"studio-select-option\"),"
+        },
+        {
+          "line": 23,
+          "text": "(value3.textContent = arg3.textContent),"
+        },
+        {
+          "line": 24,
+          "text": "(value3.dataset.value = arg3.value),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@29",
+      "name": "arg4",
+      "line": 29,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3.addEventListener(\"click\", (arg4) => {",
+      "references": [
+        {
+          "line": 30,
+          "text": "(arg4.preventDefault(),"
+        },
+        {
+          "line": 31,
+          "text": "arg4.stopPropagation(),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@49",
+      "name": "arg5",
+      "line": 49,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function enhanceStudioSelect(arg5) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "if (!arg5 || c.has(arg5)) return;"
+        },
+        {
+          "line": 53,
+          "text": "arg5.before(value4),"
+        },
+        {
+          "line": 54,
+          "text": "value4.append(arg5),"
+        },
+        {
+          "line": 55,
+          "text": "arg5.classList.add(\"studio-native-select\"),"
+        }
+      ]
+    },
+    {
+      "key": "value4@51",
+      "name": "value4",
+      "line": 51,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 52,
+          "text": "((value4.className = \"studio-select\"),"
+        },
+        {
+          "line": 53,
+          "text": "arg5.before(value4),"
+        },
+        {
+          "line": 54,
+          "text": "value4.append(arg5),"
+        },
+        {
+          "line": 69,
+          "text": "value4.append(value5, value6));"
+        }
+      ]
+    },
+    {
+      "key": "value5@58",
+      "name": "value5",
+      "line": 58,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 59,
+          "text": "((value5.type = \"button\"),"
+        },
+        {
+          "line": 60,
+          "text": "(value5.className = \"studio-select-trigger\"),"
+        },
+        {
+          "line": 61,
+          "text": "value5.setAttribute(\"aria-haspopup\", \"listbox\"),"
+        },
+        {
+          "line": 62,
+          "text": "value5.setAttribute(\"aria-expanded\", \"false\"));"
+        }
+      ]
+    },
+    {
+      "key": "value6@63",
+      "name": "value6",
+      "line": 63,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 64,
+          "text": "((value6.className = \"studio-select-menu\"),"
+        },
+        {
+          "line": 65,
+          "text": "(value6.id = (arg5.id || \"studio-select-\" + (c.size + 1)) + \"-menu\"),"
+        },
+        {
+          "line": 66,
+          "text": "value6.setAttribute(\"role\", \"listbox\"),"
+        },
+        {
+          "line": 67,
+          "text": "(value6.hidden = true),"
+        }
+      ]
+    },
+    {
+      "key": "object1@70",
+      "name": "object1",
+      "line": 70,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 76,
+          "text": "(c.set(arg5, object1),"
+        },
+        {
+          "line": 79,
+          "text": "if (i === object1) {"
+        },
+        {
+          "line": 80,
+          "text": "u(object1);"
+        },
+        {
+          "line": 88,
+          "text": "(i = object1));"
+        }
+      ]
+    },
+    {
+      "key": "arg6@77",
+      "name": "arg6",
+      "line": 77,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5.addEventListener(\"click\", (arg6) => {",
+      "references": [
+        {
+          "line": 78,
+          "text": "if ((arg6.preventDefault(), arg6.stopPropagation(), !arg5.disabled)) {"
+        }
+      ]
+    },
+    {
+      "key": "arg7@100",
+      "name": "arg7",
+      "line": 100,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function disposeStudioSelects(arg7) {",
+      "references": [
+        {
+          "line": 101,
+          "text": "for (const value7 of arg7.querySelectorAll(\"select\")) {"
+        }
+      ]
+    },
+    {
+      "key": "value7@101",
+      "name": "value7",
+      "line": 101,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of arg7.querySelectorAll(\"select\")) {",
+      "references": [
+        {
+          "line": 102,
+          "text": "const value8 = c.get(value7);"
+        },
+        {
+          "line": 103,
+          "text": "value8 && (i === value8 && u(value8), value8.observer.disconnect(), c.delete(value7));"
+        }
+      ]
+    },
+    {
+      "key": "value8@102",
+      "name": "value8",
+      "line": 102,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = c.get(value7);",
+      "references": [
+        {
+          "line": 103,
+          "text": "value8 && (i === value8 && u(value8), value8.observer.disconnect(), c.delete(value7));"
+        }
+      ]
+    },
+    {
+      "key": "arg8@106",
+      "name": "arg8",
+      "line": 106,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function initializeStudioSelects(arg8 = document) {",
+      "references": [
+        {
+          "line": 107,
+          "text": "for (const value9 of arg8.querySelectorAll(\"select\")) enhanceStudioSelect(value9);"
+        },
+        {
+          "line": 108,
+          "text": "(arg8.addEventListener(\"pointerdown\", (arg9) => {"
+        },
+        {
+          "line": 111,
+          "text": "arg8.addEventListener(\"keydown\", (arg10) => {"
+        }
+      ]
+    },
+    {
+      "key": "value9@107",
+      "name": "value9",
+      "line": 107,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value9 of arg8.querySelectorAll(\"select\")) enhanceStudioSelect(value9);",
+      "references": [
+        {
+          "line": 107,
+          "text": "for (const value9 of arg8.querySelectorAll(\"select\")) enhanceStudioSelect(value9);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@108",
+      "name": "arg9",
+      "line": 108,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg8.addEventListener(\"pointerdown\", (arg9) => {",
+      "references": [
+        {
+          "line": 109,
+          "text": "i && !i.wrapper.contains(arg9.target) && u();"
+        }
+      ]
+    },
+    {
+      "key": "arg10@111",
+      "name": "arg10",
+      "line": 111,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg8.addEventListener(\"keydown\", (arg10) => {",
+      "references": [
+        {
+          "line": 112,
+          "text": "if (arg10.key !== \"Escape\" || !i) return;"
+        },
+        {
+          "line": 113,
+          "text": "(arg10.preventDefault(), arg10.stopPropagation());"
+        }
+      ]
+    },
+    {
+      "key": "value10@114",
+      "name": "value10",
+      "line": 114,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = i.trigger;",
+      "references": [
+        {
+          "line": 115,
+          "text": "(u(), value10.focus());"
+        }
+      ]
+    },
+    {
+      "key": "v@118",
+      "name": "v",
+      "line": 118,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function v(arg11, arg12) {",
+      "references": [
+        {
+          "line": 206,
+          "text": "new MutationObserver(() => v(arg13, value15)).observe(arg13, {"
+        },
+        {
+          "line": 210,
+          "text": "v(arg13, value15));"
+        }
+      ]
+    },
+    {
+      "key": "arg11@118",
+      "name": "arg11",
+      "line": 118,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function v(arg11, arg12) {",
+      "references": [
+        {
+          "line": 119,
+          "text": "const value11 = arg11.disabled || arg11.readOnly;"
+        },
+        {
+          "line": 121,
+          "text": "arg11.closest(\".number-stepper\")?.classList.toggle(\"is-disabled\", value11);"
+        }
+      ]
+    },
+    {
+      "key": "arg12@118",
+      "name": "arg12",
+      "line": 118,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function v(arg11, arg12) {",
+      "references": [
+        {
+          "line": 120,
+          "text": "for (const value12 of arg12) value12.disabled = value11;"
+        }
+      ]
+    },
+    {
+      "key": "value11@119",
+      "name": "value11",
+      "line": 119,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = arg11.disabled || arg11.readOnly;",
+      "references": [
+        {
+          "line": 120,
+          "text": "for (const value12 of arg12) value12.disabled = value11;"
+        },
+        {
+          "line": 121,
+          "text": "arg11.closest(\".number-stepper\")?.classList.toggle(\"is-disabled\", value11);"
+        }
+      ]
+    },
+    {
+      "key": "value12@120",
+      "name": "value12",
+      "line": 120,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value12 of arg12) value12.disabled = value11;",
+      "references": [
+        {
+          "line": 120,
+          "text": "for (const value12 of arg12) value12.disabled = value11;"
+        }
+      ]
+    },
+    {
+      "key": "arg13@123",
+      "name": "arg13",
+      "line": 123,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function enhanceNumberInput(arg13) {",
+      "references": [
+        {
+          "line": 124,
+          "text": "if (!arg13 || arg13.closest(\".number-stepper\")) return;"
+        },
+        {
+          "line": 126,
+          "text": "((value13.className = \"number-stepper\"), arg13.before(value13), value13.append(arg13));"
+        },
+        {
+          "line": 145,
+          "text": "if (arg13.disabled || arg13.readOnly) return false;"
+        },
+        {
+          "line": 146,
+          "text": "const value17 = arg13.value;"
+        }
+      ]
+    },
+    {
+      "key": "value13@125",
+      "name": "value13",
+      "line": 125,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = document.createElement(\"span\");",
+      "references": [
+        {
+          "line": 126,
+          "text": "((value13.className = \"number-stepper\"), arg13.before(value13), value13.append(arg13));"
+        },
+        {
+          "line": 205,
+          "text": "(value13.append(value14),"
+        }
+      ]
+    },
+    {
+      "key": "value14@127",
+      "name": "value14",
+      "line": 127,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = document.createElement(\"span\");",
+      "references": [
+        {
+          "line": 128,
+          "text": "value14.className = \"number-stepper-buttons\";"
+        },
+        {
+          "line": 201,
+          "text": "value14.append(value16),"
+        },
+        {
+          "line": 205,
+          "text": "(value13.append(value14),"
+        }
+      ]
+    },
+    {
+      "key": "value15@129",
+      "name": "value15",
+      "line": 129,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = [",
+      "references": [
+        {
+          "line": 206,
+          "text": "new MutationObserver(() => v(arg13, value15)).observe(arg13, {"
+        },
+        {
+          "line": 210,
+          "text": "v(arg13, value15));"
+        }
+      ]
+    },
+    {
+      "key": "arg14@138",
+      "name": "arg14",
+      "line": 138,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(({ direction: arg14, label: arg15 }) => {",
+      "references": [
+        {
+          "line": 141,
+          "text": "(value16.className = \"number-stepper-button number-stepper-\" + arg14),"
+        },
+        {
+          "line": 148,
+          "text": "arg14 === \"up\" ? arg13.stepUp() : arg13.stepDown();"
+        }
+      ]
+    },
+    {
+      "key": "arg15@138",
+      "name": "arg15",
+      "line": 138,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(({ direction: arg14, label: arg15 }) => {",
+      "references": [
+        {
+          "line": 142,
+          "text": "value16.setAttribute(\"aria-label\", arg15),"
+        },
+        {
+          "line": 143,
+          "text": "(value16.title = arg15));"
+        }
+      ]
+    },
+    {
+      "key": "value16@139",
+      "name": "value16",
+      "line": 139,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 140,
+          "text": "((value16.type = \"button\"),"
+        },
+        {
+          "line": 141,
+          "text": "(value16.className = \"number-stepper-button number-stepper-\" + arg14),"
+        },
+        {
+          "line": 142,
+          "text": "value16.setAttribute(\"aria-label\", arg15),"
+        },
+        {
+          "line": 143,
+          "text": "(value16.title = arg15));"
+        }
+      ]
+    },
+    {
+      "key": "fn1@144",
+      "name": "fn1",
+      "line": 144,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = () => {",
+      "references": [
+        {
+          "line": 172,
+          "text": "let value18 = fn1(),"
+        },
+        {
+          "line": 176,
+          "text": "value18 = fn1() || value18;"
+        }
+      ]
+    },
+    {
+      "key": "value17@146",
+      "name": "value17",
+      "line": 146,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = arg13.value;",
+      "references": [
+        {
+          "line": 152,
+          "text": "return arg13.value === value17"
+        }
+      ]
+    },
+    {
+      "key": "arg16@162",
+      "name": "arg16",
+      "line": 162,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16.addEventListener(\"click\", (arg16) => {",
+      "references": [
+        {
+          "line": 163,
+          "text": "(arg16.preventDefault(), arg16.stopPropagation());"
+        }
+      ]
+    },
+    {
+      "key": "arg17@165",
+      "name": "arg17",
+      "line": 165,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16.addEventListener(\"pointerdown\", (arg17) => {",
+      "references": [
+        {
+          "line": 166,
+          "text": "if (arg17.button !== 0 || arg13.disabled || arg13.readOnly) return;"
+        },
+        {
+          "line": 167,
+          "text": "(arg17.preventDefault(),"
+        },
+        {
+          "line": 168,
+          "text": "arg17.stopPropagation(),"
+        },
+        {
+          "line": 198,
+          "text": "value16.setPointerCapture(arg17.pointerId);"
+        }
+      ]
+    },
+    {
+      "key": "value18@172",
+      "name": "value18",
+      "line": 172,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value18 = fn1(),",
+      "references": [
+        {
+          "line": 176,
+          "text": "value18 = fn1() || value18;"
+        },
+        {
+          "line": 187,
+          "text": "value18 &&"
+        }
+      ]
+    },
+    {
+      "key": "value19@173",
+      "name": "value19",
+      "line": 173,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = false,",
+      "references": [
+        {
+          "line": 180,
+          "text": "value19 ||"
+        }
+      ]
+    },
+    {
+      "key": "value20@174",
+      "name": "value20",
+      "line": 174,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = window.setTimeout(() => {",
+      "references": [
+        {
+          "line": 182,
+          "text": "window.clearTimeout(value20),"
+        },
+        {
+          "line": 183,
+          "text": "window.clearInterval(value20),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@179",
+      "name": "fn2",
+      "line": 179,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = () => {",
+      "references": [
+        {
+          "line": 184,
+          "text": "value16.removeEventListener(\"pointerup\", fn2),"
+        },
+        {
+          "line": 185,
+          "text": "value16.removeEventListener(\"pointercancel\", fn2),"
+        },
+        {
+          "line": 186,
+          "text": "value16.removeEventListener(\"lostpointercapture\", fn2),"
+        },
+        {
+          "line": 194,
+          "text": "(value16.addEventListener(\"pointerup\", fn2),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@212",
+      "name": "arg18",
+      "line": 212,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function initializeNumberInputs(arg18 = document) {",
+      "references": [
+        {
+          "line": 213,
+          "text": "for (const value21 of arg18.querySelectorAll('input[type=\"number\"]')) enhanceNumberInput(value21);"
+        }
+      ]
+    },
+    {
+      "key": "value21@213",
+      "name": "value21",
+      "line": 213,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value21 of arg18.querySelectorAll('input[type=\"number\"]')) enhanceNumberInput(value21);",
+      "references": [
+        {
+          "line": 213,
+          "text": "for (const value21 of arg18.querySelectorAll('input[type=\"number\"]')) enhanceNumberInput(value21);"
+        }
+      ]
+    }
+  ]
+}

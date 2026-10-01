@@ -1,0 +1,771 @@
+{
+  "file": "frontend/static/popup-layout.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 98,
+  "counts": {
+    "entries": 46,
+    "renameable": 46,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "A@1",
+      "name": "A",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const A = 2,",
+      "references": []
+    },
+    {
+      "key": "D@2",
+      "name": "D",
+      "line": 2,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "D = 4,",
+      "references": []
+    },
+    {
+      "key": "G@3",
+      "name": "G",
+      "line": 3,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "G = 3,",
+      "references": []
+    },
+    {
+      "key": "H@4",
+      "name": "H",
+      "line": 4,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "H = 420,",
+      "references": []
+    },
+    {
+      "key": "L@5",
+      "name": "L",
+      "line": 5,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "L = 470,",
+      "references": []
+    },
+    {
+      "key": "R@6",
+      "name": "R",
+      "line": 6,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "R = 14,",
+      "references": []
+    },
+    {
+      "key": "m@7",
+      "name": "m",
+      "line": 7,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "m = 28,",
+      "references": []
+    },
+    {
+      "key": "y@8",
+      "name": "y",
+      "line": 8,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "y = 88;",
+      "references": []
+    },
+    {
+      "key": "arg1@9",
+      "name": "arg1",
+      "line": 9,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupLayoutColumns(arg1) {",
+      "references": [
+        {
+          "line": 10,
+          "text": "const value1 = Number(arg1?.columns);"
+        }
+      ]
+    },
+    {
+      "key": "value1@10",
+      "name": "value1",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Number(arg1?.columns);",
+      "references": [
+        {
+          "line": 11,
+          "text": "return value1 >= 2 && value1 <= 4 ? value1 : 3;"
+        }
+      ]
+    },
+    {
+      "key": "arg2@13",
+      "name": "arg2",
+      "line": 13,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleColumnSpan(arg2) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "const value2 = typeof arg2 == \"string\" ? arg2 : arg2?.type,"
+        },
+        {
+          "line": 15,
+          "text": "value3 = typeof arg2 == \"object\" ? arg2?.deviceType || arg2?.properties?.deviceType : \"\";"
+        }
+      ]
+    },
+    {
+      "key": "value2@14",
+      "name": "value2",
+      "line": 14,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = typeof arg2 == \"string\" ? arg2 : arg2?.type,",
+      "references": [
+        {
+          "line": 16,
+          "text": "return value2 === \"electric-bed\" ||"
+        },
+        {
+          "line": 19,
+          "text": "value2,"
+        }
+      ]
+    },
+    {
+      "key": "value3@15",
+      "name": "value3",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = typeof arg2 == \"object\" ? arg2?.deviceType || arg2?.properties?.deviceType : \"\";",
+      "references": [
+        {
+          "line": 17,
+          "text": "value3 === \"electric-bed\" ||"
+        }
+      ]
+    },
+    {
+      "key": "arg3@24",
+      "name": "arg3",
+      "line": 24,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleRowSpan(arg3) {",
+      "references": [
+        {
+          "line": 25,
+          "text": "const value4 = typeof arg3 == \"string\" ? arg3 : arg3?.type,"
+        },
+        {
+          "line": 26,
+          "text": "value5 = typeof arg3 == \"object\" ? arg3?.deviceType || arg3?.properties?.deviceType : \"\";"
+        }
+      ]
+    },
+    {
+      "key": "value4@25",
+      "name": "value4",
+      "line": 25,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = typeof arg3 == \"string\" ? arg3 : arg3?.type,",
+      "references": []
+    },
+    {
+      "key": "value5@26",
+      "name": "value5",
+      "line": 26,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = typeof arg3 == \"object\" ? arg3?.deviceType || arg3?.properties?.deviceType : \"\";",
+      "references": []
+    },
+    {
+      "key": "M@29",
+      "name": "M",
+      "line": 29,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function M(arg4, arg5) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "value16 = M(arg10, value15) || [],"
+        }
+      ]
+    },
+    {
+      "key": "arg4@29",
+      "name": "arg4",
+      "line": 29,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function M(arg4, arg5) {",
+      "references": [
+        {
+          "line": 32,
+          "text": "for (const value6 of arg4 || []) {"
+        },
+        {
+          "line": 37,
+          "text": "const value10 = Math.max(4, (arg4?.length || 0) * 2 + 1);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@29",
+      "name": "arg5",
+      "line": 29,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function M(arg4, arg5) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (value7 > arg5) return null;"
+        },
+        {
+          "line": 39,
+          "text": "for (let value12 = 0; value12 <= arg5 - value7; value12 += 1)"
+        }
+      ]
+    },
+    {
+      "key": "list1@30",
+      "name": "list1",
+      "line": 30,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [],",
+      "references": [
+        {
+          "line": 68,
+          "text": "list1.push(value9);"
+        },
+        {
+          "line": 70,
+          "text": "return list1;"
+        }
+      ]
+    },
+    {
+      "key": "list2@31",
+      "name": "list2",
+      "line": 31,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2 = [];",
+      "references": [
+        {
+          "line": 50,
+          "text": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],"
+        },
+        {
+          "line": 61,
+          "text": "list2[value11 + value13] || (list2[value11 + value13] = []);"
+        },
+        {
+          "line": 63,
+          "text": "list2[value11 + value13][value12 + value14] = true;"
+        }
+      ]
+    },
+    {
+      "key": "value6@32",
+      "name": "value6",
+      "line": 32,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of arg4 || []) {",
+      "references": [
+        {
+          "line": 33,
+          "text": "const value7 = popupModuleColumnSpan(value6),"
+        },
+        {
+          "line": 34,
+          "text": "value8 = popupModuleRowSpan(value6);"
+        }
+      ]
+    },
+    {
+      "key": "value7@33",
+      "name": "value7",
+      "line": 33,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = popupModuleColumnSpan(value6),",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (value7 > arg5) return null;"
+        },
+        {
+          "line": 39,
+          "text": "for (let value12 = 0; value12 <= arg5 - value7; value12 += 1)"
+        },
+        {
+          "line": 48,
+          "text": "length: value7,"
+        },
+        {
+          "line": 57,
+          "text": "width: value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@34",
+      "name": "value8",
+      "line": 34,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = popupModuleRowSpan(value6);",
+      "references": [
+        {
+          "line": 43,
+          "text": "length: value8,"
+        },
+        {
+          "line": 58,
+          "text": "height: value8,"
+        },
+        {
+          "line": 60,
+          "text": "for (let value13 = 0; value13 < value8; value13 += 1) {"
+        }
+      ]
+    },
+    {
+      "key": "value9@36",
+      "name": "value9",
+      "line": 36,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value9 = null;",
+      "references": [
+        {
+          "line": 38,
+          "text": "for (let value11 = 0; value11 < value10 && !value9; value11 += 1)"
+        },
+        {
+          "line": 67,
+          "text": "if (!value9) return null;"
+        },
+        {
+          "line": 68,
+          "text": "list1.push(value9);"
+        }
+      ]
+    },
+    {
+      "key": "value10@37",
+      "name": "value10",
+      "line": 37,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = Math.max(4, (arg4?.length || 0) * 2 + 1);",
+      "references": [
+        {
+          "line": 38,
+          "text": "for (let value11 = 0; value11 < value10 && !value9; value11 += 1)"
+        }
+      ]
+    },
+    {
+      "key": "value11@38",
+      "name": "value11",
+      "line": 38,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value11 = 0; value11 < value10 && !value9; value11 += 1)",
+      "references": [
+        {
+          "line": 38,
+          "text": "for (let value11 = 0; value11 < value10 && !value9; value11 += 1)"
+        },
+        {
+          "line": 50,
+          "text": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],"
+        },
+        {
+          "line": 56,
+          "text": "y: value11,"
+        },
+        {
+          "line": 61,
+          "text": "list2[value11 + value13] || (list2[value11 + value13] = []);"
+        }
+      ]
+    },
+    {
+      "key": "value12@39",
+      "name": "value12",
+      "line": 39,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value12 = 0; value12 <= arg5 - value7; value12 += 1)",
+      "references": [
+        {
+          "line": 39,
+          "text": "for (let value12 = 0; value12 <= arg5 - value7; value12 += 1)"
+        },
+        {
+          "line": 50,
+          "text": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],"
+        },
+        {
+          "line": 55,
+          "text": "x: value12,"
+        },
+        {
+          "line": 63,
+          "text": "list2[value11 + value13][value12 + value14] = true;"
+        }
+      ]
+    },
+    {
+      "key": "arg6@45",
+      "name": "arg6",
+      "line": 45,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg6, arg7) =>",
+      "references": []
+    },
+    {
+      "key": "arg7@45",
+      "name": "arg7",
+      "line": 45,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg6, arg7) =>",
+      "references": [
+        {
+          "line": 50,
+          "text": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],"
+        }
+      ]
+    },
+    {
+      "key": "arg8@50",
+      "name": "arg8",
+      "line": 50,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],",
+      "references": []
+    },
+    {
+      "key": "arg9@50",
+      "name": "arg9",
+      "line": 50,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],",
+      "references": [
+        {
+          "line": 50,
+          "text": "(arg8, arg9) => !list2[value11 + arg7]?.[value12 + arg9],"
+        }
+      ]
+    },
+    {
+      "key": "value13@60",
+      "name": "value13",
+      "line": 60,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value13 = 0; value13 < value8; value13 += 1) {",
+      "references": [
+        {
+          "line": 60,
+          "text": "for (let value13 = 0; value13 < value8; value13 += 1) {"
+        },
+        {
+          "line": 61,
+          "text": "list2[value11 + value13] || (list2[value11 + value13] = []);"
+        },
+        {
+          "line": 63,
+          "text": "list2[value11 + value13][value12 + value14] = true;"
+        }
+      ]
+    },
+    {
+      "key": "value14@62",
+      "name": "value14",
+      "line": 62,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value14 = 0; value14 < value7; value14 += 1)",
+      "references": [
+        {
+          "line": 62,
+          "text": "for (let value14 = 0; value14 < value7; value14 += 1)"
+        },
+        {
+          "line": 63,
+          "text": "list2[value11 + value13][value12 + value14] = true;"
+        }
+      ]
+    },
+    {
+      "key": "arg10@72",
+      "name": "arg10",
+      "line": 72,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function packPopupModules(arg10, arg11) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "value16 = M(arg10, value15) || [],"
+        }
+      ]
+    },
+    {
+      "key": "arg11@72",
+      "name": "arg11",
+      "line": 72,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function packPopupModules(arg10, arg11) {",
+      "references": [
+        {
+          "line": 73,
+          "text": "const value15 = popupLayoutColumns(arg11),"
+        }
+      ]
+    },
+    {
+      "key": "value15@73",
+      "name": "value15",
+      "line": 73,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = popupLayoutColumns(arg11),",
+      "references": [
+        {
+          "line": 74,
+          "text": "value16 = M(arg10, value15) || [],"
+        },
+        {
+          "line": 81,
+          "text": "columns: value15,"
+        }
+      ]
+    },
+    {
+      "key": "value16@74",
+      "name": "value16",
+      "line": 74,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = M(arg10, value15) || [],",
+      "references": [
+        {
+          "line": 77,
+          "text": "value16.reduce((arg12, arg13) => Math.max(arg12, arg13.y + arg13.height), 0),"
+        },
+        {
+          "line": 82,
+          "text": "placements: value16,"
+        }
+      ]
+    },
+    {
+      "key": "value17@75",
+      "name": "value17",
+      "line": 75,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = Math.max(",
+      "references": [
+        {
+          "line": 80,
+          "text": "rows: Math.min(value17, 3),"
+        },
+        {
+          "line": 83,
+          "text": "fits: value17 <= 3,"
+        }
+      ]
+    },
+    {
+      "key": "arg12@77",
+      "name": "arg12",
+      "line": 77,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16.reduce((arg12, arg13) => Math.max(arg12, arg13.y + arg13.height), 0),",
+      "references": [
+        {
+          "line": 77,
+          "text": "value16.reduce((arg12, arg13) => Math.max(arg12, arg13.y + arg13.height), 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@77",
+      "name": "arg13",
+      "line": 77,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16.reduce((arg12, arg13) => Math.max(arg12, arg13.y + arg13.height), 0),",
+      "references": [
+        {
+          "line": 77,
+          "text": "value16.reduce((arg12, arg13) => Math.max(arg12, arg13.y + arg13.height), 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@86",
+      "name": "arg14",
+      "line": 86,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupLayoutMetrics(arg14, arg15) {",
+      "references": [
+        {
+          "line": 87,
+          "text": "const value18 = packPopupModules(arg14, arg15),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@86",
+      "name": "arg15",
+      "line": 86,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupLayoutMetrics(arg14, arg15) {",
+      "references": [
+        {
+          "line": 87,
+          "text": "const value18 = packPopupModules(arg14, arg15),"
+        }
+      ]
+    },
+    {
+      "key": "value18@87",
+      "name": "value18",
+      "line": 87,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = packPopupModules(arg14, arg15),",
+      "references": [
+        {
+          "line": 88,
+          "text": "value19 = 56 + value18.columns * 420 + (value18.columns - 1) * 14,"
+        },
+        {
+          "line": 89,
+          "text": "value20 = 56 + value18.rows * 470 + (value18.rows - 1) * 14;"
+        },
+        {
+          "line": 91,
+          "text": "...value18,"
+        }
+      ]
+    },
+    {
+      "key": "value19@88",
+      "name": "value19",
+      "line": 88,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = 56 + value18.columns * 420 + (value18.columns - 1) * 14,",
+      "references": [
+        {
+          "line": 92,
+          "text": "gridWidth: value19,"
+        },
+        {
+          "line": 94,
+          "text": "popupWidth: value19,"
+        }
+      ]
+    },
+    {
+      "key": "value20@89",
+      "name": "value20",
+      "line": 89,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = 56 + value18.rows * 470 + (value18.rows - 1) * 14;",
+      "references": [
+        {
+          "line": 93,
+          "text": "gridHeight: value20,"
+        },
+        {
+          "line": 95,
+          "text": "popupHeight: 88 + value20,"
+        }
+      ]
+    }
+  ]
+}

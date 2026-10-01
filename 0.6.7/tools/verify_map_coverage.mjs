@@ -34,6 +34,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 import { classifyName } from './lib/name-buckets.mjs';
+import { exportedLocalNames } from './lib/exported-names.mjs';
 import { resolveBabelRoot } from './lib/babel-root.mjs';
 
 const require = createRequire(import.meta.url);
@@ -119,14 +120,24 @@ for (const key of Object.keys(renames)) {
   covered.add(`${hit.name}@${hit.line}`);
 }
 
+// An exported binding is the module's public API: `apply_frontend_renames.mjs`
+// refuses to rename it, and `brief_frontend_rename_range.mjs` therefore never
+// offers it.  This recount has to agree, or it demands a key the renamer will
+// reject: `light-state.js` exports its local `j` through `export { j as … }`,
+// and treating that one-character local as residue made every otherwise-correct
+// map for the file fail to apply.
+const exported = exportedLocalNames(ast);
+
 const inRange = declared.filter(
-  (d) => d.line >= declStart && d.line <= declEnd && classifyName(d.name) !== 'semantic',
+  (d) =>
+    d.line >= declStart && d.line <= declEnd && classifyName(d.name) !== 'semantic' && !exported.has(d.name),
 );
 const missed = inRange.filter((d) => !covered.has(`${d.name}@${d.line}`));
 
 console.log(`file                  ${relPath}`);
 console.log(`declared bindings     ${declared.length}`);
 console.log(`residue in range      ${inRange.length}  (declaration lines ${declStart}-${declEnd})`);
+console.log(`  frozen exports      ${declared.filter((d) => exported.has(d.name)).length}`);
 console.log(`map entries           ${Object.keys(renames).length}`);
 console.log(`  resolved in range   ${covered.size}`);
 console.log(

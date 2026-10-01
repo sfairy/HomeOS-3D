@@ -1,169 +1,195 @@
-const p = (arg1) => (typeof arg1 == "number" && Number.isFinite(arg1) ? arg1 : null);
-export function waterHeaterCapabilities(arg2) {
-  const value1 = arg2?.attributes || {},
-    value2 = Object.hasOwn(value1, "supported_features"),
-    fn1 = (arg3, arg4 = false) =>
-      value2
-        ? Number.isInteger(value1.supported_features) &&
-          value1.supported_features >= 0 &&
-          !!(value1.supported_features & arg3)
-        : arg4,
-    list1 = [
+const resolveFiniteNumber = (numericValue) =>
+  typeof numericValue == "number" && Number.isFinite(numericValue) ? numericValue : null;
+export function waterHeaterCapabilities(entityState) {
+  const stateAttributes = entityState?.attributes || {},
+    hasSupportedFeatures = Object.hasOwn(stateAttributes, "supported_features"),
+    isFeatureSupported = (featureFlag, isSupportedByDefault = false) =>
+      hasSupportedFeatures
+        ? Number.isInteger(stateAttributes.supported_features) &&
+          stateAttributes.supported_features >= 0 &&
+          !!(stateAttributes.supported_features & featureFlag)
+        : isSupportedByDefault,
+    operationModes = [
       ...new Set(
-        (Array.isArray(value1.operation_list) ? value1.operation_list : []).filter(
-          (arg5) => typeof arg5 == "string" && arg5.trim() && arg5 !== "空",
-        ),
+        (Array.isArray(stateAttributes.operation_list)
+          ? stateAttributes.operation_list
+          : []
+        ).filter((modeName) => typeof modeName == "string" && modeName.trim() && modeName !== "空"),
       ),
     ],
-    value3 = p(value1.min_temp),
-    value4 = p(value1.max_temp),
-    value5 = value1.target_temp_step == null ? 0.5 : p(value1.target_temp_step),
-    value6 = fn1(2, list1.length > 0),
-    value7 = fn1(8),
-    value8 = list1.filter((arg6) => arg6 !== "off");
+    minimumTemperature = resolveFiniteNumber(stateAttributes.min_temp),
+    maximumTemperature = resolveFiniteNumber(stateAttributes.max_temp),
+    temperatureStep =
+      stateAttributes.target_temp_step == null
+        ? 0.5
+        : resolveFiniteNumber(stateAttributes.target_temp_step),
+    isOperationSupported = isFeatureSupported(2, operationModes.length > 0),
+    hasNativePower = isFeatureSupported(8),
+    turnOnModes = operationModes.filter((candidateMode) => candidateMode !== "off");
   return {
     available:
-      !!arg2?.state && arg2.available !== false && !["unknown", "unavailable"].includes(arg2.state),
-    temperature: p(value1.temperature),
-    currentTemperature: p(value1.current_temperature),
-    minimum: value3,
-    maximum: value4,
-    step: value5,
-    unit: ["°C", "°F", "K"].includes(value1.temperature_unit)
-      ? value1.temperature_unit
-      : ["°C", "°F", "K"].includes(value1.unit_of_measurement)
-        ? value1.unit_of_measurement
+      !!entityState?.state &&
+      entityState.available !== false &&
+      !["unknown", "unavailable"].includes(entityState.state),
+    temperature: resolveFiniteNumber(stateAttributes.temperature),
+    currentTemperature: resolveFiniteNumber(stateAttributes.current_temperature),
+    minimum: minimumTemperature,
+    maximum: maximumTemperature,
+    step: temperatureStep,
+    unit: ["°C", "°F", "K"].includes(stateAttributes.temperature_unit)
+      ? stateAttributes.temperature_unit
+      : ["°C", "°F", "K"].includes(stateAttributes.unit_of_measurement)
+        ? stateAttributes.unit_of_measurement
         : "°",
     temperatureSupported:
-      fn1(1, p(value1.temperature) !== null) &&
-      value3 !== null &&
-      value4 !== null &&
-      value3 < value4 &&
-      value5 > 0,
-    operationSupported: value6,
-    modes: value6 ? list1 : [],
-    nativePower: value7,
-    canTurnOff: value7 || (value6 && list1.includes("off")),
-    canTurnOn: value7 || (value6 && value8.length > 0),
-    awaySupported: fn1(4),
-    away: value1.away_mode === true || value1.away_mode === "on",
+      isFeatureSupported(1, resolveFiniteNumber(stateAttributes.temperature) !== null) &&
+      minimumTemperature !== null &&
+      maximumTemperature !== null &&
+      minimumTemperature < maximumTemperature &&
+      temperatureStep > 0,
+    operationSupported: isOperationSupported,
+    modes: isOperationSupported ? operationModes : [],
+    nativePower: hasNativePower,
+    canTurnOff: hasNativePower || (isOperationSupported && operationModes.includes("off")),
+    canTurnOn: hasNativePower || (isOperationSupported && turnOnModes.length > 0),
+    awaySupported: isFeatureSupported(4),
+    away: stateAttributes.away_mode === true || stateAttributes.away_mode === "on",
   };
 }
-export function waterHeaterPowerCommand(arg7, arg8, arg9 = "") {
-  const value9 = waterHeaterCapabilities(arg7);
-  if (!value9.available) throw new Error("热水器当前不可用。");
-  if (value9.nativePower)
+export function waterHeaterPowerCommand(powerEntityState, shouldTurnOn, requestedMode = "") {
+  const heaterCapabilities = waterHeaterCapabilities(powerEntityState);
+  if (!heaterCapabilities.available) throw new Error("热水器当前不可用。");
+  if (heaterCapabilities.nativePower)
     return {
       domain: "water_heater",
-      service: arg8 ? "turn_on" : "turn_off",
+      service: shouldTurnOn ? "turn_on" : "turn_off",
       data: {},
     };
-  const value10 = value9.modes.filter((arg10) => arg10 !== "off"),
-    value11 = arg8
-      ? value10.includes(arg9)
-        ? arg9
-        : value10.length === 1
-          ? value10[0]
+  const selectableModes = heaterCapabilities.modes.filter(
+      (selectableMode) => selectableMode !== "off",
+    ),
+    selectedOperationMode = shouldTurnOn
+      ? selectableModes.includes(requestedMode)
+        ? requestedMode
+        : selectableModes.length === 1
+          ? selectableModes[0]
           : ""
-      : value9.modes.includes("off")
+      : heaterCapabilities.modes.includes("off")
         ? "off"
         : "";
-  if (!value11)
+  if (!selectedOperationMode)
     throw new Error(
-      arg8 && value10.length > 1 ? "请选择要开启的运行模式。" : "热水器未提供此开关能力。",
+      shouldTurnOn && selectableModes.length > 1
+        ? "请选择要开启的运行模式。"
+        : "热水器未提供此开关能力。",
     );
   return {
     domain: "water_heater",
     service: "set_operation_mode",
     data: {
-      operation_mode: value11,
+      operation_mode: selectedOperationMode,
     },
   };
 }
-export function waterHeaterCommandConfirmed(arg11, arg12) {
-  const value12 = waterHeaterCapabilities(arg12);
-  if (!value12.available) return false;
-  const value13 = arg12.attributes?.operation_mode || arg12.state;
-  switch (arg11.service) {
+export function waterHeaterCommandConfirmed(confirmedCommand, checkedEntityState) {
+  const entityCapabilities = waterHeaterCapabilities(checkedEntityState);
+  if (!entityCapabilities.available) return false;
+  const currentOperationMode =
+    checkedEntityState.attributes?.operation_mode || checkedEntityState.state;
+  switch (confirmedCommand.service) {
     case "turn_on":
-      return arg12.state !== "off";
+      return checkedEntityState.state !== "off";
     case "turn_off":
-      return arg12.state === "off";
+      return checkedEntityState.state === "off";
     case "set_operation_mode":
-      return value13 === arg11.data.operation_mode;
+      return currentOperationMode === confirmedCommand.data.operation_mode;
     case "set_away_mode":
       return (
-        (arg12.attributes?.away_mode === "on" || arg12.attributes?.away_mode === true) ===
-          arg11.data.away_mode && arg12.attributes?.away_mode != null
+        (checkedEntityState.attributes?.away_mode === "on" ||
+          checkedEntityState.attributes?.away_mode === true) === confirmedCommand.data.away_mode &&
+        checkedEntityState.attributes?.away_mode != null
       );
     case "set_temperature":
       return (
-        value12.temperature !== null &&
-        Math.abs(value12.temperature - arg11.data.temperature) <=
-          Math.max(0.001, (value12.step || 0.5) / 100)
+        entityCapabilities.temperature !== null &&
+        Math.abs(entityCapabilities.temperature - confirmedCommand.data.temperature) <=
+          Math.max(0.001, (entityCapabilities.step || 0.5) / 100)
       );
     default:
       return false;
   }
 }
 export function createWaterHeaterFeedback({
-  onChange: arg13 = () => {},
-  timeout: arg14 = 10000,
-  schedule: arg15 = setTimeout,
-  cancel: arg16 = clearTimeout,
+  onChange: onStatusChange = () => {},
+  timeout: responseTimeoutMs = 10000,
+  schedule: scheduleTimeout = setTimeout,
+  cancel: cancelTimeout = clearTimeout,
 } = {}) {
-  const map1 = new Map();
-  let value14 = false;
-  const fn2 = (arg17) =>
-      ["turn_on", "turn_off", "set_operation_mode"].includes(arg17.service)
+  const pendingCommandsByMode = new Map();
+  let isDisposed = false;
+  const resolveCommandKey = (serviceCommand) =>
+      ["turn_on", "turn_off", "set_operation_mode"].includes(serviceCommand.service)
         ? "mode"
-        : arg17.service,
-    fn3 = (arg18) => {
-      value14 || arg13(arg18);
+        : serviceCommand.service,
+    emitFeedback = (feedbackMessage) => {
+      isDisposed || onStatusChange(feedbackMessage);
     },
-    fn4 = (arg19) => {
-      (arg16(arg19.timer), map1.get(arg19.key) === arg19 && map1.delete(arg19.key));
+    clearPendingCommand = (commandRecord) => {
+      (cancelTimeout(commandRecord.timer),
+        pendingCommandsByMode.get(commandRecord.key) === commandRecord &&
+          pendingCommandsByMode.delete(commandRecord.key));
     };
   return {
-    begin(arg20) {
-      const value15 = fn2(arg20);
-      map1.has(value15) && fn4(map1.get(value15));
-      const object1 = {
-        key: value15,
-        command: arg20,
+    begin(requestedCommand) {
+      const commandKey = resolveCommandKey(requestedCommand);
+      pendingCommandsByMode.has(commandKey) &&
+        clearPendingCommand(pendingCommandsByMode.get(commandKey));
+      const pendingCommandRecord = {
+        key: commandKey,
+        command: requestedCommand,
       };
-      return (map1.set(value15, object1), fn3(""), object1);
+      return (
+        pendingCommandsByMode.set(commandKey, pendingCommandRecord),
+        emitFeedback(""),
+        pendingCommandRecord
+      );
     },
-    sent(arg21) {
-      value14 ||
-        map1.get(arg21.key) !== arg21 ||
-        (fn3(""),
-        (arg21.timer = arg15(() => {
-          value14 || map1.get(arg21.key) !== arg21 || (fn4(arg21), fn3("设备未响应，请重试"));
-        }, arg14)),
-        arg21.timer?.unref?.());
+    sent(sentCommandRecord) {
+      isDisposed ||
+        pendingCommandsByMode.get(sentCommandRecord.key) !== sentCommandRecord ||
+        (emitFeedback(""),
+        (sentCommandRecord.timer = scheduleTimeout(() => {
+          isDisposed ||
+            pendingCommandsByMode.get(sentCommandRecord.key) !== sentCommandRecord ||
+            (clearPendingCommand(sentCommandRecord), emitFeedback("设备未响应，请重试"));
+        }, responseTimeoutMs)),
+        sentCommandRecord.timer?.unref?.());
     },
-    fail(arg22, arg23) {
-      value14 ||
-        map1.get(arg22.key) !== arg22 ||
-        (fn4(arg22), fn3(arg23 || "设备控制失败，请重试"));
+    fail(failedCommandRecord, failureMessage) {
+      isDisposed ||
+        pendingCommandsByMode.get(failedCommandRecord.key) !== failedCommandRecord ||
+        (clearPendingCommand(failedCommandRecord),
+        emitFeedback(failureMessage || "设备控制失败，请重试"));
     },
-    sync(arg24) {
-      if (value14 || !map1.size) return;
-      if (!waterHeaterCapabilities(arg24).available) {
-        for (const value17 of map1.values()) arg16(value17.timer);
-        (map1.clear(), fn3("设备已离线，操作结果未确认"));
+    sync(syncEntityState) {
+      if (isDisposed || !pendingCommandsByMode.size) return;
+      if (!waterHeaterCapabilities(syncEntityState).available) {
+        for (const offlineCommandRecord of pendingCommandsByMode.values())
+          cancelTimeout(offlineCommandRecord.timer);
+        (pendingCommandsByMode.clear(), emitFeedback("设备已离线，操作结果未确认"));
         return;
       }
-      let value16 = false;
-      for (const value18 of [...map1.values()])
-        waterHeaterCommandConfirmed(value18.command, arg24) && (fn4(value18), (value16 = true));
-      value16 && fn3("");
+      let hasConfirmedCommand = false;
+      for (const syncCommandRecord of [...pendingCommandsByMode.values()])
+        waterHeaterCommandConfirmed(syncCommandRecord.command, syncEntityState) &&
+          (clearPendingCommand(syncCommandRecord), (hasConfirmedCommand = true));
+      hasConfirmedCommand && emitFeedback("");
     },
     dispose() {
-      value14 = true;
-      for (const value19 of map1.values()) arg16(value19.timer);
-      map1.clear();
+      isDisposed = true;
+      for (const disposeCommandRecord of pendingCommandsByMode.values())
+        cancelTimeout(disposeCommandRecord.timer);
+      pendingCommandsByMode.clear();
     },
   };
 }

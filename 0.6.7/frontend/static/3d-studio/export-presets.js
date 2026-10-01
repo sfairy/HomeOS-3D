@@ -1,6 +1,6 @@
 export const DEFAULT_EXPORT_PRESET_COUNT = 4,
   MAX_EXPORT_PRESET_COUNT = 8;
-const a = new Set([
+const allowedFileKindSet = new Set([
   "background",
   "backgroundWithPlan",
   "televisionOn",
@@ -9,105 +9,126 @@ const a = new Set([
   "dataLights",
   "dataScene",
 ]);
-function o(arg1, arg2 = 0) {
-  const value1 = Number(arg1);
-  return Number.isFinite(value1) ? value1 : arg2;
+function toFiniteNumber(candidateNumber, fallbackNumber = 0) {
+  const numericValue = Number(candidateNumber);
+  return Number.isFinite(numericValue) ? numericValue : fallbackNumber;
 }
-function i(arg3, arg4, arg5) {
-  return Math.max(arg4, Math.min(arg5, arg3));
+function clamp(inputNumber, minValue, maxValue) {
+  return Math.max(minValue, Math.min(maxValue, inputNumber));
 }
-function c(arg6, arg7 = {}) {
+function resolvePoint(sourcePoint, defaultPoint = {}) {
   return {
-    x: o(arg6?.x, arg7.x),
-    y: o(arg6?.y, arg7.y),
-    z: o(arg6?.z, arg7.z),
+    x: toFiniteNumber(sourcePoint?.x, defaultPoint.x),
+    y: toFiniteNumber(sourcePoint?.y, defaultPoint.y),
+    z: toFiniteNumber(sourcePoint?.z, defaultPoint.z),
   };
 }
-function m(arg8) {
-  return Array.isArray(arg8)
+function normalizeSelectedFiles(sourceFiles) {
+  return Array.isArray(sourceFiles)
     ? [
         ...new Set(
-          arg8
-            .map((arg9) => String(arg9 || ""))
+          sourceFiles
+            .map((fileCandidate) => String(fileCandidate || ""))
             .filter(
-              (arg10) =>
-                a.has(arg10) || /^(?:group|screen|vehicle):[A-Za-z0-9_.:-]{1,180}$/.test(arg10),
+              (fileToken) =>
+                allowedFileKindSet.has(fileToken) ||
+                /^(?:group|screen|vehicle):[A-Za-z0-9_.:-]{1,180}$/.test(fileToken),
             ),
         ),
       ].slice(0, 128)
     : [];
 }
-function f(arg11) {
-  const value2 = arg11?.mode === "perspective" ? "perspective" : "orthographic",
-    value3 = arg11?.view === "top" ? "top" : "free",
-    object1 = {
-      mode: value2,
-      view: value3,
-      topRotation: (((Math.round(o(arg11?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
-      position: c(arg11?.position, {
+function normalizeCameraConfig(sourceCamera) {
+  const cameraMode = sourceCamera?.mode === "perspective" ? "perspective" : "orthographic",
+    cameraView = sourceCamera?.view === "top" ? "top" : "free",
+    cameraConfig = {
+      mode: cameraMode,
+      view: cameraView,
+      topRotation:
+        (((Math.round(toFiniteNumber(sourceCamera?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
+      position: resolvePoint(sourceCamera?.position, {
         x: 7,
         y: 7,
         z: 7,
       }),
-      target: c(arg11?.target, {
+      target: resolvePoint(sourceCamera?.target, {
         x: 0,
         y: 0.6,
         z: 0,
       }),
-      visibleHeight: i(o(arg11?.visibleHeight, 10), 0.1, 1000),
-      fov: i(o(arg11?.fov, 36), 5, 120),
-      focalLength: value2 === "perspective" ? i(o(arg11?.focalLength, 50), 18, 120) : null,
+      visibleHeight: clamp(toFiniteNumber(sourceCamera?.visibleHeight, 10), 0.1, 1000),
+      fov: clamp(toFiniteNumber(sourceCamera?.fov, 36), 5, 120),
+      focalLength:
+        cameraMode === "perspective"
+          ? clamp(toFiniteNumber(sourceCamera?.focalLength, 50), 18, 120)
+          : null,
     };
   return (
-    Number.isFinite(Number(arg11?.frameSize)) &&
-      Number(arg11.frameSize) > 0 &&
-      (object1.frameSize = i(o(arg11.frameSize, 10), 0.1, 1000)),
-    object1
+    Number.isFinite(Number(sourceCamera?.frameSize)) &&
+      Number(sourceCamera.frameSize) > 0 &&
+      (cameraConfig.frameSize = clamp(toFiniteNumber(sourceCamera.frameSize, 10), 0.1, 1000)),
+    cameraConfig
   );
 }
-export function normalizeExportPreset(arg12) {
-  if (!arg12 || typeof arg12 != "object") return null;
-  const value4 = Math.round(i(o(arg12.width, 1852), 320, 4096)),
-    value5 = Math.round(i(o(arg12.height, 1293), 320, 4096));
+export function normalizeExportPreset(sourcePreset) {
+  if (!sourcePreset || typeof sourcePreset != "object") return null;
+  const widthPx = Math.round(clamp(toFiniteNumber(sourcePreset.width, 1852), 320, 4096)),
+    heightPx = Math.round(clamp(toFiniteNumber(sourcePreset.height, 1293), 320, 4096));
   return {
     version: 1,
-    name: String(arg12.name || "")
+    name: String(sourcePreset.name || "")
       .trim()
       .slice(0, 24),
-    width: value4,
-    height: value5,
-    lockRatio: arg12.lockRatio !== false,
-    floorMode: arg12.floorMode === "all" ? "all" : "floor",
-    floorId: String(arg12.floorId || "").slice(0, 180),
-    floorGap: i(o(arg12.floorGap, 3), 0, 20),
-    camera: f(arg12.camera),
-    folderName: String(arg12.folderName || "").slice(0, 60),
-    selectedFiles: m(arg12.selectedFiles),
+    width: widthPx,
+    height: heightPx,
+    lockRatio: sourcePreset.lockRatio !== false,
+    floorMode: sourcePreset.floorMode === "all" ? "all" : "floor",
+    floorId: String(sourcePreset.floorId || "").slice(0, 180),
+    floorGap: clamp(toFiniteNumber(sourcePreset.floorGap, 3), 0, 20),
+    camera: normalizeCameraConfig(sourcePreset.camera),
+    folderName: String(sourcePreset.folderName || "").slice(0, 60),
+    selectedFiles: normalizeSelectedFiles(sourcePreset.selectedFiles),
   };
 }
-export function normalizeExportPresetSlots(arg13) {
-  const value6 = Array.isArray(arg13) ? arg13 : [],
-    value7 = Array.isArray(arg13) ? Math.max(1, Math.min(8, value6.length || 1)) : 4;
+export function normalizeExportPresetSlots(sourceSlots) {
+  const slotCandidates = Array.isArray(sourceSlots) ? sourceSlots : [],
+    slotCount = Array.isArray(sourceSlots)
+      ? Math.max(1, Math.min(8, slotCandidates.length || 1))
+      : 4;
   return Array.from(
     {
-      length: value7,
+      length: slotCount,
     },
-    (arg14, arg15) => normalizeExportPreset(value6[arg15]),
+    (slotEntry, slotIndex) => normalizeExportPreset(slotCandidates[slotIndex]),
   );
 }
-export function normalizeActiveExportPresetSlot(arg16, arg17 = 4) {
-  const value8 = Number(arg16),
-    value9 = Math.max(1, Math.min(8, Number(arg17) || 4));
-  return Number.isInteger(value8) && value8 >= 0 && value8 < value9 ? value8 : 0;
+export function normalizeActiveExportPresetSlot(activeSlotInput, totalSlotCount = 4) {
+  const activeSlotIndex = Number(activeSlotInput),
+    boundedSlotCount = Math.max(1, Math.min(8, Number(totalSlotCount) || 4));
+  return Number.isInteger(activeSlotIndex) &&
+    activeSlotIndex >= 0 &&
+    activeSlotIndex < boundedSlotCount
+    ? activeSlotIndex
+    : 0;
 }
-export function exportPresetIsEmpty(arg18, arg19 = false) {
-  return !normalizeExportPreset(arg18) && !arg19;
+export function exportPresetIsEmpty(candidatePreset, hasPendingValue = false) {
+  return !normalizeExportPreset(candidatePreset) && !hasPendingValue;
 }
-export function exportPresetSummary(arg20, arg21 = new Map()) {
-  const value10 = normalizeExportPreset(arg20);
-  if (!value10) return "未设置";
-  const value11 =
-      value10.floorMode === "all" ? "全楼合并" : arg21.get(value10.floorId) || "楼层已变更",
-    value12 = value10.camera.mode === "perspective" ? "透视" : "正交";
-  return value10.width + "×" + value10.height + " · " + value11 + " · " + value12;
+export function exportPresetSummary(presetCandidate, floorNameByFloorId = new Map()) {
+  const normalizedPreset = normalizeExportPreset(presetCandidate);
+  if (!normalizedPreset) return "未设置";
+  const floorLabel =
+      normalizedPreset.floorMode === "all"
+        ? "全楼合并"
+        : floorNameByFloorId.get(normalizedPreset.floorId) || "楼层已变更",
+    cameraModeLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
+  return (
+    normalizedPreset.width +
+    "×" +
+    normalizedPreset.height +
+    " · " +
+    floorLabel +
+    " · " +
+    cameraModeLabel
+  );
 }

@@ -1,0 +1,940 @@
+{
+  "file": "frontend/static/editor-document-management.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 124,
+  "counts": {
+    "entries": 53,
+    "renameable": 53,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "s@2",
+      "name": "s",
+      "line": 2,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const s = \"ha-bridge:editor:selected-project\";",
+      "references": [
+        {
+          "line": 5,
+          "text": "arg2()?.setItem(s, arg1);"
+        },
+        {
+          "line": 12,
+          "text": "value1 = arg5()?.getItem(s);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rememberEditorProject(arg1, arg2 = () => globalThis.sessionStorage) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "arg2()?.setItem(s, arg1);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@3",
+      "name": "arg2",
+      "line": 3,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rememberEditorProject(arg1, arg2 = () => globalThis.sessionStorage) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "arg2()?.setItem(s, arg1);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@8",
+      "name": "arg3",
+      "line": 8,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function restoredEditorProject(arg3, arg4 = null, arg5 = () => globalThis.sessionStorage) {",
+      "references": [
+        {
+          "line": 9,
+          "text": "if (arg3.some((arg6) => arg6.id === arg4)) return arg4;"
+        },
+        {
+          "line": 14,
+          "text": "return arg3.find((arg7) => arg7.id === value1)?.id ?? arg3[0]?.id ?? null;"
+        }
+      ]
+    },
+    {
+      "key": "arg4@8",
+      "name": "arg4",
+      "line": 8,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function restoredEditorProject(arg3, arg4 = null, arg5 = () => globalThis.sessionStorage) {",
+      "references": [
+        {
+          "line": 9,
+          "text": "if (arg3.some((arg6) => arg6.id === arg4)) return arg4;"
+        }
+      ]
+    },
+    {
+      "key": "arg5@8",
+      "name": "arg5",
+      "line": 8,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function restoredEditorProject(arg3, arg4 = null, arg5 = () => globalThis.sessionStorage) {",
+      "references": [
+        {
+          "line": 12,
+          "text": "value1 = arg5()?.getItem(s);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@9",
+      "name": "arg6",
+      "line": 9,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if (arg3.some((arg6) => arg6.id === arg4)) return arg4;",
+      "references": [
+        {
+          "line": 9,
+          "text": "if (arg3.some((arg6) => arg6.id === arg4)) return arg4;"
+        }
+      ]
+    },
+    {
+      "key": "value1@10",
+      "name": "value1",
+      "line": 10,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1;",
+      "references": [
+        {
+          "line": 14,
+          "text": "return arg3.find((arg7) => arg7.id === value1)?.id ?? arg3[0]?.id ?? null;"
+        }
+      ]
+    },
+    {
+      "key": "arg7@14",
+      "name": "arg7",
+      "line": 14,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return arg3.find((arg7) => arg7.id === value1)?.id ?? arg3[0]?.id ?? null;",
+      "references": [
+        {
+          "line": 14,
+          "text": "return arg3.find((arg7) => arg7.id === value1)?.id ?? arg3[0]?.id ?? null;"
+        }
+      ]
+    },
+    {
+      "key": "arg8@16",
+      "name": "arg8",
+      "line": 16,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uniquePagePath(arg8, arg9, arg10 = \"\") {",
+      "references": [
+        {
+          "line": 18,
+          "text": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));"
+        }
+      ]
+    },
+    {
+      "key": "arg9@16",
+      "name": "arg9",
+      "line": 16,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uniquePagePath(arg8, arg9, arg10 = \"\") {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const value2 = slugify(arg9),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@16",
+      "name": "arg10",
+      "line": 16,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uniquePagePath(arg8, arg9, arg10 = \"\") {",
+      "references": [
+        {
+          "line": 18,
+          "text": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));"
+        }
+      ]
+    },
+    {
+      "key": "value2@17",
+      "name": "value2",
+      "line": 17,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = slugify(arg9),",
+      "references": [
+        {
+          "line": 19,
+          "text": "let value3 = value2,"
+        },
+        {
+          "line": 21,
+          "text": "for (; set1.has(value3);) value3 = value2 + \"-\" + value4++;"
+        }
+      ]
+    },
+    {
+      "key": "set1@18",
+      "name": "set1",
+      "line": 18,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));",
+      "references": [
+        {
+          "line": 21,
+          "text": "for (; set1.has(value3);) value3 = value2 + \"-\" + value4++;"
+        }
+      ]
+    },
+    {
+      "key": "arg11@18",
+      "name": "arg11",
+      "line": 18,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));",
+      "references": [
+        {
+          "line": 18,
+          "text": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));"
+        }
+      ]
+    },
+    {
+      "key": "arg12@18",
+      "name": "arg12",
+      "line": 18,
+      "column": 67,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));",
+      "references": [
+        {
+          "line": 18,
+          "text": "set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));"
+        }
+      ]
+    },
+    {
+      "key": "value3@19",
+      "name": "value3",
+      "line": 19,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value3 = value2,",
+      "references": [
+        {
+          "line": 21,
+          "text": "for (; set1.has(value3);) value3 = value2 + \"-\" + value4++;"
+        },
+        {
+          "line": 22,
+          "text": "return value3;"
+        }
+      ]
+    },
+    {
+      "key": "value4@20",
+      "name": "value4",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = 2;",
+      "references": [
+        {
+          "line": 21,
+          "text": "for (; set1.has(value3);) value3 = value2 + \"-\" + value4++;"
+        }
+      ]
+    },
+    {
+      "key": "arg13@24",
+      "name": "arg13",
+      "line": 24,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clonePageWithFreshIds(arg13, arg14, arg15 = []) {",
+      "references": [
+        {
+          "line": 25,
+          "text": "const value5 = clone(arg13);"
+        }
+      ]
+    },
+    {
+      "key": "arg14@24",
+      "name": "arg14",
+      "line": 24,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clonePageWithFreshIds(arg13, arg14, arg15 = []) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "(value5.name = arg14),"
+        },
+        {
+          "line": 28,
+          "text": "(value5.path = uniquePagePath(arg15, arg14)));"
+        }
+      ]
+    },
+    {
+      "key": "arg15@24",
+      "name": "arg15",
+      "line": 24,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clonePageWithFreshIds(arg13, arg14, arg15 = []) {",
+      "references": [
+        {
+          "line": 28,
+          "text": "(value5.path = uniquePagePath(arg15, arg14)));"
+        }
+      ]
+    },
+    {
+      "key": "value5@25",
+      "name": "value5",
+      "line": 25,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = clone(arg13);",
+      "references": [
+        {
+          "line": 26,
+          "text": "((value5.id = newId(\"page\")),"
+        },
+        {
+          "line": 27,
+          "text": "(value5.name = arg14),"
+        },
+        {
+          "line": 28,
+          "text": "(value5.path = uniquePagePath(arg15, arg14)));"
+        },
+        {
+          "line": 32,
+          "text": "return (fn1(value5.components), value5);"
+        }
+      ]
+    },
+    {
+      "key": "fn1@29",
+      "name": "fn1",
+      "line": 29,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg16) => {",
+      "references": [
+        {
+          "line": 30,
+          "text": "for (const value6 of arg16 || []) ((value6.id = newId(\"component\")), fn1(value6.children));"
+        },
+        {
+          "line": 32,
+          "text": "return (fn1(value5.components), value5);"
+        }
+      ]
+    },
+    {
+      "key": "arg16@29",
+      "name": "arg16",
+      "line": 29,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg16) => {",
+      "references": [
+        {
+          "line": 30,
+          "text": "for (const value6 of arg16 || []) ((value6.id = newId(\"component\")), fn1(value6.children));"
+        }
+      ]
+    },
+    {
+      "key": "value6@30",
+      "name": "value6",
+      "line": 30,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of arg16 || []) ((value6.id = newId(\"component\")), fn1(value6.children));",
+      "references": [
+        {
+          "line": 30,
+          "text": "for (const value6 of arg16 || []) ((value6.id = newId(\"component\")), fn1(value6.children));"
+        }
+      ]
+    },
+    {
+      "key": "arg17@34",
+      "name": "arg17",
+      "line": 34,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function findCustomPopup(arg17, arg18) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "return (arg17?.customPopups || []).find((arg19) => arg19.id === arg18) || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg18@34",
+      "name": "arg18",
+      "line": 34,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function findCustomPopup(arg17, arg18) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "return (arg17?.customPopups || []).find((arg19) => arg19.id === arg18) || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg19@35",
+      "name": "arg19",
+      "line": 35,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (arg17?.customPopups || []).find((arg19) => arg19.id === arg18) || null;",
+      "references": [
+        {
+          "line": 35,
+          "text": "return (arg17?.customPopups || []).find((arg19) => arg19.id === arg18) || null;"
+        }
+      ]
+    },
+    {
+      "key": "arg20@37",
+      "name": "arg20",
+      "line": 37,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleTypeLabel(arg20) {",
+      "references": [
+        {
+          "line": 52,
+          "text": "}[arg20] || \"通用设备\""
+        }
+      ]
+    },
+    {
+      "key": "p@55",
+      "name": "p",
+      "line": 55,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const p = [\"auto\", \"air-conditioner\", \"bath-heater\"];",
+      "references": [
+        {
+          "line": 57,
+          "text": "return p.includes(arg21) ? arg21 : \"auto\";"
+        }
+      ]
+    },
+    {
+      "key": "arg21@56",
+      "name": "arg21",
+      "line": 56,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function normalizedPopupClimateDeviceType(arg21) {",
+      "references": [
+        {
+          "line": 57,
+          "text": "return p.includes(arg21) ? arg21 : \"auto\";"
+        }
+      ]
+    },
+    {
+      "key": "arg22@59",
+      "name": "arg22",
+      "line": 59,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleEntityRecommended(arg22, arg23) {",
+      "references": [
+        {
+          "line": 60,
+          "text": "const value7 = arg22?.domain || String(arg22?.entityId || \"\").split(\".\")[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg23@59",
+      "name": "arg23",
+      "line": 59,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleEntityRecommended(arg22, arg23) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "return arg23 === \"light\""
+        },
+        {
+          "line": 63,
+          "text": ": arg23 === \"climate\""
+        },
+        {
+          "line": 65,
+          "text": ": arg23 === \"air-purifier\""
+        },
+        {
+          "line": 67,
+          "text": ": arg23 === \"water-heater\""
+        }
+      ]
+    },
+    {
+      "key": "value7@60",
+      "name": "value7",
+      "line": 60,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg22?.domain || String(arg22?.entityId || \"\").split(\".\")[0];",
+      "references": [
+        {
+          "line": 62,
+          "text": "? value7 === \"light\""
+        },
+        {
+          "line": 64,
+          "text": "? [\"climate\", \"fan\"].includes(value7)"
+        },
+        {
+          "line": 66,
+          "text": "? value7 === \"fan\""
+        },
+        {
+          "line": 68,
+          "text": "? value7 === \"water_heater\""
+        }
+      ]
+    },
+    {
+      "key": "arg24@83",
+      "name": "arg24",
+      "line": 83,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function reorderedPopupModules(arg24, arg25, arg26 = null, arg27 = false) {",
+      "references": [
+        {
+          "line": 84,
+          "text": "const list1 = [...(arg24 || [])],"
+        }
+      ]
+    },
+    {
+      "key": "arg25@83",
+      "name": "arg25",
+      "line": 83,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function reorderedPopupModules(arg24, arg25, arg26 = null, arg27 = false) {",
+      "references": [
+        {
+          "line": 85,
+          "text": "value8 = list1.findIndex((arg28) => arg28.id === arg25);"
+        },
+        {
+          "line": 86,
+          "text": "if (value8 < 0 || arg25 === arg26) return list1;"
+        }
+      ]
+    },
+    {
+      "key": "arg26@83",
+      "name": "arg26",
+      "line": 83,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function reorderedPopupModules(arg24, arg25, arg26 = null, arg27 = false) {",
+      "references": [
+        {
+          "line": 86,
+          "text": "if (value8 < 0 || arg25 === arg26) return list1;"
+        },
+        {
+          "line": 88,
+          "text": "if (!arg26) return (list1.push(value9), list1);"
+        },
+        {
+          "line": 89,
+          "text": "const value10 = list1.findIndex((arg29) => arg29.id === arg26);"
+        }
+      ]
+    },
+    {
+      "key": "arg27@83",
+      "name": "arg27",
+      "line": 83,
+      "column": 66,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function reorderedPopupModules(arg24, arg25, arg26 = null, arg27 = false) {",
+      "references": [
+        {
+          "line": 92,
+          "text": ": (list1.splice(value10 + (arg27 ? 1 : 0), 0, value9), list1);"
+        }
+      ]
+    },
+    {
+      "key": "list1@84",
+      "name": "list1",
+      "line": 84,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [...(arg24 || [])],",
+      "references": [
+        {
+          "line": 85,
+          "text": "value8 = list1.findIndex((arg28) => arg28.id === arg25);"
+        },
+        {
+          "line": 86,
+          "text": "if (value8 < 0 || arg25 === arg26) return list1;"
+        },
+        {
+          "line": 87,
+          "text": "const [value9] = list1.splice(value8, 1);"
+        },
+        {
+          "line": 88,
+          "text": "if (!arg26) return (list1.push(value9), list1);"
+        }
+      ]
+    },
+    {
+      "key": "value8@85",
+      "name": "value8",
+      "line": 85,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = list1.findIndex((arg28) => arg28.id === arg25);",
+      "references": [
+        {
+          "line": 86,
+          "text": "if (value8 < 0 || arg25 === arg26) return list1;"
+        },
+        {
+          "line": 87,
+          "text": "const [value9] = list1.splice(value8, 1);"
+        },
+        {
+          "line": 91,
+          "text": "? (list1.splice(value8, 0, value9), list1)"
+        }
+      ]
+    },
+    {
+      "key": "arg28@85",
+      "name": "arg28",
+      "line": 85,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = list1.findIndex((arg28) => arg28.id === arg25);",
+      "references": [
+        {
+          "line": 85,
+          "text": "value8 = list1.findIndex((arg28) => arg28.id === arg25);"
+        }
+      ]
+    },
+    {
+      "key": "value9@87",
+      "name": "value9",
+      "line": 87,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value9] = list1.splice(value8, 1);",
+      "references": [
+        {
+          "line": 88,
+          "text": "if (!arg26) return (list1.push(value9), list1);"
+        },
+        {
+          "line": 91,
+          "text": "? (list1.splice(value8, 0, value9), list1)"
+        },
+        {
+          "line": 92,
+          "text": ": (list1.splice(value10 + (arg27 ? 1 : 0), 0, value9), list1);"
+        }
+      ]
+    },
+    {
+      "key": "value10@89",
+      "name": "value10",
+      "line": 89,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = list1.findIndex((arg29) => arg29.id === arg26);",
+      "references": [
+        {
+          "line": 90,
+          "text": "return value10 < 0"
+        },
+        {
+          "line": 92,
+          "text": ": (list1.splice(value10 + (arg27 ? 1 : 0), 0, value9), list1);"
+        }
+      ]
+    },
+    {
+      "key": "arg29@89",
+      "name": "arg29",
+      "line": 89,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value10 = list1.findIndex((arg29) => arg29.id === arg26);",
+      "references": [
+        {
+          "line": 89,
+          "text": "const value10 = list1.findIndex((arg29) => arg29.id === arg26);"
+        }
+      ]
+    },
+    {
+      "key": "arg30@94",
+      "name": "arg30",
+      "line": 94,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleDropPosition(arg30, arg31) {",
+      "references": [
+        {
+          "line": 95,
+          "text": "const value11 = arg30.getBoundingClientRect(),"
+        }
+      ]
+    },
+    {
+      "key": "arg31@94",
+      "name": "arg31",
+      "line": 94,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function popupModuleDropPosition(arg30, arg31) {",
+      "references": [
+        {
+          "line": 96,
+          "text": "value12 = arg31.clientY - value11.top,"
+        },
+        {
+          "line": 108,
+          "text": ": arg31.clientX < value11.left + value11.width / 2"
+        }
+      ]
+    },
+    {
+      "key": "value11@95",
+      "name": "value11",
+      "line": 95,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = arg30.getBoundingClientRect(),",
+      "references": [
+        {
+          "line": 96,
+          "text": "value12 = arg31.clientY - value11.top,"
+        },
+        {
+          "line": 97,
+          "text": "value13 = Math.min(48, value11.height * 0.22);"
+        },
+        {
+          "line": 103,
+          "text": ": value12 >= value11.height - value13"
+        },
+        {
+          "line": 108,
+          "text": ": arg31.clientX < value11.left + value11.width / 2"
+        }
+      ]
+    },
+    {
+      "key": "value12@96",
+      "name": "value12",
+      "line": 96,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = arg31.clientY - value11.top,",
+      "references": [
+        {
+          "line": 98,
+          "text": "return value12 <= value13"
+        },
+        {
+          "line": 103,
+          "text": ": value12 >= value11.height - value13"
+        }
+      ]
+    },
+    {
+      "key": "value13@97",
+      "name": "value13",
+      "line": 97,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = Math.min(48, value11.height * 0.22);",
+      "references": [
+        {
+          "line": 98,
+          "text": "return value12 <= value13"
+        },
+        {
+          "line": 103,
+          "text": ": value12 >= value11.height - value13"
+        }
+      ]
+    },
+    {
+      "key": "arg32@118",
+      "name": "arg32",
+      "line": 118,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function greatestCommonDivisor(arg32, arg33) {",
+      "references": [
+        {
+          "line": 119,
+          "text": "let value14 = Math.abs(Math.trunc(arg32)),"
+        }
+      ]
+    },
+    {
+      "key": "arg33@118",
+      "name": "arg33",
+      "line": 118,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function greatestCommonDivisor(arg32, arg33) {",
+      "references": [
+        {
+          "line": 120,
+          "text": "value15 = Math.abs(Math.trunc(arg33));"
+        }
+      ]
+    },
+    {
+      "key": "value14@119",
+      "name": "value14",
+      "line": 119,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value14 = Math.abs(Math.trunc(arg32)),",
+      "references": [
+        {
+          "line": 121,
+          "text": "for (; value15;) [value14, value15] = [value15, value14 % value15];"
+        },
+        {
+          "line": 122,
+          "text": "return value14 || 1;"
+        }
+      ]
+    },
+    {
+      "key": "value15@120",
+      "name": "value15",
+      "line": 120,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = Math.abs(Math.trunc(arg33));",
+      "references": [
+        {
+          "line": 121,
+          "text": "for (; value15;) [value14, value15] = [value15, value14 % value15];"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,969 @@
+{
+  "file": "frontend/static/renderer/transform-geometry.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 83,
+  "counts": {
+    "entries": 48,
+    "renameable": 48,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function airflowCanvasOffsetBounds(arg1, arg2) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg1?.position || {},"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function airflowCanvasOffsetBounds(arg1, arg2) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "value4 = Math.max(1, Number(arg2?.width || 2778)),"
+        },
+        {
+          "line": 6,
+          "text": "value5 = Math.max(1, Number(arg2?.height || 1940)),"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1?.position || {},",
+      "references": [
+        {
+          "line": 3,
+          "text": "value2 = Math.max(1, Number(value1.width || 100)),"
+        },
+        {
+          "line": 4,
+          "text": "value3 = Math.max(1, Number(value1.height || 100)),"
+        },
+        {
+          "line": 7,
+          "text": "value6 = Number(value1.x || 0) + value2 / 2,"
+        },
+        {
+          "line": 8,
+          "text": "value7 = Number(value1.y || 0) + value3 / 2;"
+        }
+      ]
+    },
+    {
+      "key": "value2@3",
+      "name": "value2",
+      "line": 3,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = Math.max(1, Number(value1.width || 100)),",
+      "references": [
+        {
+          "line": 7,
+          "text": "value6 = Number(value1.x || 0) + value2 / 2,"
+        },
+        {
+          "line": 10,
+          "text": "minX: Math.min(-500, (-value6 / value2) * 100),"
+        },
+        {
+          "line": 11,
+          "text": "maxX: Math.max(500, ((value4 - value6) / value2) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "value3@4",
+      "name": "value3",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = Math.max(1, Number(value1.height || 100)),",
+      "references": [
+        {
+          "line": 8,
+          "text": "value7 = Number(value1.y || 0) + value3 / 2;"
+        },
+        {
+          "line": 12,
+          "text": "minY: Math.min(-500, (-value7 / value3) * 100),"
+        },
+        {
+          "line": 13,
+          "text": "maxY: Math.max(500, ((value5 - value7) / value3) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "value4@5",
+      "name": "value4",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = Math.max(1, Number(arg2?.width || 2778)),",
+      "references": [
+        {
+          "line": 11,
+          "text": "maxX: Math.max(500, ((value4 - value6) / value2) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "value5@6",
+      "name": "value5",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = Math.max(1, Number(arg2?.height || 1940)),",
+      "references": [
+        {
+          "line": 13,
+          "text": "maxY: Math.max(500, ((value5 - value7) / value3) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "value6@7",
+      "name": "value6",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = Number(value1.x || 0) + value2 / 2,",
+      "references": [
+        {
+          "line": 10,
+          "text": "minX: Math.min(-500, (-value6 / value2) * 100),"
+        },
+        {
+          "line": 11,
+          "text": "maxX: Math.max(500, ((value4 - value6) / value2) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "value7@8",
+      "name": "value7",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = Number(value1.y || 0) + value3 / 2;",
+      "references": [
+        {
+          "line": 12,
+          "text": "minY: Math.min(-500, (-value7 / value3) * 100),"
+        },
+        {
+          "line": 13,
+          "text": "maxY: Math.max(500, ((value5 - value7) / value3) * 100),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@16",
+      "name": "arg3",
+      "line": 16,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function airflowLayerGeometry(arg3, { grouped: arg4 = false } = {}) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const value8 = arg3?.position || {},"
+        },
+        {
+          "line": 18,
+          "text": "value9 = arg3?.properties || {},"
+        },
+        {
+          "line": 37,
+          "text": "const value19 = Math.max(0.01, Math.min(5, Number(arg3?.style?.scale || 1))),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@16",
+      "name": "arg4",
+      "line": 16,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function airflowLayerGeometry(arg3, { grouped: arg4 = false } = {}) {",
+      "references": [
+        {
+          "line": 28,
+          "text": "if (!arg4)"
+        }
+      ]
+    },
+    {
+      "key": "value8@17",
+      "name": "value8",
+      "line": 17,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = arg3?.position || {},",
+      "references": [
+        {
+          "line": 19,
+          "text": "value10 = Math.max(1, Number(value8.width || 300)),"
+        },
+        {
+          "line": 20,
+          "text": "value11 = Math.max(1, Number(value8.height || 150)),"
+        },
+        {
+          "line": 25,
+          "text": "value16 = Number(value8.rotation || 0),"
+        },
+        {
+          "line": 30,
+          "text": "left: Number(value8.x || 0) + value10 / 2 + value12 - value14 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value9@18",
+      "name": "value9",
+      "line": 18,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = arg3?.properties || {},",
+      "references": [
+        {
+          "line": 21,
+          "text": "value12 = (value10 * Number(value9.airflowOffsetX ?? -75)) / 100,"
+        },
+        {
+          "line": 22,
+          "text": "value13 = (value11 * Number(value9.airflowOffsetY ?? 34)) / 100,"
+        },
+        {
+          "line": 23,
+          "text": "value14 = (value10 * Math.max(0.01, Number(value9.airflowWidth ?? 64))) / 100,"
+        },
+        {
+          "line": 24,
+          "text": "value15 = (value11 * Math.max(0.01, Number(value9.airflowHeight ?? 125))) / 100,"
+        }
+      ]
+    },
+    {
+      "key": "value10@19",
+      "name": "value10",
+      "line": 19,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = Math.max(1, Number(value8.width || 300)),",
+      "references": [
+        {
+          "line": 21,
+          "text": "value12 = (value10 * Number(value9.airflowOffsetX ?? -75)) / 100,"
+        },
+        {
+          "line": 23,
+          "text": "value14 = (value10 * Math.max(0.01, Number(value9.airflowWidth ?? 64))) / 100,"
+        },
+        {
+          "line": 30,
+          "text": "left: Number(value8.x || 0) + value10 / 2 + value12 - value14 / 2,"
+        },
+        {
+          "line": 44,
+          "text": "left: value10 / 2 + value23 - value14 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value11@20",
+      "name": "value11",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = Math.max(1, Number(value8.height || 150)),",
+      "references": [
+        {
+          "line": 22,
+          "text": "value13 = (value11 * Number(value9.airflowOffsetY ?? 34)) / 100,"
+        },
+        {
+          "line": 24,
+          "text": "value15 = (value11 * Math.max(0.01, Number(value9.airflowHeight ?? 125))) / 100,"
+        },
+        {
+          "line": 31,
+          "text": "top: Number(value8.y || 0) + value11 / 2 + value13 - value15 / 2,"
+        },
+        {
+          "line": 45,
+          "text": "top: value11 / 2 + value24 - value15 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value12@21",
+      "name": "value12",
+      "line": 21,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = (value10 * Number(value9.airflowOffsetX ?? -75)) / 100,",
+      "references": [
+        {
+          "line": 30,
+          "text": "left: Number(value8.x || 0) + value10 / 2 + value12 - value14 / 2,"
+        },
+        {
+          "line": 41,
+          "text": "value23 = (value21 * value12 + value22 * value13) / value19,"
+        },
+        {
+          "line": 42,
+          "text": "value24 = (-value22 * value12 + value21 * value13) / value19;"
+        }
+      ]
+    },
+    {
+      "key": "value13@22",
+      "name": "value13",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = (value11 * Number(value9.airflowOffsetY ?? 34)) / 100,",
+      "references": [
+        {
+          "line": 31,
+          "text": "top: Number(value8.y || 0) + value11 / 2 + value13 - value15 / 2,"
+        },
+        {
+          "line": 41,
+          "text": "value23 = (value21 * value12 + value22 * value13) / value19,"
+        },
+        {
+          "line": 42,
+          "text": "value24 = (-value22 * value12 + value21 * value13) / value19;"
+        }
+      ]
+    },
+    {
+      "key": "value14@23",
+      "name": "value14",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = (value10 * Math.max(0.01, Number(value9.airflowWidth ?? 64))) / 100,",
+      "references": [
+        {
+          "line": 30,
+          "text": "left: Number(value8.x || 0) + value10 / 2 + value12 - value14 / 2,"
+        },
+        {
+          "line": 32,
+          "text": "width: value14,"
+        },
+        {
+          "line": 44,
+          "text": "left: value10 / 2 + value23 - value14 / 2,"
+        },
+        {
+          "line": 46,
+          "text": "width: value14,"
+        }
+      ]
+    },
+    {
+      "key": "value15@24",
+      "name": "value15",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = (value11 * Math.max(0.01, Number(value9.airflowHeight ?? 125))) / 100,",
+      "references": [
+        {
+          "line": 31,
+          "text": "top: Number(value8.y || 0) + value11 / 2 + value13 - value15 / 2,"
+        },
+        {
+          "line": 33,
+          "text": "height: value15,"
+        },
+        {
+          "line": 45,
+          "text": "top: value11 / 2 + value24 - value15 / 2,"
+        },
+        {
+          "line": 47,
+          "text": "height: value15,"
+        }
+      ]
+    },
+    {
+      "key": "value16@25",
+      "name": "value16",
+      "line": 25,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = Number(value8.rotation || 0),",
+      "references": [
+        {
+          "line": 34,
+          "text": "rotation: value16 + value17,"
+        },
+        {
+          "line": 38,
+          "text": "value20 = (value16 * Math.PI) / 180,"
+        }
+      ]
+    },
+    {
+      "key": "value17@26",
+      "name": "value17",
+      "line": 26,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = Number(value9.airflowRotation || 0),",
+      "references": [
+        {
+          "line": 34,
+          "text": "rotation: value16 + value17,"
+        },
+        {
+          "line": 48,
+          "text": "rotation: value17,"
+        }
+      ]
+    },
+    {
+      "key": "value18@27",
+      "name": "value18",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = Math.max(0.01, Math.min(5, Number(value9.airflowScale || 1)));",
+      "references": [
+        {
+          "line": 35,
+          "text": "scale: value18,"
+        },
+        {
+          "line": 49,
+          "text": "scale: value18 / value19,"
+        }
+      ]
+    },
+    {
+      "key": "value19@37",
+      "name": "value19",
+      "line": 37,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = Math.max(0.01, Math.min(5, Number(arg3?.style?.scale || 1))),",
+      "references": [
+        {
+          "line": 41,
+          "text": "value23 = (value21 * value12 + value22 * value13) / value19,"
+        },
+        {
+          "line": 42,
+          "text": "value24 = (-value22 * value12 + value21 * value13) / value19;"
+        },
+        {
+          "line": 49,
+          "text": "scale: value18 / value19,"
+        }
+      ]
+    },
+    {
+      "key": "value20@38",
+      "name": "value20",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = (value16 * Math.PI) / 180,",
+      "references": [
+        {
+          "line": 39,
+          "text": "value21 = Math.cos(value20),"
+        },
+        {
+          "line": 40,
+          "text": "value22 = Math.sin(value20),"
+        }
+      ]
+    },
+    {
+      "key": "value21@39",
+      "name": "value21",
+      "line": 39,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = Math.cos(value20),",
+      "references": [
+        {
+          "line": 41,
+          "text": "value23 = (value21 * value12 + value22 * value13) / value19,"
+        },
+        {
+          "line": 42,
+          "text": "value24 = (-value22 * value12 + value21 * value13) / value19;"
+        }
+      ]
+    },
+    {
+      "key": "value22@40",
+      "name": "value22",
+      "line": 40,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = Math.sin(value20),",
+      "references": [
+        {
+          "line": 41,
+          "text": "value23 = (value21 * value12 + value22 * value13) / value19,"
+        },
+        {
+          "line": 42,
+          "text": "value24 = (-value22 * value12 + value21 * value13) / value19;"
+        }
+      ]
+    },
+    {
+      "key": "value23@41",
+      "name": "value23",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = (value21 * value12 + value22 * value13) / value19,",
+      "references": [
+        {
+          "line": 44,
+          "text": "left: value10 / 2 + value23 - value14 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value24@42",
+      "name": "value24",
+      "line": 42,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value24 = (-value22 * value12 + value21 * value13) / value19;",
+      "references": [
+        {
+          "line": 45,
+          "text": "top: value11 / 2 + value24 - value15 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@52",
+      "name": "arg5",
+      "line": 52,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rotateMultiSelectionTransforms(arg5, arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 56,
+          "text": "return (arg5 || []).map((arg9) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg6@52",
+      "name": "arg6",
+      "line": 52,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rotateMultiSelectionTransforms(arg5, arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 57,
+          "text": "const value28 = Number(arg9.centerX || 0) - arg6,"
+        },
+        {
+          "line": 59,
+          "text": "value30 = arg6 + value28 * value26 - value29 * value27,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@52",
+      "name": "arg7",
+      "line": 52,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rotateMultiSelectionTransforms(arg5, arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 58,
+          "text": "value29 = Number(arg9.centerY || 0) - arg7,"
+        },
+        {
+          "line": 60,
+          "text": "value31 = arg7 + value28 * value27 + value29 * value26;"
+        }
+      ]
+    },
+    {
+      "key": "arg8@52",
+      "name": "arg8",
+      "line": 52,
+      "column": 65,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function rotateMultiSelectionTransforms(arg5, arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 53,
+          "text": "const value25 = (Number(arg8 || 0) * Math.PI) / 180,"
+        },
+        {
+          "line": 65,
+          "text": "rotation: Number(arg9.rotation || 0) + arg8,"
+        }
+      ]
+    },
+    {
+      "key": "value25@53",
+      "name": "value25",
+      "line": 53,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = (Number(arg8 || 0) * Math.PI) / 180,",
+      "references": [
+        {
+          "line": 54,
+          "text": "value26 = Math.cos(value25),"
+        },
+        {
+          "line": 55,
+          "text": "value27 = Math.sin(value25);"
+        }
+      ]
+    },
+    {
+      "key": "value26@54",
+      "name": "value26",
+      "line": 54,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value26 = Math.cos(value25),",
+      "references": [
+        {
+          "line": 59,
+          "text": "value30 = arg6 + value28 * value26 - value29 * value27,"
+        },
+        {
+          "line": 60,
+          "text": "value31 = arg7 + value28 * value27 + value29 * value26;"
+        }
+      ]
+    },
+    {
+      "key": "value27@55",
+      "name": "value27",
+      "line": 55,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value27 = Math.sin(value25);",
+      "references": [
+        {
+          "line": 59,
+          "text": "value30 = arg6 + value28 * value26 - value29 * value27,"
+        },
+        {
+          "line": 60,
+          "text": "value31 = arg7 + value28 * value27 + value29 * value26;"
+        }
+      ]
+    },
+    {
+      "key": "arg9@56",
+      "name": "arg9",
+      "line": 56,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (arg5 || []).map((arg9) => {",
+      "references": [
+        {
+          "line": 57,
+          "text": "const value28 = Number(arg9.centerX || 0) - arg6,"
+        },
+        {
+          "line": 58,
+          "text": "value29 = Number(arg9.centerY || 0) - arg7,"
+        },
+        {
+          "line": 62,
+          "text": "componentId: arg9.componentId,"
+        },
+        {
+          "line": 63,
+          "text": "x: value30 - Number(arg9.width || 0) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value28@57",
+      "name": "value28",
+      "line": 57,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value28 = Number(arg9.centerX || 0) - arg6,",
+      "references": [
+        {
+          "line": 59,
+          "text": "value30 = arg6 + value28 * value26 - value29 * value27,"
+        },
+        {
+          "line": 60,
+          "text": "value31 = arg7 + value28 * value27 + value29 * value26;"
+        }
+      ]
+    },
+    {
+      "key": "value29@58",
+      "name": "value29",
+      "line": 58,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = Number(arg9.centerY || 0) - arg7,",
+      "references": [
+        {
+          "line": 59,
+          "text": "value30 = arg6 + value28 * value26 - value29 * value27,"
+        },
+        {
+          "line": 60,
+          "text": "value31 = arg7 + value28 * value27 + value29 * value26;"
+        }
+      ]
+    },
+    {
+      "key": "value30@59",
+      "name": "value30",
+      "line": 59,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value30 = arg6 + value28 * value26 - value29 * value27,",
+      "references": [
+        {
+          "line": 63,
+          "text": "x: value30 - Number(arg9.width || 0) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value31@60",
+      "name": "value31",
+      "line": 60,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value31 = arg7 + value28 * value27 + value29 * value26;",
+      "references": [
+        {
+          "line": 64,
+          "text": "y: value31 - Number(arg9.height || 0) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "arg10@70",
+      "name": "arg10",
+      "line": 70,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg10,",
+      "references": [
+        {
+          "line": 79,
+          "text": "x: (value33 * Number(arg10 || 0) + value34 * Number(arg11 || 0)) / value35,"
+        },
+        {
+          "line": 80,
+          "text": "y: (-value34 * Number(arg10 || 0) + value33 * Number(arg11 || 0)) / value35,"
+        }
+      ]
+    },
+    {
+      "key": "arg11@71",
+      "name": "arg11",
+      "line": 71,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg11,",
+      "references": [
+        {
+          "line": 79,
+          "text": "x: (value33 * Number(arg10 || 0) + value34 * Number(arg11 || 0)) / value35,"
+        },
+        {
+          "line": 80,
+          "text": "y: (-value34 * Number(arg10 || 0) + value33 * Number(arg11 || 0)) / value35,"
+        }
+      ]
+    },
+    {
+      "key": "arg12@72",
+      "name": "arg12",
+      "line": 72,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ rotation: arg12 = 0, scale: arg13 = 1 } = {},",
+      "references": [
+        {
+          "line": 74,
+          "text": "const value32 = (Number(arg12 || 0) * Math.PI) / 180,"
+        }
+      ]
+    },
+    {
+      "key": "arg13@72",
+      "name": "arg13",
+      "line": 72,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "{ rotation: arg12 = 0, scale: arg13 = 1 } = {},",
+      "references": [
+        {
+          "line": 77,
+          "text": "value35 = Math.max(0.01, Number(arg13) || 1);"
+        }
+      ]
+    },
+    {
+      "key": "value32@74",
+      "name": "value32",
+      "line": 74,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value32 = (Number(arg12 || 0) * Math.PI) / 180,",
+      "references": [
+        {
+          "line": 75,
+          "text": "value33 = Math.cos(value32),"
+        },
+        {
+          "line": 76,
+          "text": "value34 = Math.sin(value32),"
+        }
+      ]
+    },
+    {
+      "key": "value33@75",
+      "name": "value33",
+      "line": 75,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value33 = Math.cos(value32),",
+      "references": [
+        {
+          "line": 79,
+          "text": "x: (value33 * Number(arg10 || 0) + value34 * Number(arg11 || 0)) / value35,"
+        },
+        {
+          "line": 80,
+          "text": "y: (-value34 * Number(arg10 || 0) + value33 * Number(arg11 || 0)) / value35,"
+        }
+      ]
+    },
+    {
+      "key": "value34@76",
+      "name": "value34",
+      "line": 76,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value34 = Math.sin(value32),",
+      "references": [
+        {
+          "line": 79,
+          "text": "x: (value33 * Number(arg10 || 0) + value34 * Number(arg11 || 0)) / value35,"
+        },
+        {
+          "line": 80,
+          "text": "y: (-value34 * Number(arg10 || 0) + value33 * Number(arg11 || 0)) / value35,"
+        }
+      ]
+    },
+    {
+      "key": "value35@77",
+      "name": "value35",
+      "line": 77,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value35 = Math.max(0.01, Number(arg13) || 1);",
+      "references": [
+        {
+          "line": 79,
+          "text": "x: (value33 * Number(arg10 || 0) + value34 * Number(arg11 || 0)) / value35,"
+        },
+        {
+          "line": 80,
+          "text": "y: (-value34 * Number(arg10 || 0) + value33 * Number(arg11 || 0)) / value35,"
+        }
+      ]
+    }
+  ]
+}

@@ -4,10 +4,10 @@ import {
 } from "../percentage-bar-model.js?v=20260930-percentage-text-offset-v1";
 import { FLOW_LINE_DEFAULTS as FLOW_LINE_DEFAULTS2 } from "../flow-line-model.js?v=20260930-flow-line-sign-v1";
 import { interaction3dTemplate as interaction3dTemplate2 } from "../modules/interaction3d/definition.js?v=20260911-page-dimming-defaults-v1-20260918-review-1234-v2-region-only-v1-20260926-fan-v1-20260926-airer-v2";
-const f = new Map();
+const templatesById = new Map();
 registerComponentTemplate(interaction3dTemplate2);
-const p = new Map(),
-  w = {
+const uiPackDefinitionsById = new Map(),
+  templateScopeOrder = {
     shared: [
       "time",
       "date",
@@ -38,7 +38,7 @@ const p = new Map(),
       "scene-mode",
     ],
   },
-  S = {
+  componentDefaultsByType = {
     image: {
       properties: {
         opacity: 1,
@@ -571,19 +571,20 @@ const p = new Map(),
       },
     },
   },
-  x =
+  overridablePropertyPattern =
     /(?:text|label|name|title|icon|assetid|targetpage|layoutmode|freelayout|naturalwidth|naturalheight|fit|refreshinterval|exportfolder|previewready|previewing|interactionmode|generated|lightlayers|exportresolution|exportcamera|floorselection)$/i;
-export function registerUiPackDefinition(arg1) {
-  if (!arg1?.id || !arg1?.version) throw new Error("UI 方案必须包含 id 和 version。");
-  p.set(
-    arg1.id,
+export function registerUiPackDefinition(uiPackDefinition) {
+  if (!uiPackDefinition?.id || !uiPackDefinition?.version)
+    throw new Error("UI 方案必须包含 id 和 version。");
+  uiPackDefinitionsById.set(
+    uiPackDefinition.id,
     Object.freeze({
-      ...arg1,
+      ...uiPackDefinition,
     }),
   );
 }
-export function hasUiPackDefinition(arg2) {
-  return p.has(arg2);
+export function hasUiPackDefinition(uiPackId) {
+  return uiPackDefinitionsById.has(uiPackId);
 }
 registerUiPackDefinition({
   id: "ui.base",
@@ -593,64 +594,68 @@ registerUiPackDefinition({
     name: "dashboard-v1-dark",
     variables: {},
   },
-  componentDefaults: S,
+  componentDefaults: componentDefaultsByType,
 });
-export function registerComponentTemplate(arg3) {
-  if (!arg3?.id || typeof arg3.create != "function")
+export function registerComponentTemplate(template) {
+  if (!template?.id || typeof template.create != "function")
     throw new Error("控件模板必须包含 id 和 create。");
-  const text = arg3.uiPackId || "ui.base";
-  f.set(
-    text + ":" + arg3.id,
+  const text = template.uiPackId || "ui.base";
+  templatesById.set(
+    text + ":" + template.id,
     Object.freeze({
-      ...arg3,
+      ...template,
       uiPackId: text,
     }),
   );
 }
-export function listComponentTemplates(arg4, v1 = "ui.base") {
-  const list = w[arg4] || [];
-  return [...f.values()]
-    .filter((arg5) => arg5.uiPackId === v1 && arg5.scopes?.includes(arg4))
-    .sort((arg6, arg7) => {
-      const indexOf = list.indexOf(arg6.id),
-        indexOf2 = list.indexOf(arg7.id);
+export function listComponentTemplates(scope, expectedUiPackId = "ui.base") {
+  const list = templateScopeOrder[scope] || [];
+  return [...templatesById.values()]
+    .filter(
+      (listedTemplate) =>
+        listedTemplate.uiPackId === expectedUiPackId && listedTemplate.scopes?.includes(scope),
+    )
+    .sort((leftTemplate, rightTemplate) => {
+      const indexOf = list.indexOf(leftTemplate.id),
+        indexOf2 = list.indexOf(rightTemplate.id);
       return (
         (indexOf < 0 ? Number.MAX_SAFE_INTEGER : indexOf) -
         (indexOf2 < 0 ? Number.MAX_SAFE_INTEGER : indexOf2)
       );
     });
 }
-export function createComponentFromTemplate(arg8, arg9) {
-  const text2 = arg9?.uiPackId || "ui.base",
-    v2 = f.get(text2 + ":" + arg8);
-  if (!v2) throw new Error("控件模板不存在。");
+export function createComponentFromTemplate(templateId, templateOptions) {
+  const resolvedUiPackId = templateOptions?.uiPackId || "ui.base",
+    templateDefinition = templatesById.get(resolvedUiPackId + ":" + templateId);
+  if (!templateDefinition) throw new Error("控件模板不存在。");
   const options = {
-      ...v2.create(arg9),
+      ...templateDefinition.create(templateOptions),
       templateRef: {
-        uiPackId: text2,
-        templateId: arg8,
+        uiPackId: resolvedUiPackId,
+        templateId: templateId,
         version: 1,
       },
     },
-    v3 = p.get(text2)?.componentDefaults?.[options.type];
-  if (!v3) return options;
-  const structuredClone2 = structuredClone(v3.properties || {}),
-    structuredClone3 = structuredClone(v3.style || {}),
-    dimensions = v3.dimensions,
-    options2 = {
+    componentDefaults =
+      uiPackDefinitionsById.get(resolvedUiPackId)?.componentDefaults?.[options.type];
+  if (!componentDefaults) return options;
+  const structuredClone2 = structuredClone(componentDefaults.properties || {}),
+    structuredClone3 = structuredClone(componentDefaults.style || {}),
+    dimensions = componentDefaults.dimensions,
+    position = {
       ...options.position,
     };
   if (dimensions) {
-    const v4 = Number(arg9?.canvas?.width || 2778),
-      v5 = Number(arg9?.canvas?.height || 1940);
-    ((options2.width = dimensions.width),
-      (options2.height = dimensions.height),
-      (options2.x = (v4 - dimensions.width) / 2),
-      (options2.y = (v5 - dimensions.height) / 2));
+    const canvasWidth = Number(templateOptions?.canvas?.width || 2778),
+      canvasHeight = Number(templateOptions?.canvas?.height || 1940);
+    ((position.width = dimensions.width),
+      (position.height = dimensions.height),
+      (position.x = (canvasWidth - dimensions.width) / 2),
+      (position.y = (canvasHeight - dimensions.height) / 2));
   }
   return {
     ...options,
-    position: options2,
+    position: position,
     properties: {
       ...options.properties,
       ...structuredClone2,
@@ -662,138 +667,166 @@ export function createComponentFromTemplate(arg8, arg9) {
     },
   };
 }
-function T(v6 = {}) {
-  return Object.fromEntries(Object.entries(v6).filter(([v7]) => x.test(v7)));
+function pickEditableProperties(sourceProperties = {}) {
+  return Object.fromEntries(
+    Object.entries(sourceProperties).filter(([propertyKey]) =>
+      overridablePropertyPattern.test(propertyKey),
+    ),
+  );
 }
-function h(arg10, arg11, arg12) {
-  const v8 = arg10.templateRef?.templateId || arg10.type;
+function normalizeComponent(mappedComponent, uiPack, canvas) {
+  const resolvedTemplateId = mappedComponent.templateRef?.templateId || mappedComponent.type;
   let value = null;
   try {
-    value = createComponentFromTemplate(v8, {
-      id: arg10.id,
-      instanceName: arg10.properties?.instanceName,
-      canvas: arg12,
-      targetPage: arg10.properties?.targetPage,
-      uiPackId: arg11.id,
+    value = createComponentFromTemplate(resolvedTemplateId, {
+      id: mappedComponent.id,
+      instanceName: mappedComponent.properties?.instanceName,
+      canvas: canvas,
+      targetPage: mappedComponent.properties?.targetPage,
+      uiPackId: uiPack.id,
     });
-  } catch (v9) {
-    if (f.has("ui.base:" + v8)) throw v9;
+  } catch (caughtError) {
+    if (templatesById.has("ui.base:" + resolvedTemplateId)) throw caughtError;
   }
-  const options3 = value
+  const preparedComponent = value
     ? {
-        ...arg10,
+        ...mappedComponent,
         properties: {
           ...(value.properties || {}),
-          ...T(arg10.properties),
-          ...(["flow-line", "percentage-bar"].includes(arg10.type)
-            ? structuredClone(arg10.properties || {})
+          ...pickEditableProperties(mappedComponent.properties),
+          ...(["flow-line", "percentage-bar"].includes(mappedComponent.type)
+            ? structuredClone(mappedComponent.properties || {})
             : {}),
         },
         style: {
           ...(value.style || {}),
-          ...(Object.prototype.hasOwnProperty.call(arg10.style || {}, "scale")
+          ...(Object.prototype.hasOwnProperty.call(mappedComponent.style || {}, "scale")
             ? {
-                scale: arg10.style.scale,
+                scale: mappedComponent.style.scale,
               }
             : {}),
-          ...(Object.prototype.hasOwnProperty.call(arg10.style || {}, "visible")
+          ...(Object.prototype.hasOwnProperty.call(mappedComponent.style || {}, "visible")
             ? {
-                visible: arg10.style.visible,
+                visible: mappedComponent.style.visible,
               }
             : {}),
         },
-        position: arg10.position,
-        bindings: arg10.bindings || {},
-        actions: arg10.actions || {},
+        position: mappedComponent.position,
+        bindings: mappedComponent.bindings || {},
+        actions: mappedComponent.actions || {},
       }
     : {
-        ...arg10,
+        ...mappedComponent,
       };
   return (
-    (options3.templateRef = {
-      uiPackId: arg11.id,
-      templateId: v8,
-      version: Number(arg11.templateVersion || 1),
+    (preparedComponent.templateRef = {
+      uiPackId: uiPack.id,
+      templateId: resolvedTemplateId,
+      version: Number(uiPack.templateVersion || 1),
     }),
-    (options3.children = (arg10.children || []).map((arg13) => h(arg13, arg11, arg12))),
-    options3
+    (preparedComponent.children = (mappedComponent.children || []).map((childComponent) =>
+      normalizeComponent(childComponent, uiPack, canvas),
+    )),
+    preparedComponent
   );
 }
-export function applyUiPackToDocument(arg14, arg15) {
-  const v10 = p.get(arg15.id);
-  if (!v10) throw new Error("UI 方案“" + (arg15.name || arg15.id) + "”运行时未正确加载。");
-  const options4 = arg14.canvas || {};
+export function applyUiPackToDocument(editorDocument, documentUiPack) {
+  const storedUiPack = uiPackDefinitionsById.get(documentUiPack.id);
+  if (!storedUiPack)
+    throw new Error(
+      "UI 方案“" + (documentUiPack.name || documentUiPack.id) + "”运行时未正确加载。",
+    );
+  const documentCanvas = editorDocument.canvas || {};
   return (
-    (arg14.sharedComponents = (arg14.sharedComponents || []).map((arg16) =>
-      h(arg16, arg15, options4),
+    (editorDocument.sharedComponents = (editorDocument.sharedComponents || []).map(
+      (sharedComponent) => normalizeComponent(sharedComponent, documentUiPack, documentCanvas),
     )),
-    (arg14.pages = (arg14.pages || []).map((arg17) => ({
-      ...arg17,
-      components: (arg17.components || []).map((arg18) => h(arg18, arg15, options4)),
+    (editorDocument.pages = (editorDocument.pages || []).map((page) => ({
+      ...page,
+      components: (page.components || []).map((component) =>
+        normalizeComponent(component, documentUiPack, documentCanvas),
+      ),
     }))),
-    (arg14.customPopups = (arg14.customPopups || []).map((arg19) => ({
-      ...arg19,
+    (editorDocument.customPopups = (editorDocument.customPopups || []).map((popup) => ({
+      ...popup,
       templateRef: {
-        uiPackId: arg15.id,
-        templateId: arg15.popupTemplate || v10.popupTemplate || "custom-popup",
-        version: Number(arg15.templateVersion || 1),
+        uiPackId: documentUiPack.id,
+        templateId: documentUiPack.popupTemplate || storedUiPack.popupTemplate || "custom-popup",
+        version: Number(documentUiPack.templateVersion || 1),
       },
     }))),
-    (arg14.theme = structuredClone(arg15.theme || v10.theme || arg14.theme || {})),
-    (arg14.uiPack = {
-      id: arg15.id,
-      version: arg15.version,
+    (editorDocument.theme = structuredClone(
+      documentUiPack.theme || storedUiPack.theme || editorDocument.theme || {},
+    )),
+    (editorDocument.uiPack = {
+      id: documentUiPack.id,
+      version: documentUiPack.version,
     }),
-    arg14
+    editorDocument
   );
 }
-export function timeComponentDimensions(v11 = {}) {
-  const max = Math.max(12, Math.min(500, Number(v11.fontSize || 96))),
-    max2 = Math.max(-20, Math.min(100, Number(v11.letterSpacing || 0))),
-    v12 = v11.showSeconds === true,
-    num = v11.hour12 === true ? (v12 ? 11 : 8) : v12 ? 8 : 5,
-    v13 = Number(v11.fontWeight ?? 0.4),
-    num2 = (v13 > 1 ? (v13 - 1) / 899 : v13) >= 0.67 ? 1.035 : 1;
+export function timeComponentDimensions(timeOptions = {}) {
+  const max = Math.max(12, Math.min(500, Number(timeOptions.fontSize || 96))),
+    letterSpacing = Math.max(-20, Math.min(100, Number(timeOptions.letterSpacing || 0))),
+    shouldShowSeconds = timeOptions.showSeconds === true,
+    num = timeOptions.hour12 === true ? (shouldShowSeconds ? 11 : 8) : shouldShowSeconds ? 8 : 5,
+    fontWeight = Number(timeOptions.fontWeight ?? 0.4),
+    widthScale = (fontWeight > 1 ? (fontWeight - 1) / 899 : fontWeight) >= 0.67 ? 1.035 : 1;
   return {
-    width: Math.max(max, max * 0.61 * num * num2 + max2 * Math.max(0, num - 1) + max * 0.16),
+    width: Math.max(
+      max,
+      max * 0.61 * num * widthScale + letterSpacing * Math.max(0, num - 1) + max * 0.16,
+    ),
     height: Math.max(20, max * 1.18),
   };
 }
-export function dateComponentDimensions(v14 = {}) {
-  const max3 = Math.max(12, Math.min(500, Number(v14.primarySize || 36))),
-    max4 = Math.max(10, Math.min(500, Number(v14.lunarSize || 24))),
-    max5 = Math.max(-20, Math.min(100, Number(v14.primarySpacing || 1))),
-    max6 = Math.max(-20, Math.min(100, Number(v14.lunarSpacing || 1))),
-    max7 = Math.max(0, Math.min(200, Number(v14.lineGap ?? 8))),
-    num3 = v14.showWeekday === false ? 6.35 : 9.35,
-    num4 = 6,
-    v15 = max3 * num3 + max5 * 13,
-    v16 = max4 * num4 + max6 * 5,
-    v17 = v14.showLunar === true;
+export function dateComponentDimensions(dateOptions = {}) {
+  const primarySize = Math.max(12, Math.min(500, Number(dateOptions.primarySize || 36))),
+    lunarSize = Math.max(10, Math.min(500, Number(dateOptions.lunarSize || 24))),
+    primarySpacing = Math.max(-20, Math.min(100, Number(dateOptions.primarySpacing || 1))),
+    lunarSpacing = Math.max(-20, Math.min(100, Number(dateOptions.lunarSpacing || 1))),
+    lineGap = Math.max(0, Math.min(200, Number(dateOptions.lineGap ?? 8))),
+    primaryLineHeight = dateOptions.showWeekday === false ? 6.35 : 9.35,
+    lunarLineHeight = 6,
+    primaryWidth = primarySize * primaryLineHeight + primarySpacing * 13,
+    lunarWidth = lunarSize * lunarLineHeight + lunarSpacing * 5,
+    shouldShowLunar = dateOptions.showLunar === true;
   return {
-    width: Math.max(max3, v15, v17 ? v16 : 0) + max3 * 0.12,
-    height: max3 * 1.16 + (v17 ? max4 * 1.18 + max7 : 0),
+    width:
+      Math.max(primarySize, primaryWidth, shouldShowLunar ? lunarWidth : 0) + primarySize * 0.12,
+    height: primarySize * 1.16 + (shouldShowLunar ? lunarSize * 1.18 + lineGap : 0),
   };
 }
-export function weatherComponentDimensions(v18 = {}) {
-  const max8 = Math.max(12, Math.min(500, Number(v18.iconSize || 64))),
-    max9 = Math.max(12, Math.min(500, Number(v18.temperatureSize || 32))),
-    max10 = Math.max(10, Math.min(500, Number(v18.secondarySize || 18))),
-    max11 = Math.max(0, Math.min(300, Number(v18.iconGap ?? 22))),
-    max12 = Math.max(0, Math.min(200, Number(v18.lineGap ?? 7))),
-    v19 =
-      v18.temperatureVisible !== false ||
-      v18.conditionVisible !== false ||
-      v18.humidityVisible !== false,
-    num5 = v18.temperatureVisible === false ? 0 : max9 * 4.4,
-    num6 = v18.conditionVisible === false && v18.humidityVisible === false ? 0 : max10 * 8.6,
-    max13 = v19 ? Math.max(num5, num6, max10 * 3) : 0,
-    v20 =
-      (v18.temperatureVisible === false ? 0 : max9 * 1.12) +
-      (v18.conditionVisible === false && v18.humidityVisible === false ? 0 : max10 * 1.14 + max12);
+export function weatherComponentDimensions(weatherOptions = {}) {
+  const iconSize = Math.max(12, Math.min(500, Number(weatherOptions.iconSize || 64))),
+    temperatureSize = Math.max(12, Math.min(500, Number(weatherOptions.temperatureSize || 32))),
+    secondarySize = Math.max(10, Math.min(500, Number(weatherOptions.secondarySize || 18))),
+    iconGap = Math.max(0, Math.min(300, Number(weatherOptions.iconGap ?? 22))),
+    weatherLineGap = Math.max(0, Math.min(200, Number(weatherOptions.lineGap ?? 7))),
+    hasSecondaryReadings =
+      weatherOptions.temperatureVisible !== false ||
+      weatherOptions.conditionVisible !== false ||
+      weatherOptions.humidityVisible !== false,
+    temperatureWidth = weatherOptions.temperatureVisible === false ? 0 : temperatureSize * 4.4,
+    secondaryWidth =
+      weatherOptions.conditionVisible === false && weatherOptions.humidityVisible === false
+        ? 0
+        : secondarySize * 8.6,
+    readingsWidth = hasSecondaryReadings
+      ? Math.max(temperatureWidth, secondaryWidth, secondarySize * 3)
+      : 0,
+    readingsHeight =
+      (weatherOptions.temperatureVisible === false ? 0 : temperatureSize * 1.12) +
+      (weatherOptions.conditionVisible === false && weatherOptions.humidityVisible === false
+        ? 0
+        : secondarySize * 1.14 + weatherLineGap);
   return {
-    width: Math.max(20, (v18.iconVisible === false ? 0 : max8 + (v19 ? max11 : 0)) + max13),
-    height: Math.max(20, v18.iconVisible === false ? 0 : max8, v20),
+    width: Math.max(
+      20,
+      (weatherOptions.iconVisible === false ? 0 : iconSize + (hasSecondaryReadings ? iconGap : 0)) +
+        readingsWidth,
+    ),
+    height: Math.max(20, weatherOptions.iconVisible === false ? 0 : iconSize, readingsHeight),
   };
 }
 (registerComponentTemplate({
@@ -802,26 +835,26 @@ export function weatherComponentDimensions(v18 = {}) {
   type: "image",
   description: "显示图片素材，可关联实体并设置点按动作。",
   scopes: ["page"],
-  create({ id: v21, instanceName: v22 = "图片", canvas: v23 }) {
-    const v24 = Number(v23?.width || 2778),
-      v25 = Number(v23?.height || 1940),
-      num7 = 320,
-      num8 = 240;
+  create({ id: imageComponentId, instanceName: imageInstanceName = "图片", canvas: imageCanvas }) {
+    const imageCanvasWidth = Number(imageCanvas?.width || 2778),
+      imageCanvasHeight = Number(imageCanvas?.height || 1940),
+      imageWidth = 320,
+      imageHeight = 240;
     return {
-      id: v21,
+      id: imageComponentId,
       type: "image",
       componentVersion: 1,
       position: {
-        x: (v24 - num7) / 2,
-        y: (v25 - num8) / 2,
-        width: num7,
-        height: num8,
+        x: (imageCanvasWidth - imageWidth) / 2,
+        y: (imageCanvasHeight - imageHeight) / 2,
+        width: imageWidth,
+        height: imageHeight,
         rotation: 0,
         zIndex: 1,
       },
       bindings: {},
       properties: {
-        instanceName: v22,
+        instanceName: imageInstanceName,
         opacity: 1,
         layoutMode: "free",
         fit: "contain",
@@ -841,27 +874,31 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "floorplan-auto-diagram",
     description: "把 3D 户型底图和灯组效果层合并为一个可交互的导图控件。",
     scopes: ["page"],
-    create({ id: v26, instanceName: v27 = "户型图自动导图", canvas: v28 }) {
-      const v29 = Number(v28?.width || 2778),
-        v30 = Number(v28?.height || 1940),
-        v31 = v29 * 0.56,
-        v32 = v30 * 0.56;
+    create({
+      id: floorplanComponentId,
+      instanceName: floorplanInstanceName = "户型图自动导图",
+      canvas: floorplanCanvas,
+    }) {
+      const floorplanCanvasWidth = Number(floorplanCanvas?.width || 2778),
+        floorplanCanvasHeight = Number(floorplanCanvas?.height || 1940),
+        floorplanWidth = floorplanCanvasWidth * 0.56,
+        floorplanHeight = floorplanCanvasHeight * 0.56;
       return {
-        id: v26,
+        id: floorplanComponentId,
         type: "floorplan-auto-diagram",
         componentVersion: 1,
         position: {
-          x: (v29 - v31) / 2,
-          y: (v30 - v32) / 2,
-          width: v31,
-          height: v32,
+          x: (floorplanCanvasWidth - floorplanWidth) / 2,
+          y: (floorplanCanvasHeight - floorplanHeight) / 2,
+          width: floorplanWidth,
+          height: floorplanHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v27,
-          label: v27,
+          instanceName: floorplanInstanceName,
+          label: floorplanInstanceName,
           exportFolder: "",
           layoutMode: "free",
           baseAssetId: "",
@@ -893,36 +930,36 @@ export function weatherComponentDimensions(v18 = {}) {
     description: "将扫地机器人实时地图作为透明图层叠加到底图上。",
     scopes: ["page"],
     create({
-      id: v33,
-      instanceName: v34 = "扫地机器人实时地图",
-      canvas: v35,
-      vacuumMapEntityId: v36 = "",
+      id: vacuumMapComponentId,
+      instanceName: vacuumMapInstanceName = "扫地机器人实时地图",
+      canvas: vacuumMapCanvas,
+      vacuumMapEntityId: vacuumMapEntityId = "",
     }) {
-      const v37 = Number(v35?.width || 2778),
-        v38 = Number(v35?.height || 1940),
-        v39 = v37 * 0.56,
-        v40 = (v39 * 1156) / 1120;
+      const vacuumMapCanvasWidth = Number(vacuumMapCanvas?.width || 2778),
+        vacuumMapCanvasHeight = Number(vacuumMapCanvas?.height || 1940),
+        vacuumMapWidth = vacuumMapCanvasWidth * 0.56,
+        vacuumMapHeight = (vacuumMapWidth * 1156) / 1120;
       return {
-        id: v33,
+        id: vacuumMapComponentId,
         type: "vacuum-map",
         componentVersion: 1,
         position: {
-          x: (v37 - v39) / 2,
-          y: (v38 - v40) / 2,
-          width: v39,
-          height: v40,
+          x: (vacuumMapCanvasWidth - vacuumMapWidth) / 2,
+          y: (vacuumMapCanvasHeight - vacuumMapHeight) / 2,
+          width: vacuumMapWidth,
+          height: vacuumMapHeight,
           rotation: 0,
           zIndex: 1,
         },
-        bindings: v36
+        bindings: vacuumMapEntityId
           ? {
               entity: {
-                entityId: v36,
+                entityId: vacuumMapEntityId,
               },
             }
           : {},
         properties: {
-          instanceName: v34,
+          instanceName: vacuumMapInstanceName,
           opacity: 0.5,
         },
         style: {
@@ -941,36 +978,36 @@ export function weatherComponentDimensions(v18 = {}) {
     description: "同时包含可交互的图标按钮和跟随实体状态显隐的效果图片。",
     scopes: ["page"],
     create({
-      id: v41,
-      instanceName: v42 = "图标按钮（效果）",
-      canvas: v43,
-      lightEntityId: v44 = "",
+      id: iconButtonEffectComponentId,
+      instanceName: iconButtonEffectInstanceName = "图标按钮（效果）",
+      canvas: iconButtonEffectCanvas,
+      lightEntityId: iconButtonEffectLightEntityId = "",
     }) {
-      const v45 = Number(v43?.width || 2778),
-        v46 = Number(v43?.height || 1940),
-        v47 = v45 * 0.075,
-        v48 = v47;
+      const iconButtonEffectCanvasWidth = Number(iconButtonEffectCanvas?.width || 2778),
+        iconButtonEffectCanvasHeight = Number(iconButtonEffectCanvas?.height || 1940),
+        iconButtonEffectWidth = iconButtonEffectCanvasWidth * 0.075,
+        iconButtonEffectHeight = iconButtonEffectWidth;
       return {
-        id: v41,
+        id: iconButtonEffectComponentId,
         type: "icon-button-effect",
         componentVersion: 1,
         position: {
-          x: (v45 - v47) / 2,
-          y: (v46 - v48) / 2,
-          width: v47,
-          height: v48,
+          x: (iconButtonEffectCanvasWidth - iconButtonEffectWidth) / 2,
+          y: (iconButtonEffectCanvasHeight - iconButtonEffectHeight) / 2,
+          width: iconButtonEffectWidth,
+          height: iconButtonEffectHeight,
           rotation: 0,
           zIndex: 1,
         },
-        bindings: v44
+        bindings: iconButtonEffectLightEntityId
           ? {
               entity: {
-                entityId: v44,
+                entityId: iconButtonEffectLightEntityId,
               },
             }
           : {},
         properties: {
-          instanceName: v42,
+          instanceName: iconButtonEffectInstanceName,
           buttonVisible: true,
           effectVisible: true,
           icon: "mdi:lightbulb-outline",
@@ -1002,7 +1039,7 @@ export function weatherComponentDimensions(v18 = {}) {
           scale: 1,
           visible: true,
         },
-        actions: v44
+        actions: iconButtonEffectLightEntityId
           ? {
               tap: {
                 type: "toggle",
@@ -1019,26 +1056,30 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "title-button",
     description: "中英文双标题、左右括号和下方三角指示的房间标题按钮。",
     scopes: ["page"],
-    create({ id: v49, instanceName: v50 = "标题按钮", canvas: v51 }) {
-      const v52 = Number(v51?.width || 2778),
-        v53 = Number(v51?.height || 1940),
-        v54 = v52 * 0.18,
-        v55 = v53 * 0.065;
+    create({
+      id: titleButtonComponentId,
+      instanceName: titleButtonInstanceName = "标题按钮",
+      canvas: titleButtonCanvas,
+    }) {
+      const titleButtonCanvasWidth = Number(titleButtonCanvas?.width || 2778),
+        titleButtonCanvasHeight = Number(titleButtonCanvas?.height || 1940),
+        titleButtonWidth = titleButtonCanvasWidth * 0.18,
+        titleButtonHeight = titleButtonCanvasHeight * 0.065;
       return {
-        id: v49,
+        id: titleButtonComponentId,
         type: "title-button",
         componentVersion: 1,
         position: {
-          x: (v52 - v54) / 2,
-          y: (v53 - v55) / 2,
-          width: v54,
-          height: v55,
+          x: (titleButtonCanvasWidth - titleButtonWidth) / 2,
+          y: (titleButtonCanvasHeight - titleButtonHeight) / 2,
+          width: titleButtonWidth,
+          height: titleButtonHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v50,
+          instanceName: titleButtonInstanceName,
           mainTextVisible: true,
           secondaryTextVisible: true,
           mainText: "客厅",
@@ -1091,26 +1132,30 @@ export function weatherComponentDimensions(v18 = {}) {
     description: "统计灯光、开关、空调等设备当前开启或运行的数量。",
     thumbnailId: "light-statistics",
     scopes: ["page"],
-    create({ id: v56, instanceName: v57 = "数量统计", canvas: v58 }) {
-      const v59 = Number(v58?.width || 2778),
-        v60 = Number(v58?.height || 1940),
-        v61 = v59 * 0.18,
-        v62 = v60 * 0.065;
+    create({
+      id: lightStatisticsComponentId,
+      instanceName: lightStatisticsInstanceName = "数量统计",
+      canvas: lightStatisticsCanvas,
+    }) {
+      const lightStatisticsCanvasWidth = Number(lightStatisticsCanvas?.width || 2778),
+        lightStatisticsCanvasHeight = Number(lightStatisticsCanvas?.height || 1940),
+        lightStatisticsWidth = lightStatisticsCanvasWidth * 0.18,
+        lightStatisticsHeight = lightStatisticsCanvasHeight * 0.065;
       return {
-        id: v56,
+        id: lightStatisticsComponentId,
         type: "light-statistics",
         componentVersion: 1,
         position: {
-          x: (v59 - v61) / 2,
-          y: (v60 - v62) / 2,
-          width: v61,
-          height: v62,
+          x: (lightStatisticsCanvasWidth - lightStatisticsWidth) / 2,
+          y: (lightStatisticsCanvasHeight - lightStatisticsHeight) / 2,
+          width: lightStatisticsWidth,
+          height: lightStatisticsHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v57,
+          instanceName: lightStatisticsInstanceName,
           entityIds: [],
           entityLabels: {},
           title: "数量",
@@ -1148,32 +1193,37 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "icon-button",
     description: "跟随灯光实体状态变化的切角图标按钮。",
     scopes: ["page"],
-    create({ id: v63, instanceName: v64 = "图标按钮", canvas: v65, lightEntityId: v66 = "" }) {
-      const v67 = Number(v65?.width || 2778),
-        v68 = Number(v65?.height || 1940),
-        v69 = v67 * 0.1,
-        v70 = v68 * 0.15;
+    create({
+      id: iconButtonComponentId,
+      instanceName: iconButtonInstanceName = "图标按钮",
+      canvas: iconButtonCanvas,
+      lightEntityId: iconButtonLightEntityId = "",
+    }) {
+      const iconButtonCanvasWidth = Number(iconButtonCanvas?.width || 2778),
+        iconButtonCanvasHeight = Number(iconButtonCanvas?.height || 1940),
+        iconButtonWidth = iconButtonCanvasWidth * 0.1,
+        iconButtonHeight = iconButtonCanvasHeight * 0.15;
       return {
-        id: v63,
+        id: iconButtonComponentId,
         type: "icon-button",
         componentVersion: 1,
         position: {
-          x: (v67 - v69) / 2,
-          y: (v68 - v70) / 2,
-          width: v69,
-          height: v70,
+          x: (iconButtonCanvasWidth - iconButtonWidth) / 2,
+          y: (iconButtonCanvasHeight - iconButtonHeight) / 2,
+          width: iconButtonWidth,
+          height: iconButtonHeight,
           rotation: 0,
           zIndex: 1,
         },
-        bindings: v66
+        bindings: iconButtonLightEntityId
           ? {
               entity: {
-                entityId: v66,
+                entityId: iconButtonLightEntityId,
               },
             }
           : {},
         properties: {
-          instanceName: v64,
+          instanceName: iconButtonInstanceName,
           mainText: "主灯",
           secondaryText: "MAIN LIGHT",
           icon: "mdi:ceiling-light",
@@ -1224,7 +1274,7 @@ export function weatherComponentDimensions(v18 = {}) {
           scale: 1,
           visible: true,
         },
-        actions: v66
+        actions: iconButtonLightEntityId
           ? {
               tap: {
                 type: "toggle",
@@ -1241,26 +1291,30 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "device-button",
     description: "显示图标、标题和实时状态，点击可切换实体。",
     scopes: ["page"],
-    create({ id: v71, instanceName: v72 = "设备按钮", canvas: v73 }) {
-      const v74 = Number(v73?.width || 2778),
-        v75 = Number(v73?.height || 1940),
-        v76 = v74 * 0.1,
-        v77 = v75 * 0.11;
+    create({
+      id: deviceButtonComponentId,
+      instanceName: deviceButtonInstanceName = "设备按钮",
+      canvas: deviceButtonCanvas,
+    }) {
+      const deviceButtonCanvasWidth = Number(deviceButtonCanvas?.width || 2778),
+        deviceButtonCanvasHeight = Number(deviceButtonCanvas?.height || 1940),
+        deviceButtonWidth = deviceButtonCanvasWidth * 0.1,
+        deviceButtonHeight = deviceButtonCanvasHeight * 0.11;
       return {
-        id: v71,
+        id: deviceButtonComponentId,
         type: "device-button",
         componentVersion: 1,
         position: {
-          x: (v74 - v76) / 2,
-          y: (v75 - v77) / 2,
-          width: v76,
-          height: v77,
+          x: (deviceButtonCanvasWidth - deviceButtonWidth) / 2,
+          y: (deviceButtonCanvasHeight - deviceButtonHeight) / 2,
+          width: deviceButtonWidth,
+          height: deviceButtonHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v72,
+          instanceName: deviceButtonInstanceName,
           mainText: "",
           secondaryText: "",
           icon: "",
@@ -1303,32 +1357,37 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "presence-sensor",
     description: "添加后在属性中选择传感器类型，当前支持人在、门窗和水浸状态的动态显示。",
     scopes: ["page"],
-    create({ id: v78, instanceName: v79 = "传感器", canvas: v80, entityId: v81 = "" }) {
-      const v82 = Number(v80?.width || 2778),
-        v83 = Number(v80?.height || 1940),
-        num9 = 360,
-        num10 = 240;
+    create({
+      id: presenceSensorComponentId,
+      instanceName: presenceSensorInstanceName = "传感器",
+      canvas: presenceSensorCanvas,
+      entityId: presenceSensorEntityId = "",
+    }) {
+      const presenceSensorCanvasWidth = Number(presenceSensorCanvas?.width || 2778),
+        presenceSensorCanvasHeight = Number(presenceSensorCanvas?.height || 1940),
+        presenceSensorWidth = 360,
+        presenceSensorHeight = 240;
       return {
-        id: v78,
+        id: presenceSensorComponentId,
         type: "presence-sensor",
         componentVersion: 1,
         position: {
-          x: (v82 - num9) / 2,
-          y: (v83 - num10) / 2,
-          width: num9,
-          height: num10,
+          x: (presenceSensorCanvasWidth - presenceSensorWidth) / 2,
+          y: (presenceSensorCanvasHeight - presenceSensorHeight) / 2,
+          width: presenceSensorWidth,
+          height: presenceSensorHeight,
           rotation: 0,
           zIndex: 1,
         },
-        bindings: v81
+        bindings: presenceSensorEntityId
           ? {
               entity: {
-                entityId: v81,
+                entityId: presenceSensorEntityId,
               },
             }
           : {},
         properties: {
-          instanceName: v79,
+          instanceName: presenceSensorInstanceName,
           sensorKind: "presence",
           mainText: "人在",
           secondaryText: "",
@@ -1367,26 +1426,30 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "camera",
     description: "实时预览摄像头，点击可放大查看。",
     scopes: ["page"],
-    create({ id: v84, instanceName: v85 = "摄像头实时预览", canvas: v86 }) {
-      const v87 = Number(v86?.width || 2778),
-        v88 = Number(v86?.height || 1940),
-        v89 = v87 * 0.22,
-        v90 = (v89 * 9) / 16;
+    create({
+      id: cameraComponentId,
+      instanceName: cameraInstanceName = "摄像头实时预览",
+      canvas: cameraCanvas,
+    }) {
+      const cameraCanvasWidth = Number(cameraCanvas?.width || 2778),
+        cameraCanvasHeight = Number(cameraCanvas?.height || 1940),
+        cameraWidth = cameraCanvasWidth * 0.22,
+        cameraHeight = (cameraWidth * 9) / 16;
       return {
-        id: v84,
+        id: cameraComponentId,
         type: "camera",
         componentVersion: 1,
         position: {
-          x: (v87 - v89) / 2,
-          y: (v88 - v90) / 2,
-          width: v89,
-          height: v90,
+          x: (cameraCanvasWidth - cameraWidth) / 2,
+          y: (cameraCanvasHeight - cameraHeight) / 2,
+          width: cameraWidth,
+          height: cameraHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v85,
+          instanceName: cameraInstanceName,
           fit: "fill",
           displayMode: "live",
           refreshInterval: 10,
@@ -1420,27 +1483,31 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "air-conditioner",
     description: "显示空调或浴霸状态并按实体能力提供控制，内置可调整的动态出风效果。",
     scopes: ["page"],
-    create({ id: v91, instanceName: v92 = "空调", canvas: v93 }) {
-      const v94 = Number(v93?.width || 2778),
-        v95 = Number(v93?.height || 1940),
-        v96 = v94 * 0.11,
-        v97 = v95 * 0.08;
+    create({
+      id: airConditionerComponentId,
+      instanceName: airConditionerInstanceName = "空调",
+      canvas: airConditionerCanvas,
+    }) {
+      const airConditionerCanvasWidth = Number(airConditionerCanvas?.width || 2778),
+        airConditionerCanvasHeight = Number(airConditionerCanvas?.height || 1940),
+        airConditionerWidth = airConditionerCanvasWidth * 0.11,
+        airConditionerHeight = airConditionerCanvasHeight * 0.08;
       return {
-        id: v91,
+        id: airConditionerComponentId,
         type: "air-conditioner",
         componentVersion: 1,
         position: {
-          x: (v94 - v96) / 2,
-          y: (v95 - v97) / 2,
-          width: v96,
-          height: v97,
+          x: (airConditionerCanvasWidth - airConditionerWidth) / 2,
+          y: (airConditionerCanvasHeight - airConditionerHeight) / 2,
+          width: airConditionerWidth,
+          height: airConditionerHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
           deviceType: "auto",
-          instanceName: v92,
+          instanceName: airConditionerInstanceName,
           mainText: "",
           secondaryText: "",
           icon: "mdi:air-conditioner",
@@ -1509,11 +1576,11 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "time",
     description: "显示设备本地时间，不依赖 Home Assistant 实体。",
     scopes: ["shared"],
-    create({ id: v98, instanceName: v99 = "时间", canvas: v100 }) {
-      const v101 = Number(v100?.width || 2778),
-        v102 = Number(v100?.height || 1940),
-        options5 = {
-          instanceName: v99,
+    create({ id: timeComponentId, instanceName: timeInstanceName = "时间", canvas: timeCanvas }) {
+      const timeCanvasWidth = Number(timeCanvas?.width || 2778),
+        timeCanvasHeight = Number(timeCanvas?.height || 1940),
+        timeProperties = {
+          instanceName: timeInstanceName,
           hour12: false,
           showSeconds: false,
           color: "#248eb2",
@@ -1523,21 +1590,21 @@ export function weatherComponentDimensions(v18 = {}) {
           opacity: 1,
         },
         { width: timeComponentDimensions2, height: timeComponentDimensions3 } =
-          timeComponentDimensions(options5);
+          timeComponentDimensions(timeProperties);
       return {
-        id: v98,
+        id: timeComponentId,
         type: "time",
         componentVersion: 1,
         position: {
-          x: (v101 - timeComponentDimensions2) / 2,
-          y: (v102 - timeComponentDimensions3) / 2,
+          x: (timeCanvasWidth - timeComponentDimensions2) / 2,
+          y: (timeCanvasHeight - timeComponentDimensions3) / 2,
           width: timeComponentDimensions2,
           height: timeComponentDimensions3,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
-        properties: options5,
+        properties: timeProperties,
         style: {
           scale: 1.8,
           visible: true,
@@ -1553,11 +1620,11 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "date",
     description: "显示设备本地年月日、星期与农历。",
     scopes: ["shared"],
-    create({ id: v103, instanceName: v104 = "日期", canvas: v105 }) {
-      const v106 = Number(v105?.width || 2778),
-        v107 = Number(v105?.height || 1940),
-        options6 = {
-          instanceName: v104,
+    create({ id: dateComponentId, instanceName: dateInstanceName = "日期", canvas: dateCanvas }) {
+      const dateCanvasWidth = Number(dateCanvas?.width || 2778),
+        dateCanvasHeight = Number(dateCanvas?.height || 1940),
+        dateProperties = {
+          instanceName: dateInstanceName,
           showWeekday: true,
           showLunar: false,
           primaryColor: "#8d9296",
@@ -1572,21 +1639,21 @@ export function weatherComponentDimensions(v18 = {}) {
           opacity: 1,
         },
         { width: dateComponentDimensions2, height: dateComponentDimensions3 } =
-          dateComponentDimensions(options6);
+          dateComponentDimensions(dateProperties);
       return {
-        id: v103,
+        id: dateComponentId,
         type: "date",
         componentVersion: 1,
         position: {
-          x: (v106 - dateComponentDimensions2) / 2,
-          y: (v107 - dateComponentDimensions3) / 2,
+          x: (dateCanvasWidth - dateComponentDimensions2) / 2,
+          y: (dateCanvasHeight - dateComponentDimensions3) / 2,
           width: dateComponentDimensions2,
           height: dateComponentDimensions3,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
-        properties: options6,
+        properties: dateProperties,
         style: {
           scale: 2,
           visible: true,
@@ -1603,16 +1670,16 @@ export function weatherComponentDimensions(v18 = {}) {
     description: "显示彩云天气当前状态、温度和湿度。",
     scopes: ["shared"],
     create({
-      id: v108,
-      instanceName: v109 = "天气",
-      canvas: v110,
-      weatherEntityId: v111 = "",
-      sunEntityId: v112 = "",
+      id: weatherComponentId,
+      instanceName: weatherInstanceName = "天气",
+      canvas: weatherCanvas,
+      weatherEntityId: weatherEntityId = "",
+      sunEntityId: sunEntityId = "",
     }) {
-      const v113 = Number(v110?.width || 2778),
-        v114 = Number(v110?.height || 1940),
-        options7 = {
-          instanceName: v109,
+      const weatherCanvasWidth = Number(weatherCanvas?.width || 2778),
+        weatherCanvasHeight = Number(weatherCanvas?.height || 1940),
+        weatherProperties = {
+          instanceName: weatherInstanceName,
           iconVisible: true,
           temperatureVisible: true,
           conditionVisible: true,
@@ -1631,31 +1698,31 @@ export function weatherComponentDimensions(v18 = {}) {
           opacity: 1,
         },
         { width: weatherComponentDimensions2, height: weatherComponentDimensions3 } =
-          weatherComponentDimensions(options7),
-        options8 = {};
+          weatherComponentDimensions(weatherProperties),
+        weatherBindings = {};
       return (
-        v111 &&
-          (options8.entity = {
-            entityId: v111,
+        weatherEntityId &&
+          (weatherBindings.entity = {
+            entityId: weatherEntityId,
           }),
-        v112 &&
-          (options8.sun = {
-            entityId: v112,
+        sunEntityId &&
+          (weatherBindings.sun = {
+            entityId: sunEntityId,
           }),
         {
-          id: v108,
+          id: weatherComponentId,
           type: "weather",
           componentVersion: 1,
           position: {
-            x: (v113 - weatherComponentDimensions2) / 2,
-            y: (v114 - weatherComponentDimensions3) / 2,
+            x: (weatherCanvasWidth - weatherComponentDimensions2) / 2,
+            y: (weatherCanvasHeight - weatherComponentDimensions3) / 2,
             width: weatherComponentDimensions2,
             height: weatherComponentDimensions3,
             rotation: 0,
             zIndex: 1,
           },
-          bindings: options8,
-          properties: options7,
+          bindings: weatherBindings,
+          properties: weatherProperties,
           style: {
             scale: 1.8,
             visible: true,
@@ -1672,32 +1739,37 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "line-chart",
     description: "显示温度或湿度实体的 24 小时趋势、当前值与极值。",
     scopes: ["shared", "page"],
-    create({ id: v115, instanceName: v116 = "折线图", canvas: v117, sensorEntityId: v118 = "" }) {
-      const v119 = Number(v117?.width || 2778),
-        v120 = Number(v117?.height || 1940),
-        v121 = v119 * 0.19,
-        v122 = v120 * 0.16;
+    create({
+      id: lineChartComponentId,
+      instanceName: lineChartInstanceName = "折线图",
+      canvas: lineChartCanvas,
+      sensorEntityId: lineChartSensorEntityId = "",
+    }) {
+      const lineChartCanvasWidth = Number(lineChartCanvas?.width || 2778),
+        lineChartCanvasHeight = Number(lineChartCanvas?.height || 1940),
+        lineChartWidth = lineChartCanvasWidth * 0.19,
+        lineChartHeight = lineChartCanvasHeight * 0.16;
       return {
-        id: v115,
+        id: lineChartComponentId,
         type: "line-chart",
         componentVersion: 1,
         position: {
-          x: (v119 - v121) / 2,
-          y: (v120 - v122) / 2,
-          width: v121,
-          height: v122,
+          x: (lineChartCanvasWidth - lineChartWidth) / 2,
+          y: (lineChartCanvasHeight - lineChartHeight) / 2,
+          width: lineChartWidth,
+          height: lineChartHeight,
           rotation: 0,
           zIndex: 1,
         },
-        bindings: v118
+        bindings: lineChartSensorEntityId
           ? {
               entity: {
-                entityId: v118,
+                entityId: lineChartSensorEntityId,
               },
             }
           : {},
         properties: {
-          instanceName: v116,
+          instanceName: lineChartInstanceName,
           valueVisible: true,
           valueScale: 100,
           valueColor: "#dce1e5",
@@ -1727,26 +1799,30 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "panel-frame",
     description: "双行标题、渐变外框和内向柔光容器。",
     scopes: ["shared", "page"],
-    create({ id: v123, instanceName: v124 = "底图框", canvas: v125 }) {
-      const v126 = Number(v125?.width || 2778),
-        v127 = Number(v125?.height || 1940),
-        v128 = v126 * 0.19,
-        v129 = v127 * 0.16;
+    create({
+      id: panelFrameComponentId,
+      instanceName: panelFrameInstanceName = "底图框",
+      canvas: panelFrameCanvas,
+    }) {
+      const panelFrameCanvasWidth = Number(panelFrameCanvas?.width || 2778),
+        panelFrameCanvasHeight = Number(panelFrameCanvas?.height || 1940),
+        panelFrameWidth = panelFrameCanvasWidth * 0.19,
+        panelFrameHeight = panelFrameCanvasHeight * 0.16;
       return {
-        id: v123,
+        id: panelFrameComponentId,
         type: "panel-frame",
         componentVersion: 1,
         position: {
-          x: (v126 - v128) / 2,
-          y: (v127 - v129) / 2,
-          width: v128,
-          height: v129,
+          x: (panelFrameCanvasWidth - panelFrameWidth) / 2,
+          y: (panelFrameCanvasHeight - panelFrameHeight) / 2,
+          width: panelFrameWidth,
+          height: panelFrameHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v124,
+          instanceName: panelFrameInstanceName,
           mainTextVisible: true,
           mainText: "温度",
           mainColor: "#ffffff",
@@ -1792,28 +1868,33 @@ export function weatherComponentDimensions(v18 = {}) {
     type: "navigation-button",
     description: "默认用于页面跳转，也可绑定实体执行切换或打开弹窗。",
     scopes: ["shared"],
-    create({ id: v130, instanceName: v131 = "导航按钮", canvas: v132, targetPage: v133 = "" }) {
-      const v134 = Number(v132?.width || 2778),
-        v135 = Number(v132?.height || 1940),
-        v136 = v134 * 0.2,
-        v137 = v135 * 0.085,
-        v138 = String(v133 || "");
+    create({
+      id: navigationButtonComponentId,
+      instanceName: navigationButtonInstanceName = "导航按钮",
+      canvas: navigationButtonCanvas,
+      targetPage: navigationButtonTargetPage = "",
+    }) {
+      const navigationButtonCanvasWidth = Number(navigationButtonCanvas?.width || 2778),
+        navigationButtonCanvasHeight = Number(navigationButtonCanvas?.height || 1940),
+        navigationButtonWidth = navigationButtonCanvasWidth * 0.2,
+        navigationButtonHeight = navigationButtonCanvasHeight * 0.085,
+        navigationButtonTargetPagePath = String(navigationButtonTargetPage || "");
       return {
-        id: v130,
+        id: navigationButtonComponentId,
         type: "navigation-button",
         componentVersion: 1,
         position: {
-          x: (v134 - v136) / 2,
-          y: (v135 - v137) / 2,
-          width: v136,
-          height: v137,
+          x: (navigationButtonCanvasWidth - navigationButtonWidth) / 2,
+          y: (navigationButtonCanvasHeight - navigationButtonHeight) / 2,
+          width: navigationButtonWidth,
+          height: navigationButtonHeight,
           rotation: 0,
           zIndex: 1,
         },
         bindings: {},
         properties: {
-          instanceName: v131,
-          targetPage: v138,
+          instanceName: navigationButtonInstanceName,
+          targetPage: navigationButtonTargetPagePath,
           mainText: "页面导航",
           secondaryText: "NAVIGATION",
           icon: "mdi:home-outline",
@@ -1859,11 +1940,11 @@ export function weatherComponentDimensions(v18 = {}) {
           scale: 0.9232946236554526,
           visible: true,
         },
-        actions: v138
+        actions: navigationButtonTargetPagePath
           ? {
               tap: {
                 type: "navigate",
-                target: v138,
+                target: navigationButtonTargetPagePath,
               },
             }
           : {},
@@ -1871,7 +1952,7 @@ export function weatherComponentDimensions(v18 = {}) {
       };
     },
   }));
-const O = {
+const sceneModeDefaults = {
   icon: "mdi:home-import-outline",
   iconActiveOpacity: 0.9,
   iconColor: "#656565",
@@ -1908,14 +1989,18 @@ const O = {
   type: "scene-mode",
   description: "开关切换 · 情景执行",
   scopes: ["shared", "page"],
-  create({ id: v139, instanceName: v140 = "情景模式", canvas: v141 }) {
+  create({
+    id: sceneModeComponentId,
+    instanceName: sceneModeInstanceName = "情景模式",
+    canvas: sceneModeCanvas,
+  }) {
     return {
-      id: v139,
+      id: sceneModeComponentId,
       type: "scene-mode",
       componentVersion: 1,
       position: {
-        x: (Number(v141?.width || 2778) - 555.6) / 2,
-        y: (Number(v141?.height || 1940) - 153.832) / 2,
+        x: (Number(sceneModeCanvas?.width || 2778) - 555.6) / 2,
+        y: (Number(sceneModeCanvas?.height || 1940) - 153.832) / 2,
         width: 555.6,
         height: 153.832,
         rotation: 0,
@@ -1925,8 +2010,8 @@ const O = {
       actions: {},
       children: [],
       properties: {
-        ...O,
-        instanceName: v140,
+        ...sceneModeDefaults,
+        instanceName: sceneModeInstanceName,
       },
       style: {
         scale: 0.3934332813319446,
@@ -1941,26 +2026,30 @@ const O = {
     type: "flow-line",
     description: "自由绘制水流与能量路径，支持颜色、光尾、流速与发光 DIY。",
     scopes: ["shared", "page"],
-    create({ id: v142, instanceName: v143 = "流水线条", canvas: v144 }) {
-      const num11 = Number(v144?.width) || 2778,
-        num12 = Number(v144?.height) || 1940,
-        v145 = num11 * 0.3,
-        v146 = num12 * 0.15;
+    create({
+      id: flowLineComponentId,
+      instanceName: flowLineInstanceName = "流水线条",
+      canvas: flowLineCanvas,
+    }) {
+      const flowLineCanvasWidth = Number(flowLineCanvas?.width) || 2778,
+        flowLineCanvasHeight = Number(flowLineCanvas?.height) || 1940,
+        flowLineWidth = flowLineCanvasWidth * 0.3,
+        flowLineHeight = flowLineCanvasHeight * 0.15;
       return {
-        id: v142,
+        id: flowLineComponentId,
         type: "flow-line",
         componentVersion: 1,
         position: {
-          x: (num11 - v145) / 2,
-          y: (num12 - v146) / 2,
-          width: v145,
-          height: v146,
+          x: (flowLineCanvasWidth - flowLineWidth) / 2,
+          y: (flowLineCanvasHeight - flowLineHeight) / 2,
+          width: flowLineWidth,
+          height: flowLineHeight,
           rotation: 0,
           zIndex: 1,
         },
         properties: {
           ...structuredClone(FLOW_LINE_DEFAULTS2),
-          instanceName: v143,
+          instanceName: flowLineInstanceName,
         },
         style: {
           scale: 1,
@@ -1978,10 +2067,14 @@ const O = {
     type: "percentage-bar",
     description: "单个或多个百分比实体，支持渐变、内嵌游标与玻璃液柱，仅显示。",
     scopes: ["shared", "page"],
-    create({ id: v147, instanceName: v148 = "百分比柱状图", canvas: v149 }) {
-      const options9 = {
+    create({
+      id: percentageBarComponentId,
+      instanceName: percentageBarInstanceName = "百分比柱状图",
+      canvas: percentageBarCanvas,
+    }) {
+      const percentageBarProperties = {
           ...percentageBarDefaults2,
-          instanceName: v148,
+          instanceName: percentageBarInstanceName,
           series: [
             {
               entityId: "",
@@ -1991,20 +2084,21 @@ const O = {
             },
           ],
         },
-        { width: v150, height: v151 } = percentageBarDimensions2(options9);
+        { width: percentageBarWidth, height: percentageBarHeight } =
+          percentageBarDimensions2(percentageBarProperties);
       return {
-        id: v147,
+        id: percentageBarComponentId,
         type: "percentage-bar",
         componentVersion: 1,
         position: {
-          x: (Number(v149?.width || 2778) - v150) / 2,
-          y: (Number(v149?.height || 1940) - v151) / 2,
-          width: v150,
-          height: v151,
+          x: (Number(percentageBarCanvas?.width || 2778) - percentageBarWidth) / 2,
+          y: (Number(percentageBarCanvas?.height || 1940) - percentageBarHeight) / 2,
+          width: percentageBarWidth,
+          height: percentageBarHeight,
           rotation: 0,
           zIndex: 1,
         },
-        properties: options9,
+        properties: percentageBarProperties,
         bindings: {},
         style: {
           scale: 1,

@@ -1,40 +1,56 @@
 import { clone, newId, slugify } from "./editor-utils.js?v=20260831-editor-utils-v1";
-const s = "ha-bridge:editor:selected-project";
-export function rememberEditorProject(arg1, arg2 = () => globalThis.sessionStorage) {
+const selectedProjectStorageKey = "ha-bridge:editor:selected-project";
+export function rememberEditorProject(
+  projectId,
+  getSessionStorage = () => globalThis.sessionStorage,
+) {
   try {
-    arg2()?.setItem(s, arg1);
+    getSessionStorage()?.setItem(selectedProjectStorageKey, projectId);
   } catch {}
 }
-export function restoredEditorProject(arg3, arg4 = null, arg5 = () => globalThis.sessionStorage) {
-  if (arg3.some((arg6) => arg6.id === arg4)) return arg4;
-  let value1;
+export function restoredEditorProject(
+  projects,
+  preferredProjectId = null,
+  readSessionStorage = () => globalThis.sessionStorage,
+) {
+  if (projects.some((project) => project.id === preferredProjectId)) return preferredProjectId;
+  let storedProjectId;
   try {
-    value1 = arg5()?.getItem(s);
+    storedProjectId = readSessionStorage()?.getItem(selectedProjectStorageKey);
   } catch {}
-  return arg3.find((arg7) => arg7.id === value1)?.id ?? arg3[0]?.id ?? null;
+  return (
+    projects.find((matchedProject) => matchedProject.id === storedProjectId)?.id ??
+    projects[0]?.id ??
+    null
+  );
 }
-export function uniquePagePath(arg8, arg9, arg10 = "") {
-  const value2 = slugify(arg9),
-    set1 = new Set((arg8 || []).map((arg11) => arg11.path).filter((arg12) => arg12 !== arg10));
-  let value3 = value2,
-    value4 = 2;
-  for (; set1.has(value3);) value3 = value2 + "-" + value4++;
-  return value3;
+export function uniquePagePath(pages, pageName, excludedPath = "") {
+  const basePagePath = slugify(pageName),
+    existingPathSet = new Set(
+      (pages || []).map((page) => page.path).filter((pagePath) => pagePath !== excludedPath),
+    );
+  let candidatePath = basePagePath,
+    suffixIndex = 2;
+  for (; existingPathSet.has(candidatePath);) candidatePath = basePagePath + "-" + suffixIndex++;
+  return candidatePath;
 }
-export function clonePageWithFreshIds(arg13, arg14, arg15 = []) {
-  const value5 = clone(arg13);
-  ((value5.id = newId("page")),
-    (value5.name = arg14),
-    (value5.path = uniquePagePath(arg15, arg14)));
-  const fn1 = (arg16) => {
-    for (const value6 of arg16 || []) ((value6.id = newId("component")), fn1(value6.children));
+export function clonePageWithFreshIds(sourcePage, newPageName, existingPages = []) {
+  const clonedPage = clone(sourcePage);
+  ((clonedPage.id = newId("page")),
+    (clonedPage.name = newPageName),
+    (clonedPage.path = uniquePagePath(existingPages, newPageName)));
+  const assignFreshComponentIds = (components) => {
+    for (const component of components || [])
+      ((component.id = newId("component")), assignFreshComponentIds(component.children));
   };
-  return (fn1(value5.components), value5);
+  return (assignFreshComponentIds(clonedPage.components), clonedPage);
 }
-export function findCustomPopup(arg17, arg18) {
-  return (arg17?.customPopups || []).find((arg19) => arg19.id === arg18) || null;
+export function findCustomPopup(editorDocument, popupId) {
+  return (
+    (editorDocument?.customPopups || []).find((customPopup) => customPopup.id === popupId) || null
+  );
 }
-export function popupModuleTypeLabel(arg20) {
+export function popupModuleTypeLabel(moduleType) {
   return (
     {
       light: "灯光",
@@ -49,63 +65,71 @@ export function popupModuleTypeLabel(arg20) {
       "line-chart": "折线图",
       generic: "通用设备",
       "capability-device": "通用设备",
-    }[arg20] || "通用设备"
+    }[moduleType] || "通用设备"
   );
 }
-const p = ["auto", "air-conditioner", "bath-heater"];
-export function normalizedPopupClimateDeviceType(arg21) {
-  return p.includes(arg21) ? arg21 : "auto";
+const climateDeviceTypes = ["auto", "air-conditioner", "bath-heater"];
+export function normalizedPopupClimateDeviceType(deviceType) {
+  return climateDeviceTypes.includes(deviceType) ? deviceType : "auto";
 }
-export function popupModuleEntityRecommended(arg22, arg23) {
-  const value7 = arg22?.domain || String(arg22?.entityId || "").split(".")[0];
-  return arg23 === "light"
-    ? value7 === "light"
-    : arg23 === "climate"
-      ? ["climate", "fan"].includes(value7)
-      : arg23 === "air-purifier"
-        ? value7 === "fan"
-        : arg23 === "water-heater"
-          ? value7 === "water_heater"
-          : arg23 === "media-player"
-            ? value7 === "media_player"
-            : arg23 === "electric-bed"
-              ? ["number", "select", "button", "switch"].includes(value7)
-              : arg23 === "switch"
-                ? ["switch", "input_boolean", "button"].includes(value7)
-                : arg23 === "cover"
-                  ? value7 === "cover"
-                  : arg23 === "camera"
-                    ? value7 === "camera"
-                    : arg23 === "line-chart"
-                      ? value7 === "sensor"
+export function popupModuleEntityRecommended(entity, popupModuleType) {
+  const entityDomain = entity?.domain || String(entity?.entityId || "").split(".")[0];
+  return popupModuleType === "light"
+    ? entityDomain === "light"
+    : popupModuleType === "climate"
+      ? ["climate", "fan"].includes(entityDomain)
+      : popupModuleType === "air-purifier"
+        ? entityDomain === "fan"
+        : popupModuleType === "water-heater"
+          ? entityDomain === "water_heater"
+          : popupModuleType === "media-player"
+            ? entityDomain === "media_player"
+            : popupModuleType === "electric-bed"
+              ? ["number", "select", "button", "switch"].includes(entityDomain)
+              : popupModuleType === "switch"
+                ? ["switch", "input_boolean", "button"].includes(entityDomain)
+                : popupModuleType === "cover"
+                  ? entityDomain === "cover"
+                  : popupModuleType === "camera"
+                    ? entityDomain === "camera"
+                    : popupModuleType === "line-chart"
+                      ? entityDomain === "sensor"
                       : true;
 }
-export function reorderedPopupModules(arg24, arg25, arg26 = null, arg27 = false) {
-  const list1 = [...(arg24 || [])],
-    value8 = list1.findIndex((arg28) => arg28.id === arg25);
-  if (value8 < 0 || arg25 === arg26) return list1;
-  const [value9] = list1.splice(value8, 1);
-  if (!arg26) return (list1.push(value9), list1);
-  const value10 = list1.findIndex((arg29) => arg29.id === arg26);
-  return value10 < 0
-    ? (list1.splice(value8, 0, value9), list1)
-    : (list1.splice(value10 + (arg27 ? 1 : 0), 0, value9), list1);
+export function reorderedPopupModules(
+  modules,
+  draggedModuleId,
+  targetModuleId = null,
+  shouldPlaceAfter = false,
+) {
+  const reorderedModules = [...(modules || [])],
+    draggedIndex = reorderedModules.findIndex((module) => module.id === draggedModuleId);
+  if (draggedIndex < 0 || draggedModuleId === targetModuleId) return reorderedModules;
+  const [draggedModule] = reorderedModules.splice(draggedIndex, 1);
+  if (!targetModuleId) return (reorderedModules.push(draggedModule), reorderedModules);
+  const targetIndex = reorderedModules.findIndex(
+    (targetModule) => targetModule.id === targetModuleId,
+  );
+  return targetIndex < 0
+    ? (reorderedModules.splice(draggedIndex, 0, draggedModule), reorderedModules)
+    : (reorderedModules.splice(targetIndex + (shouldPlaceAfter ? 1 : 0), 0, draggedModule),
+      reorderedModules);
 }
-export function popupModuleDropPosition(arg30, arg31) {
-  const value11 = arg30.getBoundingClientRect(),
-    value12 = arg31.clientY - value11.top,
-    value13 = Math.min(48, value11.height * 0.22);
-  return value12 <= value13
+export function popupModuleDropPosition(moduleElement, pointerEvent) {
+  const boundingRect = moduleElement.getBoundingClientRect(),
+    pointerOffsetY = pointerEvent.clientY - boundingRect.top,
+    edgeThresholdPx = Math.min(48, boundingRect.height * 0.22);
+  return pointerOffsetY <= edgeThresholdPx
     ? {
         placeAfter: false,
         edge: "top",
       }
-    : value12 >= value11.height - value13
+    : pointerOffsetY >= boundingRect.height - edgeThresholdPx
       ? {
           placeAfter: true,
           edge: "bottom",
         }
-      : arg31.clientX < value11.left + value11.width / 2
+      : pointerEvent.clientX < boundingRect.left + boundingRect.width / 2
         ? {
             placeAfter: false,
             edge: "left",
@@ -115,9 +139,10 @@ export function popupModuleDropPosition(arg30, arg31) {
             edge: "right",
           };
 }
-export function greatestCommonDivisor(arg32, arg33) {
-  let value14 = Math.abs(Math.trunc(arg32)),
-    value15 = Math.abs(Math.trunc(arg33));
-  for (; value15;) [value14, value15] = [value15, value14 % value15];
-  return value14 || 1;
+export function greatestCommonDivisor(firstNumber, secondNumber) {
+  let currentDivisor = Math.abs(Math.trunc(firstNumber)),
+    currentRemainder = Math.abs(Math.trunc(secondNumber));
+  for (; currentRemainder;)
+    [currentDivisor, currentRemainder] = [currentRemainder, currentDivisor % currentRemainder];
+  return currentDivisor || 1;
 }

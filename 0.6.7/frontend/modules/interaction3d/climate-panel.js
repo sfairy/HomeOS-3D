@@ -11,13 +11,13 @@ import {
 } from "./climate-state.js?v=20260926-climate-capabilities-v1";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras.js?v=20260925-menu-bounds-v3-20260926-airer-v2";
 import { purifierState as purifierState2 } from "./purifier-state.js";
-const Me = (arg1, arg2) =>
+const formatSwingModeLabel = (swingModeKey, swingDirection) =>
     ({
       on: "开启",
       off: "关闭",
       middle: "居中",
-    })[arg1] || climateSwingModeLabel2(arg1, arg2),
-  Re = {
+    })[swingModeKey] || climateSwingModeLabel2(swingModeKey, swingDirection),
+  fanModeLabels = {
     auto: "自动",
     low: "低风",
     medium: "中风",
@@ -29,7 +29,7 @@ const Me = (arg1, arg2) =>
     diffuse: "柔风",
     focus: "集中",
   },
-  Be = {
+  purifierPresetLabels = {
     auto: "自动",
     silent: "静音",
     quiet: "静音",
@@ -45,585 +45,694 @@ const Me = (arg1, arg2) =>
     normal: "标准",
     natural: "自然风",
   };
-let De = 0;
-function je(arg3, arg4) {
-  const ownerDocument = arg3.ownerDocument,
+let pickerIdCounter = 0;
+function createPicker(panelRoot, createPickerElement) {
+  const ownerDocument = panelRoot.ownerDocument,
     defaultView = ownerDocument.defaultView;
   let value = null,
-    value2 = null,
+    repositionFrameId = null,
     text = "",
     num = 0;
-  function fn1(v1 = false) {
+  function closePicker(shouldRefocus = false) {
     if (!value) return;
-    const v2 = value;
+    const closingPicker = value;
     ((value = null),
-      value2 != null && defaultView?.cancelAnimationFrame?.(value2),
-      (value2 = null));
+      repositionFrameId != null && defaultView?.cancelAnimationFrame?.(repositionFrameId),
+      (repositionFrameId = null));
     try {
-      v2.menu.hidePopover?.();
+      closingPicker.menu.hidePopover?.();
     } catch {}
-    ((v2.menu.hidden = true),
-      v2.picker.append(v2.menu),
-      v2.element.setAttribute("aria-expanded", "false"),
-      ownerDocument.removeEventListener?.("pointerdown", fn2, true),
-      ownerDocument.removeEventListener?.("scroll", fn3, true),
-      ownerDocument.removeEventListener?.("keydown", fn4, true),
-      v1 &&
-        !v2.element.disabled &&
-        v2.element.focus?.({
+    ((closingPicker.menu.hidden = true),
+      closingPicker.picker.append(closingPicker.menu),
+      closingPicker.element.setAttribute("aria-expanded", "false"),
+      ownerDocument.removeEventListener?.("pointerdown", handleDocumentPointerDown, true),
+      ownerDocument.removeEventListener?.("scroll", handleDocumentScroll, true),
+      ownerDocument.removeEventListener?.("keydown", handleDocumentKeyDown, true),
+      shouldRefocus &&
+        !closingPicker.element.disabled &&
+        closingPicker.element.focus?.({
           preventScroll: true,
         }));
   }
-  function fn2(arg5) {
-    value && !value.picker.contains?.(arg5.target) && !value.menu.contains?.(arg5.target) && fn1();
+  function handleDocumentPointerDown(pointerEvent) {
+    value &&
+      !value.picker.contains?.(pointerEvent.target) &&
+      !value.menu.contains?.(pointerEvent.target) &&
+      closePicker();
   }
-  function fn3(arg6) {
-    value && !value.menu.contains?.(arg6.target) && fn1();
+  function handleDocumentScroll(scrollEvent) {
+    value && !value.menu.contains?.(scrollEvent.target) && closePicker();
   }
-  function fn4(arg7) {
-    arg7.key === "Escape" && (arg7.preventDefault(), arg7.stopPropagation(), fn1(true));
+  function handleDocumentKeyDown(documentKeyEvent) {
+    documentKeyEvent.key === "Escape" &&
+      (documentKeyEvent.preventDefault(), documentKeyEvent.stopPropagation(), closePicker(true));
   }
-  function fn5() {
+  function positionPicker() {
     if (!value) return;
-    const { element: element2, menu: element3 } = value,
-      boundingClientRect = element2.getBoundingClientRect();
+    const { element: comboboxElement, menu: menuElement } = value,
+      boundingClientRect = comboboxElement.getBoundingClientRect();
     if (
-      element2.disabled ||
+      comboboxElement.disabled ||
       ownerDocument.hidden ||
-      element2.isConnected === false ||
-      (element2.getClientRects && !element2.getClientRects().length)
+      comboboxElement.isConnected === false ||
+      (comboboxElement.getClientRects && !comboboxElement.getClientRects().length)
     ) {
-      fn1();
+      closePicker();
       return;
     }
-    const v3 = defaultView?.getComputedStyle?.(element2);
-    if (v3?.visibility === "hidden" || arg3.closest?.('[hidden], [aria-hidden="true"]')) {
-      fn1();
+    const computedStyle = defaultView?.getComputedStyle?.(comboboxElement);
+    if (
+      computedStyle?.visibility === "hidden" ||
+      panelRoot.closest?.('[hidden], [aria-hidden="true"]')
+    ) {
+      closePicker();
       return;
     }
-    const num2 = element2.offsetWidth || boundingClientRect.width || 1,
-      num3 = element2.offsetHeight || boundingClientRect.height || 1,
-      num4 = boundingClientRect.width / num2 || 1,
-      num5 = boundingClientRect.height / num3 || 1,
-      v4 = arg3.closest?.(".interaction3d-stage")?.getBoundingClientRect(),
-      v5 = defaultView?.visualViewport,
-      v6 = Math.max(v5?.offsetLeft || 0, v4?.left || 0) + 8,
-      v7 = Math.max(v5?.offsetTop || 0, v4?.top || 0) + 8,
-      v8 =
+    const triggerWidth = comboboxElement.offsetWidth || boundingClientRect.width || 1,
+      triggerHeight = comboboxElement.offsetHeight || boundingClientRect.height || 1,
+      scaleX = boundingClientRect.width / triggerWidth || 1,
+      scaleY = boundingClientRect.height / triggerHeight || 1,
+      stageRect = panelRoot.closest?.(".interaction3d-stage")?.getBoundingClientRect(),
+      visualViewport = defaultView?.visualViewport,
+      clampLeft = Math.max(visualViewport?.offsetLeft || 0, stageRect?.left || 0) + 8,
+      clampTop = Math.max(visualViewport?.offsetTop || 0, stageRect?.top || 0) + 8,
+      clampRight =
         Math.min(
-          (v5?.offsetLeft || 0) + (v5?.width || defaultView?.innerWidth || 1024),
-          v4?.right ?? Infinity,
+          (visualViewport?.offsetLeft || 0) +
+            (visualViewport?.width || defaultView?.innerWidth || 1024),
+          stageRect?.right ?? Infinity,
         ) - 8,
-      v9 =
+      clampBottom =
         Math.min(
-          (v5?.offsetTop || 0) + (v5?.height || defaultView?.innerHeight || 768),
-          v4?.bottom ?? Infinity,
+          (visualViewport?.offsetTop || 0) +
+            (visualViewport?.height || defaultView?.innerHeight || 768),
+          stageRect?.bottom ?? Infinity,
         ) - 8;
-    if (v8 <= v6 || v9 <= v7 || boundingClientRect.bottom < v7 || boundingClientRect.top > v9) {
-      fn1();
+    if (
+      clampRight <= clampLeft ||
+      clampBottom <= clampTop ||
+      boundingClientRect.bottom < clampTop ||
+      boundingClientRect.top > clampBottom
+    ) {
+      closePicker();
       return;
     }
-    element3.dataset.theme = arg3.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
-    const min = Math.min(Math.max(num2, 320), (v8 - v6) / num4);
-    Object.assign(element3.style, {
+    menuElement.dataset.theme = panelRoot.closest?.("[data-scene-style]")?.dataset.sceneStyle || "";
+    const min = Math.min(Math.max(triggerWidth, 320), (clampRight - clampLeft) / scaleX);
+    Object.assign(menuElement.style, {
       width: "max-content",
-      minWidth: Math.min(Math.max(num2, 112), min) + "px",
+      minWidth: Math.min(Math.max(triggerWidth, 112), min) + "px",
       maxWidth: min + "px",
     });
-    const min2 = Math.min(element3.offsetWidth || Math.max(num2, 112), min);
-    Object.assign(element3.style, {
-      width: min2 + "px",
-      transform: "scale(" + num4 + "," + num5 + ")",
+    const menuWidth = Math.min(menuElement.offsetWidth || Math.max(triggerWidth, 112), min);
+    Object.assign(menuElement.style, {
+      width: menuWidth + "px",
+      transform: "scale(" + scaleX + "," + scaleY + ")",
       transformOrigin: "0 0",
     });
-    const v10 = Math.min(280, (element3.scrollHeight || value.choices.length * 40 + 12) + 2) * num5,
+    const menuContentHeight =
+        Math.min(280, (menuElement.scrollHeight || value.choices.length * 40 + 12) + 2) * scaleY,
       max = Math.max(
         0,
-        v9 -
+        clampBottom -
           (boundingClientRect.bottom ?? boundingClientRect.top + boundingClientRect.height) -
-          4 * num5,
+          4 * scaleY,
       ),
-      max2 = Math.max(0, boundingClientRect.top - v7 - 4 * num5),
-      v11 = max < v10 && max2 > max,
-      min3 = Math.min(v9 - v7, v11 ? max2 : max),
-      min4 = Math.min(v10, min3);
-    (Object.assign(element3.style, {
-      maxHeight: Math.min(280, min3 / num5) + "px",
-      left: Math.max(v6, Math.min(boundingClientRect.left, v8 - min2 * num4)) + "px",
+      spaceAbove = Math.max(0, boundingClientRect.top - clampTop - 4 * scaleY),
+      shouldOpenUpward = max < menuContentHeight && spaceAbove > max,
+      availableHeight = Math.min(clampBottom - clampTop, shouldOpenUpward ? spaceAbove : max),
+      menuHeight = Math.min(menuContentHeight, availableHeight);
+    (Object.assign(menuElement.style, {
+      maxHeight: Math.min(280, availableHeight / scaleY) + "px",
+      left:
+        Math.max(clampLeft, Math.min(boundingClientRect.left, clampRight - menuWidth * scaleX)) +
+        "px",
       top:
         Math.max(
-          v7,
+          clampTop,
           Math.min(
-            v11
-              ? boundingClientRect.top - 4 * num5 - min4
+            shouldOpenUpward
+              ? boundingClientRect.top - 4 * scaleY - menuHeight
               : (boundingClientRect.bottom ?? boundingClientRect.top + boundingClientRect.height) +
-                  4 * num5,
-            v9 - min4,
+                  4 * scaleY,
+            clampBottom - menuHeight,
           ),
         ) + "px",
     }),
-      element3.style.setProperty(
+      menuElement.style.setProperty(
         "--i3d-climate-accent",
-        v3?.getPropertyValue("--i3d-climate-accent") || "#73c8ff",
+        computedStyle?.getPropertyValue("--i3d-climate-accent") || "#73c8ff",
       ));
   }
-  function fn6() {
-    ((value2 = null), fn5(), value && (value2 = defaultView?.requestAnimationFrame?.(fn6) ?? null));
+  function schedulePosition() {
+    ((repositionFrameId = null),
+      positionPicker(),
+      value &&
+        (repositionFrameId = defaultView?.requestAnimationFrame?.(schedulePosition) ?? null));
   }
-  function fn7(arg8, arg9) {
-    arg8.choices.forEach((arg10, arg11) => {
-      arg10.tabIndex = arg11 === arg9 ? 0 : -1;
+  function focusChoice(picker, activeIndex) {
+    picker.choices.forEach((choiceOption, optionIndex) => {
+      choiceOption.tabIndex = optionIndex === activeIndex ? 0 : -1;
     });
-    const element4 = arg8.choices[arg9];
+    const activeChoiceButton = picker.choices[activeIndex];
     if (
-      (element4?.focus?.({
+      (activeChoiceButton?.focus?.({
         preventScroll: true,
       }),
-      element4 && arg8.menu.clientHeight)
+      activeChoiceButton && picker.menu.clientHeight)
     ) {
-      const offsetTop = element4.offsetTop,
-        v12 = offsetTop + element4.offsetHeight;
-      offsetTop < arg8.menu.scrollTop
-        ? (arg8.menu.scrollTop = offsetTop)
-        : v12 > arg8.menu.scrollTop + arg8.menu.clientHeight &&
-          (arg8.menu.scrollTop = v12 - arg8.menu.clientHeight);
+      const offsetTop = activeChoiceButton.offsetTop,
+        choiceBottom = offsetTop + activeChoiceButton.offsetHeight;
+      offsetTop < picker.menu.scrollTop
+        ? (picker.menu.scrollTop = offsetTop)
+        : choiceBottom > picker.menu.scrollTop + picker.menu.clientHeight &&
+          (picker.menu.scrollTop = choiceBottom - picker.menu.clientHeight);
     }
   }
-  function fn8(arg12, v13 = false) {
-    if (arg12.element.disabled) return;
-    if (value === arg12) {
-      fn1(true);
+  function openPicker(targetPicker, shouldFocusLast = false) {
+    if (targetPicker.element.disabled) return;
+    if (value === targetPicker) {
+      closePicker(true);
       return;
     }
-    (fn1(),
-      (value = arg12),
+    (closePicker(),
+      (value = targetPicker),
       (text = ""),
       (num = 0),
-      (ownerDocument.body || arg12.picker).append(arg12.menu),
-      (arg12.menu.hidden = false),
-      arg12.element.setAttribute("aria-expanded", "true"));
+      (ownerDocument.body || targetPicker.picker).append(targetPicker.menu),
+      (targetPicker.menu.hidden = false),
+      targetPicker.element.setAttribute("aria-expanded", "true"));
     try {
-      arg12.menu.showPopover?.();
+      targetPicker.menu.showPopover?.();
     } catch {}
-    if ((fn5(), !value)) return;
-    (ownerDocument.addEventListener?.("pointerdown", fn2, true),
-      ownerDocument.addEventListener?.("scroll", fn3, true),
-      ownerDocument.addEventListener?.("keydown", fn4, true));
-    const indexOf = arg12.values.indexOf(arg12.element.value);
-    (fn7(arg12, indexOf < 0 ? (v13 ? arg12.choices.length - 1 : 0) : indexOf), fn6());
+    if ((positionPicker(), !value)) return;
+    (ownerDocument.addEventListener?.("pointerdown", handleDocumentPointerDown, true),
+      ownerDocument.addEventListener?.("scroll", handleDocumentScroll, true),
+      ownerDocument.addEventListener?.("keydown", handleDocumentKeyDown, true));
+    const indexOf = targetPicker.values.indexOf(targetPicker.element.value);
+    (focusChoice(
+      targetPicker,
+      indexOf < 0 ? (shouldFocusLast ? targetPicker.choices.length - 1 : 0) : indexOf,
+    ),
+      schedulePosition());
   }
-  function fn9(arg13, arg14, arg15, arg16) {
-    const v14 = arg4("div", "i3d-climate-picker"),
-      element5 = arg4("button", "i3d-climate-choice i3d-climate-picker-value");
-    ((element5.type = "button"),
-      element5.setAttribute("role", "combobox"),
-      element5.setAttribute("aria-label", arg13),
-      element5.setAttribute("aria-haspopup", "listbox"),
-      element5.setAttribute("aria-expanded", "false"));
-    const element6 = arg4("div", "i3d-extra-select-menu i3d-climate-picker-menu");
-    ((element6.id = "i3d-climate-options-" + ++De),
-      (element6.hidden = true),
-      element6.setAttribute("popover", "manual"),
-      element6.setAttribute("role", "listbox"),
-      element6.setAttribute("aria-label", arg13 + " 选项"),
-      element5.setAttribute("aria-controls", element6.id));
+  function createPickerInstance(fieldLabel, pickerValues, pickerLabels, onSelect) {
+    const pickerContainer = createPickerElement("div", "i3d-climate-picker"),
+      comboboxButton = createPickerElement("button", "i3d-climate-choice i3d-climate-picker-value");
+    ((comboboxButton.type = "button"),
+      comboboxButton.setAttribute("role", "combobox"),
+      comboboxButton.setAttribute("aria-label", fieldLabel),
+      comboboxButton.setAttribute("aria-haspopup", "listbox"),
+      comboboxButton.setAttribute("aria-expanded", "false"));
+    const menuContainer = createPickerElement(
+      "div",
+      "i3d-extra-select-menu i3d-climate-picker-menu",
+    );
+    ((menuContainer.id = "i3d-climate-options-" + ++pickerIdCounter),
+      (menuContainer.hidden = true),
+      menuContainer.setAttribute("popover", "manual"),
+      menuContainer.setAttribute("role", "listbox"),
+      menuContainer.setAttribute("aria-label", fieldLabel + " 选项"),
+      comboboxButton.setAttribute("aria-controls", menuContainer.id));
     const options = {
-      picker: v14,
-      element: element5,
-      menu: element6,
-      values: arg14,
-      labels: arg15,
+      picker: pickerContainer,
+      element: comboboxButton,
+      menu: menuContainer,
+      values: pickerValues,
+      labels: pickerLabels,
       choices: [],
     };
-    for (const v15 of arg14) {
-      const element7 = arg4("button", "", arg15[v15] || v15);
-      ((element7.type = "button"),
-        (element7.value = v15),
-        (element7.tabIndex = -1),
-        element7.setAttribute("role", "option"),
-        element7.setAttribute("aria-selected", "false"),
-        element7.addEventListener("click", () => {
-          if (!(value !== options || element5.disabled)) return (fn1(true), arg16(v15));
+    for (const choiceValue of pickerValues) {
+      const choiceButton = createPickerElement(
+        "button",
+        "",
+        pickerLabels[choiceValue] || choiceValue,
+      );
+      ((choiceButton.type = "button"),
+        (choiceButton.value = choiceValue),
+        (choiceButton.tabIndex = -1),
+        choiceButton.setAttribute("role", "option"),
+        choiceButton.setAttribute("aria-selected", "false"),
+        choiceButton.addEventListener("click", () => {
+          if (!(value !== options || comboboxButton.disabled))
+            return (closePicker(true), onSelect(choiceValue));
         }),
-        options.choices.push(element7),
-        element6.append(element7));
+        options.choices.push(choiceButton),
+        menuContainer.append(choiceButton));
     }
     return (
-      element5.addEventListener("click", () => fn8(options)),
-      element5.addEventListener("keydown", (arg17) => {
-        ["ArrowDown", "ArrowUp"].includes(arg17.key) &&
-          (arg17.preventDefault(), fn8(options, arg17.key === "ArrowUp"));
+      comboboxButton.addEventListener("click", () => openPicker(options)),
+      comboboxButton.addEventListener("keydown", (comboboxKeyEvent) => {
+        ["ArrowDown", "ArrowUp"].includes(comboboxKeyEvent.key) &&
+          (comboboxKeyEvent.preventDefault(),
+          openPicker(options, comboboxKeyEvent.key === "ArrowUp"));
       }),
-      element6.addEventListener("keydown", (arg18) => {
-        if (arg18.key === "Tab") {
-          fn1(true);
+      menuContainer.addEventListener("keydown", (menuKeyEvent) => {
+        if (menuKeyEvent.key === "Tab") {
+          closePicker(true);
           return;
         }
-        if (arg18.key === "Escape") {
-          (arg18.preventDefault(), arg18.stopPropagation(), fn1(true));
+        if (menuKeyEvent.key === "Escape") {
+          (menuKeyEvent.preventDefault(), menuKeyEvent.stopPropagation(), closePicker(true));
           return;
         }
         const indexOf2 = options.choices.indexOf(ownerDocument.activeElement),
-          v16 = options.choices.length;
-        if (["ArrowDown", "ArrowUp", "Home", "End"].includes(arg18.key))
-          (arg18.preventDefault(),
-            fn7(
+          choiceCount = options.choices.length;
+        if (["ArrowDown", "ArrowUp", "Home", "End"].includes(menuKeyEvent.key))
+          (menuKeyEvent.preventDefault(),
+            focusChoice(
               options,
-              arg18.key === "Home"
+              menuKeyEvent.key === "Home"
                 ? 0
-                : arg18.key === "End"
-                  ? v16 - 1
-                  : (indexOf2 + (arg18.key === "ArrowDown" ? 1 : -1) + v16) % v16,
+                : menuKeyEvent.key === "End"
+                  ? choiceCount - 1
+                  : (indexOf2 + (menuKeyEvent.key === "ArrowDown" ? 1 : -1) + choiceCount) %
+                    choiceCount,
             ));
         else {
           if (
-            arg18.key.length === 1 &&
-            arg18.key !== " " &&
-            !arg18.ctrlKey &&
-            !arg18.metaKey &&
-            !arg18.altKey &&
-            !arg18.isComposing
+            menuKeyEvent.key.length === 1 &&
+            menuKeyEvent.key !== " " &&
+            !menuKeyEvent.ctrlKey &&
+            !menuKeyEvent.metaKey &&
+            !menuKeyEvent.altKey &&
+            !menuKeyEvent.isComposing
           ) {
-            arg18.preventDefault();
+            menuKeyEvent.preventDefault();
             const now = Date.now();
-            ((text = now - num > 700 ? arg18.key : text + arg18.key), (num = now));
-            const index = options.choices.findIndex((arg19) =>
-              arg19.textContent.toLocaleLowerCase().startsWith(text.toLocaleLowerCase()),
+            ((text = now - num > 700 ? menuKeyEvent.key : text + menuKeyEvent.key), (num = now));
+            const index = options.choices.findIndex((choice) =>
+              choice.textContent.toLocaleLowerCase().startsWith(text.toLocaleLowerCase()),
             );
-            index >= 0 && fn7(options, index);
+            index >= 0 && focusChoice(options, index);
           }
         }
       }),
-      v14.append(element5, element6),
+      pickerContainer.append(comboboxButton, menuContainer),
       options
     );
   }
-  function fn10(arg20, arg21, arg22, arg23) {
-    ((arg20.element.disabled = arg23),
-      (arg20.element.value = arg21),
-      (arg20.element.textContent = arg22 || "请选择"),
-      (arg20.element.title = arg22 || ""),
-      arg20.choices.forEach((arg24) => {
-        arg24.setAttribute("aria-selected", String(arg24.value === arg21));
+  function syncPickerState(pickerToSync, nextValue, nextLabel, isSyncDisabled) {
+    ((pickerToSync.element.disabled = isSyncDisabled),
+      (pickerToSync.element.value = nextValue),
+      (pickerToSync.element.textContent = nextLabel || "请选择"),
+      (pickerToSync.element.title = nextLabel || ""),
+      pickerToSync.choices.forEach((choiceNode) => {
+        choiceNode.setAttribute("aria-selected", String(choiceNode.value === nextValue));
       }),
-      value === arg20 && arg23 && fn1());
+      value === pickerToSync && isSyncDisabled && closePicker());
   }
   return {
-    create: fn9,
-    sync: fn10,
-    close: fn1,
+    create: createPickerInstance,
+    sync: syncPickerState,
+    close: closePicker,
   };
 }
 export function createClimatePanel({
-  element: v17,
-  onControl: v18 = async () => {},
-  onLayout: v19 = () => {},
-  modeHistory: v20 = createClimateModeHistory2(),
+  element: hostElement,
+  onControl: onControl = async () => {},
+  onLayout: onLayout = () => {},
+  modeHistory: modeHistory = createClimateModeHistory2(),
 } = {}) {
-  const document = v17?.ownerDocument || globalThis.document,
-    v21 = (arg25, arg26, v22 = "") => {
-      const element8 = document.createElement(arg25);
-      return ((element8.className = arg26), (element8.textContent = v22), element8);
+  const document = hostElement?.ownerDocument || globalThis.document,
+    createElement = (tagName, className, textContent = "") => {
+      const createdElement = document.createElement(tagName);
+      return (
+        (createdElement.className = className),
+        (createdElement.textContent = textContent),
+        createdElement
+      );
     },
-    v23 = (arg27, ...v24) => {
-      if (typeof arg27.replaceChildren == "function") arg27.replaceChildren(...v24);
+    replaceChildren = (containerElement, ...children) => {
+      if (typeof containerElement.replaceChildren == "function")
+        containerElement.replaceChildren(...children);
       else {
-        for (const v25 of [...(arg27.children || [])]) v25.remove?.();
-        arg27.append(...v24);
+        for (const childNode of [...(containerElement.children || [])]) childNode.remove?.();
+        containerElement.append(...children);
       }
     },
-    element9 = v17 || v21("section", "");
-  element9.classList.add("i3d-climate-panel");
-  const je2 = je(element9, v21),
-    v26 = v21("div", "i3d-climate-heading"),
-    element10 = v21("h3", "", "空调"),
-    element11 = v21("p", "", "尚未绑定设备"),
-    element12 = v21("button", "i3d-climate-power");
-  element12.type = "button";
-  const v27 = v21("div", "i3d-climate-heading-text");
-  (v27.append(element10, element11), v26.append(v27, element12));
-  const v28 = v21("div", "i3d-climate-thermostat-slot"),
-    v29 = v21("section", "hb-climate-thermostat"),
-    element13 = v21("button", "hb-climate-temperature-step", "−"),
-    element14 = v21("button", "hb-climate-temperature-step", "+");
-  ((element13.type = element14.type = "button"),
-    element13.setAttribute("aria-label", "降低设定温度"),
-    element14.setAttribute("aria-label", "提高设定温度"));
-  const v30 = v21("div", "i3d-climate-temperature-content"),
-    element15 = v21("output", "i3d-climate-target"),
-    element16 = v21("span", "", "当前温度 --");
-  (element15.setAttribute("aria-label", "设定温度"),
-    v30.append(v21("small", "", "设定温度"), element15, element16),
-    v29.append(element13, v30, element14),
-    v28.append(v29));
-  const element17 = v21("button", "i3d-climate-choice");
-  ((element17.type = "button"),
-    element17.setAttribute("aria-label", "离家模式"),
-    element17.addEventListener("click", () => fn16("set_away_mode", !v43.away)));
-  const element18 = v21("p", "i3d-climate-feedback");
-  (element18.setAttribute("role", "status"), (element18.hidden = true));
-  const v31 = () =>
+    rootElement = hostElement || createElement("section", "");
+  rootElement.classList.add("i3d-climate-panel");
+  const je2 = createPicker(rootElement, createElement),
+    headingElement = createElement("div", "i3d-climate-heading"),
+    titleElement = createElement("h3", "", "空调"),
+    statusElement = createElement("p", "", "尚未绑定设备"),
+    powerButton = createElement("button", "i3d-climate-power");
+  powerButton.type = "button";
+  const headingTextElement = createElement("div", "i3d-climate-heading-text");
+  (headingTextElement.append(titleElement, statusElement),
+    headingElement.append(headingTextElement, powerButton));
+  const thermostatSlotElement = createElement("div", "i3d-climate-thermostat-slot"),
+    thermostatElement = createElement("section", "hb-climate-thermostat"),
+    decreaseButton = createElement("button", "hb-climate-temperature-step", "−"),
+    increaseButton = createElement("button", "hb-climate-temperature-step", "+");
+  ((decreaseButton.type = increaseButton.type = "button"),
+    decreaseButton.setAttribute("aria-label", "降低设定温度"),
+    increaseButton.setAttribute("aria-label", "提高设定温度"));
+  const temperatureContentElement = createElement("div", "i3d-climate-temperature-content"),
+    targetOutputElement = createElement("output", "i3d-climate-target"),
+    currentTemperatureElement = createElement("span", "", "当前温度 --");
+  (targetOutputElement.setAttribute("aria-label", "设定温度"),
+    temperatureContentElement.append(
+      createElement("small", "", "设定温度"),
+      targetOutputElement,
+      currentTemperatureElement,
+    ),
+    thermostatElement.append(decreaseButton, temperatureContentElement, increaseButton),
+    thermostatSlotElement.append(thermostatElement));
+  const awayModeButton = createElement("button", "i3d-climate-choice");
+  ((awayModeButton.type = "button"),
+    awayModeButton.setAttribute("aria-label", "离家模式"),
+    awayModeButton.addEventListener("click", () =>
+      requestControl("set_away_mode", !deviceState.away),
+    ));
+  const feedbackElement = createElement("p", "i3d-climate-feedback");
+  (feedbackElement.setAttribute("role", "status"), (feedbackElement.hidden = true));
+  const createFeedback = () =>
     createWaterHeaterFeedback2({
-      onChange(arg28) {
-        ((element18.textContent = arg28), (element18.hidden = !arg28));
+      onChange(feedbackText) {
+        ((feedbackElement.textContent = feedbackText), (feedbackElement.hidden = !feedbackText));
       },
     });
-  let v32 = v31();
-  const element19 = v21("p", "i3d-climate-temperature-interval"),
-    v33 = v21("div", "i3d-climate-groups i3d-climate-main-groups"),
-    element20 = v21("p", "i3d-climate-empty"),
-    element21 = v21("p", "i3d-climate-error"),
-    v34 = v21("section", "i3d-climate-option-group"),
-    element22 = v21("span", "", "风速"),
-    element23 = v21("input", "");
-  ((element23.type = "range"),
-    (element23.min = "0"),
-    (element23.max = "100"),
-    element23.setAttribute("aria-label", "净化器风速"),
-    element23.addEventListener("input", () => {
-      element22.textContent = "风速 " + element23.value + "%";
+  let feedbackTracker = createFeedback();
+  const temperatureIntervalElement = createElement("p", "i3d-climate-temperature-interval"),
+    mainGroupsElement = createElement("div", "i3d-climate-groups i3d-climate-main-groups"),
+    emptyStateElement = createElement("p", "i3d-climate-empty"),
+    errorElement = createElement("p", "i3d-climate-error"),
+    fanSpeedGroupElement = createElement("section", "i3d-climate-option-group"),
+    fanSpeedLabelElement = createElement("span", "", "风速"),
+    fanSpeedRangeElement = createElement("input", "");
+  ((fanSpeedRangeElement.type = "range"),
+    (fanSpeedRangeElement.min = "0"),
+    (fanSpeedRangeElement.max = "100"),
+    fanSpeedRangeElement.setAttribute("aria-label", "净化器风速"),
+    fanSpeedRangeElement.addEventListener("input", () => {
+      fanSpeedLabelElement.textContent = "风速 " + fanSpeedRangeElement.value + "%";
     }),
-    element23.addEventListener("change", () => fn16("set_percentage", Number(element23.value))));
-  const element24 = v21("div", "i3d-climate-choices");
-  (element24.setAttribute("role", "group"),
-    element24.setAttribute("aria-label", "净化器风速档位"),
-    v34.append(element22, element23, element24));
-  let text2 = "",
+    fanSpeedRangeElement.addEventListener("change", () =>
+      requestControl("set_percentage", Number(fanSpeedRangeElement.value)),
+    ));
+  const speedLevelsElement = createElement("div", "i3d-climate-choices");
+  (speedLevelsElement.setAttribute("role", "group"),
+    speedLevelsElement.setAttribute("aria-label", "净化器风速档位"),
+    fanSpeedGroupElement.append(fanSpeedLabelElement, fanSpeedRangeElement, speedLevelsElement));
+  let lastSpeedSignature = "",
     list = [];
-  (element20.setAttribute("role", "status"), element21.setAttribute("role", "status"));
-  const v35 = v21("section", "i3d-climate-range"),
-    list2 = [];
-  for (const [v36, v37] of [
+  (emptyStateElement.setAttribute("role", "status"), errorElement.setAttribute("role", "status"));
+  const temperatureRangeElement = createElement("section", "i3d-climate-range"),
+    rangeRows = [];
+  for (const [rangeField, rangeLabel] of [
     ["target_temp_low", "温区下限"],
     ["target_temp_high", "温区上限"],
   ]) {
-    const v38 = v21("div", "hb-climate-thermostat"),
-      element25 = v21("button", "hb-climate-temperature-step", "−"),
-      element26 = v21("button", "hb-climate-temperature-step", "+");
-    ((element25.type = element26.type = "button"),
-      element25.setAttribute("aria-label", "降低" + v37),
-      element26.setAttribute("aria-label", "提高" + v37));
-    const v39 = v21("div", "i3d-climate-temperature-content"),
-      element27 = v21("output", "i3d-climate-range-value");
-    (element27.setAttribute("aria-label", v37),
-      v39.append(v21("small", "", v37), element27),
-      v38.append(element25, v39, element26),
-      v35.append(v38),
-      element25.addEventListener("click", () => fn14(v36, -1)),
-      element26.addEventListener("click", () => fn14(v36, 1)),
-      list2.push({
-        field: v36,
-        output: element27,
-        decrease: element25,
-        increase: element26,
+    const rangeRowElement = createElement("div", "hb-climate-thermostat"),
+      rangeDecreaseButton = createElement("button", "hb-climate-temperature-step", "−"),
+      rangeIncreaseButton = createElement("button", "hb-climate-temperature-step", "+");
+    ((rangeDecreaseButton.type = rangeIncreaseButton.type = "button"),
+      rangeDecreaseButton.setAttribute("aria-label", "降低" + rangeLabel),
+      rangeIncreaseButton.setAttribute("aria-label", "提高" + rangeLabel));
+    const rangeContentElement = createElement("div", "i3d-climate-temperature-content"),
+      rangeOutputElement = createElement("output", "i3d-climate-range-value");
+    (rangeOutputElement.setAttribute("aria-label", rangeLabel),
+      rangeContentElement.append(createElement("small", "", rangeLabel), rangeOutputElement),
+      rangeRowElement.append(rangeDecreaseButton, rangeContentElement, rangeIncreaseButton),
+      temperatureRangeElement.append(rangeRowElement),
+      rangeDecreaseButton.addEventListener("click", () => stepRangeValue(rangeField, -1)),
+      rangeIncreaseButton.addEventListener("click", () => stepRangeValue(rangeField, 1)),
+      rangeRows.push({
+        field: rangeField,
+        output: rangeOutputElement,
+        decrease: rangeDecreaseButton,
+        increase: rangeIncreaseButton,
       }));
   }
-  const v40 = v21("div", "i3d-popup-body");
-  (v40.append(element17, element18, v28, v35, element19, v34, v33, element20, element21),
-    v23(element9, v26, v40));
-  const v41 = v21("div", "i3d-climate-groups i3d-extra-grid");
-  v40.append(v41);
-  const v42 = createPurifierExtras2({
-    element: v41,
-    onControl: (arg29) =>
-      v18(
-        options2.item?.climateType === "bath-heater"
+  const popupBodyElement = createElement("div", "i3d-popup-body");
+  (popupBodyElement.append(
+    awayModeButton,
+    feedbackElement,
+    thermostatSlotElement,
+    temperatureRangeElement,
+    temperatureIntervalElement,
+    fanSpeedGroupElement,
+    mainGroupsElement,
+    emptyStateElement,
+    errorElement,
+  ),
+    replaceChildren(rootElement, headingElement, popupBodyElement));
+  const extrasGridElement = createElement("div", "i3d-climate-groups i3d-extra-grid");
+  popupBodyElement.append(extrasGridElement);
+  const purifierExtrasController = createPurifierExtras2({
+    element: extrasGridElement,
+    onControl: (extraControl) =>
+      onControl(
+        viewModel.item?.climateType === "bath-heater"
           ? {
-              ...arg29,
+              ...extraControl,
               deviceKind: "climate-extra",
             }
-          : options2.item?.pedestalFan
+          : viewModel.item?.pedestalFan
             ? {
-                ...arg29,
+                ...extraControl,
                 deviceKind: "fan-extra",
               }
-            : v43.waterHeater
+            : deviceState.waterHeater
               ? {
-                  ...arg29,
+                  ...extraControl,
                   deviceKind: "water-heater-extra",
                 }
-              : !options2.item?.airPurifier && !v43.purifier
+              : !viewModel.item?.airPurifier && !deviceState.purifier
                 ? {
-                    ...arg29,
+                    ...extraControl,
                     deviceKind: "climate-extra",
                   }
-                : arg29,
-        options2.item,
+                : extraControl,
+        viewModel.item,
       ),
-    onLayout: v19,
+    onLayout: onLayout,
   });
-  let options2 = {},
-    v43 = climateState2("", null),
-    v44 = false,
-    v45 = false,
-    text3 = "",
-    num6 = 0,
-    value3 = null,
-    value4 = null,
-    value5 = null,
-    text4 = "",
-    list3 = [],
-    v46 = Promise.resolve(),
-    num7 = 0;
-  const v47 = () => !v44 && !options2.editing && !options2.busy && v43.available,
-    v48 = () => {
-      (value5 !== null && clearTimeout(value5), (value5 = null), (value4 = null), (value3 = null));
+  let viewModel = {},
+    deviceState = climateState2("", null),
+    isDisposed = false,
+    isSending = false,
+    errorText = "",
+    instanceId = 0,
+    pendingRangeValues = null,
+    draftTemperature = null,
+    temperatureTimeoutId = null,
+    renderedGroupsSignature = "",
+    choiceButtons = [],
+    pendingControlPromise = Promise.resolve(),
+    pendingControlCount = 0;
+  const canControl = () =>
+      !isDisposed && !viewModel.editing && !viewModel.busy && deviceState.available,
+    clearPendingState = () => {
+      (temperatureTimeoutId !== null && clearTimeout(temperatureTimeoutId),
+        (temperatureTimeoutId = null),
+        (draftTemperature = null),
+        (pendingRangeValues = null));
     };
-  function fn11() {
-    return value4 ?? v43.temperature;
+  function resolveTemperature() {
+    return draftTemperature ?? deviceState.temperature;
   }
-  function fn12(v49 = fn11()) {
-    ((element15.value = v49 === null ? "" : String(v49)),
-      (element15.textContent = v49 === null ? "--" : "" + v49 + (v43.temperatureUnit || "°")),
-      (element16.textContent =
-        v43.currentTemperature === null
+  function syncTemperature(temperature = resolveTemperature()) {
+    ((targetOutputElement.value = temperature === null ? "" : String(temperature)),
+      (targetOutputElement.textContent =
+        temperature === null ? "--" : "" + temperature + (deviceState.temperatureUnit || "°")),
+      (currentTemperatureElement.textContent =
+        deviceState.currentTemperature === null
           ? "当前温度 --"
-          : "当前温度 " + v43.currentTemperature + (v43.temperatureUnit || "°")),
-      (element13.disabled = !v47() || (v49 !== null && v49 <= v43.minimum)),
-      (element14.disabled = !v47() || (v49 !== null && v49 >= v43.maximum)));
+          : "当前温度 " + deviceState.currentTemperature + (deviceState.temperatureUnit || "°")),
+      (decreaseButton.disabled =
+        !canControl() || (temperature !== null && temperature <= deviceState.minimum)),
+      (increaseButton.disabled =
+        !canControl() || (temperature !== null && temperature >= deviceState.maximum)));
   }
-  function fn13() {
+  function resolveRangeValues() {
     return (
-      value3 || {
-        target_temp_low: v43.targetLow,
-        target_temp_high: v43.targetHigh,
+      pendingRangeValues || {
+        target_temp_low: deviceState.targetLow,
+        target_temp_high: deviceState.targetHigh,
       }
     );
   }
-  function fn14(arg30, arg31) {
-    if (!v47()) return;
-    const v50 = fn13(),
-      options3 = {
-        target_temp_low: v50.target_temp_low ?? v43.minimum,
-        target_temp_high: v50.target_temp_high ?? v43.maximum,
+  function stepRangeValue(rangeFieldKey, delta) {
+    if (!canControl()) return;
+    const baseRangeValues = resolveRangeValues(),
+      nextRangeValues = {
+        target_temp_low: baseRangeValues.target_temp_low ?? deviceState.minimum,
+        target_temp_high: baseRangeValues.target_temp_high ?? deviceState.maximum,
       };
-    ((options3[arg30] += v50[arg30] === null ? 0 : arg31 * v43.step),
-      (options3[arg30] =
-        arg30 === "target_temp_low"
-          ? Math.min(options3[arg30], options3.target_temp_high)
-          : Math.max(options3[arg30], options3.target_temp_low)),
-      fn16("set_temperature", options3));
+    ((nextRangeValues[rangeFieldKey] +=
+      baseRangeValues[rangeFieldKey] === null ? 0 : delta * deviceState.step),
+      (nextRangeValues[rangeFieldKey] =
+        rangeFieldKey === "target_temp_low"
+          ? Math.min(nextRangeValues[rangeFieldKey], nextRangeValues.target_temp_high)
+          : Math.max(nextRangeValues[rangeFieldKey], nextRangeValues.target_temp_low)),
+      requestControl("set_temperature", nextRangeValues));
   }
-  async function fn15(arg32) {
-    if (!v47()) return;
-    const v51 = num6,
-      value6 = num7 ? v46 : null;
-    let v52;
-    ((v46 = new Promise((arg33) => {
-      v52 = arg33;
+  async function sendControl(command) {
+    if (!canControl()) return;
+    const instanceAtSend = instanceId,
+      previousControlPromise = pendingControlCount ? pendingControlPromise : null;
+    let resolvePendingControl;
+    ((pendingControlPromise = new Promise((resolvePromise) => {
+      resolvePendingControl = resolvePromise;
     })),
-      num7++,
-      (v45 = true),
-      (text3 = ""),
-      arg32.service === "set_temperature" &&
-        (v48(),
-        "temperature" in arg32.data
-          ? (value4 = arg32.data.temperature)
-          : (value3 = {
-              ...arg32.data,
+      pendingControlCount++,
+      (isSending = true),
+      (errorText = ""),
+      command.service === "set_temperature" &&
+        (clearPendingState(),
+        "temperature" in command.data
+          ? (draftTemperature = command.data.temperature)
+          : (pendingRangeValues = {
+              ...command.data,
             }),
-        (value5 = setTimeout(() => {
-          ((value5 = null), (value4 = null), (value3 = null), v44 || fn19());
+        (temperatureTimeoutId = setTimeout(() => {
+          ((temperatureTimeoutId = null),
+            (draftTemperature = null),
+            (pendingRangeValues = null),
+            isDisposed || render());
         }, 8000))),
-      fn19());
-    let value7 = null;
+      render());
+    let feedbackSession = null;
     try {
-      if ((value6 && (await value6), v44 || v51 !== num6 || !v47())) return;
-      (v43.waterHeater && (value7 = v32.begin(arg32)),
-        await v18(
-          options2.item?.pedestalFan
+      if (
+        (previousControlPromise && (await previousControlPromise),
+        isDisposed || instanceAtSend !== instanceId || !canControl())
+      )
+        return;
+      (deviceState.waterHeater && (feedbackSession = feedbackTracker.begin(command)),
+        await onControl(
+          viewModel.item?.pedestalFan
             ? {
-                ...arg32,
+                ...command,
                 deviceKind: "fan",
               }
-            : arg32,
-          options2.item,
+            : command,
+          viewModel.item,
         ),
-        value7 && (v32.sent(value7), v32.sync(v43.raw)));
-    } catch (v53) {
-      (value7 && v32.fail(value7, v53?.message),
-        !v44 &&
-          v51 === num6 &&
-          ((text3 = v53?.message || "设备控制失败，请重试。"), num7 === 1 && v48()));
+        feedbackSession &&
+          (feedbackTracker.sent(feedbackSession), feedbackTracker.sync(deviceState.raw)));
+    } catch (controlError) {
+      (feedbackSession && feedbackTracker.fail(feedbackSession, controlError?.message),
+        !isDisposed &&
+          instanceAtSend === instanceId &&
+          ((errorText = controlError?.message || "设备控制失败，请重试。"),
+          pendingControlCount === 1 && clearPendingState()));
     } finally {
-      (v52(), !v44 && v51 === num6 && (num7--, (v45 = num7 > 0), fn19()));
+      (resolvePendingControl(),
+        !isDisposed &&
+          instanceAtSend === instanceId &&
+          (pendingControlCount--, (isSending = pendingControlCount > 0), render()));
     }
   }
-  function fn16(arg34, arg35) {
-    if (v47())
+  function requestControl(requestedService, controlValue) {
+    if (canControl())
       try {
-        return fn15(climateControl2(v43, arg34, arg35));
-      } catch (v54) {
-        ((text3 = v54.message), fn19());
+        return sendControl(climateControl2(deviceState, requestedService, controlValue));
+      } catch (controlBuildError) {
+        ((errorText = controlBuildError.message), render());
       }
   }
-  function fn17({ toggle: v55 = true } = {}) {
-    if (!v47() || (!v55 && v43.on)) return Promise.resolve(false);
+  function togglePower({ toggle: shouldToggle = true } = {}) {
+    if (!canControl() || (!shouldToggle && deviceState.on)) return Promise.resolve(false);
     try {
-      return fn15(climatePowerControl2(v43, v55 ? !v43.on : true, v20.get(v43.entityId)));
-    } catch (v56) {
-      return ((text3 = v56.message), fn19(), Promise.resolve(false));
+      return sendControl(
+        climatePowerControl2(
+          deviceState,
+          shouldToggle ? !deviceState.on : true,
+          modeHistory.get(deviceState.entityId),
+        ),
+      );
+    } catch (powerError) {
+      return ((errorText = powerError.message), render(), Promise.resolve(false));
     }
   }
-  (element12.addEventListener("click", () => fn17()),
-    element13.addEventListener("click", () =>
-      fn16("set_temperature", fn11() === null ? v43.minimum : fn11() - v43.step),
+  (powerButton.addEventListener("click", () => togglePower()),
+    decreaseButton.addEventListener("click", () =>
+      requestControl(
+        "set_temperature",
+        resolveTemperature() === null
+          ? deviceState.minimum
+          : resolveTemperature() - deviceState.step,
+      ),
     ),
-    element14.addEventListener("click", () =>
-      fn16("set_temperature", fn11() === null ? v43.minimum : fn11() + v43.step),
+    increaseButton.addEventListener("click", () =>
+      requestControl(
+        "set_temperature",
+        resolveTemperature() === null
+          ? deviceState.minimum
+          : resolveTemperature() + deviceState.step,
+      ),
     ));
-  function fn18() {
-    (je2.close(), v23(v33), (list3 = []));
-    const element28 = v21("div", "i3d-climate-primary-groups");
-    ((element28.hidden = true), v33.append(element28));
-    for (const [v57, v58, v59, v60, v61] of [
+  function buildChoiceGroups() {
+    (je2.close(), replaceChildren(mainGroupsElement), (choiceButtons = []));
+    const primaryGroupsElement = createElement("div", "i3d-climate-primary-groups");
+    ((primaryGroupsElement.hidden = true), mainGroupsElement.append(primaryGroupsElement));
+    for (const [groupLabel, optionValues, field, service, optionLabels] of [
       [
         "运行模式",
-        v43.purifier
-          ? v43.presetModes
-          : v43.waterHeater && !v43.nativePower
-            ? v43.modes
-            : v43.modes.filter((arg36) => arg36 !== "off"),
-        v43.purifier ? "presetMode" : "mode",
-        v43.purifier ? "set_preset_mode" : v43.waterHeater ? "set_operation_mode" : "set_hvac_mode",
+        deviceState.purifier
+          ? deviceState.presetModes
+          : deviceState.waterHeater && !deviceState.nativePower
+            ? deviceState.modes
+            : deviceState.modes.filter((mode) => mode !== "off"),
+        deviceState.purifier ? "presetMode" : "mode",
+        deviceState.purifier
+          ? "set_preset_mode"
+          : deviceState.waterHeater
+            ? "set_operation_mode"
+            : "set_hvac_mode",
         Object.fromEntries(
-          (v43.purifier ? v43.presetModes : v43.modes).map((arg37) => [
-            arg37,
-            v43.purifier
-              ? Be[String(arg37).trim().toLowerCase()] || arg37
-              : climateModeLabel2(arg37, v43.waterHeater ? "water-heater" : "air-conditioner"),
+          (deviceState.purifier ? deviceState.presetModes : deviceState.modes).map((modeValue) => [
+            modeValue,
+            deviceState.purifier
+              ? purifierPresetLabels[String(modeValue).trim().toLowerCase()] || modeValue
+              : climateModeLabel2(
+                  modeValue,
+                  deviceState.waterHeater ? "water-heater" : "air-conditioner",
+                ),
           ]),
         ),
       ],
-      ["风速", v43.fanModes, "fanMode", "set_fan_mode", Re],
+      ["风速", deviceState.fanModes, "fanMode", "set_fan_mode", fanModeLabels],
       [
-        v43.horizontalSwingModes?.length ? "上下摆风" : "摆风",
-        v43.swingModes,
+        deviceState.horizontalSwingModes?.length ? "上下摆风" : "摆风",
+        deviceState.swingModes,
         "swingMode",
         "set_swing_mode",
-        Object.fromEntries(v43.swingModes.map((arg38) => [arg38, Me(arg38)])),
+        Object.fromEntries(
+          deviceState.swingModes.map((swingMode) => [swingMode, formatSwingModeLabel(swingMode)]),
+        ),
       ],
       [
         "左右摆风",
-        v43.horizontalSwingModes || [],
+        deviceState.horizontalSwingModes || [],
         "horizontalSwingMode",
         "set_swing_horizontal_mode",
         Object.fromEntries(
-          (v43.horizontalSwingModes || []).map((arg39) => [arg39, Me(arg39, "horizontal")]),
+          (deviceState.horizontalSwingModes || []).map((horizontalSwingValue) => [
+            horizontalSwingValue,
+            formatSwingModeLabel(horizontalSwingValue, "horizontal"),
+          ]),
         ),
       ],
       [
         "预设模式",
-        !v43.purifier && !v43.waterHeater ? v43.presetModes : [],
+        !deviceState.purifier && !deviceState.waterHeater ? deviceState.presetModes : [],
         "presetMode",
         "set_preset_mode",
         Object.fromEntries(
-          (v43.presetModes || []).map((arg40) => [arg40, climateModeLabel2(arg40)]),
+          (deviceState.presetModes || []).map((presetModeValue) => [
+            presetModeValue,
+            climateModeLabel2(presetModeValue),
+          ]),
         ),
       ],
       [
         "方向",
-        v43.purifier && v43.directionSupported ? ["forward", "reverse"] : [],
+        deviceState.purifier && deviceState.directionSupported ? ["forward", "reverse"] : [],
         "direction",
         "set_direction",
         {
@@ -632,353 +741,430 @@ export function createClimatePanel({
         },
       ],
     ]) {
-      if (!v58.length) continue;
-      const v62 = v21("section", "i3d-climate-option-group"),
-        v63 = v21("h4", "", v57);
-      v62.append(v63);
+      if (!optionValues.length) continue;
+      const groupElement = createElement("section", "i3d-climate-option-group"),
+        groupHeadingElement = createElement("h4", "", groupLabel);
+      groupElement.append(groupHeadingElement);
       const includes =
-          !v43.purifier && !v43.waterHeater && ["mode", "fanMode", "presetMode"].includes(v59),
-        v64 = includes ? element28 : v33;
+          !deviceState.purifier &&
+          !deviceState.waterHeater &&
+          ["mode", "fanMode", "presetMode"].includes(field),
+        groupContainer = includes ? primaryGroupsElement : mainGroupsElement;
       if (
-        (includes && (element28.hidden = false),
+        (includes && (primaryGroupsElement.hidden = false),
         includes ||
-          (!v43.purifier &&
-            !v43.waterHeater &&
-            (v58.length > 4 || v58.some((arg41) => [...(v61[arg41] || arg41)].length > 8))))
+          (!deviceState.purifier &&
+            !deviceState.waterHeater &&
+            (optionValues.length > 4 ||
+              optionValues.some(
+                (listedOption) => [...(optionLabels[listedOption] || listedOption)].length > 8,
+              ))))
       ) {
-        const v65 = je2.create(v57, v58, v61, (arg42) => fn16(v60, arg42));
-        (list3.push(
-          Object.assign(v65, {
-            field: v59,
+        const groupPicker = je2.create(groupLabel, optionValues, optionLabels, (pickedValue) =>
+          requestControl(service, pickedValue),
+        );
+        (choiceButtons.push(
+          Object.assign(groupPicker, {
+            field: field,
             select: true,
           }),
         ),
-          v62.append(v65.picker),
-          v64.append(v62));
+          groupElement.append(groupPicker.picker),
+          groupContainer.append(groupElement));
         continue;
       }
-      const element29 = v21("div", "i3d-climate-choices");
-      (element29.setAttribute("role", "group"),
-        element29.setAttribute("aria-label", v57),
-        options2.item?.pedestalFan &&
-          v59 === "presetMode" &&
-          element29.classList.add("i3d-fan-modes"));
-      for (const v66 of v58) {
-        const element30 = v21("button", "i3d-climate-choice", v61[v66] || v66);
-        ((element30.type = "button"),
-          element30.addEventListener("click", () => fn16(v60, v66)),
-          list3.push({
-            element: element30,
-            field: v59,
-            value: v66,
+      const choicesElement = createElement("div", "i3d-climate-choices");
+      (choicesElement.setAttribute("role", "group"),
+        choicesElement.setAttribute("aria-label", groupLabel),
+        viewModel.item?.pedestalFan &&
+          field === "presetMode" &&
+          choicesElement.classList.add("i3d-fan-modes"));
+      for (const optionValue of optionValues) {
+        const optionButton = createElement(
+          "button",
+          "i3d-climate-choice",
+          optionLabels[optionValue] || optionValue,
+        );
+        ((optionButton.type = "button"),
+          optionButton.addEventListener("click", () => requestControl(service, optionValue)),
+          choiceButtons.push({
+            element: optionButton,
+            field: field,
+            value: optionValue,
           }),
-          element29.append(element30));
+          choicesElement.append(optionButton));
       }
-      (v62.append(element29), v64.append(v62));
+      (groupElement.append(choicesElement), groupContainer.append(groupElement));
     }
-    if (v43.purifier && v43.oscillatingSupported) {
-      const v67 = v21("section", "i3d-climate-option-group"),
-        v68 = v21("h4", "", options2.item?.pedestalFan ? "摇头" : "摆动"),
-        element31 = v21("button", "i3d-climate-choice", v43.oscillating ? "已开启" : "已关闭");
-      ((element31.type = "button"),
-        element31.addEventListener("click", () => fn16("oscillate", !v43.oscillating)),
-        list3.push({
-          element: element31,
+    if (deviceState.purifier && deviceState.oscillatingSupported) {
+      const oscillatingGroupElement = createElement("section", "i3d-climate-option-group"),
+        oscillatingTitleElement = createElement(
+          "h4",
+          "",
+          viewModel.item?.pedestalFan ? "摇头" : "摆动",
+        ),
+        oscillatingButton = createElement(
+          "button",
+          "i3d-climate-choice",
+          deviceState.oscillating ? "已开启" : "已关闭",
+        );
+      ((oscillatingButton.type = "button"),
+        oscillatingButton.addEventListener("click", () =>
+          requestControl("oscillate", !deviceState.oscillating),
+        ),
+        choiceButtons.push({
+          element: oscillatingButton,
           field: "oscillating",
           value: true,
         }),
-        v67.append(v68, element31),
-        v33.append(v67));
+        oscillatingGroupElement.append(oscillatingTitleElement, oscillatingButton),
+        mainGroupsElement.append(oscillatingGroupElement));
     }
   }
-  function fn19() {
-    if (v44) return;
-    const options4 = options2.item || {},
-      v69 = !!options4.entityId,
-      v70 = v47();
-    (element9.setAttribute(
+  function render() {
+    if (isDisposed) return;
+    const activeItem = viewModel.item || {},
+      hasEntity = !!activeItem.entityId,
+      isControllable = canControl();
+    (rootElement.setAttribute(
       "aria-label",
-      options4.climateType === "bath-heater"
+      activeItem.climateType === "bath-heater"
         ? "浴霸控制"
-        : v43.waterHeater
+        : deviceState.waterHeater
           ? "热水器控制"
-          : options4.airPurifier
+          : activeItem.airPurifier
             ? "空气净化器控制"
-            : v43.purifier
+            : deviceState.purifier
               ? "风扇控制"
               : "空调控制",
     ),
-      (element10.textContent = options4.label || v43.name || "空调"),
-      (element10.title = element10.textContent),
-      (element11.textContent = options2.editing
+      (titleElement.textContent = activeItem.label || deviceState.name || "空调"),
+      (titleElement.title = titleElement.textContent),
+      (statusElement.textContent = viewModel.editing
         ? "控制预览"
-        : v69
-          ? v43.available
-            ? v43.on
-              ? climateModeLabel2(v43.mode)
+        : hasEntity
+          ? deviceState.available
+            ? deviceState.on
+              ? climateModeLabel2(deviceState.mode)
               : "已关闭"
             : "设备不可用"
           : "尚未绑定设备"),
-      v43.purifier &&
-        v43.available &&
-        !options2.editing &&
-        (element11.textContent = v43.on ? (options4.pedestalFan ? "运行中" : "净化中") : "已关闭"),
-      v43.waterHeater &&
-        v43.available &&
-        !options2.editing &&
-        (element11.textContent = waterHeaterStatusLabel2(v43.raw)),
-      options4.waterHeater &&
-        !v69 &&
-        !options2.editing &&
-        (options4.deviceId || options4.extraControls?.length) &&
-        (element11.textContent = "各功能独立控制"),
-      options4.climateType === "bath-heater" &&
-        !options2.editing &&
-        (element11.textContent = bathHeaterState2(options4, options2.states).label));
-    const value8 = options4.airPurifier ? purifierState2(options4, options2.states) : null;
-    (value8 && !options2.editing && (element11.textContent = value8.label),
-      element9.classList.toggle("is-air-conditioner-panel", !v43.purifier && !v43.waterHeater),
-      element9.classList.toggle("is-fan-panel", !!options4.pedestalFan),
-      (element23.className = "i3d-control-range"),
-      element23.setAttribute("aria-label", options4.pedestalFan ? "电风扇风速" : "净化器风速"),
-      element24.setAttribute(
+      deviceState.purifier &&
+        deviceState.available &&
+        !viewModel.editing &&
+        (statusElement.textContent = deviceState.on
+          ? activeItem.pedestalFan
+            ? "运行中"
+            : "净化中"
+          : "已关闭"),
+      deviceState.waterHeater &&
+        deviceState.available &&
+        !viewModel.editing &&
+        (statusElement.textContent = waterHeaterStatusLabel2(deviceState.raw)),
+      activeItem.waterHeater &&
+        !hasEntity &&
+        !viewModel.editing &&
+        (activeItem.deviceId || activeItem.extraControls?.length) &&
+        (statusElement.textContent = "各功能独立控制"),
+      activeItem.climateType === "bath-heater" &&
+        !viewModel.editing &&
+        (statusElement.textContent = bathHeaterState2(activeItem, viewModel.states).label));
+    const purifierStatus = activeItem.airPurifier
+      ? purifierState2(activeItem, viewModel.states)
+      : null;
+    (purifierStatus && !viewModel.editing && (statusElement.textContent = purifierStatus.label),
+      rootElement.classList.toggle(
+        "is-air-conditioner-panel",
+        !deviceState.purifier && !deviceState.waterHeater,
+      ),
+      rootElement.classList.toggle("is-fan-panel", !!activeItem.pedestalFan),
+      (fanSpeedRangeElement.className = "i3d-control-range"),
+      fanSpeedRangeElement.setAttribute(
         "aria-label",
-        options4.pedestalFan ? "电风扇风速档位" : "净化器风速档位",
+        activeItem.pedestalFan ? "电风扇风速" : "净化器风速",
+      ),
+      speedLevelsElement.setAttribute(
+        "aria-label",
+        activeItem.pedestalFan ? "电风扇风速档位" : "净化器风速档位",
       ));
-    const v71 = value8 || v43;
-    ((element9.dataset.climateMode = v71.available ? v71.visualMode : "off"),
-      element9.classList.toggle("is-preview", !!options2.editing),
-      element9.classList.toggle("is-on", v71.available && v71.on),
-      element9.classList.toggle("is-running", v71.available && v71.running),
-      (element17.hidden = !v43.waterHeater || !v43.awaySupported),
-      (element17.disabled = !v70 || v45),
-      (element17.textContent = v43.away ? "离家模式 · 已开启" : "离家模式 · 已关闭"),
-      element17.setAttribute("aria-pressed", String(!!v43.away)),
-      (element12.hidden =
+    const displayState = purifierStatus || deviceState;
+    ((rootElement.dataset.climateMode = displayState.available ? displayState.visualMode : "off"),
+      rootElement.classList.toggle("is-preview", !!viewModel.editing),
+      rootElement.classList.toggle("is-on", displayState.available && displayState.on),
+      rootElement.classList.toggle("is-running", displayState.available && displayState.running),
+      (awayModeButton.hidden = !deviceState.waterHeater || !deviceState.awaySupported),
+      (awayModeButton.disabled = !isControllable || isSending),
+      (awayModeButton.textContent = deviceState.away ? "离家模式 · 已开启" : "离家模式 · 已关闭"),
+      awayModeButton.setAttribute("aria-pressed", String(!!deviceState.away)),
+      (powerButton.hidden =
         !!(
-          (options4.climateType === "bath-heater" || options4.airPurifier) &&
-          !options4.entityId
-        ) || !!(v43.waterHeater && !v43.canTurnOn && !v43.canTurnOff)),
-      (element12.textContent = v43.on ? "关闭" : "开启"),
-      element9.setAttribute("aria-busy", String(v45 || !!options2.busy)),
-      (element12.disabled =
-        !v70 ||
-        (!v43.turnOnSupported && !v43.modes.some((arg43) => arg43 !== "off")) ||
-        (v43.on && !v43.waterHeater && !v43.modes.includes("off"))),
-      !v43.waterHeater &&
-        !v43.purifier &&
-        (element12.disabled = !v70 || (v43.on ? !v43.canTurnOff : !v43.canTurnOn)),
-      v43.waterHeater &&
-        (element12.disabled = !v70 || v45 || (v43.on ? !v43.canTurnOff : !v43.canTurnOn)),
-      element12.setAttribute("aria-pressed", String(v43.on)),
-      element12.setAttribute(
+          (activeItem.climateType === "bath-heater" || activeItem.airPurifier) &&
+          !activeItem.entityId
+        ) || !!(deviceState.waterHeater && !deviceState.canTurnOn && !deviceState.canTurnOff)),
+      (powerButton.textContent = deviceState.on ? "关闭" : "开启"),
+      rootElement.setAttribute("aria-busy", String(isSending || !!viewModel.busy)),
+      (powerButton.disabled =
+        !isControllable ||
+        (!deviceState.turnOnSupported && !deviceState.modes.some((modeId) => modeId !== "off")) ||
+        (deviceState.on && !deviceState.waterHeater && !deviceState.modes.includes("off"))),
+      !deviceState.waterHeater &&
+        !deviceState.purifier &&
+        (powerButton.disabled =
+          !isControllable || (deviceState.on ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
+      deviceState.waterHeater &&
+        (powerButton.disabled =
+          !isControllable ||
+          isSending ||
+          (deviceState.on ? !deviceState.canTurnOff : !deviceState.canTurnOn)),
+      powerButton.setAttribute("aria-pressed", String(deviceState.on)),
+      powerButton.setAttribute(
         "aria-label",
-        element10.textContent +
+        titleElement.textContent +
           "，" +
-          (v43.on ? "关闭" : "开启") +
-          (options4.climateType === "bath-heater"
+          (deviceState.on ? "关闭" : "开启") +
+          (activeItem.climateType === "bath-heater"
             ? "浴霸主实体"
-            : v43.waterHeater
+            : deviceState.waterHeater
               ? "热水器"
-              : options4.pedestalFan
+              : activeItem.pedestalFan
                 ? "电风扇"
-                : v43.purifier
+                : deviceState.purifier
                   ? "空气净化器"
                   : "空调"),
       ),
-      (v28.hidden = element15.hidden = !v43.temperatureSupported || v43.useTemperatureRange),
-      (v35.hidden = !v43.useTemperatureRange),
-      (v34.hidden = !v43.purifier || !v43.percentageSupported),
-      (element23.disabled = !v70),
-      (element23.step = String(v43.percentageStep || 1)),
-      (element23.value = String(v43.percentage ?? 0)),
-      (element22.textContent = "风速 " + (v43.percentage ?? "--") + "%"));
-    const list4 = v43.speedLevels || [],
-      stringify = JSON.stringify([v43.entityId, list4]);
-    ((element23.hidden = list4.length > 0),
-      (element24.hidden = !list4.length),
-      text2 !== stringify &&
-        ((text2 = stringify),
-        v23(element24),
-        (list = list4.map((arg44) => {
-          const element32 = v21("button", "i3d-climate-choice", arg44.label);
+      (thermostatSlotElement.hidden = targetOutputElement.hidden =
+        !deviceState.temperatureSupported || deviceState.useTemperatureRange),
+      (temperatureRangeElement.hidden = !deviceState.useTemperatureRange),
+      (fanSpeedGroupElement.hidden = !deviceState.purifier || !deviceState.percentageSupported),
+      (fanSpeedRangeElement.disabled = !isControllable),
+      (fanSpeedRangeElement.step = String(deviceState.percentageStep || 1)),
+      (fanSpeedRangeElement.value = String(deviceState.percentage ?? 0)),
+      (fanSpeedLabelElement.textContent = "风速 " + (deviceState.percentage ?? "--") + "%"));
+    const speedLevels = deviceState.speedLevels || [],
+      stringify = JSON.stringify([deviceState.entityId, speedLevels]);
+    ((fanSpeedRangeElement.hidden = speedLevels.length > 0),
+      (speedLevelsElement.hidden = !speedLevels.length),
+      lastSpeedSignature !== stringify &&
+        ((lastSpeedSignature = stringify),
+        replaceChildren(speedLevelsElement),
+        (list = speedLevels.map((speedLevel) => {
+          const speedChoiceButton = createElement("button", "i3d-climate-choice", speedLevel.label);
           return (
-            (element32.type = "button"),
-            element32.addEventListener("click", () => fn16("set_percentage", arg44.percentage)),
-            element24.append(element32),
+            (speedChoiceButton.type = "button"),
+            speedChoiceButton.addEventListener("click", () =>
+              requestControl("set_percentage", speedLevel.percentage),
+            ),
+            speedLevelsElement.append(speedChoiceButton),
             {
-              button: element32,
-              ...arg44,
+              button: speedChoiceButton,
+              ...speedLevel,
             }
           );
         }))));
-    let v72 = -1;
-    (v43.on &&
-      v43.percentage > 0 &&
-      (v72 = list4.findIndex((arg45) => Math.abs(arg45.percentage - v43.percentage) <= 1)),
-      list4.length &&
-        (element22.textContent =
-          v72 >= 0
-            ? "风速 · " + list4[v72].label
-            : v43.presetMode
+    let activeSpeedIndex = -1;
+    (deviceState.on &&
+      deviceState.percentage > 0 &&
+      (activeSpeedIndex = speedLevels.findIndex(
+        (speedEntry) => Math.abs(speedEntry.percentage - deviceState.percentage) <= 1,
+      )),
+      speedLevels.length &&
+        (fanSpeedLabelElement.textContent =
+          activeSpeedIndex >= 0
+            ? "风速 · " + speedLevels[activeSpeedIndex].label
+            : deviceState.presetMode
               ? "风速 · 由模式控制"
-              : v43.on
-                ? "风速 " + (v43.percentage ?? "--") + "%"
+              : deviceState.on
+                ? "风速 " + (deviceState.percentage ?? "--") + "%"
                 : "风速 · 已关闭"),
-      list.forEach(({ button: v73 }, arg46) => {
-        ((v73.disabled = !v70), v73.setAttribute("aria-pressed", String(arg46 === v72)));
+      list.forEach(({ button: speedButton }, speedIndex) => {
+        ((speedButton.disabled = !isControllable),
+          speedButton.setAttribute("aria-pressed", String(speedIndex === activeSpeedIndex)));
       }),
-      fn12());
-    const v74 = fn13();
-    for (const v75 of list2) {
-      const v76 = v74[v75.field],
-        v77 = v75.field === "target_temp_low";
-      ((v75.output.textContent = v76 == null ? "--" : "" + v76 + (v43.temperatureUnit || "°")),
-        (v75.decrease.disabled =
-          !v70 ||
-          (v76 !== null && v76 <= (v77 ? v43.minimum : (v74.target_temp_low ?? v43.minimum)))),
-        (v75.increase.disabled =
-          !v70 ||
-          (v76 !== null && v76 >= (v77 ? (v74.target_temp_high ?? v43.maximum) : v43.maximum))));
+      syncTemperature());
+    const rangeValues = resolveRangeValues();
+    for (const rangeRow of rangeRows) {
+      const rowValue = rangeValues[rangeRow.field],
+        isLowerBound = rangeRow.field === "target_temp_low";
+      ((rangeRow.output.textContent =
+        rowValue == null ? "--" : "" + rowValue + (deviceState.temperatureUnit || "°")),
+        (rangeRow.decrease.disabled =
+          !isControllable ||
+          (rowValue !== null &&
+            rowValue <=
+              (isLowerBound
+                ? deviceState.minimum
+                : (rangeValues.target_temp_low ?? deviceState.minimum)))),
+        (rangeRow.increase.disabled =
+          !isControllable ||
+          (rowValue !== null &&
+            rowValue >=
+              (isLowerBound
+                ? (rangeValues.target_temp_high ?? deviceState.maximum)
+                : deviceState.maximum))));
     }
-    ((element19.hidden = v43.waterHeater
-      ? v43.temperatureSupported || (v43.currentTemperature === null && v43.temperature === null)
-      : !v43.useTemperatureRange &&
-        (v43.temperatureSupported || v43.currentTemperature === null || v43.purifier)),
-      (element19.textContent = v43.waterHeater
+    ((temperatureIntervalElement.hidden = deviceState.waterHeater
+      ? deviceState.temperatureSupported ||
+        (deviceState.currentTemperature === null && deviceState.temperature === null)
+      : !deviceState.useTemperatureRange &&
+        (deviceState.temperatureSupported ||
+          deviceState.currentTemperature === null ||
+          deviceState.purifier)),
+      (temperatureIntervalElement.textContent = deviceState.waterHeater
         ? "当前水温 " +
-          (v43.currentTemperature ?? "--") +
-          v43.temperatureUnit +
+          (deviceState.currentTemperature ?? "--") +
+          deviceState.temperatureUnit +
           " · 目标 " +
-          (v43.temperature ?? "--") +
-          v43.temperatureUnit +
+          (deviceState.temperature ?? "--") +
+          deviceState.temperatureUnit +
           "（只读）"
-        : "当前温度 " + (v43.currentTemperature ?? "--") + (v43.temperatureUnit || "°")));
-    const stringify2 = JSON.stringify([
-      v43.entityId,
-      !!options4.pedestalFan,
-      v43.modes,
-      v43.fanModes,
-      v43.swingModes,
-      v43.horizontalSwingModes,
-      v43.presetModes,
-      v43.directionSupported,
-      v43.oscillatingSupported,
-      v43.nativePower,
+        : "当前温度 " +
+          (deviceState.currentTemperature ?? "--") +
+          (deviceState.temperatureUnit || "°")));
+    const optionsSignature = JSON.stringify([
+      deviceState.entityId,
+      !!activeItem.pedestalFan,
+      deviceState.modes,
+      deviceState.fanModes,
+      deviceState.swingModes,
+      deviceState.horizontalSwingModes,
+      deviceState.presetModes,
+      deviceState.directionSupported,
+      deviceState.oscillatingSupported,
+      deviceState.nativePower,
     ]);
-    text4 !== stringify2 && ((text4 = stringify2), fn18());
-    for (const v78 of list3)
+    renderedGroupsSignature !== optionsSignature &&
+      ((renderedGroupsSignature = optionsSignature), buildChoiceGroups());
+    for (const controlEntry of choiceButtons)
       if (
-        (v78.field === "oscillating" &&
-          (v78.element.textContent = v43.oscillating ? "已开启" : "已关闭"),
-        (v78.element.disabled = !v70),
-        v78.select)
+        (controlEntry.field === "oscillating" &&
+          (controlEntry.element.textContent = deviceState.oscillating ? "已开启" : "已关闭"),
+        (controlEntry.element.disabled = !isControllable),
+        controlEntry.select)
       ) {
-        const text5 = v43[v78.field] || "",
-          v79 = v78.labels[text5] || (v78.field === "mode" ? climateModeLabel2(text5) : text5);
-        je2.sync(v78, text5, v79, !v70);
-      } else v78.element.setAttribute("aria-pressed", String(v43[v78.field] === v78.value));
-    ((element20.hidden =
-      v43.available &&
-      (v43.purifier ||
-        v43.temperatureSupported ||
-        v43.rangeSupported ||
-        v43.canTurnOn ||
-        v43.canTurnOff ||
-        list3.length > 0 ||
-        (v43.waterHeater && (v43.canTurnOn || v43.canTurnOff || v43.awaySupported)))),
-      (options4.climateType === "bath-heater" || options4.airPurifier || options4.waterHeater) &&
-        options4.extraControls?.length &&
-        (element20.hidden = true),
-      (element20.textContent =
-        options4.waterHeater && !v69 && options4.deviceId
+        const entryValue = deviceState[controlEntry.field] || "",
+          entryLabel =
+            controlEntry.labels[entryValue] ||
+            (controlEntry.field === "mode" ? climateModeLabel2(entryValue) : entryValue);
+        je2.sync(controlEntry, entryValue, entryLabel, !isControllable);
+      } else
+        controlEntry.element.setAttribute(
+          "aria-pressed",
+          String(deviceState[controlEntry.field] === controlEntry.value),
+        );
+    ((emptyStateElement.hidden =
+      deviceState.available &&
+      (deviceState.purifier ||
+        deviceState.temperatureSupported ||
+        deviceState.rangeSupported ||
+        deviceState.canTurnOn ||
+        deviceState.canTurnOff ||
+        choiceButtons.length > 0 ||
+        (deviceState.waterHeater &&
+          (deviceState.canTurnOn || deviceState.canTurnOff || deviceState.awaySupported)))),
+      (activeItem.climateType === "bath-heater" ||
+        activeItem.airPurifier ||
+        activeItem.waterHeater) &&
+        activeItem.extraControls?.length &&
+        (emptyStateElement.hidden = true),
+      (emptyStateElement.textContent =
+        activeItem.waterHeater && !hasEntity && activeItem.deviceId
           ? "请在附加功能中选择要显示的功能"
-          : v69
-            ? v43.raw?.state === "unavailable"
+          : hasEntity
+            ? deviceState.raw?.state === "unavailable"
               ? "设备离线"
               : ""
             : "尚未绑定设备"),
-      (element20.hidden ||= !element20.textContent),
-      (element21.textContent = options2.error || text3),
-      (element21.hidden = !element21.textContent));
+      (emptyStateElement.hidden ||= !emptyStateElement.textContent),
+      (errorElement.textContent = viewModel.error || errorText),
+      (errorElement.hidden = !errorElement.textContent));
   }
-  function fn20(v80 = {}) {
-    if (v44) return;
-    const text6 = v80.item?.entityId || "";
-    text6 !== v43.entityId &&
-      (num6++,
-      (num7 = 0),
-      (v46 = Promise.resolve()),
-      (v45 = false),
-      (text3 = ""),
-      v48(),
-      v32.dispose(),
-      (v32 = v31()),
-      (element18.textContent = ""),
-      (element18.hidden = true));
-    const useTemperatureRange = v43.useTemperatureRange;
-    ((options2 = v80),
-      v42.update({
-        item: v80.item,
-        states: v80.states || {},
-        editing: v80.editing || v80.busy,
+  function update(nextViewModel = {}) {
+    if (isDisposed) return;
+    const nextEntityId = nextViewModel.item?.entityId || "";
+    nextEntityId !== deviceState.entityId &&
+      (instanceId++,
+      (pendingControlCount = 0),
+      (pendingControlPromise = Promise.resolve()),
+      (isSending = false),
+      (errorText = ""),
+      clearPendingState(),
+      feedbackTracker.dispose(),
+      (feedbackTracker = createFeedback()),
+      (feedbackElement.textContent = ""),
+      (feedbackElement.hidden = true));
+    const useTemperatureRange = deviceState.useTemperatureRange;
+    ((viewModel = nextViewModel),
+      purifierExtrasController.update({
+        item: nextViewModel.item,
+        states: nextViewModel.states || {},
+        editing: nextViewModel.editing || nextViewModel.busy,
       }),
-      (v43 =
-        v80.state?.entityId === text6 && Array.isArray(v80.state?.modes)
-          ? v80.state
-          : climateState2(text6, v80.state)),
-      v80.item?.airPurifier &&
-        !text6 &&
-        (v43 = {
-          ...v43,
+      (deviceState =
+        nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)
+          ? nextViewModel.state
+          : climateState2(nextEntityId, nextViewModel.state)),
+      nextViewModel.item?.airPurifier &&
+        !nextEntityId &&
+        (deviceState = {
+          ...deviceState,
           purifier: true,
           name: "空气净化器",
         }),
-      v80.item?.waterHeater &&
-        !text6 &&
-        (v43 = {
-          ...v43,
+      nextViewModel.item?.waterHeater &&
+        !nextEntityId &&
+        (deviceState = {
+          ...deviceState,
           waterHeater: true,
           name: "热水器",
         }),
-      useTemperatureRange !== v43.useTemperatureRange && v48(),
-      v43.waterHeater && v32.sync(v43.raw),
-      v80.editing || v20.observe(text6, v43.raw),
-      value4 !== null &&
-        v43.temperature !== null &&
-        Math.abs(v43.temperature - value4) < Math.max(0.001, v43.step / 100) &&
-        v48(),
-      value3 &&
+      useTemperatureRange !== deviceState.useTemperatureRange && clearPendingState(),
+      deviceState.waterHeater && feedbackTracker.sync(deviceState.raw),
+      nextViewModel.editing || modeHistory.observe(nextEntityId, deviceState.raw),
+      draftTemperature !== null &&
+        deviceState.temperature !== null &&
+        Math.abs(deviceState.temperature - draftTemperature) <
+          Math.max(0.001, deviceState.step / 100) &&
+        clearPendingState(),
+      pendingRangeValues &&
         ["target_temp_low", "target_temp_high"].every(
-          (arg47, arg48) =>
-            [v43.targetLow, v43.targetHigh][arg48] !== null &&
-            Math.abs([v43.targetLow, v43.targetHigh][arg48] - value3[arg47]) <
-              Math.max(0.001, v43.step / 100),
+          (rangeFieldName, rangeIndex) =>
+            [deviceState.targetLow, deviceState.targetHigh][rangeIndex] !== null &&
+            Math.abs(
+              [deviceState.targetLow, deviceState.targetHigh][rangeIndex] -
+                pendingRangeValues[rangeFieldName],
+            ) < Math.max(0.001, deviceState.step / 100),
         ) &&
-        v48(),
-      fn19());
+        clearPendingState(),
+      render());
   }
-  function fn21() {
-    v44 || ((v44 = true), num6++, je2.close(), v48(), v32.dispose(), v42.dispose(), v23(element9));
+  function dispose() {
+    isDisposed ||
+      ((isDisposed = true),
+      instanceId++,
+      je2.close(),
+      clearPendingState(),
+      feedbackTracker.dispose(),
+      purifierExtrasController.dispose(),
+      replaceChildren(rootElement));
   }
   return (
-    fn19(),
+    render(),
     {
-      root: element9,
-      update: fn20,
-      power: fn17,
-      dispose: fn21,
+      root: rootElement,
+      update: update,
+      power: togglePower,
+      dispose: dispose,
       cancelPending() {
-        (num6++,
+        (instanceId++,
           je2.close(),
-          (num7 = 0),
-          (v46 = Promise.resolve()),
-          (v45 = false),
-          v48(),
-          v32.dispose(),
-          (v32 = v31()),
-          (element18.textContent = ""),
-          (element18.hidden = true));
+          (pendingControlCount = 0),
+          (pendingControlPromise = Promise.resolve()),
+          (isSending = false),
+          clearPendingState(),
+          feedbackTracker.dispose(),
+          (feedbackTracker = createFeedback()),
+          (feedbackElement.textContent = ""),
+          (feedbackElement.hidden = true));
       },
     }
   );

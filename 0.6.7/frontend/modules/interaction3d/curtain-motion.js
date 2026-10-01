@@ -1,12 +1,12 @@
 const {
-    normalizeCurtainTrack: H,
-    createCurtainTrack: ct,
-    createTrackClothGeometry: dt,
-    poseTrackCloth: pt,
-    curtainPanelRanges: mt,
-    createDreamBladeGeometry: ht,
-    poseDreamBlades: gt,
-    createRollerCurtain: ft,
+    normalizeCurtainTrack: normalizeTrack,
+    createCurtainTrack: createTrack,
+    createTrackClothGeometry: buildTrackClothGeometry,
+    poseTrackCloth: poseClothGeometry,
+    curtainPanelRanges: samplePanelRanges,
+    createDreamBladeGeometry: createBladeGeometry,
+    poseDreamBlades: poseBladeGeometry,
+    createRollerCurtain: createRollerCurtain,
   } = await (import.meta.url.startsWith("file:")
     ? import(
         new URL(
@@ -20,212 +20,282 @@ const {
           import.meta.url,
         )
       )),
-  it = new Set(["left", "right", "split"]),
-  E = new Set(["cloth", "band"]),
-  yt = new Set(["rod", "cap", ...E]),
-  et = 1000 / 30,
-  vt = 420,
-  Mt = 0.12,
-  bt = 0.15,
-  Y = (arg1) => (arg1.curtainFabric === "sheer" ? "sheer" : "cloth"),
-  tt = (arg2) =>
-    !arg2.entityId && Number.isFinite(arg2.unboundPosition)
-      ? Math.max(0, Math.min(100, arg2.unboundPosition))
+  coverDirectionSet = new Set(["left", "right", "split"]),
+  clothPartSet = new Set(["cloth", "band"]),
+  trackPartSet = new Set(["rod", "cap", ...clothPartSet]),
+  FRAME_INTERVAL_MS = 1000 / 30,
+  MOTION_DURATION_MS = 420,
+  MIN_PANEL_SCALE = 0.12,
+  CLOTH_FOLD_SPACING_METERS = 0.15,
+  resolveCurtainFabric = (fabricBinding) =>
+    fabricBinding.curtainFabric === "sheer" ? "sheer" : "cloth",
+  resolveUnboundPosition = (unboundBinding) =>
+    !unboundBinding.entityId && Number.isFinite(unboundBinding.unboundPosition)
+      ? Math.max(0, Math.min(100, unboundBinding.unboundPosition))
       : 0,
-  nt = (arg3) =>
+  resolveFoldCount = (widthBinding) =>
     Math.max(
       4,
       Math.min(
         96,
         Math.round(
-          (Number(arg3.curtainWidth) || 1.8) /
-            (Z(arg3) === "split" ? 2 : 1) /
-            (Y(arg3) === "sheer" ? 0.1 : bt),
+          (Number(widthBinding.curtainWidth) || 1.8) /
+            (resolveCoverDirection(widthBinding) === "split" ? 2 : 1) /
+            (resolveCurtainFabric(widthBinding) === "sheer" ? 0.1 : CLOTH_FOLD_SPACING_METERS),
         ),
       ),
     ),
-  rt = (arg4, arg5) => JSON.stringify([String(arg4 ?? ""), String(arg5 ?? "")]),
-  Z = (arg6) =>
-    it.has(arg6.coverDirection)
-      ? arg6.coverDirection
-      : it.has(arg6.curtainPosition)
-        ? arg6.curtainPosition
+  sceneModelKey = (floorId, modelId) =>
+    JSON.stringify([String(floorId ?? ""), String(modelId ?? "")]),
+  resolveCoverDirection = (directionBinding) =>
+    coverDirectionSet.has(directionBinding.coverDirection)
+      ? directionBinding.coverDirection
+      : coverDirectionSet.has(directionBinding.curtainPosition)
+        ? directionBinding.curtainPosition
         : "split",
-  st = (arg7) =>
-    typeof arg7?.position == "number" && Number.isFinite(arg7.position)
-      ? Math.max(0, Math.min(100, arg7.position))
+  resolveStatePosition = (receivedState) =>
+    typeof receivedState?.position == "number" && Number.isFinite(receivedState.position)
+      ? Math.max(0, Math.min(100, receivedState.position))
       : null,
-  q = (arg8) =>
-    Array.isArray(arg8.userData?.curtainRigBasis) &&
-    arg8.userData.curtainRigBasis.length === 3 &&
-    arg8.userData.curtainRigBasis.every(
-      (arg9) => typeof arg9 == "number" && Number.isFinite(arg9) && arg9 > 0,
+  resolveRigBasis = (rigAnchor) =>
+    Array.isArray(rigAnchor.userData?.curtainRigBasis) &&
+    rigAnchor.userData.curtainRigBasis.length === 3 &&
+    rigAnchor.userData.curtainRigBasis.every(
+      (basisComponent) =>
+        typeof basisComponent == "number" && Number.isFinite(basisComponent) && basisComponent > 0,
     )
-      ? [...arg8.userData.curtainRigBasis]
+      ? [...rigAnchor.userData.curtainRigBasis]
       : [1.8, 2.4, 0.18];
-function St(arg10, arg11, arg12) {
-  const value1 = arg12 === "sheer",
-    value2 = Math.max(64, arg11 * 6),
-    value3 = 2.28168,
-    value4 = value1 ? 0.023 : 0.046,
-    value5 = 0.003,
-    list1 = [],
-    list2 = [],
-    list3 = [],
-    list4 = [],
-    list5 = [],
-    fn1 = (arg13) => value4 * Math.sin(arg13 * arg11 * Math.PI * 2),
-    fn2 = (arg14) => value4 * arg11 * Math.PI * 2 * Math.cos(arg14 * arg11 * Math.PI * 2),
-    fn3 = (arg15, arg16, arg17, arg18, arg19, arg20, arg21, arg22) => {
-      (list1.push(arg15, arg16, arg17), list2.push(arg18, arg19, arg20), list3.push(arg21, arg22));
-      const value7 = 0.5 - 0.5 * Math.sin(arg15 * arg11 * Math.PI * 2),
-        value8 = 1 - (value1 ? 0.16 : 0.34) * value7 * value7;
-      list4.push(value8, value8, value8);
+function createClothGeometry(clothThree, folds, fabric) {
+  const isSheer = fabric === "sheer",
+    segmentCount = Math.max(64, folds * 6),
+    panelHeight = 2.28168,
+    foldAmplitude = isSheer ? 0.023 : 0.046,
+    clothThickness = 0.003,
+    positionArray = [],
+    normalArray = [],
+    uvArray = [],
+    colorArray = [],
+    indexArray = [],
+    foldDisplacement = (seamRatio) => foldAmplitude * Math.sin(seamRatio * folds * Math.PI * 2),
+    foldSlope = (seamSlopeRatio) =>
+      foldAmplitude * folds * Math.PI * 2 * Math.cos(seamSlopeRatio * folds * Math.PI * 2),
+    pushVertex = (
+      positionX,
+      positionY,
+      positionZ,
+      normalX,
+      normalY,
+      normalZ,
+      textureU,
+      textureV,
+    ) => {
+      (positionArray.push(positionX, positionY, positionZ),
+        normalArray.push(normalX, normalY, normalZ),
+        uvArray.push(textureU, textureV));
+      const foldDarkness = 0.5 - 0.5 * Math.sin(positionX * folds * Math.PI * 2),
+        foldShade = 1 - (isSheer ? 0.16 : 0.34) * foldDarkness * foldDarkness;
+      colorArray.push(foldShade, foldShade, foldShade);
     };
-  for (const value9 of value1 ? ["front"] : ["front", "back", "top", "bottom"]) {
-    const value10 = list1.length / 3;
-    for (let value11 = 0; value11 <= value2; value11++) {
-      const value12 = value11 / value2,
-        value13 = fn1(value12),
-        value14 = fn2(value12),
-        value15 = Math.hypot(value14, 1);
-      if (value9 === "front" || value9 === "back") {
-        const value16 = value9 === "front" ? 1 : -1;
-        for (const value17 of [0, value3])
-          fn3(
-            value12,
-            value17,
-            value13 + (value16 * value5) / 2,
-            (-value16 * value14) / value15,
+  for (const face of isSheer ? ["front"] : ["front", "back", "top", "bottom"]) {
+    const faceVertexOffset = positionArray.length / 3;
+    for (let segmentIndex = 0; segmentIndex <= segmentCount; segmentIndex++) {
+      const alongRatio = segmentIndex / segmentCount,
+        foldOffset = foldDisplacement(alongRatio),
+        foldSlopeSample = foldSlope(alongRatio),
+        normalLength = Math.hypot(foldSlopeSample, 1);
+      if (face === "front" || face === "back") {
+        const outwardSign = face === "front" ? 1 : -1;
+        for (const vertexHeight of [0, panelHeight])
+          pushVertex(
+            alongRatio,
+            vertexHeight,
+            foldOffset + (outwardSign * clothThickness) / 2,
+            (-outwardSign * foldSlopeSample) / normalLength,
             0,
-            value16 / value15,
-            value12,
-            value17 / value3,
+            outwardSign / normalLength,
+            alongRatio,
+            vertexHeight / panelHeight,
           );
       } else {
-        const value18 = value9 === "top" ? 1 : -1;
-        for (const value19 of [-value5 / 2, value5 / 2])
-          fn3(
-            value12,
-            value18 > 0 ? value3 : 0,
-            value13 + value19,
+        const verticalSign = face === "top" ? 1 : -1;
+        for (const thicknessOffset of [-clothThickness / 2, clothThickness / 2])
+          pushVertex(
+            alongRatio,
+            verticalSign > 0 ? panelHeight : 0,
+            foldOffset + thicknessOffset,
             0,
-            value18,
+            verticalSign,
             0,
-            value12,
-            value19 > 0 ? 1 : 0,
+            alongRatio,
+            thicknessOffset > 0 ? 1 : 0,
           );
       }
-      if (value11 < value2) {
-        const value20 = value10 + value11 * 2;
-        value9 === "front" || value9 === "bottom"
-          ? list5.push(value20, value20 + 2, value20 + 1, value20 + 1, value20 + 2, value20 + 3)
-          : list5.push(value20, value20 + 1, value20 + 2, value20 + 1, value20 + 3, value20 + 2);
+      if (segmentIndex < segmentCount) {
+        const segmentVertexIndex = faceVertexOffset + segmentIndex * 2;
+        face === "front" || face === "bottom"
+          ? indexArray.push(
+              segmentVertexIndex,
+              segmentVertexIndex + 2,
+              segmentVertexIndex + 1,
+              segmentVertexIndex + 1,
+              segmentVertexIndex + 2,
+              segmentVertexIndex + 3,
+            )
+          : indexArray.push(
+              segmentVertexIndex,
+              segmentVertexIndex + 1,
+              segmentVertexIndex + 2,
+              segmentVertexIndex + 1,
+              segmentVertexIndex + 3,
+              segmentVertexIndex + 2,
+            );
       }
     }
   }
-  for (const value21 of value1 ? [] : [0, 1]) {
-    const value22 = list1.length / 3,
-      value23 = value21 === 0 ? -1 : 1;
-    for (const value24 of [0, value3])
-      for (const value25 of [-value5 / 2, value5 / 2])
-        fn3(
-          value21,
-          value24,
-          fn1(value21) + value25,
-          value23,
+  for (const edgeX of isSheer ? [] : [0, 1]) {
+    const capVertexOffset = positionArray.length / 3,
+      edgeNormalSign = edgeX === 0 ? -1 : 1;
+    for (const edgeHeight of [0, panelHeight])
+      for (const edgeThicknessOffset of [-clothThickness / 2, clothThickness / 2])
+        pushVertex(
+          edgeX,
+          edgeHeight,
+          foldDisplacement(edgeX) + edgeThicknessOffset,
+          edgeNormalSign,
           0,
           0,
-          value25 > 0 ? 1 : 0,
-          value24 / value3,
+          edgeThicknessOffset > 0 ? 1 : 0,
+          edgeHeight / panelHeight,
         );
-    value23 > 0
-      ? list5.push(value22, value22 + 2, value22 + 1, value22 + 1, value22 + 2, value22 + 3)
-      : list5.push(value22, value22 + 1, value22 + 2, value22 + 1, value22 + 3, value22 + 2);
+    edgeNormalSign > 0
+      ? indexArray.push(
+          capVertexOffset,
+          capVertexOffset + 2,
+          capVertexOffset + 1,
+          capVertexOffset + 1,
+          capVertexOffset + 2,
+          capVertexOffset + 3,
+        )
+      : indexArray.push(
+          capVertexOffset,
+          capVertexOffset + 1,
+          capVertexOffset + 2,
+          capVertexOffset + 1,
+          capVertexOffset + 3,
+          capVertexOffset + 2,
+        );
   }
-  const value6 = new arg10.BufferGeometry();
+  const geometry = new clothThree.BufferGeometry();
   return (
-    value6.setAttribute("position", new arg10.Float32BufferAttribute(list1, 3)),
-    value6.setAttribute("normal", new arg10.Float32BufferAttribute(list2, 3)),
-    value6.setAttribute("uv", new arg10.Float32BufferAttribute(list3, 2)),
-    value6.setAttribute("color", new arg10.Float32BufferAttribute(list4, 3)),
-    value6.setIndex(list5),
-    value6.computeBoundingBox(),
-    value6.computeBoundingSphere(),
-    value6
+    geometry.setAttribute("position", new clothThree.Float32BufferAttribute(positionArray, 3)),
+    geometry.setAttribute("normal", new clothThree.Float32BufferAttribute(normalArray, 3)),
+    geometry.setAttribute("uv", new clothThree.Float32BufferAttribute(uvArray, 2)),
+    geometry.setAttribute("color", new clothThree.Float32BufferAttribute(colorArray, 3)),
+    geometry.setIndex(indexArray),
+    geometry.computeBoundingBox(),
+    geometry.computeBoundingSphere(),
+    geometry
   );
 }
-function ot(arg23, arg24) {
-  for (let value26 = arg23; value26; value26 = value26.parent) if (value26 === arg24) return true;
+function isDescendantOf(descendant, ancestor) {
+  for (let walkedNode = descendant; walkedNode; walkedNode = walkedNode.parent)
+    if (walkedNode === ancestor) return true;
   return false;
 }
-function It(arg25) {
-  const list6 = [],
-    list7 = [];
-  function fn4(arg26) {
+function locateCurtainRig(environmentRoot) {
+  const curtainParts = [],
+    rigRoots = [];
+  function collectRigParts(visitedNode) {
     if (
-      !(arg26.userData?.curtainMotionRig || arg26.userData?.curtainMotionPanel) &&
-      !(arg26 !== arg25 && arg26.userData?.environmentModelId != null)
+      !(visitedNode.userData?.curtainMotionRig || visitedNode.userData?.curtainMotionPanel) &&
+      !(visitedNode !== environmentRoot && visitedNode.userData?.environmentModelId != null)
     ) {
-      (arg26.userData?.curtainRigRoot === true && list7.push(arg26),
-        arg26.isMesh && yt.has(arg26.userData?.curtainPart) && list6.push(arg26));
-      for (const value28 of arg26.children || []) fn4(value28);
+      (visitedNode.userData?.curtainRigRoot === true && rigRoots.push(visitedNode),
+        visitedNode.isMesh &&
+          trackPartSet.has(visitedNode.userData?.curtainPart) &&
+          curtainParts.push(visitedNode));
+      for (const child of visitedNode.children || []) collectRigParts(child);
     }
   }
-  if ((fn4(arg25), !list6.some((arg27) => E.has(arg27.userData.curtainPart)))) return null;
-  let value27 = list7.find((arg28) => list6.every((arg29) => ot(arg29, arg28)));
-  if (!value27) {
-    for (value27 = list6[0].parent; value27 && !list6.every((arg30) => ot(arg30, value27));)
-      value27 = value27.parent;
+  if (
+    (collectRigParts(environmentRoot),
+    !curtainParts.some((curtainPartNode) => clothPartSet.has(curtainPartNode.userData.curtainPart)))
+  )
+    return null;
+  let anchor = rigRoots.find((anchorCandidate) =>
+    curtainParts.every((partNode) => isDescendantOf(partNode, anchorCandidate)),
+  );
+  if (!anchor) {
+    for (
+      anchor = curtainParts[0].parent;
+      anchor && !curtainParts.every((candidatePart) => isDescendantOf(candidatePart, anchor));
+    )
+      anchor = anchor.parent;
   }
-  return value27 && ot(value27, arg25)
+  return anchor && isDescendantOf(anchor, environmentRoot)
     ? {
-        anchor: value27,
-        parts: list6,
+        anchor: anchor,
+        parts: curtainParts,
       }
     : null;
 }
-export function createCurtainMotion({ THREE: arg31, requestRender: arg32 = () => {} } = {}) {
-  let value29 = null,
-    value30,
-    text1 = "",
-    value31 = false;
-  const map1 = new Map();
-  function fn5(arg33, arg34) {
-    const value36 = arg34 + ":" + arg33;
-    return (map1.has(value36) || map1.set(value36, St(arg31, arg33, arg34)), map1.get(value36));
+export function createCurtainMotion({
+  THREE: three,
+  requestRender: requestRender = () => {},
+} = {}) {
+  let syncedModelRoot = null,
+    syncedSceneRevision,
+    syncedBindingsSignature = "",
+    isDisposed = false;
+  const clothGeometryMap = new Map();
+  function getClothGeometry(foldCount, fabricName) {
+    const cacheKey = fabricName + ":" + foldCount;
+    return (
+      clothGeometryMap.has(cacheKey) ||
+        clothGeometryMap.set(cacheKey, createClothGeometry(three, foldCount, fabricName)),
+      clothGeometryMap.get(cacheKey)
+    );
   }
-  let map2 = new Map(),
-    map3 = new Map(),
-    value32 = -Infinity,
-    value33 = true,
-    text2 = "",
-    map4 = new Map(),
-    value34 = 1,
-    value35 = true,
-    text3 = "";
-  function fn6() {
-    ((value33 = true), arg32());
+  let rigsByBindingId = new Map(),
+    coverStatesByEntityId = new Map(),
+    lastUpdateMs = -Infinity,
+    isPoseKeyDirty = true,
+    cachedPoseKey = "",
+    previousEntityIdByBindingId = new Map(),
+    generationCounter = 1,
+    isStructureKeyDirty = true,
+    cachedStructureKey = "";
+  function markPoseDirty() {
+    ((isPoseKeyDirty = true), requestRender());
   }
-  function fn7(arg35, arg36, arg37) {
-    const value37 = arg36.coverKind === "roller",
-      value38 = arg37.parts.filter(
-        (arg38) =>
-          value37 || arg37.anchor.userData.curtainRollerModel || E.has(arg38.userData.curtainPart),
+  function createRig(model, binding, located) {
+    const isRoller = binding.coverKind === "roller",
+      coveredParts = located.parts.filter(
+        (coveredPart) =>
+          isRoller ||
+          located.anchor.userData.curtainRollerModel ||
+          clothPartSet.has(coveredPart.userData.curtainPart),
       ),
-      value39 = value38
-        .filter((arg39) => arg39.userData.curtainPart === "cloth")
-        .flatMap((arg40) => (Array.isArray(arg40.material) ? arg40.material : [arg40.material]))
+      clothMaterials = coveredParts
+        .filter((clothOnlyPart) => clothOnlyPart.userData.curtainPart === "cloth")
+        .flatMap((partMesh) =>
+          Array.isArray(partMesh.material) ? partMesh.material : [partMesh.material],
+        )
         .filter(Boolean),
-      fn19 = (arg41) => (arg41.color ? arg41.color.r + arg41.color.g + arg41.color.b : 0),
-      value40 = value39.reduce(
-        (arg42, arg43) => (!arg42 || fn19(arg43) > fn19(arg42) ? arg43 : arg42),
+      materialBrightness = (material) =>
+        material.color ? material.color.r + material.color.g + material.color.b : 0,
+      brightestMaterial = clothMaterials.reduce(
+        (bestMaterial, candidateMaterial) =>
+          !bestMaterial || materialBrightness(candidateMaterial) > materialBrightness(bestMaterial)
+            ? candidateMaterial
+            : bestMaterial,
         null,
       ),
-      value41 = Y(arg36),
-      value42 = value41 === "sheer",
-      value43 = value42
-        ? new arg31.MeshStandardMaterial({
+      fabricKind = resolveCurtainFabric(binding),
+      isSheerPanel = fabricKind === "sheer",
+      panelMaterial = isSheerPanel
+        ? new three.MeshStandardMaterial({
             color: 16118766,
             roughness: 1,
             metalness: 0,
@@ -233,57 +303,59 @@ export function createCurtainMotion({ THREE: arg31, requestRender: arg32 = () =>
             opacity: 0.68,
             depthWrite: false,
           })
-        : value40?.clone?.() ||
-          new arg31.MeshStandardMaterial({
+        : brightestMaterial?.clone?.() ||
+          new three.MeshStandardMaterial({
             color: 13094354,
             roughness: 0.94,
             metalness: 0,
           });
     if (
-      (value43.color?.lerp(new arg31.Color(16777215), 0.2),
-      (value43.emissiveIntensity = Math.min(value43.emissiveIntensity ?? 0, 0.06)),
-      (value43.vertexColors = true),
-      (value43.side = arg31.DoubleSide),
-      (value43.forceSinglePass = true),
-      value37)
+      (panelMaterial.color?.lerp(new three.Color(16777215), 0.2),
+      (panelMaterial.emissiveIntensity = Math.min(panelMaterial.emissiveIntensity ?? 0, 0.06)),
+      (panelMaterial.vertexColors = true),
+      (panelMaterial.side = three.DoubleSide),
+      (panelMaterial.forceSinglePass = true),
+      isRoller)
     ) {
-      const value51 = q(arg37.anchor),
-        value52 = ft(
-          arg31,
+      const rigBasis = resolveRigBasis(located.anchor),
+        rollerCurtain = createRollerCurtain(
+          three,
           {
-            width: value51[0],
-            height: value51[1],
-            curtainFabric: value41,
+            width: rigBasis[0],
+            height: rigBasis[1],
+            curtainFabric: fabricKind,
           },
           {
-            material: value43,
+            material: panelMaterial,
           },
         ),
-        value53 = value52.group;
-      value53.userData.curtainMotionRig = true;
-      for (const value54 of value52.meshes)
-        Object.assign(value54.userData, {
+        rollerRigGroup = rollerCurtain.group;
+      rollerRigGroup.userData.curtainMotionRig = true;
+      for (const rollerMesh of rollerCurtain.meshes)
+        Object.assign(rollerMesh.userData, {
           curtainMotionPanel: true,
           externalModelSharedGeometry: true,
           externalModelSharedMaterial: true,
           externalModelSharedTextures: true,
         });
       return (
-        arg37.anchor.add(value53),
+        located.anchor.add(rollerRigGroup),
         {
-          model: arg35,
-          binding: arg36,
-          roller: value52,
-          fabric: value41,
-          anchor: arg37.anchor,
-          parts: arg37.parts,
-          rig: value53,
-          basis: value51,
-          generation: value34++,
-          panels: value52.meshes,
-          material: value43,
-          direction: Z(arg36),
-          originals: new Map(value38.map((arg44) => [arg44, arg44.visible])),
+          model: model,
+          binding: binding,
+          roller: rollerCurtain,
+          fabric: fabricKind,
+          anchor: located.anchor,
+          parts: located.parts,
+          rig: rollerRigGroup,
+          basis: rigBasis,
+          generation: generationCounter++,
+          panels: rollerCurtain.meshes,
+          material: panelMaterial,
+          direction: resolveCoverDirection(binding),
+          originals: new Map(
+            coveredParts.map((rollerSourcePart) => [rollerSourcePart, rollerSourcePart.visible]),
+          ),
           position: null,
           target: null,
           motionFrom: null,
@@ -291,366 +363,449 @@ export function createCurtainMotion({ THREE: arg31, requestRender: arg32 = () =>
         }
       );
     }
-    const value44 = arg36.coverKind === "dream",
-      value45 = arg37.anchor.userData.curtainTrackModel || value44 ? ct(arg36) : null,
-      value46 = nt(arg36),
-      value47 = value45 ? null : fn5(value46, value41),
-      value48 = new arg31.Group(),
-      value49 = q(arg37.anchor);
-    ((value48.name = "curtain-motion-" + arg36.id),
-      (value48.userData.curtainMotionRig = true),
-      value48.scale.set(
-        ...(value45 ? [1, 1, 1] : [value49[0] / 1.8, value49[1] / 2.4, value49[2] / 0.18]),
+    const isDream = binding.coverKind === "dream",
+      trackModel =
+        located.anchor.userData.curtainTrackModel || isDream ? createTrack(binding) : null,
+      rigFolds = resolveFoldCount(binding),
+      sharedGeometry = trackModel ? null : getClothGeometry(rigFolds, fabricKind),
+      rigGroup = new three.Group(),
+      basis = resolveRigBasis(located.anchor);
+    ((rigGroup.name = "curtain-motion-" + binding.id),
+      (rigGroup.userData.curtainMotionRig = true),
+      rigGroup.scale.set(
+        ...(trackModel ? [1, 1, 1] : [basis[0] / 1.8, basis[1] / 2.4, basis[2] / 0.18]),
       ),
-      arg37.anchor.add(value48));
-    const value50 = ["left", "right"].map((arg45) => {
-      const value55 = new arg31.Mesh(
-        value44
-          ? ht(arg31, value45, value49[1])
-          : value45
-            ? dt(arg31, value45, value49[1], value41)
-            : value47,
-        value43,
+      located.anchor.add(rigGroup));
+    const panels = ["left", "right"].map((side) => {
+      const panelMesh = new three.Mesh(
+        isDream
+          ? createBladeGeometry(three, trackModel, basis[1])
+          : trackModel
+            ? buildTrackClothGeometry(three, trackModel, basis[1], fabricKind)
+            : sharedGeometry,
+        panelMaterial,
       );
       return (
-        (value55.name = "curtain-motion-" + arg36.id + "-" + arg45),
-        (value55.userData.curtainMotionPanel = true),
-        (value55.userData.curtainSide = arg45),
-        (value55.userData.externalModelSharedGeometry = true),
-        (value55.userData.externalModelSharedTextures = true),
-        (value55.userData.externalModelSharedMaterial = true),
-        value45 || value55.position.set(arg45 === "left" ? -0.9 : 0.9, 0.06, 0),
-        (value55.castShadow = !value42 && value38.some((arg46) => arg46.castShadow)),
-        (value55.receiveShadow = value38.some((arg47) => arg47.receiveShadow)),
-        (value55.visible = false),
-        value48.add(value55),
-        value55
+        (panelMesh.name = "curtain-motion-" + binding.id + "-" + side),
+        (panelMesh.userData.curtainMotionPanel = true),
+        (panelMesh.userData.curtainSide = side),
+        (panelMesh.userData.externalModelSharedGeometry = true),
+        (panelMesh.userData.externalModelSharedTextures = true),
+        (panelMesh.userData.externalModelSharedMaterial = true),
+        trackModel || panelMesh.position.set(side === "left" ? -0.9 : 0.9, 0.06, 0),
+        (panelMesh.castShadow =
+          !isSheerPanel && coveredParts.some((shadowCastingPart) => shadowCastingPart.castShadow)),
+        (panelMesh.receiveShadow = coveredParts.some(
+          (shadowReceivingPart) => shadowReceivingPart.receiveShadow,
+        )),
+        (panelMesh.visible = false),
+        rigGroup.add(panelMesh),
+        panelMesh
       );
     });
     return {
-      model: arg35,
-      binding: arg36,
-      dream: value44,
-      fabric: value41,
-      folds: value46,
-      track: value45,
-      anchor: arg37.anchor,
-      parts: arg37.parts,
-      rig: value48,
-      basis: value49,
-      generation: value34++,
-      panels: value50,
-      material: value43,
-      originals: new Map(value38.map((arg48) => [arg48, arg48.visible])),
-      direction: Z(arg36),
+      model: model,
+      binding: binding,
+      dream: isDream,
+      fabric: fabricKind,
+      folds: rigFolds,
+      track: trackModel,
+      anchor: located.anchor,
+      parts: located.parts,
+      rig: rigGroup,
+      basis: basis,
+      generation: generationCounter++,
+      panels: panels,
+      material: panelMaterial,
+      originals: new Map(
+        coveredParts.map((clothSourcePart) => [clothSourcePart, clothSourcePart.visible]),
+      ),
+      direction: resolveCoverDirection(binding),
       position: null,
       target: null,
       motionFrom: null,
       motionStart: null,
     };
   }
-  function fn8(arg49) {
-    for (const [value56, value57] of arg49.originals) value56.visible = value57;
+  function disposeRig(discardedRig) {
+    for (const [restoredPart, wasVisible] of discardedRig.originals)
+      restoredPart.visible = wasVisible;
     if (
-      (arg49.rig.removeFromParent(),
-      arg49.roller?.dispose({
+      (discardedRig.rig.removeFromParent(),
+      discardedRig.roller?.dispose({
         keepMaterial: true,
       }),
-      arg49.track)
+      discardedRig.track)
     ) {
-      for (const value58 of arg49.panels) value58.geometry.dispose();
+      for (const panelToDispose of discardedRig.panels) panelToDispose.geometry.dispose();
     }
-    arg49.material.dispose();
+    discardedRig.material.dispose();
   }
-  function fn9(arg50) {
-    ((arg50.position = null),
-      (arg50.target = null),
-      (arg50.motionFrom = null),
-      (arg50.motionStart = null),
-      (arg50.bladePosition = null),
-      fn10(arg50));
+  function resetRigMotion(resetTargetRig) {
+    ((resetTargetRig.position = null),
+      (resetTargetRig.target = null),
+      (resetTargetRig.motionFrom = null),
+      (resetTargetRig.motionStart = null),
+      (resetTargetRig.bladePosition = null),
+      applyRigPose(resetTargetRig));
   }
-  function fn10(arg51) {
-    const value59 = arg51.position ?? tt(arg51.binding);
-    if (arg51.roller) {
-      for (const value63 of arg51.originals.keys()) value63.visible = false;
-      (arg51.roller.pose(value59), (value33 = true));
+  function applyRigPose(posedRig) {
+    const positionRatio = posedRig.position ?? resolveUnboundPosition(posedRig.binding);
+    if (posedRig.roller) {
+      for (const rollerHiddenPart of posedRig.originals.keys()) rollerHiddenPart.visible = false;
+      (posedRig.roller.pose(positionRatio), (isPoseKeyDirty = true));
       return;
     }
-    if (arg51.track) {
-      for (const value65 of arg51.originals.keys()) value65.visible = false;
-      const value64 = value59 + ":" + arg51.direction + ":" + (arg51.bladePosition ?? 50);
-      if (arg51.geometryPose === value64) return;
-      (mt(arg51.track, value59, arg51.direction).forEach((arg52, arg53) => {
-        const value66 = arg51.panels[arg53];
-        value66.visible = arg52.visible;
-        const object1 = {
-          ...arg52,
-          side: arg53,
-          split: arg51.direction === "split",
-        };
-        arg51.dream
-          ? gt(value66.geometry, arg51.track, object1, arg51.bladePosition ?? 50)
-          : pt(value66.geometry, arg51.track, object1);
-      }),
-        (arg51.geometryPose = value64),
-        (value33 = true));
+    if (posedRig.track) {
+      for (const trackHiddenPart of posedRig.originals.keys()) trackHiddenPart.visible = false;
+      const trackPoseKey =
+        positionRatio + ":" + posedRig.direction + ":" + (posedRig.bladePosition ?? 50);
+      if (posedRig.geometryPose === trackPoseKey) return;
+      (samplePanelRanges(posedRig.track, positionRatio, posedRig.direction).forEach(
+        (panelRange, sideIndex) => {
+          const panel = posedRig.panels[sideIndex];
+          panel.visible = panelRange.visible;
+          const panelPose = {
+            ...panelRange,
+            side: sideIndex,
+            split: posedRig.direction === "split",
+          };
+          posedRig.dream
+            ? poseBladeGeometry(
+                panel.geometry,
+                posedRig.track,
+                panelPose,
+                posedRig.bladePosition ?? 50,
+              )
+            : poseClothGeometry(panel.geometry, posedRig.track, panelPose);
+        },
+      ),
+        (posedRig.geometryPose = trackPoseKey),
+        (isPoseKeyDirty = true));
       return;
     }
-    const value60 = arg51.direction === "split",
-      value61 = value60 ? (arg51.fabric === "sheer" ? 0.9 : 0.906) : 1.8,
-      value62 = 1 - ((1 - Mt) * value59) / 100;
-    for (const value67 of arg51.originals.keys()) value67.visible = false;
-    for (const value68 of arg51.panels) {
-      const value69 = value68.userData.curtainSide === "left";
-      ((value68.visible = value60 || arg51.direction === (value69 ? "left" : "right")),
-        (value68.scale.x = (value69 ? 1 : -1) * value61 * value62),
-        value68.updateMatrix());
+    const isSplit = posedRig.direction === "split",
+      panelWidth = isSplit ? (posedRig.fabric === "sheer" ? 0.9 : 0.906) : 1.8,
+      clothScale = 1 - ((1 - MIN_PANEL_SCALE) * positionRatio) / 100;
+    for (const clothHiddenPart of posedRig.originals.keys()) clothHiddenPart.visible = false;
+    for (const posedPanel of posedRig.panels) {
+      const isLeftPanel = posedPanel.userData.curtainSide === "left";
+      ((posedPanel.visible = isSplit || posedRig.direction === (isLeftPanel ? "left" : "right")),
+        (posedPanel.scale.x = (isLeftPanel ? 1 : -1) * panelWidth * clothScale),
+        posedPanel.updateMatrix());
     }
-    value33 = true;
+    isPoseKeyDirty = true;
   }
-  function fn11(arg54, arg55, arg56 = false) {
-    const value70 = st(arg55),
-      value71 = arg54.bladePosition !== arg55.bladePosition;
+  function updateRigTarget(motionRig, receivedMotionState, immediate = false) {
+    const incomingPosition = resolveStatePosition(receivedMotionState),
+      hasBladeChanged = motionRig.bladePosition !== receivedMotionState.bladePosition;
     if (
-      ((arg54.bladePosition = arg55.bladePosition),
-      value71 && arg54.dream && fn10(arg54),
-      value70 === null)
+      ((motionRig.bladePosition = receivedMotionState.bladePosition),
+      hasBladeChanged && motionRig.dream && applyRigPose(motionRig),
+      incomingPosition === null)
     ) {
-      const value72 = arg54.target !== arg54.position;
-      return ((arg54.target = arg54.position), (arg54.motionStart = null), value72 || value71);
-    }
-    if (arg54.position === null || arg56) {
-      const value73 = arg54.position !== value70 || arg54.target !== value70;
+      const hasPendingMotion = motionRig.target !== motionRig.position;
       return (
-        (arg54.position = value70),
-        (arg54.target = value70),
-        (arg54.motionStart = null),
-        value73 && fn10(arg54),
-        value73 || value71
+        (motionRig.target = motionRig.position),
+        (motionRig.motionStart = null),
+        hasPendingMotion || hasBladeChanged
       );
     }
-    return arg54.target === value70
-      ? value71
-      : ((arg54.target = value70),
-        (arg54.motionFrom = arg54.position),
-        (arg54.motionStart = null),
+    if (motionRig.position === null || immediate) {
+      const positionChanged =
+        motionRig.position !== incomingPosition || motionRig.target !== incomingPosition;
+      return (
+        (motionRig.position = incomingPosition),
+        (motionRig.target = incomingPosition),
+        (motionRig.motionStart = null),
+        positionChanged && applyRigPose(motionRig),
+        positionChanged || hasBladeChanged
+      );
+    }
+    return motionRig.target === incomingPosition
+      ? hasBladeChanged
+      : ((motionRig.target = incomingPosition),
+        (motionRig.motionFrom = motionRig.position),
+        (motionRig.motionStart = null),
         true);
   }
-  function fn12(arg57, arg58 = [], arg59) {
-    if (value31) return;
-    const set1 = new Set(),
-      set2 = new Set(),
-      value74 = (Array.isArray(arg58) ? arg58 : [])
-        .filter((arg60) => {
-          if (!arg60 || arg60.id == null || arg60.modelId == null) return false;
-          const value78 = String(arg60.id),
-            value79 = rt(arg60.floorId, arg60.modelId);
-          return set1.has(value78) || set2.has(value79)
+  function setBindings(modelRoot, bindings = [], sceneRevision) {
+    if (isDisposed) return;
+    const seenBindingIdSet = new Set(),
+      seenModelKeySet = new Set(),
+      normalizedBindings = (Array.isArray(bindings) ? bindings : [])
+        .filter((candidateBinding) => {
+          if (!candidateBinding || candidateBinding.id == null || candidateBinding.modelId == null)
+            return false;
+          const bindingIdKey = String(candidateBinding.id),
+            rawLocationKey = sceneModelKey(candidateBinding.floorId, candidateBinding.modelId);
+          return seenBindingIdSet.has(bindingIdKey) || seenModelKeySet.has(rawLocationKey)
             ? false
-            : (set1.add(value78), set2.add(value79), true);
+            : (seenBindingIdSet.add(bindingIdKey), seenModelKeySet.add(rawLocationKey), true);
         })
-        .map((arg61) => ({
-          id: String(arg61.id),
-          entityId: String(arg61.entityId ?? ""),
-          floorId: String(arg61.floorId ?? ""),
-          modelId: String(arg61.modelId),
-          curtainWidth: Number(arg61.curtainWidth) > 0 ? Number(arg61.curtainWidth) : 1.8,
-          coverDirection: arg61.coverDirection || "auto",
-          curtainPosition: arg61.curtainPosition || "split",
-          coverKind: ["dream", "roller"].includes(arg61.coverKind) ? arg61.coverKind : "standard",
-          ...H(arg61),
-          curtainFabric: Y(arg61),
-          unboundPosition: tt(arg61),
+        .map((rawBinding) => ({
+          id: String(rawBinding.id),
+          entityId: String(rawBinding.entityId ?? ""),
+          floorId: String(rawBinding.floorId ?? ""),
+          modelId: String(rawBinding.modelId),
+          curtainWidth: Number(rawBinding.curtainWidth) > 0 ? Number(rawBinding.curtainWidth) : 1.8,
+          coverDirection: rawBinding.coverDirection || "auto",
+          curtainPosition: rawBinding.curtainPosition || "split",
+          coverKind: ["dream", "roller"].includes(rawBinding.coverKind)
+            ? rawBinding.coverKind
+            : "standard",
+          ...normalizeTrack(rawBinding),
+          curtainFabric: resolveCurtainFabric(rawBinding),
+          unboundPosition: resolveUnboundPosition(rawBinding),
         })),
-      value75 = JSON.stringify(value74);
-    if (value29 === arg57 && value30 === arg59 && text1 === value75) return;
-    const map5 = new Map(value74.map((arg62) => [arg62.id, arg62.entityId]));
-    for (const value80 of map3.keys())
-      (!map5.has(value80) || (map4.has(value80) && map4.get(value80) !== map5.get(value80))) &&
-        map3.delete(value80);
-    ((map4 = map5), (value29 = arg57 || null), (value30 = arg59), (text1 = value75));
-    const map6 = new Map();
-    value74.length &&
-      value29?.traverse?.((arg63) => {
+      bindingsSignature = JSON.stringify(normalizedBindings);
+    if (
+      syncedModelRoot === modelRoot &&
+      syncedSceneRevision === sceneRevision &&
+      syncedBindingsSignature === bindingsSignature
+    )
+      return;
+    const entityIdByBindingId = new Map(
+      normalizedBindings.map((normalizedEntry) => [normalizedEntry.id, normalizedEntry.entityId]),
+    );
+    for (const staleBindingId of coverStatesByEntityId.keys())
+      (!entityIdByBindingId.has(staleBindingId) ||
+        (previousEntityIdByBindingId.has(staleBindingId) &&
+          previousEntityIdByBindingId.get(staleBindingId) !==
+            entityIdByBindingId.get(staleBindingId))) &&
+        coverStatesByEntityId.delete(staleBindingId);
+    ((previousEntityIdByBindingId = entityIdByBindingId),
+      (syncedModelRoot = modelRoot || null),
+      (syncedSceneRevision = sceneRevision),
+      (syncedBindingsSignature = bindingsSignature));
+    const modelsByLocationKey = new Map();
+    normalizedBindings.length &&
+      syncedModelRoot?.traverse?.((sceneNode) => {
         if (
-          arg63.userData?.environmentModelType !== "curtain" ||
-          arg63.userData?.environmentModelId == null
+          sceneNode.userData?.environmentModelType !== "curtain" ||
+          sceneNode.userData?.environmentModelId == null
         )
           return;
-        let value81 = arg63.userData.environmentFloorId;
-        for (let value82 = arg63.parent; value81 == null && value82; value82 = value82.parent)
-          value81 = value82.userData?.environmentFloorId;
-        map6.set(rt(value81, arg63.userData.environmentModelId), arg63);
+        let nodeFloorId = sceneNode.userData.environmentFloorId;
+        for (
+          let parentNode = sceneNode.parent;
+          nodeFloorId == null && parentNode;
+          parentNode = parentNode.parent
+        )
+          nodeFloorId = parentNode.userData?.environmentFloorId;
+        modelsByLocationKey.set(
+          sceneModelKey(nodeFloorId, sceneNode.userData.environmentModelId),
+          sceneNode,
+        );
       });
-    const value76 = value74
-        .map((arg64) => {
-          const value83 = map6.get(rt(arg64.floorId, arg64.modelId)),
-            value84 = value83 ? It(value83) : null;
-          return value84
+    const locatedEntries = normalizedBindings
+        .map((locatedBinding) => {
+          const environmentModel = modelsByLocationKey.get(
+              sceneModelKey(locatedBinding.floorId, locatedBinding.modelId),
+            ),
+            locatedRig = environmentModel ? locateCurtainRig(environmentModel) : null;
+          return locatedRig
             ? {
-                binding: arg64,
-                model: value83,
-                located: value84,
+                binding: locatedBinding,
+                model: environmentModel,
+                located: locatedRig,
               }
             : null;
         })
         .filter(Boolean),
-      map7 = new Map();
-    for (const value85 of value76) {
-      const value86 = map2.get(value85.binding.id);
-      value86 &&
-        value86.binding.coverKind === value85.binding.coverKind &&
-        JSON.stringify(value86.basis) === JSON.stringify(q(value85.located.anchor)) &&
-        (!value86.track ||
-          JSON.stringify([H(value86.binding), value86.binding.curtainWidth]) ===
-            JSON.stringify([H(value85.binding), value85.binding.curtainWidth])) &&
-        value86.fabric === Y(value85.binding) &&
-        value86.model === value85.model &&
-        value86.anchor === value85.located.anchor &&
-        value86.parts.length === value85.located.parts.length &&
-        value86.parts.every((arg65, arg66) => arg65 === value85.located.parts[arg66]) &&
-        map7.set(value85.binding.id, value86);
+      reusedRigsByBindingId = new Map();
+    for (const entry of locatedEntries) {
+      const existingRig = rigsByBindingId.get(entry.binding.id);
+      existingRig &&
+        existingRig.binding.coverKind === entry.binding.coverKind &&
+        JSON.stringify(existingRig.basis) ===
+          JSON.stringify(resolveRigBasis(entry.located.anchor)) &&
+        (!existingRig.track ||
+          JSON.stringify([
+            normalizeTrack(existingRig.binding),
+            existingRig.binding.curtainWidth,
+          ]) === JSON.stringify([normalizeTrack(entry.binding), entry.binding.curtainWidth])) &&
+        existingRig.fabric === resolveCurtainFabric(entry.binding) &&
+        existingRig.model === entry.model &&
+        existingRig.anchor === entry.located.anchor &&
+        existingRig.parts.length === entry.located.parts.length &&
+        existingRig.parts.every((part, partIndex) => part === entry.located.parts[partIndex]) &&
+        reusedRigsByBindingId.set(entry.binding.id, existingRig);
     }
-    for (const [value87, value88] of map2) map7.has(value87) || fn8(value88);
-    const value77 = map2;
-    map2 = new Map();
-    for (const { binding: value89, model: value90, located: value91 } of value76) {
-      const value92 = map7.get(value89.id) || fn7(value90, value89, value91),
-        value93 = value77.get(value89.id);
+    for (const [removedBindingId, removedRig] of rigsByBindingId)
+      reusedRigsByBindingId.has(removedBindingId) || disposeRig(removedRig);
+    const previousRigsByBindingId = rigsByBindingId;
+    rigsByBindingId = new Map();
+    for (const {
+      binding: entryBinding,
+      model: entryModel,
+      located: entryLocated,
+    } of locatedEntries) {
+      const nextRig =
+          reusedRigsByBindingId.get(entryBinding.id) ||
+          createRig(entryModel, entryBinding, entryLocated),
+        previousRig = previousRigsByBindingId.get(entryBinding.id);
       if (
-        value93 &&
-        value93 !== value92 &&
-        value93.model === value90 &&
-        value93.binding.entityId === value89.entityId
+        previousRig &&
+        previousRig !== nextRig &&
+        previousRig.model === entryModel &&
+        previousRig.binding.entityId === entryBinding.entityId
       ) {
-        for (const value96 of ["position", "target", "motionFrom", "motionStart", "bladePosition"])
-          value92[value96] = value93[value96];
-        fn10(value92);
+        for (const motionFieldName of [
+          "position",
+          "target",
+          "motionFrom",
+          "motionStart",
+          "bladePosition",
+        ])
+          nextRig[motionFieldName] = previousRig[motionFieldName];
+        applyRigPose(nextRig);
       }
-      const value94 = Z(value89);
-      (value92.binding.entityId !== value89.entityId && fn9(value92), (value92.binding = value89));
-      const value95 = nt(value89);
-      if (!value92.track && !value92.roller && value92.folds !== value95) {
-        value92.folds = value95;
-        for (const value97 of value92.panels) value97.geometry = fn5(value95, value92.fabric);
+      const nextDirection = resolveCoverDirection(entryBinding);
+      (nextRig.binding.entityId !== entryBinding.entityId && resetRigMotion(nextRig),
+        (nextRig.binding = entryBinding));
+      const nextFolds = resolveFoldCount(entryBinding);
+      if (!nextRig.track && !nextRig.roller && nextRig.folds !== nextFolds) {
+        nextRig.folds = nextFolds;
+        for (const panelToRefold of nextRig.panels)
+          panelToRefold.geometry = getClothGeometry(nextFolds, nextRig.fabric);
       }
-      ((value92.basis = q(value92.anchor)),
-        value92.rig.scale.set(
-          ...(value92.track || value92.roller
+      ((nextRig.basis = resolveRigBasis(nextRig.anchor)),
+        nextRig.rig.scale.set(
+          ...(nextRig.track || nextRig.roller
             ? [1, 1, 1]
-            : [value92.basis[0] / 1.8, value92.basis[1] / 2.4, value92.basis[2] / 0.18]),
+            : [nextRig.basis[0] / 1.8, nextRig.basis[1] / 2.4, nextRig.basis[2] / 0.18]),
         ),
-        value92.direction !== value94 && ((value92.direction = value94), fn10(value92)),
-        map2.set(value89.id, value92),
-        map3.has(value89.id) && fn11(value92, map3.get(value89.id)),
-        value92.position === null && fn10(value92));
+        nextRig.direction !== nextDirection &&
+          ((nextRig.direction = nextDirection), applyRigPose(nextRig)),
+        rigsByBindingId.set(entryBinding.id, nextRig),
+        coverStatesByEntityId.has(entryBinding.id) &&
+          updateRigTarget(nextRig, coverStatesByEntityId.get(entryBinding.id)),
+        nextRig.position === null && applyRigPose(nextRig));
     }
-    ((value35 = true), fn6());
+    ((isStructureKeyDirty = true), markPoseDirty());
   }
-  function fn13(arg67, arg68, { immediate: arg69 = false } = {}) {
-    if (value31 || arg67 == null) return;
-    const value98 = String(arg67),
-      object2 = {
-        position: st(arg68),
-        bladePosition: Number.isFinite(arg68?.tiltPosition) ? arg68.tiltPosition : null,
+  function setState(
+    coverBindingId,
+    receivedCoverState,
+    { immediate: immediateState = false } = {},
+  ) {
+    if (isDisposed || coverBindingId == null) return;
+    const coverBindingIdKey = String(coverBindingId),
+      nextMotionState = {
+        position: resolveStatePosition(receivedCoverState),
+        bladePosition: Number.isFinite(receivedCoverState?.tiltPosition)
+          ? receivedCoverState.tiltPosition
+          : null,
       };
-    map3.set(value98, object2);
-    const value99 = map2.get(value98);
-    value99 && fn11(value99, object2, arg69) && fn6();
+    coverStatesByEntityId.set(coverBindingIdKey, nextMotionState);
+    const boundRig = rigsByBindingId.get(coverBindingIdKey);
+    boundRig && updateRigTarget(boundRig, nextMotionState, immediateState) && markPoseDirty();
   }
-  function fn14() {
+  function isMoving() {
     return (
-      !value31 &&
-      [...map2.values()].some((arg70) => arg70.position !== null && arg70.target !== arg70.position)
+      !isDisposed &&
+      [...rigsByBindingId.values()].some(
+        (pendingRig) => pendingRig.position !== null && pendingRig.target !== pendingRig.position,
+      )
     );
   }
-  function fn15(arg71) {
+  function update(timestampMs) {
     if (
-      !fn14() ||
-      (Number.isFinite(arg71) || (arg71 = globalThis.performance?.now() ?? Date.now()),
-      arg71 >= value32 && arg71 - value32 < et)
+      !isMoving() ||
+      (Number.isFinite(timestampMs) || (timestampMs = globalThis.performance?.now() ?? Date.now()),
+      timestampMs >= lastUpdateMs && timestampMs - lastUpdateMs < FRAME_INTERVAL_MS)
     )
       return false;
-    value32 =
-      Number.isFinite(value32) && arg71 >= value32 ? arg71 - ((arg71 - value32) % et) : arg71;
-    let value100 = false;
-    for (const value101 of map2.values()) {
-      if (value101.position === null || value101.target === value101.position) continue;
-      (value101.motionStart === null || arg71 < value101.motionStart) &&
-        (value101.motionStart = arg71);
-      const value102 = Math.min(1, (arg71 - value101.motionStart) / vt),
-        value103 = value102 * value102 * (3 - 2 * value102),
-        value104 =
-          value102 === 1
-            ? value101.target
-            : value101.motionFrom + (value101.target - value101.motionFrom) * value103;
-      value104 !== value101.position &&
-        ((value101.position = value104), fn10(value101), (value100 = true));
+    lastUpdateMs =
+      Number.isFinite(lastUpdateMs) && timestampMs >= lastUpdateMs
+        ? timestampMs - ((timestampMs - lastUpdateMs) % FRAME_INTERVAL_MS)
+        : timestampMs;
+    let hasAnimated = false;
+    for (const movingRig of rigsByBindingId.values()) {
+      if (movingRig.position === null || movingRig.target === movingRig.position) continue;
+      (movingRig.motionStart === null || timestampMs < movingRig.motionStart) &&
+        (movingRig.motionStart = timestampMs);
+      const progressRatio = Math.min(1, (timestampMs - movingRig.motionStart) / MOTION_DURATION_MS),
+        easingFactor = progressRatio * progressRatio * (3 - 2 * progressRatio),
+        nextPosition =
+          progressRatio === 1
+            ? movingRig.target
+            : movingRig.motionFrom + (movingRig.target - movingRig.motionFrom) * easingFactor;
+      nextPosition !== movingRig.position &&
+        ((movingRig.position = nextPosition), applyRigPose(movingRig), (hasAnimated = true));
     }
-    return value100;
+    return hasAnimated;
   }
-  function fn16() {
+  function poseKey() {
     return (
-      value33 &&
-        ((text2 = JSON.stringify(
-          [...map2.values()]
-            .map((arg72) => [
-              arg72.binding.id,
-              arg72.binding.floorId,
-              arg72.binding.modelId,
-              arg72.binding.entityId,
-              arg72.generation,
-              arg72.direction,
-              arg72.basis,
-              arg72.folds,
-              arg72.bladePosition,
-              arg72.position === null
-                ? "preview-" + tt(arg72.binding)
-                : Math.round(arg72.position * 100) / 100,
+      isPoseKeyDirty &&
+        ((cachedPoseKey = JSON.stringify(
+          [...rigsByBindingId.values()]
+            .map((poseRig) => [
+              poseRig.binding.id,
+              poseRig.binding.floorId,
+              poseRig.binding.modelId,
+              poseRig.binding.entityId,
+              poseRig.generation,
+              poseRig.direction,
+              poseRig.basis,
+              poseRig.folds,
+              poseRig.bladePosition,
+              poseRig.position === null
+                ? "preview-" + resolveUnboundPosition(poseRig.binding)
+                : Math.round(poseRig.position * 100) / 100,
             ])
-            .sort((arg73, arg74) => arg73[0].localeCompare(arg74[0])),
+            .sort((leftPoseEntry, rightPoseEntry) =>
+              leftPoseEntry[0].localeCompare(rightPoseEntry[0]),
+            ),
         )),
-        (value33 = false)),
-      text2
+        (isPoseKeyDirty = false)),
+      cachedPoseKey
     );
   }
-  function fn17() {
+  function structureKey() {
     return (
-      value35 &&
-        ((text3 = JSON.stringify(
-          [...map2.values()]
-            .map((arg75) => [
-              arg75.binding.id,
-              arg75.binding.floorId,
-              arg75.binding.modelId,
-              arg75.generation,
-              arg75.direction,
-              arg75.basis,
-              arg75.folds,
+      isStructureKeyDirty &&
+        ((cachedStructureKey = JSON.stringify(
+          [...rigsByBindingId.values()]
+            .map((structureRig) => [
+              structureRig.binding.id,
+              structureRig.binding.floorId,
+              structureRig.binding.modelId,
+              structureRig.generation,
+              structureRig.direction,
+              structureRig.basis,
+              structureRig.folds,
             ])
-            .sort((arg76, arg77) => arg76[0].localeCompare(arg77[0])),
+            .sort((leftStructureEntry, rightStructureEntry) =>
+              leftStructureEntry[0].localeCompare(rightStructureEntry[0]),
+            ),
         )),
-        (value35 = false)),
-      text3
+        (isStructureKeyDirty = false)),
+      cachedStructureKey
     );
   }
-  function fn18() {
-    if (!value31) {
-      value31 = true;
-      for (const value105 of map2.values()) fn8(value105);
-      (map2.clear(), map3.clear(), map4.clear());
-      for (const value106 of map1.values()) value106.dispose();
-      (map1.clear(), (value29 = null), (value33 = true), (value35 = true), arg32());
+  function dispose() {
+    if (!isDisposed) {
+      isDisposed = true;
+      for (const disposedRig of rigsByBindingId.values()) disposeRig(disposedRig);
+      (rigsByBindingId.clear(), coverStatesByEntityId.clear(), previousEntityIdByBindingId.clear());
+      for (const cachedGeometry of clothGeometryMap.values()) cachedGeometry.dispose();
+      (clothGeometryMap.clear(),
+        (syncedModelRoot = null),
+        (isPoseKeyDirty = true),
+        (isStructureKeyDirty = true),
+        requestRender());
     }
   }
   return {
-    setBindings: fn12,
-    setState: fn13,
-    update: fn15,
-    isMoving: fn14,
-    poseKey: fn16,
-    structureKey: fn17,
-    dispose: fn18,
+    setBindings: setBindings,
+    setState: setState,
+    update: update,
+    isMoving: isMoving,
+    poseKey: poseKey,
+    structureKey: structureKey,
+    dispose: dispose,
   };
 }

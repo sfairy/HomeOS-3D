@@ -1,0 +1,957 @@
+{
+  "file": "frontend/modules/interaction3d/nas-panel.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 163,
+  "counts": {
+    "entries": 48,
+    "renameable": 48,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function nasGroups(arg1) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "return [...new Set([...(arg1?.groupOrder || []), ...Object.keys(object1)])]"
+        }
+      ]
+    },
+    {
+      "key": "object1@2",
+      "name": "object1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 8,
+          "text": "return [...new Set([...(arg1?.groupOrder || []), ...Object.keys(object1)])]"
+        },
+        {
+          "line": 9,
+          "text": ".filter((arg2) => Object.hasOwn(object1, arg2))"
+        },
+        {
+          "line": 10,
+          "text": ".map((arg3) => [arg3, object1[arg3]]);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@9",
+      "name": "arg2",
+      "line": 9,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg2) => Object.hasOwn(object1, arg2))",
+      "references": [
+        {
+          "line": 9,
+          "text": ".filter((arg2) => Object.hasOwn(object1, arg2))"
+        }
+      ]
+    },
+    {
+      "key": "arg3@10",
+      "name": "arg3",
+      "line": 10,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg3) => [arg3, object1[arg3]]);",
+      "references": [
+        {
+          "line": 10,
+          "text": ".map((arg3) => [arg3, object1[arg3]]);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@12",
+      "name": "arg4",
+      "line": 12,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function nasMetricValue(arg4, arg5) {",
+      "references": [
+        {
+          "line": 23,
+          "text": "if (arg4.kind === \"problem\")"
+        },
+        {
+          "line": 34,
+          "text": "if (arg4.kind === \"timestamp\") {"
+        },
+        {
+          "line": 45,
+          "text": "if (arg4.kind === \"status\")"
+        }
+      ]
+    },
+    {
+      "key": "arg5@12",
+      "name": "arg5",
+      "line": 12,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function nasMetricValue(arg4, arg5) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "const value1 = arg5?.newState || arg5 || {},"
+        }
+      ]
+    },
+    {
+      "key": "value1@13",
+      "name": "value1",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg5?.newState || arg5 || {},",
+      "references": [
+        {
+          "line": 14,
+          "text": "value2 = String(value1.state ?? \"\").trim();"
+        },
+        {
+          "line": 16,
+          "text": "value1.available === false ||"
+        },
+        {
+          "line": 62,
+          "text": "value4 = String(value1.attributes?.unit_of_measurement || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "value2@14",
+      "name": "value2",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = String(value1.state ?? \"\").trim();",
+      "references": [
+        {
+          "line": 17,
+          "text": "[\"\", \"unknown\", \"unavailable\", \"none\"].includes(value2.toLowerCase())"
+        },
+        {
+          "line": 24,
+          "text": "return [\"on\", \"off\"].includes(value2)"
+        },
+        {
+          "line": 26,
+          "text": "text: value2 === \"on\" ? \"有告警\" : \"正常\","
+        },
+        {
+          "line": 28,
+          "text": "warning: value2 === \"on\","
+        }
+      ]
+    },
+    {
+      "key": "value5@35",
+      "name": "value5",
+      "line": 35,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = Date.parse(value2);",
+      "references": [
+        {
+          "line": 37,
+          "text": "text: Number.isFinite(value5)"
+        },
+        {
+          "line": 38,
+          "text": "? new Date(value5).toLocaleString(\"zh-CN\", {"
+        }
+      ]
+    },
+    {
+      "key": "value3@61",
+      "name": "value3",
+      "line": 61,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = Number(value2),",
+      "references": [
+        {
+          "line": 64,
+          "text": "text: Number.isFinite(value3)"
+        },
+        {
+          "line": 68,
+          "text": "}).format(value3) +"
+        },
+        {
+          "line": 72,
+          "text": "percent: Number.isFinite(value3) && value4 === \"%\" ? Math.max(0, Math.min(100, value3)) : null,"
+        }
+      ]
+    },
+    {
+      "key": "value4@62",
+      "name": "value4",
+      "line": 62,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = String(value1.attributes?.unit_of_measurement || \"\");",
+      "references": [
+        {
+          "line": 69,
+          "text": "(value4 ? \" \" + value4 : \"\")"
+        },
+        {
+          "line": 72,
+          "text": "percent: Number.isFinite(value3) && value4 === \"%\" ? Math.max(0, Math.min(100, value3)) : null,"
+        }
+      ]
+    },
+    {
+      "key": "fn1@76",
+      "name": "fn1",
+      "line": 76,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg6, arg7, arg8 = \"\") => {",
+      "references": [
+        {
+          "line": 80,
+          "text": "value6 = fn1(\"div\", \"i3d-nas-panel\"),"
+        },
+        {
+          "line": 81,
+          "text": "value7 = fn1(\"div\", \"i3d-nas-heading\"),"
+        },
+        {
+          "line": 82,
+          "text": "value8 = fn1(\"h3\", \"\"),"
+        },
+        {
+          "line": 83,
+          "text": "value9 = fn1(\"p\", \"i3d-nas-status\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@76",
+      "name": "arg6",
+      "line": 76,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg6, arg7, arg8 = \"\") => {",
+      "references": [
+        {
+          "line": 77,
+          "text": "const value12 = document.createElement(arg6);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@76",
+      "name": "arg7",
+      "line": 76,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg6, arg7, arg8 = \"\") => {",
+      "references": [
+        {
+          "line": 78,
+          "text": "return ((value12.className = arg7), (value12.textContent = arg8), value12);"
+        }
+      ]
+    },
+    {
+      "key": "arg8@76",
+      "name": "arg8",
+      "line": 76,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg6, arg7, arg8 = \"\") => {",
+      "references": [
+        {
+          "line": 78,
+          "text": "return ((value12.className = arg7), (value12.textContent = arg8), value12);"
+        }
+      ]
+    },
+    {
+      "key": "value12@77",
+      "name": "value12",
+      "line": 77,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = document.createElement(arg6);",
+      "references": [
+        {
+          "line": 78,
+          "text": "return ((value12.className = arg7), (value12.textContent = arg8), value12);"
+        }
+      ]
+    },
+    {
+      "key": "value6@80",
+      "name": "value6",
+      "line": 80,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = fn1(\"div\", \"i3d-nas-panel\"),",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        },
+        {
+          "line": 156,
+          "text": "root: value6,"
+        },
+        {
+          "line": 159,
+          "text": "value6.remove();"
+        }
+      ]
+    },
+    {
+      "key": "value7@81",
+      "name": "value7",
+      "line": 81,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = fn1(\"div\", \"i3d-nas-heading\"),",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        }
+      ]
+    },
+    {
+      "key": "value8@82",
+      "name": "value8",
+      "line": 82,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = fn1(\"h3\", \"\"),",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        },
+        {
+          "line": 96,
+          "text": "((value8.textContent = arg9.label || value13?.name || \"NAS\"),"
+        },
+        {
+          "line": 97,
+          "text": "(value8.title = value8.textContent),"
+        }
+      ]
+    },
+    {
+      "key": "value9@83",
+      "name": "value9",
+      "line": 83,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = fn1(\"p\", \"i3d-nas-status\"),",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        },
+        {
+          "line": 141,
+          "text": "((value9.hidden = list1.length > 0),"
+        },
+        {
+          "line": 142,
+          "text": "(value9.textContent = value13"
+        }
+      ]
+    },
+    {
+      "key": "value10@84",
+      "name": "value10",
+      "line": 84,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = fn1(\"div\", \"i3d-nas-metrics\"),",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        },
+        {
+          "line": 100,
+          "text": "((text1 = value17), value10.replaceChildren(), (list1 = []));"
+        },
+        {
+          "line": 122,
+          "text": "value10.append(value22);"
+        }
+      ]
+    },
+    {
+      "key": "value11@85",
+      "name": "value11",
+      "line": 85,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = fn1(\"p\", \"i3d-nas-meta\");",
+      "references": [
+        {
+          "line": 86,
+          "text": "(value7.append(value8, value11), value6.append(value7, value9, value10), (value6.hidden = true));"
+        },
+        {
+          "line": 147,
+          "text": "(value11.textContent ="
+        }
+      ]
+    },
+    {
+      "key": "text1@87",
+      "name": "text1",
+      "line": 87,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let text1 = \"\",",
+      "references": [
+        {
+          "line": 98,
+          "text": "text1 !== value17)"
+        }
+      ]
+    },
+    {
+      "key": "list1@88",
+      "name": "list1",
+      "line": 88,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [];",
+      "references": [
+        {
+          "line": 115,
+          "text": "list1.push({"
+        },
+        {
+          "line": 126,
+          "text": "for (const value28 of list1) {"
+        },
+        {
+          "line": 141,
+          "text": "((value9.hidden = list1.length > 0),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@89",
+      "name": "fn2",
+      "line": 89,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2({ item: arg9, states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 157,
+          "text": "update: fn2,"
+        }
+      ]
+    },
+    {
+      "key": "arg9@89",
+      "name": "arg9",
+      "line": 89,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2({ item: arg9, states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 90,
+          "text": "const value13 = arg9.statusSource,"
+        },
+        {
+          "line": 96,
+          "text": "((value8.textContent = arg9.label || value13?.name || \"NAS\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@89",
+      "name": "arg10",
+      "line": 89,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2({ item: arg9, states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 128,
+          "text": "arg10 instanceof Map"
+        },
+        {
+          "line": 129,
+          "text": "? arg10.get(value28.metric.entityId)"
+        },
+        {
+          "line": 130,
+          "text": ": arg10[value28.metric.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "value13@90",
+      "name": "value13",
+      "line": 90,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = arg9.statusSource,",
+      "references": [
+        {
+          "line": 91,
+          "text": "value14 = value13?.visibleMetrics && new Set(value13.visibleMetrics),"
+        },
+        {
+          "line": 92,
+          "text": "value15 = (value13?.metrics || []).filter((arg11) => !value14 || value14.has(arg11.entityId)),"
+        },
+        {
+          "line": 93,
+          "text": "value16 = nasGroups(value13),"
+        },
+        {
+          "line": 96,
+          "text": "((value8.textContent = arg9.label || value13?.name || \"NAS\"),"
+        }
+      ]
+    },
+    {
+      "key": "value14@91",
+      "name": "value14",
+      "line": 91,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = value13?.visibleMetrics && new Set(value13.visibleMetrics),",
+      "references": [
+        {
+          "line": 92,
+          "text": "value15 = (value13?.metrics || []).filter((arg11) => !value14 || value14.has(arg11.entityId)),"
+        }
+      ]
+    },
+    {
+      "key": "value15@92",
+      "name": "value15",
+      "line": 92,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = (value13?.metrics || []).filter((arg11) => !value14 || value14.has(arg11.entityId)),",
+      "references": [
+        {
+          "line": 94,
+          "text": "value17 = JSON.stringify([value15, value16]);"
+        },
+        {
+          "line": 102,
+          "text": "const value21 = value15.filter((arg12) => arg12.group === value19);"
+        }
+      ]
+    },
+    {
+      "key": "arg11@92",
+      "name": "arg11",
+      "line": 92,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = (value13?.metrics || []).filter((arg11) => !value14 || value14.has(arg11.entityId)),",
+      "references": [
+        {
+          "line": 92,
+          "text": "value15 = (value13?.metrics || []).filter((arg11) => !value14 || value14.has(arg11.entityId)),"
+        }
+      ]
+    },
+    {
+      "key": "value16@93",
+      "name": "value16",
+      "line": 93,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = nasGroups(value13),",
+      "references": [
+        {
+          "line": 94,
+          "text": "value17 = JSON.stringify([value15, value16]);"
+        },
+        {
+          "line": 101,
+          "text": "for (const [value19, value20] of value16) {"
+        }
+      ]
+    },
+    {
+      "key": "value17@94",
+      "name": "value17",
+      "line": 94,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = JSON.stringify([value15, value16]);",
+      "references": [
+        {
+          "line": 98,
+          "text": "text1 !== value17)"
+        },
+        {
+          "line": 100,
+          "text": "((text1 = value17), value10.replaceChildren(), (list1 = []));"
+        }
+      ]
+    },
+    {
+      "key": "value19@101",
+      "name": "value19",
+      "line": 101,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value19, value20] of value16) {",
+      "references": [
+        {
+          "line": 102,
+          "text": "const value21 = value15.filter((arg12) => arg12.group === value19);"
+        }
+      ]
+    },
+    {
+      "key": "value20@101",
+      "name": "value20",
+      "line": 101,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value19, value20] of value16) {",
+      "references": [
+        {
+          "line": 106,
+          "text": "value22.append(fn1(\"h4\", \"\", value20), value23);"
+        }
+      ]
+    },
+    {
+      "key": "value21@102",
+      "name": "value21",
+      "line": 102,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 = value15.filter((arg12) => arg12.group === value19);",
+      "references": [
+        {
+          "line": 103,
+          "text": "if (!value21.length) continue;"
+        },
+        {
+          "line": 107,
+          "text": "for (const value24 of value21) {"
+        }
+      ]
+    },
+    {
+      "key": "arg12@102",
+      "name": "arg12",
+      "line": 102,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 = value15.filter((arg12) => arg12.group === value19);",
+      "references": [
+        {
+          "line": 102,
+          "text": "const value21 = value15.filter((arg12) => arg12.group === value19);"
+        }
+      ]
+    },
+    {
+      "key": "value22@104",
+      "name": "value22",
+      "line": 104,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = fn1(\"section\", \"i3d-nas-group\"),",
+      "references": [
+        {
+          "line": 106,
+          "text": "value22.append(fn1(\"h4\", \"\", value20), value23);"
+        },
+        {
+          "line": 122,
+          "text": "value10.append(value22);"
+        }
+      ]
+    },
+    {
+      "key": "value23@105",
+      "name": "value23",
+      "line": 105,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = fn1(\"div\", \"i3d-nas-grid\");",
+      "references": [
+        {
+          "line": 106,
+          "text": "value22.append(fn1(\"h4\", \"\", value20), value23);"
+        },
+        {
+          "line": 114,
+          "text": "value23.append(value25),"
+        }
+      ]
+    },
+    {
+      "key": "value24@107",
+      "name": "value24",
+      "line": 107,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value24 of value21) {",
+      "references": [
+        {
+          "line": 111,
+          "text": "(value25.classList.toggle(\"is-wide\", value24.kind === \"timestamp\"),"
+        },
+        {
+          "line": 112,
+          "text": "(value25.title = value24.entityId),"
+        },
+        {
+          "line": 113,
+          "text": "value25.append(fn1(\"span\", \"\", value24.label), value26, value27),"
+        },
+        {
+          "line": 116,
+          "text": "metric: value24,"
+        }
+      ]
+    },
+    {
+      "key": "value25@108",
+      "name": "value25",
+      "line": 108,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = fn1(\"div\", \"i3d-nas-metric\"),",
+      "references": [
+        {
+          "line": 111,
+          "text": "(value25.classList.toggle(\"is-wide\", value24.kind === \"timestamp\"),"
+        },
+        {
+          "line": 112,
+          "text": "(value25.title = value24.entityId),"
+        },
+        {
+          "line": 113,
+          "text": "value25.append(fn1(\"span\", \"\", value24.label), value26, value27),"
+        },
+        {
+          "line": 114,
+          "text": "value23.append(value25),"
+        }
+      ]
+    },
+    {
+      "key": "value26@109",
+      "name": "value26",
+      "line": 109,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value26 = fn1(\"strong\", \"\"),",
+      "references": [
+        {
+          "line": 113,
+          "text": "value25.append(fn1(\"span\", \"\", value24.label), value26, value27),"
+        },
+        {
+          "line": 117,
+          "text": "value: value26,"
+        }
+      ]
+    },
+    {
+      "key": "value27@110",
+      "name": "value27",
+      "line": 110,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value27 = fn1(\"i\", \"i3d-nas-bar\");",
+      "references": [
+        {
+          "line": 113,
+          "text": "value25.append(fn1(\"span\", \"\", value24.label), value26, value27),"
+        },
+        {
+          "line": 118,
+          "text": "bar: value27,"
+        }
+      ]
+    },
+    {
+      "key": "value18@125",
+      "name": "value18",
+      "line": 125,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value18 = 0;",
+      "references": [
+        {
+          "line": 139,
+          "text": "Number.isFinite(value31) && (value18 = Math.max(value18, value31));"
+        },
+        {
+          "line": 149,
+          "text": "(value18"
+        },
+        {
+          "line": 150,
+          "text": "? new Date(value18).toLocaleTimeString(\"zh-CN\", {"
+        }
+      ]
+    },
+    {
+      "key": "value28@126",
+      "name": "value28",
+      "line": 126,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value28 of list1) {",
+      "references": [
+        {
+          "line": 129,
+          "text": "? arg10.get(value28.metric.entityId)"
+        },
+        {
+          "line": 130,
+          "text": ": arg10[value28.metric.entityId],"
+        },
+        {
+          "line": 131,
+          "text": "value30 = nasMetricValue(value28.metric, value29);"
+        },
+        {
+          "line": 132,
+          "text": "((value28.card.title = value28.metric.label + \"：\" + value30.text),"
+        }
+      ]
+    },
+    {
+      "key": "value29@127",
+      "name": "value29",
+      "line": 127,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value29 =",
+      "references": [
+        {
+          "line": 131,
+          "text": "value30 = nasMetricValue(value28.metric, value29);"
+        },
+        {
+          "line": 138,
+          "text": "const value31 = Date.parse(value29?.updatedAt || value29?.last_updated || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "value30@131",
+      "name": "value30",
+      "line": 131,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value30 = nasMetricValue(value28.metric, value29);",
+      "references": [
+        {
+          "line": 132,
+          "text": "((value28.card.title = value28.metric.label + \"：\" + value30.text),"
+        },
+        {
+          "line": 133,
+          "text": "(value28.value.textContent = value30.text),"
+        },
+        {
+          "line": 134,
+          "text": "value28.card.classList.toggle(\"is-warning\", !!value30.warning),"
+        },
+        {
+          "line": 135,
+          "text": "value28.card.classList.toggle(\"is-unavailable\", !value30.available),"
+        }
+      ]
+    },
+    {
+      "key": "value31@138",
+      "name": "value31",
+      "line": 138,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value31 = Date.parse(value29?.updatedAt || value29?.last_updated || \"\");",
+      "references": [
+        {
+          "line": 139,
+          "text": "Number.isFinite(value31) && (value18 = Math.max(value18, value31));"
+        }
+      ]
+    }
+  ]
+}

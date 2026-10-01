@@ -1,0 +1,970 @@
+{
+  "file": "frontend/static/renderer/scene-mode.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 172,
+  "counts": {
+    "entries": 47,
+    "renameable": 47,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "T@2",
+      "name": "T",
+      "line": 2,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const T = new Set([\"switch\", \"input_boolean\", \"light\", \"fan\"]);",
+      "references": [
+        {
+          "line": 4,
+          "text": "return [\"switch\", \"scene\"].includes(arg1) ? arg1 : T.has(arg2.split(\".\")[0]) ? \"switch\" : \"scene\";"
+        }
+      ]
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function resolveSceneControlMode(arg1, arg2 = \"\") {",
+      "references": [
+        {
+          "line": 4,
+          "text": "return [\"switch\", \"scene\"].includes(arg1) ? arg1 : T.has(arg2.split(\".\")[0]) ? \"switch\" : \"scene\";"
+        }
+      ]
+    },
+    {
+      "key": "arg2@3",
+      "name": "arg2",
+      "line": 3,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function resolveSceneControlMode(arg1, arg2 = \"\") {",
+      "references": [
+        {
+          "line": 4,
+          "text": "return [\"switch\", \"scene\"].includes(arg1) ? arg1 : T.has(arg2.split(\".\")[0]) ? \"switch\" : \"scene\";"
+        }
+      ]
+    },
+    {
+      "key": "arg3@6",
+      "name": "arg3",
+      "line": 6,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeState(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "value2 = resolveSceneControlMode(arg5, arg3) === \"scene\";"
+        },
+        {
+          "line": 11,
+          "text": "active: !value2 && entityPowerIsOn(arg3, arg4),"
+        },
+        {
+          "line": 13,
+          "text": "!!arg3 && value1 != null && value1 !== \"unavailable\" && (value2 || value1 !== \"unknown\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@6",
+      "name": "arg4",
+      "line": 6,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeState(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "const value1 = arg4?.newState?.state ?? arg4?.state,"
+        },
+        {
+          "line": 11,
+          "text": "active: !value2 && entityPowerIsOn(arg3, arg4),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@6",
+      "name": "arg5",
+      "line": 6,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeState(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "value2 = resolveSceneControlMode(arg5, arg3) === \"scene\";"
+        }
+      ]
+    },
+    {
+      "key": "value1@7",
+      "name": "value1",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg4?.newState?.state ?? arg4?.state,",
+      "references": [
+        {
+          "line": 13,
+          "text": "!!arg3 && value1 != null && value1 !== \"unavailable\" && (value2 || value1 !== \"unknown\"),"
+        }
+      ]
+    },
+    {
+      "key": "value2@8",
+      "name": "value2",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = resolveSceneControlMode(arg5, arg3) === \"scene\";",
+      "references": [
+        {
+          "line": 10,
+          "text": "momentary: value2,"
+        },
+        {
+          "line": 11,
+          "text": "active: !value2 && entityPowerIsOn(arg3, arg4),"
+        },
+        {
+          "line": 13,
+          "text": "!!arg3 && value1 != null && value1 !== \"unavailable\" && (value2 || value1 !== \"unknown\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg6@16",
+      "name": "arg6",
+      "line": 16,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeCommand(arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const value3 = sceneModeState(arg6, arg7, arg8);"
+        },
+        {
+          "line": 19,
+          "text": "const value4 = arg6.split(\".\")[0];"
+        },
+        {
+          "line": 22,
+          "text": "...entityToggleCommand(arg6, arg7),"
+        },
+        {
+          "line": 23,
+          "text": "entityId: arg6,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@16",
+      "name": "arg7",
+      "line": 16,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeCommand(arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const value3 = sceneModeState(arg6, arg7, arg8);"
+        },
+        {
+          "line": 22,
+          "text": "...entityToggleCommand(arg6, arg7),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@16",
+      "name": "arg8",
+      "line": 16,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function sceneModeCommand(arg6, arg7, arg8) {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const value3 = sceneModeState(arg6, arg7, arg8);"
+        }
+      ]
+    },
+    {
+      "key": "value3@17",
+      "name": "value3",
+      "line": 17,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = sceneModeState(arg6, arg7, arg8);",
+      "references": [
+        {
+          "line": 18,
+          "text": "if (!value3.available) throw new Error(\"情景模式关联实体不可用。\");"
+        },
+        {
+          "line": 20,
+          "text": "return !value3.momentary && [\"climate\", \"media_player\", \"water_heater\"].includes(value4)"
+        },
+        {
+          "line": 29,
+          "text": ": value3.momentary || !value3.active"
+        }
+      ]
+    },
+    {
+      "key": "value4@19",
+      "name": "value4",
+      "line": 19,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = arg6.split(\".\")[0];",
+      "references": [
+        {
+          "line": 20,
+          "text": "return !value3.momentary && [\"climate\", \"media_player\", \"water_heater\"].includes(value4)"
+        },
+        {
+          "line": 26,
+          "text": "domain: value4,"
+        },
+        {
+          "line": 27,
+          "text": "service: [\"button\", \"input_button\"].includes(value4)"
+        }
+      ]
+    },
+    {
+      "key": "arg9@35",
+      "name": "arg9",
+      "line": 35,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function bindSceneMode(arg9, arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "arg9.classList.toggle(\"has-animation\", value14);"
+        },
+        {
+          "line": 71,
+          "text": "(arg9.dataset.state = value15.available ? (value15.active ? \"on\" : \"off\") : \"unavailable\"),"
+        },
+        {
+          "line": 72,
+          "text": "arg9.setAttribute(\"aria-busy\", String(value10)),"
+        },
+        {
+          "line": 73,
+          "text": "arg9.setAttribute(\"aria-disabled\", String(!value15.available || value10 || !!arg12.editable)),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@35",
+      "name": "arg10",
+      "line": 35,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function bindSceneMode(arg9, arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 58,
+          "text": "(arg10.classList.toggle(\"active\", value16),"
+        },
+        {
+          "line": 59,
+          "text": "arg10.style.setProperty("
+        },
+        {
+          "line": 65,
+          "text": "arg10.style.setProperty("
+        },
+        {
+          "line": 86,
+          "text": "const value17 = arg10.querySelector(\".hb-navigation-icon\");"
+        }
+      ]
+    },
+    {
+      "key": "arg11@35",
+      "name": "arg11",
+      "line": 35,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function bindSceneMode(arg9, arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 36,
+          "text": "const value5 = arg11.properties || {},"
+        },
+        {
+          "line": 37,
+          "text": "value6 = arg11.bindings?.entity?.entityId || \"\","
+        }
+      ]
+    },
+    {
+      "key": "arg12@35",
+      "name": "arg12",
+      "line": 35,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function bindSceneMode(arg9, arg10, arg11, arg12) {",
+      "references": [
+        {
+          "line": 39,
+          "text": "let value8 = arg12.states?.get(value6),"
+        },
+        {
+          "line": 40,
+          "text": "value9 = arg12.previewState || \"auto\","
+        },
+        {
+          "line": 55,
+          "text": "arg12.editable && value9 !== \"auto\""
+        },
+        {
+          "line": 73,
+          "text": "arg9.setAttribute(\"aria-disabled\", String(!value15.available || value10 || !!arg12.editable)),"
+        }
+      ]
+    },
+    {
+      "key": "value5@36",
+      "name": "value5",
+      "line": 36,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = arg11.properties || {},",
+      "references": [
+        {
+          "line": 38,
+          "text": "value7 = resolveSceneControlMode(value5.controlMode, value6);"
+        },
+        {
+          "line": 49,
+          "text": "value14 = value5.activationAnimation !== \"none\";"
+        },
+        {
+          "line": 62,
+          "text": "fn1(value16 ? value5.textActiveOpacity : value5.textIdleOpacity, value16 ? 0.9 : 0.4),"
+        },
+        {
+          "line": 68,
+          "text": "fn1(value16 ? value5.iconActiveOpacity : value5.iconIdleOpacity, value16 ? 0.9 : 0.3),"
+        }
+      ]
+    },
+    {
+      "key": "value6@37",
+      "name": "value6",
+      "line": 37,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = arg11.bindings?.entity?.entityId || \"\",",
+      "references": [
+        {
+          "line": 38,
+          "text": "value7 = resolveSceneControlMode(value5.controlMode, value6);"
+        },
+        {
+          "line": 39,
+          "text": "let value8 = arg12.states?.get(value6),"
+        },
+        {
+          "line": 53,
+          "text": "const value15 = sceneModeState(value6, value8, value7),"
+        },
+        {
+          "line": 80,
+          "text": "text1 || (value6 ? (value15.available ? \"\" : \"关联实体不可用\") : \"请在编辑器中绑定实体\")));"
+        }
+      ]
+    },
+    {
+      "key": "value7@38",
+      "name": "value7",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = resolveSceneControlMode(value5.controlMode, value6);",
+      "references": [
+        {
+          "line": 53,
+          "text": "const value15 = sceneModeState(value6, value8, value7),"
+        },
+        {
+          "line": 121,
+          "text": "const value20 = sceneModeCommand(value6, value8, value7);"
+        },
+        {
+          "line": 139,
+          "text": "sceneModeState(value6, value8, value7).momentary &&"
+        }
+      ]
+    },
+    {
+      "key": "value8@39",
+      "name": "value8",
+      "line": 39,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value8 = arg12.states?.get(value6),",
+      "references": [
+        {
+          "line": 53,
+          "text": "const value15 = sceneModeState(value6, value8, value7),"
+        },
+        {
+          "line": 121,
+          "text": "const value20 = sceneModeCommand(value6, value8, value7);"
+        },
+        {
+          "line": 139,
+          "text": "sceneModeState(value6, value8, value7).momentary &&"
+        }
+      ]
+    },
+    {
+      "key": "value9@40",
+      "name": "value9",
+      "line": 40,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = arg12.previewState || \"auto\",",
+      "references": [
+        {
+          "line": 55,
+          "text": "arg12.editable && value9 !== \"auto\""
+        },
+        {
+          "line": 56,
+          "text": "? value9 === \"on\""
+        },
+        {
+          "line": 156,
+          "text": "update(arg16, arg17 = value9) {"
+        }
+      ]
+    },
+    {
+      "key": "value10@41",
+      "name": "value10",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = false,",
+      "references": [
+        {
+          "line": 72,
+          "text": "arg9.setAttribute(\"aria-busy\", String(value10)),"
+        },
+        {
+          "line": 73,
+          "text": "arg9.setAttribute(\"aria-disabled\", String(!value15.available || value10 || !!arg12.editable)),"
+        },
+        {
+          "line": 119,
+          "text": "if (!arg12.editable && (arg15?.stopPropagation(), !(value10 || value12)))"
+        }
+      ]
+    },
+    {
+      "key": "value11@42",
+      "name": "value11",
+      "line": 42,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = false,",
+      "references": [
+        {
+          "line": 57,
+          "text": ": value15.available && (value15.active || value11);"
+        }
+      ]
+    },
+    {
+      "key": "text1@43",
+      "name": "text1",
+      "line": 43,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "text1 = \"\",",
+      "references": [
+        {
+          "line": 80,
+          "text": "text1 || (value6 ? (value15.available ? \"\" : \"关联实体不可用\") : \"请在编辑器中绑定实体\")));"
+        }
+      ]
+    },
+    {
+      "key": "value12@44",
+      "name": "value12",
+      "line": 44,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = false,",
+      "references": [
+        {
+          "line": 52,
+          "text": "if (value12) return;"
+        },
+        {
+          "line": 119,
+          "text": "if (!arg12.editable && (arg15?.stopPropagation(), !(value10 || value12)))"
+        },
+        {
+          "line": 136,
+          "text": "value12)"
+        },
+        {
+          "line": 146,
+          "text": "value12 ||"
+        }
+      ]
+    },
+    {
+      "key": "value13@45",
+      "name": "value13",
+      "line": 45,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = null;",
+      "references": [
+        {
+          "line": 126,
+          "text": "clearTimeout(value13),"
+        },
+        {
+          "line": 160,
+          "text": "((value12 = true), clearTimeout(value13));"
+        }
+      ]
+    },
+    {
+      "key": "set1@46",
+      "name": "set1",
+      "line": 46,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set(),",
+      "references": [
+        {
+          "line": 84,
+          "text": "for (const value19 of set1) value19.cancel();"
+        },
+        {
+          "line": 85,
+          "text": "set1.clear();"
+        },
+        {
+          "line": 116,
+          "text": "(set1.add(value18), value18.finished.catch(() => {}).finally(() => set1.delete(value18)));"
+        },
+        {
+          "line": 161,
+          "text": "for (const value21 of set1) value21.cancel();"
+        }
+      ]
+    },
+    {
+      "key": "fn1@47",
+      "name": "fn1",
+      "line": 47,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg13, arg14) =>",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn1(value16 ? value5.textActiveOpacity : value5.textIdleOpacity, value16 ? 0.9 : 0.4),"
+        },
+        {
+          "line": 68,
+          "text": "fn1(value16 ? value5.iconActiveOpacity : value5.iconIdleOpacity, value16 ? 0.9 : 0.3),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@47",
+      "name": "arg13",
+      "line": 47,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg13, arg14) =>",
+      "references": [
+        {
+          "line": 48,
+          "text": "Number.isFinite(Number(arg13)) ? Math.max(0, Math.min(1, Number(arg13))) : arg14,"
+        }
+      ]
+    },
+    {
+      "key": "arg14@47",
+      "name": "arg14",
+      "line": 47,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg13, arg14) =>",
+      "references": [
+        {
+          "line": 48,
+          "text": "Number.isFinite(Number(arg13)) ? Math.max(0, Math.min(1, Number(arg13))) : arg14,"
+        }
+      ]
+    },
+    {
+      "key": "value14@49",
+      "name": "value14",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = value5.activationAnimation !== \"none\";",
+      "references": [
+        {
+          "line": 50,
+          "text": "arg9.classList.toggle(\"has-animation\", value14);"
+        },
+        {
+          "line": 83,
+          "text": "if (!value14 || globalThis.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches) return;"
+        },
+        {
+          "line": 140,
+          "text": "value14 &&"
+        }
+      ]
+    },
+    {
+      "key": "fn2@51",
+      "name": "fn2",
+      "line": 51,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2() {",
+      "references": [
+        {
+          "line": 128,
+          "text": "fn2(),"
+        },
+        {
+          "line": 143,
+          "text": "((value11 = false), fn2());"
+        },
+        {
+          "line": 151,
+          "text": "value12 || ((value10 = false), fn2());"
+        },
+        {
+          "line": 157,
+          "text": "((value8 = arg16), (value9 = arg17), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "value15@53",
+      "name": "value15",
+      "line": 53,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = sceneModeState(value6, value8, value7),",
+      "references": [
+        {
+          "line": 57,
+          "text": ": value15.available && (value15.active || value11);"
+        },
+        {
+          "line": 71,
+          "text": "(arg9.dataset.state = value15.available ? (value15.active ? \"on\" : \"off\") : \"unavailable\"),"
+        },
+        {
+          "line": 73,
+          "text": "arg9.setAttribute(\"aria-disabled\", String(!value15.available || value10 || !!arg12.editable)),"
+        },
+        {
+          "line": 74,
+          "text": "(arg9.tabIndex = arg12.editable || !value15.available ? -1 : 0),"
+        }
+      ]
+    },
+    {
+      "key": "value16@54",
+      "name": "value16",
+      "line": 54,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 =",
+      "references": [
+        {
+          "line": 58,
+          "text": "(arg10.classList.toggle(\"active\", value16),"
+        },
+        {
+          "line": 62,
+          "text": "fn1(value16 ? value5.textActiveOpacity : value5.textIdleOpacity, value16 ? 0.9 : 0.4),"
+        },
+        {
+          "line": 68,
+          "text": "fn1(value16 ? value5.iconActiveOpacity : value5.iconIdleOpacity, value16 ? 0.9 : 0.3),"
+        }
+      ]
+    },
+    {
+      "key": "fn3@82",
+      "name": "fn3",
+      "line": 82,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3() {",
+      "references": [
+        {
+          "line": 129,
+          "text": "fn3(),"
+        }
+      ]
+    },
+    {
+      "key": "value19@84",
+      "name": "value19",
+      "line": 84,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value19 of set1) value19.cancel();",
+      "references": [
+        {
+          "line": 84,
+          "text": "for (const value19 of set1) value19.cancel();"
+        }
+      ]
+    },
+    {
+      "key": "value17@86",
+      "name": "value17",
+      "line": 86,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = arg10.querySelector(\".hb-navigation-icon\");",
+      "references": [
+        {
+          "line": 87,
+          "text": "if (!value17?.animate) return;"
+        },
+        {
+          "line": 88,
+          "text": "const value18 = value17.animate("
+        }
+      ]
+    },
+    {
+      "key": "value18@88",
+      "name": "value18",
+      "line": 88,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = value17.animate(",
+      "references": [
+        {
+          "line": 116,
+          "text": "(set1.add(value18), value18.finished.catch(() => {}).finally(() => set1.delete(value18)));"
+        }
+      ]
+    },
+    {
+      "key": "fn4@118",
+      "name": "fn4",
+      "line": 118,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn4(arg15) {",
+      "references": [
+        {
+          "line": 154,
+          "text": "arg9.addEventListener(\"click\", fn4);"
+        },
+        {
+          "line": 162,
+          "text": "(set1.clear(), arg9.removeEventListener(\"click\", fn4));"
+        }
+      ]
+    },
+    {
+      "key": "arg15@118",
+      "name": "arg15",
+      "line": 118,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn4(arg15) {",
+      "references": [
+        {
+          "line": 119,
+          "text": "if (!arg12.editable && (arg15?.stopPropagation(), !(value10 || value12)))"
+        }
+      ]
+    },
+    {
+      "key": "value20@121",
+      "name": "value20",
+      "line": 121,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = sceneModeCommand(value6, value8, value7);",
+      "references": [
+        {
+          "line": 131,
+          "text": "value20.domain,"
+        },
+        {
+          "line": 132,
+          "text": "value20.service,"
+        },
+        {
+          "line": 133,
+          "text": "value20.entityId,"
+        },
+        {
+          "line": 134,
+          "text": "value20.data || {},"
+        }
+      ]
+    },
+    {
+      "key": "error1@145",
+      "name": "error1",
+      "line": 145,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "} catch (error1) {",
+      "references": [
+        {
+          "line": 148,
+          "text": "(text1 = error1.message || \"情景模式触发失败\"),"
+        },
+        {
+          "line": 149,
+          "text": "arg12.onError?.(error1));"
+        }
+      ]
+    },
+    {
+      "key": "object1@155",
+      "name": "object1",
+      "line": 155,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 166,
+          "text": "(arg9.sceneModeController = object1),"
+        },
+        {
+          "line": 167,
+          "text": "arg12.cleanup?.(() => object1.destroy()),"
+        },
+        {
+          "line": 169,
+          "text": "object1"
+        }
+      ]
+    },
+    {
+      "key": "arg16@156",
+      "name": "arg16",
+      "line": 156,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update(arg16, arg17 = value9) {",
+      "references": [
+        {
+          "line": 157,
+          "text": "((value8 = arg16), (value9 = arg17), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "arg17@156",
+      "name": "arg17",
+      "line": 156,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update(arg16, arg17 = value9) {",
+      "references": [
+        {
+          "line": 157,
+          "text": "((value8 = arg16), (value9 = arg17), fn2());"
+        }
+      ]
+    },
+    {
+      "key": "value21@161",
+      "name": "value21",
+      "line": 161,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value21 of set1) value21.cancel();",
+      "references": [
+        {
+          "line": 161,
+          "text": "for (const value21 of set1) value21.cancel();"
+        }
+      ]
+    }
+  ]
+}

@@ -2,39 +2,40 @@ import {
   percentageBarSeries as percentageBarSeries2,
   percentageBarDimensions as percentageBarDimensions2,
 } from "../percentage-bar-model.js?v=20260930-percentage-text-offset-v1";
-export function percentageValue(arg1, v1 = "") {
+export function percentageValue(entityState, attributeName = "") {
   if (
-    ((arg1 = arg1?.newState || arg1),
-    arg1?.available === false ||
-      ["unknown", "unavailable"].includes(String(arg1?.state).toLowerCase()))
+    ((entityState = entityState?.newState || entityState),
+    entityState?.available === false ||
+      ["unknown", "unavailable"].includes(String(entityState?.state).toLowerCase()))
   )
     return null;
-  const v2 = v1 ? arg1?.attributes?.[v1] : arg1?.state;
-  if (v2 == null || typeof v2 == "boolean" || String(v2).trim() === "") return null;
-  const v3 = Number(v2);
-  return Number.isFinite(v3) ? Math.max(0, Math.min(100, v3)) : null;
+  const rawValue = attributeName ? entityState?.attributes?.[attributeName] : entityState?.state;
+  if (rawValue == null || typeof rawValue == "boolean" || String(rawValue).trim() === "")
+    return null;
+  const numericValue = Number(rawValue);
+  return Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : null;
 }
-export function percentageLabel(arg2, v4 = 0) {
-  if (arg2 === null) return "—";
-  const max = Math.max(0, Math.min(2, Math.trunc(Number(v4) || 0)));
-  return arg2.toFixed(max) + "%";
+export function percentageLabel(percentage, precision = 0) {
+  if (percentage === null) return "—";
+  const max = Math.max(0, Math.min(2, Math.trunc(Number(precision) || 0)));
+  return percentage.toFixed(max) + "%";
 }
-export function renderPercentageBar(arg3, arg4) {
-  const options = arg3.properties || {},
-    v5 = percentageBarSeries2(arg3),
+export function renderPercentageBar(component, runtimeHost) {
+  const options = component.properties || {},
+    series = percentageBarSeries2(component),
     element = document.createElement("section");
   element.className = "hb-percentage-chart";
   const variant = ["cursor", "glass"].includes(options.variant) ? options.variant : "gradient";
   ((element.dataset.variant = variant),
-    element.style.setProperty("--series-count", String(v5.length)),
+    element.style.setProperty("--series-count", String(series.length)),
     element.classList.toggle("is-horizontal", options.orientation === "horizontal"));
-  const v6 = (arg5, arg6, arg7, arg8) => {
-      const v7 = Number(options[arg5]);
-      return options[arg5] == null || !Number.isFinite(v7)
-        ? arg8
-        : Math.max(arg6, Math.min(arg7, v7));
+  const resolveClampedOption = (optionName, minValue, maxValue, defaultValue) => {
+      const optionNumber = Number(options[optionName]);
+      return options[optionName] == null || !Number.isFinite(optionNumber)
+        ? defaultValue
+        : Math.max(minValue, Math.min(maxValue, optionNumber));
     },
-    options2 = {
+    dimensionOptions = {
       length: [80, 600, 300],
       gap: [0, 80, 52],
       valueGap: [0, 40, 11],
@@ -43,129 +44,144 @@ export function renderPercentageBar(arg3, arg4) {
       labelSize: [8, 24, 11],
       radius: [0, 24, 5],
     };
-  for (const v8 of ["valueOffsetX", "valueOffsetY", "labelOffsetX", "labelOffsetY"])
-    options2[v8] = [-600, 600, 0];
-  for (const [v9, [v10, v11, v12]] of Object.entries(options2))
+  for (const offsetKey of ["valueOffsetX", "valueOffsetY", "labelOffsetX", "labelOffsetY"])
+    dimensionOptions[offsetKey] = [-600, 600, 0];
+  for (const [optionKey, [minPx, maxPx, defaultPx]] of Object.entries(dimensionOptions))
     element.style.setProperty(
-      "--" + v9.replace(/[A-Z]/g, (arg9) => "-" + arg9.toLowerCase()),
-      v6(v9, v10, v11, v12) + "px",
+      "--" + optionKey.replace(/[A-Z]/g, (upperChar) => "-" + upperChar.toLowerCase()),
+      resolveClampedOption(optionKey, minPx, maxPx, defaultPx) + "px",
     );
-  (element.style.setProperty("--fill-opacity", v6("fillOpacity", 5, 90, 32) + "%"),
+  (element.style.setProperty(
+    "--fill-opacity",
+    resolveClampedOption("fillOpacity", 5, 90, 32) + "%",
+  ),
     element.classList.toggle("hide-values", options.valueVisible === false),
     element.classList.toggle("hide-labels", options.labelVisible === false));
-  for (const [v13, v14] of [
+  for (const [colorKey, cssVariableName] of [
     ["valueColor", "--chart-text"],
     ["labelColor", "--chart-label"],
   ])
-    /^#[0-9a-f]{6}$/i.test(options[v13] || "") && element.style.setProperty(v14, options[v13]);
+    /^#[0-9a-f]{6}$/i.test(options[colorKey] || "") &&
+      element.style.setProperty(cssVariableName, options[colorKey]);
   element.setAttribute("aria-label", options.title || "百分比柱状图");
-  const element2 = document.createElement("div");
-  element2.className = "hb-percentage-axis";
-  for (const v15 of [100, 75, 50, 25, 0]) {
-    const element3 = document.createElement("span");
-    ((element3.textContent = v15 + "%"), element2.append(element3));
+  const axisElement = document.createElement("div");
+  axisElement.className = "hb-percentage-axis";
+  for (const tickPercentage of [100, 75, 50, 25, 0]) {
+    const tickElement = document.createElement("span");
+    ((tickElement.textContent = tickPercentage + "%"), axisElement.append(tickElement));
   }
-  const element4 = document.createElement("div");
-  element4.className = "hb-percentage-plot";
-  const map = v5.map((arg10) => {
-    const element5 = document.createElement("div");
-    element5.className = "hb-percentage-column";
-    const max2 = Math.max(8, Math.min(96, Number(options.thickness) || 48));
-    element5.style.setProperty("--bar-thickness", max2 + "px");
-    const element6 = document.createElement("strong");
-    element6.className = "hb-percentage-value";
-    const element7 = document.createElement("div");
-    ((element7.className = "hb-percentage-track"),
-      element7.setAttribute("role", "meter"),
-      element7.setAttribute("aria-valuemin", "0"),
-      element7.setAttribute("aria-valuemax", "100"));
-    const element8 = document.createElement("div");
-    element8.className = "hb-percentage-fill";
-    const color = arg10.color || options.color;
-    /^#[0-9a-f]{6}$/i.test(color || "") && element5.style.setProperty("--bar-color", color);
-    const element9 = document.createElement("span");
-    element9.className = "hb-percentage-label";
-    const element10 = document.createElement("div");
+  const plotElement = document.createElement("div");
+  plotElement.className = "hb-percentage-plot";
+  const map = series.map((seriesPoint) => {
+    const columnElement = document.createElement("div");
+    columnElement.className = "hb-percentage-column";
+    const thicknessPx = Math.max(8, Math.min(96, Number(options.thickness) || 48));
+    columnElement.style.setProperty("--bar-thickness", thicknessPx + "px");
+    const valueElement = document.createElement("strong");
+    valueElement.className = "hb-percentage-value";
+    const trackElement = document.createElement("div");
+    ((trackElement.className = "hb-percentage-track"),
+      trackElement.setAttribute("role", "meter"),
+      trackElement.setAttribute("aria-valuemin", "0"),
+      trackElement.setAttribute("aria-valuemax", "100"));
+    const fillElement = document.createElement("div");
+    fillElement.className = "hb-percentage-fill";
+    const color = seriesPoint.color || options.color;
+    /^#[0-9a-f]{6}$/i.test(color || "") && columnElement.style.setProperty("--bar-color", color);
+    const labelElement = document.createElement("span");
+    labelElement.className = "hb-percentage-label";
+    const surfaceElement = document.createElement("div");
     return (
-      (element10.className = "hb-percentage-surface"),
-      element10.setAttribute("aria-hidden", "true"),
-      element10.append(element8),
-      element7.append(element10),
-      element5.append(element6, element7, element9),
-      element4.append(element5),
+      (surfaceElement.className = "hb-percentage-surface"),
+      surfaceElement.setAttribute("aria-hidden", "true"),
+      surfaceElement.append(fillElement),
+      trackElement.append(surfaceElement),
+      columnElement.append(valueElement, trackElement, labelElement),
+      plotElement.append(columnElement),
       {
-        item: arg10,
-        column: element5,
-        value: element6,
-        track: element7,
-        fill: element8,
-        label: element9,
+        item: seriesPoint,
+        column: columnElement,
+        value: valueElement,
+        track: trackElement,
+        fill: fillElement,
+        label: labelElement,
       }
     );
   });
   return (
-    element.append(element2, element4),
-    (element.syncPercentageStates = (arg11) => {
-      for (const v16 of map) {
-        const v17 = arg11.get(v16.item.entityId),
-          percentageValue2 = percentageValue(v17, v16.item.attribute),
+    element.append(axisElement, plotElement),
+    (element.syncPercentageStates = (statesByEntityId) => {
+      for (const columnRecord of map) {
+        const runtimeState = statesByEntityId.get(columnRecord.item.entityId),
+          percentageValue2 = percentageValue(runtimeState, columnRecord.item.attribute),
           text =
-            v16.item.label ||
-            (v17?.newState || v17)?.attributes?.friendly_name ||
-            v16.item.entityId ||
+            columnRecord.item.label ||
+            (runtimeState?.newState || runtimeState)?.attributes?.friendly_name ||
+            columnRecord.item.entityId ||
             "未绑定实体",
           percentageLabel2 = percentageLabel(percentageValue2, options.precision);
-        ((v16.label.textContent = text), (v16.label.title = text));
-        const element11 = document.createElement("span");
-        element11.textContent = percentageValue2 === null ? "—" : percentageLabel2.slice(0, -1);
-        const element12 = document.createElement("small");
-        ((element12.textContent = percentageValue2 === null ? "" : "%"),
-          v16.value.replaceChildren(element11, element12),
-          v16.column.style.setProperty("--percentage", String((percentageValue2 ?? 0) / 100)),
-          (v16.fill.hidden = percentageValue2 === null || percentageValue2 === 0),
-          v16.column.classList.toggle("is-unavailable", percentageValue2 === null),
-          v16.track.setAttribute("aria-label", text),
-          v16.track.setAttribute(
+        ((columnRecord.label.textContent = text), (columnRecord.label.title = text));
+        const numberElement = document.createElement("span");
+        numberElement.textContent = percentageValue2 === null ? "—" : percentageLabel2.slice(0, -1);
+        const unitElement = document.createElement("small");
+        ((unitElement.textContent = percentageValue2 === null ? "" : "%"),
+          columnRecord.value.replaceChildren(numberElement, unitElement),
+          columnRecord.column.style.setProperty(
+            "--percentage",
+            String((percentageValue2 ?? 0) / 100),
+          ),
+          (columnRecord.fill.hidden = percentageValue2 === null || percentageValue2 === 0),
+          columnRecord.column.classList.toggle("is-unavailable", percentageValue2 === null),
+          columnRecord.track.setAttribute("aria-label", text),
+          columnRecord.track.setAttribute(
             "aria-valuetext",
             percentageValue2 === null ? "暂无数据" : percentageLabel2,
           ),
           percentageValue2 === null
-            ? v16.track.removeAttribute("aria-valuenow")
-            : v16.track.setAttribute("aria-valuenow", String(percentageValue2)),
-          (v16.column.title =
+            ? columnRecord.track.removeAttribute("aria-valuenow")
+            : columnRecord.track.setAttribute("aria-valuenow", String(percentageValue2)),
+          (columnRecord.column.title =
             text + "：" + (percentageValue2 === null ? "暂无数据" : percentageLabel2)));
       }
     }),
-    element.syncPercentageStates(arg4.states),
+    element.syncPercentageStates(runtimeHost.states),
     element
   );
 }
-export function renderPercentageBarControl(arg12, arg13) {
-  const element13 = document.createElement("div");
-  element13.className = "hb-percentage-control";
-  const percentageBar = renderPercentageBar(arg12, arg13),
-    v18 = percentageBarDimensions2(arg12.properties, percentageBarSeries2(arg12).length);
-  ((percentageBar.style.width = v18.width + "px"),
+export function renderPercentageBarControl(controlComponent, controlHost) {
+  const controlElement = document.createElement("div");
+  controlElement.className = "hb-percentage-control";
+  const percentageBar = renderPercentageBar(controlComponent, controlHost),
+    dimensions = percentageBarDimensions2(
+      controlComponent.properties,
+      percentageBarSeries2(controlComponent).length,
+    );
+  ((percentageBar.style.width = dimensions.width + "px"),
     (percentageBar.style.minWidth = "0"),
-    (percentageBar.style.height = v18.height + "px"),
-    element13.append(percentageBar));
-  const v19 = () => {
-    const width = element13.clientWidth || arg12.position?.width || v18.width,
-      height = element13.clientHeight || arg12.position?.height || v18.height;
+    (percentageBar.style.height = dimensions.height + "px"),
+    controlElement.append(percentageBar));
+  const applyBarScale = () => {
+    const width =
+        controlElement.clientWidth || controlComponent.position?.width || dimensions.width,
+      height =
+        controlElement.clientHeight || controlComponent.position?.height || dimensions.height;
     percentageBar.style.transform =
-      "translate(-50%, -50%) scale(" + Math.min(width / v18.width, height / v18.height) + ")";
+      "translate(-50%, -50%) scale(" +
+      Math.min(width / dimensions.width, height / dimensions.height) +
+      ")";
   };
-  if ((v19(), typeof ResizeObserver < "u")) {
-    const resizeObserver = new ResizeObserver(v19);
-    (resizeObserver.observe(element13), arg13.cleanup?.(() => resizeObserver.disconnect()));
+  if ((applyBarScale(), typeof ResizeObserver < "u")) {
+    const resizeObserver = new ResizeObserver(applyBarScale);
+    (resizeObserver.observe(controlElement),
+      controlHost.cleanup?.(() => resizeObserver.disconnect()));
   }
-  for (const v20 of new Set(
-    percentageBarSeries2(arg12)
-      .map((arg14) => arg14.entityId)
+  for (const entityId of new Set(
+    percentageBarSeries2(controlComponent)
+      .map((seriesDatum) => seriesDatum.entityId)
       .filter(Boolean),
   ))
-    arg13.registerRuntimeStateHandler?.(v20, () =>
-      percentageBar.syncPercentageStates(arg13.states),
+    controlHost.registerRuntimeStateHandler?.(entityId, () =>
+      percentageBar.syncPercentageStates(controlHost.states),
     );
-  return element13;
+  return controlElement;
 }

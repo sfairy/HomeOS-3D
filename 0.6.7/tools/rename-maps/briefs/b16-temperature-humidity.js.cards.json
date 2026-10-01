@@ -1,0 +1,55 @@
+{
+  "file": "frontend/static/modules/interaction3d/temperature-humidity.js",
+  "seed": "b16-temperature-humidity.js",
+  "size": 5,
+  "candidates": 43,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "candidateMetric",
+      "declaration": "v8 = ENVIRONMENT_SENSORS.find((???) => ???.key === arg23);",
+      "references": [
+        "L198: v8 = ENVIRONMENT_SENSORS.find((???) => ???.key === arg23);"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "floorItem",
+      "declaration": "(???) => Number.isFinite(???.x) && Number.isFinite(???.y),",
+      "references": [
+        "L145: (???) => Number.isFinite(???.x) && Number.isFinite(???.y),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "maxCellColumnGapPx",
+      "declaration": "let ??? = 0;",
+      "references": [
+        "L97: ((??? = Math.max(???, parseFloat(defaultView.getComputedStyle(arg4).columnGap) || 0)),",
+        "L103: max = Math.max(1, list.reduce((arg7, arg8) => arg7 + arg8, 0) + (contains ? 2 : 3) * ???),",
+        "L114: selector.classList.toggle(\"is-meter-stacked\", max > max3 && max3 < list[0] * 2 + ??? * 2),"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "matchState",
+      "declaration": "export function matchesTemperatureHumidityEntity(arg22, arg23, ???) {",
+      "references": [
+        "L192: const options2 = (????.newState || ???)?.attributes || {},"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "short/arrow",
+      "newName": "metricKey",
+      "declaration": "...ENVIRONMENT_SENSORS.map(({ key: ??? }) => ??? + \"EntityId\"),",
+      "references": [
+        "L122: ...ENVIRONMENT_SENSORS.map(({ key: ??? }) => ??? + \"EntityId\"),"
+      ]
+    }
+  ]
+}

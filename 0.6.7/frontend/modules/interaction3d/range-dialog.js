@@ -4,184 +4,198 @@ import {
   subscribeInteraction3dAccess,
 } from "../../../../bridge-static/modules/interaction3d/bridge.js?v=20260926-integration-v1-reload-diagnostics-v2";
 export async function openInteraction3dRangeEditor({
-  component: arg1,
-  document: arg2,
-  states: arg3,
-  onSave: arg4,
-  onClose: arg5 = () => {},
+  component: component,
+  document: panelDocument,
+  states: states,
+  onSave: onSave,
+  onClose: onClose = () => {},
 }) {
-  if ((await requestInteraction3dAccess(), !arg1.properties?.sceneId))
+  if ((await requestInteraction3dAccess(), !component.properties?.sceneId))
     throw new Error("请先载入 3D 户型。");
-  if (arg1.properties.lightingMode !== "region") throw new Error("请先选择轻量柔光模式。");
-  const value1 = structuredClone(arg1),
-    value2 = document.activeElement,
-    fn1 = (arg6, arg7 = "", arg8 = "") => {
-      const value20 = document.createElement(arg6);
-      return ((value20.className = arg7), (value20.textContent = arg8), value20);
+  if (component.properties.lightingMode !== "region") throw new Error("请先选择轻量柔光模式。");
+  const componentSnapshot = structuredClone(component),
+    previouslyFocusedElement = document.activeElement,
+    createElement = (tag, className = "", text = "") => {
+      const createdElement = document.createElement(tag);
+      return (
+        (createdElement.className = className),
+        (createdElement.textContent = text),
+        createdElement
+      );
     },
-    value3 = fn1("link");
-  ((value3.rel = "stylesheet"),
-    (value3.href =
+    stylesheetLink = createElement("link");
+  ((stylesheetLink.rel = "stylesheet"),
+    (stylesheetLink.href =
       "/api/v1/modules/interaction3d/runtime.css?v=20260909-curtain-action-v15-warm-popups-v1-20260926-fan-v1"),
-    document.head.append(value3));
-  const value4 = fn1("dialog", "i3d-editor i3d-range-dialog");
-  (value4.setAttribute("aria-label", "照射范围"),
-    value4.setAttribute("data-i3d-preview-scope", ""));
-  const value5 = fn1("header"),
-    value6 = fn1("button", "primary", "保存"),
-    value7 = fn1("button", "i3d-range-close", "×");
-  (value7.setAttribute("aria-label", "关闭照射范围"),
-    (value7.title = "关闭"),
-    (value6.type = value7.type = "button"),
-    (value6.disabled = true));
-  const value8 = fn1("p", "i3d-range-status", "正在准备灯光预览…");
-  value8.setAttribute("role", "status");
-  const value9 = fn1("button", "", "重新载入");
-  ((value9.type = "button"), (value9.hidden = true));
-  const value10 = fn1("div", "i3d-range-dialog-body"),
-    value11 = fn1("div");
-  (value5.append(fn1("strong", "", "照射范围"), value9, value6, value7),
-    value10.append(value11),
-    value4.append(value5, value8, value10),
-    document.body.append(value4));
-  let value12 = false,
-    value13 = false,
-    value14 = false,
-    value15 = null,
-    fn2 = () => {},
-    value16 = 0,
-    value17 = 0,
-    value18,
-    value19;
-  const promise1 = new Promise((arg9, arg10) => {
-    ((value18 = arg9), (value19 = arg10));
+    document.head.append(stylesheetLink));
+  const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");
+  (dialogElement.setAttribute("aria-label", "照射范围"),
+    dialogElement.setAttribute("data-i3d-preview-scope", ""));
+  const headerElement = createElement("header"),
+    saveButton = createElement("button", "primary", "保存"),
+    closeButton = createElement("button", "i3d-range-close", "×");
+  (closeButton.setAttribute("aria-label", "关闭照射范围"),
+    (closeButton.title = "关闭"),
+    (saveButton.type = closeButton.type = "button"),
+    (saveButton.disabled = true));
+  const statusElement = createElement("p", "i3d-range-status", "正在准备灯光预览…");
+  statusElement.setAttribute("role", "status");
+  const reloadButton = createElement("button", "", "重新载入");
+  ((reloadButton.type = "button"), (reloadButton.hidden = true));
+  const bodyElement = createElement("div", "i3d-range-dialog-body"),
+    mountElement = createElement("div");
+  (headerElement.append(
+    createElement("strong", "", "照射范围"),
+    reloadButton,
+    saveButton,
+    closeButton,
+  ),
+    bodyElement.append(mountElement),
+    dialogElement.append(headerElement, statusElement, bodyElement),
+    document.body.append(dialogElement));
+  let isClosed = false,
+    isSaving = false,
+    isRangeReady = false,
+    editorHandle = null,
+    unsubscribeAccess = () => {},
+    generation = 0,
+    overridesRevision = 0,
+    resolveReady,
+    rejectReady;
+  const readyPromise = new Promise((resolve, reject) => {
+    ((resolveReady = resolve), (rejectReady = reject));
   });
-  promise1.catch(() => {});
-  function fn3() {
-    value12 ||
-      ((value12 = true),
-      value16++,
-      fn2(),
-      value15?.(),
-      value19(new Error("照射范围编辑已关闭。")),
-      window.removeEventListener("pagehide", fn3),
-      value4.close(),
-      value4.remove(),
-      value3.remove(),
+  readyPromise.catch(() => {});
+  function close() {
+    isClosed ||
+      ((isClosed = true),
+      generation++,
+      unsubscribeAccess(),
+      editorHandle?.(),
+      rejectReady(new Error("照射范围编辑已关闭。")),
+      window.removeEventListener("pagehide", close),
+      dialogElement.close(),
+      dialogElement.remove(),
+      stylesheetLink.remove(),
       document.dispatchEvent(new Event("hb-i3d-preview-scope")),
-      value2?.isConnected && value2.focus(),
-      arg5());
+      previouslyFocusedElement?.isConnected && previouslyFocusedElement.focus(),
+      onClose());
   }
-  function fn4(arg11) {
-    value12 ||
-      ((value6.disabled = true),
-      (value9.hidden = false),
-      (value8.textContent = arg11.message || "照射范围载入失败，请重试。"),
-      value8.classList.add("is-error"),
-      value19(arg11));
+  function handleLoadError(error) {
+    isClosed ||
+      ((saveButton.disabled = true),
+      (reloadButton.hidden = false),
+      (statusElement.textContent = error.message || "照射范围载入失败，请重试。"),
+      statusElement.classList.add("is-error"),
+      rejectReady(error));
   }
-  function fn5() {
-    const value21 = ++value16;
-    ((value14 = false),
-      value15?.(),
-      (value6.disabled = true),
-      (value9.hidden = true),
-      value8.classList.remove("is-error"),
-      (value8.textContent = "正在准备灯光预览…"),
-      (value15 = mountInteraction3d(value11, {
-        component: value1,
+  function mountEditor() {
+    const requestGeneration = ++generation;
+    ((isRangeReady = false),
+      editorHandle?.(),
+      (saveButton.disabled = true),
+      (reloadButton.hidden = true),
+      statusElement.classList.remove("is-error"),
+      (statusElement.textContent = "正在准备灯光预览…"),
+      (editorHandle = mountInteraction3d(mountElement, {
+        component: componentSnapshot,
         context: {
-          document: arg2,
-          states: arg3,
+          document: panelDocument,
+          states: states,
         },
         editing: true,
         rangeEditorOnly: true,
         async onPresented() {
           try {
-            if ((await value15.openRangeEditor(), value12 || value21 !== value16)) return;
-            ((value14 = true),
-              (value6.disabled = false),
-              (value8.textContent =
+            if (
+              (await editorHandle.openRangeEditor(), isClosed || requestGeneration !== generation)
+            )
+              return;
+            ((isRangeReady = true),
+              (saveButton.disabled = false),
+              (statusElement.textContent =
                 "平面编辑调整照射范围，3D 预览实时查看高度效果；两个视图共用参数。"),
-              value18());
-          } catch (error1) {
-            value21 === value16 && fn4(error1);
+              resolveReady());
+          } catch (loadError) {
+            requestGeneration === generation && handleLoadError(loadError);
           }
         },
-        onLoadError: fn4,
-        onEdit(arg12) {
-          if (!(value12 || value21 !== value16)) {
-            if (arg12.action === "light-region-overrides") {
-              const value22 = structuredClone(arg12.overrides || {});
-              (JSON.stringify(value22) !==
-                JSON.stringify(value1.properties.lightRegionOverrides || {}) &&
-                (value17++,
-                value13 ||
-                  ((value8.textContent = "范围已修改，点击保存应用。"),
-                  value8.classList.remove("is-error"))),
-                (value1.properties.lightRegionOverrides = value22));
+        onLoadError: handleLoadError,
+        onEdit(editMessage) {
+          if (!(isClosed || requestGeneration !== generation)) {
+            if (editMessage.action === "light-region-overrides") {
+              const incomingOverrides = structuredClone(editMessage.overrides || {});
+              (JSON.stringify(incomingOverrides) !==
+                JSON.stringify(componentSnapshot.properties.lightRegionOverrides || {}) &&
+                (overridesRevision++,
+                isSaving ||
+                  ((statusElement.textContent = "范围已修改，点击保存应用。"),
+                  statusElement.classList.remove("is-error"))),
+                (componentSnapshot.properties.lightRegionOverrides = incomingOverrides));
             }
-            arg12.action === "range-editor-state" && arg12.error
-              ? fn4(new Error(arg12.error))
-              : arg12.action === "range-editor-state" &&
-                !arg12.active &&
-                value14 &&
-                !value13 &&
-                fn3();
+            editMessage.action === "range-editor-state" && editMessage.error
+              ? handleLoadError(new Error(editMessage.error))
+              : editMessage.action === "range-editor-state" &&
+                !editMessage.active &&
+                isRangeReady &&
+                !isSaving &&
+                close();
           }
         },
       })));
   }
   return (
-    value6.addEventListener("click", async () => {
-      if (!(value12 || value13 || !value14 || value6.disabled)) {
-        ((value13 = true),
-          (value6.disabled = true),
-          (value7.disabled = true),
-          (value9.hidden = true),
-          (value8.textContent = "正在保存范围…"));
+    saveButton.addEventListener("click", async () => {
+      if (!(isClosed || isSaving || !isRangeReady || saveButton.disabled)) {
+        ((isSaving = true),
+          (saveButton.disabled = true),
+          (closeButton.disabled = true),
+          (reloadButton.hidden = true),
+          (statusElement.textContent = "正在保存范围…"));
         try {
-          await value15.flushRangeEditor();
-          const value23 = structuredClone(value1.properties.lightRegionOverrides || {}),
-            value24 = value17;
-          if ((await requestInteraction3dAccess(), value12)) return;
-          (await arg4(value23),
-            value12 ||
-              ((value8.textContent =
-                value24 === value17
+          await editorHandle.flushRangeEditor();
+          const savedOverrides = structuredClone(
+              componentSnapshot.properties.lightRegionOverrides || {},
+            ),
+            revisionAtSave = overridesRevision;
+          if ((await requestInteraction3dAccess(), isClosed)) return;
+          (await onSave(savedOverrides),
+            isClosed ||
+              ((statusElement.textContent =
+                revisionAtSave === overridesRevision
                   ? "已保存到灯光配置，可继续调整。关闭后点击“保存配置”完成保存。"
                   : "已保存，另有新修改待保存。"),
-              value8.classList.remove("is-error")));
-        } catch (error2) {
-          if (value12) return;
-          ((value8.textContent = error2.message || "保存失败，请重试。"),
-            value8.classList.add("is-error"));
+              statusElement.classList.remove("is-error")));
+        } catch (saveError) {
+          if (isClosed) return;
+          ((statusElement.textContent = saveError.message || "保存失败，请重试。"),
+            statusElement.classList.add("is-error"));
         } finally {
-          ((value13 = false),
-            value12 ||
-              ((value7.disabled = false),
-              (value6.disabled = !value15.ready || !value15.rangeEditing)));
+          ((isSaving = false),
+            isClosed ||
+              ((closeButton.disabled = false),
+              (saveButton.disabled = !editorHandle.ready || !editorHandle.rangeEditing)));
         }
       }
     }),
-    value7.addEventListener("click", () => {
-      value13 || fn3();
+    closeButton.addEventListener("click", () => {
+      isSaving || close();
     }),
-    value4.addEventListener("cancel", (arg13) => {
-      (arg13.preventDefault(), value13 || fn3());
+    dialogElement.addEventListener("cancel", (cancelEvent) => {
+      (cancelEvent.preventDefault(), isSaving || close());
     }),
-    value9.addEventListener("click", fn5),
-    window.addEventListener("pagehide", fn3),
-    value4.showModal(),
+    reloadButton.addEventListener("click", mountEditor),
+    window.addEventListener("pagehide", close),
+    dialogElement.showModal(),
     document.dispatchEvent(new Event("hb-i3d-preview-scope")),
-    fn5(),
-    (fn2 = subscribeInteraction3dAccess((arg14) => {
-      !arg14.allowed && ["denied", "unavailable"].includes(arg14.status) && fn3();
+    mountEditor(),
+    (unsubscribeAccess = subscribeInteraction3dAccess((access) => {
+      !access.allowed && ["denied", "unavailable"].includes(access.status) && close();
     })),
-    value12 && fn2(),
+    isClosed && unsubscribeAccess(),
     {
-      close: fn3,
-      ready: promise1,
+      close: close,
+      ready: readyPromise,
     }
   );
 }

@@ -227,8 +227,12 @@ step('8/9 residue check');
 // Chunked giant batches pass --allow-partial to opt out.
 const report = JSON.parse(sh('node tools/report_frontend_names.mjs --json').out);
 const residual = new Map((report.files || []).map((f) => [f.rel, f.mechanical + f.short]));
+// Exported bindings are frozen public API: they are counted in the residue totals
+// - the number must not pretend they are gone - but they are exempt from the map,
+// so a file whose only leftovers are exported is complete, not missed.
+const frozenExports = new Map((report.files || []).map((f) => [f.rel, f.frozen || 0]));
 const leftovers = files
-  .map((file) => ({ file, left: residual.get(file) || 0 }))
+  .map((file) => ({ file, left: Math.max(0, (residual.get(file) || 0) - (frozenExports.get(file) || 0)) }))
   .filter((x) => x.left > 0);
 if (leftovers.length) {
   for (const l of leftovers) console.log(`   ${l.left} binding(s) still residue: ${l.file}`);
@@ -240,7 +244,7 @@ if (leftovers.length) {
   }
   console.log('   (--allow-partial: accepted)');
 } else {
-  console.log('every declared file reached zero residue');
+  console.log('every declared file reached zero residue (frozen exports excepted)');
 }
 
 step('9/9 ratchet + ledger');
