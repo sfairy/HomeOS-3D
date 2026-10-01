@@ -1,0 +1,208 @@
+{
+  "file": "frontend/static/3d-studio/studio-television-glass.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 41,
+  "counts": {
+    "entries": 9,
+    "renameable": 9,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function drawTelevisionGlass(arg1, arg2, arg3 = false) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg2.createLinearGradient(0, 0, arg1.width * 0.35, arg1.height);"
+        },
+        {
+          "line": 7,
+          "text": "arg2.fillRect(0, 0, arg1.width, arg1.height));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function drawTelevisionGlass(arg1, arg2, arg3 = false) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg2.createLinearGradient(0, 0, arg1.width * 0.35, arg1.height);"
+        },
+        {
+          "line": 6,
+          "text": "(arg2.fillStyle = value1),"
+        },
+        {
+          "line": 7,
+          "text": "arg2.fillRect(0, 0, arg1.width, arg1.height));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@1",
+      "name": "arg3",
+      "line": 1,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function drawTelevisionGlass(arg1, arg2, arg3 = false) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "(value1.addColorStop(0, arg3 ? \"#505b62\" : \"#2a2c2f\"),"
+        },
+        {
+          "line": 4,
+          "text": "value1.addColorStop(0.45, arg3 ? \"#343d45\" : \"#222427\"),"
+        },
+        {
+          "line": 5,
+          "text": "value1.addColorStop(1, arg3 ? \"#242b31\" : \"#181a1d\"),"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg2.createLinearGradient(0, 0, arg1.width * 0.35, arg1.height);",
+      "references": [
+        {
+          "line": 3,
+          "text": "(value1.addColorStop(0, arg3 ? \"#505b62\" : \"#2a2c2f\"),"
+        },
+        {
+          "line": 4,
+          "text": "value1.addColorStop(0.45, arg3 ? \"#343d45\" : \"#222427\"),"
+        },
+        {
+          "line": 5,
+          "text": "value1.addColorStop(1, arg3 ? \"#242b31\" : \"#181a1d\"),"
+        },
+        {
+          "line": 6,
+          "text": "(arg2.fillStyle = value1),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@9",
+      "name": "arg4",
+      "line": 9,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createWarmTelevisionGlass(arg4) {",
+      "references": [
+        {
+          "line": 10,
+          "text": "const value2 = new arg4.MeshBasicMaterial({"
+        },
+        {
+          "line": 14,
+          "text": "value3 = new arg4.Color(\"#242b31\"),"
+        },
+        {
+          "line": 15,
+          "text": "value4 = new arg4.Color(\"#505b62\");"
+        }
+      ]
+    },
+    {
+      "key": "value2@10",
+      "name": "value2",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = new arg4.MeshBasicMaterial({",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value2.onBeforeCompile = (arg5) => {"
+        },
+        {
+          "line": 37,
+          "text": "(value2.customProgramCacheKey = () => \"warm-tv-glass-v1\"),"
+        },
+        {
+          "line": 38,
+          "text": "value2"
+        }
+      ]
+    },
+    {
+      "key": "value3@14",
+      "name": "value3",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = new arg4.Color(\"#242b31\"),",
+      "references": [
+        {
+          "line": 19,
+          "text": "value: value3,"
+        }
+      ]
+    },
+    {
+      "key": "value4@15",
+      "name": "value4",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = new arg4.Color(\"#505b62\");",
+      "references": [
+        {
+          "line": 22,
+          "text": "value: value4,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@17",
+      "name": "arg5",
+      "line": 17,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value2.onBeforeCompile = (arg5) => {",
+      "references": [
+        {
+          "line": 18,
+          "text": "((arg5.uniforms.tvGlassLow = {"
+        },
+        {
+          "line": 21,
+          "text": "(arg5.uniforms.tvGlassHigh = {"
+        },
+        {
+          "line": 24,
+          "text": "(arg5.vertexShader = arg5.vertexShader"
+        },
+        {
+          "line": 27,
+          "text": "(arg5.fragmentShader = arg5.fragmentShader"
+        }
+      ]
+    }
+  ]
+}

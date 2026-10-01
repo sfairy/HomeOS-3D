@@ -1,0 +1,454 @@
+{
+  "file": "frontend/static/renderer/flow-line.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 149,
+  "counts": {
+    "entries": 23,
+    "renameable": 23,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@7",
+      "name": "arg1",
+      "line": 7,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function renderFlowLine(arg1, v1 = {}) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "const v2 = normalizeFlowLine2(arg1.properties),"
+        },
+        {
+          "line": 14,
+          "text": "const v3 = flowClamp2(arg1.position?.width, 1, 20000, 600),"
+        },
+        {
+          "line": 15,
+          "text": "v4 = flowClamp2(arg1.position?.height, 1, 20000, 300),"
+        },
+        {
+          "line": 49,
+          "text": "text = arg1.bindings?.entity?.entityId || \"\","
+        }
+      ]
+    },
+    {
+      "key": "v1@7",
+      "name": "v1",
+      "line": 7,
+      "column": 37,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function renderFlowLine(arg1, v1 = {}) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);"
+        },
+        {
+          "line": 51,
+          "text": "let v15 = flowLineMotion2(v2, v14(v1.states?.get(text))),"
+        },
+        {
+          "line": 118,
+          "text": "!v20 && v15.running && !document.hidden && v19 && v1.animate !== false"
+        },
+        {
+          "line": 130,
+          "text": "v2.controlMode === \"entity-sign\" && text && v1.registerRuntimeStateHandler?.(text, v27));"
+        },
+        {
+          "line": 147,
+          "text": "return ((element.destroyFlowLine = v28), v1.cleanup?.(v28), element);"
+        }
+      ]
+    },
+    {
+      "key": "v2@8",
+      "name": "v2",
+      "line": 8,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v2 = normalizeFlowLine2(arg1.properties),",
+      "references": [
+        {
+          "line": 12,
+          "text": "(element.style.opacity = String(v2.opacity)),"
+        },
+        {
+          "line": 26,
+          "text": "if (v2.points.length < 2) return element;"
+        },
+        {
+          "line": 27,
+          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
+        },
+        {
+          "line": 40,
+          "text": "v2.baseVisible &&"
+        },
+        {
+          "line": 42,
+          "text": "stroke: v2.baseColor,"
+        },
+        {
+          "line": 43,
+          "text": "\"stroke-width\": v2.width,"
+        }
+      ]
+    },
+    {
+      "key": "v3@14",
+      "name": "v3",
+      "line": 14,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v3 = flowClamp2(arg1.position?.width, 1, 20000, 600),",
+      "references": [
+        {
+          "line": 22,
+          "text": "viewBox: \"0 0 \" + v3 + \" \" + v4,"
+        },
+        {
+          "line": 27,
+          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
+        }
+      ]
+    },
+    {
+      "key": "v4@15",
+      "name": "v4",
+      "line": 15,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v4 = flowClamp2(arg1.position?.height, 1, 20000, 300),",
+      "references": [
+        {
+          "line": 22,
+          "text": "viewBox: \"0 0 \" + v3 + \" \" + v4,"
+        },
+        {
+          "line": 27,
+          "text": "const v10 = flowLinePath2(v2.points, v2.shape, v3, v4, v2.radius),"
+        }
+      ]
+    },
+    {
+      "key": "v5@16",
+      "name": "v5",
+      "line": 16,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
+      "references": [
+        {
+          "line": 21,
+          "text": "v9 = v5(\"svg\", {"
+        },
+        {
+          "line": 29,
+          "text": "v5("
+        },
+        {
+          "line": 66,
+          "text": "const v18 = v5("
+        }
+      ]
+    },
+    {
+      "key": "arg2@16",
+      "name": "arg2",
+      "line": 16,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
+      "references": [
+        {
+          "line": 17,
+          "text": "const elementNS = document.createElementNS(\"http://www.w3.org/2000/svg\", arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@16",
+      "name": "arg3",
+      "line": 16,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
+      "references": [
+        {
+          "line": 18,
+          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
+        }
+      ]
+    },
+    {
+      "key": "v6@16",
+      "name": "v6",
+      "line": 16,
+      "column": 22,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v5 = (arg2, arg3, v6 = element) => {",
+      "references": [
+        {
+          "line": 19,
+          "text": "return (v6.append(elementNS), elementNS);"
+        }
+      ]
+    },
+    {
+      "key": "v7@18",
+      "name": "v7",
+      "line": 18,
+      "column": 18,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));",
+      "references": [
+        {
+          "line": 18,
+          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
+        }
+      ]
+    },
+    {
+      "key": "v8@18",
+      "name": "v8",
+      "line": 18,
+      "column": 22,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));",
+      "references": [
+        {
+          "line": 18,
+          "text": "for (const [v7, v8] of Object.entries(arg3)) elementNS.setAttribute(v7, String(v8));"
+        }
+      ]
+    },
+    {
+      "key": "v9@21",
+      "name": "v9",
+      "line": 21,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v9 = v5(\"svg\", {",
+      "references": [
+        {
+          "line": 28,
+          "text": "v11 = (arg4, v12 = v9) =>"
+        },
+        {
+          "line": 53,
+          "text": "function fn1(arg6, v16 = () => 0, v17 = v9) {"
+        },
+        {
+          "line": 71,
+          "text": "v9,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@28",
+      "name": "arg4",
+      "line": 28,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v11 = (arg4, v12 = v9) =>",
+      "references": [
+        {
+          "line": 36,
+          "text": "...arg4,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@50",
+      "name": "arg5",
+      "line": 50,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);",
+      "references": [
+        {
+          "line": 50,
+          "text": "v14 = (arg5) => (v1.runtimeStateReady?.() === false ? undefined : arg5);"
+        }
+      ]
+    },
+    {
+      "key": "fn1@53",
+      "name": "fn1",
+      "line": 53,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn1(arg6, v16 = () => 0, v17 = v9) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "fn1("
+        },
+        {
+          "line": 85,
+          "text": "fn1("
+        },
+        {
+          "line": 95,
+          "text": "fn1({"
+        }
+      ]
+    },
+    {
+      "key": "arg6@53",
+      "name": "arg6",
+      "line": 53,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn1(arg6, v16 = () => 0, v17 = v9) {",
+      "references": [
+        {
+          "line": 54,
+          "text": "const element2 = v11(arg6, v17);"
+        }
+      ]
+    },
+    {
+      "key": "element2@54",
+      "name": "element2",
+      "line": 54,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const element2 = v11(arg6, v17);",
+      "references": [
+        {
+          "line": 56,
+          "text": "element2.classList.add(\"hb-flow-line-stream\"),"
+        },
+        {
+          "line": 58,
+          "text": "node: element2,"
+        },
+        {
+          "line": 61,
+          "text": "(element2.style.animationDuration = max / Math.max(1, v2.speed) + \"s\"),"
+        },
+        {
+          "line": 62,
+          "text": "element2"
+        }
+      ]
+    },
+    {
+      "key": "arg7@80",
+      "name": "arg7",
+      "line": 80,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg7) => (arg7 === 1 ? v2.tail : 0),",
+      "references": [
+        {
+          "line": 80,
+          "text": "(arg7) => (arg7 === 1 ? v2.tail : 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@92",
+      "name": "arg8",
+      "line": 92,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg8) => (arg8 === 1 ? (num + 1) * v13 : -num * v13),",
+      "references": [
+        {
+          "line": 92,
+          "text": "(arg8) => (arg8 === 1 ? (num + 1) * v13 : -num * v13),"
+        }
+      ]
+    },
+    {
+      "key": "element3@103",
+      "name": "element3",
+      "line": 103,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { node: element3, offset: v22 } of list) {",
+      "references": [
+        {
+          "line": 105,
+          "text": "(element3.style.setProperty(\"--flow-from\", String(v23)),"
+        },
+        {
+          "line": 106,
+          "text": "element3.style.setProperty(\"--flow-to\", String(v23 - direction * max)));"
+        }
+      ]
+    },
+    {
+      "key": "arg9@123",
+      "name": "arg9",
+      "line": 123,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v27 = (arg9) => {",
+      "references": [
+        {
+          "line": 125,
+          "text": "((v15 = flowLineMotion2(v2, v14(arg9))),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@133",
+      "name": "arg10",
+      "line": 133,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "? new IntersectionObserver((arg10) => {",
+      "references": [
+        {
+          "line": 134,
+          "text": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());"
+        }
+      ]
+    },
+    {
+      "key": "arg11@134",
+      "name": "arg11",
+      "line": 134,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());",
+      "references": [
+        {
+          "line": 134,
+          "text": "((v19 = arg10.some((arg11) => arg11.isIntersecting)), v25());"
+        }
+      ]
+    }
+  ]
+}

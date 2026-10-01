@@ -1,0 +1,15 @@
+{
+  "frontend/static/utils/request-timeout.js": {
+    "arg1@1": "timeoutMs",
+    "arg2@1": "request",
+    "arg3@1": "externalSignal",
+    "abortController1@2": "controller",
+    "value1@3": "abortReason",
+    "fn1@4": "abortWith",
+    "arg4@4": "reason",
+    "fn2@7": "abortFromSignal",
+    "value2@18": "timerId",
+    "value3@28": "result",
+    "error1@31": "requestError"
+  }
+}

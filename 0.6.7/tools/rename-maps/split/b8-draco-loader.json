@@ -1,0 +1,24 @@
+{
+  "frontend/static/3d-studio/draco-loader.js": {
+    "n@2": "toWorkerError",
+    "arg1@2": "event",
+    "value1@3": "messageText",
+    "arg2@7": "workerUrl",
+    "arg3@7": "options",
+    "arg4@15": "jobId",
+    "arg5@15": "jobCost",
+    "value3@20": "worker",
+    "error1@25": "workerError",
+    "arg6@32": "message",
+    "value4@33": "payload",
+    "value5@34": "callback",
+    "arg7@40": "errorEvent",
+    "value6@41": "fatalError",
+    "value7@43": "pending",
+    "arg8@52": "workerA",
+    "arg9@52": "workerB",
+    "value2@53": "selectedWorker",
+    "value8@62": "poolWorker",
+    "value9@63": "poolCallback"
+  }
+}

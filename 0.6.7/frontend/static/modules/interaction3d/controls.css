@@ -1,0 +1,83 @@
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  label.i3d-setting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 28px;
+  gap: 8px;
+  cursor: pointer;
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input[type="checkbox"] {
+  position: relative;
+  order: 1;
+  box-sizing: border-box;
+  flex: 0 0 26px;
+  width: 26px;
+  min-width: 26px;
+  height: 14px;
+  min-height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #4b5760;
+  border-radius: 99px;
+  background: #283139;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input:before {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9da8af;
+  content: "";
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input:checked {
+  border-color: var(--accent, #f2a20d);
+  background: var(--accent, #f2a20d);
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input:checked:before {
+  background: #fff4dc;
+  transform: translate(12px);
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input:focus-visible {
+  outline: 2px solid var(--accent, #f2a20d);
+  outline-offset: 3px;
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+:is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
+  .i3d-setting-toggle
+  input:disabled {
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .i3d-setting-toggle input,
+  .i3d-setting-toggle input:before {
+    transition: none !important;
+  }
+}

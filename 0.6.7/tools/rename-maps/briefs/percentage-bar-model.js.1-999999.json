@@ -1,0 +1,151 @@
+{
+  "file": "frontend/static/percentage-bar-model.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 190,
+  "counts": {
+    "entries": 6,
+    "renameable": 6,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "num2@62",
+      "name": "num2",
+      "line": 62,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "num2 = options.labelVisible ? options.labelGap + options.labelSize * 2.9 : 0;",
+      "references": [
+        {
+          "line": 81,
+          "text": "height: options.length + num + num2,"
+        }
+      ]
+    },
+    {
+      "key": "options2@90",
+      "name": "options2",
+      "line": 90,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "options2 = refitComponent.position || {},",
+      "references": [
+        {
+          "line": 91,
+          "text": "width = Number(options2.width) || percentageBarDimensions2.width,"
+        },
+        {
+          "line": 92,
+          "text": "height = Number(options2.height) || percentageBarDimensions2.height,"
+        },
+        {
+          "line": 98,
+          "text": "...options2,"
+        },
+        {
+          "line": 101,
+          "text": "x: (Number(options2.x) || 0) + (width - percentageBarDimensions3.width * min) / 2,"
+        },
+        {
+          "line": 102,
+          "text": "y: (Number(options2.y) || 0) + (height - percentageBarDimensions3.height * min) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "options3@106",
+      "name": "options3",
+      "line": 106,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const options3 = {",
+      "references": [
+        {
+          "line": 117,
+          "text": "...options3,"
+        },
+        {
+          "line": 188,
+          "text": "shouldRefit && refitPercentageBar(editedComponent, options3, seriesCount);"
+        }
+      ]
+    },
+    {
+      "key": "v10@153",
+      "name": "v10",
+      "line": 153,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let v10 = change.value;",
+      "references": [
+        {
+          "line": 156,
+          "text": "if (!Number.isFinite(Number(v10))) return;"
+        },
+        {
+          "line": 157,
+          "text": "v10 = Math.max(v11[0], Math.min(v11[1], Number(v10)));"
+        },
+        {
+          "line": 159,
+          "text": "((editedComponent.properties[change.property] = v10),"
+        }
+      ]
+    },
+    {
+      "key": "v11@154",
+      "name": "v11",
+      "line": 154,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v11 = percentageBarNumbers[change.property];",
+      "references": [
+        {
+          "line": 155,
+          "text": "if (v11) {"
+        },
+        {
+          "line": 157,
+          "text": "v10 = Math.max(v11[0], Math.min(v11[1], Number(v10)));"
+        }
+      ]
+    },
+    {
+      "key": "v12@174",
+      "name": "v12",
+      "line": 174,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v12 = Number(change.value);",
+      "references": [
+        {
+          "line": 175,
+          "text": "if (!Number.isFinite(v12)) return;"
+        },
+        {
+          "line": 178,
+          "text": "((viewport.width || 2778) * v12) / 100 - editedComponent.position.width / 2),"
+        },
+        {
+          "line": 181,
+          "text": "((viewport.height || 1940) * v12) / 100 - editedComponent.position.height / 2),"
+        },
+        {
+          "line": 182,
+          "text": "change.geometry === \"scale\" && (editedComponent.style.scale = v12 / 100),"
+        },
+        {
+          "line": 183,
+          "text": "change.geometry === \"rotation\" && (editedComponent.position.rotation = v12));"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "frontend/static/action-rules.js": {
+    "arg1@18": "sourceAction",
+    "value1@19": "sourceName",
+    "arg2@22": "popupAction",
+    "arg3@29": "toggleAction",
+    "arg4@34": "entityId",
+    "value2@35": "entityText",
+    "arg5@39": "component",
+    "arg6@40": "action",
+    "arg7@41": "allowedPagePaths",
+    "arg8@41": "allowedPopupIds",
+    "value3@48": "targetEntityId",
+    "value6@51": "targetPath",
+    "value4@54": "popupSource",
+    "value5@57": "popupId"
+  }
+}

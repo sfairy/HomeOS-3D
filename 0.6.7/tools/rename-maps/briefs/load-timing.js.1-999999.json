@@ -1,0 +1,96 @@
+{
+  "file": "frontend/static/modules/interaction3d/load-timing.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 17,
+  "counts": {
+    "entries": 5,
+    "renameable": 5,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createLoadTiming(arg1, arg2 = globalThis) {",
+      "references": [
+        {
+          "line": 10,
+          "text": "scope: arg1,"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createLoadTiming(arg1, arg2 = globalThis) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "new URLSearchParams(arg2.location?.search || \"\").get(\"performance-diagnostics\") === \"1\";"
+        },
+        {
+          "line": 6,
+          "text": "const value2 = Math.round(arg2.performance.now());"
+        },
+        {
+          "line": 7,
+          "text": "arg2.console.info("
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 =",
+      "references": [
+        {
+          "line": 5,
+          "text": "if (!value1) return;"
+        }
+      ]
+    },
+    {
+      "key": "arg3@4",
+      "name": "arg3",
+      "line": 4,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return (arg3) => {",
+      "references": [
+        {
+          "line": 11,
+          "text": "phase: arg3,"
+        }
+      ]
+    },
+    {
+      "key": "value2@6",
+      "name": "value2",
+      "line": 6,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = Math.round(arg2.performance.now());",
+      "references": [
+        {
+          "line": 12,
+          "text": "at: value2,"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,393 @@
+{
+  "file": "frontend/static/modules/interaction3d/scene-matrices.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 58,
+  "counts": {
+    "entries": 20,
+    "renameable": 20,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "l@1",
+      "name": "l",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = new WeakSet();",
+      "references": [
+        {
+          "line": 6,
+          "text": "if (l.has(arg3) || arg3.updateMatrix !== arg2.prototype.updateMatrix) return;"
+        },
+        {
+          "line": 52,
+          "text": "l.add(arg3),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cacheObjectTransforms(arg1, arg2) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "arg1?.traverse((arg3) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cacheObjectTransforms(arg1, arg2) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "if (l.has(arg3) || arg3.updateMatrix !== arg2.prototype.updateMatrix) return;"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1 = 0;",
+      "references": [
+        {
+          "line": 53,
+          "text": "value1++);"
+        },
+        {
+          "line": 55,
+          "text": "value1"
+        }
+      ]
+    },
+    {
+      "key": "arg3@5",
+      "name": "arg3",
+      "line": 5,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg1?.traverse((arg3) => {",
+      "references": [
+        {
+          "line": 6,
+          "text": "if (l.has(arg3) || arg3.updateMatrix !== arg2.prototype.updateMatrix) return;"
+        },
+        {
+          "line": 7,
+          "text": "const value2 = arg3.updateMatrix;"
+        },
+        {
+          "line": 19,
+          "text": "((arg3.updateMatrix = function () {"
+        },
+        {
+          "line": 52,
+          "text": "l.add(arg3),"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = arg3.updateMatrix;",
+      "references": [
+        {
+          "line": 39,
+          "text": "(value2.call(this),"
+        }
+      ]
+    },
+    {
+      "key": "value3@8",
+      "name": "value3",
+      "line": 8,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value3,",
+      "references": [
+        {
+          "line": 24,
+          "text": "value14.x === value3 &&"
+        }
+      ]
+    },
+    {
+      "key": "value4@9",
+      "name": "value4",
+      "line": 9,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4,",
+      "references": [
+        {
+          "line": 25,
+          "text": "value14.y === value4 &&"
+        }
+      ]
+    },
+    {
+      "key": "value5@10",
+      "name": "value5",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5,",
+      "references": [
+        {
+          "line": 26,
+          "text": "value14.z === value5 &&"
+        }
+      ]
+    },
+    {
+      "key": "value6@11",
+      "name": "value6",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6,",
+      "references": [
+        {
+          "line": 27,
+          "text": "value15.x === value6 &&"
+        }
+      ]
+    },
+    {
+      "key": "value7@12",
+      "name": "value7",
+      "line": 12,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7,",
+      "references": [
+        {
+          "line": 28,
+          "text": "value15.y === value7 &&"
+        }
+      ]
+    },
+    {
+      "key": "value8@13",
+      "name": "value8",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8,",
+      "references": [
+        {
+          "line": 29,
+          "text": "value15.z === value8 &&"
+        }
+      ]
+    },
+    {
+      "key": "value9@14",
+      "name": "value9",
+      "line": 14,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9,",
+      "references": [
+        {
+          "line": 30,
+          "text": "value15.w === value9 &&"
+        }
+      ]
+    },
+    {
+      "key": "value10@15",
+      "name": "value10",
+      "line": 15,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10,",
+      "references": [
+        {
+          "line": 31,
+          "text": "value16.x === value10 &&"
+        }
+      ]
+    },
+    {
+      "key": "value11@16",
+      "name": "value11",
+      "line": 16,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11,",
+      "references": [
+        {
+          "line": 32,
+          "text": "value16.y === value11 &&"
+        }
+      ]
+    },
+    {
+      "key": "value12@17",
+      "name": "value12",
+      "line": 17,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value16.z === value12"
+        }
+      ]
+    },
+    {
+      "key": "value13@18",
+      "name": "value13",
+      "line": 18,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13;",
+      "references": [
+        {
+          "line": 35,
+          "text": "(this.parent !== value13 && (this.matrixWorldNeedsUpdate = true),"
+        }
+      ]
+    },
+    {
+      "key": "value14@20",
+      "name": "value14",
+      "line": 20,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = this.position,",
+      "references": [
+        {
+          "line": 24,
+          "text": "value14.x === value3 &&"
+        },
+        {
+          "line": 25,
+          "text": "value14.y === value4 &&"
+        },
+        {
+          "line": 26,
+          "text": "value14.z === value5 &&"
+        },
+        {
+          "line": 41,
+          "text": "(value3 = value14.x),"
+        },
+        {
+          "line": 42,
+          "text": "(value4 = value14.y),"
+        },
+        {
+          "line": 43,
+          "text": "(value5 = value14.z),"
+        }
+      ]
+    },
+    {
+      "key": "value15@21",
+      "name": "value15",
+      "line": 21,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = this.quaternion,",
+      "references": [
+        {
+          "line": 27,
+          "text": "value15.x === value6 &&"
+        },
+        {
+          "line": 28,
+          "text": "value15.y === value7 &&"
+        },
+        {
+          "line": 29,
+          "text": "value15.z === value8 &&"
+        },
+        {
+          "line": 30,
+          "text": "value15.w === value9 &&"
+        },
+        {
+          "line": 44,
+          "text": "(value6 = value15.x),"
+        },
+        {
+          "line": 45,
+          "text": "(value7 = value15.y),"
+        }
+      ]
+    },
+    {
+      "key": "value16@22",
+      "name": "value16",
+      "line": 22,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = this.scale;",
+      "references": [
+        {
+          "line": 31,
+          "text": "value16.x === value10 &&"
+        },
+        {
+          "line": 32,
+          "text": "value16.y === value11 &&"
+        },
+        {
+          "line": 33,
+          "text": "value16.z === value12"
+        },
+        {
+          "line": 48,
+          "text": "(value10 = value16.x),"
+        },
+        {
+          "line": 49,
+          "text": "(value11 = value16.y),"
+        },
+        {
+          "line": 50,
+          "text": "(value12 = value16.z));"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,204 @@
+.global-log-open i {
+  background: var(--accent);
+  box-shadow: 0 0 8px #f2a20d59;
+}
+.settings-dialog.global-log-dialog {
+  width: min(1080px, calc(100vw - 48px));
+  max-width: none;
+  overflow: hidden;
+}
+.global-log-body {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: min(680px, calc(100vh - 116px));
+  min-height: 420px;
+}
+.global-log-toolbar {
+  display: grid;
+  grid-template-columns: 122px 138px minmax(190px, 1fr) auto;
+  gap: 8px;
+  padding: 14px 18px 10px;
+}
+.global-log-toolbar select,
+.global-log-toolbar input {
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #39434c;
+  border-radius: 5px;
+  outline: 0;
+  color: #dfe4e7;
+  background: #11171c;
+  font-size: 11px;
+}
+.global-log-toolbar input:focus,
+.global-log-toolbar select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.global-log-toolbar button {
+  min-height: 34px;
+}
+.global-log-toolbar > .custom-select {
+  min-width: 0;
+}
+.global-log-toolbar .custom-select-button {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 30px 0 10px;
+  border-color: #39434c;
+  border-radius: 5px;
+  color: #dfe4e7;
+  background: #11171c;
+  font-size: 11px;
+}
+.global-log-toolbar .custom-select-button:hover:not(:disabled) {
+  border-color: #56636d;
+  background: #182027;
+}
+.global-log-dialog .custom-select-menu {
+  z-index: 10;
+  border-color: #505b64;
+  background: #1b2228;
+}
+.global-log-dialog .custom-select-option {
+  min-height: 32px;
+  font-size: 11px;
+}
+.global-log-status {
+  margin: 0;
+  padding: 0 18px 10px;
+  color: #78848c;
+  font-size: 10px;
+}
+.global-log-list {
+  min-height: 0;
+  overflow: auto;
+  margin: 0 18px;
+  border: 1px solid #303a42;
+  border-radius: 7px;
+  background: #11171c;
+}
+.global-log-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #283139;
+}
+.global-log-item:last-child {
+  border-bottom: 0;
+}
+.global-log-item > i {
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #71808a;
+}
+.global-log-item.success > i {
+  background: var(--success);
+  box-shadow: 0 0 7px #54bd7859;
+}
+.global-log-item.warning > i {
+  background: #f2a20d;
+  box-shadow: 0 0 7px #f2a20d52;
+}
+.global-log-item.error > i {
+  background: #e26b67;
+  box-shadow: 0 0 7px #e26b6752;
+}
+.global-log-item > div {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.global-log-item strong {
+  overflow-wrap: anywhere;
+  color: #dce2e5;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.global-log-item span {
+  overflow: hidden;
+  color: #727e86;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.global-log-item b {
+  padding: 3px 6px;
+  border: 1px solid #37424a;
+  border-radius: 999px;
+  color: #8e9aa2;
+  font-size: 8px;
+  font-weight: 700;
+}
+.global-log-item.success b {
+  border-color: #54bd7852;
+  color: #8ed5a7;
+}
+.global-log-item.warning b {
+  border-color: #f2a20d57;
+  color: #eabb64;
+}
+.global-log-item.error b {
+  border-color: #e26b675c;
+  color: #e99995;
+}
+.global-log-empty {
+  display: grid;
+  min-height: 180px;
+  color: #69757d;
+  font-size: 11px;
+  place-items: center;
+}
+.global-log-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px 16px;
+}
+.global-log-actions > div {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 760px) {
+  .settings-dialog.global-log-dialog {
+    width: calc(100vw - 28px);
+  }
+  .global-log-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .global-log-toolbar input {
+    grid-column: 1/-1;
+  }
+}
+.global-log-item details {
+  min-width: 0;
+}
+.global-log-item summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #98a9b7;
+  font-size: 10px;
+}
+.global-log-item pre {
+  max-height: 260px;
+  overflow: auto;
+  margin: 7px 0 0;
+  padding: 10px;
+  border-radius: 4px;
+  background: #0b1014;
+  color: #acbac4;
+  font-size: 10px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.global-log-actions [hidden] {
+  display: none;
+}

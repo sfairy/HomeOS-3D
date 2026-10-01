@@ -1,0 +1,184 @@
+{
+  "file": "frontend/static/3d-studio/decor-models.js",
+  "seed": "b7-decor-models",
+  "size": 30,
+  "candidates": 18,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "material",
+      "declaration": "arg6.userData.decorRoles ??= value3.map((???) => ???.name.split(\"-decor-\")[1]);",
+      "references": [
+        "L62: arg6.userData.decorRoles ??= value3.map((???) => ???.name.split(\"-decor-\")[1]);"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "sourceMaterial",
+      "declaration": "const fn1 = (???, arg9) => {",
+      "references": [
+        "L67: throw new Error(\"Invalid decor role: \" + ???.name);"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "roleNumber",
+      "declaration": "??? = Number(value4);",
+      "references": [
+        "L66: if (!Number.isInteger(???) || !value1.roles[???])",
+        "L68: const value6 = value1.roles[???],"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/arrow",
+      "newName": "mesh",
+      "declaration": "arg2.traverse((???) => {",
+      "references": [
+        "L60: if (!???.isMesh) return;",
+        "L61: const value3 = Array.isArray(???.material) ? ???.material : [???.material];",
+        "L62: ???.userData.decorRoles ??= value3.map((arg7) => arg7.name.split(\"-decor-\")[1]);"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "model",
+      "declaration": "const ??? = DECOR_MODELS[arg3],",
+      "references": [
+        "L57: if (!??? || !value2) throw new Error(\"Unknown decor model or theme\");",
+        "L66: if (!Number.isInteger(value5) || !???.roles[value5])",
+        "L68: const value6 = ???.roles[value5],"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "theme",
+      "declaration": "??? = DECOR_THEMES[arg4];",
+      "references": [
+        "L57: if (!value1 || !???) throw new Error(\"Unknown decor model or theme\");",
+        "L72: color: ???[value6],"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "role",
+      "declaration": "const ??? = value1.roles[value5],",
+      "references": [
+        "L69: value7 = arg4 + \":\" + ???;",
+        "L72: color: value2[???],"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "materialCache",
+      "declaration": "export function applyDecorTheme(arg1, arg2, arg3, arg4, ??? = new Map()) {",
+      "references": [
+        "L70: if (!???.has(value7)) {",
+        "L76: ???.set(value7, value8);",
+        "L78: return ???.get(value7);"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "resolveMaterial",
+      "declaration": "const ??? = (arg8, arg9) => {",
+      "references": [
+        "L81: ? arg6.material.map(???)",
+        "L82: : ???(arg6.material, 0)),"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "cacheKey",
+      "declaration": "??? = arg4 + \":\" + value6;",
+      "references": [
+        "L70: if (!arg5.has(???)) {",
+        "L76: arg5.set(???, value8);",
+        "L78: return arg5.get(???);"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/module-binding",
+      "newName": "cachedMaterial",
+      "declaration": "const ??? = new arg1.MeshStandardMaterial({",
+      "references": [
+        "L76: arg5.set(value7, ???);"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "modelKey",
+      "declaration": "export function applyDecorTheme(arg1, arg2, ???, arg4, arg5 = new Map()) {",
+      "references": [
+        "L55: const value1 = DECOR_MODELS[???],"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/module-binding",
+      "newName": "index",
+      "declaration": "const fn1 = (arg8, ???) => {",
+      "references": [
+        "L64: const value4 = arg6.userData.decorRoles[???],"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "root",
+      "declaration": "export function applyDecorTheme(arg1, ???, arg3, arg4, arg5 = new Map()) {",
+      "references": [
+        "L59: ???.traverse((arg6) => {",
+        "L86: ???"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/module-binding",
+      "newName": "roleIndex",
+      "declaration": "const ??? = arg6.userData.decorRoles[arg9],",
+      "references": [
+        "L65: value5 = Number(???);"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "three",
+      "declaration": "export function applyDecorTheme(???, arg2, arg3, arg4, arg5 = new Map()) {",
+      "references": [
+        "L71: const value8 = new ???.MeshStandardMaterial({"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/module-binding",
+      "newName": "materials",
+      "declaration": "const ??? = Array.isArray(arg6.material) ? arg6.material : [arg6.material];",
+      "references": [
+        "L62: arg6.userData.decorRoles ??= ???.map((arg7) => arg7.name.split(\"-decor-\")[1]);"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/other",
+      "newName": "themeKey",
+      "declaration": "export function applyDecorTheme(arg1, arg2, arg3, ???, arg5 = new Map()) {",
+      "references": [
+        "L56: value2 = DECOR_THEMES[???];",
+        "L69: value7 = ??? + \":\" + value6;"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "frontend/modules/interaction3d/cover-group-panel.js": {
+    "arg1@3": "panelElement",
+    "arg2@4": "onControl",
+    "arg3@5": "onPreview",
+    "value1@7": "documentNode",
+    "value2@8": "rootElement",
+    "value3@10": "titleElement",
+    "value4@12": "panels",
+    "arg4@20": "mountedPanel",
+    "arg5@23": "state",
+    "value5@24": "memberItems",
+    "arg6@28": "layerPanel",
+    "arg7@28": "index",
+    "value6@29": "member",
+    "arg8@44": "deactivatedPanel",
+    "arg9@47": "disposedPanel"
+  }
+}

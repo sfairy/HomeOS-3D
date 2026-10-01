@@ -1,0 +1,6012 @@
+{
+  "file": "frontend/static/3d-studio/geometry.js",
+  "declStart": 1,
+  "declEnd": 684,
+  "totalLines": 1618,
+  "counts": {
+    "entries": 300,
+    "renameable": 300,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "st@1",
+      "name": "st",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const st = 1e-7;",
+      "references": []
+    },
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clamp(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clamp(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@2",
+      "name": "arg3",
+      "line": 2,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function clamp(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "return Math.min(arg3, Math.max(arg2, arg1));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@5",
+      "name": "arg4",
+      "line": 5,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function spotLightBrightnessResponse(arg4 = \"downlight\", arg5 = 0) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "if (arg4 !== \"ceilinglight\" || value1 <= 0 || value1 >= 0.35) return value2;"
+        }
+      ]
+    },
+    {
+      "key": "arg5@5",
+      "name": "arg5",
+      "line": 5,
+      "column": 64,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function spotLightBrightnessResponse(arg4 = \"downlight\", arg5 = 0) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "const value1 = clamp(Number(arg5) || 0, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value1@6",
+      "name": "value1",
+      "line": 6,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = clamp(Number(arg5) || 0, 0, 1),",
+      "references": [
+        {
+          "line": 7,
+          "text": "value2 = value1 * value1;"
+        },
+        {
+          "line": 8,
+          "text": "if (arg4 !== \"ceilinglight\" || value1 <= 0 || value1 >= 0.35) return value2;"
+        },
+        {
+          "line": 9,
+          "text": "const value3 = 0.08 * value1 * (1 - value1 / 0.35);"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = value1 * value1;",
+      "references": [
+        {
+          "line": 8,
+          "text": "if (arg4 !== \"ceilinglight\" || value1 <= 0 || value1 >= 0.35) return value2;"
+        },
+        {
+          "line": 10,
+          "text": "return value2 + value3;"
+        }
+      ]
+    },
+    {
+      "key": "value3@9",
+      "name": "value3",
+      "line": 9,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = 0.08 * value1 * (1 - value1 / 0.35);",
+      "references": [
+        {
+          "line": 10,
+          "text": "return value2 + value3;"
+        }
+      ]
+    },
+    {
+      "key": "arg6@12",
+      "name": "arg6",
+      "line": 12,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function stripLightProjection(arg6 = 2.7, arg7 = 3.5, arg8 = 2) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "const value4 = clamp(Number.isFinite(Number(arg6)) ? Number(arg6) : 2.7, 0.05, 6),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@12",
+      "name": "arg7",
+      "line": 12,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function stripLightProjection(arg6 = 2.7, arg7 = 3.5, arg8 = 2) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "value5 = clamp(Number.isFinite(Number(arg7)) ? Number(arg7) : 3.5, 0.5, 10),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@12",
+      "name": "arg8",
+      "line": 12,
+      "column": 61,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function stripLightProjection(arg6 = 2.7, arg7 = 3.5, arg8 = 2) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "value6 = clamp(Number.isFinite(Number(arg8)) ? Number(arg8) : 2, 0.2, 8),"
+        }
+      ]
+    },
+    {
+      "key": "value4@13",
+      "name": "value4",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = clamp(Number.isFinite(Number(arg6)) ? Number(arg6) : 2.7, 0.05, 6),",
+      "references": [
+        {
+          "line": 16,
+          "text": "value7 = clamp(value4 / 2.7, 0.2, 2.2),"
+        },
+        {
+          "line": 19,
+          "text": "\"elevation\": value4,"
+        }
+      ]
+    },
+    {
+      "key": "value5@14",
+      "name": "value5",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = clamp(Number.isFinite(Number(arg7)) ? Number(arg7) : 3.5, 0.5, 10),",
+      "references": [
+        {
+          "line": 20,
+          "text": "\"range\": value5 * clamp(0.5 + value7 * 0.5, 0.6, 1.6) * clamp(0.82 + value8 * 0.18, 0.75, 1.5),"
+        }
+      ]
+    },
+    {
+      "key": "value6@15",
+      "name": "value6",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = clamp(Number.isFinite(Number(arg8)) ? Number(arg8) : 2, 0.2, 8),",
+      "references": [
+        {
+          "line": 17,
+          "text": "value8 = clamp(value6 / 2, 0.1, 4);"
+        }
+      ]
+    },
+    {
+      "key": "value7@16",
+      "name": "value7",
+      "line": 16,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = clamp(value4 / 2.7, 0.2, 2.2),",
+      "references": [
+        {
+          "line": 20,
+          "text": "\"range\": value5 * clamp(0.5 + value7 * 0.5, 0.6, 1.6) * clamp(0.82 + value8 * 0.18, 0.75, 1.5),"
+        },
+        {
+          "line": 21,
+          "text": "\"coreScale\": clamp(0.55 + value7 * 0.45, 0.65, 1.55),"
+        },
+        {
+          "line": 22,
+          "text": "\"intensity\": clamp(1 / value7, 0.5, 2.2),"
+        }
+      ]
+    },
+    {
+      "key": "value8@17",
+      "name": "value8",
+      "line": 17,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = clamp(value6 / 2, 0.1, 4);",
+      "references": [
+        {
+          "line": 20,
+          "text": "\"range\": value5 * clamp(0.5 + value7 * 0.5, 0.6, 1.6) * clamp(0.82 + value8 * 0.18, 0.75, 1.5),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@25",
+      "name": "arg9",
+      "line": 25,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function adaptiveLightRenderCost(arg9 = []) {",
+      "references": [
+        {
+          "line": 26,
+          "text": "return arg9.reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg10@27",
+      "name": "arg10",
+      "line": 27,
+      "column": 5,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg10, arg11) =>",
+      "references": [
+        {
+          "line": 29,
+          "text": "? arg10"
+        },
+        {
+          "line": 31,
+          "text": "? arg10 + 0.3"
+        },
+        {
+          "line": 33,
+          "text": "? arg10 + (Number(arg11?.angle) >= 140 ? 1.65 : 1.1)"
+        },
+        {
+          "line": 35,
+          "text": "? arg10 + 1"
+        },
+        {
+          "line": 36,
+          "text": ": arg10,"
+        }
+      ]
+    },
+    {
+      "key": "arg11@27",
+      "name": "arg11",
+      "line": 27,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg10, arg11) =>",
+      "references": [
+        {
+          "line": 28,
+          "text": "arg11?.enabled === false || Math.max(0, Number(arg11?.brightness) || 0) <= 0"
+        },
+        {
+          "line": 30,
+          "text": ": arg11?.type === \"striplight\""
+        },
+        {
+          "line": 32,
+          "text": ": arg11?.type === \"ceilinglight\""
+        },
+        {
+          "line": 33,
+          "text": "? arg10 + (Number(arg11?.angle) >= 140 ? 1.65 : 1.1)"
+        },
+        {
+          "line": 34,
+          "text": ": arg11?.type === \"downlight\""
+        }
+      ]
+    },
+    {
+      "key": "arg12@41",
+      "name": "arg12",
+      "line": 41,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "hardwareConcurrency: arg12 = 4,",
+      "references": [
+        {
+          "line": 45,
+          "text": "const value9 = clamp(Number(arg12) || 4, 2, 24),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@42",
+      "name": "arg13",
+      "line": 42,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "deviceMemory: arg13 = 8,",
+      "references": [
+        {
+          "line": 46,
+          "text": "value10 = clamp(Number(arg13) || 8, 2, 32),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@43",
+      "name": "arg14",
+      "line": 43,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "previewPixels: arg14 = 500000,",
+      "references": [
+        {
+          "line": 47,
+          "text": "value11 = clamp(Number(arg14) || 500000, 120000, 4000000),"
+        }
+      ]
+    },
+    {
+      "key": "value9@45",
+      "name": "value9",
+      "line": 45,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = clamp(Number(arg12) || 4, 2, 24),",
+      "references": [
+        {
+          "line": 48,
+          "text": "value12 = 4.5 + Math.min(value9, 16) * 0.55,"
+        }
+      ]
+    },
+    {
+      "key": "value10@46",
+      "name": "value10",
+      "line": 46,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = clamp(Number(arg13) || 8, 2, 32),",
+      "references": [
+        {
+          "line": 49,
+          "text": "value13 = value10 <= 4 ? 0.78 : value10 < 8 ? 0.88 : value10 >= 16 ? 1.1 : 1,"
+        }
+      ]
+    },
+    {
+      "key": "value11@47",
+      "name": "value11",
+      "line": 47,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = clamp(Number(arg14) || 500000, 120000, 4000000),",
+      "references": [
+        {
+          "line": 50,
+          "text": "value14 = clamp(Math.sqrt(500000 / value11), 0.72, 1.2);"
+        }
+      ]
+    },
+    {
+      "key": "value12@48",
+      "name": "value12",
+      "line": 48,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = 4.5 + Math.min(value9, 16) * 0.55,",
+      "references": [
+        {
+          "line": 51,
+          "text": "return clamp(value12 * value13 * value14, 4, 16);"
+        }
+      ]
+    },
+    {
+      "key": "value13@49",
+      "name": "value13",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = value10 <= 4 ? 0.78 : value10 < 8 ? 0.88 : value10 >= 16 ? 1.1 : 1,",
+      "references": [
+        {
+          "line": 51,
+          "text": "return clamp(value12 * value13 * value14, 4, 16);"
+        }
+      ]
+    },
+    {
+      "key": "value14@50",
+      "name": "value14",
+      "line": 50,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = clamp(Math.sqrt(500000 / value11), 0.72, 1.2);",
+      "references": [
+        {
+          "line": 51,
+          "text": "return clamp(value12 * value13 * value14, 4, 16);"
+        }
+      ]
+    },
+    {
+      "key": "arg15@53",
+      "name": "arg15",
+      "line": 53,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function assessAdaptiveRenderFrames(arg15 = []) {",
+      "references": [
+        {
+          "line": 54,
+          "text": "const value15 = arg15"
+        }
+      ]
+    },
+    {
+      "key": "value15@54",
+      "name": "value15",
+      "line": 54,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = arg15",
+      "references": [
+        {
+          "line": 57,
+          "text": "if (value15.length < 12)"
+        },
+        {
+          "line": 60,
+          "text": "\"sampleCount\": value15.length,"
+        },
+        {
+          "line": 62,
+          "text": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),"
+        },
+        {
+          "line": 65,
+          "text": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,"
+        },
+        {
+          "line": 70,
+          "text": "\"sampleCount\": value15.length,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@56",
+      "name": "arg16",
+      "line": 56,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg16) => Number.isFinite(arg16) && arg16 >= 8 && arg16 <= 120);",
+      "references": [
+        {
+          "line": 56,
+          "text": ".filter((arg16) => Number.isFinite(arg16) && arg16 >= 8 && arg16 <= 120);"
+        }
+      ]
+    },
+    {
+      "key": "value16@62",
+      "name": "value16",
+      "line": 62,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),",
+      "references": [
+        {
+          "line": 64,
+          "text": "value16[Math.min(Math.floor((value16.length - 1) * arg19), value16.length - 1)],"
+        }
+      ]
+    },
+    {
+      "key": "arg17@62",
+      "name": "arg17",
+      "line": 62,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),",
+      "references": [
+        {
+          "line": 62,
+          "text": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@62",
+      "name": "arg18",
+      "line": 62,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),",
+      "references": [
+        {
+          "line": 62,
+          "text": "const value16 = [...value15].sort((arg17, arg18) => arg17 - arg18),"
+        }
+      ]
+    },
+    {
+      "key": "fn1@63",
+      "name": "fn1",
+      "line": 63,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg19) =>",
+      "references": [
+        {
+          "line": 66,
+          "text": "value18 = fn1(0.75),"
+        },
+        {
+          "line": 67,
+          "text": "value19 = fn1(0.9);"
+        }
+      ]
+    },
+    {
+      "key": "arg19@63",
+      "name": "arg19",
+      "line": 63,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg19) =>",
+      "references": [
+        {
+          "line": 64,
+          "text": "value16[Math.min(Math.floor((value16.length - 1) * arg19), value16.length - 1)],"
+        }
+      ]
+    },
+    {
+      "key": "value17@65",
+      "name": "value17",
+      "line": 65,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,",
+      "references": [
+        {
+          "line": 71,
+          "text": "\"averageFrameMs\": value17,"
+        },
+        {
+          "line": 74,
+          "text": "\"fps\": 1000 / value17,"
+        },
+        {
+          "line": 75,
+          "text": "\"severe\": value17 >= 45 || value18 >= 50 || value19 >= 68,"
+        },
+        {
+          "line": 76,
+          "text": "\"slow\": value17 >= 34 || value18 >= 38 || value19 >= 55,"
+        },
+        {
+          "line": 77,
+          "text": "\"smooth\": value17 <= 24 && value19 <= 32,"
+        }
+      ]
+    },
+    {
+      "key": "arg20@65",
+      "name": "arg20",
+      "line": 65,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,",
+      "references": [
+        {
+          "line": 65,
+          "text": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,"
+        }
+      ]
+    },
+    {
+      "key": "arg21@65",
+      "name": "arg21",
+      "line": 65,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,",
+      "references": [
+        {
+          "line": 65,
+          "text": "value17 = value15.reduce((arg20, arg21) => arg20 + arg21, 0) / value15.length,"
+        }
+      ]
+    },
+    {
+      "key": "value18@66",
+      "name": "value18",
+      "line": 66,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = fn1(0.75),",
+      "references": [
+        {
+          "line": 72,
+          "text": "\"p75FrameMs\": value18,"
+        },
+        {
+          "line": 75,
+          "text": "\"severe\": value17 >= 45 || value18 >= 50 || value19 >= 68,"
+        },
+        {
+          "line": 76,
+          "text": "\"slow\": value17 >= 34 || value18 >= 38 || value19 >= 55,"
+        }
+      ]
+    },
+    {
+      "key": "value19@67",
+      "name": "value19",
+      "line": 67,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = fn1(0.9);",
+      "references": [
+        {
+          "line": 73,
+          "text": "\"p90FrameMs\": value19,"
+        },
+        {
+          "line": 75,
+          "text": "\"severe\": value17 >= 45 || value18 >= 50 || value19 >= 68,"
+        },
+        {
+          "line": 76,
+          "text": "\"slow\": value17 >= 34 || value18 >= 38 || value19 >= 55,"
+        },
+        {
+          "line": 77,
+          "text": "\"smooth\": value17 <= 24 && value19 <= 32,"
+        }
+      ]
+    },
+    {
+      "key": "arg22@80",
+      "name": "arg22",
+      "line": 80,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function planLabelProjectionMetrics(arg22, arg23, arg24 = 0.86) {",
+      "references": [
+        {
+          "line": 81,
+          "text": "const value20 = Math.max(0, Number(arg22) || 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg23@80",
+      "name": "arg23",
+      "line": 80,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function planLabelProjectionMetrics(arg22, arg23, arg24 = 0.86) {",
+      "references": [
+        {
+          "line": 82,
+          "text": "value21 = Math.max(0, Number(arg23) || 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg24@80",
+      "name": "arg24",
+      "line": 80,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function planLabelProjectionMetrics(arg22, arg23, arg24 = 0.86) {",
+      "references": [
+        {
+          "line": 83,
+          "text": "value22 = clamp(Number.isFinite(Number(arg24)) ? Number(arg24) : 0.86, 0.3, 1);"
+        }
+      ]
+    },
+    {
+      "key": "value20@81",
+      "name": "value20",
+      "line": 81,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = Math.max(0, Number(arg22) || 0),",
+      "references": [
+        {
+          "line": 85,
+          "text": "\"titleStartX\": -value20 * (0.5 - 115 / 2048),"
+        },
+        {
+          "line": 88,
+          "text": "\"titleMaxWidth\": (value20 * 1340) / 2048,"
+        },
+        {
+          "line": 89,
+          "text": "\"iconX\": value20 * (1580 / 2048 - 0.5),"
+        },
+        {
+          "line": 92,
+          "text": "\"subtitleStartX\": -value20 * (0.5 - 72 / 2048),"
+        },
+        {
+          "line": 95,
+          "text": "\"subtitleMaxWidth\": (value20 * 1880) / 2048,"
+        },
+        {
+          "line": 97,
+          "text": "\"baselineStartX\": -value20 * (0.5 - 74 / 2048),"
+        }
+      ]
+    },
+    {
+      "key": "value21@82",
+      "name": "value21",
+      "line": 82,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = Math.max(0, Number(arg23) || 0),",
+      "references": [
+        {
+          "line": 86,
+          "text": "\"titleY\": value21 * (130 / 640 - 0.5),"
+        },
+        {
+          "line": 87,
+          "text": "\"titleFontSize\": (value21 * 184) / 640,"
+        },
+        {
+          "line": 90,
+          "text": "\"iconY\": value21 * (130 / 640 - 0.5),"
+        },
+        {
+          "line": 91,
+          "text": "\"iconSize\": (value21 * 170) / 640,"
+        },
+        {
+          "line": 93,
+          "text": "\"subtitleY\": value21 * (410 / 640 - 0.5),"
+        },
+        {
+          "line": 94,
+          "text": "\"subtitleFontSize\": (value21 * 310) / 640,"
+        }
+      ]
+    },
+    {
+      "key": "value22@83",
+      "name": "value22",
+      "line": 83,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = clamp(Number.isFinite(Number(arg24)) ? Number(arg24) : 0.86, 0.3, 1);",
+      "references": [
+        {
+          "line": 98,
+          "text": "\"baselineLength\": ((value20 * 1880) / 2048) * value22,"
+        }
+      ]
+    },
+    {
+      "key": "arg25@103",
+      "name": "arg25",
+      "line": 103,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function selectShadowCastingLightIds(arg25 = [], arg26 = 8) {",
+      "references": [
+        {
+          "line": 106,
+          "text": "const value24 = arg25"
+        }
+      ]
+    },
+    {
+      "key": "arg26@103",
+      "name": "arg26",
+      "line": 103,
+      "column": 56,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function selectShadowCastingLightIds(arg25 = [], arg26 = 8) {",
+      "references": [
+        {
+          "line": 104,
+          "text": "const value23 = Math.max(0, Math.floor(Number(arg26) || 0));"
+        }
+      ]
+    },
+    {
+      "key": "value23@104",
+      "name": "value23",
+      "line": 104,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = Math.max(0, Math.floor(Number(arg26) || 0));",
+      "references": [
+        {
+          "line": 105,
+          "text": "if (value23 === 0) return [];"
+        },
+        {
+          "line": 122,
+          "text": "if (value24.length <= value23) return value24.map((arg31) => arg31.id);"
+        },
+        {
+          "line": 130,
+          "text": "const value25 = [...map1.values()].sort(fn2).slice(0, value23);"
+        },
+        {
+          "line": 131,
+          "text": "if (value25.length < value23) {"
+        },
+        {
+          "line": 134,
+          "text": "value25.push(...value29.slice(0, value23 - value25.length));"
+        }
+      ]
+    },
+    {
+      "key": "value24@106",
+      "name": "value24",
+      "line": 106,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = arg25",
+      "references": [
+        {
+          "line": 122,
+          "text": "if (value24.length <= value23) return value24.map((arg31) => arg31.id);"
+        },
+        {
+          "line": 125,
+          "text": "for (const value26 of value24) {"
+        },
+        {
+          "line": 133,
+          "text": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);"
+        }
+      ]
+    },
+    {
+      "key": "arg27@107",
+      "name": "arg27",
+      "line": 107,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg27, arg28) => ({",
+      "references": [
+        {
+          "line": 108,
+          "text": "\"id\": String(arg27?.id || \"\"),"
+        },
+        {
+          "line": 109,
+          "text": "\"groupId\": String(arg27?.groupId || \"\"),"
+        },
+        {
+          "line": 110,
+          "text": "\"type\": String(arg27?.type || \"\"),"
+        },
+        {
+          "line": 111,
+          "text": "\"brightness\": Math.max(0, Number(arg27?.brightness) || 0),"
+        },
+        {
+          "line": 112,
+          "text": "\"enabled\": arg27?.enabled !== false,"
+        }
+      ]
+    },
+    {
+      "key": "arg28@107",
+      "name": "arg28",
+      "line": 107,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg27, arg28) => ({",
+      "references": [
+        {
+          "line": 113,
+          "text": "\"index\": arg28,"
+        }
+      ]
+    },
+    {
+      "key": "arg29@116",
+      "name": "arg29",
+      "line": 116,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg29) => arg29.id && arg29.enabled && arg29.brightness > 0 && arg29.type !== \"striplight\",",
+      "references": [
+        {
+          "line": 116,
+          "text": "(arg29) => arg29.id && arg29.enabled && arg29.brightness > 0 && arg29.type !== \"striplight\","
+        }
+      ]
+    },
+    {
+      "key": "arg30@118",
+      "name": "arg30",
+      "line": 118,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg30) => ({",
+      "references": [
+        {
+          "line": 119,
+          "text": "...arg30,"
+        },
+        {
+          "line": 120,
+          "text": "\"score\": arg30.brightness * (arg30.type === \"ceilinglight\" ? 1.08 : 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg31@122",
+      "name": "arg31",
+      "line": 122,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "if (value24.length <= value23) return value24.map((arg31) => arg31.id);",
+      "references": [
+        {
+          "line": 122,
+          "text": "if (value24.length <= value23) return value24.map((arg31) => arg31.id);"
+        }
+      ]
+    },
+    {
+      "key": "fn2@123",
+      "name": "fn2",
+      "line": 123,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg32, arg33) => arg33.score - arg32.score || arg32.index - arg33.index,",
+      "references": [
+        {
+          "line": 128,
+          "text": "(!value28 || fn2(value26, value28) < 0) && map1.set(value27, value26);"
+        },
+        {
+          "line": 130,
+          "text": "const value25 = [...map1.values()].sort(fn2).slice(0, value23);"
+        },
+        {
+          "line": 133,
+          "text": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);"
+        }
+      ]
+    },
+    {
+      "key": "arg32@123",
+      "name": "arg32",
+      "line": 123,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg32, arg33) => arg33.score - arg32.score || arg32.index - arg33.index,",
+      "references": [
+        {
+          "line": 123,
+          "text": "const fn2 = (arg32, arg33) => arg33.score - arg32.score || arg32.index - arg33.index,"
+        }
+      ]
+    },
+    {
+      "key": "arg33@123",
+      "name": "arg33",
+      "line": 123,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg32, arg33) => arg33.score - arg32.score || arg32.index - arg33.index,",
+      "references": [
+        {
+          "line": 123,
+          "text": "const fn2 = (arg32, arg33) => arg33.score - arg32.score || arg32.index - arg33.index,"
+        }
+      ]
+    },
+    {
+      "key": "map1@124",
+      "name": "map1",
+      "line": 124,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "map1 = new Map();",
+      "references": [
+        {
+          "line": 127,
+          "text": "value28 = map1.get(value27);"
+        },
+        {
+          "line": 128,
+          "text": "(!value28 || fn2(value26, value28) < 0) && map1.set(value27, value26);"
+        },
+        {
+          "line": 130,
+          "text": "const value25 = [...map1.values()].sort(fn2).slice(0, value23);"
+        }
+      ]
+    },
+    {
+      "key": "value26@125",
+      "name": "value26",
+      "line": 125,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value26 of value24) {",
+      "references": [
+        {
+          "line": 126,
+          "text": "const value27 = value26.groupId || \"__ungrouped-\" + value26.index,"
+        },
+        {
+          "line": 128,
+          "text": "(!value28 || fn2(value26, value28) < 0) && map1.set(value27, value26);"
+        }
+      ]
+    },
+    {
+      "key": "value27@126",
+      "name": "value27",
+      "line": 126,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value27 = value26.groupId || \"__ungrouped-\" + value26.index,",
+      "references": [
+        {
+          "line": 127,
+          "text": "value28 = map1.get(value27);"
+        },
+        {
+          "line": 128,
+          "text": "(!value28 || fn2(value26, value28) < 0) && map1.set(value27, value26);"
+        }
+      ]
+    },
+    {
+      "key": "value28@127",
+      "name": "value28",
+      "line": 127,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value28 = map1.get(value27);",
+      "references": [
+        {
+          "line": 128,
+          "text": "(!value28 || fn2(value26, value28) < 0) && map1.set(value27, value26);"
+        }
+      ]
+    },
+    {
+      "key": "value25@130",
+      "name": "value25",
+      "line": 130,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = [...map1.values()].sort(fn2).slice(0, value23);",
+      "references": [
+        {
+          "line": 131,
+          "text": "if (value25.length < value23) {"
+        },
+        {
+          "line": 132,
+          "text": "const set1 = new Set(value25.map((arg34) => arg34.id)),"
+        },
+        {
+          "line": 134,
+          "text": "value25.push(...value29.slice(0, value23 - value25.length));"
+        },
+        {
+          "line": 136,
+          "text": "return value25.map((arg36) => arg36.id);"
+        }
+      ]
+    },
+    {
+      "key": "set1@132",
+      "name": "set1",
+      "line": 132,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set(value25.map((arg34) => arg34.id)),",
+      "references": [
+        {
+          "line": 133,
+          "text": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);"
+        }
+      ]
+    },
+    {
+      "key": "arg34@132",
+      "name": "arg34",
+      "line": 132,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set1 = new Set(value25.map((arg34) => arg34.id)),",
+      "references": [
+        {
+          "line": 132,
+          "text": "const set1 = new Set(value25.map((arg34) => arg34.id)),"
+        }
+      ]
+    },
+    {
+      "key": "value29@133",
+      "name": "value29",
+      "line": 133,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);",
+      "references": [
+        {
+          "line": 134,
+          "text": "value25.push(...value29.slice(0, value23 - value25.length));"
+        }
+      ]
+    },
+    {
+      "key": "arg35@133",
+      "name": "arg35",
+      "line": 133,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);",
+      "references": [
+        {
+          "line": 133,
+          "text": "value29 = value24.filter((arg35) => !set1.has(arg35.id)).sort(fn2);"
+        }
+      ]
+    },
+    {
+      "key": "arg36@136",
+      "name": "arg36",
+      "line": 136,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return value25.map((arg36) => arg36.id);",
+      "references": [
+        {
+          "line": 136,
+          "text": "return value25.map((arg36) => arg36.id);"
+        }
+      ]
+    },
+    {
+      "key": "arg37@139",
+      "name": "arg37",
+      "line": 139,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxTextureUnits: arg37 = 16,",
+      "references": [
+        {
+          "line": 146,
+          "text": "const value30 = Math.max(0, Math.floor(Number(arg37) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "arg38@140",
+      "name": "arg38",
+      "line": 140,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "materialTextureUnits: arg38 = 0,",
+      "references": [
+        {
+          "line": 147,
+          "text": "value31 = [arg38, arg39, arg40, arg41].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg39@141",
+      "name": "arg39",
+      "line": 141,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "nonSpotShadowTextureUnits: arg39 = 1,",
+      "references": [
+        {
+          "line": 147,
+          "text": "value31 = [arg38, arg39, arg40, arg41].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg40@142",
+      "name": "arg40",
+      "line": 142,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "rectAreaLightTextureUnits: arg40 = 0,",
+      "references": [
+        {
+          "line": 147,
+          "text": "value31 = [arg38, arg39, arg40, arg41].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg41@143",
+      "name": "arg41",
+      "line": 143,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "reservedTextureUnits: arg41 = 1,",
+      "references": [
+        {
+          "line": 147,
+          "text": "value31 = [arg38, arg39, arg40, arg41].reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg42@144",
+      "name": "arg42",
+      "line": 144,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "hardLimit: arg42 = 8,",
+      "references": [
+        {
+          "line": 151,
+          "text": "value32 = Math.max(0, Math.floor(Number(arg42) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "value30@146",
+      "name": "value30",
+      "line": 146,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value30 = Math.max(0, Math.floor(Number(arg37) || 0)),",
+      "references": [
+        {
+          "line": 152,
+          "text": "value33 = value30 <= 16 ? 3 : value30 <= 24 ? 6 : value32;"
+        },
+        {
+          "line": 153,
+          "text": "return Math.min(value32, value33, Math.max(0, value30 - value31));"
+        }
+      ]
+    },
+    {
+      "key": "value31@147",
+      "name": "value31",
+      "line": 147,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value31 = [arg38, arg39, arg40, arg41].reduce(",
+      "references": [
+        {
+          "line": 153,
+          "text": "return Math.min(value32, value33, Math.max(0, value30 - value31));"
+        }
+      ]
+    },
+    {
+      "key": "arg43@148",
+      "name": "arg43",
+      "line": 148,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg43, arg44) => arg43 + Math.max(0, Math.floor(Number(arg44) || 0)),",
+      "references": [
+        {
+          "line": 148,
+          "text": "(arg43, arg44) => arg43 + Math.max(0, Math.floor(Number(arg44) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "arg44@148",
+      "name": "arg44",
+      "line": 148,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg43, arg44) => arg43 + Math.max(0, Math.floor(Number(arg44) || 0)),",
+      "references": [
+        {
+          "line": 148,
+          "text": "(arg43, arg44) => arg43 + Math.max(0, Math.floor(Number(arg44) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "value32@151",
+      "name": "value32",
+      "line": 151,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value32 = Math.max(0, Math.floor(Number(arg42) || 0)),",
+      "references": [
+        {
+          "line": 152,
+          "text": "value33 = value30 <= 16 ? 3 : value30 <= 24 ? 6 : value32;"
+        },
+        {
+          "line": 153,
+          "text": "return Math.min(value32, value33, Math.max(0, value30 - value31));"
+        }
+      ]
+    },
+    {
+      "key": "value33@152",
+      "name": "value33",
+      "line": 152,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value33 = value30 <= 16 ? 3 : value30 <= 24 ? 6 : value32;",
+      "references": [
+        {
+          "line": 153,
+          "text": "return Math.min(value32, value33, Math.max(0, value30 - value31));"
+        }
+      ]
+    },
+    {
+      "key": "arg45@155",
+      "name": "arg45",
+      "line": 155,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function localSpotShadowSettings(arg45 = \"downlight\", arg46 = 3.5, arg47 = 90) {",
+      "references": [
+        {
+          "line": 158,
+          "text": "value36 = arg45 === \"ceilinglight\" && value35 >= 140;"
+        }
+      ]
+    },
+    {
+      "key": "arg46@155",
+      "name": "arg46",
+      "line": 155,
+      "column": 61,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function localSpotShadowSettings(arg45 = \"downlight\", arg46 = 3.5, arg47 = 90) {",
+      "references": [
+        {
+          "line": 156,
+          "text": "const value34 = clamp(Number.isFinite(Number(arg46)) ? Number(arg46) : 3.5, 0.5, 10),"
+        }
+      ]
+    },
+    {
+      "key": "arg47@155",
+      "name": "arg47",
+      "line": 155,
+      "column": 74,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function localSpotShadowSettings(arg45 = \"downlight\", arg46 = 3.5, arg47 = 90) {",
+      "references": [
+        {
+          "line": 157,
+          "text": "value35 = clamp(Number.isFinite(Number(arg47)) ? Number(arg47) : 90, 15, 180),"
+        }
+      ]
+    },
+    {
+      "key": "value34@156",
+      "name": "value34",
+      "line": 156,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value34 = clamp(Number.isFinite(Number(arg46)) ? Number(arg46) : 3.5, 0.5, 10),",
+      "references": [
+        {
+          "line": 165,
+          "text": "\"range\": value34,"
+        }
+      ]
+    },
+    {
+      "key": "value35@157",
+      "name": "value35",
+      "line": 157,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value35 = clamp(Number.isFinite(Number(arg47)) ? Number(arg47) : 90, 15, 180),",
+      "references": [
+        {
+          "line": 158,
+          "text": "value36 = arg45 === \"ceilinglight\" && value35 >= 140;"
+        },
+        {
+          "line": 166,
+          "text": "\"angle\": value35,"
+        }
+      ]
+    },
+    {
+      "key": "value36@158",
+      "name": "value36",
+      "line": 158,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value36 = arg45 === \"ceilinglight\" && value35 >= 140;",
+      "references": [
+        {
+          "line": 160,
+          "text": "\"mapSize\": value36 ? 512 : 256,"
+        },
+        {
+          "line": 161,
+          "text": "\"radius\": value36 ? 1.25 : 1,"
+        },
+        {
+          "line": 162,
+          "text": "\"blurSamples\": value36 ? 8 : 4,"
+        },
+        {
+          "line": 164,
+          "text": "\"wideCeilingLight\": value36,"
+        }
+      ]
+    },
+    {
+      "key": "arg48@169",
+      "name": "arg48",
+      "line": 169,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function distance(arg48, arg49) {",
+      "references": [
+        {
+          "line": 170,
+          "text": "return Math.hypot(arg49.x - arg48.x, arg49.y - arg48.y);"
+        }
+      ]
+    },
+    {
+      "key": "arg49@169",
+      "name": "arg49",
+      "line": 169,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function distance(arg48, arg49) {",
+      "references": [
+        {
+          "line": 170,
+          "text": "return Math.hypot(arg49.x - arg48.x, arg49.y - arg48.y);"
+        }
+      ]
+    },
+    {
+      "key": "arg50@172",
+      "name": "arg50",
+      "line": 172,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function slidingDoorPanelCenters(arg50, arg51 = -1, arg52 = 2 / 3) {",
+      "references": [
+        {
+          "line": 173,
+          "text": "const value37 = (arg51 >= 0 ? 1 : -1) * arg50 * 0.23,"
+        }
+      ]
+    },
+    {
+      "key": "arg51@172",
+      "name": "arg51",
+      "line": 172,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function slidingDoorPanelCenters(arg50, arg51 = -1, arg52 = 2 / 3) {",
+      "references": [
+        {
+          "line": 173,
+          "text": "const value37 = (arg51 >= 0 ? 1 : -1) * arg50 * 0.23,"
+        }
+      ]
+    },
+    {
+      "key": "arg52@172",
+      "name": "arg52",
+      "line": 172,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function slidingDoorPanelCenters(arg50, arg51 = -1, arg52 = 2 / 3) {",
+      "references": [
+        {
+          "line": 177,
+          "text": "\"moving\": value38 + (value37 - value38) * clamp(arg52, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value37@173",
+      "name": "value37",
+      "line": 173,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value37 = (arg51 >= 0 ? 1 : -1) * arg50 * 0.23,",
+      "references": [
+        {
+          "line": 174,
+          "text": "value38 = -value37;"
+        },
+        {
+          "line": 176,
+          "text": "\"fixed\": value37,"
+        },
+        {
+          "line": 177,
+          "text": "\"moving\": value38 + (value37 - value38) * clamp(arg52, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value38@174",
+      "name": "value38",
+      "line": 174,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value38 = -value37;",
+      "references": [
+        {
+          "line": 177,
+          "text": "\"moving\": value38 + (value37 - value38) * clamp(arg52, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg53@180",
+      "name": "arg53",
+      "line": 180,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function projectPointToSegment(arg53, arg54, arg55) {",
+      "references": [
+        {
+          "line": 190,
+          "text": "\"distance\": distance(arg53, arg54),"
+        },
+        {
+          "line": 193,
+          "text": "((arg53.x - arg54.x) * value39 + (arg53.y - arg54.y) * value40) / value41,"
+        },
+        {
+          "line": 204,
+          "text": "\"distance\": distance(arg53, object1),"
+        }
+      ]
+    },
+    {
+      "key": "arg54@180",
+      "name": "arg54",
+      "line": 180,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function projectPointToSegment(arg53, arg54, arg55) {",
+      "references": [
+        {
+          "line": 181,
+          "text": "const value39 = arg55.x - arg54.x,"
+        },
+        {
+          "line": 182,
+          "text": "value40 = arg55.y - arg54.y,"
+        },
+        {
+          "line": 187,
+          "text": "...arg54,"
+        },
+        {
+          "line": 190,
+          "text": "\"distance\": distance(arg53, arg54),"
+        },
+        {
+          "line": 193,
+          "text": "((arg53.x - arg54.x) * value39 + (arg53.y - arg54.y) * value40) / value41,"
+        },
+        {
+          "line": 198,
+          "text": "\"x\": arg54.x + value39 * value42,"
+        }
+      ]
+    },
+    {
+      "key": "arg55@180",
+      "name": "arg55",
+      "line": 180,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function projectPointToSegment(arg53, arg54, arg55) {",
+      "references": [
+        {
+          "line": 181,
+          "text": "const value39 = arg55.x - arg54.x,"
+        },
+        {
+          "line": 182,
+          "text": "value40 = arg55.y - arg54.y,"
+        }
+      ]
+    },
+    {
+      "key": "value39@181",
+      "name": "value39",
+      "line": 181,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value39 = arg55.x - arg54.x,",
+      "references": [
+        {
+          "line": 183,
+          "text": "value41 = value39 * value39 + value40 * value40;"
+        },
+        {
+          "line": 193,
+          "text": "((arg53.x - arg54.x) * value39 + (arg53.y - arg54.y) * value40) / value41,"
+        },
+        {
+          "line": 198,
+          "text": "\"x\": arg54.x + value39 * value42,"
+        }
+      ]
+    },
+    {
+      "key": "value40@182",
+      "name": "value40",
+      "line": 182,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value40 = arg55.y - arg54.y,",
+      "references": [
+        {
+          "line": 183,
+          "text": "value41 = value39 * value39 + value40 * value40;"
+        },
+        {
+          "line": 193,
+          "text": "((arg53.x - arg54.x) * value39 + (arg53.y - arg54.y) * value40) / value41,"
+        },
+        {
+          "line": 199,
+          "text": "\"y\": arg54.y + value40 * value42,"
+        }
+      ]
+    },
+    {
+      "key": "value41@183",
+      "name": "value41",
+      "line": 183,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value41 = value39 * value39 + value40 * value40;",
+      "references": [
+        {
+          "line": 184,
+          "text": "if (value41 <= 1e-7)"
+        },
+        {
+          "line": 193,
+          "text": "((arg53.x - arg54.x) * value39 + (arg53.y - arg54.y) * value40) / value41,"
+        }
+      ]
+    },
+    {
+      "key": "value42@192",
+      "name": "value42",
+      "line": 192,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value42 = clamp(",
+      "references": [
+        {
+          "line": 198,
+          "text": "\"x\": arg54.x + value39 * value42,"
+        },
+        {
+          "line": 199,
+          "text": "\"y\": arg54.y + value40 * value42,"
+        },
+        {
+          "line": 203,
+          "text": "\"t\": value42,"
+        }
+      ]
+    },
+    {
+      "key": "object1@197",
+      "name": "object1",
+      "line": 197,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {",
+      "references": [
+        {
+          "line": 202,
+          "text": "\"point\": object1,"
+        },
+        {
+          "line": 204,
+          "text": "\"distance\": distance(arg53, object1),"
+        }
+      ]
+    },
+    {
+      "key": "arg56@207",
+      "name": "arg56",
+      "line": 207,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function segmentIntersection(arg56, arg57, arg58, arg59) {",
+      "references": [
+        {
+          "line": 208,
+          "text": "const value43 = arg57.x - arg56.x,"
+        },
+        {
+          "line": 209,
+          "text": "value44 = arg57.y - arg56.y,"
+        },
+        {
+          "line": 214,
+          "text": "const value48 = arg58.x - arg56.x,"
+        },
+        {
+          "line": 215,
+          "text": "value49 = arg58.y - arg56.y,"
+        },
+        {
+          "line": 221,
+          "text": "\"x\": arg56.x + value43 * clamp(value50, 0, 1),"
+        },
+        {
+          "line": 222,
+          "text": "\"y\": arg56.y + value44 * clamp(value50, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg57@207",
+      "name": "arg57",
+      "line": 207,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function segmentIntersection(arg56, arg57, arg58, arg59) {",
+      "references": [
+        {
+          "line": 208,
+          "text": "const value43 = arg57.x - arg56.x,"
+        },
+        {
+          "line": 209,
+          "text": "value44 = arg57.y - arg56.y,"
+        }
+      ]
+    },
+    {
+      "key": "arg58@207",
+      "name": "arg58",
+      "line": 207,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function segmentIntersection(arg56, arg57, arg58, arg59) {",
+      "references": [
+        {
+          "line": 210,
+          "text": "value45 = arg59.x - arg58.x,"
+        },
+        {
+          "line": 211,
+          "text": "value46 = arg59.y - arg58.y,"
+        },
+        {
+          "line": 214,
+          "text": "const value48 = arg58.x - arg56.x,"
+        },
+        {
+          "line": 215,
+          "text": "value49 = arg58.y - arg56.y,"
+        }
+      ]
+    },
+    {
+      "key": "arg59@207",
+      "name": "arg59",
+      "line": 207,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function segmentIntersection(arg56, arg57, arg58, arg59) {",
+      "references": [
+        {
+          "line": 210,
+          "text": "value45 = arg59.x - arg58.x,"
+        },
+        {
+          "line": 211,
+          "text": "value46 = arg59.y - arg58.y,"
+        }
+      ]
+    },
+    {
+      "key": "value43@208",
+      "name": "value43",
+      "line": 208,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value43 = arg57.x - arg56.x,",
+      "references": [
+        {
+          "line": 212,
+          "text": "value47 = value43 * value46 - value44 * value45;"
+        },
+        {
+          "line": 217,
+          "text": "value51 = (value48 * value44 - value49 * value43) / value47;"
+        },
+        {
+          "line": 221,
+          "text": "\"x\": arg56.x + value43 * clamp(value50, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value44@209",
+      "name": "value44",
+      "line": 209,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value44 = arg57.y - arg56.y,",
+      "references": [
+        {
+          "line": 212,
+          "text": "value47 = value43 * value46 - value44 * value45;"
+        },
+        {
+          "line": 217,
+          "text": "value51 = (value48 * value44 - value49 * value43) / value47;"
+        },
+        {
+          "line": 222,
+          "text": "\"y\": arg56.y + value44 * clamp(value50, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value45@210",
+      "name": "value45",
+      "line": 210,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value45 = arg59.x - arg58.x,",
+      "references": [
+        {
+          "line": 212,
+          "text": "value47 = value43 * value46 - value44 * value45;"
+        },
+        {
+          "line": 216,
+          "text": "value50 = (value48 * value46 - value49 * value45) / value47,"
+        }
+      ]
+    },
+    {
+      "key": "value46@211",
+      "name": "value46",
+      "line": 211,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value46 = arg59.y - arg58.y,",
+      "references": [
+        {
+          "line": 212,
+          "text": "value47 = value43 * value46 - value44 * value45;"
+        },
+        {
+          "line": 216,
+          "text": "value50 = (value48 * value46 - value49 * value45) / value47,"
+        }
+      ]
+    },
+    {
+      "key": "value47@212",
+      "name": "value47",
+      "line": 212,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value47 = value43 * value46 - value44 * value45;",
+      "references": [
+        {
+          "line": 213,
+          "text": "if (Math.abs(value47) <= 1e-7) return null;"
+        },
+        {
+          "line": 216,
+          "text": "value50 = (value48 * value46 - value49 * value45) / value47,"
+        },
+        {
+          "line": 217,
+          "text": "value51 = (value48 * value44 - value49 * value43) / value47;"
+        }
+      ]
+    },
+    {
+      "key": "value48@214",
+      "name": "value48",
+      "line": 214,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value48 = arg58.x - arg56.x,",
+      "references": [
+        {
+          "line": 216,
+          "text": "value50 = (value48 * value46 - value49 * value45) / value47,"
+        },
+        {
+          "line": 217,
+          "text": "value51 = (value48 * value44 - value49 * value43) / value47;"
+        }
+      ]
+    },
+    {
+      "key": "value49@215",
+      "name": "value49",
+      "line": 215,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value49 = arg58.y - arg56.y,",
+      "references": [
+        {
+          "line": 216,
+          "text": "value50 = (value48 * value46 - value49 * value45) / value47,"
+        },
+        {
+          "line": 217,
+          "text": "value51 = (value48 * value44 - value49 * value43) / value47;"
+        }
+      ]
+    },
+    {
+      "key": "value50@216",
+      "name": "value50",
+      "line": 216,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value50 = (value48 * value46 - value49 * value45) / value47,",
+      "references": [
+        {
+          "line": 218,
+          "text": "return value50 < -1e-7 || value50 > 1 + 1e-7 || value51 < -1e-7 || value51 > 1 + 1e-7"
+        },
+        {
+          "line": 221,
+          "text": "\"x\": arg56.x + value43 * clamp(value50, 0, 1),"
+        },
+        {
+          "line": 222,
+          "text": "\"y\": arg56.y + value44 * clamp(value50, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value51@217",
+      "name": "value51",
+      "line": 217,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value51 = (value48 * value44 - value49 * value43) / value47;",
+      "references": [
+        {
+          "line": 218,
+          "text": "return value50 < -1e-7 || value50 > 1 + 1e-7 || value51 < -1e-7 || value51 > 1 + 1e-7"
+        }
+      ]
+    },
+    {
+      "key": "arg60@225",
+      "name": "arg60",
+      "line": 225,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function wallIntersections(arg60) {",
+      "references": [
+        {
+          "line": 227,
+          "text": "for (let value52 = 0; value52 < arg60.length; value52 += 1)"
+        },
+        {
+          "line": 228,
+          "text": "for (let value53 = value52 + 1; value53 < arg60.length; value53 += 1) {"
+        },
+        {
+          "line": 230,
+          "text": "arg60[value52].start,"
+        },
+        {
+          "line": 231,
+          "text": "arg60[value52].end,"
+        },
+        {
+          "line": 232,
+          "text": "arg60[value53].start,"
+        },
+        {
+          "line": 233,
+          "text": "arg60[value53].end,"
+        }
+      ]
+    },
+    {
+      "key": "list1@226",
+      "name": "list1",
+      "line": 226,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [];",
+      "references": [
+        {
+          "line": 235,
+          "text": "!value54 || list1.some((arg61) => distance(arg61, value54) <= 1e-7) || list1.push(value54);"
+        },
+        {
+          "line": 237,
+          "text": "return list1;"
+        }
+      ]
+    },
+    {
+      "key": "value52@227",
+      "name": "value52",
+      "line": 227,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value52 = 0; value52 < arg60.length; value52 += 1)",
+      "references": [
+        {
+          "line": 227,
+          "text": "for (let value52 = 0; value52 < arg60.length; value52 += 1)"
+        },
+        {
+          "line": 228,
+          "text": "for (let value53 = value52 + 1; value53 < arg60.length; value53 += 1) {"
+        },
+        {
+          "line": 230,
+          "text": "arg60[value52].start,"
+        },
+        {
+          "line": 231,
+          "text": "arg60[value52].end,"
+        }
+      ]
+    },
+    {
+      "key": "value53@228",
+      "name": "value53",
+      "line": 228,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value53 = value52 + 1; value53 < arg60.length; value53 += 1) {",
+      "references": [
+        {
+          "line": 228,
+          "text": "for (let value53 = value52 + 1; value53 < arg60.length; value53 += 1) {"
+        },
+        {
+          "line": 232,
+          "text": "arg60[value53].start,"
+        },
+        {
+          "line": 233,
+          "text": "arg60[value53].end,"
+        }
+      ]
+    },
+    {
+      "key": "value54@229",
+      "name": "value54",
+      "line": 229,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value54 = segmentIntersection(",
+      "references": [
+        {
+          "line": 235,
+          "text": "!value54 || list1.some((arg61) => distance(arg61, value54) <= 1e-7) || list1.push(value54);"
+        }
+      ]
+    },
+    {
+      "key": "arg61@235",
+      "name": "arg61",
+      "line": 235,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "!value54 || list1.some((arg61) => distance(arg61, value54) <= 1e-7) || list1.push(value54);",
+      "references": [
+        {
+          "line": 235,
+          "text": "!value54 || list1.some((arg61) => distance(arg61, value54) <= 1e-7) || list1.push(value54);"
+        }
+      ]
+    },
+    {
+      "key": "arg62@239",
+      "name": "arg62",
+      "line": 239,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function splitWallSegments(arg62, arg63 = 0.000001) {",
+      "references": [
+        {
+          "line": 241,
+          "text": "value56 = arg62.map(() => [0, 1]);"
+        },
+        {
+          "line": 242,
+          "text": "for (let value57 = 0; value57 < arg62.length; value57 += 1)"
+        },
+        {
+          "line": 243,
+          "text": "for (let value58 = value57 + 1; value58 < arg62.length; value58 += 1) {"
+        },
+        {
+          "line": 244,
+          "text": "const value59 = arg62[value57],"
+        },
+        {
+          "line": 245,
+          "text": "value60 = arg62[value58],"
+        },
+        {
+          "line": 255,
+          "text": "arg62.forEach((arg64, arg65) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg63@239",
+      "name": "arg63",
+      "line": 239,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function splitWallSegments(arg62, arg63 = 0.000001) {",
+      "references": [
+        {
+          "line": 240,
+          "text": "const value55 = Math.max(Number(arg63) || 0, 1e-7),"
+        }
+      ]
+    },
+    {
+      "key": "value55@240",
+      "name": "value55",
+      "line": 240,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value55 = Math.max(Number(arg63) || 0, 1e-7),",
+      "references": [
+        {
+          "line": 250,
+          "text": "(value62.t > value55 && value62.t < 1 - value55 && value56[value57].push(value62.t),"
+        },
+        {
+          "line": 251,
+          "text": "value63.t > value55 && value63.t < 1 - value55 && value56[value58].push(value63.t));"
+        },
+        {
+          "line": 260,
+          "text": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);"
+        },
+        {
+          "line": 264,
+          "text": "value69 - value68 <= value55 ||"
+        }
+      ]
+    },
+    {
+      "key": "value56@241",
+      "name": "value56",
+      "line": 241,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value56 = arg62.map(() => [0, 1]);",
+      "references": [
+        {
+          "line": 250,
+          "text": "(value62.t > value55 && value62.t < 1 - value55 && value56[value57].push(value62.t),"
+        },
+        {
+          "line": 251,
+          "text": "value63.t > value55 && value63.t < 1 - value55 && value56[value58].push(value63.t));"
+        },
+        {
+          "line": 258,
+          "text": "value66 = [...value56[arg65]]"
+        }
+      ]
+    },
+    {
+      "key": "value57@242",
+      "name": "value57",
+      "line": 242,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value57 = 0; value57 < arg62.length; value57 += 1)",
+      "references": [
+        {
+          "line": 242,
+          "text": "for (let value57 = 0; value57 < arg62.length; value57 += 1)"
+        },
+        {
+          "line": 243,
+          "text": "for (let value58 = value57 + 1; value58 < arg62.length; value58 += 1) {"
+        },
+        {
+          "line": 244,
+          "text": "const value59 = arg62[value57],"
+        },
+        {
+          "line": 250,
+          "text": "(value62.t > value55 && value62.t < 1 - value55 && value56[value57].push(value62.t),"
+        }
+      ]
+    },
+    {
+      "key": "value58@243",
+      "name": "value58",
+      "line": 243,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value58 = value57 + 1; value58 < arg62.length; value58 += 1) {",
+      "references": [
+        {
+          "line": 243,
+          "text": "for (let value58 = value57 + 1; value58 < arg62.length; value58 += 1) {"
+        },
+        {
+          "line": 245,
+          "text": "value60 = arg62[value58],"
+        },
+        {
+          "line": 251,
+          "text": "value63.t > value55 && value63.t < 1 - value55 && value56[value58].push(value63.t));"
+        }
+      ]
+    },
+    {
+      "key": "value59@244",
+      "name": "value59",
+      "line": 244,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value59 = arg62[value57],",
+      "references": [
+        {
+          "line": 246,
+          "text": "value61 = segmentIntersection(value59.start, value59.end, value60.start, value60.end);"
+        },
+        {
+          "line": 248,
+          "text": "const value62 = projectPointToSegment(value61, value59.start, value59.end),"
+        }
+      ]
+    },
+    {
+      "key": "value60@245",
+      "name": "value60",
+      "line": 245,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value60 = arg62[value58],",
+      "references": [
+        {
+          "line": 246,
+          "text": "value61 = segmentIntersection(value59.start, value59.end, value60.start, value60.end);"
+        },
+        {
+          "line": 249,
+          "text": "value63 = projectPointToSegment(value61, value60.start, value60.end);"
+        }
+      ]
+    },
+    {
+      "key": "value61@246",
+      "name": "value61",
+      "line": 246,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value61 = segmentIntersection(value59.start, value59.end, value60.start, value60.end);",
+      "references": [
+        {
+          "line": 247,
+          "text": "if (!value61) continue;"
+        },
+        {
+          "line": 248,
+          "text": "const value62 = projectPointToSegment(value61, value59.start, value59.end),"
+        },
+        {
+          "line": 249,
+          "text": "value63 = projectPointToSegment(value61, value60.start, value60.end);"
+        }
+      ]
+    },
+    {
+      "key": "value62@248",
+      "name": "value62",
+      "line": 248,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value62 = projectPointToSegment(value61, value59.start, value59.end),",
+      "references": [
+        {
+          "line": 250,
+          "text": "(value62.t > value55 && value62.t < 1 - value55 && value56[value57].push(value62.t),"
+        }
+      ]
+    },
+    {
+      "key": "value63@249",
+      "name": "value63",
+      "line": 249,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value63 = projectPointToSegment(value61, value60.start, value60.end);",
+      "references": [
+        {
+          "line": 251,
+          "text": "value63.t > value55 && value63.t < 1 - value55 && value56[value58].push(value63.t));"
+        }
+      ]
+    },
+    {
+      "key": "list2@253",
+      "name": "list2",
+      "line": 253,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list2 = [];",
+      "references": [
+        {
+          "line": 265,
+          "text": "list2.push({"
+        },
+        {
+          "line": 283,
+          "text": "list2"
+        }
+      ]
+    },
+    {
+      "key": "arg64@255",
+      "name": "arg64",
+      "line": 255,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg62.forEach((arg64, arg65) => {",
+      "references": [
+        {
+          "line": 256,
+          "text": "const value64 = arg64.end.x - arg64.start.x,"
+        },
+        {
+          "line": 257,
+          "text": "value65 = arg64.end.y - arg64.start.y,"
+        },
+        {
+          "line": 266,
+          "text": "\"sourceWall\": arg64,"
+        },
+        {
+          "line": 273,
+          "text": "\"x\": arg64.start.x + value64 * value68,"
+        },
+        {
+          "line": 274,
+          "text": "\"y\": arg64.start.y + value65 * value68,"
+        },
+        {
+          "line": 277,
+          "text": "\"x\": arg64.start.x + value64 * value69,"
+        }
+      ]
+    },
+    {
+      "key": "arg65@255",
+      "name": "arg65",
+      "line": 255,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg62.forEach((arg64, arg65) => {",
+      "references": [
+        {
+          "line": 258,
+          "text": "value66 = [...value56[arg65]]"
+        },
+        {
+          "line": 267,
+          "text": "\"sourceIndex\": arg65,"
+        }
+      ]
+    },
+    {
+      "key": "value64@256",
+      "name": "value64",
+      "line": 256,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value64 = arg64.end.x - arg64.start.x,",
+      "references": [
+        {
+          "line": 273,
+          "text": "\"x\": arg64.start.x + value64 * value68,"
+        },
+        {
+          "line": 277,
+          "text": "\"x\": arg64.start.x + value64 * value69,"
+        }
+      ]
+    },
+    {
+      "key": "value65@257",
+      "name": "value65",
+      "line": 257,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value65 = arg64.end.y - arg64.start.y,",
+      "references": [
+        {
+          "line": 274,
+          "text": "\"y\": arg64.start.y + value65 * value68,"
+        },
+        {
+          "line": 278,
+          "text": "\"y\": arg64.start.y + value65 * value69,"
+        }
+      ]
+    },
+    {
+      "key": "value66@258",
+      "name": "value66",
+      "line": 258,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value66 = [...value56[arg65]]",
+      "references": [
+        {
+          "line": 261,
+          "text": "for (let value67 = 0; value67 < value66.length - 1; value67 += 1) {"
+        },
+        {
+          "line": 262,
+          "text": "const value68 = value66[value67],"
+        },
+        {
+          "line": 263,
+          "text": "value69 = value66[value67 + 1];"
+        },
+        {
+          "line": 269,
+          "text": "\"pieceCount\": value66.length - 1,"
+        }
+      ]
+    },
+    {
+      "key": "arg66@259",
+      "name": "arg66",
+      "line": 259,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort((arg66, arg67) => arg66 - arg67)",
+      "references": [
+        {
+          "line": 259,
+          "text": ".sort((arg66, arg67) => arg66 - arg67)"
+        }
+      ]
+    },
+    {
+      "key": "arg67@259",
+      "name": "arg67",
+      "line": 259,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort((arg66, arg67) => arg66 - arg67)",
+      "references": [
+        {
+          "line": 259,
+          "text": ".sort((arg66, arg67) => arg66 - arg67)"
+        }
+      ]
+    },
+    {
+      "key": "arg68@260",
+      "name": "arg68",
+      "line": 260,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);",
+      "references": [
+        {
+          "line": 260,
+          "text": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);"
+        }
+      ]
+    },
+    {
+      "key": "arg69@260",
+      "name": "arg69",
+      "line": 260,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);",
+      "references": [
+        {
+          "line": 260,
+          "text": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);"
+        }
+      ]
+    },
+    {
+      "key": "arg70@260",
+      "name": "arg70",
+      "line": 260,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);",
+      "references": [
+        {
+          "line": 260,
+          "text": ".filter((arg68, arg69, arg70) => arg69 === 0 || arg68 - arg70[arg69 - 1] > value55);"
+        }
+      ]
+    },
+    {
+      "key": "value67@261",
+      "name": "value67",
+      "line": 261,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value67 = 0; value67 < value66.length - 1; value67 += 1) {",
+      "references": [
+        {
+          "line": 261,
+          "text": "for (let value67 = 0; value67 < value66.length - 1; value67 += 1) {"
+        },
+        {
+          "line": 262,
+          "text": "const value68 = value66[value67],"
+        },
+        {
+          "line": 263,
+          "text": "value69 = value66[value67 + 1];"
+        },
+        {
+          "line": 268,
+          "text": "\"pieceIndex\": value67,"
+        }
+      ]
+    },
+    {
+      "key": "value68@262",
+      "name": "value68",
+      "line": 262,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value68 = value66[value67],",
+      "references": [
+        {
+          "line": 264,
+          "text": "value69 - value68 <= value55 ||"
+        },
+        {
+          "line": 270,
+          "text": "\"startT\": value68,"
+        },
+        {
+          "line": 273,
+          "text": "\"x\": arg64.start.x + value64 * value68,"
+        },
+        {
+          "line": 274,
+          "text": "\"y\": arg64.start.y + value65 * value68,"
+        }
+      ]
+    },
+    {
+      "key": "value69@263",
+      "name": "value69",
+      "line": 263,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value69 = value66[value67 + 1];",
+      "references": [
+        {
+          "line": 264,
+          "text": "value69 - value68 <= value55 ||"
+        },
+        {
+          "line": 271,
+          "text": "\"endT\": value69,"
+        },
+        {
+          "line": 277,
+          "text": "\"x\": arg64.start.x + value64 * value69,"
+        },
+        {
+          "line": 278,
+          "text": "\"y\": arg64.start.y + value65 * value69,"
+        }
+      ]
+    },
+    {
+      "key": "arg71@286",
+      "name": "arg71",
+      "line": 286,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uncoveredCollinearWallSegments(arg71, arg72, arg73 = 0.001) {",
+      "references": [
+        {
+          "line": 287,
+          "text": "if (!arg71?.start || !arg71?.end) return [];"
+        },
+        {
+          "line": 289,
+          "text": "value71 = arg71.end.x - arg71.start.x,"
+        },
+        {
+          "line": 290,
+          "text": "value72 = arg71.end.y - arg71.start.y,"
+        },
+        {
+          "line": 300,
+          "text": "if (!value76?.start || !value76?.end || value76.id === arg71.id) continue;"
+        },
+        {
+          "line": 310,
+          "text": "\"x\": value76.start.x - arg71.start.x,"
+        },
+        {
+          "line": 311,
+          "text": "\"y\": value76.start.y - arg71.start.y,"
+        }
+      ]
+    },
+    {
+      "key": "arg72@286",
+      "name": "arg72",
+      "line": 286,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uncoveredCollinearWallSegments(arg71, arg72, arg73 = 0.001) {",
+      "references": [
+        {
+          "line": 299,
+          "text": "for (const value76 of arg72 || []) {"
+        }
+      ]
+    },
+    {
+      "key": "arg73@286",
+      "name": "arg73",
+      "line": 286,
+      "column": 61,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function uncoveredCollinearWallSegments(arg71, arg72, arg73 = 0.001) {",
+      "references": [
+        {
+          "line": 288,
+          "text": "const value70 = Math.max(Number(arg73) || 0, 1e-7),"
+        }
+      ]
+    },
+    {
+      "key": "value70@288",
+      "name": "value70",
+      "line": 288,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value70 = Math.max(Number(arg73) || 0, 1e-7),",
+      "references": [
+        {
+          "line": 292,
+          "text": "if (value73 <= value70) return [];"
+        },
+        {
+          "line": 297,
+          "text": "value74 = value70 / value73,"
+        },
+        {
+          "line": 305,
+          "text": "value79 <= value70 ||"
+        },
+        {
+          "line": 319,
+          "text": "if (Math.max(value80, value81) > value70) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value71@289",
+      "name": "value71",
+      "line": 289,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value71 = arg71.end.x - arg71.start.x,",
+      "references": [
+        {
+          "line": 291,
+          "text": "value73 = Math.hypot(value71, value72);"
+        },
+        {
+          "line": 294,
+          "text": "\"x\": value71 / value73,"
+        },
+        {
+          "line": 354,
+          "text": "\"x\": arg71.start.x + value71 * arg76,"
+        },
+        {
+          "line": 358,
+          "text": "\"x\": arg71.start.x + value71 * arg77,"
+        }
+      ]
+    },
+    {
+      "key": "value72@290",
+      "name": "value72",
+      "line": 290,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value72 = arg71.end.y - arg71.start.y,",
+      "references": [
+        {
+          "line": 291,
+          "text": "value73 = Math.hypot(value71, value72);"
+        },
+        {
+          "line": 295,
+          "text": "\"y\": value72 / value73,"
+        },
+        {
+          "line": 355,
+          "text": "\"y\": arg71.start.y + value72 * arg76,"
+        },
+        {
+          "line": 359,
+          "text": "\"y\": arg71.start.y + value72 * arg77,"
+        }
+      ]
+    },
+    {
+      "key": "value73@291",
+      "name": "value73",
+      "line": 291,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value73 = Math.hypot(value71, value72);",
+      "references": [
+        {
+          "line": 292,
+          "text": "if (value73 <= value70) return [];"
+        },
+        {
+          "line": 294,
+          "text": "\"x\": value71 / value73,"
+        },
+        {
+          "line": 295,
+          "text": "\"y\": value72 / value73,"
+        },
+        {
+          "line": 297,
+          "text": "value74 = value70 / value73,"
+        },
+        {
+          "line": 320,
+          "text": "const value82 = (object3.x * object2.x + object3.y * object2.y) / value73,"
+        },
+        {
+          "line": 321,
+          "text": "value83 = (object4.x * object2.x + object4.y * object2.y) / value73,"
+        }
+      ]
+    },
+    {
+      "key": "object2@293",
+      "name": "object2",
+      "line": 293,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object2 = {",
+      "references": [
+        {
+          "line": 306,
+          "text": "Math.abs((object2.x * value78) / value79 - (object2.y * value77) / value79) > value74"
+        },
+        {
+          "line": 317,
+          "text": "value80 = Math.abs(object3.x * object2.y - object3.y * object2.x),"
+        },
+        {
+          "line": 318,
+          "text": "value81 = Math.abs(object4.x * object2.y - object4.y * object2.x);"
+        },
+        {
+          "line": 320,
+          "text": "const value82 = (object3.x * object2.x + object3.y * object2.y) / value73,"
+        },
+        {
+          "line": 321,
+          "text": "value83 = (object4.x * object2.x + object4.y * object2.y) / value73,"
+        }
+      ]
+    },
+    {
+      "key": "value74@297",
+      "name": "value74",
+      "line": 297,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value74 = value70 / value73,",
+      "references": [
+        {
+          "line": 306,
+          "text": "Math.abs((object2.x * value78) / value79 - (object2.y * value77) / value79) > value74"
+        },
+        {
+          "line": 324,
+          "text": "value85 - value84 > value74 && list3.push([value84, value85]);"
+        },
+        {
+          "line": 341,
+          "text": "value87 && value86[0] <= value87[1] + value74"
+        },
+        {
+          "line": 348,
+          "text": "(value88 - value75 > value74 && list5.push([value75, value88]),"
+        },
+        {
+          "line": 351,
+          "text": "1 - value75 > value74 && list5.push([value75, 1]),"
+        }
+      ]
+    },
+    {
+      "key": "list3@298",
+      "name": "list3",
+      "line": 298,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3 = [];",
+      "references": [
+        {
+          "line": 324,
+          "text": "value85 - value84 > value74 && list3.push([value84, value85]);"
+        },
+        {
+          "line": 326,
+          "text": "if (!list3.length)"
+        },
+        {
+          "line": 337,
+          "text": "list3.sort((arg74, arg75) => arg74[0] - arg75[0]);"
+        },
+        {
+          "line": 339,
+          "text": "for (const value86 of list3) {"
+        }
+      ]
+    },
+    {
+      "key": "value76@299",
+      "name": "value76",
+      "line": 299,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value76 of arg72 || []) {",
+      "references": [
+        {
+          "line": 300,
+          "text": "if (!value76?.start || !value76?.end || value76.id === arg71.id) continue;"
+        },
+        {
+          "line": 301,
+          "text": "const value77 = value76.end.x - value76.start.x,"
+        },
+        {
+          "line": 302,
+          "text": "value78 = value76.end.y - value76.start.y,"
+        },
+        {
+          "line": 310,
+          "text": "\"x\": value76.start.x - arg71.start.x,"
+        },
+        {
+          "line": 311,
+          "text": "\"y\": value76.start.y - arg71.start.y,"
+        },
+        {
+          "line": 314,
+          "text": "\"x\": value76.end.x - arg71.start.x,"
+        }
+      ]
+    },
+    {
+      "key": "value77@301",
+      "name": "value77",
+      "line": 301,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value77 = value76.end.x - value76.start.x,",
+      "references": [
+        {
+          "line": 303,
+          "text": "value79 = Math.hypot(value77, value78);"
+        },
+        {
+          "line": 306,
+          "text": "Math.abs((object2.x * value78) / value79 - (object2.y * value77) / value79) > value74"
+        }
+      ]
+    },
+    {
+      "key": "value78@302",
+      "name": "value78",
+      "line": 302,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value78 = value76.end.y - value76.start.y,",
+      "references": [
+        {
+          "line": 303,
+          "text": "value79 = Math.hypot(value77, value78);"
+        },
+        {
+          "line": 306,
+          "text": "Math.abs((object2.x * value78) / value79 - (object2.y * value77) / value79) > value74"
+        }
+      ]
+    },
+    {
+      "key": "value79@303",
+      "name": "value79",
+      "line": 303,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value79 = Math.hypot(value77, value78);",
+      "references": [
+        {
+          "line": 305,
+          "text": "value79 <= value70 ||"
+        },
+        {
+          "line": 306,
+          "text": "Math.abs((object2.x * value78) / value79 - (object2.y * value77) / value79) > value74"
+        }
+      ]
+    },
+    {
+      "key": "object3@309",
+      "name": "object3",
+      "line": 309,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object3 = {",
+      "references": [
+        {
+          "line": 317,
+          "text": "value80 = Math.abs(object3.x * object2.y - object3.y * object2.x),"
+        },
+        {
+          "line": 320,
+          "text": "const value82 = (object3.x * object2.x + object3.y * object2.y) / value73,"
+        }
+      ]
+    },
+    {
+      "key": "object4@313",
+      "name": "object4",
+      "line": 313,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object4 = {",
+      "references": [
+        {
+          "line": 318,
+          "text": "value81 = Math.abs(object4.x * object2.y - object4.y * object2.x);"
+        },
+        {
+          "line": 321,
+          "text": "value83 = (object4.x * object2.x + object4.y * object2.y) / value73,"
+        }
+      ]
+    },
+    {
+      "key": "value80@317",
+      "name": "value80",
+      "line": 317,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value80 = Math.abs(object3.x * object2.y - object3.y * object2.x),",
+      "references": [
+        {
+          "line": 319,
+          "text": "if (Math.max(value80, value81) > value70) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value81@318",
+      "name": "value81",
+      "line": 318,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value81 = Math.abs(object4.x * object2.y - object4.y * object2.x);",
+      "references": [
+        {
+          "line": 319,
+          "text": "if (Math.max(value80, value81) > value70) continue;"
+        }
+      ]
+    },
+    {
+      "key": "value82@320",
+      "name": "value82",
+      "line": 320,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value82 = (object3.x * object2.x + object3.y * object2.y) / value73,",
+      "references": [
+        {
+          "line": 322,
+          "text": "value84 = clamp(Math.min(value82, value83), 0, 1),"
+        },
+        {
+          "line": 323,
+          "text": "value85 = clamp(Math.max(value82, value83), 0, 1);"
+        }
+      ]
+    },
+    {
+      "key": "value83@321",
+      "name": "value83",
+      "line": 321,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value83 = (object4.x * object2.x + object4.y * object2.y) / value73,",
+      "references": [
+        {
+          "line": 322,
+          "text": "value84 = clamp(Math.min(value82, value83), 0, 1),"
+        },
+        {
+          "line": 323,
+          "text": "value85 = clamp(Math.max(value82, value83), 0, 1);"
+        }
+      ]
+    },
+    {
+      "key": "value84@322",
+      "name": "value84",
+      "line": 322,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value84 = clamp(Math.min(value82, value83), 0, 1),",
+      "references": [
+        {
+          "line": 324,
+          "text": "value85 - value84 > value74 && list3.push([value84, value85]);"
+        }
+      ]
+    },
+    {
+      "key": "value85@323",
+      "name": "value85",
+      "line": 323,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value85 = clamp(Math.max(value82, value83), 0, 1);",
+      "references": [
+        {
+          "line": 324,
+          "text": "value85 - value84 > value74 && list3.push([value84, value85]);"
+        }
+      ]
+    },
+    {
+      "key": "arg74@337",
+      "name": "arg74",
+      "line": 337,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3.sort((arg74, arg75) => arg74[0] - arg75[0]);",
+      "references": [
+        {
+          "line": 337,
+          "text": "list3.sort((arg74, arg75) => arg74[0] - arg75[0]);"
+        }
+      ]
+    },
+    {
+      "key": "arg75@337",
+      "name": "arg75",
+      "line": 337,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3.sort((arg74, arg75) => arg74[0] - arg75[0]);",
+      "references": [
+        {
+          "line": 337,
+          "text": "list3.sort((arg74, arg75) => arg74[0] - arg75[0]);"
+        }
+      ]
+    },
+    {
+      "key": "list4@338",
+      "name": "list4",
+      "line": 338,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list4 = [];",
+      "references": [
+        {
+          "line": 340,
+          "text": "const value87 = list4.at(-1);"
+        },
+        {
+          "line": 343,
+          "text": ": list4.push([...value86]);"
+        },
+        {
+          "line": 347,
+          "text": "for (const [value88, value89] of list4)"
+        }
+      ]
+    },
+    {
+      "key": "value86@339",
+      "name": "value86",
+      "line": 339,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value86 of list3) {",
+      "references": [
+        {
+          "line": 341,
+          "text": "value87 && value86[0] <= value87[1] + value74"
+        },
+        {
+          "line": 342,
+          "text": "? (value87[1] = Math.max(value87[1], value86[1]))"
+        },
+        {
+          "line": 343,
+          "text": ": list4.push([...value86]);"
+        }
+      ]
+    },
+    {
+      "key": "value87@340",
+      "name": "value87",
+      "line": 340,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value87 = list4.at(-1);",
+      "references": [
+        {
+          "line": 341,
+          "text": "value87 && value86[0] <= value87[1] + value74"
+        },
+        {
+          "line": 342,
+          "text": "? (value87[1] = Math.max(value87[1], value86[1]))"
+        }
+      ]
+    },
+    {
+      "key": "list5@345",
+      "name": "list5",
+      "line": 345,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list5 = [];",
+      "references": [
+        {
+          "line": 348,
+          "text": "(value88 - value75 > value74 && list5.push([value75, value88]),"
+        },
+        {
+          "line": 351,
+          "text": "1 - value75 > value74 && list5.push([value75, 1]),"
+        },
+        {
+          "line": 352,
+          "text": "list5.map(([arg76, arg77]) => ({"
+        }
+      ]
+    },
+    {
+      "key": "value75@346",
+      "name": "value75",
+      "line": 346,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value75 = 0;",
+      "references": [
+        {
+          "line": 348,
+          "text": "(value88 - value75 > value74 && list5.push([value75, value88]),"
+        },
+        {
+          "line": 349,
+          "text": "(value75 = Math.max(value75, value89)));"
+        },
+        {
+          "line": 351,
+          "text": "1 - value75 > value74 && list5.push([value75, 1]),"
+        }
+      ]
+    },
+    {
+      "key": "value88@347",
+      "name": "value88",
+      "line": 347,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value88, value89] of list4)",
+      "references": [
+        {
+          "line": 348,
+          "text": "(value88 - value75 > value74 && list5.push([value75, value88]),"
+        }
+      ]
+    },
+    {
+      "key": "value89@347",
+      "name": "value89",
+      "line": 347,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value88, value89] of list4)",
+      "references": [
+        {
+          "line": 349,
+          "text": "(value75 = Math.max(value75, value89)));"
+        }
+      ]
+    },
+    {
+      "key": "arg76@352",
+      "name": "arg76",
+      "line": 352,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list5.map(([arg76, arg77]) => ({",
+      "references": [
+        {
+          "line": 354,
+          "text": "\"x\": arg71.start.x + value71 * arg76,"
+        },
+        {
+          "line": 355,
+          "text": "\"y\": arg71.start.y + value72 * arg76,"
+        }
+      ]
+    },
+    {
+      "key": "arg77@352",
+      "name": "arg77",
+      "line": 352,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list5.map(([arg76, arg77]) => ({",
+      "references": [
+        {
+          "line": 358,
+          "text": "\"x\": arg71.start.x + value71 * arg77,"
+        },
+        {
+          "line": 359,
+          "text": "\"y\": arg71.start.y + value72 * arg77,"
+        }
+      ]
+    },
+    {
+      "key": "arg78@364",
+      "name": "arg78",
+      "line": 364,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function canonicalPolygonKey(arg78, arg79 = 5) {",
+      "references": [
+        {
+          "line": 365,
+          "text": "if (!Array.isArray(arg78) || !arg78.length) return \"\";"
+        },
+        {
+          "line": 367,
+          "text": "value91 = arg78.map((arg80) => {"
+        }
+      ]
+    },
+    {
+      "key": "arg79@364",
+      "name": "arg79",
+      "line": 364,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function canonicalPolygonKey(arg78, arg79 = 5) {",
+      "references": [
+        {
+          "line": 366,
+          "text": "const value90 = clamp(Math.round(Number(arg79) || 0), 0, 12),"
+        }
+      ]
+    },
+    {
+      "key": "value90@366",
+      "name": "value90",
+      "line": 366,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value90 = clamp(Math.round(Number(arg79) || 0), 0, 12),",
+      "references": [
+        {
+          "line": 369,
+          "text": "Math.abs(Number(arg80?.x) || 0) < 10 ** -value90 / 2 ? 0 : Number(arg80?.x) || 0,"
+        },
+        {
+          "line": 370,
+          "text": "value93 = Math.abs(Number(arg80?.y) || 0) < 10 ** -value90 / 2 ? 0 : Number(arg80?.y) || 0;"
+        },
+        {
+          "line": 371,
+          "text": "return value92.toFixed(value90) + \",\" + value93.toFixed(value90);"
+        }
+      ]
+    },
+    {
+      "key": "value91@367",
+      "name": "value91",
+      "line": 367,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value91 = arg78.map((arg80) => {",
+      "references": [
+        {
+          "line": 374,
+          "text": "for (const value94 of [value91, [...value91].reverse()])"
+        }
+      ]
+    },
+    {
+      "key": "arg80@367",
+      "name": "arg80",
+      "line": 367,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value91 = arg78.map((arg80) => {",
+      "references": [
+        {
+          "line": 369,
+          "text": "Math.abs(Number(arg80?.x) || 0) < 10 ** -value90 / 2 ? 0 : Number(arg80?.x) || 0,"
+        },
+        {
+          "line": 370,
+          "text": "value93 = Math.abs(Number(arg80?.y) || 0) < 10 ** -value90 / 2 ? 0 : Number(arg80?.y) || 0;"
+        }
+      ]
+    },
+    {
+      "key": "value92@368",
+      "name": "value92",
+      "line": 368,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value92 =",
+      "references": [
+        {
+          "line": 371,
+          "text": "return value92.toFixed(value90) + \",\" + value93.toFixed(value90);"
+        }
+      ]
+    },
+    {
+      "key": "value93@370",
+      "name": "value93",
+      "line": 370,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value93 = Math.abs(Number(arg80?.y) || 0) < 10 ** -value90 / 2 ? 0 : Number(arg80?.y) || 0;",
+      "references": [
+        {
+          "line": 371,
+          "text": "return value92.toFixed(value90) + \",\" + value93.toFixed(value90);"
+        }
+      ]
+    },
+    {
+      "key": "list6@373",
+      "name": "list6",
+      "line": 373,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list6 = [];",
+      "references": [
+        {
+          "line": 376,
+          "text": "list6.push([...value94.slice(value95), ...value94.slice(0, value95)].join(\";\"));"
+        },
+        {
+          "line": 377,
+          "text": "return list6.sort()[0];"
+        }
+      ]
+    },
+    {
+      "key": "value94@374",
+      "name": "value94",
+      "line": 374,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value94 of [value91, [...value91].reverse()])",
+      "references": [
+        {
+          "line": 375,
+          "text": "for (let value95 = 0; value95 < value94.length; value95 += 1)"
+        },
+        {
+          "line": 376,
+          "text": "list6.push([...value94.slice(value95), ...value94.slice(0, value95)].join(\";\"));"
+        }
+      ]
+    },
+    {
+      "key": "value95@375",
+      "name": "value95",
+      "line": 375,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value95 = 0; value95 < value94.length; value95 += 1)",
+      "references": [
+        {
+          "line": 375,
+          "text": "for (let value95 = 0; value95 < value94.length; value95 += 1)"
+        },
+        {
+          "line": 376,
+          "text": "list6.push([...value94.slice(value95), ...value94.slice(0, value95)].join(\";\"));"
+        }
+      ]
+    },
+    {
+      "key": "G@379",
+      "name": "G",
+      "line": 379,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function G(arg81, arg82, arg83) {",
+      "references": [
+        {
+          "line": 473,
+          "text": "const value113 = G(value111.wall, value112.wall, value106);"
+        }
+      ]
+    },
+    {
+      "key": "arg81@379",
+      "name": "arg81",
+      "line": 379,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function G(arg81, arg82, arg83) {",
+      "references": [
+        {
+          "line": 398,
+          "text": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,"
+        },
+        {
+          "line": 404,
+          "text": "\"x\": (arg81[value97.firstKey].x + arg82[value97.secondKey].x) / 2,"
+        },
+        {
+          "line": 405,
+          "text": "\"y\": (arg81[value97.firstKey].y + arg82[value97.secondKey].y) / 2,"
+        },
+        {
+          "line": 409,
+          "text": "\"firstOuter\": arg81[value97.firstKey === \"start\" ? \"end\" : \"start\"],"
+        }
+      ]
+    },
+    {
+      "key": "arg82@379",
+      "name": "arg82",
+      "line": 379,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function G(arg81, arg82, arg83) {",
+      "references": [
+        {
+          "line": 398,
+          "text": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,"
+        },
+        {
+          "line": 404,
+          "text": "\"x\": (arg81[value97.firstKey].x + arg82[value97.secondKey].x) / 2,"
+        },
+        {
+          "line": 405,
+          "text": "\"y\": (arg81[value97.firstKey].y + arg82[value97.secondKey].y) / 2,"
+        },
+        {
+          "line": 410,
+          "text": "\"secondOuter\": arg82[value97.secondKey === \"start\" ? \"end\" : \"start\"],"
+        }
+      ]
+    },
+    {
+      "key": "arg83@379",
+      "name": "arg83",
+      "line": 379,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function G(arg81, arg82, arg83) {",
+      "references": [
+        {
+          "line": 398,
+          "text": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,"
+        }
+      ]
+    },
+    {
+      "key": "value96@380",
+      "name": "value96",
+      "line": 380,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value96 = [",
+      "references": [
+        {
+          "line": 400,
+          "text": "if (value96.length !== 1) return null;"
+        },
+        {
+          "line": 401,
+          "text": "const value97 = value96[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg84@398",
+      "name": "arg84",
+      "line": 398,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,",
+      "references": [
+        {
+          "line": 398,
+          "text": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,"
+        }
+      ]
+    },
+    {
+      "key": "arg85@398",
+      "name": "arg85",
+      "line": 398,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,",
+      "references": [
+        {
+          "line": 398,
+          "text": "({ firstKey: arg84, secondKey: arg85 }) => distance(arg81[arg84], arg82[arg85]) <= arg83,"
+        }
+      ]
+    },
+    {
+      "key": "value97@401",
+      "name": "value97",
+      "line": 401,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value97 = value96[0];",
+      "references": [
+        {
+          "line": 404,
+          "text": "\"x\": (arg81[value97.firstKey].x + arg82[value97.secondKey].x) / 2,"
+        },
+        {
+          "line": 405,
+          "text": "\"y\": (arg81[value97.firstKey].y + arg82[value97.secondKey].y) / 2,"
+        },
+        {
+          "line": 407,
+          "text": "\"firstKey\": value97.firstKey,"
+        },
+        {
+          "line": 408,
+          "text": "\"secondKey\": value97.secondKey,"
+        },
+        {
+          "line": 409,
+          "text": "\"firstOuter\": arg81[value97.firstKey === \"start\" ? \"end\" : \"start\"],"
+        },
+        {
+          "line": 410,
+          "text": "\"secondOuter\": arg82[value97.secondKey === \"start\" ? \"end\" : \"start\"],"
+        }
+      ]
+    },
+    {
+      "key": "_@413",
+      "name": "_",
+      "line": 413,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function _(arg86, arg87, arg88) {",
+      "references": [
+        {
+          "line": 472,
+          "text": "if (!_(value111.wall, value112.wall, value106)) continue;"
+        }
+      ]
+    },
+    {
+      "key": "arg86@413",
+      "name": "arg86",
+      "line": 413,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function _(arg86, arg87, arg88) {",
+      "references": [
+        {
+          "line": 415,
+          "text": "arg86.opacity === null || arg86.opacity === undefined ? null : Number(arg86.opacity),"
+        },
+        {
+          "line": 422,
+          "text": "Math.abs((Number(arg86.height) || 0) - (Number(arg87.height) || 0)) <= arg88 &&"
+        },
+        {
+          "line": 423,
+          "text": "Math.abs((Number(arg86.thickness) || 0) - (Number(arg87.thickness) || 0)) <= arg88 &&"
+        },
+        {
+          "line": 425,
+          "text": "(arg86.allowOpenEnd === true) == (arg87.allowOpenEnd === true)"
+        }
+      ]
+    },
+    {
+      "key": "arg87@413",
+      "name": "arg87",
+      "line": 413,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function _(arg86, arg87, arg88) {",
+      "references": [
+        {
+          "line": 416,
+          "text": "value99 = arg87.opacity === null || arg87.opacity === undefined ? null : Number(arg87.opacity),"
+        },
+        {
+          "line": 422,
+          "text": "Math.abs((Number(arg86.height) || 0) - (Number(arg87.height) || 0)) <= arg88 &&"
+        },
+        {
+          "line": 423,
+          "text": "Math.abs((Number(arg86.thickness) || 0) - (Number(arg87.thickness) || 0)) <= arg88 &&"
+        },
+        {
+          "line": 425,
+          "text": "(arg86.allowOpenEnd === true) == (arg87.allowOpenEnd === true)"
+        }
+      ]
+    },
+    {
+      "key": "arg88@413",
+      "name": "arg88",
+      "line": 413,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function _(arg86, arg87, arg88) {",
+      "references": [
+        {
+          "line": 420,
+          "text": ": Math.abs(value98 - value99) <= arg88;"
+        },
+        {
+          "line": 422,
+          "text": "Math.abs((Number(arg86.height) || 0) - (Number(arg87.height) || 0)) <= arg88 &&"
+        },
+        {
+          "line": 423,
+          "text": "Math.abs((Number(arg86.thickness) || 0) - (Number(arg87.thickness) || 0)) <= arg88 &&"
+        }
+      ]
+    },
+    {
+      "key": "value98@414",
+      "name": "value98",
+      "line": 414,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value98 =",
+      "references": [
+        {
+          "line": 418,
+          "text": "value98 === null || value99 === null"
+        },
+        {
+          "line": 419,
+          "text": "? value98 === value99"
+        },
+        {
+          "line": 420,
+          "text": ": Math.abs(value98 - value99) <= arg88;"
+        }
+      ]
+    },
+    {
+      "key": "value99@416",
+      "name": "value99",
+      "line": 416,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value99 = arg87.opacity === null || arg87.opacity === undefined ? null : Number(arg87.opacity),",
+      "references": [
+        {
+          "line": 418,
+          "text": "value98 === null || value99 === null"
+        },
+        {
+          "line": 419,
+          "text": "? value98 === value99"
+        },
+        {
+          "line": 420,
+          "text": ": Math.abs(value98 - value99) <= arg88;"
+        }
+      ]
+    },
+    {
+      "key": "value100@417",
+      "name": "value100",
+      "line": 417,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value100 =",
+      "references": [
+        {
+          "line": 424,
+          "text": "value100 &&"
+        }
+      ]
+    },
+    {
+      "key": "J@428",
+      "name": "J",
+      "line": 428,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function J(arg89, arg90, arg91) {",
+      "references": [
+        {
+          "line": 474,
+          "text": "if (!value113 || J(value107, value113.point, value106) !== 2 || !Q(value113, value106))"
+        }
+      ]
+    },
+    {
+      "key": "arg89@428",
+      "name": "arg89",
+      "line": 428,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function J(arg89, arg90, arg91) {",
+      "references": [
+        {
+          "line": 429,
+          "text": "return arg89.reduce("
+        }
+      ]
+    },
+    {
+      "key": "arg90@428",
+      "name": "arg90",
+      "line": 428,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function J(arg89, arg90, arg91) {",
+      "references": [
+        {
+          "line": 432,
+          "text": "(distance(arg93.wall.start, arg90) <= arg91 ? 1 : 0) +"
+        },
+        {
+          "line": 433,
+          "text": "(distance(arg93.wall.end, arg90) <= arg91 ? 1 : 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg91@428",
+      "name": "arg91",
+      "line": 428,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function J(arg89, arg90, arg91) {",
+      "references": [
+        {
+          "line": 432,
+          "text": "(distance(arg93.wall.start, arg90) <= arg91 ? 1 : 0) +"
+        },
+        {
+          "line": 433,
+          "text": "(distance(arg93.wall.end, arg90) <= arg91 ? 1 : 0),"
+        }
+      ]
+    },
+    {
+      "key": "arg92@430",
+      "name": "arg92",
+      "line": 430,
+      "column": 5,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg92, arg93) =>",
+      "references": [
+        {
+          "line": 431,
+          "text": "arg92 +"
+        }
+      ]
+    },
+    {
+      "key": "arg93@430",
+      "name": "arg93",
+      "line": 430,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg92, arg93) =>",
+      "references": [
+        {
+          "line": 432,
+          "text": "(distance(arg93.wall.start, arg90) <= arg91 ? 1 : 0) +"
+        },
+        {
+          "line": 433,
+          "text": "(distance(arg93.wall.end, arg90) <= arg91 ? 1 : 0),"
+        }
+      ]
+    },
+    {
+      "key": "Q@437",
+      "name": "Q",
+      "line": 437,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function Q(arg94, arg95) {",
+      "references": [
+        {
+          "line": 474,
+          "text": "if (!value113 || J(value107, value113.point, value106) !== 2 || !Q(value113, value106))"
+        }
+      ]
+    },
+    {
+      "key": "arg94@437",
+      "name": "arg94",
+      "line": 437,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Q(arg94, arg95) {",
+      "references": [
+        {
+          "line": 438,
+          "text": "const value101 = k(arg94.firstOuter, arg94.point),"
+        },
+        {
+          "line": 439,
+          "text": "value102 = k(arg94.secondOuter, arg94.point),"
+        }
+      ]
+    },
+    {
+      "key": "arg95@437",
+      "name": "arg95",
+      "line": 437,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Q(arg94, arg95) {",
+      "references": [
+        {
+          "line": 442,
+          "text": "if (value103 <= arg95 || value104 <= arg95) return false;"
+        },
+        {
+          "line": 446,
+          "text": "value105 <= arg95 * Math.max(value103, value104, 1)"
+        }
+      ]
+    },
+    {
+      "key": "value101@438",
+      "name": "value101",
+      "line": 438,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value101 = k(arg94.firstOuter, arg94.point),",
+      "references": [
+        {
+          "line": 440,
+          "text": "value103 = Math.hypot(value101.x, value101.y),"
+        },
+        {
+          "line": 443,
+          "text": "const value105 = Math.abs(K(value101, value102));"
+        },
+        {
+          "line": 445,
+          "text": "value101.x * value102.x + value101.y * value102.y < 0 &&"
+        }
+      ]
+    },
+    {
+      "key": "value102@439",
+      "name": "value102",
+      "line": 439,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value102 = k(arg94.secondOuter, arg94.point),",
+      "references": [
+        {
+          "line": 441,
+          "text": "value104 = Math.hypot(value102.x, value102.y);"
+        },
+        {
+          "line": 443,
+          "text": "const value105 = Math.abs(K(value101, value102));"
+        },
+        {
+          "line": 445,
+          "text": "value101.x * value102.x + value101.y * value102.y < 0 &&"
+        }
+      ]
+    },
+    {
+      "key": "value103@440",
+      "name": "value103",
+      "line": 440,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value103 = Math.hypot(value101.x, value101.y),",
+      "references": [
+        {
+          "line": 442,
+          "text": "if (value103 <= arg95 || value104 <= arg95) return false;"
+        },
+        {
+          "line": 446,
+          "text": "value105 <= arg95 * Math.max(value103, value104, 1)"
+        }
+      ]
+    },
+    {
+      "key": "value104@441",
+      "name": "value104",
+      "line": 441,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value104 = Math.hypot(value102.x, value102.y);",
+      "references": [
+        {
+          "line": 442,
+          "text": "if (value103 <= arg95 || value104 <= arg95) return false;"
+        },
+        {
+          "line": 446,
+          "text": "value105 <= arg95 * Math.max(value103, value104, 1)"
+        }
+      ]
+    },
+    {
+      "key": "value105@443",
+      "name": "value105",
+      "line": 443,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value105 = Math.abs(K(value101, value102));",
+      "references": [
+        {
+          "line": 446,
+          "text": "value105 <= arg95 * Math.max(value103, value104, 1)"
+        }
+      ]
+    },
+    {
+      "key": "arg96@449",
+      "name": "arg96",
+      "line": 449,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function mergeCollinearWallSegments(arg96, arg97 = 0.000001) {",
+      "references": [
+        {
+          "line": 451,
+          "text": "value107 = (arg96 || [])"
+        }
+      ]
+    },
+    {
+      "key": "arg97@449",
+      "name": "arg97",
+      "line": 449,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function mergeCollinearWallSegments(arg96, arg97 = 0.000001) {",
+      "references": [
+        {
+          "line": 450,
+          "text": "const value106 = Math.max(Number(arg97) || 0, 1e-7),"
+        }
+      ]
+    },
+    {
+      "key": "value106@450",
+      "name": "value106",
+      "line": 450,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value106 = Math.max(Number(arg97) || 0, 1e-7),",
+      "references": [
+        {
+          "line": 452,
+          "text": ".filter((arg98) => arg98?.start && arg98?.end && distance(arg98.start, arg98.end) > value106)"
+        },
+        {
+          "line": 472,
+          "text": "if (!_(value111.wall, value112.wall, value106)) continue;"
+        },
+        {
+          "line": 473,
+          "text": "const value113 = G(value111.wall, value112.wall, value106);"
+        },
+        {
+          "line": 474,
+          "text": "if (!value113 || J(value107, value113.point, value106) !== 2 || !Q(value113, value106))"
+        }
+      ]
+    },
+    {
+      "key": "value107@451",
+      "name": "value107",
+      "line": 451,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value107 = (arg96 || [])",
+      "references": [
+        {
+          "line": 468,
+          "text": "for (let value109 = 0; value109 < value107.length && !value108; value109 += 1)"
+        },
+        {
+          "line": 469,
+          "text": "for (let value110 = value109 + 1; value110 < value107.length; value110 += 1) {"
+        },
+        {
+          "line": 470,
+          "text": "const value111 = value107[value109],"
+        },
+        {
+          "line": 471,
+          "text": "value112 = value107[value110];"
+        },
+        {
+          "line": 474,
+          "text": "if (!value113 || J(value107, value113.point, value106) !== 2 || !Q(value113, value106))"
+        },
+        {
+          "line": 495,
+          "text": "((value107[value109] = {"
+        }
+      ]
+    },
+    {
+      "key": "arg98@452",
+      "name": "arg98",
+      "line": 452,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg98) => arg98?.start && arg98?.end && distance(arg98.start, arg98.end) > value106)",
+      "references": [
+        {
+          "line": 452,
+          "text": ".filter((arg98) => arg98?.start && arg98?.end && distance(arg98.start, arg98.end) > value106)"
+        }
+      ]
+    },
+    {
+      "key": "arg99@453",
+      "name": "arg99",
+      "line": 453,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg99) => ({",
+      "references": [
+        {
+          "line": 455,
+          "text": "...arg99,"
+        },
+        {
+          "line": 457,
+          "text": "...arg99.start,"
+        },
+        {
+          "line": 460,
+          "text": "...arg99.end,"
+        },
+        {
+          "line": 463,
+          "text": "\"sourceIds\": new Set([arg99.id]),"
+        }
+      ]
+    },
+    {
+      "key": "value108@465",
+      "name": "value108",
+      "line": 465,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value108 = true;",
+      "references": [
+        {
+          "line": 466,
+          "text": "for (; value108;) {"
+        },
+        {
+          "line": 468,
+          "text": "for (let value109 = 0; value109 < value107.length && !value108; value109 += 1)"
+        }
+      ]
+    },
+    {
+      "key": "value109@468",
+      "name": "value109",
+      "line": 468,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value109 = 0; value109 < value107.length && !value108; value109 += 1)",
+      "references": [
+        {
+          "line": 468,
+          "text": "for (let value109 = 0; value109 < value107.length && !value108; value109 += 1)"
+        },
+        {
+          "line": 469,
+          "text": "for (let value110 = value109 + 1; value110 < value107.length; value110 += 1) {"
+        },
+        {
+          "line": 470,
+          "text": "const value111 = value107[value109],"
+        },
+        {
+          "line": 495,
+          "text": "((value107[value109] = {"
+        }
+      ]
+    },
+    {
+      "key": "value110@469",
+      "name": "value110",
+      "line": 469,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value110 = value109 + 1; value110 < value107.length; value110 += 1) {",
+      "references": [
+        {
+          "line": 469,
+          "text": "for (let value110 = value109 + 1; value110 < value107.length; value110 += 1) {"
+        },
+        {
+          "line": 471,
+          "text": "value112 = value107[value110];"
+        },
+        {
+          "line": 499,
+          "text": "value107.splice(value110, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value111@470",
+      "name": "value111",
+      "line": 470,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value111 = value107[value109],",
+      "references": [
+        {
+          "line": 472,
+          "text": "if (!_(value111.wall, value112.wall, value106)) continue;"
+        },
+        {
+          "line": 473,
+          "text": "const value113 = G(value111.wall, value112.wall, value106);"
+        },
+        {
+          "line": 477,
+          "text": "...value111.wall,"
+        },
+        {
+          "line": 497,
+          "text": "\"sourceIds\": new Set([...value111.sourceIds, ...value112.sourceIds]),"
+        }
+      ]
+    },
+    {
+      "key": "value112@471",
+      "name": "value112",
+      "line": 471,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value112 = value107[value110];",
+      "references": [
+        {
+          "line": 472,
+          "text": "if (!_(value111.wall, value112.wall, value106)) continue;"
+        },
+        {
+          "line": 473,
+          "text": "const value113 = G(value111.wall, value112.wall, value106);"
+        },
+        {
+          "line": 497,
+          "text": "\"sourceIds\": new Set([...value111.sourceIds, ...value112.sourceIds]),"
+        }
+      ]
+    },
+    {
+      "key": "value113@473",
+      "name": "value113",
+      "line": 473,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value113 = G(value111.wall, value112.wall, value106);",
+      "references": [
+        {
+          "line": 474,
+          "text": "if (!value113 || J(value107, value113.point, value106) !== 2 || !Q(value113, value106))"
+        },
+        {
+          "line": 479,
+          "text": "value113.firstKey === \"end\""
+        },
+        {
+          "line": 481,
+          "text": "...value113.firstOuter,"
+        },
+        {
+          "line": 484,
+          "text": "...value113.secondOuter,"
+        },
+        {
+          "line": 487,
+          "text": "value113.firstKey === \"end\""
+        },
+        {
+          "line": 489,
+          "text": "...value113.secondOuter,"
+        }
+      ]
+    },
+    {
+      "key": "object5@476",
+      "name": "object5",
+      "line": 476,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object5 = {",
+      "references": [
+        {
+          "line": 496,
+          "text": "\"wall\": object5,"
+        }
+      ]
+    },
+    {
+      "key": "map2@504",
+      "name": "map2",
+      "line": 504,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const map2 = new Map();",
+      "references": [
+        {
+          "line": 506,
+          "text": "for (const value115 of value114.sourceIds) map2.set(value115, value114.wall.id);"
+        },
+        {
+          "line": 509,
+          "text": "\"wallIdMap\": map2,"
+        }
+      ]
+    },
+    {
+      "key": "value114@505",
+      "name": "value114",
+      "line": 505,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value114 of value107)",
+      "references": [
+        {
+          "line": 506,
+          "text": "for (const value115 of value114.sourceIds) map2.set(value115, value114.wall.id);"
+        }
+      ]
+    },
+    {
+      "key": "value115@506",
+      "name": "value115",
+      "line": 506,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value115 of value114.sourceIds) map2.set(value115, value114.wall.id);",
+      "references": [
+        {
+          "line": 506,
+          "text": "for (const value115 of value114.sourceIds) map2.set(value115, value114.wall.id);"
+        }
+      ]
+    },
+    {
+      "key": "arg100@508",
+      "name": "arg100",
+      "line": 508,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "\"walls\": value107.map((arg100) => arg100.wall),",
+      "references": [
+        {
+          "line": 508,
+          "text": "\"walls\": value107.map((arg100) => arg100.wall),"
+        }
+      ]
+    },
+    {
+      "key": "arg101@512",
+      "name": "arg101",
+      "line": 512,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function remapWallAttachment(arg101, arg102, arg103) {",
+      "references": [
+        {
+          "line": 513,
+          "text": "if (!arg101 || !arg102 || !arg103) return arg101;"
+        },
+        {
+          "line": 514,
+          "text": "const value116 = clamp(Number(arg101.t) || 0, 0, 1),"
+        },
+        {
+          "line": 517,
+          "text": "...arg101,"
+        }
+      ]
+    },
+    {
+      "key": "arg102@512",
+      "name": "arg102",
+      "line": 512,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function remapWallAttachment(arg101, arg102, arg103) {",
+      "references": [
+        {
+          "line": 513,
+          "text": "if (!arg101 || !arg102 || !arg103) return arg101;"
+        },
+        {
+          "line": 515,
+          "text": "value117 = Y(arg102.start, arg102.end, value116);"
+        }
+      ]
+    },
+    {
+      "key": "arg103@512",
+      "name": "arg103",
+      "line": 512,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function remapWallAttachment(arg101, arg102, arg103) {",
+      "references": [
+        {
+          "line": 513,
+          "text": "if (!arg101 || !arg102 || !arg103) return arg101;"
+        },
+        {
+          "line": 518,
+          "text": "\"wallId\": arg103.id,"
+        },
+        {
+          "line": 519,
+          "text": "\"t\": clamp(projectPointToSegment(value117, arg103.start, arg103.end).t, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "value116@514",
+      "name": "value116",
+      "line": 514,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value116 = clamp(Number(arg101.t) || 0, 0, 1),",
+      "references": [
+        {
+          "line": 515,
+          "text": "value117 = Y(arg102.start, arg102.end, value116);"
+        }
+      ]
+    },
+    {
+      "key": "value117@515",
+      "name": "value117",
+      "line": 515,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value117 = Y(arg102.start, arg102.end, value116);",
+      "references": [
+        {
+          "line": 519,
+          "text": "\"t\": clamp(projectPointToSegment(value117, arg103.start, arg103.end).t, 0, 1),"
+        }
+      ]
+    },
+    {
+      "key": "j@522",
+      "name": "j",
+      "line": 522,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function j(arg104, arg105, arg106) {",
+      "references": [
+        {
+          "line": 645,
+          "text": "value137 = j(arg118, value136, arg121);"
+        },
+        {
+          "line": 684,
+          "text": "const value142 = j(arg127, list7, value140);"
+        },
+        {
+          "line": 687,
+          "text": "const value146 = j("
+        }
+      ]
+    },
+    {
+      "key": "arg104@522",
+      "name": "arg104",
+      "line": 522,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function j(arg104, arg105, arg106) {",
+      "references": [
+        {
+          "line": 525,
+          "text": "const value120 = distance(arg104, value119.point);"
+        }
+      ]
+    },
+    {
+      "key": "arg105@522",
+      "name": "arg105",
+      "line": 522,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function j(arg104, arg105, arg106) {",
+      "references": [
+        {
+          "line": 524,
+          "text": "for (const value119 of arg105) {"
+        }
+      ]
+    },
+    {
+      "key": "arg106@522",
+      "name": "arg106",
+      "line": 522,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function j(arg104, arg105, arg106) {",
+      "references": [
+        {
+          "line": 526,
+          "text": "value120 > arg106 ||"
+        }
+      ]
+    },
+    {
+      "key": "value118@523",
+      "name": "value118",
+      "line": 523,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value118 = null;",
+      "references": [
+        {
+          "line": 527,
+          "text": "(value118 && value120 >= value118.distance) ||"
+        },
+        {
+          "line": 533,
+          "text": "return value118;"
+        }
+      ]
+    },
+    {
+      "key": "value119@524",
+      "name": "value119",
+      "line": 524,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value119 of arg105) {",
+      "references": [
+        {
+          "line": 525,
+          "text": "const value120 = distance(arg104, value119.point);"
+        },
+        {
+          "line": 529,
+          "text": "...value119,"
+        }
+      ]
+    },
+    {
+      "key": "value120@525",
+      "name": "value120",
+      "line": 525,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value120 = distance(arg104, value119.point);",
+      "references": [
+        {
+          "line": 526,
+          "text": "value120 > arg106 ||"
+        },
+        {
+          "line": 527,
+          "text": "(value118 && value120 >= value118.distance) ||"
+        },
+        {
+          "line": 530,
+          "text": "\"distance\": value120,"
+        }
+      ]
+    },
+    {
+      "key": "arg107@535",
+      "name": "arg107",
+      "line": 535,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function axisLockedPoint(arg107, arg108) {",
+      "references": [
+        {
+          "line": 536,
+          "text": "const value121 = arg107.x - arg108.x,"
+        },
+        {
+          "line": 537,
+          "text": "value122 = arg107.y - arg108.y;"
+        },
+        {
+          "line": 541,
+          "text": "\"x\": arg107.x,"
+        },
+        {
+          "line": 550,
+          "text": "\"y\": arg107.y,"
+        }
+      ]
+    },
+    {
+      "key": "arg108@535",
+      "name": "arg108",
+      "line": 535,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function axisLockedPoint(arg107, arg108) {",
+      "references": [
+        {
+          "line": 536,
+          "text": "const value121 = arg107.x - arg108.x,"
+        },
+        {
+          "line": 537,
+          "text": "value122 = arg107.y - arg108.y;"
+        },
+        {
+          "line": 542,
+          "text": "\"y\": arg108.y,"
+        },
+        {
+          "line": 549,
+          "text": "\"x\": arg108.x,"
+        }
+      ]
+    },
+    {
+      "key": "value121@536",
+      "name": "value121",
+      "line": 536,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value121 = arg107.x - arg108.x,",
+      "references": [
+        {
+          "line": 538,
+          "text": "return Math.abs(value121) > Math.abs(value122)"
+        }
+      ]
+    },
+    {
+      "key": "value122@537",
+      "name": "value122",
+      "line": 537,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value122 = arg107.y - arg108.y;",
+      "references": [
+        {
+          "line": 538,
+          "text": "return Math.abs(value121) > Math.abs(value122)"
+        }
+      ]
+    },
+    {
+      "key": "z@556",
+      "name": "z",
+      "line": 556,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 602,
+          "text": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");"
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        }
+      ]
+    },
+    {
+      "key": "arg109@556",
+      "name": "arg109",
+      "line": 556,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 564,
+          "text": "const value130 = projectPointToSegment(arg109, value124.start, value124.end);"
+        },
+        {
+          "line": 587,
+          "text": "const value129 = distance(arg109, object6);"
+        }
+      ]
+    },
+    {
+      "key": "arg110@556",
+      "name": "arg110",
+      "line": 556,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 563,
+          "text": "if (Math.abs(value124.start[value125] - arg110[value125]) > 1e-7) continue;"
+        },
+        {
+          "line": 570,
+          "text": "[value125]: arg110[value125],"
+        },
+        {
+          "line": 579,
+          "text": "const value128 = (arg110[value125] - value124.start[value125]) / value127;"
+        },
+        {
+          "line": 582,
+          "text": "...arg110,"
+        }
+      ]
+    },
+    {
+      "key": "arg111@556",
+      "name": "arg111",
+      "line": 556,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 558,
+          "text": "for (const value124 of arg111) {"
+        }
+      ]
+    },
+    {
+      "key": "arg112@556",
+      "name": "arg112",
+      "line": 556,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 565,
+          "text": "if (value130.distance > arg112 || (value123 && value130.distance >= value123.distance))"
+        },
+        {
+          "line": 588,
+          "text": "value129 > arg112 ||"
+        }
+      ]
+    },
+    {
+      "key": "arg113@556",
+      "name": "arg113",
+      "line": 556,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function z(arg109, arg110, arg111, arg112, arg113) {",
+      "references": [
+        {
+          "line": 559,
+          "text": "const value125 = arg113 === \"vertical\" ? \"x\" : \"y\","
+        },
+        {
+          "line": 560,
+          "text": "value126 = arg113 === \"vertical\" ? \"y\" : \"x\","
+        },
+        {
+          "line": 574,
+          "text": "\"label\": (arg113 === \"vertical\" ? \"垂直\" : \"水平\") + \" · 墙线\","
+        },
+        {
+          "line": 594,
+          "text": "\"label\": (arg113 === \"vertical\" ? \"垂直\" : \"水平\") + \"\\x20·\\x20墙线\","
+        }
+      ]
+    },
+    {
+      "key": "value123@557",
+      "name": "value123",
+      "line": 557,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value123 = null;",
+      "references": [
+        {
+          "line": 565,
+          "text": "if (value130.distance > arg112 || (value123 && value130.distance >= value123.distance))"
+        },
+        {
+          "line": 589,
+          "text": "(value123 && value129 >= value123.distance) ||"
+        },
+        {
+          "line": 598,
+          "text": "return value123;"
+        }
+      ]
+    },
+    {
+      "key": "value124@558",
+      "name": "value124",
+      "line": 558,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value124 of arg111) {",
+      "references": [
+        {
+          "line": 561,
+          "text": "value127 = value124.end[value125] - value124.start[value125];"
+        },
+        {
+          "line": 563,
+          "text": "if (Math.abs(value124.start[value125] - arg110[value125]) > 1e-7) continue;"
+        },
+        {
+          "line": 564,
+          "text": "const value130 = projectPointToSegment(arg109, value124.start, value124.end);"
+        },
+        {
+          "line": 573,
+          "text": "\"targetId\": value124.id,"
+        },
+        {
+          "line": 579,
+          "text": "const value128 = (arg110[value125] - value124.start[value125]) / value127;"
+        },
+        {
+          "line": 585,
+          "text": "value124.start[value126] +"
+        }
+      ]
+    },
+    {
+      "key": "value125@559",
+      "name": "value125",
+      "line": 559,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value125 = arg113 === \"vertical\" ? \"x\" : \"y\",",
+      "references": [
+        {
+          "line": 561,
+          "text": "value127 = value124.end[value125] - value124.start[value125];"
+        },
+        {
+          "line": 563,
+          "text": "if (Math.abs(value124.start[value125] - arg110[value125]) > 1e-7) continue;"
+        },
+        {
+          "line": 570,
+          "text": "[value125]: arg110[value125],"
+        },
+        {
+          "line": 579,
+          "text": "const value128 = (arg110[value125] - value124.start[value125]) / value127;"
+        }
+      ]
+    },
+    {
+      "key": "value126@560",
+      "name": "value126",
+      "line": 560,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value126 = arg113 === \"vertical\" ? \"y\" : \"x\",",
+      "references": [
+        {
+          "line": 584,
+          "text": "object6[value126] ="
+        },
+        {
+          "line": 585,
+          "text": "value124.start[value126] +"
+        },
+        {
+          "line": 586,
+          "text": "(value124.end[value126] - value124.start[value126]) * clamp(value128, 0, 1);"
+        }
+      ]
+    },
+    {
+      "key": "value127@561",
+      "name": "value127",
+      "line": 561,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value127 = value124.end[value125] - value124.start[value125];",
+      "references": [
+        {
+          "line": 562,
+          "text": "if (Math.abs(value127) <= 1e-7) {"
+        },
+        {
+          "line": 579,
+          "text": "const value128 = (arg110[value125] - value124.start[value125]) / value127;"
+        }
+      ]
+    },
+    {
+      "key": "value130@564",
+      "name": "value130",
+      "line": 564,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value130 = projectPointToSegment(arg109, value124.start, value124.end);",
+      "references": [
+        {
+          "line": 565,
+          "text": "if (value130.distance > arg112 || (value123 && value130.distance >= value123.distance))"
+        },
+        {
+          "line": 569,
+          "text": "...value130.point,"
+        },
+        {
+          "line": 575,
+          "text": "\"distance\": value130.distance,"
+        }
+      ]
+    },
+    {
+      "key": "value128@579",
+      "name": "value128",
+      "line": 579,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value128 = (arg110[value125] - value124.start[value125]) / value127;",
+      "references": [
+        {
+          "line": 580,
+          "text": "if (value128 < -1e-7 || value128 > 1 + 1e-7) continue;"
+        },
+        {
+          "line": 586,
+          "text": "(value124.end[value126] - value124.start[value126]) * clamp(value128, 0, 1);"
+        }
+      ]
+    },
+    {
+      "key": "object6@581",
+      "name": "object6",
+      "line": 581,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object6 = {",
+      "references": [
+        {
+          "line": 584,
+          "text": "object6[value126] ="
+        },
+        {
+          "line": 587,
+          "text": "const value129 = distance(arg109, object6);"
+        },
+        {
+          "line": 591,
+          "text": "\"point\": object6,"
+        }
+      ]
+    },
+    {
+      "key": "value129@587",
+      "name": "value129",
+      "line": 587,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value129 = distance(arg109, object6);",
+      "references": [
+        {
+          "line": 588,
+          "text": "value129 > arg112 ||"
+        },
+        {
+          "line": 589,
+          "text": "(value123 && value129 >= value123.distance) ||"
+        },
+        {
+          "line": 595,
+          "text": "\"distance\": value129,"
+        }
+      ]
+    },
+    {
+      "key": "Z@600",
+      "name": "Z",
+      "line": 600,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function Z(arg114, arg115, arg116, arg117) {",
+      "references": [
+        {
+          "line": 699,
+          "text": "const value147 = Z(arg127, arg129.anchor, arg128, value140);"
+        }
+      ]
+    },
+    {
+      "key": "arg114@600",
+      "name": "arg114",
+      "line": 600,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Z(arg114, arg115, arg116, arg117) {",
+      "references": [
+        {
+          "line": 601,
+          "text": "if (!arg115 || Math.abs(arg114.x - arg115.x) > arg117) return null;"
+        },
+        {
+          "line": 602,
+          "text": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");"
+        },
+        {
+          "line": 607,
+          "text": "\"y\": arg114.y,"
+        },
+        {
+          "line": 611,
+          "text": "\"distance\": Math.abs(arg114.x - arg115.x),"
+        }
+      ]
+    },
+    {
+      "key": "arg115@600",
+      "name": "arg115",
+      "line": 600,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Z(arg114, arg115, arg116, arg117) {",
+      "references": [
+        {
+          "line": 601,
+          "text": "if (!arg115 || Math.abs(arg114.x - arg115.x) > arg117) return null;"
+        },
+        {
+          "line": 602,
+          "text": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");"
+        },
+        {
+          "line": 606,
+          "text": "\"x\": arg115.x,"
+        },
+        {
+          "line": 611,
+          "text": "\"distance\": Math.abs(arg114.x - arg115.x),"
+        }
+      ]
+    },
+    {
+      "key": "arg116@600",
+      "name": "arg116",
+      "line": 600,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Z(arg114, arg115, arg116, arg117) {",
+      "references": [
+        {
+          "line": 602,
+          "text": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");"
+        }
+      ]
+    },
+    {
+      "key": "arg117@600",
+      "name": "arg117",
+      "line": 600,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Z(arg114, arg115, arg116, arg117) {",
+      "references": [
+        {
+          "line": 601,
+          "text": "if (!arg115 || Math.abs(arg114.x - arg115.x) > arg117) return null;"
+        },
+        {
+          "line": 602,
+          "text": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");"
+        }
+      ]
+    },
+    {
+      "key": "value131@602",
+      "name": "value131",
+      "line": 602,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value131 = z(arg114, arg115, arg116, arg117, \"vertical\");",
+      "references": [
+        {
+          "line": 604,
+          "text": "value131 || {"
+        }
+      ]
+    },
+    {
+      "key": "tt@615",
+      "name": "tt",
+      "line": 615,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        }
+      ]
+    },
+    {
+      "key": "arg118@615",
+      "name": "arg118",
+      "line": 615,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 616,
+          "text": "const value132 = axisLockedPoint(arg118, arg119),"
+        },
+        {
+          "line": 645,
+          "text": "value137 = j(arg118, value136, arg121);"
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        },
+        {
+          "line": 654,
+          "text": "\"distance\": distance(arg118, value132.point),"
+        }
+      ]
+    },
+    {
+      "key": "arg119@615",
+      "name": "arg119",
+      "line": 615,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 616,
+          "text": "const value132 = axisLockedPoint(arg118, arg119),"
+        },
+        {
+          "line": 644,
+          "text": "].filter((arg126) => Math.abs(arg126.point[value133] - arg119[value133]) <= value134),"
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        }
+      ]
+    },
+    {
+      "key": "arg120@615",
+      "name": "arg120",
+      "line": 615,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 615,
+          "text": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {"
+        },
+        {
+          "line": 623,
+          "text": ": arg120.flatMap((arg124) => ["
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        }
+      ]
+    },
+    {
+      "key": "arg121@615",
+      "name": "arg121",
+      "line": 615,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 618,
+          "text": "value134 = Math.max(1e-7, arg121 * 0.000001),"
+        },
+        {
+          "line": 645,
+          "text": "value137 = j(arg118, value136, arg121);"
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        }
+      ]
+    },
+    {
+      "key": "arg122@615",
+      "name": "arg122",
+      "line": 615,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 639,
+          "text": ": arg122.map((arg125) => ({"
+        }
+      ]
+    },
+    {
+      "key": "arg123@615",
+      "name": "arg123",
+      "line": 615,
+      "column": 80,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function tt(arg118, arg119, arg120, arg121, arg122 = wallIntersections(arg120), arg123 = {}) {",
+      "references": [
+        {
+          "line": 621,
+          "text": "...(arg123.snapEndpoints === false"
+        },
+        {
+          "line": 637,
+          "text": "...(arg123.snapIntersections === false"
+        },
+        {
+          "line": 647,
+          "text": "if (arg123.snapSegments !== false) {"
+        }
+      ]
+    },
+    {
+      "key": "value132@616",
+      "name": "value132",
+      "line": 616,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value132 = axisLockedPoint(arg118, arg119),",
+      "references": [
+        {
+          "line": 617,
+          "text": "value133 = value132.axis === \"vertical\" ? \"x\" : \"y\","
+        },
+        {
+          "line": 619,
+          "text": "value135 = value132.axis === \"vertical\" ? \"垂直\" : \"水平\","
+        },
+        {
+          "line": 648,
+          "text": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);"
+        },
+        {
+          "line": 652,
+          "text": "...value132,"
+        },
+        {
+          "line": 654,
+          "text": "\"distance\": distance(arg118, value132.point),"
+        }
+      ]
+    },
+    {
+      "key": "value133@617",
+      "name": "value133",
+      "line": 617,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value133 = value132.axis === \"vertical\" ? \"x\" : \"y\",",
+      "references": [
+        {
+          "line": 644,
+          "text": "].filter((arg126) => Math.abs(arg126.point[value133] - arg119[value133]) <= value134),"
+        }
+      ]
+    },
+    {
+      "key": "value134@618",
+      "name": "value134",
+      "line": 618,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value134 = Math.max(1e-7, arg121 * 0.000001),",
+      "references": [
+        {
+          "line": 644,
+          "text": "].filter((arg126) => Math.abs(arg126.point[value133] - arg119[value133]) <= value134),"
+        }
+      ]
+    },
+    {
+      "key": "value135@619",
+      "name": "value135",
+      "line": 619,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value135 = value132.axis === \"vertical\" ? \"垂直\" : \"水平\",",
+      "references": [
+        {
+          "line": 628,
+          "text": "\"label\": value135 + \" · 端点\","
+        },
+        {
+          "line": 634,
+          "text": "\"label\": value135 + \"\\x20·\\x20端点\","
+        },
+        {
+          "line": 642,
+          "text": "\"label\": value135 + \"\\x20·\\x20交点\","
+        }
+      ]
+    },
+    {
+      "key": "value136@620",
+      "name": "value136",
+      "line": 620,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value136 = [",
+      "references": [
+        {
+          "line": 645,
+          "text": "value137 = j(arg118, value136, arg121);"
+        }
+      ]
+    },
+    {
+      "key": "arg124@623",
+      "name": "arg124",
+      "line": 623,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": arg120.flatMap((arg124) => [",
+      "references": [
+        {
+          "line": 625,
+          "text": "\"point\": arg124.start,"
+        },
+        {
+          "line": 627,
+          "text": "\"targetId\": arg124.id,"
+        },
+        {
+          "line": 631,
+          "text": "\"point\": arg124.end,"
+        },
+        {
+          "line": 633,
+          "text": "\"targetId\": arg124.id,"
+        }
+      ]
+    },
+    {
+      "key": "arg125@639",
+      "name": "arg125",
+      "line": 639,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": arg122.map((arg125) => ({",
+      "references": [
+        {
+          "line": 640,
+          "text": "\"point\": arg125,"
+        }
+      ]
+    },
+    {
+      "key": "arg126@644",
+      "name": "arg126",
+      "line": 644,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].filter((arg126) => Math.abs(arg126.point[value133] - arg119[value133]) <= value134),",
+      "references": [
+        {
+          "line": 644,
+          "text": "].filter((arg126) => Math.abs(arg126.point[value133] - arg119[value133]) <= value134),"
+        }
+      ]
+    },
+    {
+      "key": "value137@645",
+      "name": "value137",
+      "line": 645,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value137 = j(arg118, value136, arg121);",
+      "references": [
+        {
+          "line": 646,
+          "text": "if (value137) return value137;"
+        }
+      ]
+    },
+    {
+      "key": "value138@648",
+      "name": "value138",
+      "line": 648,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value138 = z(arg118, arg119, arg120, arg121, value132.axis);",
+      "references": [
+        {
+          "line": 649,
+          "text": "if (value138) return value138;"
+        }
+      ]
+    },
+    {
+      "key": "arg127@657",
+      "name": "arg127",
+      "line": 657,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function snapPoint(arg127, arg128, arg129 = {}) {",
+      "references": [
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        },
+        {
+          "line": 684,
+          "text": "const value142 = j(arg127, list7, value140);"
+        },
+        {
+          "line": 688,
+          "text": "arg127,"
+        },
+        {
+          "line": 699,
+          "text": "const value147 = Z(arg127, arg129.anchor, arg128, value140);"
+        },
+        {
+          "line": 705,
+          "text": "const value149 = projectPointToSegment(arg127, arg131.start, arg131.end);"
+        },
+        {
+          "line": 719,
+          "text": "const value150 = arg127.x - arg129.anchor.x,"
+        }
+      ]
+    },
+    {
+      "key": "arg128@657",
+      "name": "arg128",
+      "line": 657,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function snapPoint(arg127, arg128, arg129 = {}) {",
+      "references": [
+        {
+          "line": 663,
+          "text": "arg129.snapIntersections === false ? [] : value141 || wallIntersections(arg128);"
+        },
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        },
+        {
+          "line": 668,
+          "text": "for (const value145 of arg128)"
+        },
+        {
+          "line": 689,
+          "text": "(value141 || wallIntersections(arg128)).map((arg130) => ({"
+        },
+        {
+          "line": 699,
+          "text": "const value147 = Z(arg127, arg129.anchor, arg128, value140);"
+        },
+        {
+          "line": 703,
+          "text": "const value148 = arg128"
+        }
+      ]
+    },
+    {
+      "key": "arg129@657",
+      "name": "arg129",
+      "line": 657,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function snapPoint(arg127, arg128, arg129 = {}) {",
+      "references": [
+        {
+          "line": 658,
+          "text": "const value139 = Math.max(Number(arg129.zoom) || 1, 1e-7),"
+        },
+        {
+          "line": 659,
+          "text": "value140 = (Number(arg129.screenTolerance) || 12) / value139,"
+        },
+        {
+          "line": 660,
+          "text": "value141 = Array.isArray(arg129.intersections) ? arg129.intersections : null;"
+        },
+        {
+          "line": 661,
+          "text": "if (arg129.forceOrthogonalAxis === true && arg129.anchor) {"
+        },
+        {
+          "line": 663,
+          "text": "arg129.snapIntersections === false ? [] : value141 || wallIntersections(arg128);"
+        },
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        }
+      ]
+    },
+    {
+      "key": "value139@658",
+      "name": "value139",
+      "line": 658,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value139 = Math.max(Number(arg129.zoom) || 1, 1e-7),",
+      "references": [
+        {
+          "line": 659,
+          "text": "value140 = (Number(arg129.screenTolerance) || 12) / value139,"
+        }
+      ]
+    },
+    {
+      "key": "value140@659",
+      "name": "value140",
+      "line": 659,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value140 = (Number(arg129.screenTolerance) || 12) / value139,",
+      "references": [
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        },
+        {
+          "line": 684,
+          "text": "const value142 = j(arg127, list7, value140);"
+        },
+        {
+          "line": 694,
+          "text": "value140,"
+        },
+        {
+          "line": 699,
+          "text": "const value147 = Z(arg127, arg129.anchor, arg128, value140);"
+        },
+        {
+          "line": 714,
+          "text": ".filter((arg132) => arg132.distance <= value140)"
+        },
+        {
+          "line": 731,
+          "text": "if (value156 <= value140) {"
+        }
+      ]
+    },
+    {
+      "key": "value141@660",
+      "name": "value141",
+      "line": 660,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value141 = Array.isArray(arg129.intersections) ? arg129.intersections : null;",
+      "references": [
+        {
+          "line": 663,
+          "text": "arg129.snapIntersections === false ? [] : value141 || wallIntersections(arg128);"
+        },
+        {
+          "line": 689,
+          "text": "(value141 || wallIntersections(arg128)).map((arg130) => ({"
+        }
+      ]
+    },
+    {
+      "key": "value144@662",
+      "name": "value144",
+      "line": 662,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value144 =",
+      "references": [
+        {
+          "line": 664,
+          "text": "return tt(arg127, arg129.anchor, arg128, value140, value144, arg129);"
+        }
+      ]
+    },
+    {
+      "key": "list7@666",
+      "name": "list7",
+      "line": 666,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list7 = [];",
+      "references": [
+        {
+          "line": 669,
+          "text": "list7.push("
+        },
+        {
+          "line": 684,
+          "text": "const value142 = j(arg127, list7, value140);"
+        }
+      ]
+    },
+    {
+      "key": "value145@668",
+      "name": "value145",
+      "line": 668,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value145 of arg128)",
+      "references": [
+        {
+          "line": 671,
+          "text": "\"point\": value145.start,"
+        },
+        {
+          "line": 673,
+          "text": "\"targetId\": value145.id,"
+        },
+        {
+          "line": 677,
+          "text": "\"point\": value145.end,"
+        },
+        {
+          "line": 679,
+          "text": "\"targetId\": value145.id,"
+        }
+      ]
+    },
+    {
+      "key": "value142@684",
+      "name": "value142",
+      "line": 684,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value142 = j(arg127, list7, value140);",
+      "references": [
+        {
+          "line": 685,
+          "text": "if (value142) return value142;"
+        }
+      ]
+    }
+  ]
+}

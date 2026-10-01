@@ -1,0 +1,1891 @@
+{
+  "file": "frontend/modules/interaction3d/background-theme.js",
+  "declStart": 1,
+  "declEnd": 257,
+  "totalLines": 257,
+  "counts": {
+    "entries": 90,
+    "renameable": 90,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@5",
+      "name": "arg1",
+      "line": 5,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "normalizeBackgroundTheme = (arg1) => (arg1 === \"dots\" || arg1 === \"contours\" ? \"dots\" : \"grid\");",
+      "references": [
+        {
+          "line": 5,
+          "text": "normalizeBackgroundTheme = (arg1) => (arg1 === \"dots\" || arg1 === \"contours\" ? \"dots\" : \"grid\");"
+        }
+      ]
+    },
+    {
+      "key": "I@6",
+      "name": "I",
+      "line": 6,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const I =",
+      "references": [
+        {
+          "line": 109,
+          "text": ".replace(\"#include <common>\", \"#include <common>\\n\" + I)"
+        }
+      ]
+    },
+    {
+      "key": "O@8",
+      "name": "O",
+      "line": 8,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "O =",
+      "references": [
+        {
+          "line": 110,
+          "text": ".replace(\"#include <color_fragment>\", \"#include <color_fragment>\\n\" + O))));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@10",
+      "name": "arg2",
+      "line": 10,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createBackgroundTheme(arg2, arg3 = () => {}, arg4 = () => performance.now()) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const { THREE: value1 } = arg2,"
+        },
+        {
+          "line": 122,
+          "text": "value10 && ((value10 = false), arg2.backgroundFrame?.(false));"
+        },
+        {
+          "line": 158,
+          "text": "value33 = arg2.getOrbitCenter?.();"
+        },
+        {
+          "line": 210,
+          "text": "const value43 = arg2.canvas.getBoundingClientRect();"
+        },
+        {
+          "line": 216,
+          "text": "value2.setFromCamera(value3, arg2.camera));"
+        },
+        {
+          "line": 244,
+          "text": "return ((value10 = value50), arg2.backgroundFrame?.(value50), value50 ? 1000 / 30 : Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@10",
+      "name": "arg3",
+      "line": 10,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createBackgroundTheme(arg2, arg3 = () => {}, arg4 = () => performance.now()) {",
+      "references": [
+        {
+          "line": 140,
+          "text": "return (arg3(), true);"
+        },
+        {
+          "line": 229,
+          "text": "arg3();"
+        }
+      ]
+    },
+    {
+      "key": "arg4@10",
+      "name": "arg4",
+      "line": 10,
+      "column": 61,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createBackgroundTheme(arg2, arg3 = () => {}, arg4 = () => performance.now()) {",
+      "references": [
+        {
+          "line": 208,
+          "text": "const value42 = arg4();"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { THREE: value1 } = arg2,",
+      "references": [
+        {
+          "line": 15,
+          "text": "value2 = new value1.Raycaster(),"
+        },
+        {
+          "line": 16,
+          "text": "value3 = new value1.Vector2(),"
+        },
+        {
+          "line": 17,
+          "text": "value4 = new value1.Color(\"#6b8199\"),"
+        },
+        {
+          "line": 18,
+          "text": "value5 = new value1.Color(\"#b5cbd8\"),"
+        },
+        {
+          "line": 19,
+          "text": "value6 = new value1.Color(\"#182431\"),"
+        },
+        {
+          "line": 29,
+          "text": "const value15 = new value1.Vector2(),"
+        },
+        {
+          "line": 73,
+          "text": "value: new value1.Vector2(),"
+        },
+        {
+          "line": 82,
+          "text": "value: new value1.Vector3(0, 0, 2),"
+        }
+      ]
+    },
+    {
+      "key": "map1@12",
+      "name": "map1",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "map1 = new Map(),",
+      "references": [
+        {
+          "line": 116,
+          "text": "map1.set(arg7, object1));"
+        },
+        {
+          "line": 120,
+          "text": "for (const value23 of map1.values())"
+        },
+        {
+          "line": 132,
+          "text": "return map1.size;"
+        },
+        {
+          "line": 138,
+          "text": "for (const value25 of map1.values())"
+        },
+        {
+          "line": 152,
+          "text": "const value31 = map1.get(value30);"
+        },
+        {
+          "line": 155,
+          "text": "(fn2(value31), map1.delete(value30)),"
+        },
+        {
+          "line": 156,
+          "text": "map1.has(value30) || fn3(value30));"
+        },
+        {
+          "line": 157,
+          "text": "const value32 = map1.get(value30),"
+        }
+      ]
+    },
+    {
+      "key": "set1@13",
+      "name": "set1",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "set1 = new Set(),",
+      "references": [
+        {
+          "line": 148,
+          "text": "((value30.userData.backgroundThemeHidden = text1 !== \"grid\"), set1.add(value30));"
+        },
+        {
+          "line": 169,
+          "text": "for (const value37 of set1)"
+        },
+        {
+          "line": 171,
+          "text": "(delete value37.userData.backgroundThemeHidden, set1.delete(value37));"
+        },
+        {
+          "line": 252,
+          "text": "for (const value54 of set1) delete value54.userData.backgroundThemeHidden;"
+        },
+        {
+          "line": 253,
+          "text": "(map1.clear(), set1.clear());"
+        }
+      ]
+    },
+    {
+      "key": "weakMap1@14",
+      "name": "weakMap1",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "weakMap1 = new WeakMap(),",
+      "references": [
+        {
+          "line": 92,
+          "text": "value21 = weakMap1.get(value20);"
+        },
+        {
+          "line": 93,
+          "text": "(value21 ? (object1.uniforms = value21) : weakMap1.set(value20, object1.uniforms),"
+        }
+      ]
+    },
+    {
+      "key": "value2@15",
+      "name": "value2",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = new value1.Raycaster(),",
+      "references": [
+        {
+          "line": 216,
+          "text": "value2.setFromCamera(value3, arg2.camera));"
+        },
+        {
+          "line": 222,
+          "text": "value45 = value2.intersectObjects(value44, false)[0];"
+        }
+      ]
+    },
+    {
+      "key": "value3@16",
+      "name": "value3",
+      "line": 16,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = new value1.Vector2(),",
+      "references": [
+        {
+          "line": 212,
+          "text": "(value3.set("
+        },
+        {
+          "line": 216,
+          "text": "value2.setFromCamera(value3, arg2.camera));"
+        }
+      ]
+    },
+    {
+      "key": "value4@17",
+      "name": "value4",
+      "line": 17,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = new value1.Color(\"#6b8199\"),",
+      "references": [
+        {
+          "line": 85,
+          "text": "value: value4,"
+        }
+      ]
+    },
+    {
+      "key": "value5@18",
+      "name": "value5",
+      "line": 18,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = new value1.Color(\"#b5cbd8\"),",
+      "references": [
+        {
+          "line": 88,
+          "text": "value: value5,"
+        }
+      ]
+    },
+    {
+      "key": "value6@19",
+      "name": "value6",
+      "line": 19,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = new value1.Color(\"#182431\"),",
+      "references": [
+        {
+          "line": 76,
+          "text": "value: value6,"
+        }
+      ]
+    },
+    {
+      "key": "value7@20",
+      "name": "value7",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = globalThis.window?.matchMedia?.(\"(prefers-reduced-motion: reduce)\")?.matches === true;",
+      "references": [
+        {
+          "line": 207,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7 || !map1.size) return;"
+        },
+        {
+          "line": 232,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7) return (fn4(), Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "text1@21",
+      "name": "text1",
+      "line": 21,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let text1 = \"grid\",",
+      "references": [
+        {
+          "line": 61,
+          "text": "value: text1 === \"dots\" ? 1 : 0,"
+        },
+        {
+          "line": 94,
+          "text": "(object1.uniforms.hbGroundTheme.value = text1 === \"dots\" ? 1 : 0),"
+        },
+        {
+          "line": 126,
+          "text": "return text1;"
+        },
+        {
+          "line": 136,
+          "text": "if (value9 || value24 === text1) return false;"
+        },
+        {
+          "line": 148,
+          "text": "((value30.userData.backgroundThemeHidden = text1 !== \"grid\"), set1.add(value30));"
+        },
+        {
+          "line": 150,
+          "text": "if (value30.userData.exportRole === \"background\" && text1 !== \"grid\") {"
+        },
+        {
+          "line": 207,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7 || !map1.size) return;"
+        },
+        {
+          "line": 232,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7) return (fn4(), Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "value8@22",
+      "name": "value8",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = true,",
+      "references": [
+        {
+          "line": 144,
+          "text": "((value8 = arg13 !== false), value8 || fn4());"
+        },
+        {
+          "line": 207,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7 || !map1.size) return;"
+        },
+        {
+          "line": 232,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7) return (fn4(), Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "value9@23",
+      "name": "value9",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = false,",
+      "references": [
+        {
+          "line": 136,
+          "text": "if (value9 || value24 === text1) return false;"
+        },
+        {
+          "line": 143,
+          "text": "if (value9) return;"
+        },
+        {
+          "line": 207,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7 || !map1.size) return;"
+        },
+        {
+          "line": 232,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7) return (fn4(), Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "value10@24",
+      "name": "value10",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = false,",
+      "references": [
+        {
+          "line": 122,
+          "text": "value10 && ((value10 = false), arg2.backgroundFrame?.(false));"
+        },
+        {
+          "line": 129,
+          "text": "return value10;"
+        },
+        {
+          "line": 236,
+          "text": "if (!value50 && !value10) return Infinity;"
+        }
+      ]
+    },
+    {
+      "key": "value11@25",
+      "name": "value11",
+      "line": 25,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = -Infinity,",
+      "references": [
+        {
+          "line": 233,
+          "text": "const value48 = Math.max(0, 1 - (arg23 - value11) / 400),"
+        }
+      ]
+    },
+    {
+      "key": "value12@26",
+      "name": "value12",
+      "line": 26,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = -Infinity,",
+      "references": [
+        {
+          "line": 234,
+          "text": "value49 = Math.min(2, Math.max(0, (arg23 - value12) / 1000)),"
+        }
+      ]
+    },
+    {
+      "key": "value13@27",
+      "name": "value13",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = null,",
+      "references": [
+        {
+          "line": 242,
+          "text": "value51 === value13 ? value49 : 2,"
+        }
+      ]
+    },
+    {
+      "key": "value14@28",
+      "name": "value14",
+      "line": 28,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = null;",
+      "references": [
+        {
+          "line": 177,
+          "text": "const value28 = map1.get(value14),"
+        }
+      ]
+    },
+    {
+      "key": "value15@29",
+      "name": "value15",
+      "line": 29,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = new value1.Vector2(),",
+      "references": [
+        {
+          "line": 225,
+          "text": "(value15.set(value47.x, -value47.y), (value13 = value45.object), (value12 = value42));"
+        },
+        {
+          "line": 240,
+          "text": "value15.x,"
+        },
+        {
+          "line": 241,
+          "text": "value15.y,"
+        }
+      ]
+    },
+    {
+      "key": "list1@30",
+      "name": "list1",
+      "line": 30,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [",
+      "references": [
+        {
+          "line": 45,
+          "text": "for (const value19 of list1) value16[value19] = arg6.blend[value19];"
+        },
+        {
+          "line": 58,
+          "text": "blend: Object.fromEntries(list1.map((arg8) => [arg8, value20[arg8]])),"
+        }
+      ]
+    },
+    {
+      "key": "fn1@39",
+      "name": "fn1",
+      "line": 39,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5) =>",
+      "references": [
+        {
+          "line": 175,
+          "text": "const value26 = [...map1.values()].filter((arg14) => fn1(arg14.object));"
+        }
+      ]
+    },
+    {
+      "key": "arg5@39",
+      "name": "arg5",
+      "line": 39,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn1 = (arg5) =>",
+      "references": [
+        {
+          "line": 40,
+          "text": "!(arg5.userData.floorBackgroundHidden && !arg5.userData.backgroundThemeKeepVisible);"
+        }
+      ]
+    },
+    {
+      "key": "fn2@41",
+      "name": "fn2",
+      "line": 41,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg6) {",
+      "references": [
+        {
+          "line": 155,
+          "text": "(fn2(value31), map1.delete(value30)),"
+        },
+        {
+          "line": 168,
+          "text": "(fn2(value36), map1.delete(value35));"
+        },
+        {
+          "line": 251,
+          "text": "for (const value53 of map1.values()) fn2(value53);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@41",
+      "name": "arg6",
+      "line": 41,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg6) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "const { material: value16, beforeCompile: value17, programKey: value18 } = arg6;"
+        },
+        {
+          "line": 43,
+          "text": "((arg6.uniforms.hbGroundTheme.value = 0),"
+        },
+        {
+          "line": 44,
+          "text": "delete arg6.object.userData.backgroundThemeKeepVisible);"
+        },
+        {
+          "line": 45,
+          "text": "for (const value19 of list1) value16[value19] = arg6.blend[value19];"
+        },
+        {
+          "line": 46,
+          "text": "(value16.onBeforeCompile === arg6.compile && (value16.onBeforeCompile = value17),"
+        },
+        {
+          "line": 47,
+          "text": "value16.customProgramCacheKey === arg6.key && (value16.customProgramCacheKey = value18),"
+        }
+      ]
+    },
+    {
+      "key": "value16@42",
+      "name": "value16",
+      "line": 42,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { material: value16, beforeCompile: value17, programKey: value18 } = arg6;",
+      "references": [
+        {
+          "line": 45,
+          "text": "for (const value19 of list1) value16[value19] = arg6.blend[value19];"
+        },
+        {
+          "line": 46,
+          "text": "(value16.onBeforeCompile === arg6.compile && (value16.onBeforeCompile = value17),"
+        },
+        {
+          "line": 47,
+          "text": "value16.customProgramCacheKey === arg6.key && (value16.customProgramCacheKey = value18),"
+        },
+        {
+          "line": 48,
+          "text": "(value16.needsUpdate = true));"
+        }
+      ]
+    },
+    {
+      "key": "value17@42",
+      "name": "value17",
+      "line": 42,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { material: value16, beforeCompile: value17, programKey: value18 } = arg6;",
+      "references": [
+        {
+          "line": 46,
+          "text": "(value16.onBeforeCompile === arg6.compile && (value16.onBeforeCompile = value17),"
+        }
+      ]
+    },
+    {
+      "key": "value18@42",
+      "name": "value18",
+      "line": 42,
+      "column": 67,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { material: value16, beforeCompile: value17, programKey: value18 } = arg6;",
+      "references": [
+        {
+          "line": 47,
+          "text": "value16.customProgramCacheKey === arg6.key && (value16.customProgramCacheKey = value18),"
+        }
+      ]
+    },
+    {
+      "key": "value19@45",
+      "name": "value19",
+      "line": 45,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value19 of list1) value16[value19] = arg6.blend[value19];",
+      "references": [
+        {
+          "line": 45,
+          "text": "for (const value19 of list1) value16[value19] = arg6.blend[value19];"
+        }
+      ]
+    },
+    {
+      "key": "fn3@50",
+      "name": "fn3",
+      "line": 50,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg7) {",
+      "references": [
+        {
+          "line": 156,
+          "text": "map1.has(value30) || fn3(value30));"
+        }
+      ]
+    },
+    {
+      "key": "arg7@50",
+      "name": "arg7",
+      "line": 50,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg7) {",
+      "references": [
+        {
+          "line": 51,
+          "text": "const value20 = arg7.material;"
+        },
+        {
+          "line": 52,
+          "text": "if (!value20?.isMeshBasicMaterial || !arg7.geometry?.parameters?.width) return;"
+        },
+        {
+          "line": 54,
+          "text": "object: arg7,"
+        },
+        {
+          "line": 70,
+          "text": "value: Math.max(6, (arg7.geometry.parameters.width / 16) * 0.7),"
+        },
+        {
+          "line": 116,
+          "text": "map1.set(arg7, object1));"
+        }
+      ]
+    },
+    {
+      "key": "value20@51",
+      "name": "value20",
+      "line": 51,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = arg7.material;",
+      "references": [
+        {
+          "line": 52,
+          "text": "if (!value20?.isMeshBasicMaterial || !arg7.geometry?.parameters?.width) return;"
+        },
+        {
+          "line": 55,
+          "text": "material: value20,"
+        },
+        {
+          "line": 56,
+          "text": "beforeCompile: value20.onBeforeCompile,"
+        },
+        {
+          "line": 57,
+          "text": "programKey: value20.customProgramCacheKey,"
+        },
+        {
+          "line": 58,
+          "text": "blend: Object.fromEntries(list1.map((arg8) => [arg8, value20[arg8]])),"
+        },
+        {
+          "line": 92,
+          "text": "value21 = weakMap1.get(value20);"
+        },
+        {
+          "line": 93,
+          "text": "(value21 ? (object1.uniforms = value21) : weakMap1.set(value20, object1.uniforms),"
+        },
+        {
+          "line": 97,
+          "text": "const value22 = object1.programKey.call(value20).replace(/:hb-ground-theme-v[0-9]+/g, \"\");"
+        }
+      ]
+    },
+    {
+      "key": "object1@53",
+      "name": "object1",
+      "line": 53,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 93,
+          "text": "(value21 ? (object1.uniforms = value21) : weakMap1.set(value20, object1.uniforms),"
+        },
+        {
+          "line": 94,
+          "text": "(object1.uniforms.hbGroundTheme.value = text1 === \"dots\" ? 1 : 0),"
+        },
+        {
+          "line": 95,
+          "text": "(object1.uniforms.hbGroundCoverage.value = 1),"
+        },
+        {
+          "line": 96,
+          "text": "(object1.uniforms.hbGroundFallback.value = -1));"
+        },
+        {
+          "line": 97,
+          "text": "const value22 = object1.programKey.call(value20).replace(/:hb-ground-theme-v[0-9]+/g, \"\");"
+        },
+        {
+          "line": 98,
+          "text": "((object1.compile = function (arg9, arg10) {"
+        },
+        {
+          "line": 99,
+          "text": "(object1.beforeCompile.call(this, arg9, arg10),"
+        },
+        {
+          "line": 100,
+          "text": "Object.assign(arg9.uniforms, object1.uniforms),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@58",
+      "name": "arg8",
+      "line": 58,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "blend: Object.fromEntries(list1.map((arg8) => [arg8, value20[arg8]])),",
+      "references": [
+        {
+          "line": 58,
+          "text": "blend: Object.fromEntries(list1.map((arg8) => [arg8, value20[arg8]])),"
+        }
+      ]
+    },
+    {
+      "key": "value21@92",
+      "name": "value21",
+      "line": 92,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = weakMap1.get(value20);",
+      "references": [
+        {
+          "line": 93,
+          "text": "(value21 ? (object1.uniforms = value21) : weakMap1.set(value20, object1.uniforms),"
+        }
+      ]
+    },
+    {
+      "key": "value22@97",
+      "name": "value22",
+      "line": 97,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = object1.programKey.call(value20).replace(/:hb-ground-theme-v[0-9]+/g, \"\");",
+      "references": [
+        {
+          "line": 112,
+          "text": "(object1.key = () => value22 + \":hb-ground-theme-v5\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@98",
+      "name": "arg9",
+      "line": 98,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((object1.compile = function (arg9, arg10) {",
+      "references": [
+        {
+          "line": 99,
+          "text": "(object1.beforeCompile.call(this, arg9, arg10),"
+        },
+        {
+          "line": 100,
+          "text": "Object.assign(arg9.uniforms, object1.uniforms),"
+        },
+        {
+          "line": 101,
+          "text": "!arg9.fragmentShader.includes(\"uniform float hbGroundTheme;\") &&"
+        },
+        {
+          "line": 102,
+          "text": "((arg9.vertexShader = arg9.vertexShader"
+        },
+        {
+          "line": 108,
+          "text": "(arg9.fragmentShader = arg9.fragmentShader"
+        }
+      ]
+    },
+    {
+      "key": "arg10@98",
+      "name": "arg10",
+      "line": 98,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((object1.compile = function (arg9, arg10) {",
+      "references": [
+        {
+          "line": 99,
+          "text": "(object1.beforeCompile.call(this, arg9, arg10),"
+        }
+      ]
+    },
+    {
+      "key": "fn4@118",
+      "name": "fn4",
+      "line": 118,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4() {",
+      "references": [
+        {
+          "line": 137,
+          "text": "(fn4(), (text1 = value24));"
+        },
+        {
+          "line": 144,
+          "text": "((value8 = arg13 !== false), value8 || fn4());"
+        },
+        {
+          "line": 232,
+          "text": "if (value9 || !value8 || text1 === \"grid\" || value7) return (fn4(), Infinity);"
+        },
+        {
+          "line": 247,
+          "text": "fn4();"
+        },
+        {
+          "line": 250,
+          "text": "(fn4(), (value9 = true));"
+        }
+      ]
+    },
+    {
+      "key": "value23@120",
+      "name": "value23",
+      "line": 120,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value23 of map1.values())",
+      "references": [
+        {
+          "line": 121,
+          "text": "((value23.uniforms.hbGroundActivity.value = 0), (value23.uniforms.hbGroundPulse.value.z = 2));"
+        }
+      ]
+    },
+    {
+      "key": "arg11@134",
+      "name": "arg11",
+      "line": 134,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "configure(arg11) {",
+      "references": [
+        {
+          "line": 135,
+          "text": "const value24 = normalizeBackgroundTheme(arg11);"
+        }
+      ]
+    },
+    {
+      "key": "value24@135",
+      "name": "value24",
+      "line": 135,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = normalizeBackgroundTheme(arg11);",
+      "references": [
+        {
+          "line": 136,
+          "text": "if (value9 || value24 === text1) return false;"
+        },
+        {
+          "line": 137,
+          "text": "(fn4(), (text1 = value24));"
+        },
+        {
+          "line": 139,
+          "text": "value25.uniforms.hbGroundTheme.value = value24 === \"dots\" ? 1 : 0;"
+        }
+      ]
+    },
+    {
+      "key": "value25@138",
+      "name": "value25",
+      "line": 138,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value25 of map1.values())",
+      "references": [
+        {
+          "line": 139,
+          "text": "value25.uniforms.hbGroundTheme.value = value24 === \"dots\" ? 1 : 0;"
+        }
+      ]
+    },
+    {
+      "key": "arg12@142",
+      "name": "arg12",
+      "line": 142,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync(arg12, arg13) {",
+      "references": [
+        {
+          "line": 146,
+          "text": "for (const value30 of arg12)"
+        },
+        {
+          "line": 170,
+          "text": "arg12.includes(value37) ||"
+        }
+      ]
+    },
+    {
+      "key": "arg13@142",
+      "name": "arg13",
+      "line": 142,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync(arg12, arg13) {",
+      "references": [
+        {
+          "line": 144,
+          "text": "((value8 = arg13 !== false), value8 || fn4());"
+        }
+      ]
+    },
+    {
+      "key": "set2@145",
+      "name": "set2",
+      "line": 145,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const set2 = new Set();",
+      "references": [
+        {
+          "line": 151,
+          "text": "set2.add(value30);"
+        },
+        {
+          "line": 167,
+          "text": "(!set2.has(value35) || value36.material !== value35.material) &&"
+        }
+      ]
+    },
+    {
+      "key": "value30@146",
+      "name": "value30",
+      "line": 146,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value30 of arg12)",
+      "references": [
+        {
+          "line": 147,
+          "text": "if (value30.userData.exportRole === \"grid\")"
+        },
+        {
+          "line": 148,
+          "text": "((value30.userData.backgroundThemeHidden = text1 !== \"grid\"), set1.add(value30));"
+        },
+        {
+          "line": 150,
+          "text": "if (value30.userData.exportRole === \"background\" && text1 !== \"grid\") {"
+        },
+        {
+          "line": 151,
+          "text": "set2.add(value30);"
+        },
+        {
+          "line": 152,
+          "text": "const value31 = map1.get(value30);"
+        },
+        {
+          "line": 154,
+          "text": "value31.material !== value30.material &&"
+        },
+        {
+          "line": 155,
+          "text": "(fn2(value31), map1.delete(value30)),"
+        },
+        {
+          "line": 156,
+          "text": "map1.has(value30) || fn3(value30));"
+        }
+      ]
+    },
+    {
+      "key": "value31@152",
+      "name": "value31",
+      "line": 152,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value31 = map1.get(value30);",
+      "references": [
+        {
+          "line": 153,
+          "text": "(value31 &&"
+        },
+        {
+          "line": 154,
+          "text": "value31.material !== value30.material &&"
+        },
+        {
+          "line": 155,
+          "text": "(fn2(value31), map1.delete(value30)),"
+        }
+      ]
+    },
+    {
+      "key": "value32@157",
+      "name": "value32",
+      "line": 157,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value32 = map1.get(value30),",
+      "references": [
+        {
+          "line": 159,
+          "text": "if (value32 && value33?.length === 3 && value33.every(Number.isFinite)) {"
+        },
+        {
+          "line": 162,
+          "text": "value32.uniforms.hbGroundCenter.value.set(value34.x, -value34.y);"
+        }
+      ]
+    },
+    {
+      "key": "value33@158",
+      "name": "value33",
+      "line": 158,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value33 = arg2.getOrbitCenter?.();",
+      "references": [
+        {
+          "line": 159,
+          "text": "if (value32 && value33?.length === 3 && value33.every(Number.isFinite)) {"
+        },
+        {
+          "line": 161,
+          "text": "const value34 = value30.worldToLocal(new value1.Vector3(...value33));"
+        }
+      ]
+    },
+    {
+      "key": "value34@161",
+      "name": "value34",
+      "line": 161,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value34 = value30.worldToLocal(new value1.Vector3(...value33));",
+      "references": [
+        {
+          "line": 162,
+          "text": "value32.uniforms.hbGroundCenter.value.set(value34.x, -value34.y);"
+        }
+      ]
+    },
+    {
+      "key": "value35@166",
+      "name": "value35",
+      "line": 166,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value35, value36] of map1)",
+      "references": [
+        {
+          "line": 167,
+          "text": "(!set2.has(value35) || value36.material !== value35.material) &&"
+        },
+        {
+          "line": 168,
+          "text": "(fn2(value36), map1.delete(value35));"
+        }
+      ]
+    },
+    {
+      "key": "value36@166",
+      "name": "value36",
+      "line": 166,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value35, value36] of map1)",
+      "references": [
+        {
+          "line": 167,
+          "text": "(!set2.has(value35) || value36.material !== value35.material) &&"
+        },
+        {
+          "line": 168,
+          "text": "(fn2(value36), map1.delete(value35));"
+        }
+      ]
+    },
+    {
+      "key": "value37@169",
+      "name": "value37",
+      "line": 169,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value37 of set1)",
+      "references": [
+        {
+          "line": 170,
+          "text": "arg12.includes(value37) ||"
+        },
+        {
+          "line": 171,
+          "text": "(delete value37.userData.backgroundThemeHidden, set1.delete(value37));"
+        }
+      ]
+    },
+    {
+      "key": "value38@172",
+      "name": "value38",
+      "line": 172,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value38 of map1.values())",
+      "references": [
+        {
+          "line": 173,
+          "text": "(delete value38.object.userData.backgroundThemeKeepVisible,"
+        },
+        {
+          "line": 174,
+          "text": "(value38.uniforms.hbGroundFallback.value = -1));"
+        }
+      ]
+    },
+    {
+      "key": "value26@175",
+      "name": "value26",
+      "line": 175,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value26 = [...map1.values()].filter((arg14) => fn1(arg14.object));",
+      "references": [
+        {
+          "line": 176,
+          "text": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);"
+        },
+        {
+          "line": 180,
+          "text": "!value26.includes(value28) &&"
+        },
+        {
+          "line": 184,
+          "text": ".filter((arg17) => arg17.material.transparent && !value26.includes(arg17))"
+        },
+        {
+          "line": 186,
+          "text": "(value29?.material.transparent && !value26.includes(value29) && value27 < 1"
+        },
+        {
+          "line": 190,
+          "text": ": value26.length === 1 &&"
+        },
+        {
+          "line": 191,
+          "text": "value26[0].material.opacity > 0.999 &&"
+        },
+        {
+          "line": 192,
+          "text": "(value14 = value26[0].object),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@175",
+      "name": "arg14",
+      "line": 175,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value26 = [...map1.values()].filter((arg14) => fn1(arg14.object));",
+      "references": [
+        {
+          "line": 175,
+          "text": "const value26 = [...map1.values()].filter((arg14) => fn1(arg14.object));"
+        }
+      ]
+    },
+    {
+      "key": "value27@176",
+      "name": "value27",
+      "line": 176,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);",
+      "references": [
+        {
+          "line": 186,
+          "text": "(value29?.material.transparent && !value26.includes(value29) && value27 < 1"
+        },
+        {
+          "line": 188,
+          "text": "(value29.uniforms.hbGroundFallback.value = 1 - value27),"
+        },
+        {
+          "line": 193,
+          "text": "(value27 = Math.max(1, value27)));"
+        },
+        {
+          "line": 196,
+          "text": "((value41.hbGroundCoverage.value = value40.transparent ? value27 : 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@176",
+      "name": "arg15",
+      "line": 176,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);",
+      "references": [
+        {
+          "line": 176,
+          "text": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);"
+        }
+      ]
+    },
+    {
+      "key": "arg16@176",
+      "name": "arg16",
+      "line": 176,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);",
+      "references": [
+        {
+          "line": 176,
+          "text": "let value27 = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);"
+        }
+      ]
+    },
+    {
+      "key": "value28@177",
+      "name": "value28",
+      "line": 177,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value28 = map1.get(value14),",
+      "references": [
+        {
+          "line": 179,
+          "text": "value28?.material.transparent &&"
+        },
+        {
+          "line": 180,
+          "text": "!value26.includes(value28) &&"
+        },
+        {
+          "line": 181,
+          "text": "value28.material.opacity > 0"
+        },
+        {
+          "line": 182,
+          "text": "? value28"
+        }
+      ]
+    },
+    {
+      "key": "value29@178",
+      "name": "value29",
+      "line": 178,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 =",
+      "references": [
+        {
+          "line": 186,
+          "text": "(value29?.material.transparent && !value26.includes(value29) && value27 < 1"
+        },
+        {
+          "line": 187,
+          "text": "? ((value29.object.userData.backgroundThemeKeepVisible = true),"
+        },
+        {
+          "line": 188,
+          "text": "(value29.uniforms.hbGroundFallback.value = 1 - value27),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@184",
+      "name": "arg17",
+      "line": 184,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg17) => arg17.material.transparent && !value26.includes(arg17))",
+      "references": [
+        {
+          "line": 184,
+          "text": ".filter((arg17) => arg17.material.transparent && !value26.includes(arg17))"
+        }
+      ]
+    },
+    {
+      "key": "arg18@185",
+      "name": "arg18",
+      "line": 185,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort((arg18, arg19) => arg19.material.opacity - arg18.material.opacity)[0];",
+      "references": [
+        {
+          "line": 185,
+          "text": ".sort((arg18, arg19) => arg19.material.opacity - arg18.material.opacity)[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg19@185",
+      "name": "arg19",
+      "line": 185,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".sort((arg18, arg19) => arg19.material.opacity - arg18.material.opacity)[0];",
+      "references": [
+        {
+          "line": 185,
+          "text": ".sort((arg18, arg19) => arg19.material.opacity - arg18.material.opacity)[0];"
+        }
+      ]
+    },
+    {
+      "key": "value39@194",
+      "name": "value39",
+      "line": 194,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value39 of map1.values()) {",
+      "references": [
+        {
+          "line": 195,
+          "text": "const { material: value40, uniforms: value41 } = value39;"
+        }
+      ]
+    },
+    {
+      "key": "value40@195",
+      "name": "value40",
+      "line": 195,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { material: value40, uniforms: value41 } = value39;",
+      "references": [
+        {
+          "line": 196,
+          "text": "((value41.hbGroundCoverage.value = value40.transparent ? value27 : 1),"
+        },
+        {
+          "line": 197,
+          "text": "value40.transparent &&"
+        },
+        {
+          "line": 198,
+          "text": "((value40.blending = value1.CustomBlending),"
+        },
+        {
+          "line": 199,
+          "text": "(value40.blendEquation = value40.blendEquationAlpha = value1.AddEquation),"
+        },
+        {
+          "line": 200,
+          "text": "(value40.blendSrc = value40.premultipliedAlpha"
+        },
+        {
+          "line": 203,
+          "text": "(value40.blendDst = value40.blendSrcAlpha = value40.blendDstAlpha = value1.OneFactor)));"
+        }
+      ]
+    },
+    {
+      "key": "value41@195",
+      "name": "value41",
+      "line": 195,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { material: value40, uniforms: value41 } = value39;",
+      "references": [
+        {
+          "line": 196,
+          "text": "((value41.hbGroundCoverage.value = value40.transparent ? value27 : 1),"
+        }
+      ]
+    },
+    {
+      "key": "arg20@206",
+      "name": "arg20",
+      "line": 206,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "interact(arg20, arg21 = false) {",
+      "references": [
+        {
+          "line": 213,
+          "text": "((arg20.clientX - value43.left) / value43.width) * 2 - 1,"
+        },
+        {
+          "line": 214,
+          "text": "1 - ((arg20.clientY - value43.top) / value43.height) * 2,"
+        }
+      ]
+    },
+    {
+      "key": "arg21@206",
+      "name": "arg21",
+      "line": 206,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "interact(arg20, arg21 = false) {",
+      "references": [
+        {
+          "line": 209,
+          "text": "if (((value11 = value42), arg21)) {"
+        }
+      ]
+    },
+    {
+      "key": "value42@208",
+      "name": "value42",
+      "line": 208,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value42 = arg4();",
+      "references": [
+        {
+          "line": 209,
+          "text": "if (((value11 = value42), arg21)) {"
+        },
+        {
+          "line": 225,
+          "text": "(value15.set(value47.x, -value47.y), (value13 = value45.object), (value12 = value42));"
+        }
+      ]
+    },
+    {
+      "key": "value43@210",
+      "name": "value43",
+      "line": 210,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value43 = arg2.canvas.getBoundingClientRect();",
+      "references": [
+        {
+          "line": 211,
+          "text": "if (value43.width && value43.height) {"
+        },
+        {
+          "line": 213,
+          "text": "((arg20.clientX - value43.left) / value43.width) * 2 - 1,"
+        },
+        {
+          "line": 214,
+          "text": "1 - ((arg20.clientY - value43.top) / value43.height) * 2,"
+        }
+      ]
+    },
+    {
+      "key": "value44@217",
+      "name": "value44",
+      "line": 217,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value44 = [...map1.keys()].filter((arg22) => {",
+      "references": [
+        {
+          "line": 222,
+          "text": "value45 = value2.intersectObjects(value44, false)[0];"
+        }
+      ]
+    },
+    {
+      "key": "arg22@217",
+      "name": "arg22",
+      "line": 217,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value44 = [...map1.keys()].filter((arg22) => {",
+      "references": [
+        {
+          "line": 218,
+          "text": "for (let value46 = arg22; value46; value46 = value46.parent)"
+        },
+        {
+          "line": 220,
+          "text": "return (arg22.updateWorldMatrix(true, false), true);"
+        }
+      ]
+    },
+    {
+      "key": "value46@218",
+      "name": "value46",
+      "line": 218,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value46 = arg22; value46; value46 = value46.parent)",
+      "references": [
+        {
+          "line": 218,
+          "text": "for (let value46 = arg22; value46; value46 = value46.parent)"
+        },
+        {
+          "line": 219,
+          "text": "if (!value46.visible) return false;"
+        }
+      ]
+    },
+    {
+      "key": "value45@222",
+      "name": "value45",
+      "line": 222,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value45 = value2.intersectObjects(value44, false)[0];",
+      "references": [
+        {
+          "line": 223,
+          "text": "if (value45) {"
+        },
+        {
+          "line": 224,
+          "text": "const value47 = value45.object.worldToLocal(value45.point);"
+        },
+        {
+          "line": 225,
+          "text": "(value15.set(value47.x, -value47.y), (value13 = value45.object), (value12 = value42));"
+        }
+      ]
+    },
+    {
+      "key": "value47@224",
+      "name": "value47",
+      "line": 224,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value47 = value45.object.worldToLocal(value45.point);",
+      "references": [
+        {
+          "line": 225,
+          "text": "(value15.set(value47.x, -value47.y), (value13 = value45.object), (value12 = value42));"
+        }
+      ]
+    },
+    {
+      "key": "arg23@231",
+      "name": "arg23",
+      "line": 231,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "tick(arg23) {",
+      "references": [
+        {
+          "line": 233,
+          "text": "const value48 = Math.max(0, 1 - (arg23 - value11) / 400),"
+        },
+        {
+          "line": 234,
+          "text": "value49 = Math.min(2, Math.max(0, (arg23 - value12) / 1000)),"
+        }
+      ]
+    },
+    {
+      "key": "value48@233",
+      "name": "value48",
+      "line": 233,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value48 = Math.max(0, 1 - (arg23 - value11) / 400),",
+      "references": [
+        {
+          "line": 235,
+          "text": "value50 = value48 > 0 || value49 < 1.25;"
+        },
+        {
+          "line": 238,
+          "text": "((value52.uniforms.hbGroundActivity.value = value48),"
+        }
+      ]
+    },
+    {
+      "key": "value49@234",
+      "name": "value49",
+      "line": 234,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value49 = Math.min(2, Math.max(0, (arg23 - value12) / 1000)),",
+      "references": [
+        {
+          "line": 235,
+          "text": "value50 = value48 > 0 || value49 < 1.25;"
+        },
+        {
+          "line": 242,
+          "text": "value51 === value13 ? value49 : 2,"
+        }
+      ]
+    },
+    {
+      "key": "value50@235",
+      "name": "value50",
+      "line": 235,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value50 = value48 > 0 || value49 < 1.25;",
+      "references": [
+        {
+          "line": 236,
+          "text": "if (!value50 && !value10) return Infinity;"
+        },
+        {
+          "line": 244,
+          "text": "return ((value10 = value50), arg2.backgroundFrame?.(value50), value50 ? 1000 / 30 : Infinity);"
+        }
+      ]
+    },
+    {
+      "key": "value51@237",
+      "name": "value51",
+      "line": 237,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value51, value52] of map1)",
+      "references": [
+        {
+          "line": 242,
+          "text": "value51 === value13 ? value49 : 2,"
+        }
+      ]
+    },
+    {
+      "key": "value52@237",
+      "name": "value52",
+      "line": 237,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value51, value52] of map1)",
+      "references": [
+        {
+          "line": 238,
+          "text": "((value52.uniforms.hbGroundActivity.value = value48),"
+        },
+        {
+          "line": 239,
+          "text": "value52.uniforms.hbGroundPulse.value.set("
+        }
+      ]
+    },
+    {
+      "key": "value53@251",
+      "name": "value53",
+      "line": 251,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value53 of map1.values()) fn2(value53);",
+      "references": [
+        {
+          "line": 251,
+          "text": "for (const value53 of map1.values()) fn2(value53);"
+        }
+      ]
+    },
+    {
+      "key": "value54@252",
+      "name": "value54",
+      "line": 252,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value54 of set1) delete value54.userData.backgroundThemeHidden;",
+      "references": [
+        {
+          "line": 252,
+          "text": "for (const value54 of set1) delete value54.userData.backgroundThemeHidden;"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+import { withPageAppearancePreset as s } from "./page-appearance-presets.js?v=20260918-page-presets-v3-review-1234";
+export const INTERACTION3D_TYPE = "interaction3d",
+  INTERACTION3D_FEATURE = "module.3d_interaction",
+  INTERACTION3D_LIGHTING_MODES = [["region", "轻量柔光"]],
+  normalizeInteraction3dLightingMode = () => "region",
+  BACKGROUND_THEMES = [
+    ["grid", "经典网格"],
+    ["dots", "微光星尘"],
+  ],
+  normalizeBackgroundTheme = (e) => (e === "dots" || e === "contours" ? "dots" : "grid"),
+  interaction3dTemplate = {
+    id: INTERACTION3D_TYPE,
+    type: INTERACTION3D_TYPE,
+    name: "3D 交互",
+    description: "在 3D 户型中查看和控制灯光、设备。",
+    scopes: ["page"],
+    create({ id: e, instanceName: t = "3D 交互", canvas: o }) {
+      const i = Number(o?.width || 2778),
+        n = Number(o?.height || 1940),
+        r = i * 0.56,
+        a = n * 0.56;
+      return {
+        id: e,
+        type: INTERACTION3D_TYPE,
+        componentVersion: 1,
+        position: {
+          x: (i - r) / 2,
+          y: (n - a) / 2,
+          width: r,
+          height: a,
+          rotation: 0,
+          zIndex: 1,
+        },
+        properties: {
+          label: t,
+          instanceName: t,
+          layoutMode: "free",
+          backgroundVisible: true,
+          backgroundTheme: "grid",
+          sceneStyle: "default",
+          wallOpacity: null,
+          backgroundMotion: true,
+          renderScale: 0.8,
+          lightingMode: "region",
+          groundReflection: {
+            mode: "off",
+            resolution: 512,
+            strength: 0.18,
+          },
+          ...s({}),
+          popupOpacity: 74,
+          interaction: {
+            rotationMode: "free",
+            panEnabled: false,
+            zoomEnabled: false,
+          },
+          behaviorScope: "global",
+          pageBehaviors: {},
+          autoRotate: {
+            enabled: false,
+            idleSeconds: 30,
+            speed: 6,
+            direction: "clockwise",
+          },
+          idleExitFocus: {
+            enabled: false,
+            idleSeconds: 30,
+          },
+          idleHideIcons: {
+            enabled: false,
+            idleSeconds: 30,
+          },
+          hideIconsWhileRotating: false,
+          lights: [],
+          devices: {
+            nas: [],
+          },
+          environment: {
+            dimStrength: 70,
+            airConditioners: [],
+            airers: [],
+            fans: [],
+            airPurifiers: [],
+            waterHeaters: [],
+            curtains: [],
+            temperatureHumidity: [],
+          },
+        },
+        bindings: {},
+        actions: {},
+        children: [],
+        style: {
+          scale: 1,
+          visible: true,
+        },
+      };
+    },
+  };

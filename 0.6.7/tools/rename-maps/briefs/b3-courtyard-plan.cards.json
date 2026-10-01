@@ -1,0 +1,120 @@
+{
+  "file": "frontend/static/3d-studio/courtyard-plan.js",
+  "seed": "b3-courtyard-plan",
+  "size": 30,
+  "candidates": 12,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "furnitureToken",
+      "declaration": "].some((???) => value1 === \"garden-\" + ???)",
+      "references": [
+        "L59: ].some((???) => value1 === \"garden-\" + ???)"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "softToken",
+      "declaration": "(???) => value1 === \"garden-\" + ???,",
+      "references": [
+        "L62: (???) => value1 === \"garden-\" + ???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "role",
+      "declaration": "let ??? = \"pillar\";",
+      "references": [
+        "L71: arg4[???].color"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "planItem",
+      "declaration": "export function courtyardPlanColor(???, arg4) {",
+      "references": [
+        "L14: let value1 = COURTYARD_VARIANT_BASES[???.type] || ???.type;",
+        "L15: (value1 === \"courtyard-area\" && (value1 = \"garden-\" + ???.drawing.style),",
+        "L19: ???.drawing.style === \"hedge\""
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/arrow",
+      "newName": "waterToken",
+      "declaration": ": [\"pond\", \"fountain\", \"pool\", \"rock-water\"].some((???) => value1 === \"garden-\" + ???)",
+      "references": [
+        "L44: : [\"pond\", \"fountain\", \"pool\", \"rock-water\"].some((???) => value1 === \"garden-\" + ???)"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/module-binding",
+      "newName": "variantBase",
+      "declaration": "let ??? = COURTYARD_VARIANT_BASES[arg3.type] || arg3.type;",
+      "references": [
+        "L15: (??? === \"courtyard-area\" && (??? = \"garden-\" + arg3.drawing.style),",
+        "L16: ??? === \"courtyard-path\" && (??? = \"garden-stepping\"),",
+        "L17: ??? === \"courtyard-fence\" &&"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "palette",
+      "declaration": "export function courtyardPlanColor(arg3, ???) {",
+      "references": [
+        "L71: ???[text1].color"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/arrow",
+      "newName": "kitchenToken",
+      "declaration": ": [\"barbecue\", \"outdoor-sink\"].some((???) => value1 === \"garden-\" + ???) &&",
+      "references": [
+        "L69: : [\"barbecue\", \"outdoor-sink\"].some((???) => value1 === \"garden-\" + ???) &&"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/arrow",
+      "newName": "lightToken",
+      "declaration": ": [\"bollard\", \"lantern\"].some((???) => value1 === \"garden-\" + ???)",
+      "references": [
+        "L67: : [\"bollard\", \"lantern\"].some((???) => value1 === \"garden-\" + ???)"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/arrow",
+      "newName": "tool",
+      "declaration": "courtyardToolAllowed = (???) =>",
+      "references": [
+        "L12: ].includes(???);"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/arrow",
+      "newName": "plantToken",
+      "declaration": "].some((???) => value1 === \"garden-\" + ???)",
+      "references": [
+        "L42: ].some((???) => value1 === \"garden-\" + ???)"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/arrow",
+      "newName": "candidateItem",
+      "declaration": "export const isCourtyardPlanItem = (???) =>",
+      "references": [
+        "L3: ????.type?.startsWith(\"garden-\") || ????.type?.startsWith(\"courtyard-\"),"
+      ]
+    }
+  ]
+}

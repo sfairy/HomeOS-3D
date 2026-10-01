@@ -1,0 +1,11 @@
+{
+  "frontend/static/3d-studio/studio-television-poster.js": {
+    "arg1@1": "canvasElement",
+    "arg2@1": "painter",
+    "arg3@36": "legendItem",
+    "arg4@36": "legendIndex",
+    "value1@37": "chipX",
+    "list1@72": "statCards",
+    "value2@102": "statCard"
+  }
+}

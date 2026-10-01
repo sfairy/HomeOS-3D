@@ -1,0 +1,77 @@
+{
+  "file": "frontend/static/virtual-entities.js",
+  "seed": "b5-virtual-entities",
+  "size": 30,
+  "candidates": 7,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/module-binding",
+      "newName": "kind",
+      "declaration": "const ??? = value1.slice(VIRTUAL_ENTITY_PREFIX.length, value2),",
+      "references": [
+        "L17: return ??? && value4",
+        "L19: kind: ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/other",
+      "newName": "scope",
+      "declaration": "??? = value1.slice(value2 + 1);",
+      "references": [
+        "L17: return value3 && ???",
+        "L20: scope: ???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "separatorIndex",
+      "declaration": "const ??? = value1.indexOf(\".\", VIRTUAL_ENTITY_PREFIX.length);",
+      "references": [
+        "L14: if (??? < 0) return null;",
+        "L15: const value3 = value1.slice(VIRTUAL_ENTITY_PREFIX.length, ???),",
+        "L16: value4 = value1.slice(??? + 1);"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "entityId",
+      "declaration": "export function parseVirtualEntityId(???) {",
+      "references": [
+        "L11: const value1 = String(??? || \"\");"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "text",
+      "declaration": "const ??? = String(arg1 || \"\");",
+      "references": [
+        "L12: if (!???.startsWith(VIRTUAL_ENTITY_PREFIX)) return null;",
+        "L13: const value2 = ???.indexOf(\".\", VIRTUAL_ENTITY_PREFIX.length);",
+        "L15: const value3 = ???.slice(VIRTUAL_ENTITY_PREFIX.length, value2),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "candidateId",
+      "declaration": "export function isVirtualEntityId(???) {",
+      "references": [
+        "L25: return !!parseVirtualEntityId(???);"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "pagePath",
+      "declaration": "export function createIconVisibilityVirtualEntity(??? = \"\") {",
+      "references": [
+        "L35: pagePath: String(??? || \"\"),"
+      ]
+    }
+  ]
+}

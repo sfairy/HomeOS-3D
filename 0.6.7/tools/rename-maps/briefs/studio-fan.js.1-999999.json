@@ -1,0 +1,2244 @@
+{
+  "file": "frontend/static/3d-studio/studio-fan.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 317,
+  "counts": {
+    "entries": 116,
+    "renameable": 116,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function fanDimensions(arg1 = {}) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "value1 = Math.max(0.6, Math.min(1.6, fn1(arg1.fanScale, fn1(arg1.width, 0.434) / 0.434))),"
+        },
+        {
+          "line": 4,
+          "text": "value2 = Math.max(0.65, Math.min(1.8, fn1(arg1.fanHeight, fn1(arg1.height, 1.23) / value1)));"
+        }
+      ]
+    },
+    {
+      "key": "fn1@2",
+      "name": "fn1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),",
+      "references": [
+        {
+          "line": 3,
+          "text": "value1 = Math.max(0.6, Math.min(1.6, fn1(arg1.fanScale, fn1(arg1.width, 0.434) / 0.434))),"
+        },
+        {
+          "line": 4,
+          "text": "value2 = Math.max(0.65, Math.min(1.8, fn1(arg1.fanHeight, fn1(arg1.height, 1.23) / value1)));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),",
+      "references": [
+        {
+          "line": 2,
+          "text": "const fn1 = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@2",
+      "name": "arg3",
+      "line": 2,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),",
+      "references": [
+        {
+          "line": 2,
+          "text": "const fn1 = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1 = Math.max(0.6, Math.min(1.6, fn1(arg1.fanScale, fn1(arg1.width, 0.434) / 0.434))),",
+      "references": [
+        {
+          "line": 4,
+          "text": "value2 = Math.max(0.65, Math.min(1.8, fn1(arg1.fanHeight, fn1(arg1.height, 1.23) / value1)));"
+        },
+        {
+          "line": 6,
+          "text": "fanScale: value1,"
+        },
+        {
+          "line": 8,
+          "text": "width: 0.434 * value1,"
+        },
+        {
+          "line": 9,
+          "text": "depth: 0.324 * value1,"
+        },
+        {
+          "line": 10,
+          "text": "height: value2 * value1,"
+        }
+      ]
+    },
+    {
+      "key": "value2@4",
+      "name": "value2",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = Math.max(0.65, Math.min(1.8, fn1(arg1.fanHeight, fn1(arg1.height, 1.23) / value1)));",
+      "references": [
+        {
+          "line": 7,
+          "text": "fanHeight: value2,"
+        },
+        {
+          "line": 10,
+          "text": "height: value2 * value1,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@13",
+      "name": "arg4",
+      "line": 13,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createFanModel(arg4, arg5, arg6, arg7) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value5 = new arg4.Mesh(arg9, arg10);"
+        },
+        {
+          "line": 37,
+          "text": "new arg4.CylinderGeometry(arg16, arg17, arg18, 48),"
+        },
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        },
+        {
+          "line": 55,
+          "text": "new arg4.LatheGeometry("
+        },
+        {
+          "line": 56,
+          "text": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),"
+        },
+        {
+          "line": 64,
+          "text": "return new arg4.TubeGeometry(new arg4.CatmullRomCurve3(arg45), 12, arg46, 4, false);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@13",
+      "name": "arg5",
+      "line": 13,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createFanModel(arg4, arg5, arg6, arg7) {",
+      "references": [
+        {
+          "line": 183,
+          "text": "(fn2(value16, arg5(list1), value8.body, \"rear-vent-bars\"),"
+        },
+        {
+          "line": 241,
+          "text": "const value23 = fn2(value16, arg5(list2), value8.soft, \"front-safety-grille\");"
+        },
+        {
+          "line": 243,
+          "text": "const value24 = fn2(value16, arg5(list3), value8.body, \"rear-safety-grille\");"
+        }
+      ]
+    },
+    {
+      "key": "arg6@13",
+      "name": "arg6",
+      "line": 13,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createFanModel(arg4, arg5, arg6, arg7) {",
+      "references": [
+        {
+          "line": 308,
+          "text": "value4 = fanDimensions(arg6);"
+        }
+      ]
+    },
+    {
+      "key": "arg7@13",
+      "name": "arg7",
+      "line": 13,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createFanModel(arg4, arg5, arg6, arg7) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "body: arg7.appliance,"
+        },
+        {
+          "line": 16,
+          "text": "soft: arg7.applianceSoft,"
+        },
+        {
+          "line": 17,
+          "text": "dark: arg7.applianceDark,"
+        },
+        {
+          "line": 18,
+          "text": "accent: arg7.warmWood ? arg7.woodDark : arg7.furnitureDark,"
+        },
+        {
+          "line": 19,
+          "text": "stem: arg7.warmWood ? arg7.wood : arg7.appliance,"
+        },
+        {
+          "line": 20,
+          "text": "base: arg7.appliance,"
+        }
+      ]
+    },
+    {
+      "key": "object1@14",
+      "name": "object1",
+      "line": 14,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 307,
+          "text": "const value3 = fn8(object1),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@23",
+      "name": "fn2",
+      "line": 23,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "return fn2("
+        },
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        },
+        {
+          "line": 53,
+          "text": "return fn2("
+        },
+        {
+          "line": 115,
+          "text": "fn2("
+        },
+        {
+          "line": 124,
+          "text": "const value14 = fn2("
+        },
+        {
+          "line": 183,
+          "text": "(fn2(value16, arg5(list1), value8.body, \"rear-vent-bars\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@23",
+      "name": "arg8",
+      "line": 23,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 30,
+          "text": "arg8.add(value5),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@23",
+      "name": "arg9",
+      "line": 23,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value5 = new arg4.Mesh(arg9, arg10);"
+        }
+      ]
+    },
+    {
+      "key": "arg10@23",
+      "name": "arg10",
+      "line": 23,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value5 = new arg4.Mesh(arg9, arg10);"
+        }
+      ]
+    },
+    {
+      "key": "arg11@23",
+      "name": "arg11",
+      "line": 23,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 26,
+          "text": "(value5.name = arg11),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@23",
+      "name": "arg12",
+      "line": 23,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "value5.position.set(arg12, arg13, arg14),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@23",
+      "name": "arg13",
+      "line": 23,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "value5.position.set(arg12, arg13, arg14),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@23",
+      "name": "arg14",
+      "line": 23,
+      "column": 63,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, arg13 = 0, arg14 = 0) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "value5.position.set(arg12, arg13, arg14),"
+        }
+      ]
+    },
+    {
+      "key": "value5@24",
+      "name": "value5",
+      "line": 24,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = new arg4.Mesh(arg9, arg10);",
+      "references": [
+        {
+          "line": 26,
+          "text": "(value5.name = arg11),"
+        },
+        {
+          "line": 27,
+          "text": "value5.position.set(arg12, arg13, arg14),"
+        },
+        {
+          "line": 28,
+          "text": "(value5.castShadow = true),"
+        },
+        {
+          "line": 29,
+          "text": "(value5.receiveShadow = true),"
+        },
+        {
+          "line": 30,
+          "text": "arg8.add(value5),"
+        },
+        {
+          "line": 31,
+          "text": "value5"
+        }
+      ]
+    },
+    {
+      "key": "fn3@34",
+      "name": "fn3",
+      "line": 34,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        },
+        {
+          "line": 81,
+          "text": "(fn3(value7, 0.153, 0.146, 0.012, value8.dark, \"base-foot\", 0, 0.009, 0),"
+        },
+        {
+          "line": 98,
+          "text": "fn3(value7, 0.034, 0.048, 0.024, value8.body, \"stem-socket\", 0, 0.061, -0.028));"
+        },
+        {
+          "line": 99,
+          "text": "const value9 = fn3(value7, 0.018, 0.022, 0.615, value8.stem, \"lower-column\", 0, 0.374, -0.028),"
+        },
+        {
+          "line": 100,
+          "text": "value10 = fn3("
+        },
+        {
+          "line": 111,
+          "text": "value11 = fn3(value7, 0.014, 0.014, 0.192, value8.soft, \"upper-column\", 0, 0.779, -0.028),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@34",
+      "name": "arg15",
+      "line": 34,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 36,
+          "text": "arg15,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@34",
+      "name": "arg16",
+      "line": 34,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 37,
+          "text": "new arg4.CylinderGeometry(arg16, arg17, arg18, 48),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@34",
+      "name": "arg17",
+      "line": 34,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 37,
+          "text": "new arg4.CylinderGeometry(arg16, arg17, arg18, 48),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@34",
+      "name": "arg18",
+      "line": 34,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 37,
+          "text": "new arg4.CylinderGeometry(arg16, arg17, arg18, 48),"
+        }
+      ]
+    },
+    {
+      "key": "arg19@34",
+      "name": "arg19",
+      "line": 34,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 38,
+          "text": "arg19,"
+        }
+      ]
+    },
+    {
+      "key": "arg20@34",
+      "name": "arg20",
+      "line": 34,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 39,
+          "text": "arg20,"
+        }
+      ]
+    },
+    {
+      "key": "arg21@34",
+      "name": "arg21",
+      "line": 34,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 40,
+          "text": "arg21,"
+        }
+      ]
+    },
+    {
+      "key": "arg22@34",
+      "name": "arg22",
+      "line": 34,
+      "column": 68,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 41,
+          "text": "arg22,"
+        }
+      ]
+    },
+    {
+      "key": "arg23@34",
+      "name": "arg23",
+      "line": 34,
+      "column": 79,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "arg23,"
+        }
+      ]
+    },
+    {
+      "key": "fn4@45",
+      "name": "fn4",
+      "line": 45,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 154,
+          "text": "fn4(value16, 0.018, 0.018, 0.045, value8.body, \"tilt-joint\", 0, -0.047, -0.071).rotation.set("
+        },
+        {
+          "line": 174,
+          "text": "fn4(value16, 0.061, 0.051, 0.115, value8.body, \"motor-shell\", 0, 0, -0.059),"
+        },
+        {
+          "line": 175,
+          "text": "fn4(value16, 0.05, 0.05, 0.009, value8.dark, \"rear-vent-recess\", 0, 0, -0.12));"
+        },
+        {
+          "line": 185,
+          "text": "fn4(value16, 0.014, 0.014, 0.003, value8.soft, \"rear-badge\", 0, 0, -0.131),"
+        },
+        {
+          "line": 209,
+          "text": "(fn4(value20, 0.037, 0.035, 0.025, value8.body, \"rotor-hub\", 0, 0, 0.009),"
+        },
+        {
+          "line": 210,
+          "text": "fn4(value20, 0.021, 0.027, 0.01, value8.soft, \"rotor-cap\", 0, 0, 0.026),"
+        }
+      ]
+    },
+    {
+      "key": "arg24@45",
+      "name": "arg24",
+      "line": 45,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg25@45",
+      "name": "arg25",
+      "line": 45,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg26@45",
+      "name": "arg26",
+      "line": 45,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg27@45",
+      "name": "arg27",
+      "line": 45,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg28@45",
+      "name": "arg28",
+      "line": 45,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg29@45",
+      "name": "arg29",
+      "line": 45,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg30@45",
+      "name": "arg30",
+      "line": 45,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg31@45",
+      "name": "arg31",
+      "line": 45,
+      "column": 68,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "arg32@45",
+      "name": "arg32",
+      "line": 45,
+      "column": 79,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+        }
+      ]
+    },
+    {
+      "key": "value6@46",
+      "name": "value6",
+      "line": 46,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, arg32);",
+      "references": [
+        {
+          "line": 47,
+          "text": "return ((value6.rotation.x = Math.PI / 2), value6);"
+        }
+      ]
+    },
+    {
+      "key": "fn5@49",
+      "name": "fn5",
+      "line": 49,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 211,
+          "text": "fn5(value16, 0.211, 0.006, value8.body, \"cage-rim\", 0.01),"
+        },
+        {
+          "line": 212,
+          "text": "fn5(value16, 0.209, 0.002, value8.soft, \"cage-front-seam\", 0.025),"
+        },
+        {
+          "line": 213,
+          "text": "fn5(value16, 0.209, 0.002, value8.dark, \"cage-rear-seam\", -0.008));"
+        },
+        {
+          "line": 246,
+          "text": "fn5(value16, 0.139, 0.0012, value8.soft, \"front-brace-ring\", 0.059),"
+        },
+        {
+          "line": 247,
+          "text": "fn5(value16, 0.146, 0.0013, value8.body, \"rear-brace-ring\", -0.028),"
+        }
+      ]
+    },
+    {
+      "key": "arg33@49",
+      "name": "arg33",
+      "line": 49,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "arg34@49",
+      "name": "arg34",
+      "line": 49,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "arg35@49",
+      "name": "arg35",
+      "line": 49,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "arg36@49",
+      "name": "arg36",
+      "line": 49,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "arg37@49",
+      "name": "arg37",
+      "line": 49,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "arg38@49",
+      "name": "arg38",
+      "line": 49,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+        }
+      ]
+    },
+    {
+      "key": "fn6@52",
+      "name": "fn6",
+      "line": 52,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg39, arg40, arg41, arg42) {",
+      "references": [
+        {
+          "line": 82,
+          "text": "fn6("
+        }
+      ]
+    },
+    {
+      "key": "arg39@52",
+      "name": "arg39",
+      "line": 52,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg39, arg40, arg41, arg42) {",
+      "references": [
+        {
+          "line": 54,
+          "text": "arg39,"
+        }
+      ]
+    },
+    {
+      "key": "arg40@52",
+      "name": "arg40",
+      "line": 52,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg39, arg40, arg41, arg42) {",
+      "references": [
+        {
+          "line": 56,
+          "text": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),"
+        }
+      ]
+    },
+    {
+      "key": "arg41@52",
+      "name": "arg41",
+      "line": 52,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg39, arg40, arg41, arg42) {",
+      "references": [
+        {
+          "line": 59,
+          "text": "arg41,"
+        }
+      ]
+    },
+    {
+      "key": "arg42@52",
+      "name": "arg42",
+      "line": 52,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg39, arg40, arg41, arg42) {",
+      "references": [
+        {
+          "line": 60,
+          "text": "arg42,"
+        }
+      ]
+    },
+    {
+      "key": "arg43@56",
+      "name": "arg43",
+      "line": 56,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),",
+      "references": [
+        {
+          "line": 56,
+          "text": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),"
+        }
+      ]
+    },
+    {
+      "key": "arg44@56",
+      "name": "arg44",
+      "line": 56,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),",
+      "references": [
+        {
+          "line": 56,
+          "text": "arg40.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),"
+        }
+      ]
+    },
+    {
+      "key": "fn7@63",
+      "name": "fn7",
+      "line": 63,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn7(arg45, arg46 = 0.0011) {",
+      "references": [
+        {
+          "line": 239,
+          "text": "(list2.push(fn7(list4, 0.00095)), list5.length && list3.push(fn7(list5, 0.00115)));"
+        }
+      ]
+    },
+    {
+      "key": "arg45@63",
+      "name": "arg45",
+      "line": 63,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn7(arg45, arg46 = 0.0011) {",
+      "references": [
+        {
+          "line": 64,
+          "text": "return new arg4.TubeGeometry(new arg4.CatmullRomCurve3(arg45), 12, arg46, 4, false);"
+        }
+      ]
+    },
+    {
+      "key": "arg46@63",
+      "name": "arg46",
+      "line": 63,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn7(arg45, arg46 = 0.0011) {",
+      "references": [
+        {
+          "line": 64,
+          "text": "return new arg4.TubeGeometry(new arg4.CatmullRomCurve3(arg45), 12, arg46, 4, false);"
+        }
+      ]
+    },
+    {
+      "key": "fn8@66",
+      "name": "fn8",
+      "line": 66,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn8(arg47) {",
+      "references": [
+        {
+          "line": 307,
+          "text": "const value3 = fn8(object1),"
+        }
+      ]
+    },
+    {
+      "key": "arg47@66",
+      "name": "arg47",
+      "line": 66,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn8(arg47) {",
+      "references": [
+        {
+          "line": 70,
+          "text": "Object.entries(arg47)"
+        },
+        {
+          "line": 276,
+          "text": "(value7.userData.theme = arg47));"
+        }
+      ]
+    },
+    {
+      "key": "value7@67",
+      "name": "value7",
+      "line": 67,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = new arg4.Group();",
+      "references": [
+        {
+          "line": 68,
+          "text": "value7.name = \"pedestal-fan\";"
+        },
+        {
+          "line": 81,
+          "text": "(fn3(value7, 0.153, 0.146, 0.012, value8.dark, \"base-foot\", 0, 0.009, 0),"
+        },
+        {
+          "line": 83,
+          "text": "value7,"
+        },
+        {
+          "line": 98,
+          "text": "fn3(value7, 0.034, 0.048, 0.024, value8.body, \"stem-socket\", 0, 0.061, -0.028));"
+        },
+        {
+          "line": 99,
+          "text": "const value9 = fn3(value7, 0.018, 0.022, 0.615, value8.stem, \"lower-column\", 0, 0.374, -0.028),"
+        },
+        {
+          "line": 101,
+          "text": "value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@69",
+      "name": "value8",
+      "line": 69,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = Object.fromEntries(",
+      "references": [
+        {
+          "line": 81,
+          "text": "(fn3(value7, 0.153, 0.146, 0.012, value8.dark, \"base-foot\", 0, 0.009, 0),"
+        },
+        {
+          "line": 95,
+          "text": "value8.base,"
+        },
+        {
+          "line": 98,
+          "text": "fn3(value7, 0.034, 0.048, 0.024, value8.body, \"stem-socket\", 0, 0.061, -0.028));"
+        },
+        {
+          "line": 99,
+          "text": "const value9 = fn3(value7, 0.018, 0.022, 0.615, value8.stem, \"lower-column\", 0, 0.374, -0.028),"
+        },
+        {
+          "line": 105,
+          "text": "value8.accent,"
+        },
+        {
+          "line": 111,
+          "text": "value11 = fn3(value7, 0.014, 0.014, 0.192, value8.soft, \"upper-column\", 0, 0.779, -0.028),"
+        }
+      ]
+    },
+    {
+      "key": "arg48@71",
+      "name": "arg48",
+      "line": 71,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter(([arg48]) => arg48 !== \"ground\")",
+      "references": [
+        {
+          "line": 71,
+          "text": ".filter(([arg48]) => arg48 !== \"ground\")"
+        }
+      ]
+    },
+    {
+      "key": "arg49@72",
+      "name": "arg49",
+      "line": 72,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map(([arg49, arg50]) => [",
+      "references": [
+        {
+          "line": 73,
+          "text": "arg49,"
+        },
+        {
+          "line": 76,
+          "text": "roughness: arg49 === \"stem\" ? 0.48 : 0.64,"
+        },
+        {
+          "line": 77,
+          "text": "metalness: arg49 === \"dark\" ? 0.13 : 0.04,"
+        }
+      ]
+    },
+    {
+      "key": "arg50@72",
+      "name": "arg50",
+      "line": 72,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map(([arg49, arg50]) => [",
+      "references": [
+        {
+          "line": 75,
+          "text": "color: arg50,"
+        }
+      ]
+    },
+    {
+      "key": "value9@99",
+      "name": "value9",
+      "line": 99,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = fn3(value7, 0.018, 0.022, 0.615, value8.stem, \"lower-column\", 0, 0.374, -0.028),",
+      "references": [
+        {
+          "line": 286,
+          "text": "((value9.scale.y = value44 / 0.615),"
+        },
+        {
+          "line": 287,
+          "text": "(value9.position.y = value41 + value44 / 2),"
+        }
+      ]
+    },
+    {
+      "key": "value10@100",
+      "name": "value10",
+      "line": 100,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = fn3(",
+      "references": [
+        {
+          "line": 288,
+          "text": "(value10.position.y = value41 + value44 - 0.0035),"
+        }
+      ]
+    },
+    {
+      "key": "value11@111",
+      "name": "value11",
+      "line": 111,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = fn3(value7, 0.014, 0.014, 0.192, value8.soft, \"upper-column\", 0, 0.779, -0.028),",
+      "references": [
+        {
+          "line": 289,
+          "text": "(value11.scale.y = value46 / 0.192),"
+        },
+        {
+          "line": 290,
+          "text": "(value11.position.y = value45 + value46 / 2),"
+        }
+      ]
+    },
+    {
+      "key": "value12@112",
+      "name": "value12",
+      "line": 112,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = fn3(value7, 0.026, 0.02, 0.035, value8.body, \"neck\", 0, 0.885, -0.028),",
+      "references": [
+        {
+          "line": 291,
+          "text": "(value12.position.y = 0.885 + value40),"
+        }
+      ]
+    },
+    {
+      "key": "value13@113",
+      "name": "value13",
+      "line": 113,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value13 = fn3(value7, 0.025, 0.025, 0.002, value8.dark, \"touch-pad\", 0, 0.054, 0.094);",
+      "references": [
+        {
+          "line": 114,
+          "text": "((value13.scale.z = 0.77),"
+        }
+      ]
+    },
+    {
+      "key": "value14@124",
+      "name": "value14",
+      "line": 124,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value14 = fn2(",
+      "references": []
+    },
+    {
+      "key": "value25@133",
+      "name": "value25",
+      "line": 133,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value25 = 0; value25 < 3; value25++)",
+      "references": [
+        {
+          "line": 133,
+          "text": "for (let value25 = 0; value25 < 3; value25++)"
+        },
+        {
+          "line": 141,
+          "text": "-0.009 + value25 * 0.009,"
+        }
+      ]
+    },
+    {
+      "key": "value15@145",
+      "name": "value15",
+      "line": 145,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = new arg4.Group();",
+      "references": [
+        {
+          "line": 146,
+          "text": "((value15.name = \"oscillation-pivot\"),"
+        },
+        {
+          "line": 147,
+          "text": "value15.position.set(0, 0.885, -0.028),"
+        },
+        {
+          "line": 148,
+          "text": "value7.add(value15));"
+        },
+        {
+          "line": 153,
+          "text": "value15.add(value16),"
+        },
+        {
+          "line": 292,
+          "text": "(value15.position.y = 0.885 + value40),"
+        },
+        {
+          "line": 300,
+          "text": "yaw: value15,"
+        }
+      ]
+    },
+    {
+      "key": "value16@149",
+      "name": "value16",
+      "line": 149,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = new arg4.Group();",
+      "references": [
+        {
+          "line": 150,
+          "text": "((value16.name = \"head-tilt\"),"
+        },
+        {
+          "line": 151,
+          "text": "(value16.position.y = 0.125),"
+        },
+        {
+          "line": 152,
+          "text": "(value16.rotation.x = -0.075),"
+        },
+        {
+          "line": 153,
+          "text": "value15.add(value16),"
+        },
+        {
+          "line": 154,
+          "text": "fn4(value16, 0.018, 0.018, 0.045, value8.body, \"tilt-joint\", 0, -0.047, -0.071).rotation.set("
+        },
+        {
+          "line": 163,
+          "text": "value16,"
+        }
+      ]
+    },
+    {
+      "key": "value17@159",
+      "name": "value17",
+      "line": 159,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = new arg4.Vector3(0, -0.132, -0.01),",
+      "references": [
+        {
+          "line": 161,
+          "text": "value19 = value17.clone().add(value18).multiplyScalar(0.5);"
+        },
+        {
+          "line": 166,
+          "text": "value17.distanceTo(value18),"
+        },
+        {
+          "line": 172,
+          "text": "value18.clone().sub(value17).normalize(),"
+        }
+      ]
+    },
+    {
+      "key": "value18@160",
+      "name": "value18",
+      "line": 160,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = new arg4.Vector3(0, -0.047, -0.071),",
+      "references": [
+        {
+          "line": 161,
+          "text": "value19 = value17.clone().add(value18).multiplyScalar(0.5);"
+        },
+        {
+          "line": 166,
+          "text": "value17.distanceTo(value18),"
+        },
+        {
+          "line": 172,
+          "text": "value18.clone().sub(value17).normalize(),"
+        }
+      ]
+    },
+    {
+      "key": "value19@161",
+      "name": "value19",
+      "line": 161,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = value17.clone().add(value18).multiplyScalar(0.5);",
+      "references": [
+        {
+          "line": 169,
+          "text": "...value19.toArray(),"
+        }
+      ]
+    },
+    {
+      "key": "list1@176",
+      "name": "list1",
+      "line": 176,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [];",
+      "references": [
+        {
+          "line": 181,
+          "text": "(value29.translate(value27, 0, -0.126), list1.push(value29));"
+        },
+        {
+          "line": 183,
+          "text": "(fn2(value16, arg5(list1), value8.body, \"rear-vent-bars\"),"
+        },
+        {
+          "line": 184,
+          "text": "list1.forEach((arg51) => arg51.dispose()),"
+        }
+      ]
+    },
+    {
+      "key": "value26@177",
+      "name": "value26",
+      "line": 177,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value26 = 0; value26 < 10; value26++) {",
+      "references": [
+        {
+          "line": 177,
+          "text": "for (let value26 = 0; value26 < 10; value26++) {"
+        },
+        {
+          "line": 178,
+          "text": "const value27 = (value26 - 4.5) * 0.0072,"
+        }
+      ]
+    },
+    {
+      "key": "value27@178",
+      "name": "value27",
+      "line": 178,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value27 = (value26 - 4.5) * 0.0072,",
+      "references": [
+        {
+          "line": 179,
+          "text": "value28 = 2 * Math.sqrt(0.044 ** 2 - value27 * value27),"
+        },
+        {
+          "line": 181,
+          "text": "(value29.translate(value27, 0, -0.126), list1.push(value29));"
+        }
+      ]
+    },
+    {
+      "key": "value28@179",
+      "name": "value28",
+      "line": 179,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value28 = 2 * Math.sqrt(0.044 ** 2 - value27 * value27),",
+      "references": [
+        {
+          "line": 180,
+          "text": "value29 = new arg4.BoxGeometry(0.003, value28, 0.004);"
+        }
+      ]
+    },
+    {
+      "key": "value29@180",
+      "name": "value29",
+      "line": 180,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = new arg4.BoxGeometry(0.003, value28, 0.004);",
+      "references": [
+        {
+          "line": 181,
+          "text": "(value29.translate(value27, 0, -0.126), list1.push(value29));"
+        }
+      ]
+    },
+    {
+      "key": "arg51@184",
+      "name": "arg51",
+      "line": 184,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1.forEach((arg51) => arg51.dispose()),",
+      "references": [
+        {
+          "line": 184,
+          "text": "list1.forEach((arg51) => arg51.dispose()),"
+        }
+      ]
+    },
+    {
+      "key": "value20@188",
+      "name": "value20",
+      "line": 188,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = new arg4.Group();",
+      "references": [
+        {
+          "line": 189,
+          "text": "((value20.name = \"blade-rotor\"), (value20.position.z = 0.024), value16.add(value20));"
+        },
+        {
+          "line": 206,
+          "text": "const value31 = fn2(value20, value22, value8.blade, \"blade-\" + (value30 + 1));"
+        },
+        {
+          "line": 209,
+          "text": "(fn4(value20, 0.037, 0.035, 0.025, value8.body, \"rotor-hub\", 0, 0, 0.009),"
+        },
+        {
+          "line": 210,
+          "text": "fn4(value20, 0.021, 0.027, 0.01, value8.soft, \"rotor-cap\", 0, 0, 0.026),"
+        },
+        {
+          "line": 301,
+          "text": "rotor: value20,"
+        }
+      ]
+    },
+    {
+      "key": "value21@190",
+      "name": "value21",
+      "line": 190,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 = new arg4.Shape();",
+      "references": [
+        {
+          "line": 191,
+          "text": "(value21.moveTo(0.025, -0.019),"
+        },
+        {
+          "line": 192,
+          "text": "value21.bezierCurveTo(0.077, -0.064, 0.152, -0.056, 0.179, -0.011),"
+        },
+        {
+          "line": 193,
+          "text": "value21.bezierCurveTo(0.195, 0.015, 0.18, 0.049, 0.16, 0.061),"
+        },
+        {
+          "line": 194,
+          "text": "value21.bezierCurveTo(0.128, 0.081, 0.081, 0.052, 0.025, 0.022),"
+        },
+        {
+          "line": 195,
+          "text": "value21.quadraticCurveTo(0.016, 0, 0.025, -0.019));"
+        },
+        {
+          "line": 196,
+          "text": "const value22 = new arg4.ExtrudeGeometry(value21, {"
+        }
+      ]
+    },
+    {
+      "key": "value22@196",
+      "name": "value22",
+      "line": 196,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = new arg4.ExtrudeGeometry(value21, {",
+      "references": [
+        {
+          "line": 206,
+          "text": "const value31 = fn2(value20, value22, value8.blade, \"blade-\" + (value30 + 1));"
+        }
+      ]
+    },
+    {
+      "key": "value30@205",
+      "name": "value30",
+      "line": 205,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value30 = 0; value30 < 5; value30++) {",
+      "references": [
+        {
+          "line": 205,
+          "text": "for (let value30 = 0; value30 < 5; value30++) {"
+        },
+        {
+          "line": 206,
+          "text": "const value31 = fn2(value20, value22, value8.blade, \"blade-\" + (value30 + 1));"
+        },
+        {
+          "line": 207,
+          "text": "((value31.rotation.z = (value30 * Math.PI * 2) / 5), (value31.rotation.y = -0.09));"
+        }
+      ]
+    },
+    {
+      "key": "value31@206",
+      "name": "value31",
+      "line": 206,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value31 = fn2(value20, value22, value8.blade, \"blade-\" + (value30 + 1));",
+      "references": [
+        {
+          "line": 207,
+          "text": "((value31.rotation.z = (value30 * Math.PI * 2) / 5), (value31.rotation.y = -0.09));"
+        }
+      ]
+    },
+    {
+      "key": "list2@214",
+      "name": "list2",
+      "line": 214,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list2 = [],",
+      "references": [
+        {
+          "line": 239,
+          "text": "(list2.push(fn7(list4, 0.00095)), list5.length && list3.push(fn7(list5, 0.00115)));"
+        },
+        {
+          "line": 241,
+          "text": "const value23 = fn2(value16, arg5(list2), value8.soft, \"front-safety-grille\");"
+        },
+        {
+          "line": 245,
+          "text": "[...list2, ...list3].forEach((arg52) => arg52.dispose()),"
+        }
+      ]
+    },
+    {
+      "key": "list3@215",
+      "name": "list3",
+      "line": 215,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3 = [];",
+      "references": [
+        {
+          "line": 239,
+          "text": "(list2.push(fn7(list4, 0.00095)), list5.length && list3.push(fn7(list5, 0.00115)));"
+        },
+        {
+          "line": 243,
+          "text": "const value24 = fn2(value16, arg5(list3), value8.body, \"rear-safety-grille\");"
+        },
+        {
+          "line": 245,
+          "text": "[...list2, ...list3].forEach((arg52) => arg52.dispose()),"
+        }
+      ]
+    },
+    {
+      "key": "value32@216",
+      "name": "value32",
+      "line": 216,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value32 = 0; value32 < 56; value32++) {",
+      "references": [
+        {
+          "line": 216,
+          "text": "for (let value32 = 0; value32 < 56; value32++) {"
+        },
+        {
+          "line": 217,
+          "text": "const value33 = (value32 * Math.PI * 2) / 56,"
+        },
+        {
+          "line": 230,
+          "text": "value32 % 2 === 0 &&"
+        }
+      ]
+    },
+    {
+      "key": "value33@217",
+      "name": "value33",
+      "line": 217,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value33 = (value32 * Math.PI * 2) / 56,",
+      "references": [
+        {
+          "line": 225,
+          "text": "Math.cos(value33) * value35,"
+        },
+        {
+          "line": 226,
+          "text": "Math.sin(value33) * value35,"
+        },
+        {
+          "line": 233,
+          "text": "Math.cos(value33) * value35,"
+        },
+        {
+          "line": 234,
+          "text": "Math.sin(value33) * value35,"
+        }
+      ]
+    },
+    {
+      "key": "list4@218",
+      "name": "list4",
+      "line": 218,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list4 = [],",
+      "references": [
+        {
+          "line": 223,
+          "text": "(list4.push("
+        },
+        {
+          "line": 239,
+          "text": "(list2.push(fn7(list4, 0.00095)), list5.length && list3.push(fn7(list5, 0.00115)));"
+        }
+      ]
+    },
+    {
+      "key": "list5@219",
+      "name": "list5",
+      "line": 219,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list5 = [];",
+      "references": [
+        {
+          "line": 231,
+          "text": "list5.push("
+        },
+        {
+          "line": 239,
+          "text": "(list2.push(fn7(list4, 0.00095)), list5.length && list3.push(fn7(list5, 0.00115)));"
+        }
+      ]
+    },
+    {
+      "key": "value34@220",
+      "name": "value34",
+      "line": 220,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value34 = 0; value34 <= 6; value34++) {",
+      "references": [
+        {
+          "line": 220,
+          "text": "for (let value34 = 0; value34 <= 6; value34++) {"
+        },
+        {
+          "line": 221,
+          "text": "const value35 = 0.036 + (0.172 * value34) / 6,"
+        }
+      ]
+    },
+    {
+      "key": "value35@221",
+      "name": "value35",
+      "line": 221,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value35 = 0.036 + (0.172 * value34) / 6,",
+      "references": [
+        {
+          "line": 222,
+          "text": "value36 = Math.sqrt(Math.max(0, 1 - (value35 / 0.214) ** 2));"
+        },
+        {
+          "line": 225,
+          "text": "Math.cos(value33) * value35,"
+        },
+        {
+          "line": 226,
+          "text": "Math.sin(value33) * value35,"
+        },
+        {
+          "line": 233,
+          "text": "Math.cos(value33) * value35,"
+        },
+        {
+          "line": 234,
+          "text": "Math.sin(value33) * value35,"
+        }
+      ]
+    },
+    {
+      "key": "value36@222",
+      "name": "value36",
+      "line": 222,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value36 = Math.sqrt(Math.max(0, 1 - (value35 / 0.214) ** 2));",
+      "references": [
+        {
+          "line": 227,
+          "text": "0.024 + 0.046 * value36,"
+        },
+        {
+          "line": 235,
+          "text": "0.006 - 0.047 * value36,"
+        }
+      ]
+    },
+    {
+      "key": "value23@241",
+      "name": "value23",
+      "line": 241,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value23 = fn2(value16, arg5(list2), value8.soft, \"front-safety-grille\");",
+      "references": [
+        {
+          "line": 242,
+          "text": "value23.castShadow = false;"
+        }
+      ]
+    },
+    {
+      "key": "value24@243",
+      "name": "value24",
+      "line": 243,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = fn2(value16, arg5(list3), value8.body, \"rear-safety-grille\");",
+      "references": [
+        {
+          "line": 244,
+          "text": "((value24.castShadow = false),"
+        }
+      ]
+    },
+    {
+      "key": "arg52@245",
+      "name": "arg52",
+      "line": 245,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[...list2, ...list3].forEach((arg52) => arg52.dispose()),",
+      "references": [
+        {
+          "line": 245,
+          "text": "[...list2, ...list3].forEach((arg52) => arg52.dispose()),"
+        }
+      ]
+    },
+    {
+      "key": "value37@259",
+      "name": "value37",
+      "line": 259,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value37 of [Math.PI / 2, (Math.PI * 7) / 6, (Math.PI * 11) / 6]) {",
+      "references": [
+        {
+          "line": 265,
+          "text": "Math.cos(value37) * 0.211,"
+        },
+        {
+          "line": 266,
+          "text": "Math.sin(value37) * 0.211,"
+        },
+        {
+          "line": 269,
+          "text": "value38.rotation.z = value37 - Math.PI / 2;"
+        }
+      ]
+    },
+    {
+      "key": "value38@260",
+      "name": "value38",
+      "line": 260,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value38 = fn2(",
+      "references": [
+        {
+          "line": 269,
+          "text": "value38.rotation.z = value37 - Math.PI / 2;"
+        }
+      ]
+    },
+    {
+      "key": "fn9@277",
+      "name": "fn9",
+      "line": 277,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn9(arg53) {",
+      "references": [
+        {
+          "line": 303,
+          "text": "setHeight: fn9,"
+        }
+      ]
+    },
+    {
+      "key": "arg53@277",
+      "name": "arg53",
+      "line": 277,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn9(arg53) {",
+      "references": [
+        {
+          "line": 278,
+          "text": "const value39 = arg4.MathUtils.clamp(arg53, 0.65, 1.8),"
+        }
+      ]
+    },
+    {
+      "key": "value39@278",
+      "name": "value39",
+      "line": 278,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value39 = arg4.MathUtils.clamp(arg53, 0.65, 1.8),",
+      "references": [
+        {
+          "line": 279,
+          "text": "value40 = value39 - 1.23,"
+        },
+        {
+          "line": 293,
+          "text": "(value7.userData.dimensions.height = value39));"
+        }
+      ]
+    },
+    {
+      "key": "value40@279",
+      "name": "value40",
+      "line": 279,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value40 = value39 - 1.23,",
+      "references": [
+        {
+          "line": 281,
+          "text": "value42 = 0.875 + value40,"
+        },
+        {
+          "line": 291,
+          "text": "(value12.position.y = 0.885 + value40),"
+        },
+        {
+          "line": 292,
+          "text": "(value15.position.y = 0.885 + value40),"
+        }
+      ]
+    },
+    {
+      "key": "value41@280",
+      "name": "value41",
+      "line": 280,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value41 = 0.0665,",
+      "references": [
+        {
+          "line": 282,
+          "text": "value43 = value42 - value41,"
+        },
+        {
+          "line": 284,
+          "text": "value45 = value41 + value44 - 0.01,"
+        },
+        {
+          "line": 287,
+          "text": "(value9.position.y = value41 + value44 / 2),"
+        },
+        {
+          "line": 288,
+          "text": "(value10.position.y = value41 + value44 - 0.0035),"
+        }
+      ]
+    },
+    {
+      "key": "value42@281",
+      "name": "value42",
+      "line": 281,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value42 = 0.875 + value40,",
+      "references": [
+        {
+          "line": 282,
+          "text": "value43 = value42 - value41,"
+        },
+        {
+          "line": 285,
+          "text": "value46 = value42 - value45;"
+        }
+      ]
+    },
+    {
+      "key": "value43@282",
+      "name": "value43",
+      "line": 282,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value43 = value42 - value41,",
+      "references": [
+        {
+          "line": 283,
+          "text": "value44 = Math.min(0.615, Math.max(0.145, value43 - 0.09)),"
+        }
+      ]
+    },
+    {
+      "key": "value44@283",
+      "name": "value44",
+      "line": 283,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value44 = Math.min(0.615, Math.max(0.145, value43 - 0.09)),",
+      "references": [
+        {
+          "line": 284,
+          "text": "value45 = value41 + value44 - 0.01,"
+        },
+        {
+          "line": 286,
+          "text": "((value9.scale.y = value44 / 0.615),"
+        },
+        {
+          "line": 287,
+          "text": "(value9.position.y = value41 + value44 / 2),"
+        },
+        {
+          "line": 288,
+          "text": "(value10.position.y = value41 + value44 - 0.0035),"
+        }
+      ]
+    },
+    {
+      "key": "value45@284",
+      "name": "value45",
+      "line": 284,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value45 = value41 + value44 - 0.01,",
+      "references": [
+        {
+          "line": 285,
+          "text": "value46 = value42 - value45;"
+        },
+        {
+          "line": 290,
+          "text": "(value11.position.y = value45 + value46 / 2),"
+        }
+      ]
+    },
+    {
+      "key": "value46@285",
+      "name": "value46",
+      "line": 285,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value46 = value42 - value45;",
+      "references": [
+        {
+          "line": 289,
+          "text": "(value11.scale.y = value46 / 0.192),"
+        },
+        {
+          "line": 290,
+          "text": "(value11.position.y = value45 + value46 / 2),"
+        }
+      ]
+    },
+    {
+      "key": "fn10@295",
+      "name": "fn10",
+      "line": 295,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn10(arg54) {",
+      "references": [
+        {
+          "line": 304,
+          "text": "setScale: fn10,"
+        }
+      ]
+    },
+    {
+      "key": "arg54@295",
+      "name": "arg54",
+      "line": 295,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn10(arg54) {",
+      "references": [
+        {
+          "line": 296,
+          "text": "value7.scale.setScalar(arg4.MathUtils.clamp(arg54, 0.6, 1.6));"
+        }
+      ]
+    },
+    {
+      "key": "value3@307",
+      "name": "value3",
+      "line": 307,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = fn8(object1),",
+      "references": [
+        {
+          "line": 310,
+          "text": "value3.setHeight(value4.fanHeight),"
+        },
+        {
+          "line": 311,
+          "text": "value3.setScale(value4.fanScale),"
+        },
+        {
+          "line": 312,
+          "text": "(value3.yaw.userData.fanPart = \"yaw\"),"
+        },
+        {
+          "line": 313,
+          "text": "(value3.rotor.userData.fanPart = \"rotor\"),"
+        },
+        {
+          "line": 314,
+          "text": "value3.root"
+        }
+      ]
+    },
+    {
+      "key": "value4@308",
+      "name": "value4",
+      "line": 308,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = fanDimensions(arg6);",
+      "references": [
+        {
+          "line": 310,
+          "text": "value3.setHeight(value4.fanHeight),"
+        },
+        {
+          "line": 311,
+          "text": "value3.setScale(value4.fanScale),"
+        }
+      ]
+    }
+  ]
+}

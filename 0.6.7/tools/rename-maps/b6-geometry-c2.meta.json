@@ -1,0 +1,123 @@
+{
+  "batchId": "b6-geometry-c2",
+  "wave": 2,
+  "recordedAt": "2026-09-30T09:20:00+08:00",
+  "file": "frontend/static/3d-studio/geometry.js",
+  "declStart": 868,
+  "declEnd": 1466,
+  "map": "tools/rename-maps/geometry-c2.json",
+  "mapSha256": "0feecfdae2973d0b2bd26244e30ae975606841d90fcfd1376f0fc910b43c3df2",
+  "brief": "tools/rename-maps/briefs/geometry-c2.json",
+  "briefSha256": "1715db1ed38353772541af11ac74efb107f75ae6444a8aa5141c578b48127217",
+  "fileSha256Before": "6a47845284721290812dd3a9658ba29bbbda2cd0d9b477e101f83fbe6dda5e0b",
+  "fileSha256After": "f391264f7a5c9bf57eea5bae6a166dcf48853e62c669821861ce7062a96123b0",
+  "linesBefore": 1807,
+  "linesAfter": 1936,
+  "bindings": 301,
+  "byKind": {
+    "mechanical": 295,
+    "short": 6
+  },
+  "residue": {
+    "file": {
+      "before": {
+        "mechanical": 462,
+        "short": 11,
+        "frozen": 41
+      },
+      "after": {
+        "mechanical": 167,
+        "short": 5,
+        "frozen": 41
+      }
+    },
+    "tree": {
+      "mechanical": {
+        "before": 26610,
+        "after": 26315
+      },
+      "short": {
+        "before": 3597,
+        "after": 3591
+      }
+    },
+    "note": "geometry.js is a three-chunk file; this batch renamed chunk 1 of the residue left after b5. 172 mechanically-named bindings (167 mechanical + 5 short) remain and are chunk 2 (planned decl 1467-1798 on the pre-batch file)."
+  },
+  "author": "claude (DSH session)",
+  "reviewer": "claude (same session - see review.note)",
+  "review": {
+    "method": "blind-cards",
+    "tool": "tools/review_sample.mjs",
+    "seed": "b6-geometry-c2",
+    "n": 30,
+    "sampleRate": "30/301 = 10%",
+    "round1": {
+      "wrong": 0,
+      "unclear": 0
+    },
+    "wrong": 0,
+    "unclear": 0,
+    "verdict": "pass",
+    "findings": [],
+    "note": "30 drawings (strata arrow / function-or-class / function-parameter / module-binding / other over both the mechanical and short buckets); every blind reading matched the name the batch chose, and the readings were written to /tmp/hb-b6-verdicts.tsv before /tmp/hb-b6-key.json was opened. The batch author drew the sample and reviewed it, so this shows the names agree with the evidence; it is not independent review."
+  },
+  "toolingCorrections": [
+    "tools/check_glossary.mjs caught one map/reference collision before apply: arg226@1377 -> splitParam clashed with the wall splitting section's value178@1395 splitParam (\"the file already binds or references \"splitParam\" for something else\"). Renamed to nextSplitParam, which is what the cursor actually advances through.",
+    "tools/check_glossary.mjs must be run with --applied once a batch has been applied: without it the checker resolves map keys against the post-apply tree, where the old keys no longer exist, and reports errors=301 (every entry) plus warnings=301. With --applied it reads the batch rollback copy and reports errors=0 warnings=303, which is what this sidecar records."
+  ],
+  "glossaryVersion": 2,
+  "glossary": {
+    "entries": 301,
+    "sanctioned": 0,
+    "covered": 0,
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 303,
+    "printedWarnLines": 303,
+    "neologisms": "tools/rename-maps/b6-geometry-c2.neologisms.txt"
+  },
+  "oracles": {
+    "coverage": "# declared bindings 814 / residue in range 301 / map entries 301 / resolved 301 / unresolved 0 / out of range 0 / MISSED 0 - COVERAGE OK",
+    "anchors": "resolved=285 unresolved=16 anchored=0 satisfied=0 unsatisfied=0 unanchored-selectors=0 - PASS (a geometry module has no DOM selectors, so anchored=0 is honest)",
+    "kinds": "resolved=301 unresolved=0 shape-undecided=265 errors=0 - PASS"
+  },
+  "variants": {
+    "ownerLimited": [
+      "intersection point -> intersectionPoint (value150@932) / wallIntersectionPoint (value135@899) / wallCrossingPoint (value75@318 post-b5)",
+      "tolerance -> toleranceValue / edgeToleranceValue (value240@1218) / distanceTolerance (arg199@1248) / crossTolerance (value255@1298) / validationTolerance (value276@1441) / endpointEpsilonValue (value168@1030)",
+      "split param -> splitParam (value178@1395, the wall splitter) / leftSplitParam (value260@1416) / rightSplitParam (value261@1416) / nextSplitParam (arg226@1377) / wallSplitParams (value68@261)",
+      "projection -> projectionRatio / wallProjection (value117@317) / segmentProjection (value112@878) / projectionEntry (value113@879) / leftProjection / rightProjection / firstEdgeProjectionT (value248@1291)",
+      "edge -> edges (value241@1284) / outputEdges (value262@1417) / candidateEdges (value292@1452) / sourceEdge (value264@1419) / currentEdge (value295@1457) / turnEdge (value300@1460) / startEdge (value288@1454) / outputEdge (value269@1425) / edgeEntry (value272@1427) / edgeKey (value268@1424)",
+      "delta -> solidWallDeltaX/Y (value170/171@1009-1010) / segmentDeltaX/Y (b5) / firstEdgeStartDelta (value250@1292) / edgeStartDelta (value253@1295) / localDeltaX/Y (value215/216@1147) / targetDeltaX/Y (value234/235@1183) / sourceDeltaX/Y (value236/237@1185)",
+      "opening -> opening (value196@1093) / windowOpening (value157@959) / openingWidth (value197@1094) / openingCenter (value198@1095) / openingBottom (value199@1096) / openingTop (value200@1097) / openingPiece (value201@1098)",
+      "loop -> loop (value256@1296) / areaLoop (arg215@1294) / variantLoops (value256 block, planner key value256@1296) / primaryLoop (value258@1304) / exclusionLoop (value259@1305) / rawLoops (value303@1462) / mergedLoops (value285@1452) / cleanedLoop (value302@1462) / firstAreaLoop (arg237@1463) / secondAreaLoop (value304@1463)",
+      "point -> testPoint (value211@1140) / referencePoint (value224@1176) / anchorPosition (value227@1178) / candidatePoint (value257@1304) / quantizedPointMap (value247@1290) / segmentStartPoint (value264@1420) / entryPoint (value291@1456) / exitPoint (value292@1456) / chainPoints (value290@1455) / wallQueryPoint (value155@937)"
+    ]
+  },
+  "newConcepts": [
+    "2-D geometry helpers given real names (all five were single-letter bindings): cross2d (K@1230, a.x*b.y - a.y*b.x) / pointDelta (k@1233, {x:a.x-b.x, y:a.y-b.y}) / lerpPoint (Y@1239, a + (b-a)*t) / pushClampedT (D@1245, clamps t into 0..1 by tolerance before pushing) / clampT (w@1248, distance-tolerance dedupe along a loop)",
+    "wall snapping: closestAnchorHit (value146@868) / findNearestSegmentHit / findAlignedSegmentHit / snapPoint / intersectionEndpoint (arg130@870) / alignedSegmentHit (value147@884) / bestTargetWallHit (value148@893) / snappedEndpointHit",
+    "wall joins: joinWalls / junctionGroups / junctionAt / incidentVector / incidentAngleGap / joinOffsetBase / startJoinOffset / endJoinOffset / ANGLE_EPSILON (value167@1029 = 0.0001)",
+    "wall solid pieces: wallSolidPieces / solidTargetWall / openingTop (value200@1097) / splitPositions (value202@1098) / solidPiece / mergedSpans / cursorBottom (value206@1103) / positionMidpoint (value207@1105)",
+    "rotated-rectangle sizing: pointInRotatedRectangle / rotatedRectangle / sourceRectangle / targetRectangle / referenceSpan / directionSignX/Y / snappedRectangle",
+    "polygon boolean union/subtract: subtractPolygonLoops / unionPolygonLoops (B@1284) / validatedUnionPolygonLoops / quantizedPointMap / emittedPointKeySet / edgesByStartKey / turnEdge / cleanedLoop / validationTolerance"
+  ],
+  "gate": {
+    "batch": "24/0",
+    "tree": "23/0",
+    "smoke": "skip",
+    "delta": "# files=12365 changed=1 missing=0 added=3 declared=1 outside-declared=0",
+    "detail": "batch gate green: §7 files=230 with-residue=205 mechanical=26315 short=3591 semantic=6813 exported-frozen=941 parse-failures=0 (ratchet 26610/3597 still the pre-batch value during the run); §14 batch=b6-geometry-c2 snapshots=1 declared=1 missing=0 extra=0; §15 strings-checked=1 strings-mismatched=0; §16 all four oracle lines green. verify_all.sh 23 passed / 0 failed, §19 SKIP (no server on this machine)."
+  },
+  "ratchet": {
+    "mechanical": {
+      "before": 26610,
+      "after": 26315
+    },
+    "short": {
+      "before": 3597,
+      "after": 3591
+    }
+  },
+  "rollback": ".restore/batch-snapshots/b6-geometry-c2/frontend/static/3d-studio/geometry.js (sha256 6a47845284721290812dd3a9658ba29bbbda2cd0d9b477e101f83fbe6dda5e0b)"
+}

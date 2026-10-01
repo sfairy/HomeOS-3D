@@ -1,0 +1,120 @@
+{
+  "file": "frontend/static/ui-packs/loader.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 43,
+  "counts": {
+    "entries": 5,
+    "renameable": 5,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "n@12",
+      "name": "n",
+      "line": 12,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const n = new Map();",
+      "references": [
+        {
+          "line": 15,
+          "text": "if (n.has(arg1.id)) return n.get(arg1.id);"
+        },
+        {
+          "line": 31,
+          "text": "throw (n.delete(arg1.id), arg2);"
+        },
+        {
+          "line": 33,
+          "text": "return (n.set(arg1.id, value1), value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@13",
+      "name": "arg1",
+      "line": 13,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export async function ensureUiPackRuntime(arg1) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "if (!arg1?.id) throw new Error(\"UI 方案信息不完整。\");"
+        },
+        {
+          "line": 15,
+          "text": "if (n.has(arg1.id)) return n.get(arg1.id);"
+        },
+        {
+          "line": 17,
+          "text": "if (arg1.runtimeUrl) {"
+        },
+        {
+          "line": 19,
+          "text": "globalThis.HABridgeEmbed?.url(arg1.runtimeUrl) || arg1.runtimeUrl"
+        },
+        {
+          "line": 27,
+          "text": "if (!hasUiPackDefinition(arg1.id))"
+        },
+        {
+          "line": 28,
+          "text": "throw new Error(\"UI 方案“\" + (arg1.name || arg1.id) + \"”运行时注册失败。\");"
+        }
+      ]
+    },
+    {
+      "key": "value1@16",
+      "name": "value1",
+      "line": 16,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = (async () => {",
+      "references": [
+        {
+          "line": 33,
+          "text": "return (n.set(arg1.id, value1), value1);"
+        }
+      ]
+    },
+    {
+      "key": "value2@18",
+      "name": "value2",
+      "line": 18,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = await import(",
+      "references": [
+        {
+          "line": 21,
+          "text": "typeof value2.registerUIPackRuntime == \"function\" &&"
+        },
+        {
+          "line": 22,
+          "text": "(await value2.registerUIPackRuntime({"
+        }
+      ]
+    },
+    {
+      "key": "arg2@30",
+      "name": "arg2",
+      "line": 30,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "})().catch((arg2) => {",
+      "references": [
+        {
+          "line": 31,
+          "text": "throw (n.delete(arg1.id), arg2);"
+        }
+      ]
+    }
+  ]
+}

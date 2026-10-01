@@ -1,0 +1,237 @@
+{
+  "file": "frontend/static/modules/interaction3d/preview-layout.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 14,
+  "counts": {
+    "entries": 12,
+    "renameable": 12,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "i@1",
+      "name": "i",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = (arg1, arg2) => (Number.isFinite(Number(arg1)) && Number(arg1) > 0 ? Number(arg1) : arg2);",
+      "references": [
+        {
+          "line": 5,
+          "text": "value3 = i(value2?.width, value1 ? 2778 : 100),"
+        },
+        {
+          "line": 6,
+          "text": "value4 = i(value2?.height, value1 ? 1940 : 100),"
+        },
+        {
+          "line": 7,
+          "text": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const i = (arg1, arg2) => (Number.isFinite(Number(arg1)) && Number(arg1) > 0 ? Number(arg1) : arg2);",
+      "references": [
+        {
+          "line": 1,
+          "text": "const i = (arg1, arg2) => (Number.isFinite(Number(arg1)) && Number(arg1) > 0 ? Number(arg1) : arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const i = (arg1, arg2) => (Number.isFinite(Number(arg1)) && Number(arg1) > 0 ? Number(arg1) : arg2);",
+      "references": [
+        {
+          "line": 1,
+          "text": "const i = (arg1, arg2) => (Number.isFinite(Number(arg1)) && Number(arg1) > 0 ? Number(arg1) : arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@2",
+      "name": "arg3",
+      "line": 2,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function interaction3dPreviewSize(arg3, arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "const value1 = arg3.properties?.layoutMode === \"fill\","
+        },
+        {
+          "line": 4,
+          "text": "value2 = value1 ? arg4?.canvas : arg3.position,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@2",
+      "name": "arg4",
+      "line": 2,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function interaction3dPreviewSize(arg3, arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "value2 = value1 ? arg4?.canvas : arg3.position,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@2",
+      "name": "arg5",
+      "line": 2,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function interaction3dPreviewSize(arg3, arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@2",
+      "name": "arg6",
+      "line": 2,
+      "column": 59,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function interaction3dPreviewSize(arg3, arg4, arg5, arg6) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg3.properties?.layoutMode === \"fill\",",
+      "references": [
+        {
+          "line": 4,
+          "text": "value2 = value1 ? arg4?.canvas : arg3.position,"
+        },
+        {
+          "line": 5,
+          "text": "value3 = i(value2?.width, value1 ? 2778 : 100),"
+        },
+        {
+          "line": 6,
+          "text": "value4 = i(value2?.height, value1 ? 1940 : 100),"
+        }
+      ]
+    },
+    {
+      "key": "value2@4",
+      "name": "value2",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = value1 ? arg4?.canvas : arg3.position,",
+      "references": [
+        {
+          "line": 5,
+          "text": "value3 = i(value2?.width, value1 ? 2778 : 100),"
+        },
+        {
+          "line": 6,
+          "text": "value4 = i(value2?.height, value1 ? 1940 : 100),"
+        }
+      ]
+    },
+    {
+      "key": "value3@5",
+      "name": "value3",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = i(value2?.width, value1 ? 2778 : 100),",
+      "references": [
+        {
+          "line": 7,
+          "text": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);"
+        },
+        {
+          "line": 9,
+          "text": "width: value3 * value5,"
+        },
+        {
+          "line": 11,
+          "text": "aspectRatio: value3 / value4,"
+        }
+      ]
+    },
+    {
+      "key": "value4@6",
+      "name": "value4",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = i(value2?.height, value1 ? 1940 : 100),",
+      "references": [
+        {
+          "line": 7,
+          "text": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);"
+        },
+        {
+          "line": 10,
+          "text": "height: value4 * value5,"
+        },
+        {
+          "line": 11,
+          "text": "aspectRatio: value3 / value4,"
+        }
+      ]
+    },
+    {
+      "key": "value5@7",
+      "name": "value5",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = Math.min(i(arg5, 0) / value3, i(arg6, 0) / value4);",
+      "references": [
+        {
+          "line": 9,
+          "text": "width: value3 * value5,"
+        },
+        {
+          "line": 10,
+          "text": "height: value4 * value5,"
+        }
+      ]
+    }
+  ]
+}

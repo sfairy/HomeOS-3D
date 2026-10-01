@@ -1,0 +1,180 @@
+{
+  "file": "frontend/static/editor-picker-queries.js",
+  "seed": "b7-editor-picker-queries",
+  "size": 30,
+  "candidates": 19,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "short/arrow",
+      "newName": "entity",
+      "declaration": ".map((???, r) => ({",
+      "references": [
+        "L14: entity: ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "short/function-or-class",
+      "newName": "componentType",
+      "declaration": "function d(???, l) {",
+      "references": [
+        "L8: const b = c(???),",
+        "L12: return a(???)"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "short/function-parameter",
+      "newName": "filteredEntity",
+      "declaration": "({ entity: ??? }) =>",
+      "references": [
+        "L19: !???.virtual && (!n || `${u(???)} ${s(???)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "short/module-binding",
+      "newName": "rankOf",
+      "declaration": "const ??? = (o) => (o?.virtual ? 100 : Number(b.recommended(o)));",
+      "references": [
+        "L23: return ???(r.entity) - ???(e.entity) || e.index - r.index;"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "short/other",
+      "newName": "entityPickerText",
+      "declaration": "entityPickerText: ???,",
+      "references": [
+        "L19: !e.virtual && (!n || `${???(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "short/arrow",
+      "newName": "sortedEntity",
+      "declaration": ".map(({ entity: ??? }) => ???);",
+      "references": [
+        "L25: .map(({ entity: ??? }) => ???);"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "short/function-or-class",
+      "newName": "matchEntities",
+      "declaration": "function ???(t, l) {",
+      "references": [
+        "L48: editorEntityMatches: ???,"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "short/module-binding",
+      "newName": "option",
+      "declaration": "const i = (???) => (????.virtual ? 100 : Number(b.recommended(???)));",
+      "references": [
+        "L22: const i = (???) => (????.virtual ? 100 : Number(b.recommended(???)));"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "short/other",
+      "newName": "entityPickerConfig",
+      "declaration": "entityPickerConfig: ???,",
+      "references": [
+        "L8: const b = ???(t),"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "short/arrow",
+      "newName": "index",
+      "declaration": ".map((e, ???) => ({",
+      "references": [
+        "L15: index: ???,"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "short/function-or-class",
+      "newName": "queryText",
+      "declaration": "function d(t, ???) {",
+      "references": [
+        "L9: n = String(??? || \"\")"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "short/module-binding",
+      "newName": "pickerConfig",
+      "declaration": "const ??? = c(t),",
+      "references": [
+        "L22: const i = (o) => (o?.virtual ? 100 : Number(???.recommended(o)));"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "short/other",
+      "newName": "normalizedQuery",
+      "declaration": "??? = String(l || \"\")",
+      "references": [
+        "L19: !e.virtual && (!??? || `${u(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(???)),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "short/arrow",
+      "newName": "comparedIndex",
+      "declaration": ".sort((e, ???) => {",
+      "references": [
+        "L23: return i(???.entity) - i(e.entity) || e.index - ???.index;"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "short/function-or-class",
+      "newName": "labelType",
+      "declaration": "function m(???) {",
+      "references": [
+        "L44: }[???] || \"控件\""
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "short/other",
+      "newName": "entityDomain",
+      "declaration": "entityDomain: ???,",
+      "references": [
+        "L19: !e.virtual && (!n || `${u(e)} ${???(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "short/arrow",
+      "newName": "comparedEntity",
+      "declaration": ".sort((???, r) => {",
+      "references": [
+        "L23: return i(r.entity) - i(???.entity) || ???.index - r.index;"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "short/function-or-class",
+      "newName": "labelForComponentType",
+      "declaration": "function ???(t) {",
+      "references": [
+        "L49: editorPickerComponentTypeLabel: ???,"
+      ]
+    },
+    {
+      "id": "card-19",
+      "stratum": "short/other",
+      "newName": "pickerEntitiesForComponentType",
+      "declaration": "pickerEntitiesForComponentType: ???,",
+      "references": [
+        "L12: return ???(t)"
+      ]
+    }
+  ]
+}

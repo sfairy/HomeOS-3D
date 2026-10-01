@@ -1,0 +1,230 @@
+{
+  "file": "frontend/static/3d-studio/stage-startup.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 52,
+  "counts": {
+    "entries": 11,
+    "renameable": 11,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@6",
+      "name": "arg1",
+      "line": 6,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "env: arg1 = globalThis,",
+      "references": [
+        {
+          "line": 12,
+          "text": "(arg1.HABridgeEmbed?.path || arg1.location?.pathname) !=="
+        },
+        {
+          "line": 16,
+          "text": "const uRLSearchParams1 = new URLSearchParams(arg1.location.search),"
+        },
+        {
+          "line": 25,
+          "text": "env: arg1,"
+        },
+        {
+          "line": 28,
+          "text": "arg1.document.body?.dataset.i3dLightHistoryScope,"
+        },
+        {
+          "line": 31,
+          "text": "arg1.document.querySelector('script[src*=\"/3d-studio/studio-app.js\"]')?.src || \"\","
+        },
+        {
+          "line": 34,
+          "text": "const value6 = arg1.fetch(\"/api/v1\" + value3, {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@7",
+      "name": "arg2",
+      "line": 7,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "loadModule: arg2 = () =>",
+      "references": [
+        {
+          "line": 39,
+          "text": "const value7 = arg2();"
+        }
+      ]
+    },
+    {
+      "key": "arg3@9",
+      "name": "arg3",
+      "line": 9,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "createCache: arg3 = createScenePersistentCache,",
+      "references": [
+        {
+          "line": 24,
+          "text": "value4 = arg3({"
+        }
+      ]
+    },
+    {
+      "key": "uRLSearchParams1@16",
+      "name": "uRLSearchParams1",
+      "line": 16,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const uRLSearchParams1 = new URLSearchParams(arg1.location.search),",
+      "references": [
+        {
+          "line": 17,
+          "text": "value1 = uRLSearchParams1.get(\"sceneId\") || \"\","
+        },
+        {
+          "line": 18,
+          "text": "value2 = uRLSearchParams1.get(\"projectId\") || \"\","
+        }
+      ]
+    },
+    {
+      "key": "value1@17",
+      "name": "value1",
+      "line": 17,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1 = uRLSearchParams1.get(\"sceneId\") || \"\",",
+      "references": [
+        {
+          "line": 21,
+          "text": "encodeURIComponent(value1) +"
+        },
+        {
+          "line": 30,
+          "text": "value1,"
+        }
+      ]
+    },
+    {
+      "key": "value2@18",
+      "name": "value2",
+      "line": 18,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = uRLSearchParams1.get(\"projectId\") || \"\",",
+      "references": [
+        {
+          "line": 23,
+          "text": "encodeURIComponent(value2),"
+        },
+        {
+          "line": 29,
+          "text": "value2,"
+        }
+      ]
+    },
+    {
+      "key": "value3@19",
+      "name": "value3",
+      "line": 19,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 =",
+      "references": [
+        {
+          "line": 34,
+          "text": "const value6 = arg1.fetch(\"/api/v1\" + value3, {"
+        },
+        {
+          "line": 43,
+          "text": "path: value3,"
+        }
+      ]
+    },
+    {
+      "key": "value4@24",
+      "name": "value4",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = arg3({",
+      "references": [
+        {
+          "line": 33,
+          "text": "value4.preload(value5);"
+        },
+        {
+          "line": 46,
+          "text": "cache: value4,"
+        }
+      ]
+    },
+    {
+      "key": "value5@27",
+      "name": "value5",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = scenePreparationKey(",
+      "references": [
+        {
+          "line": 33,
+          "text": "value4.preload(value5);"
+        },
+        {
+          "line": 47,
+          "text": "key: value5,"
+        }
+      ]
+    },
+    {
+      "key": "value6@34",
+      "name": "value6",
+      "line": 34,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = arg1.fetch(\"/api/v1\" + value3, {",
+      "references": [
+        {
+          "line": 38,
+          "text": "value6.catch(() => {});"
+        },
+        {
+          "line": 44,
+          "text": "response: value6,"
+        }
+      ]
+    },
+    {
+      "key": "value7@39",
+      "name": "value7",
+      "line": 39,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg2();",
+      "references": [
+        {
+          "line": 41,
+          "text": "value7.catch(() => {}),"
+        },
+        {
+          "line": 45,
+          "text": "module: value7,"
+        }
+      ]
+    }
+  ]
+}

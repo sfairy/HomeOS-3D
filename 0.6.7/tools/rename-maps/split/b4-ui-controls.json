@@ -1,0 +1,8 @@
+{
+  "frontend/static/3d-studio/ui-controls.js": {
+    "arg1@1": "control",
+    "arg2@1": "nextValue",
+    "arg3@1": "focusedElement",
+    "value1@3": "valueText"
+  }
+}

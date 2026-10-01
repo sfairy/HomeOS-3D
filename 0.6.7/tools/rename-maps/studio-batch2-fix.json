@@ -1,0 +1,22 @@
+{
+  "frontend/static/3d-studio/studio-television-poster.js": {
+    "arg1@1": "canvasElement",
+    "arg2@1": "painter",
+    "arg3@36": "legendItem",
+    "arg4@36": "legendIndex",
+    "value1@37": "chipX",
+    "list1@72": "statCards",
+    "value2@102": "statCard"
+  },
+  "frontend/static/3d-studio/studio-television-glass.js": {
+    "arg1@1": "canvasElement",
+    "arg2@1": "painter",
+    "arg3@1": "isLit",
+    "value1@2": "glassGradient",
+    "arg4@9": "three",
+    "value2@10": "glassMaterial",
+    "value3@14": "lowColor",
+    "value4@15": "highColor",
+    "arg5@17": "shader"
+  }
+}

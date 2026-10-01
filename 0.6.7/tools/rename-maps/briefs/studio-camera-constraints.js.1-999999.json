@@ -1,0 +1,417 @@
+{
+  "file": "frontend/static/3d-studio/studio-camera-constraints.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 41,
+  "counts": {
+    "entries": 20,
+    "renameable": 20,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "y@2",
+      "name": "y",
+      "line": 2,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const y = 0.02,",
+      "references": [
+        {
+          "line": 9,
+          "text": "value5 = Math.max(value4 * z, y - arg2.y);"
+        }
+      ]
+    },
+    {
+      "key": "z@3",
+      "name": "z",
+      "line": 3,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "z = Math.cos(MAX_CAMERA_POLAR_ANGLE);",
+      "references": [
+        {
+          "line": 9,
+          "text": "value5 = Math.max(value4 * z, y - arg2.y);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@4",
+      "name": "arg1",
+      "line": 4,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function constrainCameraPosition(arg1, arg2) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "const value1 = arg1.x - arg2.x,"
+        },
+        {
+          "line": 6,
+          "text": "value2 = arg1.y - arg2.y,"
+        },
+        {
+          "line": 7,
+          "text": "value3 = arg1.z - arg2.z,"
+        },
+        {
+          "line": 15,
+          "text": "(arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * value8),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * value8),"
+        },
+        {
+          "line": 17,
+          "text": "(arg1.y = arg2.y + value5),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@4",
+      "name": "arg2",
+      "line": 4,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function constrainCameraPosition(arg1, arg2) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "const value1 = arg1.x - arg2.x,"
+        },
+        {
+          "line": 6,
+          "text": "value2 = arg1.y - arg2.y,"
+        },
+        {
+          "line": 7,
+          "text": "value3 = arg1.z - arg2.z,"
+        },
+        {
+          "line": 9,
+          "text": "value5 = Math.max(value4 * z, y - arg2.y);"
+        },
+        {
+          "line": 15,
+          "text": "(arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * value8),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * value8),"
+        }
+      ]
+    },
+    {
+      "key": "value1@5",
+      "name": "value1",
+      "line": 5,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.x - arg2.x,",
+      "references": [
+        {
+          "line": 8,
+          "text": "value4 = Math.max(Math.hypot(value1, value2, value3), 0.001),"
+        },
+        {
+          "line": 11,
+          "text": "const value6 = Math.hypot(value1, value3),"
+        },
+        {
+          "line": 15,
+          "text": "(arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * value8),"
+        }
+      ]
+    },
+    {
+      "key": "value2@6",
+      "name": "value2",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg1.y - arg2.y,",
+      "references": [
+        {
+          "line": 8,
+          "text": "value4 = Math.max(Math.hypot(value1, value2, value3), 0.001),"
+        },
+        {
+          "line": 10,
+          "text": "if (value2 >= value5 - 1e-9) return false;"
+        }
+      ]
+    },
+    {
+      "key": "value3@7",
+      "name": "value3",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = arg1.z - arg2.z,",
+      "references": [
+        {
+          "line": 8,
+          "text": "value4 = Math.max(Math.hypot(value1, value2, value3), 0.001),"
+        },
+        {
+          "line": 11,
+          "text": "const value6 = Math.hypot(value1, value3),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * value8),"
+        }
+      ]
+    },
+    {
+      "key": "value4@8",
+      "name": "value4",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = Math.max(Math.hypot(value1, value2, value3), 0.001),",
+      "references": [
+        {
+          "line": 9,
+          "text": "value5 = Math.max(value4 * z, y - arg2.y);"
+        },
+        {
+          "line": 12,
+          "text": "value7 = Math.max(value4, value5),"
+        }
+      ]
+    },
+    {
+      "key": "value5@9",
+      "name": "value5",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = Math.max(value4 * z, y - arg2.y);",
+      "references": [
+        {
+          "line": 10,
+          "text": "if (value2 >= value5 - 1e-9) return false;"
+        },
+        {
+          "line": 12,
+          "text": "value7 = Math.max(value4, value5),"
+        },
+        {
+          "line": 13,
+          "text": "value8 = Math.sqrt(Math.max(0, value7 * value7 - value5 * value5));"
+        },
+        {
+          "line": 17,
+          "text": "(arg1.y = arg2.y + value5),"
+        }
+      ]
+    },
+    {
+      "key": "value6@11",
+      "name": "value6",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = Math.hypot(value1, value3),",
+      "references": [
+        {
+          "line": 15,
+          "text": "(arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * value8),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * value8),"
+        }
+      ]
+    },
+    {
+      "key": "value7@12",
+      "name": "value7",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = Math.max(value4, value5),",
+      "references": [
+        {
+          "line": 13,
+          "text": "value8 = Math.sqrt(Math.max(0, value7 * value7 - value5 * value5));"
+        }
+      ]
+    },
+    {
+      "key": "value8@13",
+      "name": "value8",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = Math.sqrt(Math.max(0, value7 * value7 - value5 * value5));",
+      "references": [
+        {
+          "line": 15,
+          "text": "(arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * value8),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * value8),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@21",
+      "name": "arg3",
+      "line": 21,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function constrainCameraPose(arg3) {",
+      "references": [
+        {
+          "line": 22,
+          "text": "if (!arg3) return arg3;"
+        },
+        {
+          "line": 23,
+          "text": "const [value9, value10, value11] = arg3.position,"
+        },
+        {
+          "line": 24,
+          "text": "[value12, value13, value14] = arg3.target,"
+        },
+        {
+          "line": 36,
+          "text": "...arg3,"
+        },
+        {
+          "line": 39,
+          "text": ": arg3;"
+        }
+      ]
+    },
+    {
+      "key": "value9@23",
+      "name": "value9",
+      "line": 23,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value9, value10, value11] = arg3.position,",
+      "references": [
+        {
+          "line": 26,
+          "text": "x: value9,"
+        }
+      ]
+    },
+    {
+      "key": "value10@23",
+      "name": "value10",
+      "line": 23,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value9, value10, value11] = arg3.position,",
+      "references": [
+        {
+          "line": 27,
+          "text": "y: value10,"
+        }
+      ]
+    },
+    {
+      "key": "value11@23",
+      "name": "value11",
+      "line": 23,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value9, value10, value11] = arg3.position,",
+      "references": [
+        {
+          "line": 28,
+          "text": "z: value11,"
+        }
+      ]
+    },
+    {
+      "key": "value12@24",
+      "name": "value12",
+      "line": 24,
+      "column": 5,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value12, value13, value14] = arg3.target,",
+      "references": [
+        {
+          "line": 31,
+          "text": "x: value12,"
+        }
+      ]
+    },
+    {
+      "key": "value13@24",
+      "name": "value13",
+      "line": 24,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value12, value13, value14] = arg3.target,",
+      "references": [
+        {
+          "line": 32,
+          "text": "y: value13,"
+        }
+      ]
+    },
+    {
+      "key": "value14@24",
+      "name": "value14",
+      "line": 24,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[value12, value13, value14] = arg3.target,",
+      "references": [
+        {
+          "line": 33,
+          "text": "z: value14,"
+        }
+      ]
+    },
+    {
+      "key": "object1@25",
+      "name": "object1",
+      "line": 25,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {",
+      "references": [
+        {
+          "line": 30,
+          "text": "return constrainCameraPosition(object1, {"
+        },
+        {
+          "line": 37,
+          "text": "position: [object1.x, object1.y, object1.z],"
+        }
+      ]
+    }
+  ]
+}

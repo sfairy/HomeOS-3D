@@ -1,0 +1,264 @@
+{
+  "file": "frontend/static/3d-studio/courtyard-models.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 196,
+  "counts": {
+    "entries": 13,
+    "renameable": 13,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "o@13",
+      "name": "o",
+      "line": 13,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const o = new Set([",
+      "references": [
+        {
+          "line": 95,
+          "text": "o.has(arg1) && (object1.light = WARM_WOOD_STYLE.countertop),"
+        }
+      ]
+    },
+    {
+      "key": "c@30",
+      "name": "c",
+      "line": 30,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "c = new Set([",
+      "references": [
+        {
+          "line": 96,
+          "text": "c.has(arg1) && (object1.dark = WARM_WOOD_STYLE.furnitureDark))"
+        }
+      ]
+    },
+    {
+      "key": "t@71",
+      "name": "t",
+      "line": 71,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = new Map();",
+      "references": [
+        {
+          "line": 75,
+          "text": "if (t.has(value1)) return t.get(value1);"
+        },
+        {
+          "line": 99,
+          "text": "return (t.set(value1, value2), value2);"
+        }
+      ]
+    },
+    {
+      "key": "arg1@72",
+      "name": "arg1",
+      "line": 72,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function courtyardPalette(arg1, arg2) {",
+      "references": [
+        {
+          "line": 73,
+          "text": "arg1 = COURTYARD_VARIANT_BASES[arg1] || arg1;"
+        },
+        {
+          "line": 74,
+          "text": "const value1 = arg2 + \":\" + arg1;"
+        },
+        {
+          "line": 81,
+          "text": "arg1 === \"garden-lawn\" && (object1.leaf = WARM_WOOD_STYLE.diningSage),"
+        },
+        {
+          "line": 83,
+          "text": "arg1,"
+        },
+        {
+          "line": 85,
+          "text": "arg1 === \"garden-grass-clump\" &&"
+        },
+        {
+          "line": 89,
+          "text": "arg1,"
+        }
+      ]
+    },
+    {
+      "key": "arg2@72",
+      "name": "arg2",
+      "line": 72,
+      "column": 39,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function courtyardPalette(arg1, arg2) {",
+      "references": [
+        {
+          "line": 74,
+          "text": "const value1 = arg2 + \":\" + arg1;"
+        },
+        {
+          "line": 77,
+          "text": "...COURTYARD_THEMES[arg2],"
+        },
+        {
+          "line": 79,
+          "text": "arg2 === \"warm\""
+        }
+      ]
+    },
+    {
+      "key": "value1@74",
+      "name": "value1",
+      "line": 74,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg2 + \":\" + arg1;",
+      "references": [
+        {
+          "line": 75,
+          "text": "if (t.has(value1)) return t.get(value1);"
+        },
+        {
+          "line": 99,
+          "text": "return (t.set(value1, value2), value2);"
+        }
+      ]
+    },
+    {
+      "key": "object1@76",
+      "name": "object1",
+      "line": 76,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 80,
+          "text": "? ((object1.dark = WARM_WOOD_STYLE.floorLampBody),"
+        },
+        {
+          "line": 81,
+          "text": "arg1 === \"garden-lawn\" && (object1.leaf = WARM_WOOD_STYLE.diningSage),"
+        },
+        {
+          "line": 84,
+          "text": ") && (object1.leaf = WARM_WOOD_STYLE.furnitureSoft),"
+        },
+        {
+          "line": 86,
+          "text": "((object1.leaf = WARM_WOOD_STYLE.diningSage),"
+        },
+        {
+          "line": 87,
+          "text": "(object1.accent = WARM_WOOD_STYLE.joineryAccent)),"
+        },
+        {
+          "line": 90,
+          "text": ") && (object1.base = WARM_WOOD_STYLE.wall),"
+        }
+      ]
+    },
+    {
+      "key": "value2@98",
+      "name": "value2",
+      "line": 98,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = Object.freeze(object1);",
+      "references": [
+        {
+          "line": 99,
+          "text": "return (t.set(value1, value2), value2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@185",
+      "name": "arg3",
+      "line": 185,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(([arg3, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        {
+          "line": 186,
+          "text": "\"garden-\" + arg3,"
+        }
+      ]
+    },
+    {
+      "key": "arg4@185",
+      "name": "arg4",
+      "line": 185,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(([arg3, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        {
+          "line": 188,
+          "text": "name: arg4,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@185",
+      "name": "arg5",
+      "line": 185,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(([arg3, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        {
+          "line": 189,
+          "text": "size: arg5,"
+        }
+      ]
+    },
+    {
+      "key": "arg6@185",
+      "name": "arg6",
+      "line": 185,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(([arg3, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        {
+          "line": 190,
+          "text": "section: arg6,"
+        }
+      ]
+    },
+    {
+      "key": "arg7@185",
+      "name": "arg7",
+      "line": 185,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].map(([arg3, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        {
+          "line": 191,
+          "text": "glyph: arg7,"
+        }
+      ]
+    }
+  ]
+}

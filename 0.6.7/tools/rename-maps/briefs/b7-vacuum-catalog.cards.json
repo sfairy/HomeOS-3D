@@ -1,0 +1,164 @@
+{
+  "file": "frontend/static/modules/interaction3d/vacuum-catalog.js",
+  "seed": "b7-vacuum-catalog",
+  "size": 30,
+  "candidates": 16,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "cameraEntity",
+      "declaration": "maps: value6.filter((???) => /^(camera|image)\\./.test(???.entityId)),",
+      "references": [
+        "L22: maps: value6.filter((???) => /^(camera|image)\\./.test(???.entityId)),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "entity",
+      "declaration": "(???) =>",
+      "references": [
+        "L4: ???.disabledBy == null &&",
+        "L5: ???.disabled_by == null &&",
+        "L6: ???.enabled !== false &&"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "activeEntities",
+      "declaration": "const ??? = arg1.filter(",
+      "references": [
+        "L10: for (const value2 of ???.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {",
+        "L16: ? ???.filter((arg6) => (arg6.deviceId || arg6.device_id) === value3)"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "relatedEntities",
+      "declaration": "??? = value3",
+      "references": [
+        "L22: maps: ???.filter((arg7) => /^(camera|image)\\./.test(arg7.entityId)),",
+        "L23: relatedEntityIds: ???"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/arrow",
+      "newName": "sensorEntity",
+      "declaration": ".filter((???) =>",
+      "references": [
+        "L25: /^(sensor|binary_sensor|select|number|switch|button)\\./.test(???.entityId),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/module-binding",
+      "newName": "deviceRecord",
+      "declaration": "const ??? = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),",
+      "references": [
+        "L20: name: ????.nameByUser || ????.name || value2.name || value2.entityId,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "profileId",
+      "declaration": "??? = value3 || value2.entityId;",
+      "references": [
+        "L13: if (!map1.has(???)) {",
+        "L18: map1.set(???, {",
+        "L19: deviceId: ???,"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/arrow",
+      "newName": "candidateEntity",
+      "declaration": "for (const value2 of value1.filter((???) => /^vacuum\\.[a-z0-9_]+$/.test(???.entityId))) {",
+      "references": [
+        "L10: for (const value2 of value1.filter((???) => /^vacuum\\.[a-z0-9_]+$/.test(???.entityId))) {"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "deviceId",
+      "declaration": "const ??? = value2.deviceId || value2.device_id || \"\",",
+      "references": [
+        "L12: value4 = ??? || value2.entityId;",
+        "L14: const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === ???),",
+        "L15: value6 = ???"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "entities",
+      "declaration": "export function vacuumProfiles(??? = [], arg2 = []) {",
+      "references": [
+        "L2: const value1 = ???.filter("
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/arrow",
+      "newName": "relatedEntity",
+      "declaration": ".map((???) => ???.entityId),",
+      "references": [
+        "L27: .map((???) => ???.entityId),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/module-binding",
+      "newName": "device",
+      "declaration": "const value5 = arg2.find((???) => (???.id || ???.deviceId) === value3),",
+      "references": [
+        "L14: const value5 = arg2.find((???) => (???.id || ???.deviceId) === value3),"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "profilesById",
+      "declaration": "??? = new Map();",
+      "references": [
+        "L13: if (!???.has(value4)) {",
+        "L18: ???.set(value4, {",
+        "L30: ???.get(value4).entities.push(value2);"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/arrow",
+      "newName": "siblingEntity",
+      "declaration": "? value1.filter((???) => (???.deviceId || ???.device_id) === value3)",
+      "references": [
+        "L16: ? value1.filter((???) => (???.deviceId || ???.device_id) === value3)"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/other",
+      "newName": "devices",
+      "declaration": "export function vacuumProfiles(arg1 = [], ??? = []) {",
+      "references": [
+        "L14: const value5 = ???.find((arg5) => (arg5.id || arg5.deviceId) === value3),"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/arrow",
+      "newName": "vacuumEntity",
+      "declaration": "for (const ??? of value1.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {",
+      "references": [
+        "L11: const value3 = ???.deviceId || ???.device_id || \"\",",
+        "L12: value4 = value3 || ???.entityId;",
+        "L17: : [???];"
+      ]
+    }
+  ]
+}

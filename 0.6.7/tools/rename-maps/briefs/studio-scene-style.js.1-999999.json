@@ -1,0 +1,127 @@
+{
+  "file": "frontend/static/3d-studio/studio-scene-style.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 68,
+  "counts": {
+    "entries": 6,
+    "renameable": 6,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@40",
+      "name": "arg1",
+      "line": 40,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function decorateWarmFloor(arg1, arg2) {",
+      "references": [
+        {
+          "line": 42,
+          "text": "((arg1.roughness = 0.92), (arg1.emissiveIntensity = 0.075), (arg1.roughness = 0.84));"
+        },
+        {
+          "line": 43,
+          "text": "const value1 = arg1.onBeforeCompile,"
+        },
+        {
+          "line": 44,
+          "text": "value2 = arg1.customProgramCacheKey.bind(arg1)();"
+        },
+        {
+          "line": 45,
+          "text": "((arg1.onBeforeCompile = function (arg3, arg4) {"
+        },
+        {
+          "line": 66,
+          "text": "(arg1.customProgramCacheKey = () => value2 + \":warm-pale-oak-v1\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@40",
+      "name": "arg2",
+      "line": 40,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function decorateWarmFloor(arg1, arg2) {",
+      "references": [
+        {
+          "line": 41,
+          "text": "if (!arg2.warmWood) return;"
+        }
+      ]
+    },
+    {
+      "key": "value1@43",
+      "name": "value1",
+      "line": 43,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.onBeforeCompile,",
+      "references": [
+        {
+          "line": 46,
+          "text": "(value1.call(this, arg3, arg4),"
+        }
+      ]
+    },
+    {
+      "key": "value2@44",
+      "name": "value2",
+      "line": 44,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg1.customProgramCacheKey.bind(arg1)();",
+      "references": [
+        {
+          "line": 66,
+          "text": "(arg1.customProgramCacheKey = () => value2 + \":warm-pale-oak-v1\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@45",
+      "name": "arg3",
+      "line": 45,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((arg1.onBeforeCompile = function (arg3, arg4) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "(value1.call(this, arg3, arg4),"
+        },
+        {
+          "line": 47,
+          "text": "(arg3.vertexShader = arg3.vertexShader"
+        },
+        {
+          "line": 56,
+          "text": "(arg3.fragmentShader = arg3.fragmentShader"
+        }
+      ]
+    },
+    {
+      "key": "arg4@45",
+      "name": "arg4",
+      "line": 45,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "((arg1.onBeforeCompile = function (arg3, arg4) {",
+      "references": [
+        {
+          "line": 46,
+          "text": "(value1.call(this, arg3, arg4),"
+        }
+      ]
+    }
+  ]
+}

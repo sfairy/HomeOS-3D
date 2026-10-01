@@ -1,0 +1,20 @@
+{
+  "frontend/static/modules/interaction3d/vacuum-catalog.js": {
+    "arg1@1": "entities",
+    "arg2@1": "devices",
+    "value1@2": "activeEntities",
+    "arg3@3": "entity",
+    "map1@9": "profilesById",
+    "value2@10": "vacuumEntity",
+    "arg4@10": "candidateEntity",
+    "value3@11": "deviceId",
+    "value4@12": "profileId",
+    "value5@14": "deviceRecord",
+    "arg5@14": "device",
+    "value6@15": "relatedEntities",
+    "arg6@16": "siblingEntity",
+    "arg7@22": "cameraEntity",
+    "arg8@24": "sensorEntity",
+    "arg9@27": "relatedEntity"
+  }
+}

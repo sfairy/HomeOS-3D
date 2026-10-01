@@ -1,0 +1,182 @@
+{
+  "file": "frontend/static/renderer/date-time-runtime.js",
+  "seed": "b7-date-time-runtime",
+  "size": 30,
+  "candidates": 18,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "monthText",
+      "declaration": "??? = value6.find((arg6) => arg6.type === \"month\")?.value,",
+      "references": [
+        "L35: if (!??? || !Number.isInteger(value8) || value8 < 1 || value8 > 30) return \"\";",
+        "L46: return \"农历\" + ??? + value9;"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "dayText",
+      "declaration": "const ??? =",
+      "references": [
+        "L46: return \"农历\" + value7 + ???;"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "options",
+      "declaration": "export function formatLocalDate(???, arg4 = new Date()) {",
+      "references": [
+        "L23: return ???.showWeekday === false ? value4 : value4 + \" 星期\" + \"日一二三四五六\"[arg4.getDay()];"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/arrow",
+      "newName": "dayNumber",
+      "declaration": "??? = Number(value6.find((arg7) => arg7.type === \"day\")?.value);",
+      "references": [
+        "L35: if (!value7 || !Number.isInteger(???) || ??? < 1 || ??? > 30) return \"\";",
+        "L37: ??? === 10",
+        "L39: : ??? === 20"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "hours",
+      "declaration": "let ??? = arg2.getHours(),",
+      "references": [
+        "L6: value2 && ((text1 = ??? >= 12 ? \"PM\" : \"AM\"), (??? %= 12), ??? || (??? = 12));",
+        "L7: const list1 = [String(???).padStart(2, \"0\"), String(arg2.getMinutes()).padStart(2, \"0\")];"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "suffix",
+      "declaration": "??? = \"\";",
+      "references": [
+        "L12: suffix: ???,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/arrow",
+      "newName": "dayPart",
+      "declaration": "value8 = Number(value6.find((???) => ???.type === \"day\")?.value);",
+      "references": [
+        "L34: value8 = Number(value6.find((???) => ???.type === \"day\")?.value);"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/module-binding",
+      "newName": "dateText",
+      "declaration": "const ??? =",
+      "references": [
+        "L23: return arg3.showWeekday === false ? ??? : ??? + \" 星期\" + \"日一二三四五六\"[arg4.getDay()];"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "date",
+      "declaration": "export function formatLocalTime(arg1, ??? = new Date()) {",
+      "references": [
+        "L4: let value3 = ???.getHours(),",
+        "L7: const list1 = [String(value3).padStart(2, \"0\"), String(???.getMinutes()).padStart(2, \"0\")];",
+        "L9: value1 && list1.push(String(???.getSeconds()).padStart(2, \"0\")),"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/arrow",
+      "newName": "part",
+      "declaration": "value7 = value6.find((???) => ???.type === \"month\")?.value,",
+      "references": [
+        "L33: value7 = value6.find((???) => ???.type === \"month\")?.value,"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/module-binding",
+      "newName": "lunarFormatter",
+      "declaration": "const ??? = new Intl.DateTimeFormat(\"zh-CN-u-ca-chinese\", {",
+      "references": [
+        "L31: if (???.resolvedOptions().calendar !== \"chinese\") return \"\";",
+        "L32: const value6 = ???.formatToParts(arg5),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "referenceDate",
+      "declaration": "export function formatLocalDate(arg3, ??? = new Date()) {",
+      "references": [
+        "L18: ???.getFullYear() +",
+        "L20: String(???.getMonth() + 1).padStart(2, \"0\") +",
+        "L22: String(???.getDate()).padStart(2, \"0\");"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/module-binding",
+      "newName": "parts",
+      "declaration": "const ??? = value5.formatToParts(arg5),",
+      "references": [
+        "L33: value7 = ???.find((arg6) => arg6.type === \"month\")?.value,",
+        "L34: value8 = Number(???.find((arg7) => arg7.type === \"day\")?.value);"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "config",
+      "declaration": "export function formatLocalTime(???, arg2 = new Date()) {",
+      "references": [
+        "L2: const value1 = ???.showSeconds === true,",
+        "L3: value2 = ???.hour12 === true;"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/module-binding",
+      "newName": "shouldShowSeconds",
+      "declaration": "const ??? = arg1.showSeconds === true,",
+      "references": [
+        "L9: ??? && list1.push(String(arg2.getSeconds()).padStart(2, \"0\")),"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "targetDate",
+      "declaration": "export function formatLunarDate(??? = new Date()) {",
+      "references": [
+        "L32: const value6 = value5.formatToParts(???),"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/module-binding",
+      "newName": "timeParts",
+      "declaration": "const ??? = [String(value3).padStart(2, \"0\"), String(arg2.getMinutes()).padStart(2, \"0\")];",
+      "references": [
+        "L9: value1 && ???.push(String(arg2.getSeconds()).padStart(2, \"0\")),",
+        "L11: value: ???.join(\":\"),"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/other",
+      "newName": "shouldUse12Hour",
+      "declaration": "??? = arg1.hour12 === true;",
+      "references": [
+        "L6: ??? && ((text1 = value3 >= 12 ? \"PM\" : \"AM\"), (value3 %= 12), value3 || (value3 = 12));"
+      ]
+    }
+  ]
+}

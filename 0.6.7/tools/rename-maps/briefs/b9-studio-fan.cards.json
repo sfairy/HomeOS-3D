@@ -1,0 +1,389 @@
+{
+  "file": "frontend/static/3d-studio/studio-fan.js",
+  "seed": "b9-studio-fan",
+  "size": 40,
+  "candidates": 116,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "grilleCurve",
+      "declaration": "[...list2, ...list3].forEach((???) => ???.dispose()),",
+      "references": [
+        "L245: [...list2, ...list3].forEach((???) => ???.dispose()),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-or-class",
+      "newName": "cylinderMaterial",
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, ???, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        "L38: ???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "powerStroke",
+      "declaration": "const ??? = fn2(",
+      "references": []
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "mergeGeometries",
+      "declaration": "export function createFanModel(arg4, ???, arg6, arg7) {",
+      "references": [
+        "L183: (fn2(value16, ???(list1), value8.body, \"rear-vent-bars\"),",
+        "L241: const value23 = fn2(value16, ???(list2), value8.soft, \"front-safety-grille\");",
+        "L243: const value24 = fn2(value16, ???(list3), value8.body, \"rear-safety-grille\");"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/arrow",
+      "newName": "slotKey",
+      "declaration": ".map(([???, arg50]) => [",
+      "references": [
+        "L73: ???,",
+        "L76: roughness: ??? === \"stem\" ? 0.48 : 0.64,",
+        "L77: metalness: ??? === \"dark\" ? 0.13 : 0.04,"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/function-or-class",
+      "newName": "crossName",
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, ???, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        "L46: const value6 = fn3(arg24, arg25, arg26, arg27, arg28, ???, arg30, arg31, arg32);"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "ventBars",
+      "declaration": "const ??? = [];",
+      "references": [
+        "L181: (value29.translate(value27, 0, -0.126), ???.push(value29));",
+        "L183: (fn2(value16, arg5(???), value8.body, \"rear-vent-bars\"),",
+        "L184: ???.forEach((arg51) => arg51.dispose()),"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "dimensions",
+      "declaration": "??? = fanDimensions(arg6);",
+      "references": [
+        "L310: value3.setHeight(???.fanHeight),",
+        "L311: value3.setScale(???.fanScale),"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/arrow",
+      "newName": "entryKey",
+      "declaration": ".filter(([???]) => ??? !== \"ground\")",
+      "references": [
+        "L71: .filter(([???]) => ??? !== \"ground\")"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/function-or-class",
+      "newName": "topRadius",
+      "declaration": "function fn4(arg24, ???, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, arg32 = 0) {",
+      "references": [
+        "L46: const value6 = fn3(arg24, ???, arg26, arg27, arg28, arg29, arg30, arg31, arg32);"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/module-binding",
+      "newName": "neckStart",
+      "declaration": "const ??? = new arg4.Vector3(0, -0.132, -0.01),",
+      "references": [
+        "L161: value19 = ???.clone().add(value18).multiplyScalar(0.5);",
+        "L166: ???.distanceTo(value18),",
+        "L172: value18.clone().sub(???).normalize(),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "neck",
+      "declaration": "??? = fn3(value7, 0.026, 0.02, 0.035, value8.body, \"neck\", 0, 0.885, -0.028),",
+      "references": [
+        "L291: (???.position.y = 0.885 + value40),"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/arrow",
+      "newName": "ventBarGeometry",
+      "declaration": "list1.forEach((???) => ???.dispose()),",
+      "references": [
+        "L184: list1.forEach((???) => ???.dispose()),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/function-or-class",
+      "newName": "torusZ",
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, arg37, ??? = 0) {",
+      "references": [
+        "L50: return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, ???);"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/module-binding",
+      "newName": "pivot",
+      "declaration": "const ??? = new arg4.Group();",
+      "references": [
+        "L146: ((???.name = \"oscillation-pivot\"),",
+        "L147: ???.position.set(0, 0.885, -0.028),",
+        "L148: value7.add(???));"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "config",
+      "declaration": "export function fanDimensions(??? = {}) {",
+      "references": [
+        "L3: value1 = Math.max(0.6, Math.min(1.6, fn1(???.fanScale, fn1(???.width, 0.434) / 0.434))),",
+        "L4: value2 = Math.max(0.65, Math.min(1.8, fn1(???.fanHeight, fn1(???.height, 1.23) / value1)));"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/arrow",
+      "newName": "pointX",
+      "declaration": "arg40.map(([???, arg44]) => new arg4.Vector2(???, arg44)),",
+      "references": [
+        "L56: arg40.map(([???, arg44]) => new arg4.Vector2(???, arg44)),"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/function-or-class",
+      "newName": "radiusTop",
+      "declaration": "function fn3(arg15, ???, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, arg23 = 0) {",
+      "references": [
+        "L37: new arg4.CylinderGeometry(???, arg17, arg18, 48),"
+      ]
+    },
+    {
+      "id": "card-19",
+      "stratum": "mechanical/module-binding",
+      "newName": "clampedHeight",
+      "declaration": "const ??? = arg4.MathUtils.clamp(arg53, 0.65, 1.8),",
+      "references": [
+        "L279: value40 = ??? - 1.23,",
+        "L293: (value7.userData.dimensions.height = ???));"
+      ]
+    },
+    {
+      "id": "card-20",
+      "stratum": "mechanical/other",
+      "newName": "pointIndex",
+      "declaration": "for (let ??? = 0; ??? <= 6; ???++) {",
+      "references": [
+        "L220: for (let ??? = 0; ??? <= 6; ???++) {",
+        "L221: const value35 = 0.036 + (0.172 * ???) / 6,"
+      ]
+    },
+    {
+      "id": "card-21",
+      "stratum": "mechanical/arrow",
+      "newName": "pointY",
+      "declaration": "arg40.map(([arg43, ???]) => new arg4.Vector2(arg43, ???)),",
+      "references": [
+        "L56: arg40.map(([arg43, ???]) => new arg4.Vector2(arg43, ???)),"
+      ]
+    },
+    {
+      "id": "card-22",
+      "stratum": "mechanical/function-or-class",
+      "newName": "crossZ",
+      "declaration": "function fn4(arg24, arg25, arg26, arg27, arg28, arg29, arg30 = 0, arg31 = 0, ??? = 0) {",
+      "references": [
+        "L46: const value6 = fn3(arg24, arg25, arg26, arg27, arg28, arg29, arg30, arg31, ???);"
+      ]
+    },
+    {
+      "id": "card-23",
+      "stratum": "mechanical/module-binding",
+      "newName": "numberOrDefault",
+      "declaration": "const ??? = (arg2, arg3) => (Number.isFinite(Number(arg2)) ? Number(arg2) : arg3),",
+      "references": [
+        "L3: value1 = Math.max(0.6, Math.min(1.6, ???(arg1.fanScale, ???(arg1.width, 0.434) / 0.434))),",
+        "L4: value2 = Math.max(0.65, Math.min(1.8, ???(arg1.fanHeight, ???(arg1.height, 1.23) / value1)));"
+      ]
+    },
+    {
+      "id": "card-24",
+      "stratum": "mechanical/other",
+      "newName": "baseY",
+      "declaration": "??? = 0.0665,",
+      "references": [
+        "L282: value43 = value42 - ???,",
+        "L284: value45 = ??? + value44 - 0.01,",
+        "L287: (value9.position.y = ??? + value44 / 2),"
+      ]
+    },
+    {
+      "id": "card-25",
+      "stratum": "mechanical/arrow",
+      "newName": "slotColor",
+      "declaration": ".map(([arg49, ???]) => [",
+      "references": [
+        "L75: color: ???,"
+      ]
+    },
+    {
+      "id": "card-26",
+      "stratum": "mechanical/function-or-class",
+      "newName": "torusName",
+      "declaration": "function fn5(arg33, arg34, arg35, arg36, ???, arg38 = 0) {",
+      "references": [
+        "L50: return fn2(arg33, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, ???, 0, 0, arg38);"
+      ]
+    },
+    {
+      "id": "card-27",
+      "stratum": "mechanical/module-binding",
+      "newName": "frontGrille",
+      "declaration": "const ??? = fn2(value16, arg5(list2), value8.soft, \"front-safety-grille\");",
+      "references": [
+        "L242: ???.castShadow = false;"
+      ]
+    },
+    {
+      "id": "card-28",
+      "stratum": "mechanical/other",
+      "newName": "theme",
+      "declaration": "export function createFanModel(arg4, arg5, arg6, ???) {",
+      "references": [
+        "L15: body: ???.appliance,",
+        "L16: soft: ???.applianceSoft,",
+        "L17: dark: ???.applianceDark,"
+      ]
+    },
+    {
+      "id": "card-29",
+      "stratum": "mechanical/function-or-class",
+      "newName": "points",
+      "declaration": "function fn6(arg39, ???, arg41, arg42) {",
+      "references": [
+        "L56: ???.map(([arg43, arg44]) => new arg4.Vector2(arg43, arg44)),"
+      ]
+    },
+    {
+      "id": "card-30",
+      "stratum": "mechanical/module-binding",
+      "newName": "candidate",
+      "declaration": "const fn1 = (???, arg3) => (Number.isFinite(Number(???)) ? Number(???) : arg3),",
+      "references": [
+        "L2: const fn1 = (???, arg3) => (Number.isFinite(Number(???)) ? Number(???) : arg3),"
+      ]
+    },
+    {
+      "id": "card-31",
+      "stratum": "mechanical/other",
+      "newName": "topY",
+      "declaration": "??? = 0.875 + value40,",
+      "references": [
+        "L282: value43 = ??? - value41,",
+        "L285: value46 = ??? - value45;"
+      ]
+    },
+    {
+      "id": "card-32",
+      "stratum": "mechanical/function-or-class",
+      "newName": "torusParent",
+      "declaration": "function fn5(???, arg34, arg35, arg36, arg37, arg38 = 0) {",
+      "references": [
+        "L50: return fn2(???, new arg4.TorusGeometry(arg34, arg35, 6, 80), arg36, arg37, 0, 0, arg38);"
+      ]
+    },
+    {
+      "id": "card-33",
+      "stratum": "mechanical/module-binding",
+      "newName": "barOffset",
+      "declaration": "const ??? = (value26 - 4.5) * 0.0072,",
+      "references": [
+        "L179: value28 = 2 * Math.sqrt(0.044 ** 2 - ??? * ???),",
+        "L181: (value29.translate(???, 0, -0.126), list1.push(value29));"
+      ]
+    },
+    {
+      "id": "card-34",
+      "stratum": "mechanical/other",
+      "newName": "bulge",
+      "declaration": "??? = Math.sqrt(Math.max(0, 1 - (value35 / 0.214) ** 2));",
+      "references": [
+        "L227: 0.024 + 0.046 * ???,",
+        "L235: 0.006 - 0.047 * ???,"
+      ]
+    },
+    {
+      "id": "card-35",
+      "stratum": "mechanical/function-or-class",
+      "newName": "cylinderZ",
+      "declaration": "function fn3(arg15, arg16, arg17, arg18, arg19, arg20, arg21 = 0, arg22 = 0, ??? = 0) {",
+      "references": [
+        "L42: ???,"
+      ]
+    },
+    {
+      "id": "card-36",
+      "stratum": "mechanical/module-binding",
+      "newName": "blade",
+      "declaration": "const ??? = fn2(value20, value22, value8.blade, \"blade-\" + (value30 + 1));",
+      "references": [
+        "L207: ((???.rotation.z = (value30 * Math.PI * 2) / 5), (???.rotation.y = -0.09));"
+      ]
+    },
+    {
+      "id": "card-37",
+      "stratum": "mechanical/other",
+      "newName": "upperTop",
+      "declaration": "??? = value41 + value44 - 0.01,",
+      "references": [
+        "L285: value46 = value42 - ???;",
+        "L290: (value11.position.y = ??? + value46 / 2),"
+      ]
+    },
+    {
+      "id": "card-38",
+      "stratum": "mechanical/function-or-class",
+      "newName": "offsetY",
+      "declaration": "function fn2(arg8, arg9, arg10, arg11, arg12 = 0, ??? = 0, arg14 = 0) {",
+      "references": [
+        "L27: value5.position.set(arg12, ???, arg14),"
+      ]
+    },
+    {
+      "id": "card-39",
+      "stratum": "mechanical/module-binding",
+      "newName": "clip",
+      "declaration": "const ??? = fn2(",
+      "references": [
+        "L269: ???.rotation.z = value37 - Math.PI / 2;"
+      ]
+    },
+    {
+      "id": "card-40",
+      "stratum": "mechanical/other",
+      "newName": "neckMid",
+      "declaration": "??? = value17.clone().add(value18).multiplyScalar(0.5);",
+      "references": [
+        "L169: ...???.toArray(),"
+      ]
+    }
+  ]
+}

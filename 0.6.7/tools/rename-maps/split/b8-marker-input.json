@@ -1,0 +1,26 @@
+{
+  "frontend/static/modules/interaction3d/marker-input.js": {
+    "arg1@1": "markers",
+    "arg2@1": "pointerX",
+    "arg3@1": "pointerY",
+    "value1@2": "nearestId",
+    "value2@3": "bestDistance",
+    "value3@4": "bestTieBreak",
+    "value4@5": "markerId",
+    "value5@5": "rect",
+    "value6@5": "width",
+    "value7@5": "height",
+    "value8@8": "offsetX",
+    "value9@9": "offsetY",
+    "value10@10": "edgeDistance",
+    "value11@11": "centerDistance",
+    "arg4@17": "resolveId",
+    "value12@18": "activeTouch",
+    "arg5@20": "downEvent",
+    "arg6@36": "moveEvent",
+    "arg7@41": "upEvent",
+    "arg8@50": "targetEvent",
+    "arg9@50": "fallbackTarget",
+    "value13@52": "touchedId"
+  }
+}

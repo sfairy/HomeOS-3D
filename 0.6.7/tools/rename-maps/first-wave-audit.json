@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "recordedAt": "2026-09-30T09:50:00+08:00",
+  "what": "First-wave rename maps that contain a name the controlled vocabulary rejects. Found while calibrating tools/check_glossary.mjs against the four wave-1 maps (--applied). They are recorded here, not silently rewritten: the wave-1 maps are the audit trail of a signed release.",
+  "rule": "A name may not end in digits, may not be under three characters, and may not be a banned disambiguator (data, context, temp, ...).",
+  "entries": [
+    {
+      "map": "tools/rename-maps/climate-panel.json",
+      "entry": "object2@478",
+      "name": "panelContext",
+      "rule": "banned-disambiguator",
+      "word": "context",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/purifier-p1.json",
+      "entry": "arg12@60:15",
+      "name": "id",
+      "rule": "too-short",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/purifier-p1.json",
+      "entry": "object1@144:4",
+      "name": "data",
+      "rule": "banned-disambiguator",
+      "word": "data",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/stage-chunk1.json",
+      "entry": "value1@234",
+      "name": "threeNamespace",
+      "rule": "banned-disambiguator",
+      "word": "namespace",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/stage-chunk1.json",
+      "entry": "value40@303",
+      "name": "tempProjectedPoint",
+      "rule": "banned-disambiguator",
+      "word": "temp",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/runtime-a1.json",
+      "entry": "object2@169",
+      "name": "reportContext",
+      "rule": "banned-disambiguator",
+      "word": "context",
+      "status": "open"
+    },
+    {
+      "map": "tools/rename-maps/runtime-a1.json",
+      "entry": "arg21@244",
+      "name": "runtimeContext",
+      "rule": "banned-disambiguator",
+      "word": "context",
+      "status": "open"
+    }
+  ],
+  "note": "Seven names, all inside files the wave-2 burn-down will revisit anyway (stage/runtime/panel/purifier). Renaming them outside a batch would break the one-batch-one-rollback-point rule, so they are carried as open findings and fixed when their file comes up."
+}

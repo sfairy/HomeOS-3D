@@ -1,0 +1,181 @@
+{
+  "file": "frontend/modules/interaction3d/bath-heater-editor.js",
+  "seed": "b7-bath-heater-editor",
+  "size": 30,
+  "candidates": 18,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "effectControl",
+      "declaration": "v9 = (???) => [\"heat\", \"fan\", \"exhaust\"].includes(???.effect),",
+      "references": [
+        "L25: v9 = (???) => [\"heat\", \"fan\", \"exhaust\"].includes(???.effect),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "selectedEntityId",
+      "declaration": "(???) => {",
+      "references": [
+        "L43: ??? !== \"legacy\" &&",
+        "L46: ...(???",
+        "L50: entityId: ???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "statusNoteElement",
+      "declaration": "const ??? = v5(\"p\", \"i3d-note\"),",
+      "references": [
+        "L69: ???.textContent =",
+        "L72: return (v4.append(???), v10(), v10);"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "options",
+      "declaration": "??? = [",
+      "references": [
+        "L36: filter2.length && !some && ???.push([\"legacy\", \"保留原有运行绑定\"]);",
+        "L40: ???,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "short/arrow",
+      "newName": "isEffectControl",
+      "declaration": "??? = (arg3) => [\"heat\", \"fan\", \"exhaust\"].includes(arg3.effect),",
+      "references": [
+        "L26: filter2 = list.filter(???),",
+        "L45: ...list.filter((arg7) => !???(arg7)),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "short/other",
+      "newName": "createSelect",
+      "declaration": "select: ???,",
+      "references": [
+        "L37: const element = ???("
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/arrow",
+      "newName": "entity",
+      "declaration": "filter.some((???) => ???.entityId === filter2[0].entityId),",
+      "references": [
+        "L31: filter.some((???) => ???.entityId === filter2[0].entityId),"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/function-parameter",
+      "newName": "candidateEntity",
+      "declaration": "(???) =>",
+      "references": [
+        "L22: set.has(???.entityId) && /^(switch|fan|binary_sensor|input_boolean)\\./.test(???.entityId),"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "control",
+      "declaration": "const set = new Set((v1.extraControls || []).map((???) => ???.entityId)),",
+      "references": [
+        "L19: const set = new Set((v1.extraControls || []).map((???) => ???.entityId)),"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "short/other",
+      "newName": "update",
+      "declaration": "update: ???,",
+      "references": [
+        "L57: ???(),"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/arrow",
+      "newName": "effect",
+      "declaration": "...list.filter((???) => !v9(???)),",
+      "references": [
+        "L45: ...list.filter((???) => !v9(???)),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "short/other",
+      "newName": "item",
+      "declaration": "item: ???,",
+      "references": [
+        "L19: const set = new Set((???.extraControls || []).map((arg1) => arg1.entityId)),",
+        "L24: list = ???.bathEffects || [],",
+        "L33: [\"\", ???.entityId ? \"主实体（自动）\" : \"请选择开关或运行状态\"],"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/arrow",
+      "newName": "optionEntity",
+      "declaration": "...filter.map((???) => [???.entityId, ???.name || ???.entityId]),",
+      "references": [
+        "L34: ...filter.map((???) => [???.entityId, ???.name || ???.entityId]),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "short/other",
+      "newName": "redraw",
+      "declaration": "redraw: ???,",
+      "references": [
+        "L58: ???());"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "short/other",
+      "newName": "hostElement",
+      "declaration": "host: ???,",
+      "references": [
+        "L12: ???.append(",
+        "L38: ???,",
+        "L65: ???.append(v5(\"p\", \"i3d-note\", \"先在附加功能中选好浴霸的运行开关，再来选择。\")));"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "short/other",
+      "newName": "readStates",
+      "declaration": "states: ???,",
+      "references": [
+        "L68: const v11 = bathHeaterState2(v1, ???());"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "short/other",
+      "newName": "entities",
+      "declaration": "entities: ???,",
+      "references": [
+        "L20: filter = ???.filter("
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "short/other",
+      "newName": "createNode",
+      "declaration": "node: ???,",
+      "references": [
+        "L13: ???(",
+        "L65: v4.append(???(\"p\", \"i3d-note\", \"先在附加功能中选好浴霸的运行开关，再来选择。\")));",
+        "L66: const element2 = ???(\"p\", \"i3d-note\"),"
+      ]
+    }
+  ]
+}

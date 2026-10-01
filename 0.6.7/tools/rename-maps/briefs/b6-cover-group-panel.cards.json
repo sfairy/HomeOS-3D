@@ -1,0 +1,159 @@
+{
+  "file": "frontend/modules/interaction3d/cover-group-panel.js",
+  "seed": "b6-cover-group-panel",
+  "size": 30,
+  "candidates": 15,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "index",
+      "declaration": "value4.forEach((arg6, ???) => {",
+      "references": [
+        "L29: const value6 = value5[???];",
+        "L31: arg6.root.setAttribute(\"aria-label\", value6?.label || \"窗帘 \" + (??? + 1)),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/function-parameter",
+      "newName": "disposedPanel",
+      "declaration": "(value4.forEach((???) => ???.dispose()), value2.replaceChildren());",
+      "references": [
+        "L47: (value4.forEach((???) => ???.dispose()), value2.replaceChildren());"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "memberItems",
+      "declaration": "const ??? = arg5.item?.memberItems || [];",
+      "references": [
+        "L29: const value6 = ???[arg7];"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "state",
+      "declaration": "update(??? = {}) {",
+      "references": [
+        "L24: const value5 = ???.item?.memberItems || [];",
+        "L25: (value2.classList.toggle(\"is-vertical\", ???.item?.panelLayout === \"vertical\"),",
+        "L26: (value3.textContent = ???.item?.label || \"双层窗帘\"),"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/arrow",
+      "newName": "mountedPanel",
+      "declaration": "value4.forEach((???) => value2.append(???.root)),",
+      "references": [
+        "L20: value4.forEach((???) => value2.append(???.root)),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/module-binding",
+      "newName": "member",
+      "declaration": "const ??? = value5[arg7];",
+      "references": [
+        "L30: ((arg6.root.hidden = !???),",
+        "L31: arg6.root.setAttribute(\"aria-label\", ????.label || \"窗帘 \" + (arg7 + 1)),",
+        "L32: ???"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "panelElement",
+      "declaration": "element: ???,",
+      "references": [
+        "L7: const value1 = ????.ownerDocument || globalThis.document,",
+        "L8: value2 = ??? || value1.createElement(\"section\");"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/arrow",
+      "newName": "onPreview",
+      "declaration": "onPreview: ??? = () => {},",
+      "references": [
+        "L16: onPreview: ???,"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "panels",
+      "declaration": "const ??? = [0, 1].map(() =>",
+      "references": [
+        "L20: ???.forEach((arg4) => value2.append(arg4.root)),",
+        "L28: ???.forEach((arg6, arg7) => {",
+        "L44: ???.forEach((arg8) => arg8.deactivate());"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "rootElement",
+      "declaration": "??? = arg1 || value1.createElement(\"section\");",
+      "references": [
+        "L9: ???.classList.add(\"i3d-cover-group-panel\");",
+        "L11: ((value3.className = \"i3d-cover-group-title\"), ???.append(value3));",
+        "L20: value4.forEach((arg4) => ???.append(arg4.root)),"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/arrow",
+      "newName": "deactivatedPanel",
+      "declaration": "value4.forEach((???) => ???.deactivate());",
+      "references": [
+        "L44: value4.forEach((???) => ???.deactivate());"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/module-binding",
+      "newName": "titleElement",
+      "declaration": "const ??? = value1.createElement(\"h3\");",
+      "references": [
+        "L11: ((???.className = \"i3d-cover-group-title\"), value2.append(???));",
+        "L26: (???.textContent = arg5.item?.label || \"双层窗帘\"),",
+        "L27: value2.setAttribute(\"aria-label\", ???.textContent),"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/arrow",
+      "newName": "layerPanel",
+      "declaration": "value4.forEach((???, arg7) => {",
+      "references": [
+        "L30: ((???.root.hidden = !value6),",
+        "L31: ???.root.setAttribute(\"aria-label\", value6?.label || \"窗帘 \" + (arg7 + 1)),",
+        "L33: ? ???.update({"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/module-binding",
+      "newName": "documentNode",
+      "declaration": "const ??? = arg1?.ownerDocument || globalThis.document,",
+      "references": [
+        "L8: value2 = arg1 || ???.createElement(\"section\");",
+        "L10: const value3 = ???.createElement(\"h3\");",
+        "L14: element: ???.createElement(\"section\"),"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/arrow",
+      "newName": "onControl",
+      "declaration": "onControl: ??? = async () => {},",
+      "references": [
+        "L15: onControl: ???,"
+      ]
+    }
+  ]
+}

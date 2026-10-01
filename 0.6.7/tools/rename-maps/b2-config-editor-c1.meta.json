@@ -1,0 +1,163 @@
+{
+  "batchId": "b2-config-editor-c1",
+  "wave": 2,
+  "recordedAt": "2026-09-30T09:45:00+08:00",
+  "file": "frontend/modules/interaction3d/config-editor.js",
+  "declStart": 47,
+  "declEnd": 1492,
+  "map": "tools/rename-maps/config-editor-c1.json",
+  "mapSha256": "5271e038391a184d288276b54c4c36f2c62ab2e183f580239086895adaa886bb",
+  "fileSha256Before": "b65559a47cf93a9c170945d8c43be57697f7a70bcd76561d9a064c9e60c0749d",
+  "fileSha256After": "52de2c6b7fcf30d07f1dc6fbb50210921813805e32c28e3e1d81e1a1306c54d7",
+  "linesBefore": 4270,
+  "linesAfter": 4731,
+  "bindings": 402,
+  "byKind": {
+    "mechanical": 401,
+    "short": 1
+  },
+  "residue": {
+    "waveStart": 981,
+    "after": 579
+  },
+  "author": "the agent running the wave (pilot batch)",
+  "reviewer": "the same agent - see review.note",
+  "review": {
+    "method": "blind-cards",
+    "tool": "tools/review_sample.mjs",
+    "seed": "b2-config-editor-c1",
+    "n": 30,
+    "sampleRate": "30/402 = 7.5%",
+    "wrong": 1,
+    "unclear": 0,
+    "defectRate": "1/30 = 3.3% (threshold 10% for an ordinary batch)",
+    "verdict": "pass",
+    "findings": [
+      "card-06 value125@1073 was named headingText; the value is built by fn4('div') and used with .append( - an element, not text. Renamed headingContentElement inside the batch.",
+      "value160@1393 sizeDetails holds a <details> element - renamed sizeDetailsElement.",
+      "set1@534 selectedMetricIds holds new Set(...) - renamed selectedMetricIdSet (T3).",
+      "set2@748 optionalFieldKeys holds new Set([...]) - renamed optionalFieldKeySet (T3)."
+    ],
+    "note": "The namer and the reviewer are the same agent, and the cards only ask whether a name is consistent with the declaration and references. That makes this a validity check on the names, not an independent review: it can show a name is unusable, it cannot show the vocabulary is good. Recorded as a limitation, not hidden behind the pass."
+  },
+  "toolingCorrections": [
+    "tools/check_name_kinds.mjs (shape oracle) was written for this batch and found 4 of the 6 defects the sample could not reach.",
+    "Its first version guessed elementhood from text patterns and reported 81 false positives; it now decides from AST node types and reports shape-undecided=298 honestly instead of guessing."
+  ],
+  "glossaryVersion": 2,
+  "glossary": {
+    "sanctioned": 20,
+    "covered": 20,
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 388,
+    "warningsDetail": "every warning is 'no canonical covers this name'; the vocabulary is deliberately open, so these are recorded rather than forced",
+    "neologisms": "tools/rename-maps/b2-config-editor-c1.neologisms.txt",
+    "neologismCount": 382
+  },
+  "variants": {
+    "note": "A new name must be unique within the file, so one canonical appearing in several roles has to be owner-qualified (T7). These families are the same concept in different roles, not different concepts.",
+    "ownerLimited": {
+      "host": [
+        "controlHost",
+        "selectHost",
+        "numberHost",
+        "positiveNumberHost",
+        "rowHost",
+        "settingsHost"
+      ],
+      "label": [
+        "fieldLabel",
+        "selectLabel",
+        "numberLabel",
+        "positiveNumberLabel"
+      ],
+      "onChange": [
+        "onSelectChange",
+        "onNumberChange",
+        "onPositiveNumberChange"
+      ],
+      "metric": [
+        "metricEntry",
+        "groupMetricEntry",
+        "listedMetric"
+      ],
+      "groupName": [
+        "groupName",
+        "sectionGroupName",
+        "flatMapGroupName"
+      ],
+      "offset": [
+        "offset",
+        "metricOffset"
+      ],
+      "targetIndex": [
+        "targetIndex",
+        "metricTargetIndex"
+      ],
+      "group": [
+        "sharedGroup",
+        "baselineGroup",
+        "groupSettings",
+        "groupSnapshot",
+        "pickerGroup"
+      ],
+      "floor": [
+        "floorPlanFloor",
+        "memberFloorPlanFloor",
+        "roomFloorPlanFloor",
+        "sceneFloor",
+        "floorCandidate",
+        "memberFloorCandidate",
+        "roomFloor",
+        "floorEntry"
+      ],
+      "dialogActions": [
+        "addDialogActions",
+        "batchDialogActions"
+      ],
+      "confirmButton": [
+        "addConfirmButton",
+        "batchConfirmButton"
+      ]
+    }
+  },
+  "newConcepts": [
+    "deviceScope: environmentKind, deviceScope, vacuumShortcutScope, vacuumScope, vacuumLikeScope, televisionScope, speakerScope, genericDeviceScope, climateLikeScope, coverScope, airerScope, nasScope, temperatureHumidityScope, modelScope",
+    "deviceMetadata: deviceKindLabel, scopeLabel, collectionKey, defaultIcon, entityIdFieldKey",
+    "deviceKind: applyDeviceKind, applyViewForDeviceKind, viewsByDeviceKind, baselineGroupsById, defaultFieldOrder, initializeDeviceCollections, repairCurtainGroups",
+    "editorForms: createSection, createRow, createNumberField, createPositiveNumberField, renderStatusSettings, openAddDialog, closeConfigEditor, addVacuumRoom, sceneTargets",
+    "groupSettings: normalizeGroupSettings, readFieldPath, changedFieldKeys, applyGroupFields, groupSnapshot",
+    "statusRules: isStandardStatusRule, normalizeStatusRules, statusRuleKind",
+    "saveDialog: saveRevision, revisionBeforeSave, contentPickerDialog, batchDialogActions, addDialogActions"
+  ],
+  "gate": {
+    "batch": {
+      "passed": 24,
+      "failed": 0,
+      "command": "HB_BATCH_PRE=/tmp/hb-b2-pre.json HB_BATCH_ID=b2-config-editor-c1 HB_BATCH_DECLARED=tools/rename-maps/declared-files.txt HB_BATCH_MAP=tools/rename-maps/config-editor-c1.json bash tools/verify_frontend_batch.sh"
+    },
+    "tree": {
+      "passed": 23,
+      "failed": 0,
+      "command": "bash tools/verify_all.sh"
+    },
+    "smoke": "SKIP - no server answered at http://127.0.0.1:8791, so nothing in this batch proves the pages run",
+    "delta": "# files=12343 changed=1 missing=0 added=0 declared=1 outside-declared=0"
+  },
+  "ratchet": {
+    "before": {
+      "mechanical": 27881,
+      "short": 3607
+    },
+    "after": {
+      "mechanical": 27480,
+      "short": 3606
+    }
+  },
+  "rollback": {
+    "snapshot": ".restore/batch-snapshots/b2-config-editor-c1/frontend/modules/interaction3d/config-editor.js",
+    "sha256": "b65559a47cf93a9c170945d8c43be57697f7a70bcd76561d9a064c9e60c0749d",
+    "command": "cp .restore/batch-snapshots/b2-config-editor-c1/frontend/modules/interaction3d/config-editor.js frontend/modules/interaction3d/config-editor.js"
+  }
+}

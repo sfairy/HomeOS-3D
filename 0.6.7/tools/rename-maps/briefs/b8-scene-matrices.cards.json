@@ -1,0 +1,198 @@
+{
+  "file": "frontend/static/modules/interaction3d/scene-matrices.js",
+  "seed": "b8-scene-matrices",
+  "size": 30,
+  "candidates": 20,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "object",
+      "declaration": "arg1?.traverse((???) => {",
+      "references": [
+        "L6: if (l.has(???) || ???.updateMatrix !== arg2.prototype.updateMatrix) return;",
+        "L7: const value2 = ???.updateMatrix;",
+        "L19: ((???.updateMatrix = function () {"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "lastPosX",
+      "declaration": "let ???,",
+      "references": [
+        "L24: value14.x === ??? &&"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "quaternion",
+      "declaration": "??? = this.quaternion,",
+      "references": [
+        "L27: ???.x === value6 &&",
+        "L28: ???.y === value7 &&",
+        "L29: ???.z === value8 &&"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "short/module-binding",
+      "newName": "patchedObjectSet",
+      "declaration": "const ??? = new WeakSet();",
+      "references": [
+        "L6: if (???.has(arg3) || arg3.updateMatrix !== arg2.prototype.updateMatrix) return;",
+        "L52: ???.add(arg3),"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "position",
+      "declaration": "const ??? = this.position,",
+      "references": [
+        "L24: ???.x === value3 &&",
+        "L25: ???.y === value4 &&",
+        "L26: ???.z === value5 &&"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "scale",
+      "declaration": "??? = this.scale;",
+      "references": [
+        "L31: ???.x === value10 &&",
+        "L32: ???.y === value11 &&",
+        "L33: ???.z === value12"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "originalUpdateMatrix",
+      "declaration": "const ??? = arg3.updateMatrix;",
+      "references": [
+        "L39: (???.call(this),"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "lastScaleZ",
+      "declaration": "???,",
+      "references": [
+        "L33: value16.z === ???"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "patchedCount",
+      "declaration": "let ??? = 0;",
+      "references": [
+        "L53: ???++);",
+        "L55: ???"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "root",
+      "declaration": "export function cacheObjectTransforms(???, arg2) {",
+      "references": [
+        "L5: ????.traverse((arg3) => {"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "lastScaleY",
+      "declaration": "???,",
+      "references": [
+        "L32: value16.y === ??? &&"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "lastScaleX",
+      "declaration": "???,",
+      "references": [
+        "L31: value16.x === ??? &&"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "lastParent",
+      "declaration": "???;",
+      "references": [
+        "L35: (this.parent !== ??? && (this.matrixWorldNeedsUpdate = true),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "lastQuatZ",
+      "declaration": "???,",
+      "references": [
+        "L29: value15.z === ??? &&"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/other",
+      "newName": "lastPosZ",
+      "declaration": "???,",
+      "references": [
+        "L26: value14.z === ??? &&"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "reference",
+      "declaration": "export function cacheObjectTransforms(arg1, ???) {",
+      "references": [
+        "L6: if (l.has(arg3) || arg3.updateMatrix !== ???.prototype.updateMatrix) return;"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/other",
+      "newName": "lastQuatW",
+      "declaration": "???,",
+      "references": [
+        "L30: value15.w === ??? &&"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/other",
+      "newName": "lastQuatX",
+      "declaration": "???,",
+      "references": [
+        "L27: value15.x === ??? &&"
+      ]
+    },
+    {
+      "id": "card-19",
+      "stratum": "mechanical/other",
+      "newName": "lastQuatY",
+      "declaration": "???,",
+      "references": [
+        "L28: value15.y === ??? &&"
+      ]
+    },
+    {
+      "id": "card-20",
+      "stratum": "mechanical/other",
+      "newName": "lastPosY",
+      "declaration": "???,",
+      "references": [
+        "L25: value14.y === ??? &&"
+      ]
+    }
+  ]
+}

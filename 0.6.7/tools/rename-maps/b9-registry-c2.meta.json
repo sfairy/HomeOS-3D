@@ -1,0 +1,127 @@
+{
+  "batchId": "b9-registry-c2",
+  "wave": 2,
+  "recordedAt": "2026-09-30T09:03:50+08:00",
+  "file": "frontend/static/renderer/registry.js",
+  "declStart": 1038,
+  "declEnd": 2383,
+  "map": "tools/rename-maps/registry-c2.json",
+  "mapSha256": "e5042903d2e821acbbc1651d58e512dbea818224d12c1193c68b64fa3f63d71a",
+  "brief": "tools/rename-maps/briefs/registry-c2.json",
+  "briefSha256": "48cede70dc8fe02115040ad36d6501d484f51b550c28b29352f48e7e6bfc52ee",
+  "fileSha256Before": "17d8ff28ab25bc6f454b496ab7401137acdf5db6832d4b550ede79887ed42fbb",
+  "fileSha256After": "2c955b643f4a08a795ebeaa094db11b03761710c9b35b898920a2fa5959a546c",
+  "linesBefore": 4129,
+  "linesAfter": 4385,
+  "bindings": 300,
+  "byKind": {
+    "mechanical": 293,
+    "short": 7
+  },
+  "residue": {
+    "file": {
+      "before": {
+        "mechanical": 692,
+        "short": 13,
+        "frozen": 48
+      },
+      "after": {
+        "mechanical": 399,
+        "short": 6,
+        "frozen": 48
+      }
+    },
+    "tree": {
+      "mechanical": {
+        "before": 25877,
+        "after": 25584
+      },
+      "short": {
+        "before": 3557,
+        "after": 3550
+      }
+    },
+    "note": "Chunk 2 of frontend/static/renderer/registry.js (decl 1038-2383): the component renderers. The batch cleared 293 mechanical and 7 short residues; 399 mechanical / 6 short / 48 frozen remain (the export table at the bottom is the largest single cluster), so the file stays in tools/frontend-name-budget.json's files list until the last chunk lands."
+  },
+  "author": "claude (DSH session)",
+  "reviewer": "claude (same session - see review.note)",
+  "review": {
+    "method": "blind-cards",
+    "tool": "tools/review_sample.mjs",
+    "seed": "b9-registry-c2",
+    "n": 30,
+    "sampleRate": "30/300 = 10.0%",
+    "round1": {
+      "wrong": 0,
+      "unclear": 0
+    },
+    "wrong": 0,
+    "unclear": 0,
+    "verdict": "pass",
+    "findings": [],
+    "note": "30 drawings across the arrow / function-or-class / module-binding / other strata of the mechanical and short buckets; the readings were written to /tmp/hb-b9-verdicts.tsv before /tmp/hb-b9-key.json was opened and all 30 matched the name the batch chose (arg108 -> closestPoint, arg144 -> waterLeakState, value298 -> statisticsCountElement, yt -> isEntityStateActive, Ae -> buttonComponentRenderers, bt -> createWaterLeakSensorView, ht -> createNavigationEffectsSvg, list3 -> layerStates, ...). The batch author drew and reviewed the sample, so this shows the names agree with the evidence; it is not independent review."
+  },
+  "toolingCorrections": [
+    "The batch outline (300 names) was written in five 60-row TSVs. Entry 190 (value305@1893) was edited into /tmp/hb-reg2-3.tsv although it had been recorded in /tmp/hb-reg2-4.tsv, so the first map build silently kept the old name for that key while the name was missing from the newer file. The key-set and duplicate checks passed because both sides still had 300 keys. Fixed by re-reading each TSV range against the brief and renaming value305@1893 -> downloadChartButtonElement in reg2-4. Lesson: the TSV shards are named by index range only; after every edit re-verify which shard actually holds the key rather than trusting the file name.",
+    "tools/check_glossary.mjs rejected 6 names on the first pass, all against real evidence in the file: statePayload (collides with the component-state payload of chunk 1) -> entityStatePayload; svgNamespace x3 -> svgUrl / smokeSvgUrl / naturalGasSvgUrl (namespace is a banned disambiguator); wispPathData / currentPathData -> wispPathDefinition / currentPathDefinition (data is banned).",
+    "tools/check_name_kinds.mjs rejected 2 shapes: value373 dropletBodyPath and value374 dropletHighlightPath hold createElementNS(\"path\") elements but the names did not say Element; they became dropletBodyPathElement / dropletHighlightPathElement.",
+    "Section 13 of tools/verify_frontend_batch.sh failed on the first run with 'OUT changed data/app.db-shm' and 'OUT changed data/app.db-wal': the host application was running and SQLite rewrote its own WAL/SHM sidecars between the pre-batch snapshot and the check. Evidence was preserved as /tmp/hb-b9-pre-withdata.json (1729561 bytes, the only two outside-declared entries). Fix: 'data' joined DEFAULT_IGNORES in tools/lib/scan-tree.mjs with a comment explaining it is the host app's runtime state (SQLite database plus -wal/-shm, caches, logs, secrets), not source. The pre-manifest was then rebuilt (/tmp/hb-b9-pre.json, files=12267, zero data keys) with the declared file's hash restored to its pre-batch rollback sha 17d8ff28...42fbb and rebaselinedFrom / rebaselinedReason fields recording why; section 13 then reported files=12267 changed=1 missing=0 added=0 declared=1 outside-declared=0."
+  ],
+  "glossaryVersion": 2,
+  "glossary": {
+    "entries": 300,
+    "sanctioned": 3,
+    "covered": 3,
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 301,
+    "printedWarnLines": 301,
+    "neologisms": "tools/rename-maps/b9-registry-c2.neologisms.txt"
+  },
+  "oracles": {
+    "coverage": "# declared bindings 1070 / residue in range 300 / map entries 300 / resolved 300 / unresolved 0 / out of range 0 / MISSED 0 - COVERAGE OK",
+    "anchors": "resolved=286 unresolved=14 anchored=0 satisfied=0 unsatisfied=0 unanchored-selectors=0 - PASS (registry.js builds DOM with createElement, so anchored=0 is honest)",
+    "kinds": "resolved=300 unresolved=0 shape-undecided=225 errors=0 - PASS"
+  },
+  "variants": {
+    "ownerLimited": [
+      "the four sensor views each bind the same concept and the names must stay unique per file, so the family is spelled per sensor: doorWindowProperties / doorWindowState / doorWindowRenderEnvironment / doorWindowSensorElement / doorWindowVisualElement / doorWindowFrameElement versus waterLeakProperties / waterLeakState / waterLeakRenderEnvironment / waterLeakSensorElement / waterLeakVisualElement / waterLeakColor / isWaterLeakWet versus smokeProperties / smokeState / smokeSensorElement / smokeVisualElement / smokeGroundElement / smokeWispsSvgElement versus naturalGasProperties / naturalGasState / naturalGasSensorElement / naturalGasVisualElement / naturalGasHazeElement / naturalGasSvgElement",
+      "state lookup: the same states Map is reached through stateLookupEnvironment (yt@1300) / diagramRenderEnvironment / effectLayerRenderEnvironment / iconButtonRenderEnvironment / titleButtonRenderEnvironment / lightStatisticsRenderEnvironment / sensorRenderEnvironment / buttonRenderEnvironment; the studio calls it a render environment (context is banned by tools/rename-glossary.json)",
+      "buttonComponentRenderers (Ae) registers two component types at once (icon-button and device-button) from one factory, so the shared locals say button* and only the arguments distinguish them: buttonProperties / buttonRenderEnvironment / isDeviceButton / deviceButtonElement / buttonSvgElement versus iconButtonProperties / iconButtonRenderEnvironment / iconButtonElement",
+      "hover line chart: nearestPoint (value175) is the drawn point, closestPoint (arg108) is the reduce accumulator, candidatePoint the current candidate, projectedPoint the point projected onto the chart box; the tooltip can mount either on the host element or on the dialog layer, hence isTooltipOnHost / isTooltipOnDialogLayer / tooltipMountElement",
+      "light layers: lightLayerEntries / lightLayerEntry / lightLayer / isLayerActive / layerStates / syncDiagramState / baseImageUrl / lightGroupEntityId / lightGroupButtonElement",
+      "effect layer: effectLayerComponent / effectLayerRenderEnvironment / effectLayerProperties / effectAssetOverride / effectAssetUrl / isEffectAuthoredActive / effectLightVisualState / isEffectAwaitingLight / effectFadeDuration",
+      "title button: frame geometry is spelled as one family (frameWidth / frameSizeRatio / frameHeight / frameOffsetXPx / frameOffsetYPx / frameHalfSpacing / frameHalfWidth / frameCenterX / frameCenterY / frameTopEdge / frameBottomEdge / frameLeftEdge / frameRightEdge / frameCornerInset / frameInset) so the same word is never reused for two different frames in the file",
+      "droplet and wisp SVG data: dropletSvgElement / dropletBodyPathElement / dropletHighlightPathElement / wispPathElement / wispPathDefinition / currentPathElement / currentPathDefinition (svgUrl / smokeSvgUrl / naturalGasSvgUrl for the data: URIs)"
+    ]
+  },
+  "newConcepts": [
+    "the four sensor presentations: createDoorWindowSensorView (two panels plus an airflow element whose dots alternate by airflowDotIndex), createWaterLeakSensorView (puddle plus expanding ripples by rippleIndex), createSmokeSensorView (ground haze plus drifting wisps) and createNaturalGasSensorView (haze plus a current element); all four pick their accent colour from the sensor kind and scale a sizeRatio-bounded visual box",
+    "buttonComponentRenderers: one factory that registers the icon-button and device-button component types; it draws a corner-cut frame with soft light, glow gradient and filter, badge, and primary/secondary text, reading boundEntityState through resolveStatePayload",
+    "the navigation and door effects SVG (createNavigationEffectsSvg, CSS class hb-navigation-effects): frame / glow / inset geometry driven by intensityMultiplier, isActiveState and opacityInput, with gradientId-keyed defs",
+    "light and effect layers over a floor plan image: base image plus one image per light layer (lightLayer), an authored-active flag, pending-light detection (isEffectAwaitingLight) and an exported effect layer that can override the asset source",
+    "floor plan auto-diagram export: syncDiagramState is handed to the studio as syncFloorplanAutoDiagramState and registered as a runtime state handler; exportFolderName / componentPosition / previewSearchParams drive the search params of the exported diagram page, and the light-layer render environment is cached per diagram component (diagramRenderEnvironment)",
+    "icon button and title button component renderers: icon-button reads isIconVisible and shouldShowIcon and renders a masked icon plus glow; title-button lays out bracket paths, main/secondary line text and a marker icon inside the same corner-cut frame",
+    "light statistics control: statisticsUnitWidth/Height sized stat card rendering activeCountElement / totalCountElement / statisticsCountElement / statisticsTitleElement with an optional statistics icon",
+    "hover line chart tooltip placement: the tooltip is mounted on the host or the dialog layer and then clamped in both axes (guideLeftPercent / tooltipTranslateX / dialogLocalLeft), with handleChartPointerMove / handleChartPointerLeave and the hover guide element",
+    "the state oracle family shared with the studio runtime: isEntityStateActive / isActiveState / isEntityActive, all reading the render environment's states Map through entityId"
+  ],
+  "gate": {
+    "batch": "24/0",
+    "tree": "23/0",
+    "smoke": "skip",
+    "delta": "# files=12267 changed=1 missing=0 added=0 declared=1 outside-declared=0",
+    "detail": "Batch gate green: §7 files=230 with-residue=204 mechanical=25584 short=3550 semantic=7585 exported-frozen=941 parse-failures=0 (the ratchet file still held the pre-batch 25877/3557 during this run); §13 files=12267 changed=1 missing=0 added=0 declared=1 outside-declared=0; §14 batch=b9-registry-c2 snapshots=1 declared=1 missing=0 extra=0 empty=0 identical-to-working=0; §15 string fingerprint self-test 12/12 and strings-checked=1 strings-mismatched=0; §16 vocabulary self-test 16/16, selector oracle 8/8, shape oracle 17/17, and the three oracle lines errors=0 / unresolved=14 / shape-undecided=225. verify_all.sh then reported 23 passed / 0 failed with §19 SKIP (no server on this machine)."
+  },
+  "ratchet": {
+    "mechanical": {
+      "before": 25877,
+      "after": 25584
+    },
+    "short": {
+      "before": 3557,
+      "after": 3550
+    }
+  },
+  "rollback": ".restore/batch-snapshots/b9-registry-c2/frontend/static/renderer/registry.js (sha256 17d8ff28ab25bc6f454b496ab7401137acdf5db6832d4b550ede79887ed42fbb)"
+}

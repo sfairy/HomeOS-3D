@@ -1,0 +1,146 @@
+{
+  "file": "frontend/static/virtual-entities.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 38,
+  "counts": {
+    "entries": 7,
+    "renameable": 7,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@10",
+      "name": "arg1",
+      "line": 10,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function parseVirtualEntityId(arg1) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value1 = String(arg1 || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = String(arg1 || \"\");",
+      "references": [
+        {
+          "line": 12,
+          "text": "if (!value1.startsWith(VIRTUAL_ENTITY_PREFIX)) return null;"
+        },
+        {
+          "line": 13,
+          "text": "const value2 = value1.indexOf(\".\", VIRTUAL_ENTITY_PREFIX.length);"
+        },
+        {
+          "line": 15,
+          "text": "const value3 = value1.slice(VIRTUAL_ENTITY_PREFIX.length, value2),"
+        },
+        {
+          "line": 16,
+          "text": "value4 = value1.slice(value2 + 1);"
+        }
+      ]
+    },
+    {
+      "key": "value2@13",
+      "name": "value2",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = value1.indexOf(\".\", VIRTUAL_ENTITY_PREFIX.length);",
+      "references": [
+        {
+          "line": 14,
+          "text": "if (value2 < 0) return null;"
+        },
+        {
+          "line": 15,
+          "text": "const value3 = value1.slice(VIRTUAL_ENTITY_PREFIX.length, value2),"
+        },
+        {
+          "line": 16,
+          "text": "value4 = value1.slice(value2 + 1);"
+        }
+      ]
+    },
+    {
+      "key": "value3@15",
+      "name": "value3",
+      "line": 15,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value1.slice(VIRTUAL_ENTITY_PREFIX.length, value2),",
+      "references": [
+        {
+          "line": 17,
+          "text": "return value3 && value4"
+        },
+        {
+          "line": 19,
+          "text": "kind: value3,"
+        }
+      ]
+    },
+    {
+      "key": "value4@16",
+      "name": "value4",
+      "line": 16,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = value1.slice(value2 + 1);",
+      "references": [
+        {
+          "line": 17,
+          "text": "return value3 && value4"
+        },
+        {
+          "line": 20,
+          "text": "scope: value4,"
+        }
+      ]
+    },
+    {
+      "key": "arg2@24",
+      "name": "arg2",
+      "line": 24,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function isVirtualEntityId(arg2) {",
+      "references": [
+        {
+          "line": 25,
+          "text": "return !!parseVirtualEntityId(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@27",
+      "name": "arg3",
+      "line": 27,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function createIconVisibilityVirtualEntity(arg3 = \"\") {",
+      "references": [
+        {
+          "line": 35,
+          "text": "pagePath: String(arg3 || \"\"),"
+        }
+      ]
+    }
+  ]
+}

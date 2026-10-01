@@ -1,0 +1,26 @@
+{
+  "frontend/modules/interaction3d/floor-navigation.js": {
+    "arg1@1": "floors",
+    "arg2@1": "elevationById",
+    "fn1@2": "parseFloorNumber",
+    "arg3@2": "token",
+    "object1@4": "chineseDigits",
+    "value4@17": "tensDigit",
+    "value5@17": "onesDigit",
+    "value1@22": "entries",
+    "arg4@23": "floorA",
+    "arg5@23": "floorB",
+    "arg6@24": "floor",
+    "value6@25": "name",
+    "value7@26": "basementMatch",
+    "value8@29": "levelMatch",
+    "value2@36": "basementCount",
+    "arg7@36": "entry",
+    "value3@37": "floorNumber",
+    "arg8@40": "listedFloor",
+    "arg9@40": "isBasement",
+    "arg10@40": "explicitNumber",
+    "value9@41": "assignedNumber",
+    "value10@42": "elevation"
+  }
+}

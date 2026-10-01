@@ -1,0 +1,11 @@
+{
+  "frontend/static/global-log-boot.js": {
+    "i@2": "apiFetch",
+    "arg1@2": "path",
+    "arg2@2": "options",
+    "value1@3": "response",
+    "value2@13": "responseText",
+    "value3@14": "payload",
+    "value4@24": "detail"
+  }
+}

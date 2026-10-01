@@ -1,0 +1,985 @@
+{
+  "file": "frontend/modules/interaction3d/airer-motion.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 158,
+  "counts": {
+    "entries": 48,
+    "renameable": 48,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "requestFrame: arg1 = () => {},",
+      "references": [
+        {
+          "line": 121,
+          "text": "arg1());"
+        },
+        {
+          "line": 130,
+          "text": "((value8.light = value16), value8.rig.setLight(value16), arg1());"
+        },
+        {
+          "line": 137,
+          "text": "(fn2(value23, arg15), fn3(value23), (value3 ||= !!value23.motion), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg2@4",
+      "name": "arg2",
+      "line": 4,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "now: arg2 = () => performance.now(),",
+      "references": [
+        {
+          "line": 30,
+          "text": "const value7 = arg2();"
+        },
+        {
+          "line": 133,
+          "text": "tick(arg15 = arg2()) {"
+        }
+      ]
+    },
+    {
+      "key": "value1@6",
+      "name": "value1",
+      "line": 6,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1,",
+      "references": [
+        {
+          "line": 31,
+          "text": "(value1 !== arg7 || value2 !== arg8) &&"
+        },
+        {
+          "line": 35,
+          "text": "value1?.traverse((arg11) => {"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2,",
+      "references": [
+        {
+          "line": 31,
+          "text": "(value1 !== arg7 || value2 !== arg8) &&"
+        }
+      ]
+    },
+    {
+      "key": "list1@8",
+      "name": "list1",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [],",
+      "references": [
+        {
+          "line": 39,
+          "text": "list1.push({"
+        },
+        {
+          "line": 49,
+          "text": "for (const value8 of list1) {"
+        },
+        {
+          "line": 135,
+          "text": "for (const value23 of list1)"
+        },
+        {
+          "line": 141,
+          "text": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));"
+        },
+        {
+          "line": 149,
+          "text": "return list1.some((arg19) => arg19.motion) ? 1000 / 30 : Infinity;"
+        },
+        {
+          "line": 153,
+          "text": "for (const value25 of list1) delete value25.model.userData.environmentOutlineMoving;"
+        }
+      ]
+    },
+    {
+      "key": "value3@9",
+      "name": "value3",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = false,",
+      "references": [
+        {
+          "line": 138,
+          "text": "return value3;"
+        }
+      ]
+    },
+    {
+      "key": "value4@10",
+      "name": "value4",
+      "line": 10,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = false;",
+      "references": [
+        {
+          "line": 29,
+          "text": "if (value4) return;"
+        }
+      ]
+    },
+    {
+      "key": "fn1@11",
+      "name": "fn1",
+      "line": 11,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg3) => arg3.floorId + \"/\" + arg3.modelId;",
+      "references": [
+        {
+          "line": 50,
+          "text": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),"
+        },
+        {
+          "line": 141,
+          "text": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));"
+        }
+      ]
+    },
+    {
+      "key": "arg3@11",
+      "name": "arg3",
+      "line": 11,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg3) => arg3.floorId + \"/\" + arg3.modelId;",
+      "references": [
+        {
+          "line": 11,
+          "text": "const fn1 = (arg3) => arg3.floorId + \"/\" + arg3.modelId;"
+        }
+      ]
+    },
+    {
+      "key": "fn2@12",
+      "name": "fn2",
+      "line": 12,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg4, arg5) {",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn2(value8, value7);"
+        },
+        {
+          "line": 137,
+          "text": "(fn2(value23, arg15), fn3(value23), (value3 ||= !!value23.motion), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg4@12",
+      "name": "arg4",
+      "line": 12,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg4, arg5) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "const value5 = arg4.motion;"
+        },
+        {
+          "line": 16,
+          "text": "((arg4.position = value5.from + (value5.to - value5.from) * value6),"
+        },
+        {
+          "line": 17,
+          "text": "value6 === 1 && (arg4.motion = null));"
+        }
+      ]
+    },
+    {
+      "key": "arg5@12",
+      "name": "arg5",
+      "line": 12,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn2(arg4, arg5) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "const value6 = Math.max(0, Math.min(1, (arg5 - value5.start) / value5.duration));"
+        }
+      ]
+    },
+    {
+      "key": "value5@13",
+      "name": "value5",
+      "line": 13,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = arg4.motion;",
+      "references": [
+        {
+          "line": 14,
+          "text": "if (!value5) return;"
+        },
+        {
+          "line": 15,
+          "text": "const value6 = Math.max(0, Math.min(1, (arg5 - value5.start) / value5.duration));"
+        },
+        {
+          "line": 16,
+          "text": "((arg4.position = value5.from + (value5.to - value5.from) * value6),"
+        }
+      ]
+    },
+    {
+      "key": "value6@15",
+      "name": "value6",
+      "line": 15,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = Math.max(0, Math.min(1, (arg5 - value5.start) / value5.duration));",
+      "references": [
+        {
+          "line": 16,
+          "text": "((arg4.position = value5.from + (value5.to - value5.from) * value6),"
+        },
+        {
+          "line": 17,
+          "text": "value6 === 1 && (arg4.motion = null));"
+        }
+      ]
+    },
+    {
+      "key": "fn3@19",
+      "name": "fn3",
+      "line": 19,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg6) {",
+      "references": [
+        {
+          "line": 120,
+          "text": "fn3(value8),"
+        },
+        {
+          "line": 137,
+          "text": "(fn2(value23, arg15), fn3(value23), (value3 ||= !!value23.motion), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg6@19",
+      "name": "arg6",
+      "line": 19,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn3(arg6) {",
+      "references": [
+        {
+          "line": 20,
+          "text": "(arg6.rig.pose(arg6.position),"
+        },
+        {
+          "line": 21,
+          "text": "arg6.outlinePosition !== arg6.position &&"
+        },
+        {
+          "line": 22,
+          "text": "((arg6.model.userData.environmentOutlineRevision ="
+        },
+        {
+          "line": 23,
+          "text": "(arg6.model.userData.environmentOutlineRevision || 0) + 1),"
+        },
+        {
+          "line": 24,
+          "text": "(arg6.outlinePosition = arg6.position)),"
+        },
+        {
+          "line": 25,
+          "text": "(arg6.model.userData.environmentOutlineMoving = !!(arg6.motion || arg6.state?.moving)));"
+        }
+      ]
+    },
+    {
+      "key": "arg7@28",
+      "name": "arg7",
+      "line": 28,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync({ root: arg7, revision: arg8, bindings: arg9 = [], states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 31,
+          "text": "(value1 !== arg7 || value2 !== arg8) &&"
+        },
+        {
+          "line": 32,
+          "text": "((value1 = arg7),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@28",
+      "name": "arg8",
+      "line": 28,
+      "column": 33,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync({ root: arg7, revision: arg8, bindings: arg9 = [], states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 31,
+          "text": "(value1 !== arg7 || value2 !== arg8) &&"
+        },
+        {
+          "line": 33,
+          "text": "(value2 = arg8),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@28",
+      "name": "arg9",
+      "line": 28,
+      "column": 49,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync({ root: arg7, revision: arg8, bindings: arg9 = [], states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@28",
+      "name": "arg10",
+      "line": 28,
+      "column": 68,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "sync({ root: arg7, revision: arg8, bindings: arg9 = [], states: arg10 = {} }) {",
+      "references": [
+        {
+          "line": 51,
+          "text": "value10 = coverState(value9?.entityId || \"\", arg10[value9?.entityId]),"
+        },
+        {
+          "line": 126,
+          "text": "value14 = arg10[value13?.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "value7@30",
+      "name": "value7",
+      "line": 30,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = arg2();",
+      "references": [
+        {
+          "line": 62,
+          "text": "fn2(value8, value7);"
+        },
+        {
+          "line": 76,
+          "text": "const value19 = value8.reportTime == null ? null : value7 - value8.reportTime;"
+        },
+        {
+          "line": 83,
+          "text": "(value8.reportTime = value7));"
+        },
+        {
+          "line": 84,
+          "text": "} else value10.moving && value8.reportTime == null && (value8.reportTime = value7);"
+        },
+        {
+          "line": 93,
+          "text": "start: value7,"
+        },
+        {
+          "line": 106,
+          "text": "start: value7,"
+        }
+      ]
+    },
+    {
+      "key": "arg11@35",
+      "name": "arg11",
+      "line": 35,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1?.traverse((arg11) => {",
+      "references": [
+        {
+          "line": 36,
+          "text": "arg11.userData?.environmentModelType === \"airer\" &&"
+        },
+        {
+          "line": 37,
+          "text": "arg11.traverse((arg12) => {"
+        },
+        {
+          "line": 40,
+          "text": "key: arg11.userData.environmentFloorId + \"/\" + arg11.userData.environmentModelId,"
+        },
+        {
+          "line": 41,
+          "text": "model: arg11,"
+        }
+      ]
+    },
+    {
+      "key": "arg12@37",
+      "name": "arg12",
+      "line": 37,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg11.traverse((arg12) => {",
+      "references": [
+        {
+          "line": 38,
+          "text": "arg12.userData?.airerRig &&"
+        },
+        {
+          "line": 42,
+          "text": "rig: arg12.userData.airerRig,"
+        }
+      ]
+    },
+    {
+      "key": "value8@49",
+      "name": "value8",
+      "line": 49,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value8 of list1) {",
+      "references": [
+        {
+          "line": 50,
+          "text": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),"
+        },
+        {
+          "line": 61,
+          "text": "if (value12 !== value8.signature) {"
+        },
+        {
+          "line": 62,
+          "text": "fn2(value8, value7);"
+        },
+        {
+          "line": 63,
+          "text": "const value17 = !value8.signature || value11 !== value8.entityId;"
+        },
+        {
+          "line": 64,
+          "text": "value8.motion = null;"
+        },
+        {
+          "line": 66,
+          "text": "value8.state?.moving && value10.moving && value8.state.opening !== value10.opening;"
+        }
+      ]
+    },
+    {
+      "key": "value9@50",
+      "name": "value9",
+      "line": 50,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),",
+      "references": [
+        {
+          "line": 51,
+          "text": "value10 = coverState(value9?.entityId || \"\", arg10[value9?.entityId]),"
+        },
+        {
+          "line": 52,
+          "text": "value11 = value9?.entityId || \"\","
+        },
+        {
+          "line": 58,
+          "text": "value9?.travelSeconds,"
+        },
+        {
+          "line": 59,
+          "text": "value9?.unboundPosition,"
+        },
+        {
+          "line": 70,
+          "text": "!value9?.entityId)"
+        },
+        {
+          "line": 72,
+          "text": "value8.position = value9?.unboundPosition ?? value8.rig.preview ?? 55;"
+        }
+      ]
+    },
+    {
+      "key": "arg13@50",
+      "name": "arg13",
+      "line": 50,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),",
+      "references": [
+        {
+          "line": 50,
+          "text": "const value9 = arg9.find((arg13) => fn1(arg13) === value8.key),"
+        }
+      ]
+    },
+    {
+      "key": "value10@51",
+      "name": "value10",
+      "line": 51,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = coverState(value9?.entityId || \"\", arg10[value9?.entityId]),",
+      "references": [
+        {
+          "line": 55,
+          "text": "value10.available,"
+        },
+        {
+          "line": 56,
+          "text": "value10.state,"
+        },
+        {
+          "line": 57,
+          "text": "value10.position,"
+        },
+        {
+          "line": 66,
+          "text": "value8.state?.moving && value10.moving && value8.state.opening !== value10.opening;"
+        },
+        {
+          "line": 68,
+          "text": "((value17 || !value10.available || !value10.moving || value18) &&"
+        },
+        {
+          "line": 74,
+          "text": "if (value10.available && value10.position !== null) {"
+        }
+      ]
+    },
+    {
+      "key": "value11@52",
+      "name": "value11",
+      "line": 52,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = value9?.entityId || \"\",",
+      "references": [
+        {
+          "line": 54,
+          "text": "value11,"
+        },
+        {
+          "line": 63,
+          "text": "const value17 = !value8.signature || value11 !== value8.entityId;"
+        },
+        {
+          "line": 118,
+          "text": "(value8.entityId = value11),"
+        }
+      ]
+    },
+    {
+      "key": "value12@53",
+      "name": "value12",
+      "line": 53,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = JSON.stringify([",
+      "references": [
+        {
+          "line": 61,
+          "text": "if (value12 !== value8.signature) {"
+        },
+        {
+          "line": 117,
+          "text": "((value8.signature = value12),"
+        }
+      ]
+    },
+    {
+      "key": "value17@63",
+      "name": "value17",
+      "line": 63,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value17 = !value8.signature || value11 !== value8.entityId;",
+      "references": [
+        {
+          "line": 68,
+          "text": "((value17 || !value10.available || !value10.moving || value18) &&"
+        },
+        {
+          "line": 85,
+          "text": "if (value17 || !value10.moving || value18) value8.position = value10.position;"
+        },
+        {
+          "line": 101,
+          "text": "(value17 && (value8.position = value9?.unboundPosition ?? value8.rig.preview ?? 55),"
+        }
+      ]
+    },
+    {
+      "key": "value18@65",
+      "name": "value18",
+      "line": 65,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 =",
+      "references": [
+        {
+          "line": 68,
+          "text": "((value17 || !value10.available || !value10.moving || value18) &&"
+        },
+        {
+          "line": 85,
+          "text": "if (value17 || !value10.moving || value18) value8.position = value10.position;"
+        }
+      ]
+    },
+    {
+      "key": "value19@76",
+      "name": "value19",
+      "line": 76,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value19 = value8.reportTime == null ? null : value7 - value8.reportTime;",
+      "references": [
+        {
+          "line": 77,
+          "text": "(value19 >= 80 &&"
+        },
+        {
+          "line": 78,
+          "text": "value19 <= 5000 &&"
+        },
+        {
+          "line": 81,
+          "text": "? value19"
+        },
+        {
+          "line": 82,
+          "text": ": Math.max(value19, value8.reportInterval * 0.7 + value19 * 0.3)),"
+        }
+      ]
+    },
+    {
+      "key": "value20@88",
+      "name": "value20",
+      "line": 88,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value20 = value8.reportInterval ?? 1000,",
+      "references": [
+        {
+          "line": 89,
+          "text": "value21 = Math.max(120, Math.min(5500, value20 * 1.15));"
+        }
+      ]
+    },
+    {
+      "key": "value21@89",
+      "name": "value21",
+      "line": 89,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = Math.max(120, Math.min(5500, value20 * 1.15));",
+      "references": [
+        {
+          "line": 94,
+          "text": "duration: value21,"
+        }
+      ]
+    },
+    {
+      "key": "value22@100",
+      "name": "value22",
+      "line": 100,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value22 = value10.opening ? 100 : 0;",
+      "references": [
+        {
+          "line": 102,
+          "text": "value22 !== value8.position &&"
+        },
+        {
+          "line": 105,
+          "text": "to: value22,"
+        },
+        {
+          "line": 109,
+          "text": "(Math.abs(value22 - value8.position) / 100) *"
+        }
+      ]
+    },
+    {
+      "key": "value13@123",
+      "name": "value13",
+      "line": 123,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = (value9?.extraControls || []).find((arg14) =>",
+      "references": [
+        {
+          "line": 126,
+          "text": "value14 = arg10[value13?.entityId],"
+        }
+      ]
+    },
+    {
+      "key": "arg14@123",
+      "name": "arg14",
+      "line": 123,
+      "column": 60,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = (value9?.extraControls || []).find((arg14) =>",
+      "references": [
+        {
+          "line": 124,
+          "text": "arg14.entityId.startsWith(\"light.\"),"
+        }
+      ]
+    },
+    {
+      "key": "value14@126",
+      "name": "value14",
+      "line": 126,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = arg10[value13?.entityId],",
+      "references": [
+        {
+          "line": 127,
+          "text": "value15 = value14?.newState || value14,"
+        }
+      ]
+    },
+    {
+      "key": "value15@127",
+      "name": "value15",
+      "line": 127,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value15 = value14?.newState || value14,",
+      "references": [
+        {
+          "line": 128,
+          "text": "value16 = value15?.available !== false && value15?.state === \"on\";"
+        }
+      ]
+    },
+    {
+      "key": "value16@128",
+      "name": "value16",
+      "line": 128,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = value15?.available !== false && value15?.state === \"on\";",
+      "references": [
+        {
+          "line": 129,
+          "text": "value8.light !== value16 &&"
+        },
+        {
+          "line": 130,
+          "text": "((value8.light = value16), value8.rig.setLight(value16), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg15@133",
+      "name": "arg15",
+      "line": 133,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "tick(arg15 = arg2()) {",
+      "references": [
+        {
+          "line": 137,
+          "text": "(fn2(value23, arg15), fn3(value23), (value3 ||= !!value23.motion), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "value23@135",
+      "name": "value23",
+      "line": 135,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value23 of list1)",
+      "references": [
+        {
+          "line": 136,
+          "text": "value23.motion &&"
+        },
+        {
+          "line": 137,
+          "text": "(fn2(value23, arg15), fn3(value23), (value3 ||= !!value23.motion), arg1());"
+        }
+      ]
+    },
+    {
+      "key": "arg16@140",
+      "name": "arg16",
+      "line": 140,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "read(arg16, arg17) {",
+      "references": [
+        {
+          "line": 141,
+          "text": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));"
+        }
+      ]
+    },
+    {
+      "key": "arg17@140",
+      "name": "arg17",
+      "line": 140,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "read(arg16, arg17) {",
+      "references": [
+        {
+          "line": 143,
+          "text": "...arg17,"
+        },
+        {
+          "line": 144,
+          "text": "estimated: arg17.position === null,"
+        }
+      ]
+    },
+    {
+      "key": "value24@141",
+      "name": "value24",
+      "line": 141,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));",
+      "references": [
+        {
+          "line": 145,
+          "text": "visualPosition: value24?.position ?? null,"
+        }
+      ]
+    },
+    {
+      "key": "arg18@141",
+      "name": "arg18",
+      "line": 141,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));",
+      "references": [
+        {
+          "line": 141,
+          "text": "const value24 = list1.find((arg18) => arg18.key === fn1(arg16));"
+        }
+      ]
+    },
+    {
+      "key": "arg19@149",
+      "name": "arg19",
+      "line": 149,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "return list1.some((arg19) => arg19.motion) ? 1000 / 30 : Infinity;",
+      "references": [
+        {
+          "line": 149,
+          "text": "return list1.some((arg19) => arg19.motion) ? 1000 / 30 : Infinity;"
+        }
+      ]
+    },
+    {
+      "key": "value25@153",
+      "name": "value25",
+      "line": 153,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value25 of list1) delete value25.model.userData.environmentOutlineMoving;",
+      "references": [
+        {
+          "line": 153,
+          "text": "for (const value25 of list1) delete value25.model.userData.environmentOutlineMoving;"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "frontend/modules/interaction3d/device-profiles.js": {
+    "arg1@50": "listedKind",
+    "arg2@52": "candidateKind",
+    "arg3@53": "requestedKind",
+    "arg4@55": "placements",
+    "arg5@57": "deviceKind",
+    "value1@58": "deviceProfile",
+    "arg6@62": "placement",
+    "arg7@63": "entry",
+    "arg8@63": "entryIndex"
+  }
+}

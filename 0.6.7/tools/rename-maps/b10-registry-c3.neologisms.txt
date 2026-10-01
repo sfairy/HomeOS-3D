@@ -1,0 +1,309 @@
+WARN value396@2621: "value396" -> "sensorEntityState": no canonical covers this name; consider entityState (via T7 owner "sensor") | entityState
+WARN value397@2622: "value397" -> "presenceMotionConfig": no canonical covers this name
+WARN value398@2629: "value398" -> "presencePresentation": no canonical covers this name
+WARN value399@2647: "value399" -> "occupiedAccentColor": no canonical covers this name
+WARN value400@2651: "value400" -> "clearAccentColor": no canonical covers this name
+WARN value401@2655: "value401" -> "contentUnits": no canonical covers this name
+WARN value402@2656: "value402" -> "presenceSensorElement": no canonical covers this name; consider element (via T7 owner "presenceSensor") | element
+WARN value403@2663: "value403" -> "animationStrength": no canonical covers this name
+WARN value404@2664: "value404" -> "haloScale": no canonical covers this name
+WARN value405@2665: "value405" -> "haloScaleX": no canonical covers this name; consider scaleX (via T7 owner "halo") | scaleX
+WARN value406@2666: "value406" -> "haloScaleY": no canonical covers this name; consider scaleY (via T7 owner "halo") | scaleY
+WARN value407@2667: "value407" -> "haloRotation": no canonical covers this name
+WARN value408@2668: "value408" -> "haloOpacity": no canonical covers this name
+WARN value409@2669: "value409" -> "personScale": no canonical covers this name
+WARN value410@2670: "value410" -> "personRotation": no canonical covers this name
+WARN value411@2671: "value411" -> "personOpacity": no canonical covers this name
+WARN value412@2672: "value412" -> "orbitDuration": no canonical covers this name
+WARN value413@2674: "value413" -> "waveDurationSeconds": no canonical covers this name
+WARN value429@2687: "value429" -> "animationPhase": no canonical covers this name
+WARN value414@2696: "value414" -> "orbitOffsetX": no canonical covers this name
+WARN value415@2697: "value415" -> "orbitOffsetY": no canonical covers this name
+WARN value416@2757: "value416" -> "presenceVisualElement": no canonical covers this name; consider element (via T7 owner "presenceVisual") | element
+WARN value417@2759: "value417" -> "presenceHaloElement": no canonical covers this name; consider element (via T7 owner "presenceHalo") | element
+WARN value418@2761: "value418" -> "presenceSpaceElement": no canonical covers this name; consider element (via T7 owner "presenceSpace") | element
+WARN value430@2763: "value430" -> "spaceDotIndex": no canonical covers this name
+WARN value419@2765: "value419" -> "presencePersonElement": no canonical covers this name; consider element (via T7 owner "presencePerson") | element
+WARN value420@2767: "value420" -> "personHeadElement": no canonical covers this name; consider element (via T7 owner "personHead") | element
+WARN value421@2768: "value421" -> "personTorsoElement": no canonical covers this name; consider element (via T7 owner "personTorso") | element
+WARN value422@2769: "value422" -> "personLeftArmElement": no canonical covers this name; consider element (via T7 owner "personLeftArm") | element
+WARN value423@2771: "value423" -> "personRightArmElement": no canonical covers this name; consider element (via T7 owner "personRightArm") | element
+WARN value424@2773: "value424" -> "personLeftLegElement": no canonical covers this name; consider element (via T7 owner "personLeftLeg") | element
+WARN value425@2775: "value425" -> "personRightLegElement": no canonical covers this name; consider element (via T7 owner "personRightLeg") | element
+WARN value426@2778: "value426" -> "presenceFloorElement": no canonical covers this name; consider element (via T7 owner "presenceFloor") | element
+WARN value427@2780: "value427" -> "presenceOrbitElement": no canonical covers this name; consider element (via T7 owner "presenceOrbit") | element
+WARN value428@2782: "value428" -> "presenceTravelerElement": no canonical covers this name; consider element (via T7 owner "presenceTraveler") | element
+WARN value431@2791: "value431" -> "stateTimestamp": no canonical covers this name
+WARN value432@2792: "value432" -> "motionTimeoutRemainingMs": no canonical covers this name
+WARN value433@2796: "value433" -> "motionTimeoutHandle": no canonical covers this name
+WARN arg151@2807: "arg151" -> "airConditionerComponent": no canonical covers this name; consider component (via T7 owner "airConditioner") | component
+WARN arg152@2807: "arg152" -> "airConditionerRenderEnvironment": no canonical covers this name
+WARN value434@2808: "value434" -> "airConditionerProperties": no canonical covers this name
+WARN value435@2809: "value435" -> "airConditionerEntityId": no canonical covers this name; consider entityId (via T7 owner "airConditioner") | entityId
+WARN value436@2810: "value436" -> "airConditionerEntityState": no canonical covers this name; consider entityState (via T7 owner "airConditioner") | entityState
+WARN value437@2811: "value437" -> "airConditionerDeviceType": no canonical covers this name
+WARN value438@2812: "value438" -> "isClimatePowered": no canonical covers this name
+WARN value439@2813: "value439" -> "contentUnitHeight": no canonical covers this name
+WARN value440@2814: "value440" -> "airConditionerElement": no canonical covers this name; consider element (via T7 owner "airConditioner") | element
+WARN value441@2848: "value441" -> "airConditionerIconColor": no canonical covers this name
+WARN value442@2854: "value442" -> "badgeSizePx": no canonical covers this name
+WARN value443@2855: "value443" -> "symbolSizePx": no canonical covers this name
+WARN value449@2857: "value449" -> "iconBadgeElement": no canonical covers this name; consider element (via T7 owner "iconBadge") | element
+WARN value450@2861: "value450" -> "configuredIconName": no canonical covers this name
+WARN value451@2862: "value451" -> "resolvedIconName": no canonical covers this name
+WARN value452@2866: "value452" -> "resolvedIconUrl": no canonical covers this name
+WARN value453@2868: "value453" -> "airConditionerIconElement": no canonical covers this name; consider element (via T7 owner "airConditionerIcon") | element
+WARN value454@2870: "value454" -> "iconScalePercent": no canonical covers this name
+WARN value444@2880: "value444" -> "airConditionerTextElement": no canonical covers this name; consider element (via T7 owner "airConditionerText") | element
+WARN value445@2882: "value445" -> "mainTextSizePx": no canonical covers this name
+WARN value446@2883: "value446" -> "airConditionerMainTextElement": no canonical covers this name; consider element (via T7 owner "airConditionerMainText") | element
+WARN value447@2896: "value447" -> "secondaryTextSizePx": no canonical covers this name
+WARN value448@2897: "value448" -> "airConditionerSecondaryTextElement": no canonical covers this name; consider element (via T7 owner "airConditionerSecondaryText") | element
+WARN arg153@2912: "arg153" -> "rawRadiusRatio": no canonical covers this name
+WARN arg154@2912: "arg154" -> "fallbackRadiusRatio": no canonical covers this name
+WARN value455@2913: "value455" -> "numericRadiusRatio": no canonical covers this name
+WARN arg155@2918: "arg155" -> "frameHostElement": no canonical covers this name; consider hostElement (via T7 owner "frame") | hostElement | element
+WARN arg156@2918: "arg156" -> "targetEntityFrame": no canonical covers this name
+WARN arg157@2918: "arg157" -> "cameraFrameOptions": no canonical covers this name; consider options (via T7 owner "cameraFrame") | options
+WARN arg158@2918: "arg158" -> "frameIdPrefix": no canonical covers this name
+WARN value456@2920: "value456" -> "viewportPixelWidth": no canonical covers this name
+WARN value457@2921: "value457" -> "viewportPixelHeight": no canonical covers this name
+WARN value458@2922: "value458" -> "cameraFrameStrokeWidth": no canonical covers this name
+WARN value459@2924: "value459" -> "frameStrokeInset": no canonical covers this name
+WARN value460@2925: "value460" -> "frameInnerWidth": no canonical covers this name
+WARN value461@2926: "value461" -> "frameInnerHeight": no canonical covers this name
+WARN value462@2927: "value462" -> "cornerRadiusRatio": no canonical covers this name
+WARN value463@2928: "value463" -> "frameCornerRadius": no canonical covers this name
+WARN value464@2929: "value464" -> "cameraFrameOpacity": no canonical covers this name
+WARN value465@2930: "value465" -> "cameraFrameColor": no canonical covers this name
+WARN value466@2931: "value466" -> "cameraFrameId": no canonical covers this name
+WARN value467@2932: "value467" -> "cameraFrameSvgElement": no canonical covers this name; consider element (via T7 owner "cameraFrameSvg") | element
+WARN value468@2938: "value468" -> "cameraFrameDefsElement": no canonical covers this name; consider element (via T7 owner "cameraFrameDefs") | element
+WARN value469@2939: "value469" -> "cameraFrameGradientElement": no canonical covers this name; consider element (via T7 owner "cameraFrameGradient") | element
+WARN value470@2955: "value470" -> "gradientStopOffset": no canonical covers this name
+WARN value471@2955: "value471" -> "gradientStopOpacity": no canonical covers this name
+WARN $t@2982: "$t" -> "CAMERA_SOURCE_CACHE_TTL_MS": no canonical covers this name; consider cacheTtlMs
+WARN St@2983: "St" -> "CAMERA_MAX_SOURCES": no canonical covers this name
+WARN pe@2984: "pe" -> "cameraSourceByEntityId": no canonical covers this name; consider entityId (via T7 owner "cameraSourceBy") | entityId
+WARN oe@2985: "oe" -> "pendingSourceRequestByEntityId": no canonical covers this name; consider entityId (via T7 owner "pendingSourceRequestBy") | entityId
+WARN ze@2986: "ze" -> "resolveCameraStreamSource": no canonical covers this name
+WARN arg159@2986: "arg159" -> "sourceEntityId": no canonical covers this name; consider entityId (via T7 owner "source") | entityId
+WARN value472@2987: "value472" -> "normalizedCameraEntityId": no canonical covers this name; consider entityId (via T7 owner "normalizedCamera") | entityId
+WARN value473@2989: "value473" -> "requestTimestampMs": no canonical covers this name; consider timestampMs (via T7 owner "request") | timestampMs
+WARN value474@2990: "value474" -> "cachedSourceRecord": no canonical covers this name
+WARN value475@2992: "value475" -> "pendingSourceRequest": no canonical covers this name
+WARN value476@2994: "value476" -> "sourceRequestPromise": no canonical covers this name
+WARN value477@2995: "value477" -> "cameraHlsResponse": no canonical covers this name; consider response (via T7 owner "cameraHls") | response
+WARN value478@2997: "value478" -> "cameraHlsPayload": no canonical covers this name
+WARN value479@2998: "value479" -> "cameraStreamUrl": no canonical covers this name
+WARN arg160@3016: "arg160" -> "cameraEntityIds": no canonical covers this name
+WARN value480@3018: "value480" -> "uniqueCameraEntityIds": no canonical covers this name
+WARN arg161@3019: "arg161" -> "cameraEntityIdCandidate": no canonical covers this name; consider entityId | cameraCandidate
+WARN arg162@3021: "arg162" -> "prewarmEntityId": no canonical covers this name; consider entityId (via T7 owner "prewarm") | entityId
+WARN arg163@3024: "arg163" -> "cameraContainerElement": no canonical covers this name; consider element (via T7 owner "cameraContainer") | element
+WARN arg164@3025: "arg164" -> "snapshotEntityId": no canonical covers this name; consider entityId (via T7 owner "snapshot") | entityId
+WARN arg165@3026: "arg165" -> "cameraLabel": no canonical covers this name
+WARN arg167@3027: "arg167" -> "cameraObjectFit": no canonical covers this name
+WARN arg168@3028: "arg168" -> "refreshIntervalSeconds": no canonical covers this name
+WARN arg166@3029: "arg166" -> "placeholderElement": no canonical covers this name; consider element (via T7 owner "placeholder") | element
+WARN arg169@3030: "arg169" -> "registerCleanup": no canonical covers this name
+WARN value481@3032: "value481" -> "cameraImageElement": no canonical covers this name; consider element (via T7 owner "cameraImage") | element
+WARN value482@3037: "value482" -> "rawRefreshInterval": no canonical covers this name
+WARN value483@3038: "value483" -> "refreshInterval": no canonical covers this name
+WARN value484@3039: "value484" -> "refreshIntervalMs": no canonical covers this name
+WARN value485@3040: "value485" -> "isSnapshotLoading": no canonical covers this name
+WARN value486@3041: "value486" -> "isDocumentHidden": no canonical covers this name
+WARN value487@3042: "value487" -> "refreshTimerId": no canonical covers this name
+WARN value488@3043: "value488" -> "hasLoadedSnapshot": no canonical covers this name
+WARN value489@3044: "value489" -> "currentObjectUrl": no canonical covers this name
+WARN value490@3045: "value490" -> "activeAbortController": no canonical covers this name; consider abortController (via T7 owner "active") | abortController
+WARN fn7@3047: "fn7" -> "clearRefreshTimer": no canonical covers this name
+WARN fn8@3050: "fn8" -> "scheduleRefresh": no canonical covers this name
+WARN arg170@3050: "arg170" -> "refreshDelayMs": no canonical covers this name
+WARN fn9@3055: "fn9" -> "loadCameraSnapshot": no canonical covers this name
+WARN abortController1@3068: "abortController1" -> "snapshotAbortController": no canonical covers this name; consider abortController (via T7 owner "snapshot") | abortController
+WARN value491@3070: "value491" -> "abortTimeoutHandle": no canonical covers this name
+WARN value492@3073: "value492" -> "snapshotResponse": no canonical covers this name; consider response (via T7 owner "snapshot") | response
+WARN value496@3082: "value496" -> "failureRetryDelayMs": no canonical covers this name; consider retryDelayMs (via T7 owner "failure") | retryDelayMs
+WARN value493@3095: "value493" -> "snapshotBlob": no canonical covers this name
+WARN value494@3098: "value494" -> "snapshotObjectUrl": no canonical covers this name
+WARN value495@3099: "value495" -> "previousObjectUrl": no canonical covers this name
+WARN value497@3105: "value497" -> "unavailableRetryDelayMs": no canonical covers this name; consider retryDelayMs (via T7 owner "unavailable") | retryDelayMs
+WARN fn10@3130: "fn10" -> "suspendSnapshotRefresh": no canonical covers this name
+WARN fn11@3133: "fn11" -> "handleRuntimeResume": no canonical covers this name
+WARN arg171@3133: "arg171" -> "resumeEvent": no canonical covers this name
+WARN arg172@3167: "arg172" -> "legacyContainerElement": no canonical covers this name; consider element (via T7 owner "legacyContainer") | element
+WARN arg173@3168: "arg173" -> "legacySnapshotEntityId": no canonical covers this name; consider entityId (via T7 owner "legacySnapshot") | entityId
+WARN arg174@3169: "arg174" -> "legacyCameraLabel": no canonical covers this name
+WARN arg176@3170: "arg176" -> "legacyObjectFit": no canonical covers this name
+WARN arg175@3171: "arg175" -> "legacyPlaceholderElement": no canonical covers this name; consider element (via T7 owner "legacyPlaceholder") | element
+WARN arg177@3172: "arg177" -> "onTransportReady": no canonical covers this name
+WARN arg178@3173: "arg178" -> "onTransportUnavailable": no canonical covers this name
+WARN arg179@3174: "arg179" -> "registerLegacyCleanup": no canonical covers this name
+WARN value498@3176: "value498" -> "cameraVideoElement": no canonical covers this name; consider element (via T7 owner "cameraVideo") | element
+WARN value499@3184: "value499" -> "fallbackImageElement": no canonical covers this name; consider element (via T7 owner "fallbackImage") | element
+WARN value500@3189: "value500" -> "isTransportDisposed": no canonical covers this name; consider isDisposed
+WARN value501@3190: "value501" -> "isLegacyTransport": no canonical covers this name
+WARN value502@3191: "value502" -> "hasRequestedFallbackImage": no canonical covers this name
+WARN value503@3192: "value503" -> "hlsManifestTimerId": no canonical covers this name
+WARN value504@3193: "value504" -> "hlsStartTimerId": no canonical covers this name
+WARN value505@3194: "value505" -> "legacyProbeTimerId": no canonical covers this name
+WARN value506@3195: "value506" -> "hlsPlayer": no canonical covers this name
+WARN value507@3196: "value507" -> "hasVideoStarted": no canonical covers this name
+WARN value508@3197: "value508" -> "transportGeneration": no canonical covers this name
+WARN value509@3198: "value509" -> "isPageHidden": no canonical covers this name
+WARN fn13@3199: "fn13" -> "disposeCameraTransport": no canonical covers this name
+WARN fn14@3217: "fn14" -> "restoreVideoElement": no canonical covers this name; consider element (via T7 owner "restoreVideo") | element
+WARN fn15@3220: "fn15" -> "handleTransportReady": no canonical covers this name
+WARN fn16@3230: "fn16" -> "reportTransportUnavailable": no canonical covers this name
+WARN fn17@3238: "fn17" -> "loadFallbackSnapshot": no canonical covers this name
+WARN fn18@3243: "fn18" -> "scheduleFallbackRequest": no canonical covers this name
+WARN arg180@3243: "arg180" -> "fallbackGeneration": no canonical covers this name
+WARN fn19@3250: "fn19" -> "switchToLegacyTransport": no canonical covers this name
+WARN arg181@3250: "arg181" -> "legacyGeneration": no canonical covers this name
+WARN fn20@3286: "fn20" -> "startHlsPlayback": no canonical covers this name
+WARN arg182@3286: "arg182" -> "playbackGeneration": no canonical covers this name
+WARN value510@3288: "value510" -> "hlsSourceUrl": no canonical covers this name
+WARN arg183@3302: "arg183" -> "hlsEventName": no canonical covers this name
+WARN arg184@3302: "arg184" -> "hlsErrorPayload": no canonical covers this name; consider error
+WARN error2@3342: "error2" -> "hlsPlaybackError": no canonical covers this name; consider error (via T7 owner "hlsPlayback") | error
+WARN fn21@3361: "fn21" -> "resumeDeferredPlayback": no canonical covers this name
+WARN value511@3367: "value511" -> "transportGenerationSnapshot": no canonical covers this name
+WARN fn22@3372: "fn22" -> "handlePageHidden": no canonical covers this name
+WARN arg185@3401: "arg185" -> "cameraComponent": no canonical covers this name; consider component (via T7 owner "camera") | component
+WARN arg186@3401: "arg186" -> "cameraRenderEnvironment": no canonical covers this name
+WARN value512@3402: "value512" -> "cameraProperties": no canonical covers this name
+WARN value513@3403: "value513" -> "boundCameraEntityId": no canonical covers this name; consider entityId (via T7 owner "boundCamera") | entityId
+WARN value514@3404: "value514" -> "cameraComponentElement": no canonical covers this name; consider element (via T7 owner "cameraComponent") | component | element
+WARN value515@3406: "value515" -> "cameraWidth": no canonical covers this name
+WARN value516@3407: "value516" -> "cameraHeight": no canonical covers this name
+WARN value517@3408: "value517" -> "cameraComponentScale": no canonical covers this name; consider component
+WARN value518@3409: "value518" -> "cornerRadiusPx": no canonical covers this name
+WARN value519@3411: "value519" -> "editableCameraPlaceholderElement": no canonical covers this name; consider element (via T7 owner "editableCameraPlaceholder") | element
+WARN value520@3418: "value520" -> "runtimeCameraPlaceholderElement": no canonical covers this name; consider element (via T7 owner "runtimeCameraPlaceholder") | element
+WARN value521@3420: "value521" -> "isSnapshotMode": no canonical covers this name
+WARN object3@3430: "object3" -> "cameraMountOptions": no canonical covers this name; consider options (via T7 owner "cameraMount") | options
+WARN arg187@3438: "arg187" -> "onComponentCleanup": no canonical covers this name; consider component
+WARN arg188@3453: "arg188" -> "vacuumMapComponent": no canonical covers this name; consider component (via T7 owner "vacuumMap") | component
+WARN arg189@3453: "arg189" -> "vacuumMapRenderEnvironment": no canonical covers this name
+WARN value522@3454: "value522" -> "vacuumMapProperties": no canonical covers this name
+WARN value523@3455: "value523" -> "vacuumMapBoundEntityId": no canonical covers this name; consider entityId (via T7 owner "vacuumMapBound") | entityId
+WARN value524@3456: "value524" -> "vacuumMapComponentElement": no canonical covers this name; consider element (via T7 owner "vacuumMapComponent") | component | element
+WARN value528@3464: "value528" -> "missingEntityPlaceholderElement": no canonical covers this name; consider element (via T7 owner "missingEntityPlaceholder") | element
+WARN value525@3471: "value525" -> "vacuumMapImageElement": no canonical covers this name; consider element (via T7 owner "vacuumMapImage") | element
+WARN value526@3478: "value526" -> "unavailableMapPlaceholderElement": no canonical covers this name; consider element (via T7 owner "unavailableMapPlaceholder") | element
+WARN value527@3484: "value527" -> "vacuumMapImageLoader": no canonical covers this name
+WARN arg190@3491: "arg190" -> "mapFramePayload": no canonical covers this name
+WARN fn23@3507: "fn23" -> "syncVacuumMapImage": no canonical covers this name
+WARN fn24@3509: "fn24" -> "handleMapVisibilityChange": no canonical covers this name; consider handleVisibilityChange
+WARN arg191@3523: "arg191" -> "timeComponent": no canonical covers this name; consider component (via T7 owner "time") | component
+WARN arg192@3523: "arg192" -> "timeRenderEnvironment": no canonical covers this name
+WARN value529@3524: "value529" -> "timeProperties": no canonical covers this name
+WARN value530@3525: "value530" -> "timeFontSize": no canonical covers this name
+WARN value531@3526: "value531" -> "timeComponentElement": no canonical covers this name; consider element (via T7 owner "timeComponent") | component | element
+WARN value532@3532: "value532" -> "timeValueElement": no canonical covers this name; consider element (via T7 owner "timeValue") | element
+WARN value533@3535: "value533" -> "timePeriodElement": no canonical covers this name; consider element (via T7 owner "timePeriod") | element
+WARN fn25@3539: "fn25" -> "updateClockDisplay": no canonical covers this name; consider clock
+WARN date1@3540: "date1" -> "currentDate": no canonical covers this name
+WARN value535@3541: "value535" -> "formattedTime": no canonical covers this name
+WARN value534@3548: "value534" -> "clockTimerId": no canonical covers this name; consider clock
+WARN arg193@3553: "arg193" -> "dateComponent": no canonical covers this name; consider component (via T7 owner "date") | component
+WARN arg194@3553: "arg194" -> "dateRenderEnvironment": no canonical covers this name
+WARN value536@3554: "value536" -> "dateProperties": no canonical covers this name
+WARN value537@3555: "value537" -> "dateComponentElement": no canonical covers this name; consider element (via T7 owner "dateComponent") | component | element
+WARN value538@3559: "value538" -> "datePrimaryElement": no canonical covers this name; consider element (via T7 owner "datePrimary") | element
+WARN value539@3562: "value539" -> "primaryFontSize": no canonical covers this name
+WARN value540@3567: "value540" -> "lunarElement": no canonical covers this name; consider element (via T7 owner "lunar") | element
+WARN value542@3572: "value542" -> "lunarFontSize": no canonical covers this name
+WARN fn26@3578: "fn26" -> "updateDateDisplay": no canonical covers this name
+WARN date2@3579: "date2" -> "nowDate": no canonical covers this name
+WARN value541@3584: "value541" -> "dateTimerId": no canonical covers this name
+WARN arg195@3589: "arg195" -> "weatherComponent": no canonical covers this name; consider component (via T7 owner "weather") | component
+WARN arg196@3589: "arg196" -> "weatherRenderEnvironment": no canonical covers this name
+WARN value543@3590: "value543" -> "weatherProperties": no canonical covers this name
+WARN value544@3591: "value544" -> "weatherEntityId": no canonical covers this name; consider entityId (via T7 owner "weather") | entityId
+WARN value545@3592: "value545" -> "sunEntityId": no canonical covers this name; consider entityId (via T7 owner "sun") | entityId
+WARN value546@3593: "value546" -> "weatherEntityState": no canonical covers this name; consider entityState (via T7 owner "weather") | entityState
+WARN value547@3594: "value547" -> "sunEntityState": no canonical covers this name; consider entityState (via T7 owner "sun") | entityState
+WARN value548@3595: "value548" -> "weatherAttributes": no canonical covers this name
+WARN value549@3596: "value549" -> "weatherIconSlug": no canonical covers this name
+WARN value550@3596: "value550" -> "weatherConditionLabel": no canonical covers this name
+WARN value551@3597: "value551" -> "weatherComponentElement": no canonical covers this name; consider element (via T7 owner "weatherComponent") | component | element
+WARN value553@3604: "value553" -> "weatherIconElement": no canonical covers this name; consider element (via T7 owner "weatherIcon") | element
+WARN value552@3613: "value552" -> "weatherContentElement": no canonical covers this name; consider element (via T7 owner "weatherContent") | element
+WARN value554@3619: "value554" -> "temperatureElement": no canonical covers this name; consider element (via T7 owner "temperature") | element
+WARN value555@3620: "value555" -> "temperatureValue": no canonical covers this name
+WARN value556@3621: "value556" -> "temperatureUnit": no canonical covers this name
+WARN value557@3626: "value557" -> "temperatureFontSize": no canonical covers this name
+WARN value558@3634: "value558" -> "weatherDetailElement": no canonical covers this name; consider element (via T7 owner "weatherDetail") | element
+WARN list4@3635: "list4" -> "weatherDetailParts": no canonical covers this name
+WARN value559@3637: "value559" -> "humidityValue": no canonical covers this name
+WARN value560@3642: "value560" -> "weatherDetailFontSize": no canonical covers this name
+WARN arg197@3653: "arg197" -> "lineChartComponent": no canonical covers this name; consider component (via T7 owner "lineChart") | component
+WARN arg198@3653: "arg198" -> "lineChartRenderEnvironment": no canonical covers this name
+WARN value561@3654: "value561" -> "lineChartProperties": no canonical covers this name
+WARN value562@3655: "value562" -> "lineChartEntityId": no canonical covers this name; consider entityId (via T7 owner "lineChart") | entityId
+WARN value563@3656: "value563" -> "lineChartEntityState": no canonical covers this name; consider entityState (via T7 owner "lineChart") | entityState
+WARN value564@3657: "value564" -> "lineChartUnit": no canonical covers this name
+WARN value565@3658: "value565" -> "lineChartStateValue": no canonical covers this name
+WARN value566@3659: "value566" -> "historySeries": no canonical covers this name
+WARN value567@3660: "value567" -> "resolvedThresholdList": no canonical covers this name
+WARN value568@3661: "value568" -> "lineChartComponentElement": no canonical covers this name; consider element (via T7 owner "lineChartComponent") | component | element
+WARN value569@3664: "value569" -> "lineChartValueElement": no canonical covers this name; consider element (via T7 owner "lineChartValue") | element
+WARN value570@3678: "value570" -> "stateValueElement": no canonical covers this name; consider element (via T7 owner "stateValue") | element
+WARN value571@3680: "value571" -> "stateUnitElement": no canonical covers this name; consider element (via T7 owner "stateUnit") | element
+WARN arg199@3684: "arg199" -> "syncedEntityState": no canonical covers this name; consider entityState (via T7 owner "synced") | entityState
+WARN value573@3685: "value573" -> "syncedStateValue": no canonical covers this name
+WARN value572@3693: "value572" -> "lineChartSvgElement": no canonical covers this name; consider element (via T7 owner "lineChartSvg") | element
+WARN value574@3699: "value574" -> "chartGeometry": no canonical covers this name
+WARN value575@3700: "value575" -> "minimumValue": no canonical covers this name
+WARN value576@3700: "value576" -> "maximumValue": no canonical covers this name
+WARN value577@3700: "value577" -> "valueSpan": no canonical covers this name
+WARN value578@3700: "value578" -> "chartPoints": no canonical covers this name
+WARN value579@3701: "value579" -> "chartPathDefinition": no canonical covers this name
+WARN value580@3702: "value580" -> "lineChartGradientId": no canonical covers this name
+WARN value581@3706: "value581" -> "chartDefsElement": no canonical covers this name; consider element (via T7 owner "chartDefs") | element
+WARN value582@3707: "value582" -> "gradientElement": no canonical covers this name; consider element (via T7 owner "gradient") | element
+WARN value583@3715: "value583" -> "thresholdEntries": no canonical covers this name
+WARN value584@3723: "value584" -> "thresholdEntry": no canonical covers this name
+WARN arg200@3723: "arg200" -> "leftThreshold": no canonical covers this name
+WARN arg201@3723: "arg201" -> "rightThreshold": no canonical covers this name
+WARN value585@3743: "value585" -> "hoverLayerElement": no canonical covers this name; consider element (via T7 owner "hoverLayer") | element
+WARN value586@3745: "value586" -> "chartHoverOverlayElement": no canonical covers this name; consider element (via T7 owner "chartHoverOverlay") | element
+WARN arg202@3750: "arg202" -> "chartPoint": no canonical covers this name
+WARN arg203@3768: "arg203" -> "lineChartDetailsComponent": no canonical covers this name; consider component (via T7 owner "lineChartDetails") | component
+WARN arg204@3768: "arg204" -> "lineChartDetailsRenderEnvironment": no canonical covers this name
+WARN value587@3769: "value587" -> "detailsEntityId": no canonical covers this name; consider entityId (via T7 owner "details") | entityId
+WARN value588@3770: "value588" -> "detailsEntityState": no canonical covers this name; consider entityState (via T7 owner "details") | entityState
+WARN value589@3771: "value589" -> "detailsUnit": no canonical covers this name
+WARN value590@3772: "value590" -> "detailsStateValue": no canonical covers this name
+WARN value591@3773: "value591" -> "detailsHistorySeries": no canonical covers this name
+WARN value592@3774: "value592" -> "lineChartDetailsElement": no canonical covers this name; consider element (via T7 owner "lineChartDetails") | element
+WARN value593@3776: "value593" -> "detailsThresholdList": no canonical covers this name
+WARN arg205@3786: "arg205" -> "detailsSyncedEntityState": no canonical covers this name; consider entityState (via T7 owner "detailsSynced") | entityState
+WARN value610@3787: "value610" -> "syncedDetailsValue": no canonical covers this name
+WARN value611@3795: "value611" -> "emptyHistoryMessageElement": no canonical covers this name; consider element (via T7 owner "emptyHistoryMessage") | element
+WARN value594@3798: "value594" -> "isCompactDetailsHorizontal": no canonical covers this name
+WARN value595@3799: "value595" -> "detailsViewWidth": no canonical covers this name
+WARN value596@3800: "value596" -> "detailsHeightOffset": no canonical covers this name
+WARN value597@3801: "value597" -> "detailsViewHeight": no canonical covers this name
+WARN value598@3802: "value598" -> "detailsInsetLeft": no canonical covers this name
+WARN value599@3803: "value599" -> "detailsInsetRight": no canonical covers this name
+WARN object4@3804: "object4" -> "plotRect": no canonical covers this name
+WARN value600@3810: "value600" -> "detailsGeometry": no canonical covers this name
+WARN value601@3817: "value601" -> "detailsSvgElement": no canonical covers this name; consider element (via T7 owner "detailsSvg") | element
+WARN value602@3823: "value602" -> "detailsGradientId": no canonical covers this name
+WARN value603@3827: "value603" -> "detailsDefsElement": no canonical covers this name; consider element (via T7 owner "detailsDefs") | element
+WARN value604@3828: "value604" -> "detailsGradientElement": no canonical covers this name; consider element (via T7 owner "detailsGradient") | element
+WARN value605@3836: "value605" -> "detailsThresholdEntries": no canonical covers this name
+WARN value612@3844: "value612" -> "detailsThresholdEntry": no canonical covers this name
+WARN arg206@3844: "arg206" -> "leftDetailsThreshold": no canonical covers this name
+WARN arg207@3844: "arg207" -> "rightDetailsThreshold": no canonical covers this name
+WARN one canonical under 8 names in this file: sensorEntityState, airConditionerEntityState, weatherEntityState, sunEntityState, lineChartEntityState, syncedEntityState, detailsEntityState, detailsSyncedEntityState - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 63 names in this file: presenceSensorElement, presenceVisualElement, presenceHaloElement, presenceSpaceElement, presencePersonElement, personHeadElement, personTorsoElement, personLeftArmElement, personRightArmElement, personLeftLegElement, personRightLegElement, presenceFloorElement, presenceOrbitElement, presenceTravelerElement, airConditionerElement, iconBadgeElement, airConditionerIconElement, airConditionerTextElement, airConditionerMainTextElement, airConditionerSecondaryTextElement, cameraFrameSvgElement, cameraFrameDefsElement, cameraFrameGradientElement, cameraContainerElement, placeholderElement, cameraImageElement, legacyContainerElement, legacyPlaceholderElement, cameraVideoElement, fallbackImageElement, restoreVideoElement, cameraComponentElement, editableCameraPlaceholderElement, runtimeCameraPlaceholderElement, vacuumMapComponentElement, missingEntityPlaceholderElement, vacuumMapImageElement, unavailableMapPlaceholderElement, timeComponentElement, timeValueElement, timePeriodElement, dateComponentElement, datePrimaryElement, lunarElement, weatherComponentElement, weatherIconElement, weatherContentElement, temperatureElement, weatherDetailElement, lineChartComponentElement, lineChartValueElement, stateValueElement, stateUnitElement, lineChartSvgElement, chartDefsElement, gradientElement, hoverLayerElement, chartHoverOverlayElement, lineChartDetailsElement, emptyHistoryMessageElement, detailsSvgElement, detailsDefsElement, detailsGradientElement - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 8 names in this file: airConditionerComponent, cameraComponent, vacuumMapComponent, timeComponent, dateComponent, weatherComponent, lineChartComponent, lineChartDetailsComponent - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 14 names in this file: airConditionerEntityId, cameraSourceByEntityId, pendingSourceRequestByEntityId, sourceEntityId, normalizedCameraEntityId, prewarmEntityId, snapshotEntityId, legacySnapshotEntityId, boundCameraEntityId, vacuumMapBoundEntityId, weatherEntityId, sunEntityId, lineChartEntityId, detailsEntityId - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 2 names in this file: cameraFrameOptions, cameraMountOptions - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 2 names in this file: cameraHlsResponse, snapshotResponse - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 2 names in this file: activeAbortController, snapshotAbortController - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 2 names in this file: failureRetryDelayMs, unavailableRetryDelayMs - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken

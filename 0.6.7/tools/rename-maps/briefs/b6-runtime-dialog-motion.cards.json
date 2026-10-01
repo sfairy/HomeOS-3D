@@ -1,0 +1,148 @@
+{
+  "file": "frontend/static/renderer/runtime-dialog-motion.js",
+  "seed": "b6-runtime-dialog-motion",
+  "size": 30,
+  "candidates": 14,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/module-binding",
+      "newName": "firstChildElement",
+      "declaration": "const ??? = arg3.firstElementChild,",
+      "references": [
+        "L21: if (????.animate) {",
+        "L22: const value6 = ???.animate(",
+        "L39: ((???.style.opacity = \"1\"),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/other",
+      "newName": "containerElement",
+      "declaration": "export function playStableRuntimeDialogEntrance(arg2, ???) {",
+      "references": [
+        "L14: ? [arg2, ???, ...???.querySelectorAll(\"*\")]",
+        "L15: : [arg2, ???];",
+        "L19: const value3 = ???.firstElementChild,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "entranceAnimation",
+      "declaration": "const ??? = value3.animate(",
+      "references": [
+        "L37: (list1.push(???),",
+        "L38: (???.onfinish = () => {",
+        "L41: (???.onfinish = ???.oncancel = null),"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "animatedRoot",
+      "declaration": "for (const ??? of value2)",
+      "references": [
+        "L17: for (const value5 of ???.getAnimations?.() || [])"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "agentText",
+      "declaration": "const ??? = String(arg1 || \"\");",
+      "references": [
+        "L6: /AppleWebKit/i.test(???) &&",
+        "L7: (/Safari/i.test(???) || /\\bHA-Bridge-Apple\\/\\d/.test(???)) &&",
+        "L8: !/Chrome|Chromium|CriOS|Edg|OPR|OPiOS|FxiOS/i.test(???)"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "deviceElement",
+      "declaration": "export function playFixedDeviceDropEntrance(???, { distance: arg6 = 150, delay: arg7 = 90 } = {}) {",
+      "references": [
+        "L86: return !??? || window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches",
+        "L88: : ???.animate("
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "animatedRoots",
+      "declaration": "const ??? = arg2.classList.contains(\"hb-runtime-simplified-motion\")",
+      "references": [
+        "L16: for (const value4 of ???)"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "entranceAnimations",
+      "declaration": "??? = [];",
+      "references": [
+        "L37: (???.push(value6),",
+        "L43: (???.length = 0));",
+        "L46: ((value6.onfinish = value6.oncancel = null), (???.length = 0));"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "speakerElement",
+      "declaration": "export function playMediaSpeakerEntrance(???) {",
+      "references": [
+        "L52: return !??? || window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches",
+        "L54: : ???.animate("
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "rootElement",
+      "declaration": "export function playStableRuntimeDialogEntrance(???, arg3) {",
+      "references": [
+        "L13: const value2 = ???.classList.contains(\"hb-runtime-simplified-motion\")",
+        "L14: ? [???, arg3, ...arg3.querySelectorAll(\"*\")]",
+        "L15: : [???, arg3];"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "delay",
+      "declaration": "export function playFixedDeviceDropEntrance(arg5, { distance: arg6 = 150, delay: ??? = 90 } = {}) {",
+      "references": [
+        "L113: delay: ???,"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "userAgent",
+      "declaration": "userAgent: ??? = typeof navigator > \"u\" ? \"\" : navigator.userAgent || \"\",",
+      "references": [
+        "L4: const value1 = String(??? || \"\");"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "distance",
+      "declaration": "export function playFixedDeviceDropEntrance(arg5, { distance: ??? = 150, delay: arg7 = 90 } = {}) {",
+      "references": [
+        "L92: translate: \"0 -\" + ??? + \"px\","
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "animation",
+      "declaration": "for (const ??? of value4.getAnimations?.() || [])",
+      "references": [
+        "L18: ???.effect?.getTiming?.().iterations === 1 && ???.cancel();"
+      ]
+    }
+  ]
+}

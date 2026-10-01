@@ -1,0 +1,141 @@
+{
+  "file": "frontend/static/action-rules.js",
+  "seed": "b6-action-rules",
+  "size": 30,
+  "candidates": 14,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/module-binding",
+      "newName": "entityText",
+      "declaration": "const ??? = String(arg4 || \"\");",
+      "references": [
+        "L36: return isVirtualEntityId(???) || TOGGLE_ENTITY_DOMAINS.has(???.split(\".\", 1)[0]);"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/other",
+      "newName": "component",
+      "declaration": "???,",
+      "references": [
+        "L45: [\"presence-sensor\", \"flow-line\", \"percentage-bar\"].includes(????.type)",
+        "L48: const value3 = String(????.bindings?.entity?.entityId || \"\");"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/module-binding",
+      "newName": "targetPath",
+      "declaration": "const ??? = String(arg6.target || \"\");",
+      "references": [
+        "L52: return !!??? && (!arg7 || arg7.has(???));"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "popupAction",
+      "declaration": "export function actionPopupData(???) {",
+      "references": [
+        "L24: source: actionPopupSource(???),",
+        "L25: entityId: String(????.data?.entityId || \"\"),",
+        "L26: popupId: String(????.data?.popupId || \"\"),"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "targetEntityId",
+      "declaration": "const ??? = String(arg5?.bindings?.entity?.entityId || \"\");",
+      "references": [
+        "L49: if (arg6.type === \"toggle\") return entityIdSupportsToggle(???);",
+        "L55: if (value4 === \"current\") return !!???;"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "sourceAction",
+      "declaration": "export function actionPopupSource(???) {",
+      "references": [
+        "L19: const value1 = String(????.data?.popupSource || \"current\");"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "popupId",
+      "declaration": "const ??? = String(arg6.data?.popupId || \"\");",
+      "references": [
+        "L58: return !!??? && (!arg8 || arg8.has(???));"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "action",
+      "declaration": "???,",
+      "references": [
+        "L44: !ACTION_TYPES.includes(????.type) ||",
+        "L49: if (???.type === \"toggle\") return entityIdSupportsToggle(value3);",
+        "L50: if (???.type === \"navigate\") {"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/module-binding",
+      "newName": "sourceName",
+      "declaration": "const ??? = String(arg1?.data?.popupSource || \"current\");",
+      "references": [
+        "L20: return POPUP_SOURCES.includes(???) ? ??? : \"current\";"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "allowedPopupIds",
+      "declaration": "{ pagePaths: arg7 = null, popupIds: ??? = null } = {},",
+      "references": [
+        "L58: return !!value5 && (!??? || ???.has(value5));"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/module-binding",
+      "newName": "popupSource",
+      "declaration": "const ??? = actionPopupSource(arg6);",
+      "references": [
+        "L55: if (??? === \"current\") return !!value3;",
+        "L56: if (??? === \"entity\") return !!arg6.data?.entityId;"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "allowedPagePaths",
+      "declaration": "{ pagePaths: ??? = null, popupIds: arg8 = null } = {},",
+      "references": [
+        "L52: return !!value6 && (!??? || ???.has(value6));"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "toggleAction",
+      "declaration": "export function actionNeedsCurrentEntity(???) {",
+      "references": [
+        "L31: ????.type === \"toggle\" || (????.type === \"more-info\" && actionPopupSource(???) === \"current\")"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "entityId",
+      "declaration": "export function entityIdSupportsToggle(???) {",
+      "references": [
+        "L35: const value2 = String(??? || \"\");"
+      ]
+    }
+  ]
+}

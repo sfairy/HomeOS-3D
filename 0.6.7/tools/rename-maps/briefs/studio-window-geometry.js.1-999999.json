@@ -1,0 +1,240 @@
+{
+  "file": "frontend/static/3d-studio/studio-window-geometry.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 22,
+  "counts": {
+    "entries": 9,
+    "renameable": 9,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function windowGeometryParts(arg1, arg2, arg3, arg4 = true) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "if (![arg1, arg2, arg3].every(Number.isFinite) || arg1 <= 0 || arg2 <= 0) return null;"
+        },
+        {
+          "line": 3,
+          "text": "const value1 = Math.min(0.045, arg1 / 4, arg2 / 4),"
+        },
+        {
+          "line": 5,
+          "text": "list1 = [[arg1 - value1, arg2 - value1, 0.025, 0, value2, 0]],"
+        },
+        {
+          "line": 7,
+          "text": "[arg1, value1, 0.06, 0, arg3 + value1 / 2, 0],"
+        },
+        {
+          "line": 8,
+          "text": "[arg1, value1, 0.06, 0, arg3 + arg2 - value1 / 2, 0],"
+        },
+        {
+          "line": 9,
+          "text": "[value1, arg2 - 2 * value1, 0.06, -(arg1 - value1) / 2, value2, 0],"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function windowGeometryParts(arg1, arg2, arg3, arg4 = true) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "if (![arg1, arg2, arg3].every(Number.isFinite) || arg1 <= 0 || arg2 <= 0) return null;"
+        },
+        {
+          "line": 3,
+          "text": "const value1 = Math.min(0.045, arg1 / 4, arg2 / 4),"
+        },
+        {
+          "line": 4,
+          "text": "value2 = arg3 + arg2 / 2,"
+        },
+        {
+          "line": 5,
+          "text": "list1 = [[arg1 - value1, arg2 - value1, 0.025, 0, value2, 0]],"
+        },
+        {
+          "line": 8,
+          "text": "[arg1, value1, 0.06, 0, arg3 + arg2 - value1 / 2, 0],"
+        },
+        {
+          "line": 9,
+          "text": "[value1, arg2 - 2 * value1, 0.06, -(arg1 - value1) / 2, value2, 0],"
+        }
+      ]
+    },
+    {
+      "key": "arg3@1",
+      "name": "arg3",
+      "line": 1,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function windowGeometryParts(arg1, arg2, arg3, arg4 = true) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "if (![arg1, arg2, arg3].every(Number.isFinite) || arg1 <= 0 || arg2 <= 0) return null;"
+        },
+        {
+          "line": 4,
+          "text": "value2 = arg3 + arg2 / 2,"
+        },
+        {
+          "line": 7,
+          "text": "[arg1, value1, 0.06, 0, arg3 + value1 / 2, 0],"
+        },
+        {
+          "line": 8,
+          "text": "[arg1, value1, 0.06, 0, arg3 + arg2 - value1 / 2, 0],"
+        }
+      ]
+    },
+    {
+      "key": "arg4@1",
+      "name": "arg4",
+      "line": 1,
+      "column": 54,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function windowGeometryParts(arg1, arg2, arg3, arg4 = true) {",
+      "references": [
+        {
+          "line": 12,
+          "text": "value3 = arg4 && arg1 > 1.2;"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = Math.min(0.045, arg1 / 4, arg2 / 4),",
+      "references": [
+        {
+          "line": 5,
+          "text": "list1 = [[arg1 - value1, arg2 - value1, 0.025, 0, value2, 0]],"
+        },
+        {
+          "line": 7,
+          "text": "[arg1, value1, 0.06, 0, arg3 + value1 / 2, 0],"
+        },
+        {
+          "line": 8,
+          "text": "[arg1, value1, 0.06, 0, arg3 + arg2 - value1 / 2, 0],"
+        },
+        {
+          "line": 9,
+          "text": "[value1, arg2 - 2 * value1, 0.06, -(arg1 - value1) / 2, value2, 0],"
+        },
+        {
+          "line": 10,
+          "text": "[value1, arg2 - 2 * value1, 0.06, (arg1 - value1) / 2, value2, 0],"
+        },
+        {
+          "line": 14,
+          "text": "value3 && list2.push([value1 * 0.7, arg2 - 2 * value1, 0.055, 0, value2, 0]),"
+        }
+      ]
+    },
+    {
+      "key": "value2@4",
+      "name": "value2",
+      "line": 4,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg3 + arg2 / 2,",
+      "references": [
+        {
+          "line": 5,
+          "text": "list1 = [[arg1 - value1, arg2 - value1, 0.025, 0, value2, 0]],"
+        },
+        {
+          "line": 9,
+          "text": "[value1, arg2 - 2 * value1, 0.06, -(arg1 - value1) / 2, value2, 0],"
+        },
+        {
+          "line": 10,
+          "text": "[value1, arg2 - 2 * value1, 0.06, (arg1 - value1) / 2, value2, 0],"
+        },
+        {
+          "line": 14,
+          "text": "value3 && list2.push([value1 * 0.7, arg2 - 2 * value1, 0.055, 0, value2, 0]),"
+        }
+      ]
+    },
+    {
+      "key": "list1@5",
+      "name": "list1",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [[arg1 - value1, arg2 - value1, 0.025, 0, value2, 0]],",
+      "references": [
+        {
+          "line": 16,
+          "text": "glass: list1,"
+        }
+      ]
+    },
+    {
+      "key": "list2@6",
+      "name": "list2",
+      "line": 6,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list2 = [",
+      "references": [
+        {
+          "line": 14,
+          "text": "value3 && list2.push([value1 * 0.7, arg2 - 2 * value1, 0.055, 0, value2, 0]),"
+        },
+        {
+          "line": 17,
+          "text": "frames: list2,"
+        }
+      ]
+    },
+    {
+      "key": "value3@12",
+      "name": "value3",
+      "line": 12,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = arg4 && arg1 > 1.2;",
+      "references": [
+        {
+          "line": 14,
+          "text": "value3 && list2.push([value1 * 0.7, arg2 - 2 * value1, 0.055, 0, value2, 0]),"
+        },
+        {
+          "line": 18,
+          "text": "divided: value3,"
+        }
+      ]
+    }
+  ]
+}

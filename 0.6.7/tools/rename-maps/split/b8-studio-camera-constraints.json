@@ -1,0 +1,24 @@
+{
+  "frontend/static/3d-studio/studio-camera-constraints.js": {
+    "y@2": "minTargetHeight",
+    "z@3": "maxPolarCosine",
+    "arg1@4": "position",
+    "arg2@4": "target",
+    "value1@5": "deltaX",
+    "value2@6": "deltaY",
+    "value3@7": "deltaZ",
+    "value4@8": "distance",
+    "value5@9": "minHeight",
+    "value6@11": "horizontalDistance",
+    "value7@12": "maxDistance",
+    "value8@13": "lateralDistance",
+    "arg3@21": "pose",
+    "value9@23": "positionX",
+    "value10@23": "positionY",
+    "value11@23": "positionZ",
+    "value12@24": "targetX",
+    "value13@24": "targetY",
+    "value14@24": "targetZ",
+    "object1@25": "nextPosition"
+  }
+}

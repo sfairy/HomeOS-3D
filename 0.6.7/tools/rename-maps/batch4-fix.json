@@ -1,0 +1,23 @@
+{
+  "frontend/modules/interaction3d/car-card.js": {
+    "arg1@2": "containerElement",
+    "arg2@2": "carConfig",
+    "arg3@2": "carOptions",
+    "value1@3": "cardElement",
+    "value4@7": "tagName",
+    "value5@7": "partName",
+    "value6@13": "partElement",
+    "value2@19": "state",
+    "value3@20": "cardWidth"
+  },
+  "frontend/static/display-surface.js": {
+    "arg1@1": "boardConfig",
+    "arg2@1": "env",
+    "value1@2": "documentNode",
+    "value2@2": "nav",
+    "value3@3": "isIosDevice",
+    "value4@6": "isStandalone",
+    "value5@10": "canvasBackground",
+    "value6@11": "surfaceColor"
+  }
+}

@@ -1,0 +1,553 @@
+{
+  "file": "frontend/static/display-pairing-qr.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 99,
+  "counts": {
+    "entries": 24,
+    "renameable": 24,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "p@1",
+      "name": "p",
+      "line": 1,
+      "column": 7,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "import p from \"./vendor/qrcode-generator/qrcode.js\";",
+      "references": [
+        {
+          "line": 23,
+          "text": "p.stringToBytes = p.stringToBytesFuncs[\"UTF-8\"];"
+        },
+        {
+          "line": 24,
+          "text": "const e = p(0, \"M\");"
+        }
+      ]
+    },
+    {
+      "key": "o@2",
+      "name": "o",
+      "line": 2,
+      "column": 33,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function pairingQrPayload(o, e) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "const t = new URL(String(o).trim());"
+        }
+      ]
+    },
+    {
+      "key": "e@2",
+      "name": "e",
+      "line": 2,
+      "column": 36,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function pairingQrPayload(o, e) {",
+      "references": [
+        {
+          "line": 13,
+          "text": "if (!/^\\d{6}$/.test(String(e))) throw new Error(\"需要有效的 6 位配对码。\");"
+        },
+        {
+          "line": 20,
+          "text": "return `${t.origin}/pair?scan=1#type=ha-bridge-pair&version=1&code=${String(e)}`;"
+        }
+      ]
+    },
+    {
+      "key": "t@3",
+      "name": "t",
+      "line": 3,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = new URL(String(o).trim());",
+      "references": [
+        {
+          "line": 5,
+          "text": "![\"http:\", \"https:\"].includes(t.protocol) ||"
+        },
+        {
+          "line": 6,
+          "text": "t.username ||"
+        },
+        {
+          "line": 7,
+          "text": "t.password ||"
+        },
+        {
+          "line": 8,
+          "text": "t.search ||"
+        },
+        {
+          "line": 9,
+          "text": "t.hash ||"
+        },
+        {
+          "line": 10,
+          "text": "(t.pathname !== \"/\" && t.pathname !== \"\")"
+        }
+      ]
+    },
+    {
+      "key": "o@22",
+      "name": "o",
+      "line": 22,
+      "column": 29,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function pairingQrSvg(o) {",
+      "references": [
+        {
+          "line": 26,
+          "text": "e.addData(o),"
+        }
+      ]
+    },
+    {
+      "key": "e@24",
+      "name": "e",
+      "line": 24,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const e = p(0, \"M\");",
+      "references": [
+        {
+          "line": 26,
+          "text": "e.addData(o),"
+        },
+        {
+          "line": 27,
+          "text": "e.make(),"
+        },
+        {
+          "line": 28,
+          "text": "e.createSvgTag({"
+        }
+      ]
+    },
+    {
+      "key": "o@35",
+      "name": "o",
+      "line": 35,
+      "column": 37,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function showDisplayPairingQr(o) {",
+      "references": [
+        {
+          "line": 41,
+          "text": "m.textContent = `\\u626B\\u63CF\\u4E0B\\u65B9\\u4E8C\\u7EF4\\u7801\\uFF0C\\u8FDE\\u63A5\\u201C${o.name}\\u201D\\u3002\\u5B89\\u5353 App \\u6216\\u624B\\u673A\\u76F8\\u673A\\u5747\\u53EF\\u626B\\u7801\\u3002`;"
+        },
+        {
+          "line": 82,
+          "text": "if (!o.enabled) throw new Error(\"此配对码已停用，请先启用。\");"
+        },
+        {
+          "line": 83,
+          "text": "((r.innerHTML = pairingQrSvg(pairingQrPayload(n.value, o.code))),"
+        }
+      ]
+    },
+    {
+      "key": "e@36",
+      "name": "e",
+      "line": 36,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const e = document.createElement(\"dialog\");",
+      "references": [
+        {
+          "line": 37,
+          "text": "e.className = \"display-pairing-qr-dialog\";"
+        },
+        {
+          "line": 79,
+          "text": "((c.type = \"button\"), (c.textContent = \"关闭\"), c.addEventListener(\"click\", () => e.close()));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        },
+        {
+          "line": 92,
+          "text": "document.body.append(e),"
+        },
+        {
+          "line": 93,
+          "text": "e.addEventListener(\"close\", () => e.remove(), {"
+        },
+        {
+          "line": 97,
+          "text": "e.showModal());"
+        }
+      ]
+    },
+    {
+      "key": "t@38",
+      "name": "t",
+      "line": 38,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = document.createElement(\"h2\");",
+      "references": [
+        {
+          "line": 39,
+          "text": "t.textContent = \"HA Bridge 扫码配对\";"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "m@40",
+      "name": "m",
+      "line": 40,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const m = document.createElement(\"p\");",
+      "references": [
+        {
+          "line": 41,
+          "text": "m.textContent = `\\u626B\\u63CF\\u4E0B\\u65B9\\u4E8C\\u7EF4\\u7801\\uFF0C\\u8FDE\\u63A5\\u201C${o.name}\\u201D\\u3002\\u5B89\\u5353 App \\u6216\\u624B\\u673A\\u76F8\\u673A\\u5747\\u53EF\\u626B\\u7801\\u3002`;"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "a@42",
+      "name": "a",
+      "line": 42,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const a = document.createElement(\"a\");",
+      "references": [
+        {
+          "line": 43,
+          "text": "((a.className = \"display-pairing-qr-download\"),"
+        },
+        {
+          "line": 44,
+          "text": "(a.href = \"https://wiki.habridge.cn/downloads/HaBridge.apk\"),"
+        },
+        {
+          "line": 45,
+          "text": "(a.target = \"_blank\"),"
+        },
+        {
+          "line": 46,
+          "text": "(a.rel = \"noopener noreferrer\"),"
+        },
+        {
+          "line": 47,
+          "text": "(a.textContent = \"下载安卓 App（Wiki）\"));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "s@48",
+      "name": "s",
+      "line": 48,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const s = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 49,
+          "text": "s.className = \"display-pairing-qr-note\";"
+        },
+        {
+          "line": 62,
+          "text": "s.append(u, h, g));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "u@50",
+      "name": "u",
+      "line": 50,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const u = document.createElement(\"strong\");",
+      "references": [
+        {
+          "line": 51,
+          "text": "u.textContent = \"iPhone / iPad 使用引导\";"
+        },
+        {
+          "line": 62,
+          "text": "s.append(u, h, g));"
+        }
+      ]
+    },
+    {
+      "key": "h@52",
+      "name": "h",
+      "line": 52,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const h = document.createElement(\"ol\");",
+      "references": [
+        {
+          "line": 58,
+          "text": "((w.textContent = d), h.append(w));"
+        },
+        {
+          "line": 62,
+          "text": "s.append(u, h, g));"
+        }
+      ]
+    },
+    {
+      "key": "d@53",
+      "name": "d",
+      "line": 53,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "for (const d of [",
+      "references": [
+        {
+          "line": 58,
+          "text": "((w.textContent = d), h.append(w));"
+        }
+      ]
+    },
+    {
+      "key": "w@57",
+      "name": "w",
+      "line": 57,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const w = document.createElement(\"li\");",
+      "references": [
+        {
+          "line": 58,
+          "text": "((w.textContent = d), h.append(w));"
+        }
+      ]
+    },
+    {
+      "key": "g@60",
+      "name": "g",
+      "line": 60,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const g = document.createElement(\"p\");",
+      "references": [
+        {
+          "line": 61,
+          "text": "((g.textContent = \"添加后像 App 一样，点击桌面图标全屏打开，面板功能与 App 相同。\"),"
+        },
+        {
+          "line": 62,
+          "text": "s.append(u, h, g));"
+        }
+      ]
+    },
+    {
+      "key": "l@63",
+      "name": "l",
+      "line": 63,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = document.createElement(\"label\");",
+      "references": [
+        {
+          "line": 64,
+          "text": "l.textContent = \"手机可访问的连接地址\";"
+        },
+        {
+          "line": 71,
+          "text": "l.append(n));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "n@65",
+      "name": "n",
+      "line": 65,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const n = document.createElement(\"input\");",
+      "references": [
+        {
+          "line": 66,
+          "text": "((n.type = \"url\"),"
+        },
+        {
+          "line": 67,
+          "text": "(n.autocomplete = \"off\"),"
+        },
+        {
+          "line": 68,
+          "text": "(n.spellcheck = false),"
+        },
+        {
+          "line": 69,
+          "text": "(n.value = window.location.origin),"
+        },
+        {
+          "line": 70,
+          "text": "n.setAttribute(\"aria-label\", \"手机可访问的连接地址\"),"
+        },
+        {
+          "line": 71,
+          "text": "l.append(n));"
+        }
+      ]
+    },
+    {
+      "key": "r@72",
+      "name": "r",
+      "line": 72,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const r = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 73,
+          "text": "((r.className = \"display-pairing-qr-graphic\"),"
+        },
+        {
+          "line": 74,
+          "text": "r.setAttribute(\"role\", \"img\"),"
+        },
+        {
+          "line": 75,
+          "text": "r.setAttribute(\"aria-label\", \"HA Bridge 配对二维码\"));"
+        },
+        {
+          "line": 83,
+          "text": "((r.innerHTML = pairingQrSvg(pairingQrPayload(n.value, o.code))),"
+        },
+        {
+          "line": 84,
+          "text": "(r.hidden = false),"
+        },
+        {
+          "line": 87,
+          "text": "(r.replaceChildren(), (r.hidden = true), (i.textContent = d.message));"
+        }
+      ]
+    },
+    {
+      "key": "i@76",
+      "name": "i",
+      "line": 76,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = document.createElement(\"p\");",
+      "references": [
+        {
+          "line": 77,
+          "text": "i.className = \"display-pairing-qr-note\";"
+        },
+        {
+          "line": 85,
+          "text": "(i.textContent = \"请仅将二维码提供给需要配对的设备。\"));"
+        },
+        {
+          "line": 87,
+          "text": "(r.replaceChildren(), (r.hidden = true), (i.textContent = d.message));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "c@78",
+      "name": "c",
+      "line": 78,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const c = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 79,
+          "text": "((c.type = \"button\"), (c.textContent = \"关闭\"), c.addEventListener(\"click\", () => e.close()));"
+        },
+        {
+          "line": 91,
+          "text": "e.append(t, m, l, r, i, a, s, c),"
+        }
+      ]
+    },
+    {
+      "key": "E@80",
+      "name": "E",
+      "line": 80,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const E = () => {",
+      "references": [
+        {
+          "line": 90,
+          "text": "(n.addEventListener(\"input\", E),"
+        },
+        {
+          "line": 96,
+          "text": "E(),"
+        }
+      ]
+    },
+    {
+      "key": "d@86",
+      "name": "d",
+      "line": 86,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "} catch (d) {",
+      "references": [
+        {
+          "line": 87,
+          "text": "(r.replaceChildren(), (r.hidden = true), (i.textContent = d.message));"
+        }
+      ]
+    }
+  ]
+}

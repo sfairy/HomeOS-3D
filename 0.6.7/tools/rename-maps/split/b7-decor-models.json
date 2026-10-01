@@ -1,0 +1,22 @@
+{
+  "frontend/static/3d-studio/decor-models.js": {
+    "arg1@54": "three",
+    "arg2@54": "root",
+    "arg3@54": "modelKey",
+    "arg4@54": "themeKey",
+    "arg5@54": "materialCache",
+    "value1@55": "model",
+    "value2@56": "theme",
+    "arg6@59": "mesh",
+    "value3@61": "materials",
+    "arg7@62": "material",
+    "fn1@63": "resolveMaterial",
+    "arg8@63": "sourceMaterial",
+    "arg9@63": "index",
+    "value4@64": "roleIndex",
+    "value5@65": "roleNumber",
+    "value6@68": "role",
+    "value7@69": "cacheKey",
+    "value8@71": "cachedMaterial"
+  }
+}

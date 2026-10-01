@@ -1,0 +1,325 @@
+{
+  "file": "frontend/static/modules/interaction3d/vacuum-catalog.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 34,
+  "counts": {
+    "entries": 16,
+    "renameable": 16,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function vacuumProfiles(arg1 = [], arg2 = []) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg1.filter("
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function vacuumProfiles(arg1 = [], arg2 = []) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.filter(",
+      "references": [
+        {
+          "line": 10,
+          "text": "for (const value2 of value1.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {"
+        },
+        {
+          "line": 16,
+          "text": "? value1.filter((arg6) => (arg6.deviceId || arg6.device_id) === value3)"
+        }
+      ]
+    },
+    {
+      "key": "arg3@3",
+      "name": "arg3",
+      "line": 3,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg3) =>",
+      "references": [
+        {
+          "line": 4,
+          "text": "arg3.disabledBy == null &&"
+        },
+        {
+          "line": 5,
+          "text": "arg3.disabled_by == null &&"
+        },
+        {
+          "line": 6,
+          "text": "arg3.enabled !== false &&"
+        },
+        {
+          "line": 7,
+          "text": "![\"missing\", \"disabled\"].includes(arg3.status),"
+        }
+      ]
+    },
+    {
+      "key": "map1@9",
+      "name": "map1",
+      "line": 9,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "map1 = new Map();",
+      "references": [
+        {
+          "line": 13,
+          "text": "if (!map1.has(value4)) {"
+        },
+        {
+          "line": 18,
+          "text": "map1.set(value4, {"
+        },
+        {
+          "line": 30,
+          "text": "map1.get(value4).entities.push(value2);"
+        },
+        {
+          "line": 32,
+          "text": "return [...map1.values()];"
+        }
+      ]
+    },
+    {
+      "key": "value2@10",
+      "name": "value2",
+      "line": 10,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value2 of value1.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {",
+      "references": [
+        {
+          "line": 11,
+          "text": "const value3 = value2.deviceId || value2.device_id || \"\","
+        },
+        {
+          "line": 12,
+          "text": "value4 = value3 || value2.entityId;"
+        },
+        {
+          "line": 17,
+          "text": ": [value2];"
+        },
+        {
+          "line": 20,
+          "text": "name: value5?.nameByUser || value5?.name || value2.name || value2.entityId,"
+        },
+        {
+          "line": 30,
+          "text": "map1.get(value4).entities.push(value2);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@10",
+      "name": "arg4",
+      "line": 10,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value2 of value1.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {",
+      "references": [
+        {
+          "line": 10,
+          "text": "for (const value2 of value1.filter((arg4) => /^vacuum\\.[a-z0-9_]+$/.test(arg4.entityId))) {"
+        }
+      ]
+    },
+    {
+      "key": "value3@11",
+      "name": "value3",
+      "line": 11,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value2.deviceId || value2.device_id || \"\",",
+      "references": [
+        {
+          "line": 12,
+          "text": "value4 = value3 || value2.entityId;"
+        },
+        {
+          "line": 14,
+          "text": "const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),"
+        },
+        {
+          "line": 15,
+          "text": "value6 = value3"
+        },
+        {
+          "line": 16,
+          "text": "? value1.filter((arg6) => (arg6.deviceId || arg6.device_id) === value3)"
+        }
+      ]
+    },
+    {
+      "key": "value4@12",
+      "name": "value4",
+      "line": 12,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = value3 || value2.entityId;",
+      "references": [
+        {
+          "line": 13,
+          "text": "if (!map1.has(value4)) {"
+        },
+        {
+          "line": 18,
+          "text": "map1.set(value4, {"
+        },
+        {
+          "line": 19,
+          "text": "deviceId: value4,"
+        },
+        {
+          "line": 30,
+          "text": "map1.get(value4).entities.push(value2);"
+        }
+      ]
+    },
+    {
+      "key": "value5@14",
+      "name": "value5",
+      "line": 14,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),",
+      "references": [
+        {
+          "line": 20,
+          "text": "name: value5?.nameByUser || value5?.name || value2.name || value2.entityId,"
+        }
+      ]
+    },
+    {
+      "key": "arg5@14",
+      "name": "arg5",
+      "line": 14,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),",
+      "references": [
+        {
+          "line": 14,
+          "text": "const value5 = arg2.find((arg5) => (arg5.id || arg5.deviceId) === value3),"
+        }
+      ]
+    },
+    {
+      "key": "value6@15",
+      "name": "value6",
+      "line": 15,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value6 = value3",
+      "references": [
+        {
+          "line": 22,
+          "text": "maps: value6.filter((arg7) => /^(camera|image)\\./.test(arg7.entityId)),"
+        },
+        {
+          "line": 23,
+          "text": "relatedEntityIds: value6"
+        }
+      ]
+    },
+    {
+      "key": "arg6@16",
+      "name": "arg6",
+      "line": 16,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "? value1.filter((arg6) => (arg6.deviceId || arg6.device_id) === value3)",
+      "references": [
+        {
+          "line": 16,
+          "text": "? value1.filter((arg6) => (arg6.deviceId || arg6.device_id) === value3)"
+        }
+      ]
+    },
+    {
+      "key": "arg7@22",
+      "name": "arg7",
+      "line": 22,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maps: value6.filter((arg7) => /^(camera|image)\\./.test(arg7.entityId)),",
+      "references": [
+        {
+          "line": 22,
+          "text": "maps: value6.filter((arg7) => /^(camera|image)\\./.test(arg7.entityId)),"
+        }
+      ]
+    },
+    {
+      "key": "arg8@24",
+      "name": "arg8",
+      "line": 24,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg8) =>",
+      "references": [
+        {
+          "line": 25,
+          "text": "/^(sensor|binary_sensor|select|number|switch|button)\\./.test(arg8.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@27",
+      "name": "arg9",
+      "line": 27,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg9) => arg9.entityId),",
+      "references": [
+        {
+          "line": 27,
+          "text": ".map((arg9) => arg9.entityId),"
+        }
+      ]
+    }
+  ]
+}

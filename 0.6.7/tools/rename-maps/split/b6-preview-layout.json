@@ -1,0 +1,16 @@
+{
+  "frontend/static/modules/interaction3d/preview-layout.js": {
+    "i@1": "positiveOr",
+    "arg1@1": "candidate",
+    "arg2@1": "fallback",
+    "arg3@2": "element",
+    "arg4@2": "board",
+    "arg5@2": "boardWidth",
+    "arg6@2": "boardHeight",
+    "value1@3": "isFill",
+    "value2@4": "sourceSize",
+    "value3@5": "width",
+    "value4@6": "height",
+    "value5@7": "scale"
+  }
+}

@@ -1,0 +1,2611 @@
+{
+  "file": "frontend/static/renderer/runtime-caches.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 551,
+  "counts": {
+    "entries": 141,
+    "renameable": 141,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "l@1",
+      "name": "l",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = 512;",
+      "references": []
+    },
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function historySeriesCacheKey(arg1, arg2) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "return String(arg1 || \"\") + \":\" + (Number(arg2) || 0);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@3",
+      "name": "arg2",
+      "line": 3,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function historySeriesCacheKey(arg1, arg2) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "return String(arg1 || \"\") + \":\" + (Number(arg2) || 0);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@6",
+      "name": "arg3",
+      "line": 6,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cacheHistorySeries(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "for (arg3.set(historySeriesCacheKey(arg4, arg5.hours), arg5); arg3.size > 512;) {"
+        },
+        {
+          "line": 9,
+          "text": "const value1 = arg3.keys().next().value;"
+        },
+        {
+          "line": 11,
+          "text": "arg3.delete(value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg4@6",
+      "name": "arg4",
+      "line": 6,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cacheHistorySeries(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "for (arg3.set(historySeriesCacheKey(arg4, arg5.hours), arg5); arg3.size > 512;) {"
+        }
+      ]
+    },
+    {
+      "key": "arg5@6",
+      "name": "arg5",
+      "line": 6,
+      "column": 47,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function cacheHistorySeries(arg3, arg4, arg5) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "if (Array.isArray(arg5?.points))"
+        },
+        {
+          "line": 8,
+          "text": "for (arg3.set(historySeriesCacheKey(arg4, arg5.hours), arg5); arg3.size > 512;) {"
+        }
+      ]
+    },
+    {
+      "key": "value1@9",
+      "name": "value1",
+      "line": 9,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg3.keys().next().value;",
+      "references": [
+        {
+          "line": 10,
+          "text": "if (!value1) break;"
+        },
+        {
+          "line": 11,
+          "text": "arg3.delete(value1);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@21",
+      "name": "arg6",
+      "line": 21,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"request\"](arg6, arg7) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "arg6 === this.currentKey"
+        },
+        {
+          "line": 26,
+          "text": ": arg6 !== this.pendingKey && ((this.pendingKey = arg6), (this.pendingRun = arg7)),"
+        },
+        {
+          "line": 29,
+          "text": "((this.pendingKey = arg6), (this.pendingRun = arg7));"
+        }
+      ]
+    },
+    {
+      "key": "arg7@21",
+      "name": "arg7",
+      "line": 21,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"request\"](arg6, arg7) {",
+      "references": [
+        {
+          "line": 26,
+          "text": ": arg6 !== this.pendingKey && ((this.pendingKey = arg6), (this.pendingRun = arg7)),"
+        },
+        {
+          "line": 29,
+          "text": "((this.pendingKey = arg6), (this.pendingRun = arg7));"
+        }
+      ]
+    },
+    {
+      "key": "fn1@30",
+      "name": "fn1",
+      "line": 30,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = async () => {",
+      "references": [
+        {
+          "line": 40,
+          "text": "(this.running = fn1().finally(() => {"
+        }
+      ]
+    },
+    {
+      "key": "value2@32",
+      "name": "value2",
+      "line": 32,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = this.pendingRun;",
+      "references": [
+        {
+          "line": 36,
+          "text": "await value2());"
+        }
+      ]
+    },
+    {
+      "key": "arg8@49",
+      "name": "arg8",
+      "line": 49,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxConcurrent: arg8 = 2,",
+      "references": [
+        {
+          "line": 57,
+          "text": "((this.maxConcurrent = Math.max(1, Number(arg8) || 1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@50",
+      "name": "arg9",
+      "line": 50,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxDecoded: arg9 = 32,",
+      "references": [
+        {
+          "line": 58,
+          "text": "(this.maxDecoded = Math.max(1, Number(arg9) || 1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@51",
+      "name": "arg10",
+      "line": 51,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "idleDelay: arg10 = 120,",
+      "references": [
+        {
+          "line": 59,
+          "text": "(this.idleDelay = Math.max(0, Number(arg10) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "arg11@52",
+      "name": "arg11",
+      "line": 52,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "loadTimeout: arg11 = 15000,",
+      "references": [
+        {
+          "line": 60,
+          "text": "(this.loadTimeout = Math.max(1000, Number(arg11) || 15000)),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@53",
+      "name": "arg12",
+      "line": 53,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "createImage: arg12 = () => new Image(),",
+      "references": [
+        {
+          "line": 61,
+          "text": "(this.createImage = arg12),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@54",
+      "name": "arg13",
+      "line": 54,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),",
+      "references": [
+        {
+          "line": 62,
+          "text": "(this.setTimer = arg13),"
+        }
+      ]
+    },
+    {
+      "key": "arg15@54",
+      "name": "arg15",
+      "line": 54,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),",
+      "references": [
+        {
+          "line": 54,
+          "text": "setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),"
+        }
+      ]
+    },
+    {
+      "key": "arg16@54",
+      "name": "arg16",
+      "line": 54,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),",
+      "references": [
+        {
+          "line": 54,
+          "text": "setTimer: arg13 = (arg15, arg16) => globalThis.setTimeout(arg15, arg16),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@55",
+      "name": "arg14",
+      "line": 55,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "clearTimer: arg14 = (arg17) => globalThis.clearTimeout(arg17),",
+      "references": [
+        {
+          "line": 63,
+          "text": "(this.clearTimer = arg14),"
+        }
+      ]
+    },
+    {
+      "key": "arg17@55",
+      "name": "arg17",
+      "line": 55,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "clearTimer: arg14 = (arg17) => globalThis.clearTimeout(arg17),",
+      "references": [
+        {
+          "line": 55,
+          "text": "clearTimer: arg14 = (arg17) => globalThis.clearTimeout(arg17),"
+        }
+      ]
+    },
+    {
+      "key": "arg18@75",
+      "name": "arg18",
+      "line": 75,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"setSources\"](arg18 = [], arg19 = []) {",
+      "references": [
+        {
+          "line": 78,
+          "text": "(arg18 || []).map((arg20) => String(arg20 || \"\")).filter(Boolean),"
+        }
+      ]
+    },
+    {
+      "key": "arg19@75",
+      "name": "arg19",
+      "line": 75,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"setSources\"](arg18 = [], arg19 = []) {",
+      "references": [
+        {
+          "line": 81,
+          "text": "(arg19 || [])"
+        }
+      ]
+    },
+    {
+      "key": "arg20@78",
+      "name": "arg20",
+      "line": 78,
+      "column": 27,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg18 || []).map((arg20) => String(arg20 || \"\")).filter(Boolean),",
+      "references": [
+        {
+          "line": 78,
+          "text": "(arg18 || []).map((arg20) => String(arg20 || \"\")).filter(Boolean),"
+        }
+      ]
+    },
+    {
+      "key": "arg21@82",
+      "name": "arg21",
+      "line": 82,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg21) => String(arg21 || \"\"))",
+      "references": [
+        {
+          "line": 82,
+          "text": ".map((arg21) => String(arg21 || \"\"))"
+        }
+      ]
+    },
+    {
+      "key": "arg22@83",
+      "name": "arg22",
+      "line": 83,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg22) => this.desiredSources.has(arg22)),",
+      "references": [
+        {
+          "line": 83,
+          "text": ".filter((arg22) => this.desiredSources.has(arg22)),"
+        }
+      ]
+    },
+    {
+      "key": "arg23@85",
+      "name": "arg23",
+      "line": 85,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(this.queue = this.queue.filter(({ source: arg23 }) => this.desiredSources.has(arg23))));",
+      "references": [
+        {
+          "line": 85,
+          "text": "(this.queue = this.queue.filter(({ source: arg23 }) => this.desiredSources.has(arg23))));"
+        }
+      ]
+    },
+    {
+      "key": "value3@86",
+      "name": "value3",
+      "line": 86,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value3, { image: value4, cancel: value5 }] of [...this.activeLoads])",
+      "references": [
+        {
+          "line": 87,
+          "text": "this.desiredSources.has(value3) || (value4.removeAttribute?.(\"src\"), value5());"
+        }
+      ]
+    },
+    {
+      "key": "value4@86",
+      "name": "value4",
+      "line": 86,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value3, { image: value4, cancel: value5 }] of [...this.activeLoads])",
+      "references": [
+        {
+          "line": 87,
+          "text": "this.desiredSources.has(value3) || (value4.removeAttribute?.(\"src\"), value5());"
+        }
+      ]
+    },
+    {
+      "key": "value5@86",
+      "name": "value5",
+      "line": 86,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value3, { image: value4, cancel: value5 }] of [...this.activeLoads])",
+      "references": [
+        {
+          "line": 87,
+          "text": "this.desiredSources.has(value3) || (value4.removeAttribute?.(\"src\"), value5());"
+        }
+      ]
+    },
+    {
+      "key": "value6@88",
+      "name": "value6",
+      "line": 88,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value6 of [...this.loadedSources])",
+      "references": [
+        {
+          "line": 89,
+          "text": "this.desiredSources.has(value6) || this.loadedSources.delete(value6);"
+        }
+      ]
+    },
+    {
+      "key": "value7@90",
+      "name": "value7",
+      "line": 90,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value7 of [...this.decodedImages.keys()])",
+      "references": [
+        {
+          "line": 91,
+          "text": "this.desiredSources.has(value7) || this.decodedImages.delete(value7);"
+        }
+      ]
+    },
+    {
+      "key": "value8@92",
+      "name": "value8",
+      "line": 92,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value8 of this.prioritySources)",
+      "references": [
+        {
+          "line": 93,
+          "text": "if (this.decodedImages.has(value8)) {"
+        },
+        {
+          "line": 94,
+          "text": "const value9 = this.decodedImages.get(value8);"
+        },
+        {
+          "line": 95,
+          "text": "(this.decodedImages.delete(value8), this.decodedImages.set(value8, value9));"
+        },
+        {
+          "line": 97,
+          "text": "this.enqueue(value8, {"
+        }
+      ]
+    },
+    {
+      "key": "value9@94",
+      "name": "value9",
+      "line": 94,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = this.decodedImages.get(value8);",
+      "references": [
+        {
+          "line": 95,
+          "text": "(this.decodedImages.delete(value8), this.decodedImages.set(value8, value9));"
+        }
+      ]
+    },
+    {
+      "key": "value10@100",
+      "name": "value10",
+      "line": 100,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value10 of this.desiredSources) this.enqueue(value10);",
+      "references": [
+        {
+          "line": 100,
+          "text": "for (const value10 of this.desiredSources) this.enqueue(value10);"
+        }
+      ]
+    },
+    {
+      "key": "arg24@104",
+      "name": "arg24",
+      "line": 104,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg24, { active: arg25 = false } = {}) {",
+      "references": [
+        {
+          "line": 105,
+          "text": "const value11 = String(arg24 || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "arg25@104",
+      "name": "arg25",
+      "line": 104,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg24, { active: arg25 = false } = {}) {",
+      "references": [
+        {
+          "line": 112,
+          "text": "(this.loadedSources.has(value11) && !arg25)"
+        },
+        {
+          "line": 117,
+          "text": "? ((value12.active = value12.active || !!arg25),"
+        },
+        {
+          "line": 122,
+          "text": "active: !!arg25,"
+        },
+        {
+          "line": 125,
+          "text": "this.schedule(arg25 ? 0 : this.idleDelay),"
+        }
+      ]
+    },
+    {
+      "key": "value11@105",
+      "name": "value11",
+      "line": 105,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value11 = String(arg24 || \"\");",
+      "references": [
+        {
+          "line": 108,
+          "text": "!value11 ||"
+        },
+        {
+          "line": 109,
+          "text": "!this.desiredSources.has(value11) ||"
+        },
+        {
+          "line": 110,
+          "text": "this.decodedImages.has(value11) ||"
+        },
+        {
+          "line": 111,
+          "text": "this.activeLoads.has(value11) ||"
+        },
+        {
+          "line": 112,
+          "text": "(this.loadedSources.has(value11) && !arg25)"
+        },
+        {
+          "line": 115,
+          "text": "const value12 = this.queue.find((arg26) => arg26.source === value11);"
+        }
+      ]
+    },
+    {
+      "key": "value12@115",
+      "name": "value12",
+      "line": 115,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = this.queue.find((arg26) => arg26.source === value11);",
+      "references": [
+        {
+          "line": 116,
+          "text": "return value12"
+        },
+        {
+          "line": 117,
+          "text": "? ((value12.active = value12.active || !!arg25),"
+        },
+        {
+          "line": 118,
+          "text": "this.schedule(value12.active ? 0 : this.idleDelay),"
+        }
+      ]
+    },
+    {
+      "key": "arg26@115",
+      "name": "arg26",
+      "line": 115,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value12 = this.queue.find((arg26) => arg26.source === value11);",
+      "references": [
+        {
+          "line": 115,
+          "text": "const value12 = this.queue.find((arg26) => arg26.source === value11);"
+        }
+      ]
+    },
+    {
+      "key": "arg27@128",
+      "name": "arg27",
+      "line": 128,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"schedule\"](arg27 = 0) {",
+      "references": [
+        {
+          "line": 130,
+          "text": "const value13 = Math.max(0, Number(arg27) || 0),"
+        }
+      ]
+    },
+    {
+      "key": "value13@130",
+      "name": "value13",
+      "line": 130,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = Math.max(0, Number(arg27) || 0),",
+      "references": [
+        {
+          "line": 131,
+          "text": "value14 = Date.now() + value13;"
+        },
+        {
+          "line": 137,
+          "text": "}, value13)));"
+        }
+      ]
+    },
+    {
+      "key": "value14@131",
+      "name": "value14",
+      "line": 131,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = Date.now() + value13;",
+      "references": [
+        {
+          "line": 132,
+          "text": "(this.timer !== null && value14 >= this.timerDueAt) ||"
+        },
+        {
+          "line": 134,
+          "text": "(this.timerDueAt = value14),"
+        }
+      ]
+    },
+    {
+      "key": "arg28@143",
+      "name": "arg28",
+      "line": 143,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg28, arg29) =>",
+      "references": [
+        {
+          "line": 144,
+          "text": "Number(arg29.active) - Number(arg28.active) || arg28.sequence - arg29.sequence,"
+        }
+      ]
+    },
+    {
+      "key": "arg29@143",
+      "name": "arg29",
+      "line": 143,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg28, arg29) =>",
+      "references": [
+        {
+          "line": 144,
+          "text": "Number(arg29.active) - Number(arg28.active) || arg28.sequence - arg29.sequence,"
+        }
+      ]
+    },
+    {
+      "key": "value15@148",
+      "name": "value15",
+      "line": 148,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = this.queue.shift();",
+      "references": [
+        {
+          "line": 149,
+          "text": "!this.desiredSources.has(value15.source) ||"
+        },
+        {
+          "line": 150,
+          "text": "this.decodedImages.has(value15.source) ||"
+        },
+        {
+          "line": 151,
+          "text": "this.start(value15);"
+        }
+      ]
+    },
+    {
+      "key": "arg30@154",
+      "name": "arg30",
+      "line": 154,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"]({ source: arg30, active: arg31 }) {",
+      "references": [
+        {
+          "line": 155,
+          "text": "if (this.stopped || !arg30) return;"
+        },
+        {
+          "line": 166,
+          "text": "this.activeLoads.delete(arg30),"
+        },
+        {
+          "line": 168,
+          "text": "this.desiredSources.has(arg30) &&"
+        },
+        {
+          "line": 169,
+          "text": "(this.loadedSources.add(arg30),"
+        },
+        {
+          "line": 170,
+          "text": "this.decodedImages.delete(arg30),"
+        },
+        {
+          "line": 171,
+          "text": "this.decodedImages.set(arg30, value16),"
+        }
+      ]
+    },
+    {
+      "key": "arg31@154",
+      "name": "arg31",
+      "line": 154,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"]({ source: arg30, active: arg31 }) {",
+      "references": [
+        {
+          "line": 192,
+          "text": "(value16.fetchPriority = arg31 ? \"high\" : \"low\"),"
+        }
+      ]
+    },
+    {
+      "key": "value16@156",
+      "name": "value16",
+      "line": 156,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value16 = this.createImage();",
+      "references": [
+        {
+          "line": 164,
+          "text": "value16.removeEventListener?.(\"load\", fn3),"
+        },
+        {
+          "line": 165,
+          "text": "value16.removeEventListener?.(\"error\", fn4),"
+        },
+        {
+          "line": 171,
+          "text": "this.decodedImages.set(arg30, value16),"
+        },
+        {
+          "line": 180,
+          "text": "value20 = typeof value16.decode == \"function\" ? value16.decode() : null;"
+        },
+        {
+          "line": 191,
+          "text": "((value16.decoding = \"async\"),"
+        },
+        {
+          "line": 192,
+          "text": "(value16.fetchPriority = arg31 ? \"high\" : \"low\"),"
+        }
+      ]
+    },
+    {
+      "key": "value17@157",
+      "name": "value17",
+      "line": 157,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value17 = false,",
+      "references": [
+        {
+          "line": 161,
+          "text": "value17 ||"
+        }
+      ]
+    },
+    {
+      "key": "value18@158",
+      "name": "value18",
+      "line": 158,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value18 = false,",
+      "references": [
+        {
+          "line": 176,
+          "text": "if (value18) return;"
+        }
+      ]
+    },
+    {
+      "key": "value19@159",
+      "name": "value19",
+      "line": 159,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value19 = null;",
+      "references": [
+        {
+          "line": 163,
+          "text": "value19 !== null && this.clearTimer(value19),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@160",
+      "name": "fn2",
+      "line": 160,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg32) => {",
+      "references": [
+        {
+          "line": 187,
+          "text": ".finally(() => fn2(true))"
+        },
+        {
+          "line": 188,
+          "text": ": fn2(true);"
+        },
+        {
+          "line": 190,
+          "text": "fn4 = () => fn2(false);"
+        },
+        {
+          "line": 201,
+          "text": "cancel: () => fn2(false),"
+        },
+        {
+          "line": 205,
+          "text": "(value16.removeAttribute?.(\"src\"), fn2(false));"
+        }
+      ]
+    },
+    {
+      "key": "arg32@160",
+      "name": "arg32",
+      "line": 160,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn2 = (arg32) => {",
+      "references": [
+        {
+          "line": 167,
+          "text": "arg32 &&"
+        }
+      ]
+    },
+    {
+      "key": "fn3@175",
+      "name": "fn3",
+      "line": 175,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = () => {",
+      "references": [
+        {
+          "line": 164,
+          "text": "value16.removeEventListener?.(\"load\", fn3),"
+        },
+        {
+          "line": 193,
+          "text": "value16.addEventListener?.(\"load\", fn3, {"
+        },
+        {
+          "line": 207,
+          "text": "value16.complete && Number(value16.naturalWidth || 0) > 0 && Promise.resolve().then(fn3));"
+        }
+      ]
+    },
+    {
+      "key": "value20@178",
+      "name": "value20",
+      "line": 178,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value20 = null;",
+      "references": [
+        {
+          "line": 184,
+          "text": "value20?.then"
+        },
+        {
+          "line": 185,
+          "text": "? Promise.resolve(value20)"
+        }
+      ]
+    },
+    {
+      "key": "fn4@190",
+      "name": "fn4",
+      "line": 190,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = () => fn2(false);",
+      "references": [
+        {
+          "line": 165,
+          "text": "value16.removeEventListener?.(\"error\", fn4),"
+        },
+        {
+          "line": 196,
+          "text": "value16.addEventListener?.(\"error\", fn4, {"
+        }
+      ]
+    },
+    {
+      "key": "value21@211",
+      "name": "value21",
+      "line": 211,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value21 =",
+      "references": [
+        {
+          "line": 214,
+          "text": "if (!value21) break;"
+        },
+        {
+          "line": 215,
+          "text": "this.decodedImages.delete(value21);"
+        }
+      ]
+    },
+    {
+      "key": "arg33@212",
+      "name": "arg33",
+      "line": 212,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[...this.decodedImages.keys()].find((arg33) => !this.prioritySources.has(arg33)) ||",
+      "references": [
+        {
+          "line": 212,
+          "text": "[...this.decodedImages.keys()].find((arg33) => !this.prioritySources.has(arg33)) ||"
+        }
+      ]
+    },
+    {
+      "key": "value22@227",
+      "name": "value22",
+      "line": 227,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { image: value22, cancel: value23 } of [...this.activeLoads.values()])",
+      "references": [
+        {
+          "line": 228,
+          "text": "(value22.removeAttribute?.(\"src\"), value23());"
+        }
+      ]
+    },
+    {
+      "key": "value23@227",
+      "name": "value23",
+      "line": 227,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { image: value22, cancel: value23 } of [...this.activeLoads.values()])",
+      "references": [
+        {
+          "line": 228,
+          "text": "(value22.removeAttribute?.(\"src\"), value23());"
+        }
+      ]
+    },
+    {
+      "key": "arg34@238",
+      "name": "arg34",
+      "line": 238,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxConcurrent: arg34 = 4,",
+      "references": [
+        {
+          "line": 244,
+          "text": "((this.maxConcurrent = Math.max(1, Number(arg34) || 1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg35@239",
+      "name": "arg35",
+      "line": 239,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "idleDelay: arg35 = 160,",
+      "references": [
+        {
+          "line": 245,
+          "text": "(this.idleDelay = Math.max(0, Number(arg35) || 0)),"
+        }
+      ]
+    },
+    {
+      "key": "arg36@240",
+      "name": "arg36",
+      "line": 240,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "loadTimeout: arg36 = 15000,",
+      "references": [
+        {
+          "line": 246,
+          "text": "(this.loadTimeout = Math.max(1000, Number(arg36) || 15000)),"
+        }
+      ]
+    },
+    {
+      "key": "arg37@241",
+      "name": "arg37",
+      "line": 241,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),",
+      "references": [
+        {
+          "line": 247,
+          "text": "(this.setTimer = arg37),"
+        }
+      ]
+    },
+    {
+      "key": "arg39@241",
+      "name": "arg39",
+      "line": 241,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),",
+      "references": [
+        {
+          "line": 241,
+          "text": "setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),"
+        }
+      ]
+    },
+    {
+      "key": "arg40@241",
+      "name": "arg40",
+      "line": 241,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),",
+      "references": [
+        {
+          "line": 241,
+          "text": "setTimer: arg37 = (arg39, arg40) => globalThis.setTimeout(arg39, arg40),"
+        }
+      ]
+    },
+    {
+      "key": "arg38@242",
+      "name": "arg38",
+      "line": 242,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "clearTimer: arg38 = (arg41) => globalThis.clearTimeout(arg41),",
+      "references": [
+        {
+          "line": 248,
+          "text": "(this.clearTimer = arg38),"
+        }
+      ]
+    },
+    {
+      "key": "arg41@242",
+      "name": "arg41",
+      "line": 242,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "clearTimer: arg38 = (arg41) => globalThis.clearTimeout(arg41),",
+      "references": [
+        {
+          "line": 242,
+          "text": "clearTimer: arg38 = (arg41) => globalThis.clearTimeout(arg41),"
+        }
+      ]
+    },
+    {
+      "key": "arg42@258",
+      "name": "arg42",
+      "line": 258,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg42, arg43, { active: arg44 = false } = {}) {",
+      "references": [
+        {
+          "line": 260,
+          "text": "if (this.stopped || !arg42 || !value24) return;"
+        },
+        {
+          "line": 262,
+          "text": "(arg42.dataset || (arg42.dataset = {}),"
+        },
+        {
+          "line": 263,
+          "text": "(arg42.dataset.effectPendingSource = value24),"
+        },
+        {
+          "line": 264,
+          "text": "arg42.dataset.effectLoadedSource === value24)"
+        },
+        {
+          "line": 266,
+          "text": "delete arg42.dataset.effectPendingSource;"
+        },
+        {
+          "line": 270,
+          "text": "((arg42.dataset.effectLoadedSource = value24),"
+        }
+      ]
+    },
+    {
+      "key": "arg43@258",
+      "name": "arg43",
+      "line": 258,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg42, arg43, { active: arg44 = false } = {}) {",
+      "references": [
+        {
+          "line": 259,
+          "text": "const value24 = String(arg43 || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "arg44@258",
+      "name": "arg44",
+      "line": 258,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg42, arg43, { active: arg44 = false } = {}) {",
+      "references": [
+        {
+          "line": 277,
+          "text": "? (value25.active = value25.active || !!arg44)"
+        },
+        {
+          "line": 281,
+          "text": "active: !!arg44,"
+        },
+        {
+          "line": 284,
+          "text": "arg44 ? this.drain(true) : this.schedule(this.idleDelay));"
+        }
+      ]
+    },
+    {
+      "key": "value24@259",
+      "name": "value24",
+      "line": 259,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = String(arg43 || \"\");",
+      "references": [
+        {
+          "line": 260,
+          "text": "if (this.stopped || !arg42 || !value24) return;"
+        },
+        {
+          "line": 263,
+          "text": "(arg42.dataset.effectPendingSource = value24),"
+        },
+        {
+          "line": 264,
+          "text": "arg42.dataset.effectLoadedSource === value24)"
+        },
+        {
+          "line": 269,
+          "text": "if (this.loadedSources.has(value24)) {"
+        },
+        {
+          "line": 270,
+          "text": "((arg42.dataset.effectLoadedSource = value24),"
+        },
+        {
+          "line": 272,
+          "text": "(arg42.src = value24));"
+        }
+      ]
+    },
+    {
+      "key": "value25@275",
+      "name": "value25",
+      "line": 275,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = this.queue.find((arg45) => arg45.image === arg42 && arg45.source === value24);",
+      "references": [
+        {
+          "line": 276,
+          "text": "(value25"
+        },
+        {
+          "line": 277,
+          "text": "? (value25.active = value25.active || !!arg44)"
+        }
+      ]
+    },
+    {
+      "key": "arg45@275",
+      "name": "arg45",
+      "line": 275,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = this.queue.find((arg45) => arg45.image === arg42 && arg45.source === value24);",
+      "references": [
+        {
+          "line": 275,
+          "text": "const value25 = this.queue.find((arg45) => arg45.image === arg42 && arg45.source === value24);"
+        }
+      ]
+    },
+    {
+      "key": "arg46@286",
+      "name": "arg46",
+      "line": 286,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"schedule\"](arg46 = 0) {",
+      "references": [
+        {
+          "line": 288,
+          "text": "const value26 = Math.max(0, Number(arg46) || 0),"
+        }
+      ]
+    },
+    {
+      "key": "value26@288",
+      "name": "value26",
+      "line": 288,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value26 = Math.max(0, Number(arg46) || 0),",
+      "references": [
+        {
+          "line": 289,
+          "text": "value27 = Date.now() + value26;"
+        },
+        {
+          "line": 295,
+          "text": "}, value26)));"
+        }
+      ]
+    },
+    {
+      "key": "value27@289",
+      "name": "value27",
+      "line": 289,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value27 = Date.now() + value26;",
+      "references": [
+        {
+          "line": 290,
+          "text": "(this.timer !== null && value27 >= this.timerDueAt) ||"
+        },
+        {
+          "line": 292,
+          "text": "(this.timerDueAt = value27),"
+        }
+      ]
+    },
+    {
+      "key": "arg47@297",
+      "name": "arg47",
+      "line": 297,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"drain\"](arg47 = false) {",
+      "references": [
+        {
+          "line": 311,
+          "text": "(!arg47 || arg52) &&"
+        }
+      ]
+    },
+    {
+      "key": "arg48@301",
+      "name": "arg48",
+      "line": 301,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg48, arg49) =>",
+      "references": [
+        {
+          "line": 302,
+          "text": "Number(arg49.active) - Number(arg48.active) || arg48.sequence - arg49.sequence,"
+        }
+      ]
+    },
+    {
+      "key": "arg49@301",
+      "name": "arg49",
+      "line": 301,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg48, arg49) =>",
+      "references": [
+        {
+          "line": 302,
+          "text": "Number(arg49.active) - Number(arg48.active) || arg48.sequence - arg49.sequence,"
+        }
+      ]
+    },
+    {
+      "key": "value28@306",
+      "name": "value28",
+      "line": 306,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value28 = this.queue.findIndex(",
+      "references": [
+        {
+          "line": 314,
+          "text": "if (value28 < 0) break;"
+        },
+        {
+          "line": 315,
+          "text": "const [value29] = this.queue.splice(value28, 1);"
+        }
+      ]
+    },
+    {
+      "key": "arg50@307",
+      "name": "arg50",
+      "line": 307,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ image: arg50, source: arg51, active: arg52 }) =>",
+      "references": [
+        {
+          "line": 308,
+          "text": "arg50 &&"
+        },
+        {
+          "line": 309,
+          "text": "arg50.dataset?.effectPendingSource === arg51 &&"
+        },
+        {
+          "line": 310,
+          "text": "!arg50.dataset?.effectLoadingSource &&"
+        },
+        {
+          "line": 312,
+          "text": "(arg50.isConnected === undefined || arg50.isConnected),"
+        }
+      ]
+    },
+    {
+      "key": "arg51@307",
+      "name": "arg51",
+      "line": 307,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ image: arg50, source: arg51, active: arg52 }) =>",
+      "references": [
+        {
+          "line": 309,
+          "text": "arg50.dataset?.effectPendingSource === arg51 &&"
+        }
+      ]
+    },
+    {
+      "key": "arg52@307",
+      "name": "arg52",
+      "line": 307,
+      "column": 50,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ image: arg50, source: arg51, active: arg52 }) =>",
+      "references": [
+        {
+          "line": 311,
+          "text": "(!arg47 || arg52) &&"
+        }
+      ]
+    },
+    {
+      "key": "value29@315",
+      "name": "value29",
+      "line": 315,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const [value29] = this.queue.splice(value28, 1);",
+      "references": [
+        {
+          "line": 316,
+          "text": "this.start(value29);"
+        }
+      ]
+    },
+    {
+      "key": "arg53@319",
+      "name": "arg53",
+      "line": 319,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"]({ image: arg53, source: arg54 }) {",
+      "references": [
+        {
+          "line": 320,
+          "text": "if (this.stopped || !arg53 || arg53.dataset?.effectPendingSource !== arg54) return;"
+        },
+        {
+          "line": 321,
+          "text": "((this.inFlight += 1), (arg53.dataset.effectLoadingSource = arg54));"
+        },
+        {
+          "line": 328,
+          "text": "arg53.removeEventListener?.(\"load\", fn6),"
+        },
+        {
+          "line": 329,
+          "text": "arg53.removeEventListener?.(\"error\", fn7),"
+        },
+        {
+          "line": 330,
+          "text": "this.activeLoads.delete(arg53),"
+        },
+        {
+          "line": 331,
+          "text": "arg53.dataset?.effectLoadingSource === arg54 && delete arg53.dataset.effectLoadingSource,"
+        }
+      ]
+    },
+    {
+      "key": "arg54@319",
+      "name": "arg54",
+      "line": 319,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"]({ image: arg53, source: arg54 }) {",
+      "references": [
+        {
+          "line": 320,
+          "text": "if (this.stopped || !arg53 || arg53.dataset?.effectPendingSource !== arg54) return;"
+        },
+        {
+          "line": 321,
+          "text": "((this.inFlight += 1), (arg53.dataset.effectLoadingSource = arg54));"
+        },
+        {
+          "line": 331,
+          "text": "arg53.dataset?.effectLoadingSource === arg54 && delete arg53.dataset.effectLoadingSource,"
+        },
+        {
+          "line": 333,
+          "text": "arg53.dataset?.effectPendingSource === arg54 &&"
+        },
+        {
+          "line": 334,
+          "text": "((arg53.dataset.effectLoadedSource = arg54),"
+        },
+        {
+          "line": 336,
+          "text": "this.loadedSources.add(arg54)),"
+        }
+      ]
+    },
+    {
+      "key": "value30@322",
+      "name": "value30",
+      "line": 322,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value30 = false,",
+      "references": [
+        {
+          "line": 325,
+          "text": "value30 ||"
+        }
+      ]
+    },
+    {
+      "key": "value31@323",
+      "name": "value31",
+      "line": 323,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value31 = null;",
+      "references": [
+        {
+          "line": 327,
+          "text": "value31 !== null && this.clearTimer(value31),"
+        }
+      ]
+    },
+    {
+      "key": "fn5@324",
+      "name": "fn5",
+      "line": 324,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn5 = (arg55) => {",
+      "references": [
+        {
+          "line": 340,
+          "text": "fn6 = () => fn5(true),"
+        },
+        {
+          "line": 341,
+          "text": "fn7 = () => fn5(false);"
+        },
+        {
+          "line": 348,
+          "text": "this.activeLoads.set(arg53, () => fn5(false)),"
+        },
+        {
+          "line": 351,
+          "text": "(arg53.removeAttribute?.(\"src\"), fn5(false));"
+        }
+      ]
+    },
+    {
+      "key": "arg55@324",
+      "name": "arg55",
+      "line": 324,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn5 = (arg55) => {",
+      "references": [
+        {
+          "line": 332,
+          "text": "arg55 &&"
+        }
+      ]
+    },
+    {
+      "key": "fn6@340",
+      "name": "fn6",
+      "line": 340,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn6 = () => fn5(true),",
+      "references": [
+        {
+          "line": 328,
+          "text": "arg53.removeEventListener?.(\"load\", fn6),"
+        },
+        {
+          "line": 342,
+          "text": "(arg53.addEventListener?.(\"load\", fn6, {"
+        },
+        {
+          "line": 353,
+          "text": "arg53.complete && Number(arg53.naturalWidth || 0) > 0 && Promise.resolve().then(fn6));"
+        }
+      ]
+    },
+    {
+      "key": "fn7@341",
+      "name": "fn7",
+      "line": 341,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn7 = () => fn5(false);",
+      "references": [
+        {
+          "line": 329,
+          "text": "arg53.removeEventListener?.(\"error\", fn7),"
+        },
+        {
+          "line": 345,
+          "text": "arg53.addEventListener?.(\"error\", fn7, {"
+        }
+      ]
+    },
+    {
+      "key": "arg56@355",
+      "name": "arg56",
+      "line": 355,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"promote\"](arg56) {",
+      "references": [
+        {
+          "line": 356,
+          "text": "const value32 = arg56?.dataset?.effectPendingSource || arg56?.dataset?.effectSource || \"\";"
+        },
+        {
+          "line": 358,
+          "text": "this.enqueue(arg56, value32, {"
+        }
+      ]
+    },
+    {
+      "key": "value32@356",
+      "name": "value32",
+      "line": 356,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value32 = arg56?.dataset?.effectPendingSource || arg56?.dataset?.effectSource || \"\";",
+      "references": [
+        {
+          "line": 357,
+          "text": "value32 &&"
+        },
+        {
+          "line": 358,
+          "text": "this.enqueue(arg56, value32, {"
+        }
+      ]
+    },
+    {
+      "key": "arg57@364",
+      "name": "arg57",
+      "line": 364,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ image: arg57, source: arg58 }) =>",
+      "references": [
+        {
+          "line": 365,
+          "text": "arg57 &&"
+        },
+        {
+          "line": 366,
+          "text": "arg57.dataset?.effectPendingSource === arg58 &&"
+        },
+        {
+          "line": 367,
+          "text": "(arg57.isConnected === undefined || arg57.isConnected),"
+        }
+      ]
+    },
+    {
+      "key": "arg58@364",
+      "name": "arg58",
+      "line": 364,
+      "column": 31,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "({ image: arg57, source: arg58 }) =>",
+      "references": [
+        {
+          "line": 366,
+          "text": "arg57.dataset?.effectPendingSource === arg58 &&"
+        }
+      ]
+    },
+    {
+      "key": "value33@369",
+      "name": "value33",
+      "line": 369,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value33, value34] of [...this.activeLoads])",
+      "references": [
+        {
+          "line": 370,
+          "text": "value33.isConnected === false && value34();"
+        }
+      ]
+    },
+    {
+      "key": "value34@369",
+      "name": "value34",
+      "line": 369,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value33, value34] of [...this.activeLoads])",
+      "references": [
+        {
+          "line": 370,
+          "text": "value33.isConnected === false && value34();"
+        }
+      ]
+    },
+    {
+      "key": "value35@387",
+      "name": "value35",
+      "line": 387,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value35 of [...this.activeLoads.values()]) value35();",
+      "references": [
+        {
+          "line": 387,
+          "text": "for (const value35 of [...this.activeLoads.values()]) value35();"
+        }
+      ]
+    },
+    {
+      "key": "arg59@393",
+      "name": "arg59",
+      "line": 393,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "maxConcurrent: arg59 = 1,",
+      "references": [
+        {
+          "line": 398,
+          "text": "((this.maxConcurrent = Math.max(1, Number(arg59) || 1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg60@394",
+      "name": "arg60",
+      "line": 394,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "retryDelay: arg60 = 15000,",
+      "references": [
+        {
+          "line": 399,
+          "text": "(this.retryDelay = Math.max(1000, Number(arg60) || 15000)),"
+        }
+      ]
+    },
+    {
+      "key": "arg61@395",
+      "name": "arg61",
+      "line": 395,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "createImage: arg61 = () => new Image(),",
+      "references": [
+        {
+          "line": 400,
+          "text": "(this.createImage = arg61),"
+        }
+      ]
+    },
+    {
+      "key": "arg62@396",
+      "name": "arg62",
+      "line": 396,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "now: arg62 = () => Date.now(),",
+      "references": [
+        {
+          "line": 401,
+          "text": "(this.now = arg62),"
+        }
+      ]
+    },
+    {
+      "key": "arg63@410",
+      "name": "arg63",
+      "line": 410,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"enqueue\"](arg63) {",
+      "references": [
+        {
+          "line": 411,
+          "text": "const value36 = String(arg63 || \"\"),"
+        }
+      ]
+    },
+    {
+      "key": "value36@411",
+      "name": "value36",
+      "line": 411,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value36 = String(arg63 || \"\"),",
+      "references": [
+        {
+          "line": 412,
+          "text": "value37 = value36.split(\"?\", 1)[0];"
+        },
+        {
+          "line": 415,
+          "text": "!value36 ||"
+        },
+        {
+          "line": 416,
+          "text": "this.loadedSources.has(value36) ||"
+        },
+        {
+          "line": 417,
+          "text": "this.queuedSources.has(value36) ||"
+        },
+        {
+          "line": 418,
+          "text": "this.activeLoads.has(value36)"
+        },
+        {
+          "line": 421,
+          "text": "const value38 = Number(this.failedAt.get(value36) || 0);"
+        }
+      ]
+    },
+    {
+      "key": "value37@412",
+      "name": "value37",
+      "line": 412,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value37 = value36.split(\"?\", 1)[0];",
+      "references": [
+        {
+          "line": 424,
+          "text": "value40 !== value36 && value40.split(\"?\", 1)[0] === value37 && this.failedAt.delete(value40);"
+        },
+        {
+          "line": 425,
+          "text": "const value39 = this.queue.findIndex((arg64) => arg64.key === value37);"
+        },
+        {
+          "line": 430,
+          "text": "key: value37,"
+        },
+        {
+          "line": 434,
+          "text": "key: value37,"
+        }
+      ]
+    },
+    {
+      "key": "value38@421",
+      "name": "value38",
+      "line": 421,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value38 = Number(this.failedAt.get(value36) || 0);",
+      "references": [
+        {
+          "line": 422,
+          "text": "if (value38 && this.now() - value38 < this.retryDelay) return false;"
+        }
+      ]
+    },
+    {
+      "key": "value40@423",
+      "name": "value40",
+      "line": 423,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value40 of this.failedAt.keys())",
+      "references": [
+        {
+          "line": 424,
+          "text": "value40 !== value36 && value40.split(\"?\", 1)[0] === value37 && this.failedAt.delete(value40);"
+        }
+      ]
+    },
+    {
+      "key": "value39@425",
+      "name": "value39",
+      "line": 425,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value39 = this.queue.findIndex((arg64) => arg64.key === value37);",
+      "references": [
+        {
+          "line": 427,
+          "text": "value39 >= 0"
+        },
+        {
+          "line": 428,
+          "text": "? (this.queuedSources.delete(this.queue[value39].source),"
+        },
+        {
+          "line": 429,
+          "text": "(this.queue[value39] = {"
+        }
+      ]
+    },
+    {
+      "key": "arg64@425",
+      "name": "arg64",
+      "line": 425,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value39 = this.queue.findIndex((arg64) => arg64.key === value37);",
+      "references": [
+        {
+          "line": 425,
+          "text": "const value39 = this.queue.findIndex((arg64) => arg64.key === value37);"
+        }
+      ]
+    },
+    {
+      "key": "value41@445",
+      "name": "value41",
+      "line": 445,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { key: value41, source: value42 } = this.queue.shift();",
+      "references": [
+        {
+          "line": 446,
+          "text": "(this.queuedSources.delete(value42), this.start(value41, value42));"
+        }
+      ]
+    },
+    {
+      "key": "value42@445",
+      "name": "value42",
+      "line": 445,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const { key: value41, source: value42 } = this.queue.shift();",
+      "references": [
+        {
+          "line": 446,
+          "text": "(this.queuedSources.delete(value42), this.start(value41, value42));"
+        }
+      ]
+    },
+    {
+      "key": "arg65@449",
+      "name": "arg65",
+      "line": 449,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"](arg65, arg66) {",
+      "references": [
+        {
+          "line": 462,
+          "text": "const value45 = this.loadedSourceByKey.get(arg65);"
+        },
+        {
+          "line": 464,
+          "text": "this.loadedSourceByKey.set(arg65, arg66),"
+        }
+      ]
+    },
+    {
+      "key": "arg66@449",
+      "name": "arg66",
+      "line": 449,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"start\"](arg65, arg66) {",
+      "references": [
+        {
+          "line": 450,
+          "text": "if (this.stopped || !arg66) return;"
+        },
+        {
+          "line": 459,
+          "text": "this.activeLoads.delete(arg66),"
+        },
+        {
+          "line": 463,
+          "text": "(value45 && value45 !== arg66 && this.loadedSources.delete(value45),"
+        },
+        {
+          "line": 464,
+          "text": "this.loadedSourceByKey.set(arg65, arg66),"
+        },
+        {
+          "line": 465,
+          "text": "this.loadedSources.add(arg66),"
+        },
+        {
+          "line": 466,
+          "text": "this.failedAt.delete(arg66));"
+        }
+      ]
+    },
+    {
+      "key": "value43@451",
+      "name": "value43",
+      "line": 451,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value43 = this.createImage();",
+      "references": [
+        {
+          "line": 457,
+          "text": "value43.removeEventListener?.(\"load\", fn9),"
+        },
+        {
+          "line": 458,
+          "text": "value43.removeEventListener?.(\"error\", fn10),"
+        },
+        {
+          "line": 473,
+          "text": "((value43.decoding = \"async\"),"
+        },
+        {
+          "line": 474,
+          "text": "(value43.fetchPriority = \"low\"),"
+        },
+        {
+          "line": 475,
+          "text": "value43.addEventListener?.(\"load\", fn9, {"
+        },
+        {
+          "line": 478,
+          "text": "value43.addEventListener?.(\"error\", fn10, {"
+        }
+      ]
+    },
+    {
+      "key": "value44@452",
+      "name": "value44",
+      "line": 452,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value44 = false;",
+      "references": [
+        {
+          "line": 454,
+          "text": "if (!value44) {"
+        }
+      ]
+    },
+    {
+      "key": "fn8@453",
+      "name": "fn8",
+      "line": 453,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn8 = (arg67) => {",
+      "references": [
+        {
+          "line": 471,
+          "text": "fn9 = () => fn8(true),"
+        },
+        {
+          "line": 472,
+          "text": "fn10 = () => fn8(false);"
+        },
+        {
+          "line": 483,
+          "text": "cancel: () => fn8(false),"
+        }
+      ]
+    },
+    {
+      "key": "arg67@453",
+      "name": "arg67",
+      "line": 453,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn8 = (arg67) => {",
+      "references": [
+        {
+          "line": 460,
+          "text": "arg67)"
+        }
+      ]
+    },
+    {
+      "key": "value45@462",
+      "name": "value45",
+      "line": 462,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value45 = this.loadedSourceByKey.get(arg65);",
+      "references": [
+        {
+          "line": 463,
+          "text": "(value45 && value45 !== arg66 && this.loadedSources.delete(value45),"
+        }
+      ]
+    },
+    {
+      "key": "fn9@471",
+      "name": "fn9",
+      "line": 471,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn9 = () => fn8(true),",
+      "references": [
+        {
+          "line": 457,
+          "text": "value43.removeEventListener?.(\"load\", fn9),"
+        },
+        {
+          "line": 475,
+          "text": "value43.addEventListener?.(\"load\", fn9, {"
+        },
+        {
+          "line": 486,
+          "text": "value43.complete && Number(value43.naturalWidth || 0) > 0 && Promise.resolve().then(fn9));"
+        }
+      ]
+    },
+    {
+      "key": "fn10@472",
+      "name": "fn10",
+      "line": 472,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn10 = () => fn8(false);",
+      "references": [
+        {
+          "line": 458,
+          "text": "value43.removeEventListener?.(\"error\", fn10),"
+        },
+        {
+          "line": 478,
+          "text": "value43.addEventListener?.(\"error\", fn10, {"
+        }
+      ]
+    },
+    {
+      "key": "value46@496",
+      "name": "value46",
+      "line": 496,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { image: value46, cancel: value47 } of [...this.activeLoads.values()])",
+      "references": [
+        {
+          "line": 497,
+          "text": "(value46.removeAttribute?.(\"src\"), value47());"
+        }
+      ]
+    },
+    {
+      "key": "value47@496",
+      "name": "value47",
+      "line": 496,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const { image: value46, cancel: value47 } of [...this.activeLoads.values()])",
+      "references": [
+        {
+          "line": 497,
+          "text": "(value46.removeAttribute?.(\"src\"), value47());"
+        }
+      ]
+    },
+    {
+      "key": "arg68@504",
+      "name": "arg68",
+      "line": 504,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function historyRequestStillRelevant(arg68, arg69) {",
+      "references": [
+        {
+          "line": 505,
+          "text": "return arg68.documentGeneration !== arg69.documentGeneration"
+        },
+        {
+          "line": 507,
+          "text": ": arg68.shared || (arg68.pagePath !== null && arg68.pagePath === arg69.pagePath)"
+        },
+        {
+          "line": 509,
+          "text": ": arg68.popupId !== null &&"
+        },
+        {
+          "line": 510,
+          "text": "arg68.popupId === arg69.popupId &&"
+        },
+        {
+          "line": 511,
+          "text": "arg68.popupGeneration === arg69.popupGeneration;"
+        }
+      ]
+    },
+    {
+      "key": "arg69@504",
+      "name": "arg69",
+      "line": 504,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function historyRequestStillRelevant(arg68, arg69) {",
+      "references": [
+        {
+          "line": 505,
+          "text": "return arg68.documentGeneration !== arg69.documentGeneration"
+        },
+        {
+          "line": 507,
+          "text": ": arg68.shared || (arg68.pagePath !== null && arg68.pagePath === arg69.pagePath)"
+        },
+        {
+          "line": 510,
+          "text": "arg68.popupId === arg69.popupId &&"
+        },
+        {
+          "line": 511,
+          "text": "arg68.popupGeneration === arg69.popupGeneration;"
+        }
+      ]
+    },
+    {
+      "key": "arg70@517",
+      "name": "arg70",
+      "line": 517,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"canRequest\"](arg70, arg71 = Date.now()) {",
+      "references": [
+        {
+          "line": 518,
+          "text": "const value48 = this.entries.get(arg70);"
+        }
+      ]
+    },
+    {
+      "key": "arg71@517",
+      "name": "arg71",
+      "line": 517,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"canRequest\"](arg70, arg71 = Date.now()) {",
+      "references": [
+        {
+          "line": 519,
+          "text": "return !this.authBlocked && (!value48 || (!value48.blocked && arg71 >= value48.nextAt));"
+        }
+      ]
+    },
+    {
+      "key": "value48@518",
+      "name": "value48",
+      "line": 518,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value48 = this.entries.get(arg70);",
+      "references": [
+        {
+          "line": 519,
+          "text": "return !this.authBlocked && (!value48 || (!value48.blocked && arg71 >= value48.nextAt));"
+        }
+      ]
+    },
+    {
+      "key": "arg72@521",
+      "name": "arg72",
+      "line": 521,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"success\"](arg72) {",
+      "references": [
+        {
+          "line": 522,
+          "text": "this.entries.delete(arg72);"
+        }
+      ]
+    },
+    {
+      "key": "arg73@524",
+      "name": "arg73",
+      "line": 524,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"failure\"](arg73, arg74 = 0, arg75 = Date.now()) {",
+      "references": [
+        {
+          "line": 525,
+          "text": "const value49 = (this.entries.get(arg73)?.attempts || 0) + 1,"
+        },
+        {
+          "line": 530,
+          "text": "this.entries.set(arg73, {"
+        }
+      ]
+    },
+    {
+      "key": "arg74@524",
+      "name": "arg74",
+      "line": 524,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"failure\"](arg73, arg74 = 0, arg75 = Date.now()) {",
+      "references": [
+        {
+          "line": 526,
+          "text": "value50 = [401, 403, 404, 410].includes(arg74);"
+        },
+        {
+          "line": 527,
+          "text": "arg74 === 401 && (this.authBlocked = true);"
+        },
+        {
+          "line": 533,
+          "text": "status: arg74,"
+        }
+      ]
+    },
+    {
+      "key": "arg75@524",
+      "name": "arg75",
+      "line": 524,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"failure\"](arg73, arg74 = 0, arg75 = Date.now()) {",
+      "references": [
+        {
+          "line": 534,
+          "text": "nextAt: value50 ? Infinity : arg75 + value51,"
+        }
+      ]
+    },
+    {
+      "key": "value49@525",
+      "name": "value49",
+      "line": 525,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value49 = (this.entries.get(arg73)?.attempts || 0) + 1,",
+      "references": [
+        {
+          "line": 528,
+          "text": "const value51 = Math.min(300000, 1000 * 2 ** Math.min(value49 - 1, 9));"
+        },
+        {
+          "line": 531,
+          "text": "attempts: value49,"
+        }
+      ]
+    },
+    {
+      "key": "value50@526",
+      "name": "value50",
+      "line": 526,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value50 = [401, 403, 404, 410].includes(arg74);",
+      "references": [
+        {
+          "line": 532,
+          "text": "blocked: value50,"
+        },
+        {
+          "line": 534,
+          "text": "nextAt: value50 ? Infinity : arg75 + value51,"
+        },
+        {
+          "line": 536,
+          "text": "value50 ? Infinity : value51"
+        }
+      ]
+    },
+    {
+      "key": "value51@528",
+      "name": "value51",
+      "line": 528,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value51 = Math.min(300000, 1000 * 2 ** Math.min(value49 - 1, 9));",
+      "references": [
+        {
+          "line": 534,
+          "text": "nextAt: value50 ? Infinity : arg75 + value51,"
+        },
+        {
+          "line": 536,
+          "text": "value50 ? Infinity : value51"
+        }
+      ]
+    },
+    {
+      "key": "value52@544",
+      "name": "value52",
+      "line": 544,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value52, value53] of this.entries)",
+      "references": [
+        {
+          "line": 545,
+          "text": "value53.status === 401 && this.entries.delete(value52);"
+        }
+      ]
+    },
+    {
+      "key": "value53@544",
+      "name": "value53",
+      "line": 544,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value52, value53] of this.entries)",
+      "references": [
+        {
+          "line": 545,
+          "text": "value53.status === 401 && this.entries.delete(value52);"
+        }
+      ]
+    },
+    {
+      "key": "arg76@547",
+      "name": "arg76",
+      "line": 547,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "[\"retain\"](arg76) {",
+      "references": [
+        {
+          "line": 548,
+          "text": "for (const value54 of this.entries.keys()) arg76.has(value54) || this.entries.delete(value54);"
+        }
+      ]
+    },
+    {
+      "key": "value54@548",
+      "name": "value54",
+      "line": 548,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value54 of this.entries.keys()) arg76.has(value54) || this.entries.delete(value54);",
+      "references": [
+        {
+          "line": 548,
+          "text": "for (const value54 of this.entries.keys()) arg76.has(value54) || this.entries.delete(value54);"
+        }
+      ]
+    }
+  ]
+}

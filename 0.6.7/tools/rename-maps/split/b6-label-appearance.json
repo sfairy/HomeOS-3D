@@ -1,0 +1,15 @@
+{
+  "frontend/static/modules/interaction3d/label-appearance.js": {
+    "arg1@1": "value",
+    "arg2@4": "containerElement",
+    "arg3@4": "target",
+    "arg4@4": "key",
+    "arg5@4": "onChange",
+    "value1@5": "documentNode",
+    "value2@6": "labelElement",
+    "value3@7": "spanElement",
+    "value4@8": "inputElement",
+    "value5@9": "noteElement",
+    "fn1@18": "syncLabel"
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "file": "frontend/modules/interaction3d/purifier-state.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 27,
+  "counts": {
+    "entries": 11,
+    "renameable": 11,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "f@1",
+      "name": "f",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const f = (arg1, arg2) => {",
+      "references": [
+        {
+          "line": 7,
+          "text": "f2 = f(v2, entityId),"
+        },
+        {
+          "line": 8,
+          "text": "f3 = f(v2, arg3.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const f = (arg1, arg2) => {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const f = (arg1, arg2) => {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];"
+        }
+      ]
+    },
+    {
+      "key": "v1@2",
+      "name": "v1",
+      "line": 2,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const v1 = arg1 instanceof Map ? arg1.get(arg2) : arg1?.[arg2];",
+      "references": [
+        {
+          "line": 3,
+          "text": "return v1?.newState || v1;"
+        }
+      ]
+    },
+    {
+      "key": "arg3@5",
+      "name": "arg3",
+      "line": 5,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function purifierState(arg3, v2 = {}) {",
+      "references": [
+        {
+          "line": 6,
+          "text": "const entityId = arg3.airflowEntityId || arg3.entityId,"
+        },
+        {
+          "line": 8,
+          "text": "f3 = f(v2, arg3.entityId),"
+        },
+        {
+          "line": 17,
+          "text": "v5 = v3 && f2.state === \"on\" && (!!arg3.airflowEntityId || !finite || max > 0);"
+        }
+      ]
+    },
+    {
+      "key": "v2@5",
+      "name": "v2",
+      "line": 5,
+      "column": 36,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "export function purifierState(arg3, v2 = {}) {",
+      "references": [
+        {
+          "line": 7,
+          "text": "f2 = f(v2, entityId),"
+        },
+        {
+          "line": 8,
+          "text": "f3 = f(v2, arg3.entityId),"
+        }
+      ]
+    },
+    {
+      "key": "f2@7",
+      "name": "f2",
+      "line": 7,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "f2 = f(v2, entityId),",
+      "references": [
+        {
+          "line": 9,
+          "text": "v3 = !!(f2 && f2.available !== false && [\"on\", \"off\"].includes(f2.state)),"
+        },
+        {
+          "line": 17,
+          "text": "v5 = v3 && f2.state === \"on\" && (!!arg3.airflowEntityId || !finite || max > 0);"
+        },
+        {
+          "line": 20,
+          "text": "on: v3 && f2.state === \"on\","
+        }
+      ]
+    },
+    {
+      "key": "f3@8",
+      "name": "f3",
+      "line": 8,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "f3 = f(v2, arg3.entityId),",
+      "references": [
+        {
+          "line": 10,
+          "text": "v4 = f3?.attributes?.percentage,"
+        },
+        {
+          "line": 12,
+          "text": "f3?.available !== false &&"
+        },
+        {
+          "line": 13,
+          "text": "[\"on\", \"off\"].includes(f3?.state) &&"
+        }
+      ]
+    },
+    {
+      "key": "v3@9",
+      "name": "v3",
+      "line": 9,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v3 = !!(f2 && f2.available !== false && [\"on\", \"off\"].includes(f2.state)),",
+      "references": [
+        {
+          "line": 17,
+          "text": "v5 = v3 && f2.state === \"on\" && (!!arg3.airflowEntityId || !finite || max > 0);"
+        },
+        {
+          "line": 19,
+          "text": "available: v3,"
+        },
+        {
+          "line": 20,
+          "text": "on: v3 && f2.state === \"on\","
+        },
+        {
+          "line": 24,
+          "text": "label: entityId ? (v3 ? (v5 ? \"净化中\" : \"已停止\") : \"状态未知\") : \"各功能独立控制\","
+        }
+      ]
+    },
+    {
+      "key": "v4@10",
+      "name": "v4",
+      "line": 10,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v4 = f3?.attributes?.percentage,",
+      "references": [
+        {
+          "line": 14,
+          "text": "(typeof v4 == \"number\" || (typeof v4 == \"string\" && v4.trim() !== \"\")) &&"
+        },
+        {
+          "line": 15,
+          "text": "Number.isFinite(Number(v4)),"
+        },
+        {
+          "line": 16,
+          "text": "max = finite ? Math.max(0, Math.min(1, Number(v4) / 100)) : 0.5,"
+        }
+      ]
+    },
+    {
+      "key": "v5@17",
+      "name": "v5",
+      "line": 17,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "v5 = v3 && f2.state === \"on\" && (!!arg3.airflowEntityId || !finite || max > 0);",
+      "references": [
+        {
+          "line": 21,
+          "text": "running: v5,"
+        },
+        {
+          "line": 23,
+          "text": "visualMode: v5 ? \"other\" : \"off\","
+        },
+        {
+          "line": 24,
+          "text": "label: entityId ? (v3 ? (v5 ? \"净化中\" : \"已停止\") : \"状态未知\") : \"各功能独立控制\","
+        }
+      ]
+    }
+  ]
+}

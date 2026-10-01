@@ -1,0 +1,2965 @@
+{
+  "file": "frontend/modules/interaction3d/speaker-panel.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 474,
+  "counts": {
+    "entries": 128,
+    "renameable": 128,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@4",
+      "name": "arg1",
+      "line": 4,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onControl: arg1 = async () => {},",
+      "references": [
+        {
+          "line": 68,
+          "text": "return (await arg1(value48.command), !value21 && value49 === value20);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@5",
+      "name": "arg2",
+      "line": 5,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fetchMedia: arg2 = (...arg3) => fetch(...arg3),",
+      "references": [
+        {
+          "line": 278,
+          "text": "const value62 = await arg2(\"/api/v1/ha/media/browse\", {"
+        }
+      ]
+    },
+    {
+      "key": "arg3@5",
+      "name": "arg3",
+      "line": 5,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fetchMedia: arg2 = (...arg3) => fetch(...arg3),",
+      "references": [
+        {
+          "line": 5,
+          "text": "fetchMedia: arg2 = (...arg3) => fetch(...arg3),"
+        }
+      ]
+    },
+    {
+      "key": "fn1@7",
+      "name": "fn1",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg4, arg5 = \"\", arg6 = \"\") => {",
+      "references": [
+        {
+          "line": 11,
+          "text": "value1 = fn1(\"div\", \"i3d-television-panel i3d-speaker-panel\");"
+        },
+        {
+          "line": 13,
+          "text": "const value2 = fn1(\"div\", \"i3d-nas-heading\"),"
+        },
+        {
+          "line": 14,
+          "text": "value3 = fn1(\"h3\"),"
+        },
+        {
+          "line": 15,
+          "text": "value4 = fn1(\"span\", \"i3d-tv-status\"),"
+        },
+        {
+          "line": 16,
+          "text": "value5 = fn1(\"div\", \"i3d-popup-heading-text\");"
+        },
+        {
+          "line": 18,
+          "text": "const value6 = fn1(\"div\", \"i3d-tv-content\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg4@7",
+      "name": "arg4",
+      "line": 7,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg4, arg5 = \"\", arg6 = \"\") => {",
+      "references": [
+        {
+          "line": 8,
+          "text": "const value47 = document.createElement(arg4);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@7",
+      "name": "arg5",
+      "line": 7,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg4, arg5 = \"\", arg6 = \"\") => {",
+      "references": [
+        {
+          "line": 9,
+          "text": "return ((value47.className = arg5), (value47.textContent = arg6), value47);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@7",
+      "name": "arg6",
+      "line": 7,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const fn1 = (arg4, arg5 = \"\", arg6 = \"\") => {",
+      "references": [
+        {
+          "line": 9,
+          "text": "return ((value47.className = arg5), (value47.textContent = arg6), value47);"
+        }
+      ]
+    },
+    {
+      "key": "value47@8",
+      "name": "value47",
+      "line": 8,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value47 = document.createElement(arg4);",
+      "references": [
+        {
+          "line": 9,
+          "text": "return ((value47.className = arg5), (value47.textContent = arg6), value47);"
+        }
+      ]
+    },
+    {
+      "key": "value1@11",
+      "name": "value1",
+      "line": 11,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value1 = fn1(\"div\", \"i3d-television-panel i3d-speaker-panel\");",
+      "references": [
+        {
+          "line": 12,
+          "text": "value1.hidden = true;"
+        },
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 213,
+          "text": "value1.append(value39));"
+        },
+        {
+          "line": 439,
+          "text": "value69.playing && value22 === null && !value1.hidden && (value22 = setInterval(fn11, 1000)));"
+        },
+        {
+          "line": 458,
+          "text": "root: value1,"
+        },
+        {
+          "line": 467,
+          "text": "(!value19 && value1.hidden) || ((value1.hidden = true), fn12(), (value19 = null));"
+        }
+      ]
+    },
+    {
+      "key": "value2@13",
+      "name": "value2",
+      "line": 13,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 = fn1(\"div\", \"i3d-nas-heading\"),",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value5.append(value3, value4), value2.append(value5));"
+        },
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 99,
+          "text": "(value2.append(value24),"
+        }
+      ]
+    },
+    {
+      "key": "value3@14",
+      "name": "value3",
+      "line": 14,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = fn1(\"h3\"),",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value5.append(value3, value4), value2.append(value5));"
+        },
+        {
+          "line": 337,
+          "text": "((value3.textContent = value69.name),"
+        },
+        {
+          "line": 338,
+          "text": "(value3.title = value69.name),"
+        }
+      ]
+    },
+    {
+      "key": "value4@15",
+      "name": "value4",
+      "line": 15,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = fn1(\"span\", \"i3d-tv-status\"),",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value5.append(value3, value4), value2.append(value5));"
+        },
+        {
+          "line": 339,
+          "text": "(value4.textContent = value69.status),"
+        },
+        {
+          "line": 340,
+          "text": "(value4.title = value69.status),"
+        }
+      ]
+    },
+    {
+      "key": "value5@16",
+      "name": "value5",
+      "line": 16,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = fn1(\"div\", \"i3d-popup-heading-text\");",
+      "references": [
+        {
+          "line": 17,
+          "text": "(value5.append(value3, value4), value2.append(value5));"
+        }
+      ]
+    },
+    {
+      "key": "value6@18",
+      "name": "value6",
+      "line": 18,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = fn1(\"div\", \"i3d-tv-content\"),",
+      "references": [
+        {
+          "line": 33,
+          "text": "value6.append(value7, value8));"
+        },
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 197,
+          "text": "value6.append(value35));"
+        }
+      ]
+    },
+    {
+      "key": "value7@19",
+      "name": "value7",
+      "line": 19,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = fn1(\"img\", \"i3d-tv-artwork\"),",
+      "references": [
+        {
+          "line": 25,
+          "text": "((value7.alt = \"正在播放的内容封面\"), (value7.hidden = true));"
+        },
+        {
+          "line": 33,
+          "text": "value6.append(value7, value8));"
+        },
+        {
+          "line": 348,
+          "text": "((text1 = value69.artwork), (value7.hidden = true));"
+        },
+        {
+          "line": 350,
+          "text": "((value7.onload = () => {"
+        },
+        {
+          "line": 355,
+          "text": "(value7.hidden = false);"
+        },
+        {
+          "line": 357,
+          "text": "(value7.onerror = () => {"
+        }
+      ]
+    },
+    {
+      "key": "value8@20",
+      "name": "value8",
+      "line": 20,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = fn1(\"div\", \"i3d-tv-details\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 33,
+          "text": "value6.append(value7, value8));"
+        }
+      ]
+    },
+    {
+      "key": "value9@21",
+      "name": "value9",
+      "line": 21,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = fn1(\"strong\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 341,
+          "text": "(value9.textContent = value69.on ? value69.title : value69.status),"
+        }
+      ]
+    },
+    {
+      "key": "value10@22",
+      "name": "value10",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value10 = fn1(\"span\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 342,
+          "text": "(value10.textContent = value69.artist),"
+        },
+        {
+          "line": 344,
+          "text": "(value10.hidden = !value69.artist),"
+        }
+      ]
+    },
+    {
+      "key": "value11@23",
+      "name": "value11",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value11 = fn1(\"span\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 343,
+          "text": "(value11.textContent = value69.album),"
+        },
+        {
+          "line": 345,
+          "text": "(value11.hidden = !value69.album),"
+        }
+      ]
+    },
+    {
+      "key": "value12@24",
+      "name": "value12",
+      "line": 24,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value12 = fn1(\"span\", \"i3d-tv-time\");",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 388,
+          "text": "(value12.hidden = !value70),"
+        },
+        {
+          "line": 393,
+          "text": "(value12.textContent ="
+        }
+      ]
+    },
+    {
+      "key": "value13@26",
+      "name": "value13",
+      "line": 26,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value13 = fn1(\"progress\"),",
+      "references": [
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 386,
+          "text": "((value13.hidden = !value70 || value69.supports(\"media_seek\")),"
+        },
+        {
+          "line": 389,
+          "text": "(value13.max = value14.max = value69.duration || 1),"
+        },
+        {
+          "line": 390,
+          "text": "(value13.value = value69.position || 0),"
+        }
+      ]
+    },
+    {
+      "key": "value14@27",
+      "name": "value14",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value14 = fn1(\"input\");",
+      "references": [
+        {
+          "line": 28,
+          "text": "((value14.type = \"range\"),"
+        },
+        {
+          "line": 29,
+          "text": "(value14.min = \"0\"),"
+        },
+        {
+          "line": 30,
+          "text": "(value14.step = \"1\"),"
+        },
+        {
+          "line": 31,
+          "text": "value14.setAttribute(\"aria-label\", \"播放进度\"),"
+        },
+        {
+          "line": 32,
+          "text": "value8.append(value9, value10, value11, value13, value14, value12),"
+        },
+        {
+          "line": 132,
+          "text": "value14.addEventListener("
+        }
+      ]
+    },
+    {
+      "key": "value15@34",
+      "name": "value15",
+      "line": 34,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value15 = fn1(\"div\", \"i3d-tv-actions i3d-speaker-actions\"),",
+      "references": [
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 82,
+          "text": "function fn6(arg14, arg15, arg16, arg17 = value15) {"
+        }
+      ]
+    },
+    {
+      "key": "value16@35",
+      "name": "value16",
+      "line": 35,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value16 = fn1(\"div\", \"i3d-speaker-settings\"),",
+      "references": [
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 106,
+          "text": "value16.append(value26);"
+        },
+        {
+          "line": 157,
+          "text": "value16,"
+        },
+        {
+          "line": 168,
+          "text": "value16.append(value57),"
+        },
+        {
+          "line": 375,
+          "text": "(value16.hidden = !["
+        }
+      ]
+    },
+    {
+      "key": "value17@36",
+      "name": "value17",
+      "line": 36,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value17 = fn1(\"p\", \"i3d-tv-error\");",
+      "references": [
+        {
+          "line": 37,
+          "text": "value17.setAttribute(\"role\", \"status\");"
+        },
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        },
+        {
+          "line": 59,
+          "text": "async function fn5(arg11, arg12 = {}, arg13 = value17) {"
+        },
+        {
+          "line": 452,
+          "text": "(value17.textContent = \"\"),"
+        }
+      ]
+    },
+    {
+      "key": "value18@38",
+      "name": "value18",
+      "line": 38,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value18 = fn1(\"div\", \"i3d-popup-body\");",
+      "references": [
+        {
+          "line": 39,
+          "text": "(value18.append(value6, value15, value16, value17), value1.append(value2, value18));"
+        }
+      ]
+    },
+    {
+      "key": "value19@40",
+      "name": "value19",
+      "line": 40,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value19 = null,",
+      "references": [
+        {
+          "line": 58,
+          "text": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));"
+        },
+        {
+          "line": 60,
+          "text": "if (!value19 || value21 || value19.editing || fn3(arg11)) return;"
+        },
+        {
+          "line": 61,
+          "text": "const value48 = speakerCommand(value19.item, value19.states, arg11, arg12);"
+        },
+        {
+          "line": 87,
+          "text": "const value52 = speakerState(value19.item, value19.states);"
+        },
+        {
+          "line": 220,
+          "text": "value19 && !value21 && fn11());"
+        },
+        {
+          "line": 233,
+          "text": "!value19 ||"
+        }
+      ]
+    },
+    {
+      "key": "value20@41",
+      "name": "value20",
+      "line": 41,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value20 = 0,",
+      "references": [
+        {
+          "line": 63,
+          "text": "const value49 = value20,"
+        },
+        {
+          "line": 68,
+          "text": "return (await arg1(value48.command), !value21 && value49 === value20);"
+        },
+        {
+          "line": 71,
+          "text": "value49 === value20 &&"
+        },
+        {
+          "line": 77,
+          "text": "value49 === value20 &&"
+        },
+        {
+          "line": 271,
+          "text": "const value61 = value20;"
+        },
+        {
+          "line": 295,
+          "text": "if (value21 || value61 !== value20 || abortController1.signal.aborted) return;"
+        }
+      ]
+    },
+    {
+      "key": "value21@42",
+      "name": "value21",
+      "line": 42,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value21 = false,",
+      "references": [
+        {
+          "line": 60,
+          "text": "if (!value19 || value21 || value19.editing || fn3(arg11)) return;"
+        },
+        {
+          "line": 68,
+          "text": "return (await arg1(value48.command), !value21 && value49 === value20);"
+        },
+        {
+          "line": 72,
+          "text": "!value21 &&"
+        },
+        {
+          "line": 78,
+          "text": "!value21 &&"
+        },
+        {
+          "line": 220,
+          "text": "value19 && !value21 && fn11());"
+        },
+        {
+          "line": 234,
+          "text": "value21 ||"
+        }
+      ]
+    },
+    {
+      "key": "value22@43",
+      "name": "value22",
+      "line": 43,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value22 = null,",
+      "references": [
+        {
+          "line": 438,
+          "text": "!value69.playing && value22 !== null && (clearInterval(value22), (value22 = null)),"
+        },
+        {
+          "line": 439,
+          "text": "value69.playing && value22 === null && !value1.hidden && (value22 = setInterval(fn11, 1000)));"
+        },
+        {
+          "line": 446,
+          "text": "value22 !== null && clearInterval(value22),"
+        }
+      ]
+    },
+    {
+      "key": "value23@44",
+      "name": "value23",
+      "line": 44,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value23 = null,",
+      "references": [
+        {
+          "line": 258,
+          "text": "(value23?.abort(), (value23 = null));"
+        },
+        {
+          "line": 330,
+          "text": "value23 === abortController1 && ((value23 = null), value19 && fn11());"
+        },
+        {
+          "line": 431,
+          "text": "(value35.disabled = fn4(value69) || !!value23),"
+        },
+        {
+          "line": 435,
+          "text": "fn4(value69) || !!value23 || (value80.textContent === \"播放\" && fn3(\"play_media\"));"
+        },
+        {
+          "line": 436,
+          "text": "((value43.disabled = fn4(value69, \"play_media\") || !!value23),"
+        },
+        {
+          "line": 437,
+          "text": "value39.setAttribute(\"aria-busy\", String(!!value23)),"
+        }
+      ]
+    },
+    {
+      "key": "list1@45",
+      "name": "list1",
+      "line": 45,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list1 = [],",
+      "references": [
+        {
+          "line": 240,
+          "text": "const value60 = list1.slice(0, -1);"
+        },
+        {
+          "line": 243,
+          "text": "value42.addEventListener(\"click\", () => void fn10(list1.at(-1) || null, list1.slice(0, -1))));"
+        },
+        {
+          "line": 301,
+          "text": "(value36.hidden = list1.length === 0),"
+        },
+        {
+          "line": 311,
+          "text": "(value67.onclick = () => void fn10(value65, list1)),"
+        }
+      ]
+    },
+    {
+      "key": "text1@46",
+      "name": "text1",
+      "line": 46,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "text1 = \"\";",
+      "references": [
+        {
+          "line": 346,
+          "text": "text1 !== value69.artwork)"
+        },
+        {
+          "line": 354,
+          "text": "text1 === value69.artwork &&"
+        }
+      ]
+    },
+    {
+      "key": "list2@47",
+      "name": "list2",
+      "line": 47,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list2 = [],",
+      "references": [
+        {
+          "line": 91,
+          "text": "list2.push({"
+        },
+        {
+          "line": 117,
+          "text": "list2.push({"
+        },
+        {
+          "line": 183,
+          "text": "list2.push({"
+        },
+        {
+          "line": 363,
+          "text": "for (const value73 of list2) {"
+        }
+      ]
+    },
+    {
+      "key": "map1@48",
+      "name": "map1",
+      "line": 48,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "map1 = new Map(),",
+      "references": [
+        {
+          "line": 57,
+          "text": "fn3 = (arg8) => map1.has(fn2(arg8)),"
+        },
+        {
+          "line": 66,
+          "text": "(map1.set(value50, object1), (arg13.textContent = \"\"), fn11());"
+        },
+        {
+          "line": 79,
+          "text": "(map1.get(value50) === object1 && map1.delete(value50), fn11());"
+        },
+        {
+          "line": 445,
+          "text": "map1.clear(),"
+        }
+      ]
+    },
+    {
+      "key": "fn2@49",
+      "name": "fn2",
+      "line": 49,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg7) =>",
+      "references": [
+        {
+          "line": 57,
+          "text": "fn3 = (arg8) => map1.has(fn2(arg8)),"
+        },
+        {
+          "line": 64,
+          "text": "value50 = fn2(arg11),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@49",
+      "name": "arg7",
+      "line": 49,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn2 = (arg7) =>",
+      "references": [
+        {
+          "line": 50,
+          "text": "[\"media_play\", \"media_pause\"].includes(arg7)"
+        },
+        {
+          "line": 52,
+          "text": ": [\"volume_set\", \"volume_up\", \"volume_down\"].includes(arg7)"
+        },
+        {
+          "line": 54,
+          "text": ": [\"turn_on\", \"turn_off\"].includes(arg7)"
+        },
+        {
+          "line": 56,
+          "text": ": arg7,"
+        }
+      ]
+    },
+    {
+      "key": "fn3@57",
+      "name": "fn3",
+      "line": 57,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg8) => map1.has(fn2(arg8)),",
+      "references": [
+        {
+          "line": 58,
+          "text": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));"
+        },
+        {
+          "line": 60,
+          "text": "if (!value19 || value21 || value19.editing || fn3(arg11)) return;"
+        },
+        {
+          "line": 367,
+          "text": "(value73.input || value73.element).setAttribute(\"aria-busy\", String(fn3(value74))),"
+        },
+        {
+          "line": 435,
+          "text": "fn4(value69) || !!value23 || (value80.textContent === \"播放\" && fn3(\"play_media\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg8@57",
+      "name": "arg8",
+      "line": 57,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn3 = (arg8) => map1.has(fn2(arg8)),",
+      "references": [
+        {
+          "line": 57,
+          "text": "fn3 = (arg8) => map1.has(fn2(arg8)),"
+        }
+      ]
+    },
+    {
+      "key": "fn4@58",
+      "name": "fn4",
+      "line": 58,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));",
+      "references": [
+        {
+          "line": 369,
+          "text": "fn4(value69, value74) || !speakerCommand(value19.item, value19.states, value74).enabled));"
+        },
+        {
+          "line": 392,
+          "text": "(value14.disabled = fn4(value69, \"media_seek\") || !value69.on),"
+        },
+        {
+          "line": 431,
+          "text": "(value35.disabled = fn4(value69) || !!value23),"
+        },
+        {
+          "line": 435,
+          "text": "fn4(value69) || !!value23 || (value80.textContent === \"播放\" && fn3(\"play_media\"));"
+        },
+        {
+          "line": 436,
+          "text": "((value43.disabled = fn4(value69, \"play_media\") || !!value23),"
+        }
+      ]
+    },
+    {
+      "key": "arg9@58",
+      "name": "arg9",
+      "line": 58,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));",
+      "references": [
+        {
+          "line": 58,
+          "text": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));"
+        }
+      ]
+    },
+    {
+      "key": "arg10@58",
+      "name": "arg10",
+      "line": 58,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));",
+      "references": [
+        {
+          "line": 58,
+          "text": "fn4 = (arg9, arg10) => !value19 || value19.editing || !arg9.available || (arg10 && fn3(arg10));"
+        }
+      ]
+    },
+    {
+      "key": "fn5@59",
+      "name": "fn5",
+      "line": 59,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn5(arg11, arg12 = {}, arg13 = value17) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "fn5(typeof arg15 == \"function\" ? arg15(value52) : arg15, arg16 ? arg16(value52) : {});"
+        },
+        {
+          "line": 128,
+          "text": "void fn5(\"volume_set\", {"
+        },
+        {
+          "line": 135,
+          "text": "void fn5(\"media_seek\", {"
+        },
+        {
+          "line": 173,
+          "text": "void fn5(value54, {"
+        },
+        {
+          "line": 245,
+          "text": "(await fn5("
+        }
+      ]
+    },
+    {
+      "key": "arg11@59",
+      "name": "arg11",
+      "line": 59,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn5(arg11, arg12 = {}, arg13 = value17) {",
+      "references": [
+        {
+          "line": 60,
+          "text": "if (!value19 || value21 || value19.editing || fn3(arg11)) return;"
+        },
+        {
+          "line": 61,
+          "text": "const value48 = speakerCommand(value19.item, value19.states, arg11, arg12);"
+        },
+        {
+          "line": 64,
+          "text": "value50 = fn2(arg11),"
+        }
+      ]
+    },
+    {
+      "key": "arg12@59",
+      "name": "arg12",
+      "line": 59,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn5(arg11, arg12 = {}, arg13 = value17) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "const value48 = speakerCommand(value19.item, value19.states, arg11, arg12);"
+        }
+      ]
+    },
+    {
+      "key": "arg13@59",
+      "name": "arg13",
+      "line": 59,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn5(arg11, arg12 = {}, arg13 = value17) {",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.set(value50, object1), (arg13.textContent = \"\"), fn11());"
+        },
+        {
+          "line": 73,
+          "text": "(arg13.textContent = error1?.message || \"媒体控制失败，请重试。\"),"
+        }
+      ]
+    },
+    {
+      "key": "value48@61",
+      "name": "value48",
+      "line": 61,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value48 = speakerCommand(value19.item, value19.states, arg11, arg12);",
+      "references": [
+        {
+          "line": 62,
+          "text": "if (!value48.enabled) return;"
+        },
+        {
+          "line": 68,
+          "text": "return (await arg1(value48.command), !value21 && value49 === value20);"
+        }
+      ]
+    },
+    {
+      "key": "value49@63",
+      "name": "value49",
+      "line": 63,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value49 = value20,",
+      "references": [
+        {
+          "line": 68,
+          "text": "return (await arg1(value48.command), !value21 && value49 === value20);"
+        },
+        {
+          "line": 71,
+          "text": "value49 === value20 &&"
+        },
+        {
+          "line": 77,
+          "text": "value49 === value20 &&"
+        }
+      ]
+    },
+    {
+      "key": "value50@64",
+      "name": "value50",
+      "line": 64,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value50 = fn2(arg11),",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.set(value50, object1), (arg13.textContent = \"\"), fn11());"
+        },
+        {
+          "line": 79,
+          "text": "(map1.get(value50) === object1 && map1.delete(value50), fn11());"
+        }
+      ]
+    },
+    {
+      "key": "object1@65",
+      "name": "object1",
+      "line": 65,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "object1 = {};",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.set(value50, object1), (arg13.textContent = \"\"), fn11());"
+        },
+        {
+          "line": 79,
+          "text": "(map1.get(value50) === object1 && map1.delete(value50), fn11());"
+        }
+      ]
+    },
+    {
+      "key": "error1@69",
+      "name": "error1",
+      "line": 69,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "} catch (error1) {",
+      "references": [
+        {
+          "line": 73,
+          "text": "(arg13.textContent = error1?.message || \"媒体控制失败，请重试。\"),"
+        }
+      ]
+    },
+    {
+      "key": "fn6@82",
+      "name": "fn6",
+      "line": 82,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg14, arg15, arg16, arg17 = value15) {",
+      "references": [
+        {
+          "line": 100,
+          "text": "(fn6(\"开机\", \"turn_on\", null, value24).className = \"i3d-tv-power\"),"
+        },
+        {
+          "line": 101,
+          "text": "(fn6(\"关机\", \"turn_off\", null, value24).className = \"i3d-tv-power\"),"
+        },
+        {
+          "line": 102,
+          "text": "fn6(\"上一首\", \"media_previous_track\"));"
+        },
+        {
+          "line": 103,
+          "text": "const value25 = fn6(\"播放\", (arg18) => (arg18.playing ? \"media_pause\" : \"media_play\"));"
+        },
+        {
+          "line": 104,
+          "text": "(fn6(\"下一首\", \"media_next_track\"), fn6(\"停止\", \"media_stop\"));"
+        },
+        {
+          "line": 141,
+          "text": "const value31 = fn6(\"音量−\", \"volume_down\", null, value30),"
+        }
+      ]
+    },
+    {
+      "key": "arg14@82",
+      "name": "arg14",
+      "line": 82,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg14, arg15, arg16, arg17 = value15) {",
+      "references": [
+        {
+          "line": 83,
+          "text": "const value51 = fn1(\"button\", \"\", arg14);"
+        }
+      ]
+    },
+    {
+      "key": "arg15@82",
+      "name": "arg15",
+      "line": 82,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg14, arg15, arg16, arg17 = value15) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "fn5(typeof arg15 == \"function\" ? arg15(value52) : arg15, arg16 ? arg16(value52) : {});"
+        },
+        {
+          "line": 93,
+          "text": "service: arg15,"
+        }
+      ]
+    },
+    {
+      "key": "arg16@82",
+      "name": "arg16",
+      "line": 82,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg14, arg15, arg16, arg17 = value15) {",
+      "references": [
+        {
+          "line": 88,
+          "text": "fn5(typeof arg15 == \"function\" ? arg15(value52) : arg15, arg16 ? arg16(value52) : {});"
+        }
+      ]
+    },
+    {
+      "key": "arg17@82",
+      "name": "arg17",
+      "line": 82,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn6(arg14, arg15, arg16, arg17 = value15) {",
+      "references": [
+        {
+          "line": 90,
+          "text": "arg17.append(value51),"
+        }
+      ]
+    },
+    {
+      "key": "value51@83",
+      "name": "value51",
+      "line": 83,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value51 = fn1(\"button\", \"\", arg14);",
+      "references": [
+        {
+          "line": 85,
+          "text": "(value51.type = \"button\"),"
+        },
+        {
+          "line": 86,
+          "text": "value51.addEventListener(\"click\", () => {"
+        },
+        {
+          "line": 90,
+          "text": "arg17.append(value51),"
+        },
+        {
+          "line": 92,
+          "text": "element: value51,"
+        },
+        {
+          "line": 95,
+          "text": "value51"
+        }
+      ]
+    },
+    {
+      "key": "value52@87",
+      "name": "value52",
+      "line": 87,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value52 = speakerState(value19.item, value19.states);",
+      "references": [
+        {
+          "line": 88,
+          "text": "fn5(typeof arg15 == \"function\" ? arg15(value52) : arg15, arg16 ? arg16(value52) : {});"
+        }
+      ]
+    },
+    {
+      "key": "value24@98",
+      "name": "value24",
+      "line": 98,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value24 = fn1(\"div\", \"i3d-popup-power-actions\");",
+      "references": [
+        {
+          "line": 99,
+          "text": "(value2.append(value24),"
+        },
+        {
+          "line": 100,
+          "text": "(fn6(\"开机\", \"turn_on\", null, value24).className = \"i3d-tv-power\"),"
+        },
+        {
+          "line": 101,
+          "text": "(fn6(\"关机\", \"turn_off\", null, value24).className = \"i3d-tv-power\"),"
+        }
+      ]
+    },
+    {
+      "key": "value25@103",
+      "name": "value25",
+      "line": 103,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = fn6(\"播放\", (arg18) => (arg18.playing ? \"media_pause\" : \"media_play\"));",
+      "references": [
+        {
+          "line": 362,
+          "text": "value25.textContent = value69.playing ? \"暂停\" : \"播放\";"
+        }
+      ]
+    },
+    {
+      "key": "arg18@103",
+      "name": "arg18",
+      "line": 103,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value25 = fn6(\"播放\", (arg18) => (arg18.playing ? \"media_pause\" : \"media_play\"));",
+      "references": [
+        {
+          "line": 103,
+          "text": "const value25 = fn6(\"播放\", (arg18) => (arg18.playing ? \"media_pause\" : \"media_play\"));"
+        }
+      ]
+    },
+    {
+      "key": "value26@105",
+      "name": "value26",
+      "line": 105,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value26 = fn1(\"div\", \"i3d-speaker-volume\");",
+      "references": [
+        {
+          "line": 106,
+          "text": "value16.append(value26);"
+        },
+        {
+          "line": 116,
+          "text": "value26.append(value27),"
+        },
+        {
+          "line": 140,
+          "text": "value26.append(value30);"
+        },
+        {
+          "line": 149,
+          "text": "value26,"
+        },
+        {
+          "line": 374,
+          "text": "(value26.hidden = value27.hidden && value30.hidden && value33.hidden),"
+        }
+      ]
+    },
+    {
+      "key": "value27@107",
+      "name": "value27",
+      "line": 107,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value27 = fn1(\"label\", \"i3d-speaker-field i3d-volume-slider\"),",
+      "references": [
+        {
+          "line": 115,
+          "text": "value27.append(value28, value29),"
+        },
+        {
+          "line": 116,
+          "text": "value26.append(value27),"
+        },
+        {
+          "line": 118,
+          "text": "element: value27,"
+        },
+        {
+          "line": 374,
+          "text": "(value26.hidden = value27.hidden && value30.hidden && value33.hidden),"
+        }
+      ]
+    },
+    {
+      "key": "value28@108",
+      "name": "value28",
+      "line": 108,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value28 = fn1(\"span\", \"\", \"音量\"),",
+      "references": [
+        {
+          "line": 115,
+          "text": "value27.append(value28, value29),"
+        },
+        {
+          "line": 123,
+          "text": "value28.textContent = \"音量 \" + Math.round(Number(value29.value)) + \"%\";"
+        },
+        {
+          "line": 398,
+          "text": "(value28.textContent = Number.isFinite(value71)"
+        }
+      ]
+    },
+    {
+      "key": "value29@109",
+      "name": "value29",
+      "line": 109,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value29 = fn1(\"input\", \"i3d-control-range\");",
+      "references": [
+        {
+          "line": 110,
+          "text": "((value29.type = \"range\"),"
+        },
+        {
+          "line": 111,
+          "text": "(value29.min = \"0\"),"
+        },
+        {
+          "line": 112,
+          "text": "(value29.max = \"100\"),"
+        },
+        {
+          "line": 113,
+          "text": "(value29.step = \"1\"),"
+        },
+        {
+          "line": 114,
+          "text": "value29.setAttribute(\"aria-label\", \"音量\"),"
+        },
+        {
+          "line": 115,
+          "text": "value27.append(value28, value29),"
+        }
+      ]
+    },
+    {
+      "key": "value30@139",
+      "name": "value30",
+      "line": 139,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value30 = fn1(\"div\", \"i3d-speaker-actions\");",
+      "references": [
+        {
+          "line": 140,
+          "text": "value26.append(value30);"
+        },
+        {
+          "line": 141,
+          "text": "const value31 = fn6(\"音量−\", \"volume_down\", null, value30),"
+        },
+        {
+          "line": 142,
+          "text": "value32 = fn6(\"音量＋\", \"volume_up\", null, value30),"
+        },
+        {
+          "line": 373,
+          "text": "(value30.hidden = value31.hidden && value32.hidden),"
+        },
+        {
+          "line": 374,
+          "text": "(value26.hidden = value27.hidden && value30.hidden && value33.hidden),"
+        }
+      ]
+    },
+    {
+      "key": "value31@141",
+      "name": "value31",
+      "line": 141,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value31 = fn6(\"音量−\", \"volume_down\", null, value30),",
+      "references": [
+        {
+          "line": 371,
+          "text": "((value31.hidden ||= value69.supports(\"volume_set\")),"
+        },
+        {
+          "line": 373,
+          "text": "(value30.hidden = value31.hidden && value32.hidden),"
+        }
+      ]
+    },
+    {
+      "key": "value32@142",
+      "name": "value32",
+      "line": 142,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value32 = fn6(\"音量＋\", \"volume_up\", null, value30),",
+      "references": [
+        {
+          "line": 372,
+          "text": "(value32.hidden ||= value69.supports(\"volume_set\")),"
+        },
+        {
+          "line": 373,
+          "text": "(value30.hidden = value31.hidden && value32.hidden),"
+        }
+      ]
+    },
+    {
+      "key": "value33@143",
+      "name": "value33",
+      "line": 143,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value33 = fn6(",
+      "references": [
+        {
+          "line": 374,
+          "text": "(value26.hidden = value27.hidden && value30.hidden && value33.hidden),"
+        },
+        {
+          "line": 401,
+          "text": "(value33.textContent = value69.attributes.is_volume_muted === true ? \"取消静音\" : \"静音\"),"
+        },
+        {
+          "line": 402,
+          "text": "value33.setAttribute(\"aria-pressed\", String(value69.attributes.is_volume_muted === true)),"
+        }
+      ]
+    },
+    {
+      "key": "arg19@146",
+      "name": "arg19",
+      "line": 146,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg19) => ({",
+      "references": [
+        {
+          "line": 147,
+          "text": "is_volume_muted: arg19.attributes.is_volume_muted !== true,"
+        }
+      ]
+    },
+    {
+      "key": "value34@151",
+      "name": "value34",
+      "line": 151,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value34 = fn6(",
+      "references": [
+        {
+          "line": 403,
+          "text": "value34.setAttribute(\"aria-pressed\", String(value69.attributes.shuffle === true)));"
+        }
+      ]
+    },
+    {
+      "key": "arg20@154",
+      "name": "arg20",
+      "line": 154,
+      "column": 7,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg20) => ({",
+      "references": [
+        {
+          "line": 155,
+          "text": "shuffle: arg20.attributes.shuffle !== true,"
+        }
+      ]
+    },
+    {
+      "key": "list3@159",
+      "name": "list3",
+      "line": 159,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "list3 = [];",
+      "references": [
+        {
+          "line": 177,
+          "text": "list3.push({"
+        },
+        {
+          "line": 404,
+          "text": "for (const value75 of list3) {"
+        }
+      ]
+    },
+    {
+      "key": "value53@160",
+      "name": "value53",
+      "line": 160,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value53, value54, value55, value56] of [",
+      "references": [
+        {
+          "line": 167,
+          "text": "(value57.append(fn1(\"span\", \"\", value53), value58),"
+        },
+        {
+          "line": 169,
+          "text": "value58.setAttribute(\"aria-label\", value53),"
+        }
+      ]
+    },
+    {
+      "key": "value54@160",
+      "name": "value54",
+      "line": 160,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value53, value54, value55, value56] of [",
+      "references": [
+        {
+          "line": 173,
+          "text": "void fn5(value54, {"
+        },
+        {
+          "line": 186,
+          "text": "service: value54,"
+        }
+      ]
+    },
+    {
+      "key": "value55@160",
+      "name": "value55",
+      "line": 160,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value53, value54, value55, value56] of [",
+      "references": [
+        {
+          "line": 174,
+          "text": "[value55]: value58.value,"
+        },
+        {
+          "line": 179,
+          "text": "attribute: value55,"
+        }
+      ]
+    },
+    {
+      "key": "value56@160",
+      "name": "value56",
+      "line": 160,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value53, value54, value55, value56] of [",
+      "references": [
+        {
+          "line": 180,
+          "text": "choices: value56,"
+        }
+      ]
+    },
+    {
+      "key": "value57@165",
+      "name": "value57",
+      "line": 165,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value57 = fn1(\"label\", \"i3d-speaker-field\"),",
+      "references": [
+        {
+          "line": 167,
+          "text": "(value57.append(fn1(\"span\", \"\", value53), value58),"
+        },
+        {
+          "line": 168,
+          "text": "value16.append(value57),"
+        },
+        {
+          "line": 184,
+          "text": "element: value57,"
+        }
+      ]
+    },
+    {
+      "key": "value58@166",
+      "name": "value58",
+      "line": 166,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value58 = fn1(\"select\");",
+      "references": [
+        {
+          "line": 167,
+          "text": "(value57.append(fn1(\"span\", \"\", value53), value58),"
+        },
+        {
+          "line": 169,
+          "text": "value58.setAttribute(\"aria-label\", value53),"
+        },
+        {
+          "line": 170,
+          "text": "value58.addEventListener("
+        },
+        {
+          "line": 174,
+          "text": "[value55]: value58.value,"
+        },
+        {
+          "line": 178,
+          "text": "select: value58,"
+        },
+        {
+          "line": 185,
+          "text": "input: value58,"
+        }
+      ]
+    },
+    {
+      "key": "value35@189",
+      "name": "value35",
+      "line": 189,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value35 = fn1(\"button\", \"i3d-speaker-browse\"),",
+      "references": [
+        {
+          "line": 193,
+          "text": "((value35.title = \"浏览媒体\"),"
+        },
+        {
+          "line": 194,
+          "text": "value35.setAttribute(\"aria-label\", \"浏览媒体\"),"
+        },
+        {
+          "line": 195,
+          "text": "(value35.innerHTML ="
+        },
+        {
+          "line": 197,
+          "text": "value6.append(value35));"
+        },
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        },
+        {
+          "line": 232,
+          "text": "value35.addEventListener(\"click\", () => {"
+        }
+      ]
+    },
+    {
+      "key": "value36@190",
+      "name": "value36",
+      "line": 190,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value36 = fn1(\"button\", \"\", \"返回上级\"),",
+      "references": [
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        },
+        {
+          "line": 209,
+          "text": "((value36.hidden = value43.hidden = true),"
+        },
+        {
+          "line": 211,
+          "text": "value44.append(value36, value42, value43),"
+        },
+        {
+          "line": 239,
+          "text": "value36.addEventListener(\"click\", () => {"
+        },
+        {
+          "line": 301,
+          "text": "(value36.hidden = list1.length === 0),"
+        },
+        {
+          "line": 433,
+          "text": "for (const value80 of [value36, value42, ...value38.querySelectorAll(\"button\")])"
+        }
+      ]
+    },
+    {
+      "key": "value37@191",
+      "name": "value37",
+      "line": 191,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value37 = fn1(\"h3\", \"\", \"媒体库\"),",
+      "references": [
+        {
+          "line": 210,
+          "text": "value40.append(value37, value41),"
+        },
+        {
+          "line": 274,
+          "text": "(value37.textContent = \"正在加载…\"),"
+        },
+        {
+          "line": 302,
+          "text": "(value37.textContent = value64.title || \"媒体库\"));"
+        },
+        {
+          "line": 327,
+          "text": "((value37.textContent = \"媒体库\"),"
+        },
+        {
+          "line": 450,
+          "text": "(value37.textContent = \"\"),"
+        }
+      ]
+    },
+    {
+      "key": "value38@192",
+      "name": "value38",
+      "line": 192,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value38 = fn1(\"div\", \"i3d-speaker-media-list\");",
+      "references": [
+        {
+          "line": 212,
+          "text": "value39.append(value40, value44, value38, value45),"
+        },
+        {
+          "line": 218,
+          "text": "value38.replaceChildren(),"
+        },
+        {
+          "line": 273,
+          "text": "value38.replaceChildren(),"
+        },
+        {
+          "line": 320,
+          "text": "value38.append(value66);"
+        },
+        {
+          "line": 322,
+          "text": "value38.childElementCount || value38.append(fn1(\"p\", \"\", \"暂无可浏览的媒体\"));"
+        },
+        {
+          "line": 433,
+          "text": "for (const value80 of [value36, value42, ...value38.querySelectorAll(\"button\")])"
+        }
+      ]
+    },
+    {
+      "key": "value39@198",
+      "name": "value39",
+      "line": 198,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value39 = fn1(\"dialog\", \"i3d-speaker-media-dialog\"),",
+      "references": [
+        {
+          "line": 205,
+          "text": "(value39.setAttribute(\"aria-label\", \"选择播放媒体\"),"
+        },
+        {
+          "line": 212,
+          "text": "value39.append(value40, value44, value38, value45),"
+        },
+        {
+          "line": 213,
+          "text": "value1.append(value39));"
+        },
+        {
+          "line": 217,
+          "text": "value39.open && value39.close(),"
+        },
+        {
+          "line": 223,
+          "text": "value39.addEventListener(\"keydown\", (arg21) => {"
+        },
+        {
+          "line": 226,
+          "text": "value39.addEventListener(\"cancel\", (arg22) => {"
+        }
+      ]
+    },
+    {
+      "key": "value40@199",
+      "name": "value40",
+      "line": 199,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value40 = fn1(\"div\", \"i3d-speaker-media-heading\"),",
+      "references": [
+        {
+          "line": 210,
+          "text": "value40.append(value37, value41),"
+        },
+        {
+          "line": 212,
+          "text": "value39.append(value40, value44, value38, value45),"
+        }
+      ]
+    },
+    {
+      "key": "value41@200",
+      "name": "value41",
+      "line": 200,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value41 = fn1(\"button\", \"\", \"关闭\"),",
+      "references": [
+        {
+          "line": 207,
+          "text": "value41.setAttribute(\"aria-label\", \"关闭媒体库\"));"
+        },
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        },
+        {
+          "line": 210,
+          "text": "value40.append(value37, value41),"
+        },
+        {
+          "line": 222,
+          "text": "(value41.addEventListener(\"click\", fn7),"
+        }
+      ]
+    },
+    {
+      "key": "value42@201",
+      "name": "value42",
+      "line": 201,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value42 = fn1(\"button\", \"\", \"重新加载\"),",
+      "references": [
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        },
+        {
+          "line": 211,
+          "text": "value44.append(value36, value42, value43),"
+        },
+        {
+          "line": 243,
+          "text": "value42.addEventListener(\"click\", () => void fn10(list1.at(-1) || null, list1.slice(0, -1))));"
+        },
+        {
+          "line": 433,
+          "text": "for (const value80 of [value36, value42, ...value38.querySelectorAll(\"button\")])"
+        }
+      ]
+    },
+    {
+      "key": "value43@202",
+      "name": "value43",
+      "line": 202,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value43 = fn1(\"button\", \"\", \"播放当前内容\"),",
+      "references": [
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        },
+        {
+          "line": 209,
+          "text": "((value36.hidden = value43.hidden = true),"
+        },
+        {
+          "line": 211,
+          "text": "value44.append(value36, value42, value43),"
+        },
+        {
+          "line": 254,
+          "text": "value43.addEventListener(\"click\", () => {"
+        },
+        {
+          "line": 275,
+          "text": "(value43.hidden = true),"
+        },
+        {
+          "line": 298,
+          "text": "(value43.hidden ="
+        }
+      ]
+    },
+    {
+      "key": "value44@203",
+      "name": "value44",
+      "line": 203,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value44 = fn1(\"div\", \"i3d-speaker-media-toolbar\"),",
+      "references": [
+        {
+          "line": 211,
+          "text": "value44.append(value36, value42, value43),"
+        },
+        {
+          "line": 212,
+          "text": "value39.append(value40, value44, value38, value45),"
+        }
+      ]
+    },
+    {
+      "key": "value45@204",
+      "name": "value45",
+      "line": 204,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value45 = fn1(\"p\", \"i3d-tv-error\");",
+      "references": [
+        {
+          "line": 206,
+          "text": "value45.setAttribute(\"role\", \"status\"),"
+        },
+        {
+          "line": 212,
+          "text": "value39.append(value40, value44, value38, value45),"
+        },
+        {
+          "line": 219,
+          "text": "(value45.textContent = \"\"),"
+        },
+        {
+          "line": 251,
+          "text": "value45,"
+        },
+        {
+          "line": 272,
+          "text": "((value45.textContent = \"\"),"
+        },
+        {
+          "line": 328,
+          "text": "(value45.textContent = error2?.message || \"媒体库加载失败，请重试。\"));"
+        }
+      ]
+    },
+    {
+      "key": "value59@208",
+      "name": "value59",
+      "line": 208,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";",
+      "references": [
+        {
+          "line": 208,
+          "text": "for (const value59 of [value35, value36, value41, value42, value43]) value59.type = \"button\";"
+        }
+      ]
+    },
+    {
+      "key": "value46@214",
+      "name": "value46",
+      "line": 214,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value46 = null;",
+      "references": [
+        {
+          "line": 255,
+          "text": "value46 && fn8(value46);"
+        }
+      ]
+    },
+    {
+      "key": "fn7@215",
+      "name": "fn7",
+      "line": 215,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn7() {",
+      "references": [
+        {
+          "line": 222,
+          "text": "(value41.addEventListener(\"click\", fn7),"
+        },
+        {
+          "line": 224,
+          "text": "arg21.key === \"Escape\" && (arg21.preventDefault(), arg21.stopPropagation(), fn7());"
+        },
+        {
+          "line": 227,
+          "text": "(arg22.preventDefault(), fn7());"
+        },
+        {
+          "line": 252,
+          "text": ")) && fn7();"
+        },
+        {
+          "line": 432,
+          "text": "!value69.supports(\"browse_media\") && value39.open && fn7());"
+        },
+        {
+          "line": 443,
+          "text": "fn7(),"
+        }
+      ]
+    },
+    {
+      "key": "arg21@223",
+      "name": "arg21",
+      "line": 223,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value39.addEventListener(\"keydown\", (arg21) => {",
+      "references": [
+        {
+          "line": 224,
+          "text": "arg21.key === \"Escape\" && (arg21.preventDefault(), arg21.stopPropagation(), fn7());"
+        }
+      ]
+    },
+    {
+      "key": "arg22@226",
+      "name": "arg22",
+      "line": 226,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value39.addEventListener(\"cancel\", (arg22) => {",
+      "references": [
+        {
+          "line": 227,
+          "text": "(arg22.preventDefault(), fn7());"
+        }
+      ]
+    },
+    {
+      "key": "value60@240",
+      "name": "value60",
+      "line": 240,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value60 = list1.slice(0, -1);",
+      "references": [
+        {
+          "line": 241,
+          "text": "fn10(value60.at(-1) || null, value60.slice(0, -1));"
+        }
+      ]
+    },
+    {
+      "key": "fn8@244",
+      "name": "fn8",
+      "line": 244,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn8(arg23) {",
+      "references": [
+        {
+          "line": 255,
+          "text": "value46 && fn8(value46);"
+        },
+        {
+          "line": 317,
+          "text": "(value68.onclick = () => void fn8(value65)),"
+        }
+      ]
+    },
+    {
+      "key": "arg23@244",
+      "name": "arg23",
+      "line": 244,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn8(arg23) {",
+      "references": [
+        {
+          "line": 248,
+          "text": "media_content_id: arg23.media_content_id,"
+        },
+        {
+          "line": 249,
+          "text": "media_content_type: arg23.media_content_type,"
+        }
+      ]
+    },
+    {
+      "key": "fn9@257",
+      "name": "fn9",
+      "line": 257,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn9() {",
+      "references": [
+        {
+          "line": 216,
+          "text": "(fn9(),"
+        },
+        {
+          "line": 230,
+          "text": "value39.open || fn9();"
+        },
+        {
+          "line": 268,
+          "text": "fn9();"
+        }
+      ]
+    },
+    {
+      "key": "fn10@260",
+      "name": "fn10",
+      "line": 260,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn10(arg24, arg25) {",
+      "references": [
+        {
+          "line": 237,
+          "text": "(value39.open || value39.showModal(), fn10(null, []));"
+        },
+        {
+          "line": 241,
+          "text": "fn10(value60.at(-1) || null, value60.slice(0, -1));"
+        },
+        {
+          "line": 243,
+          "text": "value42.addEventListener(\"click\", () => void fn10(list1.at(-1) || null, list1.slice(0, -1))));"
+        },
+        {
+          "line": 311,
+          "text": "(value67.onclick = () => void fn10(value65, list1)),"
+        }
+      ]
+    },
+    {
+      "key": "arg24@260",
+      "name": "arg24",
+      "line": 260,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn10(arg24, arg25) {",
+      "references": [
+        {
+          "line": 288,
+          "text": "mediaContentId: arg24?.media_content_id || \"\","
+        },
+        {
+          "line": 289,
+          "text": "mediaContentType: arg24?.media_content_type || \"\","
+        },
+        {
+          "line": 300,
+          "text": "(list1 = arg24 ? [...arg25, arg24] : []),"
+        }
+      ]
+    },
+    {
+      "key": "arg25@260",
+      "name": "arg25",
+      "line": 260,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn10(arg24, arg25) {",
+      "references": [
+        {
+          "line": 300,
+          "text": "(list1 = arg24 ? [...arg25, arg24] : []),"
+        }
+      ]
+    },
+    {
+      "key": "abortController1@269",
+      "name": "abortController1",
+      "line": 269,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const abortController1 = new AbortController();",
+      "references": [
+        {
+          "line": 270,
+          "text": "value23 = abortController1;"
+        },
+        {
+          "line": 284,
+          "text": "signal: abortController1.signal,"
+        },
+        {
+          "line": 295,
+          "text": "if (value21 || value61 !== value20 || abortController1.signal.aborted) return;"
+        },
+        {
+          "line": 326,
+          "text": "!abortController1.signal.aborted &&"
+        },
+        {
+          "line": 330,
+          "text": "value23 === abortController1 && ((value23 = null), value19 && fn11());"
+        }
+      ]
+    },
+    {
+      "key": "value61@271",
+      "name": "value61",
+      "line": 271,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value61 = value20;",
+      "references": [
+        {
+          "line": 295,
+          "text": "if (value21 || value61 !== value20 || abortController1.signal.aborted) return;"
+        },
+        {
+          "line": 324,
+          "text": "value61 === value20 &&"
+        }
+      ]
+    },
+    {
+      "key": "value62@278",
+      "name": "value62",
+      "line": 278,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value62 = await arg2(\"/api/v1/ha/media/browse\", {",
+      "references": [
+        {
+          "line": 292,
+          "text": "value63 = await value62.json();"
+        },
+        {
+          "line": 293,
+          "text": "if (!value62.ok || value63.ok === false)"
+        }
+      ]
+    },
+    {
+      "key": "value63@292",
+      "name": "value63",
+      "line": 292,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value63 = await value62.json();",
+      "references": [
+        {
+          "line": 293,
+          "text": "if (!value62.ok || value63.ok === false)"
+        },
+        {
+          "line": 294,
+          "text": "throw new Error(value63.detail || value63.error || \"媒体库加载失败\");"
+        },
+        {
+          "line": 296,
+          "text": "const value64 = value63.result || {};"
+        }
+      ]
+    },
+    {
+      "key": "value64@296",
+      "name": "value64",
+      "line": 296,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value64 = value63.result || {};",
+      "references": [
+        {
+          "line": 297,
+          "text": "((value46 = value64),"
+        },
+        {
+          "line": 299,
+          "text": "!value64.can_play || !speakerState(value19.item, value19.states).supports(\"play_media\")),"
+        },
+        {
+          "line": 302,
+          "text": "(value37.textContent = value64.title || \"媒体库\"));"
+        },
+        {
+          "line": 303,
+          "text": "for (const value65 of value64.children || []) {"
+        }
+      ]
+    },
+    {
+      "key": "value65@303",
+      "name": "value65",
+      "line": 303,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value65 of value64.children || []) {",
+      "references": [
+        {
+          "line": 306,
+          "text": "(value66.append(fn1(\"span\", \"\", value65.title || value65.media_content_id || \"媒体\")),"
+        },
+        {
+          "line": 307,
+          "text": "value65.can_expand)"
+        },
+        {
+          "line": 311,
+          "text": "(value67.onclick = () => void fn10(value65, list1)),"
+        },
+        {
+          "line": 314,
+          "text": "if (value65.can_play && speakerState(value19.item, value19.states).supports(\"play_media\")) {"
+        },
+        {
+          "line": 317,
+          "text": "(value68.onclick = () => void fn8(value65)),"
+        }
+      ]
+    },
+    {
+      "key": "value66@304",
+      "name": "value66",
+      "line": 304,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value66 = fn1(\"div\", \"i3d-speaker-media-row\");",
+      "references": [
+        {
+          "line": 306,
+          "text": "(value66.append(fn1(\"span\", \"\", value65.title || value65.media_content_id || \"媒体\")),"
+        },
+        {
+          "line": 312,
+          "text": "value66.append(value67));"
+        },
+        {
+          "line": 318,
+          "text": "value66.append(value68));"
+        },
+        {
+          "line": 320,
+          "text": "value38.append(value66);"
+        }
+      ]
+    },
+    {
+      "key": "value67@309",
+      "name": "value67",
+      "line": 309,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value67 = fn1(\"button\", \"\", \"打开\");",
+      "references": [
+        {
+          "line": 310,
+          "text": "((value67.type = \"button\"),"
+        },
+        {
+          "line": 311,
+          "text": "(value67.onclick = () => void fn10(value65, list1)),"
+        },
+        {
+          "line": 312,
+          "text": "value66.append(value67));"
+        }
+      ]
+    },
+    {
+      "key": "value68@315",
+      "name": "value68",
+      "line": 315,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value68 = fn1(\"button\", \"\", \"播放\");",
+      "references": [
+        {
+          "line": 316,
+          "text": "((value68.type = \"button\"),"
+        },
+        {
+          "line": 317,
+          "text": "(value68.onclick = () => void fn8(value65)),"
+        },
+        {
+          "line": 318,
+          "text": "value66.append(value68));"
+        }
+      ]
+    },
+    {
+      "key": "error2@323",
+      "name": "error2",
+      "line": 323,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "} catch (error2) {",
+      "references": [
+        {
+          "line": 328,
+          "text": "(value45.textContent = error2?.message || \"媒体库加载失败，请重试。\"));"
+        }
+      ]
+    },
+    {
+      "key": "fn11@333",
+      "name": "fn11",
+      "line": 333,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn11() {",
+      "references": [
+        {
+          "line": 66,
+          "text": "(map1.set(value50, object1), (arg13.textContent = \"\"), fn11());"
+        },
+        {
+          "line": 79,
+          "text": "(map1.get(value50) === object1 && map1.delete(value50), fn11());"
+        },
+        {
+          "line": 220,
+          "text": "value19 && !value21 && fn11());"
+        },
+        {
+          "line": 276,
+          "text": "fn11());"
+        },
+        {
+          "line": 330,
+          "text": "value23 === abortController1 && ((value23 = null), value19 && fn11());"
+        },
+        {
+          "line": 439,
+          "text": "value69.playing && value22 === null && !value1.hidden && (value22 = setInterval(fn11, 1000)));"
+        }
+      ]
+    },
+    {
+      "key": "value69@335",
+      "name": "value69",
+      "line": 335,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value69 = speakerState(value19.item, value19.states);",
+      "references": [
+        {
+          "line": 337,
+          "text": "((value3.textContent = value69.name),"
+        },
+        {
+          "line": 338,
+          "text": "(value3.title = value69.name),"
+        },
+        {
+          "line": 339,
+          "text": "(value4.textContent = value69.status),"
+        },
+        {
+          "line": 340,
+          "text": "(value4.title = value69.status),"
+        },
+        {
+          "line": 341,
+          "text": "(value9.textContent = value69.on ? value69.title : value69.status),"
+        },
+        {
+          "line": 342,
+          "text": "(value10.textContent = value69.artist),"
+        }
+      ]
+    },
+    {
+      "key": "value72@349",
+      "name": "value72",
+      "line": 349,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value72 = value20;",
+      "references": [
+        {
+          "line": 352,
+          "text": "value72 === value20 &&"
+        }
+      ]
+    },
+    {
+      "key": "value73@363",
+      "name": "value73",
+      "line": 363,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value73 of list2) {",
+      "references": [
+        {
+          "line": 365,
+          "text": "typeof value73.service == \"function\" ? value73.service(value69) : value73.service;"
+        },
+        {
+          "line": 366,
+          "text": "((value73.element.hidden = !value69.supports(value74)),"
+        },
+        {
+          "line": 367,
+          "text": "(value73.input || value73.element).setAttribute(\"aria-busy\", String(fn3(value74))),"
+        },
+        {
+          "line": 368,
+          "text": "((value73.input || value73.element).disabled ="
+        }
+      ]
+    },
+    {
+      "key": "value74@364",
+      "name": "value74",
+      "line": 364,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value74 =",
+      "references": [
+        {
+          "line": 366,
+          "text": "((value73.element.hidden = !value69.supports(value74)),"
+        },
+        {
+          "line": 367,
+          "text": "(value73.input || value73.element).setAttribute(\"aria-busy\", String(fn3(value74))),"
+        },
+        {
+          "line": 369,
+          "text": "fn4(value69, value74) || !speakerCommand(value19.item, value19.states, value74).enabled));"
+        }
+      ]
+    },
+    {
+      "key": "arg26@384",
+      "name": "arg26",
+      "line": 384,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].some((arg26) => value69.supports(arg26))));",
+      "references": [
+        {
+          "line": 384,
+          "text": "].some((arg26) => value69.supports(arg26))));"
+        }
+      ]
+    },
+    {
+      "key": "value70@385",
+      "name": "value70",
+      "line": 385,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value70 = value69.duration !== null && value69.position !== null;",
+      "references": [
+        {
+          "line": 386,
+          "text": "((value13.hidden = !value70 || value69.supports(\"media_seek\")),"
+        },
+        {
+          "line": 387,
+          "text": "(value14.hidden = !value70 || !value69.supports(\"media_seek\")),"
+        },
+        {
+          "line": 388,
+          "text": "(value12.hidden = !value70),"
+        }
+      ]
+    },
+    {
+      "key": "value71@395",
+      "name": "value71",
+      "line": 395,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value71 = value69.attributes.volume_level;",
+      "references": [
+        {
+          "line": 397,
+          "text": "((value29.value = Number.isFinite(value71) ? value71 * 100 : 0),"
+        },
+        {
+          "line": 398,
+          "text": "(value28.textContent = Number.isFinite(value71)"
+        },
+        {
+          "line": 399,
+          "text": "? \"音量 \" + Math.round(value71 * 100) + \"%\""
+        }
+      ]
+    },
+    {
+      "key": "value75@404",
+      "name": "value75",
+      "line": 404,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value75 of list3) {",
+      "references": [
+        {
+          "line": 405,
+          "text": "const value76 = value75.choices"
+        },
+        {
+          "line": 406,
+          "text": "? value69.attributes[value75.choices] || []"
+        },
+        {
+          "line": 409,
+          "text": "if (value75.signature !== value77) {"
+        },
+        {
+          "line": 410,
+          "text": "((value75.signature = value77), value75.select.replaceChildren());"
+        },
+        {
+          "line": 416,
+          "text": "value75.attribute === \"repeat\""
+        },
+        {
+          "line": 424,
+          "text": "((value79.value = value78), value75.select.append(value79));"
+        }
+      ]
+    },
+    {
+      "key": "value76@405",
+      "name": "value76",
+      "line": 405,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value76 = value75.choices",
+      "references": [
+        {
+          "line": 408,
+          "text": "value77 = JSON.stringify(value76);"
+        },
+        {
+          "line": 411,
+          "text": "for (const value78 of value76) {"
+        },
+        {
+          "line": 428,
+          "text": "(value75.select.disabled ||= value76.length === 0));"
+        }
+      ]
+    },
+    {
+      "key": "value77@408",
+      "name": "value77",
+      "line": 408,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value77 = JSON.stringify(value76);",
+      "references": [
+        {
+          "line": 409,
+          "text": "if (value75.signature !== value77) {"
+        },
+        {
+          "line": 410,
+          "text": "((value75.signature = value77), value75.select.replaceChildren());"
+        }
+      ]
+    },
+    {
+      "key": "value78@411",
+      "name": "value78",
+      "line": 411,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value78 of value76) {",
+      "references": [
+        {
+          "line": 412,
+          "text": "if (typeof value78 != \"string\") continue;"
+        },
+        {
+          "line": 421,
+          "text": "}[value78]"
+        },
+        {
+          "line": 422,
+          "text": ": value78,"
+        },
+        {
+          "line": 424,
+          "text": "((value79.value = value78), value75.select.append(value79));"
+        }
+      ]
+    },
+    {
+      "key": "value79@413",
+      "name": "value79",
+      "line": 413,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value79 = fn1(",
+      "references": [
+        {
+          "line": 424,
+          "text": "((value79.value = value78), value75.select.append(value79));"
+        }
+      ]
+    },
+    {
+      "key": "value80@433",
+      "name": "value80",
+      "line": 433,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value80 of [value36, value42, ...value38.querySelectorAll(\"button\")])",
+      "references": [
+        {
+          "line": 434,
+          "text": "value80.disabled ="
+        },
+        {
+          "line": 435,
+          "text": "fn4(value69) || !!value23 || (value80.textContent === \"播放\" && fn3(\"play_media\"));"
+        }
+      ]
+    },
+    {
+      "key": "fn12@441",
+      "name": "fn12",
+      "line": 441,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function fn12() {",
+      "references": [
+        {
+          "line": 462,
+          "text": "fn12(),"
+        },
+        {
+          "line": 467,
+          "text": "(!value19 && value1.hidden) || ((value1.hidden = true), fn12(), (value19 = null));"
+        }
+      ]
+    },
+    {
+      "key": "arg27@459",
+      "name": "arg27",
+      "line": 459,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update(arg27) {",
+      "references": [
+        {
+          "line": 461,
+          "text": "((value19?.item.id !== arg27.item.id || value19?.item.entityId !== arg27.item.entityId) &&"
+        },
+        {
+          "line": 463,
+          "text": "(value19 = arg27),"
+        }
+      ]
+    }
+  ]
+}

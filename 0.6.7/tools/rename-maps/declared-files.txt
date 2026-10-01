@@ -1,0 +1,2 @@
+# Files this batch declares it will rewrite. One repo-relative path per line.
+frontend/static/3d-studio/studio-fan.js

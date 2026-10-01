@@ -1,0 +1,188 @@
+{
+  "file": "frontend/modules/interaction3d/device-profiles.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 78,
+  "counts": {
+    "entries": 9,
+    "renameable": 9,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@50",
+      "name": "arg1",
+      "line": 50,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "GENERIC_DEVICE_KINDS.map((arg1) => GENERIC_DEVICE_PROFILES[arg1].collection),",
+      "references": [
+        {
+          "line": 50,
+          "text": "GENERIC_DEVICE_KINDS.map((arg1) => GENERIC_DEVICE_PROFILES[arg1].collection),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@52",
+      "name": "arg2",
+      "line": 52,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "isGenericDeviceKind = (arg2) => Object.hasOwn(GENERIC_DEVICE_PROFILES, arg2),",
+      "references": [
+        {
+          "line": 52,
+          "text": "isGenericDeviceKind = (arg2) => Object.hasOwn(GENERIC_DEVICE_PROFILES, arg2),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@53",
+      "name": "arg3",
+      "line": 53,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "genericDeviceProfile = (arg3) =>",
+      "references": [
+        {
+          "line": 54,
+          "text": "isGenericDeviceKind(arg3) ? GENERIC_DEVICE_PROFILES[arg3] : null;"
+        }
+      ]
+    },
+    {
+      "key": "arg4@55",
+      "name": "arg4",
+      "line": 55,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function genericDeviceMetadata(arg4 = []) {",
+      "references": [
+        {
+          "line": 61,
+          "text": "arg4"
+        }
+      ]
+    },
+    {
+      "key": "arg5@57",
+      "name": "arg5",
+      "line": 57,
+      "column": 30,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "GENERIC_DEVICE_KINDS.map((arg5) => {",
+      "references": [
+        {
+          "line": 58,
+          "text": "const value1 = genericDeviceProfile(arg5);"
+        },
+        {
+          "line": 71,
+          "text": "(Number(arg7.height) || value1.height) * (arg5 === \"smallcar\" ? 1 : 0.5) +"
+        },
+        {
+          "line": 72,
+          "text": "(arg5 === \"smallcar\" ? 0.25 : 0),"
+        }
+      ]
+    },
+    {
+      "key": "value1@58",
+      "name": "value1",
+      "line": 58,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = genericDeviceProfile(arg5);",
+      "references": [
+        {
+          "line": 60,
+          "text": "value1.collection,"
+        },
+        {
+          "line": 62,
+          "text": ".filter((arg6) => (value1.modelTypes || [value1.modelType]).includes(arg6.type))"
+        },
+        {
+          "line": 66,
+          "text": "name: arg7.name || value1.label + \" \" + (arg8 + 1),"
+        },
+        {
+          "line": 71,
+          "text": "(Number(arg7.height) || value1.height) * (arg5 === \"smallcar\" ? 1 : 0.5) +"
+        }
+      ]
+    },
+    {
+      "key": "arg6@62",
+      "name": "arg6",
+      "line": 62,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".filter((arg6) => (value1.modelTypes || [value1.modelType]).includes(arg6.type))",
+      "references": [
+        {
+          "line": 62,
+          "text": ".filter((arg6) => (value1.modelTypes || [value1.modelType]).includes(arg6.type))"
+        }
+      ]
+    },
+    {
+      "key": "arg7@63",
+      "name": "arg7",
+      "line": 63,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg7, arg8) => ({",
+      "references": [
+        {
+          "line": 64,
+          "text": "id: arg7.id,"
+        },
+        {
+          "line": 65,
+          "text": "type: arg7.type,"
+        },
+        {
+          "line": 66,
+          "text": "name: arg7.name || value1.label + \" \" + (arg8 + 1),"
+        },
+        {
+          "line": 67,
+          "text": "x: arg7.x,"
+        },
+        {
+          "line": 68,
+          "text": "y: arg7.y,"
+        },
+        {
+          "line": 70,
+          "text": "(Number(arg7.elevation) || 0) +"
+        }
+      ]
+    },
+    {
+      "key": "arg8@63",
+      "name": "arg8",
+      "line": 63,
+      "column": 22,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg7, arg8) => ({",
+      "references": [
+        {
+          "line": 66,
+          "text": "name: arg7.name || value1.label + \" \" + (arg8 + 1),"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+.flow-line-template-preview svg {
+  width: 85%;
+  height: 85%;
+  filter: drop-shadow(0 0 5px #42d9ef66);
+}
+.flow-line-canvas-editor {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+}
+.workspace.flow-line-path-editing {
+  padding-top: var(--flow-line-toolbar-space, 18px);
+}
+.flow-line-draw-stage {
+  position: absolute;
+  transform-origin: 0 0;
+  outline: 1px solid var(--accent);
+  overflow: visible;
+}
+.flow-line-draw-stage > svg,
+.flow-line-draw-stage > [data-preview] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.flow-line-draw-stage > [data-preview] {
+  pointer-events: none;
+  overflow: visible;
+}
+.flow-line-draw-stage > svg {
+  touch-action: none;
+  outline: none;
+  overflow: visible;
+}
+.flow-line-draw-stage > svg.drawing {
+  cursor: crosshair;
+}
+.flow-line-draw-tools {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px;
+  border: 1px solid #39434b;
+  border-radius: 5px;
+  background: #1b2227;
+  box-shadow: 0 4px 16px #0005;
+}
+.flow-line-draw-tools strong {
+  font-size: 11px;
+  margin-right: 4px;
+  color: #dce2e6;
+}
+.flow-line-draw-tools button,
+.flow-line-draw-tools select {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 10px;
+}
+.flow-line-draw-tools label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #aeb8be;
+  white-space: nowrap;
+}
+.flow-line-draw-tools label > .custom-select {
+  width: 76px;
+  flex: none;
+}
+.flow-line-draw-tools .custom-select-button {
+  padding: 4px 27px 4px 8px;
+}
+.flow-line-draw-tools [data-hint] {
+  flex-basis: 100%;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #8d989f;
+  margin: 0;
+}
+.flow-line-draw-tools [data-count] {
+  font-size: 10px;
+  color: #8d989f;
+}
+.flow-line-draw-tools [data-error] {
+  flex-basis: 100%;
+  color: #ed7979;
+  font-size: 11px;
+  margin: 0;
+}
+.flow-line-draw-tools [data-save] {
+  border-color: var(--accent);
+  color: #ffe6b9;
+  background: var(--accent-soft);
+}
+.flow-line-axis-guide {
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-dasharray: 5 7;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.flow-line-draw-ghost {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 7;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.flow-line-draw-node {
+  cursor: grab;
+  outline: none;
+}
+.flow-line-node-handle {
+  fill: #1b2227;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.flow-line-draw-node.selected .flow-line-node-handle,
+.flow-line-draw-node:focus .flow-line-node-handle {
+  fill: var(--accent);
+  stroke: #fff;
+}
+#flow-line-inspector .field-note {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #7f91a7;
+}
+.flow-line-path-editing .hb-component-selection-overlay,
+.flow-line-path-editing .hb-multi-selection-bounds {
+  display: none;
+}

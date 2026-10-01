@@ -1,0 +1,205 @@
+{
+  "file": "frontend/static/3d-studio/studio-camera-constraints.js",
+  "seed": "b8-studio-camera-constraints",
+  "size": 30,
+  "candidates": 20,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/destructured-array",
+      "newName": "positionZ",
+      "declaration": "const [value9, value10, ???] = arg3.position,",
+      "references": [
+        "L28: z: ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "deltaX",
+      "declaration": "const ??? = arg1.x - arg2.x,",
+      "references": [
+        "L8: value4 = Math.max(Math.hypot(???, value2, value3), 0.001),",
+        "L11: const value6 = Math.hypot(???, value3),",
+        "L15: (arg1.x = arg2.x + (value6 > 1e-9 ? ??? / value6 : 0) * value8),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "deltaY",
+      "declaration": "??? = arg1.y - arg2.y,",
+      "references": [
+        "L8: value4 = Math.max(Math.hypot(value1, ???, value3), 0.001),",
+        "L10: if (??? >= value5 - 1e-9) return false;"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "short/module-binding",
+      "newName": "minTargetHeight",
+      "declaration": "const ??? = 0.02,",
+      "references": [
+        "L9: value5 = Math.max(value4 * z, ??? - arg2.???);"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "short/other",
+      "newName": "maxPolarCosine",
+      "declaration": "??? = Math.cos(MAX_CAMERA_POLAR_ANGLE);",
+      "references": [
+        "L9: value5 = Math.max(value4 * ???, y - arg2.y);"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/destructured-array",
+      "newName": "positionY",
+      "declaration": "const [value9, ???, value11] = arg3.position,",
+      "references": [
+        "L27: y: ???,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "horizontalDistance",
+      "declaration": "const ??? = Math.hypot(value1, value3),",
+      "references": [
+        "L15: (arg1.x = arg2.x + (??? > 1e-9 ? value1 / ??? : 0) * value8),",
+        "L16: (arg1.z = arg2.z + (??? > 1e-9 ? value3 / ??? : 1) * value8),"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "lateralDistance",
+      "declaration": "??? = Math.sqrt(Math.max(0, value7 * value7 - value5 * value5));",
+      "references": [
+        "L15: (arg1.x = arg2.x + (value6 > 1e-9 ? value1 / value6 : 0) * ???),",
+        "L16: (arg1.z = arg2.z + (value6 > 1e-9 ? value3 / value6 : 1) * ???),"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/destructured-array",
+      "newName": "positionX",
+      "declaration": "const [???, value10, value11] = arg3.position,",
+      "references": [
+        "L26: x: ???,"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "minHeight",
+      "declaration": "??? = Math.max(value4 * z, y - arg2.y);",
+      "references": [
+        "L10: if (value2 >= ??? - 1e-9) return false;",
+        "L12: value7 = Math.max(value4, ???),",
+        "L13: value8 = Math.sqrt(Math.max(0, value7 * value7 - ??? * ???));"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "distance",
+      "declaration": "??? = Math.max(Math.hypot(value1, value2, value3), 0.001),",
+      "references": [
+        "L9: value5 = Math.max(??? * z, y - arg2.y);",
+        "L12: value7 = Math.max(???, value5),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "pose",
+      "declaration": "export function constrainCameraPose(???) {",
+      "references": [
+        "L22: if (!???) return ???;",
+        "L23: const [value9, value10, value11] = ???.position,",
+        "L24: [value12, value13, value14] = ???.target,"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "deltaZ",
+      "declaration": "??? = arg1.z - arg2.z,",
+      "references": [
+        "L8: value4 = Math.max(Math.hypot(value1, value2, ???), 0.001),",
+        "L11: const value6 = Math.hypot(value1, ???),",
+        "L16: (arg1.z = arg2.z + (value6 > 1e-9 ? ??? / value6 : 1) * value8),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "position",
+      "declaration": "export function constrainCameraPosition(???, arg2) {",
+      "references": [
+        "L5: const value1 = ???.x - arg2.x,",
+        "L6: value2 = ???.y - arg2.y,",
+        "L7: value3 = ???.z - arg2.z,"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/other",
+      "newName": "targetX",
+      "declaration": "[???, value13, value14] = arg3.target,",
+      "references": [
+        "L31: x: ???,"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "targetY",
+      "declaration": "[value12, ???, value14] = arg3.target,",
+      "references": [
+        "L32: y: ???,"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/other",
+      "newName": "targetZ",
+      "declaration": "[value12, value13, ???] = arg3.target,",
+      "references": [
+        "L33: z: ???,"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/other",
+      "newName": "maxDistance",
+      "declaration": "??? = Math.max(value4, value5),",
+      "references": [
+        "L13: value8 = Math.sqrt(Math.max(0, ??? * ??? - value5 * value5));"
+      ]
+    },
+    {
+      "id": "card-19",
+      "stratum": "mechanical/other",
+      "newName": "target",
+      "declaration": "export function constrainCameraPosition(arg1, ???) {",
+      "references": [
+        "L5: const value1 = arg1.x - ???.x,",
+        "L6: value2 = arg1.y - ???.y,",
+        "L7: value3 = arg1.z - ???.z,"
+      ]
+    },
+    {
+      "id": "card-20",
+      "stratum": "mechanical/other",
+      "newName": "nextPosition",
+      "declaration": "??? = {",
+      "references": [
+        "L30: return constrainCameraPosition(???, {",
+        "L37: position: [???.x, ???.y, ???.z],"
+      ]
+    }
+  ]
+}

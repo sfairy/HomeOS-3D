@@ -1,0 +1,320 @@
+.hb-percentage-chart {
+  --bar-color: #f2a20d;
+  --chart-text: #dce1e5;
+  --chart-muted: #74818a;
+  --label-height: calc(var(--label-gap, 16px) + var(--label-size, 11px) * 2.9);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: max-content;
+  min-width: 100%;
+  height: auto;
+  padding: calc(var(--value-size, 26px) + var(--value-gap, 11px)) 0 0;
+  box-sizing: border-box;
+  color: var(--chart-text);
+  font-family:
+    Helvetica Neue,
+    SF Pro Display,
+    PingFang SC,
+    Microsoft YaHei,
+    sans-serif;
+}
+.hb-percentage-chart * {
+  box-sizing: border-box;
+}
+.hb-percentage-axis {
+  display: none;
+}
+.hb-percentage-plot {
+  display: flex;
+  position: relative;
+  min-width: 0;
+  width: max-content;
+  justify-self: center;
+  gap: var(--gap, 28px);
+  padding: 0 8px;
+}
+.hb-percentage-column {
+  position: relative;
+  display: grid;
+  grid-template-rows: var(--length, 300px) var(--label-height);
+  flex: none;
+  width: var(--bar-thickness, 48px);
+  min-width: 0;
+  min-height: 0;
+}
+.hb-percentage-track {
+  grid-row: 1;
+  position: relative;
+  width: min(100%, var(--bar-thickness, 48px));
+  height: 100%;
+  justify-self: center;
+}
+.hb-percentage-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: calc(var(--percentage, 0) * 100%);
+  background: linear-gradient(
+    var(--outline-direction, 180deg),
+    color-mix(in srgb, var(--bar-color) var(--fill-opacity, 32%), transparent),
+    color-mix(in srgb, var(--bar-color) 16%, transparent) 42%,
+    color-mix(in srgb, var(--bar-color) 3%, transparent)
+  );
+  --outline-direction: 180deg;
+  border: 0;
+  border-radius: var(--radius, 5px) var(--radius, 5px) 0 0;
+  transition:
+    height 0.35s cubic-bezier(0.22, 0.61, 0.36, 1),
+    width 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.hb-percentage-fill:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    var(--outline-direction, 180deg),
+    color-mix(in srgb, var(--bar-color) 62%, transparent),
+    color-mix(in srgb, var(--bar-color) 32%, transparent) 45%,
+    color-mix(in srgb, var(--bar-color) 18%, transparent)
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.hb-percentage-value {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(
+    var(--label-height) + var(--value-gap, 11px) + (100% - var(--label-height)) *
+      var(--percentage, 0)
+  );
+  width: max-content;
+  min-width: 100%;
+  left: 50%;
+  transform: translate(calc(-50% + var(--value-offset-x, 0px)), var(--value-offset-y, 0px));
+  text-align: center;
+  font-size: var(--value-size, 26px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: bottom 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.hb-percentage-value small {
+  margin-left: 0.2em;
+  font-size: 0.44em;
+  font-weight: 300;
+  opacity: 0.5;
+}
+.hb-percentage-label {
+  transform: translate(var(--label-offset-x, 0px), var(--label-offset-y, 0px));
+  grid-row: 2;
+  align-self: start;
+  justify-self: center;
+  width: calc(100% + min(var(--gap, 28px), 32px));
+  margin-top: var(--label-gap, 16px);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  max-height: calc(var(--label-size, 11px) * 2.9);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-align: center;
+  font-size: var(--label-size, 11px);
+  font-weight: 300;
+  letter-spacing: 1px;
+  line-height: 1.45;
+  color: var(--chart-label, #94a5b3);
+}
+.hb-percentage-column.is-unavailable {
+  --bar-color: #74818a !important;
+}
+.hb-percentage-column.is-unavailable .hb-percentage-value {
+  color: var(--chart-muted);
+}
+.hb-percentage-chart.is-horizontal {
+  padding: 0;
+}
+.is-horizontal .hb-percentage-plot {
+  width: max-content;
+  flex-direction: column;
+  gap: var(--gap, 28px);
+  padding: 0 8px;
+}
+.is-horizontal .hb-percentage-column {
+  grid-template-columns:
+    84px var(--label-gap, 16px) var(--length, 300px) var(--value-gap, 11px)
+    max(64px, calc(var(--value-size, 26px) * 3.4));
+  grid-template-rows: var(--bar-thickness, 48px);
+  width: max-content;
+  flex: none;
+  gap: 0;
+  align-items: center;
+}
+.is-horizontal .hb-percentage-label {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: left;
+  align-self: center;
+  justify-self: stretch;
+  width: 100%;
+  margin: 0;
+}
+.is-horizontal .hb-percentage-track {
+  grid-column: 3;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+}
+.is-horizontal .hb-percentage-surface {
+  transform-origin: 0 0;
+  transform: translate(var(--length, 300px)) rotate(90deg);
+}
+.is-horizontal .hb-percentage-value {
+  position: static;
+  transform: translate(var(--value-offset-x, 0px), var(--value-offset-y, 0px));
+  min-width: 0;
+  width: 100%;
+  grid-column: 5;
+  grid-row: 1;
+  text-align: right;
+  font-size: var(--value-size, 26px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hb-percentage-fill,
+  .hb-percentage-value {
+    transition: none;
+  }
+}
+.hb-percentage-chart.hide-values .hb-percentage-value {
+  display: none;
+}
+.hb-percentage-chart.hide-labels {
+  --label-height: 0px;
+}
+.hb-percentage-chart.hide-labels .hb-percentage-label {
+  display: none;
+}
+.is-horizontal.hide-labels .hb-percentage-column {
+  grid-template-columns: var(--length, 300px) var(--value-gap, 11px) max(
+      64px,
+      calc(var(--value-size, 26px) * 3.4)
+    );
+}
+.is-horizontal.hide-labels .hb-percentage-track {
+  grid-column: 1;
+}
+.is-horizontal.hide-labels .hb-percentage-value {
+  grid-column: 3;
+}
+.is-horizontal.hide-values .hb-percentage-column {
+  grid-template-columns: 84px var(--label-gap, 16px) var(--length, 300px);
+}
+.is-horizontal.hide-values.hide-labels .hb-percentage-column {
+  grid-template-columns: var(--length, 300px);
+}
+.hb-percentage-surface {
+  position: absolute;
+  width: var(--bar-thickness, 48px);
+  height: var(--length, 300px);
+}
+.hb-percentage-fill[hidden] {
+  display: none;
+}
+[data-variant="cursor"] .hb-percentage-surface {
+  background: repeating-linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--bar-color) 10%, transparent) 0 1px,
+    transparent 1px 10%
+  );
+}
+[data-variant="cursor"] .hb-percentage-fill {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bar-color) var(--fill-opacity, 32%), transparent),
+    transparent min(100%, 70px)
+  );
+  overflow: hidden;
+}
+[data-variant="cursor"] .hb-percentage-fill:before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  max-height: 50%;
+  background: var(--bar-color);
+  border-radius: 2px;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--bar-color) 45%, transparent);
+}
+[data-variant="cursor"] .hb-percentage-fill:after {
+  opacity: 0.55;
+}
+[data-variant="glass"] .hb-percentage-surface {
+  border-radius: var(--radius, 5px) var(--radius, 5px) 0 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bar-color) 8%, transparent),
+    transparent 25% 75%,
+    color-mix(in srgb, var(--bar-color) 5%, transparent)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bar-color) 12%, transparent);
+}
+[data-variant="glass"] .hb-percentage-fill {
+  overflow: hidden;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 8%,
+      color-mix(in srgb, var(--bar-color) 20%, transparent) 16%,
+      transparent 26% 75%,
+      color-mix(in srgb, var(--bar-color) 12%, transparent) 94%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bar-color) var(--fill-opacity, 32%), transparent),
+      color-mix(in srgb, var(--bar-color) 8%, transparent)
+    );
+}
+[data-variant="glass"] .hb-percentage-fill:before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--bar-color) 48%, transparent);
+  border-radius: inherit;
+}
+.is-unavailable .hb-percentage-surface {
+  opacity: 0.35;
+}
+.hb-percentage-chart:is([data-variant="cursor"], [data-variant="glass"]):not(.is-horizontal)
+  .hb-percentage-value {
+  bottom: calc(var(--label-height) + var(--value-gap, 11px) + var(--length, 300px));
+}
+.hb-percentage-control {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hb-percentage-control > .hb-percentage-chart {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+}
+.hb-percentage-chart.hide-values:not(.is-horizontal) {
+  padding-top: 0;
+}

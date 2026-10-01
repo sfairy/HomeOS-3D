@@ -1,0 +1,501 @@
+{
+  "file": "frontend/static/renderer/entity-power.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 95,
+  "counts": {
+    "entries": 24,
+    "renameable": 24,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "s@6",
+      "name": "s",
+      "line": 6,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function s(arg1) {",
+      "references": [
+        {
+          "line": 21,
+          "text": "const value1 = s(arg6),"
+        },
+        {
+          "line": 37,
+          "text": "const value4 = s(arg9),"
+        },
+        {
+          "line": 69,
+          "text": "const value7 = s(arg12),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@6",
+      "name": "arg1",
+      "line": 6,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function s(arg1) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "arg1?.newState ||"
+        },
+        {
+          "line": 9,
+          "text": "arg1 || {"
+        }
+      ]
+    },
+    {
+      "key": "arg2@15",
+      "name": "arg2",
+      "line": 15,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerTarget(arg2, arg3 = {}, arg4 = null) {",
+      "references": [
+        {
+          "line": 18,
+          "text": ": String(arg2 || \"\");"
+        }
+      ]
+    },
+    {
+      "key": "arg3@15",
+      "name": "arg3",
+      "line": 15,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerTarget(arg2, arg3 = {}, arg4 = null) {",
+      "references": [
+        {
+          "line": 16,
+          "text": "return arg3?.type !== \"air-conditioner\" && arg4?.deviceType === \"bath-heater\" && arg4.roles?.light"
+        }
+      ]
+    },
+    {
+      "key": "arg4@15",
+      "name": "arg4",
+      "line": 15,
+      "column": 51,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerTarget(arg2, arg3 = {}, arg4 = null) {",
+      "references": [
+        {
+          "line": 16,
+          "text": "return arg3?.type !== \"air-conditioner\" && arg4?.deviceType === \"bath-heater\" && arg4.roles?.light"
+        },
+        {
+          "line": 17,
+          "text": "? String(arg4.roles.light)"
+        }
+      ]
+    },
+    {
+      "key": "arg5@20",
+      "name": "arg5",
+      "line": 20,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerIsOn(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 22,
+          "text": "value2 = String(arg5 || \"\").split(\".\", 1)[0],"
+        },
+        {
+          "line": 27,
+          "text": "? climateIsPoweredOn(value1, resolveClimateDeviceType(arg7, value1, arg5))"
+        }
+      ]
+    },
+    {
+      "key": "arg6@20",
+      "name": "arg6",
+      "line": 20,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerIsOn(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 21,
+          "text": "const value1 = s(arg6),"
+        }
+      ]
+    },
+    {
+      "key": "arg7@20",
+      "name": "arg7",
+      "line": 20,
+      "column": 44,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityPowerIsOn(arg5, arg6, arg7 = {}) {",
+      "references": [
+        {
+          "line": 27,
+          "text": "? climateIsPoweredOn(value1, resolveClimateDeviceType(arg7, value1, arg5))"
+        }
+      ]
+    },
+    {
+      "key": "value1@21",
+      "name": "value1",
+      "line": 21,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = s(arg6),",
+      "references": [
+        {
+          "line": 23,
+          "text": "value3 = String(value1.state || \"\")"
+        },
+        {
+          "line": 27,
+          "text": "? climateIsPoweredOn(value1, resolveClimateDeviceType(arg7, value1, arg5))"
+        },
+        {
+          "line": 31,
+          "text": "? climateIsPoweredOn(value1, \"water-heater\")"
+        }
+      ]
+    },
+    {
+      "key": "value2@22",
+      "name": "value2",
+      "line": 22,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = String(arg5 || \"\").split(\".\", 1)[0],",
+      "references": [
+        {
+          "line": 26,
+          "text": "return value2 === \"climate\""
+        },
+        {
+          "line": 28,
+          "text": ": value2 === \"fan\""
+        },
+        {
+          "line": 30,
+          "text": ": value2 === \"water_heater\""
+        },
+        {
+          "line": 32,
+          "text": ": value2 === \"media_player\""
+        }
+      ]
+    },
+    {
+      "key": "value3@23",
+      "name": "value3",
+      "line": 23,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value3 = String(value1.state || \"\")",
+      "references": [
+        {
+          "line": 29,
+          "text": "? ![\"\", \"off\", \"unknown\", \"unavailable\"].includes(value3)"
+        },
+        {
+          "line": 33,
+          "text": "? [\"playing\", \"buffering\"].includes(value3)"
+        },
+        {
+          "line": 34,
+          "text": ": [\"on\", \"open\", \"true\", \"home\"].includes(value3);"
+        }
+      ]
+    },
+    {
+      "key": "arg8@36",
+      "name": "arg8",
+      "line": 36,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityToggleCommand(arg8, arg9, arg10 = {}) {",
+      "references": [
+        {
+          "line": 38,
+          "text": "value5 = String(arg8 || \"\").split(\".\", 1)[0];"
+        },
+        {
+          "line": 59,
+          "text": "value5 === \"water_heater\" ? \"water-heater\" : resolveClimateDeviceType(arg10, value4, arg8);"
+        },
+        {
+          "line": 60,
+          "text": "return climatePowerCommand(arg8, value4, !entityPowerIsOn(arg8, value4, arg10), value6);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@36",
+      "name": "arg9",
+      "line": 36,
+      "column": 42,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityToggleCommand(arg8, arg9, arg10 = {}) {",
+      "references": [
+        {
+          "line": 37,
+          "text": "const value4 = s(arg9),"
+        }
+      ]
+    },
+    {
+      "key": "arg10@36",
+      "name": "arg10",
+      "line": 36,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function entityToggleCommand(arg8, arg9, arg10 = {}) {",
+      "references": [
+        {
+          "line": 59,
+          "text": "value5 === \"water_heater\" ? \"water-heater\" : resolveClimateDeviceType(arg10, value4, arg8);"
+        },
+        {
+          "line": 60,
+          "text": "return climatePowerCommand(arg8, value4, !entityPowerIsOn(arg8, value4, arg10), value6);"
+        }
+      ]
+    },
+    {
+      "key": "value4@37",
+      "name": "value4",
+      "line": 37,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = s(arg9),",
+      "references": [
+        {
+          "line": 59,
+          "text": "value5 === \"water_heater\" ? \"water-heater\" : resolveClimateDeviceType(arg10, value4, arg8);"
+        },
+        {
+          "line": 60,
+          "text": "return climatePowerCommand(arg8, value4, !entityPowerIsOn(arg8, value4, arg10), value6);"
+        }
+      ]
+    },
+    {
+      "key": "value5@38",
+      "name": "value5",
+      "line": 38,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5 = String(arg8 || \"\").split(\".\", 1)[0];",
+      "references": [
+        {
+          "line": 39,
+          "text": "if (value5 === \"button\")"
+        },
+        {
+          "line": 45,
+          "text": "if (value5 === \"script\")"
+        },
+        {
+          "line": 51,
+          "text": "if (value5 === \"media_player\")"
+        },
+        {
+          "line": 57,
+          "text": "if ([\"climate\", \"fan\", \"water_heater\"].includes(value5)) {"
+        },
+        {
+          "line": 59,
+          "text": "value5 === \"water_heater\" ? \"water-heater\" : resolveClimateDeviceType(arg10, value4, arg8);"
+        }
+      ]
+    },
+    {
+      "key": "value6@58",
+      "name": "value6",
+      "line": 58,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 =",
+      "references": [
+        {
+          "line": 60,
+          "text": "return climatePowerCommand(arg8, value4, !entityPowerIsOn(arg8, value4, arg10), value6);"
+        }
+      ]
+    },
+    {
+      "key": "arg11@68",
+      "name": "arg11",
+      "line": 68,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function optimisticToggleState(arg11, arg12, arg13 = {}) {",
+      "references": [
+        {
+          "line": 70,
+          "text": "value8 = String(arg11 || \"\").split(\".\", 1)[0],"
+        },
+        {
+          "line": 71,
+          "text": "value9 = entityPowerIsOn(arg11, value7, arg13);"
+        },
+        {
+          "line": 75,
+          "text": "state: entityPowerIsOn(arg11, value7, arg13) ? \"paused\" : \"playing\","
+        }
+      ]
+    },
+    {
+      "key": "arg12@68",
+      "name": "arg12",
+      "line": 68,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function optimisticToggleState(arg11, arg12, arg13 = {}) {",
+      "references": [
+        {
+          "line": 69,
+          "text": "const value7 = s(arg12),"
+        }
+      ]
+    },
+    {
+      "key": "arg13@68",
+      "name": "arg13",
+      "line": 68,
+      "column": 52,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function optimisticToggleState(arg11, arg12, arg13 = {}) {",
+      "references": [
+        {
+          "line": 71,
+          "text": "value9 = entityPowerIsOn(arg11, value7, arg13);"
+        },
+        {
+          "line": 75,
+          "text": "state: entityPowerIsOn(arg11, value7, arg13) ? \"paused\" : \"playing\","
+        }
+      ]
+    },
+    {
+      "key": "value7@69",
+      "name": "value7",
+      "line": 69,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = s(arg12),",
+      "references": [
+        {
+          "line": 71,
+          "text": "value9 = entityPowerIsOn(arg11, value7, arg13);"
+        },
+        {
+          "line": 74,
+          "text": "...value7,"
+        },
+        {
+          "line": 75,
+          "text": "state: entityPowerIsOn(arg11, value7, arg13) ? \"paused\" : \"playing\","
+        },
+        {
+          "line": 79,
+          "text": "...(value7.attributes || {}),"
+        },
+        {
+          "line": 84,
+          "text": "...value7,"
+        },
+        {
+          "line": 91,
+          "text": "...value7,"
+        }
+      ]
+    },
+    {
+      "key": "value8@70",
+      "name": "value8",
+      "line": 70,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = String(arg11 || \"\").split(\".\", 1)[0],",
+      "references": [
+        {
+          "line": 72,
+          "text": "if (value8 === \"media_player\")"
+        },
+        {
+          "line": 77,
+          "text": "if (value8 === \"climate\") {"
+        }
+      ]
+    },
+    {
+      "key": "value9@71",
+      "name": "value9",
+      "line": 71,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value9 = entityPowerIsOn(arg11, value7, arg13);",
+      "references": [
+        {
+          "line": 82,
+          "text": "value9 || (delete object1.preset_mode, delete object1.mode),"
+        },
+        {
+          "line": 85,
+          "text": "state: value9 ? \"off\" : \"auto\","
+        },
+        {
+          "line": 92,
+          "text": "state: value9 ? \"off\" : \"on\","
+        }
+      ]
+    },
+    {
+      "key": "object1@78",
+      "name": "object1",
+      "line": 78,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const object1 = {",
+      "references": [
+        {
+          "line": 82,
+          "text": "value9 || (delete object1.preset_mode, delete object1.mode),"
+        },
+        {
+          "line": 86,
+          "text": "attributes: object1,"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "file": "frontend/static/3d-studio/studio-motion-presentation.js",
+  "seed": "b3-studio-motion-presentation",
+  "size": 30,
+  "candidates": 12,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/function-or-class",
+      "newName": "publish",
+      "declaration": "function ???() {",
+      "references": [
+        "L15: ((value1 = !!arg4), value1 && (value3 = false), ???());",
+        "L18: ((value2 = !!arg5), (value4 = arg6), value2 && (value3 = false), ???());",
+        "L21: !(value1 || value2) || value3 || arg7 < 0.9 || ((value3 = true), ???());"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "isFloorActive",
+      "declaration": "let ??? = false,",
+      "references": [
+        "L11: (arg1(??? || (value2 && !value4 && !value3)), arg2(???));",
+        "L15: ((??? = !!arg4), ??? && (value3 = false), fn1());",
+        "L21: !(??? || value2) || value3 || arg7 < 0.9 || ((value3 = true), fn1());"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "isLiveCameraEnabled",
+      "declaration": "liveCameraReflections: ??? = false,",
+      "references": [
+        "L9: value4 = ???;",
+        "L17: camera(arg5, { live: arg6 = ??? } = {}) {"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "progress",
+      "declaration": "advance(???) {",
+      "references": [
+        "L21: !(value1 || value2) || value3 || ??? < 0.9 || ((value3 = true), fn1());"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/other",
+      "newName": "isCameraActive",
+      "declaration": "??? = false,",
+      "references": [
+        "L11: (arg1(value1 || (??? && !value4 && !value3)), arg2(value1));",
+        "L18: ((??? = !!arg5), (value4 = arg6), ??? && (value3 = false), fn1());",
+        "L21: !(value1 || ???) || value3 || arg7 < 0.9 || ((value3 = true), fn1());"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "cameraActive",
+      "declaration": "camera(???, { live: arg6 = arg3 } = {}) {",
+      "references": [
+        "L18: ((value2 = !!???), (value4 = arg6), value2 && (value3 = false), fn1());"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "setShadows",
+      "declaration": "shadows: ???,",
+      "references": [
+        "L11: (arg1(value1 || (value2 && !value4 && !value3)), ???(value1));"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "floorActive",
+      "declaration": "floor(???) {",
+      "references": [
+        "L15: ((value1 = !!???), value1 && (value3 = false), fn1());"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "isAdvanced",
+      "declaration": "??? = false,",
+      "references": [
+        "L11: (arg1(value1 || (value2 && !value4 && !???)), arg2(value1));",
+        "L21: !(value1 || value2) || ??? || arg7 < 0.9 || ((??? = true), fn1());"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "isLiveActive",
+      "declaration": "??? = arg3;",
+      "references": [
+        "L11: (arg1(value1 || (value2 && !??? && !value3)), arg2(value1));"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "isLiveRequested",
+      "declaration": "camera(arg5, { live: ??? = arg3 } = {}) {",
+      "references": [
+        "L18: ((value2 = !!arg5), (value4 = ???), value2 && (value3 = false), fn1());"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "setReflections",
+      "declaration": "reflections: ???,",
+      "references": [
+        "L11: (???(value1 || (value2 && !value4 && !value3)), arg2(value1));"
+      ]
+    }
+  ]
+}

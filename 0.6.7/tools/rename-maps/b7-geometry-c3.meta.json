@@ -1,0 +1,122 @@
+{
+  "batchId": "b7-geometry-c3",
+  "wave": 2,
+  "recordedAt": "2026-09-30T08:48:10+08:00",
+  "file": "frontend/static/3d-studio/geometry.js",
+  "declStart": 1596,
+  "declEnd": 1927,
+  "map": "tools/rename-maps/geometry-c3.json",
+  "mapSha256": "83d79f126d4a68c0c326f71f6ac28ef11f332c5a7f77d188d0081a38fbf27496",
+  "brief": "tools/rename-maps/briefs/geometry-c3.json",
+  "briefSha256": "9905efff31051aafa8c403fa935ece57cfb10b37d99898da8c8db635274c8927",
+  "fileSha256Before": "f391264f7a5c9bf57eea5bae6a166dcf48853e62c669821861ce7062a96123b0",
+  "fileSha256After": "3fbf2e6be6026a1e0427a5df86356c2d21de58f716f363e0841ecd68d099feeb",
+  "linesBefore": 1936,
+  "linesAfter": 2014,
+  "bindings": 172,
+  "byKind": {
+    "mechanical": 167,
+    "short": 5
+  },
+  "residue": {
+    "file": {
+      "before": {
+        "mechanical": 167,
+        "short": 5,
+        "frozen": 41
+      },
+      "after": {
+        "mechanical": 0,
+        "short": 0,
+        "frozen": 41
+      }
+    },
+    "tree": {
+      "mechanical": {
+        "before": 26315,
+        "after": 26148
+      },
+      "short": {
+        "before": 3591,
+        "after": 3586
+      }
+    },
+    "note": "Final chunk of geometry.js: b5 renamed chunk 1 (300), b6 chunk 2 (301) and b7 the last 172, so the file no longer carries any mechanical or short residue (773 renamed in total). It joins frontend/modules/interaction3d/config-editor.js in tools/frontend-name-budget.json's burnedToZero list; the budget checker now reports files=204 burned-to-zero=2 and PASS."
+  },
+  "author": "claude (DSH session)",
+  "reviewer": "claude (same session - see review.note)",
+  "review": {
+    "method": "blind-cards",
+    "tool": "tools/review_sample.mjs",
+    "seed": "b7-geometry-c3",
+    "n": 30,
+    "sampleRate": "30/172 = 17.4%",
+    "round1": {
+      "wrong": 0,
+      "unclear": 0
+    },
+    "wrong": 0,
+    "unclear": 0,
+    "verdict": "pass",
+    "findings": [],
+    "note": "30 drawings (strata arrow / function-or-class / function-parameter / module-binding / other over both the mechanical and short buckets); the readings were written to /tmp/hb-b7-verdicts.tsv before /tmp/hb-b7-key.json was opened and every one matched the name the batch chose. The batch author drew the sample and reviewed it, so this shows the names agree with the evidence; it is not independent review."
+  },
+  "toolingCorrections": [
+    "tools/check_glossary.mjs caught five map/reference collisions before apply, all against names the earlier geometry.js chunks had already landed: value340@1720 -> edgeKey (b6 value268@1424), value348@1781 -> loopPoints (b5 value158@966), value349@1782 -> originPoint (b5 value159@966), value356@1787 -> loopIndex (b6 value270@1427), arg280@1829 -> endpointTolerance (b5 arg146@866). Renamed to faceEdgeKey / loopVertices / loopAnchorPoint / loopVertexIndex / wallEndpointTolerance.",
+    "tools/check_name_kinds.mjs reported one shape error on the first pass: list20@1810 -> nodeStack was rejected because the name ends in a DOM node tail (Stack, tools/check_name_kinds.mjs:75-81) while the initialiser is an empty array. The binding is a DFS stack of node indices, so it became pendingNodeIndices, which is also the more accurate name.",
+    "tools/check_glossary.mjs must be run with --applied once a batch has been applied: without it the checker resolves map keys against the post-apply tree, where the old keys no longer exist, and reports errors=172 (every entry). With --applied it reads the batch rollback copy and reports errors=0 warnings=171, which is what this sidecar records."
+  ],
+  "glossaryVersion": 2,
+  "glossary": {
+    "entries": 172,
+    "sanctioned": 1,
+    "covered": 1,
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 171,
+    "printedWarnLines": 171,
+    "neologisms": "tools/rename-maps/b7-geometry-c3.neologisms.txt"
+  },
+  "oracles": {
+    "coverage": "# declared bindings 814 / residue in range 172 / map entries 172 / resolved 172 / unresolved 0 / out of range 0 / MISSED 0 - COVERAGE OK",
+    "anchors": "resolved=159 unresolved=13 anchored=0 satisfied=0 unsatisfied=0 unanchored-selectors=0 - PASS (a geometry module has no DOM selectors, so anchored=0 is honest)",
+    "kinds": "resolved=172 unresolved=0 shape-undecided=147 errors=0 - PASS"
+  },
+  "variants": {
+    "ownerLimited": [
+      "endpoint -> openEndpoint (arg294@1865) / wallEndpoint (arg285@1847, arg303@1920) / candidateEndpoint (arg296@1868) / acceptedEndpoint (value384@1894) / endpointNodes (value362@1831) / endpointWalls (value364@1831) / endpointEdgeList (value363@1831) / wallEndpointNodes (V@1829) / openWallEndpoints (value366@1863) / unclosedWallEndpoints (arg291@1889)",
+      "edge -> polygonEdges (value342@1738) / nodeEdges (list18@1723) / edgeRecords (value344@1745) / edgeRecordIndex (value345@1746) / edgeIndicesAtNode (value346@1763) / edgeIndicesAtEnd (value347@1775) / edgeAngleAtNode (fn8@1764) / edgeSlot (value352@1771) / edgeSlotIndex (value355@1786, value358@1791) / faceEdgeKey (value340@1720) / seenEdgeKeySet (set3@1687) / pairedEdgeIndex (arg265@1747)",
+      "slot -> edgeSlot / leftEdgeSlot (arg264@1768) / rightEdgeSlot (arg263@1768) / slotEdgeIndex (value351@1766) / nextSlotByEdge (map10@1770)",
+      "node -> nodePoints (list15@1609) / nodeSegments (value318@1623) / nodeIndicesByCell (map6@1627) / nodeIndexForPoint (fn7@1645) / nearestNodeIndex (value324@1646) / newNodeIndex (value325@1647) / segmentStartNode (value327@1656) / segmentEndNode (value328@1657) / endNodePoint (value329@1658) / startNodePoint (value326@1655) / crossingNodeIndex (value338@1685) / previousNodeIndex (value339@1707) / nextNodeIndex (value341@1708) / polygonNodes (value341@1738) / stackIndexByNode (map11@1812) / walkNodeIndex (value359@1812) / nodeDegreeCounts (map12@1845) / pendingNodeIndices (list20@1810)",
+      "loop -> loopNodeIndices (value369@1780) / loopVertices (value348@1781) / loopAnchorPoint (value349@1782) / loopVertexIndex (value356@1787) / loopAreaTotal (value354@1785) / loopKeys (list21@1783)",
+      "tolerance -> faceTolerance (arg259@1737) / closedTolerance (arg277@1799) / openTolerance (arg284@1847) / insideTolerance (arg288@1851) / unclosedTolerance (arg292@1889) / containmentTolerance (arg301@1873) / floorTolerance (arg293@1907) / wallEndpointTolerance (arg280@1829) / boundaryTolerance (value360@1827)"
+    ]
+  },
+  "newConcepts": [
+    "segment grid (buildSegmentGrid, q@1608): cellSize / nodeIndicesByCell / nodeIndexForPoint / cellX / cellY / cellOffsetX / cellOffsetY / segmentBoxes / outerBoxIndex / innerBoxIndex / cellKey / orderedPairKey / segmentCrossingPoint / addSegmentCut",
+    "planar face extraction (wallPolygonFaces, H@1737): polygonEdges / nodeEdgeIndices / edgeRecords / pairedEdgeIndex / edgeAngleAtNode / leftEdgeSlot / rightEdgeSlot / nextSlotByEdge / visitedEdgeSlots / faceByKey / canonicalLoopKey / traversedEdge / edgeSlotIndex / edgeIndicesAtEnd",
+    "loop orientation and dedupe: signedLoopArea / orientedLoop / loopVertices / loopAnchorPoint / simplifiedLoop / recordFaceLoop / seedEdgeSlot / faceA / faceB",
+    "wall endpoint graph (wallEndpointNodes, V@1829): endpointNodes / endpointEdgeList / endpointWalls / nodeDegreeCounts / wallEndpointTolerance",
+    "open/unclosed endpoint queries: openWallEndpoints / unclosedWallEndpoints / openEndpoint / candidateEndpoint / acceptedEndpoint / unclosedWallTolerance / knownFloorPolygons",
+    "containment oracles: isPointWithinPolygon (nt@1851) / isPolygonInsidePolygon (et@1873) / innerPolygon / outerPolygon / containmentTolerance / polygonAreaMagnitude / containedVertex / followingVertex",
+    "model extents: modelBounds (arg309@1896): boundsPoints / modelWall / minX / minY / maxX / maxY / minXPoint / minYPoint / maxXPoint / maxYPoint"
+  ],
+  "gate": {
+    "batch": "24/0",
+    "tree": "23/0",
+    "smoke": "skip",
+    "delta": "# files=12370 changed=1 missing=0 added=3 declared=1 outside-declared=0",
+    "detail": "batch gate green: §7 files=230 with-residue=204 mechanical=26148 short=3586 semantic=6813 exported-frozen=941 parse-failures=0 (ratchet 26315/3591 still the pre-batch value during the run); §13 files=12370 changed=1 outside-declared=0; §14 batch=b7-geometry-c3 snapshots=1 declared=1 missing=0 extra=0 empty=0 identical-to-working=0; §15 strings-checked=1 strings-mismatched=0; §16 all four oracle lines green. verify_all.sh 23 passed / 0 failed, §19 SKIP (no server on this machine)."
+  },
+  "ratchet": {
+    "mechanical": {
+      "before": 26315,
+      "after": 26148
+    },
+    "short": {
+      "before": 3591,
+      "after": 3586
+    }
+  },
+  "rollback": ".restore/batch-snapshots/b7-geometry-c3/frontend/static/3d-studio/geometry.js (sha256 f391264f7a5c9bf57eea5bae6a166dcf48853e62c669821861ce7062a96123b0)"
+}

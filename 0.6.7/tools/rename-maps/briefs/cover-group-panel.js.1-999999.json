@@ -1,0 +1,346 @@
+{
+  "file": "frontend/modules/interaction3d/cover-group-panel.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 52,
+  "counts": {
+    "entries": 15,
+    "renameable": 15,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@3",
+      "name": "arg1",
+      "line": 3,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "element: arg1,",
+      "references": [
+        {
+          "line": 7,
+          "text": "const value1 = arg1?.ownerDocument || globalThis.document,"
+        },
+        {
+          "line": 8,
+          "text": "value2 = arg1 || value1.createElement(\"section\");"
+        }
+      ]
+    },
+    {
+      "key": "arg2@4",
+      "name": "arg2",
+      "line": 4,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onControl: arg2 = async () => {},",
+      "references": [
+        {
+          "line": 15,
+          "text": "onControl: arg2,"
+        }
+      ]
+    },
+    {
+      "key": "arg3@5",
+      "name": "arg3",
+      "line": 5,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "onPreview: arg3 = () => {},",
+      "references": [
+        {
+          "line": 16,
+          "text": "onPreview: arg3,"
+        }
+      ]
+    },
+    {
+      "key": "value1@7",
+      "name": "value1",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1?.ownerDocument || globalThis.document,",
+      "references": [
+        {
+          "line": 8,
+          "text": "value2 = arg1 || value1.createElement(\"section\");"
+        },
+        {
+          "line": 10,
+          "text": "const value3 = value1.createElement(\"h3\");"
+        },
+        {
+          "line": 14,
+          "text": "element: value1.createElement(\"section\"),"
+        }
+      ]
+    },
+    {
+      "key": "value2@8",
+      "name": "value2",
+      "line": 8,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg1 || value1.createElement(\"section\");",
+      "references": [
+        {
+          "line": 9,
+          "text": "value2.classList.add(\"i3d-cover-group-panel\");"
+        },
+        {
+          "line": 11,
+          "text": "((value3.className = \"i3d-cover-group-title\"), value2.append(value3));"
+        },
+        {
+          "line": 20,
+          "text": "value4.forEach((arg4) => value2.append(arg4.root)),"
+        },
+        {
+          "line": 22,
+          "text": "root: value2,"
+        },
+        {
+          "line": 25,
+          "text": "(value2.classList.toggle(\"is-vertical\", arg5.item?.panelLayout === \"vertical\"),"
+        },
+        {
+          "line": 27,
+          "text": "value2.setAttribute(\"aria-label\", value3.textContent),"
+        }
+      ]
+    },
+    {
+      "key": "value3@10",
+      "name": "value3",
+      "line": 10,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value3 = value1.createElement(\"h3\");",
+      "references": [
+        {
+          "line": 11,
+          "text": "((value3.className = \"i3d-cover-group-title\"), value2.append(value3));"
+        },
+        {
+          "line": 26,
+          "text": "(value3.textContent = arg5.item?.label || \"双层窗帘\"),"
+        },
+        {
+          "line": 27,
+          "text": "value2.setAttribute(\"aria-label\", value3.textContent),"
+        }
+      ]
+    },
+    {
+      "key": "value4@12",
+      "name": "value4",
+      "line": 12,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = [0, 1].map(() =>",
+      "references": [
+        {
+          "line": 20,
+          "text": "value4.forEach((arg4) => value2.append(arg4.root)),"
+        },
+        {
+          "line": 28,
+          "text": "value4.forEach((arg6, arg7) => {"
+        },
+        {
+          "line": 44,
+          "text": "value4.forEach((arg8) => arg8.deactivate());"
+        },
+        {
+          "line": 47,
+          "text": "(value4.forEach((arg9) => arg9.dispose()), value2.replaceChildren());"
+        }
+      ]
+    },
+    {
+      "key": "arg4@20",
+      "name": "arg4",
+      "line": 20,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4.forEach((arg4) => value2.append(arg4.root)),",
+      "references": [
+        {
+          "line": 20,
+          "text": "value4.forEach((arg4) => value2.append(arg4.root)),"
+        }
+      ]
+    },
+    {
+      "key": "arg5@23",
+      "name": "arg5",
+      "line": 23,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "update(arg5 = {}) {",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value5 = arg5.item?.memberItems || [];"
+        },
+        {
+          "line": 25,
+          "text": "(value2.classList.toggle(\"is-vertical\", arg5.item?.panelLayout === \"vertical\"),"
+        },
+        {
+          "line": 26,
+          "text": "(value3.textContent = arg5.item?.label || \"双层窗帘\"),"
+        },
+        {
+          "line": 35,
+          "text": "state: arg5.states?.[value6.id],"
+        },
+        {
+          "line": 36,
+          "text": "presentation: arg5.presentations?.[value6.id],"
+        },
+        {
+          "line": 37,
+          "text": "editing: arg5.editing,"
+        }
+      ]
+    },
+    {
+      "key": "value5@24",
+      "name": "value5",
+      "line": 24,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = arg5.item?.memberItems || [];",
+      "references": [
+        {
+          "line": 29,
+          "text": "const value6 = value5[arg7];"
+        }
+      ]
+    },
+    {
+      "key": "arg6@28",
+      "name": "arg6",
+      "line": 28,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4.forEach((arg6, arg7) => {",
+      "references": [
+        {
+          "line": 30,
+          "text": "((arg6.root.hidden = !value6),"
+        },
+        {
+          "line": 31,
+          "text": "arg6.root.setAttribute(\"aria-label\", value6?.label || \"窗帘 \" + (arg7 + 1)),"
+        },
+        {
+          "line": 33,
+          "text": "? arg6.update({"
+        },
+        {
+          "line": 40,
+          "text": ": arg6.deactivate());"
+        }
+      ]
+    },
+    {
+      "key": "arg7@28",
+      "name": "arg7",
+      "line": 28,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4.forEach((arg6, arg7) => {",
+      "references": [
+        {
+          "line": 29,
+          "text": "const value6 = value5[arg7];"
+        },
+        {
+          "line": 31,
+          "text": "arg6.root.setAttribute(\"aria-label\", value6?.label || \"窗帘 \" + (arg7 + 1)),"
+        }
+      ]
+    },
+    {
+      "key": "value6@29",
+      "name": "value6",
+      "line": 29,
+      "column": 18,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = value5[arg7];",
+      "references": [
+        {
+          "line": 30,
+          "text": "((arg6.root.hidden = !value6),"
+        },
+        {
+          "line": 31,
+          "text": "arg6.root.setAttribute(\"aria-label\", value6?.label || \"窗帘 \" + (arg7 + 1)),"
+        },
+        {
+          "line": 32,
+          "text": "value6"
+        },
+        {
+          "line": 34,
+          "text": "item: value6,"
+        },
+        {
+          "line": 35,
+          "text": "state: arg5.states?.[value6.id],"
+        },
+        {
+          "line": 36,
+          "text": "presentation: arg5.presentations?.[value6.id],"
+        }
+      ]
+    },
+    {
+      "key": "arg8@44",
+      "name": "arg8",
+      "line": 44,
+      "column": 24,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4.forEach((arg8) => arg8.deactivate());",
+      "references": [
+        {
+          "line": 44,
+          "text": "value4.forEach((arg8) => arg8.deactivate());"
+        }
+      ]
+    },
+    {
+      "key": "arg9@47",
+      "name": "arg9",
+      "line": 47,
+      "column": 25,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(value4.forEach((arg9) => arg9.dispose()), value2.replaceChildren());",
+      "references": [
+        {
+          "line": 47,
+          "text": "(value4.forEach((arg9) => arg9.dispose()), value2.replaceChildren());"
+        }
+      ]
+    }
+  ]
+}

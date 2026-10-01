@@ -1,0 +1,172 @@
+{
+  "file": "frontend/static/modules/interaction3d/definition.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 99,
+  "counts": {
+    "entries": 9,
+    "renameable": 9,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "s@1",
+      "name": "s",
+      "line": 1,
+      "column": 37,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "import { withPageAppearancePreset as s } from \"./page-appearance-presets.js?v=20260918-page-presets-v3-review-1234\";",
+      "references": [
+        {
+          "line": 50,
+          "text": "...s({}),"
+        }
+      ]
+    },
+    {
+      "key": "e@10",
+      "name": "e",
+      "line": 10,
+      "column": 30,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "normalizeBackgroundTheme = (e) => (e === \"dots\" || e === \"contours\" ? \"dots\" : \"grid\"),",
+      "references": [
+        {
+          "line": 10,
+          "text": "normalizeBackgroundTheme = (e) => (e === \"dots\" || e === \"contours\" ? \"dots\" : \"grid\"),"
+        }
+      ]
+    },
+    {
+      "key": "e@17",
+      "name": "e",
+      "line": 17,
+      "column": 17,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "create({ id: e, instanceName: t = \"3D 交互\", canvas: o }) {",
+      "references": [
+        {
+          "line": 23,
+          "text": "id: e,"
+        }
+      ]
+    },
+    {
+      "key": "t@17",
+      "name": "t",
+      "line": 17,
+      "column": 34,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "create({ id: e, instanceName: t = \"3D 交互\", canvas: o }) {",
+      "references": [
+        {
+          "line": 35,
+          "text": "label: t,"
+        },
+        {
+          "line": 36,
+          "text": "instanceName: t,"
+        }
+      ]
+    },
+    {
+      "key": "o@17",
+      "name": "o",
+      "line": 17,
+      "column": 55,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "create({ id: e, instanceName: t = \"3D 交互\", canvas: o }) {",
+      "references": [
+        {
+          "line": 18,
+          "text": "const i = Number(o?.width || 2778),"
+        },
+        {
+          "line": 19,
+          "text": "n = Number(o?.height || 1940),"
+        }
+      ]
+    },
+    {
+      "key": "i@18",
+      "name": "i",
+      "line": 18,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = Number(o?.width || 2778),",
+      "references": [
+        {
+          "line": 20,
+          "text": "r = i * 0.56,"
+        },
+        {
+          "line": 27,
+          "text": "x: (i - r) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "n@19",
+      "name": "n",
+      "line": 19,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "n = Number(o?.height || 1940),",
+      "references": [
+        {
+          "line": 21,
+          "text": "a = n * 0.56;"
+        },
+        {
+          "line": 28,
+          "text": "y: (n - a) / 2,"
+        }
+      ]
+    },
+    {
+      "key": "r@20",
+      "name": "r",
+      "line": 20,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "r = i * 0.56,",
+      "references": [
+        {
+          "line": 27,
+          "text": "x: (i - r) / 2,"
+        },
+        {
+          "line": 29,
+          "text": "width: r,"
+        }
+      ]
+    },
+    {
+      "key": "a@21",
+      "name": "a",
+      "line": 21,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "a = n * 0.56;",
+      "references": [
+        {
+          "line": 28,
+          "text": "y: (n - a) / 2,"
+        },
+        {
+          "line": 30,
+          "text": "height: a,"
+        }
+      ]
+    }
+  ]
+}

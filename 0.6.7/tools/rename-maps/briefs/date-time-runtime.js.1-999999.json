@@ -1,0 +1,347 @@
+{
+  "file": "frontend/static/renderer/date-time-runtime.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 51,
+  "counts": {
+    "entries": 18,
+    "renameable": 18,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLocalTime(arg1, arg2 = new Date()) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "const value1 = arg1.showSeconds === true,"
+        },
+        {
+          "line": 3,
+          "text": "value2 = arg1.hour12 === true;"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLocalTime(arg1, arg2 = new Date()) {",
+      "references": [
+        {
+          "line": 4,
+          "text": "let value3 = arg2.getHours(),"
+        },
+        {
+          "line": 7,
+          "text": "const list1 = [String(value3).padStart(2, \"0\"), String(arg2.getMinutes()).padStart(2, \"0\")];"
+        },
+        {
+          "line": 9,
+          "text": "value1 && list1.push(String(arg2.getSeconds()).padStart(2, \"0\")),"
+        }
+      ]
+    },
+    {
+      "key": "value1@2",
+      "name": "value1",
+      "line": 2,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.showSeconds === true,",
+      "references": [
+        {
+          "line": 9,
+          "text": "value1 && list1.push(String(arg2.getSeconds()).padStart(2, \"0\")),"
+        }
+      ]
+    },
+    {
+      "key": "value2@3",
+      "name": "value2",
+      "line": 3,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = arg1.hour12 === true;",
+      "references": [
+        {
+          "line": 6,
+          "text": "value2 && ((text1 = value3 >= 12 ? \"PM\" : \"AM\"), (value3 %= 12), value3 || (value3 = 12));"
+        }
+      ]
+    },
+    {
+      "key": "value3@4",
+      "name": "value3",
+      "line": 4,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value3 = arg2.getHours(),",
+      "references": [
+        {
+          "line": 6,
+          "text": "value2 && ((text1 = value3 >= 12 ? \"PM\" : \"AM\"), (value3 %= 12), value3 || (value3 = 12));"
+        },
+        {
+          "line": 7,
+          "text": "const list1 = [String(value3).padStart(2, \"0\"), String(arg2.getMinutes()).padStart(2, \"0\")];"
+        }
+      ]
+    },
+    {
+      "key": "text1@5",
+      "name": "text1",
+      "line": 5,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "text1 = \"\";",
+      "references": [
+        {
+          "line": 12,
+          "text": "suffix: text1,"
+        }
+      ]
+    },
+    {
+      "key": "list1@7",
+      "name": "list1",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [String(value3).padStart(2, \"0\"), String(arg2.getMinutes()).padStart(2, \"0\")];",
+      "references": [
+        {
+          "line": 9,
+          "text": "value1 && list1.push(String(arg2.getSeconds()).padStart(2, \"0\")),"
+        },
+        {
+          "line": 11,
+          "text": "value: list1.join(\":\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@16",
+      "name": "arg3",
+      "line": 16,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLocalDate(arg3, arg4 = new Date()) {",
+      "references": [
+        {
+          "line": 23,
+          "text": "return arg3.showWeekday === false ? value4 : value4 + \" 星期\" + \"日一二三四五六\"[arg4.getDay()];"
+        }
+      ]
+    },
+    {
+      "key": "arg4@16",
+      "name": "arg4",
+      "line": 16,
+      "column": 38,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLocalDate(arg3, arg4 = new Date()) {",
+      "references": [
+        {
+          "line": 18,
+          "text": "arg4.getFullYear() +"
+        },
+        {
+          "line": 20,
+          "text": "String(arg4.getMonth() + 1).padStart(2, \"0\") +"
+        },
+        {
+          "line": 22,
+          "text": "String(arg4.getDate()).padStart(2, \"0\");"
+        },
+        {
+          "line": 23,
+          "text": "return arg3.showWeekday === false ? value4 : value4 + \" 星期\" + \"日一二三四五六\"[arg4.getDay()];"
+        }
+      ]
+    },
+    {
+      "key": "value4@17",
+      "name": "value4",
+      "line": 17,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 =",
+      "references": [
+        {
+          "line": 23,
+          "text": "return arg3.showWeekday === false ? value4 : value4 + \" 星期\" + \"日一二三四五六\"[arg4.getDay()];"
+        }
+      ]
+    },
+    {
+      "key": "arg5@25",
+      "name": "arg5",
+      "line": 25,
+      "column": 32,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function formatLunarDate(arg5 = new Date()) {",
+      "references": [
+        {
+          "line": 32,
+          "text": "const value6 = value5.formatToParts(arg5),"
+        }
+      ]
+    },
+    {
+      "key": "value5@27",
+      "name": "value5",
+      "line": 27,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value5 = new Intl.DateTimeFormat(\"zh-CN-u-ca-chinese\", {",
+      "references": [
+        {
+          "line": 31,
+          "text": "if (value5.resolvedOptions().calendar !== \"chinese\") return \"\";"
+        },
+        {
+          "line": 32,
+          "text": "const value6 = value5.formatToParts(arg5),"
+        }
+      ]
+    },
+    {
+      "key": "value6@32",
+      "name": "value6",
+      "line": 32,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = value5.formatToParts(arg5),",
+      "references": [
+        {
+          "line": 33,
+          "text": "value7 = value6.find((arg6) => arg6.type === \"month\")?.value,"
+        },
+        {
+          "line": 34,
+          "text": "value8 = Number(value6.find((arg7) => arg7.type === \"day\")?.value);"
+        }
+      ]
+    },
+    {
+      "key": "value7@33",
+      "name": "value7",
+      "line": 33,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = value6.find((arg6) => arg6.type === \"month\")?.value,",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (!value7 || !Number.isInteger(value8) || value8 < 1 || value8 > 30) return \"\";"
+        },
+        {
+          "line": 46,
+          "text": "return \"农历\" + value7 + value9;"
+        }
+      ]
+    },
+    {
+      "key": "arg6@33",
+      "name": "arg6",
+      "line": 33,
+      "column": 28,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value7 = value6.find((arg6) => arg6.type === \"month\")?.value,",
+      "references": [
+        {
+          "line": 33,
+          "text": "value7 = value6.find((arg6) => arg6.type === \"month\")?.value,"
+        }
+      ]
+    },
+    {
+      "key": "value8@34",
+      "name": "value8",
+      "line": 34,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = Number(value6.find((arg7) => arg7.type === \"day\")?.value);",
+      "references": [
+        {
+          "line": 35,
+          "text": "if (!value7 || !Number.isInteger(value8) || value8 < 1 || value8 > 30) return \"\";"
+        },
+        {
+          "line": 37,
+          "text": "value8 === 10"
+        },
+        {
+          "line": 39,
+          "text": ": value8 === 20"
+        },
+        {
+          "line": 41,
+          "text": ": value8 === 30"
+        },
+        {
+          "line": 44,
+          "text": "(value8 < 10 ? \"初\" : value8 < 20 ? \"十\" : \"廿\") +"
+        },
+        {
+          "line": 45,
+          "text": "\"一二三四五六七八九\"[(value8 % 10) - 1];"
+        }
+      ]
+    },
+    {
+      "key": "arg7@34",
+      "name": "arg7",
+      "line": 34,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value8 = Number(value6.find((arg7) => arg7.type === \"day\")?.value);",
+      "references": [
+        {
+          "line": 34,
+          "text": "value8 = Number(value6.find((arg7) => arg7.type === \"day\")?.value);"
+        }
+      ]
+    },
+    {
+      "key": "value9@36",
+      "name": "value9",
+      "line": 36,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 =",
+      "references": [
+        {
+          "line": 46,
+          "text": "return \"农历\" + value7 + value9;"
+        }
+      ]
+    }
+  ]
+}

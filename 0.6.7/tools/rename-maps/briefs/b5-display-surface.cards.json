@@ -1,0 +1,88 @@
+{
+  "file": "frontend/static/display-surface.js",
+  "seed": "b5-display-surface",
+  "size": 30,
+  "candidates": 8,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/destructured-object",
+      "newName": "documentNode",
+      "declaration": "const { document: ???, navigator: value2 } = arg2,",
+      "references": [
+        "L17: (???.documentElement.style.setProperty(\"--display-surface-background\", value6),",
+        "L18: ???.querySelector('meta[name=\"theme-color\"]')?.setAttribute(\"content\", value6));"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "canvasBackground",
+      "declaration": "const ??? = arg1?.canvas?.background,",
+      "references": [
+        "L12: ????.type === \"color\" &&",
+        "L13: typeof ???.color == \"string\" &&",
+        "L14: arg2.CSS?.supports(\"color\", ???.color)"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "env",
+      "declaration": "export function syncAppleDisplaySurface(arg1, ??? = window) {",
+      "references": [
+        "L2: const { document: value1, navigator: value2 } = ???,",
+        "L8: ???.matchMedia?.(\"(display-mode: standalone)\").matches === true;",
+        "L14: ???.CSS?.supports(\"color\", value5.color)"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/destructured-object",
+      "newName": "nav",
+      "declaration": "const { document: value1, navigator: ??? } = arg2,",
+      "references": [
+        "L4: /iPad|iPhone|iPod/i.test(???.userAgent || \"\") ||",
+        "L5: (/Macintosh/i.test(???.userAgent || \"\") && Number(???.maxTouchPoints || 0) > 1),",
+        "L7: ???.standalone === true ||"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/other",
+      "newName": "isIosDevice",
+      "declaration": "??? =",
+      "references": [
+        "L9: if (!??? || !value4) return;"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "surfaceColor",
+      "declaration": "??? =",
+      "references": [
+        "L17: (value1.documentElement.style.setProperty(\"--display-surface-background\", ???),",
+        "L18: value1.querySelector('meta[name=\"theme-color\"]')?.setAttribute(\"content\", ???));"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "isStandalone",
+      "declaration": "??? =",
+      "references": [
+        "L9: if (!value3 || !???) return;"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "boardConfig",
+      "declaration": "export function syncAppleDisplaySurface(???, arg2 = window) {",
+      "references": [
+        "L10: const value5 = ????.canvas?.background,"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+{
+  "file": "frontend/modules/interaction3d/device-panel.js",
+  "seed": "b7-device-panel",
+  "size": 30,
+  "candidates": 16,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "onLayout",
+      "declaration": "export function createDevicePanel({ onControl: arg1, onLayout: ??? = () => {} }) {",
+      "references": [
+        "L28: onLayout: ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "status",
+      "declaration": "const ??? = deviceStatus(arg4.item, arg4.states);",
+      "references": [
+        "L46: ((value3.hidden = !???.visible),",
+        "L53: }[???.status] || \"\"),",
+        "L54: (value3.style.color = ???.color"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "incomingState",
+      "declaration": "update(???) {",
+      "references": [
+        "L39: ???.item.label ||",
+        "L40: ???.item.deviceName ||",
+        "L41: ???.item.deviceLabel ||"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/arrow",
+      "newName": "controlEvent",
+      "declaration": "onControl: (???) =>",
+      "references": [
+        "L31: ...???,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "bodyElement",
+      "declaration": "const ??? = document.createElement(\"div\");",
+      "references": [
+        "L23: ((???.className = \"i3d-popup-body\"),",
+        "L24: ???.append(value4, value5),",
+        "L25: value1.append(value7, ???));"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "hintElement",
+      "declaration": "??? = document.createElement(\"p\"),",
+      "references": [
+        "L14: (???.textContent = \"请在设备配置中选择弹窗内容。\"));",
+        "L24: value9.append(value4, ???),",
+        "L58: (???.hidden = !!arg4.item.extraControls?.length),"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/arrow",
+      "newName": "onControl",
+      "declaration": "export function createDevicePanel({ onControl: ???, onLayout: arg2 = () => {} }) {",
+      "references": [
+        "L30: ???({"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/module-binding",
+      "newName": "carStatus",
+      "declaration": "const ??? = carState(arg4.item, arg4.states);",
+      "references": [
+        "L63: (value3.textContent = \"电量 \" + ???.batteryText + \" · \" + ???.status),"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "statusElement",
+      "declaration": "??? = document.createElement(\"p\"),",
+      "references": [
+        "L20: value8.append(value2, ???),",
+        "L46: ((???.hidden = !value11.visible),",
+        "L47: (???.textContent ="
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/module-binding",
+      "newName": "titleElement",
+      "declaration": "const ??? = document.createElement(\"h3\"),",
+      "references": [
+        "L20: value8.append(???, value3),",
+        "L38: ???.textContent ="
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "extraGridElement",
+      "declaration": "??? = document.createElement(\"div\"),",
+      "references": [
+        "L13: ((???.className = \"i3d-climate-groups i3d-extra-grid\"),",
+        "L24: value9.append(???, value5),",
+        "L27: element: ???,"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/module-binding",
+      "newName": "headingTextElement",
+      "declaration": "const ??? = document.createElement(\"div\");",
+      "references": [
+        "L18: ((???.className = \"i3d-climate-heading-text\"),",
+        "L20: ???.append(value2, value3),",
+        "L21: value7.append(???, value6));"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "badgeElement",
+      "declaration": "??? = document.createElement(\"p\");",
+      "references": [
+        "L19: (???.hidden = true),",
+        "L21: value7.append(value8, ???));",
+        "L57: (???.textContent = \"\"),"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/module-binding",
+      "newName": "rootElement",
+      "declaration": "const ??? = document.createElement(\"div\");",
+      "references": [
+        "L7: ((???.className = \"i3d-climate-panel i3d-nas-panel i3d-device-panel\"), (???.hidden = true));",
+        "L25: ???.append(value7, value9));",
+        "L36: root: ???,"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/module-binding",
+      "newName": "purifierExtras",
+      "declaration": "const ??? = createPurifierExtras({",
+      "references": [
+        "L65: ???.update({",
+        "L72: } else ???.update(arg4);",
+        "L75: (???.dispose(), value1.remove());"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/module-binding",
+      "newName": "headingElement",
+      "declaration": "const ??? = document.createElement(\"div\");",
+      "references": [
+        "L16: ???.className = \"i3d-climate-heading i3d-nas-heading\";",
+        "L21: ???.append(value8, value6));",
+        "L25: value1.append(???, value9));"
+      ]
+    }
+  ]
+}

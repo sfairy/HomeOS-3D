@@ -1,0 +1,70 @@
+{
+  "file": "frontend/static/modules/interaction3d/region-lighting-presets.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 37,
+  "counts": {
+    "entries": 3,
+    "renameable": 3,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "t@1",
+      "name": "t",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const t = {",
+      "references": [
+        {
+          "line": 17,
+          "text": "...t,"
+        },
+        {
+          "line": 22,
+          "text": "...t,"
+        }
+      ]
+    },
+    {
+      "key": "arg1@27",
+      "name": "arg1",
+      "line": 27,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function withRegionLightingPreset(arg1) {",
+      "references": [
+        {
+          "line": 28,
+          "text": "if (arg1.lightingMode !== \"region\") return arg1;"
+        },
+        {
+          "line": 29,
+          "text": "const value1 = arg1.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\";"
+        },
+        {
+          "line": 31,
+          "text": "...arg1,"
+        }
+      ]
+    },
+    {
+      "key": "value1@29",
+      "name": "value1",
+      "line": 29,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = arg1.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\";",
+      "references": [
+        {
+          "line": 33,
+          "text": "...REGION_LIGHTING_PRESETS[value1],"
+        }
+      ]
+    }
+  ]
+}

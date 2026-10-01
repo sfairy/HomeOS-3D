@@ -1,0 +1,18 @@
+{
+  "frontend/static/renderer/runtime-dialog-motion.js": {
+    "arg1@2": "userAgent",
+    "value1@4": "agentText",
+    "arg2@11": "rootElement",
+    "arg3@11": "containerElement",
+    "value2@13": "animatedRoots",
+    "value4@16": "animatedRoot",
+    "value5@17": "animation",
+    "value3@19": "firstChildElement",
+    "list1@20": "entranceAnimations",
+    "value6@22": "entranceAnimation",
+    "arg4@51": "speakerElement",
+    "arg5@85": "deviceElement",
+    "arg6@85": "distance",
+    "arg7@85": "delay"
+  }
+}

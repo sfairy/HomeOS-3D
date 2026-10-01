@@ -1,0 +1,166 @@
+{
+  "file": "frontend/static/3d-studio/studio-television-poster.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 117,
+  "counts": {
+    "entries": 7,
+    "renameable": 7,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@1",
+      "name": "arg1",
+      "line": 1,
+      "column": 37,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function drawTelevisionPoster(arg1, arg2) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "arg2.scale(arg1.width / 960, arg1.height / 540),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@1",
+      "name": "arg2",
+      "line": 1,
+      "column": 43,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function drawTelevisionPoster(arg1, arg2) {",
+      "references": [
+        {
+          "line": 2,
+          "text": "(arg2.save(),"
+        },
+        {
+          "line": 3,
+          "text": "arg2.scale(arg1.width / 960, arg1.height / 540),"
+        },
+        {
+          "line": 4,
+          "text": "(arg2.fillStyle = \"#07111d\"),"
+        },
+        {
+          "line": 5,
+          "text": "arg2.fillRect(0, 0, 960, 540),"
+        },
+        {
+          "line": 6,
+          "text": "(arg2.fillStyle = \"#0f2031\"),"
+        },
+        {
+          "line": 7,
+          "text": "arg2.fillRect(0, 0, 510, 540),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@36",
+      "name": "arg3",
+      "line": 36,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].forEach((arg3, arg4) => {",
+      "references": [
+        {
+          "line": 42,
+          "text": "(arg2.fillStyle = arg3.color),"
+        },
+        {
+          "line": 46,
+          "text": "arg2.fillText(arg3.label, value1 + 32, 432));"
+        }
+      ]
+    },
+    {
+      "key": "arg4@36",
+      "name": "arg4",
+      "line": 36,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].forEach((arg3, arg4) => {",
+      "references": [
+        {
+          "line": 37,
+          "text": "const value1 = 54 + arg4 * 142;"
+        }
+      ]
+    },
+    {
+      "key": "value1@37",
+      "name": "value1",
+      "line": 37,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = 54 + arg4 * 142;",
+      "references": [
+        {
+          "line": 40,
+          "text": "arg2.roundRect(value1, 398, 126, 54, 8),"
+        },
+        {
+          "line": 43,
+          "text": "arg2.fillRect(value1 + 14, 414, 8, 22),"
+        },
+        {
+          "line": 46,
+          "text": "arg2.fillText(arg3.label, value1 + 32, 432));"
+        }
+      ]
+    },
+    {
+      "key": "list1@72",
+      "name": "list1",
+      "line": 72,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const list1 = [",
+      "references": [
+        {
+          "line": 102,
+          "text": "for (const value2 of list1)"
+        }
+      ]
+    },
+    {
+      "key": "value2@102",
+      "name": "value2",
+      "line": 102,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const value2 of list1)",
+      "references": [
+        {
+          "line": 105,
+          "text": "arg2.roundRect(value2.x, value2.y, 176, 108, 10),"
+        },
+        {
+          "line": 107,
+          "text": "(arg2.fillStyle = value2.color),"
+        },
+        {
+          "line": 108,
+          "text": "arg2.fillRect(value2.x + 18, value2.y + 18, 30, 5),"
+        },
+        {
+          "line": 111,
+          "text": "arg2.fillText(value2.value, value2.x + 18, value2.y + 66),"
+        },
+        {
+          "line": 114,
+          "text": "arg2.fillText(value2.label, value2.x + 18, value2.y + 89));"
+        }
+      ]
+    }
+  ]
+}

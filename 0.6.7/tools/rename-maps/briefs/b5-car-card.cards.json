@@ -1,0 +1,98 @@
+{
+  "file": "frontend/modules/interaction3d/car-card.js",
+  "seed": "b5-car-card",
+  "size": 30,
+  "candidates": 9,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/dom-query",
+      "newName": "cardElement",
+      "declaration": "let ??? = arg1.querySelector(\".i3d-car-card\");",
+      "references": [
+        "L4: if (!???) {",
+        "L6: (???.className = \"i3d-car-card i3d-temperature-humidity-card\"));",
+        "L14: ((value6.className = \"i3d-car-\" + value5), ???.append(value6));"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "state",
+      "declaration": "const ??? = carState(arg2, arg3),",
+      "references": [
+        "L23: (value1.querySelector(\".i3d-car-reading\").textContent = ???.batteryText),",
+        "L24: (value1.querySelector(\".i3d-car-status\").textContent = ???.status),",
+        "L25: (value1.querySelector(\".i3d-car-track i\").style.width = (???.battery ?? 0) + \"%\"),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "tagName",
+      "declaration": "for (const [???, value5] of [",
+      "references": [
+        "L13: const value6 = document.createElement(???);"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/module-binding",
+      "newName": "partElement",
+      "declaration": "const ??? = document.createElement(value4);",
+      "references": [
+        "L14: ((???.className = \"i3d-car-\" + value5), value1.append(???));"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/other",
+      "newName": "carConfig",
+      "declaration": "export function updateCarCard(arg1, ???, arg3) {",
+      "references": [
+        "L19: const value2 = carState(???, arg3),",
+        "L20: value3 = Math.min(600, Math.max(100, ???.cardWidth ?? 180));",
+        "L22: (value1.querySelector(\".i3d-car-name\").textContent = ???.label || ???.deviceName || \"汽车\"),"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "cardWidth",
+      "declaration": "??? = Math.min(600, Math.max(100, arg2.cardWidth ?? 180));",
+      "references": [
+        "L32: (value1.style.width = ??? + \"px\"),",
+        "L34: (arg1.style.width = ??? + \"px\"),"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "carOptions",
+      "declaration": "export function updateCarCard(arg1, arg2, ???) {",
+      "references": [
+        "L19: const value2 = carState(arg2, ???),"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "containerElement",
+      "declaration": "export function updateCarCard(???, arg2, arg3) {",
+      "references": [
+        "L3: let value1 = ???.querySelector(\".i3d-car-card\");",
+        "L17: ???.replaceChildren(value1));",
+        "L34: (???.style.width = value3 + \"px\"),"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "partName",
+      "declaration": "for (const [value4, ???] of [",
+      "references": [
+        "L14: ((value6.className = \"i3d-car-\" + ???), value1.append(value6));"
+      ]
+    }
+  ]
+}

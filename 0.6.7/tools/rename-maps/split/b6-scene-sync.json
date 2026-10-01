@@ -1,0 +1,16 @@
+{
+  "frontend/modules/interaction3d/scene-sync.js": {
+    "arg1@2": "isEligible",
+    "arg2@3": "readScene",
+    "arg3@4": "applyScene",
+    "arg4@5": "intervalMs",
+    "arg5@6": "schedule",
+    "arg6@7": "cancel",
+    "value1@9": "isStopped",
+    "value2@10": "timerHandle",
+    "value3@11": "abortController",
+    "value4@12": "failureCount",
+    "fn1@13": "poll",
+    "value5@18": "scene"
+  }
+}

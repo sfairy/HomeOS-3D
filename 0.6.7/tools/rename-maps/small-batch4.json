@@ -1,0 +1,86 @@
+{
+  "frontend/static/global-log-boot.js": {
+    "i@2": "apiFetch",
+    "arg1@2": "path",
+    "arg2@2": "options",
+    "value1@3": "response",
+    "value2@13": "responseText",
+    "value3@14": "payload",
+    "value4@24": "detail"
+  },
+  "frontend/static/virtual-entities.js": {
+    "arg1@10": "entityId",
+    "value1@11": "text",
+    "value2@13": "separatorIndex",
+    "value3@15": "kind",
+    "value4@16": "scope",
+    "arg2@24": "candidateId",
+    "arg3@27": "pagePath"
+  },
+  "frontend/static/display-surface.js": {
+    "arg1@1": "boardConfig",
+    "arg2@1": "env",
+    "value1@2": "documentNode",
+    "value2@2": "nav",
+    "value3@3": "isIosDevice",
+    "value4@6": "isStandalone",
+    "value5@10": "canvasBackground",
+    "value6@11": "surfaceColor"
+  },
+  "frontend/static/modules/interaction3d/page-behavior.js": {
+    "arg1@1": "behavior",
+    "arg2@1": "pageKind",
+    "value1@2": "normalizedPage",
+    "value2@11": "scopeBehaviors",
+    "fn1@12": "mergeBehavior",
+    "arg3@12": "name",
+    "arg4@12": "defaults",
+    "value3@13": "scopedBehavior"
+  },
+  "frontend/modules/interaction3d/car-card.js": {
+    "arg1@2": "containerElement",
+    "arg2@2": "carConfig",
+    "arg3@2": "carOptions",
+    "value1@3": "cardElement",
+    "value4@7": "tagName",
+    "value5@7": "partName",
+    "value6@13": "partElement",
+    "value2@19": "state",
+    "value3@20": "cardWidth"
+  },
+  "frontend/modules/interaction3d/device-profiles.js": {
+    "arg1@50": "listedKind",
+    "arg2@52": "candidateKind",
+    "arg3@53": "requestedKind",
+    "arg4@55": "placements",
+    "arg5@57": "deviceKind",
+    "value1@58": "deviceProfile",
+    "arg6@62": "placement",
+    "arg7@63": "entry",
+    "arg8@63": "entryIndex"
+  },
+  "frontend/static/3d-studio/studio-reflection-detail-worker.js": {
+    "arg1@3": "sourceIndices",
+    "arg2@4": "sourcePositions",
+    "arg3@5": "sourceAttributes",
+    "arg4@6": "vertexStride",
+    "arg5@7": "vertexWeights",
+    "arg6@8": "errorTolerance",
+    "arg7@9": "targetRatio",
+    "arg8@29": "message",
+    "value1@31": "simplifiedIndices"
+  },
+  "frontend/static/3d-studio/stage-startup.js": {
+    "arg1@6": "env",
+    "arg2@7": "loadModule",
+    "arg3@9": "createCache",
+    "uRLSearchParams1@16": "searchParams",
+    "value1@17": "sceneId",
+    "value2@18": "projectId",
+    "value3@19": "scenePath",
+    "value4@24": "cache",
+    "value5@27": "preparationKey",
+    "value6@34": "preparationResponse",
+    "value7@39": "stageModule"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "frontend/static/display-surface.js": {
+    "arg1@1": "boardConfig",
+    "arg2@1": "env",
+    "value1@2": "documentNode",
+    "value2@2": "nav",
+    "value3@3": "isIosDevice",
+    "value4@6": "isStandalone",
+    "value5@10": "canvasBackground",
+    "value6@11": "surfaceColor"
+  }
+}

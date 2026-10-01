@@ -1,0 +1,78 @@
+{
+  "file": "frontend/modules/interaction3d/bath-heater-editor.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 80,
+  "counts": {
+    "entries": 3,
+    "renameable": 3,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "filter2@27",
+      "name": "filter2",
+      "line": 27,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "filter2 = list.filter(isEffectControl),",
+      "references": [
+        {
+          "line": 29,
+          "text": "filter2.length === 1 &&"
+        },
+        {
+          "line": 30,
+          "text": "!filter2[0].attribute &&"
+        },
+        {
+          "line": 31,
+          "text": "filter2[0].value === \"on\" &&"
+        },
+        {
+          "line": 32,
+          "text": "filter.some((entity) => entity.entityId === filter2[0].entityId),"
+        },
+        {
+          "line": 40,
+          "text": "filter2.length && !some && options.push([\"legacy\", \"保留原有运行绑定\"]);"
+        },
+        {
+          "line": 45,
+          "text": "filter2.length ? (some ? filter2[0].entityId : \"legacy\") : \"\","
+        }
+      ]
+    },
+    {
+      "key": "v10@73",
+      "name": "v10",
+      "line": 73,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "v10 = () => {",
+      "references": [
+        {
+          "line": 78,
+          "text": "return (hostElement.append(statusNoteElement), v10(), v10);"
+        }
+      ]
+    },
+    {
+      "key": "v11@74",
+      "name": "v11",
+      "line": 74,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const v11 = bathHeaterState2(item, readStates());",
+      "references": [
+        {
+          "line": 76,
+          "text": "\"出风状态：\" + (v11.available ? (v11.running ? \"出风中\" : \"已停止\") : \"状态未知\");"
+        }
+      ]
+    }
+  ]
+}

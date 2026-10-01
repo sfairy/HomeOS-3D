@@ -1,0 +1,165 @@
+{
+  "file": "frontend/modules/interaction3d/speaker-state.js",
+  "seed": "b7-speaker-state",
+  "size": 30,
+  "candidates": 16,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "supports",
+      "declaration": "??? = (arg4) => !!(value5 & SPEAKER_FEATURES[arg4]),",
+      "references": [
+        "L42: supports: ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "state",
+      "declaration": "const ??? = speakerState(arg5, arg6);",
+      "references": [
+        "L53: ???.available &&",
+        "L54: ???.supports(arg7) &&",
+        "L55: (???.on || [\"turn_on\", \"browse_media\"].includes(arg7)),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "service",
+      "declaration": "export function speakerCommand(arg5, arg6, ???, arg8 = {}) {",
+      "references": [
+        "L54: value7.supports(???) &&",
+        "L55: (value7.on || [\"turn_on\", \"browse_media\"].includes(???)),",
+        "L60: service: ???,"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/arrow",
+      "newName": "feature",
+      "declaration": "fn1 = (???) => !!(value5 & SPEAKER_FEATURES[???]),",
+      "references": [
+        "L36: fn1 = (???) => !!(value5 & SPEAKER_FEATURES[???]),"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "rawState",
+      "declaration": "const ??? = arg2 instanceof Map ? arg2.get(arg1.entityId) : arg2[arg1.entityId],",
+      "references": [
+        "L24: value2 = ????.newState || ??? || {},"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "sourceStates",
+      "declaration": "export function speakerState(arg1, ??? = {}, arg3 = Date.now()) {",
+      "references": [
+        "L23: const value1 = ??? instanceof Map ? ???.get(arg1.entityId) : ???[arg1.entityId],",
+        "L32: ???,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "serviceData",
+      "declaration": "export function speakerCommand(arg5, arg6, arg7, ??? = {}) {",
+      "references": [
+        "L61: data: ???,"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "commandEntity",
+      "declaration": "export function speakerCommand(???, arg6, arg7, arg8 = {}) {",
+      "references": [
+        "L50: const value7 = speakerState(???, arg6);",
+        "L59: entityId: ???.entityId,"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "nowMs",
+      "declaration": "export function speakerState(arg1, arg2 = {}, ??? = Date.now()) {",
+      "references": [
+        "L33: ???,"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/other",
+      "newName": "commandStates",
+      "declaration": "export function speakerCommand(arg5, ???, arg7, arg8 = {}) {",
+      "references": [
+        "L50: const value7 = speakerState(arg5, ???);"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/other",
+      "newName": "entity",
+      "declaration": "export function speakerState(???, arg2 = {}, arg3 = Date.now()) {",
+      "references": [
+        "L23: const value1 = arg2 instanceof Map ? arg2.get(???.entityId) : arg2[???.entityId],",
+        "L28: ...???,",
+        "L29: label: ???.label || value3.friendly_name || \"智能音响\","
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/other",
+      "newName": "supportedFeatures",
+      "declaration": "??? = Number(value3.supported_features) || 0,",
+      "references": [
+        "L36: fn1 = (arg4) => !!(??? & SPEAKER_FEATURES[arg4]),"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/other",
+      "newName": "attributes",
+      "declaration": "??? = value2.attributes || {},",
+      "references": [
+        "L29: label: arg1.label || ???.friendly_name || \"智能音响\",",
+        "L35: value5 = Number(???.supported_features) || 0,",
+        "L41: attributes: ???,"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "isAvailable",
+      "declaration": "??? = value4.available && arg1.modelAvailable !== false;",
+      "references": [
+        "L40: available: ???,",
+        "L45: ??? && value4.playing ? \"playing\" : ??? && value4.state === \"paused\" ? \"paused\" : \"off\","
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/other",
+      "newName": "entityState",
+      "declaration": "??? = value1?.newState || value1 || {},",
+      "references": [
+        "L25: value3 = ???.attributes || {},"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/other",
+      "newName": "tvState",
+      "declaration": "??? = televisionState(",
+      "references": [
+        "L37: value6 = ???.available && arg1.modelAvailable !== false;",
+        "L39: ...???,",
+        "L45: value6 && ???.playing ? \"playing\" : value6 && ???.state === \"paused\" ? \"paused\" : \"off\","
+      ]
+    }
+  ]
+}

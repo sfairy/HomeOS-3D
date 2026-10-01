@@ -1,0 +1,125 @@
+{
+  "batchId": "b8-registry-c1",
+  "wave": 2,
+  "recordedAt": "2026-09-30T08:55:49+08:00",
+  "file": "frontend/static/renderer/registry.js",
+  "declStart": 19,
+  "declEnd": 814,
+  "map": "tools/rename-maps/registry-c1.json",
+  "mapSha256": "8be6b86819b52547154831b8f14148c8469192de1b9e34b75c03c11f9a98bf4d",
+  "brief": "tools/rename-maps/briefs/registry-c1.json",
+  "briefSha256": "998631699e8a600d5b7503f9668ec4fad339ae4dff850a6aa88d95c42a078550",
+  "fileSha256Before": "86487a6b4e3e2e0973ddd2733cb7db6f778e2f680d7b3f9d9d8281fc486dab79",
+  "fileSha256After": "17d8ff28ab25bc6f454b496ab7401137acdf5db6832d4b550ede79887ed42fbb",
+  "linesBefore": 3822,
+  "linesAfter": 4128,
+  "bindings": 300,
+  "byKind": {
+    "mechanical": 271,
+    "short": 29
+  },
+  "residue": {
+    "file": {
+      "before": {
+        "mechanical": 963,
+        "short": 42,
+        "frozen": 48
+      },
+      "after": {
+        "mechanical": 692,
+        "short": 13,
+        "frozen": 48
+      }
+    },
+    "tree": {
+      "mechanical": {
+        "before": 26148,
+        "after": 25877
+      },
+      "short": {
+        "before": 3586,
+        "after": 3557
+      }
+    },
+    "note": "Chunk 1 of frontend/static/renderer/registry.js: the file carried 1005 mechanical/short residues and this batch cleared 300 of them (decl 19-814, the module header plus the cover/climate/airflow/history helpers). Three chunks remain (decl 815-2103 with 300, decl 2104-3293 with 302, decl 3298-3795 with 103); the file must stay in tools/frontend-name-budget.json's files list until the last of them lands."
+  },
+  "author": "claude (DSH session)",
+  "reviewer": "claude (same session - see review.note)",
+  "review": {
+    "method": "blind-cards",
+    "tool": "tools/review_sample.mjs",
+    "seed": "b8-registry-c1",
+    "n": 30,
+    "sampleRate": "30/300 = 10.0%",
+    "round1": {
+      "wrong": 0,
+      "unclear": 0
+    },
+    "wrong": 0,
+    "unclear": 0,
+    "verdict": "pass",
+    "findings": [],
+    "note": "30 drawings (strata arrow / function-or-class / function-parameter / module-binding / other over the mechanical and short buckets); the readings were written to /tmp/hb-b8-verdicts.tsv before /tmp/hb-b8-key.json was opened and all 30 matched the name the batch chose. The batch author drew and reviewed the sample, so this shows the names agree with the evidence; it is not independent review."
+  },
+  "toolingCorrections": [
+    "tools/check_glossary.mjs rejected 17 names on the first pass, every one a banned disambiguator: 15 module-private *Context parameters (tools/rename-glossary.json bannedDisambiguators includes context) plus arg81@723 -> bedPathData (data). What the second/third argument of these presentation helpers really carries is the studio render environment (editable / previewState / states Map / entityMetadata), so they became renderEnvironment / coverRenderEnvironment / coverActiveRenderEnvironment / activeRenderEnvironment / awaitingRenderEnvironment / authoredRenderEnvironment / effectLightRenderEnvironment / toggleRenderEnvironment / climateRenderEnvironment / climatePowerRenderEnvironment / airflowRenderEnvironment / labelRenderEnvironment / airflowLayerRenderEnvironment / formattingEnvironment, and the two arguments that are really entity state or path geometry became vacuumMapState / bedPathOutline / historySource.",
+    "tools/check_name_kinds.mjs then rejected 2 shapes: ue@19 -> componentRegistry is a new Map() so the name must say Map or By<Key> (it became rendererByComponentType, which is also more accurate: type -> {render}) and value22@97 -> unknownComponentTypeText holds a createElement(\"span\") node (it became unknownComponentTypeElement).",
+    "Reusing the previous batch's map builder (/tmp/hb-build-geo1.mjs, copied to /tmp/hb-build-reg1.mjs) looked wrong: String.prototype.replace swaps only the FIRST occurrence of a plain-string needle, so the builder still printed 'WROTE tools/rename-maps/geometry-c1.json' while it was in fact writing registry-c1.json. Verified afterwards that tools/rename-maps/geometry-c1.json was untouched (sha256 still 21d18a45651ef8c0c6dfcf9e1cc0dbfa03855491bc1818d7ee4ace1fc517ae9f, mtime unchanged) and that registry-c1.json holds the registry.js key. Lesson: after adapting a builder, always re-check the shas of both the new map and the map the previous batch already spent."
+  ],
+  "glossaryVersion": 2,
+  "glossary": {
+    "entries": 300,
+    "sanctioned": 1,
+    "covered": 1,
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 303,
+    "printedWarnLines": 303,
+    "neologisms": "tools/rename-maps/b8-registry-c1.neologisms.txt"
+  },
+  "oracles": {
+    "coverage": "# declared bindings 814 / residue in range 300 / map entries 300 / resolved 300 / unresolved 0 / out of range 0 / MISSED 0 - COVERAGE OK",
+    "anchors": "resolved=269 unresolved=31 anchored=0 satisfied=0 unsatisfied=0 unanchored-selectors=0 - PASS (registry.js builds DOM by createElement, not by selector, so anchored=0 is honest)",
+    "kinds": "resolved=300 unresolved=0 shape-undecided=279 errors=0 - PASS"
+  },
+  "variants": {
+    "ownerLimited": [
+      "entityId -> dreamEntityId (arg28@174) / coverStateEntityId (arg32@195) / coverActiveEntityId (arg36@220) / awaitingEntityId (value50@235) / effectLightEntityId (value81@452) / toggleEntityId (value94@495) / climateEntityId (value95@499) / climatePowerEntityId (value98@513) / airflowEntityId (value100@518) / labelEntityId (value103@528) / formattedEntityId (arg53@370) / authoredEntityId (value77@436) / historyEntityId (arg88@755) / runtimeEntityId (value47@226) - the file binds the same concept once per presentation helper and the names must stay unique per file, so each one carries its helper's canonical owner",
+      "assetId -> assetId (value2@34) / assetIdAlias (value5@38) / assetVersionEntry (value1@33) / assetVersionEntries (arg1@29) / legacyAssetIds (value4@37) / builtinAssetPath (value24@117) / builtinAssetVersion (value26@128) / userAssetId (value28@113) / assetKey (arg12@100) / normalizedAssetKey (value23@101) / assetSourceRef (arg14@131) / committedVersion (arg3@72) / committedUrl (arg5@74) / committedVariant (arg7@76) / versionByAssetId (J@26) / urlByAssetId (K@27) / effectVariantByAssetId (Q@28) / stagedVersionByAssetId (map1@30) / stagedUrlByAssetId (map2@31) / stagedVariantByAssetId (map3@32)",
+      "state -> statePayload (arg25@164) / stateText (value36@165) / dreamStatePayload (arg29@174) / dreamEntityState (value38@178) / coverStatePayload (arg33@195) / coverEntityState (value42@196) / coverStateText (value43@197) / coverActiveStatePayload (arg37@220) / awaitingEntityState (value51@242) / awaitingStateText (value52@243) / vacuumEntityState (value58@270) / iconStatePayload (arg51@347) / formattedStatePayload (arg52@370) / formattedEntityState (value62@371) / formattedStateText (value63@373) / translatedStateText (value71@387) / localizedStateLabel (value72@392) / numericStateValue (value74@424) / formattedStateValue (value75@427) / stateUnit (value76@430) / climateEntityState (value96@500) / climatePowerState (value99@514) / airflowEntityState (value101@519) / labelEntityState (value104@529) / inlineStatePayload (arg41@223)",
+      "context -> banned by tools/rename-glossary.json, so the studio render environment is spelled by role: renderEnvironment (arg11@90) / coverRenderEnvironment (arg34@195) / coverActiveRenderEnvironment (arg38@220) / activeRenderEnvironment (arg42@223) / awaitingRenderEnvironment (arg45@233) / authoredRenderEnvironment (arg56@433) / effectLightRenderEnvironment (arg60@451) / toggleRenderEnvironment (arg62@492) / climateRenderEnvironment (arg64@498) / climatePowerRenderEnvironment (arg66@510) / airflowRenderEnvironment (arg68@517) / labelRenderEnvironment (arg70@527) / airflowLayerRenderEnvironment (arg83@735)",
+      "component -> component (arg26@171) / dreamComponent (arg27@174) / coverComponent (arg31@195) / coverActiveComponent (arg35@220) / activeComponent (arg39@223) / awaitingComponent (arg44@233) / effectLightComponent (arg59@451) / toggleComponent (arg61@492) / climateComponent (arg63@498) / climatePowerComponent (arg65@510) / airflowComponent (arg67@517) / labelComponent (arg69@527) / authoredComponent (arg55@433) / airflowLayerComponent (arg82@735)",
+      "path -> bedPathCount (value127@569) / bedPathOffsets (value129@571) / bedPathStrings (value134@585) / bedPathString (arg77@611) / bedPathIndex (arg78@611) / bedPathOutline (arg81@723) / pathOffset (arg76@585) / pathOffsetIndex (arg75@575) / pathRatio (value138@576) / pathSlotElement (arg74@575) / pathSegment (arg13@125) / minPathOffset (value130@581) / maxPathOffset (value131@582) / pathEndOffset (value140@586) / pathQuarterOffset (value141@587) / tipOffset (value132@583) / tipDriftAmount (value133@584) / lateralJitter (value139@577)",
+      "offset/stream -> streamBaseOffset (value122@560) / streamFarOffset (value123@561) / streamMidOffset (value124@562) / streamNearOffset (value125@563) / streamSwayAmplitude (value126@564) / wispSeed (value142@617) / wispWidth (value143@618) / wispHeight (value144@622) / wispVelocity (value145@623) / wispPhase (value146@624) / wispOpacity (value147@630) / wispRectMarkup (value148@631) / wispRectMarkupList (value135@611) / wispStrandCount (value128@570)"
+    ]
+  },
+  "newConcepts": [
+    "builtin asset version reconciliation (setBuiltinAssetVersions): versionByAssetId / urlByAssetId / effectVariantByAssetId versus stagedVersionByAssetId / stagedUrlByAssetId / stagedVariantByAssetId, compared member-wise before an atomic clear+set, plus the crop rectangle originalWidth / originalHeight / cropX / cropY / cropWidth / cropHeight and effectVariant / assetIdAlias",
+    "component registry (registerComponent / renderRegisteredComponent): rendererByComponentType (type -> {render}), componentType / componentDefinition / componentProps / registeredRenderer and the unknown-control fallback unknownComponentBox / unknownComponentTitle / unknownComponentTypeElement",
+    "asset source resolution (resolveAssetSource, exported as staticAssetImageSource): studio3dPartSegments / userAssetId / builtinAssetPath / normalizedBuiltinPath / builtinAssetVersion / pathSegment, and the ?v= version suffix (string bytes deliberately untouched)",
+    "DOM and text helpers: clampNumber / normalizeCssColor / applyTextOutline (fontWeight / webkitTextStroke / paintOrder) / resolveMdiIconUrl (mdi:name -> /bridge-static/vendor/mdi/7.4.47/svg/name.svg) / isActiveStateText / COVER_POSITION_THRESHOLD / isCoverMotorReversed / resolveStatePayload",
+    "HA entity presentation: resolveEntityIcon (attributes.icon, then the domain default) and formatEntityState (component.platform.entity.domain.translationKey.state.X / entity_component.device_class.state.X, the zh fallback table, the reversed-cover label table, and formatNumericValue with stateUnit)",
+    "cover state oracles: isCoverActiveState / isEntityComponentActive / isCoverComponentActive / isCoverAuthoredActive, all reading editable / previewState / states.get(entityId) through the shared render environment",
+    "climate and airflow: resolveClimateEffectMode / isClimatePoweredOn / resolveAirflowMotionKind / formatClimateStateLabel (mode + ' · targetTemperature°C'), and buildAirflowSvg (airflowAngleDegrees..airflowSpeedValue, pseudoRandom, the bed path strands value129..value134 and the wisp rects, rendered as an encoded data:image/svg+xml by renderAirConditionerAirflowLayer)",
+    "light effect visuals: iconButtonEffectLightVisualState / ...Awaiting, resolveColorTemperature (color_temp_kelvin first, else 1e6/color_temp), brightnessToOpacity, warmGlowWeight / coolGlowWeight / saturationFactor / effectOpacity / effectKelvinValue / rawBrightness / brightnessPercentValue / isBrightnessRealtimeEnabled / isColorTemperatureRealtimeEnabled",
+    "history chart: buildHistorySeries (points -> HOUR_IN_MILLISECONDS window, dedupe against the previous point, samplePoint per hour slot, seriesPoints) / formatTimestamp (Intl.DateTimeFormat zh-CN, slashes to dashes) / createHoverLineChart"
+  ],
+  "gate": {
+    "batch": "24/0",
+    "tree": "23/0",
+    "smoke": "skip",
+    "delta": "# files=12375 changed=2 missing=0 added=3 declared=1 outside-declared=0",
+    "detail": "batch gate green: §7 files=230 with-residue=204 mechanical=25877 short=3557 semantic=7285 exported-frozen=941 parse-failures=0 (the ratchet file still held the pre-batch 26148/3586 during this run); §13 files=12375 changed=2 missing=0 added=3 declared=1 outside-declared=0; §14 batch=b8-registry-c1 snapshots=1 declared=1 missing=0 extra=0 empty=0 identical-to-working=0; §15 string fingerprint self-test 12/12 and strings-checked=1 strings-mismatched=0; §16 vocabulary self-test 16/16, selector oracle 8/8, shape oracle 17/17, and the three oracle lines errors=0 / unresolved=31 / shape-undecided=279. verify_all.sh then reported 23 passed / 0 failed with §19 SKIP (no server on this machine)."
+  },
+  "ratchet": {
+    "mechanical": {
+      "before": 26148,
+      "after": 25877
+    },
+    "short": {
+      "before": 3586,
+      "after": 3557
+    }
+  },
+  "rollback": ".restore/batch-snapshots/b8-registry-c1/frontend/static/renderer/registry.js (sha256 86487a6b4e3e2e0973ddd2733cb7db6f778e2f680d7b3f9d9d8281fc486dab79)"
+}

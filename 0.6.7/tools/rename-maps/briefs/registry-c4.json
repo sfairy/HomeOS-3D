@@ -1,0 +1,2150 @@
+{
+  "file": "frontend/static/renderer/registry.js",
+  "declStart": 4191,
+  "declEnd": 4704,
+  "totalLines": 4732,
+  "counts": {
+    "entries": 103,
+    "renameable": 103,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "value613@4191",
+      "name": "value613",
+      "line": 4191,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value613 = 0; value613 <= 4; value613 += 1) {",
+      "references": [
+        {
+          "line": 4191,
+          "text": "for (let value613 = 0; value613 <= 4; value613 += 1) {"
+        },
+        {
+          "line": 4192,
+          "text": "const value614 = value613 / 4,"
+        }
+      ]
+    },
+    {
+      "key": "value614@4192",
+      "name": "value614",
+      "line": 4192,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value614 = value613 / 4,",
+      "references": [
+        {
+          "line": 4193,
+          "text": "value615 = plotRect.top + value614 * plotRect.height,"
+        },
+        {
+          "line": 4194,
+          "text": "value616 = detailsGeometry.maximum - value614 * detailsGeometry.span;"
+        }
+      ]
+    },
+    {
+      "key": "value615@4193",
+      "name": "value615",
+      "line": 4193,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value615 = plotRect.top + value614 * plotRect.height,",
+      "references": [
+        {
+          "line": 4197,
+          "text": "\"y1\": value615,"
+        },
+        {
+          "line": 4199,
+          "text": "\"y2\": value615,"
+        },
+        {
+          "line": 4204,
+          "text": "\"y\": value615 + 4,"
+        }
+      ]
+    },
+    {
+      "key": "value616@4194",
+      "name": "value616",
+      "line": 4194,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value616 = detailsGeometry.maximum - value614 * detailsGeometry.span;",
+      "references": [
+        {
+          "line": 4209,
+          "text": "value616,"
+        }
+      ]
+    },
+    {
+      "key": "value617@4202",
+      "name": "value617",
+      "line": 4202,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value617 = createSvgElement(detailsSvgElement, \"text\", {",
+      "references": [
+        {
+          "line": 4208,
+          "text": "value617.textContent = formatLineChartValue("
+        }
+      ]
+    },
+    {
+      "key": "value606@4213",
+      "name": "value606",
+      "line": 4213,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value606 = Number(lineChartDetailsComponent.properties?.hours || 24) > 24;",
+      "references": [
+        {
+          "line": 4233,
+          "text": "value622.textContent = formatTimestamp(value621, value606);"
+        }
+      ]
+    },
+    {
+      "key": "value618@4214",
+      "name": "value618",
+      "line": 4214,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (let value618 = 0; value618 <= 5; value618 += 1) {",
+      "references": [
+        {
+          "line": 4214,
+          "text": "for (let value618 = 0; value618 <= 5; value618 += 1) {"
+        },
+        {
+          "line": 4215,
+          "text": "const value619 = value618 / 5,"
+        }
+      ]
+    },
+    {
+      "key": "value619@4215",
+      "name": "value619",
+      "line": 4215,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value619 = value618 / 5,",
+      "references": [
+        {
+          "line": 4216,
+          "text": "value620 = plotRect.left + value619 * plotRect.width,"
+        },
+        {
+          "line": 4219,
+          "text": "value619 * (detailsGeometry.lastTime - detailsGeometry.firstTime);"
+        }
+      ]
+    },
+    {
+      "key": "value620@4216",
+      "name": "value620",
+      "line": 4216,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value620 = plotRect.left + value619 * plotRect.width,",
+      "references": [
+        {
+          "line": 4221,
+          "text": "\"x1\": value620,"
+        },
+        {
+          "line": 4223,
+          "text": "\"x2\": value620,"
+        },
+        {
+          "line": 4228,
+          "text": "\"x\": value620,"
+        }
+      ]
+    },
+    {
+      "key": "value621@4217",
+      "name": "value621",
+      "line": 4217,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value621 =",
+      "references": [
+        {
+          "line": 4233,
+          "text": "value622.textContent = formatTimestamp(value621, value606);"
+        }
+      ]
+    },
+    {
+      "key": "value622@4227",
+      "name": "value622",
+      "line": 4227,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value622 = createSvgElement(detailsSvgElement, \"text\", {",
+      "references": [
+        {
+          "line": 4233,
+          "text": "value622.textContent = formatTimestamp(value621, value606);"
+        }
+      ]
+    },
+    {
+      "key": "value607@4249",
+      "name": "value607",
+      "line": 4249,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value607 = createSvgElement(detailsSvgElement, \"text\", {",
+      "references": [
+        {
+          "line": 4254,
+          "text": "value607.textContent = detailsUnit || \"数值\";"
+        }
+      ]
+    },
+    {
+      "key": "value608@4255",
+      "name": "value608",
+      "line": 4255,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value608 = smoothChartPath(detailsGeometry.points);",
+      "references": [
+        {
+          "line": 4258,
+          "text": "value608 +"
+        },
+        {
+          "line": 4273,
+          "text": "\"d\": value608,"
+        },
+        {
+          "line": 4290,
+          "text": "\"path\": value608,"
+        }
+      ]
+    },
+    {
+      "key": "value609@4281",
+      "name": "value609",
+      "line": 4281,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value609 = createSvgElement(detailsSvgElement, \"circle\", {",
+      "references": [
+        {
+          "line": 4289,
+          "text": "createSvgElement(value609, \"animateMotion\", {"
+        }
+      ]
+    },
+    {
+      "key": "arg208@4302",
+      "name": "arg208",
+      "line": 4302,
+      "column": 9,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg208) => ({",
+      "references": [
+        {
+          "line": 4303,
+          "text": "\"x\": (arg208.x / detailsViewWidth) * 100,"
+        },
+        {
+          "line": 4304,
+          "text": "\"y\": (arg208.y / detailsViewHeight) * 100,"
+        }
+      ]
+    },
+    {
+      "key": "arg209@4317",
+      "name": "arg209",
+      "line": 4317,
+      "column": 11,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "\"render\"(arg209, arg210) {",
+      "references": [
+        {
+          "line": 4318,
+          "text": "const value623 = arg209.properties || {},"
+        },
+        {
+          "line": 4319,
+          "text": "value624 = Math.max(20, Number(arg209.position?.width || 528)),"
+        },
+        {
+          "line": 4320,
+          "text": "value625 = Math.max(20, Number(arg209.position?.height || 300)),"
+        },
+        {
+          "line": 4336,
+          "text": "String(arg209.id || \"\").replace(/[^a-z0-9_-]/gi, \"\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg210@4317",
+      "name": "arg210",
+      "line": 4317,
+      "column": 19,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "\"render\"(arg209, arg210) {",
+      "references": [
+        {
+          "line": 4334,
+          "text": "(arg210.renderNamespace || \"renderer\") +"
+        }
+      ]
+    },
+    {
+      "key": "value623@4318",
+      "name": "value623",
+      "line": 4318,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value623 = arg209.properties || {},",
+      "references": [
+        {
+          "line": 4321,
+          "text": "value626 = clampNumber(value623.edgeWidth, 0, 20, 0.9),"
+        },
+        {
+          "line": 4325,
+          "text": "value630 = Math.min(value628, value629) * clampNumber(value623.radius, 0, 0.5, 0.195),"
+        },
+        {
+          "line": 4326,
+          "text": "value631 = clampNumber(value623.edgeOpacity, 0, 1, 1),"
+        },
+        {
+          "line": 4327,
+          "text": "value632 = clampNumber(value623.glowStrength, 0, 5, 0.5),"
+        },
+        {
+          "line": 4328,
+          "text": "value633 = clampNumber(value623.glowSize, 0, 3, 1.5),"
+        },
+        {
+          "line": 4331,
+          "text": "value636 = normalizeCssColor(value623.edgeColor, \"#d4d4d4\"),"
+        }
+      ]
+    },
+    {
+      "key": "value624@4319",
+      "name": "value624",
+      "line": 4319,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value624 = Math.max(20, Number(arg209.position?.width || 528)),",
+      "references": [
+        {
+          "line": 4323,
+          "text": "value628 = Math.max(1, value624 - value627 * 2),"
+        },
+        {
+          "line": 4340,
+          "text": "\"viewBox\": \"0 0 \" + value624 + \"\\x20\" + value625,"
+        },
+        {
+          "line": 4372,
+          "text": "\"x2\": value624,"
+        },
+        {
+          "line": 4378,
+          "text": "value624 / 2 +"
+        },
+        {
+          "line": 4400,
+          "text": "\"x2\": value624,"
+        },
+        {
+          "line": 4406,
+          "text": "value624 / 2 +"
+        }
+      ]
+    },
+    {
+      "key": "value625@4320",
+      "name": "value625",
+      "line": 4320,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value625 = Math.max(20, Number(arg209.position?.height || 300)),",
+      "references": [
+        {
+          "line": 4324,
+          "text": "value629 = Math.max(1, value625 - value627 * 2),"
+        },
+        {
+          "line": 4340,
+          "text": "\"viewBox\": \"0 0 \" + value624 + \"\\x20\" + value625,"
+        },
+        {
+          "line": 4371,
+          "text": "\"y1\": value625 / 2,"
+        },
+        {
+          "line": 4373,
+          "text": "\"y2\": value625 / 2,"
+        },
+        {
+          "line": 4380,
+          "text": "value625 / 2 +"
+        },
+        {
+          "line": 4399,
+          "text": "\"y1\": value625 / 2,"
+        }
+      ]
+    },
+    {
+      "key": "value626@4321",
+      "name": "value626",
+      "line": 4321,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value626 = clampNumber(value623.edgeWidth, 0, 20, 0.9),",
+      "references": [
+        {
+          "line": 4322,
+          "text": "value627 = Math.max(0.5, value626 / 2 + 0.5),"
+        },
+        {
+          "line": 4479,
+          "text": "\"stroke-width\": value626,"
+        }
+      ]
+    },
+    {
+      "key": "value627@4322",
+      "name": "value627",
+      "line": 4322,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value627 = Math.max(0.5, value626 / 2 + 0.5),",
+      "references": [
+        {
+          "line": 4323,
+          "text": "value628 = Math.max(1, value624 - value627 * 2),"
+        },
+        {
+          "line": 4324,
+          "text": "value629 = Math.max(1, value625 - value627 * 2),"
+        },
+        {
+          "line": 4426,
+          "text": "\"x\": value627,"
+        },
+        {
+          "line": 4427,
+          "text": "\"y\": value627,"
+        },
+        {
+          "line": 4449,
+          "text": "\"x\": value627,"
+        },
+        {
+          "line": 4450,
+          "text": "\"y\": value627,"
+        }
+      ]
+    },
+    {
+      "key": "value628@4323",
+      "name": "value628",
+      "line": 4323,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value628 = Math.max(1, value624 - value627 * 2),",
+      "references": [
+        {
+          "line": 4325,
+          "text": "value630 = Math.min(value628, value629) * clampNumber(value623.radius, 0, 0.5, 0.195),"
+        },
+        {
+          "line": 4329,
+          "text": "value634 = Math.min(value628, value629) * 0.22 * value633,"
+        },
+        {
+          "line": 4330,
+          "text": "value635 = Math.min(value628, value629) * 0.06 * value633,"
+        },
+        {
+          "line": 4428,
+          "text": "\"width\": value628,"
+        },
+        {
+          "line": 4451,
+          "text": "\"width\": value628,"
+        },
+        {
+          "line": 4461,
+          "text": "\"width\": value628,"
+        }
+      ]
+    },
+    {
+      "key": "value629@4324",
+      "name": "value629",
+      "line": 4324,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value629 = Math.max(1, value625 - value627 * 2),",
+      "references": [
+        {
+          "line": 4325,
+          "text": "value630 = Math.min(value628, value629) * clampNumber(value623.radius, 0, 0.5, 0.195),"
+        },
+        {
+          "line": 4329,
+          "text": "value634 = Math.min(value628, value629) * 0.22 * value633,"
+        },
+        {
+          "line": 4330,
+          "text": "value635 = Math.min(value628, value629) * 0.06 * value633,"
+        },
+        {
+          "line": 4429,
+          "text": "\"height\": value629,"
+        },
+        {
+          "line": 4452,
+          "text": "\"height\": value629,"
+        },
+        {
+          "line": 4462,
+          "text": "\"height\": value629,"
+        }
+      ]
+    },
+    {
+      "key": "value630@4325",
+      "name": "value630",
+      "line": 4325,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value630 = Math.min(value628, value629) * clampNumber(value623.radius, 0, 0.5, 0.195),",
+      "references": [
+        {
+          "line": 4430,
+          "text": "\"rx\": value630,"
+        },
+        {
+          "line": 4453,
+          "text": "\"rx\": value630,"
+        },
+        {
+          "line": 4463,
+          "text": "\"rx\": value630,"
+        },
+        {
+          "line": 4476,
+          "text": "\"rx\": value630,"
+        }
+      ]
+    },
+    {
+      "key": "value631@4326",
+      "name": "value631",
+      "line": 4326,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value631 = clampNumber(value623.edgeOpacity, 0, 1, 1),",
+      "references": [
+        {
+          "line": 4393,
+          "text": "\"stop-opacity\": value656 * value631,"
+        }
+      ]
+    },
+    {
+      "key": "value632@4327",
+      "name": "value632",
+      "line": 4327,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value632 = clampNumber(value623.glowStrength, 0, 5, 0.5),",
+      "references": [
+        {
+          "line": 4355,
+          "text": "\"stop-opacity\": Math.min(0.35, 0.035 * value632),"
+        },
+        {
+          "line": 4360,
+          "text": "\"stop-opacity\": Math.min(0.12, 0.01 * value632),"
+        },
+        {
+          "line": 4365,
+          "text": "\"stop-opacity\": Math.min(0.25, 0.025 * value632),"
+        },
+        {
+          "line": 4420,
+          "text": "\"stop-opacity\": Math.min(1, value658 * value632),"
+        },
+        {
+          "line": 4457,
+          "text": "value632 > 0 &&"
+        }
+      ]
+    },
+    {
+      "key": "value633@4328",
+      "name": "value633",
+      "line": 4328,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value633 = clampNumber(value623.glowSize, 0, 3, 1.5),",
+      "references": [
+        {
+          "line": 4329,
+          "text": "value634 = Math.min(value628, value629) * 0.22 * value633,"
+        },
+        {
+          "line": 4330,
+          "text": "value635 = Math.min(value628, value629) * 0.06 * value633,"
+        }
+      ]
+    },
+    {
+      "key": "value634@4329",
+      "name": "value634",
+      "line": 4329,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value634 = Math.min(value628, value629) * 0.22 * value633,",
+      "references": [
+        {
+          "line": 4456,
+          "text": "value634 > 0 &&"
+        },
+        {
+          "line": 4466,
+          "text": "\"stroke-width\": value634,"
+        }
+      ]
+    },
+    {
+      "key": "value635@4330",
+      "name": "value635",
+      "line": 4330,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value635 = Math.min(value628, value629) * 0.06 * value633,",
+      "references": [
+        {
+          "line": 4441,
+          "text": "\"stdDeviation\": value635,"
+        }
+      ]
+    },
+    {
+      "key": "value636@4331",
+      "name": "value636",
+      "line": 4331,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value636 = normalizeCssColor(value623.edgeColor, \"#d4d4d4\"),",
+      "references": [
+        {
+          "line": 4392,
+          "text": "\"stop-color\": value636,"
+        }
+      ]
+    },
+    {
+      "key": "value637@4332",
+      "name": "value637",
+      "line": 4332,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value637 = normalizeCssColor(value623.glowColor, \"#ffffff\"),",
+      "references": [
+        {
+          "line": 4354,
+          "text": "\"stop-color\": value637,"
+        },
+        {
+          "line": 4359,
+          "text": "\"stop-color\": value637,"
+        },
+        {
+          "line": 4364,
+          "text": "\"stop-color\": value637,"
+        },
+        {
+          "line": 4419,
+          "text": "\"stop-color\": value637,"
+        }
+      ]
+    },
+    {
+      "key": "value638@4333",
+      "name": "value638",
+      "line": 4333,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value638 =",
+      "references": [
+        {
+          "line": 4346,
+          "text": "\"id\": value638 + \"-glass\","
+        },
+        {
+          "line": 4368,
+          "text": "\"id\": value638 + \"-edge\","
+        },
+        {
+          "line": 4396,
+          "text": "\"id\": value638 + \"-glow\","
+        },
+        {
+          "line": 4423,
+          "text": "\"id\": value638 + \"-clip\","
+        },
+        {
+          "line": 4433,
+          "text": "\"id\": value638 + \"-blur\","
+        },
+        {
+          "line": 4446,
+          "text": "\"clip-path\": \"url(#\" + value638 + \"-clip)\","
+        }
+      ]
+    },
+    {
+      "key": "value639@4337",
+      "name": "value639",
+      "line": 4337,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value639 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 4338,
+          "text": "value639.className = \"hb-panel-frame-component\";"
+        },
+        {
+          "line": 4339,
+          "text": "const value640 = createSvgElement(value639, \"svg\", {"
+        },
+        {
+          "line": 4541,
+          "text": "return value639;"
+        }
+      ]
+    },
+    {
+      "key": "value640@4339",
+      "name": "value640",
+      "line": 4339,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value640 = createSvgElement(value639, \"svg\", {",
+      "references": [
+        {
+          "line": 4344,
+          "text": "value641 = createSvgElement(value640, \"defs\"),"
+        },
+        {
+          "line": 4445,
+          "text": "const value659 = createSvgElement(value640, \"g\", {"
+        },
+        {
+          "line": 4471,
+          "text": "createSvgElement(value640, \"rect\", {"
+        },
+        {
+          "line": 4498,
+          "text": "const value660 = createSvgElement(value640, \"text\", {"
+        },
+        {
+          "line": 4520,
+          "text": "const value662 = createSvgElement(value640, \"text\", {"
+        }
+      ]
+    },
+    {
+      "key": "value641@4344",
+      "name": "value641",
+      "line": 4344,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value641 = createSvgElement(value640, \"defs\"),",
+      "references": [
+        {
+          "line": 4345,
+          "text": "value642 = createSvgElement(value641, \"linearGradient\", {"
+        },
+        {
+          "line": 4367,
+          "text": "const value643 = createSvgElement(value641, \"linearGradient\", {"
+        },
+        {
+          "line": 4395,
+          "text": "const value644 = createSvgElement(value641, \"linearGradient\", {"
+        },
+        {
+          "line": 4422,
+          "text": "const value645 = createSvgElement(value641, \"clipPath\", {"
+        },
+        {
+          "line": 4432,
+          "text": "const value646 = createSvgElement(value641, \"filter\", {"
+        }
+      ]
+    },
+    {
+      "key": "value642@4345",
+      "name": "value642",
+      "line": 4345,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value642 = createSvgElement(value641, \"linearGradient\", {",
+      "references": [
+        {
+          "line": 4352,
+          "text": "(createSvgElement(value642, \"stop\", {"
+        },
+        {
+          "line": 4357,
+          "text": "createSvgElement(value642, \"stop\", {"
+        },
+        {
+          "line": 4362,
+          "text": "createSvgElement(value642, \"stop\", {"
+        }
+      ]
+    },
+    {
+      "key": "value643@4367",
+      "name": "value643",
+      "line": 4367,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value643 = createSvgElement(value641, \"linearGradient\", {",
+      "references": [
+        {
+          "line": 4390,
+          "text": "createSvgElement(value643, \"stop\", {"
+        }
+      ]
+    },
+    {
+      "key": "value655@4383",
+      "name": "value655",
+      "line": 4383,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value655, value656] of [",
+      "references": [
+        {
+          "line": 4391,
+          "text": "\"offset\": value655,"
+        }
+      ]
+    },
+    {
+      "key": "value656@4383",
+      "name": "value656",
+      "line": 4383,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value655, value656] of [",
+      "references": [
+        {
+          "line": 4393,
+          "text": "\"stop-opacity\": value656 * value631,"
+        }
+      ]
+    },
+    {
+      "key": "value644@4395",
+      "name": "value644",
+      "line": 4395,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value644 = createSvgElement(value641, \"linearGradient\", {",
+      "references": [
+        {
+          "line": 4417,
+          "text": "createSvgElement(value644, \"stop\", {"
+        }
+      ]
+    },
+    {
+      "key": "value657@4411",
+      "name": "value657",
+      "line": 4411,
+      "column": 16,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value657, value658] of [",
+      "references": [
+        {
+          "line": 4418,
+          "text": "\"offset\": value657,"
+        }
+      ]
+    },
+    {
+      "key": "value658@4411",
+      "name": "value658",
+      "line": 4411,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "for (const [value657, value658] of [",
+      "references": [
+        {
+          "line": 4420,
+          "text": "\"stop-opacity\": Math.min(1, value658 * value632),"
+        }
+      ]
+    },
+    {
+      "key": "value645@4422",
+      "name": "value645",
+      "line": 4422,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value645 = createSvgElement(value641, \"clipPath\", {",
+      "references": [
+        {
+          "line": 4425,
+          "text": "createSvgElement(value645, \"rect\", {"
+        }
+      ]
+    },
+    {
+      "key": "value646@4432",
+      "name": "value646",
+      "line": 4432,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value646 = createSvgElement(value641, \"filter\", {",
+      "references": [
+        {
+          "line": 4440,
+          "text": "(createSvgElement(value646, \"feGaussianBlur\", {"
+        }
+      ]
+    },
+    {
+      "key": "value659@4445",
+      "name": "value659",
+      "line": 4445,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value659 = createSvgElement(value640, \"g\", {",
+      "references": [
+        {
+          "line": 4448,
+          "text": "(createSvgElement(value659, \"rect\", {"
+        },
+        {
+          "line": 4458,
+          "text": "createSvgElement(value659, \"rect\", {"
+        }
+      ]
+    },
+    {
+      "key": "value647@4481",
+      "name": "value647",
+      "line": 4481,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value647 = clampNumber(value623.textLeft, -100, 200, 5.2),",
+      "references": [
+        {
+          "line": 4483,
+          "text": "value649 = (value624 * clampNumber(value623.mainTextLeft, -100, 200, value647)) / 100,"
+        },
+        {
+          "line": 4493,
+          "text": "value651 = (value624 * clampNumber(value623.secondaryTextLeft, -100, 200, value647)) / 100,"
+        }
+      ]
+    },
+    {
+      "key": "value648@4482",
+      "name": "value648",
+      "line": 4482,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value648 = clampNumber(value623.textTop, -100, 200, 28),",
+      "references": [
+        {
+          "line": 4490,
+          "text": "value648 - (clampNumber(value623.lineGap, 0, 500, 24) / value625) * 100,"
+        },
+        {
+          "line": 4494,
+          "text": "value652 = (value625 * clampNumber(value623.secondaryTextTop, -100, 200, value648)) / 100,"
+        }
+      ]
+    },
+    {
+      "key": "value649@4483",
+      "name": "value649",
+      "line": 4483,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value649 = (value624 * clampNumber(value623.mainTextLeft, -100, 200, value647)) / 100,",
+      "references": [
+        {
+          "line": 4499,
+          "text": "\"x\": value649,"
+        }
+      ]
+    },
+    {
+      "key": "value650@4484",
+      "name": "value650",
+      "line": 4484,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value650 =",
+      "references": [
+        {
+          "line": 4500,
+          "text": "\"y\": value650,"
+        }
+      ]
+    },
+    {
+      "key": "value651@4493",
+      "name": "value651",
+      "line": 4493,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value651 = (value624 * clampNumber(value623.secondaryTextLeft, -100, 200, value647)) / 100,",
+      "references": [
+        {
+          "line": 4521,
+          "text": "\"x\": value651,"
+        }
+      ]
+    },
+    {
+      "key": "value652@4494",
+      "name": "value652",
+      "line": 4494,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value652 = (value625 * clampNumber(value623.secondaryTextTop, -100, 200, value648)) / 100,",
+      "references": [
+        {
+          "line": 4522,
+          "text": "\"y\": value652,"
+        }
+      ]
+    },
+    {
+      "key": "value653@4495",
+      "name": "value653",
+      "line": 4495,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value653 = clampNumber(value623.mainOpacity, 0, 1, 0.72),",
+      "references": [
+        {
+          "line": 4503,
+          "text": "\"fill-opacity\": value653,"
+        },
+        {
+          "line": 4513,
+          "text": "\"stroke-opacity\": value653,"
+        }
+      ]
+    },
+    {
+      "key": "value654@4496",
+      "name": "value654",
+      "line": 4496,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value654 = clampNumber(value623.secondaryOpacity, 0, 1, 0.36);",
+      "references": [
+        {
+          "line": 4525,
+          "text": "\"fill-opacity\": value654,"
+        },
+        {
+          "line": 4535,
+          "text": "\"stroke-opacity\": value654,"
+        }
+      ]
+    },
+    {
+      "key": "value660@4498",
+      "name": "value660",
+      "line": 4498,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value660 = createSvgElement(value640, \"text\", {",
+      "references": [
+        {
+          "line": 4516,
+          "text": "}).forEach(([arg211, arg212]) => value660.setAttribute(arg211, arg212)),"
+        },
+        {
+          "line": 4517,
+          "text": "(value660.textContent = String(value623.mainText || \"\")));"
+        }
+      ]
+    },
+    {
+      "key": "value661@4509",
+      "name": "value661",
+      "line": 4509,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value661 = clampNumber(value623.mainWeight, 0, 3, 0);",
+      "references": [
+        {
+          "line": 4510,
+          "text": "(value661 > 0 &&"
+        },
+        {
+          "line": 4514,
+          "text": "\"stroke-width\": value661,"
+        }
+      ]
+    },
+    {
+      "key": "arg211@4516",
+      "name": "arg211",
+      "line": 4516,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "}).forEach(([arg211, arg212]) => value660.setAttribute(arg211, arg212)),",
+      "references": [
+        {
+          "line": 4516,
+          "text": "}).forEach(([arg211, arg212]) => value660.setAttribute(arg211, arg212)),"
+        }
+      ]
+    },
+    {
+      "key": "arg212@4516",
+      "name": "arg212",
+      "line": 4516,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "}).forEach(([arg211, arg212]) => value660.setAttribute(arg211, arg212)),",
+      "references": [
+        {
+          "line": 4516,
+          "text": "}).forEach(([arg211, arg212]) => value660.setAttribute(arg211, arg212)),"
+        }
+      ]
+    },
+    {
+      "key": "value662@4520",
+      "name": "value662",
+      "line": 4520,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value662 = createSvgElement(value640, \"text\", {",
+      "references": [
+        {
+          "line": 4538,
+          "text": "}).forEach(([arg213, arg214]) => value662.setAttribute(arg213, arg214)),"
+        },
+        {
+          "line": 4539,
+          "text": "(value662.textContent = String(value623.secondaryText || \"\")));"
+        }
+      ]
+    },
+    {
+      "key": "value663@4531",
+      "name": "value663",
+      "line": 4531,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value663 = clampNumber(value623.secondaryWeight, 0, 3, 0);",
+      "references": [
+        {
+          "line": 4532,
+          "text": "(value663 > 0 &&"
+        },
+        {
+          "line": 4536,
+          "text": "\"stroke-width\": value663,"
+        }
+      ]
+    },
+    {
+      "key": "arg213@4538",
+      "name": "arg213",
+      "line": 4538,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "}).forEach(([arg213, arg214]) => value662.setAttribute(arg213, arg214)),",
+      "references": [
+        {
+          "line": 4538,
+          "text": "}).forEach(([arg213, arg214]) => value662.setAttribute(arg213, arg214)),"
+        }
+      ]
+    },
+    {
+      "key": "arg214@4538",
+      "name": "arg214",
+      "line": 4538,
+      "column": 29,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "}).forEach(([arg213, arg214]) => value662.setAttribute(arg213, arg214)),",
+      "references": [
+        {
+          "line": 4538,
+          "text": "}).forEach(([arg213, arg214]) => value662.setAttribute(arg213, arg214)),"
+        }
+      ]
+    },
+    {
+      "key": "arg215@4544",
+      "name": "arg215",
+      "line": 4544,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function componentContentUnitsPx(arg215, arg216) {",
+      "references": [
+        {
+          "line": 4547,
+          "text": "\"width\": Math.max(1, Number(arg215?.position?.width || 100)) / value664 / 100,"
+        },
+        {
+          "line": 4548,
+          "text": "\"height\": Math.max(1, Number(arg215?.position?.height || 100)) / value664 / 100,"
+        }
+      ]
+    },
+    {
+      "key": "arg216@4544",
+      "name": "arg216",
+      "line": 4544,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function componentContentUnitsPx(arg215, arg216) {",
+      "references": [
+        {
+          "line": 4545,
+          "text": "const value664 = Math.max(0.01, Number(arg216?.document?.canvas?.componentScale || 1));"
+        }
+      ]
+    },
+    {
+      "key": "value664@4545",
+      "name": "value664",
+      "line": 4545,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value664 = Math.max(0.01, Number(arg216?.document?.canvas?.componentScale || 1));",
+      "references": [
+        {
+          "line": 4547,
+          "text": "\"width\": Math.max(1, Number(arg215?.position?.width || 100)) / value664 / 100,"
+        },
+        {
+          "line": 4548,
+          "text": "\"height\": Math.max(1, Number(arg215?.position?.height || 100)) / value664 / 100,"
+        }
+      ]
+    },
+    {
+      "key": "arg217@4551",
+      "name": "arg217",
+      "line": 4551,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function navigationContentUnitPx(arg217, arg218) {",
+      "references": [
+        {
+          "line": 4552,
+          "text": "return (componentContentUnitsPx(arg217, arg218).height * 100) / 64.36;"
+        }
+      ]
+    },
+    {
+      "key": "arg218@4551",
+      "name": "arg218",
+      "line": 4551,
+      "column": 48,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function navigationContentUnitPx(arg217, arg218) {",
+      "references": [
+        {
+          "line": 4552,
+          "text": "return (componentContentUnitsPx(arg217, arg218).height * 100) / 64.36;"
+        }
+      ]
+    },
+    {
+      "key": "Oe@4554",
+      "name": "Oe",
+      "line": 4554,
+      "column": 9,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function Oe(arg219, arg220) {",
+      "references": [
+        {
+          "line": 4696,
+          "text": "\"render\": Oe,"
+        },
+        {
+          "line": 4704,
+          "text": "const value693 = Oe("
+        }
+      ]
+    },
+    {
+      "key": "arg219@4554",
+      "name": "arg219",
+      "line": 4554,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Oe(arg219, arg220) {",
+      "references": [
+        {
+          "line": 4555,
+          "text": "const value665 = arg219.properties || {},"
+        },
+        {
+          "line": 4558,
+          "text": ".map((arg221) => arg219.actions?.[arg221])"
+        },
+        {
+          "line": 4562,
+          "text": "value667 = arg219.bindings?.entity?.entityId || \"\","
+        },
+        {
+          "line": 4566,
+          "text": "value667 && isEntityComponentActive(arg219, value667, arg220.states?.get(value667), arg220)"
+        },
+        {
+          "line": 4612,
+          "text": "value679 = navigationContentUnitPx(arg219, arg220),"
+        },
+        {
+          "line": 4659,
+          "text": "createNavigationEffectsSvg(arg219, value665, value670, value673, value674, value675),"
+        }
+      ]
+    },
+    {
+      "key": "arg220@4554",
+      "name": "arg220",
+      "line": 4554,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "function Oe(arg219, arg220) {",
+      "references": [
+        {
+          "line": 4564,
+          "text": "arg220.editable && [\"off\", \"on\"].includes(arg220.previewState) ? arg220.previewState : \"auto\","
+        },
+        {
+          "line": 4566,
+          "text": "value667 && isEntityComponentActive(arg219, value667, arg220.states?.get(value667), arg220)"
+        },
+        {
+          "line": 4570,
+          "text": "\"currentPagePath\": arg220.page?.path || \"\","
+        },
+        {
+          "line": 4612,
+          "text": "value679 = navigationContentUnitPx(arg219, arg220),"
+        }
+      ]
+    },
+    {
+      "key": "value665@4555",
+      "name": "value665",
+      "line": 4555,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value665 = arg219.properties || {},",
+      "references": [
+        {
+          "line": 4560,
+          "text": "value665.targetPage ||"
+        },
+        {
+          "line": 4577,
+          "text": "? (value665.textActiveOpacity ?? value665.activeOpacity)"
+        },
+        {
+          "line": 4578,
+          "text": ": (value665.textIdleOpacity ?? value665.idleOpacity),"
+        },
+        {
+          "line": 4585,
+          "text": "? (value665.iconActiveOpacity ?? value665.activeOpacity)"
+        },
+        {
+          "line": 4586,
+          "text": ": (value665.iconIdleOpacity ?? value665.idleOpacity),"
+        },
+        {
+          "line": 4592,
+          "text": "value670 ? value665.frameActiveOpacity : value665.frameIdleOpacity,"
+        }
+      ]
+    },
+    {
+      "key": "value666@4556",
+      "name": "value666",
+      "line": 4556,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value666 =",
+      "references": [
+        {
+          "line": 4569,
+          "text": "\"targetPage\": value666,"
+        },
+        {
+          "line": 4622,
+          "text": "(value686.dataset.targetPage = value666),"
+        }
+      ]
+    },
+    {
+      "key": "arg221@4558",
+      "name": "arg221",
+      "line": 4558,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".map((arg221) => arg219.actions?.[arg221])",
+      "references": [
+        {
+          "line": 4558,
+          "text": ".map((arg221) => arg219.actions?.[arg221])"
+        }
+      ]
+    },
+    {
+      "key": "arg222@4559",
+      "name": "arg222",
+      "line": 4559,
+      "column": 15,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ".find((arg222) => arg222?.type === \"navigate\" && arg222.target)?.target ||",
+      "references": [
+        {
+          "line": 4559,
+          "text": ".find((arg222) => arg222?.type === \"navigate\" && arg222.target)?.target ||"
+        }
+      ]
+    },
+    {
+      "key": "value667@4562",
+      "name": "value667",
+      "line": 4562,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value667 = arg219.bindings?.entity?.entityId || \"\",",
+      "references": [
+        {
+          "line": 4566,
+          "text": "value667 && isEntityComponentActive(arg219, value667, arg220.states?.get(value667), arg220)"
+        },
+        {
+          "line": 4571,
+          "text": "\"entityId\": value667,"
+        }
+      ]
+    },
+    {
+      "key": "value668@4563",
+      "name": "value668",
+      "line": 4563,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value668 =",
+      "references": [
+        {
+          "line": 4573,
+          "text": "\"previewState\": value668,"
+        }
+      ]
+    },
+    {
+      "key": "value669@4565",
+      "name": "value669",
+      "line": 4565,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value669 = !!(",
+      "references": [
+        {
+          "line": 4572,
+          "text": "\"entityActive\": value669,"
+        }
+      ]
+    },
+    {
+      "key": "value670@4568",
+      "name": "value670",
+      "line": 4568,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value670 = navigationButtonIsActive({",
+      "references": [
+        {
+          "line": 4576,
+          "text": "value670"
+        },
+        {
+          "line": 4581,
+          "text": "value670 ? 0.96 : 0.3,"
+        },
+        {
+          "line": 4584,
+          "text": "value670"
+        },
+        {
+          "line": 4589,
+          "text": "value670 ? 0.96 : 0.3,"
+        },
+        {
+          "line": 4592,
+          "text": "value670 ? value665.frameActiveOpacity : value665.frameIdleOpacity,"
+        },
+        {
+          "line": 4595,
+          "text": "value670 ? 0.98 : 0.48,"
+        }
+      ]
+    },
+    {
+      "key": "value671@4575",
+      "name": "value671",
+      "line": 4575,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value671 = clampNumber(",
+      "references": [
+        {
+          "line": 4623,
+          "text": "value686.style.setProperty(\"--navigation-text-opacity\", String(value671)),"
+        }
+      ]
+    },
+    {
+      "key": "value672@4583",
+      "name": "value672",
+      "line": 4583,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value672 = clampNumber(",
+      "references": [
+        {
+          "line": 4624,
+          "text": "value686.style.setProperty(\"--navigation-icon-opacity\", String(value672)),"
+        }
+      ]
+    },
+    {
+      "key": "value673@4591",
+      "name": "value673",
+      "line": 4591,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value673 = clampNumber(",
+      "references": [
+        {
+          "line": 4659,
+          "text": "createNavigationEffectsSvg(arg219, value665, value670, value673, value674, value675),"
+        }
+      ]
+    },
+    {
+      "key": "value674@4597",
+      "name": "value674",
+      "line": 4597,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value674 = clampNumber(",
+      "references": [
+        {
+          "line": 4659,
+          "text": "createNavigationEffectsSvg(arg219, value665, value670, value673, value674, value675),"
+        }
+      ]
+    },
+    {
+      "key": "value675@4603",
+      "name": "value675",
+      "line": 4603,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value675 = clampNumber(",
+      "references": [
+        {
+          "line": 4659,
+          "text": "createNavigationEffectsSvg(arg219, value665, value670, value673, value674, value675),"
+        }
+      ]
+    },
+    {
+      "key": "value676@4609",
+      "name": "value676",
+      "line": 4609,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value676 = normalizeCssColor(value665.mainColor, \"#e9edf0\"),",
+      "references": [
+        {
+          "line": 4678,
+          "text": "(value690.style.color = value676),"
+        },
+        {
+          "line": 4679,
+          "text": "(value690.style.webkitTextStrokeColor = value676),"
+        }
+      ]
+    },
+    {
+      "key": "value677@4610",
+      "name": "value677",
+      "line": 4610,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value677 = normalizeCssColor(value665.secondaryColor, \"#e9edf0\"),",
+      "references": [
+        {
+          "line": 4687,
+          "text": "(value691.style.color = value677),"
+        },
+        {
+          "line": 4688,
+          "text": "(value691.style.webkitTextStrokeColor = value677),"
+        }
+      ]
+    },
+    {
+      "key": "value678@4611",
+      "name": "value678",
+      "line": 4611,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value678 = 100 / 64.36,",
+      "references": [
+        {
+          "line": 4616,
+          "text": "value683 = clampNumber(value665.mainTextTop, -100, 200, value681 - 18 * value678),"
+        }
+      ]
+    },
+    {
+      "key": "value679@4612",
+      "name": "value679",
+      "line": 4612,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value679 = navigationContentUnitPx(arg219, arg220),",
+      "references": [
+        {
+          "line": 4627,
+          "text": "clampNumber(value665.iconSize, 1, 500, 50) * value679 + \"px\","
+        },
+        {
+          "line": 4639,
+          "text": "clampNumber(value665.mainSize, 1, 500, 30) * value679 + \"px\","
+        },
+        {
+          "line": 4643,
+          "text": "clampNumber(value665.secondarySize, 1, 500, 11) * value679 + \"px\","
+        },
+        {
+          "line": 4647,
+          "text": "clampNumber(value665.mainSpacing, -20, 100, 8) * value679 + \"px\","
+        },
+        {
+          "line": 4651,
+          "text": "clampNumber(value665.secondarySpacing, -20, 100, 3) * value679 + \"px\","
+        },
+        {
+          "line": 4681,
+          "text": "clampNumber(value665.mainWeight, 0, 3, 0) * value679 + \"px\"),"
+        }
+      ]
+    },
+    {
+      "key": "value680@4613",
+      "name": "value680",
+      "line": 4613,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value680 = clampNumber(value665.textLeft, -100, 200, 27.5),",
+      "references": [
+        {
+          "line": 4615,
+          "text": "value682 = clampNumber(value665.mainTextLeft, -100, 200, value680),"
+        },
+        {
+          "line": 4617,
+          "text": "value684 = clampNumber(value665.secondaryTextLeft, -100, 200, value680),"
+        }
+      ]
+    },
+    {
+      "key": "value681@4614",
+      "name": "value681",
+      "line": 4614,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value681 = clampNumber(value665.textTop, -100, 200, 81.5),",
+      "references": [
+        {
+          "line": 4616,
+          "text": "value683 = clampNumber(value665.mainTextTop, -100, 200, value681 - 18 * value678),"
+        },
+        {
+          "line": 4618,
+          "text": "value685 = clampNumber(value665.secondaryTextTop, -100, 200, value681),"
+        }
+      ]
+    },
+    {
+      "key": "value682@4615",
+      "name": "value682",
+      "line": 4615,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value682 = clampNumber(value665.mainTextLeft, -100, 200, value680),",
+      "references": [
+        {
+          "line": 4653,
+          "text": "value686.style.setProperty(\"--navigation-main-left\", value682 + \"%\"),"
+        }
+      ]
+    },
+    {
+      "key": "value683@4616",
+      "name": "value683",
+      "line": 4616,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value683 = clampNumber(value665.mainTextTop, -100, 200, value681 - 18 * value678),",
+      "references": [
+        {
+          "line": 4655,
+          "text": "value686.style.setProperty(\"--navigation-main-top\", value683 + \"%\"),"
+        }
+      ]
+    },
+    {
+      "key": "value684@4617",
+      "name": "value684",
+      "line": 4617,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value684 = clampNumber(value665.secondaryTextLeft, -100, 200, value680),",
+      "references": [
+        {
+          "line": 4654,
+          "text": "value686.style.setProperty(\"--navigation-secondary-left\", value684 + \"%\"),"
+        }
+      ]
+    },
+    {
+      "key": "value685@4618",
+      "name": "value685",
+      "line": 4618,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value685 = clampNumber(value665.secondaryTextTop, -100, 200, value681),",
+      "references": [
+        {
+          "line": 4656,
+          "text": "value686.style.setProperty(\"--navigation-secondary-top\", value685 + \"%\"),"
+        }
+      ]
+    },
+    {
+      "key": "value686@4619",
+      "name": "value686",
+      "line": 4619,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value686 = document.createElement(\"div\");",
+      "references": [
+        {
+          "line": 4621,
+          "text": "((value686.className = \"hb-navigation-button\" + (value670 ? \"\\x20active\" : \"\")),"
+        },
+        {
+          "line": 4622,
+          "text": "(value686.dataset.targetPage = value666),"
+        },
+        {
+          "line": 4623,
+          "text": "value686.style.setProperty(\"--navigation-text-opacity\", String(value671)),"
+        },
+        {
+          "line": 4624,
+          "text": "value686.style.setProperty(\"--navigation-icon-opacity\", String(value672)),"
+        },
+        {
+          "line": 4625,
+          "text": "value686.style.setProperty("
+        },
+        {
+          "line": 4629,
+          "text": "value686.style.setProperty("
+        }
+      ]
+    },
+    {
+      "key": "value688@4663",
+      "name": "value688",
+      "line": 4663,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value688 = resolveMdiIconUrl(value665.icon || \"mdi:home-lightbulb-outline\");",
+      "references": [
+        {
+          "line": 4664,
+          "text": "if (value688) {"
+        },
+        {
+          "line": 4669,
+          "text": "value689.style.setProperty(\"mask-image\", \"url(\\x22\" + value688 + \"\\x22)\"),"
+        },
+        {
+          "line": 4670,
+          "text": "value689.style.setProperty(\"-webkit-mask-image\", \"url(\\x22\" + value688 + \"\\x22)\"),"
+        }
+      ]
+    },
+    {
+      "key": "value689@4665",
+      "name": "value689",
+      "line": 4665,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value689 = document.createElement(\"i\");",
+      "references": [
+        {
+          "line": 4666,
+          "text": "((value689.className = \"hb-navigation-icon\"),"
+        },
+        {
+          "line": 4667,
+          "text": "value689.setAttribute(\"aria-hidden\", \"true\"),"
+        },
+        {
+          "line": 4668,
+          "text": "(value689.style.backgroundColor = normalizeCssColor(value665.iconColor, \"#e9edf0\")),"
+        },
+        {
+          "line": 4669,
+          "text": "value689.style.setProperty(\"mask-image\", \"url(\\x22\" + value688 + \"\\x22)\"),"
+        },
+        {
+          "line": 4670,
+          "text": "value689.style.setProperty(\"-webkit-mask-image\", \"url(\\x22\" + value688 + \"\\x22)\"),"
+        },
+        {
+          "line": 4671,
+          "text": "value686.append(value689));"
+        }
+      ]
+    },
+    {
+      "key": "value687@4674",
+      "name": "value687",
+      "line": 4674,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value687 = document.createElement(\"span\");",
+      "references": [
+        {
+          "line": 4675,
+          "text": "if (((value687.className = \"hb-navigation-text\"), value665.mainTextVisible !== false)) {"
+        },
+        {
+          "line": 4682,
+          "text": "value687.append(value690));"
+        },
+        {
+          "line": 4691,
+          "text": "value687.append(value691));"
+        },
+        {
+          "line": 4693,
+          "text": "return (value687.childElementCount && value686.append(value687), value686);"
+        }
+      ]
+    },
+    {
+      "key": "value690@4676",
+      "name": "value690",
+      "line": 4676,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value690 = document.createElement(\"strong\");",
+      "references": [
+        {
+          "line": 4677,
+          "text": "((value690.textContent = value665.mainText || \"页面导航\"),"
+        },
+        {
+          "line": 4678,
+          "text": "(value690.style.color = value676),"
+        },
+        {
+          "line": 4679,
+          "text": "(value690.style.webkitTextStrokeColor = value676),"
+        },
+        {
+          "line": 4680,
+          "text": "(value690.style.webkitTextStrokeWidth ="
+        },
+        {
+          "line": 4682,
+          "text": "value687.append(value690));"
+        }
+      ]
+    },
+    {
+      "key": "value691@4685",
+      "name": "value691",
+      "line": 4685,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value691 = document.createElement(\"small\");",
+      "references": [
+        {
+          "line": 4686,
+          "text": "((value691.textContent = value665.secondaryText || \"NAVIGATION\"),"
+        },
+        {
+          "line": 4687,
+          "text": "(value691.style.color = value677),"
+        },
+        {
+          "line": 4688,
+          "text": "(value691.style.webkitTextStrokeColor = value677),"
+        },
+        {
+          "line": 4689,
+          "text": "(value691.style.webkitTextStrokeWidth ="
+        },
+        {
+          "line": 4691,
+          "text": "value687.append(value691));"
+        }
+      ]
+    },
+    {
+      "key": "arg223@4699",
+      "name": "arg223",
+      "line": 4699,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "\"render\"(arg223, arg224) {",
+      "references": [
+        {
+          "line": 4703,
+          "text": "value692.setAttribute(\"aria-label\", arg223.properties?.mainText || \"情景模式\"));"
+        },
+        {
+          "line": 4706,
+          "text": "...arg223,"
+        },
+        {
+          "line": 4710,
+          "text": "...arg223.properties,"
+        },
+        {
+          "line": 4724,
+          "text": "bindSceneMode(value692, value693, arg223, arg224),"
+        }
+      ]
+    },
+    {
+      "key": "arg224@4699",
+      "name": "arg224",
+      "line": 4699,
+      "column": 21,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "\"render\"(arg223, arg224) {",
+      "references": [
+        {
+          "line": 4717,
+          "text": "...arg224,"
+        },
+        {
+          "line": 4724,
+          "text": "bindSceneMode(value692, value693, arg223, arg224),"
+        }
+      ]
+    },
+    {
+      "key": "value692@4700",
+      "name": "value692",
+      "line": 4700,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value692 = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 4701,
+          "text": "((value692.type = \"button\"),"
+        },
+        {
+          "line": 4702,
+          "text": "(value692.className = \"hb-scene-mode\"),"
+        },
+        {
+          "line": 4703,
+          "text": "value692.setAttribute(\"aria-label\", arg223.properties?.mainText || \"情景模式\"));"
+        },
+        {
+          "line": 4723,
+          "text": "value692.append(value693),"
+        },
+        {
+          "line": 4724,
+          "text": "bindSceneMode(value692, value693, arg223, arg224),"
+        },
+        {
+          "line": 4725,
+          "text": "value692"
+        }
+      ]
+    },
+    {
+      "key": "value693@4704",
+      "name": "value693",
+      "line": 4704,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value693 = Oe(",
+      "references": [
+        {
+          "line": 4723,
+          "text": "value692.append(value693),"
+        },
+        {
+          "line": 4724,
+          "text": "bindSceneMode(value692, value693, arg223, arg224),"
+        }
+      ]
+    }
+  ]
+}

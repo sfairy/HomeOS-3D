@@ -1,0 +1,38 @@
+{
+  "file": "frontend/static/modules/interaction3d/region-lighting-presets.js",
+  "seed": "b4-region-lighting-presets",
+  "size": 30,
+  "candidates": 3,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/module-binding",
+      "newName": "presetKey",
+      "declaration": "const ??? = arg1.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\";",
+      "references": [
+        "L33: ...REGION_LIGHTING_PRESETS[???],"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/other",
+      "newName": "sceneConfig",
+      "declaration": "export function withRegionLightingPreset(???) {",
+      "references": [
+        "L28: if (???.lightingMode !== \"region\") return ???;",
+        "L29: const value1 = ???.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\";",
+        "L31: ...???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "short/module-binding",
+      "newName": "baseLightingPreset",
+      "declaration": "const ??? = {",
+      "references": [
+        "L17: ...???,",
+        "L22: ...???,"
+      ]
+    }
+  ]
+}

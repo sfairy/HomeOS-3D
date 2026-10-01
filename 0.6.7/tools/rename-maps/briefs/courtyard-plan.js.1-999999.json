@@ -1,0 +1,225 @@
+{
+  "file": "frontend/static/3d-studio/courtyard-plan.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 74,
+  "counts": {
+    "entries": 12,
+    "renameable": 12,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 36,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export const isCourtyardPlanItem = (arg1) =>",
+      "references": [
+        {
+          "line": 3,
+          "text": "arg1?.type?.startsWith(\"garden-\") || arg1?.type?.startsWith(\"courtyard-\"),"
+        }
+      ]
+    },
+    {
+      "key": "arg2@4",
+      "name": "arg2",
+      "line": 4,
+      "column": 26,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "courtyardToolAllowed = (arg2) =>",
+      "references": [
+        {
+          "line": 12,
+          "text": "].includes(arg2);"
+        }
+      ]
+    },
+    {
+      "key": "arg3@13",
+      "name": "arg3",
+      "line": 13,
+      "column": 35,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function courtyardPlanColor(arg3, arg4) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "let value1 = COURTYARD_VARIANT_BASES[arg3.type] || arg3.type;"
+        },
+        {
+          "line": 15,
+          "text": "(value1 === \"courtyard-area\" && (value1 = \"garden-\" + arg3.drawing.style),"
+        },
+        {
+          "line": 19,
+          "text": "arg3.drawing.style === \"hedge\""
+        },
+        {
+          "line": 21,
+          "text": ": [\"wall\", \"brick\"].includes(arg3.drawing.style)"
+        }
+      ]
+    },
+    {
+      "key": "arg4@13",
+      "name": "arg4",
+      "line": 13,
+      "column": 41,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function courtyardPlanColor(arg3, arg4) {",
+      "references": [
+        {
+          "line": 71,
+          "text": "arg4[text1].color"
+        }
+      ]
+    },
+    {
+      "key": "value1@14",
+      "name": "value1",
+      "line": 14,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1 = COURTYARD_VARIANT_BASES[arg3.type] || arg3.type;",
+      "references": [
+        {
+          "line": 15,
+          "text": "(value1 === \"courtyard-area\" && (value1 = \"garden-\" + arg3.drawing.style),"
+        },
+        {
+          "line": 16,
+          "text": "value1 === \"courtyard-path\" && (value1 = \"garden-stepping\"),"
+        },
+        {
+          "line": 17,
+          "text": "value1 === \"courtyard-fence\" &&"
+        },
+        {
+          "line": 42,
+          "text": "].some((arg5) => value1 === \"garden-\" + arg5)"
+        },
+        {
+          "line": 44,
+          "text": ": [\"pond\", \"fountain\", \"pool\", \"rock-water\"].some((arg6) => value1 === \"garden-\" + arg6)"
+        },
+        {
+          "line": 59,
+          "text": "].some((arg7) => value1 === \"garden-\" + arg7)"
+        }
+      ]
+    },
+    {
+      "key": "text1@24",
+      "name": "text1",
+      "line": 24,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let text1 = \"pillar\";",
+      "references": [
+        {
+          "line": 71,
+          "text": "arg4[text1].color"
+        }
+      ]
+    },
+    {
+      "key": "arg5@42",
+      "name": "arg5",
+      "line": 42,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].some((arg5) => value1 === \"garden-\" + arg5)",
+      "references": [
+        {
+          "line": 42,
+          "text": "].some((arg5) => value1 === \"garden-\" + arg5)"
+        }
+      ]
+    },
+    {
+      "key": "arg6@44",
+      "name": "arg6",
+      "line": 44,
+      "column": 57,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": [\"pond\", \"fountain\", \"pool\", \"rock-water\"].some((arg6) => value1 === \"garden-\" + arg6)",
+      "references": [
+        {
+          "line": 44,
+          "text": ": [\"pond\", \"fountain\", \"pool\", \"rock-water\"].some((arg6) => value1 === \"garden-\" + arg6)"
+        }
+      ]
+    },
+    {
+      "key": "arg7@59",
+      "name": "arg7",
+      "line": 59,
+      "column": 20,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "].some((arg7) => value1 === \"garden-\" + arg7)",
+      "references": [
+        {
+          "line": 59,
+          "text": "].some((arg7) => value1 === \"garden-\" + arg7)"
+        }
+      ]
+    },
+    {
+      "key": "arg8@62",
+      "name": "arg8",
+      "line": 62,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "(arg8) => value1 === \"garden-\" + arg8,",
+      "references": [
+        {
+          "line": 62,
+          "text": "(arg8) => value1 === \"garden-\" + arg8,"
+        }
+      ]
+    },
+    {
+      "key": "arg9@67",
+      "name": "arg9",
+      "line": 67,
+      "column": 45,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": [\"bollard\", \"lantern\"].some((arg9) => value1 === \"garden-\" + arg9)",
+      "references": [
+        {
+          "line": 67,
+          "text": ": [\"bollard\", \"lantern\"].some((arg9) => value1 === \"garden-\" + arg9)"
+        }
+      ]
+    },
+    {
+      "key": "arg10@69",
+      "name": "arg10",
+      "line": 69,
+      "column": 53,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": ": [\"barbecue\", \"outdoor-sink\"].some((arg10) => value1 === \"garden-\" + arg10) &&",
+      "references": [
+        {
+          "line": 69,
+          "text": ": [\"barbecue\", \"outdoor-sink\"].some((arg10) => value1 === \"garden-\" + arg10) &&"
+        }
+      ]
+    }
+  ]
+}

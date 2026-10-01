@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 264 168" role="img" aria-label="HA Bridge">
+  <defs>
+    <linearGradient id="mark-light" x1="22" y1="8" x2="127" y2="162" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e9eef0"/>
+    </linearGradient>
+    <linearGradient id="mark-orange" x1="158" y1="9" x2="251" y2="162" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffad0a"/>
+      <stop offset="1" stop-color="#f39a00"/>
+    </linearGradient>
+  </defs>
+  <path d="M116 50V43Q116 13 86 13H43Q13 13 13 43V125Q13 155 43 155H86Q116 155 116 125V118" fill="none" stroke="url(#mark-light)" stroke-width="26" stroke-linecap="butt" stroke-linejoin="round"/>
+  <path d="M149 50V43Q149 13 179 13H220Q250 13 250 44Q250 77 216 84H201M216 84Q252 88 252 126Q252 155 220 155H179Q149 155 149 125V118" fill="none" stroke="url(#mark-orange)" stroke-width="26" stroke-linecap="butt" stroke-linejoin="round"/>
+  <rect x="73" y="71" width="117" height="25" rx="12.5" fill="url(#mark-light)"/>
+</svg>

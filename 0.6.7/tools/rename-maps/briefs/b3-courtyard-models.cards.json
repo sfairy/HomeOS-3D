@@ -1,0 +1,133 @@
+{
+  "file": "frontend/static/3d-studio/courtyard-models.js",
+  "seed": "b3-courtyard-models",
+  "size": 30,
+  "candidates": 13,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "modelKey",
+      "declaration": "].map(([???, arg4, arg5, arg6, arg7]) => [",
+      "references": [
+        "L186: \"garden-\" + ???,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "frozenPalette",
+      "declaration": "const ??? = Object.freeze(object1);",
+      "references": [
+        "L99: return (t.set(value1, ???), ???);"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "variant",
+      "declaration": "export function courtyardPalette(???, arg2) {",
+      "references": [
+        "L73: ??? = COURTYARD_VARIANT_BASES[???] || ???;",
+        "L74: const value1 = arg2 + \":\" + ???;",
+        "L81: ??? === \"garden-lawn\" && (object1.leaf = WARM_WOOD_STYLE.diningSage),"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "short/module-binding",
+      "newName": "pavingOrWaterBaseSet",
+      "declaration": "const ??? = new Set([",
+      "references": [
+        "L95: ???.has(arg1) && (object1.light = WARM_WOOD_STYLE.countertop),"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "short/other",
+      "newName": "planterBaseSet",
+      "declaration": "??? = new Set([",
+      "references": [
+        "L96: ???.has(arg1) && (object1.dark = WARM_WOOD_STYLE.furnitureDark))"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/arrow",
+      "newName": "modelSize",
+      "declaration": "].map(([arg3, arg4, ???, arg6, arg7]) => [",
+      "references": [
+        "L189: size: ???,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/module-binding",
+      "newName": "cacheKey",
+      "declaration": "const ??? = arg2 + \":\" + arg1;",
+      "references": [
+        "L75: if (t.has(???)) return t.get(???);",
+        "L99: return (t.set(???, value2), value2);"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "theme",
+      "declaration": "export function courtyardPalette(arg1, ???) {",
+      "references": [
+        "L74: const value1 = ??? + \":\" + arg1;",
+        "L77: ...COURTYARD_THEMES[???],",
+        "L79: ??? === \"warm\""
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "short/module-binding",
+      "newName": "paletteByKey",
+      "declaration": "const ??? = new Map();",
+      "references": [
+        "L75: if (???.has(value1)) return ???.get(value1);",
+        "L99: return (???.set(value1, value2), value2);"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/arrow",
+      "newName": "modelName",
+      "declaration": "].map(([arg3, ???, arg5, arg6, arg7]) => [",
+      "references": [
+        "L188: name: ???,"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/module-binding",
+      "newName": "palette",
+      "declaration": "const ??? = {",
+      "references": [
+        "L80: ? ((???.dark = WARM_WOOD_STYLE.floorLampBody),",
+        "L81: arg1 === \"garden-lawn\" && (???.leaf = WARM_WOOD_STYLE.diningSage),",
+        "L84: ) && (???.leaf = WARM_WOOD_STYLE.furnitureSoft),"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/arrow",
+      "newName": "modelSection",
+      "declaration": "].map(([arg3, arg4, arg5, ???, arg7]) => [",
+      "references": [
+        "L190: section: ???,"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/arrow",
+      "newName": "modelGlyph",
+      "declaration": "].map(([arg3, arg4, arg5, arg6, ???]) => [",
+      "references": [
+        "L191: glyph: ???,"
+      ]
+    }
+  ]
+}

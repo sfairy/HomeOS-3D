@@ -1,0 +1,15 @@
+{
+  "frontend/static/3d-studio/stage-startup.js": {
+    "arg1@6": "env",
+    "arg2@7": "loadModule",
+    "arg3@9": "createCache",
+    "uRLSearchParams1@16": "searchParams",
+    "value1@17": "sceneId",
+    "value2@18": "projectId",
+    "value3@19": "scenePath",
+    "value4@24": "cache",
+    "value5@27": "preparationKey",
+    "value6@34": "preparationResponse",
+    "value7@39": "stageModule"
+  }
+}

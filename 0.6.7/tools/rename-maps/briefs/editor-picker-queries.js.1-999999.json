@@ -1,0 +1,302 @@
+{
+  "file": "frontend/static/editor-picker-queries.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 52,
+  "counts": {
+    "entries": 19,
+    "renameable": 19,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "c@2",
+      "name": "c",
+      "line": 2,
+      "column": 22,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "entityPickerConfig: c,",
+      "references": [
+        {
+          "line": 8,
+          "text": "const b = c(t),"
+        }
+      ]
+    },
+    {
+      "key": "a@3",
+      "name": "a",
+      "line": 3,
+      "column": 34,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "pickerEntitiesForComponentType: a,",
+      "references": [
+        {
+          "line": 12,
+          "text": "return a(t)"
+        }
+      ]
+    },
+    {
+      "key": "u@4",
+      "name": "u",
+      "line": 4,
+      "column": 20,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "entityPickerText: u,",
+      "references": [
+        {
+          "line": 19,
+          "text": "!e.virtual && (!n || `${u(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+        }
+      ]
+    },
+    {
+      "key": "s@5",
+      "name": "s",
+      "line": 5,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "entityDomain: s,",
+      "references": [
+        {
+          "line": 19,
+          "text": "!e.virtual && (!n || `${u(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+        }
+      ]
+    },
+    {
+      "key": "d@7",
+      "name": "d",
+      "line": 7,
+      "column": 11,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function d(t, l) {",
+      "references": [
+        {
+          "line": 48,
+          "text": "editorEntityMatches: d,"
+        }
+      ]
+    },
+    {
+      "key": "t@7",
+      "name": "t",
+      "line": 7,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function d(t, l) {",
+      "references": [
+        {
+          "line": 8,
+          "text": "const b = c(t),"
+        },
+        {
+          "line": 12,
+          "text": "return a(t)"
+        }
+      ]
+    },
+    {
+      "key": "l@7",
+      "name": "l",
+      "line": 7,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function d(t, l) {",
+      "references": [
+        {
+          "line": 9,
+          "text": "n = String(l || \"\")"
+        }
+      ]
+    },
+    {
+      "key": "b@8",
+      "name": "b",
+      "line": 8,
+      "column": 10,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const b = c(t),",
+      "references": [
+        {
+          "line": 22,
+          "text": "const i = (o) => (o?.virtual ? 100 : Number(b.recommended(o)));"
+        }
+      ]
+    },
+    {
+      "key": "n@9",
+      "name": "n",
+      "line": 9,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "n = String(l || \"\")",
+      "references": [
+        {
+          "line": 19,
+          "text": "!e.virtual && (!n || `${u(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+        }
+      ]
+    },
+    {
+      "key": "e@13",
+      "name": "e",
+      "line": 13,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".map((e, r) => ({",
+      "references": [
+        {
+          "line": 14,
+          "text": "entity: e,"
+        }
+      ]
+    },
+    {
+      "key": "r@13",
+      "name": "r",
+      "line": 13,
+      "column": 15,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".map((e, r) => ({",
+      "references": [
+        {
+          "line": 15,
+          "text": "index: r,"
+        }
+      ]
+    },
+    {
+      "key": "e@18",
+      "name": "e",
+      "line": 18,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "({ entity: e }) =>",
+      "references": [
+        {
+          "line": 19,
+          "text": "!e.virtual && (!n || `${u(e)} ${s(e)}`.toLocaleLowerCase(\"zh-CN\").includes(n)),"
+        }
+      ]
+    },
+    {
+      "key": "e@21",
+      "name": "e",
+      "line": 21,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".sort((e, r) => {",
+      "references": [
+        {
+          "line": 23,
+          "text": "return i(r.entity) - i(e.entity) || e.index - r.index;"
+        }
+      ]
+    },
+    {
+      "key": "r@21",
+      "name": "r",
+      "line": 21,
+      "column": 16,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".sort((e, r) => {",
+      "references": [
+        {
+          "line": 23,
+          "text": "return i(r.entity) - i(e.entity) || e.index - r.index;"
+        }
+      ]
+    },
+    {
+      "key": "i@22",
+      "name": "i",
+      "line": 22,
+      "column": 14,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = (o) => (o?.virtual ? 100 : Number(b.recommended(o)));",
+      "references": [
+        {
+          "line": 23,
+          "text": "return i(r.entity) - i(e.entity) || e.index - r.index;"
+        }
+      ]
+    },
+    {
+      "key": "o@22",
+      "name": "o",
+      "line": 22,
+      "column": 19,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = (o) => (o?.virtual ? 100 : Number(b.recommended(o)));",
+      "references": [
+        {
+          "line": 22,
+          "text": "const i = (o) => (o?.virtual ? 100 : Number(b.recommended(o)));"
+        }
+      ]
+    },
+    {
+      "key": "e@25",
+      "name": "e",
+      "line": 25,
+      "column": 22,
+      "kind": "short",
+      "frozen": false,
+      "declaration": ".map(({ entity: e }) => e);",
+      "references": [
+        {
+          "line": 25,
+          "text": ".map(({ entity: e }) => e);"
+        }
+      ]
+    },
+    {
+      "key": "m@27",
+      "name": "m",
+      "line": 27,
+      "column": 11,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function m(t) {",
+      "references": [
+        {
+          "line": 49,
+          "text": "editorPickerComponentTypeLabel: m,"
+        }
+      ]
+    },
+    {
+      "key": "t@27",
+      "name": "t",
+      "line": 27,
+      "column": 13,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "function m(t) {",
+      "references": [
+        {
+          "line": 44,
+          "text": "}[t] || \"控件\""
+        }
+      ]
+    }
+  ]
+}

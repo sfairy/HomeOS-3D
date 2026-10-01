@@ -1,0 +1,498 @@
+{
+  "file": "frontend/static/update-notice.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 79,
+  "counts": {
+    "entries": 23,
+    "renameable": 23,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "g@1",
+      "name": "g",
+      "line": 1,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const g = \"https://wiki.habridge.cn/updates.html#changelog\";",
+      "references": [
+        {
+          "line": 15,
+          "text": "(arg1.href = value2 ? value1.href : g),"
+        }
+      ]
+    },
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 34,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function applyUpdateNotice(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 15,
+          "text": "(arg1.href = value2 ? value1.href : g),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.title = value2"
+        },
+        {
+          "line": 20,
+          "text": "? arg1.setAttribute(\"aria-label\", \"开发计划与更新日志，有新版本 \" + arg3.latestVersion)"
+        },
+        {
+          "line": 21,
+          "text": ": arg1.removeAttribute(\"aria-label\"));"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 40,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function applyUpdateNotice(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 14,
+          "text": "((arg2.hidden = !value2),"
+        }
+      ]
+    },
+    {
+      "key": "arg3@2",
+      "name": "arg3",
+      "line": 2,
+      "column": 46,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "export function applyUpdateNotice(arg1, arg2, arg3) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "value1 = new URL(arg3?.logUrl);"
+        },
+        {
+          "line": 8,
+          "text": "arg3?.updateAvailable === true &&"
+        },
+        {
+          "line": 9,
+          "text": "typeof arg3.latestVersion == \"string\" &&"
+        },
+        {
+          "line": 17,
+          "text": "? \"当前 \" + arg3.currentVersion + \"，最新 \" + arg3.latestVersion + \"，查看更新日志和升级说明\""
+        },
+        {
+          "line": 20,
+          "text": "? arg1.setAttribute(\"aria-label\", \"开发计划与更新日志，有新版本 \" + arg3.latestVersion)"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value1;",
+      "references": [
+        {
+          "line": 10,
+          "text": "value1?.origin === \"https://wiki.habridge.cn\" &&"
+        },
+        {
+          "line": 11,
+          "text": "value1.pathname === \"/updates.html\" &&"
+        },
+        {
+          "line": 12,
+          "text": "!value1.username &&"
+        },
+        {
+          "line": 13,
+          "text": "!value1.password;"
+        },
+        {
+          "line": 15,
+          "text": "(arg1.href = value2 ? value1.href : g),"
+        }
+      ]
+    },
+    {
+      "key": "value2@7",
+      "name": "value2",
+      "line": 7,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value2 =",
+      "references": [
+        {
+          "line": 14,
+          "text": "((arg2.hidden = !value2),"
+        },
+        {
+          "line": 15,
+          "text": "(arg1.href = value2 ? value1.href : g),"
+        },
+        {
+          "line": 16,
+          "text": "(arg1.title = value2"
+        },
+        {
+          "line": 19,
+          "text": "value2"
+        }
+      ]
+    },
+    {
+      "key": "arg4@24",
+      "name": "arg4",
+      "line": 24,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg4,",
+      "references": [
+        {
+          "line": 48,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, value9);"
+        },
+        {
+          "line": 49,
+          "text": "} else value4 || applyUpdateNotice(arg4, arg5, null);"
+        },
+        {
+          "line": 51,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, null);"
+        }
+      ]
+    },
+    {
+      "key": "arg5@25",
+      "name": "arg5",
+      "line": 25,
+      "column": 2,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "arg5,",
+      "references": [
+        {
+          "line": 48,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, value9);"
+        },
+        {
+          "line": 49,
+          "text": "} else value4 || applyUpdateNotice(arg4, arg5, null);"
+        },
+        {
+          "line": 51,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, null);"
+        }
+      ]
+    },
+    {
+      "key": "arg6@27",
+      "name": "arg6",
+      "line": 27,
+      "column": 13,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "fetcher: arg6 = fetch,",
+      "references": [
+        {
+          "line": 41,
+          "text": "const value8 = await arg6(\"/api/v1/updates\", {"
+        }
+      ]
+    },
+    {
+      "key": "arg7@28",
+      "name": "arg7",
+      "line": 28,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "page: arg7 = document,",
+      "references": [
+        {
+          "line": 37,
+          "text": "if (value3 || value4 || arg7.hidden) return;"
+        },
+        {
+          "line": 58,
+          "text": "arg7.addEventListener(\"visibilitychange\", fn1),"
+        },
+        {
+          "line": 64,
+          "text": "arg7.removeEventListener(\"visibilitychange\", fn1));"
+        }
+      ]
+    },
+    {
+      "key": "arg8@29",
+      "name": "arg8",
+      "line": 29,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "schedule: arg8 = setInterval,",
+      "references": [
+        {
+          "line": 56,
+          "text": "const value6 = arg8(fn1, 60 * 1000);"
+        }
+      ]
+    },
+    {
+      "key": "arg9@30",
+      "name": "arg9",
+      "line": 30,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "cancel: arg9 = clearInterval,",
+      "references": [
+        {
+          "line": 63,
+          "text": "arg9(value6),"
+        }
+      ]
+    },
+    {
+      "key": "value3@33",
+      "name": "value3",
+      "line": 33,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value3 = false,",
+      "references": [
+        {
+          "line": 37,
+          "text": "if (value3 || value4 || arg7.hidden) return;"
+        }
+      ]
+    },
+    {
+      "key": "value4@34",
+      "name": "value4",
+      "line": 34,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value4 = false,",
+      "references": [
+        {
+          "line": 37,
+          "text": "if (value3 || value4 || arg7.hidden) return;"
+        },
+        {
+          "line": 46,
+          "text": "if (value8.ok && !value4) {"
+        },
+        {
+          "line": 48,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, value9);"
+        },
+        {
+          "line": 49,
+          "text": "} else value4 || applyUpdateNotice(arg4, arg5, null);"
+        },
+        {
+          "line": 51,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, null);"
+        }
+      ]
+    },
+    {
+      "key": "value5@35",
+      "name": "value5",
+      "line": 35,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value5;",
+      "references": [
+        {
+          "line": 39,
+          "text": "const value7 = setTimeout(() => value5.abort(), 5000);"
+        },
+        {
+          "line": 42,
+          "text": "signal: value5.signal,"
+        },
+        {
+          "line": 62,
+          "text": "value5?.abort(),"
+        }
+      ]
+    },
+    {
+      "key": "fn1@36",
+      "name": "fn1",
+      "line": 36,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function fn1() {",
+      "references": [
+        {
+          "line": 56,
+          "text": "const value6 = arg8(fn1, 60 * 1000);"
+        },
+        {
+          "line": 58,
+          "text": "arg7.addEventListener(\"visibilitychange\", fn1),"
+        },
+        {
+          "line": 59,
+          "text": "fn1(),"
+        },
+        {
+          "line": 64,
+          "text": "arg7.removeEventListener(\"visibilitychange\", fn1));"
+        }
+      ]
+    },
+    {
+      "key": "value7@39",
+      "name": "value7",
+      "line": 39,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value7 = setTimeout(() => value5.abort(), 5000);",
+      "references": [
+        {
+          "line": 53,
+          "text": "(clearTimeout(value7), (value3 = false));"
+        }
+      ]
+    },
+    {
+      "key": "value8@41",
+      "name": "value8",
+      "line": 41,
+      "column": 12,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value8 = await arg6(\"/api/v1/updates\", {",
+      "references": [
+        {
+          "line": 46,
+          "text": "if (value8.ok && !value4) {"
+        },
+        {
+          "line": 47,
+          "text": "const value9 = await value8.json();"
+        }
+      ]
+    },
+    {
+      "key": "value9@47",
+      "name": "value9",
+      "line": 47,
+      "column": 14,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value9 = await value8.json();",
+      "references": [
+        {
+          "line": 48,
+          "text": "value4 || applyUpdateNotice(arg4, arg5, value9);"
+        }
+      ]
+    },
+    {
+      "key": "value6@56",
+      "name": "value6",
+      "line": 56,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value6 = arg8(fn1, 60 * 1000);",
+      "references": [
+        {
+          "line": 63,
+          "text": "arg9(value6),"
+        }
+      ]
+    },
+    {
+      "key": "c@68",
+      "name": "c",
+      "line": 68,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const c = globalThis.document?.querySelector(\"#product-updates-link\"),",
+      "references": [
+        {
+          "line": 70,
+          "text": "if (c && u) {"
+        },
+        {
+          "line": 71,
+          "text": "let e = startUpdateNotice(c, u);"
+        },
+        {
+          "line": 76,
+          "text": "e || (e = startUpdateNotice(c, u));"
+        }
+      ]
+    },
+    {
+      "key": "u@69",
+      "name": "u",
+      "line": 69,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "u = globalThis.document?.querySelector(\"#product-update-badge\");",
+      "references": [
+        {
+          "line": 70,
+          "text": "if (c && u) {"
+        },
+        {
+          "line": 71,
+          "text": "let e = startUpdateNotice(c, u);"
+        },
+        {
+          "line": 76,
+          "text": "e || (e = startUpdateNotice(c, u));"
+        }
+      ]
+    },
+    {
+      "key": "e@71",
+      "name": "e",
+      "line": 71,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "let e = startUpdateNotice(c, u);",
+      "references": [
+        {
+          "line": 73,
+          "text": "(e?.(), (e = null));"
+        },
+        {
+          "line": 76,
+          "text": "e || (e = startUpdateNotice(c, u));"
+        }
+      ]
+    }
+  ]
+}

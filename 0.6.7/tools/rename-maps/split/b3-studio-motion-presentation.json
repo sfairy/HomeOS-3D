@@ -1,0 +1,16 @@
+{
+  "frontend/static/3d-studio/studio-motion-presentation.js": {
+    "arg1@2": "setReflections",
+    "arg2@3": "setShadows",
+    "arg3@4": "isLiveCameraEnabled",
+    "value1@6": "isFloorActive",
+    "value2@7": "isCameraActive",
+    "value3@8": "isAdvanced",
+    "value4@9": "isLiveActive",
+    "fn1@10": "publish",
+    "arg4@14": "floorActive",
+    "arg5@17": "cameraActive",
+    "arg6@17": "isLiveRequested",
+    "arg7@20": "progress"
+  }
+}

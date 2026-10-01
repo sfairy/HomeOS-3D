@@ -1,0 +1,101 @@
+{
+  "file": "frontend/static/3d-studio/studio-floor-openings.js",
+  "seed": "b3-studio-floor-openings",
+  "size": 30,
+  "candidates": 9,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "localX",
+      "declaration": "].map(([???, arg4]) => ({",
+      "references": [
+        "L13: x: arg1.x + ??? * value2 - arg4 * value3,",
+        "L14: y: arg1.y + ??? * value3 + arg4 * value2,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "rotationRad",
+      "declaration": "const ??? = (arg1.rotation * Math.PI) / 180,",
+      "references": [
+        "L3: value2 = Math.cos(???),",
+        "L4: value3 = Math.sin(???),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "cosRotation",
+      "declaration": "??? = Math.cos(value1),",
+      "references": [
+        "L13: x: arg1.x + arg3 * ??? - arg4 * value3,",
+        "L14: y: arg1.y + arg3 * value3 + arg4 * ???,"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/arrow",
+      "newName": "localY",
+      "declaration": "].map(([arg3, ???]) => ({",
+      "references": [
+        "L13: x: arg1.x + arg3 * value2 - ??? * value3,",
+        "L14: y: arg1.y + arg3 * value3 + ??? * value2,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/other",
+      "newName": "scale",
+      "declaration": "export function floorOpeningPolygon(arg1, ???) {",
+      "references": [
+        "L5: value4 = (arg1.width * ???) / 2,",
+        "L6: value5 = (arg1.depth * ???) / 2;"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "halfDepth",
+      "declaration": "??? = (arg1.depth * arg2) / 2;",
+      "references": [
+        "L8: [-value4, -???],",
+        "L9: [value4, -???],",
+        "L10: [value4, ???],"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "opening",
+      "declaration": "export function floorOpeningPolygon(???, arg2) {",
+      "references": [
+        "L2: const value1 = (???.rotation * Math.PI) / 180,",
+        "L5: value4 = (???.width * arg2) / 2,",
+        "L6: value5 = (???.depth * arg2) / 2;"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "halfWidth",
+      "declaration": "??? = (arg1.width * arg2) / 2,",
+      "references": [
+        "L8: [-???, -value5],",
+        "L9: [???, -value5],",
+        "L10: [???, value5],"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "sinRotation",
+      "declaration": "??? = Math.sin(value1),",
+      "references": [
+        "L13: x: arg1.x + arg3 * value2 - arg4 * ???,",
+        "L14: y: arg1.y + arg3 * ??? + arg4 * value2,"
+      ]
+    }
+  ]
+}

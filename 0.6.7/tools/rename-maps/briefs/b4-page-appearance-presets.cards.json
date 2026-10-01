@@ -1,0 +1,47 @@
+{
+  "file": "frontend/static/modules/interaction3d/page-appearance-presets.js",
+  "seed": "b4-page-appearance-presets",
+  "size": 30,
+  "candidates": 4,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/module-binding",
+      "newName": "appearancePreset",
+      "declaration": "const ??? = PAGE_APPEARANCE_PRESETS[arg1.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\"];",
+      "references": [
+        "L31: ...structuredClone(???),"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/other",
+      "newName": "sceneConfig",
+      "declaration": "export function withPageAppearancePreset(???) {",
+      "references": [
+        "L28: const value1 = PAGE_APPEARANCE_PRESETS[???.sceneStyle === \"warm-wood\" ? \"warm-wood\" : \"default\"];",
+        "L30: ...???,"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "short/module-binding",
+      "newName": "baseAppearancePreset",
+      "declaration": "const ??? = {",
+      "references": [
+        "L21: for (const e of Object.values(???)) e && typeof e == \"object\" && Object.freeze(e);",
+        "L22: Object.freeze(???);",
+        "L24: default: ???,"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "short/other",
+      "newName": "presetValue",
+      "declaration": "for (const ??? of Object.values(t)) ??? && typeof ??? == \"object\" && Object.freeze(???);",
+      "references": [
+        "L21: for (const ??? of Object.values(t)) ??? && typeof ??? == \"object\" && Object.freeze(???);"
+      ]
+    }
+  ]
+}

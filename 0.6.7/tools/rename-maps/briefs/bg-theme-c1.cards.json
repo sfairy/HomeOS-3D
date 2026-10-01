@@ -1,0 +1,304 @@
+{
+  "file": "frontend/modules/interaction3d/background-theme.js",
+  "seed": "bg-theme-c1",
+  "size": 30,
+  "candidates": 90,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/arrow",
+      "newName": "onThemeChanged",
+      "declaration": "export function createBackgroundTheme(arg2, ??? = () => {}, arg4 = () => performance.now()) {",
+      "references": [
+        "L140: return (???(), true);",
+        "L229: ???();"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/destructured-object",
+      "newName": "savedProgramKey",
+      "declaration": "const { material: value16, beforeCompile: value17, programKey: ??? } = arg6;",
+      "references": [
+        "L47: value16.customProgramCacheKey === arg6.key && (value16.customProgramCacheKey = ???),"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/function-or-class",
+      "newName": "resetActivity",
+      "declaration": "function ???() {",
+      "references": [
+        "L137: (???(), (text1 = value24));",
+        "L144: ((value8 = arg13 !== false), value8 || ???());",
+        "L232: if (value9 || !value8 || text1 === \"grid\" || value7) return (???(), Infinity);"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/function-parameter",
+      "newName": "shader",
+      "declaration": "((object1.compile = function (???, arg10) {",
+      "references": [
+        "L99: (object1.beforeCompile.call(this, ???, arg10),",
+        "L100: Object.assign(???.uniforms, object1.uniforms),",
+        "L101: !???.fragmentShader.includes(\"uniform float hbGroundTheme;\") &&"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/module-binding",
+      "newName": "totalOpacity",
+      "declaration": "let ??? = value26.reduce((arg15, arg16) => arg15 + arg16.material.opacity, 0);",
+      "references": [
+        "L186: (value29?.material.transparent && !value26.includes(value29) && ??? < 1",
+        "L188: (value29.uniforms.hbGroundFallback.value = 1 - ???),",
+        "L193: (??? = Math.max(1, ???)));"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "orbitCenter",
+      "declaration": "??? = arg2.getOrbitCenter?.();",
+      "references": [
+        "L159: if (value32 && ????.length === 3 && ???.every(Number.isFinite)) {",
+        "L161: const value34 = value30.worldToLocal(new value1.Vector3(...???));"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "short/module-binding",
+      "newName": "groundThemeUniformDeclarations",
+      "declaration": "const ??? =",
+      "references": [
+        "L109: .replace(\"#include <common>\", \"#include <common>\\n\" + ???)"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "short/other",
+      "newName": "groundThemeShaderSource",
+      "declaration": "??? =",
+      "references": [
+        "L110: .replace(\"#include <color_fragment>\", \"#include <color_fragment>\\n\" + ???))));"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/arrow",
+      "newName": "themeName",
+      "declaration": "normalizeBackgroundTheme = (???) => (??? === \"dots\" || ??? === \"contours\" ? \"dots\" : \"grid\");",
+      "references": [
+        "L5: normalizeBackgroundTheme = (???) => (??? === \"dots\" || ??? === \"contours\" ? \"dots\" : \"grid\");"
+      ]
+    },
+    {
+      "id": "card-10",
+      "stratum": "mechanical/destructured-object",
+      "newName": "three",
+      "declaration": "const { THREE: ??? } = arg2,",
+      "references": [
+        "L15: value2 = new ???.Raycaster(),",
+        "L16: value3 = new ???.Vector2(),",
+        "L17: value4 = new ???.Color(\"#6b8199\"),"
+      ]
+    },
+    {
+      "id": "card-11",
+      "stratum": "mechanical/function-or-class",
+      "newName": "meshRecord",
+      "declaration": "function fn2(???) {",
+      "references": [
+        "L42: const { material: value16, beforeCompile: value17, programKey: value18 } = ???;",
+        "L43: ((???.uniforms.hbGroundTheme.value = 0),",
+        "L44: delete ???.object.userData.backgroundThemeKeepVisible);"
+      ]
+    },
+    {
+      "id": "card-12",
+      "stratum": "mechanical/function-parameter",
+      "newName": "renderer",
+      "declaration": "((object1.compile = function (arg9, ???) {",
+      "references": [
+        "L99: (object1.beforeCompile.call(this, arg9, ???),"
+      ]
+    },
+    {
+      "id": "card-13",
+      "stratum": "mechanical/module-binding",
+      "newName": "normalizedTheme",
+      "declaration": "const ??? = normalizeBackgroundTheme(arg11);",
+      "references": [
+        "L136: if (value9 || ??? === text1) return false;",
+        "L137: (fn4(), (text1 = ???));",
+        "L139: value25.uniforms.hbGroundTheme.value = ??? === \"dots\" ? 1 : 0;"
+      ]
+    },
+    {
+      "id": "card-14",
+      "stratum": "mechanical/other",
+      "newName": "syncedRecord",
+      "declaration": "for (const ??? of map1.values())",
+      "references": [
+        "L139: ???.uniforms.hbGroundTheme.value = value24 === \"dots\" ? 1 : 0;"
+      ]
+    },
+    {
+      "id": "card-15",
+      "stratum": "mechanical/arrow",
+      "newName": "recordB",
+      "declaration": ".sort((arg18, ???) => ???.material.opacity - arg18.material.opacity)[0];",
+      "references": [
+        "L185: .sort((arg18, ???) => ???.material.opacity - arg18.material.opacity)[0];"
+      ]
+    },
+    {
+      "id": "card-16",
+      "stratum": "mechanical/destructured-object",
+      "newName": "blendedUniforms",
+      "declaration": "const { material: value40, uniforms: ??? } = value39;",
+      "references": [
+        "L196: ((???.hbGroundCoverage.value = value40.transparent ? value27 : 1),"
+      ]
+    },
+    {
+      "id": "card-17",
+      "stratum": "mechanical/function-or-class",
+      "newName": "targetMesh",
+      "declaration": "function fn3(???) {",
+      "references": [
+        "L51: const value20 = ???.material;",
+        "L52: if (!value20?.isMeshBasicMaterial || !???.geometry?.parameters?.width) return;",
+        "L54: object: ???,"
+      ]
+    },
+    {
+      "id": "card-18",
+      "stratum": "mechanical/module-binding",
+      "newName": "canvasRect",
+      "declaration": "const ??? = arg2.canvas.getBoundingClientRect();",
+      "references": [
+        "L211: if (???.width && ???.height) {",
+        "L213: ((arg20.clientX - ???.left) / ???.width) * 2 - 1,",
+        "L214: 1 - ((arg20.clientY - ???.top) / ???.height) * 2,"
+      ]
+    },
+    {
+      "id": "card-19",
+      "stratum": "mechanical/other",
+      "newName": "ancestor",
+      "declaration": "for (let ??? = arg22; ???; ??? = ???.parent)",
+      "references": [
+        "L218: for (let ??? = arg22; ???; ??? = ???.parent)",
+        "L219: if (!???.visible) return false;"
+      ]
+    },
+    {
+      "id": "card-20",
+      "stratum": "mechanical/arrow",
+      "newName": "sceneHost",
+      "declaration": "export function createBackgroundTheme(???, arg3 = () => {}, arg4 = () => performance.now()) {",
+      "references": [
+        "L11: const { THREE: value1 } = ???,",
+        "L122: value10 && ((value10 = false), ???.backgroundFrame?.(false));",
+        "L158: value33 = ???.getOrbitCenter?.();"
+      ]
+    },
+    {
+      "id": "card-21",
+      "stratum": "mechanical/destructured-object",
+      "newName": "blendedMaterial",
+      "declaration": "const { material: ???, uniforms: value41 } = value39;",
+      "references": [
+        "L196: ((value41.hbGroundCoverage.value = ???.transparent ? value27 : 1),",
+        "L197: ???.transparent &&",
+        "L198: ((???.blending = value1.CustomBlending),"
+      ]
+    },
+    {
+      "id": "card-22",
+      "stratum": "mechanical/function-or-class",
+      "newName": "buildMeshRecord",
+      "declaration": "function ???(arg7) {",
+      "references": [
+        "L156: map1.has(value30) || ???(value30));"
+      ]
+    },
+    {
+      "id": "card-23",
+      "stratum": "mechanical/module-binding",
+      "newName": "candidateRecord",
+      "declaration": "const value26 = [...map1.values()].filter((???) => fn1(???.object));",
+      "references": [
+        "L175: const value26 = [...map1.values()].filter((???) => fn1(???.object));"
+      ]
+    },
+    {
+      "id": "card-24",
+      "stratum": "mechanical/other",
+      "newName": "deepColor",
+      "declaration": "??? = new value1.Color(\"#182431\"),",
+      "references": [
+        "L76: value: ???,"
+      ]
+    },
+    {
+      "id": "card-25",
+      "stratum": "mechanical/arrow",
+      "newName": "isBackgroundVisible",
+      "declaration": "??? = (arg5) =>",
+      "references": [
+        "L175: const value26 = [...map1.values()].filter((arg14) => ???(arg14.object));"
+      ]
+    },
+    {
+      "id": "card-26",
+      "stratum": "mechanical/destructured-object",
+      "newName": "savedBeforeCompile",
+      "declaration": "const { material: value16, beforeCompile: ???, programKey: value18 } = arg6;",
+      "references": [
+        "L46: (value16.onBeforeCompile === arg6.compile && (value16.onBeforeCompile = ???),"
+      ]
+    },
+    {
+      "id": "card-27",
+      "stratum": "mechanical/function-or-class",
+      "newName": "restoreMeshRecord",
+      "declaration": "function ???(arg6) {",
+      "references": [
+        "L155: (???(value31), map1.delete(value30)),",
+        "L168: (???(value36), map1.delete(value35));",
+        "L251: for (const value53 of map1.values()) ???(value53);"
+      ]
+    },
+    {
+      "id": "card-28",
+      "stratum": "mechanical/module-binding",
+      "newName": "candidateMeshes",
+      "declaration": "const ??? = [...map1.keys()].filter((arg22) => {",
+      "references": [
+        "L222: value45 = value2.intersectObjects(???, false)[0];"
+      ]
+    },
+    {
+      "id": "card-29",
+      "stratum": "mechanical/other",
+      "newName": "shouldReduceMotion",
+      "declaration": "??? = globalThis.window?.matchMedia?.(\"(prefers-reduced-motion: reduce)\")?.matches === true;",
+      "references": [
+        "L207: if (value9 || !value8 || text1 === \"grid\" || ??? || !map1.size) return;",
+        "L232: if (value9 || !value8 || text1 === \"grid\" || ???) return (fn4(), Infinity);"
+      ]
+    },
+    {
+      "id": "card-30",
+      "stratum": "mechanical/arrow",
+      "newName": "recordA",
+      "declaration": ".sort((???, arg19) => arg19.material.opacity - ???.material.opacity)[0];",
+      "references": [
+        "L185: .sort((???, arg19) => arg19.material.opacity - ???.material.opacity)[0];"
+      ]
+    }
+  ]
+}

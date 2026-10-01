@@ -1,0 +1,13 @@
+{
+  "frontend/static/3d-studio/studio-window-geometry.js": {
+    "arg1@1": "width",
+    "arg2@1": "height",
+    "arg3@1": "sillHeight",
+    "arg4@1": "hasMullions",
+    "value1@3": "frameThickness",
+    "value2@4": "centerY",
+    "list1@5": "glassParts",
+    "list2@6": "frameParts",
+    "value3@12": "isDivided"
+  }
+}

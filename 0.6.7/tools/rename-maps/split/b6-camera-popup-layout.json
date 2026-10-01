@@ -1,0 +1,16 @@
+{
+  "frontend/static/modules/interaction3d/camera-popup-layout.js": {
+    "c@1": "ratioByBoard",
+    "arg1@2": "boardId",
+    "arg2@2": "ratio",
+    "arg3@5": "boardWidth",
+    "arg4@5": "boardHeight",
+    "arg5@5": "previewRatio",
+    "arg6@5": "chromeHeight",
+    "value1@6": "maxPanelWidth",
+    "value2@7": "panelWidth",
+    "value3@8": "mediaHeight",
+    "value4@9": "panelHeight",
+    "value5@10": "topOffset"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "frontend/static/modules/interaction3d/load-timing.js": {
+    "arg1@1": "scope",
+    "arg2@1": "host",
+    "value1@2": "isDiagnosticsEnabled",
+    "arg3@4": "phase",
+    "value2@6": "timestampMs"
+  }
+}

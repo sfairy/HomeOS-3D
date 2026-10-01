@@ -1,0 +1,185 @@
+{
+  "file": "frontend/static/apple-install-guide.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 48,
+  "counts": {
+    "entries": 8,
+    "renameable": 8,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "o@1",
+      "name": "o",
+      "line": 1,
+      "column": 35,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "import { needsAppleInstallGuide as o } from \"./pairing-link.js\";",
+      "references": [
+        {
+          "line": 8,
+          "text": "o(navigator, matchMedia(\"(display-mode: standalone)\").matches))"
+        }
+      ]
+    },
+    {
+      "key": "a@2",
+      "name": "a",
+      "line": 2,
+      "column": 6,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const a = new URL(location.href),",
+      "references": [
+        {
+          "line": 3,
+          "text": "s = a.searchParams.get(\"addToHome\") === \"1\";"
+        },
+        {
+          "line": 6,
+          "text": "(a.searchParams.delete(\"addToHome\"),"
+        },
+        {
+          "line": 7,
+          "text": "history.replaceState(null, \"\", a.pathname + a.search + a.hash)),"
+        }
+      ]
+    },
+    {
+      "key": "s@3",
+      "name": "s",
+      "line": 3,
+      "column": 2,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "s = a.searchParams.get(\"addToHome\") === \"1\";",
+      "references": [
+        {
+          "line": 5,
+          "text": "(s &&"
+        },
+        {
+          "line": 35,
+          "text": "s)"
+        }
+      ]
+    },
+    {
+      "key": "i@10",
+      "name": "i",
+      "line": 10,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const i = /CriOS\\//.test(navigator.userAgent),",
+      "references": [
+        {
+          "line": 22,
+          "text": "<li><b>1</b><div><strong>\\u6253\\u5F00${i ? \" Chrome \" : \" Safari \"}\\u7684\\u5206\\u4EAB\\u83DC\\u5355</strong><p>Chrome \\u548C Safari \\u5747\\u652F\\u6301\\uFF0C\\u53EF\\u5728\\u201C\\u2026\\u201D\\u4E2D\\u627E\\u52..."
+        }
+      ]
+    },
+    {
+      "key": "t@11",
+      "name": "t",
+      "line": 11,
+      "column": 4,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "t = document.createElement(\"button\");",
+      "references": [
+        {
+          "line": 12,
+          "text": "((t.className = \"apple-install-trigger\"), (t.type = \"button\"), (t.textContent = \"添加到主屏幕\"));"
+        },
+        {
+          "line": 28,
+          "text": "document.body.append(t, e));"
+        },
+        {
+          "line": 33,
+          "text": "(t.addEventListener(\"click\", l),"
+        }
+      ]
+    },
+    {
+      "key": "e@13",
+      "name": "e",
+      "line": 13,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const e = document.createElement(\"dialog\");",
+      "references": [
+        {
+          "line": 14,
+          "text": "((e.className = \"apple-install-dialog\"),"
+        },
+        {
+          "line": 15,
+          "text": "e.setAttribute(\"aria-labelledby\", \"apple-install-title\"),"
+        },
+        {
+          "line": 16,
+          "text": "(e.innerHTML = `"
+        },
+        {
+          "line": 28,
+          "text": "document.body.append(t, e));"
+        },
+        {
+          "line": 30,
+          "text": "e.open || e.showModal();"
+        },
+        {
+          "line": 34,
+          "text": "e.querySelector(\".apple-install-done\").addEventListener(\"click\", () => e.close()),"
+        }
+      ]
+    },
+    {
+      "key": "l@29",
+      "name": "l",
+      "line": 29,
+      "column": 8,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const l = () => {",
+      "references": [
+        {
+          "line": 33,
+          "text": "(t.addEventListener(\"click\", l),"
+        },
+        {
+          "line": 37,
+          "text": "if (!document.documentElement.classList.contains(\"display-booting\")) l();"
+        },
+        {
+          "line": 40,
+          "text": "document.documentElement.classList.contains(\"display-booting\") || (n.disconnect(), l());"
+        }
+      ]
+    },
+    {
+      "key": "n@39",
+      "name": "n",
+      "line": 39,
+      "column": 12,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "const n = new MutationObserver(() => {",
+      "references": [
+        {
+          "line": 40,
+          "text": "document.documentElement.classList.contains(\"display-booting\") || (n.disconnect(), l());"
+        },
+        {
+          "line": 42,
+          "text": "n.observe(document.documentElement, {"
+        }
+      ]
+    }
+  ]
+}

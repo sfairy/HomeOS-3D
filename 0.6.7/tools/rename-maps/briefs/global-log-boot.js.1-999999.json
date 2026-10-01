@@ -1,0 +1,166 @@
+{
+  "file": "frontend/static/global-log-boot.js",
+  "declStart": 1,
+  "declEnd": 999999,
+  "totalLines": 36,
+  "counts": {
+    "entries": 7,
+    "renameable": 7,
+    "frozen": 0
+  },
+  "entries": [
+    {
+      "key": "i@2",
+      "name": "i",
+      "line": 2,
+      "column": 15,
+      "kind": "short",
+      "frozen": false,
+      "declaration": "async function i(arg1, arg2 = {}) {",
+      "references": [
+        {
+          "line": 34,
+          "text": "api: i,"
+        }
+      ]
+    },
+    {
+      "key": "arg1@2",
+      "name": "arg1",
+      "line": 2,
+      "column": 17,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function i(arg1, arg2 = {}) {",
+      "references": [
+        {
+          "line": 3,
+          "text": "const value1 = await fetch(\"/api/v1\" + arg1, {"
+        },
+        {
+          "line": 19,
+          "text": "if (value1.ok) throw new Error(\"接口返回格式异常：\" + arg1.split(\"?\")[0]);"
+        }
+      ]
+    },
+    {
+      "key": "arg2@2",
+      "name": "arg2",
+      "line": 2,
+      "column": 23,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "async function i(arg1, arg2 = {}) {",
+      "references": [
+        {
+          "line": 5,
+          "text": "...arg2,"
+        },
+        {
+          "line": 6,
+          "text": "headers: arg2.body"
+        },
+        {
+          "line": 9,
+          "text": "...(arg2.headers || {}),"
+        },
+        {
+          "line": 11,
+          "text": ": arg2.headers,"
+        }
+      ]
+    },
+    {
+      "key": "value1@3",
+      "name": "value1",
+      "line": 3,
+      "column": 8,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value1 = await fetch(\"/api/v1\" + arg1, {",
+      "references": [
+        {
+          "line": 13,
+          "text": "value2 = value1.status === 204 ? \"\" : await value1.text();"
+        },
+        {
+          "line": 19,
+          "text": "if (value1.ok) throw new Error(\"接口返回格式异常：\" + arg1.split(\"?\")[0]);"
+        },
+        {
+          "line": 21,
+          "text": "if (value1.status === 401)"
+        },
+        {
+          "line": 23,
+          "text": "if (!value1.ok) {"
+        },
+        {
+          "line": 28,
+          "text": ": value4?.message || \"请求失败（HTTP \" + value1.status + \"）\","
+        }
+      ]
+    },
+    {
+      "key": "value2@13",
+      "name": "value2",
+      "line": 13,
+      "column": 4,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "value2 = value1.status === 204 ? \"\" : await value1.text();",
+      "references": [
+        {
+          "line": 15,
+          "text": "if (value2)"
+        },
+        {
+          "line": 17,
+          "text": "value3 = JSON.parse(value2);"
+        }
+      ]
+    },
+    {
+      "key": "value3@14",
+      "name": "value3",
+      "line": 14,
+      "column": 6,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "let value3 = null;",
+      "references": [
+        {
+          "line": 24,
+          "text": "const value4 = value3?.detail;"
+        },
+        {
+          "line": 31,
+          "text": "return value3;"
+        }
+      ]
+    },
+    {
+      "key": "value4@24",
+      "name": "value4",
+      "line": 24,
+      "column": 10,
+      "kind": "mechanical",
+      "frozen": false,
+      "declaration": "const value4 = value3?.detail;",
+      "references": [
+        {
+          "line": 26,
+          "text": "typeof value4 == \"string\""
+        },
+        {
+          "line": 27,
+          "text": "? value4"
+        },
+        {
+          "line": 28,
+          "text": ": value4?.message || \"请求失败（HTTP \" + value1.status + \"）\","
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,301 @@
+WARN arg100@1038: "arg100" -> "tooltipHostElement": no canonical covers this name; consider hostElement (via T7 owner "tooltip") | hostElement | element
+WARN arg101@1039: "arg101" -> "seriesRecord": no canonical covers this name
+WARN arg102@1040: "arg102" -> "valueSuffix": no canonical covers this name
+WARN arg103@1041: "arg103" -> "pointToPercent": no canonical covers this name
+WARN arg104@1042: "arg104" -> "valueFormat": no canonical covers this name
+WARN arg105@1043: "arg105" -> "windowRange": no canonical covers this name
+WARN arg106@1047: "arg106" -> "tooltipMountElement": no canonical covers this name; consider element (via T7 owner "tooltipMount") | element
+WARN value167@1049: "value167" -> "tooltipElement": no canonical covers this name; consider element (via T7 owner "tooltip") | element
+WARN value168@1053: "value168" -> "hoverGuideElement": no canonical covers this name; consider element (via T7 owner "hoverGuide") | element
+WARN value169@1055: "value169" -> "hoverDotElement": no canonical covers this name; consider element (via T7 owner "hoverDot") | element
+WARN fn3@1060: "fn3" -> "handleChartPointerMove": no canonical covers this name
+WARN value170@1061: "value170" -> "dialogLayerElement": no canonical covers this name; consider element (via T7 owner "dialogLayer") | element
+WARN value171@1064: "value171" -> "chartBounds": no canonical covers this name
+WARN value172@1066: "value172" -> "pointerRatioX": no canonical covers this name
+WARN value173@1067: "value173" -> "windowRatio": no canonical covers this name
+WARN value174@1073: "value174" -> "pointerTimestamp": no canonical covers this name
+WARN value175@1074: "value175" -> "nearestPoint": no canonical covers this name
+WARN arg108@1074: "arg108" -> "closestPoint": no canonical covers this name
+WARN arg109@1074: "arg109" -> "candidatePoint": no canonical covers this name
+WARN value176@1079: "value176" -> "projectedPoint": no canonical covers this name
+WARN value177@1080: "value177" -> "hostBounds": no canonical covers this name
+WARN value178@1081: "value178" -> "localOffsetX": no canonical covers this name
+WARN value179@1085: "value179" -> "localOffsetY": no canonical covers this name
+WARN value180@1089: "value180" -> "absoluteLeft": no canonical covers this name
+WARN value181@1090: "value181" -> "absoluteTop": no canonical covers this name
+WARN value182@1091: "value182" -> "guideLeftPercent": no canonical covers this name
+WARN value183@1092: "value183" -> "guideTopPercent": no canonical covers this name
+WARN value184@1093: "value184" -> "isTooltipOnHost": no canonical covers this name
+WARN value185@1094: "value185" -> "isTooltipOnDialogLayer": no canonical covers this name
+WARN value186@1095: "value186" -> "dialogLayerBounds": no canonical covers this name
+WARN value187@1096: "value187" -> "tooltipScale": no canonical covers this name
+WARN value188@1101: "value188" -> "positionContainerElement": no canonical covers this name; consider element (via T7 owner "positionContainer") | element
+WARN value189@1102: "value189" -> "positionContainerBounds": no canonical covers this name
+WARN value190@1103: "value190" -> "horizontalScale": no canonical covers this name
+WARN value191@1104: "value191" -> "verticalScale": no canonical covers this name
+WARN value192@1105: "value192" -> "dialogLocalLeft": no canonical covers this name
+WARN value193@1106: "value193" -> "dialogLocalTop": no canonical covers this name
+WARN value194@1117: "value194" -> "tooltipPixelWidth": no canonical covers this name
+WARN value195@1118: "value195" -> "containerLeftEdge": no canonical covers this name
+WARN value196@1119: "value196" -> "containerRightEdge": no canonical covers this name
+WARN value197@1120: "value197" -> "tooltipTranslateX": no canonical covers this name
+WARN fn4@1141: "fn4" -> "handleChartPointerLeave": no canonical covers this name
+WARN ht@1154: "ht" -> "createNavigationEffectsSvg": no canonical covers this name
+WARN arg110@1154: "arg110" -> "navigationComponent": no canonical covers this name; consider component (via T7 owner "navigation") | component
+WARN arg111@1154: "arg111" -> "visualProperties": no canonical covers this name
+WARN arg112@1154: "arg112" -> "isActiveState": no canonical covers this name; consider isActive
+WARN arg113@1154: "arg113" -> "intensityMultiplier": no canonical covers this name
+WARN arg114@1154: "arg114" -> "glowIntensity": no canonical covers this name
+WARN arg115@1154: "arg115" -> "glowSpreadScale": no canonical covers this name
+WARN value198@1155: "value198" -> "viewWidth": no canonical covers this name
+WARN value199@1156: "value199" -> "viewHeight": no canonical covers this name
+WARN value200@1157: "value200" -> "svgHeight": no canonical covers this name
+WARN value201@1158: "value201" -> "frameWidth": no canonical covers this name
+WARN value202@1159: "value202" -> "frameInset": no canonical covers this name
+WARN value203@1160: "value203" -> "innerWidth": no canonical covers this name
+WARN value204@1161: "value204" -> "innerHeight": no canonical covers this name
+WARN value205@1162: "value205" -> "cornerRadius": no canonical covers this name
+WARN value206@1163: "value206" -> "glowOpacity": no canonical covers this name
+WARN value207@1164: "value207" -> "edgeGlowSpread": no canonical covers this name
+WARN value208@1165: "value208" -> "innerGlowSpread": no canonical covers this name
+WARN value209@1166: "value209" -> "centerX": no canonical covers this name
+WARN value210@1167: "value210" -> "centerY": no canonical covers this name
+WARN value211@1168: "value211" -> "frameColor": no canonical covers this name
+WARN value212@1169: "value212" -> "glowColor": no canonical covers this name
+WARN value213@1170: "value213" -> "frameAngle": no canonical covers this name
+WARN value214@1171: "value214" -> "glowAngle": no canonical covers this name
+WARN value215@1172: "value215" -> "intensityDivisor": no canonical covers this name
+WARN fn5@1173: "fn5" -> "scaleOpacity": no canonical covers this name
+WARN arg116@1173: "arg116" -> "opacityInput": no canonical covers this name
+WARN value216@1174: "value216" -> "gradientId": no canonical covers this name
+WARN value217@1175: "value217" -> "svgElement": no canonical covers this name; consider element (via T7 owner "svg") | element
+WARN arg117@1291: "arg117" -> "targetPage": no canonical covers this name
+WARN arg118@1292: "arg118" -> "currentPagePath": no canonical covers this name
+WARN arg119@1293: "arg119" -> "navigationEntityId": no canonical covers this name; consider entityId (via T7 owner "navigation") | entityId
+WARN arg120@1294: "arg120" -> "isEntityActive": no canonical covers this name; consider isActive
+WARN arg121@1295: "arg121" -> "previewStateValue": no canonical covers this name
+WARN arg122@1306: "arg122" -> "imageComponent": no canonical covers this name; consider component (via T7 owner "image") | component
+WARN value218@1307: "value218" -> "imageProperties": no canonical covers this name
+WARN value219@1308: "value219" -> "imageSourceUrl": no canonical covers this name
+WARN value221@1310: "value221" -> "missingImageNoticeElement": no canonical covers this name; consider element (via T7 owner "missingImageNotice") | element
+WARN value220@1317: "value220" -> "imageElement": no canonical covers this name; consider element (via T7 owner "image") | element
+WARN yt@1329: "yt" -> "isEntityStateActive": no canonical covers this name; consider entityState | isActive
+WARN arg124@1329: "arg124" -> "stateLookupEnvironment": no canonical covers this name
+WARN value222@1331: "value222" -> "entityStateRecord": no canonical covers this name; consider entityState
+WARN value223@1332: "value223" -> "entityStateText": no canonical covers this name; consider entityState
+WARN arg125@1336: "arg125" -> "diagramComponent": no canonical covers this name; consider component (via T7 owner "diagram") | component
+WARN arg126@1336: "arg126" -> "diagramRenderEnvironment": no canonical covers this name
+WARN value224@1337: "value224" -> "diagramProperties": no canonical covers this name
+WARN value225@1338: "value225" -> "diagramContainerElement": no canonical covers this name; consider element (via T7 owner "diagramContainer") | element
+WARN value229@1349: "value229" -> "previewFrameElement": no canonical covers this name; consider element (via T7 owner "previewFrame") | element
+WARN value230@1355: "value230" -> "dashboardCanvas": no canonical covers this name
+WARN value231@1356: "value231" -> "componentPosition": no canonical covers this name; consider component
+WARN value232@1357: "value232" -> "exportFolderName": no canonical covers this name
+WARN uRLSearchParams1@1358: "uRLSearchParams1" -> "previewSearchParams": no canonical covers this name
+WARN value233@1372: "value233" -> "loadingElement": no canonical covers this name; consider element (via T7 owner "loading") | element
+WARN value234@1377: "value234" -> "previewHintElement": no canonical covers this name; consider element (via T7 owner "previewHint") | element
+WARN value226@1388: "value226" -> "baseImageElement": no canonical covers this name; consider element (via T7 owner "baseImage") | element
+WARN value227@1392: "value227" -> "baseImageUrl": no canonical covers this name
+WARN list2@1397: "list2" -> "lightLayerEntries": no canonical covers this name
+WARN list3@1398: "list3" -> "layerStates": no canonical covers this name
+WARN fn6@1399: "fn6" -> "syncDiagramState": no canonical covers this name
+WARN value235@1400: "value235" -> "lightLayerEntry": no canonical covers this name
+WARN value236@1401: "value236" -> "isLayerActive": no canonical covers this name; consider isActive
+WARN value228@1407: "value228" -> "lightLayers": no canonical covers this name
+WARN value237@1408: "value237" -> "lightLayer": no canonical covers this name
+WARN value238@1409: "value238" -> "layerImageElement": no canonical covers this name; consider element (via T7 owner "layerImage") | element
+WARN value239@1413: "value239" -> "layerImageUrl": no canonical covers this name
+WARN value240@1415: "value240" -> "lightGroupBinding": no canonical covers this name
+WARN value241@1416: "value241" -> "lightGroupEntityId": no canonical covers this name; consider entityId (via T7 owner "lightGroup") | entityId
+WARN value242@1417: "value242" -> "lightGroupButtonElement": no canonical covers this name; consider element (via T7 owner "lightGroupButton") | element
+WARN error1@1431: "error1" -> "toggleServiceError": no canonical covers this name; consider error (via T7 owner "toggleService") | error | service
+WARN object1@1439: "object1" -> "layerStateEntry": no canonical covers this name; consider stateEntry (via T7 owner "layer") | stateEntry
+WARN value243@1451: "value243" -> "emptyStateElement": no canonical covers this name; consider element (via T7 owner "emptyState") | element
+WARN arg128@1459: "arg128" -> "effectLayerComponent": no canonical covers this name; consider component (via T7 owner "effectLayer") | component
+WARN arg129@1459: "arg129" -> "effectLayerRenderEnvironment": no canonical covers this name
+WARN value244@1460: "value244" -> "effectLayerProperties": no canonical covers this name
+WARN value245@1461: "value245" -> "effectAssetOverride": no canonical covers this name
+WARN value246@1464: "value246" -> "effectAssetUrl": no canonical covers this name
+WARN value247@1466: "value247" -> "isEffectAuthoredActive": no canonical covers this name; consider isActive
+WARN value248@1467: "value248" -> "effectLightVisualState": no canonical covers this name
+WARN value249@1468: "value249" -> "isEffectAwaitingLight": no canonical covers this name
+WARN value250@1469: "value250" -> "effectLayerElement": no canonical covers this name; consider element (via T7 owner "effectLayer") | element
+WARN value251@1478: "value251" -> "effectFadeDuration": no canonical covers this name
+WARN value252@1484: "value252" -> "effectImageElement": no canonical covers this name; consider element (via T7 owner "effectImage") | element
+WARN arg130@1505: "arg130" -> "iconButtonComponent": no canonical covers this name; consider component (via T7 owner "iconButton") | component
+WARN arg131@1505: "arg131" -> "iconButtonRenderEnvironment": no canonical covers this name
+WARN value253@1506: "value253" -> "iconButtonProperties": no canonical covers this name
+WARN value254@1507: "value254" -> "isIconButtonActive": no canonical covers this name; consider isActive
+WARN value255@1508: "value255" -> "shouldShowIcon": no canonical covers this name
+WARN value256@1509: "value256" -> "iconButtonElement": no canonical covers this name; consider element (via T7 owner "iconButton") | element
+WARN value257@1542: "value257" -> "glowIntensityScale": no canonical covers this name
+WARN value258@1555: "value258" -> "iconMaskUrl": no canonical covers this name
+WARN value259@1557: "value259" -> "iconElement": no canonical covers this name; consider element (via T7 owner "icon") | element
+WARN arg132@1575: "arg132" -> "titleButtonComponent": no canonical covers this name; consider component (via T7 owner "titleButton") | component
+WARN arg133@1575: "arg133" -> "titleButtonRenderEnvironment": no canonical covers this name
+WARN value260@1576: "value260" -> "titleButtonProperties": no canonical covers this name
+WARN value261@1577: "value261" -> "isHiddenContentClickable": no canonical covers this name
+WARN value262@1578: "value262" -> "titleButtonWidthPx": no canonical covers this name
+WARN value263@1579: "value263" -> "titleButtonHeightPx": no canonical covers this name
+WARN value264@1580: "value264" -> "titleUnitHeight": no canonical covers this name
+WARN value265@1581: "value265" -> "titleButtonElement": no canonical covers this name; consider element (via T7 owner "titleButton") | element | titleElement
+WARN value266@1658: "value266" -> "frameSizeRatio": no canonical covers this name
+WARN value267@1659: "value267" -> "frameHeight": no canonical covers this name
+WARN value268@1660: "value268" -> "frameOffsetXPx": no canonical covers this name
+WARN value269@1661: "value269" -> "frameOffsetYPx": no canonical covers this name
+WARN value270@1662: "value270" -> "frameHalfSpacing": no canonical covers this name
+WARN value271@1663: "value271" -> "frameCenterX": no canonical covers this name
+WARN value272@1664: "value272" -> "frameCenterY": no canonical covers this name
+WARN value273@1665: "value273" -> "frameTopEdge": no canonical covers this name
+WARN value274@1666: "value274" -> "frameBottomEdge": no canonical covers this name
+WARN value275@1667: "value275" -> "frameCornerInset": no canonical covers this name
+WARN value276@1668: "value276" -> "frameHalfWidth": no canonical covers this name
+WARN value277@1669: "value277" -> "frameLeftEdge": no canonical covers this name
+WARN value278@1670: "value278" -> "frameRightEdge": no canonical covers this name
+WARN value279@1671: "value279" -> "bracketsSvgElement": no canonical covers this name; consider element (via T7 owner "bracketsSvg") | element
+WARN object2@1678: "object2" -> "bracketPathAttributes": no canonical covers this name
+WARN value280@1717: "value280" -> "mainTextElement": no canonical covers this name; consider element (via T7 owner "mainText") | element
+WARN value281@1730: "value281" -> "secondaryTextElement": no canonical covers this name; consider element (via T7 owner "secondaryText") | element
+WARN arg134@1735: "arg134" -> "secondaryLineText": no canonical covers this name
+WARN value282@1736: "value282" -> "secondaryLineElement": no canonical covers this name; consider element (via T7 owner "secondaryLine") | element
+WARN value283@1749: "value283" -> "titleIconUrl": no canonical covers this name
+WARN value284@1751: "value284" -> "titleIconElement": no canonical covers this name; consider element (via T7 owner "titleIcon") | element | titleElement
+WARN value285@1761: "value285" -> "markerIconElement": no canonical covers this name; consider element (via T7 owner "markerIcon") | element
+WARN arg135@1776: "arg135" -> "lightStatisticsComponent": no canonical covers this name; consider component (via T7 owner "lightStatistics") | component
+WARN arg136@1776: "arg136" -> "lightStatisticsRenderEnvironment": no canonical covers this name
+WARN value286@1777: "value286" -> "lightStatisticsProperties": no canonical covers this name
+WARN value287@1778: "value287" -> "lightStatisticsTotals": no canonical covers this name
+WARN value288@1779: "value288" -> "statisticsUnitWidth": no canonical covers this name
+WARN value289@1779: "value289" -> "statisticsUnitHeight": no canonical covers this name
+WARN value290@1780: "value290" -> "statisticsElement": no canonical covers this name; consider element (via T7 owner "statistics") | element
+WARN value291@1835: "value291" -> "iconAssetId": no canonical covers this name
+WARN value292@1838: "value292" -> "statisticsIconUrl": no canonical covers this name
+WARN value293@1839: "value293" -> "hasStatisticsIcon": no canonical covers this name
+WARN value294@1840: "value294" -> "isTitleVisible": no canonical covers this name
+WARN value295@1841: "value295" -> "isCountVisible": no canonical covers this name
+WARN value296@1848: "value296" -> "statisticsIconElement": no canonical covers this name; consider element (via T7 owner "statisticsIcon") | element
+WARN value297@1855: "value297" -> "statisticsTitleElement": no canonical covers this name; consider titleElement (via T7 owner "statistics") | element | titleElement
+WARN value298@1866: "value298" -> "statisticsCountElement": no canonical covers this name; consider element (via T7 owner "statisticsCount") | element
+WARN value299@1868: "value299" -> "activeCountElement": no canonical covers this name; consider element (via T7 owner "activeCount") | element
+WARN value300@1879: "value300" -> "totalCountElement": no canonical covers this name; consider element (via T7 owner "totalCount") | element
+WARN Ae@1887: "Ae" -> "buttonComponentRenderers": no canonical covers this name; consider component
+WARN arg137@1888: "arg137" -> "buttonComponent": no canonical covers this name; consider component (via T7 owner "button") | component
+WARN arg138@1888: "arg138" -> "buttonRenderEnvironment": no canonical covers this name
+WARN value301@1889: "value301" -> "buttonProperties": no canonical covers this name
+WARN value302@1890: "value302" -> "isDeviceButton": no canonical covers this name
+WARN value303@1891: "value303" -> "boundEntityId": no canonical covers this name; consider entityId (via T7 owner "bound") | entityId
+WARN value304@1892: "value304" -> "boundEntityState": no canonical covers this name; consider entityState (via T7 owner "bound") | entityState
+WARN value305@1893: "value305" -> "entityStatePayload": no canonical covers this name; consider entityState
+WARN value306@1894: "value306" -> "isButtonActive": no canonical covers this name; consider isActive
+WARN value307@1895: "value307" -> "buttonWidthPx": no canonical covers this name
+WARN value308@1896: "value308" -> "buttonHeightPx": no canonical covers this name
+WARN value309@1897: "value309" -> "buttonUnitHeight": no canonical covers this name
+WARN value310@1898: "value310" -> "cornerCutSize": no canonical covers this name
+WARN value311@1899: "value311" -> "frameStrokeWidth": no canonical covers this name
+WARN value312@1900: "value312" -> "frameGradientAngle": no canonical covers this name
+WARN value313@1901: "value313" -> "frameOnOpacity": no canonical covers this name
+WARN value314@1907: "value314" -> "softLightColor": no canonical covers this name
+WARN value315@1908: "value315" -> "softLightStrength": no canonical covers this name
+WARN value316@1909: "value316" -> "softLightSize": no canonical covers this name
+WARN value317@1910: "value317" -> "softLightAngle": no canonical covers this name
+WARN value318@1911: "value318" -> "buttonGlowColor": no canonical covers this name
+WARN value319@1912: "value319" -> "glowStrength": no canonical covers this name
+WARN value320@1913: "value320" -> "glowSize": no canonical covers this name
+WARN value321@1914: "value321" -> "buttonGlowAngle": no canonical covers this name
+WARN value322@1915: "value322" -> "buttonCenterX": no canonical covers this name
+WARN value323@1916: "value323" -> "buttonCenterY": no canonical covers this name
+WARN value324@1917: "value324" -> "glowAngleRadians": no canonical covers this name
+WARN value325@1918: "value325" -> "glowCenterX": no canonical covers this name
+WARN value326@1919: "value326" -> "glowCenterY": no canonical covers this name
+WARN value327@1920: "value327" -> "filterIdPrefix": no canonical covers this name
+WARN value328@1924: "value328" -> "deviceButtonElement": no canonical covers this name; consider element (via T7 owner "deviceButton") | element
+WARN value336@1960: "value336" -> "buttonSvgElement": no canonical covers this name; consider element (via T7 owner "buttonSvg") | element
+WARN value337@1965: "value337" -> "svgDefsElement": no canonical covers this name; consider element (via T7 owner "svgDefs") | element
+WARN value338@1966: "value338" -> "clipPolygonPoints": no canonical covers this name
+WARN value339@1979: "value339" -> "clipPathElement": no canonical covers this name; consider element (via T7 owner "clipPath") | element
+WARN value340@1985: "value340" -> "softLightRadius": no canonical covers this name
+WARN value341@1986: "value341" -> "softLightGradientElement": no canonical covers this name; consider element (via T7 owner "softLightGradient") | element
+WARN value342@2010: "value342" -> "edgeGradientElement": no canonical covers this name; consider element (via T7 owner "edgeGradient") | element
+WARN value343@2034: "value343" -> "glowGradientElement": no canonical covers this name; consider element (via T7 owner "glowGradient") | element
+WARN value344@2056: "value344" -> "glowFilterElement": no canonical covers this name; consider element (via T7 owner "glowFilter") | element
+WARN value345@2066: "value345" -> "glowGroupElement": no canonical covers this name; consider element (via T7 owner "glowGroup") | element
+WARN value329@2102: "value329" -> "iconSource": no canonical covers this name
+WARN value330@2105: "value330" -> "iconUrl": no canonical covers this name
+WARN value346@2110: "value346" -> "buttonIconElement": no canonical covers this name; consider element (via T7 owner "buttonIcon") | element
+WARN value347@2132: "value347" -> "baseIconSize": no canonical covers this name; consider iconSize (via T7 owner "base") | iconSize
+WARN value348@2133: "value348" -> "badgeSize": no canonical covers this name
+WARN value349@2134: "value349" -> "symbolSize": no canonical covers this name
+WARN value350@2135: "value350" -> "symbolScale": no canonical covers this name
+WARN value351@2137: "value351" -> "badgeElement": no canonical covers this name; consider element (via T7 owner "badge") | element
+WARN value331@2154: "value331" -> "buttonTextElement": no canonical covers this name; consider element (via T7 owner "buttonText") | element
+WARN value332@2156: "value332" -> "mainTextSize": no canonical covers this name
+WARN value333@2157: "value333" -> "primaryTextElement": no canonical covers this name; consider element (via T7 owner "primaryText") | element
+WARN value334@2181: "value334" -> "secondaryTextSize": no canonical covers this name
+WARN value335@2182: "value335" -> "secondaryLabelElement": no canonical covers this name; consider element (via T7 owner "secondaryLabel") | element
+WARN gt@2226: "gt" -> "createDoorWindowSensorView": no canonical covers this name
+WARN arg139@2226: "arg139" -> "sensorComponent": no canonical covers this name; consider component (via T7 owner "sensor") | component
+WARN arg140@2226: "arg140" -> "doorWindowProperties": no canonical covers this name
+WARN arg141@2226: "arg141" -> "sensorState": no canonical covers this name
+WARN arg142@2226: "arg142" -> "sensorRenderEnvironment": no canonical covers this name
+WARN value352@2227: "value352" -> "sensorAccentColor": no canonical covers this name
+WARN value353@2228: "value353" -> "isDoorWindowOpen": no canonical covers this name
+WARN value354@2229: "value354" -> "sensorStateLabel": no canonical covers this name
+WARN value355@2236: "value355" -> "doorWindowSensorElement": no canonical covers this name; consider element (via T7 owner "doorWindowSensor") | element
+WARN value356@2242: "value356" -> "doorWindowVisualElement": no canonical covers this name; consider element (via T7 owner "doorWindowVisual") | element
+WARN value357@2244: "value357" -> "componentScale": no canonical covers this name; consider component
+WARN value358@2245: "value358" -> "visualWidth": no canonical covers this name
+WARN value359@2246: "value359" -> "visualHeight": no canonical covers this name
+WARN value360@2252: "value360" -> "doorWindowFrameElement": no canonical covers this name; consider element (via T7 owner "doorWindowFrame") | element
+WARN value361@2254: "value361" -> "leftPanelElement": no canonical covers this name; consider panelElement (via T7 owner "left") | panelElement | element
+WARN value362@2256: "value362" -> "rightPanelElement": no canonical covers this name; consider panelElement (via T7 owner "right") | panelElement | element
+WARN value363@2261: "value363" -> "airflowElement": no canonical covers this name; consider element (via T7 owner "airflow") | element
+WARN value364@2263: "value364" -> "airflowDotIndex": no canonical covers this name
+WARN bt@2266: "bt" -> "createWaterLeakSensorView": no canonical covers this name
+WARN arg143@2266: "arg143" -> "waterLeakProperties": no canonical covers this name
+WARN arg144@2266: "arg144" -> "waterLeakState": no canonical covers this name
+WARN value365@2267: "value365" -> "waterLeakColor": no canonical covers this name
+WARN value366@2268: "value366" -> "isWaterLeakWet": no canonical covers this name
+WARN value367@2269: "value367" -> "waterLeakStateLabel": no canonical covers this name
+WARN value368@2276: "value368" -> "waterLeakSensorElement": no canonical covers this name; consider element (via T7 owner "waterLeakSensor") | element
+WARN value369@2282: "value369" -> "waterLeakVisualElement": no canonical covers this name; consider element (via T7 owner "waterLeakVisual") | element
+WARN value370@2284: "value370" -> "puddleElement": no canonical covers this name; consider element (via T7 owner "puddle") | element
+WARN value371@2286: "value371" -> "ripplesElement": no canonical covers this name; consider element (via T7 owner "ripples") | element
+WARN value375@2288: "value375" -> "rippleIndex": no canonical covers this name
+WARN text1@2289: "text1" -> "svgUrl": no canonical covers this name
+WARN value372@2290: "value372" -> "dropletSvgElement": no canonical covers this name; consider element (via T7 owner "dropletSvg") | element
+WARN value373@2294: "value373" -> "dropletBodyPathElement": no canonical covers this name; consider element (via T7 owner "dropletBodyPath") | element
+WARN value374@2300: "value374" -> "dropletHighlightPathElement": no canonical covers this name; consider element (via T7 owner "dropletHighlightPath") | element
+WARN vt@2310: "vt" -> "createSmokeSensorView": no canonical covers this name
+WARN arg145@2310: "arg145" -> "smokeProperties": no canonical covers this name
+WARN arg146@2310: "arg146" -> "smokeState": no canonical covers this name
+WARN value376@2311: "value376" -> "smokeColor": no canonical covers this name
+WARN value377@2312: "value377" -> "isSmokeAlert": no canonical covers this name
+WARN value378@2313: "value378" -> "smokeStateLabel": no canonical covers this name
+WARN value379@2320: "value379" -> "smokeSensorElement": no canonical covers this name; consider element (via T7 owner "smokeSensor") | element
+WARN value380@2326: "value380" -> "smokeVisualElement": no canonical covers this name; consider element (via T7 owner "smokeVisual") | element
+WARN value381@2328: "value381" -> "smokeGroundElement": no canonical covers this name; consider element (via T7 owner "smokeGround") | element
+WARN text2@2330: "text2" -> "smokeSvgUrl": no canonical covers this name
+WARN value382@2331: "value382" -> "smokeWispsSvgElement": no canonical covers this name; consider element (via T7 owner "smokeWispsSvg") | element
+WARN value383@2335: "value383" -> "wispPathDefinition": no canonical covers this name
+WARN value384@2340: "value384" -> "wispPathElement": no canonical covers this name; consider element (via T7 owner "wispPath") | element
+WARN wt@2345: "wt" -> "createNaturalGasSensorView": no canonical covers this name
+WARN arg147@2345: "arg147" -> "naturalGasProperties": no canonical covers this name
+WARN arg148@2345: "arg148" -> "naturalGasState": no canonical covers this name
+WARN value385@2346: "value385" -> "naturalGasColor": no canonical covers this name
+WARN value386@2347: "value386" -> "isNaturalGasAlert": no canonical covers this name
+WARN value387@2348: "value387" -> "naturalGasStateLabel": no canonical covers this name
+WARN value388@2355: "value388" -> "naturalGasSensorElement": no canonical covers this name; consider element (via T7 owner "naturalGasSensor") | element
+WARN value389@2361: "value389" -> "naturalGasVisualElement": no canonical covers this name; consider element (via T7 owner "naturalGasVisual") | element
+WARN value390@2363: "value390" -> "naturalGasHazeElement": no canonical covers this name; consider element (via T7 owner "naturalGasHaze") | element
+WARN text3@2365: "text3" -> "naturalGasSvgUrl": no canonical covers this name
+WARN value391@2366: "value391" -> "naturalGasSvgElement": no canonical covers this name; consider element (via T7 owner "naturalGasSvg") | element
+WARN value392@2370: "value392" -> "currentPathDefinition": no canonical covers this name
+WARN value393@2375: "value393" -> "currentPathElement": no canonical covers this name; consider element (via T7 owner "currentPath") | element
+WARN arg149@2381: "arg149" -> "sensorViewComponent": no canonical covers this name; consider component (via T7 owner "sensorView") | component
+WARN arg150@2381: "arg150" -> "sensorViewRenderEnvironment": no canonical covers this name
+WARN value394@2382: "value394" -> "sensorProperties": no canonical covers this name
+WARN value395@2383: "value395" -> "sensorEntityId": no canonical covers this name; consider entityId (via T7 owner "sensor") | entityId
+WARN one canonical under 68 names in this file: tooltipMountElement, tooltipElement, hoverGuideElement, hoverDotElement, dialogLayerElement, positionContainerElement, svgElement, missingImageNoticeElement, imageElement, diagramContainerElement, previewFrameElement, loadingElement, previewHintElement, baseImageElement, layerImageElement, lightGroupButtonElement, emptyStateElement, effectLayerElement, effectImageElement, iconButtonElement, iconElement, titleButtonElement, bracketsSvgElement, mainTextElement, secondaryTextElement, secondaryLineElement, titleIconElement, markerIconElement, statisticsElement, statisticsIconElement, statisticsCountElement, activeCountElement, totalCountElement, deviceButtonElement, buttonSvgElement, svgDefsElement, clipPathElement, softLightGradientElement, edgeGradientElement, glowGradientElement, glowFilterElement, glowGroupElement, buttonIconElement, badgeElement, buttonTextElement, primaryTextElement, secondaryLabelElement, doorWindowSensorElement, doorWindowVisualElement, doorWindowFrameElement, airflowElement, waterLeakSensorElement, waterLeakVisualElement, puddleElement, ripplesElement, dropletSvgElement, dropletBodyPathElement, dropletHighlightPathElement, smokeSensorElement, smokeVisualElement, smokeGroundElement, smokeWispsSvgElement, wispPathElement, naturalGasSensorElement, naturalGasVisualElement, naturalGasHazeElement, naturalGasSvgElement, currentPathElement - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 10 names in this file: navigationComponent, imageComponent, diagramComponent, effectLayerComponent, iconButtonComponent, titleButtonComponent, lightStatisticsComponent, buttonComponent, sensorComponent, sensorViewComponent - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 5 names in this file: navigationEntityId, stateEntityId, lightGroupEntityId, boundEntityId, sensorEntityId - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken
+WARN one canonical under 2 names in this file: leftPanelElement, rightPanelElement - the applier forces uniqueness, but T7 is the only sanctioned way to disambiguate, and only when the canonical is genuinely taken

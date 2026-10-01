@@ -1,0 +1,16 @@
+{
+  "frontend/static/3d-studio/courtyard-plan.js": {
+    "arg1@2": "candidateItem",
+    "arg2@4": "tool",
+    "arg3@13": "planItem",
+    "arg4@13": "palette",
+    "value1@14": "variantBase",
+    "text1@24": "role",
+    "arg5@42": "plantToken",
+    "arg6@44": "waterToken",
+    "arg7@59": "furnitureToken",
+    "arg8@62": "softToken",
+    "arg9@67": "lightToken",
+    "arg10@69": "kitchenToken"
+  }
+}

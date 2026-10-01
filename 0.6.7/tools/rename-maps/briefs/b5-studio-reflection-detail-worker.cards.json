@@ -1,0 +1,93 @@
+{
+  "file": "frontend/static/3d-studio/studio-reflection-detail-worker.js",
+  "seed": "b5-studio-reflection-detail-worker",
+  "size": 30,
+  "candidates": 9,
+  "cards": [
+    {
+      "id": "card-01",
+      "stratum": "mechanical/function-parameter",
+      "newName": "message",
+      "declaration": "(self.onmessage = async ({ data: ??? }) => {",
+      "references": [
+        "L31: const value1 = await simplifyReflection(???);",
+        "L34: id: ???.id,",
+        "L41: id: ???.id,"
+      ]
+    },
+    {
+      "id": "card-02",
+      "stratum": "mechanical/module-binding",
+      "newName": "simplifiedIndices",
+      "declaration": "const ??? = await simplifyReflection(arg8);",
+      "references": [
+        "L35: indices: ???,",
+        "L37: [???.buffer],"
+      ]
+    },
+    {
+      "id": "card-03",
+      "stratum": "mechanical/other",
+      "newName": "targetRatio",
+      "declaration": "ratio: ??? = 0.35,",
+      "references": [
+        "L21: Math.floor((arg1.length * ???) / 3) * 3,"
+      ]
+    },
+    {
+      "id": "card-04",
+      "stratum": "mechanical/other",
+      "newName": "errorTolerance",
+      "declaration": "error: ???,",
+      "references": [
+        "L22: ???,"
+      ]
+    },
+    {
+      "id": "card-05",
+      "stratum": "mechanical/other",
+      "newName": "vertexWeights",
+      "declaration": "weights: ???,",
+      "references": [
+        "L19: ???,"
+      ]
+    },
+    {
+      "id": "card-06",
+      "stratum": "mechanical/other",
+      "newName": "sourcePositions",
+      "declaration": "positions: ???,",
+      "references": [
+        "L15: ???,"
+      ]
+    },
+    {
+      "id": "card-07",
+      "stratum": "mechanical/other",
+      "newName": "sourceIndices",
+      "declaration": "indices: ???,",
+      "references": [
+        "L14: ???,",
+        "L21: Math.floor((???.length * arg7) / 3) * 3,"
+      ]
+    },
+    {
+      "id": "card-08",
+      "stratum": "mechanical/other",
+      "newName": "sourceAttributes",
+      "declaration": "attributes: ???,",
+      "references": [
+        "L17: ???,"
+      ]
+    },
+    {
+      "id": "card-09",
+      "stratum": "mechanical/other",
+      "newName": "vertexStride",
+      "declaration": "stride: ???,",
+      "references": [
+        "L18: ???,"
+      ]
+    }
+  ]
+}

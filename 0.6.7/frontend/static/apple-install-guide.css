@@ -1,0 +1,116 @@
+.apple-install-trigger {
+  position: fixed;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 10001;
+  border: 1px solid #314842;
+  border-radius: 24px;
+  padding: 12px 18px;
+  background: #142b25ee;
+  color: #b7f2dc;
+  font: 600 14px system-ui;
+  box-shadow: 0 4px 20px #0003;
+  cursor: pointer;
+}
+.apple-install-dialog {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid #34453f;
+  border-radius: 24px;
+  background: #14201d;
+  color: #f3f7f5;
+  font: 14px/1.6 system-ui;
+  box-shadow: 0 24px 90px #0008;
+}
+.apple-install-dialog::backdrop {
+  background: #07110ec9;
+  backdrop-filter: blur(5px);
+}
+.apple-install-dialog h2 {
+  margin: 4px 0 10px;
+  font-size: 24px;
+  line-height: 1.35;
+}
+.apple-install-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+.apple-install-eyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #85cbb3;
+  margin: 14px 0 6px;
+}
+.apple-install-intro {
+  color: #bed0c8;
+  margin: 0 0 24px;
+}
+.apple-install-steps {
+  padding: 0;
+  margin: 0 0 24px;
+  list-style: none;
+  display: grid;
+  gap: 18px;
+}
+.apple-install-steps li {
+  display: flex;
+  gap: 12px;
+}
+.apple-install-steps b {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: #25483a;
+  color: #a8efd0;
+  border-radius: 50%;
+}
+.apple-install-steps strong {
+  font-size: 15px;
+}
+.apple-install-steps p {
+  margin: 4px 0 0;
+  color: #aabcb3;
+  font-size: 13px;
+}
+.apple-install-dialog details {
+  border-top: 1px solid #32463e;
+  padding-top: 14px;
+}
+.apple-install-dialog summary {
+  cursor: pointer;
+  color: #bde9d5;
+}
+.apple-install-dialog details p,
+.apple-install-footnote {
+  font-size: 12px;
+  color: #9cafa5;
+}
+.apple-install-copy {
+  border: 1px solid #476658;
+  background: transparent;
+  color: #c5efdd;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+.apple-install-done {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 13px;
+  background: #96e7c6;
+  color: #15382a;
+  font: 600 15px system-ui;
+  cursor: pointer;
+  margin-top: 22px;
+}
+.apple-install-copy-status:empty {
+  display: none;
+}

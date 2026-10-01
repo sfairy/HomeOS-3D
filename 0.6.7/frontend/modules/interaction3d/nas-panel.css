@@ -1,0 +1,162 @@
+.interaction3d-stage .i3d-light-panel.is-nas-panel {
+  height: 400px;
+}
+.i3d-nas-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  gap: 10px;
+  color: #e3e9e6;
+}
+.i3d-nas-panel[hidden] {
+  display: none;
+}
+.i3d-nas-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.i3d-nas-heading h3 {
+  min-width: 0;
+  margin: 0;
+  font-size: 21px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.i3d-nas-status {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #ffffff08;
+  color: #9caaa4;
+  font-size: 12px;
+}
+.i3d-nas-metrics {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(183, 204, 193, 0.28) transparent;
+  padding-right: 6px;
+}
+.i3d-nas-metrics:hover,
+.i3d-nas-metrics:focus-within {
+  scrollbar-color: rgba(198, 220, 207, 0.48) transparent;
+}
+@supports selector(::-webkit-scrollbar) {
+  .i3d-nas-metrics,
+  .i3d-nas-metrics:hover,
+  .i3d-nas-metrics:focus-within {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar-track,
+  .i3d-nas-metrics::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar-thumb {
+    min-height: 32px;
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background: #b7ccc147;
+    background-clip: padding-box;
+  }
+  .i3d-nas-metrics:hover::-webkit-scrollbar-thumb,
+  .i3d-nas-metrics:focus-within::-webkit-scrollbar-thumb {
+    background-color: #c6dccf7a;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar-thumb:hover {
+    background-color: #d7eae0a6;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar-thumb:active {
+    background-color: #e1f1e8cc;
+  }
+  .i3d-nas-metrics::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+.i3d-nas-group + .i3d-nas-group {
+  margin-top: 12px;
+}
+.i3d-nas-group h4 {
+  margin: 0 0 5px;
+  font-size: 11px;
+  color: #9caea4;
+  letter-spacing: 0.08em;
+}
+.i3d-nas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.i3d-nas-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  padding: 8px;
+  border: 1px solid #ffffff10;
+  border-radius: 10px;
+  background: #ffffff04;
+}
+.i3d-nas-metric.is-wide {
+  grid-column: 1 / -1;
+}
+.i3d-nas-metric span {
+  min-width: 0;
+  color: #9eaba5;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.i3d-nas-metric strong {
+  flex: none;
+  max-width: 70%;
+  margin-left: auto;
+  text-align: right;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.i3d-nas-metric.is-warning strong {
+  color: #efbd70;
+}
+.i3d-nas-metric.is-unavailable strong {
+  color: #68756e;
+}
+.i3d-nas-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #6bd49c;
+  transition: width 0.3s ease;
+}
+.i3d-nas-meta {
+  flex-shrink: 0;
+  margin: 0 0 0 auto;
+  font-size: 10px;
+  color: #7f9187;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .i3d-nas-bar {
+    transition: none;
+  }
+}
