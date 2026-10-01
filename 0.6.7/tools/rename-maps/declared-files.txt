@@ -1,19 +1,4 @@
 # Files this batch declares it will rewrite. One repo-relative path per line.
-frontend/static/3d-studio/studio-plan2-contact-shadows.js
-frontend/static/3d-studio/studio-curtain-track.js
-frontend/static/renderer/climate.js
-frontend/modules/interaction3d/environment-airflow.js
-frontend/static/component-page-copy.js
-frontend/static/modules/interaction3d/render-cache.js
-frontend/static/renderer/runtime-caches.js
-frontend/modules/interaction3d/vacuum-map.js
-frontend/static/renderer/light-runtime.js
-frontend/static/display.js
-frontend/static/3d-studio/studio-overview-stack.js
-frontend/static/modules/interaction3d/focus-layout.js
-frontend/modules/interaction3d/nas-status.js
-frontend/static/related-entities.js
-frontend/modules/interaction3d/cover-feedback.js
-frontend/static/modules/interaction3d/nas-catalog.js
-frontend/modules/interaction3d/cover-panel.js
-frontend/static/renderer/effect-geometry.js
+frontend/modules/interaction3d/stage.js
+frontend/static/renderer/renderer.js
+frontend/static/3d-studio/studio-app.js
