@@ -1,181 +1,226 @@
 let decoderPending = null;
-self.onmessage = (arg1) => {
-  const value1 = arg1.data || {};
-  if (value1.type === "init") {
-    decoderPending = initializeDecoder(value1);
+self.onmessage = (event) => {
+  const payload = event.data || {};
+  if (payload.type === "init") {
+    decoderPending = initializeDecoder(payload);
     return;
   }
-  if (value1.type !== "decode") return;
+  if (payload.type !== "decode") return;
   (decoderPending || Promise.reject(new Error("Draco decoder is not initialized")))
-    .then(({ draco: arg2 }) => {
-      const value2 = new arg2.Decoder();
+    .then(({ draco: dracoModule }) => {
+      const dracoDecoder = new dracoModule.Decoder();
       try {
-        const value3 = decodeGeometry(
-            arg2,
-            value2,
-            new Int8Array(value1.buffer),
-            value1.taskConfig,
+        const geometryPayload = decodeGeometry(
+            dracoModule,
+            dracoDecoder,
+            new Int8Array(payload.buffer),
+            payload.taskConfig,
           ),
-          value4 = value3.attributes.map((arg3) => arg3.array.buffer);
-        (value3.index && value4.push(value3.index.array.buffer),
+          transferables = geometryPayload.attributes.map((attribute) => attribute.array.buffer);
+        (geometryPayload.index && transferables.push(geometryPayload.index.array.buffer),
           self.postMessage(
             {
               type: "decode",
-              id: value1.id,
-              geometry: value3,
+              id: payload.id,
+              geometry: geometryPayload,
             },
-            value4,
+            transferables,
           ));
-      } catch (error1) {
+      } catch (decodeError) {
         self.postMessage({
           type: "error",
-          id: value1.id,
-          error: error1?.message || String(error1),
+          id: payload.id,
+          error: decodeError?.message || String(decodeError),
         });
       } finally {
-        arg2.destroy(value2);
+        dracoModule.destroy(dracoDecoder);
       }
     })
-    .catch((arg4) => {
+    .catch((workerError) => {
       self.postMessage({
         type: "error",
-        id: value1.id,
-        error: arg4?.message || String(arg4),
+        id: payload.id,
+        error: workerError?.message || String(workerError),
       });
     });
 };
-function initializeDecoder(arg5) {
-  const value5 = String(arg5.decoderPath || ""),
-    object1 = {
-      ...(arg5.decoderConfig || {}),
+function initializeDecoder(options) {
+  const decoderPath = String(options.decoderPath || ""),
+    decoderConfig = {
+      ...(options.decoderConfig || {}),
     },
-    value6 = object1.type === "js" ? "draco_decoder.js" : "draco_wasm_wrapper.js";
+    wrapperFileName = decoderConfig.type === "js" ? "draco_decoder.js" : "draco_wasm_wrapper.js";
   try {
-    self.importScripts("" + value5 + value6);
-  } catch (error2) {
-    return Promise.reject(error2);
+    self.importScripts("" + decoderPath + wrapperFileName);
+  } catch (importError) {
+    return Promise.reject(importError);
   }
   return (
-    (object1.locateFile = (arg6) =>
-      "" + value5 + (arg6 === "draco_decoder_gltf.wasm" ? "draco_decoder.wasm" : arg6)),
-    new Promise((arg7, arg8) => {
-      let value7 = false;
-      object1.onModuleLoaded = (arg9) => {
-        ((value7 = true),
-          arg7({
-            draco: arg9,
+    (decoderConfig.locateFile = (fileName) =>
+      "" +
+      decoderPath +
+      (fileName === "draco_decoder_gltf.wasm" ? "draco_decoder.wasm" : fileName)),
+    new Promise((resolve, reject) => {
+      let isModuleLoaded = false;
+      decoderConfig.onModuleLoaded = (module) => {
+        ((isModuleLoaded = true),
+          resolve({
+            draco: module,
           }));
       };
       try {
-        const value8 = self.DracoDecoderModule(object1);
-        value8 &&
-          typeof value8.then == "function" &&
-          value8.then((arg10) => {
-            value7 ||
-              arg7({
-                draco: arg10,
+        const modulePromise = self.DracoDecoderModule(decoderConfig);
+        modulePromise &&
+          typeof modulePromise.then == "function" &&
+          modulePromise.then((dracoInstance) => {
+            isModuleLoaded ||
+              resolve({
+                draco: dracoInstance,
               });
-          }, arg8);
-      } catch (error3) {
-        arg8(error3);
+          }, reject);
+      } catch (moduleError) {
+        reject(moduleError);
       }
     })
   );
 }
-function decodeGeometry(arg11, arg12, arg13, arg14) {
-  const value9 = arg14.attributeIDs,
-    value10 = arg14.attributeTypes;
-  let value11, value12;
-  const value13 = arg12.GetEncodedGeometryType(arg13);
-  if (value13 === arg11.TRIANGULAR_MESH)
-    ((value11 = new arg11.Mesh()),
-      (value12 = arg12.DecodeArrayToMesh(arg13, arg13.byteLength, value11)));
+function decodeGeometry(draco, decoder, decodeBuffer, taskConfig) {
+  const attributeIds = taskConfig.attributeIDs,
+    attributeTypes = taskConfig.attributeTypes;
+  let dracoGeometry, decodeResult;
+  const geometryType = decoder.GetEncodedGeometryType(decodeBuffer);
+  if (geometryType === draco.TRIANGULAR_MESH)
+    ((dracoGeometry = new draco.Mesh()),
+      (decodeResult = decoder.DecodeArrayToMesh(
+        decodeBuffer,
+        decodeBuffer.byteLength,
+        dracoGeometry,
+      )));
   else {
-    if (value13 === arg11.POINT_CLOUD)
-      ((value11 = new arg11.PointCloud()),
-        (value12 = arg12.DecodeArrayToPointCloud(arg13, arg13.byteLength, value11)));
+    if (geometryType === draco.POINT_CLOUD)
+      ((dracoGeometry = new draco.PointCloud()),
+        (decodeResult = decoder.DecodeArrayToPointCloud(
+          decodeBuffer,
+          decodeBuffer.byteLength,
+          dracoGeometry,
+        )));
     else throw new Error("THREE.DRACOLoader: Unexpected geometry type.");
   }
-  if (!value12.ok() || value11.ptr === 0)
-    throw new Error("THREE.DRACOLoader: Decoding failed: " + value12.error_msg());
-  const object2 = {
+  if (!decodeResult.ok() || dracoGeometry.ptr === 0)
+    throw new Error("THREE.DRACOLoader: Decoding failed: " + decodeResult.error_msg());
+  const geometrySource = {
     index: null,
     attributes: [],
   };
-  for (const value14 in value9) {
-    const value15 = self[value10[value14]];
-    let value16;
-    if (arg14.useUniqueIDs) value16 = arg12.GetAttributeByUniqueId(value11, value9[value14]);
+  for (const attributeKey in attributeIds) {
+    const attributeType = self[attributeTypes[attributeKey]];
+    let dracoAttribute;
+    if (taskConfig.useUniqueIDs)
+      dracoAttribute = decoder.GetAttributeByUniqueId(dracoGeometry, attributeIds[attributeKey]);
     else {
-      const value18 = arg12.GetAttributeId(value11, arg11[value9[value14]]);
-      if (value18 === -1) continue;
-      value16 = arg12.GetAttribute(value11, value18);
+      const attributeId = decoder.GetAttributeId(dracoGeometry, draco[attributeIds[attributeKey]]);
+      if (attributeId === -1) continue;
+      dracoAttribute = decoder.GetAttribute(dracoGeometry, attributeId);
     }
-    const value17 = decodeAttribute(arg11, arg12, value11, value14, value15, value16);
-    (value14 === "color" && (value17.vertexColorSpace = arg14.vertexColorSpace),
-      object2.attributes.push(value17));
+    const decodedAttribute = decodeAttribute(
+      draco,
+      decoder,
+      dracoGeometry,
+      attributeKey,
+      attributeType,
+      dracoAttribute,
+    );
+    (attributeKey === "color" && (decodedAttribute.vertexColorSpace = taskConfig.vertexColorSpace),
+      geometrySource.attributes.push(decodedAttribute));
   }
   return (
-    value13 === arg11.TRIANGULAR_MESH && (object2.index = decodeIndex(arg11, arg12, value11)),
-    arg11.destroy(value11),
-    object2
+    geometryType === draco.TRIANGULAR_MESH &&
+      (geometrySource.index = decodeIndex(draco, decoder, dracoGeometry)),
+    draco.destroy(dracoGeometry),
+    geometrySource
   );
 }
-function decodeIndex(arg15, arg16, arg17) {
-  const value19 = arg17.num_faces() * 3,
-    value20 = value19 * 4,
-    value21 = arg15._malloc(value20);
-  arg16.GetTrianglesUInt32Array(arg17, value20, value21);
-  const value22 = new Uint32Array(arg15.HEAPF32.buffer, value21, value19).slice();
+function decodeIndex(dracoDecoderModule, meshDecoder, mesh) {
+  const indexCount = mesh.num_faces() * 3,
+    indexByteLength = indexCount * 4,
+    indexPointer = dracoDecoderModule._malloc(indexByteLength);
+  meshDecoder.GetTrianglesUInt32Array(mesh, indexByteLength, indexPointer);
+  const indexArray = new Uint32Array(
+    dracoDecoderModule.HEAPF32.buffer,
+    indexPointer,
+    indexCount,
+  ).slice();
   return (
-    arg15._free(value21),
+    dracoDecoderModule._free(indexPointer),
     {
-      array: value22,
+      array: indexArray,
       itemSize: 1,
     }
   );
 }
-function decodeAttribute(arg18, arg19, arg20, arg21, arg22, arg23) {
-  const value23 = arg20.num_points(),
-    value24 = arg23.num_components(),
-    value25 = getDracoDataType(arg18, arg22),
-    value26 = value24 * arg22.BYTES_PER_ELEMENT,
-    value27 = Math.ceil(value26 / 4) * 4,
-    value28 = value27 / arg22.BYTES_PER_ELEMENT,
-    value29 = value23 * value26,
-    value30 = value23 * value27,
-    value31 = arg18._malloc(value29);
-  arg19.GetAttributeDataArrayForAllPoints(arg20, arg23, value25, value29, value31);
-  const value32 = new arg22(arg18.HEAPF32.buffer, value31, value29 / arg22.BYTES_PER_ELEMENT);
-  let value33;
-  if (value26 === value27) value33 = value32.slice();
+function decodeAttribute(
+  dracoApi,
+  attributeDecoder,
+  meshOrPointCloud,
+  attributeName,
+  arrayType,
+  sourceAttribute,
+) {
+  const pointCount = meshOrPointCloud.num_points(),
+    componentCount = sourceAttribute.num_components(),
+    dracoAttributeType = getDracoDataType(dracoApi, arrayType),
+    componentByteLength = componentCount * arrayType.BYTES_PER_ELEMENT,
+    alignedByteLength = Math.ceil(componentByteLength / 4) * 4,
+    alignedComponentCount = alignedByteLength / arrayType.BYTES_PER_ELEMENT,
+    bufferByteLength = pointCount * componentByteLength,
+    paddedByteLength = pointCount * alignedByteLength,
+    bufferOffset = dracoApi._malloc(bufferByteLength);
+  attributeDecoder.GetAttributeDataArrayForAllPoints(
+    meshOrPointCloud,
+    sourceAttribute,
+    dracoAttributeType,
+    bufferByteLength,
+    bufferOffset,
+  );
+  const rawAttributeArray = new arrayType(
+    dracoApi.HEAPF32.buffer,
+    bufferOffset,
+    bufferByteLength / arrayType.BYTES_PER_ELEMENT,
+  );
+  let packedAttributeArray;
+  if (componentByteLength === alignedByteLength) packedAttributeArray = rawAttributeArray.slice();
   else {
-    value33 = new arg22(value30 / arg22.BYTES_PER_ELEMENT);
-    let value34 = 0;
-    for (let value35 = 0; value35 < value32.length; value35 += value24) {
-      for (let value36 = 0; value36 < value24; value36 += 1)
-        value33[value34 + value36] = value32[value35 + value36];
-      value34 += value28;
+    packedAttributeArray = new arrayType(paddedByteLength / arrayType.BYTES_PER_ELEMENT);
+    let targetOffset = 0;
+    for (
+      let sourceOffset = 0;
+      sourceOffset < rawAttributeArray.length;
+      sourceOffset += componentCount
+    ) {
+      for (let componentIndex = 0; componentIndex < componentCount; componentIndex += 1)
+        packedAttributeArray[targetOffset + componentIndex] =
+          rawAttributeArray[sourceOffset + componentIndex];
+      targetOffset += alignedComponentCount;
     }
   }
   return (
-    arg18._free(value31),
+    dracoApi._free(bufferOffset),
     {
-      name: arg21,
-      count: value23,
-      itemSize: value24,
-      array: value33,
-      stride: value28,
+      name: attributeName,
+      count: pointCount,
+      itemSize: componentCount,
+      array: packedAttributeArray,
+      stride: alignedComponentCount,
     }
   );
 }
-function getDracoDataType(arg24, arg25) {
-  if (arg25 === Float32Array) return arg24.DT_FLOAT32;
-  if (arg25 === Int8Array) return arg24.DT_INT8;
-  if (arg25 === Int16Array) return arg24.DT_INT16;
-  if (arg25 === Int32Array) return arg24.DT_INT32;
-  if (arg25 === Uint8Array) return arg24.DT_UINT8;
-  if (arg25 === Uint16Array) return arg24.DT_UINT16;
-  if (arg25 === Uint32Array) return arg24.DT_UINT32;
+function getDracoDataType(dracoApiInstance, arrayConstructor) {
+  if (arrayConstructor === Float32Array) return dracoApiInstance.DT_FLOAT32;
+  if (arrayConstructor === Int8Array) return dracoApiInstance.DT_INT8;
+  if (arrayConstructor === Int16Array) return dracoApiInstance.DT_INT16;
+  if (arrayConstructor === Int32Array) return dracoApiInstance.DT_INT32;
+  if (arrayConstructor === Uint8Array) return dracoApiInstance.DT_UINT8;
+  if (arrayConstructor === Uint16Array) return dracoApiInstance.DT_UINT16;
+  if (arrayConstructor === Uint32Array) return dracoApiInstance.DT_UINT32;
   throw new Error("THREE.DRACOLoader: Unsupported attribute array type.");
 }

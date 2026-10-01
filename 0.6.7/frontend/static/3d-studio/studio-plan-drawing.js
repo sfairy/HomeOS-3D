@@ -1,177 +1,186 @@
-export function drawTrackedText(arg1, arg2, arg3, arg4, arg5, arg6) {
-  const list1 = [...String(arg2 || "")];
-  if (!list1.length) return 0;
-  const value1 = list1.map((arg7) => arg1.measureText(arg7).width),
-    value2 = value1.reduce((arg8, arg9) => arg8 + arg9, 0) + Math.max(list1.length - 1, 0) * arg5,
-    value3 = value2 > 0 ? Math.min(1, arg6 / value2) : 1;
-  (arg1.save(),
-    arg1.translate(arg3, arg4),
-    arg1.scale(value3, 1),
-    (arg1.textAlign = "left"),
-    (arg1.textBaseline = "middle"));
-  let value4 = 0;
+export function drawTrackedText(painter, text, originX, originY, trackingPx, maxWidthPx) {
+  const characters = [...String(text || "")];
+  if (!characters.length) return 0;
+  const glyphWidths = characters.map((glyph) => painter.measureText(glyph).width),
+    totalWidth =
+      glyphWidths.reduce((accumulatedWidth, glyphWidth) => accumulatedWidth + glyphWidth, 0) +
+      Math.max(characters.length - 1, 0) * trackingPx,
+    widthScale = totalWidth > 0 ? Math.min(1, maxWidthPx / totalWidth) : 1;
+  (painter.save(),
+    painter.translate(originX, originY),
+    painter.scale(widthScale, 1),
+    (painter.textAlign = "left"),
+    (painter.textBaseline = "middle"));
+  let cursorX = 0;
   return (
-    list1.forEach((arg10, arg11) => {
-      (arg1.fillText(arg10, value4, 0),
-        (value4 += value1[arg11] + (arg11 < list1.length - 1 ? arg5 : 0)));
+    characters.forEach((character, characterIndex) => {
+      (painter.fillText(character, cursorX, 0),
+        (cursorX +=
+          glyphWidths[characterIndex] + (characterIndex < characters.length - 1 ? trackingPx : 0)));
     }),
-    arg1.restore(),
-    value2 * value3
+    painter.restore(),
+    totalWidth * widthScale
   );
 }
 export function createPlanDrawingTools({
-  context: arg12,
-  planToScreen: arg13,
-  screenToPlan: arg14,
-  pixelsPerMeter: arg15,
-  getCanvasSize: arg16,
-  getViewZoom: arg17,
+  context: canvasPainter,
+  planToScreen: planToScreen,
+  screenToPlan: screenToPlan,
+  pixelsPerMeter: pixelsPerMeter,
+  getCanvasSize: getCanvasSize,
+  getViewZoom: getViewZoom,
 }) {
-  function fn1() {
-    const value5 = arg15();
-    if (!value5) return;
-    const { width: value6, height: value7 } = arg16(),
-      value8 = arg17();
-    let value9 = value5 * 0.5;
-    for (; value9 * value8 < 18;) value9 *= 2;
-    for (; value9 * value8 > 100;) value9 /= 2;
-    const value10 = [
+  function drawMetricGrid() {
+    const meterScale = pixelsPerMeter();
+    if (!meterScale) return;
+    const { width: canvasWidth, height: canvasHeight } = getCanvasSize(),
+      zoom = getViewZoom();
+    let gridStep = meterScale * 0.5;
+    for (; gridStep * zoom < 18;) gridStep *= 2;
+    for (; gridStep * zoom > 100;) gridStep /= 2;
+    const canvasCorners = [
         {
           x: 0,
           y: 0,
         },
         {
-          x: value6,
+          x: canvasWidth,
           y: 0,
         },
         {
-          x: value6,
-          y: value7,
+          x: canvasWidth,
+          y: canvasHeight,
         },
         {
           x: 0,
-          y: value7,
+          y: canvasHeight,
         },
-      ].map(arg14),
-      value11 = Math.min(...value10.map((arg18) => arg18.x)),
-      value12 = Math.max(...value10.map((arg19) => arg19.x)),
-      value13 = Math.min(...value10.map((arg20) => arg20.y)),
-      value14 = Math.max(...value10.map((arg21) => arg21.y));
-    (arg12.save(), (arg12.lineWidth = 1));
+      ].map(screenToPlan),
+      minPlanX = Math.min(...canvasCorners.map((cornerForMinX) => cornerForMinX.x)),
+      maxPlanX = Math.max(...canvasCorners.map((cornerForMaxX) => cornerForMaxX.x)),
+      minPlanY = Math.min(...canvasCorners.map((cornerForMinY) => cornerForMinY.y)),
+      maxPlanY = Math.max(...canvasCorners.map((cornerForMaxY) => cornerForMaxY.y));
+    (canvasPainter.save(), (canvasPainter.lineWidth = 1));
     for (
-      let value15 = Math.floor(value11 / value9) * value9;
-      value15 <= value12;
-      value15 += value9
+      let gridX = Math.floor(minPlanX / gridStep) * gridStep;
+      gridX <= maxPlanX;
+      gridX += gridStep
     ) {
-      const value16 = arg13({
-          x: value15,
-          y: value13,
+      const screenTop = planToScreen({
+          x: gridX,
+          y: minPlanY,
         }),
-        value17 = arg13({
-          x: value15,
-          y: value14,
+        screenBottom = planToScreen({
+          x: gridX,
+          y: maxPlanY,
         }),
-        value18 = Math.round((value15 / value5) * 2);
-      ((arg12.strokeStyle =
-        value18 % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)"),
-        arg12.beginPath(),
-        arg12.moveTo(value16.x, value16.y),
-        arg12.lineTo(value17.x, value17.y),
-        arg12.stroke());
+        halfMeterIndexX = Math.round((gridX / meterScale) * 2);
+      ((canvasPainter.strokeStyle =
+        halfMeterIndexX % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)"),
+        canvasPainter.beginPath(),
+        canvasPainter.moveTo(screenTop.x, screenTop.y),
+        canvasPainter.lineTo(screenBottom.x, screenBottom.y),
+        canvasPainter.stroke());
     }
     for (
-      let value19 = Math.floor(value13 / value9) * value9;
-      value19 <= value14;
-      value19 += value9
+      let gridY = Math.floor(minPlanY / gridStep) * gridStep;
+      gridY <= maxPlanY;
+      gridY += gridStep
     ) {
-      const value20 = arg13({
-          x: value11,
-          y: value19,
+      const screenLeft = planToScreen({
+          x: minPlanX,
+          y: gridY,
         }),
-        value21 = arg13({
-          x: value12,
-          y: value19,
+        screenRight = planToScreen({
+          x: maxPlanX,
+          y: gridY,
         }),
-        value22 = Math.round((value19 / value5) * 2);
-      ((arg12.strokeStyle =
-        value22 % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)"),
-        arg12.beginPath(),
-        arg12.moveTo(value20.x, value20.y),
-        arg12.lineTo(value21.x, value21.y),
-        arg12.stroke());
+        halfMeterIndexY = Math.round((gridY / meterScale) * 2);
+      ((canvasPainter.strokeStyle =
+        halfMeterIndexY % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)"),
+        canvasPainter.beginPath(),
+        canvasPainter.moveTo(screenLeft.x, screenLeft.y),
+        canvasPainter.lineTo(screenRight.x, screenRight.y),
+        canvasPainter.stroke());
     }
-    arg12.restore();
+    canvasPainter.restore();
   }
-  function fn2(arg22, arg23, arg24 = {}) {
-    const value23 = arg13(arg22),
-      value24 = arg13(arg23);
-    (arg12.save(),
-      (arg12.strokeStyle = arg24.color || "#fff"),
-      (arg12.lineWidth = arg24.width || 1),
-      (arg12.lineCap = arg24.cap || "round"),
-      arg24.dash && arg12.setLineDash(arg24.dash),
-      arg12.beginPath(),
-      arg12.moveTo(value23.x, value23.y),
-      arg12.lineTo(value24.x, value24.y),
-      arg12.stroke(),
-      arg12.restore());
+  function drawLine(fromPlan, toPlan, lineOptions = {}) {
+    const fromScreen = planToScreen(fromPlan),
+      toScreen = planToScreen(toPlan);
+    (canvasPainter.save(),
+      (canvasPainter.strokeStyle = lineOptions.color || "#fff"),
+      (canvasPainter.lineWidth = lineOptions.width || 1),
+      (canvasPainter.lineCap = lineOptions.cap || "round"),
+      lineOptions.dash && canvasPainter.setLineDash(lineOptions.dash),
+      canvasPainter.beginPath(),
+      canvasPainter.moveTo(fromScreen.x, fromScreen.y),
+      canvasPainter.lineTo(toScreen.x, toScreen.y),
+      canvasPainter.stroke(),
+      canvasPainter.restore());
   }
-  function fn3(arg25, arg26, arg27 = 4) {
-    const value25 = arg13(arg25);
-    (arg12.save(),
-      (arg12.fillStyle = "#0e151b"),
-      (arg12.strokeStyle = arg26),
-      (arg12.lineWidth = 2),
-      arg12.beginPath(),
-      arg12.arc(value25.x, value25.y, arg27, 0, Math.PI * 2),
-      arg12.fill(),
-      arg12.stroke(),
-      arg12.restore());
+  function drawPoint(planPoint, strokeColor, radiusPx = 4) {
+    const screenPoint = planToScreen(planPoint);
+    (canvasPainter.save(),
+      (canvasPainter.fillStyle = "#0e151b"),
+      (canvasPainter.strokeStyle = strokeColor),
+      (canvasPainter.lineWidth = 2),
+      canvasPainter.beginPath(),
+      canvasPainter.arc(screenPoint.x, screenPoint.y, radiusPx, 0, Math.PI * 2),
+      canvasPainter.fill(),
+      canvasPainter.stroke(),
+      canvasPainter.restore());
   }
-  function fn4(arg28) {
-    const value26 = arg13(arg28);
-    (arg12.save(),
-      (arg12.globalAlpha = 1),
-      (arg12.shadowColor = "rgba(255, 84, 76, .75)"),
-      (arg12.shadowBlur = 12),
-      (arg12.fillStyle = "rgba(255, 84, 76, .18)"),
-      (arg12.strokeStyle = "#ff6258"),
-      (arg12.lineWidth = 2.5),
-      arg12.beginPath(),
-      arg12.arc(value26.x, value26.y, 9, 0, Math.PI * 2),
-      arg12.fill(),
-      arg12.stroke(),
-      (arg12.shadowBlur = 0),
-      (arg12.fillStyle = "#ff6258"),
-      arg12.beginPath(),
-      arg12.arc(value26.x, value26.y, 3.2, 0, Math.PI * 2),
-      arg12.fill(),
-      arg12.restore());
+  function drawOpenEndpointWarning(endpointPlan) {
+    const endpointScreen = planToScreen(endpointPlan);
+    (canvasPainter.save(),
+      (canvasPainter.globalAlpha = 1),
+      (canvasPainter.shadowColor = "rgba(255, 84, 76, .75)"),
+      (canvasPainter.shadowBlur = 12),
+      (canvasPainter.fillStyle = "rgba(255, 84, 76, .18)"),
+      (canvasPainter.strokeStyle = "#ff6258"),
+      (canvasPainter.lineWidth = 2.5),
+      canvasPainter.beginPath(),
+      canvasPainter.arc(endpointScreen.x, endpointScreen.y, 9, 0, Math.PI * 2),
+      canvasPainter.fill(),
+      canvasPainter.stroke(),
+      (canvasPainter.shadowBlur = 0),
+      (canvasPainter.fillStyle = "#ff6258"),
+      canvasPainter.beginPath(),
+      canvasPainter.arc(endpointScreen.x, endpointScreen.y, 3.2, 0, Math.PI * 2),
+      canvasPainter.fill(),
+      canvasPainter.restore());
   }
-  function fn5(arg29, arg30, arg31 = "#dce3e8") {
-    if (!arg30) return;
-    const value27 = arg13(arg29);
-    (arg12.save(),
-      (arg12.font = "600 10px ui-monospace, monospace"),
-      (arg12.textAlign = "center"),
-      (arg12.textBaseline = "middle"));
-    const value28 = arg12.measureText(arg30).width + 12;
-    ((arg12.fillStyle = "rgba(8, 13, 18, .88)"),
-      (arg12.strokeStyle = "rgba(255, 255, 255, .11)"),
-      (arg12.lineWidth = 1),
-      arg12.beginPath(),
-      arg12.roundRect(value27.x - value28 / 2, value27.y - 25, value28, 18, 5),
-      arg12.fill(),
-      arg12.stroke(),
-      (arg12.fillStyle = arg31),
-      arg12.fillText(arg30, value27.x, value27.y - 16),
-      arg12.restore());
+  function drawFloatingLabel(anchorPlan, labelText, labelColor = "#dce3e8") {
+    if (!labelText) return;
+    const anchorScreen = planToScreen(anchorPlan);
+    (canvasPainter.save(),
+      (canvasPainter.font = "600 10px ui-monospace, monospace"),
+      (canvasPainter.textAlign = "center"),
+      (canvasPainter.textBaseline = "middle"));
+    const labelWidth = canvasPainter.measureText(labelText).width + 12;
+    ((canvasPainter.fillStyle = "rgba(8, 13, 18, .88)"),
+      (canvasPainter.strokeStyle = "rgba(255, 255, 255, .11)"),
+      (canvasPainter.lineWidth = 1),
+      canvasPainter.beginPath(),
+      canvasPainter.roundRect(
+        anchorScreen.x - labelWidth / 2,
+        anchorScreen.y - 25,
+        labelWidth,
+        18,
+        5,
+      ),
+      canvasPainter.fill(),
+      canvasPainter.stroke(),
+      (canvasPainter.fillStyle = labelColor),
+      canvasPainter.fillText(labelText, anchorScreen.x, anchorScreen.y - 16),
+      canvasPainter.restore());
   }
   return {
-    drawMetricGrid: fn1,
-    drawLine: fn2,
-    drawPoint: fn3,
-    drawOpenEndpointWarning: fn4,
-    drawFloatingLabel: fn5,
+    drawMetricGrid: drawMetricGrid,
+    drawLine: drawLine,
+    drawPoint: drawPoint,
+    drawOpenEndpointWarning: drawOpenEndpointWarning,
+    drawFloatingLabel: drawFloatingLabel,
   };
 }

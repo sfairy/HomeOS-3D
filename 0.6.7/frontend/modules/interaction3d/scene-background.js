@@ -1,63 +1,74 @@
 import { createBackgroundTheme } from "./background-theme.js?v=20260927-background-uniform-reuse-v1";
-export function backgroundFloorAnchor(arg1, arg2 = new WeakMap(), arg3 = arg1.backgroundFloor) {
-  const value1 = arg1.document?.floors || [],
-    value2 =
-      arg3 === "all"
-        ? value1.reduce(
-            (arg4, arg5) => (!arg4 || arg5.elevation < arg4.elevation ? arg5 : arg4),
+export function backgroundFloorAnchor(
+  anchorStageOptions,
+  anchorCache = new WeakMap(),
+  floorRef = anchorStageOptions.backgroundFloor,
+) {
+  const floors = anchorStageOptions.document?.floors || [],
+    anchorFloor =
+      floorRef === "all"
+        ? floors.reduce(
+            (lowestFloor, candidateFloor) =>
+              !lowestFloor || candidateFloor.elevation < lowestFloor.elevation
+                ? candidateFloor
+                : lowestFloor,
             null,
           )
-        : value1.find((arg6) => arg6.id === arg3) || value1[0];
-  if (!value2) return null;
-  let value3 = arg2.get(value2.scene);
-  if (!value3) {
-    let value4 = Infinity,
-      value5 = Infinity,
-      value6 = -Infinity,
-      value7 = -Infinity;
-    for (const value8 of value2.scene.walls || [])
-      for (const value9 of [value8.start, value8.end])
-        ((value4 = Math.min(value4, value9.x)),
-          (value5 = Math.min(value5, value9.y)),
-          (value6 = Math.max(value6, value9.x)),
-          (value7 = Math.max(value7, value9.y)));
-    if (!Number.isFinite(value4))
-      for (const value10 of value2.scene.items || []) {
-        if (!["courtyard-area", "courtyard-path", "courtyard-fence"].includes(value10.type))
+        : floors.find((matchingFloor) => matchingFloor.id === floorRef) || floors[0];
+  if (!anchorFloor) return null;
+  let planCenter = anchorCache.get(anchorFloor.scene);
+  if (!planCenter) {
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const wall of anchorFloor.scene.walls || [])
+      for (const wallEndpoint of [wall.start, wall.end])
+        ((minX = Math.min(minX, wallEndpoint.x)),
+          (minY = Math.min(minY, wallEndpoint.y)),
+          (maxX = Math.max(maxX, wallEndpoint.x)),
+          (maxY = Math.max(maxY, wallEndpoint.y)));
+    if (!Number.isFinite(minX))
+      for (const sceneItem of anchorFloor.scene.items || []) {
+        if (!["courtyard-area", "courtyard-path", "courtyard-fence"].includes(sceneItem.type))
           continue;
-        const value11 = value2.scene.calibration?.pixelsPerMeter || 100,
-          value12 = ((value10.rotation || 0) * Math.PI) / 180,
-          value13 = Math.cos(value12),
-          value14 = Math.sin(value12);
-        for (const value15 of value10.drawing?.points || []) {
-          const value16 =
-              value10.x +
-              (value15.x * value10.width * value13 - value15.y * value10.depth * value14) * value11,
-            value17 =
-              value10.y +
-              (value15.x * value10.width * value14 + value15.y * value10.depth * value13) * value11;
-          !Number.isFinite(value16) ||
-            !Number.isFinite(value17) ||
-            ((value4 = Math.min(value4, value16)),
-            (value5 = Math.min(value5, value17)),
-            (value6 = Math.max(value6, value16)),
-            (value7 = Math.max(value7, value17)));
+        const pixelsPerMeter = anchorFloor.scene.calibration?.pixelsPerMeter || 100,
+          rotationRad = ((sceneItem.rotation || 0) * Math.PI) / 180,
+          cosRotation = Math.cos(rotationRad),
+          sinRotation = Math.sin(rotationRad);
+        for (const drawingPoint of sceneItem.drawing?.points || []) {
+          const worldX =
+              sceneItem.x +
+              (drawingPoint.x * sceneItem.width * cosRotation -
+                drawingPoint.y * sceneItem.depth * sinRotation) *
+                pixelsPerMeter,
+            worldY =
+              sceneItem.y +
+              (drawingPoint.x * sceneItem.width * sinRotation +
+                drawingPoint.y * sceneItem.depth * cosRotation) *
+                pixelsPerMeter;
+          !Number.isFinite(worldX) ||
+            !Number.isFinite(worldY) ||
+            ((minX = Math.min(minX, worldX)),
+            (minY = Math.min(minY, worldY)),
+            (maxX = Math.max(maxX, worldX)),
+            (maxY = Math.max(maxY, worldY)));
         }
       }
-    ((value3 = Number.isFinite(value4) ? [(value4 + value6) / 2, (value5 + value7) / 2] : [0, 0]),
-      arg2.set(value2.scene, value3));
+    ((planCenter = Number.isFinite(minX) ? [(minX + maxX) / 2, (minY + maxY) / 2] : [0, 0]),
+      anchorCache.set(anchorFloor.scene, planCenter));
   }
-  return arg1.presentationPoint(value2.id, ...value3, -0.203);
+  return anchorStageOptions.presentationPoint(anchorFloor.id, ...planCenter, -0.203);
 }
-const B =
+const WARM_MOTES_CHUNK =
   "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";
-export function createSceneBackground(arg7, arg8 = () => {}) {
-  const value18 = createBackgroundTheme(arg7, arg8),
-    { THREE: value19 } = arg7,
-    weakMap1 = new WeakMap(),
-    value20 = new value19.Vector3(),
-    value21 = new value19.Vector3(),
-    object1 = {
+export function createSceneBackground(stageOptions, requestFrame = () => {}) {
+  const themeController = createBackgroundTheme(stageOptions, requestFrame),
+    { THREE: THREE } = stageOptions,
+    floorAnchorMap = new WeakMap(),
+    projectedFloorAnchor = new THREE.Vector3(),
+    cameraDirection = new THREE.Vector3(),
+    warmUniforms = {
       warmAspect: {
         value: 1,
       },
@@ -65,10 +76,10 @@ export function createSceneBackground(arg7, arg8 = () => {}) {
         value: 1,
       },
       warmShift: {
-        value: new value19.Vector2(),
+        value: new THREE.Vector2(),
       },
       warmAnchor: {
-        value: new value19.Vector2(),
+        value: new THREE.Vector2(),
       },
       warmTime: {
         value: 0,
@@ -77,42 +88,42 @@ export function createSceneBackground(arg7, arg8 = () => {}) {
         value: 0,
       },
       warmFlow: {
-        value: new value19.Vector2(),
+        value: new THREE.Vector2(),
       },
       warmDeep: {
-        value: new value19.Color("#d9d6cc"),
+        value: new THREE.Color("#d9d6cc"),
       },
       warmInk: {
-        value: new value19.Color("#fff6dd"),
+        value: new THREE.Color("#fff6dd"),
       },
       warmAccent: {
-        value: new value19.Color("#b59b72"),
+        value: new THREE.Color("#b59b72"),
       },
     };
-  let value22 = null,
-    value23 = false,
-    value24 = false,
-    value25 = true,
-    value26 = true,
-    value27 = false,
-    value28 = false,
-    list1 = [],
-    value29 = null,
-    value30 = -Infinity,
-    value31 = null;
-  const value32 =
+  let warmBackdrop = null,
+    isWarmWood = false,
+    isWarmDusk = false,
+    isBackgroundEnabled = true,
+    isMotionEnabled = true,
+    isWarmAnimating = false,
+    isDisposed = false,
+    backgroundObjects = [],
+    lastTickMs = null,
+    lastWarmFrameMs = -Infinity,
+    lastCameraPosition = null;
+  const isReducedMotionPreferred =
     globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
-  function fn1() {
-    if (value22) return;
-    const value33 = new value19.MeshBasicMaterial({
+  function ensureWarmBackdrop() {
+    if (warmBackdrop) return;
+    const warmMaterial = new THREE.MeshBasicMaterial({
       color: 15658212,
       depthTest: false,
       depthWrite: false,
       toneMapped: false,
     });
-    ((value33.onBeforeCompile = (arg9) => {
-      (Object.assign(arg9.uniforms, object1),
-        (arg9.vertexShader = arg9.vertexShader
+    ((warmMaterial.onBeforeCompile = (compiledShader) => {
+      (Object.assign(compiledShader.uniforms, warmUniforms),
+        (compiledShader.vertexShader = compiledShader.vertexShader
           .replace(
             "#include <common>",
             "#include <common>\n        varying vec2 warmPoint; uniform float warmAspect; uniform float warmScale; uniform vec2 warmShift;",
@@ -122,143 +133,180 @@ export function createSceneBackground(arg7, arg8 = () => {}) {
             "#include <begin_vertex>\n          warmPoint=vec2(position.x*max(warmAspect,.5),-position.y)*12.0*warmScale+warmShift;",
           )
           .replace("#include <project_vertex>", "gl_Position=vec4(position.xy,0.9999,1.0);")),
-        (arg9.fragmentShader = arg9.fragmentShader
+        (compiledShader.fragmentShader = compiledShader.fragmentShader
           .replace(
             "#include <common>",
             "#include <common>\n        varying vec2 warmPoint; uniform vec2 warmAnchor; uniform float warmTime; uniform float warmOverview;\n        uniform vec2 warmFlow; uniform vec3 warmDeep; uniform vec3 warmInk; uniform vec3 warmAccent;\n        " +
-              B,
+              WARM_MOTES_CHUNK,
           )
           .replace(
             "#include <color_fragment>",
             "#include <color_fragment>\n          vec2 bgUV=warmPoint/6.0;\n          float fade=1.0-smoothstep(2.2,4.2,length(bgUV));\n          vec2 drift=vec2(warmTime*.009,-warmTime*.006);\n          vec2 flow=warmFlow*.11;\n          vec2 uv=bgUV/mix(1.0,1.22,warmOverview);\n          float nearDust=warmMotes(uv/.22+drift+flow,.021,.68,warmTime);\n          float farDust=warmMotes(uv/.095-drift*.42+flow*.32,.016,.80,warmTime+7.0);\n          vec2 wash=(warmPoint-warmAnchor)/6.0*vec2(.68,1.12);\n          float sunlight=exp(-dot(wash,wash)*.72);\n          float washStrength=1.0-smoothstep(.25,.85,warmOverview);\n          vec3 base=mix(warmDeep,vec3(.94,.914,.858),.42+sunlight*.18*washStrength);\n          float dust=(nearDust*.74+farDust*.26)*fade;\n          base=mix(base,warmAccent,min(.18,dust*.12));\n          base+=vec3(1.0,.93,.77)*(nearDust*.38+farDust*.15)*fade;\n          diffuseColor.rgb=(base+warmInk*sunlight*.008)*.88;",
           )));
     }),
-      (value33.customProgramCacheKey = () => "warm-wood-backdrop-v9-flat-stars"),
-      (value22 = new value19.Mesh(new value19.PlaneGeometry(2, 2), value33)),
-      (value22.name = "warm-wood-background"),
-      (value22.renderOrder = -10000),
-      (value22.frustumCulled = false),
-      (value22.userData.environmentEffect = true),
-      arg7.overlayScene?.add(value22));
+      (warmMaterial.customProgramCacheKey = () => "warm-wood-backdrop-v9-flat-stars"),
+      (warmBackdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), warmMaterial)),
+      (warmBackdrop.name = "warm-wood-background"),
+      (warmBackdrop.renderOrder = -10000),
+      (warmBackdrop.frustumCulled = false),
+      (warmBackdrop.userData.environmentEffect = true),
+      stageOptions.overlayScene?.add(warmBackdrop));
   }
-  function fn2() {
-    ((value29 = null),
-      (value31 = null),
-      value27 && ((value27 = false), arg7.backgroundFrame?.(false)));
+  function stopWarmFrames() {
+    ((lastTickMs = null),
+      (lastCameraPosition = null),
+      isWarmAnimating && ((isWarmAnimating = false), stageOptions.backgroundFrame?.(false)));
   }
-  function fn3() {
+  function applyBackgroundVisibility() {
     if (
-      (value18.sync(value23 ? [] : list1, value25),
-      value22 && (value22.visible = value23 && value25),
-      value23)
+      (themeController.sync(isWarmWood ? [] : backgroundObjects, isBackgroundEnabled),
+      warmBackdrop && (warmBackdrop.visible = isWarmWood && isBackgroundEnabled),
+      isWarmWood)
     ) {
-      for (const value34 of list1)
-        ((value34.userData.backgroundThemeHidden = true), (value34.visible = false));
+      for (const backgroundObject of backgroundObjects)
+        ((backgroundObject.userData.backgroundThemeHidden = true),
+          (backgroundObject.visible = false));
     } else {
-      for (const value35 of list1)
-        value35.userData.exportRole !== "grid" && (value35.userData.backgroundThemeHidden = false);
+      for (const backgroundObjectEntry of backgroundObjects)
+        backgroundObjectEntry.userData.exportRole !== "grid" &&
+          (backgroundObjectEntry.userData.backgroundThemeHidden = false);
     }
   }
   return {
     get theme() {
-      return value23 ? (value24 ? "warm-dusk" : "warm-sunlight") : value18.theme;
+      return isWarmWood ? (isWarmDusk ? "warm-dusk" : "warm-sunlight") : themeController.theme;
     },
     get active() {
-      return value23 ? value27 : value18.active;
+      return isWarmWood ? isWarmAnimating : themeController.active;
     },
     get cacheBackground() {
-      return value23 && value25 ? value22 : null;
+      return isWarmWood && isBackgroundEnabled ? warmBackdrop : null;
     },
-    configure(arg10, arg11 = {}) {
-      const value36 = arg11.sceneStyle === "warm-wood",
-        value37 = value36 && (arg11.warmBackgroundTheme || arg11.backgroundTheme) === "warm-dusk",
-        value38 =
-          value36 !== value23 ||
-          value37 !== value24 ||
-          value26 !== (arg11.backgroundMotion !== false);
+    configure(configuredTheme, config = {}) {
+      const isWarmWoodNext = config.sceneStyle === "warm-wood",
+        nextWarmDusk =
+          isWarmWoodNext && (config.warmBackgroundTheme || config.backgroundTheme) === "warm-dusk",
+        didChange =
+          isWarmWoodNext !== isWarmWood ||
+          nextWarmDusk !== isWarmDusk ||
+          isMotionEnabled !== (config.backgroundMotion !== false);
       return (
-        value38 && fn2(),
-        (value23 = value36),
-        (value24 = value37),
-        (value26 = arg11.backgroundMotion !== false),
-        object1.warmDeep.value.set(value24 ? "#746c67" : "#d9d6cc"),
-        object1.warmInk.value.set(value24 ? "#f4dfb6" : "#fff6dd"),
-        object1.warmAccent.value.set(value24 ? "#9c765a" : "#b59b72"),
-        value18.configure(arg10),
-        value23 && (value18.suspend(), fn1()),
-        fn3(),
-        value38 && arg8(),
-        value38
+        didChange && stopWarmFrames(),
+        (isWarmWood = isWarmWoodNext),
+        (isWarmDusk = nextWarmDusk),
+        (isMotionEnabled = config.backgroundMotion !== false),
+        warmUniforms.warmDeep.value.set(isWarmDusk ? "#746c67" : "#d9d6cc"),
+        warmUniforms.warmInk.value.set(isWarmDusk ? "#f4dfb6" : "#fff6dd"),
+        warmUniforms.warmAccent.value.set(isWarmDusk ? "#9c765a" : "#b59b72"),
+        themeController.configure(configuredTheme),
+        isWarmWood && (themeController.suspend(), ensureWarmBackdrop()),
+        applyBackgroundVisibility(),
+        didChange && requestFrame(),
+        didChange
       );
     },
-    sync(arg12, arg13) {
-      ((list1 = arg12), (value25 = arg13 !== false), value25 || fn2(), fn3());
+    sync(sceneObjects, nextBackgroundEnabled) {
+      ((backgroundObjects = sceneObjects),
+        (isBackgroundEnabled = nextBackgroundEnabled !== false),
+        isBackgroundEnabled || stopWarmFrames(),
+        applyBackgroundVisibility());
     },
-    interact(arg14, arg15) {
-      value23 ? value25 && arg8() : value18.interact(arg14, arg15);
+    interact(pointerEvent, shouldRaycast) {
+      isWarmWood
+        ? isBackgroundEnabled && requestFrame()
+        : themeController.interact(pointerEvent, shouldRaycast);
     },
-    tick(arg16) {
-      if (value28) return Infinity;
-      if (!value23) return value18.tick(arg16);
-      if (!value25 || globalThis.document?.hidden) return (fn2(), Infinity);
-      const value39 = arg7.camera;
-      (value39.updateMatrixWorld(), value39.getWorldDirection(value21));
-      const value40 =
-          value39.aspect || (value39.right - value39.left) / (value39.top - value39.bottom) || 1,
-        value41 = Math.max(0.5, Math.min(2.5, value40));
-      ((object1.warmAspect.value = value41),
-        object1.warmShift.value.set(value21.x * 0.85, value21.z * 0.7 + value21.y * 0.25));
-      const value42 = value39.position.distanceTo(arg7.controls?.target || new value19.Vector3()),
-        value43 = 1 + Math.tanh(Math.log(Math.max(value42, 1) / 35)) * 0.12;
-      object1.warmScale.value = value43;
-      const value44 = backgroundFloorAnchor(arg7, weakMap1),
-        value45 = arg7.backgroundFloorTransition;
-      if (value44 && value45 && value45.from !== arg7.backgroundFloor) {
-        const value48 = backgroundFloorAnchor(arg7, weakMap1, value45.from);
-        value48 && value44.lerpVectors(value48, value44.clone(), value45.amount);
+    tick(frameTimestampMs) {
+      if (isDisposed) return Infinity;
+      if (!isWarmWood) return themeController.tick(frameTimestampMs);
+      if (!isBackgroundEnabled || globalThis.document?.hidden) return (stopWarmFrames(), Infinity);
+      const camera = stageOptions.camera;
+      (camera.updateMatrixWorld(), camera.getWorldDirection(cameraDirection));
+      const cameraAspect =
+          camera.aspect || (camera.right - camera.left) / (camera.top - camera.bottom) || 1,
+        clampedAspect = Math.max(0.5, Math.min(2.5, cameraAspect));
+      ((warmUniforms.warmAspect.value = clampedAspect),
+        warmUniforms.warmShift.value.set(
+          cameraDirection.x * 0.85,
+          cameraDirection.z * 0.7 + cameraDirection.y * 0.25,
+        ));
+      const cameraDistance = camera.position.distanceTo(
+          stageOptions.controls?.target || new THREE.Vector3(),
+        ),
+        warmScale = 1 + Math.tanh(Math.log(Math.max(cameraDistance, 1) / 35)) * 0.12;
+      warmUniforms.warmScale.value = warmScale;
+      const floorAnchorPoint = backgroundFloorAnchor(stageOptions, floorAnchorMap),
+        floorTransition = stageOptions.backgroundFloorTransition;
+      if (
+        floorAnchorPoint &&
+        floorTransition &&
+        floorTransition.from !== stageOptions.backgroundFloor
+      ) {
+        const fromAnchorPoint = backgroundFloorAnchor(
+          stageOptions,
+          floorAnchorMap,
+          floorTransition.from,
+        );
+        fromAnchorPoint &&
+          floorAnchorPoint.lerpVectors(
+            fromAnchorPoint,
+            floorAnchorPoint.clone(),
+            floorTransition.amount,
+          );
       }
-      value44 &&
-        (value20.copy(value44).project(value39),
-        object1.warmAnchor.value
-          .set(value20.x * value41 * 12 * value43, -value20.y * 12 * value43)
-          .add(object1.warmShift.value));
-      const value46 = value29 === null ? 0 : Math.min(0.06, Math.max(0, (arg16 - value29) / 1000));
-      value29 = arg16;
-      const value47 = arg7.backgroundFloor === "all" ? 1 : 0;
+      floorAnchorPoint &&
+        (projectedFloorAnchor.copy(floorAnchorPoint).project(camera),
+        warmUniforms.warmAnchor.value
+          .set(
+            projectedFloorAnchor.x * clampedAspect * 12 * warmScale,
+            -projectedFloorAnchor.y * 12 * warmScale,
+          )
+          .add(warmUniforms.warmShift.value));
+      const deltaSeconds =
+        lastTickMs === null
+          ? 0
+          : Math.min(0.06, Math.max(0, (frameTimestampMs - lastTickMs) / 1000));
+      lastTickMs = frameTimestampMs;
+      const overviewTarget = stageOptions.backgroundFloor === "all" ? 1 : 0;
       return (
-        (object1.warmOverview.value +=
-          (value47 - object1.warmOverview.value) * (1 - Math.exp(-value46 * 4))),
-        !value26 || value32
-          ? (fn2(), Infinity)
-          : ((object1.warmTime.value += value46),
-            object1.warmFlow.value.multiplyScalar(Math.exp(-value46 * 2.4)),
-            value31 &&
-              ((object1.warmFlow.value.x += Math.max(
+        (warmUniforms.warmOverview.value +=
+          (overviewTarget - warmUniforms.warmOverview.value) * (1 - Math.exp(-deltaSeconds * 4))),
+        !isMotionEnabled || isReducedMotionPreferred
+          ? (stopWarmFrames(), Infinity)
+          : ((warmUniforms.warmTime.value += deltaSeconds),
+            warmUniforms.warmFlow.value.multiplyScalar(Math.exp(-deltaSeconds * 2.4)),
+            lastCameraPosition &&
+              ((warmUniforms.warmFlow.value.x += Math.max(
                 -0.08,
-                Math.min(0.08, (value39.position.x - value31.x) * 0.04),
+                Math.min(0.08, (camera.position.x - lastCameraPosition.x) * 0.04),
               )),
-              (object1.warmFlow.value.y += Math.max(
+              (warmUniforms.warmFlow.value.y += Math.max(
                 -0.08,
-                Math.min(0.08, (value39.position.z - value31.z) * 0.04),
+                Math.min(0.08, (camera.position.z - lastCameraPosition.z) * 0.04),
               ))),
-            value31 ? value31.copy(value39.position) : (value31 = value39.position.clone()),
-            arg16 - value30 >= 50 &&
-              ((value27 = true),
-              arg7.backgroundFrame?.(true, {
+            lastCameraPosition
+              ? lastCameraPosition.copy(camera.position)
+              : (lastCameraPosition = camera.position.clone()),
+            frameTimestampMs - lastWarmFrameMs >= 50 &&
+              ((isWarmAnimating = true),
+              stageOptions.backgroundFrame?.(true, {
                 separate: true,
               }),
-              (value30 = arg16)),
-            Math.max(0, 50 - (arg16 - value30)))
+              (lastWarmFrameMs = frameTimestampMs)),
+            Math.max(0, 50 - (frameTimestampMs - lastWarmFrameMs)))
       );
     },
     suspend() {
-      (value18.suspend(), fn2());
+      (themeController.suspend(), stopWarmFrames());
     },
     dispose() {
-      ((value28 = true), fn2(), value18.dispose());
-      for (const value49 of list1) delete value49.userData.backgroundThemeHidden;
-      value22 &&
-        (value22.removeFromParent(), value22.geometry.dispose(), value22.material.dispose());
+      ((isDisposed = true), stopWarmFrames(), themeController.dispose());
+      for (const backgroundObjectToDispose of backgroundObjects)
+        delete backgroundObjectToDispose.userData.backgroundThemeHidden;
+      warmBackdrop &&
+        (warmBackdrop.removeFromParent(),
+        warmBackdrop.geometry.dispose(),
+        warmBackdrop.material.dispose());
     },
   };
 }

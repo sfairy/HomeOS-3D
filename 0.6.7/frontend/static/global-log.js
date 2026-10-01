@@ -1,12 +1,12 @@
-const U = {
+const LEVEL_LABELS = {
   info: "信息",
   success: "成功",
   warning: "警告",
   error: "错误",
 };
-function $(arg1) {
-  const date1 = new Date(arg1);
-  return Number.isNaN(date1.getTime())
+function formatTimestamp(timestamp) {
+  const parsedDate = new Date(timestamp);
+  return Number.isNaN(parsedDate.getTime())
     ? "时间未知"
     : new Intl.DateTimeFormat("zh-CN", {
         month: "2-digit",
@@ -16,230 +16,255 @@ function $(arg1) {
         second: "2-digit",
         hour12: false,
       })
-        .format(date1)
+        .format(parsedDate)
         .replace(/\//g, "-");
 }
-export function setupGlobalLog({ api: arg2 }) {
-  const value1 = document.querySelector("#global-log-open"),
-    value2 = document.querySelector("#global-log-dialog");
-  if (!value1 || !value2 || value1.dataset.globalLogReady === "true") return null;
-  value1.dataset.globalLogReady = "true";
-  const value3 = value2.querySelector("#global-log-close"),
-    value4 = value2.querySelector("#global-log-close-footer"),
-    value5 = value2.querySelector("#global-log-refresh"),
-    value6 = value2.querySelector("#global-log-export"),
-    value7 = value2.querySelector("#global-log-clear"),
-    value8 = value2.querySelector("#global-log-more"),
-    value9 = value2.querySelector("#global-log-level"),
-    value10 = value2.querySelector("#global-log-category"),
-    value11 = value2.querySelector("#global-log-search"),
-    value12 = value2.querySelector("#global-log-list"),
-    value13 = value2.querySelector("#global-log-status");
-  let list1 = [],
-    value14 = false,
-    value15 = null,
-    value16 = null,
-    value17 = null,
-    value18 = false;
-  const value19 = 200;
-  function fn1(arg3) {
-    if ((value12.replaceChildren(), !arg3.length)) {
-      const value21 = document.createElement("div");
-      ((value21.className = "global-log-empty"),
-        (value21.textContent = "当前筛选条件下没有日志。"),
-        value12.append(value21));
+export function setupGlobalLog({ api: apiRequest }) {
+  const globalLogOpenButton = document.querySelector("#global-log-open"),
+    globalLogDialogElement = document.querySelector("#global-log-dialog");
+  if (
+    !globalLogOpenButton ||
+    !globalLogDialogElement ||
+    globalLogOpenButton.dataset.globalLogReady === "true"
+  )
+    return null;
+  globalLogOpenButton.dataset.globalLogReady = "true";
+  const globalLogCloseButton = globalLogDialogElement.querySelector("#global-log-close"),
+    globalLogCloseFooterButton = globalLogDialogElement.querySelector("#global-log-close-footer"),
+    globalLogRefreshButton = globalLogDialogElement.querySelector("#global-log-refresh"),
+    globalLogExportButton = globalLogDialogElement.querySelector("#global-log-export"),
+    globalLogClearButton = globalLogDialogElement.querySelector("#global-log-clear"),
+    globalLogMoreButton = globalLogDialogElement.querySelector("#global-log-more"),
+    globalLogLevelSelect = globalLogDialogElement.querySelector("#global-log-level"),
+    globalLogCategorySelect = globalLogDialogElement.querySelector("#global-log-category"),
+    globalLogSearchInput = globalLogDialogElement.querySelector("#global-log-search"),
+    globalLogListElement = globalLogDialogElement.querySelector("#global-log-list"),
+    globalLogStatusElement = globalLogDialogElement.querySelector("#global-log-status");
+  let entries = [],
+    isLoading = false,
+    refreshTimer = null,
+    searchTimer = null,
+    nextOffset = null,
+    hasPendingRefresh = false;
+  const PAGE_SIZE = 200;
+  function renderEntries(entryList) {
+    if ((globalLogListElement.replaceChildren(), !entryList.length)) {
+      const emptyElement = document.createElement("div");
+      ((emptyElement.className = "global-log-empty"),
+        (emptyElement.textContent = "当前筛选条件下没有日志。"),
+        globalLogListElement.append(emptyElement));
       return;
     }
-    const value20 = document.createDocumentFragment();
-    for (const value22 of arg3) {
-      const value23 = document.createElement("article");
-      value23.className = "global-log-item " + (value22.level || "info");
-      const value24 = document.createElement("i");
-      value24.setAttribute("aria-hidden", "true");
-      const value25 = document.createElement("div"),
-        value26 = document.createElement("strong");
-      value26.textContent = value22.message || "未提供说明";
-      const value27 = document.createElement("span"),
-        value28 = value22.clientTimestamp
-          ? "客户端发生 " + $(value22.clientTimestamp) + " · 接收 " + $(value22.timestamp)
-          : $(value22.timestamp);
+    const logListFragmentNode = document.createDocumentFragment();
+    for (const logEntry of entryList) {
+      const itemElement = document.createElement("article");
+      itemElement.className = "global-log-item " + (logEntry.level || "info");
+      const levelIcon = document.createElement("i");
+      levelIcon.setAttribute("aria-hidden", "true");
+      const bodyElement = document.createElement("div"),
+        messageElement = document.createElement("strong");
+      messageElement.textContent = logEntry.message || "未提供说明";
+      const metaElement = document.createElement("span"),
+        timeText = logEntry.clientTimestamp
+          ? "客户端发生 " +
+            formatTimestamp(logEntry.clientTimestamp) +
+            " · 接收 " +
+            formatTimestamp(logEntry.timestamp)
+          : formatTimestamp(logEntry.timestamp);
       if (
-        ((value27.textContent =
-          value28 + " · " + (value22.source || "系统后台") + " · " + (value22.category || "系统")),
-        value25.append(value26, value27),
-        value22.details || Object.keys(value22.context || {}).length)
+        ((metaElement.textContent =
+          timeText +
+          " · " +
+          (logEntry.source || "系统后台") +
+          " · " +
+          (logEntry.category || "系统")),
+        bodyElement.append(messageElement, metaElement),
+        logEntry.details || Object.keys(logEntry.context || {}).length)
       ) {
-        const value30 = document.createElement("details"),
-          value31 = document.createElement("summary");
-        value31.textContent = "查看详情";
-        const value32 = document.createElement("pre");
-        ((value32.textContent = [
-          ...Object.entries(value22.context || {}).map(([arg4, arg5]) => arg4 + ": " + arg5),
-          value22.details || "",
+        const detailsElement = document.createElement("details"),
+          summaryElement = document.createElement("summary");
+        summaryElement.textContent = "查看详情";
+        const detailsPreElement = document.createElement("pre");
+        ((detailsPreElement.textContent = [
+          ...Object.entries(logEntry.context || {}).map(
+            ([detailKey, detailValue]) => detailKey + ": " + detailValue,
+          ),
+          logEntry.details || "",
         ]
           .filter(Boolean)
           .join("\n")),
-          value30.append(value31, value32),
-          value25.append(value30));
+          detailsElement.append(summaryElement, detailsPreElement),
+          bodyElement.append(detailsElement));
       }
-      if (Number(value22.repeatCount || 1) > 1) {
-        const value33 = document.createElement("span");
-        ((value33.textContent =
+      if (Number(logEntry.repeatCount || 1) > 1) {
+        const repeatElement = document.createElement("span");
+        ((repeatElement.textContent =
           "重复 " +
-          value22.repeatCount +
+          logEntry.repeatCount +
           " 次 · 最近" +
-          (value22.lastClientTimestamp ? "发生" : "接收") +
+          (logEntry.lastClientTimestamp ? "发生" : "接收") +
           " " +
-          $(value22.lastClientTimestamp || value22.lastTimestamp || value22.timestamp)),
-          value25.append(value33));
+          formatTimestamp(
+            logEntry.lastClientTimestamp || logEntry.lastTimestamp || logEntry.timestamp,
+          )),
+          bodyElement.append(repeatElement));
       }
-      const value29 = document.createElement("b");
-      ((value29.textContent = U[value22.level] || "信息"),
-        value23.append(value24, value25, value29),
-        value20.append(value23));
+      const levelBadge = document.createElement("b");
+      ((levelBadge.textContent = LEVEL_LABELS[logEntry.level] || "信息"),
+        itemElement.append(levelIcon, bodyElement, levelBadge),
+        logListFragmentNode.append(itemElement));
     }
-    value12.append(value20);
+    globalLogListElement.append(logListFragmentNode);
   }
-  function fn2(arg6) {
-    const value34 = value10.value;
-    value10.replaceChildren(new Option("全部分类", ""));
-    for (const value35 of arg6 || []) value10.add(new Option(value35, value35));
-    value10.value = [...value10.options].some((arg7) => arg7.value === value34) ? value34 : "";
+  function syncCategoryOptions(categories) {
+    const currentCategory = globalLogCategorySelect.value;
+    globalLogCategorySelect.replaceChildren(new Option("全部分类", ""));
+    for (const category of categories || [])
+      globalLogCategorySelect.add(new Option(category, category));
+    globalLogCategorySelect.value = [...globalLogCategorySelect.options].some(
+      (option) => option.value === currentCategory,
+    )
+      ? currentCategory
+      : "";
   }
-  function fn3() {
-    const uRLSearchParams1 = new URLSearchParams();
+  function buildQueryParams() {
+    const searchParams = new URLSearchParams();
     return (
-      value9.value && uRLSearchParams1.set("level", value9.value),
-      value10.value && uRLSearchParams1.set("category", value10.value),
-      value11.value.trim() && uRLSearchParams1.set("search", value11.value.trim()),
-      uRLSearchParams1
+      globalLogLevelSelect.value && searchParams.set("level", globalLogLevelSelect.value),
+      globalLogCategorySelect.value && searchParams.set("category", globalLogCategorySelect.value),
+      globalLogSearchInput.value.trim() &&
+        searchParams.set("search", globalLogSearchInput.value.trim()),
+      searchParams
     );
   }
-  async function fn4({ append: arg8 = false } = {}) {
-    if (value14) {
-      arg8 || (value18 = true);
+  async function loadEntries({ append: append = false } = {}) {
+    if (isLoading) {
+      append || (hasPendingRefresh = true);
       return;
     }
-    ((value14 = true),
-      (value5.disabled = true),
-      (value8.disabled = true),
-      arg8 || ((list1 = []), (value17 = null), (value8.hidden = true)),
-      (value13.textContent = "正在读取全局日志…"));
+    ((isLoading = true),
+      (globalLogRefreshButton.disabled = true),
+      (globalLogMoreButton.disabled = true),
+      append || ((entries = []), (nextOffset = null), (globalLogMoreButton.hidden = true)),
+      (globalLogStatusElement.textContent = "正在读取全局日志…"));
     try {
-      const value36 = fn3();
-      (value36.set("limit", String(value19)),
-        value36.set("offset", String((arg8 && value17) || 0)));
-      const value37 = await arg2("/logs?" + value36),
-        value38 = value37?.items || [];
-      ((list1 = arg8
-        ? [...new Map([...list1, ...value38].map((arg9) => [arg9.id, arg9])).values()]
-        : value38),
-        (value17 = value37?.hasMore ? value37.nextOffset : null),
-        fn2(value37?.categories || []),
-        fn1(list1));
-      const value39 = value37?.storage || {},
-        value40 = value39.maxBytes
-          ? " / " + (value39.maxBytes / 1024 / 1024).toFixed(0) + " MB 上限"
+      const queryParams = buildQueryParams();
+      (queryParams.set("limit", String(PAGE_SIZE)),
+        queryParams.set("offset", String((append && nextOffset) || 0)));
+      const response = await apiRequest("/logs?" + queryParams),
+        items = response?.items || [];
+      ((entries = append
+        ? [...new Map([...entries, ...items].map((entry) => [entry.id, entry])).values()]
+        : items),
+        (nextOffset = response?.hasMore ? response.nextOffset : null),
+        syncCategoryOptions(response?.categories || []),
+        renderEntries(entries));
+      const storage = response?.storage || {},
+        sizeLimitText = storage.maxBytes
+          ? " / " + (storage.maxBytes / 1024 / 1024).toFixed(0) + " MB 上限"
           : "",
-        value41 = list1.length > value19 ? " · 查看历史时暂停自动刷新" : "",
-        value42 =
-          value39.healthy === false
+        autoRefreshNote = entries.length > PAGE_SIZE ? " · 查看历史时暂停自动刷新" : "",
+        storageErrorText =
+          storage.healthy === false
             ? " · 日志存储异常：" +
-              (value39.lastError || "写入失败") +
+              (storage.lastError || "写入失败") +
               "（待写 " +
-              (value39.pendingEvents || 0) +
+              (storage.pendingEvents || 0) +
               "，丢弃 " +
-              (value39.droppedEvents || 0) +
+              (storage.droppedEvents || 0) +
               "）"
             : "",
-        value43 =
-          value39.healthy !== false && (value39.writeFailures > 0 || value39.droppedEvents > 0)
+        writeFailureText =
+          storage.healthy !== false && (storage.writeFailures > 0 || storage.droppedEvents > 0)
             ? " · 历史写入失败 " +
-              (value39.writeFailures || 0) +
+              (storage.writeFailures || 0) +
               " 次，丢弃 " +
-              (value39.droppedEvents || 0) +
+              (storage.droppedEvents || 0) +
               " 条"
             : "";
-      ((value13.textContent =
+      ((globalLogStatusElement.textContent =
         "已显示 " +
-        list1.length +
+        entries.length +
         " / " +
-        (value37?.total ?? list1.length) +
+        (response?.total ?? entries.length) +
         " 条 · 自动保留最近 " +
-        (value39.retentionDays || value37?.retentionDays || 7) +
+        (storage.retentionDays || response?.retentionDays || 7) +
         " 天" +
-        value40 +
-        value41 +
-        value42 +
-        value43),
-        (value8.hidden = value17 == null));
-    } catch (error1) {
-      ((value13.textContent = error1.message || "日志读取失败。"), arg8 || fn1([]));
+        sizeLimitText +
+        autoRefreshNote +
+        storageErrorText +
+        writeFailureText),
+        (globalLogMoreButton.hidden = nextOffset == null));
+    } catch (caughtError) {
+      ((globalLogStatusElement.textContent = caughtError.message || "日志读取失败。"),
+        append || renderEntries([]));
     } finally {
-      ((value14 = false),
-        (value5.disabled = false),
-        (value8.disabled = false),
-        value18 && ((value18 = false), fn4()));
+      ((isLoading = false),
+        (globalLogRefreshButton.disabled = false),
+        (globalLogMoreButton.disabled = false),
+        hasPendingRefresh && ((hasPendingRefresh = false), loadEntries()));
     }
   }
-  function fn5() {
-    (value15 && window.clearInterval(value15), (value15 = null));
+  function stopAutoRefresh() {
+    (refreshTimer && window.clearInterval(refreshTimer), (refreshTimer = null));
   }
-  async function fn6() {
-    (value2.open || value2.showModal(),
-      await fn4(),
-      fn5(),
-      (value15 = window.setInterval(() => {
-        list1.length <= value19 && !value12.querySelector("details[open]") && fn4();
+  async function openDialog() {
+    (globalLogDialogElement.open || globalLogDialogElement.showModal(),
+      await loadEntries(),
+      stopAutoRefresh(),
+      (refreshTimer = window.setInterval(() => {
+        entries.length <= PAGE_SIZE &&
+          !globalLogListElement.querySelector("details[open]") &&
+          loadEntries();
       }, 10000)));
   }
-  function fn7() {
-    (fn5(), value2.open && value2.close());
+  function closeDialog() {
+    (stopAutoRefresh(), globalLogDialogElement.open && globalLogDialogElement.close());
   }
   return (
-    value1.addEventListener("click", fn6),
-    value3.addEventListener("click", fn7),
-    value4.addEventListener("click", fn7),
-    value5.addEventListener("click", fn4),
-    value8.addEventListener("click", () =>
-      fn4({
+    globalLogOpenButton.addEventListener("click", openDialog),
+    globalLogCloseButton.addEventListener("click", closeDialog),
+    globalLogCloseFooterButton.addEventListener("click", closeDialog),
+    globalLogRefreshButton.addEventListener("click", loadEntries),
+    globalLogMoreButton.addEventListener("click", () =>
+      loadEntries({
         append: true,
       }),
     ),
-    value9.addEventListener("change", fn4),
-    value10.addEventListener("change", fn4),
-    value11.addEventListener("input", () => {
-      (window.clearTimeout(value16), (value16 = window.setTimeout(fn4, 250)));
+    globalLogLevelSelect.addEventListener("change", loadEntries),
+    globalLogCategorySelect.addEventListener("change", loadEntries),
+    globalLogSearchInput.addEventListener("input", () => {
+      (window.clearTimeout(searchTimer), (searchTimer = window.setTimeout(loadEntries, 250)));
     }),
-    value2.addEventListener("close", fn5),
-    value6.addEventListener("click", () => {
-      const value44 = document.createElement("a"),
-        value45 = fn3();
-      ((value44.href = "/api/v1/logs/export" + (value45.size ? "?" + value45 : "")),
-        (value44.download =
+    globalLogDialogElement.addEventListener("close", stopAutoRefresh),
+    globalLogExportButton.addEventListener("click", () => {
+      const downloadLink = document.createElement("a"),
+        exportParams = buildQueryParams();
+      ((downloadLink.href = "/api/v1/logs/export" + (exportParams.size ? "?" + exportParams : "")),
+        (downloadLink.download =
           "ha-bridge-global-log-" + new Date().toISOString().slice(0, 10) + ".txt"),
-        document.body.append(value44),
-        value44.click(),
-        value44.remove());
+        document.body.append(downloadLink),
+        downloadLink.click(),
+        downloadLink.remove());
     }),
-    value7.addEventListener("click", async () => {
+    globalLogClearButton.addEventListener("click", async () => {
       if (window.confirm("确定清空当前全局日志吗？清空后无法恢复。")) {
-        value7.disabled = true;
+        globalLogClearButton.disabled = true;
         try {
-          (await arg2("/logs", {
+          (await apiRequest("/logs", {
             method: "DELETE",
           }),
-            await fn4());
-        } catch (error2) {
-          value13.textContent = error2.message || "日志清空失败。";
+            await loadEntries());
+        } catch (clearError) {
+          globalLogStatusElement.textContent = clearError.message || "日志清空失败。";
         } finally {
-          value7.disabled = false;
+          globalLogClearButton.disabled = false;
         }
       }
     }),
     {
-      open: fn6,
-      refresh: fn4,
+      open: openDialog,
+      refresh: loadEntries,
     }
   );
 }

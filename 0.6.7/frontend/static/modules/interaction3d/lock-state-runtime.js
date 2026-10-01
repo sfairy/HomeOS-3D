@@ -5,160 +5,177 @@ export const LOCK_ENTITY_FIELDS = [
   "lowBatteryEntityId",
   "tamperEntityId",
 ];
-const x = (arg1) => arg1?.newState || arg1,
-  u = (arg2) =>
-    arg2 &&
-    arg2.available !== false &&
-    !["", "unknown", "unavailable"].includes(String(arg2.state ?? "")),
-  f = (arg3) =>
-    typeof arg3 == "string"
-      ? arg3
+const normalizeStateEntry = (stateEntry) => stateEntry?.newState || stateEntry,
+  isEntityUsable = (usableEntry) =>
+    usableEntry &&
+    usableEntry.available !== false &&
+    !["", "unknown", "unavailable"].includes(String(usableEntry.state ?? "")),
+  normalizeStateText = (rawText) =>
+    typeof rawText == "string"
+      ? rawText
           .trim()
           .toLowerCase()
           .replace(/[\s_-]+/g, " ")
       : "",
-  E = new Set(["contact", "接触", "接觸"]),
-  I = new Set(["no contact", "分离", "分離"]);
-function m(arg4) {
-  if (!u(arg4)) return null;
-  const value1 = f(arg4.state);
-  return I.has(value1) || ["on", "open", "opened", "打开", "已打开", "开启"].includes(value1)
+  contactTextSet = new Set(["contact", "接触", "接觸"]),
+  noContactTextSet = new Set(["no contact", "分离", "分離"]);
+function doorOpenFromEntry(entry) {
+  if (!isEntityUsable(entry)) return null;
+  const normalizedText = normalizeStateText(entry.state);
+  return noContactTextSet.has(normalizedText) ||
+    ["on", "open", "opened", "打开", "已打开", "开启"].includes(normalizedText)
     ? true
-    : E.has(value1) || ["off", "closed", "close", "关闭", "已关闭"].includes(value1)
+    : contactTextSet.has(normalizedText) ||
+        ["off", "closed", "close", "关闭", "已关闭"].includes(normalizedText)
       ? false
       : null;
 }
-function O(arg5, arg6) {
-  const value2 = arg5.attributes?.options;
+function hasContactEnumOptions(entity, deviceClass) {
+  const options = entity.attributes?.options;
   return (
-    arg6 === "enum" &&
-    Array.isArray(value2) &&
-    value2.length === 2 &&
-    value2.some((arg7) => I.has(f(arg7))) &&
-    value2.some((arg8) => E.has(f(arg8)))
+    deviceClass === "enum" &&
+    Array.isArray(options) &&
+    options.length === 2 &&
+    options.some((noContactOption) => noContactTextSet.has(normalizeStateText(noContactOption))) &&
+    options.some((contactOption) => contactTextSet.has(normalizeStateText(contactOption)))
   );
 }
-function S(arg9) {
+function isXiaomiContactSensor(sensorEntity) {
   return (
-    arg9.platform === "xiaomi_home" &&
-    /_contact_state_p_\d+_\d+$/.test(arg9.uniqueId || arg9.unique_id || "")
+    sensorEntity.platform === "xiaomi_home" &&
+    /_contact_state_p_\d+_\d+$/.test(sensorEntity.uniqueId || sensorEntity.unique_id || "")
   );
 }
-const h = (arg10) => {
-  const value3 = arg10?.attributes || {},
-    value4 = value3.event_data || value3.eventData || {};
+const entityStateSignature = (signatureEntry) => {
+  const attributes = signatureEntry?.attributes || {},
+    doorEvent = attributes.event_data || attributes.eventData || {};
   return [
-    arg10?.state,
-    value3.event_type,
-    value3.event,
-    value3.action,
-    value4.event_type,
-    value4.event,
-    value4.action,
+    signatureEntry?.state,
+    attributes.event_type,
+    attributes.event,
+    attributes.action,
+    doorEvent.event_type,
+    doorEvent.event,
+    doorEvent.action,
   ]
-    .filter((arg11) => arg11 != null)
+    .filter((part) => part != null)
     .join(" ")
     .trim()
     .toLowerCase();
 };
-export function doorOpenState(arg12) {
-  if (!u(arg12)) return null;
-  const value5 = m(arg12);
-  if (value5 !== null) return value5;
-  const value6 = h(arg12);
+export function doorOpenState(doorStateEntry) {
+  if (!isEntityUsable(doorStateEntry)) return null;
+  const directRead = doorOpenFromEntry(doorStateEntry);
+  if (directRead !== null) return directRead;
+  const signature = entityStateSignature(doorStateEntry);
   return /(^|[\s_.-])(open|opened|opening|door_open|opened_door|开门|打开|开启)(?=$|[\s_.-])/.test(
-    value6,
+    signature,
   )
     ? true
-    : /(^|[\s_.-])(close|closed|closing|door_close|closed_door|关门|关闭)(?=$|[\s_.-])/.test(value6)
+    : /(^|[\s_.-])(close|closed|closing|door_close|closed_door|关门|关闭)(?=$|[\s_.-])/.test(
+          signature,
+        )
       ? false
       : null;
 }
-export function lockEntityRole(arg13, arg14) {
+export function lockEntityRole(roleEntity, field) {
   if (
-    arg13.disabledBy != null ||
-    arg13.disabled_by != null ||
-    arg13.enabled === false ||
-    ["missing", "disabled"].includes(arg13.status)
+    roleEntity.disabledBy != null ||
+    roleEntity.disabled_by != null ||
+    roleEntity.enabled === false ||
+    ["missing", "disabled"].includes(roleEntity.status)
   )
     return false;
-  const value7 = arg13.entityId || arg13.entity_id || "",
-    value8 = value7.split(".")[0],
-    value9 = arg13.deviceClass || arg13.device_class || arg13.attributes?.device_class;
-  return arg14 === "entityId"
-    ? value8 === "lock"
-    : arg14 === "doorEntityId"
-      ? (value8 === "binary_sensor" && ["door", "opening"].includes(value9)) ||
-        (value8 === "sensor" && O(arg13, value9)) ||
-        (["sensor", "binary_sensor"].includes(value8) && S(arg13))
-      : arg14 === "batteryEntityId"
-        ? value8 === "sensor" && value9 === "battery"
-        : arg14 === "lowBatteryEntityId"
-          ? value8 === "binary_sensor" && value9 === "battery"
-          : arg14 === "tamperEntityId"
-            ? value8 === "binary_sensor" && value9 === "tamper"
+  const entityId = roleEntity.entityId || roleEntity.entity_id || "",
+    domain = entityId.split(".")[0],
+    entityDeviceClass =
+      roleEntity.deviceClass || roleEntity.device_class || roleEntity.attributes?.device_class;
+  return field === "entityId"
+    ? domain === "lock"
+    : field === "doorEntityId"
+      ? (domain === "binary_sensor" && ["door", "opening"].includes(entityDeviceClass)) ||
+        (domain === "sensor" && hasContactEnumOptions(roleEntity, entityDeviceClass)) ||
+        (["sensor", "binary_sensor"].includes(domain) && isXiaomiContactSensor(roleEntity))
+      : field === "batteryEntityId"
+        ? domain === "sensor" && entityDeviceClass === "battery"
+        : field === "lowBatteryEntityId"
+          ? domain === "binary_sensor" && entityDeviceClass === "battery"
+          : field === "tamperEntityId"
+            ? domain === "binary_sensor" && entityDeviceClass === "tamper"
             : false;
 }
-export function identifyLockEntities(arg15) {
+export function identifyLockEntities(entities) {
   return Object.fromEntries(
-    LOCK_ENTITY_FIELDS.map((arg16) => {
-      const value10 = arg15.filter((arg17) => lockEntityRole(arg17, arg16));
-      return [arg16, value10.length === 1 ? value10[0].entityId || value10[0].entity_id : ""];
+    LOCK_ENTITY_FIELDS.map((entityField) => {
+      const matched = entities.filter((candidateEntity) =>
+        lockEntityRole(candidateEntity, entityField),
+      );
+      return [entityField, matched.length === 1 ? matched[0].entityId || matched[0].entity_id : ""];
     }),
   );
 }
-export function doorEventState(arg18, arg19) {
-  const fn1 = (arg20) => {
-    const value15 = arg19(arg20);
-    if (!arg20?.startsWith("event.") || !u(value15)) return null;
-    const value16 = /^\d{4}-\d{2}-\d{2}T/.test(String(value15.state))
-      ? Date.parse(value15.state)
+export function doorEventState(item, readEntityState) {
+  const eventTimestamp = (eventEntityId) => {
+    const eventEntry = readEntityState(eventEntityId);
+    if (!eventEntityId?.startsWith("event.") || !isEntityUsable(eventEntry)) return null;
+    const timestamp = /^\d{4}-\d{2}-\d{2}T/.test(String(eventEntry.state))
+      ? Date.parse(eventEntry.state)
       : NaN;
-    return Number.isFinite(value16) ? value16 : null;
+    return Number.isFinite(timestamp) ? timestamp : null;
   };
-  if (arg18.doorSource === "dual-event") {
+  if (item.doorSource === "dual-event") {
     if (
-      !arg18.doorOpenEntityId ||
-      !arg18.doorCloseEntityId ||
-      arg18.doorOpenEntityId === arg18.doorCloseEntityId
+      !item.doorOpenEntityId ||
+      !item.doorCloseEntityId ||
+      item.doorOpenEntityId === item.doorCloseEntityId
     )
       return null;
-    const value17 = fn1(arg18.doorOpenEntityId),
-      value18 = fn1(arg18.doorCloseEntityId);
-    return value17 === value18 ||
-      [arg19(arg18.doorOpenEntityId), arg19(arg18.doorCloseEntityId)].some(
-        (arg21) => !arg21 || arg21.available === false || arg21.state === "unavailable",
+    const openTime = eventTimestamp(item.doorOpenEntityId),
+      closeTime = eventTimestamp(item.doorCloseEntityId);
+    return openTime === closeTime ||
+      [readEntityState(item.doorOpenEntityId), readEntityState(item.doorCloseEntityId)].some(
+        (checkedEntry) =>
+          !checkedEntry || checkedEntry.available === false || checkedEntry.state === "unavailable",
       )
       ? null
-      : value17 === null
+      : openTime === null
         ? false
-        : value18 === null
+        : closeTime === null
           ? true
-          : value17 > value18;
+          : openTime > closeTime;
   }
-  if (fn1(arg18.doorEventEntityId) === null) return null;
-  const value11 = arg19(arg18.doorEventEntityId),
-    value12 = String(value11.attributes?.[arg18.doorEventAttribute || "event_type"] ?? "").trim(),
-    value13 = (arg18.doorOpenValue || "").trim(),
-    value14 = (arg18.doorCloseValue || "").trim();
-  return !value13 || !value14 || value13 === value14
+  if (eventTimestamp(item.doorEventEntityId) === null) return null;
+  const eventStateEntry = readEntityState(item.doorEventEntityId),
+    eventValue = String(
+      eventStateEntry.attributes?.[item.doorEventAttribute || "event_type"] ?? "",
+    ).trim(),
+    openValue = (item.doorOpenValue || "").trim(),
+    closeValue = (item.doorCloseValue || "").trim();
+  return !openValue || !closeValue || openValue === closeValue
     ? null
-    : value12 === value13
+    : eventValue === openValue
       ? true
-      : value12 === value14
+      : eventValue === closeValue
         ? false
         : null;
 }
-export function lockState(arg22, arg23 = {}) {
-  const fn2 = (arg24) => x(arg23 instanceof Map ? arg23.get(arg24) : arg23[arg24]),
-    value19 = fn2(arg22.entityId),
-    value20 = fn2(arg22.doorEntityId),
-    value21 = fn2(arg22.batteryEntityId),
-    value22 = ["single-event", "dual-event"].includes(arg22.doorSource),
-    value23 = value22 ? doorEventState(arg22, fn2) : null,
-    value24 = !!(u(value19) || (value22 ? value23 !== null : u(value20)) || u(value21)),
-    value25 = u(value19) ? value19.state : "unavailable",
-    object1 = {
+export function lockState(lockItem, states = {}) {
+  const readState = (targetEntityId) =>
+      normalizeStateEntry(
+        states instanceof Map ? states.get(targetEntityId) : states[targetEntityId],
+      ),
+    lockEntry = readState(lockItem.entityId),
+    doorEntry = readState(lockItem.doorEntityId),
+    batteryEntry = readState(lockItem.batteryEntityId),
+    isEventSource = ["single-event", "dual-event"].includes(lockItem.doorSource),
+    eventState = isEventSource ? doorEventState(lockItem, readState) : null,
+    isAvailable = !!(
+      isEntityUsable(lockEntry) ||
+      (isEventSource ? eventState !== null : isEntityUsable(doorEntry)) ||
+      isEntityUsable(batteryEntry)
+    ),
+    state = isEntityUsable(lockEntry) ? lockEntry.state : "unavailable",
+    LOCK_STATE_LABELS = {
       locked: "已上锁",
       unlocked: "已解锁",
       locking: "正在上锁",
@@ -168,43 +185,45 @@ export function lockState(arg22, arg23 = {}) {
       jammed: "门锁卡住",
       unavailable: "门锁状态不可用",
     },
-    value26 = value22 ? value23 : m(value20),
-    fn3 = (arg25) => {
-      const value28 = fn2(arg25);
-      return u(value28) && value28.state === "on";
+    doorOpen = isEventSource ? eventState : doorOpenFromEntry(doorEntry),
+    isOn = (onEntityId) => {
+      const onEntry = readState(onEntityId);
+      return isEntityUsable(onEntry) && onEntry.state === "on";
     },
-    value27 = value19
-      ? object1[value25] || "门锁状态未知"
-      : value26 === true
+    label = lockEntry
+      ? LOCK_STATE_LABELS[state] || "门锁状态未知"
+      : doorOpen === true
         ? "门已打开"
-        : value26 === false
+        : doorOpen === false
           ? "门已关闭"
-          : arg22.doorEntityId
+          : lockItem.doorEntityId
             ? "门状态未知"
             : "仅电量";
   return {
-    state: value25,
-    available: value24,
-    label: value27,
-    doorOpen: value26,
-    doorLabel: arg22.doorEntityId
-      ? value26 === null
+    state: state,
+    available: isAvailable,
+    label: label,
+    doorOpen: doorOpen,
+    doorLabel: lockItem.doorEntityId
+      ? doorOpen === null
         ? "门状态未知"
-        : value26
+        : doorOpen
           ? "门已打开"
           : "门已关闭"
       : "未绑定门磁",
-    busy: ["locking", "unlocking", "opening"].includes(value25),
-    canOpen: !!u(value19) && ((Number(value19?.attributes?.supported_features) || 0) & 1) !== 0,
-    codeRequired: !!value19?.attributes?.code_format,
-    battery: u(value21)
-      ? "" + value21.state + (value21.attributes?.unit_of_measurement || "%")
+    busy: ["locking", "unlocking", "opening"].includes(state),
+    canOpen:
+      !!isEntityUsable(lockEntry) &&
+      ((Number(lockEntry?.attributes?.supported_features) || 0) & 1) !== 0,
+    codeRequired: !!lockEntry?.attributes?.code_format,
+    battery: isEntityUsable(batteryEntry)
+      ? "" + batteryEntry.state + (batteryEntry.attributes?.unit_of_measurement || "%")
       : "—",
-    lowBattery: fn3(arg22.lowBatteryEntityId),
-    tamper: fn3(arg22.tamperEntityId),
+    lowBattery: isOn(lockItem.lowBatteryEntityId),
+    tamper: isOn(lockItem.tamperEntityId),
   };
 }
-const c = {
+const DOOR_TYPE_LABELS = {
   entry: "入户门",
   solid: "木门",
   double: "双开门",
@@ -213,35 +232,34 @@ const c = {
   "roller-shutter": "卷帘门",
   "frame-only": "门框",
 };
-export function doorModels(arg26) {
-  return (arg26?.scene?.doors?.length ? arg26.scene.doors : arg26?.doors || []).flatMap(
-    (arg27, arg28) => {
-      const value29 =
-        arg27?.modelId || (String(arg27?.id || "").startsWith("door:") ? arg27.id : "");
-      if (value29 && !arg27?.wallId) {
-        const value33 = c[arg27.doorType] ? arg27.doorType : "solid";
+export function doorModels(config) {
+  return (config?.scene?.doors?.length ? config.scene.doors : config?.doors || []).flatMap(
+    (door, index) => {
+      const modelId = door?.modelId || (String(door?.id || "").startsWith("door:") ? door.id : "");
+      if (modelId && !door?.wallId) {
+        const doorType = DOOR_TYPE_LABELS[door.doorType] ? door.doorType : "solid";
         return [
           {
-            ...arg27,
-            modelId: value29,
-            name: arg27.name || c[value33] + " " + (arg28 + 1),
-            doorType: value33,
-            doorLabel: arg27.doorLabel || c[value33],
+            ...door,
+            modelId: modelId,
+            name: door.name || DOOR_TYPE_LABELS[doorType] + " " + (index + 1),
+            doorType: doorType,
+            doorLabel: door.doorLabel || DOOR_TYPE_LABELS[doorType],
           },
         ];
       }
-      const value30 = (arg26.scene?.walls || []).find((arg29) => arg29.id === arg27.wallId);
-      if (!value30) return [];
-      const value31 = Math.max(0, Math.min(1, Number(arg27.t) || 0)),
-        value32 = c[arg27.doorType] ? arg27.doorType : "solid";
+      const wall = (config.scene?.walls || []).find((wallEntry) => wallEntry.id === door.wallId);
+      if (!wall) return [];
+      const positionRatio = Math.max(0, Math.min(1, Number(door.t) || 0)),
+        resolvedDoorType = DOOR_TYPE_LABELS[door.doorType] ? door.doorType : "solid";
       return [
         {
-          ...arg27,
-          modelId: "door:" + arg27.id,
-          name: arg27.name || c[value32] + " " + (arg28 + 1),
-          doorLabel: c[value32],
-          x: value30.start.x + (value30.end.x - value30.start.x) * value31,
-          y: value30.start.y + (value30.end.y - value30.start.y) * value31,
+          ...door,
+          modelId: "door:" + door.id,
+          name: door.name || DOOR_TYPE_LABELS[resolvedDoorType] + " " + (index + 1),
+          doorLabel: DOOR_TYPE_LABELS[resolvedDoorType],
+          x: wall.start.x + (wall.end.x - wall.start.x) * positionRatio,
+          y: wall.start.y + (wall.end.y - wall.start.y) * positionRatio,
         },
       ];
     },

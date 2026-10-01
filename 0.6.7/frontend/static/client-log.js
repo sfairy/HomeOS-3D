@@ -1,15 +1,15 @@
-(function (r) {
+(function (bridgeWindow) {
   "use strict";
 
-  if (r.HABridgeLog || typeof r.fetch != "function") return;
-  const S = r.fetch.bind(r),
-    $ = "ha-bridge-client-log-v1",
-    I = 50,
-    N = 120000,
-    Z = 900 * 1000,
-    m = new WeakSet(),
-    x = new WeakSet(),
-    z = new Set([
+  if (bridgeWindow.HABridgeLog || typeof bridgeWindow.fetch != "function") return;
+  const originalFetch = bridgeWindow.fetch.bind(bridgeWindow),
+    LOG_STORAGE_KEY = "ha-bridge-client-log-v1",
+    MAX_QUEUED_EVENT_COUNT = 50,
+    MAX_QUEUE_BYTES = 120000,
+    MAX_EVENT_AGE_MS = 900 * 1000,
+    reportedErrorSet = new WeakSet(),
+    linkedResponseSet = new WeakSet(),
+    allowedPayloadKeySet = new Set([
       "page",
       "projectId",
       "componentId",
@@ -26,24 +26,24 @@
       "userAgent",
       "phase",
     ]),
-    L = /^\/(?:login|setup|pair)(?:\/|$)/.test(r.location.pathname);
-  let d = L,
-    o = [],
-    D = null,
-    E = false,
-    u = 1000,
-    g = 0,
-    T = {};
-  function y(t) {
+    isPublicPage = /^\/(?:login|setup|pair)(?:\/|$)/.test(bridgeWindow.location.pathname);
+  let publicMode = isPublicPage,
+    eventQueue = [],
+    flushTimer = null,
+    isFlushing = false,
+    retryDelayMs = 1000,
+    nextRetryAt = 0,
+    logPayload = {};
+  function sanitizePath(rawPath) {
     try {
-      const e = new URL(String(t || ""), r.location.href);
-      if (!["http:", "https:", "ws:", "wss:"].includes(e.protocol))
-        return `[${e.protocol.replace(":", "")}]`;
-      let n = e.pathname;
+      const parsedUrl = new URL(String(rawPath || ""), bridgeWindow.location.href);
+      if (!["http:", "https:", "ws:", "wss:"].includes(parsedUrl.protocol))
+        return `[${parsedUrl.protocol.replace(":", "")}]`;
+      let normalizedPath = parsedUrl.pathname;
       try {
-        n = decodeURIComponent(n);
+        normalizedPath = decodeURIComponent(normalizedPath);
       } catch {}
-      return n
+      return normalizedPath
         .split(/[?#]/, 1)[0]
         .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
         .replace(/(\/api\/hls\/)[^/]+(?:\/.*)?/gi, "$1[stream]")
@@ -54,8 +54,8 @@
       return "[invalid path]";
     }
   }
-  function l(t, e = 1000) {
-    return String(t ?? "")
+  function redactSensitive(rawText, maxLength = 1000) {
+    return String(rawText ?? "")
       .replace(/\/embed\/[A-Za-z0-9_-]{43}(?=\/|$)/g, "/embed/[session]")
       .replace(
         /(\b(?:set-cookie|cookie)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\r\n]+)/gi,
@@ -66,7 +66,7 @@
         "[private key redacted]",
       )
       .replace(/[A-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)+/gi, "[email redacted]")
-      .replace(/(?:https?|wss?|rtsps?):\/\/[^\s<>"']+/gi, (n) => y(n))
+      .replace(/(?:https?|wss?|rtsps?):\/\/[^\s<>"']+/gi, (matchedUrl) => sanitizePath(matchedUrl))
       .replace(/\bBearer\s+[^\s,;"']+/gi, "Bearer [redacted]")
       .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted]")
       .replace(
@@ -75,253 +75,304 @@
       )
       .replace(/\/api\/hls\/[^\s<>"'?#)]+(?:\?[^\s<>"')]+)?/gi, "/api/hls/[stream]")
       .replace(/(\/[^\s?"'<>]*)\?[^\s"'<>]*/g, "$1")
-      .slice(0, e);
+      .slice(0, maxLength);
   }
-  function b(t) {
-    const e = {};
-    for (const [n, a] of Object.entries(t || {}))
-      !z.has(n) ||
-        a == null ||
-        !["string", "number", "boolean"].includes(typeof a) ||
-        (e[n] = ["path", "page"].includes(n)
-          ? y(a)
-          : typeof a == "number" && Number.isFinite(a)
-            ? a
-            : l(a, 512));
-    return e;
+  function pickPayload(sourceFields) {
+    const pickedPayload = {};
+    for (const [detailKey, detailValue] of Object.entries(sourceFields || {}))
+      !allowedPayloadKeySet.has(detailKey) ||
+        detailValue == null ||
+        !["string", "number", "boolean"].includes(typeof detailValue) ||
+        (pickedPayload[detailKey] = ["path", "page"].includes(detailKey)
+          ? sanitizePath(detailValue)
+          : typeof detailValue == "number" && Number.isFinite(detailValue)
+            ? detailValue
+            : redactSensitive(detailValue, 512));
+    return pickedPayload;
   }
-  function O() {
-    return r.location.pathname.startsWith("/3d-studio")
+  function currentSourceName() {
+    return bridgeWindow.location.pathname.startsWith("/3d-studio")
       ? "3D 户型编辑器"
-      : /^\/(?:display|habridge)\//.test(r.location.pathname)
+      : /^\/(?:display|habridge)\//.test(bridgeWindow.location.pathname)
         ? "展示设备"
-        : L
+        : isPublicPage
           ? "登录与配对页面"
           : "仪表盘编辑器";
   }
-  function C() {
-    const t = Date.now() - Z;
-    for (o = o.filter((e) => e.queuedAt >= t).slice(-I); o.length && JSON.stringify(o).length > N;)
-      o.shift();
+  function pruneQueue() {
+    const cutoffTime = Date.now() - MAX_EVENT_AGE_MS;
+    for (
+      eventQueue = eventQueue
+        .filter((prunedEntry) => prunedEntry.queuedAt >= cutoffTime)
+        .slice(-MAX_QUEUED_EVENT_COUNT);
+      eventQueue.length && JSON.stringify(eventQueue).length > MAX_QUEUE_BYTES;
+    )
+      eventQueue.shift();
   }
-  function f() {
-    C();
+  function persistQueue() {
+    pruneQueue();
     try {
-      o.length ? r.sessionStorage.setItem($, JSON.stringify(o)) : r.sessionStorage.removeItem($);
+      eventQueue.length
+        ? bridgeWindow.sessionStorage.setItem(LOG_STORAGE_KEY, JSON.stringify(eventQueue))
+        : bridgeWindow.sessionStorage.removeItem(LOG_STORAGE_KEY);
     } catch {}
   }
-  function A(t = 100) {
-    D ||
-      !o.length ||
-      (D = r.setTimeout(() => {
-        ((D = null), v());
-      }, t));
+  function scheduleFlush(delayMs = 100) {
+    flushTimer ||
+      !eventQueue.length ||
+      (flushTimer = bridgeWindow.setTimeout(() => {
+        ((flushTimer = null), flushQueue());
+      }, delayMs));
   }
-  function h(t, e, n, a = {}, c = "") {
-    const i = {
-      level: ["info", "success", "warning", "error"].includes(t) ? t : "error",
-      source: O(),
-      category: l(e || "界面", 64),
-      message: l(n || "未知异常", 1000),
-      details: l(c, 8000),
-      context: b({
-        page: r.location.pathname,
-        userAgent: r.navigator?.userAgent || "",
-        ...T,
-        ...a,
+  function reportEvent(
+    reportLevel,
+    reportCategory,
+    reportMessage,
+    reportFields = {},
+    reportDetails = "",
+  ) {
+    const eventPayload = {
+      level: ["info", "success", "warning", "error"].includes(reportLevel) ? reportLevel : "error",
+      source: currentSourceName(),
+      category: redactSensitive(reportCategory || "界面", 64),
+      message: redactSensitive(reportMessage || "未知异常", 1000),
+      details: redactSensitive(reportDetails, 8000),
+      context: pickPayload({
+        page: bridgeWindow.location.pathname,
+        userAgent: bridgeWindow.navigator?.userAgent || "",
+        ...logPayload,
+        ...reportFields,
       }),
       clientTimestamp: new Date().toISOString(),
     };
-    (d && !["warning", "error"].includes(i.level)) ||
-      (o.push({
-        event: i,
+    (publicMode && !["warning", "error"].includes(eventPayload.level)) ||
+      (eventQueue.push({
+        event: eventPayload,
         queuedAt: Date.now(),
       }),
-      f(),
-      A());
+      persistQueue(),
+      scheduleFlush());
   }
-  function q(t, e = {}, n = "") {
-    if (t && typeof t == "object") {
-      if (m.has(t)) return;
-      m.add(t);
+  function reportError(thrownValue, errorFields = {}, fallbackMessage = "") {
+    if (thrownValue && typeof thrownValue == "object") {
+      if (reportedErrorSet.has(thrownValue)) return;
+      reportedErrorSet.add(thrownValue);
     }
-    h("error", "界面", n || t?.message || String(t || "未知异常"), e, t?.stack || "");
+    reportEvent(
+      "error",
+      "界面",
+      fallbackMessage || thrownValue?.message || String(thrownValue || "未知异常"),
+      errorFields,
+      thrownValue?.stack || "",
+    );
   }
-  function M(t, e) {
-    return (t && typeof t == "object" && x.has(e) && m.add(t), t);
+  function linkErrorToResponse(errorObject, response) {
+    return (
+      errorObject &&
+        typeof errorObject == "object" &&
+        linkedResponseSet.has(response) &&
+        reportedErrorSet.add(errorObject),
+      errorObject
+    );
   }
-  async function v() {
-    if (E || r.navigator?.onLine === false) return;
-    if (Date.now() < g) {
-      A(g - Date.now());
+  async function flushQueue() {
+    if (isFlushing || bridgeWindow.navigator?.onLine === false) return;
+    if (Date.now() < nextRetryAt) {
+      scheduleFlush(nextRetryAt - Date.now());
       return;
     }
-    if ((C(), !o.length)) {
-      f();
+    if ((pruneQueue(), !eventQueue.length)) {
+      persistQueue();
       return;
     }
-    const t = (e) => {
-      const n = o.indexOf(e);
-      n >= 0 && o.splice(n, 1);
+    const removeQueuedEntry = (queuedEntry) => {
+      const queueIndex = eventQueue.indexOf(queuedEntry);
+      queueIndex >= 0 && eventQueue.splice(queueIndex, 1);
     };
-    E = true;
+    isFlushing = true;
     try {
-      for (let e = 0; o.length && e < 5; e += 1) {
-        const n = o[0];
-        if (d && !["warning", "error"].includes(n.event.level)) {
-          t(n);
+      for (let attemptIndex = 0; eventQueue.length && attemptIndex < 5; attemptIndex += 1) {
+        const batchEntry = eventQueue[0];
+        if (publicMode && !["warning", "error"].includes(batchEntry.event.level)) {
+          removeQueuedEntry(batchEntry);
           continue;
         }
-        const a = typeof AbortController == "function" ? new AbortController() : null,
-          c = r.setTimeout(() => a?.abort(), 8000);
-        let i;
+        const abortController = typeof AbortController == "function" ? new AbortController() : null,
+          timeoutId = bridgeWindow.setTimeout(() => abortController?.abort(), 8000);
+        let sendResponse;
         try {
-          i = await S(`/api/v1/logs/${d ? "public-events" : "events"}`, {
-            method: "POST",
-            cache: "no-store",
-            keepalive: true,
-            headers: {
-              "Content-Type": "application/json",
+          sendResponse = await originalFetch(
+            `/api/v1/logs/${publicMode ? "public-events" : "events"}`,
+            {
+              method: "POST",
+              cache: "no-store",
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(batchEntry.event),
+              ...(abortController
+                ? {
+                    signal: abortController.signal,
+                  }
+                : {}),
             },
-            body: JSON.stringify(n.event),
-            ...(a
-              ? {
-                  signal: a.signal,
-                }
-              : {}),
-          });
+          );
         } finally {
-          r.clearTimeout(c);
+          bridgeWindow.clearTimeout(timeoutId);
         }
-        if (i.ok) {
-          (t(n), (u = 1000));
+        if (sendResponse.ok) {
+          (removeQueuedEntry(batchEntry), (retryDelayMs = 1000));
           continue;
         }
-        if (i.status === 401 && !d) {
-          ((d = true), (g = Date.now() + 1000));
+        if (sendResponse.status === 401 && !publicMode) {
+          ((publicMode = true), (nextRetryAt = Date.now() + 1000));
           break;
         }
-        if (i.status === 429 || i.status >= 500) {
-          const k = Number(i.headers?.get("Retry-After")) * 1000;
-          ((g = Date.now() + Math.min(60000, Math.max(u, k || 0))), (u = Math.min(60000, u * 2)));
+        if (sendResponse.status === 429 || sendResponse.status >= 500) {
+          const retryAfterMs = Number(sendResponse.headers?.get("Retry-After")) * 1000;
+          ((nextRetryAt = Date.now() + Math.min(60000, Math.max(retryDelayMs, retryAfterMs || 0))),
+            (retryDelayMs = Math.min(60000, retryDelayMs * 2)));
           break;
         }
-        t(n);
+        removeQueuedEntry(batchEntry);
       }
     } catch {
-      ((g = Date.now() + u), (u = Math.min(60000, u * 2)));
+      ((nextRetryAt = Date.now() + retryDelayMs),
+        (retryDelayMs = Math.min(60000, retryDelayMs * 2)));
     } finally {
-      ((E = false), f(), A(Math.max(100, g - Date.now())));
+      ((isFlushing = false),
+        persistQueue(),
+        scheduleFlush(Math.max(100, nextRetryAt - Date.now())));
     }
   }
-  ((r.fetch = async function (e, n = {}) {
-    const { hbLogContext: a, ...c } = n || {},
-      i = y(typeof e == "string" || e instanceof URL ? e : e?.url);
-    if (/^\/api\/v1\/logs(?:\/|$)/.test(i)) return S(e, c);
-    const k = Date.now(),
-      _ = {
-        method: c.method || e?.method || "GET",
-        path: i,
-        ...b(a),
+  ((bridgeWindow.fetch = async function (requestInput, requestInit = {}) {
+    const { hbLogContext: hbLogPayload, ...fetchOptions } = requestInit || {},
+      requestPath = sanitizePath(
+        typeof requestInput == "string" || requestInput instanceof URL
+          ? requestInput
+          : requestInput?.url,
+      );
+    if (/^\/api\/v1\/logs(?:\/|$)/.test(requestPath))
+      return originalFetch(requestInput, fetchOptions);
+    const startedAt = Date.now(),
+      requestRecord = {
+        method: fetchOptions.method || requestInput?.method || "GET",
+        path: requestPath,
+        ...pickPayload(hbLogPayload),
       };
     try {
-      const s = await S(e, c),
-        p = Date.now() - k;
+      const fetchResponse = await originalFetch(requestInput, fetchOptions),
+        durationMs = Date.now() - startedAt;
       return (
-        (!s.ok || p >= 5000) &&
-          (h(
-            s.ok ? "warning" : "error",
+        (!fetchResponse.ok || durationMs >= 5000) &&
+          (reportEvent(
+            fetchResponse.ok ? "warning" : "error",
             "网络请求",
-            `${s.ok ? "请求耗时较长" : "请求失败"}\uFF1A${_.method} ${i}${s.ok ? "" : `\uFF08HTTP ${s.status}\uFF09`}`,
+            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}\uFF1A${requestRecord.method} ${requestPath}${fetchResponse.ok ? "" : `\uFF08HTTP ${fetchResponse.status}\uFF09`}`,
             {
-              ..._,
-              status: s.status,
-              durationMs: p,
-              requestId: s.headers?.get("X-Request-ID") || "",
+              ...requestRecord,
+              status: fetchResponse.status,
+              durationMs: durationMs,
+              requestId: fetchResponse.headers?.get("X-Request-ID") || "",
             },
           ),
-          s.ok || x.add(s)),
-        s
+          fetchResponse.ok || linkedResponseSet.add(fetchResponse)),
+        fetchResponse
       );
-    } catch (s) {
-      const p = c.signal === undefined ? e?.signal : c.signal;
+    } catch (caughtError) {
+      const abortSignal =
+        fetchOptions.signal === undefined ? requestInput?.signal : fetchOptions.signal;
       throw (
-        s?.name === "AbortError" ||
-          (p?.aborted && s === p.reason) ||
-          (h(
+        caughtError?.name === "AbortError" ||
+          (abortSignal?.aborted && caughtError === abortSignal.reason) ||
+          (reportEvent(
             "error",
             "网络请求",
-            `\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF1A${_.method} ${i}`,
+            `\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF1A${requestRecord.method} ${requestPath}`,
             {
-              ..._,
-              durationMs: Date.now() - k,
+              ...requestRecord,
+              durationMs: Date.now() - startedAt,
             },
-            s?.stack || s?.message || "",
+            caughtError?.stack || caughtError?.message || "",
           ),
-          s && typeof s == "object" && m.add(s)),
-        s
+          caughtError && typeof caughtError == "object" && reportedErrorSet.add(caughtError)),
+        caughtError
       );
     }
   }),
-    (r.HABridgeLog = {
-      report: h,
-      error: q,
-      linkError: M,
-      flush: v,
-      setContext: (t) => {
-        T = b(t);
+    (bridgeWindow.HABridgeLog = {
+      report: reportEvent,
+      error: reportError,
+      linkError: linkErrorToResponse,
+      flush: flushQueue,
+      setContext: (payloadInput) => {
+        logPayload = pickPayload(payloadInput);
       },
     }),
-    r.addEventListener(
+    bridgeWindow.addEventListener(
       "error",
-      (t) => {
-        const e = t.target;
-        if (e && e !== r && (e.src || e.href)) {
-          h(
+      (errorEvent) => {
+        const failedTarget = errorEvent.target;
+        if (
+          failedTarget &&
+          failedTarget !== bridgeWindow &&
+          (failedTarget.src || failedTarget.href)
+        ) {
+          reportEvent(
             "error",
             "资源加载",
-            `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${y(e.src || e.href)}`,
+            `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${sanitizePath(failedTarget.src || failedTarget.href)}`,
             {
-              path: e.src || e.href,
-              phase: String(e.tagName || "resource").toLowerCase(),
+              path: failedTarget.src || failedTarget.href,
+              phase: String(failedTarget.tagName || "resource").toLowerCase(),
             },
           );
           return;
         }
-        q(t.error || new Error(t.message || "页面脚本异常"), {
-          path: t.filename || r.location.pathname,
-          line: t.lineno,
-          column: t.colno,
+        reportError(errorEvent.error || new Error(errorEvent.message || "页面脚本异常"), {
+          path: errorEvent.filename || bridgeWindow.location.pathname,
+          line: errorEvent.lineno,
+          column: errorEvent.colno,
         });
       },
       true,
     ),
-    r.addEventListener("unhandledrejection", (t) => q(t.reason)),
-    r.addEventListener("online", () => {
-      ((g = 0), v());
+    bridgeWindow.addEventListener("unhandledrejection", (rejectionEvent) =>
+      reportError(rejectionEvent.reason),
+    ),
+    bridgeWindow.addEventListener("online", () => {
+      ((nextRetryAt = 0), flushQueue());
     }),
-    r.addEventListener("pagehide", () => {
-      (f(), v());
+    bridgeWindow.addEventListener("pagehide", () => {
+      (persistQueue(), flushQueue());
     }));
   try {
-    const t = JSON.parse(r.sessionStorage.getItem($) || "[]");
-    if (Array.isArray(t))
-      for (const e of t.slice(-I)) {
-        if (!e?.event || !Number.isFinite(e.queuedAt) || Date.now() - e.queuedAt > Z) continue;
-        const n = e.event;
-        o.push({
-          queuedAt: e.queuedAt,
+    const storedEntries = JSON.parse(bridgeWindow.sessionStorage.getItem(LOG_STORAGE_KEY) || "[]");
+    if (Array.isArray(storedEntries))
+      for (const storedEntry of storedEntries.slice(-MAX_QUEUED_EVENT_COUNT)) {
+        if (
+          !storedEntry?.event ||
+          !Number.isFinite(storedEntry.queuedAt) ||
+          Date.now() - storedEntry.queuedAt > MAX_EVENT_AGE_MS
+        )
+          continue;
+        const storedEvent = storedEntry.event;
+        eventQueue.push({
+          queuedAt: storedEntry.queuedAt,
           event: {
-            level: ["warning", "error", "info", "success"].includes(n.level) ? n.level : "error",
-            source: l(n.source || O(), 64),
-            category: l(n.category || "界面", 64),
-            message: l(n.message || "未知异常", 1000),
-            details: l(n.details, 8000),
-            context: b(n.context),
-            clientTimestamp: new Date(e.queuedAt).toISOString(),
+            level: ["warning", "error", "info", "success"].includes(storedEvent.level)
+              ? storedEvent.level
+              : "error",
+            source: redactSensitive(storedEvent.source || currentSourceName(), 64),
+            category: redactSensitive(storedEvent.category || "界面", 64),
+            message: redactSensitive(storedEvent.message || "未知异常", 1000),
+            details: redactSensitive(storedEvent.details, 8000),
+            context: pickPayload(storedEvent.context),
+            clientTimestamp: new Date(storedEntry.queuedAt).toISOString(),
           },
         });
       }
   } catch {}
-  (f(), A());
+  (persistQueue(), scheduleFlush());
 })(window);

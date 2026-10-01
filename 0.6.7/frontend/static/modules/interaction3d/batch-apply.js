@@ -1,68 +1,76 @@
-export function copyBatchFields(arg1, arg2, arg3) {
-  for (const value1 of arg3) {
-    if (value1.compatible && !value1.compatible(arg1)) continue;
-    const value2 = value1.read ? value1.read(arg2) : (arg2[value1.key] ?? value1.fallback);
-    value2 !== undefined &&
-      (value1.write
-        ? value1.write(arg1, structuredClone(value2))
-        : value2 !== undefined && (arg1[value1.key] = structuredClone(value2)));
+export function copyBatchFields(target, source, fields) {
+  for (const field of fields) {
+    if (field.compatible && !field.compatible(target)) continue;
+    const fieldValue = field.read ? field.read(source) : (source[field.key] ?? field.fallback);
+    fieldValue !== undefined &&
+      (field.write
+        ? field.write(target, structuredClone(fieldValue))
+        : fieldValue !== undefined && (target[field.key] = structuredClone(fieldValue)));
   }
 }
 export function openBatchApply({
-  title: arg4,
-  source: arg5,
-  targets: arg6,
-  fields: arg7,
-  changed: arg9 = [],
-  onApply: arg8,
-  onClose: arg10 = () => {},
+  title: title,
+  source: sourceItem,
+  targets: targets,
+  fields: fieldDefs,
+  changed: changed = [],
+  onApply: onApply,
+  onClose: onClose = () => {},
 }) {
-  const fn1 = (arg11, arg12, arg13) => {
-      const value15 = document.createElement(arg11);
+  const create = (tagName, text, className) => {
+      const createdElement = document.createElement(tagName);
       return (
-        arg12 && (value15.textContent = arg12),
-        arg13 && (value15.className = arg13),
-        value15
+        text && (createdElement.textContent = text),
+        className && (createdElement.className = className),
+        createdElement
       );
     },
-    value3 = fn1("dialog", "", "settings-dialog navigation-style-apply-dialog i3d-batch-dialog");
-  value3.setAttribute("aria-label", arg4);
-  let value4 = false;
-  const fn2 = () => {
-      ((value4 = true), value3.close(), value3.remove(), arg10());
+    dialogElement = create(
+      "dialog",
+      "",
+      "settings-dialog navigation-style-apply-dialog i3d-batch-dialog",
+    );
+  dialogElement.setAttribute("aria-label", title);
+  let isFinished = false;
+  const finish = () => {
+      ((isFinished = true), dialogElement.close(), dialogElement.remove(), onClose());
     },
-    fn3 = (arg14, arg15) => {
-      const value16 = fn1("button", arg14);
-      return ((value16.type = "button"), value16.addEventListener("click", arg15), value16);
-    },
-    value5 = fn1("div", "", "dialog-heading");
-  value5.append(fn1("h2", arg4), fn3("关闭", fn2));
-  const value6 = fn1("div", "", "navigation-style-apply-body"),
-    value7 = fn1("div", "", "navigation-style-apply-columns"),
-    value8 = fn1("section"),
-    value9 = fn1("section"),
-    list1 = [],
-    list2 = [],
-    fn4 = (arg16, arg17, arg18, arg19, arg20) => {
-      const value17 = fn1("label", "", "navigation-style-apply-option"),
-        value18 = fn1("input"),
-        value19 = fn1("span", arg16);
+    createDialogButton = (buttonText, onClick) => {
+      const buttonElement = create("button", buttonText);
       return (
-        (value18.type = "checkbox"),
-        (value18.value = arg20.key || arg20.id),
-        (value18.checked = arg18),
-        value18.setAttribute("aria-label", arg16),
-        value19.append(fn1("small", arg17)),
-        value17.append(value18, value19),
-        arg19.push({
-          input: value18,
-          value: arg20,
+        (buttonElement.type = "button"),
+        buttonElement.addEventListener("click", onClick),
+        buttonElement
+      );
+    },
+    dialogHeadingElement = create("div", "", "dialog-heading");
+  dialogHeadingElement.append(create("h2", title), createDialogButton("关闭", finish));
+  const dialogBodyElement = create("div", "", "navigation-style-apply-body"),
+    columnsElement = create("div", "", "navigation-style-apply-columns"),
+    settingsColumnElement = create("section"),
+    targetsColumnElement = create("section"),
+    fieldCheckboxEntries = [],
+    targetCheckboxEntries = [],
+    createOptionRow = (optionLabel, optionHint, optionChecked, bucket, entry) => {
+      const optionLabelElement = create("label", "", "navigation-style-apply-option"),
+        optionCheckboxElement = create("input"),
+        optionHintElement = create("span", optionLabel);
+      return (
+        (optionCheckboxElement.type = "checkbox"),
+        (optionCheckboxElement.value = entry.key || entry.id),
+        (optionCheckboxElement.checked = optionChecked),
+        optionCheckboxElement.setAttribute("aria-label", optionLabel),
+        optionHintElement.append(create("small", optionHint)),
+        optionLabelElement.append(optionCheckboxElement, optionHintElement),
+        bucket.push({
+          input: optionCheckboxElement,
+          value: entry,
         }),
-        value17
+        optionLabelElement
       );
     };
-  value8.append(fn1("strong", "选择设置（高度、行为默认不选）"));
-  const object1 = {
+  settingsColumnElement.append(create("strong", "选择设置（高度、行为默认不选）"));
+  const VALUE_LABELS = {
     focus: "聚焦",
     panel: "仅显示弹窗",
     "focus-panel": "聚焦并显示弹窗",
@@ -87,81 +95,106 @@ export function openBatchApply({
     orange: "橙色",
     traveler: "旅行者",
   };
-  for (const value20 of arg7) {
-    const value21 = value20.read ? value20.read(arg5) : (arg5[value20.key] ?? value20.fallback),
-      value22 = value20.format
-        ? value20.format(value21)
-        : typeof value21 == "boolean"
-          ? value21
+  for (const fieldItem of fieldDefs) {
+    const rawValue = fieldItem.read
+        ? fieldItem.read(sourceItem)
+        : (sourceItem[fieldItem.key] ?? fieldItem.fallback),
+      fieldHint = fieldItem.format
+        ? fieldItem.format(rawValue)
+        : typeof rawValue == "boolean"
+          ? rawValue
             ? "开启"
             : "关闭"
-          : (object1[value21] ?? value21 ?? "跟随各自模型");
-    value8.append(
-      fn4(
-        value20.label,
+          : (VALUE_LABELS[rawValue] ?? rawValue ?? "跟随各自模型");
+    settingsColumnElement.append(
+      createOptionRow(
+        fieldItem.label,
         "" +
-          value22 +
-          (value20.unit || "") +
-          (arg9.includes(value20.key) ? " · 已修改" : "") +
-          (value20.compatible ? " · 仅兼容目标" : ""),
-        !value20.optional && arg9.includes(value20.key),
-        list1,
-        value20,
+          fieldHint +
+          (fieldItem.unit || "") +
+          (changed.includes(fieldItem.key) ? " · 已修改" : "") +
+          (fieldItem.compatible ? " · 仅兼容目标" : ""),
+        !fieldItem.optional && changed.includes(fieldItem.key),
+        fieldCheckboxEntries,
+        fieldItem,
       ),
     );
   }
-  const value10 = fn1("span"),
-    value11 = fn3("取消全选", () => {
-      const value23 = !list2.every((arg21) => arg21.input.checked);
-      (list2.forEach((arg22) => {
-        arg22.input.checked = value23;
+  const targetSelectionCountElement = create("span"),
+    targetToggleButton = createDialogButton("取消全选", () => {
+      const shouldSelectAllTargets = !targetCheckboxEntries.every(
+        (targetEntry) => targetEntry.input.checked,
+      );
+      (targetCheckboxEntries.forEach((targetRow) => {
+        targetRow.input.checked = shouldSelectAllTargets;
       }),
-        fn5());
+        refreshTargetSelection());
     }),
-    fn5 = () => {
-      const value24 = list2.filter((arg23) => arg23.input.checked).length;
-      ((value10.textContent = "已选 " + value24 + "/" + arg6.length),
-        (value11.textContent = value24 === arg6.length ? "取消全选" : "全选"));
+    refreshTargetSelection = () => {
+      const checkedTargetCount = targetCheckboxEntries.filter(
+        (checkedTargetEntry) => checkedTargetEntry.input.checked,
+      ).length;
+      ((targetSelectionCountElement.textContent =
+        "已选 " + checkedTargetCount + "/" + targets.length),
+        (targetToggleButton.textContent =
+          checkedTargetCount === targets.length ? "取消全选" : "全选"));
     };
-  value9.append(fn1("strong", "同楼层、同类型目标"), value10, value11);
-  for (const value25 of arg6)
-    value9.append(fn4(value25.label || value25.deviceName || "未命名", "", true, list2, value25));
-  (value9.addEventListener("change", fn5), fn5());
-  const value12 = fn1(
+  targetsColumnElement.append(
+    create("strong", "同楼层、同类型目标"),
+    targetSelectionCountElement,
+    targetToggleButton,
+  );
+  for (const targetItem of targets)
+    targetsColumnElement.append(
+      createOptionRow(
+        targetItem.label || targetItem.deviceName || "未命名",
+        "",
+        true,
+        targetCheckboxEntries,
+        targetItem,
+      ),
+    );
+  (targetsColumnElement.addEventListener("change", refreshTargetSelection),
+    refreshTargetSelection());
+  const messageElement = create(
     "p",
-    arg6.length
+    targets.length
       ? "只复制勾选的设置；保留实体、模型、名称、X/Y、视角、地图与路线。"
       : "没有其他可应用的目标。",
     "navigation-style-apply-message",
   );
-  value12.hidden = false;
-  const value13 = fn3("应用所选", async () => {
-    if (value4 || !value3.open || !value3.isConnected) return;
-    const value26 = list1.filter((arg24) => arg24.input.checked).map((arg25) => arg25.value),
-      value27 = list2.filter((arg26) => arg26.input.checked).map((arg27) => arg27.value);
-    if (!value26.length || !value27.length) {
-      value12.textContent = "请至少选择一项设置和一个目标。";
+  messageElement.hidden = false;
+  const applyButtonElement = createDialogButton("应用所选", async () => {
+    if (isFinished || !dialogElement.open || !dialogElement.isConnected) return;
+    const selectedFieldKeys = fieldCheckboxEntries
+        .filter((fieldEntry) => fieldEntry.input.checked)
+        .map((fieldRecord) => fieldRecord.value),
+      selectedTargetIds = targetCheckboxEntries
+        .filter((selectedTargetEntry) => selectedTargetEntry.input.checked)
+        .map((selectedTargetRecord) => selectedTargetRecord.value);
+    if (!selectedFieldKeys.length || !selectedTargetIds.length) {
+      messageElement.textContent = "请至少选择一项设置和一个目标。";
       return;
     }
-    value13.disabled = true;
+    applyButtonElement.disabled = true;
     try {
-      (await arg8(value27, value26), fn2());
-    } catch (error1) {
-      ((value12.textContent = error1.message), (value13.disabled = false));
+      (await onApply(selectedTargetIds, selectedFieldKeys), finish());
+    } catch (applyError) {
+      ((messageElement.textContent = applyError.message), (applyButtonElement.disabled = false));
     }
   });
-  ((value13.className = "primary"), (value13.disabled = !arg6.length));
-  const value14 = fn1("div", "", "dialog-actions");
+  ((applyButtonElement.className = "primary"), (applyButtonElement.disabled = !targets.length));
+  const actionsElement = create("div", "", "dialog-actions");
   return (
-    value14.append(fn3("取消", fn2), value13),
-    value7.append(value8, value9),
-    value6.append(value7, value12, value14),
-    value3.append(value5, value6),
-    value3.addEventListener("cancel", (arg28) => {
-      (arg28.preventDefault(), fn2());
+    actionsElement.append(createDialogButton("取消", finish), applyButtonElement),
+    columnsElement.append(settingsColumnElement, targetsColumnElement),
+    dialogBodyElement.append(columnsElement, messageElement, actionsElement),
+    dialogElement.append(dialogHeadingElement, dialogBodyElement),
+    dialogElement.addEventListener("cancel", (cancelEvent) => {
+      (cancelEvent.preventDefault(), finish());
     }),
-    document.body.append(value3),
-    value3.showModal(),
-    value3
+    document.body.append(dialogElement),
+    dialogElement.showModal(),
+    dialogElement
   );
 }
