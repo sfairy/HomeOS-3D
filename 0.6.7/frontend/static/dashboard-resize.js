@@ -1,98 +1,162 @@
-const r = (t) => Math.round(Number(t) * 1000000) / 1000000;
-function f(t, s) {
-  const o = Number(t);
-  return Number.isFinite(o) && o > 0 ? o : s;
+const roundToMicroPrecision = (rawValue) => Math.round(Number(rawValue) * 1000000) / 1000000;
+function positiveNumberOrDefault(candidateNumber, fallbackNumber) {
+  const numericValue = Number(candidateNumber);
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : fallbackNumber;
 }
-function y(t, s, o, i, e = true) {
-  if (!t || typeof t != "object") return;
-  const n = t.position || {},
-    u = f(n.width, 100),
-    a = f(n.height, 100),
-    d = Number.isFinite(Number(n.x)) ? Number(n.x) : 0,
-    p = Number.isFinite(Number(n.y)) ? Number(n.y) : 0,
-    c = u * (t.type === "interaction3d" ? s : i),
-    h = a * (t.type === "interaction3d" ? o : i);
+function scaleComponentSubtree(
+  componentNode,
+  horizontalScale,
+  verticalScale,
+  contentScaleFactor,
+  isTopLevel = true,
+) {
+  if (!componentNode || typeof componentNode != "object") return;
+  const position = componentNode.position || {},
+    originalWidth = positiveNumberOrDefault(position.width, 100),
+    originalHeight = positiveNumberOrDefault(position.height, 100),
+    originalX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
+    originalY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
+    scaledWidth =
+      originalWidth *
+      (componentNode.type === "interaction3d" ? horizontalScale : contentScaleFactor),
+    scaledHeight =
+      originalHeight *
+      (componentNode.type === "interaction3d" ? verticalScale : contentScaleFactor);
   if (
-    ((t.position = {
-      ...n,
-      x: r(e ? (d + u / 2) * s - c / 2 : d * i),
-      y: r(e ? (p + a / 2) * o - h / 2 : p * i),
-      width: r(c),
-      height: r(h),
+    ((componentNode.position = {
+      ...position,
+      x: roundToMicroPrecision(
+        isTopLevel
+          ? (originalX + originalWidth / 2) * horizontalScale - scaledWidth / 2
+          : originalX * contentScaleFactor,
+      ),
+      y: roundToMicroPrecision(
+        isTopLevel
+          ? (originalY + originalHeight / 2) * verticalScale - scaledHeight / 2
+          : originalY * contentScaleFactor,
+      ),
+      width: roundToMicroPrecision(scaledWidth),
+      height: roundToMicroPrecision(scaledHeight),
     }),
-    t.type === "icon-button-effect" && t.properties?.effectLayoutMode !== "fill")
+    componentNode.type === "icon-button-effect" &&
+      componentNode.properties?.effectLayoutMode !== "fill")
   ) {
-    const b = Number(t.properties?.effectWidth),
-      N = Number(t.properties?.effectHeight);
-    (Number.isFinite(b) && (t.properties.effectWidth = r((b * i) / s)),
-      Number.isFinite(N) && (t.properties.effectHeight = r((N * i) / o)));
+    const effectWidth = Number(componentNode.properties?.effectWidth),
+      effectHeight = Number(componentNode.properties?.effectHeight);
+    (Number.isFinite(effectWidth) &&
+      (componentNode.properties.effectWidth = roundToMicroPrecision(
+        (effectWidth * contentScaleFactor) / horizontalScale,
+      )),
+      Number.isFinite(effectHeight) &&
+        (componentNode.properties.effectHeight = roundToMicroPrecision(
+          (effectHeight * contentScaleFactor) / verticalScale,
+        )));
   }
-  for (const b of t.children || []) y(b, i, i, i, false);
+  for (const nestedComponent of componentNode.children || [])
+    scaleComponentSubtree(
+      nestedComponent,
+      contentScaleFactor,
+      contentScaleFactor,
+      contentScaleFactor,
+      false,
+    );
 }
-function w(t) {
-  return [...(t.sharedComponents || []), ...(t.pages || []).flatMap((s) => s.components || [])];
+function flattenDocumentComponents(dashboardDocument) {
+  return [
+    ...(dashboardDocument.sharedComponents || []),
+    ...(dashboardDocument.pages || []).flatMap((page) => page.components || []),
+  ];
 }
-function x(t, s, o) {
-  if (t?.type === "interaction3d" && t.properties?.layoutMode === "fill") return false;
-  const i = t?.position || {},
-    e = Number(i.x),
-    n = Number(i.y),
-    u = f(i.width, 100),
-    a = f(i.height, 100);
-  return !Number.isFinite(e) || !Number.isFinite(n)
+function isComponentOutsideCanvas(targetComponent, canvasWidth, limitHeight) {
+  if (
+    targetComponent?.type === "interaction3d" &&
+    targetComponent.properties?.layoutMode === "fill"
+  )
+    return false;
+  const componentPosition = targetComponent?.position || {},
+    positionX = Number(componentPosition.x),
+    positionY = Number(componentPosition.y),
+    componentWidth = positiveNumberOrDefault(componentPosition.width, 100),
+    componentHeight = positiveNumberOrDefault(componentPosition.height, 100);
+  return !Number.isFinite(positionX) || !Number.isFinite(positionY)
     ? false
-    : e < 0 || n < 0 || e + u > s || n + a > o;
+    : positionX < 0 ||
+        positionY < 0 ||
+        positionX + componentWidth > canvasWidth ||
+        positionY + componentHeight > limitHeight;
 }
-export function countComponentsOutsideCanvas(t, s, o) {
-  const i = Number(s),
-    e = Number(o);
-  return !Number.isFinite(i) || !Number.isFinite(e) ? 0 : w(t).filter((n) => x(n, i, e)).length;
+export function countComponentsOutsideCanvas(documentModel, documentWidth, documentHeight) {
+  const limitWidth = Number(documentWidth),
+    canvasHeight = Number(documentHeight);
+  return !Number.isFinite(limitWidth) || !Number.isFinite(canvasHeight)
+    ? 0
+    : flattenDocumentComponents(documentModel).filter((component) =>
+        isComponentOutsideCanvas(component, limitWidth, canvasHeight),
+      ).length;
 }
-export function resizeDashboardDocument(t, s, o, i = {}) {
-  const e = JSON.parse(JSON.stringify(t)),
-    n = f(e?.canvas?.width, 2778),
-    u = f(e?.canvas?.height, 1940),
-    a = f(e?.canvas?.resizeBaseWidth, n),
-    d = f(e?.canvas?.resizeBaseHeight, u),
-    p = f(e?.canvas?.resizeContentScale, Math.min(n / a, u / d)),
-    c = Number(s),
-    h = Number(o);
-  if (!Number.isInteger(c) || c < 320 || c > 7680)
+export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeight, options = {}) {
+  const resizedDocument = JSON.parse(JSON.stringify(sourceDocument)),
+    baseWidth = positiveNumberOrDefault(resizedDocument?.canvas?.width, 2778),
+    baseHeight = positiveNumberOrDefault(resizedDocument?.canvas?.height, 1940),
+    resizeBaseWidth = positiveNumberOrDefault(resizedDocument?.canvas?.resizeBaseWidth, baseWidth),
+    resizeBaseHeight = positiveNumberOrDefault(
+      resizedDocument?.canvas?.resizeBaseHeight,
+      baseHeight,
+    ),
+    resizeContentScale = positiveNumberOrDefault(
+      resizedDocument?.canvas?.resizeContentScale,
+      Math.min(baseWidth / resizeBaseWidth, baseHeight / resizeBaseHeight),
+    ),
+    widthPx = Number(targetWidth),
+    heightPx = Number(targetHeight);
+  if (!Number.isInteger(widthPx) || widthPx < 320 || widthPx > 7680)
     throw new Error("仪表盘宽度必须为 320 至 7680 之间的整数。");
-  if (!Number.isInteger(h) || h < 240 || h > 4320)
+  if (!Number.isInteger(heightPx) || heightPx < 240 || heightPx > 4320)
     throw new Error("仪表盘高度必须为 240 至 4320 之间的整数。");
-  if (c === n && h === u) return e;
-  if (i.lockContent) {
-    for (const m of w(e)) m.type === "interaction3d" && y(m, c / n, h / u, 1);
+  if (widthPx === baseWidth && heightPx === baseHeight) return resizedDocument;
+  if (options.lockContent) {
+    for (const lockContentFlatComponent of flattenDocumentComponents(resizedDocument))
+      lockContentFlatComponent.type === "interaction3d" &&
+        scaleComponentSubtree(
+          lockContentFlatComponent,
+          widthPx / baseWidth,
+          heightPx / baseHeight,
+          1,
+        );
     return (
-      (e.canvas = {
-        ...(e.canvas || {}),
-        width: c,
-        height: h,
-        resizeBaseWidth: r(a),
-        resizeBaseHeight: r(d),
-        resizeContentScale: r(p),
+      (resizedDocument.canvas = {
+        ...(resizedDocument.canvas || {}),
+        width: widthPx,
+        height: heightPx,
+        resizeBaseWidth: roundToMicroPrecision(resizeBaseWidth),
+        resizeBaseHeight: roundToMicroPrecision(resizeBaseHeight),
+        resizeContentScale: roundToMicroPrecision(resizeContentScale),
       }),
-      e
+      resizedDocument
     );
   }
-  const b = c / n,
-    N = h / u,
-    z = Math.min(c / a, h / d),
-    g = z / p,
-    C = w(e);
-  for (const m of C) y(m, b, N, g, true);
+  const scaleRatioX = widthPx / baseWidth,
+    scaleRatioY = heightPx / baseHeight,
+    nextContentScale = Math.min(widthPx / resizeBaseWidth, heightPx / resizeBaseHeight),
+    scaleDelta = nextContentScale / resizeContentScale,
+    components = flattenDocumentComponents(resizedDocument);
+  for (const flatComponent of components)
+    scaleComponentSubtree(flatComponent, scaleRatioX, scaleRatioY, scaleDelta, true);
   return (
-    (e.canvas = {
-      ...(e.canvas || {}),
-      width: c,
-      height: h,
-      componentScale: r(f(e.canvas?.componentScale, 1) * g),
-      popupScale: r(f(e.canvas?.popupScale, 1) * g),
-      resizeBaseWidth: r(a),
-      resizeBaseHeight: r(d),
-      resizeContentScale: r(z),
+    (resizedDocument.canvas = {
+      ...(resizedDocument.canvas || {}),
+      width: widthPx,
+      height: heightPx,
+      componentScale: roundToMicroPrecision(
+        positiveNumberOrDefault(resizedDocument.canvas?.componentScale, 1) * scaleDelta,
+      ),
+      popupScale: roundToMicroPrecision(
+        positiveNumberOrDefault(resizedDocument.canvas?.popupScale, 1) * scaleDelta,
+      ),
+      resizeBaseWidth: roundToMicroPrecision(resizeBaseWidth),
+      resizeBaseHeight: roundToMicroPrecision(resizeBaseHeight),
+      resizeContentScale: roundToMicroPrecision(nextContentScale),
     }),
-    e
+    resizedDocument
   );
 }

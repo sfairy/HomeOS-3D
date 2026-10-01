@@ -1,144 +1,148 @@
-const p = new TextEncoder();
+const textEncoder = new TextEncoder();
 export const EXPORT_RENDER_SCALE = 1,
   EXPORT_IMAGE_MIME_TYPE = "image/webp",
   EXPORT_IMAGE_EXTENSION = "webp",
   EXPORT_IMAGE_QUALITY = 0.95;
-export function scaledExportResolution(arg1, arg2, arg3 = EXPORT_RENDER_SCALE) {
-  const value1 = Number.isFinite(arg3) && arg3 > 0 ? arg3 : EXPORT_RENDER_SCALE;
+export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCALE) {
+  const effectiveScale = Number.isFinite(scale) && scale > 0 ? scale : EXPORT_RENDER_SCALE;
   return {
-    width: Math.max(1, Math.round(Number(arg1) * value1)),
-    height: Math.max(1, Math.round(Number(arg2) * value1)),
+    width: Math.max(1, Math.round(Number(width) * effectiveScale)),
+    height: Math.max(1, Math.round(Number(height) * effectiveScale)),
   };
 }
-function E(arg4) {
-  let value2 = 4294967295;
-  for (const value3 of arg4) {
-    value2 ^= value3;
-    for (let value4 = 0; value4 < 8; value4 += 1)
-      value2 = (value2 >>> 1) ^ (3988292384 & -(value2 & 1));
+function crc32Checksum(bytes) {
+  let checksum = 4294967295;
+  for (const byte of bytes) {
+    checksum ^= byte;
+    for (let bit = 0; bit < 8; bit += 1)
+      checksum = (checksum >>> 1) ^ (3988292384 & -(checksum & 1));
   }
-  return (value2 ^ 4294967295) >>> 0;
+  return (checksum ^ 4294967295) >>> 0;
 }
-function r(arg5, arg6, arg7) {
-  arg5.setUint16(arg6, arg7, true);
+function writeUint16LE(uint16View, offset, value) {
+  uint16View.setUint16(offset, value, true);
 }
-function u(arg8, arg9, arg10) {
-  arg8.setUint32(arg9, arg10 >>> 0, true);
+function writeUint32LE(uint32View, byteOffset, int32Value) {
+  uint32View.setUint32(byteOffset, int32Value >>> 0, true);
 }
-function M(arg11) {
-  const value5 = arg11.reduce((arg12, arg13) => arg12 + arg13.length, 0),
-    uint8Array1 = new Uint8Array(value5);
-  let value6 = 0;
-  for (const value7 of arg11) (uint8Array1.set(value7, value6), (value6 += value7.length));
-  return uint8Array1;
+function concatChunks(chunks) {
+  const totalLength = chunks.reduce((chunkTotal, chunk) => chunkTotal + chunk.length, 0),
+    merged = new Uint8Array(totalLength);
+  let writeOffset = 0;
+  for (const part of chunks) (merged.set(part, writeOffset), (writeOffset += part.length));
+  return merged;
 }
-export function buildStoredZip(arg14) {
-  const list1 = [],
-    list2 = [];
-  let value8 = 0;
-  for (const value10 of arg14) {
-    const value11 = p.encode(String(value10.name)),
-      value12 = value10.data instanceof Uint8Array ? value10.data : new Uint8Array(value10.data),
-      value13 = E(value12),
-      uint8Array3 = new Uint8Array(30 + value11.length),
-      dataView2 = new DataView(uint8Array3.buffer);
-    (u(dataView2, 0, 67324752),
-      r(dataView2, 4, 20),
-      r(dataView2, 6, 2048),
-      r(dataView2, 8, 0),
-      r(dataView2, 10, 0),
-      r(dataView2, 12, 0),
-      u(dataView2, 14, value13),
-      u(dataView2, 18, value12.length),
-      u(dataView2, 22, value12.length),
-      r(dataView2, 26, value11.length),
-      r(dataView2, 28, 0),
-      uint8Array3.set(value11, 30),
-      list1.push(uint8Array3, value12));
-    const uint8Array4 = new Uint8Array(46 + value11.length),
-      dataView3 = new DataView(uint8Array4.buffer);
-    (u(dataView3, 0, 33639248),
-      r(dataView3, 4, 20),
-      r(dataView3, 6, 20),
-      r(dataView3, 8, 2048),
-      r(dataView3, 10, 0),
-      r(dataView3, 12, 0),
-      r(dataView3, 14, 0),
-      u(dataView3, 16, value13),
-      u(dataView3, 20, value12.length),
-      u(dataView3, 24, value12.length),
-      r(dataView3, 28, value11.length),
-      r(dataView3, 30, 0),
-      r(dataView3, 32, 0),
-      r(dataView3, 34, 0),
-      r(dataView3, 36, 0),
-      u(dataView3, 38, 0),
-      u(dataView3, 42, value8),
-      uint8Array4.set(value11, 46),
-      list2.push(uint8Array4),
-      (value8 += uint8Array3.length + value12.length));
+export function buildStoredZip(entries) {
+  const localParts = [],
+    centralParts = [];
+  let centralOffset = 0;
+  for (const entry of entries) {
+    const nameBytes = textEncoder.encode(String(entry.name)),
+      payloadBytes = entry.data instanceof Uint8Array ? entry.data : new Uint8Array(entry.data),
+      crc32Value = crc32Checksum(payloadBytes),
+      localHeader = new Uint8Array(30 + nameBytes.length),
+      localView = new DataView(localHeader.buffer);
+    (writeUint32LE(localView, 0, 67324752),
+      writeUint16LE(localView, 4, 20),
+      writeUint16LE(localView, 6, 2048),
+      writeUint16LE(localView, 8, 0),
+      writeUint16LE(localView, 10, 0),
+      writeUint16LE(localView, 12, 0),
+      writeUint32LE(localView, 14, crc32Value),
+      writeUint32LE(localView, 18, payloadBytes.length),
+      writeUint32LE(localView, 22, payloadBytes.length),
+      writeUint16LE(localView, 26, nameBytes.length),
+      writeUint16LE(localView, 28, 0),
+      localHeader.set(nameBytes, 30),
+      localParts.push(localHeader, payloadBytes));
+    const centralHeader = new Uint8Array(46 + nameBytes.length),
+      centralView = new DataView(centralHeader.buffer);
+    (writeUint32LE(centralView, 0, 33639248),
+      writeUint16LE(centralView, 4, 20),
+      writeUint16LE(centralView, 6, 20),
+      writeUint16LE(centralView, 8, 2048),
+      writeUint16LE(centralView, 10, 0),
+      writeUint16LE(centralView, 12, 0),
+      writeUint16LE(centralView, 14, 0),
+      writeUint32LE(centralView, 16, crc32Value),
+      writeUint32LE(centralView, 20, payloadBytes.length),
+      writeUint32LE(centralView, 24, payloadBytes.length),
+      writeUint16LE(centralView, 28, nameBytes.length),
+      writeUint16LE(centralView, 30, 0),
+      writeUint16LE(centralView, 32, 0),
+      writeUint16LE(centralView, 34, 0),
+      writeUint16LE(centralView, 36, 0),
+      writeUint32LE(centralView, 38, 0),
+      writeUint32LE(centralView, 42, centralOffset),
+      centralHeader.set(nameBytes, 46),
+      centralParts.push(centralHeader),
+      (centralOffset += localHeader.length + payloadBytes.length));
   }
-  const value9 = M(list2),
-    uint8Array2 = new Uint8Array(22),
-    dataView1 = new DataView(uint8Array2.buffer);
+  const centralDirectory = concatChunks(centralParts),
+    endRecord = new Uint8Array(22),
+    endView = new DataView(endRecord.buffer);
   return (
-    u(dataView1, 0, 101010256),
-    r(dataView1, 4, 0),
-    r(dataView1, 6, 0),
-    r(dataView1, 8, arg14.length),
-    r(dataView1, 10, arg14.length),
-    u(dataView1, 12, value9.length),
-    u(dataView1, 16, value8),
-    r(dataView1, 20, 0),
-    M([...list1, value9, uint8Array2])
+    writeUint32LE(endView, 0, 101010256),
+    writeUint16LE(endView, 4, 0),
+    writeUint16LE(endView, 6, 0),
+    writeUint16LE(endView, 8, entries.length),
+    writeUint16LE(endView, 10, entries.length),
+    writeUint32LE(endView, 12, centralDirectory.length),
+    writeUint32LE(endView, 16, centralOffset),
+    writeUint16LE(endView, 20, 0),
+    concatChunks([...localParts, centralDirectory, endRecord])
   );
 }
-export function buildLightDeltaPixels(arg15, arg16) {
-  if (arg15.length !== arg16.length)
+export function buildLightDeltaPixels(basePixels, litPixels) {
+  if (basePixels.length !== litPixels.length)
     throw new Error("Light layer frames must have matching dimensions.");
-  const uint8ClampedArray1 = new Uint8ClampedArray(arg15.length);
-  for (let value14 = 0; value14 < arg15.length; value14 += 4) {
-    const value15 = arg15[value14 + 3] / 255,
-      value16 = arg16[value14 + 3] / 255;
-    if (value15 < 0.999) {
-      if (value16 <= 1 / 255) continue;
-      ((uint8ClampedArray1[value14] = arg16[value14]),
-        (uint8ClampedArray1[value14 + 1] = arg16[value14 + 1]),
-        (uint8ClampedArray1[value14 + 2] = arg16[value14 + 2]),
-        (uint8ClampedArray1[value14 + 3] = arg16[value14 + 3]));
+  const deltaPixels = new Uint8ClampedArray(basePixels.length);
+  for (let pixelOffset = 0; pixelOffset < basePixels.length; pixelOffset += 4) {
+    const baseAlpha = basePixels[pixelOffset + 3] / 255,
+      litAlpha = litPixels[pixelOffset + 3] / 255;
+    if (baseAlpha < 0.999) {
+      if (litAlpha <= 1 / 255) continue;
+      ((deltaPixels[pixelOffset] = litPixels[pixelOffset]),
+        (deltaPixels[pixelOffset + 1] = litPixels[pixelOffset + 1]),
+        (deltaPixels[pixelOffset + 2] = litPixels[pixelOffset + 2]),
+        (deltaPixels[pixelOffset + 3] = litPixels[pixelOffset + 3]));
       continue;
     }
-    let value17 = 0;
-    const value18 =
-      arg15[value14] * 0.2126 + arg15[value14 + 1] * 0.7152 + arg15[value14 + 2] * 0.0722;
+    let maxDelta = 0;
+    const baseLuma =
+      basePixels[pixelOffset] * 0.2126 +
+      basePixels[pixelOffset + 1] * 0.7152 +
+      basePixels[pixelOffset + 2] * 0.0722;
     if (!(
-      arg16[value14] * 0.2126 +
-        arg16[value14 + 1] * 0.7152 +
-        arg16[value14 + 2] * 0.0722 -
-        value18 <=
-        1.5 && Math.abs(value16 - value15) <= 1 / 255
+      litPixels[pixelOffset] * 0.2126 +
+        litPixels[pixelOffset + 1] * 0.7152 +
+        litPixels[pixelOffset + 2] * 0.0722 -
+        baseLuma <=
+        1.5 && Math.abs(litAlpha - baseAlpha) <= 1 / 255
     )) {
-      for (let value19 = 0; value19 < 3; value19 += 1) {
-        const value20 = arg15[value14 + value19],
-          value21 = arg16[value14 + value19] - value20,
-          value22 =
-            value21 >= 0 ? value21 / Math.max(255 - value20, 1) : -value21 / Math.max(value20, 1);
-        value17 = Math.max(value17, value22);
+      for (let channelIndex = 0; channelIndex < 3; channelIndex += 1) {
+        const baseChannel = basePixels[pixelOffset + channelIndex],
+          channelDelta = litPixels[pixelOffset + channelIndex] - baseChannel,
+          normalizedDelta =
+            channelDelta >= 0
+              ? channelDelta / Math.max(255 - baseChannel, 1)
+              : -channelDelta / Math.max(baseChannel, 1);
+        maxDelta = Math.max(maxDelta, normalizedDelta);
       }
       if (
-        ((value17 = Math.min(Math.max(value17, Math.abs(value16 - value15)), 1)),
-        !(value17 < 1 / 255))
+        ((maxDelta = Math.min(Math.max(maxDelta, Math.abs(litAlpha - baseAlpha)), 1)),
+        !(maxDelta < 1 / 255))
       ) {
-        for (let value23 = 0; value23 < 3; value23 += 1) {
-          const value24 = arg15[value14 + value23],
-            value25 = arg16[value14 + value23];
-          uint8ClampedArray1[value14 + value23] = Math.round(
-            Math.min(Math.max((value25 - value24 * (1 - value17)) / value17, 0), 255),
+        for (let channelOffset = 0; channelOffset < 3; channelOffset += 1) {
+          const baseValue = basePixels[pixelOffset + channelOffset],
+            litValue = litPixels[pixelOffset + channelOffset];
+          deltaPixels[pixelOffset + channelOffset] = Math.round(
+            Math.min(Math.max((litValue - baseValue * (1 - maxDelta)) / maxDelta, 0), 255),
           );
         }
-        uint8ClampedArray1[value14 + 3] = Math.round(value17 * 255);
+        deltaPixels[pixelOffset + 3] = Math.round(maxDelta * 255);
       }
     }
   }
-  return uint8ClampedArray1;
+  return deltaPixels;
 }

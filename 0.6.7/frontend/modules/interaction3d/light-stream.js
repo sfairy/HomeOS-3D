@@ -1,177 +1,229 @@
 export function createLightStream({
-  onStates: arg1 = () => {},
-  onPatch: arg2 = null,
-  createSocket: arg3 = (arg7) => new window.WebSocket(arg7),
-  socketURL: arg4 = () => {
-    const uRL1 = new URL("/api/v1/ws/runtime", location.origin);
-    return ((uRL1.protocol = uRL1.protocol === "https:" ? "wss:" : "ws:"), uRL1.href);
+  onStates: onStates = () => {},
+  onPatch: onPatch = null,
+  createSocket: createSocket = (socketUrl) => new window.WebSocket(socketUrl),
+  socketURL: resolveSocketUrl = () => {
+    const endpointUrl = new URL("/api/v1/ws/runtime", location.origin);
+    return (
+      (endpointUrl.protocol = endpointUrl.protocol === "https:" ? "wss:" : "ws:"),
+      endpointUrl.href
+    );
   },
-  setTimer: arg5 = (arg8, arg9) => setTimeout(arg8, arg9),
-  clearTimer: arg6 = (arg10) => clearTimeout(arg10),
+  setTimer: setTimer = (timerCallback, timerDelayMs) => setTimeout(timerCallback, timerDelayMs),
+  clearTimer: clearTimer = (pendingTimerId) => clearTimeout(pendingTimerId),
 } = {}) {
-  let list1 = [],
-    set1 = new Set(),
-    map1 = new Map(),
-    value1 = false,
-    value2 = false,
-    value3 = false,
-    value4 = null,
-    value5 = null,
-    value6 = 0,
-    value7 = 0,
-    value8 = null,
-    value9 = null;
-  const fn1 = (arg11) => ({
-      entityId: arg11,
+  let subscribedEntityIds = [],
+    subscribedEntityIdSet = new Set(),
+    statesByEntityId = new Map(),
+    isStreamActive = false,
+    isDisposed = false,
+    hasSnapshot = false,
+    activeSocket = null,
+    removeSocketListeners = null,
+    connectionGeneration = 0,
+    reconnectAttempt = 0,
+    reconnectTimerId = null,
+    heartbeatTimerId = null;
+  const unavailableState = (unavailableEntityId) => ({
+      entityId: unavailableEntityId,
       state: "unavailable",
       available: false,
       attributes: {},
     }),
-    fn2 = () =>
-      arg1(
-        value3
+    emitStates = () =>
+      onStates(
+        hasSnapshot
           ? Object.fromEntries(
-              list1.map((arg12) => [arg12, structuredClone(map1.get(arg12) || fn1(arg12))]),
+              subscribedEntityIds.map((clonedEntityId) => [
+                clonedEntityId,
+                structuredClone(
+                  statesByEntityId.get(clonedEntityId) || unavailableState(clonedEntityId),
+                ),
+              ]),
             )
           : {},
       ),
-    fn3 = (arg13) =>
-      typeof arg2 == "function"
-        ? arg2({
-            [arg13]: structuredClone(map1.get(arg13) || fn1(arg13)),
+    emitPatch = (patchedEntityId) =>
+      typeof onPatch == "function"
+        ? onPatch({
+            [patchedEntityId]: structuredClone(
+              statesByEntityId.get(patchedEntityId) || unavailableState(patchedEntityId),
+            ),
           })
-        : fn2();
-  function fn4() {
-    ((map1 = new Map()), (value3 = false), fn2());
+        : emitStates();
+  function resetStates() {
+    ((statesByEntityId = new Map()), (hasSnapshot = false), emitStates());
   }
-  function fn5() {
-    (value8 !== null && arg6(value8), value9 !== null && arg6(value9), (value8 = value9 = null));
+  function clearTimers() {
+    (reconnectTimerId !== null && clearTimer(reconnectTimerId),
+      heartbeatTimerId !== null && clearTimer(heartbeatTimerId),
+      (reconnectTimerId = heartbeatTimerId = null));
   }
-  function fn6() {
-    ((value6 += 1), fn5());
-    const value10 = value4;
-    ((value4 = null), value5?.(), (value5 = null));
+  function closeActiveSocket() {
+    ((connectionGeneration += 1), clearTimers());
+    const socketToClose = activeSocket;
+    ((activeSocket = null), removeSocketListeners?.(), (removeSocketListeners = null));
     try {
-      value10?.close();
+      socketToClose?.close();
     } catch {}
   }
-  function fn7() {
-    if (value2 || !value1 || !list1.length || value8 !== null) return;
-    const value11 = Math.min(15000, 500 * 2 ** Math.min(value7++, 5));
-    value8 = arg5(() => {
-      ((value8 = null), fn8());
-    }, value11);
+  function scheduleReconnect() {
+    if (isDisposed || !isStreamActive || !subscribedEntityIds.length || reconnectTimerId !== null)
+      return;
+    const reconnectDelayMs = Math.min(15000, 500 * 2 ** Math.min(reconnectAttempt++, 5));
+    reconnectTimerId = setTimer(() => {
+      ((reconnectTimerId = null), openSocket());
+    }, reconnectDelayMs);
   }
-  function fn8() {
-    if (value2 || !value1 || !list1.length || value4) return;
-    const value12 = ++value6;
-    let value13;
+  function openSocket() {
+    if (isDisposed || !isStreamActive || !subscribedEntityIds.length || activeSocket) return;
+    const socketGeneration = ++connectionGeneration;
+    let nextSocketHandle;
     try {
-      value13 = arg3(typeof arg4 == "function" ? arg4() : arg4);
+      nextSocketHandle = createSocket(
+        typeof resolveSocketUrl == "function" ? resolveSocketUrl() : resolveSocketUrl,
+      );
     } catch {
-      (fn4(), fn7());
+      (resetStates(), scheduleReconnect());
       return;
     }
-    value4 = value13;
-    const fn9 = () => !value2 && value1 && value12 === value6 && value4 === value13,
-      fn10 = (arg14 = 0) => {
-        fn9() && (fn6(), fn4(), [4400, 4401, 4403].includes(arg14) || fn7());
+    activeSocket = nextSocketHandle;
+    const isCurrentSocket = () =>
+        !isDisposed &&
+        isStreamActive &&
+        socketGeneration === connectionGeneration &&
+        activeSocket === nextSocketHandle,
+      handleSocketFailure = (closeCode = 0) => {
+        isCurrentSocket() &&
+          (closeActiveSocket(),
+          resetStates(),
+          [4400, 4401, 4403].includes(closeCode) || scheduleReconnect());
       };
-    function fn11(arg15) {
-      (value9 !== null && arg6(value9), (value9 = arg5(() => fn10(), arg15)));
+    function scheduleHeartbeatTimeout(heartbeatTimeoutMs) {
+      (heartbeatTimerId !== null && clearTimer(heartbeatTimerId),
+        (heartbeatTimerId = setTimer(() => handleSocketFailure(), heartbeatTimeoutMs)));
     }
-    const object1 = {
+    const socketHandlers = {
       open() {
-        if (fn9())
+        if (isCurrentSocket())
           try {
-            value13.send(
+            nextSocketHandle.send(
               JSON.stringify({
                 type: "subscribe",
-                entityIds: list1,
+                entityIds: subscribedEntityIds,
               }),
             );
           } catch {
-            fn10();
+            handleSocketFailure();
           }
       },
-      message(arg16) {
-        if (!fn9()) return;
-        let value14;
+      message(messageEvent) {
+        if (!isCurrentSocket()) return;
+        let messagePayload;
         try {
-          value14 = JSON.parse(arg16.data);
+          messagePayload = JSON.parse(messageEvent.data);
         } catch {
           return;
         }
-        if (!(!value14 || typeof value14 != "object")) {
-          if (value14.type === "resync_required") {
-            (fn6(), fn4(), fn8());
+        if (!(!messagePayload || typeof messagePayload != "object")) {
+          if (messagePayload.type === "resync_required") {
+            (closeActiveSocket(), resetStates(), openSocket());
             return;
           }
-          if (value14.type === "snapshot" && Array.isArray(value14.states)) {
-            const map2 = new Map();
-            for (const value15 of value14.states)
-              set1.has(value15?.entityId) &&
-                typeof value15.state == "string" &&
-                map2.set(value15.entityId, structuredClone(value15));
-            ((map1 = map2), (value3 = true), (value7 = 0), fn11(65000), fn2());
+          if (messagePayload.type === "snapshot" && Array.isArray(messagePayload.states)) {
+            const snapshotStatesByEntityId = new Map();
+            for (const snapshotState of messagePayload.states)
+              subscribedEntityIdSet.has(snapshotState?.entityId) &&
+                typeof snapshotState.state == "string" &&
+                snapshotStatesByEntityId.set(
+                  snapshotState.entityId,
+                  structuredClone(snapshotState),
+                );
+            ((statesByEntityId = snapshotStatesByEntityId),
+              (hasSnapshot = true),
+              (reconnectAttempt = 0),
+              scheduleHeartbeatTimeout(65000),
+              emitStates());
           } else
-            value3 &&
-            value14.type === "state_changed" &&
-            set1.has(value14.entityId) &&
-            typeof value14.state == "string"
-              ? (map1.set(value14.entityId, structuredClone(value14)),
-                fn11(65000),
-                fn3(value14.entityId))
-              : value3 && value14.type === "state_removed" && set1.has(value14.entityId)
-                ? (map1.delete(value14.entityId), fn11(65000), fn3(value14.entityId))
-                : value3 && value14.type === "ping" && fn11(65000);
+            hasSnapshot &&
+            messagePayload.type === "state_changed" &&
+            subscribedEntityIdSet.has(messagePayload.entityId) &&
+            typeof messagePayload.state == "string"
+              ? (statesByEntityId.set(messagePayload.entityId, structuredClone(messagePayload)),
+                scheduleHeartbeatTimeout(65000),
+                emitPatch(messagePayload.entityId))
+              : hasSnapshot &&
+                  messagePayload.type === "state_removed" &&
+                  subscribedEntityIdSet.has(messagePayload.entityId)
+                ? (statesByEntityId.delete(messagePayload.entityId),
+                  scheduleHeartbeatTimeout(65000),
+                  emitPatch(messagePayload.entityId))
+                : hasSnapshot && messagePayload.type === "ping" && scheduleHeartbeatTimeout(65000);
         }
       },
-      close(arg17) {
-        fn10(arg17.code);
+      close(closeEvent) {
+        handleSocketFailure(closeEvent.code);
       },
       error() {
-        fn10();
+        handleSocketFailure();
       },
     };
-    for (const [value16, value17] of Object.entries(object1))
-      value13.addEventListener(value16, value17);
-    ((value5 = () => {
-      for (const [value18, value19] of Object.entries(object1))
-        value13.removeEventListener(value18, value19);
+    for (const [addedHandlerName, addedHandler] of Object.entries(socketHandlers))
+      nextSocketHandle.addEventListener(addedHandlerName, addedHandler);
+    ((removeSocketListeners = () => {
+      for (const [removedHandlerName, removedHandler] of Object.entries(socketHandlers))
+        nextSocketHandle.removeEventListener(removedHandlerName, removedHandler);
     }),
-      fn11(12000));
+      scheduleHeartbeatTimeout(12000));
   }
   return {
-    configure(arg18 = [], { additionalEntityIds: arg19 = [] } = {}) {
-      if (value2) return;
-      const set2 = new Set(
-          arg19.filter((arg20) => typeof arg20 == "string" && /^[a-z_]+\.[a-z0-9_]+$/.test(arg20)),
+    configure(entityIds = [], { additionalEntityIds: additionalEntityIds = [] } = {}) {
+      if (isDisposed) return;
+      const additionalEntityIdSet = new Set(
+          additionalEntityIds.filter(
+            (additionalCandidateId) =>
+              typeof additionalCandidateId == "string" &&
+              /^[a-z_]+\.[a-z0-9_]+$/.test(additionalCandidateId),
+          ),
         ),
-        value20 = [
+        nextSubscribedEntityIds = [
           ...new Set(
-            arg18.filter(
-              (arg21) =>
-                typeof arg21 == "string" &&
-                (set2.has(arg21) ||
+            entityIds.filter(
+              (candidateEntityId) =>
+                typeof candidateEntityId == "string" &&
+                (additionalEntityIdSet.has(candidateEntityId) ||
                   /^(light|switch|climate|cover|binary_sensor|event|input_boolean|sensor|media_player|vacuum|camera|image|script|button)\.[a-z0-9_]+$/.test(
-                    arg21,
+                    candidateEntityId,
                   )),
             ),
           ),
         ].sort();
-      (value20.length === list1.length &&
-        value20.every((arg22, arg23) => arg22 === list1[arg23])) ||
-        (fn6(), (list1 = value20), (set1 = new Set(list1)), (value7 = 0), fn4(), fn8());
+      (nextSubscribedEntityIds.length === subscribedEntityIds.length &&
+        nextSubscribedEntityIds.every(
+          (sortedEntityId, entityIdIndex) => sortedEntityId === subscribedEntityIds[entityIdIndex],
+        )) ||
+        (closeActiveSocket(),
+        (subscribedEntityIds = nextSubscribedEntityIds),
+        (subscribedEntityIdSet = new Set(subscribedEntityIds)),
+        (reconnectAttempt = 0),
+        resetStates(),
+        openSocket());
     },
-    setActive(arg24) {
-      value2 ||
-        value1 === (arg24 === true) ||
-        ((value1 = arg24 === true), (value7 = 0), value1 ? fn8() : (fn6(), fn4()));
+    setActive(isActiveNext) {
+      isDisposed ||
+        isStreamActive === (isActiveNext === true) ||
+        ((isStreamActive = isActiveNext === true),
+        (reconnectAttempt = 0),
+        isStreamActive ? openSocket() : (closeActiveSocket(), resetStates()));
     },
     dispose() {
-      value2 ||
-        ((value2 = true), (value1 = false), fn6(), (list1 = []), set1.clear(), map1.clear());
+      isDisposed ||
+        ((isDisposed = true),
+        (isStreamActive = false),
+        closeActiveSocket(),
+        (subscribedEntityIds = []),
+        subscribedEntityIdSet.clear(),
+        statesByEntityId.clear());
     },
   };
 }

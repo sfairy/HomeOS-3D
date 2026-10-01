@@ -1,30 +1,30 @@
 export const MODEL_TEMPLATE_REVISION = "20260923-prepared-v2";
-export function modelTemplateKey(arg1, arg2, arg3) {
-  return JSON.stringify([MODEL_TEMPLATE_REVISION, arg1.REVISION, arg2, arg3]);
+export function modelTemplateKey(THREE, modelType, modelDefinition) {
+  return JSON.stringify([MODEL_TEMPLATE_REVISION, THREE.REVISION, modelType, modelDefinition]);
 }
-function d(arg4) {
-  if (arg4.isInstancedBufferAttribute || arg4.isFloat16BufferAttribute)
+function packAttribute(attribute) {
+  if (attribute.isInstancedBufferAttribute || attribute.isFloat16BufferAttribute)
     throw Error("Unsupported attribute");
-  let value1 = arg4.array;
-  if (arg4.isInterleavedBufferAttribute) {
-    value1 = new arg4.data.array.constructor(arg4.count * arg4.itemSize);
-    for (let value2 = 0; value2 < arg4.count; value2++)
-      for (let value3 = 0; value3 < arg4.itemSize; value3++)
-        value1[value2 * arg4.itemSize + value3] =
-          arg4.data.array[value2 * arg4.data.stride + arg4.offset + value3];
+  let packedArray = attribute.array;
+  if (attribute.isInterleavedBufferAttribute) {
+    packedArray = new attribute.data.array.constructor(attribute.count * attribute.itemSize);
+    for (let index = 0; index < attribute.count; index++)
+      for (let component = 0; component < attribute.itemSize; component++)
+        packedArray[index * attribute.itemSize + component] =
+          attribute.data.array[index * attribute.data.stride + attribute.offset + component];
   }
   return {
-    array: value1,
-    itemSize: arg4.itemSize,
-    normalized: arg4.normalized,
-    name: arg4.name,
-    usage: arg4.usage ?? arg4.data?.usage,
+    array: packedArray,
+    itemSize: attribute.itemSize,
+    normalized: attribute.normalized,
+    name: attribute.name,
+    usage: attribute.usage ?? attribute.data?.usage,
   };
 }
-export function packModelTemplate(arg5, { source: arg6, size: arg7 }) {
-  const object1 = {},
-    object2 = {},
-    object3 = {
+export function packModelTemplate(threeApi, { source: source, size: size }) {
+  const packedGeometries = {},
+    packedMaterialColors = {},
+    serializationMeta = {
       geometries: {},
       materials: {},
       textures: {},
@@ -34,158 +34,182 @@ export function packModelTemplate(arg5, { source: arg6, size: arg7 }) {
       animations: {},
       nodes: {},
     };
-  let value4 = 0;
-  arg6.traverse((arg8) => {
+  let totalAttributeBytes = 0;
+  source.traverse((node) => {
     if (
-      !["Group", "Object3D", "Mesh"].includes(arg8.type) ||
-      arg8.animations?.length ||
-      arg8.isSkinnedMesh ||
-      arg8.isInstancedMesh ||
-      arg8.isBatchedMesh
+      !["Group", "Object3D", "Mesh"].includes(node.type) ||
+      node.animations?.length ||
+      node.isSkinnedMesh ||
+      node.isInstancedMesh ||
+      node.isBatchedMesh
     )
       throw Error("Not a static template");
-    if (arg8.material)
-      for (const value9 of [].concat(arg8.material)) {
+    if (node.material)
+      for (const material of [].concat(node.material)) {
         if (
           !["MeshStandardMaterial", "MeshPhysicalMaterial", "MeshBasicMaterial"].includes(
-            value9.type,
+            material.type,
           ) ||
-          Object.values(value9).some((arg9) => arg9?.isTexture)
+          Object.values(material).some((value) => value?.isTexture)
         )
           throw Error("Material needs the original loader");
-        object2[value9.uuid] = Object.fromEntries(
-          Object.entries(value9)
-            .filter(([, arg10]) => arg10?.isColor)
-            .map(([arg11, arg12]) => [arg11, arg12.toArray()]),
+        packedMaterialColors[material.uuid] = Object.fromEntries(
+          Object.entries(material)
+            .filter(([, propertyValue]) => propertyValue?.isColor)
+            .map(([key, colorValue]) => [key, colorValue.toArray()]),
         );
       }
-    const value6 = arg8.geometry;
-    if (!value6 || object1[value6.uuid]) return;
-    if (Object.keys(value6.morphAttributes || {}).length)
+    const geometry = node.geometry;
+    if (!geometry || packedGeometries[geometry.uuid]) return;
+    if (Object.keys(geometry.morphAttributes || {}).length)
       throw Error("Morphs need the original loader");
-    const value7 = Object.fromEntries(
-        Object.entries(value6.attributes).map(([arg13, arg14]) => [arg13, d(arg14)]),
+    const packedAttributes = Object.fromEntries(
+        Object.entries(geometry.attributes).map(([name, geometryAttribute]) => [
+          name,
+          packAttribute(geometryAttribute),
+        ]),
       ),
-      value8 = value6.index ? d(value6.index) : null;
-    for (const value10 of [...Object.values(value7), value8].filter(Boolean))
-      value4 += value10.array.byteLength;
-    ((object1[value6.uuid] = {
-      attributes: value7,
-      index: value8,
-      groups: value6.groups,
-      drawRange: value6.drawRange,
-      name: value6.name,
-      userData: value6.userData,
-      box: value6.boundingBox
-        ? [value6.boundingBox.min.toArray(), value6.boundingBox.max.toArray()]
+      packedIndex = geometry.index ? packAttribute(geometry.index) : null;
+    for (const packedAttribute of [...Object.values(packedAttributes), packedIndex].filter(Boolean))
+      totalAttributeBytes += packedAttribute.array.byteLength;
+    ((packedGeometries[geometry.uuid] = {
+      attributes: packedAttributes,
+      index: packedIndex,
+      groups: geometry.groups,
+      drawRange: geometry.drawRange,
+      name: geometry.name,
+      userData: geometry.userData,
+      box: geometry.boundingBox
+        ? [geometry.boundingBox.min.toArray(), geometry.boundingBox.max.toArray()]
         : null,
-      sphere: value6.boundingSphere
-        ? [value6.boundingSphere.center.toArray(), value6.boundingSphere.radius]
+      sphere: geometry.boundingSphere
+        ? [geometry.boundingSphere.center.toArray(), geometry.boundingSphere.radius]
         : null,
     }),
-      (object3.geometries[value6.uuid] = {}));
+      (serializationMeta.geometries[geometry.uuid] = {}));
   });
-  const value5 = arg6.toJSON(object3).object;
-  if (Object.keys(object3.textures).length || Object.keys(object3.animations).length)
+  const serializedObject = source.toJSON(serializationMeta).object;
+  if (
+    Object.keys(serializationMeta.textures).length ||
+    Object.keys(serializationMeta.animations).length
+  )
     throw Error("Non-static template");
   return {
     revision: MODEL_TEMPLATE_REVISION,
-    three: arg5.REVISION,
-    size: arg7.toArray(),
-    object: value5,
-    materials: Object.values(object3.materials),
-    materialColors: object2,
-    geometries: object1,
-    bytes: value4,
+    three: threeApi.REVISION,
+    size: size.toArray(),
+    object: serializedObject,
+    materials: Object.values(serializationMeta.materials),
+    materialColors: packedMaterialColors,
+    geometries: packedGeometries,
+    bytes: totalAttributeBytes,
   };
 }
-export function unpackModelTemplate(arg15, arg16) {
+export function unpackModelTemplate(threeModule, template) {
   if (
-    arg16?.revision !== MODEL_TEMPLATE_REVISION ||
-    arg16.three !== arg15.REVISION ||
-    arg16.size?.length !== 3 ||
-    !arg16.size.every((arg17) => Number.isFinite(arg17) && arg17 > 0.001)
+    template?.revision !== MODEL_TEMPLATE_REVISION ||
+    template.three !== threeModule.REVISION ||
+    template.size?.length !== 3 ||
+    !template.size.every((sizeValue) => Number.isFinite(sizeValue) && sizeValue > 0.001)
   )
     throw Error("Invalid template");
-  const object4 = {},
-    object5 = {},
-    fn1 = (arg18) => {
-      const value11 = arg18?.array;
+  const geometryByUuid = {},
+    materialByUuid = {},
+    unpackAttribute = (packed) => {
+      const sourceArray = packed?.array;
       if (
-        !ArrayBuffer.isView(value11) ||
-        value11 instanceof DataView ||
-        !value11.length ||
-        !Number.isInteger(arg18.itemSize) ||
-        arg18.itemSize < 1 ||
-        arg18.itemSize > 4 ||
-        value11.length % arg18.itemSize
+        !ArrayBuffer.isView(sourceArray) ||
+        sourceArray instanceof DataView ||
+        !sourceArray.length ||
+        !Number.isInteger(packed.itemSize) ||
+        packed.itemSize < 1 ||
+        packed.itemSize > 4 ||
+        sourceArray.length % packed.itemSize
       )
         throw Error("Invalid attribute");
-      const value12 = new arg15.BufferAttribute(value11, arg18.itemSize, arg18.normalized);
+      const unpackedAttribute = new threeModule.BufferAttribute(
+        sourceArray,
+        packed.itemSize,
+        packed.normalized,
+      );
       return (
-        (value12.name = arg18.name || ""),
-        arg18.usage !== undefined && value12.setUsage(arg18.usage),
-        value12
+        (unpackedAttribute.name = packed.name || ""),
+        packed.usage !== undefined && unpackedAttribute.setUsage(packed.usage),
+        unpackedAttribute
       );
     };
   try {
-    for (const [value15, value16] of Object.entries(arg16.geometries)) {
-      const value17 = (object4[value15] = new arg15.BufferGeometry());
-      ((value17.uuid = value15),
-        (value17.name = value16.name),
-        (value17.userData = value16.userData));
-      for (const [value18, value19] of Object.entries(value16.attributes))
-        value17.setAttribute(value18, fn1(value19));
-      if (!value17.attributes.position) throw Error("Missing positions");
-      value16.index && value17.setIndex(fn1(value16.index));
-      for (const value20 of value16.groups)
-        value17.addGroup(value20.start, value20.count, value20.materialIndex);
-      (value17.setDrawRange(value16.drawRange.start, value16.drawRange.count),
-        value16.box &&
-          (value17.boundingBox = new arg15.Box3(
-            new arg15.Vector3().fromArray(value16.box[0]),
-            new arg15.Vector3().fromArray(value16.box[1]),
+    for (const [uuid, packedGeometry] of Object.entries(template.geometries)) {
+      const restoredGeometry = (geometryByUuid[uuid] = new threeModule.BufferGeometry());
+      ((restoredGeometry.uuid = uuid),
+        (restoredGeometry.name = packedGeometry.name),
+        (restoredGeometry.userData = packedGeometry.userData));
+      for (const [attributeName, packedGeometryAttribute] of Object.entries(
+        packedGeometry.attributes,
+      ))
+        restoredGeometry.setAttribute(attributeName, unpackAttribute(packedGeometryAttribute));
+      if (!restoredGeometry.attributes.position) throw Error("Missing positions");
+      packedGeometry.index && restoredGeometry.setIndex(unpackAttribute(packedGeometry.index));
+      for (const group of packedGeometry.groups)
+        restoredGeometry.addGroup(group.start, group.count, group.materialIndex);
+      (restoredGeometry.setDrawRange(
+        packedGeometry.drawRange.start,
+        packedGeometry.drawRange.count,
+      ),
+        packedGeometry.box &&
+          (restoredGeometry.boundingBox = new threeModule.Box3(
+            new threeModule.Vector3().fromArray(packedGeometry.box[0]),
+            new threeModule.Vector3().fromArray(packedGeometry.box[1]),
           )),
-        value16.sphere &&
-          (value17.boundingSphere = new arg15.Sphere(
-            new arg15.Vector3().fromArray(value16.sphere[0]),
-            value16.sphere[1],
+        packedGeometry.sphere &&
+          (restoredGeometry.boundingSphere = new threeModule.Sphere(
+            new threeModule.Vector3().fromArray(packedGeometry.sphere[0]),
+            packedGeometry.sphere[1],
           )));
     }
-    const value13 = new arg15.ObjectLoader();
-    Object.assign(object5, value13.parseMaterials(arg16.materials, {}));
-    for (const [value21, value22] of Object.entries(arg16.materialColors || {}))
-      for (const [value23, value24] of Object.entries(value22))
-        object5[value21][value23].fromArray(value24);
-    const fn2 = (arg19) => {
+    const objectLoader = new threeModule.ObjectLoader();
+    Object.assign(materialByUuid, objectLoader.parseMaterials(template.materials, {}));
+    for (const [materialUuid, colors] of Object.entries(template.materialColors || {}))
+      for (const [colorKey, color] of Object.entries(colors))
+        materialByUuid[materialUuid][colorKey].fromArray(color);
+    const validateNode = (validatedNode) => {
       if (
-        !arg19 ||
-        !["Group", "Object3D", "Mesh"].includes(arg19.type) ||
-        arg19.matrix?.length !== 16 ||
-        !arg19.matrix.every(Number.isFinite)
+        !validatedNode ||
+        !["Group", "Object3D", "Mesh"].includes(validatedNode.type) ||
+        validatedNode.matrix?.length !== 16 ||
+        !validatedNode.matrix.every(Number.isFinite)
       )
         throw Error("Invalid node");
       if (
-        arg19.type === "Mesh" &&
-        (!object4[arg19.geometry] || ![].concat(arg19.material).every((arg20) => object5[arg20]))
+        validatedNode.type === "Mesh" &&
+        (!geometryByUuid[validatedNode.geometry] ||
+          ![]
+            .concat(validatedNode.material)
+            .every((meshMaterialUuid) => materialByUuid[meshMaterialUuid]))
       )
         throw Error("Missing mesh data");
-      for (const value25 of arg19.children || []) fn2(value25);
+      for (const child of validatedNode.children || []) validateNode(child);
     };
-    fn2(arg16.object);
-    const value14 = value13.parseObject(arg16.object, object4, object5, {}, {});
+    validateNode(template.object);
+    const loadedSource = objectLoader.parseObject(
+      template.object,
+      geometryByUuid,
+      materialByUuid,
+      {},
+      {},
+    );
     return (
-      value14.updateMatrixWorld(true),
+      loadedSource.updateMatrixWorld(true),
       {
-        source: value14,
-        size: new arg15.Vector3().fromArray(arg16.size),
+        source: loadedSource,
+        size: new threeModule.Vector3().fromArray(template.size),
       }
     );
-  } catch (error1) {
+  } catch (unpackError) {
     throw (
-      Object.values(object4).forEach((arg21) => arg21.dispose()),
-      Object.values(object5).forEach((arg22) => arg22.dispose()),
-      error1
+      Object.values(geometryByUuid).forEach((cachedGeometry) => cachedGeometry.dispose()),
+      Object.values(materialByUuid).forEach((cachedMaterial) => cachedMaterial.dispose()),
+      unpackError
     );
   }
 }
