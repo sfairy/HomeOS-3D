@@ -1,9 +1,0 @@
-{
-  "frontend/static/ui-packs/loader.js": {
-    "n@12": "runtimePromisesById",
-    "arg1@13": "packDefinition",
-    "value1@16": "pendingRuntime",
-    "value2@18": "runtimeModule",
-    "arg2@30": "loadError"
-  }
-}

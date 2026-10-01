@@ -1,8 +1,0 @@
-{
-  "frontend/static/modules/interaction3d/page-appearance-presets.js": {
-    "t@1": "baseAppearancePreset",
-    "e@21": "presetValue",
-    "arg1@27": "sceneConfig",
-    "value1@28": "appearancePreset"
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "frontend/modules/interaction3d/bath-heater-editor.js": {
-    "filter2@27": "effectControls",
-    "v10@73": "refreshStatus",
-    "v11@74": "heaterState"
-  }
-}

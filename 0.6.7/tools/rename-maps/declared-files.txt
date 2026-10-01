@@ -1,4 +1,0 @@
-# Files this batch declares it will rewrite. One repo-relative path per line.
-frontend/modules/interaction3d/stage.js
-frontend/static/renderer/renderer.js
-frontend/static/3d-studio/studio-app.js
