@@ -27,7 +27,7 @@ def create_blank_project(
     # 已剔除 None），可直接序列化入库。
     return validate_panel_document(
         {
-            # 当前只有一版文档结构；将来升级结构时靠它做分支兼容。
+            # 文档结构版本；当前只有 1，schema.py 的 panel 模型按 Literal[1] 收窄。
             'schemaVersion': 1,
             'projectId': project_id,
             'name': name,

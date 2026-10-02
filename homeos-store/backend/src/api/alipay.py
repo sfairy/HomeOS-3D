@@ -52,10 +52,6 @@ def _alipay_provider_for_callback(request: Request, session=None):
         return None
 
 
-#: 兼容旧名（同步跳转页仍在用）。语义已从「当前在收款的渠道」改为「按名字取支付宝」。
-_active_alipay_provider = _alipay_provider_for_callback
-
-
 def _close_pending_after_channel_close(session, *, order: Order) -> bool:
     """渠道已明确关单（TRADE_CLOSED）时，把本地待支付订单推进终态。
 
@@ -91,7 +87,7 @@ def alipay_notify(
     """支付宝异步通知（同步端点，跑在线程池里）。
     """
     settings = request.app.state.settings
-    provider = _active_alipay_provider(request, session)
+    provider = _alipay_provider_for_callback(request, session)
     if provider is None:
         logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
         return PlainTextResponse("failure")
@@ -284,7 +280,7 @@ def alipay_return(
     """同步跳转页。
     """
     settings = request.app.state.settings
-    provider = _active_alipay_provider(request, session)
+    provider = _alipay_provider_for_callback(request, session)
 
     order = None
     if out_trade_no:

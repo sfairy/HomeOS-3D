@@ -263,8 +263,7 @@ class Settings:
     def _keys_dir(self) -> Path:
         # [补充说明] 授权公钥目录：优先项目内 keys/，单体仓库回落到工作区根 keys/。
         #
-        # 兼容两种布局：0.6.7 自带 keys/（随包分发，由启动器把商店公钥同步进来）；
-        # 只跑主应用时也可以挂工作区根 keys/（商店写出的共享镜像）。
+        # 项目内 keys/ 由启动器写入；只跑主应用时也可以挂工作区根 keys/（商店写出的共享镜像）。
         local = self.project_root / 'keys'
         shared = REPO_ROOT / 'keys'
         if local.is_dir():
@@ -353,14 +352,15 @@ class Settings:
     def effective_license_server_batches(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
         # [补充说明] 实际生效的授权服务器批次。
         #
-        # 显式配置了批次就用它；否则退化到「esa / eo 两个禁用批次 + direct 单条地址」，
-        # 保留这两个空批次是为了与历史上的批次顺序兼容，空组表示禁用。
+        # 显式配置了批次就用它；否则退化到「direct 单条地址」，未配置地址时为空。
+        # 不必再补 esa / eo 空占位：LicenseEndpointPool._normalize_batches 会为三个批次名
+        # 都建好键，candidates() 的批次顺序也写死在池内，空组既不参与选路也不影响顺序。
         return (
             self.license_server_batches
             if self.license_server_batches
-            else (('esa', ()), ('eo', ()), ('direct', (self.license_server_url,)))
+            else (('direct', (self.license_server_url,)),)
             if self.license_server_url
-            else (('esa', ()), ('eo', ()), ('direct', ()))
+            else ()
         )
 
     @property

@@ -1,17 +1,17 @@
-# Frontend formatting scope (see frontend/NAMING.md section 5).
+# Frontend formatting scope.
 #
 # HTML is excluded on evidence rather than taste.  Running Prettier over the
 # eight frontend documents is not content-neutral:
-#   - `verify_frontend_format_equiv.mjs` reports 4 of them as content-changed and
+#   - the format-equivalence check reported 4 of them as content-changed and
 #     8 as having inter-tag whitespace changes, because Prettier inserts newlines
 #     inside <button>/<p> text nodes (this changes `textContent`);
 #   - even with `htmlWhitespaceSensitivity: strict` the two large documents still
 #     get long Chinese text runs wrapped, and a wrap between CJK characters
 #     renders as a space that the original markup never had.
 # So the eight `.html` files are held byte-identical and guarded by shasum.
-frontend/**/*.html
+frontend/pages/*.html
 
 # Third-party bundles stay byte-identical to upstream, exactly as the
 # de-obfuscation tooling already treats them (report/imports walkers skip
 # `vendor`).  Reformatting minified vendor code would be pure noise.
-frontend/static/vendor/
+frontend/public/static/vendor/

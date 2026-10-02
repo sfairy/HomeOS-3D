@@ -615,31 +615,14 @@ export function relatedCoverMotorReverseEntity(reverseEntityByEntityId, reverseS
     null
   );
 }
-function entityStateIsEnabled(toggleStateInput) {
-  const toggleStateText = String(toggleStateInput?.newState?.state ?? toggleStateInput?.state ?? "")
-    .trim()
-    .toLowerCase();
-  return ["on", "true", "1", "enabled", "开启", "打开"].includes(toggleStateText);
-}
-function resolveCoverMotorReversed(
-  motorReverseLookupByEntityId,
-  motorStateByEntityId,
-  motorComponentEntityId,
-) {
-  const motorReverseEntity = relatedCoverMotorReverseEntity(
-    motorReverseLookupByEntityId,
-    motorComponentEntityId,
-  );
-  return !!(
-    motorReverseEntity?.entityId &&
-    entityStateIsEnabled(motorStateByEntityId.get(motorReverseEntity.entityId))
-  );
-}
 export function coverMotorIsReversedForComponent(
   motorComponent,
-  motorDeviceById,
-  motorComponentByEntityId,
-  motorComponentEntityId2,
+  // 后三个参数本是「电机反向查表」路径（device → component → 反向实体）的入参。
+  // 反向判定目前只读 properties.coverMotorDirection，这条查表路径没有接线，
+  // 但调用方按完整签名传参，故保留签名占位而不是删除参数。
+  _motorDeviceById,
+  _motorComponentByEntityId,
+  _motorComponentEntityId2,
 ) {
   const coverMotorDirection = motorComponent?.properties?.coverMotorDirection;
   return coverMotorDirection === "normal" ? false : coverMotorDirection === "reversed";

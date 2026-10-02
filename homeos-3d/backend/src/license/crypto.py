@@ -153,9 +153,9 @@ def parse_timestamp(value: str) -> datetime:
     #
     # 返回可直接与 datetime.now(timezone.utc) 比较的 datetime；无法解析时抛 LicenseCryptoError。
     try:
-        # 兼容 'Z' 后缀：fromisoformat 在 Python 3.11 之前不认识 'Z'，
-        # 统一替换成 '+00:00' 才能解析。
-        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        # fromisoformat 自 Python 3.11 起原生接受 'Z' 后缀（本仓运行 3.14，
+        # 见 Dockerfile 的 python:3.14-slim-bookworm），无需再替换成 '+00:00'。
+        parsed = datetime.fromisoformat(value)
     except (TypeError, ValueError) as error:
         raise LicenseCryptoError('租约时间格式无效。') from error
     # 没有时区信息时按 UTC 解释：服务端始终以 UTC 签发，缺失时区不能理解成本机时区，
