@@ -5641,10 +5641,8 @@ const {
       runCopyLast(removedSourceKey, removedFolderName),
   });
 function assetMatchesId(assetRecord, targetAssetId) {
-  return (
-    assetRecord?.assetId === targetAssetId ||
-    (assetRecord?.legacyAssetIds || []).includes(targetAssetId)
-  );
+  // 老 ID 已由后端在 API 边界归一，这里只需比对现行 assetId。
+  return assetRecord?.assetId === targetAssetId;
 }
 function allAssets() {
   return [...userAssetsState, ...userAssets];

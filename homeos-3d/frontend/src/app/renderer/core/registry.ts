@@ -34,42 +34,38 @@ export function setBuiltinAssetVersions(assetVersionEntries = []) {
   for (const assetVersionEntry of assetVersionEntries || []) {
     const assetId = String(assetVersionEntry?.assetId || "");
     if (!assetId) continue;
-    const assetVersion = String(assetVersionEntry.version || ""),
-      legacyAssetIds = Array.isArray(assetVersionEntry.legacyAssetIds)
-        ? assetVersionEntry.legacyAssetIds
-        : [];
-    for (const assetIdAlias of [assetId, ...legacyAssetIds]) {
-      (stagedVersionByAssetId.set(String(assetIdAlias), assetVersion),
-        assetVersionEntry.url &&
-          stagedUrlByAssetId.set(String(assetIdAlias), String(assetVersionEntry.url)));
-      const effectVariant = assetVersionEntry.effectVariant || {},
-        originalWidth = Number(effectVariant.originalWidth || 0),
-        originalHeight = Number(effectVariant.originalHeight || 0),
-        cropX = Number(effectVariant.cropX),
-        cropY = Number(effectVariant.cropY),
-        cropWidth = Number(effectVariant.width || 0),
-        cropHeight = Number(effectVariant.height || 0);
-      String(effectVariant.url || "").startsWith("/api/v1/assets/effect-variant?") &&
-        originalWidth > 0 &&
-        originalHeight > 0 &&
-        Number.isFinite(cropX) &&
-        Number.isFinite(cropY) &&
-        cropX >= 0 &&
-        cropY >= 0 &&
-        cropWidth > 0 &&
-        cropHeight > 0 &&
-        cropX + cropWidth <= originalWidth &&
-        cropY + cropHeight <= originalHeight &&
-        stagedVariantByAssetId.set(String(assetIdAlias), {
-          url: String(effectVariant.url),
-          originalWidth: originalWidth,
-          originalHeight: originalHeight,
-          cropX: cropX,
-          cropY: cropY,
-          width: cropWidth,
-          height: cropHeight,
-        });
-    }
+    const assetVersion = String(assetVersionEntry.version || "");
+    // 老素材 ID 由后端在 API 边界归一（api/projects.py 的 canonicalize_document_asset_ids），
+    // 前端只登记现行 assetId，不再维护旧 ID 别名。
+    (stagedVersionByAssetId.set(assetId, assetVersion),
+      assetVersionEntry.url && stagedUrlByAssetId.set(assetId, String(assetVersionEntry.url)));
+    const effectVariant = assetVersionEntry.effectVariant || {},
+      originalWidth = Number(effectVariant.originalWidth || 0),
+      originalHeight = Number(effectVariant.originalHeight || 0),
+      cropX = Number(effectVariant.cropX),
+      cropY = Number(effectVariant.cropY),
+      cropWidth = Number(effectVariant.width || 0),
+      cropHeight = Number(effectVariant.height || 0);
+    String(effectVariant.url || "").startsWith("/api/v1/assets/effect-variant?") &&
+      originalWidth > 0 &&
+      originalHeight > 0 &&
+      Number.isFinite(cropX) &&
+      Number.isFinite(cropY) &&
+      cropX >= 0 &&
+      cropY >= 0 &&
+      cropWidth > 0 &&
+      cropHeight > 0 &&
+      cropX + cropWidth <= originalWidth &&
+      cropY + cropHeight <= originalHeight &&
+      stagedVariantByAssetId.set(assetId, {
+        url: String(effectVariant.url),
+        originalWidth: originalWidth,
+        originalHeight: originalHeight,
+        cropX: cropX,
+        cropY: cropY,
+        width: cropWidth,
+        height: cropHeight,
+      });
   }
   if (!(
     stagedVersionByAssetId.size !== versionByAssetId.size ||
@@ -134,16 +130,14 @@ function resolveAssetSource(assetKey) {
     return /^[0-9a-f]{32}$/.test(userAssetId) ? "/api/v1/assets/user/" + userAssetId : "";
   }
   if (!normalizedAssetKey.startsWith("builtin:")) return "";
-  const builtinAssetPath = normalizedAssetKey.slice(8),
-    normalizedBuiltinPath = (
-      builtinAssetPath.startsWith("v1/2D/") || builtinAssetPath.startsWith("v1/3D/")
-        ? builtinAssetPath.replace(/^v1\//, "v1/户型图示例/")
-        : builtinAssetPath
-    )
-      .split("/")
-      .filter(Boolean)
-      .map((pathSegment) => encodeURIComponent(pathSegment))
-      .join("/");
+  // 老 ID（v1/2D/、v1/3D/、v1/底图.png 等）由后端 builtin_path 的别名表兜底解析，
+  // 前端不再自带一份路径改写规则。
+  const normalizedBuiltinPath = normalizedAssetKey
+    .slice(8)
+    .split("/")
+    .filter(Boolean)
+    .map((pathSegment) => encodeURIComponent(pathSegment))
+    .join("/");
   if (!normalizedBuiltinPath) return "";
   const builtinAssetVersion = versionByAssetId.get(normalizedAssetKey) || "";
   return (

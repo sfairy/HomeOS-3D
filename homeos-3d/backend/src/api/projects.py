@@ -51,6 +51,25 @@ def document_asset_ids(value) -> set[str]:
     return result
 
 
+def canonicalize_document_asset_ids(catalog, value) -> None:
+    # [补充说明] 就地归一文档里的内置素材 ID：老文档引用的旧 ID 换成现行 ID。
+    #
+    # 只在 API 边界做（读取与保存各一次），所以前端不需要保留任何旧 ID 兼容分支，
+    # 落库的内容也会随下次保存自然收敛。判据与 document_asset_ids 完全一致，
+    # 两处不会错位；user: 前缀是随机十六进制 ID，不存在改名，不参与归一。
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(item, str) and key.lower().endswith('assetid') and item.startswith('builtin:'):
+                canonical = catalog.canonical_asset_id(item)
+                if canonical != item:
+                    value[key] = canonical
+                continue
+            canonicalize_document_asset_ids(catalog, item)
+    elif isinstance(value, list):
+        for item in value:
+            canonicalize_document_asset_ids(catalog, item)
+
+
 def validate_document_assets(request: Request, document: dict) -> set[str]:
     # [补充说明] 校验文档引用的图片都还在素材目录里，并返回其中用户上传图片的 ID 集合。
     #
@@ -208,6 +227,8 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
     document = hydrate_document_popups(database, json.loads(source_draft.document_json))
     # 3D 场景不随复制走：户型图与导出的图片属于原项目，复制过去会指向不存在的素材。
     document.pop('studio3d', None)
+    # 源草稿可能还是本次归一之前落库的：复制体一落地就是现行素材 ID。
+    canonicalize_document_asset_ids(request.app.state.asset_catalog, document)
     require_interaction3d_changes(request, document, database=database)
     validate_document_assets(request, document)
     document['projectId'] = duplicate_id
@@ -281,6 +302,8 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
         json.loads(draft.document_json),
         referenced_only = viewer.project_id is not None,
     )
+    # 下发前把老文档引用的旧素材 ID 归一：前端只认现行 ID，展示侧也不必再兼容旧 ID。
+    canonicalize_document_asset_ids(request.app.state.asset_catalog, document)
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
@@ -351,6 +374,8 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     clear_popup_references(document_value, removed_popup_ids)
     # studio3d 内容由 3D 模块单独存盘，不进仪表盘文档。
     document_value.pop('studio3d', None)
+    # 保存时顺手归一旧素材 ID：老文档保存一次就彻底收敛到现行 ID。
+    canonicalize_document_asset_ids(request.app.state.asset_catalog, document_value)
     # 校验失败按 422 返回校验层写好的中文文案，前端直接展示。
     try:
         document = validate_panel_document(document_value)

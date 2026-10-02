@@ -98,9 +98,12 @@ SVG_LENGTH_FACTORS = {
 ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
 
-def legacy_asset_ids(relative_path: str) -> list[str]:
-    # [补充说明] 旧版内置素材的 assetId 别名：目录布局改过之后，历史文档里的引用仍要能取到图。
-    # v1/底图/底图.png 曾经就是 v1/底图.png：两个 id 都得认。
+def asset_id_aliases(relative_path: str) -> list[str]:
+    # [补充说明] 内置素材改名表：给出现行路径，返回它曾经用过的 assetId 与相对路径。
+    #
+    # 目录布局改过两次：v1/底图/底图.png 曾经就是 v1/底图.png；户型图示例也曾经直接放在
+    # v1/2D、v1/3D 下。这里只服务老文档归一（api/projects.py 的 canonicalize_document_asset_ids）
+    # 与老 URL 兜底（builtin_path），不再是下发给前端的一份兼容清单。
     if relative_path == 'v1/底图/底图.png':
         return ['builtin:v1/底图.png']
     for source in ('v1/户型图示例/2D/', 'v1/户型图示例/3D/'):
@@ -524,6 +527,7 @@ class AssetCatalog:
         self._builtin_items = { }
         self._builtin_paths = { }
         self._builtin_aliases = { }
+        self._builtin_path_aliases = { }
         self._user_items = { }
         self._effect_variant_paths = { }
         # 版本戳用随机值而非递增数字：进程重启后必然变化，前端不会误用旧缓存。
@@ -573,15 +577,16 @@ class AssetCatalog:
                     'relativePath': relative_path,
                     'folder': resolved.parent.relative_to(self.built_in_root).as_posix() or '.',
                     'source': 'builtin',
-                    'legacyAssetIds': legacy_asset_ids(relative_path),
                     'version': version,
                     'url': '/assets/builtin/' + '/'.join(relative_path.split('/')) + f'?v={version}' }
                 self._attach_effect_variant(payload, resolved)
                 self._builtin_items[asset_id] = payload
                 self._builtin_paths[relative_path] = resolved
-                # 旧版 id 也登记成别名：历史文档引用旧 id 时仍能定位到同一条目。
-                for alias in payload['legacyAssetIds']:
+                # 旧 id / 旧相对路径都登记成别名：老文档与老 URL 仍能定位到同一条目，
+                # 归一在 api/projects.py 读取时完成，前端不再需要任何旧 id 兼容分支。
+                for alias in asset_id_aliases(relative_path):
                     self._builtin_aliases[alias] = asset_id
+                    self._builtin_path_aliases[alias.removeprefix('builtin:')] = relative_path
             self._builtin_loaded = True
             return None
 
@@ -672,10 +677,19 @@ class AssetCatalog:
 
     def builtin_path(self, relative_path: str) -> Path | None:
         # [补充说明] 把内置素材的相对路径换成磁盘路径；未收录的返回 None。
+        #
+        # 旧相对路径（改名表里登记过的）也认：老文档拼出来的 URL 不必先归一也能取到图。
         self._load_builtin()
         normalized = relative_path.strip('/')
         with self.mutation_lock:
-            return self._builtin_paths.get(normalized)
+            canonical = self._builtin_path_aliases.get(normalized, normalized)
+            return self._builtin_paths.get(canonical)
+
+    def canonical_asset_id(self, asset_id: str) -> str:
+        # [补充说明] 把老文档里的内置素材 id 归一到现行 id；改名表之外的原样返回。
+        self._load_builtin()
+        with self.mutation_lock:
+            return self._builtin_aliases.get(asset_id, asset_id)
 
     def builtin_asset_exists(self, asset_id: str) -> bool:
         # [补充说明] assetId（含旧版别名）是否在内置目录里。
