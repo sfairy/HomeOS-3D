@@ -606,7 +606,6 @@ const planCanvasElement = selectElement("#plan-canvas"),
   materialApplyDialogElement = selectElement("#material-apply-dialog"),
   materialApplyFormElement = selectElement("#material-apply-form"),
   materialApplyCountElement = selectElement("#material-apply-count"),
-  materialApplyIncludeHiddenInput = selectElement("#material-apply-include-hidden"),
   materialApplyCancelButton = selectElement("#material-apply-cancel"),
   inspectorGroupsElement = document.querySelectorAll<HTMLElement>(".inspector-group"),
   sceneCountsElement = selectElement("#scene-counts"),
@@ -616,7 +615,6 @@ const planCanvasElement = selectElement("#plan-canvas"),
   refreshLightPreviewButton = selectElement("#refresh-light-preview"),
   previewQualityStatusElement = selectElement("#preview-quality-status"),
   modelLoadingStatusElement = selectElement("#model-loading-status");
-let isLightPreviewBlocked = false;
 const previewLightCacheCanvasElement = selectElement("#preview-light-cache"),
   previewRenderShieldElement = selectElement("#preview-render-shield");
 let previewShieldTimeoutId = null;
@@ -2621,8 +2619,7 @@ function publishModelLoadState(modelLoaderEntry = externalModelRegistry.modelLoa
   const hn2 = pending > 0 || isModelLoadPending || replacementFrameCount > 0;
   (updateModelLoadIndicator(modelLoaderEntry, hn2),
     modelLoadingStatusElement &&
-      ((isLightPreviewBlocked = hn2),
-      orbitControls && !isInteractionLocked && (orbitControls.enabled = !hn2),
+      (orbitControls && !isInteractionLocked && (orbitControls.enabled = !hn2),
       (modelLoadingStatusElement.hidden = !hn2),
       modelLoadingStatusElement
         .querySelector("span:last-child")
@@ -2728,9 +2725,7 @@ function updateModelLoadIndicator(loadStateSnapshot, isPresentationPending) {
     });
   } catch {}
 }
-const renderPassCacheByKey = new Map(),
-  shadowPassCacheByKey = new Map(),
-  floorGroupCacheByKey = new Map(),
+const floorGroupCacheByKey = new Map(),
   materialCacheByKey = new Map(),
   geometryCacheByKey = new Map(),
   textureCacheByKey = new Map(),
@@ -3188,12 +3183,10 @@ let isLightCacheReady = true,
   deferredRenderTimeoutId = null,
   isAdaptiveRenderActive = false,
   hasAdaptiveRenderStarted = false,
-  adaptiveRenderReason = "",
   adaptiveRenderCostBudget = 0,
   frameDurationSamples = [],
   samplingWindowStartMs = 0,
-  slowFrameStreak = 0,
-  currentFpsEstimate = null;
+  slowFrameStreak = 0;
 const disposedMaterialSet = new WeakSet();
 let isRendererUnavailable = false,
   isRecoveryRender = false,
@@ -3201,7 +3194,6 @@ let isRendererUnavailable = false,
   precompileTimeoutId = null,
   isLightPrecompileRunning = false,
   isEnvironmentLoading = false,
-  lastPrecompileSignature = "",
   lightPrecompilePassCount = 0,
   precompileDebounceId = null,
   isPageHidden = false,
@@ -3953,12 +3945,6 @@ function normalizeMaterialSurfaceOverrides(rawSurfaceOverrides) {
   return normalizedEntries.length ? Object.fromEntries(normalizedEntries) : {};
 }
 /** 某个槽位上的表面覆盖（已净化）；没有则返回 null。 */
-function materialSurfaceOverrideOf(itemRecordRef, materialName) {
-  const surfaceOverrides = normalizeMaterialSurfaceOverrides(
-    itemRecordRef?.materialSurfaceOverrides,
-  );
-  return surfaceOverrides[materialName] || null;
-}
 function normalizeScenePayload(rawScene) {
   const kd2 = createStudioDocument();
   if (!rawScene || typeof rawScene != "object") return kd2;
@@ -5868,16 +5854,15 @@ async function applyLoadedDraft(draftPayload, draftScene = null) {
     (undoRecords = []),
     (redoRecords = []));
   const selectedFloorRecords = collectSelectedFloors();
-  let initialModelLoadPromise;
   if (isEmbeddedStage) {
     isExternalModelPending = true;
     const sceneModelPayload = collectScenePayload(studioProject.floors, {
       includeCurtains: true,
     });
     (preloadPersistentModels(sceneModelPayload),
-      (initialModelLoadPromise = Promise.allSettled(loadModelsForTypes(sceneModelPayload)).then(
+      Promise.allSettled(loadModelsForTypes(sceneModelPayload)).then(
         (modelLoadResults) => (stageLoadTiming("initial-models-ready"), modelLoadResults),
-      )),
+      ),
       stageLoadTiming("initial-models-start"));
   }
   const Qe2 = isAutoDiagramEmbed;
@@ -10593,7 +10578,6 @@ function duplicateSelection() {
         .filter((duplicateDrawingEntry) => duplicateDrawingEntry.kind === "item")
         .map((duplicateDrawing) => duplicateDrawing.id),
     ]),
-    isLightMode = activeLibraryCategory === "light",
     duplicateItems = studioState.items.filter(
       (filteredSceneItem) =>
         duplicateSourceIdSet.has(filteredSceneItem.id) && isPlanItemVisible(filteredSceneItem),
@@ -10639,8 +10623,7 @@ function collectSelectedPlanItems() {
       ...selectedItems
         .filter((planDrawingEntry) => planDrawingEntry.kind === "item")
         .map((planDrawing) => planDrawing.id),
-    ]),
-    isLightSceneMode = activeLibraryCategory === "light";
+    ]);
   return studioState.items.filter(
     (candidateSceneItem) =>
       planItemIdSet.has(candidateSceneItem.id) && isPlanItemVisible(candidateSceneItem),
@@ -11101,7 +11084,6 @@ function canRenderScene() {
     return (
       (isAdaptiveRenderActive = true),
       (hasAdaptiveRenderStarted = true),
-      (adaptiveRenderReason = "cache-first"),
       {
         count: 0,
         cost: 0,
@@ -11115,7 +11097,6 @@ function canRenderScene() {
       ? isAdaptiveRenderActive &&
         zl2.cost < Math.min(zl2.budget * 0.68, Math.max(adaptiveRenderCostBudget * 0.55, 1)) &&
         ((isAdaptiveRenderActive = false),
-        (adaptiveRenderReason = ""),
         (adaptiveRenderCostBudget = 0),
         (slowFrameStreak = 0))
       : (hasAdaptiveRenderStarted = true),
@@ -11144,9 +11125,7 @@ function applyAdaptiveQuality(frameAssessment) {
     !frameAssessment?.sufficient ||
     ((isAdaptiveRenderActive = true),
     (hasAdaptiveRenderStarted = true),
-    (adaptiveRenderReason = "frame-rate"),
     (adaptiveRenderCostBudget = assessRenderBudget().cost),
-    (currentFpsEstimate = frameAssessment.fps),
     (modelRevisionCounter += 1),
     (isFrameDirty = true),
     requestStudioRender());
@@ -11158,8 +11137,7 @@ function resetFrameSamples() {
   const zl3 = assessRenderBudget(),
     renderCostRatio = zl3.cost / Math.max(zl3.budget, 1),
     qualityStepLimit = renderCostRatio >= 1.8 ? 3 : renderCostRatio >= 1 ? 4 : 5;
-  ((currentFpsEstimate = renderFrameAssessment.fps),
-    renderFrameAssessment.severe
+  (renderFrameAssessment.severe
       ? (slowFrameStreak = qualityStepLimit)
       : renderFrameAssessment.slow
         ? (slowFrameStreak += 1)
@@ -11796,7 +11774,6 @@ function bindFrameDriver(frameCallback) {
         }),
         (currentPrecompileSignature = ""),
         precompiledMaterialKeySet.clear(),
-        (lastPrecompileSignature = ""),
         renderStudioFrame(),
         frameCallback(),
         needsMotionPresentation() && scheduleLightPrecompile());
@@ -12494,7 +12471,7 @@ async function beginLightingPreview() {
     return;
   const Et3 = modelRevisionCounter,
     previewLightEntries = collectLampEntries().filter(
-      ({ item: previewLightItem, group: previewLightGroup }) =>
+      ({ item: previewLightItem, group: _previewLightGroup }) =>
         finite2(previewLightItem.lightBrightness, 0) > 0,
     ),
     domElement6 = threeRenderer.domElement;
@@ -12553,7 +12530,6 @@ async function beginLightingPreview() {
       )
         break;
       const {
-        item: previewItem,
         group: previewGroup,
         itemKey: previewItemKey,
         groupKey: previewGroupKey,
@@ -15598,146 +15574,6 @@ function addArchitectureMesh(
     architectureMesh
   );
 }
-function createRoundedBoxGeometry(
-  roundedWidth,
-  roundedHeight,
-  roundedDepth,
-  roundedX,
-  roundedY,
-  roundedZ,
-) {
-  const roundedMinDimension = Math.max(Math.min(roundedWidth, roundedHeight, roundedDepth), 0.001),
-    roundedCornerRadius = Math.min(roundedMinDimension * 0.14, roundedMinDimension * 0.45, 0.08),
-    roundedBoxGeometry = new RoundedBoxGeometry2(
-      roundedWidth,
-      roundedHeight,
-      roundedDepth,
-      2,
-      roundedCornerRadius,
-    );
-  return (roundedBoxGeometry.translate(roundedX, roundedY, roundedZ), roundedBoxGeometry);
-}
-function mergeRoundedBoxes(roundedBoxes) {
-  const roundedGeometries = roundedBoxes.map((roundedBoxSpec) =>
-      createRoundedBoxGeometry(...(roundedBoxSpec as [any, any, any, any, any, any])),
-    ),
-    mergedRoundedGeometry = mergeGeometries2(roundedGeometries);
-  return (
-    roundedGeometries.forEach((roundedGeometry) => roundedGeometry.dispose()),
-    mergedRoundedGeometry
-  );
-}
-function buildSofaGeometry(sofaWidth, sofaHeight, sofaDepth) {
-  const sofaGeometryKey = sofaWidth + ":" + sofaHeight + ":" + sofaDepth;
-  if (renderPassCacheByKey.has(sofaGeometryKey)) return renderPassCacheByKey.get(sofaGeometryKey);
-  const jf2 = mergeRoundedBoxes([
-      [
-        sofaWidth * 0.92,
-        sofaHeight * 0.28,
-        sofaDepth * 0.72,
-        0,
-        sofaHeight * 0.28,
-        sofaDepth * 0.06,
-      ],
-      [
-        sofaWidth * 0.92,
-        sofaHeight * 0.55,
-        sofaDepth * 0.18,
-        0,
-        sofaHeight * 0.56,
-        -sofaDepth * 0.35,
-      ],
-      [
-        sofaWidth * 0.1,
-        sofaHeight * 0.48,
-        sofaDepth * 0.75,
-        -sofaWidth * 0.46,
-        sofaHeight * 0.39,
-        sofaDepth * 0.03,
-      ],
-      [
-        sofaWidth * 0.1,
-        sofaHeight * 0.48,
-        sofaDepth * 0.75,
-        sofaWidth * 0.46,
-        sofaHeight * 0.39,
-        sofaDepth * 0.03,
-      ],
-    ]),
-    jf3 = mergeRoundedBoxes([
-      [
-        sofaWidth * 0.42,
-        sofaHeight * 0.12,
-        sofaDepth * 0.55,
-        -sofaWidth * 0.22,
-        sofaHeight * 0.47,
-        sofaDepth * 0.07,
-      ],
-      [
-        sofaWidth * 0.42,
-        sofaHeight * 0.12,
-        sofaDepth * 0.55,
-        sofaWidth * 0.22,
-        sofaHeight * 0.47,
-        sofaDepth * 0.07,
-      ],
-    ]),
-    sofaGeometryResult =
-      jf2 && jf3
-        ? {
-            frame: jf2,
-            cushions: jf3,
-          }
-        : null;
-  return (
-    sofaGeometryResult
-      ? renderPassCacheByKey.set(sofaGeometryKey, sofaGeometryResult)
-      : (jf2?.dispose(), jf3?.dispose()),
-    sofaGeometryResult
-  );
-}
-function createSofaMaterial(sofaColor) {
-  const sofaMaterialKey = String(sofaColor);
-  return (
-    shadowPassCacheByKey.has(sofaMaterialKey) ||
-      shadowPassCacheByKey.set(
-        sofaMaterialKey,
-        new ns2.MeshStandardMaterial({
-          color: sofaColor,
-          roughness: 0.8,
-          metalness: 0.01,
-          transparent: false,
-          opacity: 1,
-          depthWrite: true,
-          depthFunc: ns2.LessEqualDepth,
-          side: ns2.FrontSide,
-          emissive: 0,
-          emissiveIntensity: 0,
-        }),
-      ),
-    shadowPassCacheByKey.get(sofaMaterialKey)
-  );
-}
-function addSofaMeshes(sofaParent, sofaItem, sofaFrameColor, sofaCushionColor) {
-  const zv2 = buildSofaGeometry(sofaItem.width, sofaItem.height, sofaItem.depth);
-  if (!zv2) return false;
-  const ne6 = createSelectionRef("item", sofaItem.id);
-  for (const [sofaPartGeometry, sofaPartColor] of [
-    [zv2.frame, sofaFrameColor],
-    [zv2.cushions, sofaCushionColor],
-  ]) {
-    const clone2 = ne6
-        ? createSofaMaterial(sofaPartColor).clone()
-        : createSofaMaterial(sofaPartColor),
-      sofaMesh = new ns2.Mesh(sofaPartGeometry, clone2);
-    ((sofaMesh.castShadow = true),
-      (sofaMesh.receiveShadow = true),
-      (sofaMesh.userData.sofaSharedGeometry = true),
-      (sofaMesh.userData.sofaSharedMaterial = !ne6),
-      sofaParent.add(sofaMesh));
-  }
-  return true;
-}
 function buildRugGeometry(rugWidth, rugThickness, rugDepth) {
   const clampedRugThickness = clamp2(rugThickness, 0.004, 0.018),
     rugGeometryKey = rugWidth + ":" + clampedRugThickness + ":" + rugDepth;
@@ -16988,8 +16824,7 @@ function addChargingPadModel(
   chargingPadY,
 ) {
   if (chargingPadItem.chargingEnabled !== true) return;
-  const chargingPadGlowColor = 5238711,
-    chargingPadCanvas = document.createElement("canvas");
+  const chargingPadCanvas = document.createElement("canvas");
   ((chargingPadCanvas.width = 256), (chargingPadCanvas.height = 256));
   const chargingPadPainter = chargingPadCanvas.getContext("2d"),
     padCanvasCenter = chargingPadCanvas.width / 2,
@@ -17993,9 +17828,7 @@ function buildItemModel(modelItem, modelShadowIds = null) {
                                 smallKnobX = width6 * 0.24,
                                 smallKnobZ = -depth * 0.2,
                                 knobBaseY = height6 * 0.58,
-                                smallKnobBaseY = height6 * 0.76,
-                                knobHeightY = height6 * 0.68,
-                                smallKnobHeightY = height6 * 0.9;
+                                smallKnobBaseY = height6 * 0.76;
                               addCylinderMesh(
                                 itemModelNode,
                                 handleKnobRadius * 0.3,
@@ -25327,14 +25160,7 @@ function scheduleLightPrecompile(delayMs = 360) {
         const qv3 = planLightPrecompileBatches(),
           lightSceneRoot = sceneRootNode,
           ue2 = threeScene,
-          activeRenderer = threeRenderer,
-          join4 = [
-            lightSceneRoot.uuid,
-            getPreviewFloorMode(),
-            activeFloorId,
-            externalPrecompilePassCount,
-            ...qv3.map((lightBatch) => lightBatch.signature).sort(),
-          ].join("|");
+          activeRenderer = threeRenderer;
         if (!qv3.length) {
           ((isEnvironmentLoading = false),
             (activeRenderer.domElement.dataset.lightPrecompileState = "ready"),
@@ -25399,8 +25225,7 @@ function scheduleLightPrecompile(delayMs = 360) {
               precompiledMaterialKeySet.add(pendingLightBatch.signature));
           }
           isPrecompileComplete
-            ? ((lastPrecompileSignature = join4),
-              delete activeRenderer.domElement.dataset.lightPrecompileDeferred,
+            ? (delete activeRenderer.domElement.dataset.lightPrecompileDeferred,
               (activeRenderer.domElement.dataset.lightPrecompileState = "ready"))
             : (activeRenderer.domElement.dataset.lightPrecompileState = "deferred");
         } catch (precompileError) {
@@ -25621,7 +25446,7 @@ function computeCourtyardBounds({ physicalStack: isPhysicalStack = false } = {})
 function buildWallSpanFootprint(
   wallSegment,
   wallSpan,
-  unusedWallSpanArg,
+  _unusedWallSpanArg,
   worldFromWallPoint,
   wallSpanPadding: WallSpanPadding = {},
 ) {
@@ -26086,127 +25911,6 @@ function buildCourtyardFoundation({ ppm: courtyardPixelsPerMeter, toWorld: court
       );
   }
 }
-function buildElevationOutlineRing(ringOutlinePointList, ringGlowColor, ringBaseHeight) {
-  if (!Array.isArray(ringOutlinePointList) || ringOutlinePointList.length < 3) return;
-  const ringOutlinePoints = ringOutlinePointList.map((ringOutlinePoint) => ({
-      x: ringOutlinePoint.x,
-      y: ringOutlinePoint.z,
-    })),
-    ringSegmentLengths = ringOutlinePoints.map((ringSegmentStartPoint, ringPointIndex) =>
-      distance2(
-        ringSegmentStartPoint,
-        ringOutlinePoints[(ringPointIndex + 1) % ringOutlinePoints.length],
-      ),
-    ),
-    ringCumulativeLengths = [0];
-  for (const ringSegmentLength of ringSegmentLengths)
-    ringCumulativeLengths.push(ringCumulativeLengths.at(-1) + ringSegmentLength);
-  const placeRingColumn = ({
-    distance: columnSpacing,
-    innerAlpha: innerGlowAlpha,
-    outerAlpha: outerGlowAlpha,
-    columnStrength: columnGlowStrength,
-    y: columnBaseHeight,
-    renderOrder: ringRenderOrder,
-  }) => {
-    const xu2 = expandPolygonOutward(ringOutlinePoints, columnSpacing),
-      columnPositions = [],
-      columnAlphas = [],
-      columnGlowAcross = [],
-      columnGlowAlong = [];
-    for (let columnIndex = 0; columnIndex < ringOutlinePoints.length; columnIndex += 1) {
-      const placeRingColumnNextColumnIndex = (columnIndex + 1) % ringOutlinePoints.length,
-        currentOutlinePoint = ringOutlinePoints[columnIndex],
-        nextOutlinePoint = ringOutlinePoints[placeRingColumnNextColumnIndex],
-        currentOutlineNormal = xu2[columnIndex],
-        nextOutlineNormal = xu2[placeRingColumnNextColumnIndex];
-      (columnPositions.push(
-        currentOutlinePoint.x,
-        columnBaseHeight,
-        currentOutlinePoint.y,
-        currentOutlineNormal.x,
-        columnBaseHeight,
-        currentOutlineNormal.y,
-        nextOutlineNormal.x,
-        columnBaseHeight,
-        nextOutlineNormal.y,
-        currentOutlinePoint.x,
-        columnBaseHeight,
-        currentOutlinePoint.y,
-        nextOutlineNormal.x,
-        columnBaseHeight,
-        nextOutlineNormal.y,
-        nextOutlinePoint.x,
-        columnBaseHeight,
-        nextOutlinePoint.y,
-      ),
-        columnAlphas.push(
-          innerGlowAlpha,
-          outerGlowAlpha,
-          outerGlowAlpha,
-          innerGlowAlpha,
-          outerGlowAlpha,
-          innerGlowAlpha,
-        ),
-        columnGlowAcross.push(0, 1, 1, 0, 1, 0));
-      const columnAlongStart = ringCumulativeLengths[columnIndex],
-        columnAlongEnd = ringCumulativeLengths[columnIndex + 1];
-      columnGlowAlong.push(
-        columnAlongStart,
-        columnAlongStart,
-        columnAlongEnd,
-        columnAlongStart,
-        columnAlongEnd,
-        columnAlongEnd,
-      );
-    }
-    const ringGeometry = new ns2.BufferGeometry();
-    (ringGeometry.setAttribute("position", new ns2.Float32BufferAttribute(columnPositions, 3)),
-      ringGeometry.setAttribute("glowAlpha", new ns2.Float32BufferAttribute(columnAlphas, 1)),
-      ringGeometry.setAttribute("glowAcross", new ns2.Float32BufferAttribute(columnGlowAcross, 1)),
-      ringGeometry.setAttribute("glowAlong", new ns2.Float32BufferAttribute(columnGlowAlong, 1)),
-      ringGeometry.computeVertexNormals());
-    const ringMesh = new ns2.Mesh(
-      ringGeometry,
-      new ns2.ShaderMaterial({
-        uniforms: {
-          glowColor: {
-            value: new ns2.Color(ringGlowColor),
-          },
-          glowColumnStrength: {
-            value: columnGlowStrength,
-          },
-        },
-        vertexShader:
-          "\n          attribute float glowAlpha;\n          attribute float glowAcross;\n          attribute float glowAlong;\n          varying float vGlowAlpha;\n          varying float vGlowAcross;\n          varying float vGlowAlong;\n          void main() {\n            vGlowAlpha = glowAlpha;\n            vGlowAcross = glowAcross;\n            vGlowAlong = glowAlong;\n            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n          }\n        ",
-        fragmentShader:
-          "\n          uniform vec3 glowColor;\n          uniform float glowColumnStrength;\n          varying float vGlowAlpha;\n          varying float vGlowAcross;\n          varying float vGlowAlong;\n          void main() {\n            float columnA = 0.5 + 0.5 * sin(vGlowAlong * 4.7 + 0.6);\n            float columnB = 0.5 + 0.5 * sin(vGlowAlong * 9.3 + 2.1);\n            float broadColumns = clamp(0.46 + columnA * 0.34 + columnB * 0.2, 0.0, 1.0);\n            float distanceMix = smoothstep(0.16, 0.88, vGlowAcross);\n            float reflection = mix(1.0, 0.48 + broadColumns * 0.52, glowColumnStrength * distanceMix);\n            gl_FragColor = vec4(glowColor, vGlowAlpha * reflection);\n          }\n        ",
-        transparent: true,
-        depthWrite: false,
-        blending: ns2.AdditiveBlending,
-        toneMapped: false,
-        side: ns2.DoubleSide,
-      }),
-    );
-    ((ringMesh.renderOrder = ringRenderOrder), sceneRootNode.add(ringMesh));
-  };
-  (placeRingColumn({
-    distance: 0.24,
-    innerAlpha: 0.4,
-    outerAlpha: 0.055,
-    columnStrength: 0,
-    y: ringBaseHeight + 0.008,
-    renderOrder: 3,
-  }),
-    placeRingColumn({
-      distance: 1.25,
-      innerAlpha: 0.3,
-      outerAlpha: 0.008,
-      columnStrength: 0.82,
-      y: ringBaseHeight + 0.005,
-      renderOrder: 2,
-    }));
-}
 function expandPolygonOutward(polygonPointList, outwardOffset) {
   const reduce = polygonPointList.reduce(
     (accumulatedPoint, offsetPointEntry) => ({
@@ -26323,7 +26027,7 @@ function createGroundGrid(groundGridSize, groundGridTheme, groundGridHeight) {
           )),
         (groundGrid.material.userData.depthFadeShader = gridShader));
     }),
-    (groundGrid.onBeforeRender = (gridRenderer, gridScene, gridCamera) => {
+    (groundGrid.onBeforeRender = (_gridRenderer, _gridScene, gridCamera) => {
       const depthFadeShader = groundGrid.material.userData.depthFadeShader;
       if (!depthFadeShader) return;
       groundGrid.getWorldPosition(cameraWorldPosition);
@@ -26585,11 +26289,7 @@ function buildInteriorScene({
       openingWallDeltaZ = openingWall.end.y - openingWall.start.y,
       hypot7 = Math.hypot(openingWallDeltaX, openingWallDeltaZ);
     if (!hypot7) continue;
-    const openingWallDirection = {
-        x: openingWallDeltaX / hypot7,
-        y: openingWallDeltaZ / hypot7,
-      },
-      openingWallAngle = -Math.atan2(openingWallDeltaZ, openingWallDeltaX);
+    const openingWallAngle = -Math.atan2(openingWallDeltaZ, openingWallDeltaX);
     for (const currentWindow of studioState.windows.filter(
       (buildInteriorSceneWindowCandidate) =>
         buildInteriorSceneWindowCandidate.wallId === openingWall.id,
@@ -26846,11 +26546,7 @@ function buildInteriorScene({
             0.4,
           ),
           doorLeafMaxWidth = Math.max(buildInteriorSceneDoorWidth * 0.54, 0.28),
-          doorHingeSign = currentDoor.hinge === "right" ? 1 : -1,
-          slidingPanelCenters = slidingDoorPanelCenters2(
-            buildInteriorSceneDoorWidth,
-            doorHingeSign,
-          );
+          doorHingeSign = currentDoor.hinge === "right" ? 1 : -1;
         for (const slidingPanelSign of [-1, 1]) {
           const slidingPanelGroup = new ns2.Group(),
             slidingPanelOffset = slidingPanelSign * buildInteriorSceneDoorWidth * 0.23;
@@ -27535,7 +27231,7 @@ function rebuildFloorLayers(floorRebuildOptions = {}) {
     assetLoaderState.revision++;
     return;
   }
-  for (const floorLayerEntry of buildFloorsAsync(floorRebuildOptions));
+  for (const _floorLayerEntry of buildFloorsAsync(floorRebuildOptions));
 }
 async function waitForSceneRevision() {
   const sceneAtStart = studioProject,
@@ -27763,8 +27459,7 @@ function syncFloorGroups(layerKeySet) {
 function createFloorWorldMapper() {
   const floorMapperPpm = getPixelsPerMeter();
   if (!floorMapperPpm) return null;
-  const qu3 = getSceneContentBounds(),
-    nn5 = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor()),
+  const nn5 = sceneModelOrigin || sceneModelOrigin2(studioState, getActiveFloor()),
     floorMapperOriginX = nn5.x,
     floorMapperOriginY = nn5.y;
   return {
@@ -29687,11 +29382,6 @@ function setAssetCategory(assetCategory) {
   }
   ((assetGridElement.hidden = selectedAssetCategory === "light"),
     (lightAssetRowElement.hidden = selectedAssetCategory !== "light"));
-  const categoryPlacedElement = getSelectedObject(),
-    canApplyAssetToSelection =
-      selectedItem?.kind === "item" &&
-      categoryPlacedElement &&
-      lampItemTypeSet.has(categoryPlacedElement.type);
   (selectedItem && !isSelectionAllowed(selectedItem) && refreshSelection(),
     selectedItems.length && refreshSelection(),
     selectStudioTool("select"),

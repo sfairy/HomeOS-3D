@@ -266,7 +266,7 @@ export function createCourtyardDrawingEditor(host) {
             !validHole(
               checkedHole,
               outlinePoints,
-              holeRings.filter((otherHole, otherHoleIndex) => otherHoleIndex !== checkedHoleIndex),
+              holeRings.filter((_otherHole, otherHoleIndex) => otherHoleIndex !== checkedHoleIndex),
             ),
         ))
     )
@@ -289,7 +289,7 @@ export function createCourtyardDrawingEditor(host) {
   function findOutlineHandle(handleItem, probePoint) {
     for (const [ringIndex, sampleRingPoints] of [
       -1,
-      ...handleItem.drawing.holes.map((hole, holeMapIndex) => holeMapIndex),
+      ...handleItem.drawing.holes.map((_hole, holeMapIndex) => holeMapIndex),
     ].map((ringKey) => [
       ringKey,
       drawingPlanPoints(

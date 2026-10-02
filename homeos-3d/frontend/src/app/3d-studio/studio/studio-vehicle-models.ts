@@ -33,7 +33,7 @@ export type VehicleFinishOptions = {
 };
 
 export function applyVehicleFinish(
-  model,
+  _model,
   material,
   sourceMaterial,
   options: VehicleFinishOptions = {},

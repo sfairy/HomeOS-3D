@@ -1,4 +1,3 @@
-const EPSILON = 1e-7;
 export function clamp(rawValue, minValue, maxValue) {
   return Math.min(maxValue, Math.max(minValue, rawValue));
 }
@@ -1596,7 +1595,7 @@ function unionLoops(firstLoopSet, mergeDistance, extraLoops = [], shouldSkipUnio
     (edgesByStartKey.has(outputEdge.start.key) || edgesByStartKey.set(outputEdge.start.key, []),
       edgesByStartKey.get(outputEdge.start.key).push(outputEdgeIndex));
   });
-  const remainingEdgeIndexSet = new Set(outputEdges.map((edgeEntry, outputIndex) => outputIndex)),
+  const remainingEdgeIndexSet = new Set(outputEdges.map((_edgeEntry, outputIndex) => outputIndex)),
     mergedLoops = [];
   for (; remainingEdgeIndexSet.size;) {
     const startEdgeIndex = remainingEdgeIndexSet.values().next().value,

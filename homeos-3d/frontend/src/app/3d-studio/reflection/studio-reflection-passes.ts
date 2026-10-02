@@ -473,7 +473,7 @@ export function createReflectionPasses({
         )
     );
   }
-  function shouldOmitDetail(detailCandidate, cullingCamera, viewportHeightPx) {
+  function shouldOmitDetail(detailCandidate, _cullingCamera, _viewportHeightPx) {
     const measuredObject = detailCandidate.object,
       worldDiameter = measureWorldDiameter(detailCandidate);
     if (

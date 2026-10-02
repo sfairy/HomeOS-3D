@@ -30,7 +30,7 @@ export function createGroundReflections({
   syncLighting: syncLighting,
   // 默认实现忽略楼层，直接返回传入的相机。第二个参数是楼层 ID —— 外部会传，
   // 因此形参必须声明出来（studio-app 那边会用 overviewStack 的按楼层相机覆盖它）。
-  getFloorCamera: getFloorCamera = (fallbackCamera, floorId) => fallbackCamera,
+  getFloorCamera: getFloorCamera = (fallbackCamera, _floorId) => fallbackCamera,
   getStateKey: getStateKey = () => "",
   getSceneRevision: getSceneRevision = null,
   floorLighting: floorLighting = false,

@@ -355,7 +355,7 @@ def relax_license_checks(app) -> None:
     # 真实签名是 allows(feature_code, *, database=None)：这里必须收 **kwargs，
     # 否则交互模块门禁传 database=... 时抛 TypeError，看起来像服务端 500，
     # 实际是替身写窄了 —— 这种假故障最耽误事。
-    def _allows_everything(self, feature_code: str, **kwargs) -> bool:  # noqa: ARG001
+    def _allows_everything(self, feature_code: str, **kwargs) -> bool:
         return True
 
     service_type.allows = _allows_everything
@@ -424,7 +424,7 @@ def main() -> int:
                 print(f"  OK   /setup {response.status}")
         except urllib.error.HTTPError as error:
             print(f"  OK   /setup {error.code}")
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             print(f"  FAIL 连不上：{error}")
             return 2
         return 0

@@ -6851,8 +6851,7 @@ export class PanelRenderer {
           760,
           cameraPreviewMaxWidth,
           cameraPreviewMaxHeight * cameraMediaRatio,
-        ),
-        cameraMediaHeight = cameraPanelWidth / cameraMediaRatio;
+        );
       ((cameraPreviewDialog.style.width = Math.max(280, cameraPanelWidth) + "px"),
         (cameraPreviewStage.style.aspectRatio = String(cameraMediaRatio)),
         (cameraPreviewStage.style.borderRadius = "16px"));
@@ -8237,8 +8236,7 @@ export class PanelRenderer {
     let airQualityState = airQualityIndexEntityId
         ? this.states.get(airQualityIndexEntityId)?.newState ||
           this.states.get(airQualityIndexEntityId)
-        : null,
-      isPurifierRunning = false;
+        : null;
     const particulateMetricGroup = airPurifierMetricGroups.find(
         (particulateGroupItem) => particulateGroupItem.key === "pm25",
       ),
@@ -8328,8 +8326,7 @@ export class PanelRenderer {
         const lowerCase3 = String(airPurifierStateSnapshot?.state || "").toLowerCase(),
           isPurifierUnavailable = ["unknown", "unavailable"].includes(lowerCase3),
           isAirPurifierOn = !isPurifierUnavailable && lowerCase3 !== "off";
-        ((isPurifierRunning = isAirPurifierOn),
-          (airPurifierDisplayLabel.textContent = isAirPurifierOn ? "ON" : "OFF"),
+        ((airPurifierDisplayLabel.textContent = isAirPurifierOn ? "ON" : "OFF"),
           (airPurifierDialogStatus.textContent = isPurifierUnavailable
             ? "当前不可用"
             : isAirPurifierOn
@@ -9102,7 +9099,7 @@ export class PanelRenderer {
                 const bedAngleNumber = Number(bedAngleState?.state);
                 return Number.isFinite(bedAngleNumber) ? bedAngleNumber : null;
               },
-              applyBedAngle = (angleRoleName, angleElement, angleReadoutValue) => {
+              applyBedAngle = (angleRoleName, _angleElement, angleReadoutValue) => {
                 const bedAngleDegrees = getBedAngleValue(bedAngleEntityIds[angleRoleName]);
                 ((angleReadoutValue.textContent =
                   bedAngleDegrees === null ? "--" : Math.round(bedAngleDegrees) + "°"),
@@ -14435,7 +14432,7 @@ export class PanelRenderer {
   }
   ["showElectricBedLoadingDetails"](
     electricBedComponent,
-    { preview: isElectricBedPreview = false } = {},
+    { preview: _isElectricBedPreview = false } = {},
   ) {
     if (!electricBedComponent.bindings?.entity?.entityId) return;
     const pendingEntityDetails2 = this.pendingEntityDetails,
@@ -14777,7 +14774,7 @@ export class PanelRenderer {
       electricBedBody.append(electricBedUtilitiesSection, electricBedMainSection),
       electricBedCard.append(electricBedHeading, electricBedBody),
       electricBedDialog.append(electricBedCard));
-    const anglePercentForState = (angleRoleEntityId, angleEntityState) => {
+    const anglePercentForState = (_angleRoleEntityId, angleEntityState) => {
         const angleRawValue = Number(angleEntityState?.state),
           angleMinimum = Number(angleEntityState?.attributes?.min),
           angleMaximum = Number(angleEntityState?.attributes?.max);
@@ -15645,7 +15642,7 @@ export class PanelRenderer {
       vacuumDialog.show(),
       vacuumDialog.resizeInteraction3d?.());
   }
-  ["showPresenceDetails"](presenceComponent, { preview: isPresencePreview = false } = {}) {
+  ["showPresenceDetails"](presenceComponent, { preview: _isPresencePreview = false } = {}) {
     const presenceEntityId = presenceComponent.bindings?.entity?.entityId;
     if (!presenceEntityId) throw new Error("该控件没有关联实体。");
     this.closeRuntimeDialog();
@@ -16460,8 +16457,7 @@ export class PanelRenderer {
       bathLightControl = null,
       waterHeaterExtensionControl = null,
       registeredEntityIdSet = new Set();
-    const selectedRelatedIds = selectedRelatedEntityIds2(entityDetailsComponent),
-      selectedRelatedIdSet = new Set(selectedRelatedIds || []);
+    const selectedRelatedIds = selectedRelatedEntityIds2(entityDetailsComponent);
     if (isLightEntity) {
       ((lightVisualButton = document.createElement("button")),
         (lightVisualButton.type = "button"),

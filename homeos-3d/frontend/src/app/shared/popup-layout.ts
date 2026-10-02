@@ -1,11 +1,3 @@
-const MIN_POPUP_COLUMNS = 2,
-  MAX_POPUP_COLUMNS = 4,
-  DEFAULT_POPUP_COLUMNS = 3,
-  POPUP_COLUMN_WIDTH_PX = 420,
-  POPUP_ROW_HEIGHT_PX = 470,
-  POPUP_GRID_GAP_PX = 14,
-  POPUP_CELL_PADDING_PX = 28,
-  POPUP_HEADER_HEIGHT_PX = 88;
 export function popupLayoutColumns(options) {
   const columns = Number(options?.columns);
   return columns >= 2 && columns <= 4 ? columns : 3;
@@ -24,12 +16,7 @@ export function popupModuleColumnSpan(moduleSpec) {
     ? 2
     : 1;
 }
-export function popupModuleRowSpan(rowModuleSpec) {
-  const rowModuleType = typeof rowModuleSpec == "string" ? rowModuleSpec : rowModuleSpec?.type,
-    rowModuleDeviceType =
-      typeof rowModuleSpec == "object"
-        ? rowModuleSpec?.deviceType || rowModuleSpec?.properties?.deviceType
-        : "";
+export function popupModuleRowSpan(_rowModuleSpec) {
   return 1;
 }
 function placeModules(modules, columnLimit) {
@@ -48,12 +35,12 @@ function placeModules(modules, columnLimit) {
             {
               length: rowSpan,
             },
-            (unusedRowIndex, rowOffset) =>
+            (_unusedRowIndex, rowOffset) =>
               Array.from(
                 {
                   length: columnSpan,
                 },
-                (unusedColumnIndex, columnOffset) =>
+                (_unusedColumnIndex, columnOffset) =>
                   !occupied[row + rowOffset]?.[column + columnOffset],
               ).every(Boolean),
           ).every(Boolean)

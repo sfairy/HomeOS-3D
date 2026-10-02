@@ -4,8 +4,6 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
-from starlette.responses import Response
-from .config import Settings
 password_hasher = PasswordHasher()
 
 def hash_password(password):

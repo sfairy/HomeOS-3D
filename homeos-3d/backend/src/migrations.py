@@ -154,7 +154,8 @@ def _unmodeled_tables(database_path: Path) -> tuple[str, ...]:
     '''
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return ()
-    from . import models  # noqa: F401  import for the side effect of registering models on Base.metadata
+    # 副作用导入：把 models 注册到 Base.metadata（ruff/pyright 都看不出「导入即副作用」）
+    from . import models  # noqa: F401  # pyright: ignore[reportUnusedImport]
     from .database import Base
     known = set(Base.metadata.tables)
     with closing(sqlite3.connect(f'file:{database_path}?mode=ro', uri = True)) as connection:

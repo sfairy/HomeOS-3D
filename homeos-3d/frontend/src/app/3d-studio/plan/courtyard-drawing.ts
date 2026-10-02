@@ -988,7 +988,7 @@ export function surfaceExclusions(
           holeLoopCandidate,
           otherOutlinePoints,
           otherHolePointLists.filter(
-            (compareHoleLoop, compareHoleIndex) => holeCandidateIndex !== compareHoleIndex,
+            (_compareHoleLoop, compareHoleIndex) => holeCandidateIndex !== compareHoleIndex,
           ),
         ),
       ),

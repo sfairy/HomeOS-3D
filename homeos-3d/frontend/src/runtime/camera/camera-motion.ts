@@ -1,6 +1,4 @@
-const LENGTH_EPSILON = 1e-8,
-  WORLD_BOUND_LIMIT = 10000,
-  clampNumber = (inputNumber, minimumNumber, maximumNumber) =>
+const clampNumber = (inputNumber, minimumNumber, maximumNumber) =>
     Math.max(minimumNumber, Math.min(maximumNumber, inputNumber)),
   finiteNumberOr = (candidateNumber, fallbackNumber) =>
     Number.isFinite(candidateNumber) ? candidateNumber : fallbackNumber;

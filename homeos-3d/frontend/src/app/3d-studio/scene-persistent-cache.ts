@@ -1,8 +1,5 @@
 export const SCENE_PREPARATION_VERSION = "20260923-v1";
-const SCENE_STORE = "scenes",
-  MAX_SCENE_COUNT = 8,
-  MAX_TOTAL_BYTES = 33554432,
-  MAX_SCENE_BYTES = 8388608;
+const SCENE_STORE = "scenes";
 export function scenePreparationKey(lightHistoryScope, projectId, sceneId, source = "") {
   return lightHistoryScope && projectId && sceneId
     ? JSON.stringify([SCENE_PREPARATION_VERSION, lightHistoryScope, projectId, sceneId, source])

@@ -1,6 +1,5 @@
 from __future__ import annotations
 import re
-from typing import Any
 ENTITY_ID = re.compile('^[a-z0-9_]+\\.[a-z0-9_]+$')
 VIRTUAL_ENTITY_ID = re.compile('^virtual\\.[a-z0-9_]+\\.[a-z0-9_]+$')
 ACTION_TYPES = frozenset({

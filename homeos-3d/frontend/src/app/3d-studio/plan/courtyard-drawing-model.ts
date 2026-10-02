@@ -245,7 +245,7 @@ export function createCourtyardDrawingModel(
               {
                 length: drawing.style === "round" ? 12 : 7,
               },
-              (unusedValue, stoneIndex) => {
+              (_unusedValue, stoneIndex) => {
                 const stoneAngleRad =
                     (stoneIndex * Math.PI * 2) / (drawing.style === "round" ? 12 : 7),
                   radiusFactor =

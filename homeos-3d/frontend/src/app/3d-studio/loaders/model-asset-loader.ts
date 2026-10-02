@@ -32,7 +32,7 @@ export function createModelAssetLoader({
   THREE: three,
   GLTFLoader: gltfLoaderClass,
   // 形参要在默认实现里声明出来：调用方会传 LoadingManager 进来建 DRACOLoader。
-  createDracoLoader: dracoLoaderFactory = (manager) => null,
+  createDracoLoader: dracoLoaderFactory = (_manager) => null,
   requestTimeoutMs: requestTimeoutMs = 60000,
   fetchImpl: fetchImpl = globalThis.fetch,
   resolveURL: resolveAssetUrl = (assetUrl) => assetUrl,

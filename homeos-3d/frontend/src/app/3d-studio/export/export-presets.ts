@@ -117,7 +117,7 @@ export function normalizeExportPresetSlots(sourceSlots) {
     {
       length: slotCount,
     },
-    (slotEntry, slotIndex) => normalizeExportPreset(slotCandidates[slotIndex]),
+    (_slotEntry, slotIndex) => normalizeExportPreset(slotCandidates[slotIndex]),
   );
 }
 export function normalizeActiveExportPresetSlot(activeSlotInput, totalSlotCount = 4) {

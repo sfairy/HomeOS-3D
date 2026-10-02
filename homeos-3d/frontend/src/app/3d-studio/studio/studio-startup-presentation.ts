@@ -3,11 +3,11 @@ export function createStartupPresentation({
   coverWindow: coverWindow = null,
   // onProgress 会收到 0..1 的完成度，所以默认实现必须声明这个形参
   // （否则调用处 onProgress(1) 会被判成「多传了参数」）。
-  onProgress: onProgress = (progress) => {},
+  onProgress: onProgress = (_progress) => {},
   onComplete: onComplete = () => {},
   onMotionComplete: onMotionComplete = () => {},
   // onPreparationFrame 会被传入「本帧是否该做预编译」的标志，形参同样要声明出来。
-  onPreparationFrame: onPreparationFrame = (shouldPrepareThisFrame) => {},
+  onPreparationFrame: onPreparationFrame = (_shouldPrepareThisFrame) => {},
   duration: durationMs = 320,
   onShadowsProgress: onShadowsProgress = null,
   onEffectsProgress: onEffectsProgress = null,

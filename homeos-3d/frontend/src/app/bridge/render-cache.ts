@@ -1,6 +1,6 @@
 export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
 export function stableCacheJSON(payload) {
-  return JSON.stringify(payload, (key, rawValue) =>
+  return JSON.stringify(payload, (_key, rawValue) =>
     rawValue && typeof rawValue == "object" && !Array.isArray(rawValue)
       ? Object.fromEntries(
           Object.keys(rawValue)

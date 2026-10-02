@@ -112,9 +112,8 @@ type OverviewDetailStats = {
 export function createOverviewDetail({
   THREE: three,
   renderer: renderer,
-  scene: scene,
   getCamera: getCamera,
-  getFloorCamera: getFloorCamera = (floorMesh, floorCamera) => floorCamera,
+  getFloorCamera: getFloorCamera = (_floorMesh, floorCamera) => floorCamera,
   getFloorId: getFloorId = () => "",
   enabled: isEnabled,
   requestFrame: requestFrame = () => {},

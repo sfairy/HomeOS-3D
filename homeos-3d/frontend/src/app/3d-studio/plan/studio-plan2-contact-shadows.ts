@@ -899,7 +899,7 @@ export function createContactShadowController({
             }),
             (hasDeferredSurfaceBake = true));
         else {
-          for (const surfaceBakeStep of surfaceBakeIterator);
+          for (const _surfaceBakeStep of surfaceBakeIterator);
           contactEntry.surfacePending = false;
         }
       } else

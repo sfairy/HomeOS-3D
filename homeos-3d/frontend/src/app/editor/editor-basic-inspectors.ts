@@ -3,7 +3,7 @@ export function setInspectorToggle(buttonElement, isHidden) {
   (buttonElement.setAttribute("aria-pressed", String(isHidden)),
     (buttonElement.textContent = isHidden ? "隐藏" : "显示"));
 }
-export function iconButtonEffectInspectorLayer(options = {}, effect = "") {
+export function iconButtonEffectInspectorLayer(_options = {}, effect = "") {
   return effect === "button" || effect === "effect" ? effect : "button";
 }
 export function fitInspectorComponentToDimensions(component, componentKind, measure) {

@@ -1,4 +1,3 @@
-const earlyFrameToleranceMs = 1.5;
 export function createDemandFrameLoop({
   step: step,
   onWake: onWake = () => {},

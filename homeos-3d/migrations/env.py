@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from backend.src.database import Base
-from backend.src import models  # noqa: F401  确保模型注册到 Base.metadata
+from backend.src import models  # noqa: F401  # 确保模型注册到 Base.metadata  # pyright: ignore[reportUnusedImport]
 
 # Alembic Config 对象，对应 alembic.ini 里的取值。
 config = context.config

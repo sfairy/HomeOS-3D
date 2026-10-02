@@ -275,7 +275,7 @@ type CharacterParts = {
     ((shadeMesh.castShadow = false),
       (shadeMesh.renderOrder = 1),
       (parts.hat = addSphere([0.213, 0.036, 0.213], [0, 1.316, 0], outfitMaterial, headGroup)));
-    const handleMesh = addMesh(
+    addMesh(
       new THREE.TorusGeometry(0.04, 0.009, 8, 24),
       outfitMaterial,
       [0, 1.387, 0],

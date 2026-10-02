@@ -1,7 +1,3 @@
-const MAX_GRANT_MS = 60000,
-  MAX_REFRESH_DELAY_MS = 30000,
-  RETRY_DELAY_MS = 30000;
-
 /** 授权状态快照，会原样交给每个订阅者。 */
 type AccessMonitorState = {
   allowed: boolean;

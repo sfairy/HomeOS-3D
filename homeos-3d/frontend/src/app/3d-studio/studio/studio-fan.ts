@@ -206,7 +206,7 @@ export function createFanModel(three, mergeGeometries, options, theme) {
         0.0555,
         0.093,
       ).rotation.set(-Math.PI / 2, 0, Math.PI * 0.725));
-    const powerStroke = addMesh(
+    addMesh(
       root,
       new three.BoxGeometry(0.0011, 0.0007, 0.0055),
       materialMap.soft,

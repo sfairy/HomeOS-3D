@@ -431,7 +431,7 @@ if (
         {
           length: 101,
         },
-        (thresholdItem, thresholdIndex) => thresholdIndex / 100,
+        (_thresholdItem, thresholdIndex) => thresholdIndex / 100,
       ),
     },
   );

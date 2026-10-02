@@ -32,8 +32,7 @@ type SurfaceMaterialLike = {
   transmission?: number;
 };
 
-const REGION_LIGHT_LAYER = 30,
-  REGION_KINDS = ["floor", "wall", "furniture"],
+const REGION_KINDS = ["floor", "wall", "furniture"],
   coercedFiniteNumberOr = (numericInput, fallbackNumber = 0) =>
     Number.isFinite(Number(numericInput)) ? Number(numericInput) : fallbackNumber,
   clamp = (clampedInput, lowerBound, upperBound) =>

@@ -33,7 +33,7 @@ from ..ha.endpoints import endpoint_candidates
 from ..ha.errors import connection_error_message
 from ..ha.numeric_sources import numeric_sources
 from ..ha.percentage_sources import percentage_sources
-from ..models import DisplayDevice, HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
+from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
 from ..schemas import HABrowseMediaRequest, HAConnectionInput, HAServiceCallRequest, HATestRequest
 from ..security import session_token_hash
@@ -1333,7 +1333,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             nonlocal failure
             try:
                 await operation()
-            except Exception as error:  # noqa: BLE001 - 要按类型分流，不能直接往外抛
+            except Exception as error:  # 要按类型分流，不能直接往外抛
                 # WebSocketDisconnect 是「客户端主动断开」的常规信号，不让它盖住真正的异常。
                 if failure is None or not isinstance(error, WebSocketDisconnect):
                     failure = error

@@ -1,5 +1,3 @@
-const PRESENCE_SENSOR_BASE_Z_INDEX = 500000000,
-  ICON_BUTTON_EFFECT_BASE_Z_INDEX = 1000000000;
 export function normalizeIconButtonEffectComponent(component) {
   if (component?.type !== "icon-button-effect") return component;
   const nextProperties = {

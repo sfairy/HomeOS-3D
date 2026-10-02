@@ -1,4 +1,3 @@
-const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
 export function historySeriesCacheKey(cacheEntityId, hours) {
   return String(cacheEntityId || "") + ":" + (Number(hours) || 0);

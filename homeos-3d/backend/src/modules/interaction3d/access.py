@@ -136,7 +136,6 @@ def require_document_changes(request: Request, document: dict, previous: dict | 
     incoming = list(module_components(document))
     # 未授权：先按旧文档建立「路径 → 受保护配置」索引，再逐控件比对。
     old = dict(module_components(previous or {}))
-    incoming_by_path = dict(incoming)
     if not incoming:
         return None
     if allowed(request, database=database):
