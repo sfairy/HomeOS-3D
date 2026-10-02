@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """对 HomeOS 后端做端到端冒烟：生命周期 + 页面路由 + 匿名静态资源 + runtime 模块下发。
 
-用法：
-    .venv/bin/python tools/smoke_pages.py                # 进程内起 ASGI 应用（默认）
-    .venv/bin/python tools/smoke_pages.py --base http://127.0.0.1:8799   # 打已运行的实例
+用法（解释器用仓库根的 .venv-store，见 ops/start.py 的 VENV_DIR）：
+    ../.venv-store/bin/python tools/smoke_pages.py                # 进程内起 ASGI 应用（默认）
+    ../.venv-store/bin/python tools/smoke_pages.py --base http://127.0.0.1:8799   # 打已运行的实例
 
 为什么默认进程内：后台进程会随启动它的 shell 一起被判死（nohup 也拦不住），
 冒烟就得靠"先起后测再杀"三条命令对齐时间，非常脆。直接用 TestClient 跑真实 ASGI

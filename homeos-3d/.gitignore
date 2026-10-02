@@ -9,6 +9,6 @@ data/
 __pycache__/
 *.py[cod]
 
-# 迁移 / 校验过程产物（映射表与对账报告可以留，缓存不留）
-tools/_migration/*.tmp
+# 对账门禁的过程报告：mapping.json 是 verify_parity.py 的输入（要提交），
+# parity_report.json 每次运行都重写（不提交）。
 tools/_migration/parity_report.json

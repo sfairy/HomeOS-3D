@@ -16,7 +16,7 @@
     "typecheck": "tsc -p tsconfig.json --pretty false",
     "verify:material": "bun tools/verify_model_material_roles.ts",
     "verify:parity": "python3 tools/verify_parity.py",
-    "verify:smoke": ".venv/bin/python tools/smoke_pages.py",
+    "verify:smoke": "../.venv-store/bin/python tools/smoke_pages.py",
     "verify": "bun run typecheck && bun run verify:material && bun run build && bun run verify:parity && bun run verify:smoke"
   },
   "devDependencies": {
