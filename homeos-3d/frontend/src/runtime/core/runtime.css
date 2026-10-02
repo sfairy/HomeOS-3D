@@ -32,7 +32,13 @@
   place-items: center;
   background: transparent;
   color: #a8afb7;
-  font: 14px/1.8 sans-serif;
+  /* 与 bridge.css 的 .i3d-access-pending 同源：组件预览在画布里是整体缩放的，固定
+     14px 会被一起缩到几像素，载入失败时这一行唯一的提示就读不出来。先按宿主尺寸取
+     12–18px 屏幕字号，再乘 --i3d-visual-scale 反算回设计字号。 */
+  font-family: system-ui, sans-serif;
+  font-size: calc(clamp(12px, min(2.2cqw, 5.5cqh), 18px) * var(--i3d-visual-scale, 1));
+  line-height: 1.8;
+  letter-spacing: 0.02em;
   text-align: center;
   transition:
     opacity 0.28s ease,
