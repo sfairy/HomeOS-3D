@@ -73,6 +73,7 @@ from .admin_shared import (
     _naive_utc,
     _page,
 )
+from .store_shared import close_order_channel_best_effort
 
 router = APIRouter()
 
@@ -729,30 +730,13 @@ def admin_cancel(
     # 与买家自助取消（store_orders.cancel_order）同一口径：先 best-effort 关渠道，
     # 再做本地收尾。否则旧二维码在巡检关单前（最长 CLOSE_LOOKBACK_HOURS）仍可被支付，
     # 一笔迟到的成功付款会把已取消单「复活」并自动发码，管理员的取消意图被静默推翻。
-    setting = site_config.get_setting(session)
-    try:
-        provider = request.app.state.resolve_payment_provider(
-            setting, name=order.payment_provider or None
-        )
-    except PaymentError:
-        provider = None
-    channel_closed = False
-    if provider is not None and getattr(provider, "name", "") in {"alipay", "wechat"}:
-        try:
-            outcome = provider.close_payment(request.app.state.settings, order)
-        except PaymentError as error:
-            logger.warning(
-                "后台取消订单时关单失败 order=%s 错误=%s（留给巡检重试）",
-                order.order_no,
-                error,
-            )
-        else:
-            if outcome.already_paid:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="该订单已有付款记录，无法取消；请改用退款流程。",
-                )
-            channel_closed = bool(outcome.closed)
+    channel_closed = close_order_channel_best_effort(
+        request,
+        session,
+        order,
+        log_context="后台取消订单时",
+        already_paid_detail="该订单已有付款记录，无法取消；请改用退款流程。",
+    )
 
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：取消与超时扫描/支付入账可能同时发生，只有把订单从

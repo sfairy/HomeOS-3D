@@ -17,6 +17,8 @@ from ..core.models import (
     Customer,
     EmailVerification,
 )
+from ..ops import site_settings as site_config
+from ..payments.base import PaymentError
 from ..security import password_gate
 from ..security.limiter import SlidingWindowLimiter
 from ..security.request_security import resolve_client_ip, secure_cookies_required
@@ -328,3 +330,43 @@ def _note_password_confirmation_failure(session, scope: str) -> None:
     """
     session.rollback()
     record_attempt_in_new_session(session, scope)
+def close_order_channel_best_effort(
+    request: Request,
+    session,
+    order,
+    *,
+    log_context: str,
+    already_paid_detail: str,
+) -> bool:
+    """取消订单第一步：best-effort 关闭支付渠道，返回「渠道是否已明确关单」。
+
+    买家自助取消（store_orders.cancel_order）与后台取消（admin_orders.admin_cancel）必须
+    **同一口径**：少了这一步，旧二维码在巡检关单前（最长 CLOSE_LOOKBACK_HOURS）仍可被支付，
+    一笔迟到的成功付款会把已取消单「复活」并自动发码，取消意图被静默推翻。两条路径共用这一份
+    实现，避免「改了一处忘了另一处」再次分叉。
+
+    关单失败只记日志（留给巡检重试）并返回 False；渠道侧已付款时抛 409，文案由调用方给
+    （买家看「账号中心」，管理员看「退款流程」）。
+    """
+    setting = site_config.get_setting(session)
+    try:
+        provider = request.app.state.resolve_payment_provider(
+            setting, name=order.payment_provider or None
+        )
+    except PaymentError:
+        provider = None
+    if provider is None or getattr(provider, "name", "") not in {"alipay", "wechat"}:
+        return False
+    try:
+        outcome = provider.close_payment(request.app.state.settings, order)
+    except PaymentError as error:
+        logger.warning(
+            "%s关单失败 order=%s 错误=%s（留给巡检重试）", log_context, order.order_no, error
+        )
+        return False
+    if outcome.already_paid:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=already_paid_detail,
+        )
+    return bool(outcome.closed)

@@ -26,6 +26,7 @@ from .store_shared import (
     _base_url,
     _customer_for,
     _require_verified,
+    close_order_channel_best_effort,
     logger,
 )
 from ..commerce import coupons, fulfill
@@ -388,28 +389,13 @@ def cancel_order(
         )
 
     # ---- 阶段一：先关渠道（网络调用），失败只记日志 ----
-    setting = site_config.get_setting(session)
-    try:
-        provider = request.app.state.resolve_payment_provider(
-            setting, name=order.payment_provider or None
-        )
-    except PaymentError:
-        provider = None
-    channel_closed = False
-    if provider is not None and getattr(provider, "name", "") in {"alipay", "wechat"}:
-        try:
-            outcome = provider.close_payment(request.app.state.settings, order)
-        except PaymentError as error:
-            logger.warning(
-                "取消订单时关单失败订单号=%s 错误=%s（留给巡检重试）", order.order_no, error
-            )
-        else:
-            if outcome.already_paid:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="该订单已有付款记录，无法取消；请稍后到账号中心查看授权。",
-                )
-            channel_closed = bool(outcome.closed)
+    channel_closed = close_order_channel_best_effort(
+        request,
+        session,
+        order,
+        log_context="取消订单时",
+        already_paid_detail="该订单已有付款记录，无法取消；请稍后到账号中心查看授权。",
+    )
 
     # ---- 阶段二：本地收尾（条件 UPDATE 抢单） ----
     product = session.get(Product, order.product_id) if order.product_id else None
