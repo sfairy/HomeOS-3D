@@ -384,6 +384,14 @@
               </div>
               <button class="hb-button hb-button--secondary hb-button--sm" id="overview-recompute-stock">重算库存预留</button>
             </div>
+            <div class="setting-row">
+              <div>
+                <strong>重算优惠码核销数</strong>
+                <p>按优惠码核销记录重新统计各码的「已核销」数。名额计数是快照，改过名额、
+                释放过订单或历史版本重复占用时可能与真实情况对不上，发现数字不对点这里修正。</p>
+              </div>
+              <button class="hb-button hb-button--secondary hb-button--sm" id="overview-recompute-coupons">重算优惠码核销数</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1554,12 +1562,8 @@
 
 <div id="admin-toast"></div>
 
-<!-- 三个共享实现在这里取全局别名，必须在任何 module 之前以普通脚本加载：
-     同源脚本不需要 nonce，这里不带。 -->
-<script type="module" src="/src/htmlsafe.ts"></script>
-<script type="module" src="/src/api-error.ts"></script>
-<script type="module" src="/src/money.ts"></script>
-
+<!-- 共享实现（htmlsafe / api-error / money）由各模块自行 import，不挂全局别名，
+     单独再挂一遍只会多跑几次请求。 -->
 <script type="module" nonce="{{NONCE}}" src="/src/admin/app.ts"></script>
 <!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
      内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->

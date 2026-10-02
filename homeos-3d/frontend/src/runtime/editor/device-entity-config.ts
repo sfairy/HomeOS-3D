@@ -16,17 +16,11 @@ const defaultCapabilitiesByDomain = {
     binary_sensor: [],
   },
   capabilityAdapterByDomain = new Map();
-export function registerDeviceCapabilityAdapter(capabilityDomain, capabilityAdapter) {
-  return !capabilityDomain || !capabilityAdapter || typeof capabilityAdapter != "object"
-    ? () => {}
-    : (capabilityAdapterByDomain.set(String(capabilityDomain), capabilityAdapter),
-      () => capabilityAdapterByDomain.delete(String(capabilityDomain)));
-}
-export function deviceCapabilityAdapter(lookupDomain) {
+
+function deviceCapabilityAdapter(lookupDomain) {
   return capabilityAdapterByDomain.get(String(lookupDomain || "")) || null;
 }
-const normalizedRoleSet = new Set(["control", "state", "status"]),
-  resolveDomain = (rawEntityId) => String(rawEntityId || "").split(".")[0];
+const resolveDomain = (rawEntityId) => String(rawEntityId || "").split(".")[0];
 export function entityCapabilities(entity, state = null) {
   const entityId = entity?.entityId || entity?.entity_id || "",
     entityDomain = entity?.domain || resolveDomain(entityId),
@@ -79,39 +73,4 @@ export function deviceEntityCatalog(entities = [], deviceId = "", statesByEntity
         )
     : [];
 }
-export function normalizeDeviceEntitySelection(selectionEntries = [], catalogEntries = []) {
-  const catalogEntriesByEntityId = new Map(
-      catalogEntries.map((catalogEntry) => [catalogEntry.entityId, catalogEntry]),
-    ),
-    selectionKeySet = new Set();
-  return selectionEntries
-    .filter((selectionEntry) => {
-      const selectionKey = selectionEntry?.entityId + ":" + selectionEntry?.role;
-      return !normalizedRoleSet.has(selectionEntry?.role) ||
-        selectionKeySet.has(selectionKey) ||
-        !catalogEntriesByEntityId.has(selectionEntry.entityId)
-        ? false
-        : (selectionKeySet.add(selectionKey), true);
-    })
-    .map((selectedEntry) => {
-      const matchedCatalogEntry = catalogEntriesByEntityId.get(selectedEntry.entityId),
-        resolvedRole =
-          selectedEntry.role === "control" && !matchedCatalogEntry.writable
-            ? "state"
-            : selectedEntry.role;
-      return {
-        entityId: matchedCatalogEntry.entityId,
-        role: resolvedRole,
-        capabilities: [...matchedCatalogEntry.capabilities],
-      };
-    });
-}
-export function deviceEntityRoleLabel(role) {
-  return (
-    {
-      control: "弹窗控制",
-      state: "只读状态",
-      status: "状态判断",
-    }[role] || "不显示"
-  );
-}
+

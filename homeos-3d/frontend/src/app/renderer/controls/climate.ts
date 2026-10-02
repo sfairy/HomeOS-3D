@@ -9,7 +9,7 @@ function toNumberOrDefault(sourceValue, fallbackValue = null) {
   const parsedNumber = Number(sourceValue);
   return Number.isFinite(parsedNumber) ? parsedNumber : fallbackValue;
 }
-export function configuredClimateDeviceType(component) {
+function configuredClimateDeviceType(component) {
   const configuredType = String(component?.properties?.deviceType || "auto");
   return climateDeviceTypesSet.has(configuredType) ? configuredType : "auto";
 }
@@ -296,7 +296,7 @@ const CLIMATE_MODE_LABELS = {
     horizontal_middle_right: "固定右中",
     horizontal_rightmost: "固定最右",
   };
-export function normalizeClimateModeKey(rawModeKey) {
+function normalizeClimateModeKey(rawModeKey) {
   return String(rawModeKey || "")
     .normalize("NFKC")
     .trim()
@@ -353,7 +353,7 @@ export function climateOptionPresentation(
     ? "select"
     : "buttons";
 }
-export function climateModeTranslation(
+function climateModeTranslation(
   modeInput,
   {
     entityId: translationEntityId = "",
@@ -624,19 +624,7 @@ export function climateDeviceLabel(deviceLabelType) {
       ? "热水器"
       : "空调";
 }
-export function climateDialogTitle(
-  componentLabel,
-  entityName = "",
-  dialogDeviceType = "air-conditioner",
-) {
-  const trimmedLabel = String(componentLabel || "").trim(),
-    fallbackDialogName = String(entityName || "").trim() || climateDeviceLabel(dialogDeviceType);
-  return trimmedLabel
-    ? dialogDeviceType === "bath-heater" && trimmedLabel === "空调"
-      ? fallbackDialogName
-      : trimmedLabel
-    : fallbackDialogName;
-}
+
 export function climatePowerCommand(
   commandEntityId,
   commandState,

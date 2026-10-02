@@ -2,7 +2,7 @@
  * 跨面板缓存。
  */
 
-export type AdminState = {
+ type AdminState = {
   products: unknown[];
   productPage: unknown[];
   licenses: unknown[];

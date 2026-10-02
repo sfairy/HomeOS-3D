@@ -28,11 +28,11 @@ from ...models import HAEntity, ProjectDraft
 from ...schemas import HAServiceCallRequest
 from ...api.ha import active_connection, call_service
 from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
-from .access import access_grant, module_components, require_access
+from .access import access_grant, is_scene_id, module_components, require_access, scene_snapshot_file
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
-from .request_origin import require_same_origin_write
+from ...request_origin import require_same_origin_write
 from starlette.concurrency import run_in_threadpool
 
 # 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
@@ -44,6 +44,36 @@ SCENE_SOURCE_KEY = 'interaction3dSource'
 # 运行时资源清单缓存：键是 (清单路径, mtime_ns)。构建一次换一个 mtime，
 # 缓存自然失效，不用重启后端；只保留当前这一代，避免反复构建把缓存撑大。
 _runtime_media_type_cache: dict[tuple[str, int], dict[str, str]] = {}
+
+
+def find_module_component(document: dict, component_id: str) -> dict | None:
+    # [补充说明] 在仪表盘文档里按控件 id 找 3D 交互控件；找不到返回 None。
+    return next((item for _, item in module_components(document) if item.get('id') == component_id), None)
+
+
+def component_properties(database, project_id: str | None, component_id: str | None) -> dict:
+    # [补充说明] 取出某个仪表盘草稿里控件的 properties 配置。
+    #
+    # 草稿缺失、文档损坏、控件不存在都退化成空字典：调用方随后的「实体未配置到当前
+    # 控件」判定会自然拒绝，不必每个设备分支各写一遍「取草稿 → 找控件 → 读 properties」。
+    # 文档损坏时 json.loads 照旧抛出，由 FastAPI 转成 500：那属于库里的数据已经坏了，
+    # 不该被这里悄悄吞掉。
+    if not project_id or not component_id:
+        return {}
+    draft = database.get(ProjectDraft, project_id)
+    if draft is None:
+        return {}
+    component = find_module_component(json.loads(draft.document_json), component_id)
+    return component.get('properties', {}) if component else {}
+
+
+def scene_snapshot(request: Request, database, scene_id: str) -> dict:
+    # [补充说明] 读取户型快照并叠加实时状态，返回 scene 子树。
+    #
+    # 快照文件不存在时 scene_path 抛 404；内容损坏由调用方包成 409 —— 两类失败
+    # 在设备控制分支里的文案不同，所以异常处理留在调用处。
+    snapshot = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
+    return current_scene_payload(request, database, scene_id, snapshot)['scene']
 
 class Interaction3dControlRequest(HAServiceCallRequest):
     # [补充说明] 3D 舞台页的设备控制请求：在 HA 服务调用之上补三个定位字段。
@@ -95,15 +125,15 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
 def scene_path(request: Request, scene_id: str):
     # [补充说明] 把 sceneId 解析成磁盘上的快照路径，并确认文件存在。
     #
-    # sceneId 用 32 位十六进制（uuid4().hex）而不是原始字符串：既能直接拼进文件名，
-    # 也不会带来路径穿越风险。
+    # 判定与拼路径都走 access.scene_snapshot_file：户型清理流程要做同一件事，
+    # 两处各写一份时「什么样的 sceneId 合法」迟早会分叉。
     #
     # 异常:
     # HTTPException: 404，ID 格式非法，或快照已被清理。
-    if not re.fullmatch('[0-9a-f]{32}', scene_id):
+    if not is_scene_id(scene_id):
         raise HTTPException(404, detail='户型快照不存在。')
-    path = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes' / f'{scene_id}.json'
-    if not path.is_file():
+    path = scene_snapshot_file(request.app.state.settings, scene_id)
+    if path is None:
         raise HTTPException(404, detail='户型快照不存在，请重新载入户型。')
     return path
 
@@ -369,16 +399,13 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if payload.domain != 'media_player' or not payload.project_id or not payload.component_id:
             raise HTTPException(422, detail='智能音响控制缺少仪表盘、控件或媒体实体信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        properties = component.get('properties', {}) if component else {}
+        properties = component_properties(database, payload.project_id, payload.component_id)
         matches = [item for item in properties.get('devices', {}).get('speakers', []) if item.get('entityId') == payload.entity_id]
         if not matches:
             raise HTTPException(403, detail='此媒体实体未绑定到当前智能音响。')
         scene_id = properties.get('sceneId', '')
         try:
-            snapshot = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
-            scene = current_scene_payload(request, database, scene_id, snapshot)['scene']
+            scene = scene_snapshot(request, database, scene_id)
             valid = any(
                 model.get('id') == item.get('modelId') and model.get('type') == 'speaker'
                 for item in matches
@@ -397,9 +424,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if not payload.project_id or not payload.component_id:
             raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        properties = component.get('properties', {}) if component else {}
+        properties = component_properties(database, payload.project_id, payload.component_id)
         bindings = properties.get('devices', {}).get('televisions', [])
         power_command = payload.service in {'turn_on', 'turn_off'}
         matches = [
@@ -408,11 +433,9 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         ]
         if not matches:
             raise HTTPException(403, detail='此电源实体未配置到当前电视。')
-        scene_id = component['properties'].get('sceneId', '')
-        reference = scene_path(request, scene_id)
+        scene_id = properties.get('sceneId', '')
         try:
-            snapshot = json.loads(reference.read_text(encoding='utf-8'))
-            scene = current_scene_payload(request, database, scene_id, snapshot)['scene']
+            scene = scene_snapshot(request, database, scene_id)
             valid = any(
                 model.get('id') == item.get('modelId') and model.get('type') == 'tv'
                 for item in matches
@@ -451,17 +474,14 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if payload.domain != 'lock' or not payload.project_id or not payload.component_id:
             raise HTTPException(422, detail='门锁控制缺少仪表盘或控件信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        properties = component.get('properties', {}) if component else {}
+        properties = component_properties(database, payload.project_id, payload.component_id)
         binding = next((item for item in properties.get('security', {}).get('locks', []) if item.get('entityId') == payload.entity_id), None)
         if not binding:
             raise HTTPException(403, detail='此门锁未绑定到当前控件。')
         scene_id = properties.get('sceneId', '')
         try:
-            snapshot = json.loads(scene_path(request, scene_id).read_text(encoding='utf-8'))
-            require_lock_model(binding, current_scene_payload(request, database, scene_id, snapshot)['scene'])
-        except (OSError, ValueError, KeyError, TypeError) as error:
+            require_lock_model(binding, scene_snapshot(request, database, scene_id))
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
             raise HTTPException(409, detail='户型暂时无法读取。') from error
         connection = active_connection(database)
         entity = database.scalar(select(HAEntity).where(HAEntity.connection_id == connection.id, HAEntity.entity_id == payload.entity_id, HAEntity.domain == 'lock', HAEntity.sync_status == 'active', HAEntity.disabled_by.is_(None))) if connection else None
@@ -501,9 +521,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if not payload.project_id or not payload.component_id:
             raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        properties = component.get('properties', {}) if component else {}
+        properties = component_properties(database, payload.project_id, payload.component_id)
         bindings = properties.get('environment', {}).get('airConditioners' if is_climate_extra or is_bath_heater else 'airers' if is_airer else 'fans' if is_fan else 'waterHeaters' if is_water_heater else 'curtains' if is_cover else 'airPurifiers' if payload.domain == 'fan' or extra_domain else 'airConditioners', [])
         if is_bath_heater:
             bindings = [item for item in bindings if item.get('climateType') == 'bath-heater']
@@ -519,10 +537,8 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if not primary and not owners:
             raise HTTPException(403, detail=f'此{name}未配置到当前 3D 交互控件。')
         scene_id = properties.get('sceneId', '')
-        reference = scene_path(request, scene_id)
         try:
-            snapshot = json.loads(reference.read_text(encoding='utf-8'))
-            scene = current_scene_payload(request, database, scene_id, snapshot)['scene']
+            scene = scene_snapshot(request, database, scene_id)
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
             raise HTTPException(409, detail='户型暂时无法读取，请稍后重试。') from error
 
@@ -713,14 +729,7 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(404, detail='仪表盘不存在。')
-    component = next(
-        (
-            item
-            for _, item in module_components(json.loads(draft.document_json))
-            if item.get('id') == component_id
-        ),
-        None,
-    )
+    component = find_module_component(json.loads(draft.document_json), component_id)
     if component is None:
         raise HTTPException(404, detail='3D 交互控件不存在。')
     return {'projectId': project_id, 'componentId': component_id, 'phase': 'authorization-shell', 'component': component}

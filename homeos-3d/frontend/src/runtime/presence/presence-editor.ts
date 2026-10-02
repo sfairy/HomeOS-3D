@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { openPresenceFocusEditor } from "./presence-focus-editor";
 import { mountInteraction3d } from "../core/runtime";
 import {
@@ -44,7 +43,7 @@ export async function openPresenceEditor({
             : 30
           : (sensorEntry.displayDuration ?? 0),
       }));
-  const createDomElement = (tagName, textValue, classNameValue) => {
+  const createDomElement = (tagName, textValue = "", classNameValue = "") => {
       const createdElement = ownerDocument.createElement(tagName);
       return (
         textValue && (createdElement.textContent = textValue),
@@ -52,7 +51,7 @@ export async function openPresenceEditor({
         createdElement
       );
     },
-    createSvgElement = (svgTagName, svgAttributes) => {
+    createSvgElement = (svgTagName, svgAttributes = {}) => {
       const svgElement = ownerDocument.createElementNS("http://www.w3.org/2000/svg", svgTagName);
       for (const [attributeName, attributeValue] of Object.entries(svgAttributes || {}))
         svgElement.setAttribute(attributeName, attributeValue);
@@ -92,7 +91,7 @@ export async function openPresenceEditor({
     viewMode = "plan",
     isPreviewingWalk = false,
     isHitRangeVisible = false,
-    topViewTimerId = 0,
+    topViewTimerId: ReturnType<typeof setTimeout> | number = 0,
     hoverPoint = null,
     pendingSyncHandlers = [];
   const flushPendingEdits = () => {
@@ -124,7 +123,7 @@ export async function openPresenceEditor({
       dialogElement.remove(),
       stylesheetLink.remove(),
       ownerDocument.dispatchEvent(new Event("hb-i3d-preview-scope")),
-      previouslyFocusedElement?.focus?.(),
+      previouslyFocusedElement instanceof HTMLElement && previouslyFocusedElement.focus(),
       onClose?.());
   }
   const applyButton = createActionButton(
@@ -943,7 +942,7 @@ export async function openPresenceEditor({
   };
   for (const pointerEventName of ["pointerup", "pointercancel", "lostpointercapture"])
     planSvgElement.addEventListener(pointerEventName, finishDragging);
-  const planResizeObserver = new ResizeObserver(renderPlan);
+  const planResizeObserver = new ResizeObserver(() => renderPlan());
   (planResizeObserver.observe(planSvgElement),
     dialogElement.addEventListener("cancel", (cancelEvent) => {
       (cancelEvent.preventDefault(), closeEditor());

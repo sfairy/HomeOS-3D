@@ -212,7 +212,7 @@ export async function loadEntitlements() {
   renderPager('entitlements');
 }
 
-export function openEntitlementEditor(entry: Entitlement) {
+ function openEntitlementEditor(entry: Entitlement) {
   const form = $('#entitlement-patch-form') as EntitlementForm | null;
   const picker = $('#entitlement-patch-features');
   if (!form || !picker) return;

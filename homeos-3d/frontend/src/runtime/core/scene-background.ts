@@ -11,7 +11,7 @@ type BackgroundAppearanceConfig = {
   backgroundMotion?: unknown;
 };
 
-export function backgroundFloorAnchor(
+function backgroundFloorAnchor(
   anchorStageOptions,
   anchorCache = new WeakMap(),
   floorRef = anchorStageOptions.backgroundFloor,

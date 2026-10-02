@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
 import { createEnvironmentHalos as createEnvironmentHalos2 } from "./environment-halos";
 import {
@@ -132,7 +131,8 @@ function isModelTypeBound(modelType, bindingCandidate) {
             : !!bindingCandidate.entityId;
 }
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
-  const map = new Map(
+  // 键是 floorId+modelId 组合键，值是宿主下发的场景绑定记录（字段随场景类型变化）
+  const map = new Map<string, any>(
     sceneBindings.map((sceneBinding) => [
       JSON.stringify([sceneBinding.floorId, sceneBinding.modelId]),
       sceneBinding,
@@ -173,7 +173,7 @@ export function pageModelBindings(floors, sceneBindings, page, floorId) {
 }
 export function createEnvironmentScene({
   THREE: THREE,
-  requestFrame: requestFrame = () => {},
+  requestFrame: requestFrame = (_changedFloorIds?: unknown) => {},
   prepareMaterials: prepareMaterials = () => {},
 }) {
   const options = {
@@ -187,9 +187,10 @@ export function createEnvironmentScene({
     },
     patchesByMaterial = new Map(),
     variantsBySourceMaterial = new Map(),
-    set = new Set(),
+    set = new Set<any>(),
     retainedRootSet = new Set(),
-    retainedEntriesByMesh = new Map(),
+    // 材质条目记录 mesh/original/applied/modelNode/modelKey 等，运行时逐步补全
+    retainedEntriesByMesh = new Map<any, any>(),
     modelKeysByRetainedRoot = new Map(),
     retainedKeySet = new Set(),
     releasedKeySet = new Set(),
@@ -556,9 +557,9 @@ export function createEnvironmentScene({
   function indexSceneGraph() {
     if (!value?.traverse) return;
     prepareMaterials();
-    const entriesByMesh = new Map([
+    const entriesByMesh = new Map<any, any>([
         ...retainedEntriesByMesh,
-        ...list.map((indexedEntry) => [indexedEntry.mesh, indexedEntry]),
+        ...list.map((indexedEntry): [any, any] => [indexedEntry.mesh, indexedEntry]),
       ]),
       nextMeshEntries = [],
       usedMaterialSet = new Set();
@@ -642,7 +643,7 @@ export function createEnvironmentScene({
         (unpatchMaterial(unusedMaterial, stalePatch), patchesByMaterial.delete(unusedMaterial));
     hasTraversedScene = true;
   }
-  function setMode(modeOptions = {}) {
+  function setMode(modeOptions: Record<string, any> = {}) {
     if (isDisposed) return;
     if (Number.isFinite(modeOptions.saturation)) {
       const saturationRatio = Math.max(0, Math.min(100, modeOptions.saturation)) / 100;

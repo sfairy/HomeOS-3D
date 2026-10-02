@@ -22,6 +22,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select, text
+from starlette.concurrency import run_in_threadpool
 
 from ..dependencies import DatabaseSession, LicensedUser
 from ..global_popups import global_popups
@@ -37,8 +38,6 @@ MAX_DRAFT_BYTES = 67108864
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512
-#: 导出包里「必须存在」的条目 -> 校验方式；当前为空表，保留这个钩子是给后续加必填项用的。
-REQUIRED_EXPORT_FILES = {}
 # 导出目录的互斥锁：上传、覆盖、删除都会做「先落临时目录再 rename」的多步操作，
 # 不加锁时两个并发请求的中间目录可能互相覆盖。
 _storage_lock = RLock()
@@ -80,6 +79,18 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
         # 成功路径下临时文件已被 rename 走，这里只清理失败时的残留。
         if temporary_path.exists():
             temporary_path.unlink()
+
+
+def _decode_document_json(raw: str | bytes | None) -> dict | None:
+    # [补充说明] 宽松解析项目/同步行里的文档 JSON；损坏或不是对象时返回 None。
+    #
+    # 与 _read_draft 的「坏了就报错」相反：这些文档只是清理与迁移的输入，
+    # 单份坏掉应当跳过这一份（调用方决定退化成空对象还是 continue），而不是让整个请求 500。
+    try:
+        value = json.loads(raw) if raw else {}
+    except (TypeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
 
 
 def _read_draft(path: Path) -> dict | None:
@@ -192,8 +203,10 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
         if not entries or len(entries) > MAX_EXPORT_FILES:
             raise HTTPException(422, '导出文件数量无效。')
         names = {entry.filename for entry in entries}
-        if not names:
-            raise HTTPException(422, '导出包不能为空。')
+        # set 会静默吞掉重名，而解压时第二条同名条目会撞上独占创建（xb）报 500：
+        # 在只读的校验阶段就把重名拒掉。
+        if len(names) != len(entries):
+            raise HTTPException(422, '导出包包含重名文件。')
         expanded_size = 0
         for entry in entries:
             name = entry.filename
@@ -296,10 +309,19 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, databa
         # ---- 模型删除的级联清理 ------------------------------------------------
         # 先把所有项目文档读成内存快照：plan_cleanup 只读它，改的是自己深拷贝出来的副本。
         drafts = database.scalars(select(ProjectDraft)).all()
-        documents = {draft.project_id: json.loads(draft.document_json) for draft in drafts}
+        # 单份文档损坏时跳过它：清理只处理能读懂的项目，不让一份坏数据把整次保存变成 500。
+        documents = {}
+        for draft in drafts:
+            document = _decode_document_json(draft.document_json)
+            if document is None:
+                continue
+            documents[draft.project_id] = document
         state = database.get(StudioInteractionSync, 1)
-        # 撤销记录存在同步行里；全新库或内容被外部改坏都按「没有撤销记录」处理。
-        archive = json.loads(state.document_json).get('archive', []) if state else []
+        # 撤销记录存在同步行里；全新库、内容被外部改坏、archive 不是数组都按「没有撤销记录」处理。
+        saved = _decode_document_json(state.document_json) if state is not None else {}
+        archive = (saved or {}).get('archive', [])
+        if not isinstance(archive, list):
+            archive = []
         (changed, archive, impacts) = plan_cleanup(
             documents,
             (current or {}).get('scene') or {},
@@ -354,7 +376,8 @@ def _deliver_pending(request, database):
     state = database.get(StudioInteractionSync, 1)
     if state is None:
         return
-    value = json.loads(state.document_json)
+    # 这一段读不出来（被外部改坏）时按「没有待补写内容」处理，避免读取草稿也 500。
+    value = _decode_document_json(state.document_json) or {}
     if value.get('pending') is not None:
         _atomic_json_write(request.app.state.settings.studio3d_draft_path, value['pending'])
         value.pop('pending')
@@ -386,7 +409,6 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     folder_name = _folder_name(request)
     overwrite = request.headers.get('x-export-overwrite', '').strip().lower() == 'true'
     settings = request.app.state.settings
-    target = settings.studio3d_exports_dir / folder_name
     # 上传先落在同目录下的临时名再校验，正式路径上不会出现半截 ZIP。
     temporary_archive = settings.studio3d_exports_dir / f'.upload-{uuid4().hex}.zip'
     written = 0
@@ -408,65 +430,78 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
         if written == 0:
             raise HTTPException(422, '导出 ZIP 为空。')
         entries = _validate_archive(temporary_archive)
-        # 解压与目录换位连同 _storage_lock 一起做：存在性与覆盖判断放在锁内，
-        # 防止两个并发上传都看到「不存在」而互相覆盖。
-        with _storage_lock:
-            target_exists = target.exists()
-            if target_exists and not overwrite:
-                raise HTTPException(409, {
-                    'code': 'STUDIO3D_EXPORT_EXISTS',
-                    'message': '该文件夹已存在，请确认覆盖或换一个文件夹名。',
-                    'folderName': folder_name})
-            # 448 = 0o700；先解压到隐藏的暂存目录，成功后再整体 rename 成正式目录。
-            staging = settings.studio3d_exports_dir / f'.export-{uuid4().hex}'
-            staging.mkdir(mode=448)
-            try:
-                with zipfile.ZipFile(temporary_archive) as archive:
-                    for entry in entries:
-                        output_path = staging / entry.filename
-                        # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive 校验过，
-                        # 不再信任 ZIP 自带信息。
-                        with archive.open(entry) as source:
-                            with output_path.open('xb') as output:
-                                shutil.copyfileobj(source, output)
-                        output_path.chmod(384)
-                # 原始 ZIP 也留在文件夹里，便于用户回下载或做整体备份。
-                archive_name = f'{folder_name}.zip'
-                shutil.copyfile(temporary_archive, staging / archive_name)
-                (staging / archive_name).chmod(384)
-                if target_exists:
-                    # 换位法：新目录就位失败时把旧目录改回来，任何时刻都有一份可用数据。
-                    backup = settings.studio3d_exports_dir / f'.previous-{uuid4().hex}'
-                    os.replace(target, backup)
-                    try:
-                        os.replace(staging, target)
-                    except Exception:
-                        os.replace(backup, target)
-                        raise
-                    shutil.rmtree(backup, ignore_errors=True)
-                else:
-                    os.replace(staging, target)
-            finally:
-                # 失败路径清掉暂存目录；成功时它已被 rename 走，这里不会命中。
-                if staging.exists():
-                    shutil.rmtree(staging)
-        catalog = getattr(request.app.state, 'asset_catalog', None)
-        if catalog is not None:
-            # 只登记图片：JSON 不是素材，前端素材库也不需要它。
-            for entry in entries:
-                if Path(entry.filename).suffix.lower() in {'.png', '.webp'}:
-                    catalog.register_studio3d_export(folder_name, target / entry.filename)
-        request.app.state.global_log.append('success', '3D户型图编辑器', '导出', f'3D 户型图已导出到：{folder_name}')
-        return {
-            'folderName': folder_name,
-            'relativePath': f'exports/{folder_name}',
-            'overwritten': target_exists,
-            'files': sorted([entry.filename for entry in entries]) + [f'{folder_name}.zip'],
-        }
+        # 校验之后的解压、目录换位与素材登记都是同步磁盘重活：丢进线程池执行，
+        # 免得一条导出请求把事件循环卡住，同进程的其他接口与 WebSocket 都要在一旁等。
+        return await run_in_threadpool(
+            _store_export_package, request, folder_name, overwrite, temporary_archive, entries)
     finally:
         # 无论成功失败都清掉上传临时文件，不给导出目录留下垃圾。
         if temporary_archive.exists():
             temporary_archive.unlink()
+
+
+def _store_export_package(request: Request, folder_name: str, overwrite: bool, temporary_archive: Path, entries: list[zipfile.ZipInfo]) -> dict:
+    # [补充说明] 把已校验的导出包解压进正式目录、登记素材并拼出接口响应（同步阻塞函数）。
+    #
+    # 与路由分开是因为它全是同步磁盘操作：调用方用 run_in_threadpool 执行，
+    # 事件循环在 NAS 慢慢 fsync 时仍然可以服务其他请求。
+    # 解压与目录换位连同 _storage_lock 一起做：存在性与覆盖判断放在锁内，
+    # 防止两个并发上传都看到「不存在」而互相覆盖。
+    settings = request.app.state.settings
+    target = settings.studio3d_exports_dir / folder_name
+    with _storage_lock:
+        target_exists = target.exists()
+        if target_exists and not overwrite:
+            raise HTTPException(409, {
+                'code': 'STUDIO3D_EXPORT_EXISTS',
+                'message': '该文件夹已存在，请确认覆盖或换一个文件夹名。',
+                'folderName': folder_name})
+        # 448 = 0o700；先解压到隐藏的暂存目录，成功后再整体 rename 成正式目录。
+        staging = settings.studio3d_exports_dir / f'.export-{uuid4().hex}'
+        staging.mkdir(mode=448)
+        try:
+            with zipfile.ZipFile(temporary_archive) as archive:
+                for entry in entries:
+                    output_path = staging / entry.filename
+                    # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive 校验过，
+                    # 不再信任 ZIP 自带信息。
+                    with archive.open(entry) as source:
+                        with output_path.open('xb') as output:
+                            shutil.copyfileobj(source, output)
+                    output_path.chmod(384)
+            # 原始 ZIP 也留在文件夹里，便于用户回下载或做整体备份。
+            archive_name = f'{folder_name}.zip'
+            shutil.copyfile(temporary_archive, staging / archive_name)
+            (staging / archive_name).chmod(384)
+            if target_exists:
+                # 换位法：新目录就位失败时把旧目录改回来，任何时刻都有一份可用数据。
+                backup = settings.studio3d_exports_dir / f'.previous-{uuid4().hex}'
+                os.replace(target, backup)
+                try:
+                    os.replace(staging, target)
+                except Exception:
+                    os.replace(backup, target)
+                    raise
+                shutil.rmtree(backup, ignore_errors=True)
+            else:
+                os.replace(staging, target)
+        finally:
+            # 失败路径清掉暂存目录；成功时它已被 rename 走，这里不会命中。
+            if staging.exists():
+                shutil.rmtree(staging)
+    catalog = getattr(request.app.state, 'asset_catalog', None)
+    if catalog is not None:
+        # 只登记图片：JSON 不是素材，前端素材库也不需要它。
+        for entry in entries:
+            if Path(entry.filename).suffix.lower() in {'.png', '.webp'}:
+                catalog.register_studio3d_export(folder_name, target / entry.filename)
+    request.app.state.global_log.append('success', '3D户型图编辑器', '导出', f'3D 户型图已导出到：{folder_name}')
+    return {
+        'folderName': folder_name,
+        'relativePath': f'exports/{folder_name}',
+        'overwritten': target_exists,
+        'files': sorted([entry.filename for entry in entries]) + [f'{folder_name}.zip'],
+    }
 
 
 @router.delete('/exports', status_code=status.HTTP_204_NO_CONTENT)

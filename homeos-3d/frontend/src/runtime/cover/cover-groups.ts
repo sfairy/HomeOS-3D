@@ -1,7 +1,7 @@
 import { DEFAULT_BUTTON_SIZE, buttonIconSize } from "@app/bridge/button-icon-size";
 
 /** 窗帘实例（后端 entity + 前端 kind 的混合形态，只用到这几个字段）。 */
-export type CurtainLike = {
+type CurtainLike = {
   id?: string;
   /** 窗帘形态：dream 表示梦幻帘，不参与分组。 */
   coverKind?: string;
@@ -21,7 +21,7 @@ export type CurtainGroupLike = {
 };
 
 /** 分组逻辑读到的环境快照。 */
-export type CurtainEnvironmentLike = {
+type CurtainEnvironmentLike = {
   curtains?: CurtainLike[];
   curtainGroups?: CurtainGroupLike[];
 };

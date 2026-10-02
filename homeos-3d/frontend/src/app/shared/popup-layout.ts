@@ -2,7 +2,7 @@ export function popupLayoutColumns(options) {
   const columns = Number(options?.columns);
   return columns >= 2 && columns <= 4 ? columns : 3;
 }
-export function popupModuleColumnSpan(moduleSpec) {
+function popupModuleColumnSpan(moduleSpec) {
   const moduleType = typeof moduleSpec == "string" ? moduleSpec : moduleSpec?.type,
     moduleDeviceType =
       typeof moduleSpec == "object"
@@ -16,7 +16,7 @@ export function popupModuleColumnSpan(moduleSpec) {
     ? 2
     : 1;
 }
-export function popupModuleRowSpan(_rowModuleSpec) {
+function popupModuleRowSpan(_rowModuleSpec) {
   return 1;
 }
 function placeModules(modules, columnLimit) {

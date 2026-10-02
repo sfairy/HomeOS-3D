@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { createPurifierExtras } from "../climate/purifier-extras";
 import {
   coverState,
@@ -7,12 +6,25 @@ import {
   coverCanAdjustBlades,
 } from "./cover-state";
 /** cover 面板的宿主元素与回调；element 缺省时面板自建节点，所以是可选的。 */
-export type CoverPanelOptions = {
+type CoverPanelOptions = {
   element?: any;
   onControl?: (...args: any[]) => any;
   onPreview?: (...args: any[]) => any;
   onExtraControl?: (...args: any[]) => any;
   onLayout?: (...args: any[]) => any;
+};
+
+/**
+ * 面板视图模型由 stage 的 update() 注入：字段来自运行时设备状态（动态属性袋），
+ * 这里按实际访问到的键显式列出并全部保持可选，不做窄化假设。
+ */
+type CoverPanelViewModel = {
+  item?: any;
+  states?: any;
+  editing?: any;
+  state?: any;
+  presentation?: any;
+  error?: any;
 };
 
 export function createCoverPanel({
@@ -112,7 +124,7 @@ export function createCoverPanel({
     extrasPanelElement,
   ),
     replaceChildren(rootElement, headingElement, popupBodyElement));
-  let viewModel = {},
+  let viewModel: CoverPanelViewModel = {},
     deviceState = coverState("", null),
     isDisposed = false,
     instanceId = 0,
@@ -242,7 +254,7 @@ export function createCoverPanel({
         render());
     }
   }
-  function requestControl(requestedService, controlValue) {
+  function requestControl(requestedService, controlValue = undefined) {
     if (canControl())
       try {
         return sendControl(
@@ -465,7 +477,7 @@ export function createCoverPanel({
       ),
       syncSlider());
   }
-  function update(nextViewModel = {}) {
+  function update(nextViewModel: CoverPanelViewModel = {}) {
     if (isDisposed) return;
     const nextEntityId = nextViewModel.item?.entityId || "";
     (nextEntityId !== deviceState.entityId || nextViewModel.item?.id !== viewModel.item?.id) &&

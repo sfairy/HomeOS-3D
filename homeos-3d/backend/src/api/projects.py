@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
@@ -143,6 +144,19 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='仪表盘名称已存在。')
 
 
+def commit_project_name(database: DatabaseSession) -> None:
+    # [补充说明] 提交一次「写入或改名项目」的事务，把重名冲突翻译成 409。
+    #
+    # ensure_unique_project_name 是「先查再写」，两个并发请求可以同时通过校验，
+    # 因此数据库上 projects.name 的唯一索引才是最后一道闸；这里统一处理它抛出的
+    # IntegrityError，让用户看到的仍是同一条中文提示而不是 500。
+    try:
+        database.commit()
+    except IntegrityError as error:
+        database.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='仪表盘名称已存在。') from error
+
+
 @router.get('')
 def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
     # [补充说明] 列出当前主体可见的仪表盘，附带各自的草稿版本信息。
@@ -191,7 +205,7 @@ def create_project(payload: ProjectCreateRequest, request: Request, database: Da
     )
     # 项目与草稿同事务写入：只有项目没有草稿的中间态会让编辑器打不开。
     database.add_all([project, draft])
-    database.commit()
+    commit_project_name(database)
     database.refresh(project)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已创建仪表盘：{project.name}')
     return project_payload(project, draft)
@@ -251,7 +265,7 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
         updated_by=user.id,
     )
     database.add_all([duplicate, duplicate_draft])
-    database.commit()
+    commit_project_name(database)
     database.refresh(duplicate)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已复制仪表盘：{source.name} → {duplicate.name}')
     return project_payload(duplicate, duplicate_draft)
@@ -468,7 +482,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 'currentRevision': current_revision})
         # 文档名即项目名：草稿保存成功后同步到项目表，列表页才会显示新名字。
         database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
-        database.commit()
+        commit_project_name(database)
     # 文档里新绑定的实体也要进持久集合：同样丢到后台，不在请求里同步刷新。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
     # 清掉会话缓存，下面重新查一次草稿才能读到刚提交的新 revision。

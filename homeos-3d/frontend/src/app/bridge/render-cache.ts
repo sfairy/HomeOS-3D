@@ -119,7 +119,7 @@ export function cacheSceneDescriptor(floors) {
   }));
 }
 /** report 回调负载：一次缓存统计快照（全部为数值，便于直接 JSON 上报）。 */
-export type RenderCacheReport = {
+type RenderCacheReport = {
   memoryHits: number;
   serverHits: number;
   misses: number;
@@ -138,9 +138,9 @@ export type RenderCacheReport = {
  * 离屏 canvas：缓存解码结果时会在上面挂 close()，
  * 以便提前释放显存（与 ImageBitmap.close 对齐）。
  */
-export type CacheCanvas = HTMLCanvasElement & { close?: () => void };
+type CacheCanvas = HTMLCanvasElement & { close?: () => void };
 
-export type RenderCacheOptions = {
+type RenderCacheOptions = {
   /** 场景 id，参与服务端缓存分桶。 */
   sceneId?: string | null;
   /** 项目 id，缺省时按空串上报。 */

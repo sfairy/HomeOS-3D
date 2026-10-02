@@ -16,10 +16,10 @@ from ..payments.alipay import (
     validate_gateway_url,
 )
 
-#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
+#: 微信支付的「凭据是否齐全」判定由 provider 自己实现（见 wechat_credentials_summary）。
 from ..payments.wechat import WeChatPayProvider
 
-#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，见上面的支付宝分支。
+#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
 from ..security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,

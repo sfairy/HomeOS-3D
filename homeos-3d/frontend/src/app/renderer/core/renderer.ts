@@ -269,7 +269,7 @@ const maxRuntimeEntitySubscriptions = 1000,
  * 0.6.7 基线引用过该常量但从未定义，运行到相关分支会抛 ReferenceError。
  */
 const COVER_CLOSED_POSITION_EPSILON = 0.01;
-export function runtimeDialogLayout({
+function runtimeDialogLayout({
   layerWidth: layoutLayerWidth,
   layerHeight: layoutLayerHeight,
   layoutWidth: layoutWidth,
@@ -315,7 +315,7 @@ export function runtimeDialogLayout({
     scale: Math.max(0.08, dialogFinalScale),
   };
 }
-export function runtimeDialogViewport({
+function runtimeDialogViewport({
   layerLeft: viewportLayerLeft = 0,
   layerTop: viewportLayerTop = 0,
   layerWidth: viewportLayerWidth,
@@ -364,11 +364,11 @@ function isPrimaryModifierPressed(keyboardEvent) {
 function componentSupportsAction(actionComponentRecord, actionSpec) {
   return componentActionIsSupported2(actionComponentRecord, actionSpec);
 }
-export function componentDialogTitle(titleComponentRecord, fallbackTitleText) {
+function componentDialogTitle(titleComponentRecord, fallbackTitleText) {
   const options = titleComponentRecord?.properties || {};
   return String(options.label || "").trim() || fallbackTitleText;
 }
-export function popupModuleDialogTitle(
+function popupModuleDialogTitle(
   popupModuleRecord,
   popupEntityRecord,
   fallbackTitleLabel = "",

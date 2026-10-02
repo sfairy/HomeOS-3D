@@ -51,38 +51,4 @@ export const DECOR_THEMES = Object.freeze({
       detail: "陶盆与七片宽叶 · 实体叶片无需透明贴图",
     },
   });
-export function applyDecorTheme(three, root, modelKey, themeKey, materialCache = new Map()) {
-  const model = DECOR_MODELS[modelKey],
-    theme = DECOR_THEMES[themeKey];
-  if (!model || !theme) throw new Error("Unknown decor model or theme");
-  return (
-    root.traverse((mesh) => {
-      if (!mesh.isMesh) return;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      mesh.userData.decorRoles ??= materials.map((material) => material.name.split("-decor-")[1]);
-      const resolveMaterial = (sourceMaterial, index) => {
-        const roleIndex = mesh.userData.decorRoles[index],
-          roleNumber = Number(roleIndex);
-        if (!Number.isInteger(roleNumber) || !model.roles[roleNumber])
-          throw new Error("Invalid decor role: " + sourceMaterial.name);
-        const role = model.roles[roleNumber],
-          cacheKey = themeKey + ":" + role;
-        if (!materialCache.has(cacheKey)) {
-          const cachedMaterial = new three.MeshStandardMaterial({
-            color: theme[role],
-            roughness: 0.82,
-            metalness: 0,
-          });
-          materialCache.set(cacheKey, cachedMaterial);
-        }
-        return materialCache.get(cacheKey);
-      };
-      ((mesh.material = Array.isArray(mesh.material)
-        ? mesh.material.map(resolveMaterial)
-        : resolveMaterial(mesh.material, 0)),
-        (mesh.castShadow = true),
-        (mesh.receiveShadow = true));
-    }),
-    root
-  );
-}
+

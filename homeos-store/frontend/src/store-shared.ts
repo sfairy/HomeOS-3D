@@ -96,7 +96,7 @@ export const $ = (selector: string): HTMLElement | null =>
 export const $$ = (selector: string): HTMLElement[] =>
   [...document.querySelectorAll(selector)] as HTMLElement[];
 
-export let storeStaticVersion: string | undefined;
+ let storeStaticVersion: string | undefined;
 
 export function versionedStoreAsset(url: string) {
   if (typeof url !== 'string' || !url.startsWith('/store-static/') || url.includes('?')) return url;

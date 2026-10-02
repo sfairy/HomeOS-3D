@@ -15,8 +15,10 @@ from .store_catalog import (
 )
 from .store_shared import (
     LOGIN_IP_MAX_ATTEMPTS,
+    _check_verification_code,
     _clear_session_cookies,
     _consume_verification,
+    _consume_verification_record,
     _create_session,
     _customer_for,
     _enforce_password_confirmation_gate,
@@ -47,6 +49,7 @@ from ..security import password_gate
 from ..security.request_security import resolve_client_ip
 from ..security.security import (
     hash_password,
+    normalize_referral_code,
     token_hash,
     utcnow,
     verify_password,
@@ -73,11 +76,15 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
 
-    _consume_verification(session, email=email, purpose="register", code=payload.code)
+    # 先「校验」再查重、最后才「消费」：查重放在消费之后会把用户的有效验证码白白烧掉
+    # （重试还得重新收码），放到校验之前又成了「这个邮箱注册过没有」的探针。
+    record = _check_verification_code(session, email=email, purpose="register", code=payload.code)
 
     existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
     if existing is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。")
+
+    _consume_verification_record(session, record, email=email)
 
     account = Account(
         email=email,
@@ -88,12 +95,13 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     session.flush()
     _customer_for(session, account)
 
-    referral_code = (payload.referral_code or "").strip()
+    raw_referral_code = (payload.referral_code or "").strip()
+    referral_code = normalize_referral_code(raw_referral_code)
     referral_note = ""
-    if referral_code:
-        if not referral_code.isdigit():
-            # 邀请码是纯数字；填错格式时之前是**静默忽略**，用户以为绑定成功了，
-            referral_note = "邀请码格式不正确（应为纯数字），本次未绑定邀请关系。"
+    if raw_referral_code:
+        if referral_code is None:
+            # 老码是 6 位数字、新码是 8 位字母数字；填错格式时之前是**静默忽略**，
+            referral_note = "邀请码格式不正确（应为 6 位数字或 8 位邀请码），本次未绑定邀请关系。"
         else:
             referrer_wallet = session.scalars(
                 select(ReferralWallet).where(ReferralWallet.code == referral_code)

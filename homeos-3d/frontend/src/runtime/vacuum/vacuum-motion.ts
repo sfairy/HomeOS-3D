@@ -9,7 +9,7 @@ const isFiniteNumber = (candidateValue) =>
     pointCandidate && isFiniteNumber(pointCandidate.x) && isFiniteNumber(pointCandidate.y)
       ? pointCandidate
       : null;
-export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
+function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
   if (
     !asValidMapPoint(mapPoint) ||
     !Array.isArray(calibrationPoints) ||
@@ -58,7 +58,7 @@ export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapCon
     y: (mapConfig.y || 0) + localX * Math.sin(rotationRad) + localY * Math.cos(rotationRad),
   };
 }
-export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
+function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   if (
     vacuumBinding.map?.sourceMapId &&
     !vacuumBindingsForMap([vacuumBinding], statesByEntityId).length
@@ -124,7 +124,7 @@ export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) 
     active: statusPresentation.active,
   };
 }
-export const VACUUM_CHAT = {
+const VACUUM_CHAT = {
   working: [
     "我真勤快！",
     "主人真懒，还好有我。",

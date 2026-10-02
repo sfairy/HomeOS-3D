@@ -1,5 +1,5 @@
 import qrcodeGenerator from "/static/vendor/qrcode-generator/qrcode.js";
-export function pairingQrPayload(serviceUrl, pairCode) {
+function pairingQrPayload(serviceUrl, pairCode) {
   const parsedUrl = new URL(String(serviceUrl).trim());
   if (
     !["http:", "https:"].includes(parsedUrl.protocol) ||
@@ -19,7 +19,7 @@ export function pairingQrPayload(serviceUrl, pairCode) {
     throw new Error("手机无法连接电脑的本机地址，请改为手机可访问的局域网 IP 或域名。");
   return `${parsedUrl.origin}/pair?scan=1#type=homeos-pair&version=1&code=${String(pairCode)}`;
 }
-export function pairingQrSvg(payload) {
+function pairingQrSvg(payload) {
   qrcodeGenerator.stringToBytes = qrcodeGenerator.stringToBytesFuncs["UTF-8"];
   const qrCode = qrcodeGenerator(0, "M");
   return (

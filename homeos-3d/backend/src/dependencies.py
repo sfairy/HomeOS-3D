@@ -652,20 +652,25 @@ def require_viewer_entity(
 
 
 def viewer_user_asset_ids(
-    database: DatabaseSession, viewer: ViewerPrincipal
+    database: DatabaseSession,
+    viewer: ViewerPrincipal,
+    prefixes: tuple[str, ...] = ("user:",),
 ) -> set[str] | None:
-    # [补充说明] 当前主体可见的用户上传图片 ID 集合；None 表示不受限。
+    # [补充说明] 当前主体可见的图片资源 ID 集合（去掉前缀）；None 表示不受限。
     #
-    # 只收 `user:` 前缀的资源 ID —— 内置素材（builtin:）另有资产目录统一把关，
-    # 这里只解决"某块屏不该看到别的屏的图片"。
+    # 默认只收 `user:` 前缀 —— 内置素材（builtin:）另有资产目录统一把关，
+    # 这里只解决「某块屏不该看到别的屏的图片」。3D 工作室导出图登记成
+    # `studio3d:<文件夹>/<文件名>`，用的是同一条「草稿引用过才可见」的规则，
+    # 因此调用方可以传自己的前缀复用这套判断，而不必另写一份可见性逻辑。
     if viewer.project_id is None:
         return None
     return {
-        item.removeprefix("user:")
+        item.removeprefix(prefix)
+        for prefix in prefixes
         for item in _document_bound_values(
             _display_document(database, viewer), "assetId"
         )
-        if item.startswith("user:")
+        if item.startswith(prefix)
     }
 
 

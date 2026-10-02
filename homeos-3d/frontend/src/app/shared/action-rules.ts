@@ -15,7 +15,7 @@ export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]),
     "switch",
     "water_heater",
   ]);
-export function actionPopupSource(sourceAction) {
+function actionPopupSource(sourceAction) {
   const sourceName = String(sourceAction?.data?.popupSource || "current");
   return POPUP_SOURCES.includes(sourceName) ? sourceName : "current";
 }

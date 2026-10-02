@@ -2,7 +2,7 @@ import {
   createScenePersistentCache,
   scenePreparationKey,
 } from "./scene-persistent-cache";
-export function beginStageStartup({
+function beginStageStartup({
   env: env = globalThis,
   loadModule: loadModule = () =>
     import("/api/v1/modules/interaction3d/core/stage.js"),

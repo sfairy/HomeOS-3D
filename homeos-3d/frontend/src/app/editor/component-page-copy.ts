@@ -6,18 +6,6 @@ function findComponentInTree(componentTree, targetComponentId) {
   }
   return null;
 }
-function findDocumentComponent(searchDocument, searchedComponentId) {
-  const sharedComponentMatch = findComponentInTree(
-    searchDocument?.sharedComponents,
-    searchedComponentId,
-  );
-  if (sharedComponentMatch) return sharedComponentMatch;
-  for (const visitedPage of searchDocument?.pages || []) {
-    const pageComponentMatch = findComponentInTree(visitedPage.components, searchedComponentId);
-    if (pageComponentMatch) return pageComponentMatch;
-  }
-  return null;
-}
 function locateComponentWithScope(scopedDocument, locatedComponentId) {
   const sharedScopeComponent = findComponentInTree(
     scopedDocument?.sharedComponents,
@@ -53,7 +41,7 @@ function collectComponentsByIds(documentTree, wantedComponentIds) {
     walkComponents(documentTreePage.components);
   return collectedComponents;
 }
-export function copyComponentTargetPages(originDocument, copiedComponentId) {
+function copyComponentTargetPages(originDocument, copiedComponentId) {
   const locatedTarget = locateComponentWithScope(originDocument, copiedComponentId);
   return locatedTarget
     ? (originDocument?.pages || []).filter(
@@ -205,7 +193,7 @@ function addSharedComponentRefsToPages(refDocument, sharedComponentIds) {
       ];
 }
 /** 跨文档复制组件的可注入依赖（测试与编辑器各自替换 id 生成策略）。 */
-export type ComponentCopyOptions = {
+type ComponentCopyOptions = {
   cloneValue?: (value: any) => any;
   /** 生成新组件 id；不传则直接拒绝复制。 */
   createId?: () => string;
@@ -214,13 +202,6 @@ export type ComponentCopyOptions = {
   scaleMode?: string;
   /** 引用失效时的回调（默认清理失效引用）。 */
   onInvalidAction?: (...args: any[]) => any;
-};
-
-/** 复制单个组件到指定页面时的可注入依赖。 */
-export type ComponentPageCopyOptions = {
-  cloneValue?: (value: any) => any;
-  createId?: () => string;
-  componentLabel?: (component: any) => string;
 };
 
 export function copyComponentsAcrossDocuments(
@@ -278,78 +259,6 @@ export function copyComponentsAcrossDocuments(
         copiedComponents.map((copiedChildId) => copiedChildId.id),
       ),
     copiedComponents
-  );
-}
-export function copyComponentAcrossDocuments(
-  sourceDocument,
-  targetDocument,
-  componentId,
-  targetScope,
-  copyOptions: ComponentCopyOptions = {},
-) {
-  return (
-    copyComponentsAcrossDocuments(
-      sourceDocument,
-      targetDocument,
-      [componentId],
-      targetScope,
-      copyOptions,
-    )[0] || null
-  );
-}
-export function copyComponentToPage(
-  pageDocument,
-  requestedComponentId,
-  destinationPagePath,
-  {
-    cloneValue: cloneComponentValue = (clonedComponentValue) =>
-      structuredClone(clonedComponentValue),
-    createId: createPageComponentId,
-    componentLabel: readComponentLabel = (labeledComponent) =>
-      labeledComponent?.properties?.label || labeledComponent?.type || "控件",
-  }: ComponentPageCopyOptions = {},
-) {
-  if (
-    !pageDocument ||
-    !requestedComponentId ||
-    !destinationPagePath ||
-    typeof createPageComponentId != "function"
-  )
-    return null;
-  const resolvedSourceComponent = findDocumentComponent(pageDocument, requestedComponentId),
-    destinationPage = (pageDocument.pages || []).find(
-      (pageCandidateForPath) => pageCandidateForPath.path === destinationPagePath,
-    );
-  if (!resolvedSourceComponent || !destinationPage) return null;
-  const destinationComponents = destinationPage.components || (destinationPage.components = []),
-    copiedPageComponent = assignFreshComponentIds(
-      cloneComponentValue(resolvedSourceComponent),
-      createPageComponentId,
-    );
-  return (
-    (copiedPageComponent.properties = {
-      ...(copiedPageComponent.properties || {}),
-      label: uniqueCopyLabel(resolvedSourceComponent, destinationComponents, readComponentLabel),
-    }),
-    delete copiedPageComponent.properties.previewState,
-    destinationComponents.unshift(copiedPageComponent),
-    applyLayerOrder(destinationComponents),
-    copiedPageComponent
-  );
-}
-export function copyComponentToTarget(
-  hostDocument,
-  entryComponentId,
-  destinationScope,
-  targetCopyOptions = {},
-) {
-  return (
-    copyComponentsToTarget(
-      hostDocument,
-      [entryComponentId],
-      destinationScope,
-      targetCopyOptions,
-    )[0] || null
   );
 }
 export function copyComponentsToTarget(

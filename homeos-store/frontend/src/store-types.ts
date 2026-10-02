@@ -4,7 +4,7 @@ export type JsonObject = Record<string, unknown>;
 
 export type TimerHandle = ReturnType<typeof setInterval> | ReturnType<typeof setTimeout>;
 
-export interface DeviceReleasePolicy {
+ interface DeviceReleasePolicy {
   cooldownSeconds: number;
   lastReleasedAt?: string | null;
   nextAllowedAt?: number | null;
@@ -12,7 +12,7 @@ export interface DeviceReleasePolicy {
   deadline?: number;
 }
 
-export interface StoreDevice {
+ interface StoreDevice {
   instanceId?: string;
   bindingId?: string;
   activatedAt?: string;
@@ -35,7 +35,7 @@ export interface StoreLicense {
   [key: string]: unknown;
 }
 
-export interface StoreEntitlement {
+ interface StoreEntitlement {
   active?: boolean;
   licenseId?: string;
   customerId?: string;
@@ -43,7 +43,7 @@ export interface StoreEntitlement {
   [key: string]: unknown;
 }
 
-export interface PackageItem {
+ interface PackageItem {
   name?: string;
   [key: string]: unknown;
 }
@@ -67,7 +67,7 @@ export interface StoreProduct {
   [key: string]: unknown;
 }
 
-export interface StorePayment {
+ interface StorePayment {
   qrCode?: string;
   provider?: string;
   type?: string;
@@ -89,7 +89,7 @@ export interface StoreOrder {
   [key: string]: unknown;
 }
 
-export interface StoreAccount {
+ interface StoreAccount {
   email?: string;
   [key: string]: unknown;
 }
@@ -112,7 +112,7 @@ export interface StoreSiteConfig {
   [key: string]: unknown;
 }
 
-export interface StoreConfiguration {
+ interface StoreConfiguration {
   store?: StoreSiteConfig;
   payment?: {
     channels?: PaymentChannel[];
@@ -121,14 +121,14 @@ export interface StoreConfiguration {
   [key: string]: unknown;
 }
 
-export interface ReleaseTarget {
+ interface ReleaseTarget {
   expectedBindingId?: unknown;
   expectedActivatedAt?: unknown;
   expectedBindingVersion?: unknown;
   [key: string]: unknown;
 }
 
-export interface PurchaseBlock {
+ interface PurchaseBlock {
   label: string;
 }
 

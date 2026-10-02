@@ -1,6 +1,6 @@
 const { popupPlacement: popupPlacement } = await (import("@app/bridge/popup-placement")),
   { cameraPopupLayout: cameraPopupLayout } = await (import("@app/bridge/camera-popup-layout"));
-export function popupPreviewPlacement(kind, width, height, settings) {
+function popupPreviewPlacement(kind, width, height, settings) {
   const cameraLayout = kind === "camera" ? cameraPopupLayout(width, height) : null,
     panelWidth = cameraLayout?.panelWidth || 360,
     panelHeight = cameraLayout?.panelHeight || 232,

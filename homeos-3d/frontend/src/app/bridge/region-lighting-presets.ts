@@ -12,7 +12,7 @@ const baseLightingPreset = {
   topElevation: 86,
   topIntensity: 0.12,
 };
-export const REGION_LIGHTING_PRESETS = Object.freeze({
+const REGION_LIGHTING_PRESETS = Object.freeze({
   default: Object.freeze({
     ...baseLightingPreset,
     exposure: 0.95,

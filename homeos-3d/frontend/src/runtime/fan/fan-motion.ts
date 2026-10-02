@@ -1,4 +1,4 @@
-export function fanMotionState(entityState) {
+function fanMotionState(entityState) {
   entityState = entityState?.newState || entityState || {};
   const stateAttributes = entityState.attributes || {},
     isOn = entityState.available !== false && entityState.state === "on",

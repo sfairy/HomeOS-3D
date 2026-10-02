@@ -1,5 +1,4 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
-export function outlineHull(hullInput) {
+function outlineHull(hullInput) {
   const sortedPoints = hullInput
       .slice()
       .sort(
@@ -38,11 +37,13 @@ export function createScreenOutlines({
     innerGlowElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
   (svgElement.setAttribute("class", "i3d-model-outlines"),
     svgElement.setAttribute("aria-hidden", "true"));
-  for (const [outlinePathElement, outlineWidth, outlineOpacity] of [
+  // 三层轮廓：[path 元素, 描边宽度, 描边不透明度]，元素来自 createElementNS("…svg","path")。
+  const outlineLayers: [SVGPathElement, number, number][] = [
     [outerGlowElement, 10, 0.14],
     [innerGlowElement, 6, 0.22],
     [solidOutlineElement, 2.6, 0.48],
-  ])
+  ];
+  for (const [outlinePathElement, outlineWidth, outlineOpacity] of outlineLayers)
     (outlinePathElement.setAttribute("fill", "none"),
       outlinePathElement.setAttribute("stroke", outlineColor),
       outlinePathElement.setAttribute("stroke-width", String(outlineWidth)),
@@ -301,7 +302,8 @@ export function createScreenOutlines({
     activeCamera.updateMatrixWorld();
     const widthPx = containerElement.clientWidth,
       heightPx = containerElement.clientHeight,
-      outlineEntries = outlineModels
+      // 轮廓条目：model/points 是宿主场景图里的动态对象，camera 在下方按模型解析后写入。
+      outlineEntries: { model: any; points: any; camera?: any }[] = outlineModels
         .filter(
           (outlineCandidate) =>
             isEditorSelection || !outlineCandidate.userData?.environmentOutlineMoving,

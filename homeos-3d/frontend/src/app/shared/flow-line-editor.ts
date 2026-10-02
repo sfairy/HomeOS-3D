@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import {
   normalizeFlowLine as normalizeFlowLine2,
   flowLinePath as flowLinePath2,
@@ -7,6 +6,25 @@ import {
 } from "./flow-line-model";
 import { renderFlowLine as renderFlowLine2 } from "../renderer/core/registry/flow-line";
 let activeEditorInstance = null;
+/** 路径编辑器选项：由 inspector 的 pathEditorContext 动态拼装后透传。 */
+/** 路径下拉增强器的返回句柄（inspector 提供，含 sync/keydown/destroy）。 */
+type FlowLinePathEnhancer = {
+  sync: () => void;
+  keydown: (event: KeyboardEvent) => boolean;
+  destroy: () => void;
+};
+type FlowLinePathEditorOptions = {
+  canvas?: HTMLElement;
+  host?: HTMLElement;
+  container?: HTMLElement;
+  states?: Map<string, unknown>;
+  lockTargets?: HTMLElement[];
+  enhancePathSelect?: (selectElement: Element | null) => FlowLinePathEnhancer | null | undefined;
+  onLayoutChange?: () => void;
+  onSave?: (options: unknown) => unknown;
+  onError?: (error: unknown) => void;
+  onClose?: () => void;
+};
 export function openFlowLinePathEditor(
   flowLineItem,
   {
@@ -20,7 +38,7 @@ export function openFlowLinePathEditor(
     onSave: onSave,
     onError: onError,
     onClose: onClose,
-  } = {},
+  }: FlowLinePathEditorOptions = {},
 ) {
   if (!canvasElement?.isConnected || !hostElement?.isConnected || !containerElement?.isConnected)
     throw new Error("请先在仪表盘编辑画布选择流水线条。");
@@ -285,7 +303,7 @@ export function openFlowLinePathEditor(
   }
   function rebuildNodeHandles() {
     (nodeGroupElement.replaceChildren(),
-      list.forEach((nodePoint, nodeIndex) => {
+      list.forEach((_nodePoint, nodeIndex) => {
         const draggableNodeElement = createSvgElement(
           "g",
           {
@@ -603,7 +621,7 @@ export function openFlowLinePathEditor(
       restoreEditingLayout(),
       (activeEditorInstance = null),
       activeElement?.isConnected &&
-        activeElement.focus({
+        (activeElement as HTMLElement).focus({
           preventScroll: true,
         }),
       onClose?.());

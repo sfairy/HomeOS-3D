@@ -5,7 +5,7 @@ import { isVirtualEntityId } from "../../shared/virtual-entities";
  * 运行期组件的最小可用形状：只描述本文件真正读到的字段，
  * 具体页面组件的完整定义在别处（这里刻意保持宽松）。
  */
-export type RuntimeComponentLike = {
+type RuntimeComponentLike = {
   /** 组件实例 id（视图事件按它派发）。 */
   id?: string;
   type?: string;
@@ -91,7 +91,7 @@ export function collectComponents(
       collectComponents(childComponent.children, matchesComponent, matchedComponents));
   return matchedComponents;
 }
-export function matchingLineChartComponent(runtimeDocument, activePage, targetEntityId) {
+function matchingLineChartComponent(runtimeDocument, activePage, targetEntityId) {
   const matchesTargetComponent = (candidateComponent) =>
       candidateComponent.type === "line-chart" &&
       candidateComponent.bindings?.entity?.entityId === targetEntityId,

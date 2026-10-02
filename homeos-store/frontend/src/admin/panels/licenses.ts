@@ -141,7 +141,7 @@ $('#license-cancel')?.addEventListener('click', () => {
 });
 
 // 签发结果落在编辑器里的常驻面板：激活码是这一屏唯一的产出，toast 三秒消失后
-export function showIssueResult(result: {
+ function showIssueResult(result: {
   activationCode?: string;
   email?: string;
   productName?: string;

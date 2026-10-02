@@ -10,7 +10,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
-from ..commerce import fulfill, money, referrals
+from ..commerce import coupons, fulfill, money, referrals
 from ..commerce.expiry import expire_stale_orders
 from ..commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
@@ -296,6 +296,18 @@ def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
     changes = fulfill.recompute_reserved_stock(session)
     detail = "、".join(f"{pid} {delta:+d}" for pid, delta in changes.items()) or "无变化"
     _audit(session, _admin_actor(admin), "maintenance.recompute_stock", "", detail)
+    return {"updated": len(changes), "changes": changes, "detail": detail}
+
+@router.post("/maintenance/recompute-coupons")
+def admin_recompute_coupons(session: DbSession, admin: AdminAccount) -> dict:
+    """按核销表重算各优惠码的 ``redeemed_count``。
+
+    与「重算库存预留」对称：优惠码名额同样是被反规范化成计数列的快照，
+    发现后台显示的已核销数与真实占用对不上时，用它一次性纠回。
+    """
+    changes = coupons.recompute_coupon_slots(session)
+    detail = "、".join(f"{cid} {delta:+d}" for cid, delta in changes.items()) or "无变化"
+    _audit(session, _admin_actor(admin), "maintenance.recompute_coupons", "", detail)
     return {"updated": len(changes), "changes": changes, "detail": detail}
 
 

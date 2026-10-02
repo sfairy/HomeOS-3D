@@ -1,5 +1,5 @@
 const UPDATE_WIKI_URL = "https://wiki.homeos.cn/updates.html#changelog";
-export function applyUpdateNotice(noticeLink, noticeBadge, notice) {
+function applyUpdateNotice(noticeLink, noticeBadge, notice) {
   let logUrl;
   try {
     logUrl = new URL(notice?.logUrl);
@@ -27,7 +27,7 @@ export function applyUpdateNotice(noticeLink, noticeBadge, notice) {
         )
       : noticeLink.removeAttribute("aria-label"));
 }
-export function startUpdateNotice(
+function startUpdateNotice(
   linkElement,
   badgeElement,
   {

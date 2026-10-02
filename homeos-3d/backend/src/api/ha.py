@@ -213,6 +213,9 @@ def load_authorized_entity_context(
                     HAEntity.connection_id == connection.id,
                     HAEntity.entity_id == entity_id,
                     HAEntity.sync_status == 'active',
+                    # 与 interaction3d 的服务调用同口径：被用户在 HA 里禁用的实体视为不存在，
+                    # 否则这里放行、控制接口那边 404，前端只会看到「点了没反应」。
+                    HAEntity.disabled_by.is_(None),
                 )
             )
             is not None

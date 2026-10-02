@@ -155,8 +155,24 @@ def normalize_email(value: str) -> str:
     return value.strip().lower()
 
 
+#: 邀请码形态：老码是 6 位数字（已经发出去的必须继续能查），新码是 8 位无歧义字母数字
+#: （不含 0/1/I/O —— 手抄或电话口述时最容易混的四个字符）。
+REFERRAL_CODE_RE = re.compile(r"^(?:[0-9]{6}|[2-9A-HJ-NP-Z]{8})$")
+
+
 def new_referral_code() -> str:
-    return f"{secrets.randbelow(1_000_000):06d}"
+    """生成 8 位无歧义邀请码（32^8 远大于原来 6 位数字的 10^6，撞码概率可忽略）。"""
+    alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    return "".join(secrets.choice(alphabet) for _ in range(8))
+
+
+def normalize_referral_code(value: str | None) -> str | None:
+    """把用户输入的邀请码归一成库里存的形式；形态不合法时返回 None。
+    """
+    text = (value or "").strip().upper()
+    if not text:
+        return None
+    return text if REFERRAL_CODE_RE.match(text) else None
 
 
 def new_uuid() -> str:

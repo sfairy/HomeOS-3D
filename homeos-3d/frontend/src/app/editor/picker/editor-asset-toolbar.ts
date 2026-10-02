@@ -1,9 +1,9 @@
-export function editorAssetFolders(assets: { folder?: string }[] = []) {
+function editorAssetFolders(assets: { folder?: string }[] = []) {
   return [...new Set((assets || []).map((asset) => asset.folder).filter(Boolean))].sort(
     (folderName, otherFolderName) => folderName.localeCompare(otherFolderName, "zh-CN"),
   );
 }
-export function editorAssetSelectedFolder(selectedFolderName, folders) {
+function editorAssetSelectedFolder(selectedFolderName, folders) {
   return folders.includes(selectedFolderName) ? selectedFolderName : folders[0] || "";
 }
 export function createEditorAssetToolbar({

@@ -1,5 +1,4 @@
-export const DEFAULT_EXPORT_PRESET_COUNT = 4,
-  MAX_EXPORT_PRESET_COUNT = 8;
+export const MAX_EXPORT_PRESET_COUNT = 8;
 const allowedFileKindSet = new Set([
   "background",
   "backgroundWithPlan",
@@ -132,21 +131,4 @@ export function normalizeActiveExportPresetSlot(activeSlotInput, totalSlotCount 
 export function exportPresetIsEmpty(candidatePreset, hasPendingValue = false) {
   return !normalizeExportPreset(candidatePreset) && !hasPendingValue;
 }
-export function exportPresetSummary(presetCandidate, floorNameByFloorId = new Map()) {
-  const normalizedPreset = normalizeExportPreset(presetCandidate);
-  if (!normalizedPreset) return "未设置";
-  const floorLabel =
-      normalizedPreset.floorMode === "all"
-        ? "全楼合并"
-        : floorNameByFloorId.get(normalizedPreset.floorId) || "楼层已变更",
-    cameraModeLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
-  return (
-    normalizedPreset.width +
-    "×" +
-    normalizedPreset.height +
-    " · " +
-    floorLabel +
-    " · " +
-    cameraModeLabel
-  );
-}
+

@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { confirmAction } from "../shared/ui-confirm";
 import {
   renderFlowLineInspector as renderFlowLineInspector2,
@@ -395,7 +394,6 @@ const deleteProjectDialogElement = findElement("#delete-project-dialog"),
   copyComponentPageScopeSelectElement = findElement("#copy-component-page-scope"),
   copyComponentPageProjectFieldElement = findElement("#copy-component-page-project-field"),
   copyComponentPageProjectSelectElement = findElement("#copy-component-page-project"),
-  copyComponentPageTargetFieldElement = findElement("#copy-component-page-target-field"),
   copyComponentPageTargetLabelElement = findElement("#copy-component-page-target-label"),
   copyComponentPageTargetElement = findElement("#copy-component-page-target"),
   copyComponentScaleOptionsElement = findElement("#copy-component-scale-options"),
@@ -420,12 +418,10 @@ const deleteProjectDialogElement = findElement("#delete-project-dialog"),
   imageInspectorElement = findElement("#image-inspector"),
   imageTypeElement = findElement("#image-type"),
   imageLabelElement = findElement("#image-label"),
-  imageEntityPickerElement = findElement("#image-entity-picker"),
   imageEntityButtonElement = findElement("#image-entity-button"),
   imageEntityMenuElement = findElement("#image-entity-menu"),
   imageEntitySearchElement = findElement("#image-entity-search"),
   imageEntityOptionsElement = findElement("#image-entity-options"),
-  imageAssetPickerElement = findElement("#image-asset-picker"),
   imageAssetButtonElement = findElement("#image-asset-button"),
   imageAssetMenuElement = findElement("#image-asset-menu"),
   imageAssetFolderSelectElement = findElement("#image-asset-folder"),
@@ -483,7 +479,7 @@ const deleteProjectDialogElement = findElement("#delete-project-dialog"),
   floorplanAutoLightingResetButtonElement = findElement("#floorplan-auto-lighting-reset"),
   floorplanAutoLightingSaveButtonElement = findElement("#floorplan-auto-lighting-save"),
   floorplanAutoLightingStatusElement = findElement("#floorplan-auto-lighting-status"),
-  floorplanBaseLightElements = [...document.querySelectorAll("[data-floorplan-base-light]")];
+  floorplanBaseLightElements = [...document.querySelectorAll<HTMLInputElement>("[data-floorplan-base-light]")];
 let baseLightingComponentId = "",
   baseLightingSettings = normalizeBaseLighting2(DEFAULT_BASE_LIGHTING2),
   lightingPanelDragStateState = null,
@@ -623,8 +619,6 @@ const componentActionControlsElement = findElement("#component-action-controls")
   lightStatisticsEntitySearchElement = findElement("#light-statistics-entity-search"),
   lightStatisticsEntityOptionsElement = findElement("#light-statistics-entity-options"),
   lightStatisticsEntityPendingElement = findElement("#light-statistics-entity-pending"),
-  lightStatisticsPendingNameElement = findElement("#light-statistics-pending-name"),
-  lightStatisticsPendingDetailElement = findElement("#light-statistics-pending-detail"),
   lightStatisticsEntityConfirmElement = findElement("#light-statistics-entity-confirm"),
   lightStatisticsEntityMessageElement = findElement("#light-statistics-entity-message"),
   lightStatisticsEntityListElement = findElement("#light-statistics-entity-list"),
@@ -932,7 +926,6 @@ const componentActionControlsElement = findElement("#component-action-controls")
   weatherInspectorElement = findElement("#weather-inspector"),
   weatherTypeElement = findElement("#weather-type"),
   weatherLabelElement = findElement("#weather-label"),
-  weatherEntityPickerElement = findElement("#weather-entity-picker"),
   weatherEntityButtonElement = findElement("#weather-entity-button"),
   weatherEntityMenuElement = findElement("#weather-entity-menu"),
   weatherEntitySearchElement = findElement("#weather-entity-search"),
@@ -960,7 +953,6 @@ const componentActionControlsElement = findElement("#component-action-controls")
   lineChartInspectorElement = findElement("#line-chart-inspector"),
   lineChartTypeElement = findElement("#line-chart-type"),
   lineChartLabelElement = findElement("#line-chart-label"),
-  lineChartEntityPickerElement = findElement("#line-chart-entity-picker"),
   lineChartEntityButtonElement = findElement("#line-chart-entity-button"),
   lineChartEntityMenuElement = findElement("#line-chart-entity-menu"),
   lineChartEntitySearchInputElement = findElement("#line-chart-entity-search"),
@@ -1260,20 +1252,61 @@ let openCustomSelect = null,
   colorPickerBrightness = 1,
   colorPickerDragPointerId = null,
   colorPickerCopyResetTimer = null,
-  lastLicenseFeatureSignatureState = "",
   lastLicenseFeatureSignature = null;
-async function requestJson(requestPath, requestOptions = {}) {
-  const responseText = await fetch("/api/v1" + requestPath, {
+// 请求默认超时（毫秒）：超时即中断连接，避免后端/网络悬挂把「保存中」这类界面状态永久卡住。
+const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
+// 并发请求可能同时拿到 401/403：只跳一次，避免多个 location 赋值互相打断（例如登录页刚打开又被 /license 顶掉）。
+let authRedirectStarted = false;
+function startAuthRedirect(targetPath, replaceCurrent = false) {
+  if (authRedirectStarted) return;
+  ((authRedirectStarted = true),
+    replaceCurrent ? window.location.replace(targetPath) : window.location.assign(targetPath));
+}
+// requestOptions 是透传给 fetch 的动态选项袋：timeoutMs/signal 由本函数解释，其余键（method/body/headers/cache 等）原样转交 fetch
+async function requestJson(requestPath, requestOptions: Record<string, any> = {}) {
+  // 慢接口（大文件上传）在调用处显式放大；timeoutMs: 0 表示不设超时。
+  const { timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, signal: callerSignal, ...fetchOptions } = requestOptions,
+    requestAbort = new AbortController();
+  let requestTimer = null,
+    requestTimedOut = false;
+  const abortOnCallerSignal = () => requestAbort.abort(callerSignal?.reason);
+  if (timeoutMs > 0)
+    requestTimer = setTimeout(() => {
+      ((requestTimedOut = true), requestAbort.abort());
+    }, timeoutMs);
+  if (callerSignal)
+    callerSignal.aborted
+      ? abortOnCallerSignal()
+      : callerSignal.addEventListener("abort", abortOnCallerSignal, { once: true });
+  let responseText;
+  try {
+    responseText = await fetch("/api/v1" + requestPath, {
       cache: "no-store",
-      ...requestOptions,
-      headers: requestOptions.body
+      ...fetchOptions,
+      signal: requestAbort.signal,
+      headers: fetchOptions.body
         ? {
             "Content-Type": "application/json",
-            ...(requestOptions.headers || {}),
+            ...(fetchOptions.headers || {}),
           }
-        : requestOptions.headers,
-    }),
-    text = responseText.status === 204 ? "" : await responseText.text();
+        : fetchOptions.headers,
+    });
+  } catch (requestError) {
+    // 超时给出可操作的中文提示；调用方主动取消（切换页面等）原样抛出，
+    // 免得把「用户离开」报成接口故障。
+    if (requestTimedOut) {
+      const timeoutError = new Error(
+        "请求超时：" + requestPath.split("?")[0] + "（超过 " + Math.round(timeoutMs / 1000) + " 秒无响应）",
+      );
+      window.HomeOSLog?.error(timeoutError, { path: requestPath, phase: "request-timeout" });
+      throw timeoutError;
+    }
+    throw requestError;
+  } finally {
+    (requestTimer !== null && clearTimeout(requestTimer),
+      callerSignal && callerSignal.removeEventListener("abort", abortOnCallerSignal));
+  }
+  const text = responseText.status === 204 ? "" : await responseText.text();
   let responseBody = null;
   if (text)
     try {
@@ -1285,19 +1318,19 @@ async function requestJson(requestPath, requestOptions = {}) {
         );
     }
   if (responseText.status === 401) {
-    window.location.assign("/login");
+    startAuthRedirect("/login");
     const error = new Error("登录状态已失效。");
     throw window.HomeOSLog?.linkError(error, responseText) || error;
   }
   if (responseText.status === 403 && responseBody?.detail?.code === "LICENSE_RESTRICTED") {
-    window.location.replace("/license");
+    startAuthRedirect("/license", true);
     const errorPhaseState = new Error("授权已失效，请重新激活。");
     throw window.HomeOSLog?.linkError(errorPhaseState, responseText) || errorPhaseState;
   }
   if (!responseText.ok) {
     const homeParts = responseBody?.detail,
       slice = text.trim().slice(0, 240),
-      valueState = new Error(
+      valueState: Error & { code?: string } = new Error(
         typeof homeParts == "string"
           ? homeParts
           : homeParts?.message ||
@@ -1492,7 +1525,13 @@ function positionTitleButtonIconMenu(registerOverflowPreviewRow) {
     (registerOverflowPreviewRow.closest("dialog") || document.body).append(
       renderLightStatisticsEntitiesElement,
     ));
-  const options = {
+  const options: {
+    select: HTMLElement;
+    wrapper: HTMLElement;
+    button: HTMLElement;
+    menu: HTMLElement;
+    observer?: MutationObserver;
+  } = {
     select: registerOverflowPreviewRow,
     wrapper: removeLightStatisticsEntityElement,
     button: renderEntityPickerOptionsElement,
@@ -1515,7 +1554,7 @@ function positionTitleButtonIconMenu(registerOverflowPreviewRow) {
     renderLightStatisticsEntitiesElement.addEventListener(
       "click",
       (renderLightStatisticsEntityOptions) => {
-        const closest = renderLightStatisticsEntityOptions.target.closest(
+        const closest = (renderLightStatisticsEntityOptions.target as Element).closest<HTMLElement>(
           "[data-delete-studio3d-folder]",
         );
         if (closest) {
@@ -1525,7 +1564,7 @@ function positionTitleButtonIconMenu(registerOverflowPreviewRow) {
           return;
         }
         const renderPopupModuleEntityOptionsElement =
-          renderLightStatisticsEntityOptions.target.closest(".custom-select-option");
+          (renderLightStatisticsEntityOptions.target as Element).closest<HTMLButtonElement>(".custom-select-option");
         if (
           !renderPopupModuleEntityOptionsElement ||
           renderPopupModuleEntityOptionsElement.disabled
@@ -1556,7 +1595,7 @@ function positionTitleButtonIconMenu(registerOverflowPreviewRow) {
       attributeFilter: ["disabled", "label", "selected"],
     }));
 }
-function selectableEntities(setLightStatisticsMessage = document) {
+function selectableEntities(setLightStatisticsMessage: Document | HTMLElement = document) {
   (setLightStatisticsMessage instanceof HTMLSelectElement &&
     positionTitleButtonIconMenu(setLightStatisticsMessage),
     setLightStatisticsMessage
@@ -1721,10 +1760,10 @@ function hasActiveProject() {
     activeColorInputElement?.isConnected &&
     openEntityPicker(activeColorInputElement.value);
 }
-function destroyDashboardPreview(renderDashboardPreview = document) {
+function destroyDashboardPreview(renderDashboardPreview: Document | HTMLElement = document) {
   (renderDashboardPreview instanceof HTMLInputElement && renderDashboardPreview.type === "color"
     ? [renderDashboardPreview]
-    : [...(renderDashboardPreview.querySelectorAll?.('input[type="color"]') || [])]
+    : [...(renderDashboardPreview.querySelectorAll?.<HTMLElement>('input[type="color"]') || [])]
   ).forEach((previewPagePath) => {
     colorPickerBoundInputById.has(previewPagePath) ||
       (colorPickerBoundInputById.set(previewPagePath, true),
@@ -1774,12 +1813,12 @@ function runRecord(changedPagePathElement, runName) {
       ),
       true);
 }
-function formatLastSeen(lastSeenTimestamp = document) {
+function formatLastSeen(lastSeenTimestamp: Document | HTMLElement = document) {
   const lastSeenDate =
     lastSeenTimestamp instanceof HTMLInputElement && lastSeenTimestamp.type === "number"
       ? [lastSeenTimestamp]
       : [
-          ...(lastSeenTimestamp.querySelectorAll?.(
+          ...(lastSeenTimestamp.querySelectorAll?.<HTMLInputElement>(
             '.inspector-form input[type="number"], .i3d-editor input[type="number"], .i3d-vacuum-map-editor input[type="number"]',
           ) || []),
         ];
@@ -2103,7 +2142,7 @@ async function createDisplayPairingCode(submitEvent) {
     ((displayPairingGenerateElement.disabled = true),
       setSettingsMessage(displayDevicesMessageElement, ""));
     try {
-      const createPairingCodeErrorState = await requestJson("/displays/pairing-code", {
+      await requestJson("/displays/pairing-code", {
         method: "POST",
         body: JSON.stringify({
           projectId: activeProject.projectId,
@@ -2920,7 +2959,7 @@ function scaledSelectionPlacements(targetSelectionScale) {
   });
 }
 function selectedComponentIdsFromDom() {
-  const domSelectedIds = [...document.querySelectorAll(".element-item.selected[data-component-id]")]
+  const domSelectedIds = [...document.querySelectorAll<HTMLElement>(".element-item.selected[data-component-id]")]
     .map((elementItemElement) => elementItemElement.dataset.componentId)
     .filter(Boolean);
   return selectedComponentIdsSet.size > 1 ? [...selectedComponentIdsSet] : domSelectedIds;
@@ -2969,7 +3008,6 @@ function closeComponentMenu() {
 }
 function openComponentMenu(menuEvent, openedMenuComponentId) {
   (menuEvent.preventDefault(), menuEvent.stopPropagation());
-  const menuIds = findComponent2(activeProject?.document, openedMenuComponentId)?.component;
   (selectComponent(openedMenuComponentId, {
     preserveGroup: true,
   }),
@@ -3463,7 +3501,7 @@ function renderComponentList(componentListElement, listComponents, listEmptyText
       componentItemElement.addEventListener("dblclick", (itemDoubleClickEvent) => {
         if (
           listComponent.type !== "group" ||
-          itemDoubleClickEvent.target.closest(".element-visibility")
+          (itemDoubleClickEvent.target as Element).closest(".element-visibility")
         )
           return;
         if (
@@ -3900,7 +3938,7 @@ function runLimit({ clearMessage: runBound = true } = {}) {
 function runAmount(runSize = "") {
   if (removedComponent()?.type !== "light-statistics") return;
   const localeLowerCase = runSize.trim().toLocaleLowerCase("zh-CN"),
-    navigationIconLabelElementConfig = runPortion("light-statistics")
+    navigationIconLabelElementConfig: HTMLElement[] = runPortion("light-statistics")
       .map((mappedItemsValue, mappedItemsConfig) => ({
         entity: mappedItemsValue,
         index: mappedItemsConfig,
@@ -3925,7 +3963,7 @@ function runAmount(runSize = "") {
             +(renderNavigationIconPreview(navigationIconLabelElementEntry.entity) === "light") ||
           navigationIconLabelElementEntry.index - navigationIconUrlState.index,
       )
-      .map(({ entity: mappedItemsRef, support: mappedItemsEntry }) => {
+      .map(({ entity: mappedItemsRef }) => {
         const navigationIconUrlElement = document.createElement("button");
         ((navigationIconUrlElement.type = "button"),
           (navigationIconUrlElement.className =
@@ -4036,7 +4074,7 @@ function effectIconName() {
     return (
       effectIconPreviewElementRef &&
         effectIconPreviewElementRef !== tn2 &&
-        delete effectIconPreviewState[effectIconPreviewElementRef],
+        delete effectIconPreviewState[String(effectIconPreviewElementRef)],
       (effectIconPreviewState[tn2] = runSnapshot(effectIconValue)),
       (effectIconPreviewElementConfig.properties = {
         ...(effectIconPreviewElementConfig.properties || {}),
@@ -4083,7 +4121,7 @@ function runLocation(runRegion) {
         effectIconPreviewStateState = {
           ...(effectIconPreviewElementKey.properties?.entityLabels || {}),
         };
-      (splice2 && delete effectIconPreviewStateState[splice2],
+      (splice2 && delete effectIconPreviewStateState[String(splice2)],
         (effectIconPreviewElementKey.properties = {
           ...(effectIconPreviewElementKey.properties || {}),
           entityIds: qa3,
@@ -4110,7 +4148,7 @@ function runZone(runBundle = removedComponent()) {
       effectIconPreviewElementSection = document.createElement("strong");
     effectIconPreviewElementSection.textContent = effectIconPreviewElementText
       ? runSnapshot(effectIconPreviewElementText)
-      : effectIconPreviewElementPath[mappedItemsName] || mappedItemsName;
+      : effectIconPreviewElementPath[String(mappedItemsName)] || mappedItemsName;
     const effectIconValueElement = document.createElement("small");
     ((effectIconValueElement.textContent = mappedItemsName + " · " + xE2.label),
       effectIconPreviewElementPanel.append(
@@ -5236,14 +5274,14 @@ let relatedPopupElement = null,
 function entitiesByEntityId() {
   return new Map(
     entities
-      .map((entityRecord) => [String(entityRecord.entityId || ""), entityRecord])
+      .map((entityRecord) => [String(entityRecord.entityId || ""), entityRecord] as const)
       .filter(([entityValue]) => entityValue),
   );
 }
 function devicesByDeviceId() {
   return new Map(
     devices
-      .map((deviceRecord) => [String(deviceRecord.deviceId || ""), deviceRecord])
+      .map((deviceRecord) => [String(deviceRecord.deviceId || ""), deviceRecord] as const)
       .filter(([deviceValue]) => deviceValue),
   );
 }
@@ -5430,7 +5468,7 @@ function updateRelatedPopup(editedComponent, anchorElement) {
           currentRelatedIdSet.size +
           (popupSelectionLimit ? " / " + popupSelectionLimit : "") +
           " 项")));
-  const optionButtons = candidateEntities.map((candidate) => {
+  const optionButtons: HTMLElement[] = candidateEntities.map((candidate) => {
     const isSelected = currentRelatedIdSet.has(candidate.entityId),
       isAvailable = relatedEntityIsAvailable2(candidate),
       candidateButton = document.createElement("button");
@@ -5560,9 +5598,7 @@ const {
     createIconPickerOption: createIconPickerClearOptionState,
     createEditorPickerCurrentIcon: createIconPickerClearOption,
     createEditorEntityPickerOption: createIconPickerOption,
-    editorPickerClearOption: createEditorPickerCurrentIcon,
     editorPickerClearAction: createEditorEntityPickerOption,
-    editorPickerEntityAction: editorPickerClearAction,
     createEditorPickerCurrentEntity: createEditorPickerCurrentEntity,
     createEditorPickerCurrentAsset: createEditorPickerCurrentAsset,
   } = createEditorPickerElements2({
@@ -5725,7 +5761,7 @@ function measureAssetImageSize(measuredAsset) {
         width: Number(measuredAsset.width),
         height: Number(measuredAsset.height),
       })
-    : new Promise((resolveImageSize, rejectImageSize) => {
+    : new Promise<{ width: number; height: number }>((resolveImageSize, rejectImageSize) => {
         const image = new Image();
         ((image.decoding = "async"),
           image.addEventListener(
@@ -6144,12 +6180,12 @@ function initActionPopupConfig() {
     const popupEntityButtonElement = popupSettingsElement.querySelector(
         "[data-popup-entity-button]",
       ),
-      popupEntityInputElement = popupSettingsElement.querySelector("[data-popup-entity]");
+      popupEntityInputElement = popupSettingsElement.querySelector<HTMLInputElement>("[data-popup-entity]");
     enhanceEntityCopyButton(popupEntityButtonElement, () => popupEntityInputElement?.value || "");
   }
 }
 function closePopupEntityMenus(activeTriggerElement = null) {
-  for (const popupMenuElement of document.querySelectorAll("[data-popup-entity-menu]")) {
+  for (const popupMenuElement of document.querySelectorAll<HTMLElement>("[data-popup-entity-menu]")) {
     const triggerElement = popupMenuElement.closest("[data-action-trigger]");
     triggerElement !== activeTriggerElement &&
       ((popupMenuElement.hidden = true),
@@ -6833,7 +6869,6 @@ function syncPanelFrameInspector(panelFrameComponent) {
 function syncNavigationInspector(navigationComponent) {
   const availablePropertiesRecord = navigationComponent.properties || {},
     navigationProperties = navigationComponent.position || {},
-    navigationPosition = activeProject.document.pages || [],
     measuredBoundsText = Number(activeProject.document.canvas.width || 2778),
     navigationCanvasWidthPx = Number(activeProject.document.canvas.height || 1940),
     navigationCanvasHeightPx = Number(navigationProperties.width || 100),
@@ -8103,7 +8138,7 @@ function coverMotorButtonElement() {
             syncInspectorEntry,
           )) {
             const isImageComponentConfig = {
-              ...isImageComponentValue,
+              ...(isImageComponentValue as Record<string, unknown>),
             };
             (isImageComponentState === "position" &&
               Number.isFinite(inspectedComponentValue) &&
@@ -8164,7 +8199,7 @@ function coverMotorButtonElement() {
                 ? propertyValue
                 : {
                     ...updatedComponent[changedPropertyKey],
-                    ...propertyValue,
+                    ...(propertyValue as Record<string, unknown>),
                   };
         },
         pageSelectElement.value,
@@ -8705,8 +8740,7 @@ function coverMotorButtonElement() {
     (imageLayoutOptionElement.classList.toggle("active", isImageLayoutActiveActive),
       imageLayoutOptionElement.setAttribute("aria-pressed", String(isImageLayoutActiveActive)));
   }
-  const isImageLayoutActive = imageLayoutMode === "fill",
-    isImageFillLayout = selectedComponentIdsSet.size > 1;
+  const isImageLayoutActive = imageLayoutMode === "fill";
   ((imageLeftInputElement.disabled = isImageLayoutActive),
     (imageTopInputElement.disabled = isImageLayoutActive),
     (imageScaleInputElement.disabled = isImageLayoutActive),
@@ -8771,7 +8805,7 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
               .map((mappedItemsCache) => [
                 String(mappedItemsCache.deviceId || ""),
                 runCursor(mappedItemsCache.name),
-              ])
+              ] as const)
               .filter(
                 ([entitiesResponseState, entitiesResponseValue]) =>
                   entitiesResponseState && entitiesResponseValue,
@@ -8873,7 +8907,7 @@ function runExtraOuter(runExtraUpper, catalogEntityRecord = selectedPopupId) {
   }
 }
 function runExtraLower() {
-  for (const translationsResponseElementElement of document.querySelectorAll(
+  for (const translationsResponseElementElement of document.querySelectorAll<HTMLInputElement>(
     "[data-popup-entity]",
   )) {
     const translationsResponseElementPanel =
@@ -8882,14 +8916,14 @@ function runExtraLower() {
       entities[0]?.entityId &&
       (translationsResponseElementElement.value = entities[0].entityId),
       syncPopupEntityButton(translationsResponseElementPanel));
-    const translationsResponseElement = translationsResponseElementPanel?.querySelector(
+    const translationsResponseElement = translationsResponseElementPanel?.querySelector<HTMLElement>(
       "[data-popup-entity-menu]",
     );
     translationsResponseElement &&
       !translationsResponseElement.hidden &&
       renderPopupEntityOptions(
         translationsResponseElementPanel,
-        translationsResponseElementPanel.querySelector("[data-popup-entity-search]")?.value || "",
+        translationsResponseElementPanel.querySelector<HTMLInputElement>("[data-popup-entity-search]")?.value || "",
       );
   }
 }
@@ -9540,8 +9574,8 @@ function renderCustomPopupEditor() {
   ((stageGridElement.className = "custom-popup-stage"),
     (stageGridElement.style.width = metrics.gridWidth + "px"),
     (stageGridElement.style.height = metrics.gridHeight + "px"),
-    stageGridElement.style.setProperty("--popup-columns", metrics.columns),
-    stageGridElement.style.setProperty("--popup-rows", metrics.rows),
+    stageGridElement.style.setProperty("--popup-columns", String(metrics.columns)),
+    stageGridElement.style.setProperty("--popup-rows", String(metrics.rows)),
     (stageGridElement.style.gridTemplateColumns =
       "repeat(" + metrics.columns + ", minmax(0, 1fr))"),
     (stageGridElement.style.gridTemplateRows = "repeat(" + metrics.rows + ", minmax(0, 1fr))"));
@@ -9560,14 +9594,14 @@ function renderCustomPopupEditor() {
   };
   (stageGridElement.addEventListener("dragover", (dragEvent) => {
     !draggedModuleId ||
-      dragEvent.target.closest(".popup-module-card") ||
+      (dragEvent.target as Element).closest(".popup-module-card") ||
       (dragEvent.preventDefault(),
       clearDropIndicators(),
       stageGridElement.classList.add("popup-module-append-target"),
       dragEvent.dataTransfer && (dragEvent.dataTransfer.dropEffect = "move"));
   }),
     stageGridElement.addEventListener("drop", (dropEvent) => {
-      if (!draggedModuleId || dropEvent.target.closest(".popup-module-card")) return;
+      if (!draggedModuleId || (dropEvent.target as Element).closest(".popup-module-card")) return;
       dropEvent.preventDefault();
       const movedModuleId = draggedModuleId;
       (clearDropIndicators(), applyPopupModuleReorder(activePopup.id, movedModuleId));
@@ -9667,7 +9701,7 @@ function renderCustomPopupEditor() {
       ),
       moduleCardElement.addEventListener("pointerdown", (pointerDownEvent) => {
         moduleCardElement.dataset.dragBlocked = String(
-          !!pointerDownEvent.target.closest(
+          !!(pointerDownEvent.target as Element).closest(
             ".popup-module-card-actions,.popup-cover-settings,.popup-climate-settings,.popup-line-chart-settings",
           ),
         );
@@ -10278,7 +10312,7 @@ function ensureEditorRenderer() {
             duplicateComponent(copiedComponent, sourceComponentIdState, sourceComponentId, false);
           }));
       },
-      onComponentsDuplicate(duplicateDraftDocument, copiedComponentEntries, draggedCopyId) {
+      onComponentsDuplicate(duplicateDraftDocument, _copiedComponentEntries, draggedCopyId) {
         const copiedComponentIds = duplicateDraftDocument.map(
           (copiedComponentEntry) => copiedComponentEntry.copiedComponent.id,
         );
@@ -10528,7 +10562,6 @@ async function historyEntry(prunedEntry, pruneCandidate = null) {
     window.HomeOSLog?.setContext({
       projectId: prunedEntry,
     }),
-    (lastLicenseFeatureSignatureState = ""),
     navigationButtonSavedSettingsByComponentId.clear(),
     coverMotorDirectionValueById.clear(),
     panelFrameBaselineByComponentId.clear(),
@@ -10834,7 +10867,7 @@ async function entityLoadError(syncHaConnectionUi) {
   }
 }
 async function reuseTokenForNewUrl() {
-  const haForm = await requestJson("/auth/me");
+  await requestJson("/auth/me");
 }
 function openProjectDialog() {
   ((haFormElement.elements.name.value = haConnection?.name || "Home Assistant"),
@@ -11037,7 +11070,7 @@ async function customPopup(actionControlChangeEvent = 30000) {
   }
   return !!haConnection?.connected;
 }
-function popupDraftDocument(requireToken = false, reuseTokenForNewUrl = false) {
+function popupDraftDocument(_requireToken = false, reuseTokenForNewUrl = false) {
   const formData = new FormData(haFormElement),
     accessTokenInput = String(formData.get("accessToken") || "").trim();
   if (!accessTokenInput && !haConnection?.hasToken)
@@ -11188,28 +11221,6 @@ function buttonVisibilityDraftDocument(iconPreviewStateClickEventElement) {
       labels: [],
     };
   }
-}
-function previewTimeResize(resizedTimeComponentElement, timeDimensionProperties) {
-  const { urls: qw2, labels: qw3 } = buttonVisibilityDraftDocument(resizedTimeComponentElement);
-  if (!qw2.length) return;
-  const timeCenterY = ((Number(timeDimensionProperties) % qw2.length) + qw2.length) % qw2.length;
-  resizedTimeComponentElement.dataset.previewIndex = String(timeCenterY);
-  const nextTimeHeight = resizedTimeComponentElement.querySelector(
-      ".project-template-preview-open img",
-    ),
-    effectIconOptionElement = resizedTimeComponentElement.querySelector(
-      ".project-template-carousel-meta strong",
-    ),
-    iconButtonIconOptionElement = resizedTimeComponentElement.querySelector(
-      ".project-template-carousel-meta span",
-    );
-  (nextTimeHeight &&
-    ((nextTimeHeight.src = qw2[timeCenterY]),
-    (nextTimeHeight.alt = qw3[timeCenterY] || "HomeOS预览 " + (timeCenterY + 1))),
-    effectIconOptionElement &&
-      (effectIconOptionElement.textContent = qw3[timeCenterY] || "HomeOS预览"),
-    iconButtonIconOptionElement &&
-      (iconButtonIconOptionElement.textContent = timeCenterY + 1 + " / " + qw2.length));
 }
 function titleButtonIconOptionClickEvent() {
   lockedCanvasWidthValue.length &&
@@ -12919,7 +12930,7 @@ for (const [
 initActionPopupConfig();
 for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-action-controls"))
   (onDateInspectorFormSubmit.addEventListener("click", (dateInspectorSubmitEvent) => {
-    const onWeatherInspectorFormSubmitElement = dateInspectorSubmitEvent.target.closest(
+    const onWeatherInspectorFormSubmitElement = (dateInspectorSubmitEvent.target as Element).closest<HTMLElement>(
       "[data-hidden-content-clickable]",
     );
     if (onWeatherInspectorFormSubmitElement && selectedComponentId) {
@@ -12941,9 +12952,9 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
       return;
     }
     const onWeatherInspectorFormSubmitElementElement =
-        dateInspectorSubmitEvent.target.closest("[data-action-type]"),
+        (dateInspectorSubmitEvent.target as Element).closest<HTMLButtonElement>("[data-action-type]"),
       weatherInspectorSubmitEventElement =
-        onWeatherInspectorFormSubmitElementElement?.closest("[data-action-trigger]"),
+        onWeatherInspectorFormSubmitElementElement?.closest<HTMLElement>("[data-action-trigger]"),
       weatherInspectorSubmitEventState = selectedComponentId;
     if (
       !onWeatherInspectorFormSubmitElementElement ||
@@ -13095,11 +13106,11 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
       });
   }),
     onDateInspectorFormSubmit.addEventListener("change", (onPanelFrameInspectorFormSubmit) => {
-      const onPanelFrameInspectorFormSubmitState = onPanelFrameInspectorFormSubmit.target.closest(
+      const onPanelFrameInspectorFormSubmitState = (onPanelFrameInspectorFormSubmit.target as Element).closest<HTMLElement>(
           "[data-popup-source], [data-popup-entity], [data-popup-custom]",
         ),
         panelFrameInspectorSubmitEventElement =
-          onPanelFrameInspectorFormSubmitState?.closest("[data-action-trigger]");
+          onPanelFrameInspectorFormSubmitState?.closest<HTMLElement>("[data-action-trigger]");
       if (
         onPanelFrameInspectorFormSubmitState &&
         panelFrameInspectorSubmitEventElement &&
@@ -13117,16 +13128,20 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
           )
             return;
           const panelFrameInspectorSubmitEventValue =
-              panelFrameInspectorSubmitEventElement.querySelector("[data-popup-source]").value,
-            panelFrameInspectorSubmitEventConfig = {
+              panelFrameInspectorSubmitEventElement.querySelector<HTMLSelectElement>("[data-popup-source]").value,
+            panelFrameInspectorSubmitEventConfig: {
+              popupSource: string;
+              entityId?: string;
+              popupId?: string;
+            } = {
               popupSource: panelFrameInspectorSubmitEventValue,
             };
           (panelFrameInspectorSubmitEventValue === "entity" &&
             (panelFrameInspectorSubmitEventConfig.entityId =
-              panelFrameInspectorSubmitEventElement.querySelector("[data-popup-entity]").value),
+              panelFrameInspectorSubmitEventElement.querySelector<HTMLInputElement>("[data-popup-entity]").value),
             panelFrameInspectorSubmitEventValue === "custom" &&
               (panelFrameInspectorSubmitEventConfig.popupId =
-                panelFrameInspectorSubmitEventElement.querySelector("[data-popup-custom]").value),
+                panelFrameInspectorSubmitEventElement.querySelector<HTMLSelectElement>("[data-popup-custom]").value),
             (panelFrameInspectorSubmitEventState.actions = {
               ...(panelFrameInspectorSubmitEventState.actions || {}),
               [actionTrigger3]: {
@@ -13138,9 +13153,9 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
         return;
       }
       const onNavigationInspectorFormSubmitState =
-          onPanelFrameInspectorFormSubmit.target.closest("[data-action-target]"),
+          (onPanelFrameInspectorFormSubmit.target as Element).closest<HTMLSelectElement>("[data-action-target]"),
         onNavigationInspectorFormSubmitElement =
-          onNavigationInspectorFormSubmitState?.closest("[data-action-trigger]"),
+          onNavigationInspectorFormSubmitState?.closest<HTMLElement>("[data-action-trigger]"),
         onNavigationInspectorFormSubmitValue = selectedComponentId;
       if (
         !onNavigationInspectorFormSubmitState ||
@@ -13176,7 +13191,7 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
     }),
     onDateInspectorFormSubmit.addEventListener("click", (bindDocumentSection) => {
       const navigationInspectorSubmitEventElement =
-          bindDocumentSection.target.closest("[data-popup-preview]"),
+          (bindDocumentSection.target as Element).closest<HTMLButtonElement>("[data-popup-preview]"),
         bindDocumentSectionElement =
           navigationInspectorSubmitEventElement?.closest("[data-action-trigger]"),
         entryState = removedComponent();
@@ -13191,16 +13206,20 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
         handleOperationError(new Error("请切换到编辑模式后再预览弹窗。"));
         return;
       }
-      const entryStateState = bindDocumentSectionElement.querySelector("[data-popup-source]").value,
-        onDocumentClickState = {
+      const entryStateState = bindDocumentSectionElement.querySelector<HTMLSelectElement>("[data-popup-source]").value,
+        onDocumentClickState: {
+          popupSource: string;
+          entityId?: string;
+          popupId?: string;
+        } = {
           popupSource: entryStateState,
         };
       (entryStateState === "entity" &&
         (onDocumentClickState.entityId =
-          bindDocumentSectionElement.querySelector("[data-popup-entity]").value),
+          bindDocumentSectionElement.querySelector<HTMLInputElement>("[data-popup-entity]").value),
         entryStateState === "custom" &&
           (onDocumentClickState.popupId =
-            bindDocumentSectionElement.querySelector("[data-popup-custom]").value));
+            bindDocumentSectionElement.querySelector<HTMLSelectElement>("[data-popup-custom]").value));
       try {
         ensureEditorRenderer().previewAction(entryState, {
           type: "more-info",
@@ -13211,10 +13230,10 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
       }
     }));
 (document.addEventListener("click", (documentClickEvent) => {
-  const entityPickerButton = documentClickEvent.target.closest("[data-popup-entity-button]");
+  const entityPickerButton = (documentClickEvent.target as Element).closest("[data-popup-entity-button]");
   if (entityPickerButton) {
     const entityTriggerHost = entityPickerButton.closest("[data-action-trigger]"),
-      entityMenuWasHiddenElement = entityTriggerHost?.querySelector("[data-popup-entity-menu]");
+      entityMenuWasHiddenElement = entityTriggerHost?.querySelector<HTMLElement>("[data-popup-entity-menu]");
     if (!entityTriggerHost || !entityMenuWasHiddenElement) return;
     const hidden4 = entityMenuWasHiddenElement.hidden;
     if (
@@ -13223,7 +13242,7 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
       entityPickerButton.setAttribute("aria-expanded", String(hidden4)),
       hidden4)
     ) {
-      const entitySearchInput = entityTriggerHost.querySelector("[data-popup-entity-search]");
+      const entitySearchInput = entityTriggerHost.querySelector<HTMLInputElement>("[data-popup-entity-search]");
       ((entitySearchInput.value = ""),
         renderPopupEntityOptions(entityTriggerHost, ""),
         positionPopupEntityMenu(entityTriggerHost),
@@ -13235,12 +13254,12 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
     }
     return;
   }
-  const popupActionEntityOptionElement = documentClickEvent.target.closest(
+  const popupActionEntityOptionElement = (documentClickEvent.target as Element).closest<HTMLElement>(
     "[data-popup-action-entity-id]",
   );
   if (!popupActionEntityOptionElement) return;
   const entityActionTriggerHost = popupActionEntityOptionElement.closest("[data-action-trigger]"),
-    popupEntityIdInput = entityActionTriggerHost?.querySelector("[data-popup-entity]");
+    popupEntityIdInput = entityActionTriggerHost?.querySelector<HTMLInputElement>("[data-popup-entity]");
   !entityActionTriggerHost ||
     !popupEntityIdInput ||
     ((popupEntityIdInput.value = popupActionEntityOptionElement.dataset.popupActionEntityId),
@@ -13253,7 +13272,7 @@ for (const onDateInspectorFormSubmit of document.querySelectorAll(".component-ac
     ));
 }),
   document.addEventListener("input", (documentInputEvent) => {
-    const entitySearchField = documentInputEvent.target.closest("[data-popup-entity-search]"),
+    const entitySearchField = (documentInputEvent.target as Element).closest<HTMLInputElement>("[data-popup-entity-search]"),
       searchTriggerHost = entitySearchField?.closest("[data-action-trigger]");
     !entitySearchField ||
       !searchTriggerHost ||
@@ -13624,7 +13643,7 @@ function findDiagramPreviewFrame(
   applyBaseLightingToPanel,
   baseLighting = null,
 ) {
-  const normalizedLightingElement = document.querySelector(
+  const normalizedLightingElement = document.querySelector<HTMLIFrameElement>(
     '.hb-component[data-component-id="' +
       CSS.escape(lightingComponentId) +
       '"] .hb-floorplan-auto-diagram-preview',
@@ -13643,7 +13662,7 @@ function findDiagramPreviewFrame(
     : false;
 }
 function lightInputElement(openAutoDiagramDialog, dialogComponentId) {
-  const cancelRemovesComponentElement = document.querySelector(
+  const cancelRemovesComponentElement = document.querySelector<HTMLIFrameElement>(
     '.hb-component[data-component-id="' +
       CSS.escape(openAutoDiagramDialog) +
       '"] .hb-floorplan-auto-diagram-preview',
@@ -13800,7 +13819,7 @@ function cancelRemovesComponent(bindFloorplanSection) {
   }));
 function lightingPayload(readBaseLightingFromPanel = baseLightingComponentId) {
   return readBaseLightingFromPanel
-    ? document.querySelector(
+    ? document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
           CSS.escape(readBaseLightingFromPanel) +
           '"] .hb-floorplan-auto-diagram-preview',
@@ -14031,7 +14050,7 @@ function cancelRemoveDraftDocument() {
     });
     return;
   }
-  const studioDialogFrame = document.querySelector(
+  const studioDialogFrame = document.querySelector<HTMLIFrameElement>(
     '.hb-component[data-component-id="' +
       CSS.escape(diagramStudioComponent.id) +
       '"] .hb-floorplan-auto-diagram-preview',
@@ -14185,7 +14204,7 @@ function onWindowMessage(
     document.addEventListener("keydown", lightingStateComponentIdHandler, true),
     (lightingPanelDragState = lightingStateComponentIdElement),
     document.body.append(lightingStateComponentIdElement),
-    lightingStateComponentIdElement.querySelector("[data-export-complete-confirm]")?.focus());
+    lightingStateComponentIdElement.querySelector<HTMLElement>("[data-export-complete-confirm]")?.focus());
 }
 window.addEventListener("message", (lightingStateFrameState) => {
   if (lightingStateFrameState.origin !== window.location.origin) return;
@@ -14212,7 +14231,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   }
   if (data?.type === "homeos-floorplan-auto-diagram-ready") {
     const readyComponentId = String(data.componentId || ""),
-      readyFrame = document.querySelector(
+      readyFrame = document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
           CSS.escape(readyComponentId) +
           '"] .hb-floorplan-auto-diagram-preview',
@@ -14268,7 +14287,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   }
   if (data?.type === "homeos-floorplan-auto-diagram-floor-state") {
     const floorStateComponentId = String(data.componentId || ""),
-      floorStateFrame = document.querySelector(
+      floorStateFrame = document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
           CSS.escape(floorStateComponentId) +
           '"] .hb-floorplan-auto-diagram-preview',
@@ -14309,7 +14328,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   }
   if (data?.type === "homeos-floorplan-auto-diagram-stopped") {
     const stoppedComponentId = String(data.componentId || ""),
-      stoppedFrame = document.querySelector(
+      stoppedFrame = document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
           CSS.escape(stoppedComponentId) +
           '"] .hb-floorplan-auto-diagram-preview',
@@ -14325,7 +14344,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   }
   if (data?.type === "homeos-floorplan-auto-diagram-error") {
     const errorComponentId = String(data.componentId || ""),
-      errorFrame = document.querySelector(
+      errorFrame = document.querySelector<HTMLIFrameElement>(
         '.hb-component[data-component-id="' +
           CSS.escape(errorComponentId) +
           '"] .hb-floorplan-auto-diagram-preview',
@@ -14340,7 +14359,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   }
   if (!data || data.type !== "homeos-floorplan-auto-diagram-export") return;
   const exportComponentId = String(data.componentId || ""),
-    exportFrame = document.querySelector(
+    exportFrame = document.querySelector<HTMLIFrameElement>(
       '.hb-component[data-component-id="' +
         CSS.escape(exportComponentId) +
         '"] .hb-floorplan-auto-diagram-preview',
@@ -14356,7 +14375,7 @@ window.addEventListener("message", (lightingStateFrameState) => {
   ((floorplanAutoDiagramOpenStudioButtonElement.disabled = false),
     (floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成"),
     (floorplanAutoDiagramStatusElement.textContent = "已生成，正在置换到仪表盘…"));
-  const exportComponentElement = exportFrame.closest(".hb-component");
+  const exportComponentElement = exportFrame.closest<HTMLElement>(".hb-component");
   (exportComponentElement && (exportComponentElement.hidden = true),
     mutateDocument(
       (exportDraftDocument) => {
@@ -15744,7 +15763,7 @@ const effectVisibleComponentById = new Map([
     [lightStatisticsScaleElement, "scale"],
     [lightStatisticsRotationElement, "rotation"],
   ]),
-  previewStateByInputElement = new Map([
+  previewStateByInputElement = new Map<any, any>([ // 预览描述符袋：value 形状随控件而异（min/max/divisor/limits），无法统一推断
     [
       presenceHaloScaleXElement,
       {
@@ -16174,7 +16193,7 @@ const effectVisibleComponentById = new Map([
     [iconButtonScaleElement, "scale"],
     [iconButtonRotationElement, "rotation"],
   ]),
-  previewStateByInputElementByName = new Map([
+  previewStateByInputElementByName = new Map<any, any>([ // 同上：预览描述符袋，值为异构描述符
     [
       airConditionerIconOffColorElement,
       {
@@ -21800,7 +21819,7 @@ function runVariantLower(runVariantLeft, runVariantRight) {
         ),
       ));
     const onDeleteAssetFolderConfirmButtonClickState = [
-        ...onDeleteAssetFolderConfirmButtonClickElementSection.querySelectorAll(
+        ...onDeleteAssetFolderConfirmButtonClickElementSection.querySelectorAll<HTMLInputElement>(
           "[data-navigation-target-id]",
         ),
       ],
@@ -23789,11 +23808,11 @@ function runCopyBackup({
         popupIdRecord());
     }),
     popupNameInputList.addEventListener("pointerover", (onPopupSelectChange) => {
-      const popupListItemElementElement = onPopupSelectChange.target.closest(
+      const popupListItemElementElement = (onPopupSelectChange.target as Element).closest<HTMLElement>(
         "[data-editor-picker-value]",
       );
       !popupListItemElementElement ||
-        popupListItemElementElement.contains(onPopupSelectChange.relatedTarget) ||
+        popupListItemElementElement.contains(onPopupSelectChange.relatedTarget as Node) ||
         onPopupNameCloseButtonClick?.(
           popupListItemElementElement.dataset.editorPickerValue,
           popupListItemElementElement,
@@ -23802,14 +23821,14 @@ function runCopyBackup({
     popupNameInputList.addEventListener("pointerleave", hideAssetLargePreview),
     popupNameInputList.addEventListener("scroll", hideAssetLargePreview),
     popupNameInputList.addEventListener("click", (onPopupListClick) => {
-      const onPopupListClickElement = onPopupListClick.target.closest("[data-delete-user-asset]");
+      const onPopupListClickElement = (onPopupListClick.target as Element).closest<HTMLElement>("[data-delete-user-asset]");
       if (onPopupListClickElement && onPopupNewButtonClick) {
         (onPopupListClick.preventDefault(), onPopupListClick.stopPropagation());
         const deleteUserAsset = onPopupListClickElement.dataset.deleteUserAsset;
         (popupIdRef.close(), onPopupNewButtonClick(deleteUserAsset));
         return;
       }
-      const popupListClickEventElement = onPopupListClick.target.closest(
+      const popupListClickEventElement = (onPopupListClick.target as Element).closest<HTMLElement>(
         "[data-editor-picker-value]",
       );
       if (!popupListClickEventElement || !popupNameInputList.contains(popupListClickEventElement))
@@ -23818,7 +23837,7 @@ function runCopyBackup({
       (popupIdRef.close(), onAddComponentButtonClickState(editorPickerValue));
     }),
     templateItemElementElement.addEventListener("click", (popupListClickEvent) => {
-      const popupListItemElement = popupListClickEvent.target.closest("[data-editor-picker-value]");
+      const popupListItemElement = (popupListClickEvent.target as Element).closest<HTMLElement>("[data-editor-picker-value]");
       if (!popupListItemElement || !templateItemElementElement.contains(popupListItemElement))
         return;
       const editorPickerValue2 = popupListItemElement.dataset.editorPickerValue;
@@ -23894,7 +23913,7 @@ function onPopupListContextmenu(popupListMenuEvent) {
       },
     ].find((onPopupActionsButtonClick) => onPopupActionsButtonClick.button === popupListMenuEvent);
   if (!popupMenuRect) return false;
-  const kn2 = runCopyBackup({
+  runCopyBackup({
     kind: "icon",
     title: popupMenuRect.title,
     searchPlaceholder: "搜索图标名称",
@@ -24073,8 +24092,8 @@ function runCopyOuter() {
     popupToDelete = popupDuplicateMatchHandler("").findIndex(
       (popupToDeleteState) => popupToDeleteState.entityId === statisticsEntityId,
     ),
-    popupDeleteCandidateState = runSegment()[0] || null,
-    kn3 = runCopyBackup({
+    popupDeleteCandidateState = runSegment()[0] || null;
+    runCopyBackup({
       kind: "entity",
       title: statisticsReplaceIndex >= 0 ? "选择替换实体" : "添加统计实体",
       subtitle: popupBeingRenamedState,
@@ -24356,7 +24375,7 @@ function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent) {
         const nm2 = createAssetOptionButton(popupModuleSubmitEvent, climateDeviceTypeElementValue),
           popupModuleTargetPopupIdElement = nm2.matches?.("[data-asset-id]")
             ? nm2
-            : nm2.querySelector("[data-asset-id]");
+            : nm2.querySelector<HTMLElement>("[data-asset-id]");
         return (
           popupModuleTargetPopupIdElement &&
             (popupModuleTargetPopupIdElement.dataset.editorPickerValue =
@@ -24425,6 +24444,8 @@ async function popupModuleTypeValue(popupModuleTypeConfig, popupModuleTypeRef) {
       try {
         await requestJson("/assets/user", {
           method: "POST",
+          // 图片最大 20 MB：慢速局域网下也允许它传完，但仍要有上限。
+          timeoutMs: 120000,
           body: popupModuleTypeName,
           headers: {
             "Content-Type": popupModuleTypeName.type || "application/octet-stream",
@@ -25184,7 +25205,10 @@ function runAliasAlt() {
             for (const [
               onPopupModuleEntityButtonClickValue,
               onPopupModuleEntitySearchInputInputState,
-            ] of Object.entries(onPopupModuleCancelButtonClickValue.actions || {}))
+            ] of Object.entries<{
+              type?: string;
+              data?: { popupSource?: string; popupId?: string };
+            }>(onPopupModuleCancelButtonClickValue.actions || {}))
               onPopupModuleEntitySearchInputInputState.type === "more-info" &&
                 onPopupModuleEntitySearchInputInputState.data?.popupSource === "custom" &&
                 onPopupModuleEntitySearchInputInputState.data?.popupId === Va2 &&
@@ -25345,7 +25369,7 @@ function runAliasAlt() {
       }));
   }),
   document.addEventListener("pointerdown", (panelId) => {
-    const deleteAssetFolderClosestElementState = panelId.target.closest(
+    const deleteAssetFolderClosestElementState = (panelId.target as Element).closest(
       "#delete-asset-folder-dialog",
     );
     (componentMenuElement.contains(panelId.target) || closeComponentMenu(),
@@ -25354,66 +25378,66 @@ function runAliasAlt() {
         !openCustomSelect.button.contains(panelId.target) &&
         !openCustomSelect.menu.contains(panelId.target) &&
         runState(),
-      panelId.target.closest(".dashboard-select-row") || errorPhase(),
-      panelId.target.closest(".page-control .page-select-row") || value(),
-      !panelId.target.closest("#popup-list") &&
-        !panelId.target.closest("#popup-actions-menu") &&
+      (panelId.target as Element).closest(".dashboard-select-row") || errorPhase(),
+      (panelId.target as Element).closest(".page-control .page-select-row") || value(),
+      !(panelId.target as Element).closest("#popup-list") &&
+        !(panelId.target as Element).closest("#popup-actions-menu") &&
         run(),
-      panelId.target.closest("#popup-module-entity-picker") || closePopupModuleEntityMenu(),
-      panelId.target.closest(".component-popup-entity-picker") || closePopupEntityMenus(),
-      panelId.target.closest("#image-entity-picker") ||
+      (panelId.target as Element).closest("#popup-module-entity-picker") || closePopupModuleEntityMenu(),
+      (panelId.target as Element).closest(".component-popup-entity-picker") || closePopupEntityMenus(),
+      (panelId.target as Element).closest("#image-entity-picker") ||
         runPrimary(imageEntityMenuElement, imageEntityButtonElement),
-      panelId.target.closest("#weather-entity-picker") ||
+      (panelId.target as Element).closest("#weather-entity-picker") ||
         runPrimary(weatherEntityMenuElement, weatherEntityButtonElement),
-      panelId.target.closest("#line-chart-entity-picker") ||
+      (panelId.target as Element).closest("#line-chart-entity-picker") ||
         runPrimary(lineChartEntityMenuElement, lineChartEntityButtonElement),
-      panelId.target.closest("#ibe-entity-picker") ||
+      (panelId.target as Element).closest("#ibe-entity-picker") ||
         runPrimary(ibeEntityMenuElement, ibeEntityButtonElement),
-      panelId.target.closest("#icon-button-entity-picker") ||
+      (panelId.target as Element).closest("#icon-button-entity-picker") ||
         runPrimary(iconButtonEntityMenuElement, iconButtonEntityButtonElement),
-      panelId.target.closest("#vacuum-map-entity-picker") ||
+      (panelId.target as Element).closest("#vacuum-map-entity-picker") ||
         runPrimary(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement),
-      panelId.target.closest("#camera-entity-picker") ||
+      (panelId.target as Element).closest("#camera-entity-picker") ||
         runPrimary(cameraEntityMenuElement, cameraEntityButtonElement),
-      panelId.target.closest("#air-conditioner-entity-picker") ||
+      (panelId.target as Element).closest("#air-conditioner-entity-picker") ||
         runPrimary(airConditionerEntityMenuElement, airConditionerEntityButtonElement),
-      panelId.target.closest("#title-button-entity-picker") ||
+      (panelId.target as Element).closest("#title-button-entity-picker") ||
         runPrimary(titleButtonEntityMenuElement, titleButtonEntityButtonElement),
       !lightStatisticsEntityMenuElement.hidden &&
-        !panelId.target.closest("#light-statistics-entity-picker") &&
+        !(panelId.target as Element).closest("#light-statistics-entity-picker") &&
         !lightStatisticsEntityMenuElement.contains(panelId.target) &&
         (runPrimary(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement),
         runLimit()),
-      panelId.target.closest("#light-statistics-action-entity-picker") ||
+      (panelId.target as Element).closest("#light-statistics-action-entity-picker") ||
         runPrimary(
           lightStatisticsActionEntityMenuElement,
           lightStatisticsActionEntityButtonElement,
         ),
-      panelId.target.closest("#navigation-entity-picker") ||
+      (panelId.target as Element).closest("#navigation-entity-picker") ||
         runPrimary(navigationEntityMenuElement, navigationEntityButtonElement));
     const panelElement = customSelectsBySelectElement.get(imageAssetFolderSelectElement)?.menu;
     !deleteAssetFolderClosestElementState &&
-      !panelId.target.closest("#image-asset-picker") &&
+      !(panelId.target as Element).closest("#image-asset-picker") &&
       !panelElement?.contains(panelId.target) &&
       runPrimary(imageAssetMenuElement, imageAssetButtonElement);
     const panelWidth = customSelectsBySelectElement.get(ibeAssetFolderElement)?.menu;
     (!deleteAssetFolderClosestElementState &&
-      !panelId.target.closest("#ibe-asset-picker") &&
+      !(panelId.target as Element).closest("#ibe-asset-picker") &&
       !panelWidth?.contains(panelId.target) &&
       runPrimary(ibeAssetMenuElement, ibeAssetButtonElement),
-      !panelId.target.closest("#ibe-icon-picker") &&
+      !(panelId.target as Element).closest("#ibe-icon-picker") &&
         !ibeIconMenuElement.contains(panelId.target) &&
         runPrimary(ibeIconMenuElement, ibeIconButtonElement),
-      !panelId.target.closest("#icon-button-icon-picker") &&
+      !(panelId.target as Element).closest("#icon-button-icon-picker") &&
         !iconButtonIconMenuElement.contains(panelId.target) &&
         runPrimary(iconButtonIconMenuElement, iconButtonIconButtonElement),
-      !panelId.target.closest("#title-button-icon-picker") &&
+      !(panelId.target as Element).closest("#title-button-icon-picker") &&
         !titleButtonIconMenuElement.contains(panelId.target) &&
         runPrimary(titleButtonIconMenuElement, titleButtonIconButtonElement),
-      !panelId.target.closest("#light-statistics-icon-picker") &&
+      !(panelId.target as Element).closest("#light-statistics-icon-picker") &&
         !lightStatisticsIconMenuElement.contains(panelId.target) &&
         runPrimary(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement),
-      !panelId.target.closest("#navigation-icon-picker") &&
+      !(panelId.target as Element).closest("#navigation-icon-picker") &&
         !navigationIconMenuElement.contains(panelId.target) &&
         runPrimary(navigationIconMenuElement, navigationIconButtonElement));
   }));
@@ -25440,12 +25464,12 @@ const scaleInputElementsSet = new Set([
       selectedComponentIdsSet.size < 2 ||
       !(
         scaleInputElementsSet.has(editorPanelLimits.target) ||
-        editorPanelLimits.target.id === "flow-line-scale"
+        (editorPanelLimits.target as Element).id === "flow-line-scale"
       )
     )
       return;
     editorPanelLimits.stopPropagation();
-    const scaleInputValueValue = Number(editorPanelLimits.target.value);
+    const scaleInputValueValue = Number((editorPanelLimits.target as HTMLInputElement).value);
     if (!Number.isFinite(scaleInputValueValue)) return;
     const scaledPlacementsState = scaledSelectionPlacements(
       clampNumber2(scaleInputValueValue, 1, 500) / 100,
@@ -25462,12 +25486,12 @@ const scaleInputElementsSet = new Set([
         selectedComponentIdsSet.size < 2 ||
         !(
           scaleInputElementsSet.has(documentChangeEventValue.target) ||
-          documentChangeEventValue.target.id === "flow-line-scale"
+          (documentChangeEventValue.target as Element).id === "flow-line-scale"
         )
       )
         return;
       documentChangeEventValue.stopPropagation();
-      const changeInputValueState = Number(documentChangeEventValue.target.value);
+      const changeInputValueState = Number((documentChangeEventValue.target as HTMLInputElement).value);
       if (!Number.isFinite(changeInputValueState)) {
         coverMotorButtonElement();
         return;
@@ -25500,7 +25524,7 @@ const scaleInputElementsSet = new Set([
     true,
   ),
   document.addEventListener("keydown", (documentKeydownEventState) => {
-    const keyboardTargetElementState = documentKeydownEventState.target.closest(
+    const keyboardTargetElementState = (documentKeydownEventState.target as Element).closest(
       'input, textarea, select, button, [contenteditable="true"], dialog',
     );
     if (editorMode === "edit" && selectedComponentIdsSet.size && !keyboardTargetElementState) {
@@ -25548,7 +25572,7 @@ const scaleInputElementsSet = new Set([
       return;
     }
     if (documentKeydownEventState.key !== "Enter" || documentKeydownEventState.isComposing) return;
-    const enterTargetElementElement = documentKeydownEventState.target.closest(
+    const enterTargetElementElement = (documentKeydownEventState.target as Element).closest<HTMLElement>(
       'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])',
     );
     enterTargetElementElement &&
@@ -25725,7 +25749,7 @@ for (const onInspectorScroll of [
   document.addEventListener(
     "click",
     (onSaveButtonClick) => {
-      const metricsElement = onSaveButtonClick.target.closest("button");
+      const metricsElement = (onSaveButtonClick.target as Element).closest("button");
       if (!metricsElement) return;
       let isNavigator = false;
       ([

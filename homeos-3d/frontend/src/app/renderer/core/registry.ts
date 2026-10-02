@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { createVacuumMapImageLoader } from "./vacuum-map-state";
 import { renderFlowLine } from "./registry/flow-line";
 import { bindSceneMode } from "./scene-mode";
@@ -17,6 +16,42 @@ import {
 import { entityPowerIsOn } from "./entity-power";
 import { lightRealtimeCapabilities } from "../controls/light-runtime";
 import { renderInteraction3d } from "../../bridge/bridge";
+/**
+ * 渲染环境 / 属性袋：由 renderer 按组件类型动态组装（states、editable、document、
+ * cleanup、callEntityService、airflow* …），registry 侧只读取其中的可选字段；
+ * 各组件键集不同，无法在本文件内收敛成固定接口，故显式声明为动态袋。
+ */
+type RenderPropertyBag = any;
+/**
+ * 渲染期直接挂在 DOM 元素上的组件控制器钩子（renderer.ts 的 ComponentControllerHooks
+ * 未导出，这里按同样的「全部可选」写法声明 registry 用到的键）。
+ */
+type ComponentControllerHooks = {
+  syncFloorplanAutoDiagramState?: () => void;
+  hbSyncVacuumMap?: () => void;
+  syncLineChartState?: (...stateArgs: any[]) => any;
+  cleanupLineChartHover?: () => void;
+};
+/**
+ * hls.js 运行时：外部脚本注入 window.Hls，vite-env.d.ts 的 Window 只有索引签名，
+ * 这里按本文件实际用到的 API 补一份局部类型。
+ */
+type HlsRuntime = {
+  isSupported?: () => boolean;
+  Events: {
+    MEDIA_ATTACHED: string;
+    MANIFEST_PARSED: string;
+    ERROR: string;
+  };
+  new (hlsPlayerConfig?: {
+    lowLatencyMode?: boolean;
+    backBufferLength?: number;
+    maxBufferLength?: number;
+  }): {
+    on: (hlsEventName: string, hlsEventHandler: (...hlsEventArgs: any[]) => void) => void;
+    loadSource: (hlsSourceUrl: string) => void;
+  };
+};
 const rendererByComponentType = new Map();
 (registerComponent("interaction3d", {
   render: renderInteraction3d,
@@ -96,7 +131,7 @@ export function setBuiltinAssetVersions(assetVersionEntries = []) {
     effectVariantByAssetId.set(variantAssignmentKey, variantAssignmentValue);
   return true;
 }
-export function registerComponent(componentType, componentDefinition) {
+function registerComponent(componentType, componentDefinition) {
   rendererByComponentType.set(componentType, componentDefinition);
 }
 export function renderRegisteredComponent(componentProps, renderEnvironment) {
@@ -256,7 +291,7 @@ function isCoverActiveState(
       ? !isActiveStateText(coverEntityState)
       : isActiveStateText(coverEntityState);
 }
-export function coverComponentIsActive(
+function coverComponentIsActive(
   coverActiveComponent,
   coverActiveEntityId,
   coverActiveStatePayload,
@@ -273,7 +308,7 @@ function isEntityComponentActive(
   activeComponent,
   runtimeEntityIdCandidate,
   inlineStatePayload,
-  activeRenderEnvironment = {},
+  activeRenderEnvironment: RenderPropertyBag = {},
 ) {
   if (String(runtimeEntityIdCandidate || "").startsWith("cover."))
     return coverComponentIsActive(
@@ -296,7 +331,7 @@ function resolveStatePayload(rawStatePayload) {
 }
 export function iconButtonEffectLightVisualAwaiting(
   awaitingComponent,
-  awaitingRenderEnvironment = {},
+  awaitingRenderEnvironment: RenderPropertyBag = {},
 ) {
   const awaitingProperties = awaitingComponent?.properties || {},
     awaitingEntityId = String(awaitingComponent?.bindings?.entity?.entityId || "");
@@ -462,10 +497,10 @@ function resolveEntityIcon(iconEntityId, iconStatePayload) {
     }[entityDomainPrefix] || "mdi:devices"
   );
 }
-export function formatEntityState(
+function formatEntityState(
   formattedStatePayload,
   formattedEntityId = "",
-  formattingEnvironment = {},
+  formattingEnvironment: RenderPropertyBag = {},
 ) {
   const formattedEntityState = resolveStatePayload(formattedStatePayload);
   if (!formattedEntityState) return "等待实体状态";
@@ -569,7 +604,7 @@ function isCoverAuthoredActive(authoredComponent, authoredRenderEnvironment) {
     )
   );
 }
-export const ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN = 3500;
+const ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN = 3500;
 function brightnessToOpacity(brightnessPercent) {
   if (
     brightnessPercent == null ||
@@ -580,7 +615,7 @@ function brightnessToOpacity(brightnessPercent) {
   const normalizedBrightnessRatio = Math.max(0, Math.min(1, Number(brightnessPercent) / 100));
   return normalizedBrightnessRatio <= 0 ? 0 : 0.2 + normalizedBrightnessRatio * 0.8;
 }
-function resolveColorTemperature(lightAttributes = {}) {
+function resolveColorTemperature(lightAttributes: RenderPropertyBag = {}) {
   const kelvinValue = Number(lightAttributes.color_temp_kelvin);
   if (Number.isFinite(kelvinValue) && kelvinValue > 0) return kelvinValue;
   const miredValue = Number(lightAttributes.color_temp);
@@ -588,7 +623,7 @@ function resolveColorTemperature(lightAttributes = {}) {
 }
 export function iconButtonEffectLightVisualState(
   effectLightComponent,
-  effectLightRenderEnvironment = {},
+  effectLightRenderEnvironment: RenderPropertyBag = {},
 ) {
   const effectLightEntityId = String(effectLightComponent?.bindings?.entity?.entityId || ""),
     effectLightAttributes =
@@ -713,7 +748,7 @@ function formatClimateStateLabel(labelComponent, labelRenderEnvironment) {
       ? climateModeText + " · " + climateCapabilities.currentTemperature + "°C"
       : climateModeText;
 }
-function buildAirflowSvg(airflowProperties = {}, airflowModeKind = "other") {
+function buildAirflowSvg(airflowProperties: RenderPropertyBag = {}, airflowModeKind = "other") {
   const airflowMotionKind = airflowProperties.airflowMotion === "static" ? "static" : "dynamic",
     airflowColor =
       airflowModeKind === "cool"
@@ -749,7 +784,7 @@ function buildAirflowSvg(airflowProperties = {}, airflowModeKind = "other") {
       {
         length: bedPathCount,
       },
-      (pathSlotElement, pathOffsetIndex) => {
+      (_pathSlotElement, pathOffsetIndex) => {
         const pathRatio = bedPathCount === 1 ? 0.5 : pathOffsetIndex / (bedPathCount - 1),
           lateralJitter = (pseudoRandom(pathOffsetIndex + 3) - 0.5) * 10 * airflowIrregularityRatio;
         return Math.max(
@@ -793,7 +828,7 @@ function buildAirflowSvg(airflowProperties = {}, airflowModeKind = "other") {
         {
           length: wispStrandCount,
         },
-        (strandSlotElement, strandSlotIndex) => {
+        (_strandSlotElement, strandSlotIndex) => {
           const wispSeed = bedPathIndex * 41 + strandSlotIndex * 67 + 11,
             wispWidth = Math.max(
               8,
@@ -1011,7 +1046,7 @@ function buildHistorySeries(historySource, historyEntityId, liveValue, hoursWind
   return seriesPoints;
 }
 function formatTimestamp(timestampInput, hasTimeComponent = true) {
-  const dateTimeFormatOptions = hasTimeComponent
+  const dateTimeFormatOptions: Intl.DateTimeFormatOptions = hasTimeComponent
     ? {
         month: "2-digit",
         day: "2-digit",
@@ -1319,7 +1354,7 @@ function createNavigationEffectsSvg(
     svgElement
   );
 }
-export function navigationButtonIsActive({
+function navigationButtonIsActive({
   targetPage = "",
   currentPagePath = "",
   entityId: navigationEntityId = "",
@@ -1369,9 +1404,9 @@ function isEntityStateActive(stateEntityId, stateLookupEnvironment) {
   return ["on", "true", "1", "open", "opening", "active", "playing"].includes(entityStateText);
 }
 registerComponent("floorplan-auto-diagram", {
-  render(diagramComponent, diagramRenderEnvironment = {}) {
+  render(diagramComponent, diagramRenderEnvironment: RenderPropertyBag = {}) {
     const diagramProperties = diagramComponent.properties || {},
-      diagramContainerElement = document.createElement("div");
+      diagramContainerElement: HTMLDivElement & ComponentControllerHooks = document.createElement("div");
     if (
       ((diagramContainerElement.className = "hb-floorplan-auto-diagram"),
       diagramContainerElement.setAttribute(
@@ -3012,7 +3047,7 @@ function createNaturalGasSensorView(naturalGasProperties, naturalGasState) {
       );
     },
   }));
-export function cameraRadiusRatio(rawRadiusRatio, fallbackRadiusRatio = 0.04) {
+function cameraRadiusRatio(rawRadiusRatio, fallbackRadiusRatio = 0.04) {
   const numericRadiusRatio = Number(rawRadiusRatio);
   return Number.isFinite(numericRadiusRatio)
     ? clampNumber(
@@ -3023,10 +3058,10 @@ export function cameraRadiusRatio(rawRadiusRatio, fallbackRadiusRatio = 0.04) {
       )
     : fallbackRadiusRatio;
 }
-export function appendCameraFrame(
+function appendCameraFrame(
   frameHostElement,
   targetEntityFrame,
-  cameraFrameOptions = {},
+  cameraFrameOptions: RenderPropertyBag = {},
   frameIdPrefix = "renderer",
 ) {
   if (!frameHostElement || cameraFrameOptions.frameVisible === false) return null;
@@ -3155,14 +3190,14 @@ export async function prewarmCameraMedia(cameraEntityIds = []) {
     uniqueCameraEntityIds.map((prewarmEntityId) => resolveCameraStreamSource(prewarmEntityId)),
   );
 }
-export function mountCameraSnapshot({
+function mountCameraSnapshot({
   container: cameraContainerElement,
   entityId: snapshotEntityId,
   label: cameraLabel,
   objectFit: cameraObjectFit = "cover",
   refreshInterval: refreshIntervalSeconds = 10,
   placeholder: placeholderElement,
-  cleanup: registerCleanup = () => {},
+  cleanup: registerCleanup = (_cleanupRegistration) => {},
 }) {
   const cameraImageElement = document.createElement("img");
   ((cameraImageElement.className = "hb-camera-image"),
@@ -3466,25 +3501,26 @@ export function mountCameraMedia({
     legacyContainerElement.prepend(cameraVideoElement));
   const startHlsPlayback = async (playbackGeneration) => {
       try {
-        const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId);
+        const hlsSourceUrl = await resolveCameraStreamSource(legacySnapshotEntityId),
+          hlsRuntime = window.Hls as HlsRuntime | undefined;
         if (isTransportDisposed || isPageHidden || playbackGeneration !== transportGeneration)
           return;
         ((legacyContainerElement.dataset.cameraHlsSource = hlsSourceUrl),
           (legacyContainerElement.dataset.cameraTransport = "hls"),
-          window.Hls?.isSupported?.()
-            ? ((hlsPlayer = new window.Hls({
+          hlsRuntime?.isSupported?.()
+            ? ((hlsPlayer = new hlsRuntime({
                 lowLatencyMode: true,
                 backBufferLength: 15,
                 maxBufferLength: 15,
               })),
-              hlsPlayer.on(window.Hls.Events.MEDIA_ATTACHED, () =>
+              hlsPlayer.on(hlsRuntime.Events.MEDIA_ATTACHED, () =>
                 hlsPlayer?.loadSource(hlsSourceUrl),
               ),
-              hlsPlayer.on(window.Hls.Events.MANIFEST_PARSED, () => {
+              hlsPlayer.on(hlsRuntime.Events.MANIFEST_PARSED, () => {
                 ((legacyContainerElement.dataset.cameraState = "manifest-parsed"),
                   cameraVideoElement.play().catch(() => {}));
               }),
-              hlsPlayer.on(window.Hls.Events.ERROR, (hlsEventName, hlsErrorPayload) => {
+              hlsPlayer.on(hlsRuntime.Events.ERROR, (_hlsEventName, hlsErrorPayload) => {
                 isTransportDisposed ||
                   isPageHidden ||
                   playbackGeneration !== transportGeneration ||
@@ -3681,7 +3717,7 @@ export function mountCameraMedia({
         }
         return vacuumMapComponentElement;
       }
-      let vacuumMapImageElement = document.createElement("img");
+      let vacuumMapImageElement: HTMLImageElement & ComponentControllerHooks = document.createElement("img");
       ((vacuumMapImageElement.className = "hb-vacuum-map-image"),
         (vacuumMapImageElement.alt =
           vacuumMapProperties.label ||
@@ -3933,7 +3969,7 @@ export function mountCameraMedia({
           historySeries,
           lineChartProperties.thresholdMode,
         ),
-        lineChartComponentElement = document.createElement("div");
+        lineChartComponentElement: HTMLDivElement & ComponentControllerHooks = document.createElement("div");
       ((lineChartComponentElement.className = "hb-line-chart-component"),
         (lineChartComponentElement.style.borderRadius =
           clampNumber(lineChartProperties.cornerRadius, 0, 50, 10) + "%"));
@@ -4082,7 +4118,7 @@ export function renderLineChartDetails(
       detailsStateValue,
       lineChartDetailsComponent.properties?.hours,
     ),
-    lineChartDetailsElement = document.createElement("section");
+    lineChartDetailsElement: HTMLElement & ComponentControllerHooks = document.createElement("section");
   lineChartDetailsElement.className = "hb-line-chart-details";
   const detailsThresholdList = resolvedThresholds(
     lineChartDetailsComponent.properties?.thresholds,
@@ -4544,7 +4580,7 @@ registerComponent("panel-frame", {
     return panelFrameElement;
   },
 });
-export function componentContentUnitsPx(unitsComponent, unitsRenderEnvironment) {
+function componentContentUnitsPx(unitsComponent, unitsRenderEnvironment) {
   const unitsComponentScale = Math.max(
     0.01,
     Number(unitsRenderEnvironment?.document?.canvas?.componentScale || 1),
@@ -4555,7 +4591,7 @@ export function componentContentUnitsPx(unitsComponent, unitsRenderEnvironment) 
       Math.max(1, Number(unitsComponent?.position?.height || 100)) / unitsComponentScale / 100,
   };
 }
-export function navigationContentUnitPx(
+function navigationContentUnitPx(
   navigationUnitsComponent,
   navigationUnitsRenderEnvironment,
 ) {

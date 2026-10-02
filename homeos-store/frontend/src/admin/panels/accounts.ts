@@ -240,7 +240,7 @@ export async function loadAccounts() {
   renderPager('accounts');
 }
 
-export function openAccountEditor(account: Account) {
+ function openAccountEditor(account: Account) {
   const form = $('#account-form') as AccountForm | null;
   if (!form) return;
   form.reset();

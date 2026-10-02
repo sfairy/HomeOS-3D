@@ -1,6 +1,6 @@
 const readEntityState = (stateSource, entityId) =>
   stateSource instanceof Map ? stateSource.get(entityId) : stateSource?.[entityId];
-export function televisionArtwork(
+function televisionArtwork(
   artworkAttributes: {
     entity_picture_local?: any;
     entity_picture?: any;

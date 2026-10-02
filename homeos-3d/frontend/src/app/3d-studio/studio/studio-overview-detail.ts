@@ -56,28 +56,13 @@ function computeMeshPixelError(errorMesh, errorMetric, viewportWidth, viewportHe
   };
   return Math.max(axisPixelError(0, viewportWidth), axisPixelError(1, viewportHeight));
 }
-export function detailPixelError(
-  detailThree,
-  targetMesh,
-  detailCamera,
-  outputWidth,
-  outputHeight,
-  pixelWorldError,
-) {
-  return computeMeshPixelError(
-    targetMesh,
-    refreshFloorMetric(createFloorMetric(detailThree), detailCamera),
-    outputWidth,
-    outputHeight,
-    pixelWorldError,
-  );
-}
+
 /**
  * 「远景网格简化」控制器的外部依赖。
  * 除 THREE / renderer / scene 外都是回调：本模块只负责判断「哪些网格离得够近、值得换用简化几何」，
  * 取景与楼层归属都交给调用方，所以这里一律按回调描述。
  */
-export type OverviewDetailOptions = {
+type OverviewDetailOptions = {
   THREE: any;
   renderer: any;
   scene: any;

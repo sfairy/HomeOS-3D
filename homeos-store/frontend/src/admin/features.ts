@@ -61,7 +61,7 @@ export function setFeaturePickerValue(root: HTMLElement, codes: string[]) {
   if (input) input.value = codes.join(',');
 }
 
-export function featurePickerMultiple(root: HTMLElement) {
+ function featurePickerMultiple(root: HTMLElement) {
   return root.dataset.featureMultiple === 'true';
 }
 
@@ -161,7 +161,7 @@ export function renderFeatureOptions(root: HTMLElement) {
 }
 
 // 勾选顺序按目录顺序收集，保证保存结果稳定、可 diff。
-export function collectFeatureSelection(root: HTMLElement) {
+ function collectFeatureSelection(root: HTMLElement) {
   const checked = new Set(
     $$('[data-feature-option]:checked', root).map(
       (input) => (input as HTMLInputElement).value,
@@ -182,7 +182,7 @@ function refreshFeaturePickers() {
   });
 }
 
-export function closeFeaturePicker(root: HTMLElement | null | undefined) {
+ function closeFeaturePicker(root: HTMLElement | null | undefined) {
   if (!root || !root.classList.contains('is-open')) return;
   root.classList.remove('is-open');
   const pop = $('[data-feature-pop]', root);
@@ -213,7 +213,7 @@ function placeFeaturePicker(root: HTMLElement) {
   });
 }
 
-export function openFeaturePicker(root: HTMLElement) {
+ function openFeaturePicker(root: HTMLElement) {
   const pop = $('[data-feature-pop]', root) as PopoverElement | null;
   if (!pop) return;
   closeRowMenus();

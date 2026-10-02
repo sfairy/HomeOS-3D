@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import {
   percentageBarDefaults as percentageBarDefaults2,
   percentageBarDimensions as percentageBarDimensions2,
@@ -571,7 +570,7 @@ const templateScopeOrder = {
       },
     },
   };
-export function registerComponentTemplate(template) {
+function registerComponentTemplate(template) {
   if (!template?.id || typeof template.create != "function")
     throw new Error("控件模板必须包含 id 和 create。");
   templatesById.set(
@@ -634,7 +633,7 @@ export function createComponentFromTemplate(templateId, templateOptions) {
     },
   };
 }
-export function timeComponentDimensions(timeOptions = {}) {
+export function timeComponentDimensions(timeOptions: Record<string, unknown> = {}) {
   const max = Math.max(12, Math.min(500, Number(timeOptions.fontSize || 96))),
     letterSpacing = Math.max(-20, Math.min(100, Number(timeOptions.letterSpacing || 0))),
     shouldShowSeconds = timeOptions.showSeconds === true,
@@ -649,7 +648,7 @@ export function timeComponentDimensions(timeOptions = {}) {
     height: Math.max(20, max * 1.18),
   };
 }
-export function dateComponentDimensions(dateOptions = {}) {
+export function dateComponentDimensions(dateOptions: Record<string, unknown> = {}) {
   const primarySize = Math.max(12, Math.min(500, Number(dateOptions.primarySize || 36))),
     lunarSize = Math.max(10, Math.min(500, Number(dateOptions.lunarSize || 24))),
     primarySpacing = Math.max(-20, Math.min(100, Number(dateOptions.primarySpacing || 1))),
@@ -666,7 +665,7 @@ export function dateComponentDimensions(dateOptions = {}) {
     height: primarySize * 1.16 + (shouldShowLunar ? lunarSize * 1.18 + lineGap : 0),
   };
 }
-export function weatherComponentDimensions(weatherOptions = {}) {
+export function weatherComponentDimensions(weatherOptions: Record<string, unknown> = {}) {
   const iconSize = Math.max(12, Math.min(500, Number(weatherOptions.iconSize || 64))),
     temperatureSize = Math.max(12, Math.min(500, Number(weatherOptions.temperatureSize || 32))),
     secondarySize = Math.max(10, Math.min(500, Number(weatherOptions.secondarySize || 18))),
@@ -1568,7 +1567,7 @@ export function weatherComponentDimensions(weatherOptions = {}) {
         },
         { width: weatherComponentDimensions2, height: weatherComponentDimensions3 } =
           weatherComponentDimensions(weatherProperties),
-        weatherBindings = {};
+        weatherBindings: Record<string, unknown> = {};
       return (
         weatherEntityId &&
           (weatherBindings.entity = {

@@ -1,9 +1,23 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import {
   mapCorners,
   createVacuumMapImageLoader,
 } from "./vacuum-map";
-export function planFurniture(plan = {}) {
+function planFurniture(
+  plan: {
+    pixelsPerMeter?: number | string;
+    items?: {
+      id?: string;
+      name?: string;
+      type?: string;
+      color?: string;
+      x?: number;
+      y?: number;
+      width?: number;
+      depth?: number;
+      rotation?: number;
+    }[];
+  } = {},
+) {
   const pixelsPerMeter = Number(plan.pixelsPerMeter) > 0 ? Number(plan.pixelsPerMeter) : 1,
     excludedFurnitureTypeSet = new Set([
       "downlight",
@@ -37,7 +51,7 @@ export function openVacuumMapEditor({
 }) {
   const documentRef = window.document,
     svgXmlns = "http://www.w3.org/2000/svg",
-    createHtmlElement = (tagName, textContent) => {
+    createHtmlElement = (tagName, textContent = "") => {
       const createdElement = documentRef.createElement(tagName);
       return (textContent && (createdElement.textContent = textContent), createdElement);
     },

@@ -10,10 +10,10 @@
 import * as threeModuleMin from "/static/vendor/three/0.186.0/three.module.min.js";
 
 /** 立柱可选造型；非法值一律兜底成 "square"。 */
-export const PILLAR_SHAPES = ["square", "round", "semicircle", "quarter", "quarterinner"];
+const PILLAR_SHAPES = ["square", "round", "semicircle", "quarter", "quarterinner"];
 
 /** 立柱 / 灯带的布置轴：vertical 立姿，horizontal 躺姿。 */
-export const ITEM_AXES = ["vertical", "horizontal"];
+const ITEM_AXES = ["vertical", "horizontal"];
 
 export const DEFAULT_PILLAR_SHAPE = "square";
 /** 立柱出厂即站立。 */
@@ -52,7 +52,7 @@ export function stripIsStanding(item: any) {
 }
 
 /** 平面占位是否无法直接用「宽 x 深」表示、必须另行推导。 */
-export function itemFootprintSwapped(item: any) {
+function itemFootprintSwapped(item: any) {
   return pillarIsLying(item) || stripIsStanding(item);
 }
 
@@ -115,7 +115,7 @@ export function itemFromPlanFootprintResize(item: any, resized: any) {
 }
 
 /** 为立柱轮廓描一段弧。调用方需已把画笔移到弧的起点。 */
-export function appendPillarOutlineArc(
+function appendPillarOutlineArc(
   path: any,
   centerX: number,
   centerY: number,
@@ -132,7 +132,7 @@ export function appendPillarOutlineArc(
 }
 
 /** 立柱截面轮廓（three 的 Shape，单位米，中心在原点）。方形以外的造型由它挤出。 */
-export function buildPillarOutline(shape: any, width: number, depth: number) {
+function buildPillarOutline(shape: any, width: number, depth: number) {
   const path = new threeModuleMin.Shape();
   const halfWidth = width / 2;
   const halfDepth = depth / 2;

@@ -28,7 +28,7 @@ const STATUS_MESSAGES = {
 };
 
 /** 授权恢复流程里读取到的服务端状态（字段按后端返回增量填充）。 */
-export type LicenseRecoveryState = {
+type LicenseRecoveryState = {
   /** 授权状态码，如 ACTIVE / LEASE_EXPIRED。 */
   status?: string;
   /** 细分错误码，用来叠加限流等提示。 */
@@ -44,7 +44,7 @@ export type LicenseRecoveryState = {
 };
 
 /** 授权请求失败时抛出的错误：在 Error 上挂了 status / retryable。 */
-export type LicenseRequestError = Error & {
+type LicenseRequestError = Error & {
   /** HTTP 状态码。 */
   status?: number;
   /** 后端标注的重试是否有意义。 */

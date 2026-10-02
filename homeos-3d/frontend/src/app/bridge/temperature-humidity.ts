@@ -4,7 +4,7 @@
  * 迁移只改写「仍是某一代默认值」的标签，用户自己调过的数值一律保留 —— 否则每次
  * 升级默认值都会覆盖手工配置。新增一档默认值时，把被替换掉的那一档追加到这里。
  */
-export const LABEL_SIZE_HISTORY = [
+const LABEL_SIZE_HISTORY = [
   { size: 180, iconSize: 12 },
   { size: 220, iconSize: 14 },
   { size: 300, iconSize: 18 },
@@ -23,7 +23,7 @@ export const MAX_LABEL_ICON_SIZE = 32;
 export const MIN_LABEL_SIZE = 100;
 export const MIN_LABEL_ICON_SIZE = 9;
 /** 迁移版本：>= 该值表示已完成尺寸默认值升级，不再重复迁移。 */
-export const ENVIRONMENT_LABEL_SIZING_VERSION = 4;
+const ENVIRONMENT_LABEL_SIZING_VERSION = 4;
 export const ENVIRONMENT_METRICS = [
     {
       key: "temperature",

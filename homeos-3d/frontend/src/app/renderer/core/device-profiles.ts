@@ -166,7 +166,7 @@ function pickBestBedControlEntity(entities, role) {
       )[0] || null
   );
 }
-export function xiaomiIntegration(entityMetadata) {
+function xiaomiIntegration(entityMetadata) {
   const platform = String(entityMetadata?.platform || "")
     .trim()
     .toLowerCase();

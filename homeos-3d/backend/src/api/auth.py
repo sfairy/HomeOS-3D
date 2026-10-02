@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
 from ..admin_account import EXTERNAL_PASSWORD_SENTINEL
+from ..auth_limiter import retry_after_headers
 from ..dependencies import CurrentUser, DatabaseSession
 from ..models import LoginSession, User
 from ..schemas import LoginRequest, SetupAdminRequest, SetupStatusResponse, UserResponse
@@ -82,11 +83,10 @@ def set_session_cookie(request: Request, response: Response, token: str) -> None
 def setup_status(request: Request, database: DatabaseSession) -> SetupStatusResponse:
     # [补充说明] 查询系统是否已完成初始化，供前端决定进设置页还是登录页。
     #
-    # 刻意不要求任何身份：未初始化时必须能匿名访问，否则首次设置无从下手。返回 initialized
-    # 与 version，都来自进程内状态。
+    # 刻意不要求任何身份：未初始化时必须能匿名访问，否则首次设置无从下手。
+    # 只回 initialized：版本号对前端没有任何消费方，多回一个字段就多一份可被枚举的信息。
     return SetupStatusResponse(
         initialized=request.app.state.admin_account.initialized,
-        version=request.app.state.settings.version,
     )
 
 
@@ -205,12 +205,14 @@ def login(
     (ip_address, _user_agent) = request_metadata(request)
     limiter_keys = (f"ip:{ip_address}", f"account:{ip_address}:{username.casefold()}")
     limiter = request.app.state.login_limiter
-    # 任一维度被拦即拒绝；Retry-After 回这个限流器当前的封禁时长。
+    # 任一维度被拦即拒绝。Retry-After 回两个键里**剩余等待时间**的较大值：
+    # 回满额 block_seconds 会让客户端等得比实际更久，回 0 又等于催它立刻重试。
+    retry_after = max(limiter.retry_after(key) for key in limiter_keys)
     if any(limiter.blocked(key) for key in limiter_keys):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="登录失败次数过多，请稍后再试。",
-            headers={"Retry-After": str(limiter.block_seconds)},
+            headers=retry_after_headers(retry_after),
         )
     # 凭据只取自账号文件快照：users 表里的 password_hash 是哨兵值，不参与校验。
     credentials = request.app.state.admin_account.credentials

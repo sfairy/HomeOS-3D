@@ -24,7 +24,7 @@ type OverviewJump = {
 };
 
 // 待办磁贴：超过 0 才显示。jump 是「跳到哪个面板、先把某个筛选器设成什么」。
-export const OVERVIEW_TODOS: Array<{
+ const OVERVIEW_TODOS: Array<{
   key: string;
   label: string;
   tone: string;
@@ -74,7 +74,7 @@ export const OVERVIEW_TODOS: Array<{
 ];
 
 // 概览里的跳转统一走这里：先设筛选、再切面板，切面板时 loaders 会带着新筛选重新拉。
-export function jumpFromOverview(target: OverviewJump | null | undefined) {
+ function jumpFromOverview(target: OverviewJump | null | undefined) {
   if (!target) return;
   if (target.filter) {
     const node = $(target.filter) as HTMLInputElement | HTMLSelectElement | null;
@@ -192,7 +192,7 @@ type Incidents = {
 };
 
 // 资金/履约异常计数。文案的重点是「这些异常不会自己报错」——运维看到
-export function renderIncidents(incidents: Incidents | null | undefined) {
+ function renderIncidents(incidents: Incidents | null | undefined) {
   const pillNode = $('#overview-incidents-pill');
   const detail = $('#overview-incidents-detail');
   const ackButton = $('#overview-incidents-ack');
@@ -413,6 +413,33 @@ $('#overview-recompute-stock')?.addEventListener('click', async () => {
       result.updated ? 'success' : 'warning',
     );
     await Promise.all([loadOverview(), host.loadProducts?.()]);
+  } catch (error) {
+    toast(errorMessage(error, '操作失败'), 'danger');
+  }
+});
+// 重算优惠码核销数：与「重算库存预留」对称的维护动作，只改统计值。
+$('#overview-recompute-coupons')?.addEventListener('click', async () => {
+  const ok = await askConfirm({
+    title: '重算优惠码核销数',
+    message: '将按优惠码核销记录重算每个码的「已核销」数量。',
+    impact:
+      '这是一次<b>覆盖式修正</b>：只改「已核销」这个统计值，不动优惠码本身，也不会改动任何订单。',
+    okText: '重算',
+    tone: 'warning',
+  });
+  if (!ok) return;
+  try {
+    const result = (await api('/maintenance/recompute-coupons', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })) as { updated?: number; detail?: string };
+    toast(
+      result.updated
+        ? `已修正 ${result.updated} 个优惠码的核销数：${result.detail}`
+        : '核销数本来就是准的，无需修正',
+      result.updated ? 'success' : 'warning',
+    );
+    await Promise.all([loadOverview(), host.loadCoupons?.()]);
   } catch (error) {
     toast(errorMessage(error, '操作失败'), 'danger');
   }

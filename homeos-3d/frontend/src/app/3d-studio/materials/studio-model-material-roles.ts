@@ -15,7 +15,7 @@
  * 约定：灯光（`floorlamp / walllamp` 等外部灯具与程序化灯）只登记角色数据，
  * 是否走本表由接入方决定。
  */
-import { COURTYARD_MODELS, courtyardPalette } from "../plan/courtyard-models";
+import { courtyardPalette } from "../plan/courtyard-models";
 import { DECOR_MODELS, DECOR_THEMES } from "../studio/decor-models";
 
 /** 表面族：决定默认粗糙度 / 金属度（对齐 0.6.5 的 SURFACE_ROUGHNESS / SURFACE_METALNESS）。 */
@@ -70,7 +70,7 @@ export interface RoleRecipe {
 }
 
 /** 已解析的配方：颜色 / 自发光都已变成具体色号。 */
-export interface ResolvedRoleRecipe extends RoleRecipe {
+interface ResolvedRoleRecipe extends RoleRecipe {
   role: string;
   slot?: number;
   colorValue: number;
@@ -1284,7 +1284,7 @@ const MATERIAL_ROLE_PATTERNS: readonly RegExp[] = [
   /^ha-[a-z0-9]+-([a-z][a-z0-9]*)$/,
 ];
 
-export interface RoleResolution {
+interface RoleResolution {
   role: string;
   slot?: number;
   /** 角色来源，便于排查。 */
@@ -1485,20 +1485,3 @@ export function usesNamedMaterialRole(materialName: string | undefined): boolean
   );
 }
 
-/** 该模型是否有登记的角色体系（供接入方决定是否路由到本表）。 */
-export function hasModelMaterialRoles(itemType: string): boolean {
-  if (!itemType) return false;
-  if (FAMILY_BY_ITEM_TYPE[itemType]) return true;
-  return resolveModelFamily(itemType) !== "misc";
-}
-
-/** 汇总：便于核对与脚本校验。 */
-export const MODEL_ROLE_SUMMARY = Object.freeze({
-  families: Object.keys(ROLE_RECIPES_BY_FAMILY),
-  slotRoleModels: Object.keys(MODEL_SLOT_ROLES),
-  orderRoleModels: Object.keys(MODEL_MATERIAL_ORDER_ROLES),
-  namedRoleModels: Object.keys(MODEL_ROLE_BY_MATERIAL_NAME),
-  familyByItemType: FAMILY_BY_ITEM_TYPE,
-  gardenModels: Object.keys(COURTYARD_MODELS),
-  decorModels: Object.keys(DECOR_MODELS),
-});

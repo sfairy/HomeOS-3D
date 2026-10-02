@@ -1,4 +1,4 @@
-export const RUNTIME_FURNITURE_TYPES = new Set([
+const RUNTIME_FURNITURE_TYPES = new Set([
   "bed",
   "sofa",
   "cabinet",

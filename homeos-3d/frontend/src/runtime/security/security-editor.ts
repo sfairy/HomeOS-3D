@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { appendBackgroundOpacityControl } from "../core/label-appearance";
 import {
   openBatchApply,
@@ -308,7 +307,7 @@ export async function openSecurityEditor({
       editorDialogElement.remove(),
       styleSheetLinkElement.remove(),
       document.dispatchEvent(new Event("hb-i3d-preview-scope")),
-      previouslyFocusedElement?.focus?.());
+      previouslyFocusedElement instanceof HTMLElement && previouslyFocusedElement.focus());
   }
   (headerElement.append(
     createElement("strong", "", "3D 安防配置"),
@@ -358,7 +357,7 @@ export async function openSecurityEditor({
       isDisposed ||
         (renderPanel(), isAccessAllowed && editorDialogElement.open && mountEditorRuntime()));
   };
-  async function runCameraCommand(commandName, commandPayload) {
+  async function runCameraCommand(commandName, commandPayload = undefined) {
     const commandTargetItem = findSelectedItem();
     if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) return;
     const isFocalLengthCommand = commandName === "focus-focal-length",
@@ -562,7 +561,7 @@ export async function openSecurityEditor({
             key: presenceFieldKey,
             label: presenceFieldLabel,
             fallback: presenceFieldFallback,
-            optional: ["speed", "clickToFocus", "hitPadding"].includes(presenceFieldKey),
+            optional: ["speed", "clickToFocus", "hitPadding"].includes(String(presenceFieldKey)),
           })));
     (securityKind !== "presence" &&
       batchFields.push({
@@ -1757,7 +1756,7 @@ export async function openSecurityEditor({
         editing: true,
         editingModule: "security",
         editingSecurityKind: securityKind,
-        onReady(readyMetadata) {
+        onReady(readyMetadata?) {
           ((sceneMetadata = readyMetadata),
             normalizeDoorModelIds(),
             sceneMetadata.floors.some((floorMatch) => floorMatch.id === selectedFloorId) ||

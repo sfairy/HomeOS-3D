@@ -10,7 +10,7 @@ type PasswordToggleOptions = {
 };
 
 // 一次切换：按「按钮的父元素」找输入框，而不是按某个字段类名。
-export function togglePassword(button: Element, options: PasswordToggleOptions = {}): void {
+ function togglePassword(button: Element, options: PasswordToggleOptions = {}): void {
   const input = button.parentElement?.querySelector('input') as HTMLInputElement | null;
   if (!input) return;
   const show = input.type === 'password';

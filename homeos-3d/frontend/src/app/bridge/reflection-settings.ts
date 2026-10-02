@@ -6,13 +6,13 @@
  * 避免这些阈值散落在渲染管线各处、被单独改坏。
  */
 
-export const GROUND_REFLECTION_MODES = ["off", "inside", "outside", "all"] as const;
-export const GROUND_REFLECTION_RESOLUTIONS = [256, 512, 768] as const;
+const GROUND_REFLECTION_MODES = ["off", "inside", "outside", "all"] as const;
+const GROUND_REFLECTION_RESOLUTIONS = [256, 512, 768] as const;
 
-export type GroundReflectionMode = (typeof GROUND_REFLECTION_MODES)[number];
-export type GroundReflectionResolution = (typeof GROUND_REFLECTION_RESOLUTIONS)[number];
+type GroundReflectionMode = (typeof GROUND_REFLECTION_MODES)[number];
+type GroundReflectionResolution = (typeof GROUND_REFLECTION_RESOLUTIONS)[number];
 
-export type GroundReflectionSettings = {
+type GroundReflectionSettings = {
   mode: GroundReflectionMode;
   resolution: GroundReflectionResolution;
   strength: number;
@@ -35,7 +35,7 @@ const DEFAULT_STRENGTH = 0.18;
  */
 export const GROUND_REFLECTION_FADE_HEIGHT = 0;
 
-export type GroundReflectionQualityPreset = {
+type GroundReflectionQualityPreset = {
   /** 倒影贴图再走一趟双向高斯模糊。低分辨率下能压掉闪烁，但会让倒影发糊。 */
   blur: boolean;
   /**

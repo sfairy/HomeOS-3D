@@ -9,7 +9,7 @@ export function overviewFloorId(node) {
   }
   return "";
 }
-export function stackProjection(
+function stackProjection(
   THREE,
   camera,
   stackedHeight,

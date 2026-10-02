@@ -1,11 +1,10 @@
-export const BACKGROUND_MAX_PIXELS = 10000000,
-  BACKGROUND_MAX_DIMENSION = 8192;
+export const BACKGROUND_MAX_DIMENSION = 8192;
 function createCodedError(errorMessage, errorCode) {
   return Object.assign(new Error(errorMessage), {
     code: errorCode,
   });
 }
-export function backgroundTargetSize(sourceWidth, sourceHeight) {
+function backgroundTargetSize(sourceWidth, sourceHeight) {
   if (
     !Number.isFinite(sourceWidth) ||
     !Number.isFinite(sourceHeight) ||
@@ -24,7 +23,7 @@ export function backgroundTargetSize(sourceWidth, sourceHeight) {
     height: Math.max(1, Math.floor(sourceHeight * scaleFactor)),
   };
 }
-export function detectBackgroundFormat(imageBytes) {
+function detectBackgroundFormat(imageBytes) {
   const matchesSignatureBytes = (...signatureBytes) =>
       signatureBytes.every((expectedByte, byteIndex) => imageBytes[byteIndex] === expectedByte),
     decodeAsciiRange = (startIndex, endIndex) =>

@@ -84,6 +84,17 @@ type ReferralData = {
   };
 };
 
+/** 请求去重键。crypto.randomUUID 只在安全上下文（https / localhost）存在：
+ * 用局域网 http 打开商店时它是 undefined，直接调用会抛错，整个推荐页连数据都拉不到。 */
+function randomRequestKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export const HBReferrals = {
   clearInvite() {
     try {
@@ -96,7 +107,7 @@ export const HBReferrals = {
     let data: ReferralData | undefined;
     let kind = 'ledger';
     let page = 1;
-    let requestKey = crypto.randomUUID();
+    let requestKey = randomRequestKey();
     let busy = false;
     let sequence = 0;
     const error = (e: unknown) => {
@@ -311,7 +322,7 @@ export const HBReferrals = {
               expectedFeePercent: data?.settings?.withdrawalFeePercent,
             }),
           });
-          requestKey = crypto.randomUUID();
+          requestKey = randomRequestKey();
           const app = $('#referral-application');
           if (app) {
             app.textContent = `申请已提交，编号：${item.id}。请联系客服办理提现。`;

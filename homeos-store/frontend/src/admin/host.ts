@@ -1,9 +1,9 @@
 /**
  * 后台各模块回调「外壳」时用的窄接口（`admin/app.ts`）。
  */
-export type PagedLoader = () => Promise<unknown> | unknown;
+ type PagedLoader = () => Promise<unknown> | unknown;
 
-export type AdminHost = {
+ type AdminHost = {
   showLogin?: () => void;
   raw?: boolean;
   loadOverview?: () => Promise<void> | void;

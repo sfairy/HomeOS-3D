@@ -237,7 +237,7 @@ function setSettingsLoadState(phase: SettingsLoadPhase, message = '') {
 /**
  * 按**上一次**的结论把闸门重新落到界面上：「忙状态」会把按钮重新启用，保存后的重载若失败，
  */
-export function syncSettingsGate() {
+ function syncSettingsGate() {
   setSettingsLoadState(state.settingsLoadPhase || 'loading', state.settingsLoadMessage || '');
 }
 
@@ -288,7 +288,7 @@ export async function loadSettings() {
   setSettingsLoadState('ready');
 }
 
-export function renderDiagnostics(selector: string, checks: DiagnosticCheck[] | unknown) {
+ function renderDiagnostics(selector: string, checks: DiagnosticCheck[] | unknown) {
   const list = $(selector);
   if (!list) return;
   list.textContent = '';
@@ -315,7 +315,7 @@ export function renderDiagnostics(selector: string, checks: DiagnosticCheck[] | 
   });
 }
 
-export function clearDiagnostics(selector: string) {
+ function clearDiagnostics(selector: string) {
   const list = $(selector);
   if (list) list.textContent = '';
 }
@@ -473,7 +473,7 @@ function renderMailBadge(mail: MailSettings, unsaved = false) {
   badge.className = `admin-status-chip${tone ? ` ${tone}` : ''}`;
 }
 
-export function syncMailSecretInput() {
+ function syncMailSecretInput() {
   const form = settingsForm();
   const clear = form.elements.smtpClearPassword;
   const input = form.elements.smtpPassword;
@@ -485,7 +485,7 @@ function mailPresets(mail: MailSettings | null | undefined): MailPreset[] {
   return Array.isArray(mail?.presets) ? mail.presets : [];
 }
 
-export function presetById(id: unknown, mail: MailSettings): MailPreset | null {
+ function presetById(id: unknown, mail: MailSettings): MailPreset | null {
   const wanted = String(id || '').trim().toLowerCase();
   if (!wanted) return null;
   return mailPresets(mail).find(item => item.id === wanted) || null;
@@ -508,7 +508,7 @@ function presetForEmail(email: unknown, mail: MailSettings): MailPreset | null {
 }
 
 /** 当前该用哪个预设：优先运营在下拉框里的显式选择，其次按邮箱地址识别。 */
-export function selectedMailPreset(mail: MailSettings): MailPreset | null {
+ function selectedMailPreset(mail: MailSettings): MailPreset | null {
   const select = $('#mail-preset-provider') as HTMLSelectElement | null;
   const email = $('#mail-preset-email') as HTMLInputElement | null;
   return presetById(select?.value, mail) || presetForEmail(email?.value, mail);
@@ -532,7 +532,7 @@ function renderMailPresetOptions(mail: MailSettings) {
 /**
  * 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。
  */
-export function syncMailPresetHint(mail: MailSettings) {
+ function syncMailPresetHint(mail: MailSettings) {
   const select = $('#mail-preset-provider') as HTMLSelectElement | null;
   const emailInput = $('#mail-preset-email') as HTMLInputElement | null;
   if (!select || !emailInput) return;
@@ -558,7 +558,7 @@ function mailFromDisplayName(form: SettingsForm) {
   return raw.replace(/[<>",;:]/g, '').trim() || 'HomeOS';
 }
 
-export function applyMailPreset(preset: MailPreset | null | undefined, mail: MailSettings, { overwrite = true }: { overwrite?: boolean } = {}) {
+ function applyMailPreset(preset: MailPreset | null | undefined, mail: MailSettings, { overwrite = true }: { overwrite?: boolean } = {}) {
   if (!preset) return false;
   const form = settingsForm();
   const email = (($('#mail-preset-email') as HTMLInputElement | null)?.value.trim() || (mail.defaultEmail || '').trim());
@@ -590,7 +590,7 @@ export function applyMailPreset(preset: MailPreset | null | undefined, mail: Mai
 /**
  * 按**当前表单**重算徽标：「切到 smtp 但授权码没填」会让用户收不到验证码，必须在切换当下就变色提醒，
  */
-export function refreshMailBadge() {
+ function refreshMailBadge() {
   const form = settingsForm();
   const saved = ((state.settings as SettingsPayload | null)?.mail || {}) as MailSettings;
   const mode = form.elements.mailMode.value || saved.mode || 'log';
@@ -657,7 +657,7 @@ $('#mail-preset-email')?.addEventListener('input', () => {
   syncMailPresetHint(((state.settings as SettingsPayload | null)?.mail || {}) as MailSettings);
 });
 
-export function mailPasswordPayload(form: SettingsForm) {
+ function mailPasswordPayload(form: SettingsForm) {
   if (form.elements.smtpClearPassword.checked) return { smtpClearPassword: true };
   const value = form.elements.smtpPassword.value.trim();
   return value ? { smtpPassword: value } : {};
@@ -692,7 +692,7 @@ function renderChannelBadge({ selector, channel, configured, fromDatabase }: { s
   badge.className = 'admin-status-chip';
 }
 
-export function renderAlipayBadge(alipay: AlipaySettings) {
+ function renderAlipayBadge(alipay: AlipaySettings) {
   renderChannelBadge({
     selector: '#alipay-credential-status',
     channel: 'alipay',
@@ -796,7 +796,7 @@ function refreshChannelUi() {
   updateChannelSummary();
 }
 
-export function syncWechatSecretInputs() {
+ function syncWechatSecretInputs() {
   const form = settingsForm();
   const pairs = [
     ['wechatClearApiV3Key', 'wechatApiV3Key'],
@@ -817,7 +817,7 @@ export function syncWechatSecretInputs() {
   });
 
 /** 组装微信支付的密钥字段（口径与支付宝一致：空 = 不改动，勾清除 = 显式传空串）。 */
-export function wechatSecretPayload(form: SettingsForm): Record<string, string> {
+ function wechatSecretPayload(form: SettingsForm): Record<string, string> {
   const payload: Record<string, string> = {};
   const pairs = [
     ['wechatClearApiV3Key', 'wechatApiV3Key'],
@@ -841,14 +841,14 @@ function loadPaymentChannels(channels: unknown) {
   form.elements.paymentChannelWechat.checked = enabled.has('wechat');
 }
 
-export function paymentChannelsPayload(form: SettingsForm): string[] {
+ function paymentChannelsPayload(form: SettingsForm): string[] {
   const channels = [];
   if (form.elements.paymentChannelAlipay.checked) channels.push('alipay');
   if (form.elements.paymentChannelWechat.checked) channels.push('wechat');
   return channels;
 }
 
-export function syncAlipaySecretInputs() {
+ function syncAlipaySecretInputs() {
   const form = settingsForm();
   const pairs = [
     ['alipayClearPrivateKey', 'alipayAppPrivateKey'],
@@ -882,7 +882,7 @@ settingsForm().elements.paymentProvider.addEventListener('change', () => {
 
 /** 组装密钥字段：只有「确实要改」时才把字段放进请求体。
  *  空输入 = 不改动（否则改个站点名就会顺手清掉密钥），勾选「清除」= 显式传空串。 */
-export function alipaySecretPayload(form: SettingsForm): Record<string, string> {
+ function alipaySecretPayload(form: SettingsForm): Record<string, string> {
   const payload: Record<string, string> = {};
   if (form.elements.alipayClearPrivateKey.checked) payload.alipayAppPrivateKey = '';
   else if (form.elements.alipayAppPrivateKey.value.trim()) {
@@ -1060,7 +1060,7 @@ $('#mail-test-button')?.addEventListener('click', async (event) => {
 });
 
 // 「刷新」与「清理」要重拉的那几张诊断表
-export const DIAGNOSTIC_KEYS = [
+ const DIAGNOSTIC_KEYS = [
   'sessions', 'license-sessions', 'recovery-tokens',
   'login-attempts', 'email-verifications', 'device-release-events', 'coupon-redemptions',
 ];
@@ -1105,7 +1105,7 @@ const PURGE_SPECS: Record<string, { path: string; message: string; impact: strin
   },
 };
 
-export async function runPurge(key: string) {
+ async function runPurge(key: string) {
   const spec = PURGE_SPECS[key];
   if (!spec) return;
   const days = await askPurge({

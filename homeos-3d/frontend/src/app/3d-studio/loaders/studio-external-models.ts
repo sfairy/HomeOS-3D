@@ -47,7 +47,7 @@ const homeLiteAssetVersion = "20260903-home-lite-v1",
   applianceLiteAssetVersion = "20260921-appliance-lite-clean-guides-v2",
   sofaFamilyItemTypes = new Set(["sofa", "sofa-single", "sofa-l", "sofa-l-left"]),
   preparedRestoreTimeoutMs = 160;
-export function insetBedBaseGeometry(bedGeometry) {
+function insetBedBaseGeometry(bedGeometry) {
   if (!bedGeometry?.attributes?.position) return bedGeometry;
   bedGeometry.computeBoundingBox();
   const { min: bedBoxMin, max: bedBoxMax } = bedGeometry.boundingBox;
@@ -762,7 +762,7 @@ const warmWoodFurnitureItemTypes = new Set([
     "piano",
   ]);
 /** 外模型加载状态；onLoadStateChange 回调与 collectLoadState 共用同一形状。 */
-export type ExternalModelLoadState = {
+type ExternalModelLoadState = {
   /** 正在加载的数量。 */
   active: number;
   /** 已开始加载（去重后）的条目数。 */
@@ -780,7 +780,7 @@ export type ExternalModelLoadState = {
 };
 
 /** createPaletteMaterial 的材质覆盖项。 */
-export type PaletteMaterialOptions = {
+type PaletteMaterialOptions = {
   roughness?: number;
   metalness?: number;
   flatShading?: boolean;
@@ -798,7 +798,7 @@ export type PaletteMaterialOptions = {
  * 色板键由 studio-scene-style / studio-vehicle-models 等子系统各自消费，
  * 所以除 warmWood 外保持开放键（签名去重也依赖“键集合”本身）。
  */
-export type ExternalModelStyleOptions = {
+type ExternalModelStyleOptions = {
   /** 其余样式键：各子系统的调色板字段。 */
   [styleKey: string]: any;
   /** 暖木色系家具材质总开关。 */

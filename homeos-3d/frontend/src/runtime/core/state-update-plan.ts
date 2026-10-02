@@ -1,4 +1,4 @@
-export function boundEntityIds(
+function boundEntityIds(
   candidate,
   collectedIdSet = new Set(),
   visitedObjectSet = new Set(),

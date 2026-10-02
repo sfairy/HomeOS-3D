@@ -13,7 +13,7 @@ type GeometryAttributeLike = {
 };
 
 /** 反射合批通道的外部依赖。 */
-export type ReflectionPassesOptions = {
+type ReflectionPassesOptions = {
   THREE: any;
   /** 一批建完后请求下一帧。 */
   requestFrame?: () => void;

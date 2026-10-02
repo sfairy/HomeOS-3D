@@ -15,7 +15,7 @@ export function percentageValue(entityState, attributeName = "") {
   const numericValue = Number(rawValue);
   return Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : null;
 }
-export function percentageLabel(percentage, precision = 0) {
+function percentageLabel(percentage, precision = 0) {
   if (percentage === null) return "—";
   const max = Math.max(0, Math.min(2, Math.trunc(Number(precision) || 0)));
   return percentage.toFixed(max) + "%";
@@ -24,7 +24,7 @@ export function percentageLabel(percentage, precision = 0) {
 type PercentageBarElement = HTMLElement & {
   syncPercentageStates: (statesByEntityId: Map<string, any>) => void;
 };
-export function renderPercentageBar(component, runtimeHost) {
+function renderPercentageBar(component, runtimeHost) {
   const options = component.properties || {},
     series = percentageBarSeries2(component),
     element = document.createElement("section") as PercentageBarElement;

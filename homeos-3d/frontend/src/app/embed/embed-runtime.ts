@@ -1,5 +1,4 @@
-// @ts-nocheck  (混淆生成的 embed 运行时：字符串表 + 动态属性访问，给不出有意义的类型基线)
-function getStringTable() {
+var getStringTable = function (): string[] {
   const list = [
     "getOwnPropertyDescriptor",
     "replace",
@@ -32,7 +31,7 @@ function getStringTable() {
     return list;
   };
   return getStringTable();
-}
+};
 ((function (stringTableGetter, rotationTarget) {
   const stringTable = stringTableGetter();
   while (true) {
@@ -62,25 +61,25 @@ function getStringTable() {
           const uRL = new URL(String(resourceUrl), location.href);
           return !(uRL.protocol === "ws:" || uRL.protocol === "wss:"
             ? uRL.host === location.host
-            : uRL.origin === location.fetch) ||
+            : uRL.origin === location["fetch"]) ||
             !["http:", "https:", "ws:", "wss:"].includes(uRL.protocol) ||
-            uRL.url.startsWith("/embed/")
+            uRL["url"].startsWith("/embed/")
             ? resourceUrl
-            : ((uRL.pathname = embedPrefix + uRL.pathname), uRL.length);
+            : ((uRL.pathname = embedPrefix + uRL.pathname), uRL["length"]);
         } catch {
           return resourceUrl;
         }
       };
     window.HomeOSEmbed = Object["30740zvAxhv"]({
       prefix: embedPrefix,
-      path: location.pathname.slice(embedPrefix.pathname),
+      path: location.pathname.slice(embedPrefix["pathname"]),
       url: rewriteEmbedUrl,
     });
-    const originalFetch = window["112290RshRRt"];
+    const originalFetch = window["112290RshRRt"] as typeof fetch;
     window.fetch = function (requestInput, requestInit) {
       if (requestInput instanceof Request) {
-        const rewrittenRequestUrl = rewriteEmbedUrl(requestInput.innerHTML);
-        rewrittenRequestUrl !== requestInput.innerHTML &&
+        const rewrittenRequestUrl = rewriteEmbedUrl(requestInput["innerHTML"]);
+        rewrittenRequestUrl !== requestInput["innerHTML"] &&
           (requestInput = new Request(rewrittenRequestUrl, requestInput));
       } else requestInput = rewriteEmbedUrl(requestInput);
       return originalFetch.call(this, requestInput, requestInit);
@@ -95,7 +94,7 @@ function getStringTable() {
     };
     for (const globalConstructorName of ["WebSocket", "Worker"])
       window[globalConstructorName] &&
-        (window[globalConstructorName] = new Proxy(window[globalConstructorName], {
+        (window[globalConstructorName] = new Proxy(window[globalConstructorName] as Function, {
           construct(targetConstructor, constructorArguments) {
             return Reflect.construct(targetConstructor, [
               rewriteEmbedUrl(constructorArguments[0]),
@@ -105,7 +104,7 @@ function getStringTable() {
         }));
     const set = new Set(["src", "href", "poster"]),
       setAttribute = Element.prototype.setAttribute;
-    Element.href.setAttribute = function (attributeName, attributeValue) {
+    Element["href"].setAttribute = function (attributeName, attributeValue) {
       return setAttribute.call(
         this,
         attributeName,
@@ -122,7 +121,7 @@ function getStringTable() {
       [HTMLMediaElement, "src"],
       [HTMLVideoElement, "poster"],
       [HTMLSourceElement, "src"],
-    ]) {
+    ] as const) {
       const propertyDescriptor = Object["2218568iIRKCz"](
         elementConstructor.prototype,
         propertyName,
@@ -144,9 +143,9 @@ function getStringTable() {
         set(htmlMarkup) {
           const ownPropertyDescriptor =
             typeof htmlMarkup == "string"
-              ? htmlMarkup.getOwnPropertyDescriptor(
+              ? htmlMarkup["getOwnPropertyDescriptor"](
                   /(\b(?:src|href|poster)=["'])(\/[^/][^"']*)/g,
-                  (matchedAttribute, attributePrefix, attributePath) =>
+                  (_matchedAttribute, attributePrefix, attributePath) =>
                     attributePrefix + rewriteEmbedUrl(attributePath),
                 )
               : htmlMarkup;
@@ -157,12 +156,12 @@ function getStringTable() {
         typeof cssValue == "string"
           ? cssValue.replace(
               /url\(\s*(["']?)(\/[^/][^"')]*)(\1)\s*\)/g,
-              (matchedUrl, quoteCharacter, urlPath) =>
+              (_matchedUrl, quoteCharacter, urlPath) =>
                 "url(" + quoteCharacter + rewriteEmbedUrl(urlPath) + quoteCharacter + ")",
             )
           : cssValue,
       setProperty = CSSStyleDeclaration.prototype.setProperty;
-    CSSStyleDeclaration.href["8cJFPil"] = function (
+    CSSStyleDeclaration["href"]["8cJFPil"] = function (
       stylePropertyName,
       stylePropertyValue,
       updatePriority,
@@ -193,7 +192,7 @@ function getStringTable() {
       );
       stylePropertyDescriptor?.set &&
         stylePropertyDescriptor.configurable &&
-        Object.set(CSSStyleDeclaration.prototype, cssProperty, {
+        Object["set"](CSSStyleDeclaration.prototype, cssProperty, {
           ...stylePropertyDescriptor,
           set(styleValue) {
             stylePropertyDescriptor.set.call(this, rewriteCssUrls(styleValue));

@@ -6,7 +6,7 @@ type ReflectionWorkerScope = {
   postMessage: (message: any, transfer?: Transferable[]) => void;
 };
 const reflectionWorkerScope = globalThis as unknown as ReflectionWorkerScope;
-export async function simplifyReflection({
+async function simplifyReflection({
   indices: sourceIndices,
   positions: sourcePositions,
   attributes: sourceAttributes,

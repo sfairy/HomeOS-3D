@@ -409,20 +409,25 @@ type ResourceErrorTarget = EventTarget & {
         )
           continue;
         const storedEvent = storedEntry.event;
-        eventQueue.push({
-          queuedAt: storedEntry.queuedAt,
-          event: {
-            level: ["warning", "error", "info", "success"].includes(storedEvent.level)
-              ? storedEvent.level
-              : "error",
-            source: redactSensitive(storedEvent.source || currentSourceName(), 64),
-            category: redactSensitive(storedEvent.category || "界面", 64),
-            message: redactSensitive(storedEvent.message || "未知异常", 1000),
-            details: redactSensitive(storedEvent.details, 8000),
-            context: pickPayload(storedEvent.context),
-            clientTimestamp: new Date(storedEntry.queuedAt).toISOString(),
-          },
-        });
+        // 单条记录归一化失败（例如越界的时间戳）只丢这一条，不能连坐整批待发送日志。
+        try {
+          eventQueue.push({
+            queuedAt: storedEntry.queuedAt,
+            event: {
+              level: ["warning", "error", "info", "success"].includes(storedEvent.level)
+                ? storedEvent.level
+                : "error",
+              source: redactSensitive(storedEvent.source || currentSourceName(), 64),
+              category: redactSensitive(storedEvent.category || "界面", 64),
+              message: redactSensitive(storedEvent.message || "未知异常", 1000),
+              details: redactSensitive(storedEvent.details, 8000),
+              context: pickPayload(storedEvent.context),
+              clientTimestamp: new Date(storedEntry.queuedAt).toISOString(),
+            },
+          });
+        } catch {
+          continue;
+        }
       }
   } catch {}
   (persistQueue(), scheduleFlush());

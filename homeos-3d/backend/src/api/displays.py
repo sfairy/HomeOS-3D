@@ -12,6 +12,7 @@ from uuid import uuid4
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 
+from ..auth_limiter import retry_after_headers
 from ..dependencies import DatabaseSession, LicensedUser
 from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..models import DisplayDevice, DisplayPairingCode, Project, User
@@ -23,7 +24,7 @@ from ..schemas import (
 )
 from ..security import new_session_token, session_token_hash, set_display_cookie
 from ..embedding import embedded_devices, set_embedded_cookie
-from ..modules.interaction3d.request_origin import require_same_origin_write
+from ..request_origin import require_same_origin_write
 
 router = APIRouter(prefix='/displays', tags=['displays'])
 
@@ -335,8 +336,8 @@ def pair_display_device(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='配对失败次数过多，请稍后再试。',
-            # 剩余等待时间：block_seconds 是整段封禁时长。
-            headers={'Retry-After': str(limiter.block_seconds)},
+            # 回真实剩余秒数：block_seconds 是整段封禁时长，回满额会让客户端多等。
+            headers=retry_after_headers(limiter.retry_after(limiter_key)),
         )
     pairing = database.scalar(
         select(DisplayPairingCode).where(

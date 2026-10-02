@@ -73,11 +73,6 @@ def provider_label(name: str) -> str:
     )
 
 
-def channel_label(name: str) -> str:
-    """渠道的中文名（报错文案用）。与 :func:`provider_label` 同一份口径。"""
-    return provider_label(name)
-
-
 def enabled_channel_names(setting: StoreSetting | None, settings: StoreSettings) -> tuple[str, ...]:
     """当前**启用**的渠道列表（顺序即前台展示顺序）。空 = 一个都没启用 → 拒绝建单。
 
@@ -138,7 +133,6 @@ __all__ = [
     "PROVIDER_NAMES",
     "RETIRED_DISPLAY_NAMES",
     "SPECIAL_PROVIDER_LABELS",
-    "channel_label",
     "default_channel_name",
     "display_name_for",
     "enabled_channel_names",

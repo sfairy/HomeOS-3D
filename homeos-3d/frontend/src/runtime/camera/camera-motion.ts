@@ -62,7 +62,7 @@ function readOrbitAngles(threeOrbit, viewPose, resolvedPose) {
         phi: Math.acos(clampNumber(forwardVector.y, -1, 1)),
       };
 }
-export function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
+function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
   return progressDurationMs <= 0 || progressElapsedMs >= progressDurationMs
     ? 1
     : 1 -
@@ -85,41 +85,7 @@ function computeReleaseEasing(releaseElapsedMs) {
   const releaseRatio = clampedElapsedMs / RELEASE_WINDOW_MS;
   return RELEASE_WINDOW_MS * releaseRatio ** 3 * (1 - releaseRatio / 2);
 }
-export function createReleasedFocusMotion(
-  threeRelease,
-  releaseFromPose,
-  releaseToPose,
-  { immediate: isImmediateRelease = false } = {},
-) {
-  const releaseDurationMs = isImmediateRelease ? 0 : 1100,
-    isReleaseSettled = (settleElapsedMs) =>
-      releaseDurationMs === 0 || settleElapsedMs >= releaseDurationMs,
-    computeReleaseProgress = (easeElapsedMs, releaseRatePerSecond) =>
-      isReleaseSettled(easeElapsedMs)
-        ? 1
-        : -Math.expm1(
-            (-releaseRatePerSecond * Math.max(0, Number.isNaN(easeElapsedMs) ? 0 : easeElapsedMs)) /
-              1000,
-          ) / -Math.expm1((-releaseRatePerSecond * releaseDurationMs) / 1000),
-    releaseEasing = {
-      settled: isReleaseSettled,
-      move: (releaseMoveMs) => computeReleaseProgress(releaseMoveMs, 5),
-      turn: (releaseTurnMs) => computeReleaseProgress(releaseTurnMs, 4),
-    };
-  return {
-    settled: isReleaseSettled,
-    progress: releaseEasing.move,
-    sample: createFocusCameraSampler(
-      threeRelease,
-      releaseFromPose,
-      releaseToPose,
-      releaseDurationMs,
-      "focus",
-      null,
-      releaseEasing,
-    ),
-  };
-}
+
 export function createDampedCameraMotion(
   threeDamping,
   dampedFromPose,
@@ -182,21 +148,8 @@ export function createDampedCameraMotion(
     ),
   };
 }
-export function sampleFocusCamera(
-  threeSample,
-  sampledFromPose,
-  sampledToPose,
-  sampledTimeMs,
-  sampledDurationMs = 1100,
-) {
-  return createFocusCameraSampler(
-    threeSample,
-    sampledFromPose,
-    sampledToPose,
-    sampledDurationMs,
-  )(sampledTimeMs);
-}
-export function createFocusCameraSampler(
+
+function createFocusCameraSampler(
   threeFrame,
   initialPose,
   targetPose,

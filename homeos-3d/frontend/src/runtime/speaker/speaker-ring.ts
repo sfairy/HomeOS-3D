@@ -1,5 +1,5 @@
 import { speakerState } from "./speaker-state";
-export function speakerRingFrame(playbackState, timeMs) {
+function speakerRingFrame(playbackState, timeMs) {
   const breathRatio =
     playbackState === "playing"
       ? Math.pow(0.5 - 0.5 * Math.cos((timeMs * Math.PI * 2) / 3200), 1.5)

@@ -382,6 +382,7 @@ class WeChatPayProvider:
             # 也不能当失败 —— 让运营在退款流水里看到它挂着。
             return RefundResult(
                 ok=False,
+                processing=True,
                 trade_no=refund_id or None,
                 unrefunded_cents=int(amount_cents),
                 detail="微信支付已受理退款但仍在处理中（异步到账），请稍后以退款流水为准。",

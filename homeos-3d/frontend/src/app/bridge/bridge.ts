@@ -8,7 +8,7 @@ type AccessError = Error & { status?: number };
  * 宿主元素上的 bridge 扩展方法：3D 预览块挂在画布 DOM 里，
  * 编辑器通过这两个方法控制页面可见性与内容刷新。
  */
-export type Interaction3dHostElement = HTMLElement & {
+type Interaction3dHostElement = HTMLElement & {
   /** 页面可见性（编辑器切页时调用，避免后台空转）。 */
   setInteraction3dPageVisible?: (shouldShowPage: boolean) => void;
   /** 内容更新：组件定义或宿主文档变化时调用。 */
@@ -37,7 +37,7 @@ export type Interaction3dEditorView = {
 };
 
 /** renderInteraction3d 的渲染上下文（由编辑器传入）。 */
-export type Interaction3dRenderOptions = {
+type Interaction3dRenderOptions = {
   /** 预热：先不加载，等页面真正可见再挂载。 */
   prewarmStage?: boolean;
   /** 可编辑：挂进 editorViewsById 并对外派发视图事件。 */

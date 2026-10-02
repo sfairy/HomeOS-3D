@@ -24,7 +24,7 @@ const inspectorStateByHost = new WeakMap(),
     scale: [1, 500],
     rotation: [-360, 360],
   };
-export function flowLineGeometryChange(
+function flowLineGeometryChange(
   geometryComponent,
   documentCanvas,
   geometryProperty,

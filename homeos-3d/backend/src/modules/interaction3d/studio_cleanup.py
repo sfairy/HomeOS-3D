@@ -2,9 +2,8 @@
 from copy import deepcopy
 import hashlib
 import json
-import re
 
-from .access import module_components
+from .access import module_components, scene_snapshot_file
 from .device import GENERIC_DEVICE_COLLECTIONS
 
 COLLECTIONS = (
@@ -61,10 +60,8 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
         for _, component in module_components(updated):
             properties = component.get('properties', { })
             scene_id = properties.get('sceneId', '')
-            if not re.fullmatch('[a-f0-9]{32}', scene_id):
-                continue
-            path = settings.data_dir / 'modules/interaction3d/scenes' / f'{scene_id}.json'
-            if not path.is_file():
+            path = scene_snapshot_file(settings, scene_id)
+            if path is None:
                 continue
             scope = [project_id, component.get('id'), scene_id]
             removed_members = set()
@@ -120,7 +117,9 @@ def plan_cleanup(documents, old_scene, new_scene, archives, settings):
                 groups = environment.get('curtainGroups', [])
                 selected = [item for item in members if item['id'] in group['memberIds']]
                 conflict = any(g['id'] == group['id'] or set(g['memberIds']) & set(group['memberIds']) for g in groups)
-                valid = all(item.get('floorId') == group['floorId'] and item.get('coverKind') != 'dream' for item in selected)
+                # 组合只对「同楼层、非梦幻帘的两片帘」成立：成员数不是 2 就直接不成立，
+                # 否则下一行的 selected[1] 会在单成员组合上抛 IndexError。
+                valid = len(selected) == 2 and all(item.get('floorId') == group['floorId'] and item.get('coverKind') != 'dream' for item in selected)
                 valid = valid and not (selected[0].get('entityId') and selected[0].get('entityId') == selected[1].get('entityId'))
                 if valid and not conflict:
                     environment['curtainGroups'] = [*groups, deepcopy(group)]

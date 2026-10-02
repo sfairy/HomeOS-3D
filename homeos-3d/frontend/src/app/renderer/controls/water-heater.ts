@@ -91,7 +91,7 @@ export function waterHeaterPowerCommand(powerEntityState, shouldTurnOn, requeste
     },
   };
 }
-export function waterHeaterCommandConfirmed(confirmedCommand, checkedEntityState) {
+function waterHeaterCommandConfirmed(confirmedCommand, checkedEntityState) {
   const entityCapabilities = waterHeaterCapabilities(checkedEntityState);
   if (!entityCapabilities.available) return false;
   const currentOperationMode =

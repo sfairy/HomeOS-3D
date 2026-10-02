@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from ..auth_limiter import retry_after_headers
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..global_log import event_context, safe_context
 
@@ -121,7 +122,7 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
     # 取不到地址时归到同一个桶。
     peer = request.client.host if request.client else 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
-        raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
+        raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers=retry_after_headers(60))
 
 
 def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None) -> None:

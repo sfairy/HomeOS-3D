@@ -39,7 +39,7 @@ const finiteNumberOrNull = (rawValue) =>
   Number.isFinite(Number(rawValue))
     ? Number(rawValue)
     : null;
-export function purifierSpeedLevels(percentageStep) {
+function purifierSpeedLevels(percentageStep) {
   const step = finiteNumberOrNull(percentageStep);
   if (step === null || step <= 0 || step > 100) return [];
   const levelCount = Math.round(100 / step);

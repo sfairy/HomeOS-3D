@@ -12,7 +12,7 @@
 // 大理石整图在台面上会糊成六份。
 // 指纹串里必须留住 `stone-slab-uv` 这段：`verify:material` 的 L6f 用它断言「石材板平面 UV
 // 的补丁挂在模板缓存指纹上」，改名会把那条闸门弄红（石材整图又会糊回立方体 UV）。
-export const MODEL_TEMPLATE_REVISION =
+const MODEL_TEMPLATE_REVISION =
   "20261002-stone-slab-uv-sideboard-glass-double-door-v9";
 
 /**

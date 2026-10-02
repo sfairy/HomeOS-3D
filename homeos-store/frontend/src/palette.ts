@@ -3,6 +3,7 @@
  */
 
 import { describe } from "./api-error.js";
+import { api } from "./admin/api.js";
 import {
   CONFIGURABLE,
   DEFAULT_PRESET,
@@ -39,6 +40,9 @@ function liveAccent() {
 let draft: PaletteDraft = { preset: DEFAULT_PRESET, accent: "" };
 /** 服务端上的值，用于「有没有改动」与「取消了要回到哪儿」。 */
 let saved: PaletteDraft = { preset: DEFAULT_PRESET, accent: "" };
+/** 是否真的读到过服务端配色。读失败时**必须**禁止保存：
+ * 用默认值当草稿存回去，会把线上真实配色一次覆盖掉。 */
+let remoteLoaded = false;
 /** 预览期间写在 root 上的令牌名，取消 / 关闭时要逐枚摘掉。 */
 const previewKeys = new Set<string>();
 
@@ -128,15 +132,11 @@ function buildPresetCards() {
   });
 }
 
-/** 读回已保存的配色。失败（未登录 / 网络）时退回默认值，不让面板整个不可用。 */
+/** 读回已保存的配色。失败（未登录 / 网络）时让面板可用，但**不给保存权**：
+ * 草稿退回默认值只是为了画得出来，不代表服务端就是这套颜色。 */
 async function loadSaved() {
   try {
-    const response = await fetch("/store-admin/v1/appearance", {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) throw new Error("read failed");
-    const payload = (await response.json()) as {
+    const payload = (await api("/appearance")) as {
       preset?: string;
       tokens?: Record<string, string>;
     };
@@ -146,32 +146,33 @@ async function loadSaved() {
     const stored = normalizeHex(payload?.tokens?.["--hb-accent"]);
     const presetAccent = normalizeHex(PRESETS.find((item) => item.id === preset)?.colors.accent);
     if (stored && stored !== presetAccent) saved.accent = stored;
-  } catch {
+    remoteLoaded = true;
+  } catch (error) {
+    remoteLoaded = false;
     saved = { preset: DEFAULT_PRESET, accent: "" };
+    setMessage(
+      describe(error instanceof Error ? error.message : error, "读取当前配色失败，请刷新后重试。（当前不可保存，以免覆盖线上配色。）"),
+      "err",
+    );
   }
   draft = { ...saved };
 }
 
 async function save() {
   if (!saveButton) return;
+  if (!remoteLoaded) {
+    setMessage("还没读到服务端当前的配色，不能保存（否则会覆盖线上配色）。请刷新页面重试。", "err");
+    return;
+  }
   saveButton.disabled = true;
   setMessage("正在保存…");
   try {
-    const response = await fetch("/store-admin/v1/appearance", {
+    const payload = (await api("/appearance", {
       method: "PUT",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preset: draft.preset, tokens: draftTokens() }),
-    });
-    const payload = (await response.json().catch(() => ({}))) as {
-      detail?: unknown;
+    })) as {
       tokens?: Record<string, string>;
     };
-    if (!response.ok) {
-      throw new Error(
-        describe(payload?.detail, "保存失败，请稍后重试。")
-      );
-    }
     saved = { ...draft };
     // 保存后重新灌一次预览：服务端可能归一化了某个值，让界面立刻对齐真实生效的颜色。
     clearPreview();
@@ -207,7 +208,10 @@ if (dialogPane) {
   const ensureLoaded = () => {
     if (loaded || !isVisible()) return;
     loaded = true;
-    loadSaved().then(repaint);
+    loadSaved().then(() => {
+      if (saveButton) saveButton.disabled = !remoteLoaded;
+      repaint();
+    });
   };
   const observer = new MutationObserver(() => {
     if (!isVisible()) return;

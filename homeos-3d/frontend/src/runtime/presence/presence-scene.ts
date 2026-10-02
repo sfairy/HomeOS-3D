@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { createWalker, animateWalker, disposeWalker } from "./presence-character";
 import {
   validPresenceRoute,
@@ -280,7 +279,7 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
                 binding.color === "orange" ? 15376452 : 5421233,
                 binding.character,
               ),
-              actorMaterialSet = new Set();
+              actorMaterialSet = new Set<any>(); // three 材质对象来自场景图 mesh.material
             walkerRoot.traverse((meshObject) => {
               meshObject.isMesh && actorMaterialSet.add(meshObject.material);
             });
@@ -539,6 +538,13 @@ export function createPresenceWaves(waveOptions, wakeWaveFrameLoop = () => {}) {
     enabled: wavesEnabled = false,
     floorId: waveFloorId = "",
     preview: wavePreview = false,
+  }: {
+    bindings?: any[];
+    // waveStates 由宿主下发，既可能是 Map（.get）也可能是普通对象（[entityId]），故用 any
+    states?: any;
+    enabled?: boolean;
+    floorId?: string;
+    preview?: boolean;
   }) {
     if (isDisposed) return;
     let hasWaveChanges = false;

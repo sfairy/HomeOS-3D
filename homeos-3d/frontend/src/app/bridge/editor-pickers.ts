@@ -21,7 +21,7 @@ const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline",
     record.enabled !== false &&
     !["missing", "disabled"].includes(String(record.status || "").toLowerCase());
 /** 交互 3D 编辑器实体选择器的依赖注入。 */
-export type EditorPickersOptions = {
+type EditorPickersOptions = {
   openPicker?: (...args: any[]) => any;
   fetchIcons?: (...args: any[]) => any;
   getEntities?: (...args: any[]) => any[];
@@ -37,7 +37,7 @@ export type EditorPickersOptions = {
   [dependencyName: string]: any;
 };
 
-export function presenceDeviceProfiles(
+function presenceDeviceProfiles(
   entities: HaEntityEntry[] = [],
   devices: any[] = [],
   lookupState: (entityId: string) => any = () => null,

@@ -7,6 +7,7 @@
 # 拿到的永远是「此刻能不能用」的结论。
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, Request
@@ -21,6 +22,27 @@ COMPONENT_TYPE = 'interaction3d'
 # 下发给前端舞台页的授权有效期上限（秒）。
 # 60 秒只够完成一次加载，后端不认这个凭据，每个接口都会重新过 require_access。
 MAX_GRANT_SECONDS = 60
+
+# 户型快照标识的合法形态：32 位小写十六进制（uuid4().hex）。
+SCENE_ID_PATTERN = re.compile('[0-9a-f]{32}')
+
+
+def is_scene_id(scene_id) -> bool:
+    # [补充说明] 判断 sceneId 是否是合法的快照标识。
+    #
+    # 用 32 位十六进制而不是原始字符串：既能直接拼进文件名，也不会带来路径穿越风险。
+    return isinstance(scene_id, str) and SCENE_ID_PATTERN.fullmatch(scene_id) is not None
+
+
+def scene_snapshot_file(settings, scene_id):
+    # [补充说明] 把 sceneId 解析成磁盘上的户型快照路径，ID 非法或文件不存在时返回 None。
+    #
+    # 只给路径不给异常：HTTP 路由要把两种失败转成 404，清理流程则直接跳过条目 ——
+    # 两边共用同一份「什么样的 ID 能拼进文件名」的判定，不再各写一份正则。
+    if not is_scene_id(scene_id):
+        return None
+    path = settings.data_dir / 'modules' / 'interaction3d' / 'scenes' / f'{scene_id}.json'
+    return path if path.is_file() else None
 
 
 def allowed(request: Request, *, database=None) -> bool:

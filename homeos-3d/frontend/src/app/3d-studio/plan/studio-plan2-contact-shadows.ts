@@ -8,7 +8,7 @@ function isVisibleWithAncestors(rootObject3d) {
     if (!ancestorNode.visible) return false;
   return true;
 }
-export function isContactCasterMaterial(candidateMaterial) {
+function isContactCasterMaterial(candidateMaterial) {
   return !!(
     candidateMaterial &&
     candidateMaterial.visible !== false &&
@@ -17,11 +17,7 @@ export function isContactCasterMaterial(candidateMaterial) {
     (!candidateMaterial.transparent || candidateMaterial.alphaTest > 0)
   );
 }
-export function surfaceBakeLevels(threeModule, sourceMeshList, baseFloorY, maxLevels = 32) {
-  return computeSurfaceLevels(threeModule, sourceMeshList, baseFloorY, maxLevels).map(
-    (bakedLevel) => bakedLevel.height,
-  );
-}
+
 function computeSurfaceLevels(threeApi, meshList, floorY, levelLimit = 32) {
   const map = new Map(),
     vector = new threeApi.Vector3(),

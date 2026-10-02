@@ -27,7 +27,7 @@ import {
 /** 默认档：跟随全局风格。 */
 export const MATERIAL_STYLE_AUTO = "auto";
 
-export interface MaterialStylePreset {
+interface MaterialStylePreset {
   /** 落进草稿的稳定标识（同一档位在不同物件上可复用，全局唯一）。 */
   id: string;
   /** 下拉里显示的中文名。 */
@@ -2745,10 +2745,10 @@ export function materialStylePresetSwatchColors(
 /* -------------------------------------------------------------------------- */
 
 /** 个人预设 id 前缀：与内置档位同处一个命名空间，但绝不会撞名。 */
-export const MATERIAL_STYLE_CUSTOM_PREFIX = "custom:";
+const MATERIAL_STYLE_CUSTOM_PREFIX = "custom:";
 
 /** 个人预设的可持久化形态（localStorage 里存的就是这个数组）。 */
-export interface MaterialStyleCustomRecord {
+interface MaterialStyleCustomRecord {
   id: string;
   label: string;
   /** 归属的档位组（与 `PRESET_GROUPS` 的键一致）：决定哪些模型能看到它。 */
@@ -2759,7 +2759,7 @@ export interface MaterialStyleCustomRecord {
 }
 
 /** 打个人预设用的一行采样：直接取面板上看到的出图结果。 */
-export interface MaterialStyleSnapshotSlot {
+interface MaterialStyleSnapshotSlot {
   role: string;
   /** 当前出图色（`#rrggbb`）。 */
   color: string;
@@ -2828,11 +2828,6 @@ export function registerCustomMaterialStyles(records: unknown): MaterialStyleCus
     acceptedRecords.push(customRecord);
   }
   return acceptedRecords;
-}
-
-/** 已装载的个人预设（按组）。 */
-export function customMaterialStylesForGroup(groupName: string): readonly MaterialStylePreset[] {
-  return customPresetsByGroup.get(groupName) || [];
 }
 
 /**
@@ -2904,7 +2899,7 @@ export function materialStyleCollapsedRoles(
 /* 档位的角色配方：材质流水线的最后一手（逐槽覆盖色之前）                        */
 /* -------------------------------------------------------------------------- */
 
-export interface ResolvedMaterialStyleRecipe {
+interface ResolvedMaterialStyleRecipe {
   presetId: string;
   role: string;
   colorValue?: number;
@@ -3014,7 +3009,7 @@ export function materialStyleStoneSlabRoles(modelType: string): ReadonlySet<stri
 }
 
 /** 全部档位的扁平表（跨组去重前的原始顺序）：供校验脚本逐档体检，也便于报表。 */
-export const MATERIAL_STYLE_PRESET_LIST: readonly MaterialStylePreset[] = Object.freeze(
+const MATERIAL_STYLE_PRESET_LIST: readonly MaterialStylePreset[] = Object.freeze(
   Object.values(PRESET_GROUPS).reduce<MaterialStylePreset[]>(
     (allPresets, groupPresets) => [...allPresets, ...groupPresets],
     [],

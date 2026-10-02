@@ -33,7 +33,7 @@ function packTilesIntoAtlas(tiles, atlasSize, gutter) {
   }
   return placed;
 }
-export function packSpotShadowAtlasTiles(
+function packSpotShadowAtlasTiles(
   tileSizes = [],
   maxAtlasSize = 4096,
   tileGutter = DEFAULT_TILE_GUTTER,
@@ -136,7 +136,7 @@ function spotLightBlockRange(lightsShader) {
     end: nextLightBlock >= 0 ? nextLightBlock : spotEndif + "#endif".length,
   };
 }
-export function guardZeroContributionSpotLights(lightsShader) {
+function guardZeroContributionSpotLights(lightsShader) {
   const blockRange = spotLightBlockRange(lightsShader),
     directLightCall =
       "RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );",
@@ -180,7 +180,7 @@ function disposeShadowTargets(disposedLight) {
  * 四个 Three.js 上下文标成可选是有意的：构造时会在下面显式校验并抛出可读错误，
  * 这样「不传参数直接调用」拿到的是中文提示而不是解构报错。
  */
-export type SpotShadowAtlasOptions = {
+type SpotShadowAtlasOptions = {
   THREE?: any;
   renderer?: any;
   scene?: any;

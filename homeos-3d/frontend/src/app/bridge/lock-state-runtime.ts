@@ -189,7 +189,7 @@ export function identifyLockEntities(entities) {
     }),
   );
 }
-export function doorEventState(item, readEntityState) {
+function doorEventState(item, readEntityState) {
   const eventTimestamp = (eventEntityId) => {
     const eventEntry = readEntityState(eventEntityId);
     if (!eventEntityId?.startsWith("event.") || !isEntityUsable(eventEntry)) return null;

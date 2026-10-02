@@ -48,7 +48,7 @@ const isByteChannelArray = (channelArray, expectedLength) =>
       channelByte >= 0 &&
       channelByte <= 255,
   );
-export function lightKelvinRgb(kelvinValue) {
+function lightKelvinRgb(kelvinValue) {
   const scaledKelvin = Math.max(1000, Math.min(40000, Number(kelvinValue) || 2700)) / 100;
   return [
     scaledKelvin <= 66 ? 255 : 329.698727446 * (scaledKelvin - 60) ** -0.1332047592,

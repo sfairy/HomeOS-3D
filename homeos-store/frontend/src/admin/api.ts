@@ -6,7 +6,7 @@ import { fromResponse } from "../api-error.js";
 import { $$ } from "./dom.js";
 import { host } from "./host.js";
 
-export type AdminApiOptions = RequestInit & {
+ type AdminApiOptions = RequestInit & {
   raw?: boolean;
 };
 

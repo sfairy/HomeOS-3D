@@ -17,7 +17,7 @@
 export const CARD_TEXT_SIZE_PX = 21;
 
 /** 历史默认字号：12。只用于代际迁移，新代码不要引用。 */
-export const LEGACY_CARD_TEXT_SIZE_PX = 12;
+const LEGACY_CARD_TEXT_SIZE_PX = 12;
 
 /**
  * 把历史默认字号迁移到 CARD_TEXT_SIZE_PX。

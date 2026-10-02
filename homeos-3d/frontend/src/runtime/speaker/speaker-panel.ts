@@ -1,9 +1,8 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { speakerState, speakerCommand } from "./speaker-state";
 import { televisionTime } from "../television/television-state";
 export function createSpeakerPanel({
-  onControl: sendCommand = async () => {},
-  fetchMedia: fetchMedia = (...fetchArgs) => fetch(...fetchArgs),
+  onControl: sendCommand = async (_commandArgs) => {},
+  fetchMedia: fetchMedia = (fetchUrl, fetchInit) => fetch(fetchUrl, fetchInit),
 } = {}) {
   const createElement = (tagName, className = "", labelText = "") => {
       const createdElement = document.createElement(tagName);
@@ -70,7 +69,7 @@ export function createSpeakerPanel({
             : serviceName,
     isServicePending = (checkedService) =>
       pendingCommandMap.has(resolveServiceGroup(checkedService)),
-    isControlDisabled = (stateSnapshot, guardService) =>
+    isControlDisabled = (stateSnapshot, guardService = null) =>
       !activeEntity ||
       activeEntity.editing ||
       !stateSnapshot.available ||
@@ -114,7 +113,7 @@ export function createSpeakerPanel({
   function createControlButton(
     buttonLabel,
     controlService,
-    payloadBuilder,
+    payloadBuilder = null,
     hostElement = actionsElement,
   ) {
     const controlButton = createElement("button", "", buttonLabel);

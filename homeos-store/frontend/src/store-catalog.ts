@@ -37,7 +37,7 @@ export function requestedUpgradeLicenseId() {
   return new URLSearchParams(location.search).get('upgrade');
 }
 
-export function productHref(product: StoreProduct) {
+function productHref(product: StoreProduct) {
   const base = storePageHref(`/item/${encodeURIComponent(product.id)}`);
   const upgrade = requestedUpgradeLicenseId();
   return upgrade && !isTrialProduct(product)
@@ -68,7 +68,9 @@ export function availableAddonProducts() {
     eligible.some((license) => {
       const owned = new Set(
         state.accountEntitlements
-          .filter((item) => item.active && item.customerId === license.customerId)
+          //: 与「附加到哪份授权」的结算口径一致：服务端按 License.id（前端 activationCodeId）
+        //: 回查目标授权，这里也必须按同一把钥匙算已拥有，否则两处会给出不同结论。
+        .filter((item) => item.active && item.licenseId === license.activationCodeId)
           .map((item) => item.featureCode)
           .filter((code): code is string => Boolean(code)),
       );
@@ -84,13 +86,13 @@ export function primaryProductUnavailable(product: StoreProduct) {
   return isTrialProduct(product) && (state.hasPermanentLicense || state.hasUsedTrial);
 }
 
-export function productGroup(product: StoreProduct) {
+function productGroup(product: StoreProduct) {
   if (isAddonProduct(product)) return 'addon';
   if (isTrialProduct(product)) return 'trial';
   return product.productType === 'bundle' ? 'bundle' : 'base';
 }
 
-export function primaryCard(product: StoreProduct) {
+function primaryCard(product: StoreProduct) {
   const bundle = product.productType === 'bundle';
   const unavailable = primaryProductUnavailable(product);
   const action = unavailable
@@ -128,7 +130,7 @@ export function applyProductFilter(value = state.productFilter) {
   });
 }
 
-export function catalogCards() {
+function catalogCards() {
   const cards = primaryProducts().map((product) => ({
     group: productGroup(product),
     html: primaryCard(product),
@@ -176,7 +178,7 @@ export function renderProducts() {
   applyProductFilter(state.productFilter);
 }
 
-export function addonCard(product: StoreProduct) {
+function addonCard(product: StoreProduct) {
   const type = addonTypeLabel(product);
   const description =
     product.displayDescription || product.note || '购买后追加到现有激活码。';
@@ -196,7 +198,7 @@ export function renderAddons() {
   }
 }
 
-export function packageContentsText(product: StoreProduct) {
+function packageContentsText(product: StoreProduct) {
   // 「主授权」是套餐默认包含的基础授权（includedProductIds 里只有增量包，基础授权是隐式的），
   return ['主授权', ...(product.packageItems || []).map((item) => item.name)].join(
     ' + ',

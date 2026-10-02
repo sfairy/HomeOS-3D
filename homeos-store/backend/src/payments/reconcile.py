@@ -28,14 +28,15 @@ MIN_QUERY_INTERVAL_SECONDS = 3.0
 #: 节流表上限，超过就整体清空（订单号不会长期复用）
 _MAX_TRACKED_ORDERS = 1024
 
-#: 巡检只处理多久以内创建的订单；更早的早该人工介入，反复查只会白耗网关配额。
-SWEEP_LOOKBACK_HOURS = 24
+#: 巡检/关单/查单共用的回溯窗口。三者必须同一口径：窗口短了，超过它的待支付订单
+#: 会既不被主动查单、也不被关单兜底，彻底失去自动恢复的机会（而人工往往发现不了）。
+RECONCILE_LOOKBACK_HOURS = 72
 
 #: 一轮巡检最多做多少笔本地过期收尾；这段不在用户请求里，比请求路径的限额大得多。
 SWEEP_EXPIRE_LIMIT = EXPIRE_BATCH_LIMIT * 5
 
-#: 关单环节的回溯窗口，比查单更长：过期订单可能过几小时才被重新扫到。
-CLOSE_LOOKBACK_HOURS = 72
+#: 兼容旧名（api/admin_orders.py 等外部仍在引用）；取值与巡检窗口保持同一口径。
+CLOSE_LOOKBACK_HOURS = RECONCILE_LOOKBACK_HOURS
 
 _last_query_at: dict[str, float] = {}
 _lock = threading.Lock()
@@ -278,7 +279,7 @@ def _sweep_channel_orders(
         select(Order)
         .where(Order.status == "pending")
         .where(Order.payment_provider.in_(active))
-        .where(Order.created_at >= moment - timedelta(hours=SWEEP_LOOKBACK_HOURS))
+        .where(Order.created_at >= moment - timedelta(hours=RECONCILE_LOOKBACK_HOURS))
         .order_by(Order.created_at.desc())
         .limit(limit)
     ).all()

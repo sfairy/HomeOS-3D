@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { createAirerMotion as createAirerMotion2 } from "../airer/airer-motion";
@@ -98,6 +97,7 @@ import {
 import { createCoverFeedback as createCoverFeedback2 } from "../cover/cover-feedback";
 import { createCoverPanel as createCoverPanel2 } from "../cover/cover-panel";
 import { createCoverGroupPanel as createCoverGroupPanel2 } from "../cover/cover-group-panel";
+import type { CurtainGroupLike } from "../cover/cover-groups";
 import {
   validCurtainGroups as validCurtainGroups2,
   curtainGroupEntryId as curtainGroupEntryId2,
@@ -191,7 +191,8 @@ function resolveMarkerIconSize(markerItem, markerSize, isVacuumDevice, buttonIco
   }
   return buttonIconSize(markerSize);
 }
-export function configuredModuleKinds(moduleConfigSource = {}) {
+// moduleConfigSource 是后端下发的动态属性袋（字段随模块扩展），这里按字符串键访问。
+function configuredModuleKinds(moduleConfigSource: Record<string, any> = {}) {
   return [
     // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，不依赖任何设备配置。
     "overview",
@@ -224,20 +225,12 @@ export function configuredModuleKinds(moduleConfigSource = {}) {
   ];
 }
 export function mountStage(mountOptions) {
-  const { THREE: three, container: element, canvas: canvasElement } = mountOptions,
-    uRLSearchParams = new URLSearchParams(location.search),
-    uiCalibrationStorageKey =
-      "homeos:i3d-ui-calibration:" +
-      (uRLSearchParams.get("projectId") || "project") +
-      ":" +
-      (uRLSearchParams.get("sceneId") || "scene") +
-      ":" +
-      (uRLSearchParams.get("componentId") || "component");
-  let value = null,
-    previousStageRect = null;
+  const { THREE: three, container: element, canvas: canvasElement } = mountOptions;
+  let value = null;
   const hasStageRect = () => !!value,
     noopStageCallback = () => {};
-  let options = {
+  // options 是后端下发的动态属性袋（字段随模块扩展），这里按字符串键访问。
+  let options: Record<string, any> = {
       lights: [],
     },
     deviceStates = {},
@@ -307,10 +300,13 @@ export function mountStage(mountOptions) {
     try {
       lightHistoryStorage = window.localStorage;
     } catch {}
-  const lightStateCache = createLightStateCache2({
+  // createLightStateCache 的形参解构里 storage/scope 没有默认值，TS 6 会把它们从推断出的形参
+  // 类型里丢掉，直接传字面量会被判成多余属性；先用变量承载选项，运行时完全相同。
+  const lightStateCacheOptions = {
       storage: lightHistoryStorage,
       scope: lightHistoryScope,
-    }),
+    },
+    lightStateCache = createLightStateCache2(lightStateCacheOptions),
     climateModeHistory = createClimateModeHistory2({
       storage: lightHistoryStorage,
       scope: lightHistoryScope,
@@ -329,7 +325,8 @@ export function mountStage(mountOptions) {
   const resolveDeviceState = (resolvedEntityId) =>
     lightStateCache.resolve(resolvedEntityId || "", deviceStates[resolvedEntityId]);
   let lightEditPreview = null,
-    baseStageConfig = {
+    // baseStageConfig 同 options，是后端下发的动态属性袋。
+    baseStageConfig: Record<string, any> = {
       lights: [],
     },
     isCameraMoving = false,
@@ -452,7 +449,7 @@ export function mountStage(mountOptions) {
         },
         location.origin,
       ),
-    createStageElement = (elementTagName, elementClassName, elementTextContent) => {
+    createStageElement = (elementTagName, elementClassName = "", elementTextContent = "") => {
       const createdElement = document.createElement(elementTagName);
       return (
         (createdElement.className = elementClassName || ""),
@@ -658,7 +655,7 @@ export function mountStage(mountOptions) {
     }),
     climatePanel = createClimatePanel2({
       modeHistory: climateModeHistory,
-      onLayout: (climateLayout) => {
+      onLayout: (climateLayout = null) => {
         isEditing &&
           ["climate", "fan", "purifier", "water-heater"].includes(activeModule) &&
           getFocusedEntry() &&
@@ -669,8 +666,8 @@ export function mountStage(mountOptions) {
             extraControls: climateLayout,
           });
       },
-      onControl: (climateControl, climateDeviceState) =>
-        new Promise((climateResolve, climateReject) => {
+      onControl: (climateControl = null, climateDeviceState = null) =>
+        new Promise<void>((climateResolve, climateReject) => {
           const climateBinding = collectClimateBindings().find(
               (climateCandidate) =>
                 climateDeviceState &&
@@ -779,8 +776,8 @@ export function mountStage(mountOptions) {
     });
   function pruneTiltPreviews() {
     for (const [coverFeedbackKey, coverFeedbackState] of tiltPreviewByCoverKey) {
-      const primaryFeedbackState = coverFeedback.read(coverFeedbackKey),
-        tiltFeedbackState = dreamTiltFeedback.read(coverFeedbackKey);
+      const primaryFeedbackState = coverFeedback.read(coverFeedbackKey, undefined),
+        tiltFeedbackState = dreamTiltFeedback.read(coverFeedbackKey, undefined);
       if (!primaryFeedbackState?.available || !tiltFeedbackState?.available) {
         tiltPreviewByCoverKey.delete(coverFeedbackKey);
         continue;
@@ -813,7 +810,7 @@ export function mountStage(mountOptions) {
       initialCoverState,
     );
     if (feedbackBinding.coverKind !== "dream") return baseCoverFeedback;
-    const tiltCoverFeedback = dreamTiltFeedback.read(computeCoverKey(feedbackBinding)),
+    const tiltCoverFeedback = dreamTiltFeedback.read(computeCoverKey(feedbackBinding), undefined),
       hasDreamTiltPreview = tiltPreviewByCoverKey.has(computeCoverKey(feedbackBinding));
     return {
       ...baseCoverFeedback,
@@ -1072,8 +1069,8 @@ export function mountStage(mountOptions) {
         : coverRequestEntry.resolve());
   }
   const mediaControlRequestsByRequestId = new Map(),
-    controlMediaDevice = (mediaCommand, mediaTargetEntry = getFocusedEntry()) =>
-      new Promise((mediaResolve, mediaReject) => {
+    controlMediaDevice = (mediaCommand = null, mediaTargetEntry = getFocusedEntry()) =>
+      new Promise<void>((mediaResolve, mediaReject) => {
         if (
           !isControlReady ||
           isEditing ||
@@ -1115,7 +1112,7 @@ export function mountStage(mountOptions) {
       onControl: controlMediaDevice,
     }),
     devicePanel = createDevicePanel2({
-      onLayout: (genericDeviceLayout) => {
+      onLayout: (genericDeviceLayout = null) => {
         isEditing &&
           isGenericDeviceKind2(activeModule) &&
           getFocusedEntry() &&
@@ -1606,7 +1603,7 @@ export function mountStage(mountOptions) {
   const environmentScene = createEnvironmentScene2({
     THREE: three,
     prepareMaterials: () => mountOptions.prepareEnvironmentMaterials?.(),
-    requestFrame: (environmentModelRoot) => {
+    requestFrame: (environmentModelRoot = null) => {
       (mountOptions.requestRender?.(),
         mountOptions.invalidateReflections?.(environmentModelRoot),
         wakeBackgroundAnimation());
@@ -1614,13 +1611,16 @@ export function mountStage(mountOptions) {
   });
   (mountOptions.setTelevisionSync?.(syncEnvironmentLayers),
     mountOptions.setEnvironmentScene?.(environmentScene));
-  const environmentAirflow = createEnvironmentAirflow2({
+  // createEnvironmentAirflow 的形参解构里 THREE/reducedMotion 没有默认值，TS 6 会把它们从
+  // 推断出的形参类型里丢掉，直接传字面量会被判成多余属性；先用变量承载选项，运行时完全相同。
+  const environmentAirflowOptions = {
     THREE: three,
     camera: mountOptions.camera,
     requestFrame: () => {
       (mountOptions.requestRender?.(), wakeBackgroundAnimation());
     },
-  });
+  };
+  const environmentAirflow = createEnvironmentAirflow2(environmentAirflowOptions);
   mountOptions.setEnvironmentAirflow?.(environmentAirflow);
   const viewHelpElement = createStageElement(
     "p",
@@ -1643,6 +1643,8 @@ export function mountStage(mountOptions) {
   const screenOutlines = createScreenOutlines2({
       THREE: three,
       container: presentationLayerElement,
+      // camera 是 getCamera 的静态回退项，此处两者指向同一个相机。
+      camera: mountOptions.camera,
       getCamera: () => mountOptions.camera,
       getObjectCamera: (screenOutlineObject) =>
         mountOptions.presentationCamera?.(screenOutlineObject) || mountOptions.camera,
@@ -1650,6 +1652,7 @@ export function mountStage(mountOptions) {
     editorSelectionOutlines = createScreenOutlines2({
       THREE: three,
       container: presentationLayerElement,
+      camera: mountOptions.camera,
       getCamera: () => mountOptions.camera,
       getObjectCamera: (editorOutlineObject) =>
         mountOptions.presentationCamera?.(editorOutlineObject) || mountOptions.camera,
@@ -1779,7 +1782,16 @@ export function mountStage(mountOptions) {
       };
     });
   }
-  function coverGeometryOverrides(coverModelSource, coverOverrides = {}) {
+  function coverGeometryOverrides(
+    coverModelSource,
+    coverOverrides: {
+      curtainFabricOverride?: boolean;
+      curtainFabric?: string;
+      coverKindOverride?: boolean;
+      coverKind?: string;
+      unboundPosition?: number;
+    } = {},
+  ) {
     return {
       curtainWidth: Number(coverModelSource?.width) || 1.8,
       curtainPosition: coverModelSource?.curtainPosition || "split",
@@ -1851,7 +1863,12 @@ export function mountStage(mountOptions) {
   function buildCurtainGroups() {
     const sourceCoverBindings = collectCoverBindings();
     return validCurtainGroups2(options.environment)
-      .map((curtainGroupSource) => {
+      .map((curtainGroupSource: CurtainGroupLike & {
+        x?: number;
+        y?: number;
+        height?: number;
+        clickAction?: string;
+      }) => {
         const filter = (curtainGroupSource.memberIds || [])
             .map((curtainGroupMemberId) =>
               sourceCoverBindings.find(
@@ -2084,7 +2101,7 @@ export function mountStage(mountOptions) {
       wakeSceneBackground());
   });
   const vacuumFollowCamera = createVacuumFollowCamera2(three);
-  function revealFollowCamera(followVacuumKey) {
+  function revealFollowCamera() {
     if (!followVacuumId) return;
     const worldPosition = vacuumMotion.worldPosition(followVacuumId),
       followVacuumBinding = (options.devices?.vacuums || []).find(
@@ -2115,7 +2132,7 @@ export function mountStage(mountOptions) {
       (mountOptions.requestRender?.(), wakeBackgroundAnimation());
     }),
     vacuumMotion = createVacuumMotion2(mountOptions, wakeSceneBackground),
-    presenceScene = createPresenceScene2(mountOptions, wakeSceneBackground),
+    presenceScene = createPresenceScene2(mountOptions, wakeSceneBackground, undefined),
     presenceWaves = createPresenceWaves2(mountOptions, wakeBackgroundAnimation);
   let presenceSyncSignature = null,
     isPresencePressed = false,
@@ -2709,7 +2726,7 @@ export function mountStage(mountOptions) {
         getConfig: () => options,
         standalone: isRangeEditorOnly,
         wake: wakeSceneBackground,
-        onChange(rangeOverrides) {
+        onChange(rangeOverrides = null) {
           canEditLightRange &&
             ((options.lightRegionOverrides = structuredClone(rangeOverrides)),
             (baseStageConfig.lightRegionOverrides = structuredClone(rangeOverrides)),
@@ -3406,7 +3423,7 @@ export function mountStage(mountOptions) {
       editedLightState
     );
   }
-  function applyLightStates(lightStateOptions, lightStatePatch = null) {
+  function applyLightStates(lightStateOptions = undefined, lightStatePatch = null) {
     const isEditorActive = isEditing || isAwaitingFloorViewAdjust,
       editedLightEntityId =
         isEditorActive && !isAwaitingFloorViewAdjust && panelDisplayMode !== "edit"
@@ -3547,8 +3564,7 @@ export function mountStage(mountOptions) {
           width: width2,
           height: height,
         }
-      : null),
-      (previousStageRect = value));
+      : null));
     const moduleTabStride = configuredModuleKinds2.length * 50 + 6,
       navigationConfig = options.navigation || {},
       normalizeNavigationScale = (navigationScaleConfig) =>
@@ -3716,7 +3732,7 @@ export function mountStage(mountOptions) {
         canvasElement.focus({
           preventScroll: true,
         })),
-      focusScopeElement.contains(document.activeElement) && activeElement.blur());
+      focusScopeElement.contains(document.activeElement) && (activeElement as HTMLElement).blur());
   }
   function syncStageVisibility() {
     const isFloorMotionUnrevealed =
@@ -3949,7 +3965,7 @@ export function mountStage(mountOptions) {
     targetCameraPose,
     isFocused,
     isImmediateMotion = false,
-    doneCallback,
+    doneCallback = undefined,
     motionOwner = "focus",
     floorFrame = null,
   ) {
@@ -4161,7 +4177,7 @@ export function mountStage(mountOptions) {
   }
   document.addEventListener &&
     document.addEventListener("visibilitychange", handleVisibilityChange);
-  function exitFocusMode(exitOptions = {}) {
+  function exitFocusMode(exitOptions: { immediate?: boolean; preserveCamera?: boolean } = {}) {
     if (
       (climatePanel.cancelPending?.(),
       lightModeMenu.close(),
@@ -5007,7 +5023,11 @@ export function mountStage(mountOptions) {
             commandedEntityIdSet.has(coverCommandItem.entityId)
           ))
             try {
-              const coverControlCommand = coverControl2(coverCommandState, coverServiceName);
+              const coverControlCommand = coverControl2(
+                coverCommandState,
+                coverServiceName,
+                undefined,
+              );
               (commandedEntityIdSet.add(coverCommandItem.entityId),
                 coverPanelOptions
                   .onControl(coverControlCommand, coverCommandItem)
@@ -6237,12 +6257,12 @@ export function mountStage(mountOptions) {
         (pointerGesture.moved = true),
         pointerGesture?.moved &&
           !isRangeEditorOpen &&
-          sceneBackgroundController.interact(gestureMoveEvent));
+          sceneBackgroundController.interact(gestureMoveEvent, undefined));
     }),
     canvasElement.addEventListener(
       "wheel",
       (stageWheelEvent) => {
-        isRangeEditorOpen || sceneBackgroundController.interact(stageWheelEvent);
+        isRangeEditorOpen || sceneBackgroundController.interact(stageWheelEvent, undefined);
       },
       {
         passive: true,
@@ -7141,7 +7161,7 @@ export function mountStage(mountOptions) {
       ),
       floor = Math.floor(frameTimestamp / 7000);
     (some6 && floor !== lastIdleFloorId && ((lastIdleFloorId = floor), syncMarkers()),
-      revealFollowCamera(deltaSeconds));
+      revealFollowCamera());
     const frameTimestampCameraQuaternionKey =
       mountOptions.camera.quaternion?.toArray?.().join(",") || "";
     if (frameTimestampCameraQuaternionKey !== cameraQuaternionKey) {

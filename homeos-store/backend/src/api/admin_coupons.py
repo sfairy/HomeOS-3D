@@ -266,6 +266,8 @@ def admin_patch_coupon(
             status_code=status.HTTP_400_BAD_REQUEST, detail="开始时间必须早于结束时间。"
         )
 
+    # 改完字段立刻按核销表纠一次计数，免得后台显示的「已核销」与真实占用长期漂移。
+    coupons.recount_coupon_slots(session, coupon.id)
     session.flush()
     _audit(session, _admin_actor(admin), "coupon.update", coupon.id, ",".join(sorted(changed)))
     return _coupon_payload(coupon, _coupon_redemption_count(session, coupon.id))

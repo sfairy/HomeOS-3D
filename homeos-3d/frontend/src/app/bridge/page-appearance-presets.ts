@@ -21,7 +21,7 @@ const baseAppearancePreset = {
 for (const presetValue of Object.values(baseAppearancePreset))
   presetValue && typeof presetValue == "object" && Object.freeze(presetValue);
 Object.freeze(baseAppearancePreset);
-export const PAGE_APPEARANCE_PRESETS = Object.freeze({
+const PAGE_APPEARANCE_PRESETS = Object.freeze({
   default: baseAppearancePreset,
   "warm-wood": baseAppearancePreset,
 });

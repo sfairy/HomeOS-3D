@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 const {
     lightSupportsColor: lightSupportsColor,
     lightColorRgb: lightColorRgb,
@@ -30,7 +29,7 @@ const isNumericValue = (candidateValue) =>
     "onoff",
     "unknown",
   ]);
-export function lightState(entityId, entityState, fallbackState) {
+export function lightState(entityId, entityState, fallbackState = null) {
   const stateObject = entityState?.newState || entityState || {},
     attributes = stateObject.attributes || {},
     supportedColorModes = Array.isArray(attributes.supported_color_modes)
@@ -171,7 +170,8 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
   const entityStateBody = patchEntityState?.newState || patchEntityState || {},
     entityAttributes = entityStateBody.attributes || {},
     resolvedLightState = lightState(patchEntityId, patchEntityState),
-    attributePatch = {},
+    // 属性补丁袋：键与 LIGHT_ATTRIBUTE_VALIDATORS 的校验键一一对应，按条件动态写入。
+    attributePatch: Record<string, any> = {},
     patchSupportedColorModes = Array.isArray(entityAttributes.supported_color_modes)
       ? entityAttributes.supported_color_modes
       : [],
@@ -228,16 +228,24 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
     )
   );
 }
+// 灯光历史记录：键是属性名（brightness/kelvin/colorHs…），值是最后一次写入的时间戳与取值。
+type LightHistoryRecord = { at: number; value?: unknown };
+// createLightStateCache 的宿主存储（与 localStorage 同形状），用于跨会话恢复灯光历史。
+type LightHistoryStorage = {
+  getItem: (storageKey: string) => string | null;
+  setItem: (storageKey: string, storageValue: string) => void;
+  removeItem: (storageKey: string) => void;
+};
 function createLightHistoryStore(storage, scope, now, schedule, cancel) {
   if (!storage || typeof scope != "string" || !scope.trim()) return null;
   const storageKey = "hb-i3d:light-history:v1:" + scope,
-    historyByEntityId = new Map(),
+    historyByEntityId = new Map<string, Record<string, LightHistoryRecord>>(),
     signatureByEntityId = new Map();
   let isStorageUsable = true,
     flushTimerId = null,
     hasPendingWrites = false,
     nextPruneMs = 0;
-  const latestRecordTimestamp = (attributeRecords) =>
+  const latestRecordTimestamp = (attributeRecords: Record<string, LightHistoryRecord>) =>
     Math.max(0, ...Object.values(attributeRecords).map((attributeRecord) => attributeRecord.at));
   function pruneExpiredRecords(nowMs) {
     if (nowMs < nextPruneMs && historyByEntityId.size <= MAX_TRACKED_ENTITIES) return false;
@@ -265,7 +273,7 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     return hasPruned;
   }
   function readStoredHistory() {
-    const storedHistoryByEntityId = new Map(),
+    const storedHistoryByEntityId = new Map<string, Record<string, LightHistoryRecord>>(),
       storedJSON = storage.getItem(storageKey);
     if (storedJSON) {
       const parsedHistory = JSON.parse(storedJSON),
@@ -325,7 +333,8 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
       hasPendingWrites = false;
       try {
         for (const [persistedEntityId, persistedAttributes] of readStoredHistory()) {
-          const mergedRecords = historyByEntityId.get(persistedEntityId) || {};
+          const mergedRecords: Record<string, LightHistoryRecord> =
+            historyByEntityId.get(persistedEntityId) || {};
           for (const [mergedKey, newerRecord] of Object.entries(persistedAttributes))
             (!mergedRecords[mergedKey] || mergedRecords[mergedKey].at < newerRecord.at) &&
               (mergedRecords[mergedKey] = newerRecord);
@@ -436,6 +445,13 @@ export function createLightStateCache({
   now: cacheNow = () => Date.now(),
   schedule: cacheSchedule = (scheduledCallback) => setTimeout(scheduledCallback, 50),
   cancel: cacheCancel = (scheduledTimerId) => clearTimeout(scheduledTimerId),
+}: {
+  storage?: LightHistoryStorage | null;
+  scope?: string;
+  now?: () => number;
+  // 定时器句柄由宿主决定（浏览器 number / Node Timeout），这里原样透传。
+  schedule?: (scheduledCallback: () => void) => any;
+  cancel?: (scheduledTimerId: any) => void;
 } = {}) {
   const lastStateByEntityId = new Map(),
     historyStore = createLightHistoryStore(
@@ -534,11 +550,16 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   throw new Error("此设备不支持该灯光调节。");
 }
 export function createLightPreview({ now: previewNow = () => performance.now() } = {}) {
-  const previewsByEntityId = new Map();
+  // 预览条目：values 是按命令动态写键的值袋，其余字段是提交/过期元数据
+  const previewsByEntityId = new Map<
+    any,
+    { values: Record<string, any>; revision: number; committed: boolean; expires: number }
+  >();
   let revisionCounter = 0;
   return {
     set(previewEntityId, previewCommand, previewValue, isCommitted = false) {
-      const previewValues = {
+      // 预览值袋：按命令动态写入 brightness/kelvin/colorHs 等键，整袋提交给宿主。
+      const previewValues: Record<string, any> = {
         ...previewsByEntityId.get(previewEntityId)?.values,
         on: previewCommand === "power" ? previewValue === true : true,
       };

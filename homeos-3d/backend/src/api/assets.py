@@ -50,6 +50,9 @@ UPLOAD_CONTENT_TYPES = {
 # 上传图片的硬上限：1000 万像素、单边 8192，挡住解压炸弹式的超大图。
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
+# 上传请求的字节上限：像素与边长都只能在校验阶段发现，收流阶段再没有任何闸门，
+# 一个几十 GB 的请求体足以把磁盘写满（同一 LAN 内甚至不需要登录）。
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 # SVG 体积与元素数量闸门：挡住超大 XML 与实体展开式的结构炸弹。
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
@@ -846,12 +849,17 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     try:
         # 独占创建（xb）：同名文件已存在就直接失败，不会覆盖别人的图。
         has_content = False
+        written = 0
         with path.open('xb') as descriptor:
             async for chunk in request.stream():
                 # 分块传输会给出空块：空块不算内容、也不写盘。
                 if not chunk:
                     continue
                 has_content = True
+                written += len(chunk)
+                # 边收边记账，超限立即中断；下面的 except 会把半截文件与目录清干净。
+                if written > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code = 413, detail = '图片文件过大，请压缩后再上传。')
                 descriptor.write(chunk)
             descriptor.flush()
         if not has_content:
@@ -921,14 +929,24 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
     return response
 
 @router.get('/studio3d-export/{folder_name}/{filename}')
-def read_studio3d_export(folder_name: str, filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
+def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> FileResponse:
     # [补充说明] 读取 3D 工作室导出的图片原文。
     #
-    # 身份：LicensedViewer（认证 + api）。路径参数严格校验，非法或不存在 404「导出图片不存在。」。
+    # 身份：LicensedViewer（认证 + api）。路径参数严格校验，非法或不存在 404「导出图片不存在。」；
+    # 该图未被当前主体的仪表盘引用时 403「该图片不属于当前中控仪表盘。」—— 否则同一台
+    # 服务器上的任意已认证中控都能按文件夹名把别人的 3D 导出图整个翻出来。
     root = request.app.state.settings.studio3d_exports_dir.resolve()
-    path = studio3d_export_file(root, unquote(folder_name), unquote(filename))
+    folder = unquote(folder_name)
+    name = unquote(filename)
+    path = studio3d_export_file(root, folder, name)
     if path is None:
         raise HTTPException(status_code = 404, detail = '导出图片不存在。')
+    # 与用户素材同一条可见性规则，只是资源 ID 前缀不同：
+    # 导出图在素材索引里登记为 studio3d:<文件夹>/<文件名>。
+    with request.app.state.database.session_factory() as database:
+        allowed = viewer_user_asset_ids(database, viewer, prefixes = ('studio3d:',))
+    if allowed is not None and f'studio3d:{folder}/{name}' not in allowed:
+        raise HTTPException(status_code = 403, detail = '该图片不属于当前中控仪表盘。')
     # 只允许 PNG / WebP 两种后缀，所以媒体类型可以在这里直接穷举。
     media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
     response = FileResponse(path, media_type = media_type)

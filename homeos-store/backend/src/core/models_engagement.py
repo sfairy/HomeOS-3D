@@ -210,10 +210,14 @@ class OrderRefund(Base):
         String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True
     )
     order_no: Mapped[str] = mapped_column(String(64), default="", index=True)
-    #: 提交给渠道的幂等键，由本行 id 派生，全局唯一（重复即会被渠道去重）
+    #: 提交给渠道的幂等键，确定性派生：RF{订单号}-{累计目标金额}。唯一的含义不只是
+    #: 「渠道会去重」——这条唯一索引本身就是**跨进程的退款闸门**（见
+    #: src/payments/refunds.py 的 open_refund_gate）：同一笔退款任何时刻最多一行。
     out_request_no: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     #: 本次实际退回的金额（分）
     amount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    #: succeeded 已到账 / running 渠道调用进行中 / processing 渠道已受理未到账或结果未知 /
+    #: failed 渠道明确拒绝（本次没有动钱）。processing 必须用同一幂等号原样重试。
     status: Mapped[str] = mapped_column(String(16), default="succeeded", index=True)
     #: 渠道退款单号 / 交易号；线下退款为空
     trade_no: Mapped[str | None] = mapped_column(String(128))

@@ -1,4 +1,4 @@
-export const SCENE_PREPARATION_VERSION = "20260923-v1";
+const SCENE_PREPARATION_VERSION = "20260923-v1";
 const SCENE_STORE = "scenes";
 export function scenePreparationKey(lightHistoryScope, projectId, sceneId, source = "") {
   return lightHistoryScope && projectId && sceneId
@@ -23,7 +23,7 @@ function isUsablePreparedDocument(preparedDocument) {
     )
   );
 }
-export function reusableScenePreparation(preparedEntry, options) {
+function reusableScenePreparation(preparedEntry, options) {
   return (
     !!preparedEntry &&
     preparedEntry.version === SCENE_PREPARATION_VERSION &&

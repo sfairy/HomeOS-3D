@@ -9,26 +9,7 @@ export function spotLightBrightnessResponse(lightType = "downlight", rawBrightne
   const spillLight = 0.08 * normalizedBrightness * (1 - normalizedBrightness / 0.35);
   return squaredBrightness + spillLight;
 }
-export function stripLightProjection(elevationMeters = 2.7, rangeMeters = 3.5, stripWidth = 2) {
-  const elevation = clamp(
-      Number.isFinite(Number(elevationMeters)) ? Number(elevationMeters) : 2.7,
-      0.05,
-      6,
-    ),
-    lightRange = clamp(Number.isFinite(Number(rangeMeters)) ? Number(rangeMeters) : 3.5, 0.5, 10),
-    stripWidthValue = clamp(Number.isFinite(Number(stripWidth)) ? Number(stripWidth) : 2, 0.2, 8),
-    elevationRatio = clamp(elevation / 2.7, 0.2, 2.2),
-    widthRatio = clamp(stripWidthValue / 2, 0.1, 4);
-  return {
-    elevation: elevation,
-    range:
-      lightRange *
-      clamp(0.5 + elevationRatio * 0.5, 0.6, 1.6) *
-      clamp(0.82 + widthRatio * 0.18, 0.75, 1.5),
-    coreScale: clamp(0.55 + elevationRatio * 0.45, 0.65, 1.55),
-    intensity: clamp(1 / elevationRatio, 0.5, 2.2),
-  };
-}
+
 export function adaptiveLightRenderCost(lights = []) {
   return lights.reduce(
     (accumulatedCost, light) =>
@@ -1222,7 +1203,7 @@ export function wallSolidPieces(solidTargetWall, wallSegmentList, wallUnitScale,
  * 点吸附选项。历史调用点（courtyard-drawing-editor）在第三个参数位置传过 shiftKey
  * 布尔值，所以 snapPoint 的入参同时兼容布尔；非对象一律当空选项处理，行为与之前一致。
  */
-export type PointSnapOptions = {
+type PointSnapOptions = {
   /** 端点吸附，默认开。 */
   snapEndpoints?: boolean;
   /** 交点吸附，默认开。 */
@@ -1254,7 +1235,7 @@ export type PointSnapOptions = {
 };
 
 /** 尺寸缩放限制（resizeRotatedItemFromCorner）。 */
-export type ResizeSizeLimits = {
+type ResizeSizeLimits = {
   /** 最小边长，默认 0.1。 */
   minimumDimension?: number;
   /** 最小缩放比，默认 0。 */
@@ -1460,7 +1441,7 @@ function clampT(loopPoints, distanceTolerance) {
 export function subtractPolygonLoops(targetLoops, holeLoops, loopTolerance = 0.000001) {
   return unionPolygonLoops(targetLoops, loopTolerance, holeLoops);
 }
-export function unionPolygonLoops(sourceLoops, unionTolerance = 0.000001, additionalLoops = []) {
+function unionPolygonLoops(sourceLoops, unionTolerance = 0.000001, additionalLoops = []) {
   return unionLoops(sourceLoops, unionTolerance, additionalLoops);
 }
 function unionLoops(firstLoopSet, mergeDistance, extraLoops = [], shouldSkipUnion = false) {
@@ -1990,11 +1971,7 @@ function wallEndpointNodes(endpointSourceWalls, wallEndpointTolerance = 1) {
       : [],
   );
 }
-export function openWallEndpoints(openEndpointWalls, openTolerance = 1) {
-  return wallEndpointNodes(openEndpointWalls, openTolerance).map((wallEndpoint) => ({
-    ...wallEndpoint.point,
-  }));
-}
+
 function isPointWithinPolygon(samplePoint, boundaryPolygon, insideTolerance) {
   return pointInPolygon(samplePoint, boundaryPolygon, insideTolerance)
     ? boundaryPolygon.every(

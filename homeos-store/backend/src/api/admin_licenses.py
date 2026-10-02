@@ -18,6 +18,7 @@ from ..core.models import (
     Customer,
     DeviceBinding,
     License,
+    Order,
 )
 from ..core.schemas import (
     AdminLicenseRequest,
@@ -207,6 +208,9 @@ def admin_activate_license(license_id: str, session: DbSession, admin: AdminAcco
 @router.delete("/licenses/{license_id}")
 def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """彻底删除一条授权（含级联的权益、绑定、租约与会话）。
+
+    仍被订单引用的授权拒绝删除：orders.license_id 是 SET NULL，硬删之后
+    _revoke_order_entitlements 再也找不到这张授权，退款会静默地不撤销权益。
     """
     license = session.get(License, license_id)
     if license is None:
@@ -227,6 +231,15 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="该授权仍有活跃设备绑定，请先强制解绑。",
+        )
+
+    referencing_order = session.scalars(
+        select(Order.id).where(Order.license_id == license.id).limit(1)
+    ).first()
+    if referencing_order is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该授权已被订单引用，删除后这些订单的退款将无法再撤销权益；请改为停用。",
         )
 
     code_hint = license.code_hint

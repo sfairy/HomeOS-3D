@@ -2,7 +2,7 @@ export const VIRTUAL_ENTITY_PREFIX = "virtual.",
   ICON_VISIBILITY_VIRTUAL_KIND = "icon_visibility",
   ICON_VISIBILITY_VIRTUAL_NAME = "图标·显示隐藏",
   ICON_VISIBILITY_VIRTUAL_SCOPE = "current_page";
-export function iconVisibilityVirtualEntityId() {
+function iconVisibilityVirtualEntityId() {
   return (
     "" + VIRTUAL_ENTITY_PREFIX + ICON_VISIBILITY_VIRTUAL_KIND + "." + ICON_VISIBILITY_VIRTUAL_SCOPE
   );

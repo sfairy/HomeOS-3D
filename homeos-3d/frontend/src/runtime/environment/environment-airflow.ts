@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 const flowStateColors = {
@@ -12,9 +11,14 @@ const flowStateColors = {
     JSON.stringify([String(floorId ?? ""), String(modelId ?? "")]);
 export function createEnvironmentAirflow({
   THREE: THREE,
-  camera: camera = null,
   requestFrame: requestFrame = () => {},
   reducedMotion: reducedMotion,
+}: {
+  // 宿主注入的 three 命名空间与渲染循环回调；camera 选项当前实现未读取，但调用方（stage.ts:1615）仍会传入。
+  THREE?: any;
+  camera?: any;
+  requestFrame?: () => void;
+  reducedMotion?: boolean;
 } = {}) {
   let value = null,
     rootRevision,
@@ -92,7 +96,8 @@ export function createEnvironmentAirflow({
       accumulatedBounds.isEmpty() ? null : accumulatedBounds
     );
   }
-  function resolveOutletLayout(model, modelBinding = {}) {
+  // modelBinding 是宿主下发的动态绑定袋（climateType/bathEffect 等键），逐项判空使用。
+  function resolveOutletLayout(model, modelBinding: Record<string, any> = {}) {
     const modelBox = modelWorldBounds(model);
     if (!modelBox) return null;
     const size = modelBox.getSize(new THREE.Vector3());
@@ -547,7 +552,8 @@ export function createEnvironmentAirflow({
           (indexSceneModels(), syncEffects(true), updateEffectStates(), requestFrame()));
     }
   }
-  function setState(stateUpdate = {}) {
+  // stateUpdate 是宿主下发的动态状态袋（enabled/bindings/states/focusedId/overview/reducedMotion）。
+  function setState(stateUpdate: Record<string, any> = {}) {
     if (isDisposed) return;
     const previousReducedMotion = prefersReducedMotion();
     (Object.hasOwn(stateUpdate, "enabled") && (isEnabled = stateUpdate.enabled === true),

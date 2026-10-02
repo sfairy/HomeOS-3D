@@ -1,27 +1,27 @@
 /* HomeOS 可配置配色（本文件为 store 侧逻辑源；3d 侧见 homeos-3d/.../auth/scene/appearance.ts）
    悄悄变了。 */
 
-export type ColorName = "accent" | "lumen" | "aura" | "eco";
+ type ColorName = "accent" | "lumen" | "aura" | "eco";
 
 export const CONFIGURABLE: readonly ColorName[] = ["accent", "lumen", "aura", "eco"];
 
-export type ShadePair = {
+ type ShadePair = {
   bright: string;
   deep: string;
 };
 
-export type ColorMap = Record<ColorName, string>;
+ type ColorMap = Record<ColorName, string>;
 
-export type ShadeMap = Partial<Record<ColorName, ShadePair>>;
+ type ShadeMap = Partial<Record<ColorName, ShadePair>>;
 
-export type AppearanceColors = ColorMap & {
+ type AppearanceColors = ColorMap & {
   accentShades?: ShadePair;
   lumenShades?: ShadePair;
   auraShades?: ShadePair;
   ecoShades?: ShadePair;
 };
 
-export type Preset = {
+ type Preset = {
   id: string;
   label: string;
   hint: string;
@@ -124,7 +124,7 @@ function deriveShades(hex: string): ShadePair {
 /**
  * 把四个基色展开成两张样式表要用的字面量令牌表。
  */
-export function appearanceTokens(colors: Partial<AppearanceColors>): Record<string, string> {
+ function appearanceTokens(colors: Partial<AppearanceColors>): Record<string, string> {
   const tokens: Record<string, string> = {};
   for (const name of CONFIGURABLE) {
     const base = normalizeHex(colors[name]);
@@ -156,7 +156,7 @@ export function appearanceTokens(colors: Partial<AppearanceColors>): Record<stri
   return tokens;
 }
 
-export type ResolveTokensInput = {
+ type ResolveTokensInput = {
   presetId?: string;
   accentColor?: string | null;
 };

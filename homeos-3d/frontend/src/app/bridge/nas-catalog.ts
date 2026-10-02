@@ -255,7 +255,7 @@ export function nasProfiles(entities = [], devices = []) {
     })
     .sort((leftProfile, rightProfile) => leftProfile.name.localeCompare(rightProfile.name));
 }
-export function reconcileNasSource(existingSource, updatedSource) {
+function reconcileNasSource(existingSource, updatedSource) {
   if (!existingSource || !updatedSource || existingSource.deviceId !== updatedSource.deviceId)
     return false;
   const metricIndexByEntityId = new Map<string, { metric: any; index: number }>(

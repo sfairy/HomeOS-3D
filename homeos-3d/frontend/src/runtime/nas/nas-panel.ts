@@ -9,7 +9,7 @@ export function nasGroups(nasConfig) {
     .filter((defaultGroupKey) => Object.hasOwn(groupLabels, defaultGroupKey))
     .map((groupKey) => [groupKey, groupLabels[groupKey]]);
 }
-export function nasMetricValue(metric, stateUpdate) {
+function nasMetricValue(metric, stateUpdate) {
   const entityState = stateUpdate?.newState || stateUpdate || {},
     stateValue = String(entityState.state ?? "").trim();
   if (

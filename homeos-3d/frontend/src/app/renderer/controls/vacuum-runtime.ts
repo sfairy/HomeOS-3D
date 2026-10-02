@@ -210,7 +210,7 @@ const statusLabels = {
     rawFlagValue === true ||
     rawFlagValue === 1 ||
     ["true", "on", "1"].includes(String(rawFlagValue).toLowerCase());
-export function vacuumStatusRole(entity: HaEntityEntry = {}) {
+function vacuumStatusRole(entity: HaEntityEntry = {}) {
   if ((entity.domain || entity.entityId?.split(".")[0]) !== "sensor") return "";
   const translationKey = entity.translationKey || entity.translation_key;
   return translationKey

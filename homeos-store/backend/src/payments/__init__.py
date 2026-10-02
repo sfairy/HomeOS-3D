@@ -11,12 +11,12 @@ from ..payments.base import PaymentError, PaymentIntent, PaymentProvider
 from ..payments.channels import (
     CHANNEL_LABELS,
     PROVIDER_NAMES,
-    channel_label,
     default_channel_name,
     display_name_for,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
+    provider_label,
 )
 from ..payments.credentials import (
     alipay_credentials_summary,
@@ -35,7 +35,6 @@ __all__ = [
     "PaymentProvider",
     "WeChatPayProvider",
     "alipay_credentials_summary",
-    "channel_label",
     "default_channel_name",
     "display_name_for",
     "enabled_channel_names",

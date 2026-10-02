@@ -32,7 +32,7 @@ export function emptyRow(columns: number, text: string) {
 }
 
 // 翻页统一在文档级委托（全部列表共用同一套分页条）；复制按钮也走这一个处理器 ——
-export function selectNodeText(node: Node) {
+ function selectNodeText(node: Node) {
   const range = document.createRange();
   range.selectNodeContents(node);
   const selection = window.getSelection();

@@ -691,7 +691,7 @@
               <span class="hos-hint">仅邀请绑定 · 无折扣</span>
             </div>
             <div class="hos-control">
-              <input id="store-register-referral" type="text" name="referralCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6 位数字">
+              <input id="store-register-referral" type="text" name="referralCode" maxlength="8" pattern="[0-9]{6}|[0-9A-Za-z]{8}" placeholder="6 位数字 / 8 位邀请码">
             </div>
           </div>
         </div>
@@ -1048,10 +1048,8 @@
 <script type="module" src="/src/scene/scene-depth.ts"></script>
 <script src="/store-static/jquery.min.js"></script>
 <script src="/store-static/jquery.qrcode.min.js"></script>
-<script type="module" src="/src/htmlsafe.ts"></script>
-<script type="module" src="/src/api-error.ts"></script>
-<script type="module" src="/src/money.ts"></script>
-<script type="module" src="/src/referrals.ts"></script>
+<!-- 共享实现（htmlsafe / api-error / money / referrals）由 store.ts 等模块自行 import，
+     它们不向 window 挂全局别名，这里再挂一遍只会多跑几次请求。 -->
 <script type="module" src="/src/store.ts"></script>
 <!-- 状态甲板的自走读数（源：apps/store/static/entry-deck.js）。它读页面里已有的时间戳，
      其中只有认证三屏有甲板。与主应用那份是两份文件、一套 data-* 契约。 -->

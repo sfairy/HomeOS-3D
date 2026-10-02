@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 const svgUrl = "http://www.w3.org/2000/svg",
   clampNumber = (numericValue, minimum, maximum) =>
     Math.max(minimum, Math.min(maximum, numericValue)),
@@ -8,7 +7,7 @@ const svgUrl = "http://www.w3.org/2000/svg",
   roundToHundredth = (numericInput) => Math.round(numericInput * 100) / 100,
   toRegionKey = (areaIdPart, lightIdPart) =>
     JSON.stringify([String(areaIdPart), String(lightIdPart)]);
-export function resizeRegionDimensions(
+function resizeRegionDimensions(
   sourceRegion,
   requestedWidth,
   requestedDepth,
@@ -46,7 +45,7 @@ export function resizeRegionDimensions(
     depth: roundToHundredth(clampNumber(requestedDepth, 0.5, 20)),
   };
 }
-export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
+function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
     heightAbove: undefined,
     heightBelow: undefined,
@@ -76,6 +75,17 @@ export function mountRegionRangeEditor(
     onClose: onClose = () => {},
     wake: wake = () => {},
     standalone: standalone = false,
+  }: {
+    // 配置袋：字段由宿主模块（core/stage.ts 的 options）提供并随模块变化，这里只声明本文件真正读取的字段。
+    getConfig?: () => {
+      lights?: any[];
+      floorSelection?: any;
+      lightRegionOverrides?: Record<string, any>;
+    };
+    onChange?: (regionOverrides: Record<string, any>) => void;
+    onClose?: () => void;
+    wake?: () => void;
+    standalone?: boolean;
   } = {},
 ) {
   const editorDocumentNode = editorHost.container.ownerDocument,
@@ -356,7 +366,7 @@ export function mountRegionRangeEditor(
       region.center[2] + offsetAlongX * axisZ + offsetAlongZ * axisX,
     );
   }
-  function createSvgElement(tagName, attributes, parentElement = svgElement) {
+  function createSvgElement(tagName, attributes = {}, parentElement = svgElement) {
     const createdSvgElement = editorDocumentNode.createElementNS(svgUrl, tagName);
     for (const [attributeName, attributeValue] of Object.entries(attributes || {}))
       createdSvgElement.setAttribute(attributeName, String(attributeValue));
@@ -583,7 +593,7 @@ export function mountRegionRangeEditor(
           moveHandleElement,
         ));
     }
-    const resizeHandleSpecs = [
+    const resizeHandleSpecs: [string, number, number][] = [
       ["nw", -1, -1],
       ["ne", 1, -1],
       ["se", 1, 1],
@@ -1364,7 +1374,7 @@ export function mountRegionRangeEditor(
     setSaveStatus: setSaveStatus,
   };
 }
-export function mountRangeFormControls(editorRootElement) {
+function mountRangeFormControls(editorRootElement) {
   const formDocumentNode = editorRootElement.ownerDocument,
     formWindow = formDocumentNode.defaultView,
     customSelects = [],
@@ -1376,7 +1386,12 @@ export function mountRangeFormControls(editorRootElement) {
       const createdElement = formDocumentNode.createElement(elementTagName);
       return ((createdElement.className = className), createdElement);
     },
-    addTrackedListener = (eventTargetElement, eventType, eventListener, listenerOptions) => {
+    addTrackedListener = (
+      eventTargetElement,
+      eventType,
+      eventListener,
+      listenerOptions: boolean | AddEventListenerOptions = false,
+    ) => {
       (eventTargetElement.addEventListener(eventType, eventListener, listenerOptions),
         eventCleanupCallbacks.push(() =>
           eventTargetElement.removeEventListener(eventType, eventListener, listenerOptions),

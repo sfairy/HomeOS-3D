@@ -137,6 +137,26 @@ def recount_coupon_slots(session: Session, coupon_id: str) -> int:
     return used
 
 
+def recompute_coupon_slots(session: Session) -> dict[str, int]:
+    """按核销表重算**所有**优惠码的 ``redeemed_count``，返回「码 id → 修正量」。
+
+    与 :func:`src.commerce.fulfill.recompute_reserved_stock` 同一角色：计数列是
+    反规范化的快照，**真相在 coupon_redemptions**（判据见 :func:`holds_slot_conditions`），
+    漂移由后台维护动作统一纠回。改券、归还名额、复活占用这些常规路径各自已经调用
+    :func:`recount_coupon_slots`，这里是兜底入口。
+    """
+    changes: dict[str, int] = {}
+    for coupon_id, current in session.execute(
+        select(Coupon.id, func.coalesce(Coupon.redeemed_count, 0))
+    ).all():
+        before = int(current or 0)
+        expected = recount_coupon_slots(session, coupon_id)
+        if before != expected:
+            changes[coupon_id] = expected - before
+    session.flush()
+    return changes
+
+
 def release_coupon(
     session: Session, order: Order, *, reason: str = "订单未成交，自动归还名额"
 ) -> bool:

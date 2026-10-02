@@ -41,6 +41,8 @@ PYTHONPATH=homeos-store/backend .venv-store/bin/python -m src.run
 
 `run.py` 单 worker。不要 `--workers N`，也不要多实例共享同一数据目录：配色快照、进程内限流、巡检状态都在内存里。跨进程安全的限流（登录失败等）走数据库。
 
+退款不在此列：`order_refunds.out_request_no` 用确定性幂等键（`RF{订单号}-{累计目标金额}`），该列上的唯一索引就是跨进程闸门，多 worker 也不会把同一笔退款退两次。但「不退两次」不等于「可以多开」——其余内存态仍需单进程。
+
 ## 支付
 
 **默认不配置渠道 → 拒绝建单（fail-closed）。** 支持支付宝当面付与微信支付 Native；可在后台同时启用，订单冻结顾客所选渠道。

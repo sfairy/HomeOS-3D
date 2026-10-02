@@ -11,7 +11,9 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Request, status
 
 from ..dependencies import CurrentUser, CurrentViewer
+from ..auth_limiter import retry_after_headers
 from ..license import LicenseClientError
+from ..request_origin import require_same_origin_write
 from ..schemas import LicenseActivateRequest
 
 router = APIRouter(prefix = '/license', tags = ['license'])
@@ -52,7 +54,7 @@ async def activate_license(payload: LicenseActivateRequest, request: Request, us
         raise HTTPException(
             status_code = status.HTTP_429_TOO_MANY_REQUESTS,
             detail = f'激活尝试过于频繁，请 {remaining} 秒后再试。',
-            headers = {'Retry-After': str(remaining)})
+            headers = retry_after_headers(remaining))
     try:
         result = await request.app.state.license_service.activate(payload.activation_code, payload.email)
     except LicenseClientError as error:
@@ -96,10 +98,8 @@ async def retry_license(request: Request, viewer: CurrentViewer) -> dict:
     # 返回: 管理员会话拿完整状态；中控设备只拿 availability() 的摘要 ——
     # 展示端既不需要、也不该看到授权标识与凭证字段。
     # 本接口有真实副作用（触发联网重试），属于写操作，必须自己挡跨站请求：
-    # Origin 与请求的 base_url 不同源即拒；sec-fetch-site 是额外的第二道闸。
-    origin = request.headers.get('origin')
-    if (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')) or request.headers.get('sec-fetch-site') == 'cross-site':
-        raise HTTPException(status_code = 403, detail = '不允许跨站重试授权。')
+    # 与其它写接口共用同一套 Origin / sec-fetch-site 判定，语义不再各写一份。
+    require_same_origin_write(request)
     try:
         result = await request.app.state.license_service.retry_now()
     except LicenseClientError as error:

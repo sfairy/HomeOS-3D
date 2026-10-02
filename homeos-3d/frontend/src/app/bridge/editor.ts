@@ -23,7 +23,7 @@ import {
   normalizeBackgroundTheme,
 } from "./definition";
 import type { DomControl } from "@app/utils/dom-control";
-export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
+function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree))
     componentTree.forEach((arrayItem, arrayIndex) =>
       interaction3dEntries(
@@ -69,7 +69,7 @@ function stripPositionZIndex(component) {
     position: remainingPosition,
   };
 }
-export function changesInteraction3d(previousProject, nextProject) {
+function changesInteraction3d(previousProject, nextProject) {
   const previousEntriesByPath = interaction3dEntries(previousProject),
     nextEntriesByPath = interaction3dEntries(nextProject);
   for (const [entryPath, nextEntry] of nextEntriesByPath)
@@ -142,7 +142,7 @@ export async function updateInteraction3dCard(cardButton) {
 }
 const sceneStateByKey = new Map(),
   inspectorAbortByHost = new WeakMap();
-export async function requestInteraction3dScene() {
+async function requestInteraction3dScene() {
   return withRequestTimeout(20000, async (abortSignal) => {
     const response = await fetch("/api/v1/modules/interaction3d/scenes", {
         method: "POST",

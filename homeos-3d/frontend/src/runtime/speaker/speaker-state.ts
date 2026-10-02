@@ -1,5 +1,5 @@
 import { televisionState } from "../television/television-state";
-export const SPEAKER_FEATURES = Object.freeze({
+const SPEAKER_FEATURES = Object.freeze({
   media_pause: 1,
   media_seek: 2,
   volume_set: 4,

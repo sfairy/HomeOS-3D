@@ -4,6 +4,14 @@ from math import ceil
 from threading import Lock
 from time import monotonic
 
+
+def retry_after_headers(seconds: int) -> dict[str, str]:
+    # [补充说明] 统一的 429 响应头：秒数由各自的限流器给出，头名与下限只在这里定。
+    #
+    # 下限 1 秒：剩 0.2 秒时回 Retry-After: 0 等于让客户端立刻再来，反而把窗口撑满。
+    return {'Retry-After': str(max(1, int(seconds)))}
+
+
 class LoginAttemptLimiter:
 
     def __init__(self, max_failures=5, window_seconds=300, block_seconds=600) -> None:
@@ -51,8 +59,10 @@ class LoginAttemptLimiter:
             failures = self._failures[key]
             failures.append(now)
             if len(failures) >= self.max_failures:
+                # 封禁时**不**清空失败时间戳：清空等于解封后又白送一整个 max_failures 预算，
+                # 攻击者只要每 block_seconds 打五个密码就能长期慢慢试。保留时间戳后，
+                # 解封瞬间窗口里仍留着失败记录，再失败一次立刻重新封禁，直到时间戳自然过期。
                 self._blocked_until[key] = now + self.block_seconds
-                failures.clear()
             return None
         return None
 

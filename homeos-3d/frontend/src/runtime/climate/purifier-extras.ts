@@ -1,6 +1,5 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { deviceStatusChoices } from "../device/device-status";
-export function extraStateLabel(entityId, state) {
+function extraStateLabel(entityId, state) {
   const liveState = state?.newState || state;
   return !liveState ||
     liveState.available === false ||
@@ -66,7 +65,7 @@ export function purifierDeviceChanged(deviceEntities, previousEntityId, nextEnti
   };
   return !deviceIdOf(previousEntityId) || deviceIdOf(previousEntityId) !== deviceIdOf(nextEntityId);
 }
-export function extraRanges(rangeEntityId, rangeState) {
+function extraRanges(rangeEntityId, rangeState) {
   const attributes = (rangeState?.newState || rangeState)?.attributes || {};
   if (rangeEntityId.startsWith("fan.") && Number(attributes.supported_features) & 1)
     return [
@@ -106,7 +105,7 @@ export function extraRanges(rangeEntityId, rangeState) {
     ranges
   );
 }
-export function extraRangeCommand(item, commandState, key, rawValue) {
+function extraRangeCommand(item, commandState, key, rawValue) {
   const commandLiveState = commandState?.newState || commandState,
     range = extraRanges(item.entityId, commandLiveState).find((candidate) => candidate.key === key),
     numericValue = Number(rawValue);
@@ -133,7 +132,35 @@ export function extraRangeCommand(item, commandState, key, rawValue) {
     deviceKind: "purifier-extra",
   };
 }
-export function extraCommand(controlItem, controlState, controlValue) {
+/** 命令 data 按控件类型择一携带 option/value，运行时动态挂载，故字段全部可选。 */
+type PurifierCommandData = { option?: any; value?: any };
+/** 面板视图模型由调用方 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
+type PurifierExtrasViewModel = { item?: any; editing?: any; states?: any };
+/**
+ * 卡片运行时状态袋：除建卡时的固定字段外，卡片在渲染/交互过程中还会挂上
+ * description/submit/menu/choices/confirm/ranges 等成员，故按实际访问到的键显式列出并全部可选。
+ */
+type PurifierCard = {
+  item?: any;
+  section?: any;
+  title?: any;
+  status?: any;
+  error?: any;
+  control?: any;
+  pending?: boolean;
+  description?: any;
+  submit?: any;
+  expected?: any;
+  timer?: any;
+  menu?: any;
+  choices?: any;
+  confirm?: any;
+  ranges?: any[];
+  rangePending?: boolean;
+  rangeExpected?: any;
+  rangeTimer?: any;
+};
+function extraCommand(controlItem, controlState, controlValue) {
   const controlLiveState = controlState?.newState || controlState;
   if (
     !controlLiveState ||
@@ -144,7 +171,7 @@ export function extraCommand(controlItem, controlState, controlValue) {
   if (!extraTypes(controlItem.entityId).includes(controlItem.type) || controlItem.type === "state")
     throw new Error("不支持此操作");
   const controlDomain = controlItem.entityId.split(".")[0],
-    data = {};
+    data: PurifierCommandData = {};
   let service;
   if (
     (controlItem.type === "switch" &&
@@ -182,7 +209,7 @@ export function extraCommand(controlItem, controlState, controlValue) {
     deviceKind: "purifier-extra",
   };
 }
-export function extraLayout(controls) {
+function extraLayout(controls) {
   return controls.map(({ label: label, ...rest }) => ({
     ...rest,
     type: extraTypes(rest.entityId)[0],
@@ -194,7 +221,7 @@ export function extraLayout(controls) {
     rows: rest.rows === 2 ? 2 : 1,
   }));
 }
-export function moveExtra(controlList, movedEntityId, targetPositionEntityId) {
+function moveExtra(controlList, movedEntityId, targetPositionEntityId) {
   const currentLayout = extraLayout(controlList),
     fromIndex = currentLayout.findIndex((layoutItem) => layoutItem.entityId === movedEntityId),
     toIndex = currentLayout.findIndex(
@@ -207,10 +234,10 @@ export function moveExtra(controlList, movedEntityId, targetPositionEntityId) {
 export function createPurifierExtras({
   element: hostElement,
   onControl: onControl,
-  onLayout = () => {},
+  onLayout = (..._args) => {},
 }) {
   const doc = hostElement.ownerDocument || globalThis.document;
-  let viewModel = {},
+  let viewModel: PurifierExtrasViewModel = {},
     layoutSignature = "",
     cards = [],
     generation = 0,
@@ -914,7 +941,7 @@ export function createPurifierExtras({
             controlType === "state"
               ? null
               : createEl(controlType === "number" ? "input" : "button", "执行"),
-          cardState = {
+          cardState: PurifierCard = {
             item: {
               ...control,
               type: controlType,

@@ -119,14 +119,14 @@ export async function loadCoupons() {
 }
 
 // 逗号分隔的 ID 列表 ↔ 数组。多选字段（功能码、套餐内容、适用商品）共用这一个口径。
-export function idList(value: unknown) {
+ function idList(value: unknown) {
   return String(value || '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-export function openCouponEditor(coupon: Coupon | null) {
+ function openCouponEditor(coupon: Coupon | null) {
   const form = $('#coupon-form') as CouponForm | null;
   if (!form) return;
   form.reset();

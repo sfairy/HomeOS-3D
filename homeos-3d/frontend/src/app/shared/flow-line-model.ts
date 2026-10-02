@@ -50,7 +50,7 @@ export const flowClamp = (valueToClamp, minValue, maxValue, nonFiniteFallback = 
 const sanitizeHexColor = (candidateColor, fallbackColor) =>
   /^#[\da-f]{6}$/i.test(String(candidateColor)) ? candidateColor : fallbackColor;
 /** 流水线条的原始配置：来自组件属性，字段全部可缺省。 */
-export type FlowLineConfig = {
+type FlowLineConfig = {
   /** 形态：water（水流）/ energy（能量流）。 */
   effect?: string;
   /** 路径形状：straight / rounded / curve。 */

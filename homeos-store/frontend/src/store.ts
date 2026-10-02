@@ -185,18 +185,6 @@ function applyMaintenanceMode() {
 }
 
 
-/* 商品分组的唯一口径：筛选 tab、卡片上的 data-product-group、首页速览都用它。
-   自定义套餐归入「主授权」组（它同样是一次性的基础能力购买），只是徽标另说。 */
-
-
-/* 商品页的 tab 筛选：只切 .is-filtered，不重排 DOM，
-   这样切来切去不会丢焦点，也不需要重新渲染卡片。 */
-
-
-/* 上架商品清单：主授权永远显示；增量包只在账号已有永久授权时出现
-   （没有可附加的激活码，展示出来也买不了，与 init() 的跳转守卫同口径）。 */
-
-
 function setCouponFeedback(kind: string, message: string) {
   const form = asForm($('#purchase-form'));
   const input = asInput(form?.elements.namedItem('couponCode'));
@@ -313,7 +301,7 @@ async function createOrder(event: Event) {
     toast('已取消，未创建订单。');
     return;
   }
-  const payload: Record<string, unknown> = { productId: product.id, email: state.account.email };
+  const payload: Record<string, unknown> = { productId: product.id };
   const coupon = asInput(form.elements.namedItem('couponCode'));
   if (product.fulfillmentMode !== 'manual') payload.couponCode = coupon?.value.trim() || null;
   if (isAddonProduct(product)) {
@@ -462,8 +450,7 @@ function startEmailCooldown(button: HTMLButtonElement | null, seconds: number) {
 // 服务端现在如实回报投递结果（delivered / deliveryMode / deliveryError）。这里必须照着
 // 它说话：以前无论信发没发出去都提示「验证码已发送」，用户对着收件箱干等，而服务端
 // 其实根本没发出那封信 —— 注册就这样彻底卡死。
-// 这里的 `form` 参数仍然保留：将来若加「把码写进某个隐藏域」也走同一条路径。
-function applyVerificationResponse(_form: HTMLFormElement | null, button: HTMLButtonElement | null, result: any) {
+function applyVerificationResponse(button: HTMLButtonElement | null, result: any) {
   startEmailCooldown(button, result.resendAfter || 120);
   if (result.delivered === true) {
     toast('验证码已发送，请检查邮箱。');
@@ -487,7 +474,7 @@ async function sendRegisterCode() {
   if (button) button.disabled = true;
   try {
     const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'register' }) });
-    applyVerificationResponse(form, button, result);
+    applyVerificationResponse(button, result);
   } catch (error) {
     const err = error as ApiError;
     if (err.retryAfter) startEmailCooldown(button, err.retryAfter);
@@ -519,7 +506,7 @@ async function register(event: Event) {
   } else {
     toast(state.hasPermanentLicense ? '注册成功，正在进入账号中心。' : '注册成功，正在进入购买页。');
   }
-  setTimeout(() => { location.href = state.hasPermanentLicense ? '/user/dashboard/index' : '/products'; }, 500);
+  setTimeout(() => { location.href = state.hasPermanentLicense ? '/user/dashboard/index' : storePageHref('/products'); }, 500);
 }
 
 async function login(event: Event) {
@@ -539,7 +526,7 @@ async function login(event: Event) {
   state.hasUsedTrial = Boolean(result.hasUsedTrial);
   setAuthHint(true, state.hasPermanentLicense, state.hasTemporaryLicense);
   toast(state.hasPermanentLicense ? '登录成功，正在进入账号中心。' : '登录成功，正在进入购买页。');
-  setTimeout(() => { location.href = state.hasPermanentLicense ? '/user/dashboard/index' : '/products'; }, 350);
+  setTimeout(() => { location.href = state.hasPermanentLicense ? '/user/dashboard/index' : storePageHref('/products'); }, 350);
 }
 
 async function sendResetCode() {
@@ -551,7 +538,7 @@ async function sendResetCode() {
   if (!email || !emailInput?.reportValidity()) return;
   try {
     const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'reset' }) });
-    applyVerificationResponse(form, button, result);
+    applyVerificationResponse(button, result);
   } catch (error) {
     const err = error as ApiError;
     if (err.retryAfter) startEmailCooldown(button, err.retryAfter);

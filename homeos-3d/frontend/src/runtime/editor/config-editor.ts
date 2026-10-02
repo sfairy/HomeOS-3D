@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
 import { bathEffectEditor as bathEffectEditor2 } from "../bath-heater/bath-heater-editor";
 import { appendBackgroundOpacityControl as appendBackgroundOpacityControl2 } from "../core/label-appearance";
@@ -64,7 +63,7 @@ import {
   genericDeviceProfile as genericDeviceProfile2,
   isGenericDeviceKind as isGenericDeviceKind2,
 } from "../device/device-profiles";
-const APPEARANCE_GROUPS = [
+const APPEARANCE_GROUPS: [string, [string, string, number, number, number][]][] = [
   [
     "整体",
     [
@@ -282,7 +281,7 @@ export async function openInteraction3dEditor({
     (element.href =
       "/api/v1/modules/interaction3d/core/runtime.css"),
     document.head.append(element));
-  const createElement = (tagName, className, textContent) => {
+  const createElement = (tagName, className = "", textContent = "") => {
       const createdElement = document.createElement(tagName);
       return (
         (createdElement.className = className || ""),
@@ -609,16 +608,6 @@ export async function openInteraction3dEditor({
         readNestedPath(baselinePayload, payloadFieldName) !==
         readNestedPath(currentPayload, payloadFieldName),
     );
-  }
-  function applyFieldValues(targetItem, sourcePayload, fieldNames) {
-    for (const fieldKey of fieldNames) {
-      if (fieldKey === "buttonVisibility") {
-        ((targetItem.buttonHidden = sourcePayload.buttonVisibility === "隐藏（不可点击）"),
-          (targetItem.hiddenClickable = sourcePayload.buttonVisibility === "隐藏（可点击）"));
-        continue;
-      }
-      targetItem[fieldKey] = sourcePayload[fieldKey];
-    }
   }
   function closeAuxDialog() {
     (auxDialogElement?.close(), auxDialogElement?.remove(), (auxDialogElement = null));
@@ -1309,7 +1298,7 @@ export async function openInteraction3dEditor({
       addDialogState?.remove(),
       (addDialogState = null));
   }
-  function openAddDialog(addDialogTriggerEvent) {
+  function openAddDialog(addDialogTriggerEvent = undefined) {
     if (
       isDisposed ||
       !isAccessAllowed ||
@@ -1440,9 +1429,9 @@ export async function openInteraction3dEditor({
           visible: true,
           icon: defaultIcon,
           clickAction: usesStatusPanel ? "focus-panel" : "focus",
+          ...(deviceKind === "climate" ? { climateType: selectedModelKind } : {}),
         };
-        (deviceKind === "climate" && (newItem.climateType = selectedModelKind),
-          usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
+        (usesModelBinding || Object.assign(newItem, withFixedLightEffects2(newItem)),
           getItemList().push(newItem),
           (text = newItem.id),
           closeAddDialog(),
@@ -1842,7 +1831,7 @@ export async function openInteraction3dEditor({
     const deviceStatusChoicesProvider =
         typeof deviceStatusChoices2 == "function"
           ? deviceStatusChoices2
-          : (statusEntityRecord = {}) => {
+          : (statusEntityRecord: { entityId?: string } = {}) => {
               const entityDomain = String(statusEntityRecord.entityId || "").split(".")[0];
               return ["binary_sensor", "switch", "input_boolean", "light", "fan"].includes(
                 entityDomain,
@@ -2224,7 +2213,8 @@ export async function openInteraction3dEditor({
       addDialogState
     )
       return;
-    const curtainGroupCandidates = curtainGroupCandidates2(
+    const curtainGroupCandidates: { id?: string; entityId?: string; label?: string }[] =
+      curtainGroupCandidates2(
       structuredClone2.environment,
       onCancel.id,
     );
@@ -2477,7 +2467,7 @@ export async function openInteraction3dEditor({
     focusSectionElement.className += " i3d-focus-settings";
     const focusActionsElement = createElement("div", "i3d-focus-actions");
     focusSectionElement.append(focusActionsElement);
-    const runGroupCameraCommand = async (cameraCommandName, cameraCommandPayload) => {
+    const runGroupCameraCommand = async (cameraCommandName, cameraCommandPayload = undefined) => {
       const cameraCommandGeneration = ++num,
         isFocalLengthCommand = cameraCommandName === "focus-focal-length",
         previousCameraQueue = cameraCommandQueue;
@@ -3442,7 +3432,7 @@ export async function openInteraction3dEditor({
                           if (targetField === "nas") {
                             if (pickedDevice) {
                               if (vector.statusSource?.deviceId === pickedDevice.deviceId) {
-                                const metricOrderByEntityId = new Map(
+                                const metricOrderByEntityId = new Map<string, number>(
                                   vector.statusSource.metrics.map(
                                     (orderedMetricEntry, metricOrderIndex) => [
                                       orderedMetricEntry.entityId,
@@ -3768,7 +3758,7 @@ export async function openInteraction3dEditor({
           for (const [carBindingField, carBindingLabel, carBindingDomains] of [
             ["batteryEntityId", "电量实体（%）", ["sensor"]],
             ["chargingEntityId", "充电状态实体", ["binary_sensor", "sensor"]],
-          ]) {
+          ] as [string, string, string[]][]) {
             const carBindingOptions = carEntityCatalog
               .filter(
                 (carEntityProbe) =>
@@ -3816,7 +3806,7 @@ export async function openInteraction3dEditor({
                 "在 HA 中查看充电状态实体，充电和不充电时显示什么文字，就分别填入对应输入框。两项都留空则自动识别。",
               ),
             ));
-          const chargingInputsByKey = {},
+          const chargingInputsByKey: Record<string, HTMLInputElement> = {},
             chargingErrorElement = createElement("p", "i3d-error");
           chargingErrorElement.setAttribute("role", "status");
           const chargingSummaryElement = createElement("p", "i3d-note");
@@ -4143,9 +4133,7 @@ export async function openInteraction3dEditor({
                   states: () => latestStates || states,
                   host: bathEffectHostElement,
                   node: createElement,
-                  button: createButton,
                   select: createSelectRow,
-                  field: createSettingRow,
                   update: refreshEditorPreview,
                   redraw: redrawBathEffects,
                 })));
@@ -4514,12 +4502,10 @@ export async function openInteraction3dEditor({
                 floor: sceneMetadata.floors.find(
                   (mapFloorProbe) => mapFloorProbe.id === vector.floorId,
                 ),
-                document: documentApi,
                 getMapState: () =>
                   latestStates === null
                     ? states?.get?.(vector.map?.entityId)
                     : latestStates[vector.map?.entityId],
-                pickers: pickers,
                 onSave(savedMapRecord) {
                   !isDisposed &&
                     isAccessAllowed &&
@@ -4826,7 +4812,7 @@ export async function openInteraction3dEditor({
             ["x", "位置 X", -1000000, 1000000, 1],
             ["y", "位置 Y", -1000000, 1000000, 1],
             ["height", "高度（米）", 0, 20, 0.1],
-          ]) {
+          ] as [string, string, number, number, number][]) {
             const coordinateNumericValue = Number.isFinite(vector[coverCoordinateLabel])
               ? vector[coverCoordinateLabel]
               : deviceKind === "smallcar" && coverCoordinateLabel !== "height"
@@ -4990,7 +4976,7 @@ export async function openInteraction3dEditor({
                 "固定鸟瞰角度跟随机器人平移，不随机器人转向。调整角度和远近后保存；跟随时不弹出控制面板。",
               ),
             );
-          const runCameraCommand = async (cameraCommand, cameraRangePayload) => {
+          const runCameraCommand = async (cameraCommand, cameraRangePayload = undefined) => {
               const sceneReadySnapshot = num,
                 isFocalLengthRangeCommand = cameraCommand === "focus-focal-length",
                 pendingCameraQueue = cameraCommandQueue;
@@ -5209,7 +5195,7 @@ export async function openInteraction3dEditor({
           bathEffectEditorHandle(),
           refreshAirflowStatus());
       },
-      onReady(sceneMetadataPayload) {
+      onReady(sceneMetadataPayload = undefined) {
         (num++,
           (isCameraEditing = false),
           (isCameraCommandPending = false),

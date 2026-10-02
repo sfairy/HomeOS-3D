@@ -84,7 +84,7 @@ type ProductForm = HTMLFormElement & {
 // --------------------------------------------------------------------------- //
 // 商品
 // --------------------------------------------------------------------------- //
-export function productFormPayload(form: ProductForm) {
+ function productFormPayload(form: ProductForm) {
   const list = (value: unknown) =>
     String(value || '')
       .split(',')
@@ -116,7 +116,7 @@ export function productFormPayload(form: ProductForm) {
   };
 }
 
-export function openProductEditor(product: Product | null) {
+ function openProductEditor(product: Product | null) {
   const form = $('#product-form') as ProductForm | null;
   const picker = $('#product-features');
   if (!form || !picker) return;
@@ -236,7 +236,7 @@ export async function loadProducts() {
 }
 
 // 商品在两个地方各有一份：分页列表（当前页）与完整目录（下拉框用）。
-export function findProduct(id: string) {
+ function findProduct(id: string) {
   return (
     ((state.productPage || []) as Product[]).find((item) => item.id === id) ||
     ((state.products || []) as Product[]).find((item) => item.id === id)

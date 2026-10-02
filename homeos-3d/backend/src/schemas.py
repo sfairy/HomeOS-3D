@@ -153,7 +153,6 @@ class SetupStatusResponse(BaseModel):
     # [补充说明] 初始化状态：前端据此决定跳 /setup 还是 /login。
 
     initialized: bool
-    version: str
 
 
 class HAConnectionInput(BaseModel):

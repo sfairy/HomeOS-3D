@@ -81,7 +81,7 @@ export function percentageBarDimensions(overrides = {}, barCount = 1) {
         height: options.length + num + labelSpan,
       };
 }
-export function refitPercentageBar(refitComponent, nextOptions, refitBarCount) {
+function refitPercentageBar(refitComponent, nextOptions, refitBarCount) {
   const percentageBarDimensions2 = percentageBarDimensions(nextOptions, refitBarCount),
     percentageBarDimensions3 = percentageBarDimensions(
       refitComponent.properties,

@@ -15,7 +15,7 @@ type RenderTargetUniform = {
  * onBeforeCompile 拿到的着色器对象：只需要读写 uniform 与两段源码。
  * （three 传进来的是完整 WebGLProgram 参数对象，这里只声明本模块用到的部分。）
  */
-export type ShaderLike = {
+type ShaderLike = {
   uniforms: Record<string, { value: unknown }>;
   vertexShader: string;
   fragmentShader: string;

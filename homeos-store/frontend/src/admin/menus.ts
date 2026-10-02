@@ -37,7 +37,7 @@ function placeRowMenu(menu: HTMLElement) {
   placePopover(pop, toggle);
 }
 
-export function openRowMenu(menu: HTMLElement) {
+ function openRowMenu(menu: HTMLElement) {
   const pop = $('.menu__pop', menu) as PopoverElement | null;
   if (!pop) return;
   closeRowMenus();

@@ -1,4 +1,4 @@
-export const PRESENCE_PAGES = [
+const PRESENCE_PAGES = [
   ["overview", "ALL（全部楼层）"],
   ["light", "灯光"],
   ["environment", "环境"],
@@ -51,7 +51,7 @@ export function snapsToPresenceStart(routePoints, probePoint, screenScale, toler
       tolerancePx
   );
 }
-export function presenceIsActive(entityState) {
+function presenceIsActive(entityState) {
   const resolvedState = entityState?.newState || entityState;
   return resolvedState?.available !== false && resolvedState?.state === "on";
 }

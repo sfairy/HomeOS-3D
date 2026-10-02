@@ -143,7 +143,7 @@ function syncStepperButtons(numberInputElement, stepperButtons) {
   for (const stepperButton of stepperButtons) stepperButton.disabled = isInputDisabled;
   numberInputElement.closest(".number-stepper")?.classList.toggle("is-disabled", isInputDisabled);
 }
-export function enhanceNumberInput(numberInput) {
+function enhanceNumberInput(numberInput) {
   if (!numberInput || numberInput.closest(".number-stepper")) return;
   const stepperElement = document.createElement("span");
   ((stepperElement.className = "number-stepper"),

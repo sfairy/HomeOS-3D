@@ -2,7 +2,7 @@
  * 楼层切换动画的外部依赖。
  * 本模块只做「把楼层节点搬进搬出、按进度插值」这件事，取根对象、回收节点、暂停反射都交给调用方。
  */
-export type FloorTransitionOptions = {
+type FloorTransitionOptions = {
   THREE: any;
   /** 承载所有楼层节点的根对象。 */
   getRoot: () => any;

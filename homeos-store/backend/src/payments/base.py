@@ -84,6 +84,9 @@ class RefundResult:
     #: 未退回的金额（渠道部分退款时 > 0）
     unrefunded_cents: int = 0
     detail: str = ""
+    #: 渠道**已受理但尚未到账**（微信异步退款）。这不是失败：必须用同一个幂等号重试或
+    #: 等异步结果，绝不能当成「可以重新发起一笔」而去另换一个幂等号。
+    processing: bool = False
 
 
 class PaymentError(RuntimeError):

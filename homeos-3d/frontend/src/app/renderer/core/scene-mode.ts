@@ -7,7 +7,7 @@ export function resolveSceneControlMode(controlMode, entityId = "") {
       ? "switch"
       : "scene";
 }
-export function sceneModeState(stateEntityId, entityState, sceneControlMode) {
+function sceneModeState(stateEntityId, entityState, sceneControlMode) {
   const entityStateValue = entityState?.newState?.state ?? entityState?.state,
     isMomentary = resolveSceneControlMode(sceneControlMode, stateEntityId) === "scene";
   return {
@@ -20,7 +20,7 @@ export function sceneModeState(stateEntityId, entityState, sceneControlMode) {
       (isMomentary || entityStateValue !== "unknown"),
   };
 }
-export function sceneModeCommand(
+function sceneModeCommand(
   targetEntityId,
   stateRecord,
   entityControlMode,

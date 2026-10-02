@@ -9,7 +9,7 @@ import { host } from "./host.js";
 // --------------------------------------------------------------------------- //
 // 确认弹窗（替代原生 confirm，可展示影响面）
 // --------------------------------------------------------------------------- //
-export const confirmDialog = $('#confirm-dialog') as HTMLDialogElement | null;
+ const confirmDialog = $('#confirm-dialog') as HTMLDialogElement | null;
 
 let confirmResolver: ((value: boolean) => void) | null = null;
 
@@ -20,7 +20,7 @@ const CONFIRM_TONES: Record<string, { icon: string; button: string }> = {
   success: { icon: '?', button: 'success' },
 };
 
-export type ConfirmOptions = {
+ type ConfirmOptions = {
   title: string;
   message: string;
   impact?: string;
@@ -65,7 +65,7 @@ export function askConfirm({
   });
 }
 
-export function settleConfirm(value: boolean) {
+ function settleConfirm(value: boolean) {
   if (confirmDialog?.open) confirmDialog.close();
   const resolve = confirmResolver;
   confirmResolver = null;
@@ -89,7 +89,7 @@ confirmDialog?.addEventListener('click', (event) => {
 // --------------------------------------------------------------------------- //
 // 人工调账弹窗（有资金影响）
 // --------------------------------------------------------------------------- //
-export const adjustDialog = $('#adjust-dialog') as HTMLDialogElement | null;
+ const adjustDialog = $('#adjust-dialog') as HTMLDialogElement | null;
 
 let adjustResolver: ((value: unknown) => void) | null = null;
 
@@ -109,7 +109,7 @@ export function openAdjustDialog(accountId: string, email?: string | null) {
   });
 }
 
-export function settleAdjust(value: unknown) {
+ function settleAdjust(value: unknown) {
   if (adjustDialog?.open) adjustDialog.close();
   const resolve = adjustResolver;
   adjustResolver = null;
@@ -155,9 +155,9 @@ $('#adjust-ok')?.addEventListener('click', async () => {
 // --------------------------------------------------------------------------- //
 // 修改密码弹窗
 // --------------------------------------------------------------------------- //
-export const changePwDialog = $('#change-pw-dialog') as HTMLDialogElement | null;
+ const changePwDialog = $('#change-pw-dialog') as HTMLDialogElement | null;
 
-export function openChangePw() {
+ function openChangePw() {
   const oldEl = $('#pw-old') as HTMLInputElement | null;
   const newEl = $('#pw-new') as HTMLInputElement | null;
   const confirmEl = $('#pw-confirm') as HTMLInputElement | null;
@@ -173,7 +173,7 @@ export function openChangePw() {
   setTimeout(() => oldEl?.focus(), 50);
 }
 
-export function closeChangePw() {
+ function closeChangePw() {
   if (changePwDialog?.open) changePwDialog.close();
 }
 
@@ -247,9 +247,9 @@ $('#pw-submit')?.addEventListener('click', async () => {
   }
 });
 
-export let purgeResolver: ((value: number | null) => void) | null = null;
+ let purgeResolver: ((value: number | null) => void) | null = null;
 
-export const purgeDialog = $('#purge-dialog') as HTMLDialogElement | null;
+ const purgeDialog = $('#purge-dialog') as HTMLDialogElement | null;
 
 // 所有批量清理走同一个弹窗：影响面 + 必填的天数，缺一不可。
 export function askPurge({

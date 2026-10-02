@@ -6,7 +6,7 @@ const LICENSE_TYPE_LABELS = {
   package: "自定义套餐",
 };
 /** 授权产品记录（服务端 / 商城下发）。 */
-export type LicenseProductLike = {
+type LicenseProductLike = {
   /** 产品名，展示在授权卡片标题里。 */
   name?: string;
   /** 产品类型：base / bundle / package / module / template…。 */
@@ -16,7 +16,7 @@ export type LicenseProductLike = {
 };
 
 /** 授权卡片的输入：授权状态接口回包的可选子集。 */
-export type LicenseCardInput = {
+type LicenseCardInput = {
   /** 激活码 id，用来判断是否已激活。 */
   activationCodeId?: string;
   /** 已购产品列表。 */
@@ -46,7 +46,7 @@ function formatValidity(record: LicenseProductLike) {
       })} \u5230\u671F`
     : "以商城授权记录为准";
 }
-export function licenseCardData(license: LicenseCardInput = {}) {
+function licenseCardData(license: LicenseCardInput = {}) {
   const isActivated = !!license.activationCodeId,
     products = Array.isArray(license.products)
       ? license.products.filter(

@@ -1,6 +1,6 @@
 import { DECOR_THEMES } from "../studio/decor-models";
 import { WARM_WOOD_STYLE } from "../studio/studio-scene-style";
-export const COURTYARD_THEMES = Object.freeze({
+const COURTYARD_THEMES = Object.freeze({
   default: Object.freeze({
     ...DECOR_THEMES.default,
     water: DECOR_THEMES.default.accent,
@@ -98,8 +98,7 @@ export function courtyardPalette(variant, theme) {
   const frozenPalette = Object.freeze(palette);
   return (paletteByKey.set(cacheKey, frozenPalette), frozenPalette);
 }
-export const COURTYARD_ROLES = Object.freeze(["base", "light", "dark", "leaf", "water", "accent"]),
-  COURTYARD_MODELS = Object.freeze(
+export const COURTYARD_MODELS = Object.freeze(
     Object.fromEntries(
       [
         ["lawn", "草坪模块", [2, 0.05, 2], "铺装与边界", "▧"],

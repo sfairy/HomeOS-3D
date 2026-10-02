@@ -46,10 +46,10 @@ from ..core.serializers import (
 )
 from ..ops import site_settings as site_config
 from ..payments import (
-    channel_label,
     enabled_channel_names,
     is_known_provider,
     normalize_provider_name,
+    provider_label,
 )
 from ..payments.base import PaymentError
 from ..security.security import (
@@ -80,13 +80,13 @@ def _resolve_requested_channel(setting, payload, request) -> str:
     if requested not in enabled_channel_names(setting, settings):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"支付渠道「{channel_label(requested)}」未启用，请换一个渠道。",
+            detail=f"支付渠道「{provider_label(requested)}」未启用，请换一个渠道。",
         )
     provider = request.app.state.resolve_payment_provider(setting, name=requested)
     if not provider.is_configured(settings) or not bool(setting.payment_enabled):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(f"支付渠道「{channel_label(requested)}」当前不可用，请换一个渠道或稍后再试。"),
+            detail=(f"支付渠道「{provider_label(requested)}」当前不可用，请换一个渠道或稍后再试。"),
         )
     return requested
 

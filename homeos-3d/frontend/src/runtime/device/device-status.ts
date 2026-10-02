@@ -173,17 +173,4 @@ export function deviceStatus(device, entityStates = {}) {
     }[overallStatus],
   };
 }
-export function deviceEntityIds(component) {
-  const healthRuleEntries = Array.isArray(component?.statusRules?.health)
-    ? component.statusRules.health
-    : [component?.statusRules?.health];
-  return [
-    ...new Set(
-      [
-        ...(component?.extraControls || []).map((extraControl) => extraControl.entityId),
-        component?.statusRules?.power?.entityId,
-        ...healthRuleEntries.map((healthRuleEntry) => healthRuleEntry?.entityId),
-      ].filter(Boolean),
-    ),
-  ];
-}
+

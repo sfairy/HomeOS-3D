@@ -256,10 +256,11 @@ class AdminSettingsRequest(_AdminBase):
     wechat_merchant_serial_no: str | None = Field(
         default=None, alias="wechatMerchantSerialNo", max_length=64
     )
-    #: APIv3 密钥：恰好 32 字符。长度**不**在 schema 上限制，好让保存时的报错
-    #: 说清「必须是 32 个字符」，而不是一句「长度不符」。
+    #: APIv3 密钥：恰好 32 字符。长度**不**在 schema 上限制成 32，好让保存时的报错
+    #: 说清「必须是 32 个字符」，而不是一句「长度不符」；上限与列宽对齐
+    #: （core/models_engagement.py 的 wechat_api_v3_key 是 String(64)）。
     wechat_api_v3_key: str | None = Field(
-        default=None, alias="wechatApiV3Key", max_length=128
+        default=None, alias="wechatApiV3Key", max_length=64
     )
     #: PEM 最长，给足 8192（与支付宝那两个密钥一致）。
     wechat_merchant_private_key: str | None = Field(

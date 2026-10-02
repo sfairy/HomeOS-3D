@@ -46,7 +46,7 @@ async function loadStoreConfig(): Promise<StoreConfig> {
   }
 }
 
-export async function applyStoreLinks(): Promise<void> {
+async function applyStoreLinks(): Promise<void> {
   const config = await loadStoreConfig(),
     storeHomeUrl = `${config.storeUrl}/`,
     passwordResetUrl = `${config.storeUrl}${

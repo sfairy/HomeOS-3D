@@ -430,7 +430,7 @@ export function buildingFootprints(wallList, baseFootprintLoops, wallPixelsPerMe
   }
   return footprintLoops;
 }
-export function localBuildingFootprints(localDrawing, worldFootprintLoops, localPixelsPerMeter) {
+function localBuildingFootprints(localDrawing, worldFootprintLoops, localPixelsPerMeter) {
   const negativeRotationRad = (-(localDrawing.rotation || 0) * Math.PI) / 180,
     localRotationCos = Math.cos(negativeRotationRad),
     localRotationSin = Math.sin(negativeRotationRad);
@@ -445,49 +445,7 @@ export function localBuildingFootprints(localDrawing, worldFootprintLoops, local
     }),
   );
 }
-export function snapToWallFace(probePoint, snapWalls, snapPixelsPerMeter, snapDistanceLimit) {
-  let nearestSnap = null;
-  for (const candidateWall of snapWalls) {
-    const candidateWallStart = candidateWall.start,
-      candidateWallEnd = candidateWall.end,
-      wallDeltaX = candidateWallEnd.x - candidateWallStart.x,
-      wallDeltaY = candidateWallEnd.y - candidateWallStart.y,
-      candidateWallLength = Math.hypot(wallDeltaX, wallDeltaY);
-    if (!candidateWallLength) continue;
-    const wallProjectionRatio = clamp(
-        ((probePoint.x - candidateWallStart.x) * wallDeltaX +
-          (probePoint.y - candidateWallStart.y) * wallDeltaY) /
-          (candidateWallLength * candidateWallLength),
-        0,
-        1,
-      ),
-      sideSign =
-        wallDeltaX * (probePoint.y - candidateWallStart.y) -
-          wallDeltaY * (probePoint.x - candidateWallStart.x) >=
-        0
-          ? 1
-          : -1,
-      wallHalfThickness = (candidateWall.thickness * snapPixelsPerMeter) / 2,
-      facePoint = {
-        x:
-          candidateWallStart.x +
-          wallProjectionRatio * wallDeltaX -
-          (wallDeltaY / candidateWallLength) * wallHalfThickness * sideSign,
-        y:
-          candidateWallStart.y +
-          wallProjectionRatio * wallDeltaY +
-          (wallDeltaX / candidateWallLength) * wallHalfThickness * sideSign,
-      },
-      pointDistance = Math.hypot(probePoint.x - facePoint.x, probePoint.y - facePoint.y);
-    pointDistance <= snapDistanceLimit &&
-      (!nearestSnap || pointDistance < nearestSnap.distance) &&
-      (nearestSnap = {
-        point: facePoint,
-        distance: pointDistance,
-      });
-  }
-  return nearestSnap;
-}
+
 const regionCacheMap = new Map();
 export function surfaceRegions(surfaceDrawing, exclusionLoops = []) {
   const outlinePoints = localPoints(surfaceDrawing);
@@ -671,33 +629,7 @@ export function courtyardFootprintLoops(
     }
   return [];
 }
-export function courtyardPerimeterLoops(
-  perimeterBaseLoops,
-  perimeterSceneItems,
-  perimeterPixelsPerMeter,
-  perimeterToGroundPoint,
-  perimeterWalls = [],
-) {
-  return perimeterSceneItems.some(
-    (perimeterItem) =>
-      perimeterItem.type === "courtyard-area" || perimeterItem.type === "courtyard-fence",
-  )
-    ? courtyardFootprintLoops(
-        perimeterBaseLoops,
-        perimeterSceneItems,
-        perimeterPixelsPerMeter,
-        perimeterToGroundPoint,
-        perimeterWalls,
-      )
-        .filter((perimeterRegionLoop) => polygonArea(perimeterRegionLoop) > 0)
-        .map((loopToConvert) =>
-          loopToConvert.map((convertedPoint) => ({
-            x: convertedPoint.x,
-            z: convertedPoint.y,
-          })),
-        )
-    : perimeterBaseLoops;
-}
+
 export function outerPerimeterLine(perimeterLoop, offsetDistance = 0.025) {
   const windingSign = polygonArea(perimeterLoop) >= 0 ? 1 : -1;
   return perimeterLoop.map((vertexPoint, vertexIndex) => {
@@ -741,7 +673,7 @@ export function outerPerimeterLine(perimeterLoop, offsetDistance = 0.025) {
     );
   });
 }
-export function courtyardContentBounds(contentSceneModel, contentPixelsPerMeter) {
+function courtyardContentBounds(contentSceneModel, contentPixelsPerMeter) {
   const contentBoundaryPoints = courtyardBoundaryPoints(contentSceneModel, contentPixelsPerMeter);
   if (!contentBoundaryPoints.length) return modelBounds(contentSceneModel);
   const minX = Math.min(...contentBoundaryPoints.map((xBoundaryPoint) => xBoundaryPoint.x)),

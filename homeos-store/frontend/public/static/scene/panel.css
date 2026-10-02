@@ -6,9 +6,14 @@
 .hos-panel {
   width: 100%;
   max-height: 100%;
-  /* 五页共用一个坞体，但自然高度差 100–200px（激活页有轨 + 两条动作行 + 两个小字，
-     而这正是当初写这个下限要解决的问题。 */
-  min-height: min(640px, 100%);
+  /* 坞体贴内容，不再用固定下限撑到 640px。旧下限是为了让五页等高，但内容收敛后
+     五页的自然高度相差很大（/license-recovery 约 278、/pair 约 363、/setup 约 549），
+     被强撑到 640 就会在坞底留一段空玻璃 —— 而块流是顶对齐的，多出来的高度
+     只能全堆在最后一块下面（这正是「底部信息太空」的来源）。
+     改成弹性列后：没有可撑的高度就没有空底；万一坞体再被拉高（将来任何来源），
+     多出来的高度由坞脚的 auto 上边距吸收 —— 坞脚贴底，也不再空在末尾。 */
+  display: flex;
+  flex-direction: column;
   overflow: auto;
   padding: 34px 36px 24px;
   border-radius: 20px;
@@ -24,6 +29,33 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--hos-tone-rgb), 0.28) transparent;
   box-sizing: border-box;
+}
+
+/* 弹性列下直接子块不收缩：坞体触到 max-height 时应当是滚动，而不是先把抬头 / 表单的
+   文本压着换行（默认 flex-shrink 会先压内容，再轮到滚动条）。 */
+.hos-panel > .hos-panel__head,
+.hos-panel > .hos-steps,
+.hos-panel > .hos-deck,
+.hos-panel > .hos-hub,
+.hos-panel > .hos-notice,
+.hos-panel > .hos-form,
+.hos-panel > .hos-actions,
+.hos-panel > .hos-panel__copy {
+  flex: 0 0 auto;
+}
+
+/* flex 里相邻外边距不再塌陷。原来「抬头 18 与坞体级动作行 16 取大 = 18」的间距，
+   现在会相加成 34；把坞体级动作行的上边距归零，恢复成抬头那 18。 */
+.hos-panel > .hos-actions {
+  margin-top: 0;
+}
+
+/* 坞脚用 auto 上边距吸掉多余高度，但 auto 的 0 值吃不到「至少隔开一条缝」这条下限，
+   而 flex 里外边距又不塌陷，所以把这条固定缝写在坞脚前面那一块上。
+   （三处短屏媒体查询里会把它收回 0，那几档改由坞脚的固定 margin-top 收缝。） */
+.hos-panel > .hos-form,
+.hos-panel > .hos-actions {
+  margin-bottom: 14px;
 }
 
 /* 左边一道纵向流光，顶部一道水平高光：玻璃盒子的两道「边」。 */
@@ -1219,6 +1251,15 @@
   color: var(--hos-ink);
 }
 
+/* [hidden] 必须赢过表单 / 动作行自己的 display。`.hos-form{display:grid}` 与
+   `.hos-actions{display:flex}` 都是作者样式，会盖掉浏览器 UA 的 `[hidden]{display:none}`：
+   /license 里用 formElement.hidden 藏激活表单的意图因此落空，表单和「重新激活」会同时出现。
+   与下面按钮那条同一手法 —— 规则必须排在各自定义之后：同权重，后写的赢。 */
+.hos-form[hidden],
+.hos-actions[hidden] {
+  display: none;
+}
+
 /* [hidden] 必须赢过按钮类自己的 display。
    本来是次要动作，结果和主按钮并排抢注意力）。规则必须排在按钮类之后：同权重，后写的赢。 */
 .hos-btn-primary[hidden],
@@ -1584,7 +1625,9 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  /* auto 而不是固定 14px：坞体比内容高时，多出来的高度全归这里 —— 坞脚贴住坞底。
+     坞体贴内容时 auto 归零，缝由前一块（.hos-form / .hos-actions）的固定下边距给。 */
+  margin-top: auto;
   padding-top: 12px;
   border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
   text-align: center;
@@ -1675,6 +1718,12 @@
     padding-top: 12px;
   }
 
+  /* 这一档坞脚有固定的 margin-top 收缝，坞脚前一块的固定下缝要收回 0，别叠加。 */
+  .hos-panel > .hos-form,
+  .hos-panel > .hos-actions {
+    margin-bottom: 0;
+  }
+
   .hos-panel__copy {
     margin-top: 8px;
     padding-top: 8px;
@@ -1720,6 +1769,12 @@
     padding-top: 8px;
   }
 
+  /* 同 900 档：坞脚固定 margin-top 接管，坞脚前一块的固定下缝收回。 */
+  .hos-panel > .hos-form,
+  .hos-panel > .hos-actions {
+    margin-bottom: 0;
+  }
+
   .hos-panel__copy {
     margin-top: 6px;
     padding-top: 6px;
@@ -1763,6 +1818,12 @@
   .hos-switch {
     margin-top: 7px;
     padding-top: 6px;
+  }
+
+  /* 同前两档：坞脚固定 margin-top 接管，坞脚前一块的固定下缝收回。 */
+  .hos-panel > .hos-form,
+  .hos-panel > .hos-actions {
+    margin-bottom: 0;
   }
 
   .hos-panel__copy {

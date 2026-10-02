@@ -1,4 +1,3 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import { bathHeaterState as bathHeaterState2 } from "../bath-heater/bath-heater";
 import {
   climateState as climateState2,
@@ -12,7 +11,7 @@ import {
 } from "./climate-state";
 import { createPurifierExtras as createPurifierExtras2 } from "./purifier-extras";
 import { purifierState as purifierState2 } from "../purifier/purifier-state";
-const formatSwingModeLabel = (swingModeKey, swingDirection) =>
+const formatSwingModeLabel = (swingModeKey, swingDirection = undefined) =>
     ({
       on: "开启",
       off: "关闭",
@@ -349,12 +348,45 @@ function createPicker(panelRoot, createPickerElement) {
     close: closePicker,
   };
 }
+/** 面板的宿主元素与回调；缺省时面板自建节点并把回调降级为 no-op。 */
+type ClimatePanelOptions = {
+  element?: any;
+  onControl?: (...args: any[]) => any;
+  onLayout?: (...args: any[]) => any;
+  modeHistory?: any;
+};
+/** 面板视图模型由 stage 的 update() 注入：字段是运行时状态袋，按实际访问到的键显式列出并全部可选。 */
+type ClimatePanelViewModel = {
+  item?: any;
+  states?: any;
+  editing?: any;
+  busy?: any;
+  state?: any;
+  error?: any;
+};
+type ClimateStateBranch = ReturnType<typeof climateState2>;
+/** 三分支键的并集。 */
+type ClimateStateKeys<Branch> = Branch extends unknown ? keyof Branch : never;
+/** 某个键在各分支中出现的类型的并集。 */
+type ClimateStateValue<Key extends PropertyKey, Branch> = Branch extends unknown
+  ? Key extends keyof Branch
+    ? Branch[Key]
+    : never
+  : never;
+/**
+ * climateState() 按实体类型返回三个分支（热水器/净化器/空调），每个分支只带本分支的能力字段；
+ * 面板既要按三者并集读取，又要就地拼装合成态（如 { ...deviceState, purifier: true }），
+ * 故把三分支合并成一张全可选的表：键取三分支键的并集，值取各分支对应类型的并集。
+ */
+type ClimateDeviceState = {
+  [Key in ClimateStateKeys<ClimateStateBranch>]?: ClimateStateValue<Key, ClimateStateBranch>;
+};
 export function createClimatePanel({
   element: hostElement,
   onControl: onControl = async () => {},
   onLayout: onLayout = () => {},
   modeHistory: modeHistory = createClimateModeHistory2(),
-} = {}) {
+}: ClimatePanelOptions = {}) {
   const document = hostElement?.ownerDocument || globalThis.document,
     createElement = (tagName, className, textContent = "") => {
       const createdElement = document.createElement(tagName);
@@ -511,8 +543,8 @@ export function createClimatePanel({
       ),
     onLayout: onLayout,
   });
-  let viewModel = {},
-    deviceState = climateState2("", null),
+  let viewModel: ClimatePanelViewModel = {},
+    deviceState: ClimateDeviceState = climateState2("", null),
     isDisposed = false,
     isSending = false,
     errorText = "",
@@ -1079,7 +1111,7 @@ export function createClimatePanel({
       (errorElement.textContent = viewModel.error || errorText),
       (errorElement.hidden = !errorElement.textContent));
   }
-  function update(nextViewModel = {}) {
+  function update(nextViewModel: ClimatePanelViewModel = {}) {
     if (isDisposed) return;
     const nextEntityId = nextViewModel.item?.entityId || "";
     nextEntityId !== deviceState.entityId &&

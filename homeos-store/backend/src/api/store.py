@@ -25,7 +25,9 @@ from .store_catalog import (
 from .store_shared import (
     MAX_VERIFICATION_SENDS_PER_HOUR,
     _assert_purpose_allowed,
+    _check_verification_code,
     _consume_verification,
+    _consume_verification_record,
     _enforce_password_confirmation_gate,
     _enforce_verification_send_quota,
     _note_password_confirmation_failure,
@@ -74,63 +76,6 @@ from ..security.security import (
 
 router = APIRouter(prefix="/store/v1", tags=["store"])
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # 站点配置与商品
 @router.get("/configuration")
 def configuration(session: DbSession, settings: SettingsDep) -> dict:
@@ -139,7 +84,6 @@ def configuration(session: DbSession, settings: SettingsDep) -> dict:
     return site_config.site_configuration_payload(
         setting, settings, include_credentials=False
     )
-
 
 @router.get("/products")
 def list_products(session: DbSession) -> dict:
@@ -162,14 +106,12 @@ def list_products(session: DbSession) -> dict:
         ]
     }
 
-
 @router.get("/item/{product_id}")
 def product_detail(product_id: str, session: DbSession) -> dict:
     product = session.get(Product, product_id)
     if product is None or not product.active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品不存在或已下架。")
     return _product_item(session, product)
-
 
 @router.get("/updates/latest")
 def latest_release(request: Request, session: DbSession, channel: str = "docker") -> JSONResponse:
@@ -195,16 +137,6 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
     response = JSONResponse(payload)
     response.headers["Cache-Control"] = "no-store"
     return response
-
-
-
-
-
-
-
-
-
-
 
 @router.post("/verifications")
 def send_verification(
@@ -322,18 +254,8 @@ def send_verification(
             body["deliveryError"] = result.error
     return body
 
-
-
-
-
-
-
-
-
-
 # auth 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_auth.router)
-
 
 # 账号中心
 @router.get("/account")
@@ -341,7 +263,6 @@ def account_center(request: Request, session: DbSession, account: AuthedAccount)
     response = JSONResponse(_center_payload(session, request, account))
     response.headers["Cache-Control"] = "no-store"
     return response
-
 
 @router.post("/account/email/verify")
 def verify_account_email(
@@ -364,7 +285,6 @@ def verify_account_email(
     logger.info("账号邮箱已验证 account=%s email=%s", account.id, email)
     return {"email": email, "verified": True, "alreadyVerified": False}
 
-
 @router.post("/account/email")
 def change_account_email(
     payload: ChangeEmailRequest,
@@ -384,8 +304,12 @@ def change_account_email(
     if (account.email or "").strip().lower() == email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
 
-    # 占用校验必须在**消费验证码之后**（不能随意挪动）：放前面就成了「该邮箱有没有账号」的探针，
-    _consume_verification(session, email=email, purpose="change_email", code=payload.code)
+    # 顺序是「先校验验证码 → 再查占用 → 最后才消费」。占用校验不能挪到校验之前
+    # （那就成了「这个邮箱有没有账号」的探针），也不能等消费之后再查（会把用户的验证码
+    # 白白烧掉，重试还得重新收码）。
+    record = _check_verification_code(
+        session, email=email, purpose="change_email", code=payload.code
+    )
 
     taken = session.scalars(
         select(Account).where(func.lower(Account.email) == email)
@@ -394,6 +318,8 @@ def change_account_email(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其它账号使用。"
         )
+
+    _consume_verification_record(session, record, email=email)
 
     previous = account.email
     account.email = email
@@ -414,11 +340,9 @@ def change_account_email(
     logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)
     return {"email": email, "previousEmail": previous, "verified": True}
 
-
 #: 个人中心「重发激活码邮件」的按账号预算。与其它限流器同一口径：进程内计数，
 #: 所以本部署必须单进程运行（见 backend/src/README.md「必须单进程」一节）。
 _LICENSE_EMAIL_LIMITER = SlidingWindowLimiter(limit=5, window_seconds=3600.0)
-
 
 @router.post("/account/licenses/{license_id}/email")
 def resend_license_email(
@@ -478,7 +402,6 @@ def update_license_label(
     license.user_label = label or None
     session.flush()
     return {"activationCodeId": license.id, "userLabel": license.user_label}
-
 
 @router.post("/account/licenses/{license_id}/release")
 def release_device(
@@ -551,14 +474,8 @@ def release_device(
         ),
     }
 
-
-
-
-
-
 # orders 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_orders.router)
-
 
 # 优惠码
 @router.post("/coupons/preview")
@@ -578,9 +495,6 @@ def preview_coupon(
         "originalAmountCents": original,
         "amountCents": max(0, original - discount),
     }
-
-
-
 
 # referrals 资源组第 1 段（include 放在原位置以保持顺序）。
 router.include_router(store_referrals.router)

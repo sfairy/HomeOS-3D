@@ -42,13 +42,16 @@ class DisplayPairingCode(Base):
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable = False, default = True, index = True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone = True), nullable = False, default = utc_now, onupdate = utc_now)
-    device: Mapped['DisplayDevice | None'] = relationship(back_populates = 'pairing_code', cascade = 'all, delete-orphan', passive_deletes = True, uselist = False)
+    # 删除配对码只解绑设备（外键 SET NULL），不删设备：设备是独立的展示终端，
+    # 配对码只是它的一次入场凭据。去掉 cascade 后 ORM 不再把设备当从属对象删除，
+    # 保留 passive_deletes 让数据库自己执行 SET NULL。
+    device: Mapped['DisplayDevice | None'] = relationship(back_populates = 'pairing_code', passive_deletes = True, uselist = False)
 
 class DisplayDevice(Base):
     __tablename__ = 'display_devices'
     id: Mapped[str] = mapped_column(String(36), primary_key = True, default = (lambda : str(uuid4())))
     token_hash: Mapped[str] = mapped_column(String(64), nullable = False, unique = True, index = True)
-    pairing_code_id: Mapped[str | None] = mapped_column(ForeignKey('display_pairing_codes.id', ondelete = 'CASCADE'), nullable = True, unique = True, index = True)
+    pairing_code_id: Mapped[str | None] = mapped_column(ForeignKey('display_pairing_codes.id', ondelete = 'SET NULL'), nullable = True, unique = True, index = True)
     project_id: Mapped[str] = mapped_column(ForeignKey('projects.id', ondelete = 'CASCADE'), nullable = False, index = True)
     name: Mapped[str] = mapped_column(String(128), nullable = False)
     ip_address: Mapped[str] = mapped_column(String(64), nullable = False, default = '')
@@ -150,7 +153,7 @@ class HASyncState(Base):
 class Project(Base):
     __tablename__ = 'projects'
     id: Mapped[str] = mapped_column(String(36), primary_key = True, default = (lambda : str(uuid4())))
-    name: Mapped[str] = mapped_column(String(128), nullable = False)
+    name: Mapped[str] = mapped_column(String(128), nullable = False, unique = True, index = True)
     slug: Mapped[str] = mapped_column(String(128), nullable = False, unique = True, index = True)
     description: Mapped[str] = mapped_column(Text, nullable = False, default = '')
     created_by: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete = 'RESTRICT'), nullable = False, index = True)

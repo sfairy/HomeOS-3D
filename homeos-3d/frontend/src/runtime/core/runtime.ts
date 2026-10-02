@@ -1,10 +1,31 @@
-// @ts-nocheck  (0.6.7 JS→TS 全量迁移：该文件保留原生 JS 写法，类型基线暂不收紧)
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup,
 } from "./popup-preview";
 import { createLightStream } from "../light/light-stream";
 import { GENERIC_DEVICE_KINDS, genericDeviceProfile } from "../device/device-profiles";
+// 全局 shim（vite-env.d.ts）给 HomeOSLog.report 只声明了 4 个参数，宿主实现（client-log 的 reportEvent）还接收第 5 个 details 文本。
+type HostLogger = HomeOSLog & {
+  report?: (
+    level: string,
+    category?: string,
+    message?: string,
+    details?: unknown,
+    detailsText?: string,
+  ) => void;
+};
+// context 是宿主/桥接层注入的动态能力袋，运行时逐项判空使用，因此全部声明为可选。
+type RuntimeContextBag = {
+  editable?: boolean;
+  prewarmStage?: boolean;
+  document?: Record<string, any>;
+  entityMetadata?: Map<string, Record<string, any>>;
+  states?: Map<string, any>;
+  registerRuntimeStateHandler?: (entityId: string, handler: (...args: any[]) => void) => void;
+  openCameraPreview?: (...args: any[]) => any;
+  openVacuumDetails?: (...args: any[]) => any;
+  runVacuumRoom?: (...args: any[]) => Promise<any>;
+};
 const { vacuumStatusBinding: vacuumStatusBinding } = await (import("@app/renderer/controls/vacuum-runtime")),
   { temperatureHumidityEntities: temperatureHumidityEntities } = await (import("@app/bridge/temperature-humidity")),
   INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d",
@@ -196,7 +217,7 @@ function createLifecycleReporter(projectId, componentId) {
           if (!Object.prototype.hasOwnProperty.call(BREADCRUMB_CODE_MESSAGES, lifecycleEventCode))
             return;
           breadcrumbStore.remember(diagnosticsKey, lifecycleEventCode, lifecycleEventCounts);
-          const hostLogger = window.HomeOSLog;
+          const hostLogger = window.HomeOSLog as HostLogger | undefined;
           if (typeof hostLogger?.report != "function") return;
           const eventAtMs = readNowMs(),
             lastReportAtMs = mountDiagnostics.events.get(lifecycleEventCode);
@@ -209,7 +230,8 @@ function createLifecycleReporter(projectId, componentId) {
           )
             return;
           (mountDiagnostics.events.set(lifecycleEventCode, eventAtMs), reportThrottleState.count++);
-          const reportPayload = {
+          // 诊断载荷按条件追加 previousEvents/navigation 等字段，是动态拼装的 JSON 详情。
+          const reportPayload: Record<string, any> = {
             build: "20260927-reload-diagnostics-v2",
             mountCount: mountCount,
             ...sanitizeCounts(lifecycleEventCounts),
@@ -217,8 +239,11 @@ function createLifecycleReporter(projectId, componentId) {
           lifecycleEventCode === "mount-initial" &&
             previousEvents.length &&
             (reportPayload.previousEvents = previousEvents);
-          const navigationType =
-            globalThis.performance?.getEntriesByType?.("navigation")?.[0]?.type;
+          const navigationType = (
+            globalThis.performance?.getEntriesByType?.("navigation")?.[0] as
+              | PerformanceNavigationTiming
+              | undefined
+          )?.type;
           ["navigate", "reload", "back_forward", "prerender"].includes(navigationType) &&
             (reportPayload.navigation = navigationType);
           const [reportLevel, eventMessage] = BREADCRUMB_CODE_MESSAGES[lifecycleEventCode];
@@ -248,18 +273,18 @@ export function mountInteraction3d(
   hostElement,
   {
     component: componentDescriptor,
-    context: runtimeContext = {},
+    context: runtimeContext = {} as RuntimeContextBag,
     editing: isEditing = false,
     editingModule: editingModuleKind = "light",
     editingSecurityKind = "",
     editingVacuumId = "",
     rangeEditorOnly: isRangeEditorOnly = false,
     onEdit = (_editState?: any) => {},
-    onReady = () => {},
+    onReady = (_componentMetadata?: unknown) => {},
     onStates: onStatesUpdate = null,
     onPresented = () => {},
     onLoadError = (_error?: any) => {},
-    onFocusChange = () => {},
+    onFocusChange = (_nextFocusActive?: boolean) => {},
   },
 ) {
   hostElement.className = "hb-interaction3d-runtime";
@@ -339,7 +364,7 @@ export function mountInteraction3d(
     isRangeEditing = false;
   const pendingEditsByRequestId = new Map(),
     pendingRangeRequestsByRequestId = new Map(),
-    editSubscribersSet = new Set(),
+    editSubscribersSet = new Set<(editState: unknown) => void>(),
     normalizeLightingMode = (lightingMode) =>
       lightingMode === "region" ? "region" : "standard";
   function createStageFrameElement() {
@@ -721,8 +746,8 @@ export function mountInteraction3d(
         (isFetchingCapabilities = false));
     }
   }
-  function mergeMotorReverseStates(statesMap, patchStates) {
-    const mergedStates = {
+  function mergeMotorReverseStates(statesMap, patchStates = null) {
+    const mergedStates: Record<string, any> = {
       ...(patchStates || statesMap),
     };
     for (const [stateEntityId, rawState] of Object.entries(mergedStates)) {
@@ -1141,7 +1166,7 @@ export function mountInteraction3d(
       (loadingElement.textContent = failureMessage || "3D 户型加载失败，请重新载入户型。"),
       onLoadError(new Error(loadingElement.textContent)));
   }
-  function reloadStageFrame(reloadReason) {
+  function reloadStageFrame(reloadReason = "") {
     if (
       (reloadGeneration &&
         reportRuntimeLifecycle(reloadReason, {
@@ -1235,7 +1260,7 @@ export function mountInteraction3d(
       45000,
     );
   }
-  const activeRequestsSet = new Set();
+  const activeRequestsSet = new Set<AbortController>();
   async function handleStageMessage(messageEvent) {
     if (
       isDisposed ||
@@ -1709,7 +1734,9 @@ export function mountInteraction3d(
   observeVisibilityAncestors();
   let lastLayoutJson = "",
     presentationLayout = null;
-  function updatePresentationLayout(forceUpdate = false) {
+  // forceUpdate 只在内部传 true；该函数还直接作为 ResizeObserver/resize/requestAnimationFrame 回调注册，
+  // 回调实参分别是 ResizeObserverEntry[]、Event 与时间戳，因此这里按未知类型接收。
+  function updatePresentationLayout(forceUpdate: unknown = false) {
     refreshActivityState();
     const hostBounds = hostElement.getBoundingClientRect();
     if (!hostBounds.width || !hostElement.clientWidth) return;
@@ -2101,7 +2128,7 @@ export function mountInteraction3d(
         (stageFrameElement.style.pointerEvents = isViewEditing || isRangeEditing ? "auto" : "none"),
         sendConfigUpdate());
     }),
-    (runtimeHandle.viewCommand = (viewCommandName, viewCommandValue) =>
+    (runtimeHandle.viewCommand = (viewCommandName, viewCommandValue = undefined) =>
       new Promise((viewResolve, viewReject) => {
         if (!runtimeContext.editable || !isViewEditing || !isScenePresented || isDisposed) {
           viewReject(new Error("请先进入户型视角调整。"));

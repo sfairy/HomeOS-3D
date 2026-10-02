@@ -294,9 +294,7 @@ type CharacterParts = {
     walkerGroup
   );
 }
-export function setWalkerColor(walker, color) {
-  walker.userData.outfitMaterial.color.set(color);
-}
+
 export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds) {
   const {
       body: bodyPivot,

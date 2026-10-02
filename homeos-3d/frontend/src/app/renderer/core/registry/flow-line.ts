@@ -5,7 +5,7 @@ import {
   flowLineMotion as flowLineMotion2,
 } from "../../../shared/flow-line-model";
 /** 流水线条渲染时由 registry 注入的宿主能力。 */
-export type FlowLineRuntimeHost = {
+type FlowLineRuntimeHost = {
   /** 运行期状态是否已就绪；显式返回 false 时先不接状态。 */
   runtimeStateReady?: () => boolean;
   /** 实体 id → 运行期状态。 */
@@ -17,7 +17,7 @@ export type FlowLineRuntimeHost = {
 };
 
 /** 流水线条元素上挂载的运行时方法。 */
-export type FlowLineElement = HTMLDivElement & {
+type FlowLineElement = HTMLDivElement & {
   syncFlowLineState?: (runtimeState: any) => void;
   destroyFlowLine?: () => void;
 };

@@ -1,4 +1,4 @@
-export function nasState(entityId, state) {
+function nasState(entityId, state) {
   const stateObject = state?.newState || state || {},
     stateValue = String(stateObject.state || "")
       .trim()
@@ -17,7 +17,7 @@ export function nasState(entityId, state) {
  * NAS / 存储设备的展示状态。
  * 直连实体时由 nasState 给出颜色与运行状态；只有指标源时退化成 available/on/name。
  */
-export type NasDeviceState = {
+type NasDeviceState = {
   available?: boolean;
   on?: boolean;
   name?: any;

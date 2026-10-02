@@ -187,7 +187,7 @@ function collectSceneOverlaps(overlapScene, overlapPpm) {
     }
   return overlapsByPair;
 }
-export function placementConflict(baselineScene, candidateScene, conflictPpm = 100) {
+function placementConflict(baselineScene, candidateScene, conflictPpm = 100) {
   const baselineOverlaps = collectSceneOverlaps(baselineScene, conflictPpm);
   for (const [pairKey, overlapEntry] of collectSceneOverlaps(candidateScene, conflictPpm))
     if (!(overlapEntry.amount <= (baselineOverlaps.get(pairKey)?.amount || 0) + 1e-8))

@@ -194,13 +194,22 @@ def _assert_purpose_allowed(
     if purpose == "change_email":
         # 这里**故意不查**「该邮箱是否已被占用」：发码接口不需要登录态之外的信息，
         # 而在发码阶段回 409 就等于给任何注册用户一个「这个邮箱注册过没有」的探针。
-        # 占用校验放在验证码消费之后（见 api/store.py 的 change_account_email）——
-        # 拿到验证码就意味着对方并不掌握那个邮箱，此时再回 409 不再泄露任何信息。
+        # 占用校验放在**验证码校验之后、消费之前**（见 api/store.py 的
+        # change_account_email）：拿到验证码就意味着对方并不掌握那个邮箱，此时再回
+        # 409 不再泄露任何信息；「校验」与「消费」拆开后，409 之前的验证码也不会被烧掉。
         if account is not None and (account.email or "").strip().lower() == email:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。"
             )
-def _consume_verification(session, *, email: str, purpose: str, code: str) -> None:
+def _check_verification_code(
+    session, *, email: str, purpose: str, code: str
+) -> EmailVerification:
+    """校验验证码，但**不**标记为已消费。
+
+    调用方需要「校验 → 查重/占用判断 → 消费」这个顺序时用本函数，再用
+    _consume_verification_record 收尾：中间那步失败（409）时验证码仍然有效，
+    用户不必重新收码；而校验在查重之前，没有验证码的人依旧问不出「该邮箱注册过没有」。
+    """
     scope = f"verify:{email}"
     if password_gate.retry_after_seconds(session, scope) > 0:
         raise HTTPException(
@@ -232,9 +241,22 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
         _record_verify_failure(session, scope)
         _bump_verification_attempts(session, record_id=record.id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码不正确。")
+    return record
+
+
+def _consume_verification_record(
+    session, record: EmailVerification, *, email: str
+) -> None:
+    """消费一条已通过校验的验证码记录（同时清掉该邮箱的错误计数）。"""
     record.consumed_at = utcnow()
-    password_gate.clear(session, scope)
+    password_gate.clear(session, f"verify:{email}")
     session.flush()
+
+
+def _consume_verification(session, *, email: str, purpose: str, code: str) -> None:
+    """校验并立即消费（给没有中间判断步骤的调用方用）。"""
+    record = _check_verification_code(session, email=email, purpose=purpose, code=code)
+    _consume_verification_record(session, record, email=email)
 #: 单封验证码最多可以被尝试几次（按验证码记录计）。
 MAX_VERIFICATION_CODE_ATTEMPTS = 8
 def _record_verify_failure(session, scope: str) -> None:
