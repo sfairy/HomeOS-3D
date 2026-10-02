@@ -18,6 +18,7 @@ from ..global_popups import clear_popup_references, global_popup_state, global_p
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
+from ..modules.interaction3d.access import canonicalize_document_camera_interaction
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
@@ -304,6 +305,8 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
     )
     # 下发前把老文档引用的旧素材 ID 归一：前端只认现行 ID，展示侧也不必再兼容旧 ID。
     canonicalize_document_asset_ids(request.app.state.asset_catalog, document)
+    # 同理归一 3D 交互控件的历史相机字段：前端与墙面屏拿到的都是现行形状。
+    canonicalize_document_camera_interaction(document)
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,

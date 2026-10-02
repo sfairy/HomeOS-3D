@@ -264,8 +264,7 @@ type PopupPresetConfig = {
       !interaction3dInspectorElement.hidden &&
       interaction3dInspectorElement.dataset.componentId === targetComponent.id,
     interactionSettings = {
-      rotationMode:
-        properties.interaction?.rotationMode || properties.camera?.rotationMode || "free",
+      rotationMode: properties.interaction?.rotationMode || "free",
       panEnabled: false,
       zoomEnabled: false,
     },

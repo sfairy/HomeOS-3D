@@ -5,7 +5,6 @@
 type PageBehaviorConfig = {
   behaviorScope?: string;
   pageBehaviors?: Record<string, Record<string, any>>;
-  camera?: { rotationMode?: string };
   hideIconsWhileRotating?: unknown;
   // 每种行为的取值形状不同，且会被原样展开进结果，因此这里不设约束。
   [behaviorName: string]: any;
@@ -36,7 +35,7 @@ export function resolvePageBehavior(behavior: PageBehaviorConfig = {}, pageKind 
     };
   return {
     interaction: mergeBehavior("interaction", {
-      rotationMode: behavior.camera?.rotationMode || "free",
+      rotationMode: "free",
       panEnabled: false,
       zoomEnabled: false,
     }),

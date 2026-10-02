@@ -51,11 +51,44 @@ def validate_appliance_extras(item, entity, fail):
         extra_ids.add(extra_id)
 
 
+LEGACY_CAMERA_INTERACTION_KEYS = ('panEnabled', 'zoomEnabled', 'rotationMode')
+
+
+def normalize_legacy_camera_interaction(properties: dict) -> None:
+    # [补充说明] 就地归一旧文档：把挂在顶层 camera 上的交互字段搬到 interaction 下。
+    #
+    # 1.0 之前 panEnabled / zoomEnabled / rotationMode 与相机参数混在同一个 camera 对象里，
+    # 现在统一放在 interaction 下。读取与保存各走一次这里，老文档不必先升级前端也能收敛；
+    # 搬迁只在 interaction 未定义该键时进行（新值优先），interaction 本身畸形时不替它兜底，
+    # 留给校验层按原样报错。
+    if not isinstance(properties, dict) or not isinstance(properties.get('camera'), dict):
+        return
+    camera = properties['camera']
+    if not any(key in camera for key in LEGACY_CAMERA_INTERACTION_KEYS):
+        return
+    interaction = properties.get('interaction')
+    if interaction is None:
+        interaction = { }
+        properties['interaction'] = interaction
+    if isinstance(interaction, dict):
+        for key in LEGACY_CAMERA_INTERACTION_KEYS:
+            if key in camera:
+                interaction.setdefault(key, camera.pop(key))
+    # 搬迁不了的一律丢弃：camera 白名单里不再有这三个键，留着会被判 422。
+    for key in LEGACY_CAMERA_INTERACTION_KEYS:
+        camera.pop(key, None)
+
+
 def validate_config(properties: dict) -> None:
     # [补充说明] 校验一份 3D 交互控件的 properties。
+    #
+    # 校验前先把旧文档的历史字段就地归一（见 normalize_legacy_camera_interaction），
+    # 因此调用方拿到的 properties 可能已被改写：老文档保存一次即完成收敛。
     # 异常:
     # HTTPException: 422，任一字段非法。大部分分支共用下面的 fail()，
     # 因此文案统一；个别字段（如转动分辨率）会给出更具体的提示。
+    if isinstance(properties, dict):
+        normalize_legacy_camera_interaction(properties)
 
     def fail():
         # [补充说明] 统一的 422 出口：文案固定，不把内部字段名暴露给前端。
@@ -80,20 +113,17 @@ def validate_config(properties: dict) -> None:
         # [补充说明] 是否为长度不超过 length 的字符串（默认上限与前端输入框一致）。
         return isinstance(value, str) and len(value) <= length
 
-    def validate_camera(camera, *, allow_legacy_interaction=False):
+    def validate_camera(camera):
         # [补充说明] 校验相机参数对象；None 表示未配置，直接放行。
         #
         # 必填是 mode / zoom / target / position，其余按出现与否校验。
-        # allow_legacy_interaction=True 时额外接受旧自由视角的三个字段，
-        # 仅供顶层 camera 的历史数据使用。
+        # 历史的 panEnabled / zoomEnabled / rotationMode 不在这里认：它们在进校验前
+        # 已被 normalize_legacy_camera_interaction 搬去 interaction。
         if camera is None:
             return None
         # required 缺一不可；optional 是「出现才校验」的字段。
         required = {'mode', 'zoom', 'target', 'position'}
         optional = {'up', 'view', 'frameSize', 'focalLength', 'topRotation'}
-        # 历史字段：只为兼容旧文档，新写入的视角配置不会再产生它们。
-        if allow_legacy_interaction:
-            optional.update({'panEnabled', 'zoomEnabled', 'rotationMode'})
         # 必填齐备且没有未登记的键：多余键一律拒绝，防止前端悄悄塞字段。
         if not isinstance(camera, dict) or not required.issubset(camera) or set(camera) - required - optional:
             fail()
@@ -112,12 +142,6 @@ def validate_config(properties: dict) -> None:
             fail()
         if 'view' in camera and camera['view'] not in ('free', 'top'):
             fail()
-        # 旧版视角开关：rotationMode 决定可转动的轴向，panEnabled / zoomEnabled 缺省为 True。
-        if allow_legacy_interaction:
-            if camera.get('rotationMode', 'free') not in ('free', 'horizontal', 'vertical'):
-                fail()
-            if any(not isinstance(camera.get(key, True), bool) for key in ('panEnabled', 'zoomEnabled')):
-                fail()
         return None
 
     # properties 白名单：出现任何未登记字段就整份拒绝。
@@ -1446,6 +1470,6 @@ def validate_config(properties: dict) -> None:
         if 'icon' in item and (not isinstance(item['icon'], str) or not re.fullmatch('mdi:[a-z0-9][a-z0-9-]{0,119}', item['icon'])):
             fail()
         validate_camera(item.get('focusCamera'))
-    # 顶层默认相机允许历史交互字段，理由见 validate_camera 的说明。
-    validate_camera(properties.get('camera'), allow_legacy_interaction=True)
+    # 顶层默认相机：历史字段已在 validate_config 入口归一，这里按现行白名单严格校验。
+    validate_camera(properties.get('camera'))
     return None

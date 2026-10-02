@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, Request
 
 from ...license.crypto import LicenseCryptoError
-from .config import validate_config
+from .config import normalize_legacy_camera_interaction, validate_config
 
 # 本增量包自己的能力码；与编辑器的 'editor' 一起构成双重门禁。
 FEATURE = 'module.3d_interaction'
@@ -122,6 +122,15 @@ def validate_module_component(component: dict) -> None:
         raise HTTPException(422, detail='当前版本的 3D 交互控件不支持此设备绑定、交互动作或子控件配置。')
     validate_config(component.get('properties', {}))
     return None
+
+
+def canonicalize_document_camera_interaction(document) -> None:
+    # [补充说明] 就地归一文档里所有 3D 交互控件的旧版相机交互字段。
+    #
+    # 读取草稿时用一次：老文档不必先被前端保存过，下发给前端与墙面屏的就是现行形状，
+    # 前端因此不再需要任何读旧字段的分支（见 normalize_legacy_camera_interaction）。
+    for (_, component) in module_components(document):
+        normalize_legacy_camera_interaction(component.get('properties', {}))
 
 
 def require_document_changes(request: Request, document: dict, previous: dict | None = None, *, database=None) -> None:
