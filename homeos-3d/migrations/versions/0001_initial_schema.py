@@ -7,7 +7,13 @@
 生成与校验：
 - 由 ``alembic revision --autogenerate`` 对着**空库**生成，因此建出来的结构与 ORM 逐列一致；
 - ``ops/check_schema.py`` 会验证「全新库能建出来」「``alembic check`` 无差异」
-  「重复执行无副作用」三件事。
+    「重复执行无副作用」三件事。
+
+紧随其后的两处修正也已一并折进本基线（原 ``0002``/``0003`` 已删除）：
+- ``display_devices.pairing_code_id`` 外键直接建成 ``ondelete='SET NULL'``（删除配对码
+  不再连带删除已绑定的中控设备）；
+- ``projects.name`` 直接建出唯一索引 ``ix_projects_name``（并发写入不再产生同名仪表盘），
+  全新库没有历史重名数据，不需要消重步骤。
 
 随压缩一起删除的都是**一次性**历史逻辑，不再需要：
 - ``0010``/``0015``/``0016``/``0017``/``0018``/``0023``：改写存量文档 JSON 的数据迁移
@@ -208,6 +214,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_projects_created_by'), 'projects', ['created_by'], unique = False)
+    op.create_index(op.f('ix_projects_name'), 'projects', ['name'], unique = True)
     op.create_index(op.f('ix_projects_slug'), 'projects', ['slug'], unique = True)
     op.create_table('sessions',
     sa.Column('id_hash', sa.String(length = 64), nullable = False),
@@ -263,7 +270,7 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone = True), nullable = False),
     sa.Column('last_seen_at', sa.DateTime(timezone = True), nullable = False),
     sa.Column('revoked_at', sa.DateTime(timezone = True), nullable = True),
-    sa.ForeignKeyConstraint(['pairing_code_id'], ['display_pairing_codes.id'], ondelete = 'CASCADE'),
+    sa.ForeignKeyConstraint(['pairing_code_id'], ['display_pairing_codes.id'], ondelete = 'SET NULL'),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ondelete = 'CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -291,6 +298,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sessions_user_id'), table_name = 'sessions')
     op.drop_index(op.f('ix_sessions_expires_at'), table_name = 'sessions')
     op.drop_table('sessions')
+    op.drop_index(op.f('ix_projects_name'), table_name = 'projects')
     op.drop_index(op.f('ix_projects_slug'), table_name = 'projects')
     op.drop_index(op.f('ix_projects_created_by'), table_name = 'projects')
     op.drop_table('projects')
