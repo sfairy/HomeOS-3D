@@ -1031,38 +1031,41 @@
                                 data-rotate="90">＋90°</button><button type="button" data-rotate="15">＋15°</button></div>
                             </div>
                         </section>
-                        <section class="inspector-group" data-inspector-group="material">
-                            <button class="inspector-group-header" type="button" aria-expanded="true"><span
-                                    class="inspector-group-caret" aria-hidden="true"></span><span
-                                    class="inspector-group-title">材质属性</span><span class="inspector-group-count"
-                                    hidden></span></button>
-                            <div class="inspector-group-body">
-                        <fieldset id="material-fields" class="material-fields" hidden>
-                            <legend>材质属性</legend>
-                            <!-- 材质风格：档位随模型类型变化（沙发是布艺 / 皮革组、柜类是木作组…），
-                                 色卡条由 studio-app 按模型类型重建，不写死在标记里。 -->
-                            <div id="material-style-field" class="material-style-field" hidden>
-                                <div class="material-style-heading"><span>材质风格</span><button
-                                        id="material-style-delete" class="material-style-delete" type="button"
-                                        hidden title="删除这个自定义预设">删除预设</button></div>
-                                <div id="material-style-strip" class="material-style-strip" role="radiogroup"
-                                    aria-label="材质风格"></div>
-                            </div>
-                            <p id="material-summary" class="material-summary">—</p>
-                            <div id="material-slot-groups" class="material-slot-groups" hidden></div>
-                            <div id="material-slot-list" class="material-slot-list"></div>
-                            <div class="material-actions"><button id="material-apply-same" type="button"
-                                    title="把当前档位与逐槽改动复制给同模型的其它物件">应用到同类</button><button
-                                    id="material-save-preset" type="button"
-                                    title="把当前配色与表面参数存成个人预设，跨项目复用">存为我的预设</button><button
-                                    id="material-reset-all" type="button">全部跟随主题</button></div>
-                            <details class="material-help"><summary>材质属性怎么用</summary>
-                                <p class="inspector-note">先选「材质风格」预设（一次换掉这个物件的整套材质），再按槽位微调：色块可点开取色器，也可以直接改十六进制值；粗糙 / 金属度用右侧滑块单独调。改动只影响当前这个物件，「全部跟随主题」可整体复位。</p>
-                            </details>
-                        </fieldset>
-                            </div>
-                        </section>
                     </div>
+                    <section class="inspector-group" data-inspector-group="material">
+                        <button class="inspector-group-header" type="button" aria-expanded="true"><span
+                                class="inspector-group-caret" aria-hidden="true"></span><span
+                                class="inspector-group-title">材质属性</span><span class="inspector-group-count"
+                                hidden></span></button>
+                        <div class="inspector-group-body">
+                            <!-- 这一组在 #item-fields 之外：门（户型洞口）是程序化几何、没有 GLB 槽位，
+                                 但它同样要有「材质属性」（门框 / 门扇 / 玻璃 / 五金 / 卷帘…）。
+                                 组内是否有可见字段由 studio-app 决定，空组会被 syncInspectorGroups 整组隐藏。 -->
+                            <fieldset id="material-fields" class="material-fields" hidden>
+                                <legend>材质属性</legend>
+                                <!-- 材质风格：档位随模型类型变化（沙发是布艺 / 皮革组、柜类是木作组、门是一组门…），
+                                     色卡条由 studio-app 按模型类型重建，不写死在标记里。 -->
+                                <div id="material-style-field" class="material-style-field" hidden>
+                                    <div class="material-style-heading"><span>材质风格</span><button
+                                            id="material-style-delete" class="material-style-delete" type="button"
+                                            hidden title="删除这个自定义预设">删除预设</button></div>
+                                    <div id="material-style-strip" class="material-style-strip" role="radiogroup"
+                                        aria-label="材质风格"></div>
+                                </div>
+                                <p id="material-summary" class="material-summary">—</p>
+                                <div id="material-slot-groups" class="material-slot-groups" hidden></div>
+                                <div id="material-slot-list" class="material-slot-list"></div>
+                                <div class="material-actions"><button id="material-apply-same" type="button"
+                                        title="把当前档位与逐槽改动复制给同模型的其它物件">应用到同类</button><button
+                                        id="material-save-preset" type="button"
+                                        title="把当前配色与表面参数存成个人预设，跨项目复用">存为我的预设</button><button
+                                        id="material-reset-all" type="button">全部跟随主题</button></div>
+                                <details class="material-help"><summary>材质属性怎么用</summary>
+                                    <p class="inspector-note">先选「材质风格」预设（一次换掉这个物件的整套材质），再按槽位微调：色块可点开取色器，也可以直接改十六进制值；粗糙 / 金属度用右侧滑块单独调。改动只影响当前这个物件，「全部跟随主题」可整体复位。门的材质按「门框 / 门扇 / 玻璃 / 五金」等部件分开调，选中时画面会带一层选中高亮色，点空白处取消选中即可看到实际颜色。</p>
+                                </details>
+                            </fieldset>
+                        </div>
+                    </section>
                 </form>
             </section>
         </aside>

@@ -113,9 +113,11 @@ const PALETTE_KEY_FALLBACK: Record<string, string> = {
   showerMetal: "applianceSoft",
   floorLampBody: "furniture",
   windowFrame: "frame",
+  // 门框的三档是「按门型」取的键（实木门 / 入户门 / 其余），档位只要声明 doorFrame
+  // 这一支就够：另两档顺着这条链落到同一色上，预设表因此不必逐个门型重复写三遍。
   doorFrame: "frame",
-  entryDoorFrame: "frame",
-  solidDoorFrame: "frame",
+  entryDoorFrame: "doorFrame",
+  solidDoorFrame: "doorFrame",
 };
 
 type PaletteLike = Record<string, unknown> | null | undefined;
@@ -244,6 +246,9 @@ export const MATERIAL_ROLE_VOCABULARY = Object.freeze([
   "seat",
   "tread",
   "handrail",
+  // 卷帘门的两块料：帘布与帘片（主题里 rollerCurtain / rollerSlat 本来就分两色）。
+  "shutter",
+  "slat",
 ] as const);
 
 /** 角色 → 中文短标签（检查面板 / 报表用；查不到就退回角色名本身）。 */
@@ -303,6 +308,10 @@ export const MATERIAL_ROLE_LABELS: Readonly<Record<string, string>> = Object.fre
   seat: "座面",
   tread: "踏步",
   handrail: "扶手",
+  // 门的卷帘：帘布与帘片是两块料（主题里 rollerCurtain / rollerSlat 本来就不同色），
+  // 所以分两个角色登记，卷帘门的「材质属性」面板才能逐块调。
+  shutter: "卷帘",
+  slat: "帘片",
 });
 
 /** 取角色的中文标签；未知角色原样返回，避免界面出现空白。 */
@@ -587,6 +596,25 @@ const FAMILY_ROLE_RECIPES: Record<string, RoleRecipeTable> = {
     accent: { color: "accent", surface: "paint" },
     leaf: { color: "leafColor", surface: "foliage" },
   },
+  /**
+   * 门（户型里的洞口构件）：几何是程序化拼出来的，没有 GLB 材质槽，角色由
+   * `MODEL_SLOT_ROLES.door` 登记（门框 / 门扇 / 玻璃 / 五金 / 卷帘 / 帘片）。
+   *
+   * 这一支只作「跟随主题」的取色基准 —— 色卡 auto 档、面板上的当前色都读它。真正的门型
+   * 差异（实木门用 solidDoorFrame、入户门用 entryDoorFrame）由 studio-app 的
+   * `resolveDoorPartMaterials` 按 doorType 取键，比这里更细，故不在此重复。
+   * 键的回落链在 PALETTE_KEY_FALLBACK 里（doorFrame → frame、rollerSlat → furnitureDark…），
+   * 默认主题缺这些键时也能落到合理的色上。
+   */
+  door: {
+    frame: { color: "doorFrame", surface: "wood" },
+    door: { color: "doorLeaf", surface: "wood" },
+    glass: { color: "glass", surface: "glass", transparent: true, opacity: 0.34, depthWrite: false },
+    metal: { color: "furnitureDark", surface: "metal" },
+    shutter: { color: "rollerCurtain", surface: "fabric" },
+    slat: { color: "rollerSlat", surface: "metal" },
+    trim: { color: "furnitureSoft", surface: "wood" },
+  },
   /** 其他 / 兜底 */
   misc: {
     body: { color: "furniture", surface: "paint" },
@@ -618,7 +646,11 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   kitchensink: "joinery",
   kitchencooktop: "joinery",
   glasscabinet: "joinery",
-  desk: "joinery",
+  // 桌子（desk）不是柜类：它没有柜门 / 内腔 / 水槽 / 灶头，台面 + 侧板 + 拉手就是全部。
+  // 0.6.5 给它的角色是 top / body / drawer / leg / metal，与 `woodwork`（桌几 / 吧台 /
+  // 茶几 / 台球桌）同一套词表 —— 归到 joinery 会拿到「石材台面 + 柜门」的柜类档位，
+  // 桌面最大的那块面反而落在柜体色上，档位名（木柜白门…）在这件家什上也无从兑现。
+  desk: "woodwork",
   vanity: "joinery",
   wardrobe: "joinery",
   "drawer-chest": "joinery",
@@ -693,6 +725,7 @@ const FAMILY_BY_ITEM_TYPE: Readonly<Record<string, string>> = Object.freeze({
   suv: "vehicle",
   scooter: "vehicle",
   aquarium: "aquatic",
+  door: "door",
   "tea-table-set": "tea",
   plant: "plant",
   piano: "misc",
@@ -768,11 +801,22 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   curtain_left: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
   curtain_right: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
   curtain_split: ["metal", "fabric", "fabric", "metal", "fabric", "fabric"],
-  // desk 的新 GLB 只有 3 个图元（0.6.5 有 5 个：top/body/drawer/leg/metal）：
-  // 0=0.378×0.018 细杆（金属度 0.35，位置在右前，即 0.6.5 的 metal 抽屉拉手）
-  // 1=1.4×0.65 桌面板 + 围板（0.6.5 top 的足印，烘焙色 #343e51 属柜体档）
-  // 2=1.302×0.669×0.533 桌架（与 0.6.5 leg 1.311×0.725×0.572 对齐，偏差 7.8%）
-  desk: ["metal", "body", "leg"],
+  // desk（桌子 / 书桌）的新 GLB 只有 3 个图元（0.6.5 有 5 个：top/body/drawer/leg/metal），
+  // 逐图元量过几何后这样分：
+  //   0 = 0.38×0.02×0.03 细杆，y0.55、x0.12..0.50、z 出到 0.28（桌面前沿外），金属度 0.35
+  //       → 抽屉拉手 `metal`。
+  //   1 = 1.40×0.65 的板 + 围板，y0.49..0.74；朝上的面 1.11m²（其中 0.87m² 在 y=0.745，
+  //       即 1.40×0.62 的**桌面**），另有 0.21m² 朝上的面在 y=0.63（围板内的抽屉箱）
+  //       → `top`：桌面上最大的一块可见面在这里，档位要能改的就是它。
+  //       （桌面前脸与围板是一体的，拆不开；woodCombo 里 `drawer` 本就默认跟随 `top`。）
+  //   2 = 1.30×0.53、y0..0.67 的箱体：±x 各 0.69m² 且每侧都是「两片 0.34m² 的面 + 薄边」
+  //       —— 中空薄壁**侧板**，不是细腿（细腿的垂直面不会占到大头）
+  //       → `frame`（框架，面板上即「框架」）：这张桌子没有可单独上色的腿，桌架就是这两块
+  //       侧板。给 `body`/`side` 的话它们会跟着台面同色（派生链 `body ← top`、`side ← body`），
+  //       于是「黑砂金属腿」档位只动得到拉手 —— 与「胡桃木」几乎看不出差别；给 `frame`
+  //       则桌架在木器档位里比台面深一档、在黑砂档位里转成黑金属（`frame ← trim`），
+  //       四档都落在桌子的真实构件上且都能看出来。
+  desk: ["metal", "top", "frame"],
   dishwasher: ["body", "door", "panel", "handle", "base", "screen"],
   // dryer / washer 的新 GLB 把 0.6.5 的 10 个节点合并成 6~7 个图元，图元顺序与 0.6.5
   // 的槽位顺序**不同**（0.6.5 是 body/top/base/door/glass/handle/panel/grating/screen/metal）：
@@ -785,6 +829,11 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   // 6=washer 左下小抽屉（0.141×0.055，位置与 0.6.5 drawer 一致）→ drawer
   dryer: ["body", "panel", "door", "glass", "metal", "handle"],
   washer: ["body", "panel", "door", "glass", "metal", "handle", "drawer"],
+  // 门是户型里的洞口构件，不是 GLB 模型：这张表登记的是**程序化门的部件 → 角色**，
+  // 索引与 studio-app 的 `DOOR_MATERIAL_PARTS` 一一对应（0 门框 / 1 门扇 / 2 玻璃 /
+  // 3 五金 / 4 卷帘 / 5 帘片）。有了它，门的「材质属性」就能与家具共用同一套档位
+  // 色卡、逐部件取色与表面参数（材质名约定：`door-material-<n>`）。
+  door: ["frame", "door", "glass", "metal", "shutter", "slat", "trim"],
   fridge: ["body", "panel", "handle"],
   // glasscabinet 的新 GLB 有 18 个图元（0.6.5 只有 7 个），按「图元相对整机包围盒的
   // 尺寸 / 位置」逐槽判定：0=背板(1.12×1.82×0.03, Z-0.185) / 1,2=下柜双门(前面板) /
@@ -851,6 +900,51 @@ export const MODEL_SLOT_ROLES: Readonly<Record<string, readonly (string | null)[
   // 0.18m 灯罩 / φ0.09 圆环在罩底 —— 罩口圈。
   walllamp: ["body", "base", "lit", "metal"],
 });
+
+/* -------------------------------------------------------------------------- */
+/* 门（程序化几何）的部件表                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 门的部件顺序：`door-material-<n>` 的 n 就是这里的下标，也是 `MODEL_SLOT_ROLES.door` 的槽位号。
+ *
+ * 门没有 GLB 可扫，槽位由 studio-app 按门型程序化拼出来；这张表放在这里是为了让运行时
+ * （`resolveDoorPartMaterials` / 材质面板）与校验脚本（`proceduralHostFacts`）读同一份事实 ——
+ * 门型新增部件时两边不会各记一套。
+ */
+export const DOOR_MATERIAL_PARTS: readonly string[] = Object.freeze([
+  "frame",
+  "door",
+  "glass",
+  "metal",
+  "shutter",
+  "slat",
+  // 入户门门扇上那两道装饰横线：本来就读另一支色（furnitureSoft），单独给一个部件，
+  // 既保住原来的深浅两层，也让用户能单独调。
+  "trim",
+]);
+
+/** 各门型实际存在的部件（按槽位顺序）：没有的部件不出现在面板上，也不参与出图。 */
+export const DOOR_MATERIAL_PART_ROLES_BY_TYPE: Readonly<Record<string, readonly string[]>> =
+  Object.freeze({
+    solid: ["frame", "metal"],
+    "frame-only": ["frame"],
+    glass: ["frame", "glass", "metal"],
+    "sliding-glass": ["frame", "glass", "metal"],
+    double: ["door", "metal"],
+    entry: ["door", "trim", "metal"],
+    "roller-shutter": ["frame", "shutter", "slat"],
+  });
+
+/** 某门型用到的部件角色（未知门型按实木门处理，与出图分支的默认一致）。 */
+export function doorMaterialPartRolesForType(doorType: string): readonly string[] {
+  return DOOR_MATERIAL_PART_ROLES_BY_TYPE[doorType] || DOOR_MATERIAL_PART_ROLES_BY_TYPE.solid;
+}
+
+/** 角色 → 槽位号（`door-material-<n>` 的 n；认不出时给 -1）。 */
+export function doorMaterialPartIndex(role: string): number {
+  return DOOR_MATERIAL_PARTS.indexOf(role);
+}
 
 /** 槽位超出登记长度时的兜底角色（按模型取，未登记则 `body`）。 */
 const MODEL_FALLBACK_ROLE: Readonly<Record<string, string>> = Object.freeze({
@@ -1013,6 +1107,14 @@ const MODEL_ROLE_RECIPE_OVERRIDES: Record<string, RoleRecipeTable> = {
     body: { color: "floorLampBody", surface: "wood" },
   },
   smallcar: { body: { color: "furniture", surface: "lacquer" } },
+  // 桌子（desk）：木器族里唯一**台面是木/烤漆、不是石作**的平顶桌 —— 家族表给 `top` 的
+  // 默认是大理石板（那是方茶几 / 转盘餐桌的台面），照搬到书桌上会得到一张「大理石面书桌」。
+  // 桌架取 `woodDark`：与 bar / 方茶几 同一种「台面浅、结构深一档」的家族观感。
+  // （档位一旦选中就按档位配方走，这两条只管「跟随全局风格」。）
+  desk: {
+    top: { color: "wood", surface: "wood" },
+    frame: { color: "woodDark", surface: "wood" },
+  },
   // 净水器 / 茶吧机：家电色系（面板浅色 + 深色凹槽 + 金属五金）。
   pipelinewaterpurifier: {
     body: { color: "applianceSoft", surface: "lacquer" },

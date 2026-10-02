@@ -22,7 +22,9 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  DOOR_MATERIAL_PART_ROLES_BY_TYPE,
   MODEL_SLOT_ROLES,
+  doorMaterialPartIndex,
   isStoneSlabFlavor,
   isStructuralModelFamily,
   materialRoleRecipeFor,
@@ -73,6 +75,44 @@ type MaterialFacts = {
   rendered: boolean;
 };
 type ModelFacts = { basename: string; itemType: string; path: string; materials: MaterialFacts[] };
+
+/**
+ * 程序化（没有 GLB 资产）的材质宿主。
+ *
+ * 档位组不只挂在 GLB 模型上：户型里的**门**是程序化拼出来的几何，没有 GLB 可扫，它的
+ * 材质槽由各门型的部件表（`DOOR_MATERIAL_PART_ROLES_BY_TYPE`）登记（门框 / 门扇 / 玻璃 /
+ * 五金 / 卷帘 / 帘片 / 装饰线）。资产目录扫不出它，所以这里补一份等价事实 —— 否则 L6c 会
+ * 把 door 档位组误判成「整组死档位」，L6h 也会漏掉门的档位可分辨性（正是「换档位没变化」
+ * 那类回归）。
+ */
+const PROCEDURAL_MATERIAL_HOSTS: readonly string[] = ["door"];
+
+/**
+ * 程序化宿主的材质槽：命名约定与运行时一致（`<type>-material-<n>`，见 MODEL_SLOT_ROLES）。
+ *
+ * **一个门型 = 一条事实**：门型的部件集合互不相同（实木门只有门框 + 五金，卷帘门是门框 +
+ * 卷帘 + 帘片），拿「所有部件并起来」当分母会把每个门型都判成覆盖不足。槽位号取
+ * `DOOR_MATERIAL_PARTS` 的全局下标 —— 运行时 `door-material-<n>` 就是这么编号的。
+ */
+function proceduralHostFacts(): ModelFacts[] {
+  return PROCEDURAL_MATERIAL_HOSTS.flatMap((itemType) =>
+    Object.entries(DOOR_MATERIAL_PART_ROLES_BY_TYPE).map(([hostVariant, partRoles]) => ({
+      basename: `${itemType}:${hostVariant}`,
+      itemType,
+      path: "",
+      materials: partRoles.map((role) => {
+        const index = doorMaterialPartIndex(role);
+        return {
+          name: `${itemType}-material-${index}`,
+          index,
+          baseColor: null,
+          position: index,
+          rendered: true,
+        };
+      }),
+    })),
+  );
+}
 
 /* -------------------------------------------------------------------------- */
 /* 常量：与加载器 / studio-app 保持一致                                        */
@@ -968,7 +1008,8 @@ function auditMaterialStylePresets(
     presetResolvedSlots = 0,
     thinCoverageModels = 0,
     uncapableBecauseStructural = 0;
-  for (const model of modelList) {
+  // 程序化宿主（门）与 GLB 模型同权：档位覆盖与可分辨性都要一起判。
+  for (const model of [...modelList, ...proceduralHostFacts()]) {
     if (!model.materials.length) continue;
     const capable = isMaterialStyleCapable(model.itemType);
     const family = resolveModelFamily(model.itemType);
@@ -1029,7 +1070,7 @@ function auditMaterialStylePresets(
   // 档位组可达性：任何一组都至少要有一个真实模型能选到，否则就是「死档位」（0.6.5 里
   // 石材台面组就曾因没挂模型而整组不可达，这里把它钉住）。
   const reachablePresetIds = new Set<string>();
-  for (const model of modelList) {
+  for (const model of [...modelList, ...proceduralHostFacts()]) {
     if (!isMaterialStyleCapable(model.itemType)) continue;
     for (const preset of materialStyleOptionsFor(model.itemType)) reachablePresetIds.add(preset.id);
   }
@@ -1193,7 +1234,7 @@ function auditMaterialStylePresets(
      */
     let pairChecked = 0,
       identicalPairs = 0;
-    for (const model of modelList) {
+    for (const model of [...modelList, ...proceduralHostFacts()]) {
       if (!isMaterialStyleCapable(model.itemType)) continue;
       const renderedSlots = model.materials.filter((material) => material.rendered);
       const presetOptions = materialStyleOptionsFor(model.itemType);

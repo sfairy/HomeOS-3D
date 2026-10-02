@@ -42,7 +42,12 @@ import {
 import { createSpeakerModel as createSpeakerModel2 } from "./studio-speaker";
 import { createMuralModel } from "../materials/studio-mural";
 import { createFeaturewallModel } from "../materials/studio-feature-wall";
-import { materialRoleLabel } from "../materials/studio-model-material-roles";
+import {
+  doorMaterialPartIndex,
+  doorMaterialPartRolesForType,
+  materialRoleLabel,
+  resolveMaterialPaletteColor,
+} from "../materials/studio-model-material-roles";
 import {
   MATERIAL_STYLE_AUTO,
   buildCustomMaterialStyleRecord,
@@ -55,6 +60,7 @@ import {
   materialStylePaletteColors,
   materialStylePresetFor,
   materialStylePresetSwatchColors,
+  materialStyleRecipeFor,
   normalizeMaterialStyle,
   registerCustomMaterialStyles,
 } from "../materials/studio-material-presets";
@@ -3911,6 +3917,24 @@ function normalizeItemMaterialStyle(rawItemRecord) {
   return materialStyle === MATERIAL_STYLE_AUTO ? null : materialStyle;
 }
 /**
+ * 门的材质字段净化：与家具同一套规则（档位非法归一成 auto、覆盖色必须是 `#rrggbb`、
+ * 表面参数规整到 0–1 两位小数）。
+ *
+ * 单独写一份而不是复用 `normalizeItemMaterialStyle`：那个走 `externalModelRegistry`，
+ * 门是程序化几何、不在这张表里，模型类型直接就是 `"door"`。
+ * 返回的是「要并进记录里的字段」，空值一律不落键 —— 没改过材质的门在文档里不留痕迹。
+ */
+function doorMaterialFields(rawDoor) {
+  const materialStyle = normalizeMaterialStyle("door", rawDoor?.materialStyle),
+    materialOverrides = normalizeMaterialOverrides(rawDoor?.materialOverrides),
+    materialSurfaceOverrides = normalizeMaterialSurfaceOverrides(rawDoor?.materialSurfaceOverrides);
+  return {
+    ...(materialStyle === MATERIAL_STYLE_AUTO ? {} : { materialStyle }),
+    ...(materialOverrides ? { materialOverrides } : {}),
+    ...(Object.keys(materialSurfaceOverrides).length ? { materialSurfaceOverrides } : {}),
+  };
+}
+/**
  * 逐槽表面参数的**入库净化**：只接受 `{ "<GLB 材质名>": { roughness?, metalness? } }`，
  * 两个值都规整到 0–1 并按两位小数定下来（避免浮点尾数让产物不稳定）。
  * 一个合法项都没有时返回空对象，调用方据此不写字段。
@@ -4018,6 +4042,9 @@ function normalizeScenePayload(rawScene) {
               : "solid",
             hinge: rawDoor?.hinge === "right" ? "right" : "left",
             swing: rawDoor?.swing === -1 ? -1 : 1,
+            // 门的「材质属性」（逐门档位 + 逐部件覆盖色 / 表面参数）与家具同构，净化规则
+            // 也共用：非法档位归一成 auto、不合法的色值一律丢掉，不落进文档。
+            ...doorMaterialFields(rawDoor),
           }))
           .filter((doorCandidate) => wallIdSet.has(doorCandidate.wallId))
       : [],
@@ -8951,6 +8978,11 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
         (selectElement("#selection-title").textContent = itemTypeCatalog[at4.type].name));
       return;
     }
+    // 材质面板按来源分流：门是程序化部件表（renderDoorMaterialPanel），家具是 GLB 材质槽
+    // （renderMaterialSlotPanel）；其它类型没有外部模型，后者会顺手把面板收起来。
+    selectedItem.kind === "door"
+      ? renderDoorMaterialPanel(at4)
+      : renderMaterialSlotPanel(at4);
     if (selectedItem.kind === "wall") {
       ((selectElement("#selection-title").textContent = "墙体"),
         setControlValue(
@@ -9297,7 +9329,6 @@ function refreshStudioUiInner(shouldClearActiveElement = false) {
               at4.type === "striplight" &&
                 ((selectElement("#strip-axis").value = normalizeStripAxis2(at4.stripAxis)),
                 syncStudioSelect2(selectElement("#strip-axis"))),
-              renderMaterialSlotPanel(at4),
               setControlValue(
                 selectElement("#item-x"),
                 (at4.x / (getPixelsPerMeter() || 1)).toFixed(2),
@@ -9735,6 +9766,243 @@ function materialSlabLabel(slabFlavor) {
     { marble: "大理石", "marble-dark": "黑金大理石" }[slabFlavor] || ""
   );
 }
+/* -------------------------------------------------------------------------- */
+/* 门的材质部件                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 门部件的解析结果（出图与面板共用的那一份）。
+ */
+type DoorPartMaterial = {
+  role: string;
+  /** 逐门覆盖色 / 表面参数在 `door.materialOverrides` 里用的键（`door-material-<n>`）。 */
+  materialName: string;
+  /** 画面用色：逐门覆盖色 > 档位配方 > 主题键（不含选中高亮）。 */
+  colorValue: number;
+  overrideColor: string;
+  /** 只有档位 / 逐门表面参数给过才有值；undefined = 保持调用点原本写死的值。 */
+  roughness?: number;
+  metalness?: number;
+  transparent: boolean;
+  opacity: number;
+  depthWrite: boolean;
+  emissiveValue?: number;
+  emissiveIntensity?: number;
+};
+
+/**
+ * 门的材质部件表（部件顺序 `DOOR_MATERIAL_PARTS` / 各门型部件 / 部件索引）统一放在
+ * `materials/studio-model-material-roles.ts`：运行时出图、材质面板与 CI 校验脚本共用同一份
+ * 事实（门没有 GLB 可扫，槽位全靠这张表定义），门型增删部件时不会两边各记一套。
+ */
+/* -------------------------------------------------------------------------- */
+/* 门部件材质解析                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 门部件「跟随主题」时读的调色板键（返回色号）。
+ *
+ * 门框 / 门扇 / 五金的键**按门型分档**（实木门 solidDoorFrame、入户门 entryDoorFrame、
+ * 入户门五金走亮一档的 furnitureLight…），与改造前逐个 mesh 写死的那几处三元式逐条对应：
+ * 「不选档位、不改色」的门，画面必须与之前一模一样。
+ */
+function doorPartThemeColor(doorType: string, role: string, palette) {
+  const themeKeys = {
+    frame:
+      doorType === "solid" || doorType === "frame-only"
+        ? ["solidDoorFrame", "doorFrame", "frame"]
+        : doorType === "entry"
+          ? ["entryDoorFrame", "doorFrame", "frame"]
+          : ["doorFrame", "frame"],
+    door: doorType === "entry" ? ["furnitureDark"] : ["doorLeaf"],
+    glass: ["glass"],
+    metal: doorType === "entry" ? ["furnitureLight"] : ["furnitureDark"],
+    shutter: ["rollerCurtain", "furnitureSoft"],
+    slat: ["rollerSlat", "furnitureDark"],
+    trim: ["furnitureSoft", "furnitureDark"],
+  }[role];
+  if (!themeKeys) return resolveMaterialPaletteColor(palette, "furniture");
+  // 逐键显式找一遍：`PALETTE_KEY_FALLBACK` 也能兜住（doorFrame → frame），但写全这几档
+  // 才能保证以后有人改了回落链时，门的默认色不会跟着漂。
+  for (const themeKey of themeKeys) {
+    const colorValue = palette?.[themeKey];
+    if (typeof colorValue === "number") return colorValue;
+  }
+  return resolveMaterialPaletteColor(palette, themeKeys[themeKeys.length - 1]);
+}
+/**
+ * 门的逐部件材质 —— 出图与面板**同源**的那一份（改这里就等于同时改画面与检查面板）。
+ *
+ * 生效顺序（最后一手赢，与家具同一条口径）：
+ *   主题键 → 档位配方 → 逐门覆盖色 `door.materialOverrides[角色]` → 逐门表面参数。
+ * 档位走 `materialStyleRecipeFor("door", "door-material-<n>", …)`，于是门的「材质风格」
+ * 与家具共用同一套预设、色卡与校验；`door.materialStyle` 为 auto 时这一层不产生覆盖。
+ */
+function resolveDoorPartMaterials(doorRecord, themePalette): Record<string, DoorPartMaterial> {
+  const doorType = doorRecord?.doorType || "solid",
+    doorStyleId = normalizeMaterialStyle("door", doorRecord?.materialStyle),
+    doorPalette = {
+      ...themePalette,
+      ...materialStylePaletteColors("door", doorStyleId),
+    };
+  doorStyleId !== MATERIAL_STYLE_AUTO && (doorPalette.materialStyle = doorStyleId);
+  const overrideColors = normalizeMaterialOverrides(doorRecord?.materialOverrides) || {},
+    surfaceOverrides = normalizeMaterialSurfaceOverrides(doorRecord?.materialSurfaceOverrides),
+    partMaterials: Record<string, DoorPartMaterial> = {};
+  for (const role of doorMaterialPartRolesForType(doorType)) {
+    const partIndex = doorMaterialPartIndex(role),
+      materialName = "door-material-" + partIndex,
+      styleRecipe = materialStyleRecipeFor("door", materialName, doorPalette, partIndex),
+      overrideColor = overrideColors[materialName],
+      overrideColorValue = overrideColor ? Number.parseInt(overrideColor.slice(1), 16) : undefined,
+      slotSurfaceOverride = surfaceOverrides[materialName] || {};
+    partMaterials[role] = {
+      role,
+      materialName,
+      /**
+       * 画面用的色号：逐门覆盖色 > 档位配方 > 主题键。
+       * **不含**选中高亮 —— 高亮是「这一帧正在选中的门」的显示层（doorPartDisplayColor），
+       * 面板要显示的是真实材质色，两者不能混在一起。
+       */
+      colorValue:
+        overrideColorValue !== undefined
+          ? overrideColorValue
+          : styleRecipe?.colorValue ?? doorPartThemeColor(doorType, role, doorPalette),
+      overrideColor: overrideColor || "",
+      // 只有档位 / 逐门表面参数才改粗糙度与金属度：都没给时保持各 mesh 原本写死的值。
+      roughness: slotSurfaceOverride.roughness ?? styleRecipe?.roughness,
+      metalness: slotSurfaceOverride.metalness ?? styleRecipe?.metalness,
+      transparent: styleRecipe?.transparent === true,
+      opacity: styleRecipe?.opacity ?? 1,
+      depthWrite: styleRecipe?.depthWrite !== false,
+      emissiveValue: styleRecipe?.emissiveValue,
+      emissiveIntensity: styleRecipe?.emissiveIntensity,
+    };
+  }
+  return partMaterials;
+}
+/**
+ * 画面上的门部件色：选中时叠一层主题 accent（沿用架构构件「选中即高亮」的老规矩），
+ * 但**只叠一半** —— 从前的写法是把整扇门刷成 accent，于是编辑材质时画面上永远是一片高亮色，
+ * 看不出自己改了什么（「选了风格没变化」）。混一半既保留选中提示，又能立刻看出颜色变化。
+ */
+function doorPartDisplayColor(partMaterial, isSelected: boolean, themePalette) {
+  const partColorValue = partMaterial?.colorValue;
+  if (!isSelected || typeof partColorValue !== "number") return partColorValue;
+  const accentColor = themePalette?.accent;
+  if (typeof accentColor !== "number") return partColorValue;
+  const mixChannel = (shift: number) => {
+    const partChannel = (partColorValue >> shift) & 255,
+      accentChannel = (accentColor >> shift) & 255;
+    return Math.round(partChannel + (accentChannel - partChannel) * 0.5);
+  };
+  return (mixChannel(16) << 16) | (mixChannel(8) << 8) | mixChannel(0);
+}
+/**
+ * 门部件材质 → `addArchitectureMesh` 的 options。
+ *
+ * 只在用户真的设过档位 / 表面参数时覆盖粗糙度与金属度：没设过就原样透传调用点自己的
+ * 默认值，保证「不选档位」的门与改造前出图一致。
+ */
+function doorPartMeshOptions(partMaterial, baseOptions) {
+  if (!partMaterial) return baseOptions;
+  const meshOptions = { ...baseOptions };
+  partMaterial.roughness !== undefined && (meshOptions.roughness = partMaterial.roughness);
+  partMaterial.metalness !== undefined && (meshOptions.metalness = partMaterial.metalness);
+  partMaterial.transparent &&
+    ((meshOptions.transparent = true),
+    (meshOptions.opacity = partMaterial.opacity),
+    (meshOptions.depthWrite = partMaterial.depthWrite));
+  partMaterial.emissiveValue !== undefined &&
+    ((meshOptions.emissive = partMaterial.emissiveValue),
+    (meshOptions.emissiveIntensity = partMaterial.emissiveIntensity ?? 0.5));
+  return meshOptions;
+}
+/**
+ * 门的「材质属性」槽位表：形状与 `loader.describeItemMaterials` 的输出一致，
+ * 于是同一块面板 DOM、同一套写入函数与同一份色卡逻辑都能直接复用。
+ */
+function describeDoorMaterials(doorRecord) {
+  const themePalette = backgroundSettings(),
+    partMaterials = resolveDoorPartMaterials(doorRecord, themePalette),
+    surfaceOverrides = normalizeMaterialSurfaceOverrides(doorRecord?.materialSurfaceOverrides);
+  return doorMaterialPartRolesForType(doorRecord?.doorType).map((role) => {
+    const partMaterial = partMaterials[role];
+    return {
+      name: partMaterial.materialName,
+      role,
+      roleSource: "role-table",
+      slot: doorMaterialPartIndex(role),
+      /** 门永远由角色表出图：没有「沿用模型自带色」这种情况。 */
+      fromPalette: true,
+      color: "#" + (partMaterial.colorValue & 0xffffff).toString(16).padStart(6, "0"),
+      roughness: partMaterial.roughness ?? 0.58,
+      metalness: partMaterial.metalness ?? 0.08,
+      transparent: partMaterial.transparent === true,
+      opacity: partMaterial.opacity ?? 1,
+      emissive: "",
+      emissiveIntensity: 0,
+      depthWrite: partMaterial.depthWrite !== false,
+      overrideColor: partMaterial.overrideColor,
+      surfaceOverride: surfaceOverrides[partMaterial.materialName] || null,
+      slab: "",
+    };
+  });
+}
+/** 同款门（同 doorType）的其它扇数：面板上「应用到同类」的可点状态。 */
+function doorMaterialPeerCount(doorRecord) {
+  return materialSameModelPeerCount({ kind: "door", record: doorRecord });
+}
+/**
+ * 重建「材质属性」面板的门版本：与 `renderMaterialSlotPanel` 共用色卡条 / 槽位行 / 动作
+ * 按钮，只有槽位来源不同（门是程序化部件，家具是 GLB 材质槽）。
+ */
+function renderDoorMaterialPanel(doorRecord) {
+  if (!materialFieldsElement || !materialSlotListElement || !doorRecord) return;
+  const doorPartRoles = doorMaterialPartRolesForType(doorRecord.doorType);
+  materialFieldsElement.hidden = false;
+  syncMaterialStyleStrip(doorRecord, "door", doorPartRoles);
+  const materialSlotEntries = describeDoorMaterials(doorRecord),
+    panelSignature = materialSlotPanelSignatureFor(doorRecord, materialSlotEntries);
+  if (panelSignature === materialSlotPanelSignature) return;
+  materialSlotPanelSignature = panelSignature;
+  isMaterialSlotPanelPending = false;
+  // 换门型后展开态可能指向已经不存在的部件：清掉，免得集合越攒越大。
+  for (const expandedSlotName of [...expandedMaterialSurfaceSlots])
+    materialSlotEntries.some((slotEntry) => slotEntry.name === expandedSlotName) ||
+      expandedMaterialSurfaceSlots.delete(expandedSlotName);
+  const overrideCount = materialSlotEntries.filter((slotEntry) => Boolean(slotEntry.overrideColor))
+      .length,
+    surfaceOverrideCount = materialSlotEntries.filter((slotEntry) =>
+      Boolean(slotEntry.surfaceOverride),
+    ).length,
+    doorMaterialStyle = normalizeMaterialStyle("door", doorRecord.materialStyle),
+    hasMaterialStyle = doorMaterialStyle !== MATERIAL_STYLE_AUTO,
+    peerCount = doorMaterialPeerCount(doorRecord),
+    groupView = materialSlotGroupView(materialSlotEntries);
+  materialSummaryElement.textContent =
+    (hasMaterialStyle ? materialStyleLabel("door", doorMaterialStyle) + " · " : "") +
+    materialSlotEntries.length +
+    " 个材质部件 · " +
+    materialCoverageSummary(overrideCount, surfaceOverrideCount);
+  ((materialResetAllButton.disabled = !overrideCount && !surfaceOverrideCount && !hasMaterialStyle),
+    (materialSavePresetButton.disabled = false),
+    (materialApplySameButton.disabled = !peerCount),
+    (materialApplySameButton.title = peerCount
+      ? "把当前档位与逐部件改动复制给其它 " + peerCount + " 扇同款门"
+      : "场景里没有其它同款门"));
+  renderMaterialSlotGroupChips(groupView);
+  const slotRowFragment = document.createDocumentFragment();
+  for (const slotEntry of groupView.visibleSlotEntries)
+    slotRowFragment.append(createMaterialSlotRow(slotEntry));
+  if (!groupView.visibleSlotEntries.length) {
+    const emptyElement = document.createElement("p");
+    ((emptyElement.className = "material-slot-empty"),
+      (emptyElement.textContent = "这一族里没有部件。"),
+      slotRowFragment.append(emptyElement));
+  }
+  materialSlotListElement.replaceChildren(slotRowFragment);
+}
 /**
  * 重建「材质属性」检查面板：先给「材质风格」预设下拉（选一档 = 整套角色换料），
  * 再列出选中物件的每个 GLB 材质槽位 → 角色 → 当前显色与表面。
@@ -9791,7 +10059,7 @@ function renderMaterialSlotPanel(modelItem) {
     ).length,
     itemMaterialStyle = normalizeMaterialStyle(itemModelType, modelItem?.materialStyle),
     hasMaterialStyle = itemMaterialStyle !== MATERIAL_STYLE_AUTO,
-    peerCount = materialSameModelPeerCount(modelItem),
+    peerCount = materialSameModelPeerCount({ kind: "item", record: modelItem }),
     groupView = materialSlotGroupView(materialSlotEntries);
   materialSummaryElement.textContent =
     (hasMaterialStyle ? materialStyleLabel(itemModelType, itemMaterialStyle) + " · " : "") +
@@ -9960,30 +10228,70 @@ function createMaterialSlotSurfacePanel(slotEntry, isSurfaceExpanded) {
     surfacePanelElement
   );
 }
-/** 场景里同模型的其它物件数量（「应用到同类」的按钮状态与提示用）。 */
-function materialSameModelPeerCount(modelItem) {
-  const modelType = externalModelRegistry.modelTypeForItem(modelItem);
-  if (!modelType) return 0;
-  let peerCount = 0;
-  for (const sceneItem of studioState.items) {
-    if (sceneItem === modelItem || sceneItem?.id === modelItem?.id) continue;
-    externalModelRegistry.modelTypeForItem(sceneItem) === modelType && (peerCount += 1);
+/** 场景里同款物件的其它数量（「应用到同类」的按钮状态与提示用）：家具按模型比，门按门型比。 */
+function materialSameModelPeerCount(target) {
+  return materialSameModelPeerRecords(target).length;
+}
+/**
+ * 材质编辑用的「模型类型」：家具取注册表里的模型类型，门就是 `door` —— 门的档位组与
+ * 角色表都以 `door` 为键（门型差异由部件表处理，不另开模型类型）。
+ */
+function materialEditModelType(record, kind) {
+  return kind === "door" ? "door" : externalModelRegistry.modelTypeForItem(record);
+}
+/**
+ * 当前选中对象里那一个「可做材质编辑」的：家具（GLB 模型）或门（户型洞口）。
+ * 其余（墙 / 窗 / 栏杆 / 未选中）返回 null —— 面板与写入通道都靠它判定。
+ */
+function selectedMaterialEditTarget() {
+  const selectedObject = getSelectedObject();
+  if (!selectedObject || !isSelectionAllowed(selectedItem)) return null;
+  if (selectedItem?.kind === "item") return { kind: "item", record: selectedObject };
+  if (selectedItem?.kind === "door") return { kind: "door", record: selectedObject };
+  return null;
+}
+/**
+ * 同款物件的其它成员：家具按 itemType 比，门按 **doorType** 比 —— 门的「同款」就是同一种
+ * 门型（实木门与推拉门的部件都不一样，互相套用材质只会套出一堆无主的覆盖色）。
+ */
+function materialSameModelPeerRecords(target) {
+  if (!target) return [];
+  if (target.kind === "door") {
+    const doorType = target.record?.doorType || "solid";
+    return studioState.doors.filter(
+      (sceneDoor) => sceneDoor.id !== target.record.id && (sceneDoor.doorType || "solid") === doorType,
+    );
   }
-  return peerCount;
+  const modelType = materialEditModelType(target.record, target.kind);
+  if (!modelType) return [];
+  return studioState.items.filter(
+    (sceneItem) =>
+      sceneItem !== target.record &&
+      sceneItem?.id !== target.record?.id &&
+      externalModelRegistry.modelTypeForItem(sceneItem) === modelType,
+  );
 }
 /**
  * 逐物件材质编辑的公共收尾：只调用一次 `captureUndoSnapshot`，改动为真才落撤销 / 重建。
  * 返回 false 表示没有任何变化（调用方不必再处理）。
+ *
+ * 家具（GLB 模型）与门（程序化几何）共用这一条通道：改的都是选中记录上的
+ * `materialStyle` / `materialOverrides` / `materialSurfaceOverrides`，只是刷新范围不同 ——
+ * 家具重建它自己的 items 范围，门重建 architecture（门属于户型洞口那一层）。
  */
 function commitItemMaterialEdit(mutationFunction) {
-  const modelItem = getSelectedObject();
-  if (!modelItem || selectedItem?.kind !== "item" || !isSelectionAllowed(selectedItem)) return false;
+  const materialEditTarget = selectedMaterialEditTarget();
+  if (!materialEditTarget) return false;
   const undoSnapshot = captureUndoSnapshot();
-  if (!mutationFunction(modelItem)) return false;
+  if (!mutationFunction(materialEditTarget.record, materialEditTarget.kind)) return false;
   return (
     (materialSlotPanelSignature = ""),
     applyPlacementChange(undoSnapshot),
-    refreshScopeItems(resolvePreviewScope(modelItem)),
+    refreshScopeItems(
+      materialEditTarget.kind === "door"
+        ? "architecture"
+        : resolvePreviewScope(materialEditTarget.record),
+    ),
     markDocumentDirty(),
     true
   );
@@ -10035,8 +10343,8 @@ function setItemMaterialOverride(materialName, overrideColor) {
  * 非法 id（档位表里查不到、或该模型不支持档位）一律归一成 auto，不会写进文档。
  */
 function setItemMaterialStyle(styleValue) {
-  commitItemMaterialEdit((modelItem) => {
-    const modelType = externalModelRegistry.modelTypeForItem(modelItem),
+  commitItemMaterialEdit((modelItem, materialEditTargetKind) => {
+    const modelType = materialEditModelType(modelItem, materialEditTargetKind),
       previousStyle = normalizeMaterialStyle(modelType, modelItem.materialStyle),
       nextStyle = normalizeMaterialStyle(modelType, styleValue);
     if (nextStyle === previousStyle) return false;
@@ -10048,8 +10356,8 @@ function setItemMaterialStyle(styleValue) {
 }
 /** 「全部跟随主题」：档位与逐槽覆盖色一起清掉（面板上那颗按钮的语义就是全复位）。 */
 function resetItemMaterialAll() {
-  commitItemMaterialEdit((modelItem) => {
-    const modelType = externalModelRegistry.modelTypeForItem(modelItem),
+  commitItemMaterialEdit((modelItem, materialEditTargetKind) => {
+    const modelType = materialEditModelType(modelItem, materialEditTargetKind),
       hasOverrides = Boolean(
         modelItem.materialOverrides &&
           typeof modelItem.materialOverrides == "object" &&
@@ -10138,17 +10446,26 @@ function writeStoredCustomMaterialStyles(records) {
     // 隐私模式 / 配额已满：存不下就只留在本次会话里。
   }
 }
-/** 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。 */
+/**
+ * 把当前物件的出图结果存成一档个人预设（同名同组覆盖）。
+ *
+ * 家具与门共用这条通道：槽位来源按来源分流（门走程序化部件表，家具走 GLB 材质槽），
+ * 但存下来的记录结构一致 —— 都是 `{ role, color, roughness, metalness, slab }`。
+ */
 function saveCurrentItemMaterialStyle(label) {
-  const modelItem = getSelectedObject();
+  const materialEditTarget = selectedMaterialEditTarget(),
+    modelItem = materialEditTarget?.record;
   if (!modelItem) return "";
-  const modelType = externalModelRegistry.modelTypeForItem(modelItem),
+  const modelType = materialEditModelType(modelItem, materialEditTarget.kind),
     presetGroup = materialStyleGroupFor(modelType);
   if (!presetGroup) return "";
-  const materialSlotEntries = externalModelRegistry.describeItemMaterials(
-    modelItem,
-    materialLoadOptionsForItem(modelItem),
-  );
+  const materialSlotEntries =
+    materialEditTarget.kind === "door"
+      ? describeDoorMaterials(modelItem)
+      : externalModelRegistry.describeItemMaterials(
+          modelItem,
+          materialLoadOptionsForItem(modelItem),
+        );
   if (!materialSlotEntries) return "";
   const currentStyle = normalizeMaterialStyle(modelType, modelItem.materialStyle),
     customId = customMaterialStyleId(presetGroup, label),
@@ -10189,26 +10506,35 @@ function deleteCustomMaterialStyle(styleId) {
     loadCustomMaterialStyles(),
     (materialStyleOptionSignature = ""));
   // 档位表里已经没有这一档了，normalizeMaterialStyle 会把在用的物件自动归一成 auto。
+  // 家具与门分开记：门属于户型洞口那一层，要重建的是 architecture 范围。
   const affectedItems = studioState.items.filter(
-    (sceneItem) => sceneItem.materialStyle === styleId,
-  );
-  if (!affectedItems.length) return void (materialSlotPanelSignature = "");
+      (sceneItem) => sceneItem.materialStyle === styleId,
+    ),
+    affectedDoors = studioState.doors.filter(
+      (sceneDoor) => sceneDoor.materialStyle === styleId,
+    );
+  if (!affectedItems.length && !affectedDoors.length)
+    return void (materialSlotPanelSignature = "");
   const undoSnapshot = captureUndoSnapshot();
   for (const affectedItem of affectedItems) delete affectedItem.materialStyle;
+  for (const affectedDoor of affectedDoors) delete affectedDoor.materialStyle;
   (applyPlacementChange(undoSnapshot),
-    refreshScopeItems("items"),
+    affectedItems.length && refreshScopeItems("items"),
+    affectedDoors.length && refreshScopeItems("architecture"),
     markDocumentDirty());
 }
 /**
  * 「应用到同类物件」：把当前物件的档位、逐槽颜色与表面参数复制给场景里同模型的其它物件。
  *
- * 一次 undo 快照 + 一次重建：批量改动要有一步回退，否则用户只能逐个改回去。
+ * 家具按 itemType 找同款，门按 **doorType** 找同款（见 `materialSameModelPeerRecords`），
+ * 两者共用这一条通道；一次 undo 快照 + 一次重建，批量改动要有一步回退。
  */
 function applyMaterialToSameModelItems() {
-  const modelItem = getSelectedObject();
+  const materialEditTarget = selectedMaterialEditTarget(),
+    modelItem = materialEditTarget?.record;
   if (!modelItem) return 0;
-  const modelType = externalModelRegistry.modelTypeForItem(modelItem);
-  if (!modelType) return 0;
+  const peerItems = materialSameModelPeerRecords(materialEditTarget);
+  if (!peerItems.length) return 0;
   const materialOverrides = modelItem.materialOverrides
       ? { ...modelItem.materialOverrides }
       : null,
@@ -10218,13 +10544,6 @@ function applyMaterialToSameModelItems() {
       ? normalizeMaterialSurfaceOverrides(modelItem.materialSurfaceOverrides)
       : null,
     materialStyle = modelItem.materialStyle || null;
-  const peerItems = studioState.items.filter(
-    (sceneItem) =>
-      sceneItem !== modelItem &&
-      sceneItem?.id !== modelItem.id &&
-      externalModelRegistry.modelTypeForItem(sceneItem) === modelType,
-  );
-  if (!peerItems.length) return 0;
   const undoSnapshot = captureUndoSnapshot();
   for (const peerItem of peerItems)
     (materialStyle
@@ -10239,7 +10558,11 @@ function applyMaterialToSameModelItems() {
   return (
     (materialSlotPanelSignature = ""),
     applyPlacementChange(undoSnapshot),
-    refreshScopeItems("items"),
+    refreshScopeItems(
+      materialEditTarget.kind === "door"
+        ? "architecture"
+        : resolvePreviewScope(materialEditTarget.record),
+    ),
     markDocumentDirty(),
     peerItems.length
   );
@@ -26471,15 +26794,18 @@ function buildInteriorScene({
         ne8 = createSelectionRef("door", currentDoor.id),
         doorType = currentDoor.doorType || "solid",
         isSolidDoorLeaf = doorType === "solid" || doorType === "frame-only",
-        solidDoorFrame = isSolidDoorLeaf
-          ? yt6.solidDoorFrame
-          : doorType === "entry"
-            ? yt6.entryDoorFrame
-            : undefined,
-        accent3 = ne8 ? yt6.accent : (solidDoorFrame ?? yt6.doorFrame ?? yt6.frame),
+        // 门的逐部件材质：主题键 → 档位配方 → 逐门覆盖色（见 resolveDoorPartMaterials）。
+        // 下面每个 mesh 从 doorParts.<角色> 取色，不再直接读 yt6 —— 这样「材质属性」面板
+        // 与画面同源，改一处两边都变。
+        doorParts = resolveDoorPartMaterials(currentDoor, yt6),
+        doorPartColor = (roleName) => doorPartDisplayColor(doorParts[roleName], ne8, yt6),
+        doorPartOptions = (roleName, baseOptions) =>
+          doorPartMeshOptions(doorParts[roleName], baseOptions),
         doorLeafMaterialOptions = yt6.warmWood
           ? {
-              emissive: yt6.doorLeaf,
+              // 暖木主题的门扇带一层自发光提亮；自发光跟着门扇自己的颜色走，换档位时
+              // 不会留下一层「旧色的发光」。
+              emissive: doorParts.door?.colorValue ?? yt6.doorLeaf,
               emissiveIntensity: 0.4,
             }
           : {},
@@ -26529,7 +26855,12 @@ function buildInteriorScene({
         ]);
       }
       if (
-        (addArchitectureMesh(doorGroup, doorLeafPanels, accent3, doorLeafOptions),
+        (addArchitectureMesh(
+          doorGroup,
+          doorLeafPanels,
+          doorPartColor("frame"),
+          doorPartOptions("frame", doorLeafOptions),
+        ),
         doorType === "frame-only")
       ) {
         ((doorGroup.userData.optimizationStats = {
@@ -26572,8 +26903,8 @@ function buildInteriorScene({
                   centerZ: slidingPanelSign * 0.024,
                 },
               ],
-              accent3,
-              yt6.glass,
+              doorPartColor("frame"),
+              doorParts.glass.colorValue,
             ));
           const slidingPanelTrackOffset =
             slidingPanelOffset - slidingPanelSign * doorLeafMaxWidth * 0.36;
@@ -26589,13 +26920,13 @@ function buildInteriorScene({
                 slidingPanelSign * 0.052,
               ],
             ],
-            yt6.furnitureDark,
-            {
+            doorPartColor("metal"),
+            doorPartOptions("metal", {
               rounded: false,
               metalness: 0.5,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           );
         }
         (buildInteriorSceneIsEmbeddedStage &&
@@ -26634,15 +26965,15 @@ function buildInteriorScene({
                 pocketSwingSign * 0.04,
               ],
             ],
-            ne8 ? yt6.accent : (yt6.rollerCurtain ?? yt6.furnitureSoft),
-            {
+            doorPartColor("shutter"),
+            doorPartOptions("shutter", {
               ...doorLeafMaterialOptions,
               rounded: false,
               metalness: yt6.warmWood ? 0.08 : 0.36,
               roughness: 0.42,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           ));
         const pocketSlatCount = Math.max(5, Math.min(36, Math.round(pocketDoorHeight / 0.12))),
           pocketSlatOffsets = [];
@@ -26660,15 +26991,15 @@ function buildInteriorScene({
         (addArchitectureMesh(
           pocketDoorGroup,
           pocketSlatOffsets,
-          yt6.rollerSlat ?? yt6.furnitureDark,
-          {
+          doorPartColor("slat"),
+          doorPartOptions("slat", {
             ...doorLeafMaterialOptions,
             rounded: false,
             metalness: yt6.warmWood ? 0.08 : 0.42,
             roughness: 0.34,
             castShadow: false,
             receiveShadow: false,
-          },
+          }),
         ),
           doorGroup.add(pocketDoorGroup),
           (doorGroup.userData.optimizationStats = {
@@ -26684,19 +27015,18 @@ function buildInteriorScene({
             buildInteriorSceneDoorWidth - doorLeafThickness * 1.5,
             0.4,
           ),
-          pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8),
-          accent4 = ne8 ? yt6.accent : yt6.furnitureDark;
+          pocketLeafHeight = Math.max(buildInteriorSceneDoorHeight - doorLeafThickness * 0.85, 0.8);
         (addArchitectureMesh(
           doorGroup,
           [[pocketLeafWidth, pocketLeafHeight, 0.065, 0, pocketLeafHeight * 0.5, 0]],
-          accent4,
-          {
+          doorPartColor("door"),
+          doorPartOptions("door", {
             rounded: false,
             roughness: 0.58,
             metalness: 0.1,
             castShadow: false,
             receiveShadow: false,
-          },
+          }),
         ),
           addArchitectureMesh(
             doorGroup,
@@ -26704,27 +27034,27 @@ function buildInteriorScene({
               [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.68, 0.012],
               [pocketLeafWidth * 0.76, 0.022, 0.078, 0, buildInteriorSceneDoorHeight * 0.34, 0.012],
             ],
-            yt6.furnitureSoft,
-            {
+            doorPartColor("trim"),
+            doorPartOptions("trim", {
               rounded: false,
               roughness: 0.5,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           ));
         const pocketHingeOffset =
           currentDoor.hinge === "right" ? -pocketLeafWidth * 0.34 : pocketLeafWidth * 0.34;
         addArchitectureMesh(
           doorGroup,
           [[0.035, 0.18, 0.085, pocketHingeOffset, buildInteriorSceneDoorHeight * 0.5, 0.055]],
-          yt6.furnitureLight,
-          {
+          doorPartColor("metal"),
+          doorPartOptions("metal", {
             rounded: false,
             metalness: 0.58,
             roughness: 0.24,
             castShadow: false,
             receiveShadow: false,
-          },
+          }),
         );
         const pocketLeafGroup = new ns2.Group();
         pocketLeafGroup.position.x =
@@ -26786,27 +27116,27 @@ function buildInteriorScene({
                 0,
               ],
             ],
-            ne8 ? yt6.accent : yt6.doorLeaf,
-            {
+            doorPartColor("door"),
+            doorPartOptions("door", {
               ...doorLeafMaterialOptions,
               rounded: false,
               roughness: 0.66,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           );
           const splitPanelHandleX =
             splitPanelSign < 0 ? splitPanelWidth * 0.84 : -splitPanelWidth * 0.84;
           (addArchitectureMesh(
             splitPanelGroup,
             [[0.035, 0.055, 0.065, splitPanelHandleX, buildInteriorSceneDoorHeight * 0.5, 0.04]],
-            yt6.furnitureDark,
-            {
+            doorPartColor("metal"),
+            doorPartOptions("metal", {
               rounded: false,
               metalness: 0.45,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           ),
             doorGroup.add(splitPanelGroup));
         }
@@ -26842,32 +27172,32 @@ function buildInteriorScene({
                 centerZ: 0,
               },
             ],
-            accent3,
-            yt6.glass,
+            doorPartColor("frame"),
+            doorParts.glass.colorValue,
           )
         : addArchitectureMesh(
             foldLeafGroup,
             [[foldLeafWidth, foldLeafHeight, 0.04, foldLeafOffset, foldLeafHeight / 2, 0]],
-            ne8 ? yt6.accent : yt6.doorLeaf,
-            {
+            doorPartColor("door"),
+            doorPartOptions("door", {
               ...doorLeafMaterialOptions,
               rounded: false,
               roughness: 0.66,
               castShadow: false,
               receiveShadow: false,
-            },
+            }),
           );
       const foldLeafHingeOffset = isRightHingeLeaf ? -foldLeafWidth * 0.84 : foldLeafWidth * 0.84;
       (addArchitectureMesh(
         foldLeafGroup,
         [[0.035, 0.055, 0.065, foldLeafHingeOffset, buildInteriorSceneDoorHeight * 0.5, 0.04]],
-        yt6.furnitureDark,
-        {
+        doorPartColor("metal"),
+        doorPartOptions("metal", {
           rounded: false,
           metalness: 0.45,
           castShadow: false,
           receiveShadow: false,
-        },
+        }),
       ),
         buildInteriorSceneIsEmbeddedStage &&
           ((doorGroup.userData.doorLeafWidth = foldLeafWidth),
@@ -30689,21 +31019,27 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
       setItemMaterialStyle(materialStyleChip.dataset.materialStyleId);
   }),
   materialStyleDeleteButton.addEventListener("click", () => {
-    const selectedModelItem = getSelectedObject(),
-      selectedModelType = externalModelRegistry.modelTypeForItem(selectedModelItem),
-      selectedStyle = normalizeMaterialStyle(selectedModelType, selectedModelItem?.materialStyle);
+    const materialEditTarget = selectedMaterialEditTarget(),
+      selectedModelType = materialEditModelType(
+        materialEditTarget?.record,
+        materialEditTarget?.kind,
+      ),
+      selectedStyle = normalizeMaterialStyle(
+        selectedModelType,
+        materialEditTarget?.record?.materialStyle,
+      );
     selectedStyle.startsWith("custom:") && deleteCustomMaterialStyle(selectedStyle);
   }),
   materialResetAllButton.addEventListener("click", () => resetItemMaterialAll()),
   // 「存为我的预设」走一个命名弹窗，「应用到同类」走一个确认弹窗（都会改动多件物件）。
   materialSavePresetButton.addEventListener("click", () => {
-    const modelItem = getSelectedObject();
-    if (!modelItem || !materialStyleGroupFor(externalModelRegistry.modelTypeForItem(modelItem)))
-      return;
+    const materialEditTarget = selectedMaterialEditTarget(),
+      modelType = materialEditModelType(materialEditTarget?.record, materialEditTarget?.kind);
+    if (!materialEditTarget || !materialStyleGroupFor(modelType)) return;
     (materialPresetNameInput &&
       (materialPresetNameInput.value = materialStyleLabel(
-        externalModelRegistry.modelTypeForItem(modelItem),
-        modelItem.materialStyle,
+        modelType,
+        materialEditTarget.record.materialStyle,
       )),
       materialPresetDialogElement?.showModal(),
       materialPresetNameInput?.focus(),
@@ -30717,9 +31053,10 @@ for (const lightingOptionInputFridgeStyleInput of document.querySelectorAll(
     materialPresetDialogElement?.close(),
   ),
   materialApplySameButton.addEventListener("click", () => {
-    const peerCount = materialSameModelPeerCount(getSelectedObject());
+    const peerCount = materialSameModelPeerCount(selectedMaterialEditTarget());
     if (!peerCount) return;
-    (materialApplyCountElement && (materialApplyCountElement.textContent = peerCount + " 件同模型物件"),
+    (materialApplyCountElement &&
+      (materialApplyCountElement.textContent = peerCount + " 件同类物件"),
       materialApplyDialogElement?.showModal());
   }),
   materialApplyFormElement.addEventListener("submit", () => {
@@ -30933,8 +31270,12 @@ if (
       (isSnapTemporarilyOff = false));
   }),
   window.addEventListener("beforeunload", (beforeUnloadEvent) => {
-    localSaveRevision !== remoteSaveRevision &&
-      (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = ""));
+    // [开发页放行] Vite dev server 的热重载本身就是一次 beforeunload：守卫拦下来，页面就会一直
+    // 跑改动前的模块，改材质 / 改代码全都表现成「没变化」。判据用 dev 注入的 /@vite/client，
+    // 生产构建的页面里没有这个 script，未保存改动的拦截照旧生效。
+    document.querySelector('script[src="/@vite/client"]') ||
+      (localSaveRevision !== remoteSaveRevision &&
+        (beforeUnloadEvent.preventDefault(), (beforeUnloadEvent.returnValue = "")));
   }),
   document.addEventListener("visibilitychange", () => {
     document.hidden || refreshSceneRender();

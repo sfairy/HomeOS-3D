@@ -1674,6 +1674,134 @@ const SCREEN_STYLES: readonly MaterialStylePreset[] = Object.freeze([
 ]);
 
 /* -------------------------------------------------------------------------- */
+/* 门（户型里的洞口构件）                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 门：门框 / 门扇 / 玻璃 / 五金 / 卷帘 / 帘片 / 装饰线（角色见 `MODEL_SLOT_ROLES.door`）。
+ *
+ * 与其它组合不同：门**没声明的角色就落回主题** —— 白色烤漆门不必替用户决定玻璃通透度，
+ * 黑框玻璃门也不必管卷帘。所以这里不做「谁补谁」的兜底，给了哪几个角色就登记哪几个，
+ * 其余留给 `ROLE_RECIPES_BY_FAMILY.door` 那条与主题同源的基准。
+ *
+ * 但**每个门型至少要被某一档覆盖到大多数部件**：门型各有各的部件子集（实木门只有门框 +
+ * 五金、卷帘门是门框 + 卷帘 + 帘片、入户门是门扇 + 装饰线 + 五金），漏掉哪个部件就等于
+ * 那个门型「选了档位画面几乎没变」（L6c 钉住的正是这条）。所以卷帘 / 帘片 / 装饰线也逐档
+ * 给出配方，与同档门框 / 门扇同料同色。
+ */
+function doorCombo(roles: Record<string, Recipe>): Record<string, Recipe> {
+  return roles;
+}
+
+/** 门玻璃：与主题玻璃同一档通透度（面板与画面同源，别在这里另编一个数值）。 */
+const DOOR_GLASS_RECIPE: Recipe = Object.freeze({
+  surface: "glass",
+  color: "glass",
+  transparent: true,
+  opacity: 0.34,
+  depthWrite: false,
+});
+
+const DOOR_STYLES: readonly MaterialStylePreset[] = Object.freeze([
+  definePreset(
+    "door-white-lacquer",
+    "白色烤漆门",
+    "lacquer",
+    {
+      doorFrame: 0xf5f3ef,
+      doorLeaf: 0xf7f5f1,
+      furnitureDark: 0xcdc8c0,
+    },
+    doorCombo({
+      frame: { surface: "lacquer", color: 0xf5f3ef },
+      door: { surface: "lacquer", color: 0xf7f5f1 },
+      metal: { surface: "metal", color: 0xb4babf },
+      // 卷帘门（roller-shutter）没有门扇，只吃帘面 / 帘片两槽：档位不声明它们的话，
+      // 用户给卷帘门换风格会「只有门框变了」——这正是 L6c 覆盖率断言在拦的那类回归。
+      shutter: { surface: "fabric", color: 0xe9e5df },
+      slat: { surface: "metal", color: 0xd3cfc8 },
+      // 入户门门扇上的装饰横线。
+      trim: { surface: "lacquer", color: 0xdcd8d2 },
+    }),
+  ),
+  definePreset(
+    "door-natural-oak",
+    "原木门",
+    "wood",
+    {
+      doorFrame: 0xc49a6c,
+      doorLeaf: 0xd8b98f,
+      furnitureDark: 0x9c6b3f,
+    },
+    doorCombo({
+      frame: { surface: "wood", color: 0xc49a6c },
+      door: { surface: "wood", color: 0xd8b98f },
+      metal: { surface: "metal", color: 0x8c8f94 },
+      shutter: { surface: "fabric", color: 0xdcc7a6 },
+      slat: { surface: "metal", color: 0xb39a78 },
+      trim: { surface: "wood", color: 0xb98d5f },
+    }),
+  ),
+  definePreset(
+    "door-walnut",
+    "胡桃木门",
+    "wood",
+    {
+      doorFrame: 0x6b4526,
+      doorLeaf: 0x855c36,
+      furnitureDark: 0x4a2e1a,
+    },
+    doorCombo({
+      frame: { surface: "wood", color: 0x6b4526 },
+      door: { surface: "wood", color: 0x855c36 },
+      metal: { surface: "metal", color: 0x3a3a3c },
+      shutter: { surface: "fabric", color: 0x7c5734 },
+      slat: { surface: "metal", color: 0x5c3d22 },
+      trim: { surface: "wood", color: 0x53381f },
+    }),
+  ),
+  definePreset(
+    "door-dark-metal",
+    "深灰金属门",
+    "metal",
+    {
+      doorFrame: 0x3a3a3c,
+      doorLeaf: 0x46464a,
+      furnitureDark: 0x242426,
+    },
+    doorCombo({
+      frame: { surface: "metal", color: 0x3a3a3c, roughness: 0.42, metalness: 0.45 },
+      door: { surface: "lacquer", color: 0x46464a },
+      metal: { surface: "metal", color: 0x2e2e30 },
+      shutter: { surface: "metal", color: 0x3e3e42 },
+      slat: { surface: "metal", color: 0x2a2a2c },
+      trim: { surface: "metal", color: 0x35353a },
+    }),
+  ),
+  definePreset(
+    "door-black-frame-glass",
+    "黑框玻璃门",
+    "glass",
+    {
+      doorFrame: 0x2a2c30,
+      doorLeaf: 0x2a2c30,
+      glass: 0xbcd6e0,
+      furnitureDark: 0x2e2e30,
+    },
+    doorCombo({
+      frame: { surface: "metal", color: 0x2a2c30, roughness: 0.4, metalness: 0.5 },
+      // 玻璃门的「门扇」就是那圈黑框：两块料同色，换色时整扇门一起走。
+      door: { surface: "metal", color: 0x2a2c30, roughness: 0.4, metalness: 0.5 },
+      glass: DOOR_GLASS_RECIPE,
+      metal: { surface: "metal", color: 0x6d747b },
+      shutter: { surface: "metal", color: 0x2a2c30 },
+      slat: { surface: "metal", color: 0x3a3d42 },
+      trim: { surface: "metal", color: 0x4a4e54 },
+    }),
+  ),
+]);
+
+/* -------------------------------------------------------------------------- */
 /* 档位组 → 模型                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -1682,6 +1810,7 @@ const PRESET_GROUPS: Readonly<Record<string, readonly MaterialStylePreset[]>> = 
   joinery: JOINERY_STYLES,
   pillar: PILLAR_STYLES,
   woodwork: WOOD_FURNITURE_STYLES,
+  door: DOOR_STYLES,
   marbleTable: STONE_FURNITURE_STYLES,
   steelAppliance: STEEL_APPLIANCE_STYLES,
   device: DEVICE_STYLES,
@@ -1717,6 +1846,8 @@ const PRESET_GROUP_BY_MODEL_TYPE: Readonly<Record<string, string>> = Object.free
   pipelinewaterpurifier: "steelAppliance",
   piano: "piano",
   aquarium: "aquarium",
+  // 门是程序化几何，模型类型就是 `door`；档位组与之同名（组表见 DOOR_STYLES）。
+  door: "door",
   // 结构件 / 专用收尾：不提供档位（对齐 0.6.5 的排除表，并把新项目的车辆一并排除）。
   mural: "",
   featurewall: "",
@@ -1830,10 +1961,12 @@ const MATERIAL_STYLE_SWATCH_ROLE_ORDER: readonly string[] = Object.freeze([
   "slab",
   "body",
   "door",
+  // 门框排在玻璃前：玻璃门的招牌色是那圈框（黑框 / 木框），玻璃只是中间那片。
+  "frame",
+  "glass",
   "panel",
   "drawer",
   "shelf",
-  "frame",
   "leg",
   "base",
   "trim",
@@ -1841,6 +1974,8 @@ const MATERIAL_STYLE_SWATCH_ROLE_ORDER: readonly string[] = Object.freeze([
   "upholstery",
   "seat",
   "cushion",
+  "shutter",
+  "slat",
   "metal",
   "handle",
   "accent",
@@ -1855,6 +1990,12 @@ const MATERIAL_STYLE_SWATCH_PALETTE_KEYS: readonly string[] = Object.freeze([
   "wood",
   "furniture",
 ]);
+
+/** 角色在色卡上的排序权重（越靠前越是「一眼看到的面」）；未登记的角色排最后。 */
+function swatchRoleRank(role: string): number {
+  const rank = MATERIAL_STYLE_SWATCH_ROLE_ORDER.indexOf(role);
+  return rank < 0 ? MATERIAL_STYLE_SWATCH_ROLE_ORDER.length : rank;
+}
 
 const swatchHex = (colorValue: number) => "#" + (colorValue & 0xffffff).toString(16).padStart(6, "0");
 
@@ -1905,7 +2046,17 @@ export function materialStylePresetSwatchColors(
 
   const modelRoles = (options?.roles || []).filter((role): role is string => Boolean(role));
   if (modelRoles.length) {
-    for (const roleName of modelRoles) {
+    // 按**可见面主次**排，不按槽位号排：槽位号是资产内部的顺手顺序（桌子把拉手放在 0 号），
+    // 照搬会让色卡第一格永远是五金灰、桌面木色反而排在后面。
+    const seenRoles = new Set<string>();
+    const orderedRoles = [...modelRoles]
+      .sort((a, b) => swatchRoleRank(a) - swatchRoleRank(b))
+      .filter((roleName) => {
+        if (seenRoles.has(roleName)) return false;
+        seenRoles.add(roleName);
+        return true;
+      });
+    for (const roleName of orderedRoles) {
       if (swatchColors.length >= limit) break;
       const styleRecipe = preset.roles[roleName];
       if (styleRecipe) {
